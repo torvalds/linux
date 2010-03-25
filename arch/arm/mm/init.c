@@ -15,7 +15,6 @@
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
-#include <linux/sort.h>
 #include <linux/highmem.h>
 
 #include <asm/mach-types.h>
@@ -387,20 +386,11 @@ static void arm_memory_present(struct meminfo *mi, int node)
 }
 #endif
 
-static int __init meminfo_cmp(const void *_a, const void *_b)
-{
-	const struct membank *a = _a, *b = _b;
-	long cmp = bank_pfn_start(a) - bank_pfn_start(b);
-	return cmp < 0 ? -1 : cmp > 0 ? 1 : 0;
-}
-
 void __init bootmem_init(void)
 {
 	struct meminfo *mi = &meminfo;
 	unsigned long min, max_low, max_high;
 	int node, initrd_node;
-
-	sort(&mi->bank, mi->nr_banks, sizeof(mi->bank[0]), meminfo_cmp, NULL);
 
 	/*
 	 * Locate which node contains the ramdisk image, if any.
