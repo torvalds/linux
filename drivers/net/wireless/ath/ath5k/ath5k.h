@@ -1173,8 +1173,7 @@ int ath5k_hw_update_tx_triglevel(struct ath5k_hw *ah, bool increase);
 bool ath5k_hw_is_intr_pending(struct ath5k_hw *ah);
 int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask);
 enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask);
-void ath5k_hw_update_mib_counters(struct ath5k_hw *ah,
-				  struct ieee80211_low_level_stats *stats);
+void ath5k_hw_update_mib_counters(struct ath5k_hw *ah);
 
 /* EEPROM access functions */
 int ath5k_eeprom_init(struct ath5k_hw *ah);

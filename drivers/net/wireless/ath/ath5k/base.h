@@ -105,10 +105,13 @@ struct ath5k_rfkill {
 	struct tasklet_struct toggleq;
 };
 
-/* statistics (only used for debugging now) */
+/* statistics */
 struct ath5k_statistics {
+	/* antenna use */
 	unsigned int antenna_rx[5];	/* frames count per antenna RX */
 	unsigned int antenna_tx[5];	/* frames count per antenna TX */
+
+	/* frame errors */
 	unsigned int rx_all_count;	/* all RX frames, including errors */
 	unsigned int tx_all_count;	/* all TX frames, including errors */
 	unsigned int rxerr_crc;
@@ -121,6 +124,13 @@ struct ath5k_statistics {
 	unsigned int txerr_retry;
 	unsigned int txerr_fifo;
 	unsigned int txerr_filt;
+
+	/* MIB counters */
+	unsigned int ack_fail;
+	unsigned int rts_fail;
+	unsigned int rts_ok;
+	unsigned int fcs_error;
+	unsigned int beacons;
 };
 
 #if CHAN_DEBUG
@@ -135,7 +145,6 @@ struct ath5k_softc {
 	struct pci_dev		*pdev;		/* for dma mapping */
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
-	struct ieee80211_low_level_stats ll_stats;
 	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels[ATH_CHAN_MAX];
