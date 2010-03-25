@@ -39,10 +39,6 @@
 #include "musb_core.h"
 #include "omap2430.h"
 
-#ifdef CONFIG_ARCH_OMAP3430
-#define	get_cpu_rev()	2
-#endif
-
 
 static struct timer_list musb_idle_timer;
 
