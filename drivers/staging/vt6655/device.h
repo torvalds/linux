@@ -898,7 +898,8 @@ inline static BOOL device_get_ip(PSDevice pInfo) {
 
 static inline PDEVICE_RD_INFO alloc_rd_info(void) {
     PDEVICE_RD_INFO  ptr;
-    if ((ptr = (PDEVICE_RD_INFO)kmalloc((int)sizeof(DEVICE_RD_INFO), (int)GFP_ATOMIC)) == NULL)
+    ptr = (PDEVICE_RD_INFO)kmalloc((int)sizeof(DEVICE_RD_INFO), (int)GFP_ATOMIC);
+    if (ptr == NULL)
         return NULL;
     else {
         memset(ptr,0,sizeof(DEVICE_RD_INFO));
@@ -908,7 +909,8 @@ static inline PDEVICE_RD_INFO alloc_rd_info(void) {
 
 static inline PDEVICE_TD_INFO alloc_td_info(void) {
     PDEVICE_TD_INFO  ptr;
-    if ((ptr = (PDEVICE_TD_INFO)kmalloc((int)sizeof(DEVICE_TD_INFO), (int)GFP_ATOMIC))==NULL)
+    ptr = (PDEVICE_TD_INFO)kmalloc((int)sizeof(DEVICE_TD_INFO), (int)GFP_ATOMIC);
+    if (ptr == NULL)
         return NULL;
     else {
         memset(ptr,0,sizeof(DEVICE_TD_INFO));

@@ -638,7 +638,8 @@ byValue1 = SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_ANTENNA);
 //2008-8-4 <add> by chester
 //zonetype initial
  pDevice->byOriginalZonetype = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];
- if((zonetype=Config_FileOperation(pDevice,FALSE,NULL)) >= 0) {         //read zonetype file ok!
+ zonetype = Config_FileOperation(pDevice,FALSE,NULL);
+ if (zonetype >= 0) {         //read zonetype file ok!
   if ((zonetype == 0)&&
         (pDevice->abyEEPROM[EEP_OFS_ZONETYPE] !=0x00)){          //for USA
     pDevice->abyEEPROM[EEP_OFS_ZONETYPE] = 0;

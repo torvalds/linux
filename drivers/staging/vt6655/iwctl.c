@@ -1700,7 +1700,8 @@ int iwctl_giwpower(struct net_device *dev,
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWPOWER \n");
 
 
-	if ((wrq->disabled = (mode == WMAC_POWER_CAM)))
+	wrq->disabled = (mode == WMAC_POWER_CAM);
+	if (wrq->disabled)
 	    return 0;
 
 	if ((wrq->flags & IW_POWER_TYPE) == IW_POWER_TIMEOUT) {
