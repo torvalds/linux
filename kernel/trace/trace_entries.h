@@ -318,18 +318,6 @@ FTRACE_ENTRY(branch, trace_branch,
 		 __entry->func, __entry->file, __entry->correct)
 );
 
-FTRACE_ENTRY(hw_branch, hw_branch_entry,
-
-	TRACE_HW_BRANCHES,
-
-	F_STRUCT(
-		__field(	u64,	from	)
-		__field(	u64,	to	)
-	),
-
-	F_printk("from: %llx to: %llx", __entry->from, __entry->to)
-);
-
 FTRACE_ENTRY(kmem_alloc, kmemtrace_alloc_entry,
 
 	TRACE_KMEM_ALLOC,
