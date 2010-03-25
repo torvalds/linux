@@ -992,6 +992,15 @@ struct ath5k_nfcal_hist
 	s16 nfval[ATH5K_NF_CAL_HIST_MAX];	/* last few noise floors */
 };
 
+/**
+ * struct avg_val - Helper structure for average calculation
+ * @avg: contains the actual average value
+ * @avg_weight: is used internally during calculation to prevent rounding errors
+ */
+struct ath5k_avg_val {
+	int avg;
+	int avg_weight;
+};
 
 /***************************************\
   HARDWARE ABSTRACTION LAYER STRUCTURE
@@ -1095,6 +1104,9 @@ struct ath5k_hw {
 	} ah_radar;
 
 	struct ath5k_nfcal_hist ah_nfcal_hist;
+
+	/* average beacon RSSI in our BSS (used by ANI) */
+	struct ath5k_avg_val	ah_beacon_rssi_avg;
 
 	/* noise floor from last periodic calibration */
 	s32			ah_noise_floor;
@@ -1303,6 +1315,29 @@ static inline u32 ath5k_hw_bitswap(u32 val, unsigned int bits)
 	}
 
 	return retval;
+}
+
+#define AVG_SAMPLES	8
+#define AVG_FACTOR	1000
+
+/**
+ * ath5k_moving_average -  Exponentially weighted moving average
+ * @avg: average structure
+ * @val: current value
+ *
+ * This implementation make use of a struct ath5k_avg_val to prevent rounding
+ * errors.
+ */
+static inline struct ath5k_avg_val
+ath5k_moving_average(const struct ath5k_avg_val avg, const int val)
+{
+	struct ath5k_avg_val new;
+	new.avg_weight = avg.avg_weight  ?
+		(((avg.avg_weight * ((AVG_SAMPLES) - 1)) +
+			(val * (AVG_FACTOR))) / (AVG_SAMPLES)) :
+		(val * (AVG_FACTOR));
+	new.avg = new.avg_weight / (AVG_FACTOR);
+	return new;
 }
 
 #endif

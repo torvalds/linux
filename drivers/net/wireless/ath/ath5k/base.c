@@ -1803,6 +1803,25 @@ ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
 	}
 }
 
+static void
+ath5k_update_beacon_rssi(struct ath5k_softc *sc, struct sk_buff *skb, int rssi)
+{
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
+	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
+
+	/* only beacons from our BSSID */
+	if (!ieee80211_is_beacon(mgmt->frame_control) ||
+	    memcmp(mgmt->bssid, common->curbssid, ETH_ALEN) != 0)
+		return;
+
+	ah->ah_beacon_rssi_avg = ath5k_moving_average(ah->ah_beacon_rssi_avg,
+						      rssi);
+
+	/* in IBSS mode we should keep RSSI statistics per neighbour */
+	/* le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS */
+}
+
 /*
  * Compute padding position. skb must contains an IEEE 802.11 frame
  */
@@ -2021,6 +2040,8 @@ accept:
 			rxs->flag |= RX_FLAG_SHORTPRE;
 
 		ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
+
+		ath5k_update_beacon_rssi(sc, skb, rs.rs_rssi);
 
 		/* check beacons in IBSS mode */
 		if (sc->opmode == NL80211_IFTYPE_ADHOC)
