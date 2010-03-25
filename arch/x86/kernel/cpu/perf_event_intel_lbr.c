@@ -12,15 +12,12 @@ enum {
  * otherwise it becomes near impossible to get a reliable stack.
  */
 
-#define X86_DEBUGCTL_LBR               		(1 << 0)
-#define X86_DEBUGCTL_FREEZE_LBRS_ON_PMI		(1 << 11)
-
 static void __intel_pmu_lbr_enable(void)
 {
 	u64 debugctl;
 
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
-	debugctl |= (X86_DEBUGCTL_LBR | X86_DEBUGCTL_FREEZE_LBRS_ON_PMI);
+	debugctl |= (DEBUGCTLMSR_LBR | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
 	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 }
 
@@ -29,7 +26,7 @@ static void __intel_pmu_lbr_disable(void)
 	u64 debugctl;
 
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
-	debugctl &= ~(X86_DEBUGCTL_LBR | X86_DEBUGCTL_FREEZE_LBRS_ON_PMI);
+	debugctl &= ~(DEBUGCTLMSR_LBR | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
 	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 }
 

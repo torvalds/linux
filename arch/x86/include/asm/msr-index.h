@@ -71,11 +71,14 @@
 #define MSR_IA32_LASTINTTOIP		0x000001de
 
 /* DEBUGCTLMSR bits (others vary by model): */
-#define _DEBUGCTLMSR_LBR	0 /* last branch recording */
-#define _DEBUGCTLMSR_BTF	1 /* single-step on branches */
-
-#define DEBUGCTLMSR_LBR		(1UL << _DEBUGCTLMSR_LBR)
-#define DEBUGCTLMSR_BTF		(1UL << _DEBUGCTLMSR_BTF)
+#define DEBUGCTLMSR_LBR			(1UL <<  0) /* last branch recording */
+#define DEBUGCTLMSR_BTF			(1UL <<  1) /* single-step on branches */
+#define DEBUGCTLMSR_TR			(1UL <<  6)
+#define DEBUGCTLMSR_BTS			(1UL <<  7)
+#define DEBUGCTLMSR_BTINT		(1UL <<  8)
+#define DEBUGCTLMSR_BTS_OFF_OS		(1UL <<  9)
+#define DEBUGCTLMSR_BTS_OFF_USR		(1UL << 10)
+#define DEBUGCTLMSR_FREEZE_LBRS_ON_PMI	(1UL << 11)
 
 #define MSR_IA32_MC0_CTL		0x00000400
 #define MSR_IA32_MC0_STATUS		0x00000401

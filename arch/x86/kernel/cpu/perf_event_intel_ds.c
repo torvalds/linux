@@ -38,15 +38,6 @@ struct pebs_record_nhm {
 };
 
 /*
- * Bits in the debugctlmsr controlling branch tracing.
- */
-#define X86_DEBUGCTL_TR			(1 << 6)
-#define X86_DEBUGCTL_BTS		(1 << 7)
-#define X86_DEBUGCTL_BTINT		(1 << 8)
-#define X86_DEBUGCTL_BTS_OFF_OS		(1 << 9)
-#define X86_DEBUGCTL_BTS_OFF_USR	(1 << 10)
-
-/*
  * A debug store configuration.
  *
  * We only support architectures that use 64bit fields.
@@ -193,15 +184,15 @@ static void intel_pmu_enable_bts(u64 config)
 
 	debugctlmsr = get_debugctlmsr();
 
-	debugctlmsr |= X86_DEBUGCTL_TR;
-	debugctlmsr |= X86_DEBUGCTL_BTS;
-	debugctlmsr |= X86_DEBUGCTL_BTINT;
+	debugctlmsr |= DEBUGCTLMSR_TR;
+	debugctlmsr |= DEBUGCTLMSR_BTS;
+	debugctlmsr |= DEBUGCTLMSR_BTINT;
 
 	if (!(config & ARCH_PERFMON_EVENTSEL_OS))
-		debugctlmsr |= X86_DEBUGCTL_BTS_OFF_OS;
+		debugctlmsr |= DEBUGCTLMSR_BTS_OFF_OS;
 
 	if (!(config & ARCH_PERFMON_EVENTSEL_USR))
-		debugctlmsr |= X86_DEBUGCTL_BTS_OFF_USR;
+		debugctlmsr |= DEBUGCTLMSR_BTS_OFF_USR;
 
 	update_debugctlmsr(debugctlmsr);
 }
@@ -217,8 +208,8 @@ static void intel_pmu_disable_bts(void)
 	debugctlmsr = get_debugctlmsr();
 
 	debugctlmsr &=
-		~(X86_DEBUGCTL_TR | X86_DEBUGCTL_BTS | X86_DEBUGCTL_BTINT |
-		  X86_DEBUGCTL_BTS_OFF_OS | X86_DEBUGCTL_BTS_OFF_USR);
+		~(DEBUGCTLMSR_TR | DEBUGCTLMSR_BTS | DEBUGCTLMSR_BTINT |
+		  DEBUGCTLMSR_BTS_OFF_OS | DEBUGCTLMSR_BTS_OFF_USR);
 
 	update_debugctlmsr(debugctlmsr);
 }
