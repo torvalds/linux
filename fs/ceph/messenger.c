@@ -663,7 +663,7 @@ static void prepare_write_connect(struct ceph_messenger *msgr,
 	dout("prepare_write_connect %p cseq=%d gseq=%d proto=%d\n", con,
 	     con->connect_seq, global_seq, proto);
 
-	con->out_connect.features = CEPH_FEATURE_SUPPORTED;
+	con->out_connect.features = CEPH_FEATURE_SUPPORTED_CLIENT;
 	con->out_connect.host_type = cpu_to_le32(CEPH_ENTITY_TYPE_CLIENT);
 	con->out_connect.connect_seq = cpu_to_le32(con->connect_seq);
 	con->out_connect.global_seq = cpu_to_le32(global_seq);
@@ -1126,8 +1126,8 @@ static void fail_protocol(struct ceph_connection *con)
 
 static int process_connect(struct ceph_connection *con)
 {
-	u64 sup_feat = CEPH_FEATURE_SUPPORTED;
-	u64 req_feat = CEPH_FEATURE_REQUIRED;
+	u64 sup_feat = CEPH_FEATURE_SUPPORTED_CLIENT;
+	u64 req_feat = CEPH_FEATURE_REQUIRED_CLIENT;
 	u64 server_feat = le64_to_cpu(con->in_reply.features);
 
 	dout("process_connect on %p tag %d\n", con, (int)con->in_tag);
@@ -1514,14 +1514,14 @@ static void process_message(struct ceph_connection *con)
 
 	/* if first message, set peer_name */
 	if (con->peer_name.type == 0)
-		con->peer_name = msg->hdr.src.name;
+		con->peer_name = msg->hdr.src;
 
 	con->in_seq++;
 	mutex_unlock(&con->mutex);
 
 	dout("===== %p %llu from %s%lld %d=%s len %d+%d (%u %u %u) =====\n",
 	     msg, le64_to_cpu(msg->hdr.seq),
-	     ENTITY_NAME(msg->hdr.src.name),
+	     ENTITY_NAME(msg->hdr.src),
 	     le16_to_cpu(msg->hdr.type),
 	     ceph_msg_type_name(le16_to_cpu(msg->hdr.type)),
 	     le32_to_cpu(msg->hdr.front_len),
@@ -1987,9 +1987,7 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 	}
 
 	/* set src+dst */
-	msg->hdr.src.name = con->msgr->inst.name;
-	msg->hdr.src.addr = con->msgr->my_enc_addr;
-	msg->hdr.orig_src = msg->hdr.src;
+	msg->hdr.src = con->msgr->inst.name;
 
 	BUG_ON(msg->front.iov_len != le32_to_cpu(msg->hdr.front_len));
 
