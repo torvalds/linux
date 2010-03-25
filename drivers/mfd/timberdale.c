@@ -41,6 +41,8 @@
 
 #include <media/timb_radio.h>
 
+#include <linux/timb_dma.h>
+
 #include "timberdale.h"
 
 #define DRIVER_NAME "timberdale"
@@ -270,6 +272,65 @@ static __devinitdata struct timb_radio_platform_data
 	}
 };
 
+static __devinitdata struct timb_dma_platform_data timb_dma_platform_data = {
+	.nr_channels = 10,
+	.channels = {
+		{
+			/* UART RX */
+			.rx = true,
+			.descriptors = 2,
+			.descriptor_elements = 1
+		},
+		{
+			/* UART TX */
+			.rx = false,
+			.descriptors = 2,
+			.descriptor_elements = 1
+		},
+		{
+			/* MLB RX */
+			.rx = true,
+			.descriptors = 2,
+			.descriptor_elements = 1
+		},
+		{
+			/* MLB TX */
+			.rx = false,
+			.descriptors = 2,
+			.descriptor_elements = 1
+		},
+		{
+			/* Video RX */
+			.rx = true,
+			.bytes_per_line = 1440,
+			.descriptors = 2,
+			.descriptor_elements = 16
+		},
+		{
+			/* Video framedrop */
+		},
+		{
+			/* SDHCI RX */
+			.rx = true,
+		},
+		{
+			/* SDHCI TX */
+		},
+		{
+			/* ETH RX */
+			.rx = true,
+			.descriptors = 2,
+			.descriptor_elements = 1
+		},
+		{
+			/* ETH TX */
+			.rx = false,
+			.descriptors = 2,
+			.descriptor_elements = 1
+		},
+	}
+};
+
 const static __devinitconst struct resource timberdale_dma_resources[] = {
 	{
 		.start	= DMAOFFSET,
@@ -284,6 +345,13 @@ const static __devinitconst struct resource timberdale_dma_resources[] = {
 };
 
 static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg0[] = {
+	{
+		.name = "timb-dma",
+		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
+		.resources = timberdale_dma_resources,
+		.platform_data = &timb_dma_platform_data,
+		.data_size = sizeof(timb_dma_platform_data),
+	},
 	{
 		.name = "timb-uart",
 		.num_resources = ARRAY_SIZE(timberdale_uart_resources),
@@ -322,14 +390,16 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg0[] = {
 		.num_resources = ARRAY_SIZE(timberdale_eth_resources),
 		.resources = timberdale_eth_resources,
 	},
+};
+
+static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
 		.resources = timberdale_dma_resources,
+		.platform_data = &timb_dma_platform_data,
+		.data_size = sizeof(timb_dma_platform_data),
 	},
-};
-
-static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 	{
 		.name = "timb-uart",
 		.num_resources = ARRAY_SIZE(timberdale_uart_resources),
@@ -378,14 +448,16 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 		.num_resources = ARRAY_SIZE(timberdale_eth_resources),
 		.resources = timberdale_eth_resources,
 	},
+};
+
+static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg2[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
 		.resources = timberdale_dma_resources,
+		.platform_data = &timb_dma_platform_data,
+		.data_size = sizeof(timb_dma_platform_data),
 	},
-};
-
-static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg2[] = {
 	{
 		.name = "timb-uart",
 		.num_resources = ARRAY_SIZE(timberdale_uart_resources),
@@ -419,14 +491,16 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg2[] = {
 		.platform_data = &timberdale_xspi_platform_data,
 		.data_size = sizeof(timberdale_xspi_platform_data),
 	},
+};
+
+static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg3[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
 		.resources = timberdale_dma_resources,
+		.platform_data = &timb_dma_platform_data,
+		.data_size = sizeof(timb_dma_platform_data),
 	},
-};
-
-static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg3[] = {
 	{
 		.name = "timb-uart",
 		.num_resources = ARRAY_SIZE(timberdale_uart_resources),
@@ -464,11 +538,6 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg3[] = {
 		.name = "ks8842",
 		.num_resources = ARRAY_SIZE(timberdale_eth_resources),
 		.resources = timberdale_eth_resources,
-	},
-	{
-		.name = "timb-dma",
-		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
-		.resources = timberdale_dma_resources,
 	},
 };
 
