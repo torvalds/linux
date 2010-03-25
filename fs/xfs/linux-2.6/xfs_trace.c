@@ -41,7 +41,6 @@
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_attr.h"
-#include "xfs_attr_sf.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_log_priv.h"
 #include "xfs_buf_item.h"
