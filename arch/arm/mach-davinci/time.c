@@ -361,12 +361,12 @@ static void __init davinci_timer_init(void)
 		}
 	}
 
-	/* init timer hw */
-	timer_init();
-
 	timer_clk = clk_get(NULL, "timer0");
 	BUG_ON(IS_ERR(timer_clk));
 	clk_enable(timer_clk);
+
+	/* init timer hw */
+	timer_init();
 
 	davinci_clock_tick_rate = clk_get_rate(timer_clk);
 
