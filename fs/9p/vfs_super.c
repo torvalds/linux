@@ -45,7 +45,7 @@
 #include "v9fs_vfs.h"
 #include "fid.h"
 
-static const struct super_operations v9fs_super_ops;
+static const struct super_operations v9fs_super_ops, v9fs_super_ops_dotl;
 
 /**
  * v9fs_set_super - set the superblock
@@ -76,7 +76,10 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	sb->s_blocksize_bits = fls(v9ses->maxdata - 1);
 	sb->s_blocksize = 1 << sb->s_blocksize_bits;
 	sb->s_magic = V9FS_MAGIC;
-	sb->s_op = &v9fs_super_ops;
+	if (v9fs_proto_dotl(v9ses))
+		sb->s_op = &v9fs_super_ops_dotl;
+	else
+		sb->s_op = &v9fs_super_ops;
 	sb->s_bdi = &v9ses->bdi;
 
 	sb->s_flags = flags | MS_ACTIVE | MS_SYNCHRONOUS | MS_DIRSYNC |
@@ -212,6 +215,17 @@ v9fs_umount_begin(struct super_block *sb)
 }
 
 static const struct super_operations v9fs_super_ops = {
+#ifdef CONFIG_9P_FSCACHE
+	.alloc_inode = v9fs_alloc_inode,
+	.destroy_inode = v9fs_destroy_inode,
+#endif
+	.statfs = simple_statfs,
+	.clear_inode = v9fs_clear_inode,
+	.show_options = generic_show_options,
+	.umount_begin = v9fs_umount_begin,
+};
+
+static const struct super_operations v9fs_super_ops_dotl = {
 #ifdef CONFIG_9P_FSCACHE
 	.alloc_inode = v9fs_alloc_inode,
 	.destroy_inode = v9fs_destroy_inode,
