@@ -474,6 +474,7 @@ static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
 	struct ath5k_statistics *st = &sc->stats;
 	char buf[700];
 	unsigned int len = 0;
+	int i;
 
 	len += snprintf(buf+len, sizeof(buf)-len,
 			"RX\n---------------------\n");
@@ -485,6 +486,13 @@ static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
 			st->rxerr_phy,
 			st->rx_all_count > 0 ?
 				st->rxerr_phy*100/st->rx_all_count : 0);
+	for (i = 0; i < 32; i++) {
+		if (st->rxerr_phy_code[i])
+			len += snprintf(buf+len, sizeof(buf)-len,
+				" phy_err[%d]\t%d\n",
+				i, st->rxerr_phy_code[i]);
+	}
+
 	len += snprintf(buf+len, sizeof(buf)-len, "FIFO\t%d\t(%d%%)\n",
 			st->rxerr_fifo,
 			st->rx_all_count > 0 ?

@@ -116,6 +116,7 @@ struct ath5k_statistics {
 	unsigned int tx_all_count;	/* all TX frames, including errors */
 	unsigned int rxerr_crc;
 	unsigned int rxerr_phy;
+	unsigned int rxerr_phy_code[32];
 	unsigned int rxerr_fifo;
 	unsigned int rxerr_decrypt;
 	unsigned int rxerr_mic;

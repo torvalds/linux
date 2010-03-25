@@ -1940,6 +1940,8 @@ ath5k_tasklet_rx(unsigned long data)
 				sc->stats.rxerr_fifo++;
 			if (rs.rs_status & AR5K_RXERR_PHY) {
 				sc->stats.rxerr_phy++;
+				if (rs.rs_phyerr > 0 && rs.rs_phyerr < 32)
+					sc->stats.rxerr_phy_code[rs.rs_phyerr]++;
 				goto next;
 			}
 			if (rs.rs_status & AR5K_RXERR_DECRYPT) {
