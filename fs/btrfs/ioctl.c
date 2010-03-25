@@ -48,7 +48,6 @@
 #include "print-tree.h"
 #include "volumes.h"
 #include "locking.h"
-#include "ctree.h"
 
 /* Mask out flags that are inappropriate for the given type of inode. */
 static inline __u32 btrfs_mask_flags(umode_t mode, __u32 flags)
