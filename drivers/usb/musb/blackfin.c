@@ -392,22 +392,10 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 	return 0;
 }
 
-int musb_platform_suspend(struct musb *musb)
-{
-	return 0;
-}
-
-int musb_platform_resume(struct musb *musb)
-{
-	return 0;
-}
-
-
 int musb_platform_exit(struct musb *musb)
 {
 
 	gpio_free(musb->config->gpio_vrsel);
-	musb_platform_suspend(musb);
 
 	return 0;
 }
