@@ -493,6 +493,7 @@ static void hashlimit_ipv6_mask(__be32 *i, unsigned int p)
 	case 64 ... 95:
 		i[2] = maskl(i[2], p - 64);
 		i[3] = 0;
+		break;
 	case 96 ... 127:
 		i[3] = maskl(i[3], p - 96);
 		break;
