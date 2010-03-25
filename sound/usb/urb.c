@@ -918,6 +918,11 @@ void snd_usb_init_substream(struct snd_usb_stream *as,
 		case USB_ID(0x041e, 0x3f0a): /* E-Mu Tracker Pre */
 			subs->ops.retire_sync = retire_playback_sync_urb_hs_emu;
 			break;
+		case USB_ID(0x0763, 0x2080): /* M-Audio Fast Track Ultra 8  */
+		case USB_ID(0x0763, 0x2081): /* M-Audio Fast Track Ultra 8R */
+			subs->ops.prepare_sync = prepare_playback_sync_urb;
+			subs->ops.retire_sync = retire_playback_sync_urb;
+			break;
 		}
 	}
 
