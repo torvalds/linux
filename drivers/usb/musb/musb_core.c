@@ -2176,6 +2176,7 @@ void musb_save_context(struct musb *musb)
 	if (is_host_enabled(musb)) {
 		musb_context.frame = musb_readw(musb_base, MUSB_FRAME);
 		musb_context.testmode = musb_readb(musb_base, MUSB_TESTMODE);
+		musb_context.busctl = musb_read_ulpi_buscontrol(musb->mregs);
 	}
 	musb_context.power = musb_readb(musb_base, MUSB_POWER);
 	musb_context.intrtxe = musb_readw(musb_base, MUSB_INTRTXE);
@@ -2247,6 +2248,7 @@ void musb_restore_context(struct musb *musb)
 	if (is_host_enabled(musb)) {
 		musb_writew(musb_base, MUSB_FRAME, musb_context.frame);
 		musb_writeb(musb_base, MUSB_TESTMODE, musb_context.testmode);
+		musb_write_ulpi_buscontrol(musb->mregs, musb_context.busctl);
 	}
 	musb_writeb(musb_base, MUSB_POWER, musb_context.power);
 	musb_writew(musb_base, MUSB_INTRTXE, musb_context.intrtxe);
