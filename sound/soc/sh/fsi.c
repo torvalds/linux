@@ -40,6 +40,10 @@
 #define MUTE_ST		0x0028
 #define REG_END		MUTE_ST
 
+
+#define CPU_INT_ST	0x01F4
+#define CPU_IEMSK	0x01F8
+#define CPU_IMSK	0x01FC
 #define INT_ST		0x0200
 #define IEMSK		0x0204
 #define IMSK		0x0208
@@ -47,7 +51,7 @@
 #define CLK_RST		0x0210
 #define SOFT_RST	0x0214
 #define FIFO_SZ		0x0218
-#define MREG_START	INT_ST
+#define MREG_START	CPU_INT_ST
 #define MREG_END	FIFO_SZ
 
 /* DO_FMT */
@@ -116,11 +120,18 @@ struct fsi_priv {
 	int periods;
 };
 
+struct fsi_regs {
+	u32 int_st;
+	u32 iemsk;
+	u32 imsk;
+};
+
 struct fsi_master {
 	void __iomem *base;
 	int irq;
 	struct fsi_priv fsia;
 	struct fsi_priv fsib;
+	struct fsi_regs *regs;
 	struct sh_fsi_platform_info *info;
 	spinlock_t lock;
 };
@@ -337,8 +348,8 @@ static void fsi_irq_enable(struct fsi_priv *fsi, int is_play)
 	u32 data = fsi_port_ab_io_bit(fsi, is_play);
 	struct fsi_master *master = fsi_get_master(fsi);
 
-	fsi_master_mask_set(master, IMSK,  data, data);
-	fsi_master_mask_set(master, IEMSK, data, data);
+	fsi_master_mask_set(master, master->regs->imsk,  data, data);
+	fsi_master_mask_set(master, master->regs->iemsk, data, data);
 }
 
 static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
@@ -346,18 +357,18 @@ static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
 	u32 data = fsi_port_ab_io_bit(fsi, is_play);
 	struct fsi_master *master = fsi_get_master(fsi);
 
-	fsi_master_mask_set(master, IMSK,  data, 0);
-	fsi_master_mask_set(master, IEMSK, data, 0);
+	fsi_master_mask_set(master, master->regs->imsk,  data, 0);
+	fsi_master_mask_set(master, master->regs->iemsk, data, 0);
 }
 
 static u32 fsi_irq_get_status(struct fsi_master *master)
 {
-	return fsi_master_read(master, INT_ST);
+	return fsi_master_read(master, master->regs->int_st);
 }
 
 static void fsi_irq_clear_all_status(struct fsi_master *master)
 {
-	fsi_master_write(master, INT_ST, 0x0000000);
+	fsi_master_write(master, master->regs->int_st, 0x0000000);
 }
 
 static void fsi_irq_clear_status(struct fsi_priv *fsi)
@@ -369,7 +380,7 @@ static void fsi_irq_clear_status(struct fsi_priv *fsi)
 	data |= fsi_port_ab_io_bit(fsi, 1);
 
 	/* clear interrupt factor */
-	fsi_master_mask_set(master, INT_ST, data, 0);
+	fsi_master_mask_set(master, master->regs->int_st, data, 0);
 }
 
 /************************************************************************
@@ -953,12 +964,19 @@ EXPORT_SYMBOL_GPL(fsi_soc_platform);
 static int fsi_probe(struct platform_device *pdev)
 {
 	struct fsi_master *master;
+	const struct platform_device_id	*id_entry;
 	struct resource *res;
 	unsigned int irq;
 	int ret;
 
 	if (0 != pdev->id) {
 		dev_err(&pdev->dev, "current fsi support id 0 only now\n");
+		return -ENODEV;
+	}
+
+	id_entry = pdev->id_entry;
+	if (!id_entry) {
+		dev_err(&pdev->dev, "unknown fsi device\n");
 		return -ENODEV;
 	}
 
@@ -990,6 +1008,7 @@ static int fsi_probe(struct platform_device *pdev)
 	master->fsia.master	= master;
 	master->fsib.base	= master->base + 0x40;
 	master->fsib.master	= master;
+	master->regs		= (struct fsi_regs *)id_entry->driver_data;
 	spin_lock_init(&master->lock);
 
 	pm_runtime_enable(&pdev->dev);
@@ -1002,7 +1021,8 @@ static int fsi_probe(struct platform_device *pdev)
 
 	fsi_soft_all_reset(master);
 
-	ret = request_irq(irq, &fsi_interrupt, IRQF_DISABLED, "fsi", master);
+	ret = request_irq(irq, &fsi_interrupt, IRQF_DISABLED,
+			  id_entry->name, master);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request err\n");
 		goto exit_iounmap;
@@ -1069,6 +1089,23 @@ static struct dev_pm_ops fsi_pm_ops = {
 	.runtime_resume		= fsi_runtime_nop,
 };
 
+static struct fsi_regs fsi_regs = {
+	.int_st	= INT_ST,
+	.iemsk	= IEMSK,
+	.imsk	= IMSK,
+};
+
+static struct fsi_regs fsi2_regs = {
+	.int_st	= CPU_INT_ST,
+	.iemsk	= CPU_IEMSK,
+	.imsk	= CPU_IMSK,
+};
+
+static struct platform_device_id fsi_id_table[] = {
+	{ "sh_fsi",	(kernel_ulong_t)&fsi_regs },
+	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_regs },
+};
+
 static struct platform_driver fsi_driver = {
 	.driver 	= {
 		.name	= "sh_fsi",
@@ -1076,6 +1113,7 @@ static struct platform_driver fsi_driver = {
 	},
 	.probe		= fsi_probe,
 	.remove		= fsi_remove,
+	.id_table	= fsi_id_table,
 };
 
 static int __init fsi_mobile_init(void)
