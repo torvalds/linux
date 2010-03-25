@@ -2507,7 +2507,7 @@ ath5k_init(struct ath5k_softc *sc)
 	sc->curband = &sc->sbands[sc->curchan->band];
 	sc->imask = AR5K_INT_RXOK | AR5K_INT_RXERR | AR5K_INT_RXEOL |
 		AR5K_INT_RXORN | AR5K_INT_TXDESC | AR5K_INT_TXEOL |
-		AR5K_INT_FATAL | AR5K_INT_GLOBAL | AR5K_INT_SWI;
+		AR5K_INT_FATAL | AR5K_INT_GLOBAL;
 	ret = ath5k_reset(sc, NULL);
 	if (ret)
 		goto done;
@@ -2673,9 +2673,6 @@ ath5k_intr(int irq, void *dev_id)
 			if (status & AR5K_INT_BMISS) {
 				/* TODO */
 			}
-			if (status & AR5K_INT_SWI) {
-				tasklet_schedule(&sc->calib);
-			}
 			if (status & AR5K_INT_MIB) {
 				/*
 				 * These stats are also used for ANI i think
@@ -2716,8 +2713,7 @@ ath5k_tasklet_calibrate(unsigned long data)
 	struct ath5k_hw *ah = sc->ah;
 
 	/* Only full calibration for now */
-	if (ah->ah_swi_mask != AR5K_SWI_FULL_CALIBRATION)
-		return;
+	ah->ah_cal_mask |= AR5K_CALIBRATION_FULL;
 
 	/* Stop queues so that calibration
 	 * doesn't interfere with tx */
@@ -2740,11 +2736,10 @@ ath5k_tasklet_calibrate(unsigned long data)
 			ieee80211_frequency_to_channel(
 				sc->curchan->center_freq));
 
-	ah->ah_swi_mask = 0;
-
 	/* Wake queues */
 	ieee80211_wake_queues(sc->hw);
 
+	ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
 }
 
 

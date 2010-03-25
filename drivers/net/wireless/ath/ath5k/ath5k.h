@@ -890,10 +890,10 @@ enum ath5k_int {
 	AR5K_INT_NOCARD	= 0xffffffff
 };
 
-/* Software interrupts used for calibration */
-enum ath5k_software_interrupt {
-	AR5K_SWI_FULL_CALIBRATION = 0x01,
-	AR5K_SWI_SHORT_CALIBRATION = 0x02,
+/* mask which calibration is active at the moment */
+enum ath5k_calibration_mask {
+	AR5K_CALIBRATION_FULL = 0x01,
+	AR5K_CALIBRATION_SHORT = 0x02,
 };
 
 /*
@@ -1102,8 +1102,8 @@ struct ath5k_hw {
 	/* Calibration timestamp */
 	unsigned long		ah_cal_tstamp;
 
-	/* Software interrupt mask */
-	u8			ah_swi_mask;
+	/* Calibration mask */
+	u8			ah_cal_mask;
 
 	/*
 	 * Function pointers

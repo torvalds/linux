@@ -1119,8 +1119,7 @@ ath5k_hw_calibration_poll(struct ath5k_hw *ah)
 	 * interrupt (bit gets auto-cleared) */
 	if (time_is_before_eq_jiffies(ah->ah_cal_tstamp + cal_intval)) {
 		ah->ah_cal_tstamp = jiffies;
-		ah->ah_swi_mask = AR5K_SWI_FULL_CALIBRATION;
-		AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI);
+		tasklet_schedule(&ah->ah_sc->calib);
 	}
 }
 
