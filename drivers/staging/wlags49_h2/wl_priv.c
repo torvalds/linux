@@ -503,7 +503,8 @@ int wvlan_uil_send_diag_msg( struct uilreq *urq, struct wl_private *lp )
 						return result;
 					}
 
-					if ((data = kmalloc(urq->len, GFP_KERNEL)) != NULL) {
+					data = kmalloc(urq->len, GFP_KERNEL);
+					if (data != NULL) {
 						memset( Descp, 0, sizeof( DESC_STRCT ));
 						memcpy( data, urq->data, urq->len );
 
@@ -617,7 +618,8 @@ int wvlan_uil_put_info( struct uilreq *urq, struct wl_private *lp )
 				   LTV record, try to allocate it from the kernel stack.
 				   Otherwise, we just use our local LTV record. */
 				if( urq->len > sizeof( lp->ltvRecord )) {
-					if(( pLtv = (ltv_t *)kmalloc( urq->len, GFP_KERNEL )) != NULL ) {
+					pLtv = (ltv_t *)kmalloc( urq->len, GFP_KERNEL );
+					if (pLtv != NULL) {
 						ltvAllocated = TRUE;
 					} else {
 						DBG_ERROR( DbgInfo, "Alloc FAILED\n" );
@@ -1296,7 +1298,8 @@ int wvlan_uil_get_info( struct uilreq *urq, struct wl_private *lp )
 				   LTV record, try to allocate it from the kernel stack.
 				   Otherwise, we just use our local LTV record. */
 				if( urq->len > sizeof( lp->ltvRecord )) {
-					if(( pLtv = (ltv_t *)kmalloc( urq->len, GFP_KERNEL )) != NULL ) {
+					pLtv = (ltv_t *)kmalloc( urq->len, GFP_KERNEL );
+					if (pLtv != NULL) {
 						ltvAllocated = TRUE;
 
 						/* Copy the command/length information into the new buffer. */

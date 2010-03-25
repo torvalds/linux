@@ -930,8 +930,10 @@ int wl_rx(struct net_device *dev)
         port = ( hfs_stat >> 8 ) & 0x0007;
         DBG_RX( DbgInfo, "Rx frame for port %d\n", port );
 
-        if(( pktlen = lp->hcfCtx.IFB_RxLen ) != 0 ) {
-            if(( skb = ALLOC_SKB( pktlen )) != NULL ) {
+        pktlen = lp->hcfCtx.IFB_RxLen;
+        if (pktlen != 0) {
+            skb = ALLOC_SKB(pktlen);
+            if (skb != NULL) {
                 /* Set the netdev based on the port */
                 switch( port ) {
 #ifdef USE_WDS
@@ -1995,8 +1997,10 @@ int wl_rx_dma( struct net_device *dev )
                 port = ( hfs_stat >> 8 ) & 0x0007;
                 DBG_RX( DbgInfo, "Rx frame for port %d\n", port );
 
-                if(( pktlen = GET_BUF_CNT( desc_next )) != 0 ) {
-                    if(( skb = ALLOC_SKB( pktlen )) != NULL ) {
+                pktlen = GET_BUF_CNT(desc_next);
+                if (pktlen != 0) {
+                    skb = ALLOC_SKB(pktlen);
+                    if (skb != NULL) {
                         switch( port ) {
 #ifdef USE_WDS
                         case 1:
