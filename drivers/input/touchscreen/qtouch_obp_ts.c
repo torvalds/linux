@@ -566,7 +566,6 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 	finger = msg->report_id - obj->report_id_min;
 	if (finger >= ts->pdata->multi_touch_cfg.num_touch)
 		return 0;
-
 	/* x/y are 10bit values, with bottom 2 bits inside the xypos_lsb */
 	x = (msg->xpos_msb << 2) | ((msg->xypos_lsb >> 6) & 0x3);
 	y = (msg->ypos_msb << 2) | ((msg->xypos_lsb >> 2) & 0x3);
@@ -575,6 +574,10 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 
 	if (ts->pdata->flags & QTOUCH_SWAP_XY)
 		swap(x, y);
+	if (ts->pdata->flags & QTOUCH_FLIP_X)
+		x = ts->pdata->abs_max_x - x;
+	if (ts->pdata->flags & QTOUCH_FLIP_Y)
+		y = ts->pdata->abs_max_y - y;
 
 	if (qtouch_tsdebug & 2)
 		pr_info("%s: stat=%02x, f=%d x=%d y=%d p=%d w=%d\n", __func__,
