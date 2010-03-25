@@ -773,7 +773,8 @@ void RTMPDeQueuePacket(struct rt_rtmp_adapter *pAd, IN BOOLEAN bIntContext, u8 Q
 
 			/* probe the Queue Head */
 			pQueue = &pAd->TxSwQueue[QueIdx];
-			if ((pEntry = pQueue->Head) == NULL) {
+			pEntry = pQueue->Head;
+			if (pEntry == NULL) {
 				DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext,
 					       IrqFlags);
 				break;
@@ -824,7 +825,8 @@ void RTMPDeQueuePacket(struct rt_rtmp_adapter *pAd, IN BOOLEAN bIntContext, u8 Q
 				}
 
 				do {
-					if ((pEntry = pQueue->Head) == NULL)
+					pEntry = pQueue->Head;
+					if (pEntry == NULL)
 						break;
 
 					/* For TX_AMSDU_FRAME/TX_RALINK_FRAME, Need to check if next pakcet can do aggregation. */

@@ -463,8 +463,8 @@ void *duplicate_pkt(struct rt_rtmp_adapter *pAd,
 	struct sk_buff *skb;
 	void *pPacket = NULL;
 
-	if ((skb =
-	     __dev_alloc_skb(HdrLen + DataSize + 2, MEM_ALLOC_FLAG)) != NULL) {
+	skb = __dev_alloc_skb(HdrLen + DataSize + 2, MEM_ALLOC_FLAG);
+	if (skb != NULL) {
 		skb_reserve(skb, 2);
 		NdisMoveMemory(skb_tail_pointer(skb), pHeader802_3, HdrLen);
 		skb_put(skb, HdrLen);
@@ -673,7 +673,8 @@ void RTMPSendWirelessEvent(struct rt_rtmp_adapter *pAd,
 		return;
 	}
 	/*Allocate memory and copy the msg. */
-	if ((pBuf = kmalloc(IW_CUSTOM_MAX_LEN, GFP_ATOMIC)) != NULL) {
+	pBuf = kmalloc(IW_CUSTOM_MAX_LEN, GFP_ATOMIC);
+	if (pBuf != NULL) {
 		/*Prepare the payload */
 		memset(pBuf, 0, IW_CUSTOM_MAX_LEN);
 

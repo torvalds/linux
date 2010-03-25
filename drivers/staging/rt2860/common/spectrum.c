@@ -1900,8 +1900,8 @@ static void PeerMeasureReportAction(struct rt_rtmp_adapter *pAd,
 /*      if (pAd->CommonCfg.bIEEE80211H != TRUE) */
 /*              return; */
 
-	if ((pMeasureReportInfo =
-	     kmalloc(sizeof(struct rt_measure_rpi_report), GFP_ATOMIC)) == NULL) {
+	pMeasureReportInfo = kmalloc(sizeof(struct rt_measure_rpi_report), GFP_ATOMIC);
+	if (pMeasureReportInfo == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("%s unable to alloc memory for measure report buffer (size=%zu).\n",
 			  __func__, sizeof(struct rt_measure_rpi_report)));
@@ -2016,7 +2016,8 @@ static void PeerTpcRepAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_e
 	NdisZeroMemory(&TpcRepInfo, sizeof(struct rt_tpc_report_info));
 	if (PeerTpcRepSanity
 	    (pAd, Elem->Msg, Elem->MsgLen, &DialogToken, &TpcRepInfo)) {
-		if ((pEntry = TpcReqLookUp(pAd, DialogToken)) != NULL) {
+		pEntry = TpcReqLookUp(pAd, DialogToken);
+		if (pEntry != NULL) {
 			TpcReqDelete(pAd, pEntry->DialogToken);
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("%s: DialogToken=%x, TxPwr=%d, LinkMargin=%d\n",
