@@ -101,7 +101,7 @@ static struct irq_chip cp_intc_irq_chip = {
 };
 
 void __init cp_intc_init(void __iomem *base, unsigned short num_irq,
-			 u8 *irq_prio)
+			 u8 *irq_prio, u32 *host_map)
 {
 	unsigned num_reg	= BITS_TO_LONGS(num_irq);
 	int i;
@@ -156,6 +156,10 @@ void __init cp_intc_init(void __iomem *base, unsigned short num_irq,
 		for (i = 0; i < num_reg; i++)
 			cp_intc_write(0x0f0f0f0f, CP_INTC_CHAN_MAP(i));
 	}
+
+	if (host_map)
+		for (i = 0; host_map[i] != -1; i++)
+			cp_intc_write(host_map[i], CP_INTC_HOST_MAP(i));
 
 	/* Set up genirq dispatching for cp_intc */
 	for (i = 0; i < num_irq; i++) {

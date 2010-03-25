@@ -52,6 +52,6 @@
 #define CP_INTC_VECTOR_ADDR(n)		(0x2000 + (n << 2))
 
 void __init cp_intc_init(void __iomem *base, unsigned short num_irq,
-			 u8 *irq_prio);
+			 u8 *irq_prio, u32 *host_map);
 
 #endif	/* __ASM_HARDWARE_CP_INTC_H */

@@ -741,7 +741,7 @@ static __init void da850_evm_irq_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	cp_intc_init((void __iomem *)DA8XX_CP_INTC_VIRT, DA850_N_CP_INTC_IRQ,
-			soc_info->intc_irq_prios);
+			soc_info->intc_irq_prios, NULL);
 }
 
 static void __init da850_evm_map_io(void)
