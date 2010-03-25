@@ -1723,6 +1723,8 @@ static struct cfq_queue *cfq_close_cooperator(struct cfq_data *cfqd,
 {
 	struct cfq_queue *cfqq;
 
+	if (cfq_class_idle(cur_cfqq))
+		return NULL;
 	if (!cfq_cfqq_sync(cur_cfqq))
 		return NULL;
 	if (CFQQ_SEEKY(cur_cfqq))
