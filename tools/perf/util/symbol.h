@@ -3,10 +3,11 @@
 
 #include <linux/types.h>
 #include <stdbool.h>
-#include "types.h"
+#include <stdint.h>
+#include "map.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
-#include "event.h"
+#include <stdio.h>
 
 #define DEBUG_CACHE_DIR ".debug"
 
@@ -29,6 +30,9 @@ static inline char *bfd_demangle(void __used *v, const char __used *c,
 #endif
 #endif
 
+int hex2u64(const char *ptr, u64 *val);
+char *strxfrchar(char *s, char from, char to);
+
 /*
  * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
  * for newer versions we can use mmap to reduce memory usage:
@@ -43,6 +47,8 @@ static inline char *bfd_demangle(void __used *v, const char __used *c,
 #define DMGL_PARAMS      (1 << 0)       /* Include function args */
 #define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
 #endif
+
+#define BUILD_ID_SIZE 20
 
 struct symbol {
 	struct rb_node	rb_node;

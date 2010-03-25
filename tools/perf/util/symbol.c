@@ -1,13 +1,19 @@
-#include "util.h"
-#include "../perf.h"
-#include "sort.h"
-#include "string.h"
+#define _GNU_SOURCE
+#include <ctype.h>
+#include <dirent.h>
+#include <errno.h>
+#include <libgen.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "symbol.h"
-#include "thread.h"
+#include "strlist.h"
 
-#include "debug.h"
-
-#include <asm/bug.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
@@ -114,8 +120,8 @@ static void map_groups__fixup_end(struct map_groups *self)
 static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 {
 	size_t namelen = strlen(name) + 1;
-	struct symbol *self = zalloc(symbol_conf.priv_size +
-				     sizeof(*self) + namelen);
+	struct symbol *self = calloc(1, (symbol_conf.priv_size +
+					 sizeof(*self) + namelen));
 	if (self == NULL)
 		return NULL;
 
@@ -166,7 +172,7 @@ static void dso__set_basename(struct dso *self)
 
 struct dso *dso__new(const char *name)
 {
-	struct dso *self = zalloc(sizeof(*self) + strlen(name) + 1);
+	struct dso *self = calloc(1, sizeof(*self) + strlen(name) + 1);
 
 	if (self != NULL) {
 		int i;
@@ -1382,13 +1388,13 @@ static int dso__kernel_module_get_build_id(struct dso *self)
 	return 0;
 }
 
-static int map_groups__set_modules_path_dir(struct map_groups *self, char *dirname)
+static int map_groups__set_modules_path_dir(struct map_groups *self, char *dir_name)
 {
 	struct dirent *dent;
-	DIR *dir = opendir(dirname);
+	DIR *dir = opendir(dir_name);
 
 	if (!dir) {
-		pr_debug("%s: cannot open %s dir\n", __func__, dirname);
+		pr_debug("%s: cannot open %s dir\n", __func__, dir_name);
 		return -1;
 	}
 
@@ -1401,7 +1407,7 @@ static int map_groups__set_modules_path_dir(struct map_groups *self, char *dirna
 				continue;
 
 			snprintf(path, sizeof(path), "%s/%s",
-				 dirname, dent->d_name);
+				 dir_name, dent->d_name);
 			if (map_groups__set_modules_path_dir(self, path) < 0)
 				goto failure;
 		} else {
@@ -1421,7 +1427,7 @@ static int map_groups__set_modules_path_dir(struct map_groups *self, char *dirna
 				continue;
 
 			snprintf(path, sizeof(path), "%s/%s",
-				 dirname, dent->d_name);
+				 dir_name, dent->d_name);
 
 			long_name = strdup(path);
 			if (long_name == NULL)
@@ -1458,8 +1464,8 @@ static int map_groups__set_modules_path(struct map_groups *self)
  */
 static struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 {
-	struct map *self = zalloc(sizeof(*self) +
-				  (dso->kernel ? sizeof(struct kmap) : 0));
+	struct map *self = calloc(1, (sizeof(*self) +
+				      (dso->kernel ? sizeof(struct kmap) : 0)));
 	if (self != NULL) {
 		/*
 		 * ->end will be filled after we load all the symbols
@@ -1962,4 +1968,47 @@ int map_groups__create_kernel_maps(struct map_groups *self,
 	 */
 	map_groups__fixup_end(self);
 	return 0;
+}
+
+static int hex(char ch)
+{
+	if ((ch >= '0') && (ch <= '9'))
+		return ch - '0';
+	if ((ch >= 'a') && (ch <= 'f'))
+		return ch - 'a' + 10;
+	if ((ch >= 'A') && (ch <= 'F'))
+		return ch - 'A' + 10;
+	return -1;
+}
+
+/*
+ * While we find nice hex chars, build a long_val.
+ * Return number of chars processed.
+ */
+int hex2u64(const char *ptr, u64 *long_val)
+{
+	const char *p = ptr;
+	*long_val = 0;
+
+	while (*p) {
+		const int hex_val = hex(*p);
+
+		if (hex_val < 0)
+			break;
+
+		*long_val = (*long_val << 4) | hex_val;
+		p++;
+	}
+
+	return p - ptr;
+}
+
+char *strxfrchar(char *s, char from, char to)
+{
+	char *p = s;
+
+	while ((p = strchr(p, from)) != NULL)
+		*p++ = to;
+
+	return s;
 }

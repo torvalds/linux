@@ -4,8 +4,6 @@
 #include <stdbool.h>
 #include "types.h"
 
-int hex2u64(const char *ptr, u64 *val);
-char *strxfrchar(char *s, char from, char to);
 s64 perf_atoll(const char *str);
 char **argv_split(const char *str, int *argcp);
 void argv_free(char **argv);
