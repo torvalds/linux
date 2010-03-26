@@ -1,4 +1,5 @@
 #include "symbol.h"
+#include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -234,6 +235,37 @@ u64 map__objdump_2ip(struct map *map, u64 addr)
 	return ip;
 }
 
+void map_groups__init(struct map_groups *self)
+{
+	int i;
+	for (i = 0; i < MAP__NR_TYPES; ++i) {
+		self->maps[i] = RB_ROOT;
+		INIT_LIST_HEAD(&self->removed_maps[i]);
+	}
+}
+
+void map_groups__flush(struct map_groups *self)
+{
+	int type;
+
+	for (type = 0; type < MAP__NR_TYPES; type++) {
+		struct rb_root *root = &self->maps[type];
+		struct rb_node *next = rb_first(root);
+
+		while (next) {
+			struct map *pos = rb_entry(next, struct map, rb_node);
+			next = rb_next(&pos->rb_node);
+			rb_erase(&pos->rb_node, root);
+			/*
+			 * We may have references to this map, for
+			 * instance in some hist_entry instances, so
+			 * just move them to a separate list.
+			 */
+			list_add_tail(&pos->node, &self->removed_maps[pos->type]);
+		}
+	}
+}
+
 struct symbol *map_groups__find_symbol(struct map_groups *self,
 				       enum map_type type, u64 addr,
 				       symbol_filter_t filter)
@@ -244,6 +276,142 @@ struct symbol *map_groups__find_symbol(struct map_groups *self,
 		return map__find_symbol(map, map->map_ip(map, addr), filter);
 
 	return NULL;
+}
+
+size_t __map_groups__fprintf_maps(struct map_groups *self,
+				  enum map_type type, int verbose, FILE *fp)
+{
+	size_t printed = fprintf(fp, "%s:\n", map_type__name[type]);
+	struct rb_node *nd;
+
+	for (nd = rb_first(&self->maps[type]); nd; nd = rb_next(nd)) {
+		struct map *pos = rb_entry(nd, struct map, rb_node);
+		printed += fprintf(fp, "Map:");
+		printed += map__fprintf(pos, fp);
+		if (verbose > 2) {
+			printed += dso__fprintf(pos->dso, type, fp);
+			printed += fprintf(fp, "--\n");
+		}
+	}
+
+	return printed;
+}
+
+size_t map_groups__fprintf_maps(struct map_groups *self, int verbose, FILE *fp)
+{
+	size_t printed = 0, i;
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		printed += __map_groups__fprintf_maps(self, i, verbose, fp);
+	return printed;
+}
+
+static size_t __map_groups__fprintf_removed_maps(struct map_groups *self,
+						 enum map_type type,
+						 int verbose, FILE *fp)
+{
+	struct map *pos;
+	size_t printed = 0;
+
+	list_for_each_entry(pos, &self->removed_maps[type], node) {
+		printed += fprintf(fp, "Map:");
+		printed += map__fprintf(pos, fp);
+		if (verbose > 1) {
+			printed += dso__fprintf(pos->dso, type, fp);
+			printed += fprintf(fp, "--\n");
+		}
+	}
+	return printed;
+}
+
+static size_t map_groups__fprintf_removed_maps(struct map_groups *self,
+					       int verbose, FILE *fp)
+{
+	size_t printed = 0, i;
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		printed += __map_groups__fprintf_removed_maps(self, i, verbose, fp);
+	return printed;
+}
+
+size_t map_groups__fprintf(struct map_groups *self, int verbose, FILE *fp)
+{
+	size_t printed = map_groups__fprintf_maps(self, verbose, fp);
+	printed += fprintf(fp, "Removed maps:\n");
+	return printed + map_groups__fprintf_removed_maps(self, verbose, fp);
+}
+
+int map_groups__fixup_overlappings(struct map_groups *self, struct map *map,
+				   int verbose, FILE *fp)
+{
+	struct rb_root *root = &self->maps[map->type];
+	struct rb_node *next = rb_first(root);
+
+	while (next) {
+		struct map *pos = rb_entry(next, struct map, rb_node);
+		next = rb_next(&pos->rb_node);
+
+		if (!map__overlap(pos, map))
+			continue;
+
+		if (verbose >= 2) {
+			fputs("overlapping maps:\n", fp);
+			map__fprintf(map, fp);
+			map__fprintf(pos, fp);
+		}
+
+		rb_erase(&pos->rb_node, root);
+		/*
+		 * We may have references to this map, for instance in some
+		 * hist_entry instances, so just move them to a separate
+		 * list.
+		 */
+		list_add_tail(&pos->node, &self->removed_maps[map->type]);
+		/*
+		 * Now check if we need to create new maps for areas not
+		 * overlapped by the new map:
+		 */
+		if (map->start > pos->start) {
+			struct map *before = map__clone(pos);
+
+			if (before == NULL)
+				return -ENOMEM;
+
+			before->end = map->start - 1;
+			map_groups__insert(self, before);
+			if (verbose >= 2)
+				map__fprintf(before, fp);
+		}
+
+		if (map->end < pos->end) {
+			struct map *after = map__clone(pos);
+
+			if (after == NULL)
+				return -ENOMEM;
+
+			after->start = map->end + 1;
+			map_groups__insert(self, after);
+			if (verbose >= 2)
+				map__fprintf(after, fp);
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * XXX This should not really _copy_ te maps, but refcount them.
+ */
+int map_groups__clone(struct map_groups *self,
+		      struct map_groups *parent, enum map_type type)
+{
+	struct rb_node *nd;
+	for (nd = rb_first(&parent->maps[type]); nd; nd = rb_next(nd)) {
+		struct map *map = rb_entry(nd, struct map, rb_node);
+		struct map *new = map__clone(map);
+		if (new == NULL)
+			return -ENOMEM;
+		map_groups__insert(self, new);
+	}
+	return 0;
 }
 
 static u64 map__reloc_map_ip(struct map *map, u64 ip)
