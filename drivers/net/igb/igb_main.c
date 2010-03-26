@@ -2576,6 +2576,8 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 		         E1000_SRRCTL_BSIZEPKT_SHIFT;
 		srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 	}
+	if (hw->mac.type == e1000_82580)
+		srrctl |= E1000_SRRCTL_TIMESTAMP;
 	/* Only set Drop Enable if we are supporting multiple queues */
 	if (adapter->vfs_allocated_count || adapter->num_rx_queues > 1)
 		srrctl |= E1000_SRRCTL_DROP_EN;
@@ -3910,12 +3912,23 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 	 * i.e. RXBUFFER_2048 --> size-4096 slab
 	 */
 
+	if (adapter->hw.mac.type == e1000_82580)
+		max_frame += IGB_TS_HDR_LEN;
+
 	if (max_frame <= IGB_RXBUFFER_1024)
 		rx_buffer_len = IGB_RXBUFFER_1024;
 	else if (max_frame <= MAXIMUM_ETHERNET_VLAN_SIZE)
 		rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 	else
 		rx_buffer_len = IGB_RXBUFFER_128;
+
+	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN + IGB_TS_HDR_LEN) ||
+	     (max_frame == MAXIMUM_ETHERNET_VLAN_SIZE + IGB_TS_HDR_LEN))
+		rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE + IGB_TS_HDR_LEN;
+
+	if ((adapter->hw.mac.type == e1000_82580) &&
+	    (rx_buffer_len == IGB_RXBUFFER_128))
+		rx_buffer_len += IGB_RXBUFFER_64;
 
 	if (netif_running(netdev))
 		igb_down(adapter);
@@ -5133,7 +5146,7 @@ static inline void igb_rx_checksum_adv(struct igb_ring *ring,
 	dev_dbg(&ring->pdev->dev, "cksum success: bits %08X\n", status_err);
 }
 
-static inline void igb_rx_hwtstamp(struct igb_q_vector *q_vector, u32 staterr,
+static void igb_rx_hwtstamp(struct igb_q_vector *q_vector, u32 staterr,
                                    struct sk_buff *skb)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
@@ -5151,13 +5164,18 @@ static inline void igb_rx_hwtstamp(struct igb_q_vector *q_vector, u32 staterr,
 	 * If nothing went wrong, then it should have a skb_shared_tx that we
 	 * can turn into a skb_shared_hwtstamps.
 	 */
-	if (likely(!(staterr & E1000_RXDADV_STAT_TS)))
-		return;
-	if (!(rd32(E1000_TSYNCRXCTL) & E1000_TSYNCRXCTL_VALID))
-		return;
+	if (staterr & E1000_RXDADV_STAT_TSIP) {
+		u32 *stamp = (u32 *)skb->data;
+		regval = le32_to_cpu(*(stamp + 2));
+		regval |= (u64)le32_to_cpu(*(stamp + 3)) << 32;
+		skb_pull(skb, IGB_TS_HDR_LEN);
+	} else {
+		if(!(rd32(E1000_TSYNCRXCTL) & E1000_TSYNCRXCTL_VALID))
+			return;
 
-	regval = rd32(E1000_RXSTMPL);
-	regval |= (u64)rd32(E1000_RXSTMPH) << 32;
+		regval = rd32(E1000_RXSTMPL);
+		regval |= (u64)rd32(E1000_RXSTMPH) << 32;
+	}
 
 	igb_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
 }
@@ -5265,7 +5283,8 @@ send_up:
 			goto next_desc;
 		}
 
-		igb_rx_hwtstamp(q_vector, staterr, skb);
+		if (staterr & (E1000_RXDADV_STAT_TSIP | E1000_RXDADV_STAT_TS))
+			igb_rx_hwtstamp(q_vector, staterr, skb);
 		total_bytes += skb->len;
 		total_packets++;
 
@@ -5543,6 +5562,16 @@ static int igb_hwtstamp_ioctl(struct net_device *netdev,
 		if (tsync_rx_ctl | tsync_tx_ctl)
 			return -EINVAL;
 		return 0;
+	}
+
+	/*
+	 * Per-packet timestamping only works if all packets are
+	 * timestamped, so enable timestamping in all packets as
+	 * long as one rx filter was configured.
+	 */
+	if ((hw->mac.type == e1000_82580) && tsync_rx_ctl) {
+		tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
 	}
 
 	/* enable/disable TX */
