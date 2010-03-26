@@ -39,8 +39,6 @@ struct wm831x_irq_data {
 	int primary;
 	int reg;
 	int mask;
-	irq_handler_t handler;
-	void *handler_data;
 };
 
 static struct wm831x_irq_data wm831x_irqs[] = {
