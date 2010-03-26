@@ -301,9 +301,9 @@ config MFD_WM8350_I2C
 	  selected to enable support for the functionality of the chip.
 
 config MFD_WM8994
-	tristate "Support Wolfson Microelectronics WM8994"
+	bool "Support Wolfson Microelectronics WM8994"
 	select MFD_CORE
-	depends on I2C
+	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  The WM8994 is a highly integrated hi-fi CODEC designed for
 	  smartphone applicatiosn.  As well as audio functionality it
