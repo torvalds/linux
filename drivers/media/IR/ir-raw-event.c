@@ -14,13 +14,41 @@
 
 #include <media/ir-core.h>
 #include <linux/workqueue.h>
+#include <linux/spinlock.h>
 
 /* Define the max number of bit transitions per IR keycode */
 #define MAX_IR_EVENT_SIZE	256
 
 /* Used to handle IR raw handler extensions */
 static LIST_HEAD(ir_raw_handler_list);
-static DEFINE_MUTEX(ir_raw_handler_lock);
+static spinlock_t ir_raw_handler_lock;
+
+/**
+ * RUN_DECODER()	- runs an operation on all IR decoders
+ * @ops:	IR raw handler operation to be called
+ * @arg:	arguments to be passed to the callback
+ *
+ * Calls ir_raw_handler::ops for all registered IR handlers. It prevents
+ * new decode addition/removal while running, by locking ir_raw_handler_lock
+ * mutex. If an error occurs, it stops the ops. Otherwise, it returns a sum
+ * of the return codes.
+ */
+#define RUN_DECODER(ops, ...) ({					    \
+	struct ir_raw_handler		*_ir_raw_handler;		    \
+	int _sumrc = 0, _rc;						    \
+	spin_lock(&ir_raw_handler_lock);				    \
+	list_for_each_entry(_ir_raw_handler, &ir_raw_handler_list, list) {  \
+		if (_ir_raw_handler->ops) {				    \
+			_rc = _ir_raw_handler->ops(__VA_ARGS__);	    \
+			if (_rc < 0)					    \
+				break;					    \
+			_sumrc += _rc;					    \
+		}							    \
+	}								    \
+	spin_unlock(&ir_raw_handler_lock);				    \
+	_sumrc;								    \
+})
+
 
 /* Used to load the decoders */
 static struct work_struct wq_load;
@@ -38,6 +66,8 @@ int ir_raw_event_register(struct input_dev *input_dev)
 	int rc, size;
 
 	ir->raw = kzalloc(sizeof(*ir->raw), GFP_KERNEL);
+	if (!ir->raw)
+		return -ENOMEM;
 
 	size = sizeof(struct ir_raw_event) * MAX_IR_EVENT_SIZE * 2;
 	size = roundup_pow_of_two(size);
@@ -48,6 +78,19 @@ int ir_raw_event_register(struct input_dev *input_dev)
 	set_bit(EV_REP, input_dev->evbit);
 
 	rc = kfifo_alloc(&ir->raw->kfifo, size, GFP_KERNEL);
+	if (rc < 0) {
+		kfree(ir->raw);
+		ir->raw = NULL;
+		return rc;
+	}
+
+	rc = RUN_DECODER(raw_register, input_dev);
+	if (rc < 0) {
+		kfifo_free(&ir->raw->kfifo);
+		kfree(ir->raw);
+		ir->raw = NULL;
+		return rc;
+	}
 
 	return rc;
 }
@@ -61,6 +104,8 @@ void ir_raw_event_unregister(struct input_dev *input_dev)
 		return;
 
 	del_timer_sync(&ir->raw->timer_keyup);
+
+	RUN_DECODER(raw_unregister, input_dev);
 
 	kfifo_free(&ir->raw->kfifo);
 	kfree(ir->raw);
@@ -109,7 +154,6 @@ int ir_raw_event_handle(struct input_dev *input_dev)
 	int				rc;
 	struct ir_raw_event		*evs;
 	int 				len, i;
-	struct ir_raw_handler		*ir_raw_handler;
 
 	/*
 	 * Store the events into a temporary buffer. This allows calling more than
@@ -133,13 +177,10 @@ int ir_raw_event_handle(struct input_dev *input_dev)
 
 	/*
 	 * Call all ir decoders. This allows decoding the same event with
-	 * more than one protocol handler.
-	 * FIXME: better handle the returned code: does it make sense to use
-	 * other decoders, if the first one already handled the IR?
+	 * more than one protocol handler. It returns the number of keystrokes
+	 * sent to the event interface
 	 */
-	list_for_each_entry(ir_raw_handler, &ir_raw_handler_list, list) {
-		rc = ir_raw_handler->decode(input_dev, evs, len);
-	}
+	rc = RUN_DECODER(decode, input_dev, evs, len);
 
 	kfree(evs);
 
@@ -153,18 +194,18 @@ EXPORT_SYMBOL_GPL(ir_raw_event_handle);
 
 int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler)
 {
-	mutex_lock(&ir_raw_handler_lock);
+	spin_lock(&ir_raw_handler_lock);
 	list_add_tail(&ir_raw_handler->list, &ir_raw_handler_list);
-	mutex_unlock(&ir_raw_handler_lock);
+	spin_unlock(&ir_raw_handler_lock);
 	return 0;
 }
 EXPORT_SYMBOL(ir_raw_handler_register);
 
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 {
-	mutex_lock(&ir_raw_handler_lock);
+	spin_lock(&ir_raw_handler_lock);
 	list_del(&ir_raw_handler->list);
-	mutex_unlock(&ir_raw_handler_lock);
+	spin_unlock(&ir_raw_handler_lock);
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);
 
@@ -181,6 +222,10 @@ static void init_decoders(struct work_struct *work)
 
 void ir_raw_init(void)
 {
+	spin_lock_init(&ir_raw_handler_lock);
+	
+#ifdef MODULE
 	INIT_WORK(&wq_load, init_decoders);
 	schedule_work(&wq_load);
+#endif
 }

@@ -178,8 +178,7 @@ err:
  * @input_dev:	the struct input_dev descriptor of the device
  * @evs:	event array with type/duration of pulse/space
  * @len:	length of the array
- * This function returns the number of decoded pulses or -EINVAL if no
- * pulse got decoded
+ * This function returns the number of decoded pulses
  */
 static int ir_nec_decode(struct input_dev *input_dev,
 			 struct ir_raw_event *evs,
@@ -192,9 +191,6 @@ static int ir_nec_decode(struct input_dev *input_dev,
 		if (__ir_nec_decode(input_dev, evs, len, &pos) > 0)
 			rc++;
 	}
-
-	if (!rc)
-		return -EINVAL;
 	return rc;
 }
 

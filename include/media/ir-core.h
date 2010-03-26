@@ -88,6 +88,8 @@ struct ir_raw_handler {
 	int (*decode)(struct input_dev *input_dev,
 		      struct ir_raw_event *evs,
 		      int len);
+	int (*raw_register)(struct input_dev *input_dev);
+	int (*raw_unregister)(struct input_dev *input_dev);
 };
 
 #define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)
@@ -116,12 +118,7 @@ int ir_raw_event_store(struct input_dev *input_dev, enum raw_event_type type);
 int ir_raw_event_handle(struct input_dev *input_dev);
 int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler);
-
-#ifdef MODULE
 void ir_raw_init(void);
-#else
-#define ir_raw_init() 0
-#endif
 
 /* from ir-nec-decoder.c */
 #ifdef CONFIG_IR_NEC_DECODER_MODULE
