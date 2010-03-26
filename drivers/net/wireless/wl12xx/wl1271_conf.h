@@ -955,6 +955,15 @@ struct conf_conn_settings {
 	 * Range 0 - 255
 	 */
 	u8 psm_entry_retries;
+
+	/*
+	 *
+	 * Specifies the interval of the connection keep-alive null-func
+	 * frame in ms.
+	 *
+	 * Range: 1000 - 3600000
+	 */
+	u32 keep_alive_interval;
 };
 
 enum {

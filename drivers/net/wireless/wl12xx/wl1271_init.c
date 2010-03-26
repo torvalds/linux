@@ -337,6 +337,19 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
+	/* disable all keep-alive templates */
+	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
+		ret = wl1271_acx_keep_alive_config(wl, i,
+						   ACX_KEEP_ALIVE_TPL_INVALID);
+		if (ret < 0)
+			goto out_free_memmap;
+	}
+
+	/* disable the keep-alive feature */
+	ret = wl1271_acx_keep_alive_mode(wl, false);
+	if (ret < 0)
+		goto out_free_memmap;
+
 	return 0;
 
  out_free_memmap:

@@ -264,7 +264,8 @@ static struct conf_drv_settings default_conf = {
 		},
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
 		.bet_max_consecutive         = 10,
-		.psm_entry_retries           = 3
+		.psm_entry_retries           = 3,
+		.keep_alive_interval         = 55000
 	},
 	.init = {
 		.radioparam = {
@@ -1203,6 +1204,9 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			wl->rate_set = CONF_TX_RATE_MASK_BASIC;
 			wl->sta_rate_set = 0;
 			wl1271_acx_rate_policies(wl);
+			wl1271_acx_keep_alive_config(
+				wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
+				ACX_KEEP_ALIVE_TPL_INVALID);
 		}
 	}
 
@@ -1676,7 +1680,8 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			ret = wl1271_cmd_build_probe_req(wl, NULL, 0,
 							 NULL, 0, wl->band);
 
-			ret = wl1271_acx_aid(wl, wl->aid);
+			/* Enable the keep-alive feature */
+			ret = wl1271_acx_keep_alive_mode(wl, true);
 			if (ret < 0)
 				goto out_sleep;
 
@@ -1700,6 +1705,10 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			/* disable connection monitor features */
 			ret = wl1271_acx_conn_monit_params(wl, false);
+
+			/* Disable the keep-alive feature */
+			ret = wl1271_acx_keep_alive_mode(wl, false);
+
 			if (ret < 0)
 				goto out_sleep;
 		}
@@ -1742,6 +1751,26 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			goto out_sleep;
 		}
 		set_bit(WL1271_FLAG_JOINED, &wl->flags);
+	}
+
+	/*
+	 * The JOIN operation shuts down the firmware keep-alive as a side
+	 * effect, and the ACX_AID will start the keep-alive as a side effect.
+	 * Hence, for non-IBSS, the ACX_AID must always happen *after* the
+	 * JOIN operation, and the template config after the ACX_AID.
+	 */
+	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
+		ret = wl1271_acx_aid(wl, wl->aid);
+		if (ret < 0)
+			goto out_sleep;
+		ret = wl1271_cmd_build_klv_null_data(wl);
+		if (ret < 0)
+			goto out_sleep;
+		ret = wl1271_acx_keep_alive_config(
+			wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
+			ACX_KEEP_ALIVE_TPL_VALID);
+		if (ret < 0)
+			goto out_sleep;
 	}
 
 out_sleep:
