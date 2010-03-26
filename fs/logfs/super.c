@@ -572,8 +572,7 @@ int logfs_get_sb_device(struct file_system_type *type, int flags,
 	return 0;
 
 err1:
-	up_write(&sb->s_umount);
-	deactivate_super(sb);
+	deactivate_locked_super(sb);
 	return err;
 err0:
 	kfree(super);
