@@ -276,20 +276,7 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 static inline int sctp_v6_addr_match_len(union sctp_addr *s1,
 					 union sctp_addr *s2)
 {
-	struct in6_addr *a1 = &s1->v6.sin6_addr;
-	struct in6_addr *a2 = &s2->v6.sin6_addr;
-	int i, j;
-
-	for (i = 0; i < 4 ; i++) {
-		__be32 a1xora2;
-
-		a1xora2 = a1->s6_addr32[i] ^ a2->s6_addr32[i];
-
-		if ((j = fls(ntohl(a1xora2))))
-			return (i * 32 + 32 - j);
-	}
-
-	return (i*32);
+	return ipv6_addr_diff(&s1->v6.sin6_addr, &s2->v6.sin6_addr);
 }
 
 /* Fills in the source address(saddr) based on the destination address(daddr)
