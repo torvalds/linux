@@ -98,7 +98,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	struct ceph_ioctl_dataloc dl;
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_osd_client *osdc = &ceph_client(inode->i_sb)->osdc;
+	struct ceph_osd_client *osdc = &ceph_sb_to_client(inode->i_sb)->osdc;
 	u64 len = 1, olen;
 	u64 tmp;
 	struct ceph_object_layout ol;

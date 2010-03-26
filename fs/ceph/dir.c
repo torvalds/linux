@@ -478,7 +478,7 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int origin)
 struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 				  struct dentry *dentry, int err)
 {
-	struct ceph_client *client = ceph_client(dentry->d_sb);
+	struct ceph_client *client = ceph_sb_to_client(dentry->d_sb);
 	struct inode *parent = dentry->d_parent->d_inode;
 
 	/* .snap dir? */
@@ -1059,7 +1059,7 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int left;
 
-	if (!ceph_test_opt(ceph_client(inode->i_sb), DIRSTAT))
+	if (!ceph_test_opt(ceph_sb_to_client(inode->i_sb), DIRSTAT))
 		return -EISDIR;
 
 	if (!cf->dir_info) {
@@ -1161,7 +1161,7 @@ void ceph_dentry_lru_add(struct dentry *dn)
 	dout("dentry_lru_add %p %p '%.*s'\n", di, dn,
 	     dn->d_name.len, dn->d_name.name);
 	if (di) {
-		mdsc = &ceph_client(dn->d_sb)->mdsc;
+		mdsc = &ceph_sb_to_client(dn->d_sb)->mdsc;
 		spin_lock(&mdsc->dentry_lru_lock);
 		list_add_tail(&di->lru, &mdsc->dentry_lru);
 		mdsc->num_dentry++;
@@ -1177,7 +1177,7 @@ void ceph_dentry_lru_touch(struct dentry *dn)
 	dout("dentry_lru_touch %p %p '%.*s'\n", di, dn,
 	     dn->d_name.len, dn->d_name.name);
 	if (di) {
-		mdsc = &ceph_client(dn->d_sb)->mdsc;
+		mdsc = &ceph_sb_to_client(dn->d_sb)->mdsc;
 		spin_lock(&mdsc->dentry_lru_lock);
 		list_move_tail(&di->lru, &mdsc->dentry_lru);
 		spin_unlock(&mdsc->dentry_lru_lock);
@@ -1192,7 +1192,7 @@ void ceph_dentry_lru_del(struct dentry *dn)
 	dout("dentry_lru_del %p %p '%.*s'\n", di, dn,
 	     dn->d_name.len, dn->d_name.name);
 	if (di) {
-		mdsc = &ceph_client(dn->d_sb)->mdsc;
+		mdsc = &ceph_sb_to_client(dn->d_sb)->mdsc;
 		spin_lock(&mdsc->dentry_lru_lock);
 		list_del_init(&di->lru);
 		mdsc->num_dentry--;

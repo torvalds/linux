@@ -563,7 +563,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 	ceph_release_pages(req->r_pages, req->r_num_pages);
 	if (req->r_pages_from_pool)
 		mempool_free(req->r_pages,
-			     ceph_client(inode->i_sb)->wb_pagevec_pool);
+			     ceph_sb_to_client(inode->i_sb)->wb_pagevec_pool);
 	else
 		kfree(req->r_pages);
 	ceph_osdc_put_request(req);

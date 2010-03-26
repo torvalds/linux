@@ -107,8 +107,8 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int ceph_syncfs(struct super_block *sb, int wait)
 {
 	dout("sync_fs %d\n", wait);
-	ceph_osdc_sync(&ceph_client(sb)->osdc);
-	ceph_mdsc_sync(&ceph_client(sb)->mdsc);
+	ceph_osdc_sync(&ceph_sb_to_client(sb)->osdc);
+	ceph_mdsc_sync(&ceph_sb_to_client(sb)->mdsc);
 	dout("sync_fs %d done\n", wait);
 	return 0;
 }
@@ -932,9 +932,9 @@ static int ceph_get_sb(struct file_system_type *fs_type,
 		goto out;
 	}
 
-	if (ceph_client(sb) != client) {
+	if (ceph_sb_to_client(sb) != client) {
 		ceph_destroy_client(client);
-		client = ceph_client(sb);
+		client = ceph_sb_to_client(sb);
 		dout("get_sb got existing client %p\n", client);
 	} else {
 		dout("get_sb using new client %p\n", client);
