@@ -304,6 +304,8 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
 	int id = result->id;
+	int rate = -1;
+	u8 retries = 0;
 
 	/* check for id legality */
 	if (unlikely(id >= ACX_TX_DESCRIPTORS || wl->tx_frames[id] == NULL)) {
@@ -314,19 +316,22 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	skb = wl->tx_frames[id];
 	info = IEEE80211_SKB_CB(skb);
 
-	/* update packet status */
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
-		if (result->status == TX_SUCCESS)
+	/* update the TX status info */
+	if (result->status == TX_SUCCESS) {
+		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 			info->flags |= IEEE80211_TX_STAT_ACK;
-		if (result->status & TX_RETRY_EXCEEDED) {
-			/* FIXME */
-			/* info->status.excessive_retries = 1; */
-			wl->stats.excessive_retries++;
-		}
+		rate = wl1271_rate_to_idx(wl, result->rate_class_index);
+		retries = result->ack_failures;
+	} else if (result->status == TX_RETRY_EXCEEDED) {
+		wl->stats.excessive_retries++;
+		retries = result->ack_failures;
 	}
 
-	/* FIXME */
-	/* info->status.retry_count = result->ack_failures; */
+	info->status.rates[0].idx = rate;
+	info->status.rates[0].count = retries;
+	info->status.rates[0].flags = 0;
+	info->status.ack_signal = -1;
+
 	wl->stats.retry_count += result->ack_failures;
 
 	/* update security sequence number */
@@ -349,8 +354,6 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 		     " status 0x%x",
 		     result->id, skb, result->ack_failures,
 		     result->rate_class_index, result->status);
-
-	/* FIXME: do we need to tell the stack about the used rate? */
 
 	/* return the packet to the stack */
 	ieee80211_tx_status(wl->hw, skb);

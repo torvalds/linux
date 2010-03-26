@@ -159,5 +159,6 @@ static inline int wl1271_tx_ac_to_tid(int ac)
 void wl1271_tx_work(struct work_struct *work);
 void wl1271_tx_complete(struct wl1271 *wl);
 void wl1271_tx_flush(struct wl1271 *wl);
+u8 wl1271_rate_to_idx(struct wl1271 *wl, int rate);
 
 #endif
