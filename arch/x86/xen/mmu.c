@@ -42,6 +42,7 @@
 #include <linux/highmem.h>
 #include <linux/debugfs.h>
 #include <linux/bug.h>
+#include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/gfp.h>
 
@@ -1015,8 +1016,6 @@ static int xen_pin_page(struct mm_struct *mm, struct page *page,
    read-only, and can be pinned. */
 static void __xen_pgd_pin(struct mm_struct *mm, pgd_t *pgd)
 {
-	vm_unmap_aliases();
-
 	xen_mc_batch();
 
 	if (__xen_pgd_walk(mm, pgd, xen_pin_page, USER_LIMIT)) {
@@ -1580,7 +1579,6 @@ static void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn, unsigned l
 	if (PagePinned(virt_to_page(mm->pgd))) {
 		SetPagePinned(page);
 
-		vm_unmap_aliases();
 		if (!PageHighMem(page)) {
 			make_lowmem_page_readonly(__va(PFN_PHYS((unsigned long)pfn)));
 			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
@@ -2026,6 +2024,8 @@ void __init xen_init_mmu_ops(void)
 	x86_init.paging.pagetable_setup_start = xen_pagetable_setup_start;
 	x86_init.paging.pagetable_setup_done = xen_pagetable_setup_done;
 	pv_mmu_ops = xen_mmu_ops;
+
+	vmap_lazy_unmap = false;
 }
 
 /* Protected by xen_reservation_lock. */
@@ -2165,8 +2165,6 @@ int xen_create_contiguous_region(unsigned long vstart, unsigned int order,
 
 	memset((void *) vstart, 0, PAGE_SIZE << order);
 
-	vm_unmap_aliases();
-
 	spin_lock_irqsave(&xen_reservation_lock, flags);
 
 	/* 1. Zap current PTEs, remembering MFNs. */
@@ -2203,8 +2201,6 @@ void xen_destroy_contiguous_region(unsigned long vstart, unsigned int order)
 		return;
 
 	memset((void *) vstart, 0, PAGE_SIZE << order);
-
-	vm_unmap_aliases();
 
 	spin_lock_irqsave(&xen_reservation_lock, flags);
 
