@@ -606,6 +606,14 @@ ocfs2_block_group_alloc_discontig(handle_t *handle,
 		goto bail;
 	}
 
+	/*
+	 * We're going to be grabbing from multiple cluster groups.
+	 * We don't have enough credits to relink them all, and the
+	 * cluster groups will be staying in cache for the duration of
+	 * this operation.
+	 */
+	ac->ac_allow_chain_relink = 0;
+
 	/* Claim the first region */
 	status = ocfs2_block_group_claim_bits(osb, handle, ac, min_bits,
 					      &bit_off, &num_bits);
