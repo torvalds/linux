@@ -504,12 +504,17 @@ out:
 	return ret;
 }
 
-int wl1271_acx_conn_monit_params(struct wl1271 *wl)
+#define ACX_CONN_MONIT_DISABLE_VALUE  0xffffffff
+
+int wl1271_acx_conn_monit_params(struct wl1271 *wl, bool enable)
 {
 	struct acx_conn_monit_params *acx;
+	u32 threshold = ACX_CONN_MONIT_DISABLE_VALUE;
+	u32 timeout = ACX_CONN_MONIT_DISABLE_VALUE;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx connection monitor parameters");
+	wl1271_debug(DEBUG_ACX, "acx connection monitor parameters: %s",
+		     enable ? "enabled" : "disabled");
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
@@ -517,8 +522,13 @@ int wl1271_acx_conn_monit_params(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->synch_fail_thold = cpu_to_le32(wl->conf.conn.synch_fail_thold);
-	acx->bss_lose_timeout = cpu_to_le32(wl->conf.conn.bss_lose_timeout);
+	if (enable) {
+		threshold = wl->conf.conn.synch_fail_thold;
+		timeout = wl->conf.conn.bss_lose_timeout;
+	}
+
+	acx->synch_fail_thold = cpu_to_le32(threshold);
+	acx->bss_lose_timeout = cpu_to_le32(timeout);
 
 	ret = wl1271_cmd_configure(wl, ACX_CONN_MONIT_PARAMS,
 				   acx, sizeof(*acx));
