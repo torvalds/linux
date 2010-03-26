@@ -31,14 +31,11 @@
 static int wl1271_event_scan_complete(struct wl1271 *wl,
 				      struct event_mailbox *mbox)
 {
-	int size = sizeof(struct wl12xx_probe_req_template);
 	wl1271_debug(DEBUG_EVENT, "status: 0x%x",
 		     mbox->scheduled_scan_status);
 
 	if (test_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
 		if (wl->scan.state == WL1271_SCAN_BAND_DUAL) {
-			wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
-						NULL, size);
 			/* 2.4 GHz band scanned, scan 5 GHz band, pretend
 			 * to the wl1271_cmd_scan function that we are not
 			 * scanning as it checks that.
@@ -52,15 +49,6 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 						WL1271_SCAN_BAND_5_GHZ,
 						wl->scan.probe_requests);
 		} else {
-			if (wl->scan.state == WL1271_SCAN_BAND_2_4_GHZ)
-				wl1271_cmd_template_set(wl,
-						CMD_TEMPL_CFG_PROBE_REQ_2_4,
-						NULL, size);
-			else
-				wl1271_cmd_template_set(wl,
-						CMD_TEMPL_CFG_PROBE_REQ_5,
-						NULL, size);
-
 			mutex_unlock(&wl->mutex);
 			ieee80211_scan_completed(wl->hw, false);
 			mutex_lock(&wl->mutex);
