@@ -223,7 +223,7 @@ static void init_decoders(struct work_struct *work)
 void ir_raw_init(void)
 {
 	spin_lock_init(&ir_raw_handler_lock);
-	
+
 #ifdef MODULE
 	INIT_WORK(&wq_load, init_decoders);
 	schedule_work(&wq_load);
