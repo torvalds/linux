@@ -264,6 +264,8 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		if ((supported_device == ATOM_DEVICE_CRT1_SUPPORT) ||
 		    (supported_device == ATOM_DEVICE_DFP2_SUPPORT))
 			return false;
+		if (supported_device == ATOM_DEVICE_CRT2_SUPPORT)
+			*line_mux = 0x90;
 	}
 
 	/* ASUS HD 3600 XT board lists the DVI port as HDMI */
