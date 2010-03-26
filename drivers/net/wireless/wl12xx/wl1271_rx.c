@@ -59,13 +59,6 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	 */
 	status->signal = desc->rssi;
 
-	/*
-	 * FIXME: In wl1251, the SNR should be divided by two.  In wl1271 we
-	 * need to divide by two for now, but TI has been discussing about
-	 * changing it.  This needs to be rechecked.
-	 */
-	status->noise = desc->rssi - (desc->snr >> 1);
-
 	status->freq = ieee80211_channel_to_frequency(desc->channel);
 
 	if (desc->flags & WL1271_RX_DESC_ENCRYPT_MASK) {
