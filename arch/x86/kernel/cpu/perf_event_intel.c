@@ -483,7 +483,7 @@ static void intel_pmu_disable_all(void)
 	intel_pmu_lbr_disable_all();
 }
 
-static void intel_pmu_enable_all(void)
+static void intel_pmu_enable_all(int added)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -500,6 +500,40 @@ static void intel_pmu_enable_all(void)
 
 		intel_pmu_enable_bts(event->hw.config);
 	}
+}
+
+/*
+ * Workaround for:
+ *   Intel Errata AAK100 (model 26)
+ *   Intel Errata AAP53  (model 30)
+ *
+ * These chips need to be 'reset' when adding counters by programming
+ * the magic three (non counting) events 0x4300D2, 0x4300B1 and 0x4300B5
+ * either in sequence on the same PMC or on different PMCs.
+ */
+static void intel_pmu_nhm_enable_all(int added)
+{
+	if (added) {
+		struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+		int i;
+
+		wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + 0, 0x4300D2);
+		wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + 1, 0x4300B1);
+		wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + 2, 0x4300B5);
+
+		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0x3);
+		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0x0);
+
+		for (i = 0; i < 3; i++) {
+			struct perf_event *event = cpuc->events[i];
+
+			if (!event)
+				continue;
+
+			__x86_pmu_enable_event(&event->hw);
+		}
+	}
+	intel_pmu_enable_all(added);
 }
 
 static inline u64 intel_pmu_get_status(void)
@@ -658,7 +692,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	intel_pmu_drain_bts_buffer();
 	status = intel_pmu_get_status();
 	if (!status) {
-		intel_pmu_enable_all();
+		intel_pmu_enable_all(0);
 		return 0;
 	}
 
@@ -707,7 +741,7 @@ again:
 		goto again;
 
 done:
-	intel_pmu_enable_all();
+	intel_pmu_enable_all(0);
 	return 1;
 }
 
@@ -920,7 +954,8 @@ static __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_nhm();
 
 		x86_pmu.event_constraints = intel_nehalem_event_constraints;
-		pr_cont("Nehalem/Corei7 events, ");
+		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
+		pr_cont("Nehalem events, ");
 		break;
 
 	case 28: /* Atom */

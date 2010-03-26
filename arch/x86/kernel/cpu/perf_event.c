@@ -184,7 +184,7 @@ struct x86_pmu {
 	int		version;
 	int		(*handle_irq)(struct pt_regs *);
 	void		(*disable_all)(void);
-	void		(*enable_all)(void);
+	void		(*enable_all)(int added);
 	void		(*enable)(struct perf_event *);
 	void		(*disable)(struct perf_event *);
 	int		(*hw_config)(struct perf_event_attr *attr, struct hw_perf_event *hwc);
@@ -576,7 +576,7 @@ void hw_perf_disable(void)
 	x86_pmu.disable_all();
 }
 
-static void x86_pmu_enable_all(void)
+static void x86_pmu_enable_all(int added)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int idx;
@@ -784,7 +784,7 @@ void hw_perf_enable(void)
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct perf_event *event;
 	struct hw_perf_event *hwc;
-	int i;
+	int i, added = cpuc->n_added;
 
 	if (!x86_pmu_initialized())
 		return;
@@ -836,7 +836,7 @@ void hw_perf_enable(void)
 	cpuc->enabled = 1;
 	barrier();
 
-	x86_pmu.enable_all();
+	x86_pmu.enable_all(added);
 }
 
 static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc)

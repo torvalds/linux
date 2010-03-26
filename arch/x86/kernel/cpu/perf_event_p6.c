@@ -66,7 +66,7 @@ static void p6_pmu_disable_all(void)
 	wrmsrl(MSR_P6_EVNTSEL0, val);
 }
 
-static void p6_pmu_enable_all(void)
+static void p6_pmu_enable_all(int added)
 {
 	unsigned long val;
 
