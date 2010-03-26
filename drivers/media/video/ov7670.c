@@ -874,8 +874,7 @@ static int ov7670_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 	struct v4l2_captureparm *cp = &parms->parm.capture;
 	struct v4l2_fract *tpf = &cp->timeperframe;
 	struct ov7670_info *info = to_state(sd);
-	unsigned char clkrc;
-	int ret, div;
+	int div;
 
 	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1281,9 +1280,9 @@ static int ov7670_g_autoexp(struct v4l2_subdev *sd, __s32 *value)
 
 	ret = ov7670_read(sd, REG_COM8, &com8);
 	if (com8 & COM8_AEC)
-		*value = V4L2_EXPOSURE_AUTO;
+		*atype = V4L2_EXPOSURE_AUTO;
 	else
-		*value = V4L2_EXPOSURE_MANUAL;
+		*atype = V4L2_EXPOSURE_MANUAL;
 	return ret;
 }
 
