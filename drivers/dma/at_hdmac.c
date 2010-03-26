@@ -834,12 +834,7 @@ atc_tx_status(struct dma_chan *chan,
 
 	spin_unlock_bh(&atchan->lock);
 
-	if (txstate) {
-		txstate->last = last_complete;
-		txstate->used = last_used;
-		txstate->residue = 0;
-	}
-
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 	dev_vdbg(chan2dev(chan), "tx_status: %d (d%d, u%d)\n",
 		 cookie, last_complete ? last_complete : 0,
 		 last_used ? last_used : 0);

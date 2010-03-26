@@ -527,11 +527,7 @@ static enum dma_status td_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 
-	if (txstate) {
-		txstate->last = last_complete;
-		txstate->used = last_used;
-		txstate->residue = 0;
-	}
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	dev_dbg(chan2dev(chan),
 		"%s: exit, ret: %d, last_complete: %d, last_used: %d\n",

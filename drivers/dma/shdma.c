@@ -752,12 +752,7 @@ static enum dma_status sh_dmae_tx_status(struct dma_chan *chan,
 	last_used = chan->cookie;
 	last_complete = sh_chan->completed_cookie;
 	BUG_ON(last_complete < 0);
-
-	if (txstate) {
-		txstate->last = last_complete;
-		txstate->used = last_used;
-		txstate->residue = 0;
-	}
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	spin_lock_bh(&sh_chan->desc_lock);
 

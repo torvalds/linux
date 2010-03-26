@@ -1651,11 +1651,7 @@ static enum dma_status idmac_tx_status(struct dma_chan *chan,
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
 
-	if (txstate) {
-		txstate->last = ichan->completed;
-		txstate->used = chan->cookie;
-		txstate->residue = 0;
-	}
+	dma_set_tx_state(txstate, ichan->completed, chan->cookie, 0);
 	if (cookie != chan->cookie)
 		return DMA_ERROR;
 	return DMA_SUCCESS;

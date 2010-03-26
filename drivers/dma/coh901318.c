@@ -1147,12 +1147,8 @@ coh901318_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 
-	if (txstate) {
-		txstate->last = last_complete;
-		txstate->used = last_used;
-		txstate->residue = coh901318_get_bytes_left(chan);
-	}
-
+	dma_set_tx_state(txstate, last_complete, last_used,
+			 coh901318_get_bytes_left(chan));
 	if (ret == DMA_IN_PROGRESS && cohc->stopped)
 		ret = DMA_PAUSED;
 

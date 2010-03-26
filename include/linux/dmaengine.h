@@ -628,6 +628,16 @@ static inline enum dma_status dma_async_is_complete(dma_cookie_t cookie,
 	return DMA_IN_PROGRESS;
 }
 
+static inline void
+dma_set_tx_state(struct dma_tx_state *st, dma_cookie_t last, dma_cookie_t used, u32 residue)
+{
+	if (st) {
+		st->last = last;
+		st->used = used;
+		st->residue = residue;
+	}
+}
+
 enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie);
 #ifdef CONFIG_DMA_ENGINE
 enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx);

@@ -158,11 +158,7 @@ ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 	last_used = c->cookie;
 	last_complete = chan->completed_cookie;
 
-	if (txstate) {
-		txstate->last = last_complete;
-		txstate->used = last_used;
-		txstate->residue = 0;
-	}
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	return dma_async_is_complete(cookie, last_complete, last_used);
 }
