@@ -42,9 +42,10 @@
  * KMS wrapper.
  * - 2.0.0 - initial interface
  * - 2.1.0 - add square tiling interface
+ * - 2.2.0 - add r6xx/r7xx const buffer support
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	1
+#define KMS_DRIVER_MINOR	2
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
