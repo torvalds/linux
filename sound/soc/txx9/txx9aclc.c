@@ -159,7 +159,7 @@ static void txx9aclc_dma_tasklet(unsigned long data)
 		void __iomem *base = drvdata->base;
 
 		spin_unlock_irqrestore(&dmadata->dma_lock, flags);
-		chan->device->device_terminate_all(chan);
+		chan->device->device_control(chan, DMA_TERMINATE_ALL);
 		/* first time */
 		for (i = 0; i < NR_DMA_CHAIN; i++) {
 			desc = txx9aclc_dma_submit(dmadata,
@@ -267,7 +267,7 @@ static int txx9aclc_pcm_close(struct snd_pcm_substream *substream)
 	struct dma_chan *chan = dmadata->dma_chan;
 
 	dmadata->frag_count = -1;
-	chan->device->device_terminate_all(chan);
+	chan->device->device_control(chan, DMA_TERMINATE_ALL);
 	return 0;
 }
 
@@ -396,7 +396,7 @@ static int txx9aclc_pcm_remove(struct platform_device *pdev)
 		struct dma_chan *chan = dmadata->dma_chan;
 		if (chan) {
 			dmadata->frag_count = -1;
-			chan->device->device_terminate_all(chan);
+			chan->device->device_control(chan, DMA_TERMINATE_ALL);
 			dma_release_channel(chan);
 		}
 		dev->dmadata[i].dma_chan = NULL;

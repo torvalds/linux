@@ -774,13 +774,18 @@ fail:
 	return NULL;
 }
 
-static void fsl_dma_device_terminate_all(struct dma_chan *dchan)
+static int fsl_dma_device_control(struct dma_chan *dchan,
+				  enum dma_ctrl_cmd cmd)
 {
 	struct fsldma_chan *chan;
 	unsigned long flags;
 
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
+
 	if (!dchan)
-		return;
+		return -EINVAL;
 
 	chan = to_fsl_chan(dchan);
 
@@ -794,6 +799,8 @@ static void fsl_dma_device_terminate_all(struct dma_chan *dchan)
 	fsldma_free_desc_list(chan, &chan->ld_running);
 
 	spin_unlock_irqrestore(&chan->desc_lock, flags);
+
+	return 0;
 }
 
 /**
@@ -1332,7 +1339,7 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 	fdev->common.device_is_tx_complete = fsl_dma_is_complete;
 	fdev->common.device_issue_pending = fsl_dma_memcpy_issue_pending;
 	fdev->common.device_prep_slave_sg = fsl_dma_prep_slave_sg;
-	fdev->common.device_terminate_all = fsl_dma_device_terminate_all;
+	fdev->common.device_control = fsl_dma_device_control;
 	fdev->common.dev = &op->dev;
 
 	dev_set_drvdata(&op->dev, fdev);

@@ -781,12 +781,16 @@ err_desc_get:
 	return NULL;
 }
 
-static void dwc_terminate_all(struct dma_chan *chan)
+static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(chan->device);
 	struct dw_desc		*desc, *_desc;
 	LIST_HEAD(list);
+
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
 
 	/*
 	 * This is only called when something went wrong elsewhere, so
@@ -810,6 +814,8 @@ static void dwc_terminate_all(struct dma_chan *chan)
 	/* Flush all pending and queued descriptors */
 	list_for_each_entry_safe(desc, _desc, &list, desc_node)
 		dwc_descriptor_complete(dwc, desc);
+
+	return 0;
 }
 
 static enum dma_status
@@ -1338,7 +1344,7 @@ static int __init dw_probe(struct platform_device *pdev)
 	dw->dma.device_prep_dma_memcpy = dwc_prep_dma_memcpy;
 
 	dw->dma.device_prep_slave_sg = dwc_prep_slave_sg;
-	dw->dma.device_terminate_all = dwc_terminate_all;
+	dw->dma.device_control = dwc_control;
 
 	dw->dma.device_is_tx_complete = dwc_is_tx_complete;
 	dw->dma.device_issue_pending = dwc_issue_pending;

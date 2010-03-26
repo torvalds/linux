@@ -759,12 +759,16 @@ err_desc_get:
 	return NULL;
 }
 
-static void atc_terminate_all(struct dma_chan *chan)
+static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma		*atdma = to_at_dma(chan->device);
 	struct at_desc		*desc, *_desc;
 	LIST_HEAD(list);
+
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
 
 	/*
 	 * This is only called when something went wrong elsewhere, so
@@ -789,6 +793,8 @@ static void atc_terminate_all(struct dma_chan *chan)
 	/* Flush all pending and queued descriptors */
 	list_for_each_entry_safe(desc, _desc, &list, desc_node)
 		atc_chain_complete(atchan, desc);
+
+	return 0;
 }
 
 /**
@@ -1091,7 +1097,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 	if (dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)) {
 		atdma->dma_common.device_prep_slave_sg = atc_prep_slave_sg;
-		atdma->dma_common.device_terminate_all = atc_terminate_all;
+		atdma->dma_common.device_control = atc_control;
 	}
 
 	dma_writel(atdma, EN, AT_DMA_ENABLE);

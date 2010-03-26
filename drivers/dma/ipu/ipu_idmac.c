@@ -1472,12 +1472,16 @@ static void idmac_issue_pending(struct dma_chan *chan)
 	 */
 }
 
-static void __idmac_terminate_all(struct dma_chan *chan)
+static int __idmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
 	struct idmac *idmac = to_idmac(chan->device);
 	unsigned long flags;
 	int i;
+
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
 
 	ipu_disable_channel(idmac, ichan,
 			    ichan->status >= IPU_CHANNEL_ENABLED);
@@ -1505,17 +1509,22 @@ static void __idmac_terminate_all(struct dma_chan *chan)
 	tasklet_enable(&to_ipu(idmac)->tasklet);
 
 	ichan->status = IPU_CHANNEL_INITIALIZED;
+
+	return 0;
 }
 
-static void idmac_terminate_all(struct dma_chan *chan)
+static int idmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
+	int ret;
 
 	mutex_lock(&ichan->chan_mutex);
 
-	__idmac_terminate_all(chan);
+	ret = __idmac_control(chan, cmd);
 
 	mutex_unlock(&ichan->chan_mutex);
+
+	return ret;
 }
 
 #ifdef DEBUG
@@ -1607,7 +1616,7 @@ static void idmac_free_chan_resources(struct dma_chan *chan)
 
 	mutex_lock(&ichan->chan_mutex);
 
-	__idmac_terminate_all(chan);
+	__idmac_control(chan, DMA_TERMINATE_ALL);
 
 	if (ichan->status > IPU_CHANNEL_FREE) {
 #ifdef DEBUG
@@ -1669,7 +1678,7 @@ static int __init ipu_idmac_init(struct ipu *ipu)
 
 	/* Compulsory for DMA_SLAVE fields */
 	dma->device_prep_slave_sg		= idmac_prep_slave_sg;
-	dma->device_terminate_all		= idmac_terminate_all;
+	dma->device_control			= idmac_control;
 
 	INIT_LIST_HEAD(&dma->channels);
 	for (i = 0; i < IPU_CHANNELS_NUM; i++) {
@@ -1703,7 +1712,7 @@ static void __exit ipu_idmac_exit(struct ipu *ipu)
 	for (i = 0; i < IPU_CHANNELS_NUM; i++) {
 		struct idmac_channel *ichan = ipu->channel + i;
 
-		idmac_terminate_all(&ichan->dma_chan);
+		idmac_control(&ichan->dma_chan, DMA_TERMINATE_ALL);
 		idmac_prep_slave_sg(&ichan->dma_chan, NULL, 0, DMA_NONE, 0);
 	}
 

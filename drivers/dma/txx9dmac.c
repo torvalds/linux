@@ -938,11 +938,15 @@ txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	return &first->txd;
 }
 
-static void txx9dmac_terminate_all(struct dma_chan *chan)
+static int txx9dmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 {
 	struct txx9dmac_chan *dc = to_txx9dmac_chan(chan);
 	struct txx9dmac_desc *desc, *_desc;
 	LIST_HEAD(list);
+
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -EINVAL;
 
 	dev_vdbg(chan2dev(chan), "terminate_all\n");
 	spin_lock_bh(&dc->lock);
@@ -958,6 +962,8 @@ static void txx9dmac_terminate_all(struct dma_chan *chan)
 	/* Flush all pending and queued descriptors */
 	list_for_each_entry_safe(desc, _desc, &list, desc_node)
 		txx9dmac_descriptor_complete(dc, desc);
+
+	return 0;
 }
 
 static enum dma_status
@@ -1153,7 +1159,7 @@ static int __init txx9dmac_chan_probe(struct platform_device *pdev)
 	dc->dma.dev = &pdev->dev;
 	dc->dma.device_alloc_chan_resources = txx9dmac_alloc_chan_resources;
 	dc->dma.device_free_chan_resources = txx9dmac_free_chan_resources;
-	dc->dma.device_terminate_all = txx9dmac_terminate_all;
+	dc->dma.device_control = txx9dmac_control;
 	dc->dma.device_is_tx_complete = txx9dmac_is_tx_complete;
 	dc->dma.device_issue_pending = txx9dmac_issue_pending;
 	if (pdata && pdata->memcpy_chan == ch) {

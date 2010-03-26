@@ -613,13 +613,16 @@ static struct dma_async_tx_descriptor *td_prep_slave_sg(struct dma_chan *chan,
 	return &td_desc->txd;
 }
 
-static void td_terminate_all(struct dma_chan *chan)
+static int td_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 {
 	struct timb_dma_chan *td_chan =
 		container_of(chan, struct timb_dma_chan, chan);
 	struct timb_dma_desc *td_desc, *_td_desc;
 
 	dev_dbg(chan2dev(chan), "%s: Entry\n", __func__);
+
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
 
 	/* first the easy part, put the queue into the free list */
 	spin_lock_bh(&td_chan->lock);
@@ -630,6 +633,8 @@ static void td_terminate_all(struct dma_chan *chan)
 	/* now tear down the runnning */
 	__td_finish(td_chan);
 	spin_unlock_bh(&td_chan->lock);
+
+	return 0;
 }
 
 static void td_tasklet(unsigned long data)
@@ -743,7 +748,7 @@ static int __devinit td_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_SLAVE, td->dma.cap_mask);
 	dma_cap_set(DMA_PRIVATE, td->dma.cap_mask);
 	td->dma.device_prep_slave_sg = td_prep_slave_sg;
-	td->dma.device_terminate_all = td_terminate_all;
+	td->dma.device_control = td_control;
 
 	td->dma.dev = &pdev->dev;
 

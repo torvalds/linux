@@ -110,20 +110,6 @@ struct coh901318_platform {
 u32 coh901318_get_bytes_left(struct dma_chan *chan);
 
 /**
- * coh901318_stop() - Stops dma transfer
- * @chan: dma channel handle
- * return 0 on success otherwise negative value
- */
-void coh901318_stop(struct dma_chan *chan);
-
-/**
- * coh901318_continue() - Resumes a stopped dma transfer
- * @chan: dma channel handle
- * return 0 on success otherwise negative value
- */
-void coh901318_continue(struct dma_chan *chan);
-
-/**
  * coh901318_filter_id() - DMA channel filter function
  * @chan: dma channel handle
  * @chan_id: id of dma channel to be filter out

@@ -580,12 +580,16 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 			       direction, flags);
 }
 
-static void sh_dmae_terminate_all(struct dma_chan *chan)
+static int sh_dmae_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 {
 	struct sh_dmae_chan *sh_chan = to_sh_chan(chan);
 
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
+
 	if (!chan)
-		return;
+		return -EINVAL;
 
 	dmae_halt(sh_chan);
 
@@ -601,6 +605,8 @@ static void sh_dmae_terminate_all(struct dma_chan *chan)
 	spin_unlock_bh(&sh_chan->desc_lock);
 
 	sh_dmae_chan_ld_cleanup(sh_chan, true);
+
+	return 0;
 }
 
 static dma_async_tx_callback __ld_cleanup(struct sh_dmae_chan *sh_chan, bool all)
@@ -1029,7 +1035,7 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 
 	/* Compulsory for DMA_SLAVE fields */
 	shdev->common.device_prep_slave_sg = sh_dmae_prep_slave_sg;
-	shdev->common.device_terminate_all = sh_dmae_terminate_all;
+	shdev->common.device_control = sh_dmae_control;
 
 	shdev->common.dev = &pdev->dev;
 	/* Default transfer size of 32 bytes requires 32-byte alignment */

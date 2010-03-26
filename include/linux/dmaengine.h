@@ -107,6 +107,19 @@ enum dma_ctrl_flags {
 };
 
 /**
+ * enum dma_ctrl_cmd - DMA operations that can optionally be exercised
+ * on a running channel.
+ * @DMA_TERMINATE_ALL: terminate all ongoing transfers
+ * @DMA_PAUSE: pause ongoing transfers
+ * @DMA_RESUME: resume paused transfer
+ */
+enum dma_ctrl_cmd {
+	DMA_TERMINATE_ALL,
+	DMA_PAUSE,
+	DMA_RESUME,
+};
+
+/**
  * enum sum_check_bits - bit position of pq_check_flags
  */
 enum sum_check_bits {
@@ -261,7 +274,8 @@ struct dma_async_tx_descriptor {
  * @device_prep_dma_memset: prepares a memset operation
  * @device_prep_dma_interrupt: prepares an end of chain interrupt operation
  * @device_prep_slave_sg: prepares a slave dma operation
- * @device_terminate_all: terminate all pending operations
+ * @device_control: manipulate all pending operations on a channel, returns
+ *	zero or error code
  * @device_is_tx_complete: poll for transaction completion
  * @device_issue_pending: push pending transactions to hardware
  */
@@ -313,7 +327,7 @@ struct dma_device {
 		struct dma_chan *chan, struct scatterlist *sgl,
 		unsigned int sg_len, enum dma_data_direction direction,
 		unsigned long flags);
-	void (*device_terminate_all)(struct dma_chan *chan);
+	int (*device_control)(struct dma_chan *chan, enum dma_ctrl_cmd cmd);
 
 	enum dma_status (*device_is_tx_complete)(struct dma_chan *chan,
 			dma_cookie_t cookie, dma_cookie_t *last,

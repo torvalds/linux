@@ -506,10 +506,11 @@ u32 coh901318_get_bytes_left(struct dma_chan *chan)
 EXPORT_SYMBOL(coh901318_get_bytes_left);
 
 
-/* Stops a transfer without losing data. Enables power save.
-   Use this function in conjunction with coh901318_continue(..)
-*/
-void coh901318_stop(struct dma_chan *chan)
+/*
+ * Pauses a transfer without losing data. Enables power save.
+ * Use this function in conjunction with coh901318_resume.
+ */
+static void coh901318_pause(struct dma_chan *chan)
 {
 	u32 val;
 	unsigned long flags;
@@ -550,12 +551,11 @@ void coh901318_stop(struct dma_chan *chan)
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
 }
-EXPORT_SYMBOL(coh901318_stop);
 
-/* Continues a transfer that has been stopped via 300_dma_stop(..).
+/* Resumes a transfer that has been stopped via 300_dma_stop(..).
    Power save is handled.
 */
-void coh901318_continue(struct dma_chan *chan)
+static void coh901318_resume(struct dma_chan *chan)
 {
 	u32 val;
 	unsigned long flags;
@@ -581,7 +581,6 @@ void coh901318_continue(struct dma_chan *chan)
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
 }
-EXPORT_SYMBOL(coh901318_continue);
 
 bool coh901318_filter_id(struct dma_chan *chan, void *chan_id)
 {
@@ -945,7 +944,7 @@ coh901318_free_chan_resources(struct dma_chan *chan)
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
 
-	chan->device->device_terminate_all(chan);
+	chan->device->device_control(chan, DMA_TERMINATE_ALL);
 }
 
 
@@ -1179,16 +1178,29 @@ coh901318_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&cohc->lock, flags);
 }
 
-static void
-coh901318_terminate_all(struct dma_chan *chan)
+static int
+coh901318_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 {
 	unsigned long flags;
 	struct coh901318_chan *cohc = to_coh901318_chan(chan);
 	struct coh901318_desc *cohd;
 	void __iomem *virtbase = cohc->base->virtbase;
 
-	coh901318_stop(chan);
+	if (cmd == DMA_PAUSE) {
+		coh901318_pause(chan);
+		return 0;
+	}
 
+	if (cmd == DMA_RESUME) {
+		coh901318_resume(chan);
+		return 0;
+	}
+
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
+
+	/* The remainder of this function terminates the transfer */
+	coh901318_pause(chan);
 	spin_lock_irqsave(&cohc->lock, flags);
 
 	/* Clear any pending BE or TC interrupt */
@@ -1227,6 +1239,8 @@ coh901318_terminate_all(struct dma_chan *chan)
 	cohc->busy = 0;
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
+
+	return 0;
 }
 void coh901318_base_init(struct dma_device *dma, const int *pick_chans,
 			 struct coh901318_base *base)
@@ -1344,7 +1358,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	base->dma_slave.device_prep_slave_sg = coh901318_prep_slave_sg;
 	base->dma_slave.device_is_tx_complete = coh901318_is_tx_complete;
 	base->dma_slave.device_issue_pending = coh901318_issue_pending;
-	base->dma_slave.device_terminate_all = coh901318_terminate_all;
+	base->dma_slave.device_control = coh901318_control;
 	base->dma_slave.dev = &pdev->dev;
 
 	err = dma_async_device_register(&base->dma_slave);
@@ -1364,7 +1378,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	base->dma_memcpy.device_prep_dma_memcpy = coh901318_prep_memcpy;
 	base->dma_memcpy.device_is_tx_complete = coh901318_is_tx_complete;
 	base->dma_memcpy.device_issue_pending = coh901318_issue_pending;
-	base->dma_memcpy.device_terminate_all = coh901318_terminate_all;
+	base->dma_memcpy.device_control = coh901318_control;
 	base->dma_memcpy.dev = &pdev->dev;
 	/*
 	 * This controller can only access address at even 32bit boundaries,
