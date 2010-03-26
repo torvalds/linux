@@ -49,7 +49,7 @@ struct tracepoint {
 		void **it_func;						\
 									\
 		rcu_read_lock_sched_notrace();				\
-		it_func = rcu_dereference((tp)->funcs);			\
+		it_func = rcu_dereference_sched((tp)->funcs);		\
 		if (it_func) {						\
 			do {						\
 				((void(*)(proto))(*it_func))(args);	\
