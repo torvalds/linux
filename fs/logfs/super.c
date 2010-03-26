@@ -328,7 +328,7 @@ static int logfs_get_sb_final(struct super_block *sb, struct vfsmount *mnt)
 
 	sb->s_root = d_alloc_root(rootdir);
 	if (!sb->s_root)
-		goto fail;
+		goto fail2;
 
 	super->s_erase_page = alloc_pages(GFP_KERNEL, 0);
 	if (!super->s_erase_page)
