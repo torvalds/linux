@@ -1408,6 +1408,10 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	if (ret)
 		goto destroy_ringbuffer;
 
+	/* IIR "flip pending" bit means done if this bit is set */
+	if (IS_GEN3(dev) && (I915_READ(ECOSKPD) & ECO_FLIP_DONE))
+		dev_priv->flip_pending_is_done = true;
+
 	intel_modeset_init(dev);
 
 	ret = drm_irq_install(dev);

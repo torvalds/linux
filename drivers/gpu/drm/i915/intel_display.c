@@ -4603,10 +4603,10 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	kfree(work);
 }
 
-void intel_finish_page_flip(struct drm_device *dev, int pipe)
+static void do_intel_finish_page_flip(struct drm_device *dev,
+				      struct drm_crtc *crtc)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	struct drm_i915_gem_object *obj_priv;
@@ -4648,6 +4648,22 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	    atomic_dec_and_test(&obj_priv->pending_flip))
 		DRM_WAKEUP(&dev_priv->pending_flip_queue);
 	schedule_work(&work->work);
+}
+
+void intel_finish_page_flip(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
+	do_intel_finish_page_flip(dev, crtc);
+}
+
+void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->plane_to_crtc_mapping[plane];
+
+	do_intel_finish_page_flip(dev, crtc);
 }
 
 void intel_prepare_page_flip(struct drm_device *dev, int plane)
@@ -4745,14 +4761,17 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 			;
 
 	BEGIN_LP_RING(4);
-	OUT_RING(MI_DISPLAY_FLIP |
-		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch);
 	if (IS_I965G(dev)) {
+		OUT_RING(MI_DISPLAY_FLIP |
+			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+		OUT_RING(fb->pitch);
 		OUT_RING(obj_priv->gtt_offset | obj_priv->tiling_mode);
 		pipesrc = I915_READ(pipesrc_reg); 
 		OUT_RING(pipesrc & 0x0fff0fff);
 	} else {
+		OUT_RING(MI_DISPLAY_FLIP_I915 |
+			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+		OUT_RING(fb->pitch);
 		OUT_RING(obj_priv->gtt_offset);
 		OUT_RING(MI_NOOP);
 	}

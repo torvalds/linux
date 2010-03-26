@@ -178,6 +178,7 @@
 #define   MI_OVERLAY_OFF	(0x2<<21)
 #define MI_LOAD_SCAN_LINES_INCL MI_INSTR(0x12, 0)
 #define MI_DISPLAY_FLIP		MI_INSTR(0x14, 2)
+#define MI_DISPLAY_FLIP_I915	MI_INSTR(0x14, 1)
 #define   MI_DISPLAY_FLIP_PLANE(n) ((n) << 20)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
@@ -368,6 +369,9 @@
 #define   CM0_RC_OP_FLUSH_DISABLE (1<<0)
 #define BB_ADDR		0x02140 /* 8 bytes */
 #define GFX_FLSH_CNTL	0x02170 /* 915+ only */
+#define ECOSKPD		0x021d0
+#define   ECO_GATING_CX_ONLY	(1<<3)
+#define   ECO_FLIP_DONE		(1<<0)
 
 /* GEN6 interrupt control */
 #define GEN6_RENDER_HWSTAM	0x2098

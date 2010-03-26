@@ -940,22 +940,30 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		if (HAS_BSD(dev) && (iir & I915_BSD_USER_INTERRUPT))
 			DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
 
-		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT)
+		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT) {
 			intel_prepare_page_flip(dev, 0);
+			if (dev_priv->flip_pending_is_done)
+				intel_finish_page_flip_plane(dev, 0);
+		}
 
-		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT)
+		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT) {
+			if (dev_priv->flip_pending_is_done)
+				intel_finish_page_flip_plane(dev, 1);
 			intel_prepare_page_flip(dev, 1);
+		}
 
 		if (pipea_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 0);
-			intel_finish_page_flip(dev, 0);
+			if (!dev_priv->flip_pending_is_done)
+				intel_finish_page_flip(dev, 0);
 		}
 
 		if (pipeb_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 1);
-			intel_finish_page_flip(dev, 1);
+			if (!dev_priv->flip_pending_is_done)
+				intel_finish_page_flip(dev, 1);
 		}
 
 		if ((pipea_stats & I915_LEGACY_BLC_EVENT_STATUS) ||
