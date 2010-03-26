@@ -196,6 +196,11 @@ generic parser regardless of the codec.  Usually the codec-specific
 parser is much better than the generic parser (as now).  Thus this
 option is more about the debugging purpose.
 
+Another special meaning has 'model=hwio'. For this model, the driver
+bypasses any codec initialization and the reset procedure for codecs
+is also bypassed. This mode is usefull to enable direct access using
+hwdep interface (using hdaverb or hda-analyzer tools) and retain
+codec setup from BIOS.
 
 Speaker and Headphone Output
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
