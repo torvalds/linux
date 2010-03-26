@@ -84,7 +84,7 @@ module_param_array(bdl_pos_adj, int, NULL, 0644);
 MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset.");
 module_param_array(probe_mask, int, NULL, 0444);
 MODULE_PARM_DESC(probe_mask, "Bitmask to probe codecs (default = -1).");
-module_param_array(probe_only, bool, NULL, 0444);
+module_param_array(probe_only, int, NULL, 0444);
 MODULE_PARM_DESC(probe_only, "Only probing and no codec initialization.");
 module_param(single_cmd, bool, 0444);
 MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
@@ -858,9 +858,12 @@ static void azx_power_notify(struct hda_bus *bus);
 #endif
 
 /* reset codec link */
-static int azx_reset(struct azx *chip)
+static int azx_reset(struct azx *chip, int full_reset)
 {
 	int count;
+
+	if (!full_reset)
+		goto __skip;
 
 	/* clear STATESTS */
 	azx_writeb(chip, STATESTS, STATESTS_INT_MASK);
@@ -887,6 +890,7 @@ static int azx_reset(struct azx *chip)
 	/* Brent Chartrand said to wait >= 540us for codecs to initialize */
 	msleep(1);
 
+      __skip:
 	/* check to see if controller is ready */
 	if (!azx_readb(chip, GCTL)) {
 		snd_printd(SFX "azx_reset: controller not ready!\n");
@@ -998,13 +1002,13 @@ static void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev)
 /*
  * reset and start the controller registers
  */
-static void azx_init_chip(struct azx *chip)
+static void azx_init_chip(struct azx *chip, int full_reset)
 {
 	if (chip->initialized)
 		return;
 
 	/* reset controller */
-	azx_reset(chip);
+	azx_reset(chip, full_reset);
 
 	/* initialize interrupts */
 	azx_int_clear(chip);
@@ -1348,7 +1352,7 @@ static void azx_bus_reset(struct hda_bus *bus)
 
 	bus->in_reset = 1;
 	azx_stop_chip(chip);
-	azx_init_chip(chip);
+	azx_init_chip(chip, 1);
 #ifdef CONFIG_PM
 	if (chip->initialized) {
 		int i;
@@ -1422,7 +1426,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 				 * get back to the sanity state.
 				 */
 				azx_stop_chip(chip);
-				azx_init_chip(chip);
+				azx_init_chip(chip, 1);
 			}
 		}
 	}
@@ -2112,7 +2116,7 @@ static void azx_power_notify(struct hda_bus *bus)
 		}
 	}
 	if (power_on)
-		azx_init_chip(chip);
+		azx_init_chip(chip, 1);
 	else if (chip->running && power_save_controller &&
 		 !bus->power_keep_link_on)
 		azx_stop_chip(chip);
@@ -2182,7 +2186,7 @@ static int azx_resume(struct pci_dev *pci)
 	azx_init_pci(chip);
 
 	if (snd_hda_codecs_inuse(chip->bus))
-		azx_init_chip(chip);
+		azx_init_chip(chip, 1);
 
 	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
@@ -2573,7 +2577,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	/* initialize chip */
 	azx_init_pci(chip);
-	azx_init_chip(chip);
+	azx_init_chip(chip, (probe_only[dev] & 2) == 0);
 
 	/* codec detection */
 	if (!chip->codec_mask) {
@@ -2662,7 +2666,7 @@ static int __devinit azx_probe(struct pci_dev *pci,
 			goto out_free;
 	}
 #endif
-	if (!probe_only[dev]) {
+	if ((probe_only[dev] & 1) == 0) {
 		err = azx_codec_configure(chip);
 		if (err < 0)
 			goto out_free;

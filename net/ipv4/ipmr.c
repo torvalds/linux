@@ -802,6 +802,9 @@ static int ipmr_mfc_add(struct net *net, struct mfcctl *mfc, int mrtsock)
 	int line;
 	struct mfc_cache *uc, *c, **cp;
 
+	if (mfc->mfcc_parent >= MAXVIFS)
+		return -ENFILE;
+
 	line = MFC_HASH(mfc->mfcc_mcastgrp.s_addr, mfc->mfcc_origin.s_addr);
 
 	for (cp = &net->ipv4.mfc_cache_array[line];
