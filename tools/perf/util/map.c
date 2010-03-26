@@ -268,12 +268,38 @@ void map_groups__flush(struct map_groups *self)
 
 struct symbol *map_groups__find_symbol(struct map_groups *self,
 				       enum map_type type, u64 addr,
+				       struct map **mapp,
 				       symbol_filter_t filter)
 {
 	struct map *map = map_groups__find(self, type, addr);
 
-	if (map != NULL)
+	if (map != NULL) {
+		if (mapp != NULL)
+			*mapp = map;
 		return map__find_symbol(map, map->map_ip(map, addr), filter);
+	}
+
+	return NULL;
+}
+
+struct symbol *map_groups__find_symbol_by_name(struct map_groups *self,
+					       enum map_type type,
+					       const char *name,
+					       struct map **mapp,
+					       symbol_filter_t filter)
+{
+	struct rb_node *nd;
+
+	for (nd = rb_first(&self->maps[type]); nd; nd = rb_next(nd)) {
+		struct map *pos = rb_entry(nd, struct map, rb_node);
+		struct symbol *sym = map__find_symbol_by_name(pos, name, filter);
+
+		if (sym == NULL)
+			continue;
+		if (mapp != NULL)
+			*mapp = pos;
+		return sym;
+	}
 
 	return NULL;
 }

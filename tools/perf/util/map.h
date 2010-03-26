@@ -119,13 +119,28 @@ static inline struct map *map_groups__find(struct map_groups *self,
 
 struct symbol *map_groups__find_symbol(struct map_groups *self,
 				       enum map_type type, u64 addr,
+				       struct map **mapp,
 				       symbol_filter_t filter);
 
-static inline struct symbol *map_groups__find_function(struct map_groups *self,
-						       u64 addr,
-						       symbol_filter_t filter)
+struct symbol *map_groups__find_symbol_by_name(struct map_groups *self,
+					       enum map_type type,
+					       const char *name,
+					       struct map **mapp,
+					       symbol_filter_t filter);
+
+static inline
+struct symbol *map_groups__find_function(struct map_groups *self, u64 addr,
+					 struct map **mapp, symbol_filter_t filter)
 {
-	return map_groups__find_symbol(self, MAP__FUNCTION, addr, filter);
+	return map_groups__find_symbol(self, MAP__FUNCTION, addr, mapp, filter);
+}
+
+static inline
+struct symbol *map_groups__find_function_by_name(struct map_groups *self,
+						 const char *name, struct map **mapp,
+						 symbol_filter_t filter)
+{
+	return map_groups__find_symbol_by_name(self, MAP__FUNCTION, name, mapp, filter);
 }
 
 int map_groups__fixup_overlappings(struct map_groups *self, struct map *map,
