@@ -1262,24 +1262,21 @@ s32 e1000e_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed, u16 *dup
 	u32 status;
 
 	status = er32(STATUS);
-	if (status & E1000_STATUS_SPEED_1000) {
+	if (status & E1000_STATUS_SPEED_1000)
 		*speed = SPEED_1000;
-		e_dbg("1000 Mbs, ");
-	} else if (status & E1000_STATUS_SPEED_100) {
+	else if (status & E1000_STATUS_SPEED_100)
 		*speed = SPEED_100;
-		e_dbg("100 Mbs, ");
-	} else {
+	else
 		*speed = SPEED_10;
-		e_dbg("10 Mbs, ");
-	}
 
-	if (status & E1000_STATUS_FD) {
+	if (status & E1000_STATUS_FD)
 		*duplex = FULL_DUPLEX;
-		e_dbg("Full Duplex\n");
-	} else {
+	else
 		*duplex = HALF_DUPLEX;
-		e_dbg("Half Duplex\n");
-	}
+
+	e_dbg("%u Mbps, %s Duplex\n",
+	      *speed == SPEED_1000 ? 1000 : *speed == SPEED_100 ? 100 : 10,
+	      *duplex == FULL_DUPLEX ? "Full" : "Half");
 
 	return 0;
 }
