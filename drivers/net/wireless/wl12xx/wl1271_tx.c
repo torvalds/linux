@@ -426,8 +426,10 @@ void wl1271_tx_flush(struct wl1271 *wl)
 
 		wl1271_debug(DEBUG_TX, "flushing skb 0x%p", skb);
 
-		if (!(info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS))
-				continue;
+		if (!(info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)) {
+			kfree_skb(skb);
+			continue;
+		}
 
 		ieee80211_tx_status(wl->hw, skb);
 	}
@@ -437,8 +439,10 @@ void wl1271_tx_flush(struct wl1271 *wl)
 			skb = wl->tx_frames[i];
 			info = IEEE80211_SKB_CB(skb);
 
-			if (!(info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS))
+			if (!(info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)) {
+				kfree_skb(skb);
 				continue;
+			}
 
 			ieee80211_tx_status(wl->hw, skb);
 			wl->tx_frames[i] = NULL;
