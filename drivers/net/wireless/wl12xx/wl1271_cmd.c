@@ -665,6 +665,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 
 out:
 	kfree(params);
+	kfree(trigger);
 	return ret;
 }
 
