@@ -142,15 +142,14 @@ static inline struct ioat_dma_chan *to_ioat_chan(struct dma_chan *c)
 }
 
 /**
- * ioat_is_complete - poll the status of an ioat transaction
+ * ioat_tx_status - poll the status of an ioat transaction
  * @c: channel handle
  * @cookie: transaction identifier
- * @done: if set, updated with last completed transaction
- * @used: if set, updated with last used transaction
+ * @txstate: if set, updated with the transaction state
  */
 static inline enum dma_status
-ioat_is_complete(struct dma_chan *c, dma_cookie_t cookie,
-		 dma_cookie_t *done, dma_cookie_t *used)
+ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
+		 struct dma_tx_state *txstate)
 {
 	struct ioat_chan_common *chan = to_chan_common(c);
 	dma_cookie_t last_used;
@@ -159,10 +158,11 @@ ioat_is_complete(struct dma_chan *c, dma_cookie_t cookie,
 	last_used = c->cookie;
 	last_complete = chan->completed_cookie;
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = 0;
+	}
 
 	return dma_async_is_complete(cookie, last_complete, last_used);
 }
@@ -338,8 +338,8 @@ struct dca_provider * __devinit ioat_dca_init(struct pci_dev *pdev,
 unsigned long ioat_get_current_completion(struct ioat_chan_common *chan);
 void ioat_init_channel(struct ioatdma_device *device,
 		       struct ioat_chan_common *chan, int idx);
-enum dma_status ioat_is_dma_complete(struct dma_chan *c, dma_cookie_t cookie,
-				     dma_cookie_t *done, dma_cookie_t *used);
+enum dma_status ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
+				   struct dma_tx_state *txstate);
 void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
 		    size_t len, struct ioat_dma_descriptor *hw);
 bool ioat_cleanup_preamble(struct ioat_chan_common *chan,

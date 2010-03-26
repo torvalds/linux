@@ -3934,12 +3934,13 @@ static void ppc440spe_adma_free_chan_resources(struct dma_chan *chan)
 }
 
 /**
- * ppc440spe_adma_is_complete - poll the status of an ADMA transaction
+ * ppc440spe_adma_tx_status - poll the status of an ADMA transaction
  * @chan: ADMA channel handle
  * @cookie: ADMA transaction identifier
+ * @txstate: a holder for the current state of the channel
  */
-static enum dma_status ppc440spe_adma_is_complete(struct dma_chan *chan,
-	dma_cookie_t cookie, dma_cookie_t *done, dma_cookie_t *used)
+static enum dma_status ppc440spe_adma_tx_status(struct dma_chan *chan,
+			dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct ppc440spe_adma_chan *ppc440spe_chan;
 	dma_cookie_t last_used;
@@ -3950,10 +3951,11 @@ static enum dma_status ppc440spe_adma_is_complete(struct dma_chan *chan,
 	last_used = chan->cookie;
 	last_complete = ppc440spe_chan->completed_cookie;
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = 0;
+	}
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 	if (ret == DMA_SUCCESS)
@@ -3964,10 +3966,11 @@ static enum dma_status ppc440spe_adma_is_complete(struct dma_chan *chan,
 	last_used = chan->cookie;
 	last_complete = ppc440spe_chan->completed_cookie;
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = 0;
+	}
 
 	return dma_async_is_complete(cookie, last_complete, last_used);
 }
@@ -4179,7 +4182,7 @@ static void ppc440spe_adma_init_capabilities(struct ppc440spe_adma_device *adev)
 				ppc440spe_adma_alloc_chan_resources;
 	adev->common.device_free_chan_resources =
 				ppc440spe_adma_free_chan_resources;
-	adev->common.device_is_tx_complete = ppc440spe_adma_is_complete;
+	adev->common.device_tx_status = ppc440spe_adma_tx_status;
 	adev->common.device_issue_pending = ppc440spe_adma_issue_pending;
 
 	/* Set prep routines based on capability */

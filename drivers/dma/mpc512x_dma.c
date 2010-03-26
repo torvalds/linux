@@ -540,8 +540,8 @@ static void mpc_dma_issue_pending(struct dma_chan *chan)
 
 /* Check request completion status */
 static enum dma_status
-mpc_dma_is_tx_complete(struct dma_chan *chan, dma_cookie_t cookie,
-					dma_cookie_t *done, dma_cookie_t *used)
+mpc_dma_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
+	       struct dma_tx_state *txstate)
 {
 	struct mpc_dma_chan *mchan = dma_chan_to_mpc_dma_chan(chan);
 	unsigned long flags;
@@ -553,11 +553,11 @@ mpc_dma_is_tx_complete(struct dma_chan *chan, dma_cookie_t cookie,
 	last_complete = mchan->completed_cookie;
 	spin_unlock_irqrestore(&mchan->lock, flags);
 
-	if (done)
-		*done = last_complete;
-
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = 0;
+	}
 
 	return dma_async_is_complete(cookie, last_complete, last_used);
 }
@@ -693,7 +693,7 @@ static int __devinit mpc_dma_probe(struct of_device *op,
 	dma->device_alloc_chan_resources = mpc_dma_alloc_chan_resources;
 	dma->device_free_chan_resources = mpc_dma_free_chan_resources;
 	dma->device_issue_pending = mpc_dma_issue_pending;
-	dma->device_is_tx_complete = mpc_dma_is_tx_complete;
+	dma->device_tx_status = mpc_dma_tx_status;
 	dma->device_prep_dma_memcpy = mpc_dma_prep_memcpy;
 
 	INIT_LIST_HEAD(&dma->channels);

@@ -819,9 +819,9 @@ static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 }
 
 static enum dma_status
-dwc_is_tx_complete(struct dma_chan *chan,
-		dma_cookie_t cookie,
-		dma_cookie_t *done, dma_cookie_t *used)
+dwc_tx_status(struct dma_chan *chan,
+	      dma_cookie_t cookie,
+	      struct dma_tx_state *txstate)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	dma_cookie_t		last_used;
@@ -841,10 +841,11 @@ dwc_is_tx_complete(struct dma_chan *chan,
 		ret = dma_async_is_complete(cookie, last_complete, last_used);
 	}
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = 0;
+	}
 
 	return ret;
 }
@@ -1346,7 +1347,7 @@ static int __init dw_probe(struct platform_device *pdev)
 	dw->dma.device_prep_slave_sg = dwc_prep_slave_sg;
 	dw->dma.device_control = dwc_control;
 
-	dw->dma.device_is_tx_complete = dwc_is_tx_complete;
+	dw->dma.device_tx_status = dwc_tx_status;
 	dw->dma.device_issue_pending = dwc_issue_pending;
 
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);

@@ -511,8 +511,8 @@ static void td_free_chan_resources(struct dma_chan *chan)
 	}
 }
 
-static enum dma_status td_is_tx_complete(struct dma_chan *chan,
-	dma_cookie_t cookie, dma_cookie_t *done, dma_cookie_t *used)
+static enum dma_status td_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
+				    struct dma_tx_state *txstate)
 {
 	struct timb_dma_chan *td_chan =
 		container_of(chan, struct timb_dma_chan, chan);
@@ -527,10 +527,11 @@ static enum dma_status td_is_tx_complete(struct dma_chan *chan,
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = 0;
+	}
 
 	dev_dbg(chan2dev(chan),
 		"%s: exit, ret: %d, last_complete: %d, last_used: %d\n",
@@ -742,7 +743,7 @@ static int __devinit td_probe(struct platform_device *pdev)
 
 	td->dma.device_alloc_chan_resources	= td_alloc_chan_resources;
 	td->dma.device_free_chan_resources	= td_free_chan_resources;
-	td->dma.device_is_tx_complete		= td_is_tx_complete;
+	td->dma.device_tx_status		= td_tx_status;
 	td->dma.device_issue_pending		= td_issue_pending;
 
 	dma_cap_set(DMA_SLAVE, td->dma.cap_mask);

@@ -971,13 +971,12 @@ static void fsl_dma_memcpy_issue_pending(struct dma_chan *dchan)
 }
 
 /**
- * fsl_dma_is_complete - Determine the DMA status
+ * fsl_tx_status - Determine the DMA status
  * @chan : Freescale DMA channel
  */
-static enum dma_status fsl_dma_is_complete(struct dma_chan *dchan,
+static enum dma_status fsl_tx_status(struct dma_chan *dchan,
 					dma_cookie_t cookie,
-					dma_cookie_t *done,
-					dma_cookie_t *used)
+					struct dma_tx_state *txstate)
 {
 	struct fsldma_chan *chan = to_fsl_chan(dchan);
 	dma_cookie_t last_used;
@@ -988,11 +987,11 @@ static enum dma_status fsl_dma_is_complete(struct dma_chan *dchan,
 	last_used = dchan->cookie;
 	last_complete = chan->completed_cookie;
 
-	if (done)
-		*done = last_complete;
-
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = 0;
+	}
 
 	return dma_async_is_complete(cookie, last_complete, last_used);
 }
@@ -1336,7 +1335,7 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 	fdev->common.device_free_chan_resources = fsl_dma_free_chan_resources;
 	fdev->common.device_prep_dma_interrupt = fsl_dma_prep_interrupt;
 	fdev->common.device_prep_dma_memcpy = fsl_dma_prep_memcpy;
-	fdev->common.device_is_tx_complete = fsl_dma_is_complete;
+	fdev->common.device_tx_status = fsl_tx_status;
 	fdev->common.device_issue_pending = fsl_dma_memcpy_issue_pending;
 	fdev->common.device_prep_slave_sg = fsl_dma_prep_slave_sg;
 	fdev->common.device_control = fsl_dma_device_control;

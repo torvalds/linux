@@ -426,7 +426,7 @@ static inline u32 coh901318_get_bytes_in_lli(struct coh901318_lli *in_lli)
  * absolute measures, but for a rough guess you can still call
  * it.
  */
-u32 coh901318_get_bytes_left(struct dma_chan *chan)
+static u32 coh901318_get_bytes_left(struct dma_chan *chan)
 {
 	struct coh901318_chan *cohc = to_coh901318_chan(chan);
 	struct coh901318_desc *cohd;
@@ -503,8 +503,6 @@ u32 coh901318_get_bytes_left(struct dma_chan *chan)
 
 	return left;
 }
-EXPORT_SYMBOL(coh901318_get_bytes_left);
-
 
 /*
  * Pauses a transfer without losing data. Enables power save.
@@ -1136,9 +1134,8 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 }
 
 static enum dma_status
-coh901318_is_tx_complete(struct dma_chan *chan,
-			 dma_cookie_t cookie, dma_cookie_t *done,
-			 dma_cookie_t *used)
+coh901318_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
+		 struct dma_tx_state *txstate)
 {
 	struct coh901318_chan *cohc = to_coh901318_chan(chan);
 	dma_cookie_t last_used;
@@ -1150,10 +1147,14 @@ coh901318_is_tx_complete(struct dma_chan *chan,
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = coh901318_get_bytes_left(chan);
+	}
+
+	if (ret == DMA_IN_PROGRESS && cohc->stopped)
+		ret = DMA_PAUSED;
 
 	return ret;
 }
@@ -1356,7 +1357,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	base->dma_slave.device_alloc_chan_resources = coh901318_alloc_chan_resources;
 	base->dma_slave.device_free_chan_resources = coh901318_free_chan_resources;
 	base->dma_slave.device_prep_slave_sg = coh901318_prep_slave_sg;
-	base->dma_slave.device_is_tx_complete = coh901318_is_tx_complete;
+	base->dma_slave.device_tx_status = coh901318_tx_status;
 	base->dma_slave.device_issue_pending = coh901318_issue_pending;
 	base->dma_slave.device_control = coh901318_control;
 	base->dma_slave.dev = &pdev->dev;
@@ -1376,7 +1377,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	base->dma_memcpy.device_alloc_chan_resources = coh901318_alloc_chan_resources;
 	base->dma_memcpy.device_free_chan_resources = coh901318_free_chan_resources;
 	base->dma_memcpy.device_prep_dma_memcpy = coh901318_prep_memcpy;
-	base->dma_memcpy.device_is_tx_complete = coh901318_is_tx_complete;
+	base->dma_memcpy.device_tx_status = coh901318_tx_status;
 	base->dma_memcpy.device_issue_pending = coh901318_issue_pending;
 	base->dma_memcpy.device_control = coh901318_control;
 	base->dma_memcpy.dev = &pdev->dev;

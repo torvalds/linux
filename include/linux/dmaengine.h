@@ -40,11 +40,13 @@ typedef s32 dma_cookie_t;
  * enum dma_status - DMA transaction status
  * @DMA_SUCCESS: transaction completed successfully
  * @DMA_IN_PROGRESS: transaction not yet processed
+ * @DMA_PAUSED: transaction is paused
  * @DMA_ERROR: transaction failed
  */
 enum dma_status {
 	DMA_SUCCESS,
 	DMA_IN_PROGRESS,
+	DMA_PAUSED,
 	DMA_ERROR,
 };
 
@@ -249,6 +251,21 @@ struct dma_async_tx_descriptor {
 };
 
 /**
+ * struct dma_tx_state - filled in to report the status of
+ * a transfer.
+ * @last: last completed DMA cookie
+ * @used: last issued DMA cookie (i.e. the one in progress)
+ * @residue: the remaining number of bytes left to transmit
+ *	on the selected transfer for states DMA_IN_PROGRESS and
+ *	DMA_PAUSED if this is implemented in the driver, else 0
+ */
+struct dma_tx_state {
+	dma_cookie_t last;
+	dma_cookie_t used;
+	u32 residue;
+};
+
+/**
  * struct dma_device - info on the entity supplying DMA services
  * @chancnt: how many DMA channels are supported
  * @privatecnt: how many DMA channels are requested by dma_request_channel
@@ -276,7 +293,10 @@ struct dma_async_tx_descriptor {
  * @device_prep_slave_sg: prepares a slave dma operation
  * @device_control: manipulate all pending operations on a channel, returns
  *	zero or error code
- * @device_is_tx_complete: poll for transaction completion
+ * @device_tx_status: poll for transaction completion, the optional
+ *	txstate parameter can be supplied with a pointer to get a
+ *	struct with auxilary transfer status information, otherwise the call
+ *	will just return a simple status code
  * @device_issue_pending: push pending transactions to hardware
  */
 struct dma_device {
@@ -329,9 +349,9 @@ struct dma_device {
 		unsigned long flags);
 	int (*device_control)(struct dma_chan *chan, enum dma_ctrl_cmd cmd);
 
-	enum dma_status (*device_is_tx_complete)(struct dma_chan *chan,
-			dma_cookie_t cookie, dma_cookie_t *last,
-			dma_cookie_t *used);
+	enum dma_status (*device_tx_status)(struct dma_chan *chan,
+					    dma_cookie_t cookie,
+					    struct dma_tx_state *txstate);
 	void (*device_issue_pending)(struct dma_chan *chan);
 };
 
@@ -572,7 +592,15 @@ static inline void dma_async_issue_pending(struct dma_chan *chan)
 static inline enum dma_status dma_async_is_tx_complete(struct dma_chan *chan,
 	dma_cookie_t cookie, dma_cookie_t *last, dma_cookie_t *used)
 {
-	return chan->device->device_is_tx_complete(chan, cookie, last, used);
+	struct dma_tx_state state;
+	enum dma_status status;
+
+	status = chan->device->device_tx_status(chan, cookie, &state);
+	if (last)
+		*last = state.last;
+	if (used)
+		*used = state.used;
+	return status;
 }
 
 #define dma_async_memcpy_complete(chan, cookie, last, used)\

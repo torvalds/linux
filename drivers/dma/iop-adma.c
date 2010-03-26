@@ -893,14 +893,14 @@ static void iop_adma_free_chan_resources(struct dma_chan *chan)
 }
 
 /**
- * iop_adma_is_complete - poll the status of an ADMA transaction
+ * iop_adma_status - poll the status of an ADMA transaction
  * @chan: ADMA channel handle
  * @cookie: ADMA transaction identifier
+ * @txstate: a holder for the current state of the channel or NULL
  */
-static enum dma_status iop_adma_is_complete(struct dma_chan *chan,
+static enum dma_status iop_adma_status(struct dma_chan *chan,
 					dma_cookie_t cookie,
-					dma_cookie_t *done,
-					dma_cookie_t *used)
+					struct dma_tx_state *txstate)
 {
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
 	dma_cookie_t last_used;
@@ -910,10 +910,11 @@ static enum dma_status iop_adma_is_complete(struct dma_chan *chan,
 	last_used = chan->cookie;
 	last_complete = iop_chan->completed_cookie;
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = 0;
+	}
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 	if (ret == DMA_SUCCESS)
@@ -924,10 +925,11 @@ static enum dma_status iop_adma_is_complete(struct dma_chan *chan,
 	last_used = chan->cookie;
 	last_complete = iop_chan->completed_cookie;
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = 0;
+	}
 
 	return dma_async_is_complete(cookie, last_complete, last_used);
 }
@@ -1042,7 +1044,7 @@ static int __devinit iop_adma_memcpy_self_test(struct iop_adma_device *device)
 	iop_adma_issue_pending(dma_chan);
 	msleep(1);
 
-	if (iop_adma_is_complete(dma_chan, cookie, NULL, NULL) !=
+	if (iop_adma_status(dma_chan, cookie, NULL) !=
 			DMA_SUCCESS) {
 		dev_printk(KERN_ERR, dma_chan->device->dev,
 			"Self-test copy timed out, disabling\n");
@@ -1142,7 +1144,7 @@ iop_adma_xor_val_self_test(struct iop_adma_device *device)
 	iop_adma_issue_pending(dma_chan);
 	msleep(8);
 
-	if (iop_adma_is_complete(dma_chan, cookie, NULL, NULL) !=
+	if (iop_adma_status(dma_chan, cookie, NULL) !=
 		DMA_SUCCESS) {
 		dev_printk(KERN_ERR, dma_chan->device->dev,
 			"Self-test xor timed out, disabling\n");
@@ -1189,7 +1191,7 @@ iop_adma_xor_val_self_test(struct iop_adma_device *device)
 	iop_adma_issue_pending(dma_chan);
 	msleep(8);
 
-	if (iop_adma_is_complete(dma_chan, cookie, NULL, NULL) != DMA_SUCCESS) {
+	if (iop_adma_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
 		dev_printk(KERN_ERR, dma_chan->device->dev,
 			"Self-test zero sum timed out, disabling\n");
 		err = -ENODEV;
@@ -1213,7 +1215,7 @@ iop_adma_xor_val_self_test(struct iop_adma_device *device)
 	iop_adma_issue_pending(dma_chan);
 	msleep(8);
 
-	if (iop_adma_is_complete(dma_chan, cookie, NULL, NULL) != DMA_SUCCESS) {
+	if (iop_adma_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
 		dev_printk(KERN_ERR, dma_chan->device->dev,
 			"Self-test memset timed out, disabling\n");
 		err = -ENODEV;
@@ -1245,7 +1247,7 @@ iop_adma_xor_val_self_test(struct iop_adma_device *device)
 	iop_adma_issue_pending(dma_chan);
 	msleep(8);
 
-	if (iop_adma_is_complete(dma_chan, cookie, NULL, NULL) != DMA_SUCCESS) {
+	if (iop_adma_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
 		dev_printk(KERN_ERR, dma_chan->device->dev,
 			"Self-test non-zero sum timed out, disabling\n");
 		err = -ENODEV;
@@ -1340,7 +1342,7 @@ iop_adma_pq_zero_sum_self_test(struct iop_adma_device *device)
 	iop_adma_issue_pending(dma_chan);
 	msleep(8);
 
-	if (iop_adma_is_complete(dma_chan, cookie, NULL, NULL) !=
+	if (iop_adma_status(dma_chan, cookie, NULL) !=
 		DMA_SUCCESS) {
 		dev_err(dev, "Self-test pq timed out, disabling\n");
 		err = -ENODEV;
@@ -1377,7 +1379,7 @@ iop_adma_pq_zero_sum_self_test(struct iop_adma_device *device)
 	iop_adma_issue_pending(dma_chan);
 	msleep(8);
 
-	if (iop_adma_is_complete(dma_chan, cookie, NULL, NULL) !=
+	if (iop_adma_status(dma_chan, cookie, NULL) !=
 		DMA_SUCCESS) {
 		dev_err(dev, "Self-test pq-zero-sum timed out, disabling\n");
 		err = -ENODEV;
@@ -1409,7 +1411,7 @@ iop_adma_pq_zero_sum_self_test(struct iop_adma_device *device)
 	iop_adma_issue_pending(dma_chan);
 	msleep(8);
 
-	if (iop_adma_is_complete(dma_chan, cookie, NULL, NULL) !=
+	if (iop_adma_status(dma_chan, cookie, NULL) !=
 		DMA_SUCCESS) {
 		dev_err(dev, "Self-test !pq-zero-sum timed out, disabling\n");
 		err = -ENODEV;
@@ -1507,7 +1509,7 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 	/* set base routines */
 	dma_dev->device_alloc_chan_resources = iop_adma_alloc_chan_resources;
 	dma_dev->device_free_chan_resources = iop_adma_free_chan_resources;
-	dma_dev->device_is_tx_complete = iop_adma_is_complete;
+	dma_dev->device_tx_status = iop_adma_status;
 	dma_dev->device_issue_pending = iop_adma_issue_pending;
 	dma_dev->dev = &pdev->dev;
 

@@ -1646,15 +1646,16 @@ static void idmac_free_chan_resources(struct dma_chan *chan)
 	tasklet_schedule(&to_ipu(idmac)->tasklet);
 }
 
-static enum dma_status idmac_is_tx_complete(struct dma_chan *chan,
-		dma_cookie_t cookie, dma_cookie_t *done, dma_cookie_t *used)
+static enum dma_status idmac_tx_status(struct dma_chan *chan,
+		       dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
 
-	if (done)
-		*done = ichan->completed;
-	if (used)
-		*used = chan->cookie;
+	if (txstate) {
+		txstate->last = ichan->completed;
+		txstate->used = chan->cookie;
+		txstate->residue = 0;
+	}
 	if (cookie != chan->cookie)
 		return DMA_ERROR;
 	return DMA_SUCCESS;
@@ -1673,7 +1674,7 @@ static int __init ipu_idmac_init(struct ipu *ipu)
 	dma->dev				= ipu->dev;
 	dma->device_alloc_chan_resources	= idmac_alloc_chan_resources;
 	dma->device_free_chan_resources		= idmac_free_chan_resources;
-	dma->device_is_tx_complete		= idmac_is_tx_complete;
+	dma->device_tx_status			= idmac_tx_status;
 	dma->device_issue_pending		= idmac_issue_pending;
 
 	/* Compulsory for DMA_SLAVE fields */

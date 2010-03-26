@@ -967,9 +967,8 @@ static int txx9dmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 }
 
 static enum dma_status
-txx9dmac_is_tx_complete(struct dma_chan *chan,
-			dma_cookie_t cookie,
-		dma_cookie_t *done, dma_cookie_t *used)
+txx9dmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
+		   struct dma_tx_state *txstate)
 {
 	struct txx9dmac_chan *dc = to_txx9dmac_chan(chan);
 	dma_cookie_t last_used;
@@ -991,10 +990,11 @@ txx9dmac_is_tx_complete(struct dma_chan *chan,
 		ret = dma_async_is_complete(cookie, last_complete, last_used);
 	}
 
-	if (done)
-		*done = last_complete;
-	if (used)
-		*used = last_used;
+	if (txstate) {
+		txstate->last = last_complete;
+		txstate->used = last_used;
+		txstate->residue = 0;
+	}
 
 	return ret;
 }
@@ -1160,7 +1160,7 @@ static int __init txx9dmac_chan_probe(struct platform_device *pdev)
 	dc->dma.device_alloc_chan_resources = txx9dmac_alloc_chan_resources;
 	dc->dma.device_free_chan_resources = txx9dmac_free_chan_resources;
 	dc->dma.device_control = txx9dmac_control;
-	dc->dma.device_is_tx_complete = txx9dmac_is_tx_complete;
+	dc->dma.device_tx_status = txx9dmac_tx_status;
 	dc->dma.device_issue_pending = txx9dmac_issue_pending;
 	if (pdata && pdata->memcpy_chan == ch) {
 		dc->dma.device_prep_dma_memcpy = txx9dmac_prep_dma_memcpy;

@@ -438,17 +438,17 @@ static void ioat3_timer_event(unsigned long data)
 }
 
 static enum dma_status
-ioat3_is_complete(struct dma_chan *c, dma_cookie_t cookie,
-		  dma_cookie_t *done, dma_cookie_t *used)
+ioat3_tx_status(struct dma_chan *c, dma_cookie_t cookie,
+		struct dma_tx_state *txstate)
 {
 	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
 
-	if (ioat_is_complete(c, cookie, done, used) == DMA_SUCCESS)
+	if (ioat_tx_status(c, cookie, txstate) == DMA_SUCCESS)
 		return DMA_SUCCESS;
 
 	ioat3_cleanup_poll(ioat);
 
-	return ioat_is_complete(c, cookie, done, used);
+	return ioat_tx_status(c, cookie, txstate);
 }
 
 static struct dma_async_tx_descriptor *
@@ -976,7 +976,7 @@ static int __devinit ioat_xor_val_self_test(struct ioatdma_device *device)
 
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (dma->device_is_tx_complete(dma_chan, cookie, NULL, NULL) != DMA_SUCCESS) {
+	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
 		dev_err(dev, "Self-test xor timed out\n");
 		err = -ENODEV;
 		goto free_resources;
@@ -1030,7 +1030,7 @@ static int __devinit ioat_xor_val_self_test(struct ioatdma_device *device)
 
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (dma->device_is_tx_complete(dma_chan, cookie, NULL, NULL) != DMA_SUCCESS) {
+	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
 		dev_err(dev, "Self-test validate timed out\n");
 		err = -ENODEV;
 		goto free_resources;
@@ -1071,7 +1071,7 @@ static int __devinit ioat_xor_val_self_test(struct ioatdma_device *device)
 
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (dma->device_is_tx_complete(dma_chan, cookie, NULL, NULL) != DMA_SUCCESS) {
+	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
 		dev_err(dev, "Self-test memset timed out\n");
 		err = -ENODEV;
 		goto free_resources;
@@ -1114,7 +1114,7 @@ static int __devinit ioat_xor_val_self_test(struct ioatdma_device *device)
 
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (dma->device_is_tx_complete(dma_chan, cookie, NULL, NULL) != DMA_SUCCESS) {
+	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
 		dev_err(dev, "Self-test 2nd validate timed out\n");
 		err = -ENODEV;
 		goto free_resources;
@@ -1258,11 +1258,11 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 
 
 	if (is_raid_device) {
-		dma->device_is_tx_complete = ioat3_is_complete;
+		dma->device_tx_status = ioat3_tx_status;
 		device->cleanup_fn = ioat3_cleanup_event;
 		device->timer_fn = ioat3_timer_event;
 	} else {
-		dma->device_is_tx_complete = ioat_is_dma_complete;
+		dma->device_tx_status = ioat_dma_tx_status;
 		device->cleanup_fn = ioat2_cleanup_event;
 		device->timer_fn = ioat2_timer_event;
 	}
