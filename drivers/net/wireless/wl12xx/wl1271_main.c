@@ -958,9 +958,11 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		wl->bss_type = BSS_TYPE_STA_BSS;
+		wl->set_bss_type = BSS_TYPE_STA_BSS;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		wl->bss_type = BSS_TYPE_IBSS;
+		wl->set_bss_type = BSS_TYPE_STA_BSS;
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -1065,6 +1067,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	memset(wl->ssid, 0, IW_ESSID_MAX_SIZE + 1);
 	wl->ssid_len = 0;
 	wl->bss_type = MAX_BSS_TYPE;
+	wl->set_bss_type = MAX_BSS_TYPE;
 	wl->band = IEEE80211_BAND_2GHZ;
 
 	wl->rx_counter = 0;
@@ -1137,10 +1140,7 @@ static int wl1271_join_channel(struct wl1271 *wl, int channel)
 	/* pass through frames from all BSS */
 	wl1271_configure_filters(wl, FIF_OTHER_BSS);
 
-	/* the dummy join is performed always with STATION BSS type to allow
-	   also ad-hoc mode to listen to the surroundings without sending any
-	   beacons yet. */
-	ret = wl1271_cmd_join(wl, BSS_TYPE_STA_BSS);
+	ret = wl1271_cmd_join(wl, wl->set_bss_type);
 	if (ret < 0)
 		goto out;
 
@@ -1211,7 +1211,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	    test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
 		wl->channel = channel;
 		/* FIXME: maybe use CMD_CHANNEL_SWITCH for this? */
-		ret = wl1271_cmd_join(wl, wl->bss_type);
+		ret = wl1271_cmd_join(wl, wl->set_bss_type);
 		if (ret < 0)
 			wl1271_warning("cmd join to update channel failed %d",
 				       ret);
@@ -1575,12 +1575,11 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	if (wl->bss_type == BSS_TYPE_IBSS) {
-		/* FIXME: This implements rudimentary ad-hoc support -
-		   proper templates are on the wish list and notification
-		   on when they change. This patch will update the templates
-		   on every call to this function. */
+	if ((changed && BSS_CHANGED_BEACON) &&
+	    (wl->bss_type == BSS_TYPE_IBSS)) {
 		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+
+		wl1271_debug(DEBUG_ADHOC, "ad-hoc beacon updated");
 
 		if (beacon) {
 			struct ieee80211_hdr *hdr;
@@ -1611,6 +1610,18 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			/* Need to update the SSID (for filtering etc) */
 			do_join = true;
 		}
+	}
+
+	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
+	    (wl->bss_type == BSS_TYPE_IBSS)) {
+		wl1271_debug(DEBUG_ADHOC, "ad-hoc beaconing: %s",
+			     bss_conf->enable_beacon ? "enabled" : "disabled");
+
+		if (bss_conf->enable_beacon)
+			wl->set_bss_type = BSS_TYPE_IBSS;
+		else
+			wl->set_bss_type = BSS_TYPE_STA_BSS;
+		do_join = true;
 	}
 
 	if ((changed & BSS_CHANGED_BSSID) &&
@@ -1707,7 +1718,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (do_join) {
-		ret = wl1271_cmd_join(wl, wl->bss_type);
+		ret = wl1271_cmd_join(wl, wl->set_bss_type);
 		if (ret < 0) {
 			wl1271_warning("cmd join failed %d", ret);
 			goto out_sleep;

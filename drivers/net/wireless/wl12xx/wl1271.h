@@ -55,6 +55,7 @@ enum {
 	DEBUG_ACX	= BIT(13),
 	DEBUG_SDIO	= BIT(14),
 	DEBUG_FILTERS   = BIT(15),
+	DEBUG_ADHOC     = BIT(16),
 	DEBUG_ALL	= ~0,
 };
 
@@ -389,6 +390,7 @@ struct wl1271 {
 	u8 bssid[ETH_ALEN];
 	u8 mac_addr[ETH_ALEN];
 	u8 bss_type;
+	u8 set_bss_type;
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
 	int channel;
