@@ -222,9 +222,8 @@ tapeblock_setup_device(struct tape_device * device)
 		goto cleanup_queue;
 
 	blk_queue_logical_block_size(blkdat->request_queue, TAPEBLOCK_HSEC_SIZE);
-	blk_queue_max_sectors(blkdat->request_queue, TAPEBLOCK_MAX_SEC);
-	blk_queue_max_phys_segments(blkdat->request_queue, -1L);
-	blk_queue_max_hw_segments(blkdat->request_queue, -1L);
+	blk_queue_max_hw_sectors(blkdat->request_queue, TAPEBLOCK_MAX_SEC);
+	blk_queue_max_segments(blkdat->request_queue, -1L);
 	blk_queue_max_segment_size(blkdat->request_queue, -1L);
 	blk_queue_segment_boundary(blkdat->request_queue, -1L);
 

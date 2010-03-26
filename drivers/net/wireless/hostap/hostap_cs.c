@@ -794,13 +794,6 @@ static struct pcmcia_device_id hostap_cs_ids[] = {
 	PCMCIA_MFC_DEVICE_PROD_ID12(0, "SanDisk", "ConnectPlus",
 				    0x7a954bd9, 0x74be00c6),
 	PCMCIA_DEVICE_PROD_ID123(
-		"Intersil", "PRISM 2_5 PCMCIA ADAPTER",	"ISL37300P",
-		0x4b801a17, 0x6345a0bf, 0xc9049a39),
-	/* D-Link DWL-650 Rev. P1; manfid 0x000b, 0x7110 */
-	PCMCIA_DEVICE_PROD_ID123(
-		"D-Link", "DWL-650 Wireless PC Card RevP", "ISL37101P-10",
-		0x1a424a1c, 0x6ea57632, 0xdd97a26b),
-	PCMCIA_DEVICE_PROD_ID123(
 		"Addtron", "AWP-100 Wireless PCMCIA", "Version 01.02",
 		0xe6ec52ce, 0x08649af2, 0x4b74baa0),
 	PCMCIA_DEVICE_PROD_ID123(
@@ -834,14 +827,12 @@ static struct pcmcia_device_id hostap_cs_ids[] = {
 		"Ver. 1.00",
 		0x5cd01705, 0x4271660f, 0x9d08ee12),
 	PCMCIA_DEVICE_PROD_ID123(
-		"corega", "WL PCCL-11", "ISL37300P",
-		0xa21501a, 0x59868926, 0xc9049a39),
-	PCMCIA_DEVICE_PROD_ID123(
-		"The Linksys Group, Inc.", "Wireless Network CF Card", "ISL37300P",
-		0xa5f472c2, 0x9c05598d, 0xc9049a39),
-	PCMCIA_DEVICE_PROD_ID123(
 		"Wireless LAN" , "11Mbps PC Card", "Version 01.02",
 		0x4b8870ff, 0x70e946d1, 0x4b74baa0),
+	PCMCIA_DEVICE_PROD_ID3("HFA3863", 0x355cb092),
+	PCMCIA_DEVICE_PROD_ID3("ISL37100P", 0x630d52b2),
+	PCMCIA_DEVICE_PROD_ID3("ISL37101P-10", 0xdd97a26b),
+	PCMCIA_DEVICE_PROD_ID3("ISL37300P", 0xc9049a39),
 	PCMCIA_DEVICE_NULL
 };
 MODULE_DEVICE_TABLE(pcmcia, hostap_cs_ids);

@@ -55,7 +55,7 @@ static void __page_cache_release(struct page *page)
 		del_page_from_lru(zone, page);
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 	}
-	free_hot_page(page);
+	free_hot_cold_page(page, 0);
 }
 
 static void put_compound_page(struct page *page)

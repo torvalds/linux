@@ -66,7 +66,7 @@
 #endif
 
 #ifdef ENABLE_DOT11D
-#include "dot11d.h"
+#include "ieee80211/dot11d.h"
 #endif
 
 //set here to open your trace code. //WB
@@ -75,7 +75,7 @@ u32 rt_global_debug_component = \
 			//	COMP_EPROM   	|
 		//		COMP_PHY	|
 		//		COMP_RF		|
-				COMP_FIRMWARE	|
+//				COMP_FIRMWARE	|
 			//	COMP_TRACE	|
 		//		COMP_DOWN	|
 		//		COMP_SWBW	|
@@ -343,6 +343,141 @@ void write_nic_word(struct net_device *dev, int x,u16 y)
 
 #endif /* RTL_IO_MAP */
 
+u8 rtl8192e_ap_sec_type(struct ieee80211_device *ieee)
+{
+	//struct r8192_priv* priv = ieee80211_priv(dev);
+	//struct ieee80211_device *ieee = priv->ieee80211;
+
+	static u8 ccmp_ie[4] = {0x00,0x50,0xf2,0x04};
+	static u8 ccmp_rsn_ie[4] = {0x00, 0x0f, 0xac, 0x04};
+	int wpa_ie_len= ieee->wpa_ie_len;
+	struct ieee80211_crypt_data* crypt;
+	int encrypt;
+
+	crypt = ieee->crypt[ieee->tx_keyidx];
+
+	encrypt = (ieee->current_network.capability & WLAN_CAPABILITY_PRIVACY) ||\
+		  (ieee->host_encrypt && crypt && crypt->ops && \
+		   (0 == strcmp(crypt->ops->name,"WEP")));
+
+	/* simply judge  */
+	if(encrypt && (wpa_ie_len == 0)) {
+		// wep encryption, no N mode setting */
+		return SEC_ALG_WEP;
+	} else if((wpa_ie_len != 0)) {
+		// parse pairwise key type */
+		if (((ieee->wpa_ie[0] == 0xdd) && (!memcmp(&(ieee->wpa_ie[14]),ccmp_ie,4))) ||
+				((ieee->wpa_ie[0] == 0x30) && (!memcmp(&ieee->wpa_ie[10],ccmp_rsn_ie, 4))))
+			return SEC_ALG_CCMP;
+		else
+			return SEC_ALG_TKIP;
+	} else {
+		return SEC_ALG_NONE;
+	}
+}
+
+void
+rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
+{
+	struct r8192_priv* priv = ieee80211_priv(dev);
+
+	switch(variable)
+	{
+
+		case HW_VAR_BSSID:
+			write_nic_dword(dev, BSSIDR, ((u32*)(val))[0]);
+			write_nic_word(dev, BSSIDR+2, ((u16*)(val+2))[0]);
+		break;
+
+		case HW_VAR_MEDIA_STATUS:
+		{
+			RT_OP_MODE	OpMode = *((RT_OP_MODE *)(val));
+			//LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
+			u8		btMsr = read_nic_byte(dev, MSR);
+
+			btMsr &= 0xfc;
+
+			switch(OpMode)
+			{
+			case RT_OP_MODE_INFRASTRUCTURE:
+				btMsr |= MSR_INFRA;
+				//LedAction = LED_CTL_LINK;
+				break;
+
+			case RT_OP_MODE_IBSS:
+				btMsr |= MSR_ADHOC;
+				// led link set seperate
+				break;
+
+			case RT_OP_MODE_AP:
+				btMsr |= MSR_AP;
+				//LedAction = LED_CTL_LINK;
+				break;
+
+			default:
+				btMsr |= MSR_NOLINK;
+				break;
+			}
+
+			write_nic_byte(dev, MSR, btMsr);
+
+			//priv->ieee80211->LedControlHandler(dev, LedAction);
+		}
+		break;
+
+		case HW_VAR_CECHK_BSSID:
+		{
+			u32	RegRCR, Type;
+
+			Type = ((u8*)(val))[0];
+			//priv->ieee80211->GetHwRegHandler(dev, HW_VAR_RCR, (u8*)(&RegRCR));
+			RegRCR = read_nic_dword(dev,RCR);
+			priv->ReceiveConfig = RegRCR;
+
+			if (Type == true)
+				RegRCR |= (RCR_CBSSID);
+			else if (Type == false)
+				RegRCR &= (~RCR_CBSSID);
+
+			//priv->ieee80211->SetHwRegHandler( dev, HW_VAR_RCR, (u8*)(&RegRCR) );
+			write_nic_dword(dev, RCR,RegRCR);
+			priv->ReceiveConfig = RegRCR;
+
+		}
+		break;
+
+		case HW_VAR_SLOT_TIME:
+		{
+			//PSTA_QOS	pStaQos = Adapter->MgntInfo.pStaQos;
+			//AC_CODING	eACI;
+
+			priv->slot_time = val[0];
+			write_nic_byte(dev, SLOT_TIME, val[0]);
+
+		}
+		break;
+
+		case HW_VAR_ACK_PREAMBLE:
+		{
+			u32 regTmp = 0;
+			priv->short_preamble = (bool)(*(u8*)val );
+			regTmp = priv->basic_rate;
+			if (priv->short_preamble)
+				regTmp |= BRSR_AckShortPmb;
+			write_nic_dword(dev, RRSR, regTmp);
+		}
+		break;
+
+		case HW_VAR_CPU_RST:
+			write_nic_dword(dev, CPU_GEN, ((u32*)(val))[0]);
+		break;
+
+		default:
+		break;
+	}
+
+}
+
 
 ///////////////////////////////////////////////////////////
 
@@ -365,11 +500,6 @@ void rtl8192_restart(struct work_struct *work);
 //void rtl8192_rq_tx_ack(struct work_struct *work);
 
 void watch_dog_timer_callback(unsigned long data);
-#ifdef ENABLE_IPS
-void IPSEnter(struct net_device *dev);
-void IPSLeave(struct net_device *dev);
-void InactivePsWorkItemCallback(struct net_device *dev);
-#endif
 /****************************************************************************
    -----------------------------PROCFS STUFF-------------------------
 *****************************************************************************/
@@ -707,7 +837,7 @@ static void rtl8192_irq_enable(struct net_device *dev)
 }
 
 
-static void rtl8192_irq_disable(struct net_device *dev)
+void rtl8192_irq_disable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
@@ -717,6 +847,7 @@ static void rtl8192_irq_disable(struct net_device *dev)
 }
 
 
+#if 0
 static void rtl8192_set_mode(struct net_device *dev,int mode)
 {
 	u8 ecmd;
@@ -727,7 +858,7 @@ static void rtl8192_set_mode(struct net_device *dev,int mode)
 	ecmd=ecmd &~ (1<<EPROM_CK_SHIFT);
 	write_nic_byte(dev, EPROM_CMD, ecmd);
 }
-
+#endif
 
 void rtl8192_update_msr(struct net_device *dev)
 {
@@ -861,7 +992,7 @@ static void rtl8192_free_tx_ring(struct net_device *dev, unsigned int prio)
     ring->desc = NULL;
 }
 
-
+#if 0
 static void rtl8192_beacon_disable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -873,38 +1004,116 @@ static void rtl8192_beacon_disable(struct net_device *dev)
 	reg &= ~(IMR_BcnInt | IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
 	write_nic_dword(priv->ieee80211->dev, INTA_MASK, reg);
 }
+#endif
 
-void rtl8192_rtx_disable(struct net_device *dev)
+void PHY_SetRtl8192eRfOff(struct net_device* dev	)
 {
-	u8 cmd;
+	//struct r8192_priv *priv = ieee80211_priv(dev);
+
+	//disable RF-Chip A/B
+	rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);
+	//analog to digital off, for power save
+	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x0);
+	//digital to analog off, for power save
+	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x18, 0x0);
+	//rx antenna off
+	rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0xf, 0x0);
+	//rx antenna off
+	rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0xf, 0x0);
+	//analog to digital part2 off, for power save
+	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x0);
+	rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x4, 0x0);
+	// Analog parameter!!Change bias and Lbus control.
+	write_nic_byte(dev, ANAPAR_FOR_8192PciE, 0x07);
+
+}
+
+void rtl8192_halt_adapter(struct net_device *dev, bool reset)
+{
+	//u8 	cmd;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-        int i;
+	int i;
+	u8	OpMode;
+	u8	u1bTmp;
+	u32	ulRegRead;
 
+	OpMode = RT_OP_MODE_NO_LINK;
+	priv->ieee80211->SetHwRegHandler(dev, HW_VAR_MEDIA_STATUS, &OpMode);
+
+#if 1
+	if(!priv->ieee80211->bSupportRemoteWakeUp)
+	{
+		u1bTmp = 0x0;	// disable tx/rx. In 8185 we write 0x10 (Reset bit), but here we make reference to WMAC and wirte 0x0. 2006.11.21 Emily
+		//priv->ieee80211->SetHwRegHandler(dev, HW_VAR_COMMAND, &u1bTmp );	// Using HW_VAR_COMMAND instead of writing CMDR directly. Rewrited by Annie, 2006-04-07.
+		write_nic_byte(dev, CMDR, u1bTmp);
+	}
+#else
 	cmd=read_nic_byte(dev,CMDR);
-//	if(!priv->ieee80211->bSupportRemoteWakeUp) {
-		write_nic_byte(dev, CMDR, cmd &~ \
-				(CR_TE|CR_RE));
-//	}
-	force_pci_posting(dev);
-	mdelay(30);
+	write_nic_byte(dev, CMDR, cmd &~ (CR_TE|CR_RE));
+#endif
 
-        for(i = 0; i < MAX_QUEUE_SIZE; i++) {
-                skb_queue_purge(&priv->ieee80211->skb_waitQ [i]);
-        }
-        for(i = 0; i < MAX_QUEUE_SIZE; i++) {
-                skb_queue_purge(&priv->ieee80211->skb_aggQ [i]);
-        }
+	mdelay(20);
 
+	if(!reset)
+	{
+		//PlatformStallExecution(150000);
+		mdelay(150);
+
+#ifdef RTL8192E
+			priv->bHwRfOffAction = 2;
+#endif
+
+		//
+		// Call MgntActSet_RF_State instead to prevent RF config race condition.
+		// By Bruce, 2008-01-17.
+		//
+		if(!priv->ieee80211->bSupportRemoteWakeUp)
+		{
+			//MgntActSet_RF_State(Adapter, eRfOff, RF_CHANGE_BY_INIT);
+			//MgntActSet_RF_State(Adapter, eRfOff, Adapter->MgntInfo.RfOffReason);
+			//if(Adapter->HardwareType == HARDWARE_TYPE_RTL8190P)
+
+			PHY_SetRtl8192eRfOff(dev);
+
+			// 2006.11.30. System reset bit
+			//priv->ieee80211->GetHwRegHandler(dev, HW_VAR_CPU_RST, (u32*)(&ulRegRead) );
+			ulRegRead = read_nic_dword(dev,CPU_GEN);
+			ulRegRead|=CPU_GEN_SYSTEM_RESET;
+			//priv->ieee80211->SetHwRegHandler(dev, HW_VAR_CPU_RST, &ulRegRead);
+			write_nic_dword(dev,CPU_GEN, ulRegRead);
+		}
+	 	else
+		{
+			//2008.06.03 for WOL
+			write_nic_dword(dev, WFCRC0, 0xffffffff);
+			write_nic_dword(dev, WFCRC1, 0xffffffff);
+			write_nic_dword(dev, WFCRC2, 0xffffffff);
+
+			//Write PMR register
+			write_nic_byte(dev, PMR, 0x5);
+			//Disable tx, enanble rx
+			write_nic_byte(dev, MacBlkCtrl, 0xa);
+		}
+	}
+
+	for(i = 0; i < MAX_QUEUE_SIZE; i++) {
+		skb_queue_purge(&priv->ieee80211->skb_waitQ [i]);
+	}
+	for(i = 0; i < MAX_QUEUE_SIZE; i++) {
+		skb_queue_purge(&priv->ieee80211->skb_aggQ [i]);
+	}
 
 	skb_queue_purge(&priv->skb_queue);
 	return;
 }
 
+#if 0
 static void rtl8192_reset(struct net_device *dev)
 {
     rtl8192_irq_disable(dev);
     printk("This is RTL819xP Reset procedure\n");
 }
+#endif
 
 static u16 rtl_rate[] = {10,20,55,110,60,90,120,180,240,360,480,540};
 inline u16 rtl8192_rate2rate(short rate)
@@ -954,6 +1163,12 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, 
 	/* shall not be referred by command packet */
 	assert(queue_index != TXCMD_QUEUE);
 
+	if((priv->bHwRadioOff == true)||(!priv->up))
+	{
+		kfree_skb(skb);
+		return;
+	}
+
 	//spin_lock_irqsave(&priv->tx_lock,flags);
 
         memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
@@ -996,6 +1211,13 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
         cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
         u8 queue_index = tcb_desc->queue_index;
 
+        if(queue_index != TXCMD_QUEUE){
+		if((priv->bHwRadioOff == true)||(!priv->up))
+		{
+               	 	kfree_skb(skb);
+                	return 0;
+            	}
+        }
 
 	//spin_lock_irqsave(&priv->tx_lock,flags);
 
@@ -1379,6 +1601,15 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
     u8*   pda_addr = NULL;
     int   idx;
 
+    if(priv->bdisable_nic){
+       	RT_TRACE(COMP_ERR,"%s: ERR!! Nic is disabled! Can't tx packet len=%d qidx=%d!!!\n", __FUNCTION__, skb->len, tcb_desc->queue_index);
+		return skb->len;
+    }
+
+#ifdef ENABLE_LPS
+	priv->ieee80211->bAwakePktSent = true;
+#endif
+
     mapping = pci_map_single(priv->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
     /* collect the tx packets statitcs */
     pda_addr = ((u8*)skb->data) + sizeof(TX_FWINFO_8190PCI);
@@ -1481,6 +1712,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
     if((pdesc->OWN == 1) && (tcb_desc->queue_index != BEACON_QUEUE)) {
 	    RT_TRACE(COMP_ERR,"No more TX desc@%d, ring->idx = %d,idx = %d,%x", \
 			    tcb_desc->queue_index,ring->idx, idx,skb->len);
+	    spin_unlock_irqrestore(&priv->irq_th_lock,flags);
 	    return skb->len;
     }
 
@@ -1575,7 +1807,7 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
             return 0;
         priv->rx_buf[i] = skb;
         mapping = (dma_addr_t *)skb->cb;
-        *mapping = pci_map_single(priv->pdev, skb->tail,//skb_tail_pointer(skb),
+        *mapping = pci_map_single(priv->pdev, skb_tail_pointer(skb),
                 priv->rxbuffersize, PCI_DMA_FROMDEVICE);
 
         entry->BufferAddress = cpu_to_le32(*mapping);
@@ -1779,7 +2011,7 @@ static void rtl8192_qos_activate(struct work_struct * work)
 				(((u32)(qos_parameters->cw_max[i]))<< AC_PARAM_ECW_MAX_OFFSET)|
 				(((u32)(qos_parameters->cw_min[i]))<< AC_PARAM_ECW_MIN_OFFSET)|
 				((u32)u1bAIFS << AC_PARAM_AIFS_OFFSET));
-		printk("===>u4bAcParam:%x, ", u4bAcParam);
+		//printk("===>u4bAcParam:%x, ", u4bAcParam);
 		write_nic_dword(dev, WDCAPARA_ADD[i], u4bAcParam);
 		//write_nic_dword(dev, WDCAPARA_ADD[i], 0x005e4332);
 	}
@@ -1964,11 +2196,24 @@ void rtl8192_update_ratr_table(struct net_device* dev)
 	write_nic_byte(dev, UFWP, 1);
 }
 
+#if 0
 static u8 ccmp_ie[4] = {0x00,0x50,0xf2,0x04};
 static u8 ccmp_rsn_ie[4] = {0x00, 0x0f, 0xac, 0x04};
+#endif
+
 static bool GetNmodeSupportBySecCfg8190Pci(struct net_device*dev)
 {
 #if 1
+
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct ieee80211_device *ieee = priv->ieee80211;
+	if (ieee->rtllib_ap_sec_type &&
+	   (ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_WEP|SEC_ALG_TKIP))) {
+		return false;
+	} else {
+		return true;
+	}
+#else
 	struct r8192_priv* priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
         int wpa_ie_len= ieee->wpa_ie_len;
@@ -1995,18 +2240,6 @@ static bool GetNmodeSupportBySecCfg8190Pci(struct net_device*dev)
 		return true;
 	}
 
-#if 0
-        //In here we discuss with SD4 David. He think we still can send TKIP in broadcast group key in MCS rate.
-        //We can't force in G mode if Pairwie key is AES and group key is TKIP
-        if((pSecInfo->GroupEncAlgorithm == WEP104_Encryption) || (pSecInfo->GroupEncAlgorithm == WEP40_Encryption)  ||
-           (pSecInfo->PairwiseEncAlgorithm == WEP104_Encryption) ||
-           (pSecInfo->PairwiseEncAlgorithm == WEP40_Encryption) || (pSecInfo->PairwiseEncAlgorithm == TKIP_Encryption))
-        {
-                return  false;
-        }
-        else
-                return true;
-#endif
 	return true;
 #endif
 }
@@ -2080,7 +2313,7 @@ static void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
-#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we shoud wait for FPGA
+#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we should wait for FPGA
 	ActUpdateChannelAccessSetting( pAdapter, pHalData->CurrentWirelessMode, &pAdapter->MgntInfo.Info8185.ChannelAccessSetting );
 #endif
 	priv->ieee80211->mode = wireless_mode;
@@ -2127,7 +2360,19 @@ short rtl8192_is_tx_queue_empty(struct net_device *dev)
 }
 static void rtl8192_hw_sleep_down(struct net_device *dev)
 {
-	RT_TRACE(COMP_POWER, "%s()============>come to sleep down\n", __FUNCTION__);
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&priv->rf_ps_lock,flags);
+	if (priv->RFChangeInProgress) {
+		spin_unlock_irqrestore(&priv->rf_ps_lock,flags);
+		RT_TRACE(COMP_RF, "rtl8192_hw_sleep_down(): RF Change in progress! \n");
+		printk("rtl8192_hw_sleep_down(): RF Change in progress!\n");
+		return;
+	}
+	spin_unlock_irqrestore(&priv->rf_ps_lock,flags);
+	//RT_TRACE(COMP_PS, "%s()============>come to sleep down\n", __FUNCTION__);
+
 	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS);
 }
 static void rtl8192_hw_sleep_wq (struct work_struct *work)
@@ -2138,21 +2383,29 @@ static void rtl8192_hw_sleep_wq (struct work_struct *work)
         struct delayed_work *dwork = container_of(work,struct delayed_work,work);
         struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_sleep_wq);
         struct net_device *dev = ieee->dev;
-	//printk("=========>%s()\n", __FUNCTION__);
+
         rtl8192_hw_sleep_down(dev);
 }
-//	printk("dev is %d\n",dev);
-//	printk("&*&(^*(&(&=========>%s()\n", __FUNCTION__);
+
 static void rtl8192_hw_wakeup(struct net_device* dev)
 {
-//	u32 flags = 0;
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	unsigned long flags = 0;
 
-//	spin_lock_irqsave(&priv->ps_lock,flags);
-	RT_TRACE(COMP_POWER, "%s()============>come to wake up\n", __FUNCTION__);
+	spin_lock_irqsave(&priv->rf_ps_lock,flags);
+	if (priv->RFChangeInProgress) {
+		spin_unlock_irqrestore(&priv->rf_ps_lock,flags);
+		RT_TRACE(COMP_RF, "rtl8192_hw_wakeup(): RF Change in progress! \n");
+		printk("rtl8192_hw_wakeup(): RF Change in progress! schedule wake up task again\n");
+		queue_delayed_work(priv->ieee80211->wq,&priv->ieee80211->hw_wakeup_wq,MSECS(10));//PowerSave is not supported if kernel version is below 2.6.20
+		return;
+	}
+	spin_unlock_irqrestore(&priv->rf_ps_lock,flags);
+
+	//RT_TRACE(COMP_PS, "%s()============>come to wake up\n", __FUNCTION__);
 	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS);
-	//FIXME: will we send package stored while nic is sleep?
-//	spin_unlock_irqrestore(&priv->ps_lock,flags);
 }
+
 void rtl8192_hw_wakeup_wq (struct work_struct *work)
 {
 //	struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
@@ -2169,7 +2422,6 @@ void rtl8192_hw_wakeup_wq (struct work_struct *work)
 #define MAX_SLEEP_TIME 10000
 static void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 {
-
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	u32 rb = jiffies;
@@ -2177,58 +2429,55 @@ static void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 
 	spin_lock_irqsave(&priv->ps_lock,flags);
 
-	/* Writing HW register with 0 equals to disable
-	 * the timer, that is not really what we want
-	 */
-	tl -= MSECS(4+16+7);
+	// Writing HW register with 0 equals to disable
+	// the timer, that is not really what we want
+	//
+	tl -= MSECS(8+16+7);
 
-	//if(tl == 0) tl = 1;
-
-	/* FIXME HACK FIXME HACK */
-//	force_pci_posting(dev);
-	//mdelay(1);
-
-//	rb = read_nic_dword(dev, TSFTR);
-
-	/* If the interval in witch we are requested to sleep is too
-	 * short then give up and remain awake
-	 */
+	// If the interval in witch we are requested to sleep is too
+	// short then give up and remain awake
+	// when we sleep after send null frame, the timer will be too short to sleep.
+	//
 	if(((tl>=rb)&& (tl-rb) <= MSECS(MIN_SLEEP_TIME))
-		||((rb>tl)&& (rb-tl) < MSECS(MIN_SLEEP_TIME))) {
+			||((rb>tl)&& (rb-tl) < MSECS(MIN_SLEEP_TIME))) {
 		spin_unlock_irqrestore(&priv->ps_lock,flags);
-		printk("too short to sleep\n");
+		printk("too short to sleep::%x, %x, %lx\n",tl, rb,  MSECS(MIN_SLEEP_TIME));
 		return;
 	}
 
-//	write_nic_dword(dev, TimerInt, tl);
-//	rb = read_nic_dword(dev, TSFTR);
-	{
-		u32 tmp = (tl>rb)?(tl-rb):(rb-tl);
-	//	if (tl<rb)
-		queue_delayed_work(priv->ieee80211->wq, &priv->ieee80211->hw_wakeup_wq, tmp); //as tl may be less than rb
-	}
-	/* if we suspect the TimerInt is gone beyond tl
-	 * while setting it, then give up
-	 */
-#if 1
 	if(((tl > rb) && ((tl-rb) > MSECS(MAX_SLEEP_TIME)))||
-		((tl < rb) && ((rb-tl) > MSECS(MAX_SLEEP_TIME)))) {
+			((tl < rb) && (tl>MSECS(69)) && ((rb-tl) > MSECS(MAX_SLEEP_TIME)))||
+			((tl<rb)&&(tl<MSECS(69))&&((tl+0xffffffff-rb)>MSECS(MAX_SLEEP_TIME)))) {
 		printk("========>too long to sleep:%x, %x, %lx\n", tl, rb,  MSECS(MAX_SLEEP_TIME));
 		spin_unlock_irqrestore(&priv->ps_lock,flags);
 		return;
 	}
-#endif
-//	if(priv->rf_sleep)
-//		priv->rf_sleep(dev);
-
-	//printk("<=========%s()\n", __FUNCTION__);
-	queue_delayed_work(priv->ieee80211->wq, (void *)&priv->ieee80211->hw_sleep_wq,0);
+	{
+		u32 tmp = (tl>rb)?(tl-rb):(rb-tl);
+		queue_delayed_work(priv->ieee80211->wq,
+				&priv->ieee80211->hw_wakeup_wq,tmp);
+		//PowerSave not supported when kernel version less 2.6.20
+	}
+	queue_delayed_work(priv->ieee80211->wq,
+			(void *)&priv->ieee80211->hw_sleep_wq,0);
 	spin_unlock_irqrestore(&priv->ps_lock,flags);
+
 }
 static void rtl8192_init_priv_variable(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 i;
+	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+
+	// Default Halt the NIC if RF is OFF.
+	pPSC->RegRfPsLevel |= RT_RF_OFF_LEVL_HALT_NIC;
+	pPSC->RegRfPsLevel |= RT_RF_OFF_LEVL_CLK_REQ;
+	pPSC->RegRfPsLevel |= RT_RF_OFF_LEVL_ASPM;
+	pPSC->RegRfPsLevel |= RT_RF_LPS_LEVEL_ASPM;
+	pPSC->bLeisurePs = true;
+	pPSC->RegMaxLPSAwakeIntvl = 5;
+	priv->bHwRadioOff = false;
+
 	priv->being_init_adapter = false;
 	priv->txbuffsize = 1600;//1024;
 	priv->txfwbuffersize = 4096;
@@ -2328,6 +2577,17 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	//added by amy
 	priv->ieee80211->InitialGainHandler = InitialGain819xPci;
 
+#ifdef ENABLE_IPS
+	priv->ieee80211->ieee80211_ips_leave_wq = ieee80211_ips_leave_wq;
+	priv->ieee80211->ieee80211_ips_leave = ieee80211_ips_leave;
+#endif
+#ifdef ENABLE_LPS
+        priv->ieee80211->LeisurePSLeave            = LeisurePSLeave;
+#endif//ENABL
+
+	priv->ieee80211->SetHwRegHandler = rtl8192e_SetHwReg;
+	priv->ieee80211->rtllib_ap_sec_type = rtl8192e_ap_sec_type;
+
 	priv->card_type = USB;
 	{
 		priv->ShortRetryLimit = 0x30;
@@ -2398,6 +2658,10 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 	priv->priv_wq = create_workqueue(DRV_NAME,0);
 #else
 	priv->priv_wq = create_workqueue(DRV_NAME);
+#endif
+
+#ifdef ENABLE_IPS
+	INIT_WORK(&priv->ieee80211->ips_leave_wq, (void*)IPSLeave_wq);
 #endif
 
 //	INIT_WORK(&priv->reset_wq, (void(*)(void*)) rtl8192_restart);
@@ -2550,10 +2814,7 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 		memcpy(dev->dev_addr, bMac_Tmp_Addr, 6);
 	}
 
-	RT_TRACE(COMP_INIT, "Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
-			dev->dev_addr[0], dev->dev_addr[1],
-			dev->dev_addr[2], dev->dev_addr[3],
-			dev->dev_addr[4], dev->dev_addr[5]);
+	RT_TRACE(COMP_INIT, "Permanent Address = %pM\n", dev->dev_addr);
 
 		//2 TX Power Check EEPROM Fail or not
 	if(priv->card_8192_version > VERSION_8190_BD) {
@@ -2926,13 +3187,14 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 		#endif
 			break;
 	}
-/*
-	//2008.06.03, for WOL
+
+
 	if( priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
-		priv->ieee80211->bSupportRemoteWakeUp = TRUE;
+		priv->ieee80211->bSupportRemoteWakeUp = true;
 	else
-		priv->ieee80211->bSupportRemoteWakeUp = FALSE;
-*/
+		priv->ieee80211->bSupportRemoteWakeUp = false;
+
+
 	RT_TRACE(COMP_INIT, "RegChannelPlan(%d)\n", priv->RegChannelPlan);
 	RT_TRACE(COMP_INIT, "ChannelPlan = %d \n", priv->ChannelPlan);
 	RT_TRACE(COMP_INIT, "LedStrategy = %d \n", priv->LedStrategy);
@@ -4006,12 +4268,19 @@ static void rtl819x_ifsilentreset(struct net_device *dev)
 	struct ieee80211_device *ieee = priv->ieee80211;
 
 
+	return;
+
 	// 2007.07.20. If we need to check CCK stop, please uncomment this line.
 	//bStuck = Adapter->HalFunc.CheckHWStopHandler(Adapter);
 
 	if(priv->ResetProgress==RESET_TYPE_NORESET)
 	{
 RESET_START:
+#ifdef ENABLE_LPS
+                //LZM for PS-Poll AID issue. 090429
+                if(priv->ieee80211->state == IEEE80211_LINKED)
+                    LeisurePSLeave(dev);
+#endif
 
 		RT_TRACE(COMP_RESET,"=========>Reset progress!! \n");
 
@@ -4051,9 +4320,9 @@ RESET_START:
 		}
 		else{
 			printk("ieee->state is NOT LINKED\n");
-			ieee80211_softmac_stop_protocol(priv->ieee80211);
+			ieee80211_softmac_stop_protocol(priv->ieee80211,true);
 		}
-		rtl8192_rtx_disable(dev);
+		rtl8192_halt_adapter(dev, true);
 		up(&priv->wx_sem);
 		RT_TRACE(COMP_RESET,"%s():<==========down process is finished\n",__FUNCTION__);
 		RT_TRACE(COMP_RESET,"%s():===========>start to up the driver\n",__FUNCTION__);
@@ -4150,6 +4419,128 @@ void InactivePsWorkItemCallback(struct net_device *dev)
 	RT_TRACE(COMP_POWER, "InactivePsWorkItemCallback() <--------- \n");
 }
 
+#ifdef ENABLE_LPS
+//
+// Change current and default preamble mode.
+// 2005.01.06, by rcnjko.
+//
+bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,	u8 rtPsMode)
+{
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	//PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+	//u8 RpwmVal, FwPwrMode;
+
+	// Currently, we do not change power save mode on IBSS mode.
+	if(priv->ieee80211->iw_mode == IW_MODE_ADHOC)
+	{
+		return false;
+	}
+
+	//
+	// <RJ_NOTE> If we make HW to fill up the PwrMgt bit for us,
+	// some AP will not response to our mgnt frames with PwrMgt bit set,
+	// e.g. cannot associate the AP.
+	// So I commented out it. 2005.02.16, by rcnjko.
+	//
+//	// Change device's power save mode.
+//	Adapter->HalFunc.SetPSModeHandler( Adapter, rtPsMode );
+
+	// Update power save mode configured.
+	//RT_TRACE(COMP_LPS,"%s(): set ieee->ps = %x\n",__FUNCTION__,rtPsMode);
+	if(!priv->ps_force) {
+		priv->ieee80211->ps = rtPsMode;
+	}
+
+	// Awake immediately
+	if(priv->ieee80211->sta_sleep != 0 && rtPsMode == IEEE80211_PS_DISABLED)
+	{
+                unsigned long flags;
+
+		//PlatformSetTimer(Adapter, &(pMgntInfo->AwakeTimer), 0);
+		// Notify the AP we awke.
+		rtl8192_hw_wakeup(dev);
+		priv->ieee80211->sta_sleep = 0;
+
+                spin_lock_irqsave(&(priv->ieee80211->mgmt_tx_lock), flags);
+		printk("LPS leave: notify AP we are awaked ++++++++++ SendNullFunctionData\n");
+		ieee80211_sta_ps_send_null_frame(priv->ieee80211, 0);
+                spin_unlock_irqrestore(&(priv->ieee80211->mgmt_tx_lock), flags);
+	}
+
+	return true;
+}
+
+//================================================================================
+// Leisure Power Save in linked state.
+//================================================================================
+
+//
+//	Description:
+//		Enter the leisure power save mode.
+//
+void LeisurePSEnter(struct net_device *dev)
+{
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+
+	//RT_TRACE(COMP_PS, "LeisurePSEnter()...\n");
+	//RT_TRACE(COMP_PS, "pPSC->bLeisurePs = %d, ieee->ps = %d,pPSC->LpsIdleCount is %d,RT_CHECK_FOR_HANG_PERIOD is %d\n",
+	//	pPSC->bLeisurePs, priv->ieee80211->ps,pPSC->LpsIdleCount,RT_CHECK_FOR_HANG_PERIOD);
+
+	if(!((priv->ieee80211->iw_mode == IW_MODE_INFRA) &&
+		(priv->ieee80211->state == IEEE80211_LINKED)) ||
+		(priv->ieee80211->iw_mode == IW_MODE_ADHOC) ||
+		(priv->ieee80211->iw_mode == IW_MODE_MASTER))
+		return;
+
+	if (pPSC->bLeisurePs)
+	{
+		// Idle for a while if we connect to AP a while ago.
+		if(pPSC->LpsIdleCount >= RT_CHECK_FOR_HANG_PERIOD) //  4 Sec
+		{
+
+			if(priv->ieee80211->ps == IEEE80211_PS_DISABLED)
+			{
+
+				//RT_TRACE(COMP_LPS, "LeisurePSEnter(): Enter 802.11 power save mode...\n");
+				MgntActSet_802_11_PowerSaveMode(dev, IEEE80211_PS_MBCAST|IEEE80211_PS_UNICAST);
+
+			}
+		}
+		else
+			pPSC->LpsIdleCount++;
+	}
+}
+
+
+//
+//	Description:
+//		Leave the leisure power save mode.
+//
+void LeisurePSLeave(struct net_device *dev)
+{
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+
+
+	//RT_TRACE(COMP_PS, "LeisurePSLeave()...\n");
+	//RT_TRACE(COMP_PS, "pPSC->bLeisurePs = %d, ieee->ps = %d\n",
+	//	pPSC->bLeisurePs, priv->ieee80211->ps);
+
+	if (pPSC->bLeisurePs)
+	{
+		if(priv->ieee80211->ps != IEEE80211_PS_DISABLED)
+		{
+			// move to lps_wakecomplete()
+			//RT_TRACE(COMP_LPS, "LeisurePSLeave(): Busy Traffic , Leave 802.11 power save..\n");
+			MgntActSet_802_11_PowerSaveMode(dev, IEEE80211_PS_DISABLED);
+
+		}
+	}
+}
+#endif
+
+
 //
 //	Description:
 //		Enter the inactive power save mode. RF will be off
@@ -4178,6 +4569,7 @@ IPSEnter(struct net_device *dev)
 			&& (priv->ieee80211->state != IEEE80211_LINKED) )
 		{
 			RT_TRACE(COMP_RF,"IPSEnter(): Turn off RF.\n");
+			//printk("IPSEnter(): Turn off RF.\n");
 			pPSC->eInactivePowerState = eRfOff;
 //			queue_work(priv->priv_wq,&(pPSC->InactivePsWorkItem));
 			InactivePsWorkItemCallback(dev);
@@ -4203,11 +4595,52 @@ IPSLeave(struct net_device *dev)
 		if (rtState != eRfOn  && !pPSC->bSwRfProcessing && priv->ieee80211->RfOffReason <= RF_CHANGE_BY_IPS)
 		{
 			RT_TRACE(COMP_POWER, "IPSLeave(): Turn on RF.\n");
+			//printk("IPSLeave(): Turn on RF.\n");
 			pPSC->eInactivePowerState = eRfOn;
 //			queue_work(priv->priv_wq,&(pPSC->InactivePsWorkItem));
 			InactivePsWorkItemCallback(dev);
 		}
 	}
+}
+
+void IPSLeave_wq(void *data)
+{
+	struct ieee80211_device *ieee = container_of(data,struct ieee80211_device,ips_leave_wq);
+	struct net_device *dev = ieee->dev;
+
+	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	down(&priv->ieee80211->ips_sem);
+	IPSLeave(dev);
+	up(&priv->ieee80211->ips_sem);
+}
+
+void ieee80211_ips_leave_wq(struct net_device *dev)
+{
+	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	RT_RF_POWER_STATE	rtState;
+	rtState = priv->ieee80211->eRFPowerState;
+
+	if(priv->ieee80211->PowerSaveControl.bInactivePs){
+		if(rtState == eRfOff){
+			if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_IPS)
+			{
+				RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",__FUNCTION__);
+				return;
+			}
+			else{
+				printk("=========>%s(): IPSLeave\n",__FUNCTION__);
+				queue_work(priv->ieee80211->wq,&priv->ieee80211->ips_leave_wq);
+			}
+		}
+	}
+}
+//added by amy 090331 end
+void ieee80211_ips_leave(struct net_device *dev)
+{
+	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	down(&priv->ieee80211->ips_sem);
+	IPSLeave(dev);
+	up(&priv->ieee80211->ips_sem);
 }
 #endif
 
@@ -4244,15 +4677,23 @@ void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	unsigned long flags;
 	bool bBusyTraffic = false;
 	static u8 last_time = 0;
+	bool bEnterPS = false;
+
+	if((!priv->up) || (priv->bHwRadioOff == true))
+		return;
+
 	if(!priv->up)
 		return;
 	hal_dm_watchdog(dev);
 #ifdef ENABLE_IPS
 //	printk("watch_dog ENABLE_IPS\n");
 	if(ieee->actscanning == false){
-		if((ieee->iw_mode != IW_MODE_ADHOC) && (ieee->state == IEEE80211_NOLINK) && (ieee->beinretry == false) && (ieee->eRFPowerState == eRfOn) && !ieee->is_set_key){
+		//printk("%d,%d,%d,%d\n", ieee->eRFPowerState, ieee->is_set_key, ieee->proto_stoppping, ieee->wx_set_enc);
+		if((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state == IEEE80211_NOLINK) &&\
+		    (ieee->eRFPowerState == eRfOn)&&!ieee->is_set_key &&\
+		    (!ieee->proto_stoppping) && !ieee->wx_set_enc){
 			if(ieee->PowerSaveControl.ReturnPoint == IPS_CALLBACK_NONE){
-				printk("====================>haha:IPSEnter()\n");
+				//printk("====================>haha:IPSEnter()\n");
 				IPSEnter(dev);
 				//ieee80211_stop_scan(priv->ieee80211);
 			}
@@ -4262,14 +4703,49 @@ void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	{//to get busy traffic condition
 		if(ieee->state == IEEE80211_LINKED)
 		{
-			if(	ieee->LinkDetectInfo.NumRxOkInPeriod> 666 ||
-				ieee->LinkDetectInfo.NumTxOkInPeriod> 666 ) {
+			if(	ieee->LinkDetectInfo.NumRxOkInPeriod> 100 ||
+				ieee->LinkDetectInfo.NumTxOkInPeriod> 100 ) {
 				bBusyTraffic = true;
 			}
 
+#ifdef ENABLE_LPS
+			//added by amy for Leisure PS
+			if(	((ieee->LinkDetectInfo.NumRxUnicastOkInPeriod + ieee->LinkDetectInfo.NumTxOkInPeriod) > 8 ) ||
+				(ieee->LinkDetectInfo.NumRxUnicastOkInPeriod > 2) )
+			{
+				//printk("ieee->LinkDetectInfo.NumRxUnicastOkInPeriod is %d,ieee->LinkDetectInfo.NumTxOkInPeriod is %d\n",
+				//	ieee->LinkDetectInfo.NumRxUnicastOkInPeriod,ieee->LinkDetectInfo.NumTxOkInPeriod);
+				bEnterPS= false;
+			}
+			else
+			{
+				bEnterPS= true;
+			}
+
+			//printk("***bEnterPS = %d\n", bEnterPS);
+			// LeisurePS only work in infra mode.
+			if(bEnterPS)
+			{
+				LeisurePSEnter(dev);
+			}
+			else
+			{
+				LeisurePSLeave(dev);
+			}
+#endif
+
 		}
+		else
+		{
+#ifdef ENABLE_LPS
+			//RT_TRACE(COMP_LPS,"====>no link LPS leave\n");
+			LeisurePSLeave(dev);
+#endif
+		}
+
 	        ieee->LinkDetectInfo.NumRxOkInPeriod = 0;
 	        ieee->LinkDetectInfo.NumTxOkInPeriod = 0;
+		ieee->LinkDetectInfo.NumRxUnicastOkInPeriod = 0;
 		ieee->LinkDetectInfo.bBusyTraffic = bBusyTraffic;
 	}
 
@@ -4288,14 +4764,14 @@ void rtl819x_watchdog_wqcallback(struct work_struct *work)
 				if( ieee->eRFPowerState == eRfOff)
 					RT_TRACE(COMP_ERR,"========>%s()\n",__FUNCTION__);
 				printk("===>%s(): AP is power off,connect another one\n",__FUNCTION__);
-		//		Dot11d_Reset(dev);
+				//		Dot11d_Reset(dev);
 				ieee->state = IEEE80211_ASSOCIATING;
 				notify_wx_assoc_event(priv->ieee80211);
-                                RemovePeerTS(priv->ieee80211,priv->ieee80211->current_network.bssid);
+				RemovePeerTS(priv->ieee80211,priv->ieee80211->current_network.bssid);
 				ieee->is_roaming = true;
 				ieee->is_set_key = false;
-                             ieee->link_change(dev);
-                                queue_work(ieee->wq, &ieee->associate_procedure_wq);
+				ieee->link_change(dev);
+				queue_work(ieee->wq, &ieee->associate_procedure_wq);
 			}
 		}
 	      ieee->LinkDetectInfo.NumRecvBcnInPeriod=0;
@@ -4348,6 +4824,7 @@ int _rtl8192_up(struct net_device *dev)
 	RT_STATUS init_status = RT_STATUS_SUCCESS;
 	priv->up=1;
 	priv->ieee80211->ieee_up=1;
+	priv->bdisable_nic = false;  //YJ,add,091111
 	RT_TRACE(COMP_INIT, "Bringing up iface");
 
 	init_status = rtl8192_adapter_start(dev);
@@ -4422,6 +4899,12 @@ int rtl8192_down(struct net_device *dev)
 #endif
 	if (priv->up == 0) return -1;
 
+#ifdef ENABLE_LPS
+	//LZM for PS-Poll AID issue. 090429
+	if(priv->ieee80211->state == IEEE80211_LINKED)
+		LeisurePSLeave(dev);
+#endif
+
 	priv->up=0;
 	priv->ieee80211->ieee_up = 0;
 	RT_TRACE(COMP_DOWN, "==========>%s()\n", __FUNCTION__);
@@ -4459,11 +4942,9 @@ int rtl8192_down(struct net_device *dev)
 	deinit_hal_dm(dev);
 	del_timer_sync(&priv->watch_dog_timer);
 
-	ieee80211_softmac_stop_protocol(priv->ieee80211);
-#ifdef ENABLE_IPS
-	MgntActSet_RF_State(dev, eRfOff, RF_CHANGE_BY_INIT);
-#endif
-	rtl8192_rtx_disable(dev);
+	ieee80211_softmac_stop_protocol(priv->ieee80211,true);
+
+	rtl8192_halt_adapter(dev,false);
 	memset(&priv->ieee80211->current_network, 0 , offsetof(struct ieee80211_network, list));
 
 	RT_TRACE(COMP_DOWN, "<==========%s()\n", __FUNCTION__);
@@ -4479,10 +4960,10 @@ void rtl8192_commit(struct net_device *dev)
 	if (priv->up == 0) return ;
 
 
-	ieee80211_softmac_stop_protocol(priv->ieee80211);
+	ieee80211_softmac_stop_protocol(priv->ieee80211,true);
 
 	rtl8192_irq_disable(dev);
-	rtl8192_rtx_disable(dev);
+	rtl8192_halt_adapter(dev,true);
 	_rtl8192_up(dev);
 }
 
@@ -5806,8 +6287,7 @@ static void rtl8192_rx(struct net_device *dev)
 
                 skb = new_skb;
                 priv->rx_buf[priv->rx_idx] = skb;
-                *((dma_addr_t *) skb->cb) = pci_map_single(priv->pdev, skb->tail, priv->rxbuffersize, PCI_DMA_FROMDEVICE);
-//                *((dma_addr_t *) skb->cb) = pci_map_single(priv->pdev, skb_tail_pointer(skb), priv->rxbuffersize, PCI_DMA_FROMDEVICE);
+                *((dma_addr_t *) skb->cb) = pci_map_single(priv->pdev, skb_tail_pointer(skb), priv->rxbuffersize, PCI_DMA_FROMDEVICE);
             }
 
         }
@@ -6036,7 +6516,7 @@ void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
 	/* call cancel_work_sync instead of cancel_delayed_work if and only if Linux_version_code
          * is  or is newer than 2.6.20 and work structure is defined to be struct work_struct.
          * Otherwise call cancel_delayed_work is enough.
-         * FIXME (2.6.20 shoud 2.6.22, work_struct shoud not cancel)
+         * FIXME (2.6.20 should 2.6.22, work_struct should not cancel)
          * */
 	cancel_delayed_work(&priv->watch_dog_wq);
 	cancel_delayed_work(&priv->update_beacon_wq);
@@ -6381,11 +6861,13 @@ void setKey(	struct net_device *dev,
 			if(priv->ieee80211->RfOffReason > RF_CHANGE_BY_IPS)
 			{
 				RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",__FUNCTION__);
-				up(&priv->wx_sem);
+				//up(&priv->wx_sem);
 				return ;
 			}
 			else{
+				down(&priv->ieee80211->ips_sem);
 				IPSLeave(dev);
+				up(&priv->ieee80211->ips_sem);
 			}
 		}
 	}
@@ -6394,7 +6876,7 @@ void setKey(	struct net_device *dev,
 	if (EntryNo >= TOTAL_CAM_ENTRY)
 		RT_TRACE(COMP_ERR, "cam entry exceeds in setKey()\n");
 
-	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr"MAC_FMT"\n", dev,EntryNo, KeyIndex, KeyType, MAC_ARG(MacAddr));
+	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr%pM\n", dev,EntryNo, KeyIndex, KeyType, MacAddr);
 
 	if (DefaultKey)
 		usConfig |= BIT15 | (KeyType<<2);
@@ -6453,6 +6935,65 @@ void CamPrintDbgReg(struct net_device* dev)
 		RT_TRACE(COMP_SEC, "-->CAM Key Not Found   ");
 	ucValue = read_nic_byte(dev, SECR);
 	RT_TRACE(COMP_SEC, "WPA_Config=%x \n",ucValue);
+}
+
+bool NicIFEnableNIC(struct net_device* dev)
+{
+	RT_STATUS init_status = RT_STATUS_SUCCESS;
+	struct r8192_priv* priv = ieee80211_priv(dev);
+	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->ieee80211->PowerSaveControl));
+
+	//YJ,add,091109
+	if (priv->up == 0){
+		RT_TRACE(COMP_ERR, "ERR!!! %s(): Driver is already down!\n",__FUNCTION__);
+		priv->bdisable_nic = false;  //YJ,add,091111
+		return false;
+	}
+	// <1> Reset memory: descriptor, buffer,..
+	//NicIFResetMemory(Adapter);
+
+	// <2> Enable Adapter
+	//printk("===========>%s()\n",__FUNCTION__);
+	//priv->bfirst_init = true;
+	init_status = rtl8192_adapter_start(dev);
+	if (init_status != RT_STATUS_SUCCESS) {
+		RT_TRACE(COMP_ERR,"ERR!!! %s(): initialization is failed!\n",__FUNCTION__);
+		priv->bdisable_nic = false;  //YJ,add,091111
+		return -1;
+	}
+	//printk("start adapter finished\n");
+	RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
+	//priv->bfirst_init = false;
+
+	// <3> Enable Interrupt
+	rtl8192_irq_enable(dev);
+	priv->bdisable_nic = false;
+	//RT_TRACE(COMP_PS,"<===========%s()\n",__FUNCTION__);
+	return (init_status == RT_STATUS_SUCCESS) ? true:false;
+}
+bool NicIFDisableNIC(struct net_device* dev)
+{
+	bool	status = true;
+	struct r8192_priv* priv = ieee80211_priv(dev);
+	u8 tmp_state = 0;
+	// <1> Disable Interrupt
+	//RT_TRACE(COMP_PS, "=========>%s()\n",__FUNCTION__);
+	priv->bdisable_nic = true;	//YJ,move,091109
+	tmp_state = priv->ieee80211->state;
+
+	ieee80211_softmac_stop_protocol(priv->ieee80211, false);
+
+	priv->ieee80211->state = tmp_state;
+	rtl8192_cancel_deferred_work(priv);
+	rtl8192_irq_disable(dev);
+	// <2> Stop all timer
+
+	// <3> Disable Adapter
+	rtl8192_halt_adapter(dev, false);
+//	priv->bdisable_nic = true;
+	//RT_TRACE(COMP_PS, "<=========%s()\n",__FUNCTION__);
+
+	return status;
 }
 
 

@@ -13,7 +13,7 @@ module_param(report_gart_errors, int, 0644);
 static int ecc_enable_override;
 module_param(ecc_enable_override, int, 0644);
 
-static struct msr *msrs;
+static struct msr __percpu *msrs;
 
 /* Lookup table for all possible MC control instances */
 struct amd64_pvt;
@@ -2553,14 +2553,14 @@ static int amd64_toggle_ecc_err_reporting(struct amd64_pvt *pvt, bool on)
 
 		if (on) {
 			if (reg->l & K8_MSR_MCGCTL_NBE)
-				pvt->flags.ecc_report = 1;
+				pvt->flags.nb_mce_enable = 1;
 
 			reg->l |= K8_MSR_MCGCTL_NBE;
 		} else {
 			/*
-			 * Turn off ECC reporting only when it was off before
+			 * Turn off NB MCE reporting only when it was off before
 			 */
-			if (!pvt->flags.ecc_report)
+			if (!pvt->flags.nb_mce_enable)
 				reg->l &= ~K8_MSR_MCGCTL_NBE;
 		}
 	}
@@ -2571,21 +2571,10 @@ static int amd64_toggle_ecc_err_reporting(struct amd64_pvt *pvt, bool on)
 	return 0;
 }
 
-/*
- * Only if 'ecc_enable_override' is set AND BIOS had ECC disabled, do "we"
- * enable it.
- */
 static void amd64_enable_ecc_error_reporting(struct mem_ctl_info *mci)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u32 value, mask = K8_NBCTL_CECCEn | K8_NBCTL_UECCEn;
-
-	if (!ecc_enable_override)
-		return;
-
-	amd64_printk(KERN_WARNING,
-		"'ecc_enable_override' parameter is active, "
-		"Enabling AMD ECC hardware now: CAUTION\n");
 
 	amd64_read_pci_cfg(pvt->misc_f3_ctl, K8_NBCTL, &value);
 
@@ -2611,6 +2600,8 @@ static void amd64_enable_ecc_error_reporting(struct mem_ctl_info *mci)
 			"This node reports that DRAM ECC is "
 			"currently Disabled; ENABLING now\n");
 
+		pvt->flags.nb_ecc_prev = 0;
+
 		/* Attempt to turn on DRAM ECC Enable */
 		value |= K8_NBCFG_ECC_ENABLE;
 		pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCFG, value);
@@ -2625,7 +2616,10 @@ static void amd64_enable_ecc_error_reporting(struct mem_ctl_info *mci)
 			amd64_printk(KERN_DEBUG,
 				"Hardware accepted DRAM ECC Enable\n");
 		}
+	} else {
+		pvt->flags.nb_ecc_prev = 1;
 	}
+
 	debugf0("NBCFG(2)= 0x%x  CHIPKILL= %s ECC_ENABLE= %s\n", value,
 		(value & K8_NBCFG_CHIPKILL) ? "Enabled" : "Disabled",
 		(value & K8_NBCFG_ECC_ENABLE) ? "Enabled" : "Disabled");
@@ -2644,12 +2638,18 @@ static void amd64_restore_ecc_error_reporting(struct amd64_pvt *pvt)
 	value &= ~mask;
 	value |= pvt->old_nbctl;
 
-	/* restore the NB Enable MCGCTL bit */
 	pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCTL, value);
 
+	/* restore previous BIOS DRAM ECC "off" setting which we force-enabled */
+	if (!pvt->flags.nb_ecc_prev) {
+		amd64_read_pci_cfg(pvt->misc_f3_ctl, K8_NBCFG, &value);
+		value &= ~K8_NBCFG_ECC_ENABLE;
+		pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCFG, value);
+	}
+
+	/* restore the NB Enable MCGCTL bit */
 	if (amd64_toggle_ecc_err_reporting(pvt, OFF))
-		amd64_printk(KERN_WARNING, "Error restoring ECC reporting over "
-					   "MCGCTL!\n");
+		amd64_printk(KERN_WARNING, "Error restoring NB MCGCTL settings!\n");
 }
 
 /*
@@ -2690,8 +2690,9 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 		if (!ecc_enable_override) {
 			amd64_printk(KERN_NOTICE, "%s", ecc_msg);
 			return -ENODEV;
+		} else {
+			amd64_printk(KERN_WARNING, "Forcing ECC checking on!\n");
 		}
-		ecc_enable_override = 0;
 	}
 
 	return 0;

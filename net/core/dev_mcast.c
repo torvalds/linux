@@ -96,7 +96,10 @@ int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
 	int err;
 
 	netif_addr_lock_bh(dev);
-	err = __dev_addr_add(&dev->mc_list, &dev->mc_count, addr, alen, glbl);
+	if (alen != dev->addr_len)
+		err = -EINVAL;
+	else
+		err = __dev_addr_add(&dev->mc_list, &dev->mc_count, addr, alen, glbl);
 	if (!err)
 		__dev_set_rx_mode(dev);
 	netif_addr_unlock_bh(dev);

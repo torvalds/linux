@@ -949,12 +949,6 @@ printer_set_config(struct printer_dev *dev, unsigned number)
 	int			result = 0;
 	struct usb_gadget	*gadget = dev->gadget;
 
-	if (gadget_is_sa1100(gadget) && dev->config) {
-		/* tx fifo is full, but we can't clear it...*/
-		INFO(dev, "can't change configurations\n");
-		return -ESPIPE;
-	}
-
 	switch (number) {
 	case DEV_CONFIG_VALUE:
 		result = 0;
@@ -1032,12 +1026,6 @@ static int
 set_interface(struct printer_dev *dev, unsigned number)
 {
 	int			result = 0;
-
-	if (gadget_is_sa1100(dev->gadget) && dev->interface < 0) {
-		/* tx fifo is full, but we can't clear it...*/
-		INFO(dev, "can't change interfaces\n");
-		return -ESPIPE;
-	}
 
 	/* Free the current interface */
 	switch (dev->interface) {
@@ -1389,12 +1377,6 @@ printer_bind(struct usb_gadget *gadget)
 	status = cdev_add(&dev->printer_cdev, g_printer_devno, 1);
 	if (status) {
 		ERROR(dev, "Failed to open char device\n");
-		goto fail;
-	}
-
-	if (gadget_is_sa1100(gadget)) {
-		/* hardware can't write zero length packets. */
-		ERROR(dev, "SA1100 controller is unsupport by this driver\n");
 		goto fail;
 	}
 

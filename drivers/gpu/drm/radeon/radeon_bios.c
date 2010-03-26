@@ -30,6 +30,7 @@
 #include "radeon.h"
 #include "atom.h"
 
+#include <linux/vga_switcheroo.h>
 /*
  * BIOS.
  */
@@ -62,7 +63,7 @@ static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 		iounmap(bios);
 		return false;
 	}
-	memcpy(rdev->bios, bios, size);
+	memcpy_fromio(rdev->bios, bios, size);
 	iounmap(bios);
 	return true;
 }
@@ -93,6 +94,38 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 	return true;
 }
 
+/* ATRM is used to get the BIOS on the discrete cards in
+ * dual-gpu systems.
+ */
+static bool radeon_atrm_get_bios(struct radeon_device *rdev)
+{
+	int ret;
+	int size = 64 * 1024;
+	int i;
+
+	if (!radeon_atrm_supported(rdev->pdev))
+		return false;
+
+	rdev->bios = kmalloc(size, GFP_KERNEL);
+	if (!rdev->bios) {
+		DRM_ERROR("Unable to allocate bios\n");
+		return false;
+	}
+
+	for (i = 0; i < size / ATRM_BIOS_PAGE; i++) {
+		ret = radeon_atrm_get_bios_chunk(rdev->bios,
+						 (i * ATRM_BIOS_PAGE),
+						 ATRM_BIOS_PAGE);
+		if (ret <= 0)
+			break;
+	}
+
+	if (i == 0 || rdev->bios[0] != 0x55 || rdev->bios[1] != 0xaa) {
+		kfree(rdev->bios);
+		return false;
+	}
+	return true;
+}
 static bool r700_read_disabled_bios(struct radeon_device *rdev)
 {
 	uint32_t viph_control;
@@ -388,16 +421,16 @@ static bool radeon_read_disabled_bios(struct radeon_device *rdev)
 		return legacy_read_disabled_bios(rdev);
 }
 
+
 bool radeon_get_bios(struct radeon_device *rdev)
 {
 	bool r;
 	uint16_t tmp;
 
-	if (rdev->flags & RADEON_IS_IGP) {
+	r = radeon_atrm_get_bios(rdev);
+	if (r == false)
 		r = igp_read_bios_from_vram(rdev);
-		if (r == false)
-			r = radeon_read_bios(rdev);
-	} else
+	if (r == false)
 		r = radeon_read_bios(rdev);
 	if (r == false) {
 		r = radeon_read_disabled_bios(rdev);
@@ -408,6 +441,13 @@ bool radeon_get_bios(struct radeon_device *rdev)
 		return false;
 	}
 	if (rdev->bios[0] != 0x55 || rdev->bios[1] != 0xaa) {
+		printk("BIOS signature incorrect %x %x\n", rdev->bios[0], rdev->bios[1]);
+		goto free_bios;
+	}
+
+	tmp = RBIOS16(0x18);
+	if (RBIOS8(tmp + 0x14) != 0x0) {
+		DRM_INFO("Not an x86 BIOS ROM, not using.\n");
 		goto free_bios;
 	}
 

@@ -45,8 +45,8 @@ static int do_udf_readdir(struct inode *dir, struct file *filp,
 	int block, iblock;
 	loff_t nf_pos = (filp->f_pos - 1) << 2;
 	int flen;
-	char *fname = NULL;
-	char *nameptr;
+	unsigned char *fname = NULL;
+	unsigned char *nameptr;
 	uint16_t liu;
 	uint8_t lfi;
 	loff_t size = udf_ext0_offset(dir) + dir->i_size;

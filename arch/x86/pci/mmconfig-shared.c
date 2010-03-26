@@ -303,22 +303,17 @@ static void __init pci_mmcfg_check_end_bus_number(void)
 {
 	struct pci_mmcfg_region *cfg, *cfgx;
 
-	/* last one*/
-	cfg = list_entry(pci_mmcfg_list.prev, typeof(*cfg), list);
-	if (cfg)
-		if (cfg->end_bus < cfg->start_bus)
-			cfg->end_bus = 255;
-
-	if (list_is_singular(&pci_mmcfg_list))
-		return;
-
-	/* don't overlap please */
+	/* Fixup overlaps */
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		if (cfg->end_bus < cfg->start_bus)
 			cfg->end_bus = 255;
 
+		/* Don't access the list head ! */
+		if (cfg->list.next == &pci_mmcfg_list)
+			break;
+
 		cfgx = list_entry(cfg->list.next, typeof(*cfg), list);
-		if (cfg != cfgx && cfg->end_bus >= cfgx->start_bus)
+		if (cfg->end_bus >= cfgx->start_bus)
 			cfg->end_bus = cfgx->start_bus - 1;
 	}
 }

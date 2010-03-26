@@ -51,7 +51,7 @@ static void chsc_subchannel_irq(struct subchannel *sch)
 {
 	struct chsc_private *private = sch->private;
 	struct chsc_request *request = private->request;
-	struct irb *irb = (struct irb *)__LC_IRB;
+	struct irb *irb = (struct irb *)&S390_lowcore.irb;
 
 	CHSC_LOG(4, "irb");
 	CHSC_LOG_HEX(4, irb, sizeof(*irb));
@@ -237,7 +237,7 @@ static int chsc_async(struct chsc_async_area *chsc_area,
 	int ret = -ENODEV;
 	char dbf[10];
 
-	chsc_area->header.key = PAGE_DEFAULT_KEY;
+	chsc_area->header.key = PAGE_DEFAULT_KEY >> 4;
 	while ((sch = chsc_get_next_subchannel(sch))) {
 		spin_lock(sch->lock);
 		private = sch->private;

@@ -1748,6 +1748,22 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 				       icd);
 }
 
+static int sh_mobile_ceu_get_parm(struct soc_camera_device *icd,
+				  struct v4l2_streamparm *parm)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+
+	return v4l2_subdev_call(sd, video, g_parm, parm);
+}
+
+static int sh_mobile_ceu_set_parm(struct soc_camera_device *icd,
+				  struct v4l2_streamparm *parm)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+
+	return v4l2_subdev_call(sd, video, s_parm, parm);
+}
+
 static int sh_mobile_ceu_get_ctrl(struct soc_camera_device *icd,
 				  struct v4l2_control *ctrl)
 {
@@ -1808,6 +1824,8 @@ static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.try_fmt	= sh_mobile_ceu_try_fmt,
 	.set_ctrl	= sh_mobile_ceu_set_ctrl,
 	.get_ctrl	= sh_mobile_ceu_get_ctrl,
+	.set_parm	= sh_mobile_ceu_set_parm,
+	.get_parm	= sh_mobile_ceu_get_parm,
 	.reqbufs	= sh_mobile_ceu_reqbufs,
 	.poll		= sh_mobile_ceu_poll,
 	.querycap	= sh_mobile_ceu_querycap,

@@ -4,7 +4,7 @@
 #include <asm/ccwdev.h>
 #include <asm/atomic.h>
 #include <linux/wait.h>
-
+#include <linux/notifier.h>
 #include "io_sch.h"
 
 /*
@@ -71,7 +71,6 @@ dev_fsm_final_state(struct ccw_device *cdev)
 		cdev->private->state == DEV_STATE_BOXED);
 }
 
-extern struct workqueue_struct *ccw_device_work;
 extern wait_queue_head_t ccw_device_init_wq;
 extern atomic_t ccw_device_init_count;
 int __init io_subchannel_init(void);

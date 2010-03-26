@@ -257,6 +257,79 @@ static inline void removeQ(CommandList_struct *c)
 	hlist_del_init(&c->list);
 }
 
+static void cciss_free_sg_chain_blocks(SGDescriptor_struct **cmd_sg_list,
+	int nr_cmds)
+{
+	int i;
+
+	if (!cmd_sg_list)
+		return;
+	for (i = 0; i < nr_cmds; i++) {
+		kfree(cmd_sg_list[i]);
+		cmd_sg_list[i] = NULL;
+	}
+	kfree(cmd_sg_list);
+}
+
+static SGDescriptor_struct **cciss_allocate_sg_chain_blocks(
+	ctlr_info_t *h, int chainsize, int nr_cmds)
+{
+	int j;
+	SGDescriptor_struct **cmd_sg_list;
+
+	if (chainsize <= 0)
+		return NULL;
+
+	cmd_sg_list = kmalloc(sizeof(*cmd_sg_list) * nr_cmds, GFP_KERNEL);
+	if (!cmd_sg_list)
+		return NULL;
+
+	/* Build up chain blocks for each command */
+	for (j = 0; j < nr_cmds; j++) {
+		/* Need a block of chainsized s/g elements. */
+		cmd_sg_list[j] = kmalloc((chainsize *
+			sizeof(*cmd_sg_list[j])), GFP_KERNEL);
+		if (!cmd_sg_list[j]) {
+			dev_err(&h->pdev->dev, "Cannot get memory "
+				"for s/g chains.\n");
+			goto clean;
+		}
+	}
+	return cmd_sg_list;
+clean:
+	cciss_free_sg_chain_blocks(cmd_sg_list, nr_cmds);
+	return NULL;
+}
+
+static void cciss_unmap_sg_chain_block(ctlr_info_t *h, CommandList_struct *c)
+{
+	SGDescriptor_struct *chain_sg;
+	u64bit temp64;
+
+	if (c->Header.SGTotal <= h->max_cmd_sgentries)
+		return;
+
+	chain_sg = &c->SG[h->max_cmd_sgentries - 1];
+	temp64.val32.lower = chain_sg->Addr.lower;
+	temp64.val32.upper = chain_sg->Addr.upper;
+	pci_unmap_single(h->pdev, temp64.val, chain_sg->Len, PCI_DMA_TODEVICE);
+}
+
+static void cciss_map_sg_chain_block(ctlr_info_t *h, CommandList_struct *c,
+	SGDescriptor_struct *chain_block, int len)
+{
+	SGDescriptor_struct *chain_sg;
+	u64bit temp64;
+
+	chain_sg = &c->SG[h->max_cmd_sgentries - 1];
+	chain_sg->Ext = CCISS_SG_CHAIN;
+	chain_sg->Len = len;
+	temp64.val = pci_map_single(h->pdev, chain_block, len,
+				PCI_DMA_TODEVICE);
+	chain_sg->Addr.lower = temp64.val32.lower;
+	chain_sg->Addr.upper = temp64.val32.upper;
+}
+
 #include "cciss_scsi.c"		/* For SCSI tape support */
 
 static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
@@ -1344,26 +1417,27 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 				kfree(buff);
 				return -ENOMEM;
 			}
-			// Fill in the command type
+			/* Fill in the command type */
 			c->cmd_type = CMD_IOCTL_PEND;
-			// Fill in Command Header
-			c->Header.ReplyQueue = 0;	// unused in simple mode
-			if (iocommand.buf_size > 0)	// buffer to fill
+			/* Fill in Command Header */
+			c->Header.ReplyQueue = 0;   /* unused in simple mode */
+			if (iocommand.buf_size > 0) /* buffer to fill */
 			{
 				c->Header.SGList = 1;
 				c->Header.SGTotal = 1;
-			} else	// no buffers to fill
+			} else /* no buffers to fill */
 			{
 				c->Header.SGList = 0;
 				c->Header.SGTotal = 0;
 			}
 			c->Header.LUN = iocommand.LUN_info;
-			c->Header.Tag.lower = c->busaddr;	// use the kernel address the cmd block for tag
+			/* use the kernel address the cmd block for tag */
+			c->Header.Tag.lower = c->busaddr;
 
-			// Fill in Request block
+			/* Fill in Request block */
 			c->Request = iocommand.Request;
 
-			// Fill in the scatter gather information
+			/* Fill in the scatter gather information */
 			if (iocommand.buf_size > 0) {
 				temp64.val = pci_map_single(host->pdev, buff,
 					iocommand.buf_size,
@@ -1371,7 +1445,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 				c->SG[0].Addr.lower = temp64.val32.lower;
 				c->SG[0].Addr.upper = temp64.val32.upper;
 				c->SG[0].Len = iocommand.buf_size;
-				c->SG[0].Ext = 0;	// we are not chaining
+				c->SG[0].Ext = 0;  /* we are not chaining */
 			}
 			c->waiting = &wait;
 
@@ -1670,14 +1744,9 @@ static void cciss_softirq_done(struct request *rq)
 	/* unmap the DMA mapping for all the scatter gather elements */
 	for (i = 0; i < cmd->Header.SGList; i++) {
 		if (curr_sg[sg_index].Ext == CCISS_SG_CHAIN) {
-			temp64.val32.lower = cmd->SG[i].Addr.lower;
-			temp64.val32.upper = cmd->SG[i].Addr.upper;
-			pci_dma_sync_single_for_cpu(h->pdev, temp64.val,
-						cmd->SG[i].Len, ddir);
-			pci_unmap_single(h->pdev, temp64.val,
-						cmd->SG[i].Len, ddir);
+			cciss_unmap_sg_chain_block(h, cmd);
 			/* Point to the next block */
-			curr_sg = h->cmd_sg_list[cmd->cmdindex]->sgchain;
+			curr_sg = h->cmd_sg_list[cmd->cmdindex];
 			sg_index = 0;
 		}
 		temp64.val32.lower = curr_sg[sg_index].Addr.lower;
@@ -1796,12 +1865,9 @@ static int cciss_add_disk(ctlr_info_t *h, struct gendisk *disk,
 	blk_queue_bounce_limit(disk->queue, h->pdev->dma_mask);
 
 	/* This is a hardware imposed limit. */
-	blk_queue_max_hw_segments(disk->queue, h->maxsgentries);
+	blk_queue_max_segments(disk->queue, h->maxsgentries);
 
-	/* This is a limit in the driver and could be eliminated. */
-	blk_queue_max_phys_segments(disk->queue, h->maxsgentries);
-
-	blk_queue_max_sectors(disk->queue, h->cciss_max_sectors);
+	blk_queue_max_hw_sectors(disk->queue, h->cciss_max_sectors);
 
 	blk_queue_softirq_done(disk->queue, cciss_softirq_done);
 
@@ -2425,7 +2491,7 @@ static int fill_cmd(CommandList_struct *c, __u8 cmd, int ctlr, void *buff,
 			c->Request.Type.Direction = XFER_READ;
 			c->Request.Timeout = 0;
 			c->Request.CDB[0] = cmd;
-			c->Request.CDB[6] = (size >> 24) & 0xFF;	//MSB
+			c->Request.CDB[6] = (size >> 24) & 0xFF; /* MSB */
 			c->Request.CDB[7] = (size >> 16) & 0xFF;
 			c->Request.CDB[8] = (size >> 8) & 0xFF;
 			c->Request.CDB[9] = size & 0xFF;
@@ -2694,7 +2760,7 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 			       "cciss: reading geometry failed, volume "
 			       "does not support reading geometry\n");
 			drv->heads = 255;
-			drv->sectors = 32;	// Sectors per track
+			drv->sectors = 32;	/* Sectors per track */
 			drv->cylinders = total_size + 1;
 			drv->raid_level = RAID_UNKNOWN;
 		} else {
@@ -3082,7 +3148,6 @@ static void do_cciss_request(struct request_queue *q)
 	SGDescriptor_struct *curr_sg;
 	drive_info_struct *drv;
 	int i, dir;
-	int nseg = 0;
 	int sg_index = 0;
 	int chained = 0;
 
@@ -3112,19 +3177,19 @@ static void do_cciss_request(struct request_queue *q)
 
 	/* fill in the request */
 	drv = creq->rq_disk->private_data;
-	c->Header.ReplyQueue = 0;	// unused in simple mode
+	c->Header.ReplyQueue = 0;	/* unused in simple mode */
 	/* got command from pool, so use the command block index instead */
 	/* for direct lookups. */
 	/* The first 2 bits are reserved for controller error reporting. */
 	c->Header.Tag.lower = (c->cmdindex << 3);
 	c->Header.Tag.lower |= 0x04;	/* flag for direct lookup. */
 	memcpy(&c->Header.LUN, drv->LunID, sizeof(drv->LunID));
-	c->Request.CDBLen = 10;	// 12 byte commands not in FW yet;
-	c->Request.Type.Type = TYPE_CMD;	// It is a command.
+	c->Request.CDBLen = 10;	/* 12 byte commands not in FW yet; */
+	c->Request.Type.Type = TYPE_CMD;	/* It is a command. */
 	c->Request.Type.Attribute = ATTR_SIMPLE;
 	c->Request.Type.Direction =
 	    (rq_data_dir(creq) == READ) ? XFER_READ : XFER_WRITE;
-	c->Request.Timeout = 0;	// Don't time out
+	c->Request.Timeout = 0;	/* Don't time out */
 	c->Request.CDB[0] =
 	    (rq_data_dir(creq) == READ) ? h->cciss_read : h->cciss_write;
 	start_blk = blk_rq_pos(creq);
@@ -3149,13 +3214,8 @@ static void do_cciss_request(struct request_queue *q)
 	for (i = 0; i < seg; i++) {
 		if (((sg_index+1) == (h->max_cmd_sgentries)) &&
 			!chained && ((seg - i) > 1)) {
-			nseg = seg - i;
-			curr_sg[sg_index].Len = (nseg) *
-					sizeof(SGDescriptor_struct);
-			curr_sg[sg_index].Ext = CCISS_SG_CHAIN;
-
 			/* Point to next chain block. */
-			curr_sg = h->cmd_sg_list[c->cmdindex]->sgchain;
+			curr_sg = h->cmd_sg_list[c->cmdindex];
 			sg_index = 0;
 			chained = 1;
 		}
@@ -3166,31 +3226,12 @@ static void do_cciss_request(struct request_queue *q)
 		curr_sg[sg_index].Addr.lower = temp64.val32.lower;
 		curr_sg[sg_index].Addr.upper = temp64.val32.upper;
 		curr_sg[sg_index].Ext = 0;  /* we are not chaining */
-
 		++sg_index;
 	}
-
-	if (chained) {
-		int len;
-		curr_sg = c->SG;
-		sg_index = h->max_cmd_sgentries - 1;
-		len = curr_sg[sg_index].Len;
-		/* Setup pointer to next chain block.
-		 * Fill out last element in current chain
-		 * block with address of next chain block.
-		 */
-		temp64.val = pci_map_single(h->pdev,
-					h->cmd_sg_list[c->cmdindex]->sgchain,
-					len, dir);
-
-		h->cmd_sg_list[c->cmdindex]->sg_chain_dma = temp64.val;
-		curr_sg[sg_index].Addr.lower = temp64.val32.lower;
-		curr_sg[sg_index].Addr.upper = temp64.val32.upper;
-
-		pci_dma_sync_single_for_device(h->pdev,
-				h->cmd_sg_list[c->cmdindex]->sg_chain_dma,
-				len, dir);
-	}
+	if (chained)
+		cciss_map_sg_chain_block(h, c, h->cmd_sg_list[c->cmdindex],
+			(seg - (h->max_cmd_sgentries - 1)) *
+				sizeof(SGDescriptor_struct));
 
 	/* track how many SG entries we are using */
 	if (seg > h->maxSG)
@@ -3209,11 +3250,11 @@ static void do_cciss_request(struct request_queue *q)
 	if (likely(blk_fs_request(creq))) {
 		if(h->cciss_read == CCISS_READ_10) {
 			c->Request.CDB[1] = 0;
-			c->Request.CDB[2] = (start_blk >> 24) & 0xff;	//MSB
+			c->Request.CDB[2] = (start_blk >> 24) & 0xff; /* MSB */
 			c->Request.CDB[3] = (start_blk >> 16) & 0xff;
 			c->Request.CDB[4] = (start_blk >> 8) & 0xff;
 			c->Request.CDB[5] = start_blk & 0xff;
-			c->Request.CDB[6] = 0;	// (sect >> 24) & 0xff; MSB
+			c->Request.CDB[6] = 0; /* (sect >> 24) & 0xff; MSB */
 			c->Request.CDB[7] = (blk_rq_sectors(creq) >> 8) & 0xff;
 			c->Request.CDB[8] = blk_rq_sectors(creq) & 0xff;
 			c->Request.CDB[9] = c->Request.CDB[11] = c->Request.CDB[12] = 0;
@@ -3222,7 +3263,7 @@ static void do_cciss_request(struct request_queue *q)
 
 			c->Request.CDBLen = 16;
 			c->Request.CDB[1]= 0;
-			c->Request.CDB[2]= (upper32 >> 24) & 0xff;	//MSB
+			c->Request.CDB[2]= (upper32 >> 24) & 0xff; /* MSB */
 			c->Request.CDB[3]= (upper32 >> 16) & 0xff;
 			c->Request.CDB[4]= (upper32 >>  8) & 0xff;
 			c->Request.CDB[5]= upper32 & 0xff;
@@ -4240,37 +4281,10 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 			goto clean4;
 		}
 	}
-	hba[i]->cmd_sg_list = kmalloc(sizeof(struct Cmd_sg_list *) *
-						hba[i]->nr_cmds,
-						GFP_KERNEL);
-	if (!hba[i]->cmd_sg_list) {
-		printk(KERN_ERR "cciss%d: Cannot get memory for "
-			"s/g chaining.\n", i);
+	hba[i]->cmd_sg_list = cciss_allocate_sg_chain_blocks(hba[i],
+		hba[i]->chainsize, hba[i]->nr_cmds);
+	if (!hba[i]->cmd_sg_list && hba[i]->chainsize > 0)
 		goto clean4;
-	}
-	/* Build up chain blocks for each command */
-	if (hba[i]->chainsize > 0) {
-		for (j = 0; j < hba[i]->nr_cmds; j++) {
-			hba[i]->cmd_sg_list[j] =
-					kmalloc(sizeof(struct Cmd_sg_list),
-							GFP_KERNEL);
-			if (!hba[i]->cmd_sg_list[j]) {
-				printk(KERN_ERR "cciss%d: Cannot get memory "
-					"for chain block.\n", i);
-				goto clean4;
-			}
-			/* Need a block of chainsized s/g elements. */
-			hba[i]->cmd_sg_list[j]->sgchain =
-					kmalloc((hba[i]->chainsize *
-						sizeof(SGDescriptor_struct)),
-						GFP_KERNEL);
-			if (!hba[i]->cmd_sg_list[j]->sgchain) {
-				printk(KERN_ERR "cciss%d: Cannot get memory "
-					"for s/g chains\n", i);
-				goto clean4;
-			}
-		}
-	}
 
 	spin_lock_init(&hba[i]->lock);
 
@@ -4329,16 +4343,7 @@ clean4:
 	for (k = 0; k < hba[i]->nr_cmds; k++)
 		kfree(hba[i]->scatter_list[k]);
 	kfree(hba[i]->scatter_list);
-	/* Only free up extra s/g lists if controller supports them */
-	if (hba[i]->chainsize > 0) {
-		for (j = 0; j < hba[i]->nr_cmds; j++) {
-			if (hba[i]->cmd_sg_list[j]) {
-				kfree(hba[i]->cmd_sg_list[j]->sgchain);
-				kfree(hba[i]->cmd_sg_list[j]);
-			}
-		}
-		kfree(hba[i]->cmd_sg_list);
-	}
+	cciss_free_sg_chain_blocks(hba[i]->cmd_sg_list, hba[i]->nr_cmds);
 	if (hba[i]->cmd_pool)
 		pci_free_consistent(hba[i]->pdev,
 				    hba[i]->nr_cmds * sizeof(CommandList_struct),
@@ -4456,16 +4461,7 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 	for (j = 0; j < hba[i]->nr_cmds; j++)
 		kfree(hba[i]->scatter_list[j]);
 	kfree(hba[i]->scatter_list);
-	/* Only free up extra s/g lists if controller supports them */
-	if (hba[i]->chainsize > 0) {
-		for (j = 0; j < hba[i]->nr_cmds; j++) {
-			if (hba[i]->cmd_sg_list[j]) {
-				kfree(hba[i]->cmd_sg_list[j]->sgchain);
-				kfree(hba[i]->cmd_sg_list[j]);
-			}
-		}
-		kfree(hba[i]->cmd_sg_list);
-	}
+	cciss_free_sg_chain_blocks(hba[i]->cmd_sg_list, hba[i]->nr_cmds);
 	/*
 	 * Deliberately omit pci_disable_device(): it does something nasty to
 	 * Smart Array controllers that pci_enable_device does not undo
@@ -4498,7 +4494,7 @@ static int __init cciss_init(void)
 	 * boundary. Given that we use pci_alloc_consistent() to allocate an
 	 * array of them, the size must be a multiple of 8 bytes.
 	 */
-	BUILD_BUG_ON(sizeof(CommandList_struct) % 8);
+	BUILD_BUG_ON(sizeof(CommandList_struct) % COMMANDLIST_ALIGNMENT);
 
 	printk(KERN_INFO DRIVER_NAME "\n");
 

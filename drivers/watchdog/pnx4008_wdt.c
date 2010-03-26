@@ -96,9 +96,6 @@ static void wdt_enable(void)
 {
 	spin_lock(&io_lock);
 
-	if (wdt_clk)
-		clk_set_rate(wdt_clk, 1);
-
 	/* stop counter, initiate counter reset */
 	__raw_writel(RESET_COUNT, WDTIM_CTRL(wdt_base));
 	/*wait for reset to complete. 100% guarantee event */
@@ -125,18 +122,24 @@ static void wdt_disable(void)
 	spin_lock(&io_lock);
 
 	__raw_writel(0, WDTIM_CTRL(wdt_base));	/*stop counter */
-	if (wdt_clk)
-		clk_set_rate(wdt_clk, 0);
 
 	spin_unlock(&io_lock);
 }
 
 static int pnx4008_wdt_open(struct inode *inode, struct file *file)
 {
+	int ret;
+
 	if (test_and_set_bit(WDT_IN_USE, &wdt_status))
 		return -EBUSY;
 
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
+
+	ret = clk_enable(wdt_clk);
+	if (ret) {
+		clear_bit(WDT_IN_USE, &wdt_status);
+		return ret;
+	}
 
 	wdt_enable();
 
@@ -225,6 +228,7 @@ static int pnx4008_wdt_release(struct inode *inode, struct file *file)
 		printk(KERN_WARNING "WATCHDOG: Device closed unexpectdly\n");
 
 	wdt_disable();
+	clk_disable(wdt_clk);
 	clear_bit(WDT_IN_USE, &wdt_status);
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 
@@ -273,25 +277,33 @@ static int __devinit pnx4008_wdt_probe(struct platform_device *pdev)
 	}
 	wdt_base = (void __iomem *)IO_ADDRESS(res->start);
 
-	wdt_clk = clk_get(&pdev->dev, "wdt_ck");
+	wdt_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(wdt_clk)) {
 		ret = PTR_ERR(wdt_clk);
 		release_resource(wdt_mem);
 		kfree(wdt_mem);
 		goto out;
-	} else
-		clk_set_rate(wdt_clk, 1);
+	}
+
+	ret = clk_enable(wdt_clk);
+	if (ret) {
+		release_resource(wdt_mem);
+		kfree(wdt_mem);
+		goto out;
+	}
 
 	ret = misc_register(&pnx4008_wdt_miscdev);
 	if (ret < 0) {
 		printk(KERN_ERR MODULE_NAME "cannot register misc device\n");
 		release_resource(wdt_mem);
 		kfree(wdt_mem);
-		clk_set_rate(wdt_clk, 0);
+		clk_disable(wdt_clk);
+		clk_put(wdt_clk);
 	} else {
 		boot_status = (__raw_readl(WDTIM_RES(wdt_base)) & WDOG_RESET) ?
 		    WDIOF_CARDRESET : 0;
 		wdt_disable();		/*disable for now */
+		clk_disable(wdt_clk);
 		set_bit(WDT_DEVICE_INITED, &wdt_status);
 	}
 
@@ -302,11 +314,10 @@ out:
 static int __devexit pnx4008_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&pnx4008_wdt_miscdev);
-	if (wdt_clk) {
-		clk_set_rate(wdt_clk, 0);
-		clk_put(wdt_clk);
-		wdt_clk = NULL;
-	}
+
+	clk_disable(wdt_clk);
+	clk_put(wdt_clk);
+
 	if (wdt_mem) {
 		release_resource(wdt_mem);
 		kfree(wdt_mem);

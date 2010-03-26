@@ -264,13 +264,12 @@ EXPORT_SYMBOL(bio_init);
  * bio_alloc_bioset - allocate a bio for I/O
  * @gfp_mask:   the GFP_ mask given to the slab allocator
  * @nr_iovecs:	number of iovecs to pre-allocate
- * @bs:		the bio_set to allocate from. If %NULL, just use kmalloc
+ * @bs:		the bio_set to allocate from.
  *
  * Description:
- *   bio_alloc_bioset will first try its own mempool to satisfy the allocation.
+ *   bio_alloc_bioset will try its own mempool to satisfy the allocation.
  *   If %__GFP_WAIT is set then we will block on the internal pool waiting
- *   for a &struct bio to become free. If a %NULL @bs is passed in, we will
- *   fall back to just using @kmalloc to allocate the required memory.
+ *   for a &struct bio to become free.
  *
  *   Note that the caller must set ->bi_destructor on successful return
  *   of a bio, to do the appropriate freeing of the bio once the reference
@@ -507,10 +506,8 @@ int bio_get_nr_vecs(struct block_device *bdev)
 	int nr_pages;
 
 	nr_pages = ((queue_max_sectors(q) << 9) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (nr_pages > queue_max_phys_segments(q))
-		nr_pages = queue_max_phys_segments(q);
-	if (nr_pages > queue_max_hw_segments(q))
-		nr_pages = queue_max_hw_segments(q);
+	if (nr_pages > queue_max_segments(q))
+		nr_pages = queue_max_segments(q);
 
 	return nr_pages;
 }
@@ -575,8 +572,7 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 	 * make this too complex.
 	 */
 
-	while (bio->bi_phys_segments >= queue_max_phys_segments(q)
-	       || bio->bi_phys_segments >= queue_max_hw_segments(q)) {
+	while (bio->bi_phys_segments >= queue_max_segments(q)) {
 
 		if (retried_segments)
 			return 0;

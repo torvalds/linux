@@ -19,7 +19,7 @@
  * MA  02111-1307, USA.
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.
+ * in the file called "COPYING".
  *
  */
 
@@ -539,7 +539,7 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct dev_mc_list *mc_ptr;
 	u8 null_addr[6];
-	int index = 0;
+	int i;
 
 	memset(null_addr, 0, 6);
 
@@ -554,7 +554,7 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 		return;
 	}
 
-	if (netdev->mc_count == 0) {
+	if (netdev_mc_empty(netdev)) {
 		adapter->set_promisc(adapter,
 				NETXEN_NIU_NON_PROMISC_MODE);
 		netxen_nic_disable_mcast_filter(adapter);
@@ -563,23 +563,20 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 
 	adapter->set_promisc(adapter, NETXEN_NIU_ALLMULTI_MODE);
 	if (netdev->flags & IFF_ALLMULTI ||
-			netdev->mc_count > adapter->max_mc_count) {
+			netdev_mc_count(netdev) > adapter->max_mc_count) {
 		netxen_nic_disable_mcast_filter(adapter);
 		return;
 	}
 
 	netxen_nic_enable_mcast_filter(adapter);
 
-	for (mc_ptr = netdev->mc_list; mc_ptr; mc_ptr = mc_ptr->next, index++)
-		netxen_nic_set_mcast_addr(adapter, index, mc_ptr->dmi_addr);
-
-	if (index != netdev->mc_count)
-		printk(KERN_WARNING "%s: %s multicast address count mismatch\n",
-			netxen_nic_driver_name, netdev->name);
+	i = 0;
+	netdev_for_each_mc_addr(mc_ptr, netdev)
+		netxen_nic_set_mcast_addr(adapter, i++, mc_ptr->dmi_addr);
 
 	/* Clear out remaining addresses */
-	for (; index < adapter->max_mc_count; index++)
-		netxen_nic_set_mcast_addr(adapter, index, null_addr);
+	while (i < adapter->max_mc_count)
+		netxen_nic_set_mcast_addr(adapter, i++, null_addr);
 }
 
 static int
@@ -704,16 +701,14 @@ void netxen_p3_nic_set_multi(struct net_device *netdev)
 	}
 
 	if ((netdev->flags & IFF_ALLMULTI) ||
-			(netdev->mc_count > adapter->max_mc_count)) {
+			(netdev_mc_count(netdev) > adapter->max_mc_count)) {
 		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
 		goto send_fw_cmd;
 	}
 
-	if (netdev->mc_count > 0) {
-		for (mc_ptr = netdev->mc_list; mc_ptr;
-		     mc_ptr = mc_ptr->next) {
+	if (!netdev_mc_empty(netdev)) {
+		netdev_for_each_mc_addr(mc_ptr, netdev)
 			nx_p3_nic_add_mac(adapter, mc_ptr->dmi_addr, &del_list);
-		}
 	}
 
 send_fw_cmd:
@@ -777,17 +772,20 @@ int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
 {
 	nx_nic_req_t req;
-	u64 word;
-	int rv;
+	u64 word[6];
+	int rv, i;
 
 	memset(&req, 0, sizeof(nx_nic_req_t));
+	memset(word, 0, sizeof(word));
 
 	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
 
-	word = NETXEN_CONFIG_INTR_COALESCE | ((u64)adapter->portnum << 16);
-	req.req_hdr = cpu_to_le64(word);
+	word[0] = NETXEN_CONFIG_INTR_COALESCE | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word[0]);
 
-	memcpy(&req.words[0], &adapter->coal, sizeof(adapter->coal));
+	memcpy(&word[0], &adapter->coal, sizeof(adapter->coal));
+	for (i = 0; i < 6; i++)
+		req.words[i] = cpu_to_le64(word[i]);
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
@@ -1033,7 +1031,7 @@ static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
 	return 0;
 }
 
-int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
+int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 *mac)
 {
 	__le32 *pmac = (__le32 *) mac;
 	u32 offset;
@@ -1058,7 +1056,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
 	return 0;
 }
 
-int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
+int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, u64 *mac)
 {
 	uint32_t crbaddr, mac_hi, mac_lo;
 	int pci_func = adapter->ahw.pci_func;

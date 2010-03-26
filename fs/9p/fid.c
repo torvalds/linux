@@ -151,7 +151,7 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 			if (access == V9FS_ACCESS_SINGLE)
 				return ERR_PTR(-EPERM);
 
-			if (v9fs_extended(v9ses))
+			if (v9fs_proto_dotu(v9ses))
 				uname = NULL;
 			else
 				uname = v9ses->uname;

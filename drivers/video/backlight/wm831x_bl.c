@@ -125,6 +125,7 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 	struct wm831x_backlight_pdata *pdata;
 	struct wm831x_backlight_data *data;
 	struct backlight_device *bl;
+	struct backlight_properties props;
 	int ret, i, max_isel, isink_reg, dcdc_cfg;
 
 	/* We need platform data */
@@ -191,15 +192,15 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 	data->current_brightness = 0;
 	data->isink_reg = isink_reg;
 
-	bl = backlight_device_register("wm831x", &pdev->dev,
-			data, &wm831x_backlight_ops);
+	props.max_brightness = max_isel;
+	bl = backlight_device_register("wm831x", &pdev->dev, data,
+				       &wm831x_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		kfree(data);
 		return PTR_ERR(bl);
 	}
 
-	bl->props.max_brightness = max_isel;
 	bl->props.brightness = max_isel;
 
 	platform_set_drvdata(pdev, bl);

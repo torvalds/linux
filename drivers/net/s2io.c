@@ -523,7 +523,7 @@ module_param_array(rts_frm_len, uint, NULL, 0);
  * S2IO device table.
  * This table lists all the devices that this driver supports.
  */
-static struct pci_device_id s2io_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(s2io_tbl) = {
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_S2IO_WIN,
 	 PCI_ANY_ID, PCI_ANY_ID},
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_S2IO_UNI,
@@ -923,8 +923,8 @@ static int init_shared_mem(struct s2io_nic *nic)
 	tmp_v_addr = mac_control->stats_mem;
 	mac_control->stats_info = (struct stat_block *)tmp_v_addr;
 	memset(tmp_v_addr, 0, size);
-	DBG_PRINT(INIT_DBG, "%s: Ring Mem PHY: 0x%llx\n", dev->name,
-		  (unsigned long long)tmp_p_addr);
+	DBG_PRINT(INIT_DBG, "%s: Ring Mem PHY: 0x%llx\n",
+		dev_name(&nic->pdev->dev), (unsigned long long)tmp_p_addr);
 	mac_control->stats_info->sw_stat.mem_allocated += mem_allocated;
 	return SUCCESS;
 }
@@ -3480,7 +3480,7 @@ static void s2io_reset(struct s2io_nic *sp)
 	struct swStat *swstats;
 
 	DBG_PRINT(INIT_DBG, "%s: Resetting XFrame card %s\n",
-		  __func__, sp->dev->name);
+		  __func__, pci_name(sp->pdev));
 
 	/* Back up  the PCI-X CMD reg, dont want to lose MMRBC, OST settings */
 	pci_read_config_word(sp->pdev, PCIX_COMMAND_REGISTER, &(pci_cmd));
@@ -5055,8 +5055,8 @@ static void s2io_set_multicast(struct net_device *dev)
 	}
 
 	/*  Update individual M_CAST address list */
-	if ((!sp->m_cast_flg) && dev->mc_count) {
-		if (dev->mc_count >
+	if ((!sp->m_cast_flg) && netdev_mc_count(dev)) {
+		if (netdev_mc_count(dev) >
 		    (config->max_mc_addr - config->max_mac_addr)) {
 			DBG_PRINT(ERR_DBG,
 				  "%s: No more Rx filters can be added - "
@@ -5066,7 +5066,7 @@ static void s2io_set_multicast(struct net_device *dev)
 		}
 
 		prev_cnt = sp->mc_addr_count;
-		sp->mc_addr_count = dev->mc_count;
+		sp->mc_addr_count = netdev_mc_count(dev);
 
 		/* Clear out the previous list of Mc in the H/W. */
 		for (i = 0; i < prev_cnt; i++) {
@@ -5092,8 +5092,8 @@ static void s2io_set_multicast(struct net_device *dev)
 		}
 
 		/* Create the new Rx filter list and update the same in H/W. */
-		for (i = 0, mclist = dev->mc_list; i < dev->mc_count;
-		     i++, mclist = mclist->next) {
+		i = 0;
+		netdev_for_each_mc_addr(mclist, dev) {
 			memcpy(sp->usr_addrs[i].addr, mclist->dmi_addr,
 			       ETH_ALEN);
 			mac_addr = 0;
@@ -5121,6 +5121,7 @@ static void s2io_set_multicast(struct net_device *dev)
 					  dev->name);
 				return;
 			}
+			i++;
 		}
 	}
 }
@@ -5818,10 +5819,8 @@ static void s2io_vpd_read(struct s2io_nic *nic)
 		}
 	}
 
-	if ((!fail) && (vpd_data[1] < VPD_STRING_LEN)) {
-		memset(nic->product_name, 0, vpd_data[1]);
+	if ((!fail) && (vpd_data[1] < VPD_STRING_LEN))
 		memcpy(nic->product_name, &vpd_data[3], vpd_data[1]);
-	}
 	kfree(vpd_data);
 	swstats->mem_freed += 256;
 }

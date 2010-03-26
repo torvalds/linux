@@ -177,7 +177,9 @@ extern int unregister_inet6addr_notifier(struct notifier_block *nb);
 static inline struct inet6_dev *
 __in6_dev_get(struct net_device *dev)
 {
-	return rcu_dereference(dev->ip6_ptr);
+	return rcu_dereference_check(dev->ip6_ptr,
+				     rcu_read_lock_held() ||
+				     lockdep_rtnl_is_held());
 }
 
 static inline struct inet6_dev *

@@ -317,13 +317,15 @@ static int __init adb_init(void)
 			break;
 		}
 	}
-	if ((adb_controller == NULL) || adb_controller->init()) {
-		printk(KERN_WARNING "Warning: no ADB interface detected\n");
+	if (adb_controller != NULL && adb_controller->init &&
+	    adb_controller->init())
 		adb_controller = NULL;
+	if (adb_controller == NULL) {
+		printk(KERN_WARNING "Warning: no ADB interface detected\n");
 	} else {
 #ifdef CONFIG_PPC
-		if (machine_is_compatible("AAPL,PowerBook1998") ||
-			machine_is_compatible("PowerBook1,1"))
+		if (of_machine_is_compatible("AAPL,PowerBook1998") ||
+			of_machine_is_compatible("PowerBook1,1"))
 			sleepy_trackpad = 1;
 #endif /* CONFIG_PPC */
 

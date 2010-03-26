@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2009 Lemote, Inc.
  * Author: Yan hua (yanhua@lemote.com)
- * Author: Wu Zhangjin (wuzj@lemote.com)
+ * Author: Wu Zhangjin (wuzhangjin@gmail.com)
  */
 
 #include <linux/io.h>

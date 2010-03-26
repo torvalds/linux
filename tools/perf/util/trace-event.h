@@ -279,7 +279,15 @@ struct scripting_ops {
 
 int script_spec_register(const char *spec, struct scripting_ops *ops);
 
-extern struct scripting_ops perl_scripting_ops;
 void setup_perl_scripting(void);
+void setup_python_scripting(void);
+
+struct scripting_context {
+	void *event_data;
+};
+
+int common_pc(struct scripting_context *context);
+int common_flags(struct scripting_context *context);
+int common_lock_depth(struct scripting_context *context);
 
 #endif /* __PERF_TRACE_EVENTS_H */

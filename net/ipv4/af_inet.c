@@ -1385,7 +1385,7 @@ int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 }
 EXPORT_SYMBOL_GPL(inet_ctl_sock_create);
 
-unsigned long snmp_fold_field(void *mib[], int offt)
+unsigned long snmp_fold_field(void __percpu *mib[], int offt)
 {
 	unsigned long res = 0;
 	int i;
@@ -1398,7 +1398,7 @@ unsigned long snmp_fold_field(void *mib[], int offt)
 }
 EXPORT_SYMBOL_GPL(snmp_fold_field);
 
-int snmp_mib_init(void *ptr[2], size_t mibsize)
+int snmp_mib_init(void __percpu *ptr[2], size_t mibsize)
 {
 	BUG_ON(ptr == NULL);
 	ptr[0] = __alloc_percpu(mibsize, __alignof__(unsigned long long));
@@ -1416,7 +1416,7 @@ err0:
 }
 EXPORT_SYMBOL_GPL(snmp_mib_init);
 
-void snmp_mib_free(void *ptr[2])
+void snmp_mib_free(void __percpu *ptr[2])
 {
 	BUG_ON(ptr == NULL);
 	free_percpu(ptr[0]);
@@ -1460,25 +1460,25 @@ static const struct net_protocol icmp_protocol = {
 
 static __net_init int ipv4_mib_init_net(struct net *net)
 {
-	if (snmp_mib_init((void **)net->mib.tcp_statistics,
+	if (snmp_mib_init((void __percpu **)net->mib.tcp_statistics,
 			  sizeof(struct tcp_mib)) < 0)
 		goto err_tcp_mib;
-	if (snmp_mib_init((void **)net->mib.ip_statistics,
+	if (snmp_mib_init((void __percpu **)net->mib.ip_statistics,
 			  sizeof(struct ipstats_mib)) < 0)
 		goto err_ip_mib;
-	if (snmp_mib_init((void **)net->mib.net_statistics,
+	if (snmp_mib_init((void __percpu **)net->mib.net_statistics,
 			  sizeof(struct linux_mib)) < 0)
 		goto err_net_mib;
-	if (snmp_mib_init((void **)net->mib.udp_statistics,
+	if (snmp_mib_init((void __percpu **)net->mib.udp_statistics,
 			  sizeof(struct udp_mib)) < 0)
 		goto err_udp_mib;
-	if (snmp_mib_init((void **)net->mib.udplite_statistics,
+	if (snmp_mib_init((void __percpu **)net->mib.udplite_statistics,
 			  sizeof(struct udp_mib)) < 0)
 		goto err_udplite_mib;
-	if (snmp_mib_init((void **)net->mib.icmp_statistics,
+	if (snmp_mib_init((void __percpu **)net->mib.icmp_statistics,
 			  sizeof(struct icmp_mib)) < 0)
 		goto err_icmp_mib;
-	if (snmp_mib_init((void **)net->mib.icmpmsg_statistics,
+	if (snmp_mib_init((void __percpu **)net->mib.icmpmsg_statistics,
 			  sizeof(struct icmpmsg_mib)) < 0)
 		goto err_icmpmsg_mib;
 
@@ -1486,30 +1486,30 @@ static __net_init int ipv4_mib_init_net(struct net *net)
 	return 0;
 
 err_icmpmsg_mib:
-	snmp_mib_free((void **)net->mib.icmp_statistics);
+	snmp_mib_free((void __percpu **)net->mib.icmp_statistics);
 err_icmp_mib:
-	snmp_mib_free((void **)net->mib.udplite_statistics);
+	snmp_mib_free((void __percpu **)net->mib.udplite_statistics);
 err_udplite_mib:
-	snmp_mib_free((void **)net->mib.udp_statistics);
+	snmp_mib_free((void __percpu **)net->mib.udp_statistics);
 err_udp_mib:
-	snmp_mib_free((void **)net->mib.net_statistics);
+	snmp_mib_free((void __percpu **)net->mib.net_statistics);
 err_net_mib:
-	snmp_mib_free((void **)net->mib.ip_statistics);
+	snmp_mib_free((void __percpu **)net->mib.ip_statistics);
 err_ip_mib:
-	snmp_mib_free((void **)net->mib.tcp_statistics);
+	snmp_mib_free((void __percpu **)net->mib.tcp_statistics);
 err_tcp_mib:
 	return -ENOMEM;
 }
 
 static __net_exit void ipv4_mib_exit_net(struct net *net)
 {
-	snmp_mib_free((void **)net->mib.icmpmsg_statistics);
-	snmp_mib_free((void **)net->mib.icmp_statistics);
-	snmp_mib_free((void **)net->mib.udplite_statistics);
-	snmp_mib_free((void **)net->mib.udp_statistics);
-	snmp_mib_free((void **)net->mib.net_statistics);
-	snmp_mib_free((void **)net->mib.ip_statistics);
-	snmp_mib_free((void **)net->mib.tcp_statistics);
+	snmp_mib_free((void __percpu **)net->mib.icmpmsg_statistics);
+	snmp_mib_free((void __percpu **)net->mib.icmp_statistics);
+	snmp_mib_free((void __percpu **)net->mib.udplite_statistics);
+	snmp_mib_free((void __percpu **)net->mib.udp_statistics);
+	snmp_mib_free((void __percpu **)net->mib.net_statistics);
+	snmp_mib_free((void __percpu **)net->mib.ip_statistics);
+	snmp_mib_free((void __percpu **)net->mib.tcp_statistics);
 }
 
 static __net_initdata struct pernet_operations ipv4_mib_ops = {

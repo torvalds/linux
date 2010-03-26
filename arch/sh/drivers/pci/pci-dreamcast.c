@@ -25,25 +25,25 @@
 #include <asm/irq.h>
 #include <mach/pci.h>
 
-static struct resource gapspci_io_resource = {
-	.name	= "GAPSPCI IO",
-	.start	= GAPSPCI_BBA_CONFIG,
-	.end	= GAPSPCI_BBA_CONFIG + GAPSPCI_BBA_CONFIG_SIZE - 1,
-	.flags	= IORESOURCE_IO,
-};
-
-static struct resource gapspci_mem_resource = {
-	.name	= "GAPSPCI mem",
-	.start	= GAPSPCI_DMA_BASE,
-	.end	= GAPSPCI_DMA_BASE + GAPSPCI_DMA_SIZE - 1,
-	.flags	= IORESOURCE_MEM,
+static struct resource gapspci_resources[] = {
+	{
+		.name	= "GAPSPCI IO",
+		.start	= GAPSPCI_BBA_CONFIG,
+		.end	= GAPSPCI_BBA_CONFIG + GAPSPCI_BBA_CONFIG_SIZE - 1,
+		.flags	= IORESOURCE_IO,
+	},  {
+		.name	= "GAPSPCI mem",
+		.start	= GAPSPCI_DMA_BASE,
+		.end	= GAPSPCI_DMA_BASE + GAPSPCI_DMA_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
 };
 
 static struct pci_channel dreamcast_pci_controller = {
 	.pci_ops	= &gapspci_pci_ops,
-	.io_resource	= &gapspci_io_resource,
+	.resources	= gapspci_resources,
+	.nr_resources	= ARRAY_SIZE(gapspci_resources),
 	.io_offset	= 0x00000000,
-	.mem_resource	= &gapspci_mem_resource,
 	.mem_offset	= 0x00000000,
 };
 
@@ -95,8 +95,6 @@ static int __init gapspci_init(void)
 	outl(0x00002001, GAPSPCI_BBA_CONFIG+0x10);
 	outl(0x01000000, GAPSPCI_BBA_CONFIG+0x14);
 
-	register_pci_controller(&dreamcast_pci_controller);
-
-	return 0;
+	return register_pci_controller(&dreamcast_pci_controller);
 }
 arch_initcall(gapspci_init);

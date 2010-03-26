@@ -691,10 +691,13 @@ nouveau_irq_handler(DRM_IRQ_ARGS)
 	struct drm_device *dev = (struct drm_device *)arg;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t status, fbdev_flags = 0;
+	unsigned long flags;
 
 	status = nv_rd32(dev, NV03_PMC_INTR_0);
 	if (!status)
 		return IRQ_NONE;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	if (dev_priv->fbdev_info) {
 		fbdev_flags = dev_priv->fbdev_info->flags;
@@ -732,6 +735,8 @@ nouveau_irq_handler(DRM_IRQ_ARGS)
 
 	if (dev_priv->fbdev_info)
 		dev_priv->fbdev_info->flags = fbdev_flags;
+
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	return IRQ_HANDLED;
 }

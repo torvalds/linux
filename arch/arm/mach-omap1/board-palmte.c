@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/apm-emulation.h>
@@ -31,9 +32,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
 #include <mach/gpio.h>
+#include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/tc.h>
@@ -126,9 +127,9 @@ static struct mtd_partition palmte_rom_partitions[] = {
 	},
 };
 
-static struct flash_platform_data palmte_rom_data = {
-	.map_name	= "map_rom",
+static struct physmap_flash_data palmte_rom_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= palmte_rom_partitions,
 	.nr_parts	= ARRAY_SIZE(palmte_rom_partitions),
 };
@@ -140,7 +141,7 @@ static struct resource palmte_rom_resource = {
 };
 
 static struct platform_device palmte_rom_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &palmte_rom_data,

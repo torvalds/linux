@@ -93,6 +93,26 @@ struct xilinx_spi {
 	void (*rx_fn) (struct xilinx_spi *);
 };
 
+static void xspi_write32(u32 val, void __iomem *addr)
+{
+	iowrite32(val, addr);
+}
+
+static unsigned int xspi_read32(void __iomem *addr)
+{
+	return ioread32(addr);
+}
+
+static void xspi_write32_be(u32 val, void __iomem *addr)
+{
+	iowrite32be(val, addr);
+}
+
+static unsigned int xspi_read32_be(void __iomem *addr)
+{
+	return ioread32be(addr);
+}
+
 static void xspi_tx8(struct xilinx_spi *xspi)
 {
 	xspi->write_fn(*xspi->tx_ptr, xspi->regs + XSPI_TXD_OFFSET);
@@ -374,11 +394,11 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 	xspi->mem = *mem;
 	xspi->irq = irq;
 	if (pdata->little_endian) {
-		xspi->read_fn = ioread32;
-		xspi->write_fn = iowrite32;
+		xspi->read_fn = xspi_read32;
+		xspi->write_fn = xspi_write32;
 	} else {
-		xspi->read_fn = ioread32be;
-		xspi->write_fn = iowrite32be;
+		xspi->read_fn = xspi_read32_be;
+		xspi->write_fn = xspi_write32_be;
 	}
 	xspi->bits_per_word = pdata->bits_per_word;
 	if (xspi->bits_per_word == 8) {

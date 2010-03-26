@@ -37,6 +37,8 @@
 #include "string.h"
 #include "strlist.h"
 #include "debug.h"
+#include "cache.h"
+#include "color.h"
 #include "parse-events.h"  /* For debugfs_path */
 #include "probe-event.h"
 
@@ -62,6 +64,42 @@ static int e_snprintf(char *str, size_t size, const char *format, ...)
 	return ret;
 }
 
+void parse_line_range_desc(const char *arg, struct line_range *lr)
+{
+	const char *ptr;
+	char *tmp;
+	/*
+	 * <Syntax>
+	 * SRC:SLN[+NUM|-ELN]
+	 * FUNC[:SLN[+NUM|-ELN]]
+	 */
+	ptr = strchr(arg, ':');
+	if (ptr) {
+		lr->start = (unsigned int)strtoul(ptr + 1, &tmp, 0);
+		if (*tmp == '+')
+			lr->end = lr->start + (unsigned int)strtoul(tmp + 1,
+								    &tmp, 0);
+		else if (*tmp == '-')
+			lr->end = (unsigned int)strtoul(tmp + 1, &tmp, 0);
+		else
+			lr->end = 0;
+		pr_debug("Line range is %u to %u\n", lr->start, lr->end);
+		if (lr->end && lr->start > lr->end)
+			semantic_error("Start line must be smaller"
+				       " than end line.");
+		if (*tmp != '\0')
+			semantic_error("Tailing with invalid character '%d'.",
+				       *tmp);
+		tmp = strndup(arg, (ptr - arg));
+	} else
+		tmp = strdup(arg);
+
+	if (strchr(tmp, '.'))
+		lr->file = tmp;
+	else
+		lr->function = tmp;
+}
+
 /* Check the name is good for event/group */
 static bool check_event_name(const char *name)
 {
@@ -81,14 +119,14 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 	char c, nc = 0;
 	/*
 	 * <Syntax>
-	 * perf probe [EVENT=]SRC:LN
-	 * perf probe [EVENT=]FUNC[+OFFS|%return][@SRC]
+	 * perf probe [EVENT=]SRC[:LN|;PTN]
+	 * perf probe [EVENT=]FUNC[@SRC][+OFFS|%return|:LN|;PAT]
 	 *
 	 * TODO:Group name support
 	 */
 
-	ptr = strchr(arg, '=');
-	if (ptr) {	/* Event name */
+	ptr = strpbrk(arg, ";=@+%");
+	if (ptr && *ptr == '=') {	/* Event name */
 		*ptr = '\0';
 		tmp = ptr + 1;
 		ptr = strchr(arg, ':');
@@ -101,7 +139,7 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 		arg = tmp;
 	}
 
-	ptr = strpbrk(arg, ":+@%");
+	ptr = strpbrk(arg, ";:+@%");
 	if (ptr) {
 		nc = *ptr;
 		*ptr++ = '\0';
@@ -118,7 +156,11 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 	while (ptr) {
 		arg = ptr;
 		c = nc;
-		ptr = strpbrk(arg, ":+@%");
+		if (c == ';') {	/* Lazy pattern must be the last part */
+			pp->lazy_line = strdup(arg);
+			break;
+		}
+		ptr = strpbrk(arg, ";:+@%");
 		if (ptr) {
 			nc = *ptr;
 			*ptr++ = '\0';
@@ -127,13 +169,13 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 		case ':':	/* Line number */
 			pp->line = strtoul(arg, &tmp, 0);
 			if (*tmp != '\0')
-				semantic_error("There is non-digit charactor"
-						" in line number.");
+				semantic_error("There is non-digit char"
+					       " in line number.");
 			break;
 		case '+':	/* Byte offset from a symbol */
 			pp->offset = strtoul(arg, &tmp, 0);
 			if (*tmp != '\0')
-				semantic_error("There is non-digit charactor"
+				semantic_error("There is non-digit character"
 						" in offset.");
 			break;
 		case '@':	/* File name */
@@ -141,9 +183,6 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 				semantic_error("SRC@SRC is not allowed.");
 			pp->file = strdup(arg);
 			DIE_IF(pp->file == NULL);
-			if (ptr)
-				semantic_error("@SRC must be the last "
-					       "option.");
 			break;
 		case '%':	/* Probe places */
 			if (strcmp(arg, "return") == 0) {
@@ -158,11 +197,18 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 	}
 
 	/* Exclusion check */
+	if (pp->lazy_line && pp->line)
+		semantic_error("Lazy pattern can't be used with line number.");
+
+	if (pp->lazy_line && pp->offset)
+		semantic_error("Lazy pattern can't be used with offset.");
+
 	if (pp->line && pp->offset)
 		semantic_error("Offset can't be used with line number.");
 
-	if (!pp->line && pp->file && !pp->function)
-		semantic_error("File always requires line number.");
+	if (!pp->line && !pp->lazy_line && pp->file && !pp->function)
+		semantic_error("File always requires line number or "
+			       "lazy pattern.");
 
 	if (pp->offset && !pp->function)
 		semantic_error("Offset requires an entry function.");
@@ -170,11 +216,13 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 	if (pp->retprobe && !pp->function)
 		semantic_error("Return probe requires an entry function.");
 
-	if ((pp->offset || pp->line) && pp->retprobe)
-		semantic_error("Offset/Line can't be used with return probe.");
+	if ((pp->offset || pp->line || pp->lazy_line) && pp->retprobe)
+		semantic_error("Offset/Line/Lazy pattern can't be used with "
+			       "return probe.");
 
-	pr_debug("symbol:%s file:%s line:%d offset:%d, return:%d\n",
-		 pp->function, pp->file, pp->line, pp->offset, pp->retprobe);
+	pr_debug("symbol:%s file:%s line:%d offset:%d return:%d lazy:%s\n",
+		 pp->function, pp->file, pp->line, pp->offset, pp->retprobe,
+		 pp->lazy_line);
 }
 
 /* Parse perf-probe event definition */
@@ -370,7 +418,7 @@ static int open_kprobe_events(int flags, int mode)
 	if (ret < 0) {
 		if (errno == ENOENT)
 			die("kprobe_events file does not exist -"
-			    " please rebuild with CONFIG_KPROBE_TRACER.");
+			    " please rebuild with CONFIG_KPROBE_EVENT.");
 		else
 			die("Could not open kprobe_events file: %s",
 			    strerror(errno));
@@ -420,6 +468,8 @@ static void clear_probe_point(struct probe_point *pp)
 		free(pp->function);
 	if (pp->file)
 		free(pp->file);
+	if (pp->lazy_line)
+		free(pp->lazy_line);
 	for (i = 0; i < pp->nr_args; i++)
 		free(pp->args[i]);
 	if (pp->args)
@@ -457,7 +507,9 @@ void show_perf_probe_events(void)
 	struct strlist *rawlist;
 	struct str_node *ent;
 
+	setup_pager();
 	memset(&pp, 0, sizeof(pp));
+
 	fd = open_kprobe_events(O_RDONLY, 0);
 	rawlist = get_trace_kprobe_event_rawlist(fd);
 	close(fd);
@@ -678,3 +730,73 @@ void del_trace_kprobe_events(struct strlist *dellist)
 	close(fd);
 }
 
+#define LINEBUF_SIZE 256
+#define NR_ADDITIONAL_LINES 2
+
+static void show_one_line(FILE *fp, unsigned int l, bool skip, bool show_num)
+{
+	char buf[LINEBUF_SIZE];
+	const char *color = PERF_COLOR_BLUE;
+
+	if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
+		goto error;
+	if (!skip) {
+		if (show_num)
+			fprintf(stdout, "%7u  %s", l, buf);
+		else
+			color_fprintf(stdout, color, "         %s", buf);
+	}
+
+	while (strlen(buf) == LINEBUF_SIZE - 1 &&
+	       buf[LINEBUF_SIZE - 2] != '\n') {
+		if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
+			goto error;
+		if (!skip) {
+			if (show_num)
+				fprintf(stdout, "%s", buf);
+			else
+				color_fprintf(stdout, color, "%s", buf);
+		}
+	}
+	return;
+error:
+	if (feof(fp))
+		die("Source file is shorter than expected.");
+	else
+		die("File read error: %s", strerror(errno));
+}
+
+void show_line_range(struct line_range *lr)
+{
+	unsigned int l = 1;
+	struct line_node *ln;
+	FILE *fp;
+
+	setup_pager();
+
+	if (lr->function)
+		fprintf(stdout, "<%s:%d>\n", lr->function,
+			lr->start - lr->offset);
+	else
+		fprintf(stdout, "<%s:%d>\n", lr->file, lr->start);
+
+	fp = fopen(lr->path, "r");
+	if (fp == NULL)
+		die("Failed to open %s: %s", lr->path, strerror(errno));
+	/* Skip to starting line number */
+	while (l < lr->start)
+		show_one_line(fp, l++, true, false);
+
+	list_for_each_entry(ln, &lr->line_list, list) {
+		while (ln->line > l)
+			show_one_line(fp, (l++) - lr->offset, false, false);
+		show_one_line(fp, (l++) - lr->offset, false, true);
+	}
+
+	if (lr->end == INT_MAX)
+		lr->end = l + NR_ADDITIONAL_LINES;
+	while (l < lr->end && !feof(fp))
+		show_one_line(fp, (l++) - lr->offset, false, false);
+
+	fclose(fp);
+}

@@ -196,7 +196,7 @@ enum {
  *    All other            Exact length of attribute payload
  *
  * Example:
- * static struct nla_policy my_policy[ATTR_MAX+1] __read_mostly = {
+ * static const struct nla_policy my_policy[ATTR_MAX+1] = {
  * 	[ATTR_FOO] = { .type = NLA_U16 },
  *	[ATTR_BAR] = { .type = NLA_STRING, .len = BARSIZ },
  *	[ATTR_BAZ] = { .len = sizeof(struct mystruct) },

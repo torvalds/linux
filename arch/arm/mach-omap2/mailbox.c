@@ -40,6 +40,9 @@
 #define AUTOIDLE	(1 << 0)
 #define SOFTRESET	(1 << 1)
 #define SMARTIDLE	(2 << 3)
+#define OMAP4_SOFTRESET	(1 << 0)
+#define OMAP4_NOIDLE	(1 << 2)
+#define OMAP4_SMARTIDLE	(2 << 2)
 
 /* SYSSTATUS: register bit definition */
 #define RESETDONE	(1 << 0)
@@ -93,29 +96,47 @@ static int omap2_mbox_startup(struct omap_mbox *mbox)
 
 	mbox_ick_handle = clk_get(NULL, "mailboxes_ick");
 	if (IS_ERR(mbox_ick_handle)) {
-		printk(KERN_ERR "Could not get mailboxes_ick: %d\n",
+		printk(KERN_ERR "Could not get mailboxes_ick: %ld\n",
 			PTR_ERR(mbox_ick_handle));
 		return PTR_ERR(mbox_ick_handle);
 	}
 	clk_enable(mbox_ick_handle);
 
-	mbox_write_reg(SOFTRESET, MAILBOX_SYSCONFIG);
-	timeout = jiffies + msecs_to_jiffies(20);
-	do {
-		l = mbox_read_reg(MAILBOX_SYSSTATUS);
-		if (l & RESETDONE)
-			break;
-	} while (!time_after(jiffies, timeout));
+	if (cpu_is_omap44xx()) {
+		mbox_write_reg(OMAP4_SOFTRESET, MAILBOX_SYSCONFIG);
+		timeout = jiffies + msecs_to_jiffies(20);
+		do {
+			l = mbox_read_reg(MAILBOX_SYSCONFIG);
+			if (!(l & OMAP4_SOFTRESET))
+				break;
+		} while (!time_after(jiffies, timeout));
 
-	if (!(l & RESETDONE)) {
-		pr_err("Can't take mmu out of reset\n");
-		return -ENODEV;
+		if (l & OMAP4_SOFTRESET) {
+			pr_err("Can't take mailbox out of reset\n");
+			return -ENODEV;
+		}
+	} else {
+		mbox_write_reg(SOFTRESET, MAILBOX_SYSCONFIG);
+		timeout = jiffies + msecs_to_jiffies(20);
+		do {
+			l = mbox_read_reg(MAILBOX_SYSSTATUS);
+			if (l & RESETDONE)
+				break;
+		} while (!time_after(jiffies, timeout));
+
+		if (!(l & RESETDONE)) {
+			pr_err("Can't take mailbox out of reset\n");
+			return -ENODEV;
+		}
 	}
 
 	l = mbox_read_reg(MAILBOX_REVISION);
 	pr_info("omap mailbox rev %d.%d\n", (l & 0xf0) >> 4, (l & 0x0f));
 
-	l = SMARTIDLE | AUTOIDLE;
+	if (cpu_is_omap44xx())
+		l = OMAP4_SMARTIDLE;
+	else
+		l = SMARTIDLE | AUTOIDLE;
 	mbox_write_reg(l, MAILBOX_SYSCONFIG);
 
 	omap2_mbox_enable_irq(mbox, IRQ_RX);
@@ -409,18 +430,18 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 		if (unlikely(!res)) {
 			dev_err(&pdev->dev, "invalid irq resource\n");
 			ret = -ENODEV;
-			goto err_iva1;
+			omap_mbox_unregister(&mbox_dsp_info);
+			goto err_dsp;
 		}
 		mbox_iva_info.irq = res->start;
 		ret = omap_mbox_register(&pdev->dev, &mbox_iva_info);
-		if (ret)
-			goto err_iva1;
+		if (ret) {
+			omap_mbox_unregister(&mbox_dsp_info);
+			goto err_dsp;
+		}
 	}
 #endif
 	return 0;
-
-err_iva1:
-	omap_mbox_unregister(&mbox_dsp_info);
 
 err_dsp:
 	iounmap(mbox_base);

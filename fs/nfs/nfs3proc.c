@@ -22,14 +22,14 @@
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
 
-/* A wrapper to handle the EJUKEBOX error message */
+/* A wrapper to handle the EJUKEBOX and EKEYEXPIRED error messages */
 static int
 nfs3_rpc_wrapper(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 {
 	int res;
 	do {
 		res = rpc_call_sync(clnt, msg, flags);
-		if (res != -EJUKEBOX)
+		if (res != -EJUKEBOX && res != -EKEYEXPIRED)
 			break;
 		schedule_timeout_killable(NFS_JUKEBOX_RETRY_TIME);
 		res = -ERESTARTSYS;
@@ -42,9 +42,10 @@ nfs3_rpc_wrapper(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 static int
 nfs3_async_handle_jukebox(struct rpc_task *task, struct inode *inode)
 {
-	if (task->tk_status != -EJUKEBOX)
+	if (task->tk_status != -EJUKEBOX && task->tk_status != -EKEYEXPIRED)
 		return 0;
-	nfs_inc_stats(inode, NFSIOS_DELAY);
+	if (task->tk_status == -EJUKEBOX)
+		nfs_inc_stats(inode, NFSIOS_DELAY);
 	task->tk_status = 0;
 	rpc_restart_call(task);
 	rpc_delay(task, NFS_JUKEBOX_RETRY_TIME);

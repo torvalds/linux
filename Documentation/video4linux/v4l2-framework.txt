@@ -599,99 +599,13 @@ video_device::minor fields.
 video buffer helper functions
 -----------------------------
 
-The v4l2 core API provides a standard method for dealing with video
-buffers. Those methods allow a driver to implement read(), mmap() and
-overlay() on a consistent way.
+The v4l2 core API provides a set of standard methods (called "videobuf")
+for dealing with video buffers. Those methods allow a driver to implement
+read(), mmap() and overlay() in a consistent way.  There are currently
+methods for using video buffers on devices that supports DMA with
+scatter/gather method (videobuf-dma-sg), DMA with linear access
+(videobuf-dma-contig), and vmalloced buffers, mostly used on USB drivers
+(videobuf-vmalloc).
 
-There are currently methods for using video buffers on devices that
-supports DMA with scatter/gather method (videobuf-dma-sg), DMA with
-linear access (videobuf-dma-contig), and vmalloced buffers, mostly
-used on USB drivers (videobuf-vmalloc).
-
-Any driver using videobuf should provide operations (callbacks) for
-four handlers:
-
-ops->buf_setup   - calculates the size of the video buffers and avoid they
-		   to waste more than some maximum limit of RAM;
-ops->buf_prepare - fills the video buffer structs and calls
-		   videobuf_iolock() to alloc and prepare mmaped memory;
-ops->buf_queue   - advices the driver that another buffer were
-		   requested (by read() or by QBUF);
-ops->buf_release - frees any buffer that were allocated.
-
-In order to use it, the driver need to have a code (generally called at
-interrupt context) that will properly handle the buffer request lists,
-announcing that a new buffer were filled.
-
-The irq handling code should handle the videobuf task lists, in order
-to advice videobuf that a new frame were filled, in order to honor to a
-request. The code is generally like this one:
-	if (list_empty(&dma_q->active))
-		return;
-
-	buf = list_entry(dma_q->active.next, struct vbuffer, vb.queue);
-
-	if (!waitqueue_active(&buf->vb.done))
-		return;
-
-	/* Some logic to handle the buf may be needed here */
-
-	list_del(&buf->vb.queue);
-	do_gettimeofday(&buf->vb.ts);
-	wake_up(&buf->vb.done);
-
-Those are the videobuffer functions used on drivers, implemented on
-videobuf-core:
-
-- Videobuf init functions
-  videobuf_queue_sg_init()
-      Initializes the videobuf infrastructure. This function should be
-      called before any other videobuf function on drivers that uses DMA
-      Scatter/Gather buffers.
-
-  videobuf_queue_dma_contig_init
-      Initializes the videobuf infrastructure. This function should be
-      called before any other videobuf function on drivers that need DMA
-      contiguous buffers.
-
-  videobuf_queue_vmalloc_init()
-      Initializes the videobuf infrastructure. This function should be
-      called before any other videobuf function on USB (and other drivers)
-      that need a vmalloced type of videobuf.
-
-- videobuf_iolock()
-  Prepares the videobuf memory for the proper method (read, mmap, overlay).
-
-- videobuf_queue_is_busy()
-  Checks if a videobuf is streaming.
-
-- videobuf_queue_cancel()
-  Stops video handling.
-
-- videobuf_mmap_free()
-  frees mmap buffers.
-
-- videobuf_stop()
-  Stops video handling, ends mmap and frees mmap and other buffers.
-
-- V4L2 api functions. Those functions correspond to VIDIOC_foo ioctls:
-   videobuf_reqbufs(), videobuf_querybuf(), videobuf_qbuf(),
-   videobuf_dqbuf(), videobuf_streamon(), videobuf_streamoff().
-
-- V4L1 api function (corresponds to VIDIOCMBUF ioctl):
-   videobuf_cgmbuf()
-      This function is used to provide backward compatibility with V4L1
-      API.
-
-- Some help functions for read()/poll() operations:
-   videobuf_read_stream()
-      For continuous stream read()
-   videobuf_read_one()
-      For snapshot read()
-   videobuf_poll_stream()
-      polling help function
-
-The better way to understand it is to take a look at vivi driver. One
-of the main reasons for vivi is to be a videobuf usage example. the
-vivi_thread_tick() does the task that the IRQ callback would do on PCI
-drivers (or the irq callback on USB).
+Please see Documentation/video4linux/videobuf for more information on how
+to use the videobuf layer.

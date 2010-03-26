@@ -76,8 +76,9 @@ enum ec_command {
 enum {
 	EC_FLAGS_QUERY_PENDING,		/* Query is pending */
 	EC_FLAGS_GPE_STORM,		/* GPE storm detected */
-	EC_FLAGS_HANDLERS_INSTALLED	/* Handlers for GPE and
+	EC_FLAGS_HANDLERS_INSTALLED,	/* Handlers for GPE and
 					 * OpReg are installed */
+	EC_FLAGS_FROZEN,		/* Transactions are suspended */
 };
 
 /* If we find an EC via the ECDT, we need to keep a ptr to its context */
@@ -291,6 +292,10 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 	if (t->rdata)
 		memset(t->rdata, 0, t->rlen);
 	mutex_lock(&ec->lock);
+	if (test_bit(EC_FLAGS_FROZEN, &ec->flags)) {
+		status = -EINVAL;
+		goto unlock;
+	}
 	if (ec->global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status)) {
@@ -307,7 +312,11 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 	pr_debug(PREFIX "transaction start\n");
 	/* disable GPE during transaction if storm is detected */
 	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
-		acpi_disable_gpe(NULL, ec->gpe);
+		/*
+		 * It has to be disabled at the hardware level regardless of the
+		 * GPE reference counting, so that it doesn't trigger.
+		 */
+		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
 	}
 
 	status = acpi_ec_transaction_unlocked(ec, t);
@@ -316,8 +325,12 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 	ec_check_sci_sync(ec, acpi_ec_read_status(ec));
 	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
 		msleep(1);
-		/* it is safe to enable GPE outside of transaction */
-		acpi_enable_gpe(NULL, ec->gpe);
+		/*
+		 * It is safe to enable the GPE outside of the transaction.  Use
+		 * acpi_set_gpe() for that, since we used it to disable the GPE
+		 * above.
+		 */
+		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_ENABLE);
 	} else if (t->irq_count > ACPI_EC_STORM_THRESHOLD) {
 		pr_info(PREFIX "GPE storm detected, "
 			"transactions will use polling mode\n");
@@ -444,6 +457,32 @@ int ec_transaction(u8 command,
 }
 
 EXPORT_SYMBOL(ec_transaction);
+
+void acpi_ec_suspend_transactions(void)
+{
+	struct acpi_ec *ec = first_ec;
+
+	if (!ec)
+		return;
+
+	mutex_lock(&ec->lock);
+	/* Prevent transactions from being carried out */
+	set_bit(EC_FLAGS_FROZEN, &ec->flags);
+	mutex_unlock(&ec->lock);
+}
+
+void acpi_ec_resume_transactions(void)
+{
+	struct acpi_ec *ec = first_ec;
+
+	if (!ec)
+		return;
+
+	mutex_lock(&ec->lock);
+	/* Allow transactions to be carried out again */
+	clear_bit(EC_FLAGS_FROZEN, &ec->flags);
+	mutex_unlock(&ec->lock);
+}
 
 static int acpi_ec_query_unlocked(struct acpi_ec *ec, u8 * data)
 {
@@ -589,7 +628,7 @@ static u32 acpi_ec_gpe_handler(void *data)
 
 static acpi_status
 acpi_ec_space_handler(u32 function, acpi_physical_address address,
-		      u32 bits, acpi_integer *value,
+		      u32 bits, u64 *value,
 		      void *handler_context, void *region_context)
 {
 	struct acpi_ec *ec = handler_context;
@@ -620,7 +659,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 		++address;
 		if (function == ACPI_READ) {
 			result = acpi_ec_read(ec, address, &temp);
-			(*value) |= ((acpi_integer)temp) << i;
+			(*value) |= ((u64)temp) << i;
 		} else {
 			temp = 0xff & ((*value) >> i);
 			result = acpi_ec_write(ec, address, temp);
@@ -788,8 +827,8 @@ static int ec_install_handlers(struct acpi_ec *ec)
 				  &acpi_ec_gpe_handler, ec);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
-	acpi_set_gpe_type(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
-	acpi_enable_gpe(NULL, ec->gpe);
+
+	acpi_enable_gpe(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
 	status = acpi_install_address_space_handler(ec->handle,
 						    ACPI_ADR_SPACE_EC,
 						    &acpi_ec_space_handler,
@@ -806,6 +845,7 @@ static int ec_install_handlers(struct acpi_ec *ec)
 		} else {
 			acpi_remove_gpe_handler(NULL, ec->gpe,
 				&acpi_ec_gpe_handler);
+			acpi_disable_gpe(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
 			return -ENODEV;
 		}
 	}
@@ -816,6 +856,7 @@ static int ec_install_handlers(struct acpi_ec *ec)
 
 static void ec_remove_handlers(struct acpi_ec *ec)
 {
+	acpi_disable_gpe(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
 	if (ACPI_FAILURE(acpi_remove_address_space_handler(ec->handle,
 				ACPI_ADR_SPACE_EC, &acpi_ec_space_handler)))
 		pr_err(PREFIX "failed to remove space handler\n");
@@ -1057,16 +1098,16 @@ error:
 static int acpi_ec_suspend(struct acpi_device *device, pm_message_t state)
 {
 	struct acpi_ec *ec = acpi_driver_data(device);
-	/* Stop using GPE */
-	acpi_disable_gpe(NULL, ec->gpe);
+	/* Stop using the GPE, but keep it reference counted. */
+	acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
 	return 0;
 }
 
 static int acpi_ec_resume(struct acpi_device *device)
 {
 	struct acpi_ec *ec = acpi_driver_data(device);
-	/* Enable use of GPE back */
-	acpi_enable_gpe(NULL, ec->gpe);
+	/* Enable the GPE again, but don't reference count it once more. */
+	acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_ENABLE);
 	return 0;
 }
 

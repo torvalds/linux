@@ -81,6 +81,7 @@ static int video_nr[BTTV_MAX] = { [0 ... (BTTV_MAX-1)] = -1 };
 static int radio_nr[BTTV_MAX] = { [0 ... (BTTV_MAX-1)] = -1 };
 static int vbi_nr[BTTV_MAX] = { [0 ... (BTTV_MAX-1)] = -1 };
 static int debug_latency;
+static int disable_ir;
 
 static unsigned int fdsr;
 
@@ -107,6 +108,7 @@ module_param(bttv_gpio,         int, 0644);
 module_param(bttv_debug,        int, 0644);
 module_param(irq_debug,         int, 0644);
 module_param(debug_latency,     int, 0644);
+module_param(disable_ir,        int, 0444);
 
 module_param(fdsr,              int, 0444);
 module_param(gbuffers,          int, 0444);
@@ -139,6 +141,7 @@ MODULE_PARM_DESC(bttv_verbose,"verbose startup messages, default is 1 (yes)");
 MODULE_PARM_DESC(bttv_gpio,"log gpio changes, default is 0 (no)");
 MODULE_PARM_DESC(bttv_debug,"debug messages, default is 0 (no)");
 MODULE_PARM_DESC(irq_debug,"irq handler debug messages, default is 0 (no)");
+MODULE_PARM_DESC(disable_ir, "disable infrared remote support");
 MODULE_PARM_DESC(gbuffers,"number of capture buffers. range 2-32, default 8");
 MODULE_PARM_DESC(gbufsize,"size of the capture buffers, default is 0x208000");
 MODULE_PARM_DESC(reset_crop,"reset cropping parameters at open(), default "
@@ -4461,8 +4464,10 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 		request_modules(btv);
 	}
 
-	init_bttv_i2c_ir(btv);
-	bttv_input_init(btv);
+	if (!disable_ir) {
+		init_bttv_i2c_ir(btv);
+		bttv_input_init(btv);
+	}
 
 	/* everything is fine */
 	bttv_num++;

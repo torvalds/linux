@@ -304,7 +304,7 @@ static void __devinit __of_scan_bus(struct device_node *node,
 	int reglen, devfn;
 	struct pci_dev *dev;
 
-	pr_debug("of_scan_bus(%s) bus no %d... \n",
+	pr_debug("of_scan_bus(%s) bus no %d...\n",
 		 node->full_name, bus->number);
 
 	/* Scan direct children */

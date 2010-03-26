@@ -123,6 +123,44 @@ void sysfs_remove_link(struct kobject * kobj, const char * name)
 	sysfs_hash_and_remove(parent_sd, name);
 }
 
+/**
+ *	sysfs_rename_link - rename symlink in object's directory.
+ *	@kobj:	object we're acting for.
+ *	@targ:	object we're pointing to.
+ *	@old:	previous name of the symlink.
+ *	@new:	new name of the symlink.
+ *
+ *	A helper function for the common rename symlink idiom.
+ */
+int sysfs_rename_link(struct kobject *kobj, struct kobject *targ,
+			const char *old, const char *new)
+{
+	struct sysfs_dirent *parent_sd, *sd = NULL;
+	int result;
+
+	if (!kobj)
+		parent_sd = &sysfs_root;
+	else
+		parent_sd = kobj->sd;
+
+	result = -ENOENT;
+	sd = sysfs_get_dirent(parent_sd, old);
+	if (!sd)
+		goto out;
+
+	result = -EINVAL;
+	if (sysfs_type(sd) != SYSFS_KOBJ_LINK)
+		goto out;
+	if (sd->s_symlink.target_sd->s_dir.kobj != targ)
+		goto out;
+
+	result = sysfs_rename(sd, parent_sd, new);
+
+out:
+	sysfs_put(sd);
+	return result;
+}
+
 static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
 				 struct sysfs_dirent *target_sd, char *path)
 {

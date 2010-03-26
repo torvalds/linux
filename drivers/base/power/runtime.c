@@ -1011,6 +1011,50 @@ void pm_runtime_enable(struct device *dev)
 EXPORT_SYMBOL_GPL(pm_runtime_enable);
 
 /**
+ * pm_runtime_forbid - Block run-time PM of a device.
+ * @dev: Device to handle.
+ *
+ * Increase the device's usage count and clear its power.runtime_auto flag,
+ * so that it cannot be suspended at run time until pm_runtime_allow() is called
+ * for it.
+ */
+void pm_runtime_forbid(struct device *dev)
+{
+	spin_lock_irq(&dev->power.lock);
+	if (!dev->power.runtime_auto)
+		goto out;
+
+	dev->power.runtime_auto = false;
+	atomic_inc(&dev->power.usage_count);
+	__pm_runtime_resume(dev, false);
+
+ out:
+	spin_unlock_irq(&dev->power.lock);
+}
+EXPORT_SYMBOL_GPL(pm_runtime_forbid);
+
+/**
+ * pm_runtime_allow - Unblock run-time PM of a device.
+ * @dev: Device to handle.
+ *
+ * Decrease the device's usage count and set its power.runtime_auto flag.
+ */
+void pm_runtime_allow(struct device *dev)
+{
+	spin_lock_irq(&dev->power.lock);
+	if (dev->power.runtime_auto)
+		goto out;
+
+	dev->power.runtime_auto = true;
+	if (atomic_dec_and_test(&dev->power.usage_count))
+		__pm_runtime_idle(dev);
+
+ out:
+	spin_unlock_irq(&dev->power.lock);
+}
+EXPORT_SYMBOL_GPL(pm_runtime_allow);
+
+/**
  * pm_runtime_init - Initialize run-time PM fields in given device object.
  * @dev: Device object to initialize.
  */
@@ -1028,6 +1072,7 @@ void pm_runtime_init(struct device *dev)
 
 	atomic_set(&dev->power.child_count, 0);
 	pm_suspend_ignore_children(dev, false);
+	dev->power.runtime_auto = true;
 
 	dev->power.request_pending = false;
 	dev->power.request = RPM_REQ_NONE;

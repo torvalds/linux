@@ -3,7 +3,9 @@
 # command name			category [deprecated] [common]
 #
 perf-annotate			mainporcelain common
+perf-archive			mainporcelain common
 perf-bench			mainporcelain common
+perf-buildid-cache		mainporcelain common
 perf-buildid-list		mainporcelain common
 perf-diff			mainporcelain common
 perf-list			mainporcelain common
@@ -16,3 +18,4 @@ perf-top			mainporcelain common
 perf-trace			mainporcelain common
 perf-probe			mainporcelain common
 perf-kmem			mainporcelain common
+perf-lock			mainporcelain common

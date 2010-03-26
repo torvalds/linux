@@ -23,15 +23,12 @@ static unsigned char heartbeat_bit_pos[] = { 8, 9, 10, 11, 12, 13, 14, 15 };
 static struct heartbeat_data heartbeat_data = {
 	.bit_pos	= heartbeat_bit_pos,
 	.nr_bits	= ARRAY_SIZE(heartbeat_bit_pos),
-	.regsize	= 16,
 };
 
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start	= PA_LED,
-		.end	= PA_LED,
-		.flags	= IORESOURCE_MEM,
-	},
+static struct resource heartbeat_resource = {
+	.start	= PA_LED,
+	.end	= PA_LED,
+	.flags	= IORESOURCE_MEM | IORESOURCE_MEM_16BIT,
 };
 
 static struct platform_device heartbeat_device = {
@@ -40,8 +37,8 @@ static struct platform_device heartbeat_device = {
 	.dev	= {
 		.platform_data	= &heartbeat_data,
 	},
-	.num_resources	= ARRAY_SIZE(heartbeat_resources),
-	.resource	= heartbeat_resources,
+	.num_resources	= 1,
+	.resource	= &heartbeat_resource,
 };
 
 static struct resource cf_ide_resources[] = {
@@ -83,10 +80,10 @@ device_initcall(se7721_devices_setup);
 static void __init se7721_setup(char **cmdline_p)
 {
 	/* for USB */
-	ctrl_outw(0x0000, 0xA405010C);	/* PGCR */
-	ctrl_outw(0x0000, 0xA405010E);	/* PHCR */
-	ctrl_outw(0x00AA, 0xA4050118);	/* PPCR */
-	ctrl_outw(0x0000, 0xA4050124);	/* PSELA */
+	__raw_writew(0x0000, 0xA405010C);	/* PGCR */
+	__raw_writew(0x0000, 0xA405010E);	/* PHCR */
+	__raw_writew(0x00AA, 0xA4050118);	/* PPCR */
+	__raw_writew(0x0000, 0xA4050124);	/* PSELA */
 }
 
 /*

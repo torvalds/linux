@@ -14,6 +14,7 @@ obj-y        := dvb-core/	\
 		siano/		\
 		dm1105/		\
 		pt1/		\
-		mantis/
+		mantis/		\
+		ngene/
 
 obj-$(CONFIG_DVB_FIREDTV)	+= firewire/

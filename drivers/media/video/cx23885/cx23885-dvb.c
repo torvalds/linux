@@ -542,6 +542,9 @@ static struct atbm8830_config mygica_x8558pro_atbm8830_cfg1 = {
 	.osc_clk_freq = 30400, /* in kHz */
 	.if_freq = 0, /* zero IF */
 	.zif_swap_iq = 1,
+	.agc_min = 0x2E,
+	.agc_max = 0xFF,
+	.agc_hold_loop = 0,
 };
 
 static struct max2165_config mygic_x8558pro_max2165_cfg1 = {
@@ -558,6 +561,9 @@ static struct atbm8830_config mygica_x8558pro_atbm8830_cfg2 = {
 	.osc_clk_freq = 30400, /* in kHz */
 	.if_freq = 0, /* zero IF */
 	.zif_swap_iq = 1,
+	.agc_min = 0x2E,
+	.agc_max = 0xFF,
+	.agc_hold_loop = 0,
 };
 
 static struct max2165_config mygic_x8558pro_max2165_cfg2 = {
@@ -994,15 +1000,8 @@ static int dvb_register(struct cx23885_tsport *port)
 		netup_get_card_info(&dev->i2c_bus[0].i2c_adap, &cinfo);
 		memcpy(port->frontends.adapter.proposed_mac,
 				cinfo.port[port->nr - 1].mac, 6);
-		printk(KERN_INFO "NetUP Dual DVB-S2 CI card port%d MAC="
-			"%02X:%02X:%02X:%02X:%02X:%02X\n",
-			port->nr,
-			port->frontends.adapter.proposed_mac[0],
-			port->frontends.adapter.proposed_mac[1],
-			port->frontends.adapter.proposed_mac[2],
-			port->frontends.adapter.proposed_mac[3],
-			port->frontends.adapter.proposed_mac[4],
-			port->frontends.adapter.proposed_mac[5]);
+		printk(KERN_INFO "NetUP Dual DVB-S2 CI card port%d MAC=%pM\n",
+			port->nr, port->frontends.adapter.proposed_mac);
 
 		netup_ci_init(port);
 		break;

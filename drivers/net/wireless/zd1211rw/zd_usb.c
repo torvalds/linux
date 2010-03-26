@@ -1079,11 +1079,15 @@ static int eject_installer(struct usb_interface *intf)
 	int r;
 
 	/* Find bulk out endpoint */
-	endpoint = &iface_desc->endpoint[1].desc;
-	if (usb_endpoint_dir_out(endpoint) &&
-	    usb_endpoint_xfer_bulk(endpoint)) {
-		bulk_out_ep = endpoint->bEndpointAddress;
-	} else {
+	for (r = 1; r >= 0; r--) {
+		endpoint = &iface_desc->endpoint[r].desc;
+		if (usb_endpoint_dir_out(endpoint) &&
+		    usb_endpoint_xfer_bulk(endpoint)) {
+			bulk_out_ep = endpoint->bEndpointAddress;
+			break;
+		}
+	}
+	if (r == -1) {
 		dev_err(&udev->dev,
 			"zd1211rw: Could not find bulk out endpoint\n");
 		return -ENODEV;

@@ -32,7 +32,7 @@ extern void show_regs_common(void);
 	"movl %P[task_canary](%[next]), %%ebx\n\t"			\
 	"movl %%ebx, "__percpu_arg([stack_canary])"\n\t"
 #define __switch_canary_oparam						\
-	, [stack_canary] "=m" (per_cpu_var(stack_canary.canary))
+	, [stack_canary] "=m" (stack_canary.canary)
 #define __switch_canary_iparam						\
 	, [task_canary] "i" (offsetof(struct task_struct, stack_canary))
 #else	/* CC_STACKPROTECTOR */
@@ -114,7 +114,7 @@ do {									\
 	"movq %P[task_canary](%%rsi),%%r8\n\t"				  \
 	"movq %%r8,"__percpu_arg([gs_canary])"\n\t"
 #define __switch_canary_oparam						  \
-	, [gs_canary] "=m" (per_cpu_var(irq_stack_union.stack_canary))
+	, [gs_canary] "=m" (irq_stack_union.stack_canary)
 #define __switch_canary_iparam						  \
 	, [task_canary] "i" (offsetof(struct task_struct, stack_canary))
 #else	/* CC_STACKPROTECTOR */
@@ -133,7 +133,7 @@ do {									\
 	     __switch_canary						  \
 	     "movq %P[thread_info](%%rsi),%%r8\n\t"			  \
 	     "movq %%rax,%%rdi\n\t" 					  \
-	     "testl  %[_tif_fork],%P[ti_flags](%%r8)\n\t"	  \
+	     "testl  %[_tif_fork],%P[ti_flags](%%r8)\n\t"		  \
 	     "jnz   ret_from_fork\n\t"					  \
 	     RESTORE_CONTEXT						  \
 	     : "=a" (last)					  	  \
@@ -143,7 +143,7 @@ do {									\
 	       [ti_flags] "i" (offsetof(struct thread_info, flags)),	  \
 	       [_tif_fork] "i" (_TIF_FORK),			  	  \
 	       [thread_info] "i" (offsetof(struct task_struct, stack)),   \
-	       [current_task] "m" (per_cpu_var(current_task))		  \
+	       [current_task] "m" (current_task)			  \
 	       __switch_canary_iparam					  \
 	     : "memory", "cc" __EXTRA_CLOBBER)
 #endif

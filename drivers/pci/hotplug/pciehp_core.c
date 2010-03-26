@@ -69,8 +69,6 @@ static int get_power_status	(struct hotplug_slot *slot, u8 *value);
 static int get_attention_status	(struct hotplug_slot *slot, u8 *value);
 static int get_latch_status	(struct hotplug_slot *slot, u8 *value);
 static int get_adapter_status	(struct hotplug_slot *slot, u8 *value);
-static int get_max_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
-static int get_cur_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
 
 /**
  * release_slot - free up the memory used by a slot
@@ -113,8 +111,6 @@ static int init_slot(struct controller *ctrl)
 	ops->disable_slot = disable_slot;
 	ops->get_power_status = get_power_status;
 	ops->get_adapter_status = get_adapter_status;
-	ops->get_max_bus_speed = get_max_bus_speed;
-	ops->get_cur_bus_speed = get_cur_bus_speed;
 	if (MRL_SENS(ctrl))
 		ops->get_latch_status = get_latch_status;
 	if (ATTN_LED(ctrl)) {
@@ -225,27 +221,6 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 		 __func__, slot_name(slot));
 
 	return pciehp_get_adapter_status(slot, value);
-}
-
-static int get_max_bus_speed(struct hotplug_slot *hotplug_slot,
-				enum pci_bus_speed *value)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
-		 __func__, slot_name(slot));
-
-	return pciehp_get_max_link_speed(slot, value);
-}
-
-static int get_cur_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_speed *value)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
-		 __func__, slot_name(slot));
-
-	return pciehp_get_cur_link_speed(slot, value);
 }
 
 static int pciehp_probe(struct pcie_device *dev)

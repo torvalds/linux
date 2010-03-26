@@ -216,6 +216,10 @@ static int hexium_probe(struct saa7146_dev *dev)
 		return -EFAULT;
 	}
 
+	err = saa7146_vv_devinit(dev);
+	if (err)
+		return err;
+
 	hexium = kzalloc(sizeof(struct hexium), GFP_KERNEL);
 	if (NULL == hexium) {
 		printk("hexium_orion: hexium_probe: not enough kernel memory.\n");

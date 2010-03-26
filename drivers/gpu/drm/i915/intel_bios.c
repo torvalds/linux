@@ -247,6 +247,7 @@ static void
 parse_general_features(struct drm_i915_private *dev_priv,
 		       struct bdb_header *bdb)
 {
+	struct drm_device *dev = dev_priv->dev;
 	struct bdb_general_features *general;
 
 	/* Set sensible defaults in case we can't find the general block */
@@ -263,7 +264,7 @@ parse_general_features(struct drm_i915_private *dev_priv,
 			if (IS_I85X(dev_priv->dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 66 : 48;
-			else if (IS_IRONLAKE(dev_priv->dev))
+			else if (IS_IRONLAKE(dev_priv->dev) || IS_GEN6(dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 100 : 120;
 			else

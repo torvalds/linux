@@ -33,6 +33,7 @@
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <asm/apic.h>
+#include <asm/pgalloc.h>
 #include <asm/processor.h>
 #include <asm/timer.h>
 #include <asm/vmi_time.h>
@@ -265,30 +266,6 @@ static void vmi_flush_tlb_kernel(void)
 static void vmi_nop(void)
 {
 }
-
-#ifdef CONFIG_HIGHPTE
-static void *vmi_kmap_atomic_pte(struct page *page, enum km_type type)
-{
-	void *va = kmap_atomic(page, type);
-
-	/*
-	 * Internally, the VMI ROM must map virtual addresses to physical
-	 * addresses for processing MMU updates.  By the time MMU updates
-	 * are issued, this information is typically already lost.
-	 * Fortunately, the VMI provides a cache of mapping slots for active
-	 * page tables.
-	 *
-	 * We use slot zero for the linear mapping of physical memory, and
-	 * in HIGHPTE kernels, slot 1 and 2 for KM_PTE0 and KM_PTE1.
-	 *
-	 *  args:                 SLOT                 VA    COUNT PFN
-	 */
-	BUG_ON(type != KM_PTE0 && type != KM_PTE1);
-	vmi_ops.set_linear_mapping((type - KM_PTE0)+1, va, 1, page_to_pfn(page));
-
-	return va;
-}
-#endif
 
 static void vmi_allocate_pte(struct mm_struct *mm, unsigned long pfn)
 {
@@ -640,6 +617,12 @@ static inline int __init activate_vmi(void)
 	u64 reloc;
 	const struct vmi_relocation_info *rel = (struct vmi_relocation_info *)&reloc;
 
+	/*
+	 * Prevent page tables from being allocated in highmem, even if
+	 * CONFIG_HIGHPTE is enabled.
+	 */
+	__userpte_alloc_gfp &= ~__GFP_HIGHMEM;
+
 	if (call_vrom_func(vmi_rom, vmi_init) != 0) {
 		printk(KERN_ERR "VMI ROM failed to initialize!");
 		return 0;
@@ -778,10 +761,6 @@ static inline int __init activate_vmi(void)
 
 	/* Set linear is needed in all cases */
 	vmi_ops.set_linear_mapping = vmi_get_function(VMI_CALL_SetLinearMapping);
-#ifdef CONFIG_HIGHPTE
-	if (vmi_ops.set_linear_mapping)
-		pv_mmu_ops.kmap_atomic_pte = vmi_kmap_atomic_pte;
-#endif
 
 	/*
 	 * These MUST always be patched.  Don't support indirect jumps

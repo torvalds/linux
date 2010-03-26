@@ -118,7 +118,6 @@ nfs4_callback_up(struct svc_serv *serv)
 	dprintk("NFS: Callback listener port = %u (af %u)\n",
 			nfs_callback_tcpport, PF_INET);
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	ret = svc_create_xprt(serv, "tcp", PF_INET6,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret > 0) {
@@ -129,7 +128,6 @@ nfs4_callback_up(struct svc_serv *serv)
 		ret = 0;
 	else
 		goto out_err;
-#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 
 	return svc_prepare_thread(serv, &serv->sv_pools[0]);
 

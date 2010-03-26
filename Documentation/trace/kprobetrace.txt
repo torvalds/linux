@@ -24,6 +24,7 @@ Synopsis of kprobe_events
 -------------------------
   p[:[GRP/]EVENT] SYMBOL[+offs]|MEMADDR [FETCHARGS]	: Set a probe
   r[:[GRP/]EVENT] SYMBOL[+0] [FETCHARGS]		: Set a return probe
+  -:[GRP/]EVENT						: Clear a probe
 
  GRP		: Group name. If omitted, use "kprobes" for it.
  EVENT		: Event name. If omitted, the event name is generated
@@ -37,15 +38,12 @@ Synopsis of kprobe_events
   @SYM[+|-offs]	: Fetch memory at SYM +|- offs (SYM should be a data symbol)
   $stackN	: Fetch Nth entry of stack (N >= 0)
   $stack	: Fetch stack address.
-  $argN		: Fetch function argument. (N >= 0)(*)
-  $retval	: Fetch return value.(**)
-  +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(***)
+  $retval	: Fetch return value.(*)
+  +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(**)
   NAME=FETCHARG: Set NAME as the argument name of FETCHARG.
 
-  (*) aN may not correct on asmlinkaged functions and at the middle of
-      function body.
-  (**) only for return probe.
-  (***) this is useful for fetching a field of data structures.
+  (*) only for return probe.
+  (**) this is useful for fetching a field of data structures.
 
 
 Per-Probe Event Filtering
@@ -82,13 +80,16 @@ Usage examples
 To add a probe as a new event, write a new definition to kprobe_events
 as below.
 
-  echo p:myprobe do_sys_open dfd=$arg0 filename=$arg1 flags=$arg2 mode=$arg3 > /sys/kernel/debug/tracing/kprobe_events
+  echo 'p:myprobe do_sys_open dfd=%ax filename=%dx flags=%cx mode=+4($stack)' > /sys/kernel/debug/tracing/kprobe_events
 
  This sets a kprobe on the top of do_sys_open() function with recording
-1st to 4th arguments as "myprobe" event. As this example shows, users can
-choose more familiar names for each arguments.
+1st to 4th arguments as "myprobe" event. Note, which register/stack entry is
+assigned to each function argument depends on arch-specific ABI. If you unsure
+the ABI, please try to use probe subcommand of perf-tools (you can find it
+under tools/perf/).
+As this example shows, users can choose more familiar names for each arguments.
 
-  echo r:myretprobe do_sys_open $retval >> /sys/kernel/debug/tracing/kprobe_events
+  echo 'r:myretprobe do_sys_open $retval' >> /sys/kernel/debug/tracing/kprobe_events
 
  This sets a kretprobe on the return point of do_sys_open() function with
 recording return value as "myretprobe" event.
@@ -97,29 +98,36 @@ recording return value as "myretprobe" event.
 
   cat /sys/kernel/debug/tracing/events/kprobes/myprobe/format
 name: myprobe
-ID: 75
+ID: 780
 format:
-	field:unsigned short common_type;	offset:0;	size:2;
-	field:unsigned char common_flags;	offset:2;	size:1;
-	field:unsigned char common_preempt_count;	offset:3;	size:1;
-	field:int common_pid;	offset:4;	size:4;
-	field:int common_tgid;	offset:8;	size:4;
+        field:unsigned short common_type;       offset:0;       size:2; signed:0;
+        field:unsigned char common_flags;       offset:2;       size:1; signed:0;
+        field:unsigned char common_preempt_count;       offset:3; size:1;signed:0;
+        field:int common_pid;   offset:4;       size:4; signed:1;
+        field:int common_lock_depth;    offset:8;       size:4; signed:1;
 
-	field: unsigned long ip;	offset:16;tsize:8;
-	field: int nargs;	offset:24;tsize:4;
-	field: unsigned long dfd;	offset:32;tsize:8;
-	field: unsigned long filename;	offset:40;tsize:8;
-	field: unsigned long flags;	offset:48;tsize:8;
-	field: unsigned long mode;	offset:56;tsize:8;
+        field:unsigned long __probe_ip; offset:12;      size:4; signed:0;
+        field:int __probe_nargs;        offset:16;      size:4; signed:1;
+        field:unsigned long dfd;        offset:20;      size:4; signed:0;
+        field:unsigned long filename;   offset:24;      size:4; signed:0;
+        field:unsigned long flags;      offset:28;      size:4; signed:0;
+        field:unsigned long mode;       offset:32;      size:4; signed:0;
 
-print fmt: "(%lx) dfd=%lx filename=%lx flags=%lx mode=%lx", REC->ip, REC->dfd, REC->filename, REC->flags, REC->mode
 
+print fmt: "(%lx) dfd=%lx filename=%lx flags=%lx mode=%lx", REC->__probe_ip,
+REC->dfd, REC->filename, REC->flags, REC->mode
 
  You can see that the event has 4 arguments as in the expressions you specified.
 
   echo > /sys/kernel/debug/tracing/kprobe_events
 
  This clears all probe points.
+
+ Or,
+
+  echo -:myprobe >> kprobe_events
+
+ This clears probe points selectively.
 
  Right after definition, each event is disabled by default. For tracing these
 events, you need to enable it.
@@ -145,5 +153,4 @@ events, you need to enable it.
  Each line shows when the kernel hits an event, and <- SYMBOL means kernel
 returns from SYMBOL(e.g. "sys_open+0x1b/0x1d <- do_sys_open" means kernel
 returns from do_sys_open to sys_open+0x1b).
-
 

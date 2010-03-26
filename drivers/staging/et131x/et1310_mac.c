@@ -85,12 +85,19 @@
 #include <linux/crc32.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
-#include "et1310_mac.h"
-
 #include "et131x_adapter.h"
-#include "et131x_initpci.h"
+#include "et131x.h"
+
+
+#define COUNTER_WRAP_28_BIT 0x10000000
+#define COUNTER_WRAP_22_BIT 0x400000
+#define COUNTER_WRAP_16_BIT 0x10000
+#define COUNTER_WRAP_12_BIT 0x1000
+
+#define COUNTER_MASK_28_BIT (COUNTER_WRAP_28_BIT - 1)
+#define COUNTER_MASK_22_BIT (COUNTER_WRAP_22_BIT - 1)
+#define COUNTER_MASK_16_BIT (COUNTER_WRAP_16_BIT - 1)
+#define COUNTER_MASK_12_BIT (COUNTER_WRAP_12_BIT - 1)
 
 /**
  * ConfigMacRegs1 - Initialize the first part of MAC regs
@@ -163,9 +170,9 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	u32 cfg1;
 	u32 cfg2;
 	u32 ifctrl;
-	TXMAC_CTL_t ctl;
+	u32 ctl;
 
-	ctl.value = readl(&etdev->regs->txmac.ctl.value);
+	ctl = readl(&etdev->regs->txmac.ctl);
 	cfg1 = readl(&pMac->cfg1);
 	cfg2 = readl(&pMac->cfg2);
 	ifctrl = readl(&pMac->if_ctrl);
@@ -219,9 +226,8 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	}
 
 	/* Enable TXMAC */
-	ctl.bits.txmac_en = 0x1;
-	ctl.bits.fc_disable = 0x1;
-	writel(ctl.value, &etdev->regs->txmac.ctl.value);
+	ctl |= 0x05;	/* TX mac enable, FC disable */
+	writel(ctl, &etdev->regs->txmac.ctl);
 
 	/* Ready to start the RXDMA/TXDMA engine */
 	if (etdev->Flags & fMP_ADAPTER_LOWER_POWER) {
@@ -235,15 +241,15 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	struct _RXMAC_t __iomem *pRxMac = &etdev->regs->rxmac;
 	RXMAC_WOL_SA_LO_t sa_lo;
 	RXMAC_WOL_SA_HI_t sa_hi;
-	RXMAC_PF_CTRL_t pf_ctrl = { 0 };
+	u32 pf_ctrl = 0;
 
 	/* Disable the MAC while it is being configured (also disable WOL) */
-	writel(0x8, &pRxMac->ctrl.value);
+	writel(0x8, &pRxMac->ctrl);
 
 	/* Initialize WOL to disabled. */
-	writel(0, &pRxMac->crc0.value);
-	writel(0, &pRxMac->crc12.value);
-	writel(0, &pRxMac->crc34.value);
+	writel(0, &pRxMac->crc0);
+	writel(0, &pRxMac->crc12);
+	writel(0, &pRxMac->crc34);
 
 	/* We need to set the WOL mask0 - mask4 next.  We initialize it to
 	 * its default Values of 0x00000000 because there are not WOL masks
@@ -286,12 +292,12 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	writel(sa_hi.value, &pRxMac->sa_hi.value);
 
 	/* Disable all Packet Filtering */
-	writel(0, &pRxMac->pf_ctrl.value);
+	writel(0, &pRxMac->pf_ctrl);
 
 	/* Let's initialize the Unicast Packet filtering address */
 	if (etdev->PacketFilter & ET131X_PACKET_TYPE_DIRECTED) {
 		SetupDeviceForUnicast(etdev);
-		pf_ctrl.bits.filter_uni_en = 1;
+		pf_ctrl |= 4;	/* Unicast filter */
 	} else {
 		writel(0, &pRxMac->uni_pf_addr1.value);
 		writel(0, &pRxMac->uni_pf_addr2.value);
@@ -299,20 +305,16 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	}
 
 	/* Let's initialize the Multicast hash */
-	if (etdev->PacketFilter & ET131X_PACKET_TYPE_ALL_MULTICAST) {
-		pf_ctrl.bits.filter_multi_en = 0;
-	} else {
-		pf_ctrl.bits.filter_multi_en = 1;
+	if (!(etdev->PacketFilter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
+		pf_ctrl |= 2;	/* Multicast filter */
 		SetupDeviceForMulticast(etdev);
 	}
 
 	/* Runt packet filtering.  Didn't work in version A silicon. */
-	pf_ctrl.bits.min_pkt_size = NIC_MIN_PACKET_SIZE + 4;
-	pf_ctrl.bits.filter_frag_en = 1;
+	pf_ctrl |= (NIC_MIN_PACKET_SIZE + 4) << 16;
+	pf_ctrl |= 8;	/* Fragment filter */
 
-	if (etdev->RegistryJumboPacket > 8192) {
-		RXMAC_MCIF_CTRL_MAX_SEG_t mcif_ctrl_max_seg;
-
+	if (etdev->RegistryJumboPacket > 8192)
 		/* In order to transmit jumbo packets greater than 8k, the
 		 * FIFO between RxMAC and RxDMA needs to be reduced in size
 		 * to (16k - Jumbo packet size).  In order to implement this,
@@ -320,25 +322,21 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 		 * packets down into segments which are (max_size * 16).  In
 		 * this case we selected 256 bytes, since this is the size of
 		 * the PCI-Express TLP's that the 1310 uses.
+		 *
+		 * seg_en on, fc_en off, size 0x10
 		 */
-		mcif_ctrl_max_seg.bits.seg_en = 0x1;
-		mcif_ctrl_max_seg.bits.fc_en = 0x0;
-		mcif_ctrl_max_seg.bits.max_size = 0x10;
-
-		writel(mcif_ctrl_max_seg.value,
-		       &pRxMac->mcif_ctrl_max_seg.value);
-	} else {
-		writel(0, &pRxMac->mcif_ctrl_max_seg.value);
-	}
+		writel(0x41, &pRxMac->mcif_ctrl_max_seg);
+	else
+		writel(0, &pRxMac->mcif_ctrl_max_seg);
 
 	/* Initialize the MCIF water marks */
-	writel(0, &pRxMac->mcif_water_mark.value);
+	writel(0, &pRxMac->mcif_water_mark);
 
 	/*  Initialize the MIF control */
-	writel(0, &pRxMac->mif_ctrl.value);
+	writel(0, &pRxMac->mif_ctrl);
 
 	/* Initialize the Space Available Register */
-	writel(0, &pRxMac->space_avail.value);
+	writel(0, &pRxMac->space_avail);
 
 	/* Initialize the the mif_ctrl register
 	 * bit 3:  Receive code error. One or more nibbles were signaled as
@@ -354,9 +352,9 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	 * bit 17: Drop packet enable
 	 */
 	if (etdev->linkspeed == TRUEPHY_SPEED_100MBPS)
-		writel(0x30038, &pRxMac->mif_ctrl.value);
+		writel(0x30038, &pRxMac->mif_ctrl);
 	else
-		writel(0x30030, &pRxMac->mif_ctrl.value);
+		writel(0x30030, &pRxMac->mif_ctrl);
 
 	/* Finally we initialize RxMac to be enabled & WOL disabled.  Packet
 	 * filter is always enabled since it is where the runt packets are
@@ -364,28 +362,28 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	 * dropping doesn't work, so it is disabled in the pf_ctrl register,
 	 * but we still leave the packet filter on.
 	 */
-	writel(pf_ctrl.value, &pRxMac->pf_ctrl.value);
-	writel(0x9, &pRxMac->ctrl.value);
+	writel(pf_ctrl, &pRxMac->pf_ctrl);
+	writel(0x9, &pRxMac->ctrl);
 }
 
 void ConfigTxMacRegs(struct et131x_adapter *etdev)
 {
-	struct _TXMAC_t __iomem *pTxMac = &etdev->regs->txmac;
+	struct txmac_regs *txmac = &etdev->regs->txmac;
 
 	/* We need to update the Control Frame Parameters
 	 * cfpt - control frame pause timer set to 64 (0x40)
 	 * cfep - control frame extended pause timer set to 0x0
 	 */
 	if (etdev->FlowControl == None)
-		writel(0, &pTxMac->cf_param);
+		writel(0, &txmac->cf_param);
 	else
-		writel(0x40, &pTxMac->cf_param);
+		writel(0x40, &txmac->cf_param);
 }
 
 void ConfigMacStatRegs(struct et131x_adapter *etdev)
 {
-	struct _MAC_STAT_t __iomem *macstat =
-		&etdev->regs->macStat;
+	struct macstat_regs __iomem *macstat =
+		&etdev->regs->macstat;
 
 	/* Next we need to initialize all the MAC_STAT registers to zero on
 	 * the device.
@@ -456,8 +454,8 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
 void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
 {
 	struct _ce_stats_t *stats = &etdev->Stats;
-	struct _MAC_STAT_t __iomem *macstat =
-		&etdev->regs->macStat;
+	struct macstat_regs __iomem *macstat =
+		&etdev->regs->macstat;
 
 	stats->collisions += readl(&macstat->TNcl);
 	stats->first_collision += readl(&macstat->TScl);
@@ -493,11 +491,11 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 	/* Read the interrupt bits from the register(s).  These are Clear On
 	 * Write.
 	 */
-	Carry1 = readl(&etdev->regs->macStat.Carry1);
-	Carry2 = readl(&etdev->regs->macStat.Carry2);
+	Carry1 = readl(&etdev->regs->macstat.Carry1);
+	Carry2 = readl(&etdev->regs->macstat.Carry2);
 
-	writel(Carry1, &etdev->regs->macStat.Carry1);
-	writel(Carry2, &etdev->regs->macStat.Carry2);
+	writel(Carry1, &etdev->regs->macstat.Carry1);
+	writel(Carry2, &etdev->regs->macstat.Carry2);
 
 	/* We need to do update the host copy of all the MAC_STAT counters.
 	 * For each counter, check it's overflow bit.  If the overflow bit is

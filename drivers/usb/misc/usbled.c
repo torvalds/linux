@@ -24,7 +24,7 @@
 #define PRODUCT_ID	0x1223
 
 /* table of devices that work with this driver */
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(VENDOR_ID, PRODUCT_ID) },
 	{ },
 };

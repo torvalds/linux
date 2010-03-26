@@ -128,6 +128,8 @@ static int go7007_load_encoder(struct go7007 *go)
 	return rv;
 }
 
+MODULE_FIRMWARE("go7007fw.bin");
+
 /*
  * Boot the encoder and register the I2C adapter if requested.  Do the
  * minimum initialization necessary, since the board-specific code may

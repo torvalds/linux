@@ -80,6 +80,7 @@ static const struct backlight_ops bl_ops = {
 static int __devinit tosa_bl_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
+	struct backlight_properties props;
 	struct tosa_bl_data *data = kzalloc(sizeof(struct tosa_bl_data), GFP_KERNEL);
 	int ret = 0;
 	if (!data)
@@ -99,15 +100,16 @@ static int __devinit tosa_bl_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, data);
 	data->i2c = client;
 
-	data->bl = backlight_device_register("tosa-bl", &client->dev,
-			data, &bl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 512 - 1;
+	data->bl = backlight_device_register("tosa-bl", &client->dev, data,
+					     &bl_ops, &props);
 	if (IS_ERR(data->bl)) {
 		ret = PTR_ERR(data->bl);
 		goto err_reg;
 	}
 
 	data->bl->props.brightness = 69;
-	data->bl->props.max_brightness = 512 - 1;
 	data->bl->props.power = FB_BLANK_UNBLANK;
 
 	backlight_update_status(data->bl);

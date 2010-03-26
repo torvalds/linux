@@ -40,9 +40,11 @@ static void * __init_refok __earlyonly_bootmem_alloc(int node,
 				unsigned long align,
 				unsigned long goal)
 {
-	return __alloc_bootmem_node(NODE_DATA(node), size, align, goal);
+	return __alloc_bootmem_node_high(NODE_DATA(node), size, align, goal);
 }
 
+static void *vmemmap_buf;
+static void *vmemmap_buf_end;
 
 void * __meminit vmemmap_alloc_block(unsigned long size, int node)
 {
@@ -64,6 +66,24 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
 				__pa(MAX_DMA_ADDRESS));
 }
 
+/* need to make sure size is all the same during early stage */
+void * __meminit vmemmap_alloc_block_buf(unsigned long size, int node)
+{
+	void *ptr;
+
+	if (!vmemmap_buf)
+		return vmemmap_alloc_block(size, node);
+
+	/* take the from buf */
+	ptr = (void *)ALIGN((unsigned long)vmemmap_buf, size);
+	if (ptr + size > vmemmap_buf_end)
+		return vmemmap_alloc_block(size, node);
+
+	vmemmap_buf = ptr + size;
+
+	return ptr;
+}
+
 void __meminit vmemmap_verify(pte_t *pte, int node,
 				unsigned long start, unsigned long end)
 {
@@ -80,7 +100,7 @@ pte_t * __meminit vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node)
 	pte_t *pte = pte_offset_kernel(pmd, addr);
 	if (pte_none(*pte)) {
 		pte_t entry;
-		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
+		void *p = vmemmap_alloc_block_buf(PAGE_SIZE, node);
 		if (!p)
 			return NULL;
 		entry = pfn_pte(__pa(p) >> PAGE_SHIFT, PAGE_KERNEL);
@@ -162,4 +182,56 @@ struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid)
 		return NULL;
 
 	return map;
+}
+
+void __init sparse_mem_maps_populate_node(struct page **map_map,
+					  unsigned long pnum_begin,
+					  unsigned long pnum_end,
+					  unsigned long map_count, int nodeid)
+{
+	unsigned long pnum;
+	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
+	void *vmemmap_buf_start;
+
+	size = ALIGN(size, PMD_SIZE);
+	vmemmap_buf_start = __earlyonly_bootmem_alloc(nodeid, size * map_count,
+			 PMD_SIZE, __pa(MAX_DMA_ADDRESS));
+
+	if (vmemmap_buf_start) {
+		vmemmap_buf = vmemmap_buf_start;
+		vmemmap_buf_end = vmemmap_buf_start + size * map_count;
+	}
+
+	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+		struct mem_section *ms;
+
+		if (!present_section_nr(pnum))
+			continue;
+
+		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid);
+		if (map_map[pnum])
+			continue;
+		ms = __nr_to_section(pnum);
+		printk(KERN_ERR "%s: sparsemem memory map backing failed "
+			"some memory will not be available.\n", __func__);
+		ms->section_mem_map = 0;
+	}
+
+	if (vmemmap_buf_start) {
+		/* need to free left buf */
+#ifdef CONFIG_NO_BOOTMEM
+		free_early(__pa(vmemmap_buf_start), __pa(vmemmap_buf_end));
+		if (vmemmap_buf_start < vmemmap_buf) {
+			char name[15];
+
+			snprintf(name, sizeof(name), "MEMMAP %d", nodeid);
+			reserve_early_without_check(__pa(vmemmap_buf_start),
+						    __pa(vmemmap_buf), name);
+		}
+#else
+		free_bootmem(__pa(vmemmap_buf), vmemmap_buf_end - vmemmap_buf);
+#endif
+		vmemmap_buf = NULL;
+		vmemmap_buf_end = NULL;
+	}
 }

@@ -56,7 +56,7 @@
 
 
 /* table of devices that work with this driver */
-static struct usb_device_id cypress_table [] = {
+static const struct usb_device_id cypress_table[] = {
 	{ USB_DEVICE(CYPRESS_VENDOR_ID, CYPRESS_PRODUCT_ID) },
 	{ }
 };

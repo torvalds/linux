@@ -45,7 +45,7 @@ struct intc_sense_reg {
 #define INTC_SMP(stride, nr)
 #endif
 
-struct intc_desc {
+struct intc_hw_desc {
 	struct intc_vect *vectors;
 	unsigned int nr_vectors;
 	struct intc_group *groups;
@@ -56,29 +56,40 @@ struct intc_desc {
 	unsigned int nr_prio_regs;
 	struct intc_sense_reg *sense_regs;
 	unsigned int nr_sense_regs;
-	char *name;
 	struct intc_mask_reg *ack_regs;
 	unsigned int nr_ack_regs;
 };
 
 #define _INTC_ARRAY(a) a, sizeof(a)/sizeof(*a)
+#define INTC_HW_DESC(vectors, groups, mask_regs,	\
+		     prio_regs,	sense_regs, ack_regs)	\
+{							\
+	_INTC_ARRAY(vectors), _INTC_ARRAY(groups),	\
+	_INTC_ARRAY(mask_regs), _INTC_ARRAY(prio_regs),	\
+	_INTC_ARRAY(sense_regs), _INTC_ARRAY(ack_regs),	\
+}
+
+struct intc_desc {
+	char *name;
+	intc_enum force_enable;
+	intc_enum force_disable;
+	struct intc_hw_desc hw;
+};
+
 #define DECLARE_INTC_DESC(symbol, chipname, vectors, groups,		\
 	mask_regs, prio_regs, sense_regs)				\
 struct intc_desc symbol __initdata = {					\
-	_INTC_ARRAY(vectors), _INTC_ARRAY(groups),			\
-	_INTC_ARRAY(mask_regs), _INTC_ARRAY(prio_regs),			\
-	_INTC_ARRAY(sense_regs),					\
-	chipname,							\
+	.name = chipname,						\
+	.hw = INTC_HW_DESC(vectors, groups, mask_regs,			\
+			   prio_regs, sense_regs, NULL),		\
 }
 
 #define DECLARE_INTC_DESC_ACK(symbol, chipname, vectors, groups,	\
 	mask_regs, prio_regs, sense_regs, ack_regs)			\
 struct intc_desc symbol __initdata = {					\
-	_INTC_ARRAY(vectors), _INTC_ARRAY(groups),			\
-	_INTC_ARRAY(mask_regs), _INTC_ARRAY(prio_regs),			\
-	_INTC_ARRAY(sense_regs),					\
-	chipname,							\
-	_INTC_ARRAY(ack_regs),						\
+	.name = chipname,						\
+	.hw = INTC_HW_DESC(vectors, groups, mask_regs,			\
+			   prio_regs, sense_regs, ack_regs),		\
 }
 
 void __init register_intc_controller(struct intc_desc *desc);

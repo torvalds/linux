@@ -84,8 +84,6 @@ void via_irq_enable(int irq);
 void via_irq_disable(int irq);
 void via_irq_clear(int irq);
 
-extern irqreturn_t mac_scc_dispatch(int, void *);
-
 /*
  * Initialize the VIAs
  *
@@ -311,11 +309,6 @@ void __init via_register_interrupts(void)
 	if (request_irq(IRQ_AUTO_2, via2_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
 			"via2", (void *) via2))
 		pr_err("Couldn't register %s interrupt\n", "via2");
-	if (!psc_present) {
-		if (request_irq(IRQ_AUTO_4, mac_scc_dispatch, IRQ_FLG_LOCK,
-				"scc", mac_scc_dispatch))
-			pr_err("Couldn't register %s interrupt\n", "scc");
-	}
 	if (request_irq(IRQ_MAC_NUBUS, via_nubus_irq,
 			IRQ_FLG_LOCK|IRQ_FLG_FAST, "nubus", (void *) via2))
 		pr_err("Couldn't register %s interrupt\n", "nubus");

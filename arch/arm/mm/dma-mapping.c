@@ -29,9 +29,6 @@
 #error "CONSISTENT_DMA_SIZE must be multiple of 2MiB"
 #endif
 
-#define CONSISTENT_END	(0xffe00000)
-#define CONSISTENT_BASE	(CONSISTENT_END - CONSISTENT_DMA_SIZE)
-
 #define CONSISTENT_OFFSET(x)	(((unsigned long)(x) - CONSISTENT_BASE) >> PAGE_SHIFT)
 #define CONSISTENT_PTE_INDEX(x) (((unsigned long)(x) - CONSISTENT_BASE) >> PGDIR_SHIFT)
 #define NUM_CONSISTENT_PTES (CONSISTENT_DMA_SIZE >> PGDIR_SHIFT)
@@ -404,78 +401,44 @@ EXPORT_SYMBOL(dma_free_coherent);
  * platforms with CONFIG_DMABOUNCE.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
-void dma_cache_maint(const void *start, size_t size, int direction)
+void ___dma_single_cpu_to_dev(const void *kaddr, size_t size,
+	enum dma_data_direction dir)
 {
-	void (*inner_op)(const void *, const void *);
-	void (*outer_op)(unsigned long, unsigned long);
-
-	BUG_ON(!virt_addr_valid(start) || !virt_addr_valid(start + size - 1));
-
-	switch (direction) {
-	case DMA_FROM_DEVICE:		/* invalidate only */
-		inner_op = dmac_inv_range;
-		outer_op = outer_inv_range;
-		break;
-	case DMA_TO_DEVICE:		/* writeback only */
-		inner_op = dmac_clean_range;
-		outer_op = outer_clean_range;
-		break;
-	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
-		inner_op = dmac_flush_range;
-		outer_op = outer_flush_range;
-		break;
-	default:
-		BUG();
-	}
-
-	inner_op(start, start + size);
-	outer_op(__pa(start), __pa(start) + size);
-}
-EXPORT_SYMBOL(dma_cache_maint);
-
-static void dma_cache_maint_contiguous(struct page *page, unsigned long offset,
-				       size_t size, int direction)
-{
-	void *vaddr;
 	unsigned long paddr;
-	void (*inner_op)(const void *, const void *);
-	void (*outer_op)(unsigned long, unsigned long);
 
-	switch (direction) {
-	case DMA_FROM_DEVICE:		/* invalidate only */
-		inner_op = dmac_inv_range;
-		outer_op = outer_inv_range;
-		break;
-	case DMA_TO_DEVICE:		/* writeback only */
-		inner_op = dmac_clean_range;
-		outer_op = outer_clean_range;
-		break;
-	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
-		inner_op = dmac_flush_range;
-		outer_op = outer_flush_range;
-		break;
-	default:
-		BUG();
-	}
+	BUG_ON(!virt_addr_valid(kaddr) || !virt_addr_valid(kaddr + size - 1));
 
-	if (!PageHighMem(page)) {
-		vaddr = page_address(page) + offset;
-		inner_op(vaddr, vaddr + size);
+	dmac_map_area(kaddr, size, dir);
+
+	paddr = __pa(kaddr);
+	if (dir == DMA_FROM_DEVICE) {
+		outer_inv_range(paddr, paddr + size);
 	} else {
-		vaddr = kmap_high_get(page);
-		if (vaddr) {
-			vaddr += offset;
-			inner_op(vaddr, vaddr + size);
-			kunmap_high(page);
-		}
+		outer_clean_range(paddr, paddr + size);
+	}
+	/* FIXME: non-speculating: flush on bidirectional mappings? */
+}
+EXPORT_SYMBOL(___dma_single_cpu_to_dev);
+
+void ___dma_single_dev_to_cpu(const void *kaddr, size_t size,
+	enum dma_data_direction dir)
+{
+	BUG_ON(!virt_addr_valid(kaddr) || !virt_addr_valid(kaddr + size - 1));
+
+	/* FIXME: non-speculating: not required */
+	/* don't bother invalidating if DMA to device */
+	if (dir != DMA_TO_DEVICE) {
+		unsigned long paddr = __pa(kaddr);
+		outer_inv_range(paddr, paddr + size);
 	}
 
-	paddr = page_to_phys(page) + offset;
-	outer_op(paddr, paddr + size);
+	dmac_unmap_area(kaddr, size, dir);
 }
+EXPORT_SYMBOL(___dma_single_dev_to_cpu);
 
-void dma_cache_maint_page(struct page *page, unsigned long offset,
-			  size_t size, int dir)
+static void dma_cache_maint_page(struct page *page, unsigned long offset,
+	size_t size, enum dma_data_direction dir,
+	void (*op)(const void *, size_t, int))
 {
 	/*
 	 * A single sg entry may refer to multiple physically contiguous
@@ -486,20 +449,62 @@ void dma_cache_maint_page(struct page *page, unsigned long offset,
 	size_t left = size;
 	do {
 		size_t len = left;
-		if (PageHighMem(page) && len + offset > PAGE_SIZE) {
-			if (offset >= PAGE_SIZE) {
-				page += offset / PAGE_SIZE;
-				offset %= PAGE_SIZE;
+		void *vaddr;
+
+		if (PageHighMem(page)) {
+			if (len + offset > PAGE_SIZE) {
+				if (offset >= PAGE_SIZE) {
+					page += offset / PAGE_SIZE;
+					offset %= PAGE_SIZE;
+				}
+				len = PAGE_SIZE - offset;
 			}
-			len = PAGE_SIZE - offset;
+			vaddr = kmap_high_get(page);
+			if (vaddr) {
+				vaddr += offset;
+				op(vaddr, len, dir);
+				kunmap_high(page);
+			}
+		} else {
+			vaddr = page_address(page) + offset;
+			op(vaddr, len, dir);
 		}
-		dma_cache_maint_contiguous(page, offset, len, dir);
 		offset = 0;
 		page++;
 		left -= len;
 	} while (left);
 }
-EXPORT_SYMBOL(dma_cache_maint_page);
+
+void ___dma_page_cpu_to_dev(struct page *page, unsigned long off,
+	size_t size, enum dma_data_direction dir)
+{
+	unsigned long paddr;
+
+	dma_cache_maint_page(page, off, size, dir, dmac_map_area);
+
+	paddr = page_to_phys(page) + off;
+	if (dir == DMA_FROM_DEVICE) {
+		outer_inv_range(paddr, paddr + size);
+	} else {
+		outer_clean_range(paddr, paddr + size);
+	}
+	/* FIXME: non-speculating: flush on bidirectional mappings? */
+}
+EXPORT_SYMBOL(___dma_page_cpu_to_dev);
+
+void ___dma_page_dev_to_cpu(struct page *page, unsigned long off,
+	size_t size, enum dma_data_direction dir)
+{
+	unsigned long paddr = page_to_phys(page) + off;
+
+	/* FIXME: non-speculating: not required */
+	/* don't bother invalidating if DMA to device */
+	if (dir != DMA_TO_DEVICE)
+		outer_inv_range(paddr, paddr + size);
+
+	dma_cache_maint_page(page, off, size, dir, dmac_unmap_area);
+}
+EXPORT_SYMBOL(___dma_page_dev_to_cpu);
 
 /**
  * dma_map_sg - map a set of SG buffers for streaming mode DMA
@@ -573,8 +578,12 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for_each_sg(sg, s, nents, i) {
-		dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
-					sg_dma_len(s), dir);
+		if (!dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
+					    sg_dma_len(s), dir))
+			continue;
+
+		__dma_page_dev_to_cpu(sg_page(s), s->offset,
+				      s->length, dir);
 	}
 }
 EXPORT_SYMBOL(dma_sync_sg_for_cpu);
@@ -597,9 +606,8 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 					sg_dma_len(s), dir))
 			continue;
 
-		if (!arch_is_coherent())
-			dma_cache_maint_page(sg_page(s), s->offset,
-					     s->length, dir);
+		__dma_page_cpu_to_dev(sg_page(s), s->offset,
+				      s->length, dir);
 	}
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);

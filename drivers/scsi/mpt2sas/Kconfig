@@ -44,6 +44,7 @@ config SCSI_MPT2SAS
 	tristate "LSI MPT Fusion SAS 2.0 Device Driver"
 	depends on PCI && SCSI
 	select SCSI_SAS_ATTRS
+	select RAID_ATTRS
 	---help---
 	This driver supports PCI-Express SAS 6Gb/s Host Adapters.
 

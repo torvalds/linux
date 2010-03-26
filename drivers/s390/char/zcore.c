@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
+#include <asm/asm-offsets.h>
 #include <asm/ipl.h>
 #include <asm/sclp.h>
 #include <asm/setup.h>
@@ -40,12 +41,12 @@ enum arch_id {
 /* dump system info */
 
 struct sys_info {
-	enum arch_id	arch;
-	unsigned long	sa_base;
-	u32		sa_size;
-	int		cpu_map[NR_CPUS];
-	unsigned long	mem_size;
-	union save_area	lc_mask;
+	enum arch_id	 arch;
+	unsigned long	 sa_base;
+	u32		 sa_size;
+	int		 cpu_map[NR_CPUS];
+	unsigned long	 mem_size;
+	struct save_area lc_mask;
 };
 
 struct ipib_info {
@@ -183,52 +184,9 @@ static int memcpy_real_user(void __user *dest, unsigned long src, size_t count)
 	return 0;
 }
 
-#ifdef __s390x__
-/*
- * Convert s390x (64 bit) cpu info to s390 (32 bit) cpu info
- */
-static void __init s390x_to_s390_regs(union save_area *out, union save_area *in,
-				      int cpu)
-{
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		out->s390.gp_regs[i] = in->s390x.gp_regs[i] & 0x00000000ffffffff;
-		out->s390.acc_regs[i] = in->s390x.acc_regs[i];
-		out->s390.ctrl_regs[i] =
-			in->s390x.ctrl_regs[i] & 0x00000000ffffffff;
-	}
-	/* locore for 31 bit has only space for fpregs 0,2,4,6 */
-	out->s390.fp_regs[0] = in->s390x.fp_regs[0];
-	out->s390.fp_regs[1] = in->s390x.fp_regs[2];
-	out->s390.fp_regs[2] = in->s390x.fp_regs[4];
-	out->s390.fp_regs[3] = in->s390x.fp_regs[6];
-	memcpy(&(out->s390.psw[0]), &(in->s390x.psw[0]), 4);
-	out->s390.psw[1] |= 0x8; /* set bit 12 */
-	memcpy(&(out->s390.psw[4]),&(in->s390x.psw[12]), 4);
-	out->s390.psw[4] |= 0x80; /* set (31bit) addressing bit */
-	out->s390.pref_reg = in->s390x.pref_reg;
-	out->s390.timer = in->s390x.timer;
-	out->s390.clk_cmp = in->s390x.clk_cmp;
-}
-
-static void __init s390x_to_s390_save_areas(void)
-{
-	int i = 1;
-	static union save_area tmp;
-
-	while (zfcpdump_save_areas[i]) {
-		s390x_to_s390_regs(&tmp, zfcpdump_save_areas[i], i);
-		memcpy(zfcpdump_save_areas[i], &tmp, sizeof(tmp));
-		i++;
-	}
-}
-
-#endif /* __s390x__ */
-
 static int __init init_cpu_info(enum arch_id arch)
 {
-	union save_area *sa;
+	struct save_area *sa;
 
 	/* get info for boot cpu from lowcore, stored in the HSA */
 
@@ -241,20 +199,12 @@ static int __init init_cpu_info(enum arch_id arch)
 		return -EIO;
 	}
 	zfcpdump_save_areas[0] = sa;
-
-#ifdef __s390x__
-	/* convert s390x regs to s390, if we are dumping an s390 Linux */
-
-	if (arch == ARCH_S390)
-		s390x_to_s390_save_areas();
-#endif
-
 	return 0;
 }
 
 static DEFINE_MUTEX(zcore_mutex);
 
-#define DUMP_VERSION	0x3
+#define DUMP_VERSION	0x5
 #define DUMP_MAGIC	0xa8190173618f23fdULL
 #define DUMP_ARCH_S390X	2
 #define DUMP_ARCH_S390	1
@@ -279,7 +229,14 @@ struct zcore_header {
 	u32 volnr;
 	u32 build_arch;
 	u64 rmem_size;
-	char pad2[4016];
+	u8 mvdump;
+	u16 cpu_cnt;
+	u16 real_cpu_cnt;
+	u8 end_pad1[0x200-0x061];
+	u64 mvdump_sign;
+	u64 mvdump_zipl_time;
+	u8 end_pad2[0x800-0x210];
+	u32 lc_vec[512];
 } __attribute__((packed,__aligned__(16)));
 
 static struct zcore_header zcore_header = {
@@ -289,7 +246,7 @@ static struct zcore_header zcore_header = {
 	.dump_level	= 0,
 	.page_size	= PAGE_SIZE,
 	.mem_start	= 0,
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	.build_arch	= DUMP_ARCH_S390X,
 #else
 	.build_arch	= DUMP_ARCH_S390,
@@ -340,11 +297,7 @@ static int zcore_add_lc(char __user *buf, unsigned long start, size_t count)
 		unsigned long prefix;
 		unsigned long sa_off, len, buf_off;
 
-		if (sys_info.arch == ARCH_S390)
-			prefix = zfcpdump_save_areas[i]->s390.pref_reg;
-		else
-			prefix = zfcpdump_save_areas[i]->s390x.pref_reg;
-
+		prefix = zfcpdump_save_areas[i]->pref_reg;
 		sa_start = prefix + sys_info.sa_base;
 		sa_end = prefix + sys_info.sa_base + sys_info.sa_size;
 
@@ -561,33 +514,38 @@ static const struct file_operations zcore_reipl_fops = {
 	.release	= zcore_reipl_release,
 };
 
+#ifdef CONFIG_32BIT
 
-static void __init set_s390_lc_mask(union save_area *map)
+static void __init set_lc_mask(struct save_area *map)
 {
-	memset(&map->s390.ext_save, 0xff, sizeof(map->s390.ext_save));
-	memset(&map->s390.timer, 0xff, sizeof(map->s390.timer));
-	memset(&map->s390.clk_cmp, 0xff, sizeof(map->s390.clk_cmp));
-	memset(&map->s390.psw, 0xff, sizeof(map->s390.psw));
-	memset(&map->s390.pref_reg, 0xff, sizeof(map->s390.pref_reg));
-	memset(&map->s390.acc_regs, 0xff, sizeof(map->s390.acc_regs));
-	memset(&map->s390.fp_regs, 0xff, sizeof(map->s390.fp_regs));
-	memset(&map->s390.gp_regs, 0xff, sizeof(map->s390.gp_regs));
-	memset(&map->s390.ctrl_regs, 0xff, sizeof(map->s390.ctrl_regs));
+	memset(&map->ext_save, 0xff, sizeof(map->ext_save));
+	memset(&map->timer, 0xff, sizeof(map->timer));
+	memset(&map->clk_cmp, 0xff, sizeof(map->clk_cmp));
+	memset(&map->psw, 0xff, sizeof(map->psw));
+	memset(&map->pref_reg, 0xff, sizeof(map->pref_reg));
+	memset(&map->acc_regs, 0xff, sizeof(map->acc_regs));
+	memset(&map->fp_regs, 0xff, sizeof(map->fp_regs));
+	memset(&map->gp_regs, 0xff, sizeof(map->gp_regs));
+	memset(&map->ctrl_regs, 0xff, sizeof(map->ctrl_regs));
 }
 
-static void __init set_s390x_lc_mask(union save_area *map)
+#else /* CONFIG_32BIT */
+
+static void __init set_lc_mask(struct save_area *map)
 {
-	memset(&map->s390x.fp_regs, 0xff, sizeof(map->s390x.fp_regs));
-	memset(&map->s390x.gp_regs, 0xff, sizeof(map->s390x.gp_regs));
-	memset(&map->s390x.psw, 0xff, sizeof(map->s390x.psw));
-	memset(&map->s390x.pref_reg, 0xff, sizeof(map->s390x.pref_reg));
-	memset(&map->s390x.fp_ctrl_reg, 0xff, sizeof(map->s390x.fp_ctrl_reg));
-	memset(&map->s390x.tod_reg, 0xff, sizeof(map->s390x.tod_reg));
-	memset(&map->s390x.timer, 0xff, sizeof(map->s390x.timer));
-	memset(&map->s390x.clk_cmp, 0xff, sizeof(map->s390x.clk_cmp));
-	memset(&map->s390x.acc_regs, 0xff, sizeof(map->s390x.acc_regs));
-	memset(&map->s390x.ctrl_regs, 0xff, sizeof(map->s390x.ctrl_regs));
+	memset(&map->fp_regs, 0xff, sizeof(map->fp_regs));
+	memset(&map->gp_regs, 0xff, sizeof(map->gp_regs));
+	memset(&map->psw, 0xff, sizeof(map->psw));
+	memset(&map->pref_reg, 0xff, sizeof(map->pref_reg));
+	memset(&map->fp_ctrl_reg, 0xff, sizeof(map->fp_ctrl_reg));
+	memset(&map->tod_reg, 0xff, sizeof(map->tod_reg));
+	memset(&map->timer, 0xff, sizeof(map->timer));
+	memset(&map->clk_cmp, 0xff, sizeof(map->clk_cmp));
+	memset(&map->acc_regs, 0xff, sizeof(map->acc_regs));
+	memset(&map->ctrl_regs, 0xff, sizeof(map->ctrl_regs));
 }
+
+#endif /* CONFIG_32BIT */
 
 /*
  * Initialize dump globals for a given architecture
@@ -599,21 +557,18 @@ static int __init sys_info_init(enum arch_id arch)
 	switch (arch) {
 	case ARCH_S390X:
 		pr_alert("DETECTED 'S390X (64 bit) OS'\n");
-		sys_info.sa_base = SAVE_AREA_BASE_S390X;
-		sys_info.sa_size = sizeof(struct save_area_s390x);
-		set_s390x_lc_mask(&sys_info.lc_mask);
 		break;
 	case ARCH_S390:
 		pr_alert("DETECTED 'S390 (32 bit) OS'\n");
-		sys_info.sa_base = SAVE_AREA_BASE_S390;
-		sys_info.sa_size = sizeof(struct save_area_s390);
-		set_s390_lc_mask(&sys_info.lc_mask);
 		break;
 	default:
 		pr_alert("0x%x is an unknown architecture.\n",arch);
 		return -EINVAL;
 	}
+	sys_info.sa_base = SAVE_AREA_BASE;
+	sys_info.sa_size = sizeof(struct save_area);
 	sys_info.arch = arch;
+	set_lc_mask(&sys_info.lc_mask);
 	rc = init_cpu_info(arch);
 	if (rc)
 		return rc;
@@ -660,8 +615,9 @@ static int __init get_mem_size(unsigned long *mem)
 
 static int __init zcore_header_init(int arch, struct zcore_header *hdr)
 {
-	int rc;
+	int rc, i;
 	unsigned long memory = 0;
+	u32 prefix;
 
 	if (arch == ARCH_S390X)
 		hdr->arch_id = DUMP_ARCH_S390X;
@@ -676,6 +632,14 @@ static int __init zcore_header_init(int arch, struct zcore_header *hdr)
 	hdr->num_pages = memory / PAGE_SIZE;
 	hdr->tod = get_clock();
 	get_cpu_id(&hdr->cpu_id);
+	for (i = 0; zfcpdump_save_areas[i]; i++) {
+		prefix = zfcpdump_save_areas[i]->pref_reg;
+		hdr->real_cpu_cnt++;
+		if (!prefix)
+			continue;
+		hdr->lc_vec[hdr->cpu_cnt] = prefix;
+		hdr->cpu_cnt++;
+	}
 	return 0;
 }
 
@@ -741,14 +705,21 @@ static int __init zcore_init(void)
 	if (rc)
 		goto fail;
 
-#ifndef __s390x__
+#ifdef CONFIG_64BIT
+	if (arch == ARCH_S390) {
+		pr_alert("The 64-bit dump tool cannot be used for a "
+			 "32-bit system\n");
+		rc = -EINVAL;
+		goto fail;
+	}
+#else /* CONFIG_64BIT */
 	if (arch == ARCH_S390X) {
 		pr_alert("The 32-bit dump tool cannot be used for a "
 			 "64-bit system\n");
 		rc = -EINVAL;
 		goto fail;
 	}
-#endif
+#endif /* CONFIG_64BIT */
 
 	rc = sys_info_init(arch);
 	if (rc)

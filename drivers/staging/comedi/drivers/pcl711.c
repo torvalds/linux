@@ -207,11 +207,10 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 
 	/* FIXME! Nothing else sets ntrig! */
 	if (!(--devpriv->ntrig)) {
-		if (this_board->is_8112) {
+		if (this_board->is_8112)
 			outb(1, dev->iobase + PCL711_MODE);
-		} else {
+		else
 			outb(0, dev->iobase + PCL711_MODE);
-		}
 
 		s->async->events |= COMEDI_CB_EOA;
 	}
@@ -232,15 +231,15 @@ static void pcl711_set_changain(struct comedi_device *dev, int chan)
 		/*
 		 *  Set the correct channel.  The two channel banks are switched
 		 *  using the mask value.
-		 *  NB: To use differential channels, you should use mask = 0x30,
-		 *  but I haven't written the support for this yet. /JJ
+		 *  NB: To use differential channels, you should use
+		 *  mask = 0x30, but I haven't written the support for this
+		 *  yet. /JJ
 		 */
 
-		if (chan_register >= 8) {
+		if (chan_register >= 8)
 			chan_register = 0x20 | (chan_register & 0x7);
-		} else {
+		else
 			chan_register |= 0x10;
-		}
 	} else {
 		outb(chan_register, dev->iobase + PCL711_MUX);
 	}
@@ -256,15 +255,13 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	for (n = 0; n < insn->n; n++) {
 		/*
-		 *  Write the correct mode (software polling) and start polling by writing
-		 *  to the trigger register
+		 *  Write the correct mode (software polling) and start polling
+		 *  by writing to the trigger register
 		 */
 		outb(1, dev->iobase + PCL711_MODE);
 
-		if (this_board->is_8112) {
-		} else {
+		if (!this_board->is_8112)
 			outb(0, dev->iobase + PCL711_SOFTTRIG);
-		}
 
 		i = PCL711_TIMEOUT;
 		while (--i) {
@@ -462,9 +459,8 @@ static int pcl711_ao_insn_read(struct comedi_device *dev,
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
 
-	for (n = 0; n < insn->n; n++) {
+	for (n = 0; n < insn->n; n++)
 		data[n] = devpriv->ao_readback[chan];
-	}
 
 	return n;
 
@@ -619,9 +615,8 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	   this is the "base value" for the mode register, which is
 	   used for the irq on the PCL711
 	 */
-	if (this_board->is_pcl711b) {
+	if (this_board->is_pcl711b)
 		devpriv->mode = (dev->irq << 4);
-	}
 
 	/* clear DAC */
 	outb(0, dev->iobase + PCL711_DA0_LO);

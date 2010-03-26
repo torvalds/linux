@@ -386,10 +386,10 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		else
 			IEEE80211_DEBUG_SCAN(
 				"Not showing network '%s ("
-				MAC_FMT ")' due to age (%lums).\n",
+				"%pM)' due to age (%lums).\n",
 				escape_essid(network->ssid,
 					     network->ssid_len),
-				MAC_ARG(network->bssid),
+				network->bssid,
 				(jiffies - network->last_scanned) / (HZ / 100));
 	}
 
@@ -933,7 +933,7 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 #if 1
 	case IW_AUTH_WPA_ENABLED:
 		ieee->wpa_enabled = (data->value)?1:0;
-		//printk("enalbe wpa:%d\n", ieee->wpa_enabled);
+		//printk("enable wpa:%d\n", ieee->wpa_enabled);
 		break;
 
 #endif

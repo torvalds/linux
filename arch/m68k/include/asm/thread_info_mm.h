@@ -16,6 +16,7 @@ struct thread_info {
 	struct exec_domain	*exec_domain;	/* execution domain */
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	__u32 cpu; /* should always be 0 on m68k */
+	unsigned long		tp_value;	/* thread pointer */
 	struct restart_block    restart_block;
 };
 #endif /* __ASSEMBLY__ */

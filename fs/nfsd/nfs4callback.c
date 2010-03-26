@@ -525,6 +525,8 @@ static struct rpc_cred *callback_cred;
 
 int set_callback_cred(void)
 {
+	if (callback_cred)
+		return 0;
 	callback_cred = rpc_lookup_machine_cred();
 	if (!callback_cred)
 		return -ENOMEM;
@@ -542,7 +544,8 @@ void do_probe_callback(struct nfs4_client *clp)
 	};
 	int status;
 
-	status = rpc_call_async(cb->cb_client, &msg, RPC_TASK_SOFT,
+	status = rpc_call_async(cb->cb_client, &msg,
+				RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
 				&nfsd4_cb_probe_ops, (void *)clp);
 	if (status) {
 		warn_no_callback_path(clp, status);

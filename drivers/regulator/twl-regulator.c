@@ -519,19 +519,19 @@ static struct twlreg_info twl_regs[] = {
 	/* 6030 REG with base as PMC Slave Misc : 0x0030 */
 	/* Turnon-delay and remap configuration values for 6030 are not
 	   verified since the specification is not public */
-	TWL6030_ADJUSTABLE_LDO(VAUX1_6030, 0x54, 1, 0, 0x08),
-	TWL6030_ADJUSTABLE_LDO(VAUX2_6030, 0x58, 2, 0, 0x08),
-	TWL6030_ADJUSTABLE_LDO(VAUX3_6030, 0x5c, 3, 0, 0x08),
-	TWL6030_ADJUSTABLE_LDO(VMMC, 0x68, 4, 0, 0x08),
-	TWL6030_ADJUSTABLE_LDO(VPP, 0x6c, 5, 0, 0x08),
-	TWL6030_ADJUSTABLE_LDO(VUSIM, 0x74, 7, 0, 0x08),
-	TWL6030_FIXED_LDO(VANA, 0x50, 2100, 15, 0, 0x08),
-	TWL6030_FIXED_LDO(VCXIO, 0x60, 1800, 16, 0, 0x08),
-	TWL6030_FIXED_LDO(VDAC, 0x64, 1800, 17, 0, 0x08),
-	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18, 0, 0x08)
+	TWL6030_ADJUSTABLE_LDO(VAUX1_6030, 0x54, 1, 0, 0x21),
+	TWL6030_ADJUSTABLE_LDO(VAUX2_6030, 0x58, 2, 0, 0x21),
+	TWL6030_ADJUSTABLE_LDO(VAUX3_6030, 0x5c, 3, 0, 0x21),
+	TWL6030_ADJUSTABLE_LDO(VMMC, 0x68, 4, 0, 0x21),
+	TWL6030_ADJUSTABLE_LDO(VPP, 0x6c, 5, 0, 0x21),
+	TWL6030_ADJUSTABLE_LDO(VUSIM, 0x74, 7, 0, 0x21),
+	TWL6030_FIXED_LDO(VANA, 0x50, 2100, 15, 0, 0x21),
+	TWL6030_FIXED_LDO(VCXIO, 0x60, 1800, 16, 0, 0x21),
+	TWL6030_FIXED_LDO(VDAC, 0x64, 1800, 17, 0, 0x21),
+	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18, 0, 0x21)
 };
 
-static int twlreg_probe(struct platform_device *pdev)
+static int __devinit twlreg_probe(struct platform_device *pdev)
 {
 	int				i;
 	struct twlreg_info		*info;

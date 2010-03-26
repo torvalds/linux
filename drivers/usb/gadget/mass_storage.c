@@ -135,6 +135,12 @@ FSG_MODULE_PARAMETERS(/* no prefix */, mod_data);
 static unsigned long msg_registered = 0;
 static void msg_cleanup(void);
 
+static int msg_thread_exits(struct fsg_common *common)
+{
+	msg_cleanup();
+	return 0;
+}
+
 static int __init msg_do_config(struct usb_configuration *c)
 {
 	struct fsg_common *common;
@@ -147,7 +153,7 @@ static int __init msg_do_config(struct usb_configuration *c)
 	}
 
 	fsg_config_from_params(&config, &mod_data);
-	config.thread_exits = (void(*)(struct fsg_common*))&msg_cleanup;
+	config.thread_exits = msg_thread_exits;
 	common = fsg_common_init(0, c->cdev, &config);
 	if (IS_ERR(common))
 		return PTR_ERR(common);

@@ -266,9 +266,9 @@ enum {
 #define DM_DEV_SET_GEOMETRY	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, struct dm_ioctl)
 
 #define DM_VERSION_MAJOR	4
-#define DM_VERSION_MINOR	16
+#define DM_VERSION_MINOR	17
 #define DM_VERSION_PATCHLEVEL	0
-#define DM_VERSION_EXTRA	"-ioctl (2009-11-05)"
+#define DM_VERSION_EXTRA	"-ioctl (2010-03-05)"
 
 /* Status bits */
 #define DM_READONLY_FLAG	(1 << 0) /* In/Out */
@@ -315,5 +315,10 @@ enum {
  * is set before using the data returned.
  */
 #define DM_QUERY_INACTIVE_TABLE_FLAG	(1 << 12) /* In */
+
+/*
+ * If set, a uevent was generated for which the caller may need to wait.
+ */
+#define DM_UEVENT_GENERATED_FLAG	(1 << 13) /* Out */
 
 #endif				/* _LINUX_DM_IOCTL_H */

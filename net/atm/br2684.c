@@ -6,6 +6,8 @@
  *          Eric Kinzie, 2006-2007, US Naval Research Laboratory
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -15,7 +17,7 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/ip.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/arp.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
@@ -26,20 +28,14 @@
 
 #include "common.h"
 
-#ifdef SKB_DEBUG
 static void skb_debug(const struct sk_buff *skb)
 {
+#ifdef SKB_DEBUG
 #define NUM2PRINT 50
-	char buf[NUM2PRINT * 3 + 1];	/* 3 chars per byte */
-	int i = 0;
-	for (i = 0; i < skb->len && i < NUM2PRINT; i++) {
-		sprintf(buf + i * 3, "%2.2x ", 0xff & skb->data[i]);
-	}
-	printk(KERN_DEBUG "br2684: skb: %s\n", buf);
-}
-#else
-#define skb_debug(skb)	do {} while (0)
+	print_hex_dump(KERN_DEBUG, "br2684: skb: ", DUMP_OFFSET,
+		       16, 1, skb->data, min(NUM2PRINT, skb->len), true);
 #endif
+}
 
 #define BR2684_ETHERTYPE_LEN	2
 #define BR2684_PAD_LEN		2
@@ -68,7 +64,7 @@ struct br2684_vcc {
 	struct atm_vcc *atmvcc;
 	struct net_device *device;
 	/* keep old push, pop functions for chaining */
-	void (*old_push) (struct atm_vcc * vcc, struct sk_buff * skb);
+	void (*old_push)(struct atm_vcc *vcc, struct sk_buff *skb);
 	void (*old_pop)(struct atm_vcc *vcc, struct sk_buff *skb);
 	enum br2684_encaps encaps;
 	struct list_head brvccs;
@@ -148,7 +144,7 @@ static void br2684_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct br2684_vcc *brvcc = BR2684_VCC(vcc);
 	struct net_device *net_dev = skb->dev;
 
-	pr_debug("br2684_pop(vcc %p ; net_dev %p )\n", vcc, net_dev);
+	pr_debug("(vcc %p ; net_dev %p )\n", vcc, net_dev);
 	brvcc->old_pop(vcc, skb);
 
 	if (!net_dev)
@@ -244,7 +240,7 @@ static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
 	struct br2684_dev *brdev = BRPRIV(dev);
 	struct br2684_vcc *brvcc;
 
-	pr_debug("br2684_start_xmit, skb_dst(skb)=%p\n", skb_dst(skb));
+	pr_debug("skb_dst(skb)=%p\n", skb_dst(skb));
 	read_lock(&devs_lock);
 	brvcc = pick_outgoing_vcc(skb, brdev);
 	if (brvcc == NULL) {
@@ -300,7 +296,8 @@ static int br2684_setfilt(struct atm_vcc *atmvcc, void __user * arg)
 		struct br2684_dev *brdev;
 		read_lock(&devs_lock);
 		brdev = BRPRIV(br2684_find_dev(&fs.ifspec));
-		if (brdev == NULL || list_empty(&brdev->brvccs) || brdev->brvccs.next != brdev->brvccs.prev)	/* >1 VCC */
+		if (brdev == NULL || list_empty(&brdev->brvccs) ||
+		    brdev->brvccs.next != brdev->brvccs.prev)	/* >1 VCC */
 			brvcc = NULL;
 		else
 			brvcc = list_entry_brvcc(brdev->brvccs.next);
@@ -352,7 +349,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	struct net_device *net_dev = brvcc->device;
 	struct br2684_dev *brdev = BRPRIV(net_dev);
 
-	pr_debug("br2684_push\n");
+	pr_debug("\n");
 
 	if (unlikely(skb == NULL)) {
 		/* skb==NULL means VCC is being destroyed */
@@ -376,29 +373,25 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			__skb_trim(skb, skb->len - 4);
 
 		/* accept packets that have "ipv[46]" in the snap header */
-		if ((skb->len >= (sizeof(llc_oui_ipv4)))
-		    &&
-		    (memcmp
-		     (skb->data, llc_oui_ipv4,
-		      sizeof(llc_oui_ipv4) - BR2684_ETHERTYPE_LEN) == 0)) {
-			if (memcmp
-			    (skb->data + 6, ethertype_ipv6,
-			     sizeof(ethertype_ipv6)) == 0)
+		if ((skb->len >= (sizeof(llc_oui_ipv4))) &&
+		    (memcmp(skb->data, llc_oui_ipv4,
+			    sizeof(llc_oui_ipv4) - BR2684_ETHERTYPE_LEN) == 0)) {
+			if (memcmp(skb->data + 6, ethertype_ipv6,
+				   sizeof(ethertype_ipv6)) == 0)
 				skb->protocol = htons(ETH_P_IPV6);
-			else if (memcmp
-				 (skb->data + 6, ethertype_ipv4,
-				  sizeof(ethertype_ipv4)) == 0)
+			else if (memcmp(skb->data + 6, ethertype_ipv4,
+					sizeof(ethertype_ipv4)) == 0)
 				skb->protocol = htons(ETH_P_IP);
 			else
 				goto error;
 			skb_pull(skb, sizeof(llc_oui_ipv4));
 			skb_reset_network_header(skb);
 			skb->pkt_type = PACKET_HOST;
-			/*
-			 * Let us waste some time for checking the encapsulation.
-			 * Note, that only 7 char is checked so frames with a valid FCS
-			 * are also accepted (but FCS is not checked of course).
-			 */
+		/*
+		 * Let us waste some time for checking the encapsulation.
+		 * Note, that only 7 char is checked so frames with a valid FCS
+		 * are also accepted (but FCS is not checked of course).
+		 */
 		} else if ((skb->len >= sizeof(llc_oui_pid_pad)) &&
 			   (memcmp(skb->data, llc_oui_pid_pad, 7) == 0)) {
 			skb_pull(skb, sizeof(llc_oui_pid_pad));
@@ -479,8 +472,7 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	write_lock_irq(&devs_lock);
 	net_dev = br2684_find_dev(&be.ifspec);
 	if (net_dev == NULL) {
-		printk(KERN_ERR
-		       "br2684: tried to attach to non-existant device\n");
+		pr_err("tried to attach to non-existant device\n");
 		err = -ENXIO;
 		goto error;
 	}
@@ -494,17 +486,16 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 		err = -EEXIST;
 		goto error;
 	}
-	if (be.fcs_in != BR2684_FCSIN_NO || be.fcs_out != BR2684_FCSOUT_NO ||
-	    be.fcs_auto || be.has_vpiid || be.send_padding || (be.encaps !=
-							       BR2684_ENCAPS_VC
-							       && be.encaps !=
-							       BR2684_ENCAPS_LLC)
-	    || be.min_size != 0) {
+	if (be.fcs_in != BR2684_FCSIN_NO ||
+	    be.fcs_out != BR2684_FCSOUT_NO ||
+	    be.fcs_auto || be.has_vpiid || be.send_padding ||
+	    (be.encaps != BR2684_ENCAPS_VC &&
+	     be.encaps != BR2684_ENCAPS_LLC) ||
+	    be.min_size != 0) {
 		err = -EINVAL;
 		goto error;
 	}
-	pr_debug("br2684_regvcc vcc=%p, encaps=%d, brvcc=%p\n", atmvcc,
-		 be.encaps, brvcc);
+	pr_debug("vcc=%p, encaps=%d, brvcc=%p\n", atmvcc, be.encaps, brvcc);
 	if (list_empty(&brdev->brvccs) && !brdev->mac_was_set) {
 		unsigned char *esi = atmvcc->dev->esi;
 		if (esi[0] | esi[1] | esi[2] | esi[3] | esi[4] | esi[5])
@@ -541,7 +532,8 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	}
 	__module_get(THIS_MODULE);
 	return 0;
-      error:
+
+error:
 	write_unlock_irq(&devs_lock);
 	kfree(brvcc);
 	return err;
@@ -587,7 +579,7 @@ static void br2684_setup_routed(struct net_device *netdev)
 	INIT_LIST_HEAD(&brdev->brvccs);
 }
 
-static int br2684_create(void __user * arg)
+static int br2684_create(void __user *arg)
 {
 	int err;
 	struct net_device *netdev;
@@ -595,11 +587,10 @@ static int br2684_create(void __user * arg)
 	struct atm_newif_br2684 ni;
 	enum br2684_payload payload;
 
-	pr_debug("br2684_create\n");
+	pr_debug("\n");
 
-	if (copy_from_user(&ni, arg, sizeof ni)) {
+	if (copy_from_user(&ni, arg, sizeof ni))
 		return -EFAULT;
-	}
 
 	if (ni.media & BR2684_FLAG_ROUTED)
 		payload = p_routed;
@@ -607,9 +598,8 @@ static int br2684_create(void __user * arg)
 		payload = p_bridged;
 	ni.media &= 0xffff;	/* strip flags */
 
-	if (ni.media != BR2684_MEDIA_ETHERNET || ni.mtu != 1500) {
+	if (ni.media != BR2684_MEDIA_ETHERNET || ni.mtu != 1500)
 		return -EINVAL;
-	}
 
 	netdev = alloc_netdev(sizeof(struct br2684_dev),
 			      ni.ifname[0] ? ni.ifname : "nas%d",
@@ -624,7 +614,7 @@ static int br2684_create(void __user * arg)
 	/* open, stop, do_ioctl ? */
 	err = register_netdev(netdev);
 	if (err < 0) {
-		printk(KERN_ERR "br2684_create: register_netdev failed\n");
+		pr_err("register_netdev failed\n");
 		free_netdev(netdev);
 		return err;
 	}

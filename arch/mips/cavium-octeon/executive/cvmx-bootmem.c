@@ -253,7 +253,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 	 * impossible requests up front. (NOP for address_min == 0)
 	 */
 	if (alignment)
-		address_min = __ALIGN_MASK(address_min, (alignment - 1));
+		address_min = ALIGN(address_min, alignment);
 
 	/*
 	 * Reject inconsistent args.  We have adjusted these, so this
@@ -291,7 +291,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 		 * satisfy request.
 		 */
 		usable_base =
-		    __ALIGN_MASK(max(address_min, ent_addr), alignment - 1);
+		    ALIGN(max(address_min, ent_addr), alignment);
 		usable_max = min(address_max, ent_addr + ent_size);
 		/*
 		 * We should be able to allocate block at address
@@ -671,7 +671,7 @@ int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr,
 	 * coallesced when they are freed.  The alloc routine does the
 	 * same rounding up on all allocations.
 	 */
-	size = __ALIGN_MASK(size, (CVMX_BOOTMEM_ALIGNMENT_SIZE - 1));
+	size = ALIGN(size, CVMX_BOOTMEM_ALIGNMENT_SIZE);
 
 	addr_allocated = cvmx_bootmem_phy_alloc(size, min_addr, max_addr,
 						alignment,

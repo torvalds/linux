@@ -11,10 +11,13 @@
  */
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/oprofile.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/smp.h>
+
+#include <asm/pmu.h>
 
 #include "op_counter.h"
 #include "op_arm_model.h"
@@ -295,7 +298,7 @@ static irqreturn_t armv7_pmnc_interrupt(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-int armv7_request_interrupts(int *irqs, int nr)
+int armv7_request_interrupts(const int *irqs, int nr)
 {
 	unsigned int i;
 	int ret = 0;
@@ -318,7 +321,7 @@ int armv7_request_interrupts(int *irqs, int nr)
 	return ret;
 }
 
-void armv7_release_interrupts(int *irqs, int nr)
+void armv7_release_interrupts(const int *irqs, int nr)
 {
 	unsigned int i;
 
@@ -362,12 +365,7 @@ static void armv7_pmnc_dump_regs(void)
 }
 #endif
 
-
-static int irqs[] = {
-#ifdef CONFIG_ARCH_OMAP3
-	INT_34XX_BENCH_MPU_EMUL,
-#endif
-};
+static const struct pmu_irqs *pmu_irqs;
 
 static void armv7_pmnc_stop(void)
 {
@@ -375,19 +373,29 @@ static void armv7_pmnc_stop(void)
 	armv7_pmnc_dump_regs();
 #endif
 	armv7_stop_pmnc();
-	armv7_release_interrupts(irqs, ARRAY_SIZE(irqs));
+	armv7_release_interrupts(pmu_irqs->irqs, pmu_irqs->num_irqs);
+	release_pmu(pmu_irqs);
+	pmu_irqs = NULL;
 }
 
 static int armv7_pmnc_start(void)
 {
 	int ret;
 
+	pmu_irqs = reserve_pmu();
+	if (IS_ERR(pmu_irqs))
+		return PTR_ERR(pmu_irqs);
+
 #ifdef DEBUG
 	armv7_pmnc_dump_regs();
 #endif
-	ret = armv7_request_interrupts(irqs, ARRAY_SIZE(irqs));
-	if (ret >= 0)
+	ret = armv7_request_interrupts(pmu_irqs->irqs, pmu_irqs->num_irqs);
+	if (ret >= 0) {
 		armv7_start_pmnc();
+	} else {
+		release_pmu(pmu_irqs);
+		pmu_irqs = NULL;
+	}
 
 	return ret;
 }

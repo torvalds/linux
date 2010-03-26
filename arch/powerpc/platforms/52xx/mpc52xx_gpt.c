@@ -553,7 +553,7 @@ static ssize_t mpc52xx_wdt_write(struct file *file, const char __user *data,
 	return 0;
 }
 
-static struct watchdog_info mpc5200_wdt_info = {
+static const struct watchdog_info mpc5200_wdt_info = {
 	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity	= WDT_IDENTITY,
 };
@@ -711,7 +711,11 @@ static int __devinit mpc52xx_gpt_wdt_init(void)
 	return 0;
 }
 
-#define mpc52xx_gpt_wdt_setup(x, y)		(0)
+static inline int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
+					const u32 *period)
+{
+	return 0;
+}
 
 #endif	/*  CONFIG_MPC5200_WDT	*/
 
