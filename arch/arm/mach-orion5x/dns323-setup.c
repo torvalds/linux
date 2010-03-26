@@ -263,8 +263,7 @@ static struct gpio_led dns323_leds[] = {
 	{
 		.name = "power:blue",
 		.gpio = DNS323_GPIO_LED_POWER2,
-		.default_trigger = "timer",
-		.active_low = 1,
+		.default_trigger = "default-on",
 	}, {
 		.name = "right:amber",
 		.gpio = DNS323_GPIO_LED_RIGHT_AMBER,
