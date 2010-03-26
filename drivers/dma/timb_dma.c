@@ -79,7 +79,10 @@ struct timb_dma_desc {
 struct timb_dma_chan {
 	struct dma_chan		chan;
 	void __iomem		*membase;
-	spinlock_t		lock; /* Used for mutual exclusion */
+	spinlock_t		lock; /* Used to protect data structures,
+					especially the lists and descriptors,
+					from races between the tasklet and calls
+					from above */
 	dma_cookie_t		last_completed_cookie;
 	bool			ongoing;
 	struct list_head	active_list;
@@ -197,7 +200,7 @@ static int td_fill_desc(struct timb_dma_chan *td_chan, u8 *dma_desc,
 	}
 
 	dev_dbg(chan2dev(&td_chan->chan), "desc: %p, addr: %p\n",
-		dma_desc, (void *)(int)sg_dma_address(sg));
+		dma_desc, (void *)sg_dma_address(sg));
 
 	dma_desc[7] = (sg_dma_address(sg) >> 24) & 0xff;
 	dma_desc[6] = (sg_dma_address(sg) >> 16) & 0xff;
