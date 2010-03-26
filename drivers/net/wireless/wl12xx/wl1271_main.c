@@ -2143,7 +2143,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	struct platform_device *plat_dev = NULL;
 	struct wl1271 *wl;
 	int i, ret;
-	static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1271_ops);
 	if (!hw) {
@@ -2194,13 +2193,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	wl->state = WL1271_STATE_OFF;
 	mutex_init(&wl->mutex);
-
-	/*
-	 * FIXME: we should use a zero MAC address here, but for now we
-	 * generate a random Nokia address.
-	 */
-	memcpy(wl->mac_addr, nokia_oui, 3);
-	get_random_bytes(wl->mac_addr + 3, 3);
 
 	/* Apply default driver configuration. */
 	wl1271_conf_init(wl);
