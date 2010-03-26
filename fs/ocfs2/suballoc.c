@@ -86,8 +86,7 @@ static int ocfs2_block_group_search(struct inode *inode,
 				    u32 bits_wanted, u32 min_bits,
 				    u64 max_block,
 				    struct ocfs2_suballoc_result *res);
-static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
-				     struct ocfs2_alloc_context *ac,
+static int ocfs2_claim_suballoc_bits(struct ocfs2_alloc_context *ac,
 				     handle_t *handle,
 				     u32 bits_wanted,
 				     u32 min_bits,
@@ -1764,8 +1763,7 @@ bail:
 }
 
 /* will give out up to bits_wanted contiguous bits. */
-static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
-				     struct ocfs2_alloc_context *ac,
+static int ocfs2_claim_suballoc_bits(struct ocfs2_alloc_context *ac,
 				     handle_t *handle,
 				     u32 bits_wanted,
 				     u32 min_bits,
@@ -1791,7 +1789,8 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 
 	if (le32_to_cpu(fe->id1.bitmap1.i_used) >=
 	    le32_to_cpu(fe->id1.bitmap1.i_total)) {
-		ocfs2_error(osb->sb, "Chain allocator dinode %llu has %u used "
+		ocfs2_error(ac->ac_inode->i_sb,
+			    "Chain allocator dinode %llu has %u used "
 			    "bits but only %u total.",
 			    (unsigned long long)le64_to_cpu(fe->i_blkno),
 			    le32_to_cpu(fe->id1.bitmap1.i_used),
@@ -1887,8 +1886,7 @@ int ocfs2_claim_metadata(struct ocfs2_super *osb,
 	BUG_ON(ac->ac_bits_wanted < (ac->ac_bits_given + bits_wanted));
 	BUG_ON(ac->ac_which != OCFS2_AC_USE_META);
 
-	status = ocfs2_claim_suballoc_bits(osb,
-					   ac,
+	status = ocfs2_claim_suballoc_bits(ac,
 					   handle,
 					   bits_wanted,
 					   1,
@@ -1960,8 +1958,7 @@ int ocfs2_claim_new_inode(struct ocfs2_super *osb,
 
 	ocfs2_init_inode_ac_group(dir, parent_fe_bh, ac);
 
-	status = ocfs2_claim_suballoc_bits(osb,
-					   ac,
+	status = ocfs2_claim_suballoc_bits(ac,
 					   handle,
 					   1,
 					   1,
@@ -2089,8 +2086,7 @@ int __ocfs2_claim_clusters(struct ocfs2_super *osb,
 		if (bits_wanted > (osb->bitmap_cpg - 1))
 			bits_wanted = osb->bitmap_cpg - 1;
 
-		status = ocfs2_claim_suballoc_bits(osb,
-						   ac,
+		status = ocfs2_claim_suballoc_bits(ac,
 						   handle,
 						   bits_wanted,
 						   min_clusters,
