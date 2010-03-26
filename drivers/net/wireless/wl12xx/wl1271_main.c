@@ -1575,6 +1575,15 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
+	if ((changed && BSS_CHANGED_BEACON_INT) &&
+	    (wl->bss_type == BSS_TYPE_IBSS)) {
+		wl1271_debug(DEBUG_ADHOC, "ad-hoc beacon interval updated: %d",
+			bss_conf->beacon_int);
+
+		wl->beacon_int = bss_conf->beacon_int;
+		do_join = true;
+	}
+
 	if ((changed && BSS_CHANGED_BEACON) &&
 	    (wl->bss_type == BSS_TYPE_IBSS)) {
 		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
@@ -2193,6 +2202,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
 	wl->channel = WL1271_DEFAULT_CHANNEL;
+	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
 	wl->default_key = 0;
 	wl->rx_counter = 0;
 	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;

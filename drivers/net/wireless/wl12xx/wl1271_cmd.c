@@ -323,7 +323,7 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 						   CONF_HW_BIT_RATE_24MBPS);
 	}
 
-	join->beacon_interval = cpu_to_le16(WL1271_DEFAULT_BEACON_INT);
+	join->beacon_interval = cpu_to_le16(wl->beacon_int);
 	join->dtim_interval = WL1271_DEFAULT_DTIM_PERIOD;
 
 	join->channel = wl->channel;

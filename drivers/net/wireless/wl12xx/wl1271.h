@@ -452,6 +452,9 @@ struct wl1271 {
 	/* The current band */
 	enum ieee80211_band band;
 
+	/* Beaconing interval (needed for ad-hoc) */
+	u32 beacon_int;
+
 	/* Default key (for WEP) */
 	u32 default_key;
 
