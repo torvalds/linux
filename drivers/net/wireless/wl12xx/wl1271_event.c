@@ -82,15 +82,8 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 						 true);
 		} else {
 			wl1271_error("PSM entry failed, giving up.\n");
-			/* FIXME: this may need to be reconsidered. for now it
-			   is not possible to indicate to the mac80211
-			   afterwards that PSM entry failed. To maximize
-			   functionality (receiving data and remaining
-			   associated) make sure that we are in sync with the
-			   AP in regard of PSM mode. */
-			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-						 false);
 			wl->psm_entry_retry = 0;
+			*beacon_loss = true;
 		}
 		break;
 	case EVENT_ENTER_POWER_SAVE_SUCCESS:
@@ -180,16 +173,8 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			return ret;
 	}
 
-	if (wl->vif && beacon_loss) {
-		/* Obviously, it's dangerous to release the mutex while
-		   we are holding many of the variables in the wl struct.
-		   That's why it's done last in the function, and care must
-		   be taken that nothing more is done after this function
-		   returns. */
-		mutex_unlock(&wl->mutex);
-		ieee80211_beacon_loss(wl->vif);
-		mutex_lock(&wl->mutex);
-	}
+	if (wl->vif && beacon_loss)
+		ieee80211_connection_loss(wl->vif);
 
 	return 0;
 }
