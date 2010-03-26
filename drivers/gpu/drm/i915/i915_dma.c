@@ -1758,6 +1758,8 @@ int i915_driver_unload(struct drm_device *dev)
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		intel_modeset_cleanup(dev);
+
 		/*
 		 * free the memory space allocated for the child device
 		 * config parsed from VBT
@@ -1781,8 +1783,6 @@ int i915_driver_unload(struct drm_device *dev)
 	intel_opregion_free(dev, 0);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		intel_modeset_cleanup(dev);
-
 		i915_gem_free_all_phys_object(dev);
 
 		mutex_lock(&dev->struct_mutex);
