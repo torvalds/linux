@@ -1579,6 +1579,48 @@ out:
 	return ret;
 }
 
+static int ocfs2_bg_discontig_trim_by_rec(struct ocfs2_suballoc_result *res,
+					  struct ocfs2_extent_rec *rec,
+					  struct ocfs2_chain_list *cl)
+{
+	unsigned int bpc = le16_to_cpu(cl->cl_bpc);
+	unsigned int bitoff = le32_to_cpu(rec->e_cpos) * bpc;
+	unsigned int bitcount = le32_to_cpu(rec->e_leaf_clusters) * bpc;
+
+	if (res->sr_bit_offset < bitoff)
+		return 0;
+	if (res->sr_bit_offset >= (bitoff + bitcount))
+		return 0;
+	if ((res->sr_bit_offset + res->sr_bits) > (bitoff + bitcount))
+		res->sr_bits = (bitoff + bitcount) - res->sr_bit_offset;
+	return 1;
+}
+
+static void ocfs2_bg_discontig_trim_result(struct ocfs2_alloc_context *ac,
+					   struct ocfs2_group_desc *bg,
+					   struct ocfs2_suballoc_result *res)
+{
+	int i;
+	struct ocfs2_extent_rec *rec;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)ac->ac_bh->b_data;
+	struct ocfs2_chain_list *cl = &di->id2.i_chain;
+
+	if (!ocfs2_supports_discontig_bh(OCFS2_SB(ac->ac_inode->i_sb)))
+		return;
+
+	if (ocfs2_is_cluster_bitmap(ac->ac_inode))
+		return;
+
+	if (!bg->bg_list.l_next_free_rec)
+		return;
+
+	for (i = 0; i < le16_to_cpu(bg->bg_list.l_next_free_rec); i++) {
+		rec = &bg->bg_list.l_recs[i];
+		if (ocfs2_bg_discontig_trim_by_rec(res, rec, cl))
+			break;
+	}
+}
+
 static int ocfs2_search_one_group(struct ocfs2_alloc_context *ac,
 				  handle_t *handle,
 				  u32 bits_wanted,
@@ -1607,6 +1649,9 @@ static int ocfs2_search_one_group(struct ocfs2_alloc_context *ac,
 			mlog_errno(ret);
 		goto out;
 	}
+
+	if (!ret)
+		ocfs2_bg_discontig_trim_result(ac, gd, res);
 
 	ret = ocfs2_alloc_dinode_update_counts(alloc_inode, handle, ac->ac_bh,
 					       res->sr_bits,
@@ -1697,6 +1742,9 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	res->sr_bg_blkno = le64_to_cpu(bg->bg_blkno);
 
 	BUG_ON(res->sr_bits == 0);
+	if (!status)
+		ocfs2_bg_discontig_trim_result(ac, bg, res);
+
 
 	/*
 	 * Keep track of previous block descriptor read. When
