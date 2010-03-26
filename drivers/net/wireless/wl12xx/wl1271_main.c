@@ -1596,7 +1596,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			wl1271_ssid_set(wl, beacon);
 			ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON,
 						      beacon->data,
-						      beacon->len);
+						      beacon->len, 0);
 
 			if (ret < 0) {
 				dev_kfree_skb(beacon);
@@ -1611,7 +1611,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			ret = wl1271_cmd_template_set(wl,
 						      CMD_TEMPL_PROBE_RESPONSE,
 						      beacon->data,
-						      beacon->len);
+						      beacon->len, 0);
 			dev_kfree_skb(beacon);
 			if (ret < 0)
 				goto out_sleep;

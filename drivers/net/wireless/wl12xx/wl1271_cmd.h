@@ -45,13 +45,14 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 		    const u8 *ie, size_t ie_len, u8 active_scan,
 		    u8 high_prio, u8 band, u8 probe_requests);
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
-			    void *buf, size_t buf_len);
+			    void *buf, size_t buf_len, int index);
 int wl1271_cmd_build_null_data(struct wl1271 *wl);
 int wl1271_cmd_build_ps_poll(struct wl1271 *wl, u16 aid);
 int wl1271_cmd_build_probe_req(struct wl1271 *wl,
 			       const u8 *ssid, size_t ssid_len,
 			       const u8 *ie, size_t ie_len, u8 band);
 int wl1271_build_qos_null_data(struct wl1271 *wl);
+int wl1271_cmd_build_klv_null_data(struct wl1271 *wl);
 int wl1271_cmd_set_default_wep_key(struct wl1271 *wl, u8 id);
 int wl1271_cmd_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 		       u8 key_size, const u8 *key, const u8 *addr,
@@ -100,6 +101,11 @@ enum wl1271_commands {
 };
 
 #define MAX_CMD_PARAMS 572
+
+enum {
+	CMD_TEMPL_KLV_IDX_NULL_DATA = 0,
+	CMD_TEMPL_KLV_IDX_MAX = 4
+};
 
 enum cmd_templ {
 	CMD_TEMPL_NULL_DATA = 0,

@@ -51,49 +51,62 @@ static int wl1271_init_hwenc_config(struct wl1271 *wl)
 
 int wl1271_init_templates_config(struct wl1271 *wl)
 {
-	int ret;
+	int ret, i;
 
 	/* send empty templates for fw memory reservation */
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4, NULL,
-				      sizeof(struct wl12xx_probe_req_template));
+				      sizeof(struct wl12xx_probe_req_template),
+				      0);
 	if (ret < 0)
 		return ret;
 
 	if (wl1271_11a_enabled()) {
+		size_t size = sizeof(struct wl12xx_probe_req_template);
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
-				NULL,
-				sizeof(struct wl12xx_probe_req_template));
+					      NULL, size, 0);
 		if (ret < 0)
 			return ret;
 	}
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, NULL,
-				      sizeof(struct wl12xx_null_data_template));
+				      sizeof(struct wl12xx_null_data_template),
+				      0);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PS_POLL, NULL,
-				      sizeof(struct wl12xx_ps_poll_template));
+				      sizeof(struct wl12xx_ps_poll_template),
+				      0);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, NULL,
 				      sizeof
-				      (struct wl12xx_qos_null_data_template));
+				      (struct wl12xx_qos_null_data_template),
+				      0);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PROBE_RESPONSE, NULL,
 				      sizeof
-				      (struct wl12xx_probe_resp_template));
+				      (struct wl12xx_probe_resp_template),
+				      0);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON, NULL,
 				      sizeof
-				      (struct wl12xx_beacon_template));
+				      (struct wl12xx_beacon_template),
+				      0);
 	if (ret < 0)
 		return ret;
+
+	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
+		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_KLV, NULL,
+					      WL1271_CMD_TEMPL_MAX_SIZE, i);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
