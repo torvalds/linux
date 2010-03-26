@@ -2577,7 +2577,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	/* initialize chip */
 	azx_init_pci(chip);
-	azx_init_chip(chip, model[dev] == NULL || strcmp(model[dev], "hwio"));
+	azx_init_chip(chip, (probe_only[dev] & 2) == 0);
 
 	/* codec detection */
 	if (!chip->codec_mask) {
@@ -2666,7 +2666,7 @@ static int __devinit azx_probe(struct pci_dev *pci,
 			goto out_free;
 	}
 #endif
-	if (!probe_only[dev]) {
+	if ((probe_only[dev] & 1) == 0) {
 		err = azx_codec_configure(chip);
 		if (err < 0)
 			goto out_free;

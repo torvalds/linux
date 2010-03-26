@@ -609,15 +609,11 @@ int /*__devinit*/ snd_hda_bus_new(struct snd_card *card,
 }
 EXPORT_SYMBOL_HDA(snd_hda_bus_new);
 
-#define is_hwio_config(codec) \
-	(codec->modelname && !strcmp(codec->modelname, "hwio"))
 #ifdef CONFIG_SND_HDA_GENERIC
 #define is_generic_config(codec) \
-	((codec->modelname && !strcmp(codec->modelname, "generic")) || \
-	 is_hwio_config(codec))
+	(codec->modelname && !strcmp(codec->modelname, "generic"))
 #else
-#define is_generic_config(codec) \
-	is_hwio_config(codec)
+#define is_generic_config(codec)	0
 #endif
 
 #ifdef MODULE
@@ -1117,8 +1113,6 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 	}
 
 	if (is_generic_config(codec)) {
-		if (is_hwio_config(codec))
-			goto patched;
 		err = snd_hda_parse_generic_codec(codec);
 		goto patched;
 	}
