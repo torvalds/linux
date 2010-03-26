@@ -451,11 +451,15 @@ int wl1271_boot(struct wl1271 *wl)
 
 	if (REF_CLOCK != 0) {
 		u16 val;
-		/* Set clock type */
+		/* Set clock type (open drain) */
 		val = wl1271_top_reg_read(wl, OCP_REG_CLK_TYPE);
 		val &= FREF_CLK_TYPE_BITS;
-		val |= CLK_REQ_PRCM;
 		wl1271_top_reg_write(wl, OCP_REG_CLK_TYPE, val);
+
+		/* Set clock pull mode (no pull) */
+		val = wl1271_top_reg_read(wl, OCP_REG_CLK_PULL);
+		val |= NO_PULL;
+		wl1271_top_reg_write(wl, OCP_REG_CLK_PULL, val);
 	} else {
 		u16 val;
 		/* Set clock polarity */
