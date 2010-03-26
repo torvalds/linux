@@ -454,7 +454,7 @@ int wl1271_cmd_data_path(struct wl1271 *wl, bool enable)
 	if (ret < 0) {
 		wl1271_error("tx %s cmd for channel %d failed",
 			     enable ? "start" : "stop", cmd->channel);
-		return ret;
+		goto out;
 	}
 
 	wl1271_debug(DEBUG_BOOT, "tx %s cmd channel %d",
