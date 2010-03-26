@@ -86,7 +86,7 @@ void qmgr_release_queue(unsigned int queue);
 
 static inline void qmgr_put_entry(unsigned int queue, u32 val)
 {
-	extern struct qmgr_regs __iomem *qmgr_regs;
+	const struct qmgr_regs __iomem *qmgr_regs = (void __iomem *)IXP4XX_QMGR_BASE_VIRT;
 #if DEBUG_QMGR
 	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
 
@@ -99,7 +99,7 @@ static inline void qmgr_put_entry(unsigned int queue, u32 val)
 static inline u32 qmgr_get_entry(unsigned int queue)
 {
 	u32 val;
-	extern struct qmgr_regs __iomem *qmgr_regs;
+	const struct qmgr_regs __iomem *qmgr_regs = (void __iomem *)IXP4XX_QMGR_BASE_VIRT;
 	val = __raw_readl(&qmgr_regs->acc[queue][0]);
 #if DEBUG_QMGR
 	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
@@ -112,14 +112,14 @@ static inline u32 qmgr_get_entry(unsigned int queue)
 
 static inline int __qmgr_get_stat1(unsigned int queue)
 {
-	extern struct qmgr_regs __iomem *qmgr_regs;
+	const struct qmgr_regs __iomem *qmgr_regs = (void __iomem *)IXP4XX_QMGR_BASE_VIRT;
 	return (__raw_readl(&qmgr_regs->stat1[queue >> 3])
 		>> ((queue & 7) << 2)) & 0xF;
 }
 
 static inline int __qmgr_get_stat2(unsigned int queue)
 {
-	extern struct qmgr_regs __iomem *qmgr_regs;
+	const struct qmgr_regs __iomem *qmgr_regs = (void __iomem *)IXP4XX_QMGR_BASE_VIRT;
 	BUG_ON(queue >= HALF_QUEUES);
 	return (__raw_readl(&qmgr_regs->stat2[queue >> 4])
 		>> ((queue & 0xF) << 1)) & 0x3;
@@ -145,7 +145,7 @@ static inline int qmgr_stat_empty(unsigned int queue)
  */
 static inline int qmgr_stat_below_low_watermark(unsigned int queue)
 {
-	extern struct qmgr_regs __iomem *qmgr_regs;
+	const struct qmgr_regs __iomem *qmgr_regs = (void __iomem *)IXP4XX_QMGR_BASE_VIRT;
 	if (queue >= HALF_QUEUES)
 		return (__raw_readl(&qmgr_regs->statne_h) >>
 			(queue - HALF_QUEUES)) & 0x01;
@@ -172,7 +172,7 @@ static inline int qmgr_stat_above_high_watermark(unsigned int queue)
  */
 static inline int qmgr_stat_full(unsigned int queue)
 {
-	extern struct qmgr_regs __iomem *qmgr_regs;
+	const struct qmgr_regs __iomem *qmgr_regs = (void __iomem *)IXP4XX_QMGR_BASE_VIRT;
 	if (queue >= HALF_QUEUES)
 		return (__raw_readl(&qmgr_regs->statf_h) >>
 			(queue - HALF_QUEUES)) & 0x01;

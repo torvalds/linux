@@ -67,6 +67,11 @@ static struct map_desc ixp4xx_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(IXP4XX_PCI_CFG_BASE_PHYS),
 		.length		= IXP4XX_PCI_CFG_REGION_SIZE,
 		.type		= MT_DEVICE
+	}, {	/* Queue Manager */
+		.virtual	= (unsigned long)IXP4XX_QMGR_BASE_VIRT,
+		.pfn		= __phys_to_pfn(IXP4XX_QMGR_BASE_PHYS),
+		.length		= IXP4XX_QMGR_REGION_SIZE,
+		.type		= MT_DEVICE
 	},
 #ifdef CONFIG_DEBUG_LL
 	{	/* Debug UART mapping */
