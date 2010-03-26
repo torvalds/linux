@@ -523,12 +523,6 @@ static int ocfs2_block_group_grow_discontig(handle_t *handle,
 
 	while ((needed > 0) && (le16_to_cpu(el->l_next_free_rec) <
 				le16_to_cpu(el->l_count))) {
-		status = ocfs2_extend_trans(handle, OCFS2_SUBALLOC_ALLOC);
-		if (status) {
-			mlog_errno(status);
-			goto bail;
-		}
-
 		if (min_bits > needed)
 			min_bits = needed;
 		status = ocfs2_block_group_claim_bits(osb, handle, ac,
@@ -556,11 +550,12 @@ bail:
 	return status;
 }
 
-static void ocfs2_bg_alloc_cleanup(struct inode *alloc_inode,
-				   struct buffer_head *bg_bh,
-				   struct ocfs2_cached_dealloc_ctxt *dealloc)
+static void ocfs2_bg_alloc_cleanup(handle_t *handle,
+				   struct ocfs2_alloc_context *cluster_ac,
+				   struct inode *alloc_inode,
+				   struct buffer_head *bg_bh)
 {
-	int i;
+	int i, ret;
 	struct ocfs2_group_desc *bg;
 	struct ocfs2_extent_list *el;
 	struct ocfs2_extent_rec *rec;
@@ -572,9 +567,13 @@ static void ocfs2_bg_alloc_cleanup(struct inode *alloc_inode,
 	el = &bg->bg_list;
 	for (i = 0; i < le16_to_cpu(el->l_next_free_rec); i++) {
 		rec = &el->l_recs[i];
-		ocfs2_cache_cluster_dealloc(dealloc,
-					    le64_to_cpu(rec->e_blkno),
-					    le32_to_cpu(rec->e_leaf_clusters));
+		ret = ocfs2_free_clusters(handle, cluster_ac->ac_inode,
+					  cluster_ac->ac_bh,
+					  le64_to_cpu(rec->e_blkno),
+					  le32_to_cpu(rec->e_leaf_clusters));
+		if (ret)
+			mlog_errno(ret);
+		/* Try all the clusters to free */
 	}
 
 	ocfs2_remove_from_cache(INODE_CACHE(alloc_inode), bg_bh);
@@ -585,8 +584,7 @@ static struct buffer_head *
 ocfs2_block_group_alloc_discontig(handle_t *handle,
 				  struct inode *alloc_inode,
 				  struct ocfs2_alloc_context *ac,
-				  struct ocfs2_chain_list *cl,
-				  struct ocfs2_cached_dealloc_ctxt *dealloc)
+				  struct ocfs2_chain_list *cl)
 {
 	int status;
 	u32 bit_off, num_bits;
@@ -598,6 +596,13 @@ ocfs2_block_group_alloc_discontig(handle_t *handle,
 
 	if (!ocfs2_supports_discontig_bh(osb)) {
 		status = -ENOSPC;
+		goto bail;
+	}
+
+	status = ocfs2_extend_trans(handle,
+				    ocfs2_calc_bg_discontig_credits(osb->sb));
+	if (status) {
+		mlog_errno(status);
 		goto bail;
 	}
 
@@ -638,7 +643,7 @@ ocfs2_block_group_alloc_discontig(handle_t *handle,
 
 bail:
 	if (status)
-		ocfs2_bg_alloc_cleanup(alloc_inode, bg_bh, dealloc);
+		ocfs2_bg_alloc_cleanup(handle, ac, alloc_inode, bg_bh);
 	return status ? ERR_PTR(status) : bg_bh;
 }
 
@@ -660,13 +665,10 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 	u64 bg_blkno;
 	struct buffer_head *bg_bh = NULL;
 	struct ocfs2_group_desc *bg;
-	struct ocfs2_cached_dealloc_ctxt dealloc;
 
 	BUG_ON(ocfs2_is_cluster_bitmap(alloc_inode));
 
 	mlog_entry_void();
-
-	ocfs2_init_dealloc_ctxt(&dealloc);
 
 	cl = &fe->id2.i_chain;
 	status = ocfs2_reserve_clusters_with_limit(osb,
@@ -699,8 +701,7 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 	if (IS_ERR(bg_bh) && (PTR_ERR(bg_bh) == -ENOSPC))
 		bg_bh = ocfs2_block_group_alloc_discontig(handle,
 							  alloc_inode,
-							  ac, cl,
-							  &dealloc);
+							  ac, cl);
 	if (IS_ERR(bg_bh)) {
 		status = PTR_ERR(bg_bh);
 		bg_bh = NULL;
@@ -749,11 +750,6 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 bail:
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
-
-	if (ocfs2_dealloc_has_cluster(&dealloc)) {
-		ocfs2_schedule_truncate_log_flush(osb, 1);
-		ocfs2_run_deallocs(osb, &dealloc);
-	}
 
 	if (ac)
 		ocfs2_free_alloc_context(ac);

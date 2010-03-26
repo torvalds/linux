@@ -561,6 +561,18 @@ static inline int ocfs2_calc_group_alloc_credits(struct super_block *sb,
 	return blocks;
 }
 
+/*
+ * Allocating a discontiguous block group requires the credits from
+ * ocfs2_calc_group_alloc_credits() as well as enough credits to fill
+ * the group descriptor's extent list.  The caller already has started
+ * the transaction with ocfs2_calc_group_alloc_credits().  They extend
+ * it with these credits.
+ */
+static inline int ocfs2_calc_bg_discontig_credits(struct super_block *sb)
+{
+	return ocfs2_extent_recs_per_gd(sb);
+}
+
 static inline int ocfs2_calc_tree_trunc_credits(struct super_block *sb,
 						unsigned int clusters_to_del,
 						struct ocfs2_dinode *fe,
