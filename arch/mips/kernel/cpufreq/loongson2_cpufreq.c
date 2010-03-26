@@ -65,7 +65,7 @@ static int loongson2_cpufreq_target(struct cpufreq_policy *policy,
 		return -ENODEV;
 
 	cpus_allowed = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	if (cpufreq_frequency_table_target
 	    (policy, &loongson2_clockmod_table[0], target_freq, relation,
@@ -91,7 +91,7 @@ static int loongson2_cpufreq_target(struct cpufreq_policy *policy,
 	/* notifiers */
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
-	set_cpus_allowed(current, cpus_allowed);
+	set_cpus_allowed_ptr(current, &cpus_allowed);
 
 	/* setting the cpu frequency */
 	clk_set_rate(cpuclk, freq);
