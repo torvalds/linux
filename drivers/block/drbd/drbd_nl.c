@@ -1477,7 +1477,6 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 {
 	struct resize rs;
 	int retcode = NO_ERROR;
-	int ldsc = 0; /* local disk size changed */
 	enum determine_dev_size dd;
 	enum dds_flags ddsf;
 
@@ -1508,10 +1507,8 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		goto fail;
 	}
 
-	if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev)) {
+	if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev))
 		mdev->ldev->known_size = drbd_get_capacity(mdev->ldev->backing_bdev);
-		ldsc = 1;
-	}
 
 	mdev->ldev->dc.disk_size = (sector_t)rs.resize_size;
 	ddsf = (rs.resize_force ? DDSF_FORCED : 0) | (rs.no_resync ? DDSF_NO_RESYNC : 0);
@@ -1523,7 +1520,7 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		goto fail;
 	}
 
-	if (mdev->state.conn == C_CONNECTED && (dd != unchanged || ldsc)) {
+	if (mdev->state.conn == C_CONNECTED) {
 		if (dd == grew)
 			set_bit(RESIZE_PENDING, &mdev->flags);
 
