@@ -589,3 +589,10 @@ Why:	Useful in 2003, implementation is a hack.
 	Generally invoked by accident today.
 	Seen as doing more harm than good.
 Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
+What:	IRQF_DISABLED
+When:	2.6.36
+Why:	The flag is a NOOP as we run interrupt handlers with interrupts disabled
+Who:	Thomas Gleixner <tglx@linutronix.de>
