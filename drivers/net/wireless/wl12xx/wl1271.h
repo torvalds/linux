@@ -147,14 +147,7 @@ struct wl1271_nvs_file {
  */
 #undef WL1271_80211A_ENABLED
 
-/*
- * FIXME: for the wl1271, a busy word count of 1 here will result in a more
- * optimal SPI interface. There is some SPI bug however, causing RXS time outs
- * with this mode occasionally on boot, so lets have three for now. A value of
- * three should make sure, that the chipset will always be ready, though this
- * will impact throughput and latencies slightly.
- */
-#define WL1271_BUSY_WORD_CNT 3
+#define WL1271_BUSY_WORD_CNT 1
 #define WL1271_BUSY_WORD_LEN (WL1271_BUSY_WORD_CNT * sizeof(u32))
 
 #define WL1271_ELP_HW_STATE_ASLEEP 0
