@@ -1584,6 +1584,7 @@ static int __devexit dac33_i2c_remove(struct i2c_client *client)
 	if (dac33->irq >= 0)
 		free_irq(dac33->irq, &dac33->codec);
 
+	regulator_bulk_disable(ARRAY_SIZE(dac33->supplies), dac33->supplies);
 	regulator_bulk_free(ARRAY_SIZE(dac33->supplies), dac33->supplies);
 
 	destroy_workqueue(dac33->dac33_wq);
