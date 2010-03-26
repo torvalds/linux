@@ -578,7 +578,7 @@ ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
 			break;
 	}
 
-	list_add(&ifp->if_list, p);
+	list_add_tail(&ifp->if_list, p);
 }
 
 static u32 ipv6_addr_hash(const struct in6_addr *addr)
