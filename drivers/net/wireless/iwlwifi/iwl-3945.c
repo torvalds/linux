@@ -2770,6 +2770,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2789,6 +2790,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 DEFINE_PCI_DEVICE_TABLE(iwl3945_hw_card_ids) = {

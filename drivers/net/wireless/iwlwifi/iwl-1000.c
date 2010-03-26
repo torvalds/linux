@@ -253,6 +253,7 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 128,
 };
 
 struct iwl_cfg iwl1000_bg_cfg = {
@@ -282,6 +283,7 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 128,
 };
 
 MODULE_FIRMWARE(IWL1000_MODULE_FIRMWARE(IWL1000_UCODE_API_MAX));
