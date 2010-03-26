@@ -472,14 +472,15 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 	int status = 0;
 	struct ocfs2_dinode *fe = NULL;
 	struct ocfs2_extent_list *fel;
-	u64 fe_blkno = 0;
+	u64 suballoc_loc, fe_blkno = 0;
 	u16 suballoc_bit;
 	u16 feat;
 
 	*new_fe_bh = NULL;
 
 	status = ocfs2_claim_new_inode(handle, dir, parent_fe_bh,
-				       inode_ac, &suballoc_bit, &fe_blkno);
+				       inode_ac, &suballoc_loc,
+				       &suballoc_bit, &fe_blkno);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;
@@ -516,6 +517,7 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 	fe->i_generation = cpu_to_le32(inode->i_generation);
 	fe->i_fs_generation = cpu_to_le32(osb->fs_generation);
 	fe->i_blkno = cpu_to_le64(fe_blkno);
+	fe->i_suballoc_loc = cpu_to_le64(suballoc_loc);
 	fe->i_suballoc_bit = cpu_to_le16(suballoc_bit);
 	fe->i_suballoc_slot = cpu_to_le16(inode_ac->ac_alloc_slot);
 	fe->i_uid = cpu_to_le32(inode->i_uid);

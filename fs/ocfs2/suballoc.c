@@ -54,7 +54,9 @@
 #define OCFS2_MAX_TO_STEAL		1024
 
 struct ocfs2_suballoc_result {
-	u64		sr_bg_blkno;	/* The bg we allocated from */
+	u64		sr_bg_blkno;	/* The bg we allocated from.  Set
+					   to 0 when a block group is
+					   contiguous. */
 	u64		sr_blkno;	/* The first allocated block */
 	unsigned int	sr_bit_offset;	/* The bit in the bg */
 	unsigned int	sr_bits;	/* How many bits we claimed */
@@ -1604,6 +1606,7 @@ static void ocfs2_bg_discontig_fix_result(struct ocfs2_alloc_context *ac,
 					  struct ocfs2_suballoc_result *res)
 {
 	int i;
+	u64 bg_blkno = res->sr_bg_blkno;  /* Save off */
 	struct ocfs2_extent_rec *rec;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)ac->ac_bh->b_data;
 	struct ocfs2_chain_list *cl = &di->id2.i_chain;
@@ -1614,14 +1617,17 @@ static void ocfs2_bg_discontig_fix_result(struct ocfs2_alloc_context *ac,
 	}
 
 	res->sr_blkno = res->sr_bg_blkno + res->sr_bit_offset;
+	res->sr_bg_blkno = 0;  /* Clear it for contig block groups */
 	if (!ocfs2_supports_discontig_bh(OCFS2_SB(ac->ac_inode->i_sb)) ||
 	    !bg->bg_list.l_next_free_rec)
 		return;
 
 	for (i = 0; i < le16_to_cpu(bg->bg_list.l_next_free_rec); i++) {
 		rec = &bg->bg_list.l_recs[i];
-		if (ocfs2_bg_discontig_fix_by_rec(res, rec, cl))
+		if (ocfs2_bg_discontig_fix_by_rec(res, rec, cl)) {
+			res->sr_bg_blkno = bg_blkno;  /* Restore */
 			break;
+		}
 	}
 }
 
@@ -1926,6 +1932,7 @@ bail:
 int ocfs2_claim_metadata(handle_t *handle,
 			 struct ocfs2_alloc_context *ac,
 			 u32 bits_wanted,
+			 u64 *suballoc_loc,
 			 u16 *suballoc_bit_start,
 			 unsigned int *num_bits,
 			 u64 *blkno_start)
@@ -1948,6 +1955,7 @@ int ocfs2_claim_metadata(handle_t *handle,
 	}
 	atomic_inc(&OCFS2_SB(ac->ac_inode->i_sb)->alloc_stats.bg_allocs);
 
+	*suballoc_loc = res.sr_bg_blkno;
 	*suballoc_bit_start = res.sr_bit_offset;
 	*blkno_start = res.sr_blkno;
 	ac->ac_bits_given += res.sr_bits;
@@ -1993,11 +2001,12 @@ int ocfs2_claim_new_inode(handle_t *handle,
 			  struct inode *dir,
 			  struct buffer_head *parent_fe_bh,
 			  struct ocfs2_alloc_context *ac,
+			  u64 *suballoc_loc,
 			  u16 *suballoc_bit,
 			  u64 *fe_blkno)
 {
 	int status;
-	struct ocfs2_suballoc_result res = { .sr_blkno = 0, };
+	struct ocfs2_suballoc_result res;
 
 	mlog_entry_void();
 
@@ -2021,6 +2030,7 @@ int ocfs2_claim_new_inode(handle_t *handle,
 
 	BUG_ON(res.sr_bits != 1);
 
+	*suballoc_loc = res.sr_bg_blkno;
 	*suballoc_bit = res.sr_bit_offset;
 	*fe_blkno = res.sr_blkno;
 	ac->ac_bits_given++;

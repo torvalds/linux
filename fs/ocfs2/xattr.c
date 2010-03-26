@@ -2829,7 +2829,7 @@ static int ocfs2_create_xattr_block(struct inode *inode,
 	int ret;
 	u16 suballoc_bit_start;
 	u32 num_got;
-	u64 first_blkno;
+	u64 suballoc_loc, first_blkno;
 	struct ocfs2_dinode *di =  (struct ocfs2_dinode *)inode_bh->b_data;
 	struct buffer_head *new_bh = NULL;
 	struct ocfs2_xattr_block *xblk;
@@ -2842,8 +2842,8 @@ static int ocfs2_create_xattr_block(struct inode *inode,
 	}
 
 	ret = ocfs2_claim_metadata(ctxt->handle, ctxt->meta_ac, 1,
-				   &suballoc_bit_start, &num_got,
-				   &first_blkno);
+				   &suballoc_loc, &suballoc_bit_start,
+				   &num_got, &first_blkno);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto end;
@@ -2865,6 +2865,7 @@ static int ocfs2_create_xattr_block(struct inode *inode,
 	memset(xblk, 0, inode->i_sb->s_blocksize);
 	strcpy((void *)xblk, OCFS2_XATTR_BLOCK_SIGNATURE);
 	xblk->xb_suballoc_slot = cpu_to_le16(ctxt->meta_ac->ac_alloc_slot);
+	xblk->xb_suballoc_loc = cpu_to_le64(suballoc_loc);
 	xblk->xb_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 	xblk->xb_fs_generation =
 		cpu_to_le32(OCFS2_SB(inode->i_sb)->fs_generation);

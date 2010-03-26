@@ -1006,7 +1006,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 	int count, status, i;
 	u16 suballoc_bit_start;
 	u32 num_got;
-	u64 first_blkno;
+	u64 suballoc_loc, first_blkno;
 	struct ocfs2_super *osb =
 		OCFS2_SB(ocfs2_metadata_cache_get_super(et->et_ci));
 	struct ocfs2_extent_block *eb;
@@ -1018,6 +1018,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 		status = ocfs2_claim_metadata(handle,
 					      meta_ac,
 					      wanted - count,
+					      &suballoc_loc,
 					      &suballoc_bit_start,
 					      &num_got,
 					      &first_blkno);
@@ -1051,6 +1052,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 			eb->h_fs_generation = cpu_to_le32(osb->fs_generation);
 			eb->h_suballoc_slot =
 				cpu_to_le16(meta_ac->ac_alloc_slot);
+			eb->h_suballoc_loc = cpu_to_le64(suballoc_loc);
 			eb->h_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 			eb->h_list.l_count =
 				cpu_to_le16(ocfs2_extent_recs_per_eb(osb->sb));

@@ -2395,15 +2395,15 @@ static int ocfs2_dx_dir_attach_index(struct ocfs2_super *osb,
 	int ret;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *) di_bh->b_data;
 	u16 dr_suballoc_bit;
-	u64 dr_blkno;
+	u64 suballoc_loc, dr_blkno;
 	unsigned int num_bits;
 	struct buffer_head *dx_root_bh = NULL;
 	struct ocfs2_dx_root_block *dx_root;
 	struct ocfs2_dir_block_trailer *trailer =
 		ocfs2_trailer_from_bh(dirdata_bh, dir->i_sb);
 
-	ret = ocfs2_claim_metadata(handle, meta_ac, 1, &dr_suballoc_bit,
-				   &num_bits, &dr_blkno);
+	ret = ocfs2_claim_metadata(handle, meta_ac, 1, &suballoc_loc,
+				   &dr_suballoc_bit, &num_bits, &dr_blkno);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -2431,6 +2431,7 @@ static int ocfs2_dx_dir_attach_index(struct ocfs2_super *osb,
 	memset(dx_root, 0, osb->sb->s_blocksize);
 	strcpy(dx_root->dr_signature, OCFS2_DX_ROOT_SIGNATURE);
 	dx_root->dr_suballoc_slot = cpu_to_le16(meta_ac->ac_alloc_slot);
+	dx_root->dr_suballoc_loc = cpu_to_le64(suballoc_loc);
 	dx_root->dr_suballoc_bit = cpu_to_le16(dr_suballoc_bit);
 	dx_root->dr_fs_generation = cpu_to_le32(osb->fs_generation);
 	dx_root->dr_blkno = cpu_to_le64(dr_blkno);
