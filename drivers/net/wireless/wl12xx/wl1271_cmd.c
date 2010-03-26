@@ -34,6 +34,7 @@
 #include "wl1271_acx.h"
 #include "wl12xx_80211.h"
 #include "wl1271_cmd.h"
+#include "wl1271_event.h"
 
 /*
  * send command to firmware
@@ -248,6 +249,35 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	return ret;
 }
 
+/*
+ * Poll the mailbox event field until any of the bits in the mask is set or a
+ * timeout occurs (WL1271_EVENT_TIMEOUT in msecs)
+ */
+static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
+{
+	u32 events_vector, event;
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(WL1271_EVENT_TIMEOUT);
+
+	do {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+
+		msleep(1);
+
+		/* read from both event fields */
+		wl1271_read(wl, wl->mbox_ptr[0], &events_vector,
+			    sizeof(events_vector), false);
+		event = events_vector & mask;
+		wl1271_read(wl, wl->mbox_ptr[1], &events_vector,
+			    sizeof(events_vector), false);
+		event |= events_vector & mask;
+	} while (!event);
+
+	return 0;
+}
+
 int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 {
 	static bool do_cal = true;
@@ -318,11 +348,9 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 		goto out_free;
 	}
 
-	/*
-	 * ugly hack: we should wait for JOIN_EVENT_COMPLETE_ID but to
-	 * simplify locking we just sleep instead, for now
-	 */
-	msleep(10);
+	ret = wl1271_cmd_wait_for_event(wl, JOIN_EVENT_COMPLETE_ID);
+	if (ret < 0)
+		wl1271_error("cmd join event completion error");
 
 out_free:
 	kfree(join);

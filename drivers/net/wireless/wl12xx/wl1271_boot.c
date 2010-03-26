@@ -410,7 +410,8 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	/* unmask required mbox events  */
 	wl->event_mask = BSS_LOSE_EVENT_ID |
 		SCAN_COMPLETE_EVENT_ID |
-		PS_REPORT_EVENT_ID;
+		PS_REPORT_EVENT_ID |
+		JOIN_EVENT_COMPLETE_ID;
 
 	ret = wl1271_event_unmask(wl);
 	if (ret < 0) {
