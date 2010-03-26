@@ -277,7 +277,7 @@ static int logfs_recover_sb(struct super_block *sb)
 	}
 	if (valid0 && valid1 && ds_cmp(ds0, ds1)) {
 		printk(KERN_INFO"Superblocks don't match - fixing.\n");
-		return write_one_sb(sb, super->s_devops->find_last_sb);
+		return logfs_write_sb(sb);
 	}
 	/* If neither is valid now, something's wrong.  Didn't we properly
 	 * check them before?!? */
