@@ -187,7 +187,7 @@ static DEFINE_PCI_DEVICE_TABLE(rtl8169_pci_tbl) = {
 MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
 
 static int rx_copybreak = 200;
-static int use_dac = -1;
+static int use_dac;
 static struct {
 	u32 msg_enable;
 } debug = { -1 };
@@ -511,8 +511,7 @@ MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
 module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 module_param(use_dac, int, 0);
-MODULE_PARM_DESC(use_dac, "Enable PCI DAC. -1 defaults on for PCI Express only."
-" Unsafe on 32 bit PCI slot.");
+MODULE_PARM_DESC(use_dac, "Enable PCI DAC. Unsafe on 32 bit PCI slot.");
 module_param_named(debug, debug.msg_enable, int, 0);
 MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
 MODULE_LICENSE("GPL");
@@ -2974,7 +2973,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *ioaddr;
 	unsigned int i;
 	int rc;
-	int this_use_dac = use_dac;
 
 	if (netif_msg_drv(&debug)) {
 		printk(KERN_INFO "%s Gigabit Ethernet driver %s loaded\n",
@@ -3040,17 +3038,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	tp->cp_cmd = PCIMulRW | RxChkSum;
 
-	tp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	if (!tp->pcie_cap)
-		netif_info(tp, probe, dev, "no PCI Express capability\n");
-
-	if (this_use_dac < 0)
-		this_use_dac = tp->pcie_cap != 0;
-
 	if ((sizeof(dma_addr_t) > 4) &&
-	    this_use_dac &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		netif_info(tp, probe, dev, "using 64-bit DMA\n");
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) && use_dac) {
 		tp->cp_cmd |= PCIDAC;
 		dev->features |= NETIF_F_HIGHDMA;
 	} else {
@@ -3068,6 +3057,10 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -EIO;
 		goto err_out_free_res_4;
 	}
+
+	tp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	if (!tp->pcie_cap)
+		netif_info(tp, probe, dev, "no PCI Express capability\n");
 
 	RTL_W16(IntrMask, 0x0000);
 
