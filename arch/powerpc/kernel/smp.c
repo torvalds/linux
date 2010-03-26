@@ -561,12 +561,12 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	 * se we pin us down to CPU 0 for a short while
 	 */
 	old_mask = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(boot_cpuid));
+	set_cpus_allowed_ptr(current, cpumask_of(boot_cpuid));
 	
 	if (smp_ops && smp_ops->setup_cpu)
 		smp_ops->setup_cpu(boot_cpuid);
 
-	set_cpus_allowed(current, old_mask);
+	set_cpus_allowed_ptr(current, &old_mask);
 
 	snapshot_timebases();
 
