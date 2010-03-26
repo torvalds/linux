@@ -330,24 +330,12 @@ static int __exit omap_cf_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int omap_cf_suspend(struct platform_device *pdev, pm_message_t mesg)
-{
-	return pcmcia_socket_dev_suspend(&pdev->dev);
-}
-
-static int omap_cf_resume(struct platform_device *pdev)
-{
-	return pcmcia_socket_dev_resume(&pdev->dev);
-}
-
 static struct platform_driver omap_cf_driver = {
 	.driver = {
 		.name	= (char *) driver_name,
 		.owner	= THIS_MODULE,
 	},
 	.remove		= __exit_p(omap_cf_remove),
-	.suspend	= omap_cf_suspend,
-	.resume		= omap_cf_resume,
 };
 
 static int __init omap_cf_init(void)
