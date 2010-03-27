@@ -4227,10 +4227,11 @@ static int s_show(struct seq_file *m, void *p)
 		unsigned long node_frees = cachep->node_frees;
 		unsigned long overflows = cachep->node_overflow;
 
-		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu \
-				%4lu %4lu %4lu %4lu %4lu", allocs, high, grown,
-				reaped, errors, max_freeable, node_allocs,
-				node_frees, overflows);
+		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu "
+			   "%4lu %4lu %4lu %4lu %4lu",
+			   allocs, high, grown,
+			   reaped, errors, max_freeable, node_allocs,
+			   node_frees, overflows);
 	}
 	/* cpu stats */
 	{
