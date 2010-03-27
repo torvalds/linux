@@ -542,7 +542,7 @@ PYTHON_EMBED_LDOPTS = `python-config --ldflags 2>/dev/null`
 PYTHON_EMBED_CCOPTS = `python-config --cflags 2>/dev/null`
 endif
 
-ifneq ($(shell sh -c "(echo '\#include <Python.h>'; echo 'int main(void) { Py_Initialize(); return 0; }') | $(CC) -x c - $(PYTHON_EMBED_CCOPTS) -o /dev/null $(PYTHON_EMBED_LDOPTS) > /dev/null 2>&1 && echo y"), y)
+ifneq ($(shell sh -c "(echo '\#include <Python.h>'; echo 'int main(void) { Py_Initialize(); return 0; }') | $(CC) -x c - $(PYTHON_EMBED_CCOPTS) -o $(BITBUCKET) $(PYTHON_EMBED_LDOPTS) > /dev/null 2>&1 && echo y"), y)
 	BASIC_CFLAGS += -DNO_LIBPYTHON
 else
 	ALL_LDFLAGS += $(PYTHON_EMBED_LDOPTS)
