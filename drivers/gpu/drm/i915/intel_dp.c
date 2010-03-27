@@ -1232,16 +1232,6 @@ intel_dp_detect(struct drm_connector *connector)
 	if (HAS_PCH_SPLIT(dev))
 		return ironlake_dp_detect(connector);
 
-	temp = I915_READ(PORT_HOTPLUG_EN);
-
-	I915_WRITE(PORT_HOTPLUG_EN,
-	       temp |
-	       DPB_HOTPLUG_INT_EN |
-	       DPC_HOTPLUG_INT_EN |
-	       DPD_HOTPLUG_INT_EN);
-
-	POSTING_READ(PORT_HOTPLUG_EN);
-
 	switch (dp_priv->output_reg) {
 	case DP_B:
 		bit = DPB_HOTPLUG_INT_STATUS;
