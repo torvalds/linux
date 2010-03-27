@@ -59,7 +59,7 @@
 #define CCDC_PRGODD_0				0x8c
 #define CCDC_PRGODD_1				0x90
 #define CCDC_VP_OUT				0x94
-
+#define CCDC_REG_END				0x98
 
 /***************************************************************
 *	Define for various register bit mask and shifts for CCDC
