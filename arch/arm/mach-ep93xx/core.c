@@ -222,6 +222,20 @@ void ep93xx_devcfg_set_clear(unsigned int set_bits, unsigned int clear_bits)
 }
 EXPORT_SYMBOL(ep93xx_devcfg_set_clear);
 
+/**
+ * ep93xx_chip_revision() - returns the EP93xx chip revision
+ *
+ * See <mach/platform.h> for more information.
+ */
+unsigned int ep93xx_chip_revision(void)
+{
+	unsigned int v;
+
+	v = __raw_readl(EP93XX_SYSCON_SYSCFG);
+	v &= EP93XX_SYSCON_SYSCFG_REV_MASK;
+	v >>= EP93XX_SYSCON_SYSCFG_REV_SHIFT;
+	return v;
+}
 
 /*************************************************************************
  * EP93xx peripheral handling
