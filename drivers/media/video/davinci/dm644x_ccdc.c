@@ -435,7 +435,6 @@ void ccdc_config_ycbcr(void)
 
 	ccdc_sbl_reset();
 	dev_dbg(ccdc_cfg.dev, "\nEnd of ccdc_config_ycbcr...\n");
-	ccdc_readregs();
 }
 
 static void ccdc_config_black_clamp(struct ccdc_black_clamp *bclamp)
