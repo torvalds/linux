@@ -165,12 +165,42 @@ static int hw_bitblt_1(void __iomem *engine, u8 op, u32 width, u32 height,
 	return 0;
 }
 
+/*
+ * Figure out an appropriate bytes-per-pixel setting.
+ */
+static int viafb_set_bpp(void __iomem *engine, u8 bpp)
+{
+	u32 gemode;
+
+	/* Preserve the reserved bits */
+	/* Lowest 2 bits to zero gives us no rotation */
+	gemode = readl(engine + VIA_REG_GEMODE) & 0xfffffcfc;
+	switch (bpp) {
+	case 8:
+		gemode |= VIA_GEM_8bpp;
+		break;
+	case 16:
+		gemode |= VIA_GEM_16bpp;
+		break;
+	case 32:
+		gemode |= VIA_GEM_32bpp;
+		break;
+	default:
+		printk(KERN_WARNING "hw_bitblt_2: Unsupported bpp %d\n", bpp);
+		return -EINVAL;
+	}
+	writel(gemode, engine + VIA_REG_GEMODE);
+	return 0;
+}
+
+
 static int hw_bitblt_2(void __iomem *engine, u8 op, u32 width, u32 height,
 	u8 dst_bpp, u32 dst_addr, u32 dst_pitch, u32 dst_x, u32 dst_y,
 	u32 *src_mem, u32 src_addr, u32 src_pitch, u32 src_x, u32 src_y,
 	u32 fg_color, u32 bg_color, u8 fill_rop)
 {
 	u32 ge_cmd = 0, tmp, i;
+	int ret;
 
 	if (!op || op > 3) {
 		printk(KERN_WARNING "hw_bitblt_2: Invalid operation: %d\n", op);
@@ -204,22 +234,9 @@ static int hw_bitblt_2(void __iomem *engine, u8 op, u32 width, u32 height,
 		}
 	}
 
-	switch (dst_bpp) {
-	case 8:
-		tmp = 0x00000000;
-		break;
-	case 16:
-		tmp = 0x00000100;
-		break;
-	case 32:
-		tmp = 0x00000300;
-		break;
-	default:
-		printk(KERN_WARNING "hw_bitblt_2: Unsupported bpp %d\n",
-			dst_bpp);
-		return -EINVAL;
-	}
-	writel(tmp, engine + 0x04);
+	ret = viafb_set_bpp(engine, dst_bpp);
+	if (ret)
+		return ret;
 
 	if (op == VIA_BITBLT_FILL)
 		tmp = 0;
