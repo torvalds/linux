@@ -79,6 +79,8 @@ struct tvp514x_std_info {
 };
 
 static struct tvp514x_reg tvp514x_reg_list_default[0x40];
+
+static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable);
 /**
  * struct tvp514x_decoder - TVP5146/47 decoder object
  * @sd: Subdevice Slave handle
@@ -643,6 +645,17 @@ static int tvp514x_s_routing(struct v4l2_subdev *sd,
 			(output >= OUTPUT_INVALID))
 		/* Index out of bound */
 		return -EINVAL;
+
+	/*
+	 * For the sequence streamon -> streamoff and again s_input
+	 * it fails to lock the signal, since streamoff puts TVP514x
+	 * into power off state which leads to failure in sub-sequent s_input.
+	 *
+	 * So power up the TVP514x device here, since it is important to lock
+	 * the signal at this stage.
+	 */
+	if (!decoder->streaming)
+		tvp514x_s_stream(sd, 1);
 
 	input_sel = input;
 	output_sel = output;
