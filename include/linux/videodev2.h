@@ -1640,9 +1640,21 @@ struct v4l2_streamparm {
  *	E V E N T S
  */
 
+#define V4L2_EVENT_ALL				0
+#define V4L2_EVENT_VSYNC			1
+#define V4L2_EVENT_EOS				2
+#define V4L2_EVENT_PRIVATE_START		0x08000000
+
+/* Payload for V4L2_EVENT_VSYNC */
+struct v4l2_event_vsync {
+	/* Can be V4L2_FIELD_ANY, _NONE, _TOP or _BOTTOM */
+	__u8 field;
+} __attribute__ ((packed));
+
 struct v4l2_event {
 	__u32				type;
 	union {
+		struct v4l2_event_vsync vsync;
 		__u8			data[64];
 	} u;
 	__u32				pending;
@@ -1655,9 +1667,6 @@ struct v4l2_event_subscription {
 	__u32				type;
 	__u32				reserved[7];
 };
-
-#define V4L2_EVENT_ALL				0
-#define V4L2_EVENT_PRIVATE_START		0x08000000
 
 /*
  *	A D V A N C E D   D E B U G G I N G
