@@ -22,14 +22,14 @@
 /* bit array to represent IR sysfs device number */
 static unsigned long ir_core_dev_number;
 
-/* class for /sys/class/irrcv */
+/* class for /sys/class/rc */
 static char *ir_devnode(struct device *dev, mode_t *mode)
 {
-	return kasprintf(GFP_KERNEL, "irrcv/%s", dev_name(dev));
+	return kasprintf(GFP_KERNEL, "rc/%s", dev_name(dev));
 }
 
 static struct class ir_input_class = {
-	.name		= "irrcv",
+	.name		= "rc",
 	.devnode	= ir_devnode,
 };
 
@@ -40,7 +40,7 @@ static struct class ir_input_class = {
  * @buf:	a pointer to the output buffer
  *
  * This routine is a callback routine for input read the IR protocol type.
- * it is trigged by reading /sys/class/irrcv/irrcv?/current_protocol.
+ * it is trigged by reading /sys/class/rc/rcrcv?/current_protocol.
  * It returns the protocol name, as understood by the driver.
  */
 static ssize_t show_protocol(struct device *d,
@@ -75,7 +75,7 @@ static ssize_t show_protocol(struct device *d,
  * @len:	length of the input buffer
  *
  * This routine is a callback routine for changing the IR protocol type.
- * it is trigged by reading /sys/class/irrcv/irrcv?/current_protocol.
+ * it is trigged by reading /sys/class/rc/rcrcv?/current_protocol.
  * It changes the IR the protocol name, if the IR type is recognized
  * by the driver.
  * If an unknown protocol name is used, returns -EINVAL.
@@ -172,7 +172,7 @@ static struct device_type ir_dev_type = {
 };
 
 /**
- * ir_register_class() - creates the sysfs for /sys/class/irrcv/irrcv?
+ * ir_register_class() - creates the sysfs for /sys/class/rc/rcrcv?
  * @input_dev:	the struct input_dev descriptor of the device
  *
  * This routine is used to register the syfs code for IR class
@@ -192,7 +192,7 @@ int ir_register_class(struct input_dev *input_dev)
 	ir_dev->dev.type = &ir_dev_type;
 	ir_dev->dev.class = &ir_input_class;
 	ir_dev->dev.parent = input_dev->dev.parent;
-	dev_set_name(&ir_dev->dev, "irrcv%d", devno);
+	dev_set_name(&ir_dev->dev, "rcrcv%d", devno);
 	dev_set_drvdata(&ir_dev->dev, ir_dev);
 	rc = device_register(&ir_dev->dev);
 	if (rc)
@@ -223,7 +223,7 @@ int ir_register_class(struct input_dev *input_dev)
 
 /**
  * ir_unregister_class() - removes the sysfs for sysfs for
- *			   /sys/class/irrcv/irrcv?
+ *			   /sys/class/rc/rcrcv?
  * @input_dev:	the struct input_dev descriptor of the device
  *
  * This routine is used to unregister the syfs code for IR class
@@ -240,14 +240,14 @@ void ir_unregister_class(struct input_dev *input_dev)
 }
 
 /*
- * Init/exit code for the module. Basically, creates/removes /sys/class/irrcv
+ * Init/exit code for the module. Basically, creates/removes /sys/class/rc
  */
 
 static int __init ir_core_init(void)
 {
 	int rc = class_register(&ir_input_class);
 	if (rc) {
-		printk(KERN_ERR "ir_core: unable to register irrcv class\n");
+		printk(KERN_ERR "ir_core: unable to register rc class\n");
 		return rc;
 	}
 
