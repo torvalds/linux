@@ -317,6 +317,7 @@ int viafb_init_engine(struct fb_info *info)
 {
 	struct viafb_par *viapar = info->par;
 	void __iomem *engine;
+	int highest_reg, i;
 	u32 vq_start_addr, vq_end_addr, vq_start_low, vq_end_low, vq_high,
 		vq_len, chip_name = viapar->shared->chip_info.gfx_chip_name;
 
@@ -327,6 +328,18 @@ int viafb_init_engine(struct fb_info *info)
 			"hardware acceleration disabled\n");
 		return -ENOMEM;
 	}
+
+	/* Initialize registers to reset the 2D engine */
+	switch (viapar->shared->chip_info.twod_engine) {
+	case VIA_2D_ENG_M1:
+		highest_reg = 0x5c;
+		break;
+	default:
+		highest_reg = 0x40;
+		break;
+	}
+	for (i = 0; i <= highest_reg; i += 4)
+		writel(0x0, engine + i);
 
 	switch (chip_name) {
 	case UNICHROME_CLE266:
@@ -357,13 +370,12 @@ int viafb_init_engine(struct fb_info *info)
 	viapar->shared->vq_vram_addr = viapar->fbmem_free;
 	viapar->fbmem_used += VQ_SIZE;
 
-	/* Init 2D engine reg to reset 2D engine */
-	writel(0x0, engine + VIA_REG_KEYCONTROL);
-
 	/* Init AGP and VQ regs */
 	switch (chip_name) {
 	case UNICHROME_K8M890:
 	case UNICHROME_P4M900:
+	case UNICHROME_VX800:
+	case UNICHROME_VX855:
 		writel(0x00100000, engine + VIA_REG_CR_TRANSET);
 		writel(0x680A0000, engine + VIA_REG_CR_TRANSPACE);
 		writel(0x02000000, engine + VIA_REG_CR_TRANSPACE);
@@ -398,6 +410,8 @@ int viafb_init_engine(struct fb_info *info)
 	switch (chip_name) {
 	case UNICHROME_K8M890:
 	case UNICHROME_P4M900:
+	case UNICHROME_VX800:
+	case UNICHROME_VX855:
 		vq_start_low |= 0x20000000;
 		vq_end_low |= 0x20000000;
 		vq_high |= 0x20000000;
@@ -475,15 +489,25 @@ void viafb_wait_engine_idle(struct fb_info *info)
 {
 	struct viafb_par *viapar = info->par;
 	int loop = 0;
+	u32 mask;
 
-	while (!(readl(viapar->shared->engine_mmio + VIA_REG_STATUS) &
-			VIA_VR_QUEUE_BUSY) && (loop < MAXLOOP)) {
-		loop++;
-		cpu_relax();
+	switch (viapar->shared->chip_info.twod_engine) {
+	case VIA_2D_ENG_H5:
+	case VIA_2D_ENG_M1:
+		mask = VIA_CMD_RGTR_BUSY_M1 | VIA_2D_ENG_BUSY_M1 |
+			      VIA_3D_ENG_BUSY_M1;
+		break;
+	default:
+		while (!(readl(viapar->shared->engine_mmio + VIA_REG_STATUS) &
+				VIA_VR_QUEUE_BUSY) && (loop < MAXLOOP)) {
+			loop++;
+			cpu_relax();
+		}
+		mask = VIA_CMD_RGTR_BUSY | VIA_2D_ENG_BUSY | VIA_3D_ENG_BUSY;
+		break;
 	}
 
-	while ((readl(viapar->shared->engine_mmio + VIA_REG_STATUS) &
-		    (VIA_CMD_RGTR_BUSY | VIA_2D_ENG_BUSY | VIA_3D_ENG_BUSY)) &&
+	while ((readl(viapar->shared->engine_mmio + VIA_REG_STATUS) & mask) &&
 		    (loop < MAXLOOP)) {
 		loop++;
 		cpu_relax();
