@@ -42,6 +42,7 @@
 #include "ivtv-yuv.h"
 #include "ivtv-cards.h"
 #include "ivtv-streams.h"
+#include <media/v4l2-event.h>
 
 static const struct v4l2_file_operations ivtv_v4l2_enc_fops = {
 	.owner = THIS_MODULE,
@@ -840,6 +841,9 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 
 int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 {
+	static const struct v4l2_event ev = {
+		.type = V4L2_EVENT_EOS,
+	};
 	struct ivtv *itv = s->itv;
 
 	if (s->vdev == NULL)
@@ -891,6 +895,7 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 
 	set_bit(IVTV_F_I_EV_DEC_STOPPED, &itv->i_flags);
 	wake_up(&itv->event_waitq);
+	v4l2_event_queue(s->vdev, &ev);
 
 	/* wake up wait queues */
 	wake_up(&s->waitq);

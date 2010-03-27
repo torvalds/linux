@@ -63,6 +63,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 #include <media/tuner.h>
 #include <media/cx2341x.h>
 #include <media/ir-kbd-i2c.h>
@@ -375,12 +376,18 @@ struct ivtv_stream {
 };
 
 struct ivtv_open_id {
+	struct v4l2_fh fh;
 	u32 open_id;                    /* unique ID for this file descriptor */
 	int type;                       /* stream type */
 	int yuv_frames;                 /* 1: started OUT_UDMA_YUV output mode */
 	enum v4l2_priority prio;        /* priority */
 	struct ivtv *itv;
 };
+
+static inline struct ivtv_open_id *fh2id(struct v4l2_fh *fh)
+{
+	return container_of(fh, struct ivtv_open_id, fh);
+}
 
 struct yuv_frame_info
 {

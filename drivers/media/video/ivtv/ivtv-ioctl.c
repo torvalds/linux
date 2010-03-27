@@ -35,6 +35,7 @@
 #include <media/saa7127.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-event.h>
 #include <linux/dvb/audio.h>
 #include <linux/i2c-id.h>
 
@@ -1452,6 +1453,18 @@ static int ivtv_overlay(struct file *file, void *fh, unsigned int on)
 	return 0;
 }
 
+static int ivtv_subscribe_event(struct v4l2_fh *fh, struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_VSYNC:
+	case V4L2_EVENT_EOS:
+		break;
+	default:
+		return -EINVAL;
+	}
+	return v4l2_event_subscribe(fh, sub);
+}
+
 static int ivtv_log_status(struct file *file, void *fh)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
@@ -1560,7 +1573,7 @@ static int ivtv_log_status(struct file *file, void *fh)
 
 static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 {
-	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
+	struct ivtv_open_id *id = fh2id(filp->private_data);
 	struct ivtv *itv = id->itv;
 	int nonblocking = filp->f_flags & O_NONBLOCK;
 	struct ivtv_stream *s = &itv->streams[id->type];
@@ -1820,7 +1833,7 @@ static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 		unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vfd = video_devdata(filp);
-	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
+	struct ivtv_open_id *id = fh2id(filp->private_data);
 	long ret;
 
 	/* check priority */
@@ -1852,10 +1865,13 @@ static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 
 long ivtv_v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
+	struct ivtv_open_id *id = fh2id(filp->private_data);
 	struct ivtv *itv = id->itv;
 	long res;
 
+	/* DQEVENT can block, so this should not run with the serialize lock */
+	if (cmd == VIDIOC_DQEVENT)
+		return ivtv_serialized_ioctl(itv, filp, cmd, arg);
 	mutex_lock(&itv->serialize_lock);
 	res = ivtv_serialized_ioctl(itv, filp, cmd, arg);
 	mutex_unlock(&itv->serialize_lock);
@@ -1926,6 +1942,8 @@ static const struct v4l2_ioctl_ops ivtv_ioctl_ops = {
 	.vidioc_g_ext_ctrls 		    = ivtv_g_ext_ctrls,
 	.vidioc_s_ext_ctrls 		    = ivtv_s_ext_ctrls,
 	.vidioc_try_ext_ctrls    	    = ivtv_try_ext_ctrls,
+	.vidioc_subscribe_event 	    = ivtv_subscribe_event,
+	.vidioc_unsubscribe_event 	    = v4l2_event_unsubscribe,
 };
 
 void ivtv_set_funcs(struct video_device *vdev)

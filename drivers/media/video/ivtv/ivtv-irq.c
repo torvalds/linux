@@ -25,6 +25,7 @@
 #include "ivtv-mailbox.h"
 #include "ivtv-vbi.h"
 #include "ivtv-yuv.h"
+#include <media/v4l2-event.h>
 
 #define DMA_MAGIC_COOKIE 0x000001fe
 
@@ -778,6 +779,14 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 		}
 	}
 	if (frame != (itv->last_vsync_field & 1)) {
+		static const struct v4l2_event evtop = {
+			.type = V4L2_EVENT_VSYNC,
+			.u.vsync.field = V4L2_FIELD_TOP,
+		};
+		static const struct v4l2_event evbottom = {
+			.type = V4L2_EVENT_VSYNC,
+			.u.vsync.field = V4L2_FIELD_BOTTOM,
+		};
 		struct ivtv_stream *s = ivtv_get_output_stream(itv);
 
 		itv->last_vsync_field += 1;
@@ -791,10 +800,12 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 		if (test_bit(IVTV_F_I_EV_VSYNC_ENABLED, &itv->i_flags)) {
 			set_bit(IVTV_F_I_EV_VSYNC, &itv->i_flags);
 			wake_up(&itv->event_waitq);
+			if (s)
+				wake_up(&s->waitq);
 		}
+		if (s && s->vdev)
+			v4l2_event_queue(s->vdev, frame ? &evtop : &evbottom);
 		wake_up(&itv->vsync_waitq);
-		if (s)
-			wake_up(&s->waitq);
 
 		/* Send VBI to saa7127 */
 		if (frame && (itv->output_mode == OUT_PASSTHROUGH ||
