@@ -2031,18 +2031,14 @@ static int __devexit vpfe_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int
-vpfe_suspend(struct device *dev)
+static int vpfe_suspend(struct device *dev)
 {
-	/* add suspend code here later */
-	return -1;
+	return 0;
 }
 
-static int
-vpfe_resume(struct device *dev)
+static int vpfe_resume(struct device *dev)
 {
-	/* add resume code here later */
-	return -1;
+	return 0;
 }
 
 static const struct dev_pm_ops vpfe_dev_pm_ops = {
