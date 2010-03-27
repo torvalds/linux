@@ -85,9 +85,38 @@
 	    </entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_EVENT_VSYNC</constant></entry>
+	    <entry>1</entry>
+	    <entry>This event is triggered on the vertical sync.
+	    This event has &v4l2-event-vsync; associated with it.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_EOS</constant></entry>
+	    <entry>2</entry>
+	    <entry>This event is triggered when the end of a stream is reached.
+	    This is typically used with MPEG decoders to report to the application
+	    when the last of the MPEG stream has been decoded.
+	    </entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_EVENT_PRIVATE_START</constant></entry>
 	    <entry>0x08000000</entry>
 	    <entry>Base event number for driver-private events.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-vsync">
+      <title>struct <structname>v4l2_event_vsync</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>field</structfield></entry>
+	    <entry>The upcoming field. See &v4l2-field;.</entry>
 	  </row>
 	</tbody>
       </tgroup>
