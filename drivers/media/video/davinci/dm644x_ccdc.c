@@ -400,7 +400,11 @@ void ccdc_config_ycbcr(void)
 		 * configure the FID, VD, HD pin polarity,
 		 * fld,hd pol positive, vd negative, 8-bit data
 		 */
-		syn_mode |= CCDC_SYN_MODE_VD_POL_NEGATIVE | CCDC_SYN_MODE_8BITS;
+		syn_mode |= CCDC_SYN_MODE_VD_POL_NEGATIVE;
+		if (ccdc_cfg.if_type == VPFE_BT656_10BIT)
+			syn_mode |= CCDC_SYN_MODE_10BITS;
+		else
+			syn_mode |= CCDC_SYN_MODE_8BITS;
 	} else {
 		/* y/c external sync mode */
 		syn_mode |= (((params->fid_pol & CCDC_FID_POL_MASK) <<
@@ -419,8 +423,13 @@ void ccdc_config_ycbcr(void)
 	 * configure the order of y cb cr in SDRAM, and disable latch
 	 * internal register on vsync
 	 */
-	regw((params->pix_order << CCDC_CCDCFG_Y8POS_SHIFT) |
-		 CCDC_LATCH_ON_VSYNC_DISABLE, CCDC_CCDCFG);
+	if (ccdc_cfg.if_type == VPFE_BT656_10BIT)
+		regw((params->pix_order << CCDC_CCDCFG_Y8POS_SHIFT) |
+			CCDC_LATCH_ON_VSYNC_DISABLE | CCDC_CCDCFG_BW656_10BIT,
+			CCDC_CCDCFG);
+	else
+		regw((params->pix_order << CCDC_CCDCFG_Y8POS_SHIFT) |
+			CCDC_LATCH_ON_VSYNC_DISABLE, CCDC_CCDCFG);
 
 	/*
 	 * configure the horizontal line offset. This should be a
@@ -826,6 +835,7 @@ static int ccdc_set_hw_if_params(struct vpfe_hw_if_param *params)
 	case VPFE_BT656:
 	case VPFE_YCBCR_SYNC_16:
 	case VPFE_YCBCR_SYNC_8:
+	case VPFE_BT656_10BIT:
 		ccdc_cfg.ycbcr.vd_pol = params->vdpol;
 		ccdc_cfg.ycbcr.hd_pol = params->hdpol;
 		break;
