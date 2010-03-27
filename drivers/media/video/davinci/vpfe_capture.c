@@ -539,6 +539,16 @@ static void vpfe_schedule_next_buffer(struct vpfe_device *vpfe_dev)
 	list_del(&vpfe_dev->next_frm->queue);
 	vpfe_dev->next_frm->state = VIDEOBUF_ACTIVE;
 	addr = videobuf_to_dma_contig(vpfe_dev->next_frm);
+
+	ccdc_dev->hw_ops.setfbaddr(addr);
+}
+
+static void vpfe_schedule_bottom_field(struct vpfe_device *vpfe_dev)
+{
+	unsigned long addr;
+
+	addr = videobuf_to_dma_contig(vpfe_dev->cur_frm);
+	addr += vpfe_dev->field_off;
 	ccdc_dev->hw_ops.setfbaddr(addr);
 }
 
@@ -559,7 +569,6 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 {
 	struct vpfe_device *vpfe_dev = dev_id;
 	enum v4l2_field field;
-	unsigned long addr;
 	int fid;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "\nStarting vpfe_isr...\n");
@@ -604,10 +613,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 			 * the CCDC memory address
 			 */
 			if (field == V4L2_FIELD_SEQ_TB) {
-				addr =
-				  videobuf_to_dma_contig(vpfe_dev->cur_frm);
-				addr += vpfe_dev->field_off;
-				ccdc_dev->hw_ops.setfbaddr(addr);
+				vpfe_schedule_bottom_field(vpfe_dev);
 			}
 			goto clear_intr;
 		}
@@ -1234,7 +1240,10 @@ static int vpfe_videobuf_setup(struct videobuf_queue *vq,
 	struct vpfe_device *vpfe_dev = fh->vpfe_dev;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_setup\n");
-	*size = config_params.device_bufsize;
+	*size = vpfe_dev->fmt.fmt.pix.sizeimage;
+	if (vpfe_dev->memory == V4L2_MEMORY_MMAP &&
+		vpfe_dev->fmt.fmt.pix.sizeimage > config_params.device_bufsize)
+		*size = config_params.device_bufsize;
 
 	if (*count < config_params.min_numbuffers)
 		*count = config_params.min_numbuffers;
@@ -1249,6 +1258,8 @@ static int vpfe_videobuf_prepare(struct videobuf_queue *vq,
 {
 	struct vpfe_fh *fh = vq->priv_data;
 	struct vpfe_device *vpfe_dev = fh->vpfe_dev;
+	unsigned long addr;
+	int ret;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_prepare\n");
 
@@ -1258,8 +1269,18 @@ static int vpfe_videobuf_prepare(struct videobuf_queue *vq,
 		vb->height = vpfe_dev->fmt.fmt.pix.height;
 		vb->size = vpfe_dev->fmt.fmt.pix.sizeimage;
 		vb->field = field;
+
+		ret = videobuf_iolock(vq, vb, NULL);;
+		if (ret < 0)
+			return ret;
+
+		addr = videobuf_to_dma_contig(vb);
+		/* Make sure user addresses are aligned to 32 bytes */
+		if (!ALIGN(addr, 32))
+			return -EINVAL;
+
+		vb->state = VIDEOBUF_PREPARED;
 	}
-	vb->state = VIDEOBUF_PREPARED;
 	return 0;
 }
 
@@ -1325,13 +1346,6 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != req_buf->type) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Invalid buffer type\n");
 		return -EINVAL;
-	}
-
-	if (V4L2_MEMORY_USERPTR == req_buf->memory) {
-		/* we don't support user ptr IO */
-		v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_reqbufs:"
-			 " USERPTR IO not supported\n");
-		return  -EINVAL;
 	}
 
 	ret = mutex_lock_interruptible(&vpfe_dev->lock);
