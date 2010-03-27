@@ -1921,7 +1921,7 @@ static int detach(struct comedi_device *dev)
 						    ao_dma_desc_bus_addr);
 			if (priv(dev)->main_phys_iobase)
 				comedi_pci_disable(priv(dev)->hw_dev);
-	
+
 			pci_dev_put(priv(dev)->hw_dev);
 		}
 	}
