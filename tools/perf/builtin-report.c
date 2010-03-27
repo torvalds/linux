@@ -303,13 +303,14 @@ static int __cmd_report(void)
 	next = rb_first(&session->stats_by_id);
 	while (next) {
 		struct event_stat_id *stats;
+		u64 nr_hists;
 
 		stats = rb_entry(next, struct event_stat_id, rb_node);
 		perf_session__collapse_resort(&stats->hists);
-		perf_session__output_resort(&stats->hists, stats->stats.total);
-
+		nr_hists = perf_session__output_resort(&stats->hists,
+						       stats->stats.total);
 		if (use_browser)
-			perf_session__browse_hists(&stats->hists,
+			perf_session__browse_hists(&stats->hists, nr_hists,
 						   stats->stats.total, help);
 		else {
 			if (rb_first(&session->stats_by_id) ==

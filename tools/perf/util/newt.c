@@ -12,6 +12,72 @@
 #include "sort.h"
 #include "symbol.h"
 
+struct ui_progress {
+	newtComponent form, scale;
+};
+
+struct ui_progress *ui_progress__new(const char *title, u64 total)
+{
+	struct ui_progress *self = malloc(sizeof(*self));
+
+	if (self != NULL) {
+		int cols;
+		newtGetScreenSize(&cols, NULL);
+		cols -= 4;
+		newtCenteredWindow(cols, 1, title);
+		self->form  = newtForm(NULL, NULL, 0);
+		if (self->form == NULL)
+			goto out_free_self;
+		self->scale = newtScale(0, 0, cols, total);
+		if (self->scale == NULL)
+			goto out_free_form;
+		newtFormAddComponents(self->form, self->scale, NULL);
+		newtRefresh();
+	}
+
+	return self;
+
+out_free_form:
+	newtFormDestroy(self->form);
+out_free_self:
+	free(self);
+	return NULL;
+}
+
+void ui_progress__update(struct ui_progress *self, u64 curr)
+{
+	newtScaleSet(self->scale, curr);
+	newtRefresh();
+}
+
+void ui_progress__delete(struct ui_progress *self)
+{
+	newtFormDestroy(self->form);
+	newtPopWindow();
+	free(self);
+}
+
+static char browser__last_msg[1024];
+
+int browser__show_help(const char *format, va_list ap)
+{
+	int ret;
+	static int backlog;
+
+        ret = vsnprintf(browser__last_msg + backlog,
+			sizeof(browser__last_msg) - backlog, format, ap);
+	backlog += ret;
+
+	if (browser__last_msg[backlog - 1] == '\n') {
+		newtPopHelpLine();
+		newtPushHelpLine(browser__last_msg);
+		newtRefresh();
+		backlog = 0;
+	}
+
+	return ret;
+}
+
 static void newt_form__set_exit_keys(newtComponent self)
 {
 	newtFormAddHotKey(self, NEWT_KEY_ESCAPE);
@@ -364,8 +430,8 @@ static void perf_session__selection(newtComponent self, void *data)
 	*symbol_ptr = newt__symbol_tree_get_current(self);
 }
 
-void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
-				const char *helpline)
+int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
+			       u64 session_total, const char *helpline)
 {
 	struct sort_entry *se;
 	struct rb_node *nd;
@@ -378,6 +444,12 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 	newtComponent form, tree;
 	struct newtExitStruct es;
 	const struct map_symbol *selection;
+	u64 curr_hist = 0;
+	struct ui_progress *progress;
+
+	progress = ui_progress__new("Adding entries to the browser...", nr_hists);
+	if (progress == NULL)
+		return -1;
 
 	snprintf(str, sizeof(str), "Samples: %Ld", session_total);
 	newtDrawRootText(0, 0, str);
@@ -419,7 +491,12 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 			max_len = len;
 		if (symbol_conf.use_callchain)
 			hist_entry__append_callchain_browser(h, tree, session_total, idx++);
+		++curr_hist;
+		if (curr_hist % 5)
+			ui_progress__update(progress, curr_hist);
 	}
+
+	ui_progress__delete(progress);
 
 	if (max_len > cols)
 		max_len = cols - 3;
@@ -480,27 +557,7 @@ do_annotate:
 
 	newtFormDestroy(form);
 	newtPopWindow();
-}
-
-static char browser__last_msg[1024];
-
-int browser__show_help(const char *format, va_list ap)
-{
-	int ret;
-	static int backlog;
-
-        ret = vsnprintf(browser__last_msg + backlog,
-			sizeof(browser__last_msg) - backlog, format, ap);
-	backlog += ret;
-
-	if (browser__last_msg[backlog - 1] == '\n') {
-		newtPopHelpLine();
-		newtPushHelpLine(browser__last_msg);
-		newtRefresh();
-		backlog = 0;
-	}
-
-	return ret;
+	return 0;
 }
 
 void setup_browser(void)

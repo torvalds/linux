@@ -25,7 +25,7 @@ size_t hist_entry__fprintf(struct hist_entry *self,
 			   u64 session_total);
 void hist_entry__free(struct hist_entry *);
 
-void perf_session__output_resort(struct rb_root *hists, u64 total_samples);
+u64 perf_session__output_resort(struct rb_root *hists, u64 total_samples);
 void perf_session__collapse_resort(struct rb_root *hists);
 size_t perf_session__fprintf_hists(struct rb_root *hists,
 				   struct perf_session *pair,

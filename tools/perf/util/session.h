@@ -88,11 +88,15 @@ static inline struct map *
 }
 
 #ifdef NO_NEWT_SUPPORT
-static inline void perf_session__browse_hists(struct rb_root *hists __used,
+static inline int perf_session__browse_hists(struct rb_root *hists __used,
+					      u64 nr_hists __used,
 					      u64 session_total __used,
-					      const char *helpline __used) {}
+					      const char *helpline __used)
+{
+	return 0;
+}
 #else
-void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
-				const char *helpline);
+int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
+				u64 session_total, const char *helpline);
 #endif
 #endif /* __PERF_SESSION_H */

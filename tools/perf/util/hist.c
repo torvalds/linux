@@ -185,12 +185,13 @@ static void perf_session__insert_output_hist_entry(struct rb_root *root,
 	rb_insert_color(&he->rb_node, root);
 }
 
-void perf_session__output_resort(struct rb_root *hists, u64 total_samples)
+u64 perf_session__output_resort(struct rb_root *hists, u64 total_samples)
 {
 	struct rb_root tmp;
 	struct rb_node *next;
 	struct hist_entry *n;
 	u64 min_callchain_hits;
+	u64 nr_hists = 0;
 
 	min_callchain_hits =
 		total_samples * (callchain_param.min_percent / 100);
@@ -205,9 +206,11 @@ void perf_session__output_resort(struct rb_root *hists, u64 total_samples)
 		rb_erase(&n->rb_node, hists);
 		perf_session__insert_output_hist_entry(&tmp, n,
 						       min_callchain_hits);
+		++nr_hists;
 	}
 
 	*hists = tmp;
+	return nr_hists;
 }
 
 static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)

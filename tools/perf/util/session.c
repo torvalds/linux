@@ -397,6 +397,10 @@ int __perf_session__process_events(struct perf_session *self,
 	event_t *event;
 	uint32_t size;
 	char *buf;
+	struct ui_progress *progress = ui_progress__new("Processing events...",
+							self->size);
+	if (progress == NULL)
+		return -1;
 
 	perf_event_ops__fill_defaults(ops);
 
@@ -425,6 +429,7 @@ remap:
 
 more:
 	event = (event_t *)(buf + head);
+	ui_progress__update(progress, offset);
 
 	if (self->header.needs_swap)
 		perf_event_header__bswap(&event->header);
@@ -475,6 +480,7 @@ more:
 done:
 	err = 0;
 out_err:
+	ui_progress__delete(progress);
 	return err;
 }
 
