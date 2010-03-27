@@ -496,11 +496,11 @@ static int pci9118_insn_write_ao(struct comedi_device *dev,
 	int n, chanreg, ch;
 
 	ch = CR_CHAN(insn->chanspec);
-	if (ch) {
+	if (ch)
 		chanreg = PCI9118_DA2;
-	} else {
+	else
 		chanreg = PCI9118_DA1;
-	}
+
 
 	for (n = 0; n < insn->n; n++) {
 		outl(data[n], dev->iobase + chanreg);
@@ -663,11 +663,11 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 	for (i = 0; i < num_samples; i++) {
 		if (devpriv->usedma)
 			array[i] = be16_to_cpu(array[i]);
-		if (devpriv->ai16bits) {
+		if (devpriv->ai16bits)
 			array[i] ^= 0x8000;
-		} else {
+		else
 			array[i] = (array[i] >> 4) & 0x0fff;
-		}
+
 	}
 }
 
@@ -930,20 +930,20 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 		err++;
 
 	tmp = cmd->scan_begin_src;
-	if (devpriv->master) {
+	if (devpriv->master)
 		cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT | TRIG_FOLLOW;
-	} else {
+	else
 		cmd->scan_begin_src &= TRIG_FOLLOW;
-	}
+
 	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
 		err++;
 
 	tmp = cmd->convert_src;
-	if (devpriv->master) {
+	if (devpriv->master)
 		cmd->convert_src &= TRIG_TIMER | TRIG_EXT | TRIG_NOW;
-	} else {
+	else
 		cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	}
+
 	if (!cmd->convert_src || tmp != cmd->convert_src)
 		err++;
 
@@ -1908,9 +1908,9 @@ static int setup_channel_list(struct comedi_device *dev,
 	}
 #ifdef PCI9118_EXTDEBUG
 	DPRINTK("CHL: ");
-	for (i = 0; i <= (useeos * n_chan); i++) {
+	for (i = 0; i <= (useeos * n_chan); i++)
 		DPRINTK("%04x ", devpriv->chanlist[i]);
-	}
+
 	DPRINTK("\n ");
 #endif
 #endif
@@ -2222,9 +2222,9 @@ static int pci9118_attach(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	if (master) {
+	if (master)
 		pci_set_master(pcidev);
-	}
+
 
 	pci_bus = pcidev->bus->number;
 	pci_slot = PCI_SLOT(pcidev->devfn);
@@ -2335,11 +2335,11 @@ static int pci9118_attach(struct comedi_device *dev,
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
-	if (devpriv->usemux) {
+	if (devpriv->usemux)
 		s->n_chan = devpriv->usemux;
-	} else {
+	else
 		s->n_chan = this_board->n_aichan;
-	}
+
 	s->maxdata = this_board->ai_maxdata;
 	s->len_chanlist = this_board->n_aichanlist;
 	s->range_table = this_board->rangelist_ai;
@@ -2411,9 +2411,9 @@ static int pci9118_detach(struct comedi_device *dev)
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->pcidev) {
-			if (dev->iobase) {
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pcidev);
-			}
+
 			pci_dev_put(devpriv->pcidev);
 		}
 		if (devpriv->dmabuf_virt[0])
