@@ -599,13 +599,22 @@ struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board
 static int cx8802_request_acquire(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
+	unsigned int	i;
 
 	/* Fail a request for hardware if the device is busy. */
 	if (core->active_type_id != CX88_BOARD_NONE &&
 	    core->active_type_id != drv->type_id)
 		return -EBUSY;
 
-	core->input = CX88_VMUX_DVB;
+	core->input = 0;
+	for (i = 0;
+	     i < (sizeof(core->board.input) / sizeof(struct cx88_input));
+	     i++) {
+		if (core->board.input[i].type == CX88_VMUX_DVB) {
+			core->input = i;
+			break;
+		}
+	}
 
 	if (drv->advise_acquire)
 	{
