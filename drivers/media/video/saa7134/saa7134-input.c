@@ -955,7 +955,7 @@ static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 {
 	struct card_ir	*ir = dev->remote;
 	unsigned long 	timeout;
-	int count, pulse, oldpulse;
+	int pulse;
 
 	/* Generate initial event */
 	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
