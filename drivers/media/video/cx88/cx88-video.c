@@ -426,12 +426,13 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 		if (core->board.audio_chip &&
 		    core->board.audio_chip == V4L2_IDENT_WM8775) {
 			call_all(core, audio, s_routing,
-					INPUT(input).audioroute, 0, 0);
+				 INPUT(input).audioroute, 0, 0);
 		}
 		/* cx2388's C-ADC is connected to the tuner only.
 		   When used with S-Video, that ADC is busy dealing with
 		   chroma, so an external must be used for baseband audio */
-		if (INPUT(input).type != CX88_VMUX_TELEVISION ) {
+		if (INPUT(input).type != CX88_VMUX_TELEVISION &&
+		    INPUT(input).type != CX88_VMUX_CABLE) {
 			/* "I2S ADC mode" */
 			core->tvaudio = WW_I2SADC;
 			cx88_set_tvaudio(core);
