@@ -2554,6 +2554,19 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x1518, quirk_i82576_sriov);
 
 #endif	/* CONFIG_PCI_IOV */
 
+/* Allow manual resource allocation for PCI hotplug bridges
+ * via pci=hpmemsize=nnM and pci=hpiosize=nnM parameters. For
+ * some PCI-PCI hotplug bridges, like PLX 6254 (former HINT HB6),
+ * kernel fails to allocate resources when hotplug device is 
+ * inserted and PCI bus is rescanned.
+ */
+static void __devinit quirk_hotplug_bridge(struct pci_dev *dev)
+{
+	dev->is_hotplug_bridge = 1;
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_HINT, 0x0020, quirk_hotplug_bridge);
+
 /*
  * This is a quirk for the Ricoh MMC controller found as a part of
  * some mulifunction chips.
