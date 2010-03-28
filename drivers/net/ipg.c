@@ -1547,8 +1547,6 @@ static void ipg_reset_after_host_error(struct work_struct *work)
 		container_of(work, struct ipg_nic_private, task.work);
 	struct net_device *dev = sp->dev;
 
-	IPG_DDEBUG_MSG("DMACtrl = %8.8x\n", ioread32(sp->ioaddr + IPG_DMACTRL));
-
 	/*
 	 * Acknowledge HostError interrupt by resetting
 	 * IPG DMA and HOST.
@@ -1825,9 +1823,6 @@ static int ipg_nic_stop(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	IPG_DDEBUG_MSG("RFDlistendCount = %i\n", sp->RFDlistendCount);
-	IPG_DDEBUG_MSG("RFDListCheckedCount = %i\n", sp->rxdCheckedCount);
-	IPG_DDEBUG_MSG("EmptyRFDListCount = %i\n", sp->EmptyRFDListCount);
 	IPG_DUMPTFDLIST(dev);
 
 	do {
