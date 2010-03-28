@@ -60,12 +60,11 @@ static void omap_pcm_dma_irq(int ch, u16 stat, void *data)
 	struct omap_runtime_data *prtd = runtime->private_data;
 	unsigned long flags;
 
-	if ((cpu_is_omap1510()) &&
-			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)) {
+	if ((cpu_is_omap1510())) {
 		/*
 		 * OMAP1510 doesn't fully support DMA progress counter
 		 * and there is no software emulation implemented yet,
-		 * so have to maintain our own playback progress counter
+		 * so have to maintain our own progress counters
 		 * that can be used by omap_pcm_pointer() instead.
 		 */
 		spin_lock_irqsave(&prtd->lock, flags);
@@ -189,8 +188,7 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 	dma_params.frame_count	= runtime->periods;
 	omap_set_dma_params(prtd->dma_ch, &dma_params);
 
-	if ((cpu_is_omap1510()) &&
-			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK))
+	if ((cpu_is_omap1510()))
 		omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ |
 			      OMAP_DMA_LAST_IRQ | OMAP_DMA_BLOCK_IRQ);
 	else
@@ -248,14 +246,15 @@ static snd_pcm_uframes_t omap_pcm_pointer(struct snd_pcm_substream *substream)
 	dma_addr_t ptr;
 	snd_pcm_uframes_t offset;
 
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+	if (cpu_is_omap1510()) {
+		offset = prtd->period_index * runtime->period_size;
+	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		ptr = omap_get_dma_dst_pos(prtd->dma_ch);
 		offset = bytes_to_frames(runtime, ptr - runtime->dma_addr);
-	} else if (!(cpu_is_omap1510())) {
+	} else {
 		ptr = omap_get_dma_src_pos(prtd->dma_ch);
 		offset = bytes_to_frames(runtime, ptr - runtime->dma_addr);
-	} else
-		offset = prtd->period_index * runtime->period_size;
+	}
 
 	if (offset >= runtime->buffer_size)
 		offset = 0;
