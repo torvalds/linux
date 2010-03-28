@@ -821,6 +821,7 @@ void do_logfs_journal_wl_pass(struct super_block *sb)
 		logfs_set_segment_reserved(sb, segno);
 	}
 	/* Manually move journal_area */
+	freeseg(sb, area->a_segno);
 	area->a_segno = super->s_journal_seg[0];
 	area->a_is_open = 0;
 	area->a_used_bytes = 0;

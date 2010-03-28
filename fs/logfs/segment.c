@@ -691,7 +691,7 @@ int logfs_segment_delete(struct inode *inode, struct logfs_shadow *shadow)
 	return 0;
 }
 
-static void freeseg(struct super_block *sb, u32 segno)
+void freeseg(struct super_block *sb, u32 segno)
 {
 	struct logfs_super *super = logfs_super(sb);
 	struct address_space *mapping = super->s_mapping_inode->i_mapping;
