@@ -3343,6 +3343,10 @@ static int b43_nphy_set_chanspec(struct b43_wldev *dev,
 
 	if (dev->phy.rev >= 3) {
 		/* TODO */
+	} else {
+		tabent = b43_nphy_get_chantabent(dev, channel);
+		if (!tabent)
+			return -ESRCH;
 	}
 
 	nphy->radio_chanspec = chanspec;
@@ -3366,10 +3370,6 @@ static int b43_nphy_set_chanspec(struct b43_wldev *dev,
 		/* TODO: PHY Radio2056 Setup (chan_info_ptr[i]) */
 		/* TODO: N PHY Chanspec Setup (chan_info_ptr[i]) */
 	} else {
-		tabent = b43_nphy_get_chantabent(dev, channel);
-		if (!tabent)
-			return -ESRCH;
-
 		tmp = (chanspec.b_freq == 1) ? 0x0020 : 0x0050;
 		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, tmp);
 		b43_radio_2055_setup(dev, tabent);
