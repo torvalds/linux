@@ -213,6 +213,8 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 		if (!kernel_mode_regs(fp) && get_instruction(&opcode, (unsigned short *)fp->pc)) {
 			if (execute_pseudodbg_assert(fp, opcode))
 				goto traps_done;
+			if (execute_pseudodbg(fp, opcode))
+				goto traps_done;
 		}
 #endif
 		info.si_code = ILL_ILLOPC;
