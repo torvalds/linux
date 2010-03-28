@@ -16,6 +16,10 @@ struct b43_phy_n_sfo_cfg {
 struct b43_nphy_channeltab_entry {
 	/* The channel number */
 	u8 channel;
+	/* The channel frequency in MHz */
+	u16 freq;
+	/* An unknown value */
+	u16 unk2;
 	/* Radio register values on channelswitch */
 	u8 radio_pll_ref;
 	u8 radio_rf_pllmod0;
@@ -40,16 +44,7 @@ struct b43_nphy_channeltab_entry {
 	u8 radio_c2_tx_pgapadtn;
 	u8 radio_c2_tx_mxbgtrim;
 	/* PHY register values on channelswitch */
-	u16 phy_bw1a;
-	u16 phy_bw2;
-	u16 phy_bw3;
-	u16 phy_bw4;
-	u16 phy_bw5;
-	u16 phy_bw6;
-	/* The channel frequency in MHz */
-	u16 freq;
-	/* An unknown value */
-	u16 unk2;
+	struct b43_phy_n_sfo_cfg phy_regs;
 };
 
 

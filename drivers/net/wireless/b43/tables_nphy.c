@@ -318,12 +318,12 @@ void b2055_upload_inittab(struct b43_wldev *dev,
 	.radio_c2_tx_mxbgtrim	= r21
 
 #define PHYREGS(r0, r1, r2, r3, r4, r5)	\
-	.phy_bw1a	= r0,		\
-	.phy_bw2	= r1,		\
-	.phy_bw3	= r2,		\
-	.phy_bw4	= r3,		\
-	.phy_bw5	= r4,		\
-	.phy_bw6	= r5
+	.phy_regs.phy_bw1a	= r0,	\
+	.phy_regs.phy_bw2	= r1,	\
+	.phy_regs.phy_bw3	= r2,	\
+	.phy_regs.phy_bw4	= r3,	\
+	.phy_regs.phy_bw5	= r4,	\
+	.phy_regs.phy_bw6	= r5
 
 static const struct b43_nphy_channeltab_entry b43_nphy_channeltab[] = {
   {	.channel		= 184,

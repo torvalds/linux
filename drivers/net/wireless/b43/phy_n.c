@@ -141,7 +141,7 @@ static void b43_chantab_radio_upload(struct b43_wldev *dev,
 }
 
 static void b43_chantab_phy_upload(struct b43_wldev *dev,
-				   const struct b43_nphy_channeltab_entry *e)
+				   const struct b43_phy_n_sfo_cfg *e)
 {
 	b43_phy_write(dev, B43_NPHY_BW1A, e->phy_bw1a);
 	b43_phy_write(dev, B43_NPHY_BW2, e->phy_bw2);
@@ -3270,7 +3270,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ChanspecSetup */
 static void b43_nphy_chanspec_setup(struct b43_wldev *dev,
-				const struct b43_nphy_channeltab_entry *e,
+				const struct b43_phy_n_sfo_cfg *e,
 				struct b43_chanspec chanspec)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -3373,7 +3373,7 @@ static int b43_nphy_set_chanspec(struct b43_wldev *dev,
 		tmp = (chanspec.b_freq == 1) ? 0x0020 : 0x0050;
 		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, tmp);
 		b43_radio_2055_setup(dev, tabent);
-		b43_nphy_chanspec_setup(dev, tabent, chanspec);
+		b43_nphy_chanspec_setup(dev, &(tabent->phy_regs), chanspec);
 	}
 
 	return 0;
