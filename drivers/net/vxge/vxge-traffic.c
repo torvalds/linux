@@ -878,7 +878,7 @@ void vxge_hw_ring_rxd_post_post(struct __vxge_hw_ring *ring, void *rxdh)
 
 	channel = &ring->channel;
 
-	rxdp->control_0	|= VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
+	rxdp->control_0	= VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
 
 	if (ring->stats->common_stats.usage_cnt > 0)
 		ring->stats->common_stats.usage_cnt--;
@@ -902,7 +902,7 @@ void vxge_hw_ring_rxd_post(struct __vxge_hw_ring *ring, void *rxdh)
 	channel = &ring->channel;
 
 	wmb();
-	rxdp->control_0	|= VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
+	rxdp->control_0	= VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
 
 	vxge_hw_channel_dtr_post(channel, rxdh);
 
@@ -966,6 +966,7 @@ enum vxge_hw_status vxge_hw_ring_rxd_next_completed(
 	struct __vxge_hw_channel *channel;
 	struct vxge_hw_ring_rxd_1 *rxdp;
 	enum vxge_hw_status status = VXGE_HW_OK;
+	u64 control_0, own;
 
 	channel = &ring->channel;
 
@@ -977,16 +978,18 @@ enum vxge_hw_status vxge_hw_ring_rxd_next_completed(
 		goto exit;
 	}
 
+	control_0 = rxdp->control_0;
+	own = control_0 & VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
+	*t_code	= (u8)VXGE_HW_RING_RXD_T_CODE_GET(control_0);
+
 	/* check whether it is not the end */
-	if (!(rxdp->control_0 &	VXGE_HW_RING_RXD_LIST_OWN_ADAPTER)) {
+	if (!own || ((*t_code == VXGE_HW_RING_T_CODE_FRM_DROP) && own)) {
 
 		vxge_assert(((struct vxge_hw_ring_rxd_1 *)rxdp)->host_control !=
 				0);
 
 		++ring->cmpl_cnt;
 		vxge_hw_channel_dtr_complete(channel);
-
-		*t_code	= (u8)VXGE_HW_RING_RXD_T_CODE_GET(rxdp->control_0);
 
 		vxge_assert(*t_code != VXGE_HW_RING_RXD_T_CODE_UNUSED);
 
@@ -1035,12 +1038,13 @@ enum vxge_hw_status vxge_hw_ring_handle_tcode(
 	 * such as unknown UPV6 header), Drop it !!!
 	 */
 
-	if (t_code == 0 || t_code == 5) {
+	if (t_code ==  VXGE_HW_RING_T_CODE_OK ||
+		t_code == VXGE_HW_RING_T_CODE_L3_PKT_ERR) {
 		status = VXGE_HW_OK;
 		goto exit;
 	}
 
-	if (t_code > 0xF) {
+	if (t_code > VXGE_HW_RING_T_CODE_MULTI_ERR) {
 		status = VXGE_HW_ERR_INVALID_TCODE;
 		goto exit;
 	}
