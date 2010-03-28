@@ -40,7 +40,7 @@ static struct class ir_input_class = {
  * @buf:	a pointer to the output buffer
  *
  * This routine is a callback routine for input read the IR protocol type.
- * it is trigged by reading /sys/class/rc/rcrcv?/current_protocol.
+ * it is trigged by reading /sys/class/rc/rc?/current_protocol.
  * It returns the protocol name, as understood by the driver.
  */
 static ssize_t show_protocol(struct device *d,
@@ -75,7 +75,7 @@ static ssize_t show_protocol(struct device *d,
  * @len:	length of the input buffer
  *
  * This routine is a callback routine for changing the IR protocol type.
- * it is trigged by reading /sys/class/rc/rcrcv?/current_protocol.
+ * it is trigged by reading /sys/class/rc/rc?/current_protocol.
  * It changes the IR the protocol name, if the IR type is recognized
  * by the driver.
  * If an unknown protocol name is used, returns -EINVAL.
@@ -172,7 +172,7 @@ static struct device_type ir_dev_type = {
 };
 
 /**
- * ir_register_class() - creates the sysfs for /sys/class/rc/rcrcv?
+ * ir_register_class() - creates the sysfs for /sys/class/rc/rc?
  * @input_dev:	the struct input_dev descriptor of the device
  *
  * This routine is used to register the syfs code for IR class
@@ -192,7 +192,7 @@ int ir_register_class(struct input_dev *input_dev)
 	ir_dev->dev.type = &ir_dev_type;
 	ir_dev->dev.class = &ir_input_class;
 	ir_dev->dev.parent = input_dev->dev.parent;
-	dev_set_name(&ir_dev->dev, "rcrcv%d", devno);
+	dev_set_name(&ir_dev->dev, "rc%d", devno);
 	dev_set_drvdata(&ir_dev->dev, ir_dev);
 	rc = device_register(&ir_dev->dev);
 	if (rc)
@@ -223,7 +223,7 @@ int ir_register_class(struct input_dev *input_dev)
 
 /**
  * ir_unregister_class() - removes the sysfs for sysfs for
- *			   /sys/class/rc/rcrcv?
+ *			   /sys/class/rc/rc?
  * @input_dev:	the struct input_dev descriptor of the device
  *
  * This routine is used to unregister the syfs code for IR class
