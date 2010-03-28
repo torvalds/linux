@@ -1217,14 +1217,13 @@ __vxge_hw_ring_mempool_item_alloc(struct vxge_hw_mempool *mempoolh,
 }
 
 /*
- * __vxge_hw_ring_initial_replenish - Initial replenish of RxDs
+ * __vxge_hw_ring_replenish - Initial replenish of RxDs
  * This function replenishes the RxDs from reserve array to work array
  */
 enum vxge_hw_status
-vxge_hw_ring_replenish(struct __vxge_hw_ring *ring, u16 min_flag)
+vxge_hw_ring_replenish(struct __vxge_hw_ring *ring)
 {
 	void *rxd;
-	int i = 0;
 	struct __vxge_hw_channel *channel;
 	enum vxge_hw_status status = VXGE_HW_OK;
 
@@ -1245,11 +1244,6 @@ vxge_hw_ring_replenish(struct __vxge_hw_ring *ring, u16 min_flag)
 		}
 
 		vxge_hw_ring_rxd_post(ring, rxd);
-		if (min_flag) {
-			i++;
-			if (i == VXGE_HW_RING_MIN_BUFF_ALLOCATION)
-				break;
-		}
 	}
 	status = VXGE_HW_OK;
 exit:
@@ -1354,7 +1348,7 @@ __vxge_hw_ring_create(struct __vxge_hw_vpath_handle *vp,
 	 * Currently we don't have a case when the 1) is done without the 2).
 	 */
 	if (ring->rxd_init) {
-		status = vxge_hw_ring_replenish(ring, 1);
+		status = vxge_hw_ring_replenish(ring);
 		if (status != VXGE_HW_OK) {
 			__vxge_hw_ring_delete(vp);
 			goto exit;
@@ -1416,7 +1410,7 @@ enum vxge_hw_status __vxge_hw_ring_reset(struct __vxge_hw_ring *ring)
 		goto exit;
 
 	if (ring->rxd_init) {
-		status = vxge_hw_ring_replenish(ring, 1);
+		status = vxge_hw_ring_replenish(ring);
 		if (status != VXGE_HW_OK)
 			goto exit;
 	}

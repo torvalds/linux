@@ -444,7 +444,7 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 		ring->ndev->name, __func__, __LINE__);
 	ring->pkts_processed = 0;
 
-	vxge_hw_ring_replenish(ringh, 0);
+	vxge_hw_ring_replenish(ringh);
 
 	do {
 		prefetch((char *)dtr + L1_CACHE_BYTES);

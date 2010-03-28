@@ -1955,7 +1955,7 @@ vxge_hw_ring_rxd_post_post(
 	void *rxdh);
 
 enum vxge_hw_status
-vxge_hw_ring_replenish(struct __vxge_hw_ring *ring_handle, u16 min_flag);
+vxge_hw_ring_replenish(struct __vxge_hw_ring *ring_handle);
 
 void
 vxge_hw_ring_rxd_post_post_wmb(
@@ -2087,7 +2087,6 @@ void vxge_hw_fifo_txdl_free(
 
 #define VXGE_HW_RING_NEXT_BLOCK_POINTER_OFFSET	(VXGE_HW_BLOCK_SIZE-8)
 #define VXGE_HW_RING_MEMBLOCK_IDX_OFFSET		(VXGE_HW_BLOCK_SIZE-16)
-#define VXGE_HW_RING_MIN_BUFF_ALLOCATION		64
 
 /*
  * struct __vxge_hw_ring_rxd_priv - Receive descriptor HW-private data.
