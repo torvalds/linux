@@ -67,7 +67,7 @@ static int videobuf_dvb_thread(void *data)
 		try_to_freeze();
 
 		/* feed buffer data to demux */
-		outp = videobuf_queue_to_vmalloc (&dvb->dvbq, buf);
+		outp = videobuf_queue_to_vaddr(&dvb->dvbq, buf);
 
 		if (buf->state == VIDEOBUF_DONE)
 			dvb_dmx_swfilter(&dvb->demux, outp,

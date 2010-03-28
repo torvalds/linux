@@ -105,15 +105,14 @@ int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 }
 EXPORT_SYMBOL_GPL(videobuf_iolock);
 
-void *videobuf_queue_to_vmalloc(struct videobuf_queue *q,
-				struct videobuf_buffer *buf)
+void *videobuf_queue_to_vaddr(struct videobuf_queue *q,
+			      struct videobuf_buffer *buf)
 {
 	if (q->int_ops->vaddr)
 		return q->int_ops->vaddr(buf);
-	else
-		return NULL;
+	return NULL;
 }
-EXPORT_SYMBOL_GPL(videobuf_queue_to_vmalloc);
+EXPORT_SYMBOL_GPL(videobuf_queue_to_vaddr);
 
 /* --------------------------------------------------------------------- */
 

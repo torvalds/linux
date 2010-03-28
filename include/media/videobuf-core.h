@@ -185,8 +185,8 @@ int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 struct videobuf_buffer *videobuf_alloc(struct videobuf_queue *q);
 
 /* Used on videobuf-dvb */
-void *videobuf_queue_to_vmalloc(struct videobuf_queue *q,
-				struct videobuf_buffer *buf);
+void *videobuf_queue_to_vaddr(struct videobuf_queue *q,
+			      struct videobuf_buffer *buf);
 
 void videobuf_queue_core_init(struct videobuf_queue *q,
 			 const struct videobuf_queue_ops *ops,
