@@ -2990,10 +2990,9 @@ F:	net/ipv4/netfilter/ipt_MASQUERADE.c
 IP1000A 10/100/1000 GIGABIT ETHERNET DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
 M:	Sorbica Shieh <sorbica@icplus.com.tw>
-M:	Jesse Huang <jesse@icplus.com.tw>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ipg.c
+F:	drivers/net/ipg.*
 
 IPATH DRIVER
 M:	Ralph Campbell <infinipath@qlogic.com>
