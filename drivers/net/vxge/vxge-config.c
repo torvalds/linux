@@ -356,8 +356,10 @@ __vxge_hw_device_access_rights_get(u32 host_type, u32 func_id)
 
 	switch (host_type) {
 	case VXGE_HW_NO_MR_NO_SR_NORMAL_FUNCTION:
-		access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
-				VXGE_HW_DEVICE_ACCESS_RIGHT_SRPCIM;
+		if (func_id == 0) {
+			access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
+					VXGE_HW_DEVICE_ACCESS_RIGHT_SRPCIM;
+		}
 		break;
 	case VXGE_HW_MR_NO_SR_VH0_BASE_FUNCTION:
 		access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
