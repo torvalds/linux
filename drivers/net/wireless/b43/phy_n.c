@@ -165,10 +165,10 @@ static void b43_radio_2055_setup(struct b43_wldev *dev,
 
 	b43_chantab_radio_upload(dev, e);
 	udelay(50);
-	b43_radio_write(dev, B2055_VCO_CAL10, 5);
-	b43_radio_write(dev, B2055_VCO_CAL10, 45);
+	b43_radio_write(dev, B2055_VCO_CAL10, 0x05);
+	b43_radio_write(dev, B2055_VCO_CAL10, 0x45);
 	b43_read32(dev, B43_MMIO_MACCTL); /* flush writes */
-	b43_radio_write(dev, B2055_VCO_CAL10, 65);
+	b43_radio_write(dev, B2055_VCO_CAL10, 0x65);
 	udelay(300);
 }
 
