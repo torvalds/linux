@@ -204,7 +204,7 @@ static struct videobuf_buffer *__videobuf_alloc(size_t size)
 	return vb;
 }
 
-static void *__videobuf_to_vmalloc(struct videobuf_buffer *buf)
+static void *__videobuf_to_vaddr(struct videobuf_buffer *buf)
 {
 	struct videobuf_dma_contig_memory *mem = buf->priv;
 
@@ -414,7 +414,7 @@ static struct videobuf_qtype_ops qops = {
 	.mmap_mapper  = __videobuf_mmap_mapper,
 	.video_copy_to_user = __videobuf_copy_to_user,
 	.copy_stream  = __videobuf_copy_stream,
-	.vmalloc      = __videobuf_to_vmalloc,
+	.vaddr        = __videobuf_to_vaddr,
 };
 
 void videobuf_queue_dma_contig_init(struct videobuf_queue *q,

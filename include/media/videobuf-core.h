@@ -128,7 +128,7 @@ struct videobuf_qtype_ops {
 	u32                     magic;
 
 	struct videobuf_buffer *(*alloc)(size_t size);
-	void *(*vmalloc)	(struct videobuf_buffer *buf);
+	void *(*vaddr)		(struct videobuf_buffer *buf);
 	int (*iolock)		(struct videobuf_queue *q,
 				 struct videobuf_buffer *vb,
 				 struct v4l2_framebuffer *fbuf);
