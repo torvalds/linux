@@ -263,19 +263,6 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 	return 0;
 }
 
-static int __videobuf_mmap_free(struct videobuf_queue *q)
-{
-	unsigned int i;
-
-	dev_dbg(q->dev, "%s\n", __func__);
-	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
-		if (q->bufs[i] && q->bufs[i]->map)
-			return -EBUSY;
-	}
-
-	return 0;
-}
-
 static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 				  struct vm_area_struct *vma)
 {
@@ -424,7 +411,6 @@ static struct videobuf_qtype_ops qops = {
 
 	.alloc        = __videobuf_alloc,
 	.iolock       = __videobuf_iolock,
-	.mmap_free    = __videobuf_mmap_free,
 	.mmap_mapper  = __videobuf_mmap_mapper,
 	.video_copy_to_user = __videobuf_copy_to_user,
 	.copy_stream  = __videobuf_copy_stream,

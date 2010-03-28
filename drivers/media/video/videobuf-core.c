@@ -311,19 +311,17 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 static int __videobuf_mmap_free(struct videobuf_queue *q)
 {
 	int i;
-	int rc;
 
 	if (!q)
 		return 0;
 
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
-	rc = CALL(q, mmap_free, q);
+	for (i = 0; i < VIDEO_MAX_FRAME; i++)
+		if (q->bufs[i] && q->bufs[i]->map)
+			return -EBUSY;
 
 	q->is_mmapped = 0;
-
-	if (rc < 0)
-		return rc;
 
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		if (NULL == q->bufs[i])
@@ -333,7 +331,7 @@ static int __videobuf_mmap_free(struct videobuf_queue *q)
 		q->bufs[i] = NULL;
 	}
 
-	return rc;
+	return 0;
 }
 
 int videobuf_mmap_free(struct videobuf_queue *q)

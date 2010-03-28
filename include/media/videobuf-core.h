@@ -144,7 +144,6 @@ struct videobuf_qtype_ops {
 				 size_t pos,
 				 int vbihack,
 				 int nonblocking);
-	int (*mmap_free)	(struct videobuf_queue *q);
 	int (*mmap_mapper)	(struct videobuf_queue *q,
 				struct vm_area_struct *vma);
 };
