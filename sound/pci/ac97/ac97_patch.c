@@ -1873,6 +1873,7 @@ static unsigned int ad1981_jacks_blacklist[] = {
 	0x10280160, /* Dell Dimension 2400 */
 	0x104380b0, /* Asus A7V8X-MX */
 	0x11790241, /* Toshiba Satellite A-15 S127 */
+	0x1179ff10, /* Toshiba P500 */
 	0x144dc01a, /* Samsung NP-X20C004/SEG */
 	0 /* end */
 };
