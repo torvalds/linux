@@ -127,7 +127,7 @@ struct videobuf_queue_ops {
 struct videobuf_qtype_ops {
 	u32                     magic;
 
-	void *(*alloc)		(size_t size);
+	struct videobuf_buffer *(*alloc)(size_t size);
 	void *(*vmalloc)	(struct videobuf_buffer *buf);
 	int (*iolock)		(struct videobuf_queue *q,
 				 struct videobuf_buffer *vb,
@@ -182,7 +182,7 @@ int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr);
 int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		struct v4l2_framebuffer *fbuf);
 
-void *videobuf_alloc(struct videobuf_queue* q);
+struct videobuf_buffer *videobuf_alloc(struct videobuf_queue *q);
 
 /* Used on videobuf-dvb */
 void *videobuf_queue_to_vmalloc(struct videobuf_queue *q,

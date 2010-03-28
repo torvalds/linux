@@ -52,7 +52,7 @@ MODULE_LICENSE("GPL");
 #define CALL(q, f, arg...)						\
 	((q->int_ops->f) ? q->int_ops->f(arg) : 0)
 
-void *videobuf_alloc(struct videobuf_queue *q)
+struct videobuf_buffer *videobuf_alloc(struct videobuf_queue *q)
 {
 	struct videobuf_buffer *vb;
 
