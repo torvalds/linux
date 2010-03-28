@@ -13,7 +13,7 @@ struct b43_phy_n_sfo_cfg {
 	u16 phy_bw6;
 };
 
-struct b43_nphy_channeltab_entry {
+struct b43_nphy_channeltab_entry_rev2 {
 	/* The channel number */
 	u8 channel;
 	/* The channel frequency in MHz */
@@ -43,6 +43,17 @@ struct b43_nphy_channeltab_entry {
 	u8 radio_c2_rx_rfr1;
 	u8 radio_c2_tx_pgapadtn;
 	u8 radio_c2_tx_mxbgtrim;
+	/* PHY register values on channelswitch */
+	struct b43_phy_n_sfo_cfg phy_regs;
+};
+
+struct b43_nphy_channeltab_entry_rev3 {
+	/* The channel number */
+	u8 channel;
+	/* The channel frequency in MHz */
+	u16 freq;
+	/* Radio register values on channelswitch */
+	/* TODO */
 	/* PHY register values on channelswitch */
 	struct b43_phy_n_sfo_cfg phy_regs;
 };
@@ -81,8 +92,8 @@ void b2055_upload_inittab(struct b43_wldev *dev,
 
 /* Get the NPHY Channel Switch Table entry for a channel number.
  * Returns NULL on failure to find an entry. */
-const struct b43_nphy_channeltab_entry *
-b43_nphy_get_chantabent(struct b43_wldev *dev, u8 channel);
+const struct b43_nphy_channeltab_entry_rev2 *
+b43_nphy_get_chantabent_rev2(struct b43_wldev *dev, u8 channel);
 
 
 /* The N-PHY tables. */

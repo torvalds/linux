@@ -104,7 +104,7 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
 }
 
 static void b43_chantab_radio_upload(struct b43_wldev *dev,
-				     const struct b43_nphy_channeltab_entry *e)
+				const struct b43_nphy_channeltab_entry_rev2 *e)
 {
 	b43_radio_write(dev, B2055_PLL_REF, e->radio_pll_ref);
 	b43_radio_write(dev, B2055_RF_PLLMOD0, e->radio_rf_pllmod0);
@@ -159,7 +159,7 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/Radio/2055Setup */
 static void b43_radio_2055_setup(struct b43_wldev *dev,
-				const struct b43_nphy_channeltab_entry *e)
+				const struct b43_nphy_channeltab_entry_rev2 *e)
 {
 	B43_WARN_ON(dev->phy.rev >= 3);
 
@@ -3336,16 +3336,20 @@ static int b43_nphy_set_chanspec(struct b43_wldev *dev,
 {
 	struct b43_phy_n *nphy = dev->phy.n;
 
-	const struct b43_nphy_channeltab_entry *tabent;
+	const struct b43_nphy_channeltab_entry_rev2 *tabent_r2;
+	const struct b43_nphy_channeltab_entry_rev3 *tabent_r3;
 
 	u8 tmp;
 	u8 channel = chanspec.channel;
 
 	if (dev->phy.rev >= 3) {
 		/* TODO */
+		tabent_r3 = NULL;
+		if (!tabent_r3)
+			return -ESRCH;
 	} else {
-		tabent = b43_nphy_get_chantabent(dev, channel);
-		if (!tabent)
+		tabent_r2 = b43_nphy_get_chantabent_rev2(dev, channel);
+		if (!tabent_r2)
 			return -ESRCH;
 	}
 
@@ -3367,13 +3371,13 @@ static int b43_nphy_set_chanspec(struct b43_wldev *dev,
 	if (dev->phy.rev >= 3) {
 		tmp = (chanspec.b_freq == 1) ? 4 : 0;
 		b43_radio_maskset(dev, 0x08, 0xFFFB, tmp);
-		/* TODO: PHY Radio2056 Setup (chan_info_ptr[i]) */
-		/* TODO: N PHY Chanspec Setup (chan_info_ptr[i]) */
+		/* TODO: PHY Radio2056 Setup (dev, tabent_r3); */
+		b43_nphy_chanspec_setup(dev, &(tabent_r3->phy_regs), chanspec);
 	} else {
 		tmp = (chanspec.b_freq == 1) ? 0x0020 : 0x0050;
 		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, tmp);
-		b43_radio_2055_setup(dev, tabent);
-		b43_nphy_chanspec_setup(dev, &(tabent->phy_regs), chanspec);
+		b43_radio_2055_setup(dev, tabent_r2);
+		b43_nphy_chanspec_setup(dev, &(tabent_r2->phy_regs), chanspec);
 	}
 
 	return 0;

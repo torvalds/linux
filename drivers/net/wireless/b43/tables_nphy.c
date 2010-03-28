@@ -325,7 +325,7 @@ void b2055_upload_inittab(struct b43_wldev *dev,
 	.phy_regs.phy_bw5	= r4,	\
 	.phy_regs.phy_bw6	= r5
 
-static const struct b43_nphy_channeltab_entry b43_nphy_channeltab[] = {
+static const struct b43_nphy_channeltab_entry_rev2 b43_nphy_channeltab[] = {
   {	.channel		= 184,
 	.freq			= 4920, /* MHz */
 	.unk2			= 3280,
@@ -1320,10 +1320,10 @@ static const struct b43_nphy_channeltab_entry b43_nphy_channeltab[] = {
   },
 };
 
-const struct b43_nphy_channeltab_entry *
-b43_nphy_get_chantabent(struct b43_wldev *dev, u8 channel)
+const struct b43_nphy_channeltab_entry_rev2 *
+b43_nphy_get_chantabent_rev2(struct b43_wldev *dev, u8 channel)
 {
-	const struct b43_nphy_channeltab_entry *e;
+	const struct b43_nphy_channeltab_entry_rev2 *e;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(b43_nphy_channeltab); i++) {
