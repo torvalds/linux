@@ -2376,7 +2376,7 @@ enum vxge_hw_status vxge_hw_vpath_alarm_process(
 	struct __vxge_hw_vpath_handle *vpath_handle,
 	u32 skip_alarms);
 
-enum vxge_hw_status
+void
 vxge_hw_vpath_msix_set(struct __vxge_hw_vpath_handle *vpath_handle,
 		       int *tim_msix_id, int alarm_msix_id);
 
