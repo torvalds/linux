@@ -134,16 +134,6 @@ struct videobuf_qtype_ops {
 				 struct v4l2_framebuffer *fbuf);
 	int (*sync)		(struct videobuf_queue *q,
 				 struct videobuf_buffer *buf);
-	int (*video_copy_to_user)(struct videobuf_queue *q,
-				 char __user *data,
-				 size_t count,
-				 int nonblocking);
-	int (*copy_stream)	(struct videobuf_queue *q,
-				 char __user *data,
-				 size_t count,
-				 size_t pos,
-				 int vbihack,
-				 int nonblocking);
 	int (*mmap_mapper)	(struct videobuf_queue *q,
 				struct vm_area_struct *vma);
 };

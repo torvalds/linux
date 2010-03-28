@@ -353,67 +353,12 @@ error:
 	return -ENOMEM;
 }
 
-static int __videobuf_copy_to_user(struct videobuf_queue *q,
-				   char __user *data, size_t count,
-				   int nonblocking)
-{
-	struct videobuf_dma_contig_memory *mem = q->read_buf->priv;
-	void *vaddr;
-
-	BUG_ON(!mem);
-	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
-	BUG_ON(!mem->vaddr);
-
-	/* copy to userspace */
-	if (count > q->read_buf->size - q->read_off)
-		count = q->read_buf->size - q->read_off;
-
-	vaddr = mem->vaddr;
-
-	if (copy_to_user(data, vaddr + q->read_off, count))
-		return -EFAULT;
-
-	return count;
-}
-
-static int __videobuf_copy_stream(struct videobuf_queue *q,
-				  char __user *data, size_t count, size_t pos,
-				  int vbihack, int nonblocking)
-{
-	unsigned int  *fc;
-	struct videobuf_dma_contig_memory *mem = q->read_buf->priv;
-
-	BUG_ON(!mem);
-	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
-
-	if (vbihack) {
-		/* dirty, undocumented hack -- pass the frame counter
-			* within the last four bytes of each vbi data block.
-			* We need that one to maintain backward compatibility
-			* to all vbi decoding software out there ... */
-		fc = (unsigned int *)mem->vaddr;
-		fc += (q->read_buf->size >> 2) - 1;
-		*fc = q->read_buf->field_count >> 1;
-		dev_dbg(q->dev, "vbihack: %d\n", *fc);
-	}
-
-	/* copy stuff using the common method */
-	count = __videobuf_copy_to_user(q, data, count, nonblocking);
-
-	if ((count == -EFAULT) && (pos == 0))
-		return -EFAULT;
-
-	return count;
-}
-
 static struct videobuf_qtype_ops qops = {
 	.magic        = MAGIC_QTYPE_OPS,
 
 	.alloc        = __videobuf_alloc,
 	.iolock       = __videobuf_iolock,
 	.mmap_mapper  = __videobuf_mmap_mapper,
-	.video_copy_to_user = __videobuf_copy_to_user,
-	.copy_stream  = __videobuf_copy_stream,
 	.vaddr        = __videobuf_to_vaddr,
 };
 
