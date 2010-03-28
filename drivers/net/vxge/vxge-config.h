@@ -1914,20 +1914,32 @@ static inline void *vxge_os_dma_malloc(struct pci_dev *pdev,
 	gfp_t flags;
 	void *vaddr;
 	unsigned long misaligned = 0;
+	int realloc_flag = 0;
 	*p_dma_acch = *p_dmah = NULL;
 
 	if (in_interrupt())
 		flags = GFP_ATOMIC | GFP_DMA;
 	else
 		flags = GFP_KERNEL | GFP_DMA;
-
-	size += VXGE_CACHE_LINE_SIZE;
-
+realloc:
 	vaddr = kmalloc((size), flags);
 	if (vaddr == NULL)
 		return vaddr;
-	misaligned = (unsigned long)VXGE_ALIGN(*((u64 *)&vaddr),
+	misaligned = (unsigned long)VXGE_ALIGN((unsigned long)vaddr,
 				VXGE_CACHE_LINE_SIZE);
+	if (realloc_flag)
+		goto out;
+
+	if (misaligned) {
+		/* misaligned, free current one and try allocating
+		 * size + VXGE_CACHE_LINE_SIZE memory
+		 */
+		kfree((void *) vaddr);
+		size += VXGE_CACHE_LINE_SIZE;
+		realloc_flag = 1;
+		goto realloc;
+	}
+out:
 	*(unsigned long *)p_dma_acch = misaligned;
 	vaddr = (void *)((u8 *)vaddr + misaligned);
 	return vaddr;
