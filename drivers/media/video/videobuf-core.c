@@ -321,8 +321,6 @@ static int __videobuf_mmap_free(struct videobuf_queue *q)
 		if (q->bufs[i] && q->bufs[i]->map)
 			return -EBUSY;
 
-	q->is_mmapped = 0;
-
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		if (NULL == q->bufs[i])
 			continue;
@@ -1089,7 +1087,6 @@ int videobuf_mmap_mapper(struct videobuf_queue *q, struct vm_area_struct *vma)
 
 	mutex_lock(&q->vb_lock);
 	retval = CALL(q, mmap_mapper, q, vma);
-	q->is_mmapped = 1;
 	mutex_unlock(&q->vb_lock);
 
 	return retval;
