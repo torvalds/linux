@@ -135,7 +135,8 @@ struct videobuf_qtype_ops {
 	int (*sync)		(struct videobuf_queue *q,
 				 struct videobuf_buffer *buf);
 	int (*mmap_mapper)	(struct videobuf_queue *q,
-				struct vm_area_struct *vma);
+				 struct videobuf_buffer *buf,
+				 struct vm_area_struct *vma);
 };
 
 struct videobuf_queue {

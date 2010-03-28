@@ -549,22 +549,15 @@ static int __videobuf_sync(struct videobuf_queue *q,
 }
 
 static int __videobuf_mmap_mapper(struct videobuf_queue *q,
-			 struct vm_area_struct *vma)
+				  struct videobuf_buffer *buf,
+				  struct vm_area_struct *vma)
 {
-	struct videobuf_dma_sg_memory *mem;
+	struct videobuf_dma_sg_memory *mem = buf->priv;
 	struct videobuf_mapping *map;
 	unsigned int first, last, size, i;
 	int retval;
 
 	retval = -EINVAL;
-	if (!(vma->vm_flags & VM_WRITE)) {
-		dprintk(1, "mmap app bug: PROT_WRITE please\n");
-		goto done;
-	}
-	if (!(vma->vm_flags & VM_SHARED)) {
-		dprintk(1, "mmap app bug: MAP_SHARED please\n");
-		goto done;
-	}
 
 	/* This function maintains backwards compatibility with V4L1 and will
 	 * map more than one buffer if the vma length is equal to the combined
@@ -574,44 +567,48 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	 * TODO: Allow drivers to specify if they support this mode
 	 */
 
+	BUG_ON(!mem);
+	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
+
 	/* look for first buffer to map */
 	for (first = 0; first < VIDEO_MAX_FRAME; first++) {
-		if (NULL == q->bufs[first])
-			continue;
-		mem = q->bufs[first]->priv;
-		BUG_ON(!mem);
-		MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
-
-		if (V4L2_MEMORY_MMAP != q->bufs[first]->memory)
-			continue;
-		if (q->bufs[first]->boff == (vma->vm_pgoff << PAGE_SHIFT))
+		if (buf == q->bufs[first]) {
+			size = PAGE_ALIGN(q->bufs[first]->bsize);
 			break;
+		}
 	}
+
+	/* paranoia, should never happen since buf is always valid. */
 	if (VIDEO_MAX_FRAME == first) {
 		dprintk(1, "mmap app bug: offset invalid [offset=0x%lx]\n",
-			(vma->vm_pgoff << PAGE_SHIFT));
+				(vma->vm_pgoff << PAGE_SHIFT));
 		goto done;
 	}
 
-	/* look for last buffer to map */
-	for (size = 0, last = first; last < VIDEO_MAX_FRAME; last++) {
-		if (NULL == q->bufs[last])
-			continue;
-		if (V4L2_MEMORY_MMAP != q->bufs[last]->memory)
-			continue;
-		if (q->bufs[last]->map) {
-			retval = -EBUSY;
+	last = first;
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+	if (size != (vma->vm_end - vma->vm_start)) {
+		/* look for last buffer to map */
+		for (last = first + 1; last < VIDEO_MAX_FRAME; last++) {
+			if (NULL == q->bufs[last])
+				continue;
+			if (V4L2_MEMORY_MMAP != q->bufs[last]->memory)
+				continue;
+			if (q->bufs[last]->map) {
+				retval = -EBUSY;
+				goto done;
+			}
+			size += PAGE_ALIGN(q->bufs[last]->bsize);
+			if (size == (vma->vm_end - vma->vm_start))
+				break;
+		}
+		if (VIDEO_MAX_FRAME == last) {
+			dprintk(1, "mmap app bug: size invalid [size=0x%lx]\n",
+					(vma->vm_end - vma->vm_start));
 			goto done;
 		}
-		size += PAGE_ALIGN(q->bufs[last]->bsize);
-		if (size == (vma->vm_end - vma->vm_start))
-			break;
 	}
-	if (VIDEO_MAX_FRAME == last) {
-		dprintk(1, "mmap app bug: size invalid [size=0x%lx]\n",
-			(vma->vm_end - vma->vm_start));
-		goto done;
-	}
+#endif
 
 	/* create mapping + update buffer list */
 	retval = -ENOMEM;

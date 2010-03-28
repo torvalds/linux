@@ -1123,15 +1123,29 @@ EXPORT_SYMBOL_GPL(videobuf_poll_stream);
 
 int videobuf_mmap_mapper(struct videobuf_queue *q, struct vm_area_struct *vma)
 {
-	int retval;
+	int rc = -EINVAL;
+	int i;
 
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
+	if (!(vma->vm_flags & VM_WRITE) || !(vma->vm_flags & VM_SHARED)) {
+		dprintk(1, "mmap appl bug: PROT_WRITE and MAP_SHARED are required\n");
+		return -EINVAL;
+	}
+
 	mutex_lock(&q->vb_lock);
-	retval = CALL(q, mmap_mapper, q, vma);
+	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
+		struct videobuf_buffer *buf = q->bufs[i];
+
+		if (buf && buf->memory == V4L2_MEMORY_MMAP &&
+				buf->boff == (vma->vm_pgoff << PAGE_SHIFT)) {
+			rc = CALL(q, mmap_mapper, q, buf, vma);
+			break;
+		}
+	}
 	mutex_unlock(&q->vb_lock);
 
-	return retval;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(videobuf_mmap_mapper);
 

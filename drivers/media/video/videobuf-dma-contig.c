@@ -264,51 +264,33 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 }
 
 static int __videobuf_mmap_mapper(struct videobuf_queue *q,
+				  struct videobuf_buffer *buf,
 				  struct vm_area_struct *vma)
 {
 	struct videobuf_dma_contig_memory *mem;
 	struct videobuf_mapping *map;
-	unsigned int first;
 	int retval;
-	unsigned long size, offset = vma->vm_pgoff << PAGE_SHIFT;
+	unsigned long size;
 
 	dev_dbg(q->dev, "%s\n", __func__);
-	if (!(vma->vm_flags & VM_WRITE) || !(vma->vm_flags & VM_SHARED))
-		return -EINVAL;
-
-	/* look for first buffer to map */
-	for (first = 0; first < VIDEO_MAX_FRAME; first++) {
-		if (!q->bufs[first])
-			continue;
-
-		if (V4L2_MEMORY_MMAP != q->bufs[first]->memory)
-			continue;
-		if (q->bufs[first]->boff == offset)
-			break;
-	}
-	if (VIDEO_MAX_FRAME == first) {
-		dev_dbg(q->dev, "invalid user space offset [offset=0x%lx]\n",
-			offset);
-		return -EINVAL;
-	}
 
 	/* create mapping + update buffer list */
 	map = kzalloc(sizeof(struct videobuf_mapping), GFP_KERNEL);
 	if (!map)
 		return -ENOMEM;
 
-	q->bufs[first]->map = map;
+	buf->map = map;
 	map->start = vma->vm_start;
 	map->end = vma->vm_end;
 	map->q = q;
 
-	q->bufs[first]->baddr = vma->vm_start;
+	buf->baddr = vma->vm_start;
 
-	mem = q->bufs[first]->priv;
+	mem = buf->priv;
 	BUG_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
 
-	mem->size = PAGE_ALIGN(q->bufs[first]->bsize);
+	mem->size = PAGE_ALIGN(buf->bsize);
 	mem->vaddr = dma_alloc_coherent(q->dev, mem->size,
 					&mem->dma_handle, GFP_KERNEL);
 	if (!mem->vaddr) {
@@ -341,8 +323,8 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 
 	dev_dbg(q->dev, "mmap %p: q=%p %08lx-%08lx (%lx) pgoff %08lx buf %d\n",
 		map, q, vma->vm_start, vma->vm_end,
-		(long int) q->bufs[first]->bsize,
-		vma->vm_pgoff, first);
+		(long int)buf->bsize,
+		vma->vm_pgoff, buf->i);
 
 	videobuf_vm_open(vma);
 
