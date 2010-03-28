@@ -254,6 +254,16 @@ static void b43_radio_init2055(struct b43_wldev *dev)
 }
 
 /*
+ * Initialize a Broadcom 2056 N-radio
+ * http://bcm-v4.sipsolutions.net/802.11/Radio/2056/Init
+ */
+static void b43_radio_init2056(struct b43_wldev *dev)
+{
+	/* TODO */
+}
+
+
+/*
  * Upload the N-PHY tables.
  * http://bcm-v4.sipsolutions.net/802.11/PHY/N/InitTables
  */
@@ -3473,6 +3483,8 @@ static void b43_nphy_op_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
 static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 					bool blocked)
 {
+	struct b43_phy_n *nphy = dev->phy.n;
+
 	if (b43_read32(dev, B43_MMIO_MACCTL) & B43_MACCTL_ENABLED)
 		b43err(dev->wl, "MAC not suspended\n");
 
@@ -3498,8 +3510,8 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 		}
 	} else {
 		if (dev->phy.rev >= 3) {
-			/* TODO: b43_radio_init2056(dev); */
-			/* TODO: PHY Set Channel Spec (dev, radio_chanspec) */
+			b43_radio_init2056(dev);
+			b43_nphy_set_chanspec(dev, nphy->radio_chanspec);
 		} else {
 			b43_radio_init2055(dev);
 		}
