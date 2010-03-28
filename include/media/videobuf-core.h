@@ -132,10 +132,6 @@ struct videobuf_qtype_ops {
 	int (*iolock)		(struct videobuf_queue *q,
 				 struct videobuf_buffer *vb,
 				 struct v4l2_framebuffer *fbuf);
-	int (*mmap)		(struct videobuf_queue *q,
-				 unsigned int *count,
-				 unsigned int *size,
-				 enum v4l2_memory memory);
 	int (*sync)		(struct videobuf_queue *q,
 				 struct videobuf_buffer *buf);
 	int (*video_copy_to_user)(struct videobuf_queue *q,
