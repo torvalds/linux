@@ -64,10 +64,9 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	int enable;
 	int oldstatus;
 
-	if (!jack) {
-		WARN_ON_ONCE(!jack);
+	if (!jack)
 		return;
-	}
+
 	codec = jack->card->codec;
 
 	mutex_lock(&codec->mutex);
