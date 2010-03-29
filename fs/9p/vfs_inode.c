@@ -431,6 +431,7 @@ error:
 
 static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 {
+	int retval;
 	struct inode *file_inode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *v9fid;
@@ -444,7 +445,10 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 	if (IS_ERR(v9fid))
 		return PTR_ERR(v9fid);
 
-	return p9_client_remove(v9fid);
+	retval = p9_client_remove(v9fid);
+	if (!retval)
+		drop_nlink(file_inode);
+	return retval;
 }
 
 static int
