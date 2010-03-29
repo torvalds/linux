@@ -5335,7 +5335,6 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 	    raid5_size(mddev, sectors, mddev->raid_disks))
 		return -EINVAL;
 	set_capacity(mddev->gendisk, mddev->array_sectors);
-	mddev->changed = 1;
 	revalidate_disk(mddev->gendisk);
 	if (sectors > mddev->dev_sectors && mddev->recovery_cp == MaxSector) {
 		mddev->recovery_cp = mddev->dev_sectors;
@@ -5549,7 +5548,6 @@ static void raid5_finish_reshape(mddev_t *mddev)
 		if (mddev->delta_disks > 0) {
 			md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
 			set_capacity(mddev->gendisk, mddev->array_sectors);
-			mddev->changed = 1;
 			revalidate_disk(mddev->gendisk);
 		} else {
 			int d;

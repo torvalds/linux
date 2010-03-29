@@ -4501,7 +4501,6 @@ static int do_md_run(mddev_t * mddev)
 	md_wakeup_thread(mddev->sync_thread); /* possibly kick off a reshape */
 
 	revalidate_disk(mddev->gendisk);
-	mddev->changed = 1;
 	md_new_event(mddev);
 	sysfs_notify_dirent(mddev->sysfs_state);
 	if (mddev->sysfs_action)
@@ -4620,7 +4619,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 				}
 
 			set_capacity(disk, 0);
-			mddev->changed = 1;
+			revalidate_disk(disk);
 
 			if (mddev->ro)
 				mddev->ro = 0;
@@ -4686,7 +4685,6 @@ out:
 		mddev->sync_speed_min = mddev->sync_speed_max = 0;
 		mddev->recovery = 0;
 		mddev->in_sync = 0;
-		mddev->changed = 0;
 		mddev->degraded = 0;
 		mddev->barriers_work = 0;
 		mddev->safemode = 0;
@@ -5850,7 +5848,6 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	atomic_inc(&mddev->openers);
 	mutex_unlock(&mddev->open_mutex);
 
-	check_disk_change(bdev);
  out:
 	return err;
 }
@@ -5865,21 +5862,6 @@ static int md_release(struct gendisk *disk, fmode_t mode)
 
 	return 0;
 }
-
-static int md_media_changed(struct gendisk *disk)
-{
-	mddev_t *mddev = disk->private_data;
-
-	return mddev->changed;
-}
-
-static int md_revalidate(struct gendisk *disk)
-{
-	mddev_t *mddev = disk->private_data;
-
-	mddev->changed = 0;
-	return 0;
-}
 static const struct block_device_operations md_fops =
 {
 	.owner		= THIS_MODULE,
@@ -5890,8 +5872,6 @@ static const struct block_device_operations md_fops =
 	.compat_ioctl	= md_compat_ioctl,
 #endif
 	.getgeo		= md_getgeo,
-	.media_changed	= md_media_changed,
-	.revalidate_disk= md_revalidate,
 };
 
 static int md_thread(void * arg)
