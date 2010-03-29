@@ -2294,6 +2294,7 @@ netxen_fwinit_work(struct work_struct *work)
 		}
 		break;
 
+	case NX_DEV_NEED_RESET:
 	case NX_DEV_INITALIZING:
 		if (++adapter->fw_wait_cnt < FW_POLL_THRESH) {
 			netxen_schedule_work(adapter,
@@ -2336,6 +2337,9 @@ netxen_detach_work(struct work_struct *work)
 		goto err_ret;
 
 	ref_cnt = nx_decr_dev_ref_cnt(adapter);
+
+	if (ref_cnt == -EIO)
+		goto err_ret;
 
 	delay = (ref_cnt == 0) ? 0 : (2 * FW_POLL_DELAY);
 
