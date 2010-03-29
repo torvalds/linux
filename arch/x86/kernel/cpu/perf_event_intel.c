@@ -488,6 +488,7 @@ static void intel_pmu_enable_all(int added)
  * Workaround for:
  *   Intel Errata AAK100 (model 26)
  *   Intel Errata AAP53  (model 30)
+ *   Intel Errata BD53   (model 44)
  *
  * These chips need to be 'reset' when adding counters by programming
  * the magic three (non counting) events 0x4300D2, 0x4300B1 and 0x4300B5
@@ -980,6 +981,7 @@ static __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_nhm();
 
 		x86_pmu.event_constraints = intel_westmere_event_constraints;
+		x86_pmu.enable_all = intel_pmu_nhm_enable_all;
 		pr_cont("Westmere events, ");
 		break;
 
