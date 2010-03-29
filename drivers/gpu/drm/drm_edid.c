@@ -765,15 +765,25 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 		vsize = (hsize * 4) / 5;
 	else
 		vsize = (hsize * 9) / 16;
-	/* HDTV hack */
-	if (hsize == 1360 && vsize == 765 && vrefresh_rate == 60) {
-		mode = drm_cvt_mode(dev, hsize, vsize, vrefresh_rate, 0, 0,
+
+	/* HDTV hack, part 1 */
+	if (vrefresh_rate == 60 &&
+	    ((hsize == 1360 && vsize == 765) ||
+	     (hsize == 1368 && vsize == 769))) {
+		hsize = 1366;
+		vsize = 768;
+	}
+
+	/* HDTV hack, part 2 */
+	if (hsize == 1366 && vsize == 768 && vrefresh_rate == 60) {
+		mode = drm_cvt_mode(dev, 1366, 768, vrefresh_rate, 0, 0,
 				    false);
 		mode->hdisplay = 1366;
 		mode->vsync_start = mode->vsync_start - 1;
 		mode->vsync_end = mode->vsync_end - 1;
 		return mode;
 	}
+
 	mode = NULL;
 	/* check whether it can be found in default mode table */
 	mode = drm_find_dmt(dev, hsize, vsize, vrefresh_rate);
