@@ -64,7 +64,8 @@
 
 #define LEVEL_DMT	0
 #define LEVEL_GTF	1
-#define LEVEL_CVT	2
+#define LEVEL_GTF2	2
+#define LEVEL_CVT	3
 
 static struct edid_quirk {
 	char *vendor;
@@ -713,6 +714,71 @@ drm_monitor_supports_rb(struct edid *edid)
 	return ((edid->input & DRM_EDID_INPUT_DIGITAL) != 0);
 }
 
+static void
+find_gtf2(struct detailed_timing *t, void *data)
+{
+	u8 *r = (u8 *)t;
+	if (r[3] == EDID_DETAIL_MONITOR_RANGE && r[10] == 0x02)
+		*(u8 **)data = r;
+}
+
+/* Secondary GTF curve kicks in above some break frequency */
+static int
+drm_gtf2_hbreak(struct edid *edid)
+{
+	u8 *r = NULL;
+	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
+	return r ? (r[12] * 2) : 0;
+}
+
+static int
+drm_gtf2_2c(struct edid *edid)
+{
+	u8 *r = NULL;
+	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
+	return r ? r[13] : 0;
+}
+
+static int
+drm_gtf2_m(struct edid *edid)
+{
+	u8 *r = NULL;
+	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
+	return r ? (r[15] << 8) + r[14] : 0;
+}
+
+static int
+drm_gtf2_k(struct edid *edid)
+{
+	u8 *r = NULL;
+	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
+	return r ? r[16] : 0;
+}
+
+static int
+drm_gtf2_2j(struct edid *edid)
+{
+	u8 *r = NULL;
+	drm_for_each_detailed_block((u8 *)edid, find_gtf2, &r);
+	return r ? r[17] : 0;
+}
+
+/**
+ * standard_timing_level - get std. timing level(CVT/GTF/DMT)
+ * @edid: EDID block to scan
+ */
+static int standard_timing_level(struct edid *edid)
+{
+	if (edid->revision >= 2) {
+		if (edid->revision >= 4 && (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF))
+			return LEVEL_CVT;
+		if (drm_gtf2_hbreak(edid))
+			return LEVEL_GTF2;
+		return LEVEL_GTF;
+	}
+	return LEVEL_DMT;
+}
+
 /*
  * 0 is reserved.  The spec says 0x01 fill for unused timings.  Some old
  * monitors fill with ascii space (0x20) instead.
@@ -734,8 +800,8 @@ bad_std_timing(u8 a, u8 b)
  * and convert them into a real mode using CVT/GTF/DMT.
  */
 static struct drm_display_mode *
-drm_mode_std(struct drm_connector *connector, struct std_timing *t,
-	     int revision, int timing_level)
+drm_mode_std(struct drm_connector *connector, struct edid *edid,
+	     struct std_timing *t, int revision)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *m, *mode = NULL;
@@ -745,6 +811,7 @@ drm_mode_std(struct drm_connector *connector, struct std_timing *t,
 		>> EDID_TIMING_ASPECT_SHIFT;
 	unsigned vfreq = (t->vfreq_aspect & EDID_TIMING_VFREQ_MASK)
 		>> EDID_TIMING_VFREQ_SHIFT;
+	int timing_level = standard_timing_level(edid);
 
 	if (bad_std_timing(t->hsize, t->vfreq_aspect))
 		return NULL;
@@ -805,6 +872,23 @@ drm_mode_std(struct drm_connector *connector, struct std_timing *t,
 		break;
 	case LEVEL_GTF:
 		mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
+		break;
+	case LEVEL_GTF2:
+		/*
+		 * This is potentially wrong if there's ever a monitor with
+		 * more than one ranges section, each claiming a different
+		 * secondary GTF curve.  Please don't do that.
+		 */
+		mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
+		if (drm_mode_hsync(mode) > drm_gtf2_hbreak(edid)) {
+			kfree(mode);
+			mode = drm_gtf_mode_complex(dev, hsize, vsize,
+						    vrefresh_rate, 0, 0,
+						    drm_gtf2_m(edid),
+						    drm_gtf2_2c(edid),
+						    drm_gtf2_k(edid),
+						    drm_gtf2_2j(edid));
+		}
 		break;
 	case LEVEL_CVT:
 		mode = drm_cvt_mode(dev, hsize, vsize, vrefresh_rate, 0, 0,
@@ -1042,19 +1126,6 @@ static int add_established_modes(struct drm_connector *connector, struct edid *e
 
 	return modes;
 }
-/**
- * stanard_timing_level - get std. timing level(CVT/GTF/DMT)
- * @edid: EDID block to scan
- */
-static int standard_timing_level(struct edid *edid)
-{
-	if (edid->revision >= 2) {
-		if (edid->revision >= 4 && (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF))
-			return LEVEL_CVT;
-		return LEVEL_GTF;
-	}
-	return LEVEL_DMT;
-}
 
 /**
  * add_standard_modes - get std. modes from EDID and add them
@@ -1066,15 +1137,13 @@ static int standard_timing_level(struct edid *edid)
 static int add_standard_modes(struct drm_connector *connector, struct edid *edid)
 {
 	int i, modes = 0;
-	int timing_level;
-
-	timing_level = standard_timing_level(edid);
 
 	for (i = 0; i < EDID_STD_TIMINGS; i++) {
 		struct drm_display_mode *newmode;
 
-		newmode = drm_mode_std(connector, &edid->standard_timings[i],
-				       edid->revision, timing_level);
+		newmode = drm_mode_std(connector, edid,
+				       &edid->standard_timings[i],
+				       edid->revision);
 		if (newmode) {
 			drm_mode_probed_add(connector, newmode);
 			modes++;
@@ -1140,9 +1209,6 @@ range_pixel_clock(struct edid *edid, u8 *t)
 	return t[9] * 10000 + 5001;
 }
 
-/*
- * XXX fix this for GTF secondary curve formula
- */
 static bool
 mode_in_range(struct drm_display_mode *mode, struct edid *edid,
 	      struct detailed_timing *timing)
@@ -1339,7 +1405,6 @@ static int add_detailed_modes(struct drm_connector *connector,
 {
 	int i, modes = 0;
 	struct detailed_non_pixel *data = &timing->data.other_data;
-	int timing_level = standard_timing_level(edid);
 	int gtf = (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF);
 	struct drm_display_mode *newmode;
 	struct drm_device *dev = connector->dev;
@@ -1370,8 +1435,8 @@ static int add_detailed_modes(struct drm_connector *connector,
 			struct drm_display_mode *newmode;
 
 			std = &data->data.timings[i];
-			newmode = drm_mode_std(connector, std, edid->revision,
-					       timing_level);
+			newmode = drm_mode_std(connector, edid, std,
+					       edid->revision);
 			if (newmode) {
 				drm_mode_probed_add(connector, newmode);
 				modes++;
