@@ -449,6 +449,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
 
 	spin_lock_init(&priv->wmi->wmi_lock);
 	spin_lock_init(&priv->beacon_lock);
+	spin_lock_init(&priv->tx_lock);
 	mutex_init(&priv->mutex);
 	mutex_init(&priv->aggr_work.mutex);
 	tasklet_init(&priv->wmi_tasklet, ath9k_wmi_tasklet,

@@ -349,6 +349,9 @@ struct ath9k_htc_priv {
 	struct sk_buff *beacon;
 	spinlock_t beacon_lock;
 
+	bool tx_queues_stop;
+	spinlock_t tx_lock;
+
 	struct ieee80211_vif *vif;
 	unsigned int rxfilter;
 	struct tasklet_struct wmi_tasklet;

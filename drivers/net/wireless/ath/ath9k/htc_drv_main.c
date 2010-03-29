@@ -994,7 +994,7 @@ static int ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	struct ath9k_htc_priv *priv = hw->priv;
-	int padpos, padsize;
+	int padpos, padsize, ret;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 
@@ -1008,8 +1008,19 @@ static int ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		memmove(skb->data, skb->data + padsize, padpos);
 	}
 
-	if (ath9k_htc_tx_start(priv, skb) != 0) {
-		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT, "Tx failed");
+	ret = ath9k_htc_tx_start(priv, skb);
+	if (ret != 0) {
+		if (ret == -ENOMEM) {
+			ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+				  "Stopping TX queues\n");
+			ieee80211_stop_queues(hw);
+			spin_lock_bh(&priv->tx_lock);
+			priv->tx_queues_stop = true;
+			spin_unlock_bh(&priv->tx_lock);
+		} else {
+			ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+				  "Tx failed");
+		}
 		goto fail_tx;
 	}
 
@@ -1073,6 +1084,12 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 
 	priv->op_flags &= ~OP_INVALID;
 	htc_start(priv->htc);
+
+	spin_lock_bh(&priv->tx_lock);
+	priv->tx_queues_stop = false;
+	spin_unlock_bh(&priv->tx_lock);
+
+	ieee80211_wake_queues(hw);
 
 mutex_unlock:
 	mutex_unlock(&priv->mutex);

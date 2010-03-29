@@ -226,6 +226,18 @@ void ath9k_tx_tasklet(unsigned long data)
 		/* Send status to mac80211 */
 		ieee80211_tx_status(priv->hw, skb);
 	}
+
+	/* Wake TX queues if needed */
+	spin_lock_bh(&priv->tx_lock);
+	if (priv->tx_queues_stop) {
+		priv->tx_queues_stop = false;
+		spin_unlock_bh(&priv->tx_lock);
+		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+			  "Waking up TX queues\n");
+		ieee80211_wake_queues(priv->hw);
+		return;
+	}
+	spin_unlock_bh(&priv->tx_lock);
 }
 
 void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
