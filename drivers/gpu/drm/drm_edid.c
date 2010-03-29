@@ -1016,10 +1016,6 @@ static int add_standard_modes(struct drm_connector *connector, struct edid *edid
 		struct std_timing *t = &edid->standard_timings[i];
 		struct drm_display_mode *newmode;
 
-		/* If std timings bytes are 1, 1 it's empty */
-		if (t->hsize == 1 && t->vfreq_aspect == 1)
-			continue;
-
 		newmode = drm_mode_std(dev, &edid->standard_timings[i],
 				       edid->revision, timing_level);
 		if (newmode) {
