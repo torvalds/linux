@@ -34,11 +34,6 @@
 #include "drm_edid.h"
 
 /*
- * TODO:
- *   - support EDID 1.4 (incl. CE blocks)
- */
-
-/*
  * EDID blocks out in the wild have a variety of bugs, try to collect
  * them here (note that userspace may work around broken monitors first,
  * but fixes should make their way here so that the kernel "just works"
@@ -694,9 +689,6 @@ bad_std_timing(u8 a, u8 b)
  *
  * Take the standard timing params (in this case width, aspect, and refresh)
  * and convert them into a real mode using CVT/GTF/DMT.
- *
- * Punts for now, but should eventually use the FB layer's CVT based mode
- * generation code.
  */
 struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 				      struct std_timing *t,
