@@ -287,7 +287,7 @@ static struct p4_event_bind p4_event_bind_map[] = {
 	p4_config_pack_cccr(cache_event					| \
 			    P4_CCCR_ESEL(P4_OPCODE_ESEL(P4_OPCODE(event))))
 
-static __initconst u64 p4_hw_cache_event_ids
+static __initconst const u64 p4_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
@@ -780,7 +780,7 @@ done:
 	return num ? -ENOSPC : 0;
 }
 
-static __initconst struct x86_pmu p4_pmu = {
+static __initconst const struct x86_pmu p4_pmu = {
 	.name			= "Netburst P4/Xeon",
 	.handle_irq		= p4_pmu_handle_irq,
 	.disable_all		= p4_pmu_disable_all,

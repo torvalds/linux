@@ -88,7 +88,7 @@ static u64 intel_pmu_event_map(int hw_event)
 	return intel_perfmon_event_map[hw_event];
 }
 
-static __initconst u64 westmere_hw_cache_event_ids
+static __initconst const u64 westmere_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
@@ -179,7 +179,7 @@ static __initconst u64 westmere_hw_cache_event_ids
  },
 };
 
-static __initconst u64 nehalem_hw_cache_event_ids
+static __initconst const u64 nehalem_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
@@ -270,7 +270,7 @@ static __initconst u64 nehalem_hw_cache_event_ids
  },
 };
 
-static __initconst u64 core2_hw_cache_event_ids
+static __initconst const u64 core2_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
@@ -361,7 +361,7 @@ static __initconst u64 core2_hw_cache_event_ids
  },
 };
 
-static __initconst u64 atom_hw_cache_event_ids
+static __initconst const u64 atom_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
@@ -782,7 +782,7 @@ static int intel_pmu_hw_config(struct perf_event *event)
 	return 0;
 }
 
-static __initconst struct x86_pmu core_pmu = {
+static __initconst const struct x86_pmu core_pmu = {
 	.name			= "core",
 	.handle_irq		= x86_pmu_handle_irq,
 	.disable_all		= x86_pmu_disable_all,
@@ -820,7 +820,7 @@ static void intel_pmu_cpu_dying(int cpu)
 	fini_debug_store_on_cpu(cpu);
 }
 
-static __initconst struct x86_pmu intel_pmu = {
+static __initconst const struct x86_pmu intel_pmu = {
 	.name			= "Intel",
 	.handle_irq		= intel_pmu_handle_irq,
 	.disable_all		= intel_pmu_disable_all,

@@ -2,7 +2,7 @@
 
 static DEFINE_RAW_SPINLOCK(amd_nb_lock);
 
-static __initconst u64 amd_hw_cache_event_ids
+static __initconst const u64 amd_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
@@ -368,7 +368,7 @@ static void amd_pmu_cpu_dead(int cpu)
 	raw_spin_unlock(&amd_nb_lock);
 }
 
-static __initconst struct x86_pmu amd_pmu = {
+static __initconst const struct x86_pmu amd_pmu = {
 	.name			= "AMD",
 	.handle_irq		= x86_pmu_handle_irq,
 	.disable_all		= x86_pmu_disable_all,
