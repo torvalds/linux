@@ -15,6 +15,7 @@
 #include <linux/freezer.h>
 #include <linux/sysfs.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <linux/mtd/nand_ecc.h>
 #include "nand/sm_common.h"
 #include "sm_ftl.h"
