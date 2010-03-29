@@ -931,7 +931,6 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 					struct ieee80211_rx_status *stats)
 {
 	struct sk_buff *skb;
-	int ret = 0;
 	__le16 fc = hdr->frame_control;
 
 	/* We only process data packets if the interface is open */
@@ -946,45 +945,18 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	    iwl_set_decrypted_flag(priv, hdr, ampdu_status, stats))
 		return;
 
-	skb = alloc_skb(IWL_LINK_HDR_MAX * 2, GFP_ATOMIC);
+	skb = dev_alloc_skb(128);
 	if (!skb) {
-		IWL_ERR(priv, "alloc_skb failed\n");
+		IWL_ERR(priv, "dev_alloc_skb failed\n");
 		return;
 	}
 
-	skb_reserve(skb, IWL_LINK_HDR_MAX);
 	skb_add_rx_frag(skb, 0, rxb->page, (void *)hdr - rxb_addr(rxb), len);
-
-	/* mac80211 currently doesn't support paged SKB. Convert it to
-	 * linear SKB for management frame and data frame requires
-	 * software decryption or software defragementation. */
-	if (ieee80211_is_mgmt(fc) ||
-	    ieee80211_has_protected(fc) ||
-	    ieee80211_has_morefrags(fc) ||
-	    le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG ||
-	    (ieee80211_is_data_qos(fc) &&
-	     *ieee80211_get_qos_ctl(hdr) &
-	     IEEE80211_QOS_CONTROL_A_MSDU_PRESENT))
-		ret = skb_linearize(skb);
-	else
-		ret = __pskb_pull_tail(skb, min_t(u16, IWL_LINK_HDR_MAX, len)) ?
-			 0 : -ENOMEM;
-
-	if (ret) {
-		kfree_skb(skb);
-		goto out;
-	}
-
-	/*
-	 * XXX: We cannot touch the page and its virtual memory (hdr) after
-	 * here. It might have already been freed by the above skb change.
-	 */
 
 	iwl_update_stats(priv, false, fc, len);
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
 	ieee80211_rx(priv->hw, skb);
- out:
 	priv->alloc_rxb_page--;
 	rxb->page = NULL;
 }

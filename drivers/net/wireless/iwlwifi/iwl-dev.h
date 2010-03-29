@@ -325,13 +325,6 @@ enum {
 
 #define DEF_CMD_PAYLOAD_SIZE 320
 
-/*
- * IWL_LINK_HDR_MAX should include ieee80211_hdr, radiotap header,
- * SNAP header and alignment. It should also be big enough for 802.11
- * control frames.
- */
-#define IWL_LINK_HDR_MAX 64
-
 /**
  * struct iwl_device_cmd
  *
