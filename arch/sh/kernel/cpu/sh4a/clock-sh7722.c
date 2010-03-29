@@ -160,8 +160,8 @@ struct clk div6_clks[] = {
 static struct clk mstp_clks[] = {
 	SH_HWBLK_CLK("uram0", -1, U_CLK, HWBLK_URAM, CLK_ENABLE_ON_INIT),
 	SH_HWBLK_CLK("xymem0", -1, B_CLK, HWBLK_XYMEM, CLK_ENABLE_ON_INIT),
-	SH_HWBLK_CLK("tmu0", -1, P_CLK, HWBLK_TMU, 0),
-	SH_HWBLK_CLK("cmt0", -1, R_CLK, HWBLK_CMT, 0),
+	SH_HWBLK_CLK("tmu_fck", -1, P_CLK, HWBLK_TMU, 0),
+	SH_HWBLK_CLK("cmt_fck", -1, R_CLK, HWBLK_CMT, 0),
 	SH_HWBLK_CLK("rwdt0", -1, R_CLK, HWBLK_RWDT, 0),
 	SH_HWBLK_CLK("flctl0", -1, P_CLK, HWBLK_FLCTL, 0),
 	SH_HWBLK_CLK("sci_fck", 0, P_CLK, HWBLK_SCIF0, 0),
