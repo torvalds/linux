@@ -4984,6 +4984,69 @@ static void set_capture_mixer(struct hda_codec *codec)
 	}
 }
 
+/* fill adc_nids (and capsrc_nids) containing all active input pins */
+static void fillup_priv_adc_nids(struct hda_codec *codec, hda_nid_t *nids,
+				 int num_nids)
+{
+	struct alc_spec *spec = codec->spec;
+	int n;
+	hda_nid_t fallback_adc = 0, fallback_cap = 0;
+
+	for (n = 0; n < num_nids; n++) {
+		hda_nid_t adc, cap;
+		hda_nid_t conn[HDA_MAX_NUM_INPUTS];
+		int nconns, i, j;
+
+		adc = nids[n];
+		if (get_wcaps_type(get_wcaps(codec, adc)) != AC_WID_AUD_IN)
+			continue;
+		cap = adc;
+		nconns = snd_hda_get_connections(codec, cap, conn,
+						 ARRAY_SIZE(conn));
+		if (nconns == 1) {
+			cap = conn[0];
+			nconns = snd_hda_get_connections(codec, cap, conn,
+							 ARRAY_SIZE(conn));
+		}
+		if (nconns <= 0)
+			continue;
+		if (!fallback_adc) {
+			fallback_adc = adc;
+			fallback_cap = cap;
+		}
+		for (i = 0; i < AUTO_PIN_LAST; i++) {
+			hda_nid_t nid = spec->autocfg.input_pins[i];
+			if (!nid)
+				continue;
+			for (j = 0; j < nconns; j++) {
+				if (conn[j] == nid)
+					break;
+			}
+			if (j >= nconns)
+				break;
+		}
+		if (i >= AUTO_PIN_LAST) {
+			int num_adcs = spec->num_adc_nids;
+			spec->private_adc_nids[num_adcs] = adc;
+			spec->private_capsrc_nids[num_adcs] = cap;
+			spec->num_adc_nids++;
+			spec->adc_nids = spec->private_adc_nids;
+			if (adc != cap)
+				spec->capsrc_nids = spec->private_capsrc_nids;
+		}
+	}
+	if (!spec->num_adc_nids) {
+		printk(KERN_WARNING "hda_codec: %s: no valid ADC found;"
+		       " using fallback 0x%x\n", fallback_adc);
+		spec->private_adc_nids[0] = fallback_adc;
+		spec->adc_nids = spec->private_adc_nids;
+		if (fallback_adc != fallback_cap) {
+			spec->private_capsrc_nids[0] = fallback_cap;
+			spec->capsrc_nids = spec->private_adc_nids;
+		}
+	}
+}
+
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
 #define set_beep_amp(spec, nid, idx, dir) \
 	((spec)->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 3, idx, dir))
@@ -13333,9 +13396,9 @@ static hda_nid_t alc269vb_capsrc_nids[1] = {
 	0x22,
 };
 
-/* NOTE: ADC2 (0x07) is connected from a recording *MIXER* (0x24),
- *       not a mux!
- */
+static hda_nid_t alc269_adc_candidates[] = {
+	0x08, 0x09, 0x07,
+};
 
 #define alc269_modes		alc260_modes
 #define alc269_capture_source	alc880_lg_lw_capture_source
@@ -13842,7 +13905,6 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int err;
 	static hda_nid_t alc269_ignore[] = { 0x1d, 0 };
-	hda_nid_t real_capsrc_nids;
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc269_ignore);
@@ -13866,18 +13928,19 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 
 	if ((alc_read_coef_idx(codec, 0) & 0x00f0) == 0x0010) {
 		add_verb(spec, alc269vb_init_verbs);
-		real_capsrc_nids = alc269vb_capsrc_nids[0];
 		alc_ssid_check(codec, 0, 0x1b, 0x14, 0x21);
 	} else {
 		add_verb(spec, alc269_init_verbs);
-		real_capsrc_nids = alc269_capsrc_nids[0];
 		alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 	}
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
+	fillup_priv_adc_nids(codec, alc269_adc_candidates,
+			     sizeof(alc269_adc_candidates));
+
 	/* set default input source */
-	snd_hda_codec_write_cache(codec, real_capsrc_nids,
+	snd_hda_codec_write_cache(codec, spec->capsrc_nids[0],
 				  0, AC_VERB_SET_CONNECT_SEL,
 				  spec->input_mux->items[0].index);
 
@@ -14156,14 +14219,16 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc269_pcm_digital_playback;
 	spec->stream_digital_capture = &alc269_pcm_digital_capture;
 
-	if (!is_alc269vb) {
-		spec->adc_nids = alc269_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
-		spec->capsrc_nids = alc269_capsrc_nids;
-	} else {
-		spec->adc_nids = alc269vb_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(alc269vb_adc_nids);
-		spec->capsrc_nids = alc269vb_capsrc_nids;
+	if (!spec->adc_nids) { /* wasn't filled automatically? use default */
+		if (!is_alc269vb) {
+			spec->adc_nids = alc269_adc_nids;
+			spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
+			spec->capsrc_nids = alc269_capsrc_nids;
+		} else {
+			spec->adc_nids = alc269vb_adc_nids;
+			spec->num_adc_nids = ARRAY_SIZE(alc269vb_adc_nids);
+			spec->capsrc_nids = alc269vb_capsrc_nids;
+		}
 	}
 
 	if (!spec->cap_mixer)
