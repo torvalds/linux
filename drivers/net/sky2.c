@@ -2146,7 +2146,8 @@ static void sky2_phy_intr(struct sky2_hw *hw, unsigned port)
 		   istatus, phystat);
 
 	if (istatus & PHY_M_IS_AN_COMPL) {
-		if (sky2_autoneg_done(sky2, phystat) == 0)
+		if (sky2_autoneg_done(sky2, phystat) == 0 &&
+		    !netif_carrier_ok(dev))
 			sky2_link_up(sky2);
 		goto out;
 	}
