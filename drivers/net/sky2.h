@@ -548,6 +548,14 @@ enum {
 	CHIP_ID_YUKON_UL_2 = 0xba, /* YUKON-2 Ultra 2 */
 	CHIP_ID_YUKON_OPT  = 0xbc, /* YUKON-2 Optima */
 };
+
+enum yukon_xl_rev {
+	CHIP_REV_YU_XL_A0  = 0,
+	CHIP_REV_YU_XL_A1  = 1,
+	CHIP_REV_YU_XL_A2  = 2,
+	CHIP_REV_YU_XL_A3  = 3,
+};
+
 enum yukon_ec_rev {
 	CHIP_REV_YU_EC_A1    = 0,  /* Chip Rev. for Yukon-EC A1/A0 */
 	CHIP_REV_YU_EC_A2    = 1,  /* Chip Rev. for Yukon-EC A2 */
