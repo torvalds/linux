@@ -151,13 +151,14 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (!user_mode(regs) && (address >= TASK_SIZE))
 		return SIGSEGV;
 
-#if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
+#if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE) || \
+			     defined(CONFIG_PPC_BOOK3S_64))
   	if (error_code & DSISR_DABRMATCH) {
 		/* DABR match */
 		do_dabr(regs, address, error_code);
 		return 0;
 	}
-#endif /* !(CONFIG_4xx || CONFIG_BOOKE)*/
+#endif
 
 	if (in_atomic() || mm == NULL) {
 		if (!user_mode(regs))
