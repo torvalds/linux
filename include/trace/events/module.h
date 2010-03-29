@@ -51,6 +51,9 @@ TRACE_EVENT(module_free,
 	TP_printk("%s", __get_str(name))
 );
 
+#ifdef CONFIG_MODULE_UNLOAD
+/* trace_module_get/put are only used if CONFIG_MODULE_UNLOAD is defined */
+
 DECLARE_EVENT_CLASS(module_refcnt,
 
 	TP_PROTO(struct module *mod, unsigned long ip),
@@ -86,6 +89,7 @@ DEFINE_EVENT(module_refcnt, module_put,
 
 	TP_ARGS(mod, ip)
 );
+#endif /* CONFIG_MODULE_UNLOAD */
 
 TRACE_EVENT(module_request,
 
