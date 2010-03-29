@@ -33,6 +33,10 @@
 #include "drmP.h"
 #include "drm_edid.h"
 
+#define EDID_EST_TIMINGS 16
+#define EDID_STD_TIMINGS 8
+#define EDID_DETAILED_TIMINGS 4
+
 /*
  * EDID blocks out in the wild have a variety of bugs, try to collect
  * them here (note that userspace may work around broken monitors first,
@@ -670,6 +674,45 @@ static struct drm_display_mode *drm_find_dmt(struct drm_device *dev,
 	return mode;
 }
 
+typedef void detailed_cb(struct detailed_timing *timing, void *closure);
+
+static void
+drm_for_each_detailed_block(u8 *raw_edid, detailed_cb *cb, void *closure)
+{
+	int i;
+	struct edid *edid = (struct edid *)raw_edid;
+
+	if (edid == NULL)
+		return;
+
+	for (i = 0; i < EDID_DETAILED_TIMINGS; i++)
+		cb(&(edid->detailed_timings[i]), closure);
+
+	/* XXX extension block walk */
+}
+
+static void
+is_rb(struct detailed_timing *t, void *data)
+{
+	u8 *r = (u8 *)t;
+	if (r[3] == EDID_DETAIL_MONITOR_RANGE)
+		if (r[15] & 0x10)
+			*(bool *)data = true;
+}
+
+/* EDID 1.4 defines this explicitly.  For EDID 1.3, we guess, badly. */
+static bool
+drm_monitor_supports_rb(struct edid *edid)
+{
+	if (edid->revision >= 4) {
+		bool ret;
+		drm_for_each_detailed_block((u8 *)edid, is_rb, &ret);
+		return ret;
+	}
+
+	return ((edid->input & DRM_EDID_INPUT_DIGITAL) != 0);
+}
+
 /*
  * 0 is reserved.  The spec says 0x01 fill for unused timings.  Some old
  * monitors fill with ascii space (0x20) instead.
@@ -951,10 +994,6 @@ static struct drm_display_mode edid_est_modes[] = {
 		   1344, 1600, 0,  864, 865, 868, 900, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1152x864@75Hz */
 };
-
-#define EDID_EST_TIMINGS 16
-#define EDID_STD_TIMINGS 8
-#define EDID_DETAILED_TIMINGS 4
 
 /**
  * add_established_modes - get est. modes from EDID and add them
