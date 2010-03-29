@@ -1408,12 +1408,15 @@ static int
 ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
 	__le16 fc = hdr->frame_control;
-	int res;
 
-	res = ieee80211_drop_unencrypted(rx, fc);
-	if (unlikely(res))
-		return res;
+	/*
+	 * Pass through unencrypted frames if the hardware has
+	 * decrypted them already.
+	 */
+	if (status->flag & RX_FLAG_DECRYPTED)
+		return 0;
 
 	if (rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP)) {
 		if (unlikely(ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
