@@ -1853,6 +1853,26 @@ static void ixgbe_diag_test(struct net_device *netdev,
 		if (ixgbe_link_test(adapter, &data[4]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
+		if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
+			int i;
+			for (i = 0; i < adapter->num_vfs; i++) {
+				if (adapter->vfinfo[i].clear_to_send) {
+					netdev_warn(netdev, "%s",
+						    "offline diagnostic is not "
+						    "supported when VFs are "
+						    "present\n");
+					data[0] = 1;
+					data[1] = 1;
+					data[2] = 1;
+					data[3] = 1;
+					eth_test->flags |= ETH_TEST_FL_FAILED;
+					clear_bit(__IXGBE_TESTING,
+						  &adapter->state);
+					goto skip_ol_tests;
+				}
+			}
+		}
+
 		if (if_running)
 			/* indicate we're in test mode */
 			dev_close(netdev);
@@ -1908,6 +1928,7 @@ skip_loopback:
 
 		clear_bit(__IXGBE_TESTING, &adapter->state);
 	}
+skip_ol_tests:
 	msleep_interruptible(4 * 1000);
 }
 

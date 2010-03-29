@@ -2393,6 +2393,7 @@ struct sk_buff * gfar_new_skb(struct net_device *dev)
 	 * as many bytes as needed to align the data properly
 	 */
 	skb_reserve(skb, alignamount);
+	GFAR_CB(skb)->alignamount = alignamount;
 
 	return skb;
 }
@@ -2533,13 +2534,13 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 				newskb = skb;
 			else if (skb) {
 				/*
-				 * We need to reset ->data to what it
+				 * We need to un-reserve() the skb to what it
 				 * was before gfar_new_skb() re-aligned
 				 * it to an RXBUF_ALIGNMENT boundary
 				 * before we put the skb back on the
 				 * recycle list.
 				 */
-				skb->data = skb->head + NET_SKB_PAD;
+				skb_reserve(skb, -GFAR_CB(skb)->alignamount);
 				__skb_queue_head(&priv->rx_recycle, skb);
 			}
 		} else {

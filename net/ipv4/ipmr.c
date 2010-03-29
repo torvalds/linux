@@ -1616,17 +1616,20 @@ ipmr_fill_mroute(struct sk_buff *skb, struct mfc_cache *c, struct rtmsg *rtm)
 	int ct;
 	struct rtnexthop *nhp;
 	struct net *net = mfc_net(c);
-	struct net_device *dev = net->ipv4.vif_table[c->mfc_parent].dev;
 	u8 *b = skb_tail_pointer(skb);
 	struct rtattr *mp_head;
 
-	if (dev)
-		RTA_PUT(skb, RTA_IIF, 4, &dev->ifindex);
+	/* If cache is unresolved, don't try to parse IIF and OIF */
+	if (c->mfc_parent > MAXVIFS)
+		return -ENOENT;
+
+	if (VIF_EXISTS(net, c->mfc_parent))
+		RTA_PUT(skb, RTA_IIF, 4, &net->ipv4.vif_table[c->mfc_parent].dev->ifindex);
 
 	mp_head = (struct rtattr *)skb_put(skb, RTA_LENGTH(0));
 
 	for (ct = c->mfc_un.res.minvif; ct < c->mfc_un.res.maxvif; ct++) {
-		if (c->mfc_un.res.ttls[ct] < 255) {
+		if (VIF_EXISTS(net, ct) && c->mfc_un.res.ttls[ct] < 255) {
 			if (skb_tailroom(skb) < RTA_ALIGN(RTA_ALIGN(sizeof(*nhp)) + 4))
 				goto rtattr_failure;
 			nhp = (struct rtnexthop *)skb_put(skb, RTA_ALIGN(sizeof(*nhp)));

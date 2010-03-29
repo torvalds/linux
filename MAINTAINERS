@@ -3083,6 +3083,7 @@ F:	include/scsi/*iscsi*
 ISDN SUBSYSTEM
 M:	Karsten Keil <isdn@linux-pingi.de>
 L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
+L:	netdev@vger.kernel.org
 W:	http://www.isdn4linux.de
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kkeil/isdn-2.6.git
 S:	Maintained
