@@ -35,6 +35,7 @@
 #include <linux/hid.h>
 #include <linux/usb.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "hid-ids.h"
 #include "hid-roccat-kone.h"
 
