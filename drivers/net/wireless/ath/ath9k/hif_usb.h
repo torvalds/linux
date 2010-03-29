@@ -85,18 +85,15 @@ struct hif_device_usb {
 	struct usb_interface *interface;
 	const struct firmware *firmware;
 	struct htc_target *htc_handle;
-	u8 flags;
-
 	struct hif_usb_tx tx;
-
-	struct urb *wlan_rx_data_urb[MAX_RX_URB_NUM];
 	struct urb *reg_in_urb;
-
+	struct usb_anchor rx_submitted;
 	struct sk_buff *remain_skb;
 	int rx_remain_len;
 	int rx_pkt_len;
 	int rx_transfer_len;
 	int rx_pad_len;
+	u8 flags; /* HIF_USB_* */
 };
 
 int ath9k_hif_usb_init(void);
