@@ -44,7 +44,9 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 			 * scanning as it checks that.
 			 */
 			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
+			/* FIXME: ie missing! */
 			wl1271_cmd_scan(wl, wl->scan.ssid, wl->scan.ssid_len,
+						NULL, 0,
 						wl->scan.active,
 						wl->scan.high_prio,
 						WL1271_SCAN_BAND_5_GHZ,

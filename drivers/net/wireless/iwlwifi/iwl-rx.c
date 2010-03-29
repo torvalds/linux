@@ -616,29 +616,77 @@ static void iwl_accumulative_statistics(struct iwl_priv *priv,
 
 #define REG_RECALIB_PERIOD (60)
 
-#define PLCP_MSG "plcp_err exceeded %u, %u, %u, %u, %u, %d, %u mSecs\n"
-void iwl_rx_statistics(struct iwl_priv *priv,
-			      struct iwl_rx_mem_buffer *rxb)
+/* the threshold ratio of actual_ack_cnt to expected_ack_cnt in percent */
+#define ACK_CNT_RATIO (50)
+#define BA_TIMEOUT_CNT (5)
+#define BA_TIMEOUT_MAX (16)
+
+#if defined(CONFIG_IWLAGN) || defined(CONFIG_IWLAGN_MODULE)
+/**
+ * iwl_good_ack_health - checks for ACK count ratios, BA timeout retries.
+ *
+ * When the ACK count ratio is 0 and aggregated BA timeout retries exceeding
+ * the BA_TIMEOUT_MAX, reload firmware and bring system back to normal
+ * operation state.
+ */
+bool iwl_good_ack_health(struct iwl_priv *priv,
+				struct iwl_rx_packet *pkt)
 {
-	int change;
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	bool rc = true;
+	int actual_ack_cnt_delta, expected_ack_cnt_delta;
+	int ba_timeout_delta;
+
+	actual_ack_cnt_delta =
+		le32_to_cpu(pkt->u.stats.tx.actual_ack_cnt) -
+		le32_to_cpu(priv->statistics.tx.actual_ack_cnt);
+	expected_ack_cnt_delta =
+		le32_to_cpu(pkt->u.stats.tx.expected_ack_cnt) -
+		le32_to_cpu(priv->statistics.tx.expected_ack_cnt);
+	ba_timeout_delta =
+		le32_to_cpu(pkt->u.stats.tx.agg.ba_timeout) -
+		le32_to_cpu(priv->statistics.tx.agg.ba_timeout);
+	if ((priv->_agn.agg_tids_count > 0) &&
+	    (expected_ack_cnt_delta > 0) &&
+	    (((actual_ack_cnt_delta * 100) / expected_ack_cnt_delta)
+		< ACK_CNT_RATIO) &&
+	    (ba_timeout_delta > BA_TIMEOUT_CNT)) {
+		IWL_DEBUG_RADIO(priv, "actual_ack_cnt delta = %d,"
+				" expected_ack_cnt = %d\n",
+				actual_ack_cnt_delta, expected_ack_cnt_delta);
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+		IWL_DEBUG_RADIO(priv, "rx_detected_cnt delta = %d\n",
+				priv->delta_statistics.tx.rx_detected_cnt);
+		IWL_DEBUG_RADIO(priv,
+				"ack_or_ba_timeout_collision delta = %d\n",
+				priv->delta_statistics.tx.
+				ack_or_ba_timeout_collision);
+#endif
+		IWL_DEBUG_RADIO(priv, "agg ba_timeout delta = %d\n",
+				ba_timeout_delta);
+		if (!actual_ack_cnt_delta &&
+		    (ba_timeout_delta >= BA_TIMEOUT_MAX))
+			rc = false;
+	}
+	return rc;
+}
+EXPORT_SYMBOL(iwl_good_ack_health);
+#endif
+
+/**
+ * iwl_good_plcp_health - checks for plcp error.
+ *
+ * When the plcp error is exceeding the thresholds, reset the radio
+ * to improve the throughput.
+ */
+bool iwl_good_plcp_health(struct iwl_priv *priv,
+				struct iwl_rx_packet *pkt)
+{
+	bool rc = true;
 	int combined_plcp_delta;
 	unsigned int plcp_msec;
 	unsigned long plcp_received_jiffies;
 
-	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
-		     (int)sizeof(priv->statistics),
-		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
-
-	change = ((priv->statistics.general.temperature !=
-		   pkt->u.stats.general.temperature) ||
-		  ((priv->statistics.flag &
-		    STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
-		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	iwl_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
-#endif
 	/*
 	 * check for plcp_err and trigger radio reset if it exceeds
 	 * the plcp error threshold plcp_delta.
@@ -659,11 +707,11 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 			le32_to_cpu(priv->statistics.rx.ofdm_ht.plcp_err));
 
 		if ((combined_plcp_delta > 0) &&
-			((combined_plcp_delta * 100) / plcp_msec) >
+		    ((combined_plcp_delta * 100) / plcp_msec) >
 			priv->cfg->plcp_delta_threshold) {
 			/*
-			 * if plcp_err exceed the threshold, the following
-			 * data is printed in csv format:
+			 * if plcp_err exceed the threshold,
+			 * the following data is printed in csv format:
 			 *    Text: plcp_err exceeded %d,
 			 *    Received ofdm.plcp_err,
 			 *    Current ofdm.plcp_err,
@@ -672,22 +720,73 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 			 *    combined_plcp_delta,
 			 *    plcp_msec
 			 */
-			IWL_DEBUG_RADIO(priv, PLCP_MSG,
+			IWL_DEBUG_RADIO(priv, "plcp_err exceeded %u, "
+				"%u, %u, %u, %u, %d, %u mSecs\n",
 				priv->cfg->plcp_delta_threshold,
 				le32_to_cpu(pkt->u.stats.rx.ofdm.plcp_err),
 				le32_to_cpu(priv->statistics.rx.ofdm.plcp_err),
 				le32_to_cpu(pkt->u.stats.rx.ofdm_ht.plcp_err),
 				le32_to_cpu(
-					priv->statistics.rx.ofdm_ht.plcp_err),
+				  priv->statistics.rx.ofdm_ht.plcp_err),
 				combined_plcp_delta, plcp_msec);
-
-			/*
-			 * Reset the RF radio due to the high plcp
-			 * error rate
-			 */
-			iwl_force_reset(priv, IWL_RF_RESET);
+			rc = false;
 		}
 	}
+	return rc;
+}
+EXPORT_SYMBOL(iwl_good_plcp_health);
+
+static void iwl_recover_from_statistics(struct iwl_priv *priv,
+				struct iwl_rx_packet *pkt)
+{
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+	if (iwl_is_associated(priv)) {
+		if (priv->cfg->ops->lib->check_ack_health) {
+			if (!priv->cfg->ops->lib->check_ack_health(
+			    priv, pkt)) {
+				/*
+				 * low ack count detected
+				 * restart Firmware
+				 */
+				IWL_ERR(priv, "low ack count detected, "
+					"restart firmware\n");
+				iwl_force_reset(priv, IWL_FW_RESET);
+			}
+		} else if (priv->cfg->ops->lib->check_plcp_health) {
+			if (!priv->cfg->ops->lib->check_plcp_health(
+			    priv, pkt)) {
+				/*
+				 * high plcp error detected
+				 * reset Radio
+				 */
+				iwl_force_reset(priv, IWL_RF_RESET);
+			}
+		}
+	}
+}
+
+void iwl_rx_statistics(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb)
+{
+	int change;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+
+
+	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
+		     (int)sizeof(priv->statistics),
+		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
+
+	change = ((priv->statistics.general.temperature !=
+		   pkt->u.stats.general.temperature) ||
+		  ((priv->statistics.flag &
+		    STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
+		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	iwl_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
+#endif
+	iwl_recover_from_statistics(priv, pkt);
 
 	memcpy(&priv->statistics, &pkt->u.stats, sizeof(priv->statistics));
 

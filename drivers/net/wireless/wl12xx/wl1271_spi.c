@@ -23,7 +23,6 @@
 
 #include <linux/irq.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/wl12xx.h>
@@ -332,26 +331,18 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 	return IRQ_HANDLED;
 }
 
-static void wl1271_device_release(struct device *dev)
+static void wl1271_spi_set_power(struct wl1271 *wl, bool enable)
 {
-
+	if (wl->set_power)
+		wl->set_power(enable);
 }
-
-static struct platform_device wl1271_device = {
-	.name           = "wl1271",
-	.id             = -1,
-
-	/* device model insists to have a release function */
-	.dev            = {
-		.release = wl1271_device_release,
-	},
-};
 
 static struct wl1271_if_operations spi_ops = {
 	.read		= wl1271_spi_raw_read,
 	.write		= wl1271_spi_raw_write,
 	.reset		= wl1271_spi_reset,
 	.init		= wl1271_spi_init,
+	.power		= wl1271_spi_set_power,
 	.dev		= wl1271_spi_wl_to_dev,
 	.enable_irq	= wl1271_spi_enable_interrupts,
 	.disable_irq	= wl1271_spi_disable_interrupts
@@ -415,33 +406,23 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 
 	disable_irq(wl->irq);
 
-	ret = platform_device_register(&wl1271_device);
-	if (ret) {
-		wl1271_error("couldn't register platform device");
-		goto out_irq;
-	}
-	dev_set_drvdata(&wl1271_device.dev, wl);
-
 	ret = wl1271_init_ieee80211(wl);
 	if (ret)
-		goto out_platform;
+		goto out_irq;
 
 	ret = wl1271_register_hw(wl);
 	if (ret)
-		goto out_platform;
+		goto out_irq;
 
 	wl1271_notice("initialized");
 
 	return 0;
 
- out_platform:
-	platform_device_unregister(&wl1271_device);
-
  out_irq:
 	free_irq(wl->irq, wl);
 
  out_free:
-	ieee80211_free_hw(hw);
+	wl1271_free_hw(wl);
 
 	return ret;
 }
@@ -450,9 +431,9 @@ static int __devexit wl1271_remove(struct spi_device *spi)
 {
 	struct wl1271 *wl = dev_get_drvdata(&spi->dev);
 
-	platform_device_unregister(&wl1271_device);
 	free_irq(wl->irq, wl);
 
+	wl1271_unregister_hw(wl);
 	wl1271_free_hw(wl);
 
 	return 0;

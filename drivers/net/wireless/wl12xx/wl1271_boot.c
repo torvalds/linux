@@ -228,6 +228,14 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	nvs_len = sizeof(wl->nvs->nvs);
 	nvs_ptr = (u8 *)wl->nvs->nvs;
 
+	/* update current MAC address to NVS */
+	nvs_ptr[11] = wl->mac_addr[0];
+	nvs_ptr[10] = wl->mac_addr[1];
+	nvs_ptr[6] = wl->mac_addr[2];
+	nvs_ptr[5] = wl->mac_addr[3];
+	nvs_ptr[4] = wl->mac_addr[4];
+	nvs_ptr[3] = wl->mac_addr[5];
+
 	/*
 	 * Layout before the actual NVS tables:
 	 * 1 byte : burst length.

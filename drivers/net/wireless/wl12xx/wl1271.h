@@ -53,6 +53,8 @@ enum {
 	DEBUG_MAC80211	= BIT(11),
 	DEBUG_CMD	= BIT(12),
 	DEBUG_ACX	= BIT(13),
+	DEBUG_SDIO	= BIT(14),
+	DEBUG_FILTERS   = BIT(15),
 	DEBUG_ALL	= ~0,
 };
 
@@ -344,12 +346,14 @@ struct wl1271_if_operations {
 		     bool fixed);
 	void (*reset)(struct wl1271 *wl);
 	void (*init)(struct wl1271 *wl);
+	void (*power)(struct wl1271 *wl, bool enable);
 	struct device* (*dev)(struct wl1271 *wl);
 	void (*enable_irq)(struct wl1271 *wl);
 	void (*disable_irq)(struct wl1271 *wl);
 };
 
 struct wl1271 {
+	struct platform_device *plat_dev;
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
 
@@ -456,6 +460,7 @@ struct wl1271 {
 	/* Default key (for WEP) */
 	u32 default_key;
 
+	unsigned int filters;
 	unsigned int rx_config;
 	unsigned int rx_filter;
 
@@ -482,6 +487,8 @@ struct wl1271 {
 
 	/* Current chipset configuration */
 	struct conf_drv_settings conf;
+
+	bool sg_enabled;
 
 	struct list_head list;
 };

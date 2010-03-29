@@ -102,15 +102,14 @@ static void wl1271_sdio_init(struct wl1271 *wl)
 }
 
 static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
-			 size_t len, bool fixed)
+				 size_t len, bool fixed)
 {
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
 
-	sdio_claim_host(func);
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
 		((u8 *)buf)[0] = sdio_f0_readb(func, addr, &ret);
-		wl1271_debug(DEBUG_SPI, "sdio read 52 addr 0x%x, byte 0x%02x",
+		wl1271_debug(DEBUG_SDIO, "sdio read 52 addr 0x%x, byte 0x%02x",
 			     addr, ((u8 *)buf)[0]);
 	} else {
 		if (fixed)
@@ -118,32 +117,30 @@ static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 		else
 			ret = sdio_memcpy_fromio(func, buf, addr, len);
 
-		wl1271_debug(DEBUG_SPI, "sdio read 53 addr 0x%x, %d bytes",
+		wl1271_debug(DEBUG_SDIO, "sdio read 53 addr 0x%x, %d bytes",
 			     addr, len);
-		wl1271_dump_ascii(DEBUG_SPI, "data: ", buf, len);
+		wl1271_dump_ascii(DEBUG_SDIO, "data: ", buf, len);
 	}
 
 	if (ret)
 		wl1271_error("sdio read failed (%d)", ret);
 
-	sdio_release_host(func);
 }
 
 static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
-			  size_t len, bool fixed)
+				  size_t len, bool fixed)
 {
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
 
-	sdio_claim_host(func);
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
 		sdio_f0_writeb(func, ((u8 *)buf)[0], addr, &ret);
-		wl1271_debug(DEBUG_SPI, "sdio write 52 addr 0x%x, byte 0x%02x",
+		wl1271_debug(DEBUG_SDIO, "sdio write 52 addr 0x%x, byte 0x%02x",
 			     addr, ((u8 *)buf)[0]);
 	} else {
-		wl1271_debug(DEBUG_SPI, "sdio write 53 addr 0x%x, %d bytes",
+		wl1271_debug(DEBUG_SDIO, "sdio write 53 addr 0x%x, %d bytes",
 			     addr, len);
-		wl1271_dump_ascii(DEBUG_SPI, "data: ", buf, len);
+		wl1271_dump_ascii(DEBUG_SDIO, "data: ", buf, len);
 
 		if (fixed)
 			ret = sdio_writesb(func, addr, buf, len);
@@ -153,7 +150,23 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 	if (ret)
 		wl1271_error("sdio write failed (%d)", ret);
 
-	sdio_release_host(func);
+}
+
+static void wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
+{
+	struct sdio_func *func = wl_to_func(wl);
+
+	/* Let the SDIO stack handle wlan_enable control, so we
+	 * keep host claimed while wlan is in use to keep wl1271
+	 * alive.
+	 */
+	if (enable) {
+		sdio_claim_host(func);
+		sdio_enable_func(func);
+	} else {
+		sdio_disable_func(func);
+		sdio_release_host(func);
+	}
 }
 
 static struct wl1271_if_operations sdio_ops = {
@@ -161,14 +174,11 @@ static struct wl1271_if_operations sdio_ops = {
 	.write		= wl1271_sdio_raw_write,
 	.reset		= wl1271_sdio_reset,
 	.init		= wl1271_sdio_init,
+	.power		= wl1271_sdio_set_power,
 	.dev		= wl1271_sdio_wl_to_dev,
 	.enable_irq	= wl1271_sdio_enable_interrupts,
 	.disable_irq	= wl1271_sdio_disable_interrupts
 };
-
-static void wl1271_sdio_set_power(bool enable)
-{
-}
 
 static int __devinit wl1271_probe(struct sdio_func *func,
 				  const struct sdio_device_id *id)
@@ -189,8 +199,6 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 
 	wl->if_priv = func;
 	wl->if_ops = &sdio_ops;
-
-	wl->set_power = wl1271_sdio_set_power;
 
 	/* Grab access to FN0 for ELP reg. */
 	func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
@@ -220,28 +228,18 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	if (ret)
 		goto out_irq;
 
-	sdio_claim_host(func);
 	sdio_set_drvdata(func, wl);
-
-	ret = sdio_enable_func(func);
-	if (ret)
-		goto out_release;
-
-	sdio_release_host(func);
 
 	wl1271_notice("initialized");
 
 	return 0;
-
- out_release:
-	sdio_release_host(func);
 
  out_irq:
 	free_irq(wl->irq, wl);
 
 
  out_free:
-	ieee80211_free_hw(hw);
+	wl1271_free_hw(wl);
 
 	return ret;
 }
@@ -250,24 +248,10 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 {
 	struct wl1271 *wl = sdio_get_drvdata(func);
 
-	ieee80211_unregister_hw(wl->hw);
-
-	sdio_claim_host(func);
-	sdio_disable_func(func);
-	sdio_release_host(func);
-
 	free_irq(wl->irq, wl);
 
-	kfree(wl->target_mem_map);
-	vfree(wl->fw);
-	wl->fw = NULL;
-	kfree(wl->nvs);
-	wl->nvs = NULL;
-
-	kfree(wl->fw_status);
-	kfree(wl->tx_res_if);
-
-	ieee80211_free_hw(wl->hw);
+	wl1271_unregister_hw(wl);
+	wl1271_free_hw(wl);
 }
 
 static struct sdio_driver wl1271_sdio_driver = {

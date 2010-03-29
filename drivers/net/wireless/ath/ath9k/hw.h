@@ -599,6 +599,11 @@ struct ath_hw {
 	struct ar5416IniArray iniModes_9271_1_0_only;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
+	struct ar5416IniArray iniCommon_normal_cck_fir_coeff_9271;
+	struct ar5416IniArray iniCommon_japan_2484_cck_fir_coeff_9271;
+	struct ar5416IniArray iniModes_9271_ANI_reg;
+	struct ar5416IniArray iniModes_high_power_tx_gain_9271;
+	struct ar5416IniArray iniModes_normal_power_tx_gain_9271;
 
 	u32 intr_gen_timer_trigger;
 	u32 intr_gen_timer_thresh;
@@ -701,6 +706,9 @@ void ath_gen_timer_isr(struct ath_hw *hw);
 u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 
 void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len);
+
+/* HTC */
+void ath9k_hw_htc_resetinit(struct ath_hw *ah);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1

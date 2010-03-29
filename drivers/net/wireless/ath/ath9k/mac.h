@@ -150,6 +150,32 @@ struct ath_rx_status {
 	u32 evm2;
 };
 
+struct ath_htc_rx_status {
+	u64 rs_tstamp;
+	u16 rs_datalen;
+	u8 rs_status;
+	u8 rs_phyerr;
+	int8_t rs_rssi;
+	int8_t rs_rssi_ctl0;
+	int8_t rs_rssi_ctl1;
+	int8_t rs_rssi_ctl2;
+	int8_t rs_rssi_ext0;
+	int8_t rs_rssi_ext1;
+	int8_t rs_rssi_ext2;
+	u8 rs_keyix;
+	u8 rs_rate;
+	u8 rs_antenna;
+	u8 rs_more;
+	u8 rs_isaggr;
+	u8 rs_moreaggr;
+	u8 rs_num_delims;
+	u8 rs_flags;
+	u8 rs_dummy;
+	u32 evm0;
+	u32 evm1;
+	u32 evm2;
+};
+
 #define ATH9K_RXERR_CRC           0x01
 #define ATH9K_RXERR_PHY           0x02
 #define ATH9K_RXERR_FIFO          0x04

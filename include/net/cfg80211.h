@@ -1007,6 +1007,7 @@ struct cfg80211_pmksa {
  *	RSN IE. It allows for faster roaming between WPA2 BSSIDs.
  * @del_pmksa: Delete a cached PMKID.
  * @flush_pmksa: Flush all cached PMKIDs.
+ * @set_cqm_rssi_config: Configure connection quality monitor RSSI threshold.
  *
  */
 struct cfg80211_ops {
@@ -1152,6 +1153,10 @@ struct cfg80211_ops {
 
 	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,
 				  bool enabled, int timeout);
+
+	int	(*set_cqm_rssi_config)(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       s32 rssi_thold, u32 rssi_hyst);
 };
 
 /*
@@ -2336,5 +2341,19 @@ bool cfg80211_rx_action(struct net_device *dev, int freq, const u8 *buf,
  */
 void cfg80211_action_tx_status(struct net_device *dev, u64 cookie,
 			       const u8 *buf, size_t len, bool ack, gfp_t gfp);
+
+
+/**
+ * cfg80211_cqm_rssi_notify - connection quality monitoring rssi event
+ * @dev: network device
+ * @rssi_event: the triggered RSSI event
+ * @gfp: context flags
+ *
+ * This function is called when a configured connection quality monitoring
+ * rssi threshold reached event occurs.
+ */
+void cfg80211_cqm_rssi_notify(struct net_device *dev,
+			      enum nl80211_cqm_rssi_threshold_event rssi_event,
+			      gfp_t gfp);
 
 #endif /* __NET_CFG80211_H */

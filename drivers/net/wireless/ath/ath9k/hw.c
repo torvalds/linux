@@ -499,8 +499,10 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 {
 	int ecode;
 
-	if (!ath9k_hw_chip_test(ah))
-		return -ENODEV;
+	if (!AR_SREV_9271(ah)) {
+		if (!ath9k_hw_chip_test(ah))
+			return -ENODEV;
+	}
 
 	ecode = ath9k_hw_rf_claim(ah);
 	if (ecode != 0)
@@ -603,9 +605,23 @@ static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
 			       ARRAY_SIZE(ar9271Modes_9271), 6);
 		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271,
 			       ARRAY_SIZE(ar9271Common_9271), 2);
+		INIT_INI_ARRAY(&ah->iniCommon_normal_cck_fir_coeff_9271,
+			       ar9271Common_normal_cck_fir_coeff_9271,
+			       ARRAY_SIZE(ar9271Common_normal_cck_fir_coeff_9271), 2);
+		INIT_INI_ARRAY(&ah->iniCommon_japan_2484_cck_fir_coeff_9271,
+			       ar9271Common_japan_2484_cck_fir_coeff_9271,
+			       ARRAY_SIZE(ar9271Common_japan_2484_cck_fir_coeff_9271), 2);
 		INIT_INI_ARRAY(&ah->iniModes_9271_1_0_only,
 			       ar9271Modes_9271_1_0_only,
 			       ARRAY_SIZE(ar9271Modes_9271_1_0_only), 6);
+		INIT_INI_ARRAY(&ah->iniModes_9271_ANI_reg, ar9271Modes_9271_ANI_reg,
+			       ARRAY_SIZE(ar9271Modes_9271_ANI_reg), 6);
+		INIT_INI_ARRAY(&ah->iniModes_high_power_tx_gain_9271,
+			       ar9271Modes_high_power_tx_gain_9271,
+			       ARRAY_SIZE(ar9271Modes_high_power_tx_gain_9271), 6);
+		INIT_INI_ARRAY(&ah->iniModes_normal_power_tx_gain_9271,
+			       ar9271Modes_normal_power_tx_gain_9271,
+			       ARRAY_SIZE(ar9271Modes_normal_power_tx_gain_9271), 6);
 		return;
 	}
 
@@ -990,22 +1006,6 @@ static void ath9k_hw_init_qos(struct ath_hw *ah)
 	REG_WRITE(ah, AR_TXOP_12_15, 0xFFFFFFFF);
 }
 
-static void ath9k_hw_change_target_baud(struct ath_hw *ah, u32 freq, u32 baud)
-{
-	u32 lcr;
-	u32 baud_divider = freq * 1000 * 1000 / 16 / baud;
-
-	lcr = REG_READ(ah , 0x5100c);
-	lcr |= 0x80;
-
-	REG_WRITE(ah, 0x5100c, lcr);
-	REG_WRITE(ah, 0x51004, (baud_divider >> 8));
-	REG_WRITE(ah, 0x51000, (baud_divider & 0xff));
-
-	lcr &= ~0x80;
-	REG_WRITE(ah, 0x5100c, lcr);
-}
-
 static void ath9k_hw_init_pll(struct ath_hw *ah,
 			      struct ath9k_channel *chan)
 {
@@ -1071,22 +1071,8 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 
 	/* Switch the core clock for ar9271 to 117Mhz */
 	if (AR_SREV_9271(ah)) {
-		if ((pll == 0x142c) || (pll == 0x2850) ) {
-			udelay(500);
-			/* set CLKOBS to output AHB clock */
-			REG_WRITE(ah, 0x7020, 0xe);
-			/*
-			 * 0x304: 117Mhz, ahb_ratio: 1x1
-			 * 0x306: 40Mhz, ahb_ratio: 1x1
-			 */
-			REG_WRITE(ah, 0x50040, 0x304);
-			/*
-			 * makes adjustments for the baud dividor to keep the
-			 * targetted baud rate based on the used core clock.
-			 */
-			ath9k_hw_change_target_baud(ah, AR9271_CORE_CLOCK,
-						    AR9271_TARGET_BAUD_RATE);
-		}
+		udelay(500);
+		REG_WRITE(ah, 0x50040, 0x304);
 	}
 
 	udelay(RTC_PLL_SETTLE_DELAY);
@@ -1241,7 +1227,7 @@ void ath9k_hw_deinit(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	if (common->state <= ATH_HW_INITIALIZED)
+	if (common->state < ATH_HW_INITIALIZED)
 		goto free_hw;
 
 	if (!AR_SREV_9100(ah))
@@ -1252,8 +1238,6 @@ void ath9k_hw_deinit(struct ath_hw *ah)
 free_hw:
 	if (!AR_SREV_9280_10_OR_LATER(ah))
 		ath9k_hw_rf_free_ext_banks(ah);
-	kfree(ah);
-	ah = NULL;
 }
 EXPORT_SYMBOL(ath9k_hw_deinit);
 
@@ -1266,26 +1250,6 @@ static void ath9k_hw_override_ini(struct ath_hw *ah,
 {
 	u32 val;
 
-	if (AR_SREV_9271(ah)) {
-		/*
-		 * Enable spectral scan to solution for issues with stuck
-		 * beacons on AR9271 1.0. The beacon stuck issue is not seeon on
-		 * AR9271 1.1
-		 */
-		if (AR_SREV_9271_10(ah)) {
-			val = REG_READ(ah, AR_PHY_SPECTRAL_SCAN) |
-			      AR_PHY_SPECTRAL_SCAN_ENABLE;
-			REG_WRITE(ah, AR_PHY_SPECTRAL_SCAN, val);
-		}
-		else if (AR_SREV_9271_11(ah))
-			/*
-			 * change AR_PHY_RF_CTL3 setting to fix MAC issue
-			 * present on AR9271 1.1
-			 */
-			REG_WRITE(ah, AR_PHY_RF_CTL3, 0x3a020001);
-		return;
-	}
-
 	/*
 	 * Set the RX_ABORT and RX_DIS and clear if off only after
 	 * RXE is set for MAC. This prevents frames with corrupted
@@ -1294,8 +1258,10 @@ static void ath9k_hw_override_ini(struct ath_hw *ah,
 	REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 
 	if (AR_SREV_9280_10_OR_LATER(ah)) {
-		val = REG_READ(ah, AR_PCU_MISC_MODE2) &
-			       (~AR_PCU_MISC_MODE2_HWWAR1);
+		val = REG_READ(ah, AR_PCU_MISC_MODE2);
+
+		if (!AR_SREV_9271(ah))
+			val &= ~AR_PCU_MISC_MODE2_HWWAR1;
 
 		if (AR_SREV_9287_10_OR_LATER(ah))
 			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
@@ -1439,7 +1405,10 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 		return -EINVAL;
 	}
 
+	/* Set correct baseband to analog shift setting to access analog chips */
 	REG_WRITE(ah, AR_PHY(0), 0x00000007);
+
+	/* Write ADDAC shifts */
 	REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_EXTERNAL_RADIO);
 	ah->eep_ops->set_addac(ah, chan);
 
@@ -1451,9 +1420,11 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 			sizeof(u32) * ah->iniAddac.ia_rows *
 			ah->iniAddac.ia_columns;
 
+		/* For AR5416 2.0/2.1 */
 		memcpy(ah->addac5416_21,
 		       ah->iniAddac.ia_array, addacSize);
 
+		/* override CLKDRV value at [row, column] = [31, 1] */
 		(ah->addac5416_21)[31 * ah->iniAddac.ia_columns + 1] = 0;
 
 		temp.ia_array = ah->addac5416_21;
@@ -1485,6 +1456,11 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	    AR_SREV_9287_10_OR_LATER(ah))
 		REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
 
+	if (AR_SREV_9271_10(ah))
+		REG_WRITE_ARRAY(&ah->iniModes_9271_1_0_only,
+				modesIndex, regWrites);
+
+	/* Write common array parameters */
 	for (i = 0; i < ah->iniCommon.ia_rows; i++) {
 		u32 reg = INI_RA(&ah->iniCommon, i, 0);
 		u32 val = INI_RA(&ah->iniCommon, i, 1);
@@ -1499,11 +1475,16 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 		DO_DELAY(regWrites);
 	}
 
-	ath9k_hw_write_regs(ah, freqIndex, regWrites);
+	if (AR_SREV_9271(ah)) {
+		if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) == 1)
+			REG_WRITE_ARRAY(&ah->iniModes_high_power_tx_gain_9271,
+					modesIndex, regWrites);
+		else
+			REG_WRITE_ARRAY(&ah->iniModes_normal_power_tx_gain_9271,
+					modesIndex, regWrites);
+	}
 
-	if (AR_SREV_9271_10(ah))
-		REG_WRITE_ARRAY(&ah->iniModes_9271_1_0_only,
-				modesIndex, regWrites);
+	ath9k_hw_write_regs(ah, freqIndex, regWrites);
 
 	if (AR_SREV_9280_20(ah) && IS_CHAN_A_5MHZ_SPACED(chan)) {
 		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex,
@@ -1517,6 +1498,7 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	if (OLC_FOR_AR9280_20_LATER)
 		ath9k_olc_init(ah);
 
+	/* Set TX power */
 	ah->eep_ops->set_txpower(ah, chan,
 				 ath9k_regd_get_ctl(regulatory, chan),
 				 channel->max_antenna_gain * 2,
@@ -1524,6 +1506,7 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 				 min((u32) MAX_RATE_POWER,
 				 (u32) regulatory->power_limit));
 
+	/* Write analog registers */
 	if (!ath9k_hw_set_rf_regs(ah, chan, freqIndex)) {
 		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
 			  "ar5416SetRfRegs failed\n");
@@ -1966,6 +1949,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_mark_phy_inactive(ah);
 
+	/* Only required on the first reset */
 	if (AR_SREV_9271(ah) && ah->htc_reset_init) {
 		REG_WRITE(ah,
 			  AR9271_RESET_POWER_DOWN_CONTROL,
@@ -1978,6 +1962,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		return -EINVAL;
 	}
 
+	/* Only required on the first reset */
 	if (AR_SREV_9271(ah) && ah->htc_reset_init) {
 		ah->htc_reset_init = false;
 		REG_WRITE(ah,
@@ -2438,7 +2423,7 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 		if (!AR_SREV_9100(ah))
 			REG_WRITE(ah, AR_RC, AR_RC_AHB | AR_RC_HOSTIF);
 
-		if(!AR_SREV_5416(ah))
+		if (!AR_SREV_5416(ah) && !AR_SREV_9271(ah))
 			REG_CLR_BIT(ah, (AR_RTC_RESET),
 				    AR_RTC_RESET_EN);
 	}
@@ -3216,7 +3201,9 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	else
 		pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD;
 
-	if (AR_SREV_9285_10_OR_LATER(ah))
+	if (AR_SREV_9271(ah))
+		pCap->num_gpio_pins = AR9271_NUM_GPIO;
+	else if (AR_SREV_9285_10_OR_LATER(ah))
 		pCap->num_gpio_pins = AR9285_NUM_GPIO;
 	else if (AR_SREV_9280_10_OR_LATER(ah))
 		pCap->num_gpio_pins = AR928X_NUM_GPIO;
@@ -3452,7 +3439,9 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 	if (gpio >= ah->caps.num_gpio_pins)
 		return 0xffffffff;
 
-	if (AR_SREV_9287_10_OR_LATER(ah))
+	if (AR_SREV_9271(ah))
+		return MS_REG_READ(AR9271, gpio) != 0;
+	else if (AR_SREV_9287_10_OR_LATER(ah))
 		return MS_REG_READ(AR9287, gpio) != 0;
 	else if (AR_SREV_9285_10_OR_LATER(ah))
 		return MS_REG_READ(AR9285, gpio) != 0;
@@ -3481,6 +3470,9 @@ EXPORT_SYMBOL(ath9k_hw_cfg_output);
 
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val)
 {
+	if (AR_SREV_9271(ah))
+		val = ~val;
+
 	REG_RMW(ah, AR_GPIO_IN_OUT, ((val & 1) << gpio),
 		AR_GPIO_BIT(gpio));
 }
@@ -3864,6 +3856,16 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 	}
 }
 EXPORT_SYMBOL(ath_gen_timer_isr);
+
+/********/
+/* HTC  */
+/********/
+
+void ath9k_hw_htc_resetinit(struct ath_hw *ah)
+{
+	ah->htc_reset_init = true;
+}
+EXPORT_SYMBOL(ath9k_hw_htc_resetinit);
 
 static struct {
 	u32 version;

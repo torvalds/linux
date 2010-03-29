@@ -160,11 +160,11 @@ int wl1271_init_pta(struct wl1271 *wl)
 {
 	int ret;
 
-	ret = wl1271_acx_sg_enable(wl);
+	ret = wl1271_acx_sg_cfg(wl);
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_sg_cfg(wl);
+	ret = wl1271_acx_sg_enable(wl, wl->sg_enabled);
 	if (ret < 0)
 		return ret;
 

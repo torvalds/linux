@@ -138,6 +138,18 @@ static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
 	wl1271_raw_write32(wl, wl1271_translate_addr(wl, addr), val);
 }
 
+static inline void wl1271_power_off(struct wl1271 *wl)
+{
+	wl->if_ops->power(wl, false);
+	clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+}
+
+static inline void wl1271_power_on(struct wl1271 *wl)
+{
+	wl->if_ops->power(wl, true);
+	set_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+}
+
 
 /* Top Register IO */
 void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val);
@@ -149,6 +161,7 @@ int wl1271_set_partition(struct wl1271 *wl,
 /* Functions from wl1271_main.c */
 
 int wl1271_register_hw(struct wl1271 *wl);
+void wl1271_unregister_hw(struct wl1271 *wl);
 int wl1271_init_ieee80211(struct wl1271 *wl);
 struct ieee80211_hw *wl1271_alloc_hw(void);
 int wl1271_free_hw(struct wl1271 *wl);

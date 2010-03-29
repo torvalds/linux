@@ -149,6 +149,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 				 .len = IEEE80211_MAX_DATA_LEN },
 	[NL80211_ATTR_FRAME_MATCH] = { .type = NLA_BINARY, },
 	[NL80211_ATTR_PS_STATE] = { .type = NLA_U32 },
+	[NL80211_ATTR_CQM] = { .type = NLA_NESTED, },
 };
 
 /* policy for the attributes */
@@ -4778,6 +4779,84 @@ unlock_rtnl:
 	return err;
 }
 
+static struct nla_policy
+nl80211_attr_cqm_policy[NL80211_ATTR_CQM_MAX + 1] __read_mostly = {
+	[NL80211_ATTR_CQM_RSSI_THOLD] = { .type = NLA_U32 },
+	[NL80211_ATTR_CQM_RSSI_HYST] = { .type = NLA_U32 },
+	[NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT] = { .type = NLA_U32 },
+};
+
+static int nl80211_set_cqm_rssi(struct genl_info *info,
+				s32 threshold, u32 hysteresis)
+{
+	struct cfg80211_registered_device *rdev;
+	struct wireless_dev *wdev;
+	struct net_device *dev;
+	int err;
+
+	if (threshold > 0)
+		return -EINVAL;
+
+	rtnl_lock();
+
+	err = get_rdev_dev_by_info_ifindex(info, &rdev, &dev);
+	if (err)
+		goto unlock_rdev;
+
+	wdev = dev->ieee80211_ptr;
+
+	if (!rdev->ops->set_cqm_rssi_config) {
+		err = -EOPNOTSUPP;
+		goto unlock_rdev;
+	}
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION) {
+		err = -EOPNOTSUPP;
+		goto unlock_rdev;
+	}
+
+	err = rdev->ops->set_cqm_rssi_config(wdev->wiphy, dev,
+					     threshold, hysteresis);
+
+unlock_rdev:
+	cfg80211_unlock_rdev(rdev);
+	dev_put(dev);
+	rtnl_unlock();
+
+	return err;
+}
+
+static int nl80211_set_cqm(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *attrs[NL80211_ATTR_CQM_MAX + 1];
+	struct nlattr *cqm;
+	int err;
+
+	cqm = info->attrs[NL80211_ATTR_CQM];
+	if (!cqm) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = nla_parse_nested(attrs, NL80211_ATTR_CQM_MAX, cqm,
+			       nl80211_attr_cqm_policy);
+	if (err)
+		goto out;
+
+	if (attrs[NL80211_ATTR_CQM_RSSI_THOLD] &&
+	    attrs[NL80211_ATTR_CQM_RSSI_HYST]) {
+		s32 threshold;
+		u32 hysteresis;
+		threshold = nla_get_u32(attrs[NL80211_ATTR_CQM_RSSI_THOLD]);
+		hysteresis = nla_get_u32(attrs[NL80211_ATTR_CQM_RSSI_HYST]);
+		err = nl80211_set_cqm_rssi(info, threshold, hysteresis);
+	} else
+		err = -EINVAL;
+
+out:
+	return err;
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -5081,6 +5160,12 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_get_power_save,
 		.policy = nl80211_policy,
 		/* can be retrieved by unprivileged users */
+	},
+	{
+		.cmd = NL80211_CMD_SET_CQM,
+		.doit = nl80211_set_cqm,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
 	},
 };
 
@@ -5825,6 +5910,52 @@ void nl80211_send_action_tx_status(struct cfg80211_registered_device *rdev,
 	}
 
 	genlmsg_multicast(msg, 0, nl80211_mlme_mcgrp.id, gfp);
+	return;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
+}
+
+void
+nl80211_send_cqm_rssi_notify(struct cfg80211_registered_device *rdev,
+			     struct net_device *netdev,
+			     enum nl80211_cqm_rssi_threshold_event rssi_event,
+			     gfp_t gfp)
+{
+	struct sk_buff *msg;
+	struct nlattr *pinfoattr;
+	void *hdr;
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_NOTIFY_CQM);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex);
+
+	pinfoattr = nla_nest_start(msg, NL80211_ATTR_CQM);
+	if (!pinfoattr)
+		goto nla_put_failure;
+
+	NLA_PUT_U32(msg, NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT,
+		    rssi_event);
+
+	nla_nest_end(msg, pinfoattr);
+
+	if (genlmsg_end(msg, hdr) < 0) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
 	return;
 
  nla_put_failure:

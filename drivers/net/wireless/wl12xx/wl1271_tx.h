@@ -125,9 +125,6 @@ struct wl1271_tx_hw_res_if {
 
 static inline int wl1271_tx_get_queue(int queue)
 {
-	/* FIXME: use best effort until WMM is enabled */
-	return CONF_TX_AC_BE;
-
 	switch (queue) {
 	case 0:
 		return CONF_TX_AC_VO;

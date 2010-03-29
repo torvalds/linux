@@ -392,27 +392,19 @@ struct acx_conn_monit_params {
        __le32 bss_lose_timeout; /* number of TU's from synch fail */
 } __attribute__ ((packed));
 
-enum {
-	SG_ENABLE = 0,
-	SG_DISABLE,
-	SG_SENSE_NO_ACTIVITY,
-	SG_SENSE_ACTIVE
-};
-
 struct acx_bt_wlan_coex {
 	struct acx_header header;
 
-	/*
-	 * 0 -> PTA enabled
-	 * 1 -> PTA disabled
-	 * 2 -> sense no active mode, i.e.
-	 *      an interrupt is sent upon
-	 *      BT activity.
-	 * 3 -> PTA is switched on in response
-	 *      to the interrupt sending.
-	 */
 	u8 enable;
 	u8 pad[3];
+} __attribute__ ((packed));
+
+struct acx_bt_wlan_coex_param {
+	struct acx_header header;
+
+	__le32 params[CONF_SG_PARAMS_MAX];
+	u8 param_idx;
+	u8 padding[3];
 } __attribute__ ((packed));
 
 struct acx_dco_itrim_params {
@@ -421,52 +413,6 @@ struct acx_dco_itrim_params {
 	u8 enable;
 	u8 padding[3];
 	__le32 timeout;
-} __attribute__ ((packed));
-
-#define PTA_ANTENNA_TYPE_DEF		  (0)
-#define PTA_BT_HP_MAXTIME_DEF		  (2000)
-#define PTA_WLAN_HP_MAX_TIME_DEF	  (5000)
-#define PTA_SENSE_DISABLE_TIMER_DEF	  (1350)
-#define PTA_PROTECTIVE_RX_TIME_DEF	  (1500)
-#define PTA_PROTECTIVE_TX_TIME_DEF	  (1500)
-#define PTA_TIMEOUT_NEXT_BT_LP_PACKET_DEF (3000)
-#define PTA_SIGNALING_TYPE_DEF		  (1)
-#define PTA_AFH_LEVERAGE_ON_DEF		  (0)
-#define PTA_NUMBER_QUIET_CYCLE_DEF	  (0)
-#define PTA_MAX_NUM_CTS_DEF		  (3)
-#define PTA_NUMBER_OF_WLAN_PACKETS_DEF	  (2)
-#define PTA_NUMBER_OF_BT_PACKETS_DEF	  (2)
-#define PTA_PROTECTIVE_RX_TIME_FAST_DEF	  (1500)
-#define PTA_PROTECTIVE_TX_TIME_FAST_DEF	  (3000)
-#define PTA_CYCLE_TIME_FAST_DEF		  (8700)
-#define PTA_RX_FOR_AVALANCHE_DEF	  (5)
-#define PTA_ELP_HP_DEF			  (0)
-#define PTA_ANTI_STARVE_PERIOD_DEF	  (500)
-#define PTA_ANTI_STARVE_NUM_CYCLE_DEF	  (4)
-#define PTA_ALLOW_PA_SD_DEF		  (1)
-#define PTA_TIME_BEFORE_BEACON_DEF	  (6300)
-#define PTA_HPDM_MAX_TIME_DEF		  (1600)
-#define PTA_TIME_OUT_NEXT_WLAN_DEF	  (2550)
-#define PTA_AUTO_MODE_NO_CTS_DEF	  (0)
-#define PTA_BT_HP_RESPECTED_DEF		  (3)
-#define PTA_WLAN_RX_MIN_RATE_DEF	  (24)
-#define PTA_ACK_MODE_DEF		  (1)
-
-struct acx_bt_wlan_coex_param {
-	struct acx_header header;
-
-	__le32 per_threshold;
-	__le32 max_scan_compensation_time;
-	__le16 nfs_sample_interval;
-	u8 load_ratio;
-	u8 auto_ps_mode;
-	u8 probe_req_compensation;
-	u8 scan_window_compensation;
-	u8 antenna_config;
-	u8 beacon_miss_threshold;
-	__le32 rate_adaptation_threshold;
-	s8 rate_adaptation_snr;
-	u8 padding[3];
 } __attribute__ ((packed));
 
 struct acx_energy_detection {
@@ -1059,7 +1005,7 @@ int wl1271_acx_dco_itrim_params(struct wl1271 *wl);
 int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter);
 int wl1271_acx_beacon_filter_table(struct wl1271 *wl);
 int wl1271_acx_conn_monit_params(struct wl1271 *wl);
-int wl1271_acx_sg_enable(struct wl1271 *wl);
+int wl1271_acx_sg_enable(struct wl1271 *wl, bool enable);
 int wl1271_acx_sg_cfg(struct wl1271 *wl);
 int wl1271_acx_cca_threshold(struct wl1271 *wl);
 int wl1271_acx_bcn_dtim_options(struct wl1271 *wl);
