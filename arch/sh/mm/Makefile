@@ -18,13 +18,14 @@ mmu-$(CONFIG_MMU)	:= extable_$(BITS).o fault_$(BITS).o \
 			   ioremap.o kmap.o pgtable.o tlbflush_$(BITS).o
 
 obj-y			+= $(mmu-y)
-obj-$(CONFIG_DEBUG_FS)	+= asids-debugfs.o
 
-ifdef CONFIG_DEBUG_FS
-obj-$(CONFIG_CPU_SH4)	+= cache-debugfs.o
+debugfs-y			:= asids-debugfs.o
+ifndef CONFIG_CACHE_OFF
+debugfs-$(CONFIG_CPU_SH4)	+= cache-debugfs.o
 endif
 
 ifdef CONFIG_MMU
+debugfs-$(CONFIG_CPU_SH4)	+= tlb-debugfs.o
 tlb-$(CONFIG_CPU_SH3)		:= tlb-sh3.o
 tlb-$(CONFIG_CPU_SH4)		:= tlb-sh4.o tlb-urb.o
 tlb-$(CONFIG_CPU_SH5)		:= tlb-sh5.o
@@ -32,6 +33,7 @@ tlb-$(CONFIG_CPU_HAS_PTEAEX)	:= tlb-pteaex.o tlb-urb.o
 obj-y				+= $(tlb-y)
 endif
 
+obj-$(CONFIG_DEBUG_FS)		+= $(debugfs-y)
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_PMB)		+= pmb.o
 obj-$(CONFIG_NUMA)		+= numa.o
