@@ -62,21 +62,27 @@ static const char *speaker_mode_text[] = {
 static const struct soc_enum speaker_mode =
 	SOC_ENUM_SINGLE(WM8993_SPKMIXR_ATTENUATION, 8, 2, speaker_mode_text);
 
-static void wait_for_dc_servo(struct snd_soc_codec *codec)
+static void wait_for_dc_servo(struct snd_soc_codec *codec, unsigned int op)
 {
 	unsigned int reg;
 	int count = 0;
+	unsigned int val;
+
+	val = op | WM8993_DCS_ENA_CHAN_0 | WM8993_DCS_ENA_CHAN_1;
+
+	/* Trigger the command */
+	snd_soc_write(codec, WM8993_DC_SERVO_0, val);
 
 	dev_dbg(codec->dev, "Waiting for DC servo...\n");
 
 	do {
 		count++;
 		msleep(1);
-		reg = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_0);
+		reg = snd_soc_read(codec, WM8993_DC_SERVO_0);
 		dev_dbg(codec->dev, "DC servo: %x\n", reg);
-	} while (reg & WM8993_DCS_DATAPATH_BUSY && count < 400);
+	} while (reg & op && count < 400);
 
-	if (reg & WM8993_DCS_DATAPATH_BUSY)
+	if (reg & op)
 		dev_err(codec->dev, "Timed out waiting for DC Servo\n");
 }
 
@@ -92,18 +98,8 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
 			    WM8993_DCS_SERIES_NO_01_MASK,
 			    32 << WM8993_DCS_SERIES_NO_01_SHIFT);
-
-	/* Enable the DC servo.  Write all bits to avoid triggering startup
-	 * or write calibration.
-	 */
-	snd_soc_update_bits(codec, WM8993_DC_SERVO_0,
-			    0xFFFF,
-			    WM8993_DCS_ENA_CHAN_0 |
-			    WM8993_DCS_ENA_CHAN_1 |
-			    WM8993_DCS_TRIG_SERIES_1 |
-			    WM8993_DCS_TRIG_SERIES_0);
-
-	wait_for_dc_servo(codec);
+	wait_for_dc_servo(codec,
+			  WM8993_DCS_TRIG_SERIES_0 | WM8993_DCS_TRIG_SERIES_1);
 
 	/* Apply correction to DC servo result */
 	if (hubs->dcs_codes) {
@@ -145,13 +141,9 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 
 		/* Do it */
 		snd_soc_write(codec, WM8993_DC_SERVO_3, dcs_cfg);
-		snd_soc_update_bits(codec, WM8993_DC_SERVO_0,
-				    WM8993_DCS_TRIG_DAC_WR_0 |
-				    WM8993_DCS_TRIG_DAC_WR_1,
-				    WM8993_DCS_TRIG_DAC_WR_0 |
-				    WM8993_DCS_TRIG_DAC_WR_1);
-
-		wait_for_dc_servo(codec);
+		wait_for_dc_servo(codec,
+				  WM8993_DCS_TRIG_DAC_WR_0 |
+				  WM8993_DCS_TRIG_DAC_WR_1);
 	}
 }
 
