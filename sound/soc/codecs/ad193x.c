@@ -35,8 +35,6 @@ static const u8 ad193x_reg[AD193X_NUM_REGS] = {
 
 static struct snd_soc_codec *ad193x_codec;
 struct snd_soc_codec_device soc_codec_dev_ad193x;
-static int ad193x_register(struct ad193x_priv *ad193x, int bus_type);
-static void ad193x_unregister(struct ad193x_priv *ad193x);
 
 /*
  * AD193X volume/mute/de-emphasis etc. controls
@@ -290,69 +288,23 @@ static int ad193x_bus_probe(struct device *dev, void *ctrl_data, int bus_type)
 {
 	struct snd_soc_codec *codec;
 	struct ad193x_priv *ad193x;
+	int ret;
+
+	if (ad193x_codec) {
+		dev_err(dev, "Another ad193x is registered\n");
+		return -EINVAL;
+	}
 
 	ad193x = kzalloc(sizeof(struct ad193x_priv), GFP_KERNEL);
 	if (ad193x == NULL)
 		return -ENOMEM;
 
-	codec = &ad193x->codec;
-	codec->control_data = ctrl_data;
-	codec->dev = dev;
-
 	dev_set_drvdata(dev, ad193x);
 
-	return ad193x_register(ad193x, bus_type);
-}
-
-static int ad193x_bus_remove(struct device *dev)
-{
-	struct ad193x_priv *ad193x = dev_get_drvdata(dev);
-
-	ad193x_unregister(ad193x);
-	return 0;
-}
-
-static struct snd_soc_dai_ops ad193x_dai_ops = {
-	.hw_params = ad193x_hw_params,
-	.digital_mute = ad193x_mute,
-	.set_tdm_slot = ad193x_set_tdm_slot,
-	.set_fmt = ad193x_set_dai_fmt,
-};
-
-/* codec DAI instance */
-struct snd_soc_dai ad193x_dai = {
-	.name = "AD193X",
-	.playback = {
-		.stream_name = "Playback",
-		.channels_min = 2,
-		.channels_max = 8,
-		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S16_LE |
-			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,
-	},
-	.capture = {
-		.stream_name = "Capture",
-		.channels_min = 2,
-		.channels_max = 4,
-		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S16_LE |
-			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,
-	},
-	.ops = &ad193x_dai_ops,
-};
-EXPORT_SYMBOL_GPL(ad193x_dai);
-
-static int ad193x_register(struct ad193x_priv *ad193x, int bus_type)
-{
-	int ret;
-	struct snd_soc_codec *codec = &ad193x->codec;
-
-	if (ad193x_codec) {
-		dev_err(codec->dev, "Another ad193x is registered\n");
-		return -EINVAL;
-	}
-
+	codec = &ad193x->codec;
 	mutex_init(&codec->mutex);
+	codec->control_data = ctrl_data;
+	codec->dev = dev;
 	codec->private_data = ad193x;
 	codec->reg_cache = ad193x->reg_cache;
 	codec->reg_cache_size = AD193X_NUM_REGS;
@@ -413,13 +365,47 @@ static int ad193x_register(struct ad193x_priv *ad193x, int bus_type)
 	return 0;
 }
 
-static void ad193x_unregister(struct ad193x_priv *ad193x)
+static int ad193x_bus_remove(struct device *dev)
 {
+	struct ad193x_priv *ad193x = dev_get_drvdata(dev);
+
 	snd_soc_unregister_dai(&ad193x_dai);
 	snd_soc_unregister_codec(&ad193x->codec);
 	kfree(ad193x);
 	ad193x_codec = NULL;
+
+	return 0;
 }
+
+static struct snd_soc_dai_ops ad193x_dai_ops = {
+	.hw_params = ad193x_hw_params,
+	.digital_mute = ad193x_mute,
+	.set_tdm_slot = ad193x_set_tdm_slot,
+	.set_fmt = ad193x_set_dai_fmt,
+};
+
+/* codec DAI instance */
+struct snd_soc_dai ad193x_dai = {
+	.name = "AD193X",
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 2,
+		.channels_max = 8,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S16_LE |
+			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,
+	},
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 2,
+		.channels_max = 4,
+		.rates = SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S16_LE |
+			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,
+	},
+	.ops = &ad193x_dai_ops,
+};
+EXPORT_SYMBOL_GPL(ad193x_dai);
 
 static int ad193x_probe(struct platform_device *pdev)
 {
