@@ -1134,6 +1134,94 @@ static int drm_cvt_modes(struct drm_connector *connector,
 	return modes;
 }
 
+static const struct {
+	short w;
+	short h;
+	short r;
+	short rb;
+} est3_modes[] = {
+	/* byte 6 */
+	{ 640, 350, 85, 0 },
+	{ 640, 400, 85, 0 },
+	{ 720, 400, 85, 0 },
+	{ 640, 480, 85, 0 },
+	{ 848, 480, 60, 0 },
+	{ 800, 600, 85, 0 },
+	{ 1024, 768, 85, 0 },
+	{ 1152, 864, 75, 0 },
+	/* byte 7 */
+	{ 1280, 768, 60, 1 },
+	{ 1280, 768, 60, 0 },
+	{ 1280, 768, 75, 0 },
+	{ 1280, 768, 85, 0 },
+	{ 1280, 960, 60, 0 },
+	{ 1280, 960, 85, 0 },
+	{ 1280, 1024, 60, 0 },
+	{ 1280, 1024, 85, 0 },
+	/* byte 8 */
+	{ 1360, 768, 60, 0 },
+	{ 1440, 900, 60, 1 },
+	{ 1440, 900, 60, 0 },
+	{ 1440, 900, 75, 0 },
+	{ 1440, 900, 85, 0 },
+	{ 1400, 1050, 60, 1 },
+	{ 1400, 1050, 60, 0 },
+	{ 1400, 1050, 75, 0 },
+	/* byte 9 */
+	{ 1400, 1050, 85, 0 },
+	{ 1680, 1050, 60, 1 },
+	{ 1680, 1050, 60, 0 },
+	{ 1680, 1050, 75, 0 },
+	{ 1680, 1050, 85, 0 },
+	{ 1600, 1200, 60, 0 },
+	{ 1600, 1200, 65, 0 },
+	{ 1600, 1200, 70, 0 },
+	/* byte 10 */
+	{ 1600, 1200, 75, 0 },
+	{ 1600, 1200, 85, 0 },
+	{ 1792, 1344, 60, 0 },
+	{ 1792, 1344, 85, 0 },
+	{ 1856, 1392, 60, 0 },
+	{ 1856, 1392, 75, 0 },
+	{ 1920, 1200, 60, 1 },
+	{ 1920, 1200, 60, 0 },
+	/* byte 11 */
+	{ 1920, 1200, 75, 0 },
+	{ 1920, 1200, 85, 0 },
+	{ 1920, 1440, 60, 0 },
+	{ 1920, 1440, 75, 0 },
+};
+static const int num_est3_modes = sizeof(est3_modes) / sizeof(est3_modes[0]);
+
+static int
+drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
+{
+	int i, j, m, modes = 0;
+	struct drm_display_mode *mode;
+	u8 *est = ((u8 *)timing) + 5;
+
+	for (i = 0; i < 6; i++) {
+		for (j = 7; j > 0; j--) {
+			m = (i * 8) + (7 - j);
+			if (m > num_est3_modes)
+				break;
+			if (est[i] & (1 << j)) {
+				mode = drm_find_dmt(connector->dev,
+						    est3_modes[m].w,
+						    est3_modes[m].h,
+						    est3_modes[m].r
+						    /*, est3_modes[m].rb */);
+				if (mode) {
+					drm_mode_probed_add(connector, mode);
+					modes++;
+				}
+			}
+		}
+	}
+
+	return modes;
+}
+
 static int add_detailed_modes(struct drm_connector *connector,
 			      struct detailed_timing *timing,
 			      struct edid *edid, u32 quirks, int preferred)
@@ -1180,6 +1268,9 @@ static int add_detailed_modes(struct drm_connector *connector,
 		break;
 	case EDID_DETAIL_CVT_3BYTE:
 		modes += drm_cvt_modes(connector, timing);
+		break;
+	case EDID_DETAIL_EST_TIMINGS:
+		modes += drm_est3_modes(connector, timing);
 		break;
 	default:
 		break;
