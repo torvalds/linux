@@ -2919,6 +2919,8 @@ static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(fsg, "unbind\n");
 	fsg_common_put(fsg->common);
+	usb_free_descriptors(fsg->function.descriptors);
+	usb_free_descriptors(fsg->function.hs_descriptors);
 	kfree(fsg);
 }
 
@@ -2959,7 +2961,9 @@ static int __init fsg_bind(struct usb_configuration *c, struct usb_function *f)
 			fsg_fs_bulk_in_desc.bEndpointAddress;
 		fsg_hs_bulk_out_desc.bEndpointAddress =
 			fsg_fs_bulk_out_desc.bEndpointAddress;
-		f->hs_descriptors = fsg_hs_function;
+		f->hs_descriptors = usb_copy_descriptors(fsg_hs_function);
+		if (unlikely(!f->hs_descriptors))
+			return -ENOMEM;
 	}
 
 	return 0;
@@ -2991,7 +2995,11 @@ static int fsg_add(struct usb_composite_dev *cdev,
 
 	fsg->function.name        = FSG_DRIVER_DESC;
 	fsg->function.strings     = fsg_strings_array;
-	fsg->function.descriptors = fsg_fs_function;
+	fsg->function.descriptors = usb_copy_descriptors(fsg_fs_function);
+	if (unlikely(!fsg->function.descriptors)) {
+		rc = -ENOMEM;
+		goto error_free_fsg;
+	}
 	fsg->function.bind        = fsg_bind;
 	fsg->function.unbind      = fsg_unbind;
 	fsg->function.setup       = fsg_setup;
@@ -3006,11 +3014,19 @@ static int fsg_add(struct usb_composite_dev *cdev,
 	 * call to usb_add_function() was successful. */
 
 	rc = usb_add_function(c, &fsg->function);
+	if (unlikely(rc))
+		goto error_free_all;
 
-	if (likely(rc == 0))
-		fsg_common_get(fsg->common);
-	else
-		kfree(fsg);
+	fsg_common_get(fsg->common);
+	return 0;
+
+error_free_all:
+	usb_free_descriptors(fsg->function.descriptors);
+	/* fsg_bind() might have copied those; or maybe not? who cares
+	 * -- free it just in case. */
+	usb_free_descriptors(fsg->function.hs_descriptors);
+error_free_fsg:
+	kfree(fsg);
 
 	return rc;
 }
