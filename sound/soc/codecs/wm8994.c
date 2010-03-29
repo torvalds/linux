@@ -3730,11 +3730,12 @@ static int wm8994_codec_probe(struct platform_device *pdev)
 	case 3:
 		wm8994->hubs.dcs_codes = -5;
 		wm8994->hubs.hp_startup_mode = 1;
+		wm8994->hubs.dcs_readback_mode = 1;
 		break;
 	default:
+		wm8994->hubs.dcs_readback_mode = 1;
 		break;
 	}
-			   
 
 	/* Remember if AIFnLRCLK is configured as a GPIO.  This should be
 	 * configured on init - if a system wants to do this dynamically
