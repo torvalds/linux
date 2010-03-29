@@ -121,7 +121,7 @@ int ethtool_op_set_ufo(struct net_device *dev, u32 data)
  * NETIF_F_xxx values in include/linux/netdevice.h
  */
 static const u32 flags_dup_features =
-	(ETH_FLAG_LRO | ETH_FLAG_NTUPLE);
+	(ETH_FLAG_LRO | ETH_FLAG_NTUPLE | ETH_FLAG_RXHASH);
 
 u32 ethtool_op_get_flags(struct net_device *dev)
 {
@@ -151,6 +151,11 @@ int ethtool_op_set_flags(struct net_device *dev, u32 data)
 		/* safe to clear regardless */
 		features &= ~NETIF_F_NTUPLE;
 	}
+
+	if (data & ETH_FLAG_RXHASH)
+		features |= NETIF_F_RXHASH;
+	else
+		features &= ~NETIF_F_RXHASH;
 
 	dev->features = features;
 	return 0;
