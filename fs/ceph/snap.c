@@ -314,9 +314,9 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 	   because we rebuild_snap_realms() works _downward_ in
 	   hierarchy after each update.) */
 	if (realm->cached_context &&
-	    realm->cached_context->seq <= realm->seq &&
+	    realm->cached_context->seq == realm->seq &&
 	    (!parent ||
-	     realm->cached_context->seq <= parent->cached_context->seq)) {
+	     realm->cached_context->seq >= parent->cached_context->seq)) {
 		dout("build_snap_context %llx %p: %p seq %lld (%d snaps)"
 		     " (unchanged)\n",
 		     realm->ino, realm, realm->cached_context,
@@ -818,7 +818,9 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			 * queued (again) by ceph_update_snap_trace()
 			 * below.  Queue it _now_, under the old context.
 			 */
+			spin_lock(&realm->inodes_with_caps_lock);
 			list_del_init(&ci->i_snap_realm_item);
+			spin_unlock(&realm->inodes_with_caps_lock);
 			spin_unlock(&inode->i_lock);
 
 			ceph_queue_cap_snap(ci,

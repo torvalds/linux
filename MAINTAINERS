@@ -1443,7 +1443,7 @@ F:	arch/powerpc/platforms/cell/
 
 CEPH DISTRIBUTED FILE SYSTEM CLIENT
 M:	Sage Weil <sage@newdream.net>
-L:	ceph-devel@lists.sourceforge.net
+L:	ceph-devel@vger.kernel.org
 W:	http://ceph.newdream.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 S:	Supported

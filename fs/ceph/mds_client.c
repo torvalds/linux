@@ -328,6 +328,8 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	struct ceph_mds_session *s;
 
 	s = kzalloc(sizeof(*s), GFP_NOFS);
+	if (!s)
+		return ERR_PTR(-ENOMEM);
 	s->s_mdsc = mdsc;
 	s->s_mds = mds;
 	s->s_state = CEPH_MDS_SESSION_NEW;
@@ -529,7 +531,7 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 {
 	dout("__unregister_request %p tid %lld\n", req, req->r_tid);
 	rb_erase(&req->r_node, &mdsc->request_tree);
-	ceph_mdsc_put_request(req);
+	RB_CLEAR_NODE(&req->r_node);
 
 	if (req->r_unsafe_dir) {
 		struct ceph_inode_info *ci = ceph_inode(req->r_unsafe_dir);
@@ -538,6 +540,8 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 		list_del_init(&req->r_unsafe_dir_item);
 		spin_unlock(&ci->i_unsafe_lock);
 	}
+
+	ceph_mdsc_put_request(req);
 }
 
 /*
@@ -862,6 +866,7 @@ static int send_renew_caps(struct ceph_mds_client *mdsc,
 	if (time_after_eq(jiffies, session->s_cap_ttl) &&
 	    time_after_eq(session->s_cap_ttl, session->s_renew_requested))
 		pr_info("mds%d caps stale\n", session->s_mds);
+	session->s_renew_requested = jiffies;
 
 	/* do not try to renew caps until a recovering mds has reconnected
 	 * with its clients. */
@@ -874,7 +879,6 @@ static int send_renew_caps(struct ceph_mds_client *mdsc,
 
 	dout("send_renew_caps to mds%d (%s)\n", session->s_mds,
 		ceph_mds_state_name(state));
-	session->s_renew_requested = jiffies;
 	msg = create_session_msg(CEPH_SESSION_REQUEST_RENEWCAPS,
 				 ++session->s_renew_seq);
 	if (IS_ERR(msg))
@@ -1566,8 +1570,13 @@ static int __do_request(struct ceph_mds_client *mdsc,
 
 	/* get, open session */
 	session = __ceph_lookup_mds_session(mdsc, mds);
-	if (!session)
+	if (!session) {
 		session = register_session(mdsc, mds);
+		if (IS_ERR(session)) {
+			err = PTR_ERR(session);
+			goto finish;
+		}
+	}
 	dout("do_request mds%d session %p state %s\n", mds, session,
 	     session_state_name(session->s_state));
 	if (session->s_state != CEPH_MDS_SESSION_OPEN &&
@@ -1770,7 +1779,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	dout("handle_reply %p\n", req);
 
 	/* correct session? */
-	if (!req->r_session && req->r_session != session) {
+	if (req->r_session != session) {
 		pr_err("mdsc_handle_reply got %llu on session mds%d"
 		       " not mds%d\n", tid, session->s_mds,
 		       req->r_session ? req->r_session->s_mds : -1);
@@ -2682,29 +2691,41 @@ void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc)
  */
 static void wait_unsafe_requests(struct ceph_mds_client *mdsc, u64 want_tid)
 {
-	struct ceph_mds_request *req = NULL;
+	struct ceph_mds_request *req = NULL, *nextreq;
 	struct rb_node *n;
 
 	mutex_lock(&mdsc->mutex);
 	dout("wait_unsafe_requests want %lld\n", want_tid);
+restart:
 	req = __get_oldest_req(mdsc);
 	while (req && req->r_tid <= want_tid) {
+		/* find next request */
+		n = rb_next(&req->r_node);
+		if (n)
+			nextreq = rb_entry(n, struct ceph_mds_request, r_node);
+		else
+			nextreq = NULL;
 		if ((req->r_op & CEPH_MDS_OP_WRITE)) {
 			/* write op */
 			ceph_mdsc_get_request(req);
+			if (nextreq)
+				ceph_mdsc_get_request(nextreq);
 			mutex_unlock(&mdsc->mutex);
 			dout("wait_unsafe_requests  wait on %llu (want %llu)\n",
 			     req->r_tid, want_tid);
 			wait_for_completion(&req->r_safe_completion);
 			mutex_lock(&mdsc->mutex);
-			n = rb_next(&req->r_node);
 			ceph_mdsc_put_request(req);
-		} else {
-			n = rb_next(&req->r_node);
+			if (!nextreq)
+				break;  /* next dne before, so we're done! */
+			if (RB_EMPTY_NODE(&nextreq->r_node)) {
+				/* next request was removed from tree */
+				ceph_mdsc_put_request(nextreq);
+				goto restart;
+			}
+			ceph_mdsc_put_request(nextreq);  /* won't go away */
 		}
-		if (!n)
-			break;
-		req = rb_entry(n, struct ceph_mds_request, r_node);
+		req = nextreq;
 	}
 	mutex_unlock(&mdsc->mutex);
 	dout("wait_unsafe_requests done\n");

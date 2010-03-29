@@ -480,6 +480,14 @@ static struct ceph_pg_pool_info *__lookup_pg_pool(struct rb_root *root, int id)
 	return NULL;
 }
 
+void __decode_pool(void **p, struct ceph_pg_pool_info *pi)
+{
+	ceph_decode_copy(p, &pi->v, sizeof(pi->v));
+	calc_pg_masks(pi);
+	*p += le32_to_cpu(pi->v.num_snaps) * sizeof(u64);
+	*p += le32_to_cpu(pi->v.num_removed_snap_intervals) * sizeof(u64) * 2;
+}
+
 /*
  * decode a full map.
  */
@@ -526,12 +534,8 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 				   ev, CEPH_PG_POOL_VERSION);
 			goto bad;
 		}
-		ceph_decode_copy(p, &pi->v, sizeof(pi->v));
+		__decode_pool(p, pi);
 		__insert_pg_pool(&map->pg_pools, pi);
-		calc_pg_masks(pi);
-		*p += le32_to_cpu(pi->v.num_snaps) * sizeof(u64);
-		*p += le32_to_cpu(pi->v.num_removed_snap_intervals)
-			* sizeof(u64) * 2;
 	}
 	ceph_decode_32_safe(p, end, map->pool_max, bad);
 
@@ -714,8 +718,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			pi->id = pool;
 			__insert_pg_pool(&map->pg_pools, pi);
 		}
-		ceph_decode_copy(p, &pi->v, sizeof(pi->v));
-		calc_pg_masks(pi);
+		__decode_pool(p, pi);
 	}
 
 	/* old_pool */
