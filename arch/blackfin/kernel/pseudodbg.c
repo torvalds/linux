@@ -158,7 +158,7 @@ bool execute_pseudodbg_assert(struct pt_regs *fp, unsigned int opcode)
 bool execute_pseudodbg(struct pt_regs *fp, unsigned int opcode)
 {
 	int grp, fn, reg;
-	long value;
+	long value, value1;
 
 	if ((opcode & 0xFF000000) != PseudoDbg_opcode)
 		return false;
@@ -168,11 +168,24 @@ bool execute_pseudodbg(struct pt_regs *fp, unsigned int opcode)
 	fn  = ((opcode >> PseudoDbg_fn_bits)  & PseudoDbg_fn_mask);
 	reg = ((opcode >> PseudoDbg_reg_bits) & PseudoDbg_reg_mask);
 
-	if (!fix_up_reg(fp, &value, grp, reg))
-		return false;
+	if (fn == 3 && (reg == 0 || reg == 1)) {
+		if (!fix_up_reg(fp, &value, 4, 2 * reg))
+			return false;
+		if (!fix_up_reg(fp, &value1, 4, 2 * reg + 1))
+			return false;
 
-	pr_notice("DBG %s = %08lx\n", get_allreg_name(grp, reg), value);
+		pr_notice("DBG A%i = %02lx%08lx\n", reg, value & 0xFF, value1);
+		fp->pc += 2;
+		return true;
 
-	fp->pc += 2;
-	return true;
+	} else if (fn == 0) {
+		if (!fix_up_reg(fp, &value, grp, reg))
+			return false;
+
+		pr_notice("DBG %s = %08lx\n", get_allreg_name(grp, reg), value);
+		fp->pc += 2;
+		return true;
+	}
+
+	return false;
 }
