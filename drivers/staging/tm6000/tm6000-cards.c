@@ -66,7 +66,8 @@ struct tm6000_board {
 	int             tuner_type;     /* type of the tuner */
 	int             tuner_addr;     /* tuner address */
 	int             demod_addr;     /* demodulator address */
-	int		gpio_addr_tun_reset;	/* GPIO used for tuner reset */
+
+	struct tm6000_gpio gpio;
 };
 
 struct tm6000_board tm6000_boards[] = {
@@ -75,7 +76,9 @@ struct tm6000_board tm6000_boards[] = {
 		.caps = {
 			.has_tuner    = 1,
 		},
-		.gpio_addr_tun_reset = TM6000_GPIO_1,
+		.gpio = {
+			.tuner_reset	= TM6000_GPIO_1,
+		},
 	},
 	[TM5600_BOARD_GENERIC] = {
 		.name         = "Generic tm5600 board",
@@ -85,7 +88,9 @@ struct tm6000_board tm6000_boards[] = {
 		.caps = {
 			.has_tuner	= 1,
 		},
-		.gpio_addr_tun_reset = TM6000_GPIO_1,
+		.gpio = {
+			.tuner_reset	= TM6000_GPIO_1,
+		},
 	},
 	[TM6000_BOARD_GENERIC] = {
 		.name         = "Generic tm6000 board",
@@ -95,7 +100,9 @@ struct tm6000_board tm6000_boards[] = {
 			.has_tuner	= 1,
 			.has_dvb	= 1,
 		},
-		.gpio_addr_tun_reset = TM6000_GPIO_1,
+		.gpio = {
+			.tuner_reset	= TM6000_GPIO_1,
+		},
 	},
 	[TM6010_BOARD_GENERIC] = {
 		.name         = "Generic tm6010 board",
@@ -106,7 +113,9 @@ struct tm6000_board tm6000_boards[] = {
 			.has_tuner	= 1,
 			.has_dvb	= 1,
 		},
-		.gpio_addr_tun_reset = TM6010_GPIO_4,
+		.gpio = {
+			.tuner_reset	= TM6010_GPIO_4,
+		},
 	},
 	[TM5600_BOARD_10MOONS_UT821] = {
 		.name         = "10Moons UT 821",
@@ -117,7 +126,9 @@ struct tm6000_board tm6000_boards[] = {
 			.has_tuner    = 1,
 			.has_eeprom   = 1,
 		},
-		.gpio_addr_tun_reset = TM6000_GPIO_1,
+		.gpio = {
+			.tuner_reset	= TM6000_GPIO_1,
+		},
 	},
 	[TM5600_BOARD_10MOONS_UT330] = {
 		.name         = "10Moons UT 330",
@@ -154,7 +165,9 @@ struct tm6000_board tm6000_boards[] = {
 			.has_eeprom   = 0,
 			.has_remote   = 1,
 		},
-		.gpio_addr_tun_reset = TM6000_GPIO_4,
+		.gpio = {
+			.tuner_reset	= TM6000_GPIO_4,
+		},
 	},
 	[TM6000_BOARD_ADSTECH_MINI_DUAL_TV] = {
 		.name         = "ADSTECH Mini Dual TV USB",
@@ -167,7 +180,9 @@ struct tm6000_board tm6000_boards[] = {
 			.has_zl10353  = 1,
 			.has_eeprom   = 0,
 		},
-		.gpio_addr_tun_reset = TM6000_GPIO_4,
+		.gpio = {
+			.tuner_reset	= TM6000_GPIO_4,
+		},
 	},
 	[TM6010_BOARD_HAUPPAUGE_900H] = {
 		.name         = "Hauppauge WinTV HVR-900H / WinTV USB2-Stick",
@@ -181,7 +196,9 @@ struct tm6000_board tm6000_boards[] = {
 			.has_zl10353  = 1,
 			.has_eeprom   = 1,
 		},
-		.gpio_addr_tun_reset = TM6010_GPIO_2,
+		.gpio = {
+			.tuner_reset	= TM6010_GPIO_2,
+		},
 	},
 	[TM6010_BOARD_BEHOLD_WANDER] = {
 		.name         = "Beholder Wander DVB-T/TV/FM USB2.0",
@@ -196,7 +213,9 @@ struct tm6000_board tm6000_boards[] = {
 			.has_eeprom   = 1,
 			.has_remote   = 1,
 		},
-		.gpio_addr_tun_reset = TM6000_GPIO_2,
+		.gpio = {
+			.tuner_reset	= TM6000_GPIO_2,
+		},
 	},
 	[TM6010_BOARD_BEHOLD_VOYAGER] = {
 		.name         = "Beholder Voyager TV/FM USB2.0",
@@ -210,7 +229,9 @@ struct tm6000_board tm6000_boards[] = {
 			.has_eeprom   = 1,
 			.has_remote   = 1,
 		},
-		.gpio_addr_tun_reset = TM6000_GPIO_2,
+		.gpio = {
+			.tuner_reset	= TM6000_GPIO_2,
+		},
 	},
 	[TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE] = {
 		.name         = "Terratec Cinergy Hybrid XE / Cinergy Hybrid-Stick",
@@ -225,7 +246,9 @@ struct tm6000_board tm6000_boards[] = {
 			.has_eeprom   = 1,
 			.has_remote   = 1,
 		},
-		.gpio_addr_tun_reset = TM6010_GPIO_2,
+		.gpio = {
+			.tuner_reset	= TM6010_GPIO_2,
+		},
 	},
 	[TM6010_BOARD_TWINHAN_TU501] = {
 		.name         = "Twinhan TU501(704D1)",
@@ -240,7 +263,9 @@ struct tm6000_board tm6000_boards[] = {
 			.has_eeprom   = 1,
 			.has_remote   = 1,
 		},
-		.gpio_addr_tun_reset = TM6010_GPIO_2,
+		.gpio = {
+			.tuner_reset	= TM6010_GPIO_2,
+		},
 	}
 };
 
@@ -299,21 +324,21 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 			case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
 			case TM6010_BOARD_TWINHAN_TU501:
 				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					       dev->tuner_reset_gpio, 0x01);
+					       dev->gpio.tuner_reset, 0x01);
 				msleep(60);
 				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					       dev->tuner_reset_gpio, 0x00);
+					       dev->gpio.tuner_reset, 0x00);
 				msleep(75);
 				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					       dev->tuner_reset_gpio, 0x01);
+					       dev->gpio.tuner_reset, 0x01);
 				msleep(60);
 				break;
 			default:
 				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					       dev->tuner_reset_gpio, 0x00);
+					       dev->gpio.tuner_reset, 0x00);
 				msleep(130);
 				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					       dev->tuner_reset_gpio, 0x01);
+					       dev->gpio.tuner_reset, 0x01);
 				msleep(130);
 				break;
 			}
@@ -396,7 +421,7 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 	 */
 	for (i = 0; i < 2; i++) {
 		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					dev->tuner_reset_gpio, 0x00);
+					dev->gpio.tuner_reset, 0x00);
 		if (rc < 0) {
 			printk(KERN_ERR "Error %i doing GPIO1 reset\n", rc);
 			return rc;
@@ -404,7 +429,7 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 
 		msleep(10); /* Just to be conservative */
 		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					dev->tuner_reset_gpio, 0x01);
+					dev->gpio.tuner_reset, 0x01);
 		if (rc < 0) {
 			printk(KERN_ERR "Error %i doing GPIO1 reset\n", rc);
 			return rc;
@@ -501,7 +526,8 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	dev->dev_type   = tm6000_boards[dev->model].type;
 	dev->tuner_type = tm6000_boards[dev->model].tuner_type;
 	dev->tuner_addr = tm6000_boards[dev->model].tuner_addr;
-	dev->tuner_reset_gpio = tm6000_boards[dev->model].gpio_addr_tun_reset;
+
+	dev->gpio = tm6000_boards[dev->model].gpio;
 
 	dev->demod_addr = tm6000_boards[dev->model].demod_addr;
 
