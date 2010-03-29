@@ -377,7 +377,7 @@ void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 		if (htc_hdr->flags & HTC_FLAGS_RECV_TRAILER) {
 			if (be32_to_cpu(*(u32 *) skb->data) == 0x00C60000)
 				/* Move past the Watchdog pattern */
-				htc_hdr = (struct htc_frame_hdr *) skb->data + 4;
+				htc_hdr = (struct htc_frame_hdr *)(skb->data + 4);
 		}
 
 		/* Get the message ID */
