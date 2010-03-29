@@ -1328,31 +1328,20 @@ static int add_detailed_info_eedid(struct drm_connector *connector,
 	int start_offset, end_offset;
 	int timing_level;
 
-	if (edid->version == 1 && edid->revision < 3) {
-		/* If the EDID version is less than 1.3, there is no
-		 * extension EDID.
-		 */
+	if (edid->version == 1 && edid->revision < 3)
 		return 0;
-	}
-	if (!edid->extensions) {
-		/* if there is no extension EDID, it is unnecessary to
-		 * parse the E-EDID to get detailed info
-		 */
+	if (!edid->extensions)
 		return 0;
-	}
 
 	/* Find CEA extension */
 	for (i = 0; i < edid->extensions; i++) {
 		edid_ext = (char *)edid + EDID_LENGTH * (i + 1);
-		/* This block is CEA extension */
 		if (edid_ext[0] == 0x02)
 			break;
 	}
 
-	if (i == edid->extensions) {
-		/* if there is no additional timing EDID block, return */
+	if (i == edid->extensions)
 		return 0;
-	}
 
 	/* Get the start offset of detailed timing block */
 	start_offset = edid_ext[2];
