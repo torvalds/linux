@@ -9,16 +9,43 @@
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
 
+const char * const greg_names[] = {
+	"R0",    "R1",      "R2",     "R3",    "R4",    "R5",    "R6",     "R7",
+	"P0",    "P1",      "P2",     "P3",    "P4",    "P5",    "SP",     "FP",
+	"I0",    "I1",      "I2",     "I3",    "M0",    "M1",    "M2",     "M3",
+	"B0",    "B1",      "B2",     "B3",    "L0",    "L1",    "L2",     "L3",
+	"A0.X",  "A0.W",    "A1.X",   "A1.W",  "<res>", "<res>", "ASTAT",  "RETS",
+	"<res>", "<res>",   "<res>",  "<res>", "<res>", "<res>", "<res>",  "<res>",
+	"LC0",   "LT0",     "LB0",    "LC1",   "LT1",   "LB1",   "CYCLES", "CYCLES2",
+	"USP",   "SEQSTAT", "SYSCFG", "RETI",  "RETX",  "RETN",  "RETE",   "EMUDAT",
+};
+
+static const char *get_allreg_name(int grp, int reg)
+{
+	return greg_names[(grp << 3) | reg];
+}
+
 /*
  * Unfortunately, the pt_regs structure is not laid out the same way as the
  * hardware register file, so we need to do some fix ups.
+ *
+ * CYCLES is not stored in the pt_regs structure - so, we just read it from
+ * the hardware.
+ *
+ * Don't support:
+ *  - All reserved registers
+ *  - All in group 7 are (supervisors only)
  */
+
 static bool fix_up_reg(struct pt_regs *fp, long *value, int grp, int reg)
 {
 	long *val = &fp->r0;
+	unsigned long tmp;
 
 	/* Only do Dregs and Pregs for now */
-	if (grp > 1)
+	if (grp == 5 ||
+	   (grp == 4 && (reg == 4 || reg == 5)) ||
+	   (grp == 7))
 		return false;
 
 	if (grp == 0 || (grp == 1 && reg < 6))
@@ -27,6 +54,32 @@ static bool fix_up_reg(struct pt_regs *fp, long *value, int grp, int reg)
 		val = &fp->usp;
 	else if (grp == 1 && reg == 7)
 		val = &fp->fp;
+	else if (grp == 2) {
+		val = &fp->i0;
+		val -= reg;
+	} else if (grp == 3 && reg >= 4) {
+		val = &fp->l0;
+		val -= (reg - 4);
+	} else if (grp == 3 && reg < 4) {
+		val = &fp->b0;
+		val -= reg;
+	} else if (grp == 4 && reg < 4) {
+		val = &fp->a0x;
+		val -= reg;
+	} else if (grp == 4 && reg == 6)
+		val = &fp->astat;
+	else if (grp == 4 && reg == 7)
+		val = &fp->rets;
+	else if (grp == 6 && reg < 6) {
+		val = &fp->lc0;
+		val -= reg;
+	} else if (grp == 6 && reg == 6) {
+		__asm__ __volatile__("%0 = cycles;\n" : "=d"(tmp));
+		val = &tmp;
+	} else if (grp == 6 && reg == 7) {
+		__asm__ __volatile__("%0 = cycles2;\n" : "=d"(tmp));
+		val = &tmp;
+	}
 
 	*value = *val;
 	return true;
@@ -68,8 +121,9 @@ bool execute_pseudodbg_assert(struct pt_regs *fp, unsigned int opcode)
 		/* DBGA ( regs_lo , uimm16 ) */
 		/* DBGAL ( regs , uimm16 ) */
 		if (expected != (value & 0xFFFF)) {
-			pr_notice("DBGA (%s%i.L,0x%x) failure, got 0x%x\n", grp ? "P" : "R",
-				regtest, expected, (unsigned int)(value & 0xFFFF));
+			pr_notice("DBGA (%s.L,0x%x) failure, got 0x%x\n",
+				get_allreg_name(grp, regtest),
+				expected, (unsigned int)(value & 0xFFFF));
 			return false;
 		}
 
@@ -77,8 +131,9 @@ bool execute_pseudodbg_assert(struct pt_regs *fp, unsigned int opcode)
 		/* DBGA ( regs_hi , uimm16 ) */
 		/* DBGAH ( regs , uimm16 ) */
 		if (expected != ((value >> 16) & 0xFFFF)) {
-			pr_notice("DBGA (%s%i.H,0x%x) failure, got 0x%x\n", grp ? "P" : "R",
-				regtest, expected, (unsigned int)((value >> 16) & 0xFFFF));
+			pr_notice("DBGA (%s.H,0x%x) failure, got 0x%x\n",
+				get_allreg_name(grp, regtest),
+				expected, (unsigned int)((value >> 16) & 0xFFFF));
 			return false;
 		}
 	}
@@ -116,7 +171,7 @@ bool execute_pseudodbg(struct pt_regs *fp, unsigned int opcode)
 	if (!fix_up_reg(fp, &value, grp, reg))
 		return false;
 
-	pr_notice("DBG %s%d = %08lx\n", grp ? "P" : "R", reg, value);
+	pr_notice("DBG %s = %08lx\n", get_allreg_name(grp, reg), value);
 
 	fp->pc += 2;
 	return true;
