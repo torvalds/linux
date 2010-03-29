@@ -557,6 +557,7 @@ enum yukon_ec_u_rev {
 	CHIP_REV_YU_EC_U_A0  = 1,
 	CHIP_REV_YU_EC_U_A1  = 2,
 	CHIP_REV_YU_EC_U_B0  = 3,
+	CHIP_REV_YU_EC_U_B1  = 5,
 };
 enum yukon_fe_rev {
 	CHIP_REV_YU_FE_A1    = 1,
@@ -1775,10 +1776,13 @@ enum {
 /*	GM_SERIAL_MODE			16 bit r/w	Serial Mode Register */
 enum {
 	GM_SMOD_DATABL_MSK	= 0x1f<<11, /* Bit 15..11:	Data Blinder (r/o) */
-	GM_SMOD_LIMIT_4		= 1<<10, /* Bit 10:	4 consecutive Tx trials */
-	GM_SMOD_VLAN_ENA	= 1<<9,	/* Bit  9:	Enable VLAN  (Max. Frame Len) */
-	GM_SMOD_JUMBO_ENA	= 1<<8,	/* Bit  8:	Enable Jumbo (Max. Frame Len) */
-	 GM_SMOD_IPG_MSK	= 0x1f	/* Bit 4..0:	Inter-Packet Gap (IPG) */
+	GM_SMOD_LIMIT_4		= 1<<10, /* 4 consecutive Tx trials */
+	GM_SMOD_VLAN_ENA	= 1<<9,	 /* Enable VLAN  (Max. Frame Len) */
+	GM_SMOD_JUMBO_ENA	= 1<<8,	 /* Enable Jumbo (Max. Frame Len) */
+
+	GM_NEW_FLOW_CTRL	= 1<<6,	 /* Enable New Flow-Control */
+
+	GM_SMOD_IPG_MSK		= 0x1f	 /* Bit 4..0:	Inter-Packet Gap (IPG) */
 };
 
 #define DATA_BLIND_VAL(x)	(((x)<<11) & GM_SMOD_DATABL_MSK)

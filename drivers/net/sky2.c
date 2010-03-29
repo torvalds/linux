@@ -877,6 +877,10 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	if (hw->dev[port]->mtu > ETH_DATA_LEN)
 		reg |= GM_SMOD_JUMBO_ENA;
 
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
+	    hw->chip_rev == CHIP_REV_YU_EC_U_B1)
+		reg |= GM_NEW_FLOW_CTRL;
+
 	gma_write16(hw, port, GM_SERIAL_MODE, reg);
 
 	/* virtual address for data */
@@ -1413,8 +1417,7 @@ static void sky2_rx_start(struct sky2_port *sky2)
 	/* These chips have no ram buffer?
 	 * MAC Rx RAM Read is controlled by hardware */
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
-	    (hw->chip_rev == CHIP_REV_YU_EC_U_A1 ||
-	     hw->chip_rev == CHIP_REV_YU_EC_U_B0))
+	    hw->chip_rev > CHIP_REV_YU_EC_U_A0)
 		sky2_write32(hw, Q_ADDR(rxq, Q_TEST), F_M_RX_RAM_DIS);
 
 	sky2_prefetch_init(hw, rxq, sky2->rx_le_map, RX_LE_SIZE - 1);
