@@ -117,7 +117,6 @@ static DECLARE_INTC_DESC(intc_desc, "mxg", vectors, groups,
 static struct sh_timer_config mtu2_0_platform_data = {
 	.channel_offset = -0x80,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
@@ -146,7 +145,6 @@ static struct platform_device mtu2_0_device = {
 static struct sh_timer_config mtu2_1_platform_data = {
 	.channel_offset = -0x100,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
@@ -175,7 +173,6 @@ static struct platform_device mtu2_1_device = {
 static struct sh_timer_config mtu2_2_platform_data = {
 	.channel_offset = 0x80,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 

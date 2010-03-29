@@ -167,7 +167,6 @@ static struct platform_device scif9_device = {
 static struct sh_timer_config tmu0_platform_data = {
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
@@ -196,7 +195,6 @@ static struct platform_device tmu0_device = {
 static struct sh_timer_config tmu1_platform_data = {
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
@@ -225,7 +223,6 @@ static struct platform_device tmu1_device = {
 static struct sh_timer_config tmu2_platform_data = {
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu2_resources[] = {
@@ -253,7 +250,6 @@ static struct platform_device tmu2_device = {
 static struct sh_timer_config tmu3_platform_data = {
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu3_resources[] = {
@@ -281,7 +277,6 @@ static struct platform_device tmu3_device = {
 static struct sh_timer_config tmu4_platform_data = {
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu4_resources[] = {
@@ -309,7 +304,6 @@ static struct platform_device tmu4_device = {
 static struct sh_timer_config tmu5_platform_data = {
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu5_resources[] = {
@@ -337,7 +331,6 @@ static struct platform_device tmu5_device = {
 static struct sh_timer_config tmu6_platform_data = {
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu6_resources[] = {
@@ -365,7 +358,6 @@ static struct platform_device tmu6_device = {
 static struct sh_timer_config tmu7_platform_data = {
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu7_resources[] = {
@@ -393,7 +385,6 @@ static struct platform_device tmu7_device = {
 static struct sh_timer_config tmu8_platform_data = {
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu8_resources[] = {

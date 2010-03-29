@@ -132,7 +132,6 @@ static struct platform_device usbf_device = {
 static struct sh_timer_config cmt0_platform_data = {
 	.channel_offset = 0x10,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 125,
 	.clocksource_rating = 125,
 };
@@ -162,7 +161,6 @@ static struct platform_device cmt0_device = {
 static struct sh_timer_config cmt1_platform_data = {
 	.channel_offset = 0x20,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 };
 
 static struct resource cmt1_resources[] = {
@@ -190,7 +188,6 @@ static struct platform_device cmt1_device = {
 static struct sh_timer_config cmt2_platform_data = {
 	.channel_offset = 0x30,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource cmt2_resources[] = {
@@ -218,7 +215,6 @@ static struct platform_device cmt2_device = {
 static struct sh_timer_config cmt3_platform_data = {
 	.channel_offset = 0x40,
 	.timer_bit = 3,
-	.clk = "peripheral_clk",
 };
 
 static struct resource cmt3_resources[] = {
@@ -246,7 +242,6 @@ static struct platform_device cmt3_device = {
 static struct sh_timer_config cmt4_platform_data = {
 	.channel_offset = 0x50,
 	.timer_bit = 4,
-	.clk = "peripheral_clk",
 };
 
 static struct resource cmt4_resources[] = {
@@ -274,7 +269,6 @@ static struct platform_device cmt4_device = {
 static struct sh_timer_config tmu0_platform_data = {
 	.channel_offset = 0x02,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
@@ -303,7 +297,6 @@ static struct platform_device tmu0_device = {
 static struct sh_timer_config tmu1_platform_data = {
 	.channel_offset = 0xe,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
@@ -332,7 +325,6 @@ static struct platform_device tmu1_device = {
 static struct sh_timer_config tmu2_platform_data = {
 	.channel_offset = 0x1a,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu2_resources[] = {

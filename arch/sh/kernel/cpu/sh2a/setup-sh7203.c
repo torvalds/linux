@@ -236,7 +236,6 @@ static struct platform_device scif3_device = {
 static struct sh_timer_config cmt0_platform_data = {
 	.channel_offset = 0x02,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 125,
 	.clocksource_rating = 0, /* disabled due to code generation issues */
 };
@@ -266,7 +265,6 @@ static struct platform_device cmt0_device = {
 static struct sh_timer_config cmt1_platform_data = {
 	.channel_offset = 0x08,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 125,
 	.clocksource_rating = 0, /* disabled due to code generation issues */
 };
@@ -296,7 +294,6 @@ static struct platform_device cmt1_device = {
 static struct sh_timer_config mtu2_0_platform_data = {
 	.channel_offset = -0x80,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
@@ -325,7 +322,6 @@ static struct platform_device mtu2_0_device = {
 static struct sh_timer_config mtu2_1_platform_data = {
 	.channel_offset = -0x100,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
