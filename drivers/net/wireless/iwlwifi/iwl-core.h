@@ -316,8 +316,7 @@ struct iwl_cfg {
 struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 		struct ieee80211_ops *hw_ops);
 void iwl_hw_detect(struct iwl_priv *priv);
-void iwl_reset_qos(struct iwl_priv *priv);
-void iwl_activate_qos(struct iwl_priv *priv, u8 force);
+void iwl_activate_qos(struct iwl_priv *priv);
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt);

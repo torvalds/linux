@@ -3140,8 +3140,6 @@ void iwl3945_post_associate(struct iwl_priv *priv)
 		break;
 	}
 
-	iwl_activate_qos(priv, 0);
-
 	/* we have just associated, don't start scan too early */
 	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 }
@@ -3888,11 +3886,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 
 	priv->iw_mode = NL80211_IFTYPE_STATION;
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
-
-	iwl_reset_qos(priv);
-
-	priv->qos_data.qos_active = 0;
-	priv->qos_data.qos_cap.val = 0;
 
 	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
 

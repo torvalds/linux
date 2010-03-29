@@ -476,30 +476,9 @@ struct iwl_ht_config {
 	u8 non_GF_STA_present;
 };
 
-union iwl_qos_capabity {
-	struct {
-		u8 edca_count:4;	/* bit 0-3 */
-		u8 q_ack:1;		/* bit 4 */
-		u8 queue_request:1;	/* bit 5 */
-		u8 txop_request:1;	/* bit 6 */
-		u8 reserved:1;		/* bit 7 */
-	} q_AP;
-	struct {
-		u8 acvo_APSD:1;		/* bit 0 */
-		u8 acvi_APSD:1;		/* bit 1 */
-		u8 ac_bk_APSD:1;	/* bit 2 */
-		u8 ac_be_APSD:1;	/* bit 3 */
-		u8 q_ack:1;		/* bit 4 */
-		u8 max_len:2;		/* bit 5-6 */
-		u8 more_data_ack:1;	/* bit 7 */
-	} q_STA;
-	u8 val;
-};
-
 /* QoS structures */
 struct iwl_qos_info {
 	int qos_active;
-	union iwl_qos_capabity qos_cap;
 	struct iwl_qosparam_cmd def_qos_parm;
 };
 

@@ -223,17 +223,13 @@ EXPORT_SYMBOL(iwl_hw_detect);
 /*
  * QoS  support
 */
-void iwl_activate_qos(struct iwl_priv *priv, u8 force)
+static void iwl_update_qos(struct iwl_priv *priv)
 {
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	priv->qos_data.def_qos_parm.qos_flags = 0;
 
-	if (priv->qos_data.qos_cap.q_AP.queue_request &&
-	    !priv->qos_data.qos_cap.q_AP.txop_request)
-		priv->qos_data.def_qos_parm.qos_flags |=
-			QOS_PARAM_FLG_TXOP_TYPE_MSK;
 	if (priv->qos_data.qos_active)
 		priv->qos_data.def_qos_parm.qos_flags |=
 			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
@@ -241,118 +237,14 @@ void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 	if (priv->current_ht_config.is_ht)
 		priv->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
 
-	if (force || iwl_is_associated(priv)) {
-		IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
-				priv->qos_data.qos_active,
-				priv->qos_data.def_qos_parm.qos_flags);
+	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
+		      priv->qos_data.qos_active,
+		      priv->qos_data.def_qos_parm.qos_flags);
 
-		iwl_send_cmd_pdu_async(priv, REPLY_QOS_PARAM,
-				       sizeof(struct iwl_qosparam_cmd),
-				       &priv->qos_data.def_qos_parm, NULL);
-	}
+	iwl_send_cmd_pdu_async(priv, REPLY_QOS_PARAM,
+			       sizeof(struct iwl_qosparam_cmd),
+			       &priv->qos_data.def_qos_parm, NULL);
 }
-EXPORT_SYMBOL(iwl_activate_qos);
-
-/*
- * AC        CWmin         CW max      AIFSN      TXOP Limit    TXOP Limit
- *                                              (802.11b)      (802.11a/g)
- * AC_BK      15            1023        7           0               0
- * AC_BE      15            1023        3           0               0
- * AC_VI       7              15        2          6.016ms       3.008ms
- * AC_VO       3               7        2          3.264ms       1.504ms
- */
-void iwl_reset_qos(struct iwl_priv *priv)
-{
-	u16 cw_min = 15;
-	u16 cw_max = 1023;
-	u8 aifs = 2;
-	bool is_legacy = false;
-	unsigned long flags;
-	int i;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	/* QoS always active in AP and ADHOC mode
-	 * In STA mode wait for association
-	 */
-	if (priv->iw_mode == NL80211_IFTYPE_ADHOC ||
-	    priv->iw_mode == NL80211_IFTYPE_AP)
-		priv->qos_data.qos_active = 1;
-	else
-		priv->qos_data.qos_active = 0;
-
-	/* check for legacy mode */
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC &&
-	    (priv->active_rate & IWL_OFDM_RATES_MASK) == 0) ||
-	    (priv->iw_mode == NL80211_IFTYPE_STATION &&
-	    (priv->staging_rxon.flags & RXON_FLG_SHORT_SLOT_MSK) == 0)) {
-		cw_min = 31;
-		is_legacy = 1;
-	}
-
-	if (priv->qos_data.qos_active)
-		aifs = 3;
-
-	/* AC_BE */
-	priv->qos_data.def_qos_parm.ac[0].cw_min = cpu_to_le16(cw_min);
-	priv->qos_data.def_qos_parm.ac[0].cw_max = cpu_to_le16(cw_max);
-	priv->qos_data.def_qos_parm.ac[0].aifsn = aifs;
-	priv->qos_data.def_qos_parm.ac[0].edca_txop = 0;
-	priv->qos_data.def_qos_parm.ac[0].reserved1 = 0;
-
-	if (priv->qos_data.qos_active) {
-		/* AC_BK */
-		i = 1;
-		priv->qos_data.def_qos_parm.ac[i].cw_min = cpu_to_le16(cw_min);
-		priv->qos_data.def_qos_parm.ac[i].cw_max = cpu_to_le16(cw_max);
-		priv->qos_data.def_qos_parm.ac[i].aifsn = 7;
-		priv->qos_data.def_qos_parm.ac[i].edca_txop = 0;
-		priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
-
-		/* AC_VI */
-		i = 2;
-		priv->qos_data.def_qos_parm.ac[i].cw_min =
-			cpu_to_le16((cw_min + 1) / 2 - 1);
-		priv->qos_data.def_qos_parm.ac[i].cw_max =
-			cpu_to_le16(cw_min);
-		priv->qos_data.def_qos_parm.ac[i].aifsn = 2;
-		if (is_legacy)
-			priv->qos_data.def_qos_parm.ac[i].edca_txop =
-				cpu_to_le16(6016);
-		else
-			priv->qos_data.def_qos_parm.ac[i].edca_txop =
-				cpu_to_le16(3008);
-		priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
-
-		/* AC_VO */
-		i = 3;
-		priv->qos_data.def_qos_parm.ac[i].cw_min =
-			cpu_to_le16((cw_min + 1) / 4 - 1);
-		priv->qos_data.def_qos_parm.ac[i].cw_max =
-			cpu_to_le16((cw_min + 1) / 2 - 1);
-		priv->qos_data.def_qos_parm.ac[i].aifsn = 2;
-		priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
-		if (is_legacy)
-			priv->qos_data.def_qos_parm.ac[i].edca_txop =
-				cpu_to_le16(3264);
-		else
-			priv->qos_data.def_qos_parm.ac[i].edca_txop =
-				cpu_to_le16(1504);
-	} else {
-		for (i = 1; i < 4; i++) {
-			priv->qos_data.def_qos_parm.ac[i].cw_min =
-				cpu_to_le16(cw_min);
-			priv->qos_data.def_qos_parm.ac[i].cw_max =
-				cpu_to_le16(cw_max);
-			priv->qos_data.def_qos_parm.ac[i].aifsn = aifs;
-			priv->qos_data.def_qos_parm.ac[i].edca_txop = 0;
-			priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
-		}
-	}
-	IWL_DEBUG_QOS(priv, "set QoS to default \n");
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-EXPORT_SYMBOL(iwl_reset_qos);
 
 #define MAX_BIT_RATE_40_MHZ 150 /* Mbps */
 #define MAX_BIT_RATE_20_MHZ 72 /* Mbps */
@@ -1894,12 +1786,6 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			cpu_to_le16((params->txop * 32));
 
 	priv->qos_data.def_qos_parm.ac[q].reserved1 = 0;
-	priv->qos_data.qos_active = 1;
-
-	if (priv->iw_mode == NL80211_IFTYPE_AP)
-		iwl_activate_qos(priv, 1);
-	else if (priv->assoc_id && iwl_is_associated(priv))
-		iwl_activate_qos(priv, 0);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -2170,10 +2056,7 @@ int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	iwl_reset_qos(priv);
-
 	priv->cfg->ops->lib->post_associate(priv);
-
 
 	return 0;
 }
@@ -2396,6 +2279,15 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		iwl_set_tx_power(priv, conf->power_level, false);
 	}
 
+	if (changed & IEEE80211_CONF_CHANGE_QOS) {
+		bool qos_active = !!(conf->flags & IEEE80211_CONF_QOS);
+
+		spin_lock_irqsave(&priv->lock, flags);
+		priv->qos_data.qos_active = qos_active;
+		iwl_update_qos(priv);
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
+
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		goto out;
@@ -2429,8 +2321,6 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_lock_irqsave(&priv->lock, flags);
 	memset(&priv->current_ht_config, 0, sizeof(struct iwl_ht_config));
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	iwl_reset_qos(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->assoc_id = 0;
