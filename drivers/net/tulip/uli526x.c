@@ -858,7 +858,7 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 				/* Good packet, send to upper layer */
 				/* Shorst packet used new SKB */
 				if ((rxlen < RX_COPY_SIZE) &&
-				    ((new_skb = dev_alloc_skb(rxlen + 2) != NULL))) {
+				    (((new_skb = dev_alloc_skb(rxlen + 2)) != NULL))) {
 					skb = new_skb;
 					/* size less than COPY_SIZE, allocate a rxlen SKB */
 					skb_reserve(skb, 2); /* 16byte align */
