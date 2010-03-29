@@ -807,7 +807,7 @@ source "drivers/media/video/saa7164/Kconfig"
 
 config VIDEO_M32R_AR
 	tristate "AR devices"
-	depends on M32R && VIDEO_V4L1
+	depends on M32R && VIDEO_V4L2
 	---help---
 	  This is a video4linux driver for the Renesas AR (Artificial Retina)
 	  camera module.
