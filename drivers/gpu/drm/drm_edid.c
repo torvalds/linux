@@ -2,6 +2,7 @@
  * Copyright (c) 2006 Luc Verhaegen (quirks list)
  * Copyright (c) 2007-2008 Intel Corporation
  *   Jesse Barnes <jesse.barnes@intel.com>
+ * Copyright 2010 Red Hat, Inc.
  *
  * DDC probing routines (drm_ddc_read & drm_do_probe_ddc_edid) originally from
  * FB layer.
@@ -106,36 +107,38 @@ static struct edid_quirk {
 	{ "SAM", 638, EDID_QUIRK_PREFER_LARGE_60 },
 };
 
+/*** DDC fetch and block validation ***/
 
-/* Valid EDID header has these bytes */
 static const u8 edid_header[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
 };
 
-/**
- * drm_edid_is_valid - sanity check EDID data
- * @edid: EDID data
- *
- * Sanity check the EDID block by looking at the header, the version number
- * and the checksum.  Return 0 if the EDID doesn't check out, or 1 if it's
- * valid.
+/*
+ * Sanity check the EDID block (base or extension).  Return 0 if the block
+ * doesn't check out, or 1 if it's valid.
  */
-bool drm_edid_is_valid(struct edid *edid)
+static bool
+drm_edid_block_valid(u8 *raw_edid)
 {
-	int i, score = 0;
+	int i;
 	u8 csum = 0;
-	u8 *raw_edid = (u8 *)edid;
+	struct edid *edid = (struct edid *)raw_edid;
 
-	for (i = 0; i < sizeof(edid_header); i++)
-		if (raw_edid[i] == edid_header[i])
-			score++;
+	if (raw_edid[0] == 0x00) {
+		int score = 0;
 
-	if (score == 8) ;
-	else if (score >= 6) {
-		DRM_DEBUG("Fixing EDID header, your hardware may be failing\n");
-		memcpy(raw_edid, edid_header, sizeof(edid_header));
-	} else
-		goto bad;
+		for (i = 0; i < sizeof(edid_header); i++)
+			if (raw_edid[i] == edid_header[i])
+				score++;
+
+		if (score == 8) ;
+		else if (score >= 6) {
+			DRM_DEBUG("Fixing EDID header, your hardware may be failing\n");
+			memcpy(raw_edid, edid_header, sizeof(edid_header));
+		} else {
+			goto bad;
+		}
+	}
 
 	for (i = 0; i < EDID_LENGTH; i++)
 		csum += raw_edid[i];
@@ -144,13 +147,21 @@ bool drm_edid_is_valid(struct edid *edid)
 		goto bad;
 	}
 
-	if (edid->version != 1) {
-		DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
-		goto bad;
-	}
+	/* per-block-type checks */
+	switch (raw_edid[0]) {
+	case 0: /* base */
+		if (edid->version != 1) {
+			DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
+			goto bad;
+		}
 
-	if (edid->revision > 4)
-		DRM_DEBUG("EDID minor > 4, assuming backward compatibility\n");
+		if (edid->revision > 4)
+			DRM_DEBUG("EDID minor > 4, assuming backward compatibility\n");
+		break;
+
+	default:
+		break;
+	}
 
 	return 1;
 
@@ -162,7 +173,157 @@ bad:
 	}
 	return 0;
 }
+
+/**
+ * drm_edid_is_valid - sanity check EDID data
+ * @edid: EDID data
+ *
+ * Sanity-check an entire EDID record (including extensions)
+ */
+bool drm_edid_is_valid(struct edid *edid)
+{
+	int i;
+	u8 *raw = (u8 *)edid;
+
+	if (!edid)
+		return false;
+
+	for (i = 0; i <= edid->extensions; i++)
+		if (!drm_edid_block_valid(raw + i * EDID_LENGTH))
+			return false;
+
+	return true;
+}
 EXPORT_SYMBOL(drm_edid_is_valid);
+
+#define DDC_ADDR 0x50
+#define DDC_SEGMENT_ADDR 0x30
+/**
+ * Get EDID information via I2C.
+ *
+ * \param adapter : i2c device adaptor
+ * \param buf     : EDID data buffer to be filled
+ * \param len     : EDID data buffer length
+ * \return 0 on success or -1 on failure.
+ *
+ * Try to fetch EDID information by calling i2c driver function.
+ */
+static int
+drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
+		      int block, int len)
+{
+	unsigned char start = block * EDID_LENGTH;
+	struct i2c_msg msgs[] = {
+		{
+			.addr	= DDC_ADDR,
+			.flags	= 0,
+			.len	= 1,
+			.buf	= &start,
+		}, {
+			.addr	= DDC_ADDR,
+			.flags	= I2C_M_RD,
+			.len	= len,
+			.buf	= buf + start,
+		}
+	};
+
+	if (i2c_transfer(adapter, msgs, 2) == 2)
+		return 0;
+
+	return -1;
+}
+
+static u8 *
+drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
+{
+	int i, j = 0;
+	u8 *block, *new;
+
+	if ((block = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
+		return NULL;
+
+	/* base block fetch */
+	for (i = 0; i < 4; i++) {
+		if (drm_do_probe_ddc_edid(adapter, block, 0, EDID_LENGTH))
+			goto out;
+		if (drm_edid_block_valid(block))
+			break;
+	}
+	if (i == 4)
+		goto carp;
+
+	/* if there's no extensions, we're done */
+	if (block[0x7e] == 0)
+		return block;
+
+	new = krealloc(block, (block[0x7e] + 1) * EDID_LENGTH, GFP_KERNEL);
+	if (!new)
+		goto out;
+	block = new;
+
+	for (j = 1; j <= block[0x7e]; j++) {
+		for (i = 0; i < 4; i++) {
+			if (drm_do_probe_ddc_edid(adapter, block, j,
+						  EDID_LENGTH))
+				goto out;
+			if (drm_edid_block_valid(block + j * EDID_LENGTH))
+				break;
+		}
+		if (i == 4)
+			goto carp;
+	}
+
+	return block;
+
+carp:
+	dev_warn(&connector->dev->pdev->dev, "%s: EDID block %d invalid.\n",
+		 drm_get_connector_name(connector), j);
+
+out:
+	kfree(block);
+	return NULL;
+}
+
+/**
+ * Probe DDC presence.
+ *
+ * \param adapter : i2c device adaptor
+ * \return 1 on success
+ */
+static bool
+drm_probe_ddc(struct i2c_adapter *adapter)
+{
+	unsigned char out;
+
+	return (drm_do_probe_ddc_edid(adapter, &out, 0, 1) == 0);
+}
+
+/**
+ * drm_get_edid - get EDID data, if available
+ * @connector: connector we're probing
+ * @adapter: i2c adapter to use for DDC
+ *
+ * Poke the given i2c channel to grab EDID data if possible.  If found,
+ * attach it to the connector.
+ *
+ * Return edid data or NULL if we couldn't find any.
+ */
+struct edid *drm_get_edid(struct drm_connector *connector,
+			  struct i2c_adapter *adapter)
+{
+	struct edid *edid = NULL;
+
+	if (drm_probe_ddc(adapter))
+		edid = (struct edid *)drm_do_get_edid(connector, adapter);
+
+	connector->display_info.raw_edid = (char *)edid;
+
+	return edid;
+
+}
+EXPORT_SYMBOL(drm_get_edid);
+
+/*** EDID parsing ***/
 
 /**
  * edid_vendor - match a string against EDID's obfuscated vendor field
@@ -1140,123 +1301,6 @@ static int add_detailed_info_eedid(struct drm_connector *connector,
 
 	return modes;
 }
-
-#define DDC_ADDR 0x50
-/**
- * Get EDID information via I2C.
- *
- * \param adapter : i2c device adaptor
- * \param buf     : EDID data buffer to be filled
- * \param len     : EDID data buffer length
- * \return 0 on success or -1 on failure.
- *
- * Try to fetch EDID information by calling i2c driver function.
- */
-int drm_do_probe_ddc_edid(struct i2c_adapter *adapter,
-			  unsigned char *buf, int len)
-{
-	unsigned char start = 0x0;
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= DDC_ADDR,
-			.flags	= 0,
-			.len	= 1,
-			.buf	= &start,
-		}, {
-			.addr	= DDC_ADDR,
-			.flags	= I2C_M_RD,
-			.len	= len,
-			.buf	= buf,
-		}
-	};
-
-	if (i2c_transfer(adapter, msgs, 2) == 2)
-		return 0;
-
-	return -1;
-}
-EXPORT_SYMBOL(drm_do_probe_ddc_edid);
-
-static int drm_ddc_read_edid(struct drm_connector *connector,
-			     struct i2c_adapter *adapter,
-			     char *buf, int len)
-{
-	int i;
-
-	for (i = 0; i < 4; i++) {
-		if (drm_do_probe_ddc_edid(adapter, buf, len))
-			return -1;
-		if (drm_edid_is_valid((struct edid *)buf))
-			return 0;
-	}
-
-	/* repeated checksum failures; warn, but carry on */
-	dev_warn(&connector->dev->pdev->dev, "%s: EDID invalid.\n",
-		 drm_get_connector_name(connector));
-	return -1;
-}
-
-/**
- * drm_get_edid - get EDID data, if available
- * @connector: connector we're probing
- * @adapter: i2c adapter to use for DDC
- *
- * Poke the given connector's i2c channel to grab EDID data if possible.
- *
- * Return edid data or NULL if we couldn't find any.
- */
-struct edid *drm_get_edid(struct drm_connector *connector,
-			  struct i2c_adapter *adapter)
-{
-	int ret;
-	struct edid *edid;
-
-	edid = kmalloc(EDID_LENGTH * (DRM_MAX_EDID_EXT_NUM + 1),
-		       GFP_KERNEL);
-	if (edid == NULL) {
-		dev_warn(&connector->dev->pdev->dev,
-			 "Failed to allocate EDID\n");
-		goto end;
-	}
-
-	/* Read first EDID block */
-	ret = drm_ddc_read_edid(connector, adapter,
-				(unsigned char *)edid, EDID_LENGTH);
-	if (ret != 0)
-		goto clean_up;
-
-	/* There are EDID extensions to be read */
-	if (edid->extensions != 0) {
-		int edid_ext_num = edid->extensions;
-
-		if (edid_ext_num > DRM_MAX_EDID_EXT_NUM) {
-			dev_warn(&connector->dev->pdev->dev,
-				 "The number of extension(%d) is "
-				 "over max (%d), actually read number (%d)\n",
-				 edid_ext_num, DRM_MAX_EDID_EXT_NUM,
-				 DRM_MAX_EDID_EXT_NUM);
-			/* Reset EDID extension number to be read */
-			edid_ext_num = DRM_MAX_EDID_EXT_NUM;
-		}
-		/* Read EDID including extensions too */
-		ret = drm_ddc_read_edid(connector, adapter, (char *)edid,
-					EDID_LENGTH * (edid_ext_num + 1));
-		if (ret != 0)
-			goto clean_up;
-
-	}
-
-	connector->display_info.raw_edid = (char *)edid;
-	goto end;
-
-clean_up:
-	kfree(edid);
-	edid = NULL;
-end:
-	return edid;
-
-}
-EXPORT_SYMBOL(drm_get_edid);
 
 #define HDMI_IDENTIFIER 0x000C03
 #define VENDOR_BLOCK    0x03
