@@ -25,17 +25,17 @@
  * Date: May 20, 2003
  *
  * Functions:
- *      s_vGenerateTxParameter - Generate tx dma requried parameter.
+ *      s_vGenerateTxParameter - Generate tx dma required parameter.
  *      s_vGenerateMACHeader - Translate 802.3 to 802.11 header
  *      csBeacon_xmit - beacon tx function
  *      csMgmt_xmit - management tx function
  *      s_uGetDataDuration - get tx data required duration
  *      s_uFillDataHead- fulfill tx data duration header
- *      s_uGetRTSCTSDuration- get rtx/cts requried duration
+ *      s_uGetRTSCTSDuration- get rtx/cts required duration
  *      s_uGetRTSCTSRsvTime- get rts/cts reserved time
  *      s_uGetTxRsvTime- get frame reserved time
  *      s_vFillCTSHead- fulfill CTS ctl header
- *      s_vFillFragParameter- Set fragement ctl parameter.
+ *      s_vFillFragParameter- Set fragment ctl parameter.
  *      s_vFillRTSHead- fulfill RTS ctl header
  *      s_vFillTxKey- fulfill tx encrypt key
  *      s_vSWencryption- Software encrypt header

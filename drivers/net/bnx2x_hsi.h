@@ -683,7 +683,7 @@ struct drv_func_mb {
 #define DRV_MSG_CODE_GET_MANUF_KEY			0x82000000
 #define DRV_MSG_CODE_LOAD_L2B_PRAM			0x90000000
 	/*
-	 * The optic module verification commands requris bootcode
+	 * The optic module verification commands require bootcode
 	 * v5.0.6 or later
 	 */
 #define DRV_MSG_CODE_VRFY_OPT_MDL			0xa0000000
