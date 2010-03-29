@@ -13,6 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/clk.h>
+#include <asm/clkdev.h>
 #include <asm/clock.h>
 #include <asm/freq.h>
 
@@ -120,12 +122,78 @@ static struct clk mstp_clks[] = {
 	SH_CLK_MSTP32("ether_fck", -1, NULL, MSTPCR1, 2, 0),
 };
 
+static struct clk_lookup lookups[] = {
+	{
+		/* TMU0 */
+		.dev_id		= "sh_tmu.0",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[17],	/* tmu012_fck */
+	}, {
+		/* TMU1 */
+		.dev_id		= "sh_tmu.1",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[17],
+	}, {
+		/* TMU2 */
+		.dev_id		= "sh_tmu.2",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[17],
+	}, {
+		/* TMU3 */
+		.dev_id		= "sh_tmu.3",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[16],	/* tmu345_fck */
+	}, {
+		/* TMU4 */
+		.dev_id		= "sh_tmu.4",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[16],
+	}, {
+		/* TMU5 */
+		.dev_id		= "sh_tmu.5",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[16],
+	}, {
+		/* TMU6 */
+		.dev_id		= "sh_tmu.6",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[15],	/* tmu678_fck */
+	}, {
+		/* TMU7 */
+		.dev_id		= "sh_tmu.7",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[15],
+	}, {
+		/* TMU8 */
+		.dev_id		= "sh_tmu.8",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[15],
+	}, {
+		/* TMU9 */
+		.dev_id		= "sh_tmu.9",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[14],	/* tmu9_11_fck */
+	}, {
+		/* TMU10 */
+		.dev_id		= "sh_tmu.10",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[14],
+	}, {
+		/* TMU11 */
+		.dev_id		= "sh_tmu.11",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[14],
+	}
+};
+
 int __init arch_clk_init(void)
 {
 	int i, ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++)
 		ret |= clk_register(clks[i]);
+	for (i = 0; i < ARRAY_SIZE(lookups); i++)
+		clkdev_add(&lookups[i]);
 
 	if (!ret)
 		ret = sh_clk_div4_register(div4_clks, ARRAY_SIZE(div4_clks),
