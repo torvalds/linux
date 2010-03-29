@@ -1818,6 +1818,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			return RX_CONTINUE;
 		}
 		break;
+	case WLAN_CATEGORY_MESH_PLINK:
+	case WLAN_CATEGORY_MESH_PATH_SEL:
+		if (ieee80211_vif_is_mesh(&sdata->vif))
+			return ieee80211_mesh_rx_mgmt(sdata, rx->skb);
+		break;
 	default:
 		/* do not process rejected action frames */
 		if (mgmt->u.action.category & 0x80)
