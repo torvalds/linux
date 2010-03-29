@@ -249,10 +249,8 @@ static int frontend_probe_and_watch(struct notifier_block *notifier,
 {
 	/* Enumerate devices in xenstore and watch for changes. */
 	xenbus_probe_devices(&xenbus_frontend);
-	printk(KERN_CRIT "%s devices probed ok\n", __func__);
 	register_xenbus_watch(&fe_watch);
-	printk(KERN_CRIT "%s watch add ok ok\n", __func__);
-	printk(KERN_CRIT "%s all done\n", __func__);
+
 	return NOTIFY_DONE;
 }
 
@@ -268,11 +266,8 @@ static int __init xenbus_probe_frontend_init(void)
 
 	/* Register ourselves with the kernel bus subsystem */
 	err = bus_register(&xenbus_frontend.bus);
-	if (err) {
-		printk(KERN_CRIT "%s didn't register bus!\n", __func__);
+	if (err)
 		return err;
-	}
-	printk(KERN_CRIT "%s bus registered ok\n", __func__);
 
 	register_xenstore_notifier(&xenstore_notifier);
 
