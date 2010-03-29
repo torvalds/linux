@@ -885,6 +885,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "AO00001JW"),
 		},
 	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Clientron U800",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Clientron"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "U800"),
+		},
+	},
 
 	{ }	/* terminating entry */
 };
