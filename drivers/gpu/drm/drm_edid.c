@@ -1013,9 +1013,9 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	if (mode->vsync_end > mode->vtotal)
 		mode->vtotal = mode->vsync_end + 1;
 
-	drm_mode_set_name(mode);
-
 	drm_mode_do_interlace_quirk(mode, pt);
+
+	drm_mode_set_name(mode);
 
 	if (quirks & EDID_QUIRK_DETAILED_SYNC_PP) {
 		pt->misc |= DRM_EDID_PT_HSYNC_POSITIVE | DRM_EDID_PT_VSYNC_POSITIVE;

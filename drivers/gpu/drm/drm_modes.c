@@ -258,8 +258,10 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	drm_mode->clock -= drm_mode->clock % CVT_CLOCK_STEP;
 	/* 18/16. Find actual vertical frame frequency */
 	/* ignore - just set the mode flag for interlaced */
-	if (interlaced)
+	if (interlaced) {
 		drm_mode->vtotal *= 2;
+		drm_mode->flags |= DRM_MODE_FLAG_INTERLACE;
+	}
 	/* Fill the mode line name */
 	drm_mode_set_name(drm_mode);
 	if (reduced)
@@ -268,10 +270,8 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	else
 		drm_mode->flags |= (DRM_MODE_FLAG_PVSYNC |
 					DRM_MODE_FLAG_NHSYNC);
-	if (interlaced)
-		drm_mode->flags |= DRM_MODE_FLAG_INTERLACE;
 
-    return drm_mode;
+	return drm_mode;
 }
 EXPORT_SYMBOL(drm_cvt_mode);
 
@@ -446,13 +446,13 @@ drm_gtf_mode_complex(struct drm_device *dev, int hdisplay, int vdisplay,
 
 	drm_mode->clock = pixel_freq;
 
-	drm_mode_set_name(drm_mode);
-	drm_mode->flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC;
-
 	if (interlaced) {
 		drm_mode->vtotal *= 2;
 		drm_mode->flags |= DRM_MODE_FLAG_INTERLACE;
 	}
+
+	drm_mode_set_name(drm_mode);
+	drm_mode->flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC;
 
 	return drm_mode;
 }
@@ -509,8 +509,11 @@ EXPORT_SYMBOL(drm_gtf_mode);
  */
 void drm_mode_set_name(struct drm_display_mode *mode)
 {
-	snprintf(mode->name, DRM_DISPLAY_MODE_LEN, "%dx%d", mode->hdisplay,
-		 mode->vdisplay);
+	bool interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
+
+	snprintf(mode->name, DRM_DISPLAY_MODE_LEN, "%dx%d%s",
+		 mode->hdisplay, mode->vdisplay,
+		 interlaced ? "i" : "");
 }
 EXPORT_SYMBOL(drm_mode_set_name);
 
