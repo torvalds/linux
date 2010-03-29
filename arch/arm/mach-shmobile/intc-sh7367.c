@@ -75,7 +75,7 @@ enum {
 	ETM11, ARM11, USBHS, FLCTL, IIC1
 };
 
-static struct intc_vect intca_vectors[] = {
+static struct intc_vect intca_vectors[] __initdata = {
 	INTC_VECT(IRQ0A, 0x0200), INTC_VECT(IRQ1A, 0x0220),
 	INTC_VECT(IRQ2A, 0x0240), INTC_VECT(IRQ3A, 0x0260),
 	INTC_VECT(IRQ4A, 0x0280), INTC_VECT(IRQ5A, 0x02a0),
@@ -162,7 +162,7 @@ static struct intc_group intca_groups[] __initdata = {
 	INTC_GROUP(IIC1, IIC1_ALI1, IIC1_TACKI1, IIC1_WAITI1, IIC1_DTEI1),
 };
 
-static struct intc_mask_reg intca_mask_registers[] = {
+static struct intc_mask_reg intca_mask_registers[] __initdata = {
 	{ 0xe6900040, 0xe6900060, 8, /* INTMSK00A / INTMSKCLR00A */
 	  { IRQ0A, IRQ1A, IRQ2A, IRQ3A, IRQ4A, IRQ5A, IRQ6A, IRQ7A } },
 	{ 0xe6900044, 0xe6900064, 8, /* INTMSK10A / INTMSKCLR10A */
@@ -211,7 +211,7 @@ static struct intc_mask_reg intca_mask_registers[] = {
 	    MISTY, CMT3, RWDT1, RWDT0 } },
 };
 
-static struct intc_prio_reg intca_prio_registers[] = {
+static struct intc_prio_reg intca_prio_registers[] __initdata = {
 	{ 0xe6900010, 0, 32, 4, /* INTPRI00A */
 	  { IRQ0A, IRQ1A, IRQ2A, IRQ3A, IRQ4A, IRQ5A, IRQ6A, IRQ7A } },
 	{ 0xe6900014, 0, 32, 4, /* INTPRI10A */
