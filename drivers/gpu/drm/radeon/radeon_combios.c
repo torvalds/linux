@@ -450,17 +450,17 @@ bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
 {
 	int edid_info;
 	struct edid *edid;
+	unsigned char *raw;
 	edid_info = combios_get_table_offset(rdev->ddev, COMBIOS_HARDCODED_EDID_TABLE);
 	if (!edid_info)
 		return false;
 
-	edid = kmalloc(EDID_LENGTH * (DRM_MAX_EDID_EXT_NUM + 1),
-		       GFP_KERNEL);
+	raw = rdev->bios + edid_info;
+	edid = kmalloc(EDID_LENGTH * (raw[0x7e] + 1), GFP_KERNEL);
 	if (edid == NULL)
 		return false;
 
-	memcpy((unsigned char *)edid,
-	       (unsigned char *)(rdev->bios + edid_info), EDID_LENGTH);
+	memcpy((unsigned char *)edid, raw, EDID_LENGTH * (raw[0x7e] + 1));
 
 	if (!drm_edid_is_valid(edid)) {
 		kfree(edid);

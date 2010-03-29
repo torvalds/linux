@@ -33,6 +33,7 @@
 #include "drm.h"
 #include "drmP.h"
 #include "drm_crtc.h"
+#include "drm_edid.h"
 
 struct drm_prop_enum_list {
 	int type;
@@ -2349,7 +2350,7 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    struct edid *edid)
 {
 	struct drm_device *dev = connector->dev;
-	int ret = 0;
+	int ret = 0, size;
 
 	if (connector->edid_blob_ptr)
 		drm_property_destroy_blob(dev, connector->edid_blob_ptr);
@@ -2361,7 +2362,9 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 		return ret;
 	}
 
-	connector->edid_blob_ptr = drm_property_create_blob(connector->dev, 128, edid);
+	size = EDID_LENGTH * (1 + edid->extensions);
+	connector->edid_blob_ptr = drm_property_create_blob(connector->dev,
+							    size, edid);
 
 	ret = drm_connector_property_set_value(connector,
 					       dev->mode_config.edid_property,

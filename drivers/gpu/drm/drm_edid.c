@@ -1325,7 +1325,6 @@ static int add_detailed_info_eedid(struct drm_connector *connector,
 	int i, modes = 0;
 	char *edid_ext = NULL;
 	struct detailed_timing *timing;
-	int edid_ext_num;
 	int start_offset, end_offset;
 	int timing_level;
 
@@ -1342,19 +1341,15 @@ static int add_detailed_info_eedid(struct drm_connector *connector,
 		return 0;
 	}
 
-	/* Chose real EDID extension number */
-	edid_ext_num = edid->extensions > DRM_MAX_EDID_EXT_NUM ?
-		DRM_MAX_EDID_EXT_NUM : edid->extensions;
-
 	/* Find CEA extension */
-	for (i = 0; i < edid_ext_num; i++) {
+	for (i = 0; i < edid->extensions; i++) {
 		edid_ext = (char *)edid + EDID_LENGTH * (i + 1);
 		/* This block is CEA extension */
 		if (edid_ext[0] == 0x02)
 			break;
 	}
 
-	if (i == edid_ext_num) {
+	if (i == edid->extensions) {
 		/* if there is no additional timing EDID block, return */
 		return 0;
 	}
@@ -1393,7 +1388,7 @@ static int add_detailed_info_eedid(struct drm_connector *connector,
 bool drm_detect_hdmi_monitor(struct edid *edid)
 {
 	char *edid_ext = NULL;
-	int i, hdmi_id, edid_ext_num;
+	int i, hdmi_id;
 	int start_offset, end_offset;
 	bool is_hdmi = false;
 
@@ -1401,19 +1396,15 @@ bool drm_detect_hdmi_monitor(struct edid *edid)
 	if (edid == NULL || edid->extensions == 0)
 		goto end;
 
-	/* Chose real EDID extension number */
-	edid_ext_num = edid->extensions > DRM_MAX_EDID_EXT_NUM ?
-		       DRM_MAX_EDID_EXT_NUM : edid->extensions;
-
 	/* Find CEA extension */
-	for (i = 0; i < edid_ext_num; i++) {
+	for (i = 0; i < edid->extensions; i++) {
 		edid_ext = (char *)edid + EDID_LENGTH * (i + 1);
 		/* This block is CEA extension */
 		if (edid_ext[0] == 0x02)
 			break;
 	}
 
-	if (i == edid_ext_num)
+	if (i == edid->extensions)
 		goto end;
 
 	/* Data block offset in CEA extension block */
