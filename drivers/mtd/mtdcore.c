@@ -21,6 +21,7 @@
 #include <linux/proc_fs.h>
 #include <linux/idr.h>
 #include <linux/backing-dev.h>
+#include <linux/gfp.h>
 
 #include <linux/mtd/mtd.h>
 

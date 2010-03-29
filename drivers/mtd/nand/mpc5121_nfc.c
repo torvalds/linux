@@ -27,6 +27,7 @@
 
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

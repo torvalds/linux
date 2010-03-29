@@ -15,6 +15,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <linux/sched.h>
 #include "sm_common.h"
