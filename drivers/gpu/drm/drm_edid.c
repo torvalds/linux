@@ -1295,7 +1295,10 @@ static int add_detailed_info(struct drm_connector *connector,
 
 	for (i = 0; i < EDID_DETAILED_TIMINGS; i++) {
 		struct detailed_timing *timing = &edid->detailed_timings[i];
-		int preferred = (i == 0) && (edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING);
+		int preferred = (i == 0);
+
+		if (preferred && edid->version == 1 && edid->revision < 4)
+			preferred = (edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING);
 
 		/* In 1.0, only timings are allowed */
 		if (!timing->pixel_clock && edid->version == 1 &&
