@@ -653,20 +653,20 @@ static void intel_pmu_reset(void)
 	unsigned long flags;
 	int idx;
 
-	if (!x86_pmu.num_events)
+	if (!x86_pmu.num_counters)
 		return;
 
 	local_irq_save(flags);
 
 	printk("clearing PMU state on CPU#%d\n", smp_processor_id());
 
-	for (idx = 0; idx < x86_pmu.num_events; idx++) {
+	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		checking_wrmsrl(x86_pmu.eventsel + idx, 0ull);
 		checking_wrmsrl(x86_pmu.perfctr  + idx, 0ull);
 	}
-	for (idx = 0; idx < x86_pmu.num_events_fixed; idx++) {
+	for (idx = 0; idx < x86_pmu.num_counters_fixed; idx++)
 		checking_wrmsrl(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, 0ull);
-	}
+
 	if (ds)
 		ds->bts_index = ds->bts_buffer_base;
 
@@ -901,16 +901,16 @@ static __init int intel_pmu_init(void)
 		x86_pmu = intel_pmu;
 
 	x86_pmu.version			= version;
-	x86_pmu.num_events		= eax.split.num_events;
-	x86_pmu.event_bits		= eax.split.bit_width;
-	x86_pmu.event_mask		= (1ULL << eax.split.bit_width) - 1;
+	x86_pmu.num_counters		= eax.split.num_counters;
+	x86_pmu.cntval_bits		= eax.split.bit_width;
+	x86_pmu.cntval_mask		= (1ULL << eax.split.bit_width) - 1;
 
 	/*
 	 * Quirk: v2 perfmon does not report fixed-purpose events, so
 	 * assume at least 3 events:
 	 */
 	if (version > 1)
-		x86_pmu.num_events_fixed = max((int)edx.split.num_events_fixed, 3);
+		x86_pmu.num_counters_fixed = max((int)edx.split.num_counters_fixed, 3);
 
 	/*
 	 * v2 and above have a perf capabilities MSR

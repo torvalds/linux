@@ -165,7 +165,7 @@ static void amd_put_event_constraints(struct cpu_hw_events *cpuc,
 	 * be removed on one CPU at a time AND PMU is disabled
 	 * when we come here
 	 */
-	for (i = 0; i < x86_pmu.num_events; i++) {
+	for (i = 0; i < x86_pmu.num_counters; i++) {
 		if (nb->owners[i] == event) {
 			cmpxchg(nb->owners+i, event, NULL);
 			break;
@@ -215,7 +215,7 @@ amd_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	struct amd_nb *nb = cpuc->amd_nb;
 	struct perf_event *old = NULL;
-	int max = x86_pmu.num_events;
+	int max = x86_pmu.num_counters;
 	int i, j, k = -1;
 
 	/*
@@ -293,7 +293,7 @@ static struct amd_nb *amd_alloc_nb(int cpu, int nb_id)
 	/*
 	 * initialize all possible NB constraints
 	 */
-	for (i = 0; i < x86_pmu.num_events; i++) {
+	for (i = 0; i < x86_pmu.num_counters; i++) {
 		__set_bit(i, nb->event_constraints[i].idxmsk);
 		nb->event_constraints[i].weight = 1;
 	}
@@ -385,9 +385,9 @@ static __initconst struct x86_pmu amd_pmu = {
 	.event_map		= amd_pmu_event_map,
 	.raw_event		= amd_pmu_raw_event,
 	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
-	.num_events		= 4,
-	.event_bits		= 48,
-	.event_mask		= (1ULL << 48) - 1,
+	.num_counters		= 4,
+	.cntval_bits		= 48,
+	.cntval_mask		= (1ULL << 48) - 1,
 	.apic			= 1,
 	/* use highest bit to detect overflow */
 	.max_period		= (1ULL << 47) - 1,

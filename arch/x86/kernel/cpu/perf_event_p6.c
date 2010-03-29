@@ -119,7 +119,7 @@ static __initconst struct x86_pmu p6_pmu = {
 	.apic			= 1,
 	.max_period		= (1ULL << 31) - 1,
 	.version		= 0,
-	.num_events		= 2,
+	.num_counters		= 2,
 	/*
 	 * Events have 40 bits implemented. However they are designed such
 	 * that bits [32-39] are sign extensions of bit 31. As such the
@@ -127,8 +127,8 @@ static __initconst struct x86_pmu p6_pmu = {
 	 *
 	 * See IA-32 Intel Architecture Software developer manual Vol 3B
 	 */
-	.event_bits		= 32,
-	.event_mask		= (1ULL << 32) - 1,
+	.cntval_bits		= 32,
+	.cntval_mask		= (1ULL << 32) - 1,
 	.get_event_constraints	= x86_get_event_constraints,
 	.event_constraints	= p6_event_constraints,
 };

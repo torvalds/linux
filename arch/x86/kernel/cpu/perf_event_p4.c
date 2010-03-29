@@ -483,7 +483,7 @@ static void p4_pmu_disable_all(void)
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int idx;
 
-	for (idx = 0; idx < x86_pmu.num_events; idx++) {
+	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		struct perf_event *event = cpuc->events[idx];
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
@@ -540,7 +540,7 @@ static void p4_pmu_enable_all(int added)
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int idx;
 
-	for (idx = 0; idx < x86_pmu.num_events; idx++) {
+	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		struct perf_event *event = cpuc->events[idx];
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
@@ -562,7 +562,7 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
-	for (idx = 0; idx < x86_pmu.num_events; idx++) {
+	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
@@ -579,7 +579,7 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 		p4_pmu_clear_cccr_ovf(hwc);
 
 		val = x86_perf_event_update(event);
-		if (val & (1ULL << (x86_pmu.event_bits - 1)))
+		if (val & (1ULL << (x86_pmu.cntval_bits - 1)))
 			continue;
 
 		/*
@@ -794,10 +794,10 @@ static __initconst struct x86_pmu p4_pmu = {
 	 * though leave it restricted at moment assuming
 	 * HT is on
 	 */
-	.num_events		= ARCH_P4_MAX_CCCR,
+	.num_counters		= ARCH_P4_MAX_CCCR,
 	.apic			= 1,
-	.event_bits		= 40,
-	.event_mask		= (1ULL << 40) - 1,
+	.cntval_bits		= 40,
+	.cntval_mask		= (1ULL << 40) - 1,
 	.max_period		= (1ULL << 39) - 1,
 	.hw_config		= p4_hw_config,
 	.schedule_events	= p4_pmu_schedule_events,

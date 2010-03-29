@@ -67,7 +67,7 @@
 union cpuid10_eax {
 	struct {
 		unsigned int version_id:8;
-		unsigned int num_events:8;
+		unsigned int num_counters:8;
 		unsigned int bit_width:8;
 		unsigned int mask_length:8;
 	} split;
@@ -76,7 +76,7 @@ union cpuid10_eax {
 
 union cpuid10_edx {
 	struct {
-		unsigned int num_events_fixed:4;
+		unsigned int num_counters_fixed:4;
 		unsigned int reserved:28;
 	} split;
 	unsigned int full;
