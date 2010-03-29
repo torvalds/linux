@@ -1019,6 +1019,16 @@ netxen_load_firmware(struct netxen_adapter *adapter)
 
 			flashaddr += 8;
 		}
+
+		size = (__force u32)nx_get_fw_size(adapter) % 8;
+		if (size) {
+			data = cpu_to_le64(ptr64[i]);
+
+			if (adapter->pci_mem_write(adapter,
+						flashaddr, data))
+				return -EIO;
+		}
+
 	} else {
 		u64 data;
 		u32 hi, lo;
