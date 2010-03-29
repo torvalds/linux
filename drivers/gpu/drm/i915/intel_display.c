@@ -753,23 +753,6 @@ bool intel_pipe_has_type (struct drm_crtc *crtc, int type)
     return false;
 }
 
-static struct drm_connector *
-intel_pipe_get_connector (struct drm_crtc *crtc)
-{
-    struct drm_device *dev = crtc->dev;
-    struct drm_mode_config *mode_config = &dev->mode_config;
-    struct drm_connector *l_entry, *ret = NULL;
-
-    list_for_each_entry(l_entry, &mode_config->connector_list, head) {
-	    if (l_entry->encoder &&
-	        l_entry->encoder->crtc == crtc) {
-		    ret = l_entry;
-		    break;
-	    }
-    }
-    return ret;
-}
-
 #define INTELPllInvalid(s)   do { /* DRM_DEBUG(s); */ return false; } while (0)
 /**
  * Returns whether the given set of divisors are valid for a given refclk with
