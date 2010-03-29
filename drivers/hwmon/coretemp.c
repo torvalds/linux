@@ -466,7 +466,7 @@ static int __init coretemp_init(void)
 			   family 6 CPU */
 			if ((c->x86 == 0x6) && (c->x86_model > 0xf))
 				printk(KERN_WARNING DRVNAME ": Unknown CPU "
-					"model %x\n", c->x86_model);
+					"model 0x%x\n", c->x86_model);
 			continue;
 		}
 
