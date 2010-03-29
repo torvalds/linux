@@ -790,10 +790,9 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
  * invaild or writeback cache
  * and convert virtual address to physical address
  */
-dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
-				int sd_idx, int direction)
+dma_addr_t linux_pci_map_single(struct rt_rtmp_adapter *pAd, void *ptr,
+				size_t size, int sd_idx, int direction)
 {
-	struct rt_rtmp_adapter *pAd;
 	struct os_cookie *pObj;
 
 	/*
@@ -812,7 +811,6 @@ dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
 	   sd_idx = -1
 	 */
 
-	pAd = (struct rt_rtmp_adapter *)handle;
 	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	if (sd_idx == 1) {
@@ -826,13 +824,11 @@ dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
 
 }
 
-void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
-			    int direction)
+void linux_pci_unmap_single(struct rt_rtmp_adapter *pAd, dma_addr_t dma_addr,
+			    size_t size, int direction)
 {
-	struct rt_rtmp_adapter *pAd;
 	struct os_cookie *pObj;
 
-	pAd = (struct rt_rtmp_adapter *)handle;
 	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	pci_unmap_single(pObj->pci_dev, dma_addr, size, direction);
