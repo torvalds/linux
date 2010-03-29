@@ -1377,10 +1377,24 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 
 	quirks = edid_get_quirks(edid);
 
-	num_modes += add_established_modes(connector, edid);
-	num_modes += add_standard_modes(connector, edid);
+	/*
+	 * EDID spec says modes should be preferred in this order:
+	 * - preferred detailed mode
+	 * - other detailed modes from base block
+	 * - detailed modes from extension blocks
+	 * - CVT 3-byte code modes
+	 * - standard timing codes
+	 * - established timing codes
+	 * - modes inferred from GTF or CVT range information
+	 *
+	 * We don't quite implement this yet, but we're close.
+	 *
+	 * XXX order for additional mode types in extension blocks?
+	 */
 	num_modes += add_detailed_info(connector, edid, quirks);
 	num_modes += add_detailed_info_eedid(connector, edid, quirks);
+	num_modes += add_standard_modes(connector, edid);
+	num_modes += add_established_modes(connector, edid);
 
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
