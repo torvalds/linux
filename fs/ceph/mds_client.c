@@ -532,7 +532,6 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 	dout("__unregister_request %p tid %lld\n", req, req->r_tid);
 	rb_erase(&req->r_node, &mdsc->request_tree);
 	RB_CLEAR_NODE(&req->r_node);
-	ceph_mdsc_put_request(req);
 
 	if (req->r_unsafe_dir) {
 		struct ceph_inode_info *ci = ceph_inode(req->r_unsafe_dir);
@@ -541,6 +540,8 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 		list_del_init(&req->r_unsafe_dir_item);
 		spin_unlock(&ci->i_unsafe_lock);
 	}
+
+	ceph_mdsc_put_request(req);
 }
 
 /*
