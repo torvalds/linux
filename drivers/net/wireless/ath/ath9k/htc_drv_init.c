@@ -421,6 +421,7 @@ static void ath9k_init_misc(struct ath9k_htc_priv *priv)
 		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 
 	priv->op_flags |= OP_TXAGGR;
+	priv->ah->opmode = NL80211_IFTYPE_STATION;
 }
 
 static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
