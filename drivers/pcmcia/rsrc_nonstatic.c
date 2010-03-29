@@ -935,23 +935,42 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		return -ENODEV;
 
 #if defined(CONFIG_X86)
-	/* If this is the root bus, the risk of hitting
-	 * some strange system devices which aren't protected
-	 * by either ACPI resource tables or properly requested
-	 * resources is too big. Therefore, don't do auto-adding
-	 * of resources at the moment.
+	/* If this is the root bus, the risk of hitting some strange
+	 * system devices is too high: If a driver isn't loaded, the
+	 * resources are not claimed; even if a driver is loaded, it
+	 * may not request all resources or even the wrong one. We
+	 * can neither trust the rest of the kernel nor ACPI/PNP and
+	 * CRS parsing to get it right. Therefore, use several
+	 * safeguards:
+	 *
+	 * - Do not auto-add resources if the CardBus bridge is on
+	 *   the PCI root bus
+	 *
+	 * - Avoid any I/O ports < 0x100.
+	 *
+	 * - On PCI-PCI bridges, only use resources which are set up
+	 *   exclusively for the secondary PCI bus: the risk of hitting
+	 *   system devices is quite low, as they usually aren't
+	 *   connected to the secondary PCI bus.
 	 */
 	if (s->cb_dev->bus->number == 0)
 		return -EINVAL;
-#endif
 
+	for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++) {
+		res = s->cb_dev->bus->resource[i];
+#else
 	pci_bus_for_each_resource(s->cb_dev->bus, res, i) {
+#endif
 		if (!res)
 			continue;
 
 		if (res->flags & IORESOURCE_IO) {
+			/* safeguard against the root resource, where the
+			 * risk of hitting any other device would be too
+			 * high */
 			if (res == &ioport_resource)
 				continue;
+
 			dev_printk(KERN_INFO, &s->cb_dev->dev,
 				   "pcmcia: parent PCI bridge window: %pR\n",
 				   res);
@@ -961,8 +980,12 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		}
 
 		if (res->flags & IORESOURCE_MEM) {
+			/* safeguard against the root resource, where the
+			 * risk of hitting any other device would be too
+			 * high */
 			if (res == &iomem_resource)
 				continue;
+
 			dev_printk(KERN_INFO, &s->cb_dev->dev,
 				   "pcmcia: parent PCI bridge window: %pR\n",
 				   res);
