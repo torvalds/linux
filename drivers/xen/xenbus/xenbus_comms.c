@@ -49,7 +49,6 @@ static DECLARE_WAIT_QUEUE_HEAD(xb_waitq);
 static irqreturn_t wake_waiting(int irq, void *unused)
 {
 	if (unlikely(xenstored_ready == 0)) {
-		printk(KERN_CRIT "xenbus_probe wake_waiting\n");
 		xenstored_ready = 1;
 		schedule_work(&probe_work);
 	}
