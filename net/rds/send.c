@@ -468,8 +468,9 @@ void rds_atomic_send_complete(struct rds_message *rm, int status)
 	struct rds_sock *rs = NULL;
 	struct rm_atomic_op *ao;
 	struct rds_notifier *notifier;
+	unsigned long flags;
 
-	spin_lock(&rm->m_rs_lock);
+	spin_lock_irqsave(&rm->m_rs_lock, flags);
 
 	ao = &rm->atomic;
 	if (test_bit(RDS_MSG_ON_SOCK, &rm->m_flags)
@@ -486,7 +487,7 @@ void rds_atomic_send_complete(struct rds_message *rm, int status)
 		ao->op_notifier = NULL;
 	}
 
-	spin_unlock(&rm->m_rs_lock);
+	spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 
 	if (rs) {
 		rds_wake_sk_sleep(rs);
