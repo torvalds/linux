@@ -1073,7 +1073,7 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	rds_stats_inc(s_send_queued);
 
 	if (!test_bit(RDS_LL_SEND_FULL, &conn->c_flags))
-		rds_send_worker(&conn->c_send_w.work);
+		rds_send_xmit(conn);
 
 	rds_message_put(rm);
 	return payload_len;
