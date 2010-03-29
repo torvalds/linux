@@ -1638,13 +1638,13 @@ static void free_skb_resources(struct gfar_private *priv)
 	/* Go through all the buffer descriptors and free their data buffers */
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		tx_queue = priv->tx_queue[i];
-		if(!tx_queue->tx_skbuff)
+		if(tx_queue->tx_skbuff)
 			free_skb_tx_queue(tx_queue);
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
 		rx_queue = priv->rx_queue[i];
-		if(!rx_queue->rx_skbuff)
+		if(rx_queue->rx_skbuff)
 			free_skb_rx_queue(rx_queue);
 	}
 
