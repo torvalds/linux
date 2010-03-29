@@ -387,11 +387,15 @@ static int sh_tmu_setup(struct sh_tmu_priv *p, struct platform_device *pdev)
 	p->irqaction.flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL;
 
 	/* get hold of clock */
-	p->clk = clk_get(&p->pdev->dev, cfg->clk);
+	p->clk = clk_get(&p->pdev->dev, "tmu_fck");
 	if (IS_ERR(p->clk)) {
-		dev_err(&p->pdev->dev, "cannot get clock\n");
-		ret = PTR_ERR(p->clk);
-		goto err1;
+		dev_warn(&p->pdev->dev, "using deprecated clock lookup\n");
+		p->clk = clk_get(&p->pdev->dev, cfg->clk);
+		if (IS_ERR(p->clk)) {
+			dev_err(&p->pdev->dev, "cannot get clock\n");
+			ret = PTR_ERR(p->clk);
+			goto err1;
+		}
 	}
 
 	return sh_tmu_register(p, (char *)dev_name(&p->pdev->dev),
