@@ -290,10 +290,84 @@ bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
 /* RX */
 /******/
 
+/*
+ * Calculate the RX filter to be set in the HW.
+ */
+u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
+{
+#define	RX_FILTER_PRESERVE (ATH9K_RX_FILTER_PHYERR | ATH9K_RX_FILTER_PHYRADAR)
+
+	struct ath_hw *ah = priv->ah;
+	u32 rfilt;
+
+	rfilt = (ath9k_hw_getrxfilter(ah) & RX_FILTER_PRESERVE)
+		| ATH9K_RX_FILTER_UCAST | ATH9K_RX_FILTER_BCAST
+		| ATH9K_RX_FILTER_MCAST;
+
+	/* If not a STA, enable processing of Probe Requests */
+	if (ah->opmode != NL80211_IFTYPE_STATION)
+		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
+
+	/*
+	 * Set promiscuous mode when FIF_PROMISC_IN_BSS is enabled for station
+	 * mode interface or when in monitor mode. AP mode does not need this
+	 * since it receives all in-BSS frames anyway.
+	 */
+	if (((ah->opmode != NL80211_IFTYPE_AP) &&
+	     (priv->rxfilter & FIF_PROMISC_IN_BSS)) ||
+	    (ah->opmode == NL80211_IFTYPE_MONITOR))
+		rfilt |= ATH9K_RX_FILTER_PROM;
+
+	if (priv->rxfilter & FIF_CONTROL)
+		rfilt |= ATH9K_RX_FILTER_CONTROL;
+
+	if ((ah->opmode == NL80211_IFTYPE_STATION) &&
+	    !(priv->rxfilter & FIF_BCN_PRBRESP_PROMISC))
+		rfilt |= ATH9K_RX_FILTER_MYBEACON;
+	else
+		rfilt |= ATH9K_RX_FILTER_BEACON;
+
+	if (conf_is_ht(&priv->hw->conf))
+		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
+
+	return rfilt;
+
+#undef RX_FILTER_PRESERVE
+}
+
+/*
+ * Recv initialization for opmode change.
+ */
+static void ath9k_htc_opmode_init(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	u32 rfilt, mfilt[2];
+
+	/* configure rx filter */
+	rfilt = ath9k_htc_calcrxfilter(priv);
+	ath9k_hw_setrxfilter(ah, rfilt);
+
+	/* configure bssid mask */
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
+		ath_hw_setbssidmask(common);
+
+	/* configure operational mode */
+	ath9k_hw_setopmode(ah);
+
+	/* Handle any link-level address change. */
+	ath9k_hw_setmac(ah, common->macaddr);
+
+	/* calculate and install multicast filter */
+	mfilt[0] = mfilt[1] = ~0;
+	ath9k_hw_setmcastfilter(ah, mfilt[0], mfilt[1]);
+}
+
 void ath9k_host_rx_init(struct ath9k_htc_priv *priv)
 {
 	ath9k_hw_rxena(priv->ah);
-	ath9k_cmn_opmode_init(priv->hw, priv->ah, priv->rxfilter);
+	ath9k_htc_opmode_init(priv);
 	ath9k_hw_startpcureceive(priv->ah);
 	priv->rx.last_rssi = ATH_RSSI_DUMMY_MARKER;
 }

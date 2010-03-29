@@ -1299,7 +1299,7 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 	*total_flags &= SUPPORTED_FILTERS;
 
 	priv->rxfilter = *total_flags;
-	rfilt = ath9k_cmn_calcrxfilter(hw, priv->ah, priv->rxfilter);
+	rfilt = ath9k_htc_calcrxfilter(priv);
 	ath9k_hw_setrxfilter(priv->ah, rfilt);
 
 	ath_print(ath9k_hw_common(priv->ah), ATH_DBG_CONFIG,
