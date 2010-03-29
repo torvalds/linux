@@ -569,8 +569,8 @@ void padata_stop(struct padata_instance *pinst)
 }
 EXPORT_SYMBOL(padata_stop);
 
-static int __cpuinit padata_cpu_callback(struct notifier_block *nfb,
-					 unsigned long action, void *hcpu)
+static int padata_cpu_callback(struct notifier_block *nfb,
+			       unsigned long action, void *hcpu)
 {
 	int err;
 	struct padata_instance *pinst;
