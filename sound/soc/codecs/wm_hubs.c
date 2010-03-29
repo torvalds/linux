@@ -113,13 +113,15 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		/* HPOUT1L */
 		reg = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_1) &
 			WM8993_DCS_INTEG_CHAN_0_MASK;;
-		reg += hubs->dcs_codes;
+		if (reg + hubs->dcs_codes > 0 && reg + hubs->dcs_codes < 0xff)
+			reg += hubs->dcs_codes;
 		dcs_cfg = reg << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
 
 		/* HPOUT1R */
 		reg = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_2) &
 			WM8993_DCS_INTEG_CHAN_1_MASK;
-		reg += hubs->dcs_codes;
+		if (reg + hubs->dcs_codes > 0 && reg + hubs->dcs_codes < 0xff)
+			reg += hubs->dcs_codes;
 		dcs_cfg |= reg;
 
 		/* Do it */
