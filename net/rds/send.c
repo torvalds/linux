@@ -415,8 +415,9 @@ void rds_rdma_send_complete(struct rds_message *rm, int status)
 	struct rds_sock *rs = NULL;
 	struct rds_rdma_op *ro;
 	struct rds_notifier *notifier;
+	unsigned long flags;
 
-	spin_lock(&rm->m_rs_lock);
+	spin_lock_irqsave(&rm->m_rs_lock, flags);
 
 	ro = rm->m_rdma_op;
 	if (test_bit(RDS_MSG_ON_SOCK, &rm->m_flags) &&
@@ -433,7 +434,7 @@ void rds_rdma_send_complete(struct rds_message *rm, int status)
 		ro->r_notifier = NULL;
 	}
 
-	spin_unlock(&rm->m_rs_lock);
+	spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 
 	if (rs) {
 		rds_wake_sk_sleep(rs);
@@ -647,8 +648,8 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 	list_for_each_entry(rm, &list, m_sock_item) {
 
 		conn = rm->m_inc.i_conn;
-		spin_lock_irqsave(&conn->c_lock, flags);
 
+		spin_lock_irqsave(&conn->c_lock, flags);
 		/*
 		 * Maybe someone else beat us to removing rm from the conn.
 		 * If we race with their flag update we'll get the lock and
@@ -658,23 +659,23 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 			spin_unlock_irqrestore(&conn->c_lock, flags);
 			continue;
 		}
+		list_del_init(&rm->m_conn_item);
+		spin_unlock_irqrestore(&conn->c_lock, flags);
 
 		/*
 		 * Couldn't grab m_rs_lock in top loop (lock ordering),
 		 * but we can now.
 		 */
-		spin_lock(&rm->m_rs_lock);
+		spin_lock_irqsave(&rm->m_rs_lock, flags);
 
 		spin_lock(&rs->rs_lock);
 		__rds_rdma_send_complete(rs, rm, RDS_RDMA_CANCELED);
 		spin_unlock(&rs->rs_lock);
 
 		rm->m_rs = NULL;
-		spin_unlock(&rm->m_rs_lock);
+		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 
-		list_del_init(&rm->m_conn_item);
 		rds_message_put(rm);
-		spin_unlock_irqrestore(&conn->c_lock, flags);
 	}
 
 	rds_wake_sk_sleep(rs);
