@@ -4610,6 +4610,27 @@ static void md_clean(mddev_t *mddev)
 	mddev->bitmap_info.max_write_behind = 0;
 }
 
+static void md_stop_writes(mddev_t *mddev)
+{
+	if (mddev->sync_thread) {
+		set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
+		md_unregister_thread(mddev->sync_thread);
+		mddev->sync_thread = NULL;
+	}
+
+	del_timer_sync(&mddev->safemode_timer);
+
+	bitmap_flush(mddev);
+	md_super_wait(mddev);
+
+	if (!mddev->in_sync || mddev->flags) {
+		/* mark array as shutdown cleanly */
+		mddev->in_sync = 1;
+		md_update_sb(mddev, 1);
+	}
+}
+
 static void md_stop(mddev_t *mddev)
 {
 	mddev->pers->stop(mddev);
@@ -4637,14 +4658,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		err = -EBUSY;
 	} else if (mddev->pers) {
 
-		if (mddev->sync_thread) {
-			set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
-			md_unregister_thread(mddev->sync_thread);
-			mddev->sync_thread = NULL;
-		}
-
-		del_timer_sync(&mddev->safemode_timer);
+		md_stop_writes(mddev);
 
 		switch(mode) {
 		case 1: /* readonly */
@@ -4655,8 +4669,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			break;
 		case 0: /* disassemble */
 		case 2: /* stop */
-			bitmap_flush(mddev);
-			md_super_wait(mddev);
 			if (mddev->ro)
 				set_disk_ro(disk, 0);
 
@@ -4680,11 +4692,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 
 			if (mddev->ro)
 				mddev->ro = 0;
-		}
-		if (!mddev->in_sync || mddev->flags) {
-			/* mark array as shutdown cleanly */
-			mddev->in_sync = 1;
-			md_update_sb(mddev, 1);
 		}
 		if (mode == 1)
 			set_disk_ro(disk, 1);
