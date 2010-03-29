@@ -96,8 +96,6 @@ struct intel_framebuffer {
 
 
 struct intel_encoder {
-	struct drm_connector base;
-
 	struct drm_encoder enc;
 	int type;
 	struct i2c_adapter *i2c_bus;
@@ -157,7 +155,6 @@ struct intel_crtc {
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
-#define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_connector(x) container_of(x, struct intel_connector, base)
 #define enc_to_intel_encoder(x) container_of(x, struct intel_encoder, enc)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
@@ -189,7 +186,6 @@ extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);
 extern void intel_encoder_commit (struct drm_encoder *encoder);
 
-extern struct drm_encoder *intel_best_encoder(struct drm_connector *connector);
 extern struct drm_encoder *intel_attached_encoder(struct drm_connector *connector);
 
 extern struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
