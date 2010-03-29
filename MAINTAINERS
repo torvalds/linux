@@ -3270,6 +3270,16 @@ S:	Maintained
 F:	include/linux/kexec.h
 F:	kernel/kexec.c
 
+KEYS/KEYRINGS:
+M:	David Howells <dhowells@redhat.com>
+L:	keyrings@linux-nfs.org
+S:	Maintained
+F:	Documentation/keys.txt
+F:	include/linux/key.h
+F:	include/linux/key-type.h
+F:	include/keys/
+F:	security/keys/
+
 KGDB
 M:	Jason Wessel <jason.wessel@windriver.com>
 L:	kgdb-bugreport@lists.sourceforge.net
