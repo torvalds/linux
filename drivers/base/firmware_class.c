@@ -50,6 +50,7 @@ struct firmware_priv {
 	int page_array_size;
 	const char *vdata;
 	struct timer_list timeout;
+	bool nowait;
 };
 
 #ifdef CONFIG_FW_LOADER
@@ -111,6 +112,8 @@ static int firmware_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (add_uevent_var(env, "FIRMWARE=%s", fw_priv->fw_id))
 		return -ENOMEM;
 	if (add_uevent_var(env, "TIMEOUT=%i", loading_timeout))
+		return -ENOMEM;
+	if (add_uevent_var(env, "ASYNC=%d", fw_priv->nowait))
 		return -ENOMEM;
 
 	return 0;
@@ -441,7 +444,7 @@ error_kfree:
 
 static int fw_setup_device(struct firmware *fw, struct device **dev_p,
 			   const char *fw_name, struct device *device,
-			   int uevent)
+			   int uevent, bool nowait)
 {
 	struct device *f_dev;
 	struct firmware_priv *fw_priv;
@@ -456,6 +459,8 @@ static int fw_setup_device(struct firmware *fw, struct device **dev_p,
 	__module_get(THIS_MODULE);
 
 	fw_priv = dev_get_drvdata(f_dev);
+
+	fw_priv->nowait = nowait;
 
 	fw_priv->fw = fw;
 	sysfs_bin_attr_init(&fw_priv->attr_data);
@@ -484,7 +489,7 @@ out:
 
 static int
 _request_firmware(const struct firmware **firmware_p, const char *name,
-		 struct device *device, int uevent)
+		 struct device *device, int uevent, bool nowait)
 {
 	struct device *f_dev;
 	struct firmware_priv *fw_priv;
@@ -516,7 +521,8 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	if (uevent)
 		dev_dbg(device, "firmware: requesting %s\n", name);
 
-	retval = fw_setup_device(firmware, &f_dev, name, device, uevent);
+	retval = fw_setup_device(firmware, &f_dev, name, device,
+				 uevent, nowait);
 	if (retval)
 		goto error_kfree_fw;
 
@@ -573,7 +579,7 @@ request_firmware(const struct firmware **firmware_p, const char *name,
                  struct device *device)
 {
         int uevent = 1;
-        return _request_firmware(firmware_p, name, device, uevent);
+        return _request_firmware(firmware_p, name, device, uevent, false);
 }
 
 /**
@@ -619,7 +625,7 @@ request_firmware_work_func(void *arg)
 		return 0;
 	}
 	ret = _request_firmware(&fw, fw_work->name, fw_work->device,
-		fw_work->uevent);
+		fw_work->uevent, true);
 
 	fw_work->cont(fw, fw_work->context);
 
