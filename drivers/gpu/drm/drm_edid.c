@@ -733,12 +733,12 @@ bad_std_timing(u8 a, u8 b)
  * Take the standard timing params (in this case width, aspect, and refresh)
  * and convert them into a real mode using CVT/GTF/DMT.
  */
-struct drm_display_mode *drm_mode_std(struct drm_device *dev,
-				      struct std_timing *t,
-				      int revision,
-				      int timing_level)
+static struct drm_display_mode *
+drm_mode_std(struct drm_connector *connector, struct std_timing *t,
+	     int revision, int timing_level)
 {
-	struct drm_display_mode *mode;
+	struct drm_device *dev = connector->dev;
+	struct drm_display_mode *m, *mode = NULL;
 	int hsize, vsize;
 	int vrefresh_rate;
 	unsigned aspect_ratio = (t->vfreq_aspect & EDID_TIMING_ASPECT_MASK)
@@ -774,6 +774,17 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 		vsize = 768;
 	}
 
+	/*
+	 * If this connector already has a mode for this size and refresh
+	 * rate (because it came from detailed or CVT info), use that
+	 * instead.  This way we don't have to guess at interlace or
+	 * reduced blanking.
+	 */
+	list_for_each_entry(m, &connector->modes, head)
+		if (m->hdisplay == hsize && m->vdisplay == vsize &&
+		    drm_mode_vrefresh(m) == vrefresh_rate)
+			return NULL;
+
 	/* HDTV hack, part 2 */
 	if (hsize == 1366 && vsize == 768 && vrefresh_rate == 60) {
 		mode = drm_cvt_mode(dev, 1366, 768, vrefresh_rate, 0, 0,
@@ -784,7 +795,6 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 		return mode;
 	}
 
-	mode = NULL;
 	/* check whether it can be found in default mode table */
 	mode = drm_find_dmt(dev, hsize, vsize, vrefresh_rate);
 	if (mode)
@@ -1055,17 +1065,15 @@ static int standard_timing_level(struct edid *edid)
  */
 static int add_standard_modes(struct drm_connector *connector, struct edid *edid)
 {
-	struct drm_device *dev = connector->dev;
 	int i, modes = 0;
 	int timing_level;
 
 	timing_level = standard_timing_level(edid);
 
 	for (i = 0; i < EDID_STD_TIMINGS; i++) {
-		struct std_timing *t = &edid->standard_timings[i];
 		struct drm_display_mode *newmode;
 
-		newmode = drm_mode_std(dev, &edid->standard_timings[i],
+		newmode = drm_mode_std(connector, &edid->standard_timings[i],
 				       edid->revision, timing_level);
 		if (newmode) {
 			drm_mode_probed_add(connector, newmode);
@@ -1362,7 +1370,7 @@ static int add_detailed_modes(struct drm_connector *connector,
 			struct drm_display_mode *newmode;
 
 			std = &data->data.timings[i];
-			newmode = drm_mode_std(dev, std, edid->revision,
+			newmode = drm_mode_std(connector, std, edid->revision,
 					       timing_level);
 			if (newmode) {
 				drm_mode_probed_add(connector, newmode);
