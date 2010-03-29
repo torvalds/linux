@@ -406,8 +406,7 @@ void rds_message_wait(struct rds_message *rm)
 void rds_message_unmapped(struct rds_message *rm)
 {
 	clear_bit(RDS_MSG_MAPPED, &rm->m_flags);
-	if (waitqueue_active(&rds_message_flush_waitq))
-		wake_up(&rds_message_flush_waitq);
+	wake_up(&rds_message_flush_waitq);
 }
 EXPORT_SYMBOL_GPL(rds_message_unmapped);
 
