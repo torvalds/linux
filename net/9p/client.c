@@ -533,7 +533,12 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 
 	P9_DPRINTK(P9_DEBUG_MUX, "client %p op %d\n", c, type);
 
-	if (c->status != Connected)
+	/* we allow for any status other than disconnected */
+	if (c->status == Disconnected)
+		return ERR_PTR(-EIO);
+
+	/* if status is begin_disconnected we allow only clunk request */
+	if ((c->status == BeginDisconnect) && (type != P9_TCLUNK))
 		return ERR_PTR(-EIO);
 
 	if (signal_pending(current)) {
@@ -799,8 +804,10 @@ void p9_client_destroy(struct p9_client *clnt)
 
 	v9fs_put_trans(clnt->trans_mod);
 
-	list_for_each_entry_safe(fid, fidptr, &clnt->fidlist, flist)
+	list_for_each_entry_safe(fid, fidptr, &clnt->fidlist, flist) {
+		printk(KERN_INFO "Found fid %d not clunked\n", fid->fid);
 		p9_fid_destroy(fid);
+	}
 
 	if (clnt->fidpool)
 		p9_idpool_destroy(clnt->fidpool);
@@ -817,6 +824,13 @@ void p9_client_disconnect(struct p9_client *clnt)
 	clnt->status = Disconnected;
 }
 EXPORT_SYMBOL(p9_client_disconnect);
+
+void p9_client_begin_disconnect(struct p9_client *clnt)
+{
+	P9_DPRINTK(P9_DEBUG_9P, "clnt %p\n", clnt);
+	clnt->status = BeginDisconnect;
+}
+EXPORT_SYMBOL(p9_client_begin_disconnect);
 
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 	char *uname, u32 n_uname, char *aname)
