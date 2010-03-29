@@ -35,7 +35,6 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 #include "intel_sdvo_regs.h"
-#include <linux/dmi.h>
 
 #define SDVO_TMDS_MASK (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1)
 #define SDVO_RGB_MASK  (SDVO_OUTPUT_RGB0 | SDVO_OUTPUT_RGB1)
@@ -2179,25 +2178,6 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, int sdvo_reg)
 		return 0x72;
 }
 
-static int intel_sdvo_bad_tv_callback(const struct dmi_system_id *id)
-{
-	DRM_DEBUG_KMS("Ignoring bad SDVO TV connector for %s\n", id->ident);
-	return 1;
-}
-
-static struct dmi_system_id intel_sdvo_bad_tv[] = {
-	{
-		.callback = intel_sdvo_bad_tv_callback,
-		.ident = "IntelG45/ICH10R/DME1737",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "IBM CORPORATION"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "4800784"),
-		},
-	},
-
-	{ }	/* terminating entry */
-};
-
 static bool
 intel_sdvo_connector_alloc (struct intel_connector **ret)
 {
@@ -2396,7 +2376,7 @@ intel_sdvo_output_setup(struct intel_encoder *intel_encoder, uint16_t flags)
 			return false;
 
 	/* TV has no XXX1 function block */
-	if ((flags & SDVO_OUTPUT_SVID0) && !dmi_check_system(intel_sdvo_bad_tv))
+	if (flags & SDVO_OUTPUT_SVID0)
 		if (!intel_sdvo_tv_init(intel_encoder, SDVO_OUTPUT_SVID0))
 			return false;
 
