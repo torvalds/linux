@@ -703,6 +703,11 @@ netxen_nic_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
+static u32 netxen_nic_get_tx_csum(struct net_device *dev)
+{
+	return dev->features & NETIF_F_IP_CSUM;
+}
+
 static u32 netxen_nic_get_rx_csum(struct net_device *dev)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
@@ -909,6 +914,7 @@ const struct ethtool_ops netxen_nic_ethtool_ops = {
 	.set_ringparam = netxen_nic_set_ringparam,
 	.get_pauseparam = netxen_nic_get_pauseparam,
 	.set_pauseparam = netxen_nic_set_pauseparam,
+	.get_tx_csum = netxen_nic_get_tx_csum,
 	.set_tx_csum = ethtool_op_set_tx_csum,
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = netxen_nic_get_tso,
