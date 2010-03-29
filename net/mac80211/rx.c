@@ -38,7 +38,7 @@ static struct sk_buff *remove_monitor_info(struct ieee80211_local *local,
 {
 	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS) {
 		if (likely(skb->len > FCS_LEN))
-			skb_trim(skb, skb->len - FCS_LEN);
+			__pskb_trim(skb, skb->len - FCS_LEN);
 		else {
 			/* driver bug */
 			WARN_ON(1);
@@ -226,6 +226,12 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 
 	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
 		present_fcs_len = FCS_LEN;
+
+	/* make sure hdr->frame_control is on the linear part */
+	if (!pskb_may_pull(origskb, 2)) {
+		dev_kfree_skb(origskb);
+		return NULL;
+	}
 
 	if (!local->monitors) {
 		if (should_drop_frame(origskb, present_fcs_len)) {
@@ -931,6 +937,9 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 	}
 
+	if (skb_linearize(rx->skb))
+		return RX_DROP_UNUSABLE;
+
 	/* Check for weak IVs if possible */
 	if (rx->sta && rx->key->conf.alg == ALG_WEP &&
 	    ieee80211_is_data(hdr->frame_control) &&
@@ -1230,6 +1239,9 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 		goto out;
 	}
 	I802_DEBUG_INC(rx->local->rx_handlers_fragments);
+
+	if (skb_linearize(rx->skb))
+		return RX_DROP_UNUSABLE;
 
 	seq = (sc & IEEE80211_SCTL_SEQ) >> 4;
 
@@ -1587,6 +1599,9 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 
 	skb->dev = dev;
 	__skb_queue_head_init(&frame_list);
+
+	if (skb_linearize(skb))
+		return RX_DROP_UNUSABLE;
 
 	ieee80211_amsdu_to_8023s(skb, &frame_list, dev->dev_addr,
 				 rx->sdata->vif.type,
@@ -2357,29 +2372,42 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_hdr *hdr;
+	__le16 fc;
 	struct ieee80211_rx_data rx;
 	int prepares;
 	struct ieee80211_sub_if_data *prev = NULL;
 	struct sk_buff *skb_new;
 	struct sta_info *sta, *tmp;
 	bool found_sta = false;
+	int err = 0;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
+	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
 	memset(&rx, 0, sizeof(rx));
 	rx.skb = skb;
 	rx.local = local;
 
-	if (ieee80211_is_data(hdr->frame_control) || ieee80211_is_mgmt(hdr->frame_control))
+	if (ieee80211_is_data(fc) || ieee80211_is_mgmt(fc))
 		local->dot11ReceivedFragmentCount++;
 
 	if (unlikely(test_bit(SCAN_HW_SCANNING, &local->scanning) ||
 		     test_bit(SCAN_OFF_CHANNEL, &local->scanning)))
 		rx.flags |= IEEE80211_RX_IN_SCAN;
 
+	if (ieee80211_is_mgmt(fc))
+		err = skb_linearize(skb);
+	else
+		err = !pskb_may_pull(skb, ieee80211_hdrlen(fc));
+
+	if (err) {
+		dev_kfree_skb(skb);
+		return;
+	}
+
+	hdr = (struct ieee80211_hdr *)skb->data;
 	ieee80211_parse_qos(&rx);
 	ieee80211_verify_alignment(&rx);
 
-	if (ieee80211_is_data(hdr->frame_control)) {
+	if (ieee80211_is_data(fc)) {
 		for_each_sta_info(local, hdr->addr2, sta, tmp) {
 			rx.sta = sta;
 			found_sta = true;
