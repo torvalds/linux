@@ -162,9 +162,15 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm_hubs_data *hubs = codec->private_data;
 	int ret;
 
 	ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
+
+	/* If we're applying an offset correction then updating the
+	 * callibration would be likely to introduce further offsets. */
+	if (hubs->dcs_codes)
+		return ret;
 
 	/* Only need to do this if the outputs are active */
 	if (snd_soc_read(codec, WM8993_POWER_MANAGEMENT_1)
