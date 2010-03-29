@@ -672,6 +672,15 @@ void dump_bfin_trace_buffer(void)
 			 * the trace buffer, (since it doesn't commit), so
 			 * we print out the fault address here
 			 */
+			if (!fault && addr == ((unsigned short *)evt_ivhw)) {
+				addr = (unsigned short *)bfin_read_TBUF();
+				decode_address(buf, (unsigned long)addr);
+				pr_notice("      FAULT : %s ", buf);
+				decode_instruction(addr);
+				pr_cont("\n");
+				fault = 1;
+				continue;
+			}
 			if (!fault && addr == (unsigned short *)trap &&
 				(cpu_pda[cpu].seqstat & SEQSTAT_EXCAUSE) > VEC_EXCPT15) {
 				decode_address(buf, cpu_pda[cpu].icplb_fault_addr);
