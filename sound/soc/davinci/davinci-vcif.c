@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/mfd/davinci_voicecodec.h>
 
