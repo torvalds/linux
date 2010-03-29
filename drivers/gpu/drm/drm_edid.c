@@ -1066,36 +1066,89 @@ static int add_standard_modes(struct drm_connector *connector, struct edid *edid
 	return modes;
 }
 
+static bool
+mode_is_rb(struct drm_display_mode *mode)
+{
+	return (mode->htotal - mode->hdisplay == 160) &&
+	       (mode->hsync_end - mode->hdisplay == 80) &&
+	       (mode->hsync_end - mode->hsync_start == 32) &&
+	       (mode->vsync_start - mode->vdisplay == 3);
+}
+
+static bool
+mode_in_hsync_range(struct drm_display_mode *mode, struct edid *edid, u8 *t)
+{
+	int hsync, hmin, hmax;
+
+	hmin = t[7];
+	if (edid->revision >= 4)
+	    hmin += ((t[4] & 0x04) ? 255 : 0);
+	hmax = t[8];
+	if (edid->revision >= 4)
+	    hmax += ((t[4] & 0x08) ? 255 : 0);
+	hsync = drm_mode_hsync(mode);
+
+	return (hsync <= hmax && hsync >= hmin);
+}
+
+static bool
+mode_in_vsync_range(struct drm_display_mode *mode, struct edid *edid, u8 *t)
+{
+	int vsync, vmin, vmax;
+
+	vmin = t[5];
+	if (edid->revision >= 4)
+	    vmin += ((t[4] & 0x01) ? 255 : 0);
+	vmax = t[6];
+	if (edid->revision >= 4)
+	    vmax += ((t[4] & 0x02) ? 255 : 0);
+	vsync = drm_mode_vrefresh(mode);
+
+	return (vsync <= vmax && vsync >= vmin);
+}
+
+static u32
+range_pixel_clock(struct edid *edid, u8 *t)
+{
+	/* unspecified */
+	if (t[9] == 0 || t[9] == 255)
+		return 0;
+
+	/* 1.4 with CVT support gives us real precision, yay */
+	if (edid->revision >= 4 && t[10] == 0x04)
+		return (t[9] * 10000) - ((t[12] >> 2) * 250);
+
+	/* 1.3 is pathetic, so fuzz up a bit */
+	return t[9] * 10000 + 5001;
+}
+
 /*
- * XXX fix this for:
- * - GTF secondary curve formula
- * - EDID 1.4 range offsets
- * - CVT extended bits
+ * XXX fix this for GTF secondary curve formula
  */
 static bool
-mode_in_range(struct drm_display_mode *mode, struct detailed_timing *timing)
+mode_in_range(struct drm_display_mode *mode, struct edid *edid,
+	      struct detailed_timing *timing)
 {
-	struct detailed_data_monitor_range *range;
-	int hsync, vrefresh;
+	u32 max_clock;
+	u8 *t = (u8 *)timing;
 
-	range = &timing->data.other_data.data.range;
-
-	hsync = drm_mode_hsync(mode);
-	vrefresh = drm_mode_vrefresh(mode);
-
-	if (hsync < range->min_hfreq_khz || hsync > range->max_hfreq_khz)
+	if (!mode_in_hsync_range(mode, edid, t))
 		return false;
 
-	if (vrefresh < range->min_vfreq || vrefresh > range->max_vfreq)
+	if (!mode_in_vsync_range(mode, edid, t))
 		return false;
 
-	if (range->pixel_clock_mhz && range->pixel_clock_mhz != 0xff) {
-		/* be forgiving since it's in units of 10MHz */
-		int max_clock = range->pixel_clock_mhz * 10 + 9;
-		max_clock *= 1000;
+	if ((max_clock = range_pixel_clock(edid, t)))
 		if (mode->clock > max_clock)
 			return false;
-	}
+
+	/* 1.4 max horizontal check */
+	if (edid->revision >= 4 && t[10] == 0x04)
+		if (t[13] && mode->hdisplay > 8 * (t[13] + (256 * (t[12]&0x3))))
+			return false;
+
+	if (mode_is_rb(mode) && !drm_monitor_supports_rb(edid))
+		return false;
 
 	return true;
 }
@@ -1104,15 +1157,16 @@ mode_in_range(struct drm_display_mode *mode, struct detailed_timing *timing)
  * XXX If drm_dmt_modes ever regrows the CVT-R modes (and it will) this will
  * need to account for them.
  */
-static int drm_gtf_modes_for_range(struct drm_connector *connector,
-				   struct detailed_timing *timing)
+static int
+drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
+			struct detailed_timing *timing)
 {
 	int i, modes = 0;
 	struct drm_display_mode *newmode;
 	struct drm_device *dev = connector->dev;
 
 	for (i = 0; i < drm_num_dmt_modes; i++) {
-		if (mode_in_range(drm_dmt_modes + i, timing)) {
+		if (mode_in_range(drm_dmt_modes + i, edid, timing)) {
 			newmode = drm_mode_duplicate(dev, &drm_dmt_modes[i]);
 			if (newmode) {
 				drm_mode_probed_add(connector, newmode);
@@ -1288,7 +1342,8 @@ static int add_detailed_modes(struct drm_connector *connector,
 	switch (data->type) {
 	case EDID_DETAIL_MONITOR_RANGE:
 		if (gtf)
-			modes += drm_gtf_modes_for_range(connector, timing);
+			modes += drm_gtf_modes_for_range(connector, edid,
+							 timing);
 		break;
 	case EDID_DETAIL_STD_MODES:
 		/* Six modes per detailed section */
