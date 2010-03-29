@@ -1120,8 +1120,18 @@ unsigned int videobuf_poll_stream(struct file *file,
 	if (0 == rc) {
 		poll_wait(file, &buf->done, wait);
 		if (buf->state == VIDEOBUF_DONE ||
-		    buf->state == VIDEOBUF_ERROR)
-			rc = POLLIN|POLLRDNORM;
+		    buf->state == VIDEOBUF_ERROR) {
+			switch (q->type) {
+			case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+			case V4L2_BUF_TYPE_VBI_OUTPUT:
+			case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
+				rc = POLLOUT | POLLWRNORM;
+				break;
+			default:
+				rc = POLLIN | POLLRDNORM;
+				break;
+			}
+		}
 	}
 	mutex_unlock(&q->vb_lock);
 	return rc;
