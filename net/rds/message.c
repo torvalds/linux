@@ -256,7 +256,7 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 	int num_sgs = ceil(total_len, PAGE_SIZE);
 	int extra_bytes = num_sgs * sizeof(struct scatterlist);
 
-	rm = rds_message_alloc(extra_bytes, GFP_KERNEL);
+	rm = rds_message_alloc(extra_bytes, GFP_NOWAIT);
 	if (!rm)
 		return ERR_PTR(-ENOMEM);
 
