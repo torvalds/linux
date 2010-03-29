@@ -1245,19 +1245,20 @@ static int __init early_platform_driver_probe_id(char *class_str,
 			 * rest of the driver core is initialized.
 			 */
 			if (!match->dev.init_name) {
-				char buf[32];
-
 				if (match->id != -1)
-					snprintf(buf, sizeof(buf), "%s.%d",
-						 match->name, match->id);
+					match->dev.init_name =
+						kasprintf(GFP_KERNEL, "%s.%d",
+							  match->name,
+							  match->id);
 				else
-					snprintf(buf, sizeof(buf), "%s",
-						 match->name);
+					match->dev.init_name =
+						kasprintf(GFP_KERNEL, "%s",
+							  match->name);
 
-				match->dev.init_name = kstrdup(buf, GFP_KERNEL);
 				if (!match->dev.init_name)
 					return -ENOMEM;
 			}
+
 			if (epdrv->pdrv->probe(match))
 				pr_warning("%s: unable to probe %s early.\n",
 					   class_str, match->name);
