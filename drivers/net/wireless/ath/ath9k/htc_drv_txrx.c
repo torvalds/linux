@@ -188,9 +188,19 @@ void ath9k_tx_tasklet(unsigned long data)
 		hdr = (struct ieee80211_hdr *) skb->data;
 		fc = hdr->frame_control;
 		tx_info = IEEE80211_SKB_CB(skb);
-		sta = tx_info->control.sta;
+
+		memset(&tx_info->status, 0, sizeof(tx_info->status));
 
 		rcu_read_lock();
+
+		sta = ieee80211_find_sta(priv->vif, hdr->addr1);
+		if (!sta) {
+			rcu_read_unlock();
+			ieee80211_tx_status(priv->hw, skb);
+			continue;
+		}
+
+		/* Check if we need to start aggregation */
 
 		if (sta && conf_is_ht(&priv->hw->conf) &&
 		    (priv->op_flags & OP_TXAGGR)
@@ -213,7 +223,7 @@ void ath9k_tx_tasklet(unsigned long data)
 
 		rcu_read_unlock();
 
-		memset(&tx_info->status, 0, sizeof(tx_info->status));
+		/* Send status to mac80211 */
 		ieee80211_tx_status(priv->hw, skb);
 	}
 }

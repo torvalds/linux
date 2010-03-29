@@ -412,31 +412,30 @@ static int ath9k_htc_aggr_oper(struct ath9k_htc_priv *priv,
 	if (tid > ATH9K_HTC_MAX_TID)
 		return -EINVAL;
 
-	rcu_read_lock();
-	sta = ieee80211_find_sta(vif, sta_addr);
-	if (sta) {
-		ista = (struct ath9k_htc_sta *) sta->drv_priv;
-	} else {
-		rcu_read_unlock();
-		return -EINVAL;
-	}
-
-	if (!ista) {
-		rcu_read_unlock();
-		return -EINVAL;
-	}
-
 	memset(&aggr, 0, sizeof(struct ath9k_htc_target_aggr));
 
-	aggr.sta_index = ista->index;
-	rcu_read_unlock();
-	aggr.tidno = tid;
-	aggr.aggr_enable = oper;
+	rcu_read_lock();
+
+	/* Check if we are able to retrieve the station */
+	sta = ieee80211_find_sta(vif, sta_addr);
+	if (!sta) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+
+	ista = (struct ath9k_htc_sta *) sta->drv_priv;
 
 	if (oper)
 		ista->tid_state[tid] = AGGR_START;
 	else
 		ista->tid_state[tid] = AGGR_STOP;
+
+	aggr.sta_index = ista->index;
+
+	rcu_read_unlock();
+
+	aggr.tidno = tid;
+	aggr.aggr_enable = oper;
 
 	WMI_CMD_BUF(WMI_TX_AGGR_ENABLE_CMDID, &aggr);
 	if (ret)
