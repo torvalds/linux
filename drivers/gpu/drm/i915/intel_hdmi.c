@@ -132,13 +132,14 @@ static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 static enum drm_connector_status
 intel_hdmi_detect(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_hdmi_priv *hdmi_priv = intel_encoder->dev_priv;
 	struct edid *edid = NULL;
 	enum drm_connector_status status = connector_status_disconnected;
 
 	hdmi_priv->has_hdmi_sink = false;
-	edid = drm_get_edid(&intel_encoder->base,
+	edid = drm_get_edid(connector,
 			    intel_encoder->ddc_bus);
 
 	if (edid) {
@@ -146,7 +147,7 @@ intel_hdmi_detect(struct drm_connector *connector)
 			status = connector_status_connected;
 			hdmi_priv->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
 		}
-		intel_encoder->base.display_info.raw_edid = NULL;
+		connector->display_info.raw_edid = NULL;
 		kfree(edid);
 	}
 
@@ -155,7 +156,8 @@ intel_hdmi_detect(struct drm_connector *connector)
 
 static int intel_hdmi_get_modes(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 
 	/* We should parse the EDID data and find out if it's an HDMI sink so
 	 * we can send audio to it.
@@ -166,13 +168,9 @@ static int intel_hdmi_get_modes(struct drm_connector *connector)
 
 static void intel_hdmi_destroy(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-
-	if (intel_encoder->i2c_bus)
-		intel_i2c_destroy(intel_encoder->i2c_bus);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
-	kfree(intel_encoder);
+	kfree(connector);
 }
 
 static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
@@ -193,12 +191,17 @@ static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_hdmi_connector_helper_funcs = {
 	.get_modes = intel_hdmi_get_modes,
 	.mode_valid = intel_hdmi_mode_valid,
-	.best_encoder = intel_best_encoder,
+	.best_encoder = intel_attached_encoder,
 };
 
 static void intel_hdmi_enc_destroy(struct drm_encoder *encoder)
 {
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+
+	if (intel_encoder->i2c_bus)
+		intel_i2c_destroy(intel_encoder->i2c_bus);
 	drm_encoder_cleanup(encoder);
+	kfree(intel_encoder);
 }
 
 static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
@@ -210,15 +213,23 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
 	struct intel_encoder *intel_encoder;
+	struct intel_connector *intel_connector;
 	struct intel_hdmi_priv *hdmi_priv;
 
 	intel_encoder = kcalloc(sizeof(struct intel_encoder) +
 			       sizeof(struct intel_hdmi_priv), 1, GFP_KERNEL);
 	if (!intel_encoder)
 		return;
+
+	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	if (!intel_connector) {
+		kfree(intel_encoder);
+		return;
+	}
+
 	hdmi_priv = (struct intel_hdmi_priv *)(intel_encoder + 1);
 
-	connector = &intel_encoder->base;
+	connector = &intel_connector->base;
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(connector, &intel_hdmi_connector_helper_funcs);
@@ -264,7 +275,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&intel_encoder->enc, &intel_hdmi_helper_funcs);
 
-	drm_mode_connector_attach_encoder(&intel_encoder->base,
+	drm_mode_connector_attach_encoder(&intel_connector->base,
 					  &intel_encoder->enc);
 	drm_sysfs_connector_add(connector);
 
@@ -282,6 +293,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 err_connector:
 	drm_connector_cleanup(connector);
 	kfree(intel_encoder);
+	kfree(intel_connector);
 
 	return;
 }
