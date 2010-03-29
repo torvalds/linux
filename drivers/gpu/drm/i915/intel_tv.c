@@ -941,7 +941,8 @@ intel_tv_mode_find (struct intel_encoder *intel_encoder)
 static enum drm_mode_status
 intel_tv_mode_valid(struct drm_connector *connector, struct drm_display_mode *mode)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_encoder);
 
 	/* Ensure TV refresh is close to desired refresh */
@@ -1313,7 +1314,8 @@ intel_tv_detect_type (struct drm_crtc *crtc, struct intel_encoder *intel_encoder
  */
 static void intel_tv_find_better_format(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_tv_priv *tv_priv = intel_encoder->dev_priv;
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_encoder);
 	int i;
@@ -1347,9 +1349,9 @@ intel_tv_detect(struct drm_connector *connector)
 {
 	struct drm_crtc *crtc;
 	struct drm_display_mode mode;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_tv_priv *tv_priv = intel_encoder->dev_priv;
-	struct drm_encoder *encoder = &intel_encoder->enc;
 	int dpms_mode;
 	int type = tv_priv->type;
 
@@ -1399,7 +1401,8 @@ static void
 intel_tv_chose_preferred_modes(struct drm_connector *connector,
 			       struct drm_display_mode *mode_ptr)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_encoder);
 
 	if (tv_mode->nbr_end < 480 && mode_ptr->vdisplay == 480)
@@ -1424,7 +1427,8 @@ static int
 intel_tv_get_modes(struct drm_connector *connector)
 {
 	struct drm_display_mode *mode_ptr;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_encoder);
 	int j, count = 0;
 	u64 tmp;
@@ -1478,11 +1482,9 @@ intel_tv_get_modes(struct drm_connector *connector)
 static void
 intel_tv_destroy (struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
-	kfree(intel_encoder);
+	kfree(connector);
 }
 
 
@@ -1491,9 +1493,9 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 		      uint64_t val)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_tv_priv *tv_priv = intel_encoder->dev_priv;
-	struct drm_encoder *encoder = &intel_encoder->enc;
 	struct drm_crtc *crtc = encoder->crtc;
 	int ret = 0;
 	bool changed = false;
@@ -1559,12 +1561,15 @@ static const struct drm_connector_funcs intel_tv_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_tv_connector_helper_funcs = {
 	.mode_valid = intel_tv_mode_valid,
 	.get_modes = intel_tv_get_modes,
-	.best_encoder = intel_best_encoder,
+	.best_encoder = intel_attached_encoder,
 };
 
 static void intel_tv_enc_destroy(struct drm_encoder *encoder)
 {
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+
 	drm_encoder_cleanup(encoder);
+	kfree(intel_encoder);
 }
 
 static const struct drm_encoder_funcs intel_tv_enc_funcs = {
@@ -1613,6 +1618,7 @@ intel_tv_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
 	struct intel_encoder *intel_encoder;
+	struct intel_connector *intel_connector;
 	struct intel_tv_priv *tv_priv;
 	u32 tv_dac_on, tv_dac_off, save_tv_dac;
 	char **tv_format_names;
@@ -1658,7 +1664,13 @@ intel_tv_init(struct drm_device *dev)
 		return;
 	}
 
-	connector = &intel_encoder->base;
+	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	if (!intel_connector) {
+		kfree(intel_encoder);
+		return;
+	}
+
+	connector = &intel_connector->base;
 
 	drm_connector_init(dev, connector, &intel_tv_connector_funcs,
 			   DRM_MODE_CONNECTOR_SVIDEO);
@@ -1666,7 +1678,7 @@ intel_tv_init(struct drm_device *dev)
 	drm_encoder_init(dev, &intel_encoder->enc, &intel_tv_enc_funcs,
 			 DRM_MODE_ENCODER_TVDAC);
 
-	drm_mode_connector_attach_encoder(&intel_encoder->base, &intel_encoder->enc);
+	drm_mode_connector_attach_encoder(&intel_connector->base, &intel_encoder->enc);
 	tv_priv = (struct intel_tv_priv *)(intel_encoder + 1);
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
