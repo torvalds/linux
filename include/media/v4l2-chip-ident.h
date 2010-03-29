@@ -178,6 +178,10 @@ enum {
 	/* module cafe_ccic, just ident 8801 */
 	V4L2_IDENT_CAFE = 8801,
 
+	/* AKM AK8813/AK8814 */
+	V4L2_IDENT_AK8813 = 8813,
+	V4L2_IDENT_AK8814 = 8814,
+
 	/* module cx23885 and cx25840 */
 	V4L2_IDENT_CX23885    = 8850,
 	V4L2_IDENT_CX23885_AV = 8851, /* Integrated A/V decoder */

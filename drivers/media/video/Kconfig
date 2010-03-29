@@ -480,6 +480,12 @@ config VIDEO_ADV7343
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7343.
 
+config VIDEO_AK881X
+	tristate "AK8813/AK8814 video encoders"
+	depends on I2C
+	help
+	  Video output driver for AKM AK8813 and AK8814 TV encoders
+
 comment "Video improvement chips"
 
 config VIDEO_UPD64031A
