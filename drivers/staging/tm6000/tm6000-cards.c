@@ -109,12 +109,22 @@ struct tm6000_board tm6000_boards[] = {
 		.type         = TM6010,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_addr   = 0xc2 >> 1,
+		.demod_addr   = 0x1e >> 1,
 		.caps = {
 			.has_tuner	= 1,
 			.has_dvb	= 1,
+			.has_zl10353	= 1,
+			.has_eeprom	= 1,
+			.has_remote	= 1,
 		},
 		.gpio = {
-			.tuner_reset	= TM6010_GPIO_4,
+			.tuner_reset	= TM6010_GPIO_2,
+			.tuner_on	= TM6010_GPIO_3,
+			.demod_reset	= TM6010_GPIO_1,
+			.demod_on	= TM6010_GPIO_4,
+			.power_led	= TM6010_GPIO_7,
+			.dvb_led	= TM6010_GPIO_5,
+			.ir		= TM6010_GPIO_0,
 		},
 	},
 	[TM5600_BOARD_10MOONS_UT821] = {
@@ -400,6 +410,7 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 	case TM6010_BOARD_HAUPPAUGE_900H:
 	case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
 	case TM6010_BOARD_TWINHAN_TU501:
+	case TM6010_BOARD_GENERIC:
 		/* Turn xceive 3028 on */
 		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, dev->gpio.tuner_on, 0x01);
 		msleep(15);
