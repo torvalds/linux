@@ -15,6 +15,7 @@
  *
  */
 
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
