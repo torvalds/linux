@@ -750,9 +750,6 @@ void dp_link_train(struct drm_encoder *encoder,
 	else
 		radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_COMPLETE,
 					  dig_connector->dp_clock, enc_id, 0);
-
-	radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_COMPLETE,
-				  dig_connector->dp_clock, enc_id, 0);
 }
 
 int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
