@@ -1419,7 +1419,8 @@ ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx)
 		return 0;
 
 	if (rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP)) {
-		if (unlikely(ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
+		if (unlikely(!ieee80211_has_protected(fc) &&
+			     ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
 			     rx->key))
 			return -EACCES;
 		/* BIP does not use Protected field, so need to check MMIE */
