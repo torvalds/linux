@@ -3138,7 +3138,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_edp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_encoder *encoder;
-	struct intel_encoder *intel_encoder;
+	struct intel_encoder *intel_encoder = NULL;
 	const intel_limit_t *limit;
 	int ret;
 	struct fdi_m_n m_n = {0};
@@ -3264,10 +3264,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		/* eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
 		if (is_edp) {
-			struct drm_connector *edp;
 			target_clock = mode->clock;
-			edp = intel_pipe_get_connector(crtc);
-			intel_edp_link_config(to_intel_encoder(edp),
+			intel_edp_link_config(intel_encoder,
 					&lane, &link_bw);
 		} else {
 			/* DP over FDI requires target mode clock

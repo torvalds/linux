@@ -138,7 +138,8 @@ static int
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_encoder));
 	int max_lanes = intel_dp_max_lane_count(intel_encoder);
 
@@ -212,7 +213,7 @@ intel_dp_aux_ch(struct intel_encoder *intel_encoder,
 {
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	uint32_t output_reg = dp_priv->output_reg;
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t ch_ctl = output_reg + 0x10;
 	uint32_t ch_data = ch_ctl + 4;
@@ -470,7 +471,8 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 }
 
 static int
-intel_dp_i2c_init(struct intel_encoder *intel_encoder, const char *name)
+intel_dp_i2c_init(struct intel_encoder *intel_encoder,
+		  struct intel_connector *intel_connector, const char *name)
 {
 	struct intel_dp_priv   *dp_priv = intel_encoder->dev_priv;
 
@@ -485,7 +487,7 @@ intel_dp_i2c_init(struct intel_encoder *intel_encoder, const char *name)
 	strncpy (dp_priv->adapter.name, name, sizeof(dp_priv->adapter.name) - 1);
 	dp_priv->adapter.name[sizeof(dp_priv->adapter.name) - 1] = '\0';
 	dp_priv->adapter.algo_data = &dp_priv->algo;
-	dp_priv->adapter.dev.parent = &intel_encoder->base.kdev;
+	dp_priv->adapter.dev.parent = &intel_connector->base.kdev;
 	
 	return i2c_dp_aux_add_bus(&dp_priv->adapter);
 }
@@ -560,7 +562,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_connector *connector;
+	struct drm_encoder *encoder;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int lane_count = 4;
@@ -569,12 +571,15 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	/*
 	 * Find the lane count in the intel_encoder private
 	 */
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-		struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
+	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
+		struct intel_encoder *intel_encoder;
+		struct intel_dp_priv *dp_priv;
 
-		if (!connector->encoder || connector->encoder->crtc != crtc)
+		if (!encoder || encoder->crtc != crtc)
 			continue;
+
+		intel_encoder = enc_to_intel_encoder(encoder);
+		dp_priv = intel_encoder->dev_priv;
 
 		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
 			lane_count = dp_priv->lane_count;
@@ -718,7 +723,7 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t dp_reg = I915_READ(dp_priv->output_reg);
 
@@ -967,7 +972,7 @@ intel_dp_set_link_train(struct intel_encoder *intel_encoder,
 			uint8_t train_set[4],
 			bool first)
 {
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	int ret;
@@ -993,7 +998,7 @@ static void
 intel_dp_link_train(struct intel_encoder *intel_encoder, uint32_t DP,
 		    uint8_t link_configuration[DP_LINK_CONFIGURATION_SIZE])
 {
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	uint8_t	train_set[4];
@@ -1128,7 +1133,7 @@ intel_dp_link_train(struct intel_encoder *intel_encoder, uint32_t DP,
 static void
 intel_dp_link_down(struct intel_encoder *intel_encoder, uint32_t DP)
 {
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 
@@ -1189,7 +1194,8 @@ intel_dp_check_link_status(struct intel_encoder *intel_encoder)
 static enum drm_connector_status
 ironlake_dp_detect(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	enum drm_connector_status status;
 
@@ -1213,8 +1219,9 @@ ironlake_dp_detect(struct drm_connector *connector)
 static enum drm_connector_status
 intel_dp_detect(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	uint32_t temp, bit;
@@ -1267,8 +1274,9 @@ intel_dp_detect(struct drm_connector *connector)
 
 static int intel_dp_get_modes(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
@@ -1294,13 +1302,9 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 static void
 intel_dp_destroy (struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-
-	if (intel_encoder->i2c_bus)
-		intel_i2c_destroy(intel_encoder->i2c_bus);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
-	kfree(intel_encoder);
+	kfree(connector);
 }
 
 static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
@@ -1321,12 +1325,17 @@ static const struct drm_connector_funcs intel_dp_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_dp_connector_helper_funcs = {
 	.get_modes = intel_dp_get_modes,
 	.mode_valid = intel_dp_mode_valid,
-	.best_encoder = intel_best_encoder,
+	.best_encoder = intel_attached_encoder,
 };
 
 static void intel_dp_enc_destroy(struct drm_encoder *encoder)
 {
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+
+	if (intel_encoder->i2c_bus)
+		intel_i2c_destroy(intel_encoder->i2c_bus);
 	drm_encoder_cleanup(encoder);
+	kfree(intel_encoder);
 }
 
 static const struct drm_encoder_funcs intel_dp_enc_funcs = {
@@ -1370,6 +1379,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
 	struct intel_encoder *intel_encoder;
+	struct intel_connector *intel_connector;
 	struct intel_dp_priv *dp_priv;
 	const char *name = NULL;
 
@@ -1378,9 +1388,15 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	if (!intel_encoder)
 		return;
 
+	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	if (!intel_connector) {
+		kfree(intel_encoder);
+		return;
+	}
+
 	dp_priv = (struct intel_dp_priv *)(intel_encoder + 1);
 
-	connector = &intel_encoder->base;
+	connector = &intel_connector->base;
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs,
 			   DRM_MODE_CONNECTOR_DisplayPort);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
@@ -1414,7 +1430,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&intel_encoder->enc, &intel_dp_helper_funcs);
 
-	drm_mode_connector_attach_encoder(&intel_encoder->base,
+	drm_mode_connector_attach_encoder(&intel_connector->base,
 					  &intel_encoder->enc);
 	drm_sysfs_connector_add(connector);
 
@@ -1443,7 +1459,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			break;
 	}
 
-	intel_dp_i2c_init(intel_encoder, name);
+	intel_dp_i2c_init(intel_encoder, intel_connector, name);
 
 	intel_encoder->ddc_bus = &dp_priv->adapter;
 	intel_encoder->hot_plug = intel_dp_hot_plug;
