@@ -708,7 +708,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 	struct radeon_connector_atom_dig *dig_connector =
 		radeon_get_atom_connector_priv_from_encoder(encoder);
 	union dig_encoder_control args;
-	int index = 0, num = 0;
+	int index = 0;
 	uint8_t frev, crev;
 
 	if (!dig || !dig_connector)
@@ -724,7 +724,6 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 		else
 			index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
 	}
-	num = dig->dig_encoder + 1;
 
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
 		return;
@@ -786,7 +785,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
 	union dig_transmitter_control args;
-	int index = 0, num = 0;
+	int index = 0;
 	uint8_t frev, crev;
 	bool is_dp = false;
 	int pll_id = 0;
@@ -862,15 +861,12 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 			args.v3.acConfig.ucTransmitterSel = 0;
-			num = 0;
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 			args.v3.acConfig.ucTransmitterSel = 1;
-			num = 1;
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
 			args.v3.acConfig.ucTransmitterSel = 2;
-			num = 2;
 			break;
 		}
 
@@ -881,23 +877,19 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 				args.v3.acConfig.fCoherentMode = 1;
 		}
 	} else if (ASIC_IS_DCE32(rdev)) {
-		if (dig->dig_encoder == 1)
-			args.v2.acConfig.ucEncoderSel = 1;
+		args.v2.acConfig.ucEncoderSel = dig->dig_encoder;
 		if (dig_connector->linkb)
 			args.v2.acConfig.ucLinkSel = 1;
 
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 			args.v2.acConfig.ucTransmitterSel = 0;
-			num = 0;
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 			args.v2.acConfig.ucTransmitterSel = 1;
-			num = 1;
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
 			args.v2.acConfig.ucTransmitterSel = 2;
-			num = 2;
 			break;
 		}
 
@@ -915,30 +907,24 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else
 			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
 
-		switch (radeon_encoder->encoder_id) {
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-			if (rdev->flags & RADEON_IS_IGP) {
-				if (radeon_encoder->pixel_clock > 165000) {
-					if (dig_connector->igp_lane_info & 0x3)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_7;
-					else if (dig_connector->igp_lane_info & 0xc)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_15;
-				} else {
-					if (dig_connector->igp_lane_info & 0x1)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_3;
-					else if (dig_connector->igp_lane_info & 0x2)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_4_7;
-					else if (dig_connector->igp_lane_info & 0x4)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_11;
-					else if (dig_connector->igp_lane_info & 0x8)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
-				}
+		if ((rdev->flags & RADEON_IS_IGP) &&
+		    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_UNIPHY)) {
+			if (is_dp || (radeon_encoder->pixel_clock <= 165000)) {
+				if (dig_connector->igp_lane_info & 0x1)
+					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_3;
+				else if (dig_connector->igp_lane_info & 0x2)
+					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_4_7;
+				else if (dig_connector->igp_lane_info & 0x4)
+					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_11;
+				else if (dig_connector->igp_lane_info & 0x8)
+					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
+			} else {
+				if (dig_connector->igp_lane_info & 0x3)
+					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_7;
+				else if (dig_connector->igp_lane_info & 0xc)
+					args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_15;
 			}
-			break;
 		}
-
-		if (radeon_encoder->pixel_clock > 165000)
-			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_8LANE_LINK;
 
 		if (dig_connector->linkb)
 			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKB;
@@ -950,6 +936,8 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 			if (dig->coherent_mode)
 				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
+			if (radeon_encoder->pixel_clock > 165000)
+				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_8LANE_LINK;
 		}
 	}
 
