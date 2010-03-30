@@ -255,7 +255,8 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 
 	keyix = rx_stats->rs_keyix;
 
-	if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error) {
+	if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error &&
+	    ieee80211_has_protected(fc)) {
 		rxs->flag |= RX_FLAG_DECRYPTED;
 	} else if (ieee80211_has_protected(fc)
 		   && !decrypt_error && skb->len >= hdrlen + 4) {
