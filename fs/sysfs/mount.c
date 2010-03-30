@@ -72,16 +72,70 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
+static int sysfs_test_super(struct super_block *sb, void *data)
+{
+	struct sysfs_super_info *sb_info = sysfs_info(sb);
+	struct sysfs_super_info *info = data;
+	int found = 1;
+	return found;
+}
+
+static int sysfs_set_super(struct super_block *sb, void *data)
+{
+	int error;
+	error = set_anon_super(sb, data);
+	if (!error)
+		sb->s_fs_info = data;
+	return error;
+}
+
 static int sysfs_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, sysfs_fill_super, mnt);
+	struct sysfs_super_info *info;
+	struct super_block *sb;
+	int error;
+
+	error = -ENOMEM;
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		goto out;
+	sb = sget(fs_type, sysfs_test_super, sysfs_set_super, info);
+	if (IS_ERR(sb) || sb->s_fs_info != info)
+		kfree(info);
+	if (IS_ERR(sb)) {
+		kfree(info);
+		error = PTR_ERR(sb);
+		goto out;
+	}
+	if (!sb->s_root) {
+		sb->s_flags = flags;
+		error = sysfs_fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
+		if (error) {
+			deactivate_locked_super(sb);
+			goto out;
+		}
+		sb->s_flags |= MS_ACTIVE;
+	}
+
+	simple_set_mnt(mnt, sb);
+	error = 0;
+out:
+	return error;
+}
+
+static void sysfs_kill_sb(struct super_block *sb)
+{
+	struct sysfs_super_info *info = sysfs_info(sb);
+
+	kill_anon_super(sb);
+	kfree(info);
 }
 
 static struct file_system_type sysfs_fs_type = {
 	.name		= "sysfs",
 	.get_sb		= sysfs_get_sb,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= sysfs_kill_sb,
 };
 
 int __init sysfs_init(void)
