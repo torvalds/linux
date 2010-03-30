@@ -21,6 +21,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/clk.h>
+#include <asm/clkdev.h>
 #include <asm/clock.h>
 #include <asm/hwblk.h>
 #include <cpu/sh7724.h>
@@ -189,11 +191,11 @@ static struct clk mstp_clks[] = {
 	SH_HWBLK_CLK("sh0", -1, SH_CLK, HWBLK_SHYWAY, CLK_ENABLE_ON_INIT),
 	SH_HWBLK_CLK("hudi0", -1, P_CLK, HWBLK_HUDI, 0),
 	SH_HWBLK_CLK("ubc0", -1, I_CLK, HWBLK_UBC, 0),
-	SH_HWBLK_CLK("tmu0", -1, P_CLK, HWBLK_TMU0, 0),
-	SH_HWBLK_CLK("cmt0", -1, R_CLK, HWBLK_CMT, 0),
+	SH_HWBLK_CLK("tmu012_fck", -1, P_CLK, HWBLK_TMU0, 0),
+	SH_HWBLK_CLK("cmt_fck", -1, R_CLK, HWBLK_CMT, 0),
 	SH_HWBLK_CLK("rwdt0", -1, R_CLK, HWBLK_RWDT, 0),
 	SH_HWBLK_CLK("dmac1", -1, B_CLK, HWBLK_DMAC1, 0),
-	SH_HWBLK_CLK("tmu1", -1, P_CLK, HWBLK_TMU1, 0),
+	SH_HWBLK_CLK("tmu345_fck", -1, P_CLK, HWBLK_TMU1, 0),
 	SH_HWBLK_CLK("sci_fck", 0, P_CLK, HWBLK_SCIF0, 0),
 	SH_HWBLK_CLK("sci_fck", 1, P_CLK, HWBLK_SCIF1, 0),
 	SH_HWBLK_CLK("sci_fck", 2, P_CLK, HWBLK_SCIF2, 0),
@@ -233,6 +235,40 @@ static struct clk mstp_clks[] = {
 	SH_HWBLK_CLK("lcdc0", -1, B_CLK, HWBLK_LCDC, 0),
 };
 
+static struct clk_lookup lookups[] = {
+	{
+		/* TMU0 */
+		.dev_id		= "sh_tmu.0",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[12],	/* tmu012_fck */
+	}, {
+		/* TMU1 */
+		.dev_id		= "sh_tmu.1",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[12],
+	}, {
+		/* TMU2 */
+		.dev_id		= "sh_tmu.2",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[12],
+	}, {
+		/* TMU3 */
+		.dev_id		= "sh_tmu.3",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[16],	/* tmu345_fck */
+	}, {
+		/* TMU4 */
+		.dev_id		= "sh_tmu.4",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[16],
+	}, {
+		/* TMU5 */
+		.dev_id		= "sh_tmu.5",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[16],
+	},
+};
+
 int __init arch_clk_init(void)
 {
 	int k, ret = 0;
@@ -245,6 +281,8 @@ int __init arch_clk_init(void)
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(main_clks)); k++)
 		ret = clk_register(main_clks[k]);
+
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
 		ret = sh_clk_div4_register(div4_clks, DIV4_NR, &div4_table);
