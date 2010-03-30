@@ -274,8 +274,6 @@ out_unref:
 		drm_framebuffer_cleanup(fb);
 		kfree(fb);
 	}
-
-out:
 	return ret;
 }
 
@@ -380,6 +378,9 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 				      rdev->num_crtc,
 				      RADEONFB_CONN_LIMIT);
 	rfbdev->helper.fb_probe = radeon_fb_find_or_create_single;
+
+	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
+
 	drm_fb_helper_initial_config(&rfbdev->helper);
 	radeonfb_probe(rfbdev);
 	return 0;

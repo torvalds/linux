@@ -435,6 +435,8 @@ int nouveau_fbcon_init(struct drm_device *dev)
 	drm_fb_helper_init_crtc_count(dev, &nfbdev->helper,
 				      2, 4);
 	nfbdev->helper.fb_probe = nouveau_fbcon_find_or_create_single;
+	drm_fb_helper_single_add_all_connectors(&nfbdev->helper);
+
 	drm_fb_helper_initial_config(&nfbdev->helper);
 	nouveau_fbcon_probe(nfbdev);
 	return 0;

@@ -249,6 +249,7 @@ int intel_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_init_crtc_count(dev, &ifbdev->helper, 2,
 				      INTELFB_CONN_LIMIT);
+	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
 	ifbdev->helper.fb_probe = intel_fb_find_or_create_single;
 	drm_fb_helper_initial_config(&ifbdev->helper);
 	intelfb_probe(ifbdev);

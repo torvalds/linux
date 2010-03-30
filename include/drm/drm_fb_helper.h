@@ -69,6 +69,7 @@ struct drm_fb_helper_surface_size {
 
 struct drm_fb_helper_connector {
 	struct drm_fb_helper_cmdline_mode cmdline_mode;
+	struct drm_connector *connector;
 };
 
 struct drm_fb_helper {
@@ -77,6 +78,8 @@ struct drm_fb_helper {
 	struct drm_display_mode *mode;
 	int crtc_count;
 	struct drm_fb_helper_crtc *crtc_info;
+	int connector_count;
+	struct drm_fb_helper_connector **connector_info;
 	struct drm_fb_helper_funcs *funcs;
 	int conn_limit;
 	struct fb_info *fbdev;
@@ -113,12 +116,11 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 			    uint32_t depth);
 
-int drm_fb_helper_add_connector(struct drm_connector *connector);
-int drm_fb_helper_parse_command_line(struct drm_device *dev);
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
 bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper, u32 max_width,
 				 u32 max_height);
 bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper);
+int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper);
 
 #endif
