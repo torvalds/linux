@@ -29,6 +29,8 @@
 #include <linux/backlight.h>
 #include <linux/lcd.h>
 
+#include <linux/leds.h>
+
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 
@@ -194,6 +196,11 @@ struct picolcd_data {
 	u8 lcd_brightness;
 	u8 lcd_power;
 #endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
+#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+	/* LED stuff */
+	u8 led_state;
+	struct led_classdev *led[8];
+#endif /* CONFIG_LEDS_CLASS */
 
 	/* Housekeeping stuff */
 	spinlock_t lock;
@@ -947,6 +954,153 @@ static inline int picolcd_resume_lcd(struct picolcd_data *data)
 }
 #endif /* CONFIG_LCD_CLASS_DEVICE */
 
+#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+/**
+ * LED class device
+ */
+static void picolcd_leds_set(struct picolcd_data *data)
+{
+	struct hid_report *report;
+	unsigned long flags;
+
+	if (!data->led[0])
+		return;
+	report = picolcd_out_report(REPORT_LED_STATE, data->hdev);
+	if (!report || report->maxfield != 1 || report->field[0]->report_count != 1)
+		return;
+
+	spin_lock_irqsave(&data->lock, flags);
+	hid_set_field(report->field[0], 0, data->led_state);
+	usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
+	spin_unlock_irqrestore(&data->lock, flags);
+}
+
+static void picolcd_led_set_brightness(struct led_classdev *led_cdev,
+			enum led_brightness value)
+{
+	struct device *dev;
+	struct hid_device *hdev;
+	struct picolcd_data *data;
+	int i, state = 0;
+
+	dev  = led_cdev->dev->parent;
+	hdev = container_of(dev, struct hid_device, dev);
+	data = hid_get_drvdata(hdev);
+	for (i = 0; i < 8; i++) {
+		if (led_cdev != data->led[i])
+			continue;
+		state = (data->led_state >> i) & 1;
+		if (value == LED_OFF && state) {
+			data->led_state &= ~(1 << i);
+			picolcd_leds_set(data);
+		} else if (value != LED_OFF && !state) {
+			data->led_state |= 1 << i;
+			picolcd_leds_set(data);
+		}
+		break;
+	}
+}
+
+static enum led_brightness picolcd_led_get_brightness(struct led_classdev *led_cdev)
+{
+	struct device *dev;
+	struct hid_device *hdev;
+	struct picolcd_data *data;
+	int i, value = 0;
+
+	dev  = led_cdev->dev->parent;
+	hdev = container_of(dev, struct hid_device, dev);
+	data = hid_get_drvdata(hdev);
+	for (i = 0; i < 8; i++)
+		if (led_cdev == data->led[i]) {
+			value = (data->led_state >> i) & 1;
+			break;
+		}
+	return value ? LED_FULL : LED_OFF;
+}
+
+static int picolcd_init_leds(struct picolcd_data *data, struct hid_report *report)
+{
+	struct device *dev = &data->hdev->dev;
+	struct led_classdev *led;
+	size_t name_sz = strlen(dev_name(dev)) + 8;
+	char *name;
+	int i, ret = 0;
+
+	if (!report)
+		return -ENODEV;
+	if (report->maxfield != 1 || report->field[0]->report_count != 1 ||
+			report->field[0]->report_size != 8) {
+		dev_err(dev, "unsupported LED_STATE report");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < 8; i++) {
+		led = kzalloc(sizeof(struct led_classdev)+name_sz, GFP_KERNEL);
+		if (!led) {
+			dev_err(dev, "can't allocate memory for LED %d\n", i);
+			ret = -ENOMEM;
+			goto err;
+		}
+		name = (void *)(&led[1]);
+		snprintf(name, name_sz, "%s::GPO%d", dev_name(dev), i);
+		led->name = name;
+		led->brightness = 0;
+		led->max_brightness = 1;
+		led->brightness_get = picolcd_led_get_brightness;
+		led->brightness_set = picolcd_led_set_brightness;
+
+		data->led[i] = led;
+		ret = led_classdev_register(dev, data->led[i]);
+		if (ret) {
+			data->led[i] = NULL;
+			kfree(led);
+			dev_err(dev, "can't register LED %d\n", i);
+			goto err;
+		}
+	}
+	return 0;
+err:
+	for (i = 0; i < 8; i++)
+		if (data->led[i]) {
+			led = data->led[i];
+			data->led[i] = NULL;
+			led_classdev_unregister(led);
+			kfree(led);
+		}
+	return ret;
+}
+
+static void picolcd_exit_leds(struct picolcd_data *data)
+{
+	struct led_classdev *led;
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		led = data->led[i];
+		data->led[i] = NULL;
+		if (!led)
+			continue;
+		led_classdev_unregister(led);
+		kfree(led);
+	}
+}
+
+#else
+static inline int picolcd_init_leds(struct picolcd_data *data,
+		struct hid_report *report)
+{
+	return 0;
+}
+static void picolcd_exit_leds(struct picolcd_data *data)
+{
+}
+static inline int picolcd_leds_set(struct picolcd_data *data)
+{
+	return 0;
+}
+#endif /* CONFIG_LEDS_CLASS */
+
 /*
  * input class device
  */
@@ -1089,6 +1243,7 @@ static int picolcd_reset(struct hid_device *hdev)
 		schedule_delayed_work(&data->fb_info->deferred_work, 0);
 #endif /* CONFIG_FB */
 
+	picolcd_leds_set(data);
 	return 0;
 }
 
@@ -1782,6 +1937,11 @@ static int picolcd_probe_lcd(struct hid_device *hdev, struct picolcd_data *data)
 	if (error)
 		goto err;
 
+	/* Setup the LED class devices */
+	error = picolcd_init_leds(data, picolcd_out_report(REPORT_LED_STATE, hdev));
+	if (error)
+		goto err;
+
 #ifdef CONFIG_DEBUG_FS
 	report = picolcd_out_report(REPORT_READ_MEMORY, hdev);
 	if (report && report->maxfield == 1 && report->field[0]->report_size == 8)
@@ -1791,6 +1951,7 @@ static int picolcd_probe_lcd(struct hid_device *hdev, struct picolcd_data *data)
 #endif
 	return 0;
 err:
+	picolcd_exit_leds(data);
 	picolcd_exit_backlight(data);
 	picolcd_exit_lcd(data);
 	picolcd_exit_framebuffer(data);
@@ -1923,6 +2084,8 @@ static void picolcd_remove(struct hid_device *hdev)
 		complete(&data->pending->ready);
 	spin_unlock_irqrestore(&data->lock, flags);
 
+	/* Cleanup LED */
+	picolcd_exit_leds(data);
 	/* Clean up the framebuffer */
 	picolcd_exit_backlight(data);
 	picolcd_exit_lcd(data);
