@@ -265,6 +265,11 @@ config HID_PETALYNX
 config HID_PICOLCD
 	tristate "PicoLCD (graphic version)"
 	depends on USB_HID
+	select FB_DEFERRED_IO if FB
+	select FB_SYS_FILLRECT if FB
+	select FB_SYS_COPYAREA if FB
+	select FB_SYS_IMAGEBLIT if FB
+	select FB_SYS_FOPS if FB
 	---help---
 	  This provides support for Minibox PicoLCD devices, currently
 	  only the graphical ones are supported.
@@ -272,8 +277,8 @@ config HID_PICOLCD
 	  This includes support for the following device features:
 	  - Keypad
 	  - Switching between Firmware and Flash mode
-	  Features that are not (yet) supported:
 	  - Framebuffer for monochrome 256x64 display
+	  Features that are not (yet) supported:
 	  - Backlight control
 	  - Contrast control
 	  - IR

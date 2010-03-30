@@ -15,3 +15,20 @@ Description:	Make it possible to switch the PicoLCD device between LCD
 		disconnected and reconnects after above delay (default value
 		is 5 seconds though this default should not be relied on).
 
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/fb_update_rate
+Date:		March 2010
+Contact:	Bruno Prémont <bonbons@linux-vserver.org>
+Description:	Make it possible to adjust defio refresh rate.
+
+		Reading: returns list of available refresh rates (expressed in Hz),
+		the active refresh rate being enclosed in brackets ('[' and ']')
+
+		Writing: accepts new refresh rate expressed in integer Hz
+		within permitted rates.
+
+		Note: As device can barely do 2 complete refreshes a second
+		it only makes sense to adjust this value if only one or two
+		tiles get changed and it's not appropriate to expect the application
+		to flush it's tiny changes explicitely at higher than default rate.
+
