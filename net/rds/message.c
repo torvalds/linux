@@ -399,14 +399,14 @@ int rds_message_inc_copy_to_user(struct rds_incoming *inc,
  */
 void rds_message_wait(struct rds_message *rm)
 {
-	wait_event(rds_message_flush_waitq,
+	wait_event_interruptible(rds_message_flush_waitq,
 			!test_bit(RDS_MSG_MAPPED, &rm->m_flags));
 }
 
 void rds_message_unmapped(struct rds_message *rm)
 {
 	clear_bit(RDS_MSG_MAPPED, &rm->m_flags);
-	wake_up(&rds_message_flush_waitq);
+	wake_up_interruptible(&rds_message_flush_waitq);
 }
 EXPORT_SYMBOL_GPL(rds_message_unmapped);
 
