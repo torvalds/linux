@@ -506,6 +506,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		bf = list_first_entry(&sc->rx.rxbuf, struct ath_buf, list);
 		ds = bf->bf_desc;
+		rx_stats = &ds->ds_us.rx;
 
 		/*
 		 * Must provide the virtual address of the current
@@ -518,10 +519,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * on.  All this is necessary because of our use of
 		 * a self-linked list to avoid rx overruns.
 		 */
-		retval = ath9k_hw_rxprocdesc(ah, ds,
-					     bf->bf_daddr,
-					     PA2DESC(sc, ds->ds_link),
-					     0);
+		retval = ath9k_hw_rxprocdesc(ah, ds, rx_stats, 0);
 		if (retval == -EINPROGRESS) {
 			struct ath_buf *tbf;
 			struct ath_desc *tds;
@@ -545,8 +543,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			 */
 
 			tds = tbf->bf_desc;
-			retval = ath9k_hw_rxprocdesc(ah, tds, tbf->bf_daddr,
-					     PA2DESC(sc, tds->ds_link), 0);
+			retval = ath9k_hw_rxprocdesc(ah, tds, &tds->ds_us.rx, 0);
 			if (retval == -EINPROGRESS) {
 				break;
 			}
@@ -569,9 +566,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		rxs =  IEEE80211_SKB_RXCB(skb);
 
 		hw = ath_get_virt_hw(sc, hdr);
-		rx_stats = &ds->ds_rxstat;
 
-		ath_debug_stat_rx(sc, bf);
+		ath_debug_stat_rx(sc, rx_stats);
 
 		/*
 		 * If we're asked to flush receive queue, directly
@@ -626,7 +622,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * change the default rx antenna if rx diversity chooses the
 		 * other antenna 3 times in a row.
 		 */
-		if (sc->rx.defant != ds->ds_rxstat.rs_antenna) {
+		if (sc->rx.defant != rx_stats->rs_antenna) {
 			if (++sc->rx.rxotherant >= 3)
 				ath_setdefantenna(sc, rx_stats->rs_antenna);
 		} else {

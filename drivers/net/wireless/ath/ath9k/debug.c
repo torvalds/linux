@@ -660,30 +660,29 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 #undef PHY_ERR
 }
 
-void ath_debug_stat_rx(struct ath_softc *sc, struct ath_buf *bf)
+void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 {
 #define RX_STAT_INC(c) sc->debug.stats.rxstats.c++
 #define RX_PHY_ERR_INC(c) sc->debug.stats.rxstats.phy_err_stats[c]++
 
-	struct ath_desc *ds = bf->bf_desc;
 	u32 phyerr;
 
-	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_CRC)
+	if (rs->rs_status & ATH9K_RXERR_CRC)
 		RX_STAT_INC(crc_err);
-	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_DECRYPT)
+	if (rs->rs_status & ATH9K_RXERR_DECRYPT)
 		RX_STAT_INC(decrypt_crc_err);
-	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_MIC)
+	if (rs->rs_status & ATH9K_RXERR_MIC)
 		RX_STAT_INC(mic_err);
-	if (ds->ds_rxstat.rs_status & ATH9K_RX_DELIM_CRC_PRE)
+	if (rs->rs_status & ATH9K_RX_DELIM_CRC_PRE)
 		RX_STAT_INC(pre_delim_crc_err);
-	if (ds->ds_rxstat.rs_status & ATH9K_RX_DELIM_CRC_POST)
+	if (rs->rs_status & ATH9K_RX_DELIM_CRC_POST)
 		RX_STAT_INC(post_delim_crc_err);
-	if (ds->ds_rxstat.rs_status & ATH9K_RX_DECRYPT_BUSY)
+	if (rs->rs_status & ATH9K_RX_DECRYPT_BUSY)
 		RX_STAT_INC(decrypt_busy_err);
 
-	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_PHY) {
+	if (rs->rs_status & ATH9K_RXERR_PHY) {
 		RX_STAT_INC(phy_err);
-		phyerr = ds->ds_rxstat.rs_phyerr & 0x24;
+		phyerr = rs->rs_phyerr & 0x24;
 		RX_PHY_ERR_INC(phyerr);
 	}
 

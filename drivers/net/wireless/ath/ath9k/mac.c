@@ -859,7 +859,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 EXPORT_SYMBOL(ath9k_hw_resettxqueue);
 
 int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
-			u32 pa, struct ath_desc *nds, u64 tsf)
+			struct ath_rx_status *rs, u64 tsf)
 {
 	struct ar5416_desc ads;
 	struct ar5416_desc *adsp = AR5416DESC(ds);
@@ -870,70 +870,70 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	ads.u.rx = adsp->u.rx;
 
-	ds->ds_rxstat.rs_status = 0;
-	ds->ds_rxstat.rs_flags = 0;
+	rs->rs_status = 0;
+	rs->rs_flags = 0;
 
-	ds->ds_rxstat.rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
-	ds->ds_rxstat.rs_tstamp = ads.AR_RcvTimestamp;
+	rs->rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
+	rs->rs_tstamp = ads.AR_RcvTimestamp;
 
 	if (ads.ds_rxstatus8 & AR_PostDelimCRCErr) {
-		ds->ds_rxstat.rs_rssi = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ctl0 = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ctl1 = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ctl2 = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ext0 = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ext1 = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ext2 = ATH9K_RSSI_BAD;
+		rs->rs_rssi = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl0 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl1 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl2 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext0 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext1 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext2 = ATH9K_RSSI_BAD;
 	} else {
-		ds->ds_rxstat.rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
-		ds->ds_rxstat.rs_rssi_ctl0 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
+		rs->rs_rssi_ctl0 = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt00);
-		ds->ds_rxstat.rs_rssi_ctl1 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl1 = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt01);
-		ds->ds_rxstat.rs_rssi_ctl2 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl2 = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt02);
-		ds->ds_rxstat.rs_rssi_ext0 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext0 = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt10);
-		ds->ds_rxstat.rs_rssi_ext1 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext1 = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt11);
-		ds->ds_rxstat.rs_rssi_ext2 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext2 = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt12);
 	}
 	if (ads.ds_rxstatus8 & AR_RxKeyIdxValid)
-		ds->ds_rxstat.rs_keyix = MS(ads.ds_rxstatus8, AR_KeyIdx);
+		rs->rs_keyix = MS(ads.ds_rxstatus8, AR_KeyIdx);
 	else
-		ds->ds_rxstat.rs_keyix = ATH9K_RXKEYIX_INVALID;
+		rs->rs_keyix = ATH9K_RXKEYIX_INVALID;
 
-	ds->ds_rxstat.rs_rate = RXSTATUS_RATE(ah, (&ads));
-	ds->ds_rxstat.rs_more = (ads.ds_rxstatus1 & AR_RxMore) ? 1 : 0;
+	rs->rs_rate = RXSTATUS_RATE(ah, (&ads));
+	rs->rs_more = (ads.ds_rxstatus1 & AR_RxMore) ? 1 : 0;
 
-	ds->ds_rxstat.rs_isaggr = (ads.ds_rxstatus8 & AR_RxAggr) ? 1 : 0;
-	ds->ds_rxstat.rs_moreaggr =
+	rs->rs_isaggr = (ads.ds_rxstatus8 & AR_RxAggr) ? 1 : 0;
+	rs->rs_moreaggr =
 		(ads.ds_rxstatus8 & AR_RxMoreAggr) ? 1 : 0;
-	ds->ds_rxstat.rs_antenna = MS(ads.ds_rxstatus3, AR_RxAntenna);
-	ds->ds_rxstat.rs_flags =
+	rs->rs_antenna = MS(ads.ds_rxstatus3, AR_RxAntenna);
+	rs->rs_flags =
 		(ads.ds_rxstatus3 & AR_GI) ? ATH9K_RX_GI : 0;
-	ds->ds_rxstat.rs_flags |=
+	rs->rs_flags |=
 		(ads.ds_rxstatus3 & AR_2040) ? ATH9K_RX_2040 : 0;
 
 	if (ads.ds_rxstatus8 & AR_PreDelimCRCErr)
-		ds->ds_rxstat.rs_flags |= ATH9K_RX_DELIM_CRC_PRE;
+		rs->rs_flags |= ATH9K_RX_DELIM_CRC_PRE;
 	if (ads.ds_rxstatus8 & AR_PostDelimCRCErr)
-		ds->ds_rxstat.rs_flags |= ATH9K_RX_DELIM_CRC_POST;
+		rs->rs_flags |= ATH9K_RX_DELIM_CRC_POST;
 	if (ads.ds_rxstatus8 & AR_DecryptBusyErr)
-		ds->ds_rxstat.rs_flags |= ATH9K_RX_DECRYPT_BUSY;
+		rs->rs_flags |= ATH9K_RX_DECRYPT_BUSY;
 
 	if ((ads.ds_rxstatus8 & AR_RxFrameOK) == 0) {
 		if (ads.ds_rxstatus8 & AR_CRCErr)
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_CRC;
+			rs->rs_status |= ATH9K_RXERR_CRC;
 		else if (ads.ds_rxstatus8 & AR_PHYErr) {
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_PHY;
+			rs->rs_status |= ATH9K_RXERR_PHY;
 			phyerr = MS(ads.ds_rxstatus8, AR_PHYErrCode);
-			ds->ds_rxstat.rs_phyerr = phyerr;
+			rs->rs_phyerr = phyerr;
 		} else if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_DECRYPT;
+			rs->rs_status |= ATH9K_RXERR_DECRYPT;
 		else if (ads.ds_rxstatus8 & AR_MichaelErr)
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_MIC;
+			rs->rs_status |= ATH9K_RXERR_MIC;
 	}
 
 	return 0;
