@@ -111,9 +111,19 @@ static u64 amd_pmu_event_map(int hw_event)
 	return amd_perfmon_event_map[hw_event];
 }
 
-static u64 amd_pmu_raw_event(u64 hw_event)
+static int amd_pmu_hw_config(struct perf_event *event)
 {
-	return hw_event & AMD64_RAW_EVENT_MASK;
+	int ret = x86_pmu_hw_config(event);
+
+	if (ret)
+		return ret;
+
+	if (event->attr.type != PERF_TYPE_RAW)
+		return 0;
+
+	event->hw.config |= event->attr.config & AMD64_RAW_EVENT_MASK;
+
+	return 0;
 }
 
 /*
@@ -365,12 +375,11 @@ static __initconst struct x86_pmu amd_pmu = {
 	.enable_all		= x86_pmu_enable_all,
 	.enable			= x86_pmu_enable_event,
 	.disable		= x86_pmu_disable_event,
-	.hw_config		= x86_hw_config,
+	.hw_config		= amd_pmu_hw_config,
 	.schedule_events	= x86_schedule_events,
 	.eventsel		= MSR_K7_EVNTSEL0,
 	.perfctr		= MSR_K7_PERFCTR0,
 	.event_map		= amd_pmu_event_map,
-	.raw_event		= amd_pmu_raw_event,
 	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
 	.num_counters		= 4,
 	.cntval_bits		= 48,

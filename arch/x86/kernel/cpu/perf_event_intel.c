@@ -758,6 +758,30 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event
 	return x86_get_event_constraints(cpuc, event);
 }
 
+static int intel_pmu_hw_config(struct perf_event *event)
+{
+	int ret = x86_pmu_hw_config(event);
+
+	if (ret)
+		return ret;
+
+	if (event->attr.type != PERF_TYPE_RAW)
+		return 0;
+
+	if (!(event->attr.config & ARCH_PERFMON_EVENTSEL_ANY))
+		return 0;
+
+	if (x86_pmu.version < 3)
+		return -EINVAL;
+
+	if (perf_paranoid_cpu() && !capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	event->hw.config |= ARCH_PERFMON_EVENTSEL_ANY;
+
+	return 0;
+}
+
 static __initconst struct x86_pmu core_pmu = {
 	.name			= "core",
 	.handle_irq		= x86_pmu_handle_irq,
@@ -765,12 +789,11 @@ static __initconst struct x86_pmu core_pmu = {
 	.enable_all		= x86_pmu_enable_all,
 	.enable			= x86_pmu_enable_event,
 	.disable		= x86_pmu_disable_event,
-	.hw_config		= x86_hw_config,
+	.hw_config		= x86_pmu_hw_config,
 	.schedule_events	= x86_schedule_events,
 	.eventsel		= MSR_ARCH_PERFMON_EVENTSEL0,
 	.perfctr		= MSR_ARCH_PERFMON_PERFCTR0,
 	.event_map		= intel_pmu_event_map,
-	.raw_event		= x86_pmu_raw_event,
 	.max_events		= ARRAY_SIZE(intel_perfmon_event_map),
 	.apic			= 1,
 	/*
@@ -804,12 +827,11 @@ static __initconst struct x86_pmu intel_pmu = {
 	.enable_all		= intel_pmu_enable_all,
 	.enable			= intel_pmu_enable_event,
 	.disable		= intel_pmu_disable_event,
-	.hw_config		= x86_hw_config,
+	.hw_config		= intel_pmu_hw_config,
 	.schedule_events	= x86_schedule_events,
 	.eventsel		= MSR_ARCH_PERFMON_EVENTSEL0,
 	.perfctr		= MSR_ARCH_PERFMON_PERFCTR0,
 	.event_map		= intel_pmu_event_map,
-	.raw_event		= x86_pmu_raw_event,
 	.max_events		= ARRAY_SIZE(intel_perfmon_event_map),
 	.apic			= 1,
 	/*

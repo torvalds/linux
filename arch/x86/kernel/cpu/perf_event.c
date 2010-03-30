@@ -196,12 +196,11 @@ struct x86_pmu {
 	void		(*enable_all)(int added);
 	void		(*enable)(struct perf_event *);
 	void		(*disable)(struct perf_event *);
-	int		(*hw_config)(struct perf_event_attr *attr, struct hw_perf_event *hwc);
+	int		(*hw_config)(struct perf_event *event);
 	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
 	unsigned	eventsel;
 	unsigned	perfctr;
 	u64		(*event_map)(int);
-	u64		(*raw_event)(u64);
 	int		max_events;
 	int		num_counters;
 	int		num_counters_fixed;
@@ -426,28 +425,26 @@ set_ext_hw_attr(struct hw_perf_event *hwc, struct perf_event_attr *attr)
 	return 0;
 }
 
-static int x86_hw_config(struct perf_event_attr *attr, struct hw_perf_event *hwc)
+static int x86_pmu_hw_config(struct perf_event *event)
 {
 	/*
 	 * Generate PMC IRQs:
 	 * (keep 'enabled' bit clear for now)
 	 */
-	hwc->config = ARCH_PERFMON_EVENTSEL_INT;
+	event->hw.config = ARCH_PERFMON_EVENTSEL_INT;
 
 	/*
 	 * Count user and OS events unless requested not to
 	 */
-	if (!attr->exclude_user)
-		hwc->config |= ARCH_PERFMON_EVENTSEL_USR;
-	if (!attr->exclude_kernel)
-		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
+	if (!event->attr.exclude_user)
+		event->hw.config |= ARCH_PERFMON_EVENTSEL_USR;
+	if (!event->attr.exclude_kernel)
+		event->hw.config |= ARCH_PERFMON_EVENTSEL_OS;
+
+	if (event->attr.type == PERF_TYPE_RAW)
+		event->hw.config |= event->attr.config & X86_RAW_EVENT_MASK;
 
 	return 0;
-}
-
-static u64 x86_pmu_raw_event(u64 hw_event)
-{
-	return hw_event & X86_RAW_EVENT_MASK;
 }
 
 /*
@@ -489,7 +486,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	hwc->last_tag = ~0ULL;
 
 	/* Processor specifics */
-	err = x86_pmu.hw_config(attr, hwc);
+	err = x86_pmu.hw_config(event);
 	if (err)
 		return err;
 
@@ -508,16 +505,8 @@ static int __hw_perf_event_init(struct perf_event *event)
 			return -EOPNOTSUPP;
 	}
 
-	/*
-	 * Raw hw_event type provide the config in the hw_event structure
-	 */
-	if (attr->type == PERF_TYPE_RAW) {
-		hwc->config |= x86_pmu.raw_event(attr->config);
-		if ((hwc->config & ARCH_PERFMON_EVENTSEL_ANY) &&
-		    perf_paranoid_cpu() && !capable(CAP_SYS_ADMIN))
-			return -EACCES;
+	if (attr->type == PERF_TYPE_RAW)
 		return 0;
-	}
 
 	if (attr->type == PERF_TYPE_HW_CACHE)
 		return set_ext_hw_attr(hwc, attr);

@@ -419,20 +419,7 @@ static u64 p4_pmu_event_map(int hw_event)
 	return config;
 }
 
-/*
- * We don't control raw events so it's up to the caller
- * to pass sane values (and we don't count the thread number
- * on HT machine but allow HT-compatible specifics to be
- * passed on)
- */
-static u64 p4_pmu_raw_event(u64 hw_event)
-{
-	return hw_event &
-		(p4_config_pack_escr(P4_ESCR_MASK_HT) |
-		 p4_config_pack_cccr(P4_CCCR_MASK_HT));
-}
-
-static int p4_hw_config(struct perf_event_attr *attr, struct hw_perf_event *hwc)
+static int p4_hw_config(struct perf_event *event)
 {
 	int cpu = raw_smp_processor_id();
 	u32 escr, cccr;
@@ -444,11 +431,29 @@ static int p4_hw_config(struct perf_event_attr *attr, struct hw_perf_event *hwc)
 	 */
 
 	cccr = p4_default_cccr_conf(cpu);
-	escr = p4_default_escr_conf(cpu, attr->exclude_kernel, attr->exclude_user);
-	hwc->config = p4_config_pack_escr(escr) | p4_config_pack_cccr(cccr);
+	escr = p4_default_escr_conf(cpu, event->attr.exclude_kernel,
+					 event->attr.exclude_user);
+	event->hw.config = p4_config_pack_escr(escr) |
+			   p4_config_pack_cccr(cccr);
 
 	if (p4_ht_active() && p4_ht_thread(cpu))
-		hwc->config = p4_set_ht_bit(hwc->config);
+		event->hw.config = p4_set_ht_bit(event->hw.config);
+
+	if (event->attr.type != PERF_TYPE_RAW)
+		return 0;
+
+	/*
+	 * We don't control raw events so it's up to the caller
+	 * to pass sane values (and we don't count the thread number
+	 * on HT machine but allow HT-compatible specifics to be
+	 * passed on)
+	 *
+	 * XXX: HT wide things should check perf_paranoid_cpu() &&
+	 *      CAP_SYS_ADMIN
+	 */
+	event->hw.config |= event->attr.config &
+		(p4_config_pack_escr(P4_ESCR_MASK_HT) |
+		 p4_config_pack_cccr(P4_CCCR_MASK_HT));
 
 	return 0;
 }
@@ -785,7 +790,6 @@ static __initconst struct x86_pmu p4_pmu = {
 	.eventsel		= MSR_P4_BPU_CCCR0,
 	.perfctr		= MSR_P4_BPU_PERFCTR0,
 	.event_map		= p4_pmu_event_map,
-	.raw_event		= p4_pmu_raw_event,
 	.max_events		= ARRAY_SIZE(p4_general_events),
 	.get_event_constraints	= x86_get_event_constraints,
 	/*
