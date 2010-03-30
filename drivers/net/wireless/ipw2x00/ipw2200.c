@@ -2348,16 +2348,25 @@ static void ipw_bg_adapter_restart(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
-#define IPW_SCAN_CHECK_WATCHDOG (5 * HZ)
+static void ipw_abort_scan(struct ipw_priv *priv);
+
+#define IPW_SCAN_CHECK_WATCHDOG	(5 * HZ)
 
 static void ipw_scan_check(void *data)
 {
 	struct ipw_priv *priv = data;
-	if (priv->status & (STATUS_SCANNING | STATUS_SCAN_ABORTING)) {
+
+	if (priv->status & STATUS_SCAN_ABORTING) {
 		IPW_DEBUG_SCAN("Scan completion watchdog resetting "
 			       "adapter after (%dms).\n",
 			       jiffies_to_msecs(IPW_SCAN_CHECK_WATCHDOG));
 		queue_work(priv->workqueue, &priv->adapter_restart);
+	} else if (priv->status & STATUS_SCANNING) {
+		IPW_DEBUG_SCAN("Scan completion watchdog aborting scan "
+			       "after (%dms).\n",
+			       jiffies_to_msecs(IPW_SCAN_CHECK_WATCHDOG));
+		ipw_abort_scan(priv);
+		queue_delayed_work(priv->workqueue, &priv->scan_check, HZ);
 	}
 }
 
