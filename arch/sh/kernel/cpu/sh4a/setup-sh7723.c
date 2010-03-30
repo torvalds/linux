@@ -26,7 +26,6 @@ static struct plat_sci_port scif0_platform_data = {
 	.flags          = UPF_BOOT_AUTOCONF,
 	.type           = PORT_SCIF,
 	.irqs           = { 80, 80, 80, 80 },
-	.clk		= "scif0",
 };
 
 static struct platform_device scif0_device = {
@@ -42,7 +41,6 @@ static struct plat_sci_port scif1_platform_data = {
 	.flags          = UPF_BOOT_AUTOCONF,
 	.type           = PORT_SCIF,
 	.irqs           = { 81, 81, 81, 81 },
-	.clk		= "scif1",
 };
 
 static struct platform_device scif1_device = {
@@ -58,7 +56,6 @@ static struct plat_sci_port scif2_platform_data = {
 	.flags          = UPF_BOOT_AUTOCONF,
 	.type           = PORT_SCIF,
 	.irqs           = { 82, 82, 82, 82 },
-	.clk		= "scif2",
 };
 
 static struct platform_device scif2_device = {
@@ -74,7 +71,6 @@ static struct plat_sci_port scif3_platform_data = {
 	.flags          = UPF_BOOT_AUTOCONF,
 	.type           = PORT_SCIFA,
 	.irqs           = { 56, 56, 56, 56 },
-	.clk		= "scif3",
 };
 
 static struct platform_device scif3_device = {
@@ -90,7 +86,6 @@ static struct plat_sci_port scif4_platform_data = {
 	.flags          = UPF_BOOT_AUTOCONF,
 	.type           = PORT_SCIFA,
 	.irqs           = { 88, 88, 88, 88 },
-	.clk		= "scif4",
 };
 
 static struct platform_device scif4_device = {
@@ -106,7 +101,6 @@ static struct plat_sci_port scif5_platform_data = {
 	.flags          = UPF_BOOT_AUTOCONF,
 	.type           = PORT_SCIFA,
 	.irqs           = { 109, 109, 109, 109 },
-	.clk		= "scif5",
 };
 
 static struct platform_device scif5_device = {
@@ -211,17 +205,14 @@ static struct platform_device veu1_device = {
 };
 
 static struct sh_timer_config cmt_platform_data = {
-	.name = "CMT",
 	.channel_offset = 0x60,
 	.timer_bit = 5,
-	.clk = "cmt0",
 	.clockevent_rating = 125,
 	.clocksource_rating = 125,
 };
 
 static struct resource cmt_resources[] = {
 	[0] = {
-		.name	= "CMT",
 		.start	= 0x044a0060,
 		.end	= 0x044a006b,
 		.flags	= IORESOURCE_MEM,
@@ -246,16 +237,13 @@ static struct platform_device cmt_device = {
 };
 
 static struct sh_timer_config tmu0_platform_data = {
-	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "tmu0",
 	.clockevent_rating = 200,
 };
 
 static struct resource tmu0_resources[] = {
 	[0] = {
-		.name	= "TMU0",
 		.start	= 0xffd80008,
 		.end	= 0xffd80013,
 		.flags	= IORESOURCE_MEM,
@@ -280,16 +268,13 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "tmu0",
 	.clocksource_rating = 200,
 };
 
 static struct resource tmu1_resources[] = {
 	[0] = {
-		.name	= "TMU1",
 		.start	= 0xffd80014,
 		.end	= 0xffd8001f,
 		.flags	= IORESOURCE_MEM,
@@ -314,15 +299,12 @@ static struct platform_device tmu1_device = {
 };
 
 static struct sh_timer_config tmu2_platform_data = {
-	.name = "TMU2",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "tmu0",
 };
 
 static struct resource tmu2_resources[] = {
 	[0] = {
-		.name	= "TMU2",
 		.start	= 0xffd80020,
 		.end	= 0xffd8002b,
 		.flags	= IORESOURCE_MEM,
@@ -347,15 +329,12 @@ static struct platform_device tmu2_device = {
 };
 
 static struct sh_timer_config tmu3_platform_data = {
-	.name = "TMU3",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "tmu1",
 };
 
 static struct resource tmu3_resources[] = {
 	[0] = {
-		.name	= "TMU3",
 		.start	= 0xffd90008,
 		.end	= 0xffd90013,
 		.flags	= IORESOURCE_MEM,
@@ -380,15 +359,12 @@ static struct platform_device tmu3_device = {
 };
 
 static struct sh_timer_config tmu4_platform_data = {
-	.name = "TMU4",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "tmu1",
 };
 
 static struct resource tmu4_resources[] = {
 	[0] = {
-		.name	= "TMU4",
 		.start	= 0xffd90014,
 		.end	= 0xffd9001f,
 		.flags	= IORESOURCE_MEM,
@@ -413,15 +389,12 @@ static struct platform_device tmu4_device = {
 };
 
 static struct sh_timer_config tmu5_platform_data = {
-	.name = "TMU5",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "tmu1",
 };
 
 static struct resource tmu5_resources[] = {
 	[0] = {
-		.name	= "TMU5",
 		.start	= 0xffd90020,
 		.end	= 0xffd9002b,
 		.flags	= IORESOURCE_MEM,

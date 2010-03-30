@@ -25,8 +25,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-
-#include <asm/dmaengine.h>
+#include <linux/sh_dma.h>
 
 #include "shdma.h"
 
@@ -44,7 +43,7 @@ enum sh_dmae_desc_status {
 #define LOG2_DEFAULT_XFER_SIZE	2
 
 /* A bitmask with bits enough for enum sh_dmae_slave_chan_id */
-static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SHDMA_SLAVE_NUMBER)];
+static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SH_DMA_SLAVE_NUMBER)];
 
 static void sh_dmae_chan_ld_cleanup(struct sh_dmae_chan *sh_chan, bool all);
 
@@ -266,7 +265,7 @@ static struct sh_desc *sh_dmae_get_desc(struct sh_dmae_chan *sh_chan)
 }
 
 static struct sh_dmae_slave_config *sh_dmae_find_slave(
-	struct sh_dmae_chan *sh_chan, enum sh_dmae_slave_chan_id slave_id)
+	struct sh_dmae_chan *sh_chan, struct sh_dmae_slave *param)
 {
 	struct dma_device *dma_dev = sh_chan->common.device;
 	struct sh_dmae_device *shdev = container_of(dma_dev,
@@ -274,11 +273,11 @@ static struct sh_dmae_slave_config *sh_dmae_find_slave(
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	int i;
 
-	if ((unsigned)slave_id >= SHDMA_SLAVE_NUMBER)
+	if (param->slave_id >= SH_DMA_SLAVE_NUMBER)
 		return NULL;
 
 	for (i = 0; i < pdata->slave_num; i++)
-		if (pdata->slave[i].slave_id == slave_id)
+		if (pdata->slave[i].slave_id == param->slave_id)
 			return pdata->slave + i;
 
 	return NULL;
@@ -299,7 +298,7 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 	if (param) {
 		struct sh_dmae_slave_config *cfg;
 
-		cfg = sh_dmae_find_slave(sh_chan, param->slave_id);
+		cfg = sh_dmae_find_slave(sh_chan, param);
 		if (!cfg)
 			return -EINVAL;
 

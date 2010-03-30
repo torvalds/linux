@@ -1254,6 +1254,26 @@ static int __init early_platform_driver_probe_id(char *class_str,
 		}
 
 		if (match) {
+			/*
+			 * Set up a sensible init_name to enable
+			 * dev_name() and others to be used before the
+			 * rest of the driver core is initialized.
+			 */
+			if (!match->dev.init_name) {
+				if (match->id != -1)
+					match->dev.init_name =
+						kasprintf(GFP_KERNEL, "%s.%d",
+							  match->name,
+							  match->id);
+				else
+					match->dev.init_name =
+						kasprintf(GFP_KERNEL, "%s",
+							  match->name);
+
+				if (!match->dev.init_name)
+					return -ENOMEM;
+			}
+
 			if (epdrv->pdrv->probe(match))
 				pr_warning("%s: unable to probe %s early.\n",
 					   class_str, match->name);

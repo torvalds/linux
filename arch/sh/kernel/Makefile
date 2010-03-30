@@ -11,7 +11,7 @@ endif
 
 CFLAGS_REMOVE_return_address.o = -pg
 
-obj-y	:= debugtraps.o dma-nommu.o dumpstack.o 			\
+obj-y	:= clkdev.o debugtraps.o dma-nommu.o dumpstack.o 		\
 	   idle.o io.o io_generic.o irq.o				\
 	   irq_$(BITS).o machvec.o nmi_debug.o process.o		\
 	   process_$(BITS).o ptrace_$(BITS).o				\

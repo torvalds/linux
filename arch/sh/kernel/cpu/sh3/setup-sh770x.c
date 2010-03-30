@@ -157,16 +157,13 @@ static struct platform_device scif2_device = {
 #endif
 
 static struct sh_timer_config tmu0_platform_data = {
-	.name = "TMU0",
 	.channel_offset = 0x02,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource tmu0_resources[] = {
 	[0] = {
-		.name	= "TMU0",
 		.start	= 0xfffffe94,
 		.end	= 0xfffffe9f,
 		.flags	= IORESOURCE_MEM,
@@ -188,16 +185,13 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.name = "TMU1",
 	.channel_offset = 0xe,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
 static struct resource tmu1_resources[] = {
 	[0] = {
-		.name	= "TMU1",
 		.start	= 0xfffffea0,
 		.end	= 0xfffffeab,
 		.flags	= IORESOURCE_MEM,
@@ -219,15 +213,12 @@ static struct platform_device tmu1_device = {
 };
 
 static struct sh_timer_config tmu2_platform_data = {
-	.name = "TMU2",
 	.channel_offset = 0x1a,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu2_resources[] = {
 	[0] = {
-		.name	= "TMU2",
 		.start	= 0xfffffeac,
 		.end	= 0xfffffebb,
 		.flags	= IORESOURCE_MEM,
