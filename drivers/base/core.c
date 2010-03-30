@@ -131,9 +131,21 @@ static void device_release(struct kobject *kobj)
 	kfree(p);
 }
 
+static const void *device_namespace(struct kobject *kobj)
+{
+	struct device *dev = to_dev(kobj);
+	const void *ns = NULL;
+
+	if (dev->class && dev->class->ns_type)
+		ns = dev->class->namespace(dev);
+
+	return ns;
+}
+
 static struct kobj_type device_ktype = {
 	.release	= device_release,
 	.sysfs_ops	= &dev_sysfs_ops,
+	.namespace	= device_namespace,
 };
 
 
@@ -595,11 +607,59 @@ static struct kobject *virtual_device_parent(struct device *dev)
 	return virtual_dir;
 }
 
+struct class_dir {
+	struct kobject kobj;
+	struct class *class;
+};
+
+#define to_class_dir(obj) container_of(obj, struct class_dir, kobj)
+
+static void class_dir_release(struct kobject *kobj)
+{
+	struct class_dir *dir = to_class_dir(kobj);
+	kfree(dir);
+}
+
+static const
+struct kobj_ns_type_operations *class_dir_child_ns_type(struct kobject *kobj)
+{
+	struct class_dir *dir = to_class_dir(kobj);
+	return dir->class->ns_type;
+}
+
+static struct kobj_type class_dir_ktype = {
+	.release	= class_dir_release,
+	.sysfs_ops	= &kobj_sysfs_ops,
+	.child_ns_type	= class_dir_child_ns_type
+};
+
+static struct kobject *
+class_dir_create_and_add(struct class *class, struct kobject *parent_kobj)
+{
+	struct class_dir *dir;
+	int retval;
+
+	dir = kzalloc(sizeof(*dir), GFP_KERNEL);
+	if (!dir)
+		return NULL;
+
+	dir->class = class;
+	kobject_init(&dir->kobj, &class_dir_ktype);
+
+	dir->kobj.kset = &class->p->class_dirs;
+
+	retval = kobject_add(&dir->kobj, parent_kobj, "%s", class->name);
+	if (retval < 0) {
+		kobject_put(&dir->kobj);
+		return NULL;
+	}
+	return &dir->kobj;
+}
+
+
 static struct kobject *get_device_parent(struct device *dev,
 					 struct device *parent)
 {
-	int retval;
-
 	if (dev->class) {
 		static DEFINE_MUTEX(gdp_mutex);
 		struct kobject *kobj = NULL;
@@ -634,18 +694,7 @@ static struct kobject *get_device_parent(struct device *dev,
 		}
 
 		/* or create a new class-directory at the parent device */
-		k = kobject_create();
-		if (!k) {
-			mutex_unlock(&gdp_mutex);
-			return NULL;
-		}
-		k->kset = &dev->class->p->class_dirs;
-		retval = kobject_add(k, parent_kobj, "%s", dev->class->name);
-		if (retval < 0) {
-			mutex_unlock(&gdp_mutex);
-			kobject_put(k);
-			return NULL;
-		}
+		k = class_dir_create_and_add(dev->class, parent_kobj);
 		/* do not emit an uevent for this simple "glue" directory */
 		mutex_unlock(&gdp_mutex);
 		return k;

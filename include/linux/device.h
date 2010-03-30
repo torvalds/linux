@@ -202,6 +202,9 @@ struct class {
 	int (*suspend)(struct device *dev, pm_message_t state);
 	int (*resume)(struct device *dev);
 
+	const struct kobj_ns_type_operations *ns_type;
+	const void *(*namespace)(struct device *dev);
+
 	const struct dev_pm_ops *pm;
 
 	struct class_private *p;
