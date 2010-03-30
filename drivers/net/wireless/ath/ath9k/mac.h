@@ -233,11 +233,6 @@ struct ath_desc {
 	u32 ds_ctl0;
 	u32 ds_ctl1;
 	u32 ds_hw[20];
-	union {
-		struct ath_tx_status tx;
-		struct ath_rx_status rx;
-		void *stats;
-	} ds_us;
 	void *ds_vdata;
 } __packed;
 

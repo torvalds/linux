@@ -2000,7 +2000,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_buf *bf, *lastbf, *bf_held = NULL;
 	struct list_head bf_head;
 	struct ath_desc *ds;
-	struct ath_tx_status *ts;
+	struct ath_tx_status ts;
 	int txok;
 	int status;
 
@@ -2039,9 +2039,9 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		lastbf = bf->bf_lastbf;
 		ds = lastbf->bf_desc;
-		ts = &ds->ds_us.tx;
 
-		status = ath9k_hw_txprocdesc(ah, ds, ts);
+		memset(&ts, 0, sizeof(ts));
+		status = ath9k_hw_txprocdesc(ah, ds, &ts);
 		if (status == -EINPROGRESS) {
 			spin_unlock_bh(&txq->axq_lock);
 			break;
@@ -2052,7 +2052,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		 * can disable RX.
 		 */
 		if (bf->bf_isnullfunc &&
-		    (ts->ts_status & ATH9K_TX_ACKED)) {
+		    (ts.ts_status & ATH9K_TX_ACKED)) {
 			if ((sc->ps_flags & PS_ENABLED))
 				ath9k_enable_ps(sc);
 			else
@@ -2071,7 +2071,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				&txq->axq_q, lastbf->list.prev);
 
 		txq->axq_depth--;
-		txok = !(ts->ts_status & ATH9K_TXERR_MASK);
+		txok = !(ts.ts_status & ATH9K_TXERR_MASK);
 		txq->axq_tx_inprogress = false;
 		spin_unlock_bh(&txq->axq_lock);
 
@@ -2086,16 +2086,16 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			 * This frame is sent out as a single frame.
 			 * Use hardware retry status for this frame.
 			 */
-			bf->bf_retries = ts->ts_longretry;
-			if (ts->ts_status & ATH9K_TXERR_XRETRY)
+			bf->bf_retries = ts.ts_longretry;
+			if (ts.ts_status & ATH9K_TXERR_XRETRY)
 				bf->bf_state.bf_type |= BUF_XRETRY;
-			ath_tx_rc_status(bf, ts, 0, txok, true);
+			ath_tx_rc_status(bf, &ts, 0, txok, true);
 		}
 
 		if (bf_isampdu(bf))
-			ath_tx_complete_aggr(sc, txq, bf, &bf_head, ts, txok);
+			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &ts, txok);
 		else
-			ath_tx_complete_buf(sc, bf, txq, &bf_head, ts, txok, 0);
+			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, txok, 0);
 
 		ath_wake_mac80211_queue(sc, txq);
 
