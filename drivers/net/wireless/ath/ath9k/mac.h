@@ -241,7 +241,6 @@ struct ath_desc {
 	void *ds_vdata;
 } __packed;
 
-#define	ds_txstat	ds_us.tx
 #define	ds_rxstat	ds_us.rx
 #define ds_stat		ds_us.stats
 
@@ -702,7 +701,8 @@ void ath9k_hw_filltxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			 u32 segLen, bool firstSeg,
 			 bool lastSeg, const struct ath_desc *ds0);
 void ath9k_hw_cleartxdesc(struct ath_hw *ah, struct ath_desc *ds);
-int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds);
+int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds,
+			struct ath_tx_status *ts);
 void ath9k_hw_set11n_txdesc(struct ath_hw *ah, struct ath_desc *ds,
 			    u32 pktLen, enum ath9k_pkt_type type, u32 txPower,
 			    u32 keyIx, enum ath9k_key_type keyType, u32 flags);

@@ -246,79 +246,80 @@ void ath9k_hw_cleartxdesc(struct ath_hw *ah, struct ath_desc *ds)
 }
 EXPORT_SYMBOL(ath9k_hw_cleartxdesc);
 
-int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds)
+int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds,
+			struct ath_tx_status *ts)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 
 	if ((ads->ds_txstatus9 & AR_TxDone) == 0)
 		return -EINPROGRESS;
 
-	ds->ds_txstat.ts_seqnum = MS(ads->ds_txstatus9, AR_SeqNum);
-	ds->ds_txstat.ts_tstamp = ads->AR_SendTimestamp;
-	ds->ds_txstat.ts_status = 0;
-	ds->ds_txstat.ts_flags = 0;
+	ts->ts_seqnum = MS(ads->ds_txstatus9, AR_SeqNum);
+	ts->ts_tstamp = ads->AR_SendTimestamp;
+	ts->ts_status = 0;
+	ts->ts_flags = 0;
 
 	if (ads->ds_txstatus1 & AR_FrmXmitOK)
-		ds->ds_txstat.ts_status |= ATH9K_TX_ACKED;
+		ts->ts_status |= ATH9K_TX_ACKED;
 	if (ads->ds_txstatus1 & AR_ExcessiveRetries)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_XRETRY;
+		ts->ts_status |= ATH9K_TXERR_XRETRY;
 	if (ads->ds_txstatus1 & AR_Filtered)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_FILT;
+		ts->ts_status |= ATH9K_TXERR_FILT;
 	if (ads->ds_txstatus1 & AR_FIFOUnderrun) {
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_FIFO;
+		ts->ts_status |= ATH9K_TXERR_FIFO;
 		ath9k_hw_updatetxtriglevel(ah, true);
 	}
 	if (ads->ds_txstatus9 & AR_TxOpExceeded)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_XTXOP;
+		ts->ts_status |= ATH9K_TXERR_XTXOP;
 	if (ads->ds_txstatus1 & AR_TxTimerExpired)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
+		ts->ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
 
 	if (ads->ds_txstatus1 & AR_DescCfgErr)
-		ds->ds_txstat.ts_flags |= ATH9K_TX_DESC_CFG_ERR;
+		ts->ts_flags |= ATH9K_TX_DESC_CFG_ERR;
 	if (ads->ds_txstatus1 & AR_TxDataUnderrun) {
-		ds->ds_txstat.ts_flags |= ATH9K_TX_DATA_UNDERRUN;
+		ts->ts_flags |= ATH9K_TX_DATA_UNDERRUN;
 		ath9k_hw_updatetxtriglevel(ah, true);
 	}
 	if (ads->ds_txstatus1 & AR_TxDelimUnderrun) {
-		ds->ds_txstat.ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
+		ts->ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
 		ath9k_hw_updatetxtriglevel(ah, true);
 	}
 	if (ads->ds_txstatus0 & AR_TxBaStatus) {
-		ds->ds_txstat.ts_flags |= ATH9K_TX_BA;
-		ds->ds_txstat.ba_low = ads->AR_BaBitmapLow;
-		ds->ds_txstat.ba_high = ads->AR_BaBitmapHigh;
+		ts->ts_flags |= ATH9K_TX_BA;
+		ts->ba_low = ads->AR_BaBitmapLow;
+		ts->ba_high = ads->AR_BaBitmapHigh;
 	}
 
-	ds->ds_txstat.ts_rateindex = MS(ads->ds_txstatus9, AR_FinalTxIdx);
-	switch (ds->ds_txstat.ts_rateindex) {
+	ts->ts_rateindex = MS(ads->ds_txstatus9, AR_FinalTxIdx);
+	switch (ts->ts_rateindex) {
 	case 0:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate0);
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate0);
 		break;
 	case 1:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate1);
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate1);
 		break;
 	case 2:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate2);
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate2);
 		break;
 	case 3:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate3);
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate3);
 		break;
 	}
 
-	ds->ds_txstat.ts_rssi = MS(ads->ds_txstatus5, AR_TxRSSICombined);
-	ds->ds_txstat.ts_rssi_ctl0 = MS(ads->ds_txstatus0, AR_TxRSSIAnt00);
-	ds->ds_txstat.ts_rssi_ctl1 = MS(ads->ds_txstatus0, AR_TxRSSIAnt01);
-	ds->ds_txstat.ts_rssi_ctl2 = MS(ads->ds_txstatus0, AR_TxRSSIAnt02);
-	ds->ds_txstat.ts_rssi_ext0 = MS(ads->ds_txstatus5, AR_TxRSSIAnt10);
-	ds->ds_txstat.ts_rssi_ext1 = MS(ads->ds_txstatus5, AR_TxRSSIAnt11);
-	ds->ds_txstat.ts_rssi_ext2 = MS(ads->ds_txstatus5, AR_TxRSSIAnt12);
-	ds->ds_txstat.evm0 = ads->AR_TxEVM0;
-	ds->ds_txstat.evm1 = ads->AR_TxEVM1;
-	ds->ds_txstat.evm2 = ads->AR_TxEVM2;
-	ds->ds_txstat.ts_shortretry = MS(ads->ds_txstatus1, AR_RTSFailCnt);
-	ds->ds_txstat.ts_longretry = MS(ads->ds_txstatus1, AR_DataFailCnt);
-	ds->ds_txstat.ts_virtcol = MS(ads->ds_txstatus1, AR_VirtRetryCnt);
-	ds->ds_txstat.ts_antenna = 0;
+	ts->ts_rssi = MS(ads->ds_txstatus5, AR_TxRSSICombined);
+	ts->ts_rssi_ctl0 = MS(ads->ds_txstatus0, AR_TxRSSIAnt00);
+	ts->ts_rssi_ctl1 = MS(ads->ds_txstatus0, AR_TxRSSIAnt01);
+	ts->ts_rssi_ctl2 = MS(ads->ds_txstatus0, AR_TxRSSIAnt02);
+	ts->ts_rssi_ext0 = MS(ads->ds_txstatus5, AR_TxRSSIAnt10);
+	ts->ts_rssi_ext1 = MS(ads->ds_txstatus5, AR_TxRSSIAnt11);
+	ts->ts_rssi_ext2 = MS(ads->ds_txstatus5, AR_TxRSSIAnt12);
+	ts->evm0 = ads->AR_TxEVM0;
+	ts->evm1 = ads->AR_TxEVM1;
+	ts->evm2 = ads->AR_TxEVM2;
+	ts->ts_shortretry = MS(ads->ds_txstatus1, AR_RTSFailCnt);
+	ts->ts_longretry = MS(ads->ds_txstatus1, AR_DataFailCnt);
+	ts->ts_virtcol = MS(ads->ds_txstatus1, AR_VirtRetryCnt);
+	ts->ts_antenna = 0;
 
 	return 0;
 }

@@ -556,10 +556,8 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 }
 
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
-		       struct ath_buf *bf)
+		       struct ath_buf *bf, struct ath_tx_status *ts)
 {
-	struct ath_desc *ds = bf->bf_desc;
-
 	if (bf_isampdu(bf)) {
 		if (bf_isxretried(bf))
 			TX_STAT_INC(txq->axq_qnum, a_xretries);
@@ -569,17 +567,17 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
 		TX_STAT_INC(txq->axq_qnum, completed);
 	}
 
-	if (ds->ds_txstat.ts_status & ATH9K_TXERR_FIFO)
+	if (ts->ts_status & ATH9K_TXERR_FIFO)
 		TX_STAT_INC(txq->axq_qnum, fifo_underrun);
-	if (ds->ds_txstat.ts_status & ATH9K_TXERR_XTXOP)
+	if (ts->ts_status & ATH9K_TXERR_XTXOP)
 		TX_STAT_INC(txq->axq_qnum, xtxop);
-	if (ds->ds_txstat.ts_status & ATH9K_TXERR_TIMER_EXPIRED)
+	if (ts->ts_status & ATH9K_TXERR_TIMER_EXPIRED)
 		TX_STAT_INC(txq->axq_qnum, timer_exp);
-	if (ds->ds_txstat.ts_flags & ATH9K_TX_DESC_CFG_ERR)
+	if (ts->ts_flags & ATH9K_TX_DESC_CFG_ERR)
 		TX_STAT_INC(txq->axq_qnum, desc_cfg_err);
-	if (ds->ds_txstat.ts_flags & ATH9K_TX_DATA_UNDERRUN)
+	if (ts->ts_flags & ATH9K_TX_DATA_UNDERRUN)
 		TX_STAT_INC(txq->axq_qnum, data_underrun);
-	if (ds->ds_txstat.ts_flags & ATH9K_TX_DELIM_UNDERRUN)
+	if (ts->ts_flags & ATH9K_TX_DELIM_UNDERRUN)
 		TX_STAT_INC(txq->axq_qnum, delim_underrun);
 }
 
