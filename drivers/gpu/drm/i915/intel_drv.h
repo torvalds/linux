@@ -110,6 +110,11 @@ struct intel_encoder {
 	int clone_mask;
 };
 
+struct intel_connector {
+	struct drm_connector base;
+	void *dev_priv;
+};
+
 struct intel_crtc;
 struct intel_overlay {
 	struct drm_device *dev;
@@ -153,6 +158,7 @@ struct intel_crtc {
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
+#define to_intel_connector(x) container_of(x, struct intel_connector, base)
 #define enc_to_intel_encoder(x) container_of(x, struct intel_encoder, enc)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
