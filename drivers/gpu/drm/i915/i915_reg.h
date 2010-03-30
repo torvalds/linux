@@ -2629,6 +2629,9 @@
 #define  HSYNC_ACTIVE_HIGH      (1 << 3)
 #define  PORT_DETECTED          (1 << 2)
 
+/* PCH SDVOB multiplex with HDMIB */
+#define PCH_SDVOB	HDMIB
+
 #define HDMIC   0xe1150
 #define HDMID   0xe1160
 

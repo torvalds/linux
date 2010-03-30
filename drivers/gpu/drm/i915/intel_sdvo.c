@@ -193,6 +193,12 @@ static void intel_sdvo_write_sdvox(struct intel_encoder *intel_encoder, u32 val)
 	u32 bval = val, cval = val;
 	int i;
 
+	if (sdvo_priv->sdvo_reg == PCH_SDVOB) {
+		I915_WRITE(sdvo_priv->sdvo_reg, val);
+		I915_READ(sdvo_priv->sdvo_reg);
+		return;
+	}
+
 	if (sdvo_priv->sdvo_reg == SDVOB) {
 		cval = I915_READ(SDVOC);
 	} else {
@@ -369,7 +375,8 @@ static const struct _sdvo_cmd_name {
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_DATA),
 };
 
-#define SDVO_NAME(dev_priv) ((dev_priv)->sdvo_reg == SDVOB ? "SDVOB" : "SDVOC")
+#define IS_SDVOB(reg)	(reg == SDVOB || reg == PCH_SDVOB)
+#define SDVO_NAME(dev_priv) (IS_SDVOB((dev_priv)->sdvo_reg) ? "SDVOB" : "SDVOC")
 #define SDVO_PRIV(encoder)   ((struct intel_sdvo_priv *) (encoder)->dev_priv)
 
 static void intel_sdvo_debug_write(struct intel_encoder *intel_encoder, u8 cmd,
@@ -2147,7 +2154,7 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, int sdvo_reg)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct sdvo_device_mapping *my_mapping, *other_mapping;
 
-	if (sdvo_reg == SDVOB) {
+	if (IS_SDVOB(sdvo_reg)) {
 		my_mapping = &dev_priv->sdvo_mappings[0];
 		other_mapping = &dev_priv->sdvo_mappings[1];
 	} else {
@@ -2172,7 +2179,7 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, int sdvo_reg)
 	/* No SDVO device info is found for another DVO port,
 	 * so use mapping assumption we had before BIOS parsing.
 	 */
-	if (sdvo_reg == SDVOB)
+	if (IS_SDVOB(sdvo_reg))
 		return 0x70;
 	else
 		return 0x72;
@@ -2777,6 +2784,7 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	struct intel_sdvo_priv *sdvo_priv;
 	u8 ch[0x40];
 	int i;
+	u32 i2c_reg, ddc_reg, analog_ddc_reg;
 
 	intel_encoder = kcalloc(sizeof(struct intel_encoder)+sizeof(struct intel_sdvo_priv), 1, GFP_KERNEL);
 	if (!intel_encoder) {
@@ -2789,11 +2797,21 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	intel_encoder->dev_priv = sdvo_priv;
 	intel_encoder->type = INTEL_OUTPUT_SDVO;
 
+	if (HAS_PCH_SPLIT(dev)) {
+		i2c_reg = PCH_GPIOE;
+		ddc_reg = PCH_GPIOE;
+		analog_ddc_reg = PCH_GPIOA;
+	} else {
+		i2c_reg = GPIOE;
+		ddc_reg = GPIOE;
+		analog_ddc_reg = GPIOA;
+	}
+
 	/* setup the DDC bus. */
-	if (sdvo_reg == SDVOB)
-		intel_encoder->i2c_bus = intel_i2c_create(dev, GPIOE, "SDVOCTRL_E for SDVOB");
+	if (IS_SDVOB(sdvo_reg))
+		intel_encoder->i2c_bus = intel_i2c_create(dev, i2c_reg, "SDVOCTRL_E for SDVOB");
 	else
-		intel_encoder->i2c_bus = intel_i2c_create(dev, GPIOE, "SDVOCTRL_E for SDVOC");
+		intel_encoder->i2c_bus = intel_i2c_create(dev, i2c_reg, "SDVOCTRL_E for SDVOC");
 
 	if (!intel_encoder->i2c_bus)
 		goto err_inteloutput;
@@ -2807,20 +2825,20 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	for (i = 0; i < 0x40; i++) {
 		if (!intel_sdvo_read_byte(intel_encoder, i, &ch[i])) {
 			DRM_DEBUG_KMS("No SDVO device found on SDVO%c\n",
-					sdvo_reg == SDVOB ? 'B' : 'C');
+				      IS_SDVOB(sdvo_reg) ? 'B' : 'C');
 			goto err_i2c;
 		}
 	}
 
 	/* setup the DDC bus. */
-	if (sdvo_reg == SDVOB) {
-		intel_encoder->ddc_bus = intel_i2c_create(dev, GPIOE, "SDVOB DDC BUS");
-		sdvo_priv->analog_ddc_bus = intel_i2c_create(dev, GPIOA,
+	if (IS_SDVOB(sdvo_reg)) {
+		intel_encoder->ddc_bus = intel_i2c_create(dev, ddc_reg, "SDVOB DDC BUS");
+		sdvo_priv->analog_ddc_bus = intel_i2c_create(dev, analog_ddc_reg,
 						"SDVOB/VGA DDC BUS");
 		dev_priv->hotplug_supported_mask |= SDVOB_HOTPLUG_INT_STATUS;
 	} else {
-		intel_encoder->ddc_bus = intel_i2c_create(dev, GPIOE, "SDVOC DDC BUS");
-		sdvo_priv->analog_ddc_bus = intel_i2c_create(dev, GPIOA,
+		intel_encoder->ddc_bus = intel_i2c_create(dev, ddc_reg, "SDVOC DDC BUS");
+		sdvo_priv->analog_ddc_bus = intel_i2c_create(dev, analog_ddc_reg,
 						"SDVOC/VGA DDC BUS");
 		dev_priv->hotplug_supported_mask |= SDVOC_HOTPLUG_INT_STATUS;
 	}
@@ -2841,7 +2859,7 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	if (intel_sdvo_output_setup(intel_encoder,
 				    sdvo_priv->caps.output_flags) != true) {
 		DRM_DEBUG_KMS("SDVO output failed to setup on SDVO%c\n",
-			  sdvo_reg == SDVOB ? 'B' : 'C');
+			      IS_SDVOB(sdvo_reg) ? 'B' : 'C');
 		goto err_i2c;
 	}
 

@@ -4670,9 +4670,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_dp_init(dev, DP_A);
 
 		if (I915_READ(HDMIB) & PORT_DETECTED) {
-			/* check SDVOB */
-			/* found = intel_sdvo_init(dev, HDMIB); */
-			found = 0;
+			/* PCH SDVOB multiplex with HDMIB */
+			found = intel_sdvo_init(dev, PCH_SDVOB);
 			if (!found)
 				intel_hdmi_init(dev, HDMIB);
 			if (!found && (I915_READ(PCH_DP_B) & DP_DETECTED))
