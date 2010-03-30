@@ -4156,7 +4156,7 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 	 * send the join/membership reports.  The curr_active_slave found
 	 * will send all of this type of traffic.
 	 */
-	if ((iph->protocol == htons(IPPROTO_IGMP)) &&
+	if ((iph->protocol == IPPROTO_IGMP) &&
 	    (skb->protocol == htons(ETH_P_IP))) {
 
 		read_lock(&bond->curr_slave_lock);
