@@ -143,13 +143,21 @@ struct cpu_hw_events {
  * Constraint on the Event code.
  */
 #define INTEL_EVENT_CONSTRAINT(c, n)	\
-	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVTSEL_MASK)
+	EVENT_CONSTRAINT(c, n, ARCH_PERFMON_EVENTSEL_EVENT)
 
 /*
  * Constraint on the Event code + UMask + fixed-mask
+ *
+ * filter mask to validate fixed counter events.
+ * the following filters disqualify for fixed counters:
+ *  - inv
+ *  - edge
+ *  - cnt-mask
+ *  The other filters are supported by fixed counters.
+ *  The any-thread option is supported starting with v3.
  */
 #define FIXED_EVENT_CONSTRAINT(c, n)	\
-	EVENT_CONSTRAINT(c, (1ULL << (32+n)), INTEL_ARCH_FIXED_MASK)
+	EVENT_CONSTRAINT(c, (1ULL << (32+n)), X86_RAW_EVENT_MASK)
 
 /*
  * Constraint on the Event code + UMask
@@ -435,6 +443,11 @@ static int x86_hw_config(struct perf_event_attr *attr, struct hw_perf_event *hwc
 		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
 
 	return 0;
+}
+
+static u64 x86_pmu_raw_event(u64 hw_event)
+{
+	return hw_event & X86_RAW_EVENT_MASK;
 }
 
 /*
@@ -1427,7 +1440,7 @@ void __init init_hw_perf_events(void)
 
 	if (x86_pmu.event_constraints) {
 		for_each_event_constraint(c, x86_pmu.event_constraints) {
-			if (c->cmask != INTEL_ARCH_FIXED_MASK)
+			if (c->cmask != X86_RAW_EVENT_MASK)
 				continue;
 
 			c->idxmsk64 |= (1ULL << x86_pmu.num_counters) - 1;
