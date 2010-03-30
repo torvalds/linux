@@ -74,7 +74,17 @@ static inline void rcu_sched_force_quiescent_state(void)
 {
 }
 
-#define synchronize_rcu synchronize_sched
+extern void synchronize_sched(void);
+
+static inline void synchronize_rcu(void)
+{
+	synchronize_sched();
+}
+
+static inline void synchronize_rcu_bh(void)
+{
+	synchronize_sched();
+}
 
 static inline void synchronize_rcu_expedited(void)
 {
