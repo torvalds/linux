@@ -822,10 +822,6 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 	IWL_DEBUG_WEP(priv, "Removing default WEP key: idx=%d\n",
 		      keyconf->keyidx);
 
-	if (!test_and_clear_bit(keyconf->keyidx, &priv->ucode_key_table))
-		IWL_ERR(priv, "index %d not used in uCode key table.\n",
-			  keyconf->keyidx);
-
 	memset(&priv->wep_keys[keyconf->keyidx], 0, sizeof(priv->wep_keys[0]));
 	if (iwl_is_rfkill(priv)) {
 		IWL_DEBUG_WEP(priv, "Not sending REPLY_WEPKEY command due to RFKILL.\n");
@@ -856,10 +852,6 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
 	keyconf->hw_key_idx = HW_KEY_DEFAULT;
 	priv->stations[IWL_AP_ID].keyinfo.alg = ALG_WEP;
-
-	if (test_and_set_bit(keyconf->keyidx, &priv->ucode_key_table))
-		IWL_ERR(priv, "index %d already used in uCode key table.\n",
-			  keyconf->keyidx);
 
 	priv->wep_keys[keyconf->keyidx].key_size = keyconf->keylen;
 	memcpy(&priv->wep_keys[keyconf->keyidx].key, &keyconf->key,
