@@ -800,6 +800,7 @@ void do_logfs_journal_wl_pass(struct super_block *sb)
 {
 	struct logfs_super *super = logfs_super(sb);
 	struct logfs_area *area = super->s_journal_area;
+	struct btree_head32 *head = &super->s_reserved_segments;
 	u32 segno, ec;
 	int i, err;
 
@@ -807,6 +808,7 @@ void do_logfs_journal_wl_pass(struct super_block *sb)
 	/* Drop old segments */
 	journal_for_each(i)
 		if (super->s_journal_seg[i]) {
+			btree_remove32(head, super->s_journal_seg[i]);
 			logfs_set_segment_unreserved(sb,
 					super->s_journal_seg[i],
 					super->s_journal_ec[i]);
@@ -819,8 +821,13 @@ void do_logfs_journal_wl_pass(struct super_block *sb)
 		super->s_journal_seg[i] = segno;
 		super->s_journal_ec[i] = ec;
 		logfs_set_segment_reserved(sb, segno);
+		err = btree_insert32(head, segno, (void *)1, GFP_KERNEL);
+		BUG_ON(err); /* mempool should prevent this */
+		err = logfs_erase_segment(sb, segno, 1);
+		BUG_ON(err); /* FIXME: remount-ro would be nicer */
 	}
 	/* Manually move journal_area */
+	freeseg(sb, area->a_segno);
 	area->a_segno = super->s_journal_seg[0];
 	area->a_is_open = 0;
 	area->a_used_bytes = 0;
