@@ -950,6 +950,7 @@ const void *kobj_ns_initial(enum kobj_ns_type type)
 
 void kobj_ns_exit(enum kobj_ns_type type, const void *ns)
 {
+	sysfs_exit_ns(type, ns);
 }
 
 

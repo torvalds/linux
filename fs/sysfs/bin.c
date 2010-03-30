@@ -501,7 +501,7 @@ int sysfs_create_bin_file(struct kobject *kobj,
 void sysfs_remove_bin_file(struct kobject *kobj,
 			   const struct bin_attribute *attr)
 {
-	sysfs_hash_and_remove(kobj->sd, attr->attr.name);
+	sysfs_hash_and_remove(kobj->sd, NULL, attr->attr.name);
 }
 
 EXPORT_SYMBOL_GPL(sysfs_create_bin_file);

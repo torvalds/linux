@@ -58,6 +58,8 @@ static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
 	if (!sd)
 		goto out_put;
 
+	if (sysfs_ns_type(parent_sd))
+		sd->s_ns = target->ktype->namespace(target);
 	sd->s_symlink.target_sd = target_sd;
 	target_sd = NULL;	/* reference is now owned by the symlink */
 
@@ -121,7 +123,7 @@ void sysfs_remove_link(struct kobject * kobj, const char * name)
 	else
 		parent_sd = kobj->sd;
 
-	sysfs_hash_and_remove(parent_sd, name);
+	sysfs_hash_and_remove(parent_sd, NULL, name);
 }
 
 /**
@@ -137,6 +139,7 @@ int sysfs_rename_link(struct kobject *kobj, struct kobject *targ,
 			const char *old, const char *new)
 {
 	struct sysfs_dirent *parent_sd, *sd = NULL;
+	const void *old_ns = NULL, *new_ns = NULL;
 	int result;
 
 	if (!kobj)
@@ -144,8 +147,11 @@ int sysfs_rename_link(struct kobject *kobj, struct kobject *targ,
 	else
 		parent_sd = kobj->sd;
 
+	if (targ->sd)
+		old_ns = targ->sd->s_ns;
+
 	result = -ENOENT;
-	sd = sysfs_get_dirent(parent_sd, old);
+	sd = sysfs_get_dirent(parent_sd, old_ns, old);
 	if (!sd)
 		goto out;
 
@@ -155,7 +161,10 @@ int sysfs_rename_link(struct kobject *kobj, struct kobject *targ,
 	if (sd->s_symlink.target_sd->s_dir.kobj != targ)
 		goto out;
 
-	result = sysfs_rename(sd, parent_sd, new);
+	if (sysfs_ns_type(parent_sd))
+		new_ns = targ->ktype->namespace(targ);
+
+	result = sysfs_rename(sd, parent_sd, new_ns, new);
 
 out:
 	sysfs_put(sd);

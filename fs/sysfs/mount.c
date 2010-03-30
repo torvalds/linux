@@ -35,7 +35,7 @@ static const struct super_operations sysfs_ops = {
 struct sysfs_dirent sysfs_root = {
 	.s_name		= "",
 	.s_count	= ATOMIC_INIT(1),
-	.s_flags	= SYSFS_DIR,
+	.s_flags	= SYSFS_DIR | (KOBJ_NS_TYPE_NONE << SYSFS_NS_TYPE_SHIFT),
 	.s_mode		= S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
 	.s_ino		= 1,
 };
@@ -76,7 +76,13 @@ static int sysfs_test_super(struct super_block *sb, void *data)
 {
 	struct sysfs_super_info *sb_info = sysfs_info(sb);
 	struct sysfs_super_info *info = data;
+	enum kobj_ns_type type;
 	int found = 1;
+
+	for (type = KOBJ_NS_TYPE_NONE; type < KOBJ_NS_TYPES; type++) {
+		if (sb_info->ns[type] != info->ns[type])
+			found = 0;
+	}
 	return found;
 }
 
@@ -93,6 +99,7 @@ static int sysfs_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
 	struct sysfs_super_info *info;
+	enum kobj_ns_type type;
 	struct super_block *sb;
 	int error;
 
@@ -100,6 +107,10 @@ static int sysfs_get_sb(struct file_system_type *fs_type,
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		goto out;
+
+	for (type = KOBJ_NS_TYPE_NONE; type < KOBJ_NS_TYPES; type++)
+		info->ns[type] = kobj_ns_current(type);
+
 	sb = sget(fs_type, sysfs_test_super, sysfs_set_super, info);
 	if (IS_ERR(sb) || sb->s_fs_info != info)
 		kfree(info);
@@ -136,6 +147,26 @@ static struct file_system_type sysfs_fs_type = {
 	.get_sb		= sysfs_get_sb,
 	.kill_sb	= sysfs_kill_sb,
 };
+
+void sysfs_exit_ns(enum kobj_ns_type type, const void *ns)
+{
+	struct super_block *sb;
+
+	mutex_lock(&sysfs_mutex);
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &sysfs_fs_type.fs_supers, s_instances) {
+		struct sysfs_super_info *info = sysfs_info(sb);
+		/* Ignore superblocks that are in the process of unmounting */
+		if (sb->s_count <= S_BIAS)
+			continue;
+		/* Ignore superblocks with the wrong ns */
+		if (info->ns[type] != ns)
+			continue;
+		info->ns[type] = NULL;
+	}
+	spin_unlock(&sb_lock);
+	mutex_unlock(&sysfs_mutex);
+}
 
 int __init sysfs_init(void)
 {
