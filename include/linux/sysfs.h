@@ -155,6 +155,9 @@ void sysfs_remove_link(struct kobject *kobj, const char *name);
 int sysfs_rename_link(struct kobject *kobj, struct kobject *target,
 			const char *old_name, const char *new_name);
 
+void sysfs_delete_link(struct kobject *dir, struct kobject *targ,
+			const char *name);
+
 int __must_check sysfs_create_group(struct kobject *kobj,
 				    const struct attribute_group *grp);
 int sysfs_update_group(struct kobject *kobj,
@@ -267,6 +270,11 @@ static inline int sysfs_rename_link(struct kobject *k, struct kobject *t,
 				    const char *old_name, const char *new_name)
 {
 	return 0;
+}
+
+static inline void sysfs_delete_link(struct kobject *k, struct kobject *t,
+				     const char *name)
+{
 }
 
 static inline int sysfs_create_group(struct kobject *kobj,

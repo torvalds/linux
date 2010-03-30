@@ -109,6 +109,26 @@ int sysfs_create_link_nowarn(struct kobject *kobj, struct kobject *target,
 }
 
 /**
+ *	sysfs_delete_link - remove symlink in object's directory.
+ *	@kobj:	object we're acting for.
+ *	@targ:	object we're pointing to.
+ *	@name:	name of the symlink to remove.
+ *
+ *	Unlike sysfs_remove_link sysfs_delete_link has enough information
+ *	to successfully delete symlinks in tagged directories.
+ */
+void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
+			const char *name)
+{
+	const void *ns = NULL;
+	spin_lock(&sysfs_assoc_lock);
+	if (targ->sd)
+		ns = targ->sd->s_ns;
+	spin_unlock(&sysfs_assoc_lock);
+	sysfs_hash_and_remove(kobj->sd, ns, name);
+}
+
+/**
  *	sysfs_remove_link - remove symlink in object's directory.
  *	@kobj:	object we're acting for.
  *	@name:	name of the symlink to remove.
