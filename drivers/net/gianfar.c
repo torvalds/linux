@@ -1120,10 +1120,10 @@ static int gfar_probe(struct of_device *ofdev,
 	/* provided which set of benchmarks. */
 	printk(KERN_INFO "%s: Running with NAPI enabled\n", dev->name);
 	for (i = 0; i < priv->num_rx_queues; i++)
-		printk(KERN_INFO "%s: :RX BD ring size for Q[%d]: %d\n",
+		printk(KERN_INFO "%s: RX BD ring size for Q[%d]: %d\n",
 			dev->name, i, priv->rx_queue[i]->rx_ring_size);
 	for(i = 0; i < priv->num_tx_queues; i++)
-		 printk(KERN_INFO "%s:TX BD ring size for Q[%d]: %d\n",
+		 printk(KERN_INFO "%s: TX BD ring size for Q[%d]: %d\n",
 			dev->name, i, priv->tx_queue[i]->tx_ring_size);
 
 	return 0;
