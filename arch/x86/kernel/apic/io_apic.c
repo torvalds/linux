@@ -4082,22 +4082,27 @@ int __init io_apic_get_version(int ioapic)
 	return reg_01.bits.version;
 }
 
-int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity)
+int acpi_get_override_irq(u32 gsi, int *trigger, int *polarity)
 {
-	int i;
+	int ioapic, pin, idx;
 
 	if (skip_ioapic_setup)
 		return -1;
 
-	for (i = 0; i < mp_irq_entries; i++)
-		if (mp_irqs[i].irqtype == mp_INT &&
-		    mp_irqs[i].srcbusirq == bus_irq)
-			break;
-	if (i >= mp_irq_entries)
+	ioapic = mp_find_ioapic(gsi);
+	if (ioapic < 0)
 		return -1;
 
-	*trigger = irq_trigger(i);
-	*polarity = irq_polarity(i);
+	pin = mp_find_ioapic_pin(ioapic, gsi);
+	if (pin < 0)
+		return -1;
+
+	idx = find_irq_entry(ioapic, pin, mp_INT);
+	if (idx < 0)
+		return -1;
+
+	*trigger = irq_trigger(idx);
+	*polarity = irq_polarity(idx);
 	return 0;
 }
 
