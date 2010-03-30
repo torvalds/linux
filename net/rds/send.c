@@ -110,12 +110,11 @@ int rds_send_xmit(struct rds_connection *conn)
 	struct rds_message *rm;
 	unsigned long flags;
 	unsigned int tmp;
-	unsigned int send_quota = send_batch_count;
 	struct scatterlist *sg;
 	int ret = 0;
-	int was_empty = 0;
 	LIST_HEAD(to_be_dropped);
 
+restart:
 	if (!rds_conn_up(conn))
 		goto out;
 
@@ -139,7 +138,7 @@ int rds_send_xmit(struct rds_connection *conn)
 	 * spin trying to push headers and data down the connection until
 	 * the connection doesn't make forward progress.
 	 */
-	while (--send_quota) {
+	while (1) {
 
 		rm = conn->c_xmit_rm;
 
@@ -185,10 +184,8 @@ int rds_send_xmit(struct rds_connection *conn)
 
 			spin_unlock(&conn->c_lock);
 
-			if (!rm) {
-				was_empty = 1;
+			if (!rm)
 				break;
-			}
 
 			/* Unfortunately, the way Infiniband deals with
 			 * RDMA to a bad MR key is by moving the entire
@@ -350,20 +347,23 @@ int rds_send_xmit(struct rds_connection *conn)
 		rds_send_remove_from_sock(&to_be_dropped, RDS_RDMA_DROPPED);
 	}
 
-	if (send_quota == 0 && !was_empty) {
-		/* We exhausted the send quota, but there's work left to
-		 * do. Return and (re-)schedule the send worker.
-		 */
-		ret = -EAGAIN;
-	}
-
-	if (ret == 0 && was_empty) {
+	/*
+	 * Other senders will see we have c_send_lock and exit. We
+	 * need to recheck the send queue and race again for c_send_lock
+	 * to make sure messages don't just sit on the send queue.
+	 *
+	 * If the transport cannot continue (i.e ret != 0), then it must
+	 * call us when more room is available, such as from the tx
+	 * completion handler.
+	 */
+	if (ret == 0) {
 		/* A simple bit test would be way faster than taking the
 		 * spin lock */
 		spin_lock_irqsave(&conn->c_lock, flags);
 		if (!list_empty(&conn->c_send_queue)) {
 			rds_stats_inc(s_send_lock_queue_raced);
-			ret = -EAGAIN;
+			spin_unlock_irqrestore(&conn->c_lock, flags);
+			goto restart;
 		}
 		spin_unlock_irqrestore(&conn->c_lock, flags);
 	}
