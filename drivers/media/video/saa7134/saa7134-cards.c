@@ -7366,6 +7366,23 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	}
+	case SAA7134_BOARD_BEHOLD_H6:
+	{
+		u8 data[] = { 0x09, 0x9f, 0x86, 0x11};
+		struct i2c_msg msg = {.addr = 0x61, .flags = 0, .buf = data,
+							.len = sizeof(data)};
+
+		/* The tuner TUNER_PHILIPS_FMD1216MEX_MK3 after hardware    */
+		/* start has disabled IF and enabled DVB-T. When saa7134    */
+		/* scan I2C devices it not detect IF tda9887 and can`t      */
+		/* watch TV without software reboot. For solve this problem */
+		/* switch the tuner to analog TV mode manually.             */
+		if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1)
+				printk(KERN_WARNING
+				      "%s: Unable to enable IF of the tuner.\n",
+				       dev->name);
+		break;
+	}
 	} /* switch() */
 
 	/* initialize tuner */
