@@ -565,7 +565,9 @@ static int dlm_send_one_domain_exit(struct dlm_ctxt *dlm,
 	status = o2net_send_message(DLM_EXIT_DOMAIN_MSG, dlm->key,
 				    &leave_msg, sizeof(leave_msg), node,
 				    NULL);
-
+	if (status < 0)
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", status, DLM_EXIT_DOMAIN_MSG, dlm->key, node);
 	mlog(0, "status return %d from o2net_send_message\n", status);
 
 	return status;
@@ -962,7 +964,9 @@ static int dlm_send_one_join_cancel(struct dlm_ctxt *dlm,
 				    &cancel_msg, sizeof(cancel_msg), node,
 				    NULL);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", status, DLM_CANCEL_JOIN_MSG, DLM_MOD_KEY,
+		     node);
 		goto bail;
 	}
 
@@ -1029,10 +1033,11 @@ static int dlm_request_join(struct dlm_ctxt *dlm,
 	byte_copymap(join_msg.node_map, dlm->live_nodes_map, O2NM_MAX_NODES);
 
 	status = o2net_send_message(DLM_QUERY_JOIN_MSG, DLM_MOD_KEY, &join_msg,
-				    sizeof(join_msg), node,
-				    &join_resp);
+				    sizeof(join_msg), node, &join_resp);
 	if (status < 0 && status != -ENOPROTOOPT) {
-		mlog_errno(status);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", status, DLM_QUERY_JOIN_MSG, DLM_MOD_KEY,
+		     node);
 		goto bail;
 	}
 	dlm_query_join_wire_to_packet(join_resp, &packet);
@@ -1103,7 +1108,9 @@ static int dlm_send_one_join_assert(struct dlm_ctxt *dlm,
 				    &assert_msg, sizeof(assert_msg), node,
 				    NULL);
 	if (status < 0)
-		mlog_errno(status);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", status, DLM_ASSERT_JOINED_MSG, DLM_MOD_KEY,
+		     node);
 
 	return status;
 }

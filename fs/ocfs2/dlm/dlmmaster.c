@@ -1666,7 +1666,9 @@ again:
 		tmpret = o2net_send_message(DLM_ASSERT_MASTER_MSG, dlm->key,
 					    &assert, sizeof(assert), to, &r);
 		if (tmpret < 0) {
-			mlog(0, "assert_master returned %d!\n", tmpret);
+			mlog(ML_ERROR, "Error %d when sending message %u (key "
+			     "0x%x) to node %u\n", tmpret,
+			     DLM_ASSERT_MASTER_MSG, dlm->key, to);
 			if (!dlm_is_host_down(tmpret)) {
 				mlog(ML_ERROR, "unhandled error=%d!\n", tmpret);
 				BUG();
@@ -2207,7 +2209,9 @@ int dlm_drop_lockres_ref(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 	ret = o2net_send_message(DLM_DEREF_LOCKRES_MSG, dlm->key,
 				 &deref, sizeof(deref), res->owner, &r);
 	if (ret < 0)
-		mlog_errno(ret);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", ret, DLM_DEREF_LOCKRES_MSG, dlm->key,
+		     res->owner);
 	else if (r < 0) {
 		/* BAD.  other node says I did not have a ref. */
 		mlog(ML_ERROR,"while dropping ref on %s:%.*s "
@@ -2977,7 +2981,9 @@ static int dlm_do_migrate_request(struct dlm_ctxt *dlm,
 					 &migrate, sizeof(migrate), nodenum,
 					 &status);
 		if (ret < 0) {
-			mlog(0, "migrate_request returned %d!\n", ret);
+			mlog(ML_ERROR, "Error %d when sending message %u (key "
+			     "0x%x) to node %u\n", ret, DLM_MIGRATE_REQUEST_MSG,
+			     dlm->key, nodenum);
 			if (!dlm_is_host_down(ret)) {
 				mlog(ML_ERROR, "unhandled error=%d!\n", ret);
 				BUG();
