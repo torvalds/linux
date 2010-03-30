@@ -450,7 +450,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	padpos = ath9k_cmn_padpos(fc);
 
 	padsize = padpos & 3;
-	if (padsize && skb->len >= padpos+padsize) {
+	if (padsize && skb->len >= padpos+padsize+FCS_LEN) {
 		memmove(skb->data + padsize, skb->data, padpos);
 		skb_pull(skb, padsize);
 	}
@@ -646,7 +646,6 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	spin_lock(&priv->rx.rxbuflock);
 	memcpy(&rxbuf->rxstatus, rxstatus, HTC_RX_FRAME_HEADER_SIZE);
 	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);
-	skb->len = rxstatus->rs_datalen;
 	rxbuf->skb = skb;
 	rxbuf->in_process = true;
 	spin_unlock(&priv->rx.rxbuflock);
