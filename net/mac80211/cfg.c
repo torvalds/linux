@@ -1415,15 +1415,18 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	struct ieee80211_vif *vif = &sdata->vif;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
-	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI))
-		return -EOPNOTSUPP;
-
 	if (rssi_thold == bss_conf->cqm_rssi_thold &&
 	    rssi_hyst == bss_conf->cqm_rssi_hyst)
 		return 0;
 
 	bss_conf->cqm_rssi_thold = rssi_thold;
 	bss_conf->cqm_rssi_hyst = rssi_hyst;
+
+	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
+		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+			return -EOPNOTSUPP;
+		return 0;
+	}
 
 	/* tell the driver upon association, unless already associated */
 	if (sdata->u.mgd.associated)
