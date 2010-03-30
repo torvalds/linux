@@ -84,8 +84,8 @@ long srcu_batches_completed(struct srcu_struct *sp);
 /**
  * srcu_read_lock_held - might we be in SRCU read-side critical section?
  *
- * If CONFIG_PROVE_LOCKING is selected and enabled, returns nonzero iff in
- * an SRCU read-side critical section.  In absence of CONFIG_PROVE_LOCKING,
+ * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an SRCU
+ * read-side critical section.  In absence of CONFIG_DEBUG_LOCK_ALLOC,
  * this assumes we are in an SRCU read-side critical section unless it can
  * prove otherwise.
  */

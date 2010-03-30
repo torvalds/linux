@@ -106,8 +106,8 @@ extern int debug_lockdep_rcu_enabled(void);
 /**
  * rcu_read_lock_held - might we be in RCU read-side critical section?
  *
- * If CONFIG_PROVE_LOCKING is selected and enabled, returns nonzero iff in
- * an RCU read-side critical section.  In absence of CONFIG_PROVE_LOCKING,
+ * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an RCU
+ * read-side critical section.  In absence of CONFIG_DEBUG_LOCK_ALLOC,
  * this assumes we are in an RCU read-side critical section unless it can
  * prove otherwise.
  *
@@ -129,11 +129,12 @@ extern int rcu_read_lock_bh_held(void);
 /**
  * rcu_read_lock_sched_held - might we be in RCU-sched read-side critical section?
  *
- * If CONFIG_PROVE_LOCKING is selected and enabled, returns nonzero iff in an
- * RCU-sched read-side critical section.  In absence of CONFIG_PROVE_LOCKING,
- * this assumes we are in an RCU-sched read-side critical section unless it
- * can prove otherwise.  Note that disabling of preemption (including
- * disabling irqs) counts as an RCU-sched read-side critical section.
+ * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an
+ * RCU-sched read-side critical section.  In absence of
+ * CONFIG_DEBUG_LOCK_ALLOC, this assumes we are in an RCU-sched read-side
+ * critical section unless it can prove otherwise.  Note that disabling
+ * of preemption (including disabling irqs) counts as an RCU-sched
+ * read-side critical section.
  *
  * Check rcu_scheduler_active to prevent false positives during boot.
  */
