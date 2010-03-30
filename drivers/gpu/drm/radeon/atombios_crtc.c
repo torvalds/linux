@@ -581,11 +581,16 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					}
 				} else if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 					/* may want to enable SS on DP/eDP eventually */
-					args.v3.sInput.ucDispPllConfig |=
-						DISPPLL_CONFIG_SS_ENABLE;
-					if (mode->clock > 165000)
+					/*args.v3.sInput.ucDispPllConfig |=
+						DISPPLL_CONFIG_SS_ENABLE;*/
+					if (encoder_mode == ATOM_ENCODER_MODE_DP)
 						args.v3.sInput.ucDispPllConfig |=
-							DISPPLL_CONFIG_DUAL_LINK;
+							DISPPLL_CONFIG_COHERENT_MODE;
+					else {
+						if (mode->clock > 165000)
+							args.v3.sInput.ucDispPllConfig |=
+								DISPPLL_CONFIG_DUAL_LINK;
+					}
 				}
 				atom_execute_table(rdev->mode_info.atom_context,
 						   index, (uint32_t *)&args);

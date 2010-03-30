@@ -302,7 +302,7 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 	}
 
 	if (ASIC_IS_DCE3(rdev) &&
-	    (radeon_encoder->active_device & (ATOM_DEVICE_DFP_SUPPORT))) {
+	    (radeon_encoder->active_device & (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT))) {
 		struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 		radeon_dp_set_link_config(connector, mode);
 	}
