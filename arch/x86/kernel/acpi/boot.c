@@ -1117,11 +1117,6 @@ int mp_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 
 	ioapic_pin = mp_find_ioapic_pin(ioapic, gsi);
 
-#ifdef CONFIG_X86_32
-	if (ioapic_renumber_irq)
-		gsi = ioapic_renumber_irq(ioapic, gsi);
-#endif
-
 	if (ioapic_pin > MP_MAX_IOAPIC_PIN) {
 		printk(KERN_ERR "Invalid reference to IOAPIC pin "
 		       "%d-%d\n", mp_ioapics[ioapic].apicid,

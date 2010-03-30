@@ -1016,7 +1016,6 @@ static inline int irq_trigger(int idx)
 	return MPBIOS_trigger(idx);
 }
 
-int (*ioapic_renumber_irq)(int ioapic, int irq);
 static int pin_2_irq(int idx, int apic, int pin)
 {
 	int irq;
@@ -1032,11 +1031,6 @@ static int pin_2_irq(int idx, int apic, int pin)
 		irq = mp_irqs[idx].srcbusirq;
 	} else {
 		u32 gsi = mp_gsi_routing[apic].gsi_base + pin;
-		/*
-                 * For MPS mode, so far only needed by ES7000 platform
-                 */
-		if (ioapic_renumber_irq)
-			gsi = ioapic_renumber_irq(apic, gsi);
 
 		if (gsi >= NR_IRQS_LEGACY)
 			irq = gsi;
