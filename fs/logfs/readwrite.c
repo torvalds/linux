@@ -429,25 +429,6 @@ static void inode_write_block(struct logfs_block *block)
 	}
 }
 
-static gc_level_t inode_block_level(struct logfs_block *block)
-{
-	BUG_ON(block->inode->i_ino == LOGFS_INO_MASTER);
-	return GC_LEVEL(LOGFS_MAX_LEVELS);
-}
-
-static gc_level_t indirect_block_level(struct logfs_block *block)
-{
-	struct page *page;
-	struct inode *inode;
-	u64 bix;
-	level_t level;
-
-	page = block->page;
-	inode = page->mapping->host;
-	logfs_unpack_index(page->index, &bix, &level);
-	return expand_level(inode->i_ino, level);
-}
-
 /*
  * This silences a false, yet annoying gcc warning.  I hate it when my editor
  * jumps into bitops.h each time I recompile this file.
@@ -586,14 +567,12 @@ static void indirect_free_block(struct super_block *sb,
 
 static struct logfs_block_ops inode_block_ops = {
 	.write_block = inode_write_block,
-	.block_level = inode_block_level,
 	.free_block = inode_free_block,
 	.write_alias = inode_write_alias,
 };
 
 struct logfs_block_ops indirect_block_ops = {
 	.write_block = indirect_write_block,
-	.block_level = indirect_block_level,
 	.free_block = indirect_free_block,
 	.write_alias = indirect_write_alias,
 };

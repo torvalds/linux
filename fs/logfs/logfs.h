@@ -305,7 +305,6 @@ typedef int write_alias_t(struct super_block *sb, u64 ino, u64 bix,
 		level_t level, int child_no, __be64 val);
 struct logfs_block_ops {
 	void	(*write_block)(struct logfs_block *block);
-	gc_level_t	(*block_level)(struct logfs_block *block);
 	void	(*free_block)(struct super_block *sb, struct logfs_block*block);
 	int	(*write_alias)(struct super_block *sb,
 			struct logfs_block *block,
