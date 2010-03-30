@@ -383,12 +383,6 @@ int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 	if (sysfs_find_dirent(acxt->parent_sd, sd->s_ns, sd->s_name))
 		return -EEXIST;
 
-	if (sysfs_ns_type(acxt->parent_sd) && !sd->s_ns) {
-		WARN(1, KERN_WARNING "sysfs: ns required in '%s' for '%s'\n",
-			acxt->parent_sd->s_name, sd->s_name);
-		return -EINVAL;
-	}
-
 	sd->s_parent = sysfs_get(acxt->parent_sd);
 
 	sysfs_link_sibling(sd);
@@ -545,7 +539,7 @@ struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
 	struct sysfs_dirent *sd;
 
 	for (sd = parent_sd->s_dir.children; sd; sd = sd->s_sibling) {
-		if (sd->s_ns != ns)
+		if (ns && sd->s_ns && (sd->s_ns != ns))
 			continue;
 		if (!strcmp(sd->s_name, name))
 			return sd;
@@ -879,7 +873,7 @@ static struct sysfs_dirent *sysfs_dir_pos(const void *ns,
 		while (pos && (ino > pos->s_ino))
 			pos = pos->s_sibling;
 	}
-	while (pos && pos->s_ns != ns)
+	while (pos && pos->s_ns && pos->s_ns != ns)
 		pos = pos->s_sibling;
 	return pos;
 }
@@ -890,7 +884,7 @@ static struct sysfs_dirent *sysfs_dir_next_pos(const void *ns,
 	pos = sysfs_dir_pos(ns, parent_sd, ino, pos);
 	if (pos)
 		pos = pos->s_sibling;
-	while (pos && pos->s_ns != ns)
+	while (pos && pos->s_ns && pos->s_ns != ns)
 		pos = pos->s_sibling;
 	return pos;
 }
