@@ -743,7 +743,6 @@ static void netdev_rx(struct net_device *dev)
 				return;
 			}
 
-			skb->dev = dev;
 			skb_reserve(skb, 2);
 			skb_put(skb, length);
 			skb_copy_to_linear_data(skb, data, length);

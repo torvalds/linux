@@ -1817,7 +1817,6 @@ rrs_checked:
 		atl1c_clean_rfd(rfd_ring, rrs, rfd_num);
 		skb_put(skb, length - ETH_FCS_LEN);
 		skb->protocol = eth_type_trans(skb, netdev);
-		skb->dev = netdev;
 		atl1c_rx_checksum(adapter, skb, rrs);
 		if (unlikely(adapter->vlgrp) && rrs->word3 & RRS_VLAN_INS) {
 			u16 vlan;

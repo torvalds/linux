@@ -435,7 +435,6 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 				 DMA_FROM_DEVICE);
 		length = status & BCOM_FEC_RX_BD_LEN_MASK;
 		skb_put(rskb, length - 4);	/* length without CRC32 */
-		rskb->dev = dev;
 		rskb->protocol = eth_type_trans(rskb, dev);
 		netif_rx(rskb);
 

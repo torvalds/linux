@@ -894,7 +894,6 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 				else
 					skb->ip_summed = CHECKSUM_NONE;
 
-				skb->dev = dev;
 				skb->protocol = eth_type_trans(skb, dev);
 				dev->stats.rx_packets++;
 				netif_receive_skb(skb);

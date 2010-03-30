@@ -1428,7 +1428,6 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 					    "Memory squeeze, deferring packet\n");
 				goto skip_pkt;
 			}
-			skb->dev = netdev;
 			memcpy(skb->data, (u8 *)(prrs + 1), packet_size);
 			skb_put(skb, packet_size);
 			skb->protocol = eth_type_trans(skb, netdev);

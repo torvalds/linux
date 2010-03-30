@@ -801,7 +801,6 @@ static void ks_rcv(struct ks_net *ks, struct net_device *netdev)
 			/* read data block including CRC 4 bytes */
 			ks_read_qmu(ks, (u16 *)skb->data, frame_hdr->len);
 			skb_put(skb, frame_hdr->len);
-			skb->dev = netdev;
 			skb->protocol = eth_type_trans(skb, netdev);
 			netif_rx(skb);
 		} else {

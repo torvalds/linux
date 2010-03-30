@@ -638,7 +638,6 @@ static void xemaclite_rx_handler(struct net_device *dev)
 	}
 
 	skb_put(skb, len);	/* Tell the skb how much data we got */
-	skb->dev = dev;		/* Fill out required meta-data */
 
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_NONE;

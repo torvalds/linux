@@ -421,7 +421,6 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 				netdev->stats.rx_dropped++;
 				break;
 			}
-			skb->dev = netdev;
 			memcpy(skb->data, rxd->packet, rx_size);
 			skb_put(skb, rx_size);
 			skb->protocol = eth_type_trans(skb, netdev);

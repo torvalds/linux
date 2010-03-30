@@ -340,7 +340,6 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 		}
 
 		skb_put(skb, len);
-		skb->dev = dev;
 		skb->protocol = eth_type_trans(skb, dev);
 		priv->stats.rx_packets++;
 		priv->stats.rx_bytes += len;

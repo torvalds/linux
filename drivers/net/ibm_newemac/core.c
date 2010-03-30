@@ -1699,7 +1699,6 @@ static int emac_poll_rx(void *param, int budget)
 
 		skb_put(skb, len);
 	push_packet:
-		skb->dev = dev->ndev;
 		skb->protocol = eth_type_trans(skb, dev->ndev);
 		emac_rx_csum(dev, skb, ctrl);
 

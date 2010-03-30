@@ -1303,7 +1303,6 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 		priv->net_stats.rx_bytes += len;
 
 		skb_put(skb, len);
-		skb->dev = priv->ndev;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->protocol = eth_type_trans(skb, priv->ndev);
 

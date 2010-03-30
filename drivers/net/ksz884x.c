@@ -5043,8 +5043,6 @@ static inline int rx_proc(struct net_device *dev, struct ksz_hw* hw,
 			dma_buf->skb->data, packet_len);
 	} while (0);
 
-	skb->dev = dev;
-
 	skb->protocol = eth_type_trans(skb, dev);
 
 	if (hw->rx_cfg & (DMA_RX_CSUM_UDP | DMA_RX_CSUM_TCP))

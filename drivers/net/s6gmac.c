@@ -396,7 +396,6 @@ static void s6gmac_rx_interrupt(struct net_device *dev)
 		} else {
 			skb_put(skb, (pfx >> S6_GMAC_BURST_POSTRD_LEN)
 				& S6_GMAC_BURST_POSTRD_LEN_MASK);
-			skb->dev = dev;
 			skb->protocol = eth_type_trans(skb, dev);
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			netif_rx(skb);
