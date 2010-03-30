@@ -1037,7 +1037,11 @@ static int pin_2_irq(int idx, int apic, int pin)
                  */
 		if (ioapic_renumber_irq)
 			gsi = ioapic_renumber_irq(apic, gsi);
-		irq = gsi;
+
+		if (gsi >= NR_IRQS_LEGACY)
+			irq = gsi;
+		else
+			irq = gsi_end + 1 + gsi;
 	}
 
 #ifdef CONFIG_X86_32
@@ -3852,7 +3856,7 @@ void __init probe_nr_irqs_gsi(void)
 {
 	int nr;
 
-	nr = gsi_end + 1;
+	nr = gsi_end + 1 + NR_IRQS_LEGACY;
 	if (nr > nr_irqs_gsi)
 		nr_irqs_gsi = nr;
 

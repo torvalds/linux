@@ -94,6 +94,53 @@ enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_PIC;
 
 
 /*
+ * ISA irqs by default are the first 16 gsis but can be
+ * any gsi as specified by an interrupt source override.
+ */
+static u32 isa_irq_to_gsi[NR_IRQS_LEGACY] __read_mostly = {
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+};
+
+static unsigned int gsi_to_irq(unsigned int gsi)
+{
+	unsigned int irq = gsi + NR_IRQS_LEGACY;
+	unsigned int i;
+
+	for (i = 0; i < NR_IRQS_LEGACY; i++) {
+		if (isa_irq_to_gsi[i] == gsi) {
+			return i;
+		}
+	}
+
+	/* Provide an identity mapping of gsi == irq
+	 * except on truly weird platforms that have
+	 * non isa irqs in the first 16 gsis.
+	 */
+	if (gsi >= NR_IRQS_LEGACY)
+		irq = gsi;
+	else
+		irq = gsi_end + 1 + gsi;
+
+	return irq;
+}
+
+static u32 irq_to_gsi(int irq)
+{
+	unsigned int gsi;
+
+	if (irq < NR_IRQS_LEGACY)
+		gsi = isa_irq_to_gsi[irq];
+	else if (irq <= gsi_end)
+		gsi = irq;
+	else if (irq <= (gsi_end + NR_IRQS_LEGACY))
+		gsi = irq - gsi_end;
+	else
+		gsi = 0xffffffff;
+
+	return gsi;
+}
+
+/*
  * Temporarily use the virtual area starting from FIX_IO_APIC_BASE_END,
  * to map the target physical address. The problem is that set_fixmap()
  * provides a single page, and it is possible that the page is not
@@ -449,7 +496,7 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 
 int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 {
-	*irq = gsi;
+	*irq = gsi_to_irq(gsi);
 
 #ifdef CONFIG_X86_IO_APIC
 	if (acpi_irq_model == ACPI_IRQ_MODEL_IOAPIC)
@@ -463,7 +510,7 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
 {
 	if (isa_irq >= 16)
 		return -1;
-	*gsi = isa_irq;
+	*gsi = irq_to_gsi(isa_irq);
 	return 0;
 }
 
@@ -491,7 +538,7 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 		plat_gsi = mp_register_gsi(dev, gsi, trigger, polarity);
 	}
 #endif
-	irq = plat_gsi;
+	irq = gsi_to_irq(plat_gsi);
 
 	return irq;
 }
@@ -933,6 +980,8 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	mp_irq.dstirq = pin;	/* INTIN# */
 
 	save_mp_irq(&mp_irq);
+
+	isa_irq_to_gsi[bus_irq] = gsi;
 }
 
 void __init mp_config_acpi_legacy_irqs(void)
@@ -1086,7 +1135,7 @@ int mp_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 	set_io_apic_irq_attr(&irq_attr, ioapic, ioapic_pin,
 			     trigger == ACPI_EDGE_SENSITIVE ? 0 : 1,
 			     polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
-	io_apic_set_pci_routing(dev, gsi, &irq_attr);
+	io_apic_set_pci_routing(dev, gsi_to_irq(gsi), &irq_attr);
 
 	return gsi;
 }
