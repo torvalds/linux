@@ -1014,13 +1014,13 @@ static void rt2800_config_ps(struct rt2x00_dev *rt2x00dev,
 
 		rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
 	} else {
-		rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
-
 		rt2800_register_read(rt2x00dev, AUTOWAKEUP_CFG, &reg);
 		rt2x00_set_field32(&reg, AUTOWAKEUP_CFG_AUTO_LEAD_TIME, 0);
 		rt2x00_set_field32(&reg, AUTOWAKEUP_CFG_TBCN_BEFORE_WAKE, 0);
 		rt2x00_set_field32(&reg, AUTOWAKEUP_CFG_AUTOWAKE, 0);
 		rt2800_register_write(rt2x00dev, AUTOWAKEUP_CFG, reg);
+
+		rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
 	}
 }
 
