@@ -104,7 +104,6 @@ static int sysfs_get_sb(struct file_system_type *fs_type,
 	if (IS_ERR(sb) || sb->s_fs_info != info)
 		kfree(info);
 	if (IS_ERR(sb)) {
-		kfree(info);
 		error = PTR_ERR(sb);
 		goto out;
 	}
