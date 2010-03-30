@@ -3,7 +3,7 @@
  *
  * SMP support for the SuperH processors.
  *
- * Copyright (C) 2002 - 2008 Paul Mundt
+ * Copyright (C) 2002 - 2010 Paul Mundt
  * Copyright (C) 2006 - 2007 Akio Idehara
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -31,6 +31,16 @@
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 int __cpu_logical_map[NR_CPUS];		/* Map logical to physical */
 
+struct plat_smp_ops *mp_ops = NULL;
+
+void __cpuinit register_smp_ops(struct plat_smp_ops *ops)
+{
+	if (mp_ops)
+		printk(KERN_WARNING "Overriding previously set SMP ops\n");
+
+	mp_ops = ops;
+}
+
 static inline void __init smp_store_cpu_info(unsigned int cpu)
 {
 	struct sh_cpuinfo *c = cpu_data + cpu;
@@ -46,7 +56,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	init_new_context(current, &init_mm);
 	current_thread_info()->cpu = cpu;
-	plat_prepare_cpus(max_cpus);
+	mp_ops->prepare_cpus(max_cpus);
 
 #ifndef CONFIG_HOTPLUG_CPU
 	init_cpu_present(&cpu_possible_map);
@@ -127,7 +137,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 			   (unsigned long)&stack_start + sizeof(stack_start));
 	wmb();
 
-	plat_start_cpu(cpu, (unsigned long)_stext);
+	mp_ops->start_cpu(cpu, (unsigned long)_stext);
 
 	timeout = jiffies + HZ;
 	while (time_before(jiffies, timeout)) {
@@ -159,7 +169,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 void smp_send_reschedule(int cpu)
 {
-	plat_send_ipi(cpu, SMP_MSG_RESCHEDULE);
+	mp_ops->send_ipi(cpu, SMP_MSG_RESCHEDULE);
 }
 
 void smp_send_stop(void)
@@ -172,12 +182,12 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 	int cpu;
 
 	for_each_cpu(cpu, mask)
-		plat_send_ipi(cpu, SMP_MSG_FUNCTION);
+		mp_ops->send_ipi(cpu, SMP_MSG_FUNCTION);
 }
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	plat_send_ipi(cpu, SMP_MSG_FUNCTION_SINGLE);
+	mp_ops->send_ipi(cpu, SMP_MSG_FUNCTION_SINGLE);
 }
 
 void smp_timer_broadcast(const struct cpumask *mask)
@@ -185,7 +195,7 @@ void smp_timer_broadcast(const struct cpumask *mask)
 	int cpu;
 
 	for_each_cpu(cpu, mask)
-		plat_send_ipi(cpu, SMP_MSG_TIMER);
+		mp_ops->send_ipi(cpu, SMP_MSG_TIMER);
 }
 
 static void ipi_timer(void)

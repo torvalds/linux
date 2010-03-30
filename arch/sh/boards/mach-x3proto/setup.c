@@ -19,6 +19,7 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/m66592.h>
 #include <asm/ilsel.h>
+#include <asm/smp-ops.h>
 
 static struct resource heartbeat_resources[] = {
 	[0] = {
@@ -152,7 +153,13 @@ static void __init x3proto_init_irq(void)
 	__raw_writel(__raw_readl(0xfe410000) | (1 << 21), 0xfe410000);
 }
 
+static void __init x3proto_setup(char **cmdline_p)
+{
+	register_smp_ops(&shx3_smp_ops);
+}
+
 static struct sh_machine_vector mv_x3proto __initmv = {
 	.mv_name		= "x3proto",
+	.mv_setup		= x3proto_setup,
 	.mv_init_irq		= x3proto_init_irq,
 };

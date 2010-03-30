@@ -44,7 +44,7 @@ static void dummy_timer_set_mode(enum clock_event_mode mode,
 {
 }
 
-void __cpuinit local_timer_setup(unsigned int cpu)
+void local_timer_setup(unsigned int cpu)
 {
 	struct clock_event_device *clk = &per_cpu(local_clockevent, cpu);
 

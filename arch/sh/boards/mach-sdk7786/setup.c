@@ -21,6 +21,7 @@
 #include <asm/heartbeat.h>
 #include <asm/sizes.h>
 #include <asm/reboot.h>
+#include <asm/smp-ops.h>
 
 static struct resource heartbeat_resource = {
 	.start		= 0x07fff8b0,
@@ -189,6 +190,8 @@ static void __init sdk7786_setup(char **cmdline_p)
 
 	machine_ops.restart = sdk7786_restart;
 	pm_power_off = sdk7786_power_off;
+
+	register_smp_ops(&shx3_smp_ops);
 }
 
 /*

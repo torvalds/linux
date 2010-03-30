@@ -1,7 +1,7 @@
 /*
  * SH-X3 SMP
  *
- *  Copyright (C) 2007 - 2008  Paul Mundt
+ *  Copyright (C) 2007 - 2010  Paul Mundt
  *  Copyright (C) 2007  Magnus Damm
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -37,7 +37,7 @@ static irqreturn_t ipi_interrupt_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-void __init plat_smp_setup(void)
+static void shx3_smp_setup(void)
 {
 	unsigned int cpu = 0;
 	int i, num;
@@ -63,7 +63,7 @@ void __init plat_smp_setup(void)
         printk(KERN_INFO "Detected %i available secondary CPU(s)\n", num);
 }
 
-void __init plat_prepare_cpus(unsigned int max_cpus)
+static void shx3_prepare_cpus(unsigned int max_cpus)
 {
 	int i;
 
@@ -76,7 +76,7 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
 			    IRQF_DISABLED | IRQF_PERCPU, "IPI", (void *)(long)i);
 }
 
-void plat_start_cpu(unsigned int cpu, unsigned long entry_point)
+static void shx3_start_cpu(unsigned int cpu, unsigned long entry_point)
 {
 	if (__in_29bit_mode())
 		__raw_writel(entry_point, RESET_REG(cpu));
@@ -93,12 +93,12 @@ void plat_start_cpu(unsigned int cpu, unsigned long entry_point)
 	__raw_writel(STBCR_RESET | STBCR_LTSLP, STBCR_REG(cpu));
 }
 
-int plat_smp_processor_id(void)
+static unsigned int shx3_smp_processor_id(void)
 {
 	return __raw_readl(0xff000048); /* CPIDR */
 }
 
-void plat_send_ipi(unsigned int cpu, unsigned int message)
+static void shx3_send_ipi(unsigned int cpu, unsigned int message)
 {
 	unsigned long addr = 0xfe410070 + (cpu * 4);
 
@@ -106,3 +106,11 @@ void plat_send_ipi(unsigned int cpu, unsigned int message)
 
 	__raw_writel(1 << (message << 2), addr); /* C0INTICI..CnINTICI */
 }
+
+struct plat_smp_ops shx3_smp_ops = {
+	.smp_setup		= shx3_smp_setup,
+	.prepare_cpus		= shx3_prepare_cpus,
+	.start_cpu		= shx3_start_cpu,
+	.smp_processor_id	= shx3_smp_processor_id,
+	.send_ipi		= shx3_send_ipi,
+};

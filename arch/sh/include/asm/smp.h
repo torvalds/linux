@@ -3,6 +3,7 @@
 
 #include <linux/bitops.h>
 #include <linux/cpumask.h>
+#include <asm/smp-ops.h>
 
 #ifdef CONFIG_SMP
 
@@ -11,7 +12,6 @@
 #include <asm/current.h>
 
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
-#define hard_smp_processor_id()	plat_smp_processor_id()
 
 /* Map from cpu id to sequential logical cpu number. */
 extern int __cpu_number_map[NR_CPUS];
@@ -36,14 +36,18 @@ void smp_timer_broadcast(const struct cpumask *mask);
 void local_timer_interrupt(void);
 void local_timer_setup(unsigned int cpu);
 
-void plat_smp_setup(void);
-void plat_prepare_cpus(unsigned int max_cpus);
-int plat_smp_processor_id(void);
-void plat_start_cpu(unsigned int cpu, unsigned long entry_point);
-void plat_send_ipi(unsigned int cpu, unsigned int message);
-
 void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+
+static inline int hard_smp_processor_id(void)
+{
+	extern struct plat_smp_ops *mp_ops;	/* private */
+
+	if (!mp_ops)
+		return 0;	/* boot CPU */
+
+	return mp_ops->smp_processor_id();
+}
 
 #else
 
