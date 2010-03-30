@@ -281,9 +281,9 @@ config HID_PICOLCD
 	  - Backlight control         (needs CONFIG_BACKLIGHT_CLASS_DEVICE)
 	  - Contrast control          (needs CONFIG_LCD_CLASS_DEVICE)
 	  - General purpose outputs   (needs CONFIG_LEDS_CLASS)
+	  - EEProm / Flash access     (via debugfs)
 	  Features that are not (yet) supported:
 	  - IR
-	  - EEProm / Flash access
 
 config HID_QUANTA
 	tristate "Quanta Optical Touch"
