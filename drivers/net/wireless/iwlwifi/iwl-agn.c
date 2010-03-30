@@ -158,6 +158,11 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 		}
 		iwl_clear_ucode_stations(priv, false);
 		iwl_restore_stations(priv);
+		ret = iwl_restore_default_wep_keys(priv);
+		if (ret) {
+			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
+			return ret;
+		}
 	}
 
 	IWL_DEBUG_INFO(priv, "Sending RXON\n"
@@ -185,6 +190,11 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 		memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
 		iwl_clear_ucode_stations(priv, false);
 		iwl_restore_stations(priv);
+		ret = iwl_restore_default_wep_keys(priv);
+		if (ret) {
+			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
+			return ret;
+		}
 	}
 
 	priv->start_calib = 0;
@@ -3030,19 +3040,6 @@ static void iwl_mac_sta_notify(struct ieee80211_hw *hw,
 	}
 }
 
-/**
- * iwl_restore_wepkeys - Restore WEP keys to device
- */
-static void iwl_restore_wepkeys(struct iwl_priv *priv)
-{
-	mutex_lock(&priv->mutex);
-	if (priv->iw_mode == NL80211_IFTYPE_STATION &&
-	    priv->default_wep_key &&
-	    iwl_send_static_wepkey_cmd(priv, 0))
-		IWL_ERR(priv, "Could not send WEP static key\n");
-	mutex_unlock(&priv->mutex);
-}
-
 static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_sta *sta)
@@ -3068,8 +3065,6 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 		/* Should we return success if return code is EEXIST ? */
 		return ret;
 	}
-
-	iwl_restore_wepkeys(priv);
 
 	/* Initialize rate scaling */
 	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",

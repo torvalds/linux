@@ -759,7 +759,7 @@ int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_get_free_ucode_key_index);
 
-int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
+static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 {
 	int i, not_empty = 0;
 	u8 buff[sizeof(struct iwl_wep_cmd) +
@@ -803,7 +803,14 @@ int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 	else
 		return 0;
 }
-EXPORT_SYMBOL(iwl_send_static_wepkey_cmd);
+
+int iwl_restore_default_wep_keys(struct iwl_priv *priv)
+{
+	WARN_ON(!mutex_is_locked(&priv->mutex));
+
+	return iwl_send_static_wepkey_cmd(priv, 0);
+}
+EXPORT_SYMBOL(iwl_restore_default_wep_keys);
 
 int iwl_remove_default_wep_key(struct iwl_priv *priv,
 			       struct ieee80211_key_conf *keyconf)
@@ -819,7 +826,6 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 		IWL_ERR(priv, "index %d not used in uCode key table.\n",
 			  keyconf->keyidx);
 
-	priv->default_wep_key--;
 	memset(&priv->wep_keys[keyconf->keyidx], 0, sizeof(priv->wep_keys[0]));
 	if (iwl_is_rfkill(priv)) {
 		IWL_DEBUG_WEP(priv, "Not sending REPLY_WEPKEY command due to RFKILL.\n");
@@ -850,8 +856,6 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
 	keyconf->hw_key_idx = HW_KEY_DEFAULT;
 	priv->stations[IWL_AP_ID].keyinfo.alg = ALG_WEP;
-
-	priv->default_wep_key++;
 
 	if (test_and_set_bit(keyconf->keyidx, &priv->ucode_key_table))
 		IWL_ERR(priv, "index %d already used in uCode key table.\n",
