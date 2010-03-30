@@ -132,9 +132,9 @@ static void rds_ib_send_unmap_atomic(struct rds_ib_connection *ic,
 			     wc_status, rds_atomic_send_complete);
 
 	if (op->op_type == RDS_ATOMIC_TYPE_CSWP)
-		rds_stats_inc(s_atomic_cswp);
+		rds_ib_stats_inc(s_ib_atomic_cswp);
 	else
-		rds_stats_inc(s_atomic_fadd);
+		rds_ib_stats_inc(s_ib_atomic_fadd);
 }
 
 /*

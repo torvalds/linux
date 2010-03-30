@@ -75,8 +75,6 @@ static const char *const rds_stat_names[] = {
 	"cong_update_received",
 	"cong_send_error",
 	"cong_send_blocked",
-	"s_atomic_cswp",
-	"s_atomic_fadd",
 };
 
 void rds_stats_info_copy(struct rds_info_iterator *iter,

@@ -566,8 +566,6 @@ struct rds_statistics {
 	uint64_t	s_cong_update_received;
 	uint64_t	s_cong_send_error;
 	uint64_t	s_cong_send_blocked;
-	uint64_t	s_atomic_cswp;
-	uint64_t	s_atomic_fadd;
 };
 
 /* af_rds.c */

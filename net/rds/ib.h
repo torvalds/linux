@@ -202,6 +202,8 @@ struct rds_ib_statistics {
 	uint64_t	s_ib_rdma_mr_pool_flush;
 	uint64_t	s_ib_rdma_mr_pool_wait;
 	uint64_t	s_ib_rdma_mr_pool_depleted;
+	uint64_t	s_ib_atomic_cswp;
+	uint64_t	s_ib_atomic_fadd;
 };
 
 extern struct workqueue_struct *rds_ib_wq;
