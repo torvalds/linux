@@ -40,7 +40,7 @@
 
 #include "gspca.h"
 
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 #include <linux/input.h>
 #include <linux/usb/input.h>
 #endif
@@ -115,7 +115,7 @@ static const struct vm_operations_struct gspca_vm_ops = {
 /*
  * Input and interrupt endpoint handling functions
  */
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static void int_irq(struct urb *urb)
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
@@ -278,6 +278,19 @@ static void gspca_input_destroy_urb(struct gspca_dev *gspca_dev)
 				urb->transfer_dma);
 		usb_free_urb(urb);
 	}
+}
+#else
+static inline void gspca_input_destroy_urb(struct gspca_dev *gspca_dev)
+{
+}
+
+static inline void gspca_input_create_urb(struct gspca_dev *gspca_dev)
+{
+}
+
+static inline int gspca_input_connect(struct gspca_dev *dev)
+{
+	return 0;
 }
 #endif
 
@@ -2310,7 +2323,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 
 	return 0;
 out:
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	if (gspca_dev->input_dev)
 		input_unregister_device(gspca_dev->input_dev);
 #endif
@@ -2329,7 +2342,7 @@ EXPORT_SYMBOL(gspca_dev_probe);
 void gspca_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	struct input_dev *input_dev;
 #endif
 
@@ -2343,7 +2356,7 @@ void gspca_disconnect(struct usb_interface *intf)
 		wake_up_interruptible(&gspca_dev->wq);
 	}
 
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	gspca_input_destroy_urb(gspca_dev);
 	input_dev = gspca_dev->input_dev;
 	if (input_dev) {
