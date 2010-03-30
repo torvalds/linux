@@ -3850,22 +3850,11 @@ int __init io_apic_get_redir_entries (int ioapic)
 
 void __init probe_nr_irqs_gsi(void)
 {
-	int nr = 0;
+	int nr;
 
-	nr = acpi_probe_gsi();
-	if (nr > nr_irqs_gsi) {
+	nr = gsi_end + 1;
+	if (nr > nr_irqs_gsi)
 		nr_irqs_gsi = nr;
-	} else {
-		/* for acpi=off or acpi is not compiled in */
-		int idx;
-
-		nr = 0;
-		for (idx = 0; idx < nr_ioapics; idx++)
-			nr += io_apic_get_redir_entries(idx);
-
-		if (nr > nr_irqs_gsi)
-			nr_irqs_gsi = nr;
-	}
 
 	printk(KERN_DEBUG "nr_irqs_gsi: %d\n", nr_irqs_gsi);
 }
