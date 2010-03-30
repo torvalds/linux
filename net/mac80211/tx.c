@@ -513,6 +513,8 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	else if (tx->sta && (key = rcu_dereference(tx->sta->key)))
 		tx->key = key;
 	else if (ieee80211_is_mgmt(hdr->frame_control) &&
+		 is_multicast_ether_addr(hdr->addr1) &&
+		 ieee80211_is_robust_mgmt_frame(hdr) &&
 		 (key = rcu_dereference(tx->sdata->default_mgmt_key)))
 		tx->key = key;
 	else if ((key = rcu_dereference(tx->sdata->default_key)))
