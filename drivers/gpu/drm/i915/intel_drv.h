@@ -190,6 +190,7 @@ extern void intel_encoder_prepare (struct drm_encoder *encoder);
 extern void intel_encoder_commit (struct drm_encoder *encoder);
 
 extern struct drm_encoder *intel_best_encoder(struct drm_connector *connector);
+extern struct drm_encoder *intel_attached_encoder(struct drm_connector *connector);
 
 extern struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 						    struct drm_crtc *crtc);

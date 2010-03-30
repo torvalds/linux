@@ -4983,6 +4983,31 @@ struct drm_encoder *intel_best_encoder(struct drm_connector *connector)
 }
 
 /*
+ * Return which encoder is currently attached for connector.
+ */
+struct drm_encoder *intel_attached_encoder (struct drm_connector *connector)
+{
+	struct drm_mode_object *obj;
+	struct drm_encoder *encoder;
+	int i;
+
+	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+		if (connector->encoder_ids[i] == 0)
+			break;
+
+		obj = drm_mode_object_find(connector->dev,
+                                           connector->encoder_ids[i],
+                                           DRM_MODE_OBJECT_ENCODER);
+		if (!obj)
+			continue;
+
+		encoder = obj_to_encoder(obj);
+		return encoder;
+	}
+	return NULL;
+}
+
+/*
  * set vga decode state - true == enable VGA decode
  */
 int intel_modeset_vga_set_state(struct drm_device *dev, bool state)
