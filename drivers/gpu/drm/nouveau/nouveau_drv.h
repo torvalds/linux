@@ -520,6 +520,7 @@ struct drm_nouveau_private {
 
 	struct workqueue_struct *wq;
 	struct work_struct irq_work;
+	struct work_struct hpd_work;
 
 	struct list_head vbl_waiting;
 
