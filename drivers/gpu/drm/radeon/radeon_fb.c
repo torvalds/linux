@@ -86,11 +86,6 @@ static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bo
 	return aligned;
 }
 
-static struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
-	.gamma_set = radeon_crtc_fb_gamma_set,
-	.gamma_get = radeon_crtc_fb_gamma_get,
-};
-
 static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
 {
 	struct radeon_bo *rbo = gobj->driver_private;
@@ -222,7 +217,6 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	/* setup helper */
 	rfbdev->helper.fb = fb;
 	rfbdev->helper.fbdev = info;
-	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
 
 	memset_io(rbo->kptr, 0x0, radeon_bo_size(rbo));
 
@@ -252,10 +246,18 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	info->pixmap.access_align = 32;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 	info->pixmap.scan_align = 1;
+
 	if (info->screen_base == NULL) {
 		ret = -ENOSPC;
 		goto out_unref;
 	}
+
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret) {
+		ret = -ENOMEM;
+		goto out_unref;
+	}
+
 	DRM_INFO("fb mappable at 0x%lX\n",  info->fix.smem_start);
 	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)rdev->mc.aper_base);
 	DRM_INFO("size %lu\n", (unsigned long)radeon_bo_size(rbo));
@@ -309,33 +311,16 @@ int radeon_parse_options(char *options)
 	return 0;
 }
 
-static int radeonfb_probe(struct radeon_fbdev *rfbdev)
-{
-	struct radeon_device *rdev = rfbdev->rdev;
-	int bpp_sel = 32;
-
-	/* select 8 bpp console on RN50 or 16MB cards */
-	if (ASIC_IS_RN50(rdev) || rdev->mc.real_vram_size <= (32*1024*1024))
-		bpp_sel = 8;
-
-	return drm_fb_helper_single_fb_probe(&rfbdev->helper, bpp_sel);
-}
-
 void radeonfb_hotplug(struct drm_device *dev, bool polled)
 {
 	struct radeon_device *rdev = dev->dev_private;
-	int max_width, max_height;
 
-	max_width = rdev->mode_info.rfbdev->rfb.base.width;
-	max_height = rdev->mode_info.rfbdev->rfb.base.height;
-	drm_helper_fb_hotplug_event(&rdev->mode_info.rfbdev->helper, max_width, max_height, polled);
-
-	radeonfb_probe(rdev->mode_info.rfbdev);
+	drm_helper_fb_hpd_irq_event(&rdev->mode_info.rfbdev->helper);
 }
 
-static void radeon_fb_poll_changed(struct drm_fb_helper *fb_helper)
+static void radeon_fb_output_status_changed(struct drm_fb_helper *fb_helper)
 {
-	radeonfb_hotplug(fb_helper->dev, true);
+	drm_helper_fb_hotplug_event(fb_helper, true);
 }
 
 static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfbdev)
@@ -347,7 +332,10 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 
 	if (rfbdev->helper.fbdev) {
 		info = rfbdev->helper.fbdev;
+
 		unregister_framebuffer(info);
+		if (info->cmap.len)
+			fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
 	}
 
@@ -361,16 +349,27 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 		}
 		drm_gem_object_unreference_unlocked(rfb->obj);
 	}
-	drm_fb_helper_free(&rfbdev->helper);
+	drm_fb_helper_fini(&rfbdev->helper);
 	drm_framebuffer_cleanup(&rfb->base);
 
 	return 0;
 }
-MODULE_LICENSE("GPL");
+
+static struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
+	.gamma_set = radeon_crtc_fb_gamma_set,
+	.gamma_get = radeon_crtc_fb_gamma_get,
+	.fb_probe = radeon_fb_find_or_create_single,
+	.fb_output_status_changed = radeon_fb_output_status_changed,
+};
 
 int radeon_fbdev_init(struct radeon_device *rdev)
 {
 	struct radeon_fbdev *rfbdev;
+	int bpp_sel = 32;
+
+	/* select 8 bpp console on RN50 or 16MB cards */
+	if (ASIC_IS_RN50(rdev) || rdev->mc.real_vram_size <= (32*1024*1024))
+		bpp_sel = 8;
 
 	rfbdev = kzalloc(sizeof(struct radeon_fbdev), GFP_KERNEL);
 	if (!rfbdev)
@@ -378,20 +377,13 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 
 	rfbdev->rdev = rdev;
 	rdev->mode_info.rfbdev = rfbdev;
+	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
 
-	drm_fb_helper_init_crtc_count(rdev->ddev, &rfbdev->helper,
-				      rdev->num_crtc,
-				      RADEONFB_CONN_LIMIT);
-	rfbdev->helper.fb_probe = radeon_fb_find_or_create_single;
-
+	drm_fb_helper_init(rdev->ddev, &rfbdev->helper,
+			   rdev->num_crtc,
+			   RADEONFB_CONN_LIMIT, true);
 	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
-
-	rfbdev->helper.fb_poll_changed = radeon_fb_poll_changed;
-	drm_fb_helper_poll_init(&rfbdev->helper);
-
-	drm_fb_helper_initial_config(&rfbdev->helper);
-	radeonfb_probe(rfbdev);
-
+	drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
 	return 0;
 
 }
@@ -401,7 +393,6 @@ void radeon_fbdev_fini(struct radeon_device *rdev)
 	if (!rdev->mode_info.rfbdev)
 		return;
 
-	drm_fb_helper_poll_fini(&rdev->mode_info.rfbdev->helper);
 	radeon_fbdev_destroy(rdev->ddev, rdev->mode_info.rfbdev);
 	kfree(rdev->mode_info.rfbdev);
 	rdev->mode_info.rfbdev = NULL;
@@ -428,4 +419,3 @@ bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 		return true;
 	return false;
 }
-

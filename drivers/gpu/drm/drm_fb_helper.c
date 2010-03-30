@@ -41,6 +41,8 @@ MODULE_LICENSE("GPL and additional rights");
 
 static LIST_HEAD(kernel_fb_helper_list);
 
+static struct slow_work_ops output_status_change_ops;
+
 /* simple single crtc case helper function */
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
@@ -420,54 +422,81 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 	kfree(helper->crtc_info);
 }
 
-int drm_fb_helper_init_crtc_count(struct drm_device *dev,
-				  struct drm_fb_helper *helper,
-				  int crtc_count, int max_conn_count)
+int drm_fb_helper_init(struct drm_device *dev,
+		       struct drm_fb_helper *fb_helper,
+		       int crtc_count, int max_conn_count,
+		       bool polled)
 {
 	struct drm_crtc *crtc;
 	int ret = 0;
 	int i;
 
-	INIT_LIST_HEAD(&helper->kernel_fb_list);
-	helper->dev = dev;
-	helper->crtc_info = kcalloc(crtc_count, sizeof(struct drm_fb_helper_crtc), GFP_KERNEL);
-	if (!helper->crtc_info)
-		return -ENOMEM;
-	helper->crtc_count = crtc_count;
+	fb_helper->dev = dev;
+	fb_helper->poll_enabled = polled;
 
-	helper->connector_info = kcalloc(dev->mode_config.num_connector, sizeof(struct drm_fb_helper_connector *), GFP_KERNEL);
-	if (!helper->connector_info) {
-		kfree(helper->crtc_info);
+	slow_work_register_user(THIS_MODULE);
+	delayed_slow_work_init(&fb_helper->output_status_change_slow_work,
+			       &output_status_change_ops);
+
+	INIT_LIST_HEAD(&fb_helper->kernel_fb_list);
+
+	fb_helper->crtc_info = kcalloc(crtc_count, sizeof(struct drm_fb_helper_crtc), GFP_KERNEL);
+	if (!fb_helper->crtc_info)
+		return -ENOMEM;
+
+	fb_helper->crtc_count = crtc_count;
+	fb_helper->connector_info = kcalloc(dev->mode_config.num_connector, sizeof(struct drm_fb_helper_connector *), GFP_KERNEL);
+	if (!fb_helper->connector_info) {
+		kfree(fb_helper->crtc_info);
 		return -ENOMEM;
 	}
-	helper->connector_count = 0;
+	fb_helper->connector_count = 0;
 
 	for (i = 0; i < crtc_count; i++) {
-		helper->crtc_info[i].mode_set.connectors =
+		fb_helper->crtc_info[i].mode_set.connectors =
 			kcalloc(max_conn_count,
 				sizeof(struct drm_connector *),
 				GFP_KERNEL);
 
-		if (!helper->crtc_info[i].mode_set.connectors) {
+		if (!fb_helper->crtc_info[i].mode_set.connectors) {
 			ret = -ENOMEM;
 			goto out_free;
 		}
-		helper->crtc_info[i].mode_set.num_connectors = 0;
+		fb_helper->crtc_info[i].mode_set.num_connectors = 0;
 	}
 
 	i = 0;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		helper->crtc_info[i].crtc_id = crtc->base.id;
-		helper->crtc_info[i].mode_set.crtc = crtc;
+		fb_helper->crtc_info[i].crtc_id = crtc->base.id;
+		fb_helper->crtc_info[i].mode_set.crtc = crtc;
 		i++;
 	}
-	helper->conn_limit = max_conn_count;
+	fb_helper->conn_limit = max_conn_count;
 	return 0;
 out_free:
-	drm_fb_helper_crtc_free(helper);
+	drm_fb_helper_crtc_free(fb_helper);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(drm_fb_helper_init_crtc_count);
+EXPORT_SYMBOL(drm_fb_helper_init);
+
+void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
+{
+	if (!list_empty(&fb_helper->kernel_fb_list)) {
+		list_del(&fb_helper->kernel_fb_list);
+		if (list_empty(&kernel_fb_helper_list)) {
+			printk(KERN_INFO "unregistered panic notifier\n");
+			atomic_notifier_chain_unregister(&panic_notifier_list,
+							 &paniced);
+			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
+		}
+	}
+
+	drm_fb_helper_crtc_free(fb_helper);
+
+	delayed_slow_work_cancel(&fb_helper->output_status_change_slow_work);
+	slow_work_unregister_user(THIS_MODULE);
+}
+EXPORT_SYMBOL(drm_fb_helper_fini);
 
 static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		     u16 blue, u16 regno, struct fb_info *info)
@@ -710,6 +739,11 @@ int drm_fb_helper_set_par(struct fb_info *info)
 		}
 	}
 	mutex_unlock(&dev->mode_config.mutex);
+
+	if (fb_helper->delayed_hotplug) {
+		fb_helper->delayed_hotplug = false;
+		delayed_slow_work_enqueue(&fb_helper->output_status_change_slow_work, 0);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_set_par);
@@ -751,7 +785,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 {
 	int new_fb = 0;
 	int crtc_count = 0;
-	int ret, i;
+	int i;
 	struct fb_info *info;
 	struct drm_fb_helper_surface_size sizes;
 	int gamma_size = 0;
@@ -827,7 +861,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	}
 
 	/* push down into drivers */
-	new_fb = (*fb_helper->fb_probe)(fb_helper, &sizes);
+	new_fb = (*fb_helper->funcs->fb_probe)(fb_helper, &sizes);
 	if (new_fb < 0)
 		return new_fb;
 
@@ -840,11 +874,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	if (new_fb) {
 		info->var.pixclock = 0;
-		ret = fb_alloc_cmap(&info->cmap, gamma_size, 0);
-		if (ret)
-			return ret;
 		if (register_framebuffer(info) < 0) {
-			fb_dealloc_cmap(&info->cmap);
 			return -EINVAL;
 		}
 
@@ -869,23 +899,6 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_single_fb_probe);
-
-void drm_fb_helper_free(struct drm_fb_helper *helper)
-{
-	if (!list_empty(&helper->kernel_fb_list)) {
-		list_del(&helper->kernel_fb_list);
-		if (list_empty(&kernel_fb_helper_list)) {
-			printk(KERN_INFO "unregistered panic notifier\n");
-			atomic_notifier_chain_unregister(&panic_notifier_list,
-							 &paniced);
-			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
-		}
-	}
-	drm_fb_helper_crtc_free(helper);
-	if (helper->fbdev->cmap.len)
-		fb_dealloc_cmap(&helper->fbdev->cmap);
-}
-EXPORT_SYMBOL(drm_fb_helper_free);
 
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 			    uint32_t depth)
@@ -1291,7 +1304,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
  * RETURNS:
  * Zero if everything went ok, nonzero otherwise.
  */
-bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper)
+bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 {
 	struct drm_device *dev = fb_helper->dev;
 	int count = 0;
@@ -1304,13 +1317,12 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper)
 	count = drm_fb_helper_probe_connector_modes(fb_helper,
 						    dev->mode_config.max_width,
 						    dev->mode_config.max_height);
-
 	/*
 	 * we shouldn't end up with no modes here.
 	 */
 	if (count == 0) {
 		if (fb_helper->poll_enabled) {
-			delayed_slow_work_enqueue(&fb_helper->output_poll_slow_work,
+			delayed_slow_work_enqueue(&fb_helper->output_status_change_slow_work,
 						  5*HZ);
 			printk(KERN_INFO "No connectors reported connected with modes - started polling\n");
 		} else
@@ -1318,85 +1330,114 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper)
 	}
 	drm_setup_crtcs(fb_helper);
 
-	return 0;
+	return drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
 }
 EXPORT_SYMBOL(drm_fb_helper_initial_config);
 
-bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper,
-				 u32 max_width, u32 max_height, bool polled)
+/* we got a hotplug irq - need to update fbcon */
+void drm_helper_fb_hpd_irq_event(struct drm_fb_helper *fb_helper)
+{
+	/* if we don't have the fbdev registered yet do nothing */
+	if (!fb_helper->fbdev)
+		return;
+
+	/* schedule a slow work asap */
+	delayed_slow_work_enqueue(&fb_helper->output_status_change_slow_work, 0);
+}
+EXPORT_SYMBOL(drm_helper_fb_hpd_irq_event);
+
+bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper, bool polled)
 {
 	int count = 0;
 	int ret;
+	u32 max_width, max_height, bpp_sel;
+
+	if (!fb_helper->fb)
+		return false;
 	DRM_DEBUG_KMS("\n");
+
+	max_width = fb_helper->fb->width;
+	max_height = fb_helper->fb->height;
+	bpp_sel = fb_helper->fb->bits_per_pixel;
 
 	count = drm_fb_helper_probe_connector_modes(fb_helper, max_width,
 						    max_height);
 	if (fb_helper->poll_enabled && !polled) {
 		if (count) {
-			delayed_slow_work_cancel(&fb_helper->output_poll_slow_work);
+			delayed_slow_work_cancel(&fb_helper->output_status_change_slow_work);
 		} else {
-			ret = delayed_slow_work_enqueue(&fb_helper->output_poll_slow_work, 5*HZ);
+			ret = delayed_slow_work_enqueue(&fb_helper->output_status_change_slow_work, 5*HZ);
 		}
 	}
 	drm_setup_crtcs(fb_helper);
 
-	return true;
+	return drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
 }
 EXPORT_SYMBOL(drm_helper_fb_hotplug_event);
 
-static void output_poll_execute(struct slow_work *work)
+/*
+ * delayed work queue execution function
+ * - check if fbdev is actually in use on the gpu
+ *   - if not set delayed flag and repoll if necessary
+ * - check for connector status change
+ * - repoll if 0 modes found
+ *- call driver output status changed notifier
+ */
+static void output_status_change_execute(struct slow_work *work)
 {
 	struct delayed_slow_work *delayed_work = container_of(work, struct delayed_slow_work, work);
-	struct drm_fb_helper *fb_helper = container_of(delayed_work, struct drm_fb_helper, output_poll_slow_work);
-	struct drm_device *dev = fb_helper->dev;
+	struct drm_fb_helper *fb_helper = container_of(delayed_work, struct drm_fb_helper, output_status_change_slow_work);
 	struct drm_connector *connector;
 	enum drm_connector_status old_status, status;
-	bool repoll = true, changed = false;
+	bool repoll, changed = false;
 	int ret;
+	int i;
+	bool bound = false, crtcs_bound = false;
+	struct drm_crtc *crtc;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	repoll = fb_helper->poll_enabled;
+
+	/* first of all check the fbcon framebuffer is actually bound to any crtc */
+	/* take into account that no crtc at all maybe bound */
+	list_for_each_entry(crtc, &fb_helper->dev->mode_config.crtc_list, head) {
+		if (crtc->fb)
+			crtcs_bound = true;
+		if (crtc->fb == fb_helper->fb)
+			bound = true;
+	}
+
+	if (bound == false && crtcs_bound) {
+		fb_helper->delayed_hotplug = true;
+		goto requeue;
+	}
+
+	for (i = 0; i < fb_helper->connector_count; i++) {
+		connector = fb_helper->connector_info[i]->connector;
 		old_status = connector->status;
 		status = connector->funcs->detect(connector);
 		if (old_status != status) {
 			changed = true;
-			/* something changed */
 		}
-		if (status == connector_status_connected) {
+		if (status == connector_status_connected && repoll) {
 			DRM_DEBUG("%s is connected - stop polling\n", drm_get_connector_name(connector));
 			repoll = false;
 		}
 	}
 
+	if (changed) {
+		if (fb_helper->funcs->fb_output_status_changed)
+			fb_helper->funcs->fb_output_status_changed(fb_helper);
+	}
+
+requeue:
 	if (repoll) {
 		ret = delayed_slow_work_enqueue(delayed_work, 5*HZ);
 		if (ret)
 			DRM_ERROR("delayed enqueue failed %d\n", ret);
 	}
-
-	if (changed) {
-		if (fb_helper->fb_poll_changed)
-			fb_helper->fb_poll_changed(fb_helper);
-	}
 }
 
-struct slow_work_ops output_poll_ops = {
-	.execute = output_poll_execute,
+static struct slow_work_ops output_status_change_ops = {
+	.execute = output_status_change_execute,
 };
 
-void drm_fb_helper_poll_init(struct drm_fb_helper *fb_helper)
-{
-	int ret;
-
-	ret = slow_work_register_user(THIS_MODULE);
-
-	delayed_slow_work_init(&fb_helper->output_poll_slow_work, &output_poll_ops);
-	fb_helper->poll_enabled = true;
-}
-EXPORT_SYMBOL(drm_fb_helper_poll_init);
-
-void drm_fb_helper_poll_fini(struct drm_fb_helper *fb_helper)
-{
-	delayed_slow_work_cancel(&fb_helper->output_poll_slow_work);
-	slow_work_unregister_user(THIS_MODULE);
-}
-EXPORT_SYMBOL(drm_fb_helper_poll_fini);

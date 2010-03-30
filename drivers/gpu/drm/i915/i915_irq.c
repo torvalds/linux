@@ -266,6 +266,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 		}
 	}
 	/* Just fire off a uevent and let userspace tell us what to do */
+	intelfb_hotplug(dev, false);
 	drm_sysfs_hotplug_event(dev);
 }
 

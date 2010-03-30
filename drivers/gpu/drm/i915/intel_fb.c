@@ -65,12 +65,6 @@ static struct fb_ops intelfb_ops = {
 	.fb_setcmap = drm_fb_helper_setcmap,
 };
 
-static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
-	.gamma_set = intel_crtc_fb_gamma_set,
-	.gamma_get = intel_crtc_fb_gamma_get,
-};
-
-
 static int intelfb_create(struct intel_fbdev *ifbdev,
 			  struct drm_fb_helper_surface_size *sizes)
 {
@@ -129,7 +123,6 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	ifbdev->helper.fb = fb;
 	ifbdev->helper.fbdev = info;
-	ifbdev->helper.funcs = &intel_fb_helper_funcs;
 
 	strcpy(info->fix.id, "inteldrmfb");
 
@@ -152,6 +145,12 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 				       size);
 	if (!info->screen_base) {
 		ret = -ENOSPC;
+		goto out_unpin;
+	}
+
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret) {
+		ret = -ENOMEM;
 		goto out_unpin;
 	}
 	info->screen_size = size;
@@ -205,14 +204,17 @@ static int intel_fb_find_or_create_single(struct drm_fb_helper *helper,
 	return new_fb;
 }
 
-static int intelfb_probe(struct intel_fbdev *ifbdev)
+void intelfb_hotplug(struct drm_device *dev, bool polled)
 {
-	int ret;
-
-	DRM_DEBUG_KMS("\n");
-	ret = drm_fb_helper_single_fb_probe(&ifbdev->helper, 32);
-	return ret;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_helper_fb_hpd_irq_event(&dev_priv->fbdev->helper);
 }
+
+static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
+	.gamma_set = intel_crtc_fb_gamma_set,
+	.gamma_get = intel_crtc_fb_gamma_get,
+	.fb_probe = intel_fb_find_or_create_single,
+};
 
 int intel_fbdev_destroy(struct drm_device *dev,
 			struct intel_fbdev *ifbdev)
@@ -224,10 +226,12 @@ int intel_fbdev_destroy(struct drm_device *dev,
 		info = ifbdev->helper.fbdev;
 		unregister_framebuffer(info);
 		iounmap(info->screen_base);
+		if (info->cmap.len)
+			fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
 	}
 
-	drm_fb_helper_free(&ifbdev->helper);
+	drm_fb_helper_fini(&ifbdev->helper);
 
 	drm_framebuffer_cleanup(&ifb->base);
 	if (ifb->obj)
@@ -246,13 +250,13 @@ int intel_fbdev_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	dev_priv->fbdev = ifbdev;
+	ifbdev->helper.funcs = &intel_fb_helper_funcs;
 
-	drm_fb_helper_init_crtc_count(dev, &ifbdev->helper, 2,
-				      INTELFB_CONN_LIMIT);
+	drm_fb_helper_init(dev, &ifbdev->helper, 2,
+			   INTELFB_CONN_LIMIT, false);
+
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
-	ifbdev->helper.fb_probe = intel_fb_find_or_create_single;
-	drm_fb_helper_initial_config(&ifbdev->helper);
-	intelfb_probe(ifbdev);
+	drm_fb_helper_initial_config(&ifbdev->helper, 32);
 	return 0;
 }
 

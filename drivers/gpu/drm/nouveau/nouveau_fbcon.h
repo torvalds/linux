@@ -57,5 +57,7 @@ void nouveau_fbcon_set_suspend(struct drm_device *dev, int state);
 void nouveau_fbcon_zfill_all(struct drm_device *dev);
 void nouveau_fbcon_save_disable_accel(struct drm_device *dev);
 void nouveau_fbcon_restore_accel(struct drm_device *dev);
+
+void nouveau_fbcon_hotplug(struct drm_device *dev);
 #endif /* __NV50_FBCON_H__ */
 

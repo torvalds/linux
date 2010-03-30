@@ -156,11 +156,6 @@ static void nouveau_fbcon_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 	*blue = nv_crtc->lut.b[regno];
 }
 
-static struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
-	.gamma_set = nouveau_fbcon_gamma_set,
-	.gamma_get = nouveau_fbcon_gamma_get
-};
-
 #if defined(__i386__) || defined(__x86_64__)
 static bool
 nouveau_fbcon_has_vesafb_or_efifb(struct drm_device *dev)
@@ -272,6 +267,12 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 		goto out_unref;
 	}
 
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret) {
+		ret = -ENOMEM;
+		goto out_unref;
+	}
+
 	info->par = nfbdev;
 
 	nouveau_framebuffer_init(dev, &nfbdev->nouveau_fb, &mode_cmd, nvbo);
@@ -282,7 +283,6 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	/* setup helper */
 	nfbdev->helper.fb = fb;
 	nfbdev->helper.fbdev = info;
-	nfbdev->helper.funcs = &nouveau_fbcon_helper_funcs;
 
 	strcpy(info->fix.id, "nouveaufb");
 	if (nouveau_nofbaccel)
@@ -381,12 +381,15 @@ nouveau_fbcon_find_or_create_single(struct drm_fb_helper *helper,
 	return new_fb;
 }
 
-static int
-nouveau_fbcon_probe(struct nouveau_fbdev *nfbdev)
+void nouveau_fbcon_hotplug(struct drm_device *dev)
 {
-	NV_DEBUG_KMS(nfbdev->dev, "\n");
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	drm_helper_fb_hpd_irq_event(&dev_priv->nfbdev->helper);
+}
 
-	return drm_fb_helper_single_fb_probe(&nfbdev->helper, 32);
+static void nouveau_fbcon_output_status_changed(struct drm_fb_helper *fb_helper)
+{
+	drm_helper_fb_hotplug_event(fb_helper, true);
 }
 
 int
@@ -398,6 +401,8 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *nfbdev)
 	if (nfbdev->helper.fbdev) {
 		info = nfbdev->helper.fbdev;
 		unregister_framebuffer(info);
+		if (info->cmap.len)
+			fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
 	}
 
@@ -406,7 +411,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *nfbdev)
 		drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
 		nouveau_fb->nvbo = NULL;
 	}
-	drm_fb_helper_free(&nfbdev->helper);
+	drm_fb_helper_fini(&nfbdev->helper);
 	drm_framebuffer_cleanup(&nouveau_fb->base);
 	return 0;
 }
@@ -420,6 +425,14 @@ void nouveau_fbcon_gpu_lockup(struct fb_info *info)
 	info->flags |= FBINFO_HWACCEL_DISABLED;
 }
 
+static struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
+	.gamma_set = nouveau_fbcon_gamma_set,
+	.gamma_get = nouveau_fbcon_gamma_get,
+	.fb_probe = nouveau_fbcon_find_or_create_single,
+	.fb_output_status_changed = nouveau_fbcon_output_status_changed,
+};
+
+
 int nouveau_fbcon_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -431,14 +444,12 @@ int nouveau_fbcon_init(struct drm_device *dev)
 
 	nfbdev->dev = dev;
 	dev_priv->nfbdev = nfbdev;
+	nfbdev->helper.funcs = &nouveau_fbcon_helper_funcs;
 
-	drm_fb_helper_init_crtc_count(dev, &nfbdev->helper,
-				      2, 4);
-	nfbdev->helper.fb_probe = nouveau_fbcon_find_or_create_single;
+	drm_fb_helper_init(dev, &nfbdev->helper,
+			   2, 4, true);
 	drm_fb_helper_single_add_all_connectors(&nfbdev->helper);
-
-	drm_fb_helper_initial_config(&nfbdev->helper);
-	nouveau_fbcon_probe(nfbdev);
+	drm_fb_helper_initial_config(&nfbdev->helper, 32);
 	return 0;
 }
 

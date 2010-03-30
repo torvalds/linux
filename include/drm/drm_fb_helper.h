@@ -32,18 +32,12 @@
 
 #include <linux/slow-work.h>
 
+struct drm_fb_helper;
+
 struct drm_fb_helper_crtc {
 	uint32_t crtc_id;
 	struct drm_mode_set mode_set;
 	struct drm_display_mode *desired_mode;
-};
-
-
-struct drm_fb_helper_funcs {
-	void (*gamma_set)(struct drm_crtc *crtc, u16 red, u16 green,
-			  u16 blue, int regno);
-	void (*gamma_get)(struct drm_crtc *crtc, u16 *red, u16 *green,
-			  u16 *blue, int regno);
 };
 
 /* mode specified on the command line */
@@ -69,6 +63,19 @@ struct drm_fb_helper_surface_size {
 	u32 surface_depth;
 };
 
+struct drm_fb_helper_funcs {
+	void (*gamma_set)(struct drm_crtc *crtc, u16 red, u16 green,
+			  u16 blue, int regno);
+	void (*gamma_get)(struct drm_crtc *crtc, u16 *red, u16 *green,
+			  u16 *blue, int regno);
+
+	int (*fb_probe)(struct drm_fb_helper *helper,
+			struct drm_fb_helper_surface_size *sizes);
+
+	void (*fb_output_status_changed)(struct drm_fb_helper *helper);
+
+};
+
 struct drm_fb_helper_connector {
 	struct drm_fb_helper_cmdline_mode cmdline_mode;
 	struct drm_connector *connector;
@@ -88,21 +95,20 @@ struct drm_fb_helper {
 	u32 pseudo_palette[17];
 	struct list_head kernel_fb_list;
 
-	struct delayed_slow_work output_poll_slow_work;
+	struct delayed_slow_work output_status_change_slow_work;
 	bool poll_enabled;
-	int (*fb_probe)(struct drm_fb_helper *helper,
-			struct drm_fb_helper_surface_size *sizes);
-
-	void (*fb_poll_changed)(struct drm_fb_helper *helper);
+	/* we got a hotplug but fbdev wasn't running the console
+	   delay until next set_par */
+	bool delayed_hotplug;
 };
 
 int drm_fb_helper_single_fb_probe(struct drm_fb_helper *helper,
 				  int preferred_bpp);
 
-int drm_fb_helper_init_crtc_count(struct drm_device *dev,
-				  struct drm_fb_helper *helper, int crtc_count,
-				  int max_conn);
-void drm_fb_helper_free(struct drm_fb_helper *helper);
+int drm_fb_helper_init(struct drm_device *dev,
+		       struct drm_fb_helper *helper, int crtc_count,
+		       int max_conn, bool polled);
+void drm_fb_helper_fini(struct drm_fb_helper *helper);
 int drm_fb_helper_blank(int blank, struct fb_info *info);
 int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info);
@@ -125,10 +131,9 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
 bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper,
-				 u32 max_width, u32 max_height, bool polled);
-bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper);
+				 bool polled);
+bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel);
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper);
 
-void drm_fb_helper_poll_init(struct drm_fb_helper *fb_helper);
-void drm_fb_helper_poll_fini(struct drm_fb_helper *fb_helper);
+void drm_helper_fb_hpd_irq_event(struct drm_fb_helper *fb_helper);
 #endif
