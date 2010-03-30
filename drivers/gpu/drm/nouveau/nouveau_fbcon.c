@@ -53,8 +53,8 @@
 static int
 nouveau_fbcon_sync(struct fb_info *info)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 	int ret, i;
@@ -200,9 +200,9 @@ not_fb:
 #endif
 
 static void
-nouveau_fbcon_zfill(struct drm_device *dev, struct nouveau_fbcon_par *fbpar)
+nouveau_fbcon_zfill(struct drm_device *dev, struct nouveau_fbdev *nfbdev)
 {
-	struct fb_info *info = fbpar->helper.fbdev;
+	struct fb_info *info = nfbdev->helper.fbdev;
 	struct fb_fillrect rect;
 
 	/* Clear the entire fbcon.  The drm will program every connector
@@ -218,13 +218,12 @@ nouveau_fbcon_zfill(struct drm_device *dev, struct nouveau_fbcon_par *fbpar)
 }
 
 static int
-nouveau_fbcon_create(struct drm_device *dev,
-		     struct drm_fb_helper_surface_size *sizes,
-		     struct nouveau_fbcon_par **fbpar_p)
+nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
+		     struct drm_fb_helper_surface_size *sizes)
 {
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
-	struct nouveau_fbcon_par *par;
 	struct drm_framebuffer *fb;
 	struct nouveau_framebuffer *nouveau_fb;
 	struct nouveau_bo *nvbo;
@@ -267,27 +266,23 @@ nouveau_fbcon_create(struct drm_device *dev,
 
 	mutex_lock(&dev->struct_mutex);
 
-	info = framebuffer_alloc(sizeof(struct nouveau_fbcon_par), device);
+	info = framebuffer_alloc(0, device);
 	if (!info) {
 		ret = -ENOMEM;
 		goto out_unref;
 	}
 
-	par = info->par;
-	nouveau_framebuffer_init(dev, &par->nouveau_fb, &mode_cmd, nvbo);
+	info->par = nfbdev;
 
-	fb = &par->nouveau_fb.base;
+	nouveau_framebuffer_init(dev, &nfbdev->nouveau_fb, &mode_cmd, nvbo);
+
+	nouveau_fb = &nfbdev->nouveau_fb;
+	fb = &nouveau_fb->base;
+
 	/* setup helper */
-	par->helper.fb = fb;
-	par->helper.fbdev = info;
-	par->helper.funcs = &nouveau_fbcon_helper_funcs;
-	par->helper.dev = dev;
-
-	*fbpar_p = par;
-
-	ret = drm_fb_helper_init_crtc_count(&par->helper, 2, 4);
-	if (ret)
-		goto out_unref;
+	nfbdev->helper.fb = fb;
+	nfbdev->helper.fbdev = info;
+	nfbdev->helper.funcs = &nouveau_fbcon_helper_funcs;
 
 	strcpy(info->fix.id, "nouveaufb");
 	if (nouveau_nofbaccel)
@@ -305,7 +300,7 @@ nouveau_fbcon_create(struct drm_device *dev,
 	info->screen_size = size;
 
 	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
-	drm_fb_helper_fill_var(info, &par->helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_var(info, &nfbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	/* FIXME: we really shouldn't expose mmio space at all */
 	info->fix.mmio_start = pci_resource_start(dev->pdev, 1);
@@ -338,8 +333,6 @@ nouveau_fbcon_create(struct drm_device *dev,
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 	info->pixmap.scan_align = 1;
 
-	par->dev = dev;
-
 	if (dev_priv->channel && !nouveau_nofbaccel) {
 		switch (dev_priv->card_type) {
 		case NV_50:
@@ -353,7 +346,7 @@ nouveau_fbcon_create(struct drm_device *dev,
 		};
 	}
 
-	nouveau_fbcon_zfill(dev, par);
+	nouveau_fbcon_zfill(dev, nfbdev);
 
 	/* To allow resizeing without swapping buffers */
 	NV_INFO(dev, "allocated %dx%d fb: 0x%lx, bo %p\n",
@@ -372,66 +365,56 @@ out:
 }
 
 static int
-nouveau_fbcon_find_or_create_single(struct drm_device *dev,
-				    struct drm_fb_helper_surface_size *sizes,
-				    struct drm_fb_helper **fb_ptr)
+nouveau_fbcon_find_or_create_single(struct drm_fb_helper *helper,
+				    struct drm_fb_helper_surface_size *sizes)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fbcon_par *fbpar;
+	struct nouveau_fbdev *nfbdev = (struct nouveau_fbdev *)helper;
 	int new_fb = 0;
 	int ret;
 
-	if (!dev_priv->nfbdev) {
-		ret = nouveau_fbcon_create(dev, sizes,
-					   &fbpar);
+	if (!helper->fb) {
+		ret = nouveau_fbcon_create(nfbdev, sizes);
 		if (ret)
 			return ret;
-		dev_priv->nfbdev = fbpar;
 		new_fb = 1;
-	} else {
-		fbpar = dev_priv->nfbdev;
-		if (fbpar->nouveau_fb.base.width < sizes->surface_width ||
-		    fbpar->nouveau_fb.base.height < sizes->surface_height) {
-			DRM_ERROR("Framebuffer not large enough to scale console onto.\n");
-			return -EINVAL;
-		}
 	}
-	*fb_ptr = &fbpar->helper;
 	return new_fb;
 }
 
 static int
-nouveau_fbcon_probe(struct drm_device *dev)
+nouveau_fbcon_probe(struct nouveau_fbdev *nfbdev)
 {
-	NV_DEBUG_KMS(dev, "\n");
+	NV_DEBUG_KMS(nfbdev->dev, "\n");
 
-	return drm_fb_helper_single_fb_probe(dev, 32, nouveau_fbcon_find_or_create_single);
+	return drm_fb_helper_single_fb_probe(&nfbdev->helper, 32);
 }
 
 int
-nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbcon_par *fbpar)
+nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *nfbdev)
 {
-	struct nouveau_framebuffer *nouveau_fb = &fbpar->nouveau_fb;
+	struct nouveau_framebuffer *nouveau_fb = &nfbdev->nouveau_fb;
 	struct fb_info *info;
 
-	info = fbpar->helper.fbdev;
+	if (nfbdev->helper.fbdev) {
+		info = nfbdev->helper.fbdev;
+		unregister_framebuffer(info);
+		framebuffer_release(info);
+	}
 
-	unregister_framebuffer(info);
-	nouveau_bo_unmap(nouveau_fb->nvbo);
-	drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
-	nouveau_fb->nvbo = NULL;
-	drm_fb_helper_free(&fbpar->helper);
-
+	if (nouveau_fb->nvbo) {
+		nouveau_bo_unmap(nouveau_fb->nvbo);
+		drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
+		nouveau_fb->nvbo = NULL;
+	}
+	drm_fb_helper_free(&nfbdev->helper);
 	drm_framebuffer_cleanup(&nouveau_fb->base);
-	framebuffer_release(info);
-
 	return 0;
 }
 
 void nouveau_fbcon_gpu_lockup(struct fb_info *info)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 
 	NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
 	info->flags |= FBINFO_HWACCEL_DISABLED;
@@ -439,15 +422,33 @@ void nouveau_fbcon_gpu_lockup(struct fb_info *info)
 
 int nouveau_fbcon_init(struct drm_device *dev)
 {
-	drm_helper_initial_config(dev);
-	nouveau_fbcon_probe(dev);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fbdev *nfbdev;
+
+	nfbdev = kzalloc(sizeof(struct nouveau_fbdev), GFP_KERNEL);
+	if (!nfbdev)
+		return -ENOMEM;
+
+	nfbdev->dev = dev;
+	dev_priv->nfbdev = nfbdev;
+
+	drm_fb_helper_init_crtc_count(dev, &nfbdev->helper,
+				      2, 4);
+	nfbdev->helper.fb_probe = nouveau_fbcon_find_or_create_single;
+	drm_fb_helper_initial_config(&nfbdev->helper);
+	nouveau_fbcon_probe(nfbdev);
 	return 0;
 }
 
 void nouveau_fbcon_fini(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (!dev_priv->nfbdev)
+		return;
+
 	nouveau_fbcon_destroy(dev, dev_priv->nfbdev);
+	kfree(dev_priv->nfbdev);
 	dev_priv->nfbdev = NULL;
 }
 

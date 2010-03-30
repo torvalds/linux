@@ -292,6 +292,7 @@ static void drm_fb_helper_on(struct fb_info *info)
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
+	struct drm_crtc_helper_funcs *crtc_funcs;
 	struct drm_encoder *encoder;
 	int i;
 
@@ -299,33 +300,28 @@ static void drm_fb_helper_on(struct fb_info *info)
 	 * For each CRTC in this fb, turn the crtc on then,
 	 * find all associated encoders and turn them on.
 	 */
+	mutex_lock(&dev->mode_config.mutex);
 	for (i = 0; i < fb_helper->crtc_count; i++) {
-		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-			struct drm_crtc_helper_funcs *crtc_funcs =
-				crtc->helper_private;
+		crtc = fb_helper->crtc_info[i].mode_set.crtc;
+		crtc_funcs = crtc->helper_private;
 
-			/* Only mess with CRTCs in this fb */
-			if (crtc->base.id != fb_helper->crtc_info[i].crtc_id ||
-			    !crtc->enabled)
-				continue;
+		if (!crtc->enabled)
+			continue;
 
-			mutex_lock(&dev->mode_config.mutex);
-			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-			mutex_unlock(&dev->mode_config.mutex);
+		crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
 
-			/* Found a CRTC on this fb, now find encoders */
-			list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-				if (encoder->crtc == crtc) {
-					struct drm_encoder_helper_funcs *encoder_funcs;
 
-					encoder_funcs = encoder->helper_private;
-					mutex_lock(&dev->mode_config.mutex);
-					encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
-					mutex_unlock(&dev->mode_config.mutex);
-				}
+		/* Found a CRTC on this fb, now find encoders */
+		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+			if (encoder->crtc == crtc) {
+				struct drm_encoder_helper_funcs *encoder_funcs;
+
+				encoder_funcs = encoder->helper_private;
+				encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
 			}
 		}
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
@@ -333,6 +329,7 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
+	struct drm_crtc_helper_funcs *crtc_funcs;
 	struct drm_encoder *encoder;
 	int i;
 
@@ -340,32 +337,26 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 	 * For each CRTC in this fb, find all associated encoders
 	 * and turn them off, then turn off the CRTC.
 	 */
+	mutex_lock(&dev->mode_config.mutex);
 	for (i = 0; i < fb_helper->crtc_count; i++) {
-		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-			struct drm_crtc_helper_funcs *crtc_funcs =
-				crtc->helper_private;
+		crtc = fb_helper->crtc_info[i].mode_set.crtc;
+		crtc_funcs = crtc->helper_private;
 
-			/* Only mess with CRTCs in this fb */
-			if (crtc->base.id != fb_helper->crtc_info[i].crtc_id ||
-			    !crtc->enabled)
-				continue;
+		if (!crtc->enabled)
+			continue;
 
-			/* Found a CRTC on this fb, now find encoders */
-			list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-				if (encoder->crtc == crtc) {
-					struct drm_encoder_helper_funcs *encoder_funcs;
+		/* Found a CRTC on this fb, now find encoders */
+		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+			if (encoder->crtc == crtc) {
+				struct drm_encoder_helper_funcs *encoder_funcs;
 
-					encoder_funcs = encoder->helper_private;
-					mutex_lock(&dev->mode_config.mutex);
-					encoder_funcs->dpms(encoder, dpms_mode);
-					mutex_unlock(&dev->mode_config.mutex);
-				}
+				encoder_funcs = encoder->helper_private;
+				encoder_funcs->dpms(encoder, dpms_mode);
 			}
-			mutex_lock(&dev->mode_config.mutex);
-			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-			mutex_unlock(&dev->mode_config.mutex);
 		}
+		crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 int drm_fb_helper_blank(int blank, struct fb_info *info)
@@ -405,17 +396,19 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 	kfree(helper->crtc_info);
 }
 
-int drm_fb_helper_init_crtc_count(struct drm_fb_helper *helper, int crtc_count, int max_conn_count)
+int drm_fb_helper_init_crtc_count(struct drm_device *dev,
+				  struct drm_fb_helper *helper,
+				  int crtc_count, int max_conn_count)
 {
-	struct drm_device *dev = helper->dev;
 	struct drm_crtc *crtc;
 	int ret = 0;
 	int i;
 
+	INIT_LIST_HEAD(&helper->kernel_fb_list);
+	helper->dev = dev;
 	helper->crtc_info = kcalloc(crtc_count, sizeof(struct drm_fb_helper_crtc), GFP_KERNEL);
 	if (!helper->crtc_info)
 		return -ENOMEM;
-
 	helper->crtc_count = crtc_count;
 
 	for (i = 0; i < crtc_count; i++) {
@@ -507,20 +500,15 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_device *dev = fb_helper->dev;
+	struct drm_crtc_helper_funcs *crtc_funcs;
 	u16 *red, *green, *blue, *transp;
 	struct drm_crtc *crtc;
 	int i, rc = 0;
 	int start;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-		for (i = 0; i < fb_helper->crtc_count; i++) {
-			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
-				break;
-		}
-		if (i == fb_helper->crtc_count)
-			continue;
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		crtc = fb_helper->crtc_info[i].mode_set.crtc;
+		crtc_funcs = crtc->helper_private;
 
 		red = cmap->red;
 		green = cmap->green;
@@ -556,22 +544,17 @@ int drm_fb_helper_setcolreg(unsigned regno,
 			    struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
+	struct drm_crtc_helper_funcs *crtc_funcs;
 	int i;
 	int ret;
 
 	if (regno > 255)
 		return 1;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-		for (i = 0; i < fb_helper->crtc_count; i++) {
-			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
-				break;
-		}
-		if (i == fb_helper->crtc_count)
-			continue;
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		crtc = fb_helper->crtc_info[i].mode_set.crtc;
+		crtc_funcs = crtc->helper_private;
 
 		ret = setcolreg(crtc, red, green, blue, regno, info);
 		if (ret)
@@ -686,23 +669,20 @@ int drm_fb_helper_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	mutex_lock(&dev->mode_config.mutex);
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		crtc = fb_helper->crtc_info[i].mode_set.crtc;
 
-		for (i = 0; i < fb_helper->crtc_count; i++) {
-			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
-				break;
-		}
-		if (i == fb_helper->crtc_count)
-			continue;
-
-		if (crtc->fb == fb_helper->crtc_info[i].mode_set.fb) {
-			mutex_lock(&dev->mode_config.mutex);
+		if (crtc->fb != fb_helper->crtc_info[i].mode_set.fb) {
 			ret = crtc->funcs->set_config(&fb_helper->crtc_info[i].mode_set);
-			mutex_unlock(&dev->mode_config.mutex);
-			if (ret)
+
+			if (ret) {
+				mutex_unlock(&dev->mode_config.mutex);
 				return ret;
+			}
 		}
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_set_par);
@@ -717,14 +697,9 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 	int ret = 0;
 	int i;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		for (i = 0; i < fb_helper->crtc_count; i++) {
-			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
-				break;
-		}
-
-		if (i == fb_helper->crtc_count)
-			continue;
+	mutex_lock(&dev->mode_config.mutex);
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		crtc = fb_helper->crtc_info[i].mode_set.crtc;
 
 		modeset = &fb_helper->crtc_info[i].mode_set;
 
@@ -732,34 +707,29 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 		modeset->y = var->yoffset;
 
 		if (modeset->num_connectors) {
-			mutex_lock(&dev->mode_config.mutex);
 			ret = crtc->funcs->set_config(modeset);
-			mutex_unlock(&dev->mode_config.mutex);
 			if (!ret) {
 				info->var.xoffset = var->xoffset;
 				info->var.yoffset = var->yoffset;
 			}
 		}
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
 
-int drm_fb_helper_single_fb_probe(struct drm_device *dev,
-				  int preferred_bpp,
-				  int (*fb_find_or_create)(struct drm_device *dev,
-							   struct drm_fb_helper_surface_size *sizes,
-							   struct drm_fb_helper **fb_ptr))
+int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
+				  int preferred_bpp)
 {
-	struct drm_crtc *crtc;
+	struct drm_device *dev = fb_helper->dev;
 	struct drm_connector *connector;
 	int new_fb = 0;
 	int crtc_count = 0;
-	int ret, i, conn_count = 0;
+	int ret, i;
 	struct fb_info *info;
-	struct drm_mode_set *modeset = NULL;
-	struct drm_fb_helper *fb_helper;
 	struct drm_fb_helper_surface_size sizes;
+	int gamma_size = 0;
 
 	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
 	sizes.surface_depth = 24;
@@ -775,7 +745,6 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
-
 		struct drm_fb_helper_cmdline_mode *cmdline_mode;
 
 		if (!fb_help_conn)
@@ -807,21 +776,22 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 		}
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (drm_helper_crtc_in_use(crtc)) {
-			if (crtc->desired_mode) {
-				if (crtc->desired_mode->hdisplay < sizes.fb_width)
-					sizes.fb_width = crtc->desired_mode->hdisplay;
+	crtc_count = 0;
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		struct drm_display_mode *desired_mode;
+		desired_mode = fb_helper->crtc_info[i].desired_mode;
 
-				if (crtc->desired_mode->vdisplay < sizes.fb_height)
-					sizes.fb_height = crtc->desired_mode->vdisplay;
-
-				if (crtc->desired_mode->hdisplay > sizes.surface_width)
-					sizes.surface_width = crtc->desired_mode->hdisplay;
-
-				if (crtc->desired_mode->vdisplay > sizes.surface_height)
-					sizes.surface_height = crtc->desired_mode->vdisplay;
-			}
+		if (desired_mode) {
+			if (gamma_size == 0)
+				gamma_size = fb_helper->crtc_info[i].mode_set.crtc->gamma_size;
+			if (desired_mode->hdisplay < sizes.fb_width)
+				sizes.fb_width = desired_mode->hdisplay;
+			if (desired_mode->vdisplay < sizes.fb_height)
+				sizes.fb_height = desired_mode->vdisplay;
+			if (desired_mode->hdisplay > sizes.surface_width)
+				sizes.surface_width = desired_mode->hdisplay;
+			if (desired_mode->vdisplay > sizes.surface_height)
+				sizes.surface_height = desired_mode->vdisplay;
 			crtc_count++;
 		}
 	}
@@ -833,48 +803,20 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	}
 
 	/* push down into drivers */
-	new_fb = (*fb_find_or_create)(dev, &sizes,
-				      &fb_helper);
+	new_fb = (*fb_helper->fb_probe)(fb_helper, &sizes);
 	if (new_fb < 0)
 		return new_fb;
 
 	info = fb_helper->fbdev;
 
-	crtc_count = 0;
-	/* okay we need to setup new connector sets in the crtcs */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		modeset = &fb_helper->crtc_info[crtc_count].mode_set;
-		modeset->fb = fb_helper->fb;
-		conn_count = 0;
-		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-			if (connector->encoder)
-				if (connector->encoder->crtc == modeset->crtc) {
-					modeset->connectors[conn_count] = connector;
-					conn_count++;
-					if (conn_count > fb_helper->conn_limit)
-						BUG();
-				}
-		}
-
-		for (i = conn_count; i < fb_helper->conn_limit; i++)
-			modeset->connectors[i] = NULL;
-
-		modeset->crtc = crtc;
-		crtc_count++;
-
-		modeset->num_connectors = conn_count;
-		if (modeset->crtc->desired_mode) {
-			if (modeset->mode)
-				drm_mode_destroy(dev, modeset->mode);
-			modeset->mode = drm_mode_duplicate(dev,
-							   modeset->crtc->desired_mode);
-		}
+	/* set the fb pointer */
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
 	}
-	fb_helper->crtc_count = crtc_count;
 
 	if (new_fb) {
 		info->var.pixclock = 0;
-		ret = fb_alloc_cmap(&info->cmap, modeset->crtc->gamma_size, 0);
+		ret = fb_alloc_cmap(&info->cmap, gamma_size, 0);
 		if (ret)
 			return ret;
 		if (register_framebuffer(info) < 0) {
@@ -906,15 +848,18 @@ EXPORT_SYMBOL(drm_fb_helper_single_fb_probe);
 
 void drm_fb_helper_free(struct drm_fb_helper *helper)
 {
-	list_del(&helper->kernel_fb_list);
-	if (list_empty(&kernel_fb_helper_list)) {
-		printk(KERN_INFO "unregistered panic notifier\n");
-		atomic_notifier_chain_unregister(&panic_notifier_list,
-						 &paniced);
-		unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
+	if (!list_empty(&helper->kernel_fb_list)) {
+		list_del(&helper->kernel_fb_list);
+		if (list_empty(&kernel_fb_helper_list)) {
+			printk(KERN_INFO "unregistered panic notifier\n");
+			atomic_notifier_chain_unregister(&panic_notifier_list,
+							 &paniced);
+			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
+		}
 	}
 	drm_fb_helper_crtc_free(helper);
-	fb_dealloc_cmap(&helper->fbdev->cmap);
+	if (helper->fbdev->cmap.len)
+		fb_dealloc_cmap(&helper->fbdev->cmap);
 }
 EXPORT_SYMBOL(drm_fb_helper_free);
 
@@ -1168,20 +1113,21 @@ static bool drm_target_preferred(struct drm_device *dev,
 	return true;
 }
 
-static int drm_pick_crtcs(struct drm_device *dev,
-			  struct drm_crtc **best_crtcs,
+static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
+			  struct drm_fb_helper_crtc **best_crtcs,
 			  struct drm_display_mode **modes,
 			  int n, int width, int height)
 {
 	int c, o;
+	struct drm_device *dev = fb_helper->dev;
 	struct drm_connector *connector;
 	struct drm_connector_helper_funcs *connector_funcs;
 	struct drm_encoder *encoder;
-	struct drm_crtc *best_crtc;
+	struct drm_fb_helper_crtc *best_crtc;
 	int my_score, best_score, score;
-	struct drm_crtc **crtcs, *crtc;
+	struct drm_fb_helper_crtc **crtcs, *crtc;
 
-	if (n == dev->mode_config.num_connector)
+	if (n == fb_helper->dev->mode_config.num_connector)
 		return 0;
 	c = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -1192,12 +1138,12 @@ static int drm_pick_crtcs(struct drm_device *dev,
 
 	best_crtcs[n] = NULL;
 	best_crtc = NULL;
-	best_score = drm_pick_crtcs(dev, best_crtcs, modes, n+1, width, height);
+	best_score = drm_pick_crtcs(fb_helper, best_crtcs, modes, n+1, width, height);
 	if (modes[n] == NULL)
 		return best_score;
 
-	crtcs = kmalloc(dev->mode_config.num_connector *
-			sizeof(struct drm_crtc *), GFP_KERNEL);
+	crtcs = kzalloc(dev->mode_config.num_connector *
+			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);
 	if (!crtcs)
 		return best_score;
 
@@ -1214,15 +1160,12 @@ static int drm_pick_crtcs(struct drm_device *dev,
 	if (!encoder)
 		goto out;
 
-	connector->encoder = encoder;
-
 	/* select a crtc for this connector and then attempt to configure
 	   remaining connectors */
-	c = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	for (c = 0; c < fb_helper->crtc_count; c++) {
+		crtc = &fb_helper->crtc_info[c];
 
 		if ((encoder->possible_crtcs & (1 << c)) == 0) {
-			c++;
 			continue;
 		}
 
@@ -1232,34 +1175,34 @@ static int drm_pick_crtcs(struct drm_device *dev,
 
 		if (o < n) {
 			/* ignore cloning for now */
-			c++;
 			continue;
 		}
 
 		crtcs[n] = crtc;
-		memcpy(crtcs, best_crtcs, n * sizeof(struct drm_crtc *));
-		score = my_score + drm_pick_crtcs(dev, crtcs, modes, n + 1,
+		memcpy(crtcs, best_crtcs, n * sizeof(struct drm_fb_helper_crtc *));
+		score = my_score + drm_pick_crtcs(fb_helper, crtcs, modes, n + 1,
 						  width, height);
 		if (score > best_score) {
 			best_crtc = crtc;
 			best_score = score;
 			memcpy(best_crtcs, crtcs,
 			       dev->mode_config.num_connector *
-			       sizeof(struct drm_crtc *));
+			       sizeof(struct drm_fb_helper_crtc *));
 		}
-		c++;
 	}
 out:
 	kfree(crtcs);
 	return best_score;
 }
 
-static void drm_setup_crtcs(struct drm_device *dev)
+static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 {
-	struct drm_crtc **crtcs;
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_fb_helper_crtc **crtcs;
 	struct drm_display_mode **modes;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+	struct drm_mode_set *modeset;
 	bool *enabled;
 	int width, height;
 	int i, ret;
@@ -1275,7 +1218,7 @@ static void drm_setup_crtcs(struct drm_device *dev)
 	}
 
 	crtcs = kcalloc(dev->mode_config.num_connector,
-			sizeof(struct drm_crtc *), GFP_KERNEL);
+			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);
 	modes = kcalloc(dev->mode_config.num_connector,
 			sizeof(struct drm_display_mode *), GFP_KERNEL);
 	enabled = kcalloc(dev->mode_config.num_connector,
@@ -1289,26 +1232,30 @@ static void drm_setup_crtcs(struct drm_device *dev)
 
 	DRM_DEBUG_KMS("picking CRTCs for %dx%d config\n", width, height);
 
-	drm_pick_crtcs(dev, crtcs, modes, 0, width, height);
+	drm_pick_crtcs(fb_helper, crtcs, modes, 0, width, height);
+
+	/* need to set the modesets up here for use later */
+	/* fill out the connector<->crtc mappings into the modesets */
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		modeset = &fb_helper->crtc_info[i].mode_set;
+		modeset->num_connectors = 0;
+	}
 
 	i = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct drm_display_mode *mode = modes[i];
-		struct drm_crtc *crtc = crtcs[i];
+		struct drm_fb_helper_crtc *fb_crtc = crtcs[i];
+		modeset = &fb_crtc->mode_set;
 
-		if (connector->encoder == NULL) {
-			i++;
-			continue;
-		}
-
-		if (mode && crtc) {
+		if (mode && fb_crtc) {
 			DRM_DEBUG_KMS("desired mode %s set on crtc %d\n",
-				  mode->name, crtc->base.id);
-			crtc->desired_mode = mode;
-			connector->encoder->crtc = crtc;
-		} else {
-			connector->encoder->crtc = NULL;
-			connector->encoder = NULL;
+				      mode->name, fb_crtc->mode_set.crtc->base.id);
+			fb_crtc->desired_mode = mode;
+			if (modeset->mode)
+				drm_mode_destroy(dev, modeset->mode);
+			modeset->mode = drm_mode_duplicate(dev,
+							   fb_crtc->desired_mode);
+			modeset->connectors[modeset->num_connectors++] = connector;
 		}
 		i++;
 	}
@@ -1332,14 +1279,15 @@ static void drm_setup_crtcs(struct drm_device *dev)
  * RETURNS:
  * Zero if everything went ok, nonzero otherwise.
  */
-bool drm_helper_initial_config(struct drm_device *dev)
+bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper)
 {
+	struct drm_device *dev = fb_helper->dev;
 	int count = 0;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(dev);
+	drm_helper_disable_unused_functions(fb_helper->dev);
 
-	drm_fb_helper_parse_command_line(dev);
+	drm_fb_helper_parse_command_line(fb_helper->dev);
 
 	count = drm_helper_probe_connector_modes(dev,
 						 dev->mode_config.max_width,
@@ -1351,20 +1299,21 @@ bool drm_helper_initial_config(struct drm_device *dev)
 	if (count == 0)
 		printk(KERN_INFO "No connectors reported connected with modes\n");
 
-	drm_setup_crtcs(dev);
+	drm_setup_crtcs(fb_helper);
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_helper_initial_config);
+EXPORT_SYMBOL(drm_fb_helper_initial_config);
 
-bool drm_helper_fb_hotplug_event(struct drm_device *dev)
+bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper,
+				 u32 max_width, u32 max_height)
 {
 	DRM_DEBUG_KMS("\n");
 
-	drm_helper_probe_connector_modes(dev, dev->mode_config.max_width,
-					 dev->mode_config.max_height);
+	drm_helper_probe_connector_modes(fb_helper->dev, max_width,
+					 max_height);
 
-	drm_setup_crtcs(dev);
+	drm_setup_crtcs(fb_helper);
 
 	return true;
 }

@@ -625,10 +625,6 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				ret = -EINVAL;
 				goto fail;
 			}
-			/* TODO are these needed? */
-			set->crtc->desired_x = set->x;
-			set->crtc->desired_y = set->y;
-			set->crtc->desired_mode = set->mode;
 		}
 		drm_helper_disable_unused_functions(dev);
 	} else if (fb_changed) {

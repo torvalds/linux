@@ -33,6 +33,7 @@
 struct drm_fb_helper_crtc {
 	uint32_t crtc_id;
 	struct drm_mode_set mode_set;
+	struct drm_display_mode *desired_mode;
 };
 
 
@@ -81,14 +82,16 @@ struct drm_fb_helper {
 	struct fb_info *fbdev;
 	u32 pseudo_palette[17];
 	struct list_head kernel_fb_list;
+
+	int (*fb_probe)(struct drm_fb_helper *helper,
+			struct drm_fb_helper_surface_size *sizes);
 };
 
-int drm_fb_helper_single_fb_probe(struct drm_device *dev,
-				  int preferred_bpp,
-				  int (*fb_create)(struct drm_device *dev,
-						   struct drm_fb_helper_surface_size *sizes,
-						   struct drm_fb_helper **fb_ptr));
-int drm_fb_helper_init_crtc_count(struct drm_fb_helper *helper, int crtc_count,
+int drm_fb_helper_single_fb_probe(struct drm_fb_helper *helper,
+				  int preferred_bpp);
+
+int drm_fb_helper_init_crtc_count(struct drm_device *dev,
+				  struct drm_fb_helper *helper, int crtc_count,
 				  int max_conn);
 void drm_fb_helper_free(struct drm_fb_helper *helper);
 int drm_fb_helper_blank(int blank, struct fb_info *info);
@@ -114,6 +117,8 @@ int drm_fb_helper_add_connector(struct drm_connector *connector);
 int drm_fb_helper_parse_command_line(struct drm_device *dev);
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
-bool drm_helper_fb_hotplug_event(struct drm_device *dev);
-bool drm_helper_initial_config(struct drm_device *dev);
+bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper, u32 max_width,
+				 u32 max_height);
+bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper);
+
 #endif

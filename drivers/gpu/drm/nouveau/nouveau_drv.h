@@ -627,7 +627,7 @@ struct drm_nouveau_private {
 		struct dentry *channel_root;
 	} debugfs;
 
-	struct nouveau_fbcon_par *nfbdev;
+	struct nouveau_fbdev *nfbdev;
 };
 
 static inline struct drm_nouveau_private *

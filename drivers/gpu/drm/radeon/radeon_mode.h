@@ -203,7 +203,7 @@ enum radeon_dvo_chip {
 	DVO_SIL1178,
 };
 
-struct radeon_kernel_fbdev;
+struct radeon_fbdev;
 
 struct radeon_mode_info {
 	struct atom_context *atom_context;
@@ -223,7 +223,7 @@ struct radeon_mode_info {
 	struct edid *bios_hardcoded_edid;
 
 	/* pointer to fbdev info structure */
-	struct radeon_kernel_fbdev *rfbdev;
+	struct radeon_fbdev *rfbdev;
 };
 
 #define MAX_H_CODE_TIMING_LEN 32

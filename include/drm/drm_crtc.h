@@ -367,9 +367,6 @@ struct drm_crtc_funcs {
  * @enabled: is this CRTC enabled?
  * @x: x position on screen
  * @y: y position on screen
- * @desired_mode: new desired mode
- * @desired_x: desired x for desired_mode
- * @desired_y: desired y for desired_mode
  * @funcs: CRTC control functions
  *
  * Each CRTC may have one or more connectors associated with it.  This structure
@@ -389,8 +386,6 @@ struct drm_crtc {
 	struct drm_display_mode mode;
 
 	int x, y;
-	struct drm_display_mode *desired_mode;
-	int desired_x, desired_y;
 	const struct drm_crtc_funcs *funcs;
 
 	/* CRTC gamma size for reporting to userspace */

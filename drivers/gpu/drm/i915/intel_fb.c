@@ -45,7 +45,7 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
-struct intel_kernel_fbdev {
+struct intel_fbdev {
 	struct drm_fb_helper helper;
 	struct intel_framebuffer ifb;
 	struct list_head fbdev_list;
@@ -71,14 +71,12 @@ static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 };
 
 
-static int intelfb_create(struct drm_device *dev,
-			  struct drm_fb_helper_surface_size *sizes,
-			  struct intel_kernel_fbdev **ifbdev_p)
+static int intelfb_create(struct intel_fbdev *ifbdev,
+			  struct drm_fb_helper_surface_size *sizes)
 {
+	struct drm_device *dev = ifbdev->helper.dev;
 	struct fb_info *info;
-	struct intel_kernel_fbdev *ifbdev;
 	struct drm_framebuffer *fb;
-	struct intel_framebuffer *intel_fb;
 	struct drm_mode_fb_cmd mode_cmd;
 	struct drm_gem_object *fbo = NULL;
 	struct drm_i915_gem_object *obj_priv;
@@ -117,13 +115,14 @@ static int intelfb_create(struct drm_device *dev,
 	/* Flush everything out, we'll be doing GTT only from now on */
 	i915_gem_object_set_to_gtt_domain(fbo, 1);
 
-	info = framebuffer_alloc(sizeof(struct intel_kernel_fbdev), device);
+	info = framebuffer_alloc(0, device);
 	if (!info) {
 		ret = -ENOMEM;
 		goto out_unpin;
 	}
 
-	ifbdev = info->par;
+	info->par = ifbdev;
+
 	intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, fbo);
 
 	fb = &ifbdev->ifb.base;
@@ -131,21 +130,11 @@ static int intelfb_create(struct drm_device *dev,
 	ifbdev->helper.fb = fb;
 	ifbdev->helper.fbdev = info;
 	ifbdev->helper.funcs = &intel_fb_helper_funcs;
-	ifbdev->helper.dev = dev;
-
-	*ifbdev_p = ifbdev;
-
-	ret = drm_fb_helper_init_crtc_count(&ifbdev->helper, 2,
-					    INTELFB_CONN_LIMIT);
-	if (ret)
-		goto out_unref;
 
 	strcpy(info->fix.id, "inteldrmfb");
 
 	info->flags = FBINFO_DEFAULT;
-
 	info->fbops = &intelfb_ops;
-
 
 	/* setup aperture base/size for vesafb takeover */
 	info->aperture_base = dev->mode_config.fb_base;
@@ -183,8 +172,8 @@ static int intelfb_create(struct drm_device *dev,
 	info->pixmap.scan_align = 1;
 
 	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x, bo %p\n",
-			intel_fb->base.width, intel_fb->base.height,
-			obj_priv->gtt_offset, fbo);
+		      fb->width, fb->height,
+		      obj_priv->gtt_offset, fbo);
 
 
 	mutex_unlock(&dev->struct_mutex);
@@ -200,76 +189,80 @@ out:
 	return ret;
 }
 
-static int intel_fb_find_or_create_single(struct drm_device *dev,
-					  struct drm_fb_helper_surface_size *sizes,
-					  struct drm_fb_helper **fb_ptr)
+static int intel_fb_find_or_create_single(struct drm_fb_helper *helper,
+					  struct drm_fb_helper_surface_size *sizes)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct intel_kernel_fbdev *ifbdev = NULL;
+	struct intel_fbdev *ifbdev = (struct intel_fbdev *)helper;
 	int new_fb = 0;
 	int ret;
 
-	if (!dev_priv->fbdev) {
-		ret = intelfb_create(dev, sizes,
-				     &ifbdev);
+	if (!helper->fb) {
+		ret = intelfb_create(ifbdev, sizes);
 		if (ret)
 			return ret;
-
-		dev_priv->fbdev = ifbdev;
 		new_fb = 1;
-	} else {
-		ifbdev = dev_priv->fbdev;
-		if (ifbdev->ifb.base.width < sizes->surface_width ||
-		    ifbdev->ifb.base.height < sizes->surface_height) {
-			DRM_ERROR("Framebuffer not large enough to scale console onto.\n");
-			return -EINVAL;
-		}
 	}
-
-	*fb_ptr = &ifbdev->helper;
 	return new_fb;
 }
 
-static int intelfb_probe(struct drm_device *dev)
+static int intelfb_probe(struct intel_fbdev *ifbdev)
 {
 	int ret;
 
 	DRM_DEBUG_KMS("\n");
-	ret = drm_fb_helper_single_fb_probe(dev, 32, intel_fb_find_or_create_single);
+	ret = drm_fb_helper_single_fb_probe(&ifbdev->helper, 32);
 	return ret;
 }
 
 int intel_fbdev_destroy(struct drm_device *dev,
-			struct intel_kernel_fbdev *ifbdev)
+			struct intel_fbdev *ifbdev)
 {
 	struct fb_info *info;
 	struct intel_framebuffer *ifb = &ifbdev->ifb;
 
-	info = ifbdev->helper.fbdev;
+	if (ifbdev->helper.fbdev) {
+		info = ifbdev->helper.fbdev;
+		unregister_framebuffer(info);
+		iounmap(info->screen_base);
+		framebuffer_release(info);
+	}
 
-	unregister_framebuffer(info);
-	iounmap(info->screen_base);
 	drm_fb_helper_free(&ifbdev->helper);
 
 	drm_framebuffer_cleanup(&ifb->base);
-	drm_gem_object_unreference_unlocked(ifb->obj);
-
-	framebuffer_release(info);
+	if (ifb->obj)
+		drm_gem_object_unreference_unlocked(ifb->obj);
 
 	return 0;
 }
 
 int intel_fbdev_init(struct drm_device *dev)
 {
-	drm_helper_initial_config(dev);
-	intelfb_probe(dev);
+	struct intel_fbdev *ifbdev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	ifbdev = kzalloc(sizeof(struct intel_fbdev), GFP_KERNEL);
+	if (!ifbdev)
+		return -ENOMEM;
+
+	dev_priv->fbdev = ifbdev;
+
+	drm_fb_helper_init_crtc_count(dev, &ifbdev->helper, 2,
+				      INTELFB_CONN_LIMIT);
+	ifbdev->helper.fb_probe = intel_fb_find_or_create_single;
+	drm_fb_helper_initial_config(&ifbdev->helper);
+	intelfb_probe(ifbdev);
 	return 0;
 }
 
 void intel_fbdev_fini(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	if (!dev_priv->fbdev)
+		return;
+
 	intel_fbdev_destroy(dev, dev_priv->fbdev);
+	kfree(dev_priv->fbdev);
 	dev_priv->fbdev = NULL;
 }
 MODULE_LICENSE("GPL and additional rights");
