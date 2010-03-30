@@ -1,0 +1,17 @@
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/operation_mode
+Date:		March 2010
+Contact:	Bruno Prémont <bonbons@linux-vserver.org>
+Description:	Make it possible to switch the PicoLCD device between LCD
+		(firmware) and bootloader (flasher) operation modes.
+
+		Reading: returns list of available modes, the active mode being
+		enclosed in brackets ('[' and ']')
+
+		Writing: causes operation mode switch. Permitted values are
+		the non-active mode names listed when read, optionally followed
+		by a delay value expressed in ms.
+
+		Note: when switching mode the current PicoLCD HID device gets
+		disconnected and reconnects after above delay (default value
+		is 5 seconds though this default should not be relied on).
+
