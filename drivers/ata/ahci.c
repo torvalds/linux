@@ -63,6 +63,8 @@ enum board_ids {
 
 	/* board IDs for specific chipsets in alphabetical order */
 	board_ahci_mcp65,
+	board_ahci_mcp77,
+	board_ahci_mcp89,
 	board_ahci_mv,
 	board_ahci_sb600,
 	board_ahci_sb700,	/* for SB700 and SB800 */
@@ -72,9 +74,7 @@ enum board_ids {
 	board_ahci_mcp_linux	= board_ahci_mcp65,
 	board_ahci_mcp67	= board_ahci_mcp65,
 	board_ahci_mcp73	= board_ahci_mcp65,
-	board_ahci_mcp77	= board_ahci,
-	board_ahci_mcp79	= board_ahci,
-	board_ahci_mcp89	= board_ahci,
+	board_ahci_mcp79	= board_ahci_mcp77,
 };
 
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -135,7 +135,24 @@ static const struct ata_port_info ahci_port_info[] = {
 	/* by chipsets */
 	[board_ahci_mcp65] =
 	{
-		AHCI_HFLAGS	(AHCI_HFLAG_YES_NCQ),
+		AHCI_HFLAGS	(AHCI_HFLAG_NO_FPDMA_AA | AHCI_HFLAG_NO_PMP |
+				 AHCI_HFLAG_YES_NCQ),
+		.flags		= AHCI_FLAG_COMMON,
+		.pio_mask	= ATA_PIO4,
+		.udma_mask	= ATA_UDMA6,
+		.port_ops	= &ahci_ops,
+	},
+	[board_ahci_mcp77] =
+	{
+		AHCI_HFLAGS	(AHCI_HFLAG_NO_FPDMA_AA | AHCI_HFLAG_NO_PMP),
+		.flags		= AHCI_FLAG_COMMON,
+		.pio_mask	= ATA_PIO4,
+		.udma_mask	= ATA_UDMA6,
+		.port_ops	= &ahci_ops,
+	},
+	[board_ahci_mcp89] =
+	{
+		AHCI_HFLAGS	(AHCI_HFLAG_NO_FPDMA_AA),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
@@ -1103,12 +1120,13 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* prepare host */
 	if (hpriv->cap & HOST_CAP_NCQ) {
 		pi.flags |= ATA_FLAG_NCQ;
-		/* Auto-activate optimization is supposed to be supported on
-		   all AHCI controllers indicating NCQ support, but it seems
-		   to be broken at least on some NVIDIA MCP79 chipsets.
-		   Until we get info on which NVIDIA chipsets don't have this
-		   issue, if any, disable AA on all NVIDIA AHCIs. */
-		if (pdev->vendor != PCI_VENDOR_ID_NVIDIA)
+		/*
+		 * Auto-activate optimization is supposed to be
+		 * supported on all AHCI controllers indicating NCQ
+		 * capability, but it seems to be broken on some
+		 * chipsets including NVIDIAs.
+		 */
+		if (!(hpriv->flags & AHCI_HFLAG_NO_FPDMA_AA))
 			pi.flags |= ATA_FLAG_FPDMA_AA;
 	}
 
