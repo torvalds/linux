@@ -220,6 +220,8 @@ enum no_fbc_reason {
 	FBC_NOT_TILED, /* buffer not tiled */
 };
 
+struct intel_kernel_fbdev;
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -627,6 +629,8 @@ typedef struct drm_i915_private {
 	u8 max_delay;
 
 	enum no_fbc_reason no_fbc_reason;
+
+	struct intel_kernel_fbdev *fbdev;
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */

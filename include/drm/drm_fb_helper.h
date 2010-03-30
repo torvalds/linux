@@ -57,6 +57,15 @@ struct drm_fb_helper_cmdline_mode {
 	bool margins;
 };
 
+struct drm_fb_helper_surface_size {
+	u32 fb_width;
+	u32 fb_height;
+	u32 surface_width;
+	u32 surface_height;
+	u32 surface_bpp;
+	u32 surface_depth;
+};
+
 struct drm_fb_helper_connector {
 	struct drm_fb_helper_cmdline_mode cmdline_mode;
 };
@@ -69,19 +78,16 @@ struct drm_fb_helper {
 	struct drm_fb_helper_crtc *crtc_info;
 	struct drm_fb_helper_funcs *funcs;
 	int conn_limit;
+	struct fb_info *fbdev;
+	u32 pseudo_palette[17];
 	struct list_head kernel_fb_list;
 };
 
 int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 				  int preferred_bpp,
 				  int (*fb_create)(struct drm_device *dev,
-						   uint32_t fb_width,
-						   uint32_t fb_height,
-						   uint32_t surface_width,
-						   uint32_t surface_height,
-						   uint32_t surface_depth,
-						   uint32_t surface_bpp,
-						   struct drm_framebuffer **fb_ptr));
+						   struct drm_fb_helper_surface_size *sizes,
+						   struct drm_fb_helper **fb_ptr));
 int drm_fb_helper_init_crtc_count(struct drm_fb_helper *helper, int crtc_count,
 				  int max_conn);
 void drm_fb_helper_free(struct drm_fb_helper *helper);
@@ -99,7 +105,7 @@ int drm_fb_helper_setcolreg(unsigned regno,
 			    struct fb_info *info);
 
 void drm_fb_helper_restore(void);
-void drm_fb_helper_fill_var(struct fb_info *info, struct drm_framebuffer *fb,
+void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height);
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 			    uint32_t depth);
@@ -108,4 +114,6 @@ int drm_fb_helper_add_connector(struct drm_connector *connector);
 int drm_fb_helper_parse_command_line(struct drm_device *dev);
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
+bool drm_helper_fb_hotplug_event(struct drm_device *dev);
+bool drm_helper_initial_config(struct drm_device *dev);
 #endif

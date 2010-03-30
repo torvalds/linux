@@ -199,11 +199,10 @@ not_fb:
 }
 #endif
 
-void
-nouveau_fbcon_zfill(struct drm_device *dev)
+static void
+nouveau_fbcon_zfill(struct drm_device *dev, struct nouveau_fbcon_par *fbpar)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct fb_info *info = dev_priv->fbdev_info;
+	struct fb_info *info = fbpar->helper.fbdev;
 	struct fb_fillrect rect;
 
 	/* Clear the entire fbcon.  The drm will program every connector
@@ -219,10 +218,9 @@ nouveau_fbcon_zfill(struct drm_device *dev)
 }
 
 static int
-nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
-		     uint32_t fb_height, uint32_t surface_width,
-		     uint32_t surface_height, uint32_t surface_depth,
-		     uint32_t surface_bpp, struct drm_framebuffer **pfb)
+nouveau_fbcon_create(struct drm_device *dev,
+		     struct drm_fb_helper_surface_size *sizes,
+		     struct nouveau_fbcon_par **fbpar_p)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
@@ -234,13 +232,13 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	struct device *device = &dev->pdev->dev;
 	int size, ret;
 
-	mode_cmd.width = surface_width;
-	mode_cmd.height = surface_height;
+	mode_cmd.width = sizes->surface_width;
+	mode_cmd.height = sizes->surface_height;
 
-	mode_cmd.bpp = surface_bpp;
+	mode_cmd.bpp = sizes->surface_bpp;
 	mode_cmd.pitch = mode_cmd.width * (mode_cmd.bpp >> 3);
 	mode_cmd.pitch = roundup(mode_cmd.pitch, 256);
-	mode_cmd.depth = surface_depth;
+	mode_cmd.depth = sizes->surface_depth;
 
 	size = mode_cmd.pitch * mode_cmd.height;
 	size = roundup(size, PAGE_SIZE);
@@ -269,18 +267,6 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 
 	mutex_lock(&dev->struct_mutex);
 
-	fb = nouveau_framebuffer_create(dev, nvbo, &mode_cmd);
-	if (!fb) {
-		ret = -ENOMEM;
-		NV_ERROR(dev, "failed to allocate fb.\n");
-		goto out_unref;
-	}
-
-	list_add(&fb->filp_head, &dev->mode_config.fb_kernel_list);
-
-	nouveau_fb = nouveau_framebuffer(fb);
-	*pfb = fb;
-
 	info = framebuffer_alloc(sizeof(struct nouveau_fbcon_par), device);
 	if (!info) {
 		ret = -ENOMEM;
@@ -288,12 +274,20 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	}
 
 	par = info->par;
+	nouveau_framebuffer_init(dev, &par->nouveau_fb, &mode_cmd, nvbo);
+
+	fb = &par->nouveau_fb.base;
+	/* setup helper */
+	par->helper.fb = fb;
+	par->helper.fbdev = info;
 	par->helper.funcs = &nouveau_fbcon_helper_funcs;
 	par->helper.dev = dev;
+
+	*fbpar_p = par;
+
 	ret = drm_fb_helper_init_crtc_count(&par->helper, 2, 4);
 	if (ret)
 		goto out_unref;
-	dev_priv->fbdev_info = info;
 
 	strcpy(info->fix.id, "nouveaufb");
 	if (nouveau_nofbaccel)
@@ -311,7 +305,7 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	info->screen_size = size;
 
 	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
-	drm_fb_helper_fill_var(info, fb, fb_width, fb_height);
+	drm_fb_helper_fill_var(info, &par->helper, sizes->fb_width, sizes->fb_height);
 
 	/* FIXME: we really shouldn't expose mmio space at all */
 	info->fix.mmio_start = pci_resource_start(dev->pdev, 1);
@@ -344,9 +338,6 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 	info->pixmap.scan_align = 1;
 
-	fb->fbdev = info;
-
-	par->nouveau_fb = nouveau_fb;
 	par->dev = dev;
 
 	if (dev_priv->channel && !nouveau_nofbaccel) {
@@ -362,7 +353,7 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 		};
 	}
 
-	nouveau_fbcon_zfill(dev);
+	nouveau_fbcon_zfill(dev, par);
 
 	/* To allow resizeing without swapping buffers */
 	NV_INFO(dev, "allocated %dx%d fb: 0x%lx, bo %p\n",
@@ -380,35 +371,59 @@ out:
 	return ret;
 }
 
-int
+static int
+nouveau_fbcon_find_or_create_single(struct drm_device *dev,
+				    struct drm_fb_helper_surface_size *sizes,
+				    struct drm_fb_helper **fb_ptr)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fbcon_par *fbpar;
+	int new_fb = 0;
+	int ret;
+
+	if (!dev_priv->nfbdev) {
+		ret = nouveau_fbcon_create(dev, sizes,
+					   &fbpar);
+		if (ret)
+			return ret;
+		dev_priv->nfbdev = fbpar;
+		new_fb = 1;
+	} else {
+		fbpar = dev_priv->nfbdev;
+		if (fbpar->nouveau_fb.base.width < sizes->surface_width ||
+		    fbpar->nouveau_fb.base.height < sizes->surface_height) {
+			DRM_ERROR("Framebuffer not large enough to scale console onto.\n");
+			return -EINVAL;
+		}
+	}
+	*fb_ptr = &fbpar->helper;
+	return new_fb;
+}
+
+static int
 nouveau_fbcon_probe(struct drm_device *dev)
 {
 	NV_DEBUG_KMS(dev, "\n");
 
-	return drm_fb_helper_single_fb_probe(dev, 32, nouveau_fbcon_create);
+	return drm_fb_helper_single_fb_probe(dev, 32, nouveau_fbcon_find_or_create_single);
 }
 
 int
-nouveau_fbcon_remove(struct drm_device *dev, struct drm_framebuffer *fb)
+nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbcon_par *fbpar)
 {
-	struct nouveau_framebuffer *nouveau_fb = nouveau_framebuffer(fb);
+	struct nouveau_framebuffer *nouveau_fb = &fbpar->nouveau_fb;
 	struct fb_info *info;
 
-	if (!fb)
-		return -EINVAL;
+	info = fbpar->helper.fbdev;
 
-	info = fb->fbdev;
-	if (info) {
-		struct nouveau_fbcon_par *par = info->par;
+	unregister_framebuffer(info);
+	nouveau_bo_unmap(nouveau_fb->nvbo);
+	drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
+	nouveau_fb->nvbo = NULL;
+	drm_fb_helper_free(&fbpar->helper);
 
-		unregister_framebuffer(info);
-		nouveau_bo_unmap(nouveau_fb->nvbo);
-		drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
-		nouveau_fb->nvbo = NULL;
-		if (par)
-			drm_fb_helper_free(&par->helper);
-		framebuffer_release(info);
-	}
+	drm_framebuffer_cleanup(&nouveau_fb->base);
+	framebuffer_release(info);
 
 	return 0;
 }
@@ -420,4 +435,44 @@ void nouveau_fbcon_gpu_lockup(struct fb_info *info)
 
 	NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
 	info->flags |= FBINFO_HWACCEL_DISABLED;
+}
+
+int nouveau_fbcon_init(struct drm_device *dev)
+{
+	drm_helper_initial_config(dev);
+	nouveau_fbcon_probe(dev);
+	return 0;
+}
+
+void nouveau_fbcon_fini(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	nouveau_fbcon_destroy(dev, dev_priv->nfbdev);
+	dev_priv->nfbdev = NULL;
+}
+
+void nouveau_fbcon_save_disable_accel(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	dev_priv->nfbdev->saved_flags = dev_priv->nfbdev->helper.fbdev->flags;
+	dev_priv->nfbdev->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
+}
+
+void nouveau_fbcon_restore_accel(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	dev_priv->nfbdev->helper.fbdev->flags = dev_priv->nfbdev->saved_flags;
+}
+
+void nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	fb_set_suspend(dev_priv->nfbdev->helper.fbdev, state);
+}
+
+void nouveau_fbcon_zfill_all(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	nouveau_fbcon_zfill(dev, dev_priv->nfbdev);
 }

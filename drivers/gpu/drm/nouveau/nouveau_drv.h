@@ -531,8 +531,6 @@ struct drm_nouveau_private {
 		atomic_t validate_sequence;
 	} ttm;
 
-	struct fb_info *fbdev_info;
-
 	int fifo_alloc_count;
 	struct nouveau_channel *fifos[NOUVEAU_MAX_CHANNEL_NR];
 
@@ -628,6 +626,8 @@ struct drm_nouveau_private {
 	struct {
 		struct dentry *channel_root;
 	} debugfs;
+
+	struct nouveau_fbcon_par *nfbdev;
 };
 
 static inline struct drm_nouveau_private *

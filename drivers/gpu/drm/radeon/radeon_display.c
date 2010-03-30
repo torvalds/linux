@@ -831,10 +831,6 @@ void radeon_compute_pll(struct radeon_pll *pll,
 static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct radeon_framebuffer *radeon_fb = to_radeon_framebuffer(fb);
-	struct drm_device *dev = fb->dev;
-
-	if (fb->fbdev)
-		radeonfb_remove(dev, fb);
 
 	if (radeon_fb->obj)
 		drm_gem_object_unreference_unlocked(radeon_fb->obj);
@@ -856,21 +852,15 @@ static const struct drm_framebuffer_funcs radeon_fb_funcs = {
 	.create_handle = radeon_user_framebuffer_create_handle,
 };
 
-struct drm_framebuffer *
-radeon_framebuffer_create(struct drm_device *dev,
-			  struct drm_mode_fb_cmd *mode_cmd,
-			  struct drm_gem_object *obj)
+void
+radeon_framebuffer_init(struct drm_device *dev,
+			struct radeon_framebuffer *rfb,
+			struct drm_mode_fb_cmd *mode_cmd,
+			struct drm_gem_object *obj)
 {
-	struct radeon_framebuffer *radeon_fb;
-
-	radeon_fb = kzalloc(sizeof(*radeon_fb), GFP_KERNEL);
-	if (radeon_fb == NULL) {
-		return NULL;
-	}
-	drm_framebuffer_init(dev, &radeon_fb->base, &radeon_fb_funcs);
-	drm_helper_mode_fill_fb_struct(&radeon_fb->base, mode_cmd);
-	radeon_fb->obj = obj;
-	return &radeon_fb->base;
+	rfb->obj = obj;
+	drm_framebuffer_init(dev, &rfb->base, &radeon_fb_funcs);
+	drm_helper_mode_fill_fb_struct(&rfb->base, mode_cmd);
 }
 
 static struct drm_framebuffer *
@@ -879,6 +869,7 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_mode_fb_cmd *mode_cmd)
 {
 	struct drm_gem_object *obj;
+	struct radeon_framebuffer *radeon_fb;
 
 	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handle);
 	if (obj ==  NULL) {
@@ -886,12 +877,19 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 			"can't create framebuffer\n", mode_cmd->handle);
 		return NULL;
 	}
-	return radeon_framebuffer_create(dev, mode_cmd, obj);
+
+	radeon_fb = kzalloc(sizeof(*radeon_fb), GFP_KERNEL);
+	if (radeon_fb == NULL) {
+		return NULL;
+	}
+
+	radeon_framebuffer_init(dev, radeon_fb, mode_cmd, obj);
+
+	return &radeon_fb->base;
 }
 
 static const struct drm_mode_config_funcs radeon_mode_funcs = {
 	.fb_create = radeon_user_framebuffer_create,
-	.fb_changed = radeonfb_probe,
 };
 
 struct drm_prop_enum_list {
@@ -1031,12 +1029,14 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	}
 	/* initialize hpd */
 	radeon_hpd_init(rdev);
-	drm_helper_initial_config(rdev->ddev);
+
+	radeon_fbdev_init(rdev);
 	return 0;
 }
 
 void radeon_modeset_fini(struct radeon_device *rdev)
 {
+	radeon_fbdev_fini(rdev);
 	kfree(rdev->mode_info.bios_hardcoded_edid);
 
 	if (rdev->mode_info.mode_config_initialized) {

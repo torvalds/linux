@@ -747,32 +747,30 @@ EXPORT_SYMBOL(drm_fb_helper_pan_display);
 
 int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 				  int preferred_bpp,
-				  int (*fb_create)(struct drm_device *dev,
-						   uint32_t fb_width,
-						   uint32_t fb_height,
-						   uint32_t surface_width,
-						   uint32_t surface_height,
-						   uint32_t surface_depth,
-						   uint32_t surface_bpp,
-						   struct drm_framebuffer **fb_ptr))
+				  int (*fb_find_or_create)(struct drm_device *dev,
+							   struct drm_fb_helper_surface_size *sizes,
+							   struct drm_fb_helper **fb_ptr))
 {
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
-	unsigned int fb_width = (unsigned)-1, fb_height = (unsigned)-1;
-	unsigned int surface_width = 0, surface_height = 0;
 	int new_fb = 0;
 	int crtc_count = 0;
 	int ret, i, conn_count = 0;
 	struct fb_info *info;
-	struct drm_framebuffer *fb;
 	struct drm_mode_set *modeset = NULL;
 	struct drm_fb_helper *fb_helper;
-	uint32_t surface_depth = 24, surface_bpp = 32;
+	struct drm_fb_helper_surface_size sizes;
+
+	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
+	sizes.surface_depth = 24;
+	sizes.surface_bpp = 32;
+	sizes.fb_width = (unsigned)-1;
+	sizes.fb_height = (unsigned)-1;
 
 	/* if driver picks 8 or 16 by default use that
 	   for both depth/bpp */
-	if (preferred_bpp != surface_bpp) {
-		surface_depth = surface_bpp = preferred_bpp;
+	if (preferred_bpp != sizes.surface_bpp) {
+		sizes.surface_depth = sizes.surface_bpp = preferred_bpp;
 	}
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -788,21 +786,21 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 		if (cmdline_mode->bpp_specified) {
 			switch (cmdline_mode->bpp) {
 			case 8:
-				surface_depth = surface_bpp = 8;
+				sizes.surface_depth = sizes.surface_bpp = 8;
 				break;
 			case 15:
-				surface_depth = 15;
-				surface_bpp = 16;
+				sizes.surface_depth = 15;
+				sizes.surface_bpp = 16;
 				break;
 			case 16:
-				surface_depth = surface_bpp = 16;
+				sizes.surface_depth = sizes.surface_bpp = 16;
 				break;
 			case 24:
-				surface_depth = surface_bpp = 24;
+				sizes.surface_depth = sizes.surface_bpp = 24;
 				break;
 			case 32:
-				surface_depth = 24;
-				surface_bpp = 32;
+				sizes.surface_depth = 24;
+				sizes.surface_bpp = 32;
 				break;
 			}
 			break;
@@ -812,59 +810,41 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (drm_helper_crtc_in_use(crtc)) {
 			if (crtc->desired_mode) {
-				if (crtc->desired_mode->hdisplay < fb_width)
-					fb_width = crtc->desired_mode->hdisplay;
+				if (crtc->desired_mode->hdisplay < sizes.fb_width)
+					sizes.fb_width = crtc->desired_mode->hdisplay;
 
-				if (crtc->desired_mode->vdisplay < fb_height)
-					fb_height = crtc->desired_mode->vdisplay;
+				if (crtc->desired_mode->vdisplay < sizes.fb_height)
+					sizes.fb_height = crtc->desired_mode->vdisplay;
 
-				if (crtc->desired_mode->hdisplay > surface_width)
-					surface_width = crtc->desired_mode->hdisplay;
+				if (crtc->desired_mode->hdisplay > sizes.surface_width)
+					sizes.surface_width = crtc->desired_mode->hdisplay;
 
-				if (crtc->desired_mode->vdisplay > surface_height)
-					surface_height = crtc->desired_mode->vdisplay;
+				if (crtc->desired_mode->vdisplay > sizes.surface_height)
+					sizes.surface_height = crtc->desired_mode->vdisplay;
 			}
 			crtc_count++;
 		}
 	}
 
-	if (crtc_count == 0 || fb_width == -1 || fb_height == -1) {
+	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {
 		/* hmm everyone went away - assume VGA cable just fell out
 		   and will come back later. */
 		return 0;
 	}
 
-	/* do we have an fb already? */
-	if (list_empty(&dev->mode_config.fb_kernel_list)) {
-		ret = (*fb_create)(dev, fb_width, fb_height, surface_width,
-				   surface_height, surface_depth, surface_bpp,
-				   &fb);
-		if (ret)
-			return -EINVAL;
-		new_fb = 1;
-	} else {
-		fb = list_first_entry(&dev->mode_config.fb_kernel_list,
-				      struct drm_framebuffer, filp_head);
+	/* push down into drivers */
+	new_fb = (*fb_find_or_create)(dev, &sizes,
+				      &fb_helper);
+	if (new_fb < 0)
+		return new_fb;
 
-		/* if someone hotplugs something bigger than we have already allocated, we are pwned.
-		   As really we can't resize an fbdev that is in the wild currently due to fbdev
-		   not really being designed for the lower layers moving stuff around under it.
-		   - so in the grand style of things - punt. */
-		if ((fb->width < surface_width) ||
-		    (fb->height < surface_height)) {
-			DRM_ERROR("Framebuffer not large enough to scale console onto.\n");
-			return -EINVAL;
-		}
-	}
-
-	info = fb->fbdev;
-	fb_helper = info->par;
+	info = fb_helper->fbdev;
 
 	crtc_count = 0;
 	/* okay we need to setup new connector sets in the crtcs */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		modeset = &fb_helper->crtc_info[crtc_count].mode_set;
-		modeset->fb = fb;
+		modeset->fb = fb_helper->fb;
 		conn_count = 0;
 		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 			if (connector->encoder)
@@ -891,7 +871,6 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 		}
 	}
 	fb_helper->crtc_count = crtc_count;
-	fb_helper->fb = fb;
 
 	if (new_fb) {
 		info->var.pixclock = 0;
@@ -902,11 +881,13 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 			fb_dealloc_cmap(&info->cmap);
 			return -EINVAL;
 		}
+
+		printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
+		       info->fix.id);
+
 	} else {
 		drm_fb_helper_set_par(info);
 	}
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
-	       info->fix.id);
 
 	/* Switch back to kernel console on panic */
 	/* multi card linked list maybe */
@@ -916,7 +897,9 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 					       &paniced);
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
-	list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
+	if (new_fb)
+		list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_single_fb_probe);
@@ -931,7 +914,7 @@ void drm_fb_helper_free(struct drm_fb_helper *helper)
 		unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
 	drm_fb_helper_crtc_free(helper);
-	fb_dealloc_cmap(&helper->fb->fbdev->cmap);
+	fb_dealloc_cmap(&helper->fbdev->cmap);
 }
 EXPORT_SYMBOL(drm_fb_helper_free);
 
@@ -953,10 +936,11 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_fix);
 
-void drm_fb_helper_fill_var(struct fb_info *info, struct drm_framebuffer *fb,
+void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height)
 {
-	info->pseudo_palette = fb->pseudo_palette;
+	struct drm_framebuffer *fb = fb_helper->fb;
+	info->pseudo_palette = fb_helper->pseudo_palette;
 	info->var.xres_virtual = fb->width;
 	info->var.yres_virtual = fb->height;
 	info->var.bits_per_pixel = fb->bits_per_pixel;
@@ -1024,3 +1008,364 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_framebuffer *fb,
 	info->var.yres = fb_height;
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_var);
+
+static int drm_helper_probe_connector_modes(struct drm_device *dev, uint32_t maxX,
+					    uint32_t maxY)
+{
+	struct drm_connector *connector;
+	int count = 0;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		count += connector->funcs->fill_modes(connector, maxX, maxY);
+	}
+
+	return count;
+}
+
+static struct drm_display_mode *drm_has_preferred_mode(struct drm_connector *connector, int width, int height)
+{
+	struct drm_display_mode *mode;
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (drm_mode_width(mode) > width ||
+		    drm_mode_height(mode) > height)
+			continue;
+		if (mode->type & DRM_MODE_TYPE_PREFERRED)
+			return mode;
+	}
+	return NULL;
+}
+
+static bool drm_has_cmdline_mode(struct drm_connector *connector)
+{
+	struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
+	struct drm_fb_helper_cmdline_mode *cmdline_mode;
+
+	if (!fb_help_conn)
+		return false;
+
+	cmdline_mode = &fb_help_conn->cmdline_mode;
+	return cmdline_mode->specified;
+}
+
+static struct drm_display_mode *drm_pick_cmdline_mode(struct drm_connector *connector, int width, int height)
+{
+	struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
+	struct drm_fb_helper_cmdline_mode *cmdline_mode;
+	struct drm_display_mode *mode = NULL;
+
+	if (!fb_help_conn)
+		return mode;
+
+	cmdline_mode = &fb_help_conn->cmdline_mode;
+	if (cmdline_mode->specified == false)
+		return mode;
+
+	/* attempt to find a matching mode in the list of modes
+	 *  we have gotten so far, if not add a CVT mode that conforms
+	 */
+	if (cmdline_mode->rb || cmdline_mode->margins)
+		goto create_mode;
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		/* check width/height */
+		if (mode->hdisplay != cmdline_mode->xres ||
+		    mode->vdisplay != cmdline_mode->yres)
+			continue;
+
+		if (cmdline_mode->refresh_specified) {
+			if (mode->vrefresh != cmdline_mode->refresh)
+				continue;
+		}
+
+		if (cmdline_mode->interlace) {
+			if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
+				continue;
+		}
+		return mode;
+	}
+
+create_mode:
+	mode = drm_cvt_mode(connector->dev, cmdline_mode->xres,
+			    cmdline_mode->yres,
+			    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
+			    cmdline_mode->rb, cmdline_mode->interlace,
+			    cmdline_mode->margins);
+	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+	list_add(&mode->head, &connector->modes);
+	return mode;
+}
+
+static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
+{
+	bool enable;
+
+	if (strict) {
+		enable = connector->status == connector_status_connected;
+	} else {
+		enable = connector->status != connector_status_disconnected;
+	}
+	return enable;
+}
+
+static void drm_enable_connectors(struct drm_device *dev, bool *enabled)
+{
+	bool any_enabled = false;
+	struct drm_connector *connector;
+	int i = 0;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		enabled[i] = drm_connector_enabled(connector, true);
+		DRM_DEBUG_KMS("connector %d enabled? %s\n", connector->base.id,
+			  enabled[i] ? "yes" : "no");
+		any_enabled |= enabled[i];
+		i++;
+	}
+
+	if (any_enabled)
+		return;
+
+	i = 0;
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		enabled[i] = drm_connector_enabled(connector, false);
+		i++;
+	}
+}
+
+static bool drm_target_preferred(struct drm_device *dev,
+				 struct drm_display_mode **modes,
+				 bool *enabled, int width, int height)
+{
+	struct drm_connector *connector;
+	int i = 0;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+
+		if (enabled[i] == false) {
+			i++;
+			continue;
+		}
+
+		DRM_DEBUG_KMS("looking for cmdline mode on connector %d\n",
+			      connector->base.id);
+
+		/* got for command line mode first */
+		modes[i] = drm_pick_cmdline_mode(connector, width, height);
+		if (!modes[i]) {
+			DRM_DEBUG_KMS("looking for preferred mode on connector %d\n",
+				      connector->base.id);
+			modes[i] = drm_has_preferred_mode(connector, width, height);
+		}
+		/* No preferred modes, pick one off the list */
+		if (!modes[i] && !list_empty(&connector->modes)) {
+			list_for_each_entry(modes[i], &connector->modes, head)
+				break;
+		}
+		DRM_DEBUG_KMS("found mode %s\n", modes[i] ? modes[i]->name :
+			  "none");
+		i++;
+	}
+	return true;
+}
+
+static int drm_pick_crtcs(struct drm_device *dev,
+			  struct drm_crtc **best_crtcs,
+			  struct drm_display_mode **modes,
+			  int n, int width, int height)
+{
+	int c, o;
+	struct drm_connector *connector;
+	struct drm_connector_helper_funcs *connector_funcs;
+	struct drm_encoder *encoder;
+	struct drm_crtc *best_crtc;
+	int my_score, best_score, score;
+	struct drm_crtc **crtcs, *crtc;
+
+	if (n == dev->mode_config.num_connector)
+		return 0;
+	c = 0;
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (c == n)
+			break;
+		c++;
+	}
+
+	best_crtcs[n] = NULL;
+	best_crtc = NULL;
+	best_score = drm_pick_crtcs(dev, best_crtcs, modes, n+1, width, height);
+	if (modes[n] == NULL)
+		return best_score;
+
+	crtcs = kmalloc(dev->mode_config.num_connector *
+			sizeof(struct drm_crtc *), GFP_KERNEL);
+	if (!crtcs)
+		return best_score;
+
+	my_score = 1;
+	if (connector->status == connector_status_connected)
+		my_score++;
+	if (drm_has_cmdline_mode(connector))
+		my_score++;
+	if (drm_has_preferred_mode(connector, width, height))
+		my_score++;
+
+	connector_funcs = connector->helper_private;
+	encoder = connector_funcs->best_encoder(connector);
+	if (!encoder)
+		goto out;
+
+	connector->encoder = encoder;
+
+	/* select a crtc for this connector and then attempt to configure
+	   remaining connectors */
+	c = 0;
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+
+		if ((encoder->possible_crtcs & (1 << c)) == 0) {
+			c++;
+			continue;
+		}
+
+		for (o = 0; o < n; o++)
+			if (best_crtcs[o] == crtc)
+				break;
+
+		if (o < n) {
+			/* ignore cloning for now */
+			c++;
+			continue;
+		}
+
+		crtcs[n] = crtc;
+		memcpy(crtcs, best_crtcs, n * sizeof(struct drm_crtc *));
+		score = my_score + drm_pick_crtcs(dev, crtcs, modes, n + 1,
+						  width, height);
+		if (score > best_score) {
+			best_crtc = crtc;
+			best_score = score;
+			memcpy(best_crtcs, crtcs,
+			       dev->mode_config.num_connector *
+			       sizeof(struct drm_crtc *));
+		}
+		c++;
+	}
+out:
+	kfree(crtcs);
+	return best_score;
+}
+
+static void drm_setup_crtcs(struct drm_device *dev)
+{
+	struct drm_crtc **crtcs;
+	struct drm_display_mode **modes;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	bool *enabled;
+	int width, height;
+	int i, ret;
+
+	DRM_DEBUG_KMS("\n");
+
+	width = dev->mode_config.max_width;
+	height = dev->mode_config.max_height;
+
+	/* clean out all the encoder/crtc combos */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		encoder->crtc = NULL;
+	}
+
+	crtcs = kcalloc(dev->mode_config.num_connector,
+			sizeof(struct drm_crtc *), GFP_KERNEL);
+	modes = kcalloc(dev->mode_config.num_connector,
+			sizeof(struct drm_display_mode *), GFP_KERNEL);
+	enabled = kcalloc(dev->mode_config.num_connector,
+			  sizeof(bool), GFP_KERNEL);
+
+	drm_enable_connectors(dev, enabled);
+
+	ret = drm_target_preferred(dev, modes, enabled, width, height);
+	if (!ret)
+		DRM_ERROR("Unable to find initial modes\n");
+
+	DRM_DEBUG_KMS("picking CRTCs for %dx%d config\n", width, height);
+
+	drm_pick_crtcs(dev, crtcs, modes, 0, width, height);
+
+	i = 0;
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct drm_display_mode *mode = modes[i];
+		struct drm_crtc *crtc = crtcs[i];
+
+		if (connector->encoder == NULL) {
+			i++;
+			continue;
+		}
+
+		if (mode && crtc) {
+			DRM_DEBUG_KMS("desired mode %s set on crtc %d\n",
+				  mode->name, crtc->base.id);
+			crtc->desired_mode = mode;
+			connector->encoder->crtc = crtc;
+		} else {
+			connector->encoder->crtc = NULL;
+			connector->encoder = NULL;
+		}
+		i++;
+	}
+
+	kfree(crtcs);
+	kfree(modes);
+	kfree(enabled);
+}
+
+/**
+ * drm_helper_initial_config - setup a sane initial connector configuration
+ * @dev: DRM device
+ *
+ * LOCKING:
+ * Called at init time, must take mode config lock.
+ *
+ * Scan the CRTCs and connectors and try to put together an initial setup.
+ * At the moment, this is a cloned configuration across all heads with
+ * a new framebuffer object as the backing store.
+ *
+ * RETURNS:
+ * Zero if everything went ok, nonzero otherwise.
+ */
+bool drm_helper_initial_config(struct drm_device *dev)
+{
+	int count = 0;
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
+
+	drm_fb_helper_parse_command_line(dev);
+
+	count = drm_helper_probe_connector_modes(dev,
+						 dev->mode_config.max_width,
+						 dev->mode_config.max_height);
+
+	/*
+	 * we shouldn't end up with no modes here.
+	 */
+	if (count == 0)
+		printk(KERN_INFO "No connectors reported connected with modes\n");
+
+	drm_setup_crtcs(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_helper_initial_config);
+
+bool drm_helper_fb_hotplug_event(struct drm_device *dev)
+{
+	DRM_DEBUG_KMS("\n");
+
+	drm_helper_probe_connector_modes(dev, dev->mode_config.max_width,
+					 dev->mode_config.max_height);
+
+	drm_setup_crtcs(dev);
+
+	return true;
+}
+EXPORT_SYMBOL(drm_helper_fb_hotplug_event);

@@ -752,14 +752,8 @@ err_not_scanout:
 	return NULL;
 }
 
-static int vmw_kms_fb_changed(struct drm_device *dev)
-{
-	return 0;
-}
-
 static struct drm_mode_config_funcs vmw_kms_funcs = {
 	.fb_create = vmw_kms_fb_create,
-	.fb_changed = vmw_kms_fb_changed,
 };
 
 int vmw_kms_init(struct vmw_private *dev_priv)
