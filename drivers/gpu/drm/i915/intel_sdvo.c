@@ -1729,7 +1729,7 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 	int num_modes;
 
 	/* set the bus switch and get the modes */
-	num_modes = intel_ddc_get_modes(intel_encoder);
+	num_modes = intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
 
 	/*
 	 * Mac mini hack.  On this device, the DVI-I connector shares one DDC
@@ -1740,16 +1740,9 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 	if (num_modes == 0 &&
 	    sdvo_priv->analog_ddc_bus &&
 	    !intel_analog_is_connected(intel_encoder->base.dev)) {
-		struct i2c_adapter *digital_ddc_bus;
-
 		/* Switch to the analog ddc bus and try that
 		 */
-		digital_ddc_bus = intel_encoder->ddc_bus;
-		intel_encoder->ddc_bus = sdvo_priv->analog_ddc_bus;
-
-		(void) intel_ddc_get_modes(intel_encoder);
-
-		intel_encoder->ddc_bus = digital_ddc_bus;
+		(void) intel_ddc_get_modes(connector, sdvo_priv->analog_ddc_bus);
 	}
 }
 
@@ -1872,7 +1865,7 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 	 * Assume that the preferred modes are
 	 * arranged in priority order.
 	 */
-	intel_ddc_get_modes(intel_encoder);
+	intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
 	if (list_empty(&connector->probed_modes) == false)
 		goto end;
 

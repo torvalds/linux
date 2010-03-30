@@ -256,7 +256,7 @@ static int intel_dvo_get_modes(struct drm_connector *connector)
 	 * (TV-out, for example), but for now with just TMDS and LVDS,
 	 * that's not the case.
 	 */
-	intel_ddc_get_modes(intel_encoder);
+	intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
 	if (!list_empty(&connector->probed_modes))
 		return 1;
 

@@ -179,7 +179,7 @@ static int intel_hdmi_get_modes(struct drm_connector *connector)
 	 * we can send audio to it.
 	 */
 
-	return intel_ddc_get_modes(intel_encoder);
+	return intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
 }
 
 static void intel_hdmi_destroy(struct drm_connector *connector)

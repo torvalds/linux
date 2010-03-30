@@ -639,7 +639,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	int ret = 0;
 
 	if (dev_priv->lvds_edid_good) {
-		ret = intel_ddc_get_modes(intel_encoder);
+		ret = intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
 
 		if (ret)
 			return ret;
@@ -1066,7 +1066,7 @@ void intel_lvds_init(struct drm_device *dev)
 	 */
 	dev_priv->lvds_edid_good = true;
 
-	if (!intel_ddc_get_modes(intel_encoder))
+	if (!intel_ddc_get_modes(connector, intel_encoder->ddc_bus))
 		dev_priv->lvds_edid_good = false;
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {

@@ -165,7 +165,7 @@ struct intel_crtc {
 struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
 				     const char *name);
 void intel_i2c_destroy(struct i2c_adapter *adapter);
-int intel_ddc_get_modes(struct intel_encoder *intel_encoder);
+int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 extern bool intel_ddc_probe(struct intel_encoder *intel_encoder);
 void intel_i2c_quirk_set(struct drm_device *dev, bool enable);
 void intel_i2c_reset_gmbus(struct drm_device *dev);

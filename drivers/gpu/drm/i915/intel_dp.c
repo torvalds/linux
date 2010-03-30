@@ -1229,7 +1229,7 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	/* We should parse the EDID data and find out if it has an audio sink
 	 */
 
-	ret = intel_ddc_get_modes(intel_encoder);
+	ret = intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
 	if (ret)
 		return ret;
 
