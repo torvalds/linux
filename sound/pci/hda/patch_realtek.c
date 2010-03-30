@@ -14012,8 +14012,9 @@ static int alc269_mic2_mute_check_ps(struct hda_codec *codec, hda_nid_t nid)
 		else
 			pinval = 0x20;
 		/* mic2 vref pin is used for mute LED control */
-		snd_hda_codec_write(codec, 0x19, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, pinval);
+		snd_hda_codec_update_cache(codec, 0x19, 0,
+					   AC_VERB_SET_PIN_WIDGET_CONTROL,
+					   pinval);
 	}
 	return alc_check_power_status(codec, nid);
 }

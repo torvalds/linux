@@ -885,9 +885,12 @@ int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm);
 void snd_hda_sequence_write_cache(struct hda_codec *codec,
 				  const struct hda_verb *seq);
+int snd_hda_codec_update_cache(struct hda_codec *codec, hda_nid_t nid,
+			      int direct, unsigned int verb, unsigned int parm);
 void snd_hda_codec_resume_cache(struct hda_codec *codec);
 #else
 #define snd_hda_codec_write_cache	snd_hda_codec_write
+#define snd_hda_codec_update_cache	snd_hda_codec_write
 #define snd_hda_sequence_write_cache	snd_hda_sequence_write
 #endif
 
