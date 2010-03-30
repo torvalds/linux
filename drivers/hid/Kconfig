@@ -279,8 +279,8 @@ config HID_PICOLCD
 	  - Switching between Firmware and Flash mode
 	  - Framebuffer for monochrome 256x64 display
 	  - Backlight control    (needs CONFIG_BACKLIGHT_CLASS_DEVICE)
+	  - Contrast control     (needs CONFIG_LCD_CLASS_DEVICE)
 	  Features that are not (yet) supported:
-	  - Contrast control
 	  - IR
 	  - General purpose outputs
 	  - EEProm / Flash access

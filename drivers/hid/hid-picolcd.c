@@ -27,6 +27,7 @@
 #include <linux/fb.h>
 #include <linux/vmalloc.h>
 #include <linux/backlight.h>
+#include <linux/lcd.h>
 
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
@@ -184,6 +185,10 @@ struct picolcd_data {
 	struct fb_info *fb_info;
 	struct fb_deferred_io fb_defio;
 #endif /* CONFIG_FB */
+#if defined(CONFIG_LCD_CLASS_DEVICE) || defined(CONFIG_LCD_CLASS_DEVICE_MODULE)
+	struct lcd_device *lcd;
+	u8 lcd_contrast;
+#endif
 #if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 	struct backlight_device *backlight;
 	u8 lcd_brightness;
@@ -849,6 +854,99 @@ static inline int picolcd_resume_backlight(struct picolcd_data *data)
 }
 #endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 
+#if defined(CONFIG_LCD_CLASS_DEVICE) || defined(CONFIG_LCD_CLASS_DEVICE_MODULE)
+/*
+ * lcd class device
+ */
+static int picolcd_get_contrast(struct lcd_device *ldev)
+{
+	struct picolcd_data *data = lcd_get_data(ldev);
+	return data->lcd_contrast;
+}
+
+static int picolcd_set_contrast(struct lcd_device *ldev, int contrast)
+{
+	struct picolcd_data *data = lcd_get_data(ldev);
+	struct hid_report *report = picolcd_out_report(REPORT_CONTRAST, data->hdev);
+	unsigned long flags;
+
+	if (!report || report->maxfield != 1 || report->field[0]->report_count != 1)
+		return -ENODEV;
+
+	data->lcd_contrast = contrast & 0x0ff;
+	spin_lock_irqsave(&data->lock, flags);
+	hid_set_field(report->field[0], 0, data->lcd_contrast);
+	usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
+	spin_unlock_irqrestore(&data->lock, flags);
+	return 0;
+}
+
+static int picolcd_check_lcd_fb(struct lcd_device *ldev, struct fb_info *fb)
+{
+	return fb && fb == picolcd_fbinfo((struct picolcd_data *)lcd_get_data(ldev));
+}
+
+static struct lcd_ops picolcd_lcdops = {
+	.get_contrast   = picolcd_get_contrast,
+	.set_contrast   = picolcd_set_contrast,
+	.check_fb       = picolcd_check_lcd_fb,
+};
+
+static int picolcd_init_lcd(struct picolcd_data *data, struct hid_report *report)
+{
+	struct device *dev = &data->hdev->dev;
+	struct lcd_device *ldev;
+
+	if (!report)
+		return -ENODEV;
+	if (report->maxfield != 1 || report->field[0]->report_count != 1 ||
+			report->field[0]->report_size != 8) {
+		dev_err(dev, "unsupported CONTRAST report");
+		return -EINVAL;
+	}
+
+	ldev = lcd_device_register(dev_name(dev), dev, data, &picolcd_lcdops);
+	if (IS_ERR(ldev)) {
+		dev_err(dev, "failed to register LCD\n");
+		return PTR_ERR(ldev);
+	}
+	ldev->props.max_contrast = 0x0ff;
+	data->lcd_contrast = 0xe5;
+	data->lcd = ldev;
+	picolcd_set_contrast(ldev, 0xe5);
+	return 0;
+}
+
+static void picolcd_exit_lcd(struct picolcd_data *data)
+{
+	struct lcd_device *ldev = data->lcd;
+
+	data->lcd = NULL;
+	if (ldev)
+		lcd_device_unregister(ldev);
+}
+
+static inline int picolcd_resume_lcd(struct picolcd_data *data)
+{
+	if (!data->lcd)
+		return 0;
+	return picolcd_set_contrast(data->lcd, data->lcd_contrast);
+}
+#else
+static inline int picolcd_init_lcd(struct picolcd_data *data,
+		struct hid_report *report)
+{
+	return 0;
+}
+static inline void picolcd_exit_lcd(struct picolcd_data *data)
+{
+}
+static inline int picolcd_resume_lcd(struct picolcd_data *data)
+{
+	return 0;
+}
+#endif /* CONFIG_LCD_CLASS_DEVICE */
+
 /*
  * input class device
  */
@@ -984,6 +1082,7 @@ static int picolcd_reset(struct hid_device *hdev)
 	if (error)
 		return error;
 
+	picolcd_resume_lcd(data);
 	picolcd_resume_backlight(data);
 #if defined(CONFIG_FB) || defined(CONFIG_FB_MODULE)
 	if (data->fb_info)
@@ -1673,6 +1772,11 @@ static int picolcd_probe_lcd(struct hid_device *hdev, struct picolcd_data *data)
 	if (error)
 		goto err;
 
+	/* Setup lcd class device */
+	error = picolcd_init_lcd(data, picolcd_out_report(REPORT_CONTRAST, hdev));
+	if (error)
+		goto err;
+
 	/* Setup backlight class device */
 	error = picolcd_init_backlight(data, picolcd_out_report(REPORT_BRIGHTNESS, hdev));
 	if (error)
@@ -1688,6 +1792,7 @@ static int picolcd_probe_lcd(struct hid_device *hdev, struct picolcd_data *data)
 	return 0;
 err:
 	picolcd_exit_backlight(data);
+	picolcd_exit_lcd(data);
 	picolcd_exit_framebuffer(data);
 	picolcd_exit_cir(data);
 	picolcd_exit_keys(data);
@@ -1820,6 +1925,7 @@ static void picolcd_remove(struct hid_device *hdev)
 
 	/* Clean up the framebuffer */
 	picolcd_exit_backlight(data);
+	picolcd_exit_lcd(data);
 	picolcd_exit_framebuffer(data);
 	/* Cleanup input */
 	picolcd_exit_cir(data);
