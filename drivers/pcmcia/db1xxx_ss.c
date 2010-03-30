@@ -42,7 +42,6 @@ struct db1x_pcmcia_sock {
 	int		nr;		/* socket number */
 	void		*virt_io;
 
-	/* the "pseudo" addresses of the PCMCIA space. */
 	phys_addr_t	phys_io;
 	phys_addr_t	phys_attr;
 	phys_addr_t	phys_mem;
@@ -437,7 +436,7 @@ static int __devinit db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	 * This includes IRQs for Carddetection/ejection, the card
 	 *  itself and optional status change detection.
 	 * Also, the memory areas covered by a socket.  For these
-	 *  we require the 32bit "pseudo" addresses (see the au1000.h
+	 *  we require the real 36bit addresses (see the au1000.h
 	 *  header for more information).
 	 */
 
@@ -459,11 +458,7 @@ static int __devinit db1x_pcmcia_socket_probe(struct platform_device *pdev)
 
 	ret = -ENODEV;
 
-	/*
-	 * pseudo-attr:  The 32bit address of the PCMCIA attribute space
-	 * for this socket (usually the 36bit address shifted 4 to the
-	 * right).
-	 */
+	/* 36bit PCMCIA Attribute area address */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-attr");
 	if (!r) {
 		printk(KERN_ERR "pcmcia%d has no 'pseudo-attr' resource!\n",
@@ -472,10 +467,7 @@ static int __devinit db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	}
 	sock->phys_attr = r->start;
 
-	/*
-	 * pseudo-mem:  The 32bit address of the PCMCIA memory space for
-	 * this socket (usually the 36bit address shifted 4 to the right)
-	 */
+	/* 36bit PCMCIA Memory area address */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-mem");
 	if (!r) {
 		printk(KERN_ERR "pcmcia%d has no 'pseudo-mem' resource!\n",
@@ -484,10 +476,7 @@ static int __devinit db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	}
 	sock->phys_mem = r->start;
 
-	/*
-	 * pseudo-io:  The 32bit address of the PCMCIA IO space for this
-	 * socket (usually the 36bit address shifted 4 to the right).
-	 */
+	/* 36bit PCMCIA IO area address */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-io");
 	if (!r) {
 		printk(KERN_ERR "pcmcia%d has no 'pseudo-io' resource!\n",
@@ -569,37 +558,10 @@ static int __devexit db1x_pcmcia_socket_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int db1x_pcmcia_suspend(struct device *dev)
-{
-	return pcmcia_socket_dev_suspend(dev);
-}
-
-static int db1x_pcmcia_resume(struct device *dev)
-{
-	return pcmcia_socket_dev_resume(dev);
-}
-
-static struct dev_pm_ops db1x_pcmcia_pmops = {
-	.resume		= db1x_pcmcia_resume,
-	.suspend	= db1x_pcmcia_suspend,
-	.thaw		= db1x_pcmcia_resume,
-	.freeze		= db1x_pcmcia_suspend,
-};
-
-#define DB1XXX_SS_PMOPS &db1x_pcmcia_pmops
-
-#else
-
-#define DB1XXX_SS_PMOPS NULL
-
-#endif
-
 static struct platform_driver db1x_pcmcia_socket_driver = {
 	.driver	= {
 		.name	= "db1xxx_pcmcia",
 		.owner	= THIS_MODULE,
-		.pm	= DB1XXX_SS_PMOPS
 	},
 	.probe		= db1x_pcmcia_socket_probe,
 	.remove		= __devexit_p(db1x_pcmcia_socket_remove),

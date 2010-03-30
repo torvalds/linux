@@ -31,6 +31,8 @@
  * if dma_cookie_t is >0 it's a DMA request cookie, <0 it's an error code
  */
 typedef s32 dma_cookie_t;
+#define DMA_MIN_COOKIE	1
+#define DMA_MAX_COOKIE	INT_MAX
 
 #define dma_submit_error(cookie) ((cookie) < 0 ? 1 : 0)
 

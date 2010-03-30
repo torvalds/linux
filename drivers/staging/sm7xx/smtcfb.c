@@ -45,7 +45,6 @@
 struct screen_info smtc_screen_info;
 
 #include "smtcfb.h"
-#include "smtc2d.h"
 
 #ifdef DEBUG
 #define smdbg(format, arg...)	printk(KERN_DEBUG format , ## arg)
@@ -120,10 +119,6 @@ static struct vesa_mode_table vesa_mode[] = {
 char __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
 char __iomem *smtc_VRAMBaseAddress;	/* video memory starting address */
 
-char *smtc_2DBaseAddress;	/* 2D engine starting address */
-char *smtc_2Ddataport;		/* 2D data port offset */
-short smtc_2Dacceleration;
-
 static u32 colreg[17];
 static struct par_info hw;	/* hardware information */
 
@@ -134,16 +129,6 @@ u16 smtc_ChipIDs[] = {
 };
 
 #define numSMTCchipIDs (sizeof(smtc_ChipIDs) / sizeof(u16))
-
-void deWaitForNotBusy(void)
-{
-	unsigned long i = 0x1000000;
-	while (i--) {
-		if ((smtc_seqr(0x16) & 0x18) == 0x10)
-			break;
-	}
-	smtc_de_busy = 0;
-}
 
 static void sm712_set_timing(struct smtcfb_info *sfb,
 			     struct par_info *ppar_info)
@@ -324,7 +309,7 @@ static inline unsigned int chan_to_field(unsigned int chan,
 	return chan << bf->offset;
 }
 
-static int smtcfb_blank(int blank_mode, struct fb_info *info)
+static int cfb_blank(int blank_mode, struct fb_info *info)
 {
 	/* clear DPMS setting */
 	switch (blank_mode) {
@@ -622,93 +607,13 @@ smtcfb_write(struct fb_info *info, const char __user *buf, size_t count,
 }
 #endif	/* ! __BIG_ENDIAN */
 
-#include "smtc2d.c"
-
-void smtcfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
-{
-	struct par_info *p = (struct par_info *)info->par;
-
-	if (smtc_2Dacceleration) {
-		if (!area->width || !area->height)
-			return;
-
-		deCopy(p->BaseAddressInVRAM, 0, info->var.bits_per_pixel,
-		       area->dx, area->dy, area->width, area->height,
-		       p->BaseAddressInVRAM, 0, area->sx, area->sy, 0, 0xC);
-
-	} else
-		cfb_copyarea(info, area);
-}
-
-void smtcfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
-{
-	struct par_info *p = (struct par_info *)info->par;
-
-	if (smtc_2Dacceleration) {
-		if (!rect->width || !rect->height)
-			return;
-		if (info->var.bits_per_pixel >= 24)
-			deFillRect(p->BaseAddressInVRAM, 0, rect->dx * 3,
-				   rect->dy * 3, rect->width * 3, rect->height,
-				   rect->color);
-		else
-			deFillRect(p->BaseAddressInVRAM, 0, rect->dx, rect->dy,
-				   rect->width, rect->height, rect->color);
-	} else
-		cfb_fillrect(info, rect);
-}
-
-void smtcfb_imageblit(struct fb_info *info, const struct fb_image *image)
-{
-	struct par_info *p = (struct par_info *)info->par;
-	u32 bg_col = 0, fg_col = 0;
-
-	if ((smtc_2Dacceleration) && (image->depth == 1)) {
-		if (smtc_de_busy)
-			deWaitForNotBusy();
-
-		switch (info->var.bits_per_pixel) {
-		case 8:
-			bg_col = image->bg_color;
-			fg_col = image->fg_color;
-			break;
-		case 16:
-			bg_col =
-			    ((u32 *) (info->pseudo_palette))[image->bg_color];
-			fg_col =
-			    ((u32 *) (info->pseudo_palette))[image->fg_color];
-			break;
-		case 32:
-			bg_col =
-			    ((u32 *) (info->pseudo_palette))[image->bg_color];
-			fg_col =
-			    ((u32 *) (info->pseudo_palette))[image->fg_color];
-			break;
-		}
-
-		deSystemMem2VideoMemMonoBlt(
-			image->data,
-			image->width / 8,
-			0,
-			p->BaseAddressInVRAM,
-			0,
-			0,
-			image->dx, image->dy,
-			image->width, image->height,
-			fg_col, bg_col,
-			0x0C);
-
-	} else
-		cfb_imageblit(info, image);
-}
-
 static struct fb_ops smtcfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_setcolreg = smtc_setcolreg,
-	.fb_blank = smtcfb_blank,
-	.fb_fillrect = smtcfb_fillrect,
-	.fb_imageblit = smtcfb_imageblit,
-	.fb_copyarea = smtcfb_copyarea,
+	.fb_blank = cfb_blank,
+	.fb_fillrect = cfb_fillrect,
+	.fb_imageblit = cfb_imageblit,
+	.fb_copyarea = cfb_copyarea,
 #ifdef __BIG_ENDIAN
 	.fb_read = smtcfb_read,
 	.fb_write = smtcfb_write,
@@ -772,12 +677,6 @@ void smtcfb_setmode(struct smtcfb_info *sfb)
 	hw.height = sfb->fb.var.yres;
 	hw.hz = 60;
 	smtc_set_timing(sfb, &hw);
-	if (smtc_2Dacceleration) {
-		printk("2D acceleration enabled!\n");
-		/* Init smtc drawing engine */
-		deInit(sfb->fb.var.xres, sfb->fb.var.yres,
-				sfb->fb.var.bits_per_pixel);
-	}
 }
 
 /*
@@ -1004,9 +903,7 @@ static int __init smtcfb_pci_probe(struct pci_dev *pdev,
 #endif
 		hw.m_pMMIO = (smtc_RegBaseAddress =
 		    smtc_VRAMBaseAddress + 0x00700000);
-		smtc_2DBaseAddress = (hw.m_pDPR =
-		    smtc_VRAMBaseAddress + 0x00408000);
-		smtc_2Ddataport = smtc_VRAMBaseAddress + DE_DATA_PORT_712;
+		hw.m_pDPR = smtc_VRAMBaseAddress + 0x00408000;
 		hw.m_pVPR = hw.m_pLFB + 0x0040c000;
 #ifdef __BIG_ENDIAN
 		if (sfb->fb.var.bits_per_pixel == 32) {
@@ -1035,27 +932,21 @@ static int __init smtcfb_pci_probe(struct pci_dev *pdev,
 		if (sfb->fb.var.bits_per_pixel == 32)
 			smtc_seqw(0x17, 0x30);
 #endif
-#ifdef CONFIG_FB_SM7XX_ACCEL
-		smtc_2Dacceleration = 1;
-#endif
 		break;
 	case 0x720:
 		sfb->fb.fix.mmio_start = pFramebufferPhysical;
 		sfb->fb.fix.mmio_len = 0x00200000;
 		smem_size = SM722_VIDEOMEMORYSIZE;
-		smtc_2DBaseAddress = (hw.m_pDPR =
-		    ioremap(pFramebufferPhysical, 0x00a00000));
+		hw.m_pDPR = ioremap(pFramebufferPhysical, 0x00a00000);
 		hw.m_pLFB = (smtc_VRAMBaseAddress =
-		    smtc_2DBaseAddress + 0x00200000);
+		    hw.m_pDPR + 0x00200000);
 		hw.m_pMMIO = (smtc_RegBaseAddress =
-		    smtc_2DBaseAddress + 0x000c0000);
-		smtc_2Ddataport = smtc_2DBaseAddress + DE_DATA_PORT_722;
-		hw.m_pVPR = smtc_2DBaseAddress + 0x800;
+		    hw.m_pDPR + 0x000c0000);
+		hw.m_pVPR = hw.m_pDPR + 0x800;
 
 		smtc_seqw(0x62, 0xff);
 		smtc_seqw(0x6a, 0x0d);
 		smtc_seqw(0x6b, 0x02);
-		smtc_2Dacceleration = 0;
 		break;
 	default:
 		printk(KERN_INFO
@@ -1103,7 +994,7 @@ static int __init smtcfb_pci_probe(struct pci_dev *pdev,
 
 
 /* Jason (08/11/2009) PCI_DRV wrapper essential structs */
-static struct pci_device_id smtcfb_pci_table[] = {
+static const struct pci_device_id smtcfb_pci_table[] = {
 	{0x126f, 0x710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x126f, 0x712, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x126f, 0x720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

@@ -269,8 +269,8 @@ struct uac_format_type_i_ext_descriptor {
 	__u8 bLength;
 	__u8 bDescriptorType;
 	__u8 bDescriptorSubtype;
-	__u8 bSubslotSize;
 	__u8 bFormatType;
+	__u8 bSubslotSize;
 	__u8 bBitResolution;
 	__u8 bHeaderLength;
 	__u8 bControlSize;

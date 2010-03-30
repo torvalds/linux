@@ -144,6 +144,16 @@ config FSL_EMB_PERFMON
 	  and some e300 cores (c3 and c4).  Select this only if your
 	  core supports the Embedded Performance Monitor APU
 
+config FSL_EMB_PERF_EVENT
+	bool
+	depends on FSL_EMB_PERFMON && PERF_EVENTS && !PPC_PERF_CTRS
+	default y
+
+config FSL_EMB_PERF_EVENT_E500
+	bool
+	depends on FSL_EMB_PERF_EVENT && E500
+	default y
+
 config 4xx
 	bool
 	depends on 40x || 44x

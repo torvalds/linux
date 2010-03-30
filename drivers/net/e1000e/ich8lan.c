@@ -2740,6 +2740,16 @@ static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw)
 		reg &= ~(1 << 31);
 		ew32(STATUS, reg);
 	}
+
+	/*
+	 * work-around descriptor data corruption issue during nfs v2 udp
+	 * traffic, just disable the nfs filtering capability
+	 */
+	reg = er32(RFCTL);
+	reg |= (E1000_RFCTL_NFSW_DIS | E1000_RFCTL_NFSR_DIS);
+	ew32(RFCTL, reg);
+
+	return;
 }
 
 /**

@@ -123,18 +123,27 @@ void local_flush_tlb_mm(struct mm_struct *mm)
 void local_flush_tlb_all(void)
 {
 	unsigned long flags, status;
+	int i;
 
 	/*
 	 * Flush all the TLB.
-	 *
-	 * Write to the MMU control register's bit:
-	 *	TF-bit for SH-3, TI-bit for SH-4.
-	 *      It's same position, bit #2.
 	 */
 	local_irq_save(flags);
+	jump_to_uncached();
+
 	status = __raw_readl(MMUCR);
-	status |= 0x04;
-	__raw_writel(status, MMUCR);
+	status = ((status & MMUCR_URB) >> MMUCR_URB_SHIFT);
+
+	if (status == 0)
+		status = MMUCR_URB_NENTRIES;
+
+	for (i = 0; i < status; i++)
+		__raw_writel(0x0, MMU_UTLB_ADDRESS_ARRAY | (i << 8));
+
+	for (i = 0; i < 4; i++)
+		__raw_writel(0x0, MMU_ITLB_ADDRESS_ARRAY | (i << 8));
+
+	back_to_cached();
 	ctrl_barrier();
 	local_irq_restore(flags);
 }

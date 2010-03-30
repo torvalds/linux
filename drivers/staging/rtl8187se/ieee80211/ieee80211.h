@@ -29,6 +29,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
+#include <linux/semaphore.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
 
@@ -160,10 +161,6 @@ do { if (ieee80211_debug_level & (level)) \
 #else
 #define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
-
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], \
-		   ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
 
 /*
  * To use the debug system;

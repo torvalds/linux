@@ -59,37 +59,56 @@ nice to have in other objects.  The C language does not allow for the
 direct expression of inheritance, so other techniques - such as structure
 embedding - must be used.
 
-So, for example, the UIO code has a structure that defines the memory
-region associated with a uio device:
+(As an aside, for those familiar with the kernel linked list implementation,
+this is analogous as to how "list_head" structs are rarely useful on
+their own, but are invariably found embedded in the larger objects of
+interest.)
 
-struct uio_mem {
+So, for example, the UIO code in drivers/uio/uio.c has a structure that
+defines the memory region associated with a uio device:
+
+    struct uio_map {
 	struct kobject kobj;
-	unsigned long addr;
-	unsigned long size;
-	int memtype;
-	void __iomem *internal_addr;
-};
+	struct uio_mem *mem;
+    };
 
-If you have a struct uio_mem structure, finding its embedded kobject is
+If you have a struct uio_map structure, finding its embedded kobject is
 just a matter of using the kobj member.  Code that works with kobjects will
 often have the opposite problem, however: given a struct kobject pointer,
 what is the pointer to the containing structure?  You must avoid tricks
 (such as assuming that the kobject is at the beginning of the structure)
 and, instead, use the container_of() macro, found in <linux/kernel.h>:
 
-	container_of(pointer, type, member)
+    container_of(pointer, type, member)
 
-where pointer is the pointer to the embedded kobject, type is the type of
-the containing structure, and member is the name of the structure field to
-which pointer points.  The return value from container_of() is a pointer to
-the given type. So, for example, a pointer "kp" to a struct kobject
-embedded within a struct uio_mem could be converted to a pointer to the
-containing uio_mem structure with:
+where:
 
-    struct uio_mem *u_mem = container_of(kp, struct uio_mem, kobj);
+  * "pointer" is the pointer to the embedded kobject,
+  * "type" is the type of the containing structure, and
+  * "member" is the name of the structure field to which "pointer" points.
 
-Programmers often define a simple macro for "back-casting" kobject pointers
-to the containing type.
+The return value from container_of() is a pointer to the corresponding
+container type. So, for example, a pointer "kp" to a struct kobject
+embedded *within* a struct uio_map could be converted to a pointer to the
+*containing* uio_map structure with:
+
+    struct uio_map *u_map = container_of(kp, struct uio_map, kobj);
+
+For convenience, programmers often define a simple macro for "back-casting"
+kobject pointers to the containing type.  Exactly this happens in the
+earlier drivers/uio/uio.c, as you can see here:
+
+    struct uio_map {
+        struct kobject kobj;
+        struct uio_mem *mem;
+    };
+
+    #define to_map(map) container_of(map, struct uio_map, kobj)
+
+where the macro argument "map" is a pointer to the struct kobject in
+question.  That macro is subsequently invoked with:
+
+    struct uio_map *map = to_map(kobj);
 
 
 Initialization of kobjects
@@ -266,7 +285,7 @@ kobj_type:
 
     struct kobj_type {
 	    void (*release)(struct kobject *);
-	    struct sysfs_ops	*sysfs_ops;
+	    const struct sysfs_ops *sysfs_ops;
 	    struct attribute	**default_attrs;
     };
 
@@ -387,4 +406,5 @@ called, and the objects in the former circle release each other.
 Example code to copy from
 
 For a more complete example of using ksets and kobjects properly, see the
-sample/kobject/kset-example.c code.
+example programs samples/kobject/{kobject-example.c,kset-example.c},
+which will be built as loadable modules if you select CONFIG_SAMPLE_KOBJECT.

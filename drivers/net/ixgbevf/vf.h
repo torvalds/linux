@@ -157,6 +157,12 @@ struct ixgbevf_hw_stats {
 	u64 vfgorc;
 	u64 vfgotc;
 	u64 vfmprc;
+
+	u64 saved_reset_vfgprc;
+	u64 saved_reset_vfgptc;
+	u64 saved_reset_vfgorc;
+	u64 saved_reset_vfgotc;
+	u64 saved_reset_vfmprc;
 };
 
 struct ixgbevf_info {

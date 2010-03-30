@@ -106,6 +106,8 @@ config I2C_I801
 config I2C_ISCH
 	tristate "Intel SCH SMBus 1.0"
 	depends on PCI
+	select MFD_CORE
+	select LPC_SCH
 	help
 	  Say Y here if you want to use SMBus controller on the Intel SCH
 	  based systems.
@@ -419,13 +421,12 @@ config I2C_IXP2000
 	  instead.
 
 config I2C_MPC
-	tristate "MPC107/824x/85xx/52xx/86xx"
+	tristate "MPC107/824x/85xx/512x/52xx/83xx/86xx"
 	depends on PPC32
 	help
 	  If you say yes to this option, support will be included for the
-	  built-in I2C interface on the MPC107/Tsi107/MPC8240/MPC8245 and
-	  MPC85xx/MPC8641 family processors. The driver may also work on 52xx
-	  family processors, though interrupts are known not to work.
+	  built-in I2C interface on the MPC107, Tsi107, MPC512x, MPC52xx,
+	  MPC8240, MPC8245, MPC83xx, MPC85xx and MPC8641 family processors.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mpc.
@@ -439,6 +440,13 @@ config I2C_MV64XXX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mv64xxx.
+
+config I2C_NOMADIK
+	tristate "ST-Ericsson Nomadik/Ux500 I2C Controller"
+	depends on PLAT_NOMADIK
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface from ST-Ericsson's Nomadik and Ux500 architectures.
 
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
@@ -574,6 +582,16 @@ config I2C_OCTEON
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-octeon.
+
+config I2C_XILINX
+	tristate "Xilinx I2C Controller"
+	depends on EXPERIMENTAL && HAS_IOMEM
+	help
+	  If you say yes to this option, support will be included for the
+	  Xilinx I2C controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called xilinx_i2c.
 
 comment "External I2C/SMBus adapter drivers"
 

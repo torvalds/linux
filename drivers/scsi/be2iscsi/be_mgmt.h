@@ -94,7 +94,8 @@ unsigned char mgmt_upload_connection(struct beiscsi_hba *phba,
 				     unsigned short cid,
 				     unsigned int upload_flag);
 unsigned char mgmt_invalidate_icds(struct beiscsi_hba *phba,
-				   unsigned int icd, unsigned int cid);
+				struct invalidate_command_table *inv_tbl,
+				unsigned int num_invalidate, unsigned int cid);
 
 struct iscsi_invalidate_connection_params_in {
 	struct be_cmd_req_hdr hdr;
@@ -114,11 +115,6 @@ struct iscsi_invalidate_connection_params_out {
 union iscsi_invalidate_connection_params {
 	struct iscsi_invalidate_connection_params_in request;
 	struct iscsi_invalidate_connection_params_out response;
-} __packed;
-
-struct invalidate_command_table {
-	unsigned short icd;
-	unsigned short cid;
 } __packed;
 
 struct invalidate_commands_params_in {

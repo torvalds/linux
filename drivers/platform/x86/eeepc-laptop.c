@@ -1131,18 +1131,20 @@ static int eeepc_backlight_notify(struct eeepc_laptop *eeepc)
 
 static int eeepc_backlight_init(struct eeepc_laptop *eeepc)
 {
+	struct backlight_properties props;
 	struct backlight_device *bd;
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 15;
 	bd = backlight_device_register(EEEPC_LAPTOP_FILE,
-				       &eeepc->platform_device->dev,
-				       eeepc, &eeepcbl_ops);
+				       &eeepc->platform_device->dev, eeepc,
+				       &eeepcbl_ops, &props);
 	if (IS_ERR(bd)) {
 		pr_err("Could not register eeepc backlight device\n");
 		eeepc->backlight_device = NULL;
 		return PTR_ERR(bd);
 	}
 	eeepc->backlight_device = bd;
-	bd->props.max_brightness = 15;
 	bd->props.brightness = read_brightness(bd);
 	bd->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);

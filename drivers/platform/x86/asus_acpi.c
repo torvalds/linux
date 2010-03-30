@@ -1481,6 +1481,7 @@ static void asus_acpi_exit(void)
 
 static int __init asus_acpi_init(void)
 {
+	struct backlight_properties props;
 	int result;
 
 	result = acpi_bus_register_driver(&asus_hotk_driver);
@@ -1507,15 +1508,17 @@ static int __init asus_acpi_init(void)
 		return -ENODEV;
 	}
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 15;
 	asus_backlight_device = backlight_device_register("asus", NULL, NULL,
-							  &asus_backlight_data);
+							  &asus_backlight_data,
+							  &props);
 	if (IS_ERR(asus_backlight_device)) {
 		printk(KERN_ERR "Could not register asus backlight device\n");
 		asus_backlight_device = NULL;
 		asus_acpi_exit();
 		return -ENODEV;
 	}
-	asus_backlight_device->props.max_brightness = 15;
 
 	return 0;
 }

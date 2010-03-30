@@ -332,7 +332,8 @@ armpmu_reserve_hardware(void)
 
 	for (i = 0; i < pmu_irqs->num_irqs; ++i) {
 		err = request_irq(pmu_irqs->irqs[i], armpmu->handle_irq,
-				  IRQF_DISABLED, "armpmu", NULL);
+				  IRQF_DISABLED | IRQF_NOBALANCING,
+				  "armpmu", NULL);
 		if (err) {
 			pr_warning("unable to request IRQ%d for ARM "
 				   "perf counters\n", pmu_irqs->irqs[i]);
@@ -965,7 +966,7 @@ armv6pmu_handle_irq(int irq_num,
 	 */
 	armv6_pmcr_write(pmcr);
 
-	data.addr = 0;
+	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 	for (idx = 0; idx <= armpmu->num_events; ++idx) {
@@ -1624,7 +1625,7 @@ enum armv7_counters {
 /*
  * EVTSEL: Event selection reg
  */
-#define	ARMV7_EVTSEL_MASK	0x7f		/* Mask for writable bits */
+#define	ARMV7_EVTSEL_MASK	0xff		/* Mask for writable bits */
 
 /*
  * SELECT: Counter selection reg
@@ -1945,7 +1946,7 @@ static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 	 */
 	regs = get_irq_regs();
 
-	data.addr = 0;
+	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 	for (idx = 0; idx <= armpmu->num_events; ++idx) {

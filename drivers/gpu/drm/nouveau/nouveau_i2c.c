@@ -254,16 +254,16 @@ struct nouveau_i2c_chan *
 nouveau_i2c_find(struct drm_device *dev, int index)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 
-	if (index > DCB_MAX_NUM_I2C_ENTRIES)
+	if (index >= DCB_MAX_NUM_I2C_ENTRIES)
 		return NULL;
 
-	if (!bios->bdcb.dcb.i2c[index].chan) {
-		if (nouveau_i2c_init(dev, &bios->bdcb.dcb.i2c[index], index))
+	if (!bios->dcb.i2c[index].chan) {
+		if (nouveau_i2c_init(dev, &bios->dcb.i2c[index], index))
 			return NULL;
 	}
 
-	return bios->bdcb.dcb.i2c[index].chan;
+	return bios->dcb.i2c[index].chan;
 }
 

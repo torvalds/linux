@@ -109,7 +109,7 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 		return;
 	}
 
-	width = (image->width + 31) & ~31;
+	width = ALIGN(image->width, 32);
 	dwords = (width * image->height) >> 5;
 
 	BEGIN_RING(chan, NvSub2D, 0x0814, 2);

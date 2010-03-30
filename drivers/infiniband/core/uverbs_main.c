@@ -484,11 +484,10 @@ void ib_uverbs_event_handler(struct ib_event_handler *handler,
 }
 
 struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
-					int is_async, int *fd)
+					int is_async)
 {
 	struct ib_uverbs_event_file *ev_file;
 	struct file *filp;
-	int ret;
 
 	ev_file = kmalloc(sizeof *ev_file, GFP_KERNEL);
 	if (!ev_file)
@@ -503,27 +502,12 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	ev_file->is_async    = is_async;
 	ev_file->is_closed   = 0;
 
-	*fd = get_unused_fd();
-	if (*fd < 0) {
-		ret = *fd;
-		goto err;
-	}
-
-	filp = anon_inode_getfile("[uverbs-event]", &uverbs_event_fops,
+	filp = anon_inode_getfile("[infinibandevent]", &uverbs_event_fops,
 				  ev_file, O_RDONLY);
-	if (!filp) {
-		ret = -ENFILE;
-		goto err_fd;
-	}
+	if (IS_ERR(filp))
+		kfree(ev_file);
 
 	return filp;
-
-err_fd:
-	put_unused_fd(*fd);
-
-err:
-	kfree(ev_file);
-	return ERR_PTR(ret);
 }
 
 /*
@@ -707,11 +691,8 @@ static ssize_t show_dev_abi_version(struct device *device,
 }
 static DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
 
-static ssize_t show_abi_version(struct class *class, char *buf)
-{
-	return sprintf(buf, "%d\n", IB_USER_VERBS_ABI_VERSION);
-}
-static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
+static CLASS_ATTR_STRING(abi_version, S_IRUGO,
+			 __stringify(IB_USER_VERBS_ABI_VERSION));
 
 static dev_t overflow_maj;
 static DECLARE_BITMAP(overflow_map, IB_UVERBS_MAX_DEVICES);
@@ -857,7 +838,7 @@ static int __init ib_uverbs_init(void)
 		goto out_chrdev;
 	}
 
-	ret = class_create_file(uverbs_class, &class_attr_abi_version);
+	ret = class_create_file(uverbs_class, &class_attr_abi_version.attr);
 	if (ret) {
 		printk(KERN_ERR "user_verbs: couldn't create abi_version attribute\n");
 		goto out_class;

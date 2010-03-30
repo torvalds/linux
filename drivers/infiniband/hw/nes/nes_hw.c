@@ -1899,8 +1899,13 @@ void nes_destroy_nic_qp(struct nes_vnic *nesvnic)
 	u16  wqe_fragment_index;
 	u64 wqe_frag;
 	u32 cqp_head;
+	u32 wqm_cfg0;
 	unsigned long flags;
 	int ret;
+
+	/* clear wqe stall before destroying NIC QP */
+	wqm_cfg0 = nes_read_indexed(nesdev, NES_IDX_WQM_CONFIG0);
+	nes_write_indexed(nesdev, NES_IDX_WQM_CONFIG0, wqm_cfg0 & 0xFFFF7FFF);
 
 	/* Free remaining NIC receive buffers */
 	while (nesvnic->nic.rq_head != nesvnic->nic.rq_tail) {
@@ -2020,6 +2025,9 @@ void nes_destroy_nic_qp(struct nes_vnic *nesvnic)
 
 	pci_free_consistent(nesdev->pcidev, nesvnic->nic_mem_size, nesvnic->nic_vbase,
 			nesvnic->nic_pbase);
+
+	/* restore old wqm_cfg0 value */
+	nes_write_indexed(nesdev, NES_IDX_WQM_CONFIG0, wqm_cfg0);
 }
 
 /**

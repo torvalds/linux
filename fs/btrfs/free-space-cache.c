@@ -870,7 +870,7 @@ __btrfs_return_cluster_to_free_space(
 		tree_insert_offset(&block_group->free_space_offset,
 				   entry->offset, &entry->offset_index, 0);
 	}
-	cluster->root.rb_node = NULL;
+	cluster->root = RB_ROOT;
 
 out:
 	spin_unlock(&cluster->lock);
@@ -1355,7 +1355,7 @@ void btrfs_init_free_cluster(struct btrfs_free_cluster *cluster)
 {
 	spin_lock_init(&cluster->lock);
 	spin_lock_init(&cluster->refill_lock);
-	cluster->root.rb_node = NULL;
+	cluster->root = RB_ROOT;
 	cluster->max_size = 0;
 	cluster->points_to_bitmap = false;
 	INIT_LIST_HEAD(&cluster->block_group_list);

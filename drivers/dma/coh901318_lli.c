@@ -74,6 +74,8 @@ coh901318_lli_alloc(struct coh901318_pool *pool, unsigned int len)
 
 	lli = head;
 	lli->phy_this = phy;
+	lli->link_addr = 0x00000000;
+	lli->virt_link_addr = 0x00000000U;
 
 	for (i = 1; i < len; i++) {
 		lli_prev = lli;
@@ -85,12 +87,12 @@ coh901318_lli_alloc(struct coh901318_pool *pool, unsigned int len)
 
 		DEBUGFS_POOL_COUNTER_ADD(pool, 1);
 		lli->phy_this = phy;
+		lli->link_addr = 0x00000000;
+		lli->virt_link_addr = 0x00000000U;
 
 		lli_prev->link_addr = phy;
 		lli_prev->virt_link_addr = lli;
 	}
-
-	lli->link_addr = 0x00000000U;
 
 	spin_unlock(&pool->lock);
 
@@ -166,8 +168,7 @@ coh901318_lli_fill_memcpy(struct coh901318_pool *pool,
 	lli->src_addr = src;
 	lli->dst_addr = dst;
 
-	/* One irq per single transfer */
-	return 1;
+	return 0;
 }
 
 int
@@ -223,8 +224,7 @@ coh901318_lli_fill_single(struct coh901318_pool *pool,
 	lli->src_addr = src;
 	lli->dst_addr = dst;
 
-	/* One irq per single transfer */
-	return 1;
+	return 0;
 }
 
 int
@@ -240,7 +240,6 @@ coh901318_lli_fill_sg(struct coh901318_pool *pool,
 	u32 ctrl_sg;
 	dma_addr_t src = 0;
 	dma_addr_t dst = 0;
-	int nbr_of_irq = 0;
 	u32 bytes_to_transfer;
 	u32 elem_size;
 
@@ -269,15 +268,12 @@ coh901318_lli_fill_sg(struct coh901318_pool *pool,
 			ctrl_sg = ctrl ? ctrl : ctrl_last;
 
 
-		if ((ctrl_sg & ctrl_irq_mask))
-			nbr_of_irq++;
-
 		if (dir == DMA_TO_DEVICE)
 			/* increment source address */
-			src = sg_dma_address(sg);
+			src = sg_phys(sg);
 		else
 			/* increment destination address */
-			dst =  sg_dma_address(sg);
+			dst =  sg_phys(sg);
 
 		bytes_to_transfer = sg_dma_len(sg);
 
@@ -310,8 +306,7 @@ coh901318_lli_fill_sg(struct coh901318_pool *pool,
 	}
 	spin_unlock(&pool->lock);
 
-	/* There can be many IRQs per sg transfer */
-	return nbr_of_irq;
+	return 0;
  err:
 	spin_unlock(&pool->lock);
 	return -EINVAL;

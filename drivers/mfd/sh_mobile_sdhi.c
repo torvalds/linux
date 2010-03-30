@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
-
+#include <linux/mmc/host.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mfd/sh_mobile_sdhi.h>
@@ -95,9 +95,9 @@ static int __init sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 	clk_enable(priv->clk);
 
-	/* FIXME: silly const unsigned int hclk */
-	*(unsigned int *)&priv->mmc_data.hclk = clk_get_rate(priv->clk);
+	priv->mmc_data.hclk = clk_get_rate(priv->clk);
 	priv->mmc_data.set_pwr = sh_mobile_sdhi_set_pwr;
+	priv->mmc_data.capabilities = MMC_CAP_MMC_HIGHSPEED;
 
 	memcpy(&priv->cell_mmc, &sh_mobile_sdhi_cell, sizeof(priv->cell_mmc));
 	priv->cell_mmc.driver_data = &priv->mmc_data;

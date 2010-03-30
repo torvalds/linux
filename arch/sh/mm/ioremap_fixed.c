@@ -45,13 +45,20 @@ void __init ioremap_fixed_init(void)
 }
 
 void __init __iomem *
-ioremap_fixed(resource_size_t phys_addr, unsigned long offset,
-	      unsigned long size, pgprot_t prot)
+ioremap_fixed(phys_addr_t phys_addr, unsigned long size, pgprot_t prot)
 {
 	enum fixed_addresses idx0, idx;
 	struct ioremap_map *map;
 	unsigned int nrpages;
+	unsigned long offset;
 	int i, slot;
+
+	/*
+	 * Mappings have to be page-aligned
+	 */
+	offset = phys_addr & ~PAGE_MASK;
+	phys_addr &= PAGE_MASK;
+	size = PAGE_ALIGN(phys_addr + size) - phys_addr;
 
 	slot = -1;
 	for (i = 0; i < FIX_N_IOREMAPS; i++) {

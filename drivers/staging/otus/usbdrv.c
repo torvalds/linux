@@ -829,7 +829,7 @@ int zfLnxRegisterVapDev(struct net_device* parentDev, u16_t vapId)
 {
     /* Allocate net device structure */
     vap[vapId].dev = alloc_etherdev(0);
-    printk("Register vap dev=%x\n", (u32_t)vap[vapId].dev);
+    printk("Register vap dev=%p\n", vap[vapId].dev);
 
     if(vap[vapId].dev == NULL) {
         printk("alloc_etherdev fail\n");
@@ -883,7 +883,7 @@ int zfLnxUnregisterVapDev(struct net_device* parentDev, u16_t vapId)
     printk("Unregister VAP dev : %s\n", vap[vapId].dev->name);
 
     if(vap[vapId].dev != NULL) {
-        printk("Unregister vap dev=%x\n", (u32_t)vap[vapId].dev);
+        printk("Unregister vap dev=%p\n", vap[vapId].dev);
         //
         //unregister_netdevice(wds[wdsId].dev);
         unregister_netdev(vap[vapId].dev);

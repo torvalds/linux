@@ -1050,7 +1050,7 @@ static void invalidate_sub(struct fsg_lun *curlun)
 	unsigned long	rc;
 
 	rc = invalidate_mapping_pages(inode->i_mapping, 0, -1);
-	VLDBG(curlun, "invalidate_inode_pages -> %ld\n", rc);
+	VLDBG(curlun, "invalidate_mapping_pages -> %ld\n", rc);
 }
 
 static int do_verify(struct fsg_common *common)
@@ -2910,7 +2910,7 @@ static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 }
 
 
-static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
+static int __init fsg_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct fsg_dev		*fsg = fsg_from_func(f);
 	struct usb_gadget	*gadget = c->cdev->gadget;
@@ -2954,7 +2954,6 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 autoconf_fail:
 	ERROR(fsg, "unable to autoconfigure all endpoints\n");
 	rc = -ENOTSUPP;
-	fsg_unbind(c, f);
 	return rc;
 }
 

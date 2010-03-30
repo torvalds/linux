@@ -4899,8 +4899,10 @@ static int netdev_tx(struct sk_buff *skb, struct net_device *dev)
 			struct sk_buff *org_skb = skb;
 
 			skb = dev_alloc_skb(org_skb->len);
-			if (!skb)
-				return NETDEV_TX_BUSY;
+			if (!skb) {
+				rc = NETDEV_TX_BUSY;
+				goto unlock;
+			}
 			skb_copy_and_csum_dev(org_skb, skb->data);
 			org_skb->ip_summed = 0;
 			skb->len = org_skb->len;
@@ -4914,7 +4916,7 @@ static int netdev_tx(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 		rc = NETDEV_TX_BUSY;
 	}
-
+unlock:
 	spin_unlock_irq(&hw_priv->hwlock);
 
 	return rc;
@@ -6320,7 +6322,7 @@ static int netdev_set_eeprom(struct net_device *dev,
 	int len;
 
 	if (eeprom->magic != EEPROM_MAGIC)
-		return 1;
+		return -EINVAL;
 
 	len = (eeprom->offset + eeprom->len + 1) / 2;
 	for (i = eeprom->offset / 2; i < len; i++)

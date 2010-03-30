@@ -14,6 +14,8 @@ config MICROBLAZE
 	select USB_ARCH_HAS_EHCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_OPROFILE
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
 	select TRACING_SUPPORT
 
 config SWAP
@@ -75,9 +77,6 @@ config HAVE_LATENCYTOP_SUPPORT
 
 config PCI
 	def_bool n
-
-config NO_DMA
-	def_bool y
 
 config DTC
 	def_bool y
@@ -146,7 +145,6 @@ menu "Advanced setup"
 
 config ADVANCED_OPTIONS
 	bool "Prompt for advanced kernel configuration options"
-	depends on MMU
 	help
 	  This option will enable prompting for a variety of advanced kernel
 	  configuration options.  These options can cause the kernel to not
@@ -157,6 +155,15 @@ config ADVANCED_OPTIONS
 
 comment "Default settings for advanced configuration options are used"
 	depends on !ADVANCED_OPTIONS
+
+config XILINX_UNCACHED_SHADOW
+	bool "Are you using uncached shadow for RAM ?"
+	depends on ADVANCED_OPTIONS && !MMU
+	default n
+	help
+	  This is needed to be able to allocate uncachable memory regions.
+	  The feature requires the design to define the RAM memory controller
+	  window to be twice as large as the actual physical memory.
 
 config HIGHMEM_START_BOOL
 	bool "Set high memory pool address"
@@ -175,7 +182,7 @@ config HIGHMEM_START
 
 config LOWMEM_SIZE_BOOL
 	bool "Set maximum low memory"
-	depends on ADVANCED_OPTIONS
+	depends on ADVANCED_OPTIONS && MMU
 	help
 	  This option allows you to set the maximum amount of memory which
 	  will be used as "low memory", that is, memory which the kernel can
@@ -187,7 +194,6 @@ config LOWMEM_SIZE_BOOL
 
 config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
-	depends on MMU
 	default "0x30000000"
 
 config KERNEL_START_BOOL
@@ -208,7 +214,7 @@ config KERNEL_START
 
 config TASK_SIZE_BOOL
 	bool "Set custom user task size"
-	depends on ADVANCED_OPTIONS
+	depends on ADVANCED_OPTIONS && MMU
 	help
 	  This option allows you to set the amount of virtual address space
 	  allocated to user tasks.  This can be useful in optimizing the
@@ -218,34 +224,7 @@ config TASK_SIZE_BOOL
 
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
-	depends on MMU
 	default "0x80000000"
-
-config CONSISTENT_START_BOOL
-	bool "Set custom consistent memory pool address"
-	depends on ADVANCED_OPTIONS && NOT_COHERENT_CACHE
-	help
-	  This option allows you to set the base virtual address
-	  of the the consistent memory pool.  This pool of virtual
-	  memory is used to make consistent memory allocations.
-
-config CONSISTENT_START
-	hex "Base virtual address of consistent memory pool" if CONSISTENT_START_BOOL
-	depends on MMU
-	default "0xff100000" if NOT_COHERENT_CACHE
-
-config CONSISTENT_SIZE_BOOL
-	bool "Set custom consistent memory pool size"
-	depends on ADVANCED_OPTIONS && NOT_COHERENT_CACHE
-	help
-	  This option allows you to set the size of the the
-	  consistent memory pool.  This pool of virtual memory
-	  is used to make consistent memory allocations.
-
-config CONSISTENT_SIZE
-	hex "Size of consistent memory pool" if CONSISTENT_SIZE_BOOL
-	depends on MMU
-	default "0x00200000" if NOT_COHERENT_CACHE
 
 endmenu
 
@@ -254,6 +233,25 @@ source "mm/Kconfig"
 menu "Exectuable file formats"
 
 source "fs/Kconfig.binfmt"
+
+endmenu
+
+menu "Bus Options"
+
+config PCI
+	bool "PCI support"
+
+config PCI_DOMAINS
+	def_bool PCI
+
+config PCI_SYSCALL
+	def_bool PCI
+
+config PCI_XILINX
+	bool "Xilinx PCI host bridge support"
+	depends on PCI
+
+source "drivers/pci/Kconfig"
 
 endmenu
 

@@ -1336,11 +1336,8 @@ static void ib_ucm_remove_one(struct ib_device *device)
 	device_unregister(&ucm_dev->dev);
 }
 
-static ssize_t show_abi_version(struct class *class, char *buf)
-{
-	return sprintf(buf, "%d\n", IB_USER_CM_ABI_VERSION);
-}
-static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
+static CLASS_ATTR_STRING(abi_version, S_IRUGO,
+			 __stringify(IB_USER_CM_ABI_VERSION));
 
 static int __init ib_ucm_init(void)
 {
@@ -1353,7 +1350,7 @@ static int __init ib_ucm_init(void)
 		goto error1;
 	}
 
-	ret = class_create_file(&cm_class, &class_attr_abi_version);
+	ret = class_create_file(&cm_class, &class_attr_abi_version.attr);
 	if (ret) {
 		printk(KERN_ERR "ucm: couldn't create abi_version attribute\n");
 		goto error2;
@@ -1367,7 +1364,7 @@ static int __init ib_ucm_init(void)
 	return 0;
 
 error3:
-	class_remove_file(&cm_class, &class_attr_abi_version);
+	class_remove_file(&cm_class, &class_attr_abi_version.attr);
 error2:
 	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
 error1:
@@ -1377,7 +1374,7 @@ error1:
 static void __exit ib_ucm_cleanup(void)
 {
 	ib_unregister_client(&ucm_client);
-	class_remove_file(&cm_class, &class_attr_abi_version);
+	class_remove_file(&cm_class, &class_attr_abi_version.attr);
 	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
 	if (overflow_maj)
 		unregister_chrdev_region(overflow_maj, IB_UCM_MAX_DEVICES);

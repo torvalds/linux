@@ -300,16 +300,6 @@ static int __devexit bfin_cf_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int bfin_cf_suspend(struct platform_device *pdev, pm_message_t mesg)
-{
-	return pcmcia_socket_dev_suspend(&pdev->dev);
-}
-
-static int bfin_cf_resume(struct platform_device *pdev)
-{
-	return pcmcia_socket_dev_resume(&pdev->dev);
-}
-
 static struct platform_driver bfin_cf_driver = {
 	.driver = {
 		   .name = (char *)driver_name,
@@ -317,8 +307,6 @@ static struct platform_driver bfin_cf_driver = {
 		   },
 	.probe = bfin_cf_probe,
 	.remove = __devexit_p(bfin_cf_remove),
-	.suspend = bfin_cf_suspend,
-	.resume = bfin_cf_resume,
 };
 
 static int __init bfin_cf_init(void)

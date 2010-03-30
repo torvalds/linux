@@ -49,11 +49,6 @@ extern int no_broadcast;
 char visws_board_type	= -1;
 char visws_board_rev	= -1;
 
-int is_visws_box(void)
-{
-	return visws_board_type >= 0;
-}
-
 static void __init visws_time_init(void)
 {
 	printk(KERN_INFO "Starting Cobalt Timer system clock\n");
@@ -242,6 +237,8 @@ void __init visws_early_detect(void)
 	x86_init.irqs.pre_vector_init = visws_pre_intr_init;
 	x86_init.irqs.trap_init = visws_trap_init;
 	x86_init.timers.timer_init = visws_time_init;
+	x86_init.pci.init = pci_visws_init;
+	x86_init.pci.init_irq = x86_init_noop;
 
 	/*
 	 * Install reboot quirks:
@@ -508,7 +505,7 @@ static struct irq_chip cobalt_irq_type = {
  */
 static unsigned int startup_piix4_master_irq(unsigned int irq)
 {
-	init_8259A(0);
+	legacy_pic->init(0);
 
 	return startup_cobalt_irq(irq);
 }
@@ -532,9 +529,6 @@ static struct irq_chip piix4_master_irq_type = {
 
 static struct irq_chip piix4_virtual_irq_type = {
 	.name =		"PIIX4-virtual",
-	.shutdown =	disable_8259A_irq,
-	.enable =	enable_8259A_irq,
-	.disable =	disable_8259A_irq,
 };
 
 
@@ -609,7 +603,7 @@ static irqreturn_t piix4_master_intr(int irq, void *dev_id)
 		handle_IRQ_event(realirq, desc->action);
 
 	if (!(desc->status & IRQ_DISABLED))
-		enable_8259A_irq(realirq);
+		legacy_pic->chip->unmask(realirq);
 
 	return IRQ_HANDLED;
 
@@ -628,6 +622,12 @@ static struct irqaction cascade_action = {
 	.name =		"cascade",
 };
 
+static inline void set_piix4_virtual_irq_type(void)
+{
+	piix4_virtual_irq_type.shutdown = i8259A_chip.mask;
+	piix4_virtual_irq_type.enable =	i8259A_chip.unmask;
+	piix4_virtual_irq_type.disable = i8259A_chip.mask;
+}
 
 void init_VISWS_APIC_irqs(void)
 {
@@ -653,6 +653,7 @@ void init_VISWS_APIC_irqs(void)
 			desc->chip = &piix4_master_irq_type;
 		}
 		else if (i < CO_IRQ_APIC0) {
+			set_piix4_virtual_irq_type();
 			desc->chip = &piix4_virtual_irq_type;
 		}
 		else if (IS_CO_APIC(i)) {

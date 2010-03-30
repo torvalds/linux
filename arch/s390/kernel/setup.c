@@ -401,7 +401,7 @@ setup_lowcore(void)
 	 * Setup lowcore for boot cpu
 	 */
 	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
-	lc = __alloc_bootmem(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
+	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
@@ -433,7 +433,7 @@ setup_lowcore(void)
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
 		lc->extended_save_area_addr = (__u32)
-			__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0);
+			__alloc_bootmem_low(PAGE_SIZE, PAGE_SIZE, 0);
 		/* enable extended save area */
 		__ctl_set_bit(14, 29);
 	}
