@@ -488,6 +488,7 @@ struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 		struct inode *inode = ceph_get_snapdir(parent);
 		dout("ENOENT on snapdir %p '%.*s', linking to snapdir %p\n",
 		     dentry, dentry->d_name.len, dentry->d_name.name, inode);
+		BUG_ON(!d_unhashed(dentry));
 		d_add(dentry, inode);
 		err = 0;
 	}
