@@ -141,6 +141,13 @@ config COH901318
 	help
 	  Enable support for ST-Ericsson COH 901 318 DMA.
 
+config STE_DMA40
+	bool "ST-Ericsson DMA40 support"
+	depends on ARCH_U8500
+	select DMA_ENGINE
+	help
+	  Support for ST-Ericsson DMA40 controller
+
 config AMCC_PPC440SPE_ADMA
 	tristate "AMCC PPC440SPe ADMA support"
 	depends on 440SPe || 440SP
