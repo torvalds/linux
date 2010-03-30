@@ -829,6 +829,11 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 		   Xen console noise. */
 		break;
 
+	case MSR_IA32_CR_PAT:
+		if (smp_processor_id() == 0)
+			xen_set_pat(((u64)high << 32) | low);
+		break;
+
 	default:
 		ret = native_write_msr_safe(msr, low, high);
 	}

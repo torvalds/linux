@@ -55,6 +55,7 @@
 #include <asm/e820.h>
 #include <asm/linkage.h>
 #include <asm/page.h>
+#include <asm/pat.h>
 
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
@@ -780,10 +781,18 @@ static pteval_t iomap_pte(pteval_t val)
 
 pteval_t xen_pte_val(pte_t pte)
 {
-	if (xen_initial_domain() && (pte.pte & _PAGE_IOMAP))
-		return pte.pte;
+	pteval_t pteval = pte.pte;
 
-	return pte_mfn_to_pfn(pte.pte);
+	/* If this is a WC pte, convert back from Xen WC to Linux WC */
+	if ((pteval & (_PAGE_PAT | _PAGE_PCD | _PAGE_PWT)) == _PAGE_PAT) {
+		WARN_ON(!pat_enabled);
+		pteval = (pteval & ~_PAGE_PAT) | _PAGE_PWT;
+	}
+
+	if (xen_initial_domain() && (pteval & _PAGE_IOMAP))
+		return pteval;
+
+	return pte_mfn_to_pfn(pteval);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pte_val);
 
@@ -793,9 +802,47 @@ pgdval_t xen_pgd_val(pgd_t pgd)
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pgd_val);
 
+/*
+ * Xen's PAT setup is part of its ABI, though I assume entries 6 & 7
+ * are reserved for now, to correspond to the Intel-reserved PAT
+ * types.
+ *
+ * We expect Linux's PAT set as follows:
+ *
+ * Idx  PTE flags        Linux    Xen    Default
+ * 0                     WB       WB     WB
+ * 1            PWT      WC       WT     WT
+ * 2        PCD          UC-      UC-    UC-
+ * 3        PCD PWT      UC       UC     UC
+ * 4    PAT              WB       WC     WB
+ * 5    PAT     PWT      WC       WP     WT
+ * 6    PAT PCD          UC-      UC     UC-
+ * 7    PAT PCD PWT      UC       UC     UC
+ */
+
+void xen_set_pat(u64 pat)
+{
+	/* We expect Linux to use a PAT setting of
+	 * UC UC- WC WB (ignoring the PAT flag) */
+	WARN_ON(pat != 0x0007010600070106ull);
+}
+
 pte_t xen_make_pte(pteval_t pte)
 {
 	phys_addr_t addr = (pte & PTE_PFN_MASK);
+
+	/* If Linux is trying to set a WC pte, then map to the Xen WC.
+	 * If _PAGE_PAT is set, then it probably means it is really
+	 * _PAGE_PSE, so avoid fiddling with the PAT mapping and hope
+	 * things work out OK...
+	 *
+	 * (We should never see kernel mappings with _PAGE_PSE set,
+	 * but we could see hugetlbfs mappings, I think.).
+	 */
+	if (pat_enabled && !WARN_ON(pte & _PAGE_PAT)) {
+		if ((pte & (_PAGE_PCD | _PAGE_PWT)) == _PAGE_PWT)
+			pte = (pte & ~(_PAGE_PCD | _PAGE_PWT)) | _PAGE_PAT;
+	}
 
 	/*
 	 * Unprivileged domains are allowed to do IOMAPpings for
