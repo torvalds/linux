@@ -676,7 +676,7 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 		priv->rx_queue[i] = NULL;
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
-		priv->tx_queue[i] =  (struct gfar_priv_tx_q *)kmalloc(
+		priv->tx_queue[i] =  (struct gfar_priv_tx_q *)kzalloc(
 				sizeof (struct gfar_priv_tx_q), GFP_KERNEL);
 		if (!priv->tx_queue[i]) {
 			err = -ENOMEM;
@@ -689,7 +689,7 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
-		priv->rx_queue[i] = (struct gfar_priv_rx_q *)kmalloc(
+		priv->rx_queue[i] = (struct gfar_priv_rx_q *)kzalloc(
 					sizeof (struct gfar_priv_rx_q), GFP_KERNEL);
 		if (!priv->rx_queue[i]) {
 			err = -ENOMEM;
