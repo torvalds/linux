@@ -1032,7 +1032,7 @@ static void intel_sdvo_set_tv_format(struct intel_encoder *intel_encoder)
 	memcpy(&format, &format_map, sizeof(format_map) > sizeof(format) ?
 			sizeof(format) : sizeof(format_map));
 
-	intel_sdvo_write_cmd(intel_encoder, SDVO_CMD_SET_TV_FORMAT, &format_map,
+	intel_sdvo_write_cmd(intel_encoder, SDVO_CMD_SET_TV_FORMAT, &format,
 			     sizeof(format));
 
 	status = intel_sdvo_read_response(intel_encoder, NULL, 0);
