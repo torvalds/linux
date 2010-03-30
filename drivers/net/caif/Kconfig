@@ -1,0 +1,17 @@
+#
+# CAIF physical drivers
+#
+
+if CAIF
+
+comment "CAIF transport drivers"
+
+config CAIF_TTY
+	tristate "CAIF TTY transport driver"
+	default n
+	---help---
+	The CAIF TTY transport driver is a Line Discipline (ldisc)
+	identified as N_CAIF. When this ldisc is opened from user space
+	it will redirect the TTY's traffic into the CAIF stack.
+
+endif # CAIF
