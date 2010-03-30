@@ -206,6 +206,20 @@ static inline struct hlist_head *dev_index_hash(struct net *net, int ifindex)
 	return &net->dev_index_head[ifindex & (NETDEV_HASHENTRIES - 1)];
 }
 
+static inline void rps_lock(struct softnet_data *queue)
+{
+#ifdef CONFIG_RPS
+	spin_lock(&queue->input_pkt_queue.lock);
+#endif
+}
+
+static inline void rps_unlock(struct softnet_data *queue)
+{
+#ifdef CONFIG_RPS
+	spin_unlock(&queue->input_pkt_queue.lock);
+#endif
+}
+
 /* Device list insertion */
 static int list_netdevice(struct net_device *dev)
 {
@@ -2313,13 +2327,13 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu)
 	local_irq_save(flags);
 	__get_cpu_var(netdev_rx_stat).total++;
 
-	spin_lock(&queue->input_pkt_queue.lock);
+	rps_lock(queue);
 	if (queue->input_pkt_queue.qlen <= netdev_max_backlog) {
 		if (queue->input_pkt_queue.qlen) {
 enqueue:
 			__skb_queue_tail(&queue->input_pkt_queue, skb);
-			spin_unlock_irqrestore(&queue->input_pkt_queue.lock,
-			    flags);
+			rps_unlock(queue);
+			local_irq_restore(flags);
 			return NET_RX_SUCCESS;
 		}
 
@@ -2341,7 +2355,7 @@ enqueue:
 		goto enqueue;
 	}
 
-	spin_unlock(&queue->input_pkt_queue.lock);
+	rps_unlock(queue);
 
 	__get_cpu_var(netdev_rx_stat).dropped++;
 	local_irq_restore(flags);
@@ -2766,19 +2780,19 @@ int netif_receive_skb(struct sk_buff *skb)
 EXPORT_SYMBOL(netif_receive_skb);
 
 /* Network device is going away, flush any packets still pending  */
-static void flush_backlog(struct net_device *dev, int cpu)
+static void flush_backlog(void *arg)
 {
-	struct softnet_data *queue = &per_cpu(softnet_data, cpu);
+	struct net_device *dev = arg;
+	struct softnet_data *queue = &__get_cpu_var(softnet_data);
 	struct sk_buff *skb, *tmp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&queue->input_pkt_queue.lock, flags);
+	rps_lock(queue);
 	skb_queue_walk_safe(&queue->input_pkt_queue, skb, tmp)
 		if (skb->dev == dev) {
 			__skb_unlink(skb, &queue->input_pkt_queue);
 			kfree_skb(skb);
 		}
-	spin_unlock_irqrestore(&queue->input_pkt_queue.lock, flags);
+	rps_unlock(queue);
 }
 
 static int napi_gro_complete(struct sk_buff *skb)
@@ -3091,14 +3105,16 @@ static int process_backlog(struct napi_struct *napi, int quota)
 	do {
 		struct sk_buff *skb;
 
-		spin_lock_irq(&queue->input_pkt_queue.lock);
+		local_irq_disable();
+		rps_lock(queue);
 		skb = __skb_dequeue(&queue->input_pkt_queue);
 		if (!skb) {
 			__napi_complete(napi);
 			spin_unlock_irq(&queue->input_pkt_queue.lock);
 			break;
 		}
-		spin_unlock_irq(&queue->input_pkt_queue.lock);
+		rps_unlock(queue);
+		local_irq_enable();
 
 		__netif_receive_skb(skb);
 	} while (++work < quota && jiffies == start_time);
@@ -5548,7 +5564,6 @@ void netdev_run_todo(void)
 	while (!list_empty(&list)) {
 		struct net_device *dev
 			= list_first_entry(&list, struct net_device, todo_list);
-		int i;
 		list_del(&dev->todo_list);
 
 		if (unlikely(dev->reg_state != NETREG_UNREGISTERING)) {
@@ -5560,8 +5575,7 @@ void netdev_run_todo(void)
 
 		dev->reg_state = NETREG_UNREGISTERED;
 
-		for_each_online_cpu(i)
-			flush_backlog(dev, i);
+		on_each_cpu(flush_backlog, dev, 1);
 
 		netdev_wait_allrefs(dev);
 
