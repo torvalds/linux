@@ -130,6 +130,8 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	rdir = (struct p9_rdir *) fid->rdir;
 
 	err = mutex_lock_interruptible(&rdir->mutex);
+	if (err)
+		return err;
 	while (err == 0) {
 		if (rdir->tail == rdir->head) {
 			err = v9fs_file_readn(filp, rdir->buf, NULL,
