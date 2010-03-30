@@ -5037,7 +5037,8 @@ static void fillup_priv_adc_nids(struct hda_codec *codec, hda_nid_t *nids,
 	}
 	if (!spec->num_adc_nids) {
 		printk(KERN_WARNING "hda_codec: %s: no valid ADC found;"
-		       " using fallback 0x%x\n", fallback_adc);
+		       " using fallback 0x%x\n",
+		       codec->chip_name, fallback_adc);
 		spec->private_adc_nids[0] = fallback_adc;
 		spec->adc_nids = spec->private_adc_nids;
 		if (fallback_adc != fallback_cap) {
