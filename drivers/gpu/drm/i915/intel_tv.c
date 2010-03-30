@@ -1496,10 +1496,12 @@ intel_tv_detect(struct drm_connector *connector)
 	if (encoder->crtc && encoder->crtc->enabled) {
 		type = intel_tv_detect_type(encoder->crtc, intel_encoder);
 	} else {
-		crtc = intel_get_load_detect_pipe(intel_encoder, &mode, &dpms_mode);
+		crtc = intel_get_load_detect_pipe(intel_encoder, connector,
+						  &mode, &dpms_mode);
 		if (crtc) {
 			type = intel_tv_detect_type(crtc, intel_encoder);
-			intel_release_load_detect_pipe(intel_encoder, dpms_mode);
+			intel_release_load_detect_pipe(intel_encoder, connector,
+						       dpms_mode);
 		} else
 			type = -1;
 	}

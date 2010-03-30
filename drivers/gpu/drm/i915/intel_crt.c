@@ -406,11 +406,12 @@ static enum drm_connector_status intel_crt_detect(struct drm_connector *connecto
 	if (encoder->crtc && encoder->crtc->enabled) {
 		status = intel_crt_load_detect(encoder->crtc, intel_encoder);
 	} else {
-		crtc = intel_get_load_detect_pipe(intel_encoder,
+		crtc = intel_get_load_detect_pipe(intel_encoder, connector,
 						  NULL, &dpms_mode);
 		if (crtc) {
 			status = intel_crt_load_detect(crtc, intel_encoder);
-			intel_release_load_detect_pipe(intel_encoder, dpms_mode);
+			intel_release_load_detect_pipe(intel_encoder,
+						       connector, dpms_mode);
 		} else
 			status = connector_status_unknown;
 	}
