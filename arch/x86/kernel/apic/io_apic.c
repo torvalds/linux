@@ -3855,7 +3855,11 @@ int __init io_apic_get_redir_entries (int ioapic)
 	reg_01.raw = io_apic_read(ioapic, 1);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 
-	return reg_01.bits.entries;
+	/* The register returns the maximum index redir index
+	 * supported, which is one less than the total number of redir
+	 * entries.
+	 */
+	return reg_01.bits.entries + 1;
 }
 
 void __init probe_nr_irqs_gsi(void)
@@ -3871,7 +3875,7 @@ void __init probe_nr_irqs_gsi(void)
 
 		nr = 0;
 		for (idx = 0; idx < nr_ioapics; idx++)
-			nr += io_apic_get_redir_entries(idx) + 1;
+			nr += io_apic_get_redir_entries(idx);
 
 		if (nr > nr_irqs_gsi)
 			nr_irqs_gsi = nr;
@@ -4306,7 +4310,7 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 	 */
 	mp_gsi_routing[idx].gsi_base = gsi_base;
 	mp_gsi_routing[idx].gsi_end = gsi_base +
-	    io_apic_get_redir_entries(idx);
+	    io_apic_get_redir_entries(idx) - 1;
 
 	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, version %d, address 0x%x, "
 	       "GSI %d-%d\n", idx, mp_ioapics[idx].apicid,
