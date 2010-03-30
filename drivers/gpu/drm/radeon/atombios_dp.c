@@ -745,6 +745,9 @@ void dp_link_train(struct drm_encoder *encoder,
 			  >> DP_TRAIN_PRE_EMPHASIS_SHIFT);
 
 	/* disable the training pattern on the sink */
+	dp_set_training(radeon_connector, DP_TRAINING_PATTERN_DISABLE);
+
+	/* disable the training pattern on the source */
 	if (ASIC_IS_DCE4(rdev))
 		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_COMPLETE);
 	else
