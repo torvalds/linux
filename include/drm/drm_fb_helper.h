@@ -30,6 +30,8 @@
 #ifndef DRM_FB_HELPER_H
 #define DRM_FB_HELPER_H
 
+#include <linux/slow-work.h>
+
 struct drm_fb_helper_crtc {
 	uint32_t crtc_id;
 	struct drm_mode_set mode_set;
@@ -86,8 +88,12 @@ struct drm_fb_helper {
 	u32 pseudo_palette[17];
 	struct list_head kernel_fb_list;
 
+	struct delayed_slow_work output_poll_slow_work;
+	bool poll_enabled;
 	int (*fb_probe)(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes);
+
+	void (*fb_poll_changed)(struct drm_fb_helper *helper);
 };
 
 int drm_fb_helper_single_fb_probe(struct drm_fb_helper *helper,
@@ -118,9 +124,11 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
-bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper, u32 max_width,
-				 u32 max_height);
+bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper,
+				 u32 max_width, u32 max_height, bool polled);
 bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper);
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper);
 
+void drm_fb_helper_poll_init(struct drm_fb_helper *fb_helper);
+void drm_fb_helper_poll_fini(struct drm_fb_helper *fb_helper);
 #endif

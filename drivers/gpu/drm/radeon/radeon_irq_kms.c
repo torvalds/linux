@@ -55,7 +55,7 @@ static void radeon_hotplug_work_func(struct work_struct *work)
 			radeon_connector_hotplug(connector);
 	}
 	/* Just fire off a uevent and let userspace tell us what to do */
-	radeonfb_hotplug(dev);
+	radeonfb_hotplug(dev, false);
 
 	drm_sysfs_hotplug_event(dev);
 }

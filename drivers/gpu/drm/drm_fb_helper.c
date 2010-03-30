@@ -1308,9 +1308,14 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper)
 	/*
 	 * we shouldn't end up with no modes here.
 	 */
-	if (count == 0)
-		printk(KERN_INFO "No connectors reported connected with modes\n");
-
+	if (count == 0) {
+		if (fb_helper->poll_enabled) {
+			delayed_slow_work_enqueue(&fb_helper->output_poll_slow_work,
+						  5*HZ);
+			printk(KERN_INFO "No connectors reported connected with modes - started polling\n");
+		} else
+			printk(KERN_INFO "No connectors reported connected with modes\n");
+	}
 	drm_setup_crtcs(fb_helper);
 
 	return 0;
@@ -1318,15 +1323,80 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper)
 EXPORT_SYMBOL(drm_fb_helper_initial_config);
 
 bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper,
-				 u32 max_width, u32 max_height)
+				 u32 max_width, u32 max_height, bool polled)
 {
+	int count = 0;
+	int ret;
 	DRM_DEBUG_KMS("\n");
 
-	drm_fb_helper_probe_connector_modes(fb_helper, max_width,
+	count = drm_fb_helper_probe_connector_modes(fb_helper, max_width,
 						    max_height);
-
+	if (fb_helper->poll_enabled && !polled) {
+		if (count) {
+			delayed_slow_work_cancel(&fb_helper->output_poll_slow_work);
+		} else {
+			ret = delayed_slow_work_enqueue(&fb_helper->output_poll_slow_work, 5*HZ);
+		}
+	}
 	drm_setup_crtcs(fb_helper);
 
 	return true;
 }
 EXPORT_SYMBOL(drm_helper_fb_hotplug_event);
+
+static void output_poll_execute(struct slow_work *work)
+{
+	struct delayed_slow_work *delayed_work = container_of(work, struct delayed_slow_work, work);
+	struct drm_fb_helper *fb_helper = container_of(delayed_work, struct drm_fb_helper, output_poll_slow_work);
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_connector *connector;
+	enum drm_connector_status old_status, status;
+	bool repoll = true, changed = false;
+	int ret;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		old_status = connector->status;
+		status = connector->funcs->detect(connector);
+		if (old_status != status) {
+			changed = true;
+			/* something changed */
+		}
+		if (status == connector_status_connected) {
+			DRM_DEBUG("%s is connected - stop polling\n", drm_get_connector_name(connector));
+			repoll = false;
+		}
+	}
+
+	if (repoll) {
+		ret = delayed_slow_work_enqueue(delayed_work, 5*HZ);
+		if (ret)
+			DRM_ERROR("delayed enqueue failed %d\n", ret);
+	}
+
+	if (changed) {
+		if (fb_helper->fb_poll_changed)
+			fb_helper->fb_poll_changed(fb_helper);
+	}
+}
+
+struct slow_work_ops output_poll_ops = {
+	.execute = output_poll_execute,
+};
+
+void drm_fb_helper_poll_init(struct drm_fb_helper *fb_helper)
+{
+	int ret;
+
+	ret = slow_work_register_user(THIS_MODULE);
+
+	delayed_slow_work_init(&fb_helper->output_poll_slow_work, &output_poll_ops);
+	fb_helper->poll_enabled = true;
+}
+EXPORT_SYMBOL(drm_fb_helper_poll_init);
+
+void drm_fb_helper_poll_fini(struct drm_fb_helper *fb_helper)
+{
+	delayed_slow_work_cancel(&fb_helper->output_poll_slow_work);
+	slow_work_unregister_user(THIS_MODULE);
+}
+EXPORT_SYMBOL(drm_fb_helper_poll_fini);

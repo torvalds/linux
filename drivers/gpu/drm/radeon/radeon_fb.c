@@ -321,16 +321,21 @@ static int radeonfb_probe(struct radeon_fbdev *rfbdev)
 	return drm_fb_helper_single_fb_probe(&rfbdev->helper, bpp_sel);
 }
 
-void radeonfb_hotplug(struct drm_device *dev)
+void radeonfb_hotplug(struct drm_device *dev, bool polled)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	int max_width, max_height;
 
 	max_width = rdev->mode_info.rfbdev->rfb.base.width;
 	max_height = rdev->mode_info.rfbdev->rfb.base.height;
-	drm_helper_fb_hotplug_event(&rdev->mode_info.rfbdev->helper, max_width, max_height);
+	drm_helper_fb_hotplug_event(&rdev->mode_info.rfbdev->helper, max_width, max_height, polled);
 
 	radeonfb_probe(rdev->mode_info.rfbdev);
+}
+
+static void radeon_fb_poll_changed(struct drm_fb_helper *fb_helper)
+{
+	radeonfb_hotplug(fb_helper->dev, true);
 }
 
 static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfbdev)
@@ -381,8 +386,12 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 
 	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
 
+	rfbdev->helper.fb_poll_changed = radeon_fb_poll_changed;
+	drm_fb_helper_poll_init(&rfbdev->helper);
+
 	drm_fb_helper_initial_config(&rfbdev->helper);
 	radeonfb_probe(rfbdev);
+
 	return 0;
 
 }
@@ -392,6 +401,7 @@ void radeon_fbdev_fini(struct radeon_device *rdev)
 	if (!rdev->mode_info.rfbdev)
 		return;
 
+	drm_fb_helper_poll_fini(&rdev->mode_info.rfbdev->helper);
 	radeon_fbdev_destroy(rdev->ddev, rdev->mode_info.rfbdev);
 	kfree(rdev->mode_info.rfbdev);
 	rdev->mode_info.rfbdev = NULL;

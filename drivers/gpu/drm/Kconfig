@@ -23,6 +23,7 @@ config DRM_KMS_HELPER
 	depends on DRM
 	select FB
 	select FRAMEBUFFER_CONSOLE if !EMBEDDED
+	select SLOW_WORK
 	help
 	  FB and CRTC helpers for KMS drivers.
 

@@ -585,5 +585,5 @@ void radeon_fbdev_fini(struct radeon_device *rdev);
 void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state);
 int radeon_fbdev_total_size(struct radeon_device *rdev);
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj);
-void radeonfb_hotplug(struct drm_device *dev);
+void radeonfb_hotplug(struct drm_device *dev, bool polled);
 #endif
