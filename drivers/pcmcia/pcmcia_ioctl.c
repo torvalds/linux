@@ -301,7 +301,9 @@ static int pccard_get_status(struct pcmcia_socket *s,
 	    (c->IntType & (INT_MEMORY_AND_IO | INT_ZOOMED_VIDEO))) {
 		u_char reg;
 		if (c->CardValues & PRESENT_PIN_REPLACE) {
+			mutex_lock(&s->ops_mutex);
 			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_PRR)>>1, 1, &reg);
+			mutex_unlock(&s->ops_mutex);
 			status->CardState |=
 				(reg & PRR_WP_STATUS) ? CS_EVENT_WRITE_PROTECT : 0;
 			status->CardState |=
@@ -315,7 +317,9 @@ static int pccard_get_status(struct pcmcia_socket *s,
 			status->CardState |= CS_EVENT_READY_CHANGE;
 		}
 		if (c->CardValues & PRESENT_EXT_STATUS) {
+			mutex_lock(&s->ops_mutex);
 			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_ESR)>>1, 1, &reg);
+			mutex_unlock(&s->ops_mutex);
 			status->CardState |=
 				(reg & ESR_REQ_ATTN) ? CS_EVENT_REQUEST_ATTENTION : 0;
 		}
