@@ -51,6 +51,7 @@
 
 #define ATH9K_5GHZ_ALL		ATH9K_5GHZ_5150_5350, \
 				ATH9K_5GHZ_5470_5850
+
 /* This one skips what we call "mid band" */
 #define ATH9K_5GHZ_NO_MIDBAND	ATH9K_5GHZ_5150_5350, \
 				ATH9K_5GHZ_5725_5850
@@ -361,7 +362,7 @@ EXPORT_SYMBOL(ath_reg_notifier_apply);
 
 static bool ath_regd_is_eeprom_valid(struct ath_regulatory *reg)
 {
-	 u16 rd = ath_regd_get_eepromRD(reg);
+	u16 rd = ath_regd_get_eepromRD(reg);
 	int i;
 
 	if (rd & COUNTRY_ERD_FLAG) {
