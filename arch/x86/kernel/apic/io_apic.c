@@ -4247,7 +4247,7 @@ void __init ioapic_insert_resources(void)
 	}
 }
 
-int mp_find_ioapic(int gsi)
+int mp_find_ioapic(u32 gsi)
 {
 	int i = 0;
 
@@ -4262,7 +4262,7 @@ int mp_find_ioapic(int gsi)
 	return -1;
 }
 
-int mp_find_ioapic_pin(int ioapic, int gsi)
+int mp_find_ioapic_pin(int ioapic, u32 gsi)
 {
 	if (WARN_ON(ioapic == -1))
 		return -1;
