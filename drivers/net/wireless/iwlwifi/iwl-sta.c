@@ -1187,12 +1187,8 @@ int iwl_send_lq_cmd(struct iwl_priv *priv,
 		.data = lq,
 	};
 
-	if ((lq->sta_id == 0xFF) &&
-	    (priv->iw_mode == NL80211_IFTYPE_ADHOC))
+	if (WARN_ON(lq->sta_id == IWL_INVALID_STATION))
 		return -EINVAL;
-
-	if (lq->sta_id == 0xFF)
-		lq->sta_id = IWL_AP_ID;
 
 	iwl_dump_lq_cmd(priv, lq);
 	BUG_ON(init && (cmd.flags & CMD_ASYNC));
