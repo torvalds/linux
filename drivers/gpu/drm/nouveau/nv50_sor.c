@@ -337,6 +337,9 @@ nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
 		default:
 			break;
 		}
+
+		if (!nv_encoder->dp.mc_unknown)
+			nv_encoder->dp.mc_unknown = 5;
 	}
 
 	return 0;
