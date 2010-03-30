@@ -741,12 +741,11 @@ bool intel_pipe_has_type (struct drm_crtc *crtc, int type)
 {
     struct drm_device *dev = crtc->dev;
     struct drm_mode_config *mode_config = &dev->mode_config;
-    struct drm_connector *l_entry;
+    struct drm_encoder *l_entry;
 
-    list_for_each_entry(l_entry, &mode_config->connector_list, head) {
-	    if (l_entry->encoder &&
-	        l_entry->encoder->crtc == crtc) {
-		    struct intel_encoder *intel_encoder = to_intel_encoder(l_entry);
+    list_for_each_entry(l_entry, &mode_config->encoder_list, head) {
+	    if (l_entry && l_entry->crtc == crtc) {
+		    struct intel_encoder *intel_encoder = enc_to_intel_encoder(l_entry);
 		    if (intel_encoder->type == type)
 			    return true;
 	    }
@@ -2923,7 +2922,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	bool is_edp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_connector *connector;
+	struct drm_encoder *encoder;
+	struct intel_encoder *intel_encoder;
 	const intel_limit_t *limit;
 	int ret;
 	struct fdi_m_n m_n = {0};
@@ -2941,11 +2941,12 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	drm_vblank_pre_modeset(dev, pipe);
 
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
 
-		if (!connector->encoder || connector->encoder->crtc != crtc)
+		if (!encoder || encoder->crtc != crtc)
 			continue;
+
+		intel_encoder = enc_to_intel_encoder(encoder);
 
 		switch (intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
@@ -4391,14 +4392,14 @@ struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
 	return crtc;
 }
 
-static int intel_connector_clones(struct drm_device *dev, int type_mask)
+static int intel_encoder_clones(struct drm_device *dev, int type_mask)
 {
 	int index_mask = 0;
-	struct drm_connector *connector;
+	struct drm_encoder *encoder;
 	int entry = 0;
 
-        list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+        list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 		if (type_mask & intel_encoder->clone_mask)
 			index_mask |= (1 << entry);
 		entry++;
@@ -4410,7 +4411,7 @@ static int intel_connector_clones(struct drm_device *dev, int type_mask)
 static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_connector *connector;
+	struct drm_encoder *encoder;
 
 	intel_crt_init(dev);
 
@@ -4493,12 +4494,11 @@ static void intel_setup_outputs(struct drm_device *dev)
 	if (SUPPORTS_TV(dev))
 		intel_tv_init(dev);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-		struct drm_encoder *encoder = &intel_encoder->enc;
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 
 		encoder->possible_crtcs = intel_encoder->crtc_mask;
-		encoder->possible_clones = intel_connector_clones(dev,
+		encoder->possible_clones = intel_encoder_clones(dev,
 						intel_encoder->clone_mask);
 	}
 }
