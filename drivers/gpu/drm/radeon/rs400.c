@@ -390,6 +390,8 @@ static int rs400_startup(struct radeon_device *rdev)
 {
 	int r;
 
+	r100_set_common_regs(rdev);
+
 	rs400_mc_program(rdev);
 	/* Resume clock */
 	r300_clock_startup(rdev);
