@@ -156,7 +156,7 @@ static void xfrm_policy_timer(unsigned long data)
 
 	read_lock(&xp->lock);
 
-	if (xp->walk.dead)
+	if (unlikely(xp->walk.dead))
 		goto out;
 
 	dir = xfrm_policy_id2dir(xp->index);
@@ -297,17 +297,7 @@ static DECLARE_WORK(xfrm_policy_gc_work, xfrm_policy_gc_task);
 
 static void xfrm_policy_kill(struct xfrm_policy *policy)
 {
-	int dead;
-
-	write_lock_bh(&policy->lock);
-	dead = policy->walk.dead;
 	policy->walk.dead = 1;
-	write_unlock_bh(&policy->lock);
-
-	if (unlikely(dead)) {
-		WARN_ON(1);
-		return;
-	}
 
 	spin_lock_bh(&xfrm_policy_gc_lock);
 	hlist_add_head(&policy->bydst, &xfrm_policy_gc_list);
@@ -776,7 +766,6 @@ xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audi
 int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 {
 	int dir, err = 0, cnt = 0;
-	struct xfrm_policy *dp;
 
 	write_lock_bh(&xfrm_policy_lock);
 
@@ -794,10 +783,9 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 				     &net->xfrm.policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
-			dp = __xfrm_policy_unlink(pol, dir);
+			__xfrm_policy_unlink(pol, dir);
 			write_unlock_bh(&xfrm_policy_lock);
-			if (dp)
-				cnt++;
+			cnt++;
 
 			xfrm_audit_policy_delete(pol, 1, audit_info->loginuid,
 						 audit_info->sessionid,
@@ -816,10 +804,9 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 					     bydst) {
 				if (pol->type != type)
 					continue;
-				dp = __xfrm_policy_unlink(pol, dir);
+				__xfrm_policy_unlink(pol, dir);
 				write_unlock_bh(&xfrm_policy_lock);
-				if (dp)
-					cnt++;
+				cnt++;
 
 				xfrm_audit_policy_delete(pol, 1,
 							 audit_info->loginuid,
@@ -1132,6 +1119,9 @@ int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol)
 		__xfrm_policy_link(pol, XFRM_POLICY_MAX+dir);
 	}
 	if (old_pol)
+		/* Unlinking succeeds always. This is the only function
+		 * allowed to delete or replace socket policy.
+		 */
 		__xfrm_policy_unlink(old_pol, XFRM_POLICY_MAX+dir);
 	write_unlock_bh(&xfrm_policy_lock);
 
@@ -1737,11 +1727,8 @@ restart:
 			goto error;
 		}
 
-		for (pi = 0; pi < npols; pi++) {
-			read_lock_bh(&pols[pi]->lock);
+		for (pi = 0; pi < npols; pi++)
 			pol_dead |= pols[pi]->walk.dead;
-			read_unlock_bh(&pols[pi]->lock);
-		}
 
 		write_lock_bh(&policy->lock);
 		if (unlikely(pol_dead || stale_bundle(dst))) {

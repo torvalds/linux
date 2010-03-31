@@ -1770,13 +1770,9 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (xp == NULL)
 		return -ENOENT;
 
-	read_lock(&xp->lock);
-	if (xp->walk.dead) {
-		read_unlock(&xp->lock);
+	if (unlikely(xp->walk.dead))
 		goto out;
-	}
 
-	read_unlock(&xp->lock);
 	err = 0;
 	if (up->hard) {
 		uid_t loginuid = NETLINK_CB(skb).loginuid;
