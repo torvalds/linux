@@ -490,8 +490,7 @@ static int init_ibs_nmi(void)
 /* uninitialize the APIC for the IBS interrupts if needed */
 static void clear_ibs_nmi(void)
 {
-	if (ibs_caps)
-		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
+	on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
 }
 
 /* initialize the APIC for the IBS interrupts if available */
