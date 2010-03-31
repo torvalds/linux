@@ -1843,6 +1843,7 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	u32 data2, line;
 	u32 desc, time, count, base, data1;
 	u32 blink1, blink2, ilink1, ilink2;
+	u32 pc, hcmd;
 
 	if (priv->ucode_type == UCODE_INIT)
 		base = le32_to_cpu(priv->card_alive_init.error_event_table_ptr);
@@ -1865,6 +1866,7 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	}
 
 	desc = iwl_read_targ_mem(priv, base + 1 * sizeof(u32));
+	pc = iwl_read_targ_mem(priv, base + 2 * sizeof(u32));
 	blink1 = iwl_read_targ_mem(priv, base + 3 * sizeof(u32));
 	blink2 = iwl_read_targ_mem(priv, base + 4 * sizeof(u32));
 	ilink1 = iwl_read_targ_mem(priv, base + 5 * sizeof(u32));
@@ -1873,6 +1875,7 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	data2 = iwl_read_targ_mem(priv, base + 8 * sizeof(u32));
 	line = iwl_read_targ_mem(priv, base + 9 * sizeof(u32));
 	time = iwl_read_targ_mem(priv, base + 11 * sizeof(u32));
+	hcmd = iwl_read_targ_mem(priv, base + 22 * sizeof(u32));
 
 	trace_iwlwifi_dev_ucode_error(priv, desc, time, data1, data2, line,
 				      blink1, blink2, ilink1, ilink2);
@@ -1881,10 +1884,9 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 		"data1      data2      line\n");
 	IWL_ERR(priv, "%-28s (#%02d) %010u 0x%08X 0x%08X %u\n",
 		desc_lookup(desc), desc, time, data1, data2, line);
-	IWL_ERR(priv, "blink1  blink2  ilink1  ilink2\n");
-	IWL_ERR(priv, "0x%05X 0x%05X 0x%05X 0x%05X\n", blink1, blink2,
-		ilink1, ilink2);
-
+	IWL_ERR(priv, "pc      blink1  blink2  ilink1  ilink2  hcmd\n");
+	IWL_ERR(priv, "0x%05X 0x%05X 0x%05X 0x%05X 0x%05X 0x%05X\n",
+		pc, blink1, blink2, ilink1, ilink2, hcmd);
 }
 
 #define EVENT_START_OFFSET  (4 * sizeof(u32))

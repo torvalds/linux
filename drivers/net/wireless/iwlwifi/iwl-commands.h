@@ -512,8 +512,9 @@ struct iwl_init_alive_resp {
  *
  *     Entries without timestamps contain only event_id and data.
  *
+ *
  * 2)  error_event_table_ptr indicates base of the error log.  This contains
- *     information about any uCode error that occurs.  For 4965, the format
+ *     information about any uCode error that occurs.  For agn, the format
  *     of the error log is:
  *
  *	__le32 valid;        (nonzero) valid, (0) log is empty
@@ -529,6 +530,30 @@ struct iwl_init_alive_resp {
  *	__le32 bcon_time;    beacon timer
  *	__le32 tsf_low;      network timestamp function timer
  *	__le32 tsf_hi;       network timestamp function timer
+ *	__le32 gp1;          GP1 timer register
+ *	__le32 gp2;          GP2 timer register
+ *	__le32 gp3;          GP3 timer register
+ *	__le32 ucode_ver;    uCode version
+ *	__le32 hw_ver;       HW Silicon version
+ *	__le32 brd_ver;      HW board version
+ *	__le32 log_pc;       log program counter
+ *	__le32 frame_ptr;    frame pointer
+ *	__le32 stack_ptr;    stack pointer
+ *	__le32 hcmd;         last host command
+ *	__le32 isr0;         isr status register LMPM_NIC_ISR0: rxtx_flag
+ *	__le32 isr1;         isr status register LMPM_NIC_ISR1: host_flag
+ *	__le32 isr2;         isr status register LMPM_NIC_ISR2: enc_flag
+ *	__le32 isr3;         isr status register LMPM_NIC_ISR3: time_flag
+ *	__le32 isr4;         isr status register LMPM_NIC_ISR4: wico interrupt
+ *	__le32 isr_pref;     isr status register LMPM_NIC_PREF_STAT
+ *	__le32 wait_event;   wait event() caller address
+ *	__le32 l2p_control;  L2pControlField
+ *	__le32 l2p_duration; L2pDurationField
+ *	__le32 l2p_mhvalid;  L2pMhValidBits
+ *	__le32 l2p_addr_match; L2pAddrMatchStat
+ *	__le32 lmpm_pmg_sel; indicate which clocks are turned on (LMPM_PMG_SEL)
+ *	__le32 u_timestamp;  indicate when the date and time of the compilation
+ *	__le32 reserved;
  *
  * The Linux driver can print both logs to the system log when a uCode error
  * occurs.
