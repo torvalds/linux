@@ -56,6 +56,8 @@ struct ir_dev_props {
 	unsigned long allowed_protos;
 	void 		*priv;
 	int (*change_protocol)(void *priv, u64 ir_type);
+	int (*open)(void *priv);
+	void (*close)(void *priv);
 };
 
 struct ir_raw_event {

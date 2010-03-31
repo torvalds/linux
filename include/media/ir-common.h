@@ -50,6 +50,7 @@ struct card_ir {
 	struct ir_input_state   ir;
 	char                    name[32];
 	char                    phys[32];
+	int			users;
 
 	u32			running:1;
 	struct ir_dev_props	props;

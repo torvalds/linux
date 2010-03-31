@@ -446,6 +446,19 @@ void ir_keydown(struct input_dev *dev, int scancode)
 }
 EXPORT_SYMBOL_GPL(ir_keydown);
 
+static int ir_open(struct input_dev *input_dev)
+{
+	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
+
+	return ir_dev->props->open(ir_dev->props->priv);
+}
+
+static void ir_close(struct input_dev *input_dev)
+{
+	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
+
+	ir_dev->props->close(ir_dev->props->priv);
+}
 
 /**
  * ir_input_register() - sets the IR keycode table and add the handlers
@@ -495,6 +508,10 @@ int ir_input_register(struct input_dev *input_dev,
 
 	ir_copy_table(&ir_dev->rc_tab, rc_tab);
 	ir_dev->props = props;
+	if (props && props->open)
+		input_dev->open = ir_open;
+	if (props && props->close)
+		input_dev->close = ir_close;
 
 	/* set the bits for the keys */
 	IR_dprintk(1, "key map size: %d\n", rc_tab->size);

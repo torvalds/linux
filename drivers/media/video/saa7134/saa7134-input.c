@@ -400,7 +400,14 @@ static int get_key_pinnacle_color(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 void saa7134_input_irq(struct saa7134_dev *dev)
 {
-	struct card_ir *ir = dev->remote;
+	struct card_ir *ir;
+
+	if (!dev || !dev->remote)
+		return;
+
+	ir = dev->remote;
+	if (!ir->running)
+		return;
 
 	if (ir->nec_gpio) {
 		saa7134_nec_irq(dev);
@@ -432,10 +439,20 @@ void ir_raw_decode_timer_end(unsigned long data)
 	ir->active = 0;
 }
 
-void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
+static int __saa7134_ir_start(void *priv)
 {
+	struct saa7134_dev *dev = priv;
+	struct card_ir *ir;
+
+	if (!dev)
+		return -EINVAL;
+
+	ir  = dev->remote;
+	if (!ir)
+		return -EINVAL;
+
 	if (ir->running)
-		return;
+		return 0;
 
 	ir->running = 1;
 	if (ir->polling) {
@@ -467,11 +484,21 @@ void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 		ir->timer_end.data = (unsigned long)dev;
 		ir->active = 0;
 	}
+
+	return 0;
 }
 
-void saa7134_ir_stop(struct saa7134_dev *dev)
+static void __saa7134_ir_stop(void *priv)
 {
-	struct card_ir *ir = dev->remote;
+	struct saa7134_dev *dev = priv;
+	struct card_ir *ir;
+
+	if (!dev)
+		return;
+
+	ir  = dev->remote;
+	if (!ir)
+		return;
 
 	if (!ir->running)
 		return;
@@ -487,7 +514,41 @@ void saa7134_ir_stop(struct saa7134_dev *dev)
 	}
 
 	ir->running = 0;
+
+	return;
 }
+
+int saa7134_ir_start(struct saa7134_dev *dev)
+{
+	if (dev->remote->users)
+		return __saa7134_ir_start(dev);
+
+	return 0;
+}
+
+void saa7134_ir_stop(struct saa7134_dev *dev)
+{
+	if (dev->remote->users)
+		__saa7134_ir_stop(dev);
+}
+
+static int saa7134_ir_open(void *priv)
+{
+	struct saa7134_dev *dev = priv;
+
+	dev->remote->users++;
+	return __saa7134_ir_start(dev);
+}
+
+static void saa7134_ir_close(void *priv)
+{
+	struct saa7134_dev *dev = priv;
+
+	dev->remote->users--;
+	if (!dev->remote->users)
+		__saa7134_ir_stop(dev);
+}
+
 
 int saa7134_ir_change_protocol(void *priv, u64 ir_type)
 {
@@ -513,7 +574,7 @@ int saa7134_ir_change_protocol(void *priv, u64 ir_type)
 		saa7134_ir_stop(dev);
 		ir->nec_gpio = nec_gpio;
 		ir->rc5_gpio = rc5_gpio;
-		saa7134_ir_start(dev, ir);
+		saa7134_ir_start(dev);
 	} else {
 		ir->nec_gpio = nec_gpio;
 		ir->rc5_gpio = rc5_gpio;
@@ -788,9 +849,13 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(dev->pci));
 
+
+	ir->props.priv = dev;
+	ir->props.open = saa7134_ir_open;
+	ir->props.close = saa7134_ir_close;
+
 	if (ir_codes->ir_type != IR_TYPE_OTHER && !raw_decode) {
 		ir->props.allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
-		ir->props.priv = dev;
 		ir->props.change_protocol = saa7134_ir_change_protocol;
 
 		/* Set IR protocol */
@@ -815,14 +880,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 
 	err = ir_input_register(ir->dev, ir_codes, &ir->props, MODULE_NAME);
 	if (err)
-		goto err_out_stop;
+		goto err_out_free;
 	if (ir_codes->ir_type != IR_TYPE_OTHER) {
 		err = ir_raw_event_register(ir->dev);
 		if (err)
-			goto err_out_stop;
+			goto err_out_free;
 	}
-
-	saa7134_ir_start(dev, ir);
 
 	/* the remote isn't as bouncy as a keyboard */
 	ir->dev->rep[REP_DELAY] = repeat_delay;
@@ -830,10 +893,8 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 
 	return 0;
 
- err_out_stop:
-	saa7134_ir_stop(dev);
+err_out_free:
 	dev->remote = NULL;
- err_out_free:
 	kfree(ir);
 	return err;
 }

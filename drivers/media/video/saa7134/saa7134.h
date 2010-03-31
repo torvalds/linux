@@ -20,7 +20,7 @@
  */
 
 #include <linux/version.h>
-#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,15)
+#define SAA7134_VERSION_CODE KERNEL_VERSION(0, 2, 16)
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
@@ -810,7 +810,7 @@ int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev);
-void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir);
+int saa7134_ir_start(struct saa7134_dev *dev);
 void saa7134_ir_stop(struct saa7134_dev *dev);
 
 
