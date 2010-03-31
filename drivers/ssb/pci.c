@@ -620,6 +620,11 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 	int err = -ENOMEM;
 	u16 *buf;
 
+	if (!ssb_is_sprom_available(bus)) {
+		ssb_printk(KERN_ERR PFX "No SPROM available!\n");
+		return -ENODEV;
+	}
+
 	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
 	if (!buf)
 		goto out;

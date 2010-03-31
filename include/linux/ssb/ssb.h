@@ -390,6 +390,9 @@ extern int ssb_bus_sdiobus_register(struct ssb_bus *bus,
 
 extern void ssb_bus_unregister(struct ssb_bus *bus);
 
+/* Does the device have an SPROM? */
+extern bool ssb_is_sprom_available(struct ssb_bus *bus);
+
 /* Set a fallback SPROM.
  * See kdoc at the function definition for complete documentation. */
 extern int ssb_arch_set_fallback_sprom(const struct ssb_sprom *sprom);
