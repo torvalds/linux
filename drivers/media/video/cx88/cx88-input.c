@@ -40,6 +40,10 @@ struct cx88_IR {
 	struct cx88_core *core;
 	struct input_dev *input;
 	struct ir_input_state ir;
+	struct ir_dev_props props;
+
+	int users;
+
 	char name[32];
 	char phys[32];
 
@@ -161,8 +165,16 @@ static enum hrtimer_restart cx88_ir_work(struct hrtimer *timer)
 	return HRTIMER_RESTART;
 }
 
-void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
+static int __cx88_ir_start(void *priv)
 {
+	struct cx88_core *core = priv;
+	struct cx88_IR *ir;
+
+	if (!core || !core->ir)
+		return -EINVAL;
+
+	ir = core->ir;
+
 	if (ir->polling) {
 		hrtimer_init(&ir->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		ir->timer.function = cx88_ir_work;
@@ -175,10 +187,18 @@ void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
 		cx_write(MO_DDS_IO, 0xa80a80);	/* 4 kHz sample rate */
 		cx_write(MO_DDSCFG_IO, 0x5);	/* enable */
 	}
+	return 0;
 }
 
-void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir)
+static void __cx88_ir_stop(void *priv)
 {
+	struct cx88_core *core = priv;
+	struct cx88_IR *ir;
+
+	if (!core || !core->ir)
+		return;
+
+	ir = core->ir;
 	if (ir->sampling) {
 		cx_write(MO_DDSCFG_IO, 0x0);
 		core->pci_irqmask &= ~PCI_INT_IR_SMPINT;
@@ -186,6 +206,37 @@ void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir)
 
 	if (ir->polling)
 		hrtimer_cancel(&ir->timer);
+}
+
+int cx88_ir_start(struct cx88_core *core)
+{
+	if (core->ir->users)
+		return __cx88_ir_start(core);
+
+	return 0;
+}
+
+void cx88_ir_stop(struct cx88_core *core)
+{
+	if (core->ir->users)
+		__cx88_ir_stop(core);
+}
+
+static int cx88_ir_open(void *priv)
+{
+	struct cx88_core *core = priv;
+
+	core->ir->users++;
+	return __cx88_ir_start(core);
+}
+
+static void cx88_ir_close(void *priv)
+{
+	struct cx88_core *core = priv;
+
+	core->ir->users--;
+	if (!core->ir->users)
+		__cx88_ir_stop(core);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -383,19 +434,19 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	ir->core = core;
 	core->ir = ir;
 
-	cx88_ir_start(core, ir);
+	ir->props.priv = core;
+	ir->props.open = cx88_ir_open;
+	ir->props.close = cx88_ir_close;
 
 	/* all done */
-	err = ir_input_register(ir->input, ir_codes, NULL, MODULE_NAME);
+	err = ir_input_register(ir->input, ir_codes, &ir->props, MODULE_NAME);
 	if (err)
-		goto err_out_stop;
+		goto err_out_free;
 
 	return 0;
 
- err_out_stop:
-	cx88_ir_stop(core, ir);
-	core->ir = NULL;
  err_out_free:
+	core->ir = NULL;
 	kfree(ir);
 	return err;
 }
@@ -408,7 +459,7 @@ int cx88_ir_fini(struct cx88_core *core)
 	if (NULL == ir)
 		return 0;
 
-	cx88_ir_stop(core, ir);
+	cx88_ir_stop(core);
 	ir_input_unregister(ir->input);
 	kfree(ir);
 

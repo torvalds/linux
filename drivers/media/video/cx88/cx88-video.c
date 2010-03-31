@@ -1977,7 +1977,7 @@ static void __devexit cx8800_finidev(struct pci_dev *pci_dev)
 	}
 
 	if (core->ir)
-		cx88_ir_stop(core, core->ir);
+		cx88_ir_stop(core);
 
 	cx88_shutdown(core); /* FIXME */
 	pci_disable_device(pci_dev);
@@ -2015,7 +2015,7 @@ static int cx8800_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	spin_unlock(&dev->slock);
 
 	if (core->ir)
-		cx88_ir_stop(core, core->ir);
+		cx88_ir_stop(core);
 	/* FIXME -- shutdown device */
 	cx88_shutdown(core);
 
@@ -2056,7 +2056,7 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 	/* FIXME: re-initialize hardware */
 	cx88_reset(core);
 	if (core->ir)
-		cx88_ir_start(core, core->ir);
+		cx88_ir_start(core);
 
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask);
 
