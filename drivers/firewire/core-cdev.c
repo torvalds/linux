@@ -968,7 +968,8 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 			if (ctx->header_size == 0) {
 				if (u.packet.header_length > 0)
 					return -EINVAL;
-			} else if (u.packet.header_length % ctx->header_size != 0) {
+			} else if (u.packet.header_length == 0 ||
+				   u.packet.header_length % ctx->header_size != 0) {
 				return -EINVAL;
 			}
 			header_length = 0;
