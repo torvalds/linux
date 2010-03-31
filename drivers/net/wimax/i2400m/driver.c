@@ -403,10 +403,10 @@ retry:
 
 error_dev_initialize:
 error_check_mac_addr:
+error_fw_check:
 	i2400m->ready = 0;
 	wmb();		/* see i2400m->ready's documentation  */
 	flush_workqueue(i2400m->work_queue);
-error_fw_check:
 	if (i2400m->bus_dev_stop)
 		i2400m->bus_dev_stop(i2400m);
 error_bus_dev_start:
