@@ -204,12 +204,13 @@ static inline void ath_debug_stat_rc(struct ath_softc *sc,
 
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     struct ath_txq *txq,
-				     struct ath_buf *bf)
+				     struct ath_buf *bf,
+				     struct ath_tx_status *ts)
 {
 }
 
 static inline void ath_debug_stat_rx(struct ath_softc *sc,
-				     struct ath_buf *bf)
+				     struct ath_rx_status *rs)
 {
 }
 
