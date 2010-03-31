@@ -744,6 +744,8 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	udelay(10);
 	rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
 	rdev->cp.wptr = RREG32(RADEON_CP_RB_WPTR);
+	/* protect against crazy HW on resume */
+	rdev->cp.wptr &= rdev->cp.ptr_mask;
 	/* Set cp mode to bus mastering & enable cp*/
 	WREG32(RADEON_CP_CSQ_MODE,
 	       REG_SET(RADEON_INDIRECT2_START, indirect2_start) |
