@@ -1593,12 +1593,12 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 
 	tx_info->pad[0] = 0;
 	switch (txctl->frame_type) {
-	case ATH9K_NOT_INTERNAL:
+	case ATH9K_IFT_NOT_INTERNAL:
 		break;
-	case ATH9K_INT_PAUSE:
+	case ATH9K_IFT_PAUSE:
 		tx_info->pad[0] |= ATH_TX_INFO_FRAME_TYPE_PAUSE;
 		/* fall through */
-	case ATH9K_INT_UNPAUSE:
+	case ATH9K_IFT_UNPAUSE:
 		tx_info->pad[0] |= ATH_TX_INFO_FRAME_TYPE_INTERNAL;
 		break;
 	}
