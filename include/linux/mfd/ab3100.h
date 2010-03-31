@@ -6,7 +6,6 @@
  */
 
 #include <linux/device.h>
-#include <linux/workqueue.h>
 #include <linux/regulator/machine.h>
 
 #ifndef MFD_AB3100_H
@@ -74,7 +73,6 @@
  * @testreg_client: secondary client for test registers
  * @chip_name: name of this chip variant
  * @chip_id: 8 bit chip ID for this chip variant
- * @work: an event handling worker
  * @event_subscribers: event subscribers are listed here
  * @startup_events: a copy of the first reading of the event registers
  * @startup_events_read: whether the first events have been read
@@ -90,7 +88,6 @@ struct ab3100 {
 	struct i2c_client *testreg_client;
 	char chip_name[32];
 	u8 chip_id;
-	struct work_struct work;
 	struct blocking_notifier_head event_subscribers;
 	u32 startup_events;
 	bool startup_events_read;

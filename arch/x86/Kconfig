@@ -31,6 +31,7 @@ config X86
 	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_DMA_ATTRS
 	select HAVE_KRETPROBES
+	select HAVE_OPTPROBES
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
@@ -45,6 +46,7 @@ config X86
 	select HAVE_GENERIC_DMA_COHERENT if X86_32
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select USER_STACKTRACE_SUPPORT
+	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_DMA_API_DEBUG
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
@@ -99,6 +101,9 @@ config ZONE_DMA
 
 config SBUS
 	bool
+
+config NEED_DMA_MAP_STATE
+       def_bool (X86_64 || DMAR || DMA_API_DEBUG)
 
 config GENERIC_ISA_DMA
 	def_bool y
@@ -181,6 +186,9 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 	def_bool y
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	def_bool y
+
+config HAVE_EARLY_RES
 	def_bool y
 
 config HAVE_INTEL_TXT
@@ -388,8 +396,12 @@ config X86_ELAN
 
 config X86_MRST
        bool "Moorestown MID platform"
+	depends on PCI
+	depends on PCI_GOANY
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
+	depends on X86_IO_APIC
+	select APB_TIMER
 	---help---
 	  Moorestown is Intel's Low Power Intel Architecture (LPIA) based Moblin
 	  Internet Device(MID) platform. Moorestown consists of two chips:
@@ -424,6 +436,7 @@ config X86_32_NON_STANDARD
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
 	depends on X86_32_NON_STANDARD
+	depends on PCI
 	select NUMA
 	select X86_MPPARSE
 	---help---
@@ -568,6 +581,18 @@ config PARAVIRT_DEBUG
 	  Enable to debug paravirt_ops internals.  Specifically, BUG if
 	  a paravirt_op is missing when it is called.
 
+config NO_BOOTMEM
+	default y
+	bool "Disable Bootmem code"
+	---help---
+	  Use early_res directly instead of bootmem before slab is ready.
+		- allocator (buddy) [generic]
+		- early allocator (bootmem) [generic]
+		- very early allocator (reserve_early*()) [x86]
+		- very very early allocator (early brk model) [x86]
+	  So reduce one layer between early allocator to final allocator
+
+
 config MEMTEST
 	bool "Memtest"
 	---help---
@@ -612,6 +637,16 @@ config HPET_EMULATE_RTC
 	def_bool y
 	depends on HPET_TIMER && (RTC=y || RTC=m || RTC_DRV_CMOS=m || RTC_DRV_CMOS=y)
 
+config APB_TIMER
+       def_bool y if MRST
+       prompt "Langwell APB Timer Support" if X86_MRST
+       help
+         APB timer is the replacement for 8254, HPET on X86 MID platforms.
+         The APBT provides a stable time base on SMP
+         systems, unlike the TSC, but it is more expensive to access,
+         as it is off-chip. APB timers are always running regardless of CPU
+         C states, they are used as per CPU clockevent device when possible.
+
 # Mark as embedded because too many people got it wrong.
 # The code disables itself when not needed.
 config DMI
@@ -627,7 +662,7 @@ config GART_IOMMU
 	bool "GART IOMMU support" if EMBEDDED
 	default y
 	select SWIOTLB
-	depends on X86_64 && PCI
+	depends on X86_64 && PCI && K8_NB
 	---help---
 	  Support for full DMA access of devices with 32bit memory access only
 	  on systems with more than 3GB. This is usually needed for USB,
@@ -2026,7 +2061,7 @@ endif # X86_32
 
 config K8_NB
 	def_bool y
-	depends on AGP_AMD64 || (X86_64 && (GART_IOMMU || (PCI && NUMA)))
+	depends on CPU_SUP_AMD && PCI
 
 source "drivers/pcmcia/Kconfig"
 

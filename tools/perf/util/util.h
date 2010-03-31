@@ -403,4 +403,7 @@ void git_qsort(void *base, size_t nmemb, size_t size,
 #endif
 #endif
 
+int mkdir_p(char *path, mode_t mode);
+int copyfile(const char *from, const char *to);
+
 #endif

@@ -41,7 +41,7 @@ struct bfa_timer_mod_s {
 	struct list_head timer_q;
 };
 
-#define BFA_TIMER_FREQ 500 /**< specified in millisecs */
+#define BFA_TIMER_FREQ 200 /**< specified in millisecs */
 
 void bfa_timer_beat(struct bfa_timer_mod_s *mod);
 void bfa_timer_init(struct bfa_timer_mod_s *mod);

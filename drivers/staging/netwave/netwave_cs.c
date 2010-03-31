@@ -1341,15 +1341,15 @@ static void set_multicast_list(struct net_device *dev)
 #ifdef PCMCIA_DEBUG
     {
 	xstatic int old;
-	if (old != dev->mc_count) {
-	    old = dev->mc_count;
+	if (old != netdev_mc_count(dev)) {
+	    old = netdev_mc_count(dev);
 	    pr_debug("%s: setting Rx mode to %d addresses.\n",
-		  dev->name, dev->mc_count);
+		  dev->name, netdev_mc_count(dev));
 	}
     }
 #endif
 	
-    if (dev->mc_count || (dev->flags & IFF_ALLMULTI)) {
+    if (!netdev_mc_empty(dev) || (dev->flags & IFF_ALLMULTI)) {
 	/* Multicast Mode */
 	rcvMode = rxConfRxEna + rxConfAMP + rxConfBcast;
     } else if (dev->flags & IFF_PROMISC) {

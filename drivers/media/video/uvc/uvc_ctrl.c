@@ -23,9 +23,13 @@
 
 #include "uvcvideo.h"
 
-#define UVC_CTRL_NDATA		2
 #define UVC_CTRL_DATA_CURRENT	0
 #define UVC_CTRL_DATA_BACKUP	1
+#define UVC_CTRL_DATA_MIN	2
+#define UVC_CTRL_DATA_MAX	3
+#define UVC_CTRL_DATA_RES	4
+#define UVC_CTRL_DATA_DEF	5
+#define UVC_CTRL_DATA_LAST	6
 
 /* ------------------------------------------------------------------------
  * Controls
@@ -755,6 +759,49 @@ struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 	return ctrl;
 }
 
+static int uvc_ctrl_populate_cache(struct uvc_video_chain *chain,
+	struct uvc_control *ctrl)
+{
+	int ret;
+
+	if (ctrl->info->flags & UVC_CONTROL_GET_DEF) {
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_DEF, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_DEF),
+				     ctrl->info->size);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (ctrl->info->flags & UVC_CONTROL_GET_MIN) {
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_MIN, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN),
+				     ctrl->info->size);
+		if (ret < 0)
+			return ret;
+	}
+	if (ctrl->info->flags & UVC_CONTROL_GET_MAX) {
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_MAX, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX),
+				     ctrl->info->size);
+		if (ret < 0)
+			return ret;
+	}
+	if (ctrl->info->flags & UVC_CONTROL_GET_RES) {
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_RES, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES),
+				     ctrl->info->size);
+		if (ret < 0)
+			return ret;
+	}
+
+	ctrl->cached = 1;
+	return 0;
+}
+
 int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	struct v4l2_queryctrl *v4l2_ctrl)
 {
@@ -762,16 +809,11 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	struct uvc_control_mapping *mapping;
 	struct uvc_menu_info *menu;
 	unsigned int i;
-	__u8 *data;
 	int ret;
 
 	ctrl = uvc_find_control(chain, v4l2_ctrl->id, &mapping);
 	if (ctrl == NULL)
 		return -EINVAL;
-
-	data = kmalloc(ctrl->info->size, GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
 
 	memset(v4l2_ctrl, 0, sizeof *v4l2_ctrl);
 	v4l2_ctrl->id = mapping->id;
@@ -782,14 +824,15 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	if (!(ctrl->info->flags & UVC_CONTROL_SET_CUR))
 		v4l2_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	if (ctrl->info->flags & UVC_CONTROL_GET_DEF) {
-		ret = uvc_query_ctrl(chain->dev, UVC_GET_DEF, ctrl->entity->id,
-				     chain->dev->intfnum, ctrl->info->selector,
-				     data, ctrl->info->size);
+	if (!ctrl->cached) {
+		ret = uvc_ctrl_populate_cache(chain, ctrl);
 		if (ret < 0)
-			goto out;
-		v4l2_ctrl->default_value =
-			mapping->get(mapping, UVC_GET_DEF, data);
+			return ret;
+	}
+
+	if (ctrl->info->flags & UVC_CONTROL_GET_DEF) {
+		v4l2_ctrl->default_value = mapping->get(mapping, UVC_GET_DEF,
+				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_DEF));
 	}
 
 	switch (mapping->v4l2_type) {
@@ -806,56 +849,37 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 			}
 		}
 
-		ret = 0;
-		goto out;
+		return 0;
 
 	case V4L2_CTRL_TYPE_BOOLEAN:
 		v4l2_ctrl->minimum = 0;
 		v4l2_ctrl->maximum = 1;
 		v4l2_ctrl->step = 1;
-		ret = 0;
-		goto out;
+		return 0;
 
 	case V4L2_CTRL_TYPE_BUTTON:
 		v4l2_ctrl->minimum = 0;
 		v4l2_ctrl->maximum = 0;
 		v4l2_ctrl->step = 0;
-		ret = 0;
-		goto out;
+		return 0;
 
 	default:
 		break;
 	}
 
-	if (ctrl->info->flags & UVC_CONTROL_GET_MIN) {
-		ret = uvc_query_ctrl(chain->dev, UVC_GET_MIN, ctrl->entity->id,
-				     chain->dev->intfnum, ctrl->info->selector,
-				     data, ctrl->info->size);
-		if (ret < 0)
-			goto out;
-		v4l2_ctrl->minimum = mapping->get(mapping, UVC_GET_MIN, data);
-	}
-	if (ctrl->info->flags & UVC_CONTROL_GET_MAX) {
-		ret = uvc_query_ctrl(chain->dev, UVC_GET_MAX, ctrl->entity->id,
-				     chain->dev->intfnum, ctrl->info->selector,
-				     data, ctrl->info->size);
-		if (ret < 0)
-			goto out;
-		v4l2_ctrl->maximum = mapping->get(mapping, UVC_GET_MAX, data);
-	}
-	if (ctrl->info->flags & UVC_CONTROL_GET_RES) {
-		ret = uvc_query_ctrl(chain->dev, UVC_GET_RES, ctrl->entity->id,
-				     chain->dev->intfnum, ctrl->info->selector,
-				     data, ctrl->info->size);
-		if (ret < 0)
-			goto out;
-		v4l2_ctrl->step = mapping->get(mapping, UVC_GET_RES, data);
-	}
+	if (ctrl->info->flags & UVC_CONTROL_GET_MIN)
+		v4l2_ctrl->minimum = mapping->get(mapping, UVC_GET_MIN,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
 
-	ret = 0;
-out:
-	kfree(data);
-	return ret;
+	if (ctrl->info->flags & UVC_CONTROL_GET_MAX)
+		v4l2_ctrl->maximum = mapping->get(mapping, UVC_GET_MAX,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
+
+	if (ctrl->info->flags & UVC_CONTROL_GET_RES)
+		v4l2_ctrl->step = mapping->get(mapping, UVC_GET_RES,
+				  uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
+
+	return 0;
 }
 
 
@@ -997,19 +1021,57 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 {
 	struct uvc_control *ctrl;
 	struct uvc_control_mapping *mapping;
-	s32 value = xctrl->value;
+	s32 value;
+	u32 step;
+	s32 min;
+	s32 max;
 	int ret;
 
 	ctrl = uvc_find_control(chain, xctrl->id, &mapping);
 	if (ctrl == NULL || (ctrl->info->flags & UVC_CONTROL_SET_CUR) == 0)
 		return -EINVAL;
 
-	if (mapping->v4l2_type == V4L2_CTRL_TYPE_MENU) {
-		if (value < 0 || value >= mapping->menu_count)
-			return -EINVAL;
-		value = mapping->menu_info[value].value;
+	/* Clamp out of range values. */
+	switch (mapping->v4l2_type) {
+	case V4L2_CTRL_TYPE_INTEGER:
+		if (!ctrl->cached) {
+			ret = uvc_ctrl_populate_cache(chain, ctrl);
+			if (ret < 0)
+				return ret;
+		}
+
+		min = mapping->get(mapping, UVC_GET_MIN,
+				   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
+		max = mapping->get(mapping, UVC_GET_MAX,
+				   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
+		step = mapping->get(mapping, UVC_GET_RES,
+				    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
+
+		xctrl->value = min + (xctrl->value - min + step/2) / step * step;
+		xctrl->value = clamp(xctrl->value, min, max);
+		value = xctrl->value;
+		break;
+
+	case V4L2_CTRL_TYPE_BOOLEAN:
+		xctrl->value = clamp(xctrl->value, 0, 1);
+		value = xctrl->value;
+		break;
+
+	case V4L2_CTRL_TYPE_MENU:
+		if (xctrl->value < 0 || xctrl->value >= mapping->menu_count)
+			return -ERANGE;
+		value = mapping->menu_info[xctrl->value].value;
+		break;
+
+	default:
+		value = xctrl->value;
+		break;
 	}
 
+	/* If the mapping doesn't span the whole UVC control, the current value
+	 * needs to be loaded from the device to perform the read-modify-write
+	 * operation.
+	 */
 	if (!ctrl->loaded && (ctrl->info->size * 8) != mapping->size) {
 		if ((ctrl->info->flags & UVC_CONTROL_GET_CUR) == 0) {
 			memset(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
@@ -1027,6 +1089,7 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 		ctrl->loaded = 1;
 	}
 
+	/* Backup the current value in case we need to rollback later. */
 	if (!ctrl->dirty) {
 		memcpy(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_BACKUP),
 		       uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
@@ -1080,10 +1143,8 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 	}
 
 	if (!found) {
-		uvc_trace(UVC_TRACE_CONTROL,
-			"Control " UVC_GUID_FORMAT "/%u not found.\n",
-			UVC_GUID_ARGS(entity->extension.guidExtensionCode),
-			xctrl->selector);
+		uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u not found.\n",
+			entity->extension.guidExtensionCode, xctrl->selector);
 		return -EINVAL;
 	}
 
@@ -1159,9 +1220,9 @@ int uvc_ctrl_resume_device(struct uvc_device *dev)
 			    (ctrl->info->flags & UVC_CONTROL_RESTORE) == 0)
 				continue;
 
-			printk(KERN_INFO "restoring control " UVC_GUID_FORMAT
-				"/%u/%u\n", UVC_GUID_ARGS(ctrl->info->entity),
-				ctrl->info->index, ctrl->info->selector);
+			printk(KERN_INFO "restoring control %pUl/%u/%u\n",
+				ctrl->info->entity, ctrl->info->index,
+				ctrl->info->selector);
 			ctrl->dirty = 1;
 		}
 
@@ -1215,47 +1276,43 @@ static void uvc_ctrl_add_ctrl(struct uvc_device *dev,
 		ret = uvc_query_ctrl(dev, UVC_GET_LEN, ctrl->entity->id,
 			dev->intfnum, info->selector, (__u8 *)&size, 2);
 		if (ret < 0) {
-			uvc_trace(UVC_TRACE_CONTROL, "GET_LEN failed on "
-				"control " UVC_GUID_FORMAT "/%u (%d).\n",
-				UVC_GUID_ARGS(info->entity), info->selector,
-				ret);
+			uvc_trace(UVC_TRACE_CONTROL,
+				"GET_LEN failed on control %pUl/%u (%d).\n",
+				info->entity, info->selector, ret);
 			return;
 		}
 
 		if (info->size != le16_to_cpu(size)) {
-			uvc_trace(UVC_TRACE_CONTROL, "Control " UVC_GUID_FORMAT
-				"/%u size doesn't match user supplied "
-				"value.\n", UVC_GUID_ARGS(info->entity),
-				info->selector);
+			uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u size "
+				"doesn't match user supplied value.\n",
+				info->entity, info->selector);
 			return;
 		}
 
 		ret = uvc_query_ctrl(dev, UVC_GET_INFO, ctrl->entity->id,
 			dev->intfnum, info->selector, &inf, 1);
 		if (ret < 0) {
-			uvc_trace(UVC_TRACE_CONTROL, "GET_INFO failed on "
-				"control " UVC_GUID_FORMAT "/%u (%d).\n",
-				UVC_GUID_ARGS(info->entity), info->selector,
-				ret);
+			uvc_trace(UVC_TRACE_CONTROL,
+				"GET_INFO failed on control %pUl/%u (%d).\n",
+				info->entity, info->selector, ret);
 			return;
 		}
 
 		flags = info->flags;
 		if (((flags & UVC_CONTROL_GET_CUR) && !(inf & (1 << 0))) ||
 		    ((flags & UVC_CONTROL_SET_CUR) && !(inf & (1 << 1)))) {
-			uvc_trace(UVC_TRACE_CONTROL, "Control "
-				UVC_GUID_FORMAT "/%u flags don't match "
-				"supported operations.\n",
-				UVC_GUID_ARGS(info->entity), info->selector);
+			uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u flags "
+				"don't match supported operations.\n",
+				info->entity, info->selector);
 			return;
 		}
 	}
 
 	ctrl->info = info;
-	ctrl->data = kmalloc(ctrl->info->size * UVC_CTRL_NDATA, GFP_KERNEL);
-	uvc_trace(UVC_TRACE_CONTROL, "Added control " UVC_GUID_FORMAT "/%u "
-		"to device %s entity %u\n", UVC_GUID_ARGS(ctrl->info->entity),
-		ctrl->info->selector, dev->udev->devpath, entity->id);
+	ctrl->data = kmalloc(ctrl->info->size * UVC_CTRL_DATA_LAST, GFP_KERNEL);
+	uvc_trace(UVC_TRACE_CONTROL, "Added control %pUl/%u to device %s "
+		"entity %u\n", ctrl->info->entity, ctrl->info->selector,
+		dev->udev->devpath, entity->id);
 }
 
 /*
@@ -1281,17 +1338,16 @@ int uvc_ctrl_add_info(struct uvc_control_info *info)
 			continue;
 
 		if (ctrl->selector == info->selector) {
-			uvc_trace(UVC_TRACE_CONTROL, "Control "
-				UVC_GUID_FORMAT "/%u is already defined.\n",
-				UVC_GUID_ARGS(info->entity), info->selector);
+			uvc_trace(UVC_TRACE_CONTROL,
+				"Control %pUl/%u is already defined.\n",
+				info->entity, info->selector);
 			ret = -EEXIST;
 			goto end;
 		}
 		if (ctrl->index == info->index) {
-			uvc_trace(UVC_TRACE_CONTROL, "Control "
-				UVC_GUID_FORMAT "/%u would overwrite index "
-				"%d.\n", UVC_GUID_ARGS(info->entity),
-				info->selector, info->index);
+			uvc_trace(UVC_TRACE_CONTROL,
+				"Control %pUl/%u would overwrite index %d.\n",
+				info->entity, info->selector, info->index);
 			ret = -EEXIST;
 			goto end;
 		}
@@ -1332,10 +1388,9 @@ int uvc_ctrl_add_mapping(struct uvc_control_mapping *mapping)
 			continue;
 
 		if (info->size * 8 < mapping->size + mapping->offset) {
-			uvc_trace(UVC_TRACE_CONTROL, "Mapping '%s' would "
-				"overflow control " UVC_GUID_FORMAT "/%u\n",
-				mapping->name, UVC_GUID_ARGS(info->entity),
-				info->selector);
+			uvc_trace(UVC_TRACE_CONTROL,
+				"Mapping '%s' would overflow control %pUl/%u\n",
+				mapping->name, info->entity, info->selector);
 			ret = -EOVERFLOW;
 			goto end;
 		}
@@ -1354,9 +1409,9 @@ int uvc_ctrl_add_mapping(struct uvc_control_mapping *mapping)
 
 		mapping->ctrl = info;
 		list_add_tail(&mapping->list, &info->mappings);
-		uvc_trace(UVC_TRACE_CONTROL, "Adding mapping %s to control "
-			UVC_GUID_FORMAT "/%u.\n", mapping->name,
-			UVC_GUID_ARGS(info->entity), info->selector);
+		uvc_trace(UVC_TRACE_CONTROL,
+			"Adding mapping %s to control %pUl/%u.\n",
+			mapping->name, info->entity, info->selector);
 
 		ret = 0;
 		break;
@@ -1378,6 +1433,7 @@ uvc_ctrl_prune_entity(struct uvc_device *dev, struct uvc_entity *entity)
 		struct usb_device_id id;
 		u8 index;
 	} blacklist[] = {
+		{ { USB_DEVICE(0x13d3, 0x509b) }, 9 }, /* Gain */
 		{ { USB_DEVICE(0x1c4f, 0x3000) }, 6 }, /* WB Temperature */
 		{ { USB_DEVICE(0x5986, 0x0241) }, 2 }, /* Hue */
 	};

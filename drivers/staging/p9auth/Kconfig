@@ -1,9 +1,0 @@
-config PLAN9AUTH
-	tristate "Plan 9 style capability device implementation"
-	default n
-	depends on CRYPTO
-	help
-	  This module implements the Plan 9 style capability device.
-
-	  To compile this driver as a module, choose
-	  M here: the module will be called p9auth.

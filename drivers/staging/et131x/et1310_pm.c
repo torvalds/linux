@@ -83,13 +83,9 @@
 #include <linux/ioport.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
-#include "et1310_mac.h"
 #include "et1310_rx.h"
-
 #include "et131x_adapter.h"
-#include "et131x_initpci.h"
+#include "et131x.h"
 
 /**
  * EnablePhyComa - called when network cable is unplugged

@@ -13,6 +13,11 @@ Required properties:
 - interrupt-parent : the phandle for the interrupt controller that
   services interrupts for this device.
 
+Optional properties:
+- gpios : specifies the gpio pins to be used for chipselects.
+  The gpios will be referred to as reg = <index> in the SPI child nodes.
+  If unspecified, a single SPI device without a chip select can be used.
+
 Example:
 	spi@4c0 {
 		cell-index = <0>;
@@ -21,4 +26,6 @@ Example:
 		interrupts = <82 0>;
 		interrupt-parent = <700>;
 		mode = "cpu";
+		gpios = <&gpio 18 1	// device reg=<0>
+			 &gpio 19 1>;	// device reg=<1>
 	};

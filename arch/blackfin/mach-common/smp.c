@@ -122,9 +122,17 @@ static void ipi_call_function(unsigned int cpu, struct ipi_message *msg)
 	wait = msg->call_struct.wait;
 	cpu_clear(cpu, msg->call_struct.pending);
 	func(info);
-	if (wait)
+	if (wait) {
+#ifdef __ARCH_SYNC_CORE_DCACHE
+		/*
+		 * 'wait' usually means synchronization between CPUs.
+		 * Invalidate D cache in case shared data was changed
+		 * by func() to ensure cache coherence.
+		 */
+		resync_core_dcache();
+#endif
 		cpu_clear(cpu, msg->call_struct.waitmask);
-	else
+	} else
 		kfree(msg);
 }
 
@@ -219,6 +227,13 @@ int smp_call_function(void (*func)(void *info), void *info, int wait)
 			blackfin_dcache_invalidate_range(
 				(unsigned long)(&msg->call_struct.waitmask),
 				(unsigned long)(&msg->call_struct.waitmask));
+#ifdef __ARCH_SYNC_CORE_DCACHE
+		/*
+		 * Invalidate D cache in case shared data was changed by
+		 * other processors to ensure cache coherence.
+		 */
+		resync_core_dcache();
+#endif
 		kfree(msg);
 	}
 	return 0;
@@ -261,6 +276,13 @@ int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
 			blackfin_dcache_invalidate_range(
 				(unsigned long)(&msg->call_struct.waitmask),
 				(unsigned long)(&msg->call_struct.waitmask));
+#ifdef __ARCH_SYNC_CORE_DCACHE
+		/*
+		 * Invalidate D cache in case shared data was changed by
+		 * other processors to ensure cache coherence.
+		 */
+		resync_core_dcache();
+#endif
 		kfree(msg);
 	}
 	return 0;
@@ -322,8 +344,11 @@ void smp_send_stop(void)
 
 int __cpuinit __cpu_up(unsigned int cpu)
 {
-	struct task_struct *idle;
 	int ret;
+	static struct task_struct *idle;
+
+	if (idle)
+		free_task(idle);
 
 	idle = fork_idle(cpu);
 	if (IS_ERR(idle)) {
@@ -332,7 +357,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	}
 
 	secondary_stack = task_stack_page(idle) + THREAD_SIZE;
-	smp_wmb();
 
 	ret = platform_boot_secondary(cpu, idle);
 
@@ -343,9 +367,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 static void __cpuinit setup_secondary(unsigned int cpu)
 {
-#if !defined(CONFIG_TICKSOURCE_GPTMR0)
-	struct irq_desc *timer_desc;
-#endif
 	unsigned long ilat;
 
 	bfin_write_IMASK(0);
@@ -360,17 +381,6 @@ static void __cpuinit setup_secondary(unsigned int cpu)
 	bfin_irq_flags |= IMASK_IVG15 |
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
-
-#if defined(CONFIG_TICKSOURCE_GPTMR0)
-	/* Power down the core timer, just to play safe. */
-	bfin_write_TCNTL(0);
-
-	/* system timer0 has been setup by CoreA. */
-#else
-	timer_desc = irq_desc + IRQ_CORETMR;
-	setup_core_timer();
-	timer_desc->chip->enable(IRQ_CORETMR);
-#endif
 }
 
 void __cpuinit secondary_start_kernel(void)
@@ -405,13 +415,15 @@ void __cpuinit secondary_start_kernel(void)
 	atomic_inc(&mm->mm_users);
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
-	BUG_ON(current->mm);	/* Can't be, but better be safe than sorry. */
 
 	preempt_disable();
 
 	setup_secondary(cpu);
 
 	platform_secondary_init(cpu);
+
+	/* setup local core timer */
+	bfin_local_timer_setup();
 
 	local_irq_enable();
 
@@ -462,25 +474,58 @@ void smp_icache_flush_range_others(unsigned long start, unsigned long end)
 EXPORT_SYMBOL_GPL(smp_icache_flush_range_others);
 
 #ifdef __ARCH_SYNC_CORE_ICACHE
+unsigned long icache_invld_count[NR_CPUS];
 void resync_core_icache(void)
 {
 	unsigned int cpu = get_cpu();
 	blackfin_invalidate_entire_icache();
-	++per_cpu(cpu_data, cpu).icache_invld_count;
+	icache_invld_count[cpu]++;
 	put_cpu();
 }
 EXPORT_SYMBOL(resync_core_icache);
 #endif
 
 #ifdef __ARCH_SYNC_CORE_DCACHE
+unsigned long dcache_invld_count[NR_CPUS];
 unsigned long barrier_mask __attribute__ ((__section__(".l2.bss")));
 
 void resync_core_dcache(void)
 {
 	unsigned int cpu = get_cpu();
 	blackfin_invalidate_entire_dcache();
-	++per_cpu(cpu_data, cpu).dcache_invld_count;
+	dcache_invld_count[cpu]++;
 	put_cpu();
 }
 EXPORT_SYMBOL(resync_core_dcache);
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+int __cpuexit __cpu_disable(void)
+{
+	unsigned int cpu = smp_processor_id();
+
+	if (cpu == 0)
+		return -EPERM;
+
+	set_cpu_online(cpu, false);
+	return 0;
+}
+
+static DECLARE_COMPLETION(cpu_killed);
+
+int __cpuexit __cpu_die(unsigned int cpu)
+{
+	return wait_for_completion_timeout(&cpu_killed, 5000);
+}
+
+void cpu_die(void)
+{
+	complete(&cpu_killed);
+
+	atomic_dec(&init_mm.mm_users);
+	atomic_dec(&init_mm.mm_count);
+
+	local_irq_disable();
+	platform_cpu_die();
+}
 #endif

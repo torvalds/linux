@@ -62,17 +62,12 @@
 		interrupt-parent = < &ipic >;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		bank-width = <1>;
 		// ADS has two Hynix 512MB Nand flash chips in a single
-		// stacked package .
+		// stacked package.
 		chips = <2>;
-		nand0@0 {
-			label = "nand0";
-			reg = <0x00000000 0x02000000>; 	// first 32 MB of chip 0
-		};
-		nand1@20000000 {
-			label = "nand1";
-			reg = <0x20000000 0x02000000>; 	// first 32 MB of chip 1
+		nand@0 {
+			label = "nand";
+			reg = <0x00000000 0x40000000>;	// 512MB + 512MB
 		};
 	};
 
@@ -166,6 +161,11 @@
 			interrupt-parent = < &ipic >;
 		};
 
+		reset@e00 {	// Reset module
+			compatible = "fsl,mpc5121-reset";
+			reg = <0xe00 0x100>;
+		};
+
 		clock@f00 {	// Clock control
 			compatible = "fsl,mpc5121-clock";
 			reg = <0xf00 0x100>;
@@ -185,17 +185,15 @@
 			interrupt-parent = < &ipic >;
 		};
 
-		mscan@1300 {
+		can@1300 {
 			compatible = "fsl,mpc5121-mscan";
-			cell-index = <0>;
 			interrupts = <12 0x8>;
 			interrupt-parent = < &ipic >;
 			reg = <0x1300 0x80>;
 		};
 
-		mscan@1380 {
+		can@1380 {
 			compatible = "fsl,mpc5121-mscan";
-			cell-index = <1>;
 			interrupts = <13 0x8>;
 			interrupt-parent = < &ipic >;
 			reg = <0x1380 0x80>;
@@ -205,17 +203,31 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "fsl,mpc5121-i2c", "fsl-i2c";
-			cell-index = <0>;
 			reg = <0x1700 0x20>;
 			interrupts = <9 0x8>;
 			interrupt-parent = < &ipic >;
+			fsl,preserve-clocking;
+
+			hwmon@4a {
+				compatible = "adi,ad7414";
+				reg = <0x4a>;
+			};
+
+			eeprom@50 {
+				compatible = "at,24c32";
+				reg = <0x50>;
+			};
+
+			rtc@68 {
+				compatible = "stm,m41t62";
+				reg = <0x68>;
+			};
 		};
 
 		i2c@1720 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "fsl,mpc5121-i2c", "fsl-i2c";
-			cell-index = <1>;
 			reg = <0x1720 0x20>;
 			interrupts = <10 0x8>;
 			interrupt-parent = < &ipic >;
@@ -225,7 +237,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "fsl,mpc5121-i2c", "fsl-i2c";
-			cell-index = <2>;
 			reg = <0x1740 0x20>;
 			interrupts = <11 0x8>;
 			interrupt-parent = < &ipic >;
@@ -244,7 +255,7 @@
 		};
 
 		display@2100 {
-			compatible = "fsl,mpc5121-diu", "fsl-diu";
+			compatible = "fsl,mpc5121-diu";
 			reg = <0x2100 0x100>;
 			interrupts = <64 0x8>;
 			interrupt-parent = < &ipic >;
@@ -277,7 +288,7 @@
 
 		// USB1 using external ULPI PHY
 		//usb@3000 {
-		//	compatible = "fsl,mpc5121-usb2-dr", "fsl-usb2-dr";
+		//	compatible = "fsl,mpc5121-usb2-dr";
 		//	reg = <0x3000 0x1000>;
 		//	#address-cells = <1>;
 		//	#size-cells = <0>;
@@ -285,12 +296,11 @@
 		//	interrupts = <43 0x8>;
 		//	dr_mode = "otg";
 		//	phy_type = "ulpi";
-		//	port1;
 		//};
 
 		// USB0 using internal UTMI PHY
 		usb@4000 {
-			compatible = "fsl,mpc5121-usb2-dr", "fsl-usb2-dr";
+			compatible = "fsl,mpc5121-usb2-dr";
 			reg = <0x4000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -298,7 +308,8 @@
 			interrupts = <44 0x8>;
 			dr_mode = "otg";
 			phy_type = "utmi_wide";
-			port0;
+			fsl,invert-drvvbus;
+			fsl,invert-pwr-fault;
 		};
 
 		// IO control
@@ -365,7 +376,7 @@
 		};
 
 		dma@14000 {
-			compatible = "fsl,mpc5121-dma2";
+			compatible = "fsl,mpc5121-dma";
 			reg = <0x14000 0x1800>;
 			interrupts = <65 0x8>;
 			interrupt-parent = < &ipic >;

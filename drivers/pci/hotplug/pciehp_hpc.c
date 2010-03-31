@@ -492,6 +492,7 @@ int pciehp_power_on_slot(struct slot * slot)
 	u16 slot_cmd;
 	u16 cmd_mask;
 	u16 slot_status;
+	u16 lnk_status;
 	int retval = 0;
 
 	/* Clear sticky power-fault bit from previous power failures */
@@ -522,6 +523,14 @@ int pciehp_power_on_slot(struct slot * slot)
 	}
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
+
+	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
+	if (retval) {
+		ctrl_err(ctrl, "%s: Cannot read LNKSTA register\n",
+				__func__);
+		return retval;
+	}
+	pcie_update_link_speed(ctrl->pcie->port->subordinate, lnk_status);
 
 	return retval;
 }
@@ -610,37 +619,6 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int pciehp_get_max_link_speed(struct slot *slot, enum pci_bus_speed *value)
-{
-	struct controller *ctrl = slot->ctrl;
-	enum pcie_link_speed lnk_speed;
-	u32	lnk_cap;
-	int retval = 0;
-
-	retval = pciehp_readl(ctrl, PCI_EXP_LNKCAP, &lnk_cap);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKCAP register\n", __func__);
-		return retval;
-	}
-
-	switch (lnk_cap & 0x000F) {
-	case 1:
-		lnk_speed = PCIE_2_5GB;
-		break;
-	case 2:
-		lnk_speed = PCIE_5_0GB;
-		break;
-	default:
-		lnk_speed = PCIE_LNK_SPEED_UNKNOWN;
-		break;
-	}
-
-	*value = lnk_speed;
-	ctrl_dbg(ctrl, "Max link speed = %d\n", lnk_speed);
-
-	return retval;
-}
-
 int pciehp_get_max_lnk_width(struct slot *slot,
 				 enum pcie_link_width *value)
 {
@@ -687,38 +665,6 @@ int pciehp_get_max_lnk_width(struct slot *slot,
 
 	*value = lnk_wdth;
 	ctrl_dbg(ctrl, "Max link width = %d\n", lnk_wdth);
-
-	return retval;
-}
-
-int pciehp_get_cur_link_speed(struct slot *slot, enum pci_bus_speed *value)
-{
-	struct controller *ctrl = slot->ctrl;
-	enum pcie_link_speed lnk_speed = PCI_SPEED_UNKNOWN;
-	int retval = 0;
-	u16 lnk_status;
-
-	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKSTATUS register\n",
-			 __func__);
-		return retval;
-	}
-
-	switch (lnk_status & PCI_EXP_LNKSTA_CLS) {
-	case 1:
-		lnk_speed = PCIE_2_5GB;
-		break;
-	case 2:
-		lnk_speed = PCIE_5_0GB;
-		break;
-	default:
-		lnk_speed = PCIE_LNK_SPEED_UNKNOWN;
-		break;
-	}
-
-	*value = lnk_speed;
-	ctrl_dbg(ctrl, "Current link speed = %d\n", lnk_speed);
 
 	return retval;
 }

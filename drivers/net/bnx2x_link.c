@@ -14,6 +14,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
@@ -2987,11 +2989,8 @@ static u8 bnx2x_verify_sfp_module(struct link_params *params)
 	else
 		vendor_pn[SFP_EEPROM_PART_NO_SIZE] = '\0';
 
-	printk(KERN_INFO PFX  "Warning: "
-			 "Unqualified SFP+ module "
-			 "detected on %s, Port %d from %s part number %s\n"
-			, bp->dev->name, params->port,
-			vendor_name, vendor_pn);
+	netdev_info(bp->dev, "Warning: Unqualified SFP+ module detected, Port %d from %s part number %s\n",
+		    params->port, vendor_name, vendor_pn);
 	return -EINVAL;
 }
 
@@ -4846,16 +4845,8 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 						     " has been detected on "
 						     "port %d\n",
 						 params->port);
-					printk(KERN_ERR PFX  "Error:  Power"
-						 " fault on %s Port %d has"
-						 " been detected and the"
-						 " power to that SFP+ module"
-						 " has been removed to prevent"
-						 " failure of the card. Please"
-						 " remove the SFP+ module and"
-						 " restart the system to clear"
-						 " this error.\n"
-			, bp->dev->name, params->port);
+					netdev_err(bp->dev, "Error:  Power fault on Port %d has been detected and the power to that SFP+ module has been removed to prevent failure of the card. Please remove the SFP+ module and restart the system to clear this error.\n",
+						   params->port);
 					/*
 					 * Disable all RX_ALARMs except for
 					 * mod_abs

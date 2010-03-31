@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -53,6 +53,7 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 
 int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, bool is_ap);
 void iwl_add_bcast_station(struct iwl_priv *priv);
+void iwl3945_add_bcast_station(struct iwl_priv *priv);
 int iwl_remove_station(struct iwl_priv *priv, const u8 *addr, bool is_ap);
 void iwl_clear_stations_table(struct iwl_priv *priv);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);

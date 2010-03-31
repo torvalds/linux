@@ -140,7 +140,7 @@ void mconsole_proc(struct mc_request *req)
 		goto out;
 	}
 
-	err = may_open(&nd.path, MAY_READ, FMODE_READ);
+	err = may_open(&nd.path, MAY_READ, O_RDONLY);
 	if (result) {
 		mconsole_reply(req, "Failed to open file", 1, 0);
 		path_put(&nd.path);

@@ -48,8 +48,6 @@ static ssize_t set_cidmode(struct device *dev, struct device_attribute *attr,
 		mutex_unlock(&cs->mutex);
 		return -ENOMEM;
 	}
-
-	gig_dbg(DEBUG_CMD, "scheduling PROC_CIDMODE");
 	gigaset_schedule_event(cs);
 
 	wait_event(cs->waitqueue, !cs->waiting);

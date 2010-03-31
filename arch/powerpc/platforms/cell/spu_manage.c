@@ -457,7 +457,7 @@ neighbour_spu(int cbe, struct device_node *target, struct device_node *avoid)
 			continue;
 		vic_handles = of_get_property(spu_dn, "vicinity", &lenp);
 		for (i=0; i < (lenp / sizeof(phandle)); i++) {
-			if (vic_handles[i] == target->linux_phandle)
+			if (vic_handles[i] == target->phandle)
 				return spu;
 		}
 	}
@@ -499,7 +499,7 @@ static void init_affinity_node(int cbe)
 
 			if (strcmp(name, "spe") == 0) {
 				spu = devnode_spu(cbe, vic_dn);
-				avoid_ph = last_spu_dn->linux_phandle;
+				avoid_ph = last_spu_dn->phandle;
 			} else {
 				/*
 				 * "mic-tm" and "bif0" nodes do not have
@@ -514,7 +514,7 @@ static void init_affinity_node(int cbe)
 					last_spu->has_mem_affinity = 1;
 					spu->has_mem_affinity = 1;
 				}
-				avoid_ph = vic_dn->linux_phandle;
+				avoid_ph = vic_dn->phandle;
 			}
 
 			list_add_tail(&spu->aff_list, &last_spu->aff_list);

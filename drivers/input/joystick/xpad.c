@@ -86,9 +86,8 @@
 
 /* xbox d-pads should map to buttons, as is required for DDR pads
    but we map them to axes when possible to simplify things */
-#define MAP_DPAD_TO_BUTTONS    0
-#define MAP_DPAD_TO_AXES       1
-#define MAP_DPAD_UNKNOWN       2
+#define MAP_DPAD_TO_BUTTONS		(1 << 0)
+#define MAP_TRIGGERS_TO_BUTTONS		(1 << 1)
 
 #define XTYPE_XBOX        0
 #define XTYPE_XBOX360     1
@@ -99,57 +98,61 @@ static int dpad_to_buttons;
 module_param(dpad_to_buttons, bool, S_IRUGO);
 MODULE_PARM_DESC(dpad_to_buttons, "Map D-PAD to buttons rather than axes for unknown pads");
 
+static int triggers_to_buttons;
+module_param(triggers_to_buttons, bool, S_IRUGO);
+MODULE_PARM_DESC(triggers_to_buttons, "Map triggers to buttons rather than axes for unknown pads");
+
 static const struct xpad_device {
 	u16 idVendor;
 	u16 idProduct;
 	char *name;
-	u8 dpad_mapping;
+	u8 mapping;
 	u8 xtype;
 } xpad_device[] = {
-	{ 0x045e, 0x0202, "Microsoft X-Box pad v1 (US)", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x045e, 0x0289, "Microsoft X-Box pad v2 (US)", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x045e, 0x0285, "Microsoft X-Box pad (Japan)", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x045e, 0x0287, "Microsoft Xbox Controller S", MAP_DPAD_TO_AXES, XTYPE_XBOX },
+	{ 0x045e, 0x0202, "Microsoft X-Box pad v1 (US)", 0, XTYPE_XBOX },
+	{ 0x045e, 0x0289, "Microsoft X-Box pad v2 (US)", 0, XTYPE_XBOX },
+	{ 0x045e, 0x0285, "Microsoft X-Box pad (Japan)", 0, XTYPE_XBOX },
+	{ 0x045e, 0x0287, "Microsoft Xbox Controller S", 0, XTYPE_XBOX },
 	{ 0x045e, 0x0719, "Xbox 360 Wireless Receiver", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360W },
 	{ 0x0c12, 0x8809, "RedOctane Xbox Dance Pad", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX },
-	{ 0x044f, 0x0f07, "Thrustmaster, Inc. Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x046d, 0xc242, "Logitech Chillstream Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX360 },
-	{ 0x046d, 0xca84, "Logitech Xbox Cordless Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x046d, 0xca88, "Logitech Compact Controller for Xbox", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x05fd, 0x1007, "Mad Catz Controller (unverified)", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x05fd, 0x107a, "InterAct 'PowerPad Pro' X-Box pad (Germany)", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0738, 0x4516, "Mad Catz Control Pad", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0738, 0x4522, "Mad Catz LumiCON", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0738, 0x4526, "Mad Catz Control Pad Pro", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0738, 0x4536, "Mad Catz MicroCON", MAP_DPAD_TO_AXES, XTYPE_XBOX },
+	{ 0x044f, 0x0f07, "Thrustmaster, Inc. Controller", 0, XTYPE_XBOX },
+	{ 0x046d, 0xc242, "Logitech Chillstream Controller", 0, XTYPE_XBOX360 },
+	{ 0x046d, 0xca84, "Logitech Xbox Cordless Controller", 0, XTYPE_XBOX },
+	{ 0x046d, 0xca88, "Logitech Compact Controller for Xbox", 0, XTYPE_XBOX },
+	{ 0x05fd, 0x1007, "Mad Catz Controller (unverified)", 0, XTYPE_XBOX },
+	{ 0x05fd, 0x107a, "InterAct 'PowerPad Pro' X-Box pad (Germany)", 0, XTYPE_XBOX },
+	{ 0x0738, 0x4516, "Mad Catz Control Pad", 0, XTYPE_XBOX },
+	{ 0x0738, 0x4522, "Mad Catz LumiCON", 0, XTYPE_XBOX },
+	{ 0x0738, 0x4526, "Mad Catz Control Pad Pro", 0, XTYPE_XBOX },
+	{ 0x0738, 0x4536, "Mad Catz MicroCON", 0, XTYPE_XBOX },
 	{ 0x0738, 0x4540, "Mad Catz Beat Pad", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX },
-	{ 0x0738, 0x4556, "Mad Catz Lynx Wireless Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0738, 0x4716, "Mad Catz Wired Xbox 360 Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX360 },
-	{ 0x0738, 0x4738, "Mad Catz Wired Xbox 360 Controller (SFIV)", MAP_DPAD_TO_AXES, XTYPE_XBOX360 },
+	{ 0x0738, 0x4556, "Mad Catz Lynx Wireless Controller", 0, XTYPE_XBOX },
+	{ 0x0738, 0x4716, "Mad Catz Wired Xbox 360 Controller", 0, XTYPE_XBOX360 },
+	{ 0x0738, 0x4738, "Mad Catz Wired Xbox 360 Controller (SFIV)", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOX360 },
 	{ 0x0738, 0x6040, "Mad Catz Beat Pad Pro", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX },
-	{ 0x0c12, 0x8802, "Zeroplus Xbox Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0c12, 0x880a, "Pelican Eclipse PL-2023", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0c12, 0x8810, "Zeroplus Xbox Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0c12, 0x9902, "HAMA VibraX - *FAULTY HARDWARE*", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0e4c, 0x1097, "Radica Gamester Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0e4c, 0x2390, "Radica Games Jtech Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0e6f, 0x0003, "Logic3 Freebird wireless Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0e6f, 0x0005, "Eclipse wireless Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0e6f, 0x0006, "Edge wireless Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0e6f, 0x0006, "Pelican 'TSZ' Wired Xbox 360 Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX360 },
-	{ 0x0e8f, 0x0201, "SmartJoy Frag Xpad/PS2 adaptor", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0f30, 0x0202, "Joytech Advanced Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0f30, 0x8888, "BigBen XBMiniPad Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x102c, 0xff0c, "Joytech Wireless Advanced Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
+	{ 0x0c12, 0x8802, "Zeroplus Xbox Controller", 0, XTYPE_XBOX },
+	{ 0x0c12, 0x880a, "Pelican Eclipse PL-2023", 0, XTYPE_XBOX },
+	{ 0x0c12, 0x8810, "Zeroplus Xbox Controller", 0, XTYPE_XBOX },
+	{ 0x0c12, 0x9902, "HAMA VibraX - *FAULTY HARDWARE*", 0, XTYPE_XBOX },
+	{ 0x0e4c, 0x1097, "Radica Gamester Controller", 0, XTYPE_XBOX },
+	{ 0x0e4c, 0x2390, "Radica Games Jtech Controller", 0, XTYPE_XBOX },
+	{ 0x0e6f, 0x0003, "Logic3 Freebird wireless Controller", 0, XTYPE_XBOX },
+	{ 0x0e6f, 0x0005, "Eclipse wireless Controller", 0, XTYPE_XBOX },
+	{ 0x0e6f, 0x0006, "Edge wireless Controller", 0, XTYPE_XBOX },
+	{ 0x0e6f, 0x0006, "Pelican 'TSZ' Wired Xbox 360 Controller", 0, XTYPE_XBOX360 },
+	{ 0x0e8f, 0x0201, "SmartJoy Frag Xpad/PS2 adaptor", 0, XTYPE_XBOX },
+	{ 0x0f30, 0x0202, "Joytech Advanced Controller", 0, XTYPE_XBOX },
+	{ 0x0f30, 0x8888, "BigBen XBMiniPad Controller", 0, XTYPE_XBOX },
+	{ 0x102c, 0xff0c, "Joytech Wireless Advanced Controller", 0, XTYPE_XBOX },
 	{ 0x12ab, 0x8809, "Xbox DDR dancepad", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX },
-	{ 0x1430, 0x4748, "RedOctane Guitar Hero X-plorer", MAP_DPAD_TO_AXES, XTYPE_XBOX360 },
+	{ 0x1430, 0x4748, "RedOctane Guitar Hero X-plorer", 0, XTYPE_XBOX360 },
 	{ 0x1430, 0x8888, "TX6500+ Dance Pad (first generation)", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX },
-	{ 0x146b, 0x0601, "BigBen Interactive XBOX 360 Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX360 },
-	{ 0x045e, 0x028e, "Microsoft X-Box 360 pad", MAP_DPAD_TO_AXES, XTYPE_XBOX360 },
+	{ 0x146b, 0x0601, "BigBen Interactive XBOX 360 Controller", 0, XTYPE_XBOX360 },
+	{ 0x045e, 0x028e, "Microsoft X-Box 360 pad", 0, XTYPE_XBOX360 },
 	{ 0x1bad, 0x0003, "Harmonix Rock Band Drumkit", MAP_DPAD_TO_BUTTONS, XTYPE_XBOX360 },
-	{ 0x0f0d, 0x0016, "Hori Real Arcade Pro.EX", MAP_DPAD_TO_AXES, XTYPE_XBOX360 },
-	{ 0xffff, 0xffff, "Chinese-made Xbox Controller", MAP_DPAD_TO_AXES, XTYPE_XBOX },
-	{ 0x0000, 0x0000, "Generic X-Box pad", MAP_DPAD_UNKNOWN, XTYPE_UNKNOWN }
+	{ 0x0f0d, 0x0016, "Hori Real Arcade Pro.EX", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOX360 },
+	{ 0xffff, 0xffff, "Chinese-made Xbox Controller", 0, XTYPE_XBOX },
+	{ 0x0000, 0x0000, "Generic X-Box pad", 0, XTYPE_UNKNOWN }
 };
 
 /* buttons shared with xbox and xbox360 */
@@ -165,12 +168,19 @@ static const signed short xpad_btn[] = {
 	-1			/* terminating entry */
 };
 
-/* only used if MAP_DPAD_TO_BUTTONS */
+/* used when dpad is mapped to nuttons */
 static const signed short xpad_btn_pad[] = {
 	BTN_LEFT, BTN_RIGHT,		/* d-pad left, right */
 	BTN_0, BTN_1,			/* d-pad up, down (XXX names??) */
 	-1				/* terminating entry */
 };
+
+/* used when triggers are mapped to buttons */
+static const signed short xpad_btn_triggers[] = {
+	BTN_TL2, BTN_TR2,		/* triggers left/right */
+	-1
+};
+
 
 static const signed short xpad360_btn[] = {  /* buttons for x360 controller */
 	BTN_TL, BTN_TR,		/* Button LB/RB */
@@ -181,14 +191,19 @@ static const signed short xpad360_btn[] = {  /* buttons for x360 controller */
 static const signed short xpad_abs[] = {
 	ABS_X, ABS_Y,		/* left stick */
 	ABS_RX, ABS_RY,		/* right stick */
-	ABS_Z, ABS_RZ,		/* triggers left/right */
 	-1			/* terminating entry */
 };
 
-/* only used if MAP_DPAD_TO_AXES */
+/* used when dpad is mapped to axes */
 static const signed short xpad_abs_pad[] = {
 	ABS_HAT0X, ABS_HAT0Y,	/* d-pad axes */
 	-1			/* terminating entry */
+};
+
+/* used when triggers are mapped to axes */
+static const signed short xpad_abs_triggers[] = {
+	ABS_Z, ABS_RZ,		/* triggers left/right */
+	-1
 };
 
 /* Xbox 360 has a vendor-specific class, so we cannot match it with only
@@ -246,7 +261,7 @@ struct usb_xpad {
 
 	char phys[64];			/* physical device path */
 
-	int dpad_mapping;		/* map d-pad to buttons or to axes */
+	int mapping;			/* map d-pad to buttons or to axes */
 	int xtype;			/* type of xbox device */
 };
 
@@ -277,20 +292,25 @@ static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *d
 			 ~(__s16) le16_to_cpup((__le16 *)(data + 18)));
 
 	/* triggers left/right */
-	input_report_abs(dev, ABS_Z, data[10]);
-	input_report_abs(dev, ABS_RZ, data[11]);
+	if (xpad->mapping & MAP_TRIGGERS_TO_BUTTONS) {
+		input_report_key(dev, BTN_TL2, data[10]);
+		input_report_key(dev, BTN_TR2, data[11]);
+	} else {
+		input_report_abs(dev, ABS_Z, data[10]);
+		input_report_abs(dev, ABS_RZ, data[11]);
+	}
 
 	/* digital pad */
-	if (xpad->dpad_mapping == MAP_DPAD_TO_AXES) {
-		input_report_abs(dev, ABS_HAT0X,
-				 !!(data[2] & 0x08) - !!(data[2] & 0x04));
-		input_report_abs(dev, ABS_HAT0Y,
-				 !!(data[2] & 0x02) - !!(data[2] & 0x01));
-	} else /* xpad->dpad_mapping == MAP_DPAD_TO_BUTTONS */ {
+	if (xpad->mapping & MAP_DPAD_TO_BUTTONS) {
 		input_report_key(dev, BTN_LEFT,  data[2] & 0x04);
 		input_report_key(dev, BTN_RIGHT, data[2] & 0x08);
 		input_report_key(dev, BTN_0,     data[2] & 0x01); /* up */
 		input_report_key(dev, BTN_1,     data[2] & 0x02); /* down */
+	} else {
+		input_report_abs(dev, ABS_HAT0X,
+				 !!(data[2] & 0x08) - !!(data[2] & 0x04));
+		input_report_abs(dev, ABS_HAT0Y,
+				 !!(data[2] & 0x02) - !!(data[2] & 0x01));
 	}
 
 	/* start/back buttons and stick press left/right */
@@ -328,17 +348,17 @@ static void xpad360_process_packet(struct usb_xpad *xpad,
 	struct input_dev *dev = xpad->dev;
 
 	/* digital pad */
-	if (xpad->dpad_mapping == MAP_DPAD_TO_AXES) {
-		input_report_abs(dev, ABS_HAT0X,
-				 !!(data[2] & 0x08) - !!(data[2] & 0x04));
-		input_report_abs(dev, ABS_HAT0Y,
-				 !!(data[2] & 0x02) - !!(data[2] & 0x01));
-	} else if (xpad->dpad_mapping == MAP_DPAD_TO_BUTTONS) {
+	if (xpad->mapping & MAP_DPAD_TO_BUTTONS) {
 		/* dpad as buttons (right, left, down, up) */
 		input_report_key(dev, BTN_LEFT, data[2] & 0x04);
 		input_report_key(dev, BTN_RIGHT, data[2] & 0x08);
 		input_report_key(dev, BTN_0, data[2] & 0x01);	/* up */
 		input_report_key(dev, BTN_1, data[2] & 0x02);	/* down */
+	} else {
+		input_report_abs(dev, ABS_HAT0X,
+				 !!(data[2] & 0x08) - !!(data[2] & 0x04));
+		input_report_abs(dev, ABS_HAT0Y,
+				 !!(data[2] & 0x02) - !!(data[2] & 0x01));
 	}
 
 	/* start/back buttons */
@@ -371,8 +391,13 @@ static void xpad360_process_packet(struct usb_xpad *xpad,
 			 ~(__s16) le16_to_cpup((__le16 *)(data + 12)));
 
 	/* triggers left/right */
-	input_report_abs(dev, ABS_Z, data[4]);
-	input_report_abs(dev, ABS_RZ, data[5]);
+	if (xpad->mapping & MAP_TRIGGERS_TO_BUTTONS) {
+		input_report_key(dev, BTN_TL2, data[4]);
+		input_report_key(dev, BTN_TR2, data[5]);
+	} else {
+		input_report_abs(dev, ABS_Z, data[4]);
+		input_report_abs(dev, ABS_RZ, data[5]);
+	}
 
 	input_sync(dev);
 }
@@ -505,7 +530,7 @@ static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)
 	struct usb_endpoint_descriptor *ep_irq_out;
 	int error = -ENOMEM;
 
-	if (xpad->xtype != XTYPE_XBOX360)
+	if (xpad->xtype != XTYPE_XBOX360 && xpad->xtype != XTYPE_XBOX)
 		return 0;
 
 	xpad->odata = usb_buffer_alloc(xpad->udev, XPAD_PKT_LEN,
@@ -535,13 +560,13 @@ static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)
 
 static void xpad_stop_output(struct usb_xpad *xpad)
 {
-	if (xpad->xtype == XTYPE_XBOX360)
+	if (xpad->xtype == XTYPE_XBOX360 || xpad->xtype == XTYPE_XBOX)
 		usb_kill_urb(xpad->irq_out);
 }
 
 static void xpad_deinit_output(struct usb_xpad *xpad)
 {
-	if (xpad->xtype == XTYPE_XBOX360) {
+	if (xpad->xtype == XTYPE_XBOX360 || xpad->xtype == XTYPE_XBOX) {
 		usb_free_urb(xpad->irq_out);
 		usb_buffer_free(xpad->udev, XPAD_PKT_LEN,
 				xpad->odata, xpad->odata_dma);
@@ -554,24 +579,45 @@ static void xpad_stop_output(struct usb_xpad *xpad) {}
 #endif
 
 #ifdef CONFIG_JOYSTICK_XPAD_FF
-static int xpad_play_effect(struct input_dev *dev, void *data,
-			    struct ff_effect *effect)
+static int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect *effect)
 {
 	struct usb_xpad *xpad = input_get_drvdata(dev);
 
 	if (effect->type == FF_RUMBLE) {
 		__u16 strong = effect->u.rumble.strong_magnitude;
 		__u16 weak = effect->u.rumble.weak_magnitude;
-		xpad->odata[0] = 0x00;
-		xpad->odata[1] = 0x08;
-		xpad->odata[2] = 0x00;
-		xpad->odata[3] = strong / 256;
-		xpad->odata[4] = weak / 256;
-		xpad->odata[5] = 0x00;
-		xpad->odata[6] = 0x00;
-		xpad->odata[7] = 0x00;
-		xpad->irq_out->transfer_buffer_length = 8;
-		usb_submit_urb(xpad->irq_out, GFP_ATOMIC);
+
+		switch (xpad->xtype) {
+
+		case XTYPE_XBOX:
+			xpad->odata[0] = 0x00;
+			xpad->odata[1] = 0x06;
+			xpad->odata[2] = 0x00;
+			xpad->odata[3] = strong / 256;	/* left actuator */
+			xpad->odata[4] = 0x00;
+			xpad->odata[5] = weak / 256;	/* right actuator */
+			xpad->irq_out->transfer_buffer_length = 6;
+
+			return usb_submit_urb(xpad->irq_out, GFP_ATOMIC);
+
+		case XTYPE_XBOX360:
+			xpad->odata[0] = 0x00;
+			xpad->odata[1] = 0x08;
+			xpad->odata[2] = 0x00;
+			xpad->odata[3] = strong / 256;  /* left actuator? */
+			xpad->odata[4] = weak / 256;	/* right actuator? */
+			xpad->odata[5] = 0x00;
+			xpad->odata[6] = 0x00;
+			xpad->odata[7] = 0x00;
+			xpad->irq_out->transfer_buffer_length = 8;
+
+			return usb_submit_urb(xpad->irq_out, GFP_ATOMIC);
+
+		default:
+			dbg("%s - rumble command sent to unsupported xpad type: %d",
+				__func__, xpad->xtype);
+			return -1;
+		}
 	}
 
 	return 0;
@@ -579,7 +625,7 @@ static int xpad_play_effect(struct input_dev *dev, void *data,
 
 static int xpad_init_ff(struct usb_xpad *xpad)
 {
-	if (xpad->xtype != XTYPE_XBOX360)
+	if (xpad->xtype != XTYPE_XBOX360 && xpad->xtype != XTYPE_XBOX)
 		return 0;
 
 	input_set_capability(xpad->dev, EV_FF, FF_RUMBLE);
@@ -712,11 +758,11 @@ static void xpad_set_up_abs(struct input_dev *input_dev, signed short abs)
 		input_set_abs_params(input_dev, abs, -32768, 32767, 16, 128);
 		break;
 	case ABS_Z:
-	case ABS_RZ:	/* the triggers */
+	case ABS_RZ:	/* the triggers (if mapped to axes) */
 		input_set_abs_params(input_dev, abs, 0, 255, 0, 0);
 		break;
 	case ABS_HAT0X:
-	case ABS_HAT0Y:	/* the d-pad (only if MAP_DPAD_TO_AXES) */
+	case ABS_HAT0Y:	/* the d-pad (only if dpad is mapped to axes */
 		input_set_abs_params(input_dev, abs, -1, 1, 0, 0);
 		break;
 	}
@@ -752,10 +798,9 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		goto fail2;
 
 	xpad->udev = udev;
-	xpad->dpad_mapping = xpad_device[i].dpad_mapping;
+	xpad->mapping = xpad_device[i].mapping;
 	xpad->xtype = xpad_device[i].xtype;
-	if (xpad->dpad_mapping == MAP_DPAD_UNKNOWN)
-		xpad->dpad_mapping = !dpad_to_buttons;
+
 	if (xpad->xtype == XTYPE_UNKNOWN) {
 		if (intf->cur_altsetting->desc.bInterfaceClass == USB_CLASS_VENDOR_SPEC) {
 			if (intf->cur_altsetting->desc.bInterfaceProtocol == 129)
@@ -764,7 +809,13 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 				xpad->xtype = XTYPE_XBOX360;
 		} else
 			xpad->xtype = XTYPE_XBOX;
+
+		if (dpad_to_buttons)
+			xpad->mapping |= MAP_DPAD_TO_BUTTONS;
+		if (triggers_to_buttons)
+			xpad->mapping |= MAP_TRIGGERS_TO_BUTTONS;
 	}
+
 	xpad->dev = input_dev;
 	usb_make_path(udev, xpad->phys, sizeof(xpad->phys));
 	strlcat(xpad->phys, "/input0", sizeof(xpad->phys));
@@ -781,25 +832,37 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 
-	/* set up buttons */
+	/* set up standard buttons and axes */
 	for (i = 0; xpad_common_btn[i] >= 0; i++)
-		set_bit(xpad_common_btn[i], input_dev->keybit);
-	if ((xpad->xtype == XTYPE_XBOX360) || (xpad->xtype == XTYPE_XBOX360W))
-		for (i = 0; xpad360_btn[i] >= 0; i++)
-			set_bit(xpad360_btn[i], input_dev->keybit);
-	else
-		for (i = 0; xpad_btn[i] >= 0; i++)
-			set_bit(xpad_btn[i], input_dev->keybit);
-	if (xpad->dpad_mapping == MAP_DPAD_TO_BUTTONS)
-		for (i = 0; xpad_btn_pad[i] >= 0; i++)
-			set_bit(xpad_btn_pad[i], input_dev->keybit);
+		__set_bit(xpad_common_btn[i], input_dev->keybit);
 
-	/* set up axes */
 	for (i = 0; xpad_abs[i] >= 0; i++)
 		xpad_set_up_abs(input_dev, xpad_abs[i]);
-	if (xpad->dpad_mapping == MAP_DPAD_TO_AXES)
+
+	/* Now set up model-specific ones */
+	if (xpad->xtype == XTYPE_XBOX360 || xpad->xtype == XTYPE_XBOX360W) {
+		for (i = 0; xpad360_btn[i] >= 0; i++)
+			__set_bit(xpad360_btn[i], input_dev->keybit);
+	} else {
+		for (i = 0; xpad_btn[i] >= 0; i++)
+			__set_bit(xpad_btn[i], input_dev->keybit);
+	}
+
+	if (xpad->mapping & MAP_DPAD_TO_BUTTONS) {
+		for (i = 0; xpad_btn_pad[i] >= 0; i++)
+			__set_bit(xpad_btn_pad[i], input_dev->keybit);
+	} else {
 		for (i = 0; xpad_abs_pad[i] >= 0; i++)
 		    xpad_set_up_abs(input_dev, xpad_abs_pad[i]);
+	}
+
+	if (xpad->mapping & MAP_TRIGGERS_TO_BUTTONS) {
+		for (i = 0; xpad_btn_triggers[i] >= 0; i++)
+			__set_bit(xpad_btn_triggers[i], input_dev->keybit);
+	} else {
+		for (i = 0; xpad_abs_triggers[i] >= 0; i++)
+			xpad_set_up_abs(input_dev, xpad_abs_triggers[i]);
+	}
 
 	error = xpad_init_output(intf, xpad);
 	if (error)

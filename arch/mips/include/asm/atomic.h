@@ -137,7 +137,7 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 {
 	int result;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		int temp;
@@ -189,7 +189,7 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 {
 	int result;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		int temp;
@@ -249,7 +249,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 {
 	int result;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		int temp;
@@ -516,7 +516,7 @@ static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 {
 	long result;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		long temp;
@@ -568,7 +568,7 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 {
 	long result;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		long temp;
@@ -628,7 +628,7 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 {
 	long result;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		long temp;
@@ -788,9 +788,9 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
  * atomic*_return operations are serializing but not the non-*_return
  * versions.
  */
-#define smp_mb__before_atomic_dec()	smp_llsc_mb()
+#define smp_mb__before_atomic_dec()	smp_mb__before_llsc()
 #define smp_mb__after_atomic_dec()	smp_llsc_mb()
-#define smp_mb__before_atomic_inc()	smp_llsc_mb()
+#define smp_mb__before_atomic_inc()	smp_mb__before_llsc()
 #define smp_mb__after_atomic_inc()	smp_llsc_mb()
 
 #include <asm-generic/atomic-long.h>

@@ -67,11 +67,6 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-DEFINE_SNMP_STAT(struct icmpv6_mib, icmpv6_statistics) __read_mostly;
-EXPORT_SYMBOL(icmpv6_statistics);
-DEFINE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg_statistics) __read_mostly;
-EXPORT_SYMBOL(icmpv6msg_statistics);
-
 /*
  *	The ICMP socket(s). This is the most convenient way to flow control
  *	our ICMP output as well as maintain a clean interface throughout
@@ -119,7 +114,7 @@ static __inline__ void icmpv6_xmit_unlock(struct sock *sk)
  */
 void icmpv6_param_prob(struct sk_buff *skb, u8 code, int pos)
 {
-	icmpv6_send(skb, ICMPV6_PARAMPROB, code, pos, skb->dev);
+	icmpv6_send(skb, ICMPV6_PARAMPROB, code, pos);
 	kfree_skb(skb);
 }
 
@@ -305,8 +300,7 @@ static inline void mip6_addr_swap(struct sk_buff *skb) {}
 /*
  *	Send an ICMP message in response to a packet in error
  */
-void icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
-		 struct net_device *dev)
+void icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 {
 	struct net *net = dev_net(skb->dev);
 	struct inet6_dev *idev = NULL;
@@ -951,7 +945,7 @@ ctl_table ipv6_icmp_table_template[] = {
 	{ },
 };
 
-struct ctl_table *ipv6_icmp_sysctl_init(struct net *net)
+struct ctl_table * __net_init ipv6_icmp_sysctl_init(struct net *net)
 {
 	struct ctl_table *table;
 

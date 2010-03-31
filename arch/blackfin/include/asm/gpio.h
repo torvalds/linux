@@ -70,6 +70,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/compiler.h>
+
 /***********************************************************
 *
 * FUNCTIONS: Blackfin General Purpose Ports Access Functions
@@ -223,6 +225,9 @@ int bfin_gpio_direction_output(unsigned gpio, int value);
 int bfin_gpio_get_value(unsigned gpio);
 void bfin_gpio_set_value(unsigned gpio, int value);
 
+#include <asm/irq.h>
+#include <asm/errno.h>
+
 #ifdef CONFIG_GPIOLIB
 #include <asm-generic/gpio.h>		/* cansleep wrappers */
 
@@ -245,6 +250,11 @@ static inline void gpio_set_value(unsigned int gpio, int value)
 static inline int gpio_cansleep(unsigned int gpio)
 {
 	return __gpio_cansleep(gpio);
+}
+
+static inline int gpio_to_irq(unsigned gpio)
+{
+	return __gpio_to_irq(gpio);
 }
 
 #else /* !CONFIG_GPIOLIB */
@@ -279,10 +289,6 @@ static inline void gpio_set_value(unsigned gpio, int value)
 	return bfin_gpio_set_value(gpio, value);
 }
 
-#include <asm-generic/gpio.h>		/* cansleep wrappers */
-#endif	/* !CONFIG_GPIOLIB */
-#include <asm/irq.h>
-
 static inline int gpio_to_irq(unsigned gpio)
 {
 	if (likely(gpio < MAX_BLACKFIN_GPIOS))
@@ -290,6 +296,9 @@ static inline int gpio_to_irq(unsigned gpio)
 
 	return -EINVAL;
 }
+
+#include <asm-generic/gpio.h>		/* cansleep wrappers */
+#endif	/* !CONFIG_GPIOLIB */
 
 static inline int irq_to_gpio(unsigned irq)
 {

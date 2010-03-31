@@ -191,7 +191,8 @@
 #define CX18_CPU_SET_MEDIAN_CORING           	(CPU_CMD_MASK_CAPTURE | 0x000E)
 
 /* Description: This command set the picture type mask for index file
-   IN[0] - 	0 = disable index file output
+   IN[0] - Task handle (ignored by firmware)
+   IN[1] - 	0 = disable index file output
 			1 = output I picture
 			2 = P picture
 			4 = B picture

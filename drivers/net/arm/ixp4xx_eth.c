@@ -735,22 +735,25 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 static void eth_set_mcast_list(struct net_device *dev)
 {
 	struct port *port = netdev_priv(dev);
-	struct dev_mc_list *mclist = dev->mc_list;
+	struct dev_mc_list *mclist;
 	u8 diffs[ETH_ALEN], *addr;
-	int cnt = dev->mc_count, i;
+	int i;
 
-	if ((dev->flags & IFF_PROMISC) || !mclist || !cnt) {
+	if ((dev->flags & IFF_PROMISC) || netdev_mc_empty(dev)) {
 		__raw_writel(DEFAULT_RX_CNTRL0 & ~RX_CNTRL0_ADDR_FLTR_EN,
 			     &port->regs->rx_control[0]);
 		return;
 	}
 
 	memset(diffs, 0, ETH_ALEN);
-	addr = mclist->dmi_addr; /* first MAC address */
 
-	while (--cnt && (mclist = mclist->next))
+	addr = NULL;
+	netdev_for_each_mc_addr(mclist, dev) {
+		if (!addr)
+			addr = mclist->dmi_addr; /* first MAC address */
 		for (i = 0; i < ETH_ALEN; i++)
 			diffs[i] |= addr[i] ^ mclist->dmi_addr[i];
+	}
 
 	for (i = 0; i < ETH_ALEN; i++) {
 		__raw_writel(addr[i], &port->regs->mcast_addr[i]);

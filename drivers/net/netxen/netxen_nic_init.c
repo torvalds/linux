@@ -19,7 +19,7 @@
  * MA  02111-1307, USA.
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.
+ * in the file called "COPYING".
  *
  */
 
@@ -778,6 +778,9 @@ netxen_need_fw_reset(struct netxen_adapter *adapter)
 
 	/* NX2031 firmware doesn't support heartbit */
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return 1;
+
+	if (adapter->need_fw_reset)
 		return 1;
 
 	/* last attempt had failed */

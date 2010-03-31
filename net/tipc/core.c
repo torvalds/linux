@@ -189,11 +189,11 @@ static int __init tipc_init(void)
 	tipc_remote_management = 1;
 	tipc_max_publications = 10000;
 	tipc_max_subscriptions = 2000;
-	tipc_max_ports = delimit(CONFIG_TIPC_PORTS, 127, 65536);
-	tipc_max_zones = delimit(CONFIG_TIPC_ZONES, 1, 255);
-	tipc_max_clusters = delimit(CONFIG_TIPC_CLUSTERS, 1, 1);
-	tipc_max_nodes = delimit(CONFIG_TIPC_NODES, 8, 2047);
-	tipc_max_slaves = delimit(CONFIG_TIPC_SLAVE_NODES, 0, 2047);
+	tipc_max_ports = CONFIG_TIPC_PORTS;
+	tipc_max_zones = CONFIG_TIPC_ZONES;
+	tipc_max_clusters = CONFIG_TIPC_CLUSTERS;
+	tipc_max_nodes = CONFIG_TIPC_NODES;
+	tipc_max_slaves = CONFIG_TIPC_SLAVE_NODES;
 	tipc_net_id = 4711;
 
 	if ((res = tipc_core_start()))

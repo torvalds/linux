@@ -35,6 +35,8 @@
 #include <mach/ssp.h>
 #include <mach/regs-ssp.h>
 
+#ifdef CONFIG_PXA_SSP_LEGACY
+
 #define TIMEOUT 100000
 
 static irqreturn_t ssp_interrupt(int irq, void *dev_id)
@@ -303,6 +305,7 @@ void ssp_exit(struct ssp_dev *dev)
 	clk_disable(ssp->clk);
 	ssp_free(ssp);
 }
+#endif /* CONFIG_PXA_SSP_LEGACY */
 
 static DEFINE_MUTEX(ssp_lock);
 static LIST_HEAD(ssp_list);
@@ -488,6 +491,7 @@ static void __exit pxa_ssp_exit(void)
 arch_initcall(pxa_ssp_init);
 module_exit(pxa_ssp_exit);
 
+#ifdef CONFIG_PXA_SSP_LEGACY
 EXPORT_SYMBOL(ssp_write_word);
 EXPORT_SYMBOL(ssp_read_word);
 EXPORT_SYMBOL(ssp_flush);
@@ -498,6 +502,7 @@ EXPORT_SYMBOL(ssp_restore_state);
 EXPORT_SYMBOL(ssp_init);
 EXPORT_SYMBOL(ssp_exit);
 EXPORT_SYMBOL(ssp_config);
+#endif
 
 MODULE_DESCRIPTION("PXA SSP driver");
 MODULE_AUTHOR("Liam Girdwood");

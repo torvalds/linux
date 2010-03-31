@@ -76,14 +76,12 @@ pxa_ost0_interrupt(int irq, void *dev_id)
 static int
 pxa_osmr0_set_next_event(unsigned long delta, struct clock_event_device *dev)
 {
-	unsigned long flags, next, oscr;
+	unsigned long next, oscr;
 
-	raw_local_irq_save(flags);
 	OIER |= OIER_E0;
 	next = OSCR + delta;
 	OSMR0 = next;
 	oscr = OSCR;
-	raw_local_irq_restore(flags);
 
 	return (signed)(next - oscr) <= MIN_OSCR_DELTA ? -ETIME : 0;
 }
@@ -91,23 +89,17 @@ pxa_osmr0_set_next_event(unsigned long delta, struct clock_event_device *dev)
 static void
 pxa_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 {
-	unsigned long irqflags;
-
 	switch (mode) {
 	case CLOCK_EVT_MODE_ONESHOT:
-		raw_local_irq_save(irqflags);
 		OIER &= ~OIER_E0;
 		OSSR = OSSR_M0;
-		raw_local_irq_restore(irqflags);
 		break;
 
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		/* initializing, released, or preparing for suspend */
-		raw_local_irq_save(irqflags);
 		OIER &= ~OIER_E0;
 		OSSR = OSSR_M0;
-		raw_local_irq_restore(irqflags);
 		break;
 
 	case CLOCK_EVT_MODE_RESUME:

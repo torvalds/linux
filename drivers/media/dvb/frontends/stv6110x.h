@@ -26,6 +26,7 @@
 struct stv6110x_config {
 	u8	addr;
 	u32	refclk;
+	u8	clk_div; /* divisor value for the output clock */
 };
 
 enum tuner_mode {

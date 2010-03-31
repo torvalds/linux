@@ -453,8 +453,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->irq.Attributes =
-	IRQ_TYPE_DYNAMIC_SHARING;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->io.IOAddrLines = 16;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
@@ -652,8 +651,7 @@ static int osi_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->irq.Attributes =
-	IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->io.NumPorts1 = 64;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
@@ -1595,27 +1593,6 @@ static void smc_rx(struct net_device *dev)
 
 /*======================================================================
 
-    Calculate values for the hardware multicast filter hash table.
-
-======================================================================*/
-
-static void fill_multicast_tbl(int count, struct dev_mc_list *addrs,
-			       u_char *multicast_table)
-{
-    struct dev_mc_list	*mc_addr;
-
-    for (mc_addr = addrs;  mc_addr && count-- > 0;  mc_addr = mc_addr->next) {
-	u_int position = ether_crc(6, mc_addr->dmi_addr);
-#ifndef final_version		/* Verify multicast address. */
-	if ((mc_addr->dmi_addr[0] & 1) == 0)
-	    continue;
-#endif
-	multicast_table[position >> 29] |= 1 << ((position >> 26) & 7);
-    }
-}
-
-/*======================================================================
-
     Set the receive mode.
 
     This routine is used by both the protocol level to notify us of
@@ -1638,9 +1615,17 @@ static void set_rx_mode(struct net_device *dev)
     } else if (dev->flags & IFF_ALLMULTI)
 	rx_cfg_setting = RxStripCRC | RxEnable | RxAllMulti;
     else {
-	if (dev->mc_count)  {
-	    fill_multicast_tbl(dev->mc_count, dev->mc_list,
-			       (u_char *)multicast_table);
+	if (!netdev_mc_empty(dev)) {
+	    struct dev_mc_list *mc_addr;
+
+	    netdev_for_each_mc_addr(mc_addr, dev) {
+		u_int position = ether_crc(6, mc_addr->dmi_addr);
+#ifndef final_version		/* Verify multicast address. */
+		if ((mc_addr->dmi_addr[0] & 1) == 0)
+		    continue;
+#endif
+		multicast_table[position >> 29] |= 1 << ((position >> 26) & 7);
+	    }
 	}
 	rx_cfg_setting = RxStripCRC | RxEnable;
     }

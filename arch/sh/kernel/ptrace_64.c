@@ -88,7 +88,7 @@ get_fpu_long(struct task_struct *task, unsigned long addr)
 		regs->sr |= SR_FD;
 	}
 
-	tmp = ((long *)&task->thread.fpu)[addr / sizeof(unsigned long)];
+	tmp = ((long *)task->thread.xstate)[addr / sizeof(unsigned long)];
 	return tmp;
 }
 
@@ -114,8 +114,7 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 	regs = (struct pt_regs*)((unsigned char *)task + THREAD_SIZE) - 1;
 
 	if (!tsk_used_math(task)) {
-		fpinit(&task->thread.fpu.hard);
-		set_stopped_child_used_math(task);
+		init_fpu(task);
 	} else if (last_task_used_math == task) {
 		enable_fpu();
 		save_fpu(task);
@@ -124,7 +123,7 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 		regs->sr |= SR_FD;
 	}
 
-	((long *)&task->thread.fpu)[addr / sizeof(unsigned long)] = data;
+	((long *)task->thread.xstate)[addr / sizeof(unsigned long)] = data;
 	return 0;
 }
 
@@ -226,7 +225,7 @@ int fpregs_get(struct task_struct *target,
 		return ret;
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.fpu.hard, 0, -1);
+				   &target->thread.xstate->hardfpu, 0, -1);
 }
 
 static int fpregs_set(struct task_struct *target,
@@ -243,7 +242,7 @@ static int fpregs_set(struct task_struct *target,
 	set_stopped_child_used_math(target);
 
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fpu.hard, 0, -1);
+				  &target->thread.xstate->hardfpu, 0, -1);
 }
 
 static int fpregs_active(struct task_struct *target,
@@ -486,9 +485,10 @@ asmlinkage void do_single_step(unsigned long long vec, struct pt_regs *regs)
 }
 
 /* Called with interrupts disabled */
-asmlinkage void do_software_break_point(unsigned long long vec,
-					struct pt_regs *regs)
+BUILD_TRAP_HANDLER(breakpoint)
 {
+	TRAP_HANDLER_DECL;
+
 	/* We need to forward step the PC, to counteract the backstep done
 	   in signal.c. */
 	local_irq_enable();

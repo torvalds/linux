@@ -411,7 +411,7 @@ static int zl10036_init_regs(struct zl10036_state *state)
 	state->bf = 0xff;
 
 	if (!state->config->rf_loop_enable)
-		zl10036_init_tab[1][2] |= 0x01;
+		zl10036_init_tab[1][0] |= 0x01;
 
 	deb_info("%s\n", __func__);
 

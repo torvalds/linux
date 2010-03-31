@@ -309,7 +309,7 @@ query_segment_type (struct dcss_segment *seg)
 	}
 #endif
 	if (qout->segcnt > 6) {
-		rc = -ENOTSUPP;
+		rc = -EOPNOTSUPP;
 		goto out_free;
 	}
 
@@ -324,11 +324,11 @@ query_segment_type (struct dcss_segment *seg)
 		for (i=0; i<qout->segcnt; i++) {
 			if (((qout->range[i].start & 0xff) != SEG_TYPE_EW) &&
 			    ((qout->range[i].start & 0xff) != SEG_TYPE_EN)) {
-				rc = -ENOTSUPP;
+				rc = -EOPNOTSUPP;
 				goto out_free;
 			}
 			if (start != qout->range[i].start >> PAGE_SHIFT) {
-				rc = -ENOTSUPP;
+				rc = -EOPNOTSUPP;
 				goto out_free;
 			}
 			start = (qout->range[i].end >> PAGE_SHIFT) + 1;
@@ -357,7 +357,7 @@ query_segment_type (struct dcss_segment *seg)
  * -ENOSYS  : we are not running on VM
  * -EIO     : could not perform query diagnose
  * -ENOENT  : no such segment
- * -ENOTSUPP: multi-part segment cannot be used with linux
+ * -EOPNOTSUPP: multi-part segment cannot be used with linux
  * -ENOMEM  : out of memory
  * 0 .. 6   : type of segment as defined in include/asm-s390/extmem.h
  */
@@ -515,7 +515,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
  * -ENOSYS  : we are not running on VM
  * -EIO     : could not perform query or load diagnose
  * -ENOENT  : no such segment
- * -ENOTSUPP: multi-part segment cannot be used with linux
+ * -EOPNOTSUPP: multi-part segment cannot be used with linux
  * -ENOSPC  : segment cannot be used (overlaps with storage)
  * -EBUSY   : segment can temporarily not be used (overlaps with dcss)
  * -ERANGE  : segment cannot be used (exceeds kernel mapping range)
@@ -742,7 +742,7 @@ void segment_warning(int rc, char *seg_name)
 		pr_err("Loading or querying DCSS %s resulted in a "
 		       "hardware error\n", seg_name);
 		break;
-	case -ENOTSUPP:
+	case -EOPNOTSUPP:
 		pr_err("DCSS %s has multiple page ranges and cannot be "
 		       "loaded or queried\n", seg_name);
 		break;

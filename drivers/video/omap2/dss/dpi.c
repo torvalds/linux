@@ -25,7 +25,10 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 
 #include <plat/display.h>
 #include <plat/cpu.h>
@@ -33,7 +36,7 @@
 #include "dss.h"
 
 static struct {
-	int update_enabled;
+	struct regulator *vdds_dsi_reg;
 } dpi;
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
@@ -53,7 +56,7 @@ static int dpi_set_dsi_clk(bool is_tft, unsigned long pck_req,
 	if (r)
 		return r;
 
-	dss_select_clk_source(0, 1);
+	dss_select_dispc_clk_source(DSS_SRC_DSI1_PLL_FCLK);
 
 	r = dispc_set_clock_div(&dispc_cinfo);
 	if (r)
@@ -150,7 +153,7 @@ static int dpi_basic_init(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static int dpi_display_enable(struct omap_dss_device *dssdev)
+int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 {
 	int r;
 
@@ -160,10 +163,10 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 		goto err0;
 	}
 
-	if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED) {
-		DSSERR("display already enabled\n");
-		r = -EINVAL;
-		goto err1;
+	if (cpu_is_omap34xx()) {
+		r = regulator_enable(dpi.vdds_dsi_reg);
+		if (r)
+			goto err1;
 	}
 
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
@@ -184,18 +187,10 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mdelay(2);
 
-	dispc_enable_lcd_out(1);
-
-	r = dssdev->driver->enable(dssdev);
-	if (r)
-		goto err5;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+	dssdev->manager->enable(dssdev->manager);
 
 	return 0;
 
-err5:
-	dispc_enable_lcd_out(0);
 err4:
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
 	dsi_pll_uninit();
@@ -204,78 +199,35 @@ err3:
 #endif
 err2:
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	if (cpu_is_omap34xx())
+		regulator_disable(dpi.vdds_dsi_reg);
 err1:
 	omap_dss_stop_device(dssdev);
 err0:
 	return r;
 }
+EXPORT_SYMBOL(omapdss_dpi_display_enable);
 
-static int dpi_display_resume(struct omap_dss_device *dssdev);
-
-static void dpi_display_disable(struct omap_dss_device *dssdev)
+void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 {
-	if (dssdev->state == OMAP_DSS_DISPLAY_DISABLED)
-		return;
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
-		dpi_display_resume(dssdev);
-
-	dssdev->driver->disable(dssdev);
-
-	dispc_enable_lcd_out(0);
+	dssdev->manager->disable(dssdev->manager);
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
-	dss_select_clk_source(0, 0);
+	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 	dsi_pll_uninit();
 	dss_clk_disable(DSS_CLK_FCK2);
 #endif
 
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
+	if (cpu_is_omap34xx())
+		regulator_disable(dpi.vdds_dsi_reg);
 
 	omap_dss_stop_device(dssdev);
 }
+EXPORT_SYMBOL(omapdss_dpi_display_disable);
 
-static int dpi_display_suspend(struct omap_dss_device *dssdev)
-{
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
-		return -EINVAL;
-
-	DSSDBG("dpi_display_suspend\n");
-
-	if (dssdev->driver->suspend)
-		dssdev->driver->suspend(dssdev);
-
-	dispc_enable_lcd_out(0);
-
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-
-	return 0;
-}
-
-static int dpi_display_resume(struct omap_dss_device *dssdev)
-{
-	if (dssdev->state != OMAP_DSS_DISPLAY_SUSPENDED)
-		return -EINVAL;
-
-	DSSDBG("dpi_display_resume\n");
-
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
-
-	dispc_enable_lcd_out(1);
-
-	if (dssdev->driver->resume)
-		dssdev->driver->resume(dssdev);
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
-}
-
-static void dpi_set_timings(struct omap_dss_device *dssdev,
+void dpi_set_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
 	DSSDBG("dpi_set_timings\n");
@@ -285,8 +237,9 @@ static void dpi_set_timings(struct omap_dss_device *dssdev,
 		dispc_go(OMAP_DSS_CHANNEL_LCD);
 	}
 }
+EXPORT_SYMBOL(dpi_set_timings);
 
-static int dpi_check_timings(struct omap_dss_device *dssdev,
+int dpi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
 	bool is_tft;
@@ -340,56 +293,25 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 
 	return 0;
 }
-
-static void dpi_get_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings)
-{
-	*timings = dssdev->panel.timings;
-}
-
-static int dpi_display_set_update_mode(struct omap_dss_device *dssdev,
-		enum omap_dss_update_mode mode)
-{
-	if (mode == OMAP_DSS_UPDATE_MANUAL)
-		return -EINVAL;
-
-	if (mode == OMAP_DSS_UPDATE_DISABLED) {
-		dispc_enable_lcd_out(0);
-		dpi.update_enabled = 0;
-	} else {
-		dispc_enable_lcd_out(1);
-		dpi.update_enabled = 1;
-	}
-
-	return 0;
-}
-
-static enum omap_dss_update_mode dpi_display_get_update_mode(
-		struct omap_dss_device *dssdev)
-{
-	return dpi.update_enabled ? OMAP_DSS_UPDATE_AUTO :
-		OMAP_DSS_UPDATE_DISABLED;
-}
+EXPORT_SYMBOL(dpi_check_timings);
 
 int dpi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
-	dssdev->enable = dpi_display_enable;
-	dssdev->disable = dpi_display_disable;
-	dssdev->suspend = dpi_display_suspend;
-	dssdev->resume = dpi_display_resume;
-	dssdev->set_timings = dpi_set_timings;
-	dssdev->check_timings = dpi_check_timings;
-	dssdev->get_timings = dpi_get_timings;
-	dssdev->set_update_mode = dpi_display_set_update_mode;
-	dssdev->get_update_mode = dpi_display_get_update_mode;
-
 	return 0;
 }
 
-int dpi_init(void)
+int dpi_init(struct platform_device *pdev)
 {
+	if (cpu_is_omap34xx()) {
+		dpi.vdds_dsi_reg = dss_get_vdds_dsi();
+		if (IS_ERR(dpi.vdds_dsi_reg)) {
+			DSSERR("can't get VDDS_DSI regulator\n");
+			return PTR_ERR(dpi.vdds_dsi_reg);
+		}
+	}
+
 	return 0;
 }
 

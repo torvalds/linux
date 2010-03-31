@@ -365,7 +365,7 @@ int mpc8xxx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	if ((mpc8xxx_spi->spibrg / hz) > 64) {
 		cs->hw_mode |= SPMODE_DIV16;
-		pm = mpc8xxx_spi->spibrg / (hz * 64);
+		pm = (mpc8xxx_spi->spibrg - 1) / (hz * 64) + 1;
 
 		WARN_ONCE(pm > 16, "%s: Requested speed is too low: %d Hz. "
 			  "Will use %d Hz instead.\n", dev_name(&spi->dev),
@@ -373,7 +373,7 @@ int mpc8xxx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		if (pm > 16)
 			pm = 16;
 	} else
-		pm = mpc8xxx_spi->spibrg / (hz * 4);
+		pm = (mpc8xxx_spi->spibrg - 1) / (hz * 4) + 1;
 	if (pm)
 		pm--;
 
@@ -1328,7 +1328,7 @@ static struct of_platform_driver of_mpc8xxx_spi_driver = {
 static int __devinit plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
-	unsigned int irq;
+	int irq;
 	struct spi_master *master;
 
 	if (!pdev->dev.platform_data)
@@ -1339,7 +1339,7 @@ static int __devinit plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq)
+	if (irq <= 0)
 		return -EINVAL;
 
 	master = mpc8xxx_spi_probe(&pdev->dev, mem, irq);

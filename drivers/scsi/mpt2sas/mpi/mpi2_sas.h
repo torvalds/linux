@@ -6,7 +6,7 @@
  *          Title:  MPI Serial Attached SCSI structures and definitions
  *  Creation Date:  February 9, 2007
  *
- *  mpi2.h Version:  02.00.02
+ *  mpi2.h Version:  02.00.03
  *
  *  Version History
  *  ---------------
@@ -18,6 +18,8 @@
  *                      Control Request.
  *  10-02-08  02.00.02  Added Set IOC Parameter Operation to SAS IO Unit Control
  *                      Request.
+ *  10-28-09  02.00.03  Changed the type of SGL in MPI2_SATA_PASSTHROUGH_REQUEST
+ *                      to MPI2_SGE_IO_UNION since it supports chained SGLs.
  *  --------------------------------------------------------------------------
  */
 
@@ -160,7 +162,7 @@ typedef struct _MPI2_SATA_PASSTHROUGH_REQUEST
     U32                     Reserved4;          /* 0x14 */
     U32                     DataLength;         /* 0x18 */
     U8                      CommandFIS[20];     /* 0x1C */
-    MPI2_SIMPLE_SGE_UNION   SGL;                /* 0x20 */
+    MPI2_SGE_IO_UNION       SGL;                /* 0x20 */
 } MPI2_SATA_PASSTHROUGH_REQUEST, MPI2_POINTER PTR_MPI2_SATA_PASSTHROUGH_REQUEST,
   Mpi2SataPassthroughRequest_t, MPI2_POINTER pMpi2SataPassthroughRequest_t;
 

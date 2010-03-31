@@ -118,6 +118,7 @@ struct lpfc_scsi_buf {
 
 	uint32_t timeout;
 
+	uint16_t exch_busy;     /* SLI4 hba reported XB on complete WCQE */
 	uint16_t status;	/* From IOCB Word 7- ulpStatus */
 	uint32_t result;	/* From IOCB Word 4. */
 

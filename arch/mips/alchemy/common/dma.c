@@ -29,6 +29,8 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
+
+#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -188,17 +190,14 @@ int request_au1000_dma(int dev_id, const char *dev_str,
 		dev = &dma_dev_table[dev_id];
 
 	if (irqhandler) {
-		chan->irq = AU1000_DMA_INT_BASE + i;
 		chan->irq_dev = irq_dev_id;
 		ret = request_irq(chan->irq, irqhandler, irqflags, dev_str,
 				  chan->irq_dev);
 		if (ret) {
-			chan->irq = 0;
 			chan->irq_dev = NULL;
 			return ret;
 		}
 	} else {
-		chan->irq = 0;
 		chan->irq_dev = NULL;
 	}
 
@@ -226,13 +225,40 @@ void free_au1000_dma(unsigned int dmanr)
 	}
 
 	disable_dma(dmanr);
-	if (chan->irq)
+	if (chan->irq_dev)
 		free_irq(chan->irq, chan->irq_dev);
 
-	chan->irq = 0;
 	chan->irq_dev = NULL;
 	chan->dev_id = -1;
 }
 EXPORT_SYMBOL(free_au1000_dma);
+
+static int __init au1000_dma_init(void)
+{
+        int base, i;
+
+        switch (alchemy_get_cputype()) {
+        case ALCHEMY_CPU_AU1000:
+                base = AU1000_DMA_INT_BASE;
+                break;
+        case ALCHEMY_CPU_AU1500:
+                base = AU1500_DMA_INT_BASE;
+                break;
+        case ALCHEMY_CPU_AU1100:
+                base = AU1100_DMA_INT_BASE;
+                break;
+        default:
+                goto out;
+        }
+
+        for (i = 0; i < NUM_AU1000_DMA_CHANNELS; i++)
+                au1000_dma_table[i].irq = base + i;
+
+        printk(KERN_INFO "Alchemy DMA initialized\n");
+
+out:
+        return 0;
+}
+arch_initcall(au1000_dma_init);
 
 #endif /* AU1000 AU1500 AU1100 */

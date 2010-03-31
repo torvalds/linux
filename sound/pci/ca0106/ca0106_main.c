@@ -1875,7 +1875,7 @@ static int snd_ca0106_resume(struct pci_dev *pci)
 #endif
 
 // PCI IDs
-static struct pci_device_id snd_ca0106_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_ca0106_ids) = {
 	{ PCI_VDEVICE(CREATIVE, 0x0007), 0 },	/* Audigy LS or Live 24bit */
 	{ 0, }
 };

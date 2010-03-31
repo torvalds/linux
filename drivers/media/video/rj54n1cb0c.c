@@ -165,7 +165,7 @@ struct rj54n1_reg_val {
 	u8 val;
 };
 
-const static struct rj54n1_reg_val bank_4[] = {
+static const struct rj54n1_reg_val bank_4[] = {
 	{0x417, 0},
 	{0x42c, 0},
 	{0x42d, 0xf0},
@@ -186,7 +186,7 @@ const static struct rj54n1_reg_val bank_4[] = {
 	{0x4fe, 2},
 };
 
-const static struct rj54n1_reg_val bank_5[] = {
+static const struct rj54n1_reg_val bank_5[] = {
 	{0x514, 0},
 	{0x516, 0},
 	{0x518, 0},
@@ -207,7 +207,7 @@ const static struct rj54n1_reg_val bank_5[] = {
 	{0x5fe, 2},
 };
 
-const static struct rj54n1_reg_val bank_7[] = {
+static const struct rj54n1_reg_val bank_7[] = {
 	{0x70a, 0},
 	{0x714, 0xff},
 	{0x715, 0xff},
@@ -215,7 +215,7 @@ const static struct rj54n1_reg_val bank_7[] = {
 	{0x7FE, 2},
 };
 
-const static struct rj54n1_reg_val bank_8[] = {
+static const struct rj54n1_reg_val bank_8[] = {
 	{0x800, 0x00},
 	{0x801, 0x01},
 	{0x802, 0x61},
@@ -403,12 +403,12 @@ const static struct rj54n1_reg_val bank_8[] = {
 	{0x8FE, 2},
 };
 
-const static struct rj54n1_reg_val bank_10[] = {
+static const struct rj54n1_reg_val bank_10[] = {
 	{0x10bf, 0x69}
 };
 
 /* Clock dividers - these are default register values, divider = register + 1 */
-const static struct rj54n1_clock_div clk_div = {
+static const struct rj54n1_clock_div clk_div = {
 	.ratio_tg	= 3 /* default: 5 */,
 	.ratio_t	= 4 /* default: 1 */,
 	.ratio_r	= 4 /* default: 0 */,

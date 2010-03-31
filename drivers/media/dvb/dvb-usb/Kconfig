@@ -336,3 +336,11 @@ config DVB_USB_EC168
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the E3C EC168 DVB-T USB2.0 receiver.
+
+config DVB_USB_AZ6027
+	tristate "Azurewave DVB-S/S2 USB2.0 AZ6027 support"
+	depends on DVB_USB
+	select DVB_STB0899 if !DVB_FE_CUSTOMISE
+	select DVB_STB6100 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the AZ6027 device

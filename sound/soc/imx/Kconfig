@@ -1,21 +1,13 @@
-config SND_MX1_MX2_SOC
-	tristate "SoC Audio for Freecale i.MX1x i.MX2x CPUs"
-	depends on ARCH_MX2 || ARCH_MX1
+config SND_IMX_SOC
+	tristate "SoC Audio for Freescale i.MX CPUs"
+	depends on ARCH_MXC && BROKEN
 	select SND_PCM
+	select FIQ
+	select SND_SOC_AC97_BUS
 	help
 	  Say Y or M if you want to add support for codecs attached to
-	  the MX1 or MX2 SSI interface.
+	  the i.MX SSI interface.
 
 config SND_MXC_SOC_SSI
 	tristate
-
-config SND_SOC_MX27VIS_WM8974
-	tristate "SoC Audio support for MX27 - WM8974 Visstrim_sm10 board"
-	depends on SND_MX1_MX2_SOC && MACH_MX27 && MACH_IMX27_VISSTRIM_M10
-	select SND_MXC_SOC_SSI
-	select SND_SOC_WM8974
-	help
-	  Say Y if you want to add support for SoC audio on Visstrim SM10
-	  board with WM8974.
-
 

@@ -103,7 +103,7 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 		area = get_vm_area(size, VM_IOREMAP);
 		if (area == NULL)
 			return NULL;
-		v = VMALLOC_VMADDR(area->addr);
+		v = (unsigned long) area->addr;
 	} else {
 		v = (ioremap_bot -= size);
 	}

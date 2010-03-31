@@ -46,7 +46,7 @@ void hpfs_read_inode(struct inode *i)
 	struct fnode *fnode;
 	struct super_block *sb = i->i_sb;
 	struct hpfs_inode_info *hpfs_inode = hpfs_i(i);
-	unsigned char *ea;
+	void *ea;
 	int ea_size;
 
 	if (!(fnode = hpfs_map_fnode(sb, i->i_ino, &bh))) {
@@ -112,7 +112,7 @@ void hpfs_read_inode(struct inode *i)
 		}
 	}
 	if (fnode->dirflag) {
-		unsigned n_dnodes, n_subdirs;
+		int n_dnodes, n_subdirs;
 		i->i_mode |= S_IFDIR;
 		i->i_op = &hpfs_dir_iops;
 		i->i_fop = &hpfs_dir_ops;

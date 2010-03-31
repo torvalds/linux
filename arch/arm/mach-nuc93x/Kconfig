@@ -1,0 +1,19 @@
+if ARCH_NUC93X
+
+config CPU_NUC932
+	bool
+	help
+	  Support for NUC932 of Nuvoton NUC93X CPUs.
+
+menu "NUC932 Machines"
+
+config MACH_NUC932EVB
+	bool "Nuvoton NUC932 Evaluation Board"
+	default y
+	select CPU_NUC932
+	help
+	   Say Y here if you are using the Nuvoton NUC932EVB
+
+endmenu
+
+endif

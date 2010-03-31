@@ -43,7 +43,7 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
     int i, found;
     gdth_cmd_str    gdtcmd;
     gdth_cpar_str   *pcpar;
-    ulong64         paddr;
+    u64         paddr;
 
     char            cmnd[MAX_COMMAND_SIZE];
     memset(cmnd, 0xff, 12);
@@ -156,8 +156,8 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     off_t begin = 0,pos = 0;
     int id, i, j, k, sec, flag;
     int no_mdrv = 0, drv_no, is_mirr;
-    ulong32 cnt;
-    ulong64 paddr;
+    u32 cnt;
+    u64 paddr;
     int rc = -ENOMEM;
 
     gdth_cmd_str *gdtcmd;
@@ -220,14 +220,14 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
 
     if (ha->more_proc)
         sprintf(hrec, "%d.%02d.%02d-%c%03X", 
-                (unchar)(ha->binfo.upd_fw_ver>>24),
-                (unchar)(ha->binfo.upd_fw_ver>>16),
-                (unchar)(ha->binfo.upd_fw_ver),
+                (u8)(ha->binfo.upd_fw_ver>>24),
+                (u8)(ha->binfo.upd_fw_ver>>16),
+                (u8)(ha->binfo.upd_fw_ver),
                 ha->bfeat.raid ? 'R':'N',
                 ha->binfo.upd_revision);
     else
-        sprintf(hrec, "%d.%02d", (unchar)(ha->cpar.version>>8),
-                (unchar)(ha->cpar.version));
+        sprintf(hrec, "%d.%02d", (u8)(ha->cpar.version>>8),
+                (u8)(ha->cpar.version));
 
     size = sprintf(buffer+len,
                    " Driver Ver.:  \t%-10s\tFirmware Ver.: \t%s\n",
@@ -281,7 +281,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
             pds->bid = ha->raw[i].local_no;
             pds->first = 0;
             pds->entries = ha->raw[i].pdev_cnt;
-            cnt = (3*GDTH_SCRATCH/4 - 5 * sizeof(ulong32)) /
+            cnt = (3*GDTH_SCRATCH/4 - 5 * sizeof(u32)) /
                 sizeof(pds->list[0]);
             if (pds->entries > cnt)
                 pds->entries = cnt;
@@ -604,7 +604,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
 
             size = sprintf(buffer+len,
                            " Capacity [MB]:\t%-6d    \tStart Sector:  \t%d\n",
-                           (ulong32)(ha->hdr[i].size/2048), ha->hdr[i].start_sec);
+                           (u32)(ha->hdr[i].size/2048), ha->hdr[i].start_sec);
             len += size;  pos = begin + len;
             if (pos < offset) {
                 len = 0;
@@ -664,9 +664,9 @@ free_fail:
 }
 
 static char *gdth_ioctl_alloc(gdth_ha_str *ha, int size, int scratch,
-                              ulong64 *paddr)
+                              u64 *paddr)
 {
-    ulong flags;
+    unsigned long flags;
     char *ret_val;
 
     if (size == 0)
@@ -691,9 +691,9 @@ static char *gdth_ioctl_alloc(gdth_ha_str *ha, int size, int scratch,
     return ret_val;
 }
 
-static void gdth_ioctl_free(gdth_ha_str *ha, int size, char *buf, ulong64 paddr)
+static void gdth_ioctl_free(gdth_ha_str *ha, int size, char *buf, u64 paddr)
 {
-    ulong flags;
+    unsigned long flags;
 
     if (buf == ha->pscratch) {
 	spin_lock_irqsave(&ha->smp_lock, flags);
@@ -705,16 +705,16 @@ static void gdth_ioctl_free(gdth_ha_str *ha, int size, char *buf, ulong64 paddr)
 }
 
 #ifdef GDTH_IOCTL_PROC
-static int gdth_ioctl_check_bin(gdth_ha_str *ha, ushort size)
+static int gdth_ioctl_check_bin(gdth_ha_str *ha, u16 size)
 {
-    ulong flags;
+    unsigned long flags;
     int ret_val;
 
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     ret_val = FALSE;
     if (ha->scratch_busy) {
-        if (((gdth_iord_str *)ha->pscratch)->size == (ulong32)size)
+        if (((gdth_iord_str *)ha->pscratch)->size == (u32)size)
             ret_val = TRUE;
     }
     spin_unlock_irqrestore(&ha->smp_lock, flags);
@@ -724,11 +724,11 @@ static int gdth_ioctl_check_bin(gdth_ha_str *ha, ushort size)
 
 static void gdth_wait_completion(gdth_ha_str *ha, int busnum, int id)
 {
-    ulong flags;
+    unsigned long flags;
     int i;
     Scsi_Cmnd *scp;
     struct gdth_cmndinfo *cmndinfo;
-    unchar b, t;
+    u8 b, t;
 
     spin_lock_irqsave(&ha->smp_lock, flags);
 
@@ -738,8 +738,8 @@ static void gdth_wait_completion(gdth_ha_str *ha, int busnum, int id)
 
         b = scp->device->channel;
         t = scp->device->id;
-        if (!SPECIAL_SCP(scp) && t == (unchar)id && 
-            b == (unchar)busnum) {
+        if (!SPECIAL_SCP(scp) && t == (u8)id && 
+            b == (u8)busnum) {
             cmndinfo->wait_for_completion = 0;
             spin_unlock_irqrestore(&ha->smp_lock, flags);
             while (!cmndinfo->wait_for_completion)

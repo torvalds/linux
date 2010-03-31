@@ -13,9 +13,56 @@
 
 #ifdef CONFIG_CPM1
 #include <asm/cpm1.h>
+#endif
+
+#if defined(CONFIG_FS_ENET_HAS_FEC)
+#include <asm/cpm.h>
+
+#if defined(CONFIG_FS_ENET_MPC5121_FEC)
+/* MPC5121 FEC has different register layout */
+struct fec {
+	u32 fec_reserved0;
+	u32 fec_ievent;			/* Interrupt event reg */
+	u32 fec_imask;			/* Interrupt mask reg */
+	u32 fec_reserved1;
+	u32 fec_r_des_active;		/* Receive descriptor reg */
+	u32 fec_x_des_active;		/* Transmit descriptor reg */
+	u32 fec_reserved2[3];
+	u32 fec_ecntrl;			/* Ethernet control reg */
+	u32 fec_reserved3[6];
+	u32 fec_mii_data;		/* MII manage frame reg */
+	u32 fec_mii_speed;		/* MII speed control reg */
+	u32 fec_reserved4[7];
+	u32 fec_mib_ctrlstat;		/* MIB control/status reg */
+	u32 fec_reserved5[7];
+	u32 fec_r_cntrl;		/* Receive control reg */
+	u32 fec_reserved6[15];
+	u32 fec_x_cntrl;		/* Transmit Control reg */
+	u32 fec_reserved7[7];
+	u32 fec_addr_low;		/* Low 32bits MAC address */
+	u32 fec_addr_high;		/* High 16bits MAC address */
+	u32 fec_opd;			/* Opcode + Pause duration */
+	u32 fec_reserved8[10];
+	u32 fec_hash_table_high;	/* High 32bits hash table */
+	u32 fec_hash_table_low;		/* Low 32bits hash table */
+	u32 fec_grp_hash_table_high;	/* High 32bits hash table */
+	u32 fec_grp_hash_table_low;	/* Low 32bits hash table */
+	u32 fec_reserved9[7];
+	u32 fec_x_wmrk;			/* FIFO transmit water mark */
+	u32 fec_reserved10;
+	u32 fec_r_bound;		/* FIFO receive bound reg */
+	u32 fec_r_fstart;		/* FIFO receive start reg */
+	u32 fec_reserved11[11];
+	u32 fec_r_des_start;		/* Receive descriptor ring */
+	u32 fec_x_des_start;		/* Transmit descriptor ring */
+	u32 fec_r_buff_size;		/* Maximum receive buff size */
+	u32 fec_reserved12[26];
+	u32 fec_dma_control;		/* DMA Endian and other ctrl */
+};
+#endif
 
 struct fec_info {
-	fec_t __iomem *fecp;
+	struct fec __iomem *fecp;
 	u32 mii_speed;
 };
 #endif

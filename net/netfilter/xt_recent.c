@@ -28,6 +28,7 @@
 #include <linux/skbuff.h>
 #include <linux/inet.h>
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_recent.h>
@@ -52,7 +53,7 @@ module_param(ip_list_perms, uint, 0400);
 module_param(ip_list_uid, uint, 0400);
 module_param(ip_list_gid, uint, 0400);
 MODULE_PARM_DESC(ip_list_tot, "number of IPs to remember per list");
-MODULE_PARM_DESC(ip_pkt_list_tot, "number of packets per IP to remember (max. 255)");
+MODULE_PARM_DESC(ip_pkt_list_tot, "number of packets per IP address to remember (max. 255)");
 MODULE_PARM_DESC(ip_list_hash_size, "size of hash table used to look up IPs");
 MODULE_PARM_DESC(ip_list_perms, "permissions on /proc/net/xt_recent/* files");
 MODULE_PARM_DESC(ip_list_uid,"owner of /proc/net/xt_recent/* files");
@@ -78,37 +79,40 @@ struct recent_table {
 	struct list_head	iphash[0];
 };
 
-static LIST_HEAD(tables);
+struct recent_net {
+	struct list_head	tables;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry	*xt_recent;
+#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
+	struct proc_dir_entry	*ipt_recent;
+#endif
+#endif
+};
+
+static int recent_net_id;
+static inline struct recent_net *recent_pernet(struct net *net)
+{
+	return net_generic(net, recent_net_id);
+}
+
 static DEFINE_SPINLOCK(recent_lock);
 static DEFINE_MUTEX(recent_mutex);
 
 #ifdef CONFIG_PROC_FS
-#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-static struct proc_dir_entry *proc_old_dir;
-#endif
-static struct proc_dir_entry *recent_proc_dir;
 static const struct file_operations recent_old_fops, recent_mt_fops;
 #endif
 
-static u_int32_t hash_rnd;
-static bool hash_rnd_initted;
+static u_int32_t hash_rnd __read_mostly;
+static bool hash_rnd_inited __read_mostly;
 
-static unsigned int recent_entry_hash4(const union nf_inet_addr *addr)
+static inline unsigned int recent_entry_hash4(const union nf_inet_addr *addr)
 {
-	if (!hash_rnd_initted) {
-		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
-		hash_rnd_initted = true;
-	}
 	return jhash_1word((__force u32)addr->ip, hash_rnd) &
 	       (ip_list_hash_size - 1);
 }
 
-static unsigned int recent_entry_hash6(const union nf_inet_addr *addr)
+static inline unsigned int recent_entry_hash6(const union nf_inet_addr *addr)
 {
-	if (!hash_rnd_initted) {
-		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
-		hash_rnd_initted = true;
-	}
 	return jhash2((u32 *)addr->ip6, ARRAY_SIZE(addr->ip6), hash_rnd) &
 	       (ip_list_hash_size - 1);
 }
@@ -173,18 +177,19 @@ recent_entry_init(struct recent_table *t, const union nf_inet_addr *addr,
 
 static void recent_entry_update(struct recent_table *t, struct recent_entry *e)
 {
+	e->index %= ip_pkt_list_tot;
 	e->stamps[e->index++] = jiffies;
 	if (e->index > e->nstamps)
 		e->nstamps = e->index;
-	e->index %= ip_pkt_list_tot;
 	list_move_tail(&e->lru_list, &t->lru_list);
 }
 
-static struct recent_table *recent_table_lookup(const char *name)
+static struct recent_table *recent_table_lookup(struct recent_net *recent_net,
+						const char *name)
 {
 	struct recent_table *t;
 
-	list_for_each_entry(t, &tables, list)
+	list_for_each_entry(t, &recent_net->tables, list)
 		if (!strcmp(t->name, name))
 			return t;
 	return NULL;
@@ -203,6 +208,8 @@ static void recent_table_flush(struct recent_table *t)
 static bool
 recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
+	struct net *net = dev_net(par->in ? par->in : par->out);
+	struct recent_net *recent_net = recent_pernet(net);
 	const struct xt_recent_mtinfo *info = par->matchinfo;
 	struct recent_table *t;
 	struct recent_entry *e;
@@ -235,7 +242,7 @@ recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		ttl++;
 
 	spin_lock_bh(&recent_lock);
-	t = recent_table_lookup(info->name);
+	t = recent_table_lookup(recent_net, info->name);
 	e = recent_entry_lookup(t, &addr, par->match->family,
 				(info->check_set & XT_RECENT_TTL) ? ttl : 0);
 	if (e == NULL) {
@@ -260,7 +267,7 @@ recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		for (i = 0; i < e->nstamps; i++) {
 			if (info->seconds && time_after(time, e->stamps[i]))
 				continue;
-			if (++hits >= info->hit_count) {
+			if (info->hit_count && ++hits >= info->hit_count) {
 				ret = !ret;
 				break;
 			}
@@ -279,6 +286,7 @@ out:
 
 static bool recent_mt_check(const struct xt_mtchk_param *par)
 {
+	struct recent_net *recent_net = recent_pernet(par->net);
 	const struct xt_recent_mtinfo *info = par->matchinfo;
 	struct recent_table *t;
 #ifdef CONFIG_PROC_FS
@@ -287,6 +295,10 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 	unsigned i;
 	bool ret = false;
 
+	if (unlikely(!hash_rnd_inited)) {
+		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
+		hash_rnd_inited = true;
+	}
 	if (hweight8(info->check_set &
 		     (XT_RECENT_SET | XT_RECENT_REMOVE |
 		      XT_RECENT_CHECK | XT_RECENT_UPDATE)) != 1)
@@ -294,14 +306,18 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 	if ((info->check_set & (XT_RECENT_SET | XT_RECENT_REMOVE)) &&
 	    (info->seconds || info->hit_count))
 		return false;
-	if (info->hit_count > ip_pkt_list_tot)
+	if (info->hit_count > ip_pkt_list_tot) {
+		pr_info(KBUILD_MODNAME ": hitcount (%u) is larger than "
+			"packets to be remembered (%u)\n",
+			info->hit_count, ip_pkt_list_tot);
 		return false;
+	}
 	if (info->name[0] == '\0' ||
 	    strnlen(info->name, XT_RECENT_NAME_LEN) == XT_RECENT_NAME_LEN)
 		return false;
 
 	mutex_lock(&recent_mutex);
-	t = recent_table_lookup(info->name);
+	t = recent_table_lookup(recent_net, info->name);
 	if (t != NULL) {
 		t->refcnt++;
 		ret = true;
@@ -318,7 +334,7 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 	for (i = 0; i < ip_list_hash_size; i++)
 		INIT_LIST_HEAD(&t->iphash[i]);
 #ifdef CONFIG_PROC_FS
-	pde = proc_create_data(t->name, ip_list_perms, recent_proc_dir,
+	pde = proc_create_data(t->name, ip_list_perms, recent_net->xt_recent,
 		  &recent_mt_fops, t);
 	if (pde == NULL) {
 		kfree(t);
@@ -327,10 +343,10 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 	pde->uid = ip_list_uid;
 	pde->gid = ip_list_gid;
 #ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-	pde = proc_create_data(t->name, ip_list_perms, proc_old_dir,
+	pde = proc_create_data(t->name, ip_list_perms, recent_net->ipt_recent,
 		      &recent_old_fops, t);
 	if (pde == NULL) {
-		remove_proc_entry(t->name, proc_old_dir);
+		remove_proc_entry(t->name, recent_net->xt_recent);
 		kfree(t);
 		goto out;
 	}
@@ -339,7 +355,7 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 #endif
 #endif
 	spin_lock_bh(&recent_lock);
-	list_add_tail(&t->list, &tables);
+	list_add_tail(&t->list, &recent_net->tables);
 	spin_unlock_bh(&recent_lock);
 	ret = true;
 out:
@@ -349,20 +365,21 @@ out:
 
 static void recent_mt_destroy(const struct xt_mtdtor_param *par)
 {
+	struct recent_net *recent_net = recent_pernet(par->net);
 	const struct xt_recent_mtinfo *info = par->matchinfo;
 	struct recent_table *t;
 
 	mutex_lock(&recent_mutex);
-	t = recent_table_lookup(info->name);
+	t = recent_table_lookup(recent_net, info->name);
 	if (--t->refcnt == 0) {
 		spin_lock_bh(&recent_lock);
 		list_del(&t->list);
 		spin_unlock_bh(&recent_lock);
 #ifdef CONFIG_PROC_FS
 #ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-		remove_proc_entry(t->name, proc_old_dir);
+		remove_proc_entry(t->name, recent_net->ipt_recent);
 #endif
-		remove_proc_entry(t->name, recent_proc_dir);
+		remove_proc_entry(t->name, recent_net->xt_recent);
 #endif
 		recent_table_flush(t);
 		kfree(t);
@@ -611,7 +628,64 @@ static const struct file_operations recent_mt_fops = {
 	.release = seq_release_private,
 	.owner   = THIS_MODULE,
 };
+
+static int __net_init recent_proc_net_init(struct net *net)
+{
+	struct recent_net *recent_net = recent_pernet(net);
+
+	recent_net->xt_recent = proc_mkdir("xt_recent", net->proc_net);
+	if (!recent_net->xt_recent)
+		return -ENOMEM;
+#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
+	recent_net->ipt_recent = proc_mkdir("ipt_recent", net->proc_net);
+	if (!recent_net->ipt_recent) {
+		proc_net_remove(net, "xt_recent");
+		return -ENOMEM;
+	}
+#endif
+	return 0;
+}
+
+static void __net_exit recent_proc_net_exit(struct net *net)
+{
+#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
+	proc_net_remove(net, "ipt_recent");
+#endif
+	proc_net_remove(net, "xt_recent");
+}
+#else
+static inline int recent_proc_net_init(struct net *net)
+{
+	return 0;
+}
+
+static inline void recent_proc_net_exit(struct net *net)
+{
+}
 #endif /* CONFIG_PROC_FS */
+
+static int __net_init recent_net_init(struct net *net)
+{
+	struct recent_net *recent_net = recent_pernet(net);
+
+	INIT_LIST_HEAD(&recent_net->tables);
+	return recent_proc_net_init(net);
+}
+
+static void __net_exit recent_net_exit(struct net *net)
+{
+	struct recent_net *recent_net = recent_pernet(net);
+
+	BUG_ON(!list_empty(&recent_net->tables));
+	recent_proc_net_exit(net);
+}
+
+static struct pernet_operations recent_net_ops = {
+	.init	= recent_net_init,
+	.exit	= recent_net_exit,
+	.id	= &recent_net_id,
+	.size	= sizeof(struct recent_net),
+};
 
 static struct xt_match recent_mt_reg[] __read_mostly = {
 	{
@@ -644,39 +718,19 @@ static int __init recent_mt_init(void)
 		return -EINVAL;
 	ip_list_hash_size = 1 << fls(ip_list_tot);
 
-	err = xt_register_matches(recent_mt_reg, ARRAY_SIZE(recent_mt_reg));
-#ifdef CONFIG_PROC_FS
+	err = register_pernet_subsys(&recent_net_ops);
 	if (err)
 		return err;
-	recent_proc_dir = proc_mkdir("xt_recent", init_net.proc_net);
-	if (recent_proc_dir == NULL) {
-		xt_unregister_matches(recent_mt_reg, ARRAY_SIZE(recent_mt_reg));
-		err = -ENOMEM;
-	}
-#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-	if (err < 0)
-		return err;
-	proc_old_dir = proc_mkdir("ipt_recent", init_net.proc_net);
-	if (proc_old_dir == NULL) {
-		remove_proc_entry("xt_recent", init_net.proc_net);
-		xt_unregister_matches(recent_mt_reg, ARRAY_SIZE(recent_mt_reg));
-		err = -ENOMEM;
-	}
-#endif
-#endif
+	err = xt_register_matches(recent_mt_reg, ARRAY_SIZE(recent_mt_reg));
+	if (err)
+		unregister_pernet_subsys(&recent_net_ops);
 	return err;
 }
 
 static void __exit recent_mt_exit(void)
 {
-	BUG_ON(!list_empty(&tables));
 	xt_unregister_matches(recent_mt_reg, ARRAY_SIZE(recent_mt_reg));
-#ifdef CONFIG_PROC_FS
-#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-	remove_proc_entry("ipt_recent", init_net.proc_net);
-#endif
-	remove_proc_entry("xt_recent", init_net.proc_net);
-#endif
+	unregister_pernet_subsys(&recent_net_ops);
 }
 
 module_init(recent_mt_init);

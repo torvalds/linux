@@ -781,6 +781,32 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	return ret;
 }
 
+static int soc_camera_g_parm(struct file *file, void *fh,
+			     struct v4l2_streamparm *a)
+{
+	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+
+	if (ici->ops->get_parm)
+		return ici->ops->get_parm(icd, a);
+
+	return -ENOIOCTLCMD;
+}
+
+static int soc_camera_s_parm(struct file *file, void *fh,
+			     struct v4l2_streamparm *a)
+{
+	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+
+	if (ici->ops->set_parm)
+		return ici->ops->set_parm(icd, a);
+
+	return -ENOIOCTLCMD;
+}
+
 static int soc_camera_g_chip_ident(struct file *file, void *fh,
 				   struct v4l2_dbg_chip_ident *id)
 {
@@ -846,10 +872,8 @@ static int soc_camera_init_i2c(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct i2c_adapter *adap = i2c_get_adapter(icl->i2c_adapter_id);
 	struct v4l2_subdev *subdev;
-	int ret;
 
 	if (!adap) {
-		ret = -ENODEV;
 		dev_err(&icd->dev, "Cannot get I2C adapter #%d. No driver?\n",
 			icl->i2c_adapter_id);
 		goto ei2cga;
@@ -859,10 +883,8 @@ static int soc_camera_init_i2c(struct soc_camera_device *icd,
 
 	subdev = v4l2_i2c_new_subdev_board(&ici->v4l2_dev, adap,
 				icl->module_name, icl->board_info, NULL);
-	if (!subdev) {
-		ret = -ENOMEM;
+	if (!subdev)
 		goto ei2cnd;
-	}
 
 	client = subdev->priv;
 
@@ -873,7 +895,7 @@ static int soc_camera_init_i2c(struct soc_camera_device *icd,
 ei2cnd:
 	i2c_put_adapter(adap);
 ei2cga:
-	return ret;
+	return -ENODEV;
 }
 
 static void soc_camera_free_i2c(struct soc_camera_device *icd)
@@ -1260,6 +1282,8 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_cropcap		 = soc_camera_cropcap,
 	.vidioc_g_crop		 = soc_camera_g_crop,
 	.vidioc_s_crop		 = soc_camera_s_crop,
+	.vidioc_g_parm		 = soc_camera_g_parm,
+	.vidioc_s_parm		 = soc_camera_s_parm,
 	.vidioc_g_chip_ident     = soc_camera_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register	 = soc_camera_g_register,

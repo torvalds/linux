@@ -339,19 +339,12 @@ struct e1000_mac_info {
 
 	enum e1000_mac_type type;
 
-	u32 collision_delta;
 	u32 ledctl_default;
 	u32 ledctl_mode1;
 	u32 ledctl_mode2;
 	u32 mc_filter_type;
-	u32 tx_packet_delta;
 	u32 txcw;
 
-	u16 current_ifs_val;
-	u16 ifs_max_val;
-	u16 ifs_min_val;
-	u16 ifs_ratio;
-	u16 ifs_step_size;
 	u16 mta_reg_count;
 	u16 uta_reg_count;
 

@@ -41,10 +41,10 @@ struct netns_pfkey {
 	struct hlist_head table;
 	atomic_t socks_nr;
 };
-static DECLARE_WAIT_QUEUE_HEAD(pfkey_table_wait);
-static DEFINE_RWLOCK(pfkey_table_lock);
-static atomic_t pfkey_table_users = ATOMIC_INIT(0);
+static DEFINE_MUTEX(pfkey_mutex);
 
+#define DUMMY_MARK 0
+static struct xfrm_mark dummy_mark = {0, 0};
 struct pfkey_sock {
 	/* struct sock must be the first member of struct pfkey_sock */
 	struct sock	sk;
@@ -108,50 +108,6 @@ static void pfkey_sock_destruct(struct sock *sk)
 	atomic_dec(&net_pfkey->socks_nr);
 }
 
-static void pfkey_table_grab(void)
-{
-	write_lock_bh(&pfkey_table_lock);
-
-	if (atomic_read(&pfkey_table_users)) {
-		DECLARE_WAITQUEUE(wait, current);
-
-		add_wait_queue_exclusive(&pfkey_table_wait, &wait);
-		for(;;) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			if (atomic_read(&pfkey_table_users) == 0)
-				break;
-			write_unlock_bh(&pfkey_table_lock);
-			schedule();
-			write_lock_bh(&pfkey_table_lock);
-		}
-
-		__set_current_state(TASK_RUNNING);
-		remove_wait_queue(&pfkey_table_wait, &wait);
-	}
-}
-
-static __inline__ void pfkey_table_ungrab(void)
-{
-	write_unlock_bh(&pfkey_table_lock);
-	wake_up(&pfkey_table_wait);
-}
-
-static __inline__ void pfkey_lock_table(void)
-{
-	/* read_lock() synchronizes us to pfkey_table_grab */
-
-	read_lock(&pfkey_table_lock);
-	atomic_inc(&pfkey_table_users);
-	read_unlock(&pfkey_table_lock);
-}
-
-static __inline__ void pfkey_unlock_table(void)
-{
-	if (atomic_dec_and_test(&pfkey_table_users))
-		wake_up(&pfkey_table_wait);
-}
-
-
 static const struct proto_ops pfkey_ops;
 
 static void pfkey_insert(struct sock *sk)
@@ -159,16 +115,16 @@ static void pfkey_insert(struct sock *sk)
 	struct net *net = sock_net(sk);
 	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
 
-	pfkey_table_grab();
-	sk_add_node(sk, &net_pfkey->table);
-	pfkey_table_ungrab();
+	mutex_lock(&pfkey_mutex);
+	sk_add_node_rcu(sk, &net_pfkey->table);
+	mutex_unlock(&pfkey_mutex);
 }
 
 static void pfkey_remove(struct sock *sk)
 {
-	pfkey_table_grab();
-	sk_del_node_init(sk);
-	pfkey_table_ungrab();
+	mutex_lock(&pfkey_mutex);
+	sk_del_node_init_rcu(sk);
+	mutex_unlock(&pfkey_mutex);
 }
 
 static struct proto key_proto = {
@@ -223,6 +179,8 @@ static int pfkey_release(struct socket *sock)
 	sock_orphan(sk);
 	sock->sk = NULL;
 	skb_queue_purge(&sk->sk_write_queue);
+
+	synchronize_rcu();
 	sock_put(sk);
 
 	return 0;
@@ -277,8 +235,8 @@ static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 	if (!skb)
 		return -ENOMEM;
 
-	pfkey_lock_table();
-	sk_for_each(sk, node, &net_pfkey->table) {
+	rcu_read_lock();
+	sk_for_each_rcu(sk, node, &net_pfkey->table) {
 		struct pfkey_sock *pfk = pfkey_sk(sk);
 		int err2;
 
@@ -309,7 +267,7 @@ static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 		if ((broadcast_flags & BROADCAST_REGISTERED) && err)
 			err = err2;
 	}
-	pfkey_unlock_table();
+	rcu_read_unlock();
 
 	if (one_sk != NULL)
 		err = pfkey_broadcast_one(skb, &skb2, allocation, one_sk);
@@ -691,7 +649,7 @@ static struct  xfrm_state *pfkey_xfrm_state_lookup(struct net *net, struct sadb_
 	if (!xaddr)
 		return NULL;
 
-	return xfrm_state_lookup(net, xaddr, sa->sadb_sa_spi, proto, family);
+	return xfrm_state_lookup(net, DUMMY_MARK, xaddr, sa->sadb_sa_spi, proto, family);
 }
 
 #define PFKEY_ALIGN8(a) (1 + (((a) - 1) | (8 - 1)))
@@ -1360,7 +1318,7 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	}
 
 	if (hdr->sadb_msg_seq) {
-		x = xfrm_find_acq_byseq(net, hdr->sadb_msg_seq);
+		x = xfrm_find_acq_byseq(net, DUMMY_MARK, hdr->sadb_msg_seq);
 		if (x && xfrm_addr_cmp(&x->id.daddr, xdaddr, family)) {
 			xfrm_state_put(x);
 			x = NULL;
@@ -1368,7 +1326,7 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	}
 
 	if (!x)
-		x = xfrm_find_acq(net, mode, reqid, proto, xdaddr, xsaddr, 1, family);
+		x = xfrm_find_acq(net, &dummy_mark, mode, reqid, proto, xdaddr, xsaddr, 1, family);
 
 	if (x == NULL)
 		return -ENOENT;
@@ -1417,7 +1375,7 @@ static int pfkey_acquire(struct sock *sk, struct sk_buff *skb, struct sadb_msg *
 	if (hdr->sadb_msg_seq == 0 || hdr->sadb_msg_errno == 0)
 		return 0;
 
-	x = xfrm_find_acq_byseq(net, hdr->sadb_msg_seq);
+	x = xfrm_find_acq_byseq(net, DUMMY_MARK, hdr->sadb_msg_seq);
 	if (x == NULL)
 		return 0;
 
@@ -1712,6 +1670,23 @@ static int pfkey_register(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	return 0;
 }
 
+static int unicast_flush_resp(struct sock *sk, struct sadb_msg *ihdr)
+{
+	struct sk_buff *skb;
+	struct sadb_msg *hdr;
+
+	skb = alloc_skb(sizeof(struct sadb_msg) + 16, GFP_ATOMIC);
+	if (!skb)
+		return -ENOBUFS;
+
+	hdr = (struct sadb_msg *) skb_put(skb, sizeof(struct sadb_msg));
+	memcpy(hdr, ihdr, sizeof(struct sadb_msg));
+	hdr->sadb_msg_errno = (uint8_t) 0;
+	hdr->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
+
+	return pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ONE, sk, sock_net(sk));
+}
+
 static int key_notify_sa_flush(struct km_event *c)
 {
 	struct sk_buff *skb;
@@ -1740,7 +1715,7 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 	unsigned proto;
 	struct km_event c;
 	struct xfrm_audit audit_info;
-	int err;
+	int err, err2;
 
 	proto = pfkey_satype2proto(hdr->sadb_msg_satype);
 	if (proto == 0)
@@ -1750,8 +1725,13 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = 0;
 	err = xfrm_state_flush(net, proto, &audit_info);
-	if (err)
-		return err;
+	err2 = unicast_flush_resp(sk, hdr);
+	if (err || err2) {
+		if (err == -ESRCH) /* empty table - go quietly */
+			err = 0;
+		return err ? err : err2;
+	}
+
 	c.data.proto = proto;
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
@@ -2346,7 +2326,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 			return err;
 	}
 
-	xp = xfrm_policy_bysel_ctx(net, XFRM_POLICY_TYPE_MAIN,
+	xp = xfrm_policy_bysel_ctx(net, DUMMY_MARK, XFRM_POLICY_TYPE_MAIN,
 				   pol->sadb_x_policy_dir - 1, &sel, pol_ctx,
 				   1, &err);
 	security_xfrm_policy_free(pol_ctx);
@@ -2594,8 +2574,8 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 		return -EINVAL;
 
 	delete = (hdr->sadb_msg_type == SADB_X_SPDDELETE2);
-	xp = xfrm_policy_byid(net, XFRM_POLICY_TYPE_MAIN, dir,
-			      pol->sadb_x_policy_id, delete, &err);
+	xp = xfrm_policy_byid(net, DUMMY_MARK, XFRM_POLICY_TYPE_MAIN,
+			      dir, pol->sadb_x_policy_id, delete, &err);
 	if (xp == NULL)
 		return -ENOENT;
 
@@ -2706,14 +2686,19 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	struct net *net = sock_net(sk);
 	struct km_event c;
 	struct xfrm_audit audit_info;
-	int err;
+	int err, err2;
 
 	audit_info.loginuid = audit_get_loginuid(current);
 	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = 0;
 	err = xfrm_policy_flush(net, XFRM_POLICY_TYPE_MAIN, &audit_info);
-	if (err)
+	err2 = unicast_flush_resp(sk, hdr);
+	if (err || err2) {
+		if (err == -ESRCH) /* empty table - old silent behavior */
+			return 0;
 		return err;
+	}
+
 	c.data.type = XFRM_POLICY_TYPE_MAIN;
 	c.event = XFRM_MSG_FLUSHPOLICY;
 	c.pid = hdr->sadb_msg_pid;
@@ -3019,12 +3004,11 @@ static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_e
 static u32 get_acqseq(void)
 {
 	u32 res;
-	static u32 acqseq;
-	static DEFINE_SPINLOCK(acqseq_lock);
+	static atomic_t acqseq;
 
-	spin_lock_bh(&acqseq_lock);
-	res = (++acqseq ? : ++acqseq);
-	spin_unlock_bh(&acqseq_lock);
+	do {
+		res = atomic_inc_return(&acqseq);
+	} while (!res);
 	return res;
 }
 
@@ -3655,9 +3639,8 @@ static const struct net_proto_family pfkey_family_ops = {
 #ifdef CONFIG_PROC_FS
 static int pfkey_seq_show(struct seq_file *f, void *v)
 {
-	struct sock *s;
+	struct sock *s = sk_entry(v);
 
-	s = (struct sock *)v;
 	if (v == SEQ_START_TOKEN)
 		seq_printf(f ,"sk       RefCnt Rmem   Wmem   User   Inode\n");
 	else
@@ -3676,19 +3659,9 @@ static void *pfkey_seq_start(struct seq_file *f, loff_t *ppos)
 {
 	struct net *net = seq_file_net(f);
 	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
-	struct sock *s;
-	struct hlist_node *node;
-	loff_t pos = *ppos;
 
-	read_lock(&pfkey_table_lock);
-	if (pos == 0)
-		return SEQ_START_TOKEN;
-
-	sk_for_each(s, node, &net_pfkey->table)
-		if (pos-- == 1)
-			return s;
-
-	return NULL;
+	rcu_read_lock();
+	return seq_hlist_start_head_rcu(&net_pfkey->table, *ppos);
 }
 
 static void *pfkey_seq_next(struct seq_file *f, void *v, loff_t *ppos)
@@ -3696,15 +3669,12 @@ static void *pfkey_seq_next(struct seq_file *f, void *v, loff_t *ppos)
 	struct net *net = seq_file_net(f);
 	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
 
-	++*ppos;
-	return (v == SEQ_START_TOKEN) ?
-		sk_head(&net_pfkey->table) :
-			sk_next((struct sock *)v);
+	return seq_hlist_next_rcu(v, &net_pfkey->table, ppos);
 }
 
 static void pfkey_seq_stop(struct seq_file *f, void *v)
 {
-	read_unlock(&pfkey_table_lock);
+	rcu_read_unlock();
 }
 
 static const struct seq_operations pfkey_seq_ops = {
@@ -3738,17 +3708,17 @@ static int __net_init pfkey_init_proc(struct net *net)
 	return 0;
 }
 
-static void pfkey_exit_proc(struct net *net)
+static void __net_exit pfkey_exit_proc(struct net *net)
 {
 	proc_net_remove(net, "pfkey");
 }
 #else
-static int __net_init pfkey_init_proc(struct net *net)
+static inline int pfkey_init_proc(struct net *net)
 {
 	return 0;
 }
 
-static void pfkey_exit_proc(struct net *net)
+static inline void pfkey_exit_proc(struct net *net)
 {
 }
 #endif

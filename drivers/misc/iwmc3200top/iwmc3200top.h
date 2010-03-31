@@ -196,9 +196,7 @@ struct iwmct_priv {
 	struct list_head read_req_list;
 };
 
-extern int iwmct_tx(struct iwmct_priv *priv, unsigned int addr,
-		void *src, int count);
-
+extern int iwmct_tx(struct iwmct_priv *priv, void *src, int count);
 extern int iwmct_fw_load(struct iwmct_priv *priv);
 
 extern void iwmct_dbg_init_params(struct iwmct_priv *drv);

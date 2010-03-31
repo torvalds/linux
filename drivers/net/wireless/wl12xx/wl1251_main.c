@@ -395,6 +395,7 @@ static int wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * the queue here, otherwise the queue will get too long.
 	 */
 	if (skb_queue_len(&wl->tx_queue) >= WL1251_TX_QUEUE_MAX_LENGTH) {
+		wl1251_debug(DEBUG_TX, "op_tx: tx_queue full, stop queues");
 		ieee80211_stop_queues(wl->hw);
 
 		/*
@@ -510,13 +511,13 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 }
 
 static int wl1251_op_add_interface(struct ieee80211_hw *hw,
-				   struct ieee80211_if_init_conf *conf)
+				   struct ieee80211_vif *vif)
 {
 	struct wl1251 *wl = hw->priv;
 	int ret = 0;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
-		     conf->type, conf->mac_addr);
+		     vif->type, vif->addr);
 
 	mutex_lock(&wl->mutex);
 	if (wl->vif) {
@@ -524,9 +525,9 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	wl->vif = conf->vif;
+	wl->vif = vif;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		wl->bss_type = BSS_TYPE_STA_BSS;
 		break;
@@ -538,8 +539,8 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	if (memcmp(wl->mac_addr, conf->mac_addr, ETH_ALEN)) {
-		memcpy(wl->mac_addr, conf->mac_addr, ETH_ALEN);
+	if (memcmp(wl->mac_addr, vif->addr, ETH_ALEN)) {
+		memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
 		SET_IEEE80211_PERM_ADDR(wl->hw, wl->mac_addr);
 		ret = wl1251_acx_station_id(wl);
 		if (ret < 0)
@@ -552,7 +553,7 @@ out:
 }
 
 static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
-					 struct ieee80211_if_init_conf *conf)
+					 struct ieee80211_vif *vif)
 {
 	struct wl1251 *wl = hw->priv;
 
@@ -562,43 +563,25 @@ static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&wl->mutex);
 }
 
-static int wl1251_build_null_data(struct wl1251 *wl)
+static int wl1251_build_qos_null_data(struct wl1251 *wl)
 {
-	struct wl12xx_null_data_template template;
+	struct ieee80211_qos_hdr template;
 
-	if (!is_zero_ether_addr(wl->bssid)) {
-		memcpy(template.header.da, wl->bssid, ETH_ALEN);
-		memcpy(template.header.bssid, wl->bssid, ETH_ALEN);
-	} else {
-		memset(template.header.da, 0xff, ETH_ALEN);
-		memset(template.header.bssid, 0xff, ETH_ALEN);
-	}
+	memset(&template, 0, sizeof(template));
 
-	memcpy(template.header.sa, wl->mac_addr, ETH_ALEN);
-	template.header.frame_ctl = cpu_to_le16(IEEE80211_FTYPE_DATA |
-						IEEE80211_STYPE_NULLFUNC |
-						IEEE80211_FCTL_TODS);
+	memcpy(template.addr1, wl->bssid, ETH_ALEN);
+	memcpy(template.addr2, wl->mac_addr, ETH_ALEN);
+	memcpy(template.addr3, wl->bssid, ETH_ALEN);
 
-	return wl1251_cmd_template_set(wl, CMD_NULL_DATA, &template,
+	template.frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
+					     IEEE80211_STYPE_QOS_NULLFUNC |
+					     IEEE80211_FCTL_TODS);
+
+	/* FIXME: not sure what priority to use here */
+	template.qos_ctrl = cpu_to_le16(0);
+
+	return wl1251_cmd_template_set(wl, CMD_QOS_NULL_DATA, &template,
 				       sizeof(template));
-
-}
-
-static int wl1251_build_ps_poll(struct wl1251 *wl, u16 aid)
-{
-	struct wl12xx_ps_poll_template template;
-
-	memcpy(template.bssid, wl->bssid, ETH_ALEN);
-	memcpy(template.ta, wl->mac_addr, ETH_ALEN);
-
-	/* aid in PS-Poll has its two MSBs each set to 1 */
-	template.aid = cpu_to_le16(1 << 15 | 1 << 14 | aid);
-
-	template.fc = cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL);
-
-	return wl1251_cmd_template_set(wl, CMD_PS_POLL, &template,
-				       sizeof(template));
-
 }
 
 static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
@@ -634,26 +617,34 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 
 		wl->psm_requested = true;
 
+		wl->dtim_period = conf->ps_dtim_period;
+
+		ret = wl1251_acx_wr_tbtt_and_dtim(wl, wl->beacon_int,
+						  wl->dtim_period);
+
 		/*
-		 * We enter PSM only if we're already associated.
-		 * If we're not, we'll enter it when joining an SSID,
-		 * through the bss_info_changed() hook.
+		 * mac80211 enables PSM only if we're already associated.
 		 */
 		ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+		if (ret < 0)
+			goto out_sleep;
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   wl->psm_requested) {
 		wl1251_debug(DEBUG_PSM, "psm disabled");
 
 		wl->psm_requested = false;
 
-		if (wl->psm)
+		if (wl->psm) {
 			ret = wl1251_ps_set_mode(wl, STATION_ACTIVE_MODE);
+			if (ret < 0)
+				goto out_sleep;
+		}
 	}
 
 	if (conf->power_level != wl->power_level) {
 		ret = wl1251_acx_tx_power(wl, conf->power_level);
 		if (ret < 0)
-			goto out;
+			goto out_sleep;
 
 		wl->power_level = conf->power_level;
 	}
@@ -864,183 +855,14 @@ out:
 	return ret;
 }
 
-static int wl1251_build_basic_rates(char *rates)
-{
-	u8 index = 0;
-
-	rates[index++] = IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_1MB;
-	rates[index++] = IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_2MB;
-	rates[index++] = IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_5MB;
-	rates[index++] = IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_11MB;
-
-	return index;
-}
-
-static int wl1251_build_extended_rates(char *rates)
-{
-	u8 index = 0;
-
-	rates[index++] = IEEE80211_OFDM_RATE_6MB;
-	rates[index++] = IEEE80211_OFDM_RATE_9MB;
-	rates[index++] = IEEE80211_OFDM_RATE_12MB;
-	rates[index++] = IEEE80211_OFDM_RATE_18MB;
-	rates[index++] = IEEE80211_OFDM_RATE_24MB;
-	rates[index++] = IEEE80211_OFDM_RATE_36MB;
-	rates[index++] = IEEE80211_OFDM_RATE_48MB;
-	rates[index++] = IEEE80211_OFDM_RATE_54MB;
-
-	return index;
-}
-
-
-static int wl1251_build_probe_req(struct wl1251 *wl, u8 *ssid, size_t ssid_len)
-{
-	struct wl12xx_probe_req_template template;
-	struct wl12xx_ie_rates *rates;
-	char *ptr;
-	u16 size;
-
-	ptr = (char *)&template;
-	size = sizeof(struct ieee80211_header);
-
-	memset(template.header.da, 0xff, ETH_ALEN);
-	memset(template.header.bssid, 0xff, ETH_ALEN);
-	memcpy(template.header.sa, wl->mac_addr, ETH_ALEN);
-	template.header.frame_ctl = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
-
-	/* IEs */
-	/* SSID */
-	template.ssid.header.id = WLAN_EID_SSID;
-	template.ssid.header.len = ssid_len;
-	if (ssid_len && ssid)
-		memcpy(template.ssid.ssid, ssid, ssid_len);
-	size += sizeof(struct wl12xx_ie_header) + ssid_len;
-	ptr += size;
-
-	/* Basic Rates */
-	rates = (struct wl12xx_ie_rates *)ptr;
-	rates->header.id = WLAN_EID_SUPP_RATES;
-	rates->header.len = wl1251_build_basic_rates(rates->rates);
-	size += sizeof(struct wl12xx_ie_header) + rates->header.len;
-	ptr += sizeof(struct wl12xx_ie_header) + rates->header.len;
-
-	/* Extended rates */
-	rates = (struct wl12xx_ie_rates *)ptr;
-	rates->header.id = WLAN_EID_EXT_SUPP_RATES;
-	rates->header.len = wl1251_build_extended_rates(rates->rates);
-	size += sizeof(struct wl12xx_ie_header) + rates->header.len;
-
-	wl1251_dump(DEBUG_SCAN, "PROBE REQ: ", &template, size);
-
-	return wl1251_cmd_template_set(wl, CMD_PROBE_REQ, &template,
-				      size);
-}
-
-static int wl1251_hw_scan(struct wl1251 *wl, u8 *ssid, size_t len,
-			  u8 active_scan, u8 high_prio, u8 num_channels,
-			  u8 probe_requests)
-{
-	struct wl1251_cmd_trigger_scan_to *trigger = NULL;
-	struct cmd_scan *params = NULL;
-	int i, ret;
-	u16 scan_options = 0;
-
-	if (wl->scanning)
-		return -EINVAL;
-
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
-	if (!params)
-		return -ENOMEM;
-
-	params->params.rx_config_options = cpu_to_le32(CFG_RX_ALL_GOOD);
-	params->params.rx_filter_options =
-		cpu_to_le32(CFG_RX_PRSP_EN | CFG_RX_MGMT_EN | CFG_RX_BCN_EN);
-
-	/* High priority scan */
-	if (!active_scan)
-		scan_options |= SCAN_PASSIVE;
-	if (high_prio)
-		scan_options |= SCAN_PRIORITY_HIGH;
-	params->params.scan_options = scan_options;
-
-	params->params.num_channels = num_channels;
-	params->params.num_probe_requests = probe_requests;
-	params->params.tx_rate = cpu_to_le16(1 << 1); /* 2 Mbps */
-	params->params.tid_trigger = 0;
-
-	for (i = 0; i < num_channels; i++) {
-		params->channels[i].min_duration = cpu_to_le32(30000);
-		params->channels[i].max_duration = cpu_to_le32(60000);
-		memset(&params->channels[i].bssid_lsb, 0xff, 4);
-		memset(&params->channels[i].bssid_msb, 0xff, 2);
-		params->channels[i].early_termination = 0;
-		params->channels[i].tx_power_att = 0;
-		params->channels[i].channel = i + 1;
-		memset(params->channels[i].pad, 0, 3);
-	}
-
-	for (i = num_channels; i < SCAN_MAX_NUM_OF_CHANNELS; i++)
-		memset(&params->channels[i], 0,
-		       sizeof(struct basic_scan_channel_parameters));
-
-	if (len && ssid) {
-		params->params.ssid_len = len;
-		memcpy(params->params.ssid, ssid, len);
-	} else {
-		params->params.ssid_len = 0;
-		memset(params->params.ssid, 0, 32);
-	}
-
-	ret = wl1251_build_probe_req(wl, ssid, len);
-	if (ret < 0) {
-		wl1251_error("PROBE request template failed");
-		goto out;
-	}
-
-	trigger = kzalloc(sizeof(*trigger), GFP_KERNEL);
-	if (!trigger)
-		goto out;
-
-	trigger->timeout = 0;
-
-	ret = wl1251_cmd_send(wl, CMD_TRIGGER_SCAN_TO, trigger,
-			      sizeof(*trigger));
-	if (ret < 0) {
-		wl1251_error("trigger scan to failed for hw scan");
-		goto out;
-	}
-
-	wl1251_dump(DEBUG_SCAN, "SCAN: ", params, sizeof(*params));
-
-	wl->scanning = true;
-
-	ret = wl1251_cmd_send(wl, CMD_SCAN, params, sizeof(*params));
-	if (ret < 0)
-		wl1251_error("SCAN failed");
-
-	wl1251_mem_read(wl, wl->cmd_box_addr, params, sizeof(*params));
-
-	if (params->header.status != CMD_STATUS_SUCCESS) {
-		wl1251_error("TEST command answer error: %d",
-			     params->header.status);
-		wl->scanning = false;
-		ret = -EIO;
-		goto out;
-	}
-
-out:
-	kfree(params);
-	return ret;
-
-}
-
 static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 			     struct cfg80211_scan_request *req)
 {
 	struct wl1251 *wl = hw->priv;
-	int ret;
-	u8 *ssid = NULL;
+	struct sk_buff *skb;
 	size_t ssid_len = 0;
+	u8 *ssid = NULL;
+	int ret;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 hw scan");
 
@@ -1051,12 +873,43 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&wl->mutex);
 
+	if (wl->scanning) {
+		wl1251_debug(DEBUG_SCAN, "scan already in progress");
+		ret = -EINVAL;
+		goto out;
+	}
+
 	ret = wl1251_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
-	ret = wl1251_hw_scan(hw->priv, ssid, ssid_len, 1, 0, 13, 3);
+	skb = ieee80211_probereq_get(wl->hw, wl->vif, ssid, ssid_len,
+				     req->ie, req->ie_len);
+	if (!skb) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
+	ret = wl1251_cmd_template_set(wl, CMD_PROBE_REQ, skb->data,
+				      skb->len);
+	dev_kfree_skb(skb);
+	if (ret < 0)
+		goto out_sleep;
+
+	ret = wl1251_cmd_trigger_scan_to(wl, 0);
+	if (ret < 0)
+		goto out_sleep;
+
+	wl->scanning = true;
+
+	ret = wl1251_cmd_scan(wl, ssid, ssid_len, req->channels,
+			      req->n_channels, WL1251_SCAN_NUM_PROBES);
+	if (ret < 0) {
+		wl->scanning = false;
+		goto out_sleep;
+	}
+
+out_sleep:
 	wl1251_ps_elp_sleep(wl);
 
 out:
@@ -1093,9 +946,8 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_bss_conf *bss_conf,
 				       u32 changed)
 {
-	enum wl1251_cmd_ps_mode mode;
 	struct wl1251 *wl = hw->priv;
-	struct sk_buff *beacon;
+	struct sk_buff *beacon, *skb;
 	int ret;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 bss info changed");
@@ -1109,7 +961,17 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID) {
 		memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
 
-		ret = wl1251_build_null_data(wl);
+		skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
+		if (!skb)
+			goto out_sleep;
+
+		ret = wl1251_cmd_template_set(wl, CMD_NULL_DATA,
+					      skb->data, skb->len);
+		dev_kfree_skb(skb);
+		if (ret < 0)
+			goto out_sleep;
+
+		ret = wl1251_build_qos_null_data(wl);
 		if (ret < 0)
 			goto out;
 
@@ -1124,27 +986,21 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
 			wl->beacon_int = bss_conf->beacon_int;
-			wl->dtim_period = bss_conf->dtim_period;
 
-			ret = wl1251_acx_wr_tbtt_and_dtim(wl, wl->beacon_int,
-							  wl->dtim_period);
-			wl->aid = bss_conf->aid;
+			skb = ieee80211_pspoll_get(wl->hw, wl->vif);
+			if (!skb)
+				goto out_sleep;
 
-			ret = wl1251_build_ps_poll(wl, wl->aid);
+			ret = wl1251_cmd_template_set(wl, CMD_PS_POLL,
+						      skb->data,
+						      skb->len);
+			dev_kfree_skb(skb);
 			if (ret < 0)
 				goto out_sleep;
 
-			ret = wl1251_acx_aid(wl, wl->aid);
+			ret = wl1251_acx_aid(wl, bss_conf->aid);
 			if (ret < 0)
 				goto out_sleep;
-
-			/* If we want to go in PSM but we're not there yet */
-			if (wl->psm_requested && !wl->psm) {
-				mode = STATION_POWER_SAVE_MODE;
-				ret = wl1251_ps_set_mode(wl, mode);
-				if (ret < 0)
-					goto out_sleep;
-			}
 		} else {
 			/* use defaults when not associated */
 			wl->beacon_int = WL1251_DEFAULT_BEACON_INT;
@@ -1176,7 +1032,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			ret = wl1251_acx_cts_protect(wl, CTSPROTECT_DISABLE);
 		if (ret < 0) {
 			wl1251_warning("Set ctsprotect failed %d", ret);
-			goto out;
+			goto out_sleep;
 		}
 	}
 
@@ -1187,7 +1043,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 
 		if (ret < 0) {
 			dev_kfree_skb(beacon);
-			goto out;
+			goto out_sleep;
 		}
 
 		ret = wl1251_cmd_template_set(wl, CMD_PROBE_RESP, beacon->data,
@@ -1196,13 +1052,13 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		dev_kfree_skb(beacon);
 
 		if (ret < 0)
-			goto out;
+			goto out_sleep;
 
 		ret = wl1251_join(wl, wl->bss_type, wl->beacon_int,
 				  wl->channel, wl->dtim_period);
 
 		if (ret < 0)
-			goto out;
+			goto out_sleep;
 	}
 
 out_sleep:
@@ -1273,6 +1129,49 @@ static struct ieee80211_channel wl1251_channels[] = {
 	{ .hw_value = 13, .center_freq = 2472},
 };
 
+static int wl1251_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+			     const struct ieee80211_tx_queue_params *params)
+{
+	enum wl1251_acx_ps_scheme ps_scheme;
+	struct wl1251 *wl = hw->priv;
+	int ret;
+
+	mutex_lock(&wl->mutex);
+
+	wl1251_debug(DEBUG_MAC80211, "mac80211 conf tx %d", queue);
+
+	ret = wl1251_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	/* mac80211 uses units of 32 usec */
+	ret = wl1251_acx_ac_cfg(wl, wl1251_tx_get_queue(queue),
+				params->cw_min, params->cw_max,
+				params->aifs, params->txop * 32);
+	if (ret < 0)
+		goto out_sleep;
+
+	if (params->uapsd)
+		ps_scheme = WL1251_ACX_PS_SCHEME_UPSD_TRIGGER;
+	else
+		ps_scheme = WL1251_ACX_PS_SCHEME_LEGACY;
+
+	ret = wl1251_acx_tid_cfg(wl, wl1251_tx_get_queue(queue),
+				 CHANNEL_TYPE_EDCF,
+				 wl1251_tx_get_queue(queue), ps_scheme,
+				 WL1251_ACX_ACK_POLICY_LEGACY);
+	if (ret < 0)
+		goto out_sleep;
+
+out_sleep:
+	wl1251_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+
+	return ret;
+}
+
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_supported_band wl1251_band_2ghz = {
 	.channels = wl1251_channels,
@@ -1293,6 +1192,7 @@ static const struct ieee80211_ops wl1251_ops = {
 	.hw_scan = wl1251_op_hw_scan,
 	.bss_info_changed = wl1251_op_bss_info_changed,
 	.set_rts_threshold = wl1251_op_set_rts_threshold,
+	.conf_tx = wl1251_op_conf_tx,
 };
 
 static int wl1251_register_hw(struct wl1251 *wl)
@@ -1332,11 +1232,14 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_NOISE_DBM |
 		IEEE80211_HW_SUPPORTS_PS |
-		IEEE80211_HW_BEACON_FILTER;
+		IEEE80211_HW_BEACON_FILTER |
+		IEEE80211_HW_SUPPORTS_UAPSD;
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 	wl->hw->wiphy->max_scan_ssids = 1;
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1251_band_2ghz;
+
+	wl->hw->queues = 4;
 
 	ret = wl1251_register_hw(wl);
 	if (ret)

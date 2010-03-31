@@ -31,7 +31,7 @@ static struct ctl_path unix_path[] = {
 	{ },
 };
 
-int unix_sysctl_register(struct net *net)
+int __net_init unix_sysctl_register(struct net *net)
 {
 	struct ctl_table *table;
 

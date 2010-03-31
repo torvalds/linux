@@ -137,22 +137,43 @@ EXPORT_SYMBOL_GPL(_page_cachable_default);
 
 static inline void setup_protection_map(void)
 {
-	protection_map[0] = PAGE_NONE;
-	protection_map[1] = PAGE_READONLY;
-	protection_map[2] = PAGE_COPY;
-	protection_map[3] = PAGE_COPY;
-	protection_map[4] = PAGE_READONLY;
-	protection_map[5] = PAGE_READONLY;
-	protection_map[6] = PAGE_COPY;
-	protection_map[7] = PAGE_COPY;
-	protection_map[8] = PAGE_NONE;
-	protection_map[9] = PAGE_READONLY;
-	protection_map[10] = PAGE_SHARED;
-	protection_map[11] = PAGE_SHARED;
-	protection_map[12] = PAGE_READONLY;
-	protection_map[13] = PAGE_READONLY;
-	protection_map[14] = PAGE_SHARED;
-	protection_map[15] = PAGE_SHARED;
+	if (kernel_uses_smartmips_rixi) {
+		protection_map[0]  = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_EXEC | _PAGE_NO_READ);
+		protection_map[1]  = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_EXEC);
+		protection_map[2]  = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_EXEC | _PAGE_NO_READ);
+		protection_map[3]  = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_EXEC);
+		protection_map[4]  = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_READ);
+		protection_map[5]  = __pgprot(_page_cachable_default | _PAGE_PRESENT);
+		protection_map[6]  = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_READ);
+		protection_map[7]  = __pgprot(_page_cachable_default | _PAGE_PRESENT);
+
+		protection_map[8]  = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_EXEC | _PAGE_NO_READ);
+		protection_map[9]  = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_EXEC);
+		protection_map[10] = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_EXEC | _PAGE_WRITE | _PAGE_NO_READ);
+		protection_map[11] = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_EXEC | _PAGE_WRITE);
+		protection_map[12] = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_NO_READ);
+		protection_map[13] = __pgprot(_page_cachable_default | _PAGE_PRESENT);
+		protection_map[14] = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_WRITE  | _PAGE_NO_READ);
+		protection_map[15] = __pgprot(_page_cachable_default | _PAGE_PRESENT | _PAGE_WRITE);
+
+	} else {
+		protection_map[0] = PAGE_NONE;
+		protection_map[1] = PAGE_READONLY;
+		protection_map[2] = PAGE_COPY;
+		protection_map[3] = PAGE_COPY;
+		protection_map[4] = PAGE_READONLY;
+		protection_map[5] = PAGE_READONLY;
+		protection_map[6] = PAGE_COPY;
+		protection_map[7] = PAGE_COPY;
+		protection_map[8] = PAGE_NONE;
+		protection_map[9] = PAGE_READONLY;
+		protection_map[10] = PAGE_SHARED;
+		protection_map[11] = PAGE_SHARED;
+		protection_map[12] = PAGE_READONLY;
+		protection_map[13] = PAGE_READONLY;
+		protection_map[14] = PAGE_SHARED;
+		protection_map[15] = PAGE_SHARED;
+	}
 }
 
 void __cpuinit cpu_cache_init(void)

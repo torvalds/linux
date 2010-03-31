@@ -63,15 +63,16 @@ config SND_AD1848
 	  will be called snd-ad1848.
 
 config SND_ALS100
-	tristate "Avance Logic ALS100/ALS120"
+	tristate "Diamond Tech. DT-019x and Avance Logic ALSxxx"
 	depends on PNP
 	select ISAPNP
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_SB16_DSP
 	help
-	  Say Y here to include support for soundcards based on Avance
-	  Logic ALS100, ALS110, ALS120 and ALS200 chips.
+	  Say Y here to include support for soundcards based on the
+	  Diamond Technologies DT-019X or Avance Logic chips: ALS007,
+	  ALS100, ALS110, ALS120 and ALS200 chips.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-als100.
@@ -126,20 +127,6 @@ config SND_CS4236
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs4236.
-
-config SND_DT019X
-	tristate "Diamond Technologies DT-019X, Avance Logic ALS-007"
-	depends on PNP
-	select ISAPNP
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_SB16_DSP
-	help
-	  Say Y here to include support for soundcards based on the
-	  Diamond Technologies DT-019X or Avance Logic ALS-007 chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-dt019x.
 
 config SND_ES968
 	tristate "Generic ESS ES968 driver"
@@ -251,6 +238,22 @@ config SND_INTERWAVE_STB
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-interwave-stb.
+
+config SND_JAZZ16
+	tristate "Media Vision Jazz16 card and compatibles"
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_SB8_DSP
+	help
+	  Say Y here to include support for soundcards based on the
+	  Media Vision Jazz16 chipset: digital chip MVD1216 (Jazz16),
+	  codec MVA416 (CS4216) and mixer MVA514 (ICS2514).
+	  Media Vision's Jazz16 cards were sold under names Pro Sonic 16,
+	  Premium 3-D and Pro 3-D. There were also OEMs cards with the
+	  Jazz16 chipset.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-jazz16.
 
 config SND_OPL3SA2
 	tristate "Yamaha OPL3-SA2/SA3"

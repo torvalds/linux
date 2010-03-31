@@ -1181,7 +1181,7 @@ static void free_unnecessary_pages(void)
 
 	memory_bm_position_reset(&copy_bm);
 
-	while (to_free_normal > 0 && to_free_highmem > 0) {
+	while (to_free_normal > 0 || to_free_highmem > 0) {
 		unsigned long pfn = memory_bm_next_pfn(&copy_bm);
 		struct page *page = pfn_to_page(pfn);
 
@@ -1500,7 +1500,7 @@ asmlinkage int swsusp_save(void)
 {
 	unsigned int nr_pages, nr_highmem;
 
-	printk(KERN_INFO "PM: Creating hibernation image: \n");
+	printk(KERN_INFO "PM: Creating hibernation image:\n");
 
 	drain_local_pages(NULL);
 	nr_pages = count_data_pages();

@@ -94,7 +94,7 @@ static int __init pxa168_init(void)
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(pxa168_mfp_addr_map);
 		pxa_init_dma(IRQ_PXA168_DMA_INT0, 32);
-		clks_register(ARRAY_AND_SIZE(pxa168_clkregs));
+		clkdev_add_table(ARRAY_AND_SIZE(pxa168_clkregs));
 	}
 
 	return 0;

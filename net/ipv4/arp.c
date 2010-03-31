@@ -70,6 +70,7 @@
  *					bonding can change the skb before
  *					sending (e.g. insert 8021q tag).
  *		Harald Welte	:	convert to make use of jenkins hash
+ *		Jesper D. Brouer:       Proxy ARP PVLAN RFC 3069 support.
  */
 
 #include <linux/module.h>
@@ -524,11 +525,14 @@ int arp_bind_neighbour(struct dst_entry *dst)
 /*
  * Check if we can use proxy ARP for this path
  */
-
-static inline int arp_fwd_proxy(struct in_device *in_dev, struct rtable *rt)
+static inline int arp_fwd_proxy(struct in_device *in_dev,
+				struct net_device *dev,	struct rtable *rt)
 {
 	struct in_device *out_dev;
 	int imi, omi = -1;
+
+	if (rt->u.dst.dev == dev)
+		return 0;
 
 	if (!IN_DEV_PROXY_ARP(in_dev))
 		return 0;
@@ -545,6 +549,43 @@ static inline int arp_fwd_proxy(struct in_device *in_dev, struct rtable *rt)
 		in_dev_put(out_dev);
 	}
 	return (omi != imi && omi != -1);
+}
+
+/*
+ * Check for RFC3069 proxy arp private VLAN (allow to send back to same dev)
+ *
+ * RFC3069 supports proxy arp replies back to the same interface.  This
+ * is done to support (ethernet) switch features, like RFC 3069, where
+ * the individual ports are not allowed to communicate with each
+ * other, BUT they are allowed to talk to the upstream router.  As
+ * described in RFC 3069, it is possible to allow these hosts to
+ * communicate through the upstream router, by proxy_arp'ing.
+ *
+ * RFC 3069: "VLAN Aggregation for Efficient IP Address Allocation"
+ *
+ *  This technology is known by different names:
+ *    In RFC 3069 it is called VLAN Aggregation.
+ *    Cisco and Allied Telesyn call it Private VLAN.
+ *    Hewlett-Packard call it Source-Port filtering or port-isolation.
+ *    Ericsson call it MAC-Forced Forwarding (RFC Draft).
+ *
+ */
+static inline int arp_fwd_pvlan(struct in_device *in_dev,
+				struct net_device *dev,	struct rtable *rt,
+				__be32 sip, __be32 tip)
+{
+	/* Private VLAN is only concerned about the same ethernet segment */
+	if (rt->u.dst.dev != dev)
+		return 0;
+
+	/* Don't reply on self probes (often done by windowz boxes)*/
+	if (sip == tip)
+		return 0;
+
+	if (IN_DEV_PROXY_ARP_PVLAN(in_dev))
+		return 1;
+	else
+		return 0;
 }
 
 /*
@@ -833,8 +874,11 @@ static int arp_process(struct sk_buff *skb)
 			}
 			goto out;
 		} else if (IN_DEV_FORWARD(in_dev)) {
-			    if (addr_type == RTN_UNICAST  && rt->u.dst.dev != dev &&
-			     (arp_fwd_proxy(in_dev, rt) || pneigh_lookup(&arp_tbl, net, &tip, dev, 0))) {
+			if (addr_type == RTN_UNICAST  &&
+			    (arp_fwd_proxy(in_dev, dev, rt) ||
+			     arp_fwd_pvlan(in_dev, dev, rt, sip, tip) ||
+			     pneigh_lookup(&arp_tbl, net, &tip, dev, 0)))
+			{
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n)
 					neigh_release(n);
@@ -863,7 +907,8 @@ static int arp_process(struct sk_buff *skb)
 		   devices (strip is candidate)
 		 */
 		if (n == NULL &&
-		    arp->ar_op == htons(ARPOP_REPLY) &&
+		    (arp->ar_op == htons(ARPOP_REPLY) ||
+		     (arp->ar_op == htons(ARPOP_REQUEST) && tip == sip)) &&
 		    inet_addr_type(net, sip) == RTN_UNICAST)
 			n = __neigh_lookup(&arp_tbl, &sip, dev, 1);
 	}
@@ -1239,8 +1284,7 @@ void __init arp_init(void)
 	dev_add_pack(&arp_packet_type);
 	arp_proc_init();
 #ifdef CONFIG_SYSCTL
-	neigh_sysctl_register(NULL, &arp_tbl.parms, NET_IPV4,
-			      NET_IPV4_NEIGH, "ipv4", NULL);
+	neigh_sysctl_register(NULL, &arp_tbl.parms, "ipv4", NULL);
 #endif
 	register_netdevice_notifier(&arp_netdev_notifier);
 }
