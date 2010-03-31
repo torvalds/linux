@@ -807,7 +807,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 			return;
 		}
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
-		vid = be16_to_cpu(vid);
+		vid = swab16(vid);
 		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp, vid);
 	} else {
 		netif_receive_skb(skb);
@@ -884,7 +884,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 		napi_gro_frags(&eq_obj->napi);
 	} else {
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
-		vid = be16_to_cpu(vid);
+		vid = swab16(vid);
 
 		if (!adapter->vlan_grp || adapter->vlans_added == 0)
 			return;
