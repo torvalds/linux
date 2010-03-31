@@ -1991,7 +1991,7 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	struct flash_file_hdr_g3 *fhdr3;
 	struct image_hdr *img_hdr_ptr = NULL;
 	struct be_dma_mem flash_cmd;
-	int status, i = 0;
+	int status, i = 0, num_imgs = 0;
 	const u8 *p;
 
 	strcpy(fw_file, func);
@@ -2017,15 +2017,14 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	if ((adapter->generation == BE_GEN3) &&
 			(get_ufigen_type(fhdr) == BE_GEN3)) {
 		fhdr3 = (struct flash_file_hdr_g3 *) fw->data;
-		for (i = 0; i < fhdr3->num_imgs; i++) {
+		num_imgs = le32_to_cpu(fhdr3->num_imgs);
+		for (i = 0; i < num_imgs; i++) {
 			img_hdr_ptr = (struct image_hdr *) (fw->data +
 					(sizeof(struct flash_file_hdr_g3) +
-					i * sizeof(struct image_hdr)));
-			if (img_hdr_ptr->imageid == 1) {
-				status = be_flash_data(adapter, fw,
-						&flash_cmd, fhdr3->num_imgs);
-			}
-
+					 i * sizeof(struct image_hdr)));
+			if (le32_to_cpu(img_hdr_ptr->imageid) == 1)
+				status = be_flash_data(adapter, fw, &flash_cmd,
+							num_imgs);
 		}
 	} else if ((adapter->generation == BE_GEN2) &&
 			(get_ufigen_type(fhdr) == BE_GEN2)) {
