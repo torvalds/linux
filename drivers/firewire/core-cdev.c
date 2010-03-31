@@ -959,6 +959,8 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		u.packet.header_length = GET_HEADER_LENGTH(control);
 
 		if (ctx->type == FW_ISO_CONTEXT_TRANSMIT) {
+			if (u.packet.header_length % 4 != 0)
+				return -EINVAL;
 			header_length = u.packet.header_length;
 		} else {
 			/*
