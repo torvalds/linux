@@ -1809,6 +1809,7 @@ void r100_set_common_regs(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
 	bool force_dac2 = false;
+	u32 tmp;
 
 	/* set these so they don't interfere with anything */
 	WREG32(RADEON_OV0_SCALE_CNTL, 0);
@@ -1880,6 +1881,12 @@ void r100_set_common_regs(struct radeon_device *rdev)
 		WREG32(RADEON_DISP_HW_DEBUG, disp_hw_debug);
 		WREG32(RADEON_DAC_CNTL2, dac2_cntl);
 	}
+
+	/* switch PM block to ACPI mode */
+	tmp = RREG32_PLL(RADEON_PLL_PWRMGT_CNTL);
+	tmp &= ~RADEON_PM_MODE_SEL;
+	WREG32_PLL(RADEON_PLL_PWRMGT_CNTL, tmp);
+
 }
 
 /*
