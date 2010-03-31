@@ -294,60 +294,17 @@ static void hist_entry__append_callchain_browser(struct hist_entry *self,
 	}
 }
 
-/*
- * FIXME: get lib/string.c linked with perf somehow
- */
-static char *skip_spaces(const char *str)
-{
-	while (isspace(*str))
-		++str;
-	return (char *)str;
-}
-
-static char *strim(char *s)
-{
-	size_t size;
-	char *end;
-
-	s = skip_spaces(s);
-	size = strlen(s);
-	if (!size)
-		return s;
-
-	end = s + size - 1;
-	while (end >= s && isspace(*end))
-		end--;
-	*(end + 1) = '\0';
-
-	return s;
-}
-
 static size_t hist_entry__append_browser(struct hist_entry *self,
 					 newtComponent tree, u64 total)
 {
-	char bf[1024], *s;
-	FILE *fp;
+	char s[256];
+	size_t ret;
 
 	if (symbol_conf.exclude_other && !self->parent)
 		return 0;
 
-	fp = fmemopen(bf, sizeof(bf), "w");
-	if (fp == NULL)
-		return 0;
-
-	hist_entry__fprintf(self, NULL, false, 0, fp, total);
-	fclose(fp);
-
-	/*
-	 * FIXME: We shouldn't need to trim, as the printing routines shouldn't
-	 * add spaces it in the first place, the stdio output routines should
-	 * call a __snprintf method instead of the current __print (that
-	 * actually is a __fprintf) one, but get the raw string and _then_ add
-	 * the newline, as this is a detail of stdio printing, not needed in
-	 * other UIs, e.g. newt.
-	 */
-	s = strim(bf);
-
+	ret = hist_entry__snprintf(self, s, sizeof(s), NULL,
+				   false, 0, false, total);
 	if (symbol_conf.use_callchain) {
 		int indexes[2];
 
@@ -357,7 +314,7 @@ static size_t hist_entry__append_browser(struct hist_entry *self,
 	} else
 		newtListboxAppendEntry(tree, s, &self->ms);
 
-	return strlen(s);
+	return ret;
 }
 
 static void map_symbol__annotate_browser(const struct map_symbol *self)

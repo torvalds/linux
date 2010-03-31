@@ -76,7 +76,8 @@ struct sort_entry {
 
 	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
 	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
-	size_t	(*print)(FILE *fp, struct hist_entry *, unsigned int width);
+	int	(*snprintf)(struct hist_entry *self, char *bf, size_t size,
+			    unsigned int width);
 	unsigned int *width;
 	bool	elide;
 };
@@ -86,7 +87,6 @@ extern struct list_head hist_entry__sort_list;
 
 void setup_sorting(const char * const usagestr[], const struct option *opts);
 
-extern int repsep_fprintf(FILE *fp, const char *fmt, ...);
 extern size_t sort__thread_print(FILE *, struct hist_entry *, unsigned int);
 extern size_t sort__comm_print(FILE *, struct hist_entry *, unsigned int);
 extern size_t sort__dso_print(FILE *, struct hist_entry *, unsigned int);
