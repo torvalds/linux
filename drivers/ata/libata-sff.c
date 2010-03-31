@@ -1816,10 +1816,6 @@ retry:
 			    !ap->ops->sff_irq_check(ap))
 				continue;
 
-			if (printk_ratelimit())
-				ata_port_printk(ap, KERN_INFO,
-						"clearing spurious IRQ\n");
-
 			if (idle & (1 << i)) {
 				ap->ops->sff_check_status(ap);
 				ap->ops->sff_irq_clear(ap);
