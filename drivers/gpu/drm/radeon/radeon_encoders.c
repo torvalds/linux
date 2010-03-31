@@ -1044,16 +1044,25 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	if (is_dig) {
 		switch (mode) {
 		case DRM_MODE_DPMS_ON:
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
-			{
+			if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_DP) {
 				struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+
 				dp_link_train(encoder, connector);
+				if (ASIC_IS_DCE4(rdev))
+					atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_ON);
 			}
+			if (!ASIC_IS_DCE4(rdev))
+				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
 			break;
 		case DRM_MODE_DPMS_STANDBY:
 		case DRM_MODE_DPMS_SUSPEND:
 		case DRM_MODE_DPMS_OFF:
-			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE_OUTPUT, 0, 0);
+			if (!ASIC_IS_DCE4(rdev))
+				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE_OUTPUT, 0, 0);
+			if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_DP) {
+				if (ASIC_IS_DCE4(rdev))
+					atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_OFF);
+			}
 			break;
 		}
 	} else {
