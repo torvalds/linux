@@ -92,6 +92,7 @@ int radeon_tv = 1;
 int radeon_new_pll = -1;
 int radeon_dynpm = -1;
 int radeon_audio = 1;
+int radeon_disp_priority = 0;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -134,6 +135,9 @@ module_param_named(dynpm, radeon_dynpm, int, 0444);
 
 MODULE_PARM_DESC(audio, "Audio enable (0 = disable)");
 module_param_named(audio, radeon_audio, int, 0444);
+
+MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = normal, 2 = high)");
+module_param_named(disp_priority, radeon_disp_priority, int, 0444);
 
 static int radeon_suspend(struct drm_device *dev, pm_message_t state)
 {

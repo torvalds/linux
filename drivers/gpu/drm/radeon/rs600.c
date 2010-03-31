@@ -483,7 +483,30 @@ void rs600_mc_init(struct radeon_device *rdev)
 
 void rs600_bandwidth_update(struct radeon_device *rdev)
 {
-	/* FIXME: implement, should this be like rs690 ? */
+	struct drm_display_mode *mode0 = NULL;
+	struct drm_display_mode *mode1 = NULL;
+	u32 d1mode_priority_a_cnt, d2mode_priority_a_cnt;
+	/* FIXME: implement full support */
+
+	radeon_update_display_priority(rdev);
+
+	if (rdev->mode_info.crtcs[0]->base.enabled)
+		mode0 = &rdev->mode_info.crtcs[0]->base.mode;
+	if (rdev->mode_info.crtcs[1]->base.enabled)
+		mode1 = &rdev->mode_info.crtcs[1]->base.mode;
+
+	rs690_line_buffer_adjust(rdev, mode0, mode1);
+
+	if (rdev->disp_priority == 2) {
+		d1mode_priority_a_cnt = RREG32(R_006548_D1MODE_PRIORITY_A_CNT);
+		d2mode_priority_a_cnt = RREG32(R_006D48_D2MODE_PRIORITY_A_CNT);
+		d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
+		d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
+		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
+		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
+		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
+		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
+	}
 }
 
 uint32_t rs600_mc_rreg(struct radeon_device *rdev, uint32_t reg)

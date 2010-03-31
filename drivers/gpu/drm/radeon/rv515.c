@@ -1016,7 +1016,7 @@ void rv515_bandwidth_avivo_update(struct radeon_device *rdev)
 	struct drm_display_mode *mode1 = NULL;
 	struct rv515_watermark wm0;
 	struct rv515_watermark wm1;
-	u32 tmp;
+	u32 tmp, d1mode_priority_a_cnt, d2mode_priority_a_cnt;
 	fixed20_12 priority_mark02, priority_mark12, fill_rate;
 	fixed20_12 a, b;
 
@@ -1084,10 +1084,16 @@ void rv515_bandwidth_avivo_update(struct radeon_device *rdev)
 			priority_mark12.full = 0;
 		if (wm1.priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark_max.full;
-		WREG32(D1MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark02));
-		WREG32(D1MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark02));
-		WREG32(D2MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark12));
-		WREG32(D2MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark12));
+		d1mode_priority_a_cnt = rfixed_trunc(priority_mark02);
+		d2mode_priority_a_cnt = rfixed_trunc(priority_mark12);
+		if (rdev->disp_priority == 2) {
+			d1mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
+			d2mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
+		}
+		WREG32(D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
+		WREG32(D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
+		WREG32(D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
+		WREG32(D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 	} else if (mode0) {
 		if (rfixed_trunc(wm0.dbpp) > 64)
 			a.full = rfixed_div(wm0.dbpp, wm0.num_line_pair);
@@ -1114,8 +1120,11 @@ void rv515_bandwidth_avivo_update(struct radeon_device *rdev)
 			priority_mark02.full = 0;
 		if (wm0.priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark_max.full;
-		WREG32(D1MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark02));
-		WREG32(D1MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark02));
+		d1mode_priority_a_cnt = rfixed_trunc(priority_mark02);
+		if (rdev->disp_priority == 2)
+			d1mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
+		WREG32(D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
+		WREG32(D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
 		WREG32(D2MODE_PRIORITY_A_CNT, MODE_PRIORITY_OFF);
 		WREG32(D2MODE_PRIORITY_B_CNT, MODE_PRIORITY_OFF);
 	} else {
@@ -1144,10 +1153,13 @@ void rv515_bandwidth_avivo_update(struct radeon_device *rdev)
 			priority_mark12.full = 0;
 		if (wm1.priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark_max.full;
+		d2mode_priority_a_cnt = rfixed_trunc(priority_mark12);
+		if (rdev->disp_priority == 2)
+			d2mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
 		WREG32(D1MODE_PRIORITY_A_CNT, MODE_PRIORITY_OFF);
 		WREG32(D1MODE_PRIORITY_B_CNT, MODE_PRIORITY_OFF);
-		WREG32(D2MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark12));
-		WREG32(D2MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark12));
+		WREG32(D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
+		WREG32(D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 	}
 }
 
@@ -1156,6 +1168,8 @@ void rv515_bandwidth_update(struct radeon_device *rdev)
 	uint32_t tmp;
 	struct drm_display_mode *mode0 = NULL;
 	struct drm_display_mode *mode1 = NULL;
+
+	radeon_update_display_priority(rdev);
 
 	if (rdev->mode_info.crtcs[0]->base.enabled)
 		mode0 = &rdev->mode_info.crtcs[0]->base.mode;
@@ -1166,7 +1180,8 @@ void rv515_bandwidth_update(struct radeon_device *rdev)
 	 * modes if the user specifies HIGH for displaypriority
 	 * option.
 	 */
-	if (rdev->disp_priority == 2) {
+	if ((rdev->disp_priority == 2) &&
+	    (rdev->family == CHIP_RV515)) {
 		tmp = RREG32_MC(MC_MISC_LAT_TIMER);
 		tmp &= ~MC_DISP1R_INIT_LAT_MASK;
 		tmp &= ~MC_DISP0R_INIT_LAT_MASK;

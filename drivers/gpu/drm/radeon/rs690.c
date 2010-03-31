@@ -400,9 +400,11 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 	struct drm_display_mode *mode1 = NULL;
 	struct rs690_watermark wm0;
 	struct rs690_watermark wm1;
-	u32 tmp;
+	u32 tmp, d1mode_priority_a_cnt, d2mode_priority_a_cnt;
 	fixed20_12 priority_mark02, priority_mark12, fill_rate;
 	fixed20_12 a, b;
+
+	radeon_update_display_priority(rdev);
 
 	if (rdev->mode_info.crtcs[0]->base.enabled)
 		mode0 = &rdev->mode_info.crtcs[0]->base.mode;
@@ -413,7 +415,8 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 	 * modes if the user specifies HIGH for displaypriority
 	 * option.
 	 */
-	if (rdev->disp_priority == 2) {
+	if ((rdev->disp_priority == 2) &&
+	    ((rdev->family == CHIP_RS690) || (rdev->family == CHIP_RS740))) {
 		tmp = RREG32_MC(R_000104_MC_INIT_MISC_LAT_TIMER);
 		tmp &= C_000104_MC_DISP0R_INIT_LAT;
 		tmp &= C_000104_MC_DISP1R_INIT_LAT;
@@ -488,10 +491,16 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 			priority_mark12.full = 0;
 		if (wm1.priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark_max.full;
-		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark02));
-		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark02));
-		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark12));
-		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark12));
+		d1mode_priority_a_cnt = rfixed_trunc(priority_mark02);
+		d2mode_priority_a_cnt = rfixed_trunc(priority_mark12);
+		if (rdev->disp_priority == 2) {
+			d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
+			d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
+		}
+		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
+		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
+		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
+		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 	} else if (mode0) {
 		if (rfixed_trunc(wm0.dbpp) > 64)
 			a.full = rfixed_mul(wm0.dbpp, wm0.num_line_pair);
@@ -518,8 +527,11 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 			priority_mark02.full = 0;
 		if (wm0.priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark_max.full;
-		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark02));
-		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark02));
+		d1mode_priority_a_cnt = rfixed_trunc(priority_mark02);
+		if (rdev->disp_priority == 2)
+			d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
+		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
+		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
 		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT,
 			S_006D48_D2MODE_PRIORITY_A_OFF(1));
 		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT,
@@ -550,12 +562,15 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 			priority_mark12.full = 0;
 		if (wm1.priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark_max.full;
+		d2mode_priority_a_cnt = rfixed_trunc(priority_mark12);
+		if (rdev->disp_priority == 2)
+			d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
 		WREG32(R_006548_D1MODE_PRIORITY_A_CNT,
 			S_006548_D1MODE_PRIORITY_A_OFF(1));
 		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT,
 			S_00654C_D1MODE_PRIORITY_B_OFF(1));
-		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark12));
-		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark12));
+		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
+		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 	}
 }
 

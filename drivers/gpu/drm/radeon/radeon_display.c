@@ -971,6 +971,23 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 	return 0;
 }
 
+void radeon_update_display_priority(struct radeon_device *rdev)
+{
+	/* adjustment options for the display watermarks */
+	if ((radeon_disp_priority == 0) || (radeon_disp_priority > 2)) {
+		/* set display priority to high for r3xx, rv515 chips
+		 * this avoids flickering due to underflow to the
+		 * display controllers during heavy acceleration.
+		 */
+		if (ASIC_IS_R300(rdev) || (rdev->family == CHIP_RV515))
+			rdev->disp_priority = 2;
+		else
+			rdev->disp_priority = 0;
+	} else
+		rdev->disp_priority = radeon_disp_priority;
+
+}
+
 int radeon_modeset_init(struct radeon_device *rdev)
 {
 	int i;

@@ -91,6 +91,7 @@ extern int radeon_tv;
 extern int radeon_new_pll;
 extern int radeon_dynpm;
 extern int radeon_audio;
+extern int radeon_disp_priority;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -1181,6 +1182,7 @@ extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
 extern bool radeon_card_posted(struct radeon_device *rdev);
 extern void radeon_update_bandwidth_info(struct radeon_device *rdev);
+extern void radeon_update_display_priority(struct radeon_device *rdev);
 extern bool radeon_boot_test_post_card(struct radeon_device *rdev);
 extern int radeon_clocks_init(struct radeon_device *rdev);
 extern void radeon_clocks_fini(struct radeon_device *rdev);
