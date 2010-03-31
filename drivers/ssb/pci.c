@@ -167,7 +167,7 @@ err_pci:
 }
 
 /* Get the word-offset for a SSB_SPROM_XXX define. */
-#define SPOFF(offset)	(((offset) - SSB_SPROM_BASE) / sizeof(u16))
+#define SPOFF(offset)	(((offset) - SSB_SPROM_BASE1) / sizeof(u16))
 /* Helper to extract some _offset, which is one of the SSB_SPROM_XXX defines. */
 #define SPEX16(_outvar, _offset, _mask, _shift)	\
 	out->_outvar = ((in[SPOFF(_offset)] & (_mask)) >> (_shift))
@@ -253,7 +253,7 @@ static int sprom_do_read(struct ssb_bus *bus, u16 *sprom)
 	int i;
 
 	for (i = 0; i < bus->sprom_size; i++)
-		sprom[i] = ioread16(bus->mmio + SSB_SPROM_BASE + (i * 2));
+		sprom[i] = ioread16(bus->mmio + bus->sprom_offset + (i * 2));
 
 	return 0;
 }
@@ -284,7 +284,7 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 			ssb_printk("75%%");
 		else if (i % 2)
 			ssb_printk(".");
-		writew(sprom[i], bus->mmio + SSB_SPROM_BASE + (i * 2));
+		writew(sprom[i], bus->mmio + bus->sprom_offset + (i * 2));
 		mmiowb();
 		msleep(20);
 	}
@@ -624,6 +624,9 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		ssb_printk(KERN_ERR PFX "No SPROM available!\n");
 		return -ENODEV;
 	}
+
+	bus->sprom_offset = (bus->chipco.dev->id.revision < 31) ?
+		SSB_SPROM_BASE1 : SSB_SPROM_BASE31;
 
 	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
 	if (!buf)
