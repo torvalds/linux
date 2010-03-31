@@ -1741,6 +1741,10 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err)
 		return err;
 
+	err = verify_policy_dir(p->dir);
+	if (err)
+		return err;
+
 	if (p->index)
 		xp = xfrm_policy_byid(net, mark, type, p->dir, p->index, 0, &err);
 	else {
