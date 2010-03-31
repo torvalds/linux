@@ -1386,29 +1386,48 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 /*
  * Try and locate an idle CPU in the sched_domain.
  */
-static int
-select_idle_sibling(struct task_struct *p, struct sched_domain *sd, int target)
+static int select_idle_sibling(struct task_struct *p, int target)
 {
 	int cpu = smp_processor_id();
 	int prev_cpu = task_cpu(p);
+	struct sched_domain *sd;
 	int i;
 
 	/*
-	 * If this domain spans both cpu and prev_cpu (see the SD_WAKE_AFFINE
-	 * test in select_task_rq_fair) and the prev_cpu is idle then that's
-	 * always a better target than the current cpu.
+	 * If the task is going to be woken-up on this cpu and if it is
+	 * already idle, then it is the right target.
 	 */
-	if (target == cpu && !cpu_rq(prev_cpu)->cfs.nr_running)
+	if (target == cpu && idle_cpu(cpu))
+		return cpu;
+
+	/*
+	 * If the task is going to be woken-up on the cpu where it previously
+	 * ran and if it is currently idle, then it the right target.
+	 */
+	if (target == prev_cpu && idle_cpu(prev_cpu))
 		return prev_cpu;
 
 	/*
-	 * Otherwise, iterate the domain and find an elegible idle cpu.
+	 * Otherwise, iterate the domains and find an elegible idle cpu.
 	 */
-	for_each_cpu_and(i, sched_domain_span(sd), &p->cpus_allowed) {
-		if (!cpu_rq(i)->cfs.nr_running) {
-			target = i;
+	for_each_domain(target, sd) {
+		if (!(sd->flags & SD_SHARE_PKG_RESOURCES))
 			break;
+
+		for_each_cpu_and(i, sched_domain_span(sd), &p->cpus_allowed) {
+			if (idle_cpu(i)) {
+				target = i;
+				break;
+			}
 		}
+
+		/*
+		 * Lets stop looking for an idle sibling when we reached
+		 * the domain that spans the current cpu and prev_cpu.
+		 */
+		if (cpumask_test_cpu(cpu, sched_domain_span(sd)) &&
+		    cpumask_test_cpu(prev_cpu, sched_domain_span(sd)))
+			break;
 	}
 
 	return target;
@@ -1432,7 +1451,7 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 	int cpu = smp_processor_id();
 	int prev_cpu = task_cpu(p);
 	int new_cpu = cpu;
-	int want_affine = 0, cpu_idle = !current->pid;
+	int want_affine = 0;
 	int want_sd = 1;
 	int sync = wake_flags & WF_SYNC;
 
@@ -1472,36 +1491,13 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 		}
 
 		/*
-		 * While iterating the domains looking for a spanning
-		 * WAKE_AFFINE domain, adjust the affine target to any idle cpu
-		 * in cache sharing domains along the way.
+		 * If both cpu and prev_cpu are part of this domain,
+		 * cpu is a valid SD_WAKE_AFFINE target.
 		 */
-		if (want_affine) {
-			int target = -1;
-
-			/*
-			 * If both cpu and prev_cpu are part of this domain,
-			 * cpu is a valid SD_WAKE_AFFINE target.
-			 */
-			if (cpumask_test_cpu(prev_cpu, sched_domain_span(tmp)))
-				target = cpu;
-
-			/*
-			 * If there's an idle sibling in this domain, make that
-			 * the wake_affine target instead of the current cpu.
-			 */
-			if (!cpu_idle && tmp->flags & SD_SHARE_PKG_RESOURCES)
-				target = select_idle_sibling(p, tmp, target);
-
-			if (target >= 0) {
-				if (tmp->flags & SD_WAKE_AFFINE) {
-					affine_sd = tmp;
-					want_affine = 0;
-					if (target != cpu)
-						cpu_idle = 1;
-				}
-				cpu = target;
-			}
+		if (want_affine && (tmp->flags & SD_WAKE_AFFINE) &&
+		    cpumask_test_cpu(prev_cpu, sched_domain_span(tmp))) {
+			affine_sd = tmp;
+			want_affine = 0;
 		}
 
 		if (!want_sd && !want_affine)
@@ -1532,8 +1528,10 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 #endif
 
 	if (affine_sd) {
-		if (cpu_idle || cpu == prev_cpu || wake_affine(affine_sd, p, sync))
-			return cpu;
+		if (cpu == prev_cpu || wake_affine(affine_sd, p, sync))
+			return select_idle_sibling(p, cpu);
+		else
+			return select_idle_sibling(p, prev_cpu);
 	}
 
 	while (sd) {
