@@ -318,6 +318,9 @@ EXPORT_SYMBOL_GPL(ring_buffer_event_data);
 #define TS_MASK		((1ULL << TS_SHIFT) - 1)
 #define TS_DELTA_TEST	(~TS_MASK)
 
+/* Flag when events were overwritten */
+#define RB_MISSED_EVENTS	(1 << 31)
+
 struct buffer_data_page {
 	u64		 time_stamp;	/* page time stamp */
 	local_t		 commit;	/* write committed index */
@@ -416,6 +419,12 @@ int ring_buffer_print_page_header(struct trace_seq *s)
 			       (unsigned int)sizeof(field.commit),
 			       (unsigned int)is_signed_type(long));
 
+	ret = trace_seq_printf(s, "\tfield: int overwrite;\t"
+			       "offset:%u;\tsize:%u;\tsigned:%u;\n",
+			       (unsigned int)offsetof(typeof(field), commit),
+			       1,
+			       (unsigned int)is_signed_type(long));
+
 	ret = trace_seq_printf(s, "\tfield: char data;\t"
 			       "offset:%u;\tsize:%u;\tsigned:%u;\n",
 			       (unsigned int)offsetof(typeof(field), data),
@@ -439,6 +448,8 @@ struct ring_buffer_per_cpu {
 	struct buffer_page		*tail_page;	/* write to tail */
 	struct buffer_page		*commit_page;	/* committed pages */
 	struct buffer_page		*reader_page;
+	unsigned long			lost_events;
+	unsigned long			last_overrun;
 	local_t				commit_overrun;
 	local_t				overrun;
 	local_t				entries;
@@ -2835,6 +2846,7 @@ static struct buffer_page *
 rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	struct buffer_page *reader = NULL;
+	unsigned long overwrite;
 	unsigned long flags;
 	int nr_loops = 0;
 	int ret;
@@ -2896,6 +2908,18 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	rb_set_list_to_head(cpu_buffer, &cpu_buffer->reader_page->list);
 
 	/*
+	 * We want to make sure we read the overruns after we set up our
+	 * pointers to the next object. The writer side does a
+	 * cmpxchg to cross pages which acts as the mb on the writer
+	 * side. Note, the reader will constantly fail the swap
+	 * while the writer is updating the pointers, so this
+	 * guarantees that the overwrite recorded here is the one we
+	 * want to compare with the last_overrun.
+	 */
+	smp_mb();
+	overwrite = local_read(&(cpu_buffer->overrun));
+
+	/*
 	 * Here's the tricky part.
 	 *
 	 * We need to move the pointer past the header page.
@@ -2925,6 +2949,11 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	/* Finally update the reader page to the new head */
 	cpu_buffer->reader_page = reader;
 	rb_reset_reader_page(cpu_buffer);
+
+	if (overwrite != cpu_buffer->last_overrun) {
+		cpu_buffer->lost_events = overwrite - cpu_buffer->last_overrun;
+		cpu_buffer->last_overrun = overwrite;
+	}
 
 	goto again;
 
@@ -3002,8 +3031,14 @@ static void rb_advance_iter(struct ring_buffer_iter *iter)
 		rb_advance_iter(iter);
 }
 
+static int rb_lost_events(struct ring_buffer_per_cpu *cpu_buffer)
+{
+	return cpu_buffer->lost_events;
+}
+
 static struct ring_buffer_event *
-rb_buffer_peek(struct ring_buffer_per_cpu *cpu_buffer, u64 *ts)
+rb_buffer_peek(struct ring_buffer_per_cpu *cpu_buffer, u64 *ts,
+	       unsigned long *lost_events)
 {
 	struct ring_buffer_event *event;
 	struct buffer_page *reader;
@@ -3055,6 +3090,8 @@ rb_buffer_peek(struct ring_buffer_per_cpu *cpu_buffer, u64 *ts)
 			ring_buffer_normalize_time_stamp(cpu_buffer->buffer,
 							 cpu_buffer->cpu, ts);
 		}
+		if (lost_events)
+			*lost_events = rb_lost_events(cpu_buffer);
 		return event;
 
 	default:
@@ -3165,12 +3202,14 @@ static inline int rb_ok_to_lock(void)
  * @buffer: The ring buffer to read
  * @cpu: The cpu to peak at
  * @ts: The timestamp counter of this event.
+ * @lost_events: a variable to store if events were lost (may be NULL)
  *
  * This will return the event that will be read next, but does
  * not consume the data.
  */
 struct ring_buffer_event *
-ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
+ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts,
+		 unsigned long *lost_events)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = buffer->buffers[cpu];
 	struct ring_buffer_event *event;
@@ -3185,7 +3224,7 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	local_irq_save(flags);
 	if (dolock)
 		spin_lock(&cpu_buffer->reader_lock);
-	event = rb_buffer_peek(cpu_buffer, ts);
+	event = rb_buffer_peek(cpu_buffer, ts, lost_events);
 	if (event && event->type_len == RINGBUF_TYPE_PADDING)
 		rb_advance_reader(cpu_buffer);
 	if (dolock)
@@ -3227,13 +3266,17 @@ ring_buffer_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 /**
  * ring_buffer_consume - return an event and consume it
  * @buffer: The ring buffer to get the next event from
+ * @cpu: the cpu to read the buffer from
+ * @ts: a variable to store the timestamp (may be NULL)
+ * @lost_events: a variable to store if events were lost (may be NULL)
  *
  * Returns the next event in the ring buffer, and that event is consumed.
  * Meaning, that sequential reads will keep returning a different event,
  * and eventually empty the ring buffer if the producer is slower.
  */
 struct ring_buffer_event *
-ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
+ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts,
+		    unsigned long *lost_events)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event = NULL;
@@ -3254,9 +3297,11 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
 	if (dolock)
 		spin_lock(&cpu_buffer->reader_lock);
 
-	event = rb_buffer_peek(cpu_buffer, ts);
-	if (event)
+	event = rb_buffer_peek(cpu_buffer, ts, lost_events);
+	if (event) {
+		cpu_buffer->lost_events = 0;
 		rb_advance_reader(cpu_buffer);
+	}
 
 	if (dolock)
 		spin_unlock(&cpu_buffer->reader_lock);
@@ -3404,6 +3449,9 @@ rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer)
 
 	cpu_buffer->write_stamp = 0;
 	cpu_buffer->read_stamp = 0;
+
+	cpu_buffer->lost_events = 0;
+	cpu_buffer->last_overrun = 0;
 
 	rb_head_page_activate(cpu_buffer);
 }
@@ -3684,6 +3732,7 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	unsigned int commit;
 	unsigned int read;
 	u64 save_timestamp;
+	int missed_events = 0;
 	int ret = -1;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
@@ -3715,6 +3764,10 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 
 	read = reader->read;
 	commit = rb_page_commit(reader);
+
+	/* Check if any events were dropped */
+	if (cpu_buffer->lost_events)
+		missed_events = 1;
 
 	/*
 	 * If this page has been partially read or
@@ -3778,6 +3831,13 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 		*data_page = bpage;
 	}
 	ret = read;
+
+	cpu_buffer->lost_events = 0;
+	/*
+	 * Set a flag in the commit field if we lost events
+	 */
+	if (missed_events)
+		local_add(RB_MISSED_EVENTS, &bpage->commit);
 
  out_unlock:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);

@@ -186,14 +186,14 @@ int op_cpu_buffer_write_commit(struct op_entry *entry)
 struct op_sample *op_cpu_buffer_read_entry(struct op_entry *entry, int cpu)
 {
 	struct ring_buffer_event *e;
-	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
+	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL, NULL);
 	if (e)
 		goto event;
 	if (ring_buffer_swap_cpu(op_ring_buffer_read,
 				 op_ring_buffer_write,
 				 cpu))
 		return NULL;
-	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
+	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL, NULL);
 	if (e)
 		goto event;
 	return NULL;

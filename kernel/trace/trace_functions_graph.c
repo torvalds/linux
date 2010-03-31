@@ -489,9 +489,10 @@ get_return_for_leaf(struct trace_iterator *iter,
 			 * We need to consume the current entry to see
 			 * the next one.
 			 */
-			ring_buffer_consume(iter->tr->buffer, iter->cpu, NULL);
+			ring_buffer_consume(iter->tr->buffer, iter->cpu,
+					    NULL, NULL);
 			event = ring_buffer_peek(iter->tr->buffer, iter->cpu,
-						 NULL);
+						 NULL, NULL);
 		}
 
 		if (!event)
