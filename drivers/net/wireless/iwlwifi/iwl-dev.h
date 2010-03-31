@@ -1120,7 +1120,6 @@ struct iwl_priv {
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
 
 	struct iwl_ht_config current_ht_config;
-	u8 last_phy_res[100];
 
 	/* Rate scaling data */
 	u8 retry_rate;
@@ -1237,6 +1236,9 @@ struct iwl_priv {
 			 * no AGGREGATION
 			 */
 			u8 agg_tids_count;
+
+			struct iwl_rx_phy_res last_phy_res;
+			bool last_phy_res_valid;
 		} _agn;
 #endif
 	};

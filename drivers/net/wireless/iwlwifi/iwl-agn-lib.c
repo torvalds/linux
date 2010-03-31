@@ -1001,11 +1001,11 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 				phy_res->cfg_phy_cnt + len);
 		ampdu_status = le32_to_cpu(rx_pkt_status);
 	} else {
-		if (!priv->last_phy_res[0]) {
+		if (!priv->_agn.last_phy_res_valid) {
 			IWL_ERR(priv, "MPDU frame without cached PHY data\n");
 			return;
 		}
-		phy_res = (struct iwl_rx_phy_res *)&priv->last_phy_res[1];
+		phy_res = &priv->_agn.last_phy_res;
 		amsdu = (struct iwl4965_rx_mpdu_res_start *)pkt->u.raw;
 		header = (struct ieee80211_hdr *)(pkt->u.raw + sizeof(*amsdu));
 		len = le16_to_cpu(amsdu->byte_count);
@@ -1094,10 +1094,10 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 /* Cache phy data (Rx signal strength, etc) for HT frame (REPLY_RX_PHY_CMD).
  * This will be used later in iwl_rx_reply_rx() for REPLY_RX_MPDU_CMD. */
 void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
-				    struct iwl_rx_mem_buffer *rxb)
+			    struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	priv->last_phy_res[0] = 1;
-	memcpy(&priv->last_phy_res[1], &(pkt->u.raw[0]),
+	priv->_agn.last_phy_res_valid = true;
+	memcpy(&priv->_agn.last_phy_res, pkt->u.raw,
 	       sizeof(struct iwl_rx_phy_res));
 }
