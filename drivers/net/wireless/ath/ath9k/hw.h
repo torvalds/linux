@@ -479,7 +479,6 @@ struct ath_hw {
 
 	int16_t curchan_rad_index;
 	enum ath9k_int imask;
-	u32 mask_reg;
 	u32 imrs2_reg;
 	u32 txok_interrupt_mask;
 	u32 txerr_interrupt_mask;
