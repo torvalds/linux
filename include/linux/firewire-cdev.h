@@ -438,7 +438,7 @@ struct fw_cdev_remove_descriptor {
  * @type:	%FW_CDEV_ISO_CONTEXT_TRANSMIT or %FW_CDEV_ISO_CONTEXT_RECEIVE
  * @header_size: Header size to strip for receive contexts
  * @channel:	Channel to bind to
- * @speed:	Speed to transmit at
+ * @speed:	Speed for transmit contexts
  * @closure:	To be returned in &fw_cdev_event_iso_interrupt
  * @handle:	Handle to context, written back by kernel
  *
@@ -450,6 +450,9 @@ struct fw_cdev_remove_descriptor {
  *
  * If a context was successfully created, the kernel writes back a handle to the
  * context, which must be passed in for subsequent operations on that context.
+ *
+ * For receive contexts, @header_size must be at least 4 and must be a multiple
+ * of 4.
  *
  * Note that the effect of a @header_size > 4 depends on
  * &fw_cdev_get_info.version, as documented at &fw_cdev_event_iso_interrupt.
@@ -481,10 +484,34 @@ struct fw_cdev_create_iso_context {
  *
  * &struct fw_cdev_iso_packet is used to describe isochronous packet queues.
  *
- * Use the FW_CDEV_ISO_ macros to fill in @control.  The sy and tag fields are
- * specified by IEEE 1394a and IEC 61883.
+ * Use the FW_CDEV_ISO_ macros to fill in @control.
  *
- * FIXME - finish this documentation
+ * For transmit packets, the header length must be a multiple of 4 and specifies
+ * the numbers of bytes in @header that will be prepended to the packet's
+ * payload; these bytes are copied into the kernel and will not be accessed
+ * after the ioctl has returned.  The sy and tag fields are copied to the iso
+ * packet header (these fields are specified by IEEE 1394a and IEC 61883-1).
+ * The skip flag specifies that no packet is to be sent in a frame; when using
+ * this, all other fields except the interrupt flag must be zero.
+ *
+ * For receive packets, the header length must be a multiple of the context's
+ * header size; if the header length is larger than the context's header size,
+ * multiple packets are queued for this entry.  The sy and tag fields are
+ * ignored.  If the sync flag is set, the context drops all packets until
+ * a packet with a matching sy field is received (the sync value to wait for is
+ * specified in the &fw_cdev_start_iso structure).  The payload length defines
+ * how many payload bytes can be received for one packet (in addition to payload
+ * quadlets that have been defined as headers and are stripped and returned in
+ * the &fw_cdev_event_iso_interrupt structure).  If more bytes are received, the
+ * additional bytes are dropped.  If less bytes are received, the remaining
+ * bytes in this part of the payload buffer will not be written to, not even by
+ * the next packet, i.e., packets received in consecutive frames will not
+ * necessarily be consecutive in memory.  If an entry has queued multiple
+ * packets, the payload length is divided equally among them.
+ *
+ * When a packet with the interrupt flag set has been completed, the
+ * &fw_cdev_event_iso_interrupt event will be sent.  An entry that has queued
+ * multiple receive packets is completed when its last packet is completed.
  */
 struct fw_cdev_iso_packet {
 	__u32 control;
@@ -501,7 +528,7 @@ struct fw_cdev_iso_packet {
  * Queue a number of isochronous packets for reception or transmission.
  * This ioctl takes a pointer to an array of &fw_cdev_iso_packet structs,
  * which describe how to transmit from or receive into a contiguous region
- * of a mmap()'ed payload buffer.  As part of the packet descriptors,
+ * of a mmap()'ed payload buffer.  As part of transmit packet descriptors,
  * a series of headers can be supplied, which will be prepended to the
  * payload during DMA.
  *
