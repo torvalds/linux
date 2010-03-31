@@ -2077,18 +2077,16 @@ static inline void ace_tx_int(struct net_device *dev,
 
 	do {
 		struct sk_buff *skb;
-		dma_addr_t mapping;
 		struct tx_ring_info *info;
 
 		info = ap->skb->tx_skbuff + idx;
 		skb = info->skb;
-		mapping = pci_unmap_addr(info, mapping);
 
-		if (mapping) {
-			pci_unmap_page(ap->pdev, mapping,
+		if (dma_unmap_len(info, maplen)) {
+			pci_unmap_page(ap->pdev, dma_unmap_addr(info, mapping),
 				       pci_unmap_len(info, maplen),
 				       PCI_DMA_TODEVICE);
-			pci_unmap_addr_set(info, mapping, 0);
+			dma_unmap_len_set(info, maplen, 0);
 		}
 
 		if (skb) {
@@ -2376,14 +2374,12 @@ static int ace_close(struct net_device *dev)
 
 	for (i = 0; i < ACE_TX_RING_ENTRIES(ap); i++) {
 		struct sk_buff *skb;
-		dma_addr_t mapping;
 		struct tx_ring_info *info;
 
 		info = ap->skb->tx_skbuff + i;
 		skb = info->skb;
-		mapping = pci_unmap_addr(info, mapping);
 
-		if (mapping) {
+		if (dma_unmap_len(info, maplen)) {
 			if (ACE_IS_TIGON_I(ap)) {
 				/* NB: TIGON_1 is special, tx_ring is in io space */
 				struct tx_desc __iomem *tx;
@@ -2394,10 +2390,10 @@ static int ace_close(struct net_device *dev)
 			} else
 				memset(ap->tx_ring + i, 0,
 				       sizeof(struct tx_desc));
-			pci_unmap_page(ap->pdev, mapping,
+			pci_unmap_page(ap->pdev, dma_unmap_addr(info, mapping),
 				       pci_unmap_len(info, maplen),
 				       PCI_DMA_TODEVICE);
-			pci_unmap_addr_set(info, mapping, 0);
+			dma_unmap_len_set(info, maplen, 0);
 		}
 		if (skb) {
 			dev_kfree_skb(skb);
