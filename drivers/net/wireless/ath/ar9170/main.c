@@ -235,7 +235,7 @@ static void __ar9170_dump_txqueue(struct ar9170 *ar,
 	       wiphy_name(ar->hw->wiphy), skb_queue_len(queue));
 
 	skb_queue_walk(queue, skb) {
-		printk(KERN_DEBUG "index:%d => \n", i++);
+		printk(KERN_DEBUG "index:%d =>\n", i++);
 		ar9170_print_txheader(ar, skb);
 	}
 	if (i != skb_queue_len(queue))
@@ -280,7 +280,7 @@ static void ar9170_dump_tx_status_ampdu(struct ar9170 *ar)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ar->tx_status_ampdu.lock, flags);
-	printk(KERN_DEBUG "%s: A-MPDU tx_status queue => \n",
+	printk(KERN_DEBUG "%s: A-MPDU tx_status queue =>\n",
 	       wiphy_name(ar->hw->wiphy));
 	__ar9170_dump_txqueue(ar, &ar->tx_status_ampdu);
 	spin_unlock_irqrestore(&ar->tx_status_ampdu.lock, flags);
@@ -307,7 +307,7 @@ static void ar9170_recycle_expired(struct ar9170 *ar,
 		if (time_is_before_jiffies(arinfo->timeout)) {
 #ifdef AR9170_QUEUE_DEBUG
 			printk(KERN_DEBUG "%s: [%ld > %ld] frame expired => "
-			       "recycle \n", wiphy_name(ar->hw->wiphy),
+			       "recycle\n", wiphy_name(ar->hw->wiphy),
 			       jiffies, arinfo->timeout);
 			ar9170_print_txheader(ar, skb);
 #endif /* AR9170_QUEUE_DEBUG */
@@ -688,7 +688,8 @@ void ar9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 
 	/* firmware debug */
 	case 0xca:
-		printk(KERN_DEBUG "ar9170 FW: %.*s\n", len - 4, (char *)buf + 4);
+		printk(KERN_DEBUG "ar9170 FW: %.*s\n", len - 4,
+				(char *)buf + 4);
 		break;
 	case 0xcb:
 		len -= 4;
@@ -1727,7 +1728,7 @@ static void ar9170_tx(struct ar9170 *ar)
 			printk(KERN_DEBUG "%s: queue %d full\n",
 			       wiphy_name(ar->hw->wiphy), i);
 
-			printk(KERN_DEBUG "%s: stuck frames: ===> \n",
+			printk(KERN_DEBUG "%s: stuck frames: ===>\n",
 			       wiphy_name(ar->hw->wiphy));
 			ar9170_dump_txqueue(ar, &ar->tx_pending[i]);
 			ar9170_dump_txqueue(ar, &ar->tx_status[i]);
