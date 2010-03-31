@@ -480,7 +480,6 @@ struct ath_softc {
 	bool ps_enabled;
 	bool ps_idle;
 	unsigned long ps_usecount;
-	enum ath9k_int imask;
 
 	struct ath_config config;
 	struct ath_rx rx;

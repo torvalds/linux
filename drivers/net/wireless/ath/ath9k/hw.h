@@ -478,6 +478,7 @@ struct ath_hw {
 	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
 
 	int16_t curchan_rad_index;
+	enum ath9k_int imask;
 	u32 mask_reg;
 	u32 imrs2_reg;
 	u32 txok_interrupt_mask;
