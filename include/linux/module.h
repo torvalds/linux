@@ -567,6 +567,11 @@ static inline bool is_module_address(unsigned long addr)
 	return false;
 }
 
+static inline bool is_module_percpu_address(unsigned long addr)
+{
+	return false;
+}
+
 static inline bool is_module_text_address(unsigned long addr)
 {
 	return false;
