@@ -234,12 +234,8 @@ static ssize_t show_sampling_rate_min(struct kobject *kobj,
 	return sprintf(buf, "%u\n", min_sampling_rate);
 }
 
-#define define_one_ro(_name)		\
-static struct global_attr _name =	\
-__ATTR(_name, 0444, show_##_name, NULL)
-
-define_one_ro(sampling_rate_max);
-define_one_ro(sampling_rate_min);
+define_one_global_ro(sampling_rate_max);
+define_one_global_ro(sampling_rate_min);
 
 /* cpufreq_ondemand Governor Tunables */
 #define show_one(file_name, object)					\
@@ -274,12 +270,8 @@ show_one_old(powersave_bias);
 show_one_old(sampling_rate_min);
 show_one_old(sampling_rate_max);
 
-#define define_one_ro_old(object, _name)       \
-static struct freq_attr object =               \
-__ATTR(_name, 0444, show_##_name##_old, NULL)
-
-define_one_ro_old(sampling_rate_min_old, sampling_rate_min);
-define_one_ro_old(sampling_rate_max_old, sampling_rate_max);
+cpufreq_freq_attr_ro_old(sampling_rate_min);
+cpufreq_freq_attr_ro_old(sampling_rate_max);
 
 /*** delete after deprecation time ***/
 
@@ -376,14 +368,10 @@ static ssize_t store_powersave_bias(struct kobject *a, struct attribute *b,
 	return count;
 }
 
-#define define_one_rw(_name) \
-static struct global_attr _name = \
-__ATTR(_name, 0644, show_##_name, store_##_name)
-
-define_one_rw(sampling_rate);
-define_one_rw(up_threshold);
-define_one_rw(ignore_nice_load);
-define_one_rw(powersave_bias);
+define_one_global_rw(sampling_rate);
+define_one_global_rw(up_threshold);
+define_one_global_rw(ignore_nice_load);
+define_one_global_rw(powersave_bias);
 
 static struct attribute *dbs_attributes[] = {
 	&sampling_rate_max.attr,
@@ -415,14 +403,10 @@ write_one_old(up_threshold);
 write_one_old(ignore_nice_load);
 write_one_old(powersave_bias);
 
-#define define_one_rw_old(object, _name)       \
-static struct freq_attr object =               \
-__ATTR(_name, 0644, show_##_name##_old, store_##_name##_old)
-
-define_one_rw_old(sampling_rate_old, sampling_rate);
-define_one_rw_old(up_threshold_old, up_threshold);
-define_one_rw_old(ignore_nice_load_old, ignore_nice_load);
-define_one_rw_old(powersave_bias_old, powersave_bias);
+cpufreq_freq_attr_rw_old(sampling_rate);
+cpufreq_freq_attr_rw_old(up_threshold);
+cpufreq_freq_attr_rw_old(ignore_nice_load);
+cpufreq_freq_attr_rw_old(powersave_bias);
 
 static struct attribute *dbs_attributes_old[] = {
        &sampling_rate_max_old.attr,
