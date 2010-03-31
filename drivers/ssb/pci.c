@@ -167,7 +167,7 @@ err_pci:
 }
 
 /* Get the word-offset for a SSB_SPROM_XXX define. */
-#define SPOFF(offset)	(((offset) - SSB_SPROM_BASE1) / sizeof(u16))
+#define SPOFF(offset)	((offset) / sizeof(u16))
 /* Helper to extract some _offset, which is one of the SSB_SPROM_XXX defines. */
 #define SPEX16(_outvar, _offset, _mask, _shift)	\
 	out->_outvar = ((in[SPOFF(_offset)] & (_mask)) >> (_shift))
