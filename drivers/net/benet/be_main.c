@@ -1855,7 +1855,7 @@ static bool be_flash_redboot(struct be_adapter *adapter,
 	p += crc_offset;
 
 	status = be_cmd_get_flash_crc(adapter, flashed_crc,
-			(img_start + image_size - 4));
+			(image_size - 4));
 	if (status) {
 		dev_err(&adapter->pdev->dev,
 		"could not get crc from flash, not flashing redboot\n");
