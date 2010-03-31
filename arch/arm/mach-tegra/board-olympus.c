@@ -35,12 +35,15 @@
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
+#include <mach/sdhci.h>
+#include <mach/gpio.h>
 
 #include <linux/usb/android_composite.h>
 
 #include "board.h"
 #include "board-olympus.h"
 #include "gpio-names.h"
+#include "devices.h"
 
 /* NVidia bootloader tags */
 #define ATAG_NVIDIA		0x41000801
@@ -200,6 +203,32 @@ static struct platform_device *olympus_devices[] __initdata = {
 	&hsuart,
 };
 
+static struct tegra_sdhci_platform_data olympus_sdhci_platform_data3 = {
+	.clk_id = NULL,
+	.force_hs = 0,
+};
+
+static struct tegra_sdhci_platform_data olympus_sdhci_platform_data4 = {
+	.clk_id = NULL,
+	.force_hs = 0,
+	.cd_gpio = TEGRA_GPIO_PH2,
+	.wp_gpio = TEGRA_GPIO_PH3,
+	.power_gpio = TEGRA_GPIO_PI6,
+};
+
+
+static void olympus_sdhci_init(void)
+{
+	/* TODO: setup GPIOs for cd, wd, and power */
+	tegra_sdhci_device3.dev.platform_data = &olympus_sdhci_platform_data3;
+	tegra_sdhci_device4.dev.platform_data = &olympus_sdhci_platform_data4;
+
+
+	platform_device_register(&tegra_sdhci_device3);
+	platform_device_register(&tegra_sdhci_device4);
+}
+
+
 static void __init tegra_olympus_fixup(struct machine_desc *desc, struct tag *tags,
 				 char **cmdline, struct meminfo *mi)
 {
@@ -235,6 +264,8 @@ static void __init tegra_olympus_init(void)
 	clk_enable(clk);
 
 	olympus_pinmux_init();
+
+	olympus_sdhci_init();
 
 	platform_add_devices(olympus_devices, ARRAY_SIZE(olympus_devices));
 }
