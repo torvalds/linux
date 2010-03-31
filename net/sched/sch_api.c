@@ -1683,7 +1683,7 @@ static int psched_show(struct seq_file *seq, void *v)
 
 static int psched_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, psched_show, PDE(inode)->data);
+	return single_open(file, psched_show, NULL);
 }
 
 static const struct file_operations psched_fops = {
@@ -1708,8 +1708,6 @@ static int __net_init psched_net_init(struct net *net)
 static void __net_exit psched_net_exit(struct net *net)
 {
 	proc_net_remove(net, "psched");
-
-	return;
 }
 #else
 static int __net_init psched_net_init(struct net *net)
