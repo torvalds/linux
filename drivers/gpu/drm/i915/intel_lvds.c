@@ -953,6 +953,8 @@ void intel_lvds_init(struct drm_device *dev)
 
 	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
 	intel_encoder->crtc_mask = (1 << 1);
+	if (IS_I965G(dev))
+		intel_encoder->crtc_mask |= (1 << 0);
 	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
