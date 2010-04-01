@@ -51,8 +51,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 0
-#define QLCNIC_LINUX_VERSIONID  "5.0.0"
+#define _QLCNIC_LINUX_SUBVERSION 1
+#define QLCNIC_LINUX_VERSIONID  "5.0.1"
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
