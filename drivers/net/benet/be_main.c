@@ -720,7 +720,7 @@ get_rx_page_info(struct be_adapter *adapter, u16 frag_idx)
 	BUG_ON(!rx_page_info->page);
 
 	if (rx_page_info->last_page_user) {
-		pci_unmap_page(adapter->pdev, pci_unmap_addr(rx_page_info, bus),
+		pci_unmap_page(adapter->pdev, dma_unmap_addr(rx_page_info, bus),
 			adapter->big_page_size, PCI_DMA_FROMDEVICE);
 		rx_page_info->last_page_user = false;
 	}
@@ -1031,7 +1031,7 @@ static void be_post_rx_frags(struct be_adapter *adapter)
 		}
 		page_offset = page_info->page_offset;
 		page_info->page = pagep;
-		pci_unmap_addr_set(page_info, bus, page_dmaaddr);
+		dma_unmap_addr_set(page_info, bus, page_dmaaddr);
 		frag_dmaaddr = page_dmaaddr + page_info->page_offset;
 
 		rxd = queue_head_node(rxq);
