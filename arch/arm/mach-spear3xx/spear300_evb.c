@@ -16,6 +16,22 @@
 #include <mach/generic.h>
 #include <mach/spear.h>
 
+/* padmux devices to enable */
+static struct pmx_dev *pmx_devs[] = {
+	/* spear3xx specific devices */
+	&pmx_i2c,
+	&pmx_ssp_cs,
+	&pmx_ssp,
+	&pmx_mii,
+	&pmx_uart0,
+
+	/* spear300 specific devices */
+	&pmx_fsmc_2_chips,
+	&pmx_clcd,
+	&pmx_telecom_sdio_4bit,
+	&pmx_gpio1,
+};
+
 static struct amba_device *amba_devs[] __initdata = {
 	/* spear3xx specific devices */
 	&gpio_device,
@@ -37,6 +53,12 @@ static void __init spear300_evb_init(void)
 
 	/* call spear300 machine init function */
 	spear300_init();
+
+	/* padmux initialization */
+	pmx_driver.mode = &photo_frame_mode;
+	pmx_driver.devs = pmx_devs;
+	pmx_driver.devs_count = ARRAY_SIZE(pmx_devs);
+	spear300_pmx_init();
 
 	/* Add Platform Devices */
 	platform_add_devices(plat_devs, ARRAY_SIZE(plat_devs));
