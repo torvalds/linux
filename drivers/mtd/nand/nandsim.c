@@ -315,7 +315,7 @@ struct nandsim {
 	union ns_mem buf;
 
 	/* NAND flash "geometry" */
-	struct nandsin_geometry {
+	struct {
 		uint64_t totsz;     /* total flash size, bytes */
 		uint32_t secsz;     /* flash sector (erase block) size, bytes */
 		uint pgsz;          /* NAND flash page size, bytes */
@@ -334,7 +334,7 @@ struct nandsim {
 	} geom;
 
 	/* NAND flash internal registers */
-	struct nandsim_regs {
+	struct {
 		unsigned command; /* the command register */
 		u_char   status;  /* the status register */
 		uint     row;     /* the page number */
@@ -345,7 +345,7 @@ struct nandsim {
 	} regs;
 
 	/* NAND flash lines state */
-        struct ns_lines_status {
+        struct {
                 int ce;  /* chip Enable */
                 int cle; /* command Latch Enable */
                 int ale; /* address Latch Enable */
