@@ -521,11 +521,13 @@ static void module_unload_init(struct module *mod)
 	int cpu;
 
 	INIT_LIST_HEAD(&mod->modules_which_use_me);
-	for_each_possible_cpu(cpu)
-		per_cpu_ptr(mod->refptr, cpu)->count = 0;
+	for_each_possible_cpu(cpu) {
+		per_cpu_ptr(mod->refptr, cpu)->incs = 0;
+		per_cpu_ptr(mod->refptr, cpu)->decs = 0;
+	}
 
 	/* Hold reference count during initialization. */
-	__this_cpu_write(mod->refptr->count, 1);
+	__this_cpu_write(mod->refptr->incs, 1);
 	/* Backwards compatibility macros put refcount during init. */
 	mod->waiter = current;
 }
@@ -664,12 +666,28 @@ static int try_stop_module(struct module *mod, int flags, int *forced)
 
 unsigned int module_refcount(struct module *mod)
 {
-	unsigned int total = 0;
+	unsigned int incs = 0, decs = 0;
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		total += per_cpu_ptr(mod->refptr, cpu)->count;
-	return total;
+		decs += per_cpu_ptr(mod->refptr, cpu)->decs;
+	/*
+	 * ensure the incs are added up after the decs.
+	 * module_put ensures incs are visible before decs with smp_wmb.
+	 *
+	 * This 2-count scheme avoids the situation where the refcount
+	 * for CPU0 is read, then CPU0 increments the module refcount,
+	 * then CPU1 drops that refcount, then the refcount for CPU1 is
+	 * read. We would record a decrement but not its corresponding
+	 * increment so we would see a low count (disaster).
+	 *
+	 * Rare situation? But module_refcount can be preempted, and we
+	 * might be tallying up 4096+ CPUs. So it is not impossible.
+	 */
+	smp_rmb();
+	for_each_possible_cpu(cpu)
+		incs += per_cpu_ptr(mod->refptr, cpu)->incs;
+	return incs - decs;
 }
 EXPORT_SYMBOL(module_refcount);
 
@@ -846,10 +864,11 @@ void module_put(struct module *module)
 {
 	if (module) {
 		preempt_disable();
-		__this_cpu_dec(module->refptr->count);
+		smp_wmb(); /* see comment in module_refcount */
+		__this_cpu_inc(module->refptr->decs);
 
 		trace_module_put(module, _RET_IP_,
-				 __this_cpu_read(module->refptr->count));
+				 __this_cpu_read(module->refptr->decs));
 		/* Maybe they're waiting for us to drop reference? */
 		if (unlikely(!module_is_live(module)))
 			wake_up_process(module->waiter);
