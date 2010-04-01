@@ -220,6 +220,10 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 
 	ACPI_FUNCTION_TRACE(ps_execute_method);
 
+	/* Quick validation of DSDT header */
+
+	acpi_tb_check_dsdt_header();
+
 	/* Validate the Info and method Node */
 
 	if (!info || !info->resolved_node) {

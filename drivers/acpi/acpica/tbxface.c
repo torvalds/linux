@@ -518,33 +518,25 @@ static acpi_status acpi_tb_load_namespace(void)
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
+	acpi_gbl_DSDT = &acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT];
+
 	/*
-	 * Load the namespace. The DSDT is required, but any SSDT and PSDT tables
-	 * are optional.
+	 * Load the namespace. The DSDT is required, but any SSDT and
+	 * PSDT tables are optional. Verify the DSDT.
 	 */
 	if (!acpi_gbl_root_table_list.count ||
-	    !ACPI_COMPARE_NAME(&
-			       (acpi_gbl_root_table_list.
-				tables[ACPI_TABLE_INDEX_DSDT].signature),
-			       ACPI_SIG_DSDT)
-	    ||
-	    ACPI_FAILURE(acpi_tb_verify_table
-			 (&acpi_gbl_root_table_list.
-			  tables[ACPI_TABLE_INDEX_DSDT]))) {
+	    !ACPI_COMPARE_NAME(&acpi_gbl_DSDT->signature, ACPI_SIG_DSDT) ||
+	    ACPI_FAILURE(acpi_tb_verify_table(acpi_gbl_DSDT))) {
 		status = AE_NO_ACPI_TABLES;
 		goto unlock_and_exit;
 	}
 
-	/* A valid DSDT is required */
-
-	status =
-	    acpi_tb_verify_table(&acpi_gbl_root_table_list.
-				 tables[ACPI_TABLE_INDEX_DSDT]);
-	if (ACPI_FAILURE(status)) {
-
-		status = AE_NO_ACPI_TABLES;
-		goto unlock_and_exit;
-	}
+	/*
+	 * Save the original DSDT header for detection of table corruption
+	 * and/or replacement of the DSDT from outside the OS.
+	 */
+	ACPI_MEMCPY(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT->pointer,
+		    sizeof(struct acpi_table_header));
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 

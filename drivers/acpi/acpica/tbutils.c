@@ -349,6 +349,44 @@ u8 acpi_tb_checksum(u8 *buffer, u32 length)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_tb_check_dsdt_header
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Quick compare to check validity of the DSDT. This will detect
+ *              if the DSDT has been replaced from outside the OS and/or if
+ *              the DSDT header has been corrupted.
+ *
+ ******************************************************************************/
+
+void acpi_tb_check_dsdt_header(void)
+{
+
+	/* Compare original length and checksum to current values */
+
+	if (acpi_gbl_original_dsdt_header.length !=
+	    acpi_gbl_DSDT->pointer->length
+	    || acpi_gbl_original_dsdt_header.checksum !=
+	    acpi_gbl_DSDT->pointer->checksum) {
+		ACPI_ERROR((AE_INFO,
+			    "The DSDT has been corrupted or replaced - old, new headers below"));
+		acpi_tb_print_table_header(0, &acpi_gbl_original_dsdt_header);
+		acpi_tb_print_table_header(acpi_gbl_DSDT->address,
+					   acpi_gbl_DSDT->pointer);
+
+		/* Disable further error messages */
+
+		acpi_gbl_original_dsdt_header.length =
+		    acpi_gbl_DSDT->pointer->length;
+		acpi_gbl_original_dsdt_header.checksum =
+		    acpi_gbl_DSDT->pointer->checksum;
+	}
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_tb_install_table
  *
  * PARAMETERS:  Address                 - Physical address of DSDT or FACS

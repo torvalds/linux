@@ -165,6 +165,11 @@ ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1a_enable;
 ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_status;
 ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_enable;
 
+/* DSDT information. Used to check for DSDT corruption */
+
+ACPI_EXTERN struct acpi_table_desc *acpi_gbl_DSDT;
+ACPI_EXTERN struct acpi_table_header acpi_gbl_original_dsdt_header;
+
 /*
  * Handle both ACPI 1.0 and ACPI 2.0 Integer widths. The integer width is
  * determined by the revision of the DSDT: If the DSDT revision is less than
