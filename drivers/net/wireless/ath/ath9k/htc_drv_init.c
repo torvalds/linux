@@ -287,6 +287,7 @@ static bool ath_usb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 }
 
 static const struct ath_bus_ops ath9k_usb_bus_ops = {
+	.ath_bus_type = ATH_USB,
 	.read_cachesize = ath_usb_read_cachesize,
 	.eeprom_read = ath_usb_eeprom_read,
 };

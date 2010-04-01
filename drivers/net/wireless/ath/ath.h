@@ -48,6 +48,12 @@ enum ath_device_state {
 	ATH_HW_INITIALIZED,
 };
 
+enum ath_bus_type {
+	ATH_PCI,
+	ATH_AHB,
+	ATH_USB,
+};
+
 struct reg_dmn_pair_mapping {
 	u16 regDmnEnum;
 	u16 reg_5ghz_ctl;
@@ -73,9 +79,10 @@ struct ath_ops {
 struct ath_common;
 
 struct ath_bus_ops {
-	void		(*read_cachesize)(struct ath_common *common, int *csz);
-	bool		(*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
-	void		(*bt_coex_prep)(struct ath_common *common);
+	enum ath_bus_type ath_bus_type;
+	void (*read_cachesize)(struct ath_common *common, int *csz);
+	bool (*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
+	void (*bt_coex_prep)(struct ath_common *common);
 };
 
 struct ath_common {
