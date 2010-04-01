@@ -1569,6 +1569,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	enum wl1271_cmd_ps_mode mode;
 	struct wl1271 *wl = hw->priv;
 	bool do_join = false;
+	bool do_keepalive = false;
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 bss info changed");
@@ -1685,6 +1686,14 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ret < 0)
 				goto out_sleep;
 
+			/*
+			 * This is awkward. The keep-alive configs must be done
+			 * *after* the join command, because otherwise it will
+			 * not work, but it must only be done *once* because
+			 * otherwise the firmware will start complaining.
+			 */
+			do_keepalive = true;
+
 			/* enable the connection monitoring feature */
 			ret = wl1271_acx_conn_monit_params(wl, true);
 			if (ret < 0)
@@ -1763,6 +1772,9 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 		ret = wl1271_acx_aid(wl, wl->aid);
 		if (ret < 0)
 			goto out_sleep;
+	}
+
+	if (do_keepalive) {
 		ret = wl1271_cmd_build_klv_null_data(wl);
 		if (ret < 0)
 			goto out_sleep;
