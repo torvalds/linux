@@ -1742,6 +1742,7 @@ static void qlcnic_tx_timeout_task(struct work_struct *work)
 request_reset:
 	adapter->need_fw_reset = 1;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	QLCDB(adapter, DRV, "Resetting adapter\n");
 }
 
 static struct net_device_stats *qlcnic_get_stats(struct net_device *netdev)
@@ -2046,6 +2047,7 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 	}
 
 	prev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
+	QLCDB(adapter, HW, "Device state = %u\n", prev_state);
 
 	switch (prev_state) {
 	case QLCNIC_DEV_COLD:
@@ -2082,8 +2084,11 @@ start_fw:
 	} while ((QLCRD32(adapter, QLCNIC_CRB_DEV_STATE) != QLCNIC_DEV_READY)
 			&& --dev_init_timeo);
 
-	if (!dev_init_timeo)
+	if (!dev_init_timeo) {
+		dev_err(&adapter->pdev->dev,
+			"Waiting for device to initialize timeout\n");
 		return -1;
+	}
 
 	if (qlcnic_api_lock(adapter))
 		return -1;
@@ -2113,6 +2118,7 @@ qlcnic_fwinit_work(struct work_struct *work)
 			return;
 		}
 
+		QLCDB(adapter, DRV, "Resetting FW\n");
 		if (!qlcnic_start_firmware(adapter)) {
 			qlcnic_schedule_work(adapter, qlcnic_attach_work, 0);
 			return;
@@ -2121,10 +2127,15 @@ qlcnic_fwinit_work(struct work_struct *work)
 		goto err_ret;
 	}
 
-	if (adapter->fw_wait_cnt++ > (adapter->dev_init_timeo / 2))
+	if (adapter->fw_wait_cnt++ > (adapter->dev_init_timeo / 2)) {
+		dev_err(&adapter->pdev->dev,
+				"Waiting for device to reset timeout\n");
 		goto err_ret;
+	}
 
 	dev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
+	QLCDB(adapter, HW, "Func waiting: Device state=%d\n", dev_state);
+
 	switch (dev_state) {
 	case QLCNIC_DEV_READY:
 		if (!qlcnic_start_firmware(adapter)) {
@@ -2177,6 +2188,8 @@ qlcnic_detach_work(struct work_struct *work)
 	return;
 
 err_ret:
+	dev_err(&adapter->pdev->dev, "detach failed; status=%d temp=%d\n",
+			status, adapter->temp);
 	qlcnic_clr_all_drv_state(adapter);
 
 }
@@ -2194,6 +2207,7 @@ qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 	if (state != QLCNIC_DEV_INITALIZING && state != QLCNIC_DEV_NEED_RESET) {
 		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_NEED_RESET);
 		set_bit(__QLCNIC_START_FW, &adapter->state);
+		QLCDB(adapter, DRV, "NEED_RESET state set\n");
 	}
 
 	qlcnic_api_unlock(adapter);
@@ -2290,8 +2304,11 @@ detach:
 		QLCNIC_DEV_NEED_RESET;
 
 	if ((auto_fw_reset == AUTO_FW_RESET_ENABLED) &&
-			!test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+		!test_and_set_bit(__QLCNIC_RESETTING, &adapter->state)) {
+
 		qlcnic_schedule_work(adapter, qlcnic_detach_work, 0);
+		QLCDB(adapter, DRV, "fw recovery scheduled.\n");
+	}
 
 	return 1;
 }

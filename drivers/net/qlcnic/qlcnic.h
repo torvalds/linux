@@ -961,6 +961,7 @@ struct qlcnic_adapter {
 	u8 reset_ack_timeo;
 	u8 dev_init_timeo;
 	u8 rsrd1;
+	u16 msg_enable;
 
 	u8 mac_addr[ETH_ALEN];
 
@@ -1134,5 +1135,12 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 }
 
 extern const struct ethtool_ops qlcnic_ethtool_ops;
+
+#define QLCDB(adapter, lvl, _fmt, _args...) do {	\
+	if (NETIF_MSG_##lvl & adapter->msg_enable)	\
+		printk(KERN_INFO "%s: %s: " _fmt,	\
+			 dev_name(&adapter->pdev->dev),	\
+			__func__, ##_args);		\
+	} while (0)
 
 #endif				/* __QLCNIC_H_ */

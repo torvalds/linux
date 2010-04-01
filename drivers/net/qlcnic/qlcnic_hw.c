@@ -294,8 +294,12 @@ qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 		done = QLCRD32(adapter, QLCNIC_PCIE_REG(PCIE_SEM_LOCK(sem)));
 		if (done == 1)
 			break;
-		if (++timeout >= QLCNIC_PCIE_SEM_TIMEOUT)
+		if (++timeout >= QLCNIC_PCIE_SEM_TIMEOUT) {
+			dev_err(&adapter->pdev->dev,
+				"Failed to acquire sem=%d lock;reg_id=%d\n",
+				sem, id_reg);
 			return -EIO;
+		}
 		msleep(1);
 	}
 
