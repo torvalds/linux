@@ -3467,6 +3467,10 @@ static int alc_init(struct hda_codec *codec)
 	if (spec->init_hook)
 		spec->init_hook(codec);
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	if (codec->patch_ops.check_power_status)
+		codec->patch_ops.check_power_status(codec, 0x01);
+#endif
 	return 0;
 }
 
@@ -3827,6 +3831,10 @@ static int alc_resume(struct hda_codec *codec)
 	codec->patch_ops.init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	if (codec->patch_ops.check_power_status)
+		codec->patch_ops.check_power_status(codec, 0x01);
+#endif
 	return 0;
 }
 #endif
@@ -13983,6 +13991,35 @@ static struct hda_pcm_stream alc269_44k_pcm_analog_capture = {
 	/* NID is set in alc_build_pcms */
 };
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static int alc269_mic2_for_mute_led(struct hda_codec *codec)
+{
+	switch (codec->subsystem_id) {
+	case 0x103c1586:
+		return 1;
+	}
+	return 0;
+}
+
+static int alc269_mic2_mute_check_ps(struct hda_codec *codec, hda_nid_t nid)
+{
+	/* update mute-LED according to the speaker mute state */
+	if (nid == 0x01 || nid == 0x14) {
+		int pinval;
+		if (snd_hda_codec_amp_read(codec, 0x14, 0, HDA_OUTPUT, 0) &
+		    HDA_AMP_MUTE)
+			pinval = 0x24;
+		else
+			pinval = 0x20;
+		/* mic2 vref pin is used for mute LED control */
+		snd_hda_codec_update_cache(codec, 0x19, 0,
+					   AC_VERB_SET_PIN_WIDGET_CONTROL,
+					   pinval);
+	}
+	return alc_check_power_status(codec, nid);
+}
+#endif /* CONFIG_SND_HDA_POWER_SAVE */
+
 /*
  * BIOS auto configuration
  */
@@ -14330,6 +14367,8 @@ static int patch_alc269(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc269_loopbacks;
+	if (alc269_mic2_for_mute_led(codec))
+		codec->patch_ops.check_power_status = alc269_mic2_mute_check_ps;
 #endif
 
 	return 0;
