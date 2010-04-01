@@ -977,6 +977,13 @@ struct conf_conn_settings {
 	 * Range: 1000 - 3600000
 	 */
 	u32 keep_alive_interval;
+
+	/*
+	 * Maximum listen interval supported by the driver in units of beacons.
+	 *
+	 * Range: u16
+	 */
+	u8 max_listen_interval;
 };
 
 enum {

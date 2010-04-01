@@ -219,7 +219,7 @@ static struct conf_drv_settings default_conf = {
 	},
 	.conn = {
 		.wake_up_event               = CONF_WAKE_UP_EVENT_DTIM,
-		.listen_interval             = 0,
+		.listen_interval             = 1,
 		.bcn_filt_mode               = CONF_BCN_FILT_MODE_ENABLED,
 		.bcn_filt_ie_count           = 1,
 		.bcn_filt_ie = {
@@ -266,7 +266,8 @@ static struct conf_drv_settings default_conf = {
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
 		.bet_max_consecutive         = 10,
 		.psm_entry_retries           = 3,
-		.keep_alive_interval         = 55000
+		.keep_alive_interval         = 55000,
+		.max_listen_interval         = 20,
 	},
 	.init = {
 		.radioparam = {
@@ -2253,6 +2254,7 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	/* unit us */
 	/* FIXME: find a proper value */
 	wl->hw->channel_change_time = 10000;
+	wl->hw->max_listen_interval = wl->conf.conn.max_listen_interval;
 
 	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_NOISE_DBM |
