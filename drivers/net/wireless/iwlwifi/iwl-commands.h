@@ -106,7 +106,7 @@ enum {
 	REPLY_TX = 0x1c,
 	REPLY_RATE_SCALE = 0x47,	/* 3945 only */
 	REPLY_LEDS_CMD = 0x48,
-	REPLY_TX_LINK_QUALITY_CMD = 0x4e, /* 4965 only */
+	REPLY_TX_LINK_QUALITY_CMD = 0x4e, /* for 4965 and up */
 
 	/* WiMAX coexistence */
 	COEX_PRIORITY_TABLE_CMD = 0x5a,	/* for 5000 series and up */
