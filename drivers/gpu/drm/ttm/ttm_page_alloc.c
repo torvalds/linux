@@ -34,6 +34,7 @@
 #include <linux/spinlock.h>
 #include <linux/highmem.h>
 #include <linux/mm_types.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 
 #include <asm/atomic.h>
@@ -66,6 +67,9 @@ struct ttm_page_pool {
 	struct list_head	list;
 	int			gfp_flags;
 	unsigned		npages;
+	char			*name;
+	unsigned long		nfrees;
+	unsigned long		nrefills;
 };
 
 struct ttm_pool_opts {
@@ -190,6 +194,7 @@ static void ttm_pool_update_free_locked(struct ttm_page_pool *pool,
 		unsigned freed_pages)
 {
 	pool->npages -= freed_pages;
+	pool->nfrees += freed_pages;
 }
 
 /**
@@ -262,7 +267,6 @@ restart:
 
 		}
 	}
-
 
 	/* remove range of pages from the pool */
 	if (freed_pages) {
@@ -490,6 +494,7 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 
 		if (!r) {
 			list_splice(&new_pages, &pool->list);
+			++pool->nrefills;
 			pool->npages += alloc_size;
 		} else {
 			printk(KERN_ERR "[ttm] Failed to fill pool (%p).", pool);
@@ -663,13 +668,15 @@ void ttm_put_pages(struct list_head *pages, unsigned page_count, int flags,
 		ttm_page_pool_free(pool, page_count);
 }
 
-static void ttm_page_pool_init_locked(struct ttm_page_pool *pool, int flags)
+static void ttm_page_pool_init_locked(struct ttm_page_pool *pool, int flags,
+		char *name)
 {
 	spin_lock_init(&pool->lock);
 	pool->fill_lock = false;
 	INIT_LIST_HEAD(&pool->list);
-	pool->npages = 0;
+	pool->npages = pool->nfrees = 0;
 	pool->gfp_flags = flags;
+	pool->name = name;
 }
 
 int ttm_page_alloc_init(unsigned max_pages)
@@ -679,13 +686,15 @@ int ttm_page_alloc_init(unsigned max_pages)
 
 	printk(KERN_INFO "[ttm] Initializing pool allocator.\n");
 
-	ttm_page_pool_init_locked(&_manager.wc_pool, GFP_HIGHUSER);
+	ttm_page_pool_init_locked(&_manager.wc_pool, GFP_HIGHUSER, "wc");
 
-	ttm_page_pool_init_locked(&_manager.uc_pool, GFP_HIGHUSER);
+	ttm_page_pool_init_locked(&_manager.uc_pool, GFP_HIGHUSER, "uc");
 
-	ttm_page_pool_init_locked(&_manager.wc_pool_dma32, GFP_USER | GFP_DMA32);
+	ttm_page_pool_init_locked(&_manager.wc_pool_dma32, GFP_USER | GFP_DMA32,
+			"wc dma");
 
-	ttm_page_pool_init_locked(&_manager.uc_pool_dma32, GFP_USER | GFP_DMA32);
+	ttm_page_pool_init_locked(&_manager.uc_pool_dma32, GFP_USER | GFP_DMA32,
+			"uc dma");
 
 	_manager.options.max_size = max_pages;
 	_manager.options.small = SMALL_ALLOCATION;
@@ -709,3 +718,25 @@ void ttm_page_alloc_fini()
 	for (i = 0; i < NUM_POOLS; ++i)
 		ttm_page_pool_free(&_manager.pools[i], FREE_ALL_PAGES);
 }
+
+int ttm_page_alloc_debugfs(struct seq_file *m, void *data)
+{
+	struct ttm_page_pool *p;
+	unsigned i;
+	char *h[] = {"pool", "refills", "pages freed", "size"};
+	if (atomic_read(&_manager.page_alloc_inited) == 0) {
+		seq_printf(m, "No pool allocator running.\n");
+		return 0;
+	}
+	seq_printf(m, "%6s %12s %13s %8s\n",
+			h[0], h[1], h[2], h[3]);
+	for (i = 0; i < NUM_POOLS; ++i) {
+		p = &_manager.pools[i];
+
+		seq_printf(m, "%6s %12ld %13ld %8d\n",
+				p->name, p->nrefills,
+				p->nfrees, p->npages);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(ttm_page_alloc_debugfs);

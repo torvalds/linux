@@ -67,4 +67,8 @@ int ttm_page_alloc_init(unsigned max_pages);
  */
 void ttm_page_alloc_fini(void);
 
+/**
+ * Output the state of pools to debugfs file
+ */
+extern int ttm_page_alloc_debugfs(struct seq_file *m, void *data);
 #endif
