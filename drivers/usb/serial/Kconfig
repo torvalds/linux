@@ -576,6 +576,9 @@ config USB_SERIAL_XIRCOM
 	  To compile this driver as a module, choose M here: the
 	  module will be called keyspan_pda.
 
+config USB_SERIAL_WWAN
+	tristate
+
 config USB_SERIAL_OPTION
 	tristate "USB driver for GSM and CDMA modems"
 	help
