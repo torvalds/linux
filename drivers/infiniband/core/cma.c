@@ -265,11 +265,6 @@ static inline void sdp_set_ip_ver(struct sdp_hh *hh, u8 ip_ver)
 	hh->ip_version = (ip_ver << 4) | (hh->ip_version & 0xF);
 }
 
-static inline int cma_is_ud_ps(enum rdma_port_space ps)
-{
-	return (ps == RDMA_PS_UDP || ps == RDMA_PS_IPOIB);
-}
-
 static void cma_attach_to_dev(struct rdma_id_private *id_priv,
 			      struct cma_device *cma_dev)
 {
@@ -415,7 +410,8 @@ static int cma_has_cm_dev(struct rdma_id_private *id_priv)
 }
 
 struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
-				  void *context, enum rdma_port_space ps)
+				  void *context, enum rdma_port_space ps,
+				  enum ib_qp_type qp_type)
 {
 	struct rdma_id_private *id_priv;
 
@@ -427,6 +423,7 @@ struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
 	id_priv->id.context = context;
 	id_priv->id.event_handler = event_handler;
 	id_priv->id.ps = ps;
+	id_priv->id.qp_type = qp_type;
 	spin_lock_init(&id_priv->lock);
 	mutex_init(&id_priv->qp_mutex);
 	init_completion(&id_priv->comp);
@@ -494,7 +491,7 @@ int rdma_create_qp(struct rdma_cm_id *id, struct ib_pd *pd,
 	if (IS_ERR(qp))
 		return PTR_ERR(qp);
 
-	if (cma_is_ud_ps(id_priv->id.ps))
+	if (id->qp_type == IB_QPT_UD)
 		ret = cma_init_ud_qp(id_priv, qp);
 	else
 		ret = cma_init_conn_qp(id_priv, qp);
@@ -622,7 +619,7 @@ static int cma_ib_init_qp_attr(struct rdma_id_private *id_priv,
 	qp_attr->port_num = id_priv->id.port_num;
 	*qp_attr_mask = IB_QP_STATE | IB_QP_PKEY_INDEX | IB_QP_PORT;
 
-	if (cma_is_ud_ps(id_priv->id.ps)) {
+	if (id_priv->id.qp_type == IB_QPT_UD) {
 		ret = cma_set_qkey(id_priv);
 		if (ret)
 			return ret;
@@ -645,7 +642,7 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 	id_priv = container_of(id, struct rdma_id_private, id);
 	switch (rdma_node_get_transport(id_priv->id.device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		if (!id_priv->cm_id.ib || cma_is_ud_ps(id_priv->id.ps))
+		if (!id_priv->cm_id.ib || (id_priv->id.qp_type == IB_QPT_UD))
 			ret = cma_ib_init_qp_attr(id_priv, qp_attr, qp_attr_mask);
 		else
 			ret = ib_cm_init_qp_attr(id_priv->cm_id.ib, qp_attr,
@@ -1088,7 +1085,7 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 		goto err;
 
 	id = rdma_create_id(listen_id->event_handler, listen_id->context,
-			    listen_id->ps);
+			    listen_id->ps, ib_event->param.req_rcvd.qp_type);
 	if (IS_ERR(id))
 		goto err;
 
@@ -1139,7 +1136,7 @@ static struct rdma_id_private *cma_new_udp_id(struct rdma_cm_id *listen_id,
 	int ret;
 
 	id = rdma_create_id(listen_id->event_handler, listen_id->context,
-			    listen_id->ps);
+			    listen_id->ps, IB_QPT_UD);
 	if (IS_ERR(id))
 		return NULL;
 
@@ -1194,7 +1191,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	memset(&event, 0, sizeof event);
 	offset = cma_user_data_offset(listen_id->id.ps);
 	event.event = RDMA_CM_EVENT_CONNECT_REQUEST;
-	if (cma_is_ud_ps(listen_id->id.ps)) {
+	if (listen_id->id.qp_type == IB_QPT_UD) {
 		conn_id = cma_new_udp_id(&listen_id->id, ib_event);
 		event.param.ud.private_data = ib_event->private_data + offset;
 		event.param.ud.private_data_len =
@@ -1230,8 +1227,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		 * while we're accessing the cm_id.
 		 */
 		mutex_lock(&lock);
-		if (cma_comp(conn_id, RDMA_CM_CONNECT) &&
-		    !cma_is_ud_ps(conn_id->id.ps))
+		if (cma_comp(conn_id, RDMA_CM_CONNECT) && (conn_id->id.qp_type != IB_QPT_UD))
 			ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
 		mutex_unlock(&lock);
 		mutex_unlock(&conn_id->handler_mutex);
@@ -1386,7 +1382,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	/* Create a new RDMA id for the new IW CM ID */
 	new_cm_id = rdma_create_id(listen_id->id.event_handler,
 				   listen_id->id.context,
-				   RDMA_PS_TCP);
+				   RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(new_cm_id)) {
 		ret = -ENOMEM;
 		goto out;
@@ -1535,7 +1531,8 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 	struct rdma_cm_id *id;
 	int ret;
 
-	id = rdma_create_id(cma_listen_handler, id_priv, id_priv->id.ps);
+	id = rdma_create_id(cma_listen_handler, id_priv, id_priv->id.ps,
+			    id_priv->id.qp_type);
 	if (IS_ERR(id))
 		return;
 
@@ -2645,7 +2642,7 @@ int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 
 	switch (rdma_node_get_transport(id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		if (cma_is_ud_ps(id->ps))
+		if (id->qp_type == IB_QPT_UD)
 			ret = cma_resolve_ib_udp(id_priv, conn_param);
 		else
 			ret = cma_connect_ib(id_priv, conn_param);
@@ -2758,7 +2755,7 @@ int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 
 	switch (rdma_node_get_transport(id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		if (cma_is_ud_ps(id->ps))
+		if (id->qp_type == IB_QPT_UD)
 			ret = cma_send_sidr_rep(id_priv, IB_SIDR_SUCCESS,
 						conn_param->private_data,
 						conn_param->private_data_len);
@@ -2819,7 +2816,7 @@ int rdma_reject(struct rdma_cm_id *id, const void *private_data,
 
 	switch (rdma_node_get_transport(id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		if (cma_is_ud_ps(id->ps))
+		if (id->qp_type == IB_QPT_UD)
 			ret = cma_send_sidr_rep(id_priv, IB_SIDR_REJECT,
 						private_data, private_data_len);
 		else

@@ -591,7 +591,8 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 		return -ENOMEM;
 
 	/* Create the RDMA CM ID */
-	rdma->cm_id = rdma_create_id(p9_cm_event_handler, client, RDMA_PS_TCP);
+	rdma->cm_id = rdma_create_id(p9_cm_event_handler, client, RDMA_PS_TCP,
+				     IB_QPT_RC);
 	if (IS_ERR(rdma->cm_id))
 		goto error;
 
