@@ -61,7 +61,7 @@ void ttm_put_pages(struct list_head *pages,
  * multiple times but ttm_page_alloc_fini has to be called same number of
  * times.
  */
-int ttm_page_alloc_init(unsigned max_pages);
+int ttm_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages);
 /**
  * Free pool allocator.
  */

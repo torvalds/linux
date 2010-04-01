@@ -393,7 +393,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 		       "Zone %7s: Available graphics memory: %llu kiB.\n",
 		       zone->name, (unsigned long long) zone->max_mem >> 10);
 	}
-	ttm_page_alloc_init(glob->zone_kernel->max_mem/(2*PAGE_SIZE));
+	ttm_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	return 0;
 out_no_zone:
 	ttm_mem_global_release(glob);
