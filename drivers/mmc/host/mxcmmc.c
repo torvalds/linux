@@ -724,11 +724,27 @@ static void mxcmci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
+static void mxcmci_init_card(struct mmc_host *host, struct mmc_card *card)
+{
+	/*
+	 * MX3 SoCs have a silicon bug which corrupts CRC calculation of
+	 * multi-block transfers when connected SDIO peripheral doesn't
+	 * drive the BUSY line as required by the specs.
+	 * One way to prevent this is to only allow 1-bit transfers.
+	 */
+
+	if (cpu_is_mx3() && card->type == MMC_TYPE_SDIO)
+		host->caps &= ~MMC_CAP_4_BIT_DATA;
+	else
+		host->caps |= MMC_CAP_4_BIT_DATA;
+}
+
 static const struct mmc_host_ops mxcmci_ops = {
 	.request		= mxcmci_request,
 	.set_ios		= mxcmci_set_ios,
 	.get_ro			= mxcmci_get_ro,
 	.enable_sdio_irq	= mxcmci_enable_sdio_irq,
+	.init_card		= mxcmci_init_card,
 };
 
 static int mxcmci_probe(struct platform_device *pdev)
