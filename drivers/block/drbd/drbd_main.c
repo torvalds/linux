@@ -684,6 +684,9 @@ static int is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
 	else if (ns.conn > C_CONNECTED && ns.pdsk < D_INCONSISTENT)
 		rv = SS_NO_REMOTE_DISK;
 
+	else if (ns.conn > C_CONNECTED && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE)
+		rv = SS_NO_UP_TO_DATE_DISK;
+
 	else if ((ns.conn == C_CONNECTED ||
 		  ns.conn == C_WF_BITMAP_S ||
 		  ns.conn == C_SYNC_SOURCE ||
