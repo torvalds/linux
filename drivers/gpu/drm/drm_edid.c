@@ -707,15 +707,6 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	mode->vsync_end = mode->vsync_start + vsync_pulse_width;
 	mode->vtotal = mode->vdisplay + vblank;
 
-	/* perform the basic check for the detailed timing */
-	if (mode->hsync_end > mode->htotal ||
-		mode->vsync_end > mode->vtotal) {
-		drm_mode_destroy(dev, mode);
-		DRM_DEBUG_KMS("Incorrect detailed timing. "
-				"Sync is beyond the blank.\n");
-		return NULL;
-	}
-
 	/* Some EDIDs have bogus h/vtotal values */
 	if (mode->hsync_end > mode->htotal)
 		mode->htotal = mode->hsync_end + 1;
