@@ -700,7 +700,7 @@ out:
 }
 
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
-			    void *buf, size_t buf_len, int index)
+			    void *buf, size_t buf_len, int index, u32 rates)
 {
 	struct wl1271_cmd_template_set *cmd;
 	int ret = 0;
@@ -718,7 +718,7 @@ int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
 
 	cmd->len = cpu_to_le16(buf_len);
 	cmd->template_type = template_id;
-	cmd->enabled_rates = cpu_to_le32(wl->conf.tx.rc_conf.enabled_rates);
+	cmd->enabled_rates = cpu_to_le32(rates);
 	cmd->short_retry_limit = wl->conf.tx.rc_conf.short_retry_limit;
 	cmd->long_retry_limit = wl->conf.tx.rc_conf.long_retry_limit;
 	cmd->index = index;
@@ -758,7 +758,8 @@ int wl1271_cmd_build_null_data(struct wl1271 *wl)
 		ptr = skb->data;
 	}
 
-	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, ptr, size, 0);
+	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, ptr, size, 0,
+				      WL1271_RATE_AUTOMATIC);
 
 out:
 	dev_kfree_skb(skb);
@@ -780,7 +781,8 @@ int wl1271_cmd_build_klv_null_data(struct wl1271 *wl)
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_KLV,
 				      skb->data, skb->len,
-				      CMD_TEMPL_KLV_IDX_NULL_DATA);
+				      CMD_TEMPL_KLV_IDX_NULL_DATA,
+				      WL1271_RATE_AUTOMATIC);
 
 out:
 	dev_kfree_skb(skb);
@@ -801,7 +803,7 @@ int wl1271_cmd_build_ps_poll(struct wl1271 *wl, u16 aid)
 		goto out;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PS_POLL, skb->data,
-				      skb->len, 0);
+				      skb->len, 0, wl->basic_rate);
 
 out:
 	dev_kfree_skb(skb);
@@ -826,10 +828,12 @@ int wl1271_cmd_build_probe_req(struct wl1271 *wl,
 
 	if (band == IEEE80211_BAND_2GHZ)
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
-					      skb->data, skb->len, 0);
+					      skb->data, skb->len, 0,
+					      wl->conf.tx.basic_rate);
 	else
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
-					      skb->data, skb->len, 0);
+					      skb->data, skb->len, 0,
+					      wl->conf.tx.basic_rate_5);
 
 out:
 	dev_kfree_skb(skb);
@@ -854,7 +858,8 @@ int wl1271_build_qos_null_data(struct wl1271 *wl)
 	template.qos_ctrl = cpu_to_le16(0);
 
 	return wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, &template,
-				       sizeof(template), 0);
+				       sizeof(template), 0,
+				       WL1271_RATE_AUTOMATIC);
 }
 
 int wl1271_cmd_set_default_wep_key(struct wl1271 *wl, u8 id)

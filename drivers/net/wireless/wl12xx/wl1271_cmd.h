@@ -45,7 +45,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 		    const u8 *ie, size_t ie_len, u8 active_scan,
 		    u8 high_prio, u8 band, u8 probe_requests);
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
-			    void *buf, size_t buf_len, int index);
+			    void *buf, size_t buf_len, int index, u32 rates);
 int wl1271_cmd_build_null_data(struct wl1271 *wl);
 int wl1271_cmd_build_ps_poll(struct wl1271 *wl, u16 aid);
 int wl1271_cmd_build_probe_req(struct wl1271 *wl,
@@ -251,6 +251,8 @@ struct cmd_enabledisable_path {
 	u8 channel;
 	u8 padding[3];
 } __attribute__ ((packed));
+
+#define WL1271_RATE_AUTOMATIC  0
 
 struct wl1271_cmd_template_set {
 	struct wl1271_cmd_header header;
