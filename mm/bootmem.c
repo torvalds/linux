@@ -312,7 +312,13 @@ unsigned long __init free_all_bootmem(void)
 	 */
 	return free_all_memory_core_early(MAX_NUMNODES);
 #else
-	return free_all_bootmem_core(NODE_DATA(0)->bdata);
+	unsigned long total_pages = 0;
+	bootmem_data_t *bdata;
+
+	list_for_each_entry(bdata, &bdata_list, list)
+		total_pages += free_all_bootmem_core(bdata);
+
+	return total_pages;
 #endif
 }
 
