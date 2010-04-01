@@ -627,7 +627,7 @@ qlcnic_validate_bootld(struct qlcnic_adapter *adapter)
 		return -EINVAL;
 
 	tab_size = cpu_to_le32(tab_desc->findex) +
-			(cpu_to_le32(tab_desc->entry_size * (idx + 1)));
+			(cpu_to_le32(tab_desc->entry_size) * (idx + 1));
 
 	if (adapter->fw->size < tab_size)
 		return -EINVAL;
@@ -636,7 +636,7 @@ qlcnic_validate_bootld(struct qlcnic_adapter *adapter)
 		(cpu_to_le32(tab_desc->entry_size) * (idx));
 	descr = (struct uni_data_desc *)&unirom[offs];
 
-	data_size = descr->findex + cpu_to_le32(descr->size);
+	data_size = cpu_to_le32(descr->findex) + cpu_to_le32(descr->size);
 
 	if (adapter->fw->size < data_size)
 		return -EINVAL;
@@ -662,7 +662,7 @@ qlcnic_validate_fw(struct qlcnic_adapter *adapter)
 		return -EINVAL;
 
 	tab_size = cpu_to_le32(tab_desc->findex) +
-			(cpu_to_le32(tab_desc->entry_size * (idx + 1)));
+			(cpu_to_le32(tab_desc->entry_size) * (idx + 1));
 
 	if (adapter->fw->size < tab_size)
 		return -EINVAL;
@@ -670,7 +670,7 @@ qlcnic_validate_fw(struct qlcnic_adapter *adapter)
 	offs = cpu_to_le32(tab_desc->findex) +
 		(cpu_to_le32(tab_desc->entry_size) * (idx));
 	descr = (struct uni_data_desc *)&unirom[offs];
-	data_size = descr->findex + cpu_to_le32(descr->size);
+	data_size = cpu_to_le32(descr->findex) + cpu_to_le32(descr->size);
 
 	if (adapter->fw->size < data_size)
 		return -EINVAL;
