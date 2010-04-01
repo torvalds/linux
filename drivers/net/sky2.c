@@ -3627,7 +3627,7 @@ static void sky2_set_multicast(struct net_device *dev)
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
-	struct dev_mc_list *list;
+	struct netdev_hw_addr *ha;
 	u16 reg;
 	u8 filter[8];
 	int rx_pause;
@@ -3651,8 +3651,8 @@ static void sky2_set_multicast(struct net_device *dev)
 		if (rx_pause)
 			sky2_add_filter(filter, pause_mc_addr);
 
-		netdev_for_each_mc_addr(list, dev)
-			sky2_add_filter(filter, list->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			sky2_add_filter(filter, ha->addr);
 	}
 
 	gma_write16(hw, port, GM_MC_ADDR_H1,

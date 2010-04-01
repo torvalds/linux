@@ -5763,7 +5763,7 @@ static void netdev_set_rx_mode(struct net_device *dev)
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_hw *hw = &hw_priv->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	int multicast = (dev->flags & IFF_ALLMULTI);
 
 	dev_set_promiscuous(dev, priv, hw, (dev->flags & IFF_PROMISC));
@@ -5780,7 +5780,7 @@ static void netdev_set_rx_mode(struct net_device *dev)
 		int i = 0;
 
 		/* List too big to support so turn on all multicast mode. */
-		if (dev->mc_count > MAX_MULTICAST_LIST) {
+		if (netdev_mc_count(dev) > MAX_MULTICAST_LIST) {
 			if (MAX_MULTICAST_LIST != hw->multi_list_size) {
 				hw->multi_list_size = MAX_MULTICAST_LIST;
 				++hw->all_multi;
@@ -5789,13 +5789,12 @@ static void netdev_set_rx_mode(struct net_device *dev)
 			return;
 		}
 
-		netdev_for_each_mc_addr(mc_ptr, dev) {
-			if (!(*mc_ptr->dmi_addr & 1))
+		netdev_for_each_mc_addr(ha, dev) {
+			if (!(*ha->addr & 1))
 				continue;
 			if (i >= MAX_MULTICAST_LIST)
 				break;
-			memcpy(hw->multi_list[i++], mc_ptr->dmi_addr,
-				MAC_ADDR_LEN);
+			memcpy(hw->multi_list[i++], ha->addr, MAC_ADDR_LEN);
 		}
 		hw->multi_list_size = (u8) i;
 		hw_set_grp_addr(hw);

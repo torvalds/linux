@@ -875,7 +875,7 @@ static struct iw_statistics *zd1201_get_wireless_stats(struct net_device *dev)
 static void zd1201_set_multicast(struct net_device *dev)
 {
 	struct zd1201 *zd = netdev_priv(dev);
-	struct dev_mc_list *mc;
+	struct netdev_hw_addr *ha;
 	unsigned char reqbuf[ETH_ALEN*ZD1201_MAXMULTI];
 	int i;
 
@@ -883,8 +883,8 @@ static void zd1201_set_multicast(struct net_device *dev)
 		return;
 
 	i = 0;
-	netdev_for_each_mc_addr(mc, dev)
-		memcpy(reqbuf + i++ * ETH_ALEN, mc->dmi_addr, ETH_ALEN);
+	netdev_for_each_mc_addr(ha, dev)
+		memcpy(reqbuf + i++ * ETH_ALEN, ha->addr, ETH_ALEN);
 	zd1201_setconfig(zd, ZD1201_RID_CNFGROUPADDRESS, reqbuf,
 			 netdev_mc_count(dev) * ETH_ALEN, 0);
 }

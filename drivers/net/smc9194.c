@@ -417,7 +417,7 @@ static void smc_shutdown( int ioaddr )
 
 
 /*
- . Function: smc_setmulticast( int ioaddr, int count, dev_mc_list * adds )
+ . Function: smc_setmulticast( int ioaddr, struct net_device *dev )
  . Purpose:
  .    This sets the internal hardware table to filter out unwanted multicast
  .    packets before they take up memory.
@@ -438,26 +438,23 @@ static void smc_setmulticast(int ioaddr, struct net_device *dev)
 {
 	int			i;
 	unsigned char		multicast_table[ 8 ];
-	struct dev_mc_list *cur_addr;
+	struct netdev_hw_addr *ha;
 	/* table for flipping the order of 3 bits */
 	unsigned char invert3[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 
 	/* start with a table of all zeros: reject all */
 	memset( multicast_table, 0, sizeof( multicast_table ) );
 
-	netdev_for_each_mc_addr(cur_addr, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		int position;
 
-		/* do we have a pointer here? */
-		if ( !cur_addr )
-			break;
 		/* make sure this is a multicast address - shouldn't this
 		   be a given if we have it here ? */
-		if ( !( *cur_addr->dmi_addr & 1 ) )
+		if (!(*ha->addr & 1))
 			continue;
 
 		/* only use the low order bits */
-		position = ether_crc_le(6, cur_addr->dmi_addr) & 0x3f;
+		position = ether_crc_le(6, ha->addr) & 0x3f;
 
 		/* do some messy swapping to put the bit in the right spot */
 		multicast_table[invert3[position&7]] |=

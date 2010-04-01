@@ -383,12 +383,12 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 	} else if (dev->flags & IFF_ALLMULTI) {
 		memset(multi_hash, 0xff, sizeof(multi_hash));
 	} else {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 
 		memset(multi_hash, 0x00, sizeof(multi_hash));
 
-		netdev_for_each_mc_addr(dmi, dev)
-			am79c961_mc_hash(dmi->dmi_addr, multi_hash);
+		netdev_for_each_mc_addr(ha, dev)
+			am79c961_mc_hash(ha->addr, multi_hash);
 	}
 
 	spin_lock_irqsave(&priv->chip_lock, flags);

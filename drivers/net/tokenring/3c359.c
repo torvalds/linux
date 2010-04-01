@@ -1390,7 +1390,7 @@ static int xl_close(struct net_device *dev)
 static void xl_set_rx_mode(struct net_device *dev) 
 {
 	struct xl_private *xl_priv = netdev_priv(dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	unsigned char dev_mc_address[4] ; 
 	u16 options ; 
 
@@ -1407,11 +1407,11 @@ static void xl_set_rx_mode(struct net_device *dev)
 
 	dev_mc_address[0] = dev_mc_address[1] = dev_mc_address[2] = dev_mc_address[3] = 0 ;
 
-	netdev_for_each_mc_addr(dmi, dev) {
-                dev_mc_address[0] |= dmi->dmi_addr[2] ;
-                dev_mc_address[1] |= dmi->dmi_addr[3] ;
-                dev_mc_address[2] |= dmi->dmi_addr[4] ;
-                dev_mc_address[3] |= dmi->dmi_addr[5] ;
+	netdev_for_each_mc_addr(ha, dev) {
+		dev_mc_address[0] |= ha->addr[2];
+		dev_mc_address[1] |= ha->addr[3];
+		dev_mc_address[2] |= ha->addr[4];
+		dev_mc_address[3] |= ha->addr[5];
         }
 
 	if (memcmp(xl_priv->xl_functional_addr,dev_mc_address,4) != 0) { /* Options have changed, run the command */

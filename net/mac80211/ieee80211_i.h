@@ -646,8 +646,7 @@ struct ieee80211_local {
 	struct work_struct recalc_smps;
 
 	/* aggregated multicast list */
-	struct dev_addr_list *mc_list;
-	int mc_count;
+	struct netdev_hw_addr_list mc_list;
 
 	bool tim_in_locked_section; /* see ieee80211_beacon_get() */
 

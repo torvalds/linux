@@ -1193,9 +1193,9 @@ static void rtl8187_bss_info_changed(struct ieee80211_hw *dev,
 }
 
 static u64 rtl8187_prepare_multicast(struct ieee80211_hw *dev,
-				     int mc_count, struct dev_addr_list *mc_list)
+				     struct netdev_hw_addr_list *mc_list)
 {
-	return mc_count;
+	return netdev_hw_addr_list_count(mc_list);
 }
 
 static void rtl8187_configure_filter(struct ieee80211_hw *dev,

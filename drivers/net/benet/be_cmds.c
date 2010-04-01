@@ -1159,13 +1159,13 @@ int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 	req->interface_id = if_id;
 	if (netdev) {
 		int i;
-		struct dev_mc_list *mc;
+		struct netdev_hw_addr *ha;
 
 		req->num_mac = cpu_to_le16(netdev_mc_count(netdev));
 
 		i = 0;
-		netdev_for_each_mc_addr(mc, netdev)
-			memcpy(req->mac[i].byte, mc->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, netdev)
+			memcpy(req->mac[i].byte, ha->addr, ETH_ALEN);
 	} else {
 		req->promiscuous = 1;
 	}

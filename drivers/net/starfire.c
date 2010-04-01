@@ -1766,7 +1766,7 @@ static void set_rx_mode(struct net_device *dev)
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
 	u32 rx_mode = MinVLANPrio;
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	int i;
 #ifdef VLAN_SUPPORT
 
@@ -1804,8 +1804,8 @@ static void set_rx_mode(struct net_device *dev)
 		/* Use the 16 element perfect filter, skip first two entries. */
 		void __iomem *filter_addr = ioaddr + PerfFilterTable + 2 * 16;
 		__be16 *eaddrs;
-		netdev_for_each_mc_addr(mclist, dev) {
-			eaddrs = (__be16 *)mclist->dmi_addr;
+		netdev_for_each_mc_addr(ha, dev) {
+			eaddrs = (__be16 *) ha->addr;
 			writew(be16_to_cpu(eaddrs[2]), filter_addr); filter_addr += 4;
 			writew(be16_to_cpu(eaddrs[1]), filter_addr); filter_addr += 4;
 			writew(be16_to_cpu(eaddrs[0]), filter_addr); filter_addr += 8;
@@ -1825,10 +1825,10 @@ static void set_rx_mode(struct net_device *dev)
 		__le16 mc_filter[32] __attribute__ ((aligned(sizeof(long))));	/* Multicast hash filter */
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			/* The chip uses the upper 9 CRC bits
 			   as index into the hash table */
-			int bit_nr = ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 23;
+			int bit_nr = ether_crc_le(ETH_ALEN, ha->addr) >> 23;
 			__le32 *fptr = (__le32 *) &mc_filter[(bit_nr >> 4) & ~1];
 
 			*fptr |= cpu_to_le32(1 << (bit_nr & 31));

@@ -1126,7 +1126,7 @@ static void velocity_set_multi(struct net_device *dev)
 	struct mac_regs __iomem *regs = vptr->mac_regs;
 	u8 rx_mode;
 	int i;
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 
 	if (dev->flags & IFF_PROMISC) {	/* Set promiscuous. */
 		writel(0xffffffff, &regs->MARCAM[0]);
@@ -1142,8 +1142,8 @@ static void velocity_set_multi(struct net_device *dev)
 		mac_get_cam_mask(regs, vptr->mCAMmask);
 
 		i = 0;
-		netdev_for_each_mc_addr(mclist, dev) {
-			mac_set_cam(regs, i + offset, mclist->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			mac_set_cam(regs, i + offset, ha->addr);
 			vptr->mCAMmask[(offset + i) / 8] |= 1 << ((offset + i) & 7);
 			i++;
 		}

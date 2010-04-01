@@ -259,7 +259,7 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 					  struct net_device *netdev)
 {
-	struct dev_addr_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[IXGBE_VFMAILBOX_SIZE];
 	u16 *vector_list = (u16 *)&msgbuf[1];
@@ -281,10 +281,10 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 	msgbuf[0] |= cnt << IXGBE_VT_MSGINFO_SHIFT;
 
 	i = 0;
-	netdev_for_each_mc_addr(dmi, netdev) {
+	netdev_for_each_mc_addr(ha, netdev) {
 		if (i == cnt)
 			break;
-		vector_list[i++] = ixgbevf_mta_vector(hw, dmi->dmi_addr);
+		vector_list[i++] = ixgbevf_mta_vector(hw, ha->addr);
 	}
 
 	mbx->ops.write_posted(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);

@@ -4207,7 +4207,7 @@ static struct net_device_stats *qlge_get_stats(struct net_device
 static void qlge_set_multicast_list(struct net_device *ndev)
 {
 	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	int i, status;
 
 	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
@@ -4271,8 +4271,8 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 		if (status)
 			goto exit;
 		i = 0;
-		netdev_for_each_mc_addr(mc_ptr, ndev) {
-			if (ql_set_mac_addr_reg(qdev, (u8 *) mc_ptr->dmi_addr,
+		netdev_for_each_mc_addr(ha, ndev) {
+			if (ql_set_mac_addr_reg(qdev, (u8 *) ha->addr,
 						MAC_ADDR_TYPE_MULTI_MAC, i)) {
 				netif_err(qdev, hw, qdev->ndev,
 					  "Failed to loadmulticast address.\n");

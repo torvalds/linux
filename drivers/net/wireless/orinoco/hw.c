@@ -1056,14 +1056,14 @@ int __orinoco_hw_set_multicast_list(struct orinoco_private *priv,
 	 * group address if either we want to multicast, or if we were
 	 * multicasting and want to stop */
 	if (!promisc && (mc_count || priv->mc_count)) {
-		struct dev_mc_list *p;
+		struct netdev_hw_addr *ha;
 		struct hermes_multicast mclist;
 		int i = 0;
 
-		netdev_for_each_mc_addr(p, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			if (i == mc_count)
 				break;
-			memcpy(mclist.addr[i++], p->dmi_addr, ETH_ALEN);
+			memcpy(mclist.addr[i++], ha->addr, ETH_ALEN);
 		}
 
 		err = hermes_write_ltv(hw, USER_BAP,

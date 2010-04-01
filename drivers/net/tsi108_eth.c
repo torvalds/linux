@@ -1186,15 +1186,15 @@ static void tsi108_set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_ALLMULTI || !netdev_mc_empty(dev)) {
 		int i;
-		struct dev_mc_list *mc;
+		struct netdev_hw_addr *ha;
 		rxcfg |= TSI108_EC_RXCFG_MFE | TSI108_EC_RXCFG_MC_HASH;
 
 		memset(data->mc_hash, 0, sizeof(data->mc_hash));
 
-		netdev_for_each_mc_addr(mc, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			u32 hash, crc;
 
-			crc = ether_crc(6, mc->dmi_addr);
+			crc = ether_crc(6, ha->addr);
 			hash = crc >> 23;
 			__set_bit(hash, &data->mc_hash[0]);
 		}

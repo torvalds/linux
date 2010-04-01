@@ -1139,7 +1139,7 @@ static void olympic_set_rx_mode(struct net_device *dev)
    	u8 __iomem *olympic_mmio = olympic_priv->olympic_mmio ; 
 	u8 options = 0; 
 	u8 __iomem *srb;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	unsigned char dev_mc_address[4] ; 
 
 	writel(olympic_priv->srb,olympic_mmio+LAPA);
@@ -1177,11 +1177,11 @@ static void olympic_set_rx_mode(struct net_device *dev)
 
 	dev_mc_address[0] = dev_mc_address[1] = dev_mc_address[2] = dev_mc_address[3] = 0 ; 
 
-	netdev_for_each_mc_addr(dmi, dev) {
-		dev_mc_address[0] |= dmi->dmi_addr[2] ; 
-		dev_mc_address[1] |= dmi->dmi_addr[3] ; 
-		dev_mc_address[2] |= dmi->dmi_addr[4] ; 
-		dev_mc_address[3] |= dmi->dmi_addr[5] ; 
+	netdev_for_each_mc_addr(ha, dev) {
+		dev_mc_address[0] |= ha->addr[2];
+		dev_mc_address[1] |= ha->addr[3];
+		dev_mc_address[2] |= ha->addr[4];
+		dev_mc_address[3] |= ha->addr[5];
 	}
 
 	writeb(SRB_SET_FUNC_ADDRESS,srb+0);

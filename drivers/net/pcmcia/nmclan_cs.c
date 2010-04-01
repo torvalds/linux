@@ -1475,7 +1475,7 @@ static void set_multicast_list(struct net_device *dev)
 {
   mace_private *lp = netdev_priv(dev);
   int adr[ETHER_ADDR_LEN] = {0}; /* Ethernet address */
-  struct dev_mc_list *dmi;
+  struct netdev_hw_addr *ha;
 
 #ifdef PCMCIA_DEBUG
   {
@@ -1495,8 +1495,8 @@ static void set_multicast_list(struct net_device *dev)
   if (num_addrs > 0) {
     /* Calculate multicast logical address filter */
     memset(lp->multicast_ladrf, 0, MACE_LADRF_LEN);
-    netdev_for_each_mc_addr(dmi, dev) {
-      memcpy(adr, dmi->dmi_addr, ETHER_ADDR_LEN);
+    netdev_for_each_mc_addr(ha, dev) {
+      memcpy(adr, ha->addr, ETHER_ADDR_LEN);
       BuildLAF(lp->multicast_ladrf, adr);
     }
   }

@@ -629,7 +629,7 @@ static void catc_multicast(unsigned char *addr, u8 *multicast)
 static void catc_set_multicast_list(struct net_device *netdev)
 {
 	struct catc *catc = netdev_priv(netdev);
-	struct dev_mc_list *mc;
+	struct netdev_hw_addr *ha;
 	u8 broadcast[6];
 	u8 rx = RxEnable | RxPolarity | RxMultiCast;
 
@@ -647,8 +647,8 @@ static void catc_set_multicast_list(struct net_device *netdev)
 	if (netdev->flags & IFF_ALLMULTI) {
 		memset(catc->multicast, 0xff, 64);
 	} else {
-		netdev_for_each_mc_addr(mc, netdev) {
-			u32 crc = ether_crc_le(6, mc->dmi_addr);
+		netdev_for_each_mc_addr(ha, netdev) {
+			u32 crc = ether_crc_le(6, ha->addr);
 			if (!catc->is_f5u011) {
 				catc->multicast[(crc >> 3) & 0x3f] |= 1 << (crc & 7);
 			} else {

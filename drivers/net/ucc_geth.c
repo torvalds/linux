@@ -1999,7 +1999,7 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 static void ucc_geth_set_multi(struct net_device *dev)
 {
 	struct ucc_geth_private *ugeth;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct ucc_fast __iomem *uf_regs;
 	struct ucc_geth_82xx_address_filtering_pram __iomem *p_82xx_addr_filt;
 
@@ -2028,16 +2028,16 @@ static void ucc_geth_set_multi(struct net_device *dev)
 			out_be32(&p_82xx_addr_filt->gaddr_h, 0x0);
 			out_be32(&p_82xx_addr_filt->gaddr_l, 0x0);
 
-			netdev_for_each_mc_addr(dmi, dev) {
+			netdev_for_each_mc_addr(ha, dev) {
 				/* Only support group multicast for now.
 				 */
-				if (!(dmi->dmi_addr[0] & 1))
+				if (!(ha->addr[0] & 1))
 					continue;
 
 				/* Ask CPM to run CRC and set bit in
 				 * filter mask.
 				 */
-				hw_add_addr_in_hash(ugeth, dmi->dmi_addr);
+				hw_add_addr_in_hash(ugeth, ha->addr);
 			}
 		}
 	}

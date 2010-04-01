@@ -3103,12 +3103,14 @@ static void nv_set_multicast(struct net_device *dev)
 			if (dev->flags & IFF_ALLMULTI) {
 				alwaysOn[0] = alwaysOn[1] = alwaysOff[0] = alwaysOff[1] = 0;
 			} else {
-				struct dev_mc_list *walk;
+				struct netdev_hw_addr *ha;
 
-				netdev_for_each_mc_addr(walk, dev) {
+				netdev_for_each_mc_addr(ha, dev) {
+					unsigned char *addr = ha->addr;
 					u32 a, b;
-					a = le32_to_cpu(*(__le32 *) walk->dmi_addr);
-					b = le16_to_cpu(*(__le16 *) (&walk->dmi_addr[4]));
+
+					a = le32_to_cpu(*(__le32 *) addr);
+					b = le16_to_cpu(*(__le16 *) (&addr[4]));
 					alwaysOn[0] &= a;
 					alwaysOff[0] &= ~a;
 					alwaysOn[1] &= b;

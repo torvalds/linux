@@ -412,8 +412,7 @@ static int ieee80211_stop(struct net_device *dev)
 
 	netif_addr_lock_bh(dev);
 	spin_lock_bh(&local->filter_lock);
-	__dev_addr_unsync(&local->mc_list, &local->mc_count,
-			  &dev->mc_list, &dev->mc_count);
+	__hw_addr_unsync(&local->mc_list, &dev->mc, dev->addr_len);
 	spin_unlock_bh(&local->filter_lock);
 	netif_addr_unlock_bh(dev);
 
@@ -596,8 +595,7 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
 		sdata->flags ^= IEEE80211_SDATA_PROMISC;
 	}
 	spin_lock_bh(&local->filter_lock);
-	__dev_addr_sync(&local->mc_list, &local->mc_count,
-			&dev->mc_list, &dev->mc_count);
+	__hw_addr_sync(&local->mc_list, &dev->mc, dev->addr_len);
 	spin_unlock_bh(&local->filter_lock);
 	ieee80211_queue_work(&local->hw, &local->reconfig_filter);
 }

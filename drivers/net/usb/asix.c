@@ -557,16 +557,14 @@ static void asix_set_multicast(struct net_device *net)
 		 * for our 8 byte filter buffer
 		 * to avoid allocating memory that
 		 * is tricky to free later */
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 		u32 crc_bits;
 
 		memset(data->multi_filter, 0, AX_MCAST_FILTER_SIZE);
 
 		/* Build the multicast hash filter. */
-		netdev_for_each_mc_addr(mc_list, net) {
-			crc_bits =
-			    ether_crc(ETH_ALEN,
-				      mc_list->dmi_addr) >> 26;
+		netdev_for_each_mc_addr(ha, net) {
+			crc_bits = ether_crc(ETH_ALEN, ha->addr) >> 26;
 			data->multi_filter[crc_bits >> 3] |=
 			    1 << (crc_bits & 7);
 		}
@@ -793,16 +791,14 @@ static void ax88172_set_multicast(struct net_device *net)
 		 * for our 8 byte filter buffer
 		 * to avoid allocating memory that
 		 * is tricky to free later */
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 		u32 crc_bits;
 
 		memset(data->multi_filter, 0, AX_MCAST_FILTER_SIZE);
 
 		/* Build the multicast hash filter. */
-		netdev_for_each_mc_addr(mc_list, net) {
-			crc_bits =
-			    ether_crc(ETH_ALEN,
-				      mc_list->dmi_addr) >> 26;
+		netdev_for_each_mc_addr(ha, net) {
+			crc_bits = ether_crc(ETH_ALEN, ha->addr) >> 26;
 			data->multi_filter[crc_bits >> 3] |=
 			    1 << (crc_bits & 7);
 		}

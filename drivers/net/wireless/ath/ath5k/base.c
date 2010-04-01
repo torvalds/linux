@@ -230,7 +230,7 @@ static void ath5k_remove_interface(struct ieee80211_hw *hw,
 		struct ieee80211_vif *vif);
 static int ath5k_config(struct ieee80211_hw *hw, u32 changed);
 static u64 ath5k_prepare_multicast(struct ieee80211_hw *hw,
-				   int mc_count, struct dev_addr_list *mc_list);
+				   struct netdev_hw_addr_list *mc_list);
 static void ath5k_configure_filter(struct ieee80211_hw *hw,
 		unsigned int changed_flags,
 		unsigned int *new_flags,
@@ -2999,22 +2999,20 @@ unlock:
 }
 
 static u64 ath5k_prepare_multicast(struct ieee80211_hw *hw,
-				   int mc_count, struct dev_addr_list *mclist)
+				   struct netdev_hw_addr_list *mc_list)
 {
 	u32 mfilt[2], val;
-	int i;
 	u8 pos;
+	struct netdev_hw_addr *ha;
 
 	mfilt[0] = 0;
 	mfilt[1] = 1;
 
-	for (i = 0; i < mc_count; i++) {
-		if (!mclist)
-			break;
+	netdev_hw_addr_list_for_each(ha, mc_list) {
 		/* calculate XOR of eight 6-bit values */
-		val = get_unaligned_le32(mclist->dmi_addr + 0);
+		val = get_unaligned_le32(ha->addr + 0);
 		pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
-		val = get_unaligned_le32(mclist->dmi_addr + 3);
+		val = get_unaligned_le32(ha->addr + 3);
 		pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
 		pos &= 0x3f;
 		mfilt[pos / 32] |= (1 << (pos % 32));
@@ -3022,8 +3020,7 @@ static u64 ath5k_prepare_multicast(struct ieee80211_hw *hw,
 		* but not sure, needs testing, if we do use this we'd
 		* neet to inform below to not reset the mcast */
 		/* ath5k_hw_set_mcast_filterindex(ah,
-		 *      mclist->dmi_addr[5]); */
-		mclist = mclist->next;
+		 *      ha->addr[5]); */
 	}
 
 	return ((u64)(mfilt[1]) << 32) | mfilt[0];

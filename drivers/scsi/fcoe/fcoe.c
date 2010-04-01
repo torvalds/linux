@@ -311,7 +311,7 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	dev_uc_add(netdev, flogi_maddr);
 	if (fip->spma)
 		dev_uc_add(netdev, fip->ctl_src_addr);
-	dev_mc_add(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
+	dev_mc_add(netdev, FIP_ALL_ENODE_MACS);
 
 	/*
 	 * setup the receive function from ethernet driver
@@ -397,7 +397,7 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	dev_uc_del(netdev, flogi_maddr);
 	if (fip->spma)
 		dev_uc_del(netdev, fip->ctl_src_addr);
-	dev_mc_delete(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
+	dev_mc_del(netdev, FIP_ALL_ENODE_MACS);
 
 	/* Tell the LLD we are done w/ FCoE */
 	ops = netdev->netdev_ops;

@@ -1875,17 +1875,17 @@ static void ray_update_multi_list(struct net_device *dev, int all)
 		writeb(0xff, &pccs->var);
 		local->num_multi = 0xff;
 	} else {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 		int i = 0;
 
 		/* Copy the kernel's list of MC addresses to card */
-		netdev_for_each_mc_addr(dmi, dev) {
-			memcpy_toio(p, dmi->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, dev) {
+			memcpy_toio(p, ha->addr, ETH_ALEN);
 			dev_dbg(&link->dev,
 			      "ray_update_multi add addr %02x%02x%02x%02x%02x%02x\n",
-			      dmi->dmi_addr[0], dmi->dmi_addr[1],
-			      dmi->dmi_addr[2], dmi->dmi_addr[3],
-			      dmi->dmi_addr[4], dmi->dmi_addr[5]);
+			      ha->addr[0], ha->addr[1],
+			      ha->addr[2], ha->addr[3],
+			      ha->addr[4], ha->addr[5]);
 			p += ETH_ALEN;
 			i++;
 		}

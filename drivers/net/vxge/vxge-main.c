@@ -1117,7 +1117,7 @@ vxge_tx_term(void *dtrh, enum vxge_hw_txdl_state state, void *userdata)
  */
 static void vxge_set_multicast(struct net_device *dev)
 {
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	struct vxgedev *vdev;
 	int i, mcast_cnt = 0;
 	struct __vxge_hw_device  *hldev;
@@ -1217,8 +1217,8 @@ static void vxge_set_multicast(struct net_device *dev)
 		}
 
 		/* Add new ones */
-		netdev_for_each_mc_addr(mclist, dev) {
-			memcpy(mac_info.macaddr, mclist->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, dev) {
+			memcpy(mac_info.macaddr, ha->addr, ETH_ALEN);
 			for (vpath_idx = 0; vpath_idx < vdev->no_of_vpath;
 					vpath_idx++) {
 				mac_info.vpath_no = vpath_idx;

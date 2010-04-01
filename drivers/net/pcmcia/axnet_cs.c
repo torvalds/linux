@@ -1623,11 +1623,11 @@ static struct net_device_stats *get_stats(struct net_device *dev)
  
 static inline void make_mc_bits(u8 *bits, struct net_device *dev)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	u32 crc;
 
-	netdev_for_each_mc_addr(dmi, dev) {
-		crc = ether_crc(ETH_ALEN, dmi->dmi_addr);
+	netdev_for_each_mc_addr(ha, dev) {
+		crc = ether_crc(ETH_ALEN, ha->addr);
 		/* 
 		 * The 8390 uses the 6 most significant bits of the
 		 * CRC to index the multicast table.

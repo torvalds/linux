@@ -2567,7 +2567,7 @@ static void e1000_set_multi(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8  *mta_list;
 	u32 rctl;
 	int i;
@@ -2599,9 +2599,8 @@ static void e1000_set_multi(struct net_device *netdev)
 
 		/* prepare a packed array of only addresses. */
 		i = 0;
-		netdev_for_each_mc_addr(mc_ptr, netdev)
-			memcpy(mta_list + (i++ * ETH_ALEN),
-			       mc_ptr->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, netdev)
+			memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
 
 		e1000_update_mc_addr_list(hw, mta_list, i);
 		kfree(mta_list);

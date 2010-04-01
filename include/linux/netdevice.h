@@ -228,25 +228,6 @@ struct netif_rx_stats {
 
 DECLARE_PER_CPU(struct netif_rx_stats, netdev_rx_stat);
 
-struct dev_addr_list {
-	struct dev_addr_list	*next;
-	u8			da_addr[MAX_ADDR_LEN];
-	u8			da_addrlen;
-	u8			da_synced;
-	int			da_users;
-	int			da_gusers;
-};
-
-/*
- *	We tag multicasts with these structures.
- */
-
-#define dev_mc_list	dev_addr_list
-#define dmi_addr	da_addr
-#define dmi_addrlen	da_addrlen
-#define dmi_users	da_users
-#define dmi_gusers	da_gusers
-
 struct netdev_hw_addr {
 	struct list_head	list;
 	unsigned char		addr[MAX_ADDR_LEN];
@@ -255,8 +236,10 @@ struct netdev_hw_addr {
 #define NETDEV_HW_ADDR_T_SAN		2
 #define NETDEV_HW_ADDR_T_SLAVE		3
 #define NETDEV_HW_ADDR_T_UNICAST	4
+#define NETDEV_HW_ADDR_T_MULTICAST	5
 	int			refcount;
 	bool			synced;
+	bool			global_use;
 	struct rcu_head		rcu_head;
 };
 
@@ -265,16 +248,20 @@ struct netdev_hw_addr_list {
 	int			count;
 };
 
-#define netdev_uc_count(dev) ((dev)->uc.count)
-#define netdev_uc_empty(dev) ((dev)->uc.count == 0)
+#define netdev_hw_addr_list_count(l) ((l)->count)
+#define netdev_hw_addr_list_empty(l) (netdev_hw_addr_list_count(l) == 0)
+#define netdev_hw_addr_list_for_each(ha, l) \
+	list_for_each_entry(ha, &(l)->list, list)
+
+#define netdev_uc_count(dev) netdev_hw_addr_list_count(&(dev)->uc)
+#define netdev_uc_empty(dev) netdev_hw_addr_list_empty(&(dev)->uc)
 #define netdev_for_each_uc_addr(ha, dev) \
-	list_for_each_entry(ha, &dev->uc.list, list)
+	netdev_hw_addr_list_for_each(ha, &(dev)->uc)
 
-#define netdev_mc_count(dev) ((dev)->mc_count)
-#define netdev_mc_empty(dev) (netdev_mc_count(dev) == 0)
-
+#define netdev_mc_count(dev) netdev_hw_addr_list_count(&(dev)->mc)
+#define netdev_mc_empty(dev) netdev_hw_addr_list_empty(&(dev)->mc)
 #define netdev_for_each_mc_addr(mclist, dev) \
-	for (mclist = dev->mc_list; mclist; mclist = mclist->next)
+	netdev_hw_addr_list_for_each(ha, &(dev)->mc)
 
 struct hh_cache {
 	struct hh_cache *hh_next;	/* Next entry			     */
@@ -862,12 +849,10 @@ struct net_device {
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned short          dev_id;		/* for shared network cards */
 
-	struct netdev_hw_addr_list	uc;	/* Secondary unicast
-						   mac addresses */
-	int			uc_promisc;
 	spinlock_t		addr_list_lock;
-	struct dev_addr_list	*mc_list;	/* Multicast mac addresses	*/
-	int			mc_count;	/* Number of installed mcasts	*/
+	struct netdev_hw_addr_list	uc;	/* Unicast mac addresses */
+	struct netdev_hw_addr_list	mc;	/* Multicast mac addresses */
+	int			uc_promisc;
 	unsigned int		promiscuity;
 	unsigned int		allmulti;
 
@@ -1980,6 +1965,22 @@ extern struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 extern int		register_netdev(struct net_device *dev);
 extern void		unregister_netdev(struct net_device *dev);
 
+/* General hardware address lists handling functions */
+extern int __hw_addr_add_multiple(struct netdev_hw_addr_list *to_list,
+				  struct netdev_hw_addr_list *from_list,
+				  int addr_len, unsigned char addr_type);
+extern void __hw_addr_del_multiple(struct netdev_hw_addr_list *to_list,
+				   struct netdev_hw_addr_list *from_list,
+				   int addr_len, unsigned char addr_type);
+extern int __hw_addr_sync(struct netdev_hw_addr_list *to_list,
+			  struct netdev_hw_addr_list *from_list,
+			  int addr_len);
+extern void __hw_addr_unsync(struct netdev_hw_addr_list *to_list,
+			     struct netdev_hw_addr_list *from_list,
+			     int addr_len);
+extern void __hw_addr_flush(struct netdev_hw_addr_list *list);
+extern void __hw_addr_init(struct netdev_hw_addr_list *list);
+
 /* Functions used for device addresses handling */
 extern int dev_addr_add(struct net_device *dev, unsigned char *addr,
 			unsigned char addr_type);
@@ -2002,18 +2003,19 @@ extern void dev_uc_unsync(struct net_device *to, struct net_device *from);
 extern void dev_uc_flush(struct net_device *dev);
 extern void dev_uc_init(struct net_device *dev);
 
+/* Functions used for multicast addresses handling */
+extern int dev_mc_add(struct net_device *dev, unsigned char *addr);
+extern int dev_mc_add_global(struct net_device *dev, unsigned char *addr);
+extern int dev_mc_del(struct net_device *dev, unsigned char *addr);
+extern int dev_mc_del_global(struct net_device *dev, unsigned char *addr);
+extern int dev_mc_sync(struct net_device *to, struct net_device *from);
+extern void dev_mc_unsync(struct net_device *to, struct net_device *from);
+extern void dev_mc_flush(struct net_device *dev);
+extern void dev_mc_init(struct net_device *dev);
+
 /* Functions used for secondary unicast and multicast support */
 extern void		dev_set_rx_mode(struct net_device *dev);
 extern void		__dev_set_rx_mode(struct net_device *dev);
-extern int 		dev_mc_delete(struct net_device *dev, void *addr, int alen, int all);
-extern int		dev_mc_add(struct net_device *dev, void *addr, int alen, int newonly);
-extern int		dev_mc_sync(struct net_device *to, struct net_device *from);
-extern void		dev_mc_unsync(struct net_device *to, struct net_device *from);
-extern void		dev_addr_discard(struct net_device *dev);
-extern int 		__dev_addr_delete(struct dev_addr_list **list, int *count, void *addr, int alen, int all);
-extern int		__dev_addr_add(struct dev_addr_list **list, int *count, void *addr, int alen, int newonly);
-extern int		__dev_addr_sync(struct dev_addr_list **to, int *to_count, struct dev_addr_list **from, int *from_count);
-extern void		__dev_addr_unsync(struct dev_addr_list **to, int *to_count, struct dev_addr_list **from, int *from_count);
 extern int		dev_set_promiscuity(struct net_device *dev, int inc);
 extern int		dev_set_allmulti(struct net_device *dev, int inc);
 extern void		netdev_state_change(struct net_device *dev);

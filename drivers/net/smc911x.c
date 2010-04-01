@@ -1341,7 +1341,7 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 	 * within that register.
 	 */
 	else if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *cur_addr;
+		struct netdev_hw_addr *ha;
 
 		/* Set the Hash perfec mode */
 		mcr |= MAC_CR_HPFILT_;
@@ -1349,19 +1349,16 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 		/* start with a table of all zeros: reject all */
 		memset(multicast_table, 0, sizeof(multicast_table));
 
-		netdev_for_each_mc_addr(cur_addr, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			u32 position;
 
-			/* do we have a pointer here? */
-			if (!cur_addr)
-				break;
 			/* make sure this is a multicast address -
 				shouldn't this be a given if we have it here ? */
-			if (!(*cur_addr->dmi_addr & 1))
-				 continue;
+			if (!(*ha->addr & 1))
+				continue;
 
 			/* upper 6 bits are used as hash index */
-			position = ether_crc(ETH_ALEN, cur_addr->dmi_addr)>>26;
+			position = ether_crc(ETH_ALEN, ha->addr)>>26;
 
 			multicast_table[position>>5] |= 1 << (position&0x1f);
 		}

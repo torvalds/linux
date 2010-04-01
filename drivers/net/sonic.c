@@ -531,7 +531,7 @@ static void sonic_multicast_list(struct net_device *dev)
 {
 	struct sonic_local *lp = netdev_priv(dev);
 	unsigned int rcr;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	unsigned char *addr;
 	int i;
 
@@ -550,8 +550,8 @@ static void sonic_multicast_list(struct net_device *dev)
 				       netdev_mc_count(dev));
 			sonic_set_cam_enable(dev, 1);  /* always enable our own address */
 			i = 1;
-			netdev_for_each_mc_addr(dmi, dev) {
-				addr = dmi->dmi_addr;
+			netdev_for_each_mc_addr(ha, dev) {
+				addr = ha->addr;
 				sonic_cda_put(dev, i, SONIC_CD_CAP0, addr[1] << 8 | addr[0]);
 				sonic_cda_put(dev, i, SONIC_CD_CAP1, addr[3] << 8 | addr[2]);
 				sonic_cda_put(dev, i, SONIC_CD_CAP2, addr[5] << 8 | addr[4]);

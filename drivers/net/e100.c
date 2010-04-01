@@ -1545,16 +1545,16 @@ static int e100_hw_init(struct nic *nic)
 static void e100_multi(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	struct net_device *netdev = nic->netdev;
-	struct dev_mc_list *list;
+	struct netdev_hw_addr *ha;
 	u16 i, count = min(netdev_mc_count(netdev), E100_MAX_MULTICAST_ADDRS);
 
 	cb->command = cpu_to_le16(cb_multi);
 	cb->u.multi.count = cpu_to_le16(count * ETH_ALEN);
 	i = 0;
-	netdev_for_each_mc_addr(list, netdev) {
+	netdev_for_each_mc_addr(ha, netdev) {
 		if (i == count)
 			break;
-		memcpy(&cb->u.multi.addr[i++ * ETH_ALEN], &list->dmi_addr,
+		memcpy(&cb->u.multi.addr[i++ * ETH_ALEN], &ha->addr,
 			ETH_ALEN);
 	}
 }

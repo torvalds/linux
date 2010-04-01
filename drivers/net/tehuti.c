@@ -808,7 +808,7 @@ static void bdx_setmulti(struct net_device *ndev)
 			WRITE_REG(priv, regRX_MCST_HASH0 + i * 4, ~0);
 	} else if (!netdev_mc_empty(ndev)) {
 		u8 hash;
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		u32 reg, val;
 
 		/* set IMF to deny all multicast frames */
@@ -825,10 +825,10 @@ static void bdx_setmulti(struct net_device *ndev)
 		 * into RX_MAC_MCST regs. we skip this phase now and accept ALL
 		 * multicast frames throu IMF */
 		/* accept the rest of addresses throu IMF */
-		netdev_for_each_mc_addr(mclist, ndev) {
+		netdev_for_each_mc_addr(ha, ndev) {
 			hash = 0;
 			for (i = 0; i < ETH_ALEN; i++)
-				hash ^= mclist->dmi_addr[i];
+				hash ^= ha->addr[i];
 			reg = regRX_MCST_HASH0 + ((hash >> 5) << 2);
 			val = READ_REG(priv, reg);
 			val |= (1 << (hash % 32));

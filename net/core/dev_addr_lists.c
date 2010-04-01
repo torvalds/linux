@@ -19,8 +19,9 @@
  * General list handling functions
  */
 
-static int __hw_addr_add(struct netdev_hw_addr_list *list, unsigned char *addr,
-			 int addr_len, unsigned char addr_type)
+static int __hw_addr_add_ex(struct netdev_hw_addr_list *list,
+			    unsigned char *addr, int addr_len,
+			    unsigned char addr_type, bool global)
 {
 	struct netdev_hw_addr *ha;
 	int alloc_size;
@@ -31,6 +32,13 @@ static int __hw_addr_add(struct netdev_hw_addr_list *list, unsigned char *addr,
 	list_for_each_entry(ha, &list->list, list) {
 		if (!memcmp(ha->addr, addr, addr_len) &&
 		    ha->type == addr_type) {
+			if (global) {
+				/* check if addr is already used as global */
+				if (ha->global_use)
+					return 0;
+				else
+					ha->global_use = true;
+			}
 			ha->refcount++;
 			return 0;
 		}
@@ -46,10 +54,17 @@ static int __hw_addr_add(struct netdev_hw_addr_list *list, unsigned char *addr,
 	memcpy(ha->addr, addr, addr_len);
 	ha->type = addr_type;
 	ha->refcount = 1;
+	ha->global_use = global;
 	ha->synced = false;
 	list_add_tail_rcu(&ha->list, &list->list);
 	list->count++;
 	return 0;
+}
+
+static int __hw_addr_add(struct netdev_hw_addr_list *list, unsigned char *addr,
+			 int addr_len, unsigned char addr_type)
+{
+	return __hw_addr_add_ex(list, addr, addr_len, addr_type, false);
 }
 
 static void ha_rcu_free(struct rcu_head *head)
@@ -60,14 +75,21 @@ static void ha_rcu_free(struct rcu_head *head)
 	kfree(ha);
 }
 
-static int __hw_addr_del(struct netdev_hw_addr_list *list, unsigned char *addr,
-			 int addr_len, unsigned char addr_type)
+static int __hw_addr_del_ex(struct netdev_hw_addr_list *list,
+			    unsigned char *addr, int addr_len,
+			    unsigned char addr_type, bool global)
 {
 	struct netdev_hw_addr *ha;
 
 	list_for_each_entry(ha, &list->list, list) {
 		if (!memcmp(ha->addr, addr, addr_len) &&
 		    (ha->type == addr_type || !addr_type)) {
+			if (global) {
+				if (!ha->global_use)
+					break;
+				else
+					ha->global_use = false;
+			}
 			if (--ha->refcount)
 				return 0;
 			list_del_rcu(&ha->list);
@@ -79,10 +101,15 @@ static int __hw_addr_del(struct netdev_hw_addr_list *list, unsigned char *addr,
 	return -ENOENT;
 }
 
-static int __hw_addr_add_multiple(struct netdev_hw_addr_list *to_list,
-				  struct netdev_hw_addr_list *from_list,
-				  int addr_len,
-				  unsigned char addr_type)
+static int __hw_addr_del(struct netdev_hw_addr_list *list, unsigned char *addr,
+			 int addr_len, unsigned char addr_type)
+{
+	return __hw_addr_del_ex(list, addr, addr_len, addr_type, false);
+}
+
+int __hw_addr_add_multiple(struct netdev_hw_addr_list *to_list,
+			   struct netdev_hw_addr_list *from_list,
+			   int addr_len, unsigned char addr_type)
 {
 	int err;
 	struct netdev_hw_addr *ha, *ha2;
@@ -105,11 +132,11 @@ unroll:
 	}
 	return err;
 }
+EXPORT_SYMBOL(__hw_addr_add_multiple);
 
-static void __hw_addr_del_multiple(struct netdev_hw_addr_list *to_list,
-				   struct netdev_hw_addr_list *from_list,
-				   int addr_len,
-				   unsigned char addr_type)
+void __hw_addr_del_multiple(struct netdev_hw_addr_list *to_list,
+			    struct netdev_hw_addr_list *from_list,
+			    int addr_len, unsigned char addr_type)
 {
 	struct netdev_hw_addr *ha;
 	unsigned char type;
@@ -119,10 +146,11 @@ static void __hw_addr_del_multiple(struct netdev_hw_addr_list *to_list,
 		__hw_addr_del(to_list, ha->addr, addr_len, addr_type);
 	}
 }
+EXPORT_SYMBOL(__hw_addr_del_multiple);
 
-static int __hw_addr_sync(struct netdev_hw_addr_list *to_list,
-			  struct netdev_hw_addr_list *from_list,
-			  int addr_len)
+int __hw_addr_sync(struct netdev_hw_addr_list *to_list,
+		   struct netdev_hw_addr_list *from_list,
+		   int addr_len)
 {
 	int err = 0;
 	struct netdev_hw_addr *ha, *tmp;
@@ -142,10 +170,11 @@ static int __hw_addr_sync(struct netdev_hw_addr_list *to_list,
 	}
 	return err;
 }
+EXPORT_SYMBOL(__hw_addr_sync);
 
-static void __hw_addr_unsync(struct netdev_hw_addr_list *to_list,
-			     struct netdev_hw_addr_list *from_list,
-			     int addr_len)
+void __hw_addr_unsync(struct netdev_hw_addr_list *to_list,
+		      struct netdev_hw_addr_list *from_list,
+		      int addr_len)
 {
 	struct netdev_hw_addr *ha, *tmp;
 
@@ -159,8 +188,9 @@ static void __hw_addr_unsync(struct netdev_hw_addr_list *to_list,
 		}
 	}
 }
+EXPORT_SYMBOL(__hw_addr_unsync);
 
-static void __hw_addr_flush(struct netdev_hw_addr_list *list)
+void __hw_addr_flush(struct netdev_hw_addr_list *list)
 {
 	struct netdev_hw_addr *ha, *tmp;
 
@@ -170,12 +200,14 @@ static void __hw_addr_flush(struct netdev_hw_addr_list *list)
 	}
 	list->count = 0;
 }
+EXPORT_SYMBOL(__hw_addr_flush);
 
-static void __hw_addr_init(struct netdev_hw_addr_list *list)
+void __hw_addr_init(struct netdev_hw_addr_list *list)
 {
 	INIT_LIST_HEAD(&list->list);
 	list->count = 0;
 }
+EXPORT_SYMBOL(__hw_addr_init);
 
 /*
  * Device addresses handling functions
@@ -475,4 +507,235 @@ EXPORT_SYMBOL(dev_uc_init);
  * Multicast list handling functions
  */
 
-/* To be filled here */
+static int __dev_mc_add(struct net_device *dev, unsigned char *addr,
+			bool global)
+{
+	int err;
+
+	netif_addr_lock_bh(dev);
+	err = __hw_addr_add_ex(&dev->mc, addr, dev->addr_len,
+			       NETDEV_HW_ADDR_T_MULTICAST, global);
+	if (!err)
+		__dev_set_rx_mode(dev);
+	netif_addr_unlock_bh(dev);
+	return err;
+}
+/**
+ *	dev_mc_add - Add a multicast address
+ *	@dev: device
+ *	@addr: address to add
+ *
+ *	Add a multicast address to the device or increase
+ *	the reference count if it already exists.
+ */
+int dev_mc_add(struct net_device *dev, unsigned char *addr)
+{
+	return __dev_mc_add(dev, addr, false);
+}
+EXPORT_SYMBOL(dev_mc_add);
+
+/**
+ *	dev_mc_add_global - Add a global multicast address
+ *	@dev: device
+ *	@addr: address to add
+ *
+ *	Add a global multicast address to the device.
+ */
+int dev_mc_add_global(struct net_device *dev, unsigned char *addr)
+{
+	return __dev_mc_add(dev, addr, true);
+}
+EXPORT_SYMBOL(dev_mc_add_global);
+
+static int __dev_mc_del(struct net_device *dev, unsigned char *addr,
+			bool global)
+{
+	int err;
+
+	netif_addr_lock_bh(dev);
+	err = __hw_addr_del_ex(&dev->mc, addr, dev->addr_len,
+			       NETDEV_HW_ADDR_T_MULTICAST, global);
+	if (!err)
+		__dev_set_rx_mode(dev);
+	netif_addr_unlock_bh(dev);
+	return err;
+}
+
+/**
+ *	dev_mc_del - Delete a multicast address.
+ *	@dev: device
+ *	@addr: address to delete
+ *
+ *	Release reference to a multicast address and remove it
+ *	from the device if the reference count drops to zero.
+ */
+int dev_mc_del(struct net_device *dev, unsigned char *addr)
+{
+	return __dev_mc_del(dev, addr, false);
+}
+EXPORT_SYMBOL(dev_mc_del);
+
+/**
+ *	dev_mc_del_global - Delete a global multicast address.
+ *	@dev: device
+ *	@addr: address to delete
+ *
+ *	Release reference to a multicast address and remove it
+ *	from the device if the reference count drops to zero.
+ */
+int dev_mc_del_global(struct net_device *dev, unsigned char *addr)
+{
+	return __dev_mc_del(dev, addr, true);
+}
+EXPORT_SYMBOL(dev_mc_del_global);
+
+/**
+ *	dev_mc_sync - Synchronize device's unicast list to another device
+ *	@to: destination device
+ *	@from: source device
+ *
+ *	Add newly added addresses to the destination device and release
+ *	addresses that have no users left. The source device must be
+ *	locked by netif_tx_lock_bh.
+ *
+ *	This function is intended to be called from the dev->set_multicast_list
+ *	or dev->set_rx_mode function of layered software devices.
+ */
+int dev_mc_sync(struct net_device *to, struct net_device *from)
+{
+	int err = 0;
+
+	if (to->addr_len != from->addr_len)
+		return -EINVAL;
+
+	netif_addr_lock_bh(to);
+	err = __hw_addr_sync(&to->mc, &from->mc, to->addr_len);
+	if (!err)
+		__dev_set_rx_mode(to);
+	netif_addr_unlock_bh(to);
+	return err;
+}
+EXPORT_SYMBOL(dev_mc_sync);
+
+/**
+ *	dev_mc_unsync - Remove synchronized addresses from the destination device
+ *	@to: destination device
+ *	@from: source device
+ *
+ *	Remove all addresses that were added to the destination device by
+ *	dev_mc_sync(). This function is intended to be called from the
+ *	dev->stop function of layered software devices.
+ */
+void dev_mc_unsync(struct net_device *to, struct net_device *from)
+{
+	if (to->addr_len != from->addr_len)
+		return;
+
+	netif_addr_lock_bh(from);
+	netif_addr_lock(to);
+	__hw_addr_unsync(&to->mc, &from->mc, to->addr_len);
+	__dev_set_rx_mode(to);
+	netif_addr_unlock(to);
+	netif_addr_unlock_bh(from);
+}
+EXPORT_SYMBOL(dev_mc_unsync);
+
+/**
+ *	dev_mc_flush - Flush multicast addresses
+ *	@dev: device
+ *
+ *	Flush multicast addresses.
+ */
+void dev_mc_flush(struct net_device *dev)
+{
+	netif_addr_lock_bh(dev);
+	__hw_addr_flush(&dev->mc);
+	netif_addr_unlock_bh(dev);
+}
+EXPORT_SYMBOL(dev_mc_flush);
+
+/**
+ *	dev_mc_flush - Init multicast address list
+ *	@dev: device
+ *
+ *	Init multicast address list.
+ */
+void dev_mc_init(struct net_device *dev)
+{
+	__hw_addr_init(&dev->mc);
+}
+EXPORT_SYMBOL(dev_mc_init);
+
+#ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+
+static int dev_mc_seq_show(struct seq_file *seq, void *v)
+{
+	struct netdev_hw_addr *ha;
+	struct net_device *dev = v;
+
+	if (v == SEQ_START_TOKEN)
+		return 0;
+
+	netif_addr_lock_bh(dev);
+	netdev_for_each_mc_addr(ha, dev) {
+		int i;
+
+		seq_printf(seq, "%-4d %-15s %-5d %-5d ", dev->ifindex,
+			   dev->name, ha->refcount, ha->global_use);
+
+		for (i = 0; i < dev->addr_len; i++)
+			seq_printf(seq, "%02x", ha->addr[i]);
+
+		seq_putc(seq, '\n');
+	}
+	netif_addr_unlock_bh(dev);
+	return 0;
+}
+
+static const struct seq_operations dev_mc_seq_ops = {
+	.start = dev_seq_start,
+	.next  = dev_seq_next,
+	.stop  = dev_seq_stop,
+	.show  = dev_mc_seq_show,
+};
+
+static int dev_mc_seq_open(struct inode *inode, struct file *file)
+{
+	return seq_open_net(inode, file, &dev_mc_seq_ops,
+			    sizeof(struct seq_net_private));
+}
+
+static const struct file_operations dev_mc_seq_fops = {
+	.owner	 = THIS_MODULE,
+	.open    = dev_mc_seq_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_net,
+};
+
+#endif
+
+static int __net_init dev_mc_net_init(struct net *net)
+{
+	if (!proc_net_fops_create(net, "dev_mcast", 0, &dev_mc_seq_fops))
+		return -ENOMEM;
+	return 0;
+}
+
+static void __net_exit dev_mc_net_exit(struct net *net)
+{
+	proc_net_remove(net, "dev_mcast");
+}
+
+static struct pernet_operations __net_initdata dev_mc_net_ops = {
+	.init = dev_mc_net_init,
+	.exit = dev_mc_net_exit,
+};
+
+void __init dev_mcast_init(void)
+{
+	register_pernet_subsys(&dev_mc_net_ops);
+}
+

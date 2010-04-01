@@ -1966,7 +1966,7 @@ static void ehea_add_multicast_entry(struct ehea_port *port, u8 *mc_mac_addr)
 static void ehea_set_multicast_list(struct net_device *dev)
 {
 	struct ehea_port *port = netdev_priv(dev);
-	struct dev_mc_list *k_mcl_entry;
+	struct netdev_hw_addr *ha;
 	int ret;
 
 	if (dev->flags & IFF_PROMISC) {
@@ -1997,8 +1997,8 @@ static void ehea_set_multicast_list(struct net_device *dev)
 			goto out;
 		}
 
-		netdev_for_each_mc_addr(k_mcl_entry, dev)
-			ehea_add_multicast_entry(port, k_mcl_entry->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			ehea_add_multicast_entry(port, ha->addr);
 
 	}
 out:

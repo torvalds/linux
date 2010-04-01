@@ -762,32 +762,6 @@ static int bond_check_dev_link(struct bonding *bond,
 /*----------------------------- Multicast list ------------------------------*/
 
 /*
- * Returns 0 if dmi1 and dmi2 are the same, non-0 otherwise
- */
-static inline int bond_is_dmi_same(const struct dev_mc_list *dmi1,
-				   const struct dev_mc_list *dmi2)
-{
-	return memcmp(dmi1->dmi_addr, dmi2->dmi_addr, dmi1->dmi_addrlen) == 0 &&
-			dmi1->dmi_addrlen == dmi2->dmi_addrlen;
-}
-
-/*
- * returns dmi entry if found, NULL otherwise
- */
-static struct dev_mc_list *bond_mc_list_find_dmi(struct dev_mc_list *dmi,
-						 struct dev_mc_list *mc_list)
-{
-	struct dev_mc_list *idmi;
-
-	for (idmi = mc_list; idmi; idmi = idmi->next) {
-		if (bond_is_dmi_same(dmi, idmi))
-			return idmi;
-	}
-
-	return NULL;
-}
-
-/*
  * Push the promiscuity flag down to appropriate slaves
  */
 static int bond_set_promiscuity(struct bonding *bond, int inc)
@@ -839,18 +813,18 @@ static int bond_set_allmulti(struct bonding *bond, int inc)
  * Add a Multicast address to slaves
  * according to mode
  */
-static void bond_mc_add(struct bonding *bond, void *addr, int alen)
+static void bond_mc_add(struct bonding *bond, void *addr)
 {
 	if (USES_PRIMARY(bond->params.mode)) {
 		/* write lock already acquired */
 		if (bond->curr_active_slave)
-			dev_mc_add(bond->curr_active_slave->dev, addr, alen, 0);
+			dev_mc_add(bond->curr_active_slave->dev, addr);
 	} else {
 		struct slave *slave;
 		int i;
 
 		bond_for_each_slave(bond, slave, i)
-			dev_mc_add(slave->dev, addr, alen, 0);
+			dev_mc_add(slave->dev, addr);
 	}
 }
 
@@ -858,18 +832,17 @@ static void bond_mc_add(struct bonding *bond, void *addr, int alen)
  * Remove a multicast address from slave
  * according to mode
  */
-static void bond_mc_delete(struct bonding *bond, void *addr, int alen)
+static void bond_mc_del(struct bonding *bond, void *addr)
 {
 	if (USES_PRIMARY(bond->params.mode)) {
 		/* write lock already acquired */
 		if (bond->curr_active_slave)
-			dev_mc_delete(bond->curr_active_slave->dev, addr,
-				      alen, 0);
+			dev_mc_del(bond->curr_active_slave->dev, addr);
 	} else {
 		struct slave *slave;
 		int i;
 		bond_for_each_slave(bond, slave, i) {
-			dev_mc_delete(slave->dev, addr, alen, 0);
+			dev_mc_del(slave->dev, addr);
 		}
 	}
 }
@@ -896,66 +869,22 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 }
 
 /*
- * Totally destroys the mc_list in bond
- */
-static void bond_mc_list_destroy(struct bonding *bond)
-{
-	struct dev_mc_list *dmi;
-
-	dmi = bond->mc_list;
-	while (dmi) {
-		bond->mc_list = dmi->next;
-		kfree(dmi);
-		dmi = bond->mc_list;
-	}
-
-	bond->mc_list = NULL;
-}
-
-/*
- * Copy all the Multicast addresses from src to the bonding device dst
- */
-static int bond_mc_list_copy(struct dev_mc_list *mc_list, struct bonding *bond,
-			     gfp_t gfp_flag)
-{
-	struct dev_mc_list *dmi, *new_dmi;
-
-	for (dmi = mc_list; dmi; dmi = dmi->next) {
-		new_dmi = kmalloc(sizeof(struct dev_mc_list), gfp_flag);
-
-		if (!new_dmi) {
-			/* FIXME: Potential memory leak !!! */
-			return -ENOMEM;
-		}
-
-		new_dmi->next = bond->mc_list;
-		bond->mc_list = new_dmi;
-		new_dmi->dmi_addrlen = dmi->dmi_addrlen;
-		memcpy(new_dmi->dmi_addr, dmi->dmi_addr, dmi->dmi_addrlen);
-		new_dmi->dmi_users = dmi->dmi_users;
-		new_dmi->dmi_gusers = dmi->dmi_gusers;
-	}
-
-	return 0;
-}
-
-/*
  * flush all members of flush->mc_list from device dev->mc_list
  */
 static void bond_mc_list_flush(struct net_device *bond_dev,
 			       struct net_device *slave_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 
-	for (dmi = bond_dev->mc_list; dmi; dmi = dmi->next)
-		dev_mc_delete(slave_dev, dmi->dmi_addr, dmi->dmi_addrlen, 0);
+	netdev_for_each_mc_addr(ha, bond_dev)
+		dev_mc_del(slave_dev, ha->addr);
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		/* del lacpdu mc addr from mc list */
 		u8 lacpdu_multicast[ETH_ALEN] = MULTICAST_LACPDU_ADDR;
 
-		dev_mc_delete(slave_dev, lacpdu_multicast, ETH_ALEN, 0);
+		dev_mc_del(slave_dev, lacpdu_multicast);
 	}
 }
 
@@ -969,7 +898,7 @@ static void bond_mc_list_flush(struct net_device *bond_dev,
 static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 			 struct slave *old_active)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 
 	if (!USES_PRIMARY(bond->params.mode))
 		/* nothing to do -  mc list is already up-to-date on
@@ -984,9 +913,8 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		if (bond->dev->flags & IFF_ALLMULTI)
 			dev_set_allmulti(old_active->dev, -1);
 
-		for (dmi = bond->dev->mc_list; dmi; dmi = dmi->next)
-			dev_mc_delete(old_active->dev, dmi->dmi_addr,
-				      dmi->dmi_addrlen, 0);
+		netdev_for_each_mc_addr(ha, bond->dev)
+			dev_mc_del(old_active->dev, ha->addr);
 	}
 
 	if (new_active) {
@@ -997,9 +925,8 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		if (bond->dev->flags & IFF_ALLMULTI)
 			dev_set_allmulti(new_active->dev, 1);
 
-		for (dmi = bond->dev->mc_list; dmi; dmi = dmi->next)
-			dev_mc_add(new_active->dev, dmi->dmi_addr,
-				   dmi->dmi_addrlen, 0);
+		netdev_for_each_mc_addr(ha, bond->dev)
+			dev_mc_add(new_active->dev, ha->addr);
 		bond_resend_igmp_join_requests(bond);
 	}
 }
@@ -1406,7 +1333,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 	struct slave *new_slave = NULL;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct sockaddr addr;
 	int link_reporting;
 	int old_features = bond_dev->features;
@@ -1492,7 +1419,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 			/* Flush unicast and multicast addresses */
 			dev_uc_flush(bond_dev);
-			dev_addr_discard(bond_dev);
+			dev_mc_flush(bond_dev);
 
 			if (slave_dev->type != ARPHRD_ETHER)
 				bond_setup_by_slave(bond_dev, slave_dev);
@@ -1601,9 +1528,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 		netif_addr_lock_bh(bond_dev);
 		/* upload master's mc_list to new slave */
-		for (dmi = bond_dev->mc_list; dmi; dmi = dmi->next)
-			dev_mc_add(slave_dev, dmi->dmi_addr,
-				   dmi->dmi_addrlen, 0);
+		netdev_for_each_mc_addr(ha, bond_dev)
+			dev_mc_add(slave_dev, ha->addr);
 		netif_addr_unlock_bh(bond_dev);
 	}
 
@@ -1611,7 +1537,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		/* add lacpdu mc addr to mc list */
 		u8 lacpdu_multicast[ETH_ALEN] = MULTICAST_LACPDU_ADDR;
 
-		dev_mc_add(slave_dev, lacpdu_multicast, ETH_ALEN, 0);
+		dev_mc_add(slave_dev, lacpdu_multicast);
 	}
 
 	bond_add_vlans_on_slave(bond, slave_dev);
@@ -3913,10 +3839,24 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	return res;
 }
 
+static bool bond_addr_in_mc_list(unsigned char *addr,
+				 struct netdev_hw_addr_list *list,
+				 int addrlen)
+{
+	struct netdev_hw_addr *ha;
+
+	netdev_hw_addr_list_for_each(ha, list)
+		if (!memcmp(ha->addr, addr, addrlen))
+			return true;
+
+	return false;
+}
+
 static void bond_set_multicast_list(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
+	bool found;
 
 	/*
 	 * Do promisc before checking multicast_mode
@@ -3951,20 +3891,25 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 	bond->flags = bond_dev->flags;
 
 	/* looking for addresses to add to slaves' mc list */
-	for (dmi = bond_dev->mc_list; dmi; dmi = dmi->next) {
-		if (!bond_mc_list_find_dmi(dmi, bond->mc_list))
-			bond_mc_add(bond, dmi->dmi_addr, dmi->dmi_addrlen);
+	netdev_for_each_mc_addr(ha, bond_dev) {
+		found = bond_addr_in_mc_list(ha->addr, &bond->mc_list,
+					     bond_dev->addr_len);
+		if (!found)
+			bond_mc_add(bond, ha->addr);
 	}
 
 	/* looking for addresses to delete from slaves' list */
-	for (dmi = bond->mc_list; dmi; dmi = dmi->next) {
-		if (!bond_mc_list_find_dmi(dmi, bond_dev->mc_list))
-			bond_mc_delete(bond, dmi->dmi_addr, dmi->dmi_addrlen);
+	netdev_hw_addr_list_for_each(ha, &bond->mc_list) {
+		found = bond_addr_in_mc_list(ha->addr, &bond_dev->mc,
+					     bond_dev->addr_len);
+		if (!found)
+			bond_mc_del(bond, ha->addr);
 	}
 
 	/* save master's multicast list */
-	bond_mc_list_destroy(bond);
-	bond_mc_list_copy(bond_dev->mc_list, bond, GFP_ATOMIC);
+	__hw_addr_flush(&bond->mc_list);
+	__hw_addr_add_multiple(&bond->mc_list, &bond_dev->mc,
+			       bond_dev->addr_len, NETDEV_HW_ADDR_T_MULTICAST);
 
 	read_unlock(&bond->lock);
 }
@@ -4534,9 +4479,7 @@ static void bond_uninit(struct net_device *bond_dev)
 	if (bond->wq)
 		destroy_workqueue(bond->wq);
 
-	netif_addr_lock_bh(bond_dev);
-	bond_mc_list_destroy(bond);
-	netif_addr_unlock_bh(bond_dev);
+	__hw_addr_flush(&bond->mc_list);
 }
 
 /*------------------------- Module initialization ---------------------------*/
@@ -4908,6 +4851,8 @@ static int bond_init(struct net_device *bond_dev)
 	list_add_tail(&bond->bond_list, &bn->dev_list);
 
 	bond_prepare_sysfs_group(bond);
+
+	__hw_addr_init(&bond->mc_list);
 	return 0;
 }
 

@@ -1545,7 +1545,7 @@ static int remove_key(struct usbnet *usbdev, int index, const u8 *bssid)
 static void set_multicast_list(struct usbnet *usbdev)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	__le32 filter, basefilter;
 	int ret;
 	char *mc_addrs = NULL;
@@ -1584,9 +1584,9 @@ static void set_multicast_list(struct usbnet *usbdev)
 			return;
 		}
 
-		netdev_for_each_mc_addr(mclist, usbdev->net)
+		netdev_for_each_mc_addr(ha, usbdev->net)
 			memcpy(mc_addrs + i++ * ETH_ALEN,
-			       mclist->dmi_addr, ETH_ALEN);
+			       ha->addr, ETH_ALEN);
 	}
 	netif_addr_unlock_bh(usbdev->net);
 

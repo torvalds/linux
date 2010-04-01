@@ -876,7 +876,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 	if (!mc_all_on) {
 		char *addrs;
 		int i;
-		struct dev_mc_list *mcaddr;
+		struct netdev_hw_addr *ha;
 
 		addrs = kmalloc(ETH_ALEN * mc_count, GFP_ATOMIC);
 		if (!addrs) {
@@ -884,9 +884,8 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 			goto unlock;
 		}
 		i = 0;
-		netdev_for_each_mc_addr(mcaddr, netdev)
-			memcpy(get_addr(addrs, i++),
-			       mcaddr->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, netdev)
+			memcpy(get_addr(addrs, i++), ha->addr, ETH_ALEN);
 
 		perfect_filter_register_address = NES_IDX_PERFECT_FILTER_LOW +
 						pft_entries_preallocated * 0x8;

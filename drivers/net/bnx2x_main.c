@@ -11496,21 +11496,21 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 	else { /* some multicasts */
 		if (CHIP_IS_E1(bp)) {
 			int i, old, offset;
-			struct dev_mc_list *mclist;
+			struct netdev_hw_addr *ha;
 			struct mac_configuration_cmd *config =
 						bnx2x_sp(bp, mcast_config);
 
 			i = 0;
-			netdev_for_each_mc_addr(mclist, dev) {
+			netdev_for_each_mc_addr(ha, dev) {
 				config->config_table[i].
 					cam_entry.msb_mac_addr =
-					swab16(*(u16 *)&mclist->dmi_addr[0]);
+					swab16(*(u16 *)&ha->addr[0]);
 				config->config_table[i].
 					cam_entry.middle_mac_addr =
-					swab16(*(u16 *)&mclist->dmi_addr[2]);
+					swab16(*(u16 *)&ha->addr[2]);
 				config->config_table[i].
 					cam_entry.lsb_mac_addr =
-					swab16(*(u16 *)&mclist->dmi_addr[4]);
+					swab16(*(u16 *)&ha->addr[4]);
 				config->config_table[i].cam_entry.flags =
 							cpu_to_le16(port);
 				config->config_table[i].
@@ -11564,18 +11564,18 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 				      0);
 		} else { /* E1H */
 			/* Accept one or more multicasts */
-			struct dev_mc_list *mclist;
+			struct netdev_hw_addr *ha;
 			u32 mc_filter[MC_HASH_SIZE];
 			u32 crc, bit, regidx;
 			int i;
 
 			memset(mc_filter, 0, 4 * MC_HASH_SIZE);
 
-			netdev_for_each_mc_addr(mclist, dev) {
+			netdev_for_each_mc_addr(ha, dev) {
 				DP(NETIF_MSG_IFUP, "Adding mcast MAC: %pM\n",
-				   mclist->dmi_addr);
+				   ha->addr);
 
-				crc = crc32c_le(0, mclist->dmi_addr, ETH_ALEN);
+				crc = crc32c_le(0, ha->addr, ETH_ALEN);
 				bit = (crc >> 24) & 0xff;
 				regidx = bit >> 5;
 				bit &= 0x1f;

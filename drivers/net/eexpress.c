@@ -1576,7 +1576,7 @@ static void eexp_hw_init586(struct net_device *dev)
 
 static void eexp_setup_filter(struct net_device *dev)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	unsigned short ioaddr = dev->base_addr;
 	int count = netdev_mc_count(dev);
 	int i;
@@ -1589,8 +1589,8 @@ static void eexp_setup_filter(struct net_device *dev)
 	outw(CONF_NR_MULTICAST & ~31, ioaddr+SM_PTR);
 	outw(6*count, ioaddr+SHADOW(CONF_NR_MULTICAST));
 	i = 0;
-	netdev_for_each_mc_addr(dmi, dev) {
-		unsigned short *data = (unsigned short *) dmi->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		unsigned short *data = (unsigned short *) ha->addr;
 
 		if (i == count)
 			break;

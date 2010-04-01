@@ -1392,7 +1392,7 @@ static void update_cr6(u32 cr6_data, unsigned long ioaddr)
 static void send_filter_frame(struct net_device *dev, int mc_cnt)
 {
 	struct uli526x_board_info *db = netdev_priv(dev);
-	struct dev_mc_list *mcptr;
+	struct netdev_hw_addr *ha;
 	struct tx_desc *txptr;
 	u16 * addrptr;
 	u32 * suptr;
@@ -1415,8 +1415,8 @@ static void send_filter_frame(struct net_device *dev, int mc_cnt)
 	*suptr++ = 0xffff << FLT_SHIFT;
 
 	/* fit the multicast address */
-	netdev_for_each_mc_addr(mcptr, dev) {
-		addrptr = (u16 *) mcptr->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		addrptr = (u16 *) ha->addr;
 		*suptr++ = addrptr[0] << FLT_SHIFT;
 		*suptr++ = addrptr[1] << FLT_SHIFT;
 		*suptr++ = addrptr[2] << FLT_SHIFT;

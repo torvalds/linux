@@ -783,7 +783,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	struct ipoib_dev_priv *priv =
 		container_of(work, struct ipoib_dev_priv, restart_task);
 	struct net_device *dev = priv->dev;
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	struct ipoib_mcast *mcast, *tmcast;
 	LIST_HEAD(remove_list);
 	unsigned long flags;
@@ -808,14 +808,13 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		clear_bit(IPOIB_MCAST_FLAG_FOUND, &mcast->flags);
 
 	/* Mark all of the entries that are found or don't exist */
-	netdev_for_each_mc_addr(mclist, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		union ib_gid mgid;
 
-		if (!ipoib_mcast_addr_is_valid(mclist->dmi_addr,
-					       dev->broadcast))
+		if (!ipoib_mcast_addr_is_valid(ha->addr, dev->broadcast))
 			continue;
 
-		memcpy(mgid.raw, mclist->dmi_addr + 4, sizeof mgid);
+		memcpy(mgid.raw, ha->addr + 4, sizeof mgid);
 
 		mcast = __ipoib_mcast_find(dev, &mgid);
 		if (!mcast || test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {

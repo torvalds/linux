@@ -4964,7 +4964,7 @@ static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 static void s2io_set_multicast(struct net_device *dev)
 {
 	int i, j, prev_cnt;
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	struct s2io_nic *sp = netdev_priv(dev);
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
 	u64 val64 = 0, multi_mac = 0x010203040506ULL, mask =
@@ -5093,12 +5093,12 @@ static void s2io_set_multicast(struct net_device *dev)
 
 		/* Create the new Rx filter list and update the same in H/W. */
 		i = 0;
-		netdev_for_each_mc_addr(mclist, dev) {
-			memcpy(sp->usr_addrs[i].addr, mclist->dmi_addr,
+		netdev_for_each_mc_addr(ha, dev) {
+			memcpy(sp->usr_addrs[i].addr, ha->addr,
 			       ETH_ALEN);
 			mac_addr = 0;
 			for (j = 0; j < ETH_ALEN; j++) {
-				mac_addr |= mclist->dmi_addr[j];
+				mac_addr |= ha->addr[j];
 				mac_addr <<= 8;
 			}
 			mac_addr >>= 8;

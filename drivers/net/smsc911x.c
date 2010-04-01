@@ -1383,13 +1383,13 @@ static void smsc911x_set_multicast_list(struct net_device *dev)
 		/* Enabling specific multicast addresses */
 		unsigned int hash_high = 0;
 		unsigned int hash_low = 0;
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 
 		pdata->set_bits_mask = MAC_CR_HPFILT_;
 		pdata->clear_bits_mask = (MAC_CR_PRMS_ | MAC_CR_MCPAS_);
 
-		netdev_for_each_mc_addr(mc_list, dev) {
-			unsigned int bitnum = smsc911x_hash(mc_list->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			unsigned int bitnum = smsc911x_hash(ha->addr);
 			unsigned int mask = 0x01 << (bitnum & 0x1F);
 
 			if (bitnum & 0x20)

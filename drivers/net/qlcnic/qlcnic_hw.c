@@ -415,7 +415,7 @@ static int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, u8 *addr)
 void qlcnic_set_multi(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	u32 mode = VPORT_MISS_MODE_DROP;
 
@@ -434,8 +434,8 @@ void qlcnic_set_multi(struct net_device *netdev)
 	}
 
 	if (!netdev_mc_empty(netdev)) {
-		netdev_for_each_mc_addr(mc_ptr, netdev) {
-			qlcnic_nic_add_mac(adapter, mc_ptr->dmi_addr);
+		netdev_for_each_mc_addr(ha, netdev) {
+			qlcnic_nic_add_mac(adapter, ha->addr);
 		}
 	}
 

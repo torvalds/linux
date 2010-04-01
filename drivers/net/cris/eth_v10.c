@@ -1596,16 +1596,16 @@ set_multicast_list(struct net_device *dev)
 	} else {
 		/* MC mode, receive normal and MC packets */
 		char hash_ix;
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 		char *baddr;
 
 		lo_bits = 0x00000000ul;
 		hi_bits = 0x00000000ul;
-		netdev_for_each_mc_addr(dmi, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			/* Calculate the hash index for the GA registers */
 
 			hash_ix = 0;
-			baddr = dmi->dmi_addr;
+			baddr = ha->addr;
 			hash_ix ^= (*baddr) & 0x3f;
 			hash_ix ^= ((*baddr) >> 6) & 0x03;
 			++baddr;

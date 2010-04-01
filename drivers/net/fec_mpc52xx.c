@@ -574,12 +574,12 @@ static void mpc52xx_fec_set_multicast_list(struct net_device *dev)
 			out_be32(&fec->gaddr2, 0xffffffff);
 		} else {
 			u32 crc;
-			struct dev_mc_list *dmi;
+			struct netdev_hw_addr *ha;
 			u32 gaddr1 = 0x00000000;
 			u32 gaddr2 = 0x00000000;
 
-			netdev_for_each_mc_addr(dmi, dev) {
-				crc = ether_crc_le(6, dmi->dmi_addr) >> 26;
+			netdev_for_each_mc_addr(ha, dev) {
+				crc = ether_crc_le(6, ha->addr) >> 26;
 				if (crc >= 32)
 					gaddr1 |= 1 << (crc-32);
 				else

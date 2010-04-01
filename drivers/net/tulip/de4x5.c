@@ -1951,7 +1951,7 @@ static void
 SetMulticastFilter(struct net_device *dev)
 {
     struct de4x5_private *lp = netdev_priv(dev);
-    struct dev_mc_list *dmi;
+    struct netdev_hw_addr *ha;
     u_long iobase = dev->base_addr;
     int i, bit, byte;
     u16 hashcode;
@@ -1966,8 +1966,8 @@ SetMulticastFilter(struct net_device *dev)
     if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 14)) {
 	omr |= OMR_PM;                       /* Pass all multicasts */
     } else if (lp->setup_f == HASH_PERF) {   /* Hash Filtering */
-	netdev_for_each_mc_addr(dmi, dev) {
-	    addrs = dmi->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+	    addrs = ha->addr;
 	    if ((*addrs & 0x01) == 1) {      /* multicast address? */
 		crc = ether_crc_le(ETH_ALEN, addrs);
 		hashcode = crc & HASH_BITS;  /* hashcode is 9 LSb of CRC */
@@ -1983,8 +1983,8 @@ SetMulticastFilter(struct net_device *dev)
 	    }
 	}
     } else {                                 /* Perfect filtering */
-	netdev_for_each_mc_addr(dmi, dev) {
-	    addrs = dmi->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+	    addrs = ha->addr;
 	    for (i=0; i<ETH_ALEN; i++) {
 		*(pa + (i&1)) = *addrs++;
 		if (i & 0x01) pa += 4;

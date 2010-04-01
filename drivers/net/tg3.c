@@ -9457,14 +9457,14 @@ static void __tg3_set_rx_mode(struct net_device *dev)
 		tg3_set_multi (tp, 0);
 	} else {
 		/* Accept one or more multicast(s). */
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		u32 mc_filter[4] = { 0, };
 		u32 regidx;
 		u32 bit;
 		u32 crc;
 
-		netdev_for_each_mc_addr(mclist, dev) {
-			crc = calc_crc (mclist->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, dev) {
+			crc = calc_crc(ha->addr, ETH_ALEN);
 			bit = ~crc & 0x7f;
 			regidx = (bit & 0x60) >> 5;
 			bit &= 0x1f;

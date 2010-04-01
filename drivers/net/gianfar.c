@@ -2797,7 +2797,7 @@ static void adjust_link(struct net_device *dev)
  * whenever dev->flags is changed */
 static void gfar_set_multi(struct net_device *dev)
 {
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 tempval;
@@ -2870,13 +2870,12 @@ static void gfar_set_multi(struct net_device *dev)
 			return;
 
 		/* Parse the list, and set the appropriate bits */
-		netdev_for_each_mc_addr(mc_ptr, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			if (idx < em_num) {
-				gfar_set_mac_for_addr(dev, idx,
-						mc_ptr->dmi_addr);
+				gfar_set_mac_for_addr(dev, idx, ha->addr);
 				idx++;
 			} else
-				gfar_set_hash_for_addr(dev, mc_ptr->dmi_addr);
+				gfar_set_hash_for_addr(dev, ha->addr);
 		}
 	}
 

@@ -2045,21 +2045,17 @@ out:
 	return err;
 }
 
-static u64 ar9170_op_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
-				       struct dev_addr_list *mclist)
+static u64 ar9170_op_prepare_multicast(struct ieee80211_hw *hw,
+				       struct netdev_hw_addr_list *mc_list)
 {
 	u64 mchash;
-	int i;
+	struct netdev_hw_addr *ha;
 
 	/* always get broadcast frames */
 	mchash = 1ULL << (0xff >> 2);
 
-	for (i = 0; i < mc_count; i++) {
-		if (WARN_ON(!mclist))
-			break;
-		mchash |= 1ULL << (mclist->dmi_addr[5] >> 2);
-		mclist = mclist->next;
-	}
+	netdev_hw_addr_list_for_each(ha, mc_list)
+		mchash |= 1ULL << (ha->addr[5] >> 2);
 
 	return mchash;
 }

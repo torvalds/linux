@@ -84,16 +84,14 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 }
 
 static inline u64 drv_prepare_multicast(struct ieee80211_local *local,
-					int mc_count,
-					struct dev_addr_list *mc_list)
+					struct netdev_hw_addr_list *mc_list)
 {
 	u64 ret = 0;
 
 	if (local->ops->prepare_multicast)
-		ret = local->ops->prepare_multicast(&local->hw, mc_count,
-						    mc_list);
+		ret = local->ops->prepare_multicast(&local->hw, mc_list);
 
-	trace_drv_prepare_multicast(local, mc_count, ret);
+	trace_drv_prepare_multicast(local, mc_list->count, ret);
 
 	return ret;
 }

@@ -474,7 +474,7 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 	unsigned int cam_mode = 1; /* 1 - Accept on CAM match */
 	unsigned int multicast_mode = 1; /* 1 - Reject all multicast.  */
 	struct octeon_mgmt_cam_state cam_state;
-	struct dev_addr_list *list;
+	struct netdev_hw_addr *ha;
 	struct list_head *pos;
 	int available_cam_entries;
 
@@ -510,8 +510,8 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 		}
 	}
 	if (multicast_mode == 0) {
-		netdev_for_each_mc_addr(list, netdev)
-			octeon_mgmt_cam_state_add(&cam_state, list->da_addr);
+		netdev_for_each_mc_addr(ha, netdev)
+			octeon_mgmt_cam_state_add(&cam_state, ha->addr);
 	}
 
 

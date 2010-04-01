@@ -546,7 +546,7 @@ out:
 void gelic_net_set_multi(struct net_device *netdev)
 {
 	struct gelic_card *card = netdev_card(netdev);
-	struct dev_mc_list *mc;
+	struct netdev_hw_addr *ha;
 	unsigned int i;
 	uint8_t *p;
 	u64 addr;
@@ -580,9 +580,9 @@ void gelic_net_set_multi(struct net_device *netdev)
 	}
 
 	/* set multicast addresses */
-	netdev_for_each_mc_addr(mc, netdev) {
+	netdev_for_each_mc_addr(ha, netdev) {
 		addr = 0;
-		p = mc->dmi_addr;
+		p = ha->addr;
 		for (i = 0; i < ETH_ALEN; i++) {
 			addr <<= 8;
 			addr |= *p++;

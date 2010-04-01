@@ -954,7 +954,7 @@ fec_enet_close(struct net_device *dev)
 static void set_multicast_list(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	unsigned int i, bit, data, crc, tmp;
 	unsigned char hash;
 
@@ -984,16 +984,16 @@ static void set_multicast_list(struct net_device *dev)
 	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
 	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
 
-	netdev_for_each_mc_addr(dmi, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		/* Only support group multicast for now */
-		if (!(dmi->dmi_addr[0] & 1))
+		if (!(ha->addr[0] & 1))
 			continue;
 
 		/* calculate crc32 value of mac address */
 		crc = 0xffffffff;
 
-		for (i = 0; i < dmi->dmi_addrlen; i++) {
-			data = dmi->dmi_addr[i];
+		for (i = 0; i < dev->addr_len; i++) {
+			data = ha->addr[i];
 			for (bit = 0; bit < 8; bit++, data >>= 1) {
 				crc = (crc >> 1) ^
 				(((crc ^ data) & 1) ? CRC32_POLY : 0);

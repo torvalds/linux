@@ -367,22 +367,20 @@ static int lbtf_op_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static u64 lbtf_op_prepare_multicast(struct ieee80211_hw *hw,
-				     int mc_count, struct dev_addr_list *mclist)
+				     struct netdev_hw_addr_list *mc_list)
 {
 	struct lbtf_private *priv = hw->priv;
 	int i;
+	struct netdev_hw_addr *ha;
+	int mc_count = netdev_hw_addr_list_count(mc_list);
 
 	if (!mc_count || mc_count > MRVDRV_MAX_MULTICAST_LIST_SIZE)
 		return mc_count;
 
 	priv->nr_of_multicastmacaddr = mc_count;
-	for (i = 0; i < mc_count; i++) {
-		if (!mclist)
-			break;
-		memcpy(&priv->multicastlist[i], mclist->da_addr,
-				ETH_ALEN);
-		mclist = mclist->next;
-	}
+	i = 0;
+	netdev_hw_addr_list_for_each(ha, mc_list)
+		memcpy(&priv->multicastlist[i++], ha->addr, ETH_ALEN);
 
 	return mc_count;
 }

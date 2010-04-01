@@ -3544,7 +3544,6 @@ bnx2_set_rx_mode(struct net_device *dev)
 	}
 	else {
 		/* Accept one or more multicast(s). */
-		struct dev_mc_list *mclist;
 		u32 mc_filter[NUM_MC_HASH_REGISTERS];
 		u32 regidx;
 		u32 bit;
@@ -3552,8 +3551,8 @@ bnx2_set_rx_mode(struct net_device *dev)
 
 		memset(mc_filter, 0, 4 * NUM_MC_HASH_REGISTERS);
 
-		netdev_for_each_mc_addr(mclist, dev) {
-			crc = ether_crc_le(ETH_ALEN, mclist->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			crc = ether_crc_le(ETH_ALEN, ha->addr);
 			bit = crc & 0xff;
 			regidx = (bit & 0xe0) >> 5;
 			bit &= 0x1f;

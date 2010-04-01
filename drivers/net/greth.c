@@ -988,7 +988,7 @@ static u32 greth_hash_get_index(__u8 *addr)
 
 static void greth_set_hash_filter(struct net_device *dev)
 {
-	struct dev_mc_list *curr;
+	struct netdev_hw_addr *ha;
 	struct greth_private *greth = netdev_priv(dev);
 	struct greth_regs *regs = (struct greth_regs *) greth->regs;
 	u32 mc_filter[2];
@@ -996,8 +996,8 @@ static void greth_set_hash_filter(struct net_device *dev)
 
 	mc_filter[0] = mc_filter[1] = 0;
 
-	netdev_for_each_mc_addr(curr, dev) {
-		bitnr = greth_hash_get_index(curr->dmi_addr);
+	netdev_for_each_mc_addr(ha, dev) {
+		bitnr = greth_hash_get_index(ha->addr);
 		mc_filter[bitnr >> 5] |= 1 << (bitnr & 31);
 	}
 

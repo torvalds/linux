@@ -537,7 +537,7 @@ netxen_nic_set_mcast_addr(struct netxen_adapter *adapter,
 void netxen_p2_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8 null_addr[6];
 	int i;
 
@@ -571,8 +571,8 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 	netxen_nic_enable_mcast_filter(adapter);
 
 	i = 0;
-	netdev_for_each_mc_addr(mc_ptr, netdev)
-		netxen_nic_set_mcast_addr(adapter, i++, mc_ptr->dmi_addr);
+	netdev_for_each_mc_addr(ha, netdev)
+		netxen_nic_set_mcast_addr(adapter, i++, ha->addr);
 
 	/* Clear out remaining addresses */
 	while (i < adapter->max_mc_count)
@@ -680,7 +680,7 @@ static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
 void netxen_p3_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	u32 mode = VPORT_MISS_MODE_DROP;
 	LIST_HEAD(del_list);
@@ -707,8 +707,8 @@ void netxen_p3_nic_set_multi(struct net_device *netdev)
 	}
 
 	if (!netdev_mc_empty(netdev)) {
-		netdev_for_each_mc_addr(mc_ptr, netdev)
-			nx_p3_nic_add_mac(adapter, mc_ptr->dmi_addr, &del_list);
+		netdev_for_each_mc_addr(ha, netdev)
+			nx_p3_nic_add_mac(adapter, ha->addr, &del_list);
 	}
 
 send_fw_cmd:

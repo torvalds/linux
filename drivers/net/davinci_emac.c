@@ -952,13 +952,14 @@ static void emac_dev_mcast_set(struct net_device *ndev)
 			emac_add_mcast(priv, EMAC_ALL_MULTI_SET, NULL);
 		}
 		if (!netdev_mc_empty(ndev)) {
-			struct dev_mc_list *mc_ptr;
+			struct netdev_hw_addr *ha;
+
 			mbp_enable = (mbp_enable | EMAC_MBP_RXMCAST);
 			emac_add_mcast(priv, EMAC_ALL_MULTI_CLR, NULL);
 			/* program multicast address list into EMAC hardware */
-			netdev_for_each_mc_addr(mc_ptr, ndev) {
+			netdev_for_each_mc_addr(ha, ndev) {
 				emac_add_mcast(priv, EMAC_MULTICAST_ADD,
-					       (u8 *) mc_ptr->dmi_addr);
+					       (u8 *) ha->addr);
 			}
 		} else {
 			mbp_enable = (mbp_enable & ~EMAC_MBP_RXMCAST);

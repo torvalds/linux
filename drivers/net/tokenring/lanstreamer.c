@@ -1266,7 +1266,7 @@ static void streamer_set_rx_mode(struct net_device *dev)
 	    netdev_priv(dev);
 	__u8 __iomem *streamer_mmio = streamer_priv->streamer_mmio;
 	__u8 options = 0;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	unsigned char dev_mc_address[5];
 
 	writel(streamer_priv->srb, streamer_mmio + LAPA);
@@ -1302,11 +1302,11 @@ static void streamer_set_rx_mode(struct net_device *dev)
 	writel(streamer_priv->srb,streamer_mmio+LAPA);
 	dev_mc_address[0] = dev_mc_address[1] = dev_mc_address[2] = dev_mc_address[3] = 0 ; 
   
-	netdev_for_each_mc_addr(dmi, dev) {
-   	        dev_mc_address[0] |= dmi->dmi_addr[2] ; 
-		dev_mc_address[1] |= dmi->dmi_addr[3] ; 
-		dev_mc_address[2] |= dmi->dmi_addr[4] ; 
-		dev_mc_address[3] |= dmi->dmi_addr[5] ; 
+	netdev_for_each_mc_addr(ha, dev) {
+		dev_mc_address[0] |= ha->addr[2];
+		dev_mc_address[1] |= ha->addr[3];
+		dev_mc_address[2] |= ha->addr[4];
+		dev_mc_address[3] |= ha->addr[5];
 	}
   
 	writew(htons(SRB_SET_FUNC_ADDRESS << 8),streamer_mmio+LAPDINC);

@@ -3079,7 +3079,7 @@ static void device_set_multi(struct net_device *dev) {
 
     PSMgmtObject     pMgmt = pDevice->pMgmt;
     u32              mc_filter[2];
-    struct dev_mc_list *mclist;
+    struct netdev_hw_addr *ha;
 
 
     VNSvInPortB(pDevice->PortOffset + MAC_REG_RCR, &(pDevice->byRxMode));
@@ -3099,8 +3099,8 @@ static void device_set_multi(struct net_device *dev) {
     }
     else {
         memset(mc_filter, 0, sizeof(mc_filter));
-	netdev_for_each_mc_addr(mclist, dev) {
-            int bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
+	netdev_for_each_mc_addr(ha, dev) {
+            int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
             mc_filter[bit_nr >> 5] |= cpu_to_le32(1 << (bit_nr & 31));
         }
         MACvSelectPage1(pDevice->PortOffset);

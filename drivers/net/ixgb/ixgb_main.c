@@ -1058,7 +1058,7 @@ ixgb_set_multi(struct net_device *netdev)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u32 rctl;
 	int i;
 
@@ -1089,9 +1089,9 @@ ixgb_set_multi(struct net_device *netdev)
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 
 		i = 0;
-		netdev_for_each_mc_addr(mc_ptr, netdev)
+		netdev_for_each_mc_addr(ha, netdev)
 			memcpy(&mta[i++ * IXGB_ETH_LENGTH_OF_ADDRESS],
-			       mc_ptr->dmi_addr, IXGB_ETH_LENGTH_OF_ADDRESS);
+			       ha->addr, IXGB_ETH_LENGTH_OF_ADDRESS);
 
 		ixgb_mc_addr_list_update(hw, mta, netdev_mc_count(netdev), 0);
 	}

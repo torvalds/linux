@@ -2298,12 +2298,14 @@ static void set_rx_mode(struct net_device *net_dev)
 		/* Accept Broadcast packet, destination address matchs our
 		 * MAC address, use Receive Filter to reject unwanted MCAST
 		 * packets */
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		rx_mode = RFAAB;
 
-		netdev_for_each_mc_addr(mclist, net_dev) {
-			unsigned int bit_nr =
-				sis900_mcast_bitnr(mclist->dmi_addr, sis_priv->chipset_rev);
+		netdev_for_each_mc_addr(ha, net_dev) {
+			unsigned int bit_nr;
+
+			bit_nr = sis900_mcast_bitnr(ha->addr,
+						    sis_priv->chipset_rev);
 			mc_filter[bit_nr >> 4] |= (1 << (bit_nr & 0xf));
 		}
 	}

@@ -1626,7 +1626,7 @@ struct ieee80211_ops {
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
-				 int mc_count, struct dev_addr_list *mc_list);
+				 struct netdev_hw_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,

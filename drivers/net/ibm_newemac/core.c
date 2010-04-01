@@ -388,18 +388,19 @@ static void emac_hash_mc(struct emac_instance *dev)
 	const int regs = EMAC_XAHT_REGS(dev);
 	u32 *gaht_base = emac_gaht_base(dev);
 	u32 gaht_temp[regs];
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	int i;
 
 	DBG(dev, "hash_mc %d" NL, netdev_mc_count(dev->ndev));
 
 	memset(gaht_temp, 0, sizeof (gaht_temp));
 
-	netdev_for_each_mc_addr(dmi, dev->ndev) {
+	netdev_for_each_mc_addr(ha, dev->ndev) {
 		int slot, reg, mask;
-		DBG2(dev, "mc %pM" NL, dmi->dmi_addr);
+		DBG2(dev, "mc %pM" NL, ha->addr);
 
-		slot = EMAC_XAHT_CRC_TO_SLOT(dev, ether_crc(ETH_ALEN, dmi->dmi_addr));
+		slot = EMAC_XAHT_CRC_TO_SLOT(dev,
+					     ether_crc(ETH_ALEN, ha->addr));
 		reg = EMAC_XAHT_SLOT_TO_REG(dev, slot);
 		mask = EMAC_XAHT_SLOT_TO_MASK(dev, slot);
 
@@ -1176,7 +1177,7 @@ static int emac_open(struct net_device *ndev)
 		netif_carrier_on(dev->ndev);
 
 	/* Required for Pause packet support in EMAC */
-	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
+	dev_mc_add_global(ndev, default_mcast_addr);
 
 	emac_configure(dev);
 	mal_poll_add(dev->mal, &dev->commac);

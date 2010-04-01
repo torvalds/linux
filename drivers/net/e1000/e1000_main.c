@@ -2101,7 +2101,6 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 	struct e1000_hw *hw = &adapter->hw;
 	struct netdev_hw_addr *ha;
 	bool use_uc = false;
-	struct dev_addr_list *mc_ptr;
 	u32 rctl;
 	u32 hash_value;
 	int i, rar_entries = E1000_RAR_ENTRIES;
@@ -2161,17 +2160,17 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 
 	WARN_ON(i == rar_entries);
 
-	netdev_for_each_mc_addr(mc_ptr, netdev) {
+	netdev_for_each_mc_addr(ha, netdev) {
 		if (i == rar_entries) {
 			/* load any remaining addresses into the hash table */
 			u32 hash_reg, hash_bit, mta;
-			hash_value = e1000_hash_mc_addr(hw, mc_ptr->da_addr);
+			hash_value = e1000_hash_mc_addr(hw, ha->addr);
 			hash_reg = (hash_value >> 5) & 0x7F;
 			hash_bit = hash_value & 0x1F;
 			mta = (1 << hash_bit);
 			mcarray[hash_reg] |= mta;
 		} else {
-			e1000_rar_set(hw, mc_ptr->da_addr, i++);
+			e1000_rar_set(hw, ha->addr, i++);
 		}
 	}
 

@@ -1494,7 +1494,7 @@ static void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr)
 s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw,
 				      struct net_device *netdev)
 {
-	struct dev_addr_list *dmi;
+	struct netdev_hw_addr *ha;
 	u32 i;
 
 	/*
@@ -1510,9 +1510,9 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw,
 		IXGBE_WRITE_REG(hw, IXGBE_MTA(i), 0);
 
 	/* Add the new addresses */
-	netdev_for_each_mc_addr(dmi, netdev) {
+	netdev_for_each_mc_addr(ha, netdev) {
 		hw_dbg(hw, " Adding the multicast addresses:\n");
-		ixgbe_set_mta(hw, dmi->dmi_addr);
+		ixgbe_set_mta(hw, ha->addr);
 	}
 
 	/* Enable mta */

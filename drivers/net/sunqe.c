@@ -627,7 +627,7 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void qe_set_multicast(struct net_device *dev)
 {
 	struct sunqe *qep = netdev_priv(dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	u8 new_mconfig = qep->mconfig;
 	char *addrs;
 	int i;
@@ -651,8 +651,8 @@ static void qe_set_multicast(struct net_device *dev)
 		u8 *hbytes = (unsigned char *) &hash_table[0];
 
 		memset(hash_table, 0, sizeof(hash_table));
-		netdev_for_each_mc_addr(dmi, dev) {
-			addrs = dmi->dmi_addr;
+		netdev_for_each_mc_addr(ha, dev) {
+			addrs = ha->addr;
 
 			if (!(*addrs & 1))
 				continue;
