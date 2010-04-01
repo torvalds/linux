@@ -4634,12 +4634,14 @@ static void md_stop_writes(mddev_t *mddev)
 
 static void md_stop(mddev_t *mddev)
 {
+	md_stop_writes(mddev);
+
 	mddev->pers->stop(mddev);
 	if (mddev->pers->sync_request && mddev->to_remove == NULL)
 		mddev->to_remove = &md_redundancy_group;
 	module_put(mddev->pers->owner);
 	mddev->pers = NULL;
-
+	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 }
 
 static int md_set_readonly(mddev_t *mddev, int is_open)
@@ -4684,8 +4686,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		err = -EBUSY;
 	} else if (mddev->pers) {
 
-		md_stop_writes(mddev);
-
 		if (mddev->ro)
 			set_disk_ro(disk, 0);
 
@@ -4710,7 +4710,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		if (mddev->ro)
 			mddev->ro = 0;
 		
-		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		err = 0;
 	}
 	mutex_unlock(&mddev->open_mutex);
