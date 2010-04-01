@@ -2860,7 +2860,6 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 	struct dmar_domain *domain;
 	size_t size = 0;
 	int prot = 0;
-	size_t offset_pfn = 0;
 	struct iova *iova = NULL;
 	int ret;
 	struct scatterlist *sg;
@@ -2914,7 +2913,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 
 	/* it's a non-present to present mapping. Only flush if caching mode */
 	if (cap_caching_mode(iommu->cap))
-		iommu_flush_iotlb_psi(iommu, 0, start_vpfn, offset_pfn);
+		iommu_flush_iotlb_psi(iommu, 0, start_vpfn, size);
 	else
 		iommu_flush_write_buffer(iommu);
 
