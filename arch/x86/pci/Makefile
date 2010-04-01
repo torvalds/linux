@@ -18,6 +18,8 @@ obj-$(CONFIG_X86_MRST)		+= mrst.o
 obj-y				+= common.o early.o
 obj-y				+= amd_bus.o bus_numa.o
 
+obj-$(CONFIG_PCI_CNB20LE_QUIRK)	+= broadcom_bus.o
+
 ifeq ($(CONFIG_PCI_DEBUG),y)
 EXTRA_CFLAGS += -DDEBUG
 endif

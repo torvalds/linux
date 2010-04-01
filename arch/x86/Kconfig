@@ -1931,6 +1931,14 @@ config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
 	depends on X86_64 && PCI && ACPI
 
+config PCI_CNB20LE_QUIRK
+	bool "Read CNB20LE Host Bridge Windows"
+	depends on PCI
+	help
+	  Read the PCI windows out of the CNB20LE host bridge. This allows
+	  PCI hotplug to work on systems with the CNB20LE chipset which do
+	  not have ACPI.
+
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
 	depends on PCI_MSI && ACPI && EXPERIMENTAL
