@@ -2386,14 +2386,21 @@ static int
 qlcnic_sysfs_validate_crb(struct qlcnic_adapter *adapter,
 		loff_t offset, size_t size)
 {
+	size_t crb_size = 4;
+
 	if (!(adapter->flags & QLCNIC_DIAG_ENABLED))
 		return -EIO;
 
-	if ((size != 4) || (offset & 0x3))
-		return  -EINVAL;
+	if (offset < QLCNIC_PCI_CRBSPACE) {
+		if (ADDR_IN_RANGE(offset, QLCNIC_PCI_CAMQM,
+					QLCNIC_PCI_CAMQM_END))
+			crb_size = 8;
+		else
+			return -EINVAL;
+	}
 
-	if (offset < QLCNIC_PCI_CRBSPACE)
-		return -EINVAL;
+	if ((size != crb_size) || (offset & (crb_size-1)))
+		return  -EINVAL;
 
 	return 0;
 }
@@ -2405,14 +2412,20 @@ qlcnic_sysfs_read_crb(struct kobject *kobj, struct bin_attribute *attr,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	u32 data;
+	u64 qmdata;
 	int ret;
 
 	ret = qlcnic_sysfs_validate_crb(adapter, offset, size);
 	if (ret != 0)
 		return ret;
 
-	data = QLCRD32(adapter, offset);
-	memcpy(buf, &data, size);
+	if (ADDR_IN_RANGE(offset, QLCNIC_PCI_CAMQM, QLCNIC_PCI_CAMQM_END)) {
+		qlcnic_pci_camqm_read_2M(adapter, offset, &qmdata);
+		memcpy(buf, &qmdata, size);
+	} else {
+		data = QLCRD32(adapter, offset);
+		memcpy(buf, &data, size);
+	}
 	return size;
 }
 
@@ -2423,14 +2436,20 @@ qlcnic_sysfs_write_crb(struct kobject *kobj, struct bin_attribute *attr,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	u32 data;
+	u64 qmdata;
 	int ret;
 
 	ret = qlcnic_sysfs_validate_crb(adapter, offset, size);
 	if (ret != 0)
 		return ret;
 
-	memcpy(&data, buf, size);
-	QLCWR32(adapter, offset, data);
+	if (ADDR_IN_RANGE(offset, QLCNIC_PCI_CAMQM, QLCNIC_PCI_CAMQM_END)) {
+		memcpy(&qmdata, buf, size);
+		qlcnic_pci_camqm_write_2M(adapter, offset, qmdata);
+	} else {
+		memcpy(&data, buf, size);
+		QLCWR32(adapter, offset, data);
+	}
 	return size;
 }
 

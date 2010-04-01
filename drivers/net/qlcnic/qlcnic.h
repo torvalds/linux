@@ -994,6 +994,11 @@ u32 qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off);
 int qlcnic_hw_write_wx_2M(struct qlcnic_adapter *, ulong off, u32 data);
 int qlcnic_pci_mem_write_2M(struct qlcnic_adapter *, u64 off, u64 data);
 int qlcnic_pci_mem_read_2M(struct qlcnic_adapter *, u64 off, u64 *data);
+void qlcnic_pci_camqm_read_2M(struct qlcnic_adapter *, u64, u64 *);
+void qlcnic_pci_camqm_write_2M(struct qlcnic_adapter *, u64, u64);
+
+#define ADDR_IN_RANGE(addr, low, high)	\
+	(((addr) < (high)) && ((addr) >= (low)))
 
 #define QLCRD32(adapter, off) \
 	(qlcnic_hw_read_wx_2M(adapter, off))

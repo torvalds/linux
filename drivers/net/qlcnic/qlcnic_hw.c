@@ -53,9 +53,6 @@ static inline void writeq(u64 val, void __iomem *addr)
 }
 #endif
 
-#define ADDR_IN_RANGE(addr, low, high)	\
-	(((addr) < (high)) && ((addr) >= (low)))
-
 #define PCI_OFFSET_FIRST_RANGE(adapter, off)    \
 	((adapter)->ahw.pci_base0 + (off))
 
@@ -934,6 +931,28 @@ unlock:
 	if (mem_ptr)
 		iounmap(mem_ptr);
 	return ret;
+}
+
+void
+qlcnic_pci_camqm_read_2M(struct qlcnic_adapter *adapter, u64 off, u64 *data)
+{
+	void __iomem *addr = adapter->ahw.pci_base0 +
+		QLCNIC_PCI_CAMQM_2M_BASE + (off - QLCNIC_PCI_CAMQM);
+
+	mutex_lock(&adapter->ahw.mem_lock);
+	*data = readq(addr);
+	mutex_unlock(&adapter->ahw.mem_lock);
+}
+
+void
+qlcnic_pci_camqm_write_2M(struct qlcnic_adapter *adapter, u64 off, u64 data)
+{
+	void __iomem *addr = adapter->ahw.pci_base0 +
+		QLCNIC_PCI_CAMQM_2M_BASE + (off - QLCNIC_PCI_CAMQM);
+
+	mutex_lock(&adapter->ahw.mem_lock);
+	writeq(data, addr);
+	mutex_unlock(&adapter->ahw.mem_lock);
 }
 
 #define MAX_CTL_CHECK   1000
