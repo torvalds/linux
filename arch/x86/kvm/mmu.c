@@ -3182,8 +3182,7 @@ static gva_t canonicalize(gva_t gva)
 }
 
 
-typedef void (*inspect_spte_fn) (struct kvm *kvm, struct kvm_mmu_page *sp,
-				 u64 *sptep);
+typedef void (*inspect_spte_fn) (struct kvm *kvm, u64 *sptep);
 
 static void __mmu_spte_walk(struct kvm *kvm, struct kvm_mmu_page *sp,
 			    inspect_spte_fn fn)
@@ -3199,7 +3198,7 @@ static void __mmu_spte_walk(struct kvm *kvm, struct kvm_mmu_page *sp,
 				child = page_header(ent & PT64_BASE_ADDR_MASK);
 				__mmu_spte_walk(kvm, child, fn);
 			} else
-				fn(kvm, sp, &sp->spt[i]);
+				fn(kvm, &sp->spt[i]);
 		}
 	}
 }
@@ -3290,6 +3289,8 @@ static void audit_mappings(struct kvm_vcpu *vcpu)
 
 static int count_rmaps(struct kvm_vcpu *vcpu)
 {
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_memslots *slots;
 	int nmaps = 0;
 	int i, j, k, idx;
 
@@ -3323,7 +3324,7 @@ static int count_rmaps(struct kvm_vcpu *vcpu)
 	return nmaps;
 }
 
-void inspect_spte_has_rmap(struct kvm *kvm, struct kvm_mmu_page *sp, u64 *sptep)
+void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 {
 	unsigned long *rmapp;
 	struct kvm_mmu_page *rev_sp;
@@ -3339,14 +3340,14 @@ void inspect_spte_has_rmap(struct kvm *kvm, struct kvm_mmu_page *sp, u64 *sptep)
 			printk(KERN_ERR "%s: no memslot for gfn %ld\n",
 					 audit_msg, gfn);
 			printk(KERN_ERR "%s: index %ld of sp (gfn=%lx)\n",
-					audit_msg, sptep - rev_sp->spt,
+			       audit_msg, (long int)(sptep - rev_sp->spt),
 					rev_sp->gfn);
 			dump_stack();
 			return;
 		}
 
 		rmapp = gfn_to_rmap(kvm, rev_sp->gfns[sptep - rev_sp->spt],
-				    is_large_pte(*sptep));
+				    rev_sp->role.level);
 		if (!*rmapp) {
 			if (!printk_ratelimit())
 				return;
@@ -3381,7 +3382,7 @@ static void check_writable_mappings_rmap(struct kvm_vcpu *vcpu)
 				continue;
 			if (!(ent & PT_WRITABLE_MASK))
 				continue;
-			inspect_spte_has_rmap(vcpu->kvm, sp, &pt[i]);
+			inspect_spte_has_rmap(vcpu->kvm, &pt[i]);
 		}
 	}
 	return;
