@@ -387,6 +387,41 @@ void acpi_tb_check_dsdt_header(void)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_tb_copy_dsdt
+ *
+ * PARAMETERS:  table_desc          - Installed table to copy
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Implements a subsystem option to copy the DSDT to local memory.
+ *              Some very bad BIOSs are known to either corrupt the DSDT or
+ *              install a new, bad DSDT. This copy works around the problem.
+ *
+ ******************************************************************************/
+
+void acpi_tb_copy_dsdt(struct acpi_table_desc *table_desc)
+{
+	struct acpi_table_header *new_table;
+
+	new_table = ACPI_ALLOCATE(table_desc->length);
+	if (!new_table) {
+		ACPI_ERROR((AE_INFO, "Could not copy DSDT of length 0x%X",
+			    table_desc->length));
+		return;
+	}
+
+	ACPI_MEMCPY(new_table, table_desc->pointer, table_desc->length);
+	acpi_tb_delete_table(table_desc);
+	table_desc->pointer = new_table;
+	table_desc->flags = ACPI_TABLE_ORIGIN_ALLOCATED;
+
+	ACPI_INFO((AE_INFO,
+		   "Forced DSDT copy: length 0x%05X copied locally, original unmapped",
+		   new_table->length));
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_tb_install_table
  *
  * PARAMETERS:  Address                 - Physical address of DSDT or FACS

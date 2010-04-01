@@ -46,6 +46,7 @@
 #include "acparser.h"
 #include "acdispat.h"
 #include "acinterp.h"
+#include "actables.h"
 #include "amlcode.h"
 
 #define _COMPONENT          ACPI_PARSER

@@ -532,6 +532,16 @@ static acpi_status acpi_tb_load_namespace(void)
 	}
 
 	/*
+	 * Optionally copy the entire DSDT to local memory (instead of simply
+	 * mapping it.) There are some BIOSs that corrupt or replace the original
+	 * DSDT, creating the need for this option. Default is FALSE, do not copy
+	 * the DSDT.
+	 */
+	if (acpi_gbl_copy_dsdt_locally) {
+		acpi_tb_copy_dsdt(acpi_gbl_DSDT);
+	}
+
+	/*
 	 * Save the original DSDT header for detection of table corruption
 	 * and/or replacement of the DSDT from outside the OS.
 	 */
