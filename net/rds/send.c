@@ -1108,6 +1108,7 @@ rds_send_pong(struct rds_connection *conn, __be16 dport)
 	}
 
 	rm->m_daddr = conn->c_faddr;
+	rm->data.op_active = 1;
 
 	/* If the connection is down, trigger a connect. We may
 	 * have scheduled a delayed reconnect however - in this case
@@ -1135,7 +1136,9 @@ rds_send_pong(struct rds_connection *conn, __be16 dport)
 	rds_stats_inc(s_send_queued);
 	rds_stats_inc(s_send_pong);
 
-	queue_delayed_work(rds_wq, &conn->c_send_w, 0);
+	if (!test_bit(RDS_LL_SEND_FULL, &conn->c_flags))
+		rds_send_xmit(conn);
+
 	rds_message_put(rm);
 	return 0;
 
