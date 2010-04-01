@@ -78,6 +78,8 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x1199, 0x900a)},	/* Sierra Wireless Gobi 2000 Modem device (VT773) */
 	{USB_DEVICE(0x16d8, 0x8001)},	/* CMDTech Gobi 2000 QDL device (VU922) */
 	{USB_DEVICE(0x16d8, 0x8002)},	/* CMDTech Gobi 2000 Modem device (VU922) */
+	{USB_DEVICE(0x05c6, 0x9204)},	/* Gobi 2000 QDL device */
+	{USB_DEVICE(0x05c6, 0x9205)},	/* Gobi 2000 Modem device */
 	{ }				/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -95,6 +97,7 @@ static struct usb_driver qcdriver = {
 static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 {
 	struct usb_wwan_intf_private *data;
+	struct usb_host_interface *intf = serial->interface->cur_altsetting;
 	int retval = -ENODEV;
 	__u8 nintf;
 	__u8 ifnum;
@@ -103,7 +106,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	nintf = serial->dev->actconfig->desc.bNumInterfaces;
 	dbg("Num Interfaces = %d", nintf);
-	ifnum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
+	ifnum = intf->desc.bInterfaceNumber;
 	dbg("This Interface = %d", ifnum);
 
 	data = serial->private = kzalloc(sizeof(struct usb_wwan_intf_private),
@@ -116,27 +119,32 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	switch (nintf) {
 	case 1:
 		/* QDL mode */
-		if (serial->interface->num_altsetting == 2) {
-			struct usb_host_interface *intf;
-
+		/* Gobi 2000 has a single altsetting, older ones have two */
+		if (serial->interface->num_altsetting == 2)
 			intf = &serial->interface->altsetting[1];
-			if (intf->desc.bNumEndpoints == 2) {
-				if (usb_endpoint_is_bulk_in(&intf->endpoint[0].desc) &&
-				    usb_endpoint_is_bulk_out(&intf->endpoint[1].desc)) {
-					dbg("QDL port found");
-					retval = usb_set_interface(serial->dev, ifnum, 1);
-					if (retval < 0) {
-						dev_err(&serial->dev->dev,
-							"Could not set interface, error %d\n",
-							retval);
-						retval = -ENODEV;
-					}
-					return retval;
-				}
+		else if (serial->interface->num_altsetting > 2)
+			break;
+
+		if (intf->desc.bNumEndpoints == 2 &&
+		    usb_endpoint_is_bulk_in(&intf->endpoint[0].desc) &&
+		    usb_endpoint_is_bulk_out(&intf->endpoint[1].desc)) {
+			dbg("QDL port found");
+
+			if (serial->interface->num_altsetting == 1)
+				return 0;
+
+			retval = usb_set_interface(serial->dev, ifnum, 1);
+			if (retval < 0) {
+				dev_err(&serial->dev->dev,
+					"Could not set interface, error %d\n",
+					retval);
+				retval = -ENODEV;
 			}
+			return retval;
 		}
 		break;
 
+	case 3:
 	case 4:
 		/* Composite mode */
 		if (ifnum == 2) {
