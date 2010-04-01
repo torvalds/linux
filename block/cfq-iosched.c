@@ -855,7 +855,7 @@ cfq_group_service_tree_del(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	if (!RB_EMPTY_NODE(&cfqg->rb_node))
 		cfq_rb_erase(&cfqg->rb_node, st);
 	cfqg->saved_workload_slice = 0;
-	blkiocg_update_blkio_group_dequeue_stats(&cfqg->blkg, 1);
+	blkiocg_update_dequeue_stats(&cfqg->blkg, 1);
 }
 
 static inline unsigned int cfq_cfqq_slice_usage(struct cfq_queue *cfqq)
@@ -1865,6 +1865,7 @@ static void cfq_dispatch_insert(struct request_queue *q, struct request *rq)
 	elv_dispatch_sort(q, rq);
 
 	cfqd->rq_in_flight[cfq_cfqq_sync(cfqq)]++;
+	blkiocg_update_request_dispatch_stats(&cfqq->cfqg->blkg, rq);
 }
 
 /*
@@ -3285,6 +3286,7 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	WARN_ON(!cfqq->dispatched);
 	cfqd->rq_in_driver--;
 	cfqq->dispatched--;
+	blkiocg_update_request_completion_stats(&cfqq->cfqg->blkg, rq);
 
 	cfqd->rq_in_flight[cfq_cfqq_sync(cfqq)]--;
 

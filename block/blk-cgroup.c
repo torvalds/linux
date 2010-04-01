@@ -15,6 +15,7 @@
 #include <linux/kdev_t.h>
 #include <linux/module.h>
 #include <linux/err.h>
+#include <linux/blkdev.h>
 #include "blk-cgroup.h"
 
 static DEFINE_SPINLOCK(blkio_list_lock);
@@ -55,6 +56,26 @@ struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 }
 EXPORT_SYMBOL_GPL(cgroup_to_blkio_cgroup);
 
+/*
+ * Add to the appropriate stat variable depending on the request type.
+ * This should be called with the blkg->stats_lock held.
+ */
+void io_add_stat(uint64_t *stat, uint64_t add, unsigned int flags)
+{
+	if (flags & REQ_RW)
+		stat[IO_WRITE] += add;
+	else
+		stat[IO_READ] += add;
+	/*
+	 * Everywhere in the block layer, an IO is treated as sync if it is a
+	 * read or a SYNC write. We follow the same norm.
+	 */
+	if (!(flags & REQ_RW) || flags & REQ_RW_SYNC)
+		stat[IO_SYNC] += add;
+	else
+		stat[IO_ASYNC] += add;
+}
+
 void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time)
 {
 	unsigned long flags;
@@ -64,6 +85,41 @@ void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time)
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_timeslice_used);
+
+void blkiocg_update_request_dispatch_stats(struct blkio_group *blkg,
+						struct request *rq)
+{
+	struct blkio_group_stats *stats;
+	unsigned long flags;
+
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	stats = &blkg->stats;
+	stats->sectors += blk_rq_sectors(rq);
+	io_add_stat(stats->io_serviced, 1, rq->cmd_flags);
+	io_add_stat(stats->io_service_bytes, blk_rq_sectors(rq) << 9,
+			rq->cmd_flags);
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
+}
+
+void blkiocg_update_request_completion_stats(struct blkio_group *blkg,
+						struct request *rq)
+{
+	struct blkio_group_stats *stats;
+	unsigned long flags;
+	unsigned long long now = sched_clock();
+
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	stats = &blkg->stats;
+	if (time_after64(now, rq->io_start_time_ns))
+		io_add_stat(stats->io_service_time, now - rq->io_start_time_ns,
+				rq->cmd_flags);
+	if (time_after64(rq->io_start_time_ns, rq->start_time_ns))
+		io_add_stat(stats->io_wait_time,
+				rq->io_start_time_ns - rq->start_time_ns,
+				rq->cmd_flags);
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
+}
+EXPORT_SYMBOL_GPL(blkiocg_update_request_completion_stats);
 
 void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 			struct blkio_group *blkg, void *key, dev_t dev)
@@ -325,12 +381,12 @@ SHOW_FUNCTION_PER_GROUP(dequeue, get_stat, get_dequeue_stat, 0);
 #undef SHOW_FUNCTION_PER_GROUP
 
 #ifdef CONFIG_DEBUG_BLK_CGROUP
-void blkiocg_update_blkio_group_dequeue_stats(struct blkio_group *blkg,
+void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 			unsigned long dequeue)
 {
 	blkg->stats.dequeue += dequeue;
 }
-EXPORT_SYMBOL_GPL(blkiocg_update_blkio_group_dequeue_stats);
+EXPORT_SYMBOL_GPL(blkiocg_update_dequeue_stats);
 #endif
 
 struct cftype blkio_files[] = {
