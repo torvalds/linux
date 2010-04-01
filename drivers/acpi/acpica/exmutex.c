@@ -85,10 +85,10 @@ void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc)
 		(obj_desc->mutex.prev)->mutex.next = obj_desc->mutex.next;
 
 		/*
-		 * Migrate the previous sync level associated with this mutex to the
-		 * previous mutex on the list so that it may be preserved. This handles
-		 * the case where several mutexes have been acquired at the same level,
-		 * but are not released in opposite order.
+		 * Migrate the previous sync level associated with this mutex to
+		 * the previous mutex on the list so that it may be preserved.
+		 * This handles the case where several mutexes have been acquired
+		 * at the same level, but are not released in opposite order.
 		 */
 		(obj_desc->mutex.prev)->mutex.original_sync_level =
 		    obj_desc->mutex.original_sync_level;
@@ -101,8 +101,8 @@ void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc)
  *
  * FUNCTION:    acpi_ex_link_mutex
  *
- * PARAMETERS:  obj_desc        - The mutex to be linked
- *              Thread          - Current executing thread object
+ * PARAMETERS:  obj_desc            - The mutex to be linked
+ *              Thread              - Current executing thread object
  *
  * RETURN:      None
  *
@@ -138,9 +138,9 @@ acpi_ex_link_mutex(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_acquire_mutex_object
  *
- * PARAMETERS:  time_desc           - Timeout in milliseconds
+ * PARAMETERS:  Timeout             - Timeout in milliseconds
  *              obj_desc            - Mutex object
- *              Thread              - Current thread state
+ *              thread_id           - Current thread state
  *
  * RETURN:      Status
  *
@@ -234,7 +234,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Must have a valid thread ID */
+	/* Must have a valid thread state struct */
 
 	if (!walk_state->thread) {
 		ACPI_ERROR((AE_INFO,
@@ -435,6 +435,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 
 		owner_thread->current_sync_level = previous_sync_level;
 	}
+
 	return_ACPI_STATUS(status);
 }
 
@@ -442,7 +443,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_release_all_mutexes
  *
- * PARAMETERS:  Thread          - Current executing thread object
+ * PARAMETERS:  Thread              - Current executing thread object
  *
  * RETURN:      Status
  *
