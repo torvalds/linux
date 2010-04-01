@@ -84,6 +84,9 @@ struct drbd_bitmap {
 #define BM_MD_IO_ERROR  1
 #define BM_P_VMALLOCED  2
 
+int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
+			       unsigned long e, int val, const enum km_type km);
+
 static int bm_is_locked(struct drbd_bitmap *b)
 {
 	return test_bit(BM_LOCKED, &b->bm_flags);
@@ -529,6 +532,9 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 		if (set_new_bits) {
 			bm_memset(b, owords, 0xff, words-owords);
 			b->bm_set += bits - obits;
+			__bm_change_bits_to(mdev, obits,
+					    ALIGN(obits, BITS_PER_LONG),
+					    1, KM_IRQ1);
 		} else
 			bm_memset(b, owords, 0x00, words-owords);
 
