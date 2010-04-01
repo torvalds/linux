@@ -199,8 +199,6 @@ static void synaptics_ts_work_func(struct work_struct *work)
 
 		decode_report(ts, buf);
 	}
-	if (ts->use_irq)
-		enable_irq(ts->client->irq);
 }
 
 static enum hrtimer_restart synaptics_ts_timer_func(struct hrtimer *timer)
@@ -218,8 +216,7 @@ static irqreturn_t synaptics_ts_irq_handler(int irq, void *dev_id)
 {
 	struct synaptics_ts_data *ts = dev_id;
 
-	disable_irq_nosync(ts->client->irq);
-	queue_work(synaptics_wq, &ts->work);
+	synaptics_ts_work_func(&ts->work);
 	return IRQ_HANDLED;
 }
 
@@ -485,8 +482,10 @@ static int __devinit synaptics_ts_probe(
 		goto err_input_register_device_failed;
 	}
 	if (client->irq) {
-		ret = request_irq(client->irq, synaptics_ts_irq_handler,
-				  0, client->name, ts);
+		ret = request_threaded_irq(client->irq, NULL,
+					synaptics_ts_irq_handler,
+					IRQF_TRIGGER_LOW|IRQF_ONESHOT,
+					client->name, ts);
 		if (ret == 0) {
 			ret = i2c_set(ts, 0xf1, 0x01, "enable abs int");
 			if (ret)
