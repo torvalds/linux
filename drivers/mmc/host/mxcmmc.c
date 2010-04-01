@@ -151,6 +151,8 @@ static void mxcmci_softreset(struct mxcmci_host *host)
 {
 	int i;
 
+	dev_dbg(mmc_dev(host->mmc), "mxcmci_softreset\n");
+
 	/* reset sequence */
 	writew(STR_STP_CLK_RESET, host->base + MMC_REG_STR_STP_CLK);
 	writew(STR_STP_CLK_RESET | STR_STP_CLK_START_CLK,
@@ -290,16 +292,25 @@ static int mxcmci_finish_data(struct mxcmci_host *host, unsigned int stat)
 		dev_dbg(mmc_dev(host->mmc), "request failed. status: 0x%08x\n",
 				stat);
 		if (stat & STATUS_CRC_READ_ERR) {
+			dev_err(mmc_dev(host->mmc), "%s: -EILSEQ\n", __func__);
 			data->error = -EILSEQ;
 		} else if (stat & STATUS_CRC_WRITE_ERR) {
 			u32 err_code = (stat >> 9) & 0x3;
-			if (err_code == 2) /* No CRC response */
+			if (err_code == 2) { /* No CRC response */
+				dev_err(mmc_dev(host->mmc),
+					"%s: No CRC -ETIMEDOUT\n", __func__);
 				data->error = -ETIMEDOUT;
-			else
+			} else {
+				dev_err(mmc_dev(host->mmc),
+					"%s: -EILSEQ\n", __func__);
 				data->error = -EILSEQ;
+			}
 		} else if (stat & STATUS_TIME_OUT_READ) {
+			dev_err(mmc_dev(host->mmc),
+				"%s: read -ETIMEDOUT\n", __func__);
 			data->error = -ETIMEDOUT;
 		} else {
+			dev_err(mmc_dev(host->mmc), "%s: -EIO\n", __func__);
 			data->error = -EIO;
 		}
 	} else {
@@ -432,8 +443,6 @@ static int mxcmci_transfer_data(struct mxcmci_host *host)
 	struct mmc_data *data = host->req->data;
 	struct scatterlist *sg;
 	int stat, i;
-
-	host->datasize = 0;
 
 	host->data = data;
 	host->datasize = 0;
