@@ -974,7 +974,9 @@ pending operations.
 			__u32 pad;
 		} hypercall;
 
-Unused.
+Unused.  This was once used for 'hypercall to userspace'.  To implement
+such functionality, use KVM_EXIT_IO (x86) or KVM_EXIT_MMIO (all except s390).
+Note KVM_EXIT_IO is significantly faster than KVM_EXIT_MMIO.
 
 		/* KVM_EXIT_TPR_ACCESS */
 		struct {
