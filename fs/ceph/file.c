@@ -649,8 +649,8 @@ more:
 				    do_sync,
 				    ci->i_truncate_seq, ci->i_truncate_size,
 				    &mtime, false, 2);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	if (!req)
+		return -ENOMEM;
 
 	num_pages = calc_pages_for(pos, len);
 

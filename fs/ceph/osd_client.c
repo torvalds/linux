@@ -147,7 +147,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 		req = kzalloc(sizeof(*req), GFP_NOFS);
 	}
 	if (req == NULL)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	req->r_osdc = osdc;
 	req->r_mempool = use_mempool;
@@ -165,9 +165,9 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	else
 		msg = ceph_msg_new(CEPH_MSG_OSD_OPREPLY,
 				   OSD_OPREPLY_FRONT_LEN, 0, 0, NULL);
-	if (IS_ERR(msg)) {
+	if (!msg) {
 		ceph_osdc_put_request(req);
-		return ERR_PTR(PTR_ERR(msg));
+		return NULL;
 	}
 	req->r_reply = msg;
 
@@ -179,9 +179,9 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 		msg = ceph_msgpool_get(&osdc->msgpool_op, 0);
 	else
 		msg = ceph_msg_new(CEPH_MSG_OSD_OP, msg_size, 0, 0, NULL);
-	if (IS_ERR(msg)) {
+	if (!msg) {
 		ceph_osdc_put_request(req);
-		return ERR_PTR(PTR_ERR(msg));
+		return NULL;
 	}
 	msg->hdr.type = cpu_to_le16(CEPH_MSG_OSD_OP);
 	memset(msg->front.iov_base, 0, msg->front.iov_len);
@@ -1263,8 +1263,8 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 				    CEPH_OSD_OP_READ, CEPH_OSD_FLAG_READ,
 				    NULL, 0, truncate_seq, truncate_size, NULL,
 				    false, 1);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	if (!req)
+		return -ENOMEM;
 
 	/* it may be a short read due to an object boundary */
 	req->r_pages = pages;
@@ -1306,8 +1306,8 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 				    snapc, do_sync,
 				    truncate_seq, truncate_size, mtime,
 				    nofail, 1);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	if (!req)
+		return -ENOMEM;
 
 	/* it may be a short write due to an object boundary */
 	req->r_pages = pages;
@@ -1393,7 +1393,7 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 		pr_warning("get_reply front %d > preallocated %d\n",
 			   front, (int)req->r_reply->front.iov_len);
 		m = ceph_msg_new(CEPH_MSG_OSD_OPREPLY, front, 0, 0, NULL);
-		if (IS_ERR(m))
+		if (!m)
 			goto out;
 		ceph_msg_put(req->r_reply);
 		req->r_reply = m;
@@ -1409,7 +1409,7 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 				   tid, want, m->nr_pages);
 			*skip = 1;
 			ceph_msg_put(m);
-			m = ERR_PTR(-EIO);
+			m = NULL;
 			goto out;
 		}
 		m->pages = req->r_pages;

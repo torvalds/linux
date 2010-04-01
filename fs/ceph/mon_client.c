@@ -490,16 +490,13 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 	req->buf = buf;
 	init_completion(&req->completion);
 
+	err = -ENOMEM;
 	req->request = ceph_msg_new(CEPH_MSG_STATFS, sizeof(*h), 0, 0, NULL);
-	if (IS_ERR(req->request)) {
-		err = PTR_ERR(req->request);
+	if (!req->request)
 		goto out;
-	}
 	req->reply = ceph_msg_new(CEPH_MSG_STATFS_REPLY, 1024, 0, 0, NULL);
-	if (IS_ERR(req->reply)) {
-		err = PTR_ERR(req->reply);
+	if (!req->reply)
 		goto out;
-	}
 
 	/* fill out request */
 	h = req->request->front.iov_base;
@@ -634,30 +631,22 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 		CEPH_ENTITY_TYPE_OSD | CEPH_ENTITY_TYPE_MDS;
 
 	/* msg pools */
+	err = -ENOMEM;
 	monc->m_subscribe_ack = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE_ACK,
 				     sizeof(struct ceph_mon_subscribe_ack),
 				     0, 0, NULL);
-	if (IS_ERR(monc->m_subscribe_ack)) {
-		err = PTR_ERR(monc->m_subscribe_ack);
-		monc->m_subscribe_ack = NULL;
+	if (!monc->m_subscribe_ack)
 		goto out_monmap;
-	}
 
 	monc->m_auth_reply = ceph_msg_new(CEPH_MSG_AUTH_REPLY, 4096, 0, 0,
 					  NULL);
-	if (IS_ERR(monc->m_auth_reply)) {
-		err = PTR_ERR(monc->m_auth_reply);
-		monc->m_auth_reply = NULL;
+	if (!monc->m_auth_reply)
 		goto out_subscribe_ack;
-	}
 
 	monc->m_auth = ceph_msg_new(CEPH_MSG_AUTH, 4096, 0, 0, NULL);
 	monc->pending_auth = 0;
-	if (IS_ERR(monc->m_auth)) {
-		err = PTR_ERR(monc->m_auth);
-		monc->m_auth = NULL;
+	if (!monc->m_auth)
 		goto out_auth_reply;
-	}
 
 	monc->cur_mon = -1;
 	monc->hunting = true;

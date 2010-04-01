@@ -666,9 +666,9 @@ static struct ceph_msg *create_session_msg(u32 op, u64 seq)
 	struct ceph_mds_session_head *h;
 
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_SESSION, sizeof(*h), 0, 0, NULL);
-	if (IS_ERR(msg)) {
+	if (!msg) {
 		pr_err("create_session_msg ENOMEM creating msg\n");
-		return ERR_PTR(PTR_ERR(msg));
+		return NULL;
 	}
 	h = msg->front.iov_base;
 	h->op = cpu_to_le32(op);
@@ -687,7 +687,6 @@ static int __open_session(struct ceph_mds_client *mdsc,
 	struct ceph_msg *msg;
 	int mstate;
 	int mds = session->s_mds;
-	int err = 0;
 
 	/* wait for mds to go active? */
 	mstate = ceph_mdsmap_get_state(mdsc->mdsmap, mds);
@@ -698,13 +697,9 @@ static int __open_session(struct ceph_mds_client *mdsc,
 
 	/* send connect message */
 	msg = create_session_msg(CEPH_SESSION_REQUEST_OPEN, session->s_seq);
-	if (IS_ERR(msg)) {
-		err = PTR_ERR(msg);
-		goto out;
-	}
+	if (!msg)
+		return -ENOMEM;
 	ceph_con_send(&session->s_con, msg);
-
-out:
 	return 0;
 }
 
@@ -883,8 +878,8 @@ static int send_renew_caps(struct ceph_mds_client *mdsc,
 		ceph_mds_state_name(state));
 	msg = create_session_msg(CEPH_SESSION_REQUEST_RENEWCAPS,
 				 ++session->s_renew_seq);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	if (!msg)
+		return -ENOMEM;
 	ceph_con_send(&session->s_con, msg);
 	return 0;
 }
@@ -931,17 +926,15 @@ static int request_close_session(struct ceph_mds_client *mdsc,
 				 struct ceph_mds_session *session)
 {
 	struct ceph_msg *msg;
-	int err = 0;
 
 	dout("request_close_session mds%d state %s seq %lld\n",
 	     session->s_mds, session_state_name(session->s_state),
 	     session->s_seq);
 	msg = create_session_msg(CEPH_SESSION_REQUEST_CLOSE, session->s_seq);
-	if (IS_ERR(msg))
-		err = PTR_ERR(msg);
-	else
-		ceph_con_send(&session->s_con, msg);
-	return err;
+	if (!msg)
+		return -ENOMEM;
+	ceph_con_send(&session->s_con, msg);
+	return 0;
 }
 
 /*
@@ -1426,8 +1419,10 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		len += req->r_old_dentry->d_name.len;
 
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_REQUEST, len, 0, 0, NULL);
-	if (IS_ERR(msg))
+	if (!msg) {
+		msg = ERR_PTR(-ENOMEM);
 		goto out_free2;
+	}
 
 	msg->hdr.tid = cpu_to_le64(req->r_tid);
 
@@ -1518,7 +1513,7 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	if (IS_ERR(msg)) {
 		req->r_err = PTR_ERR(msg);
 		complete_request(mdsc, req);
-		return -PTR_ERR(msg);
+		return PTR_ERR(msg);
 	}
 	req->r_request = msg;
 
@@ -2158,11 +2153,10 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc, int mds)
 		goto fail_nopagelist;
 	ceph_pagelist_init(pagelist);
 
+	err = -ENOMEM;
 	reply = ceph_msg_new(CEPH_MSG_CLIENT_RECONNECT, 0, 0, 0, NULL);
-	if (IS_ERR(reply)) {
-		err = PTR_ERR(reply);
+	if (!reply)
 		goto fail_nomsg;
-	}
 
 	/* find session */
 	session = __ceph_lookup_mds_session(mdsc, mds);
@@ -2469,7 +2463,7 @@ void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 	len += dnamelen;
 
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_LEASE, len, 0, 0, NULL);
-	if (IS_ERR(msg))
+	if (!msg)
 		return;
 	lease = msg->front.iov_base;
 	lease->action = action;

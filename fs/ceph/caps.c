@@ -939,8 +939,8 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	     xattr_version, xattrs_buf ? (int)xattrs_buf->vec.iov_len : 0);
 
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_CAPS, sizeof(*fc), 0, 0, NULL);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	if (!msg)
+		return -ENOMEM;
 
 	msg->hdr.tid = cpu_to_le64(flush_tid);
 

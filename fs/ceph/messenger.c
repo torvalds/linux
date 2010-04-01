@@ -1402,19 +1402,17 @@ static int read_partial_message(struct ceph_connection *con)
 		con->in_msg = ceph_alloc_msg(con, &con->in_hdr, &skip);
 		if (skip) {
 			/* skip this message */
-			dout("alloc_msg returned NULL, skipping message\n");
+			dout("alloc_msg said skip message\n");
 			con->in_base_pos = -front_len - middle_len - data_len -
 				sizeof(m->footer);
 			con->in_tag = CEPH_MSGR_TAG_READY;
 			con->in_seq++;
 			return 0;
 		}
-		if (IS_ERR(con->in_msg)) {
-			ret = PTR_ERR(con->in_msg);
-			con->in_msg = NULL;
+		if (!con->in_msg) {
 			con->error_msg =
 				"error allocating memory for incoming message";
-			return ret;
+			return -ENOMEM;
 		}
 		m = con->in_msg;
 		m->front.iov_len = 0;    /* haven't read it yet */
@@ -2147,7 +2145,7 @@ out2:
 	ceph_msg_put(m);
 out:
 	pr_err("msg_new can't create type %d len %d\n", type, front_len);
-	return ERR_PTR(-ENOMEM);
+	return NULL;
 }
 
 /*
@@ -2190,10 +2188,7 @@ static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
 		mutex_unlock(&con->mutex);
 		msg = con->ops->alloc_msg(con, hdr, skip);
 		mutex_lock(&con->mutex);
-		if (IS_ERR(msg))
-			return msg;
-
-		if (*skip)
+		if (!msg || *skip)
 			return NULL;
 	}
 	if (!msg) {
@@ -2202,17 +2197,16 @@ static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
 		if (!msg) {
 			pr_err("unable to allocate msg type %d len %d\n",
 			       type, front_len);
-			return ERR_PTR(-ENOMEM);
+			return NULL;
 		}
 	}
 	memcpy(&msg->hdr, &con->in_hdr, sizeof(con->in_hdr));
 
 	if (middle_len) {
 		ret = ceph_alloc_middle(con, msg);
-
 		if (ret < 0) {
 			ceph_msg_put(msg);
-			return msg;
+			return NULL;
 		}
 	}
 
