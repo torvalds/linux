@@ -490,6 +490,13 @@ static int ohci_update_phy_reg(struct fw_card *card, int addr,
 	if (err < 0)
 		return err;
 
+	/*
+	 * The interrupt status bits are cleared by writing a one bit.
+	 * Avoid clearing them unless explicitly requested in set_bits.
+	 */
+	if (addr == 5)
+		clear_bits |= PHY_INT_STATUS_BITS;
+
 	old = (old & ~clear_bits) | set_bits;
 	reg_write(ohci, OHCI1394_PhyControl,
 		  OHCI1394_PhyControl_Write(addr, old));
