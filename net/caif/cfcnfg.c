@@ -5,6 +5,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/stddef.h>
+#include <linux/slab.h>
 #include <net/caif/caif_layer.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/cfcnfg.h>
