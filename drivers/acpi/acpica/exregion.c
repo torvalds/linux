@@ -491,8 +491,10 @@ acpi_ex_data_table_space_handler(u32 function,
 {
 	ACPI_FUNCTION_TRACE(ex_data_table_space_handler);
 
-	/* Perform the memory read or write */
-
+	/*
+	 * Perform the memory read or write. The bit_width was already
+	 * validated.
+	 */
 	switch (function) {
 	case ACPI_READ:
 
@@ -502,9 +504,14 @@ acpi_ex_data_table_space_handler(u32 function,
 		break;
 
 	case ACPI_WRITE:
+
+		ACPI_MEMCPY(ACPI_PHYSADDR_TO_PTR(address),
+			    ACPI_CAST_PTR(char, value), ACPI_DIV_8(bit_width));
+		break;
+
 	default:
 
-		return_ACPI_STATUS(AE_SUPPORT);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	return_ACPI_STATUS(AE_OK);
