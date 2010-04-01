@@ -1491,7 +1491,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			}
 
 			/* Flush unicast and multicast addresses */
-			dev_unicast_flush(bond_dev);
+			dev_uc_flush(bond_dev);
 			dev_addr_discard(bond_dev);
 
 			if (slave_dev->type != ARPHRD_ETHER)

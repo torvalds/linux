@@ -1991,15 +1991,20 @@ extern int dev_addr_add_multiple(struct net_device *to_dev,
 extern int dev_addr_del_multiple(struct net_device *to_dev,
 				 struct net_device *from_dev,
 				 unsigned char addr_type);
+extern void dev_addr_flush(struct net_device *dev);
+extern int dev_addr_init(struct net_device *dev);
+
+/* Functions used for unicast addresses handling */
+extern int dev_uc_add(struct net_device *dev, unsigned char *addr);
+extern int dev_uc_del(struct net_device *dev, unsigned char *addr);
+extern int dev_uc_sync(struct net_device *to, struct net_device *from);
+extern void dev_uc_unsync(struct net_device *to, struct net_device *from);
+extern void dev_uc_flush(struct net_device *dev);
+extern void dev_uc_init(struct net_device *dev);
 
 /* Functions used for secondary unicast and multicast support */
 extern void		dev_set_rx_mode(struct net_device *dev);
 extern void		__dev_set_rx_mode(struct net_device *dev);
-extern int		dev_unicast_delete(struct net_device *dev, void *addr);
-extern int		dev_unicast_add(struct net_device *dev, void *addr);
-extern int		dev_unicast_sync(struct net_device *to, struct net_device *from);
-extern void		dev_unicast_unsync(struct net_device *to, struct net_device *from);
-extern void		dev_unicast_flush(struct net_device *dev);
 extern int 		dev_mc_delete(struct net_device *dev, void *addr, int alen, int all);
 extern int		dev_mc_add(struct net_device *dev, void *addr, int alen, int newonly);
 extern int		dev_mc_sync(struct net_device *to, struct net_device *from);

@@ -1705,9 +1705,9 @@ static int packet_dev_mc(struct net_device *dev, struct packet_mclist *i,
 		if (i->alen != dev->addr_len)
 			return -EINVAL;
 		if (what > 0)
-			return dev_unicast_add(dev, i->addr);
+			return dev_uc_add(dev, i->addr);
 		else
-			return dev_unicast_delete(dev, i->addr);
+			return dev_uc_del(dev, i->addr);
 		break;
 	default:
 		break;
