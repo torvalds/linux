@@ -21,6 +21,7 @@
 
 static struct usb_device_id ath9k_hif_usb_ids[] = {
 	ATH9K_FW_USB_DEV(0x9271, "ar9271.fw"),
+	ATH9K_FW_USB_DEV(0x1006, "ar9271.fw"),
 	{ },
 };
 
