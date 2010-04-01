@@ -1662,7 +1662,7 @@ struct iwl_tx_cmd {
 	struct ieee80211_hdr hdr[0];
 } __attribute__ ((packed));
 
-/* TX command response is sent after *all* transmission attempts.
+/* TX command response is sent after *3945* transmission attempts.
  *
  * NOTES:
  *
@@ -1690,24 +1690,65 @@ struct iwl_tx_cmd {
  * control line.  Receiving is still allowed in this case.
  */
 enum {
+	TX_3945_STATUS_SUCCESS = 0x01,
+	TX_3945_STATUS_DIRECT_DONE = 0x02,
+	TX_3945_STATUS_FAIL_SHORT_LIMIT = 0x82,
+	TX_3945_STATUS_FAIL_LONG_LIMIT = 0x83,
+	TX_3945_STATUS_FAIL_FIFO_UNDERRUN = 0x84,
+	TX_3945_STATUS_FAIL_MGMNT_ABORT = 0x85,
+	TX_3945_STATUS_FAIL_NEXT_FRAG = 0x86,
+	TX_3945_STATUS_FAIL_LIFE_EXPIRE = 0x87,
+	TX_3945_STATUS_FAIL_DEST_PS = 0x88,
+	TX_3945_STATUS_FAIL_ABORTED = 0x89,
+	TX_3945_STATUS_FAIL_BT_RETRY = 0x8a,
+	TX_3945_STATUS_FAIL_STA_INVALID = 0x8b,
+	TX_3945_STATUS_FAIL_FRAG_DROPPED = 0x8c,
+	TX_3945_STATUS_FAIL_TID_DISABLE = 0x8d,
+	TX_3945_STATUS_FAIL_FRAME_FLUSHED = 0x8e,
+	TX_3945_STATUS_FAIL_INSUFFICIENT_CF_POLL = 0x8f,
+	TX_3945_STATUS_FAIL_TX_LOCKED = 0x90,
+	TX_3945_STATUS_FAIL_NO_BEACON_ON_RADAR = 0x91,
+};
+
+/*
+ * TX command response is sent after *agn* transmission attempts.
+ *
+ * both postpone and abort status are expected behavior from uCode. there is
+ * no special operation required from driver; except for RFKILL_FLUSH,
+ * which required tx flush host command to flush all the tx frames in queues
+ */
+enum {
 	TX_STATUS_SUCCESS = 0x01,
 	TX_STATUS_DIRECT_DONE = 0x02,
+	/* postpone TX */
+	TX_STATUS_POSTPONE_DELAY = 0x40,
+	TX_STATUS_POSTPONE_FEW_BYTES = 0x41,
+	TX_STATUS_POSTPONE_BT_PRIO = 0x42,
+	TX_STATUS_POSTPONE_QUIET_PERIOD = 0x43,
+	TX_STATUS_POSTPONE_CALC_TTAK = 0x44,
+	/* abort TX */
+	TX_STATUS_FAIL_INTERNAL_CROSSED_RETRY = 0x81,
 	TX_STATUS_FAIL_SHORT_LIMIT = 0x82,
 	TX_STATUS_FAIL_LONG_LIMIT = 0x83,
 	TX_STATUS_FAIL_FIFO_UNDERRUN = 0x84,
-	TX_STATUS_FAIL_MGMNT_ABORT = 0x85,
-	TX_STATUS_FAIL_NEXT_FRAG = 0x86,
+	TX_STATUS_FAIL_DRAIN_FLOW = 0x85,
+	TX_STATUS_FAIL_RFKILL_FLUSH = 0x86,
 	TX_STATUS_FAIL_LIFE_EXPIRE = 0x87,
 	TX_STATUS_FAIL_DEST_PS = 0x88,
-	TX_STATUS_FAIL_ABORTED = 0x89,
+	TX_STATUS_FAIL_HOST_ABORTED = 0x89,
 	TX_STATUS_FAIL_BT_RETRY = 0x8a,
 	TX_STATUS_FAIL_STA_INVALID = 0x8b,
 	TX_STATUS_FAIL_FRAG_DROPPED = 0x8c,
 	TX_STATUS_FAIL_TID_DISABLE = 0x8d,
-	TX_STATUS_FAIL_FRAME_FLUSHED = 0x8e,
+	TX_STATUS_FAIL_FIFO_FLUSHED = 0x8e,
 	TX_STATUS_FAIL_INSUFFICIENT_CF_POLL = 0x8f,
-	TX_STATUS_FAIL_TX_LOCKED = 0x90,
-	TX_STATUS_FAIL_NO_BEACON_ON_RADAR = 0x91,
+	/* uCode drop due to FW drop request */
+	TX_STATUS_FAIL_FW_DROP = 0x90,
+	/*
+	 * uCode drop due to station color mismatch
+	 * between tx command and station table
+	 */
+	TX_STATUS_FAIL_STA_COLOR_MISMATCH_DROP = 0x91,
 };
 
 #define	TX_PACKET_MODE_REGULAR		0x0000
@@ -1728,30 +1769,6 @@ enum {
 	TX_POWER_PA_DETECT_MSK = 0x7f800000,	/* bits 23:30 */
 	TX_ABORT_REQUIRED_MSK = 0x80000000,	/* bits 31:31 */
 };
-
-static inline u32 iwl_tx_status_to_mac80211(u32 status)
-{
-	status &= TX_STATUS_MSK;
-
-	switch (status) {
-	case TX_STATUS_SUCCESS:
-	case TX_STATUS_DIRECT_DONE:
-		return IEEE80211_TX_STAT_ACK;
-	case TX_STATUS_FAIL_DEST_PS:
-		return IEEE80211_TX_STAT_TX_FILTERED;
-	default:
-		return 0;
-	}
-}
-
-static inline bool iwl_is_tx_success(u32 status)
-{
-	status &= TX_STATUS_MSK;
-	return (status == TX_STATUS_SUCCESS) ||
-	       (status == TX_STATUS_DIRECT_DONE);
-}
-
-
 
 /* *******************************
  * TX aggregation status

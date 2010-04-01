@@ -191,12 +191,12 @@ static int iwl3945_hwrate_to_plcp_idx(u8 plcp)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-#define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
+#define TX_STATUS_ENTRY(x) case TX_3945_STATUS_FAIL_ ## x: return #x
 
 static const char *iwl3945_get_tx_fail_reason(u32 status)
 {
 	switch (status & TX_STATUS_MSK) {
-	case TX_STATUS_SUCCESS:
+	case TX_3945_STATUS_SUCCESS:
 		return "SUCCESS";
 		TX_STATUS_ENTRY(SHORT_LIMIT);
 		TX_STATUS_ENTRY(LONG_LIMIT);

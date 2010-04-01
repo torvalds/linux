@@ -105,6 +105,8 @@ void iwlagn_init_alive_start(struct iwl_priv *priv);
 int iwlagn_alive_notify(struct iwl_priv *priv);
 
 /* lib */
+void iwl_check_abort_status(struct iwl_priv *priv,
+			    u8 frame_count, u32 status);
 void iwlagn_rx_handler_setup(struct iwl_priv *priv);
 void iwlagn_setup_deferred_work(struct iwl_priv *priv);
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
@@ -145,5 +147,27 @@ int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
 void iwlagn_hw_txq_ctx_free(struct iwl_priv *priv);
 int iwlagn_txq_ctx_reset(struct iwl_priv *priv);
 void iwlagn_txq_ctx_stop(struct iwl_priv *priv);
+
+static inline u32 iwl_tx_status_to_mac80211(u32 status)
+{
+	status &= TX_STATUS_MSK;
+
+	switch (status) {
+	case TX_STATUS_SUCCESS:
+	case TX_STATUS_DIRECT_DONE:
+		return IEEE80211_TX_STAT_ACK;
+	case TX_STATUS_FAIL_DEST_PS:
+		return IEEE80211_TX_STAT_TX_FILTERED;
+	default:
+		return 0;
+	}
+}
+
+static inline bool iwl_is_tx_success(u32 status)
+{
+	status &= TX_STATUS_MSK;
+	return (status == TX_STATUS_SUCCESS) ||
+	       (status == TX_STATUS_DIRECT_DONE);
+}
 
 #endif /* __iwl_agn_h__ */

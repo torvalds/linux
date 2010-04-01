@@ -161,6 +161,14 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 	return 0;
 }
 
+void iwl_check_abort_status(struct iwl_priv *priv,
+			    u8 frame_count, u32 status)
+{
+	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
+		IWL_ERR(priv, "TODO: Implement Tx flush command!!!\n");
+	}
+}
+
 static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
@@ -246,8 +254,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 
 	iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
-	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
-		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
+	iwl_check_abort_status(priv, tx_resp->frame_count, status);
 }
 
 void iwlagn_rx_handler_setup(struct iwl_priv *priv)
