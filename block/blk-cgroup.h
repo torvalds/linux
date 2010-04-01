@@ -106,7 +106,7 @@ extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 						void *key);
 void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
-			unsigned long time, unsigned long sectors);
+						unsigned long time);
 #else
 struct cgroup;
 static inline struct blkio_cgroup *
@@ -123,8 +123,6 @@ blkiocg_del_blkio_group(struct blkio_group *blkg) { return 0; }
 static inline struct blkio_group *
 blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key) { return NULL; }
 static inline void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
-			unsigned long time, unsigned long sectors)
-{
-}
+						unsigned long time) {}
 #endif
 #endif /* _BLK_CGROUP_H */

@@ -56,10 +56,9 @@ struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 EXPORT_SYMBOL_GPL(cgroup_to_blkio_cgroup);
 
 void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
-			unsigned long time, unsigned long sectors)
+						unsigned long time)
 {
 	blkg->time += time;
-	blkg->sectors += sectors;
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_blkio_group_stats);
 
