@@ -255,7 +255,7 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 }
 
 static struct sdio_driver wl1271_sdio_driver = {
-	.name		= "wl1271",
+	.name		= "wl1271_sdio",
 	.id_table	= wl1271_devices,
 	.probe		= wl1271_probe,
 	.remove		= __devexit_p(wl1271_remove),
