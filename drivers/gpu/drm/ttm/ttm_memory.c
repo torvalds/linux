@@ -27,6 +27,7 @@
 
 #include "ttm/ttm_memory.h"
 #include "ttm/ttm_module.h"
+#include "ttm/ttm_page_alloc.h"
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -392,6 +393,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 		       "Zone %7s: Available graphics memory: %llu kiB.\n",
 		       zone->name, (unsigned long long) zone->max_mem >> 10);
 	}
+	ttm_page_alloc_init(glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	return 0;
 out_no_zone:
 	ttm_mem_global_release(glob);
@@ -404,6 +406,9 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	unsigned int i;
 	struct ttm_mem_zone *zone;
 
+	/* let the page allocator first stop the shrink work. */
+	ttm_page_alloc_fini();
+
 	flush_workqueue(glob->swap_queue);
 	destroy_workqueue(glob->swap_queue);
 	glob->swap_queue = NULL;
@@ -411,7 +416,7 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 		zone = glob->zones[i];
 		kobject_del(&zone->kobj);
 		kobject_put(&zone->kobj);
-	}
+			}
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
 }
