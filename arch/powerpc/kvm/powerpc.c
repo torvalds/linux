@@ -335,6 +335,7 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 	case KVM_REG_FPR:
 		vcpu->arch.fpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
 		break;
+#ifdef CONFIG_PPC_BOOK3S
 	case KVM_REG_QPR:
 		vcpu->arch.qpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
 		break;
@@ -342,6 +343,7 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 		vcpu->arch.fpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
 		vcpu->arch.qpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
 		break;
+#endif
 	default:
 		BUG();
 	}
