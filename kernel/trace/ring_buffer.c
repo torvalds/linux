@@ -320,6 +320,8 @@ EXPORT_SYMBOL_GPL(ring_buffer_event_data);
 
 /* Flag when events were overwritten */
 #define RB_MISSED_EVENTS	(1 << 31)
+/* Missed count stored at end */
+#define RB_MISSED_STORED	(1 << 30)
 
 struct buffer_data_page {
 	u64		 time_stamp;	/* page time stamp */
@@ -340,6 +342,7 @@ struct buffer_page {
 	local_t		 write;		/* index for next write */
 	unsigned	 read;		/* index for next read */
 	local_t		 entries;	/* entries on this page */
+	unsigned long	 real_end;	/* real end of data */
 	struct buffer_data_page *page;	/* Actual data page */
 };
 
@@ -1770,6 +1773,13 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	kmemcheck_annotate_bitfield(event, bitfield);
 
 	/*
+	 * Save the original length to the meta data.
+	 * This will be used by the reader to add lost event
+	 * counter.
+	 */
+	tail_page->real_end = tail;
+
+	/*
 	 * If this event is bigger than the minimum size, then
 	 * we need to be careful that we don't subtract the
 	 * write counter enough to allow another writer to slip
@@ -2888,6 +2898,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	local_set(&cpu_buffer->reader_page->write, 0);
 	local_set(&cpu_buffer->reader_page->entries, 0);
 	local_set(&cpu_buffer->reader_page->page->commit, 0);
+	cpu_buffer->reader_page->real_end = 0;
 
  spin:
 	/*
@@ -3728,11 +3739,11 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	struct ring_buffer_event *event;
 	struct buffer_data_page *bpage;
 	struct buffer_page *reader;
+	unsigned long missed_events;
 	unsigned long flags;
 	unsigned int commit;
 	unsigned int read;
 	u64 save_timestamp;
-	int missed_events = 0;
 	int ret = -1;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
@@ -3766,8 +3777,7 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	commit = rb_page_commit(reader);
 
 	/* Check if any events were dropped */
-	if (cpu_buffer->lost_events)
-		missed_events = 1;
+	missed_events = cpu_buffer->lost_events;
 
 	/*
 	 * If this page has been partially read or
@@ -3829,6 +3839,14 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 		local_set(&reader->entries, 0);
 		reader->read = 0;
 		*data_page = bpage;
+
+		/*
+		 * Use the real_end for the data size,
+		 * This gives us a chance to store the lost events
+		 * on the page.
+		 */
+		if (reader->real_end)
+			local_set(&bpage->commit, reader->real_end);
 	}
 	ret = read;
 
@@ -3836,8 +3854,19 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	/*
 	 * Set a flag in the commit field if we lost events
 	 */
-	if (missed_events)
+	if (missed_events) {
+		commit = local_read(&bpage->commit);
+
+		/* If there is room at the end of the page to save the
+		 * missed events, then record it there.
+		 */
+		if (BUF_PAGE_SIZE - commit >= sizeof(missed_events)) {
+			memcpy(&bpage->data[commit], &missed_events,
+			       sizeof(missed_events));
+			local_add(RB_MISSED_STORED, &bpage->commit);
+		}
 		local_add(RB_MISSED_EVENTS, &bpage->commit);
+	}
 
  out_unlock:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
