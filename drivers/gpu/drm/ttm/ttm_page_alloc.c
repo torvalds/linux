@@ -113,17 +113,7 @@ static struct ttm_pool_manager _manager = {
 	.page_alloc_inited	= ATOMIC_INIT(0)
 };
 
-#ifdef CONFIG_X86
-/* TODO: add this to x86 like _uc, this version here is inefficient */
-static int set_pages_array_wc(struct page **pages, int addrinarray)
-{
-	int i;
-
-	for (i = 0; i < addrinarray; i++)
-		set_memory_wc((unsigned long)page_address(pages[i]), 1);
-	return 0;
-}
-#else
+#ifndef CONFIG_X86
 static int set_pages_array_wb(struct page **pages, int addrinarray)
 {
 #ifdef TTM_HAS_AGP
