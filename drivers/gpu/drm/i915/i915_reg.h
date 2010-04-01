@@ -2030,6 +2030,43 @@
 #define PINEVIEW_CURSOR_DFT_WM	0
 #define PINEVIEW_CURSOR_GUARD_WM	5
 
+
+/* define the Watermark register on Ironlake */
+#define WM0_PIPEA_ILK		0x45100
+#define  WM0_PIPE_PLANE_MASK	(0x7f<<16)
+#define  WM0_PIPE_PLANE_SHIFT	16
+#define  WM0_PIPE_SPRITE_MASK	(0x3f<<8)
+#define  WM0_PIPE_SPRITE_SHIFT	8
+#define  WM0_PIPE_CURSOR_MASK	(0x1f)
+
+#define WM0_PIPEB_ILK		0x45104
+#define WM1_LP_ILK		0x45108
+#define  WM1_LP_SR_EN		(1<<31)
+#define  WM1_LP_LATENCY_SHIFT	24
+#define  WM1_LP_LATENCY_MASK	(0x7f<<24)
+#define  WM1_LP_SR_MASK		(0x1ff<<8)
+#define  WM1_LP_SR_SHIFT	8
+#define  WM1_LP_CURSOR_MASK	(0x3f)
+
+/* Memory latency timer register */
+#define MLTR_ILK		0x11222
+/* the unit of memory self-refresh latency time is 0.5us */
+#define  ILK_SRLT_MASK		0x3f
+
+/* define the fifo size on Ironlake */
+#define ILK_DISPLAY_FIFO	128
+#define ILK_DISPLAY_MAXWM	64
+#define ILK_DISPLAY_DFTWM	8
+
+#define ILK_DISPLAY_SR_FIFO	512
+#define ILK_DISPLAY_MAX_SRWM	0x1ff
+#define ILK_DISPLAY_DFT_SRWM	0x3f
+#define ILK_CURSOR_SR_FIFO	64
+#define ILK_CURSOR_MAX_SRWM	0x3f
+#define ILK_CURSOR_DFT_SRWM	8
+
+#define ILK_FIFO_LINE_SIZE	64
+
 /*
  * The two pipe frame counter registers are not synchronized, so
  * reading a stable value is somewhat tricky. The following code
@@ -2310,8 +2347,15 @@
 #define GTIIR   0x44018
 #define GTIER   0x4401c
 
+#define ILK_DISPLAY_CHICKEN2	0x42004
+#define  ILK_DPARB_GATE	(1<<22)
+#define  ILK_VSDPFD_FULL	(1<<21)
+#define ILK_DSPCLK_GATE		0x42020
+#define  ILK_DPARB_CLK_GATE	(1<<5)
+
 #define DISP_ARB_CTL	0x45000
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)
+#define  DISP_FBC_WM_DIS		(1<<15)
 
 /* PCH */
 
