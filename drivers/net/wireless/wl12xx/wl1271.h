@@ -447,6 +447,7 @@ struct wl1271 {
 	/* currently configured rate set */
 	u32 sta_rate_set;
 	u32 basic_rate_set;
+	u32 basic_rate;
 	u32 rate_set;
 
 	/* The current band */

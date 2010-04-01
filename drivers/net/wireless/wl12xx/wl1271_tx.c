@@ -220,7 +220,7 @@ static int wl1271_tx_frame(struct wl1271 *wl, struct sk_buff *skb)
 	return ret;
 }
 
-static u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
+u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
 {
 	struct ieee80211_supported_band *band;
 	u32 enabled_rates = 0;

@@ -317,18 +317,10 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	join->rx_config_options = cpu_to_le32(wl->rx_config);
 	join->rx_filter_options = cpu_to_le32(wl->rx_filter);
 	join->bss_type = bss_type;
+	join->basic_rate_set = wl->basic_rate_set;
 
-	if (wl->band == IEEE80211_BAND_2GHZ)
-		join->basic_rate_set = cpu_to_le32(CONF_HW_BIT_RATE_1MBPS   |
-						   CONF_HW_BIT_RATE_2MBPS   |
-						   CONF_HW_BIT_RATE_5_5MBPS |
-						   CONF_HW_BIT_RATE_11MBPS);
-	else {
+	if (wl->band == IEEE80211_BAND_5GHZ)
 		join->bss_type |= WL1271_JOIN_CMD_BSS_TYPE_5GHZ;
-		join->basic_rate_set = cpu_to_le32(CONF_HW_BIT_RATE_6MBPS  |
-						   CONF_HW_BIT_RATE_12MBPS |
-						   CONF_HW_BIT_RATE_24MBPS);
-	}
 
 	join->beacon_interval = cpu_to_le16(wl->beacon_int);
 	join->dtim_interval = WL1271_DEFAULT_DTIM_PERIOD;
@@ -581,17 +573,21 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 	struct wl1271_cmd_trigger_scan_to *trigger = NULL;
 	struct wl1271_cmd_scan *params = NULL;
 	struct ieee80211_channel *channels;
+	u32 rate;
 	int i, j, n_ch, ret;
 	u16 scan_options = 0;
 	u8 ieee_band;
 
-	if (band == WL1271_SCAN_BAND_2_4_GHZ)
+	if (band == WL1271_SCAN_BAND_2_4_GHZ) {
 		ieee_band = IEEE80211_BAND_2GHZ;
-	else if (band == WL1271_SCAN_BAND_DUAL && wl1271_11a_enabled())
+		rate = wl->conf.tx.basic_rate;
+	} else if (band == WL1271_SCAN_BAND_DUAL && wl1271_11a_enabled()) {
 		ieee_band = IEEE80211_BAND_2GHZ;
-	else if (band == WL1271_SCAN_BAND_5_GHZ && wl1271_11a_enabled())
+		rate = wl->conf.tx.basic_rate;
+	} else if (band == WL1271_SCAN_BAND_5_GHZ && wl1271_11a_enabled()) {
 		ieee_band = IEEE80211_BAND_5GHZ;
-	else
+		rate = wl->conf.tx.basic_rate_5;
+	} else
 		return -EINVAL;
 
 	if (wl->hw->wiphy->bands[ieee_band]->channels == NULL)
@@ -618,8 +614,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 	params->params.scan_options = cpu_to_le16(scan_options);
 
 	params->params.num_probe_requests = probe_requests;
-	/* Let the fw autodetect suitable tx_rate for probes */
-	params->params.tx_rate = 0;
+	params->params.tx_rate = rate;
 	params->params.tid_trigger = 0;
 	params->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;
 

@@ -802,7 +802,7 @@ int wl1271_acx_rate_policies(struct wl1271 *wl)
 
 	/* configure one basic rate class */
 	idx = ACX_TX_BASIC_RATE;
-	acx->rate_class[idx].enabled_rates = cpu_to_le32(wl->basic_rate_set);
+	acx->rate_class[idx].enabled_rates = cpu_to_le32(wl->basic_rate);
 	acx->rate_class[idx].short_retry_limit = c->short_retry_limit;
 	acx->rate_class[idx].long_retry_limit = c->long_retry_limit;
 	acx->rate_class[idx].aflags = c->aflags;
