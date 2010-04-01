@@ -44,8 +44,6 @@
 
 #define AR5416_AR9100_DEVID	0x000b
 
-#define AR9271_USB             0x9271
-
 #define	AR_SUBVENDOR_ID_NOG	0x0e11
 #define AR_SUBVENDOR_ID_NEW_A	0x7065
 #define AR5416_MAGIC		0x19641014

@@ -547,7 +547,6 @@ static bool ath9k_hw_devid_supported(u16 devid)
 	case AR9285_DEVID_PCIE:
 	case AR5416_DEVID_AR9287_PCI:
 	case AR5416_DEVID_AR9287_PCIE:
-	case AR9271_USB:
 	case AR2427_DEVID_PCIE:
 		return true;
 	default:
@@ -855,11 +854,13 @@ int ath9k_hw_init(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	int r = 0;
 
-	if (!ath9k_hw_devid_supported(ah->hw_version.devid)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unsupported device ID: 0x%0x\n",
-			  ah->hw_version.devid);
-		return -EOPNOTSUPP;
+	if (common->bus_ops->ath_bus_type != ATH_USB) {
+		if (!ath9k_hw_devid_supported(ah->hw_version.devid)) {
+			ath_print(common, ATH_DBG_FATAL,
+				  "Unsupported device ID: 0x%0x\n",
+				  ah->hw_version.devid);
+			return -EOPNOTSUPP;
+		}
 	}
 
 	ath9k_hw_init_defaults(ah);
