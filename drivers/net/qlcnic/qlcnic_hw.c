@@ -53,18 +53,6 @@ static inline void writeq(u64 val, void __iomem *addr)
 }
 #endif
 
-#define PCI_OFFSET_FIRST_RANGE(adapter, off)    \
-	((adapter)->ahw.pci_base0 + (off))
-
-static void __iomem *pci_base_offset(struct qlcnic_adapter *adapter,
-					    unsigned long off)
-{
-	if (ADDR_IN_RANGE(off, FIRST_PAGE_GROUP_START, FIRST_PAGE_GROUP_END))
-		return PCI_OFFSET_FIRST_RANGE(adapter, off);
-
-	return NULL;
-}
-
 static const struct crb_128M_2M_block_map
 crb_128M_2M_map[64] __cacheline_aligned_in_smp = {
     {{{0, 0,         0,         0} } },		/* 0: PCI */
@@ -871,13 +859,6 @@ qlcnic_pci_set_window_2M(struct qlcnic_adapter *adapter,
 		u64 addr, u32 *start)
 {
 	u32 window;
-	struct pci_dev *pdev = adapter->pdev;
-
-	if ((addr & 0x00ff800) == 0xff800) {
-		if (printk_ratelimit())
-			dev_warn(&pdev->dev, "QM access not handled\n");
-		return -EIO;
-	}
 
 	window = OCM_WIN_P3P(addr);
 
@@ -894,8 +875,7 @@ static int
 qlcnic_pci_mem_access_direct(struct qlcnic_adapter *adapter, u64 off,
 		u64 *data, int op)
 {
-	void __iomem *addr, *mem_ptr = NULL;
-	resource_size_t mem_base;
+	void __iomem *addr;
 	int ret;
 	u32 start;
 
@@ -905,21 +885,8 @@ qlcnic_pci_mem_access_direct(struct qlcnic_adapter *adapter, u64 off,
 	if (ret != 0)
 		goto unlock;
 
-	addr = pci_base_offset(adapter, start);
-	if (addr)
-		goto noremap;
+	addr = adapter->ahw.pci_base0 + start;
 
-	mem_base = pci_resource_start(adapter->pdev, 0) + (start & PAGE_MASK);
-
-	mem_ptr = ioremap(mem_base, PAGE_SIZE);
-	if (mem_ptr == NULL) {
-		ret = -EIO;
-		goto unlock;
-	}
-
-	addr = mem_ptr + (start & (PAGE_SIZE - 1));
-
-noremap:
 	if (op == 0)	/* read */
 		*data = readq(addr);
 	else		/* write */
@@ -928,8 +895,6 @@ noremap:
 unlock:
 	mutex_unlock(&adapter->ahw.mem_lock);
 
-	if (mem_ptr)
-		iounmap(mem_ptr);
 	return ret;
 }
 
