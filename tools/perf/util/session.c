@@ -52,11 +52,6 @@ out_close:
 	return -1;
 }
 
-static inline int perf_session__create_kernel_maps(struct perf_session *self)
-{
-	return map_groups__create_kernel_maps(&self->kmaps, self->vmlinux_maps);
-}
-
 struct perf_session *perf_session__new(const char *filename, int mode, bool force)
 {
 	size_t len = filename ? strlen(filename) + 1 : 0;

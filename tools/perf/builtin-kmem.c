@@ -489,6 +489,9 @@ static int __cmd_kmem(void)
 	if (session == NULL)
 		return -ENOMEM;
 
+	if (perf_session__create_kernel_maps(session) < 0)
+		goto out_delete;
+
 	if (!perf_session__has_traces(session, "kmem record"))
 		goto out_delete;
 
