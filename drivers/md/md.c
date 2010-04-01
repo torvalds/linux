@@ -240,7 +240,7 @@ static int md_make_request(struct request_queue *q, struct bio *bio)
 	atomic_inc(&mddev->active_io);
 	rcu_read_unlock();
 
-	rv = mddev->pers->make_request(q, bio);
+	rv = mddev->pers->make_request(mddev, bio);
 
 	cpu = part_stat_lock();
 	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
@@ -354,7 +354,7 @@ static void md_submit_barrier(struct work_struct *ws)
 		bio_endio(bio, 0);
 	else {
 		bio->bi_rw &= ~(1<<BIO_RW_BARRIER);
-		if (mddev->pers->make_request(mddev->queue, bio))
+		if (mddev->pers->make_request(mddev, bio))
 			generic_make_request(bio);
 		mddev->barrier = POST_REQUEST_BARRIER;
 		submit_barriers(mddev);

@@ -286,9 +286,8 @@ static int linear_stop (mddev_t *mddev)
 	return 0;
 }
 
-static int linear_make_request (struct request_queue *q, struct bio *bio)
+static int linear_make_request (mddev_t *mddev, struct bio *bio)
 {
-	mddev_t *mddev = q->queuedata;
 	dev_info_t *tmp_dev;
 	sector_t start_sector;
 
@@ -328,9 +327,9 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 
 		bp = bio_split(bio, end_sector - bio->bi_sector);
 
-		if (linear_make_request(q, &bp->bio1))
+		if (linear_make_request(mddev, &bp->bio1))
 			generic_make_request(&bp->bio1);
-		if (linear_make_request(q, &bp->bio2))
+		if (linear_make_request(mddev, &bp->bio2))
 			generic_make_request(&bp->bio2);
 		bio_pair_release(bp);
 		return 0;

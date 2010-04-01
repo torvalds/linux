@@ -465,9 +465,8 @@ static inline int is_io_in_chunk_boundary(mddev_t *mddev,
 	}
 }
 
-static int raid0_make_request(struct request_queue *q, struct bio *bio)
+static int raid0_make_request(mddev_t *mddev, struct bio *bio)
 {
-	mddev_t *mddev = q->queuedata;
 	unsigned int chunk_sects;
 	sector_t sector_offset;
 	struct strip_zone *zone;
@@ -495,9 +494,9 @@ static int raid0_make_request(struct request_queue *q, struct bio *bio)
 		else
 			bp = bio_split(bio, chunk_sects -
 				       sector_div(sector, chunk_sects));
-		if (raid0_make_request(q, &bp->bio1))
+		if (raid0_make_request(mddev, &bp->bio1))
 			generic_make_request(&bp->bio1);
-		if (raid0_make_request(q, &bp->bio2))
+		if (raid0_make_request(mddev, &bp->bio2))
 			generic_make_request(&bp->bio2);
 
 		bio_pair_release(bp);

@@ -135,9 +135,8 @@ static void multipath_unplug(struct request_queue *q)
 }
 
 
-static int multipath_make_request (struct request_queue *q, struct bio * bio)
+static int multipath_make_request(mddev_t *mddev, struct bio * bio)
 {
-	mddev_t *mddev = q->queuedata;
 	multipath_conf_t *conf = mddev->private;
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;

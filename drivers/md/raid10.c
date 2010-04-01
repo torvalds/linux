@@ -788,9 +788,8 @@ static void unfreeze_array(conf_t *conf)
 	spin_unlock_irq(&conf->resync_lock);
 }
 
-static int make_request(struct request_queue *q, struct bio * bio)
+static int make_request(mddev_t *mddev, struct bio * bio)
 {
-	mddev_t *mddev = q->queuedata;
 	conf_t *conf = mddev->private;
 	mirror_info_t *mirror;
 	r10bio_t *r10_bio;
@@ -824,9 +823,9 @@ static int make_request(struct request_queue *q, struct bio * bio)
 		 */
 		bp = bio_split(bio,
 			       chunk_sects - (bio->bi_sector & (chunk_sects - 1)) );
-		if (make_request(q, &bp->bio1))
+		if (make_request(mddev, &bp->bio1))
 			generic_make_request(&bp->bio1);
-		if (make_request(q, &bp->bio2))
+		if (make_request(mddev, &bp->bio2))
 			generic_make_request(&bp->bio2);
 
 		bio_pair_release(bp);
