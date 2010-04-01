@@ -963,7 +963,6 @@ qlcnic_pci_mem_write_2M(struct qlcnic_adapter *adapter,
 {
 	int i, j, ret;
 	u32 temp, off8;
-	u64 stride;
 	void __iomem *mem_crb;
 
 	/* Only 64-bit aligned access */
@@ -972,7 +971,7 @@ qlcnic_pci_mem_write_2M(struct qlcnic_adapter *adapter,
 
 	/* P3 onward, test agent base for MIU and SIU is same */
 	if (ADDR_IN_RANGE(off, QLCNIC_ADDR_QDR_NET,
-				QLCNIC_ADDR_QDR_NET_MAX_P3)) {
+				QLCNIC_ADDR_QDR_NET_MAX)) {
 		mem_crb = qlcnic_get_ioaddr(adapter,
 				QLCNIC_CRB_QDR_NET+MIU_TEST_AGT_BASE);
 		goto correct;
@@ -990,9 +989,7 @@ qlcnic_pci_mem_write_2M(struct qlcnic_adapter *adapter,
 	return -EIO;
 
 correct:
-	stride = QLCNIC_IS_REVISION_P3P(adapter->ahw.revision_id) ? 16 : 8;
-
-	off8 = off & ~(stride-1);
+	off8 = off & ~0xf;
 
 	mutex_lock(&adapter->ahw.mem_lock);
 
@@ -1000,29 +997,27 @@ correct:
 	writel(0, (mem_crb + MIU_TEST_AGT_ADDR_HI));
 
 	i = 0;
-	if (stride == 16) {
-		writel(TA_CTL_ENABLE, (mem_crb + TEST_AGT_CTRL));
-		writel((TA_CTL_START | TA_CTL_ENABLE),
-				(mem_crb + TEST_AGT_CTRL));
+	writel(TA_CTL_ENABLE, (mem_crb + TEST_AGT_CTRL));
+	writel((TA_CTL_START | TA_CTL_ENABLE),
+			(mem_crb + TEST_AGT_CTRL));
 
-		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			temp = readl(mem_crb + TEST_AGT_CTRL);
-			if ((temp & TA_CTL_BUSY) == 0)
-				break;
-		}
-
-		if (j >= MAX_CTL_CHECK) {
-			ret = -EIO;
-			goto done;
-		}
-
-		i = (off & 0xf) ? 0 : 2;
-		writel(readl(mem_crb + MIU_TEST_AGT_RDDATA(i)),
-				mem_crb + MIU_TEST_AGT_WRDATA(i));
-		writel(readl(mem_crb + MIU_TEST_AGT_RDDATA(i+1)),
-				mem_crb + MIU_TEST_AGT_WRDATA(i+1));
-		i = (off & 0xf) ? 2 : 0;
+	for (j = 0; j < MAX_CTL_CHECK; j++) {
+		temp = readl(mem_crb + TEST_AGT_CTRL);
+		if ((temp & TA_CTL_BUSY) == 0)
+			break;
 	}
+
+	if (j >= MAX_CTL_CHECK) {
+		ret = -EIO;
+		goto done;
+	}
+
+	i = (off & 0xf) ? 0 : 2;
+	writel(readl(mem_crb + MIU_TEST_AGT_RDDATA(i)),
+			mem_crb + MIU_TEST_AGT_WRDATA(i));
+	writel(readl(mem_crb + MIU_TEST_AGT_RDDATA(i+1)),
+			mem_crb + MIU_TEST_AGT_WRDATA(i+1));
+	i = (off & 0xf) ? 2 : 0;
 
 	writel(data & 0xffffffff,
 			mem_crb + MIU_TEST_AGT_WRDATA(i));
@@ -1059,7 +1054,7 @@ qlcnic_pci_mem_read_2M(struct qlcnic_adapter *adapter,
 {
 	int j, ret;
 	u32 temp, off8;
-	u64 val, stride;
+	u64 val;
 	void __iomem *mem_crb;
 
 	/* Only 64-bit aligned access */
@@ -1068,7 +1063,7 @@ qlcnic_pci_mem_read_2M(struct qlcnic_adapter *adapter,
 
 	/* P3 onward, test agent base for MIU and SIU is same */
 	if (ADDR_IN_RANGE(off, QLCNIC_ADDR_QDR_NET,
-				QLCNIC_ADDR_QDR_NET_MAX_P3)) {
+				QLCNIC_ADDR_QDR_NET_MAX)) {
 		mem_crb = qlcnic_get_ioaddr(adapter,
 				QLCNIC_CRB_QDR_NET+MIU_TEST_AGT_BASE);
 		goto correct;
@@ -1088,9 +1083,7 @@ qlcnic_pci_mem_read_2M(struct qlcnic_adapter *adapter,
 	return -EIO;
 
 correct:
-	stride = QLCNIC_IS_REVISION_P3P(adapter->ahw.revision_id) ? 16 : 8;
-
-	off8 = off & ~(stride-1);
+	off8 = off & ~0xf;
 
 	mutex_lock(&adapter->ahw.mem_lock);
 
@@ -1112,7 +1105,7 @@ correct:
 		ret = -EIO;
 	} else {
 		off8 = MIU_TEST_AGT_RDDATA_LO;
-		if ((stride == 16) && (off & 0xf))
+		if (off & 0xf)
 			off8 = MIU_TEST_AGT_RDDATA_UPPER_LO;
 
 		temp = readl(mem_crb + off8 + 4);
