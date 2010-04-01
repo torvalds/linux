@@ -236,8 +236,6 @@ static int ds2782_battery_remove(struct i2c_client *client)
 	idr_remove(&battery_id, info->id);
 	mutex_unlock(&battery_lock);
 
-	i2c_set_clientdata(client, info);
-
 	kfree(info);
 	return 0;
 }
@@ -289,7 +287,6 @@ static int ds2782_battery_probe(struct i2c_client *client,
 fail_register:
 	kfree(info->battery.name);
 fail_name:
-	i2c_set_clientdata(client, info);
 	kfree(info);
 fail_info:
 	mutex_lock(&battery_lock);
