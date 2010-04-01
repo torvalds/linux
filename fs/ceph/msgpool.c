@@ -11,7 +11,7 @@ static void *alloc_fn(gfp_t gfp_mask, void *arg)
 {
 	struct ceph_msgpool *pool = arg;
 
-	return ceph_msg_new(0, pool->front_len, 0, 0, NULL);
+	return ceph_msg_new(0, pool->front_len);
 }
 
 static void free_fn(void *element, void *arg)
@@ -43,7 +43,7 @@ struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *pool,
 		WARN_ON(1);
 
 		/* try to alloc a fresh message */
-		return ceph_msg_new(0, front_len, 0, 0, NULL);
+		return ceph_msg_new(0, front_len);
 	}
 
 	return mempool_alloc(pool->pool, GFP_NOFS);

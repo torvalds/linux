@@ -2081,8 +2081,7 @@ void ceph_con_keepalive(struct ceph_connection *con)
  * construct a new message with given type, size
  * the new msg has a ref count of 1.
  */
-struct ceph_msg *ceph_msg_new(int type, int front_len,
-			      int page_len, int page_off, struct page **pages)
+struct ceph_msg *ceph_msg_new(int type, int front_len)
 {
 	struct ceph_msg *m;
 
@@ -2098,8 +2097,8 @@ struct ceph_msg *ceph_msg_new(int type, int front_len,
 	m->hdr.version = 0;
 	m->hdr.front_len = cpu_to_le32(front_len);
 	m->hdr.middle_len = 0;
-	m->hdr.data_len = cpu_to_le32(page_len);
-	m->hdr.data_off = cpu_to_le16(page_off);
+	m->hdr.data_len = 0;
+	m->hdr.data_off = 0;
 	m->hdr.reserved = 0;
 	m->footer.front_crc = 0;
 	m->footer.middle_crc = 0;
@@ -2133,18 +2132,17 @@ struct ceph_msg *ceph_msg_new(int type, int front_len,
 	m->middle = NULL;
 
 	/* data */
-	m->nr_pages = calc_pages_for(page_off, page_len);
-	m->pages = pages;
+	m->nr_pages = 0;
+	m->pages = NULL;
 	m->pagelist = NULL;
 
-	dout("ceph_msg_new %p page %d~%d -> %d\n", m, page_off, page_len,
-	     m->nr_pages);
+	dout("ceph_msg_new %p front %d\n", m, front_len);
 	return m;
 
 out2:
 	ceph_msg_put(m);
 out:
-	pr_err("msg_new can't create type %d len %d\n", type, front_len);
+	pr_err("msg_new can't create type %d front %d\n", type, front_len);
 	return NULL;
 }
 
@@ -2193,7 +2191,7 @@ static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
 	}
 	if (!msg) {
 		*skip = 0;
-		msg = ceph_msg_new(type, front_len, 0, 0, NULL);
+		msg = ceph_msg_new(type, front_len);
 		if (!msg) {
 			pr_err("unable to allocate msg type %d len %d\n",
 			       type, front_len);
@@ -2202,7 +2200,7 @@ static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
 	}
 	memcpy(&msg->hdr, &con->in_hdr, sizeof(con->in_hdr));
 
-	if (middle_len) {
+	if (middle_len && !msg->middle) {
 		ret = ceph_alloc_middle(con, msg);
 		if (ret < 0) {
 			ceph_msg_put(msg);
