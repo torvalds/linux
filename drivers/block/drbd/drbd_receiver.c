@@ -2853,7 +2853,6 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 	unsigned int max_seg_s;
 	sector_t p_size, p_usize, my_usize;
 	int ldsc = 0; /* local disk size changed */
-	enum drbd_conns nconn;
 
 	ERR_IF(h->length != (sizeof(*p)-sizeof(*h))) return FALSE;
 	if (drbd_recv(mdev, h->payload, h->length) != h->length)
@@ -2918,22 +2917,6 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 	} else {
 		/* I am diskless, need to accept the peer's size. */
 		drbd_set_my_capacity(mdev, p_size);
-	}
-
-	if (mdev->p_uuid && mdev->state.conn <= C_CONNECTED && get_ldev(mdev)) {
-		nconn = drbd_sync_handshake(mdev,
-				mdev->state.peer, mdev->state.pdsk);
-		put_ldev(mdev);
-
-		if (nconn == C_MASK) {
-			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
-			return FALSE;
-		}
-
-		if (drbd_request_state(mdev, NS(conn, nconn)) < SS_SUCCESS) {
-			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
-			return FALSE;
-		}
 	}
 
 	if (get_ldev(mdev)) {
