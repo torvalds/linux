@@ -649,7 +649,10 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 	if (err)
 		return err;
 
-	if (!qlcnic_can_start_firmware(adapter))
+	err = qlcnic_can_start_firmware(adapter);
+	if (err < 0)
+		return err;
+	else if (!err)
 		goto wait_init;
 
 	first_boot = QLCRD32(adapter, QLCNIC_CAM_RAM(0x1fc));
@@ -1138,6 +1141,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_iounmap;
 	}
 
+	qlcnic_setup_idc_param(adapter);
 
 	err = qlcnic_start_firmware(adapter);
 	if (err)
@@ -2027,7 +2031,7 @@ static int
 qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 {
 	u32 val, prev_state;
-	int cnt = 0;
+	u8 dev_init_timeo = adapter->dev_init_timeo;
 	int portnum = adapter->portnum;
 
 	if (qlcnic_api_lock(adapter))
@@ -2072,12 +2076,13 @@ start_fw:
 	}
 
 	qlcnic_api_unlock(adapter);
-	msleep(1000);
-	while ((QLCRD32(adapter, QLCNIC_CRB_DEV_STATE) != QLCNIC_DEV_READY) &&
-			++cnt < 20)
-		msleep(1000);
 
-	if (cnt >= 20)
+	do {
+		msleep(1000);
+	} while ((QLCRD32(adapter, QLCNIC_CRB_DEV_STATE) != QLCNIC_DEV_READY)
+			&& --dev_init_timeo);
+
+	if (!dev_init_timeo)
 		return -1;
 
 	if (qlcnic_api_lock(adapter))
@@ -2099,12 +2104,10 @@ qlcnic_fwinit_work(struct work_struct *work)
 			struct qlcnic_adapter, fw_work.work);
 	int dev_state;
 
-	if (++adapter->fw_wait_cnt > FW_POLL_THRESH)
-		goto err_ret;
-
 	if (test_bit(__QLCNIC_START_FW, &adapter->state)) {
 
-		if (qlcnic_check_drv_state(adapter)) {
+		if (qlcnic_check_drv_state(adapter) &&
+			(adapter->fw_wait_cnt++ < adapter->reset_ack_timeo)) {
 			qlcnic_schedule_work(adapter,
 					qlcnic_fwinit_work, FW_POLL_DELAY);
 			return;
@@ -2117,6 +2120,9 @@ qlcnic_fwinit_work(struct work_struct *work)
 
 		goto err_ret;
 	}
+
+	if (adapter->fw_wait_cnt++ > (adapter->dev_init_timeo / 2))
+		goto err_ret;
 
 	dev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
 	switch (dev_state) {

@@ -958,8 +958,9 @@ struct qlcnic_adapter {
 	u8 dev_state;
 	u8 diag_test;
 	u8 diag_cnt;
+	u8 reset_ack_timeo;
+	u8 dev_init_timeo;
 	u8 rsrd1;
-	u16 rsrd2;
 
 	u8 mac_addr[ETH_ALEN];
 
@@ -1040,6 +1041,7 @@ int qlcnic_need_fw_reset(struct qlcnic_adapter *adapter);
 void qlcnic_request_firmware(struct qlcnic_adapter *adapter);
 void qlcnic_release_firmware(struct qlcnic_adapter *adapter);
 int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter);
+void qlcnic_setup_idc_param(struct qlcnic_adapter *adapter);
 
 int qlcnic_rom_fast_read(struct qlcnic_adapter *adapter, int addr, int *valp);
 int qlcnic_rom_fast_read_words(struct qlcnic_adapter *adapter, int addr,

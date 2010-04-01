@@ -695,6 +695,8 @@ enum {
 #define QLCNIC_CRB_DRV_SCRATCH             (QLCNIC_CAM_RAM(0x148))
 #define QLCNIC_CRB_DEV_PARTITION_INFO      (QLCNIC_CAM_RAM(0x14c))
 #define QLCNIC_CRB_DRV_IDC_VER             (QLCNIC_CAM_RAM(0x14c))
+#define QLCNIC_ROM_DEV_INIT_TIMEOUT	(0x3e885c)
+#define QLCNIC_ROM_DRV_RESET_TIMEOUT	(0x3e8860)
 
 		 /* Device State */
 #define QLCNIC_DEV_COLD 		1
