@@ -518,6 +518,8 @@ enum wl1271_disconnect_type {
 };
 
 struct wl1271_cmd_disconnect {
+	struct wl1271_cmd_header header;
+
 	__le32 rx_config_options;
 	__le32 rx_filter_options;
 
