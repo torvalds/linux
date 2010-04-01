@@ -915,7 +915,7 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 
 	cfq_log_cfqg(cfqd, cfqg, "served: vt=%llu min_vt=%llu", cfqg->vdisktime,
 					st->min_vdisktime);
-	blkiocg_update_blkio_group_stats(&cfqg->blkg, used_sl);
+	blkiocg_update_timeslice_used(&cfqg->blkg, used_sl);
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
