@@ -81,7 +81,7 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
 						 true);
 		} else {
-			wl1271_error("PSM entry failed, giving up.\n");
+			wl1271_info("No ack to nullfunc from AP.");
 			wl->psm_entry_retry = 0;
 			*beacon_loss = true;
 		}
@@ -160,7 +160,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	 *
 	 */
 	if (vector & BSS_LOSE_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "BSS_LOSE_EVENT");
+		wl1271_info("Beacon loss detected.");
 
 		/* indicate to the stack, that beacons have been lost */
 		beacon_loss = true;
