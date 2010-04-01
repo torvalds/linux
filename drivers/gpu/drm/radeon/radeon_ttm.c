@@ -33,6 +33,7 @@
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
+#include <ttm/ttm_page_alloc.h>
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include <linux/seq_file.h>
@@ -744,8 +745,8 @@ static int radeon_mm_dump_table(struct seq_file *m, void *data)
 static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	static struct drm_info_list radeon_mem_types_list[RADEON_DEBUGFS_MEM_TYPES];
-	static char radeon_mem_types_names[RADEON_DEBUGFS_MEM_TYPES][32];
+	static struct drm_info_list radeon_mem_types_list[RADEON_DEBUGFS_MEM_TYPES+1];
+	static char radeon_mem_types_names[RADEON_DEBUGFS_MEM_TYPES+1][32];
 	unsigned i;
 
 	for (i = 0; i < RADEON_DEBUGFS_MEM_TYPES; i++) {
@@ -762,7 +763,13 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_TT].manager;
 
 	}
-	return radeon_debugfs_add_files(rdev, radeon_mem_types_list, RADEON_DEBUGFS_MEM_TYPES);
+	/* Add ttm page pool to debugfs */
+	sprintf(radeon_mem_types_names[i], "ttm_page_pool");
+	radeon_mem_types_list[i].name = radeon_mem_types_names[i];
+	radeon_mem_types_list[i].show = &ttm_page_alloc_debugfs;
+	radeon_mem_types_list[i].driver_features = 0;
+	radeon_mem_types_list[i].data = NULL;
+	return radeon_debugfs_add_files(rdev, radeon_mem_types_list, RADEON_DEBUGFS_MEM_TYPES+1);
 
 #endif
 	return 0;
