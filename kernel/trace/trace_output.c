@@ -209,6 +209,7 @@ int trace_seq_putc(struct trace_seq *s, unsigned char c)
 
 	return 1;
 }
+EXPORT_SYMBOL(trace_seq_putc);
 
 int trace_seq_putmem(struct trace_seq *s, const void *mem, size_t len)
 {

@@ -39,6 +39,8 @@
 #include "scsi_logging.h"
 #include "scsi_transport_api.h"
 
+#include <trace/events/scsi.h>
+
 #define SENSE_TIMEOUT		(10*HZ)
 
 /*
@@ -52,6 +54,7 @@
 void scsi_eh_wakeup(struct Scsi_Host *shost)
 {
 	if (shost->host_busy == shost->host_failed) {
+		trace_scsi_eh_wakeup(shost);
 		wake_up_process(shost->ehandler);
 		SCSI_LOG_ERROR_RECOVERY(5,
 				printk("Waking error handler thread\n"));
@@ -127,6 +130,7 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 	struct scsi_cmnd *scmd = req->special;
 	enum blk_eh_timer_return rtn = BLK_EH_NOT_HANDLED;
 
+	trace_scsi_dispatch_cmd_timeout(scmd);
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
 	if (scmd->device->host->transportt->eh_timed_out)

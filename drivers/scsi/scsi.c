@@ -67,6 +67,9 @@
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/scsi.h>
+
 static void scsi_done(struct scsi_cmnd *cmd);
 
 /*
@@ -747,10 +750,12 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 		cmd->result = (DID_NO_CONNECT << 16);
 		scsi_done(cmd);
 	} else {
+		trace_scsi_dispatch_cmd_start(cmd);
 		rtn = host->hostt->queuecommand(cmd, scsi_done);
 	}
 	spin_unlock_irqrestore(host->host_lock, flags);
 	if (rtn) {
+		trace_scsi_dispatch_cmd_error(cmd, rtn);
 		if (rtn != SCSI_MLQUEUE_DEVICE_BUSY &&
 		    rtn != SCSI_MLQUEUE_TARGET_BUSY)
 			rtn = SCSI_MLQUEUE_HOST_BUSY;
@@ -781,6 +786,7 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
  */
 static void scsi_done(struct scsi_cmnd *cmd)
 {
+	trace_scsi_dispatch_cmd_done(cmd);
 	blk_complete_request(cmd->request);
 }
 
