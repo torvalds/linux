@@ -35,6 +35,7 @@
 #include <linux/debugfs.h>
 
 #include <linux/completion.h>
+#include <linux/uaccess.h>
 
 #define PICOLCD_NAME "PicoLCD (graphic)"
 
