@@ -485,6 +485,7 @@ config USB_SERIAL_QCAUX
 
 config USB_SERIAL_QUALCOMM
 	tristate "USB Qualcomm Serial modem"
+	select USB_SERIAL_WWAN
 	help
 	  Say Y here if you have a Qualcomm USB modem device.  These are
 	  usually wireless cellular modems.
