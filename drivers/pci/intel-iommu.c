@@ -1064,7 +1064,7 @@ static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
 }
 
 static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
-				  unsigned long pfn, unsigned int pages)
+				  unsigned long pfn, unsigned int pages, int map)
 {
 	unsigned int mask = ilog2(__roundup_pow_of_two(pages));
 	uint64_t addr = (uint64_t)pfn << VTD_PAGE_SHIFT;
@@ -1085,10 +1085,10 @@ static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 						DMA_TLB_PSI_FLUSH);
 
 	/*
-	 * In caching mode, domain ID 0 is reserved for non-present to present
-	 * mapping flush. Device IOTLB doesn't need to be flushed in this case.
+	 * In caching mode, changes of pages from non-present to present require
+	 * flush. However, device IOTLB doesn't need to be flushed in this case.
 	 */
-	if (!cap_caching_mode(iommu->cap) || did)
+	if (!cap_caching_mode(iommu->cap) || !map)
 		iommu_flush_dev_iotlb(iommu->domains[did], addr, mask);
 }
 
@@ -1544,7 +1544,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 					   (((u16)bus) << 8) | devfn,
 					   DMA_CCMD_MASK_NOBIT,
 					   DMA_CCMD_DEVICE_INVL);
-		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_DSI_FLUSH);
+		iommu->flush.flush_iotlb(iommu, domain->id, 0, 0, DMA_TLB_DSI_FLUSH);
 	} else {
 		iommu_flush_write_buffer(iommu);
 	}
@@ -2607,7 +2607,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 
 	/* it's a non-present to present mapping. Only flush if caching mode */
 	if (cap_caching_mode(iommu->cap))
-		iommu_flush_iotlb_psi(iommu, 0, mm_to_dma_pfn(iova->pfn_lo), size);
+		iommu_flush_iotlb_psi(iommu, domain->id, mm_to_dma_pfn(iova->pfn_lo), size, 1);
 	else
 		iommu_flush_write_buffer(iommu);
 
@@ -2736,7 +2736,7 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 
 	if (intel_iommu_strict) {
 		iommu_flush_iotlb_psi(iommu, domain->id, start_pfn,
-				      last_pfn - start_pfn + 1);
+				      last_pfn - start_pfn + 1, 0);
 		/* free iova */
 		__free_iova(&domain->iovad, iova);
 	} else {
@@ -2826,7 +2826,7 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 
 	if (intel_iommu_strict) {
 		iommu_flush_iotlb_psi(iommu, domain->id, start_pfn,
-				      last_pfn - start_pfn + 1);
+				      last_pfn - start_pfn + 1, 0);
 		/* free iova */
 		__free_iova(&domain->iovad, iova);
 	} else {
@@ -2913,7 +2913,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 
 	/* it's a non-present to present mapping. Only flush if caching mode */
 	if (cap_caching_mode(iommu->cap))
-		iommu_flush_iotlb_psi(iommu, 0, start_vpfn, size);
+		iommu_flush_iotlb_psi(iommu, domain->id, start_vpfn, size, 1);
 	else
 		iommu_flush_write_buffer(iommu);
 
