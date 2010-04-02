@@ -818,8 +818,10 @@ int find_perf_probe_point(int fd, unsigned long addr,
 		return -ENOENT;
 
 	/* Find cu die */
-	if (!dwarf_addrdie(dbg, (Dwarf_Addr)addr, &cudie))
-		return -EINVAL;
+	if (!dwarf_addrdie(dbg, (Dwarf_Addr)addr, &cudie)) {
+		ret = -EINVAL;
+		goto end;
+	}
 
 	/* Find a corresponding line */
 	line = dwarf_getsrc_die(&cudie, (Dwarf_Addr)addr);
