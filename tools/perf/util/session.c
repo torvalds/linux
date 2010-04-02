@@ -118,16 +118,11 @@ struct map_symbol *perf_session__resolve_callchain(struct perf_session *self,
 						   struct symbol **parent)
 {
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	struct map_symbol *syms = NULL;
 	unsigned int i;
+	struct map_symbol *syms = calloc(chain->nr, sizeof(*syms));
 
-	if (symbol_conf.use_callchain) {
-		syms = calloc(chain->nr, sizeof(*syms));
-		if (!syms) {
-			fprintf(stderr, "Can't allocate memory for symbols\n");
-			exit(-1);
-		}
-	}
+	if (!syms)
+		return NULL;
 
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip = chain->ips[i];

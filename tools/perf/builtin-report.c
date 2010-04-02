@@ -89,9 +89,12 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	struct event_stat_id *stats;
 	struct perf_event_attr *attr;
 
-	if ((sort__has_parent || symbol_conf.use_callchain) && data->callchain)
+	if ((sort__has_parent || symbol_conf.use_callchain) && data->callchain) {
 		syms = perf_session__resolve_callchain(self, al->thread,
 						       data->callchain, &parent);
+		if (syms == NULL)
+			return -ENOMEM;
+	}
 
 	attr = perf_header__find_attr(data->id, &self->header);
 	if (attr)
