@@ -291,8 +291,7 @@ static const __u32 ctrl_dis[] = {
 			(1 << VFLIP_IDX) |
 			(1 << FREQ_IDX),
 
-[SENSOR_GC0307] =	(1 << AUTOGAIN_IDX) |
-			(1 << INFRARED_IDX) |
+[SENSOR_GC0307] =	(1 << INFRARED_IDX) |
 			(1 << VFLIP_IDX) |
 			(1 << FREQ_IDX),
 
@@ -642,12 +641,6 @@ static const u8 gc0307_sensor_param1[][8] = {
 /*param3*/
 	{0xa0, 0x21, 0x01, 0x6e, 0x00, 0x00, 0x00, 0x10},
 	{0xa0, 0x21, 0x02, 0x88, 0x00, 0x00, 0x00, 0x10},
-
-	{0xa0, 0x21, 0x68, 0x22, 0x00, 0x00, 0x00, 0x10},
-	{0xdd, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-	{0xa0, 0x21, 0x03, 0x07, 0x00, 0x00, 0x00, 0x10},
-	{0xdd, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-	{0xa0, 0x21, 0x04, 0x91, 0x00, 0x00, 0x00, 0x10},
 	{}
 };
 
@@ -1815,6 +1808,18 @@ static u32 setexposure(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->sensor) {
+	case SENSOR_GC0307: {
+		int a, b;
+
+		/* expo = 0..255 -> a = 19..43 */
+		a = 19 + expo * 25 / 256;
+		i2c_w1(gspca_dev, 0x68, a);
+		a -= 12;
+		b = a * a * 4;			/* heuristic */
+		i2c_w1(gspca_dev, 0x03, b >> 8);
+		i2c_w1(gspca_dev, 0x04, b);
+		break;
+	    }
 	case SENSOR_HV7131R: {
 		u8 Expodoit[] =
 			{ 0xc1, 0x11, 0x25, 0x00, 0x00, 0x00, 0x00, 0x16 };
@@ -1925,6 +1930,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		expo = sd->brightness >> 4;
 		sd->exposure = setexposure(gspca_dev, expo);
 		break;
+	case SENSOR_GC0307:
 	case SENSOR_MT9V111:
 		expo = sd->brightness >> 8;
 		sd->exposure = setexposure(gspca_dev, expo);
@@ -2524,6 +2530,14 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	if (delta < luma_mean - luma_delta ||
 	    delta > luma_mean + luma_delta) {
 		switch (sd->sensor) {
+		case SENSOR_GC0307:
+			expotimes = sd->exposure;
+			expotimes += (luma_mean - delta) >> 6;
+			if (expotimes < 0)
+				expotimes = 0;
+			sd->exposure = setexposure(gspca_dev,
+						   (unsigned int) expotimes);
+			break;
 		case SENSOR_HV7131R:
 			expotimes = sd->exposure >> 8;
 			expotimes += (luma_mean - delta) >> 4;
