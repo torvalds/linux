@@ -183,6 +183,8 @@ static const char *cu_find_realpath(Dwarf_Die *cu_die, const char *fname)
 		if (strtailcmp(src, fname) == 0)
 			break;
 	}
+	if (i == nfiles)
+		return NULL;
 	return src;
 }
 
