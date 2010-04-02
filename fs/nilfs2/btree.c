@@ -93,18 +93,14 @@ out:
 	return path;
 }
 
-static inline void nilfs_btree_free_path(struct nilfs_btree_path *path)
+static void nilfs_btree_free_path(struct nilfs_btree_path *path)
 {
-	kmem_cache_free(nilfs_btree_path_cache, path);
-}
+	int level = NILFS_BTREE_LEVEL_DATA;
 
-static void nilfs_btree_release_path(struct nilfs_btree_path *path)
-{
-	int level;
-
-	for (level = NILFS_BTREE_LEVEL_DATA; level < NILFS_BTREE_LEVEL_MAX;
-	     level++)
+	for (; level < NILFS_BTREE_LEVEL_MAX; level++)
 		brelse(path[level].bp_bh);
+
+	kmem_cache_free(nilfs_btree_path_cache, path);
 }
 
 /*
@@ -573,7 +569,6 @@ static int nilfs_btree_lookup(const struct nilfs_bmap *bmap,
 	if (ptrp != NULL)
 		*ptrp = ptr;
 
-	nilfs_btree_release_path(path);
 	nilfs_btree_free_path(path);
 
 	return ret;
@@ -655,7 +650,6 @@ static int nilfs_btree_lookup_contig(const struct nilfs_bmap *bmap,
 	*ptrp = ptr;
 	ret = cnt;
  out:
-	nilfs_btree_release_path(path);
 	nilfs_btree_free_path(path);
 	return ret;
 }
@@ -1139,7 +1133,6 @@ static int nilfs_btree_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 	nilfs_bmap_add_blocks(bmap, stats.bs_nblocks);
 
  out:
-	nilfs_btree_release_path(path);
 	nilfs_btree_free_path(path);
 	return ret;
 }
@@ -1472,7 +1465,6 @@ static int nilfs_btree_delete(struct nilfs_bmap *bmap, __u64 key)
 	nilfs_bmap_sub_blocks(bmap, stats.bs_nblocks);
 
 out:
-	nilfs_btree_release_path(path);
 	nilfs_btree_free_path(path);
 	return ret;
 }
@@ -1490,7 +1482,6 @@ static int nilfs_btree_last_key(const struct nilfs_bmap *bmap, __u64 *keyp)
 
 	ret = nilfs_btree_do_lookup_last(btree, path, keyp, NULL);
 
-	nilfs_btree_release_path(path);
 	nilfs_btree_free_path(path);
 
 	return ret;
@@ -1944,7 +1935,6 @@ static int nilfs_btree_propagate(const struct nilfs_bmap *bmap,
 		nilfs_btree_propagate_p(btree, path, level, bh);
 
  out:
-	nilfs_btree_release_path(path);
 	nilfs_btree_free_path(path);
 
 	return ret;
@@ -2126,7 +2116,6 @@ static int nilfs_btree_assign(struct nilfs_bmap *bmap,
 		nilfs_btree_assign_p(btree, path, level, bh, blocknr, binfo);
 
  out:
-	nilfs_btree_release_path(path);
 	nilfs_btree_free_path(path);
 
 	return ret;
@@ -2190,7 +2179,6 @@ static int nilfs_btree_mark(struct nilfs_bmap *bmap, __u64 key, int level)
 		nilfs_bmap_set_dirty(&btree->bt_bmap);
 
  out:
-	nilfs_btree_release_path(path);
 	nilfs_btree_free_path(path);
 	return ret;
 }
