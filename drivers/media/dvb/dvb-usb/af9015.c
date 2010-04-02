@@ -752,19 +752,19 @@ static const struct af9015_setup *af9015_setup_match(unsigned int id,
 
 static const struct af9015_setup af9015_setup_modparam[] = {
 	{ AF9015_REMOTE_A_LINK_DTU_M,
-		af9015_rc_keys_a_link, ARRAY_SIZE(af9015_rc_keys_a_link),
+		ir_codes_af9015_table_a_link, ARRAY_SIZE(ir_codes_af9015_table_a_link),
 		af9015_ir_table_a_link, ARRAY_SIZE(af9015_ir_table_a_link) },
 	{ AF9015_REMOTE_MSI_DIGIVOX_MINI_II_V3,
-		af9015_rc_keys_msi, ARRAY_SIZE(af9015_rc_keys_msi),
+		ir_codes_af9015_table_msi, ARRAY_SIZE(ir_codes_af9015_table_msi),
 		af9015_ir_table_msi, ARRAY_SIZE(af9015_ir_table_msi) },
 	{ AF9015_REMOTE_MYGICTV_U718,
-		af9015_rc_keys_mygictv, ARRAY_SIZE(af9015_rc_keys_mygictv),
+		ir_codes_af9015_table_mygictv, ARRAY_SIZE(ir_codes_af9015_table_mygictv),
 		af9015_ir_table_mygictv, ARRAY_SIZE(af9015_ir_table_mygictv) },
 	{ AF9015_REMOTE_DIGITTRADE_DVB_T,
-		af9015_rc_keys_digittrade, ARRAY_SIZE(af9015_rc_keys_digittrade),
+		ir_codes_af9015_table_digittrade, ARRAY_SIZE(ir_codes_af9015_table_digittrade),
 		af9015_ir_table_digittrade, ARRAY_SIZE(af9015_ir_table_digittrade) },
 	{ AF9015_REMOTE_AVERMEDIA_KS,
-		af9015_rc_keys_avermedia, ARRAY_SIZE(af9015_rc_keys_avermedia),
+		ir_codes_af9015_table_avermedia, ARRAY_SIZE(ir_codes_af9015_table_avermedia),
 		af9015_ir_table_avermedia_ks, ARRAY_SIZE(af9015_ir_table_avermedia_ks) },
 	{ }
 };
@@ -772,32 +772,32 @@ static const struct af9015_setup af9015_setup_modparam[] = {
 /* don't add new entries here anymore, use hashes instead */
 static const struct af9015_setup af9015_setup_usbids[] = {
 	{ USB_VID_LEADTEK,
-		af9015_rc_keys_leadtek, ARRAY_SIZE(af9015_rc_keys_leadtek),
+		ir_codes_af9015_table_leadtek, ARRAY_SIZE(ir_codes_af9015_table_leadtek),
 		af9015_ir_table_leadtek, ARRAY_SIZE(af9015_ir_table_leadtek) },
 	{ USB_VID_VISIONPLUS,
-		af9015_rc_keys_twinhan, ARRAY_SIZE(af9015_rc_keys_twinhan),
+		ir_codes_af9015_table_twinhan, ARRAY_SIZE(ir_codes_af9015_table_twinhan),
 		af9015_ir_table_twinhan, ARRAY_SIZE(af9015_ir_table_twinhan) },
 	{ USB_VID_KWORLD_2, /* TODO: use correct rc keys */
-		af9015_rc_keys_twinhan, ARRAY_SIZE(af9015_rc_keys_twinhan),
+		ir_codes_af9015_table_twinhan, ARRAY_SIZE(ir_codes_af9015_table_twinhan),
 		af9015_ir_table_kworld, ARRAY_SIZE(af9015_ir_table_kworld) },
 	{ USB_VID_AVERMEDIA,
-		af9015_rc_keys_avermedia, ARRAY_SIZE(af9015_rc_keys_avermedia),
+		ir_codes_af9015_table_avermedia, ARRAY_SIZE(ir_codes_af9015_table_avermedia),
 		af9015_ir_table_avermedia, ARRAY_SIZE(af9015_ir_table_avermedia) },
 	{ USB_VID_MSI_2,
-		af9015_rc_keys_msi_digivox_iii, ARRAY_SIZE(af9015_rc_keys_msi_digivox_iii),
+		ir_codes_af9015_table_msi_digivox_iii, ARRAY_SIZE(ir_codes_af9015_table_msi_digivox_iii),
 		af9015_ir_table_msi_digivox_iii, ARRAY_SIZE(af9015_ir_table_msi_digivox_iii) },
 	{ }
 };
 
 static const struct af9015_setup af9015_setup_hashes[] = {
 	{ 0xb8feb708,
-		af9015_rc_keys_msi, ARRAY_SIZE(af9015_rc_keys_msi),
+		ir_codes_af9015_table_msi, ARRAY_SIZE(ir_codes_af9015_table_msi),
 		af9015_ir_table_msi, ARRAY_SIZE(af9015_ir_table_msi) },
 	{ 0xa3703d00,
-		af9015_rc_keys_a_link, ARRAY_SIZE(af9015_rc_keys_a_link),
+		ir_codes_af9015_table_a_link, ARRAY_SIZE(ir_codes_af9015_table_a_link),
 		af9015_ir_table_a_link, ARRAY_SIZE(af9015_ir_table_a_link) },
 	{ 0x9b7dc64e,
-		af9015_rc_keys_mygictv, ARRAY_SIZE(af9015_rc_keys_mygictv),
+		ir_codes_af9015_table_mygictv, ARRAY_SIZE(ir_codes_af9015_table_mygictv),
 		af9015_ir_table_mygictv, ARRAY_SIZE(af9015_ir_table_mygictv) },
 	{ }
 };
@@ -836,8 +836,8 @@ static void af9015_set_remote_config(struct usb_device *udev,
 			} else if (udev->descriptor.idProduct ==
 				cpu_to_le16(USB_PID_TREKSTOR_DVBT)) {
 				table = &(const struct af9015_setup){ 0,
-					af9015_rc_keys_trekstor,
-					ARRAY_SIZE(af9015_rc_keys_trekstor),
+					ir_codes_af9015_table_trekstor,
+					ARRAY_SIZE(ir_codes_af9015_table_trekstor),
 					af9015_ir_table_trekstor,
 					ARRAY_SIZE(af9015_ir_table_trekstor)
 				};

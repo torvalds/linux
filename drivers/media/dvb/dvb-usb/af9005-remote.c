@@ -33,7 +33,7 @@ MODULE_PARM_DESC(debug,
 
 #define deb_decode(args...)   dprintk(dvb_usb_af9005_remote_debug,0x01,args)
 
-struct dvb_usb_rc_key af9005_rc_keys[] = {
+struct dvb_usb_rc_key ir_codes_af9005_table[] = {
 
 	{0x01b7, KEY_POWER},
 	{0x01a7, KEY_VOLUMEUP},
@@ -74,7 +74,7 @@ struct dvb_usb_rc_key af9005_rc_keys[] = {
 	{0x00d5, KEY_GOTO},	/* marked jump on the remote */
 };
 
-int af9005_rc_keys_size = ARRAY_SIZE(af9005_rc_keys);
+int ir_codes_af9005_table_size = ARRAY_SIZE(ir_codes_af9005_table);
 
 static int repeatable_keys[] = {
 	KEY_VOLUMEUP,
@@ -130,10 +130,10 @@ int af9005_rc_decode(struct dvb_usb_device *d, u8 * data, int len, u32 * event,
 				deb_decode("code != inverted code\n");
 				return 0;
 			}
-			for (i = 0; i < af9005_rc_keys_size; i++) {
-				if (rc5_custom(&af9005_rc_keys[i]) == cust
-				    && rc5_data(&af9005_rc_keys[i]) == dat) {
-					*event = af9005_rc_keys[i].event;
+			for (i = 0; i < ir_codes_af9005_table_size; i++) {
+				if (rc5_custom(&ir_codes_af9005_table[i]) == cust
+				    && rc5_data(&ir_codes_af9005_table[i]) == dat) {
+					*event = ir_codes_af9005_table[i].event;
 					*state = REMOTE_KEY_PRESSED;
 					deb_decode
 					    ("key pressed, event %x\n", *event);
@@ -146,8 +146,8 @@ int af9005_rc_decode(struct dvb_usb_device *d, u8 * data, int len, u32 * event,
 	return 0;
 }
 
-EXPORT_SYMBOL(af9005_rc_keys);
-EXPORT_SYMBOL(af9005_rc_keys_size);
+EXPORT_SYMBOL(ir_codes_af9005_table);
+EXPORT_SYMBOL(ir_codes_af9005_table_size);
 EXPORT_SYMBOL(af9005_rc_decode);
 
 MODULE_AUTHOR("Luca Olivetti <luca@ventoso.org>");

@@ -84,7 +84,7 @@ static int cinergyt2_frontend_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static struct dvb_usb_rc_key cinergyt2_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_cinergyt2_table[] = {
 	{ 0x0401, KEY_POWER },
 	{ 0x0402, KEY_1 },
 	{ 0x0403, KEY_2 },
@@ -218,8 +218,8 @@ static struct dvb_usb_device_properties cinergyt2_properties = {
 	.power_ctrl       = cinergyt2_power_ctrl,
 
 	.rc_interval      = 50,
-	.rc_key_map       = cinergyt2_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(cinergyt2_rc_keys),
+	.rc_key_map       = ir_codes_cinergyt2_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_cinergyt2_table),
 	.rc_query         = cinergyt2_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 1,

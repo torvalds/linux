@@ -562,7 +562,7 @@ static int dib0700_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	return 0;
 }
 
-static struct dvb_usb_rc_key dib0700_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_dib0700_table[] = {
 	/* Key codes for the tiny Pinnacle remote*/
 	{ 0x0700, KEY_MUTE },
 	{ 0x0701, KEY_MENU }, /* Pinnacle logo */
@@ -2131,8 +2131,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
@@ -2160,8 +2160,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
@@ -2214,8 +2214,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -2251,8 +2251,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
@@ -2321,8 +2321,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -2360,8 +2360,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -2422,8 +2422,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
@@ -2484,8 +2484,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
@@ -2513,8 +2513,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
@@ -2574,8 +2574,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
@@ -2612,8 +2612,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
@@ -2656,8 +2656,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 		.num_adapters = 1,
@@ -2687,8 +2687,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
-		.rc_key_map       = dib0700_rc_keys,
-		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_key_map       = ir_codes_dib0700_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_dib0700_table),
 		.rc_query         = dib0700_rc_query
 	},
 };
