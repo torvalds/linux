@@ -336,17 +336,17 @@ int gpio_event_matrix_func(struct gpio_event_input_devs *input_devs,
 		}
 
 		for (i = 0; i < mi->noutputs; i++) {
-			if (gpio_cansleep(mi->output_gpios[i])) {
-				pr_err("gpiomatrix: unsupported output gpio %d,"
-					" can sleep\n", mi->output_gpios[i]);
-				err = -EINVAL;
-				goto err_request_output_gpio_failed;
-			}
 			err = gpio_request(mi->output_gpios[i], "gpio_kp_out");
 			if (err) {
 				pr_err("gpiomatrix: gpio_request failed for "
 					"output %d\n", mi->output_gpios[i]);
 				goto err_request_output_gpio_failed;
+			}
+			if (gpio_cansleep(mi->output_gpios[i])) {
+				pr_err("gpiomatrix: unsupported output gpio %d,"
+					" can sleep\n", mi->output_gpios[i]);
+				err = -EINVAL;
+				goto err_output_gpio_configure_failed;
 			}
 			if (mi->flags & GPIOKPF_DRIVE_INACTIVE)
 				err = gpio_direction_output(mi->output_gpios[i],
