@@ -107,10 +107,22 @@ void ir_rc5_timer_keyup(unsigned long data);
 /* scancode->keycode map tables from ir-keymaps.c */
 
 #define IR_KEYTABLE(a)					\
-(ir_codes_ ## a ## _table)
+ir_codes_ ## a ## _table
 
 #define DECLARE_IR_KEYTABLE(a)					\
 extern struct ir_scancode_table IR_KEYTABLE(a)
+
+#define DEFINE_IR_KEYTABLE(tabname, type)			\
+struct ir_scancode_table IR_KEYTABLE(tabname) = {		\
+	.scan = tabname,					\
+	.size = ARRAY_SIZE(tabname),				\
+	.ir_type = type,					\
+	.name = #tabname,					\
+};								\
+EXPORT_SYMBOL_GPL(IR_KEYTABLE(tabname))
+
+#define DEFINE_LEGACY_IR_KEYTABLE(tabname)			\
+	DEFINE_IR_KEYTABLE(tabname, IR_TYPE_UNKNOWN)
 
 DECLARE_IR_KEYTABLE(adstech_dvb_t_pci);
 DECLARE_IR_KEYTABLE(apac_viewcomp);
