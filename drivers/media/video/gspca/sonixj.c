@@ -84,7 +84,7 @@ enum {
 } sensors;
 	u8 i2c_addr;
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* V4L2 controls supported by the driver */
@@ -2208,9 +2208,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 				{ 0x14, 0xe7, 0x1e, 0xdd };
 
 	/* create the JPEG header */
-	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-	if (!sd->jpeg_hdr)
-		return -ENOMEM;
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);		/* JPEG 422 */
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
@@ -2505,13 +2502,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x01, data);
 	/* Don't disable sensor clock as that disables the button on the cam */
 	/* reg_w1(gspca_dev, 0xf1, 0x01); */
-}
-
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	kfree(sd->jpeg_hdr);
 }
 
 static void do_autogain(struct gspca_dev *gspca_dev)
@@ -2885,7 +2875,6 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
 	.get_jcomp = sd_get_jcomp,
