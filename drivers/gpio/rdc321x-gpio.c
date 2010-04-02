@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 #include <linux/gpio.h>
 #include <linux/mfd/rdc321x.h>
+#include <linux/slab.h>
 
 struct rdc321x_gpio {
 	spinlock_t		lock;
