@@ -1795,7 +1795,6 @@ int usb_new_device(struct usb_device *udev)
 		 * sysfs power/wakeup controls wakeup enabled/disabled
 		 */
 		device_init_wakeup(&udev->dev, 0);
-		device_set_wakeup_enable(&udev->dev, 1);
 	}
 
 	err = usb_enumerate_device(udev);	/* Read descriptors */
