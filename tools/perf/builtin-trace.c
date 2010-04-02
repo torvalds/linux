@@ -561,6 +561,65 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		suffix = REPORT_SUFFIX;
 	}
 
+	if (!suffix && argc >= 2 && strncmp(argv[1], "-", strlen("-")) != 0) {
+		char *record_script_path, *report_script_path;
+		int live_pipe[2];
+		pid_t pid;
+
+		record_script_path = get_script_path(argv[1], RECORD_SUFFIX);
+		if (!record_script_path) {
+			fprintf(stderr, "record script not found\n");
+			return -1;
+		}
+
+		report_script_path = get_script_path(argv[1], REPORT_SUFFIX);
+		if (!report_script_path) {
+			fprintf(stderr, "report script not found\n");
+			return -1;
+		}
+
+		if (pipe(live_pipe) < 0) {
+			perror("failed to create pipe");
+			exit(-1);
+		}
+
+		pid = fork();
+		if (pid < 0) {
+			perror("failed to fork");
+			exit(-1);
+		}
+
+		if (!pid) {
+			dup2(live_pipe[1], 1);
+			close(live_pipe[0]);
+
+			__argv = malloc(5 * sizeof(const char *));
+			__argv[0] = "/bin/sh";
+			__argv[1] = record_script_path;
+			__argv[2] = "-o";
+			__argv[3] = "-";
+			__argv[4] = NULL;
+
+			execvp("/bin/sh", (char **)__argv);
+			exit(-1);
+		}
+
+		dup2(live_pipe[0], 0);
+		close(live_pipe[1]);
+
+		__argv = malloc((argc + 3) * sizeof(const char *));
+		__argv[0] = "/bin/sh";
+		__argv[1] = report_script_path;
+		for (i = 2; i < argc; i++)
+			__argv[i] = argv[i];
+		__argv[i++] = "-i";
+		__argv[i++] = "-";
+		__argv[i++] = NULL;
+
+		execvp("/bin/sh", (char **)__argv);
+		exit(-1);
+	}
+
 	if (suffix) {
 		script_path = get_script_path(argv[2], suffix);
 		if (!script_path) {
