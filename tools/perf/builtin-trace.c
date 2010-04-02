@@ -106,8 +106,17 @@ static struct perf_event_ops event_ops = {
 	.comm	= event__process_comm,
 };
 
+extern volatile int session_done;
+
+static void sig_handler(int sig __unused)
+{
+	session_done = 1;
+}
+
 static int __cmd_trace(struct perf_session *session)
 {
+	signal(SIGINT, sig_handler);
+
 	return perf_session__process_events(session, &event_ops);
 }
 
@@ -580,7 +589,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 	if (session == NULL)
 		return -ENOMEM;
 
-	if (!perf_session__has_traces(session, "record -R"))
+	if (strcmp(input_name, "-") &&
+	    !perf_session__has_traces(session, "record -R"))
 		return -EINVAL;
 
 	if (generate_script_lang) {
