@@ -470,10 +470,10 @@ static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (nilfs_test_opt(sbi, SNAPSHOT))
 		seq_printf(seq, ",cp=%llu",
 			   (unsigned long long int)sbi->s_snapshot_cno);
-	if (nilfs_test_opt(sbi, ERRORS_RO))
-		seq_printf(seq, ",errors=remount-ro");
 	if (nilfs_test_opt(sbi, ERRORS_PANIC))
 		seq_printf(seq, ",errors=panic");
+	if (nilfs_test_opt(sbi, ERRORS_CONT))
+		seq_printf(seq, ",errors=continue");
 	if (nilfs_test_opt(sbi, STRICT_ORDER))
 		seq_printf(seq, ",order=strict");
 	if (nilfs_test_opt(sbi, NORECOVERY))
@@ -631,7 +631,7 @@ nilfs_set_default_options(struct nilfs_sb_info *sbi,
 			  struct nilfs_super_block *sbp)
 {
 	sbi->s_mount_opt =
-		NILFS_MOUNT_ERRORS_CONT | NILFS_MOUNT_BARRIER;
+		NILFS_MOUNT_ERRORS_RO | NILFS_MOUNT_BARRIER;
 }
 
 static int nilfs_setup_super(struct nilfs_sb_info *sbi)
