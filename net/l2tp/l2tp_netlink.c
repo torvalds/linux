@@ -129,11 +129,21 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 	}
 	cfg.encap = nla_get_u16(info->attrs[L2TP_ATTR_ENCAP_TYPE]);
 
-	if (!info->attrs[L2TP_ATTR_FD]) {
-		ret = -EINVAL;
-		goto out;
+	fd = -1;
+	if (info->attrs[L2TP_ATTR_FD]) {
+		fd = nla_get_u32(info->attrs[L2TP_ATTR_FD]);
+	} else {
+		if (info->attrs[L2TP_ATTR_IP_SADDR])
+			cfg.local_ip.s_addr = nla_get_be32(info->attrs[L2TP_ATTR_IP_SADDR]);
+		if (info->attrs[L2TP_ATTR_IP_DADDR])
+			cfg.peer_ip.s_addr = nla_get_be32(info->attrs[L2TP_ATTR_IP_DADDR]);
+		if (info->attrs[L2TP_ATTR_UDP_SPORT])
+			cfg.local_udp_port = nla_get_u16(info->attrs[L2TP_ATTR_UDP_SPORT]);
+		if (info->attrs[L2TP_ATTR_UDP_DPORT])
+			cfg.peer_udp_port = nla_get_u16(info->attrs[L2TP_ATTR_UDP_DPORT]);
+		if (info->attrs[L2TP_ATTR_UDP_CSUM])
+			cfg.use_udp_checksums = nla_get_flag(info->attrs[L2TP_ATTR_UDP_CSUM]);
 	}
-	fd = nla_get_u32(info->attrs[L2TP_ATTR_FD]);
 
 	if (info->attrs[L2TP_ATTR_DEBUG])
 		cfg.debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);

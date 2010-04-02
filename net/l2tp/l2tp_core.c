@@ -1218,6 +1218,82 @@ void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_free);
 
+/* Create a socket for the tunnel, if one isn't set up by
+ * userspace. This is used for static tunnels where there is no
+ * managing L2TP daemon.
+ */
+static int l2tp_tunnel_sock_create(u32 tunnel_id, u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg, struct socket **sockp)
+{
+	int err = -EINVAL;
+	struct sockaddr_in udp_addr;
+	struct sockaddr_l2tpip ip_addr;
+	struct socket *sock;
+
+	switch (cfg->encap) {
+	case L2TP_ENCAPTYPE_UDP:
+		err = sock_create(AF_INET, SOCK_DGRAM, 0, sockp);
+		if (err < 0)
+			goto out;
+
+		sock = *sockp;
+
+		memset(&udp_addr, 0, sizeof(udp_addr));
+		udp_addr.sin_family = AF_INET;
+		udp_addr.sin_addr = cfg->local_ip;
+		udp_addr.sin_port = htons(cfg->local_udp_port);
+		err = kernel_bind(sock, (struct sockaddr *) &udp_addr, sizeof(udp_addr));
+		if (err < 0)
+			goto out;
+
+		udp_addr.sin_family = AF_INET;
+		udp_addr.sin_addr = cfg->peer_ip;
+		udp_addr.sin_port = htons(cfg->peer_udp_port);
+		err = kernel_connect(sock, (struct sockaddr *) &udp_addr, sizeof(udp_addr), 0);
+		if (err < 0)
+			goto out;
+
+		if (!cfg->use_udp_checksums)
+			sock->sk->sk_no_check = UDP_CSUM_NOXMIT;
+
+		break;
+
+	case L2TP_ENCAPTYPE_IP:
+		err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_L2TP, sockp);
+		if (err < 0)
+			goto out;
+
+		sock = *sockp;
+
+		memset(&ip_addr, 0, sizeof(ip_addr));
+		ip_addr.l2tp_family = AF_INET;
+		ip_addr.l2tp_addr = cfg->local_ip;
+		ip_addr.l2tp_conn_id = tunnel_id;
+		err = kernel_bind(sock, (struct sockaddr *) &ip_addr, sizeof(ip_addr));
+		if (err < 0)
+			goto out;
+
+		ip_addr.l2tp_family = AF_INET;
+		ip_addr.l2tp_addr = cfg->peer_ip;
+		ip_addr.l2tp_conn_id = peer_tunnel_id;
+		err = kernel_connect(sock, (struct sockaddr *) &ip_addr, sizeof(ip_addr), 0);
+		if (err < 0)
+			goto out;
+
+		break;
+
+	default:
+		goto out;
+	}
+
+out:
+	if ((err < 0) && sock) {
+		sock_release(sock);
+		*sockp = NULL;
+	}
+
+	return err;
+}
+
 int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg, struct l2tp_tunnel **tunnelp)
 {
 	struct l2tp_tunnel *tunnel = NULL;
@@ -1228,14 +1304,21 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	enum l2tp_encap_type encap = L2TP_ENCAPTYPE_UDP;
 
 	/* Get the tunnel socket from the fd, which was opened by
-	 * the userspace L2TP daemon.
+	 * the userspace L2TP daemon. If not specified, create a
+	 * kernel socket.
 	 */
-	err = -EBADF;
-	sock = sockfd_lookup(fd, &err);
-	if (!sock) {
-		printk(KERN_ERR "tunl %hu: sockfd_lookup(fd=%d) returned %d\n",
-		       tunnel_id, fd, err);
-		goto err;
+	if (fd < 0) {
+		err = l2tp_tunnel_sock_create(tunnel_id, peer_tunnel_id, cfg, &sock);
+		if (err < 0)
+			goto err;
+	} else {
+		err = -EBADF;
+		sock = sockfd_lookup(fd, &err);
+		if (!sock) {
+			printk(KERN_ERR "tunl %hu: sockfd_lookup(fd=%d) returned %d\n",
+			       tunnel_id, fd, err);
+			goto err;
+		}
 	}
 
 	sk = sock->sk;
@@ -1329,7 +1412,10 @@ err:
 	if (tunnelp)
 		*tunnelp = tunnel;
 
-	if (sock)
+	/* If tunnel's socket was created by the kernel, it doesn't
+	 *  have a file.
+	 */
+	if (sock && sock->file)
 		sockfd_put(sock);
 
 	return err;
@@ -1341,13 +1427,22 @@ EXPORT_SYMBOL_GPL(l2tp_tunnel_create);
 int l2tp_tunnel_delete(struct l2tp_tunnel *tunnel)
 {
 	int err = 0;
+	struct socket *sock = tunnel->sock ? tunnel->sock->sk_socket : NULL;
 
 	/* Force the tunnel socket to close. This will eventually
 	 * cause the tunnel to be deleted via the normal socket close
 	 * mechanisms when userspace closes the tunnel socket.
 	 */
-	if ((tunnel->sock != NULL) && (tunnel->sock->sk_socket != NULL))
-		err = inet_shutdown(tunnel->sock->sk_socket, 2);
+	if (sock != NULL) {
+		err = inet_shutdown(sock, 2);
+
+		/* If the tunnel's socket was created by the kernel,
+		 * close the socket here since the socket was not
+		 * created by userspace.
+		 */
+		if (sock->file == NULL)
+			err = inet_release(sock);
+	}
 
 	return err;
 }

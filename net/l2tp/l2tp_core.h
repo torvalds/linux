@@ -146,6 +146,13 @@ struct l2tp_tunnel_cfg {
 	int			debug;		/* bitmask of debug message
 						 * categories */
 	enum l2tp_encap_type	encap;
+
+	/* Used only for kernel-created sockets */
+	struct in_addr		local_ip;
+	struct in_addr		peer_ip;
+	u16			local_udp_port;
+	u16			peer_udp_port;
+	int			use_udp_checksums:1;
 };
 
 struct l2tp_tunnel {
