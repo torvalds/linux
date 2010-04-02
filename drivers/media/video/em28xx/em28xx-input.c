@@ -475,7 +475,7 @@ int em28xx_ir_init(struct em28xx *dev)
 	em28xx_ir_start(ir);
 
 	/* all done */
-	err = ir_input_register(ir->input, dev->board.ir_codes,
+	err = __ir_input_register(ir->input, dev->board.ir_codes,
 				&ir->props, MODULE_NAME);
 	if (err)
 		goto err_out_stop;

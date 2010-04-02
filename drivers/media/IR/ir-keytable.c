@@ -461,7 +461,7 @@ static void ir_close(struct input_dev *input_dev)
 }
 
 /**
- * ir_input_register() - sets the IR keycode table and add the handlers
+ * __ir_input_register() - sets the IR keycode table and add the handlers
  *			    for keymap table get/set
  * @input_dev:	the struct input_dev descriptor of the device
  * @rc_tab:	the struct ir_scancode_table table of scancode/keymap
@@ -471,7 +471,7 @@ static void ir_close(struct input_dev *input_dev)
  * It will register the input/evdev interface for the device and
  * register the syfs code for IR class
  */
-int ir_input_register(struct input_dev *input_dev,
+int __ir_input_register(struct input_dev *input_dev,
 		      const struct ir_scancode_table *rc_tab,
 		      const struct ir_dev_props *props,
 		      const char *driver_name)
@@ -539,7 +539,7 @@ err:
 	kfree(ir_dev);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(ir_input_register);
+EXPORT_SYMBOL_GPL(__ir_input_register);
 
 /**
  * ir_input_unregister() - unregisters IR and frees resources

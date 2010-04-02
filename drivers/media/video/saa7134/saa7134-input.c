@@ -877,7 +877,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	}
 	input_dev->dev.parent = &dev->pci->dev;
 
-	err = ir_input_register(ir->dev, ir_codes, &ir->props, MODULE_NAME);
+	err = __ir_input_register(ir->dev, ir_codes, &ir->props, MODULE_NAME);
 	if (err)
 		goto err_out_free;
 	if (ir_codes->ir_type != IR_TYPE_OTHER) {

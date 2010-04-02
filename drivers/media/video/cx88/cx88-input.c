@@ -439,7 +439,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	ir->props.close = cx88_ir_close;
 
 	/* all done */
-	err = ir_input_register(ir->input, ir_codes, &ir->props, MODULE_NAME);
+	err = __ir_input_register(ir->input, ir_codes, &ir->props, MODULE_NAME);
 	if (err)
 		goto err_out_free;
 

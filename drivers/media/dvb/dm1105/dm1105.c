@@ -630,7 +630,7 @@ int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 
 	INIT_WORK(&dm1105->ir.work, dm1105_emit_key);
 
-	err = ir_input_register(input_dev, ir_codes, NULL, MODULE_NAME);
+	err = __ir_input_register(input_dev, ir_codes, NULL, MODULE_NAME);
 
 	return err;
 }

@@ -400,7 +400,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	dev->ir_input = ir;
 	cx23885_input_ir_start(dev);
 
-	ret = ir_input_register(ir->dev, ir_codes, NULL, MODULE_NAME);
+	ret = __ir_input_register(ir->dev, ir_codes, NULL, MODULE_NAME);
 	if (ret)
 		goto err_out_stop;
 

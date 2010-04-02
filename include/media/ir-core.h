@@ -119,23 +119,37 @@ EXPORT_SYMBOL_GPL(IR_KEYTABLE(tabname))
 #define DEFINE_LEGACY_IR_KEYTABLE(tabname)			\
 	DEFINE_IR_KEYTABLE(tabname, IR_TYPE_UNKNOWN)
 
+/* Routines from rc-map.c */
+
+int ir_register_map(struct rc_keymap *map);
+void ir_unregister_map(struct rc_keymap *map);
+struct ir_scancode_table *get_rc_map(const char *name);
+
 /* Routines from ir-keytable.c */
 
 u32 ir_g_keycode_from_table(struct input_dev *input_dev,
 			    u32 scancode);
 void ir_keyup(struct input_dev *dev);
 void ir_keydown(struct input_dev *dev, int scancode);
-int ir_input_register(struct input_dev *dev,
+int __ir_input_register(struct input_dev *dev,
 		      const struct ir_scancode_table *ir_codes,
 		      const struct ir_dev_props *props,
 		      const char *driver_name);
-void ir_input_unregister(struct input_dev *input_dev);
 
-/* Routines from rc-map.c */
+static inline int ir_input_register(struct input_dev *dev,
+		      const char *map_name,
+		      const struct ir_dev_props *props,
+		      const char *driver_name) {
+	struct ir_scancode_table *ir_codes;
 
-int ir_register_map(struct rc_keymap *map);
-void ir_unregister_map(struct rc_keymap *map);
-struct ir_scancode_table *get_rc_map(const char *name);
+	ir_codes = get_rc_map(map_name);
+	if (!ir_codes)
+		return -EINVAL;
+
+	return __ir_input_register(dev, ir_codes, props, driver_name);
+}
+
+		      void ir_input_unregister(struct input_dev *input_dev);
 
 /* Routines from ir-sysfs.c */
 

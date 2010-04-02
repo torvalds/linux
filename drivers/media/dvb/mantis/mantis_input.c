@@ -128,7 +128,7 @@ int mantis_input_init(struct mantis_pci *mantis)
 	rc->id.version	= 1;
 	rc->dev		= mantis->pdev->dev;
 
-	err = ir_input_register(rc, &ir_mantis, NULL, MODULE_NAME);
+	err = __ir_input_register(rc, &ir_mantis, NULL, MODULE_NAME);
 	if (err) {
 		dprintk(MANTIS_ERROR, 1, "IR device registration failed, ret = %d", err);
 		input_free_device(rc);

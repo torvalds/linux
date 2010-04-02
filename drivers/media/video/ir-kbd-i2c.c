@@ -447,7 +447,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	input_dev->name       = ir->name;
 	input_dev->phys       = ir->phys;
 
-	err = ir_input_register(ir->input, ir->ir_codes, NULL, MODULE_NAME);
+	err = __ir_input_register(ir->input, ir->ir_codes, NULL, MODULE_NAME);
 	if (err)
 		goto err_out_free;
 

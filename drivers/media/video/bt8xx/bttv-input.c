@@ -392,7 +392,7 @@ int bttv_input_init(struct bttv *btv)
 	bttv_ir_start(btv, ir);
 
 	/* all done */
-	err = ir_input_register(btv->remote->dev, ir_codes, NULL, MODULE_NAME);
+	err = __ir_input_register(btv->remote->dev, ir_codes, NULL, MODULE_NAME);
 	if (err)
 		goto err_out_stop;
 
