@@ -48,6 +48,11 @@ enum l2tp_l2spec_type {
 	L2TP_L2SPECTYPE_DEFAULT,
 };
 
+enum l2tp_encap_type {
+	L2TP_ENCAPTYPE_UDP,
+	L2TP_ENCAPTYPE_IP,
+};
+
 struct sk_buff;
 
 struct l2tp_stats {
@@ -155,6 +160,7 @@ struct l2tp_session {
 struct l2tp_tunnel_cfg {
 	int			debug;		/* bitmask of debug message
 						 * categories */
+	enum l2tp_encap_type	encap;
 };
 
 struct l2tp_tunnel {
@@ -170,6 +176,7 @@ struct l2tp_tunnel {
 	char			name[20];	/* for logging */
 	int			debug;		/* bitmask of debug message
 						 * categories */
+	enum l2tp_encap_type	encap;
 	struct l2tp_stats	stats;
 
 	struct list_head	list;		/* Keep a list of all tunnels */

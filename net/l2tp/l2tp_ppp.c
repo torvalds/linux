@@ -305,6 +305,7 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	struct l2tp_session *session;
 	struct l2tp_tunnel *tunnel;
 	struct pppol2tp_session *ps;
+	int uhlen;
 
 	error = -ENOTCONN;
 	if (sock_flag(sk, SOCK_DEAD) || !(sk->sk_state & PPPOX_CONNECTED))
@@ -321,10 +322,12 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	if (tunnel == NULL)
 		goto error_put_sess;
 
+	uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
+
 	/* Allocate a socket buffer */
 	error = -ENOMEM;
 	skb = sock_wmalloc(sk, NET_SKB_PAD + sizeof(struct iphdr) +
-			   sizeof(struct udphdr) + session->hdr_len +
+			   uhlen + session->hdr_len +
 			   sizeof(ppph) + total_len,
 			   0, GFP_KERNEL);
 	if (!skb)
@@ -335,7 +338,7 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	skb_reset_network_header(skb);
 	skb_reserve(skb, sizeof(struct iphdr));
 	skb_reset_transport_header(skb);
-	skb_reserve(skb, sizeof(struct udphdr));
+	skb_reserve(skb, uhlen);
 
 	/* Add PPP header */
 	skb->data[0] = ppph[0];

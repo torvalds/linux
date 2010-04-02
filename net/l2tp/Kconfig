@@ -51,3 +51,20 @@ config L2TP_V3
 	  If you are connecting to L2TPv3 equipment, or you want to
 	  tunnel raw ethernet frames using L2TP, say Y here. If
 	  unsure, say N.
+
+config L2TP_IP
+	tristate "L2TP IP encapsulation for L2TPv3"
+	depends on L2TP_V3
+	help
+	  Support for L2TP-over-IP socket family.
+
+	  The L2TPv3 protocol defines two possible encapsulations for
+	  L2TP frames, namely UDP and plain IP (without UDP). This
+	  driver provides a new L2TPIP socket family with which
+	  userspace L2TPv3 daemons may create L2TP/IP tunnel sockets
+	  when UDP encapsulation is not required. When L2TP is carried
+	  in IP packets, it used IP protocol number 115, so this port
+	  must be enabled in firewalls.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called l2tp_ip.

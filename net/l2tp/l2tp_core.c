@@ -36,8 +36,10 @@
 #include <linux/inetdevice.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
+#include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
+#include <linux/l2tp.h>
 #include <linux/hash.h>
 #include <linux/sort.h>
 #include <linux/file.h>
@@ -48,6 +50,7 @@
 #include <net/ip.h>
 #include <net/udp.h>
 #include <net/xfrm.h>
+#include <net/protocol.h>
 
 #include <asm/byteorder.h>
 #include <asm/atomic.h>
@@ -849,15 +852,21 @@ static int l2tp_build_l2tpv2_header(struct l2tp_session *session, void *buf)
 
 static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf)
 {
+	struct l2tp_tunnel *tunnel = session->tunnel;
 	char *bufp = buf;
 	char *optr = bufp;
-	u16 flags = L2TP_HDR_VER_3;
 
-	/* Setup L2TP header. */
-	*((__be16 *) bufp) = htons(flags);
-	bufp += 2;
-	*((__be16 *) bufp) = 0;
-	bufp += 2;
+	/* Setup L2TP header. The header differs slightly for UDP and
+	 * IP encapsulations. For UDP, there is 4 bytes of flags.
+	 */
+	if (tunnel->encap == L2TP_ENCAPTYPE_UDP) {
+		u16 flags = L2TP_HDR_VER_3;
+		*((__be16 *) bufp) = htons(flags);
+		bufp += 2;
+		*((__be16 *) bufp) = 0;
+		bufp += 2;
+	}
+
 	*((__be32 *) bufp) = htonl(session->peer_session_id);
 	bufp += 4;
 	if (session->cookie_len) {
@@ -902,10 +911,11 @@ int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, size_t dat
 
 	if (session->debug & L2TP_MSG_DATA) {
 		int i;
-		unsigned char *datap = skb->data + sizeof(struct udphdr);
+		int uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
+		unsigned char *datap = skb->data + uhlen;
 
 		printk(KERN_DEBUG "%s: xmit:", session->name);
-		for (i = 0; i < (len - sizeof(struct udphdr)); i++) {
+		for (i = 0; i < (len - uhlen); i++) {
 			printk(" %02X", *datap++);
 			if (i == 31) {
 				printk(" ...");
@@ -956,21 +966,23 @@ static inline void l2tp_skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
 int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len)
 {
 	int data_len = skb->len;
-	struct sock *sk = session->tunnel->sock;
+	struct l2tp_tunnel *tunnel = session->tunnel;
+	struct sock *sk = tunnel->sock;
 	struct udphdr *uh;
-	unsigned int udp_len;
 	struct inet_sock *inet;
 	__wsum csum;
 	int old_headroom;
 	int new_headroom;
 	int headroom;
+	int uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
+	int udp_len;
 
 	/* Check that there's enough headroom in the skb to insert IP,
 	 * UDP and L2TP headers. If not enough, expand it to
 	 * make room. Adjust truesize.
 	 */
 	headroom = NET_SKB_PAD + sizeof(struct iphdr) +
-		sizeof(struct udphdr) + hdr_len;
+		uhlen + hdr_len;
 	old_headroom = skb_headroom(skb);
 	if (skb_cow_head(skb, headroom))
 		goto abort;
@@ -981,18 +993,8 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 
 	/* Setup L2TP header */
 	session->build_header(session, __skb_push(skb, hdr_len));
-	udp_len = sizeof(struct udphdr) + hdr_len + data_len;
 
-	/* Setup UDP header */
-	inet = inet_sk(sk);
-	__skb_push(skb, sizeof(*uh));
-	skb_reset_transport_header(skb);
-	uh = udp_hdr(skb);
-	uh->source = inet->inet_sport;
-	uh->dest = inet->inet_dport;
-	uh->len = htons(udp_len);
-	uh->check = 0;
-
+	/* Reset skb netfilter state */
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
 			      IPSKB_REROUTED);
@@ -1001,28 +1003,47 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	/* Get routing info from the tunnel socket */
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst_clone(__sk_dst_get(sk)));
-	l2tp_skb_set_owner_w(skb, sk);
 
-	/* Calculate UDP checksum if configured to do so */
-	if (sk->sk_no_check == UDP_CSUM_NOXMIT)
-		skb->ip_summed = CHECKSUM_NONE;
-	else if ((skb_dst(skb) && skb_dst(skb)->dev) &&
-		 (!(skb_dst(skb)->dev->features & NETIF_F_V4_CSUM))) {
-		skb->ip_summed = CHECKSUM_COMPLETE;
-		csum = skb_checksum(skb, 0, udp_len, 0);
-		uh->check = csum_tcpudp_magic(inet->inet_saddr,
-					      inet->inet_daddr,
-					      udp_len, IPPROTO_UDP, csum);
-		if (uh->check == 0)
-			uh->check = CSUM_MANGLED_0;
-	} else {
-		skb->ip_summed = CHECKSUM_PARTIAL;
-		skb->csum_start = skb_transport_header(skb) - skb->head;
-		skb->csum_offset = offsetof(struct udphdr, check);
-		uh->check = ~csum_tcpudp_magic(inet->inet_saddr,
-					       inet->inet_daddr,
-					       udp_len, IPPROTO_UDP, 0);
+	switch (tunnel->encap) {
+	case L2TP_ENCAPTYPE_UDP:
+		/* Setup UDP header */
+		inet = inet_sk(sk);
+		__skb_push(skb, sizeof(*uh));
+		skb_reset_transport_header(skb);
+		uh = udp_hdr(skb);
+		uh->source = inet->inet_sport;
+		uh->dest = inet->inet_dport;
+		udp_len = uhlen + hdr_len + data_len;
+		uh->len = htons(udp_len);
+		uh->check = 0;
+
+		/* Calculate UDP checksum if configured to do so */
+		if (sk->sk_no_check == UDP_CSUM_NOXMIT)
+			skb->ip_summed = CHECKSUM_NONE;
+		else if ((skb_dst(skb) && skb_dst(skb)->dev) &&
+			 (!(skb_dst(skb)->dev->features & NETIF_F_V4_CSUM))) {
+			skb->ip_summed = CHECKSUM_COMPLETE;
+			csum = skb_checksum(skb, 0, udp_len, 0);
+			uh->check = csum_tcpudp_magic(inet->inet_saddr,
+						      inet->inet_daddr,
+						      udp_len, IPPROTO_UDP, csum);
+			if (uh->check == 0)
+				uh->check = CSUM_MANGLED_0;
+		} else {
+			skb->ip_summed = CHECKSUM_PARTIAL;
+			skb->csum_start = skb_transport_header(skb) - skb->head;
+			skb->csum_offset = offsetof(struct udphdr, check);
+			uh->check = ~csum_tcpudp_magic(inet->inet_saddr,
+						       inet->inet_daddr,
+						       udp_len, IPPROTO_UDP, 0);
+		}
+		break;
+
+	case L2TP_ENCAPTYPE_IP:
+		break;
 	}
+
+	l2tp_skb_set_owner_w(skb, sk);
 
 	l2tp_xmit_core(session, skb, data_len);
 
@@ -1053,9 +1074,15 @@ void l2tp_tunnel_destruct(struct sock *sk)
 	/* Close all sessions */
 	l2tp_tunnel_closeall(tunnel);
 
-	/* No longer an encapsulation socket. See net/ipv4/udp.c */
-	(udp_sk(sk))->encap_type = 0;
-	(udp_sk(sk))->encap_rcv = NULL;
+	switch (tunnel->encap) {
+	case L2TP_ENCAPTYPE_UDP:
+		/* No longer an encapsulation socket. See net/ipv4/udp.c */
+		(udp_sk(sk))->encap_type = 0;
+		(udp_sk(sk))->encap_rcv = NULL;
+		break;
+	case L2TP_ENCAPTYPE_IP:
+		break;
+	}
 
 	/* Remove hooks into tunnel socket */
 	tunnel->sock = NULL;
@@ -1168,6 +1195,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	struct socket *sock = NULL;
 	struct sock *sk = NULL;
 	struct l2tp_net *pn;
+	enum l2tp_encap_type encap = L2TP_ENCAPTYPE_UDP;
 
 	/* Get the tunnel socket from the fd, which was opened by
 	 * the userspace L2TP daemon.
@@ -1182,18 +1210,27 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 
 	sk = sock->sk;
 
+	if (cfg != NULL)
+		encap = cfg->encap;
+
 	/* Quick sanity checks */
-	err = -EPROTONOSUPPORT;
-	if (sk->sk_protocol != IPPROTO_UDP) {
-		printk(KERN_ERR "tunl %hu: fd %d wrong protocol, got %d, expected %d\n",
-		       tunnel_id, fd, sk->sk_protocol, IPPROTO_UDP);
-		goto err;
-	}
-	err = -EAFNOSUPPORT;
-	if (sock->ops->family != AF_INET) {
-		printk(KERN_ERR "tunl %hu: fd %d wrong family, got %d, expected %d\n",
-		       tunnel_id, fd, sock->ops->family, AF_INET);
-		goto err;
+	switch (encap) {
+	case L2TP_ENCAPTYPE_UDP:
+		err = -EPROTONOSUPPORT;
+		if (sk->sk_protocol != IPPROTO_UDP) {
+			printk(KERN_ERR "tunl %hu: fd %d wrong protocol, got %d, expected %d\n",
+			       tunnel_id, fd, sk->sk_protocol, IPPROTO_UDP);
+			goto err;
+		}
+		break;
+	case L2TP_ENCAPTYPE_IP:
+		err = -EPROTONOSUPPORT;
+		if (sk->sk_protocol != IPPROTO_L2TP) {
+			printk(KERN_ERR "tunl %hu: fd %d wrong protocol, got %d, expected %d\n",
+			       tunnel_id, fd, sk->sk_protocol, IPPROTO_L2TP);
+			goto err;
+		}
+		break;
 	}
 
 	/* Check if this socket has already been prepped */
@@ -1223,12 +1260,16 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	tunnel->l2tp_net = net;
 	pn = l2tp_pernet(net);
 
-	if (cfg)
+	if (cfg != NULL)
 		tunnel->debug = cfg->debug;
 
 	/* Mark socket as an encapsulation socket. See net/ipv4/udp.c */
-	udp_sk(sk)->encap_type = UDP_ENCAP_L2TPINUDP;
-	udp_sk(sk)->encap_rcv = l2tp_udp_encap_recv;
+	tunnel->encap = encap;
+	if (encap == L2TP_ENCAPTYPE_UDP) {
+		/* Mark socket as an encapsulation socket. See net/ipv4/udp.c */
+		udp_sk(sk)->encap_type = UDP_ENCAP_L2TPINUDP;
+		udp_sk(sk)->encap_rcv = l2tp_udp_encap_recv;
+	}
 
 	sk->sk_user_data = tunnel;
 
@@ -1318,7 +1359,9 @@ void l2tp_session_set_header_len(struct l2tp_session *session, int version)
 		if (session->send_seq)
 			session->hdr_len += 4;
 	} else {
-		session->hdr_len = 8 + session->cookie_len + session->l2specific_len + session->offset;
+		session->hdr_len = 4 + session->cookie_len + session->l2specific_len + session->offset;
+		if (session->tunnel->encap == L2TP_ENCAPTYPE_UDP)
+			session->hdr_len += 4;
 	}
 
 }
