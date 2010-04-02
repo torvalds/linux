@@ -57,8 +57,8 @@
 #include "bnx2x_init_ops.h"
 #include "bnx2x_dump.h"
 
-#define DRV_MODULE_VERSION	"1.52.1-7"
-#define DRV_MODULE_RELDATE	"2010/02/28"
+#define DRV_MODULE_VERSION	"1.52.1-8"
+#define DRV_MODULE_RELDATE	"2010/04/01"
 #define BNX2X_BC_VER		0x040200
 
 #include <linux/firmware.h>
@@ -1441,12 +1441,12 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 #ifdef BCM_VLAN
 			if ((bp->vlgrp != NULL) && is_vlan_cqe &&
 			    (!is_not_hwaccel_vlan_cqe))
-				vlan_hwaccel_receive_skb(skb, bp->vlgrp,
-						le16_to_cpu(cqe->fast_path_cqe.
-							    vlan_tag));
+				vlan_gro_receive(&fp->napi, bp->vlgrp,
+						 le16_to_cpu(cqe->fast_path_cqe.
+							     vlan_tag), skb);
 			else
 #endif
-				netif_receive_skb(skb);
+				napi_gro_receive(&fp->napi, skb);
 		} else {
 			DP(NETIF_MSG_RX_STATUS, "Failed to allocate new pages"
 			   " - dropping packet!\n");
@@ -1699,11 +1699,11 @@ reuse_rx:
 		if ((bp->vlgrp != NULL) && (bp->flags & HW_VLAN_RX_FLAG) &&
 		    (le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
 		     PARSING_FLAGS_VLAN))
-			vlan_hwaccel_receive_skb(skb, bp->vlgrp,
-				le16_to_cpu(cqe->fast_path_cqe.vlan_tag));
+			vlan_gro_receive(&fp->napi, bp->vlgrp,
+				le16_to_cpu(cqe->fast_path_cqe.vlan_tag), skb);
 		else
 #endif
-			netif_receive_skb(skb);
+			napi_gro_receive(&fp->napi, skb);
 
 
 next_rx:
@@ -8934,6 +8934,8 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	}
 	bp->multi_mode = multi_mode;
 
+
+	bp->dev->features |= NETIF_F_GRO;
 
 	/* Set TPA flags */
 	if (disable_tpa) {
