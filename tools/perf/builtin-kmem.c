@@ -363,6 +363,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 		struct alloc_stat *data = rb_entry(next, struct alloc_stat,
 						   node);
 		struct symbol *sym = NULL;
+		struct map *map;
 		char buf[BUFSIZ];
 		u64 addr;
 
@@ -370,13 +371,13 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 			addr = data->call_site;
 			if (!raw_ip)
 				sym = map_groups__find_function(&session->kmaps,
-								addr, NULL, NULL);
+								addr, &map, NULL);
 		} else
 			addr = data->ptr;
 
 		if (sym != NULL)
 			snprintf(buf, sizeof(buf), "%s+%Lx", sym->name,
-				 addr - sym->start);
+				 addr - map->unmap_ip(map, sym->start));
 		else
 			snprintf(buf, sizeof(buf), "%#Lx", addr);
 		printf(" %-34s |", buf);
