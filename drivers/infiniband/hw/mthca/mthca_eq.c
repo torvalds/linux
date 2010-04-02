@@ -504,7 +504,7 @@ static int mthca_create_eq(struct mthca_dev *dev,
 			goto err_out_free_pages;
 
 		dma_list[i] = t;
-		pci_unmap_addr_set(&eq->page_list[i], mapping, t);
+		dma_unmap_addr_set(&eq->page_list[i], mapping, t);
 
 		clear_page(eq->page_list[i].buf);
 	}
@@ -579,7 +579,7 @@ static int mthca_create_eq(struct mthca_dev *dev,
 		if (eq->page_list[i].buf)
 			dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
 					  eq->page_list[i].buf,
-					  pci_unmap_addr(&eq->page_list[i],
+					  dma_unmap_addr(&eq->page_list[i],
 							 mapping));
 
 	mthca_free_mailbox(dev, mailbox);
@@ -629,7 +629,7 @@ static void mthca_free_eq(struct mthca_dev *dev,
 	for (i = 0; i < npages; ++i)
 		pci_free_consistent(dev->pdev, PAGE_SIZE,
 				    eq->page_list[i].buf,
-				    pci_unmap_addr(&eq->page_list[i], mapping));
+				    dma_unmap_addr(&eq->page_list[i], mapping));
 
 	kfree(eq->page_list);
 	mthca_free_mailbox(dev, mailbox);
