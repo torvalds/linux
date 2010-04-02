@@ -269,12 +269,21 @@ static struct perf_event_ops event_ops = {
 	.read	= process_read_event,
 };
 
+extern volatile int session_done;
+
+static void sig_handler(int sig __attribute__((__unused__)))
+{
+	session_done = 1;
+}
+
 static int __cmd_report(void)
 {
 	int ret = -EINVAL;
 	struct perf_session *session;
 	struct rb_node *next;
 	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
+
+	signal(SIGINT, sig_handler);
 
 	session = perf_session__new(input_name, O_RDONLY, force);
 	if (session == NULL)
@@ -465,7 +474,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
-	setup_browser();
+	if (strcmp(input_name, "-") != 0)
+		setup_browser();
 
 	if (symbol__init() < 0)
 		return -1;
