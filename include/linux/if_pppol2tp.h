@@ -2,7 +2,7 @@
  * Linux PPP over L2TP (PPPoL2TP) Socket Implementation (RFC 2661)
  *
  * This file supplies definitions required by the PPP over L2TP driver
- * (pppol2tp.c).  All version information wrt this file is located in pppol2tp.c
+ * (l2tp_ppp.c).  All version information wrt this file is located in l2tp_ppp.c
  *
  * License:
  *		This program is free software; you can redistribute it and/or

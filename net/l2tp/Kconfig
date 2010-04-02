@@ -1,0 +1,28 @@
+#
+# Layer Two Tunneling Protocol (L2TP)
+#
+
+menuconfig L2TP
+	tristate "Layer Two Tunneling Protocol (L2TP)"
+	depends on INET
+	---help---
+	  Layer Two Tunneling Protocol
+
+	  From RFC 2661 <http://www.ietf.org/rfc/rfc2661.txt>.
+
+	  L2TP facilitates the tunneling of packets across an
+	  intervening network in a way that is as transparent as
+	  possible to both end-users and applications.
+
+	  L2TP is often used to tunnel PPP traffic over IP
+	  tunnels. One IP tunnel may carry thousands of individual PPP
+	  connections. L2TP is also used as a VPN protocol, popular
+	  with home workers to connect to their offices.
+
+	  The kernel component handles only L2TP data packets: a
+	  userland daemon handles L2TP the control protocol (tunnel
+	  and session setup). One such daemon is OpenL2TP
+	  (http://openl2tp.org/).
+
+	  If you don't need L2TP, say N. To compile all L2TP code as
+	  modules, choose M here.
