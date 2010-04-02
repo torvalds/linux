@@ -340,6 +340,7 @@ static void reset_connection(struct ceph_connection *con)
 		ceph_msg_put(con->out_msg);
 		con->out_msg = NULL;
 	}
+	con->out_keepalive_pending = false;
 	con->in_seq = 0;
 	con->in_seq_acked = 0;
 }
@@ -357,6 +358,7 @@ void ceph_con_close(struct ceph_connection *con)
 	clear_bit(WRITE_PENDING, &con->state);
 	mutex_lock(&con->mutex);
 	reset_connection(con);
+	con->peer_global_seq = 0;
 	cancel_delayed_work(&con->work);
 	mutex_unlock(&con->mutex);
 	queue_con(con);
