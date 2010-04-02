@@ -35,6 +35,20 @@ struct pppol2tp_addr {
 	__u16 d_tunnel, d_session;	/* For sending outgoing packets */
 };
 
+/* The L2TPv3 protocol changes tunnel and session ids from 16 to 32
+ * bits. So we need a different sockaddr structure.
+ */
+struct pppol2tpv3_addr {
+	pid_t	pid;			/* pid that owns the fd.
+					 * 0 => current */
+	int	fd;			/* FD of UDP or IP socket to use */
+
+	struct sockaddr_in addr;	/* IP address and port to send to */
+
+	__u32 s_tunnel, s_session;	/* For matching incoming packets */
+	__u32 d_tunnel, d_session;	/* For sending outgoing packets */
+};
+
 /* Socket options:
  * DEBUG	- bitmask of debug message categories
  * SENDSEQ	- 0 => don't send packets with sequence numbers
