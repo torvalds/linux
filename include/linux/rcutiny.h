@@ -128,4 +128,17 @@ static inline int rcu_preempt_depth(void)
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+
+extern int rcu_scheduler_active __read_mostly;
+extern void rcu_scheduler_starting(void);
+
+#else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+
+static inline void rcu_scheduler_starting(void)
+{
+}
+
+#endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+
 #endif /* __LINUX_RCUTINY_H */

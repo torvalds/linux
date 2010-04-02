@@ -123,4 +123,7 @@ static inline int rcu_blocking_is_gp(void)
 	return num_online_cpus() == 1;
 }
 
+extern void rcu_scheduler_starting(void);
+extern int rcu_scheduler_active __read_mostly;
+
 #endif /* __LINUX_RCUTREE_H */
