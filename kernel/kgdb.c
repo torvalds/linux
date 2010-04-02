@@ -391,27 +391,22 @@ int kgdb_mem2hex(char *mem, char *buf, int count)
 
 /*
  * Copy the binary array pointed to by buf into mem.  Fix $, #, and
- * 0x7d escaped with 0x7d.  Return a pointer to the character after
- * the last byte written.
+ * 0x7d escaped with 0x7d. Return -EFAULT on failure or 0 on success.
+ * The input buf is overwitten with the result to write to mem.
  */
 static int kgdb_ebin2mem(char *buf, char *mem, int count)
 {
-	int err = 0;
-	char c;
+	int size = 0;
+	char *c = buf;
 
 	while (count-- > 0) {
-		c = *buf++;
-		if (c == 0x7d)
-			c = *buf++ ^ 0x20;
-
-		err = probe_kernel_write(mem, &c, 1);
-		if (err)
-			break;
-
-		mem++;
+		c[size] = *buf++;
+		if (c[size] == 0x7d)
+			c[size] = *buf++ ^ 0x20;
+		size++;
 	}
 
-	return err;
+	return probe_kernel_write(mem, c, size);
 }
 
 /*
