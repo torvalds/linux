@@ -425,7 +425,6 @@ struct usb_tt;
  * @connect_time: time device was first connected
  * @do_remote_wakeup:  remote wakeup should be enabled
  * @reset_resume: needs reset instead of resume
- * @autosuspend_disabled: autosuspend disabled by the user
  * @wusb_dev: if this is a Wireless USB device, link to the WUSB
  *	specific data for the device.
  * @slot_id: Slot ID assigned by xHCI
@@ -501,7 +500,6 @@ struct usb_device {
 
 	unsigned do_remote_wakeup:1;
 	unsigned reset_resume:1;
-	unsigned autosuspend_disabled:1;
 #endif
 	struct wusb_dev *wusb_dev;
 	int slot_id;
@@ -526,8 +524,8 @@ extern struct usb_device *usb_find_device(u16 vendor_id, u16 product_id);
 
 /* USB autosuspend and autoresume */
 #ifdef CONFIG_USB_SUSPEND
-extern int usb_enable_autosuspend(struct usb_device *udev);
-extern int usb_disable_autosuspend(struct usb_device *udev);
+extern void usb_enable_autosuspend(struct usb_device *udev);
+extern void usb_disable_autosuspend(struct usb_device *udev);
 
 extern int usb_autopm_get_interface(struct usb_interface *intf);
 extern void usb_autopm_put_interface(struct usb_interface *intf);

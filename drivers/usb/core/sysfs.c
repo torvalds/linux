@@ -389,7 +389,7 @@ show_level(struct device *dev, struct device_attribute *attr, char *buf)
 	struct usb_device *udev = to_usb_device(dev);
 	const char *p = auto_string;
 
-	if (udev->state != USB_STATE_SUSPENDED && udev->autosuspend_disabled)
+	if (udev->state != USB_STATE_SUSPENDED && !udev->dev.power.runtime_auto)
 		p = on_string;
 	return sprintf(buf, "%s\n", p);
 }
@@ -401,7 +401,7 @@ set_level(struct device *dev, struct device_attribute *attr,
 	struct usb_device *udev = to_usb_device(dev);
 	int len = count;
 	char *cp;
-	int rc;
+	int rc = count;
 
 	cp = memchr(buf, '\n', count);
 	if (cp)
@@ -411,17 +411,17 @@ set_level(struct device *dev, struct device_attribute *attr,
 
 	if (len == sizeof on_string - 1 &&
 			strncmp(buf, on_string, len) == 0)
-		rc = usb_disable_autosuspend(udev);
+		usb_disable_autosuspend(udev);
 
 	else if (len == sizeof auto_string - 1 &&
 			strncmp(buf, auto_string, len) == 0)
-		rc = usb_enable_autosuspend(udev);
+		usb_enable_autosuspend(udev);
 
 	else
 		rc = -EINVAL;
 
 	usb_unlock_device(udev);
-	return (rc < 0 ? rc : count);
+	return rc;
 }
 
 static DEVICE_ATTR(level, S_IRUGO | S_IWUSR, show_level, set_level);
