@@ -104,6 +104,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 static struct perf_event_ops event_ops = {
 	.sample	= process_sample_event,
 	.comm	= event__process_comm,
+	.attr	= event__process_attr,
 };
 
 extern volatile int session_done;

@@ -44,7 +44,8 @@ struct perf_event_ops {
 		 lost,
 		 read,
 		 throttle,
-		 unthrottle;
+		 unthrottle,
+		 attr;
 };
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force);
