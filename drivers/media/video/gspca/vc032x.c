@@ -1,9 +1,9 @@
 /*
- *		Z-star vc0321 library
- *		Copyright (C) 2006 Koninski Artur takeshi87@o2.pl
- *		Copyright (C) 2006 Michel Xhaard
+ * Z-star vc0321 library
  *
- * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
+ * Copyright (C) 2009-2010 Jean-François Moine <http://moinejf.free.fr>
+ * Copyright (C) 2006 Koninski Artur takeshi87@o2.pl
+ * Copyright (C) 2006 Michel Xhaard
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 #include "gspca.h"
 
-MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
+MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA/VC032X USB Camera Driver");
 MODULE_LICENSE("GPL");
 

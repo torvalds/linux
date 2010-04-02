@@ -1,7 +1,7 @@
 /*
  * Main USB camera driver
  *
- * Copyright (C) 2008-2009 Jean-Francois Moine (http://moinejf.free.fr)
+ * Copyright (C) 2008-2010 Jean-François Moine <http://moinejf.free.fr>
  *
  * Camera button input handling by Márton Németh
  * Copyright (C) 2009-2010 Márton Németh <nm127@freemail.hu>
@@ -51,7 +51,7 @@
 #error "DEF_NURBS too big"
 #endif
 
-MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
+MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
