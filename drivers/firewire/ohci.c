@@ -262,12 +262,12 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 	", no 1394a enhancements = "	__stringify(QUIRK_NO_1394A)
 	")");
 
-#ifdef CONFIG_FIREWIRE_OHCI_DEBUG
-
 #define OHCI_PARAM_DEBUG_AT_AR		1
 #define OHCI_PARAM_DEBUG_SELFIDS	2
 #define OHCI_PARAM_DEBUG_IRQS		4
 #define OHCI_PARAM_DEBUG_BUSRESETS	8 /* only effective before chip init */
+
+#ifdef CONFIG_FIREWIRE_OHCI_DEBUG
 
 static int param_debug;
 module_param_named(debug, param_debug, int, 0644);
@@ -441,9 +441,10 @@ static void log_ar_at_event(char dir, int speed, u32 *header, int evt)
 
 #else
 
-#define log_irqs(evt)
-#define log_selfids(node_id, generation, self_id_count, sid)
-#define log_ar_at_event(dir, speed, header, evt)
+#define param_debug 0
+static inline void log_irqs(u32 evt) {}
+static inline void log_selfids(int node_id, int generation, int self_id_count, u32 *s) {}
+static inline void log_ar_at_event(char dir, int speed, u32 *header, int evt) {}
 
 #endif /* CONFIG_FIREWIRE_OHCI_DEBUG */
 
@@ -2401,7 +2402,7 @@ static const struct fw_card_driver ohci_driver = {
 };
 
 #ifdef CONFIG_PPC_PMAC
-static void ohci_pmac_on(struct pci_dev *dev)
+static void pmac_ohci_on(struct pci_dev *dev)
 {
 	if (machine_is(powermac)) {
 		struct device_node *ofn = pci_device_to_OF_node(dev);
@@ -2413,7 +2414,7 @@ static void ohci_pmac_on(struct pci_dev *dev)
 	}
 }
 
-static void ohci_pmac_off(struct pci_dev *dev)
+static void pmac_ohci_off(struct pci_dev *dev)
 {
 	if (machine_is(powermac)) {
 		struct device_node *ofn = pci_device_to_OF_node(dev);
@@ -2425,8 +2426,8 @@ static void ohci_pmac_off(struct pci_dev *dev)
 	}
 }
 #else
-#define ohci_pmac_on(dev)
-#define ohci_pmac_off(dev)
+static inline void pmac_ohci_on(struct pci_dev *dev) {}
+static inline void pmac_ohci_off(struct pci_dev *dev) {}
 #endif /* CONFIG_PPC_PMAC */
 
 static int __devinit pci_probe(struct pci_dev *dev,
@@ -2446,7 +2447,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 
 	fw_card_initialize(&ohci->card, &ohci_driver, &dev->dev);
 
-	ohci_pmac_on(dev);
+	pmac_ohci_on(dev);
 
 	err = pci_enable_device(dev);
 	if (err) {
@@ -2580,7 +2581,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	pci_disable_device(dev);
  fail_free:
 	kfree(&ohci->card);
-	ohci_pmac_off(dev);
+	pmac_ohci_off(dev);
  fail:
 	if (err == -ENOMEM)
 		fw_error("Out of memory\n");
@@ -2623,7 +2624,7 @@ static void pci_remove(struct pci_dev *dev)
 	pci_release_region(dev, 0);
 	pci_disable_device(dev);
 	kfree(&ohci->card);
-	ohci_pmac_off(dev);
+	pmac_ohci_off(dev);
 
 	fw_notify("Removed fw-ohci device.\n");
 }
@@ -2644,7 +2645,7 @@ static int pci_suspend(struct pci_dev *dev, pm_message_t state)
 	err = pci_set_power_state(dev, pci_choose_state(dev, state));
 	if (err)
 		fw_error("pci_set_power_state failed with %d\n", err);
-	ohci_pmac_off(dev);
+	pmac_ohci_off(dev);
 
 	return 0;
 }
@@ -2654,7 +2655,7 @@ static int pci_resume(struct pci_dev *dev)
 	struct fw_ohci *ohci = pci_get_drvdata(dev);
 	int err;
 
-	ohci_pmac_on(dev);
+	pmac_ohci_on(dev);
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
 	err = pci_enable_device(dev);
