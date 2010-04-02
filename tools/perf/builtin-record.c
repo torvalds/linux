@@ -592,6 +592,13 @@ static int __cmd_record(int argc, const char **argv)
 			pr_err("Couldn't synthesize attrs.\n");
 			return err;
 		}
+
+		err = event__synthesize_event_types(process_synthesized_event,
+						    session);
+		if (err < 0) {
+			pr_err("Couldn't synthesize event_types.\n");
+			return err;
+		}
 	}
 
 	err = event__synthesize_kernel_mmap(process_synthesized_event,

@@ -85,6 +85,7 @@ struct build_id_event {
 
 enum perf_header_event_type { /* above any possible kernel type */
 	PERF_RECORD_HEADER_ATTR			= 64,
+	PERF_RECORD_HEADER_EVENT_TYPE		= 65,
 	PERF_RECORD_HEADER_MAX
 };
 
@@ -92,6 +93,18 @@ struct attr_event {
 	struct perf_event_header header;
 	struct perf_event_attr attr;
 	u64 id[];
+};
+
+#define MAX_EVENT_NAME 64
+
+struct perf_trace_event_type {
+	u64	event_id;
+	char	name[MAX_EVENT_NAME];
+};
+
+struct event_type_event {
+	struct perf_event_header header;
+	struct perf_trace_event_type event_type;
 };
 
 typedef union event_union {
@@ -104,6 +117,7 @@ typedef union event_union {
 	struct read_event		read;
 	struct sample_event		sample;
 	struct attr_event		attr;
+	struct event_type_event		event_type;
 } event_t;
 
 struct events_stats {

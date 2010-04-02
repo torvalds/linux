@@ -103,4 +103,13 @@ int event__synthesize_attrs(struct perf_header *self,
 			    struct perf_session *session);
 int event__process_attr(event_t *self, struct perf_session *session);
 
+int event__synthesize_event_type(u64 event_id, char *name,
+				 event__handler_t process,
+				 struct perf_session *session);
+int event__synthesize_event_types(event__handler_t process,
+				  struct perf_session *session);
+int event__process_event_type(event_t *self,
+			      struct perf_session *session);
+
+
 #endif /* __PERF_HEADER_H */

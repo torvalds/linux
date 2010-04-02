@@ -202,6 +202,8 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 		handler->unthrottle = process_event_stub;
 	if (handler->attr == NULL)
 		handler->attr = process_event_stub;
+	if (handler->event_type == NULL)
+		handler->event_type = process_event_stub;
 }
 
 static const char *event__name[] = {
@@ -216,6 +218,7 @@ static const char *event__name[] = {
 	[PERF_RECORD_READ]	 = "READ",
 	[PERF_RECORD_SAMPLE]	 = "SAMPLE",
 	[PERF_RECORD_HEADER_ATTR]	 = "ATTR",
+	[PERF_RECORD_HEADER_EVENT_TYPE]	 = "EVENT_TYPE",
 };
 
 unsigned long event__total[PERF_RECORD_HEADER_MAX];
@@ -302,6 +305,12 @@ static void event__attr_swap(event_t *self)
 	mem_bswap_64(self->attr.id, size);
 }
 
+static void event__event_type_swap(event_t *self)
+{
+	self->event_type.event_type.event_id =
+		bswap_64(self->event_type.event_type.event_id);
+}
+
 typedef void (*event__swap_op)(event_t *self);
 
 static event__swap_op event__swap_ops[] = {
@@ -313,6 +322,7 @@ static event__swap_op event__swap_ops[] = {
 	[PERF_RECORD_READ]   = event__read_swap,
 	[PERF_RECORD_SAMPLE] = event__all64_swap,
 	[PERF_RECORD_HEADER_ATTR]   = event__attr_swap,
+	[PERF_RECORD_HEADER_EVENT_TYPE]   = event__event_type_swap,
 	[PERF_RECORD_HEADER_MAX]    = NULL,
 };
 
@@ -355,6 +365,8 @@ static int perf_session__process_event(struct perf_session *self,
 		return ops->unthrottle(event, self);
 	case PERF_RECORD_HEADER_ATTR:
 		return ops->attr(event, self);
+	case PERF_RECORD_HEADER_EVENT_TYPE:
+		return ops->event_type(event, self);
 	default:
 		self->unknown_events++;
 		return -1;

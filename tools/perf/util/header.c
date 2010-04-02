@@ -99,13 +99,6 @@ int perf_header__add_attr(struct perf_header *self,
 	return 0;
 }
 
-#define MAX_EVENT_NAME 64
-
-struct perf_trace_event_type {
-	u64	event_id;
-	char	name[MAX_EVENT_NAME];
-};
-
 static int event_count;
 static struct perf_trace_event_type *events;
 
@@ -883,6 +876,61 @@ int event__process_attr(event_t *self, struct perf_session *session)
 	}
 
 	perf_session__update_sample_type(session);
+
+	return 0;
+}
+
+int event__synthesize_event_type(u64 event_id, char *name,
+				 event__handler_t process,
+				 struct perf_session *session)
+{
+	event_t ev;
+	size_t size = 0;
+	int err = 0;
+
+	memset(&ev, 0, sizeof(ev));
+
+	ev.event_type.event_type.event_id = event_id;
+	memset(ev.event_type.event_type.name, 0, MAX_EVENT_NAME);
+	strncpy(ev.event_type.event_type.name, name, MAX_EVENT_NAME - 1);
+
+	ev.event_type.header.type = PERF_RECORD_HEADER_EVENT_TYPE;
+	size = strlen(name);
+	size = ALIGN(size, sizeof(u64));
+	ev.event_type.header.size = sizeof(ev.event_type) -
+		(sizeof(ev.event_type.event_type.name) - size);
+
+	err = process(&ev, session);
+
+	return err;
+}
+
+int event__synthesize_event_types(event__handler_t process,
+				  struct perf_session *session)
+{
+	struct perf_trace_event_type *type;
+	int i, err = 0;
+
+	for (i = 0; i < event_count; i++) {
+		type = &events[i];
+
+		err = event__synthesize_event_type(type->event_id, type->name,
+						   process, session);
+		if (err) {
+			pr_debug("failed to create perf header event type\n");
+			return err;
+		}
+	}
+
+	return err;
+}
+
+int event__process_event_type(event_t *self,
+			      struct perf_session *session __unused)
+{
+	if (perf_header__push_event(self->event_type.event_type.event_id,
+				    self->event_type.event_type.name) < 0)
+		return -ENOMEM;
 
 	return 0;
 }
