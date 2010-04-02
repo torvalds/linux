@@ -383,12 +383,23 @@ static DEVICE_ATTR(autosuspend, S_IRUGO | S_IWUSR,
 static const char on_string[] = "on";
 static const char auto_string[] = "auto";
 
+static void warn_level(void) {
+	static int level_warned;
+
+	if (!level_warned) {
+		level_warned = 1;
+		printk(KERN_WARNING "WARNING! power/level is deprecated; "
+				"use power/control instead\n");
+	}
+}
+
 static ssize_t
 show_level(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev = to_usb_device(dev);
 	const char *p = auto_string;
 
+	warn_level();
 	if (udev->state != USB_STATE_SUSPENDED && !udev->dev.power.runtime_auto)
 		p = on_string;
 	return sprintf(buf, "%s\n", p);
@@ -403,6 +414,7 @@ set_level(struct device *dev, struct device_attribute *attr,
 	char *cp;
 	int rc = count;
 
+	warn_level();
 	cp = memchr(buf, '\n', count);
 	if (cp)
 		len = cp - buf;
