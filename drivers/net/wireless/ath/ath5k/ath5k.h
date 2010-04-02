@@ -203,6 +203,7 @@
 #define AR5K_TUNE_DEFAULT_TXPOWER		25
 #define AR5K_TUNE_TPC_TXPOWER			false
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_FULL    10000   /* 10 sec */
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_ANI	1000	/* 1 sec */
 
 #define AR5K_INIT_CARR_SENSE_EN			1
 
@@ -800,9 +801,9 @@ struct ath5k_athchan_2ghz {
  * @AR5K_INT_TXURN: received when we should increase the TX trigger threshold
  * 	We currently do increments on interrupt by
  * 	(AR5K_TUNE_MAX_TX_FIFO_THRES - current_trigger_level) / 2
- * @AR5K_INT_MIB: Indicates the Management Information Base counters should be
- * 	checked. We should do this with ath5k_hw_update_mib_counters() but
- * 	it seems we should also then do some noise immunity work.
+ * @AR5K_INT_MIB: Indicates the either Management Information Base counters or
+ *	one of the PHY error counters reached the maximum value and should be
+ *	read and cleared.
  * @AR5K_INT_RXPHY: RX PHY Error
  * @AR5K_INT_RXKCM: RX Key cache miss
  * @AR5K_INT_SWBA: SoftWare Beacon Alert - indicates its time to send a
@@ -894,6 +895,7 @@ enum ath5k_int {
 enum ath5k_calibration_mask {
 	AR5K_CALIBRATION_FULL = 0x01,
 	AR5K_CALIBRATION_SHORT = 0x02,
+	AR5K_CALIBRATION_ANI = 0x04,
 };
 
 /*
@@ -1115,6 +1117,7 @@ struct ath5k_hw {
 
 	/* Calibration timestamp */
 	unsigned long		ah_cal_next_full;
+	unsigned long		ah_cal_next_ani;
 
 	/* Calibration mask */
 	u8			ah_cal_mask;

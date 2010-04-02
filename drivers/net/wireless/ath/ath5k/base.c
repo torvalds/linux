@@ -58,6 +58,7 @@
 #include "base.h"
 #include "reg.h"
 #include "debug.h"
+#include "ani.h"
 
 static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
@@ -363,6 +364,7 @@ static void 	ath5k_beacon_send(struct ath5k_softc *sc);
 static void 	ath5k_beacon_config(struct ath5k_softc *sc);
 static void	ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf);
 static void	ath5k_tasklet_beacon(unsigned long data);
+static void	ath5k_tasklet_ani(unsigned long data);
 
 static inline u64 ath5k_extend_tsf(struct ath5k_hw *ah, u32 rstamp)
 {
@@ -828,6 +830,7 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	tasklet_init(&sc->restq, ath5k_tasklet_reset, (unsigned long)sc);
 	tasklet_init(&sc->calib, ath5k_tasklet_calibrate, (unsigned long)sc);
 	tasklet_init(&sc->beacontq, ath5k_tasklet_beacon, (unsigned long)sc);
+	tasklet_init(&sc->ani_tasklet, ath5k_tasklet_ani, (unsigned long)sc);
 
 	ret = ath5k_eeprom_read_mac(ah, mac);
 	if (ret) {
@@ -2530,7 +2533,8 @@ ath5k_init(struct ath5k_softc *sc)
 	sc->curband = &sc->sbands[sc->curchan->band];
 	sc->imask = AR5K_INT_RXOK | AR5K_INT_RXERR | AR5K_INT_RXEOL |
 		AR5K_INT_RXORN | AR5K_INT_TXDESC | AR5K_INT_TXEOL |
-		AR5K_INT_FATAL | AR5K_INT_GLOBAL;
+		AR5K_INT_FATAL | AR5K_INT_GLOBAL | AR5K_INT_MIB;
+
 	ret = ath5k_reset(sc, NULL);
 	if (ret)
 		goto done;
@@ -2642,6 +2646,7 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 	tasklet_kill(&sc->restq);
 	tasklet_kill(&sc->calib);
 	tasklet_kill(&sc->beacontq);
+	tasklet_kill(&sc->ani_tasklet);
 
 	ath5k_rfkill_hw_stop(sc->ah);
 
@@ -2651,7 +2656,14 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 static void
 ath5k_intr_calibration_poll(struct ath5k_hw *ah)
 {
-	if (time_is_before_eq_jiffies(ah->ah_cal_next_full)) {
+	if (time_is_before_eq_jiffies(ah->ah_cal_next_ani) &&
+	    !(ah->ah_cal_mask & AR5K_CALIBRATION_FULL)) {
+		/* run ANI only when full calibration is not active */
+		ah->ah_cal_next_ani = jiffies +
+			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_ANI);
+		tasklet_schedule(&ah->ah_sc->ani_tasklet);
+
+	} else if (time_is_before_eq_jiffies(ah->ah_cal_next_full)) {
 		ah->ah_cal_next_full = jiffies +
 			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
 		tasklet_schedule(&ah->ah_sc->calib);
@@ -2710,7 +2722,9 @@ ath5k_intr(int irq, void *dev_id)
 				/* TODO */
 			}
 			if (status & AR5K_INT_MIB) {
+				sc->stats.mib_intr++;
 				ath5k_hw_update_mib_counters(ah);
+				ath5k_ani_mib_intr(ah);
 			}
 			if (status & AR5K_INT_GPIO)
 				tasklet_schedule(&sc->rf_kill.toggleq);
@@ -2772,6 +2786,18 @@ ath5k_tasklet_calibrate(unsigned long data)
 	ieee80211_wake_queues(sc->hw);
 
 	ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
+}
+
+
+static void
+ath5k_tasklet_ani(unsigned long data)
+{
+	struct ath5k_softc *sc = (void *)data;
+	struct ath5k_hw *ah = sc->ah;
+
+	ah->ah_cal_mask |= AR5K_CALIBRATION_ANI;
+	ath5k_ani_calibration(ah);
+	ah->ah_cal_mask &= ~AR5K_CALIBRATION_ANI;
 }
 
 
@@ -2873,6 +2899,8 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 		ATH5K_ERR(sc, "can't start recv logic\n");
 		goto err;
 	}
+
+	ath5k_ani_init(ah, ah->ah_sc->ani_state.ani_mode);
 
 	/*
 	 * Change channels and update the h/w rate map if we're switching;

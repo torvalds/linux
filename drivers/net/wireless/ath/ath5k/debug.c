@@ -69,6 +69,7 @@ module_param_named(debug, ath5k_debug, uint, 0);
 
 #include <linux/seq_file.h>
 #include "reg.h"
+#include "ani.h"
 
 static struct dentry *ath5k_global_debugfs;
 
@@ -307,6 +308,7 @@ static const struct {
 	{ ATH5K_DEBUG_DUMP_TX,	"dumptx",	"print transmit skb content" },
 	{ ATH5K_DEBUG_DUMPBANDS, "dumpbands",	"dump bands" },
 	{ ATH5K_DEBUG_TRACE,	"trace",	"trace function calls" },
+	{ ATH5K_DEBUG_ANI,	"ani",		"adaptive noise immunity" },
 	{ ATH5K_DEBUG_ANY,	"all",		"show all debug levels" },
 };
 
@@ -573,6 +575,160 @@ static const struct file_operations fops_frameerrors = {
 };
 
 
+/* debugfs: ani */
+
+static ssize_t read_file_ani(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	struct ath5k_statistics *st = &sc->stats;
+	struct ath5k_ani_state *as = &sc->ani_state;
+
+	char buf[700];
+	unsigned int len = 0;
+
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"HW has PHY error counters:\t%s\n",
+			sc->ah->ah_capabilities.cap_has_phyerr_counters ?
+			"yes" : "no");
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"HW max spur immunity level:\t%d\n",
+			as->max_spur_level);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"\nANI state\n--------------------------------------------\n");
+	len += snprintf(buf+len, sizeof(buf)-len, "operating mode:\t\t\t");
+	switch (as->ani_mode) {
+	case ATH5K_ANI_MODE_OFF:
+		len += snprintf(buf+len, sizeof(buf)-len, "OFF\n");
+		break;
+	case ATH5K_ANI_MODE_MANUAL_LOW:
+		len += snprintf(buf+len, sizeof(buf)-len,
+			"MANUAL LOW\n");
+		break;
+	case ATH5K_ANI_MODE_MANUAL_HIGH:
+		len += snprintf(buf+len, sizeof(buf)-len,
+			"MANUAL HIGH\n");
+		break;
+	case ATH5K_ANI_MODE_AUTO:
+		len += snprintf(buf+len, sizeof(buf)-len, "AUTO\n");
+		break;
+	default:
+		len += snprintf(buf+len, sizeof(buf)-len,
+			"??? (not good)\n");
+		break;
+	}
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"noise immunity level:\t\t%d\n",
+			as->noise_imm_level);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"spur immunity level:\t\t%d\n",
+			as->spur_level);
+	len += snprintf(buf+len, sizeof(buf)-len, "firstep level:\t\t\t%d\n",
+			as->firstep_level);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"OFDM weak signal detection:\t%s\n",
+			as->ofdm_weak_sig ? "on" : "off");
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"CCK weak signal detection:\t%s\n",
+			as->cck_weak_sig ? "on" : "off");
+
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"\nMIB INTERRUPTS:\t\t%u\n",
+			st->mib_intr);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"beacon RSSI average:\t%d\n",
+			sc->ah->ah_beacon_rssi_avg.avg);
+	len += snprintf(buf+len, sizeof(buf)-len, "profcnt tx\t\t%u\t(%d%%)\n",
+			as->pfc_tx,
+			as->pfc_cycles > 0 ?
+			as->pfc_tx*100/as->pfc_cycles : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "profcnt rx\t\t%u\t(%d%%)\n",
+			as->pfc_rx,
+			as->pfc_cycles > 0 ?
+			as->pfc_rx*100/as->pfc_cycles : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "profcnt busy\t\t%u\t(%d%%)\n",
+			as->pfc_busy,
+			as->pfc_cycles > 0 ?
+			as->pfc_busy*100/as->pfc_cycles : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "profcnt cycles\t\t%u\n",
+			as->pfc_cycles);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"listen time\t\t%d\tlast: %d\n",
+			as->listen_time, as->last_listen);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"OFDM errors\t\t%u\tlast: %u\tsum: %u\n",
+			as->ofdm_errors, as->last_ofdm_errors,
+			as->sum_ofdm_errors);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"CCK errors\t\t%u\tlast: %u\tsum: %u\n",
+			as->cck_errors, as->last_cck_errors,
+			as->sum_cck_errors);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"AR5K_PHYERR_CNT1\t%x\t(=%d)\n",
+			ath5k_hw_reg_read(sc->ah, AR5K_PHYERR_CNT1),
+			ATH5K_ANI_OFDM_TRIG_HIGH - (ATH5K_PHYERR_CNT_MAX -
+			ath5k_hw_reg_read(sc->ah, AR5K_PHYERR_CNT1)));
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"AR5K_PHYERR_CNT2\t%x\t(=%d)\n",
+			ath5k_hw_reg_read(sc->ah, AR5K_PHYERR_CNT2),
+			ATH5K_ANI_CCK_TRIG_HIGH - (ATH5K_PHYERR_CNT_MAX -
+			ath5k_hw_reg_read(sc->ah, AR5K_PHYERR_CNT2)));
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_ani(struct file *file,
+				 const char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	char buf[20];
+
+	if (copy_from_user(buf, userbuf, min(count, sizeof(buf))))
+		return -EFAULT;
+
+	if (strncmp(buf, "sens-low", 8) == 0) {
+		ath5k_ani_init(sc->ah, ATH5K_ANI_MODE_MANUAL_HIGH);
+	} else if (strncmp(buf, "sens-high", 9) == 0) {
+		ath5k_ani_init(sc->ah, ATH5K_ANI_MODE_MANUAL_LOW);
+	} else if (strncmp(buf, "ani-off", 7) == 0) {
+		ath5k_ani_init(sc->ah, ATH5K_ANI_MODE_OFF);
+	} else if (strncmp(buf, "ani-on", 6) == 0) {
+		ath5k_ani_init(sc->ah, ATH5K_ANI_MODE_AUTO);
+	} else if (strncmp(buf, "noise-low", 9) == 0) {
+		ath5k_ani_set_noise_immunity_level(sc->ah, 0);
+	} else if (strncmp(buf, "noise-high", 10) == 0) {
+		ath5k_ani_set_noise_immunity_level(sc->ah,
+						   ATH5K_ANI_MAX_NOISE_IMM_LVL);
+	} else if (strncmp(buf, "spur-low", 8) == 0) {
+		ath5k_ani_set_spur_immunity_level(sc->ah, 0);
+	} else if (strncmp(buf, "spur-high", 9) == 0) {
+		ath5k_ani_set_spur_immunity_level(sc->ah,
+						  sc->ani_state.max_spur_level);
+	} else if (strncmp(buf, "fir-low", 7) == 0) {
+		ath5k_ani_set_firstep_level(sc->ah, 0);
+	} else if (strncmp(buf, "fir-high", 8) == 0) {
+		ath5k_ani_set_firstep_level(sc->ah, ATH5K_ANI_MAX_FIRSTEP_LVL);
+	} else if (strncmp(buf, "ofdm-off", 8) == 0) {
+		ath5k_ani_set_ofdm_weak_signal_detection(sc->ah, false);
+	} else if (strncmp(buf, "ofdm-on", 7) == 0) {
+		ath5k_ani_set_ofdm_weak_signal_detection(sc->ah, true);
+	} else if (strncmp(buf, "cck-off", 7) == 0) {
+		ath5k_ani_set_cck_weak_signal_detection(sc->ah, false);
+	} else if (strncmp(buf, "cck-on", 6) == 0) {
+		ath5k_ani_set_cck_weak_signal_detection(sc->ah, true);
+	}
+	return count;
+}
+
+static const struct file_operations fops_ani = {
+	.read = read_file_ani,
+	.write = write_file_ani,
+	.open = ath5k_debugfs_open,
+	.owner = THIS_MODULE,
+};
+
+
 /* init */
 
 void
@@ -611,6 +767,11 @@ ath5k_debug_init_device(struct ath5k_softc *sc)
 				S_IWUSR | S_IRUSR,
 				sc->debug.debugfs_phydir, sc,
 				&fops_frameerrors);
+
+	sc->debug.debugfs_ani = debugfs_create_file("ani",
+				S_IWUSR | S_IRUSR,
+				sc->debug.debugfs_phydir, sc,
+				&fops_ani);
 }
 
 void
@@ -628,6 +789,7 @@ ath5k_debug_finish_device(struct ath5k_softc *sc)
 	debugfs_remove(sc->debug.debugfs_reset);
 	debugfs_remove(sc->debug.debugfs_antenna);
 	debugfs_remove(sc->debug.debugfs_frameerrors);
+	debugfs_remove(sc->debug.debugfs_ani);
 	debugfs_remove(sc->debug.debugfs_phydir);
 }
 

@@ -50,6 +50,7 @@
 
 #include "ath5k.h"
 #include "debug.h"
+#include "ani.h"
 
 #include "../regd.h"
 #include "../ath.h"
@@ -132,6 +133,8 @@ struct ath5k_statistics {
 	unsigned int rts_ok;
 	unsigned int fcs_error;
 	unsigned int beacons;
+
+	unsigned int mib_intr;
 };
 
 #if CHAN_DEBUG
@@ -221,6 +224,9 @@ struct ath5k_softc {
 	bool			enable_beacon;	/* true if beacons are on */
 
 	struct ath5k_statistics	stats;
+
+	struct ath5k_ani_state	ani_state;
+	struct tasklet_struct	ani_tasklet;	/* ANI calibration */
 };
 
 #define ath5k_hw_hasbssidmask(_ah) \

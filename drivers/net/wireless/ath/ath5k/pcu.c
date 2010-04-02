@@ -379,7 +379,6 @@ void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
  * (ACK etc).
  *
  * NOTE: RX DMA should be already enabled using ath5k_hw_start_rx_dma
- * TODO: Init ANI here
  */
 void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah)
 {
