@@ -24,6 +24,7 @@
 #include <linux/mii.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/mod_devicetable.h>
 
 #include <asm/atomic.h>
 
