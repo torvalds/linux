@@ -153,6 +153,14 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 		 * through switch.
 		 */
 		return -1;
+
+	case CVMX_BOARD_TYPE_CUST_WSX16:
+		if (ipd_port >= 0 && ipd_port <= 3)
+			return ipd_port;
+		else if (ipd_port >= 16 && ipd_port <= 19)
+			return ipd_port - 16 + 4;
+		else
+			return -1;
 	}
 
 	/* Some unknown board. Somebody forgot to update this function... */
