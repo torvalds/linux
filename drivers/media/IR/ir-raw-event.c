@@ -53,13 +53,6 @@ static spinlock_t ir_raw_handler_lock;
 /* Used to load the decoders */
 static struct work_struct wq_load;
 
-static void ir_keyup_timer(unsigned long data)
-{
-	struct input_dev *input_dev = (struct input_dev *)data;
-
-	ir_keyup(input_dev);
-}
-
 int ir_raw_event_register(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir = input_get_drvdata(input_dev);
@@ -71,11 +64,6 @@ int ir_raw_event_register(struct input_dev *input_dev)
 
 	size = sizeof(struct ir_raw_event) * MAX_IR_EVENT_SIZE * 2;
 	size = roundup_pow_of_two(size);
-
-	init_timer(&ir->raw->timer_keyup);
-	ir->raw->timer_keyup.function = ir_keyup_timer;
-	ir->raw->timer_keyup.data = (unsigned long)input_dev;
-	set_bit(EV_REP, input_dev->evbit);
 
 	rc = kfifo_alloc(&ir->raw->kfifo, size, GFP_KERNEL);
 	if (rc < 0) {
@@ -102,8 +90,6 @@ void ir_raw_event_unregister(struct input_dev *input_dev)
 
 	if (!ir->raw)
 		return;
-
-	del_timer_sync(&ir->raw->timer_keyup);
 
 	RUN_DECODER(raw_unregister, input_dev);
 

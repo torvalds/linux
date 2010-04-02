@@ -180,8 +180,7 @@ static int __ir_nec_decode(struct input_dev *input_dev,
 	if (is_repeat(evs, len, *pos)) {
 		*pos += 2;
 		if (ir->keypressed) {
-			mod_timer(&ir->raw->timer_keyup,
-				jiffies + msecs_to_jiffies(REPEAT_TIME));
+			ir_repeat(input_dev);
 			IR_dprintk(1, "NEC repeat event\n");
 			return 1;
 		} else {
@@ -238,9 +237,7 @@ static int __ir_nec_decode(struct input_dev *input_dev,
 	}
 
 	IR_dprintk(1, "NEC scancode 0x%04x\n", ircode);
-	ir_keydown(input_dev, ircode);
-	mod_timer(&ir->raw->timer_keyup,
-		  jiffies + msecs_to_jiffies(REPEAT_TIME));
+	ir_keydown(input_dev, ircode, 0);
 
 	return 1;
 err:
