@@ -487,7 +487,7 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (!file_new) {
-		err = perf_header__read(&session->header, output);
+		err = perf_header__read(session, output);
 		if (err < 0)
 			return err;
 	}

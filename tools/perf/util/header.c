@@ -427,6 +427,25 @@ out_free:
 	return err;
 }
 
+int perf_header__write_pipe(int fd)
+{
+	struct perf_pipe_file_header f_header;
+	int err;
+
+	f_header = (struct perf_pipe_file_header){
+		.magic	   = PERF_MAGIC,
+		.size	   = sizeof(f_header),
+	};
+
+	err = do_write(fd, &f_header, sizeof(f_header));
+	if (err < 0) {
+		pr_debug("failed to write perf pipe header\n");
+		return err;
+	}
+
+	return 0;
+}
+
 int perf_header__write(struct perf_header *self, int fd, bool at_exit)
 {
 	struct perf_file_header f_header;
@@ -518,25 +537,10 @@ int perf_header__write(struct perf_header *self, int fd, bool at_exit)
 	return 0;
 }
 
-static int do_read(int fd, void *buf, size_t size)
-{
-	while (size) {
-		int ret = read(fd, buf, size);
-
-		if (ret <= 0)
-			return -1;
-
-		size -= ret;
-		buf += ret;
-	}
-
-	return 0;
-}
-
 static int perf_header__getbuffer64(struct perf_header *self,
 				    int fd, void *buf, size_t size)
 {
-	if (do_read(fd, buf, size))
+	if (do_read(fd, buf, size) <= 0)
 		return -1;
 
 	if (self->needs_swap)
@@ -592,7 +596,7 @@ int perf_file_header__read(struct perf_file_header *self,
 {
 	lseek(fd, 0, SEEK_SET);
 
-	if (do_read(fd, self, sizeof(*self)) ||
+	if (do_read(fd, self, sizeof(*self)) <= 0 ||
 	    memcmp(&self->magic, __perf_magic, sizeof(self->magic)))
 		return -1;
 
@@ -662,12 +666,50 @@ static int perf_file_section__process(struct perf_file_section *self,
 	return 0;
 }
 
-int perf_header__read(struct perf_header *self, int fd)
+static int perf_file_header__read_pipe(struct perf_pipe_file_header *self,
+				       struct perf_header *ph, int fd)
 {
+	if (do_read(fd, self, sizeof(*self)) <= 0 ||
+	    memcmp(&self->magic, __perf_magic, sizeof(self->magic)))
+		return -1;
+
+	if (self->size != sizeof(*self)) {
+		u64 size = bswap_64(self->size);
+
+		if (size != sizeof(*self))
+			return -1;
+
+		ph->needs_swap = true;
+	}
+
+	return 0;
+}
+
+static int perf_header__read_pipe(struct perf_session *session, int fd)
+{
+	struct perf_header *self = &session->header;
+	struct perf_pipe_file_header f_header;
+
+	if (perf_file_header__read_pipe(&f_header, self, fd) < 0) {
+		pr_debug("incompatible file format\n");
+		return -EINVAL;
+	}
+
+	session->fd = fd;
+
+	return 0;
+}
+
+int perf_header__read(struct perf_session *session, int fd)
+{
+	struct perf_header *self = &session->header;
 	struct perf_file_header	f_header;
 	struct perf_file_attr	f_attr;
 	u64			f_id;
 	int nr_attrs, nr_ids, i, j;
+
+	if (session->fd_pipe)
+		return perf_header__read_pipe(session, fd);
 
 	if (perf_file_header__read(&f_header, self, fd) < 0) {
 		pr_debug("incompatible file format\n");

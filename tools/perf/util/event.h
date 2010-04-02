@@ -83,6 +83,10 @@ struct build_id_event {
 	char			 filename[];
 };
 
+enum perf_header_event_type { /* above any possible kernel type */
+	PERF_RECORD_HEADER_MAX			= 64,
+};
+
 typedef union event_union {
 	struct perf_event_header	header;
 	struct ip_event			ip;

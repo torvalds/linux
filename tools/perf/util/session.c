@@ -14,6 +14,16 @@ static int perf_session__open(struct perf_session *self, bool force)
 {
 	struct stat input_stat;
 
+	if (!strcmp(self->filename, "-")) {
+		self->fd_pipe = true;
+		self->fd = STDIN_FILENO;
+
+		if (perf_header__read(self, self->fd) < 0)
+			pr_err("incompatible file format");
+
+		return 0;
+	}
+
 	self->fd = open(self->filename, O_RDONLY);
 	if (self->fd < 0) {
 		pr_err("failed to open file: %s", self->filename);
@@ -38,7 +48,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 		goto out_close;
 	}
 
-	if (perf_header__read(&self->header, self->fd) < 0) {
+	if (perf_header__read(self, self->fd) < 0) {
 		pr_err("incompatible file format");
 		goto out_close;
 	}
@@ -50,6 +60,11 @@ out_close:
 	close(self->fd);
 	self->fd = -1;
 	return -1;
+}
+
+void perf_session__update_sample_type(struct perf_session *self)
+{
+	self->sample_type = perf_header__sample_type(&self->header);
 }
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force)
@@ -85,7 +100,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 			goto out_delete;
 	}
 
-	self->sample_type = perf_header__sample_type(&self->header);
+	perf_session__update_sample_type(self);
 out:
 	return self;
 out_free:
@@ -200,14 +215,17 @@ static const char *event__name[] = {
 	[PERF_RECORD_SAMPLE]	 = "SAMPLE",
 };
 
-unsigned long event__total[PERF_RECORD_MAX];
+unsigned long event__total[PERF_RECORD_HEADER_MAX];
 
 void event__print_totals(void)
 {
 	int i;
-	for (i = 0; i < PERF_RECORD_MAX; ++i)
+	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
+		if (!event__name[i])
+			continue;
 		pr_info("%10s events: %10ld\n",
 			event__name[i], event__total[i]);
+	}
 }
 
 void mem_bswap_64(void *src, int byte_size)
@@ -271,7 +289,7 @@ static event__swap_op event__swap_ops[] = {
 	[PERF_RECORD_LOST]   = event__all64_swap,
 	[PERF_RECORD_READ]   = event__read_swap,
 	[PERF_RECORD_SAMPLE] = event__all64_swap,
-	[PERF_RECORD_MAX]    = NULL,
+	[PERF_RECORD_HEADER_MAX]    = NULL,
 };
 
 static int perf_session__process_event(struct perf_session *self,
@@ -281,7 +299,7 @@ static int perf_session__process_event(struct perf_session *self,
 {
 	trace_event(event);
 
-	if (event->header.type < PERF_RECORD_MAX) {
+	if (event->header.type < PERF_RECORD_HEADER_MAX) {
 		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
 			    offset + head, event->header.size,
 			    event__name[event->header.type]);
@@ -374,6 +392,101 @@ static struct thread *perf_session__register_idle_thread(struct perf_session *se
 	}
 
 	return thread;
+}
+
+int do_read(int fd, void *buf, size_t size)
+{
+	void *buf_start = buf;
+
+	while (size) {
+		int ret = read(fd, buf, size);
+
+		if (ret <= 0)
+			return ret;
+
+		size -= ret;
+		buf += ret;
+	}
+
+	return buf - buf_start;
+}
+
+#define session_done()	(*(volatile int *)(&session_done))
+volatile int session_done;
+
+static int __perf_session__process_pipe_events(struct perf_session *self,
+					       struct perf_event_ops *ops)
+{
+	event_t event;
+	uint32_t size;
+	int skip = 0;
+	u64 head;
+	int err;
+	void *p;
+
+	perf_event_ops__fill_defaults(ops);
+
+	head = 0;
+more:
+	err = do_read(self->fd, &event, sizeof(struct perf_event_header));
+	if (err <= 0) {
+		if (err == 0)
+			goto done;
+
+		pr_err("failed to read event header\n");
+		goto out_err;
+	}
+
+	if (self->header.needs_swap)
+		perf_event_header__bswap(&event.header);
+
+	size = event.header.size;
+	if (size == 0)
+		size = 8;
+
+	p = &event;
+	p += sizeof(struct perf_event_header);
+
+	err = do_read(self->fd, p, size - sizeof(struct perf_event_header));
+	if (err <= 0) {
+		if (err == 0) {
+			pr_err("unexpected end of event stream\n");
+			goto done;
+		}
+
+		pr_err("failed to read event data\n");
+		goto out_err;
+	}
+
+	if (size == 0 ||
+	    (skip = perf_session__process_event(self, &event, ops,
+						0, head)) < 0) {
+		dump_printf("%#Lx [%#x]: skipping unknown header type: %d\n",
+			    head, event.header.size, event.header.type);
+		/*
+		 * assume we lost track of the stream, check alignment, and
+		 * increment a single u64 in the hope to catch on again 'soon'.
+		 */
+		if (unlikely(head & 7))
+			head &= ~7ULL;
+
+		size = 8;
+	}
+
+	head += size;
+
+	dump_printf("\n%#Lx [%#x]: event: %d\n",
+		    head, event.header.size, event.header.type);
+
+	if (skip > 0)
+		head += skip;
+
+	if (!session_done())
+		goto more;
+done:
+	err = 0;
+out_err:
+	return err;
 }
 
 int __perf_session__process_events(struct perf_session *self,
@@ -499,9 +612,13 @@ out_getcwd_err:
 		self->cwdlen = strlen(self->cwd);
 	}
 
-	err = __perf_session__process_events(self, self->header.data_offset,
-					     self->header.data_size,
-					     self->size, ops);
+	if (!self->fd_pipe)
+		err = __perf_session__process_events(self,
+						     self->header.data_offset,
+						     self->header.data_size,
+						     self->size, ops);
+	else
+		err = __perf_session__process_pipe_events(self, ops);
 out_err:
 	return err;
 }
