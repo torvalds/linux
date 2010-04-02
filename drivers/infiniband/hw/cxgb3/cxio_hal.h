@@ -71,7 +71,7 @@ struct cxio_hal_ctrl_qp {
 	wait_queue_head_t waitq;/* wait for RspQ/CQE msg */
 	union t3_wr *workq;	/* the work request queue */
 	dma_addr_t dma_addr;	/* pci bus address of the workq */
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	void __iomem *doorbell;
 };
 
