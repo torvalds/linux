@@ -1336,7 +1336,7 @@ int drbd_rs_del_all(struct drbd_conf *mdev)
 		/* ok, ->resync is there. */
 		for (i = 0; i < mdev->resync->nr_elements; i++) {
 			e = lc_element_by_index(mdev->resync, i);
-			bm_ext = e ? lc_entry(e, struct bm_extent, lce) : NULL;
+			bm_ext = lc_entry(e, struct bm_extent, lce);
 			if (bm_ext->lce.lc_number == LC_FREE)
 				continue;
 			if (bm_ext->lce.lc_number == mdev->resync_wenr) {
