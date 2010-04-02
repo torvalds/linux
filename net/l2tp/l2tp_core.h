@@ -133,7 +133,9 @@ struct l2tp_session {
 	void (*session_close)(struct l2tp_session *session);
 	void (*ref)(struct l2tp_session *session);
 	void (*deref)(struct l2tp_session *session);
-
+#ifdef CONFIG_L2TP_DEBUGFS
+	void (*show)(struct seq_file *m, void *priv);
+#endif
 	uint8_t			priv[0];	/* private data */
 };
 
@@ -166,7 +168,9 @@ struct l2tp_tunnel {
 	struct net		*l2tp_net;	/* the net we belong to */
 
 	atomic_t		ref_count;
-
+#ifdef CONFIG_DEBUG_FS
+	void (*show)(struct seq_file *m, void *arg);
+#endif
 	int (*recv_payload_hook)(struct sk_buff *skb);
 	void (*old_sk_destruct)(struct sock *);
 	struct sock		*sock;		/* Parent socket */

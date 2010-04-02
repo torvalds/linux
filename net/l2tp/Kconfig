@@ -31,6 +31,19 @@ menuconfig L2TP
 	  If you don't need L2TP, say N. To compile all L2TP code as
 	  modules, choose M here.
 
+config L2TP_DEBUGFS
+	tristate "L2TP debugfs support"
+	depends on L2TP && DEBUG_FS
+	help
+	  Support for l2tp directory in debugfs filesystem. This may be
+	  used to dump internal state of the l2tp drivers for problem
+	  analysis.
+
+	  If unsure, say 'Y'.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called l2tp_debugfs.
+
 config L2TP_V3
 	bool "L2TPv3 support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && L2TP

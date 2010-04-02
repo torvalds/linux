@@ -597,6 +597,20 @@ out:
 	return error;
 }
 
+#ifdef CONFIG_L2TP_DEBUGFS
+static void pppol2tp_show(struct seq_file *m, void *arg)
+{
+	struct l2tp_session *session = arg;
+	struct pppol2tp_session *ps = l2tp_session_priv(session);
+
+	if (ps) {
+		struct pppox_sock *po = pppox_sk(ps->sock);
+		if (po)
+			seq_printf(m, "   interface %s\n", ppp_dev_name(&po->chan));
+	}
+}
+#endif
+
 /* connect() handler. Attach a PPPoX socket to a tunnel UDP socket
  */
 static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
@@ -734,6 +748,9 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 
 	session->recv_skb	= pppol2tp_recv;
 	session->session_close	= pppol2tp_session_close;
+#ifdef CONFIG_L2TP_DEBUGFS
+	session->show		= pppol2tp_show;
+#endif
 
 	/* We need to know each time a skb is dropped from the reorder
 	 * queue.

@@ -172,6 +172,17 @@ static void l2tp_eth_delete(struct l2tp_session *session)
 	}
 }
 
+#ifdef CONFIG_L2TP_DEBUGFS
+static void l2tp_eth_show(struct seq_file *m, void *arg)
+{
+	struct l2tp_session *session = arg;
+	struct l2tp_eth_sess *spriv = l2tp_session_priv(session);
+	struct net_device *dev = spriv->dev;
+
+	seq_printf(m, "   interface %s\n", dev->name);
+}
+#endif
+
 static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 peer_session_id, struct l2tp_session_cfg *cfg)
 {
 	struct net_device *dev;
@@ -233,6 +244,9 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 	priv->tunnel_sock = tunnel->sock;
 	session->recv_skb = l2tp_eth_dev_recv;
 	session->session_close = l2tp_eth_delete;
+#ifdef CONFIG_L2TP_DEBUGFS
+	session->show = l2tp_eth_show;
+#endif
 
 	spriv = l2tp_session_priv(session);
 	spriv->dev = dev;
