@@ -332,6 +332,7 @@ static void reset_connection(struct ceph_connection *con)
 		con->out_msg = NULL;
 	}
 	con->in_seq = 0;
+	con->in_seq_acked = 0;
 }
 
 /*
