@@ -444,6 +444,7 @@ struct xhci_doorbell_array {
 
 /* Endpoint Target - bits 0:7 */
 #define EPI_TO_DB(p)		(((p) + 1) & 0xff)
+#define STREAM_ID_TO_DB(p)	(((p) & 0xffff) << 16)
 
 
 /**
@@ -714,6 +715,7 @@ struct xhci_virt_ep {
 	/* The TRB that was last reported in a stopped endpoint ring */
 	union xhci_trb		*stopped_trb;
 	struct xhci_td		*stopped_td;
+	unsigned int		stopped_stream;
 	/* Watchdog timer for stop endpoint command to cancel URBs */
 	struct timer_list	stop_cmd_timer;
 	int			stop_cmds_pending;
@@ -870,6 +872,10 @@ struct xhci_event_cmd {
 /* Stop Endpoint TRB - ep_index to endpoint ID for this TRB */
 #define TRB_TO_EP_INDEX(p)		((((p) & (0x1f << 16)) >> 16) - 1)
 #define	EP_ID_FOR_TRB(p)		((((p) + 1) & 0x1f) << 16)
+
+/* Set TR Dequeue Pointer command TRB fields */
+#define TRB_TO_STREAM_ID(p)		((((p) & (0xffff << 16)) >> 16))
+#define STREAM_ID_FOR_TRB(p)		((((p)) & 0xffff) << 16)
 
 
 /* Port Status Change Event TRB fields */
@@ -1040,6 +1046,7 @@ struct xhci_ring {
 	 * if we own the TRB (if we are the consumer).  See section 4.9.1.
 	 */
 	u32			cycle_state;
+	unsigned int		stream_id;
 };
 
 struct xhci_erst_entry {
@@ -1265,6 +1272,9 @@ void xhci_dbg_ring_ptrs(struct xhci_hcd *xhci, struct xhci_ring *ring);
 void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx, unsigned int last_ep);
 char *xhci_get_slot_state(struct xhci_hcd *xhci,
 		struct xhci_container_ctx *ctx);
+void xhci_dbg_ep_rings(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		struct xhci_virt_ep *ep);
 
 /* xHCI memory management */
 void xhci_mem_cleanup(struct xhci_hcd *xhci);
@@ -1302,6 +1312,18 @@ void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,
 void xhci_setup_no_streams_ep_input_ctx(struct xhci_hcd *xhci,
 		struct xhci_ep_ctx *ep_ctx,
 		struct xhci_virt_ep *ep);
+struct xhci_ring *xhci_dma_to_transfer_ring(
+		struct xhci_virt_ep *ep,
+		u64 address);
+struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
+		struct urb *urb);
+struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		unsigned int stream_id);
+struct xhci_ring *xhci_stream_id_to_ring(
+		struct xhci_virt_device *dev,
+		unsigned int ep_index,
+		unsigned int stream_id);
 struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 		bool allocate_in_ctx, bool allocate_completion,
 		gfp_t mem_flags);
@@ -1374,9 +1396,11 @@ int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,
 int xhci_queue_reset_device(struct xhci_hcd *xhci, u32 slot_id);
 void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
-		struct xhci_td *cur_td, struct xhci_dequeue_state *state);
+		unsigned int stream_id, struct xhci_td *cur_td,
+		struct xhci_dequeue_state *state);
 void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
+		unsigned int stream_id,
 		struct xhci_dequeue_state *deq_state);
 void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 		struct usb_device *udev, unsigned int ep_index);

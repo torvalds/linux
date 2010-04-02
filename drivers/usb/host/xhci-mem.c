@@ -353,8 +353,19 @@ struct xhci_stream_ctx *xhci_alloc_stream_ctx(struct xhci_hcd *xhci,
 				mem_flags, dma);
 }
 
+struct xhci_ring *xhci_dma_to_transfer_ring(
+		struct xhci_virt_ep *ep,
+		u64 address)
+{
+	if (ep->ep_state & EP_HAS_STREAMS)
+		return radix_tree_lookup(&ep->stream_info->trb_address_map,
+				address >> SEGMENT_SHIFT);
+	return ep->ring;
+}
+
+/* Only use this when you know stream_info is valid */
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
-struct xhci_ring *dma_to_stream_ring(
+static struct xhci_ring *dma_to_stream_ring(
 		struct xhci_stream_info *stream_info,
 		u64 address)
 {
@@ -362,6 +373,66 @@ struct xhci_ring *dma_to_stream_ring(
 			address >> SEGMENT_SHIFT);
 }
 #endif	/* CONFIG_USB_XHCI_HCD_DEBUGGING */
+
+struct xhci_ring *xhci_stream_id_to_ring(
+		struct xhci_virt_device *dev,
+		unsigned int ep_index,
+		unsigned int stream_id)
+{
+	struct xhci_virt_ep *ep = &dev->eps[ep_index];
+
+	if (stream_id == 0)
+		return ep->ring;
+	if (!ep->stream_info)
+		return NULL;
+
+	if (stream_id > ep->stream_info->num_streams)
+		return NULL;
+	return ep->stream_info->stream_rings[stream_id];
+}
+
+struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		unsigned int stream_id)
+{
+	struct xhci_virt_ep *ep;
+
+	ep = &xhci->devs[slot_id]->eps[ep_index];
+	/* Common case: no streams */
+	if (!(ep->ep_state & EP_HAS_STREAMS))
+		return ep->ring;
+
+	if (stream_id == 0) {
+		xhci_warn(xhci,
+				"WARN: Slot ID %u, ep index %u has streams, "
+				"but URB has no stream ID.\n",
+				slot_id, ep_index);
+		return NULL;
+	}
+
+	if (stream_id < ep->stream_info->num_streams)
+		return ep->stream_info->stream_rings[stream_id];
+
+	xhci_warn(xhci,
+			"WARN: Slot ID %u, ep index %u has "
+			"stream IDs 1 to %u allocated, "
+			"but stream ID %u is requested.\n",
+			slot_id, ep_index,
+			ep->stream_info->num_streams - 1,
+			stream_id);
+	return NULL;
+}
+
+/* Get the right ring for the given URB.
+ * If the endpoint supports streams, boundary check the URB's stream ID.
+ * If the endpoint doesn't support streams, return the singular endpoint ring.
+ */
+struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
+		struct urb *urb)
+{
+	return xhci_triad_to_transfer_ring(xhci, urb->dev->slot_id,
+		xhci_get_endpoint_index(&urb->ep->desc), urb->stream_id);
+}
 
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
 static int xhci_test_radix_tree(struct xhci_hcd *xhci,
@@ -515,6 +586,7 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 		cur_ring = stream_info->stream_rings[cur_stream];
 		if (!cur_ring)
 			goto cleanup_rings;
+		cur_ring->stream_id = cur_stream;
 		/* Set deq ptr, cycle bit, and stream context type */
 		addr = cur_ring->first_seg->dma |
 			SCT_FOR_CTX(SCT_PRI_TR) |
