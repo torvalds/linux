@@ -29,6 +29,10 @@
 
 void rcu_sched_qs(int cpu);
 void rcu_bh_qs(int cpu);
+static inline void rcu_note_context_switch(int cpu)
+{
+	rcu_sched_qs(cpu);
+}
 
 #define __rcu_read_lock()	preempt_disable()
 #define __rcu_read_unlock()	preempt_enable()

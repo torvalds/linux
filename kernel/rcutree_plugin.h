@@ -75,13 +75,19 @@ EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
  * that this just means that the task currently running on the CPU is
  * not in a quiescent state.  There might be any number of tasks blocked
  * while in an RCU read-side critical section.
+ *
+ * Unlike the other rcu_*_qs() functions, callers to this function
+ * must disable irqs in order to protect the assignment to
+ * ->rcu_read_unlock_special.
  */
 static void rcu_preempt_qs(int cpu)
 {
 	struct rcu_data *rdp = &per_cpu(rcu_preempt_data, cpu);
+
 	rdp->passed_quiesc_completed = rdp->gpnum - 1;
 	barrier();
 	rdp->passed_quiesc = 1;
+	current->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
 }
 
 /*
@@ -144,9 +150,8 @@ static void rcu_preempt_note_context_switch(int cpu)
 	 * grace period, then the fact that the task has been enqueued
 	 * means that we continue to block the current grace period.
 	 */
-	rcu_preempt_qs(cpu);
 	local_irq_save(flags);
-	t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
+	rcu_preempt_qs(cpu);
 	local_irq_restore(flags);
 }
 
@@ -236,7 +241,6 @@ static void rcu_read_unlock_special(struct task_struct *t)
 	 */
 	special = t->rcu_read_unlock_special;
 	if (special & RCU_READ_UNLOCK_NEED_QS) {
-		t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
 		rcu_preempt_qs(smp_processor_id());
 	}
 
@@ -473,7 +477,6 @@ static void rcu_preempt_check_callbacks(int cpu)
 	struct task_struct *t = current;
 
 	if (t->rcu_read_lock_nesting == 0) {
-		t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
 		rcu_preempt_qs(cpu);
 		return;
 	}
