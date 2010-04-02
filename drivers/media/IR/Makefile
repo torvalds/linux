@@ -1,4 +1,4 @@
-ir-common-objs  := ir-functions.o ir-keymaps.o
+ir-common-objs  := ir-functions.o
 ir-core-objs	:= ir-keytable.o ir-sysfs.o ir-raw-event.o rc-map.o
 
 obj-y += keymaps/
