@@ -512,10 +512,13 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Allocate and init all Tx and Command queues */
-	ret = iwlagn_txq_ctx_reset(priv);
-	if (ret)
-		return ret;
+	/* Allocate or reset and init all Tx and Command queues */
+	if (!priv->txq) {
+		ret = iwlagn_txq_ctx_alloc(priv);
+		if (ret)
+			return ret;
+	} else
+		iwlagn_txq_ctx_reset(priv);
 
 	set_bit(STATUS_INIT, &priv->status);
 

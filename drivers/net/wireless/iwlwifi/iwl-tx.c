@@ -394,6 +394,26 @@ out_free_arrays:
 }
 EXPORT_SYMBOL(iwl_tx_queue_init);
 
+void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+			int slots_num, u32 txq_id)
+{
+	int actual_slots = slots_num;
+
+	if (txq_id == IWL_CMD_QUEUE_NUM)
+		actual_slots++;
+
+	memset(txq->meta, 0, sizeof(struct iwl_cmd_meta) * actual_slots);
+
+	txq->need_update = 0;
+
+	/* Initialize queue's high/low-water marks, and head/tail indexes */
+	iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
+
+	/* Tell device where to find queue */
+	priv->cfg->ops->lib->txq_init(priv, txq);
+}
+EXPORT_SYMBOL(iwl_tx_queue_reset);
+
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
 
 /**
