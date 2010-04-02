@@ -52,6 +52,11 @@ struct ir_scancode_table {
 	spinlock_t		lock;
 };
 
+struct rc_keymap {
+	struct list_head	 list;
+	struct ir_scancode_table map;
+};
+
 struct ir_dev_props {
 	unsigned long allowed_protos;
 	void 		*priv;
@@ -125,6 +130,12 @@ int ir_input_register(struct input_dev *dev,
 		      const struct ir_dev_props *props,
 		      const char *driver_name);
 void ir_input_unregister(struct input_dev *input_dev);
+
+/* Routines from rc-map.c */
+
+int ir_register_map(struct rc_keymap *map);
+void ir_unregister_map(struct rc_keymap *map);
+struct ir_scancode_table *get_rc_map(const char *name);
 
 /* Routines from ir-sysfs.c */
 
