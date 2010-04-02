@@ -670,7 +670,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 
 	/* Check that this session doesn't already exist */
 	error = -EEXIST;
-	session = l2tp_session_find(tunnel, sp->pppol2tp.s_session);
+	session = l2tp_session_find(sock_net(sk), tunnel, sp->pppol2tp.s_session);
 	if (session != NULL)
 		goto end;
 
@@ -678,7 +678,6 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	 * headers.
 	 */
 	cfg.mtu = cfg.mru = 1500 - PPPOL2TP_HEADER_OVERHEAD;
-	cfg.hdr_len = PPPOL2TP_L2TP_HDR_SIZE_NOSEQ;
 	cfg.debug = tunnel->debug;
 
 	/* Allocate and initialize a new session context. */
@@ -999,7 +998,7 @@ static int pppol2tp_tunnel_ioctl(struct l2tp_tunnel *tunnel,
 		if (stats.session_id != 0) {
 			/* resend to session ioctl handler */
 			struct l2tp_session *session =
-				l2tp_session_find(tunnel, stats.session_id);
+				l2tp_session_find(sock_net(sk), tunnel, stats.session_id);
 			if (session != NULL)
 				err = pppol2tp_session_ioctl(session, cmd, arg);
 			else
@@ -1375,6 +1374,8 @@ end:
 
 /*****************************************************************************
  * /proc filesystem for debug
+ * Since the original pppol2tp driver provided /proc/net/pppol2tp for
+ * L2TPv2, we dump only L2TPv2 tunnels and sessions here.
  *****************************************************************************/
 
 static unsigned int pppol2tp_net_id;
@@ -1391,14 +1392,24 @@ struct pppol2tp_seq_data {
 
 static void pppol2tp_next_tunnel(struct net *net, struct pppol2tp_seq_data *pd)
 {
-	pd->tunnel = l2tp_tunnel_find_nth(net, pd->tunnel_idx);
-	pd->tunnel_idx++;
+	for (;;) {
+		pd->tunnel = l2tp_tunnel_find_nth(net, pd->tunnel_idx);
+		pd->tunnel_idx++;
+
+		if (pd->tunnel == NULL)
+			break;
+
+		/* Ignore L2TPv3 tunnels */
+		if (pd->tunnel->version < 3)
+			break;
+	}
 }
 
 static void pppol2tp_next_session(struct net *net, struct pppol2tp_seq_data *pd)
 {
 	pd->session = l2tp_session_find_nth(pd->tunnel, pd->session_idx);
 	pd->session_idx++;
+
 	if (pd->session == NULL) {
 		pd->session_idx = 0;
 		pppol2tp_next_tunnel(net, pd);

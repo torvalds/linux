@@ -15,8 +15,13 @@
 #define L2TP_TUNNEL_MAGIC	0x42114DDA
 #define L2TP_SESSION_MAGIC	0x0C04EB7D
 
+/* Per tunnel, session hash table size */
 #define L2TP_HASH_BITS	4
 #define L2TP_HASH_SIZE	(1 << L2TP_HASH_BITS)
+
+/* System-wide, session hash table size */
+#define L2TP_HASH_BITS_2	8
+#define L2TP_HASH_SIZE_2	(1 << L2TP_HASH_BITS_2)
 
 /* Debug message categories for the DEBUG socket option */
 enum {
@@ -26,6 +31,21 @@ enum {
 						 * interface */
 	L2TP_MSG_SEQ		= (1 << 2),	/* sequence numbers */
 	L2TP_MSG_DATA		= (1 << 3),	/* data packets */
+};
+
+enum l2tp_pwtype {
+	L2TP_PWTYPE_NONE = 0x0000,
+	L2TP_PWTYPE_ETH_VLAN = 0x0004,
+	L2TP_PWTYPE_ETH = 0x0005,
+	L2TP_PWTYPE_PPP = 0x0007,
+	L2TP_PWTYPE_PPP_AC = 0x0008,
+	L2TP_PWTYPE_IP = 0x000b,
+	__L2TP_PWTYPE_MAX
+};
+
+enum l2tp_l2spec_type {
+	L2TP_L2SPECTYPE_NONE,
+	L2TP_L2SPECTYPE_DEFAULT,
 };
 
 struct sk_buff;
@@ -39,6 +59,7 @@ struct l2tp_stats {
 	u64			rx_seq_discards;
 	u64			rx_oos_packets;
 	u64			rx_errors;
+	u64			rx_cookie_discards;
 };
 
 struct l2tp_tunnel;
@@ -47,6 +68,7 @@ struct l2tp_tunnel;
  * packets and transmit outgoing ones.
  */
 struct l2tp_session_cfg {
+	enum l2tp_pwtype	pw_type;
 	unsigned		data_seq:2;	/* data sequencing level
 						 * 0 => none, 1 => IP only,
 						 * 2 => all
@@ -60,12 +82,17 @@ struct l2tp_session_cfg {
 						 * control of LNS. */
 	int			debug;		/* bitmask of debug message
 						 * categories */
-	int			offset;		/* offset to payload */
+	u16			offset;		/* offset to payload */
+	u16			l2specific_len;	/* Layer 2 specific length */
+	u16			l2specific_type; /* Layer 2 specific type */
+	u8			cookie[8];	/* optional cookie */
+	int			cookie_len;	/* 0, 4 or 8 bytes */
+	u8			peer_cookie[8];	/* peer's cookie */
+	int			peer_cookie_len; /* 0, 4 or 8 bytes */
 	int			reorder_timeout; /* configured reorder timeout
 						  * (in jiffies) */
 	int			mtu;
 	int			mru;
-	int			hdr_len;
 };
 
 struct l2tp_session {
@@ -76,8 +103,17 @@ struct l2tp_session {
 						 * context */
 	u32			session_id;
 	u32			peer_session_id;
-	u16			nr;		/* session NR state (receive) */
-	u16			ns;		/* session NR state (send) */
+	u8			cookie[8];
+	int			cookie_len;
+	u8			peer_cookie[8];
+	int			peer_cookie_len;
+	u16			offset;		/* offset from end of L2TP header
+						   to beginning of data */
+	u16			l2specific_len;
+	u16			l2specific_type;
+	u16			hdr_len;
+	u32			nr;		/* session NR state (receive) */
+	u32			ns;		/* session NR state (send) */
 	struct sk_buff_head	reorder_q;	/* receive reorder queue */
 	struct hlist_node	hlist;		/* Hash list node */
 	atomic_t		ref_count;
@@ -100,9 +136,11 @@ struct l2tp_session {
 						  * (in jiffies) */
 	int			mtu;
 	int			mru;
-	int			hdr_len;
+	enum l2tp_pwtype	pwtype;
 	struct l2tp_stats	stats;
+	struct hlist_node	global_hlist;	/* Global hash list node */
 
+	int (*build_header)(struct l2tp_session *session, void *buf);
 	void (*recv_skb)(struct l2tp_session *session, struct sk_buff *skb, int data_len);
 	void (*session_close)(struct l2tp_session *session);
 	void (*ref)(struct l2tp_session *session);
@@ -132,7 +170,6 @@ struct l2tp_tunnel {
 	char			name[20];	/* for logging */
 	int			debug;		/* bitmask of debug message
 						 * categories */
-	int			hdr_len;
 	struct l2tp_stats	stats;
 
 	struct list_head	list;		/* Keep a list of all tunnels */
@@ -178,7 +215,7 @@ out:
 	return tunnel;
 }
 
-extern struct l2tp_session *l2tp_session_find(struct l2tp_tunnel *tunnel, u32 session_id);
+extern struct l2tp_session *l2tp_session_find(struct net *net, struct l2tp_tunnel *tunnel, u32 session_id);
 extern struct l2tp_session *l2tp_session_find_nth(struct l2tp_tunnel *tunnel, int nth);
 extern struct l2tp_tunnel *l2tp_tunnel_find(struct net *net, u32 tunnel_id);
 extern struct l2tp_tunnel *l2tp_tunnel_find_nth(struct net *net, int nth);
@@ -187,14 +224,15 @@ extern int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_i
 extern struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunnel, u32 session_id, u32 peer_session_id, struct l2tp_session_cfg *cfg);
 extern void l2tp_tunnel_free(struct l2tp_tunnel *tunnel);
 extern void l2tp_session_free(struct l2tp_session *session);
+extern void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb, unsigned char *ptr, unsigned char *optr, u16 hdrflags, int length, int (*payload_hook)(struct sk_buff *skb));
 extern int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb, int (*payload_hook)(struct sk_buff *skb));
 extern int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
 
-extern void l2tp_build_l2tp_header(struct l2tp_session *session, void *buf);
 extern int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, size_t data_len);
 extern int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len);
 extern void l2tp_tunnel_destruct(struct sock *sk);
 extern void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel);
+extern void l2tp_session_set_header_len(struct l2tp_session *session, int version);
 
 /* Tunnel reference counts. Incremented per session that is added to
  * the tunnel.

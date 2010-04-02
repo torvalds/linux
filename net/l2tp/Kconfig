@@ -19,6 +19,10 @@ menuconfig L2TP
 	  connections. L2TP is also used as a VPN protocol, popular
 	  with home workers to connect to their offices.
 
+	  L2TPv3 allows other protocols as well as PPP to be carried
+	  over L2TP tunnels. L2TPv3 is defined in RFC 3931
+	  <http://www.ietf.org/rfc/rfc3931.txt>.
+
 	  The kernel component handles only L2TP data packets: a
 	  userland daemon handles L2TP the control protocol (tunnel
 	  and session setup). One such daemon is OpenL2TP
@@ -26,3 +30,24 @@ menuconfig L2TP
 
 	  If you don't need L2TP, say N. To compile all L2TP code as
 	  modules, choose M here.
+
+config L2TP_V3
+	bool "L2TPv3 support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && L2TP
+	help
+	  Layer Two Tunneling Protocol Version 3
+
+	  From RFC 3931 <http://www.ietf.org/rfc/rfc3931.txt>.
+
+	  The Layer Two Tunneling Protocol (L2TP) provides a dynamic
+	  mechanism for tunneling Layer 2 (L2) "circuits" across a
+	  packet-oriented data network (e.g., over IP).  L2TP, as
+	  originally defined in RFC 2661, is a standard method for
+	  tunneling Point-to-Point Protocol (PPP) [RFC1661] sessions.
+	  L2TP has since been adopted for tunneling a number of other
+	  L2 protocols, including ATM, Frame Relay, HDLC and even raw
+	  ethernet frames.
+
+	  If you are connecting to L2TPv3 equipment, or you want to
+	  tunnel raw ethernet frames using L2TP, say Y here. If
+	  unsure, say N.
