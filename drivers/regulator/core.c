@@ -1038,6 +1038,7 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 			goto overflow_err;
 
 		regulator->dev = dev;
+		sysfs_attr_init(&regulator->dev_attr.attr);
 		regulator->dev_attr.attr.name = kstrdup(buf, GFP_KERNEL);
 		if (regulator->dev_attr.attr.name == NULL)
 			goto attr_name_err;

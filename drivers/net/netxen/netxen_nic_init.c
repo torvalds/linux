@@ -761,7 +761,7 @@ nx_get_bios_version(struct netxen_adapter *adapter)
 	if (adapter->fw_type == NX_UNIFIED_ROMIMAGE) {
 		bios_ver = cpu_to_le32(*((u32 *) (&fw->data[prd_off])
 						+ NX_UNI_BIOS_VERSION_OFF));
-		return (bios_ver << 24) + ((bios_ver >> 8) & 0xff00) +
+		return (bios_ver << 16) + ((bios_ver >> 8) & 0xff00) +
 							(bios_ver >> 24);
 	} else
 		return cpu_to_le32(*(u32 *)&fw->data[NX_BIOS_VERSION_OFFSET]);

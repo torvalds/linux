@@ -779,10 +779,6 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	if ((ssr_status & SCxSR_BRK(port)) && err_enabled)
 		ret = sci_br_interrupt(irq, ptr);
 
-	WARN_ONCE(ret == IRQ_NONE,
-		  "%s: %d IRQ %d, status %x, control %x\n", __func__,
-		  irq, port->line, ssr_status, scr_status);
-
 	return ret;
 }
 

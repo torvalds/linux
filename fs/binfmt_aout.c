@@ -75,14 +75,16 @@ static int aout_core_dump(struct coredump_params *cprm)
 	struct file *file = cprm->file;
 	mm_segment_t fs;
 	int has_dumped = 0;
-	unsigned long dump_start, dump_size;
+	void __user *dump_start;
+	int dump_size;
 	struct user dump;
 #ifdef __alpha__
-#       define START_DATA(u)	(u.start_data)
+#       define START_DATA(u)	((void __user *)u.start_data)
 #else
-#	define START_DATA(u)	((u.u_tsize << PAGE_SHIFT) + u.start_code)
+#	define START_DATA(u)	((void __user *)((u.u_tsize << PAGE_SHIFT) + \
+				 u.start_code))
 #endif
-#       define START_STACK(u)   (u.start_stack)
+#       define START_STACK(u)   ((void __user *)u.start_stack)
 
 	fs = get_fs();
 	set_fs(KERNEL_DS);
@@ -104,9 +106,9 @@ static int aout_core_dump(struct coredump_params *cprm)
 
 /* make sure we actually have a data and stack area to dump */
 	set_fs(USER_DS);
-	if (!access_ok(VERIFY_READ, (void __user *)START_DATA(dump), dump.u_dsize << PAGE_SHIFT))
+	if (!access_ok(VERIFY_READ, START_DATA(dump), dump.u_dsize << PAGE_SHIFT))
 		dump.u_dsize = 0;
-	if (!access_ok(VERIFY_READ, (void __user *)START_STACK(dump), dump.u_ssize << PAGE_SHIFT))
+	if (!access_ok(VERIFY_READ, START_STACK(dump), dump.u_ssize << PAGE_SHIFT))
 		dump.u_ssize = 0;
 
 	set_fs(KERNEL_DS);

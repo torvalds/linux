@@ -2287,7 +2287,8 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 
 	if (cqr->cpmode == 1) {
 		cplength = 0;
-		datasize = sizeof(struct tcw) + sizeof(struct tsb);
+		/* TCW needs to be 64 byte aligned, so leave enough room */
+		datasize = 64 + sizeof(struct tcw) + sizeof(struct tsb);
 	} else {
 		cplength = 2;
 		datasize = 0;
@@ -2316,8 +2317,8 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 	if (cqr->cpmode == 1) {
 		/* make a shallow copy of the original tcw but set new tsb */
 		erp->cpmode = 1;
-		erp->cpaddr = erp->data;
-		tcw = erp->data;
+		erp->cpaddr = PTR_ALIGN(erp->data, 64);
+		tcw = erp->cpaddr;
 		tsb = (struct tsb *) &tcw[1];
 		*tcw = *((struct tcw *)cqr->cpaddr);
 		tcw->tsb = (long)tsb;

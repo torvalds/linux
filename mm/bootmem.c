@@ -180,19 +180,12 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 	end_aligned = end & ~(BITS_PER_LONG - 1);
 
 	if (end_aligned <= start_aligned) {
-#if 1
-		printk(KERN_DEBUG " %lx - %lx\n", start, end);
-#endif
 		for (i = start; i < end; i++)
 			__free_pages_bootmem(pfn_to_page(i), 0);
 
 		return;
 	}
 
-#if 1
-	printk(KERN_DEBUG " %lx %lx - %lx %lx\n",
-		 start, start_aligned, end_aligned, end);
-#endif
 	for (i = start; i < start_aligned; i++)
 		__free_pages_bootmem(pfn_to_page(i), 0);
 
@@ -428,9 +421,6 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 {
 #ifdef CONFIG_NO_BOOTMEM
 	free_early(physaddr, physaddr + size);
-#if 0
-	printk(KERN_DEBUG "free %lx %lx\n", physaddr, size);
-#endif
 #else
 	unsigned long start, end;
 
@@ -456,9 +446,6 @@ void __init free_bootmem(unsigned long addr, unsigned long size)
 {
 #ifdef CONFIG_NO_BOOTMEM
 	free_early(addr, addr + size);
-#if 0
-	printk(KERN_DEBUG "free %lx %lx\n", addr, size);
-#endif
 #else
 	unsigned long start, end;
 

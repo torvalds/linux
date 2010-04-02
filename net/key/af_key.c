@@ -2129,10 +2129,9 @@ static int key_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c
 	int err;
 
 	out_skb = pfkey_xfrm_policy2msg_prep(xp);
-	if (IS_ERR(out_skb)) {
-		err = PTR_ERR(out_skb);
-		goto out;
-	}
+	if (IS_ERR(out_skb))
+		return PTR_ERR(out_skb);
+
 	err = pfkey_xfrm_policy2msg(out_skb, xp, dir);
 	if (err < 0)
 		return err;
@@ -2148,7 +2147,6 @@ static int key_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c
 	out_hdr->sadb_msg_seq = c->seq;
 	out_hdr->sadb_msg_pid = c->pid;
 	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ALL, NULL, xp_net(xp));
-out:
 	return 0;
 
 }

@@ -292,9 +292,9 @@ static void __init smp_get_save_area(unsigned int cpu, unsigned int phy_cpu)
 	zfcpdump_save_areas[cpu] = kmalloc(sizeof(struct save_area), GFP_KERNEL);
 	while (raw_sigp(phy_cpu, sigp_stop_and_store_status) == sigp_busy)
 		cpu_relax();
-	memcpy(zfcpdump_save_areas[cpu],
-	       (void *)(unsigned long) store_prefix() + SAVE_AREA_BASE,
-	       sizeof(struct save_area));
+	memcpy_real(zfcpdump_save_areas[cpu],
+		    (void *)(unsigned long) store_prefix() + SAVE_AREA_BASE,
+		    sizeof(struct save_area));
 }
 
 struct save_area *zfcpdump_save_areas[NR_CPUS + 1];

@@ -45,7 +45,7 @@ static int lp3971_set_bits(struct lp3971 *lp3971, u8 reg, u16 mask, u16 val);
 	LP3971_BUCK2 -> 4
 	LP3971_BUCK3 -> 6
 */
-#define BUCK_VOL_CHANGE_SHIFT(x) (((1 << x) & ~0x01) << 1)
+#define BUCK_VOL_CHANGE_SHIFT(x) (((!!x) << 2) | (x & ~0x01))
 #define BUCK_VOL_CHANGE_FLAG_GO 0x01
 #define BUCK_VOL_CHANGE_FLAG_TARGET 0x02
 #define BUCK_VOL_CHANGE_FLAG_MASK 0x03
@@ -187,7 +187,8 @@ static int lp3971_ldo_set_voltage(struct regulator_dev *dev,
 		return -EINVAL;
 
 	return lp3971_set_bits(lp3971, LP3971_LDO_VOL_CONTR_REG(ldo),
-		LDO_VOL_CONTR_MASK << LDO_VOL_CONTR_SHIFT(ldo), val);
+			LDO_VOL_CONTR_MASK << LDO_VOL_CONTR_SHIFT(ldo),
+			val << LDO_VOL_CONTR_SHIFT(ldo));
 }
 
 static struct regulator_ops lp3971_ldo_ops = {
@@ -439,6 +440,10 @@ static int __devinit setup_regulators(struct lp3971 *lp3971,
 	lp3971->num_regulators = pdata->num_regulators;
 	lp3971->rdev = kcalloc(pdata->num_regulators,
 				sizeof(struct regulator_dev *), GFP_KERNEL);
+	if (!lp3971->rdev) {
+		err = -ENOMEM;
+		goto err_nomem;
+	}
 
 	/* Instantiate the regulators */
 	for (i = 0; i < pdata->num_regulators; i++) {
@@ -461,6 +466,7 @@ error:
 		regulator_unregister(lp3971->rdev[i]);
 	kfree(lp3971->rdev);
 	lp3971->rdev = NULL;
+err_nomem:
 	return err;
 }
 

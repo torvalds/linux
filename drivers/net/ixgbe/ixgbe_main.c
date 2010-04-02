@@ -935,10 +935,12 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			if (skb->prev)
 				skb = ixgbe_transform_rsc_queue(skb, &(rx_ring->rsc_count));
 			if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
-				if (IXGBE_RSC_CB(skb)->dma)
+				if (IXGBE_RSC_CB(skb)->dma) {
 					pci_unmap_single(pdev, IXGBE_RSC_CB(skb)->dma,
 					                 rx_ring->rx_buf_len,
 					                 PCI_DMA_FROMDEVICE);
+					IXGBE_RSC_CB(skb)->dma = 0;
+				}
 				if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED)
 					rx_ring->rsc_count += skb_shinfo(skb)->nr_frags;
 				else
@@ -3054,6 +3056,14 @@ void ixgbe_reinit_locked(struct ixgbe_adapter *adapter)
 	while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 		msleep(1);
 	ixgbe_down(adapter);
+	/*
+	 * If SR-IOV enabled then wait a bit before bringing the adapter
+	 * back up to give the VFs time to respond to the reset.  The
+	 * two second wait is based upon the watchdog timer cycle in
+	 * the VF driver.
+	 */
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		msleep(2000);
 	ixgbe_up(adapter);
 	clear_bit(__IXGBE_RESETTING, &adapter->state);
 }
@@ -3126,10 +3136,12 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 			rx_buffer_info->skb = NULL;
 			do {
 				struct sk_buff *this = skb;
-				if (IXGBE_RSC_CB(this)->dma)
+				if (IXGBE_RSC_CB(this)->dma) {
 					pci_unmap_single(pdev, IXGBE_RSC_CB(this)->dma,
 					                 rx_ring->rx_buf_len,
 					                 PCI_DMA_FROMDEVICE);
+					IXGBE_RSC_CB(this)->dma = 0;
+				}
 				skb = skb->prev;
 				dev_kfree_skb(this);
 			} while (skb);
@@ -3232,13 +3244,15 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	/* disable receive for all VFs and wait one second */
 	if (adapter->num_vfs) {
-		for (i = 0 ; i < adapter->num_vfs; i++)
-			adapter->vfinfo[i].clear_to_send = 0;
-
 		/* ping all the active vfs to let them know we are going down */
 		ixgbe_ping_all_vfs(adapter);
+
 		/* Disable all VFTE/VFRE TX/RX */
 		ixgbe_disable_tx_rx(adapter);
+
+		/* Mark all the VFs as inactive */
+		for (i = 0 ; i < adapter->num_vfs; i++)
+			adapter->vfinfo[i].clear_to_send = 0;
 	}
 
 	/* disable receives */
@@ -5018,6 +5032,7 @@ static void ixgbe_multispeed_fiber_task(struct work_struct *work)
 	autoneg = hw->phy.autoneg_advertised;
 	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
 		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiation);
+	hw->mac.autotry_restart = false;
 	if (hw->mac.ops.setup_link)
 		hw->mac.ops.setup_link(hw, autoneg, negotiation, true);
 	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
@@ -5633,7 +5648,8 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 
 #ifdef IXGBE_FCOE
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
-	    (skb->protocol == htons(ETH_P_FCOE))) {
+	    ((skb->protocol == htons(ETH_P_FCOE)) ||
+	     (skb->protocol == htons(ETH_P_FIP)))) {
 		txq &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
 		txq += adapter->ring_feature[RING_F_FCOE].mask;
 		return txq;
@@ -5680,18 +5696,25 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 
 	tx_ring = adapter->tx_ring[skb->queue_mapping];
 
-	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
-	    (skb->protocol == htons(ETH_P_FCOE))) {
-		tx_flags |= IXGBE_TX_FLAGS_FCOE;
 #ifdef IXGBE_FCOE
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
 #ifdef CONFIG_IXGBE_DCB
-		tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
-			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
-		tx_flags |= ((adapter->fcoe.up << 13)
-			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+		/* for FCoE with DCB, we force the priority to what
+		 * was specified by the switch */
+		if ((skb->protocol == htons(ETH_P_FCOE)) ||
+		    (skb->protocol == htons(ETH_P_FIP))) {
+			tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
+				      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+			tx_flags |= ((adapter->fcoe.up << 13)
+				     << IXGBE_TX_FLAGS_VLAN_SHIFT);
+		}
 #endif
-#endif
+		/* flag for FCoE offloads */
+		if (skb->protocol == htons(ETH_P_FCOE))
+			tx_flags |= IXGBE_TX_FLAGS_FCOE;
 	}
+#endif
+
 	/* four things can cause us to need a context descriptor */
 	if (skb_is_gso(skb) ||
 	    (skb->ip_summed == CHECKSUM_PARTIAL) ||
@@ -6046,7 +6069,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	indices += min_t(unsigned int, num_possible_cpus(),
 			 IXGBE_MAX_FCOE_INDICES);
 #endif
-	indices = min_t(unsigned int, indices, MAX_TX_QUEUES);
 	netdev = alloc_etherdev_mq(sizeof(struct ixgbe_adapter), indices);
 	if (!netdev) {
 		err = -ENOMEM;
@@ -6245,9 +6267,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	case IXGBE_DEV_ID_82599_KX4:
 		adapter->wol = (IXGBE_WUFC_MAG | IXGBE_WUFC_EX |
 		                IXGBE_WUFC_MC | IXGBE_WUFC_BC);
-		/* Enable ACPI wakeup in GRC */
-		IXGBE_WRITE_REG(hw, IXGBE_GRC,
-		             (IXGBE_READ_REG(hw, IXGBE_GRC) & ~IXGBE_GRC_APME));
 		break;
 	default:
 		adapter->wol = 0;
@@ -6380,6 +6399,16 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	del_timer_sync(&adapter->sfp_timer);
 	cancel_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->sfp_task);
+	if (adapter->hw.phy.multispeed_fiber) {
+		struct ixgbe_hw *hw = &adapter->hw;
+		/*
+		 * Restart clause 37 autoneg, disable and re-enable
+		 * the tx laser, to clear & alert the link partner
+		 * that it needs to restart autotry
+		 */
+		hw->mac.autotry_restart = true;
+		hw->mac.ops.flap_tx_laser(hw);
+	}
 	cancel_work_sync(&adapter->multispeed_fiber_task);
 	cancel_work_sync(&adapter->sfp_config_module_task);
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||

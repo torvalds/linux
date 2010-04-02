@@ -663,16 +663,6 @@ static struct pccard_operations pcc_operations = {
 	.set_mem_map		= pcc_set_mem_map,
 };
 
-static int pcc_drv_pcmcia_suspend(struct platform_device *dev,
-				     pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&dev->dev);
-}
-
-static int pcc_drv_pcmcia_resume(struct platform_device *dev)
-{
-	return pcmcia_socket_dev_resume(&dev->dev);
-}
 /*====================================================================*/
 
 static struct platform_driver pcc_driver = {
@@ -680,8 +670,6 @@ static struct platform_driver pcc_driver = {
 		.name		= "pcc",
 		.owner		= THIS_MODULE,
 	},
-	.suspend 	= pcc_drv_pcmcia_suspend,
-	.resume 	= pcc_drv_pcmcia_resume,
 };
 
 static struct platform_device pcc_device = {

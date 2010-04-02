@@ -891,6 +891,21 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 	/* Do some basic inode verification... */
 	di = (struct ocfs2_dinode *) di_bh->b_data;
 	if (!(di->i_flags & cpu_to_le32(OCFS2_ORPHANED_FL))) {
+		/*
+		 * Inodes in the orphan dir must have ORPHANED_FL.  The only
+		 * inodes that come back out of the orphan dir are reflink
+		 * targets. A reflink target may be moved out of the orphan
+		 * dir between the time we scan the directory and the time we
+		 * process it. This would lead to HAS_REFCOUNT_FL being set but
+		 * ORPHANED_FL not.
+		 */
+		if (di->i_dyn_features & cpu_to_le16(OCFS2_HAS_REFCOUNT_FL)) {
+			mlog(0, "Reflinked inode %llu is no longer orphaned.  "
+			     "it shouldn't be deleted\n",
+			     (unsigned long long)oi->ip_blkno);
+			goto bail;
+		}
+
 		/* for lack of a better error? */
 		status = -EEXIST;
 		mlog(ML_ERROR,

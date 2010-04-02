@@ -303,12 +303,12 @@ static int __logfs_readdir(struct file *file, void *buf, filldir_t filldir)
 				(filler_t *)logfs_readpage, NULL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
-		dd = kmap_atomic(page, KM_USER0);
+		dd = kmap(page);
 		BUG_ON(dd->namelen == 0);
 
 		full = filldir(buf, (char *)dd->name, be16_to_cpu(dd->namelen),
 				pos, be64_to_cpu(dd->ino), dd->type);
-		kunmap_atomic(dd, KM_USER0);
+		kunmap(page);
 		page_cache_release(page);
 		if (full)
 			break;

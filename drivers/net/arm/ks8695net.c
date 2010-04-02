@@ -449,11 +449,10 @@ ks8695_rx_irq(int irq, void *dev_id)
 }
 
 /**
- *	ks8695_rx - Receive packets  called by NAPI poll method
+ *	ks8695_rx - Receive packets called by NAPI poll method
  *	@ksp: Private data for the KS8695 Ethernet
- *	@budget: The max packets would be receive
+ *	@budget: Number of packets allowed to process
  */
-
 static int ks8695_rx(struct ks8695_priv *ksp, int budget)
 {
 	struct net_device *ndev = ksp->ndev;
@@ -461,7 +460,6 @@ static int ks8695_rx(struct ks8695_priv *ksp, int budget)
 	int buff_n;
 	u32 flags;
 	int pktlen;
-	int last_rx_processed = -1;
 	int received = 0;
 
 	buff_n = ksp->next_rx_desc_read;
@@ -471,6 +469,7 @@ static int ks8695_rx(struct ks8695_priv *ksp, int budget)
 					cpu_to_le32(RDES_OWN)))) {
 			rmb();
 			flags = le32_to_cpu(ksp->rx_ring[buff_n].status);
+
 			/* Found an SKB which we own, this means we
 			 * received a packet
 			 */
@@ -533,23 +532,18 @@ rx_failure:
 			ksp->rx_ring[buff_n].status = cpu_to_le32(RDES_OWN);
 rx_finished:
 			received++;
-			/* And note this as processed so we can start
-			 * from here next time
-			 */
-			last_rx_processed = buff_n;
 			buff_n = (buff_n + 1) & MAX_RX_DESC_MASK;
-			/*And note which RX descriptor we last did */
-			if (likely(last_rx_processed != -1))
-				ksp->next_rx_desc_read =
-					(last_rx_processed + 1) &
-					MAX_RX_DESC_MASK;
 	}
+
+	/* And note which RX descriptor we last did */
+	ksp->next_rx_desc_read = buff_n;
+
 	/* And refill the buffers */
 	ks8695_refill_rxbuffers(ksp);
 
-	/* Kick the RX DMA engine, in case it became
-	 *  suspended */
+	/* Kick the RX DMA engine, in case it became suspended */
 	ks8695_writereg(ksp, KS8695_DRSC, 0);
+
 	return received;
 }
 

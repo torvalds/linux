@@ -325,19 +325,13 @@ static int pxa2xx_drv_pcmcia_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int pxa2xx_drv_pcmcia_suspend(struct device *dev)
-{
-	return pcmcia_socket_dev_suspend(dev);
-}
-
 static int pxa2xx_drv_pcmcia_resume(struct device *dev)
 {
 	pxa2xx_configure_sockets(dev);
-	return pcmcia_socket_dev_resume(dev);
+	return 0;
 }
 
 static const struct dev_pm_ops pxa2xx_drv_pcmcia_pm_ops = {
-	.suspend	= pxa2xx_drv_pcmcia_suspend,
 	.resume		= pxa2xx_drv_pcmcia_resume,
 };
 

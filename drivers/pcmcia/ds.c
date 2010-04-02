@@ -509,8 +509,12 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	p_dev->device_no = (s->device_count++);
 	mutex_unlock(&s->ops_mutex);
 
-	/* max of 2 devices per card */
-	if (p_dev->device_no >= 2)
+	/* max of 2 PFC devices */
+	if ((p_dev->device_no >= 2) && (function == 0))
+		goto err_free;
+
+	/* max of 4 devices overall */
+	if (p_dev->device_no >= 4)
 		goto err_free;
 
 	p_dev->socket = s;

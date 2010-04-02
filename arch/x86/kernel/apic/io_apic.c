@@ -1268,6 +1268,14 @@ void __setup_vector_irq(int cpu)
 	/* Mark the inuse vectors */
 	for_each_irq_desc(irq, desc) {
 		cfg = desc->chip_data;
+
+		/*
+		 * If it is a legacy IRQ handled by the legacy PIC, this cpu
+		 * will be part of the irq_cfg's domain.
+		 */
+		if (irq < legacy_pic->nr_legacy_irqs && !IO_APIC_IRQ(irq))
+			cpumask_set_cpu(cpu, cfg->domain);
+
 		if (!cpumask_test_cpu(cpu, cfg->domain))
 			continue;
 		vector = cfg->vector;

@@ -74,7 +74,7 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec)
 		msleep(1);
 		reg = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_0);
 		dev_dbg(codec->dev, "DC servo: %x\n", reg);
-	} while (reg & WM8993_DCS_DATAPATH_BUSY);
+	} while (reg & WM8993_DCS_DATAPATH_BUSY && count < 400);
 
 	if (reg & WM8993_DCS_DATAPATH_BUSY)
 		dev_err(codec->dev, "Timed out waiting for DC Servo\n");

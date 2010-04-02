@@ -587,6 +587,7 @@ void move_page_to_btree(struct page *page);
 int logfs_init_mapping(struct super_block *sb);
 void logfs_sync_area(struct logfs_area *area);
 void logfs_sync_segments(struct super_block *sb);
+void freeseg(struct super_block *sb, u32 segno);
 
 /* area handling */
 int logfs_init_areas(struct super_block *sb);
