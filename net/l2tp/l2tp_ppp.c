@@ -1465,6 +1465,7 @@ static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
 	struct l2tp_session *session = v;
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	struct pppol2tp_session *ps = l2tp_session_priv(session);
+	struct pppox_sock *po = pppox_sk(ps->sock);
 	u32 ip = 0;
 	u16 port = 0;
 
@@ -1499,6 +1500,9 @@ static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
 		   (unsigned long long)session->stats.rx_packets,
 		   (unsigned long long)session->stats.rx_bytes,
 		   (unsigned long long)session->stats.rx_errors);
+
+	if (po)
+		seq_printf(m, "   interface %s\n", ppp_dev_name(&po->chan));
 }
 
 static int pppol2tp_seq_show(struct seq_file *m, void *v)
