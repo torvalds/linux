@@ -23,3 +23,6 @@ def nsecs_nsecs(nsecs):
 def nsecs_str(nsecs):
     str = "%5u.%09u" % (nsecs_secs(nsecs), nsecs_nsecs(nsecs)),
     return str
+
+def clear_term():
+    print("\x1b[H\x1b[2J")
