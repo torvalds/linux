@@ -111,5 +111,11 @@ int event__synthesize_event_types(event__handler_t process,
 int event__process_event_type(event_t *self,
 			      struct perf_session *session);
 
+int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
+				   int nb_events,
+				   event__handler_t process,
+				   struct perf_session *session);
+int event__process_tracing_data(event_t *self,
+				struct perf_session *session);
 
 #endif /* __PERF_HEADER_H */

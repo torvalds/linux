@@ -86,6 +86,7 @@ struct build_id_event {
 enum perf_header_event_type { /* above any possible kernel type */
 	PERF_RECORD_HEADER_ATTR			= 64,
 	PERF_RECORD_HEADER_EVENT_TYPE		= 65,
+	PERF_RECORD_HEADER_TRACING_DATA		= 66,
 	PERF_RECORD_HEADER_MAX
 };
 
@@ -107,6 +108,11 @@ struct event_type_event {
 	struct perf_trace_event_type event_type;
 };
 
+struct tracing_data_event {
+	struct perf_event_header header;
+	u32 size;
+};
+
 typedef union event_union {
 	struct perf_event_header	header;
 	struct ip_event			ip;
@@ -118,6 +124,7 @@ typedef union event_union {
 	struct sample_event		sample;
 	struct attr_event		attr;
 	struct event_type_event		event_type;
+	struct tracing_data_event	tracing_data;
 } event_t;
 
 struct events_stats {

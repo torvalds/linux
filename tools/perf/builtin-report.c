@@ -269,6 +269,7 @@ static struct perf_event_ops event_ops = {
 	.read	= process_read_event,
 	.attr	= event__process_attr,
 	.event_type = event__process_event_type,
+	.tracing_data = event__process_tracing_data,
 };
 
 extern volatile int session_done;

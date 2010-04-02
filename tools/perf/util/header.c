@@ -934,3 +934,55 @@ int event__process_event_type(event_t *self,
 
 	return 0;
 }
+
+int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
+				   int nb_events,
+				   event__handler_t process,
+				   struct perf_session *session __unused)
+{
+	event_t ev;
+	ssize_t size = 0, aligned_size = 0, padding;
+	int err = 0;
+
+	memset(&ev, 0, sizeof(ev));
+
+	ev.tracing_data.header.type = PERF_RECORD_HEADER_TRACING_DATA;
+	size = read_tracing_data_size(fd, pattrs, nb_events);
+	if (size <= 0)
+		return size;
+	aligned_size = ALIGN(size, sizeof(u64));
+	padding = aligned_size - size;
+	ev.tracing_data.header.size = sizeof(ev.tracing_data);
+	ev.tracing_data.size = aligned_size;
+
+	process(&ev, session);
+
+	err = read_tracing_data(fd, pattrs, nb_events);
+	write_padded(fd, NULL, 0, padding);
+
+	return aligned_size;
+}
+
+int event__process_tracing_data(event_t *self,
+				struct perf_session *session)
+{
+	ssize_t size_read, padding, size = self->tracing_data.size;
+	off_t offset = lseek(session->fd, 0, SEEK_CUR);
+	char buf[BUFSIZ];
+
+	/* setup for reading amidst mmap */
+	lseek(session->fd, offset + sizeof(struct tracing_data_event),
+	      SEEK_SET);
+
+	size_read = trace_report(session->fd);
+
+	padding = ALIGN(size_read, sizeof(u64)) - size_read;
+
+	if (read(session->fd, buf, padding) < 0)
+		die("reading input file");
+
+	if (size_read + padding != size)
+		die("tracing data size mismatch");
+
+	return size_read + padding;
+}

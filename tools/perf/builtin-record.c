@@ -104,6 +104,11 @@ static void mmap_write_tail(struct mmap_data *md, unsigned long tail)
 	pc->data_tail = tail;
 }
 
+static void advance_output(size_t size)
+{
+	bytes_written += size;
+}
+
 static void write_output(void *buf, size_t size)
 {
 	while (size) {
@@ -599,6 +604,17 @@ static int __cmd_record(int argc, const char **argv)
 			pr_err("Couldn't synthesize event_types.\n");
 			return err;
 		}
+
+		err = event__synthesize_tracing_data(output, attrs,
+						     nr_counters,
+						     process_synthesized_event,
+						     session);
+		if (err <= 0) {
+			pr_err("Couldn't record tracing data.\n");
+			return err;
+		}
+
+		advance_output(err);
 	}
 
 	err = event__synthesize_kernel_mmap(process_synthesized_event,
