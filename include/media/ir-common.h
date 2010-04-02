@@ -28,6 +28,71 @@
 #include <linux/interrupt.h>
 #include <media/ir-core.h>
 
+#include <media/keycodes/adstech-dvb-t-pci.h>
+#include <media/keycodes/apac-viewcomp.h>
+#include <media/keycodes/asus-pc39.h>
+#include <media/keycodes/ati-tv-wonder-hd-600.h>
+#include <media/keycodes/avermedia-a16d.h>
+#include <media/keycodes/avermedia-cardbus.h>
+#include <media/keycodes/avermedia-dvbt.h>
+#include <media/keycodes/avermedia.h>
+#include <media/keycodes/avermedia-m135a-rm-jx.h>
+#include <media/keycodes/avertv-303.h>
+#include <media/keycodes/behold-columbus.h>
+#include <media/keycodes/behold.h>
+#include <media/keycodes/budget-ci-old.h>
+#include <media/keycodes/cinergy-1400.h>
+#include <media/keycodes/cinergy.h>
+#include <media/keycodes/dm1105-nec.h>
+#include <media/keycodes/dntv-live-dvb-t.h>
+#include <media/keycodes/dntv-live-dvbt-pro.h>
+#include <media/keycodes/empty.h>
+#include <media/keycodes/em-terratec.h>
+#include <media/keycodes/encore-enltv2.h>
+#include <media/keycodes/encore-enltv-fm53.h>
+#include <media/keycodes/encore-enltv.h>
+#include <media/keycodes/evga-indtube.h>
+#include <media/keycodes/eztv.h>
+#include <media/keycodes/flydvb.h>
+#include <media/keycodes/flyvideo.h>
+#include <media/keycodes/fusionhdtv-mce.h>
+#include <media/keycodes/gadmei-rm008z.h>
+#include <media/keycodes/genius-tvgo-a11mce.h>
+#include <media/keycodes/gotview7135.h>
+#include <media/keycodes/hauppauge-new.h>
+#include <media/keycodes/iodata-bctv7e.h>
+#include <media/keycodes/kaiomy.h>
+#include <media/keycodes/kworld-315u.h>
+#include <media/keycodes/kworld-plus-tv-analog.h>
+#include <media/keycodes/manli.h>
+#include <media/keycodes/msi-tvanywhere.h>
+#include <media/keycodes/msi-tvanywhere-plus.h>
+#include <media/keycodes/nebula.h>
+#include <media/keycodes/nec-terratec-cinergy-xs.h>
+#include <media/keycodes/norwood.h>
+#include <media/keycodes/npgtech.h>
+#include <media/keycodes/pctv-sedna.h>
+#include <media/keycodes/pinnacle-color.h>
+#include <media/keycodes/pinnacle-grey.h>
+#include <media/keycodes/pinnacle-pctv-hd.h>
+#include <media/keycodes/pixelview.h>
+#include <media/keycodes/pixelview-new.h>
+#include <media/keycodes/powercolor-real-angel.h>
+#include <media/keycodes/proteus-2309.h>
+#include <media/keycodes/purpletv.h>
+#include <media/keycodes/pv951.h>
+#include <media/keycodes/rc5-hauppauge-new.h>
+#include <media/keycodes/rc5-tv.h>
+#include <media/keycodes/real-audio-220-32-keys.h>
+#include <media/keycodes/tbs-nec.h>
+#include <media/keycodes/terratec-cinergy-xs.h>
+#include <media/keycodes/tevii-nec.h>
+#include <media/keycodes/tt-1500.h>
+#include <media/keycodes/videomate-s350.h>
+#include <media/keycodes/videomate-tv-pvr.h>
+#include <media/keycodes/winfast.h>
+#include <media/keycodes/winfast-usbii-deluxe.h>
+
 #define RC5_START(x)	(((x)>>12)&3)
 #define RC5_TOGGLE(x)	(((x)>>11)&1)
 #define RC5_ADDR(x)	(((x)>>6)&31)
@@ -103,90 +168,5 @@ u32  ir_rc5_decode(unsigned int code);
 
 void ir_rc5_timer_end(unsigned long data);
 void ir_rc5_timer_keyup(unsigned long data);
-
-/* scancode->keycode map tables from ir-keymaps.c */
-
-#define IR_KEYTABLE(a)					\
-ir_codes_ ## a ## _table
-
-#define DECLARE_IR_KEYTABLE(a)					\
-extern struct ir_scancode_table IR_KEYTABLE(a)
-
-#define DEFINE_IR_KEYTABLE(tabname, type)			\
-struct ir_scancode_table IR_KEYTABLE(tabname) = {		\
-	.scan = tabname,					\
-	.size = ARRAY_SIZE(tabname),				\
-	.ir_type = type,					\
-	.name = #tabname,					\
-};								\
-EXPORT_SYMBOL_GPL(IR_KEYTABLE(tabname))
-
-#define DEFINE_LEGACY_IR_KEYTABLE(tabname)			\
-	DEFINE_IR_KEYTABLE(tabname, IR_TYPE_UNKNOWN)
-
-DECLARE_IR_KEYTABLE(adstech_dvb_t_pci);
-DECLARE_IR_KEYTABLE(apac_viewcomp);
-DECLARE_IR_KEYTABLE(asus_pc39);
-DECLARE_IR_KEYTABLE(ati_tv_wonder_hd_600);
-DECLARE_IR_KEYTABLE(avermedia);
-DECLARE_IR_KEYTABLE(avermedia_a16d);
-DECLARE_IR_KEYTABLE(avermedia_cardbus);
-DECLARE_IR_KEYTABLE(avermedia_dvbt);
-DECLARE_IR_KEYTABLE(avermedia_m135a_rm_jx);
-DECLARE_IR_KEYTABLE(avertv_303);
-DECLARE_IR_KEYTABLE(behold);
-DECLARE_IR_KEYTABLE(behold_columbus);
-DECLARE_IR_KEYTABLE(budget_ci_old);
-DECLARE_IR_KEYTABLE(cinergy);
-DECLARE_IR_KEYTABLE(cinergy_1400);
-DECLARE_IR_KEYTABLE(dm1105_nec);
-DECLARE_IR_KEYTABLE(dntv_live_dvb_t);
-DECLARE_IR_KEYTABLE(dntv_live_dvbt_pro);
-DECLARE_IR_KEYTABLE(empty);
-DECLARE_IR_KEYTABLE(em_terratec);
-DECLARE_IR_KEYTABLE(encore_enltv);
-DECLARE_IR_KEYTABLE(encore_enltv2);
-DECLARE_IR_KEYTABLE(encore_enltv_fm53);
-DECLARE_IR_KEYTABLE(evga_indtube);
-DECLARE_IR_KEYTABLE(eztv);
-DECLARE_IR_KEYTABLE(flydvb);
-DECLARE_IR_KEYTABLE(flyvideo);
-DECLARE_IR_KEYTABLE(fusionhdtv_mce);
-DECLARE_IR_KEYTABLE(gadmei_rm008z);
-DECLARE_IR_KEYTABLE(genius_tvgo_a11mce);
-DECLARE_IR_KEYTABLE(gotview7135);
-DECLARE_IR_KEYTABLE(hauppauge_new);
-DECLARE_IR_KEYTABLE(iodata_bctv7e);
-DECLARE_IR_KEYTABLE(kaiomy);
-DECLARE_IR_KEYTABLE(kworld_315u);
-DECLARE_IR_KEYTABLE(kworld_plus_tv_analog);
-DECLARE_IR_KEYTABLE(manli);
-DECLARE_IR_KEYTABLE(msi_tvanywhere);
-DECLARE_IR_KEYTABLE(msi_tvanywhere_plus);
-DECLARE_IR_KEYTABLE(nebula);
-DECLARE_IR_KEYTABLE(nec_terratec_cinergy_xs);
-DECLARE_IR_KEYTABLE(norwood);
-DECLARE_IR_KEYTABLE(npgtech);
-DECLARE_IR_KEYTABLE(pctv_sedna);
-DECLARE_IR_KEYTABLE(pinnacle_color);
-DECLARE_IR_KEYTABLE(pinnacle_grey);
-DECLARE_IR_KEYTABLE(pinnacle_pctv_hd);
-DECLARE_IR_KEYTABLE(pixelview);
-DECLARE_IR_KEYTABLE(pixelview_new);
-DECLARE_IR_KEYTABLE(powercolor_real_angel);
-DECLARE_IR_KEYTABLE(proteus_2309);
-DECLARE_IR_KEYTABLE(purpletv);
-DECLARE_IR_KEYTABLE(pv951);
-DECLARE_IR_KEYTABLE(rc5_hauppauge_new);
-DECLARE_IR_KEYTABLE(rc5_tv);
-DECLARE_IR_KEYTABLE(real_audio_220_32_keys);
-DECLARE_IR_KEYTABLE(tbs_nec);
-DECLARE_IR_KEYTABLE(terratec_cinergy_xs);
-DECLARE_IR_KEYTABLE(tevii_nec);
-DECLARE_IR_KEYTABLE(tt_1500);
-DECLARE_IR_KEYTABLE(videomate_s350);
-DECLARE_IR_KEYTABLE(videomate_tv_pvr);
-DECLARE_IR_KEYTABLE(winfast);
-DECLARE_IR_KEYTABLE(winfast_usbii_deluxe);
 
 #endif

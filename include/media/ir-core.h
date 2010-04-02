@@ -96,6 +96,24 @@ struct ir_raw_handler {
 
 #define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)
 
+#define IR_KEYTABLE(a)					\
+ir_codes_ ## a ## _table
+
+#define DECLARE_IR_KEYTABLE(a)					\
+extern struct ir_scancode_table IR_KEYTABLE(a)
+
+#define DEFINE_IR_KEYTABLE(tabname, type)			\
+struct ir_scancode_table IR_KEYTABLE(tabname) = {		\
+	.scan = tabname,					\
+	.size = ARRAY_SIZE(tabname),				\
+	.ir_type = type,					\
+	.name = #tabname,					\
+};								\
+EXPORT_SYMBOL_GPL(IR_KEYTABLE(tabname))
+
+#define DEFINE_LEGACY_IR_KEYTABLE(tabname)			\
+	DEFINE_IR_KEYTABLE(tabname, IR_TYPE_UNKNOWN)
+
 /* Routines from ir-keytable.c */
 
 u32 ir_g_keycode_from_table(struct input_dev *input_dev,
