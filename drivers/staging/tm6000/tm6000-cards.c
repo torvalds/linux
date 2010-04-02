@@ -480,9 +480,9 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 		}
 
 		if (!i) {
-			rc = tm6000_get_reg16(dev, 0x40, 0, 0);
+			rc = tm6000_get_reg32(dev, REQ_40_GET_VERSION, 0, 0);
 			if (rc >= 0)
-				printk(KERN_DEBUG "board=%d\n", rc);
+				printk(KERN_DEBUG "board=0x%08x\n", rc);
 		}
 	}
 

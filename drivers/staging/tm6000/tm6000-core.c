@@ -139,6 +139,20 @@ int tm6000_get_reg16 (struct tm6000_core *dev, u8 req, u16 value, u16 index)
 	return buf[1]|buf[0]<<8;
 }
 
+int tm6000_get_reg32 (struct tm6000_core *dev, u8 req, u16 value, u16 index)
+{
+	int rc;
+	u8 buf[4];
+
+	rc=tm6000_read_write_usb (dev, USB_DIR_IN | USB_TYPE_VENDOR, req,
+				       value, index, buf, 4);
+
+	if (rc<0)
+		return rc;
+
+	return buf[3] | buf[2] << 8 | buf[1] << 16 | buf[0] << 24;
+}
+
 void tm6000_set_fourcc_format(struct tm6000_core *dev)
 {
 	if (dev->dev_type == TM6010) {
@@ -455,9 +469,9 @@ int tm6000_init (struct tm6000_core *dev)
 	msleep(5); /* Just to be conservative */
 
 	/* Check board version - maybe 10Moons specific */
-	board=tm6000_get_reg16 (dev, 0x40, 0, 0);
+	board=tm6000_get_reg32 (dev, REQ_40_GET_VERSION, 0, 0);
 	if (board >=0) {
-		printk (KERN_INFO "Board version = 0x%04x\n",board);
+		printk (KERN_INFO "Board version = 0x%08x\n",board);
 	} else {
 		printk (KERN_ERR "Error %i while retrieving board version\n",board);
 	}
