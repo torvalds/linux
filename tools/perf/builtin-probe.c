@@ -167,7 +167,7 @@ static const struct option options[] = {
 		    " with existing name"),
 #ifdef DWARF_SUPPORT
 	OPT_CALLBACK('L', "line", NULL,
-		     "FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]",
+		     "FUNC[:RLN[+NUM|-RLN2]]|SRC:ALN[+NUM|-ALN2]",
 		     "Show source code lines.", opt_show_lines),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
