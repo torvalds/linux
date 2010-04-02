@@ -110,8 +110,8 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 
 	if (symbol_conf.use_callchain) {
 		if (!hit)
-			callchain_init(&he->callchain);
-		err = append_chain(&he->callchain, data->callchain, syms);
+			callchain_init(he->callchain);
+		err = append_chain(he->callchain, data->callchain, syms);
 		free(syms);
 
 		if (err)

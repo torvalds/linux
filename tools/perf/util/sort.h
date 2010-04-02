@@ -49,12 +49,12 @@ struct hist_entry {
 	u64			ip;
 	char			level;
 	struct symbol	  *parent;
-	struct callchain_node	callchain;
 	union {
 		unsigned long	  position;
 		struct hist_entry *pair;
 		struct rb_root	  sorted_chain;
 	};
+	struct callchain_node	callchain[0];
 };
 
 enum sort_type {

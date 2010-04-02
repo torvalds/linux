@@ -50,7 +50,8 @@ struct hist_entry *__perf_session__add_hist_entry(struct rb_root *hists,
 			p = &(*p)->rb_right;
 	}
 
-	he = malloc(sizeof(*he));
+	he = malloc(sizeof(*he) + (symbol_conf.use_callchain ?
+				    sizeof(struct callchain_node) : 0));
 	if (!he)
 		return NULL;
 	*he = entry;
@@ -168,7 +169,7 @@ static void perf_session__insert_output_hist_entry(struct rb_root *root,
 	struct hist_entry *iter;
 
 	if (symbol_conf.use_callchain)
-		callchain_param.sort(&he->sorted_chain, &he->callchain,
+		callchain_param.sort(&he->sorted_chain, he->callchain,
 				      min_callchain_hits, &callchain_param);
 
 	while (*p != NULL) {
