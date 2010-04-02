@@ -38,7 +38,6 @@
 
 struct intel_hdmi_priv {
 	u32 sdvox_reg;
-	u32 save_SDVOX;
 	bool has_hdmi_sink;
 };
 
@@ -103,27 +102,6 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 		I915_WRITE(hdmi_priv->sdvox_reg, temp);
 		POSTING_READ(hdmi_priv->sdvox_reg);
 	}
-}
-
-static void intel_hdmi_save(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_hdmi_priv *hdmi_priv = intel_encoder->dev_priv;
-
-	hdmi_priv->save_SDVOX = I915_READ(hdmi_priv->sdvox_reg);
-}
-
-static void intel_hdmi_restore(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_hdmi_priv *hdmi_priv = intel_encoder->dev_priv;
-
-	I915_WRITE(hdmi_priv->sdvox_reg, hdmi_priv->save_SDVOX);
-	POSTING_READ(hdmi_priv->sdvox_reg);
 }
 
 static int intel_hdmi_mode_valid(struct drm_connector *connector,
@@ -203,8 +181,6 @@ static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
 
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = intel_hdmi_save,
-	.restore = intel_hdmi_restore,
 	.detect = intel_hdmi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = intel_hdmi_destroy,

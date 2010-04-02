@@ -47,8 +47,6 @@ struct intel_dp_priv {
 	uint32_t output_reg;
 	uint32_t DP;
 	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
-	uint32_t save_DP;
-	uint8_t  save_link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
 	int dpms_mode;
 	uint8_t link_bw;
@@ -748,20 +746,6 @@ intel_dp_link_status(uint8_t link_status[DP_LINK_STATUS_SIZE],
 	return link_status[r - DP_LANE0_1_STATUS];
 }
 
-static void
-intel_dp_save(struct drm_connector *connector)
-{
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct drm_device *dev = intel_encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
-
-	dp_priv->save_DP = I915_READ(dp_priv->output_reg);
-	intel_dp_aux_native_read(intel_encoder, DP_LINK_BW_SET,
-				 dp_priv->save_link_configuration,
-				 sizeof (dp_priv->save_link_configuration));
-}
-
 static uint8_t
 intel_get_adjust_request_voltage(uint8_t link_status[DP_LINK_STATUS_SIZE],
 				 int lane)
@@ -1101,18 +1085,6 @@ intel_dp_link_down(struct intel_encoder *intel_encoder, uint32_t DP)
 	POSTING_READ(dp_priv->output_reg);
 }
 
-static void
-intel_dp_restore(struct drm_connector *connector)
-{
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
-
-	if (dp_priv->save_DP & DP_PORT_EN)
-		intel_dp_link_train(intel_encoder, dp_priv->save_DP, dp_priv->save_link_configuration);
-	else
-		intel_dp_link_down(intel_encoder,  dp_priv->save_DP);
-}
-
 /*
  * According to DP spec
  * 5.1.2:
@@ -1267,8 +1239,6 @@ static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
 
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = intel_dp_save,
-	.restore = intel_dp_restore,
 	.detect = intel_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = intel_dp_destroy,

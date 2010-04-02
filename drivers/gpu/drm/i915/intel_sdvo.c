@@ -129,11 +129,6 @@ struct intel_sdvo_priv {
 	/* Mac mini hack -- use the same DDC as the analog connector */
 	struct i2c_adapter *analog_ddc_bus;
 
-	int save_sdvo_mult;
-	u16 save_active_outputs;
-	struct intel_sdvo_dtd save_input_dtd_1, save_input_dtd_2;
-	struct intel_sdvo_dtd save_output_dtd[16];
-	u32 save_SDVOX;
 	/* add the property for the SDVO-TV */
 	struct drm_property *left_property;
 	struct drm_property *right_property;
@@ -562,17 +557,6 @@ static bool intel_sdvo_get_trained_inputs(struct intel_encoder *intel_encoder, b
 	return true;
 }
 
-static bool intel_sdvo_get_active_outputs(struct intel_encoder *intel_encoder,
-					  u16 *outputs)
-{
-	u8 status;
-
-	intel_sdvo_write_cmd(intel_encoder, SDVO_CMD_GET_ACTIVE_OUTPUTS, NULL, 0);
-	status = intel_sdvo_read_response(intel_encoder, outputs, sizeof(*outputs));
-
-	return (status == SDVO_CMD_STATUS_SUCCESS);
-}
-
 static bool intel_sdvo_set_active_outputs(struct intel_encoder *intel_encoder,
 					  u16 outputs)
 {
@@ -643,40 +627,6 @@ static bool intel_sdvo_set_target_output(struct intel_encoder *intel_encoder,
 
 	status = intel_sdvo_read_response(intel_encoder, NULL, 0);
 	return (status == SDVO_CMD_STATUS_SUCCESS);
-}
-
-static bool intel_sdvo_get_timing(struct intel_encoder *intel_encoder, u8 cmd,
-				  struct intel_sdvo_dtd *dtd)
-{
-	u8 status;
-
-	intel_sdvo_write_cmd(intel_encoder, cmd, NULL, 0);
-	status = intel_sdvo_read_response(intel_encoder, &dtd->part1,
-					  sizeof(dtd->part1));
-	if (status != SDVO_CMD_STATUS_SUCCESS)
-		return false;
-
-	intel_sdvo_write_cmd(intel_encoder, cmd + 1, NULL, 0);
-	status = intel_sdvo_read_response(intel_encoder, &dtd->part2,
-					  sizeof(dtd->part2));
-	if (status != SDVO_CMD_STATUS_SUCCESS)
-		return false;
-
-	return true;
-}
-
-static bool intel_sdvo_get_input_timing(struct intel_encoder *intel_encoder,
-					 struct intel_sdvo_dtd *dtd)
-{
-	return intel_sdvo_get_timing(intel_encoder,
-				     SDVO_CMD_GET_INPUT_TIMINGS_PART1, dtd);
-}
-
-static bool intel_sdvo_get_output_timing(struct intel_encoder *intel_encoder,
-					 struct intel_sdvo_dtd *dtd)
-{
-	return intel_sdvo_get_timing(intel_encoder,
-				     SDVO_CMD_GET_OUTPUT_TIMINGS_PART1, dtd);
 }
 
 static bool intel_sdvo_set_timing(struct intel_encoder *intel_encoder, u8 cmd,
@@ -764,23 +714,6 @@ static bool intel_sdvo_get_preferred_input_timing(struct intel_encoder *intel_en
 		return false;
 
 	return false;
-}
-
-static int intel_sdvo_get_clock_rate_mult(struct intel_encoder *intel_encoder)
-{
-	u8 response, status;
-
-	intel_sdvo_write_cmd(intel_encoder, SDVO_CMD_GET_CLOCK_RATE_MULT, NULL, 0);
-	status = intel_sdvo_read_response(intel_encoder, &response, 1);
-
-	if (status != SDVO_CMD_STATUS_SUCCESS) {
-		DRM_DEBUG_KMS("Couldn't get SDVO clock rate multiplier\n");
-		return SDVO_CLOCK_RATE_MULT_1X;
-	} else {
-		DRM_DEBUG_KMS("Current clock rate multiplier: %d\n", response);
-	}
-
-	return response;
 }
 
 static bool intel_sdvo_set_clock_rate_mult(struct intel_encoder *intel_encoder, u8 val)
@@ -1354,98 +1287,6 @@ static void intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 		intel_sdvo_set_active_outputs(intel_encoder, sdvo_priv->controlled_output);
 	}
 	return;
-}
-
-static void intel_sdvo_save(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_sdvo_priv *sdvo_priv = intel_encoder->dev_priv;
-	int o;
-
-	sdvo_priv->save_sdvo_mult = intel_sdvo_get_clock_rate_mult(intel_encoder);
-	intel_sdvo_get_active_outputs(intel_encoder, &sdvo_priv->save_active_outputs);
-
-	if (sdvo_priv->caps.sdvo_inputs_mask & 0x1) {
-		intel_sdvo_set_target_input(intel_encoder, true, false);
-		intel_sdvo_get_input_timing(intel_encoder,
-					    &sdvo_priv->save_input_dtd_1);
-	}
-
-	if (sdvo_priv->caps.sdvo_inputs_mask & 0x2) {
-		intel_sdvo_set_target_input(intel_encoder, false, true);
-		intel_sdvo_get_input_timing(intel_encoder,
-					    &sdvo_priv->save_input_dtd_2);
-	}
-
-	for (o = SDVO_OUTPUT_FIRST; o <= SDVO_OUTPUT_LAST; o++)
-	{
-	        u16  this_output = (1 << o);
-		if (sdvo_priv->caps.output_flags & this_output)
-		{
-			intel_sdvo_set_target_output(intel_encoder, this_output);
-			intel_sdvo_get_output_timing(intel_encoder,
-						     &sdvo_priv->save_output_dtd[o]);
-		}
-	}
-	if (sdvo_priv->is_tv) {
-		/* XXX: Save TV format/enhancements. */
-	}
-
-	sdvo_priv->save_SDVOX = I915_READ(sdvo_priv->sdvo_reg);
-}
-
-static void intel_sdvo_restore(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_sdvo_priv *sdvo_priv = intel_encoder->dev_priv;
-	int o;
-	int i;
-	bool input1, input2;
-	u8 status;
-
-	intel_sdvo_set_active_outputs(intel_encoder, 0);
-
-	for (o = SDVO_OUTPUT_FIRST; o <= SDVO_OUTPUT_LAST; o++)
-	{
-		u16  this_output = (1 << o);
-		if (sdvo_priv->caps.output_flags & this_output) {
-			intel_sdvo_set_target_output(intel_encoder, this_output);
-			intel_sdvo_set_output_timing(intel_encoder, &sdvo_priv->save_output_dtd[o]);
-		}
-	}
-
-	if (sdvo_priv->caps.sdvo_inputs_mask & 0x1) {
-		intel_sdvo_set_target_input(intel_encoder, true, false);
-		intel_sdvo_set_input_timing(intel_encoder, &sdvo_priv->save_input_dtd_1);
-	}
-
-	if (sdvo_priv->caps.sdvo_inputs_mask & 0x2) {
-		intel_sdvo_set_target_input(intel_encoder, false, true);
-		intel_sdvo_set_input_timing(intel_encoder, &sdvo_priv->save_input_dtd_2);
-	}
-
-	intel_sdvo_set_clock_rate_mult(intel_encoder, sdvo_priv->save_sdvo_mult);
-
-	if (sdvo_priv->is_tv) {
-		/* XXX: Restore TV format/enhancements. */
-	}
-
-	intel_sdvo_write_sdvox(intel_encoder, sdvo_priv->save_SDVOX);
-
-	if (sdvo_priv->save_SDVOX & SDVO_ENABLE)
-	{
-		for (i = 0; i < 2; i++)
-			intel_wait_for_vblank(dev);
-		status = intel_sdvo_get_trained_inputs(intel_encoder, &input1, &input2);
-		if (status == SDVO_CMD_STATUS_SUCCESS && !input1)
-			DRM_DEBUG_KMS("First %s output reported failure to "
-					"sync\n", SDVO_NAME(sdvo_priv));
-	}
-
-	intel_sdvo_set_active_outputs(intel_encoder, sdvo_priv->save_active_outputs);
 }
 
 static int intel_sdvo_mode_valid(struct drm_connector *connector,
@@ -2119,8 +1960,6 @@ static const struct drm_encoder_helper_funcs intel_sdvo_helper_funcs = {
 
 static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = intel_sdvo_save,
-	.restore = intel_sdvo_restore,
 	.detect = intel_sdvo_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_sdvo_set_property,

@@ -95,35 +95,6 @@ static void intel_dvo_dpms(struct drm_encoder *encoder, int mode)
 	}
 }
 
-static void intel_dvo_save(struct drm_connector *connector)
-{
-	struct drm_i915_private *dev_priv = connector->dev->dev_private;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
-
-	/* Each output should probably just save the registers it touches,
-	 * but for now, use more overkill.
-	 */
-	dev_priv->saveDVOA = I915_READ(DVOA);
-	dev_priv->saveDVOB = I915_READ(DVOB);
-	dev_priv->saveDVOC = I915_READ(DVOC);
-
-	dvo->dev_ops->save(dvo);
-}
-
-static void intel_dvo_restore(struct drm_connector *connector)
-{
-	struct drm_i915_private *dev_priv = connector->dev->dev_private;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
-
-	dvo->dev_ops->restore(dvo);
-
-	I915_WRITE(DVOA, dev_priv->saveDVOA);
-	I915_WRITE(DVOB, dev_priv->saveDVOB);
-	I915_WRITE(DVOC, dev_priv->saveDVOC);
-}
-
 static int intel_dvo_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
@@ -317,8 +288,6 @@ static const struct drm_encoder_helper_funcs intel_dvo_helper_funcs = {
 
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = intel_dvo_save,
-	.restore = intel_dvo_restore,
 	.detect = intel_dvo_detect,
 	.destroy = intel_dvo_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,

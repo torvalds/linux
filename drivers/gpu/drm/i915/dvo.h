@@ -70,16 +70,6 @@ struct intel_dvo_dev_ops {
 	void (*dpms)(struct intel_dvo_device *dvo, int mode);
 
 	/*
-	 * Saves the output's state for restoration on VT switch.
-	 */
-	void (*save)(struct intel_dvo_device *dvo);
-
-	/*
-	 * Restore's the output's state at VT switch.
-	 */
-	void (*restore)(struct intel_dvo_device *dvo);
-
-	/*
 	 * Callback for testing a video mode for a given output.
 	 *
 	 * This function should only check for cases where a mode can't
