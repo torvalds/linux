@@ -323,6 +323,10 @@ static void ring_ep_doorbell(struct xhci_hcd *xhci,
 	ep_state = ep->ep_state;
 	/* Don't ring the doorbell for this endpoint if there are pending
 	 * cancellations because the we don't want to interrupt processing.
+	 * We don't want to restart any stream rings if there's a set dequeue
+	 * pointer command pending because the device can choose to start any
+	 * stream once the endpoint is on the HW schedule.
+	 * FIXME - check all the stream rings for pending cancellations.
 	 */
 	if (!(ep_state & EP_HALT_PENDING) && !(ep_state & SET_DEQ_PENDING)
 			&& !(ep_state & EP_HALTED)) {
@@ -916,8 +920,9 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		 * Configure endpoint commands can come from the USB core
 		 * configuration or alt setting changes, or because the HW
 		 * needed an extra configure endpoint command after a reset
-		 * endpoint command.  In the latter case, the xHCI driver is
-		 * not waiting on the configure endpoint command.
+		 * endpoint command or streams were being configured.
+		 * If the command was for a halted endpoint, the xHCI driver
+		 * is not waiting on the configure endpoint command.
 		 */
 		ctrl_ctx = xhci_get_input_control_ctx(xhci,
 				virt_dev->in_ctx);
