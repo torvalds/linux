@@ -319,8 +319,6 @@ static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
 	id->input_handler = zfcp_qdio_int_resp;
 	id->output_handler = zfcp_qdio_int_req;
 	id->int_parm = (unsigned long) qdio;
-	id->flags = QDIO_INBOUND_0COPY_SBALS |
-		    QDIO_OUTBOUND_0COPY_SBALS | QDIO_USE_OUTBOUND_PCIS;
 	id->input_sbal_addr_array = (void **) (qdio->resp_q.sbal);
 	id->output_sbal_addr_array = (void **) (qdio->req_q.sbal);
 

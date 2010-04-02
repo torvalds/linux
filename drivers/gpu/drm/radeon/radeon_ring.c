@@ -34,6 +34,36 @@
 
 int radeon_debugfs_ib_init(struct radeon_device *rdev);
 
+void radeon_ib_bogus_cleanup(struct radeon_device *rdev)
+{
+	struct radeon_ib *ib, *n;
+
+	list_for_each_entry_safe(ib, n, &rdev->ib_pool.bogus_ib, list) {
+		list_del(&ib->list);
+		vfree(ib->ptr);
+		kfree(ib);
+	}
+}
+
+void radeon_ib_bogus_add(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	struct radeon_ib *bib;
+
+	bib = kmalloc(sizeof(*bib), GFP_KERNEL);
+	if (bib == NULL)
+		return;
+	bib->ptr = vmalloc(ib->length_dw * 4);
+	if (bib->ptr == NULL) {
+		kfree(bib);
+		return;
+	}
+	memcpy(bib->ptr, ib->ptr, ib->length_dw * 4);
+	bib->length_dw = ib->length_dw;
+	mutex_lock(&rdev->ib_pool.mutex);
+	list_add_tail(&bib->list, &rdev->ib_pool.bogus_ib);
+	mutex_unlock(&rdev->ib_pool.mutex);
+}
+
 /*
  * IB.
  */
@@ -142,6 +172,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 
 	if (rdev->ib_pool.robj)
 		return 0;
+	INIT_LIST_HEAD(&rdev->ib_pool.bogus_ib);
 	/* Allocate 1M object buffer */
 	r = radeon_bo_create(rdev, NULL,  RADEON_IB_POOL_SIZE*64*1024,
 				true, RADEON_GEM_DOMAIN_GTT,
@@ -192,6 +223,8 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 		return;
 	}
 	mutex_lock(&rdev->ib_pool.mutex);
+	radeon_ib_bogus_cleanup(rdev);
+
 	if (rdev->ib_pool.robj) {
 		r = radeon_bo_reserve(rdev->ib_pool.robj, false);
 		if (likely(r == 0)) {
@@ -349,15 +382,49 @@ static int radeon_debugfs_ib_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int radeon_debugfs_ib_bogus_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct radeon_device *rdev = node->info_ent->data;
+	struct radeon_ib *ib;
+	unsigned i;
+
+	mutex_lock(&rdev->ib_pool.mutex);
+	if (list_empty(&rdev->ib_pool.bogus_ib)) {
+		mutex_unlock(&rdev->ib_pool.mutex);
+		seq_printf(m, "no bogus IB recorded\n");
+		return 0;
+	}
+	ib = list_first_entry(&rdev->ib_pool.bogus_ib, struct radeon_ib, list);
+	list_del_init(&ib->list);
+	mutex_unlock(&rdev->ib_pool.mutex);
+	seq_printf(m, "IB size %05u dwords\n", ib->length_dw);
+	for (i = 0; i < ib->length_dw; i++) {
+		seq_printf(m, "[%05u]=0x%08X\n", i, ib->ptr[i]);
+	}
+	vfree(ib->ptr);
+	kfree(ib);
+	return 0;
+}
+
 static struct drm_info_list radeon_debugfs_ib_list[RADEON_IB_POOL_SIZE];
 static char radeon_debugfs_ib_names[RADEON_IB_POOL_SIZE][32];
+
+static struct drm_info_list radeon_debugfs_ib_bogus_info_list[] = {
+	{"radeon_ib_bogus", radeon_debugfs_ib_bogus_info, 0, NULL},
+};
 #endif
 
 int radeon_debugfs_ib_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
 	unsigned i;
+	int r;
 
+	radeon_debugfs_ib_bogus_info_list[0].data = rdev;
+	r = radeon_debugfs_add_files(rdev, radeon_debugfs_ib_bogus_info_list, 1);
+	if (r)
+		return r;
 	for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
 		sprintf(radeon_debugfs_ib_names[i], "radeon_ib_%04u", i);
 		radeon_debugfs_ib_list[i].name = radeon_debugfs_ib_names[i];

@@ -57,6 +57,10 @@ enum {
 				|| (_phy == WLAN_RC_PHY_HT_40_DS)	\
 				|| (_phy == WLAN_RC_PHY_HT_20_DS_HGI)	\
 				|| (_phy == WLAN_RC_PHY_HT_40_DS_HGI))
+#define WLAN_RC_PHY_20(_phy)   ((_phy == WLAN_RC_PHY_HT_20_SS)		\
+				|| (_phy == WLAN_RC_PHY_HT_20_DS)	\
+				|| (_phy == WLAN_RC_PHY_HT_20_SS_HGI)	\
+				|| (_phy == WLAN_RC_PHY_HT_20_DS_HGI))
 #define WLAN_RC_PHY_40(_phy)   ((_phy == WLAN_RC_PHY_HT_40_SS)		\
 				|| (_phy == WLAN_RC_PHY_HT_40_DS)	\
 				|| (_phy == WLAN_RC_PHY_HT_40_SS_HGI)	\

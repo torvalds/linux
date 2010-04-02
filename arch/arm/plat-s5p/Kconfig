@@ -1,0 +1,25 @@
+# arch/arm/plat-s5p/Kconfig
+#
+# Copyright (c) 2009 Samsung Electronics Co., Ltd.
+#		http://www.samsung.com/
+#
+# Licensed under GPLv2
+
+config PLAT_S5P
+	bool
+	depends on (ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PV210)
+	default y
+	select ARM_VIC
+	select NO_IOPORT
+	select ARCH_REQUIRE_GPIOLIB
+	select S3C_GPIO_TRACK
+	select SAMSUNG_GPIOLIB_4BIT
+	select S3C_GPIO_CFG_S3C64XX
+	select S3C_GPIO_PULL_UPDOWN
+	select S3C_GPIO_CFG_S3C24XX
+	select PLAT_SAMSUNG
+	select SAMSUNG_CLKSRC
+	select SAMSUNG_IRQ_VIC_TIMER
+	select SAMSUNG_IRQ_UART
+	help
+	  Base platform code for Samsung's S5P series SoC.

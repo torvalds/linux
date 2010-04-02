@@ -59,11 +59,17 @@ enum ieee80211_internal_key_flags {
 	KEY_FLAG_TODO_DEFMGMTKEY	= BIT(6),
 };
 
+enum ieee80211_internal_tkip_state {
+	TKIP_STATE_NOT_INIT,
+	TKIP_STATE_PHASE1_DONE,
+	TKIP_STATE_PHASE1_HW_UPLOADED,
+};
+
 struct tkip_ctx {
 	u32 iv32;
 	u16 iv16;
 	u16 p1k[5];
-	int initialized;
+	enum ieee80211_internal_tkip_state state;
 };
 
 struct ieee80211_key {

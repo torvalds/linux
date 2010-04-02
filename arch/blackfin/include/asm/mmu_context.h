@@ -13,6 +13,7 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/cplbinit.h>
+#include <asm/sections.h>
 
 /* Note: L1 stacks are CPU-private things, so we bluntly disable this
    feature in SMP mode, and use the per-CPU scratch SRAM bank only to
@@ -117,9 +118,16 @@ static inline void protect_page(struct mm_struct *mm, unsigned long addr,
 				unsigned long flags)
 {
 	unsigned long *mask = mm->context.page_rwx_mask;
-	unsigned long page = addr >> 12;
-	unsigned long idx = page >> 5;
-	unsigned long bit = 1 << (page & 31);
+	unsigned long page;
+	unsigned long idx;
+	unsigned long bit;
+
+	if (unlikely(addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE))
+		page = (addr - (ASYNC_BANK0_BASE - _ramend)) >> 12;
+	else
+		page = addr >> 12;
+	idx = page >> 5;
+	bit = 1 << (page & 31);
 
 	if (flags & VM_READ)
 		mask[idx] |= bit;

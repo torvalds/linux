@@ -87,6 +87,9 @@ void free_initmem(void);
 extern char *klimit;
 extern void ret_from_fork(void);
 
+extern void *alloc_maybe_bootmem(size_t size, gfp_t mask);
+extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
+
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *of_debugfs_root;
 #endif

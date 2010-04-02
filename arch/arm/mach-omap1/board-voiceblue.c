@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/mtd/physmap.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <linux/serial_8250.h>
@@ -27,11 +28,11 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
 #include <plat/common.h>
 #include <mach/gpio.h>
+#include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
 #include <plat/usb.h>
@@ -86,9 +87,9 @@ static int __init ext_uart_init(void)
 }
 arch_initcall(ext_uart_init);
 
-static struct flash_platform_data voiceblue_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data voiceblue_flash_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 };
 
 static struct resource voiceblue_flash_resource = {
@@ -98,7 +99,7 @@ static struct resource voiceblue_flash_resource = {
 };
 
 static struct platform_device voiceblue_flash_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &voiceblue_flash_data,

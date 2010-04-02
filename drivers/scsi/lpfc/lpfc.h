@@ -37,6 +37,9 @@ struct lpfc_sli2_slim;
 					   the NameServer  before giving up. */
 #define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_DEFAULT_SG_SEG_CNT 64	/* sg element count per scsi cmnd */
+#define LPFC_DEFAULT_MENLO_SG_SEG_CNT 128	/* sg element count per scsi
+		cmnd for menlo needs nearly twice as for firmware
+		downloads using bsg */
 #define LPFC_DEFAULT_PROT_SG_SEG_CNT 4096 /* sg protection elements count */
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
 #define LPFC_MAX_PROT_SG_SEG_CNT 4096	/* prot sg element count per scsi cmd*/
@@ -509,7 +512,6 @@ struct lpfc_hba {
 	int (*lpfc_hba_down_link)
 		(struct lpfc_hba *);
 
-
 	/* SLI4 specific HBA data structure */
 	struct lpfc_sli4_hba sli4_hba;
 
@@ -623,6 +625,9 @@ struct lpfc_hba {
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
 	uint32_t cfg_suppress_link_up;
+#define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
+#define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
+#define LPFC_DELAY_INIT_LINK_INDEFINITELY 2	/* wait, manual intervention */
 
 	lpfc_vpd_t vpd;		/* vital product data */
 
@@ -804,6 +809,9 @@ struct lpfc_hba {
 	struct list_head ct_ev_waiters;
 	struct unsol_rcv_ct_ctx ct_ctx[64];
 	uint32_t ctx_idx;
+
+	uint8_t menlo_flag;	/* menlo generic flags */
+#define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */
 };
 
 static inline struct Scsi_Host *

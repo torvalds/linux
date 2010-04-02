@@ -29,7 +29,7 @@ static char USB_DEBUG_BRK[USB_DEBUG_BRK_SIZE] = {
 	0xff,
 };
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x0525, 0x127a) },
 	{ },
 };

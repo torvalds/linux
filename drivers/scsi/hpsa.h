@@ -83,6 +83,10 @@ struct ctlr_info {
 	unsigned int maxQsinceinit;
 	unsigned int maxSG;
 	spinlock_t lock;
+	int maxsgentries;
+	u8 max_cmd_sg_entries;
+	int chainsize;
+	struct SGDescriptor **cmd_sg_list;
 
 	/* pointers to command and error info pool */
 	struct CommandList 	*cmd_pool;
@@ -97,9 +101,6 @@ struct ctlr_info {
 	int			scan_finished;
 	spinlock_t		scan_lock;
 	wait_queue_head_t	scan_wait_queue;
-	struct mutex		busy_shutting_down;
-	struct list_head	scan_list;
-	struct completion	scan_wait;
 
 	struct Scsi_Host *scsi_host;
 	spinlock_t devlock; /* to protect hba[ctlr]->dev[];  */

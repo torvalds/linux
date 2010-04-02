@@ -482,8 +482,7 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 		(!ieee->enter_sleep_state) ||
 		(!ieee->ps_is_queue_empty)){
 
-		printk("ERROR. PS mode is tryied to be use but\
-driver missed a callback\n\n");
+		printk("ERROR. PS mode tried to be use but driver missed a callback\n\n");
 
 		return -1;
 	}

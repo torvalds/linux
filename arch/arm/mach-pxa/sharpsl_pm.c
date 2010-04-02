@@ -900,7 +900,7 @@ static struct platform_suspend_ops sharpsl_pm_ops = {
 };
 #endif
 
-static int __init sharpsl_pm_probe(struct platform_device *pdev)
+static int __devinit sharpsl_pm_probe(struct platform_device *pdev)
 {
 	int ret;
 

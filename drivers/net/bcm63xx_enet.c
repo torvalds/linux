@@ -619,7 +619,7 @@ static void bcm_enet_set_multicast_list(struct net_device *dev)
 
 	/* only 3 perfect match registers left, first one is used for
 	 * own mac address */
-	if ((dev->flags & IFF_ALLMULTI) || dev->mc_count > 3)
+	if ((dev->flags & IFF_ALLMULTI) || netdev_mc_count(dev) > 3)
 		val |= ENET_RXCFG_ALLMCAST_MASK;
 	else
 		val &= ~ENET_RXCFG_ALLMCAST_MASK;
@@ -631,16 +631,13 @@ static void bcm_enet_set_multicast_list(struct net_device *dev)
 		return;
 	}
 
-	for (i = 0, mc_list = dev->mc_list;
-	     (mc_list != NULL) && (i < dev->mc_count) && (i < 3);
-	     i++, mc_list = mc_list->next) {
+	i = 0;
+	netdev_for_each_mc_addr(mc_list, dev) {
 		u8 *dmi_addr;
 		u32 tmp;
 
-		/* filter non ethernet address */
-		if (mc_list->dmi_addrlen != 6)
-			continue;
-
+		if (i == 3)
+			break;
 		/* update perfect match registers */
 		dmi_addr = mc_list->dmi_addr;
 		tmp = (dmi_addr[2] << 24) | (dmi_addr[3] << 16) |
@@ -649,7 +646,7 @@ static void bcm_enet_set_multicast_list(struct net_device *dev)
 
 		tmp = (dmi_addr[0] << 8 | dmi_addr[1]);
 		tmp |= ENET_PMH_DATAVALID_MASK;
-		enet_writel(priv, tmp, ENET_PMH_REG(i + 1));
+		enet_writel(priv, tmp, ENET_PMH_REG(i++ + 1));
 	}
 
 	for (; i < 3; i++) {

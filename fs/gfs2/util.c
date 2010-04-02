@@ -21,6 +21,7 @@
 #include "util.h"
 
 struct kmem_cache *gfs2_glock_cachep __read_mostly;
+struct kmem_cache *gfs2_glock_aspace_cachep __read_mostly;
 struct kmem_cache *gfs2_inode_cachep __read_mostly;
 struct kmem_cache *gfs2_bufdata_cachep __read_mostly;
 struct kmem_cache *gfs2_rgrpd_cachep __read_mostly;

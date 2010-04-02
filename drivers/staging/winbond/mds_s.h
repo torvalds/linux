@@ -133,32 +133,4 @@ struct wb35_mds {
 
 };
 
-//
-// Reveive Layer 1 Format.
-//----------------------------
-typedef struct _RXLAYER1
-{
-    u16  SequenceNumber;     // The sequence number of the last received packet.
-	u16	BufferTotalSize;
-
-	u32	InUsed;
-    u32   DecryptionMethod;   // The desired defragment number of the next incoming packet.
-
-	u8	DeFragmentNumber;
-	u8	FrameType;
-    u8	TypeEncapsulated;
-	u8	BufferNumber;
-
-	u32	FirstFrameArrivedTime;
-
-	u8		LastFrameType; // 20061004 for fix intel 3945 's bug
-	u8		RESERVED[3];  //@@ anson
-
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	// For brand-new Rx system
-	u8	ReservedBuffer[ 2400 ];//If Buffer ID is reserved one, it must copy the data into this area
-	u8	*ReservedBufferPoint;// Point to the next availabe address of reserved buffer
-
-}RXLAYER1, * PRXLAYER1;
-
 #endif

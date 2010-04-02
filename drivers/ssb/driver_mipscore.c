@@ -270,7 +270,6 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 				set_irq(dev, irq++);
 			}
 			break;
-			/* fallthrough */
 		case SSB_DEV_PCI:
 		case SSB_DEV_ETHERNET:
 		case SSB_DEV_ETHERNET_GBIT:
@@ -281,6 +280,10 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 				set_irq(dev, irq++);
 				break;
 			}
+			/* fallthrough */
+		case SSB_DEV_EXTIF:
+			set_irq(dev, 0);
+			break;
 		}
 	}
 	ssb_dprintk(KERN_INFO PFX "after irq reconfiguration\n");

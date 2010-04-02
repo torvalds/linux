@@ -75,46 +75,45 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 	memset(&i2c, 0, sizeof(struct radeon_i2c_bus_rec));
 	i2c.valid = false;
 
-	atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset);
+	if (atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
+		i2c_info = (struct _ATOM_GPIO_I2C_INFO *)(ctx->bios + data_offset);
 
-	i2c_info = (struct _ATOM_GPIO_I2C_INFO *)(ctx->bios + data_offset);
+		for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
+			gpio = &i2c_info->asGPIO_Info[i];
 
+			if (gpio->sucI2cId.ucAccess == id) {
+				i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
+				i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
+				i2c.en_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
+				i2c.en_data_reg = le16_to_cpu(gpio->usDataEnRegisterIndex) * 4;
+				i2c.y_clk_reg = le16_to_cpu(gpio->usClkY_RegisterIndex) * 4;
+				i2c.y_data_reg = le16_to_cpu(gpio->usDataY_RegisterIndex) * 4;
+				i2c.a_clk_reg = le16_to_cpu(gpio->usClkA_RegisterIndex) * 4;
+				i2c.a_data_reg = le16_to_cpu(gpio->usDataA_RegisterIndex) * 4;
+				i2c.mask_clk_mask = (1 << gpio->ucClkMaskShift);
+				i2c.mask_data_mask = (1 << gpio->ucDataMaskShift);
+				i2c.en_clk_mask = (1 << gpio->ucClkEnShift);
+				i2c.en_data_mask = (1 << gpio->ucDataEnShift);
+				i2c.y_clk_mask = (1 << gpio->ucClkY_Shift);
+				i2c.y_data_mask = (1 << gpio->ucDataY_Shift);
+				i2c.a_clk_mask = (1 << gpio->ucClkA_Shift);
+				i2c.a_data_mask = (1 << gpio->ucDataA_Shift);
 
-	for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
-		gpio = &i2c_info->asGPIO_Info[i];
+				if (gpio->sucI2cId.sbfAccess.bfHW_Capable)
+					i2c.hw_capable = true;
+				else
+					i2c.hw_capable = false;
 
-		if (gpio->sucI2cId.ucAccess == id) {
-			i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
-			i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
-			i2c.en_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
-			i2c.en_data_reg = le16_to_cpu(gpio->usDataEnRegisterIndex) * 4;
-			i2c.y_clk_reg = le16_to_cpu(gpio->usClkY_RegisterIndex) * 4;
-			i2c.y_data_reg = le16_to_cpu(gpio->usDataY_RegisterIndex) * 4;
-			i2c.a_clk_reg = le16_to_cpu(gpio->usClkA_RegisterIndex) * 4;
-			i2c.a_data_reg = le16_to_cpu(gpio->usDataA_RegisterIndex) * 4;
-			i2c.mask_clk_mask = (1 << gpio->ucClkMaskShift);
-			i2c.mask_data_mask = (1 << gpio->ucDataMaskShift);
-			i2c.en_clk_mask = (1 << gpio->ucClkEnShift);
-			i2c.en_data_mask = (1 << gpio->ucDataEnShift);
-			i2c.y_clk_mask = (1 << gpio->ucClkY_Shift);
-			i2c.y_data_mask = (1 << gpio->ucDataY_Shift);
-			i2c.a_clk_mask = (1 << gpio->ucClkA_Shift);
-			i2c.a_data_mask = (1 << gpio->ucDataA_Shift);
+				if (gpio->sucI2cId.ucAccess == 0xa0)
+					i2c.mm_i2c = true;
+				else
+					i2c.mm_i2c = false;
 
-			if (gpio->sucI2cId.sbfAccess.bfHW_Capable)
-				i2c.hw_capable = true;
-			else
-				i2c.hw_capable = false;
+				i2c.i2c_id = gpio->sucI2cId.ucAccess;
 
-			if (gpio->sucI2cId.ucAccess == 0xa0)
-				i2c.mm_i2c = true;
-			else
-				i2c.mm_i2c = false;
-
-			i2c.i2c_id = gpio->sucI2cId.ucAccess;
-
-			i2c.valid = true;
-			break;
+				i2c.valid = true;
+				break;
+			}
 		}
 	}
 
@@ -135,20 +134,21 @@ static inline struct radeon_gpio_rec radeon_lookup_gpio(struct radeon_device *rd
 	memset(&gpio, 0, sizeof(struct radeon_gpio_rec));
 	gpio.valid = false;
 
-	atom_parse_data_header(ctx, index, &size, NULL, NULL, &data_offset);
+	if (atom_parse_data_header(ctx, index, &size, NULL, NULL, &data_offset)) {
+		gpio_info = (struct _ATOM_GPIO_PIN_LUT *)(ctx->bios + data_offset);
 
-	gpio_info = (struct _ATOM_GPIO_PIN_LUT *)(ctx->bios + data_offset);
+		num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+			sizeof(ATOM_GPIO_PIN_ASSIGNMENT);
 
-	num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) / sizeof(ATOM_GPIO_PIN_ASSIGNMENT);
-
-	for (i = 0; i < num_indices; i++) {
-		pin = &gpio_info->asGPIO_Pin[i];
-		if (id == pin->ucGPIO_ID) {
-			gpio.id = pin->ucGPIO_ID;
-			gpio.reg = pin->usGpioPin_AIndex * 4;
-			gpio.mask = (1 << pin->ucGpioPinBitShift);
-			gpio.valid = true;
-			break;
+		for (i = 0; i < num_indices; i++) {
+			pin = &gpio_info->asGPIO_Pin[i];
+			if (id == pin->ucGPIO_ID) {
+				gpio.id = pin->ucGPIO_ID;
+				gpio.reg = pin->usGpioPin_AIndex * 4;
+				gpio.mask = (1 << pin->ucGpioPinBitShift);
+				gpio.valid = true;
+				break;
+			}
 		}
 	}
 
@@ -159,8 +159,15 @@ static struct radeon_hpd radeon_atom_get_hpd_info_from_gpio(struct radeon_device
 							    struct radeon_gpio_rec *gpio)
 {
 	struct radeon_hpd hpd;
+	u32 reg;
+
+	if (ASIC_IS_DCE4(rdev))
+		reg = EVERGREEN_DC_GPIO_HPD_A;
+	else
+		reg = AVIVO_DC_GPIO_HPD_A;
+
 	hpd.gpio = *gpio;
-	if (gpio->reg == AVIVO_DC_GPIO_HPD_A) {
+	if (gpio->reg == reg) {
 		switch(gpio->mask) {
 		case (1 << 0):
 			hpd.hpd = RADEON_HPD_1;
@@ -257,6 +264,8 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		if ((supported_device == ATOM_DEVICE_CRT1_SUPPORT) ||
 		    (supported_device == ATOM_DEVICE_DFP2_SUPPORT))
 			return false;
+		if (supported_device == ATOM_DEVICE_CRT2_SUPPORT)
+			*line_mux = 0x90;
 	}
 
 	/* ASUS HD 3600 XT board lists the DVI port as HDMI */
@@ -388,9 +397,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	struct radeon_gpio_rec gpio;
 	struct radeon_hpd hpd;
 
-	atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset);
-
-	if (data_offset == 0)
+	if (!atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset))
 		return false;
 
 	if (crev < 2)
@@ -442,37 +449,43 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 				    GetIndexIntoMasterTable(DATA,
 							    IntegratedSystemInfo);
 
-				atom_parse_data_header(ctx, index, &size, &frev,
-						       &crev, &igp_offset);
+				if (atom_parse_data_header(ctx, index, &size, &frev,
+							   &crev, &igp_offset)) {
 
-				if (crev >= 2) {
-					igp_obj =
-					    (ATOM_INTEGRATED_SYSTEM_INFO_V2
-					     *) (ctx->bios + igp_offset);
+					if (crev >= 2) {
+						igp_obj =
+							(ATOM_INTEGRATED_SYSTEM_INFO_V2
+							 *) (ctx->bios + igp_offset);
 
-					if (igp_obj) {
-						uint32_t slot_config, ct;
+						if (igp_obj) {
+							uint32_t slot_config, ct;
 
-						if (con_obj_num == 1)
-							slot_config =
-							    igp_obj->
-							    ulDDISlot1Config;
-						else
-							slot_config =
-							    igp_obj->
-							    ulDDISlot2Config;
+							if (con_obj_num == 1)
+								slot_config =
+									igp_obj->
+									ulDDISlot1Config;
+							else
+								slot_config =
+									igp_obj->
+									ulDDISlot2Config;
 
-						ct = (slot_config >> 16) & 0xff;
-						connector_type =
-						    object_connector_convert
-						    [ct];
-						connector_object_id = ct;
-						igp_lane_info =
-						    slot_config & 0xffff;
+							ct = (slot_config >> 16) & 0xff;
+							connector_type =
+								object_connector_convert
+								[ct];
+							connector_object_id = ct;
+							igp_lane_info =
+								slot_config & 0xffff;
+						} else
+							continue;
 					} else
 						continue;
-				} else
-					continue;
+				} else {
+					igp_lane_info = 0;
+					connector_type =
+						object_connector_convert[con_obj_id];
+					connector_object_id = con_obj_id;
+				}
 			} else {
 				igp_lane_info = 0;
 				connector_type =
@@ -574,6 +587,9 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 				ddc_bus.valid = false;
 			}
 
+			/* needed for aux chan transactions */
+			ddc_bus.hpd_id = hpd.hpd ? (hpd.hpd - 1) : 0;
+
 			conn_id = le16_to_cpu(path->usConnObjectId);
 
 			if (!radeon_atom_apply_quirks
@@ -617,20 +633,23 @@ static uint16_t atombios_get_connector_object_id(struct drm_device *dev,
 		uint8_t frev, crev;
 		ATOM_XTMDS_INFO *xtmds;
 
-		atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset);
-		xtmds = (ATOM_XTMDS_INFO *)(ctx->bios + data_offset);
+		if (atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset)) {
+			xtmds = (ATOM_XTMDS_INFO *)(ctx->bios + data_offset);
 
-		if (xtmds->ucSupportedLink & ATOM_XTMDS_SUPPORTED_DUALLINK) {
-			if (connector_type == DRM_MODE_CONNECTOR_DVII)
-				return CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_I;
-			else
-				return CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D;
-		} else {
-			if (connector_type == DRM_MODE_CONNECTOR_DVII)
-				return CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_I;
-			else
-				return CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_D;
-		}
+			if (xtmds->ucSupportedLink & ATOM_XTMDS_SUPPORTED_DUALLINK) {
+				if (connector_type == DRM_MODE_CONNECTOR_DVII)
+					return CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_I;
+				else
+					return CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D;
+			} else {
+				if (connector_type == DRM_MODE_CONNECTOR_DVII)
+					return CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_I;
+				else
+					return CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_D;
+			}
+		} else
+			return supported_devices_connector_object_id_convert
+				[connector_type];
 	} else {
 		return supported_devices_connector_object_id_convert
 			[connector_type];
@@ -662,7 +681,8 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 	int i, j, max_device;
 	struct bios_connector bios_connectors[ATOM_MAX_SUPPORTED_DEVICE];
 
-	atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset);
+	if (!atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset))
+		return false;
 
 	supported_devices =
 	    (union atom_supported_devices *)(ctx->bios + data_offset);
@@ -838,6 +858,7 @@ union firmware_info {
 	ATOM_FIRMWARE_INFO_V1_2 info_12;
 	ATOM_FIRMWARE_INFO_V1_3 info_13;
 	ATOM_FIRMWARE_INFO_V1_4 info_14;
+	ATOM_FIRMWARE_INFO_V2_1 info_21;
 };
 
 bool radeon_atom_get_clock_info(struct drm_device *dev)
@@ -849,18 +870,16 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 	uint8_t frev, crev;
 	struct radeon_pll *p1pll = &rdev->clock.p1pll;
 	struct radeon_pll *p2pll = &rdev->clock.p2pll;
+	struct radeon_pll *dcpll = &rdev->clock.dcpll;
 	struct radeon_pll *spll = &rdev->clock.spll;
 	struct radeon_pll *mpll = &rdev->clock.mpll;
 	uint16_t data_offset;
 
-	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev,
-			       &crev, &data_offset);
-
-	firmware_info =
-	    (union firmware_info *)(mode_info->atom_context->bios +
-				    data_offset);
-
-	if (firmware_info) {
+	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
+		firmware_info =
+			(union firmware_info *)(mode_info->atom_context->bios +
+						data_offset);
 		/* pixel clocks */
 		p1pll->reference_freq =
 		    le16_to_cpu(firmware_info->info.usReferenceClock);
@@ -874,6 +893,20 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 				le32_to_cpu(firmware_info->info_12.ulMinPixelClockPLL_Output);
 		p1pll->pll_out_max =
 		    le32_to_cpu(firmware_info->info.ulMaxPixelClockPLL_Output);
+
+		if (crev >= 4) {
+			p1pll->lcd_pll_out_min =
+				le16_to_cpu(firmware_info->info_14.usLcdMinPixelClockPLL_Output) * 100;
+			if (p1pll->lcd_pll_out_min == 0)
+				p1pll->lcd_pll_out_min = p1pll->pll_out_min;
+			p1pll->lcd_pll_out_max =
+				le16_to_cpu(firmware_info->info_14.usLcdMaxPixelClockPLL_Output) * 100;
+			if (p1pll->lcd_pll_out_max == 0)
+				p1pll->lcd_pll_out_max = p1pll->pll_out_max;
+		} else {
+			p1pll->lcd_pll_out_min = p1pll->pll_out_min;
+			p1pll->lcd_pll_out_max = p1pll->pll_out_max;
+		}
 
 		if (p1pll->pll_out_min == 0) {
 			if (ASIC_IS_AVIVO(rdev))
@@ -951,8 +984,19 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		rdev->clock.default_mclk =
 		    le32_to_cpu(firmware_info->info.ulDefaultMemoryClock);
 
+		if (ASIC_IS_DCE4(rdev)) {
+			rdev->clock.default_dispclk =
+				le32_to_cpu(firmware_info->info_21.ulDefaultDispEngineClkFreq);
+			if (rdev->clock.default_dispclk == 0)
+				rdev->clock.default_dispclk = 60000; /* 600 Mhz */
+			rdev->clock.dp_extclk =
+				le16_to_cpu(firmware_info->info_21.usUniphyDPModeExtClkFreq);
+		}
+		*dcpll = *p1pll;
+
 		return true;
 	}
+
 	return false;
 }
 
@@ -969,13 +1013,10 @@ bool radeon_atombios_sideport_present(struct radeon_device *rdev)
 	u8 frev, crev;
 	u16 data_offset;
 
-	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev,
-			       &crev, &data_offset);
-
-	igp_info = (union igp_info *)(mode_info->atom_context->bios +
+	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
+		igp_info = (union igp_info *)(mode_info->atom_context->bios +
 				      data_offset);
-
-	if (igp_info) {
 		switch (crev) {
 		case 1:
 			if (igp_info->info.ucMemoryType & 0xf0)
@@ -1006,14 +1047,12 @@ bool radeon_atombios_get_tmds_info(struct radeon_encoder *encoder,
 	uint16_t maxfreq;
 	int i;
 
-	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev,
-			       &crev, &data_offset);
+	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
+		tmds_info =
+			(struct _ATOM_TMDS_INFO *)(mode_info->atom_context->bios +
+						   data_offset);
 
-	tmds_info =
-	    (struct _ATOM_TMDS_INFO *)(mode_info->atom_context->bios +
-				       data_offset);
-
-	if (tmds_info) {
 		maxfreq = le16_to_cpu(tmds_info->usMaxFrequency);
 		for (i = 0; i < 4; i++) {
 			tmds->tmds_pll[i].freq =
@@ -1062,13 +1101,11 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 	if (id > ATOM_MAX_SS_ENTRY)
 		return NULL;
 
-	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev,
-			       &crev, &data_offset);
+	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
+		ss_info =
+			(struct _ATOM_SPREAD_SPECTRUM_INFO *)(mode_info->atom_context->bios + data_offset);
 
-	ss_info =
-	    (struct _ATOM_SPREAD_SPECTRUM_INFO *)(mode_info->atom_context->bios + data_offset);
-
-	if (ss_info) {
 		ss =
 		    kzalloc(sizeof(struct radeon_atom_ss), GFP_KERNEL);
 
@@ -1109,13 +1146,10 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 	uint8_t frev, crev;
 	struct radeon_encoder_atom_dig *lvds = NULL;
 
-	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev,
-			       &crev, &data_offset);
-
-	lvds_info =
-	    (union lvds_info *)(mode_info->atom_context->bios + data_offset);
-
-	if (lvds_info) {
+	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
+		lvds_info =
+			(union lvds_info *)(mode_info->atom_context->bios + data_offset);
 		lvds =
 		    kzalloc(sizeof(struct radeon_encoder_atom_dig), GFP_KERNEL);
 
@@ -1161,6 +1195,18 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 
 		lvds->ss = radeon_atombios_get_ss_info(encoder, lvds_info->info.ucSS_Id);
 
+		if (ASIC_IS_AVIVO(rdev)) {
+			if (radeon_new_pll == 0)
+				lvds->pll_algo = PLL_ALGO_LEGACY;
+			else
+				lvds->pll_algo = PLL_ALGO_NEW;
+		} else {
+			if (radeon_new_pll == 1)
+				lvds->pll_algo = PLL_ALGO_NEW;
+			else
+				lvds->pll_algo = PLL_ALGO_LEGACY;
+		}
+
 		encoder->native_mode = lvds->native_mode;
 	}
 	return lvds;
@@ -1179,11 +1225,11 @@ radeon_atombios_get_primary_dac_info(struct radeon_encoder *encoder)
 	uint8_t bg, dac;
 	struct radeon_encoder_primary_dac *p_dac = NULL;
 
-	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev, &crev, &data_offset);
+	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
+		dac_info = (struct _COMPASSIONATE_DATA *)
+			(mode_info->atom_context->bios + data_offset);
 
-	dac_info = (struct _COMPASSIONATE_DATA *)(mode_info->atom_context->bios + data_offset);
-
-	if (dac_info) {
 		p_dac = kzalloc(sizeof(struct radeon_encoder_primary_dac), GFP_KERNEL);
 
 		if (!p_dac)
@@ -1208,7 +1254,9 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 	u8 frev, crev;
 	u16 data_offset, misc;
 
-	atom_parse_data_header(mode_info->atom_context, data_index, NULL, &frev, &crev, &data_offset);
+	if (!atom_parse_data_header(mode_info->atom_context, data_index, NULL,
+				    &frev, &crev, &data_offset))
+		return false;
 
 	switch (crev) {
 	case 1:
@@ -1300,47 +1348,50 @@ radeon_atombios_get_tv_info(struct radeon_device *rdev)
 	struct _ATOM_ANALOG_TV_INFO *tv_info;
 	enum radeon_tv_std tv_std = TV_STD_NTSC;
 
-	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev, &crev, &data_offset);
+	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
 
-	tv_info = (struct _ATOM_ANALOG_TV_INFO *)(mode_info->atom_context->bios + data_offset);
+		tv_info = (struct _ATOM_ANALOG_TV_INFO *)
+			(mode_info->atom_context->bios + data_offset);
 
-	switch (tv_info->ucTV_BootUpDefaultStandard) {
-	case ATOM_TV_NTSC:
-		tv_std = TV_STD_NTSC;
-		DRM_INFO("Default TV standard: NTSC\n");
-		break;
-	case ATOM_TV_NTSCJ:
-		tv_std = TV_STD_NTSC_J;
-		DRM_INFO("Default TV standard: NTSC-J\n");
-		break;
-	case ATOM_TV_PAL:
-		tv_std = TV_STD_PAL;
-		DRM_INFO("Default TV standard: PAL\n");
-		break;
-	case ATOM_TV_PALM:
-		tv_std = TV_STD_PAL_M;
-		DRM_INFO("Default TV standard: PAL-M\n");
-		break;
-	case ATOM_TV_PALN:
-		tv_std = TV_STD_PAL_N;
-		DRM_INFO("Default TV standard: PAL-N\n");
-		break;
-	case ATOM_TV_PALCN:
-		tv_std = TV_STD_PAL_CN;
-		DRM_INFO("Default TV standard: PAL-CN\n");
-		break;
-	case ATOM_TV_PAL60:
-		tv_std = TV_STD_PAL_60;
-		DRM_INFO("Default TV standard: PAL-60\n");
-		break;
-	case ATOM_TV_SECAM:
-		tv_std = TV_STD_SECAM;
-		DRM_INFO("Default TV standard: SECAM\n");
-		break;
-	default:
-		tv_std = TV_STD_NTSC;
-		DRM_INFO("Unknown TV standard; defaulting to NTSC\n");
-		break;
+		switch (tv_info->ucTV_BootUpDefaultStandard) {
+		case ATOM_TV_NTSC:
+			tv_std = TV_STD_NTSC;
+			DRM_INFO("Default TV standard: NTSC\n");
+			break;
+		case ATOM_TV_NTSCJ:
+			tv_std = TV_STD_NTSC_J;
+			DRM_INFO("Default TV standard: NTSC-J\n");
+			break;
+		case ATOM_TV_PAL:
+			tv_std = TV_STD_PAL;
+			DRM_INFO("Default TV standard: PAL\n");
+			break;
+		case ATOM_TV_PALM:
+			tv_std = TV_STD_PAL_M;
+			DRM_INFO("Default TV standard: PAL-M\n");
+			break;
+		case ATOM_TV_PALN:
+			tv_std = TV_STD_PAL_N;
+			DRM_INFO("Default TV standard: PAL-N\n");
+			break;
+		case ATOM_TV_PALCN:
+			tv_std = TV_STD_PAL_CN;
+			DRM_INFO("Default TV standard: PAL-CN\n");
+			break;
+		case ATOM_TV_PAL60:
+			tv_std = TV_STD_PAL_60;
+			DRM_INFO("Default TV standard: PAL-60\n");
+			break;
+		case ATOM_TV_SECAM:
+			tv_std = TV_STD_SECAM;
+			DRM_INFO("Default TV standard: SECAM\n");
+			break;
+		default:
+			tv_std = TV_STD_NTSC;
+			DRM_INFO("Unknown TV standard; defaulting to NTSC\n");
+			break;
+		}
 	}
 	return tv_std;
 }
@@ -1358,11 +1409,12 @@ radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder)
 	uint8_t bg, dac;
 	struct radeon_encoder_tv_dac *tv_dac = NULL;
 
-	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev, &crev, &data_offset);
+	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
 
-	dac_info = (struct _COMPASSIONATE_DATA *)(mode_info->atom_context->bios + data_offset);
+		dac_info = (struct _COMPASSIONATE_DATA *)
+			(mode_info->atom_context->bios + data_offset);
 
-	if (dac_info) {
 		tv_dac = kzalloc(sizeof(struct radeon_encoder_tv_dac), GFP_KERNEL);
 
 		if (!tv_dac)
@@ -1385,20 +1437,424 @@ radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder)
 	return tv_dac;
 }
 
+static const char *thermal_controller_names[] = {
+	"NONE",
+	"LM63",
+	"ADM1032",
+	"ADM1030",
+	"MUA6649",
+	"LM64",
+	"F75375",
+	"ASC7512",
+};
+
+static const char *pp_lib_thermal_controller_names[] = {
+	"NONE",
+	"LM63",
+	"ADM1032",
+	"ADM1030",
+	"MUA6649",
+	"LM64",
+	"F75375",
+	"RV6xx",
+	"RV770",
+	"ADT7473",
+};
+
+union power_info {
+	struct _ATOM_POWERPLAY_INFO info;
+	struct _ATOM_POWERPLAY_INFO_V2 info_2;
+	struct _ATOM_POWERPLAY_INFO_V3 info_3;
+	struct _ATOM_PPLIB_POWERPLAYTABLE info_4;
+};
+
+void radeon_atombios_get_power_modes(struct radeon_device *rdev)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
+	u16 data_offset;
+	u8 frev, crev;
+	u32 misc, misc2 = 0, sclk, mclk;
+	union power_info *power_info;
+	struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info;
+	struct _ATOM_PPLIB_STATE *power_state;
+	int num_modes = 0, i, j;
+	int state_index = 0, mode_index = 0;
+	struct radeon_i2c_bus_rec i2c_bus;
+
+	rdev->pm.default_power_state = NULL;
+
+	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
+		power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
+		if (frev < 4) {
+			/* add the i2c bus for thermal/fan chip */
+			if (power_info->info.ucOverdriveThermalController > 0) {
+				DRM_INFO("Possible %s thermal controller at 0x%02x\n",
+					 thermal_controller_names[power_info->info.ucOverdriveThermalController],
+					 power_info->info.ucOverdriveControllerAddress >> 1);
+				i2c_bus = radeon_lookup_i2c_gpio(rdev, power_info->info.ucOverdriveI2cLine);
+				rdev->pm.i2c_bus = radeon_i2c_create(rdev->ddev, &i2c_bus, "Thermal");
+			}
+			num_modes = power_info->info.ucNumOfPowerModeEntries;
+			if (num_modes > ATOM_MAX_NUMBEROF_POWER_BLOCK)
+				num_modes = ATOM_MAX_NUMBEROF_POWER_BLOCK;
+			for (i = 0; i < num_modes; i++) {
+				rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
+				switch (frev) {
+				case 1:
+					rdev->pm.power_state[state_index].num_clock_modes = 1;
+					rdev->pm.power_state[state_index].clock_info[0].mclk =
+						le16_to_cpu(power_info->info.asPowerPlayInfo[i].usMemoryClock);
+					rdev->pm.power_state[state_index].clock_info[0].sclk =
+						le16_to_cpu(power_info->info.asPowerPlayInfo[i].usEngineClock);
+					/* skip invalid modes */
+					if ((rdev->pm.power_state[state_index].clock_info[0].mclk == 0) ||
+					    (rdev->pm.power_state[state_index].clock_info[0].sclk == 0))
+						continue;
+					/* skip overclock modes for now */
+					if ((rdev->pm.power_state[state_index].clock_info[0].mclk >
+					     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
+					    (rdev->pm.power_state[state_index].clock_info[0].sclk >
+					     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
+						continue;
+					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+						power_info->info.asPowerPlayInfo[i].ucNumPciELanes;
+					misc = le32_to_cpu(power_info->info.asPowerPlayInfo[i].ulMiscInfo);
+					if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) {
+						rdev->pm.power_state[state_index].clock_info[0].voltage.type =
+							VOLTAGE_GPIO;
+						rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
+							radeon_lookup_gpio(rdev,
+							power_info->info.asPowerPlayInfo[i].ucVoltageDropIndex);
+						if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)
+							rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
+								true;
+						else
+							rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
+								false;
+					} else if (misc & ATOM_PM_MISCINFO_PROGRAM_VOLTAGE) {
+						rdev->pm.power_state[state_index].clock_info[0].voltage.type =
+							VOLTAGE_VDDC;
+						rdev->pm.power_state[state_index].clock_info[0].voltage.vddc_id =
+							power_info->info.asPowerPlayInfo[i].ucVoltageDropIndex;
+					}
+					/* order matters! */
+					if (misc & ATOM_PM_MISCINFO_POWER_SAVING_MODE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_POWERSAVE;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_LOW_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_LOAD_BALANCE_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
+					if (misc & ATOM_PM_MISCINFO_3D_ACCELERATION_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_PERFORMANCE;
+					if (misc & ATOM_PM_MISCINFO_DRIVER_DEFAULT_MODE) {
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_DEFAULT;
+						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
+						rdev->pm.power_state[state_index].default_clock_mode =
+							&rdev->pm.power_state[state_index].clock_info[0];
+					}
+					state_index++;
+					break;
+				case 2:
+					rdev->pm.power_state[state_index].num_clock_modes = 1;
+					rdev->pm.power_state[state_index].clock_info[0].mclk =
+						le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulMemoryClock);
+					rdev->pm.power_state[state_index].clock_info[0].sclk =
+						le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulEngineClock);
+					/* skip invalid modes */
+					if ((rdev->pm.power_state[state_index].clock_info[0].mclk == 0) ||
+					    (rdev->pm.power_state[state_index].clock_info[0].sclk == 0))
+						continue;
+					/* skip overclock modes for now */
+					if ((rdev->pm.power_state[state_index].clock_info[0].mclk >
+					     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
+					    (rdev->pm.power_state[state_index].clock_info[0].sclk >
+					     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
+						continue;
+					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+						power_info->info_2.asPowerPlayInfo[i].ucNumPciELanes;
+					misc = le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulMiscInfo);
+					misc2 = le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulMiscInfo2);
+					if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) {
+						rdev->pm.power_state[state_index].clock_info[0].voltage.type =
+							VOLTAGE_GPIO;
+						rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
+							radeon_lookup_gpio(rdev,
+							power_info->info_2.asPowerPlayInfo[i].ucVoltageDropIndex);
+						if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)
+							rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
+								true;
+						else
+							rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
+								false;
+					} else if (misc & ATOM_PM_MISCINFO_PROGRAM_VOLTAGE) {
+						rdev->pm.power_state[state_index].clock_info[0].voltage.type =
+							VOLTAGE_VDDC;
+						rdev->pm.power_state[state_index].clock_info[0].voltage.vddc_id =
+							power_info->info_2.asPowerPlayInfo[i].ucVoltageDropIndex;
+					}
+					/* order matters! */
+					if (misc & ATOM_PM_MISCINFO_POWER_SAVING_MODE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_POWERSAVE;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_LOW_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_LOAD_BALANCE_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
+					if (misc & ATOM_PM_MISCINFO_3D_ACCELERATION_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_PERFORMANCE;
+					if (misc2 & ATOM_PM_MISCINFO2_SYSTEM_AC_LITE_MODE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
+					if (misc & ATOM_PM_MISCINFO_DRIVER_DEFAULT_MODE) {
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_DEFAULT;
+						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
+						rdev->pm.power_state[state_index].default_clock_mode =
+							&rdev->pm.power_state[state_index].clock_info[0];
+					}
+					state_index++;
+					break;
+				case 3:
+					rdev->pm.power_state[state_index].num_clock_modes = 1;
+					rdev->pm.power_state[state_index].clock_info[0].mclk =
+						le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulMemoryClock);
+					rdev->pm.power_state[state_index].clock_info[0].sclk =
+						le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulEngineClock);
+					/* skip invalid modes */
+					if ((rdev->pm.power_state[state_index].clock_info[0].mclk == 0) ||
+					    (rdev->pm.power_state[state_index].clock_info[0].sclk == 0))
+						continue;
+					/* skip overclock modes for now */
+					if ((rdev->pm.power_state[state_index].clock_info[0].mclk >
+					     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
+					    (rdev->pm.power_state[state_index].clock_info[0].sclk >
+					     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
+						continue;
+					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+						power_info->info_3.asPowerPlayInfo[i].ucNumPciELanes;
+					misc = le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulMiscInfo);
+					misc2 = le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulMiscInfo2);
+					if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) {
+						rdev->pm.power_state[state_index].clock_info[0].voltage.type =
+							VOLTAGE_GPIO;
+						rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
+							radeon_lookup_gpio(rdev,
+							power_info->info_3.asPowerPlayInfo[i].ucVoltageDropIndex);
+						if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)
+							rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
+								true;
+						else
+							rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
+								false;
+					} else if (misc & ATOM_PM_MISCINFO_PROGRAM_VOLTAGE) {
+						rdev->pm.power_state[state_index].clock_info[0].voltage.type =
+							VOLTAGE_VDDC;
+						rdev->pm.power_state[state_index].clock_info[0].voltage.vddc_id =
+							power_info->info_3.asPowerPlayInfo[i].ucVoltageDropIndex;
+						if (misc2 & ATOM_PM_MISCINFO2_VDDCI_DYNAMIC_VOLTAGE_EN) {
+							rdev->pm.power_state[state_index].clock_info[0].voltage.vddci_enabled =
+								true;
+							rdev->pm.power_state[state_index].clock_info[0].voltage.vddci_id =
+							power_info->info_3.asPowerPlayInfo[i].ucVDDCI_VoltageDropIndex;
+						}
+					}
+					/* order matters! */
+					if (misc & ATOM_PM_MISCINFO_POWER_SAVING_MODE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_POWERSAVE;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_LOW_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_LOAD_BALANCE_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
+					if (misc & ATOM_PM_MISCINFO_3D_ACCELERATION_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_PERFORMANCE;
+					if (misc2 & ATOM_PM_MISCINFO2_SYSTEM_AC_LITE_MODE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
+					if (misc & ATOM_PM_MISCINFO_DRIVER_DEFAULT_MODE) {
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_DEFAULT;
+						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
+						rdev->pm.power_state[state_index].default_clock_mode =
+							&rdev->pm.power_state[state_index].clock_info[0];
+					}
+					state_index++;
+					break;
+				}
+			}
+		} else if (frev == 4) {
+			/* add the i2c bus for thermal/fan chip */
+			/* no support for internal controller yet */
+			if (power_info->info_4.sThermalController.ucType > 0) {
+				if ((power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) ||
+				    (power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_RV770)) {
+					DRM_INFO("Internal thermal controller %s fan control\n",
+						 (power_info->info_4.sThermalController.ucFanParameters &
+						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				} else {
+					DRM_INFO("Possible %s thermal controller at 0x%02x %s fan control\n",
+						 pp_lib_thermal_controller_names[power_info->info_4.sThermalController.ucType],
+						 power_info->info_4.sThermalController.ucI2cAddress >> 1,
+						 (power_info->info_4.sThermalController.ucFanParameters &
+						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					i2c_bus = radeon_lookup_i2c_gpio(rdev, power_info->info_4.sThermalController.ucI2cLine);
+					rdev->pm.i2c_bus = radeon_i2c_create(rdev->ddev, &i2c_bus, "Thermal");
+				}
+			}
+			for (i = 0; i < power_info->info_4.ucNumStates; i++) {
+				mode_index = 0;
+				power_state = (struct _ATOM_PPLIB_STATE *)
+					(mode_info->atom_context->bios +
+					 data_offset +
+					 le16_to_cpu(power_info->info_4.usStateArrayOffset) +
+					 i * power_info->info_4.ucStateEntrySize);
+				non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
+					(mode_info->atom_context->bios +
+					 data_offset +
+					 le16_to_cpu(power_info->info_4.usNonClockInfoArrayOffset) +
+					 (power_state->ucNonClockStateIndex *
+					  power_info->info_4.ucNonClockSize));
+				for (j = 0; j < (power_info->info_4.ucStateEntrySize - 1); j++) {
+					if (rdev->flags & RADEON_IS_IGP) {
+						struct _ATOM_PPLIB_RS780_CLOCK_INFO *clock_info =
+							(struct _ATOM_PPLIB_RS780_CLOCK_INFO *)
+							(mode_info->atom_context->bios +
+							 data_offset +
+							 le16_to_cpu(power_info->info_4.usClockInfoArrayOffset) +
+							 (power_state->ucClockStateIndices[j] *
+							  power_info->info_4.ucClockInfoSize));
+						sclk = le16_to_cpu(clock_info->usLowEngineClockLow);
+						sclk |= clock_info->ucLowEngineClockHigh << 16;
+						rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
+						/* skip invalid modes */
+						if (rdev->pm.power_state[state_index].clock_info[mode_index].sclk == 0)
+							continue;
+						/* skip overclock modes for now */
+						if (rdev->pm.power_state[state_index].clock_info[mode_index].sclk >
+						    rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN)
+							continue;
+						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
+							VOLTAGE_SW;
+						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
+							clock_info->usVDDC;
+						mode_index++;
+					} else {
+						struct _ATOM_PPLIB_R600_CLOCK_INFO *clock_info =
+							(struct _ATOM_PPLIB_R600_CLOCK_INFO *)
+							(mode_info->atom_context->bios +
+							 data_offset +
+							 le16_to_cpu(power_info->info_4.usClockInfoArrayOffset) +
+							 (power_state->ucClockStateIndices[j] *
+							  power_info->info_4.ucClockInfoSize));
+						sclk = le16_to_cpu(clock_info->usEngineClockLow);
+						sclk |= clock_info->ucEngineClockHigh << 16;
+						mclk = le16_to_cpu(clock_info->usMemoryClockLow);
+						mclk |= clock_info->ucMemoryClockHigh << 16;
+						rdev->pm.power_state[state_index].clock_info[mode_index].mclk = mclk;
+						rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
+						/* skip invalid modes */
+						if ((rdev->pm.power_state[state_index].clock_info[mode_index].mclk == 0) ||
+						    (rdev->pm.power_state[state_index].clock_info[mode_index].sclk == 0))
+							continue;
+						/* skip overclock modes for now */
+						if ((rdev->pm.power_state[state_index].clock_info[mode_index].mclk >
+						     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
+						    (rdev->pm.power_state[state_index].clock_info[mode_index].sclk >
+						     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
+							continue;
+						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
+							VOLTAGE_SW;
+						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
+							clock_info->usVDDC;
+						mode_index++;
+					}
+				}
+				rdev->pm.power_state[state_index].num_clock_modes = mode_index;
+				if (mode_index) {
+					misc = le32_to_cpu(non_clock_info->ulCapsAndSettings);
+					misc2 = le16_to_cpu(non_clock_info->usClassification);
+					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+						((misc & ATOM_PPLIB_PCIE_LINK_WIDTH_MASK) >>
+						ATOM_PPLIB_PCIE_LINK_WIDTH_SHIFT) + 1;
+					switch (misc2 & ATOM_PPLIB_CLASSIFICATION_UI_MASK) {
+					case ATOM_PPLIB_CLASSIFICATION_UI_BATTERY:
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+						break;
+					case ATOM_PPLIB_CLASSIFICATION_UI_BALANCED:
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
+						break;
+					case ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE:
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_PERFORMANCE;
+						break;
+					}
+					if (misc2 & ATOM_PPLIB_CLASSIFICATION_BOOT) {
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_DEFAULT;
+						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
+						rdev->pm.power_state[state_index].default_clock_mode =
+							&rdev->pm.power_state[state_index].clock_info[mode_index - 1];
+					}
+					state_index++;
+				}
+			}
+		}
+	} else {
+		/* XXX figure out some good default low power mode for cards w/out power tables */
+	}
+
+	if (rdev->pm.default_power_state == NULL) {
+		/* add the default mode */
+		rdev->pm.power_state[state_index].type =
+			POWER_STATE_TYPE_DEFAULT;
+		rdev->pm.power_state[state_index].num_clock_modes = 1;
+		rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
+		rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
+		rdev->pm.power_state[state_index].default_clock_mode =
+			&rdev->pm.power_state[state_index].clock_info[0];
+		rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
+		if (rdev->asic->get_pcie_lanes)
+			rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = radeon_get_pcie_lanes(rdev);
+		else
+			rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = 16;
+		rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
+		state_index++;
+	}
+	rdev->pm.num_power_states = state_index;
+
+	rdev->pm.current_power_state = rdev->pm.default_power_state;
+	rdev->pm.current_clock_mode =
+		rdev->pm.default_power_state->default_clock_mode;
+}
+
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable)
 {
 	DYNAMIC_CLOCK_GATING_PS_ALLOCATION args;
 	int index = GetIndexIntoMasterTable(COMMAND, DynamicClockGating);
-
-	args.ucEnable = enable;
-
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-}
-
-void radeon_atom_static_pwrmgt_setup(struct radeon_device *rdev, int enable)
-{
-	ENABLE_ASIC_STATIC_PWR_MGT_PS_ALLOCATION args;
-	int index = GetIndexIntoMasterTable(COMMAND, EnableASIC_StaticPwrMgt);
 
 	args.ucEnable = enable;
 

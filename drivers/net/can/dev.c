@@ -574,6 +574,7 @@ static const struct nla_policy can_policy[IFLA_CAN_MAX + 1] = {
 	[IFLA_CAN_BITTIMING_CONST]
 				= { .len = sizeof(struct can_bittiming_const) },
 	[IFLA_CAN_CLOCK]	= { .len = sizeof(struct can_clock) },
+	[IFLA_CAN_BERR_COUNTER]	= { .len = sizeof(struct can_berr_counter) },
 };
 
 static int can_changelink(struct net_device *dev,
@@ -592,6 +593,8 @@ static int can_changelink(struct net_device *dev,
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 		cm = nla_data(data[IFLA_CAN_CTRLMODE]);
+		if (cm->flags & ~priv->ctrlmode_supported)
+			return -EOPNOTSUPP;
 		priv->ctrlmode &= ~cm->mask;
 		priv->ctrlmode |= cm->flags;
 	}
@@ -647,6 +650,8 @@ static size_t can_get_size(const struct net_device *dev)
 	size += nla_total_size(sizeof(u32));  /* IFLA_CAN_RESTART_MS */
 	size += sizeof(struct can_bittiming); /* IFLA_CAN_BITTIMING */
 	size += sizeof(struct can_clock);     /* IFLA_CAN_CLOCK */
+	if (priv->do_get_berr_counter)        /* IFLA_CAN_BERR_COUNTER */
+		size += sizeof(struct can_berr_counter);
 	if (priv->bittiming_const)	      /* IFLA_CAN_BITTIMING_CONST */
 		size += sizeof(struct can_bittiming_const);
 
@@ -657,6 +662,7 @@ static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 	struct can_ctrlmode cm = {.flags = priv->ctrlmode};
+	struct can_berr_counter bec;
 	enum can_state state = priv->state;
 
 	if (priv->do_get_state)
@@ -667,6 +673,8 @@ static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	NLA_PUT(skb, IFLA_CAN_BITTIMING,
 		sizeof(priv->bittiming), &priv->bittiming);
 	NLA_PUT(skb, IFLA_CAN_CLOCK, sizeof(cm), &priv->clock);
+	if (priv->do_get_berr_counter && !priv->do_get_berr_counter(dev, &bec))
+		NLA_PUT(skb, IFLA_CAN_BERR_COUNTER, sizeof(bec), &bec);
 	if (priv->bittiming_const)
 		NLA_PUT(skb, IFLA_CAN_BITTIMING_CONST,
 			sizeof(*priv->bittiming_const), priv->bittiming_const);

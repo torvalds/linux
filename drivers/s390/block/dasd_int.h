@@ -436,6 +436,10 @@ struct dasd_block {
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */
 #define DASD_FLAG_EER_SNSS	4	/* A SNSS is required */
 #define DASD_FLAG_EER_IN_USE	5	/* A SNSS request is running */
+#define DASD_FLAG_DEVICE_RO	6	/* The device itself is read-only. Don't
+					 * confuse this with the user specified
+					 * read-only feature.
+					 */
 
 void dasd_put_device_wake(struct dasd_device *);
 
@@ -608,6 +612,9 @@ char *dasd_get_sense(struct irb *);
 
 void dasd_device_set_stop_bits(struct dasd_device *, int);
 void dasd_device_remove_stop_bits(struct dasd_device *, int);
+
+int dasd_device_is_ro(struct dasd_device *);
+
 
 /* externals in dasd_devmap.c */
 extern int dasd_max_devindex;

@@ -1225,9 +1225,8 @@ static int asus_model_match(char *model)
 	else if (strncmp(model, "M2N", 3) == 0 ||
 		 strncmp(model, "M3N", 3) == 0 ||
 		 strncmp(model, "M5N", 3) == 0 ||
-		 strncmp(model, "M6N", 3) == 0 ||
 		 strncmp(model, "S1N", 3) == 0 ||
-		 strncmp(model, "S5N", 3) == 0 || strncmp(model, "W1N", 3) == 0)
+		 strncmp(model, "S5N", 3) == 0)
 		return xxN;
 	else if (strncmp(model, "M1", 2) == 0)
 		return M1A;
@@ -1482,6 +1481,7 @@ static void asus_acpi_exit(void)
 
 static int __init asus_acpi_init(void)
 {
+	struct backlight_properties props;
 	int result;
 
 	result = acpi_bus_register_driver(&asus_hotk_driver);
@@ -1508,15 +1508,17 @@ static int __init asus_acpi_init(void)
 		return -ENODEV;
 	}
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 15;
 	asus_backlight_device = backlight_device_register("asus", NULL, NULL,
-							  &asus_backlight_data);
+							  &asus_backlight_data,
+							  &props);
 	if (IS_ERR(asus_backlight_device)) {
 		printk(KERN_ERR "Could not register asus backlight device\n");
 		asus_backlight_device = NULL;
 		asus_acpi_exit();
 		return -ENODEV;
 	}
-	asus_backlight_device->props.max_brightness = 15;
 
 	return 0;
 }

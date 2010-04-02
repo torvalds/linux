@@ -238,7 +238,7 @@ struct acpi_processor_errata {
 
 extern int acpi_processor_preregister_performance(struct
 						  acpi_processor_performance
-						  *performance);
+						  __percpu *performance);
 
 extern int acpi_processor_register_performance(struct acpi_processor_performance
 					       *performance, unsigned int cpu);
@@ -320,8 +320,16 @@ static inline int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
 
 #endif				/* CONFIG_CPU_FREQ */
 
-/* in processor_pdc.c */
+/* in processor_core.c */
 void acpi_processor_set_pdc(acpi_handle handle);
+#ifdef CONFIG_SMP
+int acpi_get_cpuid(acpi_handle, int type, u32 acpi_id);
+#else
+static inline int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
+{
+	return -1;
+}
+#endif
 
 /* in processor_throttling.c */
 int acpi_processor_tstate_has_changed(struct acpi_processor *pr);

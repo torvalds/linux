@@ -32,7 +32,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc-dai.h>
 
-#include <asm/dma-sh.h>
+#include <asm/dmaengine.h>
 #include <asm/siu.h>
 
 #include "siu.h"

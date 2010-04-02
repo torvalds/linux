@@ -43,7 +43,6 @@
 #include <linux/security.h>
 #include <linux/compat.h>
 #include <linux/vfs.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/ptrace.h>
 
 #include <asm/types.h>

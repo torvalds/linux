@@ -26,20 +26,10 @@
 #ifndef RT2X00SOC_H
 #define RT2X00SOC_H
 
-#define KSEG1ADDR(__ptr) __ptr
-
-#define __rt2x00soc_probe(__chipset, __ops) \
-static int __rt2x00soc_probe(struct platform_device *pdev) \
-{ \
-	return rt2x00soc_probe(pdev, (__chipset), (__ops)); \
-}
-
 /*
  * SoC driver handlers.
  */
-int rt2x00soc_probe(struct platform_device *pdev,
-		    const unsigned short chipset,
-		    const struct rt2x00_ops *ops);
+int rt2x00soc_probe(struct platform_device *pdev, const struct rt2x00_ops *ops);
 int rt2x00soc_remove(struct platform_device *pdev);
 #ifdef CONFIG_PM
 int rt2x00soc_suspend(struct platform_device *pdev, pm_message_t state);

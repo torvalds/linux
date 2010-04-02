@@ -24,18 +24,15 @@
 #include "hard-interface.h"
 #include "send.h"
 #include "translation-table.h"
-#include "log.h"
 #include "types.h"
 #include "hash.h"
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
-#include "compat.h"
 
 static uint16_t bcast_seqno = 1; /* give own bcast messages seq numbers to avoid
 				  * broadcast storms */
 static int32_t skb_packets;
 static int32_t skb_bad_packets;
-static int32_t lock_dropped;
 
 unsigned char mainIfAddr[ETH_ALEN];
 static unsigned char mainIfAddr_default[ETH_ALEN];
@@ -68,12 +65,12 @@ int main_if_was_up(void)
 	return (memcmp(mainIfAddr, mainIfAddr_default, ETH_ALEN) != 0 ? 1 : 0);
 }
 
-static int my_skb_push(struct sk_buff *skb, unsigned int len)
+int my_skb_push(struct sk_buff *skb, unsigned int len)
 {
 	int result = 0;
 
 	skb_packets++;
-	if (skb->data - len < skb->head) {
+	if (skb_headroom(skb) < len) {
 		skb_bad_packets++;
 		result = pskb_expand_head(skb, len, 0, GFP_ATOMIC);
 
@@ -122,7 +119,7 @@ void interface_setup(struct net_device *dev)
 
 	/* generate random address */
 	random_ether_addr(dev_addr);
-	memcpy(dev->dev_addr, dev_addr, sizeof(dev->dev_addr));
+	memcpy(dev->dev_addr, dev_addr, ETH_ALEN);
 
 	SET_ETHTOOL_OPS(dev, &bat_ethtool_ops);
 
@@ -147,9 +144,18 @@ struct net_device_stats *interface_stats(struct net_device *dev)
 	return &priv->stats;
 }
 
-int interface_set_mac_addr(struct net_device *dev, void *addr)
+int interface_set_mac_addr(struct net_device *dev, void *p)
 {
-	return -EBUSY;
+	struct sockaddr *addr = p;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	hna_local_remove(dev->dev_addr, "mac address changed");
+	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	hna_local_add(dev->dev_addr);
+
+	return 0;
 }
 
 int interface_change_mtu(struct net_device *dev, int new_mtu)
@@ -170,7 +176,10 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 	struct orig_node *orig_node;
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct bat_priv *priv = netdev_priv(dev);
+	struct batman_if *batman_if;
+	uint8_t dstaddr[6];
 	int data_len = skb->len;
+	unsigned long flags;
 
 	if (atomic_read(&module_state) != MODULE_ACTIVE)
 		goto dropped;
@@ -186,7 +195,6 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 			goto dropped;
 
 		bcast_packet = (struct bcast_packet *)skb->data;
-
 		bcast_packet->version = COMPAT_VERSION;
 
 		/* batman packet type: broadcast */
@@ -195,27 +203,21 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 		/* hw address of first interface is the orig mac because only
 		 * this mac is known throughout the mesh */
 		memcpy(bcast_packet->orig, mainIfAddr, ETH_ALEN);
+
 		/* set broadcast sequence number */
 		bcast_packet->seqno = htons(bcast_seqno);
 
 		bcast_seqno++;
 
 		/* broadcast packet */
-		add_bcast_packet_to_list(skb->data, skb->len);
+		add_bcast_packet_to_list(skb);
+		/* a copy is stored in the bcast list, therefore removing
+		 * the original skb. */
+		kfree_skb(skb);
 
 	/* unicast packet */
 	} else {
-
-		/* simply spin_lock()ing can deadlock when the lock is already
-		 * hold. */
-		/* TODO: defer the work in a working queue instead of
-		 * dropping */
-		if (!spin_trylock(&orig_hash_lock)) {
-			lock_dropped++;
-			debug_log(LOG_TYPE_NOTICE, "%d packets dropped because lock was hold\n", lock_dropped);
-			goto dropped;
-		}
-
+		spin_lock_irqsave(&orig_hash_lock, flags);
 		/* get routing information */
 		orig_node = ((struct orig_node *)hash_find(orig_hash,
 							   ethhdr->h_dest));
@@ -244,14 +246,17 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 			if (orig_node->batman_if->if_active != IF_ACTIVE)
 				goto unlock;
 
-			send_raw_packet(skb->data, skb->len,
-					orig_node->batman_if,
-					orig_node->router->addr);
+			/* don't lock while sending the packets ... we therefore
+			 * copy the required data before sending */
+
+			batman_if = orig_node->batman_if;
+			memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
+			spin_unlock_irqrestore(&orig_hash_lock, flags);
+
+			send_skb_packet(skb, batman_if, dstaddr);
 		} else {
 			goto unlock;
 		}
-
-		spin_unlock(&orig_hash_lock);
 	}
 
 	priv->stats.tx_packets++;
@@ -259,42 +264,44 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 	goto end;
 
 unlock:
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 dropped:
 	priv->stats.tx_dropped++;
 end:
-	kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
-void interface_rx(struct net_device *dev, void *packet, int packet_len)
+void interface_rx(struct sk_buff *skb, int hdr_size)
 {
-	struct sk_buff *skb;
+	struct net_device *dev = soft_device;
 	struct bat_priv *priv = netdev_priv(dev);
 
-	skb = dev_alloc_skb(packet_len);
-
-	if (!skb) {
-		priv->stats.rx_dropped++;
-		goto out;
+	/* check if enough space is available for pulling, and pull */
+	if (!pskb_may_pull(skb, hdr_size)) {
+		kfree_skb(skb);
+		return;
 	}
+	skb_pull_rcsum(skb, hdr_size);
+/*	skb_set_mac_header(skb, -sizeof(struct ethhdr));*/
 
-	memcpy(skb_put(skb, packet_len), packet, packet_len);
-
-	/* Write metadata, and then pass to the receive level */
 	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	/* should not be neccesary anymore as we use skb_pull_rcsum()
+	 * TODO: please verify this and remove this TODO
+	 * -- Dec 21st 2009, Simon Wunderlich */
+
+/*	skb->ip_summed = CHECKSUM_UNNECESSARY;*/
+
+	/* TODO: set skb->pkt_type to PACKET_BROADCAST, PACKET_MULTICAST,
+	 * PACKET_OTHERHOST or PACKET_HOST */
 
 	priv->stats.rx_packets++;
-	priv->stats.rx_bytes += packet_len;
+	priv->stats.rx_bytes += skb->len;
 
 	dev->last_rx = jiffies;
 
 	netif_rx(skb);
-
-out:
-	return;
 }
 
 /* ethtool */
@@ -330,7 +337,6 @@ static u32 bat_get_msglevel(struct net_device *dev)
 
 static void bat_set_msglevel(struct net_device *dev, u32 value)
 {
-	return;
 }
 
 static u32 bat_get_link(struct net_device *dev)

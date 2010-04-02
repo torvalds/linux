@@ -1,6 +1,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <asm/pci_x86.h>
+#include <asm/x86_init.h>
 
 /* arch_initcall has too random ordering, so call the initializers
    in the right sequence from here. */
@@ -15,10 +16,9 @@ static __init int pci_arch_init(void)
 	if (!(pci_probe & PCI_PROBE_NOEARLY))
 		pci_mmcfg_early_init();
 
-#ifdef CONFIG_PCI_OLPC
-	if (!pci_olpc_init())
-		return 0;	/* skip additional checks if it's an XO */
-#endif
+	if (x86_init.pci.arch_init && !x86_init.pci.arch_init())
+		return 0;
+
 #ifdef CONFIG_PCI_BIOS
 	pci_pcbios_init();
 #endif

@@ -9,7 +9,7 @@ struct crypto_comp;
 
 struct ipcomp_data {
 	u16 threshold;
-	struct crypto_comp **tfms;
+	struct crypto_comp * __percpu *tfms;
 };
 
 struct ip_comp_hdr;

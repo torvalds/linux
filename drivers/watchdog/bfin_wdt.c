@@ -19,8 +19,6 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/fs.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
@@ -74,7 +72,7 @@
 
 static unsigned int timeout = WATCHDOG_TIMEOUT;
 static int nowayout = WATCHDOG_NOWAYOUT;
-static struct watchdog_info bfin_wdt_info;
+static const struct watchdog_info bfin_wdt_info;
 static unsigned long open_check;
 static char expect_close;
 static DEFINE_SPINLOCK(bfin_wdt_spinlock);
@@ -309,26 +307,6 @@ static long bfin_wdt_ioctl(struct file *file,
 	}
 }
 
-/**
- *	bfin_wdt_notify_sys - Notifier Handler
- *	@this: notifier block
- *	@code: notifier event
- *	@unused: unused
- *
- *	Handles specific events, such as turning off the watchdog during a
- *	shutdown event.
- */
-static int bfin_wdt_notify_sys(struct notifier_block *this,
-					unsigned long code, void *unused)
-{
-	stampit();
-
-	if (code == SYS_DOWN || code == SYS_HALT)
-		bfin_wdt_stop();
-
-	return NOTIFY_DONE;
-}
-
 #ifdef CONFIG_PM
 static int state_before_suspend;
 
@@ -388,40 +366,28 @@ static struct miscdevice bfin_wdt_miscdev = {
 	.fops     = &bfin_wdt_fops,
 };
 
-static struct watchdog_info bfin_wdt_info = {
+static const struct watchdog_info bfin_wdt_info = {
 	.identity = "Blackfin Watchdog",
 	.options  = WDIOF_SETTIMEOUT |
 		    WDIOF_KEEPALIVEPING |
 		    WDIOF_MAGICCLOSE,
 };
 
-static struct notifier_block bfin_wdt_notifier = {
-	.notifier_call = bfin_wdt_notify_sys,
-};
-
 /**
  *	bfin_wdt_probe - Initialize module
  *
- *	Registers the misc device and notifier handler.  Actual device
+ *	Registers the misc device.  Actual device
  *	initialization is handled by bfin_wdt_open().
  */
 static int __devinit bfin_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = register_reboot_notifier(&bfin_wdt_notifier);
-	if (ret) {
-		pr_devinit(KERN_ERR PFX
-			"cannot register reboot notifier (err=%d)\n", ret);
-		return ret;
-	}
-
 	ret = misc_register(&bfin_wdt_miscdev);
 	if (ret) {
 		pr_devinit(KERN_ERR PFX
 			"cannot register miscdev on minor=%d (err=%d)\n",
 				WATCHDOG_MINOR, ret);
-		unregister_reboot_notifier(&bfin_wdt_notifier);
 		return ret;
 	}
 
@@ -434,14 +400,25 @@ static int __devinit bfin_wdt_probe(struct platform_device *pdev)
 /**
  *	bfin_wdt_remove - Initialize module
  *
- *	Unregisters the misc device and notifier handler.  Actual device
+ *	Unregisters the misc device.  Actual device
  *	deinitialization is handled by bfin_wdt_close().
  */
 static int __devexit bfin_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&bfin_wdt_miscdev);
-	unregister_reboot_notifier(&bfin_wdt_notifier);
 	return 0;
+}
+
+/**
+ *	bfin_wdt_shutdown - Soft Shutdown Handler
+ *
+ *	Handles the soft shutdown event.
+ */
+static void bfin_wdt_shutdown(struct platform_device *pdev)
+{
+	stampit();
+
+	bfin_wdt_stop();
 }
 
 static struct platform_device *bfin_wdt_device;
@@ -449,6 +426,7 @@ static struct platform_device *bfin_wdt_device;
 static struct platform_driver bfin_wdt_driver = {
 	.probe     = bfin_wdt_probe,
 	.remove    = __devexit_p(bfin_wdt_remove),
+	.shutdown  = bfin_wdt_shutdown,
 	.suspend   = bfin_wdt_suspend,
 	.resume    = bfin_wdt_resume,
 	.driver    = {

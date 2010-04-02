@@ -1289,44 +1289,50 @@ __initcall(gpio_register_proc);
 #endif
 
 #ifdef CONFIG_GPIOLIB
-int bfin_gpiolib_direction_input(struct gpio_chip *chip, unsigned gpio)
+static int bfin_gpiolib_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
 	return bfin_gpio_direction_input(gpio);
 }
 
-int bfin_gpiolib_direction_output(struct gpio_chip *chip, unsigned gpio, int level)
+static int bfin_gpiolib_direction_output(struct gpio_chip *chip, unsigned gpio, int level)
 {
 	return bfin_gpio_direction_output(gpio, level);
 }
 
-int bfin_gpiolib_get_value(struct gpio_chip *chip, unsigned gpio)
+static int bfin_gpiolib_get_value(struct gpio_chip *chip, unsigned gpio)
 {
 	return bfin_gpio_get_value(gpio);
 }
 
-void bfin_gpiolib_set_value(struct gpio_chip *chip, unsigned gpio, int value)
+static void bfin_gpiolib_set_value(struct gpio_chip *chip, unsigned gpio, int value)
 {
 	return bfin_gpio_set_value(gpio, value);
 }
 
-int bfin_gpiolib_gpio_request(struct gpio_chip *chip, unsigned gpio)
+static int bfin_gpiolib_gpio_request(struct gpio_chip *chip, unsigned gpio)
 {
 	return bfin_gpio_request(gpio, chip->label);
 }
 
-void bfin_gpiolib_gpio_free(struct gpio_chip *chip, unsigned gpio)
+static void bfin_gpiolib_gpio_free(struct gpio_chip *chip, unsigned gpio)
 {
 	return bfin_gpio_free(gpio);
 }
 
+static int bfin_gpiolib_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
+{
+	return gpio + GPIO_IRQ_BASE;
+}
+
 static struct gpio_chip bfin_chip = {
-	.label			= "Blackfin-GPIOlib",
+	.label			= "BFIN-GPIO",
 	.direction_input	= bfin_gpiolib_direction_input,
 	.get			= bfin_gpiolib_get_value,
 	.direction_output	= bfin_gpiolib_direction_output,
 	.set			= bfin_gpiolib_set_value,
 	.request		= bfin_gpiolib_gpio_request,
 	.free			= bfin_gpiolib_gpio_free,
+	.to_irq			= bfin_gpiolib_gpio_to_irq,
 	.base			= 0,
 	.ngpio			= MAX_BLACKFIN_GPIOS,
 };
