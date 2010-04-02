@@ -1801,7 +1801,7 @@ EXPORT_SYMBOL(netdev_rx_csum_fault);
  * 2. No high memory really exists on this machine.
  */
 
-static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
+static int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 {
 #ifdef CONFIG_HIGHMEM
 	int i;
@@ -1814,6 +1814,8 @@ static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 	if (PCI_DMA_BUS_IS_PHYS) {
 		struct device *pdev = dev->dev.parent;
 
+		if (!pdev)
+			return 0;
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			dma_addr_t addr = page_to_phys(skb_shinfo(skb)->frags[i].page);
 			if (!pdev->dma_mask || addr + PAGE_SIZE - 1 > *pdev->dma_mask)
