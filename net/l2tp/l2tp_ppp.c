@@ -87,6 +87,7 @@
 #include <linux/hash.h>
 #include <linux/sort.h>
 #include <linux/proc_fs.h>
+#include <linux/l2tp.h>
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -656,17 +657,23 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	if (tunnel_id == 0)
 		goto end;
 
+	tunnel = l2tp_tunnel_find(sock_net(sk), tunnel_id);
+
 	/* Special case: create tunnel context if session_id and
 	 * peer_session_id is 0. Otherwise look up tunnel using supplied
 	 * tunnel id.
 	 */
 	if ((session_id == 0) && (peer_session_id == 0)) {
-		error = l2tp_tunnel_create(sock_net(sk), fd, ver, tunnel_id, peer_tunnel_id, NULL, &tunnel);
-		if (error < 0)
-			goto end;
+		if (tunnel == NULL) {
+			struct l2tp_tunnel_cfg tcfg = {
+				.encap = L2TP_ENCAPTYPE_UDP,
+				.debug = 0,
+			};
+			error = l2tp_tunnel_create(sock_net(sk), fd, ver, tunnel_id, peer_tunnel_id, &tcfg, &tunnel);
+			if (error < 0)
+				goto end;
+		}
 	} else {
-		tunnel = l2tp_tunnel_find(sock_net(sk), tunnel_id);
-
 		/* Error if we can't find the tunnel */
 		error = -ENOENT;
 		if (tunnel == NULL)
@@ -680,28 +687,46 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	if (tunnel->recv_payload_hook == NULL)
 		tunnel->recv_payload_hook = pppol2tp_recv_payload_hook;
 
-	/* Check that this session doesn't already exist */
-	error = -EEXIST;
-	session = l2tp_session_find(sock_net(sk), tunnel, session_id);
-	if (session != NULL)
-		goto end;
-
-	/* Default MTU values. */
-	if (cfg.mtu == 0)
-		cfg.mtu = 1500 - PPPOL2TP_HEADER_OVERHEAD;
-	if (cfg.mru == 0)
-		cfg.mru = cfg.mtu;
-	cfg.debug = tunnel->debug;
-
-	/* Allocate and initialize a new session context. */
-	session = l2tp_session_create(sizeof(struct pppol2tp_session),
-				      tunnel, session_id,
-				      peer_session_id, &cfg);
-	if (session == NULL) {
-		error = -ENOMEM;
-		goto end;
+	if (tunnel->peer_tunnel_id == 0) {
+		if (ver == 2)
+			tunnel->peer_tunnel_id = sp->pppol2tp.d_tunnel;
+		else
+			tunnel->peer_tunnel_id = sp3->pppol2tp.d_tunnel;
 	}
 
+	/* Create session if it doesn't already exist. We handle the
+	 * case where a session was previously created by the netlink
+	 * interface by checking that the session doesn't already have
+	 * a socket and its tunnel socket are what we expect. If any
+	 * of those checks fail, return EEXIST to the caller.
+	 */
+	session = l2tp_session_find(sock_net(sk), tunnel, session_id);
+	if (session == NULL) {
+		/* Default MTU must allow space for UDP/L2TP/PPP
+		 * headers.
+		 */
+		cfg.mtu = cfg.mru = 1500 - PPPOL2TP_HEADER_OVERHEAD;
+
+		/* Allocate and initialize a new session context. */
+		session = l2tp_session_create(sizeof(struct pppol2tp_session),
+					      tunnel, session_id,
+					      peer_session_id, &cfg);
+		if (session == NULL) {
+			error = -ENOMEM;
+			goto end;
+		}
+	} else {
+		ps = l2tp_session_priv(session);
+		error = -EEXIST;
+		if (ps->sock != NULL)
+			goto end;
+
+		/* consistency checks */
+		if (ps->tunnel_sock != tunnel->sock)
+			goto end;
+	}
+
+	/* Associate session with its PPPoL2TP socket */
 	ps = l2tp_session_priv(session);
 	ps->owner	     = current->pid;
 	ps->sock	     = sk;
@@ -763,6 +788,74 @@ end:
 
 	return error;
 }
+
+#ifdef CONFIG_L2TP_V3
+
+/* Called when creating sessions via the netlink interface.
+ */
+static int pppol2tp_session_create(struct net *net, u32 tunnel_id, u32 session_id, u32 peer_session_id, struct l2tp_session_cfg *cfg)
+{
+	int error;
+	struct l2tp_tunnel *tunnel;
+	struct l2tp_session *session;
+	struct pppol2tp_session *ps;
+
+	tunnel = l2tp_tunnel_find(net, tunnel_id);
+
+	/* Error if we can't find the tunnel */
+	error = -ENOENT;
+	if (tunnel == NULL)
+		goto out;
+
+	/* Error if tunnel socket is not prepped */
+	if (tunnel->sock == NULL)
+		goto out;
+
+	/* Check that this session doesn't already exist */
+	error = -EEXIST;
+	session = l2tp_session_find(net, tunnel, session_id);
+	if (session != NULL)
+		goto out;
+
+	/* Default MTU values. */
+	if (cfg->mtu == 0)
+		cfg->mtu = 1500 - PPPOL2TP_HEADER_OVERHEAD;
+	if (cfg->mru == 0)
+		cfg->mru = cfg->mtu;
+
+	/* Allocate and initialize a new session context. */
+	error = -ENOMEM;
+	session = l2tp_session_create(sizeof(struct pppol2tp_session),
+				      tunnel, session_id,
+				      peer_session_id, cfg);
+	if (session == NULL)
+		goto out;
+
+	ps = l2tp_session_priv(session);
+	ps->tunnel_sock = tunnel->sock;
+
+	PRINTK(session->debug, PPPOL2TP_MSG_CONTROL, KERN_INFO,
+	       "%s: created\n", session->name);
+
+	error = 0;
+
+out:
+	return error;
+}
+
+/* Called when deleting sessions via the netlink interface.
+ */
+static int pppol2tp_session_delete(struct l2tp_session *session)
+{
+	struct pppol2tp_session *ps = l2tp_session_priv(session);
+
+	if (ps->sock == NULL)
+		l2tp_session_dec_refcount(session);
+
+	return 0;
+}
+
+#endif /* CONFIG_L2TP_V3 */
 
 /* getname() support.
  */
@@ -1660,6 +1753,15 @@ static struct pppox_proto pppol2tp_proto = {
 	.ioctl		= pppol2tp_ioctl
 };
 
+#ifdef CONFIG_L2TP_V3
+
+static const struct l2tp_nl_cmd_ops pppol2tp_nl_cmd_ops = {
+	.session_create	= pppol2tp_session_create,
+	.session_delete	= pppol2tp_session_delete,
+};
+
+#endif /* CONFIG_L2TP_V3 */
+
 static int __init pppol2tp_init(void)
 {
 	int err;
@@ -1676,11 +1778,22 @@ static int __init pppol2tp_init(void)
 	if (err)
 		goto out_unregister_pppol2tp_proto;
 
+#ifdef CONFIG_L2TP_V3
+	err = l2tp_nl_register_ops(L2TP_PWTYPE_PPP, &pppol2tp_nl_cmd_ops);
+	if (err)
+		goto out_unregister_pppox;
+#endif
+
 	printk(KERN_INFO "PPPoL2TP kernel driver, %s\n",
 	       PPPOL2TP_DRV_VERSION);
 
 out:
 	return err;
+
+#ifdef CONFIG_L2TP_V3
+out_unregister_pppox:
+	unregister_pppox_proto(PX_PROTO_OL2TP);
+#endif
 out_unregister_pppol2tp_proto:
 	proto_unregister(&pppol2tp_sk_proto);
 out_unregister_pppol2tp_pernet:
@@ -1690,6 +1803,9 @@ out_unregister_pppol2tp_pernet:
 
 static void __exit pppol2tp_exit(void)
 {
+#ifdef CONFIG_L2TP_V3
+	l2tp_nl_unregister_ops(L2TP_PWTYPE_PPP);
+#endif
 	unregister_pppox_proto(PX_PROTO_OL2TP);
 	proto_unregister(&pppol2tp_sk_proto);
 	unregister_pernet_device(&pppol2tp_net_ops);

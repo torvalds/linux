@@ -33,26 +33,6 @@ enum {
 	L2TP_MSG_DATA		= (1 << 3),	/* data packets */
 };
 
-enum l2tp_pwtype {
-	L2TP_PWTYPE_NONE = 0x0000,
-	L2TP_PWTYPE_ETH_VLAN = 0x0004,
-	L2TP_PWTYPE_ETH = 0x0005,
-	L2TP_PWTYPE_PPP = 0x0007,
-	L2TP_PWTYPE_PPP_AC = 0x0008,
-	L2TP_PWTYPE_IP = 0x000b,
-	__L2TP_PWTYPE_MAX
-};
-
-enum l2tp_l2spec_type {
-	L2TP_L2SPECTYPE_NONE,
-	L2TP_L2SPECTYPE_DEFAULT,
-};
-
-enum l2tp_encap_type {
-	L2TP_ENCAPTYPE_UDP,
-	L2TP_ENCAPTYPE_IP,
-};
-
 struct sk_buff;
 
 struct l2tp_stats {
@@ -87,6 +67,7 @@ struct l2tp_session_cfg {
 						 * control of LNS. */
 	int			debug;		/* bitmask of debug message
 						 * categories */
+	u16			vlan_id;	/* VLAN pseudowire only */
 	u16			offset;		/* offset to payload */
 	u16			l2specific_len;	/* Layer 2 specific length */
 	u16			l2specific_type; /* Layer 2 specific type */
@@ -98,6 +79,7 @@ struct l2tp_session_cfg {
 						  * (in jiffies) */
 	int			mtu;
 	int			mru;
+	char			*ifname;
 };
 
 struct l2tp_session {
@@ -124,6 +106,7 @@ struct l2tp_session {
 	atomic_t		ref_count;
 
 	char			name[32];	/* for logging */
+	char			ifname[IFNAMSIZ];
 	unsigned		data_seq:2;	/* data sequencing level
 						 * 0 => none, 1 => IP only,
 						 * 2 => all
@@ -192,6 +175,11 @@ struct l2tp_tunnel {
 	uint8_t			priv[0];	/* private data */
 };
 
+struct l2tp_nl_cmd_ops {
+	int (*session_create)(struct net *net, u32 tunnel_id, u32 session_id, u32 peer_session_id, struct l2tp_session_cfg *cfg);
+	int (*session_delete)(struct l2tp_session *session);
+};
+
 static inline void *l2tp_tunnel_priv(struct l2tp_tunnel *tunnel)
 {
 	return &tunnel->priv[0];
@@ -224,11 +212,14 @@ out:
 
 extern struct l2tp_session *l2tp_session_find(struct net *net, struct l2tp_tunnel *tunnel, u32 session_id);
 extern struct l2tp_session *l2tp_session_find_nth(struct l2tp_tunnel *tunnel, int nth);
+extern struct l2tp_session *l2tp_session_find_by_ifname(struct net *net, char *ifname);
 extern struct l2tp_tunnel *l2tp_tunnel_find(struct net *net, u32 tunnel_id);
 extern struct l2tp_tunnel *l2tp_tunnel_find_nth(struct net *net, int nth);
 
 extern int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg, struct l2tp_tunnel **tunnelp);
+extern int l2tp_tunnel_delete(struct l2tp_tunnel *tunnel);
 extern struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunnel, u32 session_id, u32 peer_session_id, struct l2tp_session_cfg *cfg);
+extern int l2tp_session_delete(struct l2tp_session *session);
 extern void l2tp_tunnel_free(struct l2tp_tunnel *tunnel);
 extern void l2tp_session_free(struct l2tp_session *session);
 extern void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb, unsigned char *ptr, unsigned char *optr, u16 hdrflags, int length, int (*payload_hook)(struct sk_buff *skb));
@@ -240,6 +231,9 @@ extern int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int 
 extern void l2tp_tunnel_destruct(struct sock *sk);
 extern void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel);
 extern void l2tp_session_set_header_len(struct l2tp_session *session, int version);
+
+extern int l2tp_nl_register_ops(enum l2tp_pwtype pw_type, const struct l2tp_nl_cmd_ops *ops);
+extern void l2tp_nl_unregister_ops(enum l2tp_pwtype pw_type);
 
 /* Tunnel reference counts. Incremented per session that is added to
  * the tunnel.

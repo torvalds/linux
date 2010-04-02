@@ -49,6 +49,7 @@
 #include <net/dst.h>
 #include <net/ip.h>
 #include <net/udp.h>
+#include <net/inet_common.h>
 #include <net/xfrm.h>
 #include <net/protocol.h>
 
@@ -213,6 +214,32 @@ struct l2tp_session *l2tp_session_find_nth(struct l2tp_tunnel *tunnel, int nth)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(l2tp_session_find_nth);
+
+/* Lookup a session by interface name.
+ * This is very inefficient but is only used by management interfaces.
+ */
+struct l2tp_session *l2tp_session_find_by_ifname(struct net *net, char *ifname)
+{
+	struct l2tp_net *pn = l2tp_pernet(net);
+	int hash;
+	struct hlist_node *walk;
+	struct l2tp_session *session;
+
+	read_lock_bh(&pn->l2tp_session_hlist_lock);
+	for (hash = 0; hash < L2TP_HASH_SIZE_2; hash++) {
+		hlist_for_each_entry(session, walk, &pn->l2tp_session_hlist[hash], global_hlist) {
+			if (!strcmp(session->ifname, ifname)) {
+				read_unlock_bh(&pn->l2tp_session_hlist_lock);
+				return session;
+			}
+		}
+	}
+
+	read_unlock_bh(&pn->l2tp_session_hlist_lock);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(l2tp_session_find_by_ifname);
 
 /* Lookup a tunnel by id
  */
@@ -758,7 +785,7 @@ int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 
 	/* Find the session context */
 	session = l2tp_session_find(tunnel->l2tp_net, tunnel, session_id);
-	if (!session) {
+	if (!session || !session->recv_skb) {
 		/* Not found? Pass to userspace to deal with */
 		PRINTK(tunnel->debug, L2TP_MSG_DATA, KERN_INFO,
 		       "%s: no session found (%u/%u). Passing up.\n",
@@ -1305,6 +1332,23 @@ err:
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_create);
 
+/* This function is used by the netlink TUNNEL_DELETE command.
+ */
+int l2tp_tunnel_delete(struct l2tp_tunnel *tunnel)
+{
+	int err = 0;
+
+	/* Force the tunnel socket to close. This will eventually
+	 * cause the tunnel to be deleted via the normal socket close
+	 * mechanisms when userspace closes the tunnel socket.
+	 */
+	if ((tunnel->sock != NULL) && (tunnel->sock->sk_socket != NULL))
+		err = inet_shutdown(tunnel->sock->sk_socket, 2);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(l2tp_tunnel_delete);
+
 /* Really kill the session.
  */
 void l2tp_session_free(struct l2tp_session *session)
@@ -1348,6 +1392,21 @@ void l2tp_session_free(struct l2tp_session *session)
 	return;
 }
 EXPORT_SYMBOL_GPL(l2tp_session_free);
+
+/* This function is used by the netlink SESSION_DELETE command and by
+   pseudowire modules.
+ */
+int l2tp_session_delete(struct l2tp_session *session)
+{
+	if (session->session_close != NULL)
+		(*session->session_close)(session);
+
+	l2tp_session_dec_refcount(session);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(l2tp_session_delete);
+
 
 /* We come here whenever a session's send_seq, cookie_len or
  * l2specific_len parameters are set.
