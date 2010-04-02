@@ -433,6 +433,7 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	if (rc) {
 		dlpar_release_drc(drc_index);
 		dlpar_free_cc_nodes(dn);
+		goto out;
 	}
 
 	rc = dlpar_online_cpu(dn);
