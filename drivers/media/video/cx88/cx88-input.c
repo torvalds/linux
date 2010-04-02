@@ -245,7 +245,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 {
 	struct cx88_IR *ir;
 	struct input_dev *input_dev;
-	struct ir_scancode_table *ir_codes = NULL;
+	char *ir_codes = NULL;
 	u64 ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
 
@@ -261,14 +261,14 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_DNTV_LIVE_DVB_T:
 	case CX88_BOARD_KWORLD_DVB_T:
 	case CX88_BOARD_KWORLD_DVB_T_CX22702:
-		ir_codes = &IR_KEYTABLE(dntv_live_dvb_t);
+		ir_codes = RC_MAP_DNTV_LIVE_DVB_T;
 		ir->gpio_addr = MO_GP1_IO;
 		ir->mask_keycode = 0x1f;
 		ir->mask_keyup = 0x60;
 		ir->polling = 50; /* ms */
 		break;
 	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
-		ir_codes = &IR_KEYTABLE(cinergy_1400);
+		ir_codes = RC_MAP_CINERGY_1400;
 		ir_type = IR_TYPE_PD;
 		ir->sampling = 0xeb04; /* address */
 		break;
@@ -283,14 +283,14 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_PCHDTV_HD3000:
 	case CX88_BOARD_PCHDTV_HD5500:
 	case CX88_BOARD_HAUPPAUGE_IRONLY:
-		ir_codes = &IR_KEYTABLE(hauppauge_new);
+		ir_codes = RC_MAP_HAUPPAUGE_NEW;
 		ir_type = IR_TYPE_RC5;
 		ir->sampling = 1;
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
 	case CX88_BOARD_WINFAST_DTV2000H_J:
 	case CX88_BOARD_WINFAST_DTV1800H:
-		ir_codes = &IR_KEYTABLE(winfast);
+		ir_codes = RC_MAP_WINFAST;
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0x8f8;
 		ir->mask_keyup = 0x100;
@@ -299,14 +299,14 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_WINFAST2000XP_EXPERT:
 	case CX88_BOARD_WINFAST_DTV1000:
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
-		ir_codes = &IR_KEYTABLE(winfast);
+		ir_codes = RC_MAP_WINFAST;
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0x8f8;
 		ir->mask_keyup = 0x100;
 		ir->polling = 1; /* ms */
 		break;
 	case CX88_BOARD_IODATA_GVBCTV7E:
-		ir_codes = &IR_KEYTABLE(iodata_bctv7e);
+		ir_codes = RC_MAP_IODATA_BCTV7E;
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0xfd;
 		ir->mask_keydown = 0x02;
@@ -314,7 +314,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_PROLINK_PLAYTVPVR:
 	case CX88_BOARD_PIXELVIEW_PLAYTV_ULTRA_PRO:
-		ir_codes = &IR_KEYTABLE(pixelview);
+		ir_codes = RC_MAP_PIXELVIEW;
 		ir->gpio_addr = MO_GP1_IO;
 		ir->mask_keycode = 0x1f;
 		ir->mask_keyup = 0x80;
@@ -322,28 +322,28 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_PROLINK_PV_8000GT:
 	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
-		ir_codes = &IR_KEYTABLE(pixelview_new);
+		ir_codes = RC_MAP_PIXELVIEW_NEW;
 		ir->gpio_addr = MO_GP1_IO;
 		ir->mask_keycode = 0x3f;
 		ir->mask_keyup = 0x80;
 		ir->polling = 1; /* ms */
 		break;
 	case CX88_BOARD_KWORLD_LTV883:
-		ir_codes = &IR_KEYTABLE(pixelview);
+		ir_codes = RC_MAP_PIXELVIEW;
 		ir->gpio_addr = MO_GP1_IO;
 		ir->mask_keycode = 0x1f;
 		ir->mask_keyup = 0x60;
 		ir->polling = 1; /* ms */
 		break;
 	case CX88_BOARD_ADSTECH_DVB_T_PCI:
-		ir_codes = &IR_KEYTABLE(adstech_dvb_t_pci);
+		ir_codes = RC_MAP_ADSTECH_DVB_T_PCI;
 		ir->gpio_addr = MO_GP1_IO;
 		ir->mask_keycode = 0xbf;
 		ir->mask_keyup = 0x40;
 		ir->polling = 50; /* ms */
 		break;
 	case CX88_BOARD_MSI_TVANYWHERE_MASTER:
-		ir_codes = &IR_KEYTABLE(msi_tvanywhere);
+		ir_codes = RC_MAP_MSI_TVANYWHERE;
 		ir->gpio_addr = MO_GP1_IO;
 		ir->mask_keycode = 0x1f;
 		ir->mask_keyup = 0x40;
@@ -351,7 +351,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_AVERTV_303:
 	case CX88_BOARD_AVERTV_STUDIO_303:
-		ir_codes         = &IR_KEYTABLE(avertv_303);
+		ir_codes         = RC_MAP_AVERTV_303;
 		ir->gpio_addr    = MO_GP2_IO;
 		ir->mask_keycode = 0xfb;
 		ir->mask_keydown = 0x02;
@@ -364,41 +364,41 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_PROF_7300:
 	case CX88_BOARD_PROF_7301:
 	case CX88_BOARD_PROF_6200:
-		ir_codes = &IR_KEYTABLE(tbs_nec);
+		ir_codes = RC_MAP_TBS_NEC;
 		ir_type = IR_TYPE_PD;
 		ir->sampling = 0xff00; /* address */
 		break;
 	case CX88_BOARD_TEVII_S460:
 	case CX88_BOARD_TEVII_S420:
-		ir_codes = &IR_KEYTABLE(tevii_nec);
+		ir_codes = RC_MAP_TEVII_NEC;
 		ir_type = IR_TYPE_PD;
 		ir->sampling = 0xff00; /* address */
 		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
-		ir_codes         = &IR_KEYTABLE(dntv_live_dvbt_pro);
+		ir_codes         = RC_MAP_DNTV_LIVE_DVBT_PRO;
 		ir_type          = IR_TYPE_PD;
 		ir->sampling     = 0xff00; /* address */
 		break;
 	case CX88_BOARD_NORWOOD_MICRO:
-		ir_codes         = &IR_KEYTABLE(norwood);
+		ir_codes         = RC_MAP_NORWOOD;
 		ir->gpio_addr    = MO_GP1_IO;
 		ir->mask_keycode = 0x0e;
 		ir->mask_keyup   = 0x80;
 		ir->polling      = 50; /* ms */
 		break;
 	case CX88_BOARD_NPGTECH_REALTV_TOP10FM:
-		ir_codes         = &IR_KEYTABLE(npgtech);
+		ir_codes         = RC_MAP_NPGTECH;
 		ir->gpio_addr    = MO_GP0_IO;
 		ir->mask_keycode = 0xfa;
 		ir->polling      = 50; /* ms */
 		break;
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
-		ir_codes         = &IR_KEYTABLE(pinnacle_pctv_hd);
+		ir_codes         = RC_MAP_PINNACLE_PCTV_HD;
 		ir_type          = IR_TYPE_RC5;
 		ir->sampling     = 1;
 		break;
 	case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
-		ir_codes         = &IR_KEYTABLE(powercolor_real_angel);
+		ir_codes         = RC_MAP_POWERCOLOR_REAL_ANGEL;
 		ir->gpio_addr    = MO_GP2_IO;
 		ir->mask_keycode = 0x7e;
 		ir->polling      = 100; /* ms */
@@ -439,7 +439,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	ir->props.close = cx88_ir_close;
 
 	/* all done */
-	err = __ir_input_register(ir->input, ir_codes, &ir->props, MODULE_NAME);
+	err = ir_input_register(ir->input, ir_codes, &ir->props, MODULE_NAME);
 	if (err)
 		goto err_out_free;
 

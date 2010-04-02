@@ -251,8 +251,10 @@ static int __init ir_core_init(void)
 		return rc;
 	}
 
-	/* Initialize/load the decoders that will be used */
+	/* Initialize/load the decoders/keymap code that will be used */
 	ir_raw_init();
+	rc_map_init();
+
 
 	return 0;
 }

@@ -21,6 +21,7 @@
 #include <linux/kfifo.h>
 #include <linux/time.h>
 #include <linux/timer.h>
+#include <media/rc-map.h>
 
 extern int ir_core_debug;
 #define IR_dprintk(level, fmt, arg...)	if (ir_core_debug >= level) \
@@ -124,6 +125,7 @@ EXPORT_SYMBOL_GPL(IR_KEYTABLE(tabname))
 int ir_register_map(struct rc_keymap *map);
 void ir_unregister_map(struct rc_keymap *map);
 struct ir_scancode_table *get_rc_map(const char *name);
+void rc_map_init(void);
 
 /* Routines from ir-keytable.c */
 
@@ -141,15 +143,30 @@ static inline int ir_input_register(struct input_dev *dev,
 		      const struct ir_dev_props *props,
 		      const char *driver_name) {
 	struct ir_scancode_table *ir_codes;
+	struct ir_input_dev *ir_dev;
+	int rc;
+
+	if (!map_name)
+		return -EINVAL;
 
 	ir_codes = get_rc_map(map_name);
 	if (!ir_codes)
 		return -EINVAL;
 
-	return __ir_input_register(dev, ir_codes, props, driver_name);
+	rc = __ir_input_register(dev, ir_codes, props, driver_name);
+	if (rc < 0)
+		return -EINVAL;
+
+	ir_dev = input_get_drvdata(dev);
+
+	if (!rc && ir_dev->props && ir_dev->props->change_protocol)
+		rc = ir_dev->props->change_protocol(ir_dev->props->priv,
+						    ir_codes->ir_type);
+
+	return rc;
 }
 
-		      void ir_input_unregister(struct input_dev *input_dev);
+void ir_input_unregister(struct input_dev *input_dev);
 
 /* Routines from ir-sysfs.c */
 

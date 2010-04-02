@@ -596,7 +596,7 @@ static irqreturn_t dm1105_irq(int irq, void *dev_id)
 int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 {
 	struct input_dev *input_dev;
-	struct ir_scancode_table *ir_codes = &IR_KEYTABLE(dm1105_nec);
+	char *ir_codes = NULL;
 	u64 ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
 
@@ -630,7 +630,7 @@ int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 
 	INIT_WORK(&dm1105->ir.work, dm1105_emit_key);
 
-	err = __ir_input_register(input_dev, ir_codes, NULL, MODULE_NAME);
+	err = ir_input_register(input_dev, ir_codes, NULL, MODULE_NAME);
 
 	return err;
 }

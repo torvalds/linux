@@ -382,7 +382,6 @@ int em28xx_ir_change_protocol(void *priv, u64 ir_type)
 
 	/* Adjust xclk based o IR table for RC5/NEC tables */
 
-	dev->board.ir_codes->ir_type = IR_TYPE_OTHER;
 	if (ir_type == IR_TYPE_RC5) {
 		dev->board.xclk |= EM28XX_XCLK_IR_RC5_MODE;
 		ir->full_code = 1;
@@ -392,8 +391,6 @@ int em28xx_ir_change_protocol(void *priv, u64 ir_type)
 		ir->full_code = 1;
 	} else
 		rc = -EINVAL;
-
-	dev->board.ir_codes->ir_type = ir_type;
 
 	em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, dev->board.xclk,
 			      EM28XX_XCLK_IR_RC5_MODE);
@@ -457,7 +454,6 @@ int em28xx_ir_init(struct em28xx *dev)
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
 	/* Set IR protocol */
-	em28xx_ir_change_protocol(ir, dev->board.ir_codes->ir_type);
 	err = ir_input_init(input_dev, &ir->ir, IR_TYPE_OTHER);
 	if (err < 0)
 		goto err_out_free;
@@ -475,7 +471,7 @@ int em28xx_ir_init(struct em28xx *dev)
 	em28xx_ir_start(ir);
 
 	/* all done */
-	err = __ir_input_register(ir->input, dev->board.ir_codes,
+	err = ir_input_register(ir->input, dev->board.ir_codes,
 				&ir->props, MODULE_NAME);
 	if (err)
 		goto err_out_stop;

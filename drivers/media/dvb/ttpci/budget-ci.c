@@ -192,7 +192,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	struct saa7146_dev *saa = budget_ci->budget.dev;
 	struct input_dev *input_dev = budget_ci->ir.dev;
 	int error;
-	struct ir_scancode_table *ir_codes;
+	char *ir_codes = NULL;
 
 
 	budget_ci->ir.dev = input_dev = input_allocate_device();
@@ -232,7 +232,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1011:
 	case 0x1012:
 		/* The hauppauge keymap is a superset of these remotes */
-		ir_codes = &IR_KEYTABLE(hauppauge_new);
+		ir_codes = RC_MAP_HAUPPAUGE_NEW;
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = 0x1f;
@@ -241,11 +241,11 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1017:
 	case 0x101a:
 		/* for the Technotrend 1500 bundled remote */
-		ir_codes = &IR_KEYTABLE(tt_1500);
+		ir_codes = RC_MAP_TT_1500;
 		break;
 	default:
 		/* unknown remote */
-		ir_codes = &IR_KEYTABLE(budget_ci_old);
+		ir_codes = RC_MAP_BUDGET_CI_OLD;
 		break;
 	}
 
@@ -256,7 +256,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	budget_ci->ir.timer_keyup.function = msp430_ir_keyup;
 	budget_ci->ir.timer_keyup.data = (unsigned long) &budget_ci->ir;
 	budget_ci->ir.last_raw = 0xffff; /* An impossible value */
-	error = __ir_input_register(input_dev, ir_codes, NULL, MODULE_NAME);
+	error = ir_input_register(input_dev, ir_codes, NULL, MODULE_NAME);
 	if (error) {
 		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
 		return error;

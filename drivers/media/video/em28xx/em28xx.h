@@ -412,7 +412,7 @@ struct em28xx_board {
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 	struct em28xx_input	  radio;
-	struct ir_scancode_table  *ir_codes;
+	char			  *ir_codes;
 };
 
 struct em28xx_eeprom {

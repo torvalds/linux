@@ -297,7 +297,7 @@ static void ir_work(struct work_struct *work)
 
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	struct ir_scancode_table *ir_codes = NULL;
+	char *ir_codes = NULL;
 	const char *name = NULL;
 	u64 ir_type = 0;
 	struct IR_i2c *ir;
@@ -322,13 +322,13 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "Pixelview";
 		ir->get_key = get_key_pixelview;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = &IR_KEYTABLE(empty);
+		ir_codes    = RC_MAP_EMPTY;
 		break;
 	case 0x4b:
 		name        = "PV951";
 		ir->get_key = get_key_pv951;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = &IR_KEYTABLE(pv951);
+		ir_codes    = RC_MAP_PV951;
 		break;
 	case 0x18:
 	case 0x1f:
@@ -337,22 +337,22 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->get_key = get_key_haup;
 		ir_type     = IR_TYPE_RC5;
 		if (hauppauge == 1) {
-			ir_codes    = &IR_KEYTABLE(hauppauge_new);
+			ir_codes    = RC_MAP_HAUPPAUGE_NEW;
 		} else {
-			ir_codes    = &IR_KEYTABLE(rc5_tv);
+			ir_codes    = RC_MAP_RC5_TV;
 		}
 		break;
 	case 0x30:
 		name        = "KNC One";
 		ir->get_key = get_key_knc1;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = &IR_KEYTABLE(empty);
+		ir_codes    = RC_MAP_EMPTY;
 		break;
 	case 0x6b:
 		name        = "FusionHDTV";
 		ir->get_key = get_key_fusionhdtv;
 		ir_type     = IR_TYPE_RC5;
-		ir_codes    = &IR_KEYTABLE(fusionhdtv_mce);
+		ir_codes    = RC_MAP_FUSIONHDTV_MCE;
 		break;
 	case 0x0b:
 	case 0x47:
@@ -365,9 +365,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			ir_type     = IR_TYPE_RC5;
 			ir->get_key = get_key_haup_xvr;
 			if (hauppauge == 1) {
-				ir_codes    = &IR_KEYTABLE(hauppauge_new);
+				ir_codes    = RC_MAP_HAUPPAUGE_NEW;
 			} else {
-				ir_codes    = &IR_KEYTABLE(rc5_tv);
+				ir_codes    = RC_MAP_RC5_TV;
 			}
 		} else {
 			/* Handled by saa7134-input */
@@ -379,7 +379,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "AVerMedia Cardbus remote";
 		ir->get_key = get_key_avermedia_cardbus;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = &IR_KEYTABLE(avermedia_cardbus);
+		ir_codes    = RC_MAP_AVERMEDIA_CARDBUS;
 		break;
 	}
 
@@ -447,7 +447,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	input_dev->name       = ir->name;
 	input_dev->phys       = ir->phys;
 
-	err = __ir_input_register(ir->input, ir->ir_codes, NULL, MODULE_NAME);
+	err = ir_input_register(ir->input, ir->ir_codes, NULL, MODULE_NAME);
 	if (err)
 		goto err_out_free;
 

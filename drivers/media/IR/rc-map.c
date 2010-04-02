@@ -26,12 +26,14 @@ static struct rc_keymap *seek_rc_map(const char *name)
 
 	spin_lock(&rc_map_lock);
 	list_for_each_entry(map, &rc_map_list, list) {
-		if (!strcmp(name, map->map.name))
-			break;
+		if (!strcmp(name, map->map.name)) {
+			spin_unlock(&rc_map_lock);
+			return map;
+		}
 	}
 	spin_unlock(&rc_map_lock);
 
-	return map;
+	return NULL;
 }
 
 struct ir_scancode_table *get_rc_map(const char *name)
@@ -43,15 +45,22 @@ struct ir_scancode_table *get_rc_map(const char *name)
 	map = seek_rc_map(name);
 #ifdef MODULE
 	if (!map) {
-		rc = request_module("name");
-		if (rc < 0)
+		rc = request_module(name);
+		if (rc < 0) {
+			printk(KERN_ERR "Couldn't load IR keymap %s\n", name);
 			return NULL;
+		}
+		msleep(20);	/* Give some time for IR to register */
 
 		map = seek_rc_map(name);
 	}
 #endif
-	if (!map)
+	if (!map) {
+		printk(KERN_ERR "IR keymap %s not found\n", name);
 		return NULL;
+	}
+
+	printk(KERN_INFO "Registered IR keymap %s\n", map->map.name);
 
 	return &map->map;
 }
@@ -73,3 +82,9 @@ void ir_unregister_map(struct rc_keymap *map)
 	spin_unlock(&rc_map_lock);
 }
 EXPORT_SYMBOL_GPL(ir_unregister_map);
+
+void rc_map_init(void)
+{
+	spin_lock_init(&rc_map_lock);
+
+}
