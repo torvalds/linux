@@ -986,3 +986,93 @@ int event__process_tracing_data(event_t *self,
 
 	return size_read + padding;
 }
+
+int event__synthesize_build_id(struct dso *pos, u16 misc,
+			       event__handler_t process,
+			       struct perf_session *session)
+{
+	event_t ev;
+	size_t len;
+	int err = 0;
+
+	if (!pos->hit)
+		return err;
+
+	memset(&ev, 0, sizeof(ev));
+
+	len = pos->long_name_len + 1;
+	len = ALIGN(len, NAME_ALIGN);
+	memcpy(&ev.build_id.build_id, pos->build_id, sizeof(pos->build_id));
+	ev.build_id.header.type = PERF_RECORD_HEADER_BUILD_ID;
+	ev.build_id.header.misc = misc;
+	ev.build_id.header.size = sizeof(ev.build_id) + len;
+	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
+
+	err = process(&ev, session);
+
+	return err;
+}
+
+static int __event_synthesize_build_ids(struct list_head *head, u16 misc,
+					event__handler_t process,
+					struct perf_session *session)
+{
+	struct dso *pos;
+
+	dsos__for_each_with_build_id(pos, head) {
+		int err;
+		if (!pos->hit)
+			continue;
+
+		err = event__synthesize_build_id(pos, misc, process, session);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+int event__synthesize_build_ids(event__handler_t process,
+				struct perf_session *session)
+{
+	int err;
+
+	if (!dsos__read_build_ids(true))
+		return 0;
+
+	err = __event_synthesize_build_ids(&dsos__kernel,
+					   PERF_RECORD_MISC_KERNEL,
+					   process, session);
+	if (err == 0)
+		err = __event_synthesize_build_ids(&dsos__user,
+						   PERF_RECORD_MISC_USER,
+						   process, session);
+
+	if (err < 0) {
+		pr_debug("failed to synthesize build ids\n");
+		return err;
+	}
+
+	dsos__cache_build_ids();
+
+	return 0;
+}
+
+int event__process_build_id(event_t *self,
+			    struct perf_session *session __unused)
+{
+	struct list_head *head = &dsos__user;
+	struct dso *dso;
+
+	if (self->build_id.header.misc & PERF_RECORD_MISC_KERNEL)
+		head = &dsos__kernel;
+
+	dso = __dsos__findnew(head, self->build_id.filename);
+	if (dso != NULL) {
+		dso__set_build_id(dso, &self->build_id.build_id);
+		if (head == &dsos__kernel && self->build_id.filename[0] == '[')
+			dso->kernel = 1;
+	}
+
+	return 0;
+}

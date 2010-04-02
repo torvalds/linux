@@ -47,7 +47,8 @@ struct perf_event_ops {
 		 unthrottle,
 		 attr,
 		 event_type,
-		 tracing_data;
+		 tracing_data,
+		 build_id;
 };
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force);

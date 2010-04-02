@@ -206,6 +206,8 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 		handler->event_type = process_event_stub;
 	if (handler->tracing_data == NULL)
 		handler->tracing_data = process_event_stub;
+	if (handler->build_id == NULL)
+		handler->build_id = process_event_stub;
 }
 
 static const char *event__name[] = {
@@ -222,6 +224,7 @@ static const char *event__name[] = {
 	[PERF_RECORD_HEADER_ATTR]	 = "ATTR",
 	[PERF_RECORD_HEADER_EVENT_TYPE]	 = "EVENT_TYPE",
 	[PERF_RECORD_HEADER_TRACING_DATA]	 = "TRACING_DATA",
+	[PERF_RECORD_HEADER_BUILD_ID]	 = "BUILD_ID",
 };
 
 unsigned long event__total[PERF_RECORD_HEADER_MAX];
@@ -332,6 +335,7 @@ static event__swap_op event__swap_ops[] = {
 	[PERF_RECORD_HEADER_ATTR]   = event__attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]   = event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA]   = event__tracing_data_swap,
+	[PERF_RECORD_HEADER_BUILD_ID]   = NULL,
 	[PERF_RECORD_HEADER_MAX]    = NULL,
 };
 
@@ -380,6 +384,8 @@ static int perf_session__process_event(struct perf_session *self,
 		/* setup for reading amidst mmap */
 		lseek(self->fd, offset + head, SEEK_SET);
 		return ops->tracing_data(event, self);
+	case PERF_RECORD_HEADER_BUILD_ID:
+		return ops->build_id(event, self);
 	default:
 		self->unknown_events++;
 		return -1;

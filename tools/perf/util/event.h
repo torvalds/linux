@@ -87,6 +87,7 @@ enum perf_header_event_type { /* above any possible kernel type */
 	PERF_RECORD_HEADER_ATTR			= 64,
 	PERF_RECORD_HEADER_EVENT_TYPE		= 65,
 	PERF_RECORD_HEADER_TRACING_DATA		= 66,
+	PERF_RECORD_HEADER_BUILD_ID		= 67,
 	PERF_RECORD_HEADER_MAX
 };
 
@@ -125,6 +126,7 @@ typedef union event_union {
 	struct attr_event		attr;
 	struct event_type_event		event_type;
 	struct tracing_data_event	tracing_data;
+	struct build_id_event		build_id;
 } event_t;
 
 struct events_stats {

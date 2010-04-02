@@ -426,10 +426,19 @@ static int process_buildids(void)
 
 static void atexit_header(void)
 {
-	session->header.data_size += bytes_written;
+	if (!pipe_output) {
+		session->header.data_size += bytes_written;
 
-	process_buildids();
-	perf_header__write(&session->header, output, true);
+		process_buildids();
+		perf_header__write(&session->header, output, true);
+	} else {
+		int err;
+
+		err = event__synthesize_build_ids(process_synthesized_event,
+						  session);
+		if (err < 0)
+			pr_err("Couldn't synthesize build ids.\n");
+	}
 }
 
 static int __cmd_record(int argc, const char **argv)
