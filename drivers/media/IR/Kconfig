@@ -8,6 +8,8 @@ config VIDEO_IR
 	depends on IR_CORE
 	default IR_CORE
 
+source "drivers/media/IR/keymaps/Kconfig"
+
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for NEC protocol"
 	depends on IR_CORE

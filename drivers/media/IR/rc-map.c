@@ -64,7 +64,7 @@ int ir_register_map(struct rc_keymap *map)
 	spin_unlock(&rc_map_lock);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ir_raw_handler_register);
+EXPORT_SYMBOL_GPL(ir_register_map);
 
 void ir_unregister_map(struct rc_keymap *map)
 {
@@ -72,4 +72,4 @@ void ir_unregister_map(struct rc_keymap *map)
 	list_del(&map->list);
 	spin_unlock(&rc_map_lock);
 }
-EXPORT_SYMBOL_GPL(ir_raw_handler_unregister);
+EXPORT_SYMBOL_GPL(ir_unregister_map);
