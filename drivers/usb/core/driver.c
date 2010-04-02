@@ -1263,13 +1263,47 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 	return status;
 }
 
+static void choose_wakeup(struct usb_device *udev, pm_message_t msg)
+{
+	int			w, i;
+	struct usb_interface	*intf;
+
+	/* Remote wakeup is needed only when we actually go to sleep.
+	 * For things like FREEZE and QUIESCE, if the device is already
+	 * autosuspended then its current wakeup setting is okay.
+	 */
+	if (msg.event == PM_EVENT_FREEZE || msg.event == PM_EVENT_QUIESCE) {
+		if (udev->state != USB_STATE_SUSPENDED)
+			udev->do_remote_wakeup = 0;
+		return;
+	}
+
+	/* If remote wakeup is permitted, see whether any interface drivers
+	 * actually want it.
+	 */
+	w = 0;
+	if (device_may_wakeup(&udev->dev) && udev->actconfig) {
+		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
+			intf = udev->actconfig->interface[i];
+			w |= intf->needs_remote_wakeup;
+		}
+	}
+
+	/* If the device is autosuspended with the wrong wakeup setting,
+	 * autoresume now so the setting can be changed.
+	 */
+	if (udev->state == USB_STATE_SUSPENDED && w != udev->do_remote_wakeup)
+		pm_runtime_resume(&udev->dev);
+	udev->do_remote_wakeup = w;
+}
+
 /* The device lock is held by the PM core */
 int usb_suspend(struct device *dev, pm_message_t msg)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 
 	do_unbind_rebind(udev, DO_UNBIND);
-	udev->do_remote_wakeup = device_may_wakeup(&udev->dev);
+	choose_wakeup(udev, msg);
 	return usb_suspend_both(udev, msg);
 }
 
