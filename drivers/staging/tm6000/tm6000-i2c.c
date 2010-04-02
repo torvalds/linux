@@ -135,8 +135,8 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			i++;
 
 			if (addr == dev->tuner_addr << 1) {
-				tm6000_set_reg(dev, 0x32, 0,0);
-				tm6000_set_reg(dev, 0x33, 0,0);
+				tm6000_set_reg(dev, REQ_50_SET_START, 0, 0);
+				tm6000_set_reg(dev, REQ_51_SET_STOP, 0, 0);
 			}
 			if (i2c_debug >= 2)
 				for (byte = 0; byte < msgs[i].len; byte++)
@@ -150,8 +150,8 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 				msgs[i].buf + 1, msgs[i].len - 1);
 
 			if (addr == dev->tuner_addr  << 1) {
-				tm6000_set_reg(dev, 0x32, 0,0);
-				tm6000_set_reg(dev, 0x33, 0,0);
+				tm6000_set_reg(dev, REQ_50_SET_START, 0, 0);
+				tm6000_set_reg(dev, REQ_51_SET_STOP, 0, 0);
 			}
 		}
 		if (i2c_debug >= 2)
