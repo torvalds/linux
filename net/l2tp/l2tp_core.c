@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/list.h>
+#include <linux/rculist.h>
 #include <linux/uaccess.h>
 
 #include <linux/kernel.h>
@@ -105,9 +106,9 @@ static atomic_t l2tp_session_count;
 static unsigned int l2tp_net_id;
 struct l2tp_net {
 	struct list_head l2tp_tunnel_list;
-	rwlock_t l2tp_tunnel_list_lock;
+	spinlock_t l2tp_tunnel_list_lock;
 	struct hlist_head l2tp_session_hlist[L2TP_HASH_SIZE_2];
-	rwlock_t l2tp_session_hlist_lock;
+	spinlock_t l2tp_session_hlist_lock;
 };
 
 static inline struct l2tp_net *l2tp_pernet(struct net *net)
@@ -139,14 +140,14 @@ static struct l2tp_session *l2tp_session_find_2(struct net *net, u32 session_id)
 	struct l2tp_session *session;
 	struct hlist_node *walk;
 
-	read_lock_bh(&pn->l2tp_session_hlist_lock);
-	hlist_for_each_entry(session, walk, session_list, global_hlist) {
+	rcu_read_lock_bh();
+	hlist_for_each_entry_rcu(session, walk, session_list, global_hlist) {
 		if (session->session_id == session_id) {
-			read_unlock_bh(&pn->l2tp_session_hlist_lock);
+			rcu_read_unlock_bh();
 			return session;
 		}
 	}
-	read_unlock_bh(&pn->l2tp_session_hlist_lock);
+	rcu_read_unlock_bh();
 
 	return NULL;
 }
@@ -225,17 +226,17 @@ struct l2tp_session *l2tp_session_find_by_ifname(struct net *net, char *ifname)
 	struct hlist_node *walk;
 	struct l2tp_session *session;
 
-	read_lock_bh(&pn->l2tp_session_hlist_lock);
+	rcu_read_lock_bh();
 	for (hash = 0; hash < L2TP_HASH_SIZE_2; hash++) {
-		hlist_for_each_entry(session, walk, &pn->l2tp_session_hlist[hash], global_hlist) {
+		hlist_for_each_entry_rcu(session, walk, &pn->l2tp_session_hlist[hash], global_hlist) {
 			if (!strcmp(session->ifname, ifname)) {
-				read_unlock_bh(&pn->l2tp_session_hlist_lock);
+				rcu_read_unlock_bh();
 				return session;
 			}
 		}
 	}
 
-	read_unlock_bh(&pn->l2tp_session_hlist_lock);
+	rcu_read_unlock_bh();
 
 	return NULL;
 }
@@ -248,14 +249,14 @@ struct l2tp_tunnel *l2tp_tunnel_find(struct net *net, u32 tunnel_id)
 	struct l2tp_tunnel *tunnel;
 	struct l2tp_net *pn = l2tp_pernet(net);
 
-	read_lock_bh(&pn->l2tp_tunnel_list_lock);
-	list_for_each_entry(tunnel, &pn->l2tp_tunnel_list, list) {
+	rcu_read_lock_bh();
+	list_for_each_entry_rcu(tunnel, &pn->l2tp_tunnel_list, list) {
 		if (tunnel->tunnel_id == tunnel_id) {
-			read_unlock_bh(&pn->l2tp_tunnel_list_lock);
+			rcu_read_unlock_bh();
 			return tunnel;
 		}
 	}
-	read_unlock_bh(&pn->l2tp_tunnel_list_lock);
+	rcu_read_unlock_bh();
 
 	return NULL;
 }
@@ -267,15 +268,15 @@ struct l2tp_tunnel *l2tp_tunnel_find_nth(struct net *net, int nth)
 	struct l2tp_tunnel *tunnel;
 	int count = 0;
 
-	read_lock_bh(&pn->l2tp_tunnel_list_lock);
-	list_for_each_entry(tunnel, &pn->l2tp_tunnel_list, list) {
+	rcu_read_lock_bh();
+	list_for_each_entry_rcu(tunnel, &pn->l2tp_tunnel_list, list) {
 		if (++count > nth) {
-			read_unlock_bh(&pn->l2tp_tunnel_list_lock);
+			rcu_read_unlock_bh();
 			return tunnel;
 		}
 	}
 
-	read_unlock_bh(&pn->l2tp_tunnel_list_lock);
+	rcu_read_unlock_bh();
 
 	return NULL;
 }
@@ -1167,9 +1168,10 @@ again:
 			if (tunnel->version != L2TP_HDR_VER_2) {
 				struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
 
-				write_lock_bh(&pn->l2tp_session_hlist_lock);
-				hlist_del_init(&session->global_hlist);
-				write_unlock_bh(&pn->l2tp_session_hlist_lock);
+				spin_lock_bh(&pn->l2tp_session_hlist_lock);
+				hlist_del_init_rcu(&session->global_hlist);
+				spin_unlock_bh(&pn->l2tp_session_hlist_lock);
+				synchronize_rcu();
 			}
 
 			if (session->session_close != NULL)
@@ -1206,9 +1208,10 @@ void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 	       "%s: free...\n", tunnel->name);
 
 	/* Remove from tunnel list */
-	write_lock_bh(&pn->l2tp_tunnel_list_lock);
-	list_del_init(&tunnel->list);
-	write_unlock_bh(&pn->l2tp_tunnel_list_lock);
+	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
+	list_del_rcu(&tunnel->list);
+	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
+	synchronize_rcu();
 
 	atomic_dec(&l2tp_tunnel_count);
 	kfree(tunnel);
@@ -1310,9 +1313,10 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 
 	/* Add tunnel to our list */
 	INIT_LIST_HEAD(&tunnel->list);
-	write_lock_bh(&pn->l2tp_tunnel_list_lock);
-	list_add(&tunnel->list, &pn->l2tp_tunnel_list);
-	write_unlock_bh(&pn->l2tp_tunnel_list_lock);
+	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
+	list_add_rcu(&tunnel->list, &pn->l2tp_tunnel_list);
+	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
+	synchronize_rcu();
 	atomic_inc(&l2tp_tunnel_count);
 
 	/* Bump the reference count. The tunnel context is deleted
@@ -1370,9 +1374,10 @@ void l2tp_session_free(struct l2tp_session *session)
 		if (tunnel->version != L2TP_HDR_VER_2) {
 			struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
 
-			write_lock_bh(&pn->l2tp_session_hlist_lock);
-			hlist_del_init(&session->global_hlist);
-			write_unlock_bh(&pn->l2tp_session_hlist_lock);
+			spin_lock_bh(&pn->l2tp_session_hlist_lock);
+			hlist_del_init_rcu(&session->global_hlist);
+			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
+			synchronize_rcu();
 		}
 
 		if (session->session_id != 0)
@@ -1494,10 +1499,11 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 		if (tunnel->version != L2TP_HDR_VER_2) {
 			struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
 
-			write_lock_bh(&pn->l2tp_session_hlist_lock);
-			hlist_add_head(&session->global_hlist,
-				       l2tp_session_id_hash_2(pn, session_id));
-			write_unlock_bh(&pn->l2tp_session_hlist_lock);
+			spin_lock_bh(&pn->l2tp_session_hlist_lock);
+			hlist_add_head_rcu(&session->global_hlist,
+					   l2tp_session_id_hash_2(pn, session_id));
+			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
+			synchronize_rcu();
 		}
 
 		/* Ignore management session in session count value */
@@ -1524,12 +1530,12 @@ static __net_init int l2tp_init_net(struct net *net)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pn->l2tp_tunnel_list);
-	rwlock_init(&pn->l2tp_tunnel_list_lock);
+	spin_lock_init(&pn->l2tp_tunnel_list_lock);
 
 	for (hash = 0; hash < L2TP_HASH_SIZE_2; hash++)
 		INIT_HLIST_HEAD(&pn->l2tp_session_hlist[hash]);
 
-	rwlock_init(&pn->l2tp_session_hlist_lock);
+	spin_lock_init(&pn->l2tp_session_hlist_lock);
 
 	err = net_assign_generic(net, l2tp_net_id, pn);
 	if (err)
