@@ -1962,7 +1962,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	int running_total, trb_buff_len, ret;
 	u64 addr;
 
-	if (urb->sg)
+	if (urb->num_sgs)
 		return queue_bulk_sg_tx(xhci, mem_flags, urb, slot_id, ep_index);
 
 	ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;

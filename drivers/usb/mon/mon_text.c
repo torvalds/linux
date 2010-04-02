@@ -161,9 +161,7 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 	} else {
 		struct scatterlist *sg = urb->sg->sg;
 
-		/* If IOMMU coalescing occurred, we cannot trust sg_page */
-		if (urb->sg->nents != urb->num_sgs ||
-				PageHighMem(sg_page(sg)))
+		if (PageHighMem(sg_page(sg)))
 			return 'D';
 
 		/* For the text interface we copy only the first sg buffer */

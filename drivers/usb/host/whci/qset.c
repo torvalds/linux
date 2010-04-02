@@ -646,7 +646,7 @@ int qset_add_urb(struct whc *whc, struct whc_qset *qset, struct urb *urb,
 	wurb->urb = urb;
 	INIT_WORK(&wurb->dequeue_work, urb_dequeue_work);
 
-	if (urb->sg) {
+	if (urb->num_sgs) {
 		ret = qset_add_urb_sg(whc, qset, urb, mem_flags);
 		if (ret == -EINVAL) {
 			qset_free_stds(qset, urb);

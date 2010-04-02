@@ -881,6 +881,7 @@ void usb_buffer_unmap(struct urb *urb)
 EXPORT_SYMBOL_GPL(usb_buffer_unmap);
 #endif  /*  0  */
 
+#if 0
 /**
  * usb_buffer_map_sg - create scatterlist DMA mapping(s) for an endpoint
  * @dev: device to which the scatterlist will be mapped
@@ -924,6 +925,7 @@ int usb_buffer_map_sg(const struct usb_device *dev, int is_in,
 			is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE) ? : -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(usb_buffer_map_sg);
+#endif
 
 /* XXX DISABLED, no users currently.  If you wish to re-enable this
  * XXX please determine whether the sync is to transfer ownership of
@@ -960,6 +962,7 @@ void usb_buffer_dmasync_sg(const struct usb_device *dev, int is_in,
 EXPORT_SYMBOL_GPL(usb_buffer_dmasync_sg);
 #endif
 
+#if 0
 /**
  * usb_buffer_unmap_sg - free DMA mapping(s) for a scatterlist
  * @dev: device to which the scatterlist will be mapped
@@ -985,6 +988,7 @@ void usb_buffer_unmap_sg(const struct usb_device *dev, int is_in,
 			is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 EXPORT_SYMBOL_GPL(usb_buffer_unmap_sg);
+#endif
 
 /* To disable USB, kernel command line is 'nousb' not 'usbcore.nousb' */
 #ifdef MODULE

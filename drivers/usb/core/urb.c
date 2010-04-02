@@ -333,9 +333,12 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		is_out = usb_endpoint_dir_out(&ep->desc);
 	}
 
-	/* Cache the direction for later use */
-	urb->transfer_flags = (urb->transfer_flags & ~URB_DIR_MASK) |
-			(is_out ? URB_DIR_OUT : URB_DIR_IN);
+	/* Clear the internal flags and cache the direction for later use */
+	urb->transfer_flags &= ~(URB_DIR_MASK | URB_DMA_MAP_SINGLE |
+			URB_DMA_MAP_PAGE | URB_DMA_MAP_SG | URB_MAP_LOCAL |
+			URB_SETUP_MAP_SINGLE | URB_SETUP_MAP_LOCAL |
+			URB_DMA_SG_COMBINED);
+	urb->transfer_flags |= (is_out ? URB_DIR_OUT : URB_DIR_IN);
 
 	if (xfertype != USB_ENDPOINT_XFER_CONTROL &&
 			dev->state < USB_STATE_CONFIGURED)

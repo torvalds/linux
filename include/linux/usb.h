@@ -965,9 +965,18 @@ extern int usb_disabled(void);
 					 * needed */
 #define URB_FREE_BUFFER		0x0100	/* Free transfer buffer with the URB */
 
+/* The following flags are used internally by usbcore and HCDs */
 #define URB_DIR_IN		0x0200	/* Transfer from device to host */
 #define URB_DIR_OUT		0
 #define URB_DIR_MASK		URB_DIR_IN
+
+#define URB_DMA_MAP_SINGLE	0x00010000	/* Non-scatter-gather mapping */
+#define URB_DMA_MAP_PAGE	0x00020000	/* HCD-unsupported S-G */
+#define URB_DMA_MAP_SG		0x00040000	/* HCD-supported S-G */
+#define URB_MAP_LOCAL		0x00080000	/* HCD-local-memory mapping */
+#define URB_SETUP_MAP_SINGLE	0x00100000	/* Setup packet DMA mapped */
+#define URB_SETUP_MAP_LOCAL	0x00200000	/* HCD-local setup packet */
+#define URB_DMA_SG_COMBINED	0x00400000	/* S-G entries were combined */
 
 struct usb_iso_packet_descriptor {
 	unsigned int offset;
