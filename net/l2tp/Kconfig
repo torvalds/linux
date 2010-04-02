@@ -68,3 +68,27 @@ config L2TP_IP
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called l2tp_ip.
+
+config L2TP_ETH
+	tristate "L2TP ethernet pseudowire support for L2TPv3"
+	depends on L2TP_V3
+	help
+	  Support for carrying raw ethernet frames over L2TPv3.
+
+	  From RFC 4719 <http://www.ietf.org/rfc/rfc4719.txt>.
+
+	  The Layer 2 Tunneling Protocol, Version 3 (L2TPv3) can be
+	  used as a control protocol and for data encapsulation to set
+	  up Pseudowires for transporting layer 2 Packet Data Units
+	  across an IP network [RFC3931].
+
+	  This driver provides an ethernet virtual interface for each
+	  L2TP ethernet pseudowire instance. Standard Linux tools may
+	  be used to assign an IP address to the local virtual
+	  interface, or add the interface to a bridge.
+
+	  If you are using L2TPv3, you will almost certainly want to
+	  enable this option.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called l2tp_eth.
