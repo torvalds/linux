@@ -473,7 +473,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	setup_sorting(report_usage, options);
 
 	if (parent_pattern != default_parent_pattern) {
-		sort_dimension__add("parent");
+		if (sort_dimension__add("parent") < 0)
+			return -1;
 		sort_parent.elide = 1;
 	} else
 		symbol_conf.exclude_other = false;

@@ -264,9 +264,8 @@ int sort_dimension__add(const char *tok)
 				char err[BUFSIZ];
 
 				regerror(ret, &parent_regex, err, sizeof(err));
-				fprintf(stderr, "Invalid regex: %s\n%s",
-					parent_pattern, err);
-				exit(-1);
+				pr_err("Invalid regex: %s\n%s", parent_pattern, err);
+				return -EINVAL;
 			}
 			sort__has_parent = 1;
 		}
