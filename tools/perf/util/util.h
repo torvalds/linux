@@ -42,12 +42,14 @@
 #define _ALL_SOURCE 1
 #define _GNU_SOURCE 1
 #define _BSD_SOURCE 1
+#define HAS_BOOL
 
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -78,6 +80,7 @@
 #include <pwd.h>
 #include <inttypes.h>
 #include "../../../include/linux/magic.h"
+#include "types.h"
 
 
 #ifndef NO_ICONV
@@ -414,5 +417,14 @@ void git_qsort(void *base, size_t nmemb, size_t size,
 
 int mkdir_p(char *path, mode_t mode);
 int copyfile(const char *from, const char *to);
+
+s64 perf_atoll(const char *str);
+char **argv_split(const char *str, int *argcp);
+void argv_free(char **argv);
+bool strglobmatch(const char *str, const char *pat);
+bool strlazymatch(const char *str, const char *pat);
+
+#define _STR(x) #x
+#define STR(x) _STR(x)
 
 #endif

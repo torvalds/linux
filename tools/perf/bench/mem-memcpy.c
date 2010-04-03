@@ -10,7 +10,6 @@
 #include "../perf.h"
 #include "../util/util.h"
 #include "../util/parse-options.h"
-#include "../util/string.h"
 #include "../util/header.h"
 #include "bench.h"
 

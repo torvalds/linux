@@ -80,6 +80,11 @@ static inline int __perf_session__create_kernel_maps(struct perf_session *self,
 						self->vmlinux_maps, kernel);
 }
 
+static inline int perf_session__create_kernel_maps(struct perf_session *self)
+{
+	return map_groups__create_kernel_maps(&self->kmaps, self->vmlinux_maps);
+}
+
 static inline struct map *
 	perf_session__new_module_map(struct perf_session *self,
 				     u64 start, const char *filename)
@@ -88,11 +93,17 @@ static inline struct map *
 }
 
 #ifdef NO_NEWT_SUPPORT
-static inline void perf_session__browse_hists(struct rb_root *hists __used,
+static inline int perf_session__browse_hists(struct rb_root *hists __used,
+					      u64 nr_hists __used,
 					      u64 session_total __used,
-					      const char *helpline __used) {}
+					     const char *helpline __used,
+					     const char *input_name __used)
+{
+	return 0;
+}
 #else
-void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
-				const char *helpline);
+int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
+			       u64 session_total, const char *helpline,
+			       const char *input_name);
 #endif
 #endif /* __PERF_SESSION_H */

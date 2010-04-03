@@ -52,11 +52,6 @@ out_close:
 	return -1;
 }
 
-static inline int perf_session__create_kernel_maps(struct perf_session *self)
-{
-	return map_groups__create_kernel_maps(&self->kmaps, self->vmlinux_maps);
-}
-
 struct perf_session *perf_session__new(const char *filename, int mode, bool force)
 {
 	size_t len = filename ? strlen(filename) + 1 : 0;
@@ -123,16 +118,11 @@ struct map_symbol *perf_session__resolve_callchain(struct perf_session *self,
 						   struct symbol **parent)
 {
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	struct map_symbol *syms = NULL;
 	unsigned int i;
+	struct map_symbol *syms = calloc(chain->nr, sizeof(*syms));
 
-	if (symbol_conf.use_callchain) {
-		syms = calloc(chain->nr, sizeof(*syms));
-		if (!syms) {
-			fprintf(stderr, "Can't allocate memory for symbols\n");
-			exit(-1);
-		}
-	}
+	if (!syms)
+		return NULL;
 
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip = chain->ips[i];
@@ -397,6 +387,10 @@ int __perf_session__process_events(struct perf_session *self,
 	event_t *event;
 	uint32_t size;
 	char *buf;
+	struct ui_progress *progress = ui_progress__new("Processing events...",
+							self->size);
+	if (progress == NULL)
+		return -1;
 
 	perf_event_ops__fill_defaults(ops);
 
@@ -425,6 +419,7 @@ remap:
 
 more:
 	event = (event_t *)(buf + head);
+	ui_progress__update(progress, offset);
 
 	if (self->header.needs_swap)
 		perf_event_header__bswap(&event->header);
@@ -475,6 +470,7 @@ more:
 done:
 	err = 0;
 out_err:
+	ui_progress__delete(progress);
 	return err;
 }
 

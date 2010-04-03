@@ -14,7 +14,6 @@
 #include "util/cache.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"
-#include "util/string.h"
 #include "util/callchain.h"
 #include "util/strlist.h"
 #include "util/values.h"
@@ -89,9 +88,12 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	struct event_stat_id *stats;
 	struct perf_event_attr *attr;
 
-	if ((sort__has_parent || symbol_conf.use_callchain) && data->callchain)
+	if ((sort__has_parent || symbol_conf.use_callchain) && data->callchain) {
 		syms = perf_session__resolve_callchain(self, al->thread,
 						       data->callchain, &parent);
+		if (syms == NULL)
+			return -ENOMEM;
+	}
 
 	attr = perf_header__find_attr(data->id, &self->header);
 	if (attr)
@@ -110,8 +112,8 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 
 	if (symbol_conf.use_callchain) {
 		if (!hit)
-			callchain_init(&he->callchain);
-		err = append_chain(&he->callchain, data->callchain, syms);
+			callchain_init(he->callchain);
+		err = append_chain(he->callchain, data->callchain, syms);
 		free(syms);
 
 		if (err)
@@ -303,14 +305,16 @@ static int __cmd_report(void)
 	next = rb_first(&session->stats_by_id);
 	while (next) {
 		struct event_stat_id *stats;
+		u64 nr_hists;
 
 		stats = rb_entry(next, struct event_stat_id, rb_node);
 		perf_session__collapse_resort(&stats->hists);
-		perf_session__output_resort(&stats->hists, stats->stats.total);
-
+		nr_hists = perf_session__output_resort(&stats->hists,
+						       stats->stats.total);
 		if (use_browser)
-			perf_session__browse_hists(&stats->hists,
-						   stats->stats.total, help);
+			perf_session__browse_hists(&stats->hists, nr_hists,
+						   stats->stats.total, help,
+						   input_name);
 		else {
 			if (rb_first(&session->stats_by_id) ==
 			    rb_last(&session->stats_by_id))
@@ -469,7 +473,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	setup_sorting(report_usage, options);
 
 	if (parent_pattern != default_parent_pattern) {
-		sort_dimension__add("parent");
+		if (sort_dimension__add("parent") < 0)
+			return -1;
 		sort_parent.elide = 1;
 	} else
 		symbol_conf.exclude_other = false;

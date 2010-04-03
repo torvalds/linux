@@ -50,7 +50,8 @@ struct hist_entry *__perf_session__add_hist_entry(struct rb_root *hists,
 			p = &(*p)->rb_right;
 	}
 
-	he = malloc(sizeof(*he));
+	he = malloc(sizeof(*he) + (symbol_conf.use_callchain ?
+				    sizeof(struct callchain_node) : 0));
 	if (!he)
 		return NULL;
 	*he = entry;
@@ -168,7 +169,7 @@ static void perf_session__insert_output_hist_entry(struct rb_root *root,
 	struct hist_entry *iter;
 
 	if (symbol_conf.use_callchain)
-		callchain_param.sort(&he->sorted_chain, &he->callchain,
+		callchain_param.sort(&he->sorted_chain, he->callchain,
 				      min_callchain_hits, &callchain_param);
 
 	while (*p != NULL) {
@@ -185,12 +186,13 @@ static void perf_session__insert_output_hist_entry(struct rb_root *root,
 	rb_insert_color(&he->rb_node, root);
 }
 
-void perf_session__output_resort(struct rb_root *hists, u64 total_samples)
+u64 perf_session__output_resort(struct rb_root *hists, u64 total_samples)
 {
 	struct rb_root tmp;
 	struct rb_node *next;
 	struct hist_entry *n;
 	u64 min_callchain_hits;
+	u64 nr_hists = 0;
 
 	min_callchain_hits =
 		total_samples * (callchain_param.min_percent / 100);
@@ -205,9 +207,11 @@ void perf_session__output_resort(struct rb_root *hists, u64 total_samples)
 		rb_erase(&n->rb_node, hists);
 		perf_session__insert_output_hist_entry(&tmp, n,
 						       min_callchain_hits);
+		++nr_hists;
 	}
 
 	*hists = tmp;
+	return nr_hists;
 }
 
 static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)
@@ -452,16 +456,17 @@ static size_t hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 	return ret;
 }
 
-size_t hist_entry__fprintf(struct hist_entry *self,
+int hist_entry__snprintf(struct hist_entry *self,
+			   char *s, size_t size,
 			   struct perf_session *pair_session,
 			   bool show_displacement,
-			   long displacement, FILE *fp,
+			   long displacement, bool color,
 			   u64 session_total)
 {
 	struct sort_entry *se;
 	u64 count, total;
 	const char *sep = symbol_conf.field_sep;
-	size_t ret;
+	int ret;
 
 	if (symbol_conf.exclude_other && !self->parent)
 		return 0;
@@ -474,17 +479,22 @@ size_t hist_entry__fprintf(struct hist_entry *self,
 		total = session_total;
 	}
 
-	if (total)
-		ret = percent_color_fprintf(fp, sep ? "%.2f" : "   %6.2f%%",
-					    (count * 100.0) / total);
-	else
-		ret = fprintf(fp, sep ? "%lld" : "%12lld ", count);
+	if (total) {
+		if (color)
+			ret = percent_color_snprintf(s, size,
+						     sep ? "%.2f" : "   %6.2f%%",
+						     (count * 100.0) / total);
+		else
+			ret = snprintf(s, size, sep ? "%.2f" : "   %6.2f%%",
+				       (count * 100.0) / total);
+	} else
+		ret = snprintf(s, size, sep ? "%lld" : "%12lld ", count);
 
 	if (symbol_conf.show_nr_samples) {
 		if (sep)
-			ret += fprintf(fp, "%c%lld", *sep, count);
+			ret += snprintf(s + ret, size - ret, "%c%lld", *sep, count);
 		else
-			ret += fprintf(fp, "%11lld", count);
+			ret += snprintf(s + ret, size - ret, "%11lld", count);
 	}
 
 	if (pair_session) {
@@ -504,9 +514,9 @@ size_t hist_entry__fprintf(struct hist_entry *self,
 			snprintf(bf, sizeof(bf), " ");
 
 		if (sep)
-			ret += fprintf(fp, "%c%s", *sep, bf);
+			ret += snprintf(s + ret, size - ret, "%c%s", *sep, bf);
 		else
-			ret += fprintf(fp, "%11.11s", bf);
+			ret += snprintf(s + ret, size - ret, "%11.11s", bf);
 
 		if (show_displacement) {
 			if (displacement)
@@ -515,9 +525,9 @@ size_t hist_entry__fprintf(struct hist_entry *self,
 				snprintf(bf, sizeof(bf), " ");
 
 			if (sep)
-				ret += fprintf(fp, "%c%s", *sep, bf);
+				ret += snprintf(s + ret, size - ret, "%c%s", *sep, bf);
 			else
-				ret += fprintf(fp, "%6.6s", bf);
+				ret += snprintf(s + ret, size - ret, "%6.6s", bf);
 		}
 	}
 
@@ -525,11 +535,25 @@ size_t hist_entry__fprintf(struct hist_entry *self,
 		if (se->elide)
 			continue;
 
-		ret += fprintf(fp, "%s", sep ?: "  ");
-		ret += se->print(fp, self, se->width ? *se->width : 0);
+		ret += snprintf(s + ret, size - ret, "%s", sep ?: "  ");
+		ret += se->snprintf(self, s + ret, size - ret,
+				    se->width ? *se->width : 0);
 	}
 
-	return ret + fprintf(fp, "\n");
+	return ret;
+}
+
+int hist_entry__fprintf(struct hist_entry *self,
+			struct perf_session *pair_session,
+			bool show_displacement,
+			long displacement, FILE *fp,
+			u64 session_total)
+{
+	char bf[512];
+	hist_entry__snprintf(self, bf, sizeof(bf), pair_session,
+			     show_displacement, displacement,
+			     true, session_total);
+	return fprintf(fp, "%s\n", bf);
 }
 
 static size_t hist_entry__fprintf_callchain(struct hist_entry *self, FILE *fp,
@@ -658,7 +682,7 @@ print_entries:
 
 		if (h->ms.map == NULL && verbose > 1) {
 			__map_groups__fprintf_maps(&h->thread->mg,
-						   MAP__FUNCTION, fp);
+						   MAP__FUNCTION, verbose, fp);
 			fprintf(fp, "%.10s end\n", graph_dotted_line);
 		}
 	}

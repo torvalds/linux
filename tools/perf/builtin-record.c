@@ -15,7 +15,6 @@
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
-#include "util/string.h"
 
 #include "util/header.h"
 #include "util/event.h"
@@ -575,6 +574,9 @@ static int __cmd_record(int argc, const char **argv)
 
 	err = event__synthesize_kernel_mmap(process_synthesized_event,
 					    session, "_text");
+	if (err < 0)
+		err = event__synthesize_kernel_mmap(process_synthesized_event,
+						    session, "_stext");
 	if (err < 0) {
 		pr_err("Couldn't record kernel reference relocation symbol.\n");
 		return err;

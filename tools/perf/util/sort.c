@@ -18,10 +18,21 @@ char * field_sep;
 
 LIST_HEAD(hist_entry__sort_list);
 
+static int hist_entry__thread_snprintf(struct hist_entry *self, char *bf,
+				       size_t size, unsigned int width);
+static int hist_entry__comm_snprintf(struct hist_entry *self, char *bf,
+				     size_t size, unsigned int width);
+static int hist_entry__dso_snprintf(struct hist_entry *self, char *bf,
+				    size_t size, unsigned int width);
+static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
+				    size_t size, unsigned int width);
+static int hist_entry__parent_snprintf(struct hist_entry *self, char *bf,
+				       size_t size, unsigned int width);
+
 struct sort_entry sort_thread = {
 	.header = "Command:  Pid",
 	.cmp	= sort__thread_cmp,
-	.print	= sort__thread_print,
+	.snprintf = hist_entry__thread_snprintf,
 	.width	= &threads__col_width,
 };
 
@@ -29,27 +40,27 @@ struct sort_entry sort_comm = {
 	.header		= "Command",
 	.cmp		= sort__comm_cmp,
 	.collapse	= sort__comm_collapse,
-	.print		= sort__comm_print,
+	.snprintf	= hist_entry__comm_snprintf,
 	.width		= &comms__col_width,
 };
 
 struct sort_entry sort_dso = {
 	.header = "Shared Object",
 	.cmp	= sort__dso_cmp,
-	.print	= sort__dso_print,
+	.snprintf = hist_entry__dso_snprintf,
 	.width	= &dsos__col_width,
 };
 
 struct sort_entry sort_sym = {
 	.header = "Symbol",
 	.cmp	= sort__sym_cmp,
-	.print	= sort__sym_print,
+	.snprintf = hist_entry__sym_snprintf,
 };
 
 struct sort_entry sort_parent = {
 	.header = "Parent symbol",
 	.cmp	= sort__parent_cmp,
-	.print	= sort__parent_print,
+	.snprintf = hist_entry__parent_snprintf,
 	.width	= &parent_symbol__col_width,
 };
 
@@ -85,45 +96,38 @@ sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 	return right->thread->pid - left->thread->pid;
 }
 
-int repsep_fprintf(FILE *fp, const char *fmt, ...)
+static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)
 {
 	int n;
 	va_list ap;
 
 	va_start(ap, fmt);
-	if (!field_sep)
-		n = vfprintf(fp, fmt, ap);
-	else {
-		char *bf = NULL;
-		n = vasprintf(&bf, fmt, ap);
-		if (n > 0) {
-			char *sep = bf;
+	n = vsnprintf(bf, size, fmt, ap);
+	if (field_sep && n > 0) {
+		char *sep = bf;
 
-			while (1) {
-				sep = strchr(sep, *field_sep);
-				if (sep == NULL)
-					break;
-				*sep = '.';
-			}
+		while (1) {
+			sep = strchr(sep, *field_sep);
+			if (sep == NULL)
+				break;
+			*sep = '.';
 		}
-		fputs(bf, fp);
-		free(bf);
 	}
 	va_end(ap);
 	return n;
 }
 
-size_t
-sort__thread_print(FILE *fp, struct hist_entry *self, unsigned int width)
+static int hist_entry__thread_snprintf(struct hist_entry *self, char *bf,
+				       size_t size, unsigned int width)
 {
-	return repsep_fprintf(fp, "%*s:%5d", width - 6,
+	return repsep_snprintf(bf, size, "%*s:%5d", width,
 			      self->thread->comm ?: "", self->thread->pid);
 }
 
-size_t
-sort__comm_print(FILE *fp, struct hist_entry *self, unsigned int width)
+static int hist_entry__comm_snprintf(struct hist_entry *self, char *bf,
+				     size_t size, unsigned int width)
 {
-	return repsep_fprintf(fp, "%*s", width, self->thread->comm);
+	return repsep_snprintf(bf, size, "%*s", width, self->thread->comm);
 }
 
 /* --sort dso */
@@ -149,16 +153,16 @@ sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 	return strcmp(dso_name_l, dso_name_r);
 }
 
-size_t
-sort__dso_print(FILE *fp, struct hist_entry *self, unsigned int width)
+static int hist_entry__dso_snprintf(struct hist_entry *self, char *bf,
+				    size_t size, unsigned int width)
 {
 	if (self->ms.map && self->ms.map->dso) {
 		const char *dso_name = !verbose ? self->ms.map->dso->short_name :
 						  self->ms.map->dso->long_name;
-		return repsep_fprintf(fp, "%-*s", width, dso_name);
+		return repsep_snprintf(bf, size, "%-*s", width, dso_name);
 	}
 
-	return repsep_fprintf(fp, "%*llx", width, (u64)self->ip);
+	return repsep_snprintf(bf, size, "%*Lx", width, self->ip);
 }
 
 /* --sort symbol */
@@ -177,22 +181,22 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 	return (int64_t)(ip_r - ip_l);
 }
 
-
-size_t
-sort__sym_print(FILE *fp, struct hist_entry *self, unsigned int width __used)
+static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
+				    size_t size, unsigned int width __used)
 {
 	size_t ret = 0;
 
 	if (verbose) {
 		char o = self->ms.map ? dso__symtab_origin(self->ms.map->dso) : '!';
-		ret += repsep_fprintf(fp, "%#018llx %c ", (u64)self->ip, o);
+		ret += repsep_snprintf(bf, size, "%#018llx %c ", self->ip, o);
 	}
 
-	ret += repsep_fprintf(fp, "[%c] ", self->level);
+	ret += repsep_snprintf(bf + ret, size - ret, "[%c] ", self->level);
 	if (self->ms.sym)
-		ret += repsep_fprintf(fp, "%s", self->ms.sym->name);
+		ret += repsep_snprintf(bf + ret, size - ret, "%s",
+				       self->ms.sym->name);
 	else
-		ret += repsep_fprintf(fp, "%#016llx", (u64)self->ip);
+		ret += repsep_snprintf(bf + ret, size - ret, "%#016llx", self->ip);
 
 	return ret;
 }
@@ -231,10 +235,10 @@ sort__parent_cmp(struct hist_entry *left, struct hist_entry *right)
 	return strcmp(sym_l->name, sym_r->name);
 }
 
-size_t
-sort__parent_print(FILE *fp, struct hist_entry *self, unsigned int width)
+static int hist_entry__parent_snprintf(struct hist_entry *self, char *bf,
+				       size_t size, unsigned int width)
 {
-	return repsep_fprintf(fp, "%-*s", width,
+	return repsep_snprintf(bf, size, "%-*s", width,
 			      self->parent ? self->parent->name : "[other]");
 }
 
@@ -260,9 +264,8 @@ int sort_dimension__add(const char *tok)
 				char err[BUFSIZ];
 
 				regerror(ret, &parent_regex, err, sizeof(err));
-				fprintf(stderr, "Invalid regex: %s\n%s",
-					parent_pattern, err);
-				exit(-1);
+				pr_err("Invalid regex: %s\n%s", parent_pattern, err);
+				return -EINVAL;
 			}
 			sort__has_parent = 1;
 		}
