@@ -48,7 +48,8 @@ struct hist_entry {
 	struct map_symbol	ms;
 	u64			ip;
 	char			level;
-	struct symbol	  *parent;
+	bool			filtered;
+	struct symbol		*parent;
 	union {
 		unsigned long	  position;
 		struct hist_entry *pair;

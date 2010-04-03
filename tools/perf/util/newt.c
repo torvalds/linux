@@ -94,7 +94,7 @@ static newtComponent newt_form__new(void)
 	return self;
 }
 
-static int popup_menu(int argc, const char *argv[])
+static int popup_menu(int argc, char * const argv[])
 {
 	struct newtExitStruct es;
 	int i, rc = -1, max_len = 5;
@@ -397,22 +397,8 @@ static struct hist_browser *hist_browser__new(void)
 {
 	struct hist_browser *self = malloc(sizeof(*self));
 
-	if (self != NULL) {
-		char seq[] = ".";
-		int rows;
-
-		newtGetScreenSize(NULL, &rows);
-
-		if (symbol_conf.use_callchain)
-			self->tree = newtCheckboxTreeMulti(0, 0, rows - 5, seq,
-							   NEWT_FLAG_SCROLL);
-		else
-			self->tree = newtListbox(0, 0, rows - 5,
-						(NEWT_FLAG_SCROLL |
-						 NEWT_FLAG_RETURNEXIT));
-		newtComponentAddCallback(self->tree, hist_browser__selection,
-					 &self->selection);
-	}
+	if (self != NULL)
+		self->form = NULL;
 
 	return self;
 }
@@ -431,6 +417,30 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	struct ui_progress *progress;
 	struct rb_node *nd;
 	u64 curr_hist = 0;
+	char seq[] = ".";
+	char str[256];
+
+	if (self->form) {
+		newtFormDestroy(self->form);
+		newtPopWindow();
+	}
+
+	snprintf(str, sizeof(str), "Samples: %Ld                            ",
+		 session_total);
+	newtDrawRootText(0, 0, str);
+
+	newtGetScreenSize(NULL, &rows);
+
+	if (symbol_conf.use_callchain)
+		self->tree = newtCheckboxTreeMulti(0, 0, rows - 5, seq,
+						   NEWT_FLAG_SCROLL);
+	else
+		self->tree = newtListbox(0, 0, rows - 5,
+					(NEWT_FLAG_SCROLL |
+					 NEWT_FLAG_RETURNEXIT));
+
+	newtComponentAddCallback(self->tree, hist_browser__selection,
+				 &self->selection);
 
 	progress = ui_progress__new("Adding entries to the browser...", nr_hists);
 	if (progress == NULL)
@@ -439,7 +449,12 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	idx = 0;
 	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
-		int len = hist_entry__append_browser(h, self->tree, session_total);
+		int len;
+
+		if (h->filtered)
+			continue;
+
+		len = hist_entry__append_browser(h, self->tree, session_total);
 		if (len > max_len)
 			max_len = len;
 		if (symbol_conf.use_callchain)
@@ -463,6 +478,9 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	newtCenteredWindow(max_len + (symbol_conf.use_callchain ? 5 : 0),
 			   rows - 5, "Report");
 	self->form = newt_form__new();
+	if (self->form == NULL)
+		return -1;
+
 	newtFormAddHotKey(self->form, 'A');
 	newtFormAddHotKey(self->form, 'a');
 	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
@@ -472,29 +490,50 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	return 0;
 }
 
+static u64 hists__filter_by_dso(struct rb_root *hists, struct dso *dso,
+				u64 *session_total)
+{
+	struct rb_node *nd;
+	u64 nr_hists = 0;
+
+	*session_total = 0;
+
+	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+
+		if (dso != NULL && (h->ms.map == NULL || h->ms.map->dso != dso)) {
+			h->filtered = true;
+			continue;
+		}
+		h->filtered = false;
+		++nr_hists;
+		*session_total += h->count;
+	}
+
+	return nr_hists;
+}
+
 int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 			       u64 session_total, const char *helpline,
 			       const char *input_name)
 {
 	struct newtExitStruct es;
-	char str[1024];
+	bool dso_filtered = false;
 	int err = -1;
 	struct hist_browser *browser = hist_browser__new();
 
 	if (browser == NULL)
 		return -1;
 
-	snprintf(str, sizeof(str), "Samples: %Ld", session_total);
-	newtDrawRootText(0, 0, str);
 	newtPushHelpLine(helpline);
 
 	if (hist_browser__populate(browser, hists, nr_hists, session_total) < 0)
 		goto out;
 
 	while (1) {
-		char annotate[512];
-		const char *options[2];
-		int nr_options = 0, choice = 0;
+		char *options[16];
+		int nr_options = 0, choice = 0, i,
+		    annotate = -2, zoom_dso = -2;
 
 		newtFormRun(browser->form, &es);
 		if (es.reason == NEWT_EXIT_HOTKEY) {
@@ -510,18 +549,29 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 			}
 		}
 
-		if (browser->selection->sym != NULL) {
-			snprintf(annotate, sizeof(annotate),
-				 "Annotate %s", browser->selection->sym->name);
-			options[nr_options++] = annotate;
-		}
+		if (browser->selection->sym != NULL &&
+		    asprintf(&options[nr_options], "Annotate %s",
+			     browser->selection->sym->name) > 0)
+			annotate = nr_options++;
 
-		options[nr_options++] = "Exit";
+		if (browser->selection->map != NULL &&
+		    asprintf(&options[nr_options], "Zoom %s %s DSO",
+			     dso_filtered ? "out of" : "into",
+			     (browser->selection->map->dso->kernel ? "the Kernel" :
+			      browser->selection->map->dso->short_name)) > 0)
+			zoom_dso = nr_options++;
+
+		options[nr_options++] = (char *)"Exit";
+
 		choice = popup_menu(nr_options, options);
+
+		for (i = 0; i < nr_options - 1; ++i)
+			free(options[i]);
+
 		if (choice == nr_options - 1)
 			break;
 do_annotate:
-		if (browser->selection->sym != NULL && choice >= 0) {
+		if (choice == annotate) {
 			if (browser->selection->map->dso->origin == DSO__ORIG_KERNEL) {
 				newtPopHelpLine();
 				newtPushHelpLine("No vmlinux file found, can't "
@@ -531,6 +581,13 @@ do_annotate:
 			}
 			map_symbol__annotate_browser(browser->selection,
 						     input_name);
+		} if (choice == zoom_dso) {
+			hists__filter_by_dso(hists,
+					     dso_filtered ? NULL : browser->selection->map->dso,
+					     &session_total);
+			dso_filtered = !dso_filtered;
+			if (hist_browser__populate(browser, hists, nr_hists, session_total) < 0)
+				goto out;
 		}
 	}
 	err = 0;
