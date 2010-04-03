@@ -1284,6 +1284,8 @@ int __init amd_iommu_init(void)
 	if (ret)
 		goto free;
 
+	enable_iommus();
+
 	if (iommu_pass_through)
 		ret = amd_iommu_init_passthrough();
 	else
@@ -1293,8 +1295,6 @@ int __init amd_iommu_init(void)
 		goto free;
 
 	amd_iommu_init_api();
-
-	enable_iommus();
 
 	if (iommu_pass_through)
 		goto out;
@@ -1314,6 +1314,8 @@ out:
 	return ret;
 
 free:
+	disable_iommus();
+
 	free_pages((unsigned long)amd_iommu_pd_alloc_bitmap,
 		   get_order(MAX_DOMAIN_ID/8));
 
