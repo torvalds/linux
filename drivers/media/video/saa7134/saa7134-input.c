@@ -658,7 +658,8 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_AVERMEDIA_M135A:
 		ir_codes     = RC_MAP_AVERMEDIA_M135A_RM_JX;
-		mask_keydown = 0x0040000;
+		mask_keydown = 0x0040000;	/* Enable GPIO18 line on both edges */
+		mask_keyup   = 0x0040000;
 		mask_keycode = 0xffff;
 		raw_decode   = 1;
 		break;
@@ -1014,13 +1015,13 @@ static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 {
 	struct card_ir	*ir = dev->remote;
 	unsigned long 	timeout;
-	int pulse;
+	int space;
 
 	/* Generate initial event */
 	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
-	pulse = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2) & ir->mask_keydown;
-	ir_raw_event_store(dev->remote->dev, pulse ? IR_PULSE : IR_SPACE);
+	space = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2) & ir->mask_keydown;
+	ir_raw_event_store(dev->remote->dev, space ? IR_SPACE : IR_PULSE);
 
 
 	/*
