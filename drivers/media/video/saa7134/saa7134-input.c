@@ -1188,14 +1188,14 @@ static void nec_task(unsigned long data)
 	/* Keep repeating the last key */
 	mod_timer(&ir->timer_keyup, jiffies + msecs_to_jiffies(150));
 
-	saa_setl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
+	saa_setl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_P);
 }
 
 static int saa7134_nec_irq(struct saa7134_dev *dev)
 {
 	struct card_ir *ir = dev->remote;
 
-	saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
+	saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_P);
 	tasklet_schedule(&ir->tlet);
 
 	return 1;
