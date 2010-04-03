@@ -439,6 +439,7 @@ static void __init dns323_init(void)
 	 */
 	if (dns323_dev_id() == MV88F5181_DEV_ID) {
 		dns323_leds[0].active_low = 1;
+		gpio_request(DNS323_GPIO_LED_POWER1, "Power Led Enable");
 		gpio_direction_output(DNS323_GPIO_LED_POWER1, 0);
 	}
 
