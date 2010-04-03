@@ -365,7 +365,8 @@ struct slowpath_args {
 	va_list args;
 };
 
-static void warn_slowpath_common(const char *file, int line, void *caller, struct slowpath_args *args)
+static void warn_slowpath_common(const char *file, int line, void *caller,
+				 unsigned taint, struct slowpath_args *args)
 {
 	const char *board;
 
@@ -381,7 +382,7 @@ static void warn_slowpath_common(const char *file, int line, void *caller, struc
 	print_modules();
 	dump_stack();
 	print_oops_end_marker();
-	add_taint(TAINT_WARN);
+	add_taint(taint);
 }
 
 void warn_slowpath_fmt(const char *file, int line, const char *fmt, ...)
@@ -390,14 +391,29 @@ void warn_slowpath_fmt(const char *file, int line, const char *fmt, ...)
 
 	args.fmt = fmt;
 	va_start(args.args, fmt);
-	warn_slowpath_common(file, line, __builtin_return_address(0), &args);
+	warn_slowpath_common(file, line, __builtin_return_address(0),
+			     TAINT_WARN, &args);
 	va_end(args.args);
 }
 EXPORT_SYMBOL(warn_slowpath_fmt);
 
+void warn_slowpath_fmt_taint(const char *file, int line,
+			     unsigned taint, const char *fmt, ...)
+{
+	struct slowpath_args args;
+
+	args.fmt = fmt;
+	va_start(args.args, fmt);
+	warn_slowpath_common(file, line, __builtin_return_address(0),
+			     taint, &args);
+	va_end(args.args);
+}
+EXPORT_SYMBOL(warn_slowpath_fmt_taint);
+
 void warn_slowpath_null(const char *file, int line)
 {
-	warn_slowpath_common(file, line, __builtin_return_address(0), NULL);
+	warn_slowpath_common(file, line, __builtin_return_address(0),
+			     TAINT_WARN, NULL);
 }
 EXPORT_SYMBOL(warn_slowpath_null);
 #endif

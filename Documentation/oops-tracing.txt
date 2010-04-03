@@ -256,6 +256,7 @@ characters, each representing a particular tainted value.
   9: 'A' if the ACPI table has been overridden.
 
  10: 'W' if a warning has previously been issued by the kernel.
+     (Though some warnings may set more specific taint flags.)
 
  11: 'C' if a staging driver has been loaded.
 
