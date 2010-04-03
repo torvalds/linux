@@ -100,6 +100,8 @@ static int ir_do_setkeycode(struct input_dev *dev,
 
 		/* Did the user wish to remove the mapping? */
 		if (keycode == KEY_RESERVED || keycode == KEY_UNKNOWN) {
+			IR_dprintk(1, "#%d: Deleting scan 0x%04x\n",
+				   i, scancode);
 			rc_tab->len--;
 			memmove(&rc_tab->scan[i], &rc_tab->scan[i + 1],
 				(rc_tab->len - i) * sizeof(struct ir_scancode));
@@ -115,6 +117,9 @@ static int ir_do_setkeycode(struct input_dev *dev,
 		if (ir_resize_table(rc_tab))
 			return -ENOMEM;
 
+		IR_dprintk(1, "#%d: New scan 0x%04x with key 0x%04x\n",
+			   i, scancode, keycode);
+
 		/* i is the proper index to insert our new keycode */
 		memmove(&rc_tab->scan[i + 1], &rc_tab->scan[i],
 			(rc_tab->len - i) * sizeof(struct ir_scancode));
@@ -123,6 +128,8 @@ static int ir_do_setkeycode(struct input_dev *dev,
 		rc_tab->len++;
 		set_bit(keycode, dev->keybit);
 	} else {
+		IR_dprintk(1, "#%d: Replacing scan 0x%04x with key 0x%04x\n",
+			   i, scancode, keycode);
 		/* A previous mapping was updated... */
 		clear_bit(old_keycode, dev->keybit);
 		/* ...but another scancode might use the same keycode */
@@ -224,6 +231,10 @@ static int ir_getkeycode(struct input_dev *dev,
 	}
 	spin_unlock_irqrestore(&rc_tab->lock, flags);
 
+	if (key == KEY_RESERVED)
+		IR_dprintk(1, "unknown key for scancode 0x%04x\n",
+			   scancode);
+
 	*keycode = key;
 	return 0;
 }
@@ -243,8 +254,9 @@ u32 ir_g_keycode_from_table(struct input_dev *dev, u32 scancode)
 	int keycode;
 
 	ir_getkeycode(dev, scancode, &keycode);
-	IR_dprintk(1, "%s: scancode 0x%04x keycode 0x%02x\n",
-		   dev->name, scancode, keycode);
+	if (keycode != KEY_RESERVED)
+		IR_dprintk(1, "%s: scancode 0x%04x keycode 0x%02x\n",
+			   dev->name, scancode, keycode);
 	return keycode;
 }
 EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
@@ -385,6 +397,9 @@ int __ir_input_register(struct input_dev *input_dev,
 	rc = ir_register_class(input_dev);
 	if (rc < 0)
 		goto out_table;
+
+	IR_dprintk(1, "Registered input device on %s for %s remote.\n",
+		   driver_name, rc_tab->name);
 
 	return 0;
 
