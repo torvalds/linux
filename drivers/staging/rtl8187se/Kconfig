@@ -3,6 +3,7 @@ config R8187SE
 	depends on PCI && WLAN
 	select WIRELESS_EXT
 	select WEXT_PRIV
+	select EEPROM_93CX6
 	default N
 	---help---
 	  If built as a module, it will be called r8187se.ko.

@@ -318,6 +318,11 @@ struct udc_usb_ep {
  * @queue: requests queue
  * @lock: lock to pxa_ep data (queues and stats)
  * @enabled: true when endpoint enabled (not stopped by gadget layer)
+ * @in_handle_ep: number of recursions of handle_ep() function
+ * 	Prevents deadlocks or infinite recursions of types :
+ *	  irq->handle_ep()->req_done()->req.complete()->pxa_ep_queue()->handle_ep()
+ *      or
+ *        pxa_ep_queue()->handle_ep()->req_done()->req.complete()->pxa_ep_queue()
  * @idx: endpoint index (1 => epA, 2 => epB, ..., 24 => epX)
  * @name: endpoint name (for trace/debug purpose)
  * @dir_in: 1 if IN endpoint, 0 if OUT endpoint
@@ -346,6 +351,7 @@ struct pxa_ep {
 	spinlock_t		lock;		/* Protects this structure */
 						/* (queues, stats) */
 	unsigned		enabled:1;
+	unsigned		in_handle_ep:1;
 
 	unsigned		idx:5;
 	char			*name;

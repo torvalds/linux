@@ -18,6 +18,7 @@
 
 #include <linux/types.h>
 #include <linux/connector.h>
+#include <linux/backing-dev.h>
 
 #define POHMELFS_CN_IDX			5
 #define POHMELFS_CN_VAL			0
@@ -623,6 +624,8 @@ struct pohmelfs_sb {
 	struct delayed_work 	drop_dwork;
 
 	struct super_block	*sb;
+
+	struct backing_dev_info	bdi;
 
 	/*
 	 * Algorithm strings.

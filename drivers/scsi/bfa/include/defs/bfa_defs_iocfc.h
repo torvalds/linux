@@ -26,6 +26,8 @@
 
 #define BFA_IOCFC_INTR_DELAY	1125
 #define BFA_IOCFC_INTR_LATENCY	225
+#define BFA_IOCFCOE_INTR_DELAY  25
+#define BFA_IOCFCOE_INTR_LATENCY 5
 
 /**
  * Interrupt coalescing configuration.
@@ -50,7 +52,7 @@ struct bfa_iocfc_fwcfg_s {
 	u16        num_fcxp_reqs;	/*  unassisted FC exchanges	*/
 	u16        num_uf_bufs;	/*  unsolicited recv buffers	*/
 	u8		num_cqs;
-	u8		rsvd;
+	u8		rsvd[5];
 };
 
 struct bfa_iocfc_drvcfg_s {
@@ -224,18 +226,24 @@ struct bfa_fw_port_physm_stats_s {
 
 
 struct bfa_fw_fip_stats_s {
+    u32    vlan_req;           /*  vlan discovery requests             */
+    u32    vlan_notify;        /*  vlan notifications                  */
+    u32    vlan_err;           /*  vlan response error                 */
+    u32    vlan_timeouts;      /*  vlan disvoery timeouts              */
+    u32    vlan_invalids;      /*  invalid vlan in discovery advert.   */
     u32    disc_req;           /*  Discovery solicit requests          */
     u32    disc_rsp;           /*  Discovery solicit response          */
     u32    disc_err;           /*  Discovery advt. parse errors        */
     u32    disc_unsol;         /*  Discovery unsolicited               */
     u32    disc_timeouts;      /*  Discovery timeouts                  */
+    u32    disc_fcf_unavail;   /*  Discovery FCF Not Avail.            */
     u32    linksvc_unsupp;     /*  Unsupported link service req        */
     u32    linksvc_err;        /*  Parse error in link service req     */
     u32    logo_req;           /*  Number of FIP logos received        */
     u32    clrvlink_req;       /*  Clear virtual link req              */
     u32    op_unsupp;          /*  Unsupported FIP operation           */
     u32    untagged;           /*  Untagged frames (ignored)           */
-    u32    rsvd;
+    u32	   invalid_version;    /*!< Invalid FIP version           */
 };
 
 

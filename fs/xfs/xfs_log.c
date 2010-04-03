@@ -60,7 +60,7 @@ STATIC int	 xlog_space_left(xlog_t *log, int cycle, int bytes);
 STATIC int	 xlog_sync(xlog_t *log, xlog_in_core_t *iclog);
 STATIC void	 xlog_dealloc_log(xlog_t *log);
 STATIC int	 xlog_write(xfs_mount_t *mp, xfs_log_iovec_t region[],
-			    int nentries, xfs_log_ticket_t tic,
+			    int nentries, struct xlog_ticket *tic,
 			    xfs_lsn_t *start_lsn,
 			    xlog_in_core_t **commit_iclog,
 			    uint flags);
@@ -243,14 +243,14 @@ xlog_tic_add_region(xlog_ticket_t *tic, uint len, uint type)
  * out when the next write occurs.
  */
 xfs_lsn_t
-xfs_log_done(xfs_mount_t	*mp,
-	     xfs_log_ticket_t	xtic,
-	     void		**iclog,
-	     uint		flags)
+xfs_log_done(
+	struct xfs_mount	*mp,
+	struct xlog_ticket	*ticket,
+	struct xlog_in_core	**iclog,
+	uint			flags)
 {
-	xlog_t		*log    = mp->m_log;
-	xlog_ticket_t	*ticket = (xfs_log_ticket_t) xtic;
-	xfs_lsn_t	lsn	= 0;
+	struct log		*log = mp->m_log;
+	xfs_lsn_t		lsn = 0;
 
 	if (XLOG_FORCED_SHUTDOWN(log) ||
 	    /*
@@ -258,8 +258,7 @@ xfs_log_done(xfs_mount_t	*mp,
 	     * If we get an error, just continue and give back the log ticket.
 	     */
 	    (((ticket->t_flags & XLOG_TIC_INITED) == 0) &&
-	     (xlog_commit_record(mp, ticket,
-				 (xlog_in_core_t **)iclog, &lsn)))) {
+	     (xlog_commit_record(mp, ticket, iclog, &lsn)))) {
 		lsn = (xfs_lsn_t) -1;
 		if (ticket->t_flags & XLOG_TIC_PERM_RESERV) {
 			flags |= XFS_LOG_REL_PERM_RESERV;
@@ -289,7 +288,7 @@ xfs_log_done(xfs_mount_t	*mp,
 	}
 
 	return lsn;
-}	/* xfs_log_done */
+}
 
 /*
  * Attaches a new iclog I/O completion callback routine during
@@ -298,11 +297,11 @@ xfs_log_done(xfs_mount_t	*mp,
  * executing the callback at an appropriate time.
  */
 int
-xfs_log_notify(xfs_mount_t	  *mp,		/* mount of partition */
-	       void		  *iclog_hndl,	/* iclog to hang callback off */
-	       xfs_log_callback_t *cb)
+xfs_log_notify(
+	struct xfs_mount	*mp,
+	struct xlog_in_core	*iclog,
+	xfs_log_callback_t	*cb)
 {
-	xlog_in_core_t	  *iclog = (xlog_in_core_t *)iclog_hndl;
 	int	abortflg;
 
 	spin_lock(&iclog->ic_callback_lock);
@@ -316,16 +315,14 @@ xfs_log_notify(xfs_mount_t	  *mp,		/* mount of partition */
 	}
 	spin_unlock(&iclog->ic_callback_lock);
 	return abortflg;
-}	/* xfs_log_notify */
+}
 
 int
-xfs_log_release_iclog(xfs_mount_t *mp,
-		      void	  *iclog_hndl)
+xfs_log_release_iclog(
+	struct xfs_mount	*mp,
+	struct xlog_in_core	*iclog)
 {
-	xlog_t *log = mp->m_log;
-	xlog_in_core_t	  *iclog = (xlog_in_core_t *)iclog_hndl;
-
-	if (xlog_state_release_iclog(log, iclog)) {
+	if (xlog_state_release_iclog(mp->m_log, iclog)) {
 		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
 		return EIO;
 	}
@@ -344,17 +341,18 @@ xfs_log_release_iclog(xfs_mount_t *mp,
  * reservation, we prevent over allocation problems.
  */
 int
-xfs_log_reserve(xfs_mount_t	 *mp,
-		int		 unit_bytes,
-		int		 cnt,
-		xfs_log_ticket_t *ticket,
-		__uint8_t	 client,
-		uint		 flags,
-		uint		 t_type)
+xfs_log_reserve(
+	struct xfs_mount	*mp,
+	int		 	unit_bytes,
+	int		 	cnt,
+	struct xlog_ticket	**ticket,
+	__uint8_t	 	client,
+	uint		 	flags,
+	uint		 	t_type)
 {
-	xlog_t		*log = mp->m_log;
-	xlog_ticket_t	*internal_ticket;
-	int		retval = 0;
+	struct log		*log = mp->m_log;
+	struct xlog_ticket	*internal_ticket;
+	int			retval = 0;
 
 	ASSERT(client == XFS_TRANSACTION || client == XFS_LOG);
 	ASSERT((flags & XFS_LOG_NOSLEEP) == 0);
@@ -367,7 +365,7 @@ xfs_log_reserve(xfs_mount_t	 *mp,
 
 	if (*ticket != NULL) {
 		ASSERT(flags & XFS_LOG_PERM_RESERV);
-		internal_ticket = (xlog_ticket_t *)*ticket;
+		internal_ticket = *ticket;
 
 		trace_xfs_log_reserve(log, internal_ticket);
 
@@ -519,7 +517,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	xlog_in_core_t	 *first_iclog;
 #endif
 	xfs_log_iovec_t  reg[1];
-	xfs_log_ticket_t tic = NULL;
+	xlog_ticket_t	*tic = NULL;
 	xfs_lsn_t	 lsn;
 	int		 error;
 
@@ -656,24 +654,24 @@ xfs_log_unmount(xfs_mount_t *mp)
  * transaction occur with one call to xfs_log_write().
  */
 int
-xfs_log_write(xfs_mount_t *	mp,
-	      xfs_log_iovec_t	reg[],
-	      int		nentries,
-	      xfs_log_ticket_t	tic,
-	      xfs_lsn_t		*start_lsn)
+xfs_log_write(
+	struct xfs_mount	*mp,
+	struct xfs_log_iovec	reg[],
+	int			nentries,
+	struct xlog_ticket	*tic,
+	xfs_lsn_t		*start_lsn)
 {
-	int	error;
-	xlog_t *log = mp->m_log;
+	struct log		*log = mp->m_log;
+	int			error;
 
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return XFS_ERROR(EIO);
 
-	if ((error = xlog_write(mp, reg, nentries, tic, start_lsn, NULL, 0))) {
+	error = xlog_write(mp, reg, nentries, tic, start_lsn, NULL, 0);
+	if (error)
 		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
-	}
 	return error;
-}	/* xfs_log_write */
-
+}
 
 void
 xfs_log_move_tail(xfs_mount_t	*mp,
@@ -1642,16 +1640,16 @@ xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
  *	bytes have been written out.
  */
 STATIC int
-xlog_write(xfs_mount_t *	mp,
-	   xfs_log_iovec_t	reg[],
-	   int			nentries,
-	   xfs_log_ticket_t	tic,
-	   xfs_lsn_t		*start_lsn,
-	   xlog_in_core_t	**commit_iclog,
-	   uint			flags)
+xlog_write(
+	struct xfs_mount	*mp,
+	struct xfs_log_iovec	reg[],
+	int			nentries,
+	struct xlog_ticket	*ticket,
+	xfs_lsn_t		*start_lsn,
+	struct xlog_in_core	**commit_iclog,
+	uint			flags)
 {
     xlog_t	     *log = mp->m_log;
-    xlog_ticket_t    *ticket = (xlog_ticket_t *)tic;
     xlog_in_core_t   *iclog = NULL;  /* ptr to current in-core log */
     xlog_op_header_t *logop_head;    /* ptr to log operation header */
     __psint_t	     ptr;	     /* copy address into data region */
@@ -1765,7 +1763,7 @@ xlog_write(xfs_mount_t *	mp,
 	    default:
 		xfs_fs_cmn_err(CE_WARN, mp,
 		    "Bad XFS transaction clientid 0x%x in ticket 0x%p",
-		    logop_head->oh_clientid, tic);
+		    logop_head->oh_clientid, ticket);
 		return XFS_ERROR(EIO);
 	    }
 

@@ -54,10 +54,10 @@ extern void set_pmd_pfn(unsigned long, unsigned long, pgprot_t);
 	 in_irq() ? KM_IRQ_PTE :	\
 	 KM_PTE0)
 #define pte_offset_map(dir, address)					\
-	((pte_t *)kmap_atomic_pte(pmd_page(*(dir)), __KM_PTE) +		\
+	((pte_t *)kmap_atomic(pmd_page(*(dir)), __KM_PTE) +		\
 	 pte_index((address)))
 #define pte_offset_map_nested(dir, address)				\
-	((pte_t *)kmap_atomic_pte(pmd_page(*(dir)), KM_PTE1) +		\
+	((pte_t *)kmap_atomic(pmd_page(*(dir)), KM_PTE1) +		\
 	 pte_index((address)))
 #define pte_unmap(pte) kunmap_atomic((pte), __KM_PTE)
 #define pte_unmap_nested(pte) kunmap_atomic((pte), KM_PTE1)

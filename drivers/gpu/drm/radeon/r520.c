@@ -27,6 +27,7 @@
  */
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "atom.h"
 #include "r520d.h"
 
@@ -119,19 +120,15 @@ static void r520_vram_get_type(struct radeon_device *rdev)
 		rdev->mc.vram_width *= 2;
 }
 
-void r520_vram_info(struct radeon_device *rdev)
+void r520_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 
 	r520_vram_get_type(rdev);
-
 	r100_vram_init_sizes(rdev);
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+	radeon_vram_location(rdev, &rdev->mc, 0);
+	if (!(rdev->flags & RADEON_IS_AGP))
+		radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 void r520_mc_program(struct radeon_device *rdev)
@@ -267,12 +264,15 @@ int r520_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
 	radeon_pm_init(rdev);
-	/* Get vram informations */
-	r520_vram_info(rdev);
-	/* Initialize memory controller (also test AGP) */
-	r = r420_mc_init(rdev);
-	if (r)
-		return r;
+	/* initialize AGP */
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r) {
+			radeon_agp_disable(rdev);
+		}
+	}
+	/* initialize memory controller */
+	r520_mc_init(rdev);
 	rv515_debugfs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);

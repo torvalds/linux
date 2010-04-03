@@ -991,9 +991,8 @@ void VmbusChannelOnTimer(unsigned long data)
 {
 	struct vmbus_channel *channel = (struct vmbus_channel *)data;
 
-	if (channel->OnChannelCallback) {
+	if (channel->OnChannelCallback)
 		channel->OnChannelCallback(channel->ChannelCallbackContext);
-	}
 }
 
 /**

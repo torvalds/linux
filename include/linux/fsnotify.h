@@ -65,7 +65,7 @@ static inline void fsnotify_link_count(struct inode *inode)
  * fsnotify_move - file old_name at old_dir was moved to new_name at new_dir
  */
 static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
-				 const char *old_name, const char *new_name,
+				 const char *old_name,
 				 int isdir, struct inode *target, struct dentry *moved)
 {
 	struct inode *source = moved->d_inode;
@@ -73,6 +73,7 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	u32 fs_cookie = fsnotify_get_cookie();
 	__u32 old_dir_mask = (FS_EVENT_ON_CHILD | FS_MOVED_FROM);
 	__u32 new_dir_mask = (FS_EVENT_ON_CHILD | FS_MOVED_TO);
+	const char *new_name = moved->d_name.name;
 
 	if (old_dir == new_dir)
 		old_dir_mask |= FS_DN_RENAME;
@@ -103,7 +104,7 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 		inotify_inode_queue_event(source, IN_MOVE_SELF, 0, NULL, NULL);
 		fsnotify(source, FS_MOVE_SELF, moved->d_inode, FSNOTIFY_EVENT_INODE, NULL, 0);
 	}
-	audit_inode_child(new_name, moved, new_dir);
+	audit_inode_child(moved, new_dir);
 }
 
 /*
@@ -146,7 +147,7 @@ static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
 {
 	inotify_inode_queue_event(inode, IN_CREATE, 0, dentry->d_name.name,
 				  dentry->d_inode);
-	audit_inode_child(dentry->d_name.name, dentry, inode);
+	audit_inode_child(dentry, inode);
 
 	fsnotify(inode, FS_CREATE, dentry->d_inode, FSNOTIFY_EVENT_INODE, dentry->d_name.name, 0);
 }
@@ -161,7 +162,7 @@ static inline void fsnotify_link(struct inode *dir, struct inode *inode, struct 
 	inotify_inode_queue_event(dir, IN_CREATE, 0, new_dentry->d_name.name,
 				  inode);
 	fsnotify_link_count(inode);
-	audit_inode_child(new_dentry->d_name.name, new_dentry, dir);
+	audit_inode_child(new_dentry, dir);
 
 	fsnotify(dir, FS_CREATE, inode, FSNOTIFY_EVENT_INODE, new_dentry->d_name.name, 0);
 }
@@ -175,7 +176,7 @@ static inline void fsnotify_mkdir(struct inode *inode, struct dentry *dentry)
 	struct inode *d_inode = dentry->d_inode;
 
 	inotify_inode_queue_event(inode, mask, 0, dentry->d_name.name, d_inode);
-	audit_inode_child(dentry->d_name.name, dentry, inode);
+	audit_inode_child(dentry, inode);
 
 	fsnotify(inode, mask, d_inode, FSNOTIFY_EVENT_INODE, dentry->d_name.name, 0);
 }

@@ -11,6 +11,7 @@
 #include <linux/parser.h>
 #include <linux/buffer_head.h>
 #include <linux/vmalloc.h>
+#include <linux/writeback.h>
 #include <linux/crc-itu-t.h>
 #include "omfs.h"
 
@@ -89,7 +90,7 @@ static void omfs_update_checksums(struct omfs_inode *oi)
 	oi->i_head.h_check_xor = xor;
 }
 
-static int omfs_write_inode(struct inode *inode, int wait)
+static int __omfs_write_inode(struct inode *inode, int wait)
 {
 	struct omfs_inode *oi;
 	struct omfs_sb_info *sbi = OMFS_SB(inode->i_sb);
@@ -162,9 +163,14 @@ out:
 	return ret;
 }
 
+static int omfs_write_inode(struct inode *inode, struct writeback_control *wbc)
+{
+	return __omfs_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+}
+
 int omfs_sync_inode(struct inode *inode)
 {
-	return omfs_write_inode(inode, 1);
+	return __omfs_write_inode(inode, 1);
 }
 
 /*

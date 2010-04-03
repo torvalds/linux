@@ -341,7 +341,7 @@ static ssize_t manager_attr_store(struct kobject *kobj, struct attribute *attr,
 	return manager_attr->store(manager, buf, size);
 }
 
-static struct sysfs_ops manager_sysfs_ops = {
+static const struct sysfs_ops manager_sysfs_ops = {
 	.show = manager_attr_show,
 	.store = manager_attr_store,
 };

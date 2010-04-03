@@ -39,6 +39,7 @@
 #define IXGBE_82599_MC_TBL_SIZE   128
 #define IXGBE_82599_VFT_TBL_SIZE  128
 
+void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
 s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
                                           ixgbe_link_speed speed,
                                           bool autoneg,
@@ -68,7 +69,9 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 	if (hw->phy.multispeed_fiber) {
 		/* Set up dual speed SFP+ support */
 		mac->ops.setup_link = &ixgbe_setup_mac_link_multispeed_fiber;
+		mac->ops.flap_tx_laser = &ixgbe_flap_tx_laser_multispeed_fiber;
 	} else {
+		mac->ops.flap_tx_laser = NULL;
 		if ((mac->ops.get_media_type(hw) ==
 		     ixgbe_media_type_backplane) &&
 		    (hw->phy.smart_speed == ixgbe_smart_speed_auto ||
@@ -413,6 +416,41 @@ s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 }
 
 /**
+ *  ixgbe_flap_tx_laser_multispeed_fiber - Flap Tx laser
+ *  @hw: pointer to hardware structure
+ *
+ *  When the driver changes the link speeds that it can support,
+ *  it sets autotry_restart to true to indicate that we need to
+ *  initiate a new autotry session with the link partner.  To do
+ *  so, we set the speed then disable and re-enable the tx laser, to
+ *  alert the link partner that it also needs to restart autotry on its
+ *  end.  This is consistent with true clause 37 autoneg, which also
+ *  involves a loss of signal.
+ **/
+void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+{
+	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
+
+	hw_dbg(hw, "ixgbe_flap_tx_laser_multispeed_fiber\n");
+
+	if (hw->mac.autotry_restart) {
+		/* Disable tx laser; allow 100us to go dark per spec */
+		esdp_reg |= IXGBE_ESDP_SDP3;
+		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+		IXGBE_WRITE_FLUSH(hw);
+		udelay(100);
+
+		/* Enable tx laser; allow 100ms to light up */
+		esdp_reg &= ~IXGBE_ESDP_SDP3;
+		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+		IXGBE_WRITE_FLUSH(hw);
+		msleep(100);
+
+		hw->mac.autotry_restart = false;
+	}
+}
+
+/**
  *  ixgbe_setup_mac_link_multispeed_fiber - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
@@ -440,16 +478,6 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 	speed &= phy_link_speed;
 
 	/*
-	 * When the driver changes the link speeds that it can support,
-	 * it sets autotry_restart to true to indicate that we need to
-	 * initiate a new autotry session with the link partner.  To do
-	 * so, we set the speed then disable and re-enable the tx laser, to
-	 * alert the link partner that it also needs to restart autotry on its
-	 * end.  This is consistent with true clause 37 autoneg, which also
-	 * involves a loss of signal.
-	 */
-
-	/*
 	 * Try each speed one by one, highest priority first.  We do this in
 	 * software because 10gb fiber doesn't support speed autonegotiation.
 	 */
@@ -466,6 +494,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		/* Set the module link speed */
 		esdp_reg |= (IXGBE_ESDP_SDP5_DIR | IXGBE_ESDP_SDP5);
 		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+		IXGBE_WRITE_FLUSH(hw);
 
 		/* Allow module to change analog characteristics (1G->10G) */
 		msleep(40);
@@ -478,19 +507,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 			return status;
 
 		/* Flap the tx laser if it has not already been done */
-		if (hw->mac.autotry_restart) {
-			/* Disable tx laser; allow 100us to go dark per spec */
-			esdp_reg |= IXGBE_ESDP_SDP3;
-			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
-			udelay(100);
-
-			/* Enable tx laser; allow 2ms to light up per spec */
-			esdp_reg &= ~IXGBE_ESDP_SDP3;
-			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
-			msleep(2);
-
-			hw->mac.autotry_restart = false;
-		}
+		hw->mac.ops.flap_tx_laser(hw);
 
 		/*
 		 * Wait for the controller to acquire link.  Per IEEE 802.3ap,
@@ -525,6 +542,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		esdp_reg &= ~IXGBE_ESDP_SDP5;
 		esdp_reg |= IXGBE_ESDP_SDP5_DIR;
 		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+		IXGBE_WRITE_FLUSH(hw);
 
 		/* Allow module to change analog characteristics (10G->1G) */
 		msleep(40);
@@ -537,19 +555,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 			return status;
 
 		/* Flap the tx laser if it has not already been done */
-		if (hw->mac.autotry_restart) {
-			/* Disable tx laser; allow 100us to go dark per spec */
-			esdp_reg |= IXGBE_ESDP_SDP3;
-			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
-			udelay(100);
-
-			/* Enable tx laser; allow 2ms to light up per spec */
-			esdp_reg &= ~IXGBE_ESDP_SDP3;
-			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
-			msleep(2);
-
-			hw->mac.autotry_restart = false;
-		}
+		hw->mac.ops.flap_tx_laser(hw);
 
 		/* Wait for the link partner to also set speed */
 		msleep(100);

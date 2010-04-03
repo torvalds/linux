@@ -73,6 +73,7 @@
 /* DAVINCI_MMCCTL definitions */
 #define MMCCTL_DATRST         (1 << 0)
 #define MMCCTL_CMDRST         (1 << 1)
+#define MMCCTL_WIDTH_8_BIT    (1 << 8)
 #define MMCCTL_WIDTH_4_BIT    (1 << 2)
 #define MMCCTL_DATEG_DISABLED (0 << 6)
 #define MMCCTL_DATEG_RISING   (1 << 6)
@@ -791,22 +792,42 @@ static void calculate_clk_divider(struct mmc_host *mmc, struct mmc_ios *ios)
 
 static void mmc_davinci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
-	unsigned int mmc_pclk = 0;
 	struct mmc_davinci_host *host = mmc_priv(mmc);
 
-	mmc_pclk = host->mmc_input_clk;
 	dev_dbg(mmc_dev(host->mmc),
 		"clock %dHz busmode %d powermode %d Vdd %04x\n",
 		ios->clock, ios->bus_mode, ios->power_mode,
 		ios->vdd);
-	if (ios->bus_width == MMC_BUS_WIDTH_4) {
+
+	switch (ios->bus_width) {
+	case MMC_BUS_WIDTH_8:
+		dev_dbg(mmc_dev(host->mmc), "Enabling 8 bit mode\n");
+		writel((readl(host->base + DAVINCI_MMCCTL) &
+			~MMCCTL_WIDTH_4_BIT) | MMCCTL_WIDTH_8_BIT,
+			host->base + DAVINCI_MMCCTL);
+		break;
+	case MMC_BUS_WIDTH_4:
 		dev_dbg(mmc_dev(host->mmc), "Enabling 4 bit mode\n");
-		writel(readl(host->base + DAVINCI_MMCCTL) | MMCCTL_WIDTH_4_BIT,
-			host->base + DAVINCI_MMCCTL);
-	} else {
-		dev_dbg(mmc_dev(host->mmc), "Disabling 4 bit mode\n");
-		writel(readl(host->base + DAVINCI_MMCCTL) & ~MMCCTL_WIDTH_4_BIT,
-			host->base + DAVINCI_MMCCTL);
+		if (host->version == MMC_CTLR_VERSION_2)
+			writel((readl(host->base + DAVINCI_MMCCTL) &
+				~MMCCTL_WIDTH_8_BIT) | MMCCTL_WIDTH_4_BIT,
+				host->base + DAVINCI_MMCCTL);
+		else
+			writel(readl(host->base + DAVINCI_MMCCTL) |
+				MMCCTL_WIDTH_4_BIT,
+				host->base + DAVINCI_MMCCTL);
+		break;
+	case MMC_BUS_WIDTH_1:
+		dev_dbg(mmc_dev(host->mmc), "Enabling 1 bit mode\n");
+		if (host->version == MMC_CTLR_VERSION_2)
+			writel(readl(host->base + DAVINCI_MMCCTL) &
+				~(MMCCTL_WIDTH_8_BIT | MMCCTL_WIDTH_4_BIT),
+				host->base + DAVINCI_MMCCTL);
+		else
+			writel(readl(host->base + DAVINCI_MMCCTL) &
+				~MMCCTL_WIDTH_4_BIT,
+				host->base + DAVINCI_MMCCTL);
+		break;
 	}
 
 	calculate_clk_divider(mmc, ios);
@@ -1189,9 +1210,13 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 
 	/* REVISIT:  someday, support IRQ-driven card detection.  */
 	mmc->caps |= MMC_CAP_NEEDS_POLL;
+	mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 
-	if (!pdata || pdata->wires == 4 || pdata->wires == 0)
+	if (pdata && (pdata->wires == 4 || pdata->wires == 0))
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
+
+	if (pdata && (pdata->wires == 8))
+		mmc->caps |= (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA);
 
 	host->version = pdata->version;
 

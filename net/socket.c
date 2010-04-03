@@ -2135,6 +2135,10 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 			break;
 		++datagrams;
 
+		/* MSG_WAITFORONE turns on MSG_DONTWAIT after one packet */
+		if (flags & MSG_WAITFORONE)
+			flags |= MSG_DONTWAIT;
+
 		if (timeout) {
 			ktime_get_ts(timeout);
 			*timeout = timespec_sub(end_time, *timeout);

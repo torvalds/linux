@@ -974,11 +974,8 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 			seb->ec = si->mean_ec;
 
 	err = paranoid_check_si(ubi, si);
-	if (err) {
-		if (err > 0)
-			err = -EINVAL;
+	if (err)
 		goto out_vidh;
-	}
 
 	ubi_free_vid_hdr(ubi, vidh);
 	kfree(ech);
@@ -1086,8 +1083,8 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
  * @ubi: UBI device description object
  * @si: scanning information
  *
- * This function returns zero if the scanning information is all right, %1 if
- * not and a negative error code if an error occurred.
+ * This function returns zero if the scanning information is all right, and a
+ * negative error code if not or if an error occurred.
  */
 static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 {
@@ -1346,7 +1343,7 @@ bad_vid_hdr:
 
 out:
 	ubi_dbg_dump_stack();
-	return 1;
+	return -EINVAL;
 }
 
 #endif /* CONFIG_MTD_UBI_DEBUG_PARANOID */

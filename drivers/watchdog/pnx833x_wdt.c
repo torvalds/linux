@@ -141,7 +141,7 @@ static long pnx833x_wdt_ioctl(struct file *file, unsigned int cmd,
 	int options, new_timeout = 0;
 	uint32_t timeout, timeout_left = 0;
 
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT,
 		.firmware_version = 0,
 		.identity = "Hardware Watchdog for PNX833x",

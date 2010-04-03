@@ -975,10 +975,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		/*================================ */
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = SIOCGIWFREQ;
-		if (INFRA_ON(pAdapter) || ADHOC_ON(pAdapter))
-			iwe.u.freq.m = pAdapter->ScanTab.BssEntry[i].Channel;
-		else
-			iwe.u.freq.m = pAdapter->ScanTab.BssEntry[i].Channel;
+		iwe.u.freq.m = pAdapter->ScanTab.BssEntry[i].Channel;
 		iwe.u.freq.e = 0;
 		iwe.u.freq.i = 0;
 

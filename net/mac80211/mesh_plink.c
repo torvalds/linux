@@ -744,7 +744,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		break;
 	default:
 		/* should not get here, PLINK_BLOCKED is dealt with at the
-		 * beggining of the function
+		 * beginning of the function
 		 */
 		spin_unlock_bh(&sta->lock);
 		break;

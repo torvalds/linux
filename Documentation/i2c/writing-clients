@@ -318,8 +318,9 @@ Plain I2C communication
 These routines read and write some bytes from/to a client. The client
 contains the i2c address, so you do not have to include it. The second
 parameter contains the bytes to read/write, the third the number of bytes
-to read/write (must be less than the length of the buffer.) Returned is
-the actual number of bytes read/written.
+to read/write (must be less than the length of the buffer, also should be
+less than 64k since msg.len is u16.) Returned is the actual number of bytes
+read/written.
 
 	int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 			 int num);

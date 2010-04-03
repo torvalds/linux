@@ -250,19 +250,38 @@ static irqreturn_t dma_controller_irq(int irq, void *private_data)
 	u8 bchannel;
 	u8 int_hsdma;
 
-	u32 addr;
+	u32 addr, count;
 	u16 csr;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
 	int_hsdma = musb_readb(mbase, MUSB_HSDMA_INTR);
-	if (!int_hsdma)
-		goto done;
 
 #ifdef CONFIG_BLACKFIN
 	/* Clear DMA interrupt flags */
 	musb_writeb(mbase, MUSB_HSDMA_INTR, int_hsdma);
 #endif
+
+	if (!int_hsdma) {
+		DBG(2, "spurious DMA irq\n");
+
+		for (bchannel = 0; bchannel < MUSB_HSDMA_CHANNELS; bchannel++) {
+			musb_channel = (struct musb_dma_channel *)
+					&(controller->channel[bchannel]);
+			channel = &musb_channel->channel;
+			if (channel->status == MUSB_DMA_STATUS_BUSY) {
+				count = musb_read_hsdma_count(mbase, bchannel);
+
+				if (count == 0)
+					int_hsdma |= (1 << bchannel);
+			}
+		}
+
+		DBG(2, "int_hsdma = 0x%x\n", int_hsdma);
+
+		if (!int_hsdma)
+			goto done;
+	}
 
 	for (bchannel = 0; bchannel < MUSB_HSDMA_CHANNELS; bchannel++) {
 		if (int_hsdma & (1 << bchannel)) {

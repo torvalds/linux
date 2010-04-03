@@ -28,13 +28,13 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/swap.h>
 #include "drm_cache.h"
+#include "drm_mem_util.h"
 #include "ttm/ttm_module.h"
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_placement.h"
@@ -43,32 +43,15 @@ static int ttm_tt_swapin(struct ttm_tt *ttm);
 
 /**
  * Allocates storage for pointers to the pages that back the ttm.
- *
- * Uses kmalloc if possible. Otherwise falls back to vmalloc.
  */
 static void ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	unsigned long size = ttm->num_pages * sizeof(*ttm->pages);
-	ttm->pages = NULL;
-
-	if (size <= PAGE_SIZE)
-		ttm->pages = kzalloc(size, GFP_KERNEL);
-
-	if (!ttm->pages) {
-		ttm->pages = vmalloc_user(size);
-		if (ttm->pages)
-			ttm->page_flags |= TTM_PAGE_FLAG_VMALLOC;
-	}
+	ttm->pages = drm_calloc_large(ttm->num_pages, sizeof(*ttm->pages));
 }
 
 static void ttm_tt_free_page_directory(struct ttm_tt *ttm)
 {
-	if (ttm->page_flags & TTM_PAGE_FLAG_VMALLOC) {
-		vfree(ttm->pages);
-		ttm->page_flags &= ~TTM_PAGE_FLAG_VMALLOC;
-	} else {
-		kfree(ttm->pages);
-	}
+	drm_free_large(ttm->pages);
 	ttm->pages = NULL;
 }
 
@@ -480,7 +463,7 @@ static int ttm_tt_swapin(struct ttm_tt *ttm)
 	void *from_virtual;
 	void *to_virtual;
 	int i;
-	int ret;
+	int ret = -ENOMEM;
 
 	if (ttm->page_flags & TTM_PAGE_FLAG_USER) {
 		ret = ttm_tt_set_user(ttm, ttm->tsk, ttm->start,
@@ -499,8 +482,10 @@ static int ttm_tt_swapin(struct ttm_tt *ttm)
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = read_mapping_page(swap_space, i, NULL);
-		if (IS_ERR(from_page))
+		if (IS_ERR(from_page)) {
+			ret = PTR_ERR(from_page);
 			goto out_err;
+		}
 		to_page = __ttm_tt_get_page(ttm, i);
 		if (unlikely(to_page == NULL))
 			goto out_err;
@@ -523,7 +508,7 @@ static int ttm_tt_swapin(struct ttm_tt *ttm)
 	return 0;
 out_err:
 	ttm_tt_free_alloced_pages(ttm);
-	return -ENOMEM;
+	return ret;
 }
 
 int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
@@ -535,6 +520,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
 	void *from_virtual;
 	void *to_virtual;
 	int i;
+	int ret = -ENOMEM;
 
 	BUG_ON(ttm->state != tt_unbound && ttm->state != tt_unpopulated);
 	BUG_ON(ttm->caching_state != tt_cached);
@@ -557,7 +543,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
 						0);
 		if (unlikely(IS_ERR(swap_storage))) {
 			printk(KERN_ERR "Failed allocating swap storage.\n");
-			return -ENOMEM;
+			return PTR_ERR(swap_storage);
 		}
 	} else
 		swap_storage = persistant_swap_storage;
@@ -569,9 +555,10 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
 		if (unlikely(from_page == NULL))
 			continue;
 		to_page = read_mapping_page(swap_space, i, NULL);
-		if (unlikely(to_page == NULL))
+		if (unlikely(IS_ERR(to_page))) {
+			ret = PTR_ERR(to_page);
 			goto out_err;
-
+		}
 		preempt_disable();
 		from_virtual = kmap_atomic(from_page, KM_USER0);
 		to_virtual = kmap_atomic(to_page, KM_USER1);
@@ -595,5 +582,5 @@ out_err:
 	if (!persistant_swap_storage)
 		fput(swap_storage);
 
-	return -ENOMEM;
+	return ret;
 }

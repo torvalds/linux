@@ -172,7 +172,7 @@ struct overlay_registers {
 #define OFC_UPDATE		0x1
 
 #define OVERLAY_NONPHYSICAL(dev) (IS_G33(dev) || IS_I965G(dev))
-#define OVERLAY_EXISTS(dev) (!IS_G4X(dev) && !IS_IRONLAKE(dev))
+#define OVERLAY_EXISTS(dev) (!IS_G4X(dev) && !IS_IRONLAKE(dev) && !IS_GEN6(dev))
 
 
 static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_overlay *overlay)
@@ -199,15 +199,10 @@ static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_over
 
 static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay)
 {
-	struct drm_device *dev = overlay->dev;
-        drm_i915_private_t *dev_priv = dev->dev_private;
-
 	if (OVERLAY_NONPHYSICAL(overlay->dev))
 		io_mapping_unmap_atomic(overlay->virt_addr);
 
 	overlay->virt_addr = NULL;
-
-	I915_READ(OVADD); /* flush wc cashes */
 
 	return;
 }
@@ -225,9 +220,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	overlay->active = 1;
 	overlay->hw_wedged = NEEDS_WAIT_FOR_FLIP;
 
-	BEGIN_LP_RING(6);
-	OUT_RING(MI_FLUSH);
-	OUT_RING(MI_NOOP);
+	BEGIN_LP_RING(4);
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_ON);
 	OUT_RING(overlay->flip_addr | OFC_UPDATE);
 	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
@@ -267,9 +260,7 @@ static void intel_overlay_continue(struct intel_overlay *overlay,
 	if (tmp & (1 << 17))
 		DRM_DEBUG("overlay underrun, DOVSTA: %x\n", tmp);
 
-	BEGIN_LP_RING(4);
-	OUT_RING(MI_FLUSH);
-	OUT_RING(MI_NOOP);
+	BEGIN_LP_RING(2);
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	OUT_RING(flip_addr);
         ADVANCE_LP_RING();
@@ -338,9 +329,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	/* wait for overlay to go idle */
 	overlay->hw_wedged = SWITCH_OFF_STAGE_1;
 
-	BEGIN_LP_RING(6);
-	OUT_RING(MI_FLUSH);
-	OUT_RING(MI_NOOP);
+	BEGIN_LP_RING(4);
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	OUT_RING(flip_addr);
         OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
@@ -358,9 +347,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	/* turn overlay off */
 	overlay->hw_wedged = SWITCH_OFF_STAGE_2;
 
-	BEGIN_LP_RING(6);
-        OUT_RING(MI_FLUSH);
-        OUT_RING(MI_NOOP);
+	BEGIN_LP_RING(4);
         OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_OFF);
 	OUT_RING(flip_addr);
         OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
@@ -435,9 +422,7 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 
 			overlay->hw_wedged = SWITCH_OFF_STAGE_2;
 
-			BEGIN_LP_RING(6);
-			OUT_RING(MI_FLUSH);
-			OUT_RING(MI_NOOP);
+			BEGIN_LP_RING(4);
 			OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_OFF);
 			OUT_RING(flip_addr);
 			OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
@@ -1083,14 +1068,18 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 
 	drmmode_obj = drm_mode_object_find(dev, put_image_rec->crtc_id,
                         DRM_MODE_OBJECT_CRTC);
-	if (!drmmode_obj)
-		return -ENOENT;
+	if (!drmmode_obj) {
+		ret = -ENOENT;
+		goto out_free;
+	}
 	crtc = to_intel_crtc(obj_to_crtc(drmmode_obj));
 
 	new_bo = drm_gem_object_lookup(dev, file_priv,
 			put_image_rec->bo_handle);
-	if (!new_bo)
-		return -ENOENT;
+	if (!new_bo) {
+		ret = -ENOENT;
+		goto out_free;
+	}
 
 	mutex_lock(&dev->mode_config.mutex);
 	mutex_lock(&dev->struct_mutex);
@@ -1179,7 +1168,8 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
-	drm_gem_object_unreference(new_bo);
+	drm_gem_object_unreference_unlocked(new_bo);
+out_free:
 	kfree(params);
 
 	return ret;

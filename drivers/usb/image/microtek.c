@@ -155,7 +155,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id);
 static void mts_usb_disconnect(struct usb_interface *intf);
 
-static struct usb_device_id mts_usb_ids [];
+static const struct usb_device_id mts_usb_ids[];
 
 static struct usb_driver mts_usb_driver = {
 	.name =		"microtekX6",
@@ -656,7 +656,7 @@ static struct scsi_host_template mts_scsi_host_template = {
 /* The entries of microtek_table must correspond, line-by-line to
    the entries of mts_supported_products[]. */
 
-static struct usb_device_id mts_usb_ids [] =
+static const struct usb_device_id mts_usb_ids[] =
 {
 	{ USB_DEVICE(0x4ce, 0x0300) },
 	{ USB_DEVICE(0x5da, 0x0094) },

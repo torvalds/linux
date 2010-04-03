@@ -648,7 +648,7 @@ void dma_controller_destroy(struct dma_controller *c)
 		}
 	}
 
-	if (!tusb_dma->multichannel && tusb_dma && tusb_dma->ch >= 0)
+	if (tusb_dma && !tusb_dma->multichannel && tusb_dma->ch >= 0)
 		omap_free_dma(tusb_dma->ch);
 
 	kfree(tusb_dma);

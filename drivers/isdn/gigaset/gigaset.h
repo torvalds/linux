@@ -675,8 +675,10 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size);
  */
 
 /* Called from common.c for setting up/shutting down with the ISDN subsystem */
-int gigaset_isdn_register(struct cardstate *cs, const char *isdnid);
-void gigaset_isdn_unregister(struct cardstate *cs);
+void gigaset_isdn_regdrv(void);
+void gigaset_isdn_unregdrv(void);
+int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid);
+void gigaset_isdn_unregdev(struct cardstate *cs);
 
 /* Called from hardware module to indicate completion of an skb */
 void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb);

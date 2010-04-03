@@ -91,6 +91,16 @@ xfs_mark_inode_dirty_sync(
 		mark_inode_dirty_sync(inode);
 }
 
+void
+xfs_mark_inode_dirty(
+	xfs_inode_t	*ip)
+{
+	struct inode	*inode = VFS_I(ip);
+
+	if (!(inode->i_state & (I_WILL_FREE|I_FREEING|I_CLEAR)))
+		mark_inode_dirty(inode);
+}
+
 /*
  * Change the requested timestamp in the given inode.
  * We don't lock across timestamp updates, and we don't log them but

@@ -99,7 +99,7 @@ static int rt2800usb_check_firmware(struct rt2x00_dev *rt2x00dev,
 	 * There are 2 variations of the rt2870 firmware.
 	 * a) size: 4kb
 	 * b) size: 8kb
-	 * Note that (b) contains 2 seperate firmware blobs of 4k
+	 * Note that (b) contains 2 separate firmware blobs of 4k
 	 * within the file. The first blob is the same firmware as (a),
 	 * but the second blob is for the additional chipsets.
 	 */
@@ -117,7 +117,7 @@ static int rt2800usb_check_firmware(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * 8kb firmware files must be checked as if it were
-	 * 2 seperate firmware files.
+	 * 2 separate firmware files.
 	 */
 	while (offset < len) {
 		if (!rt2800usb_check_crc(data + offset, 4096))

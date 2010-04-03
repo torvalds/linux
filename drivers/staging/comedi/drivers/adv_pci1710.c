@@ -84,9 +84,9 @@ Configuration options:
 #define PCI171x_DAREF	14	/* W:   D/A reference control */
 #define PCI171x_DI	16	/* R:   digi inputs */
 #define PCI171x_DO	16	/* R:   digi inputs */
-#define PCI171x_CNT0	24	/* R/W: 8254 couter 0 */
-#define PCI171x_CNT1	26	/* R/W: 8254 couter 1 */
-#define PCI171x_CNT2	28	/* R/W: 8254 couter 2 */
+#define PCI171x_CNT0	24	/* R/W: 8254 counter 0 */
+#define PCI171x_CNT1	26	/* R/W: 8254 counter 1 */
+#define PCI171x_CNT2	28	/* R/W: 8254 counter 2 */
 #define PCI171x_CNTCTRL	30	/* W:   8254 counter control */
 
 /* upper bits from status register (PCI171x_STATUS) (lower is same woth control reg) */
@@ -724,6 +724,7 @@ static int move_block_from_fifo(struct comedi_device *dev,
 			devpriv->ai_act_scan++;
 		}
 	}
+	s->async->cur_chan = j;
 	DPRINTK("adv_pci1710 EDBG: END: move_block_from_fifo(...)\n");
 	return 0;
 }
@@ -1034,14 +1035,6 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 		}
 	}
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->chanlist_len > this_board->n_aichan) {
-		cmd->chanlist_len = this_board->n_aichan;
-		err++;
-	}
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
@@ -1230,6 +1223,12 @@ static void setup_channel_list(struct comedi_device *dev,
 		DPRINTK("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range,
 			devpriv->act_chanlist[i]);
 	}
+#ifdef PCI171x_PARANOIDCHECK
+	for ( ; i < n_chan; i++) { /* store remainder of channel list */
+		devpriv->act_chanlist[i] =
+		    (CR_CHAN(chanlist[i]) << 12) & 0xf000;
+	}
+#endif
 
 	devpriv->ai_et_MuxVal =
 	    CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen - 1]) << 8);

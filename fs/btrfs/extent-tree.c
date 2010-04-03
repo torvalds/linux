@@ -6561,6 +6561,7 @@ static noinline int invalidate_extent_cache(struct btrfs_root *root,
 	struct btrfs_key key;
 	struct inode *inode = NULL;
 	struct btrfs_file_extent_item *fi;
+	struct extent_state *cached_state = NULL;
 	u64 num_bytes;
 	u64 skip_objectid = 0;
 	u32 nritems;
@@ -6589,12 +6590,14 @@ static noinline int invalidate_extent_cache(struct btrfs_root *root,
 		}
 		num_bytes = btrfs_file_extent_num_bytes(leaf, fi);
 
-		lock_extent(&BTRFS_I(inode)->io_tree, key.offset,
-			    key.offset + num_bytes - 1, GFP_NOFS);
+		lock_extent_bits(&BTRFS_I(inode)->io_tree, key.offset,
+				 key.offset + num_bytes - 1, 0, &cached_state,
+				 GFP_NOFS);
 		btrfs_drop_extent_cache(inode, key.offset,
 					key.offset + num_bytes - 1, 1);
-		unlock_extent(&BTRFS_I(inode)->io_tree, key.offset,
-			      key.offset + num_bytes - 1, GFP_NOFS);
+		unlock_extent_cached(&BTRFS_I(inode)->io_tree, key.offset,
+				     key.offset + num_bytes - 1, &cached_state,
+				     GFP_NOFS);
 		cond_resched();
 	}
 	iput(inode);

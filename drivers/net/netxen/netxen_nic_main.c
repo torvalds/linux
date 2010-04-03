@@ -604,16 +604,14 @@ netxen_cleanup_pci_map(struct netxen_adapter *adapter)
 static int
 netxen_setup_pci_map(struct netxen_adapter *adapter)
 {
-	void __iomem *mem_ptr0 = NULL;
-	void __iomem *mem_ptr1 = NULL;
-	void __iomem *mem_ptr2 = NULL;
 	void __iomem *db_ptr = NULL;
 
 	resource_size_t mem_base, db_base;
-	unsigned long mem_len, db_len = 0, pci_len0 = 0;
+	unsigned long mem_len, db_len = 0;
 
 	struct pci_dev *pdev = adapter->pdev;
 	int pci_func = adapter->ahw.pci_func;
+	struct netxen_hardware_context *ahw = &adapter->ahw;
 
 	int err = 0;
 
@@ -630,24 +628,40 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 
 	/* 128 Meg of memory */
 	if (mem_len == NETXEN_PCI_128MB_SIZE) {
-		mem_ptr0 = ioremap(mem_base, FIRST_PAGE_GROUP_SIZE);
-		mem_ptr1 = ioremap(mem_base + SECOND_PAGE_GROUP_START,
+
+		ahw->pci_base0 = ioremap(mem_base, FIRST_PAGE_GROUP_SIZE);
+		ahw->pci_base1 = ioremap(mem_base + SECOND_PAGE_GROUP_START,
 				SECOND_PAGE_GROUP_SIZE);
-		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START,
+		ahw->pci_base2 = ioremap(mem_base + THIRD_PAGE_GROUP_START,
 				THIRD_PAGE_GROUP_SIZE);
-		pci_len0 = FIRST_PAGE_GROUP_SIZE;
+		if (ahw->pci_base0 == NULL || ahw->pci_base1 == NULL ||
+						ahw->pci_base2 == NULL) {
+			dev_err(&pdev->dev, "failed to map PCI bar 0\n");
+			err = -EIO;
+			goto err_out;
+		}
+
+		ahw->pci_len0 = FIRST_PAGE_GROUP_SIZE;
+
 	} else if (mem_len == NETXEN_PCI_32MB_SIZE) {
-		mem_ptr1 = ioremap(mem_base, SECOND_PAGE_GROUP_SIZE);
-		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START -
+
+		ahw->pci_base1 = ioremap(mem_base, SECOND_PAGE_GROUP_SIZE);
+		ahw->pci_base2 = ioremap(mem_base + THIRD_PAGE_GROUP_START -
 			SECOND_PAGE_GROUP_START, THIRD_PAGE_GROUP_SIZE);
+		if (ahw->pci_base1 == NULL || ahw->pci_base2 == NULL) {
+			dev_err(&pdev->dev, "failed to map PCI bar 0\n");
+			err = -EIO;
+			goto err_out;
+		}
+
 	} else if (mem_len == NETXEN_PCI_2MB_SIZE) {
 
-		mem_ptr0 = pci_ioremap_bar(pdev, 0);
-		if (mem_ptr0 == NULL) {
+		ahw->pci_base0 = pci_ioremap_bar(pdev, 0);
+		if (ahw->pci_base0 == NULL) {
 			dev_err(&pdev->dev, "failed to map PCI bar 0\n");
 			return -EIO;
 		}
-		pci_len0 = mem_len;
+		ahw->pci_len0 = mem_len;
 	} else {
 		return -EIO;
 	}
@@ -655,11 +669,6 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	netxen_setup_hwops(adapter);
 
 	dev_info(&pdev->dev, "%dMB memory map\n", (int)(mem_len>>20));
-
-	adapter->ahw.pci_base0 = mem_ptr0;
-	adapter->ahw.pci_len0 = pci_len0;
-	adapter->ahw.pci_base1 = mem_ptr1;
-	adapter->ahw.pci_base2 = mem_ptr2;
 
 	if (NX_IS_REVISION_P3P(adapter->ahw.revision_id)) {
 		adapter->ahw.ocm_win_crb = netxen_get_ioaddr(adapter,
@@ -1246,8 +1255,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int pci_func_id = PCI_FUNC(pdev->devfn);
 	uint8_t revision_id;
 
-	if (pdev->revision >= NX_P3_A0 && pdev->revision < NX_P3_B1) {
-		pr_warning("%s: chip revisions between 0x%x-0x%x"
+	if (pdev->revision >= NX_P3_A0 && pdev->revision <= NX_P3_B1) {
+		pr_warning("%s: chip revisions between 0x%x-0x%x "
 				"will not be enabled.\n",
 				module_name(THIS_MODULE), NX_P3_A0, NX_P3_B1);
 		return -ENODEV;

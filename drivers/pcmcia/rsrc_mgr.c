@@ -79,9 +79,8 @@ static resource_size_t pcmcia_align(void *align_data,
 
 #ifdef CONFIG_X86
 	if (res->flags & IORESOURCE_IO) {
-		if (start & 0x300) {
+		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
-		}
 	}
 #endif
 

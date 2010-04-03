@@ -584,7 +584,7 @@ static long iTCO_wdt_ioctl(struct file *file, unsigned int cmd,
 	int new_heartbeat;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options =		WDIOF_SETTIMEOUT |
 					WDIOF_KEEPALIVEPING |
 					WDIOF_MAGICCLOSE,
@@ -698,7 +698,7 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 	if (iTCO_wdt_private.iTCO_version == 2) {
 		pci_read_config_dword(pdev, 0xf0, &base_address);
 		if ((base_address & 1) == 0) {
-			printk(KERN_ERR PFX "RCBA is disabled by harddware\n");
+			printk(KERN_ERR PFX "RCBA is disabled by hardware\n");
 			ret = -ENODEV;
 			goto out;
 		}
@@ -708,8 +708,8 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 
 	/* Check chipset's NO_REBOOT bit */
 	if (iTCO_wdt_unset_NO_REBOOT_bit() && iTCO_vendor_check_noreboot_on()) {
-		printk(KERN_ERR PFX "failed to reset NO_REBOOT flag, "
-					"reboot disabled by hardware\n");
+		printk(KERN_INFO PFX "unable to reset NO_REBOOT flag, "
+					"platform may have disabled it\n");
 		ret = -ENODEV;	/* Cannot reset NO_REBOOT bit */
 		goto out_unmap;
 	}
@@ -805,6 +805,7 @@ static void __devexit iTCO_wdt_cleanup(void)
 
 static int __devinit iTCO_wdt_probe(struct platform_device *dev)
 {
+	int ret = -ENODEV;
 	int found = 0;
 	struct pci_dev *pdev = NULL;
 	const struct pci_device_id *ent;
@@ -814,19 +815,17 @@ static int __devinit iTCO_wdt_probe(struct platform_device *dev)
 	for_each_pci_dev(pdev) {
 		ent = pci_match_id(iTCO_wdt_pci_tbl, pdev);
 		if (ent) {
-			if (!(iTCO_wdt_init(pdev, ent, dev))) {
-				found++;
+			found++;
+			ret = iTCO_wdt_init(pdev, ent, dev);
+			if (!ret)
 				break;
-			}
 		}
 	}
 
-	if (!found) {
+	if (!found)
 		printk(KERN_INFO PFX "No card detected\n");
-		return -ENODEV;
-	}
 
-	return 0;
+	return ret;
 }
 
 static int __devexit iTCO_wdt_remove(struct platform_device *dev)

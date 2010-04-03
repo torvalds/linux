@@ -69,7 +69,7 @@ static int phison_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return ret;
 }
 
-static struct pci_device_id phison_pci_tbl[] = {
+static const struct pci_device_id phison_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PHISON, PCI_DEVICE_ID_PS5000, PCI_ANY_ID, PCI_ANY_ID,
 	  PCI_CLASS_STORAGE_IDE << 8, 0xffff00, 0 },
 	{ 0, },

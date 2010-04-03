@@ -545,7 +545,7 @@ static int mt_ioctl_trans(unsigned int fd, unsigned int cmd, void __user *argp)
 		kcmd = MTIOCPOS;
 		karg = &pos;
 		break;
-	case MTIOCGET32:
+	default:	/* MTIOCGET32 */
 		kcmd = MTIOCGET;
 		karg = &get;
 		break;
@@ -663,7 +663,7 @@ static int raw_ioctl(unsigned fd, unsigned cmd,
 
         switch (cmd) {
         case RAW_SETBIND:
-        case RAW_GETBIND: {
+	default: {	/* RAW_GETBIND */
                 struct raw_config_request req;
                 mm_segment_t oldfs = get_fs();
 

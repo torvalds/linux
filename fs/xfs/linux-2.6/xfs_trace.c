@@ -52,22 +52,6 @@
 #include "quota/xfs_dquot.h"
 
 /*
- * Format fsblock number into a static buffer & return it.
- */
-STATIC char *xfs_fmtfsblock(xfs_fsblock_t bno)
-{
-	static char rval[50];
-
-	if (bno == NULLFSBLOCK)
-		sprintf(rval, "NULLFSBLOCK");
-	else if (isnullstartblock(bno))
-		sprintf(rval, "NULLSTARTBLOCK(%lld)", startblockval(bno));
-	else
-		sprintf(rval, "%lld", (xfs_dfsbno_t)bno);
-	return rval;
-}
-
-/*
  * We include this last to have the helpers above available for the trace
  * event implementations.
  */

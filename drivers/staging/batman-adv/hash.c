@@ -64,24 +64,18 @@ void hash_destroy(struct hashtable_t *hash)
 	kfree(hash);
 }
 
-/* iterate though the hash. first element is selected with iter_in NULL.  use
- * the returned iterator to access the elements until hash_it_t returns NULL. */
-struct hash_it_t *hash_iterate(struct hashtable_t *hash,
-			       struct hash_it_t *iter_in)
-{
-	struct hash_it_t *iter;
+/* iterate though the hash. First element is selected if an iterator
+ * initialized with HASHIT() is supplied as iter. Use the returned
+ * (or supplied) iterator to access the elements until hash_iterate returns
+ * NULL. */
 
+struct hash_it_t *hash_iterate(struct hashtable_t *hash,
+			       struct hash_it_t *iter)
+{
 	if (!hash)
 		return NULL;
-
-	if (iter_in == NULL) {
-		iter = kmalloc(sizeof(struct hash_it_t), GFP_ATOMIC);
-		iter->index = -1;
-		iter->bucket = NULL;
-		iter->prev_bucket = NULL;
-	} else {
-		iter = iter_in;
-	}
+	if (!iter)
+		return NULL;
 
 	/* sanity checks first (if our bucket got deleted in the last
 	 * iteration): */
@@ -139,7 +133,6 @@ struct hash_it_t *hash_iterate(struct hashtable_t *hash,
 	}
 
 	/* nothing to iterate over anymore */
-	kfree(iter);
 	return NULL;
 }
 

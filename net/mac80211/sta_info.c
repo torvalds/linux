@@ -434,6 +434,7 @@ int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU)
 	/* check if STA exists already */
 	if (sta_info_get_bss(sdata, sta->sta.addr)) {
 		spin_unlock_irqrestore(&local->sta_lock, flags);
+		mutex_unlock(&local->sta_mtx);
 		rcu_read_lock();
 		err = -EEXIST;
 		goto out_free;

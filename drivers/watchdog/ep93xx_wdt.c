@@ -131,7 +131,7 @@ ep93xx_wdt_write(struct file *file, const char __user *data, size_t len,
 	return len;
 }
 
-static struct watchdog_info ident = {
+static const struct watchdog_info ident = {
 	.options = WDIOF_CARDRESET | WDIOF_MAGICCLOSE,
 	.identity = "EP93xx Watchdog",
 };

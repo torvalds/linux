@@ -727,7 +727,7 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 			   unsigned char *end, struct module *mod)
 {
 	struct rb_node **rb_node = &cie_root.rb_node;
-	struct rb_node *parent;
+	struct rb_node *parent = *rb_node;
 	struct dwarf_cie *cie;
 	unsigned long flags;
 	int count;
@@ -856,7 +856,7 @@ static int dwarf_parse_fde(void *entry, u32 entry_type,
 			   unsigned char *end, struct module *mod)
 {
 	struct rb_node **rb_node = &fde_root.rb_node;
-	struct rb_node *parent;
+	struct rb_node *parent = *rb_node;
 	struct dwarf_fde *fde;
 	struct dwarf_cie *cie;
 	unsigned long flags;

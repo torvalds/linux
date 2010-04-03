@@ -1214,7 +1214,7 @@ static int set_print_fmt(struct trace_probe *tp)
 #ifdef CONFIG_PERF_EVENTS
 
 /* Kprobe profile handler */
-static __kprobes void kprobe_profile_func(struct kprobe *kp,
+static __kprobes void kprobe_perf_func(struct kprobe *kp,
 					 struct pt_regs *regs)
 {
 	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
@@ -1227,11 +1227,11 @@ static __kprobes void kprobe_profile_func(struct kprobe *kp,
 	__size = SIZEOF_KPROBE_TRACE_ENTRY(tp->nr_args);
 	size = ALIGN(__size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
-	if (WARN_ONCE(size > FTRACE_MAX_PROFILE_SIZE,
+	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE,
 		     "profile buffer not large enough"))
 		return;
 
-	entry = ftrace_perf_buf_prepare(size, call->id, &rctx, &irq_flags);
+	entry = perf_trace_buf_prepare(size, call->id, &rctx, &irq_flags);
 	if (!entry)
 		return;
 
@@ -1240,11 +1240,11 @@ static __kprobes void kprobe_profile_func(struct kprobe *kp,
 	for (i = 0; i < tp->nr_args; i++)
 		entry->args[i] = call_fetch(&tp->args[i].fetch, regs);
 
-	ftrace_perf_buf_submit(entry, size, rctx, entry->ip, 1, irq_flags);
+	perf_trace_buf_submit(entry, size, rctx, entry->ip, 1, irq_flags, regs);
 }
 
 /* Kretprobe profile handler */
-static __kprobes void kretprobe_profile_func(struct kretprobe_instance *ri,
+static __kprobes void kretprobe_perf_func(struct kretprobe_instance *ri,
 					    struct pt_regs *regs)
 {
 	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
@@ -1257,11 +1257,11 @@ static __kprobes void kretprobe_profile_func(struct kretprobe_instance *ri,
 	__size = SIZEOF_KRETPROBE_TRACE_ENTRY(tp->nr_args);
 	size = ALIGN(__size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
-	if (WARN_ONCE(size > FTRACE_MAX_PROFILE_SIZE,
+	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE,
 		     "profile buffer not large enough"))
 		return;
 
-	entry = ftrace_perf_buf_prepare(size, call->id, &rctx, &irq_flags);
+	entry = perf_trace_buf_prepare(size, call->id, &rctx, &irq_flags);
 	if (!entry)
 		return;
 
@@ -1271,10 +1271,11 @@ static __kprobes void kretprobe_profile_func(struct kretprobe_instance *ri,
 	for (i = 0; i < tp->nr_args; i++)
 		entry->args[i] = call_fetch(&tp->args[i].fetch, regs);
 
-	ftrace_perf_buf_submit(entry, size, rctx, entry->ret_ip, 1, irq_flags);
+	perf_trace_buf_submit(entry, size, rctx, entry->ret_ip, 1,
+			       irq_flags, regs);
 }
 
-static int probe_profile_enable(struct ftrace_event_call *call)
+static int probe_perf_enable(struct ftrace_event_call *call)
 {
 	struct trace_probe *tp = (struct trace_probe *)call->data;
 
@@ -1286,7 +1287,7 @@ static int probe_profile_enable(struct ftrace_event_call *call)
 		return enable_kprobe(&tp->rp.kp);
 }
 
-static void probe_profile_disable(struct ftrace_event_call *call)
+static void probe_perf_disable(struct ftrace_event_call *call)
 {
 	struct trace_probe *tp = (struct trace_probe *)call->data;
 
@@ -1311,7 +1312,7 @@ int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 		kprobe_trace_func(kp, regs);
 #ifdef CONFIG_PERF_EVENTS
 	if (tp->flags & TP_FLAG_PROFILE)
-		kprobe_profile_func(kp, regs);
+		kprobe_perf_func(kp, regs);
 #endif
 	return 0;	/* We don't tweek kernel, so just return 0 */
 }
@@ -1325,7 +1326,7 @@ int kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
 		kretprobe_trace_func(ri, regs);
 #ifdef CONFIG_PERF_EVENTS
 	if (tp->flags & TP_FLAG_PROFILE)
-		kretprobe_profile_func(ri, regs);
+		kretprobe_perf_func(ri, regs);
 #endif
 	return 0;	/* We don't tweek kernel, so just return 0 */
 }
@@ -1358,8 +1359,8 @@ static int register_probe_event(struct trace_probe *tp)
 	call->unregfunc = probe_event_disable;
 
 #ifdef CONFIG_PERF_EVENTS
-	call->profile_enable = probe_profile_enable;
-	call->profile_disable = probe_profile_disable;
+	call->perf_event_enable = probe_perf_enable;
+	call->perf_event_disable = probe_perf_disable;
 #endif
 	call->data = tp;
 	ret = trace_add_event_call(call);
