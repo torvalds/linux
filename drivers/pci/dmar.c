@@ -618,7 +618,15 @@ int __init dmar_table_init(void)
 	return 0;
 }
 
-static int bios_warned;
+static void warn_invalid_dmar(u64 addr, const char *message)
+{
+	WARN_ONCE(1, "Your BIOS is broken; DMAR reported at address %llx%s!\n"
+		  "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+		  addr, message,
+		  dmi_get_system_info(DMI_BIOS_VENDOR),
+		  dmi_get_system_info(DMI_BIOS_VERSION),
+		  dmi_get_system_info(DMI_PRODUCT_VERSION));
+}
 
 int __init check_zero_address(void)
 {
@@ -644,13 +652,7 @@ int __init check_zero_address(void)
 
 			drhd = (void *)entry_header;
 			if (!drhd->address) {
-				/* Promote an attitude of violence to a BIOS engineer today */
-				WARN(1, "Your BIOS is broken; DMAR reported at address zero!\n"
-				     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
-				     dmi_get_system_info(DMI_BIOS_VENDOR),
-				     dmi_get_system_info(DMI_BIOS_VERSION),
-				     dmi_get_system_info(DMI_PRODUCT_VERSION));
-				bios_warned = 1;
+				warn_invalid_dmar(0, "");
 				goto failed;
 			}
 
@@ -663,14 +665,8 @@ int __init check_zero_address(void)
 			ecap = dmar_readq(addr + DMAR_ECAP_REG);
 			early_iounmap(addr, VTD_PAGE_SIZE);
 			if (cap == (uint64_t)-1 && ecap == (uint64_t)-1) {
-				/* Promote an attitude of violence to a BIOS engineer today */
-				WARN(1, "Your BIOS is broken; DMAR reported at address %llx returns all ones!\n"
-				     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
-				      drhd->address,
-				      dmi_get_system_info(DMI_BIOS_VENDOR),
-				      dmi_get_system_info(DMI_BIOS_VERSION),
-				      dmi_get_system_info(DMI_PRODUCT_VERSION));
-				bios_warned = 1;
+				warn_invalid_dmar(drhd->address,
+						  " returns all ones");
 				goto failed;
 			}
 		}
@@ -735,14 +731,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	int msagaw = 0;
 
 	if (!drhd->reg_base_addr) {
-		if (!bios_warned) {
-			WARN(1, "Your BIOS is broken; DMAR reported at address zero!\n"
-			     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
-			     dmi_get_system_info(DMI_BIOS_VENDOR),
-			     dmi_get_system_info(DMI_BIOS_VERSION),
-			     dmi_get_system_info(DMI_PRODUCT_VERSION));
-			bios_warned = 1;
-		}
+		warn_invalid_dmar(0, "");
 		return -EINVAL;
 	}
 
@@ -762,16 +751,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	iommu->ecap = dmar_readq(iommu->reg + DMAR_ECAP_REG);
 
 	if (iommu->cap == (uint64_t)-1 && iommu->ecap == (uint64_t)-1) {
-		if (!bios_warned) {
-			/* Promote an attitude of violence to a BIOS engineer today */
-			WARN(1, "Your BIOS is broken; DMAR reported at address %llx returns all ones!\n"
-			     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
-			     drhd->reg_base_addr,
-			     dmi_get_system_info(DMI_BIOS_VENDOR),
-			     dmi_get_system_info(DMI_BIOS_VERSION),
-			     dmi_get_system_info(DMI_PRODUCT_VERSION));
-			bios_warned = 1;
-		}
+		warn_invalid_dmar(drhd->reg_base_addr, " returns all ones");
 		goto err_unmap;
 	}
 
