@@ -96,12 +96,14 @@ static inline struct map *
 static inline int perf_session__browse_hists(struct rb_root *hists __used,
 					      u64 nr_hists __used,
 					      u64 session_total __used,
-					      const char *helpline __used)
+					     const char *helpline __used,
+					     const char *input_name __used)
 {
 	return 0;
 }
 #else
 int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
-				u64 session_total, const char *helpline);
+			       u64 session_total, const char *helpline,
+			       const char *input_name);
 #endif
 #endif /* __PERF_SESSION_H */

@@ -317,7 +317,8 @@ static size_t hist_entry__append_browser(struct hist_entry *self,
 	return ret;
 }
 
-static void map_symbol__annotate_browser(const struct map_symbol *self)
+static void map_symbol__annotate_browser(const struct map_symbol *self,
+					 const char *input_name)
 {
 	FILE *fp;
 	int cols, rows;
@@ -331,8 +332,8 @@ static void map_symbol__annotate_browser(const struct map_symbol *self)
 	if (self->sym == NULL)
 		return;
 
-	if (asprintf(&str, "perf annotate -d \"%s\" %s 2>&1 | expand",
-		     self->map->dso->name, self->sym->name) < 0)
+	if (asprintf(&str, "perf annotate -i \"%s\" -d \"%s\" %s 2>&1 | expand",
+		     input_name, self->map->dso->name, self->sym->name) < 0)
 		return;
 
 	fp = popen(str, "r");
@@ -472,7 +473,8 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 }
 
 int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
-			       u64 session_total, const char *helpline)
+			       u64 session_total, const char *helpline,
+			       const char *input_name)
 {
 	struct newtExitStruct es;
 	char str[1024];
@@ -527,7 +529,8 @@ do_annotate:
 						 "kallsyms file");
 				continue;
 			}
-			map_symbol__annotate_browser(browser->selection);
+			map_symbol__annotate_browser(browser->selection,
+						     input_name);
 		}
 	}
 	err = 0;

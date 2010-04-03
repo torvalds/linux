@@ -313,7 +313,8 @@ static int __cmd_report(void)
 						       stats->stats.total);
 		if (use_browser)
 			perf_session__browse_hists(&stats->hists, nr_hists,
-						   stats->stats.total, help);
+						   stats->stats.total, help,
+						   input_name);
 		else {
 			if (rb_first(&session->stats_by_id) ==
 			    rb_last(&session->stats_by_id))
