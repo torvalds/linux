@@ -83,7 +83,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 
     pReq->wResult = 0;
 
-    switch(pReq->wCmdCode) {
+    switch (pReq->wCmdCode) {
 
     case WLAN_CMD_BSS_SCAN:
 
