@@ -390,11 +390,8 @@ static void perf_session__selection(newtComponent self, void *data)
 int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 			       u64 session_total, const char *helpline)
 {
-	struct sort_entry *se;
 	struct rb_node *nd;
 	char seq[] = ".";
-	unsigned int width;
-	char *col_width = symbol_conf.col_width_list_str;
 	int rows, cols, idx;
 	int max_len = 0;
 	char str[1024];
@@ -422,23 +419,6 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 						       NEWT_FLAG_RETURNEXIT));
 
 	newtComponentAddCallback(tree, perf_session__selection, &selection);
-
-	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		if (se->elide)
-			continue;
-		width = strlen(se->header);
-		if (se->width) {
-			if (symbol_conf.col_width_list_str) {
-				if (col_width) {
-					*se->width = atoi(col_width);
-					col_width = strchr(col_width, ',');
-					if (col_width)
-						++col_width;
-				}
-			}
-			*se->width = max(*se->width, width);
-		}
-	}
 
 	idx = 0;
 	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
