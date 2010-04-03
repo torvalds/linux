@@ -260,6 +260,9 @@ characters, each representing a particular tainted value.
 
  11: 'C' if a staging driver has been loaded.
 
+ 12: 'I' if the kernel is working around a severe bug in the platform
+     firmware (BIOS or similar).
+
 The primary reason for the 'Tainted: ' string is to tell kernel
 debuggers if this is a clean kernel or if anything unusual has
 occurred.  Tainting is permanent: even if an offending module is
