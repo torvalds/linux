@@ -2557,8 +2557,17 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 		     lq_sta->active_mimo3_rate);
 
 	/* These values will be overridden later */
-	lq_sta->lq.general_params.single_stream_ant_msk = ANT_A;
-	lq_sta->lq.general_params.dual_stream_ant_msk = ANT_AB;
+	lq_sta->lq.general_params.single_stream_ant_msk =
+		first_antenna(priv->hw_params.valid_tx_ant);
+	lq_sta->lq.general_params.dual_stream_ant_msk =
+		priv->hw_params.valid_tx_ant &
+		~first_antenna(priv->hw_params.valid_tx_ant);
+	if (!lq_sta->lq.general_params.dual_stream_ant_msk) {
+		lq_sta->lq.general_params.dual_stream_ant_msk = ANT_AB;
+	} else if (num_of_ant(priv->hw_params.valid_tx_ant) == 2) {
+		lq_sta->lq.general_params.dual_stream_ant_msk =
+			priv->hw_params.valid_tx_ant;
+	}
 
 	/* as default allow aggregation for all tids */
 	lq_sta->tx_agg_tid_en = IWL_AGG_ALL_TID;

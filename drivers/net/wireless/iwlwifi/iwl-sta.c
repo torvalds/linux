@@ -451,7 +451,17 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, bool is_ap)
 
 	link_cmd.general_params.single_stream_ant_msk =
 				first_antenna(priv->hw_params.valid_tx_ant);
-	link_cmd.general_params.dual_stream_ant_msk = 3;
+
+	link_cmd.general_params.dual_stream_ant_msk =
+		priv->hw_params.valid_tx_ant &
+		~first_antenna(priv->hw_params.valid_tx_ant);
+	if (!link_cmd.general_params.dual_stream_ant_msk) {
+		link_cmd.general_params.dual_stream_ant_msk = ANT_AB;
+	} else if (num_of_ant(priv->hw_params.valid_tx_ant) == 2) {
+		link_cmd.general_params.dual_stream_ant_msk =
+			priv->hw_params.valid_tx_ant;
+	}
+
 	link_cmd.agg_params.agg_dis_start_th = LINK_QUAL_AGG_DISABLE_START_DEF;
 	link_cmd.agg_params.agg_time_limit =
 		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
