@@ -490,7 +490,8 @@
 		I8254_BINARY = 0
 	};
 
-	static inline unsigned NI_USUAL_PFI_SELECT(unsigned pfi_channel) {
+	static inline unsigned NI_USUAL_PFI_SELECT(unsigned pfi_channel)
+	{
 		if (pfi_channel < 10)
 			return 0x1 + pfi_channel;
 		else
@@ -590,14 +591,17 @@
 		NI_GPCT_PRESCALE_X8_CLOCK_SRC_BITS = 0x20000000,	/* divide source by 8 */
 		NI_GPCT_INVERT_CLOCK_SRC_BIT = 0x80000000
 	};
-	static inline unsigned NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(unsigned n) {
+	static inline unsigned NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(unsigned n)
+	{
 		/* NI 660x-specific */
 		return 0x10 + n;
 	}
-	static inline unsigned NI_GPCT_RTSI_CLOCK_SRC_BITS(unsigned n) {
+	static inline unsigned NI_GPCT_RTSI_CLOCK_SRC_BITS(unsigned n)
+	{
 		return 0x18 + n;
 	}
-	static inline unsigned NI_GPCT_PFI_CLOCK_SRC_BITS(unsigned n) {
+	static inline unsigned NI_GPCT_PFI_CLOCK_SRC_BITS(unsigned n)
+	{
 		/* no pfi on NI 660x */
 		return 0x20 + n;
 	}
@@ -625,16 +629,20 @@ May be bitwise-or'd with CR_EDGE or CR_INVERT. */
 		   we should add them here with an offset of 0x300 when known. */
 		NI_GPCT_DISABLED_GATE_SELECT = 0x8000,
 	};
-	static inline unsigned NI_GPCT_GATE_PIN_GATE_SELECT(unsigned n) {
+	static inline unsigned NI_GPCT_GATE_PIN_GATE_SELECT(unsigned n)
+	{
 		return 0x102 + n;
 	}
-	static inline unsigned NI_GPCT_RTSI_GATE_SELECT(unsigned n) {
+	static inline unsigned NI_GPCT_RTSI_GATE_SELECT(unsigned n)
+	{
 		return NI_USUAL_RTSI_SELECT(n);
 	}
-	static inline unsigned NI_GPCT_PFI_GATE_SELECT(unsigned n) {
+	static inline unsigned NI_GPCT_PFI_GATE_SELECT(unsigned n)
+	{
 		return NI_USUAL_PFI_SELECT(n);
 	}
-	static inline unsigned NI_GPCT_UP_DOWN_PIN_GATE_SELECT(unsigned n) {
+	static inline unsigned NI_GPCT_UP_DOWN_PIN_GATE_SELECT(unsigned n)
+	{
 		return 0x202 + n;
 	}
 
@@ -650,7 +658,8 @@ INSN_CONFIG_SET_OTHER_SRC when using NI general-purpose counters. */
 		/* Still unknown, probably only need NI_GPCT_PFI_OTHER_SELECT */
 		NI_GPCT_DISABLED_OTHER_SELECT = 0x8000,
 	};
-	static inline unsigned NI_GPCT_PFI_OTHER_SELECT(unsigned n) {
+	static inline unsigned NI_GPCT_PFI_OTHER_SELECT(unsigned n)
+	{
 		return NI_USUAL_PFI_SELECT(n);
 	}
 
@@ -699,7 +708,8 @@ INSN_CONFIG_ARM */
 		NI_MIO_PLL_PXI10_CLOCK = 3,
 		NI_MIO_PLL_RTSI0_CLOCK = 4
 	};
-	static inline unsigned NI_MIO_PLL_RTSI_CLOCK(unsigned rtsi_channel) {
+	static inline unsigned NI_MIO_PLL_RTSI_CLOCK(unsigned rtsi_channel)
+	{
 		return NI_MIO_PLL_RTSI0_CLOCK + rtsi_channel;
 	}
 
@@ -719,7 +729,8 @@ INSN_CONFIG_ARM */
 		NI_RTSI_OUTPUT_RTSI_OSC = 12	/* pre-m-series always have RTSI clock
 						   on line 7 */
 	};
-	static inline unsigned NI_RTSI_OUTPUT_RTSI_BRD(unsigned n) {
+	static inline unsigned NI_RTSI_OUTPUT_RTSI_BRD(unsigned n)
+	{
 		return NI_RTSI_OUTPUT_RTSI_BRD_0 + n;
 	}
 
@@ -754,7 +765,8 @@ INSN_CONFIG_ARM */
 		NI_PFI_OUTPUT_CDI_SAMPLE = 29,
 		NI_PFI_OUTPUT_CDO_UPDATE = 30
 	};
-	static inline unsigned NI_PFI_OUTPUT_RTSI(unsigned rtsi_channel) {
+	static inline unsigned NI_PFI_OUTPUT_RTSI(unsigned rtsi_channel)
+	{
 		return NI_PFI_OUTPUT_RTSI0 + rtsi_channel;
 	}
 
@@ -772,10 +784,12 @@ INSN_CONFIG_ARM */
 /* NI External Trigger lines.  These values are not arbitrary, but are related
  * to the bits required to program the board (offset by 1 for historical
  * reasons). */
-	static inline unsigned NI_EXT_PFI(unsigned pfi_channel) {
+	static inline unsigned NI_EXT_PFI(unsigned pfi_channel)
+	{
 		return NI_USUAL_PFI_SELECT(pfi_channel) - 1;
 	}
-	static inline unsigned NI_EXT_RTSI(unsigned rtsi_channel) {
+	static inline unsigned NI_EXT_RTSI(unsigned rtsi_channel)
+	{
 		return NI_USUAL_RTSI_SELECT(rtsi_channel) - 1;
 	}
 
@@ -801,21 +815,24 @@ INSN_CONFIG_ARM */
 		NI_CDIO_SCAN_BEGIN_SRC_FREQ_OUT = 32,
 		NI_CDIO_SCAN_BEGIN_SRC_DIO_CHANGE_DETECT_IRQ = 33
 	};
-	static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel) {
+	static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel)
+	{
 		return NI_USUAL_PFI_SELECT(pfi_channel);
 	}
-	static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_RTSI(unsigned
-							   rtsi_channel) {
+	static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel)
+	{
 		return NI_USUAL_RTSI_SELECT(rtsi_channel);
 	}
 
 /* scan_begin_src for scan_begin_arg==TRIG_EXT with analog output command on NI
  * boards.  These scan begin sources can also be bitwise-or'd with CR_INVERT to
  * change polarity. */
-	static inline unsigned NI_AO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel) {
+	static inline unsigned NI_AO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel)
+	{
 		return NI_USUAL_PFI_SELECT(pfi_channel);
 	}
-	static inline unsigned NI_AO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel) {
+	static inline unsigned NI_AO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel)
+	{
 		return NI_USUAL_RTSI_SELECT(rtsi_channel);
 	}
 
