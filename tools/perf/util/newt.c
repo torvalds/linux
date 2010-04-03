@@ -381,53 +381,69 @@ static const void *newt__symbol_tree_get_current(newtComponent self)
 	return newtListboxGetCurrent(self);
 }
 
-static void perf_session__selection(newtComponent self, void *data)
+static void hist_browser__selection(newtComponent self, void *data)
 {
 	const struct map_symbol **symbol_ptr = data;
 	*symbol_ptr = newt__symbol_tree_get_current(self);
 }
 
-int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
-			       u64 session_total, const char *helpline)
-{
-	struct rb_node *nd;
-	char seq[] = ".";
-	int rows, cols, idx;
-	int max_len = 0;
-	char str[1024];
-	newtComponent form, tree;
-	struct newtExitStruct es;
+struct hist_browser {
+	newtComponent		form, tree;
 	const struct map_symbol *selection;
-	u64 curr_hist = 0;
+};
+
+static struct hist_browser *hist_browser__new(void)
+{
+	struct hist_browser *self = malloc(sizeof(*self));
+
+	if (self != NULL) {
+		char seq[] = ".";
+		int rows;
+
+		newtGetScreenSize(NULL, &rows);
+
+		if (symbol_conf.use_callchain)
+			self->tree = newtCheckboxTreeMulti(0, 0, rows - 5, seq,
+							   NEWT_FLAG_SCROLL);
+		else
+			self->tree = newtListbox(0, 0, rows - 5,
+						(NEWT_FLAG_SCROLL |
+						 NEWT_FLAG_RETURNEXIT));
+		newtComponentAddCallback(self->tree, hist_browser__selection,
+					 &self->selection);
+	}
+
+	return self;
+}
+
+static void hist_browser__delete(struct hist_browser *self)
+{
+	newtFormDestroy(self->form);
+	newtPopWindow();
+	free(self);
+}
+
+static int hist_browser__populate(struct hist_browser *self, struct rb_root *hists,
+				  u64 nr_hists, u64 session_total)
+{
+	int max_len = 0, idx, cols, rows;
 	struct ui_progress *progress;
+	struct rb_node *nd;
+	u64 curr_hist = 0;
 
 	progress = ui_progress__new("Adding entries to the browser...", nr_hists);
 	if (progress == NULL)
 		return -1;
 
-	snprintf(str, sizeof(str), "Samples: %Ld", session_total);
-	newtDrawRootText(0, 0, str);
-	newtPushHelpLine(helpline);
-
-	newtGetScreenSize(&cols, &rows);
-
-	if (symbol_conf.use_callchain)
-		tree = newtCheckboxTreeMulti(0, 0, rows - 5, seq,
-						NEWT_FLAG_SCROLL);
-	else
-		tree = newtListbox(0, 0, rows - 5, (NEWT_FLAG_SCROLL |
-						       NEWT_FLAG_RETURNEXIT));
-
-	newtComponentAddCallback(tree, perf_session__selection, &selection);
-
 	idx = 0;
 	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
-		int len = hist_entry__append_browser(h, tree, session_total);
+		int len = hist_entry__append_browser(h, self->tree, session_total);
 		if (len > max_len)
 			max_len = len;
 		if (symbol_conf.use_callchain)
-			hist_entry__append_callchain_browser(h, tree, session_total, idx++);
+			hist_entry__append_callchain_browser(h, self->tree,
+							     session_total, idx++);
 		++curr_hist;
 		if (curr_hist % 5)
 			ui_progress__update(progress, curr_hist);
@@ -435,27 +451,50 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 
 	ui_progress__delete(progress);
 
+	newtGetScreenSize(&cols, &rows);
+
 	if (max_len > cols)
 		max_len = cols - 3;
 
 	if (!symbol_conf.use_callchain)
-		newtListboxSetWidth(tree, max_len);
+		newtListboxSetWidth(self->tree, max_len);
 
 	newtCenteredWindow(max_len + (symbol_conf.use_callchain ? 5 : 0),
 			   rows - 5, "Report");
-	form = newt_form__new();
-	newtFormAddHotKey(form, 'A');
-	newtFormAddHotKey(form, 'a');
-	newtFormAddHotKey(form, NEWT_KEY_RIGHT);
-	newtFormAddComponents(form, tree, NULL);
-	selection = newt__symbol_tree_get_current(tree);
+	self->form = newt_form__new();
+	newtFormAddHotKey(self->form, 'A');
+	newtFormAddHotKey(self->form, 'a');
+	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
+	newtFormAddComponents(self->form, self->tree, NULL);
+	self->selection = newt__symbol_tree_get_current(self->tree);
+
+	return 0;
+}
+
+int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
+			       u64 session_total, const char *helpline)
+{
+	struct newtExitStruct es;
+	char str[1024];
+	int err = -1;
+	struct hist_browser *browser = hist_browser__new();
+
+	if (browser == NULL)
+		return -1;
+
+	snprintf(str, sizeof(str), "Samples: %Ld", session_total);
+	newtDrawRootText(0, 0, str);
+	newtPushHelpLine(helpline);
+
+	if (hist_browser__populate(browser, hists, nr_hists, session_total) < 0)
+		goto out;
 
 	while (1) {
 		char annotate[512];
 		const char *options[2];
 		int nr_options = 0, choice = 0;
 
-		newtFormRun(form, &es);
+		newtFormRun(browser->form, &es);
 		if (es.reason == NEWT_EXIT_HOTKEY) {
 			if (toupper(es.u.key) == 'A')
 				goto do_annotate;
@@ -469,9 +508,9 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 			}
 		}
 
-		if (selection->sym != NULL) {
+		if (browser->selection->sym != NULL) {
 			snprintf(annotate, sizeof(annotate),
-				 "Annotate %s", selection->sym->name);
+				 "Annotate %s", browser->selection->sym->name);
 			options[nr_options++] = annotate;
 		}
 
@@ -480,21 +519,21 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 		if (choice == nr_options - 1)
 			break;
 do_annotate:
-		if (selection->sym != NULL && choice >= 0) {
-			if (selection->map->dso->origin == DSO__ORIG_KERNEL) {
+		if (browser->selection->sym != NULL && choice >= 0) {
+			if (browser->selection->map->dso->origin == DSO__ORIG_KERNEL) {
 				newtPopHelpLine();
 				newtPushHelpLine("No vmlinux file found, can't "
 						 "annotate with just a "
 						 "kallsyms file");
 				continue;
 			}
-			map_symbol__annotate_browser(selection);
+			map_symbol__annotate_browser(browser->selection);
 		}
 	}
-
-	newtFormDestroy(form);
-	newtPopWindow();
-	return 0;
+	err = 0;
+out:
+	hist_browser__delete(browser);
+	return err;
 }
 
 void setup_browser(void)
