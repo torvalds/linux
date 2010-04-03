@@ -385,7 +385,6 @@ LIB_H += util/header.h
 LIB_H += util/help.h
 LIB_H += util/session.h
 LIB_H += util/strbuf.h
-LIB_H += util/string.h
 LIB_H += util/strlist.h
 LIB_H += util/svghelper.h
 LIB_H += util/run-command.h

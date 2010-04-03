@@ -14,7 +14,6 @@
 #include "util/cache.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"
-#include "util/string.h"
 #include "util/callchain.h"
 #include "util/strlist.h"
 #include "util/values.h"

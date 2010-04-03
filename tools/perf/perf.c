@@ -13,7 +13,6 @@
 #include "util/quote.h"
 #include "util/run-command.h"
 #include "util/parse-events.h"
-#include "util/string.h"
 #include "util/debugfs.h"
 
 bool use_browser;

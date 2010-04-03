@@ -15,7 +15,6 @@
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
-#include "util/string.h"
 
 #include "util/header.h"
 #include "util/event.h"

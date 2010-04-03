@@ -14,7 +14,6 @@
 #include "util/cache.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"
-#include "util/string.h"
 
 #include "perf.h"
 #include "util/debug.h"
