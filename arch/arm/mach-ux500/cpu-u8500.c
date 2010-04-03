@@ -20,6 +20,7 @@
 #include <asm/localtimer.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
+#include <asm/hardware/cache-l2x0.h>
 #include <plat/mtu.h>
 #include <mach/hardware.h>
 #include <mach/setup.h>
@@ -127,6 +128,7 @@ static struct map_desc u8500_io_desc[] __initdata = {
 	__IO_DEV_DESC(U8500_GPIO2_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO3_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO5_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_L2CC_BASE, SZ_4K),
 };
 
 static struct map_desc u8500ed_io_desc[] __initdata = {
@@ -183,3 +185,18 @@ static void __init u8500_timer_init(void)
 struct sys_timer u8500_timer = {
 	.init	= u8500_timer_init,
 };
+
+#ifdef CONFIG_CACHE_L2X0
+static int u8500_l2x0_init(void)
+{
+	void __iomem *l2x0_base;
+
+	l2x0_base = __io_address(U8500_L2CC_BASE);
+
+	/* 64KB way size, 8 way associativity, force WA */
+	l2x0_init(l2x0_base, 0x3e060000, 0xc0000fff);
+
+	return 0;
+}
+early_initcall(u8500_l2x0_init);
+#endif

@@ -75,7 +75,8 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * that it has been released by resetting pen_release.
 	 */
 	pen_release = cpu;
-	flush_cache_all();
+	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
+	outer_clean_range(__pa(&pen_release), __pa(&pen_release) + 1);
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
