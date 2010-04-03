@@ -60,6 +60,12 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	unsigned int i;
 	u32 reg;
 
+	/*
+	 * SOC devices don't support MCU requests.
+	 */
+	if (rt2x00_is_soc(rt2x00dev))
+		return;
+
 	for (i = 0; i < 200; i++) {
 		rt2800_register_read(rt2x00dev, H2M_MAILBOX_CID, &reg);
 
