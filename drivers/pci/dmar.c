@@ -360,12 +360,14 @@ dmar_parse_one_rhsa(struct acpi_dmar_header *header)
 			return 0;
 		}
 	}
-	WARN(1, "Your BIOS is broken; RHSA refers to non-existent DMAR unit at %llx\n"
-	     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
-	     drhd->reg_base_addr,
-	     dmi_get_system_info(DMI_BIOS_VENDOR),
-	     dmi_get_system_info(DMI_BIOS_VERSION),
-	     dmi_get_system_info(DMI_PRODUCT_VERSION));
+	WARN_TAINT(
+		1, TAINT_FIRMWARE_WORKAROUND,
+		"Your BIOS is broken; RHSA refers to non-existent DMAR unit at %llx\n"
+		"BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+		drhd->reg_base_addr,
+		dmi_get_system_info(DMI_BIOS_VENDOR),
+		dmi_get_system_info(DMI_BIOS_VERSION),
+		dmi_get_system_info(DMI_PRODUCT_VERSION));
 
 	return 0;
 }
@@ -620,12 +622,14 @@ int __init dmar_table_init(void)
 
 static void warn_invalid_dmar(u64 addr, const char *message)
 {
-	WARN_ONCE(1, "Your BIOS is broken; DMAR reported at address %llx%s!\n"
-		  "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
-		  addr, message,
-		  dmi_get_system_info(DMI_BIOS_VENDOR),
-		  dmi_get_system_info(DMI_BIOS_VERSION),
-		  dmi_get_system_info(DMI_PRODUCT_VERSION));
+	WARN_TAINT_ONCE(
+		1, TAINT_FIRMWARE_WORKAROUND,
+		"Your BIOS is broken; DMAR reported at address %llx%s!\n"
+		"BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+		addr, message,
+		dmi_get_system_info(DMI_BIOS_VENDOR),
+		dmi_get_system_info(DMI_BIOS_VERSION),
+		dmi_get_system_info(DMI_PRODUCT_VERSION));
 }
 
 int __init check_zero_address(void)
