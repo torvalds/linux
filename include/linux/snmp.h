@@ -100,6 +100,7 @@ enum
 	ICMP6_MIB_INMSGS,			/* InMsgs */
 	ICMP6_MIB_INERRORS,			/* InErrors */
 	ICMP6_MIB_OUTMSGS,			/* OutMsgs */
+	ICMP6_MIB_OUTERRORS,			/* OutErrors */
 	__ICMP6_MIB_MAX
 };
 
