@@ -1304,6 +1304,8 @@ static int __init amd_iommu_init(void)
 	if (ret)
 		goto free;
 
+	enable_iommus();
+
 	if (iommu_pass_through)
 		ret = amd_iommu_init_passthrough();
 	else
@@ -1315,8 +1317,6 @@ static int __init amd_iommu_init(void)
 	amd_iommu_init_api();
 
 	amd_iommu_init_notifier();
-
-	enable_iommus();
 
 	if (iommu_pass_through)
 		goto out;
@@ -1331,6 +1331,7 @@ out:
 	return ret;
 
 free:
+	disable_iommus();
 
 	amd_iommu_uninit_devices();
 
