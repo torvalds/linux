@@ -44,6 +44,7 @@
 #include <linux/dmi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <linux/suspend.h>
 
 #define PREFIX "ACPI: "
 
@@ -89,7 +90,6 @@ module_param(allow_duplicates, bool, 0644);
 static int register_count = 0;
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device, int type);
-static int acpi_video_resume(struct acpi_device *device);
 static void acpi_video_bus_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id video_device_ids[] = {
@@ -105,7 +105,6 @@ static struct acpi_driver acpi_video_bus = {
 	.ops = {
 		.add = acpi_video_bus_add,
 		.remove = acpi_video_bus_remove,
-		.resume = acpi_video_resume,
 		.notify = acpi_video_bus_notify,
 		},
 };
@@ -160,6 +159,7 @@ struct acpi_video_bus {
 	struct proc_dir_entry *dir;
 	struct input_dev *input;
 	char phys[32];	/* for input device */
+	struct notifier_block pm_nb;
 };
 
 struct acpi_video_device_flags {
@@ -1020,6 +1020,13 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		kfree(name);
 		if (IS_ERR(device->backlight))
 			return;
+
+		/*
+		 * Save current brightness level in case we have to restore it
+		 * before acpi_video_device_lcd_set_level() is called next time.
+		 */
+		device->backlight->props.brightness =
+				acpi_video_get_brightness(device->backlight);
 
 		result = sysfs_create_link(&device->backlight->dev.kobj,
 					   &device->dev->dev.kobj, "device");
@@ -2236,24 +2243,31 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 	return;
 }
 
-static int instance;
-static int acpi_video_resume(struct acpi_device *device)
+static int acpi_video_resume(struct notifier_block *nb,
+				unsigned long val, void *ign)
 {
 	struct acpi_video_bus *video;
 	struct acpi_video_device *video_device;
 	int i;
 
-	if (!device || !acpi_driver_data(device))
-		return -EINVAL;
+	switch (val) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+	case PM_RESTORE_PREPARE:
+		return NOTIFY_DONE;
+	}
 
-	video = acpi_driver_data(device);
+	video = container_of(nb, struct acpi_video_bus, pm_nb);
+
+	dev_info(&video->device->dev, "Restoring backlight state\n");
 
 	for (i = 0; i < video->attached_count; i++) {
 		video_device = video->attached_array[i].bind_info;
 		if (video_device && video_device->backlight)
 			acpi_video_set_brightness(video_device->backlight);
 	}
-	return AE_OK;
+
+	return NOTIFY_OK;
 }
 
 static acpi_status
@@ -2276,6 +2290,8 @@ acpi_video_bus_match(acpi_handle handle, u32 level, void *context,
 
 	return AE_OK;
 }
+
+static int instance;
 
 static int acpi_video_bus_add(struct acpi_device *device)
 {
@@ -2370,6 +2386,10 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	       video->flags.rom ? "yes" : "no",
 	       video->flags.post ? "yes" : "no");
 
+	video->pm_nb.notifier_call = acpi_video_resume;
+	video->pm_nb.priority = 0;
+	register_pm_notifier(&video->pm_nb);
+
 	return 0;
 
  err_free_input_dev:
@@ -2395,6 +2415,8 @@ static int acpi_video_bus_remove(struct acpi_device *device, int type)
 		return -EINVAL;
 
 	video = acpi_driver_data(device);
+
+	unregister_pm_notifier(&video->pm_nb);
 
 	acpi_video_bus_stop_devices(video);
 	acpi_video_bus_put_devices(video);
