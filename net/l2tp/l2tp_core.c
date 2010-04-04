@@ -1227,7 +1227,7 @@ static int l2tp_tunnel_sock_create(u32 tunnel_id, u32 peer_tunnel_id, struct l2t
 	int err = -EINVAL;
 	struct sockaddr_in udp_addr;
 	struct sockaddr_l2tpip ip_addr;
-	struct socket *sock;
+	struct socket *sock = NULL;
 
 	switch (cfg->encap) {
 	case L2TP_ENCAPTYPE_UDP:

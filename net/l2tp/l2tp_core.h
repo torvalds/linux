@@ -152,7 +152,7 @@ struct l2tp_tunnel_cfg {
 	struct in_addr		peer_ip;
 	u16			local_udp_port;
 	u16			peer_udp_port;
-	int			use_udp_checksums:1;
+	unsigned int		use_udp_checksums:1;
 };
 
 struct l2tp_tunnel {
