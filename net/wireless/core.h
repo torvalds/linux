@@ -293,13 +293,15 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 			 const u8 *bssid,
 			 const u8 *ssid, int ssid_len,
 			 const u8 *ie, int ie_len,
-			 const u8 *key, int key_len, int key_idx);
+			 const u8 *key, int key_len, int key_idx,
+			 bool local_state_change);
 int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev, struct ieee80211_channel *chan,
 		       enum nl80211_auth_type auth_type, const u8 *bssid,
 		       const u8 *ssid, int ssid_len,
 		       const u8 *ie, int ie_len,
-		       const u8 *key, int key_len, int key_idx);
+		       const u8 *key, int key_len, int key_idx,
+		       bool local_state_change);
 int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev,
 			  struct ieee80211_channel *chan,
@@ -315,13 +317,16 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct cfg80211_crypto_settings *crypt);
 int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			   struct net_device *dev, const u8 *bssid,
-			   const u8 *ie, int ie_len, u16 reason);
+			   const u8 *ie, int ie_len, u16 reason,
+			   bool local_state_change);
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev, const u8 *bssid,
-			 const u8 *ie, int ie_len, u16 reason);
+			 const u8 *ie, int ie_len, u16 reason,
+			 bool local_state_change);
 int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *dev, const u8 *bssid,
-			   const u8 *ie, int ie_len, u16 reason);
+			   const u8 *ie, int ie_len, u16 reason,
+			   bool local_state_change);
 void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);
 void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,

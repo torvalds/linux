@@ -704,6 +704,10 @@ struct cfg80211_crypto_settings {
  * @key_len: length of WEP key for shared key authentication
  * @key_idx: index of WEP key for shared key authentication
  * @key: WEP key for shared key authentication
+ * @local_state_change: This is a request for a local state only, i.e., no
+ *	Authentication frame is to be transmitted and authentication state is
+ *	to be changed without having to wait for a response from the peer STA
+ *	(AP).
  */
 struct cfg80211_auth_request {
 	struct cfg80211_bss *bss;
@@ -712,6 +716,7 @@ struct cfg80211_auth_request {
 	enum nl80211_auth_type auth_type;
 	const u8 *key;
 	u8 key_len, key_idx;
+	bool local_state_change;
 };
 
 /**
@@ -744,12 +749,15 @@ struct cfg80211_assoc_request {
  * @ie: Extra IEs to add to Deauthentication frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @reason_code: The reason code for the deauthentication
+ * @local_state_change: This is a request for a local state only, i.e., no
+ *	Deauthentication frame is to be transmitted.
  */
 struct cfg80211_deauth_request {
 	struct cfg80211_bss *bss;
 	const u8 *ie;
 	size_t ie_len;
 	u16 reason_code;
+	bool local_state_change;
 };
 
 /**
@@ -762,12 +770,15 @@ struct cfg80211_deauth_request {
  * @ie: Extra IEs to add to Disassociation frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @reason_code: The reason code for the disassociation
+ * @local_state_change: This is a request for a local state only, i.e., no
+ *	Disassociation frame is to be transmitted.
  */
 struct cfg80211_disassoc_request {
 	struct cfg80211_bss *bss;
 	const u8 *ie;
 	size_t ie_len;
 	u16 reason_code;
+	bool local_state_change;
 };
 
 /**

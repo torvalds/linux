@@ -170,7 +170,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					    params->ssid, params->ssid_len,
 					    NULL, 0,
 					    params->key, params->key_len,
-					    params->key_idx);
+					    params->key_idx, false);
 	case CFG80211_CONN_ASSOCIATE_NEXT:
 		BUG_ON(!rdev->ops->assoc);
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
@@ -185,12 +185,13 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 		if (err)
 			__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 					       NULL, 0,
-					       WLAN_REASON_DEAUTH_LEAVING);
+					       WLAN_REASON_DEAUTH_LEAVING,
+					       false);
 		return err;
 	case CFG80211_CONN_DEAUTH_ASSOC_FAIL:
 		__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 				       NULL, 0,
-				       WLAN_REASON_DEAUTH_LEAVING);
+				       WLAN_REASON_DEAUTH_LEAVING, false);
 		/* return an error so that we call __cfg80211_connect_result() */
 		return -EINVAL;
 	default:
@@ -675,7 +676,8 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 				continue;
 			bssid = wdev->auth_bsses[i]->pub.bssid;
 			ret = __cfg80211_mlme_deauth(rdev, dev, bssid, NULL, 0,
-						WLAN_REASON_DEAUTH_LEAVING);
+						WLAN_REASON_DEAUTH_LEAVING,
+						false);
 			WARN(ret, "deauth failed: %d\n", ret);
 		}
 	}
@@ -934,7 +936,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 		/* wdev->conn->params.bssid must be set if > SCANNING */
 		err = __cfg80211_mlme_deauth(rdev, dev,
 					     wdev->conn->params.bssid,
-					     NULL, 0, reason);
+					     NULL, 0, reason, false);
 		if (err)
 			return err;
 	} else {
@@ -990,7 +992,8 @@ void cfg80211_sme_disassoc(struct net_device *dev, int idx)
 
 	memcpy(bssid, wdev->auth_bsses[idx]->pub.bssid, ETH_ALEN);
 	if (__cfg80211_mlme_deauth(rdev, dev, bssid,
-				   NULL, 0, WLAN_REASON_DEAUTH_LEAVING)) {
+				   NULL, 0, WLAN_REASON_DEAUTH_LEAVING,
+				   false)) {
 		/* whatever -- assume gone anyway */
 		cfg80211_unhold_bss(wdev->auth_bsses[idx]);
 		cfg80211_put_bss(&wdev->auth_bsses[idx]->pub);

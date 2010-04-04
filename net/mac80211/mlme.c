@@ -210,7 +210,7 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 
 static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 					   const u8 *bssid, u16 stype, u16 reason,
-					   void *cookie)
+					   void *cookie, bool send_frame)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
@@ -247,7 +247,11 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
 	if (!(ifmgd->flags & IEEE80211_STA_MFP_ENABLED))
 		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
-	ieee80211_tx_skb(sdata, skb);
+
+	if (send_frame)
+		ieee80211_tx_skb(sdata, skb);
+	else
+		kfree_skb(skb);
 }
 
 void ieee80211_send_pspoll(struct ieee80211_local *local,
@@ -980,7 +984,7 @@ static void __ieee80211_connection_loss(struct ieee80211_sub_if_data *sdata)
 	ieee80211_send_deauth_disassoc(sdata, bssid,
 				       IEEE80211_STYPE_DEAUTH,
 				       WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
-				       NULL);
+				       NULL, true);
 }
 
 void ieee80211_beacon_connection_loss_work(struct work_struct *work)
@@ -1724,7 +1728,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 			ieee80211_send_deauth_disassoc(sdata, bssid,
 					IEEE80211_STYPE_DEAUTH,
 					WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
-					NULL);
+					NULL, true);
 			mutex_lock(&ifmgd->mtx);
 		}
 	}
@@ -1907,6 +1911,9 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	const u8 *ssid;
 	struct ieee80211_work *wk;
 	u16 auth_alg;
+
+	if (req->local_state_change)
+		return 0; /* no need to update mac80211 state */
 
 	switch (req->auth_type) {
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
@@ -2163,9 +2170,9 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: deauthenticating from %pM by local choice (reason=%d)\n",
 	       sdata->name, bssid, req->reason_code);
 
-	ieee80211_send_deauth_disassoc(sdata, bssid,
-			IEEE80211_STYPE_DEAUTH, req->reason_code,
-			cookie);
+	ieee80211_send_deauth_disassoc(sdata, bssid, IEEE80211_STYPE_DEAUTH,
+				       req->reason_code, cookie,
+				       !req->local_state_change);
 
 	ieee80211_recalc_idle(sdata->local);
 
@@ -2202,7 +2209,7 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_send_deauth_disassoc(sdata, req->bss->bssid,
 			IEEE80211_STYPE_DISASSOC, req->reason_code,
-			cookie);
+			cookie, !req->local_state_change);
 	sta_info_destroy_addr(sdata, bssid);
 
 	ieee80211_recalc_idle(sdata->local);
