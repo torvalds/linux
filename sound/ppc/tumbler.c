@@ -1137,7 +1137,8 @@ static long tumbler_find_device(const char *device, const char *platform,
 		gp->inactive_val = (*base) ? 0x4 : 0x5;
 	} else {
 		const u32 *prop = NULL;
-		gp->active_state = IS_G4DA && !strcmp(device, "keywest-gpio15");
+		gp->active_state = IS_G4DA
+				&& !strncmp(device, "keywest-gpio1", 13);
 		gp->active_val = 0x4;
 		gp->inactive_val = 0x5;
 		/* Here are some crude hacks to extract the GPIO polarity and
@@ -1314,6 +1315,9 @@ static int __devinit tumbler_init(struct snd_pmac *chip)
 				  NULL, &mix->line_detect, 0);
  	if (irq <= NO_IRQ)
 		irq = tumbler_find_device("line-output-detect",
+					  NULL, &mix->line_detect, 1);
+	if (IS_G4DA && irq <= NO_IRQ)
+		irq = tumbler_find_device("keywest-gpio16",
 					  NULL, &mix->line_detect, 1);
 	mix->lineout_irq = irq;
 
