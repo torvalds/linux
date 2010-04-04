@@ -101,8 +101,7 @@ struct ir_raw_handler {
 	struct list_head list;
 
 	int (*decode)(struct input_dev *input_dev,
-		      struct ir_raw_event *evs,
-		      int len);
+		      struct ir_raw_event *ev);
 	int (*raw_register)(struct input_dev *input_dev);
 	int (*raw_unregister)(struct input_dev *input_dev);
 };

@@ -138,37 +138,33 @@ int ir_raw_event_handle(struct input_dev *input_dev)
 {
 	struct ir_input_dev		*ir = input_get_drvdata(input_dev);
 	int				rc;
-	struct ir_raw_event		*evs;
+	struct ir_raw_event		ev;
 	int 				len, i;
 
 	/*
 	 * Store the events into a temporary buffer. This allows calling more than
 	 * one decoder to deal with the received data
 	 */
-	len = kfifo_len(&ir->raw->kfifo) / sizeof(*evs);
+	len = kfifo_len(&ir->raw->kfifo) / sizeof(ev);
 	if (!len)
 		return 0;
-	evs = kmalloc(len * sizeof(*evs), GFP_ATOMIC);
 
 	for (i = 0; i < len; i++) {
-		rc = kfifo_out(&ir->raw->kfifo, &evs[i], sizeof(*evs));
-		if (rc != sizeof(*evs)) {
+		rc = kfifo_out(&ir->raw->kfifo, &ev, sizeof(ev));
+		if (rc != sizeof(ev)) {
 			IR_dprintk(1, "overflow error: received %d instead of %zd\n",
-				   rc, sizeof(*evs));
+				   rc, sizeof(ev));
 			return -EINVAL;
 		}
 		IR_dprintk(2, "event type %d, time before event: %07luus\n",
-			evs[i].type, (evs[i].delta.tv_nsec + 500) / 1000);
+			ev.type, (ev.delta.tv_nsec + 500) / 1000);
+		rc = RUN_DECODER(decode, input_dev, &ev);
 	}
 
 	/*
 	 * Call all ir decoders. This allows decoding the same event with
-	 * more than one protocol handler. It returns the number of keystrokes
-	 * sent to the event interface
+	 * more than one protocol handler.
 	 */
-	rc = RUN_DECODER(decode, input_dev, evs, len);
-
-	kfree(evs);
 
 	return rc;
 }

@@ -125,14 +125,14 @@ static struct attribute_group decoder_attribute_group = {
 
 
 /**
- * handle_event() - Decode one NEC pulse or space
+ * ir_nec_decode() - Decode one NEC pulse or space
  * @input_dev:	the struct input_dev descriptor of the device
  * @ev:		event array with type/duration of pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int handle_event(struct input_dev *input_dev,
-			struct ir_raw_event *ev)
+static int ir_nec_decode(struct input_dev *input_dev,
+			 struct ir_raw_event *ev)
 {
 	struct decoder_data *data;
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
@@ -287,32 +287,6 @@ checksum_err:
 		   data->nec_code.command,
 		   data->nec_code.not_command);
 	return -EINVAL;
-}
-
-/**
- * ir_nec_decode() - Decodes all NEC pulsecodes on a given array
- * @input_dev:	the struct input_dev descriptor of the device
- * @evs:	event array with type/duration of pulse/space
- * @len:	length of the array
- * This function returns the number of decoded pulses
- */
-static int ir_nec_decode(struct input_dev *input_dev,
-			 struct ir_raw_event *evs,
-			 int len)
-{
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct decoder_data *data;
-	int pos = 0;
-	int rc = 0;
-
-	data = get_decoder_data(ir_dev);
-	if (!data || !data->enabled)
-		return 0;
-
-	for (pos = 0; pos < len; pos++)
-		handle_event(input_dev, &evs[pos]);
-
-	return rc;
 }
 
 static int ir_nec_register(struct input_dev *input_dev)
