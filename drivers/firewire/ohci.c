@@ -460,22 +460,36 @@ static inline void flush_writes(const struct fw_ohci *ohci)
 	reg_read(ohci, OHCI1394_Version);
 }
 
-static int ohci_update_phy_reg(struct fw_card *card, int addr,
-			       int clear_bits, int set_bits)
+static int read_phy_reg(struct fw_card *card, int addr, u32 *value)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
-	u32 val, old;
+	u32 val;
 
 	reg_write(ohci, OHCI1394_PhyControl, OHCI1394_PhyControl_Read(addr));
 	flush_writes(ohci);
 	msleep(2);
 	val = reg_read(ohci, OHCI1394_PhyControl);
 	if ((val & OHCI1394_PhyControl_ReadDone) == 0) {
-		fw_error("failed to set phy reg bits.\n");
+		fw_error("failed to read phy reg bits\n");
 		return -EBUSY;
 	}
 
-	old = OHCI1394_PhyControl_ReadData(val);
+	*value = OHCI1394_PhyControl_ReadData(val);
+
+	return 0;
+}
+
+static int ohci_update_phy_reg(struct fw_card *card, int addr,
+			       int clear_bits, int set_bits)
+{
+	struct fw_ohci *ohci = fw_ohci(card);
+	u32 old;
+	int err;
+
+	err = read_phy_reg(card, addr, &old);
+	if (err < 0)
+		return err;
+
 	old = (old & ~clear_bits) | set_bits;
 	reg_write(ohci, OHCI1394_PhyControl,
 		  OHCI1394_PhyControl_Write(addr, old));
