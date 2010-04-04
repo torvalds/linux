@@ -159,6 +159,8 @@ skpinv:	addi	r6,r6,1				/* Increment */
 #define M_IF_SMP	0
 #endif
 
+#if defined(ENTRY_MAPPING_BOOT_SETUP)
+
 /* 6. Setup KERNELBASE mapping in TLB1[0] */
 	lis	r6,0x1000		/* Set MAS0(TLBSEL) = TLB1(1), ESEL = 0 */
 	mtspr	SPRN_MAS0,r6
@@ -174,6 +176,41 @@ skpinv:	addi	r6,r6,1				/* Increment */
 /* 7. Jump to KERNELBASE mapping */
 	lis	r6,(KERNELBASE & ~0xfff)@h
 	ori	r6,r6,(KERNELBASE & ~0xfff)@l
+
+#elif defined(ENTRY_MAPPING_KEXEC_SETUP)
+/*
+ * 6. Setup a 1:1 mapping in TLB1. Esel 0 is unsued, 1 or 2 contains the tmp
+ * mapping so we start at 3. We setup 8 mappings, each 256MiB in size. This
+ * will cover the first 2GiB of memory.
+ */
+
+	lis r10, (MAS1_VALID|MAS1_IPROT)@h
+	ori r10,r10, (MAS1_TSIZE(BOOK3E_PAGESZ_256M))@l
+	li  r11, 0
+	li  r0, 8
+	mtctr   r0
+
+next_tlb_setup:
+	addi	r0, r11, 3
+	rlwinm  r0, r0, 16, 4, 15  // Compute esel
+	rlwinm  r9, r11, 28, 0, 3   // Compute [ER]PN
+	oris    r0, r0, (MAS0_TLBSEL(1))@h
+	mtspr   SPRN_MAS0,r0
+	mtspr   SPRN_MAS1,r10
+	mtspr   SPRN_MAS2,r9
+	ori r9, r9, (MAS3_SX|MAS3_SW|MAS3_SR)
+	mtspr   SPRN_MAS3,r9
+	tlbwe
+	addi    r11, r11, 1
+	bdnz+   next_tlb_setup
+
+/* 7. Jump to our 1:1 mapping */
+	li	r6, 0
+
+#else
+	#error You need to specify the mapping or not use this at all.
+#endif
+
 	lis	r7,MSR_KERNEL@h
 	ori	r7,r7,MSR_KERNEL@l
 	bl	1f			/* Find our address */

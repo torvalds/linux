@@ -95,7 +95,9 @@ _ENTRY(_start);
 
 _ENTRY(__early_start)
 
+#define ENTRY_MAPPING_BOOT_SETUP
 #include "fsl_booke_entry_mapping.S"
+#undef ENTRY_MAPPING_BOOT_SETUP
 
 	/* Establish the interrupt vector offsets */
 	SET_IVOR(0,  CriticalInput);
