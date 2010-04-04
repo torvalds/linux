@@ -1,5 +1,5 @@
-#include "string.h"
 #include "util.h"
+#include "string.h"
 
 #define K 1024LL
 /*
