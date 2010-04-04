@@ -193,7 +193,6 @@ static int __init a3000_detect(struct scsi_host_template *tpnt)
     return 1;
 
 fail_irq:
-    wd33c93_release();
     scsi_unregister(a3000_host);
 fail_register:
     release_mem_region(0xDD0000, 256);
@@ -237,7 +236,6 @@ static struct scsi_host_template driver_template = {
 
 static int a3000_release(struct Scsi_Host *instance)
 {
-    wd33c93_release();
     DMA(instance)->CNTR = 0;
     release_mem_region(0xDD0000, 256);
     free_irq(IRQ_AMIGA_PORTS, a3000_intr);

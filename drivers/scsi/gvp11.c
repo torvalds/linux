@@ -339,7 +339,6 @@ int __init gvp11_detect(struct scsi_host_template *tpnt)
 
 unregister:
 	scsi_unregister(instance);
-	wd33c93_release();
 release:
 	release_mem_region(address, 256);
     }
@@ -392,7 +391,6 @@ int gvp11_release(struct Scsi_Host *instance)
     DMA(instance)->CNTR = 0;
     release_mem_region(ZTWO_PADDR(instance->base), 256);
     free_irq(IRQ_AMIGA_PORTS, instance);
-    wd33c93_release();
 #endif
     return 1;
 }

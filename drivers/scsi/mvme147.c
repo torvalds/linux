@@ -108,7 +108,6 @@ int mvme147_detect(struct scsi_host_template *tpnt)
  err_free_irq:
     free_irq(MVME147_IRQ_SCSI_PORT, mvme147_intr);
  err_unregister:
-    wd33c93_release();
     scsi_unregister(mvme147_host);
  err_out:
     return 0;
@@ -155,7 +154,6 @@ int mvme147_release(struct Scsi_Host *instance)
 {
 #ifdef MODULE
     /* XXX Make sure DMA is stopped! */
-    wd33c93_release();
     free_irq(MVME147_IRQ_SCSI_PORT, mvme147_intr);
     free_irq(MVME147_IRQ_SCSI_DMA, mvme147_intr);
 #endif
