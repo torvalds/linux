@@ -6,3 +6,4 @@ obj-y += keymaps/
 obj-$(CONFIG_IR_CORE) += ir-core.o
 obj-$(CONFIG_VIDEO_IR) += ir-common.o
 obj-$(CONFIG_IR_NEC_DECODER) += ir-nec-decoder.o
+obj-$(CONFIG_IR_RC5_DECODER) += ir-rc5-decoder.o

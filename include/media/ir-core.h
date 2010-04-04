@@ -178,4 +178,11 @@ void ir_raw_init(void);
 #define load_nec_decode()	0
 #endif
 
+/* from ir-rc5-decoder.c */
+#ifdef CONFIG_IR_RC5_DECODER_MODULE
+#define load_rc5_decode()	request_module("ir-rc5-decoder")
+#else
+#define load_rc5_decode()	0
+#endif
+
 #endif /* _IR_CORE */

@@ -18,3 +18,12 @@ config IR_NEC_DECODER
 	---help---
 	   Enable this option if you have IR with NEC protocol, and
 	   if the IR is decoded in software
+
+config IR_RC5_DECODER
+	tristate "Enable IR raw decoder for RC-5 protocol"
+	depends on IR_CORE
+	default y
+
+	---help---
+	   Enable this option if you have IR with RC-5 protocol, and
+	   if the IR is decoded in software
