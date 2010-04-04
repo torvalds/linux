@@ -275,6 +275,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 1:	mflr	r9
 	rlwimi	r6,r9,0,20,31
 	addi	r6,r6,(2f - 1b)
+	add	r6, r6, r25
 	mtspr	SPRN_SRR0,r6
 	mtspr	SPRN_SRR1,r7
 	rfi				/* start execution out of TLB1[0] entry */
