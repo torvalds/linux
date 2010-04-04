@@ -16,7 +16,6 @@
 #ifndef _IR_CORE
 #define _IR_CORE
 
-#include <linux/input.h>
 #include <linux/spinlock.h>
 #include <linux/kfifo.h>
 #include <linux/time.h>
@@ -27,37 +26,11 @@ extern int ir_core_debug;
 #define IR_dprintk(level, fmt, arg...)	if (ir_core_debug >= level) \
 	printk(KERN_DEBUG "%s: " fmt , __func__, ## arg)
 
-#define IR_TYPE_UNKNOWN	0
-#define IR_TYPE_RC5	(1  << 0)	/* Philips RC5 protocol */
-#define IR_TYPE_PD	(1  << 1)	/* Pulse distance encoded IR */
-#define IR_TYPE_NEC	(1  << 2)
-#define IR_TYPE_OTHER	(((u64)1) << 63l)
-
 enum raw_event_type {
 	IR_SPACE	= (1 << 0),
 	IR_PULSE	= (1 << 1),
 	IR_START_EVENT	= (1 << 2),
 	IR_STOP_EVENT	= (1 << 3),
-};
-
-struct ir_scancode {
-	u16	scancode;
-	u32	keycode;
-};
-
-struct ir_scancode_table {
-	struct ir_scancode	*scan;
-	unsigned int		size;	/* Max number of entries */
-	unsigned int		len;	/* Used number of entries */
-	unsigned int		alloc;	/* Size of *scan in bytes */
-	u64			ir_type;
-	char			*name;
-	spinlock_t		lock;
-};
-
-struct rc_keymap {
-	struct list_head	 list;
-	struct ir_scancode_table map;
 };
 
 struct ir_dev_props {
@@ -107,13 +80,6 @@ struct ir_raw_handler {
 };
 
 #define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)
-
-/* Routines from rc-map.c */
-
-int ir_register_map(struct rc_keymap *map);
-void ir_unregister_map(struct rc_keymap *map);
-struct ir_scancode_table *get_rc_map(const char *name);
-void rc_map_init(void);
 
 /* Routines from ir-keytable.c */
 

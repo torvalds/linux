@@ -9,7 +9,42 @@
  * (at your option) any later version.
  */
 
-#include <media/ir-core.h>
+#include <linux/input.h>
+
+#define IR_TYPE_UNKNOWN	0
+#define IR_TYPE_RC5	(1  << 0)	/* Philips RC5 protocol */
+#define IR_TYPE_PD	(1  << 1)	/* Pulse distance encoded IR */
+#define IR_TYPE_NEC	(1  << 2)
+#define IR_TYPE_OTHER	(1u << 31)
+
+struct ir_scancode {
+	u16	scancode;
+	u32	keycode;
+};
+
+struct ir_scancode_table {
+	struct ir_scancode	*scan;
+	unsigned int		size;	/* Max number of entries */
+	unsigned int		len;	/* Used number of entries */
+	unsigned int		alloc;	/* Size of *scan in bytes */
+	u64			ir_type;
+	char			*name;
+	spinlock_t		lock;
+};
+
+struct rc_keymap {
+	struct list_head	 list;
+	struct ir_scancode_table map;
+};
+
+/* Routines from rc-map.c */
+
+int ir_register_map(struct rc_keymap *map);
+void ir_unregister_map(struct rc_keymap *map);
+struct ir_scancode_table *get_rc_map(const char *name);
+void rc_map_init(void);
+
+/* Names of the several keytables defined in-kernel */
 
 #define RC_MAP_ADSTECH_DVB_T_PCI         "rc-adstech-dvb-t-pci"
 #define RC_MAP_APAC_VIEWCOMP             "rc-apac-viewcomp"
