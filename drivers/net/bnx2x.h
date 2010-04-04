@@ -163,7 +163,7 @@ do {								 \
 
 struct sw_rx_bd {
 	struct sk_buff	*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
 struct sw_tx_bd {
@@ -176,7 +176,7 @@ struct sw_tx_bd {
 
 struct sw_rx_page {
 	struct page	*page;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
 union db_prod {
