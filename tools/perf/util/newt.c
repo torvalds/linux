@@ -490,6 +490,11 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	return 0;
 }
 
+enum hist_filter {
+	HIST_FILTER__DSO,
+	HIST_FILTER__THREAD,
+};
+
 static u64 hists__filter_by_dso(struct rb_root *hists, struct dso *dso,
 				u64 *session_total)
 {
@@ -502,10 +507,10 @@ static u64 hists__filter_by_dso(struct rb_root *hists, struct dso *dso,
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 
 		if (dso != NULL && (h->ms.map == NULL || h->ms.map->dso != dso)) {
-			h->filtered = true;
+			h->filtered |= (1 << HIST_FILTER__DSO);
 			continue;
 		}
-		h->filtered = false;
+		h->filtered &= ~(1 << HIST_FILTER__DSO);
 		++nr_hists;
 		*session_total += h->count;
 	}
@@ -513,12 +518,54 @@ static u64 hists__filter_by_dso(struct rb_root *hists, struct dso *dso,
 	return nr_hists;
 }
 
+static u64 hists__filter_by_thread(struct rb_root *hists, const struct thread *thread,
+				   u64 *session_total)
+{
+	struct rb_node *nd;
+	u64 nr_hists = 0;
+
+	*session_total = 0;
+
+	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+
+		if (thread != NULL && h->thread != thread) {
+			h->filtered |= (1 << HIST_FILTER__THREAD);
+			continue;
+		}
+		h->filtered &= ~(1 << HIST_FILTER__THREAD);
+		++nr_hists;
+		*session_total += h->count;
+	}
+
+	return nr_hists;
+}
+
+static struct thread *hist_browser__selected_thread(struct hist_browser *self)
+{
+	int *indexes;
+
+	if (!symbol_conf.use_callchain)
+		goto out;
+
+	indexes = newtCheckboxTreeFindItem(self->tree, (void *)self->selection);
+	if (indexes) {
+		bool is_hist_entry = indexes[1] == NEWT_ARG_LAST;
+		free(indexes);
+		if (is_hist_entry)
+			goto out;
+	}
+	return NULL;
+out:
+	return *(struct thread **)(self->selection + 1);
+}
+
 int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 			       u64 session_total, const char *helpline,
 			       const char *input_name)
 {
 	struct newtExitStruct es;
-	bool dso_filtered = false;
+	bool dso_filtered = false, thread_filtered = false;
 	int err = -1;
 	struct hist_browser *browser = hist_browser__new();
 
@@ -531,9 +578,10 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 		goto out;
 
 	while (1) {
+		const struct thread *thread;
 		char *options[16];
 		int nr_options = 0, choice = 0, i,
-		    annotate = -2, zoom_dso = -2;
+		    annotate = -2, zoom_dso = -2, zoom_thread = -2;
 
 		newtFormRun(browser->form, &es);
 		if (es.reason == NEWT_EXIT_HOTKEY) {
@@ -561,6 +609,13 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 			      browser->selection->map->dso->short_name)) > 0)
 			zoom_dso = nr_options++;
 
+		thread = hist_browser__selected_thread(browser);
+		if (thread != NULL &&
+		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
+			     (thread_filtered ? "out of" : "into"),
+			     (thread->comm_set ?  thread->comm : ""), thread->pid) > 0)
+			zoom_thread = nr_options++;
+
 		options[nr_options++] = (char *)"Exit";
 
 		choice = popup_menu(nr_options, options);
@@ -570,6 +625,9 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 
 		if (choice == nr_options - 1)
 			break;
+
+		if (choice == -1)
+			continue;
 do_annotate:
 		if (choice == annotate) {
 			if (browser->selection->map->dso->origin == DSO__ORIG_KERNEL) {
@@ -581,11 +639,19 @@ do_annotate:
 			}
 			map_symbol__annotate_browser(browser->selection,
 						     input_name);
-		} if (choice == zoom_dso) {
-			hists__filter_by_dso(hists,
-					     dso_filtered ? NULL : browser->selection->map->dso,
-					     &session_total);
+		} else if (choice == zoom_dso) {
+			nr_hists = hists__filter_by_dso(hists,
+							(dso_filtered ? NULL :
+							 browser->selection->map->dso),
+							&session_total);
 			dso_filtered = !dso_filtered;
+			if (hist_browser__populate(browser, hists, nr_hists, session_total) < 0)
+				goto out;
+		} else if (choice == zoom_thread) {
+			nr_hists = hists__filter_by_thread(hists,
+							   (thread_filtered ? NULL : thread),
+							   &session_total);
+			thread_filtered = !thread_filtered;
 			if (hist_browser__populate(browser, hists, nr_hists, session_total) < 0)
 				goto out;
 		}

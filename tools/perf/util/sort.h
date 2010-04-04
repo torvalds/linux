@@ -44,11 +44,16 @@ extern enum sort_type sort__first_dimension;
 struct hist_entry {
 	struct rb_node		rb_node;
 	u64			count;
-	struct thread		*thread;
+	/*
+	 * XXX WARNING!
+	 * thread _has_ to come after ms, see
+	 * hist_browser__selected_thread in util/newt.c
+	 */
 	struct map_symbol	ms;
+	struct thread		*thread;
 	u64			ip;
 	char			level;
-	bool			filtered;
+	u8			filtered;
 	struct symbol		*parent;
 	union {
 		unsigned long	  position;
