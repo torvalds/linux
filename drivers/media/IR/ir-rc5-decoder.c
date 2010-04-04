@@ -153,6 +153,9 @@ static int ir_rc5_decode(struct input_dev *input_dev,
 	if (!data)
 		return -EINVAL;
 
+	if (!data->enabled)
+		return 0;
+
 	/* Except for the initial event, what matters is the previous bit */
 	bit = (ev->type & IR_PULSE) ? 1 : 0;
 
