@@ -316,9 +316,9 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_PIXELVIEW_PLAYTV_ULTRA_PRO:
 		ir_codes = RC_MAP_PIXELVIEW;
 		ir->gpio_addr = MO_GP1_IO;
-		ir->mask_keycode = 0x1f;
+		ir->mask_keycode = 0x1f;	/* Only command is retrieved */
 		ir->mask_keyup = 0x80;
-		ir->polling = 1; /* ms */
+		ir->polling = 10; /* ms */
 		break;
 	case CX88_BOARD_PROLINK_PV_8000GT:
 	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
