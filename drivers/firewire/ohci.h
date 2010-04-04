@@ -67,7 +67,7 @@
 #define   OHCI1394_PhyControl_ReadDone		0x80000000
 #define   OHCI1394_PhyControl_ReadData(r)	(((r) & 0x00ff0000) >> 16)
 #define   OHCI1394_PhyControl_Write(addr, data)	(((addr) << 8) | (data) | 0x00004000)
-#define   OHCI1394_PhyControl_WriteDone		0x00004000
+#define   OHCI1394_PhyControl_WritePending	0x00004000
 #define OHCI1394_IsochronousCycleTimer        0x0F0
 #define OHCI1394_AsReqFilterHiSet             0x100
 #define OHCI1394_AsReqFilterHiClear           0x104

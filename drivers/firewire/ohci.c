@@ -236,13 +236,15 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 #define QUIRK_CYCLE_TIMER		1
 #define QUIRK_RESET_PACKET		2
 #define QUIRK_BE_HEADERS		4
+#define QUIRK_NO_1394A			8
 
 /* In case of multiple matches in ohci_quirks[], only the first one is used. */
 static const struct {
 	unsigned short vendor, device, flags;
 } ohci_quirks[] = {
 	{PCI_VENDOR_ID_TI,	PCI_DEVICE_ID_TI_TSB12LV22, QUIRK_CYCLE_TIMER |
-							    QUIRK_RESET_PACKET},
+							    QUIRK_RESET_PACKET |
+							    QUIRK_NO_1394A},
 	{PCI_VENDOR_ID_TI,	PCI_ANY_ID,	QUIRK_RESET_PACKET},
 	{PCI_VENDOR_ID_AL,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
 	{PCI_VENDOR_ID_NEC,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
@@ -257,6 +259,7 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 	", nonatomic cycle timer = "	__stringify(QUIRK_CYCLE_TIMER)
 	", reset packet generation = "	__stringify(QUIRK_RESET_PACKET)
 	", AR/selfID endianess = "	__stringify(QUIRK_BE_HEADERS)
+	", no 1394a enhancements = "	__stringify(QUIRK_NO_1394A)
 	")");
 
 #ifdef CONFIG_FIREWIRE_OHCI_DEBUG
@@ -502,6 +505,27 @@ static int ohci_update_phy_reg(struct fw_card *card, int addr,
 		  OHCI1394_PhyControl_Write(addr, old));
 
 	return 0;
+}
+
+static int read_paged_phy_reg(struct fw_card *card,
+			      int page, int addr, u32 *value)
+{
+	struct fw_ohci *ohci = fw_ohci(card);
+	u32 reg;
+	int err;
+
+	err = ohci_update_phy_reg(card, 7, PHY_PAGE_SELECT, page << 5);
+	if (err < 0)
+		return err;
+	flush_writes(ohci);
+	msleep(2);
+	reg = reg_read(ohci, OHCI1394_PhyControl);
+	if ((reg & OHCI1394_PhyControl_WritePending) != 0) {
+		fw_error("failed to write phy reg bits\n");
+		return -EBUSY;
+	}
+
+	return read_phy_reg(card, addr, value);
 }
 
 static int ar_context_add_page(struct ar_context *ctx)
@@ -1511,13 +1535,64 @@ static void copy_config_rom(__be32 *dest, const __be32 *src, size_t length)
 		memset(&dest[length], 0, CONFIG_ROM_SIZE - size);
 }
 
+static int configure_1394a_enhancements(struct fw_ohci *ohci)
+{
+	bool enable_1394a;
+	u32 reg, phy_compliance;
+	int clear, set, offset;
+
+	/* Check if the driver should configure link and PHY. */
+	if (!(reg_read(ohci, OHCI1394_HCControlSet) &
+	      OHCI1394_HCControl_programPhyEnable))
+		return 0;
+
+	/* Paranoia: check whether the PHY supports 1394a, too. */
+	enable_1394a = false;
+	if (read_phy_reg(&ohci->card, 2, &reg) < 0)
+		return -EIO;
+	if ((reg & PHY_EXTENDED_REGISTERS) == PHY_EXTENDED_REGISTERS) {
+		if (read_paged_phy_reg(&ohci->card, 1, 8, &phy_compliance) < 0)
+			return -EIO;
+		if (phy_compliance >= 1)
+			enable_1394a = true;
+	}
+
+	if (ohci->quirks & QUIRK_NO_1394A)
+		enable_1394a = false;
+
+	/* Configure PHY and link consistently. */
+	if (enable_1394a) {
+		clear = 0;
+		set = PHY_ENABLE_ACCEL | PHY_ENABLE_MULTI;
+	} else {
+		clear = PHY_ENABLE_ACCEL | PHY_ENABLE_MULTI;
+		set = 0;
+	}
+	if (ohci_update_phy_reg(&ohci->card, 5, clear, set) < 0)
+		return -EIO;
+	flush_writes(ohci);
+	msleep(2);
+
+	if (enable_1394a)
+		offset = OHCI1394_HCControlSet;
+	else
+		offset = OHCI1394_HCControlClear;
+	reg_write(ohci, offset, OHCI1394_HCControl_aPhyEnhanceEnable);
+
+	/* Clean up: configuration has been taken care of. */
+	reg_write(ohci, OHCI1394_HCControlClear,
+		  OHCI1394_HCControl_programPhyEnable);
+
+	return 0;
+}
+
 static int ohci_enable(struct fw_card *card,
 		       const __be32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct pci_dev *dev = to_pci_dev(card->device);
 	u32 lps;
-	int i;
+	int i, err;
 
 	if (software_reset(ohci)) {
 		fw_error("Failed to reset ohci card.\n");
@@ -1580,6 +1655,10 @@ static int ohci_enable(struct fw_card *card,
 		  OHCI1394_masterIntEnable);
 	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
 		reg_write(ohci, OHCI1394_IntMaskSet, OHCI1394_busReset);
+
+	err = configure_1394a_enhancements(ohci);
+	if (err < 0)
+		return err;
 
 	/* Activate link_on bit and contender bit in our self ID packets.*/
 	if (ohci_update_phy_reg(card, 4, 0,
