@@ -246,6 +246,7 @@ static int tumbler_set_master_volume(struct pmac_tumbler *mix)
 		snd_printk(KERN_ERR "failed to set volume \n");
 		return -EINVAL;
 	}
+	DBG("(I) succeeded to set volume (%u, %u)\n", left_vol, right_vol);
 	return 0;
 }
 
@@ -356,6 +357,7 @@ static int tumbler_set_drc(struct pmac_tumbler *mix)
 		snd_printk(KERN_ERR "failed to set DRC\n");
 		return -EINVAL;
 	}
+	DBG("(I) succeeded to set DRC (%u, %u)\n", val[0], val[1]);
 	return 0;
 }
 
@@ -392,6 +394,7 @@ static int snapper_set_drc(struct pmac_tumbler *mix)
 		snd_printk(KERN_ERR "failed to set DRC\n");
 		return -EINVAL;
 	}
+	DBG("(I) succeeded to set DRC (%u, %u)\n", val[0], val[1]);
 	return 0;
 }
 
