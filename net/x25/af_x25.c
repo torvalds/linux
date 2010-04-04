@@ -588,7 +588,8 @@ static int x25_create(struct net *net, struct socket *sock, int protocol,
 	x25->facilities.winsize_out = X25_DEFAULT_WINDOW_SIZE;
 	x25->facilities.pacsize_in  = X25_DEFAULT_PACKET_SIZE;
 	x25->facilities.pacsize_out = X25_DEFAULT_PACKET_SIZE;
-	x25->facilities.throughput  = X25_DEFAULT_THROUGHPUT;
+	x25->facilities.throughput  = 0;	/* by default don't negotiate
+						   throughput */
 	x25->facilities.reverse     = X25_DEFAULT_REVERSE;
 	x25->dte_facilities.calling_len = 0;
 	x25->dte_facilities.called_len = 0;
@@ -1459,9 +1460,20 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			if (facilities.winsize_in < 1 ||
 			    facilities.winsize_in > 127)
 				break;
-			if (facilities.throughput < 0x03 ||
-			    facilities.throughput > 0xDD)
-				break;
+			if (facilities.throughput) {
+				int out = facilities.throughput & 0xf0;
+				int in  = facilities.throughput & 0x0f;
+				if (!out)
+					facilities.throughput |=
+						X25_DEFAULT_THROUGHPUT << 4;
+				else if (out < 0x30 || out > 0xD0)
+					break;
+				if (!in)
+					facilities.throughput |=
+						X25_DEFAULT_THROUGHPUT;
+				else if (in < 0x03 || in > 0x0D)
+					break;
+			}
 			if (facilities.reverse &&
 				(facilities.reverse & 0x81) != 0x81)
 				break;

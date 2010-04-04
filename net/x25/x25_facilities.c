@@ -269,9 +269,18 @@ int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
 	new->reverse = theirs.reverse;
 
 	if (theirs.throughput) {
-		if (theirs.throughput < ours->throughput) {
-			SOCK_DEBUG(sk, "X.25: throughput negotiated down\n");
-			new->throughput = theirs.throughput;
+		int theirs_in =  theirs.throughput & 0x0f;
+		int theirs_out = theirs.throughput & 0xf0;
+		int ours_in  = ours->throughput & 0x0f;
+		int ours_out = ours->throughput & 0xf0;
+		if (!ours_in || theirs_in < ours_in) {
+			SOCK_DEBUG(sk, "X.25: inbound throughput negotiated\n");
+			new->throughput = (new->throughput & 0xf0) | theirs_in;
+		}
+		if (!ours_out || theirs_out < ours_out) {
+			SOCK_DEBUG(sk,
+				"X.25: outbound throughput negotiated\n");
+			new->throughput = (new->throughput & 0x0f) | theirs_out;
 		}
 	}
 
