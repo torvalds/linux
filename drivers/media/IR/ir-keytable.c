@@ -89,6 +89,18 @@ static int ir_do_setkeycode(struct input_dev *dev,
 {
 	unsigned int i;
 	int old_keycode = KEY_RESERVED;
+	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
+
+	/*
+	 * Unfortunately, some hardware-based IR decoders don't provide
+	 * all bits for the complete IR code. In general, they provide only
+	 * the command part of the IR code. Yet, as it is possible to replace
+	 * the provided IR with another one, it is needed to allow loading
+	 * IR tables from other remotes. So,
+	 */
+	if (ir_dev->props && ir_dev->props->scanmask) {
+		scancode &= ir_dev->props->scanmask;
+	}
 
 	/* First check if we already have a mapping for this ir command */
 	for (i = 0; i < rc_tab->len; i++) {
@@ -448,6 +460,13 @@ int __ir_input_register(struct input_dev *input_dev,
 						  sizeof(struct ir_scancode));
 	ir_dev->rc_tab.scan = kmalloc(ir_dev->rc_tab.alloc, GFP_KERNEL);
 	ir_dev->rc_tab.size = ir_dev->rc_tab.alloc / sizeof(struct ir_scancode);
+	if (props) {
+		ir_dev->props = props;
+		if (props->open)
+			input_dev->open = ir_open;
+		if (props->close)
+			input_dev->close = ir_close;
+	}
 
 	if (!ir_dev->rc_tab.scan) {
 		rc = -ENOMEM;
@@ -464,12 +483,6 @@ int __ir_input_register(struct input_dev *input_dev,
 		rc = -ENOMEM;
 		goto out_table;
 	}
-
-	ir_dev->props = props;
-	if (props && props->open)
-		input_dev->open = ir_open;
-	if (props && props->close)
-		input_dev->close = ir_close;
 
 	rc = ir_register_class(input_dev);
 	if (rc < 0)

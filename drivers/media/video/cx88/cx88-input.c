@@ -248,6 +248,9 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	char *ir_codes = NULL;
 	u64 ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
+	u32 hardware_mask = 0;	/* For devices with a hardware mask, when
+				 * used with a full-code IR table
+				 */
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -314,11 +317,18 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_PROLINK_PLAYTVPVR:
 	case CX88_BOARD_PIXELVIEW_PLAYTV_ULTRA_PRO:
-		ir_codes = RC_MAP_PIXELVIEW;
+		/*
+		 * It seems that this hardware is paired with NEC extended
+		 * address 0x866b. So, unfortunately, its usage with other
+		 * IR's with different address won't work. Still, there are
+		 * other IR's from the same manufacturer that works, like the
+		 * 002-T mini RC, provided with newer PV hardware
+		 */
+		ir_codes = RC_MAP_PIXELVIEW_MK12;
 		ir->gpio_addr = MO_GP1_IO;
-		ir->mask_keycode = 0x1f;	/* Only command is retrieved */
 		ir->mask_keyup = 0x80;
 		ir->polling = 10; /* ms */
+		hardware_mask = 0x3f;	/* Hardware returns only 6 bits from command part */
 		break;
 	case CX88_BOARD_PROLINK_PV_8000GT:
 	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
@@ -410,6 +420,21 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		goto err_out_free;
 	}
 
+	/*
+	 * The usage of mask_keycode were very convenient, due to several
+	 * reasons. Among others, the scancode tables were using the scancode
+	 * as the index elements. So, the less bits it was used, the smaller
+	 * the table were stored. After the input changes, the better is to use
+	 * the full scancodes, since it allows replacing the IR remote by
+	 * another one. Unfortunately, there are still some hardware, like
+	 * Pixelview Ultra Pro, where only part of the scancode is sent via
+	 * GPIO. So, there's no way to get the full scancode. Due to that,
+	 * hardware_mask were introduced here: it represents those hardware
+	 * that has such limits.
+	 */
+	if (hardware_mask && !ir->mask_keycode)
+		ir->mask_keycode = hardware_mask;
+
 	/* init input device */
 	snprintf(ir->name, sizeof(ir->name), "cx88 IR (%s)", core->board.name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(pci));
@@ -437,6 +462,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	ir->props.priv = core;
 	ir->props.open = cx88_ir_open;
 	ir->props.close = cx88_ir_close;
+	ir->props.scanmask = hardware_mask;
 
 	/* all done */
 	err = ir_input_register(ir->input, ir_codes, &ir->props, MODULE_NAME);

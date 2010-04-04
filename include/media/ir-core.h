@@ -33,12 +33,28 @@ enum raw_event_type {
 	IR_STOP_EVENT	= (1 << 3),
 };
 
+/**
+ * struct ir_dev_props - Allow caller drivers to set special properties
+ * @allowed_protos: bitmask with the supported IR_TYPE_* protocols
+ * @scanmask: some hardware decoders are not capable of providing the full
+ *	scancode to the application. As this is a hardware limit, we can't do
+ *	anything with it. Yet, as the same keycode table can be used with other
+ *	devices, a mask is provided to allow its usage. Drivers should generally
+ *	leave this field in blank
+ * @priv: driver-specific data, to be used on the callbacks
+ * @change_protocol: allow changing the protocol used on hardware decoders
+ * @open: callback to allow drivers to enable polling/irq when IR input device
+ *	is opened.
+ * @close: callback to allow drivers to disable polling/irq when IR input device
+ *	is opened.
+ */
 struct ir_dev_props {
-	unsigned long allowed_protos;
+	unsigned long	allowed_protos;
+	u32		scanmask;
 	void 		*priv;
-	int (*change_protocol)(void *priv, u64 ir_type);
-	int (*open)(void *priv);
-	void (*close)(void *priv);
+	int		(*change_protocol)(void *priv, u64 ir_type);
+	int		(*open)(void *priv);
+	void		(*close)(void *priv);
 };
 
 struct ir_raw_event {

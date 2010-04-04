@@ -46,6 +46,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-pinnacle-grey.o \
 			rc-pinnacle-pctv-hd.o \
 			rc-pixelview.o \
+			rc-pixelview-mk12.o \
 			rc-pixelview-new.o \
 			rc-powercolor-real-angel.o \
 			rc-proteus-2309.o \
