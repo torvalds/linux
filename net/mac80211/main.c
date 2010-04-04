@@ -388,6 +388,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->uapsd_max_sp_len = IEEE80211_DEFAULT_MAX_SP_LEN;
 
 	INIT_LIST_HEAD(&local->interfaces);
+
+	__hw_addr_init(&local->mc_list);
+
 	mutex_init(&local->iflist_mtx);
 	mutex_init(&local->scan_mtx);
 
