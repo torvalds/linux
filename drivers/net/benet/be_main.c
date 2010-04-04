@@ -404,7 +404,7 @@ static void unmap_tx_frag(struct pci_dev *pdev, struct be_eth_wrb *wrb,
 	be_dws_le_to_cpu(wrb, sizeof(*wrb));
 
 	dma = (u64)wrb->frag_pa_hi << 32 | (u64)wrb->frag_pa_lo;
-	if (dma != 0) {
+	if (wrb->frag_len) {
 		if (unmap_single)
 			pci_unmap_single(pdev, dma, wrb->frag_len,
 				PCI_DMA_TODEVICE);
