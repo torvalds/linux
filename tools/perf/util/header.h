@@ -47,13 +47,13 @@ int perf_file_header__read(struct perf_file_header *self,
 struct perf_header {
 	int			frozen;
 	int			attrs, size;
+	bool			needs_swap;
 	struct perf_header_attr **attr;
 	s64			attr_offset;
 	u64			data_offset;
 	u64			data_size;
 	u64			event_offset;
 	u64			event_size;
-	bool			needs_swap;
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
 

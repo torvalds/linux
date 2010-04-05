@@ -40,9 +40,9 @@ struct perf_probe_point {
 	char		*file;		/* File path */
 	char		*function;	/* Function name */
 	int		line;		/* Line number */
+	bool		retprobe;	/* Return probe flag */
 	char		*lazy_line;	/* Lazy matching pattern */
 	unsigned long	offset;		/* Offset from function entry */
-	bool		retprobe;	/* Return probe flag */
 };
 
 /* Perf probe probing argument field chain */

@@ -68,11 +68,11 @@ struct sample_data {
 	u64 addr;
 	u64 id;
 	u64 stream_id;
-	u32 cpu;
 	u64 period;
-	struct ip_callchain *callchain;
+	u32 cpu;
 	u32 raw_size;
 	void *raw_data;
+	struct ip_callchain *callchain;
 };
 
 #define BUILD_ID_SIZE 20

@@ -68,10 +68,10 @@ enum sched_event_type {
 
 struct sched_atom {
 	enum sched_event_type	type;
+	int			specific_wait;
 	u64			timestamp;
 	u64			duration;
 	unsigned long		nr;
-	int			specific_wait;
 	sem_t			*wait_sem;
 	struct task_desc	*wakee;
 };

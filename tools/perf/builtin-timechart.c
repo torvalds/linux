@@ -77,8 +77,6 @@ struct per_pid {
 
 	struct per_pidcomm *all;
 	struct per_pidcomm *current;
-
-	int painted;
 };
 
 

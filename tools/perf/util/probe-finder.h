@@ -31,13 +31,13 @@ extern int find_line_range(int fd, struct line_range *lr);
 
 struct probe_finder {
 	struct perf_probe_event	*pev;		/* Target probe event */
-	int			ntevs;		/* number of trace events */
 	struct kprobe_trace_event *tevs;	/* Result trace events */
+	int			ntevs;		/* number of trace events */
 
 	/* For function searching */
+	int			lno;		/* Line number */
 	Dwarf_Addr		addr;		/* Address */
 	const char		*fname;		/* Real file name */
-	int			lno;		/* Line number */
 	Dwarf_Die		cu_die;		/* Current CU */
 	struct list_head	lcache;		/* Line cache for lazy match */
 
