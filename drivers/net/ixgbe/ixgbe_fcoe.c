@@ -202,6 +202,15 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 		addr = sg_dma_address(sg);
 		len = sg_dma_len(sg);
 		while (len) {
+			/* max number of buffers allowed in one DDP context */
+			if (j >= IXGBE_BUFFCNT_MAX) {
+				netif_err(adapter, drv, adapter->netdev,
+					  "xid=%x:%d,%d,%d:addr=%llx "
+					  "not enough descriptors\n",
+					  xid, i, j, dmacount, (u64)addr);
+				goto out_noddp_free;
+			}
+
 			/* get the offset of length of current buffer */
 			thisoff = addr & ((dma_addr_t)bufflen - 1);
 			thislen = min((bufflen - thisoff), len);
@@ -227,20 +236,13 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 			len -= thislen;
 			addr += thislen;
 			j++;
-			/* max number of buffers allowed in one DDP context */
-			if (j > IXGBE_BUFFCNT_MAX) {
-				DPRINTK(DRV, ERR, "xid=%x:%d,%d,%d:addr=%llx "
-					"not enough descriptors\n",
-					xid, i, j, dmacount, (u64)addr);
-				goto out_noddp_free;
-			}
 		}
 	}
 	/* only the last buffer may have non-full bufflen */
 	lastsize = thisoff + thislen;
 
 	fcbuff = (IXGBE_FCBUFF_4KB << IXGBE_FCBUFF_BUFFSIZE_SHIFT);
-	fcbuff |= (j << IXGBE_FCBUFF_BUFFCNT_SHIFT);
+	fcbuff |= ((j & 0xff) << IXGBE_FCBUFF_BUFFCNT_SHIFT);
 	fcbuff |= (firstoff << IXGBE_FCBUFF_OFFSET_SHIFT);
 	fcbuff |= (IXGBE_FCBUFF_VALID);
 
@@ -520,6 +522,9 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 	/* Enable L2 eth type filter for FCoE */
 	IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FCOE),
 			(ETH_P_FCOE | IXGBE_ETQF_FCOE | IXGBE_ETQF_FILTER_EN));
+	/* Enable L2 eth type filter for FIP */
+	IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FIP),
+			(ETH_P_FIP | IXGBE_ETQF_FILTER_EN));
 	if (adapter->ring_feature[RING_F_FCOE].indices) {
 		/* Use multiple rx queues for FCoE by redirection table */
 		for (i = 0; i < IXGBE_FCRETA_SIZE; i++) {
@@ -530,6 +535,12 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 		}
 		IXGBE_WRITE_REG(hw, IXGBE_FCRECTL, IXGBE_FCRECTL_ENA);
 		IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FCOE), 0);
+		fcoe_i = f->mask;
+		fcoe_i &= IXGBE_FCRETA_ENTRY_MASK;
+		fcoe_q = adapter->rx_ring[fcoe_i]->reg_idx;
+		IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FIP),
+				IXGBE_ETQS_QUEUE_EN |
+				(fcoe_q << IXGBE_ETQS_RX_QUEUE_SHIFT));
 	} else  {
 		/* Use single rx queue for FCoE */
 		fcoe_i = f->mask;
@@ -539,6 +550,12 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 				IXGBE_ETQS_QUEUE_EN |
 				(fcoe_q << IXGBE_ETQS_RX_QUEUE_SHIFT));
 	}
+	/* send FIP frames to the first FCoE queue */
+	fcoe_i = f->mask;
+	fcoe_q = adapter->rx_ring[fcoe_i]->reg_idx;
+	IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FIP),
+			IXGBE_ETQS_QUEUE_EN |
+			(fcoe_q << IXGBE_ETQS_RX_QUEUE_SHIFT));
 
 	IXGBE_WRITE_REG(hw, IXGBE_FCRXCTRL,
 			IXGBE_FCRXCTRL_FCOELLI |

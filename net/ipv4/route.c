@@ -1097,7 +1097,7 @@ static int slow_chain_length(const struct rtable *head)
 }
 
 static int rt_intern_hash(unsigned hash, struct rtable *rt,
-			  struct rtable **rp, struct sk_buff *skb)
+			  struct rtable **rp, struct sk_buff *skb, int ifindex)
 {
 	struct rtable	*rth, **rthp;
 	unsigned long	now;
@@ -1212,11 +1212,16 @@ restart:
 		    slow_chain_length(rt_hash_table[hash].chain) > rt_chain_length_max) {
 			struct net *net = dev_net(rt->u.dst.dev);
 			int num = ++net->ipv4.current_rt_cache_rebuild_count;
-			if (!rt_caching(dev_net(rt->u.dst.dev))) {
+			if (!rt_caching(net)) {
 				printk(KERN_WARNING "%s: %d rebuilds is over limit, route caching disabled\n",
 					rt->u.dst.dev->name, num);
 			}
-			rt_emergency_hash_rebuild(dev_net(rt->u.dst.dev));
+			rt_emergency_hash_rebuild(net);
+			spin_unlock_bh(rt_hash_lock_addr(hash));
+
+			hash = rt_hash(rt->fl.fl4_dst, rt->fl.fl4_src,
+					ifindex, rt_genid(net));
+			goto restart;
 		}
 	}
 
@@ -1477,7 +1482,7 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 							&netevent);
 
 				rt_del(hash, rth);
-				if (!rt_intern_hash(hash, rt, &rt, NULL))
+				if (!rt_intern_hash(hash, rt, &rt, NULL, rt->fl.oif))
 					ip_rt_put(rt);
 				goto do_next;
 			}
@@ -1931,7 +1936,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 
 	in_dev_put(in_dev);
 	hash = rt_hash(daddr, saddr, dev->ifindex, rt_genid(dev_net(dev)));
-	return rt_intern_hash(hash, rth, NULL, skb);
+	return rt_intern_hash(hash, rth, NULL, skb, dev->ifindex);
 
 e_nobufs:
 	in_dev_put(in_dev);
@@ -2098,7 +2103,7 @@ static int ip_mkroute_input(struct sk_buff *skb,
 	/* put it into the cache */
 	hash = rt_hash(daddr, saddr, fl->iif,
 		       rt_genid(dev_net(rth->u.dst.dev)));
-	return rt_intern_hash(hash, rth, NULL, skb);
+	return rt_intern_hash(hash, rth, NULL, skb, fl->iif);
 }
 
 /*
@@ -2255,7 +2260,7 @@ local_input:
 	}
 	rth->rt_type	= res.type;
 	hash = rt_hash(daddr, saddr, fl.iif, rt_genid(net));
-	err = rt_intern_hash(hash, rth, NULL, skb);
+	err = rt_intern_hash(hash, rth, NULL, skb, fl.iif);
 	goto done;
 
 no_route:
@@ -2502,7 +2507,7 @@ static int ip_mkroute_output(struct rtable **rp,
 	if (err == 0) {
 		hash = rt_hash(oldflp->fl4_dst, oldflp->fl4_src, oldflp->oif,
 			       rt_genid(dev_net(dev_out)));
-		err = rt_intern_hash(hash, rth, rp, NULL);
+		err = rt_intern_hash(hash, rth, rp, NULL, oldflp->oif);
 	}
 
 	return err;

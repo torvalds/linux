@@ -242,12 +242,10 @@ static void __cpuinit smp_callin(void)
 	end_local_APIC_setup();
 	map_cpu_to_logical_apicid();
 
-	notify_cpu_starting(cpuid);
-
 	/*
 	 * Need to setup vector mappings before we enable interrupts.
 	 */
-	__setup_vector_irq(smp_processor_id());
+	setup_vector_irq(smp_processor_id());
 	/*
 	 * Get our bogomips.
 	 *
@@ -263,6 +261,8 @@ static void __cpuinit smp_callin(void)
 	 * Save our processor parameters
 	 */
 	smp_store_cpu_info(cpuid);
+
+	notify_cpu_starting(cpuid);
 
 	/*
 	 * Allow the master to continue.

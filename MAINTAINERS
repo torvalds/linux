@@ -1443,7 +1443,7 @@ F:	arch/powerpc/platforms/cell/
 
 CEPH DISTRIBUTED FILE SYSTEM CLIENT
 M:	Sage Weil <sage@newdream.net>
-L:	ceph-devel@lists.sourceforge.net
+L:	ceph-devel@vger.kernel.org
 W:	http://ceph.newdream.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 S:	Supported
@@ -3083,6 +3083,7 @@ F:	include/scsi/*iscsi*
 ISDN SUBSYSTEM
 M:	Karsten Keil <isdn@linux-pingi.de>
 L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
+L:	netdev@vger.kernel.org
 W:	http://www.isdn4linux.de
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kkeil/isdn-2.6.git
 S:	Maintained
@@ -3268,6 +3269,16 @@ L:	kexec@lists.infradead.org
 S:	Maintained
 F:	include/linux/kexec.h
 F:	kernel/kexec.c
+
+KEYS/KEYRINGS:
+M:	David Howells <dhowells@redhat.com>
+L:	keyrings@linux-nfs.org
+S:	Maintained
+F:	Documentation/keys.txt
+F:	include/linux/key.h
+F:	include/linux/key-type.h
+F:	include/keys/
+F:	security/keys/
 
 KGDB
 M:	Jason Wessel <jason.wessel@windriver.com>
@@ -5423,7 +5434,6 @@ S:	Maintained
 F:	sound/soc/codecs/twl4030*
 
 TIPC NETWORK LAYER
-M:	Per Liden <per.liden@ericsson.com>
 M:	Jon Maloy <jon.maloy@ericsson.com>
 M:	Allan Stephens <allan.stephens@windriver.com>
 L:	tipc-discussion@lists.sourceforge.net

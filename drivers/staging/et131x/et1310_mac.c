@@ -226,7 +226,7 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	}
 
 	/* Enable TXMAC */
-	ctl |= 0x05;	/* TX mac enable, FC disable */
+	ctl |= 0x09;	/* TX mac enable, FC disable */
 	writel(ctl, &etdev->regs->txmac.ctl);
 
 	/* Ready to start the RXDMA/TXDMA engine */

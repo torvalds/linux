@@ -1594,7 +1594,6 @@ int logfs_delete(struct inode *inode, pgoff_t index,
 	return ret;
 }
 
-/* Rewrite cannot mark the inode dirty but has to write it immediatly. */
 int logfs_rewrite_block(struct inode *inode, u64 bix, u64 ofs,
 		gc_level_t gc_level, long flags)
 {
@@ -1611,6 +1610,18 @@ int logfs_rewrite_block(struct inode *inode, u64 bix, u64 ofs,
 		if (level != 0)
 			alloc_indirect_block(inode, page, 0);
 		err = logfs_write_buf(inode, page, flags);
+		if (!err && shrink_level(gc_level) == 0) {
+			/* Rewrite cannot mark the inode dirty but has to
+			 * write it immediatly.
+			 * Q: Can't we just create an alias for the inode
+			 * instead?  And if not, why not?
+			 */
+			if (inode->i_ino == LOGFS_INO_MASTER)
+				logfs_write_anchor(inode->i_sb);
+			else {
+				err = __logfs_write_inode(inode, flags);
+			}
+		}
 	}
 	logfs_put_write_page(page);
 	return err;

@@ -91,6 +91,8 @@ extern int radeon_tv;
 extern int radeon_new_pll;
 extern int radeon_dynpm;
 extern int radeon_audio;
+extern int radeon_disp_priority;
+extern int radeon_hw_i2c;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -168,6 +170,7 @@ struct radeon_clock {
  * Power management
  */
 int radeon_pm_init(struct radeon_device *rdev);
+void radeon_pm_fini(struct radeon_device *rdev);
 void radeon_pm_compute_clocks(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
@@ -687,6 +690,7 @@ struct radeon_pm {
 	bool 			downclocked;
 	int			active_crtcs;
 	int			req_vblank;
+	bool			vblank_sync;
 	fixed20_12		max_bandwidth;
 	fixed20_12		igp_sideport_mclk;
 	fixed20_12		igp_system_mclk;
@@ -697,6 +701,7 @@ struct radeon_pm {
 	fixed20_12		ht_bandwidth;
 	fixed20_12		core_bandwidth;
 	fixed20_12		sclk;
+	fixed20_12		mclk;
 	fixed20_12		needed_bandwidth;
 	/* XXX: use a define for num power modes */
 	struct radeon_power_state power_state[8];
@@ -707,6 +712,7 @@ struct radeon_pm {
 	struct radeon_power_state *requested_power_state;
 	struct radeon_pm_clock_info *requested_clock_mode;
 	struct radeon_power_state *default_power_state;
+	struct radeon_i2c_chan *i2c_bus;
 };
 
 
@@ -729,8 +735,6 @@ int radeon_debugfs_add_files(struct radeon_device *rdev,
 			     struct drm_info_list *files,
 			     unsigned nfiles);
 int radeon_debugfs_fence_init(struct radeon_device *rdev);
-int r100_debugfs_rbbm_init(struct radeon_device *rdev);
-int r100_debugfs_cp_init(struct radeon_device *rdev);
 
 
 /*
@@ -782,7 +786,7 @@ struct radeon_asic {
 	int (*set_surface_reg)(struct radeon_device *rdev, int reg,
 			       uint32_t tiling_flags, uint32_t pitch,
 			       uint32_t offset, uint32_t obj_size);
-	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
+	void (*clear_surface_reg)(struct radeon_device *rdev, int reg);
 	void (*bandwidth_update)(struct radeon_device *rdev);
 	void (*hpd_init)(struct radeon_device *rdev);
 	void (*hpd_fini)(struct radeon_device *rdev);
@@ -861,6 +865,12 @@ union radeon_asic_config {
 	struct r600_asic	r600;
 	struct rv770_asic	rv770;
 };
+
+/*
+ * asic initizalization from radeon_asic.c
+ */
+void radeon_agp_disable(struct radeon_device *rdev);
+int radeon_asic_init(struct radeon_device *rdev);
 
 
 /*
@@ -1172,6 +1182,8 @@ extern void radeon_gart_restore(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
 extern bool radeon_card_posted(struct radeon_device *rdev);
+extern void radeon_update_bandwidth_info(struct radeon_device *rdev);
+extern void radeon_update_display_priority(struct radeon_device *rdev);
 extern bool radeon_boot_test_post_card(struct radeon_device *rdev);
 extern int radeon_clocks_init(struct radeon_device *rdev);
 extern void radeon_clocks_fini(struct radeon_device *rdev);
@@ -1188,51 +1200,6 @@ extern int radeon_resume_kms(struct drm_device *dev);
 extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
 
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
-struct r100_mc_save {
-	u32	GENMO_WT;
-	u32	CRTC_EXT_CNTL;
-	u32	CRTC_GEN_CNTL;
-	u32	CRTC2_GEN_CNTL;
-	u32	CUR_OFFSET;
-	u32	CUR2_OFFSET;
-};
-extern void r100_cp_disable(struct radeon_device *rdev);
-extern int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
-extern void r100_cp_fini(struct radeon_device *rdev);
-extern void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
-extern int r100_pci_gart_init(struct radeon_device *rdev);
-extern void r100_pci_gart_fini(struct radeon_device *rdev);
-extern int r100_pci_gart_enable(struct radeon_device *rdev);
-extern void r100_pci_gart_disable(struct radeon_device *rdev);
-extern int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
-extern int r100_debugfs_mc_info_init(struct radeon_device *rdev);
-extern int r100_gui_wait_for_idle(struct radeon_device *rdev);
-extern void r100_ib_fini(struct radeon_device *rdev);
-extern int r100_ib_init(struct radeon_device *rdev);
-extern void r100_irq_disable(struct radeon_device *rdev);
-extern int r100_irq_set(struct radeon_device *rdev);
-extern void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save);
-extern void r100_mc_resume(struct radeon_device *rdev, struct r100_mc_save *save);
-extern void r100_vram_init_sizes(struct radeon_device *rdev);
-extern void r100_wb_disable(struct radeon_device *rdev);
-extern void r100_wb_fini(struct radeon_device *rdev);
-extern int r100_wb_init(struct radeon_device *rdev);
-extern void r100_hdp_reset(struct radeon_device *rdev);
-extern int r100_rb2d_reset(struct radeon_device *rdev);
-extern int r100_cp_reset(struct radeon_device *rdev);
-extern void r100_vga_render_disable(struct radeon_device *rdev);
-extern int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
-						struct radeon_cs_packet *pkt,
-						struct radeon_bo *robj);
-extern int r100_cs_parse_packet0(struct radeon_cs_parser *p,
-				struct radeon_cs_packet *pkt,
-				const unsigned *auth, unsigned n,
-				radeon_packet0_check_t check);
-extern int r100_cs_packet_parse(struct radeon_cs_parser *p,
-				struct radeon_cs_packet *pkt,
-				unsigned idx);
-extern void r100_enable_bm(struct radeon_device *rdev);
-extern void r100_set_common_regs(struct radeon_device *rdev);
 
 /* rv200,rv250,rv280 */
 extern void r200_set_safe_registers(struct radeon_device *rdev);
@@ -1322,7 +1289,8 @@ extern int r600_audio_tmds_index(struct drm_encoder *encoder);
 extern void r600_audio_set_clock(struct drm_encoder *encoder, int clock);
 extern void r600_audio_fini(struct radeon_device *rdev);
 extern void r600_hdmi_init(struct drm_encoder *encoder);
-extern void r600_hdmi_enable(struct drm_encoder *encoder, int enable);
+extern void r600_hdmi_enable(struct drm_encoder *encoder);
+extern void r600_hdmi_disable(struct drm_encoder *encoder);
 extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 extern int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,

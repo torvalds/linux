@@ -93,47 +93,55 @@ void __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
 	} while (len);
 }
 
-/*
- * bdev_writeseg will write full pages.  Memset the tail to prevent data leaks.
- */
-static void pad_wbuf(struct logfs_area *area, int final)
+static void pad_partial_page(struct logfs_area *area)
 {
 	struct super_block *sb = area->a_sb;
-	struct logfs_super *super = logfs_super(sb);
 	struct page *page;
 	u64 ofs = dev_ofs(sb, area->a_segno, area->a_used_bytes);
 	pgoff_t index = ofs >> PAGE_SHIFT;
 	long offset = ofs & (PAGE_SIZE-1);
 	u32 len = PAGE_SIZE - offset;
 
-	if (len == PAGE_SIZE) {
-		/* The math in this function can surely use some love */
-		len = 0;
-	}
-	if (len) {
-		BUG_ON(area->a_used_bytes >= super->s_segsize);
-
-		page = get_mapping_page(area->a_sb, index, 0);
+	if (len % PAGE_SIZE) {
+		page = get_mapping_page(sb, index, 0);
 		BUG_ON(!page); /* FIXME: reserve a pool */
 		memset(page_address(page) + offset, 0xff, len);
 		SetPagePrivate(page);
 		page_cache_release(page);
 	}
+}
 
-	if (!final)
-		return;
+static void pad_full_pages(struct logfs_area *area)
+{
+	struct super_block *sb = area->a_sb;
+	struct logfs_super *super = logfs_super(sb);
+	u64 ofs = dev_ofs(sb, area->a_segno, area->a_used_bytes);
+	u32 len = super->s_segsize - area->a_used_bytes;
+	pgoff_t index = PAGE_CACHE_ALIGN(ofs) >> PAGE_CACHE_SHIFT;
+	pgoff_t no_indizes = len >> PAGE_CACHE_SHIFT;
+	struct page *page;
 
-	area->a_used_bytes += len;
-	for ( ; area->a_used_bytes < super->s_segsize;
-			area->a_used_bytes += PAGE_SIZE) {
-		/* Memset another page */
-		index++;
-		page = get_mapping_page(area->a_sb, index, 0);
+	while (no_indizes) {
+		page = get_mapping_page(sb, index, 0);
 		BUG_ON(!page); /* FIXME: reserve a pool */
-		memset(page_address(page), 0xff, PAGE_SIZE);
+		SetPageUptodate(page);
+		memset(page_address(page), 0xff, PAGE_CACHE_SIZE);
 		SetPagePrivate(page);
 		page_cache_release(page);
+		index++;
+		no_indizes--;
 	}
+}
+
+/*
+ * bdev_writeseg will write full pages.  Memset the tail to prevent data leaks.
+ * Also make sure we allocate (and memset) all pages for final writeout.
+ */
+static void pad_wbuf(struct logfs_area *area, int final)
+{
+	pad_partial_page(area);
+	if (final)
+		pad_full_pages(area);
 }
 
 /*
@@ -683,7 +691,7 @@ int logfs_segment_delete(struct inode *inode, struct logfs_shadow *shadow)
 	return 0;
 }
 
-static void freeseg(struct super_block *sb, u32 segno)
+void freeseg(struct super_block *sb, u32 segno)
 {
 	struct logfs_super *super = logfs_super(sb);
 	struct address_space *mapping = super->s_mapping_inode->i_mapping;
