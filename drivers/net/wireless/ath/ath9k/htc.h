@@ -309,6 +309,14 @@ struct ath_led {
 	int brightness;
 };
 
+struct htc_beacon_config {
+	u16 beacon_interval;
+	u16 listen_interval;
+	u16 dtim_period;
+	u16 bmiss_timeout;
+	u8 dtim_count;
+};
+
 #define OP_INVALID        BIT(0)
 #define OP_SCANNING       BIT(1)
 #define OP_FULL_RESET     BIT(2)
@@ -353,6 +361,7 @@ struct ath9k_htc_priv {
 	spinlock_t tx_lock;
 
 	struct ieee80211_vif *vif;
+	struct htc_beacon_config cur_beacon_conf;
 	unsigned int rxfilter;
 	struct tasklet_struct wmi_tasklet;
 	struct tasklet_struct rx_tasklet;
@@ -394,8 +403,7 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 }
 
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
-			     struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *bss_conf);
+			     struct ieee80211_vif *vif);
 void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending);
 void ath9k_htc_beacon_update(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);

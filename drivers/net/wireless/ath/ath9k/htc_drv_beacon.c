@@ -19,7 +19,7 @@
 #define FUDGE 2
 
 static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
-					struct ieee80211_bss_conf *bss_conf)
+					struct htc_beacon_config *bss_conf)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_beacon_state bs;
@@ -34,8 +34,8 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 
 	memset(&bs, 0, sizeof(bs));
 
-	intval = bss_conf->beacon_int & ATH9K_BEACON_PERIOD;
-	bmiss_timeout = (ATH_DEFAULT_BMISS_LIMIT * bss_conf->beacon_int);
+	intval = bss_conf->beacon_interval & ATH9K_BEACON_PERIOD;
+	bmiss_timeout = (ATH_DEFAULT_BMISS_LIMIT * bss_conf->beacon_interval);
 
 	/*
 	 * Setup dtim and cfp parameters according to
@@ -138,7 +138,7 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 }
 
 static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
-					  struct ieee80211_bss_conf *bss_conf)
+					  struct htc_beacon_config *bss_conf)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	enum ath9k_int imask = 0;
@@ -146,7 +146,7 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 	int ret;
 	u8 cmd_rsp;
 
-	intval = bss_conf->beacon_int & ATH9K_BEACON_PERIOD;
+	intval = bss_conf->beacon_interval & ATH9K_BEACON_PERIOD;
 	nexttbtt = intval;
 	intval |= ATH9K_BEACON_ENA;
 	if (priv->op_flags & OP_ENABLE_BEACON)
@@ -154,7 +154,7 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 
 	ath_print(common, ATH_DBG_BEACON,
 		  "IBSS Beacon config, intval: %d, imask: 0x%x\n",
-		  bss_conf->beacon_int, imask);
+		  bss_conf->beacon_interval, imask);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	ath9k_hw_beaconinit(priv->ah, nexttbtt, intval);
@@ -239,18 +239,35 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
 	spin_unlock_bh(&priv->beacon_lock);
 }
 
+
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
-			     struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *bss_conf)
+			     struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
+	enum nl80211_iftype iftype;
+	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
 
-	switch (vif->type) {
+	if (vif) {
+		struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+		iftype = vif->type;
+		cur_conf->beacon_interval = bss_conf->beacon_int;
+		cur_conf->dtim_period = bss_conf->dtim_period;
+		cur_conf->listen_interval = 1;
+		cur_conf->dtim_count = 1;
+		cur_conf->bmiss_timeout =
+			ATH_DEFAULT_BMISS_LIMIT * cur_conf->beacon_interval;
+	} else
+		iftype = priv->ah->opmode;
+
+	if (cur_conf->beacon_interval == 0)
+		cur_conf->beacon_interval = 100;
+
+	switch (iftype) {
 	case NL80211_IFTYPE_STATION:
-		ath9k_htc_beacon_config_sta(priv, bss_conf);
+		ath9k_htc_beacon_config_sta(priv, cur_conf);
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		ath9k_htc_beacon_config_adhoc(priv, bss_conf);
+		ath9k_htc_beacon_config_adhoc(priv, cur_conf);
 		break;
 	default:
 		ath_print(common, ATH_DBG_CONFIG,

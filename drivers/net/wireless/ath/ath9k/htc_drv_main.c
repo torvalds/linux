@@ -1549,7 +1549,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	    ((changed & BSS_CHANGED_BEACON_ENABLED) &&
 	    bss_conf->enable_beacon)) {
 		priv->op_flags |= OP_ENABLE_BEACON;
-		ath9k_htc_beacon_config(priv, vif, bss_conf);
+		ath9k_htc_beacon_config(priv, vif);
 	}
 
 	if (changed & BSS_CHANGED_BEACON)
@@ -1558,7 +1558,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
 	    !bss_conf->enable_beacon) {
 		priv->op_flags &= ~OP_ENABLE_BEACON;
-		ath9k_htc_beacon_config(priv, vif, bss_conf);
+		ath9k_htc_beacon_config(priv, vif);
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
@@ -1686,6 +1686,8 @@ static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
 	priv->op_flags &= ~OP_SCANNING;
 	spin_unlock_bh(&priv->beacon_lock);
 	priv->op_flags |= OP_FULL_RESET;
+	if (priv->op_flags & OP_ASSOCIATED)
+		ath9k_htc_beacon_config(priv, NULL);
 	ath_start_ani(priv);
 	mutex_unlock(&priv->mutex);
 	ath9k_htc_ps_restore(priv);
