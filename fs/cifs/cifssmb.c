@@ -1810,8 +1810,21 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 		}
 		parm_data = (struct cifs_posix_lock *)
 			((char *)&pSMBr->hdr.Protocol + data_offset);
-		if (parm_data->lock_type == cpu_to_le16(CIFS_UNLCK))
+		if (parm_data->lock_type == __constant_cpu_to_le16(CIFS_UNLCK))
 			pLockData->fl_type = F_UNLCK;
+		else {
+			if (parm_data->lock_type ==
+					__constant_cpu_to_le16(CIFS_RDLCK))
+				pLockData->fl_type = F_RDLCK;
+			else if (parm_data->lock_type ==
+					__constant_cpu_to_le16(CIFS_WRLCK))
+				pLockData->fl_type = F_WRLCK;
+
+			pLockData->fl_start = parm_data->start;
+			pLockData->fl_end = parm_data->start +
+						parm_data->length - 1;
+			pLockData->fl_pid = parm_data->pid;
+		}
 	}
 
 plk_err_exit:
