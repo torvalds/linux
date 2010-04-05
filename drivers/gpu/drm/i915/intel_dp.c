@@ -638,9 +638,12 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	dp_priv->DP = (DP_VOLTAGE_0_4 |
-			DP_PRE_EMPHASIS_0 |
-			DP_SYNC_VS_HIGH |
-			DP_SYNC_HS_HIGH);
+		       DP_PRE_EMPHASIS_0);
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
+		dp_priv->DP |= DP_SYNC_HS_HIGH;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
+		dp_priv->DP |= DP_SYNC_VS_HIGH;
 
 	if (HAS_PCH_CPT(dev) && !IS_eDP(intel_encoder))
 		dp_priv->DP |= DP_LINK_TRAIN_OFF_CPT;
