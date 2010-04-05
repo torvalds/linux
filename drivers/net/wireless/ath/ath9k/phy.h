@@ -503,6 +503,8 @@ bool ath9k_hw_set_rf_regs(struct ath_hw *ah,
 #define AR_PHY_TX_PWRCTRL_ERR_EST_MODE_S   24
 
 #define AR_PHY_TX_PWRCTRL7       0xa274
+#define AR_PHY_TX_PWRCTRL_TX_GAIN_TAB_MAX   0x0007E000
+#define AR_PHY_TX_PWRCTRL_TX_GAIN_TAB_MAX_S 13
 #define AR_PHY_TX_PWRCTRL_INIT_TX_GAIN     0x01F80000
 #define AR_PHY_TX_PWRCTRL_INIT_TX_GAIN_S   19
 
@@ -513,8 +515,16 @@ bool ath9k_hw_set_rf_regs(struct ath_hw *ah,
 #define AR_PHY_TX_PWRCTRL9_RES_DC_REMOVAL_S 31
 
 #define AR_PHY_TX_GAIN_TBL1      0xa300
-#define AR_PHY_TX_GAIN                     0x0007F000
-#define AR_PHY_TX_GAIN_S                   12
+#define AR_PHY_TX_GAIN_CLC       0x0000001E
+#define AR_PHY_TX_GAIN_CLC_S     1
+#define AR_PHY_TX_GAIN           0x0007F000
+#define AR_PHY_TX_GAIN_S         12
+
+#define AR_PHY_CLC_TBL1      0xa35c
+#define AR_PHY_CLC_I0        0x07ff0000
+#define AR_PHY_CLC_I0_S      16
+#define AR_PHY_CLC_Q0        0x0000ffd0
+#define AR_PHY_CLC_Q0_S      5
 
 #define AR_PHY_CH0_TX_PWRCTRL11  0xa398
 #define AR_PHY_CH1_TX_PWRCTRL11  0xb398
