@@ -366,6 +366,7 @@ struct _sas_port {
  * @phy_id: unique phy id
  * @handle: device handle for this phy
  * @attached_handle: device handle for attached device
+ * @phy_belongs_to_port: port has been created for this phy
  */
 struct _sas_phy {
 	struct list_head port_siblings;
@@ -375,6 +376,7 @@ struct _sas_phy {
 	u8	phy_id;
 	u16	handle;
 	u16	attached_handle;
+	u8	phy_belongs_to_port;
 };
 
 /**
