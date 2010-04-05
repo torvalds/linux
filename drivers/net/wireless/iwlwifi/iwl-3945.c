@@ -597,8 +597,8 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 	struct iwl3945_rx_frame_stats *rx_stats = IWL_RX_STATS(pkt);
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
-	u16 rx_stats_sig_avg = le16_to_cpu(rx_stats->sig_avg);
-	u16 rx_stats_noise_diff = le16_to_cpu(rx_stats->noise_diff);
+	u16 rx_stats_sig_avg __maybe_unused = le16_to_cpu(rx_stats->sig_avg);
+	u16 rx_stats_noise_diff __maybe_unused = le16_to_cpu(rx_stats->noise_diff);
 	u8 network_packet;
 
 	rx_status.flag = 0;

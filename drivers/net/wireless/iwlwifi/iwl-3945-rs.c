@@ -647,7 +647,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	unsigned long flags;
 	u16 rate_mask = sta ? sta->supp_rates[sband->band] : 0;
 	s8 max_rate_idx = -1;
-	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
+	struct iwl_priv *priv __maybe_unused = (struct iwl_priv *)priv_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	IWL_DEBUG_RATE(priv, "enter\n");

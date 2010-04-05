@@ -194,7 +194,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		.flags = flags,
 		.data = data,
 	};
-	u8 sta_id = sta->sta.sta_id;
+	u8 sta_id __maybe_unused = sta->sta.sta_id;
 
 	IWL_DEBUG_INFO(priv, "Adding sta %u (%pM) %ssynchronously\n",
 		       sta_id, sta->sta.addr, flags & CMD_ASYNC ?  "a" : "");
