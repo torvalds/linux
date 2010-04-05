@@ -381,7 +381,7 @@ struct snd_soc_pcm_stream {
 	unsigned int rate_max;		/* max rate */
 	unsigned int channels_min;	/* min channels */
 	unsigned int channels_max;	/* max channels */
-	unsigned int active;		/* num of active users of the stream */
+	unsigned int active;		/* stream is in use */
 	void *dma_data;			/* used by platform code */
 };
 
