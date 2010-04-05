@@ -353,16 +353,17 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 /*
  * update settings with current parameters from audio engine
  */
-void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,
-				     int channels,
-				     int rate,
-				     int bps,
-				     uint8_t status_bits,
-				     uint8_t category_code)
+void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
+
+	int channels = r600_audio_channels(rdev);
+	int rate = r600_audio_rate(rdev);
+	int bps = r600_audio_bits_per_sample(rdev);
+	uint8_t status_bits = r600_audio_status_bits(rdev);
+	uint8_t category_code = r600_audio_category_code(rdev);
 
 	uint32_t iec;
 
@@ -518,6 +519,8 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 		}
 	}
 
+	r600_audio_enable_polling(encoder);
+
 	DRM_DEBUG("Enabling HDMI interface @ 0x%04X for encoder 0x%x\n",
 		radeon_encoder->hdmi_offset, radeon_encoder->encoder_id);
 }
@@ -538,6 +541,8 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 		dev_err(rdev->dev, "Disabling not enabled HDMI\n");
 		return;
 	}
+
+	r600_audio_disable_polling(encoder);
 
 	DRM_DEBUG("Disabling HDMI interface @ 0x%04X for encoder 0x%x\n",
 		radeon_encoder->hdmi_offset, radeon_encoder->encoder_id);

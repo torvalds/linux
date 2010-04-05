@@ -1327,18 +1327,20 @@ extern void r600_rlc_stop(struct radeon_device *rdev);
 extern int r600_audio_init(struct radeon_device *rdev);
 extern int r600_audio_tmds_index(struct drm_encoder *encoder);
 extern void r600_audio_set_clock(struct drm_encoder *encoder, int clock);
+extern int r600_audio_channels(struct radeon_device *rdev);
+extern int r600_audio_bits_per_sample(struct radeon_device *rdev);
+extern int r600_audio_rate(struct radeon_device *rdev);
+extern uint8_t r600_audio_status_bits(struct radeon_device *rdev);
+extern uint8_t r600_audio_category_code(struct radeon_device *rdev);
+extern void r600_audio_enable_polling(struct drm_encoder *encoder);
+extern void r600_audio_disable_polling(struct drm_encoder *encoder);
 extern void r600_audio_fini(struct radeon_device *rdev);
 extern void r600_hdmi_init(struct drm_encoder *encoder);
 extern void r600_hdmi_enable(struct drm_encoder *encoder);
 extern void r600_hdmi_disable(struct drm_encoder *encoder);
 extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 extern int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
-extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,
-					    int channels,
-					    int rate,
-					    int bps,
-					    uint8_t status_bits,
-					    uint8_t category_code);
+extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 
 extern void r700_cp_stop(struct radeon_device *rdev);
 extern void r700_cp_fini(struct radeon_device *rdev);

@@ -345,6 +345,7 @@ struct radeon_encoder {
 	enum radeon_rmx_type rmx_type;
 	struct drm_display_mode native_mode;
 	void *enc_priv;
+	int audio_polling_active;
 	int hdmi_offset;
 	int hdmi_config_offset;
 	int hdmi_audio_workaround;
