@@ -217,6 +217,8 @@ enum {
  */
 #define NILFS_SC_DEFAULT_WATERMARK  3600
 
+/* super.c */
+extern struct kmem_cache *nilfs_transaction_cachep;
 
 /* segment.c */
 extern int nilfs_init_transaction_cache(void);

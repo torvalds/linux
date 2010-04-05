@@ -123,6 +123,7 @@ struct nilfs_segment_buffer {
 		    b_assoc_buffers))
 #define NILFS_SEGBUF_BH_IS_LAST(bh, head)  ((bh)->b_assoc_buffers.next == head)
 
+extern struct kmem_cache *nilfs_segbuf_cachep;
 
 int __init nilfs_init_segbuf_cache(void);
 void nilfs_destroy_segbuf_cache(void);

@@ -40,34 +40,9 @@ struct nilfs_write_info {
 	sector_t		blocknr;
 };
 
-
 static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
 			      struct the_nilfs *nilfs);
 static int nilfs_segbuf_wait(struct nilfs_segment_buffer *segbuf);
-
-
-static struct kmem_cache *nilfs_segbuf_cachep;
-
-static void nilfs_segbuf_init_once(void *obj)
-{
-	memset(obj, 0, sizeof(struct nilfs_segment_buffer));
-}
-
-int __init nilfs_init_segbuf_cache(void)
-{
-	nilfs_segbuf_cachep =
-		kmem_cache_create("nilfs2_segbuf_cache",
-				  sizeof(struct nilfs_segment_buffer),
-				  0, SLAB_RECLAIM_ACCOUNT,
-				  nilfs_segbuf_init_once);
-
-	return (nilfs_segbuf_cachep == NULL) ? -ENOMEM : 0;
-}
-
-void nilfs_destroy_segbuf_cache(void)
-{
-	kmem_cache_destroy(nilfs_segbuf_cachep);
-}
 
 struct nilfs_segment_buffer *nilfs_segbuf_new(struct super_block *sb)
 {

@@ -67,6 +67,11 @@ MODULE_DESCRIPTION("A New Implementation of the Log-structured Filesystem "
 		   "(NILFS)");
 MODULE_LICENSE("GPL");
 
+struct kmem_cache *nilfs_inode_cachep;
+struct kmem_cache *nilfs_transaction_cachep;
+struct kmem_cache *nilfs_segbuf_cachep;
+struct kmem_cache *nilfs_btree_path_cache;
+
 static int nilfs_remount(struct super_block *sb, int *flags, char *data);
 
 /**
@@ -129,7 +134,6 @@ void nilfs_warning(struct super_block *sb, const char *function,
 	va_end(args);
 }
 
-static struct kmem_cache *nilfs_inode_cachep;
 
 struct inode *nilfs_alloc_inode_common(struct the_nilfs *nilfs)
 {
@@ -153,34 +157,6 @@ struct inode *nilfs_alloc_inode(struct super_block *sb)
 void nilfs_destroy_inode(struct inode *inode)
 {
 	kmem_cache_free(nilfs_inode_cachep, NILFS_I(inode));
-}
-
-static void init_once(void *obj)
-{
-	struct nilfs_inode_info *ii = obj;
-
-	INIT_LIST_HEAD(&ii->i_dirty);
-#ifdef CONFIG_NILFS_XATTR
-	init_rwsem(&ii->xattr_sem);
-#endif
-	nilfs_btnode_cache_init_once(&ii->i_btnode_cache);
-	ii->i_bmap = (struct nilfs_bmap *)&ii->i_bmap_union;
-	inode_init_once(&ii->vfs_inode);
-}
-
-static int nilfs_init_inode_cache(void)
-{
-	nilfs_inode_cachep = kmem_cache_create("nilfs2_inode_cache",
-					       sizeof(struct nilfs_inode_info),
-					       0, SLAB_RECLAIM_ACCOUNT,
-					       init_once);
-
-	return (nilfs_inode_cachep == NULL) ? -ENOMEM : 0;
-}
-
-static inline void nilfs_destroy_inode_cache(void)
-{
-	kmem_cache_destroy(nilfs_inode_cachep);
 }
 
 static void nilfs_clear_inode(struct inode *inode)
@@ -1139,54 +1115,92 @@ struct file_system_type nilfs_fs_type = {
 	.fs_flags = FS_REQUIRES_DEV,
 };
 
+static void nilfs_inode_init_once(void *obj)
+{
+	struct nilfs_inode_info *ii = obj;
+
+	INIT_LIST_HEAD(&ii->i_dirty);
+#ifdef CONFIG_NILFS_XATTR
+	init_rwsem(&ii->xattr_sem);
+#endif
+	nilfs_btnode_cache_init_once(&ii->i_btnode_cache);
+	ii->i_bmap = (struct nilfs_bmap *)&ii->i_bmap_union;
+	inode_init_once(&ii->vfs_inode);
+}
+
+static void nilfs_segbuf_init_once(void *obj)
+{
+	memset(obj, 0, sizeof(struct nilfs_segment_buffer));
+}
+
+static void nilfs_destroy_cachep(void)
+{
+	 if (nilfs_inode_cachep)
+		kmem_cache_destroy(nilfs_inode_cachep);
+	 if (nilfs_transaction_cachep)
+		kmem_cache_destroy(nilfs_transaction_cachep);
+	 if (nilfs_segbuf_cachep)
+		kmem_cache_destroy(nilfs_segbuf_cachep);
+	 if (nilfs_btree_path_cache)
+		kmem_cache_destroy(nilfs_btree_path_cache);
+}
+
+static int __init nilfs_init_cachep(void)
+{
+	nilfs_inode_cachep = kmem_cache_create("nilfs2_inode_cache",
+			sizeof(struct nilfs_inode_info), 0,
+			SLAB_RECLAIM_ACCOUNT, nilfs_inode_init_once);
+	if (!nilfs_inode_cachep)
+		goto fail;
+
+	nilfs_transaction_cachep = kmem_cache_create("nilfs2_transaction_cache",
+			sizeof(struct nilfs_transaction_info), 0,
+			SLAB_RECLAIM_ACCOUNT, NULL);
+	if (!nilfs_transaction_cachep)
+		goto fail;
+
+	nilfs_segbuf_cachep = kmem_cache_create("nilfs2_segbuf_cache",
+			sizeof(struct nilfs_segment_buffer), 0,
+			SLAB_RECLAIM_ACCOUNT, nilfs_segbuf_init_once);
+	if (!nilfs_segbuf_cachep)
+		goto fail;
+
+	nilfs_btree_path_cache = kmem_cache_create("nilfs2_btree_path_cache",
+			sizeof(struct nilfs_btree_path) * NILFS_BTREE_LEVEL_MAX,
+			0, 0, NULL);
+	if (!nilfs_btree_path_cache)
+		goto fail;
+
+	return 0;
+
+fail:
+	nilfs_destroy_cachep();
+	return -ENOMEM;
+}
+
 static int __init init_nilfs_fs(void)
 {
 	int err;
 
-	err = nilfs_init_inode_cache();
+	err = nilfs_init_cachep();
 	if (err)
-		goto failed;
-
-	err = nilfs_init_transaction_cache();
-	if (err)
-		goto failed_inode_cache;
-
-	err = nilfs_init_segbuf_cache();
-	if (err)
-		goto failed_transaction_cache;
-
-	err = nilfs_btree_path_cache_init();
-	if (err)
-		goto failed_segbuf_cache;
+		goto fail;
 
 	err = register_filesystem(&nilfs_fs_type);
 	if (err)
-		goto failed_btree_path_cache;
+		goto free_cachep;
 
 	return 0;
 
- failed_btree_path_cache:
-	nilfs_btree_path_cache_destroy();
-
- failed_segbuf_cache:
-	nilfs_destroy_segbuf_cache();
-
- failed_transaction_cache:
-	nilfs_destroy_transaction_cache();
-
- failed_inode_cache:
-	nilfs_destroy_inode_cache();
-
- failed:
+free_cachep:
+	nilfs_destroy_cachep();
+fail:
 	return err;
 }
 
 static void __exit exit_nilfs_fs(void)
 {
-	nilfs_destroy_segbuf_cache();
-	nilfs_destroy_transaction_cache();
-	nilfs_destroy_inode_cache();
-	nilfs_btree_path_cache_destroy();
+	nilfs_destroy_cachep();
 	unregister_filesystem(&nilfs_fs_type);
 }
 

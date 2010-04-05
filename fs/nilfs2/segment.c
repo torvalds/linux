@@ -116,42 +116,6 @@ static void nilfs_dispose_list(struct nilfs_sb_info *, struct list_head *,
 #define nilfs_cnt32_lt(a, b)  nilfs_cnt32_gt(b, a)
 #define nilfs_cnt32_le(a, b)  nilfs_cnt32_ge(b, a)
 
-/*
- * Transaction
- */
-static struct kmem_cache *nilfs_transaction_cachep;
-
-/**
- * nilfs_init_transaction_cache - create a cache for nilfs_transaction_info
- *
- * nilfs_init_transaction_cache() creates a slab cache for the struct
- * nilfs_transaction_info.
- *
- * Return Value: On success, it returns 0. On error, one of the following
- * negative error code is returned.
- *
- * %-ENOMEM - Insufficient memory available.
- */
-int nilfs_init_transaction_cache(void)
-{
-	nilfs_transaction_cachep =
-		kmem_cache_create("nilfs2_transaction_cache",
-				  sizeof(struct nilfs_transaction_info),
-				  0, SLAB_RECLAIM_ACCOUNT, NULL);
-	return (nilfs_transaction_cachep == NULL) ? -ENOMEM : 0;
-}
-
-/**
- * nilfs_destroy_transaction_cache - destroy the cache for transaction info
- *
- * nilfs_destroy_transaction_cache() frees the slab cache for the struct
- * nilfs_transaction_info.
- */
-void nilfs_destroy_transaction_cache(void)
-{
-	kmem_cache_destroy(nilfs_transaction_cachep);
-}
-
 static int nilfs_prepare_segment_lock(struct nilfs_transaction_info *ti)
 {
 	struct nilfs_transaction_info *cur_ti = current->journal_info;

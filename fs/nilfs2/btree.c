@@ -31,46 +31,6 @@
 #include "alloc.h"
 #include "dat.h"
 
-/**
- * struct nilfs_btree_path - A path on which B-tree operations are executed
- * @bp_bh: buffer head of node block
- * @bp_sib_bh: buffer head of sibling node block
- * @bp_index: index of child node
- * @bp_oldreq: ptr end request for old ptr
- * @bp_newreq: ptr alloc request for new ptr
- * @bp_op: rebalance operation
- */
-struct nilfs_btree_path {
-	struct buffer_head *bp_bh;
-	struct buffer_head *bp_sib_bh;
-	int bp_index;
-	union nilfs_bmap_ptr_req bp_oldreq;
-	union nilfs_bmap_ptr_req bp_newreq;
-	struct nilfs_btnode_chkey_ctxt bp_ctxt;
-	void (*bp_op)(struct nilfs_btree *, struct nilfs_btree_path *,
-		      int, __u64 *, __u64 *);
-};
-
-/*
- * B-tree path operations
- */
-
-static struct kmem_cache *nilfs_btree_path_cache;
-
-int __init nilfs_btree_path_cache_init(void)
-{
-	nilfs_btree_path_cache =
-		kmem_cache_create("nilfs2_btree_path_cache",
-				  sizeof(struct nilfs_btree_path) *
-				  NILFS_BTREE_LEVEL_MAX, 0, 0, NULL);
-	return (nilfs_btree_path_cache != NULL) ? 0 : -ENOMEM;
-}
-
-void nilfs_btree_path_cache_destroy(void)
-{
-	kmem_cache_destroy(nilfs_btree_path_cache);
-}
-
 static struct nilfs_btree_path *nilfs_btree_alloc_path(void)
 {
 	struct nilfs_btree_path *path;
