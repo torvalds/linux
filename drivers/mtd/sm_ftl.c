@@ -934,7 +934,7 @@ int sm_cache_flush(struct sm_ftl *ftl)
 
 
 	/* Try to read all unread areas of the cache block*/
-	for_each_bit(sector_num, &ftl->cache_data_invalid_bitmap,
+	for_each_set_bit(sector_num, &ftl->cache_data_invalid_bitmap,
 		ftl->block_size / SM_SECTOR_SIZE) {
 
 		if (!sm_read_sector(ftl,
