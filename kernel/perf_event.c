@@ -16,6 +16,7 @@
 #include <linux/file.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
+#include <linux/hash.h>
 #include <linux/sysfs.h>
 #include <linux/dcache.h>
 #include <linux/percpu.h>
@@ -3966,36 +3967,6 @@ static void perf_swevent_add(struct perf_event *event, u64 nr,
 	perf_swevent_overflow(event, 0, nmi, data, regs);
 }
 
-static int perf_swevent_is_counting(struct perf_event *event)
-{
-	/*
-	 * The event is active, we're good!
-	 */
-	if (event->state == PERF_EVENT_STATE_ACTIVE)
-		return 1;
-
-	/*
-	 * The event is off/error, not counting.
-	 */
-	if (event->state != PERF_EVENT_STATE_INACTIVE)
-		return 0;
-
-	/*
-	 * The event is inactive, if the context is active
-	 * we're part of a group that didn't make it on the 'pmu',
-	 * not counting.
-	 */
-	if (event->ctx->is_active)
-		return 0;
-
-	/*
-	 * We're inactive and the context is too, this means the
-	 * task is scheduled out, we're counting events that happen
-	 * to us, like migration events.
-	 */
-	return 1;
-}
-
 static int perf_tp_event_match(struct perf_event *event,
 				struct perf_sample_data *data);
 
@@ -4019,12 +3990,6 @@ static int perf_swevent_match(struct perf_event *event,
 				struct perf_sample_data *data,
 				struct pt_regs *regs)
 {
-	if (event->cpu != -1 && event->cpu != smp_processor_id())
-		return 0;
-
-	if (!perf_swevent_is_counting(event))
-		return 0;
-
 	if (event->attr.type != type)
 		return 0;
 
@@ -4041,18 +4006,53 @@ static int perf_swevent_match(struct perf_event *event,
 	return 1;
 }
 
-static void perf_swevent_ctx_event(struct perf_event_context *ctx,
-				     enum perf_type_id type,
-				     u32 event_id, u64 nr, int nmi,
-				     struct perf_sample_data *data,
-				     struct pt_regs *regs)
+static inline u64 swevent_hash(u64 type, u32 event_id)
 {
-	struct perf_event *event;
+	u64 val = event_id | (type << 32);
 
-	list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
+	return hash_64(val, SWEVENT_HLIST_BITS);
+}
+
+static struct hlist_head *
+find_swevent_head(struct perf_cpu_context *ctx, u64 type, u32 event_id)
+{
+	u64 hash;
+	struct swevent_hlist *hlist;
+
+	hash = swevent_hash(type, event_id);
+
+	hlist = rcu_dereference(ctx->swevent_hlist);
+	if (!hlist)
+		return NULL;
+
+	return &hlist->heads[hash];
+}
+
+static void do_perf_sw_event(enum perf_type_id type, u32 event_id,
+				    u64 nr, int nmi,
+				    struct perf_sample_data *data,
+				    struct pt_regs *regs)
+{
+	struct perf_cpu_context *cpuctx;
+	struct perf_event *event;
+	struct hlist_node *node;
+	struct hlist_head *head;
+
+	cpuctx = &__get_cpu_var(perf_cpu_context);
+
+	rcu_read_lock();
+
+	head = find_swevent_head(cpuctx, type, event_id);
+
+	if (!head)
+		goto end;
+
+	hlist_for_each_entry_rcu(event, node, head, hlist_entry) {
 		if (perf_swevent_match(event, type, event_id, data, regs))
 			perf_swevent_add(event, nr, nmi, data, regs);
 	}
+end:
+	rcu_read_unlock();
 }
 
 int perf_swevent_get_recursion_context(void)
@@ -4090,27 +4090,6 @@ void perf_swevent_put_recursion_context(int rctx)
 }
 EXPORT_SYMBOL_GPL(perf_swevent_put_recursion_context);
 
-static void do_perf_sw_event(enum perf_type_id type, u32 event_id,
-				    u64 nr, int nmi,
-				    struct perf_sample_data *data,
-				    struct pt_regs *regs)
-{
-	struct perf_cpu_context *cpuctx;
-	struct perf_event_context *ctx;
-
-	cpuctx = &__get_cpu_var(perf_cpu_context);
-	rcu_read_lock();
-	perf_swevent_ctx_event(&cpuctx->ctx, type, event_id,
-				 nr, nmi, data, regs);
-	/*
-	 * doesn't really matter which of the child contexts the
-	 * events ends up in.
-	 */
-	ctx = rcu_dereference(current->perf_event_ctxp);
-	if (ctx)
-		perf_swevent_ctx_event(ctx, type, event_id, nr, nmi, data, regs);
-	rcu_read_unlock();
-}
 
 void __perf_sw_event(u32 event_id, u64 nr, int nmi,
 			    struct pt_regs *regs, u64 addr)
@@ -4136,16 +4115,28 @@ static void perf_swevent_read(struct perf_event *event)
 static int perf_swevent_enable(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
+	struct perf_cpu_context *cpuctx;
+	struct hlist_head *head;
+
+	cpuctx = &__get_cpu_var(perf_cpu_context);
 
 	if (hwc->sample_period) {
 		hwc->last_period = hwc->sample_period;
 		perf_swevent_set_period(event);
 	}
+
+	head = find_swevent_head(cpuctx, event->attr.type, event->attr.config);
+	if (WARN_ON_ONCE(!head))
+		return -EINVAL;
+
+	hlist_add_head_rcu(&event->hlist_entry, head);
+
 	return 0;
 }
 
 static void perf_swevent_disable(struct perf_event *event)
 {
+	hlist_del_rcu(&event->hlist_entry);
 }
 
 static const struct pmu perf_ops_generic = {
@@ -4359,13 +4350,115 @@ static int perf_tp_event_match(struct perf_event *event,
 	return 0;
 }
 
+static void swevent_hlist_release_rcu(struct rcu_head *rcu_head)
+{
+	struct swevent_hlist *hlist;
+
+	hlist = container_of(rcu_head, struct swevent_hlist, rcu_head);
+	kfree(hlist);
+}
+
+static void swevent_hlist_release(struct perf_cpu_context *cpuctx)
+{
+	struct swevent_hlist *hlist;
+
+	if (!cpuctx->swevent_hlist)
+		return;
+
+	hlist = cpuctx->swevent_hlist;
+	rcu_assign_pointer(cpuctx->swevent_hlist, NULL);
+	call_rcu(&hlist->rcu_head, swevent_hlist_release_rcu);
+}
+
+static void swevent_hlist_put_cpu(struct perf_event *event, int cpu)
+{
+	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
+
+	mutex_lock(&cpuctx->hlist_mutex);
+
+	if (!--cpuctx->hlist_refcount)
+		swevent_hlist_release(cpuctx);
+
+	mutex_unlock(&cpuctx->hlist_mutex);
+}
+
+static void swevent_hlist_put(struct perf_event *event)
+{
+	int cpu;
+
+	if (event->cpu != -1) {
+		swevent_hlist_put_cpu(event, event->cpu);
+		return;
+	}
+
+	for_each_possible_cpu(cpu)
+		swevent_hlist_put_cpu(event, cpu);
+}
+
+static int swevent_hlist_get_cpu(struct perf_event *event, int cpu)
+{
+	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
+	int err = 0;
+
+	mutex_lock(&cpuctx->hlist_mutex);
+
+	if (!cpuctx->swevent_hlist && cpu_online(cpu)) {
+		struct swevent_hlist *hlist;
+
+		hlist = kzalloc(sizeof(*hlist), GFP_KERNEL);
+		if (!hlist) {
+			err = -ENOMEM;
+			goto exit;
+		}
+		rcu_assign_pointer(cpuctx->swevent_hlist, hlist);
+	}
+	cpuctx->hlist_refcount++;
+ exit:
+	mutex_unlock(&cpuctx->hlist_mutex);
+
+	return err;
+}
+
+static int swevent_hlist_get(struct perf_event *event)
+{
+	int err;
+	int cpu, failed_cpu;
+
+	if (event->cpu != -1)
+		return swevent_hlist_get_cpu(event, event->cpu);
+
+	get_online_cpus();
+	for_each_possible_cpu(cpu) {
+		err = swevent_hlist_get_cpu(event, cpu);
+		if (err) {
+			failed_cpu = cpu;
+			goto fail;
+		}
+	}
+	put_online_cpus();
+
+	return 0;
+ fail:
+	for_each_possible_cpu(cpu) {
+		if (cpu == failed_cpu)
+			break;
+		swevent_hlist_put_cpu(event, cpu);
+	}
+
+	put_online_cpus();
+	return err;
+}
+
 static void tp_perf_event_destroy(struct perf_event *event)
 {
 	perf_trace_disable(event->attr.config);
+	swevent_hlist_put(event);
 }
 
 static const struct pmu *tp_perf_event_init(struct perf_event *event)
 {
+	int err;
+
 	/*
 	 * Raw tracepoint data is a severe data leak, only allow root to
 	 * have these.
@@ -4379,6 +4472,11 @@ static const struct pmu *tp_perf_event_init(struct perf_event *event)
 		return NULL;
 
 	event->destroy = tp_perf_event_destroy;
+	err = swevent_hlist_get(event);
+	if (err) {
+		perf_trace_disable(event->attr.config);
+		return ERR_PTR(err);
+	}
 
 	return &perf_ops_generic;
 }
@@ -4479,6 +4577,7 @@ static void sw_perf_event_destroy(struct perf_event *event)
 	WARN_ON(event->parent);
 
 	atomic_dec(&perf_swevent_enabled[event_id]);
+	swevent_hlist_put(event);
 }
 
 static const struct pmu *sw_perf_event_init(struct perf_event *event)
@@ -4517,6 +4616,12 @@ static const struct pmu *sw_perf_event_init(struct perf_event *event)
 	case PERF_COUNT_SW_ALIGNMENT_FAULTS:
 	case PERF_COUNT_SW_EMULATION_FAULTS:
 		if (!event->parent) {
+			int err;
+
+			err = swevent_hlist_get(event);
+			if (err)
+				return ERR_PTR(err);
+
 			atomic_inc(&perf_swevent_enabled[event_id]);
 			event->destroy = sw_perf_event_destroy;
 		}
@@ -5389,6 +5494,7 @@ static void __init perf_event_init_all_cpus(void)
 
 	for_each_possible_cpu(cpu) {
 		cpuctx = &per_cpu(perf_cpu_context, cpu);
+		mutex_init(&cpuctx->hlist_mutex);
 		__perf_event_init_context(&cpuctx->ctx, NULL);
 	}
 }
@@ -5402,6 +5508,16 @@ static void __cpuinit perf_event_init_cpu(int cpu)
 	spin_lock(&perf_resource_lock);
 	cpuctx->max_pertask = perf_max_events - perf_reserved_percpu;
 	spin_unlock(&perf_resource_lock);
+
+	mutex_lock(&cpuctx->hlist_mutex);
+	if (cpuctx->hlist_refcount > 0) {
+		struct swevent_hlist *hlist;
+
+		hlist = kzalloc(sizeof(*hlist), GFP_KERNEL);
+		WARN_ON_ONCE(!hlist);
+		rcu_assign_pointer(cpuctx->swevent_hlist, hlist);
+	}
+	mutex_unlock(&cpuctx->hlist_mutex);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -5420,6 +5536,10 @@ static void perf_event_exit_cpu(int cpu)
 {
 	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
 	struct perf_event_context *ctx = &cpuctx->ctx;
+
+	mutex_lock(&cpuctx->hlist_mutex);
+	swevent_hlist_release(cpuctx);
+	mutex_unlock(&cpuctx->hlist_mutex);
 
 	mutex_lock(&ctx->mutex);
 	smp_call_function_single(cpu, __perf_event_exit_cpu, NULL, 1);
