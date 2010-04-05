@@ -581,11 +581,11 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 		return 0;
 
 	switch (locknum) {
-		case TG3_APE_LOCK_GRC:
-		case TG3_APE_LOCK_MEM:
-			break;
-		default:
-			return -EINVAL;
+	case TG3_APE_LOCK_GRC:
+	case TG3_APE_LOCK_MEM:
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	off = 4 * locknum;
@@ -619,11 +619,11 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 		return;
 
 	switch (locknum) {
-		case TG3_APE_LOCK_GRC:
-		case TG3_APE_LOCK_MEM:
-			break;
-		default:
-			return;
+	case TG3_APE_LOCK_GRC:
+	case TG3_APE_LOCK_MEM:
+		break;
+	default:
+		return;
 	}
 
 	off = 4 * locknum;
@@ -3428,7 +3428,7 @@ static int tg3_fiber_aneg_smachine(struct tg3 *tp,
 	ap->rxconfig = rx_cfg_reg;
 	ret = ANEG_OK;
 
-	switch(ap->state) {
+	switch (ap->state) {
 	case ANEG_STATE_UNKNOWN:
 		if (ap->flags & (MR_AN_ENABLE | MR_RESTART_AN))
 			ap->state = ANEG_STATE_AN_ENABLE;
@@ -6565,35 +6565,35 @@ static void tg3_ape_driver_state_change(struct tg3 *tp, int kind)
 		return;
 
 	switch (kind) {
-		case RESET_KIND_INIT:
-			tg3_ape_write32(tp, TG3_APE_HOST_SEG_SIG,
-					APE_HOST_SEG_SIG_MAGIC);
-			tg3_ape_write32(tp, TG3_APE_HOST_SEG_LEN,
-					APE_HOST_SEG_LEN_MAGIC);
-			apedata = tg3_ape_read32(tp, TG3_APE_HOST_INIT_COUNT);
-			tg3_ape_write32(tp, TG3_APE_HOST_INIT_COUNT, ++apedata);
-			tg3_ape_write32(tp, TG3_APE_HOST_DRIVER_ID,
-					APE_HOST_DRIVER_ID_MAGIC);
-			tg3_ape_write32(tp, TG3_APE_HOST_BEHAVIOR,
-					APE_HOST_BEHAV_NO_PHYLOCK);
+	case RESET_KIND_INIT:
+		tg3_ape_write32(tp, TG3_APE_HOST_SEG_SIG,
+				APE_HOST_SEG_SIG_MAGIC);
+		tg3_ape_write32(tp, TG3_APE_HOST_SEG_LEN,
+				APE_HOST_SEG_LEN_MAGIC);
+		apedata = tg3_ape_read32(tp, TG3_APE_HOST_INIT_COUNT);
+		tg3_ape_write32(tp, TG3_APE_HOST_INIT_COUNT, ++apedata);
+		tg3_ape_write32(tp, TG3_APE_HOST_DRIVER_ID,
+				APE_HOST_DRIVER_ID_MAGIC);
+		tg3_ape_write32(tp, TG3_APE_HOST_BEHAVIOR,
+				APE_HOST_BEHAV_NO_PHYLOCK);
 
-			event = APE_EVENT_STATUS_STATE_START;
-			break;
-		case RESET_KIND_SHUTDOWN:
-			/* With the interface we are currently using,
-			 * APE does not track driver state.  Wiping
-			 * out the HOST SEGMENT SIGNATURE forces
-			 * the APE to assume OS absent status.
-			 */
-			tg3_ape_write32(tp, TG3_APE_HOST_SEG_SIG, 0x0);
+		event = APE_EVENT_STATUS_STATE_START;
+		break;
+	case RESET_KIND_SHUTDOWN:
+		/* With the interface we are currently using,
+		 * APE does not track driver state.  Wiping
+		 * out the HOST SEGMENT SIGNATURE forces
+		 * the APE to assume OS absent status.
+		 */
+		tg3_ape_write32(tp, TG3_APE_HOST_SEG_SIG, 0x0);
 
-			event = APE_EVENT_STATUS_STATE_UNLOAD;
-			break;
-		case RESET_KIND_SUSPEND:
-			event = APE_EVENT_STATUS_STATE_SUSPEND;
-			break;
-		default:
-			return;
+		event = APE_EVENT_STATUS_STATE_UNLOAD;
+		break;
+	case RESET_KIND_SUSPEND:
+		event = APE_EVENT_STATUS_STATE_SUSPEND;
+		break;
+	default:
+		return;
 	}
 
 	event |= APE_EVENT_STATUS_DRIVER_EVNT | APE_EVENT_STATUS_STATE_CHNGE;
@@ -11102,7 +11102,7 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return phy_mii_ioctl(phydev, data, cmd);
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCGMIIPHY:
 		data->phy_id = tp->phy_addr;
 
