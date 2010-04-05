@@ -142,6 +142,7 @@
 
 struct tps6507x_board {
 	struct regulator_init_data *tps6507x_pmic_init_data;
+	struct touchscreen_init_data *tps6507x_ts_init_data;
 };
 
 /**
@@ -162,6 +163,7 @@ struct tps6507x_dev {
 
 	/* Client devices */
 	struct tps6507x_pmic *pmic;
+	struct tps6507x_ts *ts;
 };
 
 #endif /*  __LINUX_MFD_TPS6507X_H */

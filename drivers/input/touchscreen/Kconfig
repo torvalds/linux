@@ -590,4 +590,17 @@ config TOUCHSCREEN_PCAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcap_ts.
+
+config TOUCHSCREEN_TPS6507X
+	tristate "TPS6507x based touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a TPS6507x based touchscreen
+	  controller.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tps6507x_ts.
+
 endif
