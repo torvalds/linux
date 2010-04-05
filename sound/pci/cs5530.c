@@ -39,6 +39,7 @@
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/sb.h>
 #include <sound/initval.h>

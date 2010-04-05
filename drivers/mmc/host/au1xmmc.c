@@ -41,6 +41,7 @@
 #include <linux/scatterlist.h>
 #include <linux/leds.h>
 #include <linux/mmc/host.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/mach-au1x00/au1000.h>

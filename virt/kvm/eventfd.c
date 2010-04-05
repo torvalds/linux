@@ -30,6 +30,7 @@
 #include <linux/list.h>
 #include <linux/eventfd.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include "iodev.h"
 

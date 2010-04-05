@@ -6,6 +6,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <net/cfg80211.h>
 
 #include "cfg.h"

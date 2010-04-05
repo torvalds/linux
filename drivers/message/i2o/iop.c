@@ -29,6 +29,7 @@
 #include <linux/i2o.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include "core.h"
 
 #define OSM_NAME	"i2o"

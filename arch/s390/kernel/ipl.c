@@ -15,6 +15,7 @@
 #include <linux/reboot.h>
 #include <linux/ctype.h>
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <asm/ipl.h>
 #include <asm/smp.h>
 #include <asm/setup.h>

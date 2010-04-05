@@ -15,6 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include <asm/setup.h>

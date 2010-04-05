@@ -21,6 +21,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 #define MLOG_MASK_PREFIX ML_INODE

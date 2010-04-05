@@ -24,6 +24,7 @@
  */
 
 #include <linux/swab.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "drm_sarea.h"

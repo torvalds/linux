@@ -22,6 +22,7 @@
  */
 
 #include <linux/hash.h>
+#include <linux/slab.h>
 
 #include "af9015.h"
 #include "af9013.h"

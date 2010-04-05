@@ -22,6 +22,7 @@
  *					needed cleaned seq-number fields.
  */
 
+#include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

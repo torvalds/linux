@@ -12,6 +12,7 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/kobject.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>

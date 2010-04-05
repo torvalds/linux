@@ -3,6 +3,7 @@
 #include <linux/usb.h>
 #include <linux/dvb/dmx.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 #include "vendorcmds.h"
 #include <linux/sched.h>

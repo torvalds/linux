@@ -19,6 +19,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/security.h>
+#include <linux/slab.h>
 #include "internal.h"
 
 #define CACHEFILES_KEYBUF_SIZE 512

@@ -71,7 +71,6 @@
 #include <linux/buffer_head.h>		/* for invalidate_bdev() */
 #include <linux/completion.h>
 #include <linux/highmem.h>
-#include <linux/gfp.h>
 #include <linux/kthread.h>
 #include <linux/splice.h>
 

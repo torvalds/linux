@@ -39,7 +39,6 @@
 #include <linux/efi.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
-#include <linux/slab.h>
 #include <asm/desc.h>
 #include <asm/cacheflush.h>
 

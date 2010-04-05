@@ -33,6 +33,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/pci.h>
 #include <linux/libata.h>
 #include <linux/highmem.h>

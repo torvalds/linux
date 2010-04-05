@@ -17,6 +17,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/writeback.h>
 #include <linux/pagemap.h>

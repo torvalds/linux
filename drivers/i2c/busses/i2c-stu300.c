@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 /* the name of this kernel module */
 #define NAME "stu300"

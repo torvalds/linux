@@ -36,6 +36,7 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 #include <linux/fsl_devices.h>
+#include <linux/gfp.h>
 
 #include <media/soc_camera.h>
 

@@ -32,6 +32,7 @@
 #include <linux/highmem.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/gfp.h>
 
 #include <asm/pgalloc.h>
 #include <linux/io.h>

@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #include <linux/eventfd.h>
 #include <linux/file.h>
+#include <linux/slab.h>
 #include "lg.h"
 
 /*L:056

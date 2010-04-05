@@ -32,6 +32,7 @@
 #include <linux/version.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>

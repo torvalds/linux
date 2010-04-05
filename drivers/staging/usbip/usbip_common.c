@@ -23,6 +23,7 @@
 #include <linux/tcp.h>
 #include <linux/in.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include "usbip_common.h"
 
 /* version information */

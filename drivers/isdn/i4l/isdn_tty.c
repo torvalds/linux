@@ -12,6 +12,7 @@
 #undef ISDN_TTY_STAT_DEBUG
 
 #include <linux/isdn.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
 #include "isdn_common.h"

@@ -30,6 +30,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/vfs.h>
+#include <linux/slab.h>
 #include <linux/posix_acl_xattr.h>
 #include <asm/uaccess.h>
 #include "cifspdu.h"

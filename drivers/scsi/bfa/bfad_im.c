@@ -19,6 +19,7 @@
  *  bfad_im.c Linux driver IM module.
  */
 
+#include <linux/slab.h>
 #include "bfad_drv.h"
 #include "bfad_im.h"
 #include "bfad_trcmod.h"

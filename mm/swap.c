@@ -30,6 +30,7 @@
 #include <linux/notifier.h>
 #include <linux/backing-dev.h>
 #include <linux/memcontrol.h>
+#include <linux/gfp.h>
 
 #include "internal.h"
 

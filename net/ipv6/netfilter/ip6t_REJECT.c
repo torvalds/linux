@@ -15,6 +15,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/gfp.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/icmpv6.h>

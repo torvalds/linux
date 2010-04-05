@@ -16,7 +16,6 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 
 #include <asm/segment.h>
 #include <asm/io.h>

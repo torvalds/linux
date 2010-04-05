@@ -56,6 +56,7 @@
 #include <linux/can.h>
 #include <linux/can/core.h>
 #include <linux/can/bcm.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/net_namespace.h>
 

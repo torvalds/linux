@@ -11,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/stat.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/kmod.h>
 #include <linux/err.h>

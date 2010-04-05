@@ -7,6 +7,7 @@
  *  block allocation, deallocation, calculation of free space.
  */
 
+#include <linux/slab.h>
 #include "affs.h"
 
 /* This is, of course, shamelessly stolen from fs/minix */

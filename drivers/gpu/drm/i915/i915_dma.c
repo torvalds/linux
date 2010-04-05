@@ -38,6 +38,7 @@
 #include <linux/acpi.h>
 #include <linux/pnp.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/slab.h>
 
 /* Really want an OS-independent resettable timer.  Would like to have
  * this loop run for (eg) 3 sec, but have the timer reset every time

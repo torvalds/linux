@@ -346,7 +346,6 @@
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
-#include <linux/slab.h>
 #include <linux/pci_ids.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>

@@ -38,6 +38,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>

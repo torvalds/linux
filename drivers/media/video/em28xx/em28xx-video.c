@@ -35,6 +35,7 @@
 #include <linux/version.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include "em28xx.h"
 #include <media/v4l2-common.h>

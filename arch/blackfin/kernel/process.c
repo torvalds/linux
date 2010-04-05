@@ -11,6 +11,7 @@
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/tick.h>
 #include <linux/fs.h>

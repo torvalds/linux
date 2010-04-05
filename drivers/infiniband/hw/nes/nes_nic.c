@@ -40,6 +40,7 @@
 #include <linux/if_arp.h>
 #include <linux/if_vlan.h>
 #include <linux/ethtool.h>
+#include <linux/slab.h>
 #include <net/tcp.h>
 
 #include <net/inet_common.h>

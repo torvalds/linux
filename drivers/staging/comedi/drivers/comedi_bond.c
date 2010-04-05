@@ -90,6 +90,7 @@ Configuration Options:
 #include "../comedilib.h"
 #include "../comedidev.h"
 #include <linux/string.h>
+#include <linux/slab.h>
 
 /* The maxiumum number of channels per subdevice. */
 #define MAX_CHANS 256

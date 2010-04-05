@@ -2,6 +2,7 @@
  * Functions related to sysfs handling
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>

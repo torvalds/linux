@@ -71,6 +71,7 @@
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
 #include <linux/ftrace.h>
+#include <linux/slab.h>
 
 #include <asm/tlb.h>
 #include <asm/irq_regs.h>

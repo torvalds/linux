@@ -6,6 +6,7 @@
  * Copyright (c) 2005-2008 Joern Engel <joern@logfs.org>
  */
 #include "logfs.h"
+#include <linux/slab.h>
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 

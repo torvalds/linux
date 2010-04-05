@@ -25,6 +25,7 @@
 #include <linux/bootmem.h>
 #include <linux/lmb.h>
 #include <linux/log2.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>

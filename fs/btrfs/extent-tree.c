@@ -22,6 +22,7 @@
 #include <linux/sort.h>
 #include <linux/rcupdate.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "hash.h"
 #include "ctree.h"

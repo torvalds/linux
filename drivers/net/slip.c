@@ -83,6 +83,7 @@
 #include <linux/compat.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include "slip.h"
 #ifdef CONFIG_INET
 #include <linux/ip.h>

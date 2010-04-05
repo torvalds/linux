@@ -33,6 +33,7 @@
 #include <linux/io.h>
 #include <linux/highmem.h>
 #include <linux/wait.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 

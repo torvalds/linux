@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/bootmem.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/pci-bridge.h>

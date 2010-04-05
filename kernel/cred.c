@@ -10,6 +10,7 @@
  */
 #include <linux/module.h>
 #include <linux/cred.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/key.h>
 #include <linux/keyctl.h>

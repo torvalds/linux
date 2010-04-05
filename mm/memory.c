@@ -56,6 +56,7 @@
 #include <linux/kallsyms.h>
 #include <linux/swapops.h>
 #include <linux/elf.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/pgalloc.h>
