@@ -454,6 +454,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
 	spin_lock_init(&priv->tx_lock);
 	mutex_init(&priv->mutex);
 	mutex_init(&priv->aggr_work.mutex);
+	mutex_init(&priv->htc_pm_lock);
 	tasklet_init(&priv->wmi_tasklet, ath9k_wmi_tasklet,
 		     (unsigned long)priv);
 	tasklet_init(&priv->rx_tasklet, ath9k_rx_tasklet,
@@ -461,6 +462,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
 	tasklet_init(&priv->tx_tasklet, ath9k_tx_tasklet, (unsigned long)priv);
 	INIT_DELAYED_WORK(&priv->ath9k_aggr_work, ath9k_htc_aggr_work);
 	INIT_DELAYED_WORK(&priv->ath9k_ani_work, ath9k_ani_work);
+	INIT_WORK(&priv->ps_work, ath9k_ps_work);
 
 	/*
 	 * Cache line size is used to size and align various
@@ -515,11 +517,15 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		IEEE80211_HW_AMPDU_AGGREGATION |
 		IEEE80211_HW_SPECTRUM_MGMT |
 		IEEE80211_HW_HAS_RATE_CONTROL |
-		IEEE80211_HW_RX_INCLUDES_FCS;
+		IEEE80211_HW_RX_INCLUDES_FCS |
+		IEEE80211_HW_SUPPORTS_PS |
+		IEEE80211_HW_PS_NULLFUNC_STACK;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
+
+	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->queues = 4;
 	hw->channel_change_time = 5000;

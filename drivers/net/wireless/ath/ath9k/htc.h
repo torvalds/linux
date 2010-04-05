@@ -363,6 +363,11 @@ struct ath9k_htc_priv {
 	struct ath9k_htc_aggr_work aggr_work;
 	struct delayed_work ath9k_aggr_work;
 	struct delayed_work ath9k_ani_work;
+	struct work_struct ps_work;
+
+	struct mutex htc_pm_lock;
+	unsigned long ps_usecount;
+	bool ps_enabled;
 
 	struct ath_led radio_led;
 	struct ath_led assoc_led;
@@ -419,6 +424,10 @@ void ath9k_rx_cleanup(struct ath9k_htc_priv *priv);
 void ath9k_host_rx_init(struct ath9k_htc_priv *priv);
 void ath9k_rx_tasklet(unsigned long data);
 u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv);
+
+void ath9k_htc_ps_wakeup(struct ath9k_htc_priv *priv);
+void ath9k_htc_ps_restore(struct ath9k_htc_priv *priv);
+void ath9k_ps_work(struct work_struct *work);
 
 void ath9k_start_rfkill_poll(struct ath9k_htc_priv *priv);
 void ath9k_init_leds(struct ath9k_htc_priv *priv);

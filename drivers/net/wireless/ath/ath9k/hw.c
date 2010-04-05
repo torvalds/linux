@@ -3245,8 +3245,10 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->hw_caps |= ATH9K_HW_CAP_RFSILENT;
 	}
 #endif
-
-	pCap->hw_caps &= ~ATH9K_HW_CAP_AUTOSLEEP;
+	if (AR_SREV_9271(ah))
+		pCap->hw_caps |= ATH9K_HW_CAP_AUTOSLEEP;
+	else
+		pCap->hw_caps &= ~ATH9K_HW_CAP_AUTOSLEEP;
 
 	if (AR_SREV_9280(ah) || AR_SREV_9285(ah))
 		pCap->hw_caps &= ~ATH9K_HW_CAP_4KB_SPLITTRANS;

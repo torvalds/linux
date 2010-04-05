@@ -553,7 +553,7 @@ void ath9k_rx_tasklet(unsigned long data)
 	struct ieee80211_rx_status rx_status;
 	struct sk_buff *skb;
 	unsigned long flags;
-
+	struct ieee80211_hdr *hdr;
 
 	do {
 		spin_lock_irqsave(&priv->rx.rxbuflock, flags);
@@ -580,6 +580,11 @@ void ath9k_rx_tasklet(unsigned long data)
 		memcpy(IEEE80211_SKB_RXCB(rxbuf->skb), &rx_status,
 		       sizeof(struct ieee80211_rx_status));
 		skb = rxbuf->skb;
+		hdr = (struct ieee80211_hdr *) skb->data;
+
+		if (ieee80211_is_beacon(hdr->frame_control) && priv->ps_enabled)
+				ieee80211_queue_work(priv->hw, &priv->ps_work);
+
 		spin_unlock_irqrestore(&priv->rx.rxbuflock, flags);
 
 		ieee80211_rx(priv->hw, skb);
