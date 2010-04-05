@@ -3120,7 +3120,7 @@ static int process_backlog(struct napi_struct *napi, int quota)
 		skb = __skb_dequeue(&queue->input_pkt_queue);
 		if (!skb) {
 			__napi_complete(napi);
-			spin_unlock_irq(&queue->input_pkt_queue.lock);
+			rps_unlock(queue);
 			break;
 		}
 		rps_unlock(queue);
