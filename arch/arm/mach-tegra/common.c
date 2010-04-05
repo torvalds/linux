@@ -19,10 +19,13 @@
 
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
 
 #include <asm/hardware/cache-l2x0.h>
 
 #include <mach/iomap.h>
+#include <mach/dma.h>
 
 #include "board.h"
 #include "clock.h"
@@ -52,6 +55,7 @@ void __init tegra_init_cache(void)
 
 	l2x0_init(p, 0x6C080001, 0x8200c3fe);
 #endif
+
 }
 
 void __init tegra_common_init(void)
@@ -60,4 +64,7 @@ void __init tegra_common_init(void)
 	tegra_init_clock();
 	tegra_clk_init_from_table(common_clk_init_table);
 	tegra_init_cache();
+#ifdef CONFIG_TEGRA_SYSTEM_DMA
+	tegra_dma_init();
+#endif
 }
