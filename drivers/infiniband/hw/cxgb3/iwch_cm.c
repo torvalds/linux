@@ -151,7 +151,7 @@ int iwch_l2t_send(struct t3cdev *tdev, struct sk_buff *skb, struct l2t_entry *l2
 		return -EIO;
 	}
 	error = l2t_send(tdev, skb, l2e);
-	if (error)
+	if (error < 0)
 		kfree_skb(skb);
 	return error;
 }
@@ -167,7 +167,7 @@ int iwch_cxgb3_ofld_send(struct t3cdev *tdev, struct sk_buff *skb)
 		return -EIO;
 	}
 	error = cxgb3_ofld_send(tdev, skb);
-	if (error)
+	if (error < 0)
 		kfree_skb(skb);
 	return error;
 }
