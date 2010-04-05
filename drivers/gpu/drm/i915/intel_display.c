@@ -4680,6 +4680,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 	int pipesrc_reg = (intel_crtc->pipe == 0) ? PIPEASRC : PIPEBSRC;
 	int ret, pipesrc;
+	u32 flip_mask;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)
@@ -4732,6 +4733,16 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	obj_priv = to_intel_bo(obj);
 	atomic_inc(&obj_priv->pending_flip);
 	work->pending_flip_obj = obj;
+
+	if (intel_crtc->plane)
+		flip_mask = I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT;
+	else
+		flip_mask = I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT;
+
+	/* Wait for any previous flip to finish */
+	if (IS_GEN3(dev))
+		while (I915_READ(ISR) & flip_mask)
+			;
 
 	BEGIN_LP_RING(4);
 	OUT_RING(MI_DISPLAY_FLIP |
