@@ -1004,7 +1004,7 @@ intel_dp_link_train(struct intel_encoder *intel_encoder, uint32_t DP,
 	u32 reg;
 
 	/* Write the link configuration data */
-	intel_dp_aux_native_write(intel_encoder, 0x100,
+	intel_dp_aux_native_write(intel_encoder, DP_LINK_BW_SET,
 				  link_configuration, DP_LINK_CONFIGURATION_SIZE);
 
 	DP |= DP_PORT_EN;
