@@ -10110,13 +10110,12 @@ static void alc882_auto_set_output_and_unmute(struct hda_codec *codec,
 	int idx;
 
 	alc_set_pin_output(codec, nid, pin_type);
+	if (dac_idx >= spec->multiout.num_dacs)
+		return;
 	if (spec->multiout.dac_nids[dac_idx] == 0x25)
 		idx = 4;
-	else {
-		if (spec->multiout.num_dacs >= dac_idx)
-			return;
+	else
 		idx = spec->multiout.dac_nids[dac_idx] - 2;
-	}
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, idx);
 
 }
