@@ -128,7 +128,6 @@ _GLOBAL(__restore_cpu_power7)
 	/* place holder */
 	blr
 
-#ifdef CONFIG_EVENT_TRACING
 /*
  * Get a minimal set of registers for our caller's nth caller.
  * r3 = regs pointer, r5 = n.
@@ -154,4 +153,3 @@ _GLOBAL(perf_arch_fetch_caller_regs)
 	PPC_STL	r4,_NIP-STACK_FRAME_OVERHEAD(r3)
 	PPC_STL	r7,_LINK-STACK_FRAME_OVERHEAD(r3)
 	blr
-#endif /* CONFIG_EVENT_TRACING */

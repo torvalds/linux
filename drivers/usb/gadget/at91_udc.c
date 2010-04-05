@@ -1370,6 +1370,12 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 {
 	struct at91_udc		*udc = _udc;
 	u32			rescans = 5;
+	int			disable_clock = 0;
+
+	if (!udc->clocked) {
+		clk_on(udc);
+		disable_clock = 1;
+	}
 
 	while (rescans--) {
 		u32 status;
@@ -1457,6 +1463,9 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 			}
 		}
 	}
+
+	if (disable_clock)
+		clk_off(udc);
 
 	return IRQ_HANDLED;
 }

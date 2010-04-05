@@ -38,7 +38,7 @@ static inline void __dma_sync_page(unsigned long paddr, unsigned long offset,
 
 static unsigned long get_dma_direct_offset(struct device *dev)
 {
-	if (dev)
+	if (likely(dev))
 		return (unsigned long)dev->archdata.dma_data;
 
 	return PCI_DRAM_OFFSET; /* FIXME Not sure if is correct */

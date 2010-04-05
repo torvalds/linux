@@ -2117,7 +2117,7 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 			       "node=%d entry=%lu/%lu\n", start, block, nr,
 			       node,
 			       addr >> VMEMMAP_CHUNK_SHIFT,
-			       VMEMMAP_SIZE >> VMEMMAP_CHUNK_SHIFT);
+			       VMEMMAP_SIZE);
 		}
 	}
 	return 0;
