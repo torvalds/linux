@@ -1814,6 +1814,75 @@ void usb_hcd_reset_endpoint(struct usb_device *udev,
 	}
 }
 
+/**
+ * usb_alloc_streams - allocate bulk endpoint stream IDs.
+ * @interface:		alternate setting that includes all endpoints.
+ * @eps:		array of endpoints that need streams.
+ * @num_eps:		number of endpoints in the array.
+ * @num_streams:	number of streams to allocate.
+ * @mem_flags:		flags hcd should use to allocate memory.
+ *
+ * Sets up a group of bulk endpoints to have num_streams stream IDs available.
+ * Drivers may queue multiple transfers to different stream IDs, which may
+ * complete in a different order than they were queued.
+ */
+int usb_alloc_streams(struct usb_interface *interface,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		unsigned int num_streams, gfp_t mem_flags)
+{
+	struct usb_hcd *hcd;
+	struct usb_device *dev;
+	int i;
+
+	dev = interface_to_usbdev(interface);
+	hcd = bus_to_hcd(dev->bus);
+	if (!hcd->driver->alloc_streams || !hcd->driver->free_streams)
+		return -EINVAL;
+	if (dev->speed != USB_SPEED_SUPER)
+		return -EINVAL;
+
+	/* Streams only apply to bulk endpoints. */
+	for (i = 0; i < num_eps; i++)
+		if (!usb_endpoint_xfer_bulk(&eps[i]->desc))
+			return -EINVAL;
+
+	return hcd->driver->alloc_streams(hcd, dev, eps, num_eps,
+			num_streams, mem_flags);
+}
+EXPORT_SYMBOL_GPL(usb_alloc_streams);
+
+/**
+ * usb_free_streams - free bulk endpoint stream IDs.
+ * @interface:	alternate setting that includes all endpoints.
+ * @eps:	array of endpoints to remove streams from.
+ * @num_eps:	number of endpoints in the array.
+ * @mem_flags:	flags hcd should use to allocate memory.
+ *
+ * Reverts a group of bulk endpoints back to not using stream IDs.
+ * Can fail if we are given bad arguments, or HCD is broken.
+ */
+void usb_free_streams(struct usb_interface *interface,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		gfp_t mem_flags)
+{
+	struct usb_hcd *hcd;
+	struct usb_device *dev;
+	int i;
+
+	dev = interface_to_usbdev(interface);
+	hcd = bus_to_hcd(dev->bus);
+	if (dev->speed != USB_SPEED_SUPER)
+		return;
+
+	/* Streams only apply to bulk endpoints. */
+	for (i = 0; i < num_eps; i++)
+		if (!usb_endpoint_xfer_bulk(&eps[i]->desc))
+			return;
+
+	hcd->driver->free_streams(hcd, dev, eps, num_eps, mem_flags);
+}
+EXPORT_SYMBOL_GPL(usb_free_streams);
+
 /* Protect against drivers that try to unlink URBs after the device
  * is gone, by waiting until all unlinks for @udev are finished.
  * Since we don't currently track URBs by device, simply wait until

@@ -250,6 +250,16 @@ struct hc_driver {
 	int	(*alloc_dev)(struct usb_hcd *, struct usb_device *);
 		/* Called by usb_disconnect to free HC device structures */
 	void	(*free_dev)(struct usb_hcd *, struct usb_device *);
+	/* Change a group of bulk endpoints to support multiple stream IDs */
+	int	(*alloc_streams)(struct usb_hcd *hcd, struct usb_device *udev,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		unsigned int num_streams, gfp_t mem_flags);
+	/* Reverts a group of bulk endpoints back to not using stream IDs.
+	 * Can fail if we run out of memory.
+	 */
+	int	(*free_streams)(struct usb_hcd *hcd, struct usb_device *udev,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		gfp_t mem_flags);
 
 	/* Bandwidth computation functions */
 	/* Note that add_endpoint() can only be called once per endpoint before
