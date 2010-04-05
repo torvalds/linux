@@ -645,8 +645,10 @@ static int sh_sir_open(struct net_device *ndev)
 	sh_sir_set_baudrate(self, 9600);
 
 	self->irlap = irlap_open(ndev, &self->qos, DRIVER_NAME);
-	if (!self->irlap)
+	if (!self->irlap) {
+		err = -ENODEV;
 		goto open_err;
+	}
 
 	/*
 	 * Now enable the interrupt then start the queue
