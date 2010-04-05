@@ -42,7 +42,7 @@ static const char *pm_state_names[4] = {
 };
 
 static const char *pm_state_types[5] = {
-	"Default",
+	"",
 	"Powersave",
 	"Battery",
 	"Balanced",
