@@ -3121,6 +3121,7 @@ static int process_backlog(struct napi_struct *napi, int quota)
 		if (!skb) {
 			__napi_complete(napi);
 			rps_unlock(queue);
+			local_irq_enable();
 			break;
 		}
 		rps_unlock(queue);
