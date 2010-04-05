@@ -132,7 +132,7 @@ static bool dialog_yesno(const char *msg)
 {
 	/* newtWinChoice should really be accepting const char pointers... */
 	char yes[] = "Yes", no[] = "No";
-	return newtWinChoice(NULL, no, yes, (char *)msg) == 2;
+	return newtWinChoice(NULL, yes, no, (char *)msg) == 1;
 }
 
 /*
