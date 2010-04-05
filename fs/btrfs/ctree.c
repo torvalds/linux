@@ -3041,6 +3041,10 @@ static noinline int setup_leaf_for_split(struct btrfs_trans_handle *trans,
 	if (ret > 0 || item_size != btrfs_item_size_nr(leaf, path->slots[0]))
 		goto err;
 
+	/* the leaf has  changed, it now has room.  return now */
+	if (btrfs_leaf_free_space(root, path->nodes[0]) >= ins_len)
+		goto err;
+
 	if (key.type == BTRFS_EXTENT_DATA_KEY) {
 		fi = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_file_extent_item);
