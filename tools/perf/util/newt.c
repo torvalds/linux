@@ -411,7 +411,7 @@ static void hist_browser__delete(struct hist_browser *self)
 }
 
 static int hist_browser__populate(struct hist_browser *self, struct rb_root *hists,
-				  u64 nr_hists, u64 session_total)
+				  u64 nr_hists, u64 session_total, const char *title)
 {
 	int max_len = 0, idx, cols, rows;
 	struct ui_progress *progress;
@@ -476,7 +476,7 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 		newtListboxSetWidth(self->tree, max_len);
 
 	newtCenteredWindow(max_len + (symbol_conf.use_callchain ? 5 : 0),
-			   rows - 5, "Report");
+			   rows - 5, title);
 	self->form = newt_form__new();
 	if (self->form == NULL)
 		return -1;
@@ -495,7 +495,7 @@ enum hist_filter {
 	HIST_FILTER__THREAD,
 };
 
-static u64 hists__filter_by_dso(struct rb_root *hists, struct dso *dso,
+static u64 hists__filter_by_dso(struct rb_root *hists, const struct dso *dso,
 				u64 *session_total)
 {
 	struct rb_node *nd;
@@ -560,25 +560,47 @@ out:
 	return *(struct thread **)(self->selection + 1);
 }
 
+static int hist_browser__title(char *bf, size_t size, const char *input_name,
+			       const struct dso *dso, const struct thread *thread)
+{
+	int printed = 0;
+
+	if (thread)
+		printed += snprintf(bf + printed, size - printed,
+				    "Thread: %s(%d)",
+				    (thread->comm_set ?  thread->comm : ""),
+				    thread->pid);
+	if (dso)
+		printed += snprintf(bf + printed, size - printed,
+				    "%sDSO: %s", thread ? " " : "",
+				    dso->short_name);
+	return printed ?: snprintf(bf, size, "Report: %s", input_name);
+}
+
 int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 			       u64 session_total, const char *helpline,
 			       const char *input_name)
 {
-	struct newtExitStruct es;
-	bool dso_filtered = false, thread_filtered = false;
-	int err = -1;
 	struct hist_browser *browser = hist_browser__new();
+	const struct thread *thread_filter = NULL;
+	const struct dso *dso_filter = NULL;
+	struct newtExitStruct es;
+	char msg[160];
+	int err = -1;
 
 	if (browser == NULL)
 		return -1;
 
 	newtPushHelpLine(helpline);
 
-	if (hist_browser__populate(browser, hists, nr_hists, session_total) < 0)
+	hist_browser__title(msg, sizeof(msg), input_name,
+			    dso_filter, thread_filter);
+	if (hist_browser__populate(browser, hists, nr_hists, session_total, msg) < 0)
 		goto out;
 
 	while (1) {
 		const struct thread *thread;
+		const struct dso *dso;
 		char *options[16];
 		int nr_options = 0, choice = 0, i,
 		    annotate = -2, zoom_dso = -2, zoom_thread = -2;
@@ -602,19 +624,20 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 			     browser->selection->sym->name) > 0)
 			annotate = nr_options++;
 
-		if (browser->selection->map != NULL &&
-		    asprintf(&options[nr_options], "Zoom %s %s DSO",
-			     dso_filtered ? "out of" : "into",
-			     (browser->selection->map->dso->kernel ? "the Kernel" :
-			      browser->selection->map->dso->short_name)) > 0)
-			zoom_dso = nr_options++;
-
 		thread = hist_browser__selected_thread(browser);
 		if (thread != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
-			     (thread_filtered ? "out of" : "into"),
-			     (thread->comm_set ?  thread->comm : ""), thread->pid) > 0)
+			     (thread_filter ? "out of" : "into"),
+			     (thread->comm_set ? thread->comm : ""),
+			     thread->pid) > 0)
 			zoom_thread = nr_options++;
+
+		dso = browser->selection->map ? browser->selection->map->dso : NULL;
+		if (dso != NULL &&
+		    asprintf(&options[nr_options], "Zoom %s %s DSO",
+			     (dso_filter ? "out of" : "into"),
+			     (dso->kernel ? "the Kernel" : dso->short_name)) > 0)
+			zoom_dso = nr_options++;
 
 		options[nr_options++] = (char *)"Exit";
 
@@ -637,22 +660,39 @@ do_annotate:
 						 "kallsyms file");
 				continue;
 			}
-			map_symbol__annotate_browser(browser->selection,
-						     input_name);
+			map_symbol__annotate_browser(browser->selection, input_name);
 		} else if (choice == zoom_dso) {
-			nr_hists = hists__filter_by_dso(hists,
-							(dso_filtered ? NULL :
-							 browser->selection->map->dso),
-							&session_total);
-			dso_filtered = !dso_filtered;
-			if (hist_browser__populate(browser, hists, nr_hists, session_total) < 0)
+			if (dso_filter) {
+				newtPopHelpLine();
+				dso_filter = NULL;
+			} else {
+				snprintf(msg, sizeof(msg),
+					 "To zoom out press -> + \"Zoom out of %s DSO\"",
+					 dso->kernel ? "the Kernel" : dso->short_name);
+				newtPushHelpLine(msg);
+				dso_filter = dso;
+			}
+			nr_hists = hists__filter_by_dso(hists, dso_filter, &session_total);
+			hist_browser__title(msg, sizeof(msg), input_name,
+					    dso_filter, thread_filter);
+			if (hist_browser__populate(browser, hists, nr_hists, session_total, msg) < 0)
 				goto out;
 		} else if (choice == zoom_thread) {
-			nr_hists = hists__filter_by_thread(hists,
-							   (thread_filtered ? NULL : thread),
-							   &session_total);
-			thread_filtered = !thread_filtered;
-			if (hist_browser__populate(browser, hists, nr_hists, session_total) < 0)
+			if (thread_filter) {
+				newtPopHelpLine();
+				thread_filter = NULL;
+			} else {
+				snprintf(msg, sizeof(msg),
+					 "To zoom out press -> + \"Zoom out of %s(%d) thread\"",
+					 (thread->comm_set ? thread->comm : ""),
+					 thread->pid);
+				newtPushHelpLine(msg);
+				thread_filter = thread;
+			}
+			nr_hists = hists__filter_by_thread(hists, thread_filter, &session_total);
+			hist_browser__title(msg, sizeof(msg), input_name,
+					    dso_filter, thread_filter);
+			if (hist_browser__populate(browser, hists, nr_hists, session_total, msg) < 0)
 				goto out;
 		}
 	}
