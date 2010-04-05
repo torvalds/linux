@@ -4987,8 +4987,8 @@ static int tg3_poll_msix(struct napi_struct *napi, int budget)
 		rmb();
 
 		/* check for RX/TX work to do */
-		if (sblk->idx[0].tx_consumer == tnapi->tx_cons &&
-		    *(tnapi->rx_rcb_prod_idx) == tnapi->rx_rcb_ptr) {
+		if (likely(sblk->idx[0].tx_consumer == tnapi->tx_cons &&
+			   *(tnapi->rx_rcb_prod_idx) == tnapi->rx_rcb_ptr)) {
 			napi_complete(napi);
 			/* Reenable interrupts. */
 			tw32_mailbox(tnapi->int_mbox, tnapi->last_tag << 24);
