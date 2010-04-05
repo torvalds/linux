@@ -58,6 +58,7 @@
 #include <linux/sort.h>
 #include <linux/io.h>
 #include <linux/time.h>
+#include <linux/aer.h>
 
 #include "mpt2sas_base.h"
 
@@ -1256,6 +1257,9 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 		goto out_fail;
 	}
 
+	/* AER (Advanced Error Reporting) hooks */
+	pci_enable_pcie_error_reporting(pdev);
+
 	pci_set_master(pdev);
 
 	if (_base_config_dma_addressing(ioc, pdev) != 0) {
@@ -1311,6 +1315,7 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	ioc->chip_phys = 0;
 	ioc->pci_irq = -1;
 	pci_release_selected_regions(ioc->pdev, ioc->bars);
+	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
 	return r;
 }
@@ -3547,6 +3552,7 @@ mpt2sas_base_free_resources(struct MPT2SAS_ADAPTER *ioc)
 	ioc->pci_irq = -1;
 	ioc->chip_phys = 0;
 	pci_release_selected_regions(ioc->pdev, ioc->bars);
+	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
 	return;
 }

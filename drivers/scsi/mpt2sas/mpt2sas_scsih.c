@@ -52,6 +52,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/aer.h>
 #include <linux/raid_class.h>
 #include <linux/slab.h>
 
@@ -6664,6 +6665,122 @@ _scsih_resume(struct pci_dev *pdev)
 }
 #endif /* CONFIG_PM */
 
+/**
+ * _scsih_pci_error_detected - Called when a PCI error is detected.
+ * @pdev: PCI device struct
+ * @state: PCI channel state
+ *
+ * Description: Called when a PCI error is detected.
+ *
+ * Return value:
+ *      PCI_ERS_RESULT_NEED_RESET or PCI_ERS_RESULT_DISCONNECT
+ */
+static pci_ers_result_t
+_scsih_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	printk(MPT2SAS_INFO_FMT "PCI error: detected callback, state(%d)!!\n",
+	    ioc->name, state);
+
+	switch (state) {
+	case pci_channel_io_normal:
+		return PCI_ERS_RESULT_CAN_RECOVER;
+	case pci_channel_io_frozen:
+		scsi_block_requests(ioc->shost);
+		mpt2sas_base_stop_watchdog(ioc);
+		mpt2sas_base_free_resources(ioc);
+		return PCI_ERS_RESULT_NEED_RESET;
+	case pci_channel_io_perm_failure:
+		_scsih_remove(pdev);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * _scsih_pci_slot_reset - Called when PCI slot has been reset.
+ * @pdev: PCI device struct
+ *
+ * Description: This routine is called by the pci error recovery
+ * code after the PCI slot has been reset, just before we
+ * should resume normal operations.
+ */
+static pci_ers_result_t
+_scsih_pci_slot_reset(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+	int rc;
+
+	printk(MPT2SAS_INFO_FMT "PCI error: slot reset callback!!\n",
+		ioc->name);
+
+	ioc->pdev = pdev;
+	rc = mpt2sas_base_map_resources(ioc);
+	if (rc)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+
+	rc = mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
+	    FORCE_BIG_HAMMER);
+
+	printk(MPT2SAS_WARN_FMT "hard reset: %s\n", ioc->name,
+	    (rc == 0) ? "success" : "failed");
+
+	if (!rc)
+		return PCI_ERS_RESULT_RECOVERED;
+	else
+		return PCI_ERS_RESULT_DISCONNECT;
+}
+
+/**
+ * _scsih_pci_resume() - resume normal ops after PCI reset
+ * @pdev: pointer to PCI device
+ *
+ * Called when the error recovery driver tells us that its
+ * OK to resume normal operation. Use completion to allow
+ * halted scsi ops to resume.
+ */
+static void
+_scsih_pci_resume(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	printk(MPT2SAS_INFO_FMT "PCI error: resume callback!!\n", ioc->name);
+
+	pci_cleanup_aer_uncorrect_error_status(pdev);
+	mpt2sas_base_start_watchdog(ioc);
+	scsi_unblock_requests(ioc->shost);
+}
+
+/**
+ * _scsih_pci_mmio_enabled - Enable MMIO and dump debug registers
+ * @pdev: pointer to PCI device
+ */
+static pci_ers_result_t
+_scsih_pci_mmio_enabled(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	printk(MPT2SAS_INFO_FMT "PCI error: mmio enabled callback!!\n",
+	    ioc->name);
+
+	/* TODO - dump whatever for debugging purposes */
+
+	/* Request a slot reset. */
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static struct pci_error_handlers _scsih_err_handler = {
+	.error_detected = _scsih_pci_error_detected,
+	.mmio_enabled = _scsih_pci_mmio_enabled,
+	.slot_reset =	_scsih_pci_slot_reset,
+	.resume =	_scsih_pci_resume,
+};
 
 static struct pci_driver scsih_driver = {
 	.name		= MPT2SAS_DRIVER_NAME,
@@ -6671,6 +6788,7 @@ static struct pci_driver scsih_driver = {
 	.probe		= _scsih_probe,
 	.remove		= __devexit_p(_scsih_remove),
 	.shutdown	= _scsih_shutdown,
+	.err_handler	= &_scsih_err_handler,
 #ifdef CONFIG_PM
 	.suspend	= _scsih_suspend,
 	.resume		= _scsih_resume,
