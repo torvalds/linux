@@ -430,20 +430,7 @@ static struct stack_trace lockdep_init_trace = {
 /*
  * Various lockdep statistics:
  */
-atomic_t chain_lookup_hits;
-atomic_t chain_lookup_misses;
-atomic_t hardirqs_on_events;
-atomic_t hardirqs_off_events;
-atomic_t redundant_hardirqs_on;
-atomic_t redundant_hardirqs_off;
-atomic_t softirqs_on_events;
-atomic_t softirqs_off_events;
-atomic_t redundant_softirqs_on;
-atomic_t redundant_softirqs_off;
-atomic_t nr_unused_locks;
-atomic_t nr_cyclic_checks;
-atomic_t nr_find_usage_forwards_checks;
-atomic_t nr_find_usage_backwards_checks;
+DEFINE_PER_CPU(struct lockdep_stats, lockdep_stats);
 #endif
 
 /*
@@ -758,7 +745,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 		return NULL;
 	}
 	class = lock_classes + nr_lock_classes++;
-	debug_atomic_inc(&nr_unused_locks);
+	debug_atomic_inc(nr_unused_locks);
 	class->key = key;
 	class->name = lock->name;
 	class->subclass = subclass;
@@ -1215,7 +1202,7 @@ check_noncircular(struct lock_list *root, struct lock_class *target,
 {
 	int result;
 
-	debug_atomic_inc(&nr_cyclic_checks);
+	debug_atomic_inc(nr_cyclic_checks);
 
 	result = __bfs_forwards(root, target, class_equal, target_entry);
 
@@ -1252,7 +1239,7 @@ find_usage_forwards(struct lock_list *root, enum lock_usage_bit bit,
 {
 	int result;
 
-	debug_atomic_inc(&nr_find_usage_forwards_checks);
+	debug_atomic_inc(nr_find_usage_forwards_checks);
 
 	result = __bfs_forwards(root, (void *)bit, usage_match, target_entry);
 
@@ -1275,7 +1262,7 @@ find_usage_backwards(struct lock_list *root, enum lock_usage_bit bit,
 {
 	int result;
 
-	debug_atomic_inc(&nr_find_usage_backwards_checks);
+	debug_atomic_inc(nr_find_usage_backwards_checks);
 
 	result = __bfs_backwards(root, (void *)bit, usage_match, target_entry);
 
@@ -1835,7 +1822,7 @@ static inline int lookup_chain_cache(struct task_struct *curr,
 	list_for_each_entry(chain, hash_head, entry) {
 		if (chain->chain_key == chain_key) {
 cache_hit:
-			debug_atomic_inc(&chain_lookup_hits);
+			debug_atomic_inc(chain_lookup_hits);
 			if (very_verbose(class))
 				printk("\nhash chain already cached, key: "
 					"%016Lx tail class: [%p] %s\n",
@@ -1900,7 +1887,7 @@ cache_hit:
 		chain_hlocks[chain->base + j] = class - lock_classes;
 	}
 	list_add_tail_rcu(&chain->entry, hash_head);
-	debug_atomic_inc(&chain_lookup_misses);
+	debug_atomic_inc(chain_lookup_misses);
 	inc_chains();
 
 	return 1;
@@ -2321,7 +2308,7 @@ void trace_hardirqs_on_caller(unsigned long ip)
 		return;
 
 	if (unlikely(curr->hardirqs_enabled)) {
-		debug_atomic_inc(&redundant_hardirqs_on);
+		debug_atomic_inc(redundant_hardirqs_on);
 		return;
 	}
 	/* we'll do an OFF -> ON transition: */
@@ -2348,7 +2335,7 @@ void trace_hardirqs_on_caller(unsigned long ip)
 
 	curr->hardirq_enable_ip = ip;
 	curr->hardirq_enable_event = ++curr->irq_events;
-	debug_atomic_inc(&hardirqs_on_events);
+	debug_atomic_inc(hardirqs_on_events);
 }
 EXPORT_SYMBOL(trace_hardirqs_on_caller);
 
@@ -2380,9 +2367,9 @@ void trace_hardirqs_off_caller(unsigned long ip)
 		curr->hardirqs_enabled = 0;
 		curr->hardirq_disable_ip = ip;
 		curr->hardirq_disable_event = ++curr->irq_events;
-		debug_atomic_inc(&hardirqs_off_events);
+		debug_atomic_inc(hardirqs_off_events);
 	} else
-		debug_atomic_inc(&redundant_hardirqs_off);
+		debug_atomic_inc(redundant_hardirqs_off);
 }
 EXPORT_SYMBOL(trace_hardirqs_off_caller);
 
@@ -2406,7 +2393,7 @@ void trace_softirqs_on(unsigned long ip)
 		return;
 
 	if (curr->softirqs_enabled) {
-		debug_atomic_inc(&redundant_softirqs_on);
+		debug_atomic_inc(redundant_softirqs_on);
 		return;
 	}
 
@@ -2416,7 +2403,7 @@ void trace_softirqs_on(unsigned long ip)
 	curr->softirqs_enabled = 1;
 	curr->softirq_enable_ip = ip;
 	curr->softirq_enable_event = ++curr->irq_events;
-	debug_atomic_inc(&softirqs_on_events);
+	debug_atomic_inc(softirqs_on_events);
 	/*
 	 * We are going to turn softirqs on, so set the
 	 * usage bit for all held locks, if hardirqs are
@@ -2446,10 +2433,10 @@ void trace_softirqs_off(unsigned long ip)
 		curr->softirqs_enabled = 0;
 		curr->softirq_disable_ip = ip;
 		curr->softirq_disable_event = ++curr->irq_events;
-		debug_atomic_inc(&softirqs_off_events);
+		debug_atomic_inc(softirqs_off_events);
 		DEBUG_LOCKS_WARN_ON(!softirq_count());
 	} else
-		debug_atomic_inc(&redundant_softirqs_off);
+		debug_atomic_inc(redundant_softirqs_off);
 }
 
 static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
@@ -2654,7 +2641,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 			return 0;
 		break;
 	case LOCK_USED:
-		debug_atomic_dec(&nr_unused_locks);
+		debug_atomic_dec(nr_unused_locks);
 		break;
 	default:
 		if (!debug_locks_off_graph_unlock())
@@ -2760,7 +2747,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		if (!class)
 			return 0;
 	}
-	debug_atomic_inc((atomic_t *)&class->ops);
+	atomic_inc((atomic_t *)&class->ops);
 	if (very_verbose(class)) {
 		printk("\nacquire class [%p] %s", class->key, class->name);
 		if (class->name_version > 1)
