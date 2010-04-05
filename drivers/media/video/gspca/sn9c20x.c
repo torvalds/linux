@@ -146,6 +146,13 @@ static const struct dmi_system_id flip_dmi_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "MS-1632")
 		}
 	},
+	{
+		.ident = "ASUSTeK W7J",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_BOARD_NAME, "W7J       ")
+		}
+	},
 	{}
 };
 
