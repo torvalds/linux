@@ -37,6 +37,8 @@ int header_page_ts_offset;
 int header_page_ts_size;
 int header_page_size_offset;
 int header_page_size_size;
+int header_page_overwrite_offset;
+int header_page_overwrite_size;
 int header_page_data_offset;
 int header_page_data_size;
 
@@ -628,21 +630,30 @@ static int test_type(enum event_type type, enum event_type expect)
 	return 0;
 }
 
-static int test_type_token(enum event_type type, char *token,
-		    enum event_type expect, const char *expect_tok)
+static int __test_type_token(enum event_type type, char *token,
+			     enum event_type expect, const char *expect_tok,
+			     bool warn)
 {
 	if (type != expect) {
-		warning("Error: expected type %d but read %d",
-		    expect, type);
+		if (warn)
+			warning("Error: expected type %d but read %d",
+				expect, type);
 		return -1;
 	}
 
 	if (strcmp(token, expect_tok) != 0) {
-		warning("Error: expected '%s' but read '%s'",
-		    expect_tok, token);
+		if (warn)
+			warning("Error: expected '%s' but read '%s'",
+				expect_tok, token);
 		return -1;
 	}
 	return 0;
+}
+
+static int test_type_token(enum event_type type, char *token,
+			   enum event_type expect, const char *expect_tok)
+{
+	return __test_type_token(type, token, expect, expect_tok, true);
 }
 
 static int __read_expect_type(enum event_type expect, char **tok, int newline_ok)
@@ -661,7 +672,8 @@ static int read_expect_type(enum event_type expect, char **tok)
 	return __read_expect_type(expect, tok, 1);
 }
 
-static int __read_expected(enum event_type expect, const char *str, int newline_ok)
+static int __read_expected(enum event_type expect, const char *str,
+			   int newline_ok, bool warn)
 {
 	enum event_type type;
 	char *token;
@@ -672,21 +684,26 @@ static int __read_expected(enum event_type expect, const char *str, int newline_
 	else
 		type = read_token_item(&token);
 
-	ret = test_type_token(type, token, expect, str);
+	ret = __test_type_token(type, token, expect, str, warn);
 
 	free_token(token);
 
 	return ret;
 }
 
+static int read_expected_warn(enum event_type expect, const char *str, bool warn)
+{
+	return __read_expected(expect, str, 1, warn);
+}
+
 static int read_expected(enum event_type expect, const char *str)
 {
-	return __read_expected(expect, str, 1);
+	return __read_expected(expect, str, 1, true);
 }
 
 static int read_expected_item(enum event_type expect, const char *str)
 {
-	return __read_expected(expect, str, 0);
+	return __read_expected(expect, str, 0, true);
 }
 
 static char *event_read_name(void)
@@ -3088,7 +3105,7 @@ static void print_args(struct print_arg *args)
 }
 
 static void parse_header_field(const char *field,
-			       int *offset, int *size)
+			       int *offset, int *size, bool warn)
 {
 	char *token;
 	int type;
@@ -3103,7 +3120,7 @@ static void parse_header_field(const char *field,
 		goto fail;
 	free_token(token);
 
-	if (read_expected(EVENT_ITEM, field) < 0)
+	if (read_expected_warn(EVENT_ITEM, field, warn) < 0)
 		return;
 	if (read_expected(EVENT_OP, ";") < 0)
 		return;
@@ -3160,11 +3177,13 @@ int parse_header_page(char *buf, unsigned long size)
 	init_input_buf(buf, size);
 
 	parse_header_field("timestamp", &header_page_ts_offset,
-			   &header_page_ts_size);
+			   &header_page_ts_size, true);
 	parse_header_field("commit", &header_page_size_offset,
-			   &header_page_size_size);
+			   &header_page_size_size, true);
+	parse_header_field("overwrite", &header_page_overwrite_offset,
+			   &header_page_overwrite_size, false);
 	parse_header_field("data", &header_page_data_offset,
-			   &header_page_data_size);
+			   &header_page_data_size, true);
 
 	return 0;
 }
