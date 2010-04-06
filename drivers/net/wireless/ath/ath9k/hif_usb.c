@@ -330,6 +330,8 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 	u16 pkt_len, pkt_tag, pool_index = 0;
 	u8 *ptr;
 
+	spin_lock(&hif_dev->rx_lock);
+
 	rx_remain_len = hif_dev->rx_remain_len;
 	rx_pkt_len = hif_dev->rx_transfer_len;
 
@@ -356,6 +358,8 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 		}
 	}
 
+	spin_unlock(&hif_dev->rx_lock);
+
 	while (index < len) {
 		ptr = (u8 *) skb->data;
 
@@ -373,6 +377,7 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 			index = index + 4 + pkt_len + pad_len;
 
 			if (index > MAX_RX_BUF_SIZE) {
+				spin_lock(&hif_dev->rx_lock);
 				hif_dev->rx_remain_len = index - MAX_RX_BUF_SIZE;
 				hif_dev->rx_transfer_len =
 					MAX_RX_BUF_SIZE - chk_idx - 4;
@@ -384,6 +389,7 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 					dev_err(&hif_dev->udev->dev,
 					"ath9k_htc: RX memory allocation"
 					" error\n");
+					spin_unlock(&hif_dev->rx_lock);
 					goto err;
 				}
 				skb_reserve(nskb, 32);
@@ -394,6 +400,7 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 
 				/* Record the buffer pointer */
 				hif_dev->remain_skb = nskb;
+				spin_unlock(&hif_dev->rx_lock);
 			} else {
 				nskb = __dev_alloc_skb(pkt_len + 32, GFP_ATOMIC);
 				if (!nskb) {
@@ -612,6 +619,7 @@ static int ath9k_hif_usb_alloc_rx_urbs(struct hif_device_usb *hif_dev)
 	int i, ret;
 
 	init_usb_anchor(&hif_dev->rx_submitted);
+	spin_lock_init(&hif_dev->rx_lock);
 
 	for (i = 0; i < MAX_RX_URB_NUM; i++) {
 

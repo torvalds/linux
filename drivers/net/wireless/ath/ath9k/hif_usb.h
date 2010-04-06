@@ -93,6 +93,7 @@ struct hif_device_usb {
 	int rx_pkt_len;
 	int rx_transfer_len;
 	int rx_pad_len;
+	spinlock_t rx_lock;
 	u8 flags; /* HIF_USB_* */
 };
 
