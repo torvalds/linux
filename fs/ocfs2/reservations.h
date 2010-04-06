@@ -22,7 +22,7 @@
 
 #include <linux/rbtree.h>
 
-#define OCFS2_DEFAULT_RESV_LEVEL	4
+#define OCFS2_DEFAULT_RESV_LEVEL	2
 #define OCFS2_MAX_RESV_LEVEL	9
 #define OCFS2_MIN_RESV_LEVEL	0
 
