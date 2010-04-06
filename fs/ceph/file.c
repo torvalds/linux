@@ -317,16 +317,16 @@ void ceph_release_page_vector(struct page **pages, int num_pages)
 /*
  * allocate a vector new pages
  */
-static struct page **alloc_page_vector(int num_pages)
+struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags)
 {
 	struct page **pages;
 	int i;
 
-	pages = kmalloc(sizeof(*pages) * num_pages, GFP_NOFS);
+	pages = kmalloc(sizeof(*pages) * num_pages, flags);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 	for (i = 0; i < num_pages; i++) {
-		pages[i] = __page_cache_alloc(GFP_NOFS);
+		pages[i] = __page_cache_alloc(flags);
 		if (pages[i] == NULL) {
 			ceph_release_page_vector(pages, i);
 			return ERR_PTR(-ENOMEM);
@@ -540,7 +540,7 @@ static ssize_t ceph_sync_read(struct file *file, char __user *data,
 		 * in sequence.
 		 */
 	} else {
-		pages = alloc_page_vector(num_pages);
+		pages = ceph_alloc_page_vector(num_pages, GFP_NOFS);
 	}
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
@@ -668,7 +668,7 @@ more:
 		truncate_inode_pages_range(inode->i_mapping, pos, 
 					   (pos+len) | (PAGE_CACHE_SIZE-1));
 	} else {
-		pages = alloc_page_vector(num_pages);
+		pages = ceph_alloc_page_vector(num_pages, GFP_NOFS);
 		if (IS_ERR(pages)) {
 			ret = PTR_ERR(pages);
 			goto out;

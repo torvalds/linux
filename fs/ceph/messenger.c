@@ -2070,11 +2070,11 @@ void ceph_con_keepalive(struct ceph_connection *con)
  * construct a new message with given type, size
  * the new msg has a ref count of 1.
  */
-struct ceph_msg *ceph_msg_new(int type, int front_len)
+struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags)
 {
 	struct ceph_msg *m;
 
-	m = kmalloc(sizeof(*m), GFP_NOFS);
+	m = kmalloc(sizeof(*m), flags);
 	if (m == NULL)
 		goto out;
 	kref_init(&m->kref);
@@ -2101,11 +2101,11 @@ struct ceph_msg *ceph_msg_new(int type, int front_len)
 	/* front */
 	if (front_len) {
 		if (front_len > PAGE_CACHE_SIZE) {
-			m->front.iov_base = __vmalloc(front_len, GFP_NOFS,
+			m->front.iov_base = __vmalloc(front_len, flags,
 						      PAGE_KERNEL);
 			m->front_is_vmalloc = true;
 		} else {
-			m->front.iov_base = kmalloc(front_len, GFP_NOFS);
+			m->front.iov_base = kmalloc(front_len, flags);
 		}
 		if (m->front.iov_base == NULL) {
 			pr_err("msg_new can't allocate %d bytes\n",
@@ -2180,7 +2180,7 @@ static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
 	}
 	if (!msg) {
 		*skip = 0;
-		msg = ceph_msg_new(type, front_len);
+		msg = ceph_msg_new(type, front_len, GFP_NOFS);
 		if (!msg) {
 			pr_err("unable to allocate msg type %d len %d\n",
 			       type, front_len);

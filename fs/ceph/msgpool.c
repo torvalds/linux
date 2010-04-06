@@ -12,7 +12,7 @@ static void *alloc_fn(gfp_t gfp_mask, void *arg)
 	struct ceph_msgpool *pool = arg;
 	void *p;
 
-	p = ceph_msg_new(0, pool->front_len);
+	p = ceph_msg_new(0, pool->front_len, gfp_mask);
 	if (!p)
 		pr_err("msgpool %s alloc failed\n", pool->name);
 	return p;
@@ -48,7 +48,7 @@ struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *pool,
 		WARN_ON(1);
 
 		/* try to alloc a fresh message */
-		return ceph_msg_new(0, front_len);
+		return ceph_msg_new(0, front_len, GFP_NOFS);
 	}
 
 	return mempool_alloc(pool->pool, GFP_NOFS);

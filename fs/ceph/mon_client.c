@@ -191,7 +191,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 		struct ceph_mon_subscribe_item *i;
 		void *p, *end;
 
-		msg = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 96);
+		msg = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 96, GFP_NOFS);
 		if (!msg)
 			return;
 
@@ -490,10 +490,10 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 	init_completion(&req->completion);
 
 	err = -ENOMEM;
-	req->request = ceph_msg_new(CEPH_MSG_STATFS, sizeof(*h));
+	req->request = ceph_msg_new(CEPH_MSG_STATFS, sizeof(*h), GFP_NOFS);
 	if (!req->request)
 		goto out;
-	req->reply = ceph_msg_new(CEPH_MSG_STATFS_REPLY, 1024);
+	req->reply = ceph_msg_new(CEPH_MSG_STATFS_REPLY, 1024, GFP_NOFS);
 	if (!req->reply)
 		goto out;
 
@@ -632,15 +632,16 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	/* msg pools */
 	err = -ENOMEM;
 	monc->m_subscribe_ack = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE_ACK,
-				     sizeof(struct ceph_mon_subscribe_ack));
+				     sizeof(struct ceph_mon_subscribe_ack),
+				     GFP_NOFS);
 	if (!monc->m_subscribe_ack)
 		goto out_monmap;
 
-	monc->m_auth_reply = ceph_msg_new(CEPH_MSG_AUTH_REPLY, 4096);
+	monc->m_auth_reply = ceph_msg_new(CEPH_MSG_AUTH_REPLY, 4096, GFP_NOFS);
 	if (!monc->m_auth_reply)
 		goto out_subscribe_ack;
 
-	monc->m_auth = ceph_msg_new(CEPH_MSG_AUTH, 4096);
+	monc->m_auth = ceph_msg_new(CEPH_MSG_AUTH, 4096, GFP_NOFS);
 	monc->pending_auth = 0;
 	if (!monc->m_auth)
 		goto out_auth_reply;
@@ -815,7 +816,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 	case CEPH_MSG_MON_MAP:
 	case CEPH_MSG_MDS_MAP:
 	case CEPH_MSG_OSD_MAP:
-		m = ceph_msg_new(type, front_len);
+		m = ceph_msg_new(type, front_len, GFP_NOFS);
 		break;
 	}
 

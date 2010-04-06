@@ -232,7 +232,7 @@ extern void ceph_con_keepalive(struct ceph_connection *con);
 extern struct ceph_connection *ceph_con_get(struct ceph_connection *con);
 extern void ceph_con_put(struct ceph_connection *con);
 
-extern struct ceph_msg *ceph_msg_new(int type, int front_len);
+extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags);
 extern void ceph_msg_kfree(struct ceph_msg *m);
 
 
