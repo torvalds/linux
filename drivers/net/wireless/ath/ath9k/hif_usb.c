@@ -324,7 +324,7 @@ static struct ath9k_htc_hif hif_usb = {
 static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 				    struct sk_buff *skb)
 {
-	struct sk_buff *nskb, *skb_pool[8];
+	struct sk_buff *nskb, *skb_pool[MAX_PKT_NUM_IN_TRANSFER];
 	int index = 0, i = 0, chk_idx, len = skb->len;
 	int rx_remain_len = 0, rx_pkt_len = 0;
 	u16 pkt_len, pkt_tag, pool_index = 0;
