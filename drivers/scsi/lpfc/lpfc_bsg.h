@@ -96,7 +96,7 @@ struct dfc_mbox_req {
 	uint32_t command;
 	uint32_t mbOffset;
 	uint32_t inExtWLen;
-	uint32_t outWxtWLen;
+	uint32_t outExtWLen;
 };
 
 /* Used for menlo command or menlo data. The xri is only used for menlo data */

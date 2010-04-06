@@ -1732,6 +1732,17 @@ typedef struct {
 	} un;
 } BIU_DIAG_VAR;
 
+/* Structure for MB command READ_EVENT_LOG (0x38) */
+struct READ_EVENT_LOG_VAR {
+	uint32_t word1;
+#define lpfc_event_log_SHIFT	29
+#define lpfc_event_log_MASK	0x00000001
+#define lpfc_event_log_WORD	word1
+#define USE_MAILBOX_RESPONSE	1
+	uint32_t offset;
+	struct ulp_bde64 rcv_bde64;
+};
+
 /* Structure for MB Command INIT_LINK (05) */
 
 typedef struct {
@@ -2966,6 +2977,9 @@ typedef union {
 	REG_VPI_VAR varRegVpi;		/* cmd = 0x96 (REG_VPI) */
 	UNREG_VPI_VAR varUnregVpi;	/* cmd = 0x97 (UNREG_VPI) */
 	ASYNCEVT_ENABLE_VAR varCfgAsyncEvent; /*cmd = x33 (CONFIG_ASYNC) */
+	struct READ_EVENT_LOG_VAR varRdEventLog;	/* cmd = 0x38
+							 * (READ_EVENT_LOG)
+							 */
 	struct config_msi_var varCfgMSI;/* cmd = x30 (CONFIG_MSI)     */
 } MAILVARIANTS;
 

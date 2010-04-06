@@ -84,7 +84,7 @@ struct lpfc_bsg_mbox {
 	uint8_t *ext; /* extended mailbox data */
 	uint32_t mbOffset; /* from app */
 	uint32_t inExtWLen; /* from app */
-	uint32_t outWxtWLen; /* from app */
+	uint32_t outExtWLen; /* from app */
 
 	/* job waiting for this mbox command to finish */
 	struct fc_bsg_job *set_job;
@@ -1714,21 +1714,26 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 	dmabuf = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 	if (dmabuf) {
 		dmabuf->virt = lpfc_mbuf_alloc(phba, 0, &dmabuf->phys);
-		INIT_LIST_HEAD(&dmabuf->list);
-		bpl = (struct ulp_bde64 *) dmabuf->virt;
-		memset(bpl, 0, sizeof(*bpl));
-		ctreq = (struct lpfc_sli_ct_request *)(bpl + 1);
-		bpl->addrHigh =
-			le32_to_cpu(putPaddrHigh(dmabuf->phys + sizeof(*bpl)));
-		bpl->addrLow =
-			le32_to_cpu(putPaddrLow(dmabuf->phys + sizeof(*bpl)));
-		bpl->tus.f.bdeFlags = 0;
-		bpl->tus.f.bdeSize = ELX_LOOPBACK_HEADER_SZ;
-		bpl->tus.w = le32_to_cpu(bpl->tus.w);
+		if (dmabuf->virt) {
+			INIT_LIST_HEAD(&dmabuf->list);
+			bpl = (struct ulp_bde64 *) dmabuf->virt;
+			memset(bpl, 0, sizeof(*bpl));
+			ctreq = (struct lpfc_sli_ct_request *)(bpl + 1);
+			bpl->addrHigh =
+				le32_to_cpu(putPaddrHigh(dmabuf->phys +
+					sizeof(*bpl)));
+			bpl->addrLow =
+				le32_to_cpu(putPaddrLow(dmabuf->phys +
+					sizeof(*bpl)));
+			bpl->tus.f.bdeFlags = 0;
+			bpl->tus.f.bdeSize = ELX_LOOPBACK_HEADER_SZ;
+			bpl->tus.w = le32_to_cpu(bpl->tus.w);
+		}
 	}
 
 	if (cmdiocbq == NULL || rspiocbq == NULL ||
-	    dmabuf == NULL || bpl == NULL || ctreq == NULL) {
+	    dmabuf == NULL || bpl == NULL || ctreq == NULL ||
+		dmabuf->virt == NULL) {
 		ret_val = ENOMEM;
 		goto err_get_xri_exit;
 	}
@@ -1924,9 +1929,11 @@ static int lpfcdiag_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
 	rxbmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 	if (rxbmp != NULL) {
 		rxbmp->virt = lpfc_mbuf_alloc(phba, 0, &rxbmp->phys);
-		INIT_LIST_HEAD(&rxbmp->list);
-		rxbpl = (struct ulp_bde64 *) rxbmp->virt;
-		rxbuffer = diag_cmd_data_alloc(phba, rxbpl, len, 0);
+		if (rxbmp->virt) {
+			INIT_LIST_HEAD(&rxbmp->list);
+			rxbpl = (struct ulp_bde64 *) rxbmp->virt;
+			rxbuffer = diag_cmd_data_alloc(phba, rxbpl, len, 0);
+		}
 	}
 
 	if (!cmdiocbq || !rxbmp || !rxbpl || !rxbuffer) {
@@ -2180,14 +2187,16 @@ lpfc_bsg_diag_test(struct fc_bsg_job *job)
 
 	if (txbmp) {
 		txbmp->virt = lpfc_mbuf_alloc(phba, 0, &txbmp->phys);
-		INIT_LIST_HEAD(&txbmp->list);
-		txbpl = (struct ulp_bde64 *) txbmp->virt;
-		if (txbpl)
+		if (txbmp->virt) {
+			INIT_LIST_HEAD(&txbmp->list);
+			txbpl = (struct ulp_bde64 *) txbmp->virt;
 			txbuffer = diag_cmd_data_alloc(phba,
 							txbpl, full_size, 0);
+		}
 	}
 
-	if (!cmdiocbq || !rspiocbq || !txbmp || !txbpl || !txbuffer) {
+	if (!cmdiocbq || !rspiocbq || !txbmp || !txbpl || !txbuffer ||
+		!txbmp->virt) {
 		rc = -ENOMEM;
 		goto err_loopback_test_exit;
 	}
@@ -2404,12 +2413,34 @@ lpfc_bsg_wake_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	from = (uint8_t *)&pmboxq->u.mb;
 	to = (uint8_t *)dd_data->context_un.mbox.mb;
 	memcpy(to, from, sizeof(MAILBOX_t));
-	/* copy the extended data if any, count is in words */
-	if (dd_data->context_un.mbox.outWxtWLen) {
-		from = (uint8_t *)dd_data->context_un.mbox.ext;
-		to += sizeof(MAILBOX_t);
-		memcpy(to, from,
-		dd_data->context_un.mbox.outWxtWLen * sizeof(uint32_t));
+	if (pmboxq->u.mb.mbxStatus == MBX_SUCCESS) {
+		/* copy the extended data if any, count is in words */
+		if (dd_data->context_un.mbox.outExtWLen) {
+			from = (uint8_t *)dd_data->context_un.mbox.ext;
+			to += sizeof(MAILBOX_t);
+			size = dd_data->context_un.mbox.outExtWLen *
+					sizeof(uint32_t);
+			memcpy(to, from, size);
+		} else if (pmboxq->u.mb.mbxCommand == MBX_RUN_BIU_DIAG64) {
+			from = (uint8_t *)dd_data->context_un.mbox.
+						dmp->dma.virt;
+			to += sizeof(MAILBOX_t);
+			size = dd_data->context_un.mbox.dmp->size;
+			memcpy(to, from, size);
+		} else if ((phba->sli_rev == LPFC_SLI_REV4) &&
+			(pmboxq->u.mb.mbxCommand == MBX_DUMP_MEMORY)) {
+			from = (uint8_t *)dd_data->context_un.mbox.dmp->dma.
+						virt;
+			to += sizeof(MAILBOX_t);
+			size = pmboxq->u.mb.un.varWords[5];
+			memcpy(to, from, size);
+		} else if (pmboxq->u.mb.mbxCommand == MBX_READ_EVENT_LOG) {
+			from = (uint8_t *)dd_data->context_un.
+						mbox.dmp->dma.virt;
+			to += sizeof(MAILBOX_t);
+			size = dd_data->context_un.mbox.dmp->size;
+			memcpy(to, from, size);
+		}
 	}
 
 	from = (uint8_t *)dd_data->context_un.mbox.mb;
@@ -2503,6 +2534,7 @@ static int lpfc_bsg_check_cmd_access(struct lpfc_hba *phba,
 	case MBX_SET_DEBUG:
 	case MBX_WRITE_WWN:
 	case MBX_SLI4_CONFIG:
+	case MBX_READ_EVENT_LOG:
 	case MBX_READ_EVENT_LOG_STATUS:
 	case MBX_WRITE_EVENT_LOG:
 	case MBX_PORT_CAPABILITIES:
@@ -2522,7 +2554,6 @@ static int lpfc_bsg_check_cmd_access(struct lpfc_hba *phba,
 			phba->fc_topology = TOPOLOGY_PT_PT;
 		}
 		break;
-	case MBX_READ_EVENT_LOG:
 	case MBX_READ_SPARM64:
 	case MBX_READ_LA:
 	case MBX_READ_LA64:
@@ -2577,7 +2608,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 
 	/* check if requested extended data lengths are valid */
 	if ((mbox_req->inExtWLen > MAILBOX_EXT_SIZE) ||
-		(mbox_req->outWxtWLen > MAILBOX_EXT_SIZE)) {
+		(mbox_req->outExtWLen > MAILBOX_EXT_SIZE)) {
 		rc = -ERANGE;
 		goto job_done;
 	}
@@ -2618,8 +2649,29 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->vport = vport;
 
+	/* If HBA encountered an error attention, allow only DUMP
+	 * or RESTART mailbox commands until the HBA is restarted.
+	 */
+	if (phba->pport->stopped &&
+	    pmb->mbxCommand != MBX_DUMP_MEMORY &&
+	    pmb->mbxCommand != MBX_RESTART &&
+	    pmb->mbxCommand != MBX_WRITE_VPARMS &&
+	    pmb->mbxCommand != MBX_WRITE_WWN)
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
+				"2797 mbox: Issued mailbox cmd "
+				"0x%x while in stopped state.\n",
+				pmb->mbxCommand);
+
+	/* Don't allow mailbox commands to be sent when blocked
+	 * or when in the middle of discovery
+	 */
+	if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) {
+		rc = -EAGAIN;
+		goto job_done;
+	}
+
 	/* extended mailbox commands will need an extended buffer */
-	if (mbox_req->inExtWLen || mbox_req->outWxtWLen) {
+	if (mbox_req->inExtWLen || mbox_req->outExtWLen) {
 		ext = kzalloc(MAILBOX_EXT_SIZE, GFP_KERNEL);
 		if (!ext) {
 			rc = -ENOMEM;
@@ -2639,7 +2691,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			mbox_req->inExtWLen *
 			sizeof(uint32_t);
 		pmboxq->out_ext_byte_len =
-			mbox_req->outWxtWLen *
+			mbox_req->outExtWLen *
 			sizeof(uint32_t);
 		pmboxq->mbox_offset_word =
 			mbox_req->mbOffset;
@@ -2647,7 +2699,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		pmboxq->in_ext_byte_len =
 			mbox_req->inExtWLen * sizeof(uint32_t);
 		pmboxq->out_ext_byte_len =
-			mbox_req->outWxtWLen * sizeof(uint32_t);
+			mbox_req->outExtWLen * sizeof(uint32_t);
 		pmboxq->mbox_offset_word = mbox_req->mbOffset;
 	}
 
@@ -2656,6 +2708,17 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	 * use ours
 	 */
 	if (pmb->mbxCommand == MBX_RUN_BIU_DIAG64) {
+		uint32_t transmit_length = pmb->un.varWords[1];
+		uint32_t receive_length = pmb->un.varWords[4];
+		/* transmit length cannot be greater than receive length or
+		 * mailbox extension size
+		 */
+		if ((transmit_length > receive_length) ||
+			(transmit_length > MAILBOX_EXT_SIZE)) {
+			rc = -ERANGE;
+			goto job_done;
+		}
+
 		rxbmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 		if (!rxbmp) {
 			rc = -ENOMEM;
@@ -2663,9 +2726,14 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		}
 
 		rxbmp->virt = lpfc_mbuf_alloc(phba, 0, &rxbmp->phys);
+		if (!rxbmp->virt) {
+			rc = -ENOMEM;
+			goto job_done;
+		}
+
 		INIT_LIST_HEAD(&rxbmp->list);
 		rxbpl = (struct ulp_bde64 *) rxbmp->virt;
-		dmp = diag_cmd_data_alloc(phba, rxbpl, BSG_MBOX_SIZE, 0);
+		dmp = diag_cmd_data_alloc(phba, rxbpl, transmit_length, 0);
 		if (!dmp) {
 			rc = -ENOMEM;
 			goto job_done;
@@ -2685,12 +2753,142 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			putPaddrLow(dmp->dma.phys +
 				pmb->un.varBIUdiag.un.s2.
 					xmit_bde64.tus.f.bdeSize);
-		dd_data->context_un.mbox.rxbmp = rxbmp;
-		dd_data->context_un.mbox.dmp = dmp;
-	} else {
-		dd_data->context_un.mbox.rxbmp = NULL;
-		dd_data->context_un.mbox.dmp = NULL;
+
+		/* copy the transmit data found in the mailbox extension area */
+		from = (uint8_t *)mb;
+		from += sizeof(MAILBOX_t);
+		memcpy((uint8_t *)dmp->dma.virt, from, transmit_length);
+	} else if (pmb->mbxCommand == MBX_READ_EVENT_LOG) {
+		struct READ_EVENT_LOG_VAR *rdEventLog =
+			&pmb->un.varRdEventLog ;
+		uint32_t receive_length = rdEventLog->rcv_bde64.tus.f.bdeSize;
+		uint32_t mode =	 bf_get(lpfc_event_log, rdEventLog);
+
+		/* receive length cannot be greater than mailbox
+		 * extension size
+		 */
+		if (receive_length > MAILBOX_EXT_SIZE) {
+			rc = -ERANGE;
+			goto job_done;
+		}
+
+		/* mode zero uses a bde like biu diags command */
+		if (mode == 0) {
+
+			/* rebuild the command for sli4 using our own buffers
+			* like we do for biu diags
+			*/
+
+			rxbmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+			if (!rxbmp) {
+				rc = -ENOMEM;
+				goto job_done;
+			}
+
+			rxbmp->virt = lpfc_mbuf_alloc(phba, 0, &rxbmp->phys);
+			rxbpl = (struct ulp_bde64 *) rxbmp->virt;
+			if (rxbpl) {
+				INIT_LIST_HEAD(&rxbmp->list);
+				dmp = diag_cmd_data_alloc(phba, rxbpl,
+					receive_length, 0);
+			}
+
+			if (!dmp) {
+				rc = -ENOMEM;
+				goto job_done;
+			}
+
+			INIT_LIST_HEAD(&dmp->dma.list);
+			pmb->un.varWords[3] = putPaddrLow(dmp->dma.phys);
+			pmb->un.varWords[4] = putPaddrHigh(dmp->dma.phys);
+		}
+	} else if (phba->sli_rev == LPFC_SLI_REV4) {
+		if (pmb->mbxCommand == MBX_DUMP_MEMORY) {
+			/* rebuild the command for sli4 using our own buffers
+			* like we do for biu diags
+			*/
+			uint32_t receive_length = pmb->un.varWords[2];
+			/* receive length cannot be greater than mailbox
+			 * extension size
+			 */
+			if ((receive_length == 0) ||
+				(receive_length > MAILBOX_EXT_SIZE)) {
+				rc = -ERANGE;
+				goto job_done;
+			}
+
+			rxbmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+			if (!rxbmp) {
+				rc = -ENOMEM;
+				goto job_done;
+			}
+
+			rxbmp->virt = lpfc_mbuf_alloc(phba, 0, &rxbmp->phys);
+			if (!rxbmp->virt) {
+				rc = -ENOMEM;
+				goto job_done;
+			}
+
+			INIT_LIST_HEAD(&rxbmp->list);
+			rxbpl = (struct ulp_bde64 *) rxbmp->virt;
+			dmp = diag_cmd_data_alloc(phba, rxbpl, receive_length,
+						0);
+			if (!dmp) {
+				rc = -ENOMEM;
+				goto job_done;
+			}
+
+			INIT_LIST_HEAD(&dmp->dma.list);
+			pmb->un.varWords[3] = putPaddrLow(dmp->dma.phys);
+			pmb->un.varWords[4] = putPaddrHigh(dmp->dma.phys);
+		} else if ((pmb->mbxCommand == MBX_UPDATE_CFG) &&
+			pmb->un.varUpdateCfg.co) {
+			struct ulp_bde64 *bde =
+				(struct ulp_bde64 *)&pmb->un.varWords[4];
+
+			/* bde size cannot be greater than mailbox ext size */
+			if (bde->tus.f.bdeSize > MAILBOX_EXT_SIZE) {
+				rc = -ERANGE;
+				goto job_done;
+			}
+
+			rxbmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+			if (!rxbmp) {
+				rc = -ENOMEM;
+				goto job_done;
+			}
+
+			rxbmp->virt = lpfc_mbuf_alloc(phba, 0, &rxbmp->phys);
+			if (!rxbmp->virt) {
+				rc = -ENOMEM;
+				goto job_done;
+			}
+
+			INIT_LIST_HEAD(&rxbmp->list);
+			rxbpl = (struct ulp_bde64 *) rxbmp->virt;
+			dmp = diag_cmd_data_alloc(phba, rxbpl,
+					bde->tus.f.bdeSize, 0);
+			if (!dmp) {
+				rc = -ENOMEM;
+				goto job_done;
+			}
+
+			INIT_LIST_HEAD(&dmp->dma.list);
+			bde->addrHigh = putPaddrHigh(dmp->dma.phys);
+			bde->addrLow = putPaddrLow(dmp->dma.phys);
+
+			/* copy the transmit data found in the mailbox
+			 * extension area
+			 */
+			from = (uint8_t *)mb;
+			from += sizeof(MAILBOX_t);
+			memcpy((uint8_t *)dmp->dma.virt, from,
+				bde->tus.f.bdeSize);
+		}
 	}
+
+	dd_data->context_un.mbox.rxbmp = rxbmp;
+	dd_data->context_un.mbox.dmp = dmp;
 
 	/* setup wake call as IOCB callback */
 	pmboxq->mbox_cmpl = lpfc_bsg_wake_mbox_wait;
@@ -2704,7 +2902,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	dd_data->context_un.mbox.ext = ext;
 	dd_data->context_un.mbox.mbOffset = mbox_req->mbOffset;
 	dd_data->context_un.mbox.inExtWLen = mbox_req->inExtWLen;
-	dd_data->context_un.mbox.outWxtWLen = mbox_req->outWxtWLen;
+	dd_data->context_un.mbox.outExtWLen = mbox_req->outExtWLen;
 	job->dd_data = dd_data;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
