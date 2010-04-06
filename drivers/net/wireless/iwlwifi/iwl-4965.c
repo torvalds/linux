@@ -2162,6 +2162,7 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.gain_computation = iwl4965_gain_computation,
 	.rts_tx_cmd_flag = iwlcore_rts_tx_cmd_flag,
 	.calc_rssi = iwl4965_calc_rssi,
+	.request_scan = iwlagn_request_scan,
 };
 
 static struct iwl_lib_ops iwl4965_lib = {

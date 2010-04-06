@@ -105,6 +105,7 @@ struct iwl_hcmd_utils_ops {
 			__le32 *tx_flags);
 	int  (*calc_rssi)(struct iwl_priv *priv,
 			  struct iwl_rx_phy_res *rx_resp);
+	void (*request_scan)(struct iwl_priv *priv);
 };
 
 struct iwl_apm_ops {
@@ -526,6 +527,7 @@ void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
 #define IWL_ACTIVE_QUIET_TIME       cpu_to_le16(10)  /* msec */
 #define IWL_PLCP_QUIET_THRESH       cpu_to_le16(1)  /* packets */
 
+#define IWL_SCAN_CHECK_WATCHDOG		(HZ * 7)
 
 /*******************************************************************************
  * Calibrations - implemented in iwl-calib.c

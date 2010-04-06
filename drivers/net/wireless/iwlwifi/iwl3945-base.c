@@ -2790,11 +2790,8 @@ static void iwl3945_rfkill_poll(struct work_struct *data)
 
 }
 
-#define IWL_SCAN_CHECK_WATCHDOG (7 * HZ)
-static void iwl3945_bg_request_scan(struct work_struct *data)
+void iwl3945_request_scan(struct iwl_priv *priv)
 {
-	struct iwl_priv *priv =
-	    container_of(data, struct iwl_priv, request_scan);
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
 		.len = sizeof(struct iwl3945_scan_cmd),
@@ -2807,8 +2804,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	bool is_active = false;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
-
-	mutex_lock(&priv->mutex);
 
 	cancel_delayed_work(&priv->scan_check);
 
@@ -2992,7 +2987,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	queue_delayed_work(priv->workqueue, &priv->scan_check,
 			   IWL_SCAN_CHECK_WATCHDOG);
 
-	mutex_unlock(&priv->mutex);
 	return;
 
  done:
@@ -3006,7 +3000,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 
 	/* inform mac80211 scan aborted */
 	queue_work(priv->workqueue, &priv->scan_completed);
-	mutex_unlock(&priv->mutex);
 }
 
 static void iwl3945_bg_restart(struct work_struct *data)
@@ -3785,7 +3778,6 @@ static void iwl3945_setup_deferred_work(struct iwl_priv *priv)
 	INIT_DELAYED_WORK(&priv->alive_start, iwl3945_bg_alive_start);
 	INIT_DELAYED_WORK(&priv->_3945.rfkill_poll, iwl3945_rfkill_poll);
 	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
-	INIT_WORK(&priv->request_scan, iwl3945_bg_request_scan);
 	INIT_WORK(&priv->abort_scan, iwl_bg_abort_scan);
 	INIT_DELAYED_WORK(&priv->scan_check, iwl_bg_scan_check);
 

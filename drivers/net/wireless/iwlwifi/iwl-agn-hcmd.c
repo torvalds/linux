@@ -271,4 +271,5 @@ struct iwl_hcmd_utils_ops iwlagn_hcmd_utils = {
 	.chain_noise_reset = iwlagn_chain_noise_reset,
 	.rts_tx_cmd_flag = iwlagn_rts_tx_cmd_flag,
 	.calc_rssi = iwlagn_calc_rssi,
+	.request_scan = iwlagn_request_scan,
 };
