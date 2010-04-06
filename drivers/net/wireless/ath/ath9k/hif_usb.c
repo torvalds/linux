@@ -652,6 +652,12 @@ static int ath9k_hif_usb_alloc_rx_urbs(struct hif_device_usb *hif_dev)
 			usb_unanchor_urb(urb);
 			goto err_submit;
 		}
+
+		/*
+		 * Drop reference count.
+		 * This ensures that the URB is freed when killing them.
+		 */
+		usb_free_urb(urb);
 	}
 
 	return 0;
