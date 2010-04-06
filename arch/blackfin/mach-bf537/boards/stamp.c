@@ -545,6 +545,14 @@ static struct bfin5xx_spi_chip ad1938_spi_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_SND_BF5XX_SOC_ADAV80X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_ADAV80X_MODULE)
+static struct bfin5xx_spi_chip adav801_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
 #if defined(CONFIG_INPUT_AD714X_SPI) || defined(CONFIG_INPUT_AD714X_SPI_MODULE)
 #include <linux/input/ad714x.h>
 static struct bfin5xx_spi_chip ad7147_spi_chip_info = {
@@ -994,6 +1002,17 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.bus_num = 0,
 		.chip_select = 5,
 		.controller_data = &ad1938_spi_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_ADAV80X) || defined(CONFIG_SND_BF5XX_SOC_ADAV80X_MODULE)
+	{
+		.modalias = "adav80x",
+		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1,
+		.controller_data = &adav801_spi_chip_info,
 		.mode = SPI_MODE_3,
 	},
 #endif
@@ -1813,6 +1832,12 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_SND_BF5XX_SOC_AD193X) || defined(CONFIG_SND_BF5XX_SOC_AD193X_MODULE)
 	{
 		I2C_BOARD_INFO("ad1937", 0x04),
+	},
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_ADAV80X) || defined(CONFIG_SND_BF5XX_SOC_ADAV80X_MODULE)
+	{
+		I2C_BOARD_INFO("adav803", 0x10),
 	},
 #endif
 
