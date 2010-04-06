@@ -35,7 +35,7 @@
 #define NUM_TX_BUFFS 4
 #define MAX_BUF_SIZE 2048
 
-#define ETH_TX_TIMEOUT HZ/4
+#define ETH_TX_TIMEOUT (HZ/4)
 #define MAC_MIN_PKT_SIZE 64
 
 #define MULTICAST_FILTER_LIMIT 64
