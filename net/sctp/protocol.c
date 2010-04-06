@@ -54,6 +54,7 @@
 #include <linux/bootmem.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/protocol.h>
 #include <net/ip.h>

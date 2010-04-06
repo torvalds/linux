@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
-#include <linux/gfp.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/rcupdate.h>

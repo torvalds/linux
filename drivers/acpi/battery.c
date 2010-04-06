@@ -32,6 +32,7 @@
 #include <linux/jiffies.h>
 #include <linux/async.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 #include <linux/proc_fs.h>

@@ -43,6 +43,7 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>

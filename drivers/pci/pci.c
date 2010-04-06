@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>

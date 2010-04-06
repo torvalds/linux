@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/ctype.h>
 #include <linux/genhd.h>

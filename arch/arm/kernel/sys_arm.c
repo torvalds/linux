@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
@@ -27,6 +26,7 @@
 #include <linux/file.h>
 #include <linux/ipc.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 /* Fork a new task - this creates a new program thread.
  * This is called indirectly via a small wrapper

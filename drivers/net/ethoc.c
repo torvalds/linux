@@ -18,6 +18,7 @@
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <net/ethoc.h>
 
 static int buffer_size = 0x8000; /* 32 KBytes */

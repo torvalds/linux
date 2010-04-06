@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <linux/notifier.h>
 #include <net/mac80211.h>
 #include <net/cfg80211.h>

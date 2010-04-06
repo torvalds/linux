@@ -20,6 +20,7 @@
  * 02111-1307, USA.
  */
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/user_namespace.h>
 #include <linux/nsproxy.h>
 #include "ecryptfs_kernel.h"

@@ -545,7 +545,7 @@ static int __init vfp_init(void)
 		 */
 		elf_hwcap |= HWCAP_VFP;
 #ifdef CONFIG_VFPv3
-		if (VFP_arch >= 3) {
+		if (VFP_arch >= 2) {
 			elf_hwcap |= HWCAP_VFPv3;
 
 			/*

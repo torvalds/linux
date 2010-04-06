@@ -940,7 +940,7 @@ static void radeon_dp_connector_destroy(struct drm_connector *connector)
 	if (radeon_connector->edid)
 		kfree(radeon_connector->edid);
 	if (radeon_dig_connector->dp_i2c_bus)
-		radeon_i2c_destroy_dp(radeon_dig_connector->dp_i2c_bus);
+		radeon_i2c_destroy(radeon_dig_connector->dp_i2c_bus);
 	kfree(radeon_connector->con_priv);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);

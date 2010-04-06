@@ -11,6 +11,7 @@
 #include <linux/fb.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "carminefb.h"
 #include "carminefb_regs.h"

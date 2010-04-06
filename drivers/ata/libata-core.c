@@ -58,6 +58,7 @@
 #include <linux/io.h>
 #include <linux/async.h>
 #include <linux/log2.h>
+#include <linux/slab.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>

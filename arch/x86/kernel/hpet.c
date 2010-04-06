@@ -4,6 +4,7 @@
 #include <linux/sysdev.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/hpet.h>
 #include <linux/init.h>
 #include <linux/cpu.h>

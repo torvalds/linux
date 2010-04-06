@@ -18,6 +18,7 @@
 #include <linux/smp.h>
 #include <linux/errno.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include "pci.h"
 #include "msi.h"

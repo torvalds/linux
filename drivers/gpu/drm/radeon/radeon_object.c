@@ -30,6 +30,7 @@
  *    Dave Airlie
  */
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <drm/drmP.h>
 #include "radeon_drm.h"
 #include "radeon.h"
@@ -185,8 +186,10 @@ int radeon_bo_pin(struct radeon_bo *bo, u32 domain, u64 *gpu_addr)
 		return 0;
 	}
 	radeon_ttm_placement_from_domain(bo, domain);
-	/* force to pin into visible video ram */
-	bo->placement.lpfn = bo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
+	if (domain == RADEON_GEM_DOMAIN_VRAM) {
+		/* force to pin into visible video ram */
+		bo->placement.lpfn = bo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
+	}
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);

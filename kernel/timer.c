@@ -39,6 +39,7 @@
 #include <linux/kallsyms.h>
 #include <linux/perf_event.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>

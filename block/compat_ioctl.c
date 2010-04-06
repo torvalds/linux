@@ -6,6 +6,7 @@
 #include <linux/elevator.h>
 #include <linux/fd.h>
 #include <linux/hdreg.h>
+#include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/smp_lock.h>
 #include <linux/types.h>

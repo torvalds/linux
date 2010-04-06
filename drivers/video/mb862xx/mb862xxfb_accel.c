@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #if defined(CONFIG_OF)
 #include <linux/of_platform.h>
 #endif

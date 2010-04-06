@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/pcieport_if.h>
+#include <linux/slab.h>
 
 #include "aerdrv.h"
 #include "../../pci.h"

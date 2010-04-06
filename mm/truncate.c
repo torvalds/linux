@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/backing-dev.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/module.h>

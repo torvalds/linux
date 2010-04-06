@@ -22,6 +22,7 @@
 #include <asm/io.h>
 #include <linux/time.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
 #include <sound/core.h>

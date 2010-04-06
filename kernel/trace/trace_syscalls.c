@@ -1,5 +1,6 @@
 #include <trace/syscall.h>
 #include <trace/events/syscalls.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
 #include <linux/perf_event.h>

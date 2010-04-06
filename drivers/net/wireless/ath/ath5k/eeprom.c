@@ -21,6 +21,8 @@
 * EEPROM access functions and helpers *
 \*************************************/
 
+#include <linux/slab.h>
+
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
