@@ -83,13 +83,6 @@ MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("iwl4965");
 
-/*************** STATION TABLE MANAGEMENT ****
- * mac80211 should be examined to determine if sta_info is duplicating
- * the functionality provided here
- */
-
-/**************************************************************/
-
 /**
  * iwl_commit_rxon - commit staging_rxon to hardware
  *
@@ -188,7 +181,7 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 			IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
 			return ret;
 		}
-		IWL_DEBUG_INFO(priv, "Return from !new_assoc RXON. \n");
+		IWL_DEBUG_INFO(priv, "Return from !new_assoc RXON.\n");
 		memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
 		iwl_clear_ucode_stations(priv, false);
 		iwl_restore_stations(priv);
@@ -2310,7 +2303,7 @@ static int iwl_prepare_card_hw(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	IWL_DEBUG_INFO(priv, "iwl_prepare_card_hw enter \n");
+	IWL_DEBUG_INFO(priv, "iwl_prepare_card_hw enter\n");
 
 	ret = iwl_set_hw_ready(priv);
 	if (priv->hw_ready)
@@ -3074,7 +3067,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 	iwl_restore_wepkeys(priv);
 
 	/* Initialize rate scaling */
-	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM \n",
+	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",
 		       sta->addr);
 	iwl_rs_rate_init(priv, sta, sta_id);
 
@@ -3375,7 +3368,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	/* Set the tx_power_user_lmt to the lowest power level
 	 * this value will get overwritten by channel max power avg
 	 * from eeprom */
-	priv->tx_power_user_lmt = IWL_TX_POWER_TARGET_POWER_MIN;
+	priv->tx_power_user_lmt = IWLAGN_TX_POWER_TARGET_POWER_MIN;
 
 	ret = iwl_init_channel_map(priv);
 	if (ret) {
@@ -3921,3 +3914,33 @@ module_param_named(debug, iwl_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 
+module_param_named(swcrypto50, iwlagn_mod_params.sw_crypto, bool, S_IRUGO);
+MODULE_PARM_DESC(swcrypto50,
+		 "using crypto in software (default 0 [hardware]) (deprecated)");
+module_param_named(swcrypto, iwlagn_mod_params.sw_crypto, int, S_IRUGO);
+MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
+module_param_named(queues_num50,
+		   iwlagn_mod_params.num_of_queues, int, S_IRUGO);
+MODULE_PARM_DESC(queues_num50,
+		 "number of hw queues in 50xx series (deprecated)");
+module_param_named(queues_num, iwlagn_mod_params.num_of_queues, int, S_IRUGO);
+MODULE_PARM_DESC(queues_num, "number of hw queues.");
+module_param_named(11n_disable50, iwlagn_mod_params.disable_11n, int, S_IRUGO);
+MODULE_PARM_DESC(11n_disable50, "disable 50XX 11n functionality (deprecated)");
+module_param_named(11n_disable, iwlagn_mod_params.disable_11n, int, S_IRUGO);
+MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
+module_param_named(amsdu_size_8K50, iwlagn_mod_params.amsdu_size_8K,
+		   int, S_IRUGO);
+MODULE_PARM_DESC(amsdu_size_8K50,
+		 "enable 8K amsdu size in 50XX series (deprecated)");
+module_param_named(amsdu_size_8K, iwlagn_mod_params.amsdu_size_8K,
+		   int, S_IRUGO);
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
+module_param_named(fw_restart50, iwlagn_mod_params.restart_fw, int, S_IRUGO);
+MODULE_PARM_DESC(fw_restart50,
+		 "restart firmware in case of error (deprecated)");
+module_param_named(fw_restart, iwlagn_mod_params.restart_fw, int, S_IRUGO);
+MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
+module_param_named(
+	disable_hw_scan, iwlagn_mod_params.disable_hw_scan, int, S_IRUGO);
+MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");

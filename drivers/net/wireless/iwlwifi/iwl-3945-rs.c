@@ -341,7 +341,7 @@ void iwl3945_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 s
 	struct ieee80211_supported_band *sband;
 	int i;
 
-	IWL_DEBUG_INFO(priv, "enter \n");
+	IWL_DEBUG_INFO(priv, "enter\n");
 	if (sta_id == priv->hw_params.bcast_sta_id)
 		goto out;
 

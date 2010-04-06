@@ -403,6 +403,9 @@ void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
 	}
 
+	for (i = 0; i < RX_QUEUE_SIZE; i++)
+		rxq->queue[i] = NULL;
+
 	/* Set us so that we have processed and used all buffers, but have
 	 * not restocked the Rx queue with fresh buffers */
 	rxq->read = rxq->write = 0;
@@ -538,11 +541,13 @@ void iwlagn_rx_queue_restock(struct iwl_priv *priv)
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
-	int write;
 
 	spin_lock_irqsave(&rxq->lock, flags);
-	write = rxq->write & ~0x7;
 	while ((iwl_rx_queue_space(rxq) > 0) && (rxq->free_count)) {
+		/* The overwritten rxb must be a used one */
+		rxb = rxq->queue[rxq->write];
+		BUG_ON(rxb && rxb->page);
+
 		/* Get next free Rx buffer, remove from free list */
 		element = rxq->rx_free.next;
 		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
@@ -635,6 +640,7 @@ void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 
 		spin_unlock_irqrestore(&rxq->lock, flags);
 
+		BUG_ON(rxb->page);
 		rxb->page = page;
 		/* Get physical address of the RB */
 		rxb->page_dma = pci_map_page(priv->pci_dev, page, 0,
@@ -845,7 +851,7 @@ static void iwlagn_dbg_report_frame(struct iwl_priv *priv,
 		 *    but you can hack it to show more, if you'd like to. */
 		if (dataframe)
 			IWL_DEBUG_RX(priv, "%s: mhd=0x%04x, dst=0x%02x, "
-				     "len=%u, rssi=%d, chnl=%d, rate=%u, \n",
+				     "len=%u, rssi=%d, chnl=%d, rate=%u,\n",
 				     title, le16_to_cpu(fc), header->addr1[5],
 				     length, rssi, channel, bitrate);
 		else {

@@ -61,14 +61,6 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv);
 #define _IWL4965_MODULE_FIRMWARE(api) IWL4965_FW_PRE #api ".ucode"
 #define IWL4965_MODULE_FIRMWARE(api) _IWL4965_MODULE_FIRMWARE(api)
 
-
-/* module parameters */
-static struct iwl_mod_params iwl4965_mod_params = {
-	.amsdu_size_8K = 1,
-	.restart_fw = 1,
-	/* the rest are 0 by default */
-};
-
 /* check contents of special bootstrap uCode SRAM */
 static int iwl4965_verify_bsm(struct iwl_priv *priv)
 {
@@ -418,7 +410,7 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 				      sizeof(cmd), &cmd);
 		if (ret)
 			IWL_DEBUG_CALIB(priv, "fail sending cmd "
-				     "REPLY_PHY_CALIBRATION_CMD \n");
+				     "REPLY_PHY_CALIBRATION_CMD\n");
 
 		/* TODO we might want recalculate
 		 * rx_chain in rxon cmd */
@@ -1620,19 +1612,19 @@ static int iwl4965_is_temp_calib_needed(struct iwl_priv *priv)
 
 	/* get absolute value */
 	if (temp_diff < 0) {
-		IWL_DEBUG_POWER(priv, "Getting cooler, delta %d, \n", temp_diff);
+		IWL_DEBUG_POWER(priv, "Getting cooler, delta %d\n", temp_diff);
 		temp_diff = -temp_diff;
 	} else if (temp_diff == 0)
-		IWL_DEBUG_POWER(priv, "Same temp, \n");
+		IWL_DEBUG_POWER(priv, "Temperature unchanged\n");
 	else
-		IWL_DEBUG_POWER(priv, "Getting warmer, delta %d, \n", temp_diff);
+		IWL_DEBUG_POWER(priv, "Getting warmer, delta %d\n", temp_diff);
 
 	if (temp_diff < IWL_TEMPERATURE_THRESHOLD) {
-		IWL_DEBUG_POWER(priv, "Thermal txpower calib not needed\n");
+		IWL_DEBUG_POWER(priv, " => thermal txpower calib not needed\n");
 		return 0;
 	}
 
-	IWL_DEBUG_POWER(priv, "Thermal txpower calib needed\n");
+	IWL_DEBUG_POWER(priv, " => thermal txpower calib needed\n");
 
 	return 1;
 }
@@ -2094,7 +2086,7 @@ static int iwl4965_calc_rssi(struct iwl_priv *priv,
 
 	/* dBm = max_rssi dB - agc dB - constant.
 	 * Higher AGC (higher radio gain) means lower signal. */
-	return max_rssi - agc - IWL49_RSSI_OFFSET;
+	return max_rssi - agc - IWLAGN_RSSI_OFFSET;
 }
 
 
@@ -2245,7 +2237,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.ops = &iwl4965_ops,
 	.num_of_queues = IWL49_NUM_QUEUES,
 	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl4965_mod_params,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_ABC,
 	.pll_cfg_val = 0,
@@ -2265,22 +2257,3 @@ struct iwl_cfg iwl4965_agn_cfg = {
 /* Module firmware */
 MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE(IWL4965_UCODE_API_MAX));
 
-module_param_named(antenna, iwl4965_mod_params.antenna, int, S_IRUGO);
-MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
-module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, S_IRUGO);
-MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
-module_param_named(
-	disable_hw_scan, iwl4965_mod_params.disable_hw_scan, int, S_IRUGO);
-MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
-
-module_param_named(queues_num, iwl4965_mod_params.num_of_queues, int, S_IRUGO);
-MODULE_PARM_DESC(queues_num, "number of hw queues.");
-/* 11n */
-module_param_named(11n_disable, iwl4965_mod_params.disable_11n, int, S_IRUGO);
-MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
-module_param_named(amsdu_size_8K, iwl4965_mod_params.amsdu_size_8K,
-		   int, S_IRUGO);
-MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
-
-module_param_named(fw_restart4965, iwl4965_mod_params.restart_fw, int, S_IRUGO);
-MODULE_PARM_DESC(fw_restart4965, "restart firmware in case of error");
