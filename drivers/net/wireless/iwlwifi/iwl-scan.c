@@ -680,16 +680,16 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
-	if (!priv->scan) {
-		priv->scan = kmalloc(sizeof(struct iwl_scan_cmd) +
-				     IWL_MAX_SCAN_SIZE, GFP_KERNEL);
-		if (!priv->scan) {
+	if (!priv->scan_cmd) {
+		priv->scan_cmd = kmalloc(sizeof(struct iwl_scan_cmd) +
+					 IWL_MAX_SCAN_SIZE, GFP_KERNEL);
+		if (!priv->scan_cmd) {
 			IWL_DEBUG_SCAN(priv,
 				       "fail to allocate memory for scan\n");
 			goto done;
 		}
 	}
-	scan = priv->scan;
+	scan = priv->scan_cmd;
 	memset(scan, 0, sizeof(struct iwl_scan_cmd) + IWL_MAX_SCAN_SIZE);
 
 	scan->quiet_plcp_th = IWL_PLCP_QUIET_THRESH;

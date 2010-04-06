@@ -3400,7 +3400,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 	iwl_calib_free_results(priv);
 	iwlcore_free_geos(priv);
 	iwl_free_channel_map(priv);
-	kfree(priv->scan);
+	kfree(priv->scan_cmd);
 }
 
 static struct attribute *iwl_sysfs_entries[] = {
