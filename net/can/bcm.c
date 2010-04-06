@@ -1479,6 +1479,9 @@ static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
 	struct sock *sk = sock->sk;
 	struct bcm_sock *bo = bcm_sk(sk);
 
+	if (len < sizeof(*addr))
+		return -EINVAL;
+
 	if (bo->bound)
 		return -EISCONN;
 
