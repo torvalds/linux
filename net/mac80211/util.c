@@ -1140,7 +1140,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
 		list_for_each_entry_rcu(sta, &local->sta_list, list) {
-			clear_sta_flags(sta, WLAN_STA_SUSPEND);
+			clear_sta_flags(sta, WLAN_STA_BLOCK_BA);
 		}
 	}
 
