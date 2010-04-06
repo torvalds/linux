@@ -1,8 +1,10 @@
 #include <linux/in.h>
 
-#include "ioctl.h"
 #include "super.h"
-#include "ceph_debug.h"
+#include "mds_client.h"
+#include <linux/ceph/ceph_debug.h>
+
+#include "ioctl.h"
 
 
 /*
@@ -37,7 +39,7 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct inode *parent_inode = file->f_dentry->d_parent->d_inode;
-	struct ceph_mds_client *mdsc = &ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_mds_request *req;
 	struct ceph_ioctl_layout l;
 	int err, i;
@@ -98,7 +100,8 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	struct ceph_ioctl_dataloc dl;
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_osd_client *osdc = &ceph_sb_to_client(inode->i_sb)->osdc;
+	struct ceph_osd_client *osdc =
+		&ceph_sb_to_client(inode->i_sb)->client->osdc;
 	u64 len = 1, olen;
 	u64 tmp;
 	struct ceph_object_layout ol;

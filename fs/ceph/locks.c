@@ -1,11 +1,11 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/file.h>
 #include <linux/namei.h>
 
 #include "super.h"
 #include "mds_client.h"
-#include "pagelist.h"
+#include <linux/ceph/pagelist.h>
 
 /**
  * Implement fcntl and flock locking functions.
@@ -16,7 +16,7 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ceph_mds_client *mdsc =
-		&ceph_sb_to_client(inode->i_sb)->mdsc;
+		ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_mds_request *req;
 	int err;
 
