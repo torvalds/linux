@@ -236,13 +236,12 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 			rw = ((data[7] & 0x18) >> 3) - ((data[7] & 0x20) >> 3);
 			input_report_rel(input, REL_WHEEL, rw);
 			input_report_key(input, BTN_TOOL_FINGER, 0xf0);
-			input_report_abs(input, ABS_MISC, wacom->id[1]);
 			if (!prox)
 				wacom->id[1] = 0;
 			input_report_abs(input, ABS_MISC, wacom->id[1]);
 			input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
+			retval = 1;
 		}
-		retval = 1;
 		break;
 
 	case WACOM_MO:
@@ -616,43 +615,59 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 static void wacom_tpc_finger_in(struct wacom_wac *wacom, char *data, int idx)
 {
 	struct input_dev *input = wacom->input;
+	int finger = idx + 1;
+	int x = le16_to_cpup((__le16 *)&data[finger * 2]) & 0x7fff;
+	int y = le16_to_cpup((__le16 *)&data[4 + finger * 2]) & 0x7fff;
 
-	input_report_abs(input, ABS_X,
-		data[2 + idx * 2] | ((data[3 + idx * 2] & 0x7f) << 8));
-	input_report_abs(input, ABS_Y,
-		data[6 + idx * 2] | ((data[7 + idx * 2] & 0x7f) << 8));
+	/*
+	 * Work around input core suppressing "duplicate" events since
+	 * we are abusing ABS_X/ABS_Y to transmit multi-finger data.
+	 * This should go away once we switch to true multitouch
+	 * protocol.
+	 */
+	if (wacom->last_finger != finger) {
+		if (x == input->abs[ABS_X])
+			x++;
+
+		if (y == input->abs[ABS_Y])
+			y++;
+	}
+
+	input_report_abs(input, ABS_X, x);
+	input_report_abs(input, ABS_Y, y);
 	input_report_abs(input, ABS_MISC, wacom->id[0]);
-	input_report_key(input, wacom->tool[idx], 1);
-	if (idx)
-		input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
-	else
+	input_report_key(input, wacom->tool[finger], 1);
+	if (!idx)
 		input_report_key(input, BTN_TOUCH, 1);
+	input_event(input, EV_MSC, MSC_SERIAL, finger);
+	input_sync(wacom->input);
+
+	wacom->last_finger = finger;
 }
 
 static void wacom_tpc_touch_out(struct wacom_wac *wacom, int idx)
 {
 	struct input_dev *input = wacom->input;
+	int finger = idx + 1;
 
 	input_report_abs(input, ABS_X, 0);
 	input_report_abs(input, ABS_Y, 0);
 	input_report_abs(input, ABS_MISC, 0);
-	input_report_key(input, wacom->tool[idx], 0);
-	if (idx)
-		input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
-	else
+	input_report_key(input, wacom->tool[finger], 0);
+	if (!idx)
 		input_report_key(input, BTN_TOUCH, 0);
+	input_event(input, EV_MSC, MSC_SERIAL, finger);
+	input_sync(input);
 }
 
 static void wacom_tpc_touch_in(struct wacom_wac *wacom, size_t len)
 {
 	char *data = wacom->data;
 	struct input_dev *input = wacom->input;
-	static int firstFinger = 0;
-	static int secondFinger = 0;
 
-	wacom->tool[0] = BTN_TOOL_DOUBLETAP;
+	wacom->tool[1] = BTN_TOOL_DOUBLETAP;
 	wacom->id[0] = TOUCH_DEVICE_ID;
-	wacom->tool[1] = BTN_TOOL_TRIPLETAP;
+	wacom->tool[2] = BTN_TOOL_TRIPLETAP;
 
 	if (len != WACOM_PKGLEN_TPC1FG) {
 
@@ -664,45 +679,29 @@ static void wacom_tpc_touch_in(struct wacom_wac *wacom, size_t len)
 			input_report_abs(input, ABS_PRESSURE, le16_to_cpup((__le16 *)&data[6]));
 			input_report_key(input, BTN_TOUCH, le16_to_cpup((__le16 *)&data[6]));
 			input_report_abs(input, ABS_MISC, wacom->id[0]);
-			input_report_key(input, wacom->tool[0], 1);
+			input_report_key(input, wacom->tool[1], 1);
+			input_sync(input);
 			break;
 
 		case WACOM_REPORT_TPC2FG:
-			/* keep this byte to send proper out-prox event */
-			wacom->id[1] = data[1] & 0x03;
-
-			if (data[1] & 0x01) {
+			if (data[1] & 0x01)
 				wacom_tpc_finger_in(wacom, data, 0);
-				firstFinger = 1;
-			} else if (firstFinger) {
+			else if (wacom->id[1] & 0x01)
 				wacom_tpc_touch_out(wacom, 0);
-			}
 
-			if (data[1] & 0x02) {
-				/* sync first finger data */
-				if (firstFinger)
-					input_sync(input);
-
+			if (data[1] & 0x02)
 				wacom_tpc_finger_in(wacom, data, 1);
-				secondFinger = 1;
-			} else if (secondFinger) {
-				/* sync first finger data */
-				if (firstFinger)
-					input_sync(input);
-
+			else if (wacom->id[1] & 0x02)
 				wacom_tpc_touch_out(wacom, 1);
-				secondFinger = 0;
-			}
-			if (!(data[1] & 0x01))
-				firstFinger = 0;
 			break;
 		}
 	} else {
 		input_report_abs(input, ABS_X, get_unaligned_le16(&data[1]));
 		input_report_abs(input, ABS_Y, get_unaligned_le16(&data[3]));
 		input_report_key(input, BTN_TOUCH, 1);
-		input_report_abs(input, ABS_MISC, wacom->id[0]);
-		input_report_key(input, wacom->tool[0], 1);
+		input_report_abs(input, ABS_MISC, wacom->id[1]);
+		input_report_key(input, wacom->tool[1], 1);
+		input_sync(input);
 	}
 }
 
@@ -711,13 +710,26 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 	struct wacom_features *features = &wacom->features;
 	char *data = wacom->data;
 	struct input_dev *input = wacom->input;
-	int prox = 0, pressure, idx = -1;
+	int prox = 0, pressure;
+	int retval = 0;
 
 	dbg("wacom_tpc_irq: received report #%d", data[0]);
 
 	if (len == WACOM_PKGLEN_TPC1FG ||		 /* single touch */
 	    data[0] == WACOM_REPORT_TPC1FG ||		 /* single touch */
 	    data[0] == WACOM_REPORT_TPC2FG) {		 /* 2FG touch */
+
+		if (wacom->shared->stylus_in_proximity) {
+			if (wacom->id[1] & 0x01)
+				wacom_tpc_touch_out(wacom, 0);
+
+			if (wacom->id[1] & 0x02)
+				wacom_tpc_touch_out(wacom, 1);
+
+			wacom->id[1] = 0;
+			return 0;
+		}
+
 		if (len == WACOM_PKGLEN_TPC1FG) {	/* with touch */
 			prox = data[0] & 0x01;
 		} else {  /* with capacity */
@@ -729,36 +741,30 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 				prox = data[1] & 0x03;
 		}
 
-		if (!wacom->shared->stylus_in_proximity) {
-			if (prox) {
-				wacom_tpc_touch_in(wacom, len);
-			} else {
-				if (data[0] == WACOM_REPORT_TPC2FG) {
-					/* 2FGT out-prox */
-					idx = (wacom->id[1] & 0x01) - 1;
-					if (idx == 0) {
-						wacom_tpc_touch_out(wacom, idx);
-						/* sync first finger event */
-						if (wacom->id[1] & 0x02)
-							input_sync(input);
-					}
-					idx = (wacom->id[1] & 0x02) - 1;
-					if (idx == 1)
-						wacom_tpc_touch_out(wacom, idx);
-				} else {
-					/* one finger touch */
+		if (prox) {
+			if (!wacom->id[1])
+				wacom->last_finger = 1;
+			wacom_tpc_touch_in(wacom, len);
+		} else {
+			if (data[0] == WACOM_REPORT_TPC2FG) {
+				/* 2FGT out-prox */
+				if (wacom->id[1] & 0x01)
 					wacom_tpc_touch_out(wacom, 0);
-				}
-				wacom->id[0] = 0;
-			}
-		} else if (wacom->id[0]) { /* force touch out-prox */
-			wacom_tpc_touch_out(wacom, 0);
+
+				if (wacom->id[1] & 0x02)
+					wacom_tpc_touch_out(wacom, 1);
+			} else
+				/* one finger touch */
+				wacom_tpc_touch_out(wacom, 0);
+
+			wacom->id[0] = 0;
 		}
-		return 1;
+		/* keep prox bit to send proper out-prox event */
+		wacom->id[1] = prox;
 	} else if (data[0] == WACOM_REPORT_PENABLED) { /* Penabled */
 		prox = data[1] & 0x20;
 
-		if (!wacom->id[0]) { /* first in prox */
+		if (!wacom->shared->stylus_in_proximity) { /* first in prox */
 			/* Going into proximity select tool */
 			wacom->tool[0] = (data[1] & 0x0c) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
 			if (wacom->tool[0] == BTN_TOOL_PEN)
@@ -783,9 +789,9 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 		}
 		input_report_key(input, wacom->tool[0], prox);
 		input_report_abs(input, ABS_MISC, wacom->id[0]);
-		return 1;
+		retval = 1;
 	}
-	return 0;
+	return retval;
 }
 
 void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
