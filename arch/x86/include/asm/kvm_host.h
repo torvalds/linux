@@ -187,8 +187,6 @@ struct kvm_mmu_page {
 	struct list_head link;
 	struct hlist_node hash_link;
 
-	struct list_head oos_link;
-
 	/*
 	 * The following two entries are used to key the shadow page in the
 	 * hash table.
