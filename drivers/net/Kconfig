@@ -483,7 +483,7 @@ config XTENSA_XT2000_SONIC
 	  This is the driver for the onboard card of the Xtensa XT2000 board.
 
 config MIPS_AU1X00_ENET
-	bool "MIPS AU1000 Ethernet support"
+	tristate "MIPS AU1000 Ethernet support"
 	depends on SOC_AU1X00
 	select PHYLIB
 	select CRC32
