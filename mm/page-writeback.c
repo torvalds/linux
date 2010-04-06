@@ -683,10 +683,6 @@ void throttle_vm_writeout(gfp_t gfp_mask)
         }
 }
 
-static void laptop_timer_fn(unsigned long unused);
-
-static DEFINE_TIMER(laptop_mode_wb_timer, laptop_timer_fn, 0, 0);
-
 /*
  * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
  */
@@ -697,21 +693,19 @@ int dirty_writeback_centisecs_handler(ctl_table *table, int write,
 	return 0;
 }
 
-static void do_laptop_sync(struct work_struct *work)
+void laptop_mode_timer_fn(unsigned long data)
 {
-	wakeup_flusher_threads(0);
-	kfree(work);
-}
+	struct request_queue *q = (struct request_queue *)data;
+	int nr_pages = global_page_state(NR_FILE_DIRTY) +
+		global_page_state(NR_UNSTABLE_NFS);
 
-static void laptop_timer_fn(unsigned long unused)
-{
-	struct work_struct *work;
+	/*
+	 * We want to write everything out, not just down to the dirty
+	 * threshold
+	 */
 
-	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	if (work) {
-		INIT_WORK(work, do_laptop_sync);
-		schedule_work(work);
-	}
+	if (bdi_has_dirty_io(&q->backing_dev_info))
+		bdi_start_writeback(&q->backing_dev_info, NULL, nr_pages);
 }
 
 /*
@@ -719,9 +713,9 @@ static void laptop_timer_fn(unsigned long unused)
  * of all dirty data a few seconds from now.  If the flush is already scheduled
  * then push it back - the user is still using the disk.
  */
-void laptop_io_completion(void)
+void laptop_io_completion(struct backing_dev_info *info)
 {
-	mod_timer(&laptop_mode_wb_timer, jiffies + laptop_mode);
+	mod_timer(&info->laptop_mode_wb_timer, jiffies + laptop_mode);
 }
 
 /*
@@ -731,7 +725,14 @@ void laptop_io_completion(void)
  */
 void laptop_sync_completion(void)
 {
-	del_timer(&laptop_mode_wb_timer);
+	struct backing_dev_info *bdi;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)
+		del_timer(&bdi->laptop_mode_wb_timer);
+
+	rcu_read_unlock();
 }
 
 /*
