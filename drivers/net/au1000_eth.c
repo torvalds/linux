@@ -75,6 +75,10 @@ static int au1000_debug = 5;
 static int au1000_debug = 3;
 #endif
 
+#define AU1000_DEF_MSG_ENABLE	(NETIF_MSG_DRV	| \
+				NETIF_MSG_PROBE	| \
+				NETIF_MSG_LINK)
+
 #define DRV_NAME	"au1000_eth"
 #define DRV_VERSION	"1.6"
 #define DRV_AUTHOR	"Pete Popov <ppopov@embeddedalley.com>"
@@ -583,11 +587,25 @@ au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	info->regdump_len = 0;
 }
 
+static void au1000_set_msglevel(struct net_device *dev, u32 value)
+{
+	struct au1000_private *aup = netdev_priv(dev);
+	aup->msg_enable = value;
+}
+
+static u32 au1000_get_msglevel(struct net_device *dev)
+{
+	struct au1000_private *aup = netdev_priv(dev);
+	return aup->msg_enable;
+}
+
 static const struct ethtool_ops au1000_ethtool_ops = {
 	.get_settings = au1000_get_settings,
 	.set_settings = au1000_set_settings,
 	.get_drvinfo = au1000_get_drvinfo,
 	.get_link = ethtool_op_get_link,
+	.get_msglevel = au1000_get_msglevel,
+	.set_msglevel = au1000_set_msglevel,
 };
 
 
@@ -1050,6 +1068,7 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 	aup = netdev_priv(dev);
 
 	spin_lock_init(&aup->lock);
+	aup->msg_enable = (au1000_debug < 4 ? AU1000_DEF_MSG_ENABLE : au1000_debug);
 
 	/* Allocate the data buffers */
 	/* Snooping works fine with eth on all au1xxx */

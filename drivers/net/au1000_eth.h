@@ -125,4 +125,6 @@ struct au1000_private {
 	dma_addr_t dma_addr;      /* dma address of rx/tx buffers       */
 
 	spinlock_t lock;       /* Serialise access to device */
+
+	u32 msg_enable;
 };
