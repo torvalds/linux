@@ -668,8 +668,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 		write_BAUD(drv_data, chip->baud);
 
 	write_STAT(drv_data, BIT_STAT_CLR);
-	if (drv_data->cs_change)
-		bfin_spi_cs_active(drv_data, chip);
+	bfin_spi_cs_active(drv_data, chip);
 
 	dev_dbg(&drv_data->pdev->dev,
 		"now pumping a transfer: width is %d, len is %d\n",
