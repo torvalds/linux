@@ -682,14 +682,13 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	/* Parameter validation */
 
-	if ((!address) || (type > ACPI_GPE_XRUPT_TYPE_MASK)) {
-		status = AE_BAD_PARAMETER;
-		goto exit;
+	if ((!address) || (type & ~ACPI_GPE_XRUPT_TYPE_MASK)) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
-		goto exit;
+		return_ACPI_STATUS(status);
 	}
 
 	/* Ensure that we have a valid GPE number */
@@ -720,6 +719,13 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	handler->context = context;
 	handler->method_node = gpe_event_info->dispatch.method_node;
 
+	/* Disable the GPE before installing the handler */
+
+	status = acpi_ev_disable_gpe(gpe_event_info);
+	if (ACPI_FAILURE (status)) {
+		goto unlock_and_exit;
+	}
+
 	/* Install the handler */
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
@@ -733,12 +739,8 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
-      exit:
-	if (ACPI_FAILURE(status))
-		ACPI_EXCEPTION((AE_INFO, status,
-				"Installing notify handler failed"));
 	return_ACPI_STATUS(status);
 }
 

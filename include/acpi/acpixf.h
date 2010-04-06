@@ -285,16 +285,17 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status);
  */
 acpi_status acpi_set_gpe(acpi_handle gpe_device, u32 gpe_number, u8 action);
 
-acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 type);
+acpi_status
+acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 gpe_type);
 
-acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 type);
+acpi_status
+acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 gpe_type);
 
-acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags);
+acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number);
 
 acpi_status
 acpi_get_gpe_status(acpi_handle gpe_device,
-		    u32 gpe_number,
-		    u32 flags, acpi_event_status * event_status);
+		    u32 gpe_number, acpi_event_status *event_status);
 
 acpi_status acpi_disable_all_gpes(void);
 

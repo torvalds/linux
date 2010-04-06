@@ -119,33 +119,6 @@ acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 			status = AE_AML_OPERAND_TYPE;
 			break;
 		}
-#ifdef ACPI_GPE_NOTIFY_CHECK
-		/*
-		 * GPE method wake/notify check.  Here, we want to ensure that we
-		 * don't receive any "DeviceWake" Notifies from a GPE _Lxx or _Exx
-		 * GPE method during system runtime.  If we do, the GPE is marked
-		 * as "wake-only" and disabled.
-		 *
-		 * 1) Is the Notify() value == device_wake?
-		 * 2) Is this a GPE deferred method?  (An _Lxx or _Exx method)
-		 * 3) Did the original GPE happen at system runtime?
-		 *    (versus during wake)
-		 *
-		 * If all three cases are true, this is a wake-only GPE that should
-		 * be disabled at runtime.
-		 */
-		if (value == 2) {	/* device_wake */
-			status =
-			    acpi_ev_check_for_wake_only_gpe(walk_state->
-							    gpe_event_info);
-			if (ACPI_FAILURE(status)) {
-
-				/* AE_WAKE_ONLY_GPE only error, means ignore this notify */
-
-				return_ACPI_STATUS(AE_OK)
-			}
-		}
-#endif
 
 		/*
 		 * Dispatch the notify to the appropriate handler

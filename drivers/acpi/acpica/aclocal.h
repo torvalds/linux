@@ -427,8 +427,8 @@ struct acpi_gpe_event_info {
 	struct acpi_gpe_register_info *register_info;	/* Backpointer to register info */
 	u8 flags;		/* Misc info about this GPE */
 	u8 gpe_number;		/* This GPE */
-	u8 runtime_count;
-	u8 wakeup_count;
+	u8 runtime_count;	/* References to a run GPE */
+	u8 wakeup_count;	/* References to a wake GPE */
 };
 
 /* Information about a GPE register pair, one per each status/enable pair in an array */
@@ -454,6 +454,7 @@ struct acpi_gpe_block_info {
 	struct acpi_gpe_event_info *event_info;	/* One for each GPE */
 	struct acpi_generic_address block_address;	/* Base address of the block */
 	u32 register_count;	/* Number of register pairs in block */
+	u16 gpe_count;		/* Number of individual GPEs in block */
 	u8 block_base_number;	/* Base GPE number for this block */
 };
 
