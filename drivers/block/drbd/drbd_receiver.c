@@ -1262,6 +1262,7 @@ static int receive_Barrier(struct drbd_conf *mdev, struct p_header *h)
 static struct drbd_epoch_entry *
 read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __must_hold(local)
 {
+	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
 	struct drbd_epoch_entry *e;
 	struct bio_vec *bvec;
 	struct page *page;
@@ -1286,6 +1287,15 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 
 	ERR_IF(data_size &  0x1ff) return NULL;
 	ERR_IF(data_size >  DRBD_MAX_SEGMENT_SIZE) return NULL;
+
+	/* even though we trust out peer,
+	 * we sometimes have to double check. */
+	if (sector + (data_size>>9) > capacity) {
+		dev_err(DEV, "capacity: %llus < sector: %llus + size: %u\n",
+			(unsigned long long)capacity,
+			(unsigned long long)sector, data_size);
+		return NULL;
+	}
 
 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
