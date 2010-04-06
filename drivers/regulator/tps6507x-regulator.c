@@ -489,6 +489,7 @@ static int __devinit tps_6507x_probe(struct i2c_client *client,
 	struct regulator_init_data *init_data;
 	struct regulator_dev *rdev;
 	struct tps_pmic *tps;
+	struct tps6507x_board *tps_board;
 	int i;
 	int error;
 
@@ -497,12 +498,21 @@ static int __devinit tps_6507x_probe(struct i2c_client *client,
 		return -EIO;
 
 	/**
+	 * tps_board points to pmic related constants
+	 * coming from the board-evm file.
+	 */
+
+	tps_board = dev_get_platdata(&client->dev);
+	if (!tps_board)
+		return -EINVAL;
+
+	/**
 	 * init_data points to array of regulator_init structures
 	 * coming from the board-evm file.
 	 */
-	init_data = client->dev.platform_data;
+	init_data = tps_board->tps6507x_pmic_init_data;
 	if (!init_data)
-		return -EIO;
+		return -EINVAL;
 
 	tps = kzalloc(sizeof(*tps), GFP_KERNEL);
 	if (!tps)

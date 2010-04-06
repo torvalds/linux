@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/mfd/tps6507x.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
@@ -533,10 +534,14 @@ struct regulator_init_data tps65070_regulator_data[] = {
 	},
 };
 
+static struct tps6507x_board tps_board = {
+	.tps6507x_pmic_init_data = &tps65070_regulator_data[0],
+};
+
 static struct i2c_board_info __initdata da850evm_tps65070_info[] = {
 	{
 		I2C_BOARD_INFO("tps6507x", 0x48),
-		.platform_data = &tps65070_regulator_data[0],
+		.platform_data = &tps_board,
 	},
 };
 

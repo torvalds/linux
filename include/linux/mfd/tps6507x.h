@@ -131,4 +131,15 @@
 /* VDCDC MASK */
 #define TPS6507X_DEFDCDCX_DCDC_MASK		0X3F
 
+/**
+ * struct tps6507x_board - packages regulator and touchscreen init data
+ * @tps6507x_regulator_data: regulator initialization values
+ *
+ * Board data may be used to initialize regulator and touchscreen.
+ */
+
+struct tps6507x_board {
+	struct regulator_init_data *tps6507x_pmic_init_data;
+};
+
 #endif /*  __LINUX_MFD_TPS6507X_H */
