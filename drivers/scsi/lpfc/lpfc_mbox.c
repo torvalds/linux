@@ -1611,7 +1611,7 @@ lpfc_sli4_mbox_cmd_free(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 	for (sgentry = 0; sgentry < sgecount; sgentry++) {
 		lpfc_sli4_mbx_sge_get(mbox, sgentry, &sge);
 		phyaddr = getPaddr(sge.pa_hi, sge.pa_lo);
-		dma_free_coherent(&phba->pcidev->dev, PAGE_SIZE,
+		dma_free_coherent(&phba->pcidev->dev, SLI4_PAGE_SIZE,
 				  mbox->sge_array->addr[sgentry], phyaddr);
 	}
 	/* Free the sge address array memory */
@@ -1669,7 +1669,7 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 	}
 
 	/* Setup for the none-embedded mbox command */
-	pcount = (PAGE_ALIGN(length))/PAGE_SIZE;
+	pcount = (PAGE_ALIGN(length))/SLI4_PAGE_SIZE;
 	pcount = (pcount > LPFC_SLI4_MBX_SGE_MAX_PAGES) ?
 				LPFC_SLI4_MBX_SGE_MAX_PAGES : pcount;
 	/* Allocate record for keeping SGE virtual addresses */
@@ -1684,24 +1684,24 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 	for (pagen = 0, alloc_len = 0; pagen < pcount; pagen++) {
 		/* The DMA memory is always allocated in the length of a
 		 * page even though the last SGE might not fill up to a
-		 * page, this is used as a priori size of PAGE_SIZE for
+		 * page, this is used as a priori size of SLI4_PAGE_SIZE for
 		 * the later DMA memory free.
 		 */
-		viraddr = dma_alloc_coherent(&phba->pcidev->dev, PAGE_SIZE,
+		viraddr = dma_alloc_coherent(&phba->pcidev->dev, SLI4_PAGE_SIZE,
 					     &phyaddr, GFP_KERNEL);
 		/* In case of malloc fails, proceed with whatever we have */
 		if (!viraddr)
 			break;
-		memset(viraddr, 0, PAGE_SIZE);
+		memset(viraddr, 0, SLI4_PAGE_SIZE);
 		mbox->sge_array->addr[pagen] = viraddr;
 		/* Keep the first page for later sub-header construction */
 		if (pagen == 0)
 			cfg_shdr = (union lpfc_sli4_cfg_shdr *)viraddr;
 		resid_len = length - alloc_len;
-		if (resid_len > PAGE_SIZE) {
+		if (resid_len > SLI4_PAGE_SIZE) {
 			lpfc_sli4_mbx_sge_set(mbox, pagen, phyaddr,
-					      PAGE_SIZE);
-			alloc_len += PAGE_SIZE;
+					      SLI4_PAGE_SIZE);
+			alloc_len += SLI4_PAGE_SIZE;
 		} else {
 			lpfc_sli4_mbx_sge_set(mbox, pagen, phyaddr,
 					      resid_len);

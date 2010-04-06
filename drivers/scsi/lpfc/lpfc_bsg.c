@@ -2591,7 +2591,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		goto job_done;
 	}
 
-	mb = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	mb = kzalloc(BSG_MBOX_SIZE, GFP_KERNEL);
 	if (!mb) {
 		rc = -ENOMEM;
 		goto job_done;
@@ -2665,13 +2665,12 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		rxbmp->virt = lpfc_mbuf_alloc(phba, 0, &rxbmp->phys);
 		INIT_LIST_HEAD(&rxbmp->list);
 		rxbpl = (struct ulp_bde64 *) rxbmp->virt;
-		dmp = diag_cmd_data_alloc(phba, rxbpl, PAGE_SIZE, 0);
+		dmp = diag_cmd_data_alloc(phba, rxbpl, BSG_MBOX_SIZE, 0);
 		if (!dmp) {
 			rc = -ENOMEM;
 			goto job_done;
 		}
 
-		dmp->size = PAGE_SIZE;
 		INIT_LIST_HEAD(&dmp->dma.list);
 		pmb->un.varBIUdiag.un.s2.xmit_bde64.addrHigh =
 			putPaddrHigh(dmp->dma.phys);
@@ -2774,12 +2773,12 @@ lpfc_bsg_mbox_cmd(struct fc_bsg_job *job)
 		goto job_error;
 	}
 
-	if (job->request_payload.payload_len != PAGE_SIZE) {
+	if (job->request_payload.payload_len != BSG_MBOX_SIZE) {
 		rc = -EINVAL;
 		goto job_error;
 	}
 
-	if (job->reply_payload.payload_len != PAGE_SIZE) {
+	if (job->reply_payload.payload_len != BSG_MBOX_SIZE) {
 		rc = -EINVAL;
 		goto job_error;
 	}

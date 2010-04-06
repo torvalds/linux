@@ -91,6 +91,7 @@ struct get_mgmt_rev_reply {
 	struct MgmtRevInfo info;
 };
 
+#define BSG_MBOX_SIZE 4096 /* mailbox command plus extended data */
 struct dfc_mbox_req {
 	uint32_t command;
 	uint32_t mbOffset;
