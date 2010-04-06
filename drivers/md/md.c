@@ -254,6 +254,12 @@ static int md_make_request(struct request_queue *q, struct bio *bio)
 	return rv;
 }
 
+/* mddev_suspend makes sure no new requests are submitted
+ * to the device, and that any requests that have been submitted
+ * are completely handled.
+ * Once ->stop is called and completes, the module will be completely
+ * unused.
+ */
 static void mddev_suspend(mddev_t *mddev)
 {
 	BUG_ON(mddev->suspended);
@@ -261,13 +267,6 @@ static void mddev_suspend(mddev_t *mddev)
 	synchronize_rcu();
 	wait_event(mddev->sb_wait, atomic_read(&mddev->active_io) == 0);
 	mddev->pers->quiesce(mddev, 1);
-	md_unregister_thread(mddev->thread);
-	mddev->thread = NULL;
-	/* we now know that no code is executing in the personality module,
-	 * except possibly the tail end of a ->bi_end_io function, but that
-	 * is certain to complete before the module has a chance to get
-	 * unloaded
-	 */
 }
 
 static void mddev_resume(mddev_t *mddev)
