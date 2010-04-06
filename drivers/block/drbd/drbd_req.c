@@ -962,11 +962,6 @@ fail_and_free_req:
  */
 static int drbd_fail_request_early(struct drbd_conf *mdev, int is_write)
 {
-	/* Unconfigured */
-	if (mdev->state.conn == C_DISCONNECTING &&
-	    mdev->state.disk == D_DISKLESS)
-		return 1;
-
 	if (mdev->state.role != R_PRIMARY &&
 		(!allow_oos || is_write)) {
 		if (__ratelimit(&drbd_ratelimit_state)) {
