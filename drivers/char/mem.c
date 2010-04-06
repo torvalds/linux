@@ -225,6 +225,7 @@ int __weak phys_mem_access_prot_allowed(struct file *file,
  * outside of main memory.
  *
  */
+#ifdef pgprot_noncached
 static int uncached_access(struct file *file, unsigned long addr)
 {
 #if defined(CONFIG_IA64)
@@ -251,6 +252,7 @@ static int uncached_access(struct file *file, unsigned long addr)
 	return addr >= __pa(high_memory);
 #endif
 }
+#endif
 
 static pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				     unsigned long size, pgprot_t vma_prot)
