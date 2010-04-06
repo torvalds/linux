@@ -68,9 +68,8 @@ int iwl_scan_cancel(struct iwl_priv *priv)
 	}
 
 	if (test_bit(STATUS_SCANNING, &priv->status)) {
-		if (!test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
+		if (!test_and_set_bit(STATUS_SCAN_ABORTING, &priv->status)) {
 			IWL_DEBUG_SCAN(priv, "Queuing scan abort.\n");
-			set_bit(STATUS_SCAN_ABORTING, &priv->status);
 			queue_work(priv->workqueue, &priv->abort_scan);
 
 		} else
@@ -227,13 +226,13 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 		       jiffies_to_msecs(elapsed_jiffies
 					(priv->scan_pass_start, jiffies)));
 
-	/* If a request to abort was given, or the scan did not succeed
+	/*
+	 * If a request to abort was given, or the scan did not succeed
 	 * then we reset the scan state machine and terminate,
-	 * re-queuing another scan if one has been requested */
-	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
+	 * re-queuing another scan if one has been requested
+	 */
+	if (test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->status))
 		IWL_DEBUG_INFO(priv, "Aborted scan completed.\n");
-		clear_bit(STATUS_SCAN_ABORTING, &priv->status);
-	}
 
 	if (!priv->is_internal_short_scan)
 		priv->next_scan_jiffies = 0;
