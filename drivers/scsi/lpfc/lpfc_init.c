@@ -3227,12 +3227,26 @@ lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 
 	if (!vport)
 		return NULL;
-	ndlp = lpfc_findnode_did(vport, Fabric_DID);
-	if (!ndlp)
-		return NULL;
 	phba = vport->phba;
 	if (!phba)
 		return NULL;
+	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	if (!ndlp) {
+		/* Cannot find existing Fabric ndlp, so allocate a new one */
+		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
+		if (!ndlp)
+			return 0;
+		lpfc_nlp_init(vport, ndlp, Fabric_DID);
+		/* Set the node type */
+		ndlp->nlp_type |= NLP_FABRIC;
+		/* Put ndlp onto node list */
+		lpfc_enqueue_node(vport, ndlp);
+	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
+		/* re-setup ndlp without removing from node list */
+		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
+		if (!ndlp)
+			return 0;
+	}
 	if (phba->pport->port_state <= LPFC_FLOGI)
 		return NULL;
 	/* If virtual link is not yet instantiated ignore CVL */

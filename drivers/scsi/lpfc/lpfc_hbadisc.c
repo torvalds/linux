@@ -475,6 +475,10 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 			lpfc_send_fastpath_evt(phba, evtp);
 			free_evt = 0;
 			break;
+		case LPFC_EVT_RESET_HBA:
+			if (!(phba->pport->load_flag & FC_UNLOADING))
+				lpfc_reset_hba(phba);
+			break;
 		}
 		if (free_evt)
 			kfree(evtp);
@@ -2737,11 +2741,18 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	switch (mb->mbxStatus) {
 	case 0x0011:
 	case 0x0020:
-	case 0x9700:
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 				 "0911 cmpl_unreg_vpi, mb status = 0x%x\n",
 				 mb->mbxStatus);
 		break;
+	/* If VPI is busy, reset the HBA */
+	case 0x9700:
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+			"2798 Unreg_vpi failed vpi 0x%x, mb status = 0x%x\n",
+			vport->vpi, mb->mbxStatus);
+		if (!(phba->pport->load_flag & FC_UNLOADING))
+			lpfc_workq_post_event(phba, NULL, NULL,
+				LPFC_EVT_RESET_HBA);
 	}
 	spin_lock_irq(shost->host_lock);
 	vport->vpi_state &= ~LPFC_VPI_REGISTERED;
@@ -3233,7 +3244,6 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (new_state == NLP_STE_UNMAPPED_NODE) {
-		ndlp->nlp_type &= ~(NLP_FCP_TARGET | NLP_FCP_INITIATOR);
 		ndlp->nlp_flag &= ~NLP_NODEV_REMOVE;
 		ndlp->nlp_type |= NLP_FC_NODE;
 	}
@@ -4991,6 +5001,7 @@ lpfc_unregister_fcf_prep(struct lpfc_hba *phba)
 			ndlp = lpfc_findnode_did(vports[i], Fabric_DID);
 			if (ndlp)
 				lpfc_cancel_retry_delay_tmo(vports[i], ndlp);
+			lpfc_cleanup_pending_mbox(vports[i]);
 			lpfc_mbx_unreg_vpi(vports[i]);
 			shost = lpfc_shost_from_vport(vports[i]);
 			spin_lock_irq(shost->host_lock);

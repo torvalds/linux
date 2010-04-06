@@ -584,6 +584,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			spin_unlock_irq(shost->host_lock);
 			lpfc_unreg_rpi(vport, np);
 		}
+		lpfc_cleanup_pending_mbox(vport);
 		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 			lpfc_mbx_unreg_vpi(vport);
 			spin_lock_irq(shost->host_lock);
@@ -6316,6 +6317,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			spin_unlock_irq(shost->host_lock);
 			lpfc_unreg_rpi(vport, np);
 		}
+		lpfc_cleanup_pending_mbox(vport);
 		lpfc_mbx_unreg_vpi(vport);
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;

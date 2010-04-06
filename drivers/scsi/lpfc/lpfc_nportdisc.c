@@ -637,11 +637,55 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	lpfc_unreg_rpi(vport, ndlp);
 	return 0;
 }
+/**
+ * lpfc_release_rpi - Release a RPI by issueing unreg_login mailbox cmd.
+ * @phba : Pointer to lpfc_hba structure.
+ * @vport: Pointer to lpfc_vport structure.
+ * @rpi  : rpi to be release.
+ *
+ * This function will send a unreg_login mailbox command to the firmware
+ * to release a rpi.
+ **/
+void
+lpfc_release_rpi(struct lpfc_hba *phba,
+		struct lpfc_vport *vport,
+		uint16_t rpi)
+{
+	LPFC_MBOXQ_t *pmb;
+	int rc;
+
+	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
+			GFP_KERNEL);
+	if (!pmb)
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+			"2796 mailbox memory allocation failed \n");
+	else {
+		lpfc_unreg_login(phba, vport->vpi, rpi, pmb);
+		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+		if (rc == MBX_NOT_FINISHED)
+			mempool_free(pmb, phba->mbox_mem_pool);
+	}
+}
 
 static uint32_t
 lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		  void *arg, uint32_t evt)
 {
+	struct lpfc_hba *phba;
+	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
+	MAILBOX_t *mb;
+	uint16_t rpi;
+
+	phba = vport->phba;
+	/* Release the RPI if reglogin completing */
+	if (!(phba->pport->load_flag & FC_UNLOADING) &&
+		(evt == NLP_EVT_CMPL_REG_LOGIN) &&
+		(!pmb->u.mb.mbxStatus)) {
+		mb = &pmb->u.mb;
+		rpi = pmb->u.mb.un.varWords[0];
+		lpfc_release_rpi(phba, vport, rpi);
+	}
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 			 "0271 Illegal State Transition: node x%x "
 			 "event x%x, state x%x Data: x%x x%x\n",
@@ -977,6 +1021,18 @@ static uint32_t
 lpfc_cmpl_reglogin_plogi_issue(struct lpfc_vport *vport,
 	struct lpfc_nodelist *ndlp, void *arg, uint32_t evt)
 {
+	struct lpfc_hba *phba;
+	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
+	MAILBOX_t *mb = &pmb->u.mb;
+	uint16_t rpi;
+
+	phba = vport->phba;
+	/* Release the RPI */
+	if (!(phba->pport->load_flag & FC_UNLOADING) &&
+		!mb->mbxStatus) {
+		rpi = pmb->u.mb.un.varWords[0];
+		lpfc_release_rpi(phba, vport, rpi);
+	}
 	return ndlp->nlp_state;
 }
 

@@ -12661,6 +12661,7 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 	struct lpfc_hba *phba = vport->phba;
 	LPFC_MBOXQ_t *mb, *nextmb;
 	struct lpfc_dmabuf *mp;
+	struct lpfc_nodelist *ndlp;
 
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
@@ -12677,6 +12678,11 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
 				kfree(mp);
 			}
+			ndlp = (struct lpfc_nodelist *) mb->context2;
+			if (ndlp) {
+				lpfc_nlp_put(ndlp);
+				mb->context2 = NULL;
+			}
 		}
 		list_del(&mb->list);
 		mempool_free(mb, phba->mbox_mem_pool);
@@ -12686,6 +12692,15 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) ||
 			(mb->u.mb.mbxCommand == MBX_REG_VPI))
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
+			ndlp = (struct lpfc_nodelist *) mb->context2;
+			if (ndlp) {
+				lpfc_nlp_put(ndlp);
+				mb->context2 = NULL;
+			}
+			/* Unregister the RPI when mailbox complete */
+			mb->mbox_flag |= LPFC_MBX_IMED_UNREG;
+		}
 	}
 	spin_unlock_irq(&phba->hbalock);
 }
