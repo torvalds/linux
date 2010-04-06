@@ -2006,7 +2006,7 @@ long video_ioctl2(struct file *file,
 {
 	char	sbuf[128];
 	void    *mbuf = NULL;
-	void	*parg = NULL;
+	void	*parg = (void *)arg;
 	long	err  = -EINVAL;
 	int     is_ext_ctrl;
 	size_t  ctrls_size = 0;
