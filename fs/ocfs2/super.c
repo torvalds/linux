@@ -1503,7 +1503,7 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 			   (unsigned) (osb->osb_commit_interval / HZ));
 
 	local_alloc_megs = osb->local_alloc_bits >> (20 - osb->s_clustersize_bits);
-	if (local_alloc_megs != OCFS2_DEFAULT_LOCAL_ALLOC_SIZE)
+	if (local_alloc_megs != ocfs2_la_default_mb(osb))
 		seq_printf(s, ",localalloc=%d", local_alloc_megs);
 
 	if (opts & OCFS2_MOUNT_LOCALFLOCKS)
@@ -2251,6 +2251,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 
 	osb->bitmap_blkno = OCFS2_I(inode)->ip_blkno;
+	osb->osb_clusters_at_boot = OCFS2_I(inode)->ip_clusters;
 	iput(inode);
 
 	osb->bitmap_cpg = ocfs2_group_bitmap_size(sb) * 8;

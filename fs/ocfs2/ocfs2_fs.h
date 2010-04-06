@@ -283,14 +283,6 @@
 #define OCFS2_MIN_JOURNAL_SIZE		(4 * 1024 * 1024)
 
 /*
- * Default local alloc size (in megabytes)
- *
- * The value chosen should be such that most allocations, including new
- * block groups, use local alloc.
- */
-#define OCFS2_DEFAULT_LOCAL_ALLOC_SIZE	8
-
-/*
  * Inline extended attribute size (in bytes)
  * The value chosen should be aligned to 16 byte boundaries.
  */
