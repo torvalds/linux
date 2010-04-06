@@ -1144,13 +1144,12 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 
 	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control) &&
 	    (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)) {
-		unsigned long flags;
 		struct tid_ampdu_tx *tid_tx;
 
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
 
-		spin_lock_irqsave(&tx->sta->lock, flags);
+		spin_lock(&tx->sta->lock);
 		/*
 		 * XXX: This spinlock could be fairly expensive, but see the
 		 *	comment in agg-tx.c:ieee80211_agg_tx_operational().
@@ -1175,7 +1174,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 			__skb_queue_tail(&tid_tx->pending, skb);
 		}
-		spin_unlock_irqrestore(&tx->sta->lock, flags);
+		spin_unlock(&tx->sta->lock);
 
 		if (unlikely(queued))
 			return TX_QUEUED;
