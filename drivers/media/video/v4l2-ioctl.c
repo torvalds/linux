@@ -1072,7 +1072,7 @@ static long __video_do_ioctl(struct file *file,
 				id &= ~curr_id;
 		}
 		if (i <= index)
-			return -EINVAL;
+			break;
 
 		v4l2_video_std_construct(p, curr_id, descr);
 
@@ -1597,7 +1597,7 @@ static long __video_do_ioctl(struct file *file,
 			v4l2_std_id std = vfd->current_norm;
 
 			if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-				return -EINVAL;
+				break;
 
 			ret = 0;
 			if (ops->vidioc_g_std)
