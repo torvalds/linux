@@ -317,12 +317,8 @@ atombios_dac_setup(struct drm_encoder *encoder, int action)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	DAC_ENCODER_CONTROL_PS_ALLOCATION args;
-	int index = 0, num = 0;
+	int index = 0;
 	struct radeon_encoder_atom_dac *dac_info = radeon_encoder->enc_priv;
-	enum radeon_tv_std tv_std = TV_STD_NTSC;
-
-	if (dac_info->tv_std)
-		tv_std = dac_info->tv_std;
 
 	memset(&args, 0, sizeof(args));
 
@@ -330,12 +326,10 @@ atombios_dac_setup(struct drm_encoder *encoder, int action)
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
 		index = GetIndexIntoMasterTable(COMMAND, DAC1EncoderControl);
-		num = 1;
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
 		index = GetIndexIntoMasterTable(COMMAND, DAC2EncoderControl);
-		num = 2;
 		break;
 	}
 
@@ -346,7 +340,7 @@ atombios_dac_setup(struct drm_encoder *encoder, int action)
 	else if (radeon_encoder->active_device & (ATOM_DEVICE_CV_SUPPORT))
 		args.ucDacStandard = ATOM_DAC1_CV;
 	else {
-		switch (tv_std) {
+		switch (dac_info->tv_std) {
 		case TV_STD_PAL:
 		case TV_STD_PAL_M:
 		case TV_STD_SCART_PAL:
@@ -377,10 +371,6 @@ atombios_tv_setup(struct drm_encoder *encoder, int action)
 	TV_ENCODER_CONTROL_PS_ALLOCATION args;
 	int index = 0;
 	struct radeon_encoder_atom_dac *dac_info = radeon_encoder->enc_priv;
-	enum radeon_tv_std tv_std = TV_STD_NTSC;
-
-	if (dac_info->tv_std)
-		tv_std = dac_info->tv_std;
 
 	memset(&args, 0, sizeof(args));
 
@@ -391,7 +381,7 @@ atombios_tv_setup(struct drm_encoder *encoder, int action)
 	if (radeon_encoder->active_device & (ATOM_DEVICE_CV_SUPPORT))
 		args.sTVEncoder.ucTvStandard = ATOM_TV_CV;
 	else {
-		switch (tv_std) {
+		switch (dac_info->tv_std) {
 		case TV_STD_NTSC:
 			args.sTVEncoder.ucTvStandard = ATOM_TV_NTSC;
 			break;
@@ -1558,12 +1548,14 @@ static const struct drm_encoder_funcs radeon_atom_enc_funcs = {
 struct radeon_encoder_atom_dac *
 radeon_atombios_set_dac_info(struct radeon_encoder *radeon_encoder)
 {
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder_atom_dac *dac = kzalloc(sizeof(struct radeon_encoder_atom_dac), GFP_KERNEL);
 
 	if (!dac)
 		return NULL;
 
-	dac->tv_std = TV_STD_NTSC;
+	dac->tv_std = radeon_atombios_get_tv_info(rdev);
 	return dac;
 }
 
@@ -1641,6 +1633,7 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 		drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_DAC);
+		radeon_encoder->enc_priv = radeon_atombios_set_dac_info(radeon_encoder);
 		drm_encoder_helper_add(encoder, &radeon_atom_dac_helper_funcs);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
