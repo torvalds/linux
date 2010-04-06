@@ -218,10 +218,10 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	/* The HW is no longer scanning */
 	clear_bit(STATUS_SCAN_HW, &priv->status);
 
-	IWL_DEBUG_INFO(priv, "Scan pass on %sGHz took %dms\n",
+	IWL_DEBUG_INFO(priv, "Scan on %sGHz took %dms\n",
 		       (priv->scan_band == IEEE80211_BAND_2GHZ) ? "2.4" : "5.2",
 		       jiffies_to_msecs(elapsed_jiffies
-					(priv->scan_pass_start, jiffies)));
+					(priv->scan_start, jiffies)));
 
 	/*
 	 * If a request to abort was given, or the scan did not succeed
@@ -234,9 +234,6 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	IWL_DEBUG_INFO(priv, "Setting scan to off\n");
 
 	clear_bit(STATUS_SCANNING, &priv->status);
-
-	IWL_DEBUG_INFO(priv, "Scan took %dms\n",
-		jiffies_to_msecs(elapsed_jiffies(priv->scan_start, jiffies)));
 
 	queue_work(priv->workqueue, &priv->scan_completed);
 }
@@ -449,7 +446,6 @@ static int iwl_scan_initiate(struct iwl_priv *priv)
 	set_bit(STATUS_SCANNING, &priv->status);
 	priv->is_internal_short_scan = false;
 	priv->scan_start = jiffies;
-	priv->scan_pass_start = priv->scan_start;
 
 	queue_work(priv->workqueue, &priv->request_scan);
 
