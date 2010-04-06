@@ -71,8 +71,7 @@ resource_to_addr(struct acpi_resource *resource,
 	if (ACPI_SUCCESS(status) &&
 	    (addr->resource_type == ACPI_MEMORY_RANGE ||
 	    addr->resource_type == ACPI_IO_RANGE) &&
-	    addr->address_length > 0 &&
-	    addr->producer_consumer == ACPI_PRODUCER) {
+	    addr->address_length > 0) {
 		return AE_OK;
 	}
 	return AE_ERROR;
