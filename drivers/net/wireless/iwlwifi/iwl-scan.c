@@ -199,9 +199,6 @@ static void iwl_rx_scan_results_notif(struct iwl_priv *priv,
 		       le32_to_cpu(notif->statistics[0]),
 		       le32_to_cpu(notif->tsf_low) - priv->scan_start_tsf);
 #endif
-
-	if (!priv->is_internal_short_scan)
-		priv->next_scan_jiffies = 0;
 }
 
 /* Service SCAN_COMPLETE_NOTIFICATION (0x84) */
@@ -233,9 +230,6 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	 */
 	if (test_and_clear_bit(STATUS_SCAN_ABORTING, &priv->status))
 		IWL_DEBUG_INFO(priv, "Aborted scan completed.\n");
-
-	if (!priv->is_internal_short_scan)
-		priv->next_scan_jiffies = 0;
 
 	IWL_DEBUG_INFO(priv, "Setting scan to off\n");
 
@@ -462,8 +456,6 @@ static int iwl_scan_initiate(struct iwl_priv *priv)
 	return 0;
 }
 
-#define IWL_DELAY_NEXT_SCAN (HZ*2)
-
 int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		     struct cfg80211_scan_request *req)
 {
@@ -494,18 +486,6 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan request while abort pending\n");
 		ret = -EAGAIN;
-		goto out_unlock;
-	}
-
-	/* We don't schedule scan within next_scan_jiffies period.
-	 * Avoid scanning during possible EAPOL exchange, return
-	 * success immediately.
-	 */
-	if (priv->next_scan_jiffies &&
-	    time_after(priv->next_scan_jiffies, jiffies)) {
-		IWL_DEBUG_SCAN(priv, "scan rejected: within next scan period\n");
-		queue_work(priv->workqueue, &priv->scan_completed);
-		ret = 0;
 		goto out_unlock;
 	}
 

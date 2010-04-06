@@ -1867,7 +1867,6 @@ static inline void iwl_set_no_assoc(struct iwl_priv *priv)
 	iwlcore_commit_rxon(priv);
 }
 
-#define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
 void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif,
 			  struct ieee80211_bss_conf *bss_conf,
@@ -1988,14 +1987,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 			iwl_led_associate(priv);
 
-			/*
-			 * We have just associated, don't start scan too early
-			 * leave time for EAPOL exchange to complete.
-			 *
-			 * XXX: do this in mac80211
-			 */
-			priv->next_scan_jiffies = jiffies +
-					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
 			if (!iwl_is_rfkill(priv))
 				priv->cfg->ops->lib->post_associate(priv);
 		} else

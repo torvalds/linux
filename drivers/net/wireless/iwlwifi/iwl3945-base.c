@@ -3048,8 +3048,6 @@ static void iwl3945_bg_rx_replenish(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
-#define IWL_DELAY_NEXT_SCAN (HZ*2)
-
 void iwl3945_post_associate(struct iwl_priv *priv)
 {
 	int rc = 0;
@@ -3134,9 +3132,6 @@ void iwl3945_post_associate(struct iwl_priv *priv)
 			   __func__, priv->iw_mode);
 		break;
 	}
-
-	/* we have just associated, don't start scan too early */
-	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 }
 
 /*****************************************************************************
