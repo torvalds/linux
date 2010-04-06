@@ -720,7 +720,7 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 
 	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
 
-	if (sta->ampdu_mlme.tid_state_rx[tid] != HT_AGG_STATE_OPERATIONAL)
+	if (!sta->ampdu_mlme.tid_active_rx[tid])
 		goto dont_reorder;
 
 	tid_agg_rx = sta->ampdu_mlme.tid_rx[tid];
@@ -1805,8 +1805,7 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx, struct sk_buff_head *frames)
 		if (!rx->sta)
 			return RX_DROP_MONITOR;
 		tid = le16_to_cpu(bar->control) >> 12;
-		if (rx->sta->ampdu_mlme.tid_state_rx[tid]
-					!= HT_AGG_STATE_OPERATIONAL)
+		if (!rx->sta->ampdu_mlme.tid_active_rx[tid])
 			return RX_DROP_MONITOR;
 		tid_agg_rx = rx->sta->ampdu_mlme.tid_rx[tid];
 

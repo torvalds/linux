@@ -1324,7 +1324,6 @@ enum ieee80211_back_actioncode {
 enum ieee80211_back_parties {
 	WLAN_BACK_RECIPIENT = 0,
 	WLAN_BACK_INITIATOR = 1,
-	WLAN_BACK_TIMER = 2,
 };
 
 /* SA Query action */

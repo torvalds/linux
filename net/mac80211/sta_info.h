@@ -36,7 +36,7 @@
  *	frame to this station is transmitted.
  * @WLAN_STA_MFP: Management frame protection is used with this STA.
  * @WLAN_STA_BLOCK_BA: Used to deny ADDBA requests (both TX and RX)
- *	during suspend/resume.
+ *	during suspend/resume and station removal.
  * @WLAN_STA_PS_DRIVER: driver requires keeping this station in
  *	power-save mode logically to flush frames that might still
  *	be in the queues
@@ -106,7 +106,6 @@ struct tid_ampdu_tx {
  * @buf_size: buffer size for incoming A-MPDUs
  * @timeout: reset timer value (in TUs).
  * @dialog_token: dialog token for aggregation session
- * @shutdown: this session is being shut down due to STA removal
  */
 struct tid_ampdu_rx {
 	struct sk_buff **reorder_buf;
@@ -118,7 +117,6 @@ struct tid_ampdu_rx {
 	u16 buf_size;
 	u16 timeout;
 	u8 dialog_token;
-	bool shutdown;
 };
 
 /**
@@ -156,7 +154,7 @@ enum plink_state {
  */
 struct sta_ampdu_mlme {
 	/* rx */
-	u8 tid_state_rx[STA_TID_NUM];
+	bool tid_active_rx[STA_TID_NUM];
 	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
 	/* tx */
 	u8 tid_state_tx[STA_TID_NUM];
