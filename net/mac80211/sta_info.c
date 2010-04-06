@@ -632,9 +632,6 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 		 * may mean it is removed from hardware which requires that
 		 * the key->sta pointer is still valid, so flush the key todo
 		 * list here.
-		 *
-		 * ieee80211_key_todo() will synchronize_rcu() so after this
-		 * nothing can reference this sta struct any more.
 		 */
 		ieee80211_key_todo();
 
@@ -666,11 +663,17 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 		sdata = sta->sdata;
 	}
 
+	/*
+	 * At this point, after we wait for an RCU grace period,
+	 * neither mac80211 nor the driver can reference this
+	 * sta struct any more except by still existing timers
+	 * associated with this station that we clean up below.
+	 */
+	synchronize_rcu();
+
 #ifdef CONFIG_MAC80211_MESH
-	if (ieee80211_vif_is_mesh(&sdata->vif)) {
+	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_accept_plinks_update(sdata);
-		del_timer(&sta->plink_timer);
-	}
 #endif
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
