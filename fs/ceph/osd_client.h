@@ -15,6 +15,7 @@ struct ceph_snap_context;
 struct ceph_osd_request;
 struct ceph_osd_client;
 struct ceph_authorizer;
+struct ceph_pagelist;
 
 /*
  * completion callback for async writepages
@@ -80,6 +81,11 @@ struct ceph_osd_request {
 	struct page     **r_pages;            /* pages for data payload */
 	int               r_pages_from_pool;
 	int               r_own_pages;        /* if true, i own page list */
+#ifdef CONFIG_BLOCK
+	struct bio       *r_bio;	      /* instead of pages */
+#endif
+
+	struct ceph_pagelist *r_trail;	      /* trailing part of the data */
 };
 
 struct ceph_osd_client {
@@ -110,6 +116,36 @@ struct ceph_osd_client {
 	struct ceph_msgpool	msgpool_op_reply;
 };
 
+struct ceph_osd_req_op {
+	u16 op;           /* CEPH_OSD_OP_* */
+	u32 flags;        /* CEPH_OSD_FLAG_* */
+	union {
+		struct {
+			u64 offset, length;
+			u64 truncate_size;
+			u32 truncate_seq;
+		} extent;
+		struct {
+			const char *name;
+			u32 name_len;
+			const char  *val;
+			u32 value_len;
+			__u8 cmp_op;       /* CEPH_OSD_CMPXATTR_OP_* */
+			__u8 cmp_mode;     /* CEPH_OSD_CMPXATTR_MODE_* */
+		} xattr;
+		struct {
+			__u8 class_len;
+			__u8 method_len;
+			__u8 argc;
+			u32 indata_len;
+		} cls;
+		struct {
+			u64 cookie, count;
+		} pgls;
+	};
+	u32 payload_len;
+};
+
 extern int ceph_osdc_init(struct ceph_osd_client *osdc,
 			  struct ceph_client *client);
 extern void ceph_osdc_stop(struct ceph_osd_client *osdc);
@@ -122,27 +158,26 @@ extern void ceph_osdc_handle_map(struct ceph_osd_client *osdc,
 extern void ceph_calc_raw_layout(struct ceph_osd_client *osdc,
 			struct ceph_file_layout *layout,
 			u64 snapid,
-			u64 off, u64 len, u64 *bno,
-			struct ceph_osd_request *req);
+			u64 off, u64 *plen, u64 *bno,
+			struct ceph_osd_request *req,
+			struct ceph_osd_req_op *op);
 
 extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 					       int flags,
 					       struct ceph_snap_context *snapc,
-					       int do_sync,
+					       struct ceph_osd_req_op *ops,
 					       bool use_mempool,
 					       gfp_t gfp_flags,
-					       struct page **pages);
+					       struct page **pages,
+					       struct bio *bio);
 
 extern void ceph_osdc_build_request(struct ceph_osd_request *req,
-			    u64 off, u64 *plen,
-			    int opcode,
-			    struct ceph_snap_context *snapc,
-			    int do_sync,
-			    u32 truncate_seq,
-			    u64 truncate_size,
-			    struct timespec *mtime,
-			    const char *oid,
-			    int oid_len);
+				    u64 off, u64 *plen,
+				    struct ceph_osd_req_op *src_ops,
+				    struct ceph_snap_context *snapc,
+				    struct timespec *mtime,
+				    const char *oid,
+				    int oid_len);
 
 extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 				      struct ceph_file_layout *layout,

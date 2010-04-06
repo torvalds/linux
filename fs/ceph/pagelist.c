@@ -39,7 +39,7 @@ static int ceph_pagelist_addpage(struct ceph_pagelist *pl)
 	return 0;
 }
 
-int ceph_pagelist_append(struct ceph_pagelist *pl, void *buf, size_t len)
+int ceph_pagelist_append(struct ceph_pagelist *pl, const void *buf, size_t len)
 {
 	while (pl->room < len) {
 		size_t bit = pl->room;
