@@ -170,7 +170,7 @@ walk:
 			goto access_error;
 
 #if PTTYPE == 64
-		if (fetch_fault && is_nx(vcpu) && (pte & PT64_NX_MASK))
+		if (fetch_fault && (pte & PT64_NX_MASK))
 			goto access_error;
 #endif
 
