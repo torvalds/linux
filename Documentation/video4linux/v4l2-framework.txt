@@ -545,12 +545,11 @@ unregister them:
 This will remove the device nodes from sysfs (causing udev to remove them
 from /dev).
 
-After video_unregister_device() returns no new opens can be done.
-
-However, in the case of USB devices some application might still have one
-of these device nodes open. You should block all new accesses to read,
-write, poll, etc. except possibly for certain ioctl operations like
-queueing buffers.
+After video_unregister_device() returns no new opens can be done. However,
+in the case of USB devices some application might still have one of these
+device nodes open. So after the unregister all file operations will return
+an error as well, except for the ioctl and unlocked_ioctl file operations:
+those will still be passed on since some buffer ioctls may still be needed.
 
 When the last user of the video device node exits, then the vdev->release()
 callback is called and you can do the final cleanup there.
