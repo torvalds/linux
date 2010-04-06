@@ -40,7 +40,7 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 	 * the entity that is holding the lock already:
 	 */
 	if (!spin_trylock_irqsave(&rs->lock, flags))
-		return 1;
+		return 0;
 
 	if (!rs->begin)
 		rs->begin = jiffies;
