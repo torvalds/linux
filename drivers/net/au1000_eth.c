@@ -80,7 +80,7 @@ static int au1000_debug = 3;
 				NETIF_MSG_LINK)
 
 #define DRV_NAME	"au1000_eth"
-#define DRV_VERSION	"1.6"
+#define DRV_VERSION	"1.7"
 #define DRV_AUTHOR	"Pete Popov <ppopov@embeddedalley.com>"
 #define DRV_DESC	"Au1xxx on-chip Ethernet driver"
 
