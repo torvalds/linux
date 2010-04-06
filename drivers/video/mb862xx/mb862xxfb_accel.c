@@ -4,7 +4,7 @@
  * Fujitsu Carmine/Coral-P(A)/Lime framebuffer driver acceleration support
  *
  * (C) 2007 Alexander Shishkin <virtuoso@slind.org>
- * (C) 2009 Valentin Sitdikov <valentin.sitdikov@siemens.com>
+ * (C) 2009 Valentin Sitdikov <v.sitdikov@gmail.com>
  * (C) 2009 Siemens AG
  *
  * This program is free software; you can redistribute it and/or modify
