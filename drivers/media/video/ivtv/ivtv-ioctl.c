@@ -1564,6 +1564,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	struct ivtv *itv = id->itv;
 	int nonblocking = filp->f_flags & O_NONBLOCK;
 	struct ivtv_stream *s = &itv->streams[id->type];
+	unsigned long iarg = (unsigned long)arg;
 
 	switch (cmd) {
 	case IVTV_IOC_DMA_FRAME: {
@@ -1745,6 +1746,33 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		break;
 	}
 
+	case VIDEO_SELECT_SOURCE:
+		IVTV_DEBUG_IOCTL("VIDEO_SELECT_SOURCE\n");
+		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
+			return -EINVAL;
+		return ivtv_passthrough_mode(itv, iarg == VIDEO_SOURCE_DEMUX);
+
+	case AUDIO_SET_MUTE:
+		IVTV_DEBUG_IOCTL("AUDIO_SET_MUTE\n");
+		itv->speed_mute_audio = iarg;
+		return 0;
+
+	case AUDIO_CHANNEL_SELECT:
+		IVTV_DEBUG_IOCTL("AUDIO_CHANNEL_SELECT\n");
+		if (iarg > AUDIO_STEREO_SWAPPED)
+			return -EINVAL;
+		itv->audio_stereo_mode = iarg;
+		ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
+		return 0;
+
+	case AUDIO_BILINGUAL_CHANNEL_SELECT:
+		IVTV_DEBUG_IOCTL("AUDIO_BILINGUAL_CHANNEL_SELECT\n");
+		if (iarg > AUDIO_STEREO_SWAPPED)
+			return -EINVAL;
+		itv->audio_bilingual_mode = iarg;
+		ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
+		return 0;
+
 	default:
 		return -EINVAL;
 	}
@@ -1776,6 +1804,10 @@ static long ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 	case VIDEO_CONTINUE:
 	case VIDEO_COMMAND:
 	case VIDEO_TRY_COMMAND:
+	case VIDEO_SELECT_SOURCE:
+	case AUDIO_SET_MUTE:
+	case AUDIO_CHANNEL_SELECT:
+	case AUDIO_BILINGUAL_CHANNEL_SELECT:
 		return ivtv_decoder_ioctls(file, cmd, (void *)arg);
 
 	default:
@@ -1790,39 +1822,6 @@ static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 	struct video_device *vfd = video_devdata(filp);
 	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
 	long ret;
-
-	/* Filter dvb ioctls that cannot be handled by the v4l ioctl framework */
-	switch (cmd) {
-	case VIDEO_SELECT_SOURCE:
-		IVTV_DEBUG_IOCTL("VIDEO_SELECT_SOURCE\n");
-		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
-			return -EINVAL;
-		return ivtv_passthrough_mode(itv, arg == VIDEO_SOURCE_DEMUX);
-
-	case AUDIO_SET_MUTE:
-		IVTV_DEBUG_IOCTL("AUDIO_SET_MUTE\n");
-		itv->speed_mute_audio = arg;
-		return 0;
-
-	case AUDIO_CHANNEL_SELECT:
-		IVTV_DEBUG_IOCTL("AUDIO_CHANNEL_SELECT\n");
-		if (arg > AUDIO_STEREO_SWAPPED)
-			return -EINVAL;
-		itv->audio_stereo_mode = arg;
-		ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
-		return 0;
-
-	case AUDIO_BILINGUAL_CHANNEL_SELECT:
-		IVTV_DEBUG_IOCTL("AUDIO_BILINGUAL_CHANNEL_SELECT\n");
-		if (arg > AUDIO_STEREO_SWAPPED)
-			return -EINVAL;
-		itv->audio_bilingual_mode = arg;
-		ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
-		return 0;
-
-	default:
-		break;
-	}
 
 	/* check priority */
 	switch (cmd) {
