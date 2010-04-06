@@ -982,6 +982,8 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
 	case SAA7134_BOARD_BEHOLD_H6:
 	case SAA7134_BOARD_BEHOLD_X7:
+	case SAA7134_BOARD_BEHOLD_H7:
+	case SAA7134_BOARD_BEHOLD_A7:
 		dev->init_data.name = "BeholdTV";
 		dev->init_data.get_key = get_key_beholdm6xx;
 		dev->init_data.ir_codes = RC_MAP_BEHOLD;
