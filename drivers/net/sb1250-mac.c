@@ -2664,7 +2664,6 @@ static int sbmac_close(struct net_device *dev)
 static int sbmac_poll(struct napi_struct *napi, int budget)
 {
 	struct sbmac_softc *sc = container_of(napi, struct sbmac_softc, napi);
-	struct net_device *dev = sc->sbm_dev;
 	int work_done;
 
 	work_done = sbdma_rx_process(sc, &(sc->sbm_rxdma), budget, 1);
