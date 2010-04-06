@@ -326,11 +326,13 @@ void ath9k_htc_txcompletion_cb(struct htc_target *htc_handle,
 	if (htc_handle->htc_flags & HTC_OP_CONFIG_PIPE_CREDITS) {
 		complete(&htc_handle->cmd_wait);
 		htc_handle->htc_flags &= ~HTC_OP_CONFIG_PIPE_CREDITS;
+		goto ret;
 	}
 
 	if (htc_handle->htc_flags & HTC_OP_START_WAIT) {
 		complete(&htc_handle->cmd_wait);
 		htc_handle->htc_flags &= ~HTC_OP_START_WAIT;
+		goto ret;
 	}
 
 	if (skb) {
@@ -343,6 +345,11 @@ void ath9k_htc_txcompletion_cb(struct htc_target *htc_handle,
 						  htc_hdr->endpoint_id, txok);
 		}
 	}
+
+	return;
+ret:
+	/* HTC-generated packets are freed here. */
+	dev_kfree_skb_any(skb);
 }
 
 /*
