@@ -196,7 +196,7 @@ ENTRY(_coreb_sleep)
 	jump (p0);
 ENDPROC(_coreb_sleep)
 
-__CPUINIT
+__INIT
 ENTRY(_coreb_start)
 	[--sp] = reti;
 
