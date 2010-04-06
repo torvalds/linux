@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #if defined(CONFIG_OF)
@@ -330,3 +331,5 @@ void mb862xxfb_init_accel(struct fb_info *info, int xres)
 	info->fix.accel = 0xff;	/*FIXME: add right define */
 }
 EXPORT_SYMBOL(mb862xxfb_init_accel);
+
+MODULE_LICENSE("GPL v2");
