@@ -225,7 +225,7 @@ static int __init vesafb_setup(char *options)
 	return 0;
 }
 
-static int __devinit vesafb_probe(struct platform_device *dev)
+static int __init vesafb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	int i, err;
@@ -476,7 +476,6 @@ err:
 }
 
 static struct platform_driver vesafb_driver = {
-	.probe	= vesafb_probe,
 	.driver	= {
 		.name	= "vesafb",
 	},
@@ -492,20 +491,21 @@ static int __init vesafb_init(void)
 	/* ignore error return of fb_get_options */
 	fb_get_options("vesafb", &option);
 	vesafb_setup(option);
-	ret = platform_driver_register(&vesafb_driver);
 
+	vesafb_device = platform_device_alloc("vesafb", 0);
+	if (!vesafb_device)
+		return -ENOMEM;
+
+	ret = platform_device_add(vesafb_device);
 	if (!ret) {
-		vesafb_device = platform_device_alloc("vesafb", 0);
+		ret = platform_driver_probe(&vesafb_driver, vesafb_probe);
+		if (ret)
+			platform_device_del(vesafb_device);
+	}
 
-		if (vesafb_device)
-			ret = platform_device_add(vesafb_device);
-		else
-			ret = -ENOMEM;
-
-		if (ret) {
-			platform_device_put(vesafb_device);
-			platform_driver_unregister(&vesafb_driver);
-		}
+	if (ret) {
+		platform_device_put(vesafb_device);
+		vesafb_device = NULL;
 	}
 
 	return ret;
