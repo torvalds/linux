@@ -18,6 +18,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -26,147 +27,112 @@
 #include <asm/hardware/gic.h>
 
 #include <mach/iomap.h>
+#include <mach/legacy_irq.h>
 #include <mach/suspend.h>
 
 #include "board.h"
 
-#define INT_SYS_NR	(INT_GPIO_BASE - INT_PRI_BASE)
-#define INT_SYS_SZ	(INT_SEC_BASE - INT_PRI_BASE)
-#define PPI_NR		((INT_SYS_NR+INT_SYS_SZ-1)/INT_SYS_SZ)
+#define PMC_CTRL		0x0
+#define PMC_CTRL_LATCH_WAKEUPS	(1 << 5)
+#define PMC_WAKE_MASK		0xc
+#define PMC_WAKE_LEVEL		0x10
+#define PMC_WAKE_STATUS		0x14
+#define PMC_SW_WAKE_STATUS	0x18
+#define PMC_DPD_SAMPLE  	0x20
 
-#define APBDMA_IRQ_STA_CPU  0x14
-#define APBDMA_IRQ_MASK_SET 0x20
-#define APBDMA_IRQ_MASK_CLR 0x24
+static void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
 
-#define ICTLR_CPU_IER		0x20
-#define ICTLR_CPU_IER_SET	0x24
-#define ICTLR_CPU_IER_CLR	0x28
-#define ICTLR_CPU_IEP_CLASS	0x2c
-#define ICTLR_COP_IER		0x30
-#define ICTLR_COP_IER_SET	0x34
-#define ICTLR_COP_IER_CLR	0x38
-#define ICTLR_COP_IEP_CLASS	0x3c
+static u32 tegra_lp0_wake_enb;
+static u32 tegra_lp0_wake_level;
+static u32 tegra_lp0_wake_level_any;
 
-static void (*gic_mask_irq)(unsigned int irq);
-static void (*gic_unmask_irq)(unsigned int irq);
+/* ensures that sufficient time is passed for a register write to
+ * serialize into the 32KHz domain */
+static void pmc_32kwritel(u32 val, unsigned long offs)
+{
+	writel(val, pmc + offs);
+	udelay(130);
+}
 
-#define irq_to_ictlr(irq) (((irq)-32) >> 5)
-static void __iomem *tegra_ictlr_base = IO_ADDRESS(TEGRA_PRIMARY_ICTLR_BASE);
-#define ictlr_to_virt(ictlr) (tegra_ictlr_base + (ictlr)*0x100)
+int tegra_set_lp1_wake(int irq, int enable)
+{
+	return tegra_legacy_irq_set_wake(irq, enable);
+}
+
+void tegra_set_lp0_wake_pads(u32 wake_enb, u32 wake_level, u32 wake_any)
+{
+	u32 temp;
+	u32 status;
+	u32 lvl;
+
+	wake_level &= wake_enb;
+	wake_any &= wake_enb;
+
+	wake_level |= (tegra_lp0_wake_level & tegra_lp0_wake_enb);
+	wake_any |= (tegra_lp0_wake_level_any & tegra_lp0_wake_enb);
+
+	wake_enb |= tegra_lp0_wake_enb;
+
+	pmc_32kwritel(0, PMC_SW_WAKE_STATUS);
+	temp = readl(pmc + PMC_CTRL);
+	temp |= PMC_CTRL_LATCH_WAKEUPS;
+	pmc_32kwritel(temp, PMC_CTRL);
+	temp &= ~PMC_CTRL_LATCH_WAKEUPS;
+	pmc_32kwritel(temp, PMC_CTRL);
+	status = readl(pmc + PMC_SW_WAKE_STATUS);
+	lvl = readl(pmc + PMC_WAKE_LEVEL);
+
+	/* flip the wakeup trigger for any-edge triggered pads
+	 * which are currently asserting as wakeups */
+	lvl ^= status;
+	lvl &= wake_any;
+
+	wake_level |= lvl;
+
+	writel(wake_level, pmc + PMC_WAKE_LEVEL);
+	/* Enable DPD sample to trigger sampling pads data and direction
+	 * in which pad will be driven during lp0 mode*/
+	writel(0x1, pmc + PMC_DPD_SAMPLE);
+
+	writel(wake_enb, pmc + PMC_WAKE_MASK);
+}
 
 static void tegra_mask(unsigned int irq)
 {
-	void __iomem *addr = ictlr_to_virt(irq_to_ictlr(irq));
 	gic_mask_irq(irq);
-	writel(1<<(irq&31), addr+ICTLR_CPU_IER_CLR);
+	tegra_legacy_mask_irq(irq);
 }
 
 static void tegra_unmask(unsigned int irq)
 {
-	void __iomem *addr = ictlr_to_virt(irq_to_ictlr(irq));
 	gic_unmask_irq(irq);
-	writel(1<<(irq&31), addr+ICTLR_CPU_IER_SET);
+	tegra_legacy_unmask_irq(irq);
 }
-
-#ifdef CONFIG_PM
-
-static int tegra_set_wake(unsigned int irq, unsigned int on)
-{
-	return 0;
-}
-#endif
 
 static struct irq_chip tegra_irq = {
 	.name		= "PPI",
+	.ack		= gic_ack_irq,
 	.mask		= tegra_mask,
 	.unmask		= tegra_unmask,
-#ifdef CONFIG_PM
-	.set_wake	= tegra_set_wake,
+#ifdef CONFIG_SMP
+	.set_affinity	= gic_set_cpu,
 #endif
 };
 
 void __init tegra_init_irq(void)
 {
-	struct irq_chip *gic;
 	unsigned int i;
+	int irq;
 
-	for (i = 0; i < PPI_NR; i++) {
-		writel(~0, ictlr_to_virt(i) + ICTLR_CPU_IER_CLR);
-		writel(0, ictlr_to_virt(i) + ICTLR_CPU_IEP_CLASS);
-	}
+	tegra_init_legacy_irq();
 
 	gic_dist_init(0, IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE), 29);
 	gic_cpu_init(0, IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x100));
 
-	gic = get_irq_chip(29);
-	gic_unmask_irq = gic->unmask;
-	gic_mask_irq = gic->mask;
-	tegra_irq.ack = gic->ack;
-#ifdef CONFIG_SMP
-	tegra_irq.set_affinity = gic->set_affinity;
-#endif
-
-	for (i = INT_PRI_BASE; i < INT_GPIO_BASE; i++) {
-		set_irq_chip(i, &tegra_irq);
-		set_irq_handler(i, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
+	for (i = 0; i < INT_MAIN_NR; i++) {
+		irq = INT_PRI_BASE + i;
+		set_irq_chip(irq, &tegra_irq);
+		set_irq_handler(irq, handle_level_irq);
+		set_irq_flags(irq, IRQF_VALID);
 	}
 }
-
-#ifdef CONFIG_PM
-static u32 cop_ier[PPI_NR];
-static u32 cpu_ier[PPI_NR];
-static u32 cpu_iep[PPI_NR];
-
-void tegra_irq_suspend(void)
-{
-	unsigned long flags;
-	int i;
-
-	for (i = INT_PRI_BASE; i < INT_GPIO_BASE; i++) {
-		struct irq_desc *desc = irq_to_desc(i);
-		if (!desc)
-			continue;
-		if (desc->status & IRQ_WAKEUP) {
-			pr_debug("irq %d is wakeup\n", i);
-			continue;
-		}
-		disable_irq(i);
-	}
-
-	local_irq_save(flags);
-	for (i = 0; i < PPI_NR; i++) {
-		void __iomem *ictlr = ictlr_to_virt(i);
-		cpu_ier[i] = readl(ictlr + ICTLR_CPU_IER);
-		cpu_iep[i] = readl(ictlr + ICTLR_CPU_IEP_CLASS);
-		cop_ier[i] = readl(ictlr + ICTLR_COP_IER);
-		writel(~0, ictlr + ICTLR_COP_IER_CLR);
-	}
-	local_irq_restore(flags);
-}
-
-void tegra_irq_resume(void)
-{
-	unsigned long flags;
-	int i;
-
-	local_irq_save(flags);
-	for (i = 0; i < PPI_NR; i++) {
-		void __iomem *ictlr = ictlr_to_virt(i);
-		writel(cpu_iep[i], ictlr + ICTLR_CPU_IEP_CLASS);
-		writel(~0ul, ictlr + ICTLR_CPU_IER_CLR);
-		writel(cpu_ier[i], ictlr + ICTLR_CPU_IER_SET);
-		writel(0, ictlr + ICTLR_COP_IEP_CLASS);
-		writel(~0ul, ictlr + ICTLR_COP_IER_CLR);
-		writel(cop_ier[i], ictlr + ICTLR_COP_IER_SET);
-	}
-	local_irq_restore(flags);
-
-	for (i = INT_PRI_BASE; i < INT_GPIO_BASE; i++) {
-		struct irq_desc *desc = irq_to_desc(i);
-		if (!desc || (desc->status & IRQ_WAKEUP))
-			continue;
-		enable_irq(i);
-	}
-}
-#endif
