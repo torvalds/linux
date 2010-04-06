@@ -131,6 +131,7 @@ static int timbgpio_irq_type(unsigned irq, unsigned trigger)
 	unsigned long flags;
 	u32 lvr, flr, bflr = 0;
 	u32 ver;
+	int ret = 0;
 
 	if (offset < 0 || offset > tgpio->gpio.ngpio)
 		return -EINVAL;
@@ -154,8 +155,10 @@ static int timbgpio_irq_type(unsigned irq, unsigned trigger)
 	}
 
 	if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
-		if (ver < 3)
-			return -EINVAL;
+		if (ver < 3) {
+			ret = -EINVAL;
+			goto out;
+		}
 		else {
 			flr |= 1 << offset;
 			bflr |= 1 << offset;
@@ -175,9 +178,10 @@ static int timbgpio_irq_type(unsigned irq, unsigned trigger)
 		iowrite32(bflr, tgpio->membase + TGPIO_BFLR);
 
 	iowrite32(1 << offset, tgpio->membase + TGPIO_ICR);
-	spin_unlock_irqrestore(&tgpio->lock, flags);
 
-	return 0;
+out:
+	spin_unlock_irqrestore(&tgpio->lock, flags);
+	return ret;
 }
 
 static void timbgpio_irq(unsigned int irq, struct irq_desc *desc)
