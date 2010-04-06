@@ -364,7 +364,7 @@ static const struct transfer_ops bfin_transfer_ops_u16 = {
 	.duplex = bfin_spi_u16_duplex,
 };
 
-/* test if ther is more transfer to be done */
+/* test if there is more transfer to be done */
 static void *bfin_spi_next_transfer(struct master_data *drv_data)
 {
 	struct spi_message *msg = drv_data->cur_msg;
