@@ -88,6 +88,7 @@ struct hif_device_usb {
 	struct htc_target *htc_handle;
 	struct hif_usb_tx tx;
 	struct urb *reg_in_urb;
+	struct usb_anchor regout_submitted;
 	struct usb_anchor rx_submitted;
 	struct sk_buff *remain_skb;
 	int rx_remain_len;

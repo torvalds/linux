@@ -32,27 +32,15 @@ static int __hif_usb_tx(struct hif_device_usb *hif_dev);
 static void hif_usb_regout_cb(struct urb *urb)
 {
 	struct cmd_buf *cmd = (struct cmd_buf *)urb->context;
-	struct hif_device_usb *hif_dev = cmd->hif_dev;
-
-	if (!hif_dev) {
-		usb_free_urb(urb);
-		if (cmd) {
-			if (cmd->skb)
-				dev_kfree_skb_any(cmd->skb);
-			kfree(cmd);
-		}
-		return;
-	}
 
 	switch (urb->status) {
 	case 0:
 		break;
 	case -ENOENT:
 	case -ECONNRESET:
-		break;
 	case -ENODEV:
 	case -ESHUTDOWN:
-		return;
+		goto free;
 	default:
 		break;
 	}
@@ -61,8 +49,12 @@ static void hif_usb_regout_cb(struct urb *urb)
 		ath9k_htc_txcompletion_cb(cmd->hif_dev->htc_handle,
 					  cmd->skb, 1);
 		kfree(cmd);
-		usb_free_urb(urb);
 	}
+
+	return;
+free:
+	dev_kfree_skb_any(cmd->skb);
+	kfree(cmd);
 }
 
 static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
@@ -90,11 +82,13 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 			 skb->data, skb->len,
 			 hif_usb_regout_cb, cmd, 1);
 
+	usb_anchor_urb(urb, &hif_dev->regout_submitted);
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret) {
-		usb_free_urb(urb);
+		usb_unanchor_urb(urb);
 		kfree(cmd);
 	}
+	usb_free_urb(urb);
 
 	return ret;
 }
@@ -711,6 +705,9 @@ err:
 
 static int ath9k_hif_usb_alloc_urbs(struct hif_device_usb *hif_dev)
 {
+	/* Register Write */
+	init_usb_anchor(&hif_dev->regout_submitted);
+
 	/* TX */
 	if (ath9k_hif_usb_alloc_tx_urbs(hif_dev) < 0)
 		goto err;
@@ -719,7 +716,7 @@ static int ath9k_hif_usb_alloc_urbs(struct hif_device_usb *hif_dev)
 	if (ath9k_hif_usb_alloc_rx_urbs(hif_dev) < 0)
 		goto err;
 
-	/* Register Read/Write */
+	/* Register Read */
 	if (ath9k_hif_usb_alloc_reg_in_urb(hif_dev) < 0)
 		goto err;
 
@@ -816,6 +813,7 @@ err_fw_req:
 
 static void ath9k_hif_usb_dealloc_urbs(struct hif_device_usb *hif_dev)
 {
+	usb_kill_anchored_urbs(&hif_dev->regout_submitted);
 	ath9k_hif_usb_dealloc_reg_in_urb(hif_dev);
 	ath9k_hif_usb_dealloc_tx_urbs(hif_dev);
 	ath9k_hif_usb_dealloc_rx_urbs(hif_dev);
