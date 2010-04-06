@@ -647,7 +647,7 @@ config VIDEO_CQCAM
 
 config VIDEO_W9966
 	tristate "W9966CF Webcam (FlyCam Supra and others) Video For Linux"
-	depends on PARPORT_1284 && PARPORT && VIDEO_V4L1
+	depends on PARPORT_1284 && PARPORT && VIDEO_V4L2
 	help
 	  Video4linux driver for Winbond's w9966 based Webcams.
 	  Currently tested with the LifeView FlyCam Supra.
