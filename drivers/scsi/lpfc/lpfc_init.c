@@ -3526,6 +3526,32 @@ lpfc_sli4_async_dcbx_evt(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_sli4_async_grp5_evt - Process the asynchronous group5 event
+ * @phba: pointer to lpfc hba data structure.
+ * @acqe_link: pointer to the async grp5 completion queue entry.
+ *
+ * This routine is to handle the SLI4 asynchronous grp5 event. A grp5 event
+ * is an asynchronous notified of a logical link speed change.  The Port
+ * reports the logical link speed in units of 10Mbps.
+ **/
+static void
+lpfc_sli4_async_grp5_evt(struct lpfc_hba *phba,
+			 struct lpfc_acqe_grp5 *acqe_grp5)
+{
+	uint16_t prev_ll_spd;
+
+	phba->fc_eventTag = acqe_grp5->event_tag;
+	phba->fcoe_eventtag = acqe_grp5->event_tag;
+	prev_ll_spd = phba->sli4_hba.link_state.logical_speed;
+	phba->sli4_hba.link_state.logical_speed =
+		(bf_get(lpfc_acqe_grp5_llink_spd, acqe_grp5));
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2789 GRP5 Async Event: Updating logical link speed "
+			"from %dMbps to %dMbps\n", (prev_ll_spd * 10),
+			(phba->sli4_hba.link_state.logical_speed*10));
+}
+
+/**
  * lpfc_sli4_async_event_proc - Process all the pending asynchronous event
  * @phba: pointer to lpfc hba data structure.
  *
@@ -3560,6 +3586,10 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 		case LPFC_TRAILER_CODE_DCBX:
 			lpfc_sli4_async_dcbx_evt(phba,
 						 &cq_event->cqe.acqe_dcbx);
+			break;
+		case LPFC_TRAILER_CODE_GRP5:
+			lpfc_sli4_async_grp5_evt(phba,
+						 &cq_event->cqe.acqe_grp5);
 			break;
 		default:
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,

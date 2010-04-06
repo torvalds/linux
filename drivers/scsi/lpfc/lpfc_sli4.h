@@ -493,8 +493,8 @@ void lpfc_sli4_queue_free(struct lpfc_queue *);
 uint32_t lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint16_t);
 uint32_t lpfc_cq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t, uint32_t);
-uint32_t lpfc_mq_create(struct lpfc_hba *, struct lpfc_queue *,
-			struct lpfc_queue *, uint32_t);
+int32_t lpfc_mq_create(struct lpfc_hba *, struct lpfc_queue *,
+		       struct lpfc_queue *, uint32_t);
 uint32_t lpfc_wq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t);
 uint32_t lpfc_rq_create(struct lpfc_hba *, struct lpfc_queue *,

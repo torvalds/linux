@@ -9834,38 +9834,27 @@ out:
 }
 
 /**
- * lpfc_mq_create - Create a mailbox Queue on the HBA
+ * lpfc_mq_create_fb_init - Send MCC_CREATE without async events registration
  * @phba: HBA structure that indicates port to create a queue on.
  * @mq: The queue structure to use to create the mailbox queue.
+ * @mbox: An allocated pointer to type LPFC_MBOXQ_t
+ * @cq: The completion queue to associate with this cq.
  *
- * This function creates a mailbox queue, as detailed in @mq, on a port,
- * described by @phba by sending a MQ_CREATE mailbox command to the HBA.
+ * This function provides failback (fb) functionality when the
+ * mq_create_ext fails on older FW generations.  It's purpose is identical
+ * to mq_create_ext otherwise.
  *
- * The @phba struct is used to send mailbox command to HBA. The @cq struct
- * is used to get the entry count and entry size that are necessary to
- * determine the number of pages to allocate and use for this queue. This
- * function will send the MQ_CREATE mailbox command to the HBA to setup the
- * mailbox queue. This function is asynchronous and will wait for the mailbox
- * command to finish before continuing.
- *
- * On success this function will return a zero. If unable to allocate enough
- * memory this function will return ENOMEM. If the queue create mailbox command
- * fails this function will return ENXIO.
+ * This routine cannot fail as all attributes were previously accessed and
+ * initialized in mq_create_ext.
  **/
-uint32_t
-lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
-	       struct lpfc_queue *cq, uint32_t subtype)
+static void
+lpfc_mq_create_fb_init(struct lpfc_hba *phba, struct lpfc_queue *mq,
+		       LPFC_MBOXQ_t *mbox, struct lpfc_queue *cq)
 {
 	struct lpfc_mbx_mq_create *mq_create;
 	struct lpfc_dmabuf *dmabuf;
-	LPFC_MBOXQ_t *mbox;
-	int rc, length, status = 0;
-	uint32_t shdr_status, shdr_add_status;
-	union lpfc_sli4_cfg_shdr *shdr;
+	int length;
 
-	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mbox)
-		return -ENOMEM;
 	length = (sizeof(struct lpfc_mbx_mq_create) -
 		  sizeof(struct lpfc_sli4_cfg_mhdr));
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
@@ -9873,18 +9862,11 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 			 length, LPFC_SLI4_MBX_EMBED);
 	mq_create = &mbox->u.mqe.un.mq_create;
 	bf_set(lpfc_mbx_mq_create_num_pages, &mq_create->u.request,
-		    mq->page_count);
+	       mq->page_count);
 	bf_set(lpfc_mq_context_cq_id, &mq_create->u.request.context,
-		    cq->queue_id);
+	       cq->queue_id);
 	bf_set(lpfc_mq_context_valid, &mq_create->u.request.context, 1);
 	switch (mq->entry_count) {
-	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0362 Unsupported MQ count. (%d)\n",
-				mq->entry_count);
-		if (mq->entry_count < 16)
-			return -EINVAL;
-		/* otherwise default to smallest count (drop through) */
 	case 16:
 		bf_set(lpfc_mq_context_count, &mq_create->u.request.context,
 		       LPFC_MQ_CNT_16);
@@ -9904,13 +9886,116 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 	}
 	list_for_each_entry(dmabuf, &mq->page_list, list) {
 		mq_create->u.request.page[dmabuf->buffer_tag].addr_lo =
-					putPaddrLow(dmabuf->phys);
+			putPaddrLow(dmabuf->phys);
 		mq_create->u.request.page[dmabuf->buffer_tag].addr_hi =
+			putPaddrHigh(dmabuf->phys);
+	}
+}
+
+/**
+ * lpfc_mq_create - Create a mailbox Queue on the HBA
+ * @phba: HBA structure that indicates port to create a queue on.
+ * @mq: The queue structure to use to create the mailbox queue.
+ * @cq: The completion queue to associate with this cq.
+ * @subtype: The queue's subtype.
+ *
+ * This function creates a mailbox queue, as detailed in @mq, on a port,
+ * described by @phba by sending a MQ_CREATE mailbox command to the HBA.
+ *
+ * The @phba struct is used to send mailbox command to HBA. The @cq struct
+ * is used to get the entry count and entry size that are necessary to
+ * determine the number of pages to allocate and use for this queue. This
+ * function will send the MQ_CREATE mailbox command to the HBA to setup the
+ * mailbox queue. This function is asynchronous and will wait for the mailbox
+ * command to finish before continuing.
+ *
+ * On success this function will return a zero. If unable to allocate enough
+ * memory this function will return ENOMEM. If the queue create mailbox command
+ * fails this function will return ENXIO.
+ **/
+int32_t
+lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
+	       struct lpfc_queue *cq, uint32_t subtype)
+{
+	struct lpfc_mbx_mq_create *mq_create;
+	struct lpfc_mbx_mq_create_ext *mq_create_ext;
+	struct lpfc_dmabuf *dmabuf;
+	LPFC_MBOXQ_t *mbox;
+	int rc, length, status = 0;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+	length = (sizeof(struct lpfc_mbx_mq_create_ext) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_MQ_CREATE_EXT,
+			 length, LPFC_SLI4_MBX_EMBED);
+
+	mq_create_ext = &mbox->u.mqe.un.mq_create_ext;
+	bf_set(lpfc_mbx_mq_create_ext_num_pages, &mq_create_ext->u.request,
+		    mq->page_count);
+	bf_set(lpfc_mbx_mq_create_ext_async_evt_link, &mq_create_ext->u.request,
+	       1);
+	bf_set(lpfc_mbx_mq_create_ext_async_evt_fcfste,
+	       &mq_create_ext->u.request, 1);
+	bf_set(lpfc_mbx_mq_create_ext_async_evt_group5,
+	       &mq_create_ext->u.request, 1);
+	bf_set(lpfc_mq_context_cq_id, &mq_create_ext->u.request.context,
+	       cq->queue_id);
+	bf_set(lpfc_mq_context_valid, &mq_create_ext->u.request.context, 1);
+	switch (mq->entry_count) {
+	default:
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"0362 Unsupported MQ count. (%d)\n",
+				mq->entry_count);
+		if (mq->entry_count < 16)
+			return -EINVAL;
+		/* otherwise default to smallest count (drop through) */
+	case 16:
+		bf_set(lpfc_mq_context_count, &mq_create_ext->u.request.context,
+		       LPFC_MQ_CNT_16);
+		break;
+	case 32:
+		bf_set(lpfc_mq_context_count, &mq_create_ext->u.request.context,
+		       LPFC_MQ_CNT_32);
+		break;
+	case 64:
+		bf_set(lpfc_mq_context_count, &mq_create_ext->u.request.context,
+		       LPFC_MQ_CNT_64);
+		break;
+	case 128:
+		bf_set(lpfc_mq_context_count, &mq_create_ext->u.request.context,
+		       LPFC_MQ_CNT_128);
+		break;
+	}
+	list_for_each_entry(dmabuf, &mq->page_list, list) {
+		mq_create_ext->u.request.page[dmabuf->buffer_tag].addr_lo =
+					putPaddrLow(dmabuf->phys);
+		mq_create_ext->u.request.page[dmabuf->buffer_tag].addr_hi =
 					putPaddrHigh(dmabuf->phys);
 	}
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	shdr = (union lpfc_sli4_cfg_shdr *) &mq_create_ext->header.cfg_shdr;
+	mq->queue_id = bf_get(lpfc_mbx_mq_create_q_id,
+			      &mq_create_ext->u.response);
+	if (rc != MBX_SUCCESS) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"2795 MQ_CREATE_EXT failed with "
+				"status x%x. Failback to MQ_CREATE.\n",
+				rc);
+		lpfc_mq_create_fb_init(phba, mq, mbox, cq);
+		mq_create = &mbox->u.mqe.un.mq_create;
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+		shdr = (union lpfc_sli4_cfg_shdr *) &mq_create->header.cfg_shdr;
+		mq->queue_id = bf_get(lpfc_mbx_mq_create_q_id,
+				      &mq_create->u.response);
+	}
+
 	/* The IOCTL status is embedded in the mailbox subheader. */
-	shdr = (union lpfc_sli4_cfg_shdr *) &mq_create->header.cfg_shdr;
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
@@ -9921,7 +10006,6 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 		status = -ENXIO;
 		goto out;
 	}
-	mq->queue_id = bf_get(lpfc_mbx_mq_create_q_id, &mq_create->u.response);
 	if (mq->queue_id == 0xFFFF) {
 		status = -ENXIO;
 		goto out;

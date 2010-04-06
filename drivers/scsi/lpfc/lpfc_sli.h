@@ -36,6 +36,7 @@ struct lpfc_cq_event {
 		struct lpfc_acqe_link		acqe_link;
 		struct lpfc_acqe_fcoe		acqe_fcoe;
 		struct lpfc_acqe_dcbx		acqe_dcbx;
+		struct lpfc_acqe_grp5		acqe_grp5;
 		struct lpfc_rcqe		rcqe_cmpl;
 		struct sli4_wcqe_xri_aborted	wcqe_axri;
 		struct lpfc_wcqe_complete	wcqe_cmpl;

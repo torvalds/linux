@@ -1500,6 +1500,7 @@ typedef struct {		/* FireFly BIU registers */
 #define MBXERR_BAD_RCV_LENGTH       14
 #define MBXERR_DMA_ERROR            15
 #define MBXERR_ERROR                16
+#define MBXERR_UNKNOWN_CMD          18
 #define MBXERR_LINK_DOWN            0x33
 #define MBX_NOT_FINISHED           255
 
