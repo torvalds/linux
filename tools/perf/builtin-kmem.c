@@ -14,7 +14,6 @@
 #include "util/debug.h"
 
 #include <linux/rbtree.h>
-#include <linux/slab.h>
 
 struct alloc_stat;
 typedef int (*sort_fn_t)(struct alloc_stat *, struct alloc_stat *);
