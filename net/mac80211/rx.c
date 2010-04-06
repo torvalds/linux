@@ -739,8 +739,8 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 	/* if this mpdu is fragmented - terminate rx aggregation session */
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	if (sc & IEEE80211_SCTL_FRAG) {
-		ieee80211_sta_stop_rx_ba_session(sta->sdata, sta->sta.addr,
-			tid, 0, WLAN_REASON_QSTA_REQUIRE_SETUP);
+		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT,
+					       WLAN_REASON_QSTA_REQUIRE_SETUP);
 		dev_kfree_skb(skb);
 		return;
 	}

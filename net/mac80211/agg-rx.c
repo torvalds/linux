@@ -79,28 +79,9 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	spin_unlock_bh(&sta->lock);
 }
 
-void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid,
-					u16 initiator, u16 reason)
-{
-	struct sta_info *sta;
-
-	rcu_read_lock();
-
-	sta = sta_info_get(sdata, ra);
-	if (!sta) {
-		rcu_read_unlock();
-		return;
-	}
-
-	__ieee80211_stop_rx_ba_session(sta, tid, initiator, reason);
-
-	rcu_read_unlock();
-}
-
 /*
  * After accepting the AddBA Request we activated a timer,
  * resetting it after each frame that arrives from the originator.
- * if this timer expires ieee80211_sta_stop_rx_ba_session will be executed.
  */
 static void sta_rx_agg_session_timer_expired(unsigned long data)
 {
@@ -116,9 +97,8 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "rx session timer expired on tid %d\n", (u16)*ptid);
 #endif
-	ieee80211_sta_stop_rx_ba_session(sta->sdata, sta->sta.addr,
-					 (u16)*ptid, WLAN_BACK_TIMER,
-					 WLAN_REASON_QSTA_TIMEOUT);
+	__ieee80211_stop_rx_ba_session(sta, *ptid, WLAN_BACK_RECIPIENT,
+				       WLAN_REASON_QSTA_TIMEOUT);
 }
 
 static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *da, u16 tid,
