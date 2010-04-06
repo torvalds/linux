@@ -874,14 +874,18 @@ static int dqinit_needed(struct inode *inode, int type)
 static void add_dquot_ref(struct super_block *sb, int type)
 {
 	struct inode *inode, *old_inode = NULL;
+#ifdef __DQUOT_PARANOIA
 	int reserved = 0;
+#endif
 
 	spin_lock(&inode_lock);
 	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
 		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE|I_NEW))
 			continue;
+#ifdef __DQUOT_PARANOIA
 		if (unlikely(inode_get_rsv_space(inode) > 0))
 			reserved = 1;
+#endif
 		if (!atomic_read(&inode->i_writecount))
 			continue;
 		if (!dqinit_needed(inode, type))
@@ -903,11 +907,13 @@ static void add_dquot_ref(struct super_block *sb, int type)
 	spin_unlock(&inode_lock);
 	iput(old_inode);
 
+#ifdef __DQUOT_PARANOIA
 	if (reserved) {
 		printk(KERN_WARNING "VFS (%s): Writes happened before quota"
 			" was turned on thus quota information is probably "
 			"inconsistent. Please run quotacheck(8).\n", sb->s_id);
 	}
+#endif
 }
 
 /*
