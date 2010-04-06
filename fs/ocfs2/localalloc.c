@@ -75,6 +75,34 @@ static int ocfs2_local_alloc_new_window(struct ocfs2_super *osb,
 static int ocfs2_local_alloc_slide_window(struct ocfs2_super *osb,
 					  struct inode *local_alloc_inode);
 
+void ocfs2_la_set_sizes(struct ocfs2_super *osb, int requested_mb)
+{
+	struct super_block *sb = osb->sb;
+	unsigned int la_default_mb = OCFS2_DEFAULT_LOCAL_ALLOC_SIZE;
+	unsigned int la_max_mb;
+
+	la_max_mb = ocfs2_clusters_to_megabytes(sb,
+						ocfs2_local_alloc_size(sb) * 8);
+
+	mlog(0, "requested: %dM, max: %uM, default: %uM\n",
+	     requested_mb, la_max_mb, la_default_mb);
+
+	if (requested_mb == -1) {
+		/* No user request - use defaults */
+		osb->local_alloc_default_bits =
+			ocfs2_megabytes_to_clusters(sb, la_default_mb);
+	} else if (requested_mb > la_max_mb) {
+		/* Request is too big, we give the maximum available */
+		osb->local_alloc_default_bits =
+			ocfs2_megabytes_to_clusters(sb, la_max_mb);
+	} else {
+		osb->local_alloc_default_bits =
+			ocfs2_megabytes_to_clusters(sb, requested_mb);
+	}
+
+	osb->local_alloc_bits = osb->local_alloc_default_bits;
+}
+
 static inline int ocfs2_la_state_enabled(struct ocfs2_super *osb)
 {
 	return (osb->local_alloc_state == OCFS2_LA_THROTTLED ||
