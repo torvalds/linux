@@ -610,17 +610,33 @@ static long __video_do_ioctl(struct file *file,
 	void *fh = file->private_data;
 	long ret = -EINVAL;
 
+	if (ops == NULL) {
+		printk(KERN_WARNING "videodev: \"%s\" has no ioctl_ops.\n",
+				vfd->name);
+		return -EINVAL;
+	}
+
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+	/********************************************************
+	 All other V4L1 calls are handled by v4l1_compat module.
+	 Those calls will be translated into V4L2 calls, and
+	 __video_do_ioctl will be called again, with one or more
+	 V4L2 ioctls.
+	 ********************************************************/
+	if (_IOC_TYPE(cmd) == 'v' && cmd != VIDIOCGMBUF &&
+				_IOC_NR(cmd) < BASE_VIDIOCPRIVATE) {
+		return v4l_compat_translate_ioctl(file, cmd, arg,
+						__video_do_ioctl);
+	}
+#endif
+
 	if ((vfd->debug & V4L2_DEBUG_IOCTL) &&
 				!(vfd->debug & V4L2_DEBUG_IOCTL_ARG)) {
 		v4l_print_ioctl(vfd->name, cmd);
 		printk(KERN_CONT "\n");
 	}
 
-	if (ops == NULL) {
-		printk(KERN_WARNING "videodev: \"%s\" has no ioctl_ops.\n",
-				vfd->name);
-		return -EINVAL;
-	}
+	switch (cmd) {
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	/***********************************************************
@@ -630,31 +646,21 @@ static long __video_do_ioctl(struct file *file,
 	 ***********************************************************/
 
 	/* --- streaming capture ------------------------------------- */
-	if (cmd == VIDIOCGMBUF) {
+	case VIDIOCGMBUF:
+	{
 		struct video_mbuf *p = arg;
 
 		if (!ops->vidiocgmbuf)
-			return ret;
+			break;
 		ret = ops->vidiocgmbuf(file, fh, p);
 		if (!ret)
 			dbgarg(cmd, "size=%d, frames=%d, offsets=0x%08lx\n",
 						p->size, p->frames,
 						(unsigned long)p->offsets);
-		return ret;
+		break;
 	}
-
-	/********************************************************
-	 All other V4L1 calls are handled by v4l1_compat module.
-	 Those calls will be translated into V4L2 calls, and
-	 __video_do_ioctl will be called again, with one or more
-	 V4L2 ioctls.
-	 ********************************************************/
-	if (_IOC_TYPE(cmd) == 'v' && _IOC_NR(cmd) < BASE_VIDIOCPRIVATE)
-		return v4l_compat_translate_ioctl(file, cmd, arg,
-						__video_do_ioctl);
 #endif
 
-	switch (cmd) {
 	/* --- capabilities ------------------------------------------ */
 	case VIDIOC_QUERYCAP:
 	{
