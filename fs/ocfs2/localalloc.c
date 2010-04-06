@@ -879,13 +879,10 @@ static int ocfs2_local_alloc_find_clear_bits(struct ocfs2_super *osb,
 	mlog(0, "Exiting loop, bitoff = %d, numfound = %d\n", bitoff,
 	     numfound);
 
-	if (numfound == *numbits) {
+	if (numfound == *numbits)
 		bitoff = startoff - numfound;
-		*numbits = numfound;
-	} else {
-		numfound = 0;
+	else
 		bitoff = -1;
-	}
 
 bail:
 	if (local_resv)

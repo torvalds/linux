@@ -371,7 +371,6 @@ ocfs2_find_resv_lhs(struct ocfs2_reservation_map *resmap, unsigned int goal)
 	struct ocfs2_alloc_reservation *resv = NULL;
 	struct ocfs2_alloc_reservation *prev_resv = NULL;
 	struct rb_node *node = resmap->m_reservations.rb_node;
-	struct rb_node *prev = NULL;
 
 	assert_spin_locked(&resv_lock);
 
@@ -392,7 +391,6 @@ ocfs2_find_resv_lhs(struct ocfs2_reservation_map *resmap, unsigned int goal)
 		}
 
 		prev_resv = resv;
-		prev = node;
 		node = rb_next(node);
 	}
 
