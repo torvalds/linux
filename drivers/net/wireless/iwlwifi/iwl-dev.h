@@ -1054,7 +1054,7 @@ struct iwl_priv {
 	unsigned long scan_pass_start;
 	unsigned long scan_start_tsf;
 	void *scan;
-	int scan_bands;
+	enum ieee80211_band scan_band;
 	struct cfg80211_scan_request *scan_request;
 	bool is_internal_short_scan;
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];

@@ -223,18 +223,9 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	clear_bit(STATUS_SCAN_HW, &priv->status);
 
 	IWL_DEBUG_INFO(priv, "Scan pass on %sGHz took %dms\n",
-		       (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) ?
-						"2.4" : "5.2",
+		       (priv->scan_band == IEEE80211_BAND_2GHZ) ? "2.4" : "5.2",
 		       jiffies_to_msecs(elapsed_jiffies
 					(priv->scan_pass_start, jiffies)));
-
-	/* Remove this scanned band from the list of pending
-	 * bands to scan, band G precedes A in order of scanning
-	 * as seen in iwl_bg_request_scan */
-	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ))
-		priv->scan_bands &= ~BIT(IEEE80211_BAND_2GHZ);
-	else if (priv->scan_bands &  BIT(IEEE80211_BAND_5GHZ))
-		priv->scan_bands &= ~BIT(IEEE80211_BAND_5GHZ);
 
 	/* If a request to abort was given, or the scan did not succeed
 	 * then we reset the scan state machine and terminate,
@@ -242,10 +233,6 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
 		IWL_DEBUG_INFO(priv, "Aborted scan completed.\n");
 		clear_bit(STATUS_SCAN_ABORTING, &priv->status);
-	} else {
-		/* If there are more bands on this scan pass reschedule */
-		if (priv->scan_bands)
-			goto reschedule;
 	}
 
 	if (!priv->is_internal_short_scan)
@@ -259,12 +246,6 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 		jiffies_to_msecs(elapsed_jiffies(priv->scan_start, jiffies)));
 
 	queue_work(priv->workqueue, &priv->scan_completed);
-
-	return;
-
-reschedule:
-	priv->scan_pass_start = jiffies;
-	queue_work(priv->workqueue, &priv->request_scan);
 }
 
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv)
@@ -489,9 +470,12 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 {
 	unsigned long flags;
 	struct iwl_priv *priv = hw->priv;
-	int ret, i;
+	int ret;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	if (req->n_channels == 0)
+		return -EINVAL;
 
 	mutex_lock(&priv->mutex);
 	spin_lock_irqsave(&priv->lock, flags);
@@ -526,10 +510,8 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		goto out_unlock;
 	}
 
-	priv->scan_bands = 0;
-	for (i = 0; i < req->n_channels; i++)
-		priv->scan_bands |= BIT(req->channels[i]->band);
-
+	/* mac80211 will only ask for one band at a time */
+	priv->scan_band = req->channels[0]->band;
 	priv->scan_request = req;
 
 	ret = iwl_scan_initiate(priv);
@@ -575,11 +557,7 @@ static void iwl_bg_start_internal_scan(struct work_struct *work)
 		goto unlock;
 	}
 
-	priv->scan_bands = 0;
-	if (priv->band == IEEE80211_BAND_5GHZ)
-		priv->scan_bands |= BIT(IEEE80211_BAND_5GHZ);
-	else
-		priv->scan_bands |= BIT(IEEE80211_BAND_2GHZ);
+	priv->scan_band = priv->band;
 
 	IWL_DEBUG_SCAN(priv, "Start internal short scan...\n");
 	set_bit(STATUS_SCANNING, &priv->status);
@@ -727,11 +705,6 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
-	if (!priv->scan_bands) {
-		IWL_DEBUG_HC(priv, "Aborting scan due to no requested bands\n");
-		goto done;
-	}
-
 	if (!priv->scan) {
 		priv->scan = kmalloc(sizeof(struct iwl_scan_cmd) +
 				     IWL_MAX_SCAN_SIZE, GFP_KERNEL);
@@ -798,9 +771,8 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	scan->tx_cmd.sta_id = priv->hw_params.bcast_sta_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
-
-	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) {
-		band = IEEE80211_BAND_2GHZ;
+	switch (priv->scan_band) {
+	case IEEE80211_BAND_2GHZ:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		chan_mod = le32_to_cpu(priv->active_rxon.flags & RXON_FLG_CHANNEL_MODE_MSK)
 				       >> RXON_FLG_CHANNEL_MODE_POS;
@@ -811,8 +783,8 @@ static void iwl_bg_request_scan(struct work_struct *data)
 			rate_flags = RATE_MCS_CCK_MSK;
 		}
 		scan->good_CRC_th = 0;
-	} else if (priv->scan_bands & BIT(IEEE80211_BAND_5GHZ)) {
-		band = IEEE80211_BAND_5GHZ;
+		break;
+	case IEEE80211_BAND_5GHZ:
 		rate = IWL_RATE_6M_PLCP;
 		/*
 		 * If active scaning is requested but a certain channel
@@ -827,13 +799,16 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		 */
 		if (priv->cfg->off_channel_workaround)
 			rx_ant = ANT_BC;
-	} else {
+		break;
+	default:
 		IWL_WARN(priv, "Invalid scan band count\n");
 		goto done;
 	}
 
+	band = priv->scan_band;
+
 	priv->scan_tx_ant[band] =
-			 iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band]);
+			iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band]);
 	rate_flags |= iwl_ant_idx_to_flags(priv->scan_tx_ant[band]);
 	scan->tx_cmd.rate_n_flags = iwl_hw_set_rate_n_flags(rate, rate_flags);
 

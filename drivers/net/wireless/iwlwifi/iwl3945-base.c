@@ -2852,11 +2852,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
-	if (!priv->scan_bands) {
-		IWL_DEBUG_HC(priv, "Aborting scan due to no requested bands\n");
-		goto done;
-	}
-
 	if (!priv->scan) {
 		priv->scan = kmalloc(sizeof(struct iwl3945_scan_cmd) +
 				     IWL_MAX_SCAN_SIZE, GFP_KERNEL);
@@ -2934,12 +2929,14 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 
 	/* flags + rate selection */
 
-	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) {
+	switch (priv->scan_band) {
+	case IEEE80211_BAND_2GHZ:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		scan->tx_cmd.rate = IWL_RATE_1M_PLCP;
 		scan->good_CRC_th = 0;
 		band = IEEE80211_BAND_2GHZ;
-	} else if (priv->scan_bands & BIT(IEEE80211_BAND_5GHZ)) {
+		break;
+	case IEEE80211_BAND_5GHZ:
 		scan->tx_cmd.rate = IWL_RATE_6M_PLCP;
 		/*
 		 * If active scaning is requested but a certain channel
@@ -2948,8 +2945,9 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		 */
 		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH : 0;
 		band = IEEE80211_BAND_5GHZ;
-	} else {
-		IWL_WARN(priv, "Invalid scan band count\n");
+		break;
+	default:
+		IWL_WARN(priv, "Invalid scan band\n");
 		goto done;
 	}
 
