@@ -2977,7 +2977,8 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	 * if we only get one now, that's enough to continue. The rest
 	 * will be claimed after the conversion to extents.
 	 */
-	data_ac->ac_resv = &oi->ip_la_data_resv;
+	if (ocfs2_dir_resv_allowed(osb))
+		data_ac->ac_resv = &oi->ip_la_data_resv;
 	ret = ocfs2_claim_clusters(osb, handle, data_ac, 1, &bit_off, &len);
 	if (ret) {
 		mlog_errno(ret);
@@ -3348,7 +3349,8 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 			goto bail;
 		}
 
-		data_ac->ac_resv = &OCFS2_I(dir)->ip_la_data_resv;
+		if (ocfs2_dir_resv_allowed(osb))
+			data_ac->ac_resv = &OCFS2_I(dir)->ip_la_data_resv;
 
 		credits = ocfs2_calc_extend_credits(sb, el, 1);
 	} else {

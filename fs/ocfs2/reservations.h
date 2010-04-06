@@ -67,6 +67,8 @@ void ocfs2_resv_init_once(struct ocfs2_alloc_reservation *resv);
 void ocfs2_resv_set_type(struct ocfs2_alloc_reservation *resv,
 			 unsigned int flags);
 
+int ocfs2_dir_resv_allowed(struct ocfs2_super *osb);
+
 /**
  * ocfs2_resv_discard() - truncate a reservation
  * @resmap:

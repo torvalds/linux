@@ -44,7 +44,11 @@ DEFINE_SPINLOCK(resv_lock);
 
 #define	OCFS2_MIN_RESV_WINDOW_BITS	8
 #define	OCFS2_MAX_RESV_WINDOW_BITS	1024
-#define	OCFS2_RESV_DIR_WINDOW_BITS	OCFS2_MIN_RESV_WINDOW_BITS
+
+int ocfs2_dir_resv_allowed(struct ocfs2_super *osb)
+{
+	return (osb->osb_resv_level && osb->osb_dir_resv_level);
+}
 
 static unsigned int ocfs2_resv_window_bits(struct ocfs2_reservation_map *resmap,
 					   struct ocfs2_alloc_reservation *resv)
@@ -56,8 +60,7 @@ static unsigned int ocfs2_resv_window_bits(struct ocfs2_reservation_map *resmap,
 		/* 8, 16, 32, 64, 128, 256, 512, 1024 */
 		bits = 4 << osb->osb_resv_level;
 	} else {
-		/* For now, treat directories the same as files. */
-		bits = 4 << osb->osb_resv_level;
+		bits = 4 << osb->osb_dir_resv_level;
 	}
 	return bits;
 }

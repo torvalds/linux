@@ -356,6 +356,7 @@ struct ocfs2_super
 	struct ocfs2_reservation_map	osb_la_resmap;
 
 	unsigned int	osb_resv_level;
+	unsigned int	osb_dir_resv_level;
 
 	/* Next three fields are for local node slot recovery during
 	 * mount. */
