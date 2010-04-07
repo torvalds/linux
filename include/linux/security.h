@@ -704,11 +704,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@p contains the task_struct for the process and place is into @secid.
  *	In case of failure, @secid will be set to zero.
  *
- * @task_setgroups:
- *	Check permission before setting the supplementary group set of the
- *	current process.
- *	@group_info contains the new group information.
- *	Return 0 if permission is granted.
  * @task_setnice:
  *	Check permission before setting the nice value of @p to @nice.
  *	@p contains the task_struct of process.
@@ -1518,7 +1513,6 @@ struct security_operations {
 	int (*task_getpgid) (struct task_struct *p);
 	int (*task_getsid) (struct task_struct *p);
 	void (*task_getsecid) (struct task_struct *p, u32 *secid);
-	int (*task_setgroups) (struct group_info *group_info);
 	int (*task_setnice) (struct task_struct *p, int nice);
 	int (*task_setioprio) (struct task_struct *p, int ioprio);
 	int (*task_getioprio) (struct task_struct *p);
@@ -1773,7 +1767,6 @@ int security_task_setpgid(struct task_struct *p, pid_t pgid);
 int security_task_getpgid(struct task_struct *p);
 int security_task_getsid(struct task_struct *p);
 void security_task_getsecid(struct task_struct *p, u32 *secid);
-int security_task_setgroups(struct group_info *group_info);
 int security_task_setnice(struct task_struct *p, int nice);
 int security_task_setioprio(struct task_struct *p, int ioprio);
 int security_task_getioprio(struct task_struct *p);
@@ -2327,11 +2320,6 @@ static inline int security_task_getsid(struct task_struct *p)
 static inline void security_task_getsecid(struct task_struct *p, u32 *secid)
 {
 	*secid = 0;
-}
-
-static inline int security_task_setgroups(struct group_info *group_info)
-{
-	return 0;
 }
 
 static inline int security_task_setnice(struct task_struct *p, int nice)

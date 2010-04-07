@@ -412,11 +412,6 @@ static void cap_task_getsecid(struct task_struct *p, u32 *secid)
 	*secid = 0;
 }
 
-static int cap_task_setgroups(struct group_info *group_info)
-{
-	return 0;
-}
-
 static int cap_task_getioprio(struct task_struct *p)
 {
 	return 0;
@@ -967,7 +962,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, task_getpgid);
 	set_to_cap_if_null(ops, task_getsid);
 	set_to_cap_if_null(ops, task_getsecid);
-	set_to_cap_if_null(ops, task_setgroups);
 	set_to_cap_if_null(ops, task_setnice);
 	set_to_cap_if_null(ops, task_setioprio);
 	set_to_cap_if_null(ops, task_getioprio);

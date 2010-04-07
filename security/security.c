@@ -759,11 +759,6 @@ void security_task_getsecid(struct task_struct *p, u32 *secid)
 }
 EXPORT_SYMBOL(security_task_getsecid);
 
-int security_task_setgroups(struct group_info *group_info)
-{
-	return security_ops->task_setgroups(group_info);
-}
-
 int security_task_setnice(struct task_struct *p, int nice)
 {
 	return security_ops->task_setnice(p, nice);
