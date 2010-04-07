@@ -820,7 +820,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 {
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_hdr *hdr;
 	int keyidx;
 	int hdrlen;
 	ieee80211_rx_result result = RX_DROP_UNUSABLE;
@@ -860,6 +860,11 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	 */
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 		return RX_CONTINUE;
+
+	if (skb_linearize(rx->skb))
+		return RX_DROP_UNUSABLE;
+
+	hdr = (struct ieee80211_hdr *)skb->data;
 
 	/* start without a key */
 	rx->key = NULL;
@@ -943,9 +948,6 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	} else {
 		return RX_DROP_MONITOR;
 	}
-
-	if (skb_linearize(rx->skb))
-		return RX_DROP_UNUSABLE;
 
 	/* Check for weak IVs if possible */
 	if (rx->sta && rx->key->conf.alg == ALG_WEP &&
