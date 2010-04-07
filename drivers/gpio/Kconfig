@@ -325,4 +325,14 @@ config GPIO_UCB1400
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_gpio.
 
+comment "MODULbus GPIO expanders:"
+
+config GPIO_JANZ_TTL
+	tristate "Janz VMOD-TTL Digital IO Module"
+	depends on MFD_JANZ_CMODIO
+	help
+	  This enables support for the Janz VMOD-TTL Digital IO module.
+	  This driver provides support for driving the pins in output
+	  mode only. Input mode is not supported.
+
 endif
