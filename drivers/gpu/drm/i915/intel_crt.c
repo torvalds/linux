@@ -135,11 +135,17 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
 	if (intel_crtc->pipe == 0) {
-		adpa |= ADPA_PIPE_A_SELECT;
+		if (HAS_PCH_CPT(dev))
+			adpa |= PORT_TRANS_A_SEL_CPT;
+		else
+			adpa |= ADPA_PIPE_A_SELECT;
 		if (!HAS_PCH_SPLIT(dev))
 			I915_WRITE(BCLRPAT_A, 0);
 	} else {
-		adpa |= ADPA_PIPE_B_SELECT;
+		if (HAS_PCH_CPT(dev))
+			adpa |= PORT_TRANS_B_SEL_CPT;
+		else
+			adpa |= ADPA_PIPE_B_SELECT;
 		if (!HAS_PCH_SPLIT(dev))
 			I915_WRITE(BCLRPAT_B, 0);
 	}
