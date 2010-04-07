@@ -5364,12 +5364,12 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type    = UNSET,
 		.tuner_addr   = ADDR_UNSET,
 		.radio_addr   = ADDR_UNSET,
-		.gpiomask      = 0x01fc00,
+		.gpiomask      = 0x389c00,
 		.inputs       = {{
 			.name = name_comp1,
 			.vmux = 3,
 			.amux = LINE1,
-			.gpio = 0x389c00,
+			.gpio = 0x01fc00,
 		} },
 	},
 
