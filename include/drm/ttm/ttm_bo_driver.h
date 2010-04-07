@@ -176,8 +176,6 @@ struct ttm_tt {
 
 #define TTM_MEMTYPE_FLAG_FIXED         (1 << 0)	/* Fixed (on-card) PCI memory */
 #define TTM_MEMTYPE_FLAG_MAPPABLE      (1 << 1)	/* Memory mappable */
-#define TTM_MEMTYPE_FLAG_NEEDS_IOREMAP (1 << 2)	/* Fixed memory needs ioremap
-						   before kernel access. */
 #define TTM_MEMTYPE_FLAG_CMA           (1 << 3)	/* Can't map aperture */
 
 /**
@@ -189,13 +187,6 @@ struct ttm_tt {
  * managed by this memory type.
  * @gpu_offset: If used, the GPU offset of the first managed page of
  * fixed memory or the first managed location in an aperture.
- * @io_offset: The io_offset of the first managed page of IO memory or
- * the first managed location in an aperture. For TTM_MEMTYPE_FLAG_CMA
- * memory, this should be set to NULL.
- * @io_size: The size of a managed IO region (fixed memory or aperture).
- * @io_addr: Virtual kernel address if the io region is pre-mapped. For
- * TTM_MEMTYPE_FLAG_NEEDS_IOREMAP there is no pre-mapped io map and
- * @io_addr should be set to NULL.
  * @size: Size of the managed region.
  * @available_caching: A mask of available caching types, TTM_PL_FLAG_XX,
  * as defined in ttm_placement_common.h
@@ -221,9 +212,6 @@ struct ttm_mem_type_manager {
 	bool use_type;
 	uint32_t flags;
 	unsigned long gpu_offset;
-	unsigned long io_offset;
-	unsigned long io_size;
-	void *io_addr;
 	uint64_t size;
 	uint32_t available_caching;
 	uint32_t default_caching;

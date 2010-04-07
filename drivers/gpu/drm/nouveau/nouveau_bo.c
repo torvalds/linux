@@ -390,13 +390,6 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
 					 TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
-
-		man->io_addr = NULL;
-		man->io_offset = drm_get_resource_start(dev, 1);
-		man->io_size = drm_get_resource_len(dev, 1);
-		if (man->io_size > nouveau_mem_fb_amount(dev))
-			man->io_size = nouveau_mem_fb_amount(dev);
-
 		man->gpu_offset = dev_priv->vm_vram_base;
 		break;
 	case TTM_PL_TT:
@@ -417,10 +410,6 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 				 dev_priv->gart_info.type);
 			return -EINVAL;
 		}
-
-		man->io_offset  = dev_priv->gart_info.aper_base;
-		man->io_size    = dev_priv->gart_info.aper_size;
-		man->io_addr   = NULL;
 		man->gpu_offset = dev_priv->vm_gart_base;
 		break;
 	default:

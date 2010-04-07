@@ -137,9 +137,6 @@ int vmw_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
 int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		      struct ttm_mem_type_manager *man)
 {
-	struct vmw_private *dev_priv =
-	    container_of(bdev, struct vmw_private, bdev);
-
 	switch (type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
@@ -151,10 +148,7 @@ int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
 		man->gpu_offset = 0;
-		man->io_offset = dev_priv->vram_start;
-		man->io_size = dev_priv->vram_size;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED | TTM_MEMTYPE_FLAG_MAPPABLE;
-		man->io_addr = NULL;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_WC;
 		break;

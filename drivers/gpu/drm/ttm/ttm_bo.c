@@ -79,8 +79,6 @@ static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
 	printk(KERN_ERR TTM_PFX "    use_type: %d\n", man->use_type);
 	printk(KERN_ERR TTM_PFX "    flags: 0x%08X\n", man->flags);
 	printk(KERN_ERR TTM_PFX "    gpu_offset: 0x%08lX\n", man->gpu_offset);
-	printk(KERN_ERR TTM_PFX "    io_offset: 0x%08lX\n", man->io_offset);
-	printk(KERN_ERR TTM_PFX "    io_size: %ld\n", man->io_size);
 	printk(KERN_ERR TTM_PFX "    size: %llu\n", man->size);
 	printk(KERN_ERR TTM_PFX "    available_caching: 0x%08X\n",
 		man->available_caching);
@@ -1561,26 +1559,6 @@ bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 			return false;
 	}
 	return true;
-}
-
-int ttm_bo_pci_offset(struct ttm_bo_device *bdev,
-		      struct ttm_mem_reg *mem,
-		      unsigned long *bus_base,
-		      unsigned long *bus_offset, unsigned long *bus_size)
-{
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
-
-	*bus_size = 0;
-	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
-		return -EINVAL;
-
-	if (ttm_mem_reg_is_pci(bdev, mem)) {
-		*bus_offset = mem->mm_node->start << PAGE_SHIFT;
-		*bus_size = mem->num_pages << PAGE_SHIFT;
-		*bus_base = man->io_offset + (uintptr_t)man->io_addr;
-	}
-
-	return 0;
 }
 
 void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)

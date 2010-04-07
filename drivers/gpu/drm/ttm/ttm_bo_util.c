@@ -83,24 +83,13 @@ EXPORT_SYMBOL(ttm_bo_move_ttm);
 
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	int ret;
 
-	if (bdev->driver->io_mem_reserve) {
-		if (!mem->bus.io_reserved) {
-			mem->bus.io_reserved = true;
-			ret = bdev->driver->io_mem_reserve(bdev, mem);
-			if (unlikely(ret != 0))
-				return ret;
-		}
-	} else {
-		ret = ttm_bo_pci_offset(bdev, mem, &mem->bus.base, &mem->bus.offset, &mem->bus.size);
+	if (!mem->bus.io_reserved) {
+		mem->bus.io_reserved = true;
+		ret = bdev->driver->io_mem_reserve(bdev, mem);
 		if (unlikely(ret != 0))
 			return ret;
-		mem->bus.addr = NULL;
-		if (!(man->flags & TTM_MEMTYPE_FLAG_NEEDS_IOREMAP))
-			mem->bus.addr = (void *)(((u8 *)man->io_addr) + mem->bus.offset);
-		mem->bus.is_iomem = (mem->bus.size > 0) ? 1 : 0;
 	}
 	return 0;
 }
@@ -149,7 +138,7 @@ void ttm_mem_reg_iounmap(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem,
 
 	man = &bdev->man[mem->mem_type];
 
-	if (virtual && (man->flags & TTM_MEMTYPE_FLAG_NEEDS_IOREMAP || mem->bus.addr == NULL))
+	if (virtual && mem->bus.addr == NULL)
 		iounmap(virtual);
 	ttm_mem_io_free(bdev, mem);
 }

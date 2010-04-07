@@ -161,21 +161,13 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 					  (unsigned)type);
 				return -EINVAL;
 			}
-			man->io_offset = rdev->mc.agp_base;
-			man->io_size = rdev->mc.gtt_size;
-			man->io_addr = NULL;
 			if (!rdev->ddev->agp->cant_use_aperture)
 				man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
 			man->available_caching = TTM_PL_FLAG_UNCACHED |
 						 TTM_PL_FLAG_WC;
 			man->default_caching = TTM_PL_FLAG_WC;
-		} else
-#endif
-		{
-			man->io_offset = 0;
-			man->io_size = 0;
-			man->io_addr = NULL;
 		}
+#endif
 		break;
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
@@ -184,9 +176,6 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
-		man->io_addr = NULL;
-		man->io_offset = rdev->mc.aper_base;
-		man->io_size = rdev->mc.aper_size;
 		break;
 	default:
 		DRM_ERROR("Unsupported memory type %u\n", (unsigned)type);
