@@ -267,12 +267,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@orig the original mount data copied from userspace.
  *	@copy copied data which will be passed to the security module.
  *	Returns 0 if the copy was successful.
- * @sb_check_sb:
- *	Check permission before the device with superblock @mnt->sb is mounted
- *	on the mount point named by @nd.
- *	@mnt contains the vfsmount for device being mounted.
- *	@path contains the path for the mount point.
- *	Return 0 if permission is granted.
  * @sb_umount:
  *	Check permission before the @mnt file system is unmounted.
  *	@mnt contains the mounted file system.
@@ -1484,7 +1478,6 @@ struct security_operations {
 	int (*sb_statfs) (struct dentry *dentry);
 	int (*sb_mount) (char *dev_name, struct path *path,
 			 char *type, unsigned long flags, void *data);
-	int (*sb_check_sb) (struct vfsmount *mnt, struct path *path);
 	int (*sb_umount) (struct vfsmount *mnt, int flags);
 	void (*sb_umount_close) (struct vfsmount *mnt);
 	void (*sb_umount_busy) (struct vfsmount *mnt);
@@ -1783,7 +1776,6 @@ int security_sb_show_options(struct seq_file *m, struct super_block *sb);
 int security_sb_statfs(struct dentry *dentry);
 int security_sb_mount(char *dev_name, struct path *path,
 		      char *type, unsigned long flags, void *data);
-int security_sb_check_sb(struct vfsmount *mnt, struct path *path);
 int security_sb_umount(struct vfsmount *mnt, int flags);
 void security_sb_umount_close(struct vfsmount *mnt);
 void security_sb_umount_busy(struct vfsmount *mnt);
@@ -2095,12 +2087,6 @@ static inline int security_sb_statfs(struct dentry *dentry)
 static inline int security_sb_mount(char *dev_name, struct path *path,
 				    char *type, unsigned long flags,
 				    void *data)
-{
-	return 0;
-}
-
-static inline int security_sb_check_sb(struct vfsmount *mnt,
-				       struct path *path)
 {
 	return 0;
 }

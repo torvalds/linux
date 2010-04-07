@@ -80,11 +80,6 @@ static int cap_sb_mount(char *dev_name, struct path *path, char *type,
 	return 0;
 }
 
-static int cap_sb_check_sb(struct vfsmount *mnt, struct path *path)
-{
-	return 0;
-}
-
 static int cap_sb_umount(struct vfsmount *mnt, int flags)
 {
 	return 0;
@@ -941,7 +936,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, sb_show_options);
 	set_to_cap_if_null(ops, sb_statfs);
 	set_to_cap_if_null(ops, sb_mount);
-	set_to_cap_if_null(ops, sb_check_sb);
 	set_to_cap_if_null(ops, sb_umount);
 	set_to_cap_if_null(ops, sb_umount_close);
 	set_to_cap_if_null(ops, sb_umount_busy);

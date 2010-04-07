@@ -1435,11 +1435,6 @@ static int graft_tree(struct vfsmount *mnt, struct path *path)
 	if (IS_DEADDIR(path->dentry->d_inode))
 		goto out_unlock;
 
-	err = security_sb_check_sb(mnt, path);
-	if (err)
-		goto out_unlock;
-
-	err = -ENOENT;
 	if (!d_unlinked(path->dentry))
 		err = attach_recursive_mnt(mnt, path, NULL);
 out_unlock:

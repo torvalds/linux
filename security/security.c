@@ -306,11 +306,6 @@ int security_sb_mount(char *dev_name, struct path *path,
 	return security_ops->sb_mount(dev_name, path, type, flags, data);
 }
 
-int security_sb_check_sb(struct vfsmount *mnt, struct path *path)
-{
-	return security_ops->sb_check_sb(mnt, path);
-}
-
 int security_sb_umount(struct vfsmount *mnt, int flags)
 {
 	return security_ops->sb_umount(mnt, flags);
