@@ -1621,6 +1621,11 @@ static struct hda_verb alc888_acer_aspire_4930g_verbs[] = {
  */
 
 static struct hda_verb alc888_acer_aspire_6530g_verbs[] = {
+/* Route to built-in subwoofer as well as speakers */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 /* Bias voltage on for external mic port */
 	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN | PIN_VREF80},
 /* Front Mic: set to PIN_IN (empty by default) */
@@ -1632,10 +1637,12 @@ static struct hda_verb alc888_acer_aspire_6530g_verbs[] = {
 /* Enable speaker output */
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
 /* Enable headphone output */
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT | PIN_HP},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
 	{ }
 };
 
@@ -4981,6 +4988,70 @@ static void set_capture_mixer(struct hda_codec *codec)
 				fixup_single_adc(codec);
 		}
 		spec->cap_mixer = caps[mux][spec->num_adc_nids - 1];
+	}
+}
+
+/* fill adc_nids (and capsrc_nids) containing all active input pins */
+static void fillup_priv_adc_nids(struct hda_codec *codec, hda_nid_t *nids,
+				 int num_nids)
+{
+	struct alc_spec *spec = codec->spec;
+	int n;
+	hda_nid_t fallback_adc = 0, fallback_cap = 0;
+
+	for (n = 0; n < num_nids; n++) {
+		hda_nid_t adc, cap;
+		hda_nid_t conn[HDA_MAX_NUM_INPUTS];
+		int nconns, i, j;
+
+		adc = nids[n];
+		if (get_wcaps_type(get_wcaps(codec, adc)) != AC_WID_AUD_IN)
+			continue;
+		cap = adc;
+		nconns = snd_hda_get_connections(codec, cap, conn,
+						 ARRAY_SIZE(conn));
+		if (nconns == 1) {
+			cap = conn[0];
+			nconns = snd_hda_get_connections(codec, cap, conn,
+							 ARRAY_SIZE(conn));
+		}
+		if (nconns <= 0)
+			continue;
+		if (!fallback_adc) {
+			fallback_adc = adc;
+			fallback_cap = cap;
+		}
+		for (i = 0; i < AUTO_PIN_LAST; i++) {
+			hda_nid_t nid = spec->autocfg.input_pins[i];
+			if (!nid)
+				continue;
+			for (j = 0; j < nconns; j++) {
+				if (conn[j] == nid)
+					break;
+			}
+			if (j >= nconns)
+				break;
+		}
+		if (i >= AUTO_PIN_LAST) {
+			int num_adcs = spec->num_adc_nids;
+			spec->private_adc_nids[num_adcs] = adc;
+			spec->private_capsrc_nids[num_adcs] = cap;
+			spec->num_adc_nids++;
+			spec->adc_nids = spec->private_adc_nids;
+			if (adc != cap)
+				spec->capsrc_nids = spec->private_capsrc_nids;
+		}
+	}
+	if (!spec->num_adc_nids) {
+		printk(KERN_WARNING "hda_codec: %s: no valid ADC found;"
+		       " using fallback 0x%x\n",
+		       codec->chip_name, fallback_adc);
+		spec->private_adc_nids[0] = fallback_adc;
+		spec->adc_nids = spec->private_adc_nids;
+		if (fallback_adc != fallback_cap) {
+			spec->private_capsrc_nids[0] = fallback_cap;
+			spec->capsrc_nids = spec->private_adc_nids;
+		}
 	}
 }
 
@@ -8398,9 +8469,7 @@ static struct snd_kcontrol_new alc883_acer_aspire_mixer[] = {
 
 static struct snd_kcontrol_new alc888_acer_aspire_6530_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("LFE Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("LFE Playback Switch", 0x0f, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
@@ -10041,13 +10110,12 @@ static void alc882_auto_set_output_and_unmute(struct hda_codec *codec,
 	int idx;
 
 	alc_set_pin_output(codec, nid, pin_type);
+	if (dac_idx >= spec->multiout.num_dacs)
+		return;
 	if (spec->multiout.dac_nids[dac_idx] == 0x25)
 		idx = 4;
-	else {
-		if (spec->multiout.num_dacs >= dac_idx)
-			return;
+	else
 		idx = spec->multiout.dac_nids[dac_idx] - 2;
-	}
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, idx);
 
 }
@@ -12459,11 +12527,11 @@ static void alc268_aspire_one_speaker_automute(struct hda_codec *codec)
 	unsigned char bits;
 
 	present = snd_hda_jack_detect(codec, 0x15);
-	bits = present ? AMP_IN_MUTE(0) : 0;
+	bits = present ? HDA_AMP_MUTE : 0;
 	snd_hda_codec_amp_stereo(codec, 0x0f, HDA_INPUT, 0,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0f, HDA_INPUT, 1,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc268_acer_lc_unsol_event(struct hda_codec *codec,
@@ -13333,9 +13401,9 @@ static hda_nid_t alc269vb_capsrc_nids[1] = {
 	0x22,
 };
 
-/* NOTE: ADC2 (0x07) is connected from a recording *MIXER* (0x24),
- *       not a mux!
- */
+static hda_nid_t alc269_adc_candidates[] = {
+	0x08, 0x09, 0x07,
+};
 
 #define alc269_modes		alc260_modes
 #define alc269_capture_source	alc880_lg_lw_capture_source
@@ -13482,11 +13550,11 @@ static void alc269_quanta_fl1_speaker_automute(struct hda_codec *codec)
 	unsigned char bits;
 
 	present = snd_hda_jack_detect(codec, 0x15);
-	bits = present ? AMP_IN_MUTE(0) : 0;
+	bits = present ? HDA_AMP_MUTE : 0;
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 0,
-			AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 1,
-			AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 
 	snd_hda_codec_write(codec, 0x20, 0,
 			AC_VERB_SET_COEF_INDEX, 0x0c);
@@ -13511,11 +13579,11 @@ static void alc269_lifebook_speaker_automute(struct hda_codec *codec)
 	/* Check port replicator headphone socket */
 	present |= snd_hda_jack_detect(codec, 0x1a);
 
-	bits = present ? AMP_IN_MUTE(0) : 0;
+	bits = present ? HDA_AMP_MUTE : 0;
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 0,
-			AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 1,
-			AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 
 	snd_hda_codec_write(codec, 0x20, 0,
 			AC_VERB_SET_COEF_INDEX, 0x0c);
@@ -13646,11 +13714,11 @@ static void alc269_speaker_automute(struct hda_codec *codec)
 	unsigned char bits;
 
 	present = snd_hda_jack_detect(codec, nid);
-	bits = present ? AMP_IN_MUTE(0) : 0;
+	bits = present ? HDA_AMP_MUTE : 0;
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 0,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 1,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 }
 
 /* unsolicited event for HP jack sensing */
@@ -13842,7 +13910,6 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int err;
 	static hda_nid_t alc269_ignore[] = { 0x1d, 0 };
-	hda_nid_t real_capsrc_nids;
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 					   alc269_ignore);
@@ -13866,18 +13933,19 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 
 	if ((alc_read_coef_idx(codec, 0) & 0x00f0) == 0x0010) {
 		add_verb(spec, alc269vb_init_verbs);
-		real_capsrc_nids = alc269vb_capsrc_nids[0];
 		alc_ssid_check(codec, 0, 0x1b, 0x14, 0x21);
 	} else {
 		add_verb(spec, alc269_init_verbs);
-		real_capsrc_nids = alc269_capsrc_nids[0];
 		alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 	}
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
+	fillup_priv_adc_nids(codec, alc269_adc_candidates,
+			     sizeof(alc269_adc_candidates));
+
 	/* set default input source */
-	snd_hda_codec_write_cache(codec, real_capsrc_nids,
+	snd_hda_codec_write_cache(codec, spec->capsrc_nids[0],
 				  0, AC_VERB_SET_CONNECT_SEL,
 				  spec->input_mux->items[0].index);
 
@@ -14156,14 +14224,16 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc269_pcm_digital_playback;
 	spec->stream_digital_capture = &alc269_pcm_digital_capture;
 
-	if (!is_alc269vb) {
-		spec->adc_nids = alc269_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
-		spec->capsrc_nids = alc269_capsrc_nids;
-	} else {
-		spec->adc_nids = alc269vb_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(alc269vb_adc_nids);
-		spec->capsrc_nids = alc269vb_capsrc_nids;
+	if (!spec->adc_nids) { /* wasn't filled automatically? use default */
+		if (!is_alc269vb) {
+			spec->adc_nids = alc269_adc_nids;
+			spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
+			spec->capsrc_nids = alc269_capsrc_nids;
+		} else {
+			spec->adc_nids = alc269vb_adc_nids;
+			spec->num_adc_nids = ARRAY_SIZE(alc269vb_adc_nids);
+			spec->capsrc_nids = alc269vb_capsrc_nids;
+		}
 	}
 
 	if (!spec->cap_mixer)
@@ -17115,9 +17185,9 @@ static void alc663_m51va_speaker_automute(struct hda_codec *codec)
 	present = snd_hda_jack_detect(codec, 0x21);
 	bits = present ? HDA_AMP_MUTE : 0;
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 0,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 1,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc663_21jd_two_speaker_automute(struct hda_codec *codec)
@@ -17128,13 +17198,13 @@ static void alc663_21jd_two_speaker_automute(struct hda_codec *codec)
 	present = snd_hda_jack_detect(codec, 0x21);
 	bits = present ? HDA_AMP_MUTE : 0;
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 0,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 1,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0e, HDA_INPUT, 0,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0e, HDA_INPUT, 1,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc663_15jd_two_speaker_automute(struct hda_codec *codec)
@@ -17145,13 +17215,13 @@ static void alc663_15jd_two_speaker_automute(struct hda_codec *codec)
 	present = snd_hda_jack_detect(codec, 0x15);
 	bits = present ? HDA_AMP_MUTE : 0;
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 0,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 1,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0e, HDA_INPUT, 0,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 	snd_hda_codec_amp_stereo(codec, 0x0e, HDA_INPUT, 1,
-				AMP_IN_MUTE(0), bits);
+				 HDA_AMP_MUTE, bits);
 }
 
 static void alc662_f5z_speaker_automute(struct hda_codec *codec)
@@ -17190,14 +17260,14 @@ static void alc663_two_hp_m2_speaker_automute(struct hda_codec *codec)
 
 	if (present1 || present2) {
 		snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 0,
-				AMP_IN_MUTE(0), AMP_IN_MUTE(0));
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
 		snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 1,
-				AMP_IN_MUTE(0), AMP_IN_MUTE(0));
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
 	} else {
 		snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 0,
-				AMP_IN_MUTE(0), 0);
+					 HDA_AMP_MUTE, 0);
 		snd_hda_codec_amp_stereo(codec, 0x0c, HDA_INPUT, 1,
-				AMP_IN_MUTE(0), 0);
+					 HDA_AMP_MUTE, 0);
 	}
 }
 
