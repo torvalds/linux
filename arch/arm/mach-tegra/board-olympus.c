@@ -24,6 +24,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/fsl_devices.h>
 #include <linux/pda_power.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,6 +40,7 @@
 
 #include "board.h"
 #include "board-olympus.h"
+#include "gpio-names.h"
 
 /* NVidia bootloader tags */
 #define ATAG_NVIDIA		0x41000801
@@ -84,6 +86,25 @@ static struct platform_device debug_uart = {
 	.id = PLAT8250_DEV_PLATFORM,
 	.dev = {
 		.platform_data = debug_uart_platform_data,
+	},
+};
+
+static struct plat_serial8250_port hsuart_platform_data[] = {
+	{
+		.mapbase	= TEGRA_UARTD_BASE,
+		.membase	= IO_ADDRESS(TEGRA_UARTD_BASE),
+		.irq		= INT_UARTD,
+	}, {
+		.flags		= 0
+	}
+};
+
+static struct platform_device hsuart = {
+	.name = "tegra_uart",
+	.id = 3,
+	.dev = {
+		.platform_data = hsuart_platform_data,
+		.coherent_dma_mask = 0xffffffff,
 	},
 };
 
@@ -176,6 +197,7 @@ static struct platform_device *olympus_devices[] __initdata = {
 	&tegra_otg,
 	&androidusb_device,
 	&pda_power_device,
+	&hsuart,
 };
 
 static void __init tegra_olympus_fixup(struct machine_desc *desc, struct tag *tags,
@@ -196,16 +218,20 @@ static void __init tegra_olympus_init(void)
 
 	tegra_common_init();
 
+	/* Olympus has a USB switch that disconnects the usb port from the AP20
+	   unless a factory cable is used, the factory jumper is set, or the
+	   usb_data_en gpio is set.
+	 */
+	tegra_gpio_enable(TEGRA_GPIO_PV6);
+	gpio_request(TEGRA_GPIO_PV6, "usb_data_en");
+	gpio_direction_output(TEGRA_GPIO_PV6, 1);
+
 	clk = clk_get_sys(NULL, "pll_p");
 	clk_set_rate(clk, 216000000);
 	clk_enable(clk);
 
 	clk = clk_get_sys(NULL, "pll_p_out3");
 	clk_set_rate(clk, 72000000);
-	clk_enable(clk);
-
-	clk = clk_get_sys("uart.3", NULL);
-	clk_set_rate(clk, 216000000);
 	clk_enable(clk);
 
 	olympus_pinmux_init();
