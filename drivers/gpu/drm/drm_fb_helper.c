@@ -596,36 +596,6 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_setcmap);
 
-int drm_fb_helper_setcolreg(unsigned regno,
-			    unsigned red,
-			    unsigned green,
-			    unsigned blue,
-			    unsigned transp,
-			    struct fb_info *info)
-{
-	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_crtc *crtc;
-	struct drm_crtc_helper_funcs *crtc_funcs;
-	int i;
-	int ret;
-
-	if (regno > 255)
-		return 1;
-
-	for (i = 0; i < fb_helper->crtc_count; i++) {
-		crtc = fb_helper->crtc_info[i].mode_set.crtc;
-		crtc_funcs = crtc->helper_private;
-
-		ret = setcolreg(crtc, red, green, blue, regno, info);
-		if (ret)
-			return ret;
-
-		crtc_funcs->load_lut(crtc);
-	}
-	return 0;
-}
-EXPORT_SYMBOL(drm_fb_helper_setcolreg);
-
 int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info)
 {
