@@ -19,6 +19,7 @@
 #include <net/route.h>
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
+#include <net/flow.h>
 
 #include <linux/interrupt.h>
 
@@ -481,6 +482,7 @@ struct xfrm_policy {
 	atomic_t		refcnt;
 	struct timer_list	timer;
 
+	struct flow_cache_object flo;
 	u32			priority;
 	u32			index;
 	struct xfrm_mark	mark;

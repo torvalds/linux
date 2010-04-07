@@ -26,17 +26,16 @@
 #include <linux/security.h>
 
 struct flow_cache_entry {
-	struct flow_cache_entry	*next;
-	u16			family;
-	u8			dir;
-	u32			genid;
-	struct flowi		key;
-	void			*object;
-	atomic_t		*object_ref;
+	struct flow_cache_entry		*next;
+	u16				family;
+	u8				dir;
+	u32				genid;
+	struct flowi			key;
+	struct flow_cache_object	*object;
 };
 
 struct flow_cache_percpu {
-	struct flow_cache_entry **	hash_table;
+	struct flow_cache_entry		**hash_table;
 	int				hash_count;
 	u32				hash_rnd;
 	int				hash_rnd_recalc;
@@ -44,7 +43,7 @@ struct flow_cache_percpu {
 };
 
 struct flow_flush_info {
-	struct flow_cache *		cache;
+	struct flow_cache		*cache;
 	atomic_t			cpuleft;
 	struct completion		completion;
 };
@@ -52,7 +51,7 @@ struct flow_flush_info {
 struct flow_cache {
 	u32				hash_shift;
 	unsigned long			order;
-	struct flow_cache_percpu *	percpu;
+	struct flow_cache_percpu	*percpu;
 	struct notifier_block		hotcpu_notifier;
 	int				low_watermark;
 	int				high_watermark;
@@ -78,12 +77,21 @@ static void flow_cache_new_hashrnd(unsigned long arg)
 	add_timer(&fc->rnd_timer);
 }
 
+static int flow_entry_valid(struct flow_cache_entry *fle)
+{
+	if (atomic_read(&flow_cache_genid) != fle->genid)
+		return 0;
+	if (fle->object && !fle->object->ops->check(fle->object))
+		return 0;
+	return 1;
+}
+
 static void flow_entry_kill(struct flow_cache *fc,
 			    struct flow_cache_percpu *fcp,
 			    struct flow_cache_entry *fle)
 {
 	if (fle->object)
-		atomic_dec(fle->object_ref);
+		fle->object->ops->delete(fle->object);
 	kmem_cache_free(flow_cachep, fle);
 	fcp->hash_count--;
 }
@@ -96,16 +104,18 @@ static void __flow_cache_shrink(struct flow_cache *fc,
 	int i;
 
 	for (i = 0; i < flow_cache_hash_size(fc); i++) {
-		int k = 0;
+		int saved = 0;
 
 		flp = &fcp->hash_table[i];
-		while ((fle = *flp) != NULL && k < shrink_to) {
-			k++;
-			flp = &fle->next;
-		}
 		while ((fle = *flp) != NULL) {
-			*flp = fle->next;
-			flow_entry_kill(fc, fcp, fle);
+			if (saved < shrink_to &&
+			    flow_entry_valid(fle)) {
+				saved++;
+				flp = &fle->next;
+			} else {
+				*flp = fle->next;
+				flow_entry_kill(fc, fcp, fle);
+			}
 		}
 	}
 }
@@ -166,18 +176,21 @@ static int flow_key_compare(struct flowi *key1, struct flowi *key2)
 	return 0;
 }
 
-void *flow_cache_lookup(struct net *net, struct flowi *key, u16 family, u8 dir,
-			flow_resolve_t resolver)
+struct flow_cache_object *
+flow_cache_lookup(struct net *net, struct flowi *key, u16 family, u8 dir,
+		  flow_resolve_t resolver, void *ctx)
 {
 	struct flow_cache *fc = &flow_cache_global;
 	struct flow_cache_percpu *fcp;
 	struct flow_cache_entry *fle, **head;
+	struct flow_cache_object *flo;
 	unsigned int hash;
 
 	local_bh_disable();
 	fcp = per_cpu_ptr(fc->percpu, smp_processor_id());
 
 	fle = NULL;
+	flo = NULL;
 	/* Packet really early in init?  Making flow_cache_init a
 	 * pre-smp initcall would solve this.  --RR */
 	if (!fcp->hash_table)
@@ -185,27 +198,17 @@ void *flow_cache_lookup(struct net *net, struct flowi *key, u16 family, u8 dir,
 
 	if (fcp->hash_rnd_recalc)
 		flow_new_hash_rnd(fc, fcp);
-	hash = flow_hash_code(fc, fcp, key);
 
+	hash = flow_hash_code(fc, fcp, key);
 	head = &fcp->hash_table[hash];
 	for (fle = *head; fle; fle = fle->next) {
 		if (fle->family == family &&
 		    fle->dir == dir &&
-		    flow_key_compare(key, &fle->key) == 0) {
-			if (fle->genid == atomic_read(&flow_cache_genid)) {
-				void *ret = fle->object;
-
-				if (ret)
-					atomic_inc(fle->object_ref);
-				local_bh_enable();
-
-				return ret;
-			}
+		    flow_key_compare(key, &fle->key) == 0)
 			break;
-		}
 	}
 
-	if (!fle) {
+	if (unlikely(!fle)) {
 		if (fcp->hash_count > fc->high_watermark)
 			flow_cache_shrink(fc, fcp);
 
@@ -219,33 +222,39 @@ void *flow_cache_lookup(struct net *net, struct flowi *key, u16 family, u8 dir,
 			fle->object = NULL;
 			fcp->hash_count++;
 		}
+	} else if (likely(fle->genid == atomic_read(&flow_cache_genid))) {
+		flo = fle->object;
+		if (!flo)
+			goto ret_object;
+		flo = flo->ops->get(flo);
+		if (flo)
+			goto ret_object;
+	} else if (fle->object) {
+	        flo = fle->object;
+	        flo->ops->delete(flo);
+	        fle->object = NULL;
 	}
 
 nocache:
-	{
-		int err;
-		void *obj;
-		atomic_t *obj_ref;
-
-		err = resolver(net, key, family, dir, &obj, &obj_ref);
-
-		if (fle && !err) {
-			fle->genid = atomic_read(&flow_cache_genid);
-
-			if (fle->object)
-				atomic_dec(fle->object_ref);
-
-			fle->object = obj;
-			fle->object_ref = obj_ref;
-			if (obj)
-				atomic_inc(fle->object_ref);
-		}
-		local_bh_enable();
-
-		if (err)
-			obj = ERR_PTR(err);
-		return obj;
+	flo = NULL;
+	if (fle) {
+		flo = fle->object;
+		fle->object = NULL;
 	}
+	flo = resolver(net, key, family, dir, flo, ctx);
+	if (fle) {
+		fle->genid = atomic_read(&flow_cache_genid);
+		if (!IS_ERR(flo))
+			fle->object = flo;
+		else
+			fle->genid--;
+	} else {
+		if (flo && !IS_ERR(flo))
+			flo->ops->delete(flo);
+	}
+ret_object:
+	local_bh_enable();
+	return flo;
 }
 
 static void flow_cache_flush_tasklet(unsigned long data)
@@ -261,13 +270,12 @@ static void flow_cache_flush_tasklet(unsigned long data)
 
 		fle = fcp->hash_table[i];
 		for (; fle; fle = fle->next) {
-			unsigned genid = atomic_read(&flow_cache_genid);
-
-			if (!fle->object || fle->genid == genid)
+			if (flow_entry_valid(fle))
 				continue;
 
+			if (fle->object)
+				fle->object->ops->delete(fle->object);
 			fle->object = NULL;
-			atomic_dec(fle->object_ref);
 		}
 	}
 
