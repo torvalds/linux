@@ -49,6 +49,7 @@ struct dcb_gpio_entry {
 	enum dcb_gpio_tag tag;
 	int line;
 	bool invert;
+	uint32_t entry;
 };
 
 struct dcb_gpio_table {

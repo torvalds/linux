@@ -2573,48 +2573,38 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 * each GPIO according to various values listed in each entry
 	 */
 
+	struct drm_nouveau_private *dev_priv = bios->dev->dev_private;
 	const uint32_t nv50_gpio_reg[4] = { 0xe104, 0xe108, 0xe280, 0xe284 };
 	const uint32_t nv50_gpio_ctl[2] = { 0xe100, 0xe28c };
-	const uint8_t *gpio_table = &bios->data[bios->dcb.gpio_table_ptr];
-	const uint8_t *gpio_entry;
 	int i;
+
+	if (dev_priv->card_type != NV_50) {
+		NV_ERROR(bios->dev, "INIT_GPIO on unsupported chipset\n");
+		return -ENODEV;
+	}
 
 	if (!iexec->execute)
 		return 1;
 
-	if (bios->dcb.version != 0x40) {
-		NV_ERROR(bios->dev, "DCB table not version 4.0\n");
-		return 0;
-	}
+	for (i = 0; i < bios->dcb.gpio.entries; i++) {
+		struct dcb_gpio_entry *gpio = &bios->dcb.gpio.entry[i];
+		uint32_t r, s, v;
 
-	if (!bios->dcb.gpio_table_ptr) {
-		NV_WARN(bios->dev, "Invalid pointer to INIT_8E table\n");
-		return 0;
-	}
+		BIOSLOG(bios, "0x%04X: Entry: 0x%08X\n", offset, gpio->entry);
 
-	gpio_entry = gpio_table + gpio_table[1];
-	for (i = 0; i < gpio_table[2]; i++, gpio_entry += gpio_table[3]) {
-		uint32_t entry = ROM32(gpio_entry[0]), r, s, v;
-		int line = (entry & 0x0000001f);
-
-		BIOSLOG(bios, "0x%04X: Entry: 0x%08X\n", offset, entry);
-
-		if ((entry & 0x0000ff00) == 0x0000ff00)
-			continue;
-
-		r = nv50_gpio_reg[line >> 3];
-		s = (line & 0x07) << 2;
+		r = nv50_gpio_reg[gpio->line >> 3];
+		s = (gpio->line & 0x07) << 2;
 		v = bios_rd32(bios, r) & ~(0x00000003 << s);
-		if (entry & 0x01000000)
-			v |= (((entry & 0x60000000) >> 29) ^ 2) << s;
+		if (gpio->entry & 0x01000000)
+			v |= (((gpio->entry & 0x60000000) >> 29) ^ 2) << s;
 		else
-			v |= (((entry & 0x18000000) >> 27) ^ 2) << s;
+			v |= (((gpio->entry & 0x18000000) >> 27) ^ 2) << s;
 		bios_wr32(bios, r, v);
 
-		r = nv50_gpio_ctl[line >> 4];
-		s = (line & 0x0f);
+		r = nv50_gpio_ctl[gpio->line >> 4];
+		s = (gpio->line & 0x0f);
 		v = bios_rd32(bios, r) & ~(0x00010001 << s);
-		switch ((entry & 0x06000000) >> 25) {
+		switch ((gpio->entry & 0x06000000) >> 25) {
 		case 1:
 			v |= (0x00000001 << s);
 			break;
@@ -5082,6 +5072,7 @@ parse_dcb30_gpio_entry(struct nvbios *bios, uint16_t offset)
 	gpio->tag = tag;
 	gpio->line = line;
 	gpio->invert = flags != 4;
+	gpio->entry = ent;
 }
 
 static void
@@ -5101,6 +5092,7 @@ parse_dcb40_gpio_entry(struct nvbios *bios, uint16_t offset)
 	 * point. */
 	gpio->tag = tag;
 	gpio->line = line;
+	gpio->entry = ent;
 }
 
 static void
