@@ -15,6 +15,7 @@
 #include <linux/bitops.h>
 #include <asm/system.h>
 #include <asm/pgalloc.h>
+#include <asm/uaccess.h> /* for USER_DS macros */
 #include <asm/cacheflush.h>
 
 void show_regs(struct pt_regs *regs)
@@ -74,7 +75,10 @@ __setup("hlt", hlt_setup);
 
 void default_idle(void)
 {
-	if (!hlt_counter) {
+	if (likely(hlt_counter)) {
+		while (!need_resched())
+			cpu_relax();
+	} else {
 		clear_thread_flag(TIF_POLLING_NRFLAG);
 		smp_mb__after_clear_bit();
 		local_irq_disable();
@@ -82,9 +86,7 @@ void default_idle(void)
 			cpu_sleep();
 		local_irq_enable();
 		set_thread_flag(TIF_POLLING_NRFLAG);
-	} else
-		while (!need_resched())
-			cpu_relax();
+	}
 }
 
 void cpu_idle(void)

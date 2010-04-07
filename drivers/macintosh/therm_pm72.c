@@ -114,7 +114,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>

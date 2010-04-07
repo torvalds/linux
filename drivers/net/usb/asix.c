@@ -34,6 +34,7 @@
 #include <linux/usb.h>
 #include <linux/crc32.h>
 #include <linux/usb/usbnet.h>
+#include <linux/slab.h>
 
 #define DRIVER_VERSION "14-Jun-2006"
 static const char driver_name [] = "asix";

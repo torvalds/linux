@@ -36,6 +36,7 @@
 #define MODULE_NAME "sq905"
 
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 #include "gspca.h"
 
 MODULE_AUTHOR("Adam Baker <linux@baker-net.org.uk>, "

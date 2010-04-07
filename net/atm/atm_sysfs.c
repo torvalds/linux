@@ -1,6 +1,7 @@
 /* ATM driver model support. */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/kobject.h>
 #include <linux/atmdev.h>

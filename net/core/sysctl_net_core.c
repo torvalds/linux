@@ -12,6 +12,7 @@
 #include <linux/netdevice.h>
 #include <linux/ratelimit.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 
 #include <net/ip.h>
 #include <net/sock.h>

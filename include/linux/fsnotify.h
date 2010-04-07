@@ -15,6 +15,7 @@
 #include <linux/inotify.h>
 #include <linux/fsnotify_backend.h>
 #include <linux/audit.h>
+#include <linux/slab.h>
 
 /*
  * fsnotify_d_instantiate - instantiate a dentry for inode

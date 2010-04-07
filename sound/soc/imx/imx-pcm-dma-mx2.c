@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>

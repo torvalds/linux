@@ -15,6 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>

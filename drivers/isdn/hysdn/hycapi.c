@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 
 #define	VER_DRIVER	0
 #define	VER_CARDTYPE	1

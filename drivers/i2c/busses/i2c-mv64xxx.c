@@ -10,6 +10,7 @@
  * or implied.
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/i2c.h>

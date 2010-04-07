@@ -21,6 +21,7 @@
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>

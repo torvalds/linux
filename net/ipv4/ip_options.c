@@ -11,6 +11,7 @@
 
 #include <linux/capability.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <asm/uaccess.h>
 #include <linux/skbuff.h>

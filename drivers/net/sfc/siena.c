@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"

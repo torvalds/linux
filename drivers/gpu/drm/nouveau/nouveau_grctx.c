@@ -23,6 +23,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/slab.h>
 
 #include "drmP.h"
 #include "nouveau_drv.h"

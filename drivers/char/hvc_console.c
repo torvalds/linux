@@ -38,6 +38,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 

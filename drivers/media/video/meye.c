@@ -31,6 +31,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/videodev.h>
+#include <linux/gfp.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <asm/uaccess.h>

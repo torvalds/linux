@@ -439,8 +439,23 @@ static int device_resume_noirq(struct device *dev, pm_message_t state)
 	if (dev->bus && dev->bus->pm) {
 		pm_dev_dbg(dev, state, "EARLY ");
 		error = pm_noirq_op(dev, dev->bus->pm, state);
+		if (error)
+			goto End;
 	}
 
+	if (dev->type && dev->type->pm) {
+		pm_dev_dbg(dev, state, "EARLY type ");
+		error = pm_noirq_op(dev, dev->type->pm, state);
+		if (error)
+			goto End;
+	}
+
+	if (dev->class && dev->class->pm) {
+		pm_dev_dbg(dev, state, "EARLY class ");
+		error = pm_noirq_op(dev, dev->class->pm, state);
+	}
+
+End:
 	TRACE_RESUME(error);
 	return error;
 }
@@ -735,10 +750,26 @@ static int device_suspend_noirq(struct device *dev, pm_message_t state)
 {
 	int error = 0;
 
+	if (dev->class && dev->class->pm) {
+		pm_dev_dbg(dev, state, "LATE class ");
+		error = pm_noirq_op(dev, dev->class->pm, state);
+		if (error)
+			goto End;
+	}
+
+	if (dev->type && dev->type->pm) {
+		pm_dev_dbg(dev, state, "LATE type ");
+		error = pm_noirq_op(dev, dev->type->pm, state);
+		if (error)
+			goto End;
+	}
+
 	if (dev->bus && dev->bus->pm) {
 		pm_dev_dbg(dev, state, "LATE ");
 		error = pm_noirq_op(dev, dev->bus->pm, state);
 	}
+
+End:
 	return error;
 }
 

@@ -86,6 +86,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>

@@ -38,6 +38,7 @@
 #include <linux/mutex.h>
 #include <linux/spi/max7301.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 /*
  * Pin configurations, see MAX7301 datasheet page 6
@@ -242,3 +243,7 @@ int __devexit __max730x_remove(struct device *dev)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__max730x_remove);
+
+MODULE_AUTHOR("Juergen Beisert, Wolfram Sang");
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("MAX730x GPIO-Expanders, generic parts");

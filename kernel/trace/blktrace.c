@@ -21,6 +21,7 @@
 #include <linux/percpu.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/smp_lock.h>
 #include <linux/time.h>

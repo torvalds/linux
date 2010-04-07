@@ -25,7 +25,6 @@
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -851,13 +850,15 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 
 			if ( !(rdes0 & 0x8000) ||
 				((db->cr6_data & CR6_PM) && (rxlen>6)) ) {
+				struct sk_buff *new_skb = NULL;
+
 				skb = rxptr->rx_skb_ptr;
 
 				/* Good packet, send to upper layer */
 				/* Shorst packet used new SKB */
-				if ( (rxlen < RX_COPY_SIZE) &&
-					( (skb = dev_alloc_skb(rxlen + 2) )
-					!= NULL) ) {
+				if ((rxlen < RX_COPY_SIZE) &&
+				    (((new_skb = dev_alloc_skb(rxlen + 2)) != NULL))) {
+					skb = new_skb;
 					/* size less than COPY_SIZE, allocate a rxlen SKB */
 					skb_reserve(skb, 2); /* 16byte align */
 					memcpy(skb_put(skb, rxlen),

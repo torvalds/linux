@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/stat.h>
 
 #include <linux/mmc/host.h>

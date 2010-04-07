@@ -50,6 +50,7 @@
 #include <linux/async.h>
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
+#include <linux/slab.h>
 #include "md.h"
 #include "raid5.h"
 #include "bitmap.h"

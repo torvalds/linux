@@ -41,6 +41,7 @@
 #include <linux/hdreg.h>
 #include <linux/version.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <asm/irq.h>
 #include <asm/processor.h>
 #include <linux/libata.h>

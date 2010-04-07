@@ -10,6 +10,7 @@
  */
 
 #include <linux/net.h>
+#include <linux/gfp.h>
 #include <linux/skbuff.h>
 #include <linux/circ_buf.h>
 #include <net/sock.h>

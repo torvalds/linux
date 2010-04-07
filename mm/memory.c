@@ -56,6 +56,7 @@
 #include <linux/kallsyms.h>
 #include <linux/swapops.h>
 #include <linux/elf.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/pgalloc.h>
@@ -130,6 +131,7 @@ void __sync_task_rss_stat(struct task_struct *task, struct mm_struct *mm)
 
 	for (i = 0; i < NR_MM_COUNTERS; i++) {
 		if (task->rss_stat.count[i]) {
+			BUG_ON(!mm);
 			add_mm_counter(mm, i, task->rss_stat.count[i]);
 			task->rss_stat.count[i] = 0;
 		}

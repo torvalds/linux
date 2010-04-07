@@ -39,6 +39,7 @@
 #include <linux/kallsyms.h>
 #include <linux/perf_event.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -880,6 +881,7 @@ int try_to_del_timer_sync(struct timer_list *timer)
 	if (base->running_timer == timer)
 		goto out;
 
+	timer_stats_timer_clear_start_info(timer);
 	ret = 0;
 	if (timer_pending(timer)) {
 		detach_timer(timer, 1);

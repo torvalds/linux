@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>

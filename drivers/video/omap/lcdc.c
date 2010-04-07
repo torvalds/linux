@@ -28,6 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 #include <linux/clk.h>
+#include <linux/gfp.h>
 
 #include <mach/lcdc.h>
 #include <plat/dma.h>

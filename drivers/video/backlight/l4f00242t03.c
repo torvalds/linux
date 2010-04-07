@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/lcd.h>
+#include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 
 #include <linux/spi/spi.h>

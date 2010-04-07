@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/io.h>
 #include <asm/div64.h>

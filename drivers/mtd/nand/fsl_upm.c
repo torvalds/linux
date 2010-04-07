@@ -21,6 +21,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <asm/fsl_lbc.h>
 
 #define FSL_UPM_WAIT_RUN_PATTERN  0x1

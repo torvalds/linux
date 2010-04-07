@@ -5,6 +5,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/writeback.h>	/* generic_writepages */
+#include <linux/slab.h>
 #include <linux/pagevec.h>
 #include <linux/task_io_accounting_ops.h>
 
@@ -919,6 +920,10 @@ static int context_is_writeable_or_written(struct inode *inode,
 /*
  * We are only allowed to write into/dirty the page if the page is
  * clean, or already dirty within the same snap context.
+ *
+ * called with page locked.
+ * return success with page locked,
+ * or any failure (incl -EAGAIN) with page unlocked.
  */
 static int ceph_update_writeable_page(struct file *file,
 			    loff_t pos, unsigned len,
@@ -961,9 +966,11 @@ retry_locked:
 			snapc = ceph_get_snap_context((void *)page->private);
 			unlock_page(page);
 			ceph_queue_writeback(inode);
-			wait_event_interruptible(ci->i_cap_wq,
+			r = wait_event_interruptible(ci->i_cap_wq,
 			       context_is_writeable_or_written(inode, snapc));
 			ceph_put_snap_context(snapc);
+			if (r == -ERESTARTSYS)
+				return r;
 			return -EAGAIN;
 		}
 
@@ -1035,7 +1042,7 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 	int r;
 
 	do {
-		/* get a page*/
+		/* get a page */
 		page = grab_cache_page_write_begin(mapping, index, 0);
 		if (!page)
 			return -ENOMEM;

@@ -10,6 +10,9 @@
  */
 
 #include "driver.h"
+
+#include <linux/slab.h>
+
 #include "dumprequest.h"
 
 

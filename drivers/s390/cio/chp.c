@@ -15,6 +15,7 @@
 #include <linux/wait.h>
 #include <linux/mutex.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <asm/chpid.h>
 #include <asm/sclp.h>
 #include <asm/crw.h>

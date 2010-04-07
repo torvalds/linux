@@ -205,6 +205,7 @@ struct intel_device_info {
 	u8 is_g4x : 1;
 	u8 is_pineview : 1;
 	u8 is_ironlake : 1;
+	u8 is_gen6 : 1;
 	u8 has_fbc : 1;
 	u8 has_rc6 : 1;
 	u8 has_pipe_cxsr : 1;
@@ -1084,6 +1085,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
 #define IS_IRONLAKE(dev)	(INTEL_INFO(dev)->is_ironlake)
 #define IS_I9XX(dev)		(INTEL_INFO(dev)->is_i9xx)
+#define IS_GEN6(dev)		(INTEL_INFO(dev)->is_gen6)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 
 #define IS_GEN3(dev)	(IS_I915G(dev) ||			\
@@ -1106,8 +1108,6 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 			 (dev)->pci_device == 0x2E42)
 
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
-
-#define IS_GEN6(dev)	((dev)->pci_device == 0x0102)
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.

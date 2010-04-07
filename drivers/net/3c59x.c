@@ -77,7 +77,6 @@ static int vortex_debug = 1;
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/mii.h>
@@ -90,6 +89,7 @@ static int vortex_debug = 1;
 #include <linux/eisa.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
+#include <linux/gfp.h>
 #include <asm/irq.h>			/* For nr_irqs only. */
 #include <asm/io.h>
 #include <asm/uaccess.h>

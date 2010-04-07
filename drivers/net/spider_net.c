@@ -31,6 +31,7 @@
 #include <linux/if_vlan.h>
 #include <linux/in.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <linux/ioport.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
@@ -40,7 +41,6 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>

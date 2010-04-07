@@ -22,13 +22,13 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/fb.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>

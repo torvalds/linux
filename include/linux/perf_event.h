@@ -842,13 +842,6 @@ extern atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
 extern void __perf_sw_event(u32, u64, int, struct pt_regs *, u64);
 
-static inline void
-perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
-{
-	if (atomic_read(&perf_swevent_enabled[event_id]))
-		__perf_sw_event(event_id, nr, nmi, regs, addr);
-}
-
 extern void
 perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int skip);
 
@@ -885,6 +878,20 @@ static inline void perf_fetch_caller_regs(struct pt_regs *regs, int skip)
 	}
 
 	return perf_arch_fetch_caller_regs(regs, ip, skip);
+}
+
+static inline void
+perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
+{
+	if (atomic_read(&perf_swevent_enabled[event_id])) {
+		struct pt_regs hot_regs;
+
+		if (!regs) {
+			perf_fetch_caller_regs(&hot_regs, 1);
+			regs = &hot_regs;
+		}
+		__perf_sw_event(event_id, nr, nmi, regs, addr);
+	}
 }
 
 extern void __perf_event_mmap(struct vm_area_struct *vma);

@@ -26,6 +26,7 @@
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/ftrace_event.h>
+#include <linux/slab.h>
 
 #include <asm/desc.h>
 

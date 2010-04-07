@@ -751,7 +751,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		 * page
 		 */
 		if (page_mapcount(page) + 1 + swapped != page_count(page)) {
-			set_pte_at_notify(mm, addr, ptep, entry);
+			set_pte_at(mm, addr, ptep, entry);
 			goto out_unlock;
 		}
 		entry = pte_wrprotect(entry);

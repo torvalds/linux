@@ -19,6 +19,7 @@
  *  bfad.c Linux driver PCI interface module.
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include "bfad_drv.h"

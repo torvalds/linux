@@ -174,14 +174,19 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	pci_read_config_dword(dev, pos, &sz);
 	pci_write_config_dword(dev, pos, l);
 
+	if (!sz)
+		goto fail;	/* BAR not implemented */
+
 	/*
 	 * All bits set in sz means the device isn't working properly.
-	 * If the BAR isn't implemented, all bits must be 0.  If it's a
-	 * memory BAR or a ROM, bit 0 must be clear; if it's an io BAR, bit
-	 * 1 must be clear.
+	 * If it's a memory BAR or a ROM, bit 0 must be clear; if it's
+	 * an io BAR, bit 1 must be clear.
 	 */
-	if (!sz || sz == 0xffffffff)
+	if (sz == 0xffffffff) {
+		dev_err(&dev->dev, "reg %x: invalid size %#x; broken device?\n",
+			pos, sz);
 		goto fail;
+	}
 
 	/*
 	 * I don't know how l can have all bits set.  Copied from old code.
@@ -244,13 +249,17 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 				   pos, res);
 		}
 	} else {
-		sz = pci_size(l, sz, mask);
+		u32 size = pci_size(l, sz, mask);
 
-		if (!sz)
+		if (!size) {
+			dev_err(&dev->dev, "reg %x: invalid size "
+			        "(l %#x sz %#x mask %#x); broken device?",
+				pos, l, sz, mask);
 			goto fail;
+		}
 
 		res->start = l;
-		res->end = l + sz;
+		res->end = l + size;
 
 		dev_printk(KERN_DEBUG, &dev->dev, "reg %x: %pR\n", pos, res);
 	}
@@ -312,7 +321,7 @@ static void __devinit pci_read_bridge_io(struct pci_bus *child)
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
 	} else {
 		dev_printk(KERN_DEBUG, &dev->dev,
-			 "  bridge window [io  %04lx - %04lx] reg reading\n",
+			 "  bridge window [io  %#06lx-%#06lx] (disabled)\n",
 				 base, limit);
 	}
 }
@@ -336,7 +345,7 @@ static void __devinit pci_read_bridge_mmio(struct pci_bus *child)
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
 	} else {
 		dev_printk(KERN_DEBUG, &dev->dev,
-			"  bridge window [mem 0x%08lx - 0x%08lx] reg reading\n",
+			"  bridge window [mem %#010lx-%#010lx] (disabled)\n",
 					 base, limit + 0xfffff);
 	}
 }
@@ -387,7 +396,7 @@ static void __devinit pci_read_bridge_mmio_pref(struct pci_bus *child)
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
 	} else {
 		dev_printk(KERN_DEBUG, &dev->dev,
-		     "  bridge window [mem 0x%08lx - %08lx pref] reg reading\n",
+		     "  bridge window [mem %#010lx-%#010lx pref] (disabled)\n",
 					 base, limit + 0xfffff);
 	}
 }
@@ -673,16 +682,20 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 	int is_cardbus = (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS);
 	u32 buses, i, j = 0;
 	u16 bctl;
+	u8 primary, secondary, subordinate;
 	int broken = 0;
 
 	pci_read_config_dword(dev, PCI_PRIMARY_BUS, &buses);
+	primary = buses & 0xFF;
+	secondary = (buses >> 8) & 0xFF;
+	subordinate = (buses >> 16) & 0xFF;
 
-	dev_dbg(&dev->dev, "scanning behind bridge, config %06x, pass %d\n",
-		buses & 0xffffff, pass);
+	dev_dbg(&dev->dev, "scanning [bus %02x-%02x] behind bridge, pass %d\n",
+		secondary, subordinate, pass);
 
 	/* Check if setup is sensible at all */
 	if (!pass &&
-	    ((buses & 0xff) != bus->number || ((buses >> 8) & 0xff) <= bus->number)) {
+	    (primary != bus->number || secondary <= bus->number)) {
 		dev_dbg(&dev->dev, "bus configuration invalid, reconfiguring\n");
 		broken = 1;
 	}
@@ -693,15 +706,15 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL,
 			      bctl & ~PCI_BRIDGE_CTL_MASTER_ABORT);
 
-	if ((buses & 0xffff00) && !pcibios_assign_all_busses() && !is_cardbus && !broken) {
-		unsigned int cmax, busnr;
+	if ((secondary || subordinate) && !pcibios_assign_all_busses() &&
+	    !is_cardbus && !broken) {
+		unsigned int cmax;
 		/*
 		 * Bus already configured by firmware, process it in the first
 		 * pass and just note the configuration.
 		 */
 		if (pass)
 			goto out;
-		busnr = (buses >> 8) & 0xFF;
 
 		/*
 		 * If we already got to this bus through a different bridge,
@@ -710,13 +723,13 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 		 * However, we continue to descend down the hierarchy and
 		 * scan remaining child buses.
 		 */
-		child = pci_find_bus(pci_domain_nr(bus), busnr);
+		child = pci_find_bus(pci_domain_nr(bus), secondary);
 		if (!child) {
-			child = pci_add_new_bus(bus, dev, busnr);
+			child = pci_add_new_bus(bus, dev, secondary);
 			if (!child)
 				goto out;
-			child->primary = buses & 0xFF;
-			child->subordinate = (buses >> 16) & 0xFF;
+			child->primary = primary;
+			child->subordinate = subordinate;
 			child->bridge_ctl = bctl;
 		}
 

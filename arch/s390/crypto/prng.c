@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <asm/debug.h>
 #include <asm/uaccess.h>
 

@@ -24,6 +24,7 @@
 #include <linux/mempool.h>
 #include <linux/bio.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 struct integrity_slab {
 	struct kmem_cache *slab;

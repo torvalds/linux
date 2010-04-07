@@ -26,10 +26,12 @@
  *          Jerome Glisse
  */
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_drm.h"
 #include "r100_track.h"
 #include "r300d.h"
@@ -164,9 +166,9 @@ void rv370_pcie_gart_disable(struct radeon_device *rdev)
 
 void rv370_pcie_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rv370_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 void r300_fence_ring_emit(struct radeon_device *rdev,
@@ -481,6 +483,7 @@ void r300_mc_init(struct radeon_device *rdev)
 	radeon_vram_location(rdev, &rdev->mc, base);
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes)
@@ -1334,6 +1337,7 @@ int r300_suspend(struct radeon_device *rdev)
 
 void r300_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);

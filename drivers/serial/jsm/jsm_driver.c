@@ -26,6 +26,7 @@
  ***********************************************************************/
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "jsm.h"
 

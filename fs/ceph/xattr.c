@@ -3,6 +3,7 @@
 #include "decode.h"
 
 #include <linux/xattr.h>
+#include <linux/slab.h>
 
 static bool ceph_is_valid_xattr(const char *name)
 {

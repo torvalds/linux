@@ -23,6 +23,7 @@
 #include <linux/freezer.h>
 #include <linux/usb/input.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 #endif
 
 #include "gspca.h"
