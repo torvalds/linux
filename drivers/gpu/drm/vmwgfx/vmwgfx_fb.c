@@ -628,7 +628,7 @@ int vmw_dmabuf_from_vram(struct vmw_private *vmw_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_validate(bo, &vmw_sys_placement, false, false);
+	ret = ttm_bo_validate(bo, &vmw_sys_placement, false, false, false);
 	ttm_bo_unreserve(bo);
 
 	return ret;
@@ -652,7 +652,7 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
 	if (unlikely(ret != 0))
 		goto err_unlock;
 
-	ret = ttm_bo_validate(bo, &ne_placement, false, false);
+	ret = ttm_bo_validate(bo, &ne_placement, false, false, false);
 	ttm_bo_unreserve(bo);
 err_unlock:
 	ttm_write_unlock(&vmw_priv->active_master->lock);

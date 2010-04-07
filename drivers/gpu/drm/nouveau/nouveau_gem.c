@@ -387,7 +387,7 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 
 		nvbo->channel = chan;
 		ret = ttm_bo_validate(&nvbo->bo, &nvbo->placement,
-				      false, false);
+				      false, false, false);
 		nvbo->channel = NULL;
 		if (unlikely(ret)) {
 			NV_ERROR(dev, "fail ttm_validate\n");

@@ -243,9 +243,9 @@ static void radeon_move_null(struct ttm_buffer_object *bo,
 }
 
 static int radeon_move_blit(struct ttm_buffer_object *bo,
-			    bool evict, int no_wait,
-			    struct ttm_mem_reg *new_mem,
-			    struct ttm_mem_reg *old_mem)
+			bool evict, int no_wait_reserve, bool no_wait_gpu,
+			struct ttm_mem_reg *new_mem,
+			struct ttm_mem_reg *old_mem)
 {
 	struct radeon_device *rdev;
 	uint64_t old_start, new_start;
@@ -289,13 +289,14 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	r = radeon_copy(rdev, old_start, new_start, new_mem->num_pages, fence);
 	/* FIXME: handle copy error */
 	r = ttm_bo_move_accel_cleanup(bo, (void *)fence, NULL,
-				      evict, no_wait, new_mem);
+				      evict, no_wait_reserve, no_wait_gpu, new_mem);
 	radeon_fence_unref(&fence);
 	return r;
 }
 
 static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
-				bool evict, bool interruptible, bool no_wait,
+				bool evict, bool interruptible,
+				bool no_wait_reserve, bool no_wait_gpu,
 				struct ttm_mem_reg *new_mem)
 {
 	struct radeon_device *rdev;
@@ -316,7 +317,7 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 	placement.busy_placement = &placements;
 	placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 	r = ttm_bo_mem_space(bo, &placement, &tmp_mem,
-			     interruptible, no_wait);
+			     interruptible, no_wait_reserve, no_wait_gpu);
 	if (unlikely(r)) {
 		return r;
 	}
@@ -330,11 +331,11 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
-	r = radeon_move_blit(bo, true, no_wait, &tmp_mem, old_mem);
+	r = radeon_move_blit(bo, true, no_wait_reserve, no_wait_gpu, &tmp_mem, old_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
-	r = ttm_bo_move_ttm(bo, true, no_wait, new_mem);
+	r = ttm_bo_move_ttm(bo, true, no_wait_reserve, no_wait_gpu, new_mem);
 out_cleanup:
 	if (tmp_mem.mm_node) {
 		struct ttm_bo_global *glob = rdev->mman.bdev.glob;
@@ -348,7 +349,8 @@ out_cleanup:
 }
 
 static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
-				bool evict, bool interruptible, bool no_wait,
+				bool evict, bool interruptible,
+				bool no_wait_reserve, bool no_wait_gpu,
 				struct ttm_mem_reg *new_mem)
 {
 	struct radeon_device *rdev;
@@ -368,15 +370,15 @@ static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 	placement.num_busy_placement = 1;
 	placement.busy_placement = &placements;
 	placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
-	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, interruptible, no_wait);
+	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, interruptible, no_wait_reserve, no_wait_gpu);
 	if (unlikely(r)) {
 		return r;
 	}
-	r = ttm_bo_move_ttm(bo, true, no_wait, &tmp_mem);
+	r = ttm_bo_move_ttm(bo, true, no_wait_reserve, no_wait_gpu, &tmp_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
-	r = radeon_move_blit(bo, true, no_wait, new_mem, old_mem);
+	r = radeon_move_blit(bo, true, no_wait_reserve, no_wait_gpu, new_mem, old_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
@@ -393,8 +395,9 @@ out_cleanup:
 }
 
 static int radeon_bo_move(struct ttm_buffer_object *bo,
-			  bool evict, bool interruptible, bool no_wait,
-			  struct ttm_mem_reg *new_mem)
+			bool evict, bool interruptible,
+			bool no_wait_reserve, bool no_wait_gpu,
+			struct ttm_mem_reg *new_mem)
 {
 	struct radeon_device *rdev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
@@ -421,18 +424,18 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 	if (old_mem->mem_type == TTM_PL_VRAM &&
 	    new_mem->mem_type == TTM_PL_SYSTEM) {
 		r = radeon_move_vram_ram(bo, evict, interruptible,
-					    no_wait, new_mem);
+					no_wait_reserve, no_wait_gpu, new_mem);
 	} else if (old_mem->mem_type == TTM_PL_SYSTEM &&
 		   new_mem->mem_type == TTM_PL_VRAM) {
 		r = radeon_move_ram_vram(bo, evict, interruptible,
-					    no_wait, new_mem);
+					    no_wait_reserve, no_wait_gpu, new_mem);
 	} else {
-		r = radeon_move_blit(bo, evict, no_wait, new_mem, old_mem);
+		r = radeon_move_blit(bo, evict, no_wait_reserve, no_wait_gpu, new_mem, old_mem);
 	}
 
 	if (r) {
 memcpy:
-		r = ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
+		r = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 	}
 
 	return r;

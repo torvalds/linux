@@ -219,7 +219,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 	for (i = 0; i < nvbo->placement.num_placement; i++)
 		nvbo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
 
-	ret = ttm_bo_validate(bo, &nvbo->placement, false, false);
+	ret = ttm_bo_validate(bo, &nvbo->placement, false, false, false);
 	if (ret == 0) {
 		switch (bo->mem.mem_type) {
 		case TTM_PL_VRAM:
@@ -256,7 +256,7 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 	for (i = 0; i < nvbo->placement.num_placement; i++)
 		nvbo->placements[i] &= ~TTM_PL_FLAG_NO_EVICT;
 
-	ret = ttm_bo_validate(bo, &nvbo->placement, false, false);
+	ret = ttm_bo_validate(bo, &nvbo->placement, false, false, false);
 	if (ret == 0) {
 		switch (bo->mem.mem_type) {
 		case TTM_PL_VRAM:
@@ -456,7 +456,8 @@ nouveau_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 
 static int
 nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
-			      struct nouveau_bo *nvbo, bool evict, bool no_wait,
+			      struct nouveau_bo *nvbo, bool evict,
+			      bool no_wait_reserve, bool no_wait_gpu,
 			      struct ttm_mem_reg *new_mem)
 {
 	struct nouveau_fence *fence = NULL;
@@ -467,7 +468,7 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 		return ret;
 
 	ret = ttm_bo_move_accel_cleanup(&nvbo->bo, fence, NULL,
-					evict, no_wait, new_mem);
+					evict, no_wait_reserve, no_wait_gpu, new_mem);
 	if (nvbo->channel && nvbo->channel != chan)
 		ret = nouveau_fence_wait(fence, NULL, false, false);
 	nouveau_fence_unref((void *)&fence);
@@ -491,7 +492,8 @@ nouveau_bo_mem_ctxdma(struct nouveau_bo *nvbo, struct nouveau_channel *chan,
 
 static int
 nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
-		     int no_wait, struct ttm_mem_reg *new_mem)
+		     bool no_wait_reserve, bool no_wait_gpu,
+		     struct ttm_mem_reg *new_mem)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
@@ -569,12 +571,13 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 		dst_offset += (PAGE_SIZE * line_count);
 	}
 
-	return nouveau_bo_move_accel_cleanup(chan, nvbo, evict, no_wait, new_mem);
+	return nouveau_bo_move_accel_cleanup(chan, nvbo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 }
 
 static int
 nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
-		      bool no_wait, struct ttm_mem_reg *new_mem)
+		      bool no_wait_reserve, bool no_wait_gpu,
+		      struct ttm_mem_reg *new_mem)
 {
 	u32 placement_memtype = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
 	struct ttm_placement placement;
@@ -587,7 +590,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 
 	tmp_mem = *new_mem;
 	tmp_mem.mm_node = NULL;
-	ret = ttm_bo_mem_space(bo, &placement, &tmp_mem, intr, no_wait);
+	ret = ttm_bo_mem_space(bo, &placement, &tmp_mem, intr, no_wait_reserve, no_wait_gpu);
 	if (ret)
 		return ret;
 
@@ -595,11 +598,11 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	ret = nouveau_bo_move_m2mf(bo, true, intr, no_wait, &tmp_mem);
+	ret = nouveau_bo_move_m2mf(bo, true, intr, no_wait_reserve, no_wait_gpu, &tmp_mem);
 	if (ret)
 		goto out;
 
-	ret = ttm_bo_move_ttm(bo, evict, no_wait, new_mem);
+	ret = ttm_bo_move_ttm(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 out:
 	if (tmp_mem.mm_node) {
 		spin_lock(&bo->bdev->glob->lru_lock);
@@ -612,7 +615,8 @@ out:
 
 static int
 nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
-		      bool no_wait, struct ttm_mem_reg *new_mem)
+		      bool no_wait_reserve, bool no_wait_gpu,
+		      struct ttm_mem_reg *new_mem)
 {
 	u32 placement_memtype = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
 	struct ttm_placement placement;
@@ -625,15 +629,15 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 
 	tmp_mem = *new_mem;
 	tmp_mem.mm_node = NULL;
-	ret = ttm_bo_mem_space(bo, &placement, &tmp_mem, intr, no_wait);
+	ret = ttm_bo_mem_space(bo, &placement, &tmp_mem, intr, no_wait_reserve, no_wait_gpu);
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_move_ttm(bo, evict, no_wait, &tmp_mem);
+	ret = ttm_bo_move_ttm(bo, evict, no_wait_reserve, no_wait_gpu, &tmp_mem);
 	if (ret)
 		goto out;
 
-	ret = nouveau_bo_move_m2mf(bo, evict, intr, no_wait, new_mem);
+	ret = nouveau_bo_move_m2mf(bo, evict, intr, no_wait_reserve, no_wait_gpu, new_mem);
 	if (ret)
 		goto out;
 
@@ -700,7 +704,8 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 
 static int
 nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
-		bool no_wait, struct ttm_mem_reg *new_mem)
+		bool no_wait_reserve, bool no_wait_gpu,
+		struct ttm_mem_reg *new_mem)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
@@ -715,7 +720,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	/* Software copy if the card isn't up and running yet. */
 	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DONE ||
 	    !dev_priv->channel) {
-		ret = ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
+		ret = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 		goto out;
 	}
 
@@ -729,17 +734,17 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 
 	/* Hardware assisted copy. */
 	if (new_mem->mem_type == TTM_PL_SYSTEM)
-		ret = nouveau_bo_move_flipd(bo, evict, intr, no_wait, new_mem);
+		ret = nouveau_bo_move_flipd(bo, evict, intr, no_wait_reserve, no_wait_gpu, new_mem);
 	else if (old_mem->mem_type == TTM_PL_SYSTEM)
-		ret = nouveau_bo_move_flips(bo, evict, intr, no_wait, new_mem);
+		ret = nouveau_bo_move_flips(bo, evict, intr, no_wait_reserve, no_wait_gpu, new_mem);
 	else
-		ret = nouveau_bo_move_m2mf(bo, evict, intr, no_wait, new_mem);
+		ret = nouveau_bo_move_m2mf(bo, evict, intr, no_wait_reserve, no_wait_gpu, new_mem);
 
 	if (!ret)
 		goto out;
 
 	/* Fallback to software copy. */
-	ret = ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
+	ret = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 
 out:
 	if (ret)

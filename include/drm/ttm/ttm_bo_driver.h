@@ -311,7 +311,8 @@ struct ttm_bo_driver {
 	 */
 	int (*move) (struct ttm_buffer_object *bo,
 		     bool evict, bool interruptible,
-		     bool no_wait, struct ttm_mem_reg *new_mem);
+		     bool no_wait_reserve, bool no_wait_gpu,
+		     struct ttm_mem_reg *new_mem);
 
 	/**
 	 * struct ttm_bo_driver_member verify_access
@@ -633,7 +634,8 @@ extern bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev,
  * @proposed_placement: Proposed new placement for the buffer object.
  * @mem: A struct ttm_mem_reg.
  * @interruptible: Sleep interruptible when sliping.
- * @no_wait: Don't sleep waiting for space to become available.
+ * @no_wait_reserve: Return immediately if other buffers are busy.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
  *
  * Allocate memory space for the buffer object pointed to by @bo, using
  * the placement flags in @mem, potentially evicting other idle buffer objects.
@@ -647,7 +649,8 @@ extern bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev,
 extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement,
 				struct ttm_mem_reg *mem,
-				bool interruptible, bool no_wait);
+				bool interruptible,
+				bool no_wait_reserve, bool no_wait_gpu);
 /**
  * ttm_bo_wait_for_cpu
  *
@@ -826,7 +829,8 @@ extern void ttm_bo_unblock_reservation(struct ttm_buffer_object *bo);
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @evict: 1: This is an eviction. Don't try to pipeline.
- * @no_wait: Never sleep, but rather return with -EBUSY.
+ * @no_wait_reserve: Return immediately if other buffers are busy.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
  * Optimized move function for a buffer object with both old and
@@ -840,15 +844,16 @@ extern void ttm_bo_unblock_reservation(struct ttm_buffer_object *bo);
  */
 
 extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-			   bool evict, bool no_wait,
-			   struct ttm_mem_reg *new_mem);
+			   bool evict, bool no_wait_reserve,
+			   bool no_wait_gpu, struct ttm_mem_reg *new_mem);
 
 /**
  * ttm_bo_move_memcpy
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @evict: 1: This is an eviction. Don't try to pipeline.
- * @no_wait: Never sleep, but rather return with -EBUSY.
+ * @no_wait_reserve: Return immediately if other buffers are busy.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
  * Fallback move function for a mappable buffer object in mappable memory.
@@ -862,8 +867,8 @@ extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
  */
 
 extern int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-			      bool evict,
-			      bool no_wait, struct ttm_mem_reg *new_mem);
+			      bool evict, bool no_wait_reserve,
+			      bool no_wait_gpu, struct ttm_mem_reg *new_mem);
 
 /**
  * ttm_bo_free_old_node
@@ -882,7 +887,8 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  * @sync_obj_arg: An argument to pass to the sync object idle / wait
  * functions.
  * @evict: This is an evict move. Don't return until the buffer is idle.
- * @no_wait: Never sleep, but rather return with -EBUSY.
+ * @no_wait_reserve: Return immediately if other buffers are busy.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
  * Accelerated move function to be called when an accelerated move
@@ -896,7 +902,8 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
 extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 				     void *sync_obj,
 				     void *sync_obj_arg,
-				     bool evict, bool no_wait,
+				     bool evict, bool no_wait_reserve,
+				     bool no_wait_gpu,
 				     struct ttm_mem_reg *new_mem);
 /**
  * ttm_io_prot
