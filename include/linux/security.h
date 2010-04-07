@@ -1067,13 +1067,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Return the length of the string (including terminating NUL) or -ve if
  *      an error.
  *	May also return 0 (and a NULL buffer pointer) if there is no label.
- * @key_session_to_parent:
- *	Forcibly assign the session keyring from a process to its parent
- *	process.
- *	@cred: Pointer to process's credentials
- *	@parent_cred: Pointer to parent process's credentials
- *	@keyring: Proposed new session keyring
- *	Return 0 if permission is granted, -ve error otherwise.
  *
  * Security hooks affecting all System V IPC operations.
  *
@@ -1642,9 +1635,6 @@ struct security_operations {
 			       const struct cred *cred,
 			       key_perm_t perm);
 	int (*key_getsecurity)(struct key *key, char **_buffer);
-	int (*key_session_to_parent)(const struct cred *cred,
-				     const struct cred *parent_cred,
-				     struct key *key);
 #endif	/* CONFIG_KEYS */
 
 #ifdef CONFIG_AUDIT
@@ -2918,9 +2908,6 @@ void security_key_free(struct key *key);
 int security_key_permission(key_ref_t key_ref,
 			    const struct cred *cred, key_perm_t perm);
 int security_key_getsecurity(struct key *key, char **_buffer);
-int security_key_session_to_parent(const struct cred *cred,
-				   const struct cred *parent_cred,
-				   struct key *key);
 
 #else
 
@@ -2945,13 +2932,6 @@ static inline int security_key_permission(key_ref_t key_ref,
 static inline int security_key_getsecurity(struct key *key, char **_buffer)
 {
 	*_buffer = NULL;
-	return 0;
-}
-
-static inline int security_key_session_to_parent(const struct cred *cred,
-						 const struct cred *parent_cred,
-						 struct key *key)
-{
 	return 0;
 }
 

@@ -1295,13 +1295,6 @@ long keyctl_session_to_parent(void)
 	    mycred->tgcred->session_keyring->uid != mycred->euid)
 		goto not_permitted;
 
-	/* the LSM must permit the replacement of the parent's keyring with the
-	 * keyring from this process */
-	ret = security_key_session_to_parent(mycred, pcred,
-					     key_ref_to_ptr(keyring_r));
-	if (ret < 0)
-		goto not_permitted;
-
 	/* if there's an already pending keyring replacement, then we replace
 	 * that */
 	oldcred = parent->replacement_session_keyring;
