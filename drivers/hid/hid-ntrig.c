@@ -352,7 +352,8 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		}
 	}
 
-	report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[0x0a]; 
+	/* This is needed for devices with more recent firmware versions */
+	report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[0x0a];
 	if (report)
 		usbhid_submit_report(hdev, report, USB_DIR_OUT);
 
