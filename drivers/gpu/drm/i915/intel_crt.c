@@ -157,15 +157,21 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 adpa;
+	u32 adpa, temp;
 	bool ret;
 
-	adpa = I915_READ(PCH_ADPA);
+	temp = adpa = I915_READ(PCH_ADPA);
 
-	adpa &= ~ADPA_CRT_HOTPLUG_MASK;
-	/* disable HPD first */
-	I915_WRITE(PCH_ADPA, adpa);
-	(void)I915_READ(PCH_ADPA);
+	if (HAS_PCH_CPT(dev)) {
+		/* Disable DAC before force detect */
+		I915_WRITE(PCH_ADPA, adpa & ~ADPA_DAC_ENABLE);
+		(void)I915_READ(PCH_ADPA);
+	} else {
+		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
+		/* disable HPD first */
+		I915_WRITE(PCH_ADPA, adpa);
+		(void)I915_READ(PCH_ADPA);
+	}
 
 	adpa |= (ADPA_CRT_HOTPLUG_PERIOD_128 |
 			ADPA_CRT_HOTPLUG_WARMUP_10MS |
@@ -180,6 +186,11 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 
 	while ((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) != 0)
 		;
+
+	if (HAS_PCH_CPT(dev)) {
+		I915_WRITE(PCH_ADPA, temp);
+		(void)I915_READ(PCH_ADPA);
+	}
 
 	/* Check the status to see if both blue and green are on now */
 	adpa = I915_READ(PCH_ADPA);
