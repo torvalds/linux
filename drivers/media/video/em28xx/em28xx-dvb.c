@@ -467,6 +467,7 @@ static int dvb_init(struct em28xx *dev)
 	}
 	dev->dvb = dvb;
 
+	mutex_lock(&dev->lock);
 	em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	/* init frontend */
 	switch (dev->model) {
@@ -590,15 +591,16 @@ static int dvb_init(struct em28xx *dev)
 	if (result < 0)
 		goto out_free;
 
-	em28xx_set_mode(dev, EM28XX_SUSPEND);
 	em28xx_info("Successfully loaded em28xx-dvb\n");
-	return 0;
+ret:
+	em28xx_set_mode(dev, EM28XX_SUSPEND);
+	mutex_unlock(&dev->lock);
+	return result;
 
 out_free:
-	em28xx_set_mode(dev, EM28XX_SUSPEND);
 	kfree(dvb);
 	dev->dvb = NULL;
-	return result;
+	goto ret;
 }
 
 static int dvb_fini(struct em28xx *dev)

@@ -1178,21 +1178,18 @@ void em28xx_add_into_devlist(struct em28xx *dev)
  */
 
 static LIST_HEAD(em28xx_extension_devlist);
-static DEFINE_MUTEX(em28xx_extension_devlist_lock);
 
 int em28xx_register_extension(struct em28xx_ops *ops)
 {
 	struct em28xx *dev = NULL;
 
 	mutex_lock(&em28xx_devlist_mutex);
-	mutex_lock(&em28xx_extension_devlist_lock);
 	list_add_tail(&ops->next, &em28xx_extension_devlist);
 	list_for_each_entry(dev, &em28xx_devlist, devlist) {
 		if (dev)
 			ops->init(dev);
 	}
 	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
-	mutex_unlock(&em28xx_extension_devlist_lock);
 	mutex_unlock(&em28xx_devlist_mutex);
 	return 0;
 }
@@ -1208,10 +1205,8 @@ void em28xx_unregister_extension(struct em28xx_ops *ops)
 			ops->fini(dev);
 	}
 
-	mutex_lock(&em28xx_extension_devlist_lock);
 	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);
 	list_del(&ops->next);
-	mutex_unlock(&em28xx_extension_devlist_lock);
 	mutex_unlock(&em28xx_devlist_mutex);
 }
 EXPORT_SYMBOL(em28xx_unregister_extension);
@@ -1220,26 +1215,26 @@ void em28xx_init_extension(struct em28xx *dev)
 {
 	struct em28xx_ops *ops = NULL;
 
-	mutex_lock(&em28xx_extension_devlist_lock);
+	mutex_lock(&em28xx_devlist_mutex);
 	if (!list_empty(&em28xx_extension_devlist)) {
 		list_for_each_entry(ops, &em28xx_extension_devlist, next) {
 			if (ops->init)
 				ops->init(dev);
 		}
 	}
-	mutex_unlock(&em28xx_extension_devlist_lock);
+	mutex_unlock(&em28xx_devlist_mutex);
 }
 
 void em28xx_close_extension(struct em28xx *dev)
 {
 	struct em28xx_ops *ops = NULL;
 
-	mutex_lock(&em28xx_extension_devlist_lock);
+	mutex_lock(&em28xx_devlist_mutex);
 	if (!list_empty(&em28xx_extension_devlist)) {
 		list_for_each_entry(ops, &em28xx_extension_devlist, next) {
 			if (ops->fini)
 				ops->fini(dev);
 		}
 	}
-	mutex_unlock(&em28xx_extension_devlist_lock);
+	mutex_unlock(&em28xx_devlist_mutex);
 }
