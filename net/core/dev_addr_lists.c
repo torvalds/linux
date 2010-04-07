@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/list.h>
+#include <linux/proc_fs.h>
 
 /*
  * General list handling functions
@@ -667,7 +668,6 @@ void dev_mc_init(struct net_device *dev)
 EXPORT_SYMBOL(dev_mc_init);
 
 #ifdef CONFIG_PROC_FS
-#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
 static int dev_mc_seq_show(struct seq_file *seq, void *v)
