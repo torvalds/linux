@@ -10195,7 +10195,6 @@ static void alc882_auto_set_output_and_unmute(struct hda_codec *codec,
 {
 	int idx;
 
-	printk("XXX set output pin %x, dac %x\n", nid, dac);
 	/* set as output */
 	alc_set_pin_output(codec, nid, pin_type);
 
