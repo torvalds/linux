@@ -728,6 +728,7 @@ void timer_interrupt(int irq, struct pt_regs *regs)
 
 	irq_enter();
 
+	local_cpu_data().irq0_irqs++;
 	kstat_incr_irqs_this_cpu(0, irq_to_desc(0));
 
 	if (unlikely(!evt->event_handler)) {
