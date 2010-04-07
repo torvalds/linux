@@ -1381,6 +1381,29 @@ static int vio_hotplug(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
+static int vio_pm_suspend(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	if (pm && pm->suspend)
+		return pm->suspend(dev);
+	return 0;
+}
+
+static int vio_pm_resume(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	if (pm && pm->resume)
+		return pm->resume(dev);
+	return 0;
+}
+
+const struct dev_pm_ops vio_dev_pm_ops = {
+	.suspend = vio_pm_suspend,
+	.resume = vio_pm_resume,
+};
+
 static struct bus_type vio_bus_type = {
 	.name = "vio",
 	.dev_attrs = vio_dev_attrs,
@@ -1388,6 +1411,7 @@ static struct bus_type vio_bus_type = {
 	.match = vio_bus_match,
 	.probe = vio_bus_probe,
 	.remove = vio_bus_remove,
+	.pm = &vio_dev_pm_ops,
 };
 
 /**
