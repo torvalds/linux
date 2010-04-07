@@ -366,9 +366,8 @@ static void part_release(struct device *dev)
 	kfree(p);
 }
 
-static int part_uevent(struct device *dev, struct kobj_uvent_env *env)
+static int part_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct gendisk *disk = dev_to_disk(dev);
 	struct hd_struct *part = dev_to_part(dev);
 
 	add_uevent_var(env, "PARTN=%u", part->partno);
