@@ -272,11 +272,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@mnt contains the mounted file system.
  *	@flags contains the unmount flags, e.g. MNT_FORCE.
  *	Return 0 if permission is granted.
- * @sb_umount_close:
- *	Close any files in the @mnt mounted filesystem that are held open by
- *	the security module.  This hook is called during an umount operation
- *	prior to checking whether the filesystem is still busy.
- *	@mnt contains the mounted filesystem.
  * @sb_umount_busy:
  *	Handle a failed umount of the @mnt mounted filesystem, e.g.  re-opening
  *	any files that were closed by umount_close.  This hook is called during
@@ -1479,7 +1474,6 @@ struct security_operations {
 	int (*sb_mount) (char *dev_name, struct path *path,
 			 char *type, unsigned long flags, void *data);
 	int (*sb_umount) (struct vfsmount *mnt, int flags);
-	void (*sb_umount_close) (struct vfsmount *mnt);
 	void (*sb_umount_busy) (struct vfsmount *mnt);
 	void (*sb_post_remount) (struct vfsmount *mnt,
 				 unsigned long flags, void *data);
@@ -1777,7 +1771,6 @@ int security_sb_statfs(struct dentry *dentry);
 int security_sb_mount(char *dev_name, struct path *path,
 		      char *type, unsigned long flags, void *data);
 int security_sb_umount(struct vfsmount *mnt, int flags);
-void security_sb_umount_close(struct vfsmount *mnt);
 void security_sb_umount_busy(struct vfsmount *mnt);
 void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *data);
 void security_sb_post_addmount(struct vfsmount *mnt, struct path *mountpoint);
@@ -2095,9 +2088,6 @@ static inline int security_sb_umount(struct vfsmount *mnt, int flags)
 {
 	return 0;
 }
-
-static inline void security_sb_umount_close(struct vfsmount *mnt)
-{ }
 
 static inline void security_sb_umount_busy(struct vfsmount *mnt)
 { }

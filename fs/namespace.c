@@ -628,7 +628,6 @@ repeat:
 		mnt->mnt_pinned = 0;
 		spin_unlock(&vfsmount_lock);
 		acct_auto_close_mnt(mnt);
-		security_sb_umount_close(mnt);
 		goto repeat;
 	}
 }

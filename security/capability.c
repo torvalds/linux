@@ -85,10 +85,6 @@ static int cap_sb_umount(struct vfsmount *mnt, int flags)
 	return 0;
 }
 
-static void cap_sb_umount_close(struct vfsmount *mnt)
-{
-}
-
 static void cap_sb_umount_busy(struct vfsmount *mnt)
 {
 }
@@ -937,7 +933,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, sb_statfs);
 	set_to_cap_if_null(ops, sb_mount);
 	set_to_cap_if_null(ops, sb_umount);
-	set_to_cap_if_null(ops, sb_umount_close);
 	set_to_cap_if_null(ops, sb_umount_busy);
 	set_to_cap_if_null(ops, sb_post_remount);
 	set_to_cap_if_null(ops, sb_post_addmount);

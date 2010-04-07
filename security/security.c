@@ -311,11 +311,6 @@ int security_sb_umount(struct vfsmount *mnt, int flags)
 	return security_ops->sb_umount(mnt, flags);
 }
 
-void security_sb_umount_close(struct vfsmount *mnt)
-{
-	security_ops->sb_umount_close(mnt);
-}
-
 void security_sb_umount_busy(struct vfsmount *mnt)
 {
 	security_ops->sb_umount_busy(mnt);
