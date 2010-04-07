@@ -61,8 +61,12 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	if (hdmi_priv->has_hdmi_sink)
 		sdvox |= SDVO_AUDIO_ENABLE;
 
-	if (intel_crtc->pipe == 1)
-		sdvox |= SDVO_PIPE_B_SELECT;
+	if (intel_crtc->pipe == 1) {
+		if (HAS_PCH_CPT(dev))
+			sdvox |= PORT_TRANS_B_SEL_CPT;
+		else
+			sdvox |= SDVO_PIPE_B_SELECT;
+	}
 
 	I915_WRITE(hdmi_priv->sdvox_reg, sdvox);
 	POSTING_READ(hdmi_priv->sdvox_reg);
