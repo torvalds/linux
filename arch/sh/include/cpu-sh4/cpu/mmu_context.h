@@ -32,7 +32,13 @@
 #define MMU_UTLB_DATA_ARRAY2	0xF7800000
 #define MMU_PAGE_ASSOC_BIT	0x80
 
-#define MMUCR_TI		(1<<2)
+#ifdef CONFIG_MMU
+#define MMUCR_AT		(1 << 0)
+#else
+#define MMUCR_AT		(0)
+#endif
+
+#define MMUCR_TI		(1 << 2)
 
 #define MMUCR_URB		0x00FC0000
 #define MMUCR_URB_SHIFT		18
@@ -65,7 +71,8 @@
 #endif
 
 #define MMU_NTLB_ENTRIES	64
-#define MMU_CONTROL_INIT	(0x05|MMUCR_SQMD|MMUCR_ME|MMUCR_SE|MMUCR_AEX)
+#define MMU_CONTROL_INIT	(MMUCR_AT | MMUCR_TI | MMUCR_SQMD | \
+				 MMUCR_ME | MMUCR_SE | MMUCR_AEX)
 
 #define TRA	0xff000020
 #define EXPEVT	0xff000024
