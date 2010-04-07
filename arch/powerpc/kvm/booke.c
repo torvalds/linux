@@ -133,6 +133,12 @@ void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_EXTERNAL);
 }
 
+void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
+                                  struct kvm_interrupt *irq)
+{
+	clear_bit(BOOKE_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions);
+}
+
 /* Deliver the interrupt of the corresponding priority, if possible. */
 static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
                                         unsigned int priority)
