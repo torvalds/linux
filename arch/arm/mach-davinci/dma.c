@@ -1267,7 +1267,8 @@ int edma_start(unsigned channel)
 		/* EDMA channel with event association */
 		pr_debug("EDMA: ER%d %08x\n", j,
 			edma_shadow0_read_array(ctlr, SH_ER, j));
-		/* Clear any pending error */
+		/* Clear any pending event or error */
+		edma_write_array(ctlr, EDMA_ECR, j, mask);
 		edma_write_array(ctlr, EDMA_EMCR, j, mask);
 		/* Clear any SER */
 		edma_shadow0_write_array(ctlr, SH_SECR, j, mask);
