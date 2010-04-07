@@ -1118,15 +1118,6 @@ static int smack_cred_prepare(struct cred *new, const struct cred *old,
 }
 
 /**
- * smack_cred_commit - commit new credentials
- * @new: the new credentials
- * @old: the original credentials
- */
-static void smack_cred_commit(struct cred *new, const struct cred *old)
-{
-}
-
-/**
  * smack_cred_transfer - Transfer the old credentials to the new credentials
  * @new: the new credentials
  * @old: the original credentials
@@ -3120,7 +3111,6 @@ struct security_operations smack_ops = {
 	.cred_alloc_blank =		smack_cred_alloc_blank,
 	.cred_free =			smack_cred_free,
 	.cred_prepare =			smack_cred_prepare,
-	.cred_commit =			smack_cred_commit,
 	.cred_transfer =		smack_cred_transfer,
 	.kernel_act_as =		smack_kernel_act_as,
 	.kernel_create_files_as =	smack_kernel_create_files_as,
