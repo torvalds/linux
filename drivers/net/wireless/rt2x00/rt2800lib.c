@@ -827,7 +827,8 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	u8 bbp;
 
 	if ((rt2x00_rt(rt2x00dev, RT3070) ||
-	     rt2x00_rt(rt2x00dev, RT3090)) &&
+	     rt2x00_rt(rt2x00dev, RT3090) ||
+	     rt2x00_rt(rt2x00dev, RT2872)) &&
 	    (rt2x00_rf(rt2x00dev, RF2020) ||
 	     rt2x00_rf(rt2x00dev, RF3020) ||
 	     rt2x00_rf(rt2x00dev, RF3021) ||
