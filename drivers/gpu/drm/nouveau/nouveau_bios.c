@@ -2595,10 +2595,7 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		r = nv50_gpio_reg[gpio->line >> 3];
 		s = (gpio->line & 0x07) << 2;
 		v = bios_rd32(bios, r) & ~(0x00000003 << s);
-		if (gpio->entry & 0x01000000)
-			v |= (((gpio->entry & 0x60000000) >> 29) ^ 2) << s;
-		else
-			v |= (((gpio->entry & 0x18000000) >> 27) ^ 2) << s;
+		v |= (gpio->state[gpio->state_default] ^ 2) << s;
 		bios_wr32(bios, r, v);
 
 		r = nv50_gpio_ctl[gpio->line >> 4];
@@ -5078,21 +5075,19 @@ parse_dcb30_gpio_entry(struct nvbios *bios, uint16_t offset)
 static void
 parse_dcb40_gpio_entry(struct nvbios *bios, uint16_t offset)
 {
+	uint32_t entry = ROM32(bios->data[offset]);
 	struct dcb_gpio_entry *gpio;
-	uint32_t ent = ROM32(bios->data[offset]);
-	uint8_t line = ent & 0x1f,
-		tag = ent >> 8 & 0xff;
 
-	if (tag == 0xff)
+	if ((entry & 0x0000ff00) == 0x0000ff00)
 		return;
 
 	gpio = new_gpio_entry(bios);
-
-	/* Currently unused, we may need more fields parsed at some
-	 * point. */
-	gpio->tag = tag;
-	gpio->line = line;
-	gpio->entry = ent;
+	gpio->tag = (entry & 0x0000ff00) >> 8;
+	gpio->line = (entry & 0x0000001f) >> 0;
+	gpio->state_default = (entry & 0x01000000) >> 24;
+	gpio->state[0] = (entry & 0x18000000) >> 27;
+	gpio->state[1] = (entry & 0x60000000) >> 29;
+	gpio->entry = entry;
 }
 
 static void

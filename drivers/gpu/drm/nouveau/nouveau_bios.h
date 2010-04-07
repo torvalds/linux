@@ -50,6 +50,8 @@ struct dcb_gpio_entry {
 	int line;
 	bool invert;
 	uint32_t entry;
+	uint8_t state_default;
+	uint8_t state[2];
 };
 
 struct dcb_gpio_table {
