@@ -488,11 +488,19 @@ int __ir_input_register(struct input_dev *input_dev,
 	if (rc < 0)
 		goto out_table;
 
+	if (ir_dev->props->driver_type == RC_DRIVER_IR_RAW) {
+		rc = ir_raw_event_register(input_dev);
+		if (rc < 0)
+			goto out_event;
+	}
+
 	IR_dprintk(1, "Registered input device on %s for %s remote.\n",
 		   driver_name, rc_tab->name);
 
 	return 0;
 
+out_event:
+	ir_unregister_class(input_dev);
 out_table:
 	kfree(ir_dev->rc_tab.scan);
 out_name:
@@ -509,22 +517,25 @@ EXPORT_SYMBOL_GPL(__ir_input_register);
 
  * This routine is used to free memory and de-register interfaces.
  */
-void ir_input_unregister(struct input_dev *dev)
+void ir_input_unregister(struct input_dev *input_dev)
 {
-	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
+	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	struct ir_scancode_table *rc_tab;
 
 	if (!ir_dev)
 		return;
 
 	IR_dprintk(1, "Freed keycode table\n");
+
 	del_timer_sync(&ir_dev->timer_keyup);
+	if (ir_dev->props->driver_type == RC_DRIVER_IR_RAW)
+		ir_raw_event_unregister(input_dev);
 	rc_tab = &ir_dev->rc_tab;
 	rc_tab->size = 0;
 	kfree(rc_tab->scan);
 	rc_tab->scan = NULL;
 
-	ir_unregister_class(dev);
+	ir_unregister_class(input_dev);
 
 	kfree(ir_dev->driver_name);
 	kfree(ir_dev);

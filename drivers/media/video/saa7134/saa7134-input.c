@@ -855,6 +855,9 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	ir->props.open = saa7134_ir_open;
 	ir->props.close = saa7134_ir_close;
 
+	if (raw_decode)
+		ir->props.driver_type = RC_DRIVER_IR_RAW;
+
 	if (!raw_decode && allow_protocol_change) {
 		ir->props.allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
 		ir->props.change_protocol = saa7134_ir_change_protocol;
@@ -880,11 +883,6 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	err = ir_input_register(ir->dev, ir_codes, &ir->props, MODULE_NAME);
 	if (err)
 		goto err_out_free;
-	if (raw_decode) {
-		err = ir_raw_event_register(ir->dev);
-		if (err)
-			goto err_out_free;
-	}
 
 	/* the remote isn't as bouncy as a keyboard */
 	ir->dev->rep[REP_DELAY] = repeat_delay;
@@ -904,7 +902,6 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 		return;
 
 	saa7134_ir_stop(dev);
-	ir_raw_event_unregister(dev->remote->dev);
 	ir_input_unregister(dev->remote->dev);
 	kfree(dev->remote);
 	dev->remote = NULL;

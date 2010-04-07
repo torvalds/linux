@@ -152,22 +152,26 @@ static int ir_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 static DEVICE_ATTR(current_protocol, S_IRUGO | S_IWUSR,
 		   show_protocol, store_protocol);
 
-static struct attribute *ir_dev_attrs[] = {
+static struct attribute *ir_hw_dev_attrs[] = {
 	&dev_attr_current_protocol.attr,
 	NULL,
 };
 
-static struct attribute_group ir_dev_attr_grp = {
-	.attrs	= ir_dev_attrs,
+static struct attribute_group ir_hw_dev_attr_grp = {
+	.attrs	= ir_hw_dev_attrs,
 };
 
-static const struct attribute_group *ir_dev_attr_groups[] = {
-	&ir_dev_attr_grp,
+static const struct attribute_group *ir_hw_dev_attr_groups[] = {
+	&ir_hw_dev_attr_grp,
 	NULL
 };
 
-static struct device_type ir_dev_type = {
-	.groups		= ir_dev_attr_groups,
+static struct device_type rc_dev_type = {
+	.groups		= ir_hw_dev_attr_groups,
+	.uevent		= ir_dev_uevent,
+};
+
+static struct device_type ir_raw_dev_type = {
 	.uevent		= ir_dev_uevent,
 };
 
@@ -181,7 +185,6 @@ int ir_register_class(struct input_dev *input_dev)
 {
 	int rc;
 	const char *path;
-
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	int devno = find_first_zero_bit(&ir_core_dev_number,
 					IRRCV_NUM_DEVICES);
@@ -189,7 +192,11 @@ int ir_register_class(struct input_dev *input_dev)
 	if (unlikely(devno < 0))
 		return devno;
 
-	ir_dev->dev.type = &ir_dev_type;
+	if (ir_dev->props->driver_type == RC_DRIVER_SCANCODE)
+		ir_dev->dev.type = &rc_dev_type;
+	else
+		ir_dev->dev.type = &ir_raw_dev_type;
+
 	ir_dev->dev.class = &ir_input_class;
 	ir_dev->dev.parent = input_dev->dev.parent;
 	dev_set_name(&ir_dev->dev, "rc%d", devno);

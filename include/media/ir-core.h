@@ -26,6 +26,11 @@ extern int ir_core_debug;
 #define IR_dprintk(level, fmt, arg...)	if (ir_core_debug >= level) \
 	printk(KERN_DEBUG "%s: " fmt , __func__, ## arg)
 
+enum rc_driver_type {
+	RC_DRIVER_SCANCODE = 0,	/* Driver or hardware generates a scancode */
+	RC_DRIVER_IR_RAW,	/* Needs a Infra-Red pulse/space decoder */
+};
+
 enum raw_event_type {
 	IR_SPACE	= (1 << 0),
 	IR_PULSE	= (1 << 1),
@@ -35,6 +40,8 @@ enum raw_event_type {
 
 /**
  * struct ir_dev_props - Allow caller drivers to set special properties
+ * @driver_type: specifies if the driver or hardware have already a decoder,
+ *	or if it needs to use the IR raw event decoders to produce a scancode
  * @allowed_protos: bitmask with the supported IR_TYPE_* protocols
  * @scanmask: some hardware decoders are not capable of providing the full
  *	scancode to the application. As this is a hardware limit, we can't do
@@ -49,12 +56,13 @@ enum raw_event_type {
  *	is opened.
  */
 struct ir_dev_props {
-	unsigned long	allowed_protos;
-	u32		scanmask;
-	void 		*priv;
-	int		(*change_protocol)(void *priv, u64 ir_type);
-	int		(*open)(void *priv);
-	void		(*close)(void *priv);
+	enum rc_driver_type	driver_type;
+	unsigned long		allowed_protos;
+	u32			scanmask;
+	void 			*priv;
+	int			(*change_protocol)(void *priv, u64 ir_type);
+	int			(*open)(void *priv);
+	void			(*close)(void *priv);
 };
 
 struct ir_raw_event {

@@ -82,7 +82,6 @@ int ir_raw_event_register(struct input_dev *input_dev)
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(ir_raw_event_register);
 
 void ir_raw_event_unregister(struct input_dev *input_dev)
 {
@@ -97,7 +96,6 @@ void ir_raw_event_unregister(struct input_dev *input_dev)
 	kfree(ir->raw);
 	ir->raw = NULL;
 }
-EXPORT_SYMBOL_GPL(ir_raw_event_unregister);
 
 int ir_raw_event_store(struct input_dev *input_dev, enum raw_event_type type)
 {
