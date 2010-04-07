@@ -638,10 +638,12 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 
-	ret = intel_ddc_get_modes(intel_encoder);
+	if (dev_priv->lvds_edid_good) {
+		ret = intel_ddc_get_modes(intel_encoder);
 
-	if (ret)
-		return ret;
+		if (ret)
+			return ret;
+	}
 
 	/* Didn't get an EDID, so
 	 * Set wide sync ranges so we get all modes
@@ -1062,7 +1064,10 @@ void intel_lvds_init(struct drm_device *dev)
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
-	intel_ddc_get_modes(intel_encoder);
+	dev_priv->lvds_edid_good = true;
+
+	if (!intel_ddc_get_modes(intel_encoder))
+		dev_priv->lvds_edid_good = false;
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		mutex_lock(&dev->mode_config.mutex);
