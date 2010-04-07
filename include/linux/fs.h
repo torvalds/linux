@@ -651,6 +651,7 @@ struct block_device {
 	int			bd_openers;
 	struct mutex		bd_mutex;	/* open/close mutex */
 	struct list_head	bd_inodes;
+	void *			bd_claiming;
 	void *			bd_holder;
 	int			bd_holders;
 #ifdef CONFIG_SYSFS
