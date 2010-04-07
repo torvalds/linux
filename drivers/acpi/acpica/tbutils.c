@@ -366,22 +366,18 @@ void acpi_tb_check_dsdt_header(void)
 
 	/* Compare original length and checksum to current values */
 
-	if (acpi_gbl_original_dsdt_header.length !=
-	    acpi_gbl_DSDT->pointer->length
-	    || acpi_gbl_original_dsdt_header.checksum !=
-	    acpi_gbl_DSDT->pointer->checksum) {
+	if (acpi_gbl_original_dsdt_header.length != acpi_gbl_DSDT->length ||
+	    acpi_gbl_original_dsdt_header.checksum != acpi_gbl_DSDT->checksum) {
 		ACPI_ERROR((AE_INFO,
 			    "The DSDT has been corrupted or replaced - old, new headers below"));
 		acpi_tb_print_table_header(0, &acpi_gbl_original_dsdt_header);
-		acpi_tb_print_table_header(acpi_gbl_DSDT->address,
-					   acpi_gbl_DSDT->pointer);
+		acpi_tb_print_table_header(0, acpi_gbl_DSDT);
 
 		/* Disable further error messages */
 
-		acpi_gbl_original_dsdt_header.length =
-		    acpi_gbl_DSDT->pointer->length;
+		acpi_gbl_original_dsdt_header.length = acpi_gbl_DSDT->length;
 		acpi_gbl_original_dsdt_header.checksum =
-		    acpi_gbl_DSDT->pointer->checksum;
+		    acpi_gbl_DSDT->checksum;
 	}
 }
 
@@ -399,15 +395,18 @@ void acpi_tb_check_dsdt_header(void)
  *
  ******************************************************************************/
 
-void acpi_tb_copy_dsdt(struct acpi_table_desc *table_desc)
+struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
 {
 	struct acpi_table_header *new_table;
+	struct acpi_table_desc *table_desc;
+
+	table_desc = &acpi_gbl_root_table_list.tables[table_index];
 
 	new_table = ACPI_ALLOCATE(table_desc->length);
 	if (!new_table) {
 		ACPI_ERROR((AE_INFO, "Could not copy DSDT of length 0x%X",
 			    table_desc->length));
-		return;
+		return (NULL);
 	}
 
 	ACPI_MEMCPY(new_table, table_desc->pointer, table_desc->length);
@@ -418,6 +417,8 @@ void acpi_tb_copy_dsdt(struct acpi_table_desc *table_desc)
 	ACPI_INFO((AE_INFO,
 		   "Forced DSDT copy: length 0x%05X copied locally, original unmapped",
 		   new_table->length));
+
+	return (new_table);
 }
 
 /*******************************************************************************

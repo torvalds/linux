@@ -513,23 +513,37 @@ static acpi_status acpi_tb_load_namespace(void)
 {
 	acpi_status status;
 	u32 i;
+	struct acpi_table_header *new_dsdt;
 
 	ACPI_FUNCTION_TRACE(tb_load_namespace);
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-
-	acpi_gbl_DSDT = &acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT];
 
 	/*
 	 * Load the namespace. The DSDT is required, but any SSDT and
 	 * PSDT tables are optional. Verify the DSDT.
 	 */
 	if (!acpi_gbl_root_table_list.count ||
-	    !ACPI_COMPARE_NAME(&acpi_gbl_DSDT->signature, ACPI_SIG_DSDT) ||
-	    ACPI_FAILURE(acpi_tb_verify_table(acpi_gbl_DSDT))) {
+	    !ACPI_COMPARE_NAME(&
+			       (acpi_gbl_root_table_list.
+				tables[ACPI_TABLE_INDEX_DSDT].signature),
+			       ACPI_SIG_DSDT)
+	    ||
+	    ACPI_FAILURE(acpi_tb_verify_table
+			 (&acpi_gbl_root_table_list.
+			  tables[ACPI_TABLE_INDEX_DSDT]))) {
 		status = AE_NO_ACPI_TABLES;
 		goto unlock_and_exit;
 	}
+
+	/*
+	 * Save the DSDT pointer for simple access. This is the mapped memory
+	 * address. We must take care here because the address of the .Tables
+	 * array can change dynamically as tables are loaded at run-time. Note:
+	 * .Pointer field is not validated until after call to acpi_tb_verify_table.
+	 */
+	acpi_gbl_DSDT =
+	    acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].pointer;
 
 	/*
 	 * Optionally copy the entire DSDT to local memory (instead of simply
@@ -538,14 +552,17 @@ static acpi_status acpi_tb_load_namespace(void)
 	 * the DSDT.
 	 */
 	if (acpi_gbl_copy_dsdt_locally) {
-		acpi_tb_copy_dsdt(acpi_gbl_DSDT);
+		new_dsdt = acpi_tb_copy_dsdt(ACPI_TABLE_INDEX_DSDT);
+		if (new_dsdt) {
+			acpi_gbl_DSDT = new_dsdt;
+		}
 	}
 
 	/*
 	 * Save the original DSDT header for detection of table corruption
 	 * and/or replacement of the DSDT from outside the OS.
 	 */
-	ACPI_MEMCPY(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT->pointer,
+	ACPI_MEMCPY(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT,
 		    sizeof(struct acpi_table_header));
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
