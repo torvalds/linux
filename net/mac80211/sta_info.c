@@ -957,6 +957,8 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 
+	trace_api_sta_block_awake(sta->local, pubsta, block);
+
 	if (block)
 		set_sta_flags(sta, WLAN_STA_PS_DRIVER);
 	else

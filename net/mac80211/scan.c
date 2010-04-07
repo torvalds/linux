@@ -247,6 +247,8 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	struct ieee80211_local *local = hw_to_local(hw);
 	bool was_hw_scan;
 
+	trace_api_scan_completed(local, aborted);
+
 	mutex_lock(&local->scan_mtx);
 
 	/*

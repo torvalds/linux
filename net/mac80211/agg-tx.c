@@ -214,6 +214,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 	int ret = 0;
 	u16 start_seq_num;
 
+	trace_api_start_tx_ba_session(pubsta, tid);
+
 	if (WARN_ON(!local->ops->ampdu_action))
 		return -EINVAL;
 
@@ -440,6 +442,8 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 	struct sta_info *sta;
 	u8 *state;
 
+	trace_api_start_tx_ba_cb(sdata, ra, tid);
+
 	if (tid >= STA_TID_NUM) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Bad TID value: tid = %d (>= %d)\n",
@@ -541,6 +545,8 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 
+	trace_api_stop_tx_ba_session(pubsta, tid, initiator);
+
 	if (!local->ops->ampdu_action)
 		return -EINVAL;
 
@@ -557,6 +563,8 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	u8 *state;
+
+	trace_api_stop_tx_ba_cb(sdata, ra, tid);
 
 	if (tid >= STA_TID_NUM) {
 #ifdef CONFIG_MAC80211_HT_DEBUG

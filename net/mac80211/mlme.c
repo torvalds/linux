@@ -1007,6 +1007,8 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif)
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_hw *hw = &sdata->local->hw;
 
+	trace_api_beacon_loss(sdata);
+
 	WARN_ON(hw->flags & IEEE80211_HW_CONNECTION_MONITOR);
 	ieee80211_queue_work(hw, &sdata->u.mgd.beacon_connection_loss_work);
 }
@@ -1016,6 +1018,8 @@ void ieee80211_connection_loss(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_hw *hw = &sdata->local->hw;
+
+	trace_api_connection_loss(sdata);
 
 	WARN_ON(!(hw->flags & IEEE80211_HW_CONNECTION_MONITOR));
 	ieee80211_queue_work(hw, &sdata->u.mgd.beacon_connection_loss_work);
@@ -2260,6 +2264,8 @@ void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 			       gfp_t gfp)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	trace_api_cqm_rssi_notify(sdata, rssi_event);
 
 	cfg80211_cqm_rssi_notify(sdata->dev, rssi_event, gfp);
 }

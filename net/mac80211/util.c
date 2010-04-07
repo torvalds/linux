@@ -270,6 +270,8 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 
+	trace_wake_queue(local, queue, reason);
+
 	if (WARN_ON(queue >= hw->queues))
 		return;
 
@@ -311,6 +313,8 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
+
+	trace_stop_queue(local, queue, reason);
 
 	if (WARN_ON(queue >= hw->queues))
 		return;
