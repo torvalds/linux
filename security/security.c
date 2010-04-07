@@ -190,11 +190,6 @@ int security_real_capable_noaudit(struct task_struct *tsk, int cap)
 	return ret;
 }
 
-int security_acct(struct file *file)
-{
-	return security_ops->acct(file);
-}
-
 int security_sysctl(struct ctl_table *table, int op)
 {
 	return security_ops->sysctl(table, op);

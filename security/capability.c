@@ -12,11 +12,6 @@
 
 #include <linux/security.h>
 
-static int cap_acct(struct file *file)
-{
-	return 0;
-}
-
 static int cap_sysctl(ctl_table *table, int op)
 {
 	return 0;
@@ -865,7 +860,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, ptrace_traceme);
 	set_to_cap_if_null(ops, capget);
 	set_to_cap_if_null(ops, capset);
-	set_to_cap_if_null(ops, acct);
 	set_to_cap_if_null(ops, capable);
 	set_to_cap_if_null(ops, quotactl);
 	set_to_cap_if_null(ops, quota_on);
