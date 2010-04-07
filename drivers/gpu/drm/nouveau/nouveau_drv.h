@@ -1162,6 +1162,10 @@ extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 int nv17_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
 int nv17_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
 
+/* nv50_gpio.c */
+int nv50_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
+int nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
+
 #ifndef ioread32_native
 #ifdef __BIG_ENDIAN
 #define ioread16_native ioread16be

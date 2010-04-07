@@ -2574,7 +2574,6 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 */
 
 	struct drm_nouveau_private *dev_priv = bios->dev->dev_private;
-	const uint32_t nv50_gpio_reg[4] = { 0xe104, 0xe108, 0xe280, 0xe284 };
 	const uint32_t nv50_gpio_ctl[2] = { 0xe100, 0xe28c };
 	int i;
 
@@ -2592,12 +2591,12 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 		BIOSLOG(bios, "0x%04X: Entry: 0x%08X\n", offset, gpio->entry);
 
-		r = nv50_gpio_reg[gpio->line >> 3];
-		s = (gpio->line & 0x07) << 2;
-		v = bios_rd32(bios, r) & ~(0x00000003 << s);
-		v |= (gpio->state[gpio->state_default] ^ 2) << s;
-		bios_wr32(bios, r, v);
+		nv50_gpio_set(bios->dev, gpio->tag, gpio->state_default);
 
+		/* The NVIDIA binary driver doesn't appear to actually do
+		 * any of this, my VBIOS does however.
+		 */
+		/* Not a clue, needs de-magicing */
 		r = nv50_gpio_ctl[gpio->line >> 4];
 		s = (gpio->line & 0x0f);
 		v = bios_rd32(bios, r) & ~(0x00010001 << s);
