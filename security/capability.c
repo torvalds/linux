@@ -392,11 +392,6 @@ static int cap_kernel_module_request(char *kmod_name)
 	return 0;
 }
 
-static int cap_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
-{
-	return 0;
-}
-
 static int cap_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags)
 {
 	return 0;
@@ -972,7 +967,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, kernel_act_as);
 	set_to_cap_if_null(ops, kernel_create_files_as);
 	set_to_cap_if_null(ops, kernel_module_request);
-	set_to_cap_if_null(ops, task_setuid);
 	set_to_cap_if_null(ops, task_fix_setuid);
 	set_to_cap_if_null(ops, task_setgid);
 	set_to_cap_if_null(ops, task_setpgid);

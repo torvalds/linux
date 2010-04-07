@@ -674,18 +674,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	userspace to load a kernel module with the given name.
  *	@kmod_name name of the module requested by the kernel
  *	Return 0 if successful.
- * @task_setuid:
- *	Check permission before setting one or more of the user identity
- *	attributes of the current process.  The @flags parameter indicates
- *	which of the set*uid system calls invoked this hook and how to
- *	interpret the @id0, @id1, and @id2 parameters.  See the LSM_SETID
- *	definitions at the beginning of this file for the @flags values and
- *	their meanings.
- *	@id0 contains a uid.
- *	@id1 contains a uid.
- *	@id2 contains a uid.
- *	@flags contains one of the LSM_SETID_* values.
- *	Return 0 if permission is granted.
  * @task_fix_setuid:
  *	Update the module's state after setting one or more of the user
  *	identity attributes of the current process.  The @flags parameter
@@ -1536,7 +1524,6 @@ struct security_operations {
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
 	int (*kernel_module_request)(char *kmod_name);
-	int (*task_setuid) (uid_t id0, uid_t id1, uid_t id2, int flags);
 	int (*task_fix_setuid) (struct cred *new, const struct cred *old,
 				int flags);
 	int (*task_setgid) (gid_t id0, gid_t id1, gid_t id2, int flags);
@@ -1793,7 +1780,6 @@ void security_transfer_creds(struct cred *new, const struct cred *old);
 int security_kernel_act_as(struct cred *new, u32 secid);
 int security_kernel_create_files_as(struct cred *new, struct inode *inode);
 int security_kernel_module_request(char *kmod_name);
-int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags);
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags);
 int security_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags);
@@ -2326,12 +2312,6 @@ static inline int security_kernel_create_files_as(struct cred *cred,
 }
 
 static inline int security_kernel_module_request(char *kmod_name)
-{
-	return 0;
-}
-
-static inline int security_task_setuid(uid_t id0, uid_t id1, uid_t id2,
-				       int flags)
 {
 	return 0;
 }

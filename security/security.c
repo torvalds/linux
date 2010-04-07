@@ -732,11 +732,6 @@ int security_kernel_module_request(char *kmod_name)
 	return security_ops->kernel_module_request(kmod_name);
 }
 
-int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
-{
-	return security_ops->task_setuid(id0, id1, id2, flags);
-}
-
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags)
 {
