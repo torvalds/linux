@@ -29,7 +29,7 @@ static unsigned int ir_rc5_remote_gap = 888888;
 
 /* Used to register rc5_decoder clients */
 static LIST_HEAD(decoder_list);
-static spinlock_t decoder_lock;
+static DEFINE_SPINLOCK(decoder_lock);
 
 enum rc5_state {
 	STATE_INACTIVE,

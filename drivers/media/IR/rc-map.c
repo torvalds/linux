@@ -17,8 +17,7 @@
 
 /* Used to handle IR raw handler extensions */
 static LIST_HEAD(rc_map_list);
-static spinlock_t rc_map_lock;
-
+static DEFINE_SPINLOCK(rc_map_lock);
 
 static struct rc_keymap *seek_rc_map(const char *name)
 {

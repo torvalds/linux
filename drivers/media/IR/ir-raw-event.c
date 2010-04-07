@@ -21,7 +21,7 @@
 
 /* Used to handle IR raw handler extensions */
 static LIST_HEAD(ir_raw_handler_list);
-static spinlock_t ir_raw_handler_lock;
+static DEFINE_SPINLOCK(ir_raw_handler_lock);
 
 /**
  * RUN_DECODER()	- runs an operation on all IR decoders
@@ -205,8 +205,6 @@ static void init_decoders(struct work_struct *work)
 
 void ir_raw_init(void)
 {
-	spin_lock_init(&ir_raw_handler_lock);
-
 #ifdef MODULE
 	INIT_WORK(&wq_load, init_decoders);
 	schedule_work(&wq_load);

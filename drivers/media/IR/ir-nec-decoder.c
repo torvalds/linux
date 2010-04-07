@@ -25,7 +25,7 @@
 
 /* Used to register nec_decoder clients */
 static LIST_HEAD(decoder_list);
-static spinlock_t decoder_lock;
+static DEFINE_SPINLOCK(decoder_lock);
 
 enum nec_state {
 	STATE_INACTIVE,
