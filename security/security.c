@@ -550,13 +550,6 @@ int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 	return security_ops->inode_getattr(mnt, dentry);
 }
 
-void security_inode_delete(struct inode *inode)
-{
-	if (unlikely(IS_PRIVATE(inode)))
-		return;
-	security_ops->inode_delete(inode);
-}
-
 int security_inode_setxattr(struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags)
 {

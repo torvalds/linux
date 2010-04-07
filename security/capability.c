@@ -195,10 +195,6 @@ static int cap_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 	return 0;
 }
 
-static void cap_inode_delete(struct inode *ino)
-{
-}
-
 static void cap_inode_post_setxattr(struct dentry *dentry, const char *name,
 				    const void *value, size_t size, int flags)
 {
@@ -936,7 +932,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, inode_permission);
 	set_to_cap_if_null(ops, inode_setattr);
 	set_to_cap_if_null(ops, inode_getattr);
-	set_to_cap_if_null(ops, inode_delete);
 	set_to_cap_if_null(ops, inode_setxattr);
 	set_to_cap_if_null(ops, inode_post_setxattr);
 	set_to_cap_if_null(ops, inode_getxattr);

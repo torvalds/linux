@@ -478,12 +478,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@mnt is the vfsmount where the dentry was looked up
  *	@dentry contains the dentry structure for the file.
  *	Return 0 if permission is granted.
- * @inode_delete:
- *	@inode contains the inode structure for deleted inode.
- *	This hook is called when a deleted inode is released (i.e. an inode
- *	with no hard links has its use count drop to zero).  A security module
- *	can use this hook to release any persistent label associated with the
- *	inode.
  * @inode_setxattr:
  *	Check permission before setting the extended attributes
  *	@value identified by @name for @dentry.
@@ -1502,7 +1496,6 @@ struct security_operations {
 	int (*inode_permission) (struct inode *inode, int mask);
 	int (*inode_setattr)	(struct dentry *dentry, struct iattr *attr);
 	int (*inode_getattr) (struct vfsmount *mnt, struct dentry *dentry);
-	void (*inode_delete) (struct inode *inode);
 	int (*inode_setxattr) (struct dentry *dentry, const char *name,
 			       const void *value, size_t size, int flags);
 	void (*inode_post_setxattr) (struct dentry *dentry, const char *name,
@@ -1768,7 +1761,6 @@ int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
 int security_inode_permission(struct inode *inode, int mask);
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr);
 int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry);
-void security_inode_delete(struct inode *inode);
 int security_inode_setxattr(struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags);
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,
@@ -2176,9 +2168,6 @@ static inline int security_inode_getattr(struct vfsmount *mnt,
 {
 	return 0;
 }
-
-static inline void security_inode_delete(struct inode *inode)
-{ }
 
 static inline int security_inode_setxattr(struct dentry *dentry,
 		const char *name, const void *value, size_t size, int flags)

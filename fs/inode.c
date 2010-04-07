@@ -1205,8 +1205,6 @@ void generic_delete_inode(struct inode *inode)
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
 
-	security_inode_delete(inode);
-
 	if (op->delete_inode) {
 		void (*delete)(struct inode *) = op->delete_inode;
 		/* Filesystems implementing their own
