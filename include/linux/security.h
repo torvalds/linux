@@ -277,10 +277,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@old_path contains the path for the new location of the current root (put_old).
  *	@new_path contains the path for the new root (new_root).
  *	Return 0 if permission is granted.
- * @sb_post_pivotroot:
- *	Update module state after a successful pivot.
- *	@old_path contains the path for the old root.
- *	@new_path contains the path for the new root.
  * @sb_set_mnt_opts:
  *	Set the security relevant mount options used for a superblock
  *	@sb the superblock to set security mount options for
@@ -1458,8 +1454,6 @@ struct security_operations {
 	int (*sb_umount) (struct vfsmount *mnt, int flags);
 	int (*sb_pivotroot) (struct path *old_path,
 			     struct path *new_path);
-	void (*sb_post_pivotroot) (struct path *old_path,
-				   struct path *new_path);
 	int (*sb_set_mnt_opts) (struct super_block *sb,
 				struct security_mnt_opts *opts);
 	void (*sb_clone_mnt_opts) (const struct super_block *oldsb,
@@ -1749,7 +1743,6 @@ int security_sb_mount(char *dev_name, struct path *path,
 		      char *type, unsigned long flags, void *data);
 int security_sb_umount(struct vfsmount *mnt, int flags);
 int security_sb_pivotroot(struct path *old_path, struct path *new_path);
-void security_sb_post_pivotroot(struct path *old_path, struct path *new_path);
 int security_sb_set_mnt_opts(struct super_block *sb, struct security_mnt_opts *opts);
 void security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb);
@@ -2068,10 +2061,6 @@ static inline int security_sb_pivotroot(struct path *old_path,
 {
 	return 0;
 }
-
-static inline void security_sb_post_pivotroot(struct path *old_path,
-					      struct path *new_path)
-{ }
 
 static inline int security_sb_set_mnt_opts(struct super_block *sb,
 					   struct security_mnt_opts *opts)

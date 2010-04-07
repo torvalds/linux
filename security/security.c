@@ -316,11 +316,6 @@ int security_sb_pivotroot(struct path *old_path, struct path *new_path)
 	return security_ops->sb_pivotroot(old_path, new_path);
 }
 
-void security_sb_post_pivotroot(struct path *old_path, struct path *new_path)
-{
-	security_ops->sb_post_pivotroot(old_path, new_path);
-}
-
 int security_sb_set_mnt_opts(struct super_block *sb,
 				struct security_mnt_opts *opts)
 {

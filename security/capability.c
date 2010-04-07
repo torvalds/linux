@@ -90,10 +90,6 @@ static int cap_sb_pivotroot(struct path *old_path, struct path *new_path)
 	return 0;
 }
 
-static void cap_sb_post_pivotroot(struct path *old_path, struct path *new_path)
-{
-}
-
 static int cap_sb_set_mnt_opts(struct super_block *sb,
 			       struct security_mnt_opts *opts)
 {
@@ -921,7 +917,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, sb_mount);
 	set_to_cap_if_null(ops, sb_umount);
 	set_to_cap_if_null(ops, sb_pivotroot);
-	set_to_cap_if_null(ops, sb_post_pivotroot);
 	set_to_cap_if_null(ops, sb_set_mnt_opts);
 	set_to_cap_if_null(ops, sb_clone_mnt_opts);
 	set_to_cap_if_null(ops, sb_parse_opts_str);

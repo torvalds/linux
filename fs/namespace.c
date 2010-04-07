@@ -2265,7 +2265,6 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
 	spin_unlock(&vfsmount_lock);
 	chroot_fs_refs(&root, &new);
-	security_sb_post_pivotroot(&root, &new);
 	error = 0;
 	path_put(&root_parent);
 	path_put(&parent_path);
