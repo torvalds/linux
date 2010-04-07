@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/ftrace.h>
 #include <linux/irq.h>
 
 #include <asm/ptrace.h>
@@ -721,7 +722,7 @@ static __attribute__((always_inline)) void restore_hardirq_stack(void *orig_sp)
 	__asm__ __volatile__("mov %0, %%sp" : : "r" (orig_sp));
 }
 
-void handler_irq(int irq, struct pt_regs *regs)
+void __irq_entry handler_irq(int irq, struct pt_regs *regs)
 {
 	unsigned long pstate, bucket_pa;
 	struct pt_regs *old_regs;
