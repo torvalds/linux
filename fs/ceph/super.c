@@ -682,9 +682,10 @@ int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid)
 /*
  * true if we have the mon map (and have thus joined the cluster)
  */
-static int have_mon_map(struct ceph_client *client)
+static int have_mon_and_osd_map(struct ceph_client *client)
 {
-	return client->monc.monmap && client->monc.monmap->epoch;
+	return client->monc.monmap && client->monc.monmap->epoch &&
+	       client->osdc.osdmap && client->osdc.osdmap->epoch;
 }
 
 /*
@@ -762,7 +763,7 @@ static int ceph_mount(struct ceph_client *client, struct vfsmount *mnt,
 	if (err < 0)
 		goto out;
 
-	while (!have_mon_map(client)) {
+	while (!have_mon_and_osd_map(client)) {
 		err = -EIO;
 		if (timeout && time_after_eq(jiffies, started + timeout))
 			goto out;
@@ -770,8 +771,8 @@ static int ceph_mount(struct ceph_client *client, struct vfsmount *mnt,
 		/* wait */
 		dout("mount waiting for mon_map\n");
 		err = wait_event_interruptible_timeout(client->auth_wq,
-			       have_mon_map(client) || (client->auth_err < 0),
-			       timeout);
+		       have_mon_and_osd_map(client) || (client->auth_err < 0),
+		       timeout);
 		if (err == -EINTR || err == -ERESTARTSYS)
 			goto out;
 		if (client->auth_err < 0) {
