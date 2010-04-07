@@ -1436,8 +1436,6 @@ static int graft_tree(struct vfsmount *mnt, struct path *path)
 		err = attach_recursive_mnt(mnt, path, NULL);
 out_unlock:
 	mutex_unlock(&path->dentry->d_inode->i_mutex);
-	if (!err)
-		security_sb_post_addmount(mnt, path);
 	return err;
 }
 

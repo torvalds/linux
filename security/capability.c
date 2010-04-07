@@ -85,10 +85,6 @@ static int cap_sb_umount(struct vfsmount *mnt, int flags)
 	return 0;
 }
 
-static void cap_sb_post_addmount(struct vfsmount *mnt, struct path *path)
-{
-}
-
 static int cap_sb_pivotroot(struct path *old_path, struct path *new_path)
 {
 	return 0;
@@ -924,7 +920,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, sb_statfs);
 	set_to_cap_if_null(ops, sb_mount);
 	set_to_cap_if_null(ops, sb_umount);
-	set_to_cap_if_null(ops, sb_post_addmount);
 	set_to_cap_if_null(ops, sb_pivotroot);
 	set_to_cap_if_null(ops, sb_post_pivotroot);
 	set_to_cap_if_null(ops, sb_set_mnt_opts);
