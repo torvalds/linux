@@ -311,11 +311,6 @@ int security_sb_umount(struct vfsmount *mnt, int flags)
 	return security_ops->sb_umount(mnt, flags);
 }
 
-void security_sb_umount_busy(struct vfsmount *mnt)
-{
-	security_ops->sb_umount_busy(mnt);
-}
-
 void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *data)
 {
 	security_ops->sb_post_remount(mnt, flags, data);

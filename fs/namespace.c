@@ -1116,8 +1116,6 @@ static int do_umount(struct vfsmount *mnt, int flags)
 		retval = 0;
 	}
 	spin_unlock(&vfsmount_lock);
-	if (retval)
-		security_sb_umount_busy(mnt);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);
 	return retval;
