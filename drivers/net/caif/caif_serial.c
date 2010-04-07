@@ -312,6 +312,10 @@ static int ldisc_open(struct tty_struct *tty)
 	char name[64];
 	int result;
 
+	/* No write no play */
+	if (tty->ops->write == NULL)
+		return -EOPNOTSUPP;
+
 	sprintf(name, "cf%s", tty->name);
 	dev = alloc_netdev(sizeof(*ser), name, caifdev_setup);
 	ser = netdev_priv(dev);
