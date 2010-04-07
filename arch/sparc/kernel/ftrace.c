@@ -13,7 +13,7 @@ static const u32 ftrace_nop = 0x01000000;
 
 static u32 ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
-	static u32 call;
+	u32 call;
 	s32 off;
 
 	off = ((s32)addr - (s32)ip);
