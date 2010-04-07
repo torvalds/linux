@@ -1261,7 +1261,7 @@ mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 	 * enable work queue to remove device from upper layers
 	 */
 	list_del(&target_reset_list->list);
-	if ((mptsas_find_vtarget(ioc, channel, id)) && !ioc->fw_events_off)
+	if (!ioc->fw_events_off)
 		mptsas_queue_device_delete(ioc,
 			&target_reset_list->sas_event_data);
 
