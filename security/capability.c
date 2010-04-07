@@ -373,10 +373,6 @@ static int cap_cred_prepare(struct cred *new, const struct cred *old, gfp_t gfp)
 	return 0;
 }
 
-static void cap_cred_commit(struct cred *new, const struct cred *old)
-{
-}
-
 static void cap_cred_transfer(struct cred *new, const struct cred *old)
 {
 }
@@ -972,7 +968,6 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, cred_alloc_blank);
 	set_to_cap_if_null(ops, cred_free);
 	set_to_cap_if_null(ops, cred_prepare);
-	set_to_cap_if_null(ops, cred_commit);
 	set_to_cap_if_null(ops, cred_transfer);
 	set_to_cap_if_null(ops, kernel_act_as);
 	set_to_cap_if_null(ops, kernel_create_files_as);

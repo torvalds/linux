@@ -712,11 +712,6 @@ int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)
 	return security_ops->cred_prepare(new, old, gfp);
 }
 
-void security_commit_creds(struct cred *new, const struct cred *old)
-{
-	security_ops->cred_commit(new, old);
-}
-
 void security_transfer_creds(struct cred *new, const struct cred *old)
 {
 	security_ops->cred_transfer(new, old);

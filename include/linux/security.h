@@ -652,10 +652,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@old points to the original credentials.
  *	@gfp indicates the atomicity of any memory allocations.
  *	Prepare a new set of credentials by copying the data from the old set.
- * @cred_commit:
- *	@new points to the new credentials.
- *	@old points to the original credentials.
- *	Install a new set of credentials.
  * @cred_transfer:
  *	@new points to the new credentials.
  *	@old points to the original credentials.
@@ -1536,7 +1532,6 @@ struct security_operations {
 	void (*cred_free) (struct cred *cred);
 	int (*cred_prepare)(struct cred *new, const struct cred *old,
 			    gfp_t gfp);
-	void (*cred_commit)(struct cred *new, const struct cred *old);
 	void (*cred_transfer)(struct cred *new, const struct cred *old);
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
@@ -1794,7 +1789,6 @@ int security_task_create(unsigned long clone_flags);
 int security_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 void security_cred_free(struct cred *cred);
 int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp);
-void security_commit_creds(struct cred *new, const struct cred *old);
 void security_transfer_creds(struct cred *new, const struct cred *old);
 int security_kernel_act_as(struct cred *new, u32 secid);
 int security_kernel_create_files_as(struct cred *new, struct inode *inode);
@@ -2313,11 +2307,6 @@ static inline int security_prepare_creds(struct cred *new,
 					 gfp_t gfp)
 {
 	return 0;
-}
-
-static inline void security_commit_creds(struct cred *new,
-					 const struct cred *old)
-{
 }
 
 static inline void security_transfer_creds(struct cred *new,
