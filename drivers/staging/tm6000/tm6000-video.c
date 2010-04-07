@@ -491,7 +491,7 @@ static inline int tm6000_isoc_copy(struct urb *urb)
 	unsigned long copied;
 
 	get_next_buf(dma_q, &buf);
-	if (!buf)
+	if (buf)
 		outp = videobuf_to_vmalloc(&buf->vb);
 
 	if (!outp)
