@@ -319,7 +319,7 @@ static int ldisc_open(struct tty_struct *tty)
 	sprintf(name, "cf%s", tty->name);
 	dev = alloc_netdev(sizeof(*ser), name, caifdev_setup);
 	ser = netdev_priv(dev);
-	ser->tty = tty;
+	ser->tty = tty_kref_get(tty);
 	ser->dev = dev;
 	debugfs_init(ser, tty);
 	tty->receive_room = N_TTY_BUF_SIZE;
@@ -352,6 +352,7 @@ static void ldisc_close(struct tty_struct *tty)
 	unregister_netdevice(ser->dev);
 	list_del(&ser->node);
 	debugfs_deinit(ser);
+	tty_kref_put(ser->tty);
 	if (!islocked)
 		rtnl_unlock();
 }
