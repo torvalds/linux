@@ -10191,21 +10191,21 @@ static int alc882_auto_create_input_ctls(struct hda_codec *codec,
 
 static void alc882_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid, int pin_type,
-					      int dac_idx)
+					      hda_nid_t dac)
 {
-	/* set as output */
-	struct alc_spec *spec = codec->spec;
 	int idx;
 
+	printk("XXX set output pin %x, dac %x\n", nid, dac);
+	/* set as output */
 	alc_set_pin_output(codec, nid, pin_type);
-	if (dac_idx >= spec->multiout.num_dacs)
-		return;
-	if (spec->multiout.dac_nids[dac_idx] == 0x25)
-		idx = 4;
-	else
-		idx = spec->multiout.dac_nids[dac_idx] - 2;
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, idx);
 
+	if (dac == 0x25)
+		idx = 4;
+	else if (dac >= 0x02 && dac <= 0x05)
+		idx = dac - 2;
+	else
+		return;
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, idx);
 }
 
 static void alc882_auto_init_multi_out(struct hda_codec *codec)
@@ -10218,22 +10218,29 @@ static void alc882_auto_init_multi_out(struct hda_codec *codec)
 		int pin_type = get_pin_type(spec->autocfg.line_out_type);
 		if (nid)
 			alc882_auto_set_output_and_unmute(codec, nid, pin_type,
-							  i);
+					spec->multiout.dac_nids[i]);
 	}
 }
 
 static void alc882_auto_init_hp_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t pin;
+	hda_nid_t pin, dac;
 
 	pin = spec->autocfg.hp_pins[0];
-	if (pin) /* connect to front */
-		/* use dac 0 */
-		alc882_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
+	if (pin) {
+		dac = spec->multiout.hp_nid;
+		if (!dac)
+			dac = spec->multiout.dac_nids[0]; /* to front */
+		alc882_auto_set_output_and_unmute(codec, pin, PIN_HP, dac);
+	}
 	pin = spec->autocfg.speaker_pins[0];
-	if (pin)
-		alc882_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
+	if (pin) {
+		dac = spec->multiout.extra_out_nid[0];
+		if (!dac)
+			dac = spec->multiout.dac_nids[0]; /* to front */
+		alc882_auto_set_output_and_unmute(codec, pin, PIN_OUT, dac);
+	}
 }
 
 static void alc882_auto_init_analog_input(struct hda_codec *codec)
@@ -10349,13 +10356,13 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 	err = alc880_auto_create_multi_out_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
+	err = alc880_auto_create_extra_out(spec, spec->autocfg.hp_pins[0],
+					   "Headphone");
+	if (err < 0)
+		return err;
 	err = alc880_auto_create_extra_out(spec,
 					   spec->autocfg.speaker_pins[0],
 					   "Speaker");
-	if (err < 0)
-		return err;
-	err = alc880_auto_create_extra_out(spec, spec->autocfg.hp_pins[0],
-					   "Headphone");
 	if (err < 0)
 		return err;
 	err = alc882_auto_create_input_ctls(codec, &spec->autocfg);
