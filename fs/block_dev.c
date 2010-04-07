@@ -661,41 +661,70 @@ void bd_forget(struct inode *inode)
 		iput(bdev->bd_inode);
 }
 
+/**
+ * bd_may_claim - test whether a block device can be claimed
+ * @bdev: block device of interest
+ * @whole: whole block device containing @bdev, may equal @bdev
+ * @holder: holder trying to claim @bdev
+ *
+ * Test whther @bdev can be claimed by @holder.
+ *
+ * CONTEXT:
+ * spin_lock(&bdev_lock).
+ *
+ * RETURNS:
+ * %true if @bdev can be claimed, %false otherwise.
+ */
+static bool bd_may_claim(struct block_device *bdev, struct block_device *whole,
+			 void *holder)
+{
+	if (bdev->bd_holder == holder)
+		return true;	 /* already a holder */
+	else if (bdev->bd_holder != NULL)
+		return false; 	 /* held by someone else */
+	else if (bdev->bd_contains == bdev)
+		return true;  	 /* is a whole device which isn't held */
+
+	else if (whole->bd_holder == bd_claim)
+		return true; 	 /* is a partition of a device that is being partitioned */
+	else if (whole->bd_holder != NULL)
+		return false;	 /* is a partition of a held device */
+	else
+		return true;	 /* is a partition of an un-held device */
+}
+
+/**
+ * bd_claim - claim a block device
+ * @bdev: block device to claim
+ * @holder: holder trying to claim @bdev
+ *
+ * Try to claim @bdev.
+ *
+ * RETURNS:
+ * 0 if successful, -EBUSY if @bdev is already claimed.
+ */
 int bd_claim(struct block_device *bdev, void *holder)
 {
-	int res;
+	struct block_device *whole = bdev->bd_contains;
+	int res = -EBUSY;
+
 	spin_lock(&bdev_lock);
 
-	/* first decide result */
-	if (bdev->bd_holder == holder)
-		res = 0;	 /* already a holder */
-	else if (bdev->bd_holder != NULL)
-		res = -EBUSY; 	 /* held by someone else */
-	else if (bdev->bd_contains == bdev)
-		res = 0;  	 /* is a whole device which isn't held */
-
-	else if (bdev->bd_contains->bd_holder == bd_claim)
-		res = 0; 	 /* is a partition of a device that is being partitioned */
-	else if (bdev->bd_contains->bd_holder != NULL)
-		res = -EBUSY;	 /* is a partition of a held device */
-	else
-		res = 0;	 /* is a partition of an un-held device */
-
-	/* now impose change */
-	if (res==0) {
+	if (bd_may_claim(bdev, whole, holder)) {
 		/* note that for a whole device bd_holders
 		 * will be incremented twice, and bd_holder will
 		 * be set to bd_claim before being set to holder
 		 */
-		bdev->bd_contains->bd_holders ++;
-		bdev->bd_contains->bd_holder = bd_claim;
+		whole->bd_holders++;
+		whole->bd_holder = bd_claim;
 		bdev->bd_holders++;
 		bdev->bd_holder = holder;
+		res = 0;
 	}
+
 	spin_unlock(&bdev_lock);
 	return res;
 }
-
 EXPORT_SYMBOL(bd_claim);
 
 void bd_release(struct block_device *bdev)
