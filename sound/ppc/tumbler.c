@@ -47,7 +47,7 @@
 #define DBG(fmt...)
 #endif
 
-#define IS_G4DA (machine_is_compatible("PowerMac3,4"))
+#define IS_G4DA (of_machine_is_compatible("PowerMac3,4"))
 
 /* i2c address for tumbler */
 #define TAS_I2C_ADDR	0x34
