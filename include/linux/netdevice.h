@@ -260,7 +260,7 @@ struct netdev_hw_addr_list {
 
 #define netdev_mc_count(dev) netdev_hw_addr_list_count(&(dev)->mc)
 #define netdev_mc_empty(dev) netdev_hw_addr_list_empty(&(dev)->mc)
-#define netdev_for_each_mc_addr(mclist, dev) \
+#define netdev_for_each_mc_addr(ha, dev) \
 	netdev_hw_addr_list_for_each(ha, &(dev)->mc)
 
 struct hh_cache {
