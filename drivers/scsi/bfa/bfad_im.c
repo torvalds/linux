@@ -43,11 +43,11 @@ bfa_cb_ioim_done(void *drv, struct bfad_ioim_s *dio,
 	struct bfad_s         *bfad = drv;
 	struct bfad_itnim_data_s *itnim_data;
 	struct bfad_itnim_s *itnim;
+	u8         host_status = DID_OK;
 
 	switch (io_status) {
 	case BFI_IOIM_STS_OK:
 		bfa_trc(bfad, scsi_status);
-		cmnd->result = ScsiResult(DID_OK, scsi_status);
 		scsi_set_resid(cmnd, 0);
 
 		if (sns_len > 0) {
@@ -56,8 +56,18 @@ bfa_cb_ioim_done(void *drv, struct bfad_ioim_s *dio,
 				sns_len = SCSI_SENSE_BUFFERSIZE;
 			memcpy(cmnd->sense_buffer, sns_info, sns_len);
 		}
-		if (residue > 0)
+		if (residue > 0) {
+			bfa_trc(bfad, residue);
 			scsi_set_resid(cmnd, residue);
+			if (!sns_len && (scsi_status == SAM_STAT_GOOD) &&
+				(scsi_bufflen(cmnd) - residue) <
+					cmnd->underflow) {
+				bfa_trc(bfad, 0);
+				host_status = DID_ERROR;
+			}
+		}
+		cmnd->result = ScsiResult(host_status, scsi_status);
+
 		break;
 
 	case BFI_IOIM_STS_ABORTED:
@@ -167,17 +177,15 @@ bfad_im_info(struct Scsi_Host *shost)
 	static char     bfa_buf[256];
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) shost->hostdata[0];
-	struct bfa_ioc_attr_s  ioc_attr;
 	struct bfad_s         *bfad = im_port->bfad;
+	char model[BFA_ADAPTER_MODEL_NAME_LEN];
 
-	memset(&ioc_attr, 0, sizeof(ioc_attr));
-	bfa_get_attr(&bfad->bfa, &ioc_attr);
+	bfa_get_adapter_model(&bfad->bfa, model);
 
 	memset(bfa_buf, 0, sizeof(bfa_buf));
 	snprintf(bfa_buf, sizeof(bfa_buf),
-		 "Brocade FC/FCOE Adapter, " "model: %s hwpath: %s driver: %s",
-		 ioc_attr.adapter_attr.model, bfad->pci_name,
-		 BFAD_DRIVER_VERSION);
+		"Brocade FC/FCOE Adapter, " "model: %s hwpath: %s driver: %s",
+		model, bfad->pci_name, BFAD_DRIVER_VERSION);
 	return bfa_buf;
 }
 
@@ -499,16 +507,6 @@ void bfa_fcb_itnim_tov(struct bfad_itnim_s *itnim)
 {
 	itnim->state = ITNIM_STATE_TIMEOUT;
 }
-
-/**
- * Path TOV processing begin notification -- dummy for linux
- */
-void
-bfa_fcb_itnim_tov_begin(struct bfad_itnim_s *itnim)
-{
-}
-
-
 
 /**
  * Allocate a Scsi_Host for a port.
@@ -931,10 +929,9 @@ bfad_os_fc_host_init(struct bfad_im_port_s *im_port)
 	struct Scsi_Host *host = im_port->shost;
 	struct bfad_s         *bfad = im_port->bfad;
 	struct bfad_port_s    *port = im_port->port;
-	union attr {
-		struct bfa_pport_attr_s pattr;
-		struct bfa_ioc_attr_s  ioc_attr;
-	} attr;
+	struct bfa_pport_attr_s pattr;
+	char model[BFA_ADAPTER_MODEL_NAME_LEN];
+	char fw_ver[BFA_VERSION_LEN];
 
 	fc_host_node_name(host) =
 		bfa_os_htonll((bfa_fcs_port_get_nwwn(port->fcs_port)));
@@ -954,20 +951,18 @@ bfad_os_fc_host_init(struct bfad_im_port_s *im_port)
 	/* For fibre channel services type 0x20 */
 	fc_host_supported_fc4s(host)[7] = 1;
 
-	memset(&attr.ioc_attr, 0, sizeof(attr.ioc_attr));
-	bfa_get_attr(&bfad->bfa, &attr.ioc_attr);
+	bfa_get_adapter_model(&bfad->bfa, model);
+	bfa_get_adapter_fw_ver(&bfad->bfa, fw_ver);
 	sprintf(fc_host_symbolic_name(host), "Brocade %s FV%s DV%s",
-		attr.ioc_attr.adapter_attr.model,
-		attr.ioc_attr.adapter_attr.fw_ver, BFAD_DRIVER_VERSION);
+		model, fw_ver, BFAD_DRIVER_VERSION);
 
 	fc_host_supported_speeds(host) = 0;
 	fc_host_supported_speeds(host) |=
 		FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT | FC_PORTSPEED_2GBIT |
 		FC_PORTSPEED_1GBIT;
 
-	memset(&attr.pattr, 0, sizeof(attr.pattr));
-	bfa_pport_get_attr(&bfad->bfa, &attr.pattr);
-	fc_host_maxframe_size(host) = attr.pattr.pport_cfg.maxfrsize;
+	bfa_fcport_get_attr(&bfad->bfa, &pattr);
+	fc_host_maxframe_size(host) = pattr.pport_cfg.maxfrsize;
 }
 
 static void

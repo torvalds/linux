@@ -187,6 +187,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	struct pm860x_backlight_data *data;
 	struct backlight_device *bl;
 	struct resource *res;
+	struct backlight_properties props;
 	unsigned char value;
 	char name[MFD_NAME_SIZE];
 	int ret;
@@ -223,14 +224,15 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = MAX_BRIGHTNESS;
 	bl = backlight_device_register(name, &pdev->dev, data,
-					&pm860x_backlight_ops);
+					&pm860x_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		kfree(data);
 		return PTR_ERR(bl);
 	}
-	bl->props.max_brightness = MAX_BRIGHTNESS;
 	bl->props.brightness = MAX_BRIGHTNESS;
 
 	platform_set_drvdata(pdev, bl);

@@ -1194,7 +1194,7 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 		hlist_for_each_entry_rcu(dev, node, head, index_hlist) {
 			if (idx < s_idx)
 				goto cont;
-			if (idx > s_idx)
+			if (h > s_h || idx > s_idx)
 				s_ip_idx = 0;
 			in_dev = __in_dev_get_rcu(dev);
 			if (!in_dev)

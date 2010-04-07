@@ -208,7 +208,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			if (in_irq_stack(stack, irq_stack, irq_stack_end)) {
 				if (ops->stack(data, "IRQ") < 0)
 					break;
-				bp = print_context_stack(tinfo, stack, bp,
+				bp = ops->walk_stack(tinfo, stack, bp,
 					ops, data, irq_stack_end, &graph);
 				/*
 				 * We link to the next stack (which would be
@@ -229,7 +229,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	/*
 	 * This handles the process stack:
 	 */
-	bp = print_context_stack(tinfo, stack, bp, ops, data, NULL, &graph);
+	bp = ops->walk_stack(tinfo, stack, bp, ops, data, NULL, &graph);
 	put_cpu();
 }
 EXPORT_SYMBOL(dump_trace);

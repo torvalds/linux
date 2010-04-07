@@ -278,6 +278,7 @@ static const struct attribute_group adp5520_bl_attr_group = {
 
 static int __devinit adp5520_bl_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	struct backlight_device *bl;
 	struct adp5520_bl *data;
 	int ret = 0;
@@ -300,17 +301,17 @@ static int __devinit adp5520_bl_probe(struct platform_device *pdev)
 
 	mutex_init(&data->lock);
 
-	bl = backlight_device_register(pdev->name, data->master,
-			data, &adp5520_bl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = ADP5020_MAX_BRIGHTNESS;
+	bl = backlight_device_register(pdev->name, data->master, data,
+				       &adp5520_bl_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		kfree(data);
 		return PTR_ERR(bl);
 	}
 
-	bl->props.max_brightness =
-		bl->props.brightness = ADP5020_MAX_BRIGHTNESS;
-
+	bl->props.brightness = ADP5020_MAX_BRIGHTNESS;
 	if (data->pdata->en_ambl_sens)
 		ret = sysfs_create_group(&bl->dev.kobj,
 			&adp5520_bl_attr_group);

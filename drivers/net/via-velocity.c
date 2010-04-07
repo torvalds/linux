@@ -812,7 +812,7 @@ static void set_mii_flow_control(struct velocity_info *vptr)
 
 	case FLOW_CNTL_TX_RX:
 		MII_REG_BITS_ON(ADVERTISE_PAUSE_CAP, MII_ADVERTISE, vptr->mac_regs);
-		MII_REG_BITS_ON(ADVERTISE_PAUSE_ASYM, MII_ADVERTISE, vptr->mac_regs);
+		MII_REG_BITS_OFF(ADVERTISE_PAUSE_ASYM, MII_ADVERTISE, vptr->mac_regs);
 		break;
 
 	case FLOW_CNTL_DISABLE:

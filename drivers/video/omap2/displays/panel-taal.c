@@ -486,6 +486,7 @@ static struct attribute_group taal_attr_group = {
 
 static int taal_probe(struct omap_dss_device *dssdev)
 {
+	struct backlight_properties props;
 	struct taal_data *td;
 	struct backlight_device *bldev;
 	int r;
@@ -520,11 +521,16 @@ static int taal_probe(struct omap_dss_device *dssdev)
 
 	/* if no platform set_backlight() defined, presume DSI backlight
 	 * control */
+	memset(&props, 0, sizeof(struct backlight_properties));
 	if (!dssdev->set_backlight)
 		td->use_dsi_bl = true;
 
+	if (td->use_dsi_bl)
+		props.max_brightness = 255;
+	else
+		props.max_brightness = 127;
 	bldev = backlight_device_register("taal", &dssdev->dev, dssdev,
-			&taal_bl_ops);
+					  &taal_bl_ops, &props);
 	if (IS_ERR(bldev)) {
 		r = PTR_ERR(bldev);
 		goto err2;
@@ -534,13 +540,10 @@ static int taal_probe(struct omap_dss_device *dssdev)
 
 	bldev->props.fb_blank = FB_BLANK_UNBLANK;
 	bldev->props.power = FB_BLANK_UNBLANK;
-	if (td->use_dsi_bl) {
-		bldev->props.max_brightness = 255;
+	if (td->use_dsi_bl)
 		bldev->props.brightness = 255;
-	} else {
-		bldev->props.max_brightness = 127;
+	else
 		bldev->props.brightness = 127;
-	}
 
 	taal_bl_update_status(bldev);
 

@@ -352,7 +352,7 @@ static int bl_get_brightness(struct backlight_device *bd)
 	return 0;
 }
 
-static struct backlight_ops bfin_lq043fb_bl_ops = {
+static const struct backlight_ops bfin_lq043fb_bl_ops = {
 	.get_brightness = bl_get_brightness,
 };
 
@@ -419,6 +419,7 @@ static irqreturn_t bfin_t350mcqb_irq_error(int irq, void *dev_id)
 
 static int __devinit bfin_t350mcqb_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	struct bfin_t350mcqbfb_info *info;
 	struct fb_info *fbinfo;
 	int ret;
@@ -540,10 +541,16 @@ static int __devinit bfin_t350mcqb_probe(struct platform_device *pdev)
 		goto out8;
 	}
 #ifndef NO_BL_SUPPORT
-	bl_dev =
-	    backlight_device_register("bf52x-bl", NULL, NULL,
-				      &bfin_lq043fb_bl_ops);
-	bl_dev->props.max_brightness = 255;
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 255;
+	bl_dev = backlight_device_register("bf52x-bl", NULL, NULL,
+					   &bfin_lq043fb_bl_ops, &props);
+	if (IS_ERR(bl_dev)) {
+		printk(KERN_ERR DRIVER_NAME
+			": unable to register backlight.\n");
+		ret = -EINVAL;
+		goto out9;
+	}
 
 	lcd_dev = lcd_device_register(DRIVER_NAME, NULL, &bfin_lcd_ops);
 	lcd_dev->props.max_contrast = 255, printk(KERN_INFO "Done.\n");
@@ -551,6 +558,8 @@ static int __devinit bfin_t350mcqb_probe(struct platform_device *pdev)
 
 	return 0;
 
+out9:
+	unregister_framebuffer(fbinfo);
 out8:
 	free_irq(info->irq, info);
 out7:

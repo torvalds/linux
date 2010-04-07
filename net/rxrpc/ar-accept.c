@@ -88,6 +88,11 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 
 	/* get a notification message to send to the server app */
 	notification = alloc_skb(0, GFP_NOFS);
+	if (!notification) {
+		_debug("no memory");
+		ret = -ENOMEM;
+		goto error_nofree;
+	}
 	rxrpc_new_skb(notification);
 	notification->mark = RXRPC_SKB_MARK_NEW_CALL;
 
@@ -189,6 +194,7 @@ invalid_service:
 	ret = -ECONNREFUSED;
 error:
 	rxrpc_free_skb(notification);
+error_nofree:
 	_leave(" = %d", ret);
 	return ret;
 }

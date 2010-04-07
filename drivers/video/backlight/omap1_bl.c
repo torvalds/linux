@@ -132,6 +132,7 @@ static const struct backlight_ops omapbl_ops = {
 
 static int omapbl_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	struct backlight_device *dev;
 	struct omap_backlight *bl;
 	struct omap_backlight_config *pdata = pdev->dev.platform_data;
@@ -143,7 +144,10 @@ static int omapbl_probe(struct platform_device *pdev)
 	if (unlikely(!bl))
 		return -ENOMEM;
 
-	dev = backlight_device_register("omap-bl", &pdev->dev, bl, &omapbl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = OMAPBL_MAX_INTENSITY;
+	dev = backlight_device_register("omap-bl", &pdev->dev, bl, &omapbl_ops,
+					&props);
 	if (IS_ERR(dev)) {
 		kfree(bl);
 		return PTR_ERR(dev);
@@ -160,7 +164,6 @@ static int omapbl_probe(struct platform_device *pdev)
 	omap_cfg_reg(PWL);	/* Conflicts with UART3 */
 
 	dev->props.fb_blank = FB_BLANK_UNBLANK;
-	dev->props.max_brightness = OMAPBL_MAX_INTENSITY;
 	dev->props.brightness = pdata->default_intensity;
 	omapbl_update_status(dev);
 

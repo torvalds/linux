@@ -1441,6 +1441,15 @@ F:	arch/powerpc/include/asm/spu*.h
 F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
 
+CEPH DISTRIBUTED FILE SYSTEM CLIENT
+M:	Sage Weil <sage@newdream.net>
+L:	ceph-devel@lists.sourceforge.net
+W:	http://ceph.newdream.net/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
+S:	Supported
+F:	Documentation/filesystems/ceph.txt
+F:	fs/ceph
+
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 M:	David Vrabel <david.vrabel@csr.com>
 L:	linux-usb@vger.kernel.org
@@ -3074,6 +3083,7 @@ F:	include/scsi/*iscsi*
 ISDN SUBSYSTEM
 M:	Karsten Keil <isdn@linux-pingi.de>
 L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
+L:	netdev@vger.kernel.org
 W:	http://www.isdn4linux.de
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kkeil/isdn-2.6.git
 S:	Maintained
@@ -5213,6 +5223,21 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
 S:	Maintained
 F:	arch/sparc/
 
+SPARC SERIAL DRIVERS
+M:	"David S. Miller" <davem@davemloft.net>
+L:	sparclinux@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
+S:	Maintained
+F:	drivers/serial/suncore.c
+F:	drivers/serial/suncore.h
+F:	drivers/serial/sunhv.c
+F:	drivers/serial/sunsab.c
+F:	drivers/serial/sunsab.h
+F:	drivers/serial/sunsu.c
+F:	drivers/serial/sunzilog.c
+F:	drivers/serial/sunzilog.h
+
 SPECIALIX IO8+ MULTIPORT SERIAL CARD DRIVER
 M:	Roger Wolff <R.E.Wolff@BitWizard.nl>
 S:	Supported
@@ -5398,7 +5423,6 @@ S:	Maintained
 F:	sound/soc/codecs/twl4030*
 
 TIPC NETWORK LAYER
-M:	Per Liden <per.liden@ericsson.com>
 M:	Jon Maloy <jon.maloy@ericsson.com>
 M:	Allan Stephens <allan.stephens@windriver.com>
 L:	tipc-discussion@lists.sourceforge.net
