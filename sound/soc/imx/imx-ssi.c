@@ -235,16 +235,19 @@ static int imx_ssi_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *cpu_dai)
 {
 	struct imx_ssi *ssi = cpu_dai->private_data;
+	struct imx_pcm_dma_params *dma_data;
 	u32 reg, sccr;
 
 	/* Tx/Rx config */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		reg = SSI_STCCR;
-		cpu_dai->dma_data = &ssi->dma_params_tx;
+		dma_data = &ssi->dma_params_tx;
 	} else {
 		reg = SSI_SRCCR;
-		cpu_dai->dma_data = &ssi->dma_params_rx;
+		dma_data = &ssi->dma_params_rx;
 	}
+
+	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
 	sccr = readl(ssi->base + reg) & ~SSI_STCCR_WL_MASK;
 

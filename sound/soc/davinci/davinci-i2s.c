@@ -586,7 +586,8 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].channel = res->start;
 
 	davinci_i2s_dai.private_data = dev;
-	davinci_i2s_dai.dma_data = dev->dma_params;
+	davinci_i2s_dai.capture.dma_data = dev->dma_params;
+	davinci_i2s_dai.playback.dma_data = dev->dma_params;
 	ret = snd_soc_register_dai(&davinci_i2s_dai);
 	if (ret != 0)
 		goto err_free_mem;

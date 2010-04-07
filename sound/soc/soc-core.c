@@ -1549,7 +1549,8 @@ int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid)
 			mutex_unlock(&codec->mutex);
 			return ret;
 		}
-		if (card->dai_link[i].codec_dai->ac97_control) {
+		/* Check for codec->ac97 to handle the ac97.c fun */
+		if (card->dai_link[i].codec_dai->ac97_control && codec->ac97) {
 			snd_ac97_dev_add_pdata(codec->ac97,
 				card->dai_link[i].cpu_dai->ac97_pdata);
 		}

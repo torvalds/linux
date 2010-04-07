@@ -519,7 +519,8 @@ static int __devinit s6000_i2s_probe(struct platform_device *pdev)
 
 	s6000_i2s_dai.dev = &pdev->dev;
 	s6000_i2s_dai.private_data = dev;
-	s6000_i2s_dai.dma_data = &dev->dma_params;
+	s6000_i2s_dai.capture.dma_data = &dev->dma_params;
+	s6000_i2s_dai.playback.dma_data = &dev->dma_params;
 
 	dev->sifbase = sifmem->start;
 	dev->scbbase = mmio;
