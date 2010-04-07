@@ -1573,8 +1573,6 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 	}
 	up_write(&sb->s_umount);
 	if (!err) {
-		security_sb_post_remount(path->mnt, flags, data);
-
 		spin_lock(&vfsmount_lock);
 		touch_mnt_namespace(path->mnt->mnt_ns);
 		spin_unlock(&vfsmount_lock);

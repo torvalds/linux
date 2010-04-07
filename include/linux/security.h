@@ -272,12 +272,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@mnt contains the mounted file system.
  *	@flags contains the unmount flags, e.g. MNT_FORCE.
  *	Return 0 if permission is granted.
- * @sb_post_remount:
- *	Update the security module's state when a filesystem is remounted.
- *	This hook is only called if the remount was successful.
- *	@mnt contains the mounted file system.
- *	@flags contains the new filesystem flags.
- *	@data contains the filesystem-specific data.
  * @sb_post_addmount:
  *	Update the security module's state when a filesystem is mounted.
  *	This hook is called any time a mount is successfully grafetd to
@@ -1468,8 +1462,6 @@ struct security_operations {
 	int (*sb_mount) (char *dev_name, struct path *path,
 			 char *type, unsigned long flags, void *data);
 	int (*sb_umount) (struct vfsmount *mnt, int flags);
-	void (*sb_post_remount) (struct vfsmount *mnt,
-				 unsigned long flags, void *data);
 	void (*sb_post_addmount) (struct vfsmount *mnt,
 				  struct path *mountpoint);
 	int (*sb_pivotroot) (struct path *old_path,
@@ -1764,7 +1756,6 @@ int security_sb_statfs(struct dentry *dentry);
 int security_sb_mount(char *dev_name, struct path *path,
 		      char *type, unsigned long flags, void *data);
 int security_sb_umount(struct vfsmount *mnt, int flags);
-void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *data);
 void security_sb_post_addmount(struct vfsmount *mnt, struct path *mountpoint);
 int security_sb_pivotroot(struct path *old_path, struct path *new_path);
 void security_sb_post_pivotroot(struct path *old_path, struct path *new_path);
@@ -2080,10 +2071,6 @@ static inline int security_sb_umount(struct vfsmount *mnt, int flags)
 {
 	return 0;
 }
-
-static inline void security_sb_post_remount(struct vfsmount *mnt,
-					     unsigned long flags, void *data)
-{ }
 
 static inline void security_sb_post_addmount(struct vfsmount *mnt,
 					     struct path *mountpoint)
