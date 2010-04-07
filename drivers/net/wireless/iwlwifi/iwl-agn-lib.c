@@ -331,7 +331,7 @@ u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv)
 	} *hdr;
 
 	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv,
-							EEPROM_5000_CALIB_ALL);
+							EEPROM_CALIB_ALL);
 	return hdr->version;
 
 }
@@ -348,22 +348,22 @@ static u32 eeprom_indirect_address(const struct iwl_priv *priv, u32 address)
 
 	switch (address & INDIRECT_TYPE_MSK) {
 	case INDIRECT_HOST:
-		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_HOST);
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_HOST);
 		break;
 	case INDIRECT_GENERAL:
-		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_GENERAL);
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_GENERAL);
 		break;
 	case INDIRECT_REGULATORY:
-		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_REGULATORY);
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_REGULATORY);
 		break;
 	case INDIRECT_CALIBRATION:
-		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_CALIBRATION);
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_CALIBRATION);
 		break;
 	case INDIRECT_PROCESS_ADJST:
-		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_PROCESS_ADJST);
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_PROCESS_ADJST);
 		break;
 	case INDIRECT_OTHERS:
-		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_OTHERS);
+		offset = iwl_eeprom_query16(priv, EEPROM_LINK_OTHERS);
 		break;
 	default:
 		IWL_ERR(priv, "illegal indirect type: 0x%X\n",
