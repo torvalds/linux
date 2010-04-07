@@ -683,18 +683,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@old is the set of credentials that are being replaces
  *	@flags contains one of the LSM_SETID_* values.
  *	Return 0 on success.
- * @task_setgid:
- *	Check permission before setting one or more of the group identity
- *	attributes of the current process.  The @flags parameter indicates
- *	which of the set*gid system calls invoked this hook and how to
- *	interpret the @id0, @id1, and @id2 parameters.  See the LSM_SETID
- *	definitions at the beginning of this file for the @flags values and
- *	their meanings.
- *	@id0 contains a gid.
- *	@id1 contains a gid.
- *	@id2 contains a gid.
- *	@flags contains one of the LSM_SETID_* values.
- *	Return 0 if permission is granted.
  * @task_setpgid:
  *	Check permission before setting the process group identifier of the
  *	process @p to @pgid.
@@ -1526,7 +1514,6 @@ struct security_operations {
 	int (*kernel_module_request)(char *kmod_name);
 	int (*task_fix_setuid) (struct cred *new, const struct cred *old,
 				int flags);
-	int (*task_setgid) (gid_t id0, gid_t id1, gid_t id2, int flags);
 	int (*task_setpgid) (struct task_struct *p, pid_t pgid);
 	int (*task_getpgid) (struct task_struct *p);
 	int (*task_getsid) (struct task_struct *p);
@@ -1782,7 +1769,6 @@ int security_kernel_create_files_as(struct cred *new, struct inode *inode);
 int security_kernel_module_request(char *kmod_name);
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags);
-int security_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags);
 int security_task_setpgid(struct task_struct *p, pid_t pgid);
 int security_task_getpgid(struct task_struct *p);
 int security_task_getsid(struct task_struct *p);
@@ -2321,12 +2307,6 @@ static inline int security_task_fix_setuid(struct cred *new,
 					   int flags)
 {
 	return cap_task_fix_setuid(new, old, flags);
-}
-
-static inline int security_task_setgid(gid_t id0, gid_t id1, gid_t id2,
-				       int flags)
-{
-	return 0;
 }
 
 static inline int security_task_setpgid(struct task_struct *p, pid_t pgid)

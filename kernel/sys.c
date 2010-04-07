@@ -491,10 +491,6 @@ SYSCALL_DEFINE2(setregid, gid_t, rgid, gid_t, egid)
 		return -ENOMEM;
 	old = current_cred();
 
-	retval = security_task_setgid(rgid, egid, (gid_t)-1, LSM_SETID_RE);
-	if (retval)
-		goto error;
-
 	retval = -EPERM;
 	if (rgid != (gid_t) -1) {
 		if (old->gid == rgid ||
@@ -541,10 +537,6 @@ SYSCALL_DEFINE1(setgid, gid_t, gid)
 	if (!new)
 		return -ENOMEM;
 	old = current_cred();
-
-	retval = security_task_setgid(gid, (gid_t)-1, (gid_t)-1, LSM_SETID_ID);
-	if (retval)
-		goto error;
 
 	retval = -EPERM;
 	if (capable(CAP_SETGID))
@@ -776,10 +768,6 @@ SYSCALL_DEFINE3(setresgid, gid_t, rgid, gid_t, egid, gid_t, sgid)
 		return -ENOMEM;
 	old = current_cred();
 
-	retval = security_task_setgid(rgid, egid, sgid, LSM_SETID_RES);
-	if (retval)
-		goto error;
-
 	retval = -EPERM;
 	if (!capable(CAP_SETGID)) {
 		if (rgid != (gid_t) -1 && rgid != old->gid &&
@@ -872,9 +860,6 @@ SYSCALL_DEFINE1(setfsgid, gid_t, gid)
 	old = current_cred();
 	old_fsgid = old->fsgid;
 
-	if (security_task_setgid(gid, (gid_t)-1, (gid_t)-1, LSM_SETID_FS))
-		goto error;
-
 	if (gid == old->gid  || gid == old->egid  ||
 	    gid == old->sgid || gid == old->fsgid ||
 	    capable(CAP_SETGID)) {
@@ -884,7 +869,6 @@ SYSCALL_DEFINE1(setfsgid, gid_t, gid)
 		}
 	}
 
-error:
 	abort_creds(new);
 	return old_fsgid;
 

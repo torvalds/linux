@@ -738,11 +738,6 @@ int security_task_fix_setuid(struct cred *new, const struct cred *old,
 	return security_ops->task_fix_setuid(new, old, flags);
 }
 
-int security_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags)
-{
-	return security_ops->task_setgid(id0, id1, id2, flags);
-}
-
 int security_task_setpgid(struct task_struct *p, pid_t pgid)
 {
 	return security_ops->task_setpgid(p, pgid);
