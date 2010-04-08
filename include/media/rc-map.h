@@ -15,6 +15,7 @@
 #define IR_TYPE_RC5	(1  << 0)	/* Philips RC5 protocol */
 #define IR_TYPE_PD	(1  << 1)	/* Pulse distance encoded IR */
 #define IR_TYPE_NEC	(1  << 2)
+#define IR_TYPE_RC6	(1  << 3)	/* Philips RC6 protocol */
 #define IR_TYPE_OTHER	(1u << 31)
 
 struct ir_scancode {

@@ -61,6 +61,8 @@ static ssize_t show_protocol(struct device *d,
 		s = "pulse-distance";
 	else if (ir_type == IR_TYPE_NEC)
 		s = "nec";
+	else if (ir_type == IR_TYPE_RC6)
+		s = "rc6";
 	else
 		s = "other";
 

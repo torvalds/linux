@@ -27,3 +27,12 @@ config IR_RC5_DECODER
 	---help---
 	   Enable this option if you have IR with RC-5 protocol, and
 	   if the IR is decoded in software
+
+config IR_RC6_DECODER
+	tristate "Enable IR raw decoder for the RC6 protocol"
+	depends on IR_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the RC6 protocol, and you need software decoding support.

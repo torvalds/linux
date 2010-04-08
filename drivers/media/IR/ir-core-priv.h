@@ -108,4 +108,11 @@ void ir_raw_init(void);
 #define load_rc5_decode()	0
 #endif
 
+/* from ir-rc6-decoder.c */
+#ifdef CONFIG_IR_RC5_DECODER_MODULE
+#define load_rc6_decode()	request_module("ir-rc6-decoder")
+#else
+#define load_rc6_decode()	0
+#endif
+
 #endif /* _IR_RAW_EVENT */
