@@ -275,7 +275,9 @@ static void dequeue_complete_req(void)
 		sg_miter_stop(&cpg->p.dst_sg_it);
 		mv_crypto_algo_completion();
 		cpg->eng_st = ENGINE_IDLE;
+		local_bh_disable();
 		req->base.complete(&req->base, 0);
+		local_bh_enable();
 	}
 }
 
