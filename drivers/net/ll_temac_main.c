@@ -612,7 +612,6 @@ static void ll_temac_recv(struct net_device *ndev)
 	struct cdmac_bd *cur_p;
 	dma_addr_t tail_p;
 	int length;
-	unsigned long skb_vaddr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&lp->rx_lock, flags);
@@ -626,8 +625,7 @@ static void ll_temac_recv(struct net_device *ndev)
 		skb = lp->rx_skb[lp->rx_bd_ci];
 		length = cur_p->app4 & 0x3FFF;
 
-		skb_vaddr = virt_to_bus(skb->data);
-		dma_unmap_single(ndev->dev.parent, skb_vaddr, length,
+		dma_unmap_single(ndev->dev.parent, cur_p->phys, length,
 				 DMA_FROM_DEVICE);
 
 		skb_put(skb, length);
