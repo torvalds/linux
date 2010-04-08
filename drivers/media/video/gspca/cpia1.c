@@ -1059,6 +1059,7 @@ static int command_resume(struct gspca_dev *gspca_dev)
 			  0, sd->params.streamStartLine, 0, 0);
 }
 
+#if 0 /* Currently unused */
 static int command_setlights(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1078,6 +1079,7 @@ static int command_setlights(struct gspca_dev *gspca_dev)
 	return do_command(gspca_dev, CPIA_COMMAND_WriteMCPort, 2, 0,
 			  p1 | p2 | 0xE0, 0);
 }
+#endif
 
 static int set_flicker(struct gspca_dev *gspca_dev, int on, int apply)
 {
