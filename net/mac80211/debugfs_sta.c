@@ -176,7 +176,7 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 	if (htc->ht_supported) {
 		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.4x\n", htc->cap);
 
-		PRINT_HT_CAP((htc->cap & BIT(0)), "RX LDCP");
+		PRINT_HT_CAP((htc->cap & BIT(0)), "RX LDPC");
 		PRINT_HT_CAP((htc->cap & BIT(1)), "HT20/HT40");
 		PRINT_HT_CAP(!(htc->cap & BIT(1)), "HT20");
 
