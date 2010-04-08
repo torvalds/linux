@@ -1021,7 +1021,7 @@ static void event__process_sample(const event_t *self,
 		return;
 	}
 
-	if (self->header.misc & PERF_RECORD_MISC_EXACT)
+	if (self->header.misc & PERF_RECORD_MISC_EXACT_IP)
 		exact_samples++;
 
 	if (event__preprocess_sample(self, session, &al, symbol_filter) < 0 ||

@@ -307,7 +307,7 @@ intel_pebs_constraints(struct perf_event *event)
 {
 	struct event_constraint *c;
 
-	if (!event->attr.precise)
+	if (!event->attr.precise_ip)
 		return NULL;
 
 	if (x86_pmu.pebs_constraints) {
@@ -330,7 +330,7 @@ static void intel_pmu_pebs_enable(struct perf_event *event)
 	cpuc->pebs_enabled |= 1ULL << hwc->idx;
 	WARN_ON_ONCE(cpuc->enabled);
 
-	if (x86_pmu.intel_cap.pebs_trap)
+	if (x86_pmu.intel_cap.pebs_trap && event->attr.precise_ip > 1)
 		intel_pmu_lbr_enable(event);
 }
 
@@ -345,7 +345,7 @@ static void intel_pmu_pebs_disable(struct perf_event *event)
 
 	hwc->config |= ARCH_PERFMON_EVENTSEL_INT;
 
-	if (x86_pmu.intel_cap.pebs_trap)
+	if (x86_pmu.intel_cap.pebs_trap && event->attr.precise_ip > 1)
 		intel_pmu_lbr_disable(event);
 }
 
@@ -485,7 +485,7 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	regs.bp = pebs->bp;
 	regs.sp = pebs->sp;
 
-	if (intel_pmu_pebs_fixup_ip(regs))
+	if (event->attr.precise_ip > 1 && intel_pmu_pebs_fixup_ip(&regs))
 		regs.flags |= PERF_EFLAGS_EXACT;
 	else
 		regs.flags &= ~PERF_EFLAGS_EXACT;
@@ -518,7 +518,7 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 
 	WARN_ON_ONCE(!event);
 
-	if (!event->attr.precise)
+	if (!event->attr.precise_ip)
 		return;
 
 	n = top - at;
@@ -570,7 +570,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 
 			WARN_ON_ONCE(!event);
 
-			if (!event->attr.precise)
+			if (!event->attr.precise_ip)
 				continue;
 
 			if (__test_and_set_bit(bit, (unsigned long *)&status))

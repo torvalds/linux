@@ -488,6 +488,21 @@ static int x86_setup_perfctr(struct perf_event *event)
 
 static int x86_pmu_hw_config(struct perf_event *event)
 {
+	if (event->attr.precise_ip) {
+		int precise = 0;
+
+		/* Support for constant skid */
+		if (x86_pmu.pebs)
+			precise++;
+
+		/* Support for IP fixup */
+		if (x86_pmu.lbr_nr)
+			precise++;
+
+		if (event->attr.precise_ip > precise)
+			return -EOPNOTSUPP;
+	}
+
 	/*
 	 * Generate PMC IRQs:
 	 * (keep 'enabled' bit clear for now)
@@ -1780,7 +1795,7 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 	}
 
 	if (regs->flags & PERF_EFLAGS_EXACT)
-		misc |= PERF_RECORD_MISC_EXACT;
+		misc |= PERF_RECORD_MISC_EXACT_IP;
 
 	return misc;
 }
