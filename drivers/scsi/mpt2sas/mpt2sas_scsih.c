@@ -537,10 +537,15 @@ _scsih_sas_device_remove(struct MPT2SAS_ADAPTER *ioc,
 {
 	unsigned long flags;
 
+	if (!sas_device)
+		return;
+
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	list_del(&sas_device->list);
-	memset(sas_device, 0, sizeof(struct _sas_device));
-	kfree(sas_device);
+	if (mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
+	    sas_device->sas_address)) {
+		list_del(&sas_device->list);
+		kfree(sas_device);
+	}
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 }
 
