@@ -377,11 +377,12 @@ static void gss_encode_v0_msg(struct gss_upcall_msg *gss_msg)
 static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 				struct rpc_clnt *clnt, int machine_cred)
 {
+	struct gss_api_mech *mech = gss_msg->auth->mech;
 	char *p = gss_msg->databuf;
 	int len = 0;
 
 	gss_msg->msg.len = sprintf(gss_msg->databuf, "mech=%s uid=%d ",
-				   gss_msg->auth->mech->gm_name,
+				   mech->gm_name,
 				   gss_msg->uid);
 	p += gss_msg->msg.len;
 	if (clnt->cl_principal) {
@@ -395,6 +396,11 @@ static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 		gss_msg->msg.len += len;
 	} else if (!strcmp(clnt->cl_program->name, "nfs4_cb")) {
 		len = sprintf(p, "service=nfs ");
+		p += len;
+		gss_msg->msg.len += len;
+	}
+	if (mech->gm_upcall_enctypes) {
+		len = sprintf(p, mech->gm_upcall_enctypes);
 		p += len;
 		gss_msg->msg.len += len;
 	}

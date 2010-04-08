@@ -80,6 +80,8 @@ struct gss_api_mech {
 	/* pseudoflavors supported by this mechanism: */
 	int			gm_pf_num;
 	struct pf_desc *	gm_pfs;
+	/* Should the following be a callback operation instead? */
+	const char		*gm_upcall_enctypes;
 };
 
 /* and must provide the following operations: */
