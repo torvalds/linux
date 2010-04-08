@@ -116,7 +116,7 @@ static int acpi_pm_freeze(void)
 {
 	acpi_disable_all_gpes();
 	acpi_os_wait_events_complete(NULL);
-	acpi_ec_suspend_transactions();
+	acpi_ec_block_transactions();
 	return 0;
 }
 
@@ -279,7 +279,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	 */
 	acpi_disable_all_gpes();
 	/* Allow EC transactions to happen. */
-	acpi_ec_resume_transactions_early();
+	acpi_ec_unblock_transactions_early();
 
 	local_irq_restore(flags);
 	printk(KERN_DEBUG "Back to C!\n");
@@ -293,7 +293,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 
 static void acpi_suspend_finish(void)
 {
-	acpi_ec_resume_transactions();
+	acpi_ec_unblock_transactions();
 	acpi_pm_finish();
 }
 
@@ -597,7 +597,7 @@ static int acpi_hibernation_enter(void)
 static void acpi_hibernation_finish(void)
 {
 	hibernate_nvs_free();
-	acpi_ec_resume_transactions();
+	acpi_ec_unblock_transactions();
 	acpi_pm_finish();
 }
 
@@ -619,12 +619,12 @@ static void acpi_hibernation_leave(void)
 	/* Restore the NVS memory area */
 	hibernate_nvs_restore();
 	/* Allow EC transactions to happen. */
-	acpi_ec_resume_transactions_early();
+	acpi_ec_unblock_transactions_early();
 }
 
 static void acpi_pm_thaw(void)
 {
-	acpi_ec_resume_transactions();
+	acpi_ec_unblock_transactions();
 	acpi_enable_all_runtime_gpes();
 }
 
