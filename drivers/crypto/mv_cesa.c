@@ -42,7 +42,7 @@ enum engine_status {
  * @hw_nbytes:		total bytes to process in hw for this request
  * @sg_dst_left:	bytes left dst to process in this scatter list
  * @dst_start:		offset to add to dst start position (scatter list)
- * @total_req_bytes:	total number of bytes processed (request).
+ * @hw_processed_bytes:	number of bytes processed by hw (request).
  *
  * sg helper are used to iterate over the scatterlist. Since the size of the
  * SRAM may be less than the scatter size, this struct struct is used to keep
@@ -60,7 +60,7 @@ struct req_progress {
 	/* dst mostly */
 	int sg_dst_left;
 	int dst_start;
-	int total_req_bytes;
+	int hw_processed_bytes;
 };
 
 struct crypto_priv {
@@ -181,7 +181,7 @@ static void setup_data_in(void)
 {
 	struct req_progress *p = &cpg->p;
 	p->crypt_len =
-	    min(p->hw_nbytes - p->total_req_bytes, cpg->max_req_size);
+	    min(p->hw_nbytes - p->hw_processed_bytes, cpg->max_req_size);
 	copy_src_to_buf(p, cpg->sram + SRAM_DATA_IN_START,
 			p->crypt_len);
 }
@@ -265,7 +265,7 @@ static void dequeue_complete_req(void)
 	int need_copy_len = cpg->p.crypt_len;
 	int sram_offset = 0;
 
-	cpg->p.total_req_bytes += cpg->p.crypt_len;
+	cpg->p.hw_processed_bytes += cpg->p.crypt_len;
 	do {
 		int dst_copy;
 
@@ -291,7 +291,7 @@ static void dequeue_complete_req(void)
 	} while (need_copy_len > 0);
 
 	BUG_ON(cpg->eng_st != ENGINE_W_DEQUEUE);
-	if (cpg->p.total_req_bytes < cpg->p.hw_nbytes) {
+	if (cpg->p.hw_processed_bytes < cpg->p.hw_nbytes) {
 		/* process next scatter list entry */
 		cpg->eng_st = ENGINE_BUSY;
 		mv_process_current_q(0);
