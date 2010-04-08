@@ -2957,25 +2957,32 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 
 	scmd->scsi_done = done;
 	sas_device_priv_data = scmd->device->hostdata;
-	if (!sas_device_priv_data) {
+	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		return 0;
 	}
 
 	sas_target_priv_data = sas_device_priv_data->sas_target;
-	if (!sas_target_priv_data || sas_target_priv_data->handle ==
-	    MPT2SAS_INVALID_DEVICE_HANDLE || sas_target_priv_data->deleted) {
+	/* invalid device handle */
+	if (sas_target_priv_data->handle == MPT2SAS_INVALID_DEVICE_HANDLE) {
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		return 0;
 	}
 
-	/* see if we are busy with task managment stuff */
-	if (sas_device_priv_data->block || sas_target_priv_data->tm_busy)
-		return SCSI_MLQUEUE_DEVICE_BUSY;
-	else if (ioc->shost_recovery || ioc->ioc_link_reset_in_progress)
+	/* host recovery or link resets sent via IOCTLs */
+	if (ioc->shost_recovery || ioc->ioc_link_reset_in_progress)
 		return SCSI_MLQUEUE_HOST_BUSY;
+	/* device busy with task managment */
+	else if (sas_device_priv_data->block || sas_target_priv_data->tm_busy)
+		return SCSI_MLQUEUE_DEVICE_BUSY;
+	/* device has been deleted */
+	else if (sas_target_priv_data->deleted) {
+		scmd->result = DID_NO_CONNECT << 16;
+		scmd->scsi_done(scmd);
+		return 0;
+	}
 
 	if (scmd->sc_data_direction == DMA_FROM_DEVICE)
 		mpi_control = MPI2_SCSIIO_CONTROL_READ;
