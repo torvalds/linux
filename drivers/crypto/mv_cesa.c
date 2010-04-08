@@ -184,10 +184,11 @@ static void copy_src_to_buf(struct req_progress *p, char *dbuf, int len)
 static void setup_data_in(void)
 {
 	struct req_progress *p = &cpg->p;
-	p->crypt_len =
+	int data_in_sram =
 	    min(p->hw_nbytes - p->hw_processed_bytes, cpg->max_req_size);
-	copy_src_to_buf(p, cpg->sram + SRAM_DATA_IN_START,
-			p->crypt_len);
+	copy_src_to_buf(p, cpg->sram + SRAM_DATA_IN_START + p->crypt_len,
+			data_in_sram - p->crypt_len);
+	p->crypt_len = data_in_sram;
 }
 
 static void mv_process_current_q(int first_block)
@@ -298,6 +299,7 @@ static void dequeue_complete_req(void)
 		} while (need_copy_len > 0);
 	}
 
+	cpg->p.crypt_len = 0;
 
 	BUG_ON(cpg->eng_st != ENGINE_W_DEQUEUE);
 	if (cpg->p.hw_processed_bytes < cpg->p.hw_nbytes) {
