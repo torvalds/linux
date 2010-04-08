@@ -820,7 +820,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 {
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int keyidx;
 	int hdrlen;
 	ieee80211_rx_result result = RX_DROP_UNUSABLE;
@@ -860,11 +860,6 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	 */
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 		return RX_CONTINUE;
-
-	if (skb_linearize(rx->skb))
-		return RX_DROP_UNUSABLE;
-
-	hdr = (struct ieee80211_hdr *)skb->data;
 
 	/* start without a key */
 	rx->key = NULL;
@@ -906,6 +901,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 			rx->key = key;
 		return RX_CONTINUE;
 	} else {
+		u8 keyid;
 		/*
 		 * The device doesn't give us the IV so we won't be
 		 * able to look up the key. That's ok though, we
@@ -928,7 +924,8 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		 * no need to call ieee80211_wep_get_keyidx,
 		 * it verifies a bunch of things we've done already
 		 */
-		keyidx = rx->skb->data[hdrlen + 3] >> 6;
+		skb_copy_bits(rx->skb, hdrlen + 3, &keyid, 1);
+		keyidx = keyid >> 6;
 
 		rx->key = rcu_dereference(rx->sdata->keys[keyidx]);
 
@@ -948,6 +945,11 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	} else {
 		return RX_DROP_MONITOR;
 	}
+
+	if (skb_linearize(rx->skb))
+		return RX_DROP_UNUSABLE;
+
+	hdr = (struct ieee80211_hdr *)rx->skb->data;
 
 	/* Check for weak IVs if possible */
 	if (rx->sta && rx->key->conf.alg == ALG_WEP &&
