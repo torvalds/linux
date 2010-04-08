@@ -18,6 +18,7 @@
 #define NEC_NBITS		32
 #define NEC_UNIT		562500  /* ns */
 #define NEC_HEADER_PULSE	PULSE(16)
+#define NECX_HEADER_PULSE	PULSE(8) /* Less common NEC variant */
 #define NEC_HEADER_SPACE	SPACE(8)
 #define NEC_REPEAT_SPACE	SPACE(4)
 #define NEC_BIT_PULSE		PULSE(1)
@@ -152,7 +153,7 @@ static int ir_nec_decode(struct input_dev *input_dev, s64 duration)
 	switch (data->state) {
 
 	case STATE_INACTIVE:
-		if (u == NEC_HEADER_PULSE) {
+		if (u == NEC_HEADER_PULSE || u == NECX_HEADER_PULSE) {
 			data->count = 0;
 			data->state = STATE_HEADER_SPACE;
 		}
