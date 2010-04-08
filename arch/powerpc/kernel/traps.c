@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 1995-1996  Gary Thomas (gdt@linuxppc.org)
+ *  Copyright 2007-2010 Freescale Semiconductor, Inc.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -305,7 +306,7 @@ static inline int check_io_access(struct pt_regs *regs)
 #ifndef CONFIG_FSL_BOOKE
 #define get_mc_reason(regs)	((regs)->dsisr)
 #else
-#define get_mc_reason(regs)	(mfspr(SPRN_MCSR) & MCSR_MASK)
+#define get_mc_reason(regs)	(mfspr(SPRN_MCSR))
 #endif
 #define REASON_FP		ESR_FP
 #define REASON_ILLEGAL		(ESR_PIL | ESR_PUO)
@@ -421,6 +422,91 @@ int machine_check_47x(struct pt_regs *regs)
 	return 0;
 }
 #elif defined(CONFIG_E500)
+int machine_check_e500mc(struct pt_regs *regs)
+{
+	unsigned long mcsr = mfspr(SPRN_MCSR);
+	unsigned long reason = mcsr;
+	int recoverable = 1;
+
+	printk("Machine check in kernel mode.\n");
+	printk("Caused by (from MCSR=%lx): ", reason);
+
+	if (reason & MCSR_MCP)
+		printk("Machine Check Signal\n");
+
+	if (reason & MCSR_ICPERR) {
+		printk("Instruction Cache Parity Error\n");
+
+		/*
+		 * This is recoverable by invalidating the i-cache.
+		 */
+		mtspr(SPRN_L1CSR1, mfspr(SPRN_L1CSR1) | L1CSR1_ICFI);
+		while (mfspr(SPRN_L1CSR1) & L1CSR1_ICFI)
+			;
+
+		/*
+		 * This will generally be accompanied by an instruction
+		 * fetch error report -- only treat MCSR_IF as fatal
+		 * if it wasn't due to an L1 parity error.
+		 */
+		reason &= ~MCSR_IF;
+	}
+
+	if (reason & MCSR_DCPERR_MC) {
+		printk("Data Cache Parity Error\n");
+		recoverable = 0;
+	}
+
+	if (reason & MCSR_L2MMU_MHIT) {
+		printk("Hit on multiple TLB entries\n");
+		recoverable = 0;
+	}
+
+	if (reason & MCSR_NMI)
+		printk("Non-maskable interrupt\n");
+
+	if (reason & MCSR_IF) {
+		printk("Instruction Fetch Error Report\n");
+		recoverable = 0;
+	}
+
+	if (reason & MCSR_LD) {
+		printk("Load Error Report\n");
+		recoverable = 0;
+	}
+
+	if (reason & MCSR_ST) {
+		printk("Store Error Report\n");
+		recoverable = 0;
+	}
+
+	if (reason & MCSR_LDG) {
+		printk("Guarded Load Error Report\n");
+		recoverable = 0;
+	}
+
+	if (reason & MCSR_TLBSYNC)
+		printk("Simultaneous tlbsync operations\n");
+
+	if (reason & MCSR_BSL2_ERR) {
+		printk("Level 2 Cache Error\n");
+		recoverable = 0;
+	}
+
+	if (reason & MCSR_MAV) {
+		u64 addr;
+
+		addr = mfspr(SPRN_MCAR);
+		addr |= (u64)mfspr(SPRN_MCARU) << 32;
+
+		printk("Machine Check %s Address: %#llx\n",
+		       reason & MCSR_MEA ? "Effective" : "Physical", addr);
+	}
+
+	mtspr(SPRN_MCSR, mcsr);
+	return mfspr(SPRN_MCSR) == 0 && recoverable;
+}
+
 int machine_check_e500(struct pt_regs *regs)
 {
 	unsigned long reason = get_mc_reason(regs);
