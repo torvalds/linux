@@ -56,13 +56,13 @@ static ssize_t show_protocol(struct device *d,
 	if (ir_type == IR_TYPE_UNKNOWN)
 		s = "Unknown";
 	else if (ir_type == IR_TYPE_RC5)
-		s = "RC-5";
+		s = "rc-5";
 	else if (ir_type == IR_TYPE_PD)
-		s = "Pulse/distance";
+		s = "pulse-distance";
 	else if (ir_type == IR_TYPE_NEC)
-		s = "NEC";
+		s = "nec";
 	else
-		s = "Other";
+		s = "other";
 
 	return sprintf(buf, "%s\n", s);
 }
@@ -86,23 +86,22 @@ static ssize_t store_protocol(struct device *d,
 			      size_t len)
 {
 	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-	u64 ir_type = IR_TYPE_UNKNOWN;
+	u64 ir_type = 0;
 	int rc = -EINVAL;
 	unsigned long flags;
 	char *buf;
 
-	buf = strsep((char **) &data, "\n");
+	while (buf = strsep((char **) &data, " \n")) {
+		if (!strcasecmp(buf, "rc-5") || !strcasecmp(buf, "rc5"))
+			ir_type |= IR_TYPE_RC5;
+		if (!strcasecmp(buf, "pd") || !strcasecmp(buf, "pulse-distance"))
+			ir_type |= IR_TYPE_PD;
+		if (!strcasecmp(buf, "nec"))
+			ir_type |= IR_TYPE_NEC;
+	}
 
-	if (!strcasecmp(buf, "rc-5") || !strcasecmp(buf, "rc5"))
-		ir_type = IR_TYPE_RC5;
-	else if (!strcasecmp(buf, "pd"))
-		ir_type = IR_TYPE_PD;
-	else if (!strcasecmp(buf, "nec"))
-		ir_type = IR_TYPE_NEC;
-
-	if (ir_type == IR_TYPE_UNKNOWN) {
-		IR_dprintk(1, "Error setting protocol to %lld\n",
-			   (long long)ir_type);
+	if (!ir_type) {
+		IR_dprintk(1, "Unknown protocol\n");
 		return -EINVAL;
 	}
 
@@ -120,12 +119,34 @@ static ssize_t store_protocol(struct device *d,
 	ir_dev->rc_tab.ir_type = ir_type;
 	spin_unlock_irqrestore(&ir_dev->rc_tab.lock, flags);
 
-	IR_dprintk(1, "Current protocol is %lld\n",
+	IR_dprintk(1, "Current protocol(s) is(are) %lld\n",
 		   (long long)ir_type);
 
 	return len;
 }
 
+static ssize_t show_supported_protocols(struct device *d,
+			     struct device_attribute *mattr, char *buf)
+{
+	char *orgbuf = buf;
+	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
+
+	/* FIXME: doesn't support multiple protocols at the same time */
+	if (ir_dev->props->allowed_protos == IR_TYPE_UNKNOWN)
+		buf += sprintf(buf, "unknown ");
+	if (ir_dev->props->allowed_protos & IR_TYPE_RC5)
+		buf += sprintf(buf, "rc-5 ");
+	if (ir_dev->props->allowed_protos & IR_TYPE_PD)
+		buf += sprintf(buf, "pulse-distance ");
+	if (ir_dev->props->allowed_protos & IR_TYPE_NEC)
+		buf += sprintf(buf, "nec ");
+	if (buf == orgbuf)
+		buf += sprintf(buf, "other ");
+
+	buf += sprintf(buf - 1, "\n");
+
+	return buf - orgbuf;
+}
 
 #define ADD_HOTPLUG_VAR(fmt, val...)					\
 	do {								\
@@ -149,11 +170,15 @@ static int ir_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 /*
  * Static device attribute struct with the sysfs attributes for IR's
  */
-static DEVICE_ATTR(current_protocol, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(protocol, S_IRUGO | S_IWUSR,
 		   show_protocol, store_protocol);
 
+static DEVICE_ATTR(supported_protocols, S_IRUGO | S_IWUSR,
+		   show_supported_protocols, NULL);
+
 static struct attribute *ir_hw_dev_attrs[] = {
-	&dev_attr_current_protocol.attr,
+	&dev_attr_protocol.attr,
+	&dev_attr_supported_protocols.attr,
 	NULL,
 };
 
