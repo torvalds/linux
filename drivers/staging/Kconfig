@@ -141,5 +141,7 @@ source "drivers/staging/crystalhd/Kconfig"
 
 source "drivers/staging/cxt1e1/Kconfig"
 
+source "drivers/staging/ti-st/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
