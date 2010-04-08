@@ -69,9 +69,16 @@ extern void __raw_readsl(const void __iomem *addr, void *data, int longlen);
 /*
  * __arm_ioremap takes CPU physical address.
  * __arm_ioremap_pfn takes a Page Frame Number and an offset into that page
+ * The _caller variety takes a __builtin_return_address(0) value for
+ * /proc/vmalloc to use - and should only be used in non-inline functions.
  */
-extern void __iomem * __arm_ioremap_pfn(unsigned long, unsigned long, size_t, unsigned int);
-extern void __iomem * __arm_ioremap(unsigned long, size_t, unsigned int);
+extern void __iomem *__arm_ioremap_pfn_caller(unsigned long, unsigned long,
+	size_t, unsigned int, void *);
+extern void __iomem *__arm_ioremap_caller(unsigned long, size_t, unsigned int,
+	void *);
+
+extern void __iomem *__arm_ioremap_pfn(unsigned long, unsigned long, size_t, unsigned int);
+extern void __iomem *__arm_ioremap(unsigned long, size_t, unsigned int);
 extern void __iounmap(volatile void __iomem *addr);
 
 /*

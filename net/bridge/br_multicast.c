@@ -38,7 +38,7 @@ static struct net_bridge_mdb_entry *__br_mdb_ip_get(
 	struct net_bridge_mdb_entry *mp;
 	struct hlist_node *p;
 
-	hlist_for_each_entry(mp, p, &mdb->mhash[hash], hlist[mdb->ver]) {
+	hlist_for_each_entry_rcu(mp, p, &mdb->mhash[hash], hlist[mdb->ver]) {
 		if (dst == mp->addr)
 			return mp;
 	}
@@ -627,8 +627,8 @@ static void br_multicast_port_query_expired(unsigned long data)
 	struct net_bridge *br = port->br;
 
 	spin_lock(&br->multicast_lock);
-	if (port && (port->state == BR_STATE_DISABLED ||
-		     port->state == BR_STATE_BLOCKING))
+	if (port->state == BR_STATE_DISABLED ||
+	    port->state == BR_STATE_BLOCKING)
 		goto out;
 
 	if (port->multicast_startup_queries_sent <
@@ -1135,7 +1135,7 @@ void br_multicast_stop(struct net_bridge *br)
 
 	if (mdb->old) {
 		spin_unlock_bh(&br->multicast_lock);
-		synchronize_rcu_bh();
+		rcu_barrier_bh();
 		spin_lock_bh(&br->multicast_lock);
 		WARN_ON(mdb->old);
 	}

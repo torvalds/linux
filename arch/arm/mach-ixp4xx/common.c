@@ -427,6 +427,17 @@ static void __init ixp4xx_clocksource_init(void)
 }
 
 /*
+ * sched_clock()
+ */
+unsigned long long sched_clock(void)
+{
+	cycle_t cyc = ixp4xx_get_cycles(NULL);
+	struct clocksource *cs = &clocksource_ixp4xx;
+
+	return clocksource_cyc2ns(cyc, cs->mult, cs->shift);
+}
+
+/*
  * clockevents
  */
 static int ixp4xx_set_next_event(unsigned long evt,

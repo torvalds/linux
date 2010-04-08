@@ -1763,24 +1763,50 @@ irqreturn_t ata_sff_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int i;
-	unsigned int handled = 0;
+	unsigned int handled = 0, polling = 0;
 	unsigned long flags;
 
 	/* TODO: make _irqsave conditional on x86 PCI IDE legacy mode */
 	spin_lock_irqsave(&host->lock, flags);
 
 	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap;
+		struct ata_port *ap = host->ports[i];
+		struct ata_queued_cmd *qc;
 
-		ap = host->ports[i];
-		if (ap &&
-		    !(ap->flags & ATA_FLAG_DISABLED)) {
-			struct ata_queued_cmd *qc;
+		if (unlikely(ap->flags & ATA_FLAG_DISABLED))
+			continue;
 
-			qc = ata_qc_from_tag(ap, ap->link.active_tag);
-			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)) &&
-			    (qc->flags & ATA_QCFLAG_ACTIVE))
+		qc = ata_qc_from_tag(ap, ap->link.active_tag);
+		if (qc) {
+			if (!(qc->tf.flags & ATA_TFLAG_POLLING))
 				handled |= ata_sff_host_intr(ap, qc);
+			else
+				polling |= 1 << i;
+		}
+	}
+
+	/*
+	 * If no port was expecting IRQ but the controller is actually
+	 * asserting IRQ line, nobody cared will ensue.  Check IRQ
+	 * pending status if available and clear spurious IRQ.
+	 */
+	if (!handled) {
+		for (i = 0; i < host->n_ports; i++) {
+			struct ata_port *ap = host->ports[i];
+
+			if (polling & (1 << i))
+				continue;
+
+			if (!ap->ops->sff_irq_check ||
+			    !ap->ops->sff_irq_check(ap))
+				continue;
+
+			if (printk_ratelimit())
+				ata_port_printk(ap, KERN_INFO,
+						"clearing spurious IRQ\n");
+
+			ap->ops->sff_check_status(ap);
+			ap->ops->sff_irq_clear(ap);
 		}
 	}
 
@@ -3011,6 +3037,7 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_activate_host);
  *	@ppi: array of port_info, must be enough for two ports
  *	@sht: scsi_host_template to use when registering the host
  *	@host_priv: host private_data
+ *	@hflag: host flags
  *
  *	This is a helper function which can be called from a driver's
  *	xxx_init_one() probe function if the hardware uses traditional
@@ -3031,8 +3058,8 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_activate_host);
  *	Zero on success, negative on errno-based value on error.
  */
 int ata_pci_sff_init_one(struct pci_dev *pdev,
-			 const struct ata_port_info * const *ppi,
-			 struct scsi_host_template *sht, void *host_priv)
+		 const struct ata_port_info * const *ppi,
+		 struct scsi_host_template *sht, void *host_priv, int hflag)
 {
 	struct device *dev = &pdev->dev;
 	const struct ata_port_info *pi = NULL;
@@ -3067,6 +3094,7 @@ int ata_pci_sff_init_one(struct pci_dev *pdev,
 	if (rc)
 		goto out;
 	host->private_data = host_priv;
+	host->flags |= hflag;
 
 	pci_set_master(pdev);
 	rc = ata_pci_sff_activate_host(host, ata_sff_interrupt, sht);

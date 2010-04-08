@@ -20,14 +20,15 @@
 
 #include <plat/common.h>
 #include <plat/board.h>
+#include <plat/usb.h>
 
 #include "mux.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 
 static void __init omap_zoom_map_io(void)
 {
-	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap2_set_globals_36xx();
+	omap34xx_map_common_io();
 }
 
 static struct omap_board_config_kernel zoom_config[] __initdata = {
@@ -51,11 +52,24 @@ static struct omap_board_mux board_mux[] __initdata = {
 #define board_mux	NULL
 #endif
 
+static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+	.port_mode[0]		= EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.port_mode[1]		= EHCI_HCD_OMAP_MODE_PHY,
+	.port_mode[2]		= EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.phy_reset		= true,
+	.reset_gpio_port[0]	= -EINVAL,
+	.reset_gpio_port[1]	= 64,
+	.reset_gpio_port[2]	= -EINVAL,
+};
+
 static void __init omap_zoom_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
 	zoom_peripherals_init();
 	zoom_debugboard_init();
+
+	omap_mux_init_gpio(64, OMAP_PIN_OUTPUT);
+	usb_ehci_init(&ehci_pdata);
 }
 
 MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")

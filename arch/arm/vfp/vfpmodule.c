@@ -433,7 +433,11 @@ static inline void vfp_pm_init(void) { }
  * saved one. This function is used by the ptrace mechanism.
  */
 #ifdef CONFIG_SMP
-void vfp_sync_state(struct thread_info *thread)
+void vfp_sync_hwstate(struct thread_info *thread)
+{
+}
+
+void vfp_flush_hwstate(struct thread_info *thread)
 {
 	/*
 	 * On SMP systems, the VFP state is automatically saved at every
@@ -444,35 +448,48 @@ void vfp_sync_state(struct thread_info *thread)
 	thread->vfpstate.hard.cpu = NR_CPUS;
 }
 #else
-void vfp_sync_state(struct thread_info *thread)
+void vfp_sync_hwstate(struct thread_info *thread)
 {
 	unsigned int cpu = get_cpu();
-	u32 fpexc = fmrx(FPEXC);
 
 	/*
-	 * If VFP is enabled, the previous state was already saved and
-	 * last_VFP_context updated.
+	 * If the thread we're interested in is the current owner of the
+	 * hardware VFP state, then we need to save its state.
 	 */
-	if (fpexc & FPEXC_EN)
-		goto out;
+	if (last_VFP_context[cpu] == &thread->vfpstate) {
+		u32 fpexc = fmrx(FPEXC);
 
-	if (!last_VFP_context[cpu])
-		goto out;
+		/*
+		 * Save the last VFP state on this CPU.
+		 */
+		fmxr(FPEXC, fpexc | FPEXC_EN);
+		vfp_save_state(&thread->vfpstate, fpexc | FPEXC_EN);
+		fmxr(FPEXC, fpexc);
+	}
+
+	put_cpu();
+}
+
+void vfp_flush_hwstate(struct thread_info *thread)
+{
+	unsigned int cpu = get_cpu();
 
 	/*
-	 * Save the last VFP state on this CPU.
+	 * If the thread we're interested in is the current owner of the
+	 * hardware VFP state, then we need to save its state.
 	 */
-	fmxr(FPEXC, fpexc | FPEXC_EN);
-	vfp_save_state(last_VFP_context[cpu], fpexc);
-	fmxr(FPEXC, fpexc);
+	if (last_VFP_context[cpu] == &thread->vfpstate) {
+		u32 fpexc = fmrx(FPEXC);
 
-	/*
-	 * Set the context to NULL to force a reload the next time the thread
-	 * uses the VFP.
-	 */
-	last_VFP_context[cpu] = NULL;
+		fmxr(FPEXC, fpexc & ~FPEXC_EN);
 
-out:
+		/*
+		 * Set the context to NULL to force a reload the next time
+		 * the thread uses the VFP.
+		 */
+		last_VFP_context[cpu] = NULL;
+	}
+
 	put_cpu();
 }
 #endif

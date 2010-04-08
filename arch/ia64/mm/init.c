@@ -22,7 +22,6 @@
 #include <linux/kexec.h>
 
 #include <asm/dma.h>
-#include <asm/ia32.h>
 #include <asm/io.h>
 #include <asm/machvec.h>
 #include <asm/numa.h>
@@ -668,10 +667,6 @@ mem_init (void)
 			fsyscall_table[i] = sys_call_table[i] | 1;
 	}
 	setup_gate();
-
-#ifdef CONFIG_IA32_SUPPORT
-	ia32_mem_init();
-#endif
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

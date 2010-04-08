@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -130,7 +130,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 		/* Call the region handler for the read */
 
 		status = acpi_ex_access_region(obj_desc, 0,
-					       ACPI_CAST_PTR(acpi_integer,
+					       ACPI_CAST_PTR(u64,
 							     buffer_desc->
 							     buffer.pointer),
 					       function);
@@ -141,7 +141,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	/*
 	 * Allocate a buffer for the contents of the field.
 	 *
-	 * If the field is larger than the size of an acpi_integer, create
+	 * If the field is larger than the current integer width, create
 	 * a BUFFER to hold it.  Otherwise, use an INTEGER.  This allows
 	 * the use of arithmetic operators on the returned value if the
 	 * field size is equal or smaller than an Integer.
@@ -306,8 +306,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 		 * same buffer)
 		 */
 		status = acpi_ex_access_region(obj_desc, 0,
-					       (acpi_integer *) buffer,
-					       function);
+					       (u64 *) buffer, function);
 		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
 		*result_desc = buffer_desc;

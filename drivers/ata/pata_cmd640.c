@@ -223,7 +223,7 @@ static int cmd640_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	cmd640_hardware_init(pdev);
 
-	return ata_pci_sff_init_one(pdev, ppi, &cmd640_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &cmd640_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

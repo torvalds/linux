@@ -321,7 +321,7 @@ InitWait:
 	}
 }
 
-static struct xenbus_device_id xenkbd_ids[] = {
+static const struct xenbus_device_id xenkbd_ids[] = {
 	{ "vkbd" },
 	{ "" }
 };

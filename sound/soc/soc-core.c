@@ -130,6 +130,29 @@ static ssize_t codec_reg_show(struct device *dev,
 
 static DEVICE_ATTR(codec_reg, 0444, codec_reg_show, NULL);
 
+static ssize_t pmdown_time_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct snd_soc_device *socdev = dev_get_drvdata(dev);
+	struct snd_soc_card *card = socdev->card;
+
+	return sprintf(buf, "%ld\n", card->pmdown_time);
+}
+
+static ssize_t pmdown_time_set(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct snd_soc_device *socdev = dev_get_drvdata(dev);
+	struct snd_soc_card *card = socdev->card;
+
+	strict_strtol(buf, 10, &card->pmdown_time);
+
+	return count;
+}
+
+static DEVICE_ATTR(pmdown_time, 0644, pmdown_time_show, pmdown_time_set);
+
 #ifdef CONFIG_DEBUG_FS
 static int codec_reg_open_file(struct inode *inode, struct file *file)
 {
@@ -542,7 +565,7 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 		/* start delayed pop wq here for playback streams */
 		codec_dai->pop_wait = 1;
 		schedule_delayed_work(&card->delayed_work,
-			msecs_to_jiffies(pmdown_time));
+			msecs_to_jiffies(card->pmdown_time));
 	} else {
 		/* capture streams can be powered down now */
 		snd_soc_dapm_stream_event(codec,
@@ -940,6 +963,12 @@ static int soc_resume(struct device *dev)
 	struct snd_soc_card *card = socdev->card;
 	struct snd_soc_dai *cpu_dai = card->dai_link[0].cpu_dai;
 
+	/* If the initialization of this soc device failed, there is no codec
+	 * associated with it. Just bail out in this case.
+	 */
+	if (!card->codec)
+		return 0;
+
 	/* AC97 devices might have other drivers hanging off them so
 	 * need to resume immediately.  Other drivers don't have that
 	 * problem and may take a substantial amount of time to resume
@@ -1039,6 +1068,8 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	dev_dbg(card->dev, "All components present, instantiating\n");
 
 	/* Found everything, bring it up */
+	card->pmdown_time = pmdown_time;
+
 	if (card->probe) {
 		ret = card->probe(pdev);
 		if (ret < 0)
@@ -1121,6 +1152,10 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	ret = snd_soc_dapm_sys_add(card->socdev->dev);
 	if (ret < 0)
 		printk(KERN_WARNING "asoc: failed to add dapm sysfs entries\n");
+
+	ret = device_create_file(card->socdev->dev, &dev_attr_pmdown_time);
+	if (ret < 0)
+		printk(KERN_WARNING "asoc: failed to add pmdown_time sysfs\n");
 
 	ret = device_create_file(card->socdev->dev, &dev_attr_codec_reg);
 	if (ret < 0)
@@ -1276,8 +1311,8 @@ static int soc_new_pcm(struct snd_soc_device *socdev,
 	codec_dai->codec = card->codec;
 
 	/* check client and interface hw capabilities */
-	sprintf(new_name, "%s %s-%d", dai_link->stream_name, codec_dai->name,
-		num);
+	snprintf(new_name, sizeof(new_name), "%s %s-%d",
+		 dai_link->stream_name, codec_dai->name, num);
 
 	if (codec_dai->playback.channels_min)
 		playback = 1;
@@ -1368,6 +1403,7 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 
 	codec->ac97->bus->ops = ops;
 	codec->ac97->num = num;
+	codec->dev = &codec->ac97->dev;
 	mutex_unlock(&codec->mutex);
 	return 0;
 }
@@ -1427,9 +1463,9 @@ EXPORT_SYMBOL_GPL(snd_soc_update_bits);
  *
  * Returns 1 for change else 0.
  */
-static int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
-				unsigned short reg, unsigned int mask,
-				unsigned int value)
+int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
+			       unsigned short reg, unsigned int mask,
+			       unsigned int value)
 {
 	int change;
 
@@ -1439,6 +1475,7 @@ static int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
 
 	return change;
 }
+EXPORT_SYMBOL_GPL(snd_soc_update_bits_locked);
 
 /**
  * snd_soc_test_bits - test register for change

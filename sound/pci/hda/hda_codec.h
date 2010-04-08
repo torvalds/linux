@@ -527,6 +527,9 @@ enum {
 /* max. codec address */
 #define HDA_MAX_CODEC_ADDRESS	0x0f
 
+/* max number of PCM devics per card */
+#define HDA_MAX_PCMS		10
+
 /*
  * generic arrays
  */
@@ -789,6 +792,7 @@ struct hda_codec {
 	u32 *wcaps;
 
 	struct snd_array mixers;	/* list of assigned mixer elements */
+	struct snd_array nids;		/* list of mapped mixer elements */
 
 	struct hda_cache_rec amp_cache;	/* cache for amp access */
 	struct hda_cache_rec cmd_cache;	/* cache for other commands */
@@ -898,6 +902,7 @@ int snd_hda_codec_set_pincfg(struct hda_codec *codec, hda_nid_t nid,
 			     unsigned int cfg);
 int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 		       hda_nid_t nid, unsigned int cfg); /* for hwdep */
+void snd_hda_shutup_pins(struct hda_codec *codec);
 
 /*
  * Mixer

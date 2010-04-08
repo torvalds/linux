@@ -61,7 +61,7 @@ struct snd_pcm_oss_runtime {
 	struct snd_pcm_plugin *plugin_first;
 	struct snd_pcm_plugin *plugin_last;
 #endif
-	unsigned int prev_hw_ptr_interrupt;
+	unsigned int prev_hw_ptr_period;
 };
 
 struct snd_pcm_oss_file {

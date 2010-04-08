@@ -35,7 +35,9 @@
 #include <plat/serial.h>
 #include <plat/vram.h>
 
-#include "clock.h"
+#include "clock2xxx.h"
+#include "clock3xxx.h"
+#include "clock44xx.h"
 
 #include <plat/omap-pm.h>
 #include <plat/powerdomain.h>
@@ -44,16 +46,13 @@
 #include <plat/clockdomain.h>
 #include "clockdomains.h"
 #include <plat/omap_hwmod.h>
-#include "omap_hwmod_2420.h"
-#include "omap_hwmod_2430.h"
-#include "omap_hwmod_34xx.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
  * default mapping provided here.
  */
 
-#ifdef CONFIG_ARCH_OMAP24XX
+#ifdef CONFIG_ARCH_OMAP2
 static struct map_desc omap24xx_io_desc[] __initdata = {
 	{
 		.virtual	= L3_24XX_VIRT,
@@ -123,7 +122,7 @@ static struct map_desc omap243x_io_desc[] __initdata = {
 #endif
 #endif
 
-#ifdef	CONFIG_ARCH_OMAP34XX
+#ifdef	CONFIG_ARCH_OMAP3
 static struct map_desc omap34xx_io_desc[] __initdata = {
 	{
 		.virtual	= L3_34XX_VIRT,
@@ -135,12 +134,6 @@ static struct map_desc omap34xx_io_desc[] __initdata = {
 		.virtual	= L4_34XX_VIRT,
 		.pfn		= __phys_to_pfn(L4_34XX_PHYS),
 		.length		= L4_34XX_SIZE,
-		.type		= MT_DEVICE
-	},
-	{
-		.virtual	= L4_WK_34XX_VIRT,
-		.pfn		= __phys_to_pfn(L4_WK_34XX_PHYS),
-		.length		= L4_WK_34XX_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
@@ -190,12 +183,6 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 		.type		= MT_DEVICE,
 	},
 	{
-		.virtual	= L4_WK_44XX_VIRT,
-		.pfn		= __phys_to_pfn(L4_WK_44XX_PHYS),
-		.length		= L4_WK_44XX_SIZE,
-		.type		= MT_DEVICE,
-	},
-	{
 		.virtual	= OMAP44XX_GPMC_VIRT,
 		.pfn		= __phys_to_pfn(OMAP44XX_GPMC_PHYS),
 		.length		= OMAP44XX_GPMC_SIZE,
@@ -234,25 +221,8 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 };
 #endif
 
-void __init omap2_map_common_io(void)
+static void __init _omap2_map_common_io(void)
 {
-#if defined(CONFIG_ARCH_OMAP2420)
-	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
-	iotable_init(omap242x_io_desc, ARRAY_SIZE(omap242x_io_desc));
-#endif
-
-#if defined(CONFIG_ARCH_OMAP2430)
-	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
-	iotable_init(omap243x_io_desc, ARRAY_SIZE(omap243x_io_desc));
-#endif
-
-#if defined(CONFIG_ARCH_OMAP34XX)
-	iotable_init(omap34xx_io_desc, ARRAY_SIZE(omap34xx_io_desc));
-#endif
-
-#if defined(CONFIG_ARCH_OMAP4)
-	iotable_init(omap44xx_io_desc, ARRAY_SIZE(omap44xx_io_desc));
-#endif
 	/* Normally devicemaps_init() would flush caches and tlb after
 	 * mdesc->map_io(), but we must also do it here because of the CPU
 	 * revision check below.
@@ -265,6 +235,40 @@ void __init omap2_map_common_io(void)
 	omapfb_reserve_sdram();
 	omap_vram_reserve_sdram();
 }
+
+#ifdef CONFIG_ARCH_OMAP2420
+void __init omap242x_map_common_io()
+{
+	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
+	iotable_init(omap242x_io_desc, ARRAY_SIZE(omap242x_io_desc));
+	_omap2_map_common_io();
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2430
+void __init omap243x_map_common_io()
+{
+	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
+	iotable_init(omap243x_io_desc, ARRAY_SIZE(omap243x_io_desc));
+	_omap2_map_common_io();
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP3
+void __init omap34xx_map_common_io()
+{
+	iotable_init(omap34xx_io_desc, ARRAY_SIZE(omap34xx_io_desc));
+	_omap2_map_common_io();
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP4
+void __init omap44xx_map_common_io()
+{
+	iotable_init(omap44xx_io_desc, ARRAY_SIZE(omap44xx_io_desc));
+	_omap2_map_common_io();
+}
+#endif
 
 /*
  * omap2_init_reprogram_sdrc - reprogram SDRC timing parameters
@@ -303,24 +307,31 @@ static int __init _omap2_init_reprogram_sdrc(void)
 void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 				 struct omap_sdrc_params *sdrc_cs1)
 {
-	struct omap_hwmod **hwmods = NULL;
+	pwrdm_init(powerdomains_omap);
+	clkdm_init(clockdomains_omap, clkdm_autodeps);
+#ifndef CONFIG_ARCH_OMAP4 /* FIXME: Remove this once the clkdev is ready */
+	if (cpu_is_omap242x())
+		omap2420_hwmod_init();
+	else if (cpu_is_omap243x())
+		omap2430_hwmod_init();
+	else if (cpu_is_omap34xx())
+		omap3xxx_hwmod_init();
+	omap2_mux_init();
+	/* The OPP tables have to be registered before a clk init */
+	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
+#endif
 
 	if (cpu_is_omap2420())
-		hwmods = omap2420_hwmods;
+		omap2420_clk_init();
 	else if (cpu_is_omap2430())
-		hwmods = omap2430_hwmods;
+		omap2430_clk_init();
 	else if (cpu_is_omap34xx())
-		hwmods = omap34xx_hwmods;
+		omap3xxx_clk_init();
+	else if (cpu_is_omap44xx())
+		omap4xxx_clk_init();
+	else
+		pr_err("Could not init clock framework - unknown CPU\n");
 
-#ifndef CONFIG_ARCH_OMAP4 /* FIXME: Remove this once the clkdev is ready */
-	/* The OPP tables have to be registered before a clk init */
-	omap_hwmod_init(hwmods);
-	omap2_mux_init();
-	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
-	pwrdm_init(powerdomains_omap);
-	clkdm_init(clockdomains_omap, clkdm_pwrdm_autodeps);
-#endif
-	omap2_clk_init();
 	omap_serial_early_init();
 #ifndef CONFIG_ARCH_OMAP4
 	omap_hwmod_late_init();

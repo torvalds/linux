@@ -2021,7 +2021,6 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* setup the TxBD length and buffer pointer for the first BD */
-	tx_queue->tx_skbuff[tx_queue->skb_curtx] = skb;
 	txbdp_start->bufPtr = dma_map_single(&priv->ofdev->dev, skb->data,
 			skb_headlen(skb), DMA_TO_DEVICE);
 
@@ -2052,6 +2051,10 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	eieio();
 
 	txbdp_start->lstatus = lstatus;
+
+	eieio(); /* force lstatus write before tx_skbuff */
+
+	tx_queue->tx_skbuff[tx_queue->skb_curtx] = skb;
 
 	/* Update the current skb pointer to the next entry we will use
 	 * (wrapping if necessary) */

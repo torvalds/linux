@@ -21,8 +21,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __ASM_ARCH_OMAP34XX_H
-#define __ASM_ARCH_OMAP34XX_H
+#ifndef __ASM_ARCH_OMAP3_H
+#define __ASM_ARCH_OMAP3_H
 
 /*
  * Please place only base defines here and put the rest in device
@@ -82,5 +82,5 @@
 
 #define OMAP34XX_MAILBOX_BASE		(L4_34XX_BASE + 0x94000)
 
-#endif /* __ASM_ARCH_OMAP34XX_H */
+#endif /* __ASM_ARCH_OMAP3_H */
 

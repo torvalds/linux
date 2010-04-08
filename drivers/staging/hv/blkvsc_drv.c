@@ -363,10 +363,7 @@ static int blkvsc_probe(struct device *device)
 	blkdev->gd->queue = blk_init_queue(blkvsc_request, &blkdev->lock);
 
 	blk_queue_max_segment_size(blkdev->gd->queue, PAGE_SIZE);
-	blk_queue_max_phys_segments(blkdev->gd->queue,
-				    MAX_MULTIPAGE_BUFFER_COUNT);
-	blk_queue_max_hw_segments(blkdev->gd->queue,
-				  MAX_MULTIPAGE_BUFFER_COUNT);
+	blk_queue_max_segments(blkdev->gd->queue, MAX_MULTIPAGE_BUFFER_COUNT);
 	blk_queue_segment_boundary(blkdev->gd->queue, PAGE_SIZE-1);
 	blk_queue_bounce_limit(blkdev->gd->queue, BLK_BOUNCE_ANY);
 	blk_queue_dma_alignment(blkdev->gd->queue, 511);

@@ -876,9 +876,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 	return NETDEV_TX_OK;
 
 nomem:
-	if (skb)
-		dev_kfree_skb(skb);
-
+	dev_kfree_skb(skb);
 	stats->tx_dropped++;
 
 	return NETDEV_TX_OK;

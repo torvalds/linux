@@ -759,7 +759,7 @@ acpi_video_bus_POST_options(struct acpi_video_bus *video,
 static int
 acpi_video_bus_DOS(struct acpi_video_bus *video, int bios_flag, int lcd_flag)
 {
-	acpi_integer status = 0;
+	u64 status = 0;
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
 	struct acpi_object_list args = { 1, &arg0 };
 

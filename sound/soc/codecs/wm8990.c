@@ -1319,10 +1319,6 @@ static int wm8990_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 
-	/* we only need to suspend if we are a valid card */
-	if (!codec->card)
-		return 0;
-
 	wm8990_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
@@ -1334,10 +1330,6 @@ static int wm8990_resume(struct platform_device *pdev)
 	int i;
 	u8 data[2];
 	u16 *cache = codec->reg_cache;
-
-	/* we only need to resume if we are a valid card */
-	if (!codec->card)
-		return 0;
 
 	/* Sync reg_cache with the hardware */
 	for (i = 0; i < ARRAY_SIZE(wm8990_reg); i++) {

@@ -1441,7 +1441,7 @@ static struct ctl_table fs_table[] = {
 };
 
 static struct ctl_table debug_table[] = {
-#if defined(CONFIG_X86) || defined(CONFIG_PPC)
+#if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 	{
 		.procname	= "exception-trace",
 		.data		= &show_unhandled_signals,

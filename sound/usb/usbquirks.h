@@ -91,7 +91,7 @@
 	.idVendor = 0x046d,
 	.idProduct = 0x0850,
 	.bInterfaceClass = USB_CLASS_AUDIO,
-	.bInterfaceSubClass = USB_SUBCLASS_AUDIO_CONTROL
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL
 },
 {
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
@@ -100,7 +100,7 @@
 	.idVendor = 0x046d,
 	.idProduct = 0x08ae,
 	.bInterfaceClass = USB_CLASS_AUDIO,
-	.bInterfaceSubClass = USB_SUBCLASS_AUDIO_CONTROL
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL
 },
 {
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
@@ -109,7 +109,7 @@
 	.idVendor = 0x046d,
 	.idProduct = 0x08c6,
 	.bInterfaceClass = USB_CLASS_AUDIO,
-	.bInterfaceSubClass = USB_SUBCLASS_AUDIO_CONTROL
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL
 },
 {
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
@@ -118,7 +118,7 @@
 	.idVendor = 0x046d,
 	.idProduct = 0x08f0,
 	.bInterfaceClass = USB_CLASS_AUDIO,
-	.bInterfaceSubClass = USB_SUBCLASS_AUDIO_CONTROL
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL
 },
 {
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
@@ -127,7 +127,7 @@
 	.idVendor = 0x046d,
 	.idProduct = 0x08f5,
 	.bInterfaceClass = USB_CLASS_AUDIO,
-	.bInterfaceSubClass = USB_SUBCLASS_AUDIO_CONTROL
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL
 },
 {
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
@@ -136,7 +136,7 @@
 	.idVendor = 0x046d,
 	.idProduct = 0x08f6,
 	.bInterfaceClass = USB_CLASS_AUDIO,
-	.bInterfaceSubClass = USB_SUBCLASS_AUDIO_CONTROL
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL
 },
 {
 	USB_DEVICE(0x046d, 0x0990),
@@ -301,7 +301,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 					.iface = 1,
 					.altsetting = 1,
 					.altset_idx = 1,
-					.attributes = EP_CS_ATTR_FILL_MAX,
+					.attributes = UAC_EP_CS_ATTR_FILL_MAX,
 					.endpoint = 0x81,
 					.ep_attr = 0x05,
 					.rates = SNDRV_PCM_RATE_CONTINUOUS,
@@ -1266,37 +1266,6 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
-/* Roland UA-101 in High-Speed Mode only */
-{
-	USB_DEVICE(0x0582, 0x007d),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Roland",
-		.product_name = "UA-101",
-		.ifnum = QUIRK_ANY_INTERFACE,
-		.type = QUIRK_COMPOSITE,
-		.data = (const struct snd_usb_audio_quirk[]) {
-			{
-				.ifnum = 0,
-				.type = QUIRK_AUDIO_EDIROL_UA101
-			},
-			{
-				.ifnum = 1,
-				.type = QUIRK_AUDIO_EDIROL_UA101
-			},
-			{
-				.ifnum = 2,
-				.type = QUIRK_MIDI_FIXED_ENDPOINT,
-				.data = & (const struct snd_usb_midi_endpoint_info) {
-					.out_cables = 0x0001,
-					.in_cables  = 0x0001
-				}
-			},
-			{
-				.ifnum = -1
-			}
-		}
-	}
-},
 {
 	/* has ID 0x0081 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0080),
@@ -2073,6 +2042,33 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* Access Music devices */
+{
+	/* VirusTI Desktop */
+	USB_DEVICE_VENDOR_SPEC(0x133e, 0x0815),
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = &(const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 3,
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = &(const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0003,
+					.in_cables  = 0x0003
+				}
+			},
+			{
+				.ifnum = 4,
+				.type = QUIRK_IGNORE_INTERFACE
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+
 /* */
 {
 	/* aka. Serato Scratch Live DJ Box */
@@ -2105,6 +2101,165 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* Hauppauge HVR-950Q and HVR-850 */
+{
+	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7200),
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
+		       USB_DEVICE_ID_MATCH_INT_CLASS |
+		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Hauppauge",
+		.product_name = "HVR-950Q",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
+	}
+},
+{
+	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7201),
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
+		       USB_DEVICE_ID_MATCH_INT_CLASS |
+		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Hauppauge",
+		.product_name = "HVR-950Q",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
+	}
+},
+{
+	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7202),
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
+		       USB_DEVICE_ID_MATCH_INT_CLASS |
+		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Hauppauge",
+		.product_name = "HVR-950Q",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
+	}
+},
+{
+	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7203),
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
+		       USB_DEVICE_ID_MATCH_INT_CLASS |
+		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Hauppauge",
+		.product_name = "HVR-950Q",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
+	}
+},
+{
+	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7204),
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
+		       USB_DEVICE_ID_MATCH_INT_CLASS |
+		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Hauppauge",
+		.product_name = "HVR-950Q",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
+	}
+},
+{
+	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7205),
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
+		       USB_DEVICE_ID_MATCH_INT_CLASS |
+		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Hauppauge",
+		.product_name = "HVR-950Q",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
+	}
+},
+{
+	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7250),
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
+		       USB_DEVICE_ID_MATCH_INT_CLASS |
+		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Hauppauge",
+		.product_name = "HVR-950Q",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
+	}
+},
+{
+	USB_DEVICE_VENDOR_SPEC(0x2040, 0x7230),
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |
+		       USB_DEVICE_ID_MATCH_INT_CLASS |
+		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.bInterfaceSubClass = USB_SUBCLASS_AUDIOCONTROL,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Hauppauge",
+		.product_name = "HVR-850",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_AUDIO_ALIGN_TRANSFER,
+	}
+},
+
+/* Digidesign Mbox */
+{
+	/* Thanks to Clemens Ladisch <clemens@ladisch.de> */
+	USB_DEVICE(0x0dba, 0x1000),
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Digidesign",
+		.product_name = "MBox",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]){
+			{
+				.ifnum = 0,
+				.type = QUIRK_IGNORE_INTERFACE,
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.format = SNDRV_PCM_FORMAT_S24_3BE,
+					.channels = 2,
+					.iface = 1,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = UAC_EP_CS_ATTR_SAMPLE_RATE,
+					.endpoint = 0x02,
+					.ep_attr = 0x01,
+					.maxpacksize = 0x130,
+					.rates = SNDRV_PCM_RATE_44100 |
+						 SNDRV_PCM_RATE_48000,
+					.rate_min = 44100,
+					.rate_max = 48000,
+					.nr_rates = 2,
+					.rate_table = (unsigned int[]) {
+						44100, 48000
+					}
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+
+	}
+},
+
 {
 	/*
 	 * Some USB MIDI devices don't have an audio control interface,
@@ -2113,7 +2268,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	.match_flags = USB_DEVICE_ID_MATCH_INT_CLASS |
 		       USB_DEVICE_ID_MATCH_INT_SUBCLASS,
 	.bInterfaceClass = USB_CLASS_AUDIO,
-	.bInterfaceSubClass = USB_SUBCLASS_MIDI_STREAMING,
+	.bInterfaceSubClass = USB_SUBCLASS_MIDISTREAMING,
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.ifnum = QUIRK_ANY_INTERFACE,
 		.type = QUIRK_MIDI_STANDARD_INTERFACE

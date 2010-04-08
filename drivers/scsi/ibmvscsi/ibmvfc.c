@@ -4195,7 +4195,7 @@ static void ibmvfc_tgt_add_rport(struct ibmvfc_target *tgt)
 		if (tgt->service_parms.class3_parms[0] & 0x80000000)
 			rport->supported_classes |= FC_COS_CLASS3;
 		if (rport->rqst_q)
-			blk_queue_max_hw_segments(rport->rqst_q, 1);
+			blk_queue_max_segments(rport->rqst_q, 1);
 	} else
 		tgt_dbg(tgt, "rport add failed\n");
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
@@ -4669,7 +4669,7 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	}
 
 	if (shost_to_fc_host(shost)->rqst_q)
-		blk_queue_max_hw_segments(shost_to_fc_host(shost)->rqst_q, 1);
+		blk_queue_max_segments(shost_to_fc_host(shost)->rqst_q, 1);
 	dev_set_drvdata(dev, vhost);
 	spin_lock(&ibmvfc_driver_lock);
 	list_add_tail(&vhost->queue, &ibmvfc_head);

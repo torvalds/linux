@@ -879,7 +879,7 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 * broken RA4x00 Compaq Disk Array
 	 */
 	if (*bflags & BLIST_MAX_512)
-		blk_queue_max_sectors(sdev->request_queue, 512);
+		blk_queue_max_hw_sectors(sdev->request_queue, 512);
 
 	/*
 	 * Some devices may not want to have a start command automatically

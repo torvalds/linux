@@ -68,9 +68,9 @@ flush_cache_all_local(void)
 EXPORT_SYMBOL(flush_cache_all_local);
 
 void
-update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
-	struct page *page = pte_page(pte);
+	struct page *page = pte_page(*ptep);
 
 	if (pfn_valid(page_to_pfn(page)) && page_mapping(page) &&
 	    test_bit(PG_dcache_dirty, &page->flags)) {

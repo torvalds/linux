@@ -172,6 +172,8 @@ int lbs_cfg_register(struct lbs_private *priv)
 	if (ret < 0)
 		lbs_pr_err("cannot register wiphy device\n");
 
+	priv->wiphy_registered = true;
+
 	ret = register_netdev(priv->dev);
 	if (ret)
 		lbs_pr_err("cannot register network device\n");
@@ -190,9 +192,11 @@ void lbs_cfg_free(struct lbs_private *priv)
 	if (!wdev)
 		return;
 
-	if (wdev->wiphy) {
+	if (priv->wiphy_registered)
 		wiphy_unregister(wdev->wiphy);
+
+	if (wdev->wiphy)
 		wiphy_free(wdev->wiphy);
-	}
+
 	kfree(wdev);
 }

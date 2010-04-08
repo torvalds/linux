@@ -24,7 +24,7 @@
 
 #if defined(CONFIG_CPU_V6)
 
-		.macro	addruart, rx
+		.macro	addruart, rx, tmp
 		.endm
 
 		.macro	senduart, rd, rx
@@ -51,7 +51,7 @@
 
 #elif defined(CONFIG_CPU_V7)
 
-		.macro	addruart, rx
+		.macro	addruart, rx, tmp
 		.endm
 
 		.macro	senduart, rd, rx
@@ -71,7 +71,7 @@ wait:		mrc	p14, 0, pc, c0, c1, 0
 
 #elif defined(CONFIG_CPU_XSCALE)
 
-		.macro	addruart, rx
+		.macro	addruart, rx, tmp
 		.endm
 
 		.macro	senduart, rd, rx
@@ -98,7 +98,7 @@ wait:		mrc	p14, 0, pc, c0, c1, 0
 
 #else
 
-		.macro	addruart, rx
+		.macro	addruart, rx, tmp
 		.endm
 
 		.macro	senduart, rd, rx
@@ -164,7 +164,7 @@ ENDPROC(printhex2)
 		.ltorg
 
 ENTRY(printascii)
-		addruart r3
+		addruart r3, r1
 		b	2f
 1:		waituart r2, r3
 		senduart r1, r3
@@ -180,7 +180,7 @@ ENTRY(printascii)
 ENDPROC(printascii)
 
 ENTRY(printch)
-		addruart r3
+		addruart r3, r1
 		mov	r1, r0
 		mov	r0, #0
 		b	1b

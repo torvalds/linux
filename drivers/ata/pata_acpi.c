@@ -259,7 +259,7 @@ static int pacpi_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 			return rc;
 		pcim_pin_device(pdev);
 	}
-	return ata_pci_sff_init_one(pdev, ppi, &pacpi_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &pacpi_sht, NULL, 0);
 }
 
 static const struct pci_device_id pacpi_pci_tbl[] = {

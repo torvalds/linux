@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,7 @@ ACPI_MODULE_NAME("exconvrt")
 
 /* Local prototypes */
 static u32
-acpi_ex_convert_to_ascii(acpi_integer integer,
-			 u16 base, u8 * string, u8 max_length);
+acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 max_length);
 
 /*******************************************************************************
  *
@@ -75,7 +74,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 {
 	union acpi_operand_object *return_desc;
 	u8 *pointer;
-	acpi_integer result;
+	u64 result;
 	u32 i;
 	u32 count;
 	acpi_status status;
@@ -155,7 +154,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 			 * Little endian is used, meaning that the first byte of the buffer
 			 * is the LSB of the integer
 			 */
-			result |= (((acpi_integer) pointer[i]) << (i * 8));
+			result |= (((u64) pointer[i]) << (i * 8));
 		}
 		break;
 
@@ -285,10 +284,9 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
  ******************************************************************************/
 
 static u32
-acpi_ex_convert_to_ascii(acpi_integer integer,
-			 u16 base, u8 * string, u8 data_width)
+acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 data_width)
 {
-	acpi_integer digit;
+	u64 digit;
 	u32 i;
 	u32 j;
 	u32 k = 0;
@@ -531,10 +529,9 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		 * (separated by commas or spaces)
 		 */
 		for (i = 0; i < obj_desc->buffer.length; i++) {
-			new_buf += acpi_ex_convert_to_ascii((acpi_integer)
-							    obj_desc->buffer.
-							    pointer[i], base,
-							    new_buf, 1);
+			new_buf += acpi_ex_convert_to_ascii((u64) obj_desc->
+							    buffer.pointer[i],
+							    base, new_buf, 1);
 			*new_buf++ = separator;	/* each separated by a comma or space */
 		}
 

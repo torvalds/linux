@@ -33,6 +33,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <sound/core.h>
+#include <sound/tlv.h>
 #include <sound/wss.h>
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
@@ -546,6 +547,93 @@ __skip_mpu:
 
 #ifdef OPTi93X
 
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit_3db_step, -9300, 300, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_5bit, -4650, 150, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_4bit_12db_max, -3300, 300, 0);
+
+static struct snd_kcontrol_new snd_opti93x_controls[] = {
+WSS_DOUBLE("Master Playback Switch", 0,
+		OPTi93X_OUT_LEFT, OPTi93X_OUT_RIGHT, 7, 7, 1, 1),
+WSS_DOUBLE_TLV("Master Playback Volume", 0,
+		OPTi93X_OUT_LEFT, OPTi93X_OUT_RIGHT, 1, 1, 31, 1,
+		db_scale_5bit_3db_step),
+WSS_DOUBLE_TLV("PCM Playback Volume", 0,
+		CS4231_LEFT_OUTPUT, CS4231_RIGHT_OUTPUT, 0, 0, 31, 1,
+		db_scale_5bit),
+WSS_DOUBLE_TLV("FM Playback Volume", 0,
+		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 1, 1, 15, 1,
+		db_scale_4bit_12db_max),
+WSS_DOUBLE("Line Playback Switch", 0,
+		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 7, 7, 1, 1),
+WSS_DOUBLE_TLV("Line Playback Volume", 0,
+		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 0, 0, 15, 1,
+		db_scale_4bit_12db_max),
+WSS_DOUBLE("Mic Playback Switch", 0,
+		OPTi93X_MIC_LEFT_INPUT, OPTi93X_MIC_RIGHT_INPUT, 7, 7, 1, 1),
+WSS_DOUBLE_TLV("Mic Playback Volume", 0,
+		OPTi93X_MIC_LEFT_INPUT, OPTi93X_MIC_RIGHT_INPUT, 1, 1, 15, 1,
+		db_scale_4bit_12db_max),
+WSS_DOUBLE_TLV("CD Playback Volume", 0,
+		CS4231_AUX1_LEFT_INPUT, CS4231_AUX1_RIGHT_INPUT, 1, 1, 15, 1,
+		db_scale_4bit_12db_max),
+WSS_DOUBLE("Aux Playback Switch", 0,
+		OPTi931_AUX_LEFT_INPUT, OPTi931_AUX_RIGHT_INPUT, 7, 7, 1, 1),
+WSS_DOUBLE_TLV("Aux Playback Volume", 0,
+		OPTi931_AUX_LEFT_INPUT, OPTi931_AUX_RIGHT_INPUT, 1, 1, 15, 1,
+		db_scale_4bit_12db_max),
+};
+
+static int __devinit snd_opti93x_mixer(struct snd_wss *chip)
+{
+	struct snd_card *card;
+	unsigned int idx;
+	struct snd_ctl_elem_id id1, id2;
+	int err;
+
+	if (snd_BUG_ON(!chip || !chip->pcm))
+		return -EINVAL;
+
+	card = chip->card;
+
+	strcpy(card->mixername, chip->pcm->name);
+
+	memset(&id1, 0, sizeof(id1));
+	memset(&id2, 0, sizeof(id2));
+	id1.iface = id2.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	/* reassign AUX0 switch to CD */
+	strcpy(id1.name, "Aux Playback Switch");
+	strcpy(id2.name, "CD Playback Switch");
+	err = snd_ctl_rename_id(card, &id1, &id2);
+	if (err < 0) {
+		snd_printk(KERN_ERR "Cannot rename opti93x control\n");
+		return err;
+	}
+	/* reassign AUX1 switch to FM */
+	strcpy(id1.name, "Aux Playback Switch"); id1.index = 1;
+	strcpy(id2.name, "FM Playback Switch");
+	err = snd_ctl_rename_id(card, &id1, &id2);
+	if (err < 0) {
+		snd_printk(KERN_ERR "Cannot rename opti93x control\n");
+		return err;
+	}
+	/* remove AUX1 volume */
+	strcpy(id1.name, "Aux Playback Volume"); id1.index = 1;
+	snd_ctl_remove_id(card, &id1);
+
+	/* Replace WSS volume controls with OPTi93x volume controls */
+	id1.index = 0;
+	for (idx = 0; idx < ARRAY_SIZE(snd_opti93x_controls); idx++) {
+		strcpy(id1.name, snd_opti93x_controls[idx].name);
+		snd_ctl_remove_id(card, &id1);
+
+		err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_opti93x_controls[idx], chip));
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
 static irqreturn_t snd_opti93x_interrupt(int irq, void *dev_id)
 {
 	struct snd_opti9xx *chip = dev_id;
@@ -754,6 +842,11 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 	error = snd_wss_mixer(codec);
 	if (error < 0)
 		return error;
+#ifdef OPTi93X
+	error = snd_opti93x_mixer(codec);
+	if (error < 0)
+		return error;
+#endif
 #ifdef CS4231
 	error = snd_wss_timer(codec, 0, &timer);
 	if (error < 0)

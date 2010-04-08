@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,7 +67,7 @@
 ACPI_MODULE_NAME("exutils")
 
 /* Local prototypes */
-static u32 acpi_ex_digits_needed(acpi_integer value, u32 base);
+static u32 acpi_ex_digits_needed(u64 value, u32 base);
 
 #ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
@@ -230,7 +230,7 @@ void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
 		 * We are running a method that exists in a 32-bit ACPI table.
 		 * Truncate the value to 32 bits by zeroing out the upper 32-bit field
 		 */
-		obj_desc->integer.value &= (acpi_integer) ACPI_UINT32_MAX;
+		obj_desc->integer.value &= (u64) ACPI_UINT32_MAX;
 	}
 }
 
@@ -327,14 +327,14 @@ void acpi_ex_release_global_lock(u32 field_flags)
  *
  ******************************************************************************/
 
-static u32 acpi_ex_digits_needed(acpi_integer value, u32 base)
+static u32 acpi_ex_digits_needed(u64 value, u32 base)
 {
 	u32 num_digits;
-	acpi_integer current_value;
+	u64 current_value;
 
 	ACPI_FUNCTION_TRACE(ex_digits_needed);
 
-	/* acpi_integer is unsigned, so we don't worry about a '-' prefix */
+	/* u64 is unsigned, so we don't worry about a '-' prefix */
 
 	if (value == 0) {
 		return_UINT32(1);
@@ -370,7 +370,7 @@ static u32 acpi_ex_digits_needed(acpi_integer value, u32 base)
  *
  ******************************************************************************/
 
-void acpi_ex_eisa_id_to_string(char *out_string, acpi_integer compressed_id)
+void acpi_ex_eisa_id_to_string(char *out_string, u64 compressed_id)
 {
 	u32 swapped_id;
 
@@ -394,10 +394,10 @@ void acpi_ex_eisa_id_to_string(char *out_string, acpi_integer compressed_id)
 	    (char)(0x40 + (((unsigned long)swapped_id >> 26) & 0x1F));
 	out_string[1] = (char)(0x40 + ((swapped_id >> 21) & 0x1F));
 	out_string[2] = (char)(0x40 + ((swapped_id >> 16) & 0x1F));
-	out_string[3] = acpi_ut_hex_to_ascii_char((acpi_integer)swapped_id, 12);
-	out_string[4] = acpi_ut_hex_to_ascii_char((acpi_integer)swapped_id, 8);
-	out_string[5] = acpi_ut_hex_to_ascii_char((acpi_integer)swapped_id, 4);
-	out_string[6] = acpi_ut_hex_to_ascii_char((acpi_integer)swapped_id, 0);
+	out_string[3] = acpi_ut_hex_to_ascii_char((u64) swapped_id, 12);
+	out_string[4] = acpi_ut_hex_to_ascii_char((u64) swapped_id, 8);
+	out_string[5] = acpi_ut_hex_to_ascii_char((u64) swapped_id, 4);
+	out_string[6] = acpi_ut_hex_to_ascii_char((u64) swapped_id, 0);
 	out_string[7] = 0;
 }
 
@@ -418,7 +418,7 @@ void acpi_ex_eisa_id_to_string(char *out_string, acpi_integer compressed_id)
  *
  ******************************************************************************/
 
-void acpi_ex_integer_to_string(char *out_string, acpi_integer value)
+void acpi_ex_integer_to_string(char *out_string, u64 value)
 {
 	u32 count;
 	u32 digits_needed;

@@ -578,12 +578,10 @@ static struct clk_lookup lookups[] = {
 int __init mx31_clocks_init(unsigned long fref)
 {
 	u32 reg;
-	int i;
 
 	ckih_rate = fref;
 
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	/* change the csi_clk parent if necessary */
 	reg = __raw_readl(MXC_CCM_CCMR);

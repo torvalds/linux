@@ -286,6 +286,8 @@ static int joydev_open(struct inode *inode, struct file *file)
 		goto err_free_client;
 
 	file->private_data = client;
+	nonseekable_open(inode, file);
+
 	return 0;
 
  err_free_client:
@@ -775,6 +777,20 @@ static void joydev_cleanup(struct joydev *joydev)
 		input_close_device(handle);
 }
 
+
+static bool joydev_match(struct input_handler *handler, struct input_dev *dev)
+{
+	/* Avoid touchpads and touchscreens */
+	if (test_bit(EV_KEY, dev->evbit) && test_bit(BTN_TOUCH, dev->keybit))
+		return false;
+
+	/* Avoid tablets, digitisers and similar devices */
+	if (test_bit(EV_KEY, dev->evbit) && test_bit(BTN_DIGI, dev->keybit))
+		return false;
+
+	return true;
+}
+
 static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 			  const struct input_device_id *id)
 {
@@ -894,22 +910,6 @@ static void joydev_disconnect(struct input_handle *handle)
 	put_device(&joydev->dev);
 }
 
-static const struct input_device_id joydev_blacklist[] = {
-	{
-		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
-				INPUT_DEVICE_ID_MATCH_KEYBIT,
-		.evbit = { BIT_MASK(EV_KEY) },
-		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
-	},	/* Avoid itouchpads and touchscreens */
-	{
-		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
-				INPUT_DEVICE_ID_MATCH_KEYBIT,
-		.evbit = { BIT_MASK(EV_KEY) },
-		.keybit = { [BIT_WORD(BTN_DIGI)] = BIT_MASK(BTN_DIGI) },
-	},	/* Avoid tablets, digitisers and similar devices */
-	{ }	/* Terminating entry */
-};
-
 static const struct input_device_id joydev_ids[] = {
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
@@ -936,13 +936,13 @@ MODULE_DEVICE_TABLE(input, joydev_ids);
 
 static struct input_handler joydev_handler = {
 	.event		= joydev_event,
+	.match		= joydev_match,
 	.connect	= joydev_connect,
 	.disconnect	= joydev_disconnect,
 	.fops		= &joydev_fops,
 	.minor		= JOYDEV_MINOR_BASE,
 	.name		= "joydev",
 	.id_table	= joydev_ids,
-	.blacklist	= joydev_blacklist,
 };
 
 static int __init joydev_init(void)

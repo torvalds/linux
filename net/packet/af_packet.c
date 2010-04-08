@@ -1688,6 +1688,8 @@ static int packet_dev_mc(struct net_device *dev, struct packet_mclist *i,
 {
 	switch (i->type) {
 	case PACKET_MR_MULTICAST:
+		if (i->alen != dev->addr_len)
+			return -EINVAL;
 		if (what > 0)
 			return dev_mc_add(dev, i->addr, i->alen, 0);
 		else
@@ -1700,6 +1702,8 @@ static int packet_dev_mc(struct net_device *dev, struct packet_mclist *i,
 		return dev_set_allmulti(dev, what);
 		break;
 	case PACKET_MR_UNICAST:
+		if (i->alen != dev->addr_len)
+			return -EINVAL;
 		if (what > 0)
 			return dev_unicast_add(dev, i->addr);
 		else
@@ -1734,7 +1738,7 @@ static int packet_mc_add(struct sock *sk, struct packet_mreq_max *mreq)
 		goto done;
 
 	err = -EINVAL;
-	if (mreq->mr_alen != dev->addr_len)
+	if (mreq->mr_alen > dev->addr_len)
 		goto done;
 
 	err = -ENOBUFS;

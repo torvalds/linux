@@ -719,7 +719,6 @@ static void __init to2_adjust_clocks(void)
 int __init mx27_clocks_init(unsigned long fref)
 {
 	u32 cscr = __raw_readl(CCM_CSCR);
-	int i;
 
 	external_high_reference = fref;
 
@@ -736,8 +735,7 @@ int __init mx27_clocks_init(unsigned long fref)
 
 	to2_adjust_clocks();
 
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	/* Turn off all clocks we do not need */
 	__raw_writel(0, CCM_PCCR0);
