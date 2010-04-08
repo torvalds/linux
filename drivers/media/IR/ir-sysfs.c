@@ -91,7 +91,7 @@ static ssize_t store_protocol(struct device *d,
 	unsigned long flags;
 	char *buf;
 
-	while (buf = strsep((char **) &data, " \n")) {
+	while ((buf = strsep((char **) &data, " \n")) != NULL) {
 		if (!strcasecmp(buf, "rc-5") || !strcasecmp(buf, "rc5"))
 			ir_type |= IR_TYPE_RC5;
 		if (!strcasecmp(buf, "pd") || !strcasecmp(buf, "pulse-distance"))
