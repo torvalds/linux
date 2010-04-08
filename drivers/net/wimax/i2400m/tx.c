@@ -272,7 +272,13 @@ enum {
 	 * at the end there are less, we pad up to the nearest
 	 * multiple of 16.
 	 */
-	I2400M_TX_PLD_MAX = 12,
+	/*
+	 * According to Intel Wimax i3200, i5x50 and i6x50 specification
+	 * documents, the maximum number of payloads per message can be
+	 * up to 60. Increasing the number of payloads to 60 per message
+	 * helps to accommodate smaller payloads in a single transaction.
+	 */
+	I2400M_TX_PLD_MAX = 60,
 	I2400M_TX_PLD_SIZE = sizeof(struct i2400m_msg_hdr)
 	+ I2400M_TX_PLD_MAX * sizeof(struct i2400m_pld),
 	I2400M_TX_SKIP = 0x80000000,
