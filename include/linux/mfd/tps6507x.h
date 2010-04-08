@@ -131,6 +131,8 @@
 /* VDCDC MASK */
 #define TPS6507X_DEFDCDCX_DCDC_MASK		0X3F
 
+#define TPS6507X_MAX_REGISTER			0X19
+
 /**
  * struct tps6507x_board - packages regulator and touchscreen init data
  * @tps6507x_regulator_data: regulator initialization values
@@ -140,6 +142,26 @@
 
 struct tps6507x_board {
 	struct regulator_init_data *tps6507x_pmic_init_data;
+};
+
+/**
+ * struct tps6507x_dev - tps6507x sub-driver chip access routines
+ * @read_dev() - I2C register read function
+ * @write_dev() - I2C register write function
+ *
+ * Device data may be used to access the TPS6507x chip
+ */
+
+struct tps6507x_dev {
+	struct device *dev;
+	struct i2c_client *i2c_client;
+	int (*read_dev)(struct tps6507x_dev *tps6507x, char reg, int size,
+			void *dest);
+	int (*write_dev)(struct tps6507x_dev *tps6507x, char reg, int size,
+			 void *src);
+
+	/* Client devices */
+	struct tps6507x_pmic *pmic;
 };
 
 #endif /*  __LINUX_MFD_TPS6507X_H */
