@@ -38,6 +38,7 @@
 #include <linux/mutex.h>
 #include <linux/spi/max7301.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 /*
  * Pin configurations, see MAX7301 datasheet page 6

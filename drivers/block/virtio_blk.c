@@ -1,5 +1,6 @@
 //#define DEBUG
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/virtio.h>

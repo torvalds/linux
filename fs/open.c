@@ -10,7 +10,6 @@
 #include <linux/fdtable.h>
 #include <linux/fsnotify.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/namei.h>
 #include <linux/backing-dev.h>
@@ -20,6 +19,7 @@
 #include <linux/mount.h>
 #include <linux/vfs.h>
 #include <linux/fcntl.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/fs.h>
 #include <linux/personality.h>

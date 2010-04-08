@@ -10,6 +10,8 @@
 #ifndef __RGRP_DOT_H__
 #define __RGRP_DOT_H__
 
+#include <linux/slab.h>
+
 struct gfs2_rgrpd;
 struct gfs2_sbd;
 struct gfs2_holder;

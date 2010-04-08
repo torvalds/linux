@@ -30,6 +30,7 @@
  */
 
 #define DEBUG
+#include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
 #include <linux/libps2.h>

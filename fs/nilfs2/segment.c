@@ -32,6 +32,7 @@
 #include <linux/kthread.h>
 #include <linux/crc32.h>
 #include <linux/pagevec.h>
+#include <linux/slab.h>
 #include "nilfs.h"
 #include "btnode.h"
 #include "page.h"

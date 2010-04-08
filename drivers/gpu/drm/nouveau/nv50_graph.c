@@ -56,6 +56,10 @@ nv50_graph_init_intr(struct drm_device *dev)
 static void
 nv50_graph_init_regs__nv(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	uint32_t units = nv_rd32(dev, 0x1540);
+	int i;
+
 	NV_DEBUG(dev, "\n");
 
 	nv_wr32(dev, 0x400804, 0xc0000000);
@@ -64,6 +68,20 @@ nv50_graph_init_regs__nv(struct drm_device *dev)
 	nv_wr32(dev, 0x401800, 0xc0000000);
 	nv_wr32(dev, 0x405018, 0xc0000000);
 	nv_wr32(dev, 0x402000, 0xc0000000);
+
+	for (i = 0; i < 16; i++) {
+		if (units & 1 << i) {
+			if (dev_priv->chipset < 0xa0) {
+				nv_wr32(dev, 0x408900 + (i << 12), 0xc0000000);
+				nv_wr32(dev, 0x408e08 + (i << 12), 0xc0000000);
+				nv_wr32(dev, 0x408314 + (i << 12), 0xc0000000);
+			} else {
+				nv_wr32(dev, 0x408600 + (i << 11), 0xc0000000);
+				nv_wr32(dev, 0x408708 + (i << 11), 0xc0000000);
+				nv_wr32(dev, 0x40831c + (i << 11), 0xc0000000);
+			}
+		}
+	}
 
 	nv_wr32(dev, 0x400108, 0xffffffff);
 
@@ -229,10 +247,6 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 		nouveau_grctx_vals_load(dev, ctx);
 	}
 	nv_wo32(dev, ctx, 0x00000/4, chan->ramin->instance >> 12);
-	if ((dev_priv->chipset & 0xf0) == 0xa0)
-		nv_wo32(dev, ctx, 0x00004/4, 0x00000000);
-	else
-		nv_wo32(dev, ctx, 0x0011c/4, 0x00000000);
 	dev_priv->engine.instmem.finish_access(dev);
 
 	return 0;

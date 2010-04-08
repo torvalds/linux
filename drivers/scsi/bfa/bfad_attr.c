@@ -19,6 +19,7 @@
  *  bfa_attr.c Linux driver configuration interface module.
  */
 
+#include <linux/slab.h>
 #include "bfad_drv.h"
 #include "bfad_im.h"
 #include "bfad_trcmod.h"

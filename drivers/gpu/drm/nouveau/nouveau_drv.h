@@ -681,6 +681,7 @@ extern int nouveau_uscript_tmds;
 extern int nouveau_vram_pushbuf;
 extern int nouveau_vram_notify;
 extern int nouveau_fbpercrtc;
+extern int nouveau_tv_disable;
 extern char *nouveau_tv_norm;
 extern int nouveau_reg_debug;
 extern char *nouveau_vbios;
@@ -688,6 +689,7 @@ extern int nouveau_ctxfw;
 extern int nouveau_ignorelid;
 extern int nouveau_nofbaccel;
 extern int nouveau_noaccel;
+extern int nouveau_override_conntype;
 
 extern int nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state);
 extern int nouveau_pci_resume(struct pci_dev *pdev);
@@ -925,6 +927,10 @@ extern int  nv40_fb_init(struct drm_device *);
 extern void nv40_fb_takedown(struct drm_device *);
 extern void nv40_fb_set_region_tiling(struct drm_device *, int, uint32_t,
 				      uint32_t, uint32_t);
+
+/* nv50_fb.c */
+extern int  nv50_fb_init(struct drm_device *);
+extern void nv50_fb_takedown(struct drm_device *);
 
 /* nv04_fifo.c */
 extern int  nv04_fifo_init(struct drm_device *);

@@ -3,6 +3,7 @@
 #include <linux/stringify.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 static inline int trace_valid_entry(struct trace_entry *entry)
 {

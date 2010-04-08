@@ -108,6 +108,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *, const char *,
 									char *);
 void v9fs_session_close(struct v9fs_session_info *v9ses);
 void v9fs_session_cancel(struct v9fs_session_info *v9ses);
+void v9fs_session_begin_cancel(struct v9fs_session_info *v9ses);
 
 #define V9FS_MAGIC 0x01021997
 

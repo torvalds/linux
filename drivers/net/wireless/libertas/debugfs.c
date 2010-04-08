@@ -4,6 +4,7 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 #include <net/lib80211.h>
 

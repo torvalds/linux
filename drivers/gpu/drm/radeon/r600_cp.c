@@ -1548,10 +1548,13 @@ static void r700_gfx_init(struct drm_device *dev,
 
 	RADEON_WRITE(R600_CC_RB_BACKEND_DISABLE,      cc_rb_backend_disable);
 	RADEON_WRITE(R600_CC_GC_SHADER_PIPE_CONFIG,   cc_gc_shader_pipe_config);
+	RADEON_WRITE(R600_GC_USER_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 
 	RADEON_WRITE(R700_CC_SYS_RB_BACKEND_DISABLE, cc_rb_backend_disable);
 	RADEON_WRITE(R700_CGTS_SYS_TCC_DISABLE, 0);
 	RADEON_WRITE(R700_CGTS_TCC_DISABLE, 0);
+	RADEON_WRITE(R700_CGTS_USER_SYS_TCC_DISABLE, 0);
+	RADEON_WRITE(R700_CGTS_USER_TCC_DISABLE, 0);
 
 	num_qd_pipes =
 		R7XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & R600_INACTIVE_QD_PIPES_MASK) >> 8);

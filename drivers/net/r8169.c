@@ -3227,8 +3227,8 @@ static void rtl8169_set_rxbufsize(struct rtl8169_private *tp,
 	unsigned int max_frame = mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
 
 	if (max_frame != 16383)
-		printk(KERN_WARNING "WARNING! Changing of MTU on this NIC"
-			"May lead to frame reception errors!\n");
+		printk(KERN_WARNING PFX "WARNING! Changing of MTU on this "
+			"NIC may lead to frame reception errors!\n");
 
 	tp->rx_buf_sz = (max_frame > RX_BUF_SIZE) ? max_frame : RX_BUF_SIZE;
 }

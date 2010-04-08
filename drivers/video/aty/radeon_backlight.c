@@ -12,6 +12,7 @@
 
 #include "radeonfb.h"
 #include <linux/backlight.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>

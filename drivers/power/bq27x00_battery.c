@@ -24,6 +24,7 @@
 #include <linux/power_supply.h>
 #include <linux/idr.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_VERSION			"1.1.0"

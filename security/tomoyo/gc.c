@@ -9,6 +9,7 @@
 
 #include "common.h"
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 enum tomoyo_gc_id {
 	TOMOYO_ID_DOMAIN_INITIALIZER,

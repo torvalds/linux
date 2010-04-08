@@ -31,6 +31,8 @@
  * SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include "mlx4_ib.h"
 
 static u32 convert_access(int acc)

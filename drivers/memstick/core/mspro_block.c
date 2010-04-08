@@ -17,6 +17,7 @@
 #include <linux/hdreg.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/memstick.h>
 
 #define DRIVER_NAME "mspro_block"

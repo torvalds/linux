@@ -1,6 +1,7 @@
 #include <crypto/hash.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
 #include <net/ah.h>

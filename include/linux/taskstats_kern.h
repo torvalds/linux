@@ -9,6 +9,7 @@
 
 #include <linux/taskstats.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_TASKSTATS
 extern struct kmem_cache *taskstats_cache;

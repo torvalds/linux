@@ -1,5 +1,8 @@
 
 #include "ceph_debug.h"
+
+#include <linux/slab.h>
+
 #include "buffer.h"
 #include "decode.h"
 

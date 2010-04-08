@@ -228,6 +228,7 @@ static char rcsid[] =
 #include <linux/etherdevice.h>
 #include <linux/spinlock.h>
 #include <linux/if.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 
 #include <asm/io.h>

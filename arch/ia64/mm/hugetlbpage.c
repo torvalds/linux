@@ -14,7 +14,6 @@
 #include <linux/hugetlb.h>
 #include <linux/pagemap.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/log2.h>
 #include <asm/mman.h>

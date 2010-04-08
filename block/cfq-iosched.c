@@ -7,6 +7,7 @@
  *  Copyright (C) 2003 Jens Axboe <axboe@kernel.dk>
  */
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/jiffies.h>

@@ -33,7 +33,6 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/pagemap.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/mount.h>
 #include <linux/namei.h>

@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/mfd/88pm860x.h>
 

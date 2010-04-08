@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 
 #include <mach/timer.h>
 
