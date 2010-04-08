@@ -242,6 +242,8 @@ static void dequeue_complete_req(void)
 	struct ablkcipher_request *req = cpg->cur_req;
 	void *buf;
 	int ret;
+	int need_copy_len = cpg->p.crypt_len;
+	int sram_offset = 0;
 
 	cpg->p.total_req_bytes += cpg->p.crypt_len;
 	do {
@@ -257,14 +259,16 @@ static void dequeue_complete_req(void)
 		buf = cpg->p.dst_sg_it.addr;
 		buf += cpg->p.dst_start;
 
-		dst_copy = min(cpg->p.crypt_len, cpg->p.sg_dst_left);
+		dst_copy = min(need_copy_len, cpg->p.sg_dst_left);
 
-		memcpy(buf, cpg->sram + SRAM_DATA_OUT_START, dst_copy);
-
+		memcpy(buf,
+		       cpg->sram + SRAM_DATA_OUT_START + sram_offset,
+		       dst_copy);
+		sram_offset += dst_copy;
 		cpg->p.sg_dst_left -= dst_copy;
-		cpg->p.crypt_len -= dst_copy;
+		need_copy_len -= dst_copy;
 		cpg->p.dst_start += dst_copy;
-	} while (cpg->p.crypt_len > 0);
+	} while (need_copy_len > 0);
 
 	BUG_ON(cpg->eng_st != ENGINE_W_DEQUEUE);
 	if (cpg->p.total_req_bytes < req->nbytes) {
