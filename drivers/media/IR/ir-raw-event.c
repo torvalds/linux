@@ -15,9 +15,10 @@
 #include <media/ir-core.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#include <linux/sched.h>
 
-/* Define the max number of bit transitions per IR keycode */
-#define MAX_IR_EVENT_SIZE	256
+/* Define the max number of pulse/space transitions to buffer */
+#define MAX_IR_EVENT_SIZE      512
 
 /* Used to handle IR raw handler extensions */
 static LIST_HEAD(ir_raw_handler_list);
@@ -53,19 +54,30 @@ static DEFINE_SPINLOCK(ir_raw_handler_lock);
 /* Used to load the decoders */
 static struct work_struct wq_load;
 
+static void ir_raw_event_work(struct work_struct *work)
+{
+	s64 d;
+	struct ir_raw_event_ctrl *raw =
+		container_of(work, struct ir_raw_event_ctrl, rx_work);
+
+	while (kfifo_out(&raw->kfifo, &d, sizeof(d)) == sizeof(d))
+		RUN_DECODER(decode, raw->input_dev, d);
+}
+
 int ir_raw_event_register(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir = input_get_drvdata(input_dev);
-	int rc, size;
+	int rc;
 
 	ir->raw = kzalloc(sizeof(*ir->raw), GFP_KERNEL);
 	if (!ir->raw)
 		return -ENOMEM;
 
-	size = sizeof(struct ir_raw_event) * MAX_IR_EVENT_SIZE * 2;
-	size = roundup_pow_of_two(size);
+	ir->raw->input_dev = input_dev;
+	INIT_WORK(&ir->raw->rx_work, ir_raw_event_work);
 
-	rc = kfifo_alloc(&ir->raw->kfifo, size, GFP_KERNEL);
+	rc = kfifo_alloc(&ir->raw->kfifo, sizeof(s64) * MAX_IR_EVENT_SIZE,
+			 GFP_KERNEL);
 	if (rc < 0) {
 		kfree(ir->raw);
 		ir->raw = NULL;
@@ -90,6 +102,7 @@ void ir_raw_event_unregister(struct input_dev *input_dev)
 	if (!ir->raw)
 		return;
 
+	cancel_work_sync(&ir->raw->rx_work);
 	RUN_DECODER(raw_unregister, input_dev);
 
 	kfifo_free(&ir->raw->kfifo);
@@ -97,74 +110,90 @@ void ir_raw_event_unregister(struct input_dev *input_dev)
 	ir->raw = NULL;
 }
 
-int ir_raw_event_store(struct input_dev *input_dev, enum raw_event_type type)
+/**
+ * ir_raw_event_store() - pass a pulse/space duration to the raw ir decoders
+ * @input_dev:	the struct input_dev device descriptor
+ * @duration:	duration of the pulse or space in ns
+ *
+ * This routine (which may be called from an interrupt context) stores a
+ * pulse/space duration for the raw ir decoding state machines. Pulses are
+ * signalled as positive values and spaces as negative values. A zero value
+ * will reset the decoding state machines.
+ */
+int ir_raw_event_store(struct input_dev *input_dev, s64 duration)
 {
-	struct ir_input_dev	*ir = input_get_drvdata(input_dev);
-	struct timespec		ts;
-	struct ir_raw_event	event;
-	int			rc;
+	struct ir_input_dev *ir = input_get_drvdata(input_dev);
 
 	if (!ir->raw)
 		return -EINVAL;
 
-	event.type = type;
-	event.delta.tv_sec = 0;
-	event.delta.tv_nsec = 0;
+	if (kfifo_in(&ir->raw->kfifo, &duration, sizeof(duration)) != sizeof(duration))
+		return -ENOMEM;
 
-	ktime_get_ts(&ts);
-
-	if (timespec_equal(&ir->raw->last_event, &event.delta))
-		event.type |= IR_START_EVENT;
-	else
-		event.delta = timespec_sub(ts, ir->raw->last_event);
-
-	memcpy(&ir->raw->last_event, &ts, sizeof(ts));
-
-	if (event.delta.tv_sec) {
-		event.type |= IR_START_EVENT;
-		event.delta.tv_sec = 0;
-		event.delta.tv_nsec = 0;
-	}
-
-	kfifo_in(&ir->raw->kfifo, &event, sizeof(event));
-
-	return rc;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_store);
 
-int ir_raw_event_handle(struct input_dev *input_dev)
+/**
+ * ir_raw_event_store_edge() - notify raw ir decoders of the start of a pulse/space
+ * @input_dev:	the struct input_dev device descriptor
+ * @type:	the type of the event that has occurred
+ *
+ * This routine (which may be called from an interrupt context) is used to
+ * store the beginning of an ir pulse or space (or the start/end of ir
+ * reception) for the raw ir decoding state machines. This is used by
+ * hardware which does not provide durations directly but only interrupts
+ * (or similar events) on state change.
+ */
+int ir_raw_event_store_edge(struct input_dev *input_dev, enum raw_event_type type)
 {
-	struct ir_input_dev		*ir = input_get_drvdata(input_dev);
-	int				rc;
-	struct ir_raw_event		ev;
-	int 				len, i;
+	struct ir_input_dev	*ir = input_get_drvdata(input_dev);
+	ktime_t			now;
+	s64			delta; /* ns */
+	int			rc = 0;
 
-	/*
-	 * Store the events into a temporary buffer. This allows calling more than
-	 * one decoder to deal with the received data
+	if (!ir->raw)
+		return -EINVAL;
+
+	now = ktime_get();
+	delta = ktime_to_ns(ktime_sub(now, ir->raw->last_event));
+
+	/* Check for a long duration since last event or if we're
+	 * being called for the first time, note that delta can't
+	 * possibly be negative.
 	 */
-	len = kfifo_len(&ir->raw->kfifo) / sizeof(ev);
-	if (!len)
+	if (delta > NSEC_PER_SEC || !ir->raw->last_type)
+		type |= IR_START_EVENT;
+
+	if (type & IR_START_EVENT)
+		ir_raw_event_reset(input_dev);
+	else if (ir->raw->last_type & IR_SPACE)
+		rc = ir_raw_event_store(input_dev, -delta);
+	else if (ir->raw->last_type & IR_PULSE)
+		rc = ir_raw_event_store(input_dev, delta);
+	else
 		return 0;
 
-	for (i = 0; i < len; i++) {
-		rc = kfifo_out(&ir->raw->kfifo, &ev, sizeof(ev));
-		if (rc != sizeof(ev)) {
-			IR_dprintk(1, "overflow error: received %d instead of %zd\n",
-				   rc, sizeof(ev));
-			return -EINVAL;
-		}
-		IR_dprintk(2, "event type %d, time before event: %07luus\n",
-			ev.type, (ev.delta.tv_nsec + 500) / 1000);
-		rc = RUN_DECODER(decode, input_dev, &ev);
-	}
-
-	/*
-	 * Call all ir decoders. This allows decoding the same event with
-	 * more than one protocol handler.
-	 */
-
+	ir->raw->last_event = now;
+	ir->raw->last_type = type;
 	return rc;
+}
+EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
+
+/**
+ * ir_raw_event_handle() - schedules the decoding of stored ir data
+ * @input_dev:	the struct input_dev device descriptor
+ *
+ * This routine will signal the workqueue to start decoding stored ir data.
+ */
+void ir_raw_event_handle(struct input_dev *input_dev)
+{
+	struct ir_input_dev *ir = input_get_drvdata(input_dev);
+
+	if (!ir->raw)
+		return;
+
+	schedule_work(&ir->raw->rx_work);
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_handle);
 

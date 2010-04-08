@@ -13,15 +13,16 @@
  */
 
 #include <media/ir-core.h>
+#include <linux/bitrev.h>
 
 #define NEC_NBITS		32
-#define NEC_UNIT		559979 /* ns */
-#define NEC_HEADER_MARK		(16 * NEC_UNIT)
-#define NEC_HEADER_SPACE	(8 * NEC_UNIT)
-#define NEC_REPEAT_SPACE	(4 * NEC_UNIT)
-#define NEC_MARK		(NEC_UNIT)
-#define NEC_0_SPACE		(NEC_UNIT)
-#define NEC_1_SPACE		(3 * NEC_UNIT)
+#define NEC_UNIT		562500  /* ns */
+#define NEC_HEADER_PULSE	PULSE(16)
+#define NEC_HEADER_SPACE	SPACE(8)
+#define NEC_REPEAT_SPACE	SPACE(4)
+#define NEC_BIT_PULSE		PULSE(1)
+#define NEC_BIT_0_SPACE		SPACE(1)
+#define NEC_BIT_1_SPACE		SPACE(3)
 
 /* Used to register nec_decoder clients */
 static LIST_HEAD(decoder_list);
@@ -29,19 +30,11 @@ static DEFINE_SPINLOCK(decoder_lock);
 
 enum nec_state {
 	STATE_INACTIVE,
-	STATE_HEADER_MARK,
 	STATE_HEADER_SPACE,
-	STATE_MARK,
-	STATE_SPACE,
-	STATE_TRAILER_MARK,
+	STATE_BIT_PULSE,
+	STATE_BIT_SPACE,
+	STATE_TRAILER_PULSE,
 	STATE_TRAILER_SPACE,
-};
-
-struct nec_code {
-	u8	address;
-	u8	not_address;
-	u8	command;
-	u8	not_command;
 };
 
 struct decoder_data {
@@ -51,7 +44,7 @@ struct decoder_data {
 
 	/* State machine control */
 	enum nec_state		state;
-	struct nec_code		nec_code;
+	u32			nec_bits;
 	unsigned		count;
 };
 
@@ -62,7 +55,6 @@ struct decoder_data {
  *
  * Returns the struct decoder_data that corresponds to a device
  */
-
 static struct decoder_data *get_decoder_data(struct  ir_input_dev *ir_dev)
 {
 	struct decoder_data *data = NULL;
@@ -123,20 +115,20 @@ static struct attribute_group decoder_attribute_group = {
 	.attrs	= decoder_attributes,
 };
 
-
 /**
  * ir_nec_decode() - Decode one NEC pulse or space
  * @input_dev:	the struct input_dev descriptor of the device
- * @ev:		event array with type/duration of pulse/space
+ * @duration:	duration in ns of pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int ir_nec_decode(struct input_dev *input_dev,
-			 struct ir_raw_event *ev)
+static int ir_nec_decode(struct input_dev *input_dev, s64 duration)
 {
 	struct decoder_data *data;
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	int bit, last_bit;
+	int u;
+	u32 scancode;
+	u8 address, not_address, command, not_command;
 
 	data = get_decoder_data(ir_dev);
 	if (!data)
@@ -145,150 +137,107 @@ static int ir_nec_decode(struct input_dev *input_dev,
 	if (!data->enabled)
 		return 0;
 
-	/* Except for the initial event, what matters is the previous bit */
-	bit = (ev->type & IR_PULSE) ? 1 : 0;
-
-	last_bit = !bit;
-
-	/* Discards spurious space last_bits when inactive */
-
-	/* Very long delays are considered as start events */
-	if (ev->delta.tv_nsec > NEC_HEADER_MARK + NEC_HEADER_SPACE - NEC_UNIT / 2)
-		data->state = STATE_INACTIVE;
-
-	if (ev->type & IR_START_EVENT)
-		data->state = STATE_INACTIVE;
-
-	switch (data->state) {
-	case STATE_INACTIVE:
-		if (!bit)		/* PULSE marks the start event */
-			return 0;
-
-		data->count = 0;
-		data->state = STATE_HEADER_MARK;
-		memset (&data->nec_code, 0, sizeof(data->nec_code));
-		return 0;
-	case STATE_HEADER_MARK:
-		if (!last_bit)
-			goto err;
-		if (ev->delta.tv_nsec < NEC_HEADER_MARK - 6 * NEC_UNIT)
-			goto err;
-		data->state = STATE_HEADER_SPACE;
-		return 0;
-	case STATE_HEADER_SPACE:
-		if (last_bit)
-			goto err;
-		if (ev->delta.tv_nsec >= NEC_HEADER_SPACE - NEC_UNIT / 2) {
-			data->state = STATE_MARK;
-			return 0;
-		}
-
-		if (ev->delta.tv_nsec >= NEC_REPEAT_SPACE - NEC_UNIT / 2) {
-			ir_repeat(input_dev);
-			IR_dprintk(1, "Repeat last key\n");
-			data->state = STATE_TRAILER_MARK;
-			return 0;
-		}
-		goto err;
-	case STATE_MARK:
-		if (!last_bit)
-			goto err;
-		if ((ev->delta.tv_nsec > NEC_MARK + NEC_UNIT / 2) ||
-		    (ev->delta.tv_nsec < NEC_MARK - NEC_UNIT / 2))
-			goto err;
-		data->state = STATE_SPACE;
-		return 0;
-	case STATE_SPACE:
-		if (last_bit)
-			goto err;
-
-		if ((ev->delta.tv_nsec >= NEC_0_SPACE - NEC_UNIT / 2) &&
-		    (ev->delta.tv_nsec < NEC_0_SPACE + NEC_UNIT / 2))
-			bit = 0;
-		else if ((ev->delta.tv_nsec >= NEC_1_SPACE - NEC_UNIT / 2) &&
-		         (ev->delta.tv_nsec < NEC_1_SPACE + NEC_UNIT / 2))
-			bit = 1;
-		else {
-			IR_dprintk(1, "Decode failed at %d-th bit (%s) @%luus\n",
-				data->count,
-				last_bit ? "pulse" : "space",
-				(ev->delta.tv_nsec + 500) / 1000);
-
-			goto err2;
-		}
-
-		/* Ok, we've got a valid bit. proccess it */
-		if (bit) {
-			int shift = data->count;
-
-			/*
-			 * NEC transmit bytes on this temporal order:
-			 * address | not address | command | not command
-			 */
-			if (shift < 8) {
-				data->nec_code.address |= 1 << shift;
-			} else if (shift < 16) {
-				data->nec_code.not_address |= 1 << (shift - 8);
-			} else if (shift < 24) {
-				data->nec_code.command |= 1 << (shift - 16);
-			} else {
-				data->nec_code.not_command |= 1 << (shift - 24);
-			}
-		}
-		if (++data->count == NEC_NBITS) {
-			u32 scancode;
-			/*
-			 * Fixme: may need to accept Extended NEC protocol?
-			 */
-			if ((data->nec_code.command ^ data->nec_code.not_command) != 0xff)
-				goto checksum_err;
-
-			if ((data->nec_code.address ^ data->nec_code.not_address) != 0xff) {
-				/* Extended NEC */
-				scancode = data->nec_code.address << 16 |
-					   data->nec_code.not_address << 8 |
-					   data->nec_code.command;
-				IR_dprintk(1, "NEC scancode 0x%06x\n", scancode);
-			} else {
-				/* normal NEC */
-				scancode = data->nec_code.address << 8 |
-					   data->nec_code.command;
-				IR_dprintk(1, "NEC scancode 0x%04x\n", scancode);
-			}
-			ir_keydown(input_dev, scancode, 0);
-
-			data->state = STATE_TRAILER_MARK;
-		} else
-			data->state = STATE_MARK;
-		return 0;
-	case STATE_TRAILER_MARK:
-		if (!last_bit)
-			goto err;
-		data->state = STATE_TRAILER_SPACE;
-		return 0;
-	case STATE_TRAILER_SPACE:
-		if (last_bit)
-			goto err;
+	if (IS_RESET(duration)) {
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
 
-err:
-	IR_dprintk(1, "NEC decoded failed at state %d (%s) @ %luus\n",
-		   data->state,
-		   bit ? "pulse" : "space",
-		   (ev->delta.tv_nsec + 500) / 1000);
-err2:
-	data->state = STATE_INACTIVE;
-	return -EINVAL;
+	u = TO_UNITS(duration, NEC_UNIT);
+	if (DURATION(u) == 0)
+		goto out;
 
-checksum_err:
+	IR_dprintk(2, "NEC decode started at state %d (%i units, %ius)\n",
+		   data->state, u, TO_US(duration));
+
+	switch (data->state) {
+
+	case STATE_INACTIVE:
+		if (u == NEC_HEADER_PULSE) {
+			data->count = 0;
+			data->state = STATE_HEADER_SPACE;
+		}
+		return 0;
+
+	case STATE_HEADER_SPACE:
+		if (u == NEC_HEADER_SPACE) {
+			data->state = STATE_BIT_PULSE;
+			return 0;
+		} else if (u == NEC_REPEAT_SPACE) {
+			ir_repeat(input_dev);
+			IR_dprintk(1, "Repeat last key\n");
+			data->state = STATE_TRAILER_PULSE;
+			return 0;
+		}
+		break;
+
+	case STATE_BIT_PULSE:
+		if (u == NEC_BIT_PULSE) {
+			data->state = STATE_BIT_SPACE;
+			return 0;
+		}
+		break;
+
+	case STATE_BIT_SPACE:
+		if (u != NEC_BIT_0_SPACE && u != NEC_BIT_1_SPACE)
+			break;
+
+		data->nec_bits <<= 1;
+		if (u == NEC_BIT_1_SPACE)
+			data->nec_bits |= 1;
+		data->count++;
+
+		if (data->count != NEC_NBITS) {
+			data->state = STATE_BIT_PULSE;
+			return 0;
+		}
+
+		address     = bitrev8((data->nec_bits >> 24) & 0xff);
+		not_address = bitrev8((data->nec_bits >> 16) & 0xff);
+		command	    = bitrev8((data->nec_bits >>  8) & 0xff);
+		not_command = bitrev8((data->nec_bits >>  0) & 0xff);
+
+		if ((command ^ not_command) != 0xff) {
+			IR_dprintk(1, "NEC checksum error: received 0x%08x\n",
+				   data->nec_bits);
+			break;
+		}
+
+		if ((address ^ not_address) != 0xff) {
+			/* Extended NEC */
+			scancode = address     << 16 |
+				   not_address <<  8 |
+				   command;
+			IR_dprintk(1, "NEC (Ext) scancode 0x%06x\n", scancode);
+		} else {
+			/* normal NEC */
+			scancode = address << 8 | command;
+			IR_dprintk(1, "NEC scancode 0x%04x\n", scancode);
+		}
+
+		ir_keydown(input_dev, scancode, 0);
+		data->state = STATE_TRAILER_PULSE;
+		return 0;
+
+	case STATE_TRAILER_PULSE:
+		if (u > 0) {
+			data->state = STATE_TRAILER_SPACE;
+			return 0;
+		}
+		break;
+
+	case STATE_TRAILER_SPACE:
+		if (u < 0) {
+			data->state = STATE_INACTIVE;
+			return 0;
+		}
+
+		break;
+	}
+
+out:
+	IR_dprintk(1, "NEC decode failed at state %d (%i units, %ius)\n",
+		   data->state, u, TO_US(duration));
 	data->state = STATE_INACTIVE;
-	IR_dprintk(1, "NEC checksum error: received 0x%02x%02x%02x%02x\n",
-		   data->nec_code.address,
-		   data->nec_code.not_address,
-		   data->nec_code.command,
-		   data->nec_code.not_command);
 	return -EINVAL;
 }
 

@@ -21,11 +21,8 @@
 
 #include <media/ir-core.h>
 
-static unsigned int ir_rc5_remote_gap = 888888;
-
 #define RC5_NBITS		14
-#define RC5_BIT			(ir_rc5_remote_gap * 2)
-#define RC5_DURATION		(ir_rc5_remote_gap * RC5_NBITS)
+#define RC5_UNIT		888888 /* ns */
 
 /* Used to register rc5_decoder clients */
 static LIST_HEAD(decoder_list);
@@ -33,13 +30,9 @@ static DEFINE_SPINLOCK(decoder_lock);
 
 enum rc5_state {
 	STATE_INACTIVE,
-	STATE_MARKSPACE,
-	STATE_TRAILER,
-};
-
-struct rc5_code {
-	u8	address;
-	u8	command;
+	STATE_BIT_START,
+	STATE_BIT_END,
+	STATE_FINISHED,
 };
 
 struct decoder_data {
@@ -49,8 +42,9 @@ struct decoder_data {
 
 	/* State machine control */
 	enum rc5_state		state;
-	struct rc5_code		rc5_code;
-	unsigned		code, elapsed, last_bit, last_code;
+	u32			rc5_bits;
+	int			last_unit;
+	unsigned		count;
 };
 
 
@@ -122,18 +116,19 @@ static struct attribute_group decoder_attribute_group = {
 };
 
 /**
- * handle_event() - Decode one RC-5 pulse or space
+ * ir_rc5_decode() - Decode one RC-5 pulse or space
  * @input_dev:	the struct input_dev descriptor of the device
- * @ev:		event array with type/duration of pulse/space
+ * @duration:	duration of pulse/space in ns
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int ir_rc5_decode(struct input_dev *input_dev,
-			struct ir_raw_event *ev)
+static int ir_rc5_decode(struct input_dev *input_dev, s64 duration)
 {
 	struct decoder_data *data;
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	int is_pulse, scancode, delta, toggle;
+	u8 command, system, toggle;
+	u32 scancode;
+	int u;
 
 	data = get_decoder_data(ir_dev);
 	if (!data)
@@ -142,79 +137,84 @@ static int ir_rc5_decode(struct input_dev *input_dev,
 	if (!data->enabled)
 		return 0;
 
-	delta = DIV_ROUND_CLOSEST(ev->delta.tv_nsec, ir_rc5_remote_gap);
-
-	/* The duration time refers to the last bit time */
-	is_pulse = (ev->type & IR_PULSE) ? 1 : 0;
-
-	/* Very long delays are considered as start events */
-	if (delta > RC5_DURATION || (ev->type & IR_START_EVENT))
-		data->state = STATE_INACTIVE;
-
-	switch (data->state) {
-	case STATE_INACTIVE:
-	IR_dprintk(2, "currently inative. Start bit (%s) @%uus\n",
-		   is_pulse ? "pulse" : "space",
-		   (unsigned)(ev->delta.tv_nsec + 500) / 1000);
-
-		/* Discards the initial start space */
-		if (!is_pulse)
-			goto err;
-		data->code = 1;
-		data->last_bit = 1;
-		data->elapsed = 0;
-		memset(&data->rc5_code, 0, sizeof(data->rc5_code));
-		data->state = STATE_MARKSPACE;
-		return 0;
-	case STATE_MARKSPACE:
-		if (delta != 1)
-			data->last_bit = data->last_bit ? 0 : 1;
-
-		data->elapsed += delta;
-
-		if ((data->elapsed % 2) == 1)
-			return 0;
-
-		data->code <<= 1;
-		data->code |= data->last_bit;
-
-		/* Fill the 2 unused bits at the command with 0 */
-		if (data->elapsed / 2 == 6)
-			data->code <<= 2;
-
-		if (data->elapsed >= (RC5_NBITS - 1) * 2) {
-			scancode = data->code;
-
-			/* Check for the start bits */
-			if ((scancode & 0xc000) != 0xc000) {
-				IR_dprintk(1, "Code 0x%04x doesn't have two start bits. It is not RC-5\n", scancode);
-				goto err;
-			}
-
-			toggle = (scancode & 0x2000) ? 1 : 0;
-
-			if (scancode == data->last_code) {
-				IR_dprintk(1, "RC-5 repeat\n");
-				ir_repeat(input_dev);
-			} else {
-				data->last_code = scancode;
-				scancode &= 0x1fff;
-				IR_dprintk(1, "RC-5 scancode 0x%04x\n", scancode);
-
-				ir_keydown(input_dev, scancode, 0);
-			}
-			data->state = STATE_TRAILER;
-		}
-		return 0;
-	case STATE_TRAILER:
+	if (IS_RESET(duration)) {
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
 
-err:
-	IR_dprintk(1, "RC-5 decoded failed at %s @ %luus\n",
-		   is_pulse ? "pulse" : "space",
-		   (ev->delta.tv_nsec + 500) / 1000);
+	u = TO_UNITS(duration, RC5_UNIT);
+	if (DURATION(u) == 0)
+		goto out;
+
+again:
+	IR_dprintk(2, "RC5 decode started at state %i (%i units, %ius)\n",
+		   data->state, u, TO_US(duration));
+
+	if (DURATION(u) == 0 && data->state != STATE_FINISHED)
+		return 0;
+
+	switch (data->state) {
+
+	case STATE_INACTIVE:
+		if (IS_PULSE(u)) {
+			data->state = STATE_BIT_START;
+			data->count = 1;
+			DECREASE_DURATION(u, 1);
+			goto again;
+		}
+		break;
+
+	case STATE_BIT_START:
+		if (DURATION(u) == 1) {
+			data->rc5_bits <<= 1;
+			if (IS_SPACE(u))
+				data->rc5_bits |= 1;
+			data->count++;
+			data->last_unit = u;
+
+			/*
+			 * If the last bit is zero, a space will merge
+			 * with the silence after the command.
+			 */
+			if (IS_PULSE(u) && data->count == RC5_NBITS) {
+				data->state = STATE_FINISHED;
+				goto again;
+			}
+
+			data->state = STATE_BIT_END;
+			return 0;
+		}
+		break;
+
+	case STATE_BIT_END:
+		if (IS_TRANSITION(u, data->last_unit)) {
+			if (data->count == RC5_NBITS)
+				data->state = STATE_FINISHED;
+			else
+				data->state = STATE_BIT_START;
+
+			DECREASE_DURATION(u, 1);
+			goto again;
+		}
+		break;
+
+	case STATE_FINISHED:
+		command  = (data->rc5_bits & 0x0003F) >> 0;
+		system   = (data->rc5_bits & 0x007C0) >> 6;
+		toggle   = (data->rc5_bits & 0x00800) ? 1 : 0;
+		command += (data->rc5_bits & 0x01000) ? 0 : 0x40;
+		scancode = system << 8 | command;
+
+		IR_dprintk(1, "RC5 scancode 0x%04x (toggle: %u)\n",
+			   scancode, toggle);
+		ir_keydown(input_dev, scancode, toggle);
+		data->state = STATE_INACTIVE;
+		return 0;
+	}
+
+out:
+	IR_dprintk(1, "RC5 decode failed at state %i (%i units, %ius)\n",
+		   data->state, u, TO_US(duration));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
