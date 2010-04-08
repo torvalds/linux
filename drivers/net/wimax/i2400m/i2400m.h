@@ -545,6 +545,15 @@ struct i2400m_barker_db;
  *	all the device reboot events detected can be still handled properly
  *	by either dev_reset_handle() or .pre_reset/.post_reset as long as
  *	the driver presents. It is set 0 along with @updown in dev_stop().
+ *
+ * @error_recovery: flag to denote if we are ready to take an error recovery.
+ *	0 for ready to take an error recovery; 1 for not ready. It is
+ *	initialized to 1 while probe() since we don't tend to take any error
+ *	recovery during probe(). It is decremented by 1 whenever dev_start()
+ *	succeeds to indicate we are ready to take error recovery from now on.
+ *	It is checked every time we wanna schedule an error recovery. If an
+ *	error recovery is already in place (error_recovery was set 1), we
+ *	should not schedule another one until the last one is done.
  */
 struct i2400m {
 	struct wimax_dev wimax_dev;	/* FIRST! See doc */
@@ -625,6 +634,10 @@ struct i2400m {
 
 	/* if the device is expected to be alive */
 	unsigned alive;
+
+	/* 0 if we are ready for error recovery; 1 if not ready  */
+	atomic_t error_recovery;
+
 };
 
 
@@ -847,6 +860,7 @@ void i2400m_put(struct i2400m *i2400m)
 extern int i2400m_dev_reset_handle(struct i2400m *, const char *);
 extern int i2400m_pre_reset(struct i2400m *);
 extern int i2400m_post_reset(struct i2400m *);
+extern void i2400m_error_recovery(struct i2400m *);
 
 /*
  * _setup()/_release() are called by the probe/disconnect functions of

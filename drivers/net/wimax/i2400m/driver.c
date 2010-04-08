@@ -395,6 +395,16 @@ retry:
 	result = i2400m_dev_initialize(i2400m);
 	if (result < 0)
 		goto error_dev_initialize;
+
+	/* We don't want any additional unwanted error recovery triggered
+	 * from any other context so if anything went wrong before we come
+	 * here, let's keep i2400m->error_recovery untouched and leave it to
+	 * dev_reset_handle(). See dev_reset_handle(). */
+
+	atomic_dec(&i2400m->error_recovery);
+	/* Every thing works so far, ok, now we are ready to
+	 * take error recovery if it's required. */
+
 	/* At this point, reports will come for the device and set it
 	 * to the right state if it is different than UNINITIALIZED */
 	d_fnend(3, dev, "(net_dev %p [i2400m %p]) = %d\n",
@@ -770,6 +780,66 @@ int i2400m_dev_reset_handle(struct i2400m *i2400m, const char *reason)
 EXPORT_SYMBOL_GPL(i2400m_dev_reset_handle);
 
 
+ /*
+ * The actual work of error recovery.
+ *
+ * The current implementation of error recovery is to trigger a bus reset.
+ */
+static
+void __i2400m_error_recovery(struct work_struct *ws)
+{
+	struct i2400m_work *iw = container_of(ws, struct i2400m_work, ws);
+	struct i2400m *i2400m = iw->i2400m;
+
+	i2400m_reset(i2400m, I2400M_RT_BUS);
+
+	i2400m_put(i2400m);
+	kfree(iw);
+	return;
+}
+
+/*
+ * Schedule a work struct for error recovery.
+ *
+ * The intention of error recovery is to bring back the device to some
+ * known state whenever TX sees -110 (-ETIMEOUT) on copying the data to
+ * the device. The TX failure could mean a device bus stuck, so the current
+ * error recovery implementation is to trigger a bus reset to the device
+ * and hopefully it can bring back the device.
+ *
+ * The actual work of error recovery has to be in a thread context because
+ * it is kicked off in the TX thread (i2400ms->tx_workqueue) which is to be
+ * destroyed by the error recovery mechanism (currently a bus reset).
+ *
+ * Also, there may be already a queue of TX works that all hit
+ * the -ETIMEOUT error condition because the device is stuck already.
+ * Since bus reset is used as the error recovery mechanism and we don't
+ * want consecutive bus resets simply because the multiple TX works
+ * in the queue all hit the same device erratum, the flag "error_recovery"
+ * is introduced for preventing unwanted consecutive bus resets.
+ *
+ * Error recovery shall only be invoked again if previous one was completed.
+ * The flag error_recovery is set when error recovery mechanism is scheduled,
+ * and is checked when we need to schedule another error recovery. If it is
+ * in place already, then we shouldn't schedule another one.
+ */
+void i2400m_error_recovery(struct i2400m *i2400m)
+{
+	struct device *dev = i2400m_dev(i2400m);
+
+	if (atomic_add_return(1, &i2400m->error_recovery) == 1) {
+		if (i2400m_schedule_work(i2400m, __i2400m_error_recovery,
+			GFP_ATOMIC, NULL, 0) < 0) {
+			dev_err(dev, "run out of memory for "
+				"scheduling an error recovery ?\n");
+			atomic_dec(&i2400m->error_recovery);
+		}
+	} else
+		atomic_dec(&i2400m->error_recovery);
+	return;
+}
+EXPORT_SYMBOL_GPL(i2400m_error_recovery);
+
 /*
  * Alloc the command and ack buffers for boot mode
  *
@@ -839,6 +909,10 @@ void i2400m_init(struct i2400m *i2400m)
 	atomic_set(&i2400m->bus_reset_retries, 0);
 
 	i2400m->alive = 0;
+
+	/* initialize error_recovery to 1 for denoting we
+	 * are not yet ready to take any error recovery */
+	atomic_set(&i2400m->error_recovery, 1);
 }
 EXPORT_SYMBOL_GPL(i2400m_init);
 

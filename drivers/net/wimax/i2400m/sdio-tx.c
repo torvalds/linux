@@ -98,6 +98,10 @@ void i2400ms_tx_submit(struct work_struct *ws)
 				tx_msg_size, result);
 		}
 
+		if (result == -ETIMEDOUT) {
+			i2400m_error_recovery(i2400m);
+			break;
+		}
 		d_printf(2, dev, "TX: %zub submitted\n", tx_msg_size);
 	}
 
