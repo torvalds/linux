@@ -117,19 +117,14 @@ acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 	if (ACPI_FAILURE(status))
 		return_ACPI_STATUS(status);
 
-	/* Mark wake-enabled or HW enable, or both */
+	/* Clear the GPE (of stale events), then enable it */
+	status = acpi_hw_clear_gpe(gpe_event_info);
+	if (ACPI_FAILURE(status))
+		return_ACPI_STATUS(status);
 
-	if (gpe_event_info->runtime_count) {
-		/* Clear the GPE (of stale events), then enable it */
-		status = acpi_hw_clear_gpe(gpe_event_info);
-		if (ACPI_FAILURE(status))
-			return_ACPI_STATUS(status);
-
-		/* Enable the requested runtime GPE */
-		status = acpi_hw_write_gpe_enable_reg(gpe_event_info);
-	}
-
-	return_ACPI_STATUS(AE_OK);
+	/* Enable the requested GPE */
+	status = acpi_hw_write_gpe_enable_reg(gpe_event_info);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
