@@ -1578,7 +1578,7 @@ static void i915_get_mem_freq(struct drm_device *dev)
  */
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv;
 	resource_size_t base, size;
 	int ret = 0, mmio_bar;
 	uint32_t agp_size, prealloc_size, prealloc_start;
