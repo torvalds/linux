@@ -177,11 +177,22 @@ void bnx2i_stop(void *handle)
 	struct bnx2i_hba *hba = handle;
 
 	/* check if cleanup happened in GOING_DOWN context */
-	clear_bit(ADAPTER_STATE_UP, &hba->adapter_state);
 	if (!test_and_clear_bit(ADAPTER_STATE_GOING_DOWN,
 				&hba->adapter_state))
 		iscsi_host_for_each_session(hba->shost,
 					    bnx2i_drop_session);
+
+	/* Wait for all endpoints to be torn down, Chip will be reset once
+	 *  control returns to network driver. So it is required to cleanup and
+	 * release all connection resources before returning from this routine.
+	 */
+	wait_event_interruptible_timeout(hba->eh_wait,
+					 (hba->ofld_conns_active == 0),
+					 hba->hba_shutdown_tmo);
+	/* This flag should be cleared last so that ep_disconnect() gracefully
+	 * cleans up connection context
+	 */
+	clear_bit(ADAPTER_STATE_UP, &hba->adapter_state);
 }
 
 /**
