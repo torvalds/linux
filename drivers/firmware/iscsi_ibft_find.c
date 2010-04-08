@@ -57,22 +57,11 @@ static int __init acpi_find_ibft(struct acpi_table_header *header)
 }
 #endif /* CONFIG_ACPI */
 
-/*
- * Routine used to find the iSCSI Boot Format Table. The logical
- * kernel address is set in the ibft_addr global variable.
- */
-unsigned long __init find_ibft_region(unsigned long *sizep)
+static int __init find_ibft_in_mem(void)
 {
 	unsigned long pos;
 	unsigned int len = 0;
 	void *virt;
-
-	ibft_addr = NULL;
-
-	/* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will
-	 * only use ACPI for this */
-	if (efi_enabled)
-		return 0;
 
 	for (pos = IBFT_START; pos < IBFT_END; pos += 16) {
 		/* The table can't be inside the VGA BIOS reserved space,
@@ -92,6 +81,17 @@ unsigned long __init find_ibft_region(unsigned long *sizep)
 			}
 		}
 	}
+	return len;
+}
+/*
+ * Routine used to find the iSCSI Boot Format Table. The logical
+ * kernel address is set in the ibft_addr global variable.
+ */
+unsigned long __init find_ibft_region(unsigned long *sizep)
+{
+
+	ibft_addr = NULL;
+
 #ifdef CONFIG_ACPI
 	/*
 	 * One spec says "IBFT", the other says "iBFT". We have to check
@@ -102,6 +102,13 @@ unsigned long __init find_ibft_region(unsigned long *sizep)
 	if (!ibft_addr)
 		acpi_table_parse("iBFT", acpi_find_ibft);
 #endif /* CONFIG_ACPI */
+
+	/* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will
+	 * only use ACPI for this */
+
+	if (!ibft_addr && !efi_enabled)
+		find_ibft_in_mem();
+
 	if (ibft_addr) {
 		*sizep = PAGE_ALIGN(ibft_addr->header.length);
 		return (u64)isa_virt_to_bus(ibft_addr);
