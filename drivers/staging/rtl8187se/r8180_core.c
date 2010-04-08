@@ -44,24 +44,24 @@
 #include "ieee80211/dot11d.h"
 
 static struct pci_device_id rtl8180_pci_id_tbl[] __devinitdata = {
-        {
-                .vendor = PCI_VENDOR_ID_REALTEK,
-                .device = 0x8199,
-                .subvendor = PCI_ANY_ID,
-                .subdevice = PCI_ANY_ID,
-                .driver_data = 0,
-        },
-        {
-                .vendor = 0,
-                .device = 0,
-                .subvendor = 0,
-                .subdevice = 0,
-                .driver_data = 0,
-        }
+	{
+		.vendor = PCI_VENDOR_ID_REALTEK,
+		.device = 0x8199,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
+		.driver_data = 0,
+	},
+	{
+		.vendor = 0,
+		.device = 0,
+		.subvendor = 0,
+		.subdevice = 0,
+		.driver_data = 0,
+	}
 };
 
 
-static char* ifname = "wlan%d";
+static char *ifname = "wlan%d";
 static int hwseqnum = 0;
 static int hwwep = 0;
 static int channels = 0x3fff;
@@ -168,34 +168,34 @@ static struct pci_driver rtl8180_pci_driver = {
 
 u8 read_nic_byte(struct net_device *dev, int x)
 {
-        return 0xff&readb((u8*)dev->mem_start +x);
+	return 0xff&readb((u8 *)dev->mem_start + x);
 }
 
 u32 read_nic_dword(struct net_device *dev, int x)
 {
-        return readl((u8*)dev->mem_start +x);
+	return readl((u8 *)dev->mem_start + x);
 }
 
 u16 read_nic_word(struct net_device *dev, int x)
 {
-        return readw((u8*)dev->mem_start +x);
+	return readw((u8 *)dev->mem_start + x);
 }
 
 void write_nic_byte(struct net_device *dev, int x,u8 y)
 {
-        writeb(y,(u8*)dev->mem_start +x);
+	writeb(y, (u8 *)dev->mem_start + x);
 	udelay(20);
 }
 
 void write_nic_dword(struct net_device *dev, int x,u32 y)
 {
-        writel(y,(u8*)dev->mem_start +x);
+	writel(y, (u8 *)dev->mem_start + x);
 	udelay(20);
 }
 
 void write_nic_word(struct net_device *dev, int x,u16 y)
 {
-        writew(y,(u8*)dev->mem_start +x);
+	writew(y, (u8 *)dev->mem_start + x);
 	udelay(20);
 }
 
@@ -313,7 +313,7 @@ void rtl8180_proc_module_init(void)
 
 void rtl8180_proc_module_remove(void)
 {
-        remove_proc_entry(RTL8180_MODULE_NAME, init_net.proc_net);
+	remove_proc_entry(RTL8180_MODULE_NAME, init_net.proc_net);
 }
 
 void rtl8180_proc_remove_one(struct net_device *dev)
@@ -383,7 +383,7 @@ void rtl8180_proc_init_one(struct net_device *dev)
 short buffer_add(struct buffer **buffer, u32 *buf, dma_addr_t dma,
 		struct buffer **bufferhead)
 {
-        struct buffer *tmp;
+	struct buffer *tmp;
 
 	if(! *buffer){
 
@@ -1429,7 +1429,7 @@ void rtl8180_rx(struct net_device *dev)
 	u32 RXAGC = 0;
 	long RxAGC_dBm = 0;
 	u8	LNA=0, BB=0;
-	u8 	LNA_gain[4]={02, 17, 29, 39};
+	u8	LNA_gain[4] = {02, 17, 29, 39};
 	u8  Antenna = 0;
 	struct ieee80211_hdr_4addr *hdr;
 	u16 fc,type;
@@ -1531,7 +1531,7 @@ void rtl8180_rx(struct net_device *dev)
 		}else {
 			padding = 0;
 		}
-               padding = 0;
+		padding = 0;
 		priv->rx_prevlen+=len;
 
 		if(priv->rx_prevlen > MAX_FRAG_THRESHOLD + 100){
@@ -1624,7 +1624,7 @@ void rtl8180_rx(struct net_device *dev)
 		bICV = ((*(priv->rxringtail)) & (0x00001000)) >> 12;
 		hdr = (struct ieee80211_hdr_4addr *)priv->rxbuffer->buf;
 		    fc = le16_to_cpu(hdr->frame_ctl);
-	        type = WLAN_FC_GET_TYPE(fc);
+		type = WLAN_FC_GET_TYPE(fc);
 
 			if((IEEE80211_FTYPE_CTL != type) &&
 				(eqMacAddr(priv->ieee80211->current_network.bssid, (fc & IEEE80211_FCTL_TODS)? hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS )? hdr->addr2 : hdr->addr3))
@@ -1948,11 +1948,11 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 	u8			bUseShortPreamble = 0;
 	u8			bCTSEnable = 0;
 	u8			bRTSEnable = 0;
-	u16 			Duration = 0;
+	u16			Duration = 0;
 	u16			RtsDur = 0;
 	u16			ThisFrameTime = 0;
 	u16			TxDescDuration = 0;
-	u8 			ownbit_flag = false;
+	u8			ownbit_flag = false;
 
 	switch(priority) {
 	case MANAGE_PRIORITY:
@@ -2000,7 +2000,7 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 	default:
 		return -1;
 		break;
- 	}
+	}
 
 		memcpy(&dest, frag_hdr->addr1, ETH_ALEN);
 		if (is_multicast_ether_addr(dest) ||
@@ -2151,8 +2151,8 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 		if(morefrag) *tail = (*tail) | (1<<17); // more fragment
 		if(!remain) *tail = (*tail) | (1<<28); // last segment of frame
 
-               *(tail+5) = *(tail+5)|(2<<27);
-                *(tail+7) = *(tail+7)|(1<<4);
+		*(tail+5) = *(tail+5)|(2<<27);
+		*(tail+7) = *(tail+7)|(1<<4);
 
 		wmb();
 		if(ownbit_flag)
@@ -2289,13 +2289,13 @@ void rtl8180_hw_wakeup(struct net_device *dev)
 
 void rtl8180_hw_sleep_down(struct net_device *dev)
 {
-        unsigned long flags;
-        struct r8180_priv *priv = ieee80211_priv(dev);
+	unsigned long flags;
+	struct r8180_priv *priv = ieee80211_priv(dev);
 
-        spin_lock_irqsave(&priv->ps_lock,flags);
-        if(priv->rf_sleep)
-                priv->rf_sleep(dev);
-        spin_unlock_irqrestore(&priv->ps_lock,flags);
+	spin_lock_irqsave(&priv->ps_lock, flags);
+	if (priv->rf_sleep)
+		priv->rf_sleep(dev);
+	spin_unlock_irqrestore(&priv->ps_lock, flags);
 }
 
 void rtl8180_hw_sleep(struct net_device *dev, u32 th, u32 tl)
@@ -2786,7 +2786,7 @@ short rtl8180_init(struct net_device *dev)
 	priv->ieee80211->data_hard_stop = rtl8180_data_hard_stop;
 	priv->ieee80211->data_hard_resume = rtl8180_data_hard_resume;
 
-        priv->ieee80211->init_wmmparam_flag = 0;
+	priv->ieee80211->init_wmmparam_flag = 0;
 
 	priv->ieee80211->start_send_beacons = rtl8180_start_tx_beacon;
 	priv->ieee80211->stop_send_beacons = rtl8180_beacon_tx_disable;
@@ -2956,8 +2956,8 @@ short rtl8180_init(struct net_device *dev)
 		return -ENOMEM;
 
         if(request_irq(dev->irq, (void *)rtl8180_interrupt, IRQF_SHARED, dev->name, dev)){
-                DMESGE("Error allocating IRQ %d",dev->irq);
-                return -1;
+		DMESGE("Error allocating IRQ %d", dev->irq);
+		return -1;
 	}else{
 		priv->irq=dev->irq;
 		DMESG("IRQ %d",dev->irq);
@@ -3102,7 +3102,7 @@ void rtl8185_set_rate(struct net_device *dev)
 
 void rtl8180_adapter_start(struct net_device *dev)
 {
-        struct r8180_priv *priv = ieee80211_priv(dev);
+	struct r8180_priv *priv = ieee80211_priv(dev);
 
 	rtl8180_rtx_disable(dev);
 	rtl8180_reset(dev);
@@ -3196,7 +3196,7 @@ void rtl8180_start_tx_beacon(struct net_device *dev)
 
 	rtl8180_set_mode(dev, EPROM_CMD_NORMAL);
 
-        rtl8185b_irq_enable(dev);
+	rtl8185b_irq_enable(dev);
 }
 
 static struct net_device_stats *rtl8180_stats(struct net_device *dev)
@@ -3252,9 +3252,9 @@ void rtl8180_hw_sleep_wq (struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
         struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_sleep_wq);
-        struct net_device *dev = ieee->dev;
+	struct net_device *dev = ieee->dev;
 
-        rtl8180_hw_sleep_down(dev);
+	rtl8180_hw_sleep_down(dev);
 }
 
 static void MgntLinkKeepAlive(struct r8180_priv *priv )
@@ -3373,7 +3373,7 @@ int _rtl8180_up(struct net_device *dev)
 	}
        timer_rate_adaptive((unsigned long)dev);
 	watch_dog_adaptive((unsigned long)dev);
-        if(priv->bSwAntennaDiverity)
+	if (priv->bSwAntennaDiverity)
 			SwAntennaDiversityTimerCallback(dev);
 	ieee80211_softmac_start_protocol(priv->ieee80211);
 	return 0;
@@ -3614,10 +3614,10 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 	dev->watchdog_timeo = HZ*3;
 
 	if (dev_alloc_name(dev, ifname) < 0){
-                DMESG("Oops: devname already taken! Trying wlan%%d...\n");
+		DMESG("Oops: devname already taken! Trying wlan%%d...\n");
 		ifname = "wlan%d";
 		dev_alloc_name(dev, ifname);
-        }
+	}
 
 	if(rtl8180_init(dev)!=0){
 		DMESG("Initialization failed");
@@ -4091,10 +4091,10 @@ void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 	u8 btPSR;
 	u8 btConfig0;
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
-	bool 	bActuallySet=false;
+	bool bActuallySet = false;
 
 	char *argv[3];
-        static char *RadioPowerPath = "/etc/acpi/events/RadioPower.sh";
+	static char *RadioPowerPath = "/etc/acpi/events/RadioPower.sh";
         static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin", NULL};
 	static int readf_count = 0;
 
