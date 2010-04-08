@@ -2647,15 +2647,24 @@ static void flush_unmaps(void)
 		if (!deferred_flush[i].next)
 			continue;
 
-		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
+		/* In caching mode, global flushes turn emulation expensive */
+		if (!cap_caching_mode(iommu->cap))
+			iommu->flush.flush_iotlb(iommu, 0, 0, 0,
 					 DMA_TLB_GLOBAL_FLUSH);
 		for (j = 0; j < deferred_flush[i].next; j++) {
 			unsigned long mask;
 			struct iova *iova = deferred_flush[i].iova[j];
+			struct dmar_domain *domain = deferred_flush[i].domain[j];
 
-			mask = ilog2(mm_to_dma_pfn(iova->pfn_hi - iova->pfn_lo + 1));
-			iommu_flush_dev_iotlb(deferred_flush[i].domain[j],
-					(uint64_t)iova->pfn_lo << PAGE_SHIFT, mask);
+			/* On real hardware multiple invalidations are expensive */
+			if (cap_caching_mode(iommu->cap))
+				iommu_flush_iotlb_psi(iommu, domain->id,
+				iova->pfn_lo, iova->pfn_hi - iova->pfn_lo + 1, 0);
+			else {
+				mask = ilog2(mm_to_dma_pfn(iova->pfn_hi - iova->pfn_lo + 1));
+				iommu_flush_dev_iotlb(deferred_flush[i].domain[j],
+						(uint64_t)iova->pfn_lo << PAGE_SHIFT, mask);
+			}
 			__free_iova(&deferred_flush[i].domain[j]->iovad, iova);
 		}
 		deferred_flush[i].next = 0;
