@@ -51,6 +51,7 @@ int acpi_ec_ecdt_probe(void);
 int acpi_boot_ec_enable(void);
 void acpi_ec_suspend_transactions(void);
 void acpi_ec_resume_transactions(void);
+void acpi_ec_resume_transactions_early(void);
 
 /*--------------------------------------------------------------------------
                                   Suspend/Resume

@@ -485,6 +485,16 @@ void acpi_ec_resume_transactions(void)
 	mutex_unlock(&ec->lock);
 }
 
+void acpi_ec_resume_transactions_early(void)
+{
+	/*
+	 * Allow transactions to happen again (this function is called from
+	 * atomic context during wakeup, so we don't need to acquire the mutex).
+	 */
+	if (first_ec)
+		clear_bit(EC_FLAGS_FROZEN, &first_ec->flags);
+}
+
 static int acpi_ec_query_unlocked(struct acpi_ec *ec, u8 * data)
 {
 	int result;
