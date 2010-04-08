@@ -634,8 +634,10 @@ vxge_hw_device_initialize(
 	__vxge_hw_device_pci_e_init(hldev);
 
 	status = __vxge_hw_device_reg_addr_get(hldev);
-	if (status != VXGE_HW_OK)
+	if (status != VXGE_HW_OK) {
+		vfree(hldev);
 		goto exit;
+	}
 	__vxge_hw_device_id_get(hldev);
 
 	__vxge_hw_device_host_info_get(hldev);
