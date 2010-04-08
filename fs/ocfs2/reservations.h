@@ -149,7 +149,8 @@ int ocfs2_resmap_resv_bits(struct ocfs2_reservation_map *resmap,
  * reservation. But we must always call this function when bits are claimed.
  * Internally, the reservations code will use this information to mark the
  * reservations bitmap. If resv is passed, it's next allocation window will be
- * calculated.
+ * calculated. It also expects that 'cstart' is the same as we passed back
+ * from ocfs2_resmap_resv_bits().
  */
 void ocfs2_resmap_claimed_bits(struct ocfs2_reservation_map *resmap,
 			       struct ocfs2_alloc_reservation *resv,
