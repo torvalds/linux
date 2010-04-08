@@ -51,6 +51,8 @@ enum engine_status {
 struct req_progress {
 	struct sg_mapping_iter src_sg_it;
 	struct sg_mapping_iter dst_sg_it;
+	void (*complete) (void);
+	void (*process) (int is_first);
 
 	/* src mostly */
 	int sg_src_left;
@@ -251,6 +253,9 @@ static void mv_crypto_algo_completion(void)
 	struct ablkcipher_request *req = ablkcipher_request_cast(cpg->cur_req);
 	struct mv_req_ctx *req_ctx = ablkcipher_request_ctx(req);
 
+	sg_miter_stop(&cpg->p.src_sg_it);
+	sg_miter_stop(&cpg->p.dst_sg_it);
+
 	if (req_ctx->op != COP_AES_CBC)
 		return ;
 
@@ -294,11 +299,9 @@ static void dequeue_complete_req(void)
 	if (cpg->p.hw_processed_bytes < cpg->p.hw_nbytes) {
 		/* process next scatter list entry */
 		cpg->eng_st = ENGINE_BUSY;
-		mv_process_current_q(0);
+		cpg->p.process(0);
 	} else {
-		sg_miter_stop(&cpg->p.src_sg_it);
-		sg_miter_stop(&cpg->p.dst_sg_it);
-		mv_crypto_algo_completion();
+		cpg->p.complete();
 		cpg->eng_st = ENGINE_IDLE;
 		local_bh_disable();
 		req->complete(req, 0);
@@ -331,6 +334,8 @@ static void mv_enqueue_new_req(struct ablkcipher_request *req)
 	cpg->cur_req = &req->base;
 	memset(p, 0, sizeof(struct req_progress));
 	p->hw_nbytes = req->nbytes;
+	p->complete = mv_crypto_algo_completion;
+	p->process = mv_process_current_q;
 
 	num_sgs = count_sgs(req->src, req->nbytes);
 	sg_miter_start(&p->src_sg_it, req->src, num_sgs, SG_MITER_FROM_SG);
