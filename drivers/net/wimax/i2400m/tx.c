@@ -283,6 +283,11 @@ enum {
 	+ I2400M_TX_PLD_MAX * sizeof(struct i2400m_pld),
 	I2400M_TX_SKIP = 0x80000000,
 	/*
+	 * According to Intel Wimax i3200, i5x50 and i6x50 specification
+	 * documents, the maximum size of each message can be up to 16KiB.
+	 */
+	I2400M_TX_MSG_SIZE = 16384,
+	/*
 	 * 16 byte aligned MAX_MTU + 4 byte payload prefix.
 	 */
 	I2400M_MAX_MTU_ALIGN = 16,
@@ -682,7 +687,13 @@ try_new:
 	}
 	if (i2400m->tx_msg == NULL)
 		goto error_tx_new;
-	if (i2400m->tx_msg->size + padded_len > I2400M_TX_BUF_SIZE / 2) {
+	/*
+	 * Check if this skb will fit in the TX queue's current active
+	 * TX message. The total message size must not exceed the maximum
+	 * size of each message I2400M_TX_MSG_SIZE. If it exceeds,
+	 * close the current message and push this skb into the new message.
+	 */
+	if (i2400m->tx_msg->size + padded_len > I2400M_TX_MSG_SIZE) {
 		d_printf(2, dev, "TX: message too big, going new\n");
 		i2400m_tx_close(i2400m);
 		i2400m_tx_new(i2400m);
