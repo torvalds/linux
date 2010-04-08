@@ -90,6 +90,11 @@
 
 #define VXGE_LL_MAX_FRAME_SIZE(dev) ((dev)->mtu + VXGE_HW_MAC_HEADER_MAX_SIZE)
 
+#define is_sriov(function_mode) \
+	((function_mode == VXGE_HW_FUNCTION_MODE_SRIOV) || \
+	(function_mode == VXGE_HW_FUNCTION_MODE_SRIOV_8) || \
+	(function_mode == VXGE_HW_FUNCTION_MODE_SRIOV_4))
+
 enum vxge_reset_event {
 	/* reset events */
 	VXGE_LL_VPATH_RESET	= 0,

@@ -764,10 +764,18 @@ struct vxge_hw_device_hw_info {
 #define VXGE_HW_SR_VH_VIRTUAL_FUNCTION				6
 #define VXGE_HW_VH_NORMAL_FUNCTION				7
 	u64		function_mode;
-#define VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION			0
-#define VXGE_HW_FUNCTION_MODE_SINGLE_FUNCTION			1
+#define VXGE_HW_FUNCTION_MODE_SINGLE_FUNCTION			0
+#define VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION			1
 #define VXGE_HW_FUNCTION_MODE_SRIOV				2
 #define VXGE_HW_FUNCTION_MODE_MRIOV				3
+#define VXGE_HW_FUNCTION_MODE_MRIOV_8				4
+#define VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION_17			5
+#define VXGE_HW_FUNCTION_MODE_SRIOV_8				6
+#define VXGE_HW_FUNCTION_MODE_SRIOV_4				7
+#define VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION_2			8
+#define VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION_4			9
+#define VXGE_HW_FUNCTION_MODE_MRIOV_4				10
+
 	u32		func_id;
 	u64		vpath_mask;
 	struct vxge_hw_device_version fw_version;
@@ -2265,4 +2273,6 @@ enum vxge_hw_status vxge_hw_vpath_rts_rth_set(
 	struct vxge_hw_rth_hash_types *hash_type,
 	u16 bucket_size);
 
+enum vxge_hw_status
+__vxge_hw_device_is_privilaged(u32 host_type, u32 func_id);
 #endif
