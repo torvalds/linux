@@ -2487,6 +2487,9 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		     hg > 0 ? "source" : "target");
 	}
 
+	if (abs(hg) == 100)
+		drbd_khelper(mdev, "initial-split-brain");
+
 	if (hg == 100 || (hg == -100 && mdev->net_conf->always_asbp)) {
 		int pcount = (mdev->state.role == R_PRIMARY)
 			   + (peer_role == R_PRIMARY);
@@ -2532,7 +2535,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		 * after an attempted attach on a diskless node.
 		 * We just refuse to attach -- well, we drop the "connection"
 		 * to that disk, in a way... */
-		dev_alert(DEV, "Split-Brain detected, dropping connection!\n");
+		dev_alert(DEV, "Split-Brain detected but unresolved, dropping connection!\n");
 		drbd_khelper(mdev, "split-brain");
 		return C_MASK;
 	}
