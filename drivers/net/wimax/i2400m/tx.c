@@ -396,8 +396,20 @@ void *i2400m_tx_fifo_push(struct i2400m *i2400m, size_t size, size_t padding)
 	/* Is there space at the tail? */
 	tail_room = __i2400m_tx_tail_room(i2400m);
 	if (tail_room < needed_size) {
-		if (i2400m->tx_out % I2400M_TX_BUF_SIZE
-		    < i2400m->tx_in % I2400M_TX_BUF_SIZE) {
+		/*
+		 * If the tail room space is not enough to push the message
+		 * in the TX FIFO, then there are two possibilities:
+		 * 1. There is enough head room space to accommodate
+		 * this message in the TX FIFO.
+		 * 2. There is not enough space in the head room and
+		 * in tail room of the TX FIFO to accommodate the message.
+		 * In the case (1), return TAIL_FULL so that the caller
+		 * can figure out, if the caller wants to push the message
+		 * into the head room space.
+		 * In the case (2), return NULL, indicating that the TX FIFO
+		 * cannot accommodate the message.
+		 */
+		if (room - tail_room >= needed_size) {
 			d_printf(2, dev, "fifo push %zu/%zu: tail full\n",
 				 size, padding);
 			return TAIL_FULL;	/* There might be head space */
