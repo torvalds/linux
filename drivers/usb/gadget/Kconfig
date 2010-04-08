@@ -863,6 +863,17 @@ config USB_G_MULTI_CDC
 
 	  If unsure, say "y".
 
+config USB_G_HID
+	tristate "HID Gadget"
+	help
+	  The HID gadget driver provides generic emulation of USB
+	  Human Interface Devices (HID).
+
+	  For more information, see Documentation/usb/gadget_hid.txt which
+	  includes sample code for accessing the device files.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_hid".
 
 # put drivers that need isochronous transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.
