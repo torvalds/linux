@@ -177,6 +177,11 @@ enum {
 	I2400M_BM_ACK_BUF_SIZE = 256,
 };
 
+enum {
+	/* Maximum number of bus reset can be retried */
+	I2400M_BUS_RESET_RETRIES = 3,
+};
+
 /**
  * struct i2400m_poke_table - Hardware poke table for the Intel 2400m
  *
@@ -517,6 +522,29 @@ struct i2400m_barker_db;
  *     same.
  *
  * @pm_notifier: used to register for PM events
+ *
+ * @bus_reset_retries: counter for the number of bus resets attempted for
+ *	this boot. It's not for tracking the number of bus resets during
+ *	the whole driver life cycle (from insmod to rmmod) but for the
+ *	number of dev_start() executed until dev_start() returns a success
+ *	(ie: a good boot means a dev_stop() followed by a successful
+ *	dev_start()). dev_reset_handler() increments this counter whenever
+ *	it is triggering a bus reset. It checks this counter to decide if a
+ *	subsequent bus reset should be retried. dev_reset_handler() retries
+ *	the bus reset until dev_start() succeeds or the counter reaches
+ *	I2400M_BUS_RESET_RETRIES. The counter is cleared to 0 in
+ *	dev_reset_handle() when dev_start() returns a success,
+ *	ie: a successul boot is completed.
+ *
+ * @alive: flag to denote if the device *should* be alive. This flag is
+ *	everything like @updown (see doc for @updown) except reflecting
+ *	the device state *we expect* rather than the actual state as denoted
+ *	by @updown. It is set 1 whenever @updown is set 1 in dev_start().
+ *	Then the device is expected to be alive all the time
+ *	(i2400m->alive remains 1) until the driver is removed. Therefore
+ *	all the device reboot events detected can be still handled properly
+ *	by either dev_reset_handle() or .pre_reset/.post_reset as long as
+ *	the driver presents. It is set 0 along with @updown in dev_stop().
  */
 struct i2400m {
 	struct wimax_dev wimax_dev;	/* FIRST! See doc */
@@ -591,6 +619,12 @@ struct i2400m {
 	struct i2400m_barker_db *barker;
 
 	struct notifier_block pm_notifier;
+
+	/* counting bus reset retries in this boot */
+	atomic_t bus_reset_retries;
+
+	/* if the device is expected to be alive */
+	unsigned alive;
 };
 
 

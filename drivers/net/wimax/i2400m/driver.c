@@ -436,7 +436,8 @@ int i2400m_dev_start(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 		result = __i2400m_dev_start(i2400m, bm_flags);
 		if (result >= 0) {
 			i2400m->updown = 1;
-			wmb();	/* see i2400m->updown's documentation */
+			i2400m->alive = 1;
+			wmb();/* see i2400m->updown and i2400m->alive's doc */
 		}
 	}
 	mutex_unlock(&i2400m->init_mutex);
@@ -497,7 +498,8 @@ void i2400m_dev_stop(struct i2400m *i2400m)
 	if (i2400m->updown) {
 		__i2400m_dev_stop(i2400m);
 		i2400m->updown = 0;
-		wmb();	/* see i2400m->updown's documentation  */
+		i2400m->alive = 0;
+		wmb();	/* see i2400m->updown and i2400m->alive's doc */
 	}
 	mutex_unlock(&i2400m->init_mutex);
 }
@@ -669,6 +671,9 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 
 	d_fnstart(3, dev, "(ws %p i2400m %p reason %s)\n", ws, i2400m, reason);
 
+	i2400m->boot_mode = 1;
+	wmb();		/* Make sure i2400m_msg_to_dev() sees boot_mode */
+
 	result = 0;
 	if (mutex_trylock(&i2400m->init_mutex) == 0) {
 		/* We are still in i2400m_dev_start() [let it fail] or
@@ -679,32 +684,62 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 		complete(&i2400m->msg_completion);
 		goto out;
 	}
-	if (i2400m->updown == 0)  {
-		dev_info(dev, "%s: device is down, doing nothing\n", reason);
-		goto out_unlock;
-	}
+
 	dev_err(dev, "%s: reinitializing driver\n", reason);
-	__i2400m_dev_stop(i2400m);
-	result = __i2400m_dev_start(i2400m,
-				    I2400M_BRI_SOFT | I2400M_BRI_MAC_REINIT);
-	if (result < 0) {
+	rmb();
+	if (i2400m->updown) {
+		__i2400m_dev_stop(i2400m);
 		i2400m->updown = 0;
 		wmb();		/* see i2400m->updown's documentation  */
-		dev_err(dev, "%s: cannot start the device: %d\n",
-			reason, result);
-		result = -EUCLEAN;
 	}
-out_unlock:
+
+	if (i2400m->alive) {
+		result = __i2400m_dev_start(i2400m,
+				    I2400M_BRI_SOFT | I2400M_BRI_MAC_REINIT);
+		if (result < 0) {
+			dev_err(dev, "%s: cannot start the device: %d\n",
+				reason, result);
+			result = -EUCLEAN;
+			if (atomic_read(&i2400m->bus_reset_retries)
+					>= I2400M_BUS_RESET_RETRIES) {
+				result = -ENODEV;
+				dev_err(dev, "tried too many times to "
+					"reset the device, giving up\n");
+			}
+		}
+	}
+
 	if (i2400m->reset_ctx) {
 		ctx->result = result;
 		complete(&ctx->completion);
 	}
 	mutex_unlock(&i2400m->init_mutex);
 	if (result == -EUCLEAN) {
+		/*
+		 * We come here because the reset during operational mode
+		 * wasn't successully done and need to proceed to a bus
+		 * reset. For the dev_reset_handle() to be able to handle
+		 * the reset event later properly, we restore boot_mode back
+		 * to the state before previous reset. ie: just like we are
+		 * issuing the bus reset for the first time
+		 */
+		i2400m->boot_mode = 0;
+		wmb();
+
+		atomic_inc(&i2400m->bus_reset_retries);
 		/* ops, need to clean up [w/ init_mutex not held] */
 		result = i2400m_reset(i2400m, I2400M_RT_BUS);
 		if (result >= 0)
 			result = -ENODEV;
+	} else {
+		rmb();
+		if (i2400m->alive) {
+			/* great, we expect the device state up and
+			 * dev_start() actually brings the device state up */
+			i2400m->updown = 1;
+			wmb();
+			atomic_set(&i2400m->bus_reset_retries, 0);
+		}
 	}
 out:
 	i2400m_put(i2400m);
@@ -729,8 +764,6 @@ out:
  */
 int i2400m_dev_reset_handle(struct i2400m *i2400m, const char *reason)
 {
-	i2400m->boot_mode = 1;
-	wmb();		/* Make sure i2400m_msg_to_dev() sees boot_mode */
 	return i2400m_schedule_work(i2400m, __i2400m_dev_reset_handle,
 				    GFP_ATOMIC, &reason, sizeof(reason));
 }
@@ -803,6 +836,9 @@ void i2400m_init(struct i2400m *i2400m)
 
 	mutex_init(&i2400m->init_mutex);
 	/* wake_tx_ws is initialized in i2400m_tx_setup() */
+	atomic_set(&i2400m->bus_reset_retries, 0);
+
+	i2400m->alive = 0;
 }
 EXPORT_SYMBOL_GPL(i2400m_init);
 
