@@ -1822,10 +1822,9 @@ int dquot_transfer(struct inode *inode, struct iattr *iattr)
 		mask |= 1 << GRPQUOTA;
 		chid[GRPQUOTA] = iattr->ia_gid;
 	}
-	if (sb_any_quota_active(inode->i_sb) && !IS_NOQUOTA(inode)) {
-		dquot_initialize(inode);
+	if (sb_any_quota_active(inode->i_sb) && !IS_NOQUOTA(inode))
 		return __dquot_transfer(inode, chid, mask);
-	}
+
 	return 0;
 }
 EXPORT_SYMBOL(dquot_transfer);

@@ -227,7 +227,7 @@ int udf_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (error)
 		return error;
 
-	if (iattr->ia_valid & ATTR_SIZE)
+	if (is_quota_modification(inode, iattr))
 		dquot_initialize(inode);
 
 	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||

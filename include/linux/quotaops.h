@@ -14,6 +14,14 @@ static inline struct quota_info *sb_dqopt(struct super_block *sb)
 	return &sb->s_dquot;
 }
 
+/* i_mutex must being held */
+static inline bool is_quota_modification(struct inode *inode, struct iattr *ia)
+{
+	return (ia->ia_valid & ATTR_SIZE && ia->ia_size != inode->i_size) ||
+		(ia->ia_valid & ATTR_UID && ia->ia_uid != inode->i_uid) ||
+		(ia->ia_valid & ATTR_GID && ia->ia_gid != inode->i_gid);
+}
+
 #if defined(CONFIG_QUOTA)
 
 /*

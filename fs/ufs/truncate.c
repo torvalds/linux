@@ -518,17 +518,17 @@ int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		return error;
 
+	if (is_quota_modification(inode, attr))
+		dquot_initialize(inode);
+
 	if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
 	    (ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
 		error = dquot_transfer(inode, attr);
 		if (error)
 			return error;
 	}
-	if (ia_valid & ATTR_SIZE &&
-	    attr->ia_size != i_size_read(inode)) {
+	if (ia_valid & ATTR_SIZE && attr->ia_size != inode->i_size) {
 		loff_t old_i_size = inode->i_size;
-
-		dquot_initialize(inode);
 
 		error = vmtruncate(inode, attr->ia_size);
 		if (error)
