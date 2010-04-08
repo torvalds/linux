@@ -1001,6 +1001,7 @@ extern void i8xx_disable_fbc(struct drm_device *dev);
 extern void g4x_disable_fbc(struct drm_device *dev);
 
 extern void intel_detect_pch (struct drm_device *dev);
+extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 
 /**
  * Lock test for when it's just for synchronization of ring access.

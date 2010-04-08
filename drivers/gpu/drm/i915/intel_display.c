@@ -1893,6 +1893,39 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			/* wait one idle pattern time */
 			udelay(100);
 
+			/* For PCH DP, enable TRANS_DP_CTL */
+			if (HAS_PCH_CPT(dev) &&
+			    intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+				int trans_dp_ctl = (pipe == 0) ? TRANS_DP_CTL_A : TRANS_DP_CTL_B;
+				int reg;
+
+				reg = I915_READ(trans_dp_ctl);
+				reg &= ~TRANS_DP_PORT_SEL_MASK;
+				reg = TRANS_DP_OUTPUT_ENABLE |
+				      TRANS_DP_ENH_FRAMING |
+				      TRANS_DP_VSYNC_ACTIVE_HIGH |
+				      TRANS_DP_HSYNC_ACTIVE_HIGH;
+
+				switch (intel_trans_dp_port_sel(crtc)) {
+				case PCH_DP_B:
+					reg |= TRANS_DP_PORT_SEL_B;
+					break;
+				case PCH_DP_C:
+					reg |= TRANS_DP_PORT_SEL_C;
+					break;
+				case PCH_DP_D:
+					reg |= TRANS_DP_PORT_SEL_D;
+					break;
+				default:
+					DRM_DEBUG_KMS("Wrong PCH DP port return. Guess port B\n");
+					reg |= TRANS_DP_PORT_SEL_B;
+					break;
+				}
+
+				I915_WRITE(trans_dp_ctl, reg);
+				POSTING_READ(trans_dp_ctl);
+			}
+
 			/* enable PCH transcoder */
 			temp = I915_READ(transconf_reg);
 			/*
@@ -2030,6 +2063,14 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		udelay(100);
 
 		if (HAS_PCH_CPT(dev)) {
+			/* disable TRANS_DP_CTL */
+			int trans_dp_ctl = (pipe == 0) ? TRANS_DP_CTL_A : TRANS_DP_CTL_B;
+			int reg;
+
+			reg = I915_READ(trans_dp_ctl);
+			reg &= ~(TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK);
+			I915_WRITE(trans_dp_ctl, reg);
+			POSTING_READ(trans_dp_ctl);
 
 			/* disable DPLL_SEL */
 			temp = I915_READ(PCH_DPLL_SEL);
