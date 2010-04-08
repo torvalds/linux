@@ -4164,15 +4164,8 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
 	perf_sample_data_init(&data, 0);
 	data.period = event->hw.last_period;
 	regs = get_irq_regs();
-	/*
-	 * In case we exclude kernel IPs or are somehow not in interrupt
-	 * context, provide the next best thing, the user IP.
-	 */
-	if ((event->attr.exclude_kernel || !regs) &&
-			!event->attr.exclude_user)
-		regs = task_pt_regs(current);
 
-	if (regs) {
+	if (regs && !perf_exclude_event(event, regs)) {
 		if (!(event->attr.exclude_idle && current->pid == 0))
 			if (perf_event_overflow(event, 0, &data, regs))
 				ret = HRTIMER_NORESTART;
