@@ -1494,6 +1494,7 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8310:
 		parent = WM8310;
 		wm831x->num_gpio = 16;
+		wm831x->charger_irq_wake = 1;
 		if (rev > 0) {
 			wm831x->has_gpio_ena = 1;
 			wm831x->has_cs_sts = 1;
@@ -1505,6 +1506,7 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8311:
 		parent = WM8311;
 		wm831x->num_gpio = 16;
+		wm831x->charger_irq_wake = 1;
 		if (rev > 0) {
 			wm831x->has_gpio_ena = 1;
 			wm831x->has_cs_sts = 1;
@@ -1516,6 +1518,7 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8312:
 		parent = WM8312;
 		wm831x->num_gpio = 16;
+		wm831x->charger_irq_wake = 1;
 		if (rev > 0) {
 			wm831x->has_gpio_ena = 1;
 			wm831x->has_cs_sts = 1;
@@ -1654,6 +1657,42 @@ static void wm831x_device_exit(struct wm831x *wm831x)
 	kfree(wm831x);
 }
 
+static int wm831x_device_suspend(struct wm831x *wm831x)
+{
+	int reg, mask;
+
+	/* If the charger IRQs are a wake source then make sure we ack
+	 * them even if they're not actively being used (eg, no power
+	 * driver or no IRQ line wired up) then acknowledge the
+	 * interrupts otherwise suspend won't last very long.
+	 */
+	if (wm831x->charger_irq_wake) {
+		reg = wm831x_reg_read(wm831x, WM831X_INTERRUPT_STATUS_2_MASK);
+
+		mask = WM831X_CHG_BATT_HOT_EINT |
+			WM831X_CHG_BATT_COLD_EINT |
+			WM831X_CHG_BATT_FAIL_EINT |
+			WM831X_CHG_OV_EINT | WM831X_CHG_END_EINT |
+			WM831X_CHG_TO_EINT | WM831X_CHG_MODE_EINT |
+			WM831X_CHG_START_EINT;
+
+		/* If any of the interrupts are masked read the statuses */
+		if (reg & mask)
+			reg = wm831x_reg_read(wm831x,
+					      WM831X_INTERRUPT_STATUS_2);
+
+		if (reg & mask) {
+			dev_info(wm831x->dev,
+				 "Acknowledging masked charger IRQs: %x\n",
+				 reg & mask);
+			wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_2,
+					 reg & mask);
+		}
+	}
+
+	return 0;
+}
+
 static int wm831x_i2c_read_device(struct wm831x *wm831x, unsigned short reg,
 				  int bytes, void *dest)
 {
@@ -1728,6 +1767,13 @@ static int wm831x_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static int wm831x_i2c_suspend(struct i2c_client *i2c, pm_message_t mesg)
+{
+	struct wm831x *wm831x = i2c_get_clientdata(i2c);
+
+	return wm831x_device_suspend(wm831x);
+}
+
 static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8310", WM8310 },
 	{ "wm8311", WM8311 },
@@ -1745,6 +1791,7 @@ static struct i2c_driver wm831x_i2c_driver = {
 	},
 	.probe = wm831x_i2c_probe,
 	.remove = wm831x_i2c_remove,
+	.suspend = wm831x_i2c_suspend,
 	.id_table = wm831x_i2c_id,
 };
 
