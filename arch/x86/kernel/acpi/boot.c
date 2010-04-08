@@ -1576,6 +1576,10 @@ static int __init parse_acpi(char *arg)
 	/* "acpi=noirq" disables ACPI interrupt routing */
 	else if (strcmp(arg, "noirq") == 0) {
 		acpi_noirq_set();
+	}
+	/* "acpi=copy_dsdt" copys DSDT */
+	else if (strcmp(arg, "copy_dsdt") == 0) {
+		acpi_gbl_copy_dsdt_locally = 1;
 	} else {
 		/* Core will printk when we return error. */
 		return -EINVAL;

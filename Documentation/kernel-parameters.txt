@@ -151,6 +151,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
 			rsdt -- prefer RSDT over (default) XSDT
+			copy_dsdt -- copy DSDT to memory
 
 			See also Documentation/power/pm.txt, pci=noacpi
 
