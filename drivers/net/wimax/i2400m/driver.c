@@ -629,12 +629,12 @@ int i2400m_post_reset(struct i2400m *i2400m)
 error_dev_start:
 	if (i2400m->bus_release)
 		i2400m->bus_release(i2400m);
-error_bus_setup:
 	/* even if the device was up, it could not be recovered, so we
 	 * mark it as down. */
 	i2400m->updown = 0;
 	wmb();		/* see i2400m->updown's documentation  */
 	mutex_unlock(&i2400m->init_mutex);
+error_bus_setup:
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
 	return result;
 }
