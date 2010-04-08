@@ -416,20 +416,16 @@ static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count)
 	out_vq->vq_ops->kick(out_vq);
 
 	if (ret < 0) {
-		len = 0;
+		in_count = 0;
 		goto fail;
 	}
 
-	/*
-	 * Wait till the host acknowledges it pushed out the data we
-	 * sent. Also ensure we return to userspace the number of
-	 * bytes that were successfully consumed by the host.
-	 */
+	/* Wait till the host acknowledges it pushed out the data we sent. */
 	while (!out_vq->vq_ops->get_buf(out_vq, &len))
 		cpu_relax();
 fail:
 	/* We're expected to return the amount of data we wrote */
-	return len;
+	return in_count;
 }
 
 /*
