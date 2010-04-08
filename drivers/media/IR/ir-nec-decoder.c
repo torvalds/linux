@@ -12,8 +12,8 @@
  *  GNU General Public License for more details.
  */
 
-#include <media/ir-core.h>
 #include <linux/bitrev.h>
+#include "ir-core-priv.h"
 
 #define NEC_NBITS		32
 #define NEC_UNIT		562500  /* ns */

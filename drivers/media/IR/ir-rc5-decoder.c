@@ -19,7 +19,7 @@
  * the first two bits are start bits, and a third one is a filing bit
  */
 
-#include <media/ir-core.h>
+#include "ir-core-priv.h"
 
 #define RC5_NBITS		14
 #define RC5_UNIT		888888 /* ns */

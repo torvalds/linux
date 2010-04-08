@@ -12,10 +12,10 @@
  *  GNU General Public License for more details.
  */
 
-#include <media/ir-core.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
+#include "ir-core-priv.h"
 
 /* Define the max number of pulse/space transitions to buffer */
 #define MAX_IR_EVENT_SIZE      512

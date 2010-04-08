@@ -15,7 +15,7 @@
 
 #include <linux/input.h>
 #include <linux/slab.h>
-#include <media/ir-common.h>
+#include "ir-core-priv.h"
 
 /* Sizes are in bytes, 256 bytes allows for 32 entries on x64 */
 #define IR_TAB_MIN_SIZE	256

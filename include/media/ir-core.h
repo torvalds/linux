@@ -31,13 +31,6 @@ enum rc_driver_type {
 	RC_DRIVER_IR_RAW,	/* Needs a Infra-Red pulse/space decoder */
 };
 
-enum raw_event_type {
-	IR_SPACE	= (1 << 0),
-	IR_PULSE	= (1 << 1),
-	IR_START_EVENT	= (1 << 2),
-	IR_STOP_EVENT	= (1 << 3),
-};
-
 /**
  * struct ir_dev_props - Allow caller drivers to set special properties
  * @driver_type: specifies if the driver or hardware have already a decoder,
@@ -65,14 +58,6 @@ struct ir_dev_props {
 	void			(*close)(void *priv);
 };
 
-struct ir_raw_event_ctrl {
-	struct work_struct		rx_work;	/* for the rx decoding workqueue */
-	struct kfifo			kfifo;		/* fifo for the pulse/space durations */
-	ktime_t				last_event;	/* when last event occurred */
-	enum raw_event_type		last_type;	/* last event type */
-	struct input_dev		*input_dev;	/* pointer to the parent input_dev */
-};
-
 struct ir_input_dev {
 	struct device			dev;		/* device */
 	char				*driver_name;	/* Name of the driver module */
@@ -92,22 +77,16 @@ struct ir_input_dev {
 	u8				last_toggle;	/* toggle of last command */
 };
 
-struct ir_raw_handler {
-	struct list_head list;
-
-	int (*decode)(struct input_dev *input_dev, s64 duration);
-	int (*raw_register)(struct input_dev *input_dev);
-	int (*raw_unregister)(struct input_dev *input_dev);
+enum raw_event_type {
+	IR_SPACE        = (1 << 0),
+	IR_PULSE        = (1 << 1),
+	IR_START_EVENT  = (1 << 2),
+	IR_STOP_EVENT   = (1 << 3),
 };
 
 #define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)
 
-/* Routines from ir-keytable.c */
-
-u32 ir_g_keycode_from_table(struct input_dev *input_dev,
-			    u32 scancode);
-void ir_repeat(struct input_dev *dev);
-void ir_keydown(struct input_dev *dev, int scancode, u8 toggle);
+/* From ir-keytable.c */
 int __ir_input_register(struct input_dev *dev,
 		      const struct ir_scancode_table *ir_codes,
 		      const struct ir_dev_props *props,
@@ -143,60 +122,14 @@ static inline int ir_input_register(struct input_dev *dev,
 
 void ir_input_unregister(struct input_dev *input_dev);
 
-/* Routines from ir-sysfs.c */
+void ir_repeat(struct input_dev *dev);
+void ir_keydown(struct input_dev *dev, int scancode, u8 toggle);
 
-int ir_register_class(struct input_dev *input_dev);
-void ir_unregister_class(struct input_dev *input_dev);
+/* From ir-raw-event.c */
 
-/* Routines from ir-raw-event.c */
-int ir_raw_event_register(struct input_dev *input_dev);
-void ir_raw_event_unregister(struct input_dev *input_dev);
 void ir_raw_event_handle(struct input_dev *input_dev);
 int ir_raw_event_store(struct input_dev *input_dev, s64 duration);
 int ir_raw_event_store_edge(struct input_dev *input_dev, enum raw_event_type type);
-static inline void ir_raw_event_reset(struct input_dev *input_dev)
-{
-	ir_raw_event_store(input_dev, 0);
-	ir_raw_event_handle(input_dev);
-}
-int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
-void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler);
-void ir_raw_init(void);
 
-/* from ir-nec-decoder.c */
-#ifdef CONFIG_IR_NEC_DECODER_MODULE
-#define load_nec_decode()	request_module("ir-nec-decoder")
-#else
-#define load_nec_decode()	0
-#endif
-
-/* from ir-rc5-decoder.c */
-#ifdef CONFIG_IR_RC5_DECODER_MODULE
-#define load_rc5_decode()	request_module("ir-rc5-decoder")
-#else
-#define load_rc5_decode()	0
-#endif
-
-/* macros for ir decoders */
-#define PULSE(units)				((units))
-#define SPACE(units)				(-(units))
-#define IS_RESET(duration)			((duration) == 0)
-#define IS_PULSE(duration)			((duration) > 0)
-#define IS_SPACE(duration)			((duration) < 0)
-#define DURATION(duration)			(abs((duration)))
-#define IS_TRANSITION(x, y)			((x) * (y) < 0)
-#define DECREASE_DURATION(duration, amount)			\
-	do {							\
-		if (IS_SPACE(duration))				\
-			duration += (amount);			\
-		else if (IS_PULSE(duration))			\
-			duration -= (amount);			\
-	} while (0)
-
-#define TO_UNITS(duration, unit_len)				\
-	((int)((duration) > 0 ?					\
-		DIV_ROUND_CLOSEST(abs((duration)), (unit_len)) :\
-		-DIV_ROUND_CLOSEST(abs((duration)), (unit_len))))
-#define TO_US(duration)		((int)TO_UNITS(duration, 1000))
 
 #endif /* _IR_CORE */
