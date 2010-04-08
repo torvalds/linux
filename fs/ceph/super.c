@@ -8,14 +8,11 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/parser.h>
-#include <linux/rwsem.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/string.h>
-#include <linux/version.h>
-#include <linux/vmalloc.h>
 
 #include "decode.h"
 #include "super.h"
