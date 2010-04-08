@@ -143,27 +143,45 @@ static int mv_setkey_aes(struct crypto_ablkcipher *cipher, const u8 *key,
 	return 0;
 }
 
-static void setup_data_in(struct ablkcipher_request *req)
+static void copy_src_to_buf(struct req_progress *p, char *dbuf, int len)
 {
 	int ret;
-	void *buf;
+	void *sbuf;
+	int copied = 0;
 
-	if (!cpg->p.sg_src_left) {
-		ret = sg_miter_next(&cpg->p.src_sg_it);
-		BUG_ON(!ret);
-		cpg->p.sg_src_left = cpg->p.src_sg_it.length;
-		cpg->p.src_start = 0;
+	while (1) {
+		if (!p->sg_src_left) {
+			ret = sg_miter_next(&p->src_sg_it);
+			BUG_ON(!ret);
+			p->sg_src_left = p->src_sg_it.length;
+			p->src_start = 0;
+		}
+
+		sbuf = p->src_sg_it.addr + p->src_start;
+
+		if (p->sg_src_left <= len - copied) {
+			memcpy(dbuf + copied, sbuf, p->sg_src_left);
+			copied += p->sg_src_left;
+			p->sg_src_left = 0;
+			if (copied >= len)
+				break;
+		} else {
+			int copy_len = len - copied;
+			memcpy(dbuf + copied, sbuf, copy_len);
+			p->src_start += copy_len;
+			p->sg_src_left -= copy_len;
+			break;
+		}
 	}
+}
 
-	cpg->p.crypt_len = min(cpg->p.sg_src_left, cpg->max_req_size);
-
-	buf = cpg->p.src_sg_it.addr;
-	buf += cpg->p.src_start;
-
-	memcpy(cpg->sram + SRAM_DATA_IN_START, buf, cpg->p.crypt_len);
-
-	cpg->p.sg_src_left -= cpg->p.crypt_len;
-	cpg->p.src_start += cpg->p.crypt_len;
+static void setup_data_in(struct ablkcipher_request *req)
+{
+	struct req_progress *p = &cpg->p;
+	p->crypt_len =
+	    min((int)req->nbytes - p->total_req_bytes, cpg->max_req_size);
+	copy_src_to_buf(p, cpg->sram + SRAM_DATA_IN_START,
+			p->crypt_len);
 }
 
 static void mv_process_current_q(int first_block)
@@ -289,12 +307,16 @@ static void dequeue_complete_req(void)
 static int count_sgs(struct scatterlist *sl, unsigned int total_bytes)
 {
 	int i = 0;
+	size_t cur_len;
 
-	do {
-		total_bytes -= sl[i].length;
-		i++;
-
-	} while (total_bytes > 0);
+	while (1) {
+		cur_len = sl[i].length;
+		++i;
+		if (total_bytes > cur_len)
+			total_bytes -= cur_len;
+		else
+			break;
+	}
 
 	return i;
 }
