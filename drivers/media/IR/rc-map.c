@@ -37,14 +37,13 @@ static struct rc_keymap *seek_rc_map(const char *name)
 
 struct ir_scancode_table *get_rc_map(const char *name)
 {
-	int rc = 0;
 
 	struct rc_keymap *map;
 
 	map = seek_rc_map(name);
 #ifdef MODULE
 	if (!map) {
-		rc = request_module(name);
+		int rc = request_module(name);
 		if (rc < 0) {
 			printk(KERN_ERR "Couldn't load IR keymap %s\n", name);
 			return NULL;

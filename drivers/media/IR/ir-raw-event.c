@@ -50,9 +50,10 @@ static DEFINE_SPINLOCK(ir_raw_handler_lock);
 	_sumrc;								    \
 })
 
-
+#ifdef MODULE
 /* Used to load the decoders */
 static struct work_struct wq_load;
+#endif
 
 static void ir_raw_event_work(struct work_struct *work)
 {
@@ -218,6 +219,7 @@ void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);
 
+#ifdef MODULE
 static void init_decoders(struct work_struct *work)
 {
 	/* Load the decoder modules */
@@ -229,6 +231,7 @@ static void init_decoders(struct work_struct *work)
 	   it is needed to change the CONFIG_MODULE test at ir-core.h
 	 */
 }
+#endif
 
 void ir_raw_init(void)
 {
