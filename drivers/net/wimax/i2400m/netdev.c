@@ -88,7 +88,11 @@ enum {
 	 * might take to get out of IDLE / negotiate it with the base
 	 * station. We add 1sec for good measure. */
 	I2400M_TX_TIMEOUT = 21 * HZ,
-	I2400M_TX_QLEN = 5,
+	/*
+	 * Experimentation has determined that, 20 to be a good value
+	 * for minimizing the jitter in the throughput.
+	 */
+	I2400M_TX_QLEN = 20,
 };
 
 
