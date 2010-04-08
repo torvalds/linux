@@ -3657,44 +3657,6 @@ static ssize_t show_channels(struct device *d,
 
 static DEVICE_ATTR(channels, S_IRUSR, show_channels, NULL);
 
-static ssize_t show_statistics(struct device *d,
-			       struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	u32 size = sizeof(struct iwl3945_notif_statistics);
-	u32 len = 0, ofs = 0;
-	u8 *data = (u8 *)&priv->_3945.statistics;
-	int rc = 0;
-
-	if (!iwl_is_alive(priv))
-		return -EAGAIN;
-
-	mutex_lock(&priv->mutex);
-	rc = iwl_send_statistics_request(priv, CMD_SYNC, false);
-	mutex_unlock(&priv->mutex);
-
-	if (rc) {
-		len = sprintf(buf,
-			      "Error sending statistics request: 0x%08X\n", rc);
-		return len;
-	}
-
-	while (size && (PAGE_SIZE - len)) {
-		hex_dump_to_buffer(data + ofs, size, 16, 1, buf + len,
-				   PAGE_SIZE - len, 1);
-		len = strlen(buf);
-		if (PAGE_SIZE - len)
-			buf[len++] = '\n';
-
-		ofs += 16;
-		size -= min(size, 16U);
-	}
-
-	return len;
-}
-
-static DEVICE_ATTR(statistics, S_IRUGO, show_statistics, NULL);
-
 static ssize_t show_antenna(struct device *d,
 			    struct device_attribute *attr, char *buf)
 {
@@ -3814,7 +3776,6 @@ static struct attribute *iwl3945_sysfs_entries[] = {
 	&dev_attr_filter_flags.attr,
 	&dev_attr_measurement.attr,
 	&dev_attr_retry_rate.attr,
-	&dev_attr_statistics.attr,
 	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
