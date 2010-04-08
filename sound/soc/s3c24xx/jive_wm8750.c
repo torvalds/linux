@@ -152,15 +152,10 @@ static struct snd_soc_card snd_soc_machine_jive = {
 	.num_links	= 1,
 };
 
-/* jive audio private data */
-static struct wm8750_setup_data jive_wm8750_setup = {
-};
-
 /* jive audio subsystem */
 static struct snd_soc_device jive_snd_devdata = {
 	.card		= &snd_soc_machine_jive,
 	.codec_dev	= &soc_codec_dev_wm8750,
-	.codec_data	= &jive_wm8750_setup,
 };
 
 static struct platform_device *jive_snd_device;
