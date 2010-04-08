@@ -130,9 +130,10 @@ static int __init dmar_parse_dev_scope(void *start, void *end, int *cnt,
 		if (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT ||
 		    scope->entry_type == ACPI_DMAR_SCOPE_TYPE_BRIDGE)
 			(*cnt)++;
-		else
+		else if (scope->entry_type != ACPI_DMAR_SCOPE_TYPE_IOAPIC) {
 			printk(KERN_WARNING PREFIX
-				"Unsupported device scope\n");
+			       "Unsupported device scope\n");
+		}
 		start += scope->length;
 	}
 	if (*cnt == 0)
