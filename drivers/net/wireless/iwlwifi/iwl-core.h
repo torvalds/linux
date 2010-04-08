@@ -115,6 +115,15 @@ struct iwl_apm_ops {
 	int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
 };
 
+struct iwl_debugfs_ops {
+	ssize_t (*rx_stats_read)(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos);
+	ssize_t (*tx_stats_read)(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos);
+	ssize_t (*general_stats_read)(struct file *file, char __user *user_buf,
+				      size_t count, loff_t *ppos);
+};
+
 struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
 	void (*set_ct_kill)(struct iwl_priv *priv);
@@ -200,6 +209,7 @@ struct iwl_lib_ops {
 	/* check for ack health */
 	bool (*check_ack_health)(struct iwl_priv *priv,
 					struct iwl_rx_packet *pkt);
+	struct iwl_debugfs_ops debugfs_ops;
 };
 
 struct iwl_led_ops {
