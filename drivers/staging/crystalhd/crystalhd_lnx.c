@@ -15,7 +15,6 @@
   along with this driver.  If not, see <http://www.gnu.org/licenses/>.
 ***************************************************************************/
 
-#include <linux/version.h>
 #include <linux/smp_lock.h>
 #include <linux/slab.h>
 
