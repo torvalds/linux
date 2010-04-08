@@ -2557,7 +2557,7 @@ ath5k_combine_pwr_to_pdadc_curves(struct ath5k_hw *ah,
 		max_idx = (pdadc_n < table_size) ? pdadc_n : table_size;
 
 		/* Fill pdadc_out table */
-		while (pdadc_0 < max_idx)
+		while (pdadc_0 < max_idx && pdadc_i < 128)
 			pdadc_out[pdadc_i++] = pdadc_tmp[pdadc_0++];
 
 		/* Need to extrapolate above this pdgain? */
