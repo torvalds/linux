@@ -40,6 +40,7 @@ enum engine_status {
  * @src_start:		offset to add to src start position (scatter list)
  * @crypt_len:		length of current crypt process
  * @hw_nbytes:		total bytes to process in hw for this request
+ * @copy_back:		whether to copy data back (crypt) or not (hash)
  * @sg_dst_left:	bytes left dst to process in this scatter list
  * @dst_start:		offset to add to dst start position (scatter list)
  * @hw_processed_bytes:	number of bytes processed by hw (request).
@@ -60,6 +61,7 @@ struct req_progress {
 	int crypt_len;
 	int hw_nbytes;
 	/* dst mostly */
+	int copy_back;
 	int sg_dst_left;
 	int dst_start;
 	int hw_processed_bytes;
@@ -267,33 +269,35 @@ static void dequeue_complete_req(void)
 	struct crypto_async_request *req = cpg->cur_req;
 	void *buf;
 	int ret;
-	int need_copy_len = cpg->p.crypt_len;
-	int sram_offset = 0;
-
 	cpg->p.hw_processed_bytes += cpg->p.crypt_len;
-	do {
-		int dst_copy;
+	if (cpg->p.copy_back) {
+		int need_copy_len = cpg->p.crypt_len;
+		int sram_offset = 0;
+		do {
+			int dst_copy;
 
-		if (!cpg->p.sg_dst_left) {
-			ret = sg_miter_next(&cpg->p.dst_sg_it);
-			BUG_ON(!ret);
-			cpg->p.sg_dst_left = cpg->p.dst_sg_it.length;
-			cpg->p.dst_start = 0;
-		}
+			if (!cpg->p.sg_dst_left) {
+				ret = sg_miter_next(&cpg->p.dst_sg_it);
+				BUG_ON(!ret);
+				cpg->p.sg_dst_left = cpg->p.dst_sg_it.length;
+				cpg->p.dst_start = 0;
+			}
 
-		buf = cpg->p.dst_sg_it.addr;
-		buf += cpg->p.dst_start;
+			buf = cpg->p.dst_sg_it.addr;
+			buf += cpg->p.dst_start;
 
-		dst_copy = min(need_copy_len, cpg->p.sg_dst_left);
+			dst_copy = min(need_copy_len, cpg->p.sg_dst_left);
 
-		memcpy(buf,
-		       cpg->sram + SRAM_DATA_OUT_START + sram_offset,
-		       dst_copy);
-		sram_offset += dst_copy;
-		cpg->p.sg_dst_left -= dst_copy;
-		need_copy_len -= dst_copy;
-		cpg->p.dst_start += dst_copy;
-	} while (need_copy_len > 0);
+			memcpy(buf,
+			       cpg->sram + SRAM_DATA_OUT_START + sram_offset,
+			       dst_copy);
+			sram_offset += dst_copy;
+			cpg->p.sg_dst_left -= dst_copy;
+			need_copy_len -= dst_copy;
+			cpg->p.dst_start += dst_copy;
+		} while (need_copy_len > 0);
+	}
+
 
 	BUG_ON(cpg->eng_st != ENGINE_W_DEQUEUE);
 	if (cpg->p.hw_processed_bytes < cpg->p.hw_nbytes) {
@@ -336,6 +340,7 @@ static void mv_enqueue_new_req(struct ablkcipher_request *req)
 	p->hw_nbytes = req->nbytes;
 	p->complete = mv_crypto_algo_completion;
 	p->process = mv_process_current_q;
+	p->copy_back = 1;
 
 	num_sgs = count_sgs(req->src, req->nbytes);
 	sg_miter_start(&p->src_sg_it, req->src, num_sgs, SG_MITER_FROM_SG);
