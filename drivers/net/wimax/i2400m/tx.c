@@ -287,19 +287,6 @@ enum {
 	 * documents, the maximum size of each message can be up to 16KiB.
 	 */
 	I2400M_TX_MSG_SIZE = 16384,
-	/*
-	 * 16 byte aligned MAX_MTU + 4 byte payload prefix.
-	 */
-	I2400M_MAX_MTU_ALIGN = 16,
-	I2400M_TX_PDU_SIZE = I2400M_MAX_MTU % I2400M_MAX_MTU_ALIGN
-	+ I2400M_MAX_MTU + sizeof(struct i2400m_pl_data_hdr),
-	 /*
-	  * 256 byte aligned toal size of 12 PDUs including msg header,
-	  */
-	I2400M_TX_PDU_ALIGN = 256,
-	I2400M_TX_PDU_TOTAL_SIZE = ((I2400M_TX_PDU_SIZE * I2400M_TX_PLD_MAX
-	+ sizeof(struct i2400m_msg_hdr))/I2400M_TX_PDU_ALIGN + 1)
-	* I2400M_TX_PDU_ALIGN * 2,
 };
 
 #define TAIL_FULL ((void *)~(unsigned long)NULL)
@@ -915,8 +902,11 @@ int i2400m_tx_setup(struct i2400m *i2400m)
 		goto error_kmalloc;
 	}
 
-	 /* Warn if the calculated buffer size exceeds I2400M_TX_BUF_SIZE. */
-	BUILD_BUG_ON(I2400M_TX_PDU_TOTAL_SIZE > I2400M_TX_BUF_SIZE);
+	/*
+	 * Fail the build if we can't fit at least two maximum size messages
+	 * on the TX FIFO [one being delivered while one is constructed].
+	 */
+	BUILD_BUG_ON(2 * I2400M_TX_MSG_SIZE > I2400M_TX_BUF_SIZE);
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
 	i2400m->tx_sequence = 0;
 	i2400m->tx_in = 0;
