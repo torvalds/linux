@@ -83,6 +83,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 
 #include "uwb-internal.h"

@@ -11,13 +11,13 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/ctype.h>
 #include <linux/io.h>
 #include <linux/mod_devicetable.h>
 #include <linux/edac.h>
 #include <linux/smp.h>
+#include <linux/gfp.h>
 
 #include <linux/of_platform.h>
 #include <linux/of_device.h>

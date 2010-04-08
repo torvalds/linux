@@ -81,6 +81,7 @@
  */
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/hash.h>
 
 #include "wa-hc.h"

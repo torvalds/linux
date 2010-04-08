@@ -29,6 +29,7 @@
 #include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/devpts_fs.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 

@@ -1,6 +1,7 @@
 #include "ceph_debug.h"
 
 #include <linux/sort.h>
+#include <linux/slab.h>
 
 #include "super.h"
 #include "decode.h"

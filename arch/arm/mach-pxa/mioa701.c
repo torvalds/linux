@@ -38,6 +38,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
+#include <linux/slab.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

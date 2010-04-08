@@ -18,8 +18,8 @@
  */
 
 #include <linux/pci.h>
-#include <linux/gfp.h>
 #include <linux/bitmap.h>
+#include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>

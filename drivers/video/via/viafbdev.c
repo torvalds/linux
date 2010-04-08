@@ -21,6 +21,7 @@
 
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/stat.h>
 #define _MASTER_FILE
 

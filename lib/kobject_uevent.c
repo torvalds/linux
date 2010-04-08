@@ -18,6 +18,7 @@
 #include <linux/string.h>
 #include <linux/kobject.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <linux/socket.h>
 #include <linux/skbuff.h>

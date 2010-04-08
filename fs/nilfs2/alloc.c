@@ -26,6 +26,7 @@
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include "mdt.h"
 #include "alloc.h"
 

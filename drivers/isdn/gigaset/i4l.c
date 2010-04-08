@@ -15,6 +15,7 @@
 
 #include "gigaset.h"
 #include <linux/isdnif.h>
+#include <linux/slab.h>
 
 #define HW_HDR_LEN	2	/* Header size used to store ack info */
 

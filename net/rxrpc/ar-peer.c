@@ -16,6 +16,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/icmp.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <net/ip.h>

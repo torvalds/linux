@@ -19,6 +19,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/backlight.h>

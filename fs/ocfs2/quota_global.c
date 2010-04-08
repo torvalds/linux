@@ -3,6 +3,7 @@
  */
 #include <linux/spinlock.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/quota.h>
 #include <linux/quotaops.h>
 #include <linux/dqblk_qtree.h>

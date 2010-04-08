@@ -7,6 +7,7 @@
 #include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/scatterlist.h>
+#include <linux/gfp.h>
 
 #include <scsi/scsi.h>
 

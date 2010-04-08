@@ -55,6 +55,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>

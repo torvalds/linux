@@ -7,6 +7,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #include "musb_core.h"

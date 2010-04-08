@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/kref.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>

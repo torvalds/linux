@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <acpi/acpi_bus.h>

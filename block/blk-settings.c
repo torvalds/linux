@@ -9,6 +9,7 @@
 #include <linux/bootmem.h>	/* for max_pfn/max_low_pfn */
 #include <linux/gcd.h>
 #include <linux/jiffies.h>
+#include <linux/gfp.h>
 
 #include "blk.h"
 

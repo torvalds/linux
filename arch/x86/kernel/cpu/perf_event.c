@@ -21,6 +21,7 @@
 #include <linux/kdebug.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/cpu.h>
 #include <linux/bitops.h>

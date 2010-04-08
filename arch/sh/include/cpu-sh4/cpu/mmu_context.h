@@ -30,6 +30,8 @@
 #define MMUCR_URB		0x00FC0000
 #define MMUCR_URB_SHIFT		18
 #define MMUCR_URB_NENTRIES	64
+#define MMUCR_URC		0x0000FC00
+#define MMUCR_URC_SHIFT		10
 
 #if defined(CONFIG_32BIT) && defined(CONFIG_CPU_SUBTYPE_ST40)
 #define MMUCR_SE		(1 << 4)

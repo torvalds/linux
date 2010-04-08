@@ -12,6 +12,7 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/mfd/adp5520.h>
+#include <linux/slab.h>
 
 struct adp5520_bl {
 	struct device *master;

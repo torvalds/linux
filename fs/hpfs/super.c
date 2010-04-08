@@ -15,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <linux/bitmap.h>
+#include <linux/slab.h>
 
 /* Mark the filesystem dirty, so that chkdsk checks it when os/2 booted */
 

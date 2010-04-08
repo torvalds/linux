@@ -560,7 +560,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	WARN_ON_ONCE(n > MAX_PEBS_EVENTS);
 
 	for ( ; at < top; at++) {
-		for_each_bit(bit, (unsigned long *)&at->status, MAX_PEBS_EVENTS) {
+		for_each_set_bit(bit, (unsigned long *)&at->status, MAX_PEBS_EVENTS) {
 			event = cpuc->events[bit];
 			if (!test_bit(bit, cpuc->active_mask))
 				continue;

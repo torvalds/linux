@@ -22,6 +22,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
+#include <linux/slab.h>
 
 #include "atl1c.h"
 

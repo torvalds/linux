@@ -31,6 +31,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/delay.h>
 #include <linux/mount.h>
+#include <linux/slab.h>
 #include <asm/div64.h>
 #include "cifsfs.h"
 #include "cifspdu.h"

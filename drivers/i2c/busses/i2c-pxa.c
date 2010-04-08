@@ -33,6 +33,7 @@
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 #include <asm/io.h>
