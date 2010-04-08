@@ -546,26 +546,32 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 			p_dev->function_config = tmp_dev->function_config;
 			p_dev->io = tmp_dev->io;
 			p_dev->irq = tmp_dev->irq;
+			p_dev->irq_v = tmp_dev->irq_v;
 			kref_get(&p_dev->function_config->ref);
 		}
 
 	/* Add to the list in pcmcia_bus_socket */
 	list_add(&p_dev->socket_device_list, &s->devices_list);
 
-	mutex_unlock(&s->ops_mutex);
+	if (pcmcia_setup_irq(p_dev))
+		dev_warn(&p_dev->dev,
+			"IRQ setup failed -- device might not work\n");
 
 	if (!p_dev->function_config) {
 		dev_dbg(&p_dev->dev, "creating config_t\n");
 		p_dev->function_config = kzalloc(sizeof(struct config_t),
 						 GFP_KERNEL);
-		if (!p_dev->function_config)
+		if (!p_dev->function_config) {
+			mutex_unlock(&s->ops_mutex);
 			goto err_unreg;
+		}
 		kref_init(&p_dev->function_config->ref);
 	}
+	mutex_unlock(&s->ops_mutex);
 
 	dev_printk(KERN_NOTICE, &p_dev->dev,
-		   "pcmcia: registering new device %s\n",
-		   p_dev->devname);
+		   "pcmcia: registering new device %s (IRQ: %d)\n",
+		   p_dev->devname, p_dev->irq_v);
 
 	pcmcia_device_query(p_dev);
 
@@ -1258,6 +1264,7 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 		handle_event(skt, event);
 		mutex_lock(&s->ops_mutex);
 		destroy_cis_cache(s);
+		pcmcia_cleanup_irq(s);
 		mutex_unlock(&s->ops_mutex);
 		break;
 

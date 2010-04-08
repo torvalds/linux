@@ -149,6 +149,8 @@ extern struct resource *pcmcia_find_mem_region(u_long base,
 					       int low,
 					       struct pcmcia_socket *s);
 
+void pcmcia_cleanup_irq(struct pcmcia_socket *s);
+int pcmcia_setup_irq(struct pcmcia_device *p_dev);
 
 /* cistpl.c */
 extern struct bin_attribute pccard_cis_attr;

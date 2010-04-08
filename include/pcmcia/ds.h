@@ -95,6 +95,9 @@ struct pcmcia_device {
 	config_req_t		conf;
 	window_handle_t		win;
 
+	/* device setup */
+	unsigned int		irq_v; /* do not use directly yet */
+
 	/* Is the device suspended? */
 	u16			suspended:1;
 

@@ -23,6 +23,8 @@
 #include <linux/netdevice.h>
 #include <linux/slab.h>
 
+#include <asm/irq.h>
+
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
@@ -37,12 +39,6 @@
 static int io_speed;
 module_param(io_speed, int, 0444);
 
-
-#ifdef CONFIG_PCMCIA_PROBE
-#include <asm/irq.h>
-/* mask of IRQs already reserved by other cards, we should avoid using them */
-static u8 pcmcia_used_irq[NR_IRQS];
-#endif
 
 static int pcmcia_adjust_io_region(struct resource *res, unsigned long start,
 				   unsigned long end, struct pcmcia_socket *s)
@@ -440,15 +436,11 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	}
 	if (--s->irq.Config == 0) {
 		c->state &= ~CONFIG_IRQ_REQ;
-		s->irq.AssignedIRQ = 0;
 	}
 
 	if (req->Handler)
 		free_irq(req->AssignedIRQ, p_dev->priv);
 
-#ifdef CONFIG_PCMCIA_PROBE
-	pcmcia_used_irq[req->AssignedIRQ]--;
-#endif
 	ret = 0;
 
 out:
@@ -699,26 +691,14 @@ EXPORT_SYMBOL(pcmcia_request_io);
 /** pcmcia_request_irq
  *
  * Request_irq() reserves an irq for this client.
- *
- * Also, since Linux only reserves irq's when they are actually
- * hooked, we don't guarantee that an irq will still be available
- * when the configuration is locked.  Now that I think about it,
- * there might be a way to fix this using a dummy handler.
  */
-
-#ifdef CONFIG_PCMCIA_PROBE
-static irqreturn_t test_action(int cpl, void *dev_id)
-{
-	return IRQ_NONE;
-}
-#endif
 
 int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c;
-	int ret = -EINVAL, irq = 0;
-	int type;
+	int ret = -EINVAL, irq = p_dev->irq_v;
+	int type = IRQF_SHARED;
 
 	mutex_lock(&s->ops_mutex);
 
@@ -736,63 +716,20 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		goto out;
 	}
 
-	/* Decide what type of interrupt we are registering */
-	type = 0;
-	if (s->functions > 1)		/* All of this ought to be handled higher up */
-		type = IRQF_SHARED;
-	else if (req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)
-		type = IRQF_SHARED;
-	else
-		printk(KERN_WARNING "pcmcia: Driver needs updating to support IRQ sharing.\n");
-
-	/* If the interrupt is already assigned, it must be the same */
-	if (s->irq.AssignedIRQ != 0)
-		irq = s->irq.AssignedIRQ;
-
-#ifdef CONFIG_PCMCIA_PROBE
 	if (!irq) {
-		int try;
-		u32 mask = s->irq_mask;
-		void *data = p_dev; /* something unique to this device */
-
-		for (try = 0; try < 64; try++) {
-			irq = try % 32;
-
-			/* marked as available by driver, and not blocked by userspace? */
-			if (!((mask >> irq) & 1))
-				continue;
-
-			/* avoid an IRQ which is already used by a PCMCIA card */
-			if ((try < 32) && pcmcia_used_irq[irq])
-				continue;
-
-			/* register the correct driver, if possible, of check whether
-			 * registering a dummy handle works, i.e. if the IRQ isn't
-			 * marked as used by the kernel resource management core */
-			ret = request_irq(irq,
-					  (req->Handler) ? req->Handler : test_action,
-					  type,
-					  p_dev->devname,
-					  (req->Handler) ? p_dev->priv : data);
-			if (!ret) {
-				if (!req->Handler)
-					free_irq(irq, data);
-				break;
-			}
-		}
-	}
-#endif
-	/* only assign PCI irq if no IRQ already assigned */
-	if (ret && !s->irq.AssignedIRQ) {
-		if (!s->pci_irq) {
-			dev_printk(KERN_INFO, &s->dev, "no IRQ found\n");
-			goto out;
-		}
-		type = IRQF_SHARED;
-		irq = s->pci_irq;
+		dev_dbg(&s->dev, "no IRQ available\n");
+		goto out;
 	}
 
-	if (ret && req->Handler) {
+	if (!(req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)) {
+		req->Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
+		dev_printk(KERN_WARNING, &p_dev->dev, "pcmcia: "
+			"request for exclusive IRQ could not be fulfilled.\n");
+		dev_printk(KERN_WARNING, &p_dev->dev, "pcmcia: the driver "
+			"needs updating to supported shared IRQ lines.\n");
+	}
+
+	if (req->Handler) {
 		ret = request_irq(irq, req->Handler, type,
 				  p_dev->devname, p_dev->priv);
 		if (ret) {
@@ -802,24 +739,12 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		}
 	}
 
-	/* Make sure the fact the request type was overridden is passed back */
-	if (type == IRQF_SHARED && !(req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)) {
-		req->Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
-		dev_printk(KERN_WARNING, &p_dev->dev, "pcmcia: "
-			"request for exclusive IRQ could not be fulfilled.\n");
-		dev_printk(KERN_WARNING, &p_dev->dev, "pcmcia: the driver "
-			"needs updating to supported shared IRQ lines.\n");
-	}
 	c->irq.Attributes = req->Attributes;
-	s->irq.AssignedIRQ = req->AssignedIRQ = irq;
+	req->AssignedIRQ = irq;
 	s->irq.Config++;
 
 	c->state |= CONFIG_IRQ_REQ;
 	p_dev->_irq = 1;
-
-#ifdef CONFIG_PCMCIA_PROBE
-	pcmcia_used_irq[irq]++;
-#endif
 
 	ret = 0;
 out:
@@ -827,6 +752,115 @@ out:
 	return ret;
 } /* pcmcia_request_irq */
 EXPORT_SYMBOL(pcmcia_request_irq);
+
+
+#ifdef CONFIG_PCMCIA_PROBE
+
+/* mask of IRQs already reserved by other cards, we should avoid using them */
+static u8 pcmcia_used_irq[NR_IRQS];
+
+static irqreturn_t test_action(int cpl, void *dev_id)
+{
+	return IRQ_NONE;
+}
+
+/**
+ * pcmcia_setup_isa_irq() - determine whether an ISA IRQ can be used
+ * @p_dev - the associated PCMCIA device
+ *
+ * locking note: must be called with ops_mutex locked.
+ */
+static int pcmcia_setup_isa_irq(struct pcmcia_device *p_dev, int type)
+{
+	struct pcmcia_socket *s = p_dev->socket;
+	unsigned int try, irq;
+	u32 mask = s->irq_mask;
+	int ret = -ENODEV;
+
+	for (try = 0; try < 64; try++) {
+		irq = try % 32;
+
+		/* marked as available by driver, not blocked by userspace? */
+		if (!((mask >> irq) & 1))
+			continue;
+
+		/* avoid an IRQ which is already used by another PCMCIA card */
+		if ((try < 32) && pcmcia_used_irq[irq])
+			continue;
+
+		/* register the correct driver, if possible, to check whether
+		 * registering a dummy handle works, i.e. if the IRQ isn't
+		 * marked as used by the kernel resource management core */
+		ret = request_irq(irq, test_action, type, p_dev->devname,
+				  p_dev);
+		if (!ret) {
+			free_irq(irq, p_dev);
+			p_dev->irq_v = s->irq.AssignedIRQ = irq;
+			pcmcia_used_irq[irq]++;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+void pcmcia_cleanup_irq(struct pcmcia_socket *s)
+{
+	pcmcia_used_irq[s->irq.AssignedIRQ]--;
+	s->irq.AssignedIRQ = 0;
+}
+
+#else /* CONFIG_PCMCIA_PROBE */
+
+static int pcmcia_setup_isa_irq(struct pcmcia_device *p_dev, int type)
+{
+	return -EINVAL;
+}
+
+void pcmcia_cleanup_irq(struct pcmcia_socket *s)
+{
+	s->irq.AssignedIRQ = 0;
+	return;
+}
+
+#endif  /* CONFIG_PCMCIA_PROBE */
+
+
+/**
+ * pcmcia_setup_irq() - determine IRQ to be used for device
+ * @p_dev - the associated PCMCIA device
+ *
+ * locking note: must be called with ops_mutex locked.
+ */
+int pcmcia_setup_irq(struct pcmcia_device *p_dev)
+{
+	struct pcmcia_socket *s = p_dev->socket;
+
+	if (p_dev->irq_v)
+		return 0;
+
+	/* already assigned? */
+	if (s->irq.AssignedIRQ) {
+		p_dev->irq_v = s->irq.AssignedIRQ;
+		return 0;
+	}
+
+	/* prefer an exclusive ISA irq */
+	if (!pcmcia_setup_isa_irq(p_dev, 0))
+		return 0;
+
+	/* but accept a shared ISA irq */
+	if (!pcmcia_setup_isa_irq(p_dev, IRQF_SHARED))
+		return 0;
+
+	/* but use the PCI irq otherwise */
+	if (s->pci_irq) {
+		p_dev->irq_v = s->irq.AssignedIRQ = s->pci_irq;
+		return 0;
+	}
+
+	return -EINVAL;
+}
 
 
 /** pcmcia_request_window
