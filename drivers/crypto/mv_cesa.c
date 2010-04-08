@@ -178,6 +178,7 @@ static void mv_process_current_q(int first_block)
 		op.config = CFG_OP_CRYPT_ONLY | CFG_ENCM_AES | CFG_ENC_MODE_ECB;
 		break;
 	case COP_AES_CBC:
+	default:
 		op.config = CFG_OP_CRYPT_ONLY | CFG_ENCM_AES | CFG_ENC_MODE_CBC;
 		op.enc_iv = ENC_IV_POINT(SRAM_DATA_IV) |
 			ENC_IV_BUF_POINT(SRAM_DATA_IV_BUF);
