@@ -2435,8 +2435,8 @@ config MV643XX_ETH
 
 config XILINX_LL_TEMAC
 	tristate "Xilinx LL TEMAC (LocalLink Tri-mode Ethernet MAC) driver"
-	depends on PPC || MICROBLAZE
 	select PHYLIB
+	depends on PPC_DCR_NATIVE
 	help
 	  This driver supports the Xilinx 10/100/1000 LocalLink TEMAC
 	  core used in Xilinx Spartan and Virtex FPGAs
