@@ -364,11 +364,11 @@ EXPORT_SYMBOL(sk_reset_txq);
 
 struct dst_entry *__sk_dst_check(struct sock *sk, u32 cookie)
 {
-	struct dst_entry *dst = sk->sk_dst_cache;
+	struct dst_entry *dst = __sk_dst_get(sk);
 
 	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
 		sk_tx_queue_clear(sk);
-		sk->sk_dst_cache = NULL;
+		rcu_assign_pointer(sk->sk_dst_cache, NULL);
 		dst_release(dst);
 		return NULL;
 	}
@@ -1157,7 +1157,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 		skb_queue_head_init(&newsk->sk_async_wait_queue);
 #endif
 
-		rwlock_init(&newsk->sk_dst_lock);
+		spin_lock_init(&newsk->sk_dst_lock);
 		rwlock_init(&newsk->sk_callback_lock);
 		lockdep_set_class_and_name(&newsk->sk_callback_lock,
 				af_callback_keys + newsk->sk_family,
@@ -1898,7 +1898,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	} else
 		sk->sk_sleep	=	NULL;
 
-	rwlock_init(&sk->sk_dst_lock);
+	spin_lock_init(&sk->sk_dst_lock);
 	rwlock_init(&sk->sk_callback_lock);
 	lockdep_set_class_and_name(&sk->sk_callback_lock,
 			af_callback_keys + sk->sk_family,

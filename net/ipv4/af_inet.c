@@ -154,7 +154,7 @@ void inet_sock_destruct(struct sock *sk)
 	WARN_ON(sk->sk_forward_alloc);
 
 	kfree(inet->opt);
-	dst_release(sk->sk_dst_cache);
+	dst_release(rcu_dereference_check(sk->sk_dst_cache, 1));
 	sk_refcnt_debug_dec(sk);
 }
 EXPORT_SYMBOL(inet_sock_destruct);
