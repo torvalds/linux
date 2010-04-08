@@ -2083,6 +2083,17 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 	list_for_each_entry_safe(bf, bf0, &txq->q, list) {
 		ds = bf->desc;
 
+		/*
+		 * It's possible that the hardware can say the buffer is
+		 * completed when it hasn't yet loaded the ds_link from
+		 * host memory and moved on.  If there are more TX
+		 * descriptors in the queue, wait for TXDP to change
+		 * before processing this one.
+		 */
+		if (ath5k_hw_get_txdp(sc->ah, txq->qnum) == bf->daddr &&
+		    !list_is_last(&bf->list, &txq->q))
+			break;
+
 		ret = sc->ah->ah_proc_tx_desc(sc->ah, ds, &ts);
 		if (unlikely(ret == -EINPROGRESS))
 			break;
