@@ -37,6 +37,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h> /* for seq_printf */
+#include <linux/slab.h>
 
 #include <asm/atomic.h>
 #include <asm/agp.h>
