@@ -934,7 +934,8 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 	}
 
 	if (npiv) {
-		FCOE_NETDEV_DBG(netdev, "Setting vport names, 0x%llX 0x%llX\n",
+		FCOE_NETDEV_DBG(netdev, "Setting vport names, "
+				"%16.16llx %16.16llx\n",
 				vport->node_name, vport->port_name);
 		fc_set_wwnn(lport, vport->node_name);
 		fc_set_wwpn(lport, vport->port_name);

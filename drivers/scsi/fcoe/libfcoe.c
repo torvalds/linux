@@ -583,7 +583,7 @@ static void fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 					    smp_processor_id());
 			stats->MissDiscAdvCount++;
 			printk(KERN_INFO "libfcoe: host%d: Missing Discovery "
-			       "Advertisement for fab %llx count %lld\n",
+			       "Advertisement for fab %16.16llx count %lld\n",
 			       fip->lp->host->host_no, fcf->fabric_name,
 			       stats->MissDiscAdvCount);
 		}
@@ -780,7 +780,8 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	mtu_valid = fcoe_ctlr_mtu_valid(fcf);
 	fcf->time = jiffies;
 	if (!found) {
-		LIBFCOE_FIP_DBG(fip, "New FCF for fab %llx map %x val %d\n",
+		LIBFCOE_FIP_DBG(fip, "New FCF for fab %16.16llx "
+				"map %x val %d\n",
 				fcf->fabric_name, fcf->fc_map, mtu_valid);
 	}
 
@@ -1108,15 +1109,17 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 	struct fcoe_fcf *best = NULL;
 
 	list_for_each_entry(fcf, &fip->fcfs, list) {
-		LIBFCOE_FIP_DBG(fip, "consider FCF for fab %llx VFID %d map %x "
-				"val %d\n", fcf->fabric_name, fcf->vfid,
+		LIBFCOE_FIP_DBG(fip, "consider FCF for fab %16.16llx "
+				"VFID %d map %x val %d\n",
+				fcf->fabric_name, fcf->vfid,
 				fcf->fc_map, fcoe_ctlr_mtu_valid(fcf));
 		if (!fcoe_ctlr_fcf_usable(fcf)) {
-			LIBFCOE_FIP_DBG(fip, "FCF for fab %llx map %x %svalid "
-					"%savailable\n", fcf->fabric_name,
-					fcf->fc_map, (fcf->flags & FIP_FL_SOL)
-					? "" : "in", (fcf->flags & FIP_FL_AVAIL)
-					? "" : "un");
+			LIBFCOE_FIP_DBG(fip, "FCF for fab %16.16llx "
+					"map %x %svalid %savailable\n",
+					fcf->fabric_name, fcf->fc_map,
+					(fcf->flags & FIP_FL_SOL) ? "" : "in",
+					(fcf->flags & FIP_FL_AVAIL) ?
+					"" : "un");
 			continue;
 		}
 		if (!best) {
