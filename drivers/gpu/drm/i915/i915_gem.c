@@ -4424,37 +4424,38 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 					      size_t size)
 {
-	return drm_gem_object_alloc(dev, size);
+	struct drm_i915_gem_object *obj;
+
+	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	if (obj == NULL)
+		return NULL;
+
+	if (drm_gem_object_init(dev, &obj->base, size) != 0) {
+		kfree(obj);
+		return NULL;
+	}
+
+	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+
+	obj->agp_type = AGP_USER_MEMORY;
+
+	obj->base.driver_private = obj;
+	obj->obj = &obj->base;
+	obj->fence_reg = I915_FENCE_REG_NONE;
+	INIT_LIST_HEAD(&obj->list);
+	INIT_LIST_HEAD(&obj->gpu_write_list);
+	INIT_LIST_HEAD(&obj->fence_list);
+	obj->madv = I915_MADV_WILLNEED;
+
+	trace_i915_gem_object_create(&obj->base);
+
+	return &obj->base;
 }
 
 int i915_gem_init_object(struct drm_gem_object *obj)
 {
-	struct drm_i915_gem_object *obj_priv;
-
-	obj_priv = kzalloc(sizeof(*obj_priv), GFP_KERNEL);
-	if (obj_priv == NULL)
-		return -ENOMEM;
-
-	/*
-	 * We've just allocated pages from the kernel,
-	 * so they've just been written by the CPU with
-	 * zeros. They'll need to be clflushed before we
-	 * use them with the GPU.
-	 */
-	obj->write_domain = I915_GEM_DOMAIN_CPU;
-	obj->read_domains = I915_GEM_DOMAIN_CPU;
-
-	obj_priv->agp_type = AGP_USER_MEMORY;
-
-	obj->driver_private = obj_priv;
-	obj_priv->obj = obj;
-	obj_priv->fence_reg = I915_FENCE_REG_NONE;
-	INIT_LIST_HEAD(&obj_priv->list);
-	INIT_LIST_HEAD(&obj_priv->gpu_write_list);
-	INIT_LIST_HEAD(&obj_priv->fence_list);
-	obj_priv->madv = I915_MADV_WILLNEED;
-
-	trace_i915_gem_object_create(obj);
+	BUG();
 
 	return 0;
 }
@@ -4477,12 +4478,11 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 	if (obj_priv->mmap_offset)
 		i915_gem_free_mmap_offset(obj);
 
+	drm_gem_object_release(obj);
+
 	kfree(obj_priv->page_cpu_valid);
 	kfree(obj_priv->bit_17);
-	kfree(obj->driver_private);
-
-	drm_gem_object_release(obj);
-	kfree(obj);
+	kfree(obj_priv);
 }
 
 /** Unbinds all inactive objects. */

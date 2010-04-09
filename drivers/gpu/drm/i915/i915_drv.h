@@ -647,6 +647,7 @@ typedef struct drm_i915_private {
 
 /** driver private structure attached to each drm_gem_object */
 struct drm_i915_gem_object {
+	struct drm_gem_object base;
 	struct drm_gem_object *obj;
 
 	/** Current space allocated to this object in the GTT, if any. */
