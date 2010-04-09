@@ -79,7 +79,7 @@ MODULE_FIRMWARE("radeon/REDWOOD_rlc.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_pfp.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_me.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_rlc.bin");
-MODULE_FIRMWARE("radeon/CYRPESS_pfp.bin");
+MODULE_FIRMWARE("radeon/CYPRESS_pfp.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_me.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_rlc.bin");
 
