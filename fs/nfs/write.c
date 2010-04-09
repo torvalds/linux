@@ -781,7 +781,6 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 		int how)
 {
 	struct inode *inode = req->wb_context->path.dentry->d_inode;
-	int flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
 	int priority = flush_task_priority(how);
 	struct rpc_task *task;
 	struct rpc_message msg = {
@@ -796,9 +795,10 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 		.callback_ops = call_ops,
 		.callback_data = data,
 		.workqueue = nfsiod_workqueue,
-		.flags = flags,
+		.flags = RPC_TASK_ASYNC,
 		.priority = priority,
 	};
+	int ret = 0;
 
 	/* Set up the RPC argument and reply structs
 	 * NB: take care not to mess about with data->commit et al. */
@@ -837,10 +837,18 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 		(unsigned long long)data->args.offset);
 
 	task = rpc_run_task(&task_setup_data);
-	if (IS_ERR(task))
-		return PTR_ERR(task);
+	if (IS_ERR(task)) {
+		ret = PTR_ERR(task);
+		goto out;
+	}
+	if (how & FLUSH_SYNC) {
+		ret = rpc_wait_for_completion_task(task);
+		if (ret == 0)
+			ret = task->tk_status;
+	}
 	rpc_put_task(task);
-	return 0;
+out:
+	return ret;
 }
 
 /* If a nfs_flush_* function fails, it should remove reqs from @head and
@@ -1210,7 +1218,6 @@ static int nfs_commit_rpcsetup(struct list_head *head,
 {
 	struct nfs_page *first = nfs_list_entry(head->next);
 	struct inode *inode = first->wb_context->path.dentry->d_inode;
-	int flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
 	int priority = flush_task_priority(how);
 	struct rpc_task *task;
 	struct rpc_message msg = {
@@ -1225,7 +1232,7 @@ static int nfs_commit_rpcsetup(struct list_head *head,
 		.callback_ops = &nfs_commit_ops,
 		.callback_data = data,
 		.workqueue = nfsiod_workqueue,
-		.flags = flags,
+		.flags = RPC_TASK_ASYNC,
 		.priority = priority,
 	};
 
@@ -1255,6 +1262,8 @@ static int nfs_commit_rpcsetup(struct list_head *head,
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
+	if (how & FLUSH_SYNC)
+		rpc_wait_for_completion_task(task);
 	rpc_put_task(task);
 	return 0;
 }
