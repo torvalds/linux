@@ -26,7 +26,7 @@
 
 #include "gpio-names.h"
 
-/*static struct resource sdhci_resource1[] = {
+static struct resource sdhci_resource1[] = {
 	[0] = {
 		.start  = INT_SDMMC1,
 		.end    = INT_SDMMC1,
@@ -37,9 +37,9 @@
 		.end	= TEGRA_SDMMC1_BASE + TEGRA_SDMMC1_SIZE-1,
 		.flags	= IORESOURCE_MEM,
 	},
-};*/
+};
 
-/*static struct resource sdhci_resource2[] = {
+static struct resource sdhci_resource2[] = {
 	[0] = {
 		.start  = INT_SDMMC2,
 		.end    = INT_SDMMC2,
@@ -50,7 +50,7 @@
 		.end	= TEGRA_SDMMC2_BASE + TEGRA_SDMMC2_SIZE-1,
 		.flags	= IORESOURCE_MEM,
 	},
-};*/
+};
 
 static struct resource sdhci_resource3[] = {
 	[0] = {
@@ -78,18 +78,18 @@ static struct resource sdhci_resource4[] = {
 	},
 };
 
-/*static struct tegra_sdhci_platform_data tegra_sdhci_platform_data1 = {
+static struct tegra_sdhci_platform_data tegra_sdhci_platform_data1 = {
 	.clk_id = NULL,
 	.force_hs = 0,
-};*/
-
-/*static struct tegra_sdhci_platform_data tegra_sdhci_platform_data2 = {
-	.clk_id = NULL,
-	.force_hs = 1,
 	.cd_gpio = TEGRA_GPIO_PI5,
 	.wp_gpio = TEGRA_GPIO_PH1,
 	.power_gpio = TEGRA_GPIO_PT3,
-};*/
+};
+
+static struct tegra_sdhci_platform_data tegra_sdhci_platform_data2 = {
+	.clk_id = NULL,
+	.force_hs = 0,
+};
 
 static struct tegra_sdhci_platform_data tegra_sdhci_platform_data3 = {
 	.clk_id = NULL,
@@ -99,12 +99,9 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data3 = {
 static struct tegra_sdhci_platform_data tegra_sdhci_platform_data4 = {
 	.clk_id = NULL,
 	.force_hs = 0,
-	.cd_gpio = TEGRA_GPIO_PH2,
-	.wp_gpio = TEGRA_GPIO_PH3,
-	.power_gpio = TEGRA_GPIO_PI6,
 };
 
-/*static struct platform_device tegra_sdhci_device1 = {
+static struct platform_device tegra_sdhci_device1 = {
 	.name		= "sdhci-tegra",
 	.id		= 0,
 	.resource	= sdhci_resource1,
@@ -112,9 +109,9 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data4 = {
 	.dev = {
 		.platform_data = &tegra_sdhci_platform_data1,
 	},
-};*/
+};
 
-/*static struct platform_device tegra_sdhci_device2 = {
+static struct platform_device tegra_sdhci_device2 = {
 	.name		= "sdhci-tegra",
 	.id		= 1,
 	.resource	= sdhci_resource2,
@@ -122,7 +119,7 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data4 = {
 	.dev = {
 		.platform_data = &tegra_sdhci_platform_data2,
 	},
-};*/
+};
 
 static struct platform_device tegra_sdhci_device3 = {
 	.name		= "sdhci-tegra",
@@ -151,35 +148,8 @@ static int __init olympus_init_sdhci(void)
 	if (!machine_is_olympus())
 		return 0;
 
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_SDB, TEGRA_TRI_NORMAL);
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_SDC, TEGRA_TRI_NORMAL);
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_SDD, TEGRA_TRI_NORMAL);
-
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_ATB, TEGRA_TRI_NORMAL);
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_GMA, TEGRA_TRI_NORMAL);
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_GME, TEGRA_TRI_NORMAL);
-
-	/*gpio_request(tegra_sdhci_platform_data2.power_gpio, "sdhci2_power");
-	gpio_request(tegra_sdhci_platform_data2.cd_gpio, "sdhci2_cd");
-	gpio_request(tegra_sdhci_platform_data2.wp_gpio, "sdhci2_wp");
-
-	tegra_gpio_enable(tegra_sdhci_platform_data2.power_gpio);
-	tegra_gpio_enable(tegra_sdhci_platform_data2.cd_gpio);
-	tegra_gpio_enable(tegra_sdhci_platform_data2.wp_gpio);
-
-	gpio_request(tegra_sdhci_platform_data4.power_gpio, "sdhci4_power");
-	gpio_request(tegra_sdhci_platform_data4.cd_gpio, "sdhci4_cd");
-	gpio_request(tegra_sdhci_platform_data4.wp_gpio, "sdhci4_wp");
-
-	tegra_gpio_enable(tegra_sdhci_platform_data4.power_gpio);
-	tegra_gpio_enable(tegra_sdhci_platform_data4.cd_gpio);
-	tegra_gpio_enable(tegra_sdhci_platform_data4.wp_gpio);
-
-	gpio_direction_output(tegra_sdhci_platform_data2.power_gpio, 1);
-	gpio_direction_output(tegra_sdhci_platform_data4.power_gpio, 1);*/
-
-	/*ret = platform_device_register(&tegra_sdhci_device1);*/
-	/*ret = platform_device_register(&tegra_sdhci_device2);*/
+	ret = platform_device_register(&tegra_sdhci_device1);
+	ret = platform_device_register(&tegra_sdhci_device2);
 	ret = platform_device_register(&tegra_sdhci_device3);
 	ret = platform_device_register(&tegra_sdhci_device4);
 	if (ret != 0)
