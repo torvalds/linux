@@ -52,6 +52,7 @@
 #include <linux/smp_lock.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <linux/vmalloc.h>
 #include <linux/usb.h>
@@ -81,7 +82,6 @@
 #define S2255_DEF_BUFS          16
 #define S2255_SETMODE_TIMEOUT   500
 #define S2255_VIDSTATUS_TIMEOUT 350
-#define MAX_CHANNELS		4
 #define S2255_MARKER_FRAME	cpu_to_le32(0x2255DA4AL)
 #define S2255_MARKER_RESPONSE	cpu_to_le32(0x2255ACACL)
 #define S2255_RESPONSE_SETMODE  cpu_to_le32(0x01)
@@ -229,6 +229,8 @@ struct s2255_fmt; /*forward declaration */
 
 struct s2255_dev {
 	struct video_device	vdev[MAX_CHANNELS];
+	struct v4l2_device 	v4l2_dev[MAX_CHANNELS];
+	int                     channels; /* number of channels registered */
 	int			frames;
 	struct mutex		lock;
 	struct mutex		open_lock;
@@ -1710,7 +1712,8 @@ static int s2255_open(struct file *file)
 	int state;
 	dprintk(1, "s2255: open called (dev=%s)\n",
 		video_device_node_name(vdev));
-	for (i = 0; i < MAX_CHANNELS; i++)
+
+	for (i = 0; i < dev->channels; i++)
 		if (&dev->vdev[i] == vdev) {
 			cur_channel = i;
 			break;
@@ -1944,7 +1947,11 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 	int ret;
 	int i;
 	int cur_nr = video_nr;
-
+	for (i = 0; i < MAX_CHANNELS; i++) {
+		ret = v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev[i]);
+		if (ret)
+			goto unreg_v4l2;
+	}
 	/* initialize all video 4 linux */
 	/* register 4 video devices */
 	for (i = 0; i < MAX_CHANNELS; i++) {
@@ -1963,16 +1970,29 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 						    VFL_TYPE_GRABBER,
 						    cur_nr + i);
 		video_set_drvdata(&dev->vdev[i], dev);
-
-		if (ret != 0) {
+		if (ret) {
 			dev_err(&dev->udev->dev,
 				"failed to register video device!\n");
-			return ret;
+			break;
 		}
+		dev->channels++;
+		v4l2_info(&dev->v4l2_dev[i], "V4L2 device registered as %s\n",
+			  video_device_node_name(&dev->vdev[i]));
+
 	}
+
 	printk(KERN_INFO "Sensoray 2255 V4L driver Revision: %d.%d\n",
 	       S2255_MAJOR_VERSION,
 	       S2255_MINOR_VERSION);
+	/* if no channels registered, return error and probe will fail*/
+	if (dev->channels == 0)
+		return ret;
+	if (dev->channels != MAX_CHANNELS)
+		printk(KERN_WARNING "s2255: Not all channels available.\n");
+	return 0;
+unreg_v4l2:
+	for (i-- ; i > 0; i--)
+		v4l2_device_unregister(&dev->v4l2_dev[i]);
 	return ret;
 }
 
@@ -2637,13 +2657,9 @@ static int s2255_probe(struct usb_interface *interface,
 	/* loads v4l specific */
 	retval = s2255_probe_v4l(dev);
 	if (retval)
-		goto errorV4L;
+		goto errorBOARDINIT;
 	dev_info(&interface->dev, "Sensoray 2255 detected\n");
 	return 0;
-errorV4L:
-	for (i = 0; i < MAX_CHANNELS; i++)
-		if (video_is_registered(&dev->vdev[i]))
-			video_unregister_device(&dev->vdev[i]);
 errorBOARDINIT:
 	s2255_board_shutdown(dev);
 errorFWMARKER:
