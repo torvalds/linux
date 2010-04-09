@@ -131,7 +131,7 @@ static int p54p_upload_firmware(struct ieee80211_hw *dev)
 
 static void p54p_refill_rx_ring(struct ieee80211_hw *dev,
 	int ring_index, struct p54p_desc *ring, u32 ring_limit,
-	struct sk_buff **rx_buf)
+	struct sk_buff **rx_buf, u32 index)
 {
 	struct p54p_priv *priv = dev->priv;
 	struct p54p_ring_control *ring_control = priv->ring_control;
@@ -139,7 +139,7 @@ static void p54p_refill_rx_ring(struct ieee80211_hw *dev,
 
 	idx = le32_to_cpu(ring_control->host_idx[ring_index]);
 	limit = idx;
-	limit -= le32_to_cpu(ring_control->device_idx[ring_index]);
+	limit -= le32_to_cpu(index);
 	limit = ring_limit - limit;
 
 	i = idx % ring_limit;
@@ -231,7 +231,7 @@ static void p54p_check_rx_ring(struct ieee80211_hw *dev, u32 *index,
 		i %= ring_limit;
 	}
 
-	p54p_refill_rx_ring(dev, ring_index, ring, ring_limit, rx_buf);
+	p54p_refill_rx_ring(dev, ring_index, ring, ring_limit, rx_buf, *index);
 }
 
 static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
@@ -276,14 +276,6 @@ static void p54p_tasklet(unsigned long dev_id)
 	struct p54p_priv *priv = dev->priv;
 	struct p54p_ring_control *ring_control = priv->ring_control;
 
-	p54p_check_tx_ring(dev, &priv->tx_idx_mgmt, 3, ring_control->tx_mgmt,
-			   ARRAY_SIZE(ring_control->tx_mgmt),
-			   priv->tx_buf_mgmt);
-
-	p54p_check_tx_ring(dev, &priv->tx_idx_data, 1, ring_control->tx_data,
-			   ARRAY_SIZE(ring_control->tx_data),
-			   priv->tx_buf_data);
-
 	p54p_check_rx_ring(dev, &priv->rx_idx_mgmt, 2, ring_control->rx_mgmt,
 		ARRAY_SIZE(ring_control->rx_mgmt), priv->rx_buf_mgmt);
 
@@ -292,6 +284,14 @@ static void p54p_tasklet(unsigned long dev_id)
 
 	wmb();
 	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_UPDATE));
+
+	p54p_check_tx_ring(dev, &priv->tx_idx_mgmt, 3, ring_control->tx_mgmt,
+			   ARRAY_SIZE(ring_control->tx_mgmt),
+			   priv->tx_buf_mgmt);
+
+	p54p_check_tx_ring(dev, &priv->tx_idx_data, 1, ring_control->tx_data,
+			   ARRAY_SIZE(ring_control->tx_data),
+			   priv->tx_buf_data);
 }
 
 static irqreturn_t p54p_interrupt(int irq, void *dev_id)
@@ -444,10 +444,10 @@ static int p54p_open(struct ieee80211_hw *dev)
 	priv->rx_idx_mgmt = priv->tx_idx_mgmt = 0;
 
 	p54p_refill_rx_ring(dev, 0, priv->ring_control->rx_data,
-		ARRAY_SIZE(priv->ring_control->rx_data), priv->rx_buf_data);
+		ARRAY_SIZE(priv->ring_control->rx_data), priv->rx_buf_data, 0);
 
 	p54p_refill_rx_ring(dev, 2, priv->ring_control->rx_mgmt,
-		ARRAY_SIZE(priv->ring_control->rx_mgmt), priv->rx_buf_mgmt);
+		ARRAY_SIZE(priv->ring_control->rx_mgmt), priv->rx_buf_mgmt, 0);
 
 	P54P_WRITE(ring_control_base, cpu_to_le32(priv->ring_control_dma));
 	P54P_READ(ring_control_base);
