@@ -1093,6 +1093,14 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 		wl->tx_blocks_freed[i] = 0;
 
 	wl1271_debugfs_reset(wl);
+
+	kfree(wl->fw_status);
+	wl->fw_status = NULL;
+	kfree(wl->tx_res_if);
+	wl->tx_res_if = NULL;
+	kfree(wl->target_mem_map);
+	wl->target_mem_map = NULL;
+
 	mutex_unlock(&wl->mutex);
 }
 
@@ -2387,7 +2395,6 @@ int wl1271_free_hw(struct wl1271 *wl)
 
 	wl1271_debugfs_exit(wl);
 
-	kfree(wl->target_mem_map);
 	vfree(wl->fw);
 	wl->fw = NULL;
 	kfree(wl->nvs);
