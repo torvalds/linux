@@ -959,7 +959,9 @@ static int bcm_enet_open(struct net_device *dev)
 	/* all set, enable mac and interrupts, start dma engine and
 	 * kick rx dma channel */
 	wmb();
-	enet_writel(priv, ENET_CTL_ENABLE_MASK, ENET_CTL_REG);
+	val = enet_readl(priv, ENET_CTL_REG);
+	val |= ENET_CTL_ENABLE_MASK;
+	enet_writel(priv, val, ENET_CTL_REG);
 	enet_dma_writel(priv, ENETDMA_CFG_EN_MASK, ENETDMA_CFG_REG);
 	enet_dma_writel(priv, ENETDMA_CHANCFG_EN_MASK,
 			ENETDMA_CHANCFG_REG(priv->rx_chan));
