@@ -82,7 +82,8 @@ asm(
 	"	lm	6,15,24(15)\n"
 #endif
 	"	br	14\n"
-	"	.size	savesys_ipl_nss, .-savesys_ipl_nss\n");
+	"	.size	savesys_ipl_nss, .-savesys_ipl_nss\n"
+	"	.previous\n");
 
 static __initdata char upper_command_line[COMMAND_LINE_SIZE];
 
