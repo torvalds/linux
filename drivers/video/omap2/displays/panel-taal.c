@@ -696,16 +696,32 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	if (id2 == 0x00 || id2 == 0xff || id2 == 0x81)
 		td->cabc_broken = true;
 
-	taal_dcs_write_1(DCS_BRIGHTNESS, 0xff);
-	taal_dcs_write_1(DCS_CTRL_DISPLAY, (1<<2) | (1<<5)); /* BL | BCTRL */
+	r = taal_dcs_write_1(DCS_BRIGHTNESS, 0xff);
+	if (r)
+		goto err;
 
-	taal_dcs_write_1(DCS_PIXEL_FORMAT, 0x7); /* 24bit/pixel */
+	r = taal_dcs_write_1(DCS_CTRL_DISPLAY,
+			(1<<2) | (1<<5));	/* BL | BCTRL */
+	if (r)
+		goto err;
 
-	taal_set_addr_mode(td->rotate, td->mirror);
-	if (!td->cabc_broken)
-		taal_dcs_write_1(DCS_WRITE_CABC, td->cabc_mode);
+	r = taal_dcs_write_1(DCS_PIXEL_FORMAT, 0x7); /* 24bit/pixel */
+	if (r)
+		goto err;
 
-	taal_dcs_write_0(DCS_DISPLAY_ON);
+	r = taal_set_addr_mode(td->rotate, td->mirror);
+	if (r)
+		goto err;
+
+	if (!td->cabc_broken) {
+		r = taal_dcs_write_1(DCS_WRITE_CABC, td->cabc_mode);
+		if (r)
+			goto err;
+	}
+
+	r = taal_dcs_write_0(DCS_DISPLAY_ON);
+	if (r)
+		goto err;
 
 	r = _taal_enable_te(dssdev, td->te_enabled);
 	if (r)
