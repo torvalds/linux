@@ -4809,6 +4809,25 @@ static void alc880_auto_init_analog_input(struct hda_codec *codec)
 	}
 }
 
+static void alc880_auto_init_input_src(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int c;
+
+	for (c = 0; c < spec->num_adc_nids; c++) {
+		unsigned int mux_idx;
+		const struct hda_input_mux *imux;
+		mux_idx = c >= spec->num_mux_defs ? 0 : c;
+		imux = &spec->input_mux[mux_idx];
+		if (!imux->num_items && mux_idx > 0)
+			imux = &spec->input_mux[0];
+		if (imux)
+			snd_hda_codec_write(codec, spec->adc_nids[c], 0,
+					    AC_VERB_SET_CONNECT_SEL,
+					    imux->items[0].index);
+	}
+}
+
 /* parse the BIOS configuration and set up the alc_spec */
 /* return 1 if successful, 0 if the proper config is not found,
  * or a negative error code
@@ -4887,6 +4906,7 @@ static void alc880_auto_init(struct hda_codec *codec)
 	alc880_auto_init_multi_out(codec);
 	alc880_auto_init_extra_out(codec);
 	alc880_auto_init_analog_input(codec);
+	alc880_auto_init_input_src(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
 }
@@ -6398,6 +6418,8 @@ static void alc260_auto_init_analog_input(struct hda_codec *codec)
 	}
 }
 
+#define alc260_auto_init_input_src	alc880_auto_init_input_src
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -6484,6 +6506,7 @@ static void alc260_auto_init(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	alc260_auto_init_multi_out(codec);
 	alc260_auto_init_analog_input(codec);
+	alc260_auto_init_input_src(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
 }
