@@ -3306,6 +3306,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
 		if (pipe == 1)
 			lvds |= LVDS_PIPEB_SELECT;
+		else
+			lvds &= ~LVDS_PIPEB_SELECT;
 		/* set the corresponsding LVDS_BORDER bit */
 		lvds |= dev_priv->lvds_border_bits;
 		/* Set the B0-B3 data pairs corresponding to whether we're going to
