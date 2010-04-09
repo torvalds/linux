@@ -2148,8 +2148,7 @@ int fcoe_link_ok(struct fc_lport *lport)
 	struct net_device *netdev = port->fcoe->netdev;
 	struct ethtool_cmd ecmd = { ETHTOOL_GSET };
 
-	if ((netdev->flags & IFF_UP) && netif_carrier_ok(netdev) &&
-	    (!dev_ethtool_get_settings(netdev, &ecmd))) {
+	if (netif_oper_up(netdev) && !dev_ethtool_get_settings(netdev, &ecmd)) {
 		lport->link_supported_speeds &=
 			~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
 		if (ecmd.supported & (SUPPORTED_1000baseT_Half |
