@@ -11,7 +11,7 @@ config VIDEO_IR
 source "drivers/media/IR/keymaps/Kconfig"
 
 config IR_NEC_DECODER
-	tristate "Enable IR raw decoder for NEC protocol"
+	tristate "Enable IR raw decoder for the NEC protocol"
 	depends on IR_CORE
 	default y
 
@@ -20,7 +20,7 @@ config IR_NEC_DECODER
 	   if the IR is decoded in software
 
 config IR_RC5_DECODER
-	tristate "Enable IR raw decoder for RC-5 protocol"
+	tristate "Enable IR raw decoder for the RC-5 protocol"
 	depends on IR_CORE
 	default y
 
