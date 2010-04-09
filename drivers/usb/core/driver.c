@@ -301,7 +301,7 @@ static int usb_probe_interface(struct device *dev)
 
 	intf->condition = USB_INTERFACE_BINDING;
 
-	/* Bound interfaces are initially active.  They are
+	/* Probed interfaces are initially active.  They are
 	 * runtime-PM-enabled only if the driver has autosuspend support.
 	 * They are sensitive to their children's power states.
 	 */
@@ -437,11 +437,11 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 
 	iface->condition = USB_INTERFACE_BOUND;
 
-	/* Bound interfaces are initially active.  They are
+	/* Claimed interfaces are initially inactive (suspended).  They are
 	 * runtime-PM-enabled only if the driver has autosuspend support.
 	 * They are sensitive to their children's power states.
 	 */
-	pm_runtime_set_active(dev);
+	pm_runtime_set_suspended(dev);
 	pm_suspend_ignore_children(dev, false);
 	if (driver->supports_autosuspend)
 		pm_runtime_enable(dev);
@@ -1170,7 +1170,7 @@ done:
 static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 {
 	int			status = 0;
-	int			i = 0;
+	int			i = 0, n = 0;
 	struct usb_interface	*intf;
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
@@ -1179,7 +1179,8 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 
 	/* Suspend all the interfaces and then udev itself */
 	if (udev->actconfig) {
-		for (; i < udev->actconfig->desc.bNumInterfaces; i++) {
+		n = udev->actconfig->desc.bNumInterfaces;
+		for (i = n - 1; i >= 0; --i) {
 			intf = udev->actconfig->interface[i];
 			status = usb_suspend_interface(udev, intf, msg);
 			if (status != 0)
@@ -1192,7 +1193,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	/* If the suspend failed, resume interfaces that did get suspended */
 	if (status != 0) {
 		msg.event ^= (PM_EVENT_SUSPEND | PM_EVENT_RESUME);
-		while (--i >= 0) {
+		while (++i < n) {
 			intf = udev->actconfig->interface[i];
 			usb_resume_interface(udev, intf, msg, 0);
 		}
