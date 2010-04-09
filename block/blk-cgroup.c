@@ -81,6 +81,71 @@ static void blkio_add_stat(uint64_t *stat, uint64_t add, bool direction,
 		stat[BLKIO_STAT_ASYNC] += add;
 }
 
+/*
+ * Decrements the appropriate stat variable if non-zero depending on the
+ * request type. Panics on value being zero.
+ * This should be called with the blkg->stats_lock held.
+ */
+static void blkio_check_and_dec_stat(uint64_t *stat, bool direction, bool sync)
+{
+	if (direction) {
+		BUG_ON(stat[BLKIO_STAT_WRITE] == 0);
+		stat[BLKIO_STAT_WRITE]--;
+	} else {
+		BUG_ON(stat[BLKIO_STAT_READ] == 0);
+		stat[BLKIO_STAT_READ]--;
+	}
+	if (sync) {
+		BUG_ON(stat[BLKIO_STAT_SYNC] == 0);
+		stat[BLKIO_STAT_SYNC]--;
+	} else {
+		BUG_ON(stat[BLKIO_STAT_ASYNC] == 0);
+		stat[BLKIO_STAT_ASYNC]--;
+	}
+}
+
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+void blkiocg_update_set_active_queue_stats(struct blkio_group *blkg)
+{
+	unsigned long flags;
+	struct blkio_group_stats *stats;
+
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	stats = &blkg->stats;
+	stats->avg_queue_size_sum +=
+			stats->stat_arr[BLKIO_STAT_QUEUED][BLKIO_STAT_READ] +
+			stats->stat_arr[BLKIO_STAT_QUEUED][BLKIO_STAT_WRITE];
+	stats->avg_queue_size_samples++;
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
+}
+EXPORT_SYMBOL_GPL(blkiocg_update_set_active_queue_stats);
+#endif
+
+void blkiocg_update_request_add_stats(struct blkio_group *blkg,
+			struct blkio_group *curr_blkg, bool direction,
+			bool sync)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	blkio_add_stat(blkg->stats.stat_arr[BLKIO_STAT_QUEUED], 1, direction,
+			sync);
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
+}
+EXPORT_SYMBOL_GPL(blkiocg_update_request_add_stats);
+
+void blkiocg_update_request_remove_stats(struct blkio_group *blkg,
+						bool direction, bool sync)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	blkio_check_and_dec_stat(blkg->stats.stat_arr[BLKIO_STAT_QUEUED],
+					direction, sync);
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
+}
+EXPORT_SYMBOL_GPL(blkiocg_update_request_remove_stats);
+
 void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time)
 {
 	unsigned long flags;
@@ -253,14 +318,18 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 	struct blkio_cgroup *blkcg;
 	struct blkio_group *blkg;
 	struct hlist_node *n;
-	struct blkio_group_stats *stats;
+	uint64_t queued[BLKIO_STAT_TOTAL];
+	int i;
 
 	blkcg = cgroup_to_blkio_cgroup(cgroup);
 	spin_lock_irq(&blkcg->lock);
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
 		spin_lock(&blkg->stats_lock);
-		stats = &blkg->stats;
-		memset(stats, 0, sizeof(struct blkio_group_stats));
+		for (i = 0; i < BLKIO_STAT_TOTAL; i++)
+			queued[i] = blkg->stats.stat_arr[BLKIO_STAT_QUEUED][i];
+		memset(&blkg->stats, 0, sizeof(struct blkio_group_stats));
+		for (i = 0; i < BLKIO_STAT_TOTAL; i++)
+			blkg->stats.stat_arr[BLKIO_STAT_QUEUED][i] = queued[i];
 		spin_unlock(&blkg->stats_lock);
 	}
 	spin_unlock_irq(&blkcg->lock);
@@ -323,6 +392,15 @@ static uint64_t blkio_get_stat(struct blkio_group *blkg,
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
 					blkg->stats.sectors, cb, dev);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+	if (type == BLKIO_STAT_AVG_QUEUE_SIZE) {
+		uint64_t sum = blkg->stats.avg_queue_size_sum;
+		uint64_t samples = blkg->stats.avg_queue_size_samples;
+		if (samples)
+			do_div(sum, samples);
+		else
+			sum = 0;
+		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1, sum, cb, dev);
+	}
 	if (type == BLKIO_STAT_DEQUEUE)
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
 					blkg->stats.dequeue, cb, dev);
@@ -376,8 +454,10 @@ SHOW_FUNCTION_PER_GROUP(io_serviced, BLKIO_STAT_SERVICED, 1);
 SHOW_FUNCTION_PER_GROUP(io_service_time, BLKIO_STAT_SERVICE_TIME, 1);
 SHOW_FUNCTION_PER_GROUP(io_wait_time, BLKIO_STAT_WAIT_TIME, 1);
 SHOW_FUNCTION_PER_GROUP(io_merged, BLKIO_STAT_MERGED, 1);
+SHOW_FUNCTION_PER_GROUP(io_queued, BLKIO_STAT_QUEUED, 1);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 SHOW_FUNCTION_PER_GROUP(dequeue, BLKIO_STAT_DEQUEUE, 0);
+SHOW_FUNCTION_PER_GROUP(avg_queue_size, BLKIO_STAT_AVG_QUEUE_SIZE, 0);
 #endif
 #undef SHOW_FUNCTION_PER_GROUP
 
@@ -425,14 +505,22 @@ struct cftype blkio_files[] = {
 		.read_map = blkiocg_io_merged_read,
 	},
 	{
+		.name = "io_queued",
+		.read_map = blkiocg_io_queued_read,
+	},
+	{
 		.name = "reset_stats",
 		.write_u64 = blkiocg_reset_stats,
 	},
 #ifdef CONFIG_DEBUG_BLK_CGROUP
-       {
+	{
+		.name = "avg_queue_size",
+		.read_map = blkiocg_avg_queue_size_read,
+	},
+	{
 		.name = "dequeue",
 		.read_map = blkiocg_dequeue_read,
-       },
+	},
 #endif
 };
 

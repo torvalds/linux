@@ -36,10 +36,13 @@ enum stat_type {
 	BLKIO_STAT_WAIT_TIME,
 	/* Number of IOs merged */
 	BLKIO_STAT_MERGED,
+	/* Number of IOs queued up */
+	BLKIO_STAT_QUEUED,
 	/* All the single valued stats go below this */
 	BLKIO_STAT_TIME,
 	BLKIO_STAT_SECTORS,
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+	BLKIO_STAT_AVG_QUEUE_SIZE,
 	BLKIO_STAT_DEQUEUE
 #endif
 };
@@ -63,8 +66,12 @@ struct blkio_group_stats {
 	/* total disk time and nr sectors dispatched by this group */
 	uint64_t time;
 	uint64_t sectors;
-	uint64_t stat_arr[BLKIO_STAT_MERGED + 1][BLKIO_STAT_TOTAL];
+	uint64_t stat_arr[BLKIO_STAT_QUEUED + 1][BLKIO_STAT_TOTAL];
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+	/* Sum of number of IOs queued across all samples */
+	uint64_t avg_queue_size_sum;
+	/* Count of samples taken for average */
+	uint64_t avg_queue_size_samples;
 	/* How many times this group has been removed from service tree */
 	unsigned long dequeue;
 #endif
@@ -127,10 +134,13 @@ static inline char *blkg_path(struct blkio_group *blkg)
 {
 	return blkg->path;
 }
+void blkiocg_update_set_active_queue_stats(struct blkio_group *blkg);
 void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 				unsigned long dequeue);
 #else
 static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
+static inline void blkiocg_update_set_active_queue_stats(
+						struct blkio_group *blkg) {}
 static inline void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 						unsigned long dequeue) {}
 #endif
@@ -152,6 +162,10 @@ void blkiocg_update_completion_stats(struct blkio_group *blkg,
 	uint64_t start_time, uint64_t io_start_time, bool direction, bool sync);
 void blkiocg_update_io_merged_stats(struct blkio_group *blkg, bool direction,
 					bool sync);
+void blkiocg_update_request_add_stats(struct blkio_group *blkg,
+		struct blkio_group *curr_blkg, bool direction, bool sync);
+void blkiocg_update_request_remove_stats(struct blkio_group *blkg,
+					bool direction, bool sync);
 #else
 struct cgroup;
 static inline struct blkio_cgroup *
@@ -174,6 +188,10 @@ static inline void blkiocg_update_completion_stats(struct blkio_group *blkg,
 		uint64_t start_time, uint64_t io_start_time, bool direction,
 		bool sync) {}
 static inline void blkiocg_update_io_merged_stats(struct blkio_group *blkg,
+						bool direction, bool sync) {}
+static inline void blkiocg_update_request_add_stats(struct blkio_group *blkg,
+		struct blkio_group *curr_blkg, bool direction, bool sync) {}
+static inline void blkiocg_update_request_remove_stats(struct blkio_group *blkg,
 						bool direction, bool sync) {}
 #endif
 #endif /* _BLK_CGROUP_H */

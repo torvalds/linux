@@ -139,6 +139,17 @@ Details of cgroup files
 	  cgroup. This is further divided by the type of operation - read or
 	  write, sync or async.
 
+- blkio.io_queued
+	- Total number of requests queued up at any given instant for this
+	  cgroup. This is further divided by the type of operation - read or
+	  write, sync or async.
+
+- blkio.avg_queue_size
+	- Debugging aid only enabled if CONFIG_DEBUG_CFQ_IOSCHED=y.
+	  The average queue size for this cgroup over the entire time of this
+	  cgroup's existence. Queue size samples are taken each time one of the
+	  queues of this cgroup gets a timeslice.
+
 - blkio.dequeue
 	- Debugging aid only enabled if CONFIG_DEBUG_CFQ_IOSCHED=y. This
 	  gives the statistics about how many a times a group was dequeued
