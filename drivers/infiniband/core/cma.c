@@ -1684,6 +1684,7 @@ int rdma_set_ib_paths(struct rdma_cm_id *id,
 	}
 
 	memcpy(id->route.path_rec, path_rec, sizeof *path_rec * num_paths);
+	id->route.num_paths = num_paths;
 	return 0;
 err:
 	cma_comp_exch(id_priv, CMA_ROUTE_RESOLVED, CMA_ADDR_RESOLVED);
