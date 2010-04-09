@@ -632,6 +632,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
+	evict_mem.bus.io_reserved = false;
 
 	placement.fpfn = 0;
 	placement.lpfn = 0;
@@ -1005,6 +1006,7 @@ int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	mem.num_pages = bo->num_pages;
 	mem.size = mem.num_pages << PAGE_SHIFT;
 	mem.page_alignment = bo->mem.page_alignment;
+	mem.bus.io_reserved = false;
 	/*
 	 * Determine where to move the buffer.
 	 */
@@ -1160,6 +1162,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	bo->mem.num_pages = bo->num_pages;
 	bo->mem.mm_node = NULL;
 	bo->mem.page_alignment = page_alignment;
+	bo->mem.bus.io_reserved = false;
 	bo->buffer_start = buffer_start & PAGE_MASK;
 	bo->priv_flags = 0;
 	bo->mem.placement = (TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED);
@@ -1574,7 +1577,7 @@ int ttm_bo_pci_offset(struct ttm_bo_device *bdev,
 	if (ttm_mem_reg_is_pci(bdev, mem)) {
 		*bus_offset = mem->mm_node->start << PAGE_SHIFT;
 		*bus_size = mem->num_pages << PAGE_SHIFT;
-		*bus_base = man->io_offset;
+		*bus_base = man->io_offset + (uintptr_t)man->io_addr;
 	}
 
 	return 0;
@@ -1588,8 +1591,8 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 
 	if (!bdev->dev_mapping)
 		return;
-
 	unmap_mapping_range(bdev->dev_mapping, offset, holelen, 1);
+	ttm_mem_io_free(bdev, &bo->mem);
 }
 EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 

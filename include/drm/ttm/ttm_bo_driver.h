@@ -352,12 +352,21 @@ struct ttm_bo_driver {
 			    struct ttm_mem_reg *new_mem);
 	/* notify the driver we are taking a fault on this BO
 	 * and have reserved it */
-	void (*fault_reserve_notify)(struct ttm_buffer_object *bo);
+	int (*fault_reserve_notify)(struct ttm_buffer_object *bo);
 
 	/**
 	 * notify the driver that we're about to swap out this bo
 	 */
 	void (*swap_notify) (struct ttm_buffer_object *bo);
+
+	/**
+	 * Driver callback on when mapping io memory (for bo_move_memcpy
+	 * for instance). TTM will take care to call io_mem_free whenever
+	 * the mapping is not use anymore. io_mem_reserve & io_mem_free
+	 * are balanced.
+	 */
+	int (*io_mem_reserve)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
+	void (*io_mem_free)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
 };
 
 /**
@@ -684,6 +693,11 @@ extern int ttm_bo_pci_offset(struct ttm_bo_device *bdev,
 			     unsigned long *bus_base,
 			     unsigned long *bus_offset,
 			     unsigned long *bus_size);
+
+extern int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
+				struct ttm_mem_reg *mem);
+extern void ttm_mem_io_free(struct ttm_bo_device *bdev,
+				struct ttm_mem_reg *mem);
 
 extern void ttm_bo_global_release(struct ttm_global_reference *ref);
 extern int ttm_bo_global_init(struct ttm_global_reference *ref);
