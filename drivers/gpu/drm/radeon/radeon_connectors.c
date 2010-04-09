@@ -287,6 +287,7 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 
 	if (property == rdev->mode_info.coherent_mode_property) {
 		struct radeon_encoder_atom_dig *dig;
+		bool new_coherent_mode;
 
 		/* need to find digital encoder on connector */
 		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TMDS);
@@ -299,8 +300,11 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 			return 0;
 
 		dig = radeon_encoder->enc_priv;
-		dig->coherent_mode = val ? true : false;
-		radeon_property_change_mode(&radeon_encoder->base);
+		new_coherent_mode = val ? true : false;
+		if (dig->coherent_mode != new_coherent_mode) {
+			dig->coherent_mode = new_coherent_mode;
+			radeon_property_change_mode(&radeon_encoder->base);
+		}
 	}
 
 	if (property == rdev->mode_info.tv_std_property) {
