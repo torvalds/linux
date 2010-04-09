@@ -256,12 +256,13 @@ enum {
 	ATA_TMOUT_INTERNAL_QUICK = 5000,
 	ATA_TMOUT_MAX_PARK	= 30000,
 
-	/* FIXME: GoVault needs 2s but we can't afford that without
-	 * parallel probing.  800ms is enough for iVDR disk
-	 * HHD424020F7SV00.  Increase to 2secs when parallel probing
-	 * is in place.
+	/*
+	 * GoVault needs 2s and iVDR disk HHD424020F7SV00 800ms.  2s
+	 * is too much without parallel probing.  Use 2s if parallel
+	 * probing is available, 800ms otherwise.
 	 */
-	ATA_TMOUT_FF_WAIT	=  800,
+	ATA_TMOUT_FF_WAIT_LONG	=  2000,
+	ATA_TMOUT_FF_WAIT	=   800,
 
 	/* Spec mandates to wait for ">= 2ms" before checking status
 	 * after reset.  We wait 150ms, because that was the magic
