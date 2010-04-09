@@ -379,7 +379,7 @@ static const struct iwl_ops iwl6050_ops = {
 /*
  * "i": Internal configuration, use internal Power Amplifier
  */
-struct iwl_cfg iwl6000g2i_2agn_cfg = {
+struct iwl_cfg iwl6000g2_2agn_cfg = {
 	.name = "6000 Series 2x2 AGN Gen2",
 	.fw_name_pre = IWL6000G2_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
@@ -397,7 +397,7 @@ struct iwl_cfg iwl6000g2i_2agn_cfg = {
 	.pll_cfg_val = 0,
 	.set_l0s = true,
 	.use_bsm = false,
-	.pa_type = IWL_PA_INTERNAL,
+	.pa_type = IWL_PA_SYSTEM,
 	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
 	.shadow_ram_support = true,
 	.ht_greenfield_support = true,

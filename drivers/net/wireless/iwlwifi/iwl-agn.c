@@ -3798,10 +3798,10 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x4239, 0x1316, iwl6000i_2abg_cfg)},
 
 /* 6x00 Series Gen2 */
-	{IWL_PCI_DEVICE(0x0082, 0x1201, iwl6000g2i_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1301, iwl6000g2i_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1321, iwl6000g2i_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x0085, 0x1311, iwl6000g2i_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1201, iwl6000g2_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1301, iwl6000g2_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1321, iwl6000g2_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x0085, 0x1311, iwl6000g2_2agn_cfg)},
 
 /* 6x50 WiFi/WiMax Series */
 	{IWL_PCI_DEVICE(0x0087, 0x1301, iwl6050_2agn_cfg)},
