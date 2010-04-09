@@ -17,8 +17,10 @@
 #include <linux/clk.h>
 
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
+#include <asm/pmu.h>
 
 #include <plat/control.h>
 #include <plat/tc.h>
@@ -453,6 +455,37 @@ static void omap_init_mcspi(void)
 static inline void omap_init_mcspi(void) {}
 #endif
 
+static struct resource omap2_pmu_resource = {
+	.start	= 3,
+	.end	= 3,
+	.flags	= IORESOURCE_IRQ,
+};
+
+static struct resource omap3_pmu_resource = {
+	.start	= INT_34XX_BENCH_MPU_EMUL,
+	.end	= INT_34XX_BENCH_MPU_EMUL,
+	.flags	= IORESOURCE_IRQ,
+};
+
+static struct platform_device omap_pmu_device = {
+	.name		= "arm-pmu",
+	.id		= ARM_PMU_DEVICE_CPU,
+	.num_resources	= 1,
+};
+
+static void omap_init_pmu(void)
+{
+	if (cpu_is_omap24xx())
+		omap_pmu_device.resource = &omap2_pmu_resource;
+	else if (cpu_is_omap34xx())
+		omap_pmu_device.resource = &omap3_pmu_resource;
+	else
+		return;
+
+	platform_device_register(&omap_pmu_device);
+}
+
+
 #ifdef CONFIG_OMAP_SHA1_MD5
 static struct resource sha1_md5_resources[] = {
 	{
@@ -797,6 +830,7 @@ static int __init omap2_init_devices(void)
 	omap_init_camera();
 	omap_init_mbox();
 	omap_init_mcspi();
+	omap_init_pmu();
 	omap_hdq_init();
 	omap_init_sti();
 	omap_init_sha1_md5();
