@@ -1503,7 +1503,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *rb)
 {
 	struct gspca_dev *gspca_dev = priv;
-	int i, ret = 0;
+	int i, ret = 0, streaming;
 
 	switch (rb->memory) {
 	case GSPCA_MEMORY_READ:			/* (internal call) */
@@ -1538,7 +1538,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	}
 
 	/* stop streaming */
-	if (gspca_dev->streaming) {
+	streaming = gspca_dev->streaming;
+	if (streaming) {
 		mutex_lock(&gspca_dev->usb_lock);
 		gspca_dev->usb_err = 0;
 		gspca_stream_off(gspca_dev);
@@ -1557,6 +1558,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	if (ret == 0) {
 		rb->count = gspca_dev->nframes;
 		gspca_dev->capt_file = file;
+		if (streaming)
+			ret = gspca_init_transfer(gspca_dev);
 	}
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
