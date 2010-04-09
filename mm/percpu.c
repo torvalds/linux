@@ -654,7 +654,11 @@ static void pcpu_destroy_chunk(struct pcpu_chunk *chunk);
 static struct page *pcpu_addr_to_page(void *addr);
 static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai);
 
+#ifdef CONFIG_NEED_PER_CPU_KM
+#include "percpu-km.c"
+#else
 #include "percpu-vm.c"
+#endif
 
 /**
  * pcpu_chunk_addr_search - determine chunk containing specified address
