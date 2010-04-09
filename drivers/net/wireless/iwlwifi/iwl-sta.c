@@ -1206,7 +1206,6 @@ int iwl_send_lq_cmd(struct iwl_priv *priv,
 	iwl_dump_lq_cmd(priv, lq);
 	BUG_ON(init && (cmd.flags & CMD_ASYNC));
 
-	iwl_dump_lq_cmd(priv, lq);
 	ret = iwl_send_cmd(priv, &cmd);
 	if (ret || (cmd.flags & CMD_ASYNC))
 		return ret;
