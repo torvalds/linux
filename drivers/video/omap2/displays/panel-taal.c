@@ -603,7 +603,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 		if (r) {
 			dev_err(&dssdev->dev, "IRQ request failed\n");
 			gpio_free(gpio);
-			goto err3;
+			goto err4;
 		}
 
 		init_completion(&td->te_completion);
@@ -614,16 +614,16 @@ static int taal_probe(struct omap_dss_device *dssdev)
 	r = sysfs_create_group(&dssdev->dev.kobj, &taal_attr_group);
 	if (r) {
 		dev_err(&dssdev->dev, "failed to create sysfs files\n");
-		goto err4;
+		goto err5;
 	}
 
 	return 0;
+err5:
+	if (td->use_ext_te)
+		free_irq(gpio_to_irq(dssdev->phy.dsi.ext_te_gpio), dssdev);
 err4:
-	if (td->use_ext_te) {
-		int gpio = dssdev->phy.dsi.ext_te_gpio;
-		free_irq(gpio_to_irq(gpio), dssdev);
-		gpio_free(gpio);
-	}
+	if (td->use_ext_te)
+		gpio_free(dssdev->phy.dsi.ext_te_gpio);
 err3:
 	backlight_device_unregister(bldev);
 err2:
