@@ -111,7 +111,7 @@ struct tm6000_gpio {
 	int		power_led;
 	int		dvb_led;
 	int		ir;
-}
+};
 
 struct tm6000_capabilities {
 	unsigned int    has_tuner:1;
