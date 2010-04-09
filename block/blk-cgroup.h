@@ -43,6 +43,9 @@ enum stat_type {
 	BLKIO_STAT_SECTORS,
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	BLKIO_STAT_AVG_QUEUE_SIZE,
+	BLKIO_STAT_IDLE_TIME,
+	BLKIO_STAT_EMPTY_TIME,
+	BLKIO_STAT_GROUP_WAIT_TIME,
 	BLKIO_STAT_DEQUEUE
 #endif
 };
@@ -53,6 +56,13 @@ enum stat_sub_type {
 	BLKIO_STAT_SYNC,
 	BLKIO_STAT_ASYNC,
 	BLKIO_STAT_TOTAL
+};
+
+/* blkg state flags */
+enum blkg_state_flags {
+	BLKG_waiting = 0,
+	BLKG_idling,
+	BLKG_empty,
 };
 
 struct blkio_cgroup {
@@ -74,6 +84,21 @@ struct blkio_group_stats {
 	uint64_t avg_queue_size_samples;
 	/* How many times this group has been removed from service tree */
 	unsigned long dequeue;
+
+	/* Total time spent waiting for it to be assigned a timeslice. */
+	uint64_t group_wait_time;
+	uint64_t start_group_wait_time;
+
+	/* Time spent idling for this blkio_group */
+	uint64_t idle_time;
+	uint64_t start_idle_time;
+	/*
+	 * Total time when we have requests queued and do not contain the
+	 * current active queue.
+	 */
+	uint64_t empty_time;
+	uint64_t start_empty_time;
+	uint16_t flags;
 #endif
 };
 
@@ -137,12 +162,41 @@ static inline char *blkg_path(struct blkio_group *blkg)
 void blkiocg_update_set_active_queue_stats(struct blkio_group *blkg);
 void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 				unsigned long dequeue);
+void blkiocg_update_set_idle_time_stats(struct blkio_group *blkg);
+void blkiocg_update_idle_time_stats(struct blkio_group *blkg);
+void blkiocg_set_start_empty_time(struct blkio_group *blkg, bool ignore);
+
+#define BLKG_FLAG_FNS(name)						\
+static inline void blkio_mark_blkg_##name(				\
+		struct blkio_group_stats *stats)			\
+{									\
+	stats->flags |= (1 << BLKG_##name);				\
+}									\
+static inline void blkio_clear_blkg_##name(				\
+		struct blkio_group_stats *stats)			\
+{									\
+	stats->flags &= ~(1 << BLKG_##name);				\
+}									\
+static inline int blkio_blkg_##name(struct blkio_group_stats *stats)	\
+{									\
+	return (stats->flags & (1 << BLKG_##name)) != 0;		\
+}									\
+
+BLKG_FLAG_FNS(waiting)
+BLKG_FLAG_FNS(idling)
+BLKG_FLAG_FNS(empty)
+#undef BLKG_FLAG_FNS
 #else
 static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
 static inline void blkiocg_update_set_active_queue_stats(
 						struct blkio_group *blkg) {}
 static inline void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 						unsigned long dequeue) {}
+static inline void blkiocg_update_set_idle_time_stats(struct blkio_group *blkg)
+{}
+static inline void blkiocg_update_idle_time_stats(struct blkio_group *blkg) {}
+static inline void blkiocg_set_start_empty_time(struct blkio_group *blkg,
+						bool ignore) {}
 #endif
 
 #if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)

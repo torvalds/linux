@@ -886,7 +886,7 @@ static inline unsigned int cfq_cfqq_slice_usage(struct cfq_queue *cfqq)
 }
 
 static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
-				struct cfq_queue *cfqq)
+				struct cfq_queue *cfqq, bool forced)
 {
 	struct cfq_rb_root *st = &cfqd->grp_service_tree;
 	unsigned int used_sl, charge_sl;
@@ -916,6 +916,7 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 	cfq_log_cfqg(cfqd, cfqg, "served: vt=%llu min_vt=%llu", cfqg->vdisktime,
 					st->min_vdisktime);
 	blkiocg_update_timeslice_used(&cfqg->blkg, used_sl);
+	blkiocg_set_start_empty_time(&cfqg->blkg, forced);
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
@@ -1528,6 +1529,12 @@ static int cfq_allow_merge(struct request_queue *q, struct request *rq,
 	return cfqq == RQ_CFQQ(rq);
 }
 
+static inline void cfq_del_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+{
+	del_timer(&cfqd->idle_slice_timer);
+	blkiocg_update_idle_time_stats(&cfqq->cfqg->blkg);
+}
+
 static void __cfq_set_active_queue(struct cfq_data *cfqd,
 				   struct cfq_queue *cfqq)
 {
@@ -1547,7 +1554,7 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
 		cfq_clear_cfqq_fifo_expire(cfqq);
 		cfq_mark_cfqq_slice_new(cfqq);
 
-		del_timer(&cfqd->idle_slice_timer);
+		cfq_del_timer(cfqd, cfqq);
 	}
 
 	cfqd->active_queue = cfqq;
@@ -1558,12 +1565,12 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
  */
 static void
 __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
-		    bool timed_out)
+		    bool timed_out, bool forced)
 {
 	cfq_log_cfqq(cfqd, cfqq, "slice expired t=%d", timed_out);
 
 	if (cfq_cfqq_wait_request(cfqq))
-		del_timer(&cfqd->idle_slice_timer);
+		cfq_del_timer(cfqd, cfqq);
 
 	cfq_clear_cfqq_wait_request(cfqq);
 	cfq_clear_cfqq_wait_busy(cfqq);
@@ -1585,7 +1592,7 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		cfq_log_cfqq(cfqd, cfqq, "resid=%ld", cfqq->slice_resid);
 	}
 
-	cfq_group_served(cfqd, cfqq->cfqg, cfqq);
+	cfq_group_served(cfqd, cfqq->cfqg, cfqq, forced);
 
 	if (cfq_cfqq_on_rr(cfqq) && RB_EMPTY_ROOT(&cfqq->sort_list))
 		cfq_del_cfqq_rr(cfqd, cfqq);
@@ -1604,12 +1611,13 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	}
 }
 
-static inline void cfq_slice_expired(struct cfq_data *cfqd, bool timed_out)
+static inline void cfq_slice_expired(struct cfq_data *cfqd, bool timed_out,
+					bool forced)
 {
 	struct cfq_queue *cfqq = cfqd->active_queue;
 
 	if (cfqq)
-		__cfq_slice_expired(cfqd, cfqq, timed_out);
+		__cfq_slice_expired(cfqd, cfqq, timed_out, forced);
 }
 
 /*
@@ -1865,6 +1873,7 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	sl = cfqd->cfq_slice_idle;
 
 	mod_timer(&cfqd->idle_slice_timer, jiffies + sl);
+	blkiocg_update_set_idle_time_stats(&cfqq->cfqg->blkg);
 	cfq_log_cfqq(cfqd, cfqq, "arm_idle: %lu", sl);
 }
 
@@ -2176,7 +2185,7 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	}
 
 expire:
-	cfq_slice_expired(cfqd, 0);
+	cfq_slice_expired(cfqd, 0, false);
 new_queue:
 	/*
 	 * Current queue expired. Check if we have to switch to a new
@@ -2202,7 +2211,7 @@ static int __cfq_forced_dispatch_cfqq(struct cfq_queue *cfqq)
 	BUG_ON(!list_empty(&cfqq->fifo));
 
 	/* By default cfqq is not expired if it is empty. Do it explicitly */
-	__cfq_slice_expired(cfqq->cfqd, cfqq, 0);
+	__cfq_slice_expired(cfqq->cfqd, cfqq, 0, true);
 	return dispatched;
 }
 
@@ -2218,7 +2227,7 @@ static int cfq_forced_dispatch(struct cfq_data *cfqd)
 	while ((cfqq = cfq_get_next_queue_forced(cfqd)) != NULL)
 		dispatched += __cfq_forced_dispatch_cfqq(cfqq);
 
-	cfq_slice_expired(cfqd, 0);
+	cfq_slice_expired(cfqd, 0, true);
 	BUG_ON(cfqd->busy_queues);
 
 	cfq_log(cfqd, "forced_dispatch=%d", dispatched);
@@ -2382,10 +2391,15 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 	    cfqq->slice_dispatch >= cfq_prio_to_maxrq(cfqd, cfqq)) ||
 	    cfq_class_idle(cfqq))) {
 		cfqq->slice_end = jiffies + 1;
-		cfq_slice_expired(cfqd, 0);
+		cfq_slice_expired(cfqd, 0, false);
 	}
 
 	cfq_log_cfqq(cfqd, cfqq, "dispatched a request");
+	/*
+	 * This is needed since we don't exactly match the mod_timer() and
+	 * del_timer() calls in CFQ.
+	 */
+	blkiocg_update_idle_time_stats(&cfqq->cfqg->blkg);
 	return 1;
 }
 
@@ -2413,7 +2427,7 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	orig_cfqg = cfqq->orig_cfqg;
 
 	if (unlikely(cfqd->active_queue == cfqq)) {
-		__cfq_slice_expired(cfqd, cfqq, 0);
+		__cfq_slice_expired(cfqd, cfqq, 0, false);
 		cfq_schedule_dispatch(cfqd);
 	}
 
@@ -2514,7 +2528,7 @@ static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	struct cfq_queue *__cfqq, *next;
 
 	if (unlikely(cfqq == cfqd->active_queue)) {
-		__cfq_slice_expired(cfqd, cfqq, 0);
+		__cfq_slice_expired(cfqd, cfqq, 0, false);
 		cfq_schedule_dispatch(cfqd);
 	}
 
@@ -3143,7 +3157,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 static void cfq_preempt_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	cfq_log_cfqq(cfqd, cfqq, "preempt");
-	cfq_slice_expired(cfqd, 1);
+	cfq_slice_expired(cfqd, 1, false);
 
 	/*
 	 * Put the new queue at the front of the of the current list,
@@ -3191,7 +3205,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		if (cfq_cfqq_wait_request(cfqq)) {
 			if (blk_rq_bytes(rq) > PAGE_CACHE_SIZE ||
 			    cfqd->busy_queues > 1) {
-				del_timer(&cfqd->idle_slice_timer);
+				cfq_del_timer(cfqd, cfqq);
 				cfq_clear_cfqq_wait_request(cfqq);
 				__blk_run_queue(cfqd->queue);
 			} else
@@ -3352,7 +3366,7 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 		 * - when there is a close cooperator
 		 */
 		if (cfq_slice_used(cfqq) || cfq_class_idle(cfqq))
-			cfq_slice_expired(cfqd, 1);
+			cfq_slice_expired(cfqd, 1, false);
 		else if (sync && cfqq_empty &&
 			 !cfq_close_cooperator(cfqd, cfqq)) {
 			cfqd->noidle_tree_requires_idle |= !rq_noidle(rq);
@@ -3612,7 +3626,7 @@ static void cfq_idle_slice_timer(unsigned long data)
 		cfq_clear_cfqq_deep(cfqq);
 	}
 expire:
-	cfq_slice_expired(cfqd, timed_out);
+	cfq_slice_expired(cfqd, timed_out, false);
 out_kick:
 	cfq_schedule_dispatch(cfqd);
 out_cont:
@@ -3655,7 +3669,7 @@ static void cfq_exit_queue(struct elevator_queue *e)
 	spin_lock_irq(q->queue_lock);
 
 	if (cfqd->active_queue)
-		__cfq_slice_expired(cfqd, cfqd->active_queue, 0);
+		__cfq_slice_expired(cfqd, cfqd->active_queue, 0, false);
 
 	while (!list_empty(&cfqd->cic_list)) {
 		struct cfq_io_context *cic = list_entry(cfqd->cic_list.next,

@@ -105,6 +105,76 @@ static void blkio_check_and_dec_stat(uint64_t *stat, bool direction, bool sync)
 }
 
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+/* This should be called with the blkg->stats_lock held. */
+static void blkio_set_start_group_wait_time(struct blkio_group *blkg,
+						struct blkio_group *curr_blkg)
+{
+	if (blkio_blkg_waiting(&blkg->stats))
+		return;
+	if (blkg == curr_blkg)
+		return;
+	blkg->stats.start_group_wait_time = sched_clock();
+	blkio_mark_blkg_waiting(&blkg->stats);
+}
+
+/* This should be called with the blkg->stats_lock held. */
+static void blkio_update_group_wait_time(struct blkio_group_stats *stats)
+{
+	unsigned long long now;
+
+	if (!blkio_blkg_waiting(stats))
+		return;
+
+	now = sched_clock();
+	if (time_after64(now, stats->start_group_wait_time))
+		stats->group_wait_time += now - stats->start_group_wait_time;
+	blkio_clear_blkg_waiting(stats);
+}
+
+/* This should be called with the blkg->stats_lock held. */
+static void blkio_end_empty_time(struct blkio_group_stats *stats)
+{
+	unsigned long long now;
+
+	if (!blkio_blkg_empty(stats))
+		return;
+
+	now = sched_clock();
+	if (time_after64(now, stats->start_empty_time))
+		stats->empty_time += now - stats->start_empty_time;
+	blkio_clear_blkg_empty(stats);
+}
+
+void blkiocg_update_set_idle_time_stats(struct blkio_group *blkg)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	BUG_ON(blkio_blkg_idling(&blkg->stats));
+	blkg->stats.start_idle_time = sched_clock();
+	blkio_mark_blkg_idling(&blkg->stats);
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
+}
+EXPORT_SYMBOL_GPL(blkiocg_update_set_idle_time_stats);
+
+void blkiocg_update_idle_time_stats(struct blkio_group *blkg)
+{
+	unsigned long flags;
+	unsigned long long now;
+	struct blkio_group_stats *stats;
+
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	stats = &blkg->stats;
+	if (blkio_blkg_idling(stats)) {
+		now = sched_clock();
+		if (time_after64(now, stats->start_idle_time))
+			stats->idle_time += now - stats->start_idle_time;
+		blkio_clear_blkg_idling(stats);
+	}
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
+}
+EXPORT_SYMBOL_GPL(blkiocg_update_idle_time_stats);
+
 void blkiocg_update_set_active_queue_stats(struct blkio_group *blkg)
 {
 	unsigned long flags;
@@ -116,9 +186,14 @@ void blkiocg_update_set_active_queue_stats(struct blkio_group *blkg)
 			stats->stat_arr[BLKIO_STAT_QUEUED][BLKIO_STAT_READ] +
 			stats->stat_arr[BLKIO_STAT_QUEUED][BLKIO_STAT_WRITE];
 	stats->avg_queue_size_samples++;
+	blkio_update_group_wait_time(stats);
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_set_active_queue_stats);
+#else
+static inline void blkio_set_start_group_wait_time(struct blkio_group *blkg,
+					struct blkio_group *curr_blkg) {}
+static inline void blkio_end_empty_time(struct blkio_group_stats *stats) {}
 #endif
 
 void blkiocg_update_request_add_stats(struct blkio_group *blkg,
@@ -130,6 +205,8 @@ void blkiocg_update_request_add_stats(struct blkio_group *blkg,
 	spin_lock_irqsave(&blkg->stats_lock, flags);
 	blkio_add_stat(blkg->stats.stat_arr[BLKIO_STAT_QUEUED], 1, direction,
 			sync);
+	blkio_end_empty_time(&blkg->stats);
+	blkio_set_start_group_wait_time(blkg, curr_blkg);
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_request_add_stats);
@@ -155,6 +232,33 @@ void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time)
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_timeslice_used);
+
+void blkiocg_set_start_empty_time(struct blkio_group *blkg, bool ignore)
+{
+	unsigned long flags;
+	struct blkio_group_stats *stats;
+
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	stats = &blkg->stats;
+
+	if (stats->stat_arr[BLKIO_STAT_QUEUED][BLKIO_STAT_READ] ||
+			stats->stat_arr[BLKIO_STAT_QUEUED][BLKIO_STAT_WRITE]) {
+		spin_unlock_irqrestore(&blkg->stats_lock, flags);
+		return;
+	}
+
+	/*
+	 * If ignore is set, we do not panic on the empty flag being set
+	 * already. This is to avoid cases where there are superfluous timeslice
+	 * complete events (for eg., forced_dispatch in CFQ) when no IOs are
+	 * served which could result in triggering the empty check incorrectly.
+	 */
+	BUG_ON(!ignore && blkio_blkg_empty(stats));
+	stats->start_empty_time = sched_clock();
+	blkio_mark_blkg_empty(stats);
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
+}
+EXPORT_SYMBOL_GPL(blkiocg_set_start_empty_time);
 
 void blkiocg_update_dispatch_stats(struct blkio_group *blkg,
 				uint64_t bytes, bool direction, bool sync)
@@ -317,19 +421,44 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 {
 	struct blkio_cgroup *blkcg;
 	struct blkio_group *blkg;
+	struct blkio_group_stats *stats;
 	struct hlist_node *n;
 	uint64_t queued[BLKIO_STAT_TOTAL];
 	int i;
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+	bool idling, waiting, empty;
+	unsigned long long now = sched_clock();
+#endif
 
 	blkcg = cgroup_to_blkio_cgroup(cgroup);
 	spin_lock_irq(&blkcg->lock);
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
 		spin_lock(&blkg->stats_lock);
+		stats = &blkg->stats;
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+		idling = blkio_blkg_idling(stats);
+		waiting = blkio_blkg_waiting(stats);
+		empty = blkio_blkg_empty(stats);
+#endif
 		for (i = 0; i < BLKIO_STAT_TOTAL; i++)
-			queued[i] = blkg->stats.stat_arr[BLKIO_STAT_QUEUED][i];
-		memset(&blkg->stats, 0, sizeof(struct blkio_group_stats));
+			queued[i] = stats->stat_arr[BLKIO_STAT_QUEUED][i];
+		memset(stats, 0, sizeof(struct blkio_group_stats));
 		for (i = 0; i < BLKIO_STAT_TOTAL; i++)
-			blkg->stats.stat_arr[BLKIO_STAT_QUEUED][i] = queued[i];
+			stats->stat_arr[BLKIO_STAT_QUEUED][i] = queued[i];
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+		if (idling) {
+			blkio_mark_blkg_idling(stats);
+			stats->start_idle_time = now;
+		}
+		if (waiting) {
+			blkio_mark_blkg_waiting(stats);
+			stats->start_group_wait_time = now;
+		}
+		if (empty) {
+			blkio_mark_blkg_empty(stats);
+			stats->start_empty_time = now;
+		}
+#endif
 		spin_unlock(&blkg->stats_lock);
 	}
 	spin_unlock_irq(&blkcg->lock);
@@ -401,6 +530,15 @@ static uint64_t blkio_get_stat(struct blkio_group *blkg,
 			sum = 0;
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1, sum, cb, dev);
 	}
+	if (type == BLKIO_STAT_GROUP_WAIT_TIME)
+		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
+					blkg->stats.group_wait_time, cb, dev);
+	if (type == BLKIO_STAT_IDLE_TIME)
+		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
+					blkg->stats.idle_time, cb, dev);
+	if (type == BLKIO_STAT_EMPTY_TIME)
+		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
+					blkg->stats.empty_time, cb, dev);
 	if (type == BLKIO_STAT_DEQUEUE)
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
 					blkg->stats.dequeue, cb, dev);
@@ -458,6 +596,9 @@ SHOW_FUNCTION_PER_GROUP(io_queued, BLKIO_STAT_QUEUED, 1);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 SHOW_FUNCTION_PER_GROUP(dequeue, BLKIO_STAT_DEQUEUE, 0);
 SHOW_FUNCTION_PER_GROUP(avg_queue_size, BLKIO_STAT_AVG_QUEUE_SIZE, 0);
+SHOW_FUNCTION_PER_GROUP(group_wait_time, BLKIO_STAT_GROUP_WAIT_TIME, 0);
+SHOW_FUNCTION_PER_GROUP(idle_time, BLKIO_STAT_IDLE_TIME, 0);
+SHOW_FUNCTION_PER_GROUP(empty_time, BLKIO_STAT_EMPTY_TIME, 0);
 #endif
 #undef SHOW_FUNCTION_PER_GROUP
 
@@ -516,6 +657,18 @@ struct cftype blkio_files[] = {
 	{
 		.name = "avg_queue_size",
 		.read_map = blkiocg_avg_queue_size_read,
+	},
+	{
+		.name = "group_wait_time",
+		.read_map = blkiocg_group_wait_time_read,
+	},
+	{
+		.name = "idle_time",
+		.read_map = blkiocg_idle_time_read,
+	},
+	{
+		.name = "empty_time",
+		.read_map = blkiocg_empty_time_read,
 	},
 	{
 		.name = "dequeue",
