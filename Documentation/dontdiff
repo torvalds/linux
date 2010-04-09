@@ -69,7 +69,6 @@ av_permissions.h
 bbootsect
 bin2c
 binkernel.spec
-binoffset
 bootsect
 bounds.h
 bsetup
@@ -103,6 +102,7 @@ gconf
 gen-devlist
 gen_crc32table
 gen_init_cpio
+generated
 genheaders
 genksyms
 *_gray256.c

@@ -500,7 +500,7 @@ static void fscache_op_execute(struct slow_work *work)
 /*
  * describe an operation for slow-work debugging
  */
-#ifdef CONFIG_SLOW_WORK_PROC
+#ifdef CONFIG_SLOW_WORK_DEBUG
 static void fscache_op_desc(struct slow_work *work, struct seq_file *m)
 {
 	struct fscache_operation *op =
@@ -517,7 +517,7 @@ const struct slow_work_ops fscache_op_slow_work_ops = {
 	.get_ref	= fscache_op_get_ref,
 	.put_ref	= fscache_op_put_ref,
 	.execute	= fscache_op_execute,
-#ifdef CONFIG_SLOW_WORK_PROC
+#ifdef CONFIG_SLOW_WORK_DEBUG
 	.desc		= fscache_op_desc,
 #endif
 };

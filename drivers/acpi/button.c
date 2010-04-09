@@ -282,6 +282,13 @@ static int acpi_lid_send_state(struct acpi_device *device)
 	if (ret == NOTIFY_DONE)
 		ret = blocking_notifier_call_chain(&acpi_lid_notifier, state,
 						   device);
+	if (ret == NOTIFY_DONE || ret == NOTIFY_OK) {
+		/*
+		 * It is also regarded as success if the notifier_chain
+		 * returns NOTIFY_OK or NOTIFY_DONE.
+		 */
+		ret = 0;
+	}
 	return ret;
 }
 
@@ -415,11 +422,10 @@ static int acpi_button_add(struct acpi_device *device)
 
 	if (device->wakeup.flags.valid) {
 		/* Button's GPE is run-wake GPE */
-		acpi_set_gpe_type(device->wakeup.gpe_device,
-				  device->wakeup.gpe_number,
-				  ACPI_GPE_TYPE_WAKE_RUN);
 		acpi_enable_gpe(device->wakeup.gpe_device,
-				device->wakeup.gpe_number);
+				device->wakeup.gpe_number,
+				ACPI_GPE_TYPE_WAKE_RUN);
+		device->wakeup.run_wake_count++;
 		device->wakeup.state.enabled = 1;
 	}
 
@@ -438,6 +444,14 @@ static int acpi_button_add(struct acpi_device *device)
 static int acpi_button_remove(struct acpi_device *device, int type)
 {
 	struct acpi_button *button = acpi_driver_data(device);
+
+	if (device->wakeup.flags.valid) {
+		acpi_disable_gpe(device->wakeup.gpe_device,
+				device->wakeup.gpe_number,
+				ACPI_GPE_TYPE_WAKE_RUN);
+		device->wakeup.run_wake_count--;
+		device->wakeup.state.enabled = 0;
+	}
 
 	acpi_button_remove_fs(device);
 	input_unregister_device(button->input);

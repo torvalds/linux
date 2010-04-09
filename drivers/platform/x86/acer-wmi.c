@@ -96,9 +96,6 @@ struct acer_quirks {
 MODULE_ALIAS("wmi:67C3371D-95A3-4C37-BB61-DD47B491DAAB");
 MODULE_ALIAS("wmi:6AF4F258-B401-42fd-BE91-3D4AC2D7C0D3");
 
-/* Temporary workaround until the WMI sysfs interface goes in */
-MODULE_ALIAS("dmi:*:*Acer*:*:");
-
 /*
  * Interface capability flags
  */
@@ -925,9 +922,13 @@ static struct backlight_ops acer_bl_ops = {
 
 static int __devinit acer_backlight_init(struct device *dev)
 {
+	struct backlight_properties props;
 	struct backlight_device *bd;
 
-	bd = backlight_device_register("acer-wmi", dev, NULL, &acer_bl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = max_brightness;
+	bd = backlight_device_register("acer-wmi", dev, NULL, &acer_bl_ops,
+				       &props);
 	if (IS_ERR(bd)) {
 		printk(ACER_ERR "Could not register Acer backlight device\n");
 		acer_backlight_device = NULL;
@@ -937,8 +938,7 @@ static int __devinit acer_backlight_init(struct device *dev)
 	acer_backlight_device = bd;
 
 	bd->props.power = FB_BLANK_UNBLANK;
-	bd->props.brightness = max_brightness;
-	bd->props.max_brightness = max_brightness;
+	bd->props.brightness = read_brightness(bd);
 	backlight_update_status(bd);
 	return 0;
 }

@@ -40,6 +40,8 @@
 #include <linux/skbuff.h>
 #include <linux/list.h>
 #include <linux/device.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/crc16.h>
 #include <net/sock.h>
@@ -1212,6 +1214,7 @@ static void l2cap_monitor_timeout(unsigned long arg)
 	bh_lock_sock(sk);
 	if (l2cap_pi(sk)->retry_count >= l2cap_pi(sk)->remote_max_tx) {
 		l2cap_send_disconn_req(l2cap_pi(sk)->conn, sk);
+		bh_unlock_sock(sk);
 		return;
 	}
 
@@ -1367,13 +1370,14 @@ static int l2cap_ertm_send(struct sock *sk)
 
 	while ((skb = sk->sk_send_head) && (!l2cap_tx_window_full(sk)) &&
 	       !(pi->conn_state & L2CAP_CONN_REMOTE_BUSY)) {
-		tx_skb = skb_clone(skb, GFP_ATOMIC);
 
 		if (pi->remote_max_tx &&
 				bt_cb(skb)->retries == pi->remote_max_tx) {
 			l2cap_send_disconn_req(pi->conn, sk);
 			break;
 		}
+
+		tx_skb = skb_clone(skb, GFP_ATOMIC);
 
 		bt_cb(skb)->retries++;
 
@@ -2828,6 +2832,11 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 			int len = cmd->len - sizeof(*rsp);
 			char req[64];
 
+			if (len > sizeof(req) - sizeof(struct l2cap_conf_req)) {
+				l2cap_send_disconn_req(conn, sk);
+				goto done;
+			}
+
 			/* throw out any old stored conf requests */
 			result = L2CAP_CONF_SUCCESS;
 			len = l2cap_parse_conf_rsp(sk, rsp->data,
@@ -3435,8 +3444,8 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 			    (pi->unacked_frames > 0))
 				__mod_retrans_timer();
 
-			l2cap_ertm_send(sk);
 			pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
+			l2cap_ertm_send(sk);
 		}
 		break;
 
@@ -3471,9 +3480,9 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 		pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
 
 		if (rx_control & L2CAP_CTRL_POLL) {
-			l2cap_retransmit_frame(sk, tx_seq);
 			pi->expected_ack_seq = tx_seq;
 			l2cap_drop_acked_frames(sk);
+			l2cap_retransmit_frame(sk, tx_seq);
 			l2cap_ertm_send(sk);
 			if (pi->conn_state & L2CAP_CONN_WAIT_F) {
 				pi->srej_save_reqseq = tx_seq;
@@ -3517,7 +3526,6 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 	struct l2cap_pinfo *pi;
 	u16 control, len;
 	u8 tx_seq;
-	int err;
 
 	sk = l2cap_get_chan_by_scid(&conn->chan_list, cid);
 	if (!sk) {
@@ -3569,13 +3577,11 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 			goto drop;
 
 		if (__is_iframe(control))
-			err = l2cap_data_channel_iframe(sk, control, skb);
+			l2cap_data_channel_iframe(sk, control, skb);
 		else
-			err = l2cap_data_channel_sframe(sk, control, skb);
+			l2cap_data_channel_sframe(sk, control, skb);
 
-		if (!err)
-			goto done;
-		break;
+		goto done;
 
 	case L2CAP_MODE_STREAMING:
 		control = get_unaligned_le16(skb->data);
@@ -3601,7 +3607,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		else
 			pi->expected_tx_seq = tx_seq + 1;
 
-		err = l2cap_sar_reassembly_sdu(sk, skb, control);
+		l2cap_sar_reassembly_sdu(sk, skb, control);
 
 		goto done;
 
@@ -3938,29 +3944,42 @@ drop:
 	return 0;
 }
 
-static ssize_t l2cap_sysfs_show(struct class *dev, char *buf)
+static int l2cap_debugfs_show(struct seq_file *f, void *p)
 {
 	struct sock *sk;
 	struct hlist_node *node;
-	char *str = buf;
 
 	read_lock_bh(&l2cap_sk_list.lock);
 
 	sk_for_each(sk, node, &l2cap_sk_list.head) {
 		struct l2cap_pinfo *pi = l2cap_pi(sk);
 
-		str += sprintf(str, "%s %s %d %d 0x%4.4x 0x%4.4x %d %d %d\n",
-				batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
-				sk->sk_state, __le16_to_cpu(pi->psm), pi->scid,
-				pi->dcid, pi->imtu, pi->omtu, pi->sec_level);
+		seq_printf(f, "%s %s %d %d 0x%4.4x 0x%4.4x %d %d %d\n",
+					batostr(&bt_sk(sk)->src),
+					batostr(&bt_sk(sk)->dst),
+					sk->sk_state, __le16_to_cpu(pi->psm),
+					pi->scid, pi->dcid,
+					pi->imtu, pi->omtu, pi->sec_level);
 	}
 
 	read_unlock_bh(&l2cap_sk_list.lock);
 
-	return str - buf;
+	return 0;
 }
 
-static CLASS_ATTR(l2cap, S_IRUGO, l2cap_sysfs_show, NULL);
+static int l2cap_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, l2cap_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations l2cap_debugfs_fops = {
+	.open		= l2cap_debugfs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static struct dentry *l2cap_debugfs;
 
 static const struct proto_ops l2cap_sock_ops = {
 	.family		= PF_BLUETOOTH,
@@ -4020,8 +4039,12 @@ static int __init l2cap_init(void)
 		goto error;
 	}
 
-	if (class_create_file(bt_class, &class_attr_l2cap) < 0)
-		BT_ERR("Failed to create L2CAP info file");
+	if (bt_debugfs) {
+		l2cap_debugfs = debugfs_create_file("l2cap", 0444,
+					bt_debugfs, NULL, &l2cap_debugfs_fops);
+		if (!l2cap_debugfs)
+			BT_ERR("Failed to create L2CAP debug file");
+	}
 
 	BT_INFO("L2CAP ver %s", VERSION);
 	BT_INFO("L2CAP socket layer initialized");
@@ -4035,7 +4058,7 @@ error:
 
 static void __exit l2cap_exit(void)
 {
-	class_remove_file(bt_class, &class_attr_l2cap);
+	debugfs_remove(l2cap_debugfs);
 
 	if (bt_sock_unregister(BTPROTO_L2CAP) < 0)
 		BT_ERR("L2CAP socket unregistration failed");

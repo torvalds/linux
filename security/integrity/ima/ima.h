@@ -65,7 +65,6 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const char *cause, int result, int info);
 
 /* Internal IMA function definitions */
-void ima_iintcache_init(void);
 int ima_init(void);
 void ima_cleanup(void);
 int ima_fs_init(void);
@@ -97,7 +96,6 @@ static inline unsigned long ima_hash_key(u8 *digest)
 
 /* iint cache flags */
 #define IMA_MEASURED		1
-#define IMA_IINT_DUMP_STACK	512
 
 /* integrity data associated with an inode */
 struct ima_iint_cache {
@@ -128,13 +126,11 @@ void ima_template_show(struct seq_file *m, void *e,
  */
 struct ima_iint_cache *ima_iint_insert(struct inode *inode);
 struct ima_iint_cache *ima_iint_find_get(struct inode *inode);
-struct ima_iint_cache *ima_iint_find_insert_get(struct inode *inode);
-void ima_iint_delete(struct inode *inode);
 void iint_free(struct kref *kref);
 void iint_rcu_free(struct rcu_head *rcu);
 
 /* IMA policy related functions */
-enum ima_hooks { PATH_CHECK = 1, FILE_MMAP, BPRM_CHECK };
+enum ima_hooks { FILE_CHECK = 1, FILE_MMAP, BPRM_CHECK };
 
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask);
 void ima_init_policy(void);

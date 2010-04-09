@@ -164,4 +164,3 @@ static int __init wgt634u_init(void)
 }
 
 module_init(wgt634u_init);
-

@@ -677,12 +677,19 @@ sba_alloc_range(struct ioc *ioc, struct device *dev, size_t size)
 			spin_unlock_irqrestore(&ioc->saved_lock, flags);
 
 			pide = sba_search_bitmap(ioc, dev, pages_needed, 0);
-			if (unlikely(pide >= (ioc->res_size << 3)))
-				panic(__FILE__ ": I/O MMU @ %p is out of mapping resources\n",
-				      ioc->ioc_hpa);
+			if (unlikely(pide >= (ioc->res_size << 3))) {
+				printk(KERN_WARNING "%s: I/O MMU @ %p is"
+				       "out of mapping resources, %u %u %lx\n",
+				       __func__, ioc->ioc_hpa, ioc->res_size,
+				       pages_needed, dma_get_seg_boundary(dev));
+				return -1;
+			}
 #else
-			panic(__FILE__ ": I/O MMU @ %p is out of mapping resources\n",
-			      ioc->ioc_hpa);
+			printk(KERN_WARNING "%s: I/O MMU @ %p is"
+			       "out of mapping resources, %u %u %lx\n",
+			       __func__, ioc->ioc_hpa, ioc->res_size,
+			       pages_needed, dma_get_seg_boundary(dev));
+			return -1;
 #endif
 		}
 	}
@@ -965,6 +972,8 @@ static dma_addr_t sba_map_page(struct device *dev, struct page *page,
 #endif
 
 	pide = sba_alloc_range(ioc, dev, size);
+	if (pide < 0)
+		return 0;
 
 	iovp = (dma_addr_t) pide << iovp_shift;
 
@@ -1320,6 +1329,7 @@ sba_coalesce_chunks(struct ioc *ioc, struct device *dev,
 	unsigned long dma_offset, dma_len; /* start/len of DMA stream */
 	int n_mappings = 0;
 	unsigned int max_seg_size = dma_get_max_seg_size(dev);
+	int idx;
 
 	while (nents > 0) {
 		unsigned long vaddr = (unsigned long) sba_sg_address(startsg);
@@ -1418,16 +1428,22 @@ sba_coalesce_chunks(struct ioc *ioc, struct device *dev,
 		vcontig_sg->dma_length = vcontig_len;
 		dma_len = (dma_len + dma_offset + ~iovp_mask) & iovp_mask;
 		ASSERT(dma_len <= DMA_CHUNK_SIZE);
-		dma_sg->dma_address = (dma_addr_t) (PIDE_FLAG
-			| (sba_alloc_range(ioc, dev, dma_len) << iovp_shift)
-			| dma_offset);
+		idx = sba_alloc_range(ioc, dev, dma_len);
+		if (idx < 0) {
+			dma_sg->dma_length = 0;
+			return -1;
+		}
+		dma_sg->dma_address = (dma_addr_t)(PIDE_FLAG | (idx << iovp_shift)
+						   | dma_offset);
 		n_mappings++;
 	}
 
 	return n_mappings;
 }
 
-
+static void sba_unmap_sg_attrs(struct device *dev, struct scatterlist *sglist,
+			       int nents, enum dma_data_direction dir,
+			       struct dma_attrs *attrs);
 /**
  * sba_map_sg - map Scatter/Gather list
  * @dev: instance of PCI owned by the driver that's asking.
@@ -1493,6 +1509,10 @@ static int sba_map_sg_attrs(struct device *dev, struct scatterlist *sglist,
 	** Access to the virtual address is what forces a two pass algorithm.
 	*/
 	coalesced = sba_coalesce_chunks(ioc, dev, sglist, nents);
+	if (coalesced < 0) {
+		sba_unmap_sg_attrs(dev, sglist, nents, dir, attrs);
+		return 0;
+	}
 
 	/*
 	** Program the I/O Pdir

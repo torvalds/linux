@@ -35,7 +35,7 @@ void extent_map_exit(void)
  */
 void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
 {
-	tree->map.rb_node = NULL;
+	tree->map = RB_ROOT;
 	rwlock_init(&tree->lock);
 }
 
@@ -153,20 +153,6 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 		*next_ret = prev;
 	}
 	return NULL;
-}
-
-/*
- * look for an offset in the tree, and if it can't be found, return
- * the first offset we can find smaller than 'offset'.
- */
-static inline struct rb_node *tree_search(struct rb_root *root, u64 offset)
-{
-	struct rb_node *prev;
-	struct rb_node *ret;
-	ret = __tree_search(root, offset, &prev, NULL);
-	if (!ret)
-		return prev;
-	return ret;
 }
 
 /* check to see if two extent_map structs are adjacent and safe to merge */

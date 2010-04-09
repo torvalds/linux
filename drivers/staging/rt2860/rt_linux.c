@@ -25,6 +25,7 @@
  *************************************************************************
  */
 
+#include <linux/firmware.h>
 #include <linux/sched.h>
 #include "rt_config.h"
 
@@ -260,6 +261,8 @@ void RTMPFreeAdapter(struct rt_rtmp_adapter *pAd)
 
 	NdisFreeSpinLock(&pAd->irq_lock);
 
+	release_firmware(pAd->firmware);
+
 	vfree(pAd);		/* pci_free_consistent(os_cookie->pci_dev,sizeof(struct rt_rtmp_adapter),pAd,os_cookie->pAd_pa); */
 	if (os_cookie)
 		kfree(os_cookie);
@@ -462,9 +465,9 @@ void *duplicate_pkt(struct rt_rtmp_adapter *pAd,
 	if ((skb =
 	     __dev_alloc_skb(HdrLen + DataSize + 2, MEM_ALLOC_FLAG)) != NULL) {
 		skb_reserve(skb, 2);
-		NdisMoveMemory(skb->tail, pHeader802_3, HdrLen);
+		NdisMoveMemory(skb_tail_pointer(skb), pHeader802_3, HdrLen);
 		skb_put(skb, HdrLen);
-		NdisMoveMemory(skb->tail, pData, DataSize);
+		NdisMoveMemory(skb_tail_pointer(skb), pData, DataSize);
 		skb_put(skb, DataSize);
 		skb->dev = get_netdev_from_bssid(pAd, FromWhichBSSID);
 		pPacket = OSPKT_TO_RTPKT(skb);
@@ -515,7 +518,7 @@ void *ClonePacket(struct rt_rtmp_adapter *pAd,
 		pClonedPkt->dev = pRxPkt->dev;
 		pClonedPkt->data = pData;
 		pClonedPkt->len = DataSize;
-		pClonedPkt->tail = pClonedPkt->data + pClonedPkt->len;
+		skb_set_tail_pointer(pClonedPkt, DataSize)
 		ASSERT(DataSize < 1530);
 	}
 	return pClonedPkt;
@@ -535,7 +538,7 @@ void update_os_packet_info(struct rt_rtmp_adapter *pAd,
 	pOSPkt->dev = get_netdev_from_bssid(pAd, FromWhichBSSID);
 	pOSPkt->data = pRxBlk->pData;
 	pOSPkt->len = pRxBlk->DataSize;
-	pOSPkt->tail = pOSPkt->data + pOSPkt->len;
+	skb_set_tail_pointer(pOSPkt, pOSPkt->len);
 }
 
 void wlan_802_11_to_802_3_packet(struct rt_rtmp_adapter *pAd,
@@ -553,7 +556,7 @@ void wlan_802_11_to_802_3_packet(struct rt_rtmp_adapter *pAd,
 	pOSPkt->dev = get_netdev_from_bssid(pAd, FromWhichBSSID);
 	pOSPkt->data = pRxBlk->pData;
 	pOSPkt->len = pRxBlk->DataSize;
-	pOSPkt->tail = pOSPkt->data + pOSPkt->len;
+	skb_set_tail_pointer(pOSPkt, pOSPkt->len);
 
 	/* */
 	/* copy 802.3 header */

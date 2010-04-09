@@ -157,9 +157,7 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 
 	/* In case nothing happened during the previous control interval, turn
 	 * the sharpening factor on. */
-	period = (HZ * pinfo->sampling_period + 500) / 1000;
-	if (!period)
-		period = 1;
+	period = msecs_to_jiffies(pinfo->sampling_period);
 	if (jiffies - spinfo->last_sample > 2 * period)
 		spinfo->sharp_cnt = pinfo->sharpen_duration;
 
@@ -190,7 +188,7 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 	rate_control_pid_normalize(pinfo, sband->n_bitrates);
 
 	/* Compute the proportional, integral and derivative errors. */
-	err_prop = (pinfo->target << RC_PID_ARITH_SHIFT) - pf;
+	err_prop = (pinfo->target - pf) << RC_PID_ARITH_SHIFT;
 
 	err_avg = spinfo->err_avg_sc >> pinfo->smoothing_shift;
 	spinfo->err_avg_sc = spinfo->err_avg_sc - err_avg + err_prop;
@@ -252,9 +250,7 @@ static void rate_control_pid_tx_status(void *priv, struct ieee80211_supported_ba
 	}
 
 	/* Update PID controller state. */
-	period = (HZ * pinfo->sampling_period + 500) / 1000;
-	if (!period)
-		period = 1;
+	period = msecs_to_jiffies(pinfo->sampling_period);
 	if (time_after(jiffies, spinfo->last_sample + period))
 		rate_control_pid_sample(pinfo, sband, sta, spinfo);
 }

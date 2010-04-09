@@ -126,7 +126,7 @@ static int gfs2_acl_set(struct inode *inode, int type, struct posix_acl *acl)
 	error = posix_acl_to_xattr(acl, data, len);
 	if (error < 0)
 		goto out;
-	error = gfs2_xattr_set(inode, GFS2_EATYPE_SYS, name, data, len, 0);
+	error = __gfs2_xattr_set(inode, name, data, len, 0, GFS2_EATYPE_SYS);
 	if (!error)
 		set_cached_acl(inode, type, acl);
 out:
@@ -232,9 +232,10 @@ static int gfs2_acl_type(const char *name)
 	return -EINVAL;
 }
 
-static int gfs2_xattr_system_get(struct inode *inode, const char *name,
-				 void *buffer, size_t size)
+static int gfs2_xattr_system_get(struct dentry *dentry, const char *name,
+				 void *buffer, size_t size, int xtype)
 {
+	struct inode *inode = dentry->d_inode;
 	struct posix_acl *acl;
 	int type;
 	int error;
@@ -255,9 +256,11 @@ static int gfs2_xattr_system_get(struct inode *inode, const char *name,
 	return error;
 }
 
-static int gfs2_xattr_system_set(struct inode *inode, const char *name,
-				 const void *value, size_t size, int flags)
+static int gfs2_xattr_system_set(struct dentry *dentry, const char *name,
+				 const void *value, size_t size, int flags,
+				 int xtype)
 {
+	struct inode *inode = dentry->d_inode;
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct posix_acl *acl = NULL;
 	int error = 0, type;
@@ -319,7 +322,7 @@ static int gfs2_xattr_system_set(struct inode *inode, const char *name,
 	}
 
 set_acl:
-	error = gfs2_xattr_set(inode, GFS2_EATYPE_SYS, name, value, size, 0);
+	error = __gfs2_xattr_set(inode, name, value, size, 0, GFS2_EATYPE_SYS);
 	if (!error) {
 		if (acl)
 			set_cached_acl(inode, type, acl);
@@ -334,6 +337,7 @@ out:
 
 struct xattr_handler gfs2_xattr_system_handler = {
 	.prefix = XATTR_SYSTEM_PREFIX,
+	.flags  = GFS2_EATYPE_SYS,
 	.get    = gfs2_xattr_system_get,
 	.set    = gfs2_xattr_system_set,
 };

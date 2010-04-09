@@ -263,13 +263,15 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 static int verify_parent_transid(struct extent_io_tree *io_tree,
 				 struct extent_buffer *eb, u64 parent_transid)
 {
+	struct extent_state *cached_state = NULL;
 	int ret;
 
 	if (!parent_transid || btrfs_header_generation(eb) == parent_transid)
 		return 0;
 
-	lock_extent(io_tree, eb->start, eb->start + eb->len - 1, GFP_NOFS);
-	if (extent_buffer_uptodate(io_tree, eb) &&
+	lock_extent_bits(io_tree, eb->start, eb->start + eb->len - 1,
+			 0, &cached_state, GFP_NOFS);
+	if (extent_buffer_uptodate(io_tree, eb, cached_state) &&
 	    btrfs_header_generation(eb) == parent_transid) {
 		ret = 0;
 		goto out;
@@ -282,10 +284,10 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		       (unsigned long long)btrfs_header_generation(eb));
 	}
 	ret = 1;
-	clear_extent_buffer_uptodate(io_tree, eb);
+	clear_extent_buffer_uptodate(io_tree, eb, &cached_state);
 out:
-	unlock_extent(io_tree, eb->start, eb->start + eb->len - 1,
-		      GFP_NOFS);
+	unlock_extent_cached(io_tree, eb->start, eb->start + eb->len - 1,
+			     &cached_state, GFP_NOFS);
 	return ret;
 }
 
@@ -892,6 +894,8 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->stripesize = stripesize;
 	root->ref_cows = 0;
 	root->track_dirty = 0;
+	root->in_radix = 0;
+	root->clean_orphans = 0;
 
 	root->fs_info = fs_info;
 	root->objectid = objectid;
@@ -899,7 +903,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->highest_objectid = 0;
 	root->name = NULL;
 	root->in_sysfs = 0;
-	root->inode_tree.rb_node = NULL;
+	root->inode_tree = RB_ROOT;
 
 	INIT_LIST_HEAD(&root->dirty_list);
 	INIT_LIST_HEAD(&root->orphan_list);
@@ -928,7 +932,6 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->defrag_trans_start = fs_info->generation;
 	init_completion(&root->kobj_unregister);
 	root->defrag_running = 0;
-	root->defrag_level = 0;
 	root->root_key.objectid = objectid;
 	root->anon_super.s_root = NULL;
 	root->anon_super.s_dev = 0;
@@ -980,12 +983,12 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
 
 	while (1) {
 		ret = find_first_extent_bit(&log_root_tree->dirty_log_pages,
-				    0, &start, &end, EXTENT_DIRTY);
+				0, &start, &end, EXTENT_DIRTY | EXTENT_NEW);
 		if (ret)
 			break;
 
-		clear_extent_dirty(&log_root_tree->dirty_log_pages,
-				   start, end, GFP_NOFS);
+		clear_extent_bits(&log_root_tree->dirty_log_pages, start, end,
+				  EXTENT_DIRTY | EXTENT_NEW, GFP_NOFS);
 	}
 	eb = fs_info->log_root_tree->node;
 
@@ -1210,8 +1213,10 @@ again:
 	ret = radix_tree_insert(&fs_info->fs_roots_radix,
 				(unsigned long)root->root_key.objectid,
 				root);
-	if (ret == 0)
+	if (ret == 0) {
 		root->in_radix = 1;
+		root->clean_orphans = 1;
+	}
 	spin_unlock(&fs_info->fs_roots_radix_lock);
 	radix_tree_preload_end();
 	if (ret) {
@@ -1225,10 +1230,6 @@ again:
 	ret = btrfs_find_dead_roots(fs_info->tree_root,
 				    root->root_key.objectid);
 	WARN_ON(ret);
-
-	if (!(fs_info->sb->s_flags & MS_RDONLY))
-		btrfs_orphan_cleanup(root);
-
 	return root;
 fail:
 	free_fs_root(root);
@@ -1477,6 +1478,7 @@ static int cleaner_kthread(void *arg)
 
 		if (!(root->fs_info->sb->s_flags & MS_RDONLY) &&
 		    mutex_trylock(&root->fs_info->cleaner_mutex)) {
+			btrfs_run_delayed_iputs(root);
 			btrfs_clean_old_snapshots(root);
 			mutex_unlock(&root->fs_info->cleaner_mutex);
 		}
@@ -1606,6 +1608,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
+	INIT_LIST_HEAD(&fs_info->delayed_iputs);
 	INIT_LIST_HEAD(&fs_info->hashers);
 	INIT_LIST_HEAD(&fs_info->delalloc_inodes);
 	INIT_LIST_HEAD(&fs_info->ordered_operations);
@@ -1614,6 +1617,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->new_trans_lock);
 	spin_lock_init(&fs_info->ref_cache_lock);
 	spin_lock_init(&fs_info->fs_roots_radix_lock);
+	spin_lock_init(&fs_info->delayed_iput_lock);
 
 	init_completion(&fs_info->kobj_unregister);
 	fs_info->tree_root = tree_root;
@@ -1671,7 +1675,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	insert_inode_hash(fs_info->btree_inode);
 
 	spin_lock_init(&fs_info->block_group_cache_lock);
-	fs_info->block_group_cache_tree.rb_node = NULL;
+	fs_info->block_group_cache_tree = RB_ROOT;
 
 	extent_io_tree_init(&fs_info->freed_extents[0],
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
@@ -1689,6 +1693,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->cleaner_mutex);
 	mutex_init(&fs_info->volume_mutex);
 	init_rwsem(&fs_info->extent_commit_sem);
+	init_rwsem(&fs_info->cleanup_work_sem);
 	init_rwsem(&fs_info->subvol_sem);
 
 	btrfs_init_free_cluster(&fs_info->meta_alloc_cluster);
@@ -1979,7 +1984,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		ret = btrfs_recover_relocation(tree_root);
-		BUG_ON(ret);
+		if (ret < 0) {
+			printk(KERN_WARNING
+			       "btrfs: failed to recover relocation\n");
+			err = -EINVAL;
+			goto fail_trans_kthread;
+		}
 	}
 
 	location.objectid = BTRFS_FS_TREE_OBJECTID;
@@ -1989,6 +1999,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
 	if (!fs_info->fs_root)
 		goto fail_trans_kthread;
+
+	if (!(sb->s_flags & MS_RDONLY)) {
+		down_read(&fs_info->cleanup_work_sem);
+		btrfs_orphan_cleanup(fs_info->fs_root);
+		up_read(&fs_info->cleanup_work_sem);
+	}
 
 	return tree_root;
 
@@ -2386,8 +2402,14 @@ int btrfs_commit_super(struct btrfs_root *root)
 	int ret;
 
 	mutex_lock(&root->fs_info->cleaner_mutex);
+	btrfs_run_delayed_iputs(root);
 	btrfs_clean_old_snapshots(root);
 	mutex_unlock(&root->fs_info->cleaner_mutex);
+
+	/* wait until ongoing cleanup work done */
+	down_write(&root->fs_info->cleanup_work_sem);
+	up_write(&root->fs_info->cleanup_work_sem);
+
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 	BUG_ON(ret);
@@ -2477,7 +2499,8 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid)
 	int ret;
 	struct inode *btree_inode = buf->first_page->mapping->host;
 
-	ret = extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree, buf);
+	ret = extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree, buf,
+				     NULL);
 	if (!ret)
 		return ret;
 

@@ -242,7 +242,7 @@ static int smbus_alarm(void *context)
 		case ACPI_SBS_CHARGER:
 		case ACPI_SBS_MANAGER:
 		case ACPI_SBS_BATTERY:
-			acpi_os_execute(OSL_GPE_HANDLER,
+			acpi_os_execute(OSL_NOTIFY_HANDLER,
 					acpi_smbus_callback, hc);
 		default:;
 	}

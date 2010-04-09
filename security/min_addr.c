@@ -43,7 +43,7 @@ int mmap_min_addr_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
-int __init init_mmap_min_addr(void)
+static int __init init_mmap_min_addr(void)
 {
 	update_mmap_min_addr();
 

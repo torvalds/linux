@@ -288,7 +288,9 @@ static int  option_resume(struct usb_serial *serial);
 
 #define QUALCOMM_VENDOR_ID			0x05C6
 
-#define MAXON_VENDOR_ID				0x16d8
+#define CMOTECH_VENDOR_ID			0x16d8
+#define CMOTECH_PRODUCT_6008			0x6008
+#define CMOTECH_PRODUCT_6280			0x6280
 
 #define TELIT_VENDOR_ID				0x1bc7
 #define TELIT_PRODUCT_UC864E			0x1003
@@ -309,6 +311,7 @@ static int  option_resume(struct usb_serial *serial);
 #define DLINK_VENDOR_ID				0x1186
 #define DLINK_PRODUCT_DWM_652			0x3e04
 #define DLINK_PRODUCT_DWM_652_U5		0xce16
+#define DLINK_PRODUCT_DWM_652_U5A		0xce1e
 
 #define QISDA_VENDOR_ID				0x1da5
 #define QISDA_PRODUCT_H21_4512			0x4512
@@ -332,15 +335,64 @@ static int  option_resume(struct usb_serial *serial);
 #define ALCATEL_VENDOR_ID			0x1bbb
 #define ALCATEL_PRODUCT_X060S			0x0000
 
+#define PIRELLI_VENDOR_ID			0x1266
+#define PIRELLI_PRODUCT_C100_1			0x1002
+#define PIRELLI_PRODUCT_C100_2			0x1003
+#define PIRELLI_PRODUCT_1004			0x1004
+#define PIRELLI_PRODUCT_1005			0x1005
+#define PIRELLI_PRODUCT_1006			0x1006
+#define PIRELLI_PRODUCT_1007			0x1007
+#define PIRELLI_PRODUCT_1008			0x1008
+#define PIRELLI_PRODUCT_1009			0x1009
+#define PIRELLI_PRODUCT_100A			0x100a
+#define PIRELLI_PRODUCT_100B			0x100b
+#define PIRELLI_PRODUCT_100C			0x100c
+#define PIRELLI_PRODUCT_100D			0x100d
+#define PIRELLI_PRODUCT_100E			0x100e
+#define PIRELLI_PRODUCT_100F			0x100f
+#define PIRELLI_PRODUCT_1011			0x1011
+#define PIRELLI_PRODUCT_1012			0x1012
+
 /* Airplus products */
 #define AIRPLUS_VENDOR_ID			0x1011
 #define AIRPLUS_PRODUCT_MCD650			0x3198
 
+/* Longcheer/Longsung vendor ID; makes whitelabel devices that
+ * many other vendors like 4G Systems, Alcatel, ChinaBird,
+ * Mobidata, etc sell under their own brand names.
+ */
+#define LONGCHEER_VENDOR_ID			0x1c9e
+
 /* 4G Systems products */
-#define FOUR_G_SYSTEMS_VENDOR_ID		0x1c9e
+/* This is the 4G XS Stick W14 a.k.a. Mobilcom Debitel Surf-Stick *
+ * It seems to contain a Qualcomm QSC6240/6290 chipset            */
 #define FOUR_G_SYSTEMS_PRODUCT_W14		0x9603
 
-static struct usb_device_id option_ids[] = {
+/* Haier products */
+#define HAIER_VENDOR_ID				0x201e
+#define HAIER_PRODUCT_CE100			0x2009
+
+/* some devices interfaces need special handling due to a number of reasons */
+enum option_blacklist_reason {
+		OPTION_BLACKLIST_NONE = 0,
+		OPTION_BLACKLIST_SENDSETUP = 1,
+		OPTION_BLACKLIST_RESERVED_IF = 2
+};
+
+struct option_blacklist_info {
+	const u32 infolen;	/* number of interface numbers on blacklist */
+	const u8  *ifaceinfo;	/* pointer to the array holding the numbers */
+	enum option_blacklist_reason reason;
+};
+
+static const u8 four_g_w14_no_sendsetup[] = { 0, 1 };
+static const struct option_blacklist_info four_g_w14_blacklist = {
+	.infolen = ARRAY_SIZE(four_g_w14_no_sendsetup),
+	.ifaceinfo = four_g_w14_no_sendsetup,
+	.reason = OPTION_BLACKLIST_SENDSETUP
+};
+
+static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA_LIGHT) },
@@ -516,7 +568,8 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(KYOCERA_VENDOR_ID, KYOCERA_PRODUCT_KPC680) },
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x6000)}, /* ZTE AC8700 */
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x6613)}, /* Onda H600/ZTE MF330 */
-	{ USB_DEVICE(MAXON_VENDOR_ID, 0x6280) }, /* BP3-USB & BP3-EXT HSDPA */
+	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6280) }, /* BP3-USB & BP3-EXT HSDPA */
+	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6008) },
 	{ USB_DEVICE(TELIT_VENDOR_ID, TELIT_PRODUCT_UC864E) },
 	{ USB_DEVICE(TELIT_VENDOR_ID, TELIT_PRODUCT_UC864G) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, ZTE_PRODUCT_MF622, 0xff, 0xff, 0xff) }, /* ZTE WCDMA products */
@@ -628,6 +681,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(BENQ_VENDOR_ID, BENQ_PRODUCT_H10) },
 	{ USB_DEVICE(DLINK_VENDOR_ID, DLINK_PRODUCT_DWM_652) },
 	{ USB_DEVICE(ALINK_VENDOR_ID, DLINK_PRODUCT_DWM_652_U5) }, /* Yes, ALINK_VENDOR_ID */
+	{ USB_DEVICE(ALINK_VENDOR_ID, DLINK_PRODUCT_DWM_652_U5A) },
 	{ USB_DEVICE(QISDA_VENDOR_ID, QISDA_PRODUCT_H21_4512) },
 	{ USB_DEVICE(QISDA_VENDOR_ID, QISDA_PRODUCT_H21_4523) },
 	{ USB_DEVICE(QISDA_VENDOR_ID, QISDA_PRODUCT_H20_4515) },
@@ -635,12 +689,32 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(TOSHIBA_VENDOR_ID, TOSHIBA_PRODUCT_G450) },
 	{ USB_DEVICE(TOSHIBA_VENDOR_ID, TOSHIBA_PRODUCT_HSDPA_MINICARD ) }, /* Toshiba 3G HSDPA == Novatel Expedite EU870D MiniCard */
 	{ USB_DEVICE(ALINK_VENDOR_ID, 0x9000) },
-	{ USB_DEVICE(ALINK_VENDOR_ID, 0xce16) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ALINK_VENDOR_ID, ALINK_PRODUCT_3GU, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X060S) },
 	{ USB_DEVICE(AIRPLUS_VENDOR_ID, AIRPLUS_PRODUCT_MCD650) },
 	{ USB_DEVICE(TLAYTECH_VENDOR_ID, TLAYTECH_PRODUCT_TEU800) },
-	{ USB_DEVICE(FOUR_G_SYSTEMS_VENDOR_ID, FOUR_G_SYSTEMS_PRODUCT_W14) },
+	{ USB_DEVICE(LONGCHEER_VENDOR_ID, FOUR_G_SYSTEMS_PRODUCT_W14),
+  	  .driver_info = (kernel_ulong_t)&four_g_w14_blacklist
+  	},
+	{ USB_DEVICE(HAIER_VENDOR_ID, HAIER_PRODUCT_CE100) },
+	/* Pirelli  */
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_C100_1)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_C100_2)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1004)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1005)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1006)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1007)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1008)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1009)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100A)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100B) },
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100C) },
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100D) },
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100E) },
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100F) },
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1011)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1012)},
+
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
@@ -704,6 +778,7 @@ struct option_intf_private {
 	spinlock_t susp_lock;
 	unsigned int suspended:1;
 	int in_flight;
+	struct option_blacklist_info *blacklist_info;
 };
 
 struct option_port_private {
@@ -763,17 +838,42 @@ static int option_probe(struct usb_serial *serial,
 			const struct usb_device_id *id)
 {
 	struct option_intf_private *data;
+
 	/* D-Link DWM 652 still exposes CD-Rom emulation interface in modem mode */
 	if (serial->dev->descriptor.idVendor == DLINK_VENDOR_ID &&
 		serial->dev->descriptor.idProduct == DLINK_PRODUCT_DWM_652 &&
 		serial->interface->cur_altsetting->desc.bInterfaceClass == 0x8)
 		return -ENODEV;
 
+	/* Bandrich modem and AT command interface is 0xff */
+	if ((serial->dev->descriptor.idVendor == BANDRICH_VENDOR_ID ||
+		serial->dev->descriptor.idVendor == PIRELLI_VENDOR_ID) &&
+		serial->interface->cur_altsetting->desc.bInterfaceClass != 0xff)
+		return -ENODEV;
+
 	data = serial->private = kzalloc(sizeof(struct option_intf_private), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 	spin_lock_init(&data->susp_lock);
+	data->blacklist_info = (struct option_blacklist_info*) id->driver_info;
 	return 0;
+}
+
+static enum option_blacklist_reason is_blacklisted(const u8 ifnum,
+				const struct option_blacklist_info *blacklist)
+{
+	const u8  *info;
+	int i;
+
+	if (blacklist) {
+		info = blacklist->ifaceinfo;
+
+		for (i = 0; i < blacklist->infolen; i++) {
+			if (info[i] == ifnum)
+				return blacklist->reason;
+		}
+	}
+	return OPTION_BLACKLIST_NONE;
 }
 
 static void option_set_termios(struct tty_struct *tty,
@@ -916,7 +1016,6 @@ static void option_indat_callback(struct urb *urb)
 	} else {
 		tty = tty_port_tty_get(&port->port);
 		if (urb->actual_length) {
-			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
 		} else 
@@ -924,9 +1023,9 @@ static void option_indat_callback(struct urb *urb)
 		tty_kref_put(tty);
 
 		/* Resubmit urb so we continue receiving */
-		if (port->port.count && status != -ESHUTDOWN) {
+		if (status != -ESHUTDOWN) {
 			err = usb_submit_urb(urb, GFP_ATOMIC);
-			if (err)
+			if (err && err != -EPERM)
 				printk(KERN_ERR "%s: resubmit read urb failed. "
 					"(%d)", __func__, err);
 			else
@@ -980,7 +1079,7 @@ static void option_instat_callback(struct urb *urb)
 				(struct usb_ctrlrequest *)urb->transfer_buffer;
 
 		if (!req_pkt) {
-			dbg("%s: NULL req_pkt\n", __func__);
+			dbg("%s: NULL req_pkt", __func__);
 			return;
 		}
 		if ((req_pkt->bRequestType == 0xA1) &&
@@ -1206,10 +1305,18 @@ static void option_setup_urbs(struct usb_serial *serial)
 static int option_send_setup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
+	struct option_intf_private *intfdata =
+		(struct option_intf_private *) serial->private;
 	struct option_port_private *portdata;
 	int ifNum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
 	int val = 0;
 	dbg("%s", __func__);
+
+	if (is_blacklisted(ifNum, intfdata->blacklist_info) ==
+						OPTION_BLACKLIST_SENDSETUP) {
+		dbg("No send_setup on blacklisted interface #%d\n", ifNum);
+		return -EIO;
+	}
 
 	portdata = usb_get_serial_port_data(port);
 
@@ -1396,7 +1503,7 @@ static int option_resume(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
 		if (!port->interrupt_in_urb) {
-			dbg("%s: No interrupt URB for port %d\n", __func__, i);
+			dbg("%s: No interrupt URB for port %d", __func__, i);
 			continue;
 		}
 		err = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);

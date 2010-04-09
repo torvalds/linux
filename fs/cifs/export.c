@@ -24,7 +24,7 @@
  */
 
  /*
-  * See Documentation/filesystems/Exporting
+  * See Documentation/filesystems/nfs/Exporting
   * and examples in fs/exportfs
   *
   * Since cifs is a network file system, an "fsid" must be included for

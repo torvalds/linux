@@ -154,6 +154,8 @@
 #define PRID_REV_VR4181A	0x0070	/* Same as VR4122 */
 #define PRID_REV_VR4130		0x0080
 #define PRID_REV_34K_V1_0_2	0x0022
+#define PRID_REV_LOONGSON2E	0x0002
+#define PRID_REV_LOONGSON2F	0x0003
 
 /*
  * Older processors used to encode processor version and revision in two
@@ -222,7 +224,7 @@ enum cpu_type_enum {
 	 * MIPS64 class processors
 	 */
 	CPU_5KC, CPU_20KC, CPU_25KF, CPU_SB1, CPU_SB1A, CPU_LOONGSON2,
-	CPU_CAVIUM_OCTEON,
+	CPU_CAVIUM_OCTEON, CPU_CAVIUM_OCTEON_PLUS,
 
 	CPU_LAST
 };

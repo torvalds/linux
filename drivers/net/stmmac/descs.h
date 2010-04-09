@@ -1,6 +1,6 @@
 /*******************************************************************************
-  Header File to describe the DMA descriptors
-  Use enhanced descriptors in case of GMAC Cores.
+  Header File to describe the DMA descriptors.
+  Enhanced descriptors have been in case of DWMAC1000 Cores.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,

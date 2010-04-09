@@ -36,11 +36,11 @@ Datagram vs Connected modes
   fabric with a 2K MTU, the IPoIB MTU will be 2048 - 4 = 2044 bytes.
 
   In connected mode, the IB RC (Reliable Connected) transport is used.
-  Connected mode is to takes advantage of the connected nature of the
-  IB transport and allows an MTU up to the maximal IP packet size of
-  64K, which reduces the number of IP packets needed for handling
-  large UDP datagrams, TCP segments, etc and increases the performance
-  for large messages.
+  Connected mode takes advantage of the connected nature of the IB
+  transport and allows an MTU up to the maximal IP packet size of 64K,
+  which reduces the number of IP packets needed for handling large UDP
+  datagrams, TCP segments, etc and increases the performance for large
+  messages.
 
   In connected mode, the interface's UD QP is still used for multicast
   and communication with peers that don't support connected mode. In

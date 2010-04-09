@@ -205,7 +205,7 @@ static struct saa7134_format formats[] = {
 
 #define NORM_525_60			\
 		.h_start       = 0,	\
-		.h_stop        = 703,	\
+		.h_stop        = 719,	\
 		.video_v_start = 23,	\
 		.video_v_stop  = 262,	\
 		.vbi_v_start_0 = 10,	\

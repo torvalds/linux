@@ -8,13 +8,6 @@
 /* the following variables are processor specific and initialized
  * by the corresponding zylonite_pxa3xx_init()
  */
-struct platform_mmc_slot {
-	int gpio_cd;
-	int gpio_wp;
-};
-
-extern struct platform_mmc_slot zylonite_mmc_slot[];
-
 extern int gpio_eth_irq;
 extern int gpio_debug_led1;
 extern int gpio_debug_led2;

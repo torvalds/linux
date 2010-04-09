@@ -474,6 +474,8 @@ static void __init get_viotape_info(struct device_node *vio_root)
 	struct vio_waitevent we;
 	int ret;
 
+	init_completion(&we.com);
+
 	ret = viopath_open(viopath_hostLp, viomajorsubtype_tape, 2);
 	if (ret) {
 		printk(KERN_WARNING "get_viotape_info: "

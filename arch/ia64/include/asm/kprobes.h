@@ -103,11 +103,6 @@ typedef struct kprobe_opcode {
 	bundle_t bundle;
 } kprobe_opcode_t;
 
-struct fnptr {
-	unsigned long ip;
-	unsigned long gp;
-};
-
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {
 	/* copy of the instruction to be emulated */

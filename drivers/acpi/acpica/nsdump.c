@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -180,7 +180,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	this_node = acpi_ns_map_handle_to_node(obj_handle);
+	this_node = acpi_ns_validate_handle(obj_handle);
 	if (!this_node) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid object handle %p\n",
 				  obj_handle));

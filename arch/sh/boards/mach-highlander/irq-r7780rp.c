@@ -57,7 +57,7 @@ static DECLARE_INTC_DESC(intc_desc, "r7780rp", vectors,
 
 unsigned char * __init highlander_plat_irq_setup(void)
 {
-	if (ctrl_inw(0xa5000600)) {
+	if (__raw_readw(0xa5000600)) {
 		printk(KERN_INFO "Using r7780rp interrupt controller.\n");
 		register_intc_controller(&intc_desc);
 		return irl2irq;

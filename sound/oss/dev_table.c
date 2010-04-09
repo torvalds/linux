@@ -67,14 +67,15 @@ int sound_install_audiodrv(int vers, char *name, struct audio_driver *driver,
 		return -(EBUSY);
 	}
 	d = (struct audio_driver *) (sound_mem_blocks[sound_nblocks] = vmalloc(sizeof(struct audio_driver)));
-
-	if (sound_nblocks < 1024)
-		sound_nblocks++;
+	sound_nblocks++;
+	if (sound_nblocks >= MAX_MEM_BLOCKS)
+		sound_nblocks = MAX_MEM_BLOCKS - 1;
 
 	op = (struct audio_operations *) (sound_mem_blocks[sound_nblocks] = vmalloc(sizeof(struct audio_operations)));
+	sound_nblocks++;
+	if (sound_nblocks >= MAX_MEM_BLOCKS)
+		sound_nblocks = MAX_MEM_BLOCKS - 1;
 
-	if (sound_nblocks < 1024)
-		sound_nblocks++;
 	if (d == NULL || op == NULL) {
 		printk(KERN_ERR "Sound: Can't allocate driver for (%s)\n", name);
 		sound_unload_audiodev(num);
@@ -128,9 +129,10 @@ int sound_install_mixer(int vers, char *name, struct mixer_operations *driver,
 	   until you unload sound! */
 	   
 	op = (struct mixer_operations *) (sound_mem_blocks[sound_nblocks] = vmalloc(sizeof(struct mixer_operations)));
+	sound_nblocks++;
+	if (sound_nblocks >= MAX_MEM_BLOCKS)
+		sound_nblocks = MAX_MEM_BLOCKS - 1;
 
-	if (sound_nblocks < 1024)
-		sound_nblocks++;
 	if (op == NULL) {
 		printk(KERN_ERR "Sound: Can't allocate mixer driver for (%s)\n", name);
 		return -ENOMEM;

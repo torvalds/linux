@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -329,7 +329,7 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
  *              region_offset       - Where in the region to read or write
  *              bit_width           - Field width in bits (8, 16, 32, or 64)
  *              Value               - Pointer to in or out value, must be
- *                                    full 64-bit acpi_integer
+ *                                    a full 64-bit integer
  *
  * RETURN:      Status
  *
@@ -341,8 +341,7 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 acpi_status
 acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			       u32 function,
-			       u32 region_offset,
-			       u32 bit_width, acpi_integer * value)
+			       u32 region_offset, u32 bit_width, u64 *value)
 {
 	acpi_status status;
 	acpi_adr_space_handler handler;
@@ -718,7 +717,7 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_map_handle_to_node(obj_handle);
+	node = acpi_ns_validate_handle(obj_handle);
 	if (!node) {
 		return (AE_BAD_PARAMETER);
 	}
@@ -1087,7 +1086,7 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_map_handle_to_node(obj_handle);
+	node = acpi_ns_validate_handle(obj_handle);
 	if (!node) {
 		return (AE_BAD_PARAMETER);
 	}

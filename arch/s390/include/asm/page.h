@@ -107,9 +107,6 @@ typedef pte_t *pgtable_t;
 #define __pgd(x)        ((pgd_t) { (x) } )
 #define __pgprot(x)     ((pgprot_t) { (x) } )
 
-/* default storage key used for all pages */
-extern unsigned int default_storage_key;
-
 static inline void
 page_set_storage_key(unsigned long addr, unsigned int skey)
 {

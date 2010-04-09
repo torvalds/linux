@@ -167,27 +167,14 @@ xfs_growfs_data_private(
 	}
 	new = nb - mp->m_sb.sb_dblocks;
 	oagcount = mp->m_sb.sb_agcount;
+
+	/* allocate the new per-ag structures */
 	if (nagcount > oagcount) {
-		void *new_perag, *old_perag;
-
-		xfs_filestream_flush(mp);
-
-		new_perag = kmem_zalloc(sizeof(xfs_perag_t) * nagcount,
-					KM_MAYFAIL);
-		if (!new_perag)
-			return XFS_ERROR(ENOMEM);
-
-		down_write(&mp->m_peraglock);
-		memcpy(new_perag, mp->m_perag, sizeof(xfs_perag_t) * oagcount);
-		old_perag = mp->m_perag;
-		mp->m_perag = new_perag;
-
-		mp->m_flags |= XFS_MOUNT_32BITINODES;
-		nagimax = xfs_initialize_perag(mp, nagcount);
-		up_write(&mp->m_peraglock);
-
-		kmem_free(old_perag);
+		error = xfs_initialize_perag(mp, nagcount, &nagimax);
+		if (error)
+			return error;
 	}
+
 	tp = xfs_trans_alloc(mp, XFS_TRANS_GROWFS);
 	tp->t_flags |= XFS_TRANS_RESERVE;
 	if ((error = xfs_trans_reserve(tp, XFS_GROWFS_SPACE_RES(mp),
@@ -196,6 +183,11 @@ xfs_growfs_data_private(
 		return error;
 	}
 
+	/*
+	 * Write new AG headers to disk. Non-transactional, but written
+	 * synchronously so they are completed prior to the growfs transaction
+	 * being logged.
+	 */
 	nfree = 0;
 	for (agno = nagcount - 1; agno >= oagcount; agno--, new -= agsize) {
 		/*
@@ -359,6 +351,12 @@ xfs_growfs_data_private(
 			goto error0;
 		}
 	}
+
+	/*
+	 * Update changed superblock fields transactionally. These are not
+	 * seen by the rest of the world until the transaction commit applies
+	 * them atomically to the superblock.
+	 */
 	if (nagcount > oagcount)
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_AGCOUNT, nagcount - oagcount);
 	if (nb > mp->m_sb.sb_dblocks)
@@ -369,9 +367,9 @@ xfs_growfs_data_private(
 	if (dpct)
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_IMAXPCT, dpct);
 	error = xfs_trans_commit(tp, 0);
-	if (error) {
+	if (error)
 		return error;
-	}
+
 	/* New allocation groups fully initialized, so update mount struct */
 	if (nagimax)
 		mp->m_maxagi = nagimax;
@@ -381,6 +379,8 @@ xfs_growfs_data_private(
 		mp->m_maxicount = icount << mp->m_sb.sb_inopblog;
 	} else
 		mp->m_maxicount = 0;
+
+	/* update secondary superblocks. */
 	for (agno = 1; agno < nagcount; agno++) {
 		error = xfs_read_buf(mp, mp->m_ddev_targp,
 				  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),

@@ -142,4 +142,6 @@ static inline int translate_mode(struct file *file)
 #define TIMER_ARMED	121234
 #define TIMER_NOT_ARMED	1
 
+#define MAX_MEM_BLOCKS 1024
+
 #endif

@@ -284,15 +284,16 @@ ENTRY(xscale_coherent_user_range)
 	mov	pc, lr
 
 /*
- *	flush_kern_dcache_page(void *page)
+ *	flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
  *	the I cache
  *
- *	- addr	- page aligned address
+ *	- addr	- kernel address
+ *	- size	- region size
  */
-ENTRY(xscale_flush_kern_dcache_page)
-	add	r1, r0, #PAGE_SZ
+ENTRY(xscale_flush_kern_dcache_area)
+	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c6, 1		@ invalidate D entry
 	add	r0, r0, #CACHELINESIZE
@@ -314,7 +315,7 @@ ENTRY(xscale_flush_kern_dcache_page)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(xscale_dma_inv_range)
+xscale_dma_inv_range:
 	tst	r0, #CACHELINESIZE - 1
 	bic	r0, r0, #CACHELINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -335,7 +336,7 @@ ENTRY(xscale_dma_inv_range)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(xscale_dma_clean_range)
+xscale_dma_clean_range:
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHELINESIZE
@@ -362,15 +363,52 @@ ENTRY(xscale_dma_flush_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	mov	pc, lr
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(xscale_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	xscale_dma_clean_range
+	bcs	xscale_dma_inv_range
+	b	xscale_dma_flush_range
+ENDPROC(xscale_dma_map_area)
+
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(xscale_dma_a0_map_area)
+	add	r1, r1, r0
+	teq	r2, #DMA_TO_DEVICE
+	beq	xscale_dma_clean_range
+	b	xscale_dma_flush_range
+ENDPROC(xscsale_dma_a0_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(xscale_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(xscale_dma_unmap_area)
+
 ENTRY(xscale_cache_fns)
 	.long	xscale_flush_kern_cache_all
 	.long	xscale_flush_user_cache_all
 	.long	xscale_flush_user_cache_range
 	.long	xscale_coherent_kern_range
 	.long	xscale_coherent_user_range
-	.long	xscale_flush_kern_dcache_page
-	.long	xscale_dma_inv_range
-	.long	xscale_dma_clean_range
+	.long	xscale_flush_kern_dcache_area
+	.long	xscale_dma_map_area
+	.long	xscale_dma_unmap_area
 	.long	xscale_dma_flush_range
 
 /*
@@ -392,9 +430,9 @@ ENTRY(xscale_80200_A0_A1_cache_fns)
 	.long	xscale_flush_user_cache_range
 	.long	xscale_coherent_kern_range
 	.long	xscale_coherent_user_range
-	.long	xscale_flush_kern_dcache_page
-	.long	xscale_dma_flush_range
-	.long	xscale_dma_clean_range
+	.long	xscale_flush_kern_dcache_area
+	.long	xscale_dma_a0_map_area
+	.long	xscale_dma_unmap_area
 	.long	xscale_dma_flush_range
 
 ENTRY(cpu_xscale_dcache_clean_area)

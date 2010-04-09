@@ -242,6 +242,7 @@ static void bdi_sync_writeback(struct backing_dev_info *bdi,
 /**
  * bdi_start_writeback - start writeback
  * @bdi: the backing device to write from
+ * @sb: write inodes from this super_block
  * @nr_pages: the number of pages to write
  *
  * Description:
@@ -380,10 +381,10 @@ static void queue_io(struct bdi_writeback *wb, unsigned long *older_than_this)
 	move_expired_inodes(&wb->b_dirty, &wb->b_io, older_than_this);
 }
 
-static int write_inode(struct inode *inode, int sync)
+static int write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	if (inode->i_sb->s_op->write_inode && !is_bad_inode(inode))
-		return inode->i_sb->s_op->write_inode(inode, sync);
+		return inode->i_sb->s_op->write_inode(inode, wbc);
 	return 0;
 }
 
@@ -420,7 +421,6 @@ static int
 writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct address_space *mapping = inode->i_mapping;
-	int wait = wbc->sync_mode == WB_SYNC_ALL;
 	unsigned dirty;
 	int ret;
 
@@ -438,7 +438,7 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 		 * We'll have another go at writing back this inode when we
 		 * completed a full scan of b_io.
 		 */
-		if (!wait) {
+		if (wbc->sync_mode != WB_SYNC_ALL) {
 			requeue_io(inode);
 			return 0;
 		}
@@ -460,15 +460,20 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 
 	ret = do_writepages(mapping, wbc);
 
-	/* Don't write the inode if only I_DIRTY_PAGES was set */
-	if (dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) {
-		int err = write_inode(inode, wait);
+	/*
+	 * Make sure to wait on the data before writing out the metadata.
+	 * This is important for filesystems that modify metadata on data
+	 * I/O completion.
+	 */
+	if (wbc->sync_mode == WB_SYNC_ALL) {
+		int err = filemap_fdatawait(mapping);
 		if (ret == 0)
 			ret = err;
 	}
 
-	if (wait) {
-		int err = filemap_fdatawait(mapping);
+	/* Don't write the inode if only I_DIRTY_PAGES was set */
+	if (dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) {
+		int err = write_inode(inode, wbc);
 		if (ret == 0)
 			ret = err;
 	}
@@ -1185,6 +1190,23 @@ void writeback_inodes_sb(struct super_block *sb)
 	bdi_start_writeback(sb->s_bdi, sb, nr_to_write);
 }
 EXPORT_SYMBOL(writeback_inodes_sb);
+
+/**
+ * writeback_inodes_sb_if_idle	-	start writeback if none underway
+ * @sb: the superblock
+ *
+ * Invoke writeback_inodes_sb if no writeback is currently underway.
+ * Returns 1 if writeback was started, 0 if not.
+ */
+int writeback_inodes_sb_if_idle(struct super_block *sb)
+{
+	if (!writeback_in_progress(sb->s_bdi)) {
+		writeback_inodes_sb(sb);
+		return 1;
+	} else
+		return 0;
+}
+EXPORT_SYMBOL(writeback_inodes_sb_if_idle);
 
 /**
  * sync_inodes_sb	-	sync sb inode pages

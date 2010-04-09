@@ -33,7 +33,7 @@
 #define TRANCEVIBRATOR_VENDOR_ID	0x0b49	/* ASCII Corporation */
 #define TRANCEVIBRATOR_PRODUCT_ID	0x064f	/* Trance Vibrator */
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(TRANCEVIBRATOR_VENDOR_ID, TRANCEVIBRATOR_PRODUCT_ID) },
 	{ },
 };

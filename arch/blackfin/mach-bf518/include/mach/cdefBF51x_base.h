@@ -131,23 +131,6 @@
 #define bfin_write_UART0_GCTL(val)		bfin_write16(UART0_GCTL, val)
 
 
-/* SPI Controller		(0xFFC00500 - 0xFFC005FF)									*/
-#define bfin_read_SPI_CTL()			bfin_read16(SPI_CTL)
-#define bfin_write_SPI_CTL(val)			bfin_write16(SPI_CTL, val)
-#define bfin_read_SPI_FLG()			bfin_read16(SPI_FLG)
-#define bfin_write_SPI_FLG(val)			bfin_write16(SPI_FLG, val)
-#define bfin_read_SPI_STAT()			bfin_read16(SPI_STAT)
-#define bfin_write_SPI_STAT(val)		bfin_write16(SPI_STAT, val)
-#define bfin_read_SPI_TDBR()			bfin_read16(SPI_TDBR)
-#define bfin_write_SPI_TDBR(val)		bfin_write16(SPI_TDBR, val)
-#define bfin_read_SPI_RDBR()			bfin_read16(SPI_RDBR)
-#define bfin_write_SPI_RDBR(val)		bfin_write16(SPI_RDBR, val)
-#define bfin_read_SPI_BAUD()			bfin_read16(SPI_BAUD)
-#define bfin_write_SPI_BAUD(val)		bfin_write16(SPI_BAUD, val)
-#define bfin_read_SPI_SHADOW()			bfin_read16(SPI_SHADOW)
-#define bfin_write_SPI_SHADOW(val)		bfin_write16(SPI_SHADOW, val)
-
-
 /* TIMER0-7 Registers		(0xFFC00600 - 0xFFC006FF)								*/
 #define bfin_read_TIMER0_CONFIG()		bfin_read16(TIMER0_CONFIG)
 #define bfin_write_TIMER0_CONFIG(val)		bfin_write16(TIMER0_CONFIG, val)
@@ -844,6 +827,7 @@
 #define bfin_write_PPI_CONTROL(val)		bfin_write16(PPI_CONTROL, val)
 #define bfin_read_PPI_STATUS()			bfin_read16(PPI_STATUS)
 #define bfin_write_PPI_STATUS(val)		bfin_write16(PPI_STATUS, val)
+#define bfin_clear_PPI_STATUS()			bfin_write_PPI_STATUS(0xFFFF)
 #define bfin_read_PPI_DELAY()			bfin_read16(PPI_DELAY)
 #define bfin_write_PPI_DELAY(val)		bfin_write16(PPI_DELAY, val)
 #define bfin_read_PPI_COUNT()			bfin_read16(PPI_COUNT)
@@ -1062,17 +1046,6 @@
 #define bfin_read_CNT_MIN()			bfin_read32(CNT_MIN)
 #define bfin_write_CNT_MIN(val)			bfin_write32(CNT_MIN, val)
 
-/* OTP/FUSE Registers */
-
-#define bfin_read_OTP_CONTROL()			bfin_read16(OTP_CONTROL)
-#define bfin_write_OTP_CONTROL(val)		bfin_write16(OTP_CONTROL, val)
-#define bfin_read_OTP_BEN()			bfin_read16(OTP_BEN)
-#define bfin_write_OTP_BEN(val)			bfin_write16(OTP_BEN, val)
-#define bfin_read_OTP_STATUS()			bfin_read16(OTP_STATUS)
-#define bfin_write_OTP_STATUS(val)		bfin_write16(OTP_STATUS, val)
-#define bfin_read_OTP_TIMING()			bfin_read32(OTP_TIMING)
-#define bfin_write_OTP_TIMING(val)		bfin_write32(OTP_TIMING, val)
-
 /* Security Registers */
 
 #define bfin_read_SECURE_SYSSWT()		bfin_read32(SECURE_SYSSWT)
@@ -1081,52 +1054,6 @@
 #define bfin_write_SECURE_CONTROL(val)		bfin_write16(SECURE_CONTROL, val)
 #define bfin_read_SECURE_STATUS()		bfin_read16(SECURE_STATUS)
 #define bfin_write_SECURE_STATUS(val)		bfin_write16(SECURE_STATUS, val)
-
-/* OTP Read/Write Data Buffer Registers */
-
-#define bfin_read_OTP_DATA0()			bfin_read32(OTP_DATA0)
-#define bfin_write_OTP_DATA0(val)		bfin_write32(OTP_DATA0, val)
-#define bfin_read_OTP_DATA1()			bfin_read32(OTP_DATA1)
-#define bfin_write_OTP_DATA1(val)		bfin_write32(OTP_DATA1, val)
-#define bfin_read_OTP_DATA2()			bfin_read32(OTP_DATA2)
-#define bfin_write_OTP_DATA2(val)		bfin_write32(OTP_DATA2, val)
-#define bfin_read_OTP_DATA3()			bfin_read32(OTP_DATA3)
-#define bfin_write_OTP_DATA3(val)		bfin_write32(OTP_DATA3, val)
-
-/* NFC Registers */
-
-#define bfin_read_NFC_CTL()			bfin_read16(NFC_CTL)
-#define bfin_write_NFC_CTL(val)			bfin_write16(NFC_CTL, val)
-#define bfin_read_NFC_STAT()			bfin_read16(NFC_STAT)
-#define bfin_write_NFC_STAT(val)		bfin_write16(NFC_STAT, val)
-#define bfin_read_NFC_IRQSTAT()			bfin_read16(NFC_IRQSTAT)
-#define bfin_write_NFC_IRQSTAT(val)		bfin_write16(NFC_IRQSTAT, val)
-#define bfin_read_NFC_IRQMASK()			bfin_read16(NFC_IRQMASK)
-#define bfin_write_NFC_IRQMASK(val)		bfin_write16(NFC_IRQMASK, val)
-#define bfin_read_NFC_ECC0()			bfin_read16(NFC_ECC0)
-#define bfin_write_NFC_ECC0(val)		bfin_write16(NFC_ECC0, val)
-#define bfin_read_NFC_ECC1()			bfin_read16(NFC_ECC1)
-#define bfin_write_NFC_ECC1(val)		bfin_write16(NFC_ECC1, val)
-#define bfin_read_NFC_ECC2()			bfin_read16(NFC_ECC2)
-#define bfin_write_NFC_ECC2(val)		bfin_write16(NFC_ECC2, val)
-#define bfin_read_NFC_ECC3()			bfin_read16(NFC_ECC3)
-#define bfin_write_NFC_ECC3(val)		bfin_write16(NFC_ECC3, val)
-#define bfin_read_NFC_COUNT()			bfin_read16(NFC_COUNT)
-#define bfin_write_NFC_COUNT(val)		bfin_write16(NFC_COUNT, val)
-#define bfin_read_NFC_RST()			bfin_read16(NFC_RST)
-#define bfin_write_NFC_RST(val)			bfin_write16(NFC_RST, val)
-#define bfin_read_NFC_PGCTL()			bfin_read16(NFC_PGCTL)
-#define bfin_write_NFC_PGCTL(val)		bfin_write16(NFC_PGCTL, val)
-#define bfin_read_NFC_READ()			bfin_read16(NFC_READ)
-#define bfin_write_NFC_READ(val)		bfin_write16(NFC_READ, val)
-#define bfin_read_NFC_ADDR()			bfin_read16(NFC_ADDR)
-#define bfin_write_NFC_ADDR(val)		bfin_write16(NFC_ADDR, val)
-#define bfin_read_NFC_CMD()			bfin_read16(NFC_CMD)
-#define bfin_write_NFC_CMD(val)			bfin_write16(NFC_CMD, val)
-#define bfin_read_NFC_DATA_WR()			bfin_read16(NFC_DATA_WR)
-#define bfin_write_NFC_DATA_WR(val)		bfin_write16(NFC_DATA_WR, val)
-#define bfin_read_NFC_DATA_RD()			bfin_read16(NFC_DATA_RD)
-#define bfin_write_NFC_DATA_RD(val)		bfin_write16(NFC_DATA_RD, val)
 
 /* These need to be last due to the cdef/linux inter-dependencies */
 #include <asm/irq.h>

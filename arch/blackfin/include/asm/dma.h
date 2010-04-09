@@ -10,46 +10,70 @@
 
 #include <linux/interrupt.h>
 #include <mach/dma.h>
+#include <asm/atomic.h>
 #include <asm/blackfin.h>
 #include <asm/page.h>
+#include <asm-generic/dma.h>
 
-#define MAX_DMA_ADDRESS PAGE_OFFSET
+/* DMA_CONFIG Masks */
+#define DMAEN			0x0001	/* DMA Channel Enable */
+#define WNR				0x0002	/* Channel Direction (W/R*) */
+#define WDSIZE_8		0x0000	/* Transfer Word Size = 8 */
+#define WDSIZE_16		0x0004	/* Transfer Word Size = 16 */
+#define WDSIZE_32		0x0008	/* Transfer Word Size = 32 */
+#define DMA2D			0x0010	/* DMA Mode (2D/1D*) */
+#define RESTART			0x0020	/* DMA Buffer Clear */
+#define DI_SEL			0x0040	/* Data Interrupt Timing Select */
+#define DI_EN			0x0080	/* Data Interrupt Enable */
+#define NDSIZE_0		0x0000	/* Next Descriptor Size = 0 (Stop/Autobuffer) */
+#define NDSIZE_1		0x0100	/* Next Descriptor Size = 1 */
+#define NDSIZE_2		0x0200	/* Next Descriptor Size = 2 */
+#define NDSIZE_3		0x0300	/* Next Descriptor Size = 3 */
+#define NDSIZE_4		0x0400	/* Next Descriptor Size = 4 */
+#define NDSIZE_5		0x0500	/* Next Descriptor Size = 5 */
+#define NDSIZE_6		0x0600	/* Next Descriptor Size = 6 */
+#define NDSIZE_7		0x0700	/* Next Descriptor Size = 7 */
+#define NDSIZE_8		0x0800	/* Next Descriptor Size = 8 */
+#define NDSIZE_9		0x0900	/* Next Descriptor Size = 9 */
+#define NDSIZE			0x0f00	/* Next Descriptor Size */
+#define DMAFLOW			0x7000	/* Flow Control */
+#define DMAFLOW_STOP	0x0000	/* Stop Mode */
+#define DMAFLOW_AUTO	0x1000	/* Autobuffer Mode */
+#define DMAFLOW_ARRAY	0x4000	/* Descriptor Array Mode */
+#define DMAFLOW_SMALL	0x6000	/* Small Model Descriptor List Mode */
+#define DMAFLOW_LARGE	0x7000	/* Large Model Descriptor List Mode */
 
-/*****************************************************************************
-*        Generic DMA  Declarations
-*
-****************************************************************************/
-enum dma_chan_status {
-	DMA_CHANNEL_FREE,
-	DMA_CHANNEL_REQUESTED,
-	DMA_CHANNEL_ENABLED,
-};
+/* DMA_IRQ_STATUS Masks */
+#define DMA_DONE		0x0001	/* DMA Completion Interrupt Status */
+#define DMA_ERR			0x0002	/* DMA Error Interrupt Status */
+#define DFETCH			0x0004	/* DMA Descriptor Fetch Indicator */
+#define DMA_RUN			0x0008	/* DMA Channel Running Indicator */
 
 /*-------------------------
  * config reg bits value
  *-------------------------*/
-#define DATA_SIZE_8 		0
-#define DATA_SIZE_16 		1
-#define DATA_SIZE_32 		2
+#define DATA_SIZE_8			0
+#define DATA_SIZE_16		1
+#define DATA_SIZE_32		2
 
-#define DMA_FLOW_STOP 		0
-#define DMA_FLOW_AUTO 		1
-#define DMA_FLOW_ARRAY 		4
-#define DMA_FLOW_SMALL 		6
-#define DMA_FLOW_LARGE 		7
+#define DMA_FLOW_STOP		0
+#define DMA_FLOW_AUTO		1
+#define DMA_FLOW_ARRAY		4
+#define DMA_FLOW_SMALL		6
+#define DMA_FLOW_LARGE		7
 
-#define DIMENSION_LINEAR    0
-#define DIMENSION_2D           1
+#define DIMENSION_LINEAR	0
+#define DIMENSION_2D		1
 
-#define DIR_READ     0
-#define DIR_WRITE    1
+#define DIR_READ			0
+#define DIR_WRITE			1
 
-#define INTR_DISABLE   0
-#define INTR_ON_BUF    2
-#define INTR_ON_ROW    3
+#define INTR_DISABLE		0
+#define INTR_ON_BUF			2
+#define INTR_ON_ROW			3
 
 #define DMA_NOSYNC_KEEP_DMA_BUF	0
-#define DMA_SYNC_RESTART	1
+#define DMA_SYNC_RESTART		1
 
 struct dmasg {
 	void *next_desc_addr;
@@ -104,11 +128,9 @@ struct dma_register {
 
 };
 
-struct mutex;
 struct dma_channel {
-	struct mutex dmalock;
 	const char *device_id;
-	enum dma_chan_status chan_status;
+	atomic_t chan_status;
 	volatile struct dma_register *regs;
 	struct dmasg *sg;		/* large mode descriptor */
 	unsigned int irq;
@@ -220,32 +242,29 @@ static inline void set_dma_sg(unsigned int channel, struct dmasg *sg, int ndsize
 
 static inline int dma_channel_active(unsigned int channel)
 {
-	if (dma_ch[channel].chan_status == DMA_CHANNEL_FREE)
-		return 0;
-	else
-		return 1;
+	return atomic_read(&dma_ch[channel].chan_status);
 }
 
 static inline void disable_dma(unsigned int channel)
 {
 	dma_ch[channel].regs->cfg &= ~DMAEN;
 	SSYNC();
-	dma_ch[channel].chan_status = DMA_CHANNEL_REQUESTED;
 }
 static inline void enable_dma(unsigned int channel)
 {
 	dma_ch[channel].regs->curr_x_count = 0;
 	dma_ch[channel].regs->curr_y_count = 0;
 	dma_ch[channel].regs->cfg |= DMAEN;
-	dma_ch[channel].chan_status = DMA_CHANNEL_ENABLED;
 }
-void free_dma(unsigned int channel);
-int request_dma(unsigned int channel, const char *device_id);
 int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data);
 
 static inline void dma_disable_irq(unsigned int channel)
 {
 	disable_irq(dma_ch[channel].irq);
+}
+static inline void dma_disable_irq_nosync(unsigned int channel)
+{
+	disable_irq_nosync(dma_ch[channel].irq);
 }
 static inline void dma_enable_irq(unsigned int channel)
 {

@@ -182,7 +182,7 @@ void mark_pages_dirty(struct kvm_vcpu *v, u64 pte, u64 ps)
 {
 	u64 i, dirty_pages = 1;
 	u64 base_gfn = (pte&_PAGE_PPN_MASK) >> PAGE_SHIFT;
-	spinlock_t *lock = __kvm_va(v->arch.dirty_log_lock_pa);
+	vmm_spinlock_t *lock = __kvm_va(v->arch.dirty_log_lock_pa);
 	void *dirty_bitmap = (void *)KVM_MEM_DIRTY_LOG_BASE;
 
 	dirty_pages <<= ps <= PAGE_SHIFT ? 0 : ps - PAGE_SHIFT;

@@ -984,9 +984,9 @@ struct ib_device {
 	struct list_head              event_handler_list;
 	spinlock_t                    event_handler_lock;
 
+	spinlock_t                    client_data_lock;
 	struct list_head              core_list;
 	struct list_head              client_data_list;
-	spinlock_t                    client_data_lock;
 
 	struct ib_cache               cache;
 	int                          *pkey_tbl_len;
@@ -1144,8 +1144,8 @@ struct ib_device {
 		IB_DEV_UNREGISTERED
 	}                            reg_state;
 
-	u64			     uverbs_cmd_mask;
 	int			     uverbs_abi_ver;
+	u64			     uverbs_cmd_mask;
 
 	char			     node_desc[64];
 	__be64			     node_guid;
@@ -1425,6 +1425,11 @@ int ib_destroy_qp(struct ib_qp *qp);
  * @send_wr: A list of work requests to post on the send queue.
  * @bad_send_wr: On an immediate failure, this parameter will reference
  *   the work request that failed to be posted on the QP.
+ *
+ * While IBA Vol. 1 section 11.4.1.1 specifies that if an immediate
+ * error is returned, the QP state shall not be affected,
+ * ib_post_send() will return an immediate error after queueing any
+ * earlier work requests in the list.
  */
 static inline int ib_post_send(struct ib_qp *qp,
 			       struct ib_send_wr *send_wr,

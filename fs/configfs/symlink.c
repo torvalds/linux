@@ -121,8 +121,10 @@ static int get_target(const char *symname, struct path *path,
 				ret = -ENOENT;
 				path_put(path);
 			}
-		} else
+		} else {
 			ret = -EPERM;
+			path_put(path);
+		}
 	}
 
 	return ret;

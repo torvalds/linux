@@ -190,8 +190,8 @@ static enum dlm_status dlmunlock_common(struct dlm_ctxt *dlm,
 			actions &= ~(DLM_UNLOCK_REMOVE_LOCK|
 				     DLM_UNLOCK_REGRANT_LOCK|
 				     DLM_UNLOCK_CLEAR_CONVERT_TYPE);
-		} else if (status == DLM_RECOVERING || 
-			   status == DLM_MIGRATING || 
+		} else if (status == DLM_RECOVERING ||
+			   status == DLM_MIGRATING ||
 			   status == DLM_FORWARD) {
 			/* must clear the actions because this unlock
 			 * is about to be retried.  cannot free or do
@@ -661,14 +661,14 @@ retry:
 	if (call_ast) {
 		mlog(0, "calling unlockast(%p, %d)\n", data, status);
 		if (is_master) {
-			/* it is possible that there is one last bast 
+			/* it is possible that there is one last bast
 			 * pending.  make sure it is flushed, then
 			 * call the unlockast.
 			 * not an issue if this is a mastered remotely,
 			 * since this lock has been removed from the
 			 * lockres queues and cannot be found. */
 			dlm_kick_thread(dlm, NULL);
-			wait_event(dlm->ast_wq, 
+			wait_event(dlm->ast_wq,
 				   dlm_lock_basts_flushed(dlm, lock));
 		}
 		(*unlockast)(data, status);

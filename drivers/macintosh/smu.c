@@ -660,7 +660,7 @@ static int smu_platform_probe(struct of_device* dev,
 	return 0;
 }
 
-static struct of_device_id smu_platform_match[] =
+static const struct of_device_id smu_platform_match[] =
 {
 	{
 		.type		= "smu",

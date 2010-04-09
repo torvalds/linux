@@ -100,6 +100,23 @@ config SPI_BUTTERFLY
 	  inexpensive battery powered microcontroller evaluation board.
 	  This same cable can be used to flash new firmware.
 
+config SPI_COLDFIRE_QSPI
+	tristate "Freescale Coldfire QSPI controller"
+	depends on (M520x || M523x || M5249 || M527x || M528x || M532x)
+	help
+	  This enables support for the Coldfire QSPI controller in master
+	  mode.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called coldfire_qspi.
+
+config SPI_DAVINCI
+	tristate "SPI controller driver for DaVinci/DA8xx SoC's"
+	depends on SPI_MASTER && ARCH_DAVINCI
+	select SPI_BITBANG
+	help
+	  SPI master controller for DaVinci and DA8xx SPI modules.
+
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
 	depends on GENERIC_GPIO
@@ -164,7 +181,7 @@ config SPI_OMAP_UWIRE
 
 config SPI_OMAP24XX
 	tristate "McSPI driver for OMAP24xx/OMAP34xx"
-	depends on ARCH_OMAP24XX || ARCH_OMAP34XX
+	depends on ARCH_OMAP2 || ARCH_OMAP3
 	help
 	  SPI master controller for OMAP24xx/OMAP34xx Multichannel SPI
 	  (McSPI) modules.
@@ -216,6 +233,17 @@ config SPI_S3C24XX
 	help
 	  SPI driver for Samsung S3C24XX series ARM SoCs
 
+config SPI_S3C24XX_FIQ
+	bool "S3C24XX driver with FIQ pseudo-DMA"
+	depends on SPI_S3C24XX
+	select FIQ
+	help
+	  Enable FIQ support for the S3C24XX SPI driver to provide pseudo
+	  DMA by using the fast-interrupt request framework, This allows
+	  the driver to get DMA-like performance when there are either
+	  no free DMA channels, or when doing transfers that required both
+	  TX and RX data paths.
+
 config SPI_S3C24XX_GPIO
 	tristate "Samsung S3C24XX series SPI by GPIO"
 	depends on ARCH_S3C2410 && EXPERIMENTAL
@@ -225,6 +253,13 @@ config SPI_S3C24XX_GPIO
 	  GPIO lines to provide the SPI bus. This can be used where
 	  the inbuilt hardware cannot provide the transfer mode, or
 	  where the board is using non hardware connected pins.
+
+config SPI_S3C64XX
+	tristate "Samsung S3C64XX series type SPI"
+	depends on ARCH_S3C64XX && EXPERIMENTAL
+	select S3C64XX_DMA
+	help
+	  SPI driver for Samsung S3C64XX and newer SoCs.
 
 config SPI_SH_MSIOF
 	tristate "SuperH MSIOF SPI controller"
@@ -288,6 +323,20 @@ config SPI_NUC900
 #
 # Add new SPI master controllers in alphabetical order above this line
 #
+
+config SPI_DESIGNWARE
+	tristate "DesignWare SPI controller core support"
+	depends on SPI_MASTER
+	help
+	  general driver for SPI controller core from DesignWare
+
+config SPI_DW_PCI
+	tristate "PCI interface driver for DW SPI core"
+	depends on SPI_DESIGNWARE && PCI
+
+config SPI_DW_MMIO
+	tristate "Memory-mapped io interface driver for DW SPI core"
+	depends on SPI_DESIGNWARE && HAVE_CLK
 
 #
 # There are lots of SPI device types, with sensors and memory

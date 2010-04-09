@@ -172,25 +172,25 @@
 
 /* The actual gptimer API */
 
-void     set_gptimer_pwidth(int timer_id, uint32_t width);
-uint32_t get_gptimer_pwidth(int timer_id);
-void     set_gptimer_period(int timer_id, uint32_t period);
-uint32_t get_gptimer_period(int timer_id);
-uint32_t get_gptimer_count(int timer_id);
-int      get_gptimer_intr(int timer_id);
-void     clear_gptimer_intr(int timer_id);
-int      get_gptimer_over(int timer_id);
-void     clear_gptimer_over(int timer_id);
-void     set_gptimer_config(int timer_id, uint16_t config);
-uint16_t get_gptimer_config(int timer_id);
-int      get_gptimer_run(int timer_id);
-void     set_gptimer_pulse_hi(int timer_id);
-void     clear_gptimer_pulse_hi(int timer_id);
+void     set_gptimer_pwidth(unsigned int timer_id, uint32_t width);
+uint32_t get_gptimer_pwidth(unsigned int timer_id);
+void     set_gptimer_period(unsigned int timer_id, uint32_t period);
+uint32_t get_gptimer_period(unsigned int timer_id);
+uint32_t get_gptimer_count(unsigned int timer_id);
+int      get_gptimer_intr(unsigned int timer_id);
+void     clear_gptimer_intr(unsigned int timer_id);
+int      get_gptimer_over(unsigned int timer_id);
+void     clear_gptimer_over(unsigned int timer_id);
+void     set_gptimer_config(unsigned int timer_id, uint16_t config);
+uint16_t get_gptimer_config(unsigned int timer_id);
+int      get_gptimer_run(unsigned int timer_id);
+void     set_gptimer_pulse_hi(unsigned int timer_id);
+void     clear_gptimer_pulse_hi(unsigned int timer_id);
 void     enable_gptimers(uint16_t mask);
 void     disable_gptimers(uint16_t mask);
 void     disable_gptimers_sync(uint16_t mask);
 uint16_t get_enabled_gptimers(void);
-uint32_t get_gptimer_status(int group);
-void     set_gptimer_status(int group, uint32_t value);
+uint32_t get_gptimer_status(unsigned int group);
+void     set_gptimer_status(unsigned int group, uint32_t value);
 
 #endif

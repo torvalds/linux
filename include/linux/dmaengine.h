@@ -31,6 +31,8 @@
  * if dma_cookie_t is >0 it's a DMA request cookie, <0 it's an error code
  */
 typedef s32 dma_cookie_t;
+#define DMA_MIN_COOKIE	1
+#define DMA_MAX_COOKIE	INT_MAX
 
 #define dma_submit_error(cookie) ((cookie) < 0 ? 1 : 0)
 
@@ -74,7 +76,7 @@ enum dma_transaction_type {
  *  control completion, and communicate status.
  * @DMA_PREP_INTERRUPT - trigger an interrupt (callback) upon completion of
  *  this transaction
- * @DMA_CTRL_ACK - the descriptor cannot be reused until the client
+ * @DMA_CTRL_ACK - if clear, the descriptor cannot be reused until the client
  *  acknowledges receipt, i.e. has has a chance to establish any dependency
  *  chains
  * @DMA_COMPL_SKIP_SRC_UNMAP - set to disable dma-unmapping the source buffer(s)
@@ -162,7 +164,7 @@ struct dma_chan {
 	struct dma_chan_dev *dev;
 
 	struct list_head device_node;
-	struct dma_chan_percpu *local;
+	struct dma_chan_percpu __percpu *local;
 	int client_count;
 	int table_count;
 	void *private;

@@ -8,6 +8,7 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/time.h>
+#include <asm/local.h>
 
 struct rb_page {
 	u64		ts;

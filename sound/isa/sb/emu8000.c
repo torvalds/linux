@@ -377,12 +377,13 @@ init_arrays(struct snd_emu8000 *emu)
 static void __devinit
 size_dram(struct snd_emu8000 *emu)
 {
-	int i, size;
+	int i, size, detected_size;
 
 	if (emu->dram_checked)
 		return;
 
 	size = 0;
+	detected_size = 0;
 
 	/* write out a magic number */
 	snd_emu8000_dma_chan(emu, 0, EMU8000_RAM_WRITE);
@@ -414,7 +415,9 @@ size_dram(struct snd_emu8000 *emu)
 		/*snd_emu8000_read_wait(emu);*/
 		EMU8000_SMLD_READ(emu); /* discard stale data  */
 		if (EMU8000_SMLD_READ(emu) != UNIQUE_ID2)
-			break; /* we must have wrapped around */
+			break; /* no memory at this address */
+
+		detected_size = size;
 
 		snd_emu8000_read_wait(emu);
 
@@ -442,9 +445,9 @@ size_dram(struct snd_emu8000 *emu)
 	snd_emu8000_dma_chan(emu, 1, EMU8000_RAM_CLOSE);
 
 	snd_printdd("EMU8000 [0x%lx]: %d Kb on-board memory detected\n",
-		    emu->port1, size/1024);
+		    emu->port1, detected_size/1024);
 
-	emu->mem_size = size;
+	emu->mem_size = detected_size;
 	emu->dram_checked = 1;
 }
 

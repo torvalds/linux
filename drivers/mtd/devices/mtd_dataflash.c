@@ -636,6 +636,7 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 	struct mtd_info			*device;
 	struct flash_platform_data	*pdata = spi->dev.platform_data;
 	char				*otp_tag = "";
+	int				err = 0;
 
 	priv = kzalloc(sizeof *priv, GFP_KERNEL);
 	if (!priv)
@@ -693,13 +694,23 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 
 		if (nr_parts > 0) {
 			priv->partitioned = 1;
-			return add_mtd_partitions(device, parts, nr_parts);
+			err = add_mtd_partitions(device, parts, nr_parts);
+			goto out;
 		}
 	} else if (pdata && pdata->nr_parts)
 		dev_warn(&spi->dev, "ignoring %d default partitions on %s\n",
 				pdata->nr_parts, device->name);
 
-	return add_mtd_device(device) == 1 ? -ENODEV : 0;
+	if (add_mtd_device(device) == 1)
+		err = -ENODEV;
+
+out:
+	if (!err)
+		return 0;
+
+	dev_set_drvdata(&spi->dev, NULL);
+	kfree(priv);
+	return err;
 }
 
 static inline int __devinit
@@ -932,8 +943,10 @@ static int __devexit dataflash_remove(struct spi_device *spi)
 		status = del_mtd_partitions(&flash->mtd);
 	else
 		status = del_mtd_device(&flash->mtd);
-	if (status == 0)
+	if (status == 0) {
+		dev_set_drvdata(&spi->dev, NULL);
 		kfree(flash);
+	}
 	return status;
 }
 

@@ -22,6 +22,7 @@ static inline unsigned short from32to16(__wsum sum)
 	    "	addc	0xffff,%0	\n"
 	    : "=r" (sum)
 	    : "r" (sum << 16), "0" (sum & 0xffff0000)
+	    : "cc"
 	    );
 	return sum >> 16;
 }

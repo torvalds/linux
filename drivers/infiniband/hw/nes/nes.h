@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -64,8 +64,9 @@
  * NetEffect PCI vendor id and NE010 PCI device id.
  */
 #ifndef PCI_VENDOR_ID_NETEFFECT	/* not in pci.ids yet */
-#define PCI_VENDOR_ID_NETEFFECT       0x1678
-#define PCI_DEVICE_ID_NETEFFECT_NE020 0x0100
+#define PCI_VENDOR_ID_NETEFFECT          0x1678
+#define PCI_DEVICE_ID_NETEFFECT_NE020    0x0100
+#define PCI_DEVICE_ID_NETEFFECT_NE020_KR 0x0110
 #endif
 
 #define NE020_REV   4
@@ -193,8 +194,8 @@ extern u32 cm_packets_created;
 extern u32 cm_packets_received;
 extern u32 cm_packets_dropped;
 extern u32 cm_packets_retrans;
-extern u32 cm_listens_created;
-extern u32 cm_listens_destroyed;
+extern atomic_t cm_listens_created;
+extern atomic_t cm_listens_destroyed;
 extern u32 cm_backlog_drops;
 extern atomic_t cm_loopbacks;
 extern atomic_t cm_nodes_created;

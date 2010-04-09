@@ -1,3 +1,17 @@
+Output files
+
+modules.order
+--------------------------------------------------
+This file records the order in which modules appear in Makefiles. This
+is used by modprobe to deterministically resolve aliases that match
+multiple modules.
+
+modules.builtin
+--------------------------------------------------
+This file lists all modules that are built into the kernel. This is used
+by modprobe to not fail when trying to load something builtin.
+
+
 Environment variables
 
 KCPPFLAGS

@@ -13,8 +13,8 @@
 #include <linux/init.h>
 #include <asm/io.h>
 #include <asm/processor.h>
-#include <asm/cpu/intctl-regs.h>
-#include <asm/cpu/rtc-regs.h>
+#include <asm/intctl-regs.h>
+#include <asm/rtc-regs.h>
 #include <unit/leds.h>
 
 static const u8 asb2305_led_hex_tbl[16] = {

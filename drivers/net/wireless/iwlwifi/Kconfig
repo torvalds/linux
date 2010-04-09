@@ -1,13 +1,7 @@
 config IWLWIFI
 	tristate "Intel Wireless Wifi"
-	depends on PCI && MAC80211 && EXPERIMENTAL
+	depends on PCI && MAC80211
 	select FW_LOADER
-
-config IWLWIFI_SPECTRUM_MEASUREMENT
-	bool "Enable Spectrum Measurement in iwlagn driver"
-	depends on IWLWIFI
-	---help---
-	  This option will enable spectrum measurement for the iwlagn driver.
 
 config IWLWIFI_DEBUG
 	bool "Enable full debugging output in iwlagn and iwl3945 drivers"
@@ -120,9 +114,3 @@ config IWL3945
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwl3945.
-
-config IWL3945_SPECTRUM_MEASUREMENT
-	bool "Enable Spectrum Measurement in iwl3945 driver"
-	depends on IWL3945
-	---help---
-	  This option will enable spectrum measurement for the iwl3945 driver.

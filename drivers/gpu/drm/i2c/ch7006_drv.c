@@ -408,6 +408,11 @@ static int ch7006_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	ch7006_info(client, "Detected version ID: %x\n", val);
 
+	/* I don't know what this is for, but otherwise I get no
+	 * signal.
+	 */
+	ch7006_write(client, 0x3d, 0x0);
+
 	return 0;
 
 fail:

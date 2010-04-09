@@ -10,7 +10,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/utsrelease.h>
+#include <generated/utsrelease.h>
 #include <linux/pci.h>
 #include <linux/of.h>
 #include <asm/prom.h>

@@ -39,7 +39,12 @@ static int mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 
 	pr_debug("mpic: found U3, guessing msi allocator setup\n");
 
-	/* Reserve source numbers we know are reserved in the HW */
+	/* Reserve source numbers we know are reserved in the HW.
+	 *
+	 * This is a bit of a mix of U3 and U4 reserves but that's going
+	 * to work fine, we have plenty enugh numbers left so let's just
+	 * mark anything we don't like reserved.
+	 */
 	for (i = 0;   i < 8;   i++)
 		msi_bitmap_reserve_hwirq(&mpic->msi_bitmap, i);
 
@@ -48,6 +53,10 @@ static int mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 
 	for (i = 100; i < 105; i++)
 		msi_bitmap_reserve_hwirq(&mpic->msi_bitmap, i);
+
+	for (i = 124; i < mpic->irq_count; i++)
+		msi_bitmap_reserve_hwirq(&mpic->msi_bitmap, i);
+
 
 	np = NULL;
 	while ((np = of_find_all_nodes(np))) {

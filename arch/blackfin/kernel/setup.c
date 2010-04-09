@@ -178,10 +178,10 @@ void __init bfin_cache_init(void)
 
 void __init bfin_relocate_l1_mem(void)
 {
-	unsigned long l1_code_length;
-	unsigned long l1_data_a_length;
-	unsigned long l1_data_b_length;
-	unsigned long l2_length;
+	unsigned long text_l1_len = (unsigned long)_text_l1_len;
+	unsigned long data_l1_len = (unsigned long)_data_l1_len;
+	unsigned long data_b_l1_len = (unsigned long)_data_b_l1_len;
+	unsigned long l2_len = (unsigned long)_l2_len;
 
 	early_shadow_stamp();
 
@@ -201,31 +201,34 @@ void __init bfin_relocate_l1_mem(void)
 
 	blackfin_dma_early_init();
 
-	/* if necessary, copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
-	l1_code_length = _etext_l1 - _stext_l1;
-	if (l1_code_length)
-		early_dma_memcpy(_stext_l1, _l1_lma_start, l1_code_length);
+	/* if necessary, copy L1 text to L1 instruction SRAM */
+	if (L1_CODE_LENGTH && text_l1_len)
+		early_dma_memcpy(_stext_l1, _text_l1_lma, text_l1_len);
 
-	/* if necessary, copy _sdata_l1 to _sbss_l1 to L1 data bank A SRAM */
-	l1_data_a_length = _sbss_l1 - _sdata_l1;
-	if (l1_data_a_length)
-		early_dma_memcpy(_sdata_l1, _l1_lma_start + l1_code_length, l1_data_a_length);
+	/* if necessary, copy L1 data to L1 data bank A SRAM */
+	if (L1_DATA_A_LENGTH && data_l1_len)
+		early_dma_memcpy(_sdata_l1, _data_l1_lma, data_l1_len);
 
-	/* if necessary, copy _sdata_b_l1 to _sbss_b_l1 to L1 data bank B SRAM */
-	l1_data_b_length = _sbss_b_l1 - _sdata_b_l1;
-	if (l1_data_b_length)
-		early_dma_memcpy(_sdata_b_l1, _l1_lma_start + l1_code_length +
-			l1_data_a_length, l1_data_b_length);
+	/* if necessary, copy L1 data B to L1 data bank B SRAM */
+	if (L1_DATA_B_LENGTH && data_b_l1_len)
+		early_dma_memcpy(_sdata_b_l1, _data_b_l1_lma, data_b_l1_len);
 
 	early_dma_memcpy_done();
 
-	/* if necessary, copy _stext_l2 to _edata_l2 to L2 SRAM */
-	if (L2_LENGTH != 0) {
-		l2_length = _sbss_l2 - _stext_l2;
-		if (l2_length)
-			memcpy(_stext_l2, _l2_lma_start, l2_length);
-	}
+	/* if necessary, copy L2 text/data to L2 SRAM */
+	if (L2_LENGTH && l2_len)
+		memcpy(_stext_l2, _l2_lma, l2_len);
 }
+
+#ifdef CONFIG_ROMKERNEL
+void __init bfin_relocate_xip_data(void)
+{
+	early_shadow_stamp();
+
+	memcpy(_sdata, _data_lma, (unsigned long)_data_len - THREAD_SIZE + sizeof(struct thread_info));
+	memcpy(_sinitdata, _init_data_lma, (unsigned long)_init_data_len);
+}
+#endif
 
 /* add_memory_region to memmap */
 static void __init add_memory_region(unsigned long long start,
@@ -511,7 +514,7 @@ static __init void memory_setup(void)
 #endif
 	unsigned long max_mem;
 
-	_rambase = (unsigned long)_stext;
+	_rambase = CONFIG_BOOT_LOAD;
 	_ramstart = (unsigned long)_end;
 
 	if (DMA_UNCACHED_REGION > (_ramend - _ramstart)) {
@@ -604,13 +607,13 @@ static __init void memory_setup(void)
 	}
 
 #ifdef CONFIG_MPU
+#if defined(CONFIG_ROMFS_ON_MTD) && defined(CONFIG_MTD_ROM)
+	page_mask_nelts = (((_ramend + ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE -
+					ASYNC_BANK0_BASE) >> PAGE_SHIFT) + 31) / 32;
+#else
 	page_mask_nelts = ((_ramend >> PAGE_SHIFT) + 31) / 32;
-	page_mask_order = get_order(3 * page_mask_nelts * sizeof(long));
 #endif
-
-#if !defined(CONFIG_MTD_UCLINUX)
-	/*In case there is no valid CPLB behind memory_end make sure we don't get to close*/
-	memory_end -= SIZE_4K;
+	page_mask_order = get_order(3 * page_mask_nelts * sizeof(long));
 #endif
 
 	init_mm.start_code = (unsigned long)_stext;
@@ -642,7 +645,7 @@ static __init void memory_setup(void)
 		__bss_start, __bss_stop,
 		_sdata, _edata,
 		(void *)&init_thread_union,
-		(void *)((int)(&init_thread_union) + 0x2000),
+		(void *)((int)(&init_thread_union) + THREAD_SIZE),
 		__init_begin, __init_end,
 		(void *)_ramstart, (void *)memory_end
 #ifdef CONFIG_MTD_UCLINUX
@@ -804,9 +807,16 @@ static inline int __init get_mem_size(void)
 	BUG();
 }
 
+__attribute__((weak))
+void __init native_machine_early_platform_add_devices(void)
+{
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	unsigned long sclk, cclk;
+
+	native_machine_early_platform_add_devices();
 
 	enable_shadow_console();
 
@@ -917,7 +927,7 @@ void __init setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "Blackfin support (C) 2004-2009 Analog Devices, Inc.\n");
 	if (bfin_compiled_revid() == 0xffff)
-		printk(KERN_INFO "Compiled for ADSP-%s Rev any\n", CPU);
+		printk(KERN_INFO "Compiled for ADSP-%s Rev any, running on 0.%d\n", CPU, bfin_revid());
 	else if (bfin_compiled_revid() == -1)
 		printk(KERN_INFO "Compiled for ADSP-%s Rev none\n", CPU);
 	else
@@ -1229,10 +1239,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   dsup_banks, BFIN_DSUBBANKS, BFIN_DWAYS,
 		   BFIN_DLINES);
 #ifdef __ARCH_SYNC_CORE_DCACHE
-	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", cpudata->dcache_invld_count);
+	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", dcache_invld_count[cpu_num]);
 #endif
 #ifdef __ARCH_SYNC_CORE_ICACHE
-	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", cpudata->icache_invld_count);
+	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", icache_invld_count[cpu_num]);
 #endif
 
 	if (cpu_num != num_possible_cpus() - 1)
@@ -1261,8 +1271,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
 		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);
 	seq_printf(m, "kernel memory\t: %d kB (0x%p -> 0x%p)\n",
-		((int)memory_end - (int)_stext) >> 10,
-		_stext,
+		((int)memory_end - (int)_rambase) >> 10,
+		(void *)_rambase,
 		(void *)memory_end);
 	seq_printf(m, "\n");
 

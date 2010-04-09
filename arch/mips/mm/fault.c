@@ -99,8 +99,31 @@ good_area:
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
 	} else {
-		if (!(vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)))
-			goto bad_area;
+		if (kernel_uses_smartmips_rixi) {
+			if (address == regs->cp0_epc && !(vma->vm_flags & VM_EXEC)) {
+#if 0
+				pr_notice("Cpu%d[%s:%d:%0*lx:%ld:%0*lx] XI violation\n",
+					  raw_smp_processor_id(),
+					  current->comm, current->pid,
+					  field, address, write,
+					  field, regs->cp0_epc);
+#endif
+				goto bad_area;
+			}
+			if (!(vma->vm_flags & VM_READ)) {
+#if 0
+				pr_notice("Cpu%d[%s:%d:%0*lx:%ld:%0*lx] RI violation\n",
+					  raw_smp_processor_id(),
+					  current->comm, current->pid,
+					  field, address, write,
+					  field, regs->cp0_epc);
+#endif
+				goto bad_area;
+			}
+		} else {
+			if (!(vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)))
+				goto bad_area;
+		}
 	}
 
 	/*

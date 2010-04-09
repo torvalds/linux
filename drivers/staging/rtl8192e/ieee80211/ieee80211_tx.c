@@ -200,8 +200,8 @@ int ieee80211_encrypt_fragment(
 		header = (struct ieee80211_hdr *) frag->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to " MAC_FMT "\n",
-			       ieee->dev->name, MAC_ARG(header->addr1));
+			       "TX packet to %pM\n",
+			       ieee->dev->name, header->addr1);
 		}
 		return -1;
 	}
@@ -334,6 +334,13 @@ void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* s
 	if(!Adapter->HalFunc.GetNmodeSupportBySecCfgHandler(Adapter))
 		return;
 #endif
+
+        if(tcb_desc->bdhcp)// || ieee->CntAfterLink<2)
+        {
+                return;
+        }
+
+
 #if 1
 	if(!ieee->GetNmodeSupportBySecCfg(ieee->dev))
 	{
@@ -604,7 +611,7 @@ void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u
 	}
 }
 
-int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
+int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	struct ieee80211_device *ieee = netdev_priv(dev);
@@ -628,6 +635,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	int qos_actived = ieee->current_network.qos_data.active;
 
 	struct ieee80211_crypt_data* crypt;
+	bool    bdhcp =false;
 
 	cb_desc *tcb_desc;
 
@@ -671,6 +679,55 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 				eap_get_type(eap->type));
 		}
 	#endif
+
+		// The following is for DHCP and ARP packet, we use cck1M to tx these packets and let LPS awake some time
+		// to prevent DHCP protocol fail
+		if (skb->len > 282){//MINIMUM_DHCP_PACKET_SIZE) {
+			if (ETH_P_IP == ether_type) {// IP header
+				const struct iphdr *ip = (struct iphdr *)((u8 *)skb->data+14);
+				if (IPPROTO_UDP == ip->protocol) {//FIXME windows is 11 but here UDP in linux kernel is 17.
+					struct udphdr *udp = (struct udphdr *)((u8 *)ip + (ip->ihl << 2));
+					//if(((ntohs(udp->source) == 68) && (ntohs(udp->dest) == 67)) ||
+					///   ((ntohs(udp->source) == 67) && (ntohs(udp->dest) == 68))) {
+					if(((((u8 *)udp)[1] == 68) && (((u8 *)udp)[3] == 67)) ||
+							((((u8 *)udp)[1] == 67) && (((u8 *)udp)[3] == 68))) {
+						// 68 : UDP BOOTP client
+						// 67 : UDP BOOTP server
+						printk("DHCP pkt src port:%d, dest port:%d!!\n", ((u8 *)udp)[1],((u8 *)udp)[3]);
+						// Use low rate to send DHCP packet.
+						//if(pMgntInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom)
+						//{
+						//      tcb_desc->DataRate = MgntQuery_TxRateExcludeCCKRates(ieee);//0xc;//ofdm 6m
+						//      tcb_desc->bTxDisableRateFallBack = false;
+						//}
+						//else
+						//pTcb->DataRate = Adapter->MgntInfo.LowestBasicRate;
+						//RTPRINT(FDM, WA_IOT, ("DHCP TranslateHeader(), pTcb->DataRate = 0x%x\n", pTcb->DataRate));
+
+						bdhcp = true;
+#ifdef _RTL8192_EXT_PATCH_
+						ieee->LPSDelayCnt = 100;//pPSC->LPSAwakeIntvl*2; //AMY,090701
+#else
+						ieee->LPSDelayCnt = 100;//pPSC->LPSAwakeIntvl*2;
+#endif
+					}
+				}
+				}else if(ETH_P_ARP == ether_type){// IP ARP packet
+					printk("=================>DHCP Protocol start tx ARP pkt!!\n");
+					bdhcp = true;
+					ieee->LPSDelayCnt = ieee->current_network.tim.tim_count;
+
+					//if(pMgntInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom)
+					//{
+					//      tcb_desc->DataRate = MgntQuery_TxRateExcludeCCKRates(Adapter->MgntInfo.mBrates);//0xc;//ofdm 6m
+					//      tcb_desc->bTxDisableRateFallBack = FALSE;
+					//}
+					//else
+					//      tcb_desc->DataRate = Adapter->MgntInfo.LowestBasicRate;
+					//RTPRINT(FDM, WA_IOT, ("ARP TranslateHeader(), pTcb->DataRate = 0x%x\n", pTcb->DataRate));
+
+				}
+			}
 
 		/* Save source and destination addresses */
 		memcpy(&dest, skb->data, ETH_ALEN);
@@ -895,6 +952,25 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		else
 			//tcb_desc->data_rate = CURRENT_RATE(ieee->current_network.mode, ieee->rate, ieee->HTCurrentOperaRate);
 			tcb_desc->data_rate = CURRENT_RATE(ieee->mode, ieee->rate, ieee->HTCurrentOperaRate);
+
+		if(bdhcp == true){
+			// Use low rate to send DHCP packet.
+			//if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom) {
+			//	tcb_desc->data_rate = MGN_1M;//MgntQuery_TxRateExcludeCCKRates(ieee);//0xc;//ofdm 6m
+			//	tcb_desc->bTxDisableRateFallBack = false;
+			//}
+			//else
+			{
+				tcb_desc->data_rate = MGN_1M;
+				tcb_desc->bTxDisableRateFallBack = 1;
+			}
+
+			tcb_desc->RATRIndex = 7;
+			tcb_desc->bTxUseDriverAssingedRate = 1;
+			tcb_desc->bdhcp = 1;
+		}
+
+
 		ieee80211_qurey_ShortPreambleMode(ieee, tcb_desc);
 		ieee80211_tx_query_agg_cap(ieee, txb->fragments[0], tcb_desc);
 		ieee80211_query_HTCapShortGI(ieee, tcb_desc);

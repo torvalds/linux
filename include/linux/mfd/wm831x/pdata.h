@@ -41,6 +41,23 @@ struct wm831x_battery_pdata {
 	int timeout;        /** Charge cycle timeout, in minutes */
 };
 
+/**
+ * Configuration for the WM831x DC-DC BuckWise convertors.  This
+ * should be passed as driver_data in the regulator_init_data.
+ *
+ * Currently all the configuration is for the fast DVS switching
+ * support of the devices.  This allows MFPs on the device to be
+ * configured as an input to switch between two output voltages,
+ * allowing voltage transitions without the expense of an access over
+ * I2C or SPI buses.
+ */
+struct wm831x_buckv_pdata {
+	int dvs_gpio;        /** CPU GPIO to use for DVS switching */
+	int dvs_control_src; /** Hardware DVS source to use (1 or 2) */
+	int dvs_init_state;  /** DVS state to expect on startup */
+	int dvs_state_gpio;  /** CPU GPIO to use for monitoring status */
+};
+
 /* Sources for status LED configuration.  Values are register values
  * plus 1 to allow for a zero default for preserve.
  */

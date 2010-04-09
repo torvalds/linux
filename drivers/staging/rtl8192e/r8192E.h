@@ -39,7 +39,7 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <asm/io.h>
-#include "ieee80211.h"
+#include "ieee80211/ieee80211.h"
 
 
 
@@ -1003,6 +1003,11 @@ typedef struct r8192_priv
 	int irq;
 	short irq_enabled;
 	struct ieee80211_device *ieee80211;
+#ifdef ENABLE_LPS
+	bool ps_force;
+	bool force_lps;
+	bool bdisable_nic;
+#endif
 	bool being_init_adapter;
 	u8 Rf_Mode;
 	short card_8192; /* O: rtl8192, 1:rtl8185 V B/C, 2:rtl8185 V D */
@@ -1477,7 +1482,7 @@ void write_nic_word(struct net_device *dev, int x,u16 y);
 void write_nic_dword(struct net_device *dev, int x,u32 y);
 void force_pci_posting(struct net_device *dev);
 
-void rtl8192_rtx_disable(struct net_device *);
+void rtl8192_halt_adapter(struct net_device *dev, bool reset);
 void rtl8192_rx_enable(struct net_device *);
 void rtl8192_tx_enable(struct net_device *);
 
@@ -1512,5 +1517,19 @@ short rtl8192_is_tx_queue_empty(struct net_device *dev);
 #ifdef ENABLE_IPS
 void IPSEnter(struct net_device *dev);
 void IPSLeave(struct net_device *dev);
+void InactivePsWorkItemCallback(struct net_device *dev);
+void IPSLeave_wq(void *data);
+void ieee80211_ips_leave_wq(struct net_device *dev);
+void ieee80211_ips_leave(struct net_device *dev);
 #endif
+#ifdef ENABLE_LPS
+void LeisurePSEnter(struct net_device *dev);
+void LeisurePSLeave(struct net_device *dev);
+#endif
+
+bool NicIFEnableNIC(struct net_device* dev);
+bool NicIFDisableNIC(struct net_device* dev);
+
+void rtl8192_irq_disable(struct net_device *dev);
+void PHY_SetRtl8192eRfOff(struct net_device* dev);
 #endif

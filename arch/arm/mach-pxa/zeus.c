@@ -25,6 +25,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/apm-emulation.h>
+#include <linux/can/platform/mcp251x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -386,11 +388,47 @@ static struct pxa2xx_spi_master pxa2xx_spi_ssp3_master_info = {
 	.enable_dma     = 1,
 };
 
-static struct platform_device pxa2xx_spi_ssp3_device = {
-	.name = "pxa2xx-spi",
-	.id = 3,
-	.dev = {
-		.platform_data = &pxa2xx_spi_ssp3_master_info,
+/* CAN bus on SPI */
+static int zeus_mcp2515_setup(struct spi_device *sdev)
+{
+	int err;
+
+	err = gpio_request(ZEUS_CAN_SHDN_GPIO, "CAN shutdown");
+	if (err)
+		return err;
+
+	err = gpio_direction_output(ZEUS_CAN_SHDN_GPIO, 1);
+	if (err) {
+		gpio_free(ZEUS_CAN_SHDN_GPIO);
+		return err;
+	}
+
+	return 0;
+}
+
+static int zeus_mcp2515_transceiver_enable(int enable)
+{
+	gpio_set_value(ZEUS_CAN_SHDN_GPIO, !enable);
+	return 0;
+}
+
+static struct mcp251x_platform_data zeus_mcp2515_pdata = {
+	.oscillator_frequency	= 16*1000*1000,
+	.model			= CAN_MCP251X_MCP2515,
+	.board_specific_setup	= zeus_mcp2515_setup,
+	.transceiver_enable	= zeus_mcp2515_transceiver_enable,
+	.power_enable		= zeus_mcp2515_transceiver_enable,
+};
+
+static struct spi_board_info zeus_spi_board_info[] = {
+	[0] = {
+		.modalias	= "mcp251x",
+		.platform_data	= &zeus_mcp2515_pdata,
+		.irq		= gpio_to_irq(ZEUS_CAN_GPIO),
+		.max_speed_hz	= 1*1000*1000,
+		.bus_num	= 3,
+		.mode		= SPI_MODE_0,
+		.chip_select	= 0,
 	},
 };
 
@@ -456,15 +494,28 @@ static struct platform_device zeus_pcmcia_device = {
 	},
 };
 
+static struct resource zeus_max6369_resource = {
+	.start		= ZEUS_CPLD_EXTWDOG_PHYS,
+	.end		= ZEUS_CPLD_EXTWDOG_PHYS,
+	.flags		= IORESOURCE_MEM,
+};
+
+struct platform_device zeus_max6369_device = {
+	.name		= "max6369_wdt",
+	.id		= -1,
+	.resource	= &zeus_max6369_resource,
+	.num_resources	= 1,
+};
+
 static struct platform_device *zeus_devices[] __initdata = {
 	&zeus_serial_device,
 	&zeus_mtd_devices[0],
 	&zeus_dm9k0_device,
 	&zeus_dm9k1_device,
 	&zeus_sram_device,
-	&pxa2xx_spi_ssp3_device,
 	&zeus_leds_device,
 	&zeus_pcmcia_device,
+	&zeus_max6369_device,
 };
 
 /* AC'97 */
@@ -508,7 +559,9 @@ static void zeus_ohci_exit(struct device *dev)
 
 static struct pxaohci_platform_data zeus_ohci_platform_data = {
 	.port_mode	= PMM_NPS_MODE,
-	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW | POWER_SENSE_LOW,
+	/* Clear Power Control Polarity Low and set Power Sense
+	 * Polarity Low. Supply power to USB ports. */
+	.flags		= ENABLE_PORT_ALL | POWER_SENSE_LOW,
 	.init		= zeus_ohci_init,
 	.exit		= zeus_ohci_exit,
 };
@@ -620,14 +673,37 @@ static struct pxa2xx_udc_mach_info zeus_udc_info = {
 	.udc_command = zeus_udc_command,
 };
 
+#ifdef CONFIG_PM
 static void zeus_power_off(void)
 {
 	local_irq_disable();
 	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP);
 }
+#else
+#define zeus_power_off   NULL
+#endif
 
-int zeus_get_pcb_info(struct i2c_client *client, unsigned gpio,
-		      unsigned ngpio, void *context)
+#ifdef CONFIG_APM_EMULATION
+static void zeus_get_power_status(struct apm_power_info *info)
+{
+	/* Power supply is always present */
+	info->ac_line_status	= APM_AC_ONLINE;
+	info->battery_status	= APM_BATTERY_STATUS_NOT_PRESENT;
+	info->battery_flag	= APM_BATTERY_FLAG_NOT_PRESENT;
+}
+
+static inline void zeus_setup_apm(void)
+{
+	apm_get_power_status = zeus_get_power_status;
+}
+#else
+static inline void zeus_setup_apm(void)
+{
+}
+#endif
+
+static int zeus_get_pcb_info(struct i2c_client *client, unsigned gpio,
+			     unsigned ngpio, void *context)
 {
 	int i;
 	u8 pcb_info = 0;
@@ -686,6 +762,12 @@ static struct i2c_board_info __initdata zeus_i2c_devices[] = {
 };
 
 static mfp_cfg_t zeus_pin_config[] __initdata = {
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+
 	GPIO15_nCS_1,
 	GPIO78_nCS_2,
 	GPIO80_nCS_4,
@@ -711,6 +793,11 @@ static mfp_cfg_t zeus_pin_config[] __initdata = {
 	GPIO104_CIF_DD_2,
 	GPIO105_CIF_DD_1,
 
+	GPIO81_SSP3_TXD,
+	GPIO82_SSP3_RXD,
+	GPIO83_SSP3_SFRM,
+	GPIO84_SSP3_SCLK,
+
 	GPIO48_nPOE,
 	GPIO49_nPWE,
 	GPIO50_nPIOR,
@@ -726,9 +813,18 @@ static mfp_cfg_t zeus_pin_config[] __initdata = {
 	GPIO99_GPIO,		/* CF RDY */
 };
 
+/*
+ * DM9k MSCx settings:	SRAM, 16 bits
+ *			17 cycles delay first access
+ *			 5 cycles delay next access
+ *			13 cycles recovery time
+ *			faster device
+ */
+#define DM9K_MSC_VALUE		0xe4c9
+
 static void __init zeus_init(void)
 {
-	u16 dm9000_msc = 0xe279;
+	u16 dm9000_msc = DM9K_MSC_VALUE;
 
 	system_rev = __raw_readw(ZEUS_CPLD_VERSION);
 	pr_info("Zeus CPLD V%dI%d\n", (system_rev & 0xf0) >> 4, (system_rev & 0x0f));
@@ -738,6 +834,7 @@ static void __init zeus_init(void)
 	MSC1 = (MSC1 & 0xffff0000) | dm9000_msc;
 
 	pm_power_off = zeus_power_off;
+	zeus_setup_apm();
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(zeus_pin_config));
 
@@ -755,6 +852,8 @@ static void __init zeus_init(void)
 	pxa_set_ac97_info(&zeus_ac97_info);
 	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(zeus_i2c_devices));
+	pxa2xx_set_spi_info(3, &pxa2xx_spi_ssp3_master_info);
+	spi_register_board_info(zeus_spi_board_info, ARRAY_SIZE(zeus_spi_board_info));
 }
 
 static struct map_desc zeus_io_desc[] __initdata = {
@@ -773,12 +872,6 @@ static struct map_desc zeus_io_desc[] __initdata = {
 	{
 		.virtual = ZEUS_CPLD_CONTROL,
 		.pfn     = __phys_to_pfn(ZEUS_CPLD_CONTROL_PHYS),
-		.length  = 0x1000,
-		.type    = MT_DEVICE,
-	},
-	{
-		.virtual = ZEUS_CPLD_EXTWDOG,
-		.pfn     = __phys_to_pfn(ZEUS_CPLD_EXTWDOG_PHYS),
 		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
@@ -807,7 +900,7 @@ static void __init zeus_map_io(void)
 	PCFR = PCFR_OPDE | PCFR_DC_EN | PCFR_FS | PCFR_FP;
 }
 
-MACHINE_START(ARCOM_ZEUS, "Arcom ZEUS")
+MACHINE_START(ARCOM_ZEUS, "Arcom/Eurotech ZEUS")
 	/* Maintainer: Marc Zyngier <maz@misterjones.org> */
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= ((io_p2v(0x40000000) >> 18) & 0xfffc),

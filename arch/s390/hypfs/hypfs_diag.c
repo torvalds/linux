@@ -164,7 +164,7 @@ static inline void part_hdr__part_name(enum diag204_format type, void *hdr,
 		       LPAR_NAME_LEN);
 	EBCASC(name, LPAR_NAME_LEN);
 	name[LPAR_NAME_LEN] = 0;
-	strstrip(name);
+	strim(name);
 }
 
 struct cpu_info {
@@ -488,7 +488,7 @@ out:
 
 static int diag224(void *ptr)
 {
-	int rc = -ENOTSUPP;
+	int rc = -EOPNOTSUPP;
 
 	asm volatile(
 		"	diag	%1,%2,0x224\n"
@@ -507,7 +507,7 @@ static int diag224_get_name_table(void)
 		return -ENOMEM;
 	if (diag224(diag224_cpu_names)) {
 		kfree(diag224_cpu_names);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 	EBCASC(diag224_cpu_names + 16, (*diag224_cpu_names + 1) * 16);
 	return 0;
@@ -523,7 +523,7 @@ static int diag224_idx2name(int index, char *name)
 	memcpy(name, diag224_cpu_names + ((index + 1) * CPU_NAME_LEN),
 		CPU_NAME_LEN);
 	name[CPU_NAME_LEN] = 0;
-	strstrip(name);
+	strim(name);
 	return 0;
 }
 

@@ -42,41 +42,11 @@ static struct snd_soc_device fsi_snd_devdata = {
 	.codec_dev	= &soc_codec_dev_ak4642,
 };
 
-#define AK4642_BUS 0
-#define AK4642_ADR 0x12
-static int ak4642_add_i2c_device(void)
-{
-	struct i2c_board_info info;
-	struct i2c_adapter *adapter;
-	struct i2c_client *client;
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	info.addr = AK4642_ADR;
-	strlcpy(info.type, "ak4642", I2C_NAME_SIZE);
-
-	adapter = i2c_get_adapter(AK4642_BUS);
-	if (!adapter) {
-		printk(KERN_DEBUG "can't get i2c adapter\n");
-		return -ENODEV;
-	}
-
-	client = i2c_new_device(adapter, &info);
-	i2c_put_adapter(adapter);
-	if (!client) {
-		printk(KERN_DEBUG "can't add i2c device\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static struct platform_device *fsi_snd_device;
 
 static int __init fsi_ak4642_init(void)
 {
 	int ret = -ENOMEM;
-
-	ak4642_add_i2c_device();
 
 	fsi_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!fsi_snd_device)

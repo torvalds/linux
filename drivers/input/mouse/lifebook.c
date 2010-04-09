@@ -44,11 +44,16 @@ static int lifebook_set_6byte_proto(const struct dmi_system_id *d)
 }
 
 static const struct dmi_system_id __initconst lifebook_dmi_table[] = {
-#if defined(CONFIG_DMI) && defined(CONFIG_X86)
 	{
 		/* FLORA-ie 55mi */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "FLORA-ie 55mi"),
+		},
+	},
+	{
+		/* LifeBook B */
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Lifebook B Series"),
 		},
 	},
 	{
@@ -118,7 +123,6 @@ static const struct dmi_system_id __initconst lifebook_dmi_table[] = {
 		},
 	},
 	{ }
-#endif
 };
 
 void __init lifebook_module_init(void)

@@ -567,7 +567,7 @@ static void jffs2_free_tmp_dnode_info_list(struct rb_root *list)
 			else BUG();
 		}
 	}
-	list->rb_node = NULL;
+	*list = RB_ROOT;
 }
 
 static void jffs2_free_full_dirent_list(struct jffs2_full_dirent *fd)
@@ -1284,7 +1284,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 				f->target = NULL;
 				mutex_unlock(&f->sem);
 				jffs2_do_clear_inode(c, f);
-				return -ret;
+				return ret;
 			}
 
 			f->target[je32_to_cpu(latest_node->csize)] = '\0';

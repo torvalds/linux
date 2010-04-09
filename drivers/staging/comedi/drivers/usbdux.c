@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v2.3"
+#define DRIVER_VERSION "v2.4"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -81,6 +81,8 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  * 2.1:  changed PWM API
  * 2.2:  added firmware kernel request to fix an udev problem
  * 2.3:  corrected a bug in bulk timeouts which were far too short
+ * 2.4:  fixed a bug which causes the driver to hang when it ran out of data.
+ *       Thanks to Jan-Matthias Braun and Ian to spot the bug and fix it.
  *
  */
 
@@ -93,7 +95,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/usb.h>
-#include <linux/smp_lock.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
 #include <linux/firmware.h>
@@ -287,7 +288,7 @@ struct usbduxsub {
 	/* continous aquisition */
 	short int ai_continous;
 	short int ao_continous;
-	/* number of samples to aquire */
+	/* number of samples to acquire */
 	int ai_sample_count;
 	int ao_sample_count;
 	/* time between samples in units of the timer */
@@ -532,6 +533,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 		}
 	}
 	/* tell comedi that data is there */
+	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 	comedi_event(this_usbduxsub->comedidev, s);
 }
 
@@ -2830,7 +2832,7 @@ static struct comedi_driver driver_usbdux = {
 };
 
 /* Table with the USB-devices: just now only testing IDs */
-static struct usb_device_id usbduxsub_table[] = {
+static const struct usb_device_id usbduxsub_table[] = {
 	{USB_DEVICE(0x13d8, 0x0001)},
 	{USB_DEVICE(0x13d8, 0x0002)},
 	{}			/* Terminating entry */

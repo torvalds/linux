@@ -47,9 +47,7 @@ static int convert_prio(int prio)
 }
 
 #define for_each_cpupri_active(array, idx)                    \
-  for (idx = find_first_bit(array, CPUPRI_NR_PRIORITIES);     \
-       idx < CPUPRI_NR_PRIORITIES;                            \
-       idx = find_next_bit(array, CPUPRI_NR_PRIORITIES, idx+1))
+	for_each_set_bit(idx, array, CPUPRI_NR_PRIORITIES)
 
 /**
  * cpupri_find - find the best (lowest-pri) CPU in the system
@@ -58,7 +56,7 @@ static int convert_prio(int prio)
  * @lowest_mask: A mask to fill in with selected CPUs (or NULL)
  *
  * Note: This function returns the recommended CPUs as calculated during the
- * current invokation.  By the time the call returns, the CPUs may have in
+ * current invocation.  By the time the call returns, the CPUs may have in
  * fact changed priorities any number of times.  While not ideal, it is not
  * an issue of correctness since the normal rebalancer logic will correct
  * any discrepancies created by racing against the uncertainty of the current

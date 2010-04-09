@@ -16,7 +16,7 @@
  */
 
 #include <asm/segment.h>
-#include <linux/utsrelease.h>
+#include <generated/utsrelease.h>
 #include <asm/boot.h>
 #include <asm/e820.h>
 #include <asm/page_types.h>

@@ -58,7 +58,7 @@ static const char serial21285_name[] = "Footbridge UART";
 static void serial21285_stop_tx(struct uart_port *port)
 {
 	if (tx_enabled(port)) {
-		disable_irq(IRQ_CONTX);
+		disable_irq_nosync(IRQ_CONTX);
 		tx_enabled(port) = 0;
 	}
 }
@@ -74,7 +74,7 @@ static void serial21285_start_tx(struct uart_port *port)
 static void serial21285_stop_rx(struct uart_port *port)
 {
 	if (rx_enabled(port)) {
-		disable_irq(IRQ_CONRX);
+		disable_irq_nosync(IRQ_CONRX);
 		rx_enabled(port) = 0;
 	}
 }

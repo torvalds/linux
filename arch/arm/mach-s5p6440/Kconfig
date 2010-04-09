@@ -1,0 +1,21 @@
+# arch/arm/mach-s5p6440/Kconfig
+#
+# Copyright (c) 2009 Samsung Electronics Co., Ltd.
+#		http://www.samsung.com/
+#
+# Licensed under GPLv2
+
+if ARCH_S5P6440
+
+config CPU_S5P6440
+	bool
+	help
+	  Enable S5P6440 CPU support
+
+config MACH_SMDK6440
+	bool "SMDK6440"
+	select CPU_S5P6440
+	help
+	  Machine support for the Samsung SMDK6440
+
+endif

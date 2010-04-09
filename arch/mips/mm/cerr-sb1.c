@@ -567,13 +567,10 @@ static uint32_t extract_dc(unsigned short addr, int data)
 				datalo = ((unsigned long long)datalohi << 32) | datalolo;
 				ecc = dc_ecc(datalo);
 				if (ecc != datahi) {
-					int bits = 0;
+					int bits;
 					bad_ecc |= 1 << (3-offset);
 					ecc ^= datahi;
-					while (ecc) {
-						if (ecc & 1) bits++;
-						ecc >>= 1;
-					}
+					bits = hweight8(ecc);
 					res |= (bits == 1) ? CP0_CERRD_DATA_SBE : CP0_CERRD_DATA_DBE;
 				}
 				printk("  %02X-%016llX", datahi, datalo);

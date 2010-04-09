@@ -46,6 +46,11 @@
 #include "gianfar.h"
 #include "fsl_pq_mdio.h"
 
+struct fsl_pq_mdio_priv {
+	void __iomem *map;
+	struct fsl_pq_mdio __iomem *regs;
+};
+
 /*
  * Write value to the PHY at mii_id at register regnum,
  * on the bus attached to the local interface, which may be different from the
@@ -105,7 +110,9 @@ int fsl_pq_local_mdio_read(struct fsl_pq_mdio __iomem *regs,
 
 static struct fsl_pq_mdio __iomem *fsl_pq_mdio_get_regs(struct mii_bus *bus)
 {
-	return (void __iomem __force *)bus->priv;
+	struct fsl_pq_mdio_priv *priv = bus->priv;
+
+	return priv->regs;
 }
 
 /*
@@ -266,6 +273,7 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 {
 	struct device_node *np = ofdev->node;
 	struct device_node *tbi;
+	struct fsl_pq_mdio_priv *priv;
 	struct fsl_pq_mdio __iomem *regs = NULL;
 	void __iomem *map;
 	u32 __iomem *tbipa;
@@ -274,14 +282,19 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 	u64 addr = 0, size = 0;
 	int err = 0;
 
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
 	new_bus = mdiobus_alloc();
 	if (NULL == new_bus)
-		return -ENOMEM;
+		goto err_free_priv;
 
 	new_bus->name = "Freescale PowerQUICC MII Bus",
 	new_bus->read = &fsl_pq_mdio_read,
 	new_bus->write = &fsl_pq_mdio_write,
 	new_bus->reset = &fsl_pq_mdio_reset,
+	new_bus->priv = priv;
 	fsl_pq_mdio_bus_name(new_bus->id, np);
 
 	/* Set the PHY base address */
@@ -291,6 +304,7 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 		err = -ENOMEM;
 		goto err_free_bus;
 	}
+	priv->map = map;
 
 	if (of_device_is_compatible(np, "fsl,gianfar-mdio") ||
 			of_device_is_compatible(np, "fsl,gianfar-tbi") ||
@@ -298,8 +312,7 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 			of_device_is_compatible(np, "ucc_geth_phy"))
 		map -= offsetof(struct fsl_pq_mdio, miimcfg);
 	regs = map;
-
-	new_bus->priv = (void __force *)regs;
+	priv->regs = regs;
 
 	new_bus->irq = kcalloc(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
 
@@ -392,10 +405,11 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 err_free_irqs:
 	kfree(new_bus->irq);
 err_unmap_regs:
-	iounmap(regs);
+	iounmap(priv->map);
 err_free_bus:
 	kfree(new_bus);
-
+err_free_priv:
+	kfree(priv);
 	return err;
 }
 
@@ -404,14 +418,16 @@ static int fsl_pq_mdio_remove(struct of_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct mii_bus *bus = dev_get_drvdata(device);
+	struct fsl_pq_mdio_priv *priv = bus->priv;
 
 	mdiobus_unregister(bus);
 
 	dev_set_drvdata(device, NULL);
 
-	iounmap(fsl_pq_mdio_get_regs(bus));
+	iounmap(priv->map);
 	bus->priv = NULL;
 	mdiobus_free(bus);
+	kfree(priv);
 
 	return 0;
 }

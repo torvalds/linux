@@ -90,13 +90,12 @@ config ROOT_NFS
 	  If you want your system to mount its root file system via NFS,
 	  choose Y here.  This is common practice for managing systems
 	  without local permanent storage.  For details, read
-	  <file:Documentation/filesystems/nfsroot.txt>.
+	  <file:Documentation/filesystems/nfs/nfsroot.txt>.
 
 	  Most people say N here.
 
 config NFS_FSCACHE
-	bool "Provide NFS client caching support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Provide NFS client caching support"
 	depends on NFS_FS=m && FSCACHE || NFS_FS=y && FSCACHE=y
 	help
 	  Say Y here if you want NFS data to be cached locally on disc through

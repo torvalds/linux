@@ -184,7 +184,6 @@ CONFIG_MACH_REALVIEW_PB1176=y
 #
 # Processor Type
 #
-CONFIG_CPU_32=y
 # CONFIG_CPU_ARM926T is not set
 CONFIG_CPU_V6=y
 # CONFIG_CPU_32v6K is not set

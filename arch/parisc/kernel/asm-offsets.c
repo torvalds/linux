@@ -244,9 +244,6 @@ int main(void)
 	DEFINE(THREAD_SZ, sizeof(struct thread_info));
 	DEFINE(THREAD_SZ_ALGN, align(sizeof(struct thread_info), 64));
 	BLANK();
-	DEFINE(IRQSTAT_SIRQ_PEND, offsetof(irq_cpustat_t, __softirq_pending));
-	DEFINE(IRQSTAT_SZ, sizeof(irq_cpustat_t));
-	BLANK();
 	DEFINE(ICACHE_BASE, offsetof(struct pdc_cache_info, ic_base));
 	DEFINE(ICACHE_STRIDE, offsetof(struct pdc_cache_info, ic_stride));
 	DEFINE(ICACHE_COUNT, offsetof(struct pdc_cache_info, ic_count));

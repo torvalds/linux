@@ -36,6 +36,8 @@ MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("lib80211 crypt: TKIP");
 MODULE_LICENSE("GPL");
 
+#define TKIP_HDR_LEN 8
+
 struct lib80211_tkip_data {
 #define TKIP_KEY_LEN 32
 	u8 key[TKIP_KEY_LEN];
@@ -314,13 +316,12 @@ static int lib80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 			      u8 * rc4key, int keylen, void *priv)
 {
 	struct lib80211_tkip_data *tkey = priv;
-	int len;
 	u8 *pos;
 	struct ieee80211_hdr *hdr;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 
-	if (skb_headroom(skb) < 8 || skb->len < hdr_len)
+	if (skb_headroom(skb) < TKIP_HDR_LEN || skb->len < hdr_len)
 		return -1;
 
 	if (rc4key == NULL || keylen < 16)
@@ -333,9 +334,8 @@ static int lib80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 	}
 	tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak, tkey->tx_iv16);
 
-	len = skb->len - hdr_len;
-	pos = skb_push(skb, 8);
-	memmove(pos, pos + 8, hdr_len);
+	pos = skb_push(skb, TKIP_HDR_LEN);
+	memmove(pos, pos + TKIP_HDR_LEN, hdr_len);
 	pos += hdr_len;
 
 	*pos++ = *rc4key;
@@ -353,7 +353,7 @@ static int lib80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 		tkey->tx_iv32++;
 	}
 
-	return 8;
+	return TKIP_HDR_LEN;
 }
 
 static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
@@ -384,9 +384,8 @@ static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if ((lib80211_tkip_hdr(skb, hdr_len, rc4key, 16, priv)) < 0)
 		return -1;
 
-	icv = skb_put(skb, 4);
-
 	crc = ~crc32_le(~0, pos, len);
+	icv = skb_put(skb, 4);
 	icv[0] = crc;
 	icv[1] = crc >> 8;
 	icv[2] = crc >> 16;
@@ -434,7 +433,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 	}
 
-	if (skb->len < hdr_len + 8 + 4)
+	if (skb->len < hdr_len + TKIP_HDR_LEN + 4)
 		return -1;
 
 	pos = skb->data + hdr_len;
@@ -462,7 +461,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 	iv16 = (pos[0] << 8) | pos[2];
 	iv32 = pos[4] | (pos[5] << 8) | (pos[6] << 16) | (pos[7] << 24);
-	pos += 8;
+	pos += TKIP_HDR_LEN;
 
 	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
 #ifdef CONFIG_LIB80211_DEBUG
@@ -523,8 +522,8 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	tkey->rx_iv16_new = iv16;
 
 	/* Remove IV and ICV */
-	memmove(skb->data + 8, skb->data, hdr_len);
-	skb_pull(skb, 8);
+	memmove(skb->data + TKIP_HDR_LEN, skb->data, hdr_len);
+	skb_pull(skb, TKIP_HDR_LEN);
 	skb_trim(skb, skb->len - 4);
 
 	return keyidx;

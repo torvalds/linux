@@ -60,12 +60,12 @@ static void __exit kvm_vmm_exit(void)
 	return ;
 }
 
-void vmm_spin_lock(spinlock_t *lock)
+void vmm_spin_lock(vmm_spinlock_t *lock)
 {
 	_vmm_raw_spin_lock(lock);
 }
 
-void vmm_spin_unlock(spinlock_t *lock)
+void vmm_spin_unlock(vmm_spinlock_t *lock)
 {
 	_vmm_raw_spin_unlock(lock);
 }

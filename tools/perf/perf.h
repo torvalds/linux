@@ -65,9 +65,7 @@
  * Use the __kuser_memory_barrier helper in the CPU helper page. See
  * arch/arm/kernel/entry-armv.S in the kernel source for details.
  */
-#define rmb()		asm volatile("mov r0, #0xffff0fff; mov lr, pc;" \
-				     "sub pc, r0, #95" ::: "r0", "lr", "cc", \
-				     "memory")
+#define rmb()		((void(*)(void))0xffff0fa0)()
 #define cpu_relax()	asm volatile("":::"memory")
 #endif
 

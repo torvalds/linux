@@ -107,8 +107,7 @@ static void phonet_device_destroy(struct net_device *dev)
 	if (pnd) {
 		u8 addr;
 
-		for (addr = find_first_bit(pnd->addrs, 64); addr < 64;
-			addr = find_next_bit(pnd->addrs, 64, 1+addr))
+		for_each_set_bit(addr, pnd->addrs, 64)
 			phonet_address_notify(RTM_DELADDR, dev, addr);
 		kfree(pnd);
 	}
@@ -311,7 +310,7 @@ static struct notifier_block phonet_device_notifier = {
 };
 
 /* Per-namespace Phonet devices handling */
-static int phonet_init_net(struct net *net)
+static int __net_init phonet_init_net(struct net *net)
 {
 	struct phonet_net *pnn = net_generic(net, phonet_net_id);
 
@@ -324,7 +323,7 @@ static int phonet_init_net(struct net *net)
 	return 0;
 }
 
-static void phonet_exit_net(struct net *net)
+static void __net_exit phonet_exit_net(struct net *net)
 {
 	struct phonet_net *pnn = net_generic(net, phonet_net_id);
 	struct net_device *dev;

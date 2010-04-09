@@ -368,7 +368,7 @@ static int inet_diag_bc_run(const void *bc, int len,
 			yes = entry->sport >= op[1].no;
 			break;
 		case INET_DIAG_BC_S_LE:
-			yes = entry->dport <= op[1].no;
+			yes = entry->sport <= op[1].no;
 			break;
 		case INET_DIAG_BC_D_GE:
 			yes = entry->dport >= op[1].no;

@@ -201,6 +201,22 @@ config MTD_NAND_S3C2410_CLKSTOP
 	  when the is NAND chip selected or released, but will save
 	  approximately 5mA of power when there is nothing happening.
 
+config MTD_NAND_BCM_UMI
+	tristate "NAND Flash support for BCM Reference Boards"
+	depends on ARCH_BCMRING && MTD_NAND
+	help
+	  This enables the NAND flash controller on the BCM UMI block.
+
+	  No board specfic support is done by this driver, each board
+	  must advertise a platform_device for the driver to attach.
+
+config MTD_NAND_BCM_UMI_HWCS
+	bool "BCM UMI NAND Hardware CS"
+	depends on MTD_NAND_BCM_UMI
+	help
+	  Enable the use of the BCM UMI block's internal CS using NAND.
+	  This should only be used if you know the external NAND CS can toggle.
+
 config MTD_NAND_DISKONCHIP
 	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -274,14 +290,6 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 config MTD_NAND_SHARPSL
 	tristate "Support for NAND Flash on Sharp SL Series (C7xx + others)"
 	depends on ARCH_PXA
-
-config MTD_NAND_BASLER_EXCITE
-	tristate  "Support for NAND Flash on Basler eXcite"
-	depends on BASLER_EXCITE
-	help
-          This enables the driver for the NAND flash device found on the
-          Basler eXcite Smart Camera. If built as a module, the driver
-          will be named excite_nandflash.
 
 config MTD_NAND_CAFE
 	tristate "NAND support for OLPC CAFÉ chip"
@@ -436,7 +444,7 @@ config MTD_NAND_FSL_UPM
 
 config MTD_NAND_MXC
 	tristate "MXC NAND support"
-	depends on ARCH_MX2 || ARCH_MX3
+	depends on ARCH_MX2 || ARCH_MX25 || ARCH_MX3
 	help
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.
@@ -449,10 +457,10 @@ config MTD_NAND_NOMADIK
 
 config MTD_NAND_SH_FLCTL
 	tristate "Support for NAND on Renesas SuperH FLCTL"
-	depends on MTD_NAND && SUPERH && CPU_SUBTYPE_SH7723
+	depends on MTD_NAND && (SUPERH || ARCH_SHMOBILE)
 	help
 	  Several Renesas SuperH CPU has FLCTL. This option enables support
-	  for NAND Flash using FLCTL. This driver support SH7723.
+	  for NAND Flash using FLCTL.
 
 config MTD_NAND_DAVINCI
         tristate "Support NAND on DaVinci SoC"

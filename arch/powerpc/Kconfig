@@ -58,7 +58,7 @@ config IRQ_PER_CPU
 
 config NR_IRQS
 	int "Number of virtual interrupt numbers"
-	range 32 512
+	range 32 32768
 	default "512"
 	help
 	  This defines the number of virtual interrupt numbers the kernel
@@ -173,6 +173,7 @@ config PPC_OF
 
 config OF
 	def_bool y
+	select OF_FLATTREE
 
 config PPC_UDBG_16550
 	bool
@@ -240,6 +241,33 @@ config PPC_OF_PLATFORM_PCI
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
+config PPC_ADV_DEBUG_REGS
+	bool
+	depends on 40x || BOOKE
+	default y
+
+config PPC_ADV_DEBUG_IACS
+	int
+	depends on PPC_ADV_DEBUG_REGS
+	default 4 if 44x
+	default 2
+
+config PPC_ADV_DEBUG_DACS
+	int
+	depends on PPC_ADV_DEBUG_REGS
+	default 2
+
+config PPC_ADV_DEBUG_DVCS
+	int
+	depends on PPC_ADV_DEBUG_REGS
+	default 2 if 44x
+	default 0
+
+config PPC_ADV_DEBUG_DAC_RANGE
+	bool
+	depends on PPC_ADV_DEBUG_REGS && 44x
+	default y
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -284,19 +312,6 @@ config 8XX_MINIMAL_FPEMU
 	  this behavior.
 
 	  It is recommended that you build a soft-float userspace instead.
-
-config IOMMU_VMERGE
-	bool "Enable IOMMU virtual merging"
-	depends on PPC64
-	default y
-	help
-	  Cause IO segments sent to a device for DMA to be merged virtually
-	  by the IOMMU when they happen to have been allocated contiguously.
-	  This doesn't add pressure to the IOMMU allocator. However, some
-	  drivers don't support getting large merged segments coming back
-	  from *_map_sg().
-
-	  Most drivers don't have this problem; it is safe to say Y here.
 
 config IOMMU_HELPER
 	def_bool PPC64
@@ -644,6 +659,9 @@ config ZONE_DMA
 	bool
 	default y
 
+config NEED_DMA_MAP_STATE
+	def_bool (PPC64 || NOT_COHERENT_CACHE)
+
 config GENERIC_ISA_DMA
 	bool
 	depends on PPC64 || POWER4 || 6xx && !CPM2
@@ -704,7 +722,7 @@ config PPC_PCI_CHOICE
 config PCI
 	bool "PCI support" if PPC_PCI_CHOICE
 	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
-		&& !PPC_85xx && !PPC_86xx
+		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	select ARCH_SUPPORTS_MSI

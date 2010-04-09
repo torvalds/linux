@@ -616,44 +616,35 @@ asmlinkage long sys32_fstatat64(unsigned int dfd, char __user *filename,
  */
 
 struct mmap_arg_struct_emu31 {
-	u32	addr;
-	u32	len;
-	u32	prot;
-	u32	flags;
-	u32	fd;
-	u32	offset;
+	compat_ulong_t addr;
+	compat_ulong_t len;
+	compat_ulong_t prot;
+	compat_ulong_t flags;
+	compat_ulong_t fd;
+	compat_ulong_t offset;
 };
 
-asmlinkage unsigned long
-old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
+asmlinkage unsigned long old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
 {
 	struct mmap_arg_struct_emu31 a;
-	int error = -EFAULT;
 
 	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
-
-	error = -EINVAL;
+		return -EFAULT;
 	if (a.offset & ~PAGE_MASK)
-		goto out;
-
-	error = sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
-			       a.offset >> PAGE_SHIFT);
-out:
-	return error;
+		return -EINVAL;
+	a.addr = (unsigned long) compat_ptr(a.addr);
+	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
+			      a.offset >> PAGE_SHIFT);
 }
 
-asmlinkage long 
-sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
+asmlinkage long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
 {
 	struct mmap_arg_struct_emu31 a;
-	int error = -EFAULT;
 
 	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
-	error = sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
-out:
-	return error;
+		return -EFAULT;
+	a.addr = (unsigned long) compat_ptr(a.addr);
+	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
 }
 
 asmlinkage long sys32_read(unsigned int fd, char __user * buf, size_t count)

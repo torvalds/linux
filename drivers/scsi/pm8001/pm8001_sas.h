@@ -59,11 +59,11 @@
 
 #define DRV_NAME		"pm8001"
 #define DRV_VERSION		"0.1.36"
-#define PM8001_FAIL_LOGGING	0x01 /* libsas EH function logging */
+#define PM8001_FAIL_LOGGING	0x01 /* Error message logging */
 #define PM8001_INIT_LOGGING	0x02 /* driver init logging */
 #define PM8001_DISC_LOGGING	0x04 /* discovery layer logging */
 #define PM8001_IO_LOGGING	0x08 /* I/O path logging */
-#define PM8001_EH_LOGGING	0x10 /* Error message logging */
+#define PM8001_EH_LOGGING	0x10 /* libsas EH function logging*/
 #define PM8001_IOCTL_LOGGING	0x20 /* IOCTL message logging */
 #define PM8001_MSG_LOGGING	0x40 /* misc message logging */
 #define pm8001_printk(format, arg...)	printk(KERN_INFO "%s %d:" format,\
@@ -100,6 +100,7 @@ do {						\
 
 #define PM8001_USE_TASKLET
 #define PM8001_USE_MSIX
+#define PM8001_READ_VPD
 
 
 #define DEV_IS_EXPANDER(type)	((type == EDGE_DEV) || (type == FANOUT_DEV))
@@ -111,7 +112,22 @@ extern const struct pm8001_dispatch pm8001_8001_dispatch;
 struct pm8001_hba_info;
 struct pm8001_ccb_info;
 struct pm8001_device;
-struct pm8001_tmf_task;
+/* define task management IU */
+struct pm8001_tmf_task {
+	u8	tmf;
+	u32	tag_of_task_to_be_managed;
+};
+struct pm8001_ioctl_payload {
+	u32	signature;
+	u16	major_function;
+	u16	minor_function;
+	u16	length;
+	u16	status;
+	u16	offset;
+	u16	id;
+	u8	*func_specific;
+};
+
 struct pm8001_dispatch {
 	char *name;
 	int (*chip_init)(struct pm8001_hba_info *pm8001_ha);
@@ -164,6 +180,10 @@ struct pm8001_chip_info {
 
 struct pm8001_port {
 	struct asd_sas_port	sas_port;
+	u8			port_attached;
+	u8			wide_port_phymap;
+	u8			port_state;
+	struct list_head	list;
 };
 
 struct pm8001_phy {
@@ -386,11 +406,7 @@ struct pm8001_fw_image_header {
 	__be32 startup_entry;
 } __attribute__((packed, aligned(4)));
 
-/* define task management IU */
-struct pm8001_tmf_task {
-	u8	tmf;
-	u32	tag_of_task_to_be_managed;
-};
+
 /**
  * FW Flash Update status values
  */

@@ -54,11 +54,12 @@ static void
 nouveau_sgdma_clear(struct ttm_backend *be)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
-	struct drm_device *dev = nvbe->dev;
-
-	NV_DEBUG(nvbe->dev, "\n");
+	struct drm_device *dev;
 
 	if (nvbe && nvbe->pages) {
+		dev = nvbe->dev;
+		NV_DEBUG(dev, "\n");
+
 		if (nvbe->bound)
 			be->func->unbind(be);
 

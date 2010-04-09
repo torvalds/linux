@@ -371,7 +371,7 @@ static struct clk rmii_clk = {
 	.parent		= &pll0_sysclk7,
 };
 
-static struct davinci_clk da830_clks[] = {
+static struct clk_lookup da830_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
 	CLK(NULL,		"pll0",		&pll0_clk),
 	CLK(NULL,		"pll0_aux",	&pll0_aux_clk),
@@ -1208,13 +1208,13 @@ static struct davinci_soc_info davinci_soc_info_da830 = {
 
 void __init da830_init(void)
 {
-	da8xx_syscfg_base = ioremap(DA8XX_SYSCFG_BASE, SZ_4K);
-	if (WARN(!da8xx_syscfg_base, "Unable to map syscfg module"))
+	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
+	if (WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module"))
 		return;
 
 	davinci_soc_info_da830.jtag_id_base =
-					DA8XX_SYSCFG_VIRT(DA8XX_JTAG_ID_REG);
-	davinci_soc_info_da830.pinmux_base = DA8XX_SYSCFG_VIRT(0x120);
+					DA8XX_SYSCFG0_VIRT(DA8XX_JTAG_ID_REG);
+	davinci_soc_info_da830.pinmux_base = DA8XX_SYSCFG0_VIRT(0x120);
 
 	davinci_common_init(&davinci_soc_info_da830);
 }

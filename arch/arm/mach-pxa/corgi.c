@@ -457,6 +457,7 @@ static struct pxaficp_platform_data corgi_ficp_platform_data = {
  * USB Device Controller
  */
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
+	.gpio_vbus		= -1,
 	/* no connect GPIO; corgi can't tell connection status */
 	.gpio_pullup		= CORGI_GPIO_USB_PULLUP,
 };

@@ -142,6 +142,7 @@ struct osd_request {
 	struct _osd_io_info {
 		struct bio *bio;
 		u64 total_bytes;
+		u64 residual;
 		struct request *req;
 		struct _osd_req_data_segment *last_seg;
 		u8 *pad_buff;
@@ -150,12 +151,14 @@ struct osd_request {
 	gfp_t alloc_flags;
 	unsigned timeout;
 	unsigned retries;
+	unsigned sense_len;
 	u8 sense[OSD_MAX_SENSE_LEN];
 	enum osd_attributes_mode attributes_mode;
 
 	osd_req_done_fn *async_done;
 	void *async_private;
 	int async_error;
+	int req_errors;
 };
 
 static inline bool osd_req_is_ver1(struct osd_request *or)
@@ -297,8 +300,6 @@ enum osd_err_priority {
 };
 
 struct osd_sense_info {
-	u64 out_resid;		/* Zero on success otherwise out residual */
-	u64 in_resid;		/* Zero on success otherwise in residual */
 	enum osd_err_priority osd_err_pri;
 
 	int key;		/* one of enum scsi_sense_keys */

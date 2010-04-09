@@ -79,11 +79,11 @@ static void altera_ps2_close(struct serio *io)
 /*
  * Add one device to this driver.
  */
-static int altera_ps2_probe(struct platform_device *pdev)
+static int __devinit altera_ps2_probe(struct platform_device *pdev)
 {
 	struct ps2if *ps2if;
 	struct serio *serio;
-	int error;
+	int error, irq;
 
 	ps2if = kzalloc(sizeof(struct ps2if), GFP_KERNEL);
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
@@ -108,11 +108,13 @@ static int altera_ps2_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
-	ps2if->irq  = platform_get_irq(pdev, 0);
-	if (ps2if->irq < 0) {
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		error = -ENXIO;
 		goto err_free_mem;
 	}
+	ps2if->irq = irq;
 
 	if (!request_mem_region(ps2if->iomem_res->start,
 				resource_size(ps2if->iomem_res), pdev->name)) {
@@ -155,7 +157,7 @@ static int altera_ps2_probe(struct platform_device *pdev)
 /*
  * Remove one device from this driver.
  */
-static int altera_ps2_remove(struct platform_device *pdev)
+static int __devexit altera_ps2_remove(struct platform_device *pdev)
 {
 	struct ps2if *ps2if = platform_get_drvdata(pdev);
 
@@ -175,9 +177,10 @@ static int altera_ps2_remove(struct platform_device *pdev)
  */
 static struct platform_driver altera_ps2_driver = {
 	.probe		= altera_ps2_probe,
-	.remove		= altera_ps2_remove,
+	.remove		= __devexit_p(altera_ps2_remove),
 	.driver	= {
 		.name	= DRV_NAME,
+		.owner	= THIS_MODULE,
 	},
 };
 

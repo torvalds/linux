@@ -3,7 +3,7 @@
  *
  * Global definitions for the zfcp device driver.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #ifndef ZFCP_DEF_H
@@ -33,15 +33,13 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_bsg_fc.h>
 #include <asm/ccwdev.h>
-#include <asm/qdio.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include "zfcp_fsf.h"
+#include "zfcp_qdio.h"
 
-/********************* GENERAL DEFINES *********************************/
-
-#define REQUEST_LIST_SIZE 128
+struct zfcp_reqlist;
 
 /********************* SCSI SPECIFIC DEFINES *********************************/
 #define ZFCP_SCSI_ER_TIMEOUT                    (10*HZ)
@@ -129,12 +127,6 @@ struct zfcp_adapter_mempool {
 	mempool_t *qtcb_pool;
 };
 
-struct zfcp_qdio_queue {
-	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q];
-	u8		   first;	/* index of next free bfr in queue */
-	atomic_t           count;	/* number of free buffers in queue */
-};
-
 struct zfcp_erp_action {
 	struct list_head list;
 	int action;	              /* requested action code */
@@ -143,8 +135,7 @@ struct zfcp_erp_action {
 	struct zfcp_unit *unit;
 	u32		status;	      /* recovery status */
 	u32 step;	              /* active step of this erp action */
-	struct zfcp_fsf_req *fsf_req; /* fsf request currently pending
-					 for this action */
+	unsigned long		fsf_req_id;
 	struct timer_list timer;
 };
 
@@ -167,29 +158,6 @@ struct zfcp_latencies {
 	spinlock_t lock;
 };
 
-/** struct zfcp_qdio - basic QDIO data structure
- * @resp_q: response queue
- * @req_q: request queue
- * @stat_lock: lock to protect req_q_util and req_q_time
- * @req_q_lock; lock to serialize access to request queue
- * @req_q_time: time of last fill level change
- * @req_q_util: used for accounting
- * @req_q_full: queue full incidents
- * @req_q_wq: used to wait for SBAL availability
- * @adapter: adapter used in conjunction with this QDIO structure
- */
-struct zfcp_qdio {
-	struct zfcp_qdio_queue	resp_q;
-	struct zfcp_qdio_queue	req_q;
-	spinlock_t		stat_lock;
-	spinlock_t		req_q_lock;
-	unsigned long long	req_q_time;
-	u64			req_q_util;
-	atomic_t		req_q_full;
-	wait_queue_head_t	req_q_wq;
-	struct zfcp_adapter	*adapter;
-};
-
 struct zfcp_adapter {
 	struct kref		ref;
 	u64			peer_wwnn;	   /* P2P peer WWNN */
@@ -207,8 +175,7 @@ struct zfcp_adapter {
 	struct list_head	port_list;	   /* remote port list */
 	rwlock_t		port_list_lock;    /* port list lock */
 	unsigned long		req_no;		   /* unique FSF req number */
-	struct list_head	*req_list;	   /* list of pending reqs */
-	spinlock_t		req_list_lock;	   /* request list lock */
+	struct zfcp_reqlist	*req_list;
 	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
 	rwlock_t		abort_lock;        /* Protects against SCSI
 						      stack abort/command
@@ -241,7 +208,7 @@ struct zfcp_adapter {
 };
 
 struct zfcp_port {
-	struct device          sysfs_device;   /* sysfs device */
+	struct device          dev;
 	struct fc_rport        *rport;         /* rport of fc transport class */
 	struct list_head       list;	       /* list of remote ports */
 	struct zfcp_adapter    *adapter;       /* adapter used to access port */
@@ -263,7 +230,7 @@ struct zfcp_port {
 };
 
 struct zfcp_unit {
-	struct device          sysfs_device;   /* sysfs device */
+	struct device          dev;
 	struct list_head       list;	       /* list of logical units */
 	struct zfcp_port       *port;	       /* remote port of unit */
 	atomic_t	       status;	       /* status of this logical unit */
@@ -277,33 +244,11 @@ struct zfcp_unit {
 };
 
 /**
- * struct zfcp_queue_req - queue related values for a request
- * @sbal_number: number of free SBALs
- * @sbal_first: first SBAL for this request
- * @sbal_last: last SBAL for this request
- * @sbal_limit: last possible SBAL for this request
- * @sbale_curr: current SBALE at creation of this request
- * @sbal_response: SBAL used in interrupt
- * @qdio_outb_usage: usage of outbound queue
- * @qdio_inb_usage: usage of inbound queue
- */
-struct zfcp_queue_req {
-	u8		       sbal_number;
-	u8		       sbal_first;
-	u8		       sbal_last;
-	u8		       sbal_limit;
-	u8		       sbale_curr;
-	u8		       sbal_response;
-	u16		       qdio_outb_usage;
-	u16		       qdio_inb_usage;
-};
-
-/**
  * struct zfcp_fsf_req - basic FSF request structure
  * @list: list of FSF requests
  * @req_id: unique request ID
  * @adapter: adapter this request belongs to
- * @queue_req: queue related values
+ * @qdio_req: qdio queue related values
  * @completion: used to signal the completion of the request
  * @status: status of the request
  * @fsf_command: FSF command issued
@@ -321,7 +266,7 @@ struct zfcp_fsf_req {
 	struct list_head	list;
 	unsigned long		req_id;
 	struct zfcp_adapter	*adapter;
-	struct zfcp_queue_req	queue_req;
+	struct zfcp_qdio_req	qdio_req;
 	struct completion	completion;
 	u32			status;
 	u32			fsf_command;
@@ -351,46 +296,5 @@ struct zfcp_data {
 
 #define ZFCP_SET                0x00000100
 #define ZFCP_CLEAR              0x00000200
-
-/*
- * Helper functions for request ID management.
- */
-static inline int zfcp_reqlist_hash(unsigned long req_id)
-{
-	return req_id % REQUEST_LIST_SIZE;
-}
-
-static inline void zfcp_reqlist_remove(struct zfcp_adapter *adapter,
-				       struct zfcp_fsf_req *fsf_req)
-{
-	list_del(&fsf_req->list);
-}
-
-static inline struct zfcp_fsf_req *
-zfcp_reqlist_find(struct zfcp_adapter *adapter, unsigned long req_id)
-{
-	struct zfcp_fsf_req *request;
-	unsigned int idx;
-
-	idx = zfcp_reqlist_hash(req_id);
-	list_for_each_entry(request, &adapter->req_list[idx], list)
-		if (request->req_id == req_id)
-			return request;
-	return NULL;
-}
-
-static inline struct zfcp_fsf_req *
-zfcp_reqlist_find_safe(struct zfcp_adapter *adapter, struct zfcp_fsf_req *req)
-{
-	struct zfcp_fsf_req *request;
-	unsigned int idx;
-
-	for (idx = 0; idx < REQUEST_LIST_SIZE; idx++) {
-		list_for_each_entry(request, &adapter->req_list[idx], list)
-			if (request == req)
-				return request;
-	}
-	return NULL;
-}
 
 #endif /* ZFCP_DEF_H */

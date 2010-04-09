@@ -214,7 +214,7 @@ static void end_pcimt_irq(unsigned int irq)
 }
 
 static struct irq_chip pcimt_irq_type = {
-	.typename = "PCIMT",
+	.name = "PCIMT",
 	.ack = disable_pcimt_irq,
 	.mask = disable_pcimt_irq,
 	.mask_ack = disable_pcimt_irq,

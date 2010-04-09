@@ -40,7 +40,6 @@ ENTRY(v7wbi_flush_user_tlb_range)
 	asid	r3, r3				@ mask ASID
 	orr	r0, r3, r0, lsl #PAGE_SHIFT	@ Create initial MVA
 	mov	r1, r1, lsl #PAGE_SHIFT
-	vma_vm_flags r2, r2			@ get vma->vm_flags
 1:
 #ifdef CONFIG_SMP
 	mcr	p15, 0, r0, c8, c3, 1		@ TLB invalidate U MVA (shareable) 

@@ -31,9 +31,9 @@ static int ioapic_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	acpi_status status;
 	unsigned long long gsb;
 	struct ioapic *ioapic;
-	u64 addr;
 	int ret;
 	char *type;
+	struct resource *res;
 
 	handle = DEVICE_ACPI_HANDLE(&dev->dev);
 	if (!handle)
@@ -69,13 +69,12 @@ static int ioapic_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	if (pci_request_region(dev, 0, type))
 		goto exit_disable;
 
-	addr = pci_resource_start(dev, 0);
-	if (acpi_register_ioapic(ioapic->handle, addr, ioapic->gsi_base))
+	res = &dev->resource[0];
+	if (acpi_register_ioapic(ioapic->handle, res->start, ioapic->gsi_base))
 		goto exit_release;
 
 	pci_set_drvdata(dev, ioapic);
-	dev_info(&dev->dev, "%s at %#llx, GSI %u\n", type, addr,
-		 ioapic->gsi_base);
+	dev_info(&dev->dev, "%s at %pR, GSI %u\n", type, res, ioapic->gsi_base);
 	return 0;
 
 exit_release:

@@ -585,58 +585,6 @@
 **				modifier UNLESS the lower order bits are saved and ORed back in when
 **				the macro is used.
 *************************************************************************************/
-/*
-** ********************* PLL AND RESET MASKS ****************************************/
-/* PLL_CTL Masks																	*/
-#define DF				0x0001	/* 0: PLL = CLKIN, 1: PLL = CLKIN/2					*/
-#define PLL_OFF			0x0002	/* PLL Not Powered									*/
-#define STOPCK			0x0008	/* Core Clock Off									*/
-#define PDWN			0x0020	/* Enter Deep Sleep Mode							*/
-#define	IN_DELAY		0x0040	/* Add 200ps Delay To EBIU Input Latches			*/
-#define	OUT_DELAY		0x0080	/* Add 200ps Delay To EBIU Output Signals			*/
-#define BYPASS			0x0100	/* Bypass the PLL									*/
-#define	MSEL			0x7E00	/* Multiplier Select For CCLK/VCO Factors			*/
-/* PLL_CTL Macros (Only Use With Logic OR While Setting Lower Order Bits)			*/
-#define	SET_MSEL(x)		(((x)&0x3F) << 0x9)	/* Set MSEL = 0-63 --> VCO = CLKIN*MSEL		*/
-
-/* PLL_DIV Masks														*/
-#define SSEL			0x000F	/* System Select						*/
-#define	CSEL			0x0030	/* Core Select							*/
-#define CSEL_DIV1		0x0000	/* 		CCLK = VCO / 1					*/
-#define CSEL_DIV2		0x0010	/* 		CCLK = VCO / 2					*/
-#define	CSEL_DIV4		0x0020	/* 		CCLK = VCO / 4					*/
-#define	CSEL_DIV8		0x0030	/* 		CCLK = VCO / 8					*/
-/* PLL_DIV Macros														*/
-#define SET_SSEL(x)		((x)&0xF)		/* Set SSEL = 0-15 --> SCLK = VCO/SSEL	*/
-
-/* VR_CTL Masks	*/
-#define	FREQ			0x3000	/* Switching Oscillator Frequency For Regulator	*/
-#define	HIBERNATE		0x0000	/* 		Powerdown/Bypass On-Board Regulation	*/
-
-#define	VLEV			0x00F0	/* Internal Voltage Level					*/
-#define	VLEV_085 		0x0060	/* 		VLEV = 0.85 V (-5% - +10% Accuracy)	*/
-#define	VLEV_090		0x0070	/* 		VLEV = 0.90 V (-5% - +10% Accuracy)	*/
-#define	VLEV_095		0x0080	/* 		VLEV = 0.95 V (-5% - +10% Accuracy)	*/
-#define	VLEV_100		0x0090	/* 		VLEV = 1.00 V (-5% - +10% Accuracy)	*/
-#define	VLEV_105		0x00A0	/* 		VLEV = 1.05 V (-5% - +10% Accuracy)	*/
-#define	VLEV_110		0x00B0	/* 		VLEV = 1.10 V (-5% - +10% Accuracy)	*/
-#define	VLEV_115		0x00C0	/* 		VLEV = 1.15 V (-5% - +10% Accuracy)	*/
-#define	VLEV_120		0x00D0	/* 		VLEV = 1.20 V (-5% - +10% Accuracy)	*/
-#define	VLEV_125		0x00E0	/* 		VLEV = 1.25 V (-5% - +10% Accuracy)	*/
-#define	VLEV_130		0x00F0	/* 		VLEV = 1.30 V (-5% - +10% Accuracy)	*/
-
-#define	WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate	*/
-#define	USBWE			0x0200	/* Enable USB Wakeup From Hibernate			*/
-#define	PHYWE			0x0400	/* Enable PHY Wakeup From Hibernate			*/
-#define	CLKBUFOE		0x4000	/* CLKIN Buffer Output Enable */
-#define	PHYCLKOE		CLKBUFOE	/* Alternative legacy name for the above */
-#define	SCKELOW		0x8000	/* Enable Drive CKE Low During Reset		*/
-
-/* PLL_STAT Masks																	*/
-#define ACTIVE_PLLENABLED	0x0001	/* Processor In Active Mode With PLL Enabled	*/
-#define	FULL_ON				0x0002	/* Processor In Full On Mode					*/
-#define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled	*/
-#define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached					*/
 
 /* CHIPID Masks */
 #define CHIPID_VERSION         0xF0000000
@@ -754,66 +702,6 @@
 #define IWR_ENABLE_ALL	0xFFFFFFFF					/* Wakeup Enable all peripherals	*/
 #define IWR_ENABLE(x)	(1 << ((x)&0x1F))					/* Wakeup Enable Peripheral #x		*/
 #define IWR_DISABLE(x)	(0xFFFFFFFF ^ (1 << ((x)&0x1F))) 	/* Wakeup Disable Peripheral #x		*/
-
-
-/* ********* WATCHDOG TIMER MASKS ******************** */
-
-/* Watchdog Timer WDOG_CTL Register Masks */
-
-#define WDEV(x) (((x)<<1) & 0x0006) /* event generated on roll over */
-#define WDEV_RESET 0x0000 /* generate reset event on roll over */
-#define WDEV_NMI 0x0002 /* generate NMI event on roll over */
-#define WDEV_GPI 0x0004 /* generate GP IRQ on roll over */
-#define WDEV_NONE 0x0006 /* no event on roll over */
-#define WDEN 0x0FF0 /* enable watchdog */
-#define WDDIS 0x0AD0 /* disable watchdog */
-#define WDRO 0x8000 /* watchdog rolled over latch */
-
-/* depreciated WDOG_CTL Register Masks for legacy code */
-
-
-#define ICTL WDEV
-#define ENABLE_RESET WDEV_RESET
-#define WDOG_RESET WDEV_RESET
-#define ENABLE_NMI WDEV_NMI
-#define WDOG_NMI WDEV_NMI
-#define ENABLE_GPI WDEV_GPI
-#define WDOG_GPI WDEV_GPI
-#define DISABLE_EVT WDEV_NONE
-#define WDOG_NONE WDEV_NONE
-
-#define TMR_EN WDEN
-#define TMR_DIS WDDIS
-#define TRO WDRO
-#define ICTL_P0 0x01
- #define ICTL_P1 0x02
-#define TRO_P 0x0F
-
-
-
-/* ***************  REAL TIME CLOCK MASKS  **************************/
-/* RTC_STAT and RTC_ALARM Masks										*/
-#define	RTC_SEC				0x0000003F	/* Real-Time Clock Seconds	*/
-#define	RTC_MIN				0x00000FC0	/* Real-Time Clock Minutes	*/
-#define	RTC_HR				0x0001F000	/* Real-Time Clock Hours	*/
-#define	RTC_DAY				0xFFFE0000	/* Real-Time Clock Days		*/
-
-/* RTC_ALARM Macro			z=day		y=hr	x=min	w=sec		*/
-#define SET_ALARM(z,y,x,w)	((((z)&0x7FFF)<<0x11)|(((y)&0x1F)<<0xC)|(((x)&0x3F)<<0x6)|((w)&0x3F))
-
-/* RTC_ICTL and RTC_ISTAT Masks																		*/
-#define	STOPWATCH			0x0001		/* Stopwatch Interrupt Enable								*/
-#define	ALARM				0x0002		/* Alarm Interrupt Enable									*/
-#define	SECOND				0x0004		/* Seconds (1 Hz) Interrupt Enable							*/
-#define	MINUTE				0x0008		/* Minutes Interrupt Enable									*/
-#define	HOUR				0x0010		/* Hours Interrupt Enable									*/
-#define	DAY					0x0020		/* 24 Hours (Days) Interrupt Enable							*/
-#define	DAY_ALARM			0x0040		/* Day Alarm (Day, Hour, Minute, Second) Interrupt Enable	*/
-#define	WRITE_PENDING		0x4000		/* Write Pending Status										*/
-#define	WRITE_COMPLETE		0x8000		/* Write Complete Interrupt Enable							*/
-
-/* RTC_FAST / RTC_PREN Mask												*/
-#define PREN				0x0001	/* Enable Prescaler, RTC Runs @1 Hz	*/
 
 
 /* ************** UART CONTROLLER MASKS *************************/
@@ -1372,33 +1260,6 @@
 
 
 /* **************************  DMA CONTROLLER MASKS  ********************************/
-/* DMAx_CONFIG, MDMA_yy_CONFIG Masks												*/
-#define DMAEN			0x0001		/* DMA Channel Enable							*/
-#define WNR				0x0002		/* Channel Direction (W/R*)						*/
-#define WDSIZE_8		0x0000		/* Transfer Word Size = 8						*/
-#define WDSIZE_16		0x0004		/* Transfer Word Size = 16						*/
-#define WDSIZE_32		0x0008		/* Transfer Word Size = 32						*/
-#define DMA2D			0x0010		/* DMA Mode (2D/1D*)							*/
-#define RESTART			0x0020		/* DMA Buffer Clear								*/
-#define DI_SEL			0x0040		/* Data Interrupt Timing Select					*/
-#define DI_EN			0x0080		/* Data Interrupt Enable						*/
-#define NDSIZE_0		0x0000		/* Next Descriptor Size = 0 (Stop/Autobuffer)	*/
-#define NDSIZE_1		0x0100		/* Next Descriptor Size = 1						*/
-#define NDSIZE_2		0x0200		/* Next Descriptor Size = 2						*/
-#define NDSIZE_3		0x0300		/* Next Descriptor Size = 3						*/
-#define NDSIZE_4		0x0400		/* Next Descriptor Size = 4						*/
-#define NDSIZE_5		0x0500		/* Next Descriptor Size = 5						*/
-#define NDSIZE_6		0x0600		/* Next Descriptor Size = 6						*/
-#define NDSIZE_7		0x0700		/* Next Descriptor Size = 7						*/
-#define NDSIZE_8		0x0800		/* Next Descriptor Size = 8						*/
-#define NDSIZE_9		0x0900		/* Next Descriptor Size = 9						*/
-#define NDSIZE	        	0x0900	/* Next Descriptor Size */
-#define DMAFLOW	        	0x7000	/* Flow Control */
-#define DMAFLOW_STOP		0x0000		/* Stop Mode									*/
-#define DMAFLOW_AUTO		0x1000		/* Autobuffer Mode								*/
-#define DMAFLOW_ARRAY		0x4000		/* Descriptor Array Mode						*/
-#define DMAFLOW_SMALL		0x6000		/* Small Model Descriptor List Mode				*/
-#define DMAFLOW_LARGE		0x7000		/* Large Model Descriptor List Mode				*/
 
 /* DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP Masks								*/
 #define CTYPE			0x0040	/* DMA Channel Type Indicator (Memory/Peripheral*)	*/
@@ -1415,13 +1276,6 @@
 #define PMAP_UART0TX	0x9000	/* 		UART0 Port Transmit DMA						*/
 #define	PMAP_UART1RX	0xA000	/* 		UART1 Port Receive DMA						*/
 #define	PMAP_UART1TX	0xB000	/* 		UART1 Port Transmit DMA						*/
-
-/* DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS Masks						*/
-#define DMA_DONE		0x0001	/* DMA Completion Interrupt Status	*/
-#define DMA_ERR			0x0002	/* DMA Error Interrupt Status		*/
-#define DFETCH			0x0004	/* DMA Descriptor Fetch Indicator	*/
-#define DMA_RUN			0x0008	/* DMA Channel Running Indicator	*/
-
 
 /*  ************  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS *************/
 /*  PPI_CONTROL Masks													*/
@@ -1829,46 +1683,6 @@
 #define BNDMODE_ZERO     0x1000  /* boundary compare and zero mode */
 #define BNDMODE_CAPT     0x2000  /* boundary capture mode */
 #define BNDMODE_AEXT     0x3000  /* boundary auto-extend mode */
-
-/* Bit masks for OTP_CONTROL */
-
-#define                FUSE_FADDR  0x1ff      /* OTP/Fuse Address */
-#define                      FIEN  0x800      /* OTP/Fuse Interrupt Enable */
-#define                     nFIEN  0x0
-#define                  FTESTDEC  0x1000     /* OTP/Fuse Test Decoder */
-#define                 nFTESTDEC  0x0
-#define                   FWRTEST  0x2000     /* OTP/Fuse Write Test */
-#define                  nFWRTEST  0x0
-#define                     FRDEN  0x4000     /* OTP/Fuse Read Enable */
-#define                    nFRDEN  0x0
-#define                     FWREN  0x8000     /* OTP/Fuse Write Enable */
-#define                    nFWREN  0x0
-
-/* Bit masks for OTP_BEN */
-
-#define                      FBEN  0xffff     /* OTP/Fuse Byte Enable */
-
-/* Bit masks for OTP_STATUS */
-
-#define                     FCOMP  0x1        /* OTP/Fuse Access Complete */
-#define                    nFCOMP  0x0
-#define                    FERROR  0x2        /* OTP/Fuse Access Error */
-#define                   nFERROR  0x0
-#define                  MMRGLOAD  0x10       /* Memory Mapped Register Gasket Load */
-#define                 nMMRGLOAD  0x0
-#define                  MMRGLOCK  0x20       /* Memory Mapped Register Gasket Lock */
-#define                 nMMRGLOCK  0x0
-#define                    FPGMEN  0x40       /* OTP/Fuse Program Enable */
-#define                   nFPGMEN  0x0
-
-/* Bit masks for OTP_TIMING */
-
-#define                   USECDIV  0xff       /* Micro Second Divider */
-#define                   READACC  0x7f00     /* Read Access Time */
-#define                   CPUMPRL  0x38000    /* Charge Pump Release Time */
-#define                   CPUMPSU  0xc0000    /* Charge Pump Setup Time */
-#define                   CPUMPHD  0xf00000   /* Charge Pump Hold Time */
-#define                   PGMTIME  0xff000000 /* Program Time */
 
 /* Bit masks for SECURE_SYSSWT */
 

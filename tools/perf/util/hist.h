@@ -1,50 +1,29 @@
 #ifndef __PERF_HIST_H
 #define __PERF_HIST_H
-#include "../builtin.h"
 
-#include "util.h"
-
-#include "color.h"
-#include <linux/list.h>
-#include "cache.h"
-#include <linux/rbtree.h>
-#include "symbol.h"
-#include "string.h"
+#include <linux/types.h>
 #include "callchain.h"
-#include "strlist.h"
-#include "values.h"
 
-#include "../perf.h"
-#include "debug.h"
-#include "header.h"
-
-#include "parse-options.h"
-#include "parse-events.h"
-
-#include "thread.h"
-#include "sort.h"
-
-extern struct rb_root hist;
-extern struct rb_root collapse_hists;
-extern struct rb_root output_hists;
-extern int callchain;
 extern struct callchain_param callchain_param;
-extern unsigned long total;
-extern unsigned long total_mmap;
-extern unsigned long total_comm;
-extern unsigned long total_fork;
-extern unsigned long total_unknown;
-extern unsigned long total_lost;
 
-struct hist_entry *__hist_entry__add(struct addr_location *al,
-				     struct symbol *parent,
-				     u64 count, bool *hit);
+struct perf_session;
+struct hist_entry;
+struct addr_location;
+struct symbol;
+struct rb_root;
+
+struct hist_entry *__perf_session__add_hist_entry(struct rb_root *hists,
+						  struct addr_location *al,
+						  struct symbol *parent,
+						  u64 count, bool *hit);
 extern int64_t hist_entry__cmp(struct hist_entry *, struct hist_entry *);
 extern int64_t hist_entry__collapse(struct hist_entry *, struct hist_entry *);
-extern void hist_entry__free(struct hist_entry *);
-extern void collapse__insert_entry(struct hist_entry *);
-extern void collapse__resort(void);
-extern void output__insert_entry(struct hist_entry *, u64);
-extern void output__resort(u64);
+void hist_entry__free(struct hist_entry *);
 
+void perf_session__output_resort(struct rb_root *hists, u64 total_samples);
+void perf_session__collapse_resort(struct rb_root *hists);
+size_t perf_session__fprintf_hists(struct rb_root *hists,
+				   struct perf_session *pair,
+				   bool show_displacement, FILE *fp,
+				   u64 session_total);
 #endif	/* __PERF_HIST_H */

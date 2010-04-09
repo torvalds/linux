@@ -189,18 +189,11 @@ static void macb_handle_link_change(struct net_device *dev)
 static int macb_mii_probe(struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
-	struct phy_device *phydev = NULL;
+	struct phy_device *phydev;
 	struct eth_platform_data *pdata;
-	int phy_addr;
+	int ret;
 
-	/* find the first phy */
-	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (bp->mii_bus->phy_map[phy_addr]) {
-			phydev = bp->mii_bus->phy_map[phy_addr];
-			break;
-		}
-	}
-
+	phydev = phy_find_first(bp->mii_bus);
 	if (!phydev) {
 		printk (KERN_ERR "%s: no PHY found\n", dev->name);
 		return -1;
@@ -210,17 +203,13 @@ static int macb_mii_probe(struct net_device *dev)
 	/* TODO : add pin_irq */
 
 	/* attach the mac to the phy */
-	if (pdata && pdata->is_rmii) {
-		phydev = phy_connect(dev, dev_name(&phydev->dev),
-			&macb_handle_link_change, 0, PHY_INTERFACE_MODE_RMII);
-	} else {
-		phydev = phy_connect(dev, dev_name(&phydev->dev),
-			&macb_handle_link_change, 0, PHY_INTERFACE_MODE_MII);
-	}
-
-	if (IS_ERR(phydev)) {
+	ret = phy_connect_direct(dev, phydev, &macb_handle_link_change, 0,
+				 pdata && pdata->is_rmii ?
+				 PHY_INTERFACE_MODE_RMII :
+				 PHY_INTERFACE_MODE_MII);
+	if (ret) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
-		return PTR_ERR(phydev);
+		return ret;
 	}
 
 	/* mask with MAC supported features */
@@ -895,15 +884,12 @@ static void macb_sethashtable(struct net_device *dev)
 {
 	struct dev_mc_list *curr;
 	unsigned long mc_filter[2];
-	unsigned int i, bitnr;
+	unsigned int bitnr;
 	struct macb *bp = netdev_priv(dev);
 
 	mc_filter[0] = mc_filter[1] = 0;
 
-	curr = dev->mc_list;
-	for (i = 0; i < dev->mc_count; i++, curr = curr->next) {
-		if (!curr) break;	/* unexpected end of list */
-
+	netdev_for_each_mc_addr(curr, dev) {
 		bitnr = hash_get_index(curr->dmi_addr);
 		mc_filter[bitnr >> 5] |= 1 << (bitnr & 31);
 	}
@@ -934,7 +920,7 @@ static void macb_set_rx_mode(struct net_device *dev)
 		macb_writel(bp, HRB, -1);
 		macb_writel(bp, HRT, -1);
 		cfg |= MACB_BIT(NCFGR_MTI);
-	} else if (dev->mc_count > 0) {
+	} else if (!netdev_mc_empty(dev)) {
 		/* Enable specific multicasts */
 		macb_sethashtable(dev);
 		cfg |= MACB_BIT(NCFGR_MTI);

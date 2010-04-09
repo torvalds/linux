@@ -150,6 +150,7 @@ struct ccw_device_private {
 	struct ccw_request req;		/* internal I/O request */
 	int iretry;
 	u8 pgid_valid_mask;		/* mask of valid PGIDs */
+	u8 pgid_todo_mask;		/* mask of PGIDs to be adjusted */
 	struct {
 		unsigned int fast:1;	/* post with "channel end" */
 		unsigned int repall:1;	/* report every interrupt status */

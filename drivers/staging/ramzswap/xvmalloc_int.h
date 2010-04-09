@@ -1,7 +1,7 @@
 /*
  * xvmalloc memory allocator
  *
- * Copyright (C) 2008, 2009  Nitin Gupta
+ * Copyright (C) 2008, 2009, 2010  Nitin Gupta
  *
  * This code is released using a dual license strategy: BSD/GPL
  * You can choose the licence that better fits your requirements.
@@ -62,7 +62,7 @@ struct link_free {
 
 struct block_header {
 	union {
-		/* This common header must be ALIGN bytes */
+		/* This common header must be XV_ALIGN bytes */
 		u8 common[XV_ALIGN];
 		struct {
 			u16 size;

@@ -91,6 +91,16 @@ xfs_mark_inode_dirty_sync(
 		mark_inode_dirty_sync(inode);
 }
 
+void
+xfs_mark_inode_dirty(
+	xfs_inode_t	*ip)
+{
+	struct inode	*inode = VFS_I(ip);
+
+	if (!(inode->i_state & (I_WILL_FREE|I_FREEING|I_CLEAR)))
+		mark_inode_dirty(inode);
+}
+
 /*
  * Change the requested timestamp in the given inode.
  * We don't lock across timestamp updates, and we don't log them but
@@ -140,10 +150,10 @@ xfs_init_security(
 	struct xfs_inode *ip = XFS_I(inode);
 	size_t		length;
 	void		*value;
-	char		*name;
+	unsigned char	*name;
 	int		error;
 
-	error = security_inode_init_security(inode, dir, &name,
+	error = security_inode_init_security(inode, dir, (char **)&name,
 					     &value, &length);
 	if (error) {
 		if (error == -EOPNOTSUPP)
@@ -794,7 +804,7 @@ xfs_setup_inode(
 	struct inode		*inode = &ip->i_vnode;
 
 	inode->i_ino = ip->i_ino;
-	inode->i_state = I_NEW|I_LOCK;
+	inode->i_state = I_NEW;
 	inode_add_to_lists(ip->i_mount->m_super, inode);
 
 	inode->i_mode	= ip->i_d.di_mode;

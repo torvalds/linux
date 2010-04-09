@@ -57,9 +57,10 @@
 	.bInterfaceProtocol = 0x00
 
 /* table of devices that work with this driver */
-static struct usb_device_id appledisplay_table [] = {
+static const struct usb_device_id appledisplay_table[] = {
 	{ APPLEDISPLAY_DEVICE(0x9218) },
 	{ APPLEDISPLAY_DEVICE(0x9219) },
+	{ APPLEDISPLAY_DEVICE(0x921c) },
 	{ APPLEDISPLAY_DEVICE(0x921d) },
 
 	/* Terminating entry */
@@ -72,8 +73,8 @@ struct appledisplay {
 	struct usb_device *udev;	/* usb device */
 	struct urb *urb;		/* usb request block */
 	struct backlight_device *bd;	/* backlight device */
-	char *urbdata;			/* interrupt URB data buffer */
-	char *msgdata;			/* control message data buffer */
+	u8 *urbdata;			/* interrupt URB data buffer */
+	u8 *msgdata;			/* control message data buffer */
 
 	struct delayed_work work;
 	int button_pressed;
@@ -178,7 +179,7 @@ static int appledisplay_bl_get_brightness(struct backlight_device *bd)
 		return pdata->msgdata[1];
 }
 
-static struct backlight_ops appledisplay_bl_data = {
+static const struct backlight_ops appledisplay_bl_data = {
 	.get_brightness	= appledisplay_bl_get_brightness,
 	.update_status	= appledisplay_bl_update_status,
 };
@@ -201,6 +202,7 @@ static void appledisplay_work(struct work_struct *work)
 static int appledisplay_probe(struct usb_interface *iface,
 	const struct usb_device_id *id)
 {
+	struct backlight_properties props;
 	struct appledisplay *pdata;
 	struct usb_device *udev = interface_to_usbdev(iface);
 	struct usb_host_interface *iface_desc;
@@ -278,14 +280,15 @@ static int appledisplay_probe(struct usb_interface *iface,
 	/* Register backlight device */
 	snprintf(bl_name, sizeof(bl_name), "appledisplay%d",
 		atomic_inc_return(&count_displays) - 1);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 0xff;
 	pdata->bd = backlight_device_register(bl_name, NULL, pdata,
-						&appledisplay_bl_data);
+					      &appledisplay_bl_data, &props);
 	if (IS_ERR(pdata->bd)) {
 		dev_err(&iface->dev, "Backlight registration failed\n");
+		retval = PTR_ERR(pdata->bd);
 		goto error;
 	}
-
-	pdata->bd->props.max_brightness = 0xff;
 
 	/* Try to get brightness */
 	brightness = appledisplay_bl_get_brightness(pdata->bd);

@@ -691,9 +691,15 @@ int em28xx_set_outfmt(struct em28xx *dev)
 	if (em28xx_vbi_supported(dev) == 1) {
 		vinctrl |= EM28XX_VINCTRL_VBI_RAW;
 		em28xx_write_reg(dev, EM28XX_R34_VBI_START_H, 0x00);
-		em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
-		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, 0xb4);
-		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, 0x0c);
+		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, dev->vbi_width/4);
+		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, dev->vbi_height);
+		if (dev->norm & V4L2_STD_525_60) {
+			/* NTSC */
+			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
+		} else if (dev->norm & V4L2_STD_625_50) {
+			/* PAL */
+			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x07);
+		}
 	}
 
 	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, vinctrl);
@@ -759,6 +765,13 @@ int em28xx_resolution_set(struct em28xx *dev)
 	int width, height;
 	width = norm_maxw(dev);
 	height = norm_maxh(dev);
+
+	/* Properly setup VBI */
+	dev->vbi_width = 720;
+	if (dev->norm & V4L2_STD_525_60)
+		dev->vbi_height = 12;
+	else
+		dev->vbi_height = 18;
 
 	if (!dev->progressive)
 		height >>= norm_maxh(dev);

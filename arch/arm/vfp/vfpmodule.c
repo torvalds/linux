@@ -63,14 +63,15 @@ static void vfp_thread_flush(struct thread_info *thread)
 	put_cpu();
 }
 
-static void vfp_thread_release(struct thread_info *thread)
+static void vfp_thread_exit(struct thread_info *thread)
 {
 	/* release case: Per-thread VFP cleanup. */
 	union vfp_state *vfp = &thread->vfpstate;
-	unsigned int cpu = thread->cpu;
+	unsigned int cpu = get_cpu();
 
 	if (last_VFP_context[cpu] == vfp)
 		last_VFP_context[cpu] = NULL;
+	put_cpu();
 }
 
 /*
@@ -88,11 +89,13 @@ static void vfp_thread_release(struct thread_info *thread)
  *	but may change at any time.
  *   - we could be preempted if tree preempt rcu is enabled, so
  *	it is unsafe to use thread->cpu.
- *  THREAD_NOTIFY_RELEASE:
- *   - the thread (v) will not be running on any CPU; it is a dead thread.
- *   - thread->cpu will be the last CPU the thread ran on, which may not
- *	be the current CPU.
- *   - we could be preempted if tree preempt rcu is enabled.
+ *  THREAD_NOTIFY_EXIT
+ *   - the thread (v) will be running on the local CPU, so
+ *	v === current_thread_info()
+ *   - thread->cpu is the local CPU number at the time it is accessed,
+ *	but may change at any time.
+ *   - we could be preempted if tree preempt rcu is enabled, so
+ *	it is unsafe to use thread->cpu.
  */
 static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 {
@@ -133,7 +136,7 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 	if (cmd == THREAD_NOTIFY_FLUSH)
 		vfp_thread_flush(thread);
 	else
-		vfp_thread_release(thread);
+		vfp_thread_exit(thread);
 
 	return NOTIFY_DONE;
 }
@@ -194,10 +197,13 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 	}
 
 	/*
-	 * Update the FPSCR with the additional exception flags.
+	 * If any of the status flags are set, update the FPSCR.
 	 * Comparison instructions always return at least one of
 	 * these flags set.
 	 */
+	if (exceptions & (FPSCR_N|FPSCR_Z|FPSCR_C|FPSCR_V))
+		fpscr &= ~(FPSCR_N|FPSCR_Z|FPSCR_C|FPSCR_V);
+
 	fpscr |= exceptions;
 
 	fmxr(FPSCR, fpscr);
@@ -427,7 +433,11 @@ static inline void vfp_pm_init(void) { }
  * saved one. This function is used by the ptrace mechanism.
  */
 #ifdef CONFIG_SMP
-void vfp_sync_state(struct thread_info *thread)
+void vfp_sync_hwstate(struct thread_info *thread)
+{
+}
+
+void vfp_flush_hwstate(struct thread_info *thread)
 {
 	/*
 	 * On SMP systems, the VFP state is automatically saved at every
@@ -438,35 +448,48 @@ void vfp_sync_state(struct thread_info *thread)
 	thread->vfpstate.hard.cpu = NR_CPUS;
 }
 #else
-void vfp_sync_state(struct thread_info *thread)
+void vfp_sync_hwstate(struct thread_info *thread)
 {
 	unsigned int cpu = get_cpu();
-	u32 fpexc = fmrx(FPEXC);
 
 	/*
-	 * If VFP is enabled, the previous state was already saved and
-	 * last_VFP_context updated.
+	 * If the thread we're interested in is the current owner of the
+	 * hardware VFP state, then we need to save its state.
 	 */
-	if (fpexc & FPEXC_EN)
-		goto out;
+	if (last_VFP_context[cpu] == &thread->vfpstate) {
+		u32 fpexc = fmrx(FPEXC);
 
-	if (!last_VFP_context[cpu])
-		goto out;
+		/*
+		 * Save the last VFP state on this CPU.
+		 */
+		fmxr(FPEXC, fpexc | FPEXC_EN);
+		vfp_save_state(&thread->vfpstate, fpexc | FPEXC_EN);
+		fmxr(FPEXC, fpexc);
+	}
+
+	put_cpu();
+}
+
+void vfp_flush_hwstate(struct thread_info *thread)
+{
+	unsigned int cpu = get_cpu();
 
 	/*
-	 * Save the last VFP state on this CPU.
+	 * If the thread we're interested in is the current owner of the
+	 * hardware VFP state, then we need to save its state.
 	 */
-	fmxr(FPEXC, fpexc | FPEXC_EN);
-	vfp_save_state(last_VFP_context[cpu], fpexc);
-	fmxr(FPEXC, fpexc);
+	if (last_VFP_context[cpu] == &thread->vfpstate) {
+		u32 fpexc = fmrx(FPEXC);
 
-	/*
-	 * Set the context to NULL to force a reload the next time the thread
-	 * uses the VFP.
-	 */
-	last_VFP_context[cpu] = NULL;
+		fmxr(FPEXC, fpexc & ~FPEXC_EN);
 
-out:
+		/*
+		 * Set the context to NULL to force a reload the next time
+		 * the thread uses the VFP.
+		 */
+		last_VFP_context[cpu] = NULL;
+	}
+
 	put_cpu();
 }
 #endif

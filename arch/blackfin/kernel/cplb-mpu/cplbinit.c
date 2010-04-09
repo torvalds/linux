@@ -64,6 +64,15 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 		icplb_tbl[cpu][i_i++].data = i_data | (addr == 0 ? CPLB_USER_RD : 0);
 	}
 
+#ifdef CONFIG_ROMKERNEL
+	/* Cover kernel XIP flash area */
+	addr = CONFIG_ROM_BASE & ~(4 * 1024 * 1024 - 1);
+	dcplb_tbl[cpu][i_d].addr = addr;
+	dcplb_tbl[cpu][i_d++].data = d_data | CPLB_USER_RD;
+	icplb_tbl[cpu][i_i].addr = addr;
+	icplb_tbl[cpu][i_i++].data = i_data | CPLB_USER_RD;
+#endif
+
 	/* Cover L1 memory.  One 4M area for code and data each is enough.  */
 #if L1_DATA_A_LENGTH > 0 || L1_DATA_B_LENGTH > 0
 	dcplb_tbl[cpu][i_d].addr = get_l1_data_a_start_cpu(cpu);
@@ -92,6 +101,6 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 		icplb_tbl[cpu][i_i++].data = 0;
 }
 
-void generate_cplb_tables_all(void)
+void __init generate_cplb_tables_all(void)
 {
 }

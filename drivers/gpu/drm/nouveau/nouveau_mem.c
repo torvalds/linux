@@ -192,6 +192,92 @@ void nouveau_mem_release(struct drm_file *file_priv, struct mem_block *heap)
 }
 
 /*
+ * NV10-NV40 tiling helpers
+ */
+
+static void
+nv10_mem_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
+			   uint32_t size, uint32_t pitch)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+
+	tile->addr = addr;
+	tile->size = size;
+	tile->used = !!pitch;
+	nouveau_fence_unref((void **)&tile->fence);
+
+	if (!pfifo->cache_flush(dev))
+		return;
+
+	pfifo->reassign(dev, false);
+	pfifo->cache_flush(dev);
+	pfifo->cache_pull(dev, false);
+
+	nouveau_wait_for_idle(dev);
+
+	pgraph->set_region_tiling(dev, i, addr, size, pitch);
+	pfb->set_region_tiling(dev, i, addr, size, pitch);
+
+	pfifo->cache_pull(dev, true);
+	pfifo->reassign(dev, true);
+}
+
+struct nouveau_tile_reg *
+nv10_mem_set_tiling(struct drm_device *dev, uint32_t addr, uint32_t size,
+		    uint32_t pitch)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
+	struct nouveau_tile_reg *tile = dev_priv->tile.reg, *found = NULL;
+	int i;
+
+	spin_lock(&dev_priv->tile.lock);
+
+	for (i = 0; i < pfb->num_tiles; i++) {
+		if (tile[i].used)
+			/* Tile region in use. */
+			continue;
+
+		if (tile[i].fence &&
+		    !nouveau_fence_signalled(tile[i].fence, NULL))
+			/* Pending tile region. */
+			continue;
+
+		if (max(tile[i].addr, addr) <
+		    min(tile[i].addr + tile[i].size, addr + size))
+			/* Kill an intersecting tile region. */
+			nv10_mem_set_region_tiling(dev, i, 0, 0, 0);
+
+		if (pitch && !found) {
+			/* Free tile region. */
+			nv10_mem_set_region_tiling(dev, i, addr, size, pitch);
+			found = &tile[i];
+		}
+	}
+
+	spin_unlock(&dev_priv->tile.lock);
+
+	return found;
+}
+
+void
+nv10_mem_expire_tiling(struct drm_device *dev, struct nouveau_tile_reg *tile,
+		       struct nouveau_fence *fence)
+{
+	if (fence) {
+		/* Mark it as pending. */
+		tile->fence = fence;
+		nouveau_fence_ref(fence);
+	}
+
+	tile->used = false;
+}
+
+/*
  * NV50 VM helpers
  */
 int
@@ -199,53 +285,50 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 			uint32_t flags, uint64_t phys)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj **pgt;
-	unsigned psz, pfl, pages;
+	struct nouveau_gpuobj *pgt;
+	unsigned block;
+	int i;
 
-	if (virt >= dev_priv->vm_gart_base &&
-	    (virt + size) < (dev_priv->vm_gart_base + dev_priv->vm_gart_size)) {
-		psz = 12;
-		pgt = &dev_priv->gart_info.sg_ctxdma;
-		pfl = 0x21;
-		virt -= dev_priv->vm_gart_base;
-	} else
-	if (virt >= dev_priv->vm_vram_base &&
-	    (virt + size) < (dev_priv->vm_vram_base + dev_priv->vm_vram_size)) {
-		psz = 16;
-		pgt = dev_priv->vm_vram_pt;
-		pfl = 0x01;
-		virt -= dev_priv->vm_vram_base;
-	} else {
-		NV_ERROR(dev, "Invalid address: 0x%16llx-0x%16llx\n",
-			 virt, virt + size - 1);
-		return -EINVAL;
+	virt = ((virt - dev_priv->vm_vram_base) >> 16) << 1;
+	size = (size >> 16) << 1;
+
+	phys |= ((uint64_t)flags << 32);
+	phys |= 1;
+	if (dev_priv->vram_sys_base) {
+		phys += dev_priv->vram_sys_base;
+		phys |= 0x30;
 	}
 
-	pages = size >> psz;
-
 	dev_priv->engine.instmem.prepare_access(dev, true);
-	if (flags & 0x80000000) {
-		while (pages--) {
-			struct nouveau_gpuobj *pt = pgt[virt >> 29];
-			unsigned pte = ((virt & 0x1fffffffULL) >> psz) << 1;
+	while (size) {
+		unsigned offset_h = upper_32_bits(phys);
+		unsigned offset_l = lower_32_bits(phys);
+		unsigned pte, end;
 
-			nv_wo32(dev, pt, pte++, 0x00000000);
-			nv_wo32(dev, pt, pte++, 0x00000000);
-
-			virt += (1 << psz);
+		for (i = 7; i >= 0; i--) {
+			block = 1 << (i + 1);
+			if (size >= block && !(virt & (block - 1)))
+				break;
 		}
-	} else {
-		while (pages--) {
-			struct nouveau_gpuobj *pt = pgt[virt >> 29];
-			unsigned pte = ((virt & 0x1fffffffULL) >> psz) << 1;
-			unsigned offset_h = upper_32_bits(phys) & 0xff;
-			unsigned offset_l = lower_32_bits(phys);
+		offset_l |= (i << 7);
 
-			nv_wo32(dev, pt, pte++, offset_l | pfl);
-			nv_wo32(dev, pt, pte++, offset_h | flags);
+		phys += block << 15;
+		size -= block;
 
-			phys += (1 << psz);
-			virt += (1 << psz);
+		while (block) {
+			pgt = dev_priv->vm_vram_pt[virt >> 14];
+			pte = virt & 0x3ffe;
+
+			end = pte + block;
+			if (end > 16384)
+				end = 16384;
+			block -= (end - pte);
+			virt  += (end - pte);
+
+			while (pte < end) {
+				nv_wo32(dev, pgt, pte++, offset_l);
+				nv_wo32(dev, pgt, pte++, offset_h);
+			}
 		}
 	}
 	dev_priv->engine.instmem.finish_access(dev);
@@ -270,7 +353,41 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 void
 nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
 {
-	nv50_mem_vm_bind_linear(dev, virt, size, 0x80000000, 0);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *pgt;
+	unsigned pages, pte, end;
+
+	virt -= dev_priv->vm_vram_base;
+	pages = (size >> 16) << 1;
+
+	dev_priv->engine.instmem.prepare_access(dev, true);
+	while (pages) {
+		pgt = dev_priv->vm_vram_pt[virt >> 29];
+		pte = (virt & 0x1ffe0000ULL) >> 15;
+
+		end = pte + pages;
+		if (end > 16384)
+			end = 16384;
+		pages -= (end - pte);
+		virt  += (end - pte) << 15;
+
+		while (pte < end)
+			nv_wo32(dev, pgt, pte++, 0);
+	}
+	dev_priv->engine.instmem.finish_access(dev);
+
+	nv_wr32(dev, 0x100c80, 0x00050001);
+	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
+		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
+		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
+		return;
+	}
+
+	nv_wr32(dev, 0x100c80, 0x00000001);
+	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
+		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
+		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
+	}
 }
 
 /*
@@ -297,9 +414,8 @@ void nouveau_mem_close(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->ttm.bdev.man[TTM_PL_PRIV0].has_type)
-		ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_PRIV0);
-	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
+	nouveau_bo_unpin(dev_priv->vga_ram);
+	nouveau_bo_ref(NULL, &dev_priv->vga_ram);
 
 	ttm_bo_device_release(&dev_priv->ttm.bdev);
 
@@ -407,6 +523,7 @@ uint64_t nouveau_mem_fb_amount(struct drm_device *dev)
 	return 0;
 }
 
+#if __OS_HAS_AGP
 static void nouveau_mem_reset_agp(struct drm_device *dev)
 {
 	uint32_t saved_pci_nv_1, saved_pci_nv_19, pmc_enable;
@@ -432,10 +549,12 @@ static void nouveau_mem_reset_agp(struct drm_device *dev)
 	nv_wr32(dev, NV04_PBUS_PCI_NV_19, saved_pci_nv_19);
 	nv_wr32(dev, NV04_PBUS_PCI_NV_1, saved_pci_nv_1);
 }
+#endif
 
 int
 nouveau_mem_init_agp(struct drm_device *dev)
 {
+#if __OS_HAS_AGP
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_agp_info info;
 	struct drm_agp_mode mode;
@@ -471,6 +590,7 @@ nouveau_mem_init_agp(struct drm_device *dev)
 	dev_priv->gart_info.type	= NOUVEAU_GART_AGP;
 	dev_priv->gart_info.aper_base	= info.aperture_base;
 	dev_priv->gart_info.aper_size	= info.aperture_size;
+#endif
 	return 0;
 }
 
@@ -509,6 +629,7 @@ nouveau_mem_init(struct drm_device *dev)
 
 	INIT_LIST_HEAD(&dev_priv->ttm.bo_list);
 	spin_lock_init(&dev_priv->ttm.bo_list_lock);
+	spin_lock_init(&dev_priv->tile.lock);
 
 	dev_priv->fb_available_size = nouveau_mem_fb_amount(dev);
 
@@ -529,6 +650,15 @@ nouveau_mem_init(struct drm_device *dev)
 	if (ret) {
 		NV_ERROR(dev, "Failed VRAM mm init: %d\n", ret);
 		return ret;
+	}
+
+	ret = nouveau_bo_new(dev, NULL, 256*1024, 0, TTM_PL_FLAG_VRAM,
+			     0, 0, true, true, &dev_priv->vga_ram);
+	if (ret == 0)
+		ret = nouveau_bo_pin(dev_priv->vga_ram, TTM_PL_FLAG_VRAM);
+	if (ret) {
+		NV_WARN(dev, "failed to reserve VGA memory\n");
+		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
 	}
 
 	/* GART */
@@ -562,6 +692,7 @@ nouveau_mem_init(struct drm_device *dev)
 	dev_priv->fb_mtrr = drm_mtrr_add(drm_get_resource_start(dev, 1),
 					 drm_get_resource_len(dev, 1),
 					 DRM_MTRR_WC);
+
 	return 0;
 }
 

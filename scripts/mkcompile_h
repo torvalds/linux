@@ -14,7 +14,7 @@ vecho() { [ "${quiet}" = "silent_" ] || echo "$@" ; }
 # So "sudo make install" won't change the "compiled by <user>"
 # do "compiled by root"
 
-if [ -r $TARGET -a ! -O include/linux/autoconf.h ]; then
+if [ -r $TARGET -a ! -O include/generated/autoconf.h ]; then
   vecho "  SKIPPED $TARGET"
   exit 0
 fi

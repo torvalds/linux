@@ -152,9 +152,23 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 		goto exit_unregister_input;
 	}
 
+	err = gpio_direction_input(pdata->gpio_a);
+	if (err) {
+		dev_err(&pdev->dev, "unable to set GPIO %d for input\n",
+			pdata->gpio_a);
+		goto exit_unregister_input;
+	}
+
 	err = gpio_request(pdata->gpio_b, DRV_NAME);
 	if (err) {
 		dev_err(&pdev->dev, "unable to request GPIO %d\n",
+			pdata->gpio_b);
+		goto exit_free_gpio_a;
+	}
+
+	err = gpio_direction_input(pdata->gpio_b);
+	if (err) {
+		dev_err(&pdev->dev, "unable to set GPIO %d for input\n",
 			pdata->gpio_b);
 		goto exit_free_gpio_a;
 	}

@@ -163,7 +163,7 @@ void tcw_finalize(struct tcw *tcw, int num_tidaws)
 	/* Add tcat to tccb. */
 	tccb = tcw_get_tccb(tcw);
 	tcat = (struct tccb_tcat *) &tccb->tca[tca_size(tccb)];
-	memset(tcat, 0, sizeof(tcat));
+	memset(tcat, 0, sizeof(*tcat));
 	/* Calculate tcw input/output count and tcat transport count. */
 	count = calc_dcw_count(tccb);
 	if (tcw->w && (tcw->flags & TCW_FLAGS_OUTPUT_TIDA))
@@ -269,7 +269,7 @@ EXPORT_SYMBOL(tccb_init);
  */
 void tsb_init(struct tsb *tsb)
 {
-	memset(tsb, 0, sizeof(tsb));
+	memset(tsb, 0, sizeof(*tsb));
 }
 EXPORT_SYMBOL(tsb_init);
 

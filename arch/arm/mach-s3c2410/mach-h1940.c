@@ -46,6 +46,7 @@
 #include <mach/h1940.h>
 #include <mach/h1940-latch.h>
 #include <mach/fb.h>
+#include <mach/ts.h>
 #include <plat/udc.h>
 #include <plat/iic.h>
 
@@ -140,6 +141,11 @@ static struct s3c2410_udc_mach_info h1940_udc_cfg __initdata = {
 	.vbus_pin_inverted	= 1,
 };
 
+static struct s3c2410_ts_mach_info h1940_ts_cfg __initdata = {
+		.delay = 10000,
+		.presc = 49,
+		.oversampling_shift = 2,
+};
 
 /**
  * Set lcd on or off
@@ -190,7 +196,7 @@ static struct platform_device h1940_device_bluetooth = {
 	.id               = -1,
 };
 
-static struct s3c24xx_mci_pdata h1940_mmc_cfg = {
+static struct s3c24xx_mci_pdata h1940_mmc_cfg __initdata = {
 	.gpio_detect   = S3C2410_GPF(5),
 	.gpio_wprotect = S3C2410_GPH(8),
 	.set_power     = NULL,
@@ -265,7 +271,8 @@ static struct platform_device h1940_lcd_powerdev = {
 };
 
 static struct platform_device *h1940_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ts,
+	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
@@ -304,10 +311,10 @@ static void __init h1940_init(void)
 	u32 tmp;
 
 	s3c24xx_fb_set_platdata(&h1940_fb_info);
+	s3c24xx_mci_set_platdata(&h1940_mmc_cfg);
  	s3c24xx_udc_set_platdata(&h1940_udc_cfg);
+	s3c24xx_ts_set_platdata(&h1940_ts_cfg);
 	s3c_i2c0_set_platdata(NULL);
-
-	s3c_device_sdi.dev.platform_data = &h1940_mmc_cfg;
 
 	/* Turn off suspend on both USB ports, and switch the
 	 * selectable USB port to USB device mode. */

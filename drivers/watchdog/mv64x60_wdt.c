@@ -179,7 +179,7 @@ static long mv64x60_wdt_ioctl(struct file *file,
 	int timeout;
 	int options;
 	void __user *argp = (void __user *)arg;
-	static struct watchdog_info info = {
+	static const struct watchdog_info info = {
 		.options =	WDIOF_SETTIMEOUT	|
 				WDIOF_MAGICCLOSE	|
 				WDIOF_KEEPALIVEPING,
@@ -275,7 +275,7 @@ static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
 	if (!r)
 		return -ENODEV;
 
-	mv64x60_wdt_regs = ioremap(r->start, r->end - r->start + 1);
+	mv64x60_wdt_regs = ioremap(r->start, resource_size(r));
 	if (mv64x60_wdt_regs == NULL)
 		return -ENOMEM;
 

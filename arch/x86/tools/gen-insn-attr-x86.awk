@@ -6,8 +6,6 @@
 
 # Awk implementation sanity check
 function check_awk_implement() {
-	if (!match("abc", "[[:lower:]]+"))
-		return "Your awk doesn't support charactor-class."
 	if (sprintf("%x", 0) != "0")
 		return "Your awk has a printf-format problem."
 	return ""
@@ -44,12 +42,12 @@ BEGIN {
 	delete gtable
 	delete atable
 
-	opnd_expr = "^[[:alpha:]/]"
+	opnd_expr = "^[A-Za-z/]"
 	ext_expr = "^\\("
 	sep_expr = "^\\|$"
-	group_expr = "^Grp[[:alnum:]]+"
+	group_expr = "^Grp[0-9A-Za-z]+"
 
-	imm_expr = "^[IJAO][[:lower:]]"
+	imm_expr = "^[IJAO][a-z]"
 	imm_flag["Ib"] = "INAT_MAKE_IMM(INAT_IMM_BYTE)"
 	imm_flag["Jb"] = "INAT_MAKE_IMM(INAT_IMM_BYTE)"
 	imm_flag["Iw"] = "INAT_MAKE_IMM(INAT_IMM_WORD)"
@@ -62,7 +60,7 @@ BEGIN {
 	imm_flag["Ob"] = "INAT_MOFFSET"
 	imm_flag["Ov"] = "INAT_MOFFSET"
 
-	modrm_expr = "^([CDEGMNPQRSUVW/][[:lower:]]+|NTA|T[012])"
+	modrm_expr = "^([CDEGMNPQRSUVW/][a-z]+|NTA|T[012])"
 	force64_expr = "\\([df]64\\)"
 	rex_expr = "^REX(\\.[XRWB]+)*"
 	fpu_expr = "^ESC" # TODO
@@ -226,12 +224,12 @@ function add_flags(old,new) {
 }
 
 # convert operands to flags.
-function convert_operands(opnd,       i,imm,mod)
+function convert_operands(count,opnd,       i,j,imm,mod)
 {
 	imm = null
 	mod = null
-	for (i in opnd) {
-		i  = opnd[i]
+	for (j = 1; j <= count; j++) {
+		i = opnd[j]
 		if (match(i, imm_expr) == 1) {
 			if (!imm_flag[i])
 				semantic_error("Unknown imm opnd: " i)
@@ -282,8 +280,8 @@ function convert_operands(opnd,       i,imm,mod)
 		# parse one opcode
 		if (match($i, opnd_expr)) {
 			opnd = $i
-			split($(i++), opnds, ",")
-			flags = convert_operands(opnds)
+			count = split($(i++), opnds, ",")
+			flags = convert_operands(count, opnds)
 		}
 		if (match($i, ext_expr))
 			ext = $(i++)

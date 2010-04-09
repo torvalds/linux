@@ -131,12 +131,12 @@ static unsigned int ata_data_xfer_8bit(struct ata_device *dev,
  *	@qc: command
  *
  *	Drain the FIFO and device of any stuck data following a command
- *	failing to complete. In some cases this is neccessary before a
+ *	failing to complete. In some cases this is necessary before a
  *	reset will recover the device.
  *
  */
  
-void pcmcia_8bit_drain_fifo(struct ata_queued_cmd *qc)
+static void pcmcia_8bit_drain_fifo(struct ata_queued_cmd *qc)
 {
 	int count;
 	struct ata_port *ap;

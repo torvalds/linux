@@ -205,9 +205,8 @@ long lmb_add(u64 base, u64 size)
 
 }
 
-long lmb_remove(u64 base, u64 size)
+static long __lmb_remove(struct lmb_region *rgn, u64 base, u64 size)
 {
-	struct lmb_region *rgn = &(lmb.memory);
 	u64 rgnbegin, rgnend;
 	u64 end = base + size;
 	int i;
@@ -254,6 +253,16 @@ long lmb_remove(u64 base, u64 size)
 	return lmb_add_region(rgn, end, rgnend - end);
 }
 
+long lmb_remove(u64 base, u64 size)
+{
+	return __lmb_remove(&lmb.memory, base, size);
+}
+
+long __init lmb_free(u64 base, u64 size)
+{
+	return __lmb_remove(&lmb.reserved, base, size);
+}
+
 long __init lmb_reserve(u64 base, u64 size)
 {
 	struct lmb_region *_rgn = &lmb.reserved;
@@ -263,7 +272,7 @@ long __init lmb_reserve(u64 base, u64 size)
 	return lmb_add_region(_rgn, base, size);
 }
 
-long __init lmb_overlaps_region(struct lmb_region *rgn, u64 base, u64 size)
+long lmb_overlaps_region(struct lmb_region *rgn, u64 base, u64 size)
 {
 	unsigned long i;
 
@@ -491,6 +500,11 @@ int __init lmb_is_reserved(u64 addr)
 			return 1;
 	}
 	return 0;
+}
+
+int lmb_is_region_reserved(u64 base, u64 size)
+{
+	return lmb_overlaps_region(&lmb.reserved, base, size);
 }
 
 /*

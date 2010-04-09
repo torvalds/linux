@@ -19,22 +19,21 @@
 
 /**
  * struct nand_bbt_descr - bad block table descriptor
- * @options:		options for this descriptor
- * @pages:		the page(s) where we find the bbt, used with
- * 			option BBT_ABSPAGE when bbt is searched,
- * 			then we store the found bbts pages here.
- *			Its an array and supports up to 8 chips now
- * @offs:		offset of the pattern in the oob area of the page
- * @veroffs:		offset of the bbt version counter in the oob area of the page
- * @version:		version read from the bbt page during scan
- * @len:		length of the pattern, if 0 no pattern check is performed
- * @maxblocks:		maximum number of blocks to search for a bbt. This
- *			number of blocks is reserved at the end of the device
- *			where the tables are written.
- * @reserved_block_code: if non-0, this pattern denotes a reserved
- *			(rather than bad) block in the stored bbt
- * @pattern:		pattern to identify bad block table or factory marked
- *			good / bad blocks, can be NULL, if len = 0
+ * @options:	options for this descriptor
+ * @pages:	the page(s) where we find the bbt, used with option BBT_ABSPAGE
+ *		when bbt is searched, then we store the found bbts pages here.
+ *		Its an array and supports up to 8 chips now
+ * @offs:	offset of the pattern in the oob area of the page
+ * @veroffs:	offset of the bbt version counter in the oob are of the page
+ * @version:	version read from the bbt page during scan
+ * @len:	length of the pattern, if 0 no pattern check is performed
+ * @maxblocks:	maximum number of blocks to search for a bbt. This number of
+ *		blocks is reserved at the end of the device where the tables are
+ *		written.
+ * @reserved_block_code: if non-0, this pattern denotes a reserved (rather than
+ *              bad) block in the stored bbt
+ * @pattern:	pattern to identify bad block table or factory marked good /
+ *		bad blocks, can be NULL, if len = 0
  *
  * Descriptor for the bad block table marker and the descriptor for the
  * pattern which identifies good and bad blocks. The assumption is made
@@ -90,7 +89,9 @@ struct nand_bbt_descr {
 /*
  * Constants for oob configuration
  */
-#define ONENAND_BADBLOCK_POS	0
+#define NAND_SMALL_BADBLOCK_POS		5
+#define NAND_LARGE_BADBLOCK_POS		0
+#define ONENAND_BADBLOCK_POS		0
 
 /*
  * Bad block scanning errors

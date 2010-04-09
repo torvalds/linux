@@ -110,5 +110,79 @@
 #define R600_BIOS_6_SCRATCH               0x173c
 #define R600_BIOS_7_SCRATCH               0x1740
 
+/* Audio, these regs were reverse enginered,
+ * so the chance is high that the naming is wrong
+ * R6xx+ ??? */
+
+/* Audio clocks */
+#define R600_AUDIO_PLL1_MUL               0x0514
+#define R600_AUDIO_PLL1_DIV               0x0518
+#define R600_AUDIO_PLL2_MUL               0x0524
+#define R600_AUDIO_PLL2_DIV               0x0528
+#define R600_AUDIO_CLK_SRCSEL             0x0534
+
+/* Audio general */
+#define R600_AUDIO_ENABLE                 0x7300
+#define R600_AUDIO_TIMING                 0x7344
+
+/* Audio params */
+#define R600_AUDIO_VENDOR_ID              0x7380
+#define R600_AUDIO_REVISION_ID            0x7384
+#define R600_AUDIO_ROOT_NODE_COUNT        0x7388
+#define R600_AUDIO_NID1_NODE_COUNT        0x738c
+#define R600_AUDIO_NID1_TYPE              0x7390
+#define R600_AUDIO_SUPPORTED_SIZE_RATE    0x7394
+#define R600_AUDIO_SUPPORTED_CODEC        0x7398
+#define R600_AUDIO_SUPPORTED_POWER_STATES 0x739c
+#define R600_AUDIO_NID2_CAPS              0x73a0
+#define R600_AUDIO_NID3_CAPS              0x73a4
+#define R600_AUDIO_NID3_PIN_CAPS          0x73a8
+
+/* Audio conn list */
+#define R600_AUDIO_CONN_LIST_LEN          0x73ac
+#define R600_AUDIO_CONN_LIST              0x73b0
+
+/* Audio verbs */
+#define R600_AUDIO_RATE_BPS_CHANNEL       0x73c0
+#define R600_AUDIO_PLAYING                0x73c4
+#define R600_AUDIO_IMPLEMENTATION_ID      0x73c8
+#define R600_AUDIO_CONFIG_DEFAULT         0x73cc
+#define R600_AUDIO_PIN_SENSE              0x73d0
+#define R600_AUDIO_PIN_WIDGET_CNTL        0x73d4
+#define R600_AUDIO_STATUS_BITS            0x73d8
+
+/* HDMI base register addresses */
+#define R600_HDMI_TMDS1                   0x7400
+#define R600_HDMI_TMDS2                   0x7700
+#define R600_HDMI_DIG                     0x7800
+
+/* HDMI registers */
+#define R600_HDMI_ENABLE           0x00
+#define R600_HDMI_STATUS           0x04
+#define R600_HDMI_CNTL             0x08
+#define R600_HDMI_UNKNOWN_0        0x0C
+#define R600_HDMI_AUDIOCNTL        0x10
+#define R600_HDMI_VIDEOCNTL        0x14
+#define R600_HDMI_VERSION          0x18
+#define R600_HDMI_UNKNOWN_1        0x28
+#define R600_HDMI_VIDEOINFOFRAME_0 0x54
+#define R600_HDMI_VIDEOINFOFRAME_1 0x58
+#define R600_HDMI_VIDEOINFOFRAME_2 0x5c
+#define R600_HDMI_VIDEOINFOFRAME_3 0x60
+#define R600_HDMI_32kHz_CTS        0xac
+#define R600_HDMI_32kHz_N          0xb0
+#define R600_HDMI_44_1kHz_CTS      0xb4
+#define R600_HDMI_44_1kHz_N        0xb8
+#define R600_HDMI_48kHz_CTS        0xbc
+#define R600_HDMI_48kHz_N          0xc0
+#define R600_HDMI_AUDIOINFOFRAME_0 0xcc
+#define R600_HDMI_AUDIOINFOFRAME_1 0xd0
+#define R600_HDMI_IEC60958_1       0xd4
+#define R600_HDMI_IEC60958_2       0xd8
+#define R600_HDMI_UNKNOWN_2        0xdc
+#define R600_HDMI_AUDIO_DEBUG_0    0xe0
+#define R600_HDMI_AUDIO_DEBUG_1    0xe4
+#define R600_HDMI_AUDIO_DEBUG_2    0xe8
+#define R600_HDMI_AUDIO_DEBUG_3    0xec
 
 #endif

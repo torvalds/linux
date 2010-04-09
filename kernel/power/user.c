@@ -195,6 +195,15 @@ static ssize_t snapshot_write(struct file *filp, const char __user *buf,
 	return res;
 }
 
+static void snapshot_deprecated_ioctl(unsigned int cmd)
+{
+	if (printk_ratelimit())
+		printk(KERN_NOTICE "%pf: ioctl '%.8x' is deprecated and will "
+				"be removed soon, update your suspend-to-disk "
+				"utilities\n",
+				__builtin_return_address(0), cmd);
+}
+
 static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 							unsigned long arg)
 {
@@ -246,8 +255,9 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		data->frozen = 0;
 		break;
 
-	case SNAPSHOT_CREATE_IMAGE:
 	case SNAPSHOT_ATOMIC_SNAPSHOT:
+		snapshot_deprecated_ioctl(cmd);
+	case SNAPSHOT_CREATE_IMAGE:
 		if (data->mode != O_RDONLY || !data->frozen  || data->ready) {
 			error = -EPERM;
 			break;
@@ -275,8 +285,9 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		data->ready = 0;
 		break;
 
-	case SNAPSHOT_PREF_IMAGE_SIZE:
 	case SNAPSHOT_SET_IMAGE_SIZE:
+		snapshot_deprecated_ioctl(cmd);
+	case SNAPSHOT_PREF_IMAGE_SIZE:
 		image_size = arg;
 		break;
 
@@ -290,15 +301,17 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		error = put_user(size, (loff_t __user *)arg);
 		break;
 
-	case SNAPSHOT_AVAIL_SWAP_SIZE:
 	case SNAPSHOT_AVAIL_SWAP:
+		snapshot_deprecated_ioctl(cmd);
+	case SNAPSHOT_AVAIL_SWAP_SIZE:
 		size = count_swap_pages(data->swap, 1);
 		size <<= PAGE_SHIFT;
 		error = put_user(size, (loff_t __user *)arg);
 		break;
 
-	case SNAPSHOT_ALLOC_SWAP_PAGE:
 	case SNAPSHOT_GET_SWAP_PAGE:
+		snapshot_deprecated_ioctl(cmd);
+	case SNAPSHOT_ALLOC_SWAP_PAGE:
 		if (data->swap < 0 || data->swap >= MAX_SWAPFILES) {
 			error = -ENODEV;
 			break;
@@ -321,6 +334,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	case SNAPSHOT_SET_SWAP_FILE: /* This ioctl is deprecated */
+		snapshot_deprecated_ioctl(cmd);
 		if (!swsusp_swap_in_use()) {
 			/*
 			 * User space encodes device types as two-byte values,
@@ -362,6 +376,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	case SNAPSHOT_PMOPS: /* This ioctl is deprecated */
+		snapshot_deprecated_ioctl(cmd);
 		error = -EINVAL;
 
 		switch (arg) {

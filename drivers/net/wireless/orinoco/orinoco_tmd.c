@@ -203,7 +203,7 @@ static void __devexit orinoco_tmd_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static struct pci_device_id orinoco_tmd_id_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(orinoco_tmd_id_table) = {
 	{0x15e8, 0x0131, PCI_ANY_ID, PCI_ANY_ID,},      /* NDC and OEMs, e.g. pheecom */
 	{0,},
 };

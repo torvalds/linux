@@ -104,10 +104,12 @@ extern void cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr);
 extern struct inode *cifs_iget(struct super_block *sb,
 			       struct cifs_fattr *fattr);
 
+extern int cifs_get_file_info(struct file *filp);
 extern int cifs_get_inode_info(struct inode **pinode,
 			const unsigned char *search_path,
 			FILE_ALL_INFO *pfile_info,
 			struct super_block *sb, int xid, const __u16 *pfid);
+extern int cifs_get_file_info_unix(struct file *filp);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, int xid);
@@ -142,6 +144,8 @@ extern int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSFindClose(const int, struct cifsTconInfo *tcon,
 			const __u16 search_handle);
 
+extern int CIFSSMBQFileInfo(const int xid, struct cifsTconInfo *tcon,
+			u16 netfid, FILE_ALL_INFO *pFindData);
 extern int CIFSSMBQPathInfo(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
 			FILE_ALL_INFO *findData,
@@ -152,6 +156,8 @@ extern int SMBQueryInformation(const int xid, struct cifsTconInfo *tcon,
 			FILE_ALL_INFO *findData,
 			const struct nls_table *nls_codepage, int remap);
 
+extern int CIFSSMBUnixQFileInfo(const int xid, struct cifsTconInfo *tcon,
+			u16 netfid, FILE_UNIX_BASIC_INFO *pFindData);
 extern int CIFSSMBUnixQPathInfo(const int xid,
 			struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
@@ -363,13 +369,10 @@ extern int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
 			__u32 filter, struct file *file, int multishot,
 			const struct nls_table *nls_codepage);
 extern ssize_t CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
-			const unsigned char *searchName, char *EAData,
+			const unsigned char *searchName,
+			const unsigned char *ea_name, char *EAData,
 			size_t bufsize, const struct nls_table *nls_codepage,
 			int remap_special_chars);
-extern ssize_t CIFSSMBQueryEA(const int xid, struct cifsTconInfo *tcon,
-		const unsigned char *searchName, const unsigned char *ea_name,
-		unsigned char *ea_value, size_t buf_size,
-		const struct nls_table *nls_codepage, int remap_special_chars);
 extern int CIFSSMBSetEA(const int xid, struct cifsTconInfo *tcon,
 		const char *fileName, const char *ea_name,
 		const void *ea_value, const __u16 ea_value_len,

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -374,6 +374,7 @@ union acpi_predefined_info {
 struct acpi_predefined_data {
 	char *pathname;
 	const union acpi_predefined_info *predefined;
+	union acpi_operand_object *parent_package;
 	u32 flags;
 	u8 node_flags;
 };
@@ -426,6 +427,8 @@ struct acpi_gpe_event_info {
 	struct acpi_gpe_register_info *register_info;	/* Backpointer to register info */
 	u8 flags;		/* Misc info about this GPE */
 	u8 gpe_number;		/* This GPE */
+	u8 runtime_count;
+	u8 wakeup_count;
 };
 
 /* Information about a GPE register pair, one per each status/enable pair in an array */
@@ -649,8 +652,7 @@ struct acpi_opcode_info {
 };
 
 union acpi_parse_value {
-	acpi_integer integer;	/* Integer constant (Up to 64 bits) */
-	struct uint64_struct integer64;	/* Structure overlay for 2 32-bit Dwords */
+	u64 integer;		/* Integer constant (Up to 64 bits) */
 	u32 size;		/* bytelist or field size */
 	char *string;		/* NULL terminated string */
 	u8 *buffer;		/* buffer or string */

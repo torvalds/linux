@@ -141,7 +141,7 @@ static int locomolcd_get_intensity(struct backlight_device *bd)
 	return current_intensity;
 }
 
-static struct backlight_ops locomobl_data = {
+static const struct backlight_ops locomobl_data = {
 	.get_brightness = locomolcd_get_intensity,
 	.update_status  = locomolcd_set_intensity,
 };
@@ -167,6 +167,7 @@ static int locomolcd_resume(struct locomo_dev *dev)
 
 static int locomolcd_probe(struct locomo_dev *ldev)
 {
+	struct backlight_properties props;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -182,13 +183,16 @@ static int locomolcd_probe(struct locomo_dev *ldev)
 
 	local_irq_restore(flags);
 
-	locomolcd_bl_device = backlight_device_register("locomo-bl", &ldev->dev, NULL, &locomobl_data);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 4;
+	locomolcd_bl_device = backlight_device_register("locomo-bl",
+							&ldev->dev, NULL,
+							&locomobl_data, &props);
 
 	if (IS_ERR (locomolcd_bl_device))
 		return PTR_ERR (locomolcd_bl_device);
 
 	/* Set up frontlight so that screen is readable */
-	locomolcd_bl_device->props.max_brightness = 4,
 	locomolcd_bl_device->props.brightness = 2;
 	locomolcd_set_intensity(locomolcd_bl_device);
 

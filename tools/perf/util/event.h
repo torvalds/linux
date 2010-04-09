@@ -1,10 +1,10 @@
 #ifndef __PERF_RECORD_H
 #define __PERF_RECORD_H
 
+#include <limits.h>
+
 #include "../perf.h"
-#include "util.h"
-#include <linux/list.h>
-#include <linux/rbtree.h>
+#include "map.h"
 
 /*
  * PERF_SAMPLE_IP | PERF_SAMPLE_TID | *
@@ -95,83 +95,43 @@ typedef union event_union {
 } event_t;
 
 struct events_stats {
-	unsigned long total;
-	unsigned long lost;
+	u64 total;
+	u64 lost;
+};
+
+struct event_stat_id {
+	struct rb_node		rb_node;
+	struct rb_root		hists;
+	struct events_stats	stats;
+	u64			config;
+	u64			event_stream;
+	u32			type;
 };
 
 void event__print_totals(void);
 
-enum map_type {
-	MAP__FUNCTION = 0,
-	MAP__VARIABLE,
-};
+struct perf_session;
 
-#define MAP__NR_TYPES (MAP__VARIABLE + 1)
+typedef int (*event__handler_t)(event_t *event, struct perf_session *session);
 
-struct map {
-	union {
-		struct rb_node	rb_node;
-		struct list_head node;
-	};
-	u64			start;
-	u64			end;
-	enum map_type		type;
-	u64			pgoff;
-	u64			(*map_ip)(struct map *, u64);
-	u64			(*unmap_ip)(struct map *, u64);
-	struct dso		*dso;
-};
+int event__synthesize_thread(pid_t pid, event__handler_t process,
+			     struct perf_session *session);
+void event__synthesize_threads(event__handler_t process,
+			       struct perf_session *session);
+int event__synthesize_kernel_mmap(event__handler_t process,
+				  struct perf_session *session,
+				  const char *symbol_name);
+int event__synthesize_modules(event__handler_t process,
+			      struct perf_session *session);
 
-static inline u64 map__map_ip(struct map *map, u64 ip)
-{
-	return ip - map->start + map->pgoff;
-}
-
-static inline u64 map__unmap_ip(struct map *map, u64 ip)
-{
-	return ip + map->start - map->pgoff;
-}
-
-static inline u64 identity__map_ip(struct map *map __used, u64 ip)
-{
-	return ip;
-}
-
-struct symbol;
-
-typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
-
-void map__init(struct map *self, enum map_type type,
-	       u64 start, u64 end, u64 pgoff, struct dso *dso);
-struct map *map__new(struct mmap_event *event, enum map_type,
-		     char *cwd, int cwdlen);
-void map__delete(struct map *self);
-struct map *map__clone(struct map *self);
-int map__overlap(struct map *l, struct map *r);
-size_t map__fprintf(struct map *self, FILE *fp);
-struct symbol *map__find_symbol(struct map *self, u64 addr,
-				symbol_filter_t filter);
-struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
-					symbol_filter_t filter);
-void map__fixup_start(struct map *self);
-void map__fixup_end(struct map *self);
-
-int event__synthesize_thread(pid_t pid, int (*process)(event_t *event));
-void event__synthesize_threads(int (*process)(event_t *event));
-
-extern char *event__cwd;
-extern int  event__cwdlen;
-extern struct events_stats event__stats;
-extern unsigned long event__total[PERF_RECORD_MAX];
-
-int event__process_comm(event_t *self);
-int event__process_lost(event_t *self);
-int event__process_mmap(event_t *self);
-int event__process_task(event_t *self);
+int event__process_comm(event_t *self, struct perf_session *session);
+int event__process_lost(event_t *self, struct perf_session *session);
+int event__process_mmap(event_t *self, struct perf_session *session);
+int event__process_task(event_t *self, struct perf_session *session);
 
 struct addr_location;
-int event__preprocess_sample(const event_t *self, struct addr_location *al,
-			     symbol_filter_t filter);
+int event__preprocess_sample(const event_t *self, struct perf_session *session,
+			     struct addr_location *al, symbol_filter_t filter);
 int event__parse_sample(event_t *event, u64 type, struct sample_data *data);
 
 #endif /* __PERF_RECORD_H */

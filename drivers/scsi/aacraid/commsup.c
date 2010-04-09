@@ -189,7 +189,14 @@ struct fib *aac_fib_alloc(struct aac_dev *dev)
 
 void aac_fib_free(struct fib *fibptr)
 {
-	unsigned long flags;
+	unsigned long flags, flagsv;
+
+	spin_lock_irqsave(&fibptr->event_lock, flagsv);
+	if (fibptr->done == 2) {
+		spin_unlock_irqrestore(&fibptr->event_lock, flagsv);
+		return;
+	}
+	spin_unlock_irqrestore(&fibptr->event_lock, flagsv);
 
 	spin_lock_irqsave(&fibptr->dev->fib_lock, flags);
 	if (unlikely(fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT))
@@ -390,6 +397,8 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	struct hw_fib * hw_fib = fibptr->hw_fib_va;
 	unsigned long flags = 0;
 	unsigned long qflags;
+	unsigned long mflags = 0;
+
 
 	if (!(hw_fib->header.XferState & cpu_to_le32(HostOwned)))
 		return -EBUSY;
@@ -471,9 +480,31 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	if (!dev->queues)
 		return -EBUSY;
 
-	if(wait)
+	if (wait) {
+
+		spin_lock_irqsave(&dev->manage_lock, mflags);
+		if (dev->management_fib_count >= AAC_NUM_MGT_FIB) {
+			printk(KERN_INFO "No management Fibs Available:%d\n",
+						dev->management_fib_count);
+			spin_unlock_irqrestore(&dev->manage_lock, mflags);
+			return -EBUSY;
+		}
+		dev->management_fib_count++;
+		spin_unlock_irqrestore(&dev->manage_lock, mflags);
 		spin_lock_irqsave(&fibptr->event_lock, flags);
-	aac_adapter_deliver(fibptr);
+	}
+
+	if (aac_adapter_deliver(fibptr) != 0) {
+		printk(KERN_ERR "aac_fib_send: returned -EBUSY\n");
+		if (wait) {
+			spin_unlock_irqrestore(&fibptr->event_lock, flags);
+			spin_lock_irqsave(&dev->manage_lock, mflags);
+			dev->management_fib_count--;
+			spin_unlock_irqrestore(&dev->manage_lock, mflags);
+		}
+		return -EBUSY;
+	}
+
 
 	/*
 	 *	If the caller wanted us to wait for response wait now.
@@ -516,14 +547,15 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 				udelay(5);
 			}
 		} else if (down_interruptible(&fibptr->event_wait)) {
-			fibptr->done = 2;
-			up(&fibptr->event_wait);
+			/* Do nothing ... satisfy
+			 * down_interruptible must_check */
 		}
+
 		spin_lock_irqsave(&fibptr->event_lock, flags);
-		if ((fibptr->done == 0) || (fibptr->done == 2)) {
+		if (fibptr->done == 0) {
 			fibptr->done = 2; /* Tell interrupt we aborted */
 			spin_unlock_irqrestore(&fibptr->event_lock, flags);
-			return -EINTR;
+			return -ERESTARTSYS;
 		}
 		spin_unlock_irqrestore(&fibptr->event_lock, flags);
 		BUG_ON(fibptr->done == 0);
@@ -689,6 +721,7 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 
 int aac_fib_complete(struct fib *fibptr)
 {
+	unsigned long flags;
 	struct hw_fib * hw_fib = fibptr->hw_fib_va;
 
 	/*
@@ -709,6 +742,13 @@ int aac_fib_complete(struct fib *fibptr)
 	 *	command is complete that we had sent to the adapter and this
 	 *	cdb could be reused.
 	 */
+	spin_lock_irqsave(&fibptr->event_lock, flags);
+	if (fibptr->done == 2) {
+		spin_unlock_irqrestore(&fibptr->event_lock, flags);
+		return 0;
+	}
+	spin_unlock_irqrestore(&fibptr->event_lock, flags);
+
 	if((hw_fib->header.XferState & cpu_to_le32(SentFromHost)) &&
 		(hw_fib->header.XferState & cpu_to_le32(AdapterProcessed)))
 	{
@@ -1355,7 +1395,10 @@ int aac_reset_adapter(struct aac_dev * aac, int forced)
 
 			if (status >= 0)
 				aac_fib_complete(fibctx);
-			aac_fib_free(fibctx);
+			/* FIB should be freed only after getting
+			 * the response from the F/W */
+			if (status != -ERESTARTSYS)
+				aac_fib_free(fibctx);
 		}
 	}
 
@@ -1759,6 +1802,7 @@ int aac_command_thread(void *data)
 				struct fib *fibptr;
 
 				if ((fibptr = aac_fib_alloc(dev))) {
+					int status;
 					__le32 *info;
 
 					aac_fib_init(fibptr);
@@ -1769,15 +1813,21 @@ int aac_command_thread(void *data)
 
 					*info = cpu_to_le32(now.tv_sec);
 
-					(void)aac_fib_send(SendHostTime,
+					status = aac_fib_send(SendHostTime,
 						fibptr,
 						sizeof(*info),
 						FsaNormal,
 						1, 1,
 						NULL,
 						NULL);
-					aac_fib_complete(fibptr);
-					aac_fib_free(fibptr);
+					/* Do not set XferState to zero unless
+					 * receives a response from F/W */
+					if (status >= 0)
+						aac_fib_complete(fibptr);
+					/* FIB should be freed only after
+					 * getting the response from the F/W */
+					if (status != -ERESTARTSYS)
+						aac_fib_free(fibptr);
 				}
 				difference = (long)(unsigned)update_interval*HZ;
 			} else {

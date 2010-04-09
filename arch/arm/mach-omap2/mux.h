@@ -102,7 +102,7 @@ struct omap_board_mux {
 	u16	value;
 };
 
-#if defined(CONFIG_OMAP_MUX) && defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_OMAP_MUX) && defined(CONFIG_ARCH_OMAP3)
 
 /**
  * omap_mux_init_gpio - initialize a signal based on the GPIO number
@@ -145,6 +145,30 @@ u16 omap_mux_get_gpio(int gpio);
  *
  */
 void omap_mux_set_gpio(u16 val, int gpio);
+
+/**
+ * omap_mux_read() - read mux register
+ * @mux_offset:		Offset of the mux register
+ *
+ */
+u16 omap_mux_read(u16 mux_offset);
+
+/**
+ * omap_mux_write() - write mux register
+ * @val:		New mux register value
+ * @mux_offset:		Offset of the mux register
+ *
+ * This should be only needed for dynamic remuxing of non-gpio signals.
+ */
+void omap_mux_write(u16 val, u16 mux_offset);
+
+/**
+ * omap_mux_write_array() - write an array of mux registers
+ * @board_mux:		Array of mux registers terminated by MAP_MUX_TERMINATOR
+ *
+ * This should be only needed for dynamic remuxing of non-gpio signals.
+ */
+void omap_mux_write_array(struct omap_board_mux *board_mux);
 
 /**
  * omap3_mux_init() - initialize mux system with board specific set

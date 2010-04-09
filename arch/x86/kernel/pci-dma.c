@@ -38,7 +38,7 @@ int iommu_detected __read_mostly = 0;
  * This variable becomes 1 if iommu=pt is passed on the kernel command line.
  * If this variable is 1, IOMMU implementations do no DMA translation for
  * devices and allow every device to access to whole physical memory. This is
- * useful if a user want to use an IOMMU only for KVM device assignment to
+ * useful if a user wants to use an IOMMU only for KVM device assignment to
  * guests and not for driver dma translation.
  */
 int iommu_pass_through __read_mostly;
@@ -65,7 +65,7 @@ int dma_set_mask(struct device *dev, u64 mask)
 }
 EXPORT_SYMBOL(dma_set_mask);
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_NUMA)
 static __initdata void *dma32_bootmem_ptr;
 static unsigned long dma32_bootmem_size __initdata = (128ULL<<20);
 
@@ -116,19 +116,23 @@ static void __init dma32_free_bootmem(void)
 	dma32_bootmem_ptr = NULL;
 	dma32_bootmem_size = 0;
 }
+#else
+void __init dma32_reserve_bootmem(void)
+{
+}
+static void __init dma32_free_bootmem(void)
+{
+}
+
 #endif
 
 void __init pci_iommu_alloc(void)
 {
-	int use_swiotlb;
-
-	use_swiotlb = pci_swiotlb_init();
-#ifdef CONFIG_X86_64
 	/* free the range so iommu could get some range less than 4G */
 	dma32_free_bootmem();
-#endif
-	if (use_swiotlb)
-		return;
+
+	if (pci_swiotlb_detect())
+		goto out;
 
 	gart_iommu_hole_init();
 
@@ -138,6 +142,8 @@ void __init pci_iommu_alloc(void)
 
 	/* needs to be called after gart_iommu_hole_init */
 	amd_iommu_detect();
+out:
+	pci_swiotlb_init();
 }
 
 void *dma_generic_alloc_coherent(struct device *dev, size_t size,

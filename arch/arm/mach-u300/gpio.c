@@ -546,7 +546,7 @@ static void gpio_set_initial_values(void)
 	for (i = 0; i < U300_GPIO_MAX; i++) {
 		val = 0;
 		for (j = 0; j < 8; j++)
-			val |= (u32)((u300_gpio_config[i][j].pull_up == DISABLE_PULL_UP)) << j;
+			val |= (u32)((u300_gpio_config[i][j].pull_up == DISABLE_PULL_UP) << j);
 		local_irq_save(flags);
 		writel(val, virtbase + U300_GPIO_PXPER + i * U300_GPIO_PORTX_SPACING);
 		local_irq_restore(flags);

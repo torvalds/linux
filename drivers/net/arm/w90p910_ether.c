@@ -858,10 +858,10 @@ static void w90p910_ether_set_multicast_list(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC)
 		rx_mode = CAMCMR_AUP | CAMCMR_AMP | CAMCMR_ABP | CAMCMR_ECMP;
-	else if ((dev->flags & IFF_ALLMULTI) || dev->mc_list)
-			rx_mode = CAMCMR_AMP | CAMCMR_ABP | CAMCMR_ECMP;
-		else
-				rx_mode = CAMCMR_ECMP | CAMCMR_ABP;
+	else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev))
+		rx_mode = CAMCMR_AMP | CAMCMR_ABP | CAMCMR_ECMP;
+	else
+		rx_mode = CAMCMR_ECMP | CAMCMR_ABP;
 	__raw_writel(rx_mode, ether->reg + REG_CAMCMR);
 }
 

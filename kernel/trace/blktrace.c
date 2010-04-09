@@ -540,9 +540,10 @@ int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (ret)
 		return ret;
 
-	if (copy_to_user(arg, &buts, sizeof(buts)))
+	if (copy_to_user(arg, &buts, sizeof(buts))) {
+		blk_trace_remove(q);
 		return -EFAULT;
-
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(blk_trace_setup);

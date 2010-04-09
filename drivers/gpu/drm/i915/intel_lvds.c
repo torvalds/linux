@@ -56,7 +56,7 @@ static void intel_lvds_set_backlight(struct drm_device *dev, int level)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 blc_pwm_ctl, reg;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		reg = BLC_PWM_CPU_CTL;
 	else
 		reg = BLC_PWM_CTL;
@@ -74,7 +74,7 @@ static u32 intel_lvds_get_max_backlight(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		reg = BLC_PWM_PCH_CTL2;
 	else
 		reg = BLC_PWM_CTL;
@@ -89,17 +89,22 @@ static u32 intel_lvds_get_max_backlight(struct drm_device *dev)
 static void intel_lvds_set_power(struct drm_device *dev, bool on)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp_status, ctl_reg, status_reg;
+	u32 pp_status, ctl_reg, status_reg, lvds_reg;
 
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
 		status_reg = PCH_PP_STATUS;
+		lvds_reg = PCH_LVDS;
 	} else {
 		ctl_reg = PP_CONTROL;
 		status_reg = PP_STATUS;
+		lvds_reg = LVDS;
 	}
 
 	if (on) {
+		I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
+		POSTING_READ(lvds_reg);
+
 		I915_WRITE(ctl_reg, I915_READ(ctl_reg) |
 			   POWER_TARGET_ON);
 		do {
@@ -115,6 +120,9 @@ static void intel_lvds_set_power(struct drm_device *dev, bool on)
 		do {
 			pp_status = I915_READ(status_reg);
 		} while (pp_status & PP_ON);
+
+		I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
+		POSTING_READ(lvds_reg);
 	}
 }
 
@@ -137,7 +145,7 @@ static void intel_lvds_save(struct drm_connector *connector)
 	u32 pp_on_reg, pp_off_reg, pp_ctl_reg, pp_div_reg;
 	u32 pwm_ctl_reg;
 
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		pp_on_reg = PCH_PP_ON_DELAYS;
 		pp_off_reg = PCH_PP_OFF_DELAYS;
 		pp_ctl_reg = PCH_PP_CONTROL;
@@ -174,7 +182,7 @@ static void intel_lvds_restore(struct drm_connector *connector)
 	u32 pp_on_reg, pp_off_reg, pp_ctl_reg, pp_div_reg;
 	u32 pwm_ctl_reg;
 
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		pp_on_reg = PCH_PP_ON_DELAYS;
 		pp_off_reg = PCH_PP_OFF_DELAYS;
 		pp_ctl_reg = PCH_PP_CONTROL;
@@ -297,7 +305,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 	/* full screen scale for now */
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		goto out;
 
 	/* 965+ wants fuzzy fitting */
@@ -327,7 +335,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * to register description and PRM.
 	 * Change the value here to see the borders for debugging
 	 */
-	if (!IS_IRONLAKE(dev)) {
+	if (!HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(BCLRPAT_A, 0);
 		I915_WRITE(BCLRPAT_B, 0);
 	}
@@ -548,7 +556,7 @@ static void intel_lvds_prepare(struct drm_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		reg = BLC_PWM_CPU_CTL;
 	else
 		reg = BLC_PWM_CTL;
@@ -587,7 +595,7 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	 * settings.
 	 */
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		return;
 
 	/*
@@ -599,18 +607,6 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	I915_WRITE(PFIT_CONTROL, lvds_priv->pfit_control);
 }
 
-/* Some lid devices report incorrect lid status, assume they're connected */
-static const struct dmi_system_id bad_lid_status[] = {
-	{
-		.ident = "Aspire One",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire one"),
-		},
-	},
-	{ }
-};
-
 /**
  * Detect the LVDS connection.
  *
@@ -620,10 +616,14 @@ static const struct dmi_system_id bad_lid_status[] = {
  */
 static enum drm_connector_status intel_lvds_detect(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status = connector_status_connected;
 
-	if (!acpi_lid_open() && !dmi_check_system(bad_lid_status))
-		status = connector_status_disconnected;
+	/* ACPI lid methods were generally unreliable in this generation, so
+	 * don't even bother.
+	 */
+	if (IS_GEN2(dev) || IS_GEN3(dev))
+		return connector_status_connected;
 
 	return status;
 }
@@ -679,7 +679,14 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	struct drm_i915_private *dev_priv =
 		container_of(nb, struct drm_i915_private, lid_notifier);
 	struct drm_device *dev = dev_priv->dev;
+	struct drm_connector *connector = dev_priv->int_lvds_connector;
 
+	/*
+	 * check and update the status of LVDS connector after receiving
+	 * the LID nofication event.
+	 */
+	if (connector)
+		connector->status = connector->funcs->detect(connector);
 	if (!acpi_lid_open()) {
 		dev_priv->modeset_on_lid = 1;
 		return NOTIFY_OK;
@@ -854,65 +861,6 @@ static const struct dmi_system_id intel_no_lvds[] = {
 	{ }	/* terminating entry */
 };
 
-#ifdef CONFIG_ACPI
-/*
- * check_lid_device -- check whether @handle is an ACPI LID device.
- * @handle: ACPI device handle
- * @level : depth in the ACPI namespace tree
- * @context: the number of LID device when we find the device
- * @rv: a return value to fill if desired (Not use)
- */
-static acpi_status
-check_lid_device(acpi_handle handle, u32 level, void *context,
-			void **return_value)
-{
-	struct acpi_device *acpi_dev;
-	int *lid_present = context;
-
-	acpi_dev = NULL;
-	/* Get the acpi device for device handle */
-	if (acpi_bus_get_device(handle, &acpi_dev) || !acpi_dev) {
-		/* If there is no ACPI device for handle, return */
-		return AE_OK;
-	}
-
-	if (!strncmp(acpi_device_hid(acpi_dev), "PNP0C0D", 7))
-		*lid_present = 1;
-
-	return AE_OK;
-}
-
-/**
- * check whether there exists the ACPI LID device by enumerating the ACPI
- * device tree.
- */
-static int intel_lid_present(void)
-{
-	int lid_present = 0;
-
-	if (acpi_disabled) {
-		/* If ACPI is disabled, there is no ACPI device tree to
-		 * check, so assume the LID device would have been present.
-		 */
-		return 1;
-	}
-
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-				ACPI_UINT32_MAX,
-				check_lid_device, NULL, &lid_present, NULL);
-
-	return lid_present;
-}
-#else
-static int intel_lid_present(void)
-{
-	/* In the absence of ACPI built in, assume that the LID device would
-	 * have been present.
-	 */
-	return 1;
-}
-#endif
-
 /**
  * intel_find_lvds_downclock - find the reduced downclock for LVDS in EDID
  * @dev: drm device
@@ -957,7 +905,8 @@ static void intel_find_lvds_downclock(struct drm_device *dev,
 		}
 	}
 	mutex_unlock(&dev->mode_config.mutex);
-	if (temp_downclock < panel_fixed_mode->clock) {
+	if (temp_downclock < panel_fixed_mode->clock &&
+	    i915_lvds_downclock) {
 		/* We found the downclock for LVDS. */
 		dev_priv->lvds_downclock_avail = 1;
 		dev_priv->lvds_downclock = temp_downclock;
@@ -1031,16 +980,12 @@ void intel_lvds_init(struct drm_device *dev)
 	if (dmi_check_system(intel_no_lvds))
 		return;
 
-	/*
-	 * Assume LVDS is present if there's an ACPI lid device or if the
-	 * device is present in the VBT.
-	 */
-	if (!lvds_is_present_in_vbt(dev) && !intel_lid_present()) {
-		DRM_DEBUG_KMS("LVDS is not present in VBT and no lid detected\n");
+	if (!lvds_is_present_in_vbt(dev)) {
+		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
 		return;
 	}
 
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
 			return;
 		if (dev_priv->edp_support) {
@@ -1143,7 +1088,7 @@ void intel_lvds_init(struct drm_device *dev)
 	 */
 
 	/* Ironlake: FIXME if still fail, not try pipe mode now */
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		goto failed;
 
 	lvds = I915_READ(LVDS);
@@ -1164,7 +1109,7 @@ void intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		u32 pwm;
 		/* make sure PWM is enabled */
 		pwm = I915_READ(BLC_PWM_CPU_CTL2);
@@ -1180,6 +1125,8 @@ out:
 		DRM_DEBUG_KMS("lid notifier registration failed\n");
 		dev_priv->lid_notifier.notifier_call = NULL;
 	}
+	/* keep the LVDS connector */
+	dev_priv->int_lvds_connector = connector;
 	drm_sysfs_connector_add(connector);
 	return;
 

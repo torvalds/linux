@@ -331,8 +331,9 @@ void fw_iso_resource_manage(struct fw_card *card, int generation,
 	if (ret < 0)
 		*bandwidth = 0;
 
-	if (allocate && ret < 0 && c >= 0) {
-		deallocate_channel(card, irm_id, generation, c, buffer);
+	if (allocate && ret < 0) {
+		if (c >= 0)
+			deallocate_channel(card, irm_id, generation, c, buffer);
 		*channel = ret;
 	}
 }

@@ -62,7 +62,7 @@ qla2x00_ctx_sp_timeout(unsigned long __data)
 	ctx->free(sp);
 }
 
-static void
+void
 qla2x00_ctx_sp_free(srb_t *sp)
 {
 	struct srb_ctx *ctx = sp->ctx;
@@ -205,7 +205,7 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 
 	switch (data[0]) {
 	case MBS_COMMAND_COMPLETE:
-		if (fcport->flags & FCF_TAPE_PRESENT)
+		if (fcport->flags & FCF_FCP2_DEVICE)
 			opts |= BIT_1;
 		rval = qla2x00_get_port_database(vha, fcport, opts);
 		if (rval != QLA_SUCCESS)
@@ -269,6 +269,8 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->flags.online = 0;
 	ha->flags.chip_reset_done = 0;
 	vha->flags.reset_active = 0;
+	ha->flags.pci_channel_io_perm_failure = 0;
+	ha->flags.eeh_busy = 0;
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	atomic_set(&vha->loop_state, LOOP_DOWN);
 	vha->device_flags = DFLG_NO_CABLE;
@@ -335,6 +337,16 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	}
 	rval = qla2x00_init_rings(vha);
 	ha->flags.chip_reset_done = 1;
+
+	if (rval == QLA_SUCCESS && IS_QLA84XX(ha)) {
+	/* Issue verify 84xx FW IOCB to complete 84xx initialization */
+		rval = qla84xx_init_chip(vha);
+		if (rval != QLA_SUCCESS) {
+			qla_printk(KERN_ERR, ha,
+				"Unable to initialize ISP84XX.\n");
+		qla84xx_put_chip(vha);
+		}
+	}
 
 	return (rval);
 }
@@ -581,6 +593,9 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 	uint32_t	cnt;
 	uint16_t	cmd;
 
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		return;
+
 	ha->isp_ops->disable_intrs(ha);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -786,6 +801,12 @@ void
 qla24xx_reset_chip(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+
+	if (pci_channel_offline(ha->pdev) &&
+	    ha->flags.pci_channel_io_perm_failure) {
+		return;
+	}
+
 	ha->isp_ops->disable_intrs(ha);
 
 	/* Perform RISC reset. */
@@ -1442,7 +1463,17 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 			icb->firmware_options_2 |=
 				__constant_cpu_to_le32(BIT_18);
 
-		icb->firmware_options_2 &= __constant_cpu_to_le32(~BIT_22);
+		/* Use Disable MSIX Handshake mode for capable adapters */
+		if (IS_MSIX_NACK_CAPABLE(ha)) {
+			icb->firmware_options_2 &=
+				__constant_cpu_to_le32(~BIT_22);
+			ha->flags.disable_msix_handshake = 1;
+			qla_printk(KERN_INFO, ha,
+				"MSIX Handshake Disable Mode turned on\n");
+		} else {
+			icb->firmware_options_2 |=
+				__constant_cpu_to_le32(BIT_22);
+		}
 		icb->firmware_options_2 |= __constant_cpu_to_le32(BIT_23);
 
 		WRT_REG_DWORD(&reg->isp25mq.req_q_in, 0);
@@ -2195,7 +2226,7 @@ qla2x00_rport_del(void *data)
  *
  * Returns a pointer to the allocated fcport, or NULL, if none available.
  */
-static fc_port_t *
+fc_port_t *
 qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 {
 	fc_port_t *fcport;
@@ -2255,6 +2286,8 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	 */
 	clear_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 	clear_bit(RSCN_UPDATE, &vha->dpc_flags);
+
+	qla2x00_get_data_rate(vha);
 
 	/* Determine what we need to do */
 	if (ha->current_topology == ISP_CFG_FL &&
@@ -2703,7 +2736,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 
 		/*
 		 * Logout all previous fabric devices marked lost, except
-		 * tape devices.
+		 * FCP2 devices.
 		 */
 		list_for_each_entry(fcport, &vha->vp_fcports, list) {
 			if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
@@ -2716,7 +2749,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 				qla2x00_mark_device_lost(vha, fcport,
 				    ql2xplogiabsentdevice, 0);
 				if (fcport->loop_id != FC_NO_LOOP_ID &&
-				    (fcport->flags & FCF_TAPE_PRESENT) == 0 &&
+				    (fcport->flags & FCF_FCP2_DEVICE) == 0 &&
 				    fcport->port_type != FCT_INITIATOR &&
 				    fcport->port_type != FCT_BROADCAST) {
 					ha->isp_ops->fabric_logout(vha,
@@ -2877,8 +2910,13 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 		if (qla2x00_is_reserved_id(vha, loop_id))
 			continue;
 
-		if (atomic_read(&vha->loop_down_timer) || LOOP_TRANSITION(vha))
+		if (atomic_read(&vha->loop_down_timer) ||
+		    LOOP_TRANSITION(vha)) {
+			atomic_set(&vha->loop_down_timer, 0);
+			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 			break;
+		}
 
 		if (swl != NULL) {
 			if (last_dev) {
@@ -2995,7 +3033,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 			fcport->d_id.b24 = new_fcport->d_id.b24;
 			fcport->flags |= FCF_LOGIN_NEEDED;
 			if (fcport->loop_id != FC_NO_LOOP_ID &&
-			    (fcport->flags & FCF_TAPE_PRESENT) == 0 &&
+			    (fcport->flags & FCF_FCP2_DEVICE) == 0 &&
 			    fcport->port_type != FCT_INITIATOR &&
 			    fcport->port_type != FCT_BROADCAST) {
 				ha->isp_ops->fabric_logout(vha, fcport->loop_id,
@@ -3249,9 +3287,9 @@ qla2x00_fabric_dev_login(scsi_qla_host_t *vha, fc_port_t *fcport,
 
 	rval = qla2x00_fabric_login(vha, fcport, next_loopid);
 	if (rval == QLA_SUCCESS) {
-		/* Send an ADISC to tape devices.*/
+		/* Send an ADISC to FCP2 devices.*/
 		opts = 0;
-		if (fcport->flags & FCF_TAPE_PRESENT)
+		if (fcport->flags & FCF_FCP2_DEVICE)
 			opts |= BIT_1;
 		rval = qla2x00_get_port_database(vha, fcport, opts);
 		if (rval != QLA_SUCCESS) {
@@ -3549,6 +3587,13 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 
 		/* Requeue all commands in outstanding command list. */
 		qla2x00_abort_all_cmds(vha, DID_RESET << 16);
+
+		if (unlikely(pci_channel_offline(ha->pdev) &&
+		    ha->flags.pci_channel_io_perm_failure)) {
+			clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
+			status = 0;
+			return status;
+		}
 
 		ha->isp_ops->get_flash_version(vha, req->ring);
 
@@ -4448,6 +4493,8 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *vha)
 	int ret, retries;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (ha->flags.pci_channel_io_perm_failure)
+		return;
 	if (!IS_FWI2_CAPABLE(ha))
 		return;
 	if (!ha->fw_major_version)
@@ -4845,6 +4892,15 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 }
 
 void
-qla81xx_update_fw_options(scsi_qla_host_t *ha)
+qla81xx_update_fw_options(scsi_qla_host_t *vha)
 {
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!ql2xetsenable)
+		return;
+
+	/* Enable ETS Burst. */
+	memset(ha->fw_options, 0, sizeof(ha->fw_options));
+	ha->fw_options[2] |= BIT_9;
+	qla2x00_set_fw_options(vha, ha->fw_options);
 }

@@ -56,6 +56,38 @@ TRACE_EVENT(kvm_hypercall,
 );
 
 /*
+ * Tracepoint for hypercall.
+ */
+TRACE_EVENT(kvm_hv_hypercall,
+	TP_PROTO(__u16 code, bool fast, __u16 rep_cnt, __u16 rep_idx,
+		 __u64 ingpa, __u64 outgpa),
+	TP_ARGS(code, fast, rep_cnt, rep_idx, ingpa, outgpa),
+
+	TP_STRUCT__entry(
+		__field(	__u16, 		code		)
+		__field(	bool,		fast		)
+		__field(	__u16,		rep_cnt		)
+		__field(	__u16,		rep_idx		)
+		__field(	__u64,		ingpa		)
+		__field(	__u64,		outgpa		)
+	),
+
+	TP_fast_assign(
+		__entry->code		= code;
+		__entry->fast		= fast;
+		__entry->rep_cnt	= rep_cnt;
+		__entry->rep_idx	= rep_idx;
+		__entry->ingpa		= ingpa;
+		__entry->outgpa		= outgpa;
+	),
+
+	TP_printk("code 0x%x %s cnt 0x%x idx 0x%x in 0x%llx out 0x%llx",
+		  __entry->code, __entry->fast ? "fast" : "slow",
+		  __entry->rep_cnt, __entry->rep_idx,  __entry->ingpa,
+		  __entry->outgpa)
+);
+
+/*
  * Tracepoint for PIO.
  */
 TRACE_EVENT(kvm_pio,
@@ -214,28 +246,33 @@ TRACE_EVENT(kvm_page_fault,
  * Tracepoint for guest MSR access.
  */
 TRACE_EVENT(kvm_msr,
-	TP_PROTO(unsigned int rw, unsigned int ecx, unsigned long data),
-	TP_ARGS(rw, ecx, data),
+	TP_PROTO(unsigned write, u32 ecx, u64 data, bool exception),
+	TP_ARGS(write, ecx, data, exception),
 
 	TP_STRUCT__entry(
-		__field(	unsigned int,	rw		)
-		__field(	unsigned int,	ecx		)
-		__field(	unsigned long,	data		)
+		__field(	unsigned,	write		)
+		__field(	u32,		ecx		)
+		__field(	u64,		data		)
+		__field(	u8,		exception	)
 	),
 
 	TP_fast_assign(
-		__entry->rw		= rw;
+		__entry->write		= write;
 		__entry->ecx		= ecx;
 		__entry->data		= data;
+		__entry->exception	= exception;
 	),
 
-	TP_printk("msr_%s %x = 0x%lx",
-		  __entry->rw ? "write" : "read",
-		  __entry->ecx, __entry->data)
+	TP_printk("msr_%s %x = 0x%llx%s",
+		  __entry->write ? "write" : "read",
+		  __entry->ecx, __entry->data,
+		  __entry->exception ? " (#GP)" : "")
 );
 
-#define trace_kvm_msr_read(ecx, data)		trace_kvm_msr(0, ecx, data)
-#define trace_kvm_msr_write(ecx, data)		trace_kvm_msr(1, ecx, data)
+#define trace_kvm_msr_read(ecx, data)      trace_kvm_msr(0, ecx, data, false)
+#define trace_kvm_msr_write(ecx, data)     trace_kvm_msr(1, ecx, data, false)
+#define trace_kvm_msr_read_ex(ecx)         trace_kvm_msr(0, ecx, 0, true)
+#define trace_kvm_msr_write_ex(ecx, data)  trace_kvm_msr(1, ecx, data, true)
 
 /*
  * Tracepoint for guest CR access.

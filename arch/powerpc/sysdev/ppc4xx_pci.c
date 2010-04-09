@@ -569,7 +569,8 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
 	/* Setup config space */
-	setup_indirect_pci(hose, rsrc_cfg.start, rsrc_cfg.start + 0x4, 0);
+	setup_indirect_pci(hose, rsrc_cfg.start, rsrc_cfg.start + 0x4,
+					PPC_INDIRECT_TYPE_SET_CFG_TYPE);
 
 	/* Disable all windows */
 	writel(0, reg + PCIX0_POM0SA);

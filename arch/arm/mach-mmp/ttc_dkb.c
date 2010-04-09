@@ -24,8 +24,6 @@
 
 #include "common.h"
 
-#define ARRAY_AND_SIZE(x)       (x), ARRAY_SIZE(x)
-
 static unsigned long ttc_dkb_pin_config[] __initdata = {
 	/* UART2 */
 	GPIO47_UART2_RXD,

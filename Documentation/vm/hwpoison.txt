@@ -92,16 +92,62 @@ PR_MCE_KILL_GET
 
 Testing:
 
-madvise(MADV_POISON, ....)
+madvise(MADV_HWPOISON, ....)
 	(as root)
 	Poison a page in the process for testing
 
 
 hwpoison-inject module through debugfs
-	/sys/debug/hwpoison/corrupt-pfn
 
-Inject hwpoison fault at PFN echoed into this file
+/sys/debug/hwpoison/
 
+corrupt-pfn
+
+Inject hwpoison fault at PFN echoed into this file. This does
+some early filtering to avoid corrupted unintended pages in test suites.
+
+unpoison-pfn
+
+Software-unpoison page at PFN echoed into this file. This
+way a page can be reused again.
+This only works for Linux injected failures, not for real
+memory failures.
+
+Note these injection interfaces are not stable and might change between
+kernel versions
+
+corrupt-filter-dev-major
+corrupt-filter-dev-minor
+
+Only handle memory failures to pages associated with the file system defined
+by block device major/minor.  -1U is the wildcard value.
+This should be only used for testing with artificial injection.
+
+corrupt-filter-memcg
+
+Limit injection to pages owned by memgroup. Specified by inode number
+of the memcg.
+
+Example:
+        mkdir /cgroup/hwpoison
+
+        usemem -m 100 -s 1000 &
+        echo `jobs -p` > /cgroup/hwpoison/tasks
+
+        memcg_ino=$(ls -id /cgroup/hwpoison | cut -f1 -d' ')
+        echo $memcg_ino > /debug/hwpoison/corrupt-filter-memcg
+
+        page-types -p `pidof init`   --hwpoison  # shall do nothing
+        page-types -p `pidof usemem` --hwpoison  # poison its pages
+
+corrupt-filter-flags-mask
+corrupt-filter-flags-value
+
+When specified, only poison pages if ((page_flags & mask) == value).
+This allows stress testing of many kinds of pages. The page_flags
+are the same as in /proc/kpageflags. The flag bits are defined in
+include/linux/kernel-page-flags.h and documented in
+Documentation/vm/pagemap.txt
 
 Architecture specific MCE injector
 

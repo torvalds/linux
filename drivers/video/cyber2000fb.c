@@ -1573,14 +1573,14 @@ cyberpro_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err)
 		return err;
 
-	err = pci_request_regions(dev, name);
-	if (err)
-		return err;
-
 	err = -ENOMEM;
 	cfb = cyberpro_alloc_fb_info(id->driver_data, name);
 	if (!cfb)
 		goto failed_release;
+
+	err = pci_request_regions(dev, cfb->fb.fix.id);
+	if (err)
+		goto failed_regions;
 
 	cfb->dev = dev;
 	cfb->region = pci_ioremap_bar(dev, 0);
@@ -1633,10 +1633,10 @@ cyberpro_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 failed:
 	iounmap(cfb->region);
 failed_ioremap:
+	pci_release_regions(dev);
+failed_regions:
 	cyberpro_free_fb_info(cfb);
 failed_release:
-	pci_release_regions(dev);
-
 	return err;
 }
 

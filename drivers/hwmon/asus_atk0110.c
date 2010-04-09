@@ -5,6 +5,7 @@
  * See COPYING in the top level directory of the kernel tree.
  */
 
+#include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/hwmon.h>
 #include <linux/list.h>
@@ -101,6 +102,11 @@ struct atk_data {
 	int temperature_count;
 	int fan_count;
 	struct list_head sensor_list;
+
+	struct {
+		struct dentry *root;
+		u32 id;
+	} debugfs;
 };
 
 
@@ -624,6 +630,187 @@ static int atk_read_value(struct atk_sensor_data *sensor, u64 *value)
 	return err;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int atk_debugfs_gitm_get(void *p, u64 *val)
+{
+	struct atk_data *data = p;
+	union acpi_object *ret;
+	struct atk_acpi_ret_buffer *buf;
+	int err = 0;
+
+	if (!data->read_handle)
+		return -ENODEV;
+
+	if (!data->debugfs.id)
+		return -EINVAL;
+
+	ret = atk_gitm(data, data->debugfs.id);
+	if (IS_ERR(ret))
+		return PTR_ERR(ret);
+
+	buf = (struct atk_acpi_ret_buffer *)ret->buffer.pointer;
+	if (buf->flags)
+		*val = buf->value;
+	else
+		err = -EIO;
+
+	return err;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(atk_debugfs_gitm,
+			atk_debugfs_gitm_get,
+			NULL,
+			"0x%08llx\n")
+
+static int atk_acpi_print(char *buf, size_t sz, union acpi_object *obj)
+{
+	int ret = 0;
+
+	switch (obj->type) {
+	case ACPI_TYPE_INTEGER:
+		ret = snprintf(buf, sz, "0x%08llx\n", obj->integer.value);
+		break;
+	case ACPI_TYPE_STRING:
+		ret = snprintf(buf, sz, "%s\n", obj->string.pointer);
+		break;
+	}
+
+	return ret;
+}
+
+static void atk_pack_print(char *buf, size_t sz, union acpi_object *pack)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < pack->package.count; i++) {
+		union acpi_object *obj = &pack->package.elements[i];
+
+		ret = atk_acpi_print(buf, sz, obj);
+		if (ret >= sz)
+			break;
+		buf += ret;
+		sz -= ret;
+	}
+}
+
+static int atk_debugfs_ggrp_open(struct inode *inode, struct file *file)
+{
+	struct atk_data *data = inode->i_private;
+	char *buf = NULL;
+	union acpi_object *ret;
+	u8 cls;
+	int i;
+
+	if (!data->enumerate_handle)
+		return -ENODEV;
+	if (!data->debugfs.id)
+		return -EINVAL;
+
+	cls = (data->debugfs.id & 0xff000000) >> 24;
+	ret = atk_ggrp(data, cls);
+	if (IS_ERR(ret))
+		return PTR_ERR(ret);
+
+	for (i = 0; i < ret->package.count; i++) {
+		union acpi_object *pack = &ret->package.elements[i];
+		union acpi_object *id;
+
+		if (pack->type != ACPI_TYPE_PACKAGE)
+			continue;
+		if (!pack->package.count)
+			continue;
+		id = &pack->package.elements[0];
+		if (id->integer.value == data->debugfs.id) {
+			/* Print the package */
+			buf = kzalloc(512, GFP_KERNEL);
+			if (!buf) {
+				ACPI_FREE(ret);
+				return -ENOMEM;
+			}
+			atk_pack_print(buf, 512, pack);
+			break;
+		}
+	}
+	ACPI_FREE(ret);
+
+	if (!buf)
+		return -EINVAL;
+
+	file->private_data = buf;
+
+	return nonseekable_open(inode, file);
+}
+
+static ssize_t atk_debugfs_ggrp_read(struct file *file, char __user *buf,
+		size_t count, loff_t *pos)
+{
+	char *str = file->private_data;
+	size_t len = strlen(str);
+
+	return simple_read_from_buffer(buf, count, pos, str, len);
+}
+
+static int atk_debugfs_ggrp_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+static const struct file_operations atk_debugfs_ggrp_fops = {
+	.read		= atk_debugfs_ggrp_read,
+	.open		= atk_debugfs_ggrp_open,
+	.release	= atk_debugfs_ggrp_release,
+};
+
+static void atk_debugfs_init(struct atk_data *data)
+{
+	struct dentry *d;
+	struct dentry *f;
+
+	data->debugfs.id = 0;
+
+	d = debugfs_create_dir("asus_atk0110", NULL);
+	if (!d || IS_ERR(d))
+		return;
+
+	f = debugfs_create_x32("id", S_IRUSR | S_IWUSR, d, &data->debugfs.id);
+	if (!f || IS_ERR(f))
+		goto cleanup;
+
+	f = debugfs_create_file("gitm", S_IRUSR, d, data,
+			&atk_debugfs_gitm);
+	if (!f || IS_ERR(f))
+		goto cleanup;
+
+	f = debugfs_create_file("ggrp", S_IRUSR, d, data,
+			&atk_debugfs_ggrp_fops);
+	if (!f || IS_ERR(f))
+		goto cleanup;
+
+	data->debugfs.root = d;
+
+	return;
+cleanup:
+	debugfs_remove_recursive(d);
+}
+
+static void atk_debugfs_cleanup(struct atk_data *data)
+{
+	debugfs_remove_recursive(data->debugfs.root);
+}
+
+#else /* CONFIG_DEBUG_FS */
+
+static void atk_debugfs_init(struct atk_data *data)
+{
+}
+
+static void atk_debugfs_cleanup(struct atk_data *data)
+{
+}
+#endif
+
 static int atk_add_sensor(struct atk_data *data, union acpi_object *obj)
 {
 	struct device *dev = &data->acpi_dev->dev;
@@ -1047,76 +1234,75 @@ remove:
 	return err;
 }
 
-static int atk_check_old_if(struct atk_data *data)
+static int atk_probe_if(struct atk_data *data)
 {
 	struct device *dev = &data->acpi_dev->dev;
 	acpi_handle ret;
 	acpi_status status;
+	int err = 0;
 
 	/* RTMP: read temperature */
 	status = acpi_get_handle(data->atk_handle, METHOD_OLD_READ_TMP, &ret);
-	if (status != AE_OK) {
+	if (ACPI_SUCCESS(status))
+		data->rtmp_handle = ret;
+	else
 		dev_dbg(dev, "method " METHOD_OLD_READ_TMP " not found: %s\n",
 				acpi_format_exception(status));
-		return -ENODEV;
-	}
-	data->rtmp_handle = ret;
 
 	/* RVLT: read voltage */
 	status = acpi_get_handle(data->atk_handle, METHOD_OLD_READ_VLT, &ret);
-	if (status != AE_OK) {
+	if (ACPI_SUCCESS(status))
+		data->rvlt_handle = ret;
+	else
 		dev_dbg(dev, "method " METHOD_OLD_READ_VLT " not found: %s\n",
 				acpi_format_exception(status));
-		return -ENODEV;
-	}
-	data->rvlt_handle = ret;
 
 	/* RFAN: read fan status */
 	status = acpi_get_handle(data->atk_handle, METHOD_OLD_READ_FAN, &ret);
-	if (status != AE_OK) {
+	if (ACPI_SUCCESS(status))
+		data->rfan_handle = ret;
+	else
 		dev_dbg(dev, "method " METHOD_OLD_READ_FAN " not found: %s\n",
 				acpi_format_exception(status));
-		return -ENODEV;
-	}
-	data->rfan_handle = ret;
-
-	return 0;
-}
-
-static int atk_check_new_if(struct atk_data *data)
-{
-	struct device *dev = &data->acpi_dev->dev;
-	acpi_handle ret;
-	acpi_status status;
 
 	/* Enumeration */
 	status = acpi_get_handle(data->atk_handle, METHOD_ENUMERATE, &ret);
-	if (status != AE_OK) {
+	if (ACPI_SUCCESS(status))
+		data->enumerate_handle = ret;
+	else
 		dev_dbg(dev, "method " METHOD_ENUMERATE " not found: %s\n",
 				acpi_format_exception(status));
-		return -ENODEV;
-	}
-	data->enumerate_handle = ret;
 
 	/* De-multiplexer (read) */
 	status = acpi_get_handle(data->atk_handle, METHOD_READ, &ret);
-	if (status != AE_OK) {
+	if (ACPI_SUCCESS(status))
+		data->read_handle = ret;
+	else
 		dev_dbg(dev, "method " METHOD_READ " not found: %s\n",
 				acpi_format_exception(status));
-		return -ENODEV;
-	}
-	data->read_handle = ret;
 
 	/* De-multiplexer (write) */
 	status = acpi_get_handle(data->atk_handle, METHOD_WRITE, &ret);
-	if (status != AE_OK) {
-		dev_dbg(dev, "method " METHOD_READ " not found: %s\n",
+	if (ACPI_SUCCESS(status))
+		data->write_handle = ret;
+	else
+		dev_dbg(dev, "method " METHOD_WRITE " not found: %s\n",
 				 acpi_format_exception(status));
-		return -ENODEV;
-	}
-	data->write_handle = ret;
 
-	return 0;
+	/* Check for hwmon methods: first check "old" style methods; note that
+	 * both may be present: in this case we stick to the old interface;
+	 * analysis of multiple DSDTs indicates that when both interfaces
+	 * are present the new one (GGRP/GITM) is not functional.
+	 */
+	if (data->rtmp_handle && data->rvlt_handle && data->rfan_handle)
+		data->old_interface = true;
+	else if (data->enumerate_handle && data->read_handle &&
+			data->write_handle)
+		data->old_interface = false;
+	else
+		err = -ENODEV;
+
+	return err;
 }
 
 static int atk_add(struct acpi_device *device)
@@ -1143,40 +1329,30 @@ static int atk_add(struct acpi_device *device)
 			&buf, ACPI_TYPE_PACKAGE);
 	if (ret != AE_OK) {
 		dev_dbg(&device->dev, "atk: method MBIF not found\n");
-		err = -ENODEV;
+	} else {
+		obj = buf.pointer;
+		if (obj->package.count >= 2) {
+			union acpi_object *id = &obj->package.elements[1];
+			if (id->type == ACPI_TYPE_STRING)
+				dev_dbg(&device->dev, "board ID = %s\n",
+					id->string.pointer);
+		}
+		ACPI_FREE(buf.pointer);
+	}
+
+	err = atk_probe_if(data);
+	if (err) {
+		dev_err(&device->dev, "No usable hwmon interface detected\n");
 		goto out;
 	}
 
-	obj = buf.pointer;
-	if (obj->package.count >= 2 &&
-			obj->package.elements[1].type == ACPI_TYPE_STRING) {
-		dev_dbg(&device->dev, "board ID = %s\n",
-				obj->package.elements[1].string.pointer);
-	}
-	ACPI_FREE(buf.pointer);
-
-	/* Check for hwmon methods: first check "old" style methods; note that
-	 * both may be present: in this case we stick to the old interface;
-	 * analysis of multiple DSDTs indicates that when both interfaces
-	 * are present the new one (GGRP/GITM) is not functional.
-	 */
-	err = atk_check_old_if(data);
-	if (!err) {
+	if (data->old_interface) {
 		dev_dbg(&device->dev, "Using old hwmon interface\n");
-		data->old_interface = true;
-	} else {
-		err = atk_check_new_if(data);
-		if (err)
-			goto out;
-
-		dev_dbg(&device->dev, "Using new hwmon interface\n");
-		data->old_interface = false;
-	}
-
-	if (data->old_interface)
 		err = atk_enumerate_old_hwmon(data);
-	else
+	} else {
+		dev_dbg(&device->dev, "Using new hwmon interface\n");
 		err = atk_enumerate_new_hwmon(data);
+	}
 	if (err < 0)
 		goto out;
 	if (err == 0) {
@@ -1189,6 +1365,8 @@ static int atk_add(struct acpi_device *device)
 	err = atk_register_hwmon(data);
 	if (err)
 		goto cleanup;
+
+	atk_debugfs_init(data);
 
 	device->driver_data = data;
 	return 0;
@@ -1207,6 +1385,8 @@ static int atk_remove(struct acpi_device *device, int type)
 	dev_dbg(&device->dev, "removing...\n");
 
 	device->driver_data = NULL;
+
+	atk_debugfs_cleanup(data);
 
 	atk_remove_files(data);
 	atk_free_sensors(data);

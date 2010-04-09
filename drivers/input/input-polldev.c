@@ -100,6 +100,12 @@ static void input_close_polled_device(struct input_dev *input)
 	struct input_polled_dev *dev = input_get_drvdata(input);
 
 	cancel_delayed_work_sync(&dev->work);
+	/*
+	 * Clean up work struct to remove references to the workqueue.
+	 * It may be destroyed by the next call. This causes problems
+	 * at next device open-close in case of poll_interval == 0.
+	 */
+	INIT_DELAYED_WORK(&dev->work, dev->work.work.func);
 	input_polldev_stop_workqueue();
 
 	if (dev->close)

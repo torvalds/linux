@@ -2,7 +2,7 @@
  * Shared interrupt handling code for IPR and INTC2 types of IRQs.
  *
  * Copyright (C) 2007, 2008 Magnus Damm
- * Copyright (C) 2009 Paul Mundt
+ * Copyright (C) 2009, 2010 Paul Mundt
  *
  * Based on intc2.c and ipr.c
  *
@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/topology.h>
 #include <linux/bitmap.h>
+#include <linux/cpumask.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -234,6 +235,10 @@ static inline void _intc_enable(unsigned int irq, unsigned long handle)
 	unsigned int cpu;
 
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_E(handle)); cpu++) {
+#ifdef CONFIG_SMP
+		if (!cpumask_test_cpu(cpu, irq_to_desc(irq)->affinity))
+			continue;
+#endif
 		addr = INTC_REG(d, _INTC_ADDR_E(handle), cpu);
 		intc_enable_fns[_INTC_MODE(handle)](addr, handle, intc_reg_fns\
 						    [_INTC_FN(handle)], irq);
@@ -253,9 +258,50 @@ static void intc_disable(unsigned int irq)
 	unsigned int cpu;
 
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_D(handle)); cpu++) {
+#ifdef CONFIG_SMP
+		if (!cpumask_test_cpu(cpu, irq_to_desc(irq)->affinity))
+			continue;
+#endif
 		addr = INTC_REG(d, _INTC_ADDR_D(handle), cpu);
 		intc_disable_fns[_INTC_MODE(handle)](addr, handle,intc_reg_fns\
 						     [_INTC_FN(handle)], irq);
+	}
+}
+
+static void (*intc_enable_noprio_fns[])(unsigned long addr,
+					unsigned long handle,
+					void (*fn)(unsigned long,
+						   unsigned long,
+						   unsigned long),
+					unsigned int irq) = {
+	[MODE_ENABLE_REG] = intc_mode_field,
+	[MODE_MASK_REG] = intc_mode_zero,
+	[MODE_DUAL_REG] = intc_mode_field,
+	[MODE_PRIO_REG] = intc_mode_field,
+	[MODE_PCLR_REG] = intc_mode_field,
+};
+
+static void intc_enable_disable(struct intc_desc_int *d,
+				unsigned long handle, int do_enable)
+{
+	unsigned long addr;
+	unsigned int cpu;
+	void (*fn)(unsigned long, unsigned long,
+		   void (*)(unsigned long, unsigned long, unsigned long),
+		   unsigned int);
+
+	if (do_enable) {
+		for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_E(handle)); cpu++) {
+			addr = INTC_REG(d, _INTC_ADDR_E(handle), cpu);
+			fn = intc_enable_noprio_fns[_INTC_MODE(handle)];
+			fn(addr, handle, intc_reg_fns[_INTC_FN(handle)], 0);
+		}
+	} else {
+		for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_D(handle)); cpu++) {
+			addr = INTC_REG(d, _INTC_ADDR_D(handle), cpu);
+			fn = intc_disable_fns[_INTC_MODE(handle)];
+			fn(addr, handle, intc_reg_fns[_INTC_FN(handle)], 0);
+		}
 	}
 }
 
@@ -263,6 +309,23 @@ static int intc_set_wake(unsigned int irq, unsigned int on)
 {
 	return 0; /* allow wakeup, but setup hardware in intc_suspend() */
 }
+
+#ifdef CONFIG_SMP
+/*
+ * This is held with the irq desc lock held, so we don't require any
+ * additional locking here at the intc desc level. The affinity mask is
+ * later tested in the enable/disable paths.
+ */
+static int intc_set_affinity(unsigned int irq, const struct cpumask *cpumask)
+{
+	if (!cpumask_intersects(cpumask, cpu_online_mask))
+		return -1;
+
+	cpumask_copy(irq_to_desc(irq)->affinity, cpumask);
+
+	return 0;
+}
+#endif
 
 static void intc_mask_ack(unsigned int irq)
 {
@@ -400,11 +463,11 @@ static unsigned int __init intc_get_reg(struct intc_desc_int *d,
 static intc_enum __init intc_grp_id(struct intc_desc *desc,
 				    intc_enum enum_id)
 {
-	struct intc_group *g = desc->groups;
+	struct intc_group *g = desc->hw.groups;
 	unsigned int i, j;
 
-	for (i = 0; g && enum_id && i < desc->nr_groups; i++) {
-		g = desc->groups + i;
+	for (i = 0; g && enum_id && i < desc->hw.nr_groups; i++) {
+		g = desc->hw.groups + i;
 
 		for (j = 0; g->enum_ids[j]; j++) {
 			if (g->enum_ids[j] != enum_id)
@@ -417,19 +480,21 @@ static intc_enum __init intc_grp_id(struct intc_desc *desc,
 	return 0;
 }
 
-static unsigned int __init intc_mask_data(struct intc_desc *desc,
-					  struct intc_desc_int *d,
-					  intc_enum enum_id, int do_grps)
+static unsigned int __init _intc_mask_data(struct intc_desc *desc,
+					   struct intc_desc_int *d,
+					   intc_enum enum_id,
+					   unsigned int *reg_idx,
+					   unsigned int *fld_idx)
 {
-	struct intc_mask_reg *mr = desc->mask_regs;
-	unsigned int i, j, fn, mode;
+	struct intc_mask_reg *mr = desc->hw.mask_regs;
+	unsigned int fn, mode;
 	unsigned long reg_e, reg_d;
 
-	for (i = 0; mr && enum_id && i < desc->nr_mask_regs; i++) {
-		mr = desc->mask_regs + i;
+	while (mr && enum_id && *reg_idx < desc->hw.nr_mask_regs) {
+		mr = desc->hw.mask_regs + *reg_idx;
 
-		for (j = 0; j < ARRAY_SIZE(mr->enum_ids); j++) {
-			if (mr->enum_ids[j] != enum_id)
+		for (; *fld_idx < ARRAY_SIZE(mr->enum_ids); (*fld_idx)++) {
+			if (mr->enum_ids[*fld_idx] != enum_id)
 				continue;
 
 			if (mr->set_reg && mr->clr_reg) {
@@ -455,9 +520,27 @@ static unsigned int __init intc_mask_data(struct intc_desc *desc,
 					intc_get_reg(d, reg_e),
 					intc_get_reg(d, reg_d),
 					1,
-					(mr->reg_width - 1) - j);
+					(mr->reg_width - 1) - *fld_idx);
 		}
+
+		*fld_idx = 0;
+		(*reg_idx)++;
 	}
+
+	return 0;
+}
+
+static unsigned int __init intc_mask_data(struct intc_desc *desc,
+					  struct intc_desc_int *d,
+					  intc_enum enum_id, int do_grps)
+{
+	unsigned int i = 0;
+	unsigned int j = 0;
+	unsigned int ret;
+
+	ret = _intc_mask_data(desc, d, enum_id, &i, &j);
+	if (ret)
+		return ret;
 
 	if (do_grps)
 		return intc_mask_data(desc, d, intc_grp_id(desc, enum_id), 0);
@@ -465,19 +548,21 @@ static unsigned int __init intc_mask_data(struct intc_desc *desc,
 	return 0;
 }
 
-static unsigned int __init intc_prio_data(struct intc_desc *desc,
-					  struct intc_desc_int *d,
-					  intc_enum enum_id, int do_grps)
+static unsigned int __init _intc_prio_data(struct intc_desc *desc,
+					   struct intc_desc_int *d,
+					   intc_enum enum_id,
+					   unsigned int *reg_idx,
+					   unsigned int *fld_idx)
 {
-	struct intc_prio_reg *pr = desc->prio_regs;
-	unsigned int i, j, fn, mode, bit;
+	struct intc_prio_reg *pr = desc->hw.prio_regs;
+	unsigned int fn, n, mode, bit;
 	unsigned long reg_e, reg_d;
 
-	for (i = 0; pr && enum_id && i < desc->nr_prio_regs; i++) {
-		pr = desc->prio_regs + i;
+	while (pr && enum_id && *reg_idx < desc->hw.nr_prio_regs) {
+		pr = desc->hw.prio_regs + *reg_idx;
 
-		for (j = 0; j < ARRAY_SIZE(pr->enum_ids); j++) {
-			if (pr->enum_ids[j] != enum_id)
+		for (; *fld_idx < ARRAY_SIZE(pr->enum_ids); (*fld_idx)++) {
+			if (pr->enum_ids[*fld_idx] != enum_id)
 				continue;
 
 			if (pr->set_reg && pr->clr_reg) {
@@ -495,17 +580,36 @@ static unsigned int __init intc_prio_data(struct intc_desc *desc,
 			}
 
 			fn += (pr->reg_width >> 3) - 1;
+			n = *fld_idx + 1;
 
-			BUG_ON((j + 1) * pr->field_width > pr->reg_width);
+			BUG_ON(n * pr->field_width > pr->reg_width);
 
-			bit = pr->reg_width - ((j + 1) * pr->field_width);
+			bit = pr->reg_width - (n * pr->field_width);
 
 			return _INTC_MK(fn, mode,
 					intc_get_reg(d, reg_e),
 					intc_get_reg(d, reg_d),
 					pr->field_width, bit);
 		}
+
+		*fld_idx = 0;
+		(*reg_idx)++;
 	}
+
+	return 0;
+}
+
+static unsigned int __init intc_prio_data(struct intc_desc *desc,
+					  struct intc_desc_int *d,
+					  intc_enum enum_id, int do_grps)
+{
+	unsigned int i = 0;
+	unsigned int j = 0;
+	unsigned int ret;
+
+	ret = _intc_prio_data(desc, d, enum_id, &i, &j);
+	if (ret)
+		return ret;
 
 	if (do_grps)
 		return intc_prio_data(desc, d, intc_grp_id(desc, enum_id), 0);
@@ -513,16 +617,42 @@ static unsigned int __init intc_prio_data(struct intc_desc *desc,
 	return 0;
 }
 
+static void __init intc_enable_disable_enum(struct intc_desc *desc,
+					    struct intc_desc_int *d,
+					    intc_enum enum_id, int enable)
+{
+	unsigned int i, j, data;
+
+	/* go through and enable/disable all mask bits */
+	i = j = 0;
+	do {
+		data = _intc_mask_data(desc, d, enum_id, &i, &j);
+		if (data)
+			intc_enable_disable(d, data, enable);
+		j++;
+	} while (data);
+
+	/* go through and enable/disable all priority fields */
+	i = j = 0;
+	do {
+		data = _intc_prio_data(desc, d, enum_id, &i, &j);
+		if (data)
+			intc_enable_disable(d, data, enable);
+
+		j++;
+	} while (data);
+}
+
 static unsigned int __init intc_ack_data(struct intc_desc *desc,
 					  struct intc_desc_int *d,
 					  intc_enum enum_id)
 {
-	struct intc_mask_reg *mr = desc->ack_regs;
+	struct intc_mask_reg *mr = desc->hw.ack_regs;
 	unsigned int i, j, fn, mode;
 	unsigned long reg_e, reg_d;
 
-	for (i = 0; mr && enum_id && i < desc->nr_ack_regs; i++) {
-		mr = desc->ack_regs + i;
+	for (i = 0; mr && enum_id && i < desc->hw.nr_ack_regs; i++) {
+		mr = desc->hw.ack_regs + i;
 
 		for (j = 0; j < ARRAY_SIZE(mr->enum_ids); j++) {
 			if (mr->enum_ids[j] != enum_id)
@@ -549,11 +679,11 @@ static unsigned int __init intc_sense_data(struct intc_desc *desc,
 					   struct intc_desc_int *d,
 					   intc_enum enum_id)
 {
-	struct intc_sense_reg *sr = desc->sense_regs;
+	struct intc_sense_reg *sr = desc->hw.sense_regs;
 	unsigned int i, j, fn, bit;
 
-	for (i = 0; sr && enum_id && i < desc->nr_sense_regs; i++) {
-		sr = desc->sense_regs + i;
+	for (i = 0; sr && enum_id && i < desc->hw.nr_sense_regs; i++) {
+		sr = desc->hw.sense_regs + i;
 
 		for (j = 0; j < ARRAY_SIZE(sr->enum_ids); j++) {
 			if (sr->enum_ids[j] != enum_id)
@@ -656,8 +786,12 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	/* irq should be disabled by default */
 	d->chip.mask(irq);
 
-	if (desc->ack_regs)
+	if (desc->hw.ack_regs)
 		ack_handle[irq] = intc_ack_data(desc, d, enum_id);
+
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, IRQF_VALID); /* Enable IRQ on ARM systems */
+#endif
 }
 
 static unsigned int __init save_reg(struct intc_desc_int *d,
@@ -684,6 +818,7 @@ static void intc_redirect_irq(unsigned int irq, struct irq_desc *desc)
 void __init register_intc_controller(struct intc_desc *desc)
 {
 	unsigned int i, k, smp;
+	struct intc_hw_desc *hw = &desc->hw;
 	struct intc_desc_int *d;
 
 	d = kzalloc(sizeof(*d), GFP_NOWAIT);
@@ -691,10 +826,10 @@ void __init register_intc_controller(struct intc_desc *desc)
 	INIT_LIST_HEAD(&d->list);
 	list_add(&d->list, &intc_list);
 
-	d->nr_reg = desc->mask_regs ? desc->nr_mask_regs * 2 : 0;
-	d->nr_reg += desc->prio_regs ? desc->nr_prio_regs * 2 : 0;
-	d->nr_reg += desc->sense_regs ? desc->nr_sense_regs : 0;
-	d->nr_reg += desc->ack_regs ? desc->nr_ack_regs : 0;
+	d->nr_reg = hw->mask_regs ? hw->nr_mask_regs * 2 : 0;
+	d->nr_reg += hw->prio_regs ? hw->nr_prio_regs * 2 : 0;
+	d->nr_reg += hw->sense_regs ? hw->nr_sense_regs : 0;
+	d->nr_reg += hw->ack_regs ? hw->nr_ack_regs : 0;
 
 	d->reg = kzalloc(d->nr_reg * sizeof(*d->reg), GFP_NOWAIT);
 #ifdef CONFIG_SMP
@@ -702,30 +837,31 @@ void __init register_intc_controller(struct intc_desc *desc)
 #endif
 	k = 0;
 
-	if (desc->mask_regs) {
-		for (i = 0; i < desc->nr_mask_regs; i++) {
-			smp = IS_SMP(desc->mask_regs[i]);
-			k += save_reg(d, k, desc->mask_regs[i].set_reg, smp);
-			k += save_reg(d, k, desc->mask_regs[i].clr_reg, smp);
+	if (hw->mask_regs) {
+		for (i = 0; i < hw->nr_mask_regs; i++) {
+			smp = IS_SMP(hw->mask_regs[i]);
+			k += save_reg(d, k, hw->mask_regs[i].set_reg, smp);
+			k += save_reg(d, k, hw->mask_regs[i].clr_reg, smp);
 		}
 	}
 
-	if (desc->prio_regs) {
-		d->prio = kzalloc(desc->nr_vectors * sizeof(*d->prio), GFP_NOWAIT);
+	if (hw->prio_regs) {
+		d->prio = kzalloc(hw->nr_vectors * sizeof(*d->prio),
+				  GFP_NOWAIT);
 
-		for (i = 0; i < desc->nr_prio_regs; i++) {
-			smp = IS_SMP(desc->prio_regs[i]);
-			k += save_reg(d, k, desc->prio_regs[i].set_reg, smp);
-			k += save_reg(d, k, desc->prio_regs[i].clr_reg, smp);
+		for (i = 0; i < hw->nr_prio_regs; i++) {
+			smp = IS_SMP(hw->prio_regs[i]);
+			k += save_reg(d, k, hw->prio_regs[i].set_reg, smp);
+			k += save_reg(d, k, hw->prio_regs[i].clr_reg, smp);
 		}
 	}
 
-	if (desc->sense_regs) {
-		d->sense = kzalloc(desc->nr_vectors * sizeof(*d->sense), GFP_NOWAIT);
+	if (hw->sense_regs) {
+		d->sense = kzalloc(hw->nr_vectors * sizeof(*d->sense),
+				   GFP_NOWAIT);
 
-		for (i = 0; i < desc->nr_sense_regs; i++) {
-			k += save_reg(d, k, desc->sense_regs[i].reg, 0);
-		}
+		for (i = 0; i < hw->nr_sense_regs; i++)
+			k += save_reg(d, k, hw->sense_regs[i].reg, 0);
 	}
 
 	d->chip.name = desc->name;
@@ -737,19 +873,30 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->chip.shutdown = intc_disable;
 	d->chip.set_type = intc_set_sense;
 	d->chip.set_wake = intc_set_wake;
+#ifdef CONFIG_SMP
+	d->chip.set_affinity = intc_set_affinity;
+#endif
 
-	if (desc->ack_regs) {
-		for (i = 0; i < desc->nr_ack_regs; i++)
-			k += save_reg(d, k, desc->ack_regs[i].set_reg, 0);
+	if (hw->ack_regs) {
+		for (i = 0; i < hw->nr_ack_regs; i++)
+			k += save_reg(d, k, hw->ack_regs[i].set_reg, 0);
 
 		d->chip.mask_ack = intc_mask_ack;
 	}
 
+	/* disable bits matching force_disable before registering irqs */
+	if (desc->force_disable)
+		intc_enable_disable_enum(desc, d, desc->force_disable, 0);
+
+	/* disable bits matching force_enable before registering irqs */
+	if (desc->force_enable)
+		intc_enable_disable_enum(desc, d, desc->force_enable, 0);
+
 	BUG_ON(k > 256); /* _INTC_ADDR_E() and _INTC_ADDR_D() are 8 bits */
 
 	/* register the vectors one by one */
-	for (i = 0; i < desc->nr_vectors; i++) {
-		struct intc_vect *vect = desc->vectors + i;
+	for (i = 0; i < hw->nr_vectors; i++) {
+		struct intc_vect *vect = hw->vectors + i;
 		unsigned int irq = evt2irq(vect->vect);
 		struct irq_desc *irq_desc;
 
@@ -764,8 +911,8 @@ void __init register_intc_controller(struct intc_desc *desc)
 
 		intc_register_irq(desc, d, vect->enum_id, irq);
 
-		for (k = i + 1; k < desc->nr_vectors; k++) {
-			struct intc_vect *vect2 = desc->vectors + k;
+		for (k = i + 1; k < hw->nr_vectors; k++) {
+			struct intc_vect *vect2 = hw->vectors + k;
 			unsigned int irq2 = evt2irq(vect2->vect);
 
 			if (vect->enum_id != vect2->enum_id)
@@ -785,11 +932,15 @@ void __init register_intc_controller(struct intc_desc *desc)
 			vect2->enum_id = 0;
 
 			/* redirect this interrupts to the first one */
-			set_irq_chip_and_handler_name(irq2, &d->chip,
-					intc_redirect_irq, "redirect");
+			set_irq_chip(irq2, &dummy_irq_chip);
+			set_irq_chained_handler(irq2, intc_redirect_irq);
 			set_irq_data(irq2, (void *)irq);
 		}
 	}
+
+	/* enable bits matching force_enable after registering irqs */
+	if (desc->force_enable)
+		intc_enable_disable_enum(desc, d, desc->force_enable, 1);
 }
 
 static int intc_suspend(struct sys_device *dev, pm_message_t state)
@@ -806,6 +957,8 @@ static int intc_suspend(struct sys_device *dev, pm_message_t state)
 		if (d->state.event != PM_EVENT_FREEZE)
 			break;
 		for_each_irq_desc(irq, desc) {
+			if (desc->handle_irq == intc_redirect_irq)
+				continue;
 			if (desc->chip != &d->chip)
 				continue;
 			if (desc->status & IRQ_DISABLED)
@@ -870,7 +1023,7 @@ device_initcall(register_intc_sysdevs);
 /*
  * Dynamic IRQ allocation and deallocation
  */
-static unsigned int create_irq_on_node(unsigned int irq_want, int node)
+unsigned int create_irq_nr(unsigned int irq_want, int node)
 {
 	unsigned int irq = 0, new;
 	unsigned long flags;
@@ -879,29 +1032,37 @@ static unsigned int create_irq_on_node(unsigned int irq_want, int node)
 	spin_lock_irqsave(&vector_lock, flags);
 
 	/*
-	 * First try the wanted IRQ, then scan.
+	 * First try the wanted IRQ
 	 */
-	if (test_and_set_bit(irq_want, intc_irq_map)) {
+	if (test_and_set_bit(irq_want, intc_irq_map) == 0) {
+		new = irq_want;
+	} else {
+		/* .. then fall back to scanning. */
 		new = find_first_zero_bit(intc_irq_map, nr_irqs);
 		if (unlikely(new == nr_irqs))
 			goto out_unlock;
 
-		desc = irq_to_desc_alloc_node(new, node);
-		if (unlikely(!desc)) {
-			pr_info("can't get irq_desc for %d\n", new);
-			goto out_unlock;
-		}
-
-		desc = move_irq_desc(desc, node);
 		__set_bit(new, intc_irq_map);
-		irq = new;
 	}
+
+	desc = irq_to_desc_alloc_node(new, node);
+	if (unlikely(!desc)) {
+		pr_info("can't get irq_desc for %d\n", new);
+		goto out_unlock;
+	}
+
+	desc = move_irq_desc(desc, node);
+	irq = new;
 
 out_unlock:
 	spin_unlock_irqrestore(&vector_lock, flags);
 
-	if (irq > 0)
+	if (irq > 0) {
 		dynamic_irq_init(irq);
+#ifdef CONFIG_ARM
+		set_irq_flags(irq, IRQF_VALID); /* Enable IRQ on ARM systems */
+#endif
+	}
 
 	return irq;
 }
@@ -911,7 +1072,7 @@ int create_irq(void)
 	int nid = cpu_to_node(smp_processor_id());
 	int irq;
 
-	irq = create_irq_on_node(NR_IRQS_LEGACY, nid);
+	irq = create_irq_nr(NR_IRQS_LEGACY, nid);
 	if (irq == 0)
 		irq = -1;
 

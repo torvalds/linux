@@ -14,7 +14,5 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/power.h>
 
-EXPORT_TRACEPOINT_SYMBOL_GPL(power_start);
-EXPORT_TRACEPOINT_SYMBOL_GPL(power_end);
 EXPORT_TRACEPOINT_SYMBOL_GPL(power_frequency);
 

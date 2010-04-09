@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2009, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,6 +74,10 @@ acpi_ns_repair_ALR(struct acpi_predefined_data *data,
 		   union acpi_operand_object **return_object_ptr);
 
 static acpi_status
+acpi_ns_repair_FDE(struct acpi_predefined_data *data,
+		   union acpi_operand_object **return_object_ptr);
+
+static acpi_status
 acpi_ns_repair_PSS(struct acpi_predefined_data *data,
 		   union acpi_operand_object **return_object_ptr);
 
@@ -88,10 +92,7 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 			  u32 sort_index,
 			  u8 sort_direction, char *sort_key_name);
 
-static acpi_status
-acpi_ns_remove_null_elements(union acpi_operand_object *package);
-
-static acpi_status
+static void
 acpi_ns_sort_list(union acpi_operand_object **elements,
 		  u32 count, u32 index, u8 sort_direction);
 
@@ -104,16 +105,26 @@ acpi_ns_sort_list(union acpi_operand_object **elements,
  * This table contains the names of the predefined methods for which we can
  * perform more complex repairs.
  *
- * _ALR: Sort the list ascending by ambient_illuminance if necessary
- * _PSS: Sort the list descending by Power if necessary
- * _TSS: Sort the list descending by Power if necessary
+ * As necessary:
+ *
+ * _ALR: Sort the list ascending by ambient_illuminance
+ * _FDE: Convert Buffer of BYTEs to a Buffer of DWORDs
+ * _GTM: Convert Buffer of BYTEs to a Buffer of DWORDs
+ * _PSS: Sort the list descending by Power
+ * _TSS: Sort the list descending by Power
  */
 static const struct acpi_repair_info acpi_ns_repairable_names[] = {
 	{"_ALR", acpi_ns_repair_ALR},
+	{"_FDE", acpi_ns_repair_FDE},
+	{"_GTM", acpi_ns_repair_FDE},	/* _GTM has same repair as _FDE */
 	{"_PSS", acpi_ns_repair_PSS},
 	{"_TSS", acpi_ns_repair_TSS},
 	{{0, 0, 0, 0}, NULL}	/* Table terminator */
 };
+
+#define ACPI_FDE_FIELD_COUNT        5
+#define ACPI_FDE_BYTE_BUFFER_SIZE   5
+#define ACPI_FDE_DWORD_BUFFER_SIZE  (ACPI_FDE_FIELD_COUNT * sizeof (u32))
 
 /******************************************************************************
  *
@@ -211,6 +222,94 @@ acpi_ns_repair_ALR(struct acpi_predefined_data *data,
 					   "AmbientIlluminance");
 
 	return (status);
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_repair_FDE
+ *
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              return_object_ptr   - Pointer to the object returned from the
+ *                                    evaluation of a method or object
+ *
+ * RETURN:      Status. AE_OK if object is OK or was repaired successfully
+ *
+ * DESCRIPTION: Repair for the _FDE and _GTM objects. The expected return
+ *              value is a Buffer of 5 DWORDs. This function repairs a common
+ *              problem where the return value is a Buffer of BYTEs, not
+ *              DWORDs.
+ *
+ *****************************************************************************/
+
+static acpi_status
+acpi_ns_repair_FDE(struct acpi_predefined_data *data,
+		   union acpi_operand_object **return_object_ptr)
+{
+	union acpi_operand_object *return_object = *return_object_ptr;
+	union acpi_operand_object *buffer_object;
+	u8 *byte_buffer;
+	u32 *dword_buffer;
+	u32 i;
+
+	ACPI_FUNCTION_NAME(ns_repair_FDE);
+
+	switch (return_object->common.type) {
+	case ACPI_TYPE_BUFFER:
+
+		/* This is the expected type. Length should be (at least) 5 DWORDs */
+
+		if (return_object->buffer.length >= ACPI_FDE_DWORD_BUFFER_SIZE) {
+			return (AE_OK);
+		}
+
+		/* We can only repair if we have exactly 5 BYTEs */
+
+		if (return_object->buffer.length != ACPI_FDE_BYTE_BUFFER_SIZE) {
+			ACPI_WARN_PREDEFINED((AE_INFO, data->pathname,
+					      data->node_flags,
+					      "Incorrect return buffer length %u, expected %u",
+					      return_object->buffer.length,
+					      ACPI_FDE_DWORD_BUFFER_SIZE));
+
+			return (AE_AML_OPERAND_TYPE);
+		}
+
+		/* Create the new (larger) buffer object */
+
+		buffer_object =
+		    acpi_ut_create_buffer_object(ACPI_FDE_DWORD_BUFFER_SIZE);
+		if (!buffer_object) {
+			return (AE_NO_MEMORY);
+		}
+
+		/* Expand each byte to a DWORD */
+
+		byte_buffer = return_object->buffer.pointer;
+		dword_buffer =
+		    ACPI_CAST_PTR(u32, buffer_object->buffer.pointer);
+
+		for (i = 0; i < ACPI_FDE_FIELD_COUNT; i++) {
+			*dword_buffer = (u32) *byte_buffer;
+			dword_buffer++;
+			byte_buffer++;
+		}
+
+		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+				  "%s Expanded Byte Buffer to expected DWord Buffer\n",
+				  data->pathname));
+		break;
+
+	default:
+		return (AE_AML_OPERAND_TYPE);
+	}
+
+	/* Delete the original return object, return the new buffer object */
+
+	acpi_ut_remove_reference(return_object);
+	*return_object_ptr = buffer_object;
+
+	data->flags |= ACPI_OBJECT_REPAIRED;
+	return (AE_OK);
 }
 
 /******************************************************************************
@@ -343,7 +442,8 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 	union acpi_operand_object *obj_desc;
 	u32 i;
 	u32 previous_value;
-	acpi_status status;
+
+	ACPI_FUNCTION_NAME(ns_check_sorted_list);
 
 	/* The top-level object must be a package */
 
@@ -352,24 +452,10 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 	}
 
 	/*
-	 * Detect any NULL package elements and remove them from the
-	 * package.
-	 *
-	 * TBD: We may want to do this for all predefined names that
-	 * return a variable-length package of packages.
+	 * NOTE: assumes list of sub-packages contains no NULL elements.
+	 * Any NULL elements should have been removed by earlier call
+	 * to acpi_ns_remove_null_elements.
 	 */
-	status = acpi_ns_remove_null_elements(return_object);
-	if (status == AE_NULL_ENTRY) {
-		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-				      "NULL elements removed from package"));
-
-		/* Exit if package is now zero length */
-
-		if (!return_object->package.count) {
-			return (AE_NULL_ENTRY);
-		}
-	}
-
 	outer_elements = return_object->package.elements;
 	outer_element_count = return_object->package.count;
 	if (!outer_element_count) {
@@ -406,26 +492,21 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 
 		/*
 		 * The list must be sorted in the specified order. If we detect a
-		 * discrepancy, issue a warning and sort the entire list
+		 * discrepancy, sort the entire list.
 		 */
 		if (((sort_direction == ACPI_SORT_ASCENDING) &&
 		     (obj_desc->integer.value < previous_value)) ||
 		    ((sort_direction == ACPI_SORT_DESCENDING) &&
 		     (obj_desc->integer.value > previous_value))) {
-			status =
-			    acpi_ns_sort_list(return_object->package.elements,
-					      outer_element_count, sort_index,
-					      sort_direction);
-			if (ACPI_FAILURE(status)) {
-				return (status);
-			}
+			acpi_ns_sort_list(return_object->package.elements,
+					  outer_element_count, sort_index,
+					  sort_direction);
 
 			data->flags |= ACPI_OBJECT_REPAIRED;
 
-			ACPI_INFO_PREDEFINED((AE_INFO, data->pathname,
-					      data->node_flags,
-					      "Repaired unsorted list - now sorted by %s",
-					      sort_key_name));
+			ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+					  "%s: Repaired unsorted list - now sorted by %s\n",
+					  data->pathname, sort_key_name));
 			return (AE_OK);
 		}
 
@@ -438,59 +519,6 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 
 /******************************************************************************
  *
- * FUNCTION:    acpi_ns_remove_null_elements
- *
- * PARAMETERS:  obj_desc            - A Package object
- *
- * RETURN:      Status. AE_NULL_ENTRY means that one or more elements were
- *              removed.
- *
- * DESCRIPTION: Remove all NULL package elements and update the package count.
- *
- *****************************************************************************/
-
-static acpi_status
-acpi_ns_remove_null_elements(union acpi_operand_object *obj_desc)
-{
-	union acpi_operand_object **source;
-	union acpi_operand_object **dest;
-	acpi_status status = AE_OK;
-	u32 count;
-	u32 new_count;
-	u32 i;
-
-	count = obj_desc->package.count;
-	new_count = count;
-
-	source = obj_desc->package.elements;
-	dest = source;
-
-	/* Examine all elements of the package object */
-
-	for (i = 0; i < count; i++) {
-		if (!*source) {
-			status = AE_NULL_ENTRY;
-			new_count--;
-		} else {
-			*dest = *source;
-			dest++;
-		}
-		source++;
-	}
-
-	if (status == AE_NULL_ENTRY) {
-
-		/* NULL terminate list and update the package count */
-
-		*dest = NULL;
-		obj_desc->package.count = new_count;
-	}
-
-	return (status);
-}
-
-/******************************************************************************
- *
  * FUNCTION:    acpi_ns_sort_list
  *
  * PARAMETERS:  Elements            - Package object element list
@@ -498,15 +526,16 @@ acpi_ns_remove_null_elements(union acpi_operand_object *obj_desc)
  *              Index               - Sort by which package element
  *              sort_direction      - Ascending or Descending sort
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Sort the objects that are in a package element list.
  *
- * NOTE: Assumes that all NULL elements have been removed from the package.
+ * NOTE: Assumes that all NULL elements have been removed from the package,
+ *       and that all elements have been verified to be of type Integer.
  *
  *****************************************************************************/
 
-static acpi_status
+static void
 acpi_ns_sort_list(union acpi_operand_object **elements,
 		  u32 count, u32 index, u8 sort_direction)
 {
@@ -535,6 +564,4 @@ acpi_ns_sort_list(union acpi_operand_object **elements,
 			}
 		}
 	}
-
-	return (AE_OK);
 }

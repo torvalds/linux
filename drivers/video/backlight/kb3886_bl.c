@@ -134,27 +134,31 @@ static int kb3886bl_get_intensity(struct backlight_device *bd)
 	return kb3886bl_intensity;
 }
 
-static struct backlight_ops kb3886bl_ops = {
+static const struct backlight_ops kb3886bl_ops = {
 	.get_brightness = kb3886bl_get_intensity,
 	.update_status  = kb3886bl_send_intensity,
 };
 
 static int kb3886bl_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	struct kb3886bl_machinfo *machinfo = pdev->dev.platform_data;
 
 	bl_machinfo = machinfo;
 	if (!machinfo->limit_mask)
 		machinfo->limit_mask = -1;
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = machinfo->max_intensity;
 	kb3886_backlight_device = backlight_device_register("kb3886-bl",
-		&pdev->dev, NULL, &kb3886bl_ops);
+							    &pdev->dev, NULL,
+							    &kb3886bl_ops,
+							    &props);
 	if (IS_ERR(kb3886_backlight_device))
 		return PTR_ERR(kb3886_backlight_device);
 
 	platform_set_drvdata(pdev, kb3886_backlight_device);
 
-	kb3886_backlight_device->props.max_brightness = machinfo->max_intensity;
 	kb3886_backlight_device->props.power = FB_BLANK_UNBLANK;
 	kb3886_backlight_device->props.brightness = machinfo->default_intensity;
 	backlight_update_status(kb3886_backlight_device);

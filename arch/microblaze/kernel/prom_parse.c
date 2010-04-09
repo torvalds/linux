@@ -256,7 +256,7 @@ int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
 		if (ppdev == NULL) {
 			struct pci_controller *host;
 			host = pci_bus_to_host(pdev->bus);
-			ppnode = host ? host->arch_data : NULL;
+			ppnode = host ? host->dn : NULL;
 			/* No node for host bridge ? give up */
 			if (ppnode == NULL)
 				return -EINVAL;

@@ -66,8 +66,7 @@ static int compat_i915_batchbuffer(struct file *file, unsigned int cmd,
 			  &batchbuffer->cliprects))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_path.dentry->d_inode, file,
-			 DRM_IOCTL_I915_BATCHBUFFER,
+	return drm_ioctl(file, DRM_IOCTL_I915_BATCHBUFFER,
 			 (unsigned long)batchbuffer);
 }
 
@@ -102,8 +101,8 @@ static int compat_i915_cmdbuffer(struct file *file, unsigned int cmd,
 			  &cmdbuffer->cliprects))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_path.dentry->d_inode, file,
-			 DRM_IOCTL_I915_CMDBUFFER, (unsigned long)cmdbuffer);
+	return drm_ioctl(file, DRM_IOCTL_I915_CMDBUFFER,
+			 (unsigned long)cmdbuffer);
 }
 
 typedef struct drm_i915_irq_emit32 {
@@ -125,8 +124,8 @@ static int compat_i915_irq_emit(struct file *file, unsigned int cmd,
 			  &request->irq_seq))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_path.dentry->d_inode, file,
-			 DRM_IOCTL_I915_IRQ_EMIT, (unsigned long)request);
+	return drm_ioctl(file, DRM_IOCTL_I915_IRQ_EMIT,
+			 (unsigned long)request);
 }
 typedef struct drm_i915_getparam32 {
 	int param;
@@ -149,8 +148,8 @@ static int compat_i915_getparam(struct file *file, unsigned int cmd,
 			  &request->value))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_path.dentry->d_inode, file,
-			 DRM_IOCTL_I915_GETPARAM, (unsigned long)request);
+	return drm_ioctl(file, DRM_IOCTL_I915_GETPARAM,
+			 (unsigned long)request);
 }
 
 typedef struct drm_i915_mem_alloc32 {
@@ -178,8 +177,8 @@ static int compat_i915_alloc(struct file *file, unsigned int cmd,
 			  &request->region_offset))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_path.dentry->d_inode, file,
-			 DRM_IOCTL_I915_ALLOC, (unsigned long)request);
+	return drm_ioctl(file, DRM_IOCTL_I915_ALLOC,
+			 (unsigned long)request);
 }
 
 drm_ioctl_compat_t *i915_compat_ioctls[] = {
@@ -211,12 +210,10 @@ long i915_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (nr < DRM_COMMAND_BASE + DRM_ARRAY_SIZE(i915_compat_ioctls))
 		fn = i915_compat_ioctls[nr - DRM_COMMAND_BASE];
 
-	lock_kernel();		/* XXX for now */
 	if (fn != NULL)
 		ret = (*fn) (filp, cmd, arg);
 	else
-		ret = drm_ioctl(filp->f_path.dentry->d_inode, filp, cmd, arg);
-	unlock_kernel();
+		ret = drm_ioctl(filp, cmd, arg);
 
 	return ret;
 }

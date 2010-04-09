@@ -119,6 +119,15 @@ static void decode_address(char *buf, unsigned long address)
 		return;
 	}
 
+	/*
+	 * Don't walk any of the vmas if we are oopsing, it has been known
+	 * to cause problems - corrupt vmas (kernel crashes) cause double faults
+	 */
+	if (oops_in_progress) {
+		strcat(buf, "/* kernel dynamic memory (maybe user-space) */");
+		return;
+	}
+
 	/* looks like we're off in user-land, so let's walk all the
 	 * mappings of all our processes and see if we can't be a whee
 	 * bit more specific
@@ -128,6 +137,12 @@ static void decode_address(char *buf, unsigned long address)
 		mm = (in_atomic ? p->mm : get_task_mm(p));
 		if (!mm)
 			continue;
+
+		if (!down_read_trylock(&mm->mmap_sem)) {
+			if (!in_atomic)
+				mmput(mm);
+			continue;
+		}
 
 		for (n = rb_first(&mm->mm_rb); n; n = rb_next(n)) {
 			struct vm_area_struct *vma;
@@ -168,6 +183,7 @@ static void decode_address(char *buf, unsigned long address)
 					sprintf(buf, "[ %s vma:0x%lx-0x%lx]",
 						name, vma->vm_start, vma->vm_end);
 
+				up_read(&mm->mmap_sem);
 				if (!in_atomic)
 					mmput(mm);
 
@@ -177,11 +193,16 @@ static void decode_address(char *buf, unsigned long address)
 				goto done;
 			}
 		}
+
+		up_read(&mm->mmap_sem);
 		if (!in_atomic)
 			mmput(mm);
 	}
 
-	/* we were unable to find this address anywhere */
+	/*
+	 * we were unable to find this address anywhere,
+	 * or some MMs were skipped because they were in use.
+	 */
 	sprintf(buf, "/* kernel dynamic memory */");
 
 done:
@@ -239,9 +260,7 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
 	int j;
 #endif
-#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 	unsigned int cpu = raw_smp_processor_id();
-#endif
 	const char *strerror = NULL;
 	int sig = 0;
 	siginfo_t info;
@@ -515,6 +534,36 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 			break;
 		/* External Memory Addressing Error */
 		case (SEQSTAT_HWERRCAUSE_EXTERN_ADDR):
+			if (ANOMALY_05000310) {
+				static unsigned long anomaly_rets;
+
+				if ((fp->pc >= (L1_CODE_START + L1_CODE_LENGTH - 512)) &&
+				    (fp->pc < (L1_CODE_START + L1_CODE_LENGTH))) {
+					/*
+					 * A false hardware error will happen while fetching at
+					 * the L1 instruction SRAM boundary.  Ignore it.
+					 */
+					anomaly_rets = fp->rets;
+					goto traps_done;
+				} else if (fp->rets == anomaly_rets) {
+					/*
+					 * While boundary code returns to a function, at the ret
+					 * point, a new false hardware error might occur too based
+					 * on tests.  Ignore it too.
+					 */
+					goto traps_done;
+				} else if ((fp->rets >= (L1_CODE_START + L1_CODE_LENGTH - 512)) &&
+				           (fp->rets < (L1_CODE_START + L1_CODE_LENGTH))) {
+					/*
+					 * If boundary code calls a function, at the entry point,
+					 * a new false hardware error maybe happen based on tests.
+					 * Ignore it too.
+					 */
+					goto traps_done;
+				} else
+					anomaly_rets = 0;
+			}
+
 			info.si_code = BUS_ADRERR;
 			sig = SIGBUS;
 			strerror = KERN_NOTICE HWC_x3(KERN_NOTICE);
@@ -600,7 +649,17 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 	{
 		info.si_signo = sig;
 		info.si_errno = 0;
-		info.si_addr = (void __user *)fp->pc;
+		switch (trapnr) {
+		case VEC_CPLB_VL:
+		case VEC_MISALI_D:
+		case VEC_CPLB_M:
+		case VEC_CPLB_MHIT:
+			info.si_addr = (void __user *)cpu_pda[cpu].dcplb_fault_addr;
+			break;
+		default:
+			info.si_addr = (void __user *)fp->pc;
+			break;
+		}
 		force_sig_info(sig, &info, current);
 	}
 
@@ -673,7 +732,7 @@ static void decode_instruction(unsigned short *address)
 			verbose_printk("RTE");
 		else if (opcode == 0x0025)
 			verbose_printk("EMUEXCPT");
-		else if (opcode == 0x0040 && opcode <= 0x0047)
+		else if (opcode >= 0x0040 && opcode <= 0x0047)
 			verbose_printk("STI R%i", opcode & 7);
 		else if (opcode >= 0x0050 && opcode <= 0x0057)
 			verbose_printk("JUMP (P%i)", opcode & 7);
@@ -976,12 +1035,12 @@ void dump_bfin_process(struct pt_regs *fp)
 	    !((unsigned long)current & 0x3) && current->pid) {
 		verbose_printk(KERN_NOTICE "CURRENT PROCESS:\n");
 		if (current->comm >= (char *)FIXED_CODE_START)
-			verbose_printk(KERN_NOTICE "COMM=%s PID=%d\n",
+			verbose_printk(KERN_NOTICE "COMM=%s PID=%d",
 				current->comm, current->pid);
 		else
-			verbose_printk(KERN_NOTICE "COMM= invalid\n");
+			verbose_printk(KERN_NOTICE "COMM= invalid");
 
-		printk(KERN_NOTICE "CPU = %d\n", current_thread_info()->cpu);
+		printk(KERN_CONT " CPU=%d\n", current_thread_info()->cpu);
 		if (!((unsigned long)current->mm & 0x3) && (unsigned long)current->mm >= FIXED_CODE_START)
 			verbose_printk(KERN_NOTICE
 				"TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
@@ -1057,7 +1116,7 @@ void dump_bfin_mem(struct pt_regs *fp)
 			/* And the last RETI points to the current userspace context */
 			if ((fp + 1)->pc >= current->mm->start_code &&
 			    (fp + 1)->pc <= current->mm->end_code) {
-				verbose_printk(KERN_NOTICE "It might be better to look around here : \n");
+				verbose_printk(KERN_NOTICE "It might be better to look around here :\n");
 				verbose_printk(KERN_NOTICE "-------------------------------------------\n");
 				show_regs(fp + 1);
 				verbose_printk(KERN_NOTICE "-------------------------------------------\n");

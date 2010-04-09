@@ -23,6 +23,7 @@
 #include <asm/debug.h>
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
+#include <asm/compat.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/cio.h>
@@ -1088,6 +1089,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	struct dasd_eckd_private *private;
 	struct dasd_block *block;
 	int is_known, rc;
+	int readonly;
 
 	if (!ccw_device_is_pathgroup(device->cdev)) {
 		dev_warn(&device->cdev->dev,
@@ -1181,15 +1183,20 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	else
 		private->real_cyl = private->rdc_data.no_cyl;
 
+	readonly = dasd_device_is_ro(device);
+	if (readonly)
+		set_bit(DASD_FLAG_DEVICE_RO, &device->flags);
+
 	dev_info(&device->cdev->dev, "New DASD %04X/%02X (CU %04X/%02X) "
-		 "with %d cylinders, %d heads, %d sectors\n",
+		 "with %d cylinders, %d heads, %d sectors%s\n",
 		 private->rdc_data.dev_type,
 		 private->rdc_data.dev_model,
 		 private->rdc_data.cu_type,
 		 private->rdc_data.cu_model.model,
 		 private->real_cyl,
 		 private->rdc_data.trk_per_cyl,
-		 private->rdc_data.sec_per_trk);
+		 private->rdc_data.sec_per_trk,
+		 readonly ? ", read-only device" : "");
 	return 0;
 
 out_err3:
@@ -2838,19 +2845,27 @@ static int dasd_symm_io(struct dasd_device *device, void __user *argp)
 	char *psf_data, *rssd_result;
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
+	char psf0, psf1;
 	int rc;
+
+	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RAWIO))
+		return -EACCES;
+	psf0 = psf1 = 0;
 
 	/* Copy parms from caller */
 	rc = -EFAULT;
 	if (copy_from_user(&usrparm, argp, sizeof(usrparm)))
 		goto out;
-#ifndef CONFIG_64BIT
-	/* Make sure pointers are sane even on 31 bit. */
-	if ((usrparm.psf_data >> 32) != 0 || (usrparm.rssd_result >> 32) != 0) {
+	if (is_compat_task() || sizeof(long) == 4) {
+		/* Make sure pointers are sane even on 31 bit. */
 		rc = -EINVAL;
-		goto out;
+		if ((usrparm.psf_data >> 32) != 0)
+			goto out;
+		if ((usrparm.rssd_result >> 32) != 0)
+			goto out;
+		usrparm.psf_data &= 0x7fffffffULL;
+		usrparm.rssd_result &= 0x7fffffffULL;
 	}
-#endif
 	/* alloc I/O data area */
 	psf_data = kzalloc(usrparm.psf_data_len, GFP_KERNEL | GFP_DMA);
 	rssd_result = kzalloc(usrparm.rssd_result_len, GFP_KERNEL | GFP_DMA);
@@ -2865,12 +2880,8 @@ static int dasd_symm_io(struct dasd_device *device, void __user *argp)
 			   (void __user *)(unsigned long) usrparm.psf_data,
 			   usrparm.psf_data_len))
 		goto out_free;
-
-	/* sanity check on syscall header */
-	if (psf_data[0] != 0x17 && psf_data[1] != 0xce) {
-		rc = -EINVAL;
-		goto out_free;
-	}
+	psf0 = psf_data[0];
+	psf1 = psf_data[1];
 
 	/* setup CCWs for PSF + RSSD */
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 2 , 0, device);
@@ -2921,7 +2932,9 @@ out_free:
 	kfree(rssd_result);
 	kfree(psf_data);
 out:
-	DBF_DEV_EVENT(DBF_WARNING, device, "Symmetrix ioctl: rc=%d", rc);
+	DBF_DEV_EVENT(DBF_WARNING, device,
+		      "Symmetrix ioctl (0x%02x 0x%02x): rc=%d",
+		      (int) psf0, (int) psf1, rc);
 	return rc;
 }
 
@@ -3029,7 +3042,7 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " in req: %p CS: 0x%02X DS: 0x%02X CC: 0x%02X RC: %d\n",
 		       req, scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw),
-		       scsw_cc(&irb->scsw), req->intrc);
+		       scsw_cc(&irb->scsw), req ? req->intrc : 0);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
 		       dev_name(&device->cdev->dev),
@@ -3142,11 +3155,11 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 
 	tsb = NULL;
 	sense = NULL;
-	if (irb->scsw.tm.tcw)
+	if (irb->scsw.tm.tcw && (irb->scsw.tm.fcxs == 0x01))
 		tsb = tcw_get_tsb(
 			(struct tcw *)(unsigned long)irb->scsw.tm.tcw);
 
-	if (tsb && (irb->scsw.tm.fcxs == 0x01)) {
+	if (tsb) {
 		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 			       " tsb->length %d\n", tsb->length);
 		len += sprintf(page + len, KERN_ERR PRINTK_HEADER

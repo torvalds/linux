@@ -169,12 +169,15 @@ int ehca_destroy_eq(struct ehca_shca *shca, struct ehca_eq *eq)
 	unsigned long flags;
 	u64 h_ret;
 
-	spin_lock_irqsave(&eq->spinlock, flags);
 	ibmebus_free_irq(eq->ist, (void *)shca);
 
-	h_ret = hipz_h_destroy_eq(shca->ipz_hca_handle, eq);
+	spin_lock_irqsave(&shca_list_lock, flags);
+	eq->is_initialized = 0;
+	spin_unlock_irqrestore(&shca_list_lock, flags);
 
-	spin_unlock_irqrestore(&eq->spinlock, flags);
+	tasklet_kill(&eq->interrupt_task);
+
+	h_ret = hipz_h_destroy_eq(shca->ipz_hca_handle, eq);
 
 	if (h_ret != H_SUCCESS) {
 		ehca_err(&shca->ib_device, "Can't free EQ resources.");

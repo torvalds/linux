@@ -188,7 +188,8 @@ static void v9fs_kill_super(struct super_block *s)
 
 	P9_DPRINTK(P9_DEBUG_VFS, " %p\n", s);
 
-	v9fs_dentry_release(s->s_root);	/* clunk root */
+	if (s->s_root)
+		v9fs_dentry_release(s->s_root);	/* clunk root */
 
 	kill_anon_super(s);
 

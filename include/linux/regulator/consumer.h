@@ -35,6 +35,8 @@
 #ifndef __LINUX_REGULATOR_CONSUMER_H_
 #define __LINUX_REGULATOR_CONSUMER_H_
 
+#include <linux/device.h>
+
 /*
  * Regulator operating modes.
  *
@@ -87,8 +89,9 @@
  * REGULATION_OUT Regulator output is out of regulation.
  * FAIL           Regulator output has failed.
  * OVER_TEMP      Regulator over temp.
- * FORCE_DISABLE  Regulator shut down by software.
+ * FORCE_DISABLE  Regulator forcibly shut down by software.
  * VOLTAGE_CHANGE Regulator voltage changed.
+ * DISABLE        Regulator was disabled.
  *
  * NOTE: These events can be OR'ed together when passed into handler.
  */
@@ -100,6 +103,7 @@
 #define REGULATOR_EVENT_OVER_TEMP		0x10
 #define REGULATOR_EVENT_FORCE_DISABLE		0x20
 #define REGULATOR_EVENT_VOLTAGE_CHANGE		0x40
+#define REGULATOR_EVENT_DISABLE 		0x80
 
 struct regulator;
 

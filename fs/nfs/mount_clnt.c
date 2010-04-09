@@ -120,7 +120,7 @@ static struct {
 	{ .status = MNT3ERR_INVAL,		.errno = -EINVAL,	},
 	{ .status = MNT3ERR_NAMETOOLONG,	.errno = -ENAMETOOLONG,	},
 	{ .status = MNT3ERR_NOTSUPP,		.errno = -ENOTSUPP,	},
-	{ .status = MNT3ERR_SERVERFAULT,	.errno = -ESERVERFAULT,	},
+	{ .status = MNT3ERR_SERVERFAULT,	.errno = -EREMOTEIO,	},
 };
 
 struct mountres {

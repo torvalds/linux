@@ -257,19 +257,18 @@ static int mt9v022_set_bus_param(struct soc_camera_device *icd,
 static unsigned long mt9v022_query_bus_param(struct soc_camera_device *icd)
 {
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned int width_flag;
-
-	if (icl->query_bus_param)
-		width_flag = icl->query_bus_param(icl) &
-			SOCAM_DATAWIDTH_MASK;
-	else
-		width_flag = SOCAM_DATAWIDTH_10;
-
-	return SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING |
+	unsigned int flags = SOCAM_MASTER | SOCAM_SLAVE |
+		SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING |
 		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW |
 		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |
-		SOCAM_DATA_ACTIVE_HIGH | SOCAM_MASTER | SOCAM_SLAVE |
-		width_flag;
+		SOCAM_DATA_ACTIVE_HIGH;
+
+	if (icl->query_bus_param)
+		flags |= icl->query_bus_param(icl) & SOCAM_DATAWIDTH_MASK;
+	else
+		flags |= SOCAM_DATAWIDTH_10;
+
+	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
 static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)

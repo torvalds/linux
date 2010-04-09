@@ -1,0 +1,4 @@
+config DT3155
+	tristate "DT3155 Digitizer support"
+	depends on PCI
+

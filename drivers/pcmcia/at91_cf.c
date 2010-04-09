@@ -52,8 +52,6 @@ struct at91_cf_socket {
 	unsigned long		phys_baseaddr;
 };
 
-#define	SZ_2K			(2 * SZ_1K)
-
 static inline int at91_cf_present(struct at91_cf_socket *cf)
 {
 	return !gpio_get_value(cf->board->det_pin);
@@ -363,7 +361,6 @@ static int at91_cf_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct at91_cf_socket	*cf = platform_get_drvdata(pdev);
 	struct at91_cf_data	*board = cf->board;
 
-	pcmcia_socket_dev_suspend(&pdev->dev);
 	if (device_may_wakeup(&pdev->dev)) {
 		enable_irq_wake(board->det_pin);
 		if (board->irq_pin)
@@ -383,7 +380,6 @@ static int at91_cf_resume(struct platform_device *pdev)
 			disable_irq_wake(board->irq_pin);
 	}
 
-	pcmcia_socket_dev_resume(&pdev->dev);
 	return 0;
 }
 
