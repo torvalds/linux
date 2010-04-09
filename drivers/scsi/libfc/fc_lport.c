@@ -172,7 +172,7 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 				    struct fc_rport_priv *rdata,
 				    enum fc_rport_event event)
 {
-	FC_LPORT_DBG(lport, "Received a %d event for port (%6x)\n", event,
+	FC_LPORT_DBG(lport, "Received a %d event for port (%6.6x)\n", event,
 		     rdata->ids.port_id);
 
 	mutex_lock(&lport->lp_mutex);
@@ -183,7 +183,7 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 			fc_lport_enter_ns(lport, LPORT_ST_RNN_ID);
 		} else {
 			FC_LPORT_DBG(lport, "Received an READY event "
-				     "on port (%6x) for the directory "
+				     "on port (%6.6x) for the directory "
 				     "server, but the lport is not "
 				     "in the DNS state, it's in the "
 				     "%d state", rdata->ids.port_id,
@@ -575,7 +575,7 @@ void __fc_linkup(struct fc_lport *lport)
  */
 void fc_linkup(struct fc_lport *lport)
 {
-	printk(KERN_INFO "host%d: libfc: Link up on port (%6x)\n",
+	printk(KERN_INFO "host%d: libfc: Link up on port (%6.6x)\n",
 	       lport->host->host_no, fc_host_port_id(lport->host));
 
 	mutex_lock(&lport->lp_mutex);
@@ -605,7 +605,7 @@ void __fc_linkdown(struct fc_lport *lport)
  */
 void fc_linkdown(struct fc_lport *lport)
 {
-	printk(KERN_INFO "host%d: libfc: Link down on port (%6x)\n",
+	printk(KERN_INFO "host%d: libfc: Link down on port (%6.6x)\n",
 	       lport->host->host_no, fc_host_port_id(lport->host));
 
 	mutex_lock(&lport->lp_mutex);
@@ -707,7 +707,7 @@ void fc_lport_disc_callback(struct fc_lport *lport, enum fc_disc_event event)
 		break;
 	case DISC_EV_FAILED:
 		printk(KERN_ERR "host%d: libfc: "
-		       "Discovery failed for port (%6x)\n",
+		       "Discovery failed for port (%6.6x)\n",
 		       lport->host->host_no, fc_host_port_id(lport->host));
 		mutex_lock(&lport->lp_mutex);
 		fc_lport_enter_reset(lport);
@@ -753,7 +753,7 @@ static void fc_lport_set_port_id(struct fc_lport *lport, u32 port_id,
 				 struct fc_frame *fp)
 {
 	if (port_id)
-		printk(KERN_INFO "host%d: Assigned Port ID %6x\n",
+		printk(KERN_INFO "host%d: Assigned Port ID %6.6x\n",
 		       lport->host->host_no, port_id);
 
 	fc_host_port_id(lport->host) = port_id;
@@ -1499,7 +1499,7 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 				lport->r_a_tov = 2 * e_d_tov;
 				fc_lport_set_port_id(lport, did, fp);
 				printk(KERN_INFO "host%d: libfc: "
-				       "Port (%6x) entered "
+				       "Port (%6.6x) entered "
 				       "point-to-point mode\n",
 				       lport->host->host_no, did);
 				fc_lport_ptp_setup(lport, ntoh24(fh->fh_s_id),

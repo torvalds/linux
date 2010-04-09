@@ -489,7 +489,7 @@ crc_err:
 			/* per cpu count, not total count, but OK for limit */
 			if (stats->InvalidCRCCount++ < 5)
 				printk(KERN_WARNING "libfc: CRC error on data "
-				       "frame for port (%6x)\n",
+				       "frame for port (%6.6x)\n",
 				       fc_host_port_id(lport->host));
 			put_cpu();
 			/*
@@ -894,7 +894,7 @@ static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 			return;
 		}
 		fsp->status_code = FC_DATA_OVRRUN;
-		FC_FCP_DBG(fsp, "tgt %6x xfer len %zx greater than expected, "
+		FC_FCP_DBG(fsp, "tgt %6.6x xfer len %zx greater than expected, "
 			   "len %x, data len %x\n",
 			   fsp->rport->port_id,
 			   fsp->xfer_len, expected_len, fsp->data_len);
@@ -1562,7 +1562,7 @@ static void fc_fcp_rec_error(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 		break;
 
 	default:
-		FC_FCP_DBG(fsp, "REC %p fid %x error unexpected error %d\n",
+		FC_FCP_DBG(fsp, "REC %p fid %6.6x error unexpected error %d\n",
 			   fsp, fsp->rport->port_id, error);
 		fsp->status_code = FC_CMD_PLOGO;
 		/* fall through */
@@ -1572,7 +1572,7 @@ static void fc_fcp_rec_error(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 		 * Assume REC or LS_ACC was lost.
 		 * The exchange manager will have aborted REC, so retry.
 		 */
-		FC_FCP_DBG(fsp, "REC fid %x error error %d retry %d/%d\n",
+		FC_FCP_DBG(fsp, "REC fid %6.6x error error %d retry %d/%d\n",
 			   fsp->rport->port_id, error, fsp->recov_retry,
 			   FC_MAX_RECOV_RETRY);
 		if (fsp->recov_retry++ < FC_MAX_RECOV_RETRY)
@@ -2053,7 +2053,7 @@ int fc_eh_device_reset(struct scsi_cmnd *sc_cmd)
 	if (lport->state != LPORT_ST_READY)
 		return rc;
 
-	FC_SCSI_DBG(lport, "Resetting rport (%6x)\n", rport->port_id);
+	FC_SCSI_DBG(lport, "Resetting rport (%6.6x)\n", rport->port_id);
 
 	fsp = fc_fcp_pkt_alloc(lport, GFP_NOIO);
 	if (fsp == NULL) {
@@ -2101,11 +2101,11 @@ int fc_eh_host_reset(struct scsi_cmnd *sc_cmd)
 
 	if (fc_fcp_lport_queue_ready(lport)) {
 		shost_printk(KERN_INFO, shost, "libfc: Host reset succeeded "
-			     "on port (%6x)\n", fc_host_port_id(lport->host));
+			     "on port (%6.6x)\n", fc_host_port_id(lport->host));
 		return SUCCESS;
 	} else {
 		shost_printk(KERN_INFO, shost, "libfc: Host reset failed, "
-			     "port (%6x) is not ready.\n",
+			     "port (%6.6x) is not ready.\n",
 			     fc_host_port_id(lport->host));
 		return FAILED;
 	}
@@ -2191,7 +2191,7 @@ void fc_fcp_destroy(struct fc_lport *lport)
 
 	if (!list_empty(&si->scsi_pkt_queue))
 		printk(KERN_ERR "libfc: Leaked SCSI packets when destroying "
-		       "port (%6x)\n", fc_host_port_id(lport->host));
+		       "port (%6.6x)\n", fc_host_port_id(lport->host));
 
 	mempool_destroy(si->scsi_pkt_pool);
 	kfree(si);
