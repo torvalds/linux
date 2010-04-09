@@ -847,7 +847,7 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 	 * instead.  This way we don't have to guess at interlace or
 	 * reduced blanking.
 	 */
-	list_for_each_entry(m, &connector->modes, head)
+	list_for_each_entry(m, &connector->probed_modes, head)
 		if (m->hdisplay == hsize && m->vdisplay == vsize &&
 		    drm_mode_vrefresh(m) == vrefresh_rate)
 			return NULL;
