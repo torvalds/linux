@@ -422,15 +422,15 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 	idr_destroy(&file_private->object_idr);
 }
 
-static void
-drm_gem_object_free_common(struct drm_gem_object *obj)
+void
+drm_gem_object_release(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	fput(obj->filp);
 	atomic_dec(&dev->object_count);
 	atomic_sub(obj->size, &dev->object_memory);
-	kfree(obj);
 }
+EXPORT_SYMBOL(drm_gem_object_release);
 
 /**
  * Called after the last reference to the object has been lost.
@@ -448,8 +448,6 @@ drm_gem_object_free(struct kref *kref)
 
 	if (dev->driver->gem_free_object != NULL)
 		dev->driver->gem_free_object(obj);
-
-	drm_gem_object_free_common(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_free);
 
@@ -472,8 +470,6 @@ drm_gem_object_free_unlocked(struct kref *kref)
 		dev->driver->gem_free_object(obj);
 		mutex_unlock(&dev->struct_mutex);
 	}
-
-	drm_gem_object_free_common(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_free_unlocked);
 

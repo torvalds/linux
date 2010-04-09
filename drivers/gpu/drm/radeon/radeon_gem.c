@@ -44,6 +44,9 @@ void radeon_gem_object_free(struct drm_gem_object *gobj)
 	if (robj) {
 		radeon_bo_unref(&robj);
 	}
+
+	drm_gem_object_release(gobj);
+	kfree(gobj);
 }
 
 int radeon_gem_object_create(struct radeon_device *rdev, int size,

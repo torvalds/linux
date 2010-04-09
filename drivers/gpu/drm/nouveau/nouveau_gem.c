@@ -57,6 +57,9 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 	}
 
 	ttm_bo_unref(&bo);
+
+	drm_gem_object_release(gem);
+	kfree(gem);
 }
 
 int

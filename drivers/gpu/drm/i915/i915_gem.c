@@ -4474,6 +4474,9 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 	kfree(obj_priv->page_cpu_valid);
 	kfree(obj_priv->bit_17);
 	kfree(obj->driver_private);
+
+	drm_gem_object_release(obj);
+	kfree(obj);
 }
 
 /** Unbinds all inactive objects. */
