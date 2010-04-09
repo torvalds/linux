@@ -334,6 +334,16 @@ struct pci_dev {
 #endif
 };
 
+static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
+{
+#ifdef CONFIG_PCI_IOV
+	if (dev->is_virtfn)
+		dev = dev->physfn;
+#endif
+
+	return dev;
+}
+
 extern struct pci_dev *alloc_pci_dev(void);
 
 #define pci_dev_b(n) list_entry(n, struct pci_dev, bus_list)
