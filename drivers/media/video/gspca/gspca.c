@@ -1590,6 +1590,12 @@ static int vidioc_streamon(struct file *file, void *priv,
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
 
+	/* check the capture file */
+	if (gspca_dev->capt_file != file) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	if (gspca_dev->nframes == 0
 	    || !(gspca_dev->frame[0].v4l2_buf.flags & V4L2_BUF_FLAG_QUEUED)) {
 		ret = -EINVAL;
@@ -1626,6 +1632,12 @@ static int vidioc_streamoff(struct file *file, void *priv,
 		return 0;
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
+
+	/* check the capture file */
+	if (gspca_dev->capt_file != file) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	/* stop streaming */
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock)) {
