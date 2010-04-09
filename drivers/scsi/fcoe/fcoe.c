@@ -655,15 +655,13 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 /**
  * fcoe_shost_config() - Set up the SCSI host associated with a local port
  * @lport: The local port
- * @shost: The SCSI host to associate with the local port
  * @dev:   The device associated with the SCSI host
  *
  * Must be called after fcoe_lport_config() and fcoe_netdev_config()
  *
  * Returns: 0 for success
  */
-static int fcoe_shost_config(struct fc_lport *lport, struct Scsi_Host *shost,
-			     struct device *dev)
+static int fcoe_shost_config(struct fc_lport *lport, struct device *dev)
 {
 	int rc = 0;
 
@@ -899,7 +897,6 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 	struct net_device *netdev = fcoe->netdev;
 	struct fc_lport *lport = NULL;
 	struct fcoe_port *port;
-	struct Scsi_Host *shost;
 	int rc;
 	/*
 	 * parent is only a vport if npiv is 1,
@@ -921,7 +918,6 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 		rc = -ENOMEM;
 		goto out;
 	}
-	shost = lport->host;
 	port = lport_priv(lport);
 	port->lport = lport;
 	port->fcoe = fcoe;
@@ -951,7 +947,7 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 	}
 
 	/* configure lport scsi host properties */
-	rc = fcoe_shost_config(lport, shost, parent);
+	rc = fcoe_shost_config(lport, parent);
 	if (rc) {
 		FCOE_NETDEV_DBG(netdev, "Could not configure shost for the "
 				"interface\n");
