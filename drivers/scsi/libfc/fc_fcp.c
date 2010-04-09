@@ -844,8 +844,7 @@ static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 					 * exit here
 					 */
 					return;
-				} else
-					goto err;
+				}
 			}
 			if (flags & FCP_SNS_LEN_VAL) {
 				snsl = ntohl(rp_ex->fr_sns_len);
