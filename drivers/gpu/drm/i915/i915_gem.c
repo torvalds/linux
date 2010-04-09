@@ -1566,7 +1566,7 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 	list_for_each_entry_safe(obj_priv, next,
 				 &dev_priv->mm.gpu_write_list,
 				 gpu_write_list) {
-		struct drm_gem_object *obj = obj_priv->obj;
+		struct drm_gem_object *obj = &obj_priv->base;
 
 		if ((obj->write_domain & flush_domains) ==
 		    obj->write_domain) {
@@ -1704,7 +1704,7 @@ i915_gem_retire_request(struct drm_device *dev,
 		obj_priv = list_first_entry(&dev_priv->mm.active_list,
 					    struct drm_i915_gem_object,
 					    list);
-		obj = obj_priv->obj;
+		obj = &obj_priv->base;
 
 		/* If the seqno being retired doesn't match the oldest in the
 		 * list, then the oldest in the list must still be newer than
@@ -2075,7 +2075,7 @@ i915_gem_find_inactive_object(struct drm_device *dev, int min_size)
 
 	/* Try to find the smallest clean object */
 	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
-		struct drm_gem_object *obj = obj_priv->obj;
+		struct drm_gem_object *obj = &obj_priv->base;
 		if (obj->size >= min_size) {
 			if ((!obj_priv->dirty ||
 			     i915_gem_object_is_purgeable(obj_priv)) &&
@@ -2209,7 +2209,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 
 			/* Find an object that we can immediately reuse */
 			list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, list) {
-				obj = obj_priv->obj;
+				obj = &obj_priv->base;
 				if (obj->size >= min_size)
 					break;
 
@@ -2437,7 +2437,7 @@ static int i915_find_fence_reg(struct drm_device *dev)
 	i = I915_FENCE_REG_NONE;
 	list_for_each_entry(obj_priv, &dev_priv->mm.fence_list,
 			    fence_list) {
-		obj = obj_priv->obj;
+		obj = &obj_priv->base;
 
 		if (obj_priv->pin_count)
 			continue;
@@ -4441,7 +4441,6 @@ struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 	obj->agp_type = AGP_USER_MEMORY;
 
 	obj->base.driver_private = NULL;
-	obj->obj = &obj->base;
 	obj->fence_reg = I915_FENCE_REG_NONE;
 	INIT_LIST_HEAD(&obj->list);
 	INIT_LIST_HEAD(&obj->gpu_write_list);
@@ -4495,9 +4494,9 @@ i915_gem_evict_from_inactive_list(struct drm_device *dev)
 		struct drm_gem_object *obj;
 		int ret;
 
-		obj = list_first_entry(&dev_priv->mm.inactive_list,
-				       struct drm_i915_gem_object,
-				       list)->obj;
+		obj = &list_first_entry(&dev_priv->mm.inactive_list,
+					struct drm_i915_gem_object,
+					list)->base;
 
 		ret = i915_gem_object_unbind(obj);
 		if (ret != 0) {
@@ -5111,7 +5110,7 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 					 &dev_priv->mm.inactive_list,
 					 list) {
 			if (i915_gem_object_is_purgeable(obj_priv)) {
-				i915_gem_object_unbind(obj_priv->obj);
+				i915_gem_object_unbind(&obj_priv->base);
 				if (--nr_to_scan <= 0)
 					break;
 			}
@@ -5140,7 +5139,7 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 					 &dev_priv->mm.inactive_list,
 					 list) {
 			if (nr_to_scan > 0) {
-				i915_gem_object_unbind(obj_priv->obj);
+				i915_gem_object_unbind(&obj_priv->base);
 				nr_to_scan--;
 			} else
 				cnt++;

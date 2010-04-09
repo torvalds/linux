@@ -613,7 +613,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	batchbuffer[1] = NULL;
 	count = 0;
 	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
-		struct drm_gem_object *obj = obj_priv->obj;
+		struct drm_gem_object *obj = &obj_priv->base;
 
 		if (batchbuffer[0] == NULL &&
 		    bbaddr >= obj_priv->gtt_offset &&
@@ -649,7 +649,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	if (error->active_bo) {
 		int i = 0;
 		list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
-			struct drm_gem_object *obj = obj_priv->obj;
+			struct drm_gem_object *obj = &obj_priv->base;
 
 			error->active_bo[i].size = obj->size;
 			error->active_bo[i].name = obj->name;

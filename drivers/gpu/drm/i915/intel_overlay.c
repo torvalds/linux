@@ -373,7 +373,7 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 
 	/* never have the overlay hw on without showing a frame */
 	BUG_ON(!overlay->vid_bo);
-	obj = overlay->vid_bo->obj;
+	obj = &overlay->vid_bo->base;
 
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(obj);
@@ -411,7 +411,7 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 
 	switch (overlay->hw_wedged) {
 		case RELEASE_OLD_VID:
-			obj = overlay->old_vid_bo->obj;
+			obj = &overlay->old_vid_bo->base;
 			i915_gem_object_unpin(obj);
 			drm_gem_object_unreference(obj);
 			overlay->old_vid_bo = NULL;
@@ -467,7 +467,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	if (ret != 0)
 		return ret;
 
-	obj = overlay->old_vid_bo->obj;
+	obj = &overlay->old_vid_bo->base;
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(obj);
 	overlay->old_vid_bo = NULL;
