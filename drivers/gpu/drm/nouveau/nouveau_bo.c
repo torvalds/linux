@@ -386,8 +386,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		break;
 	case TTM_PL_VRAM:
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
-			     TTM_MEMTYPE_FLAG_MAPPABLE |
-			     TTM_MEMTYPE_FLAG_NEEDS_IOREMAP;
+			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
 					 TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
@@ -403,8 +402,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case TTM_PL_TT:
 		switch (dev_priv->gart_info.type) {
 		case NOUVEAU_GART_AGP:
-			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE |
-				     TTM_MEMTYPE_FLAG_NEEDS_IOREMAP;
+			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
 			man->available_caching = TTM_PL_FLAG_UNCACHED;
 			man->default_caching = TTM_PL_FLAG_UNCACHED;
 			break;
@@ -761,6 +759,55 @@ nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 	return 0;
 }
 
+static int
+nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
+{
+	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bdev);
+	struct drm_device *dev = dev_priv->dev;
+
+	mem->bus.addr = NULL;
+	mem->bus.offset = 0;
+	mem->bus.size = mem->num_pages << PAGE_SHIFT;
+	mem->bus.base = 0;
+	mem->bus.is_iomem = false;
+	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
+		return -EINVAL;
+	switch (mem->mem_type) {
+	case TTM_PL_SYSTEM:
+		/* System memory */
+		return 0;
+	case TTM_PL_TT:
+#if __OS_HAS_AGP
+		if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
+			mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+			mem->bus.base = dev_priv->gart_info.aper_base;
+			mem->bus.is_iomem = true;
+		}
+#endif
+		break;
+	case TTM_PL_VRAM:
+		mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+		mem->bus.base = drm_get_resource_start(dev, 1);
+		mem->bus.is_iomem = true;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void
+nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
+{
+}
+
+static int
+nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
+{
+	return 0;
+}
+
 struct ttm_bo_driver nouveau_bo_driver = {
 	.create_ttm_backend_entry = nouveau_bo_create_ttm_backend_entry,
 	.invalidate_caches = nouveau_bo_invalidate_caches,
@@ -773,5 +820,8 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.sync_obj_flush = nouveau_fence_flush,
 	.sync_obj_unref = nouveau_fence_unref,
 	.sync_obj_ref = nouveau_fence_ref,
+	.fault_reserve_notify = &nouveau_ttm_fault_reserve_notify,
+	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,
+	.io_mem_free = &nouveau_ttm_io_mem_free,
 };
 
