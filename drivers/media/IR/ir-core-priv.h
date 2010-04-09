@@ -109,7 +109,7 @@ void ir_raw_init(void);
 #endif
 
 /* from ir-rc6-decoder.c */
-#ifdef CONFIG_IR_RC5_DECODER_MODULE
+#ifdef CONFIG_IR_RC6_DECODER_MODULE
 #define load_rc6_decode()	request_module("ir-rc6-decoder")
 #else
 #define load_rc6_decode()	0
