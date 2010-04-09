@@ -4967,7 +4967,7 @@ intel_alloc_power_context(struct drm_device *dev)
 	struct drm_gem_object *pwrctx;
 	int ret;
 
-	pwrctx = drm_gem_object_alloc(dev, 4096);
+	pwrctx = i915_gem_alloc_object(dev, 4096);
 	if (!pwrctx) {
 		DRM_DEBUG("failed to alloc power context, RC6 disabled\n");
 		return NULL;

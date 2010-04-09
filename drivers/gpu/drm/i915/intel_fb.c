@@ -88,7 +88,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	size = mode_cmd.pitch * mode_cmd.height;
 	size = ALIGN(size, PAGE_SIZE);
-	fbo = drm_gem_object_alloc(dev, size);
+	fbo = i915_gem_alloc_object(dev, size);
 	if (!fbo) {
 		DRM_ERROR("failed to allocate framebuffer\n");
 		ret = -ENOMEM;

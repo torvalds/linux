@@ -124,7 +124,7 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 	args->size = roundup(args->size, PAGE_SIZE);
 
 	/* Allocate the new object */
-	obj = drm_gem_object_alloc(dev, args->size);
+	obj = i915_gem_alloc_object(dev, args->size);
 	if (obj == NULL)
 		return -ENOMEM;
 
@@ -4421,6 +4421,12 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
+					      size_t size)
+{
+	return drm_gem_object_alloc(dev, size);
+}
+
 int i915_gem_init_object(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv;
@@ -4563,7 +4569,7 @@ i915_gem_init_hws(struct drm_device *dev)
 	if (!I915_NEED_GFX_HWS(dev))
 		return 0;
 
-	obj = drm_gem_object_alloc(dev, 4096);
+	obj = i915_gem_alloc_object(dev, 4096);
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate status page\n");
 		return -ENOMEM;
@@ -4640,7 +4646,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	if (ret != 0)
 		return ret;
 
-	obj = drm_gem_object_alloc(dev, 128 * 1024);
+	obj = i915_gem_alloc_object(dev, 128 * 1024);
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate ringbuffer\n");
 		i915_gem_cleanup_hws(dev);
