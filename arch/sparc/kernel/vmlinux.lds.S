@@ -52,6 +52,10 @@ SECTIONS
 	_etext = .;
 
 	RO_DATA(PAGE_SIZE)
+
+	/* Start of data section */
+	_sdata = .;
+
 	.data1 : {
 		*(.data1)
 	}
