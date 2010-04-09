@@ -137,4 +137,4 @@ static struct mdio_device_id bcm63xx_tbl[] = {
 	{ }
 };
 
-MODULE_DEVICE_TABLE(mdio, bcm64xx_tbl);
+MODULE_DEVICE_TABLE(mdio, bcm63xx_tbl);
