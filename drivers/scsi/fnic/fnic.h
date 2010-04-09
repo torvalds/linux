@@ -36,7 +36,7 @@
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
-#define DRV_VERSION		"1.4.0.98"
+#define DRV_VERSION		"1.4.0.145"
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
