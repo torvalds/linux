@@ -224,6 +224,7 @@ struct s2255_pipeinfo {
 struct s2255_fmt; /*forward declaration */
 
 struct s2255_dev {
+	struct video_device	vdev[MAX_CHANNELS];
 	int			frames;
 	struct mutex		lock;
 	struct mutex		open_lock;
@@ -233,7 +234,6 @@ struct s2255_dev {
 	u8			read_endpoint;
 
 	struct s2255_dmaqueue	vidq[MAX_CHANNELS];
-	struct video_device	*vdev[MAX_CHANNELS];
 	struct timer_list	timer;
 	struct s2255_fw	*fw_data;
 	struct s2255_pipeinfo	pipe;
@@ -719,10 +719,10 @@ static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	if (fh->fmt == NULL)
 		return -EINVAL;
 
-	if ((fh->width < norm_minw(fh->dev->vdev[fh->channel])) ||
-	    (fh->width > norm_maxw(fh->dev->vdev[fh->channel])) ||
-	    (fh->height < norm_minh(fh->dev->vdev[fh->channel])) ||
-	    (fh->height > norm_maxh(fh->dev->vdev[fh->channel]))) {
+	if ((fh->width < norm_minw(&fh->dev->vdev[fh->channel])) ||
+	    (fh->width > norm_maxw(&fh->dev->vdev[fh->channel])) ||
+	    (fh->height < norm_minh(&fh->dev->vdev[fh->channel])) ||
+	    (fh->height > norm_maxh(&fh->dev->vdev[fh->channel]))) {
 		dprintk(4, "invalid buffer prepare\n");
 		return -EINVAL;
 	}
@@ -896,7 +896,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	int is_ntsc;
 
 	is_ntsc =
-	    (dev->vdev[fh->channel]->current_norm & V4L2_STD_NTSC) ? 1 : 0;
+	    (dev->vdev[fh->channel].current_norm & V4L2_STD_NTSC) ? 1 : 0;
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 
@@ -1029,9 +1029,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	fh->height = f->fmt.pix.height;
 	fh->vb_vidq.field = f->fmt.pix.field;
 	fh->type = f->type;
-	norm = norm_minw(fh->dev->vdev[fh->channel]);
-	if (fh->width > norm_minw(fh->dev->vdev[fh->channel])) {
-		if (fh->height > norm_minh(fh->dev->vdev[fh->channel])) {
+	norm = norm_minw(&fh->dev->vdev[fh->channel]);
+	if (fh->width > norm_minw(&fh->dev->vdev[fh->channel])) {
+		if (fh->height > norm_minh(&fh->dev->vdev[fh->channel])) {
 			if (fh->dev->cap_parm[fh->channel].capturemode &
 			    V4L2_MODE_HIGHQUALITY) {
 				fh->mode.scale = SCALE_4CIFSI;
@@ -1755,7 +1755,7 @@ static int s2255_open(struct file *file)
 		video_device_node_name(vdev));
 	lock_kernel();
 	for (i = 0; i < MAX_CHANNELS; i++)
-		if (dev->vdev[i] == vdev) {
+		if (&dev->vdev[i] == vdev) {
 			cur_channel = i;
 			break;
 		}
@@ -1985,7 +1985,6 @@ static const struct v4l2_ioctl_ops s2255_ioctl_ops = {
 static void s2255_video_device_release(struct video_device *vdev)
 {
 	struct s2255_dev *dev = video_get_drvdata(vdev);
-	video_device_release(vdev);
 	kref_put(&dev->kref, s2255_destroy);
 	return;
 }
@@ -2012,19 +2011,18 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		dev->vidq[i].dev = dev;
 		dev->vidq[i].channel = i;
 		/* register 4 video devices */
-		dev->vdev[i] = video_device_alloc();
-		memcpy(dev->vdev[i], &template, sizeof(struct video_device));
-		dev->vdev[i]->parent = &dev->interface->dev;
-		video_set_drvdata(dev->vdev[i], dev);
+		memcpy(&dev->vdev[i], &template, sizeof(struct video_device));
+		dev->vdev[i].parent = &dev->interface->dev;
+		video_set_drvdata(&dev->vdev[i], dev);
 		if (video_nr == -1)
-			ret = video_register_device(dev->vdev[i],
+			ret = video_register_device(&dev->vdev[i],
 						    VFL_TYPE_GRABBER,
 						    video_nr);
 		else
-			ret = video_register_device(dev->vdev[i],
+			ret = video_register_device(&dev->vdev[i],
 						    VFL_TYPE_GRABBER,
 						    cur_nr + i);
-		video_set_drvdata(dev->vdev[i], dev);
+		video_set_drvdata(&dev->vdev[i], dev);
 
 		if (ret != 0) {
 			dev_err(&dev->udev->dev,
@@ -2721,8 +2719,8 @@ static int s2255_probe(struct usb_interface *interface,
 	return 0;
 errorV4L:
 	for (i = 0; i < MAX_CHANNELS; i++)
-		if (dev->vdev[i] && video_is_registered(dev->vdev[i]))
-			video_unregister_device(dev->vdev[i]);
+		if (video_is_registered(&dev->vdev[i]))
+			video_unregister_device(&dev->vdev[i]);
 errorBOARDINIT:
 	s2255_board_shutdown(dev);
 errorFWMARKER:
@@ -2755,8 +2753,8 @@ static void s2255_disconnect(struct usb_interface *interface)
 	dev = usb_get_intfdata(interface);
 	/* unregister each video device. */
 	for (i = 0; i < MAX_CHANNELS; i++)
-		if (video_is_registered(dev->vdev[i]))
-			video_unregister_device(dev->vdev[i]);
+		if (video_is_registered(&dev->vdev[i]))
+			video_unregister_device(&dev->vdev[i]);
 	/* wake up any of our timers */
 	atomic_set(&dev->fw_data->fw_state, S2255_FW_DISCONNECTING);
 	wake_up(&dev->fw_data->wait_fw);
