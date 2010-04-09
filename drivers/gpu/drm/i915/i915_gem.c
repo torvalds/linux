@@ -4440,7 +4440,7 @@ struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 
 	obj->agp_type = AGP_USER_MEMORY;
 
-	obj->base.driver_private = obj;
+	obj->base.driver_private = NULL;
 	obj->obj = &obj->base;
 	obj->fence_reg = I915_FENCE_REG_NONE;
 	INIT_LIST_HEAD(&obj->list);

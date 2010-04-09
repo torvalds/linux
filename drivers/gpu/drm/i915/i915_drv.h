@@ -747,7 +747,7 @@ struct drm_i915_gem_object {
 	atomic_t pending_flip;
 };
 
-#define to_intel_bo(x) ((struct drm_i915_gem_object *) (x)->driver_private)
+#define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
 
 /**
  * Request queue structure.
