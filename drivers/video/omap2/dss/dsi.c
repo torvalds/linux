@@ -2089,6 +2089,13 @@ int dsi_vc_dcs_write(int channel, u8 *data, int len)
 	if (r)
 		goto err;
 
+	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {	/* RX_FIFO_NOT_EMPTY */
+		DSSERR("rx fifo not empty after write, dumping data:\n");
+		dsi_vc_flush_receive_data(channel);
+		r = -EIO;
+		goto err;
+	}
+
 	return 0;
 err:
 	DSSERR("dsi_vc_dcs_write(ch %d, cmd 0x%02x, len %d) failed\n",
