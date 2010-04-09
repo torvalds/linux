@@ -177,6 +177,21 @@ static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
 static void pcpu_reclaim(struct work_struct *work);
 static DECLARE_WORK(pcpu_reclaim_work, pcpu_reclaim);
 
+static bool pcpu_addr_in_first_chunk(void *addr)
+{
+	void *first_start = pcpu_first_chunk->base_addr;
+
+	return addr >= first_start && addr < first_start + pcpu_unit_size;
+}
+
+static bool pcpu_addr_in_reserved_chunk(void *addr)
+{
+	void *first_start = pcpu_first_chunk->base_addr;
+
+	return addr >= first_start &&
+		addr < first_start + pcpu_reserved_chunk_limit;
+}
+
 static int __pcpu_size_to_slot(int size)
 {
 	int highbit = fls(size);	/* size is in bytes */
@@ -334,12 +349,10 @@ static void pcpu_chunk_relocate(struct pcpu_chunk *chunk, int oslot)
  */
 static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 {
-	void *first_start = pcpu_first_chunk->base_addr;
-
 	/* is it in the first chunk? */
-	if (addr >= first_start && addr < first_start + pcpu_unit_size) {
+	if (pcpu_addr_in_first_chunk(addr)) {
 		/* is it in the reserved area? */
-		if (addr < first_start + pcpu_reserved_chunk_limit)
+		if (pcpu_addr_in_reserved_chunk(addr))
 			return pcpu_reserved_chunk;
 		return pcpu_first_chunk;
 	}
@@ -1343,10 +1356,13 @@ bool is_kernel_percpu_address(unsigned long addr)
  */
 phys_addr_t per_cpu_ptr_to_phys(void *addr)
 {
-	if ((unsigned long)addr < VMALLOC_START ||
-			(unsigned long)addr >= VMALLOC_END)
-		return __pa(addr);
-	else
+	if (pcpu_addr_in_first_chunk(addr)) {
+		if ((unsigned long)addr < VMALLOC_START ||
+		    (unsigned long)addr >= VMALLOC_END)
+			return __pa(addr);
+		else
+			return page_to_phys(vmalloc_to_page(addr));
+	} else
 		return page_to_phys(vmalloc_to_page(addr));
 }
 
