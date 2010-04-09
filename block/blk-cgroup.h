@@ -34,6 +34,8 @@ enum stat_type {
 	BLKIO_STAT_SERVICED,
 	/* Total time spent waiting in scheduler queue in ns */
 	BLKIO_STAT_WAIT_TIME,
+	/* Number of IOs merged */
+	BLKIO_STAT_MERGED,
 	/* All the single valued stats go below this */
 	BLKIO_STAT_TIME,
 	BLKIO_STAT_SECTORS,
@@ -61,7 +63,7 @@ struct blkio_group_stats {
 	/* total disk time and nr sectors dispatched by this group */
 	uint64_t time;
 	uint64_t sectors;
-	uint64_t stat_arr[BLKIO_STAT_WAIT_TIME + 1][BLKIO_STAT_TOTAL];
+	uint64_t stat_arr[BLKIO_STAT_MERGED + 1][BLKIO_STAT_TOTAL];
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	/* How many times this group has been removed from service tree */
 	unsigned long dequeue;
@@ -148,6 +150,8 @@ void blkiocg_update_dispatch_stats(struct blkio_group *blkg, uint64_t bytes,
 						bool direction, bool sync);
 void blkiocg_update_completion_stats(struct blkio_group *blkg,
 	uint64_t start_time, uint64_t io_start_time, bool direction, bool sync);
+void blkiocg_update_io_merged_stats(struct blkio_group *blkg, bool direction,
+					bool sync);
 #else
 struct cgroup;
 static inline struct blkio_cgroup *
@@ -169,5 +173,7 @@ static inline void blkiocg_update_dispatch_stats(struct blkio_group *blkg,
 static inline void blkiocg_update_completion_stats(struct blkio_group *blkg,
 		uint64_t start_time, uint64_t io_start_time, bool direction,
 		bool sync) {}
+static inline void blkiocg_update_io_merged_stats(struct blkio_group *blkg,
+						bool direction, bool sync) {}
 #endif
 #endif /* _BLK_CGROUP_H */

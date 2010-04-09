@@ -127,6 +127,18 @@ void blkiocg_update_completion_stats(struct blkio_group *blkg,
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_completion_stats);
 
+void blkiocg_update_io_merged_stats(struct blkio_group *blkg, bool direction,
+					bool sync)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	blkio_add_stat(blkg->stats.stat_arr[BLKIO_STAT_MERGED], 1, direction,
+			sync);
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
+}
+EXPORT_SYMBOL_GPL(blkiocg_update_io_merged_stats);
+
 void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 			struct blkio_group *blkg, void *key, dev_t dev)
 {
@@ -363,6 +375,7 @@ SHOW_FUNCTION_PER_GROUP(io_service_bytes, BLKIO_STAT_SERVICE_BYTES, 1);
 SHOW_FUNCTION_PER_GROUP(io_serviced, BLKIO_STAT_SERVICED, 1);
 SHOW_FUNCTION_PER_GROUP(io_service_time, BLKIO_STAT_SERVICE_TIME, 1);
 SHOW_FUNCTION_PER_GROUP(io_wait_time, BLKIO_STAT_WAIT_TIME, 1);
+SHOW_FUNCTION_PER_GROUP(io_merged, BLKIO_STAT_MERGED, 1);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 SHOW_FUNCTION_PER_GROUP(dequeue, BLKIO_STAT_DEQUEUE, 0);
 #endif
@@ -406,6 +419,10 @@ struct cftype blkio_files[] = {
 	{
 		.name = "io_wait_time",
 		.read_map = blkiocg_io_wait_time_read,
+	},
+	{
+		.name = "io_merged",
+		.read_map = blkiocg_io_merged_read,
 	},
 	{
 		.name = "reset_stats",

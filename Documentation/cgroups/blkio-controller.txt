@@ -134,6 +134,11 @@ Details of cgroup files
 	  minor number of the device, third field specifies the operation type
 	  and the fourth field specifies the io_wait_time in ns.
 
+- blkio.io_merged
+	- Total number of bios/requests merged into requests belonging to this
+	  cgroup. This is further divided by the type of operation - read or
+	  write, sync or async.
+
 - blkio.dequeue
 	- Debugging aid only enabled if CONFIG_DEBUG_CFQ_IOSCHED=y. This
 	  gives the statistics about how many a times a group was dequeued

@@ -539,6 +539,15 @@ void elv_merge_requests(struct request_queue *q, struct request *rq,
 	q->last_merge = rq;
 }
 
+void elv_bio_merged(struct request_queue *q, struct request *rq,
+			struct bio *bio)
+{
+	struct elevator_queue *e = q->elevator;
+
+	if (e->ops->elevator_bio_merged_fn)
+		e->ops->elevator_bio_merged_fn(q, rq, bio);
+}
+
 void elv_requeue_request(struct request_queue *q, struct request *rq)
 {
 	/*

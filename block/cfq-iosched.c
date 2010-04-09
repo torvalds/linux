@@ -1467,6 +1467,14 @@ static void cfq_merged_request(struct request_queue *q, struct request *req,
 	}
 }
 
+static void cfq_bio_merged(struct request_queue *q, struct request *req,
+				struct bio *bio)
+{
+	struct cfq_queue *cfqq = RQ_CFQQ(req);
+	blkiocg_update_io_merged_stats(&cfqq->cfqg->blkg, bio_data_dir(bio),
+					cfq_bio_sync(bio));
+}
+
 static void
 cfq_merged_requests(struct request_queue *q, struct request *rq,
 		    struct request *next)
@@ -1484,6 +1492,8 @@ cfq_merged_requests(struct request_queue *q, struct request *rq,
 	if (cfqq->next_rq == next)
 		cfqq->next_rq = rq;
 	cfq_remove_request(next);
+	blkiocg_update_io_merged_stats(&cfqq->cfqg->blkg, rq_data_dir(next),
+					rq_is_sync(next));
 }
 
 static int cfq_allow_merge(struct request_queue *q, struct request *rq,
@@ -3861,6 +3871,7 @@ static struct elevator_type iosched_cfq = {
 		.elevator_merged_fn =		cfq_merged_request,
 		.elevator_merge_req_fn =	cfq_merged_requests,
 		.elevator_allow_merge_fn =	cfq_allow_merge,
+		.elevator_bio_merged_fn =	cfq_bio_merged,
 		.elevator_dispatch_fn =		cfq_dispatch_requests,
 		.elevator_add_req_fn =		cfq_insert_request,
 		.elevator_activate_req_fn =	cfq_activate_request,
