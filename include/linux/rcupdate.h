@@ -195,12 +195,30 @@ static inline int rcu_read_lock_sched_held(void)
 
 /**
  * rcu_dereference_check - rcu_dereference with debug checking
+ * @p: The pointer to read, prior to dereferencing
+ * @c: The conditions under which the dereference will take place
  *
- * Do an rcu_dereference(), but check that the context is correct.
- * For example, rcu_dereference_check(gp, rcu_read_lock_held()) to
- * ensure that the rcu_dereference_check() executes within an RCU
- * read-side critical section.  It is also possible to check for
- * locks being held, for example, by using lockdep_is_held().
+ * Do an rcu_dereference(), but check that the conditions under which the
+ * dereference will take place are correct.  Typically the conditions indicate
+ * the various locking conditions that should be held at that point.  The check
+ * should return true if the conditions are satisfied.
+ *
+ * For example:
+ *
+ *	bar = rcu_dereference_check(foo->bar, rcu_read_lock_held() ||
+ *					      lockdep_is_held(&foo->lock));
+ *
+ * could be used to indicate to lockdep that foo->bar may only be dereferenced
+ * if either the RCU read lock is held, or that the lock required to replace
+ * the bar struct at foo->bar is held.
+ *
+ * Note that the list of conditions may also include indications of when a lock
+ * need not be held, for example during initialisation or destruction of the
+ * target struct:
+ *
+ *	bar = rcu_dereference_check(foo->bar, rcu_read_lock_held() ||
+ *					      lockdep_is_held(&foo->lock) ||
+ *					      atomic_read(&foo->usage) == 0);
  */
 #define rcu_dereference_check(p, c) \
 	({ \
