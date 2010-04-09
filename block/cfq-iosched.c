@@ -2205,10 +2205,13 @@ static int cfq_forced_dispatch(struct cfq_data *cfqd)
 	struct cfq_queue *cfqq;
 	int dispatched = 0;
 
-	while ((cfqq = cfq_get_next_queue_forced(cfqd)) != NULL)
-		dispatched += __cfq_forced_dispatch_cfqq(cfqq);
-
+	/* Expire the timeslice of the current active queue first */
 	cfq_slice_expired(cfqd, 0);
+	while ((cfqq = cfq_get_next_queue_forced(cfqd)) != NULL) {
+		__cfq_set_active_queue(cfqd, cfqq);
+		dispatched += __cfq_forced_dispatch_cfqq(cfqq);
+	}
+
 	BUG_ON(cfqd->busy_queues);
 
 	cfq_log(cfqd, "forced_dispatch=%d", dispatched);
