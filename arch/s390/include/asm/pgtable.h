@@ -105,7 +105,7 @@ extern char empty_zero_page[PAGE_SIZE];
 #ifndef __ASSEMBLY__
 /*
  * The vmalloc area will always be on the topmost area of the kernel
- * mapping. We reserve 96MB (31bit) / 1GB (64bit) for vmalloc,
+ * mapping. We reserve 96MB (31bit) / 128GB (64bit) for vmalloc,
  * which should be enough for any sane case.
  * By putting vmalloc at the top, we maximise the gap between physical
  * memory and vmalloc to catch misplaced memory accesses. As a side
@@ -120,8 +120,8 @@ extern unsigned long VMALLOC_START;
 #define VMALLOC_END	0x7e000000UL
 #define VMEM_MAP_END	0x80000000UL
 #else /* __s390x__ */
-#define VMALLOC_SIZE	(1UL << 30)
-#define VMALLOC_END	0x3e040000000UL
+#define VMALLOC_SIZE	(128UL << 30)
+#define VMALLOC_END	0x3e000000000UL
 #define VMEM_MAP_END	0x40000000000UL
 #endif /* __s390x__ */
 
