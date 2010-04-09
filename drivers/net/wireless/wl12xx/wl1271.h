@@ -473,6 +473,9 @@ struct wl1271 {
 	/* in dBm */
 	int power_level;
 
+	int rssi_thold;
+	int last_rssi_event;
+
 	struct wl1271_stats stats;
 	struct wl1271_debugfs debugfs;
 

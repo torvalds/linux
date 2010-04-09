@@ -412,7 +412,8 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 		SCAN_COMPLETE_EVENT_ID |
 		PS_REPORT_EVENT_ID |
 		JOIN_EVENT_COMPLETE_ID |
-		DISCONNECT_EVENT_COMPLETE_ID;
+		DISCONNECT_EVENT_COMPLETE_ID |
+		RSSI_SNR_TRIGGER_0_EVENT_ID;
 
 	ret = wl1271_event_unmask(wl);
 	if (ret < 0) {

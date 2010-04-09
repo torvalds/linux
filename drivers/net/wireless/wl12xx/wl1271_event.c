@@ -125,6 +125,24 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 	return ret;
 }
 
+static void wl1271_event_rssi_trigger(struct wl1271 *wl,
+				      struct event_mailbox *mbox)
+{
+	enum nl80211_cqm_rssi_threshold_event event;
+	s8 metric = mbox->rssi_snr_trigger_metric[0];
+
+	wl1271_debug(DEBUG_EVENT, "RSSI trigger metric: %d", metric);
+
+	if (metric <= wl->rssi_thold)
+		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
+	else
+		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
+
+	if (event != wl->last_rssi_event)
+		ieee80211_cqm_rssi_notify(wl->vif, event, GFP_KERNEL);
+	wl->last_rssi_event = event;
+}
+
 static void wl1271_event_mbox_dump(struct event_mailbox *mbox)
 {
 	wl1271_debug(DEBUG_EVENT, "MBOX DUMP:");
@@ -171,6 +189,12 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		ret = wl1271_event_ps_report(wl, mbox, &beacon_loss);
 		if (ret < 0)
 			return ret;
+	}
+
+	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT, "RSSI_SNR_TRIGGER_0_EVENT");
+		if (wl->vif)
+			wl1271_event_rssi_trigger(wl, mbox);
 	}
 
 	if (wl->vif && beacon_loss)

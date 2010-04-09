@@ -352,6 +352,11 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
+	/* Configure rssi/snr averaging weights */
+	ret = wl1271_acx_rssi_snr_avg_weights(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
 	return 0;
 
  out_free_memmap:

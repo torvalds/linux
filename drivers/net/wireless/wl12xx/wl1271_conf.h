@@ -756,65 +756,6 @@ enum {
 	CONF_TRIG_EVENT_DIR_BIDIR
 };
 
-
-struct conf_sig_trigger {
-	/*
-	 * The RSSI / SNR threshold value.
-	 *
-	 * FIXME: what is the range?
-	 */
-	s16 threshold;
-
-	/*
-	 * Minimum delay between two trigger events for this trigger in ms.
-	 *
-	 * Range: 0 - 60000
-	 */
-	u16 pacing;
-
-	/*
-	 * The measurement data source for this trigger.
-	 *
-	 * Range: CONF_TRIG_METRIC_*
-	 */
-	u8 metric;
-
-	/*
-	 * The trigger type of this trigger.
-	 *
-	 * Range: CONF_TRIG_EVENT_TYPE_*
-	 */
-	u8 type;
-
-	/*
-	 * The direction of the trigger.
-	 *
-	 * Range: CONF_TRIG_EVENT_DIR_*
-	 */
-	u8 direction;
-
-	/*
-	 * Hysteresis range of the trigger around the threshold (in dB)
-	 *
-	 * Range: u8
-	 */
-	u8 hysteresis;
-
-	/*
-	 * Index of the trigger rule.
-	 *
-	 * Range: 0 - CONF_MAX_RSSI_SNR_TRIGGERS-1
-	 */
-	u8 index;
-
-	/*
-	 * Enable / disable this rule (to use for clearing rules.)
-	 *
-	 * Range: 1 - Enabled, 2 - Not enabled
-	 */
-	u8 enable;
-};
-
 struct conf_sig_weights {
 
 	/*
@@ -933,12 +874,6 @@ struct conf_conn_settings {
 	u8 ps_poll_threshold;
 
 	/*
-	 * Configuration of signal (rssi/snr) triggers.
-	 */
-	u8 sig_trigger_count;
-	struct conf_sig_trigger sig_trigger[CONF_MAX_RSSI_SNR_TRIGGERS];
-
-	/*
 	 * Configuration of signal average weights.
 	 */
 	struct conf_sig_weights sig_weights;
@@ -1045,6 +980,43 @@ struct conf_pm_config_settings {
 	bool host_fast_wakeup_support;
 };
 
+struct conf_roam_trigger_settings {
+	/*
+	 * The minimum interval between two trigger events.
+	 *
+	 * Range: 0 - 60000 ms
+	 */
+	u16 trigger_pacing;
+
+	/*
+	 * The weight for rssi/beacon average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_rssi_beacon;
+
+	/*
+	 * The weight for rssi/data frame average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_rssi_data;
+
+	/*
+	 * The weight for snr/beacon average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_snr_beacon;
+
+	/*
+	 * The weight for snr/data frame average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_snr_data;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1053,6 +1025,7 @@ struct conf_drv_settings {
 	struct conf_init_settings init;
 	struct conf_itrim_settings itrim;
 	struct conf_pm_config_settings pm_config;
+	struct conf_roam_trigger_settings roam_trigger;
 };
 
 #endif

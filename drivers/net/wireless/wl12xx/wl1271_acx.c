@@ -1165,6 +1165,7 @@ out:
 	kfree(acx);
 	return ret;
 }
+
 int wl1271_acx_keep_alive_config(struct wl1271 *wl, u8 index, u8 tpl_valid)
 {
 	struct wl1271_acx_keep_alive_config *acx = NULL;
@@ -1187,6 +1188,76 @@ int wl1271_acx_keep_alive_config(struct wl1271 *wl, u8 index, u8 tpl_valid)
 				   acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("acx keep alive config failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_rssi_snr_trigger(struct wl1271 *wl, bool enable,
+				s16 thold, u8 hyst)
+{
+	struct wl1271_acx_rssi_snr_trigger *acx = NULL;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx rssi snr trigger");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	wl->last_rssi_event = -1;
+
+	acx->pacing = cpu_to_le16(wl->conf.roam_trigger.trigger_pacing);
+	acx->metric = WL1271_ACX_TRIG_METRIC_RSSI_BEACON;
+	acx->type = WL1271_ACX_TRIG_TYPE_EDGE;
+	if (enable)
+		acx->enable = WL1271_ACX_TRIG_ENABLE;
+	else
+		acx->enable = WL1271_ACX_TRIG_DISABLE;
+
+	acx->index = WL1271_ACX_TRIG_IDX_RSSI;
+	acx->dir = WL1271_ACX_TRIG_DIR_BIDIR;
+	acx->threshold = cpu_to_le16(thold);
+	acx->hysteresis = hyst;
+
+	ret = wl1271_cmd_configure(wl, ACX_RSSI_SNR_TRIGGER, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx rssi snr trigger setting failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_rssi_snr_avg_weights(struct wl1271 *wl)
+{
+	struct wl1271_acx_rssi_snr_avg_weights *acx = NULL;
+	struct conf_roam_trigger_settings *c = &wl->conf.roam_trigger;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx rssi snr avg weights");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->rssi_beacon = c->avg_weight_rssi_beacon;
+	acx->rssi_data = c->avg_weight_rssi_data;
+	acx->snr_beacon = c->avg_weight_snr_beacon;
+	acx->snr_data = c->avg_weight_snr_data;
+
+	ret = wl1271_cmd_configure(wl, ACX_RSSI_SNR_WEIGHTS, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx rssi snr trigger weights failed: %d", ret);
 		goto out;
 	}
 

@@ -943,6 +943,57 @@ struct wl1271_acx_keep_alive_config {
 } __attribute__ ((packed));
 
 enum {
+	WL1271_ACX_TRIG_TYPE_LEVEL = 0,
+	WL1271_ACX_TRIG_TYPE_EDGE,
+};
+
+enum {
+	WL1271_ACX_TRIG_DIR_LOW = 0,
+	WL1271_ACX_TRIG_DIR_HIGH,
+	WL1271_ACX_TRIG_DIR_BIDIR,
+};
+
+enum {
+	WL1271_ACX_TRIG_ENABLE = 1,
+	WL1271_ACX_TRIG_DISABLE,
+};
+
+enum {
+	WL1271_ACX_TRIG_METRIC_RSSI_BEACON = 0,
+	WL1271_ACX_TRIG_METRIC_RSSI_DATA,
+	WL1271_ACX_TRIG_METRIC_SNR_BEACON,
+	WL1271_ACX_TRIG_METRIC_SNR_DATA,
+};
+
+enum {
+	WL1271_ACX_TRIG_IDX_RSSI = 0,
+	WL1271_ACX_TRIG_COUNT = 8,
+};
+
+struct wl1271_acx_rssi_snr_trigger {
+	struct acx_header header;
+
+	__le16 threshold;
+	__le16 pacing; /* 0 - 60000 ms */
+	u8 metric;
+	u8 type;
+	u8 dir;
+	u8 hysteresis;
+	u8 index;
+	u8 enable;
+	u8 padding[2];
+};
+
+struct wl1271_acx_rssi_snr_avg_weights {
+	struct acx_header header;
+
+	u8 rssi_beacon;
+	u8 rssi_data;
+	u8 snr_beacon;
+	u8 snr_data;
+};
+
+enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
 	ACX_MEM_CFG                 = 0x0003,
 	ACX_SLOT                    = 0x0004,
@@ -990,7 +1041,7 @@ enum {
 	ACX_FRAG_CFG                = 0x004F,
 	ACX_BET_ENABLE              = 0x0050,
 	ACX_RSSI_SNR_TRIGGER        = 0x0051,
-	ACX_RSSI_SNR_WEIGHTS        = 0x0051,
+	ACX_RSSI_SNR_WEIGHTS        = 0x0052,
 	ACX_KEEP_ALIVE_MODE         = 0x0053,
 	ACX_SET_KEEP_ALIVE_CONFIG   = 0x0054,
 	ACX_BA_SESSION_RESPONDER_POLICY = 0x0055,
@@ -1060,5 +1111,8 @@ int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
 int wl1271_acx_pm_config(struct wl1271 *wl);
 int wl1271_acx_keep_alive_mode(struct wl1271 *wl, bool enable);
 int wl1271_acx_keep_alive_config(struct wl1271 *wl, u8 index, u8 tpl_valid);
+int wl1271_acx_rssi_snr_trigger(struct wl1271 *wl, bool enable,
+				s16 thold, u8 hyst);
+int wl1271_acx_rssi_snr_avg_weights(struct wl1271 *wl);
 
 #endif /* __WL1271_ACX_H__ */
