@@ -1272,7 +1272,9 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			wl1271_acx_keep_alive_config(
 				wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
 				ACX_KEEP_ALIVE_TPL_INVALID);
-		}
+			set_bit(WL1271_FLAG_IDLE, &wl->flags);
+		} else
+			clear_bit(WL1271_FLAG_IDLE, &wl->flags);
 	}
 
 	if (conf->flags & IEEE80211_CONF_PS &&
