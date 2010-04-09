@@ -29,6 +29,8 @@
 #include <scsi/fc/fc_fcoe.h>
 #include <scsi/libfc.h>
 
+#define FCOE_MAX_CMD_LEN	16	/* Supported CDB length */
+
 /*
  * FIP tunable parameters.
  */

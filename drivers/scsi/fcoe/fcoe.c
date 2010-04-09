@@ -669,6 +669,8 @@ static int fcoe_shost_config(struct fc_lport *lport, struct device *dev)
 	lport->host->max_lun = FCOE_MAX_LUN;
 	lport->host->max_id = FCOE_MAX_FCP_TARGET;
 	lport->host->max_channel = 0;
+	lport->host->max_cmd_len = FCOE_MAX_CMD_LEN;
+
 	if (lport->vport)
 		lport->host->transportt = fcoe_vport_transport_template;
 	else
