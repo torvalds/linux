@@ -13789,6 +13789,18 @@ static void alc269_laptop_unsol_event(struct hda_codec *codec,
 	}
 }
 
+static void alc269_laptop_amic_setup(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->ext_mic.pin = 0x18;
+	spec->ext_mic.mux_idx = 0;
+	spec->int_mic.pin = 0x19;
+	spec->int_mic.mux_idx = 1;
+	spec->auto_mic = 1;
+}
+
 static void alc269_laptop_dmic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -13801,27 +13813,27 @@ static void alc269_laptop_dmic_setup(struct hda_codec *codec)
 	spec->auto_mic = 1;
 }
 
-static void alc269vb_laptop_dmic_setup(struct hda_codec *codec)
+static void alc269vb_laptop_amic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->ext_mic.pin = 0x18;
-	spec->ext_mic.mux_idx = 0;
-	spec->int_mic.pin = 0x12;
-	spec->int_mic.mux_idx = 6;
-	spec->auto_mic = 1;
-}
-
-static void alc269_laptop_amic_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.hp_pins[0] = 0x21;
 	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x19;
 	spec->int_mic.mux_idx = 1;
+	spec->auto_mic = 1;
+}
+
+static void alc269vb_laptop_dmic_setup(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x21;
+	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->ext_mic.pin = 0x18;
+	spec->ext_mic.mux_idx = 0;
+	spec->int_mic.pin = 0x12;
+	spec->int_mic.mux_idx = 6;
 	spec->auto_mic = 1;
 }
 
@@ -14162,7 +14174,7 @@ static struct alc_config_preset alc269_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc269_modes),
 		.channel_mode = alc269_modes,
 		.unsol_event = alc269_laptop_unsol_event,
-		.setup = alc269_laptop_amic_setup,
+		.setup = alc269vb_laptop_amic_setup,
 		.init_hook = alc269_laptop_inithook,
 	},
 	[ALC269VB_DMIC] = {
