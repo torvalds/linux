@@ -201,6 +201,7 @@ static int nfs_set_page_writeback(struct page *page)
 		struct inode *inode = page->mapping->host;
 		struct nfs_server *nfss = NFS_SERVER(inode);
 
+		page_cache_get(page);
 		if (atomic_long_inc_return(&nfss->writeback) >
 				NFS_CONGESTION_ON_THRESH) {
 			set_bdi_congested(&nfss->backing_dev_info,
@@ -216,6 +217,7 @@ static void nfs_end_page_writeback(struct page *page)
 	struct nfs_server *nfss = NFS_SERVER(inode);
 
 	end_page_writeback(page);
+	page_cache_release(page);
 	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
 		clear_bdi_congested(&nfss->backing_dev_info, BLK_RW_ASYNC);
 }
@@ -665,6 +667,7 @@ static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 	/* Update file length */
 	nfs_grow_file(page, offset, count);
 	nfs_mark_uptodate(page, req->wb_pgbase, req->wb_bytes);
+	nfs_mark_request_dirty(req);
 	nfs_clear_page_tag_locked(req);
 	return 0;
 }
@@ -749,13 +752,12 @@ int nfs_updatepage(struct file *file, struct page *page,
 
 static void nfs_writepage_release(struct nfs_page *req)
 {
+	struct page *page = req->wb_page;
 
-	if (PageError(req->wb_page) || !nfs_reschedule_unstable_write(req)) {
-		nfs_end_page_writeback(req->wb_page);
+	if (PageError(req->wb_page) || !nfs_reschedule_unstable_write(req))
 		nfs_inode_remove_request(req);
-	} else
-		nfs_end_page_writeback(req->wb_page);
 	nfs_clear_page_tag_locked(req);
+	nfs_end_page_writeback(page);
 }
 
 static int flush_task_priority(int how)
@@ -847,9 +849,11 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
  */
 static void nfs_redirty_request(struct nfs_page *req)
 {
+	struct page *page = req->wb_page;
+
 	nfs_mark_request_dirty(req);
-	nfs_end_page_writeback(req->wb_page);
 	nfs_clear_page_tag_locked(req);
+	nfs_end_page_writeback(page);
 }
 
 /*
@@ -1084,16 +1088,15 @@ static void nfs_writeback_release_full(void *calldata)
 		if (nfs_write_need_commit(data)) {
 			memcpy(&req->wb_verf, &data->verf, sizeof(req->wb_verf));
 			nfs_mark_request_commit(req);
-			nfs_end_page_writeback(page);
 			dprintk(" marked for commit\n");
 			goto next;
 		}
 		dprintk(" OK\n");
 remove_request:
-		nfs_end_page_writeback(page);
 		nfs_inode_remove_request(req);
 	next:
 		nfs_clear_page_tag_locked(req);
+		nfs_end_page_writeback(page);
 	}
 	nfs_writedata_release(calldata);
 }
