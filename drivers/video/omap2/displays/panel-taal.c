@@ -627,7 +627,6 @@ err4:
 err3:
 	backlight_device_unregister(bldev);
 err2:
-	cancel_delayed_work_sync(&td->esd_work);
 	destroy_workqueue(td->esd_wq);
 err1:
 	kfree(td);
