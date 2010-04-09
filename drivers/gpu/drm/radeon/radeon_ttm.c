@@ -165,8 +165,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			man->io_size = rdev->mc.gtt_size;
 			man->io_addr = NULL;
 			if (!rdev->ddev->agp->cant_use_aperture)
-				man->flags = TTM_MEMTYPE_FLAG_NEEDS_IOREMAP |
-					     TTM_MEMTYPE_FLAG_MAPPABLE;
+				man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
 			man->available_caching = TTM_PL_FLAG_UNCACHED |
 						 TTM_PL_FLAG_WC;
 			man->default_caching = TTM_PL_FLAG_WC;
@@ -182,7 +181,6 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		/* "On-card" video ram */
 		man->gpu_offset = rdev->mc.vram_start;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
-			     TTM_MEMTYPE_FLAG_NEEDS_IOREMAP |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
@@ -437,8 +435,51 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 memcpy:
 		r = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 	}
-
 	return r;
+}
+
+static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
+{
+	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
+	struct radeon_device *rdev = radeon_get_rdev(bdev);
+
+	mem->bus.addr = NULL;
+	mem->bus.offset = 0;
+	mem->bus.size = mem->num_pages << PAGE_SHIFT;
+	mem->bus.base = 0;
+	mem->bus.is_iomem = false;
+	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
+		return -EINVAL;
+	switch (mem->mem_type) {
+	case TTM_PL_SYSTEM:
+		/* system memory */
+		return 0;
+	case TTM_PL_TT:
+#if __OS_HAS_AGP
+		if (rdev->flags & RADEON_IS_AGP) {
+			/* RADEON_IS_AGP is set only if AGP is active */
+			mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+			mem->bus.base = rdev->mc.agp_base;
+			mem->bus.is_iomem = true;
+		}
+#endif
+		break;
+	case TTM_PL_VRAM:
+		mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+		/* check if it's visible */
+		if ((mem->bus.offset + mem->bus.size) > rdev->mc.visible_vram_size)
+			return -EINVAL;
+		mem->bus.base = rdev->mc.aper_base;
+		mem->bus.is_iomem = true;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void radeon_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
+{
 }
 
 static int radeon_sync_obj_wait(void *sync_obj, void *sync_arg,
@@ -481,6 +522,8 @@ static struct ttm_bo_driver radeon_bo_driver = {
 	.sync_obj_ref = &radeon_sync_obj_ref,
 	.move_notify = &radeon_bo_move_notify,
 	.fault_reserve_notify = &radeon_bo_fault_reserve_notify,
+	.io_mem_reserve = &radeon_ttm_io_mem_reserve,
+	.io_mem_free = &radeon_ttm_io_mem_free,
 };
 
 int radeon_ttm_init(struct radeon_device *rdev)
