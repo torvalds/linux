@@ -1753,7 +1753,6 @@ static int s2255_open(struct file *file)
 	int state;
 	dprintk(1, "s2255: open called (dev=%s)\n",
 		video_device_node_name(vdev));
-	lock_kernel();
 	for (i = 0; i < MAX_CHANNELS; i++)
 		if (&dev->vdev[i] == vdev) {
 			cur_channel = i;
@@ -1769,7 +1768,6 @@ static int s2255_open(struct file *file)
 	switch (state) {
 	case S2255_FW_DISCONNECTING:
 		mutex_unlock(&dev->open_lock);
-		unlock_kernel();
 		return -ENODEV;
 	case S2255_FW_FAILED:
 		s2255_dev_err(&dev->udev->dev,
@@ -1809,30 +1807,24 @@ static int s2255_open(struct file *file)
 		break;
 	case S2255_FW_FAILED:
 		printk(KERN_INFO "2255 firmware load failed.\n");
-		unlock_kernel();
 		return -ENODEV;
 	case S2255_FW_DISCONNECTING:
 		printk(KERN_INFO "%s: disconnecting\n", __func__);
-		unlock_kernel();
 		return -ENODEV;
 	case S2255_FW_LOADED_DSPWAIT:
 	case S2255_FW_NOTLOADED:
 		printk(KERN_INFO "%s: firmware not loaded yet"
 		       "please try again later\n",
 		       __func__);
-		unlock_kernel();
 		return -EAGAIN;
 	default:
 		printk(KERN_INFO "%s: unknown state\n", __func__);
-		unlock_kernel();
 		return -EFAULT;
 	}
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-	if (NULL == fh) {
-		unlock_kernel();
+	if (NULL == fh)
 		return -ENOMEM;
-	}
 	file->private_data = fh;
 	fh->dev = dev;
 	fh->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1860,7 +1852,6 @@ static int s2255_open(struct file *file)
 				    fh->type,
 				    V4L2_FIELD_INTERLACED,
 				    sizeof(struct s2255_buffer), fh);
-	unlock_kernel();
 	return 0;
 }
 
