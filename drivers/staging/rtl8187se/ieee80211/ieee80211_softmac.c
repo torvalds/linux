@@ -2322,9 +2322,11 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 
 	if(IS_DOT11D_ENABLE(ieee))
 		Dot11d_Reset(ieee);
-	ieee->state = IEEE80211_NOLINK;
+
 	ieee->link_change(ieee->dev);
-	notify_wx_assoc_event(ieee);
+	if (ieee->state == IEEE80211_LINKED)
+		notify_wx_assoc_event(ieee);
+	ieee->state = IEEE80211_NOLINK;
 
 }
 void ieee80211_associate_retry_wq(struct work_struct *work)
