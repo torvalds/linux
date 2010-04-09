@@ -173,6 +173,8 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			if (!nd->reading_mt) {
 				input_report_key(input, BTN_TOOL_DOUBLETAP,
 						 (nd->confidence != 0));
+				input_report_key(input, BTN_TOUCH,
+						 (nd->confidence != 0));
 				input_event(input, EV_ABS, ABS_X, nd->x);
 				input_event(input, EV_ABS, ABS_Y, nd->y);
 			}
