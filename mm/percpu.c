@@ -636,6 +636,38 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme)
 	pcpu_chunk_relocate(chunk, oslot);
 }
 
+static struct pcpu_chunk *pcpu_alloc_chunk(void)
+{
+	struct pcpu_chunk *chunk;
+
+	chunk = kzalloc(pcpu_chunk_struct_size, GFP_KERNEL);
+	if (!chunk)
+		return NULL;
+
+	chunk->map = pcpu_mem_alloc(PCPU_DFL_MAP_ALLOC * sizeof(chunk->map[0]));
+	if (!chunk->map) {
+		kfree(chunk);
+		return NULL;
+	}
+
+	chunk->map_alloc = PCPU_DFL_MAP_ALLOC;
+	chunk->map[chunk->map_used++] = pcpu_unit_size;
+
+	INIT_LIST_HEAD(&chunk->list);
+	chunk->free_size = pcpu_unit_size;
+	chunk->contig_hint = pcpu_unit_size;
+
+	return chunk;
+}
+
+static void pcpu_free_chunk(struct pcpu_chunk *chunk)
+{
+	if (!chunk)
+		return;
+	pcpu_mem_free(chunk->map, chunk->map_alloc * sizeof(chunk->map[0]));
+	kfree(chunk);
+}
+
 /**
  * pcpu_get_pages_and_bitmap - get temp pages array and bitmap
  * @chunk: chunk of interest
@@ -1028,41 +1060,31 @@ err_free:
 	return rc;
 }
 
-static void free_pcpu_chunk(struct pcpu_chunk *chunk)
+static void pcpu_destroy_chunk(struct pcpu_chunk *chunk)
 {
-	if (!chunk)
-		return;
-	if (chunk->vms)
+	if (chunk && chunk->vms)
 		pcpu_free_vm_areas(chunk->vms, pcpu_nr_groups);
-	pcpu_mem_free(chunk->map, chunk->map_alloc * sizeof(chunk->map[0]));
-	kfree(chunk);
+	pcpu_free_chunk(chunk);
 }
 
-static struct pcpu_chunk *alloc_pcpu_chunk(void)
+static struct pcpu_chunk *pcpu_create_chunk(void)
 {
 	struct pcpu_chunk *chunk;
+	struct vm_struct **vms;
 
-	chunk = kzalloc(pcpu_chunk_struct_size, GFP_KERNEL);
+	chunk = pcpu_alloc_chunk();
 	if (!chunk)
 		return NULL;
 
-	chunk->map = pcpu_mem_alloc(PCPU_DFL_MAP_ALLOC * sizeof(chunk->map[0]));
-	chunk->map_alloc = PCPU_DFL_MAP_ALLOC;
-	chunk->map[chunk->map_used++] = pcpu_unit_size;
-
-	chunk->vms = pcpu_get_vm_areas(pcpu_group_offsets, pcpu_group_sizes,
-				       pcpu_nr_groups, pcpu_atom_size,
-				       GFP_KERNEL);
-	if (!chunk->vms) {
-		free_pcpu_chunk(chunk);
+	vms = pcpu_get_vm_areas(pcpu_group_offsets, pcpu_group_sizes,
+				pcpu_nr_groups, pcpu_atom_size, GFP_KERNEL);
+	if (!vms) {
+		pcpu_free_chunk(chunk);
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&chunk->list);
-	chunk->free_size = pcpu_unit_size;
-	chunk->contig_hint = pcpu_unit_size;
-	chunk->base_addr = chunk->vms[0]->addr - pcpu_group_offsets[0];
-
+	chunk->vms = vms;
+	chunk->base_addr = vms[0]->addr - pcpu_group_offsets[0];
 	return chunk;
 }
 
@@ -1155,7 +1177,7 @@ restart:
 	/* hmmm... no space left, create a new chunk */
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
-	chunk = alloc_pcpu_chunk();
+	chunk = pcpu_create_chunk();
 	if (!chunk) {
 		err = "failed to allocate new chunk";
 		goto fail_unlock_mutex;
@@ -1267,7 +1289,7 @@ static void pcpu_reclaim(struct work_struct *work)
 
 	list_for_each_entry_safe(chunk, next, &todo, list) {
 		pcpu_depopulate_chunk(chunk, 0, pcpu_unit_size);
-		free_pcpu_chunk(chunk);
+		pcpu_destroy_chunk(chunk);
 	}
 
 	mutex_unlock(&pcpu_alloc_mutex);
