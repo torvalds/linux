@@ -230,6 +230,7 @@ enum {
 	ALC888_ACER_ASPIRE_7730G,
 	ALC883_MEDION,
 	ALC883_MEDION_MD2,
+	ALC883_MEDION_WIM2160,
 	ALC883_LAPTOP_EAPD,
 	ALC883_LENOVO_101E_2ch,
 	ALC883_LENOVO_NB0763,
@@ -4896,6 +4897,25 @@ static void alc880_auto_init_analog_input(struct hda_codec *codec)
 	}
 }
 
+static void alc880_auto_init_input_src(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int c;
+
+	for (c = 0; c < spec->num_adc_nids; c++) {
+		unsigned int mux_idx;
+		const struct hda_input_mux *imux;
+		mux_idx = c >= spec->num_mux_defs ? 0 : c;
+		imux = &spec->input_mux[mux_idx];
+		if (!imux->num_items && mux_idx > 0)
+			imux = &spec->input_mux[0];
+		if (imux)
+			snd_hda_codec_write(codec, spec->adc_nids[c], 0,
+					    AC_VERB_SET_CONNECT_SEL,
+					    imux->items[0].index);
+	}
+}
+
 /* parse the BIOS configuration and set up the alc_spec */
 /* return 1 if successful, 0 if the proper config is not found,
  * or a negative error code
@@ -4974,6 +4994,7 @@ static void alc880_auto_init(struct hda_codec *codec)
 	alc880_auto_init_multi_out(codec);
 	alc880_auto_init_extra_out(codec);
 	alc880_auto_init_analog_input(codec);
+	alc880_auto_init_input_src(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
 }
@@ -6485,6 +6506,8 @@ static void alc260_auto_init_analog_input(struct hda_codec *codec)
 	}
 }
 
+#define alc260_auto_init_input_src	alc880_auto_init_input_src
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -6571,6 +6594,7 @@ static void alc260_auto_init(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	alc260_auto_init_multi_out(codec);
 	alc260_auto_init_analog_input(codec);
+	alc260_auto_init_input_src(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
 }
@@ -8543,6 +8567,42 @@ static struct snd_kcontrol_new alc883_medion_md2_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc883_medion_wim2160_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1a, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x08, 0x0, HDA_INPUT),
+	{ } /* end */
+};
+
+static struct hda_verb alc883_medion_wim2160_verbs[] = {
+	/* Unmute front mixer */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+
+	/* Set speaker pin to front mixer */
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+
+	/* Init headphone pin */
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+
+	{ } /* end */
+};
+
+/* toggle speaker-output according to the hp-jack state */
+static void alc883_medion_wim2160_setup(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	spec->autocfg.hp_pins[0] = 0x1a;
+	spec->autocfg.speaker_pins[0] = 0x15;
+}
+
 static struct snd_kcontrol_new alc883_acer_aspire_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
@@ -9252,6 +9312,7 @@ static const char *alc882_models[ALC882_MODEL_LAST] = {
 	[ALC888_ACER_ASPIRE_7730G]	= "acer-aspire-7730g",
 	[ALC883_MEDION]		= "medion",
 	[ALC883_MEDION_MD2]	= "medion-md2",
+	[ALC883_MEDION_WIM2160]	= "medion-wim2160",
 	[ALC883_LAPTOP_EAPD]	= "laptop-eapd",
 	[ALC883_LENOVO_101E_2ch] = "lenovo-101e",
 	[ALC883_LENOVO_NB0763]	= "lenovo-nb0763",
@@ -9904,6 +9965,21 @@ static struct alc_config_preset alc882_presets[] = {
 		.input_mux = &alc883_capture_source,
 		.unsol_event = alc_automute_amp_unsol_event,
 		.setup = alc883_medion_md2_setup,
+		.init_hook = alc_automute_amp,
+	},
+	[ALC883_MEDION_WIM2160] = {
+		.mixers = { alc883_medion_wim2160_mixer },
+		.init_verbs = { alc883_init_verbs, alc883_medion_wim2160_verbs },
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.dig_out_nid = ALC883_DIGOUT_NID,
+		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids),
+		.adc_nids = alc883_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
+		.channel_mode = alc883_3ST_2ch_modes,
+		.input_mux = &alc883_capture_source,
+		.unsol_event = alc_automute_amp_unsol_event,
+		.setup = alc883_medion_wim2160_setup,
 		.init_hook = alc_automute_amp,
 	},
 	[ALC883_LAPTOP_EAPD] = {
@@ -12915,6 +12991,7 @@ static int alc268_new_analog_output(struct alc_spec *spec, hda_nid_t nid,
 		dac = 0x02;
 		break;
 	case 0x15:
+	case 0x21: /* ALC269vb has this pin, too */
 		dac = 0x03;
 		break;
 	default:
@@ -13834,6 +13911,18 @@ static void alc269_laptop_unsol_event(struct hda_codec *codec,
 	}
 }
 
+static void alc269_laptop_amic_setup(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->ext_mic.pin = 0x18;
+	spec->ext_mic.mux_idx = 0;
+	spec->int_mic.pin = 0x19;
+	spec->int_mic.mux_idx = 1;
+	spec->auto_mic = 1;
+}
+
 static void alc269_laptop_dmic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -13846,27 +13935,27 @@ static void alc269_laptop_dmic_setup(struct hda_codec *codec)
 	spec->auto_mic = 1;
 }
 
-static void alc269vb_laptop_dmic_setup(struct hda_codec *codec)
+static void alc269vb_laptop_amic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->ext_mic.pin = 0x18;
-	spec->ext_mic.mux_idx = 0;
-	spec->int_mic.pin = 0x12;
-	spec->int_mic.mux_idx = 6;
-	spec->auto_mic = 1;
-}
-
-static void alc269_laptop_amic_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.hp_pins[0] = 0x21;
 	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x19;
 	spec->int_mic.mux_idx = 1;
+	spec->auto_mic = 1;
+}
+
+static void alc269vb_laptop_dmic_setup(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x21;
+	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->ext_mic.pin = 0x18;
+	spec->ext_mic.mux_idx = 0;
+	spec->int_mic.pin = 0x12;
+	spec->int_mic.mux_idx = 6;
 	spec->auto_mic = 1;
 }
 
@@ -14236,7 +14325,7 @@ static struct alc_config_preset alc269_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc269_modes),
 		.channel_mode = alc269_modes,
 		.unsol_event = alc269_laptop_unsol_event,
-		.setup = alc269_laptop_amic_setup,
+		.setup = alc269vb_laptop_amic_setup,
 		.init_hook = alc269_laptop_inithook,
 	},
 	[ALC269VB_DMIC] = {
