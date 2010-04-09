@@ -48,6 +48,7 @@ static const int cfq_hist_divisor = 4;
 #define CFQ_SERVICE_SHIFT       12
 
 #define CFQQ_SEEK_THR		(sector_t)(8 * 100)
+#define CFQQ_CLOSE_THR		(sector_t)(8 * 1024)
 #define CFQQ_SECT_THR_NONROT	(sector_t)(2 * 32)
 #define CFQQ_SEEKY(cfqq)	(hweight32(cfqq->seek_history) > 32/8)
 
@@ -948,6 +949,11 @@ cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
 	unsigned int major, minor;
 
 	cfqg = cfqg_of_blkg(blkiocg_lookup_group(blkcg, key));
+	if (cfqg && !cfqg->blkg.dev && bdi->dev && dev_name(bdi->dev)) {
+		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
+		cfqg->blkg.dev = MKDEV(major, minor);
+		goto done;
+	}
 	if (cfqg || !create)
 		goto done;
 
@@ -1518,7 +1524,8 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
 				   struct cfq_queue *cfqq)
 {
 	if (cfqq) {
-		cfq_log_cfqq(cfqd, cfqq, "set_active");
+		cfq_log_cfqq(cfqd, cfqq, "set_active wl_prio:%d wl_type:%d",
+				cfqd->serving_prio, cfqd->serving_type);
 		cfqq->slice_start = 0;
 		cfqq->dispatch_start = jiffies;
 		cfqq->allocated_slice = 0;
@@ -1661,9 +1668,9 @@ static inline sector_t cfq_dist_from_last(struct cfq_data *cfqd,
 }
 
 static inline int cfq_rq_close(struct cfq_data *cfqd, struct cfq_queue *cfqq,
-			       struct request *rq, bool for_preempt)
+			       struct request *rq)
 {
-	return cfq_dist_from_last(cfqd, rq) <= CFQQ_SEEK_THR;
+	return cfq_dist_from_last(cfqd, rq) <= CFQQ_CLOSE_THR;
 }
 
 static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
@@ -1690,7 +1697,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 	 * will contain the closest sector.
 	 */
 	__cfqq = rb_entry(parent, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq, false))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
 		return __cfqq;
 
 	if (blk_rq_pos(__cfqq->next_rq) < sector)
@@ -1701,7 +1708,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 		return NULL;
 
 	__cfqq = rb_entry(node, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq, false))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
 		return __cfqq;
 
 	return NULL;
@@ -1722,6 +1729,8 @@ static struct cfq_queue *cfq_close_cooperator(struct cfq_data *cfqd,
 {
 	struct cfq_queue *cfqq;
 
+	if (cfq_class_idle(cur_cfqq))
+		return NULL;
 	if (!cfq_cfqq_sync(cur_cfqq))
 		return NULL;
 	if (CFQQ_SEEKY(cur_cfqq))
@@ -1788,7 +1797,11 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * Otherwise, we do only if they are the last ones
 	 * in their service tree.
 	 */
-	return service_tree->count == 1 && cfq_cfqq_sync(cfqq);
+	if (service_tree->count == 1 && cfq_cfqq_sync(cfqq))
+		return 1;
+	cfq_log_cfqq(cfqd, cfqq, "Not idling. st->count:%d",
+			service_tree->count);
+	return 0;
 }
 
 static void cfq_arm_slice_timer(struct cfq_data *cfqd)
@@ -1833,8 +1846,11 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	 * time slice.
 	 */
 	if (sample_valid(cic->ttime_samples) &&
-	    (cfqq->slice_end - jiffies < cic->ttime_mean))
+	    (cfqq->slice_end - jiffies < cic->ttime_mean)) {
+		cfq_log_cfqq(cfqd, cfqq, "Not idling. think_time:%d",
+				cic->ttime_mean);
 		return;
+	}
 
 	cfq_mark_cfqq_wait_request(cfqq);
 
@@ -2042,6 +2058,7 @@ static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 		slice = max(slice, 2 * cfqd->cfq_slice_idle);
 
 	slice = max_t(unsigned, slice, CFQ_MIN_TT);
+	cfq_log(cfqd, "workload slice:%d", slice);
 	cfqd->workload_expires = jiffies + slice;
 	cfqd->noidle_tree_requires_idle = false;
 }
@@ -2189,10 +2206,13 @@ static int cfq_forced_dispatch(struct cfq_data *cfqd)
 	struct cfq_queue *cfqq;
 	int dispatched = 0;
 
-	while ((cfqq = cfq_get_next_queue_forced(cfqd)) != NULL)
-		dispatched += __cfq_forced_dispatch_cfqq(cfqq);
-
+	/* Expire the timeslice of the current active queue first */
 	cfq_slice_expired(cfqd, 0);
+	while ((cfqq = cfq_get_next_queue_forced(cfqd)) != NULL) {
+		__cfq_set_active_queue(cfqd, cfqq);
+		dispatched += __cfq_forced_dispatch_cfqq(cfqq);
+	}
+
 	BUG_ON(cfqd->busy_queues);
 
 	cfq_log(cfqd, "forced_dispatch=%d", dispatched);
@@ -3104,7 +3124,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * if this request is as-good as one we would expect from the
 	 * current cfqq, let it preempt
 	 */
-	if (cfq_rq_close(cfqd, cfqq, rq, true))
+	if (cfq_rq_close(cfqd, cfqq, rq))
 		return true;
 
 	return false;
@@ -3308,6 +3328,7 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 		if (cfq_should_wait_busy(cfqd, cfqq)) {
 			cfqq->slice_end = jiffies + cfqd->cfq_slice_idle;
 			cfq_mark_cfqq_wait_busy(cfqq);
+			cfq_log_cfqq(cfqd, cfqq, "will busy wait");
 		}
 
 		/*
