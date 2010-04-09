@@ -1241,9 +1241,6 @@ static void fc_exch_recv_req(struct fc_lport *lport, struct fc_exch_mgr *mp,
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 	struct fc_seq *sp = NULL;
 	struct fc_exch *ep = NULL;
-	enum fc_sof sof;
-	enum fc_eof eof;
-	u32 f_ctl;
 	enum fc_pf_rjt_reason reject;
 
 	/* We can have the wrong fc_lport at this point with NPIV, which is a
@@ -1260,9 +1257,6 @@ static void fc_exch_recv_req(struct fc_lport *lport, struct fc_exch_mgr *mp,
 	if (reject == FC_RJT_NONE) {
 		sp = fr_seq(fp);	/* sequence will be held */
 		ep = fc_seq_exch(sp);
-		sof = fr_sof(fp);
-		eof = fr_eof(fp);
-		f_ctl = ntoh24(fh->fh_f_ctl);
 		fc_seq_send_ack(sp, fp);
 
 		/*
