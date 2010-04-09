@@ -158,6 +158,7 @@ all::
 # Define NO_DWARF if you do not want debug-info analysis feature at all.
 
 $(shell sh -c 'mkdir -p $(OUTPUT)scripts/python/Perf-Trace-Util/' 2> /dev/null)
+$(shell sh -c 'mkdir -p $(OUTPUT)scripts/perl/Perf-Trace-Util/' 2> /dev/null)
 $(shell sh -c 'mkdir -p $(OUTPUT)util/scripting-engines/' 2> /dev/null)
 $(shell sh -c 'mkdir $(OUTPUT)bench' 2> /dev/null)
 
