@@ -1209,9 +1209,27 @@ static inline void set_io_start_time_ns(struct request *req)
 {
 	req->io_start_time_ns = sched_clock();
 }
+
+static inline uint64_t rq_start_time_ns(struct request *req)
+{
+        return req->start_time_ns;
+}
+
+static inline uint64_t rq_io_start_time_ns(struct request *req)
+{
+        return req->io_start_time_ns;
+}
 #else
 static inline void set_start_time_ns(struct request *req) {}
 static inline void set_io_start_time_ns(struct request *req) {}
+static inline uint64_t rq_start_time_ns(struct request *req)
+{
+	return 0;
+}
+static inline uint64_t rq_io_start_time_ns(struct request *req)
+{
+	return 0;
+}
 #endif
 
 #define MODULE_ALIAS_BLOCKDEV(major,minor) \

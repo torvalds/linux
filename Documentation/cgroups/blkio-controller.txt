@@ -77,7 +77,6 @@ Details of cgroup files
 =======================
 - blkio.weight
 	- Specifies per cgroup weight.
-
 	  Currently allowed range of weights is from 100 to 1000.
 
 - blkio.time
@@ -92,12 +91,59 @@ Details of cgroup files
 	  third field specifies the number of sectors transferred by the
 	  group to/from the device.
 
+- blkio.io_service_bytes
+	- Number of bytes transferred to/from the disk by the group. These
+	  are further divided by the type of operation - read or write, sync
+	  or async. First two fields specify the major and minor number of the
+	  device, third field specifies the operation type and the fourth field
+	  specifies the number of bytes.
+
+- blkio.io_serviced
+	- Number of IOs completed to/from the disk by the group. These
+	  are further divided by the type of operation - read or write, sync
+	  or async. First two fields specify the major and minor number of the
+	  device, third field specifies the operation type and the fourth field
+	  specifies the number of IOs.
+
+- blkio.io_service_time
+	- Total amount of time between request dispatch and request completion
+	  for the IOs done by this cgroup. This is in nanoseconds to make it
+	  meaningful for flash devices too. For devices with queue depth of 1,
+	  this time represents the actual service time. When queue_depth > 1,
+	  that is no longer true as requests may be served out of order. This
+	  may cause the service time for a given IO to include the service time
+	  of multiple IOs when served out of order which may result in total
+	  io_service_time > actual time elapsed. This time is further divided by
+	  the type of operation - read or write, sync or async. First two fields
+	  specify the major and minor number of the device, third field
+	  specifies the operation type and the fourth field specifies the
+	  io_service_time in ns.
+
+- blkio.io_wait_time
+	- Total amount of time the IOs for this cgroup spent waiting in the
+	  scheduler queues for service. This can be greater than the total time
+	  elapsed since it is cumulative io_wait_time for all IOs. It is not a
+	  measure of total time the cgroup spent waiting but rather a measure of
+	  the wait_time for its individual IOs. For devices with queue_depth > 1
+	  this metric does not include the time spent waiting for service once
+	  the IO is dispatched to the device but till it actually gets serviced
+	  (there might be a time lag here due to re-ordering of requests by the
+	  device). This is in nanoseconds to make it meaningful for flash
+	  devices too. This time is further divided by the type of operation -
+	  read or write, sync or async. First two fields specify the major and
+	  minor number of the device, third field specifies the operation type
+	  and the fourth field specifies the io_wait_time in ns.
+
 - blkio.dequeue
 	- Debugging aid only enabled if CONFIG_DEBUG_CFQ_IOSCHED=y. This
 	  gives the statistics about how many a times a group was dequeued
 	  from service tree of the device. First two fields specify the major
 	  and minor number of the device and third field specifies the number
 	  of times a group was dequeued from a particular device.
+
+- blkio.reset_stats
+	- Writing an int to this file will result in resetting all the stats
+	  for that cgroup.
 
 CFQ sysfs tunable
 =================

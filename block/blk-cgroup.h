@@ -23,12 +23,31 @@ extern struct cgroup_subsys blkio_subsys;
 #define blkio_subsys_id blkio_subsys.subsys_id
 #endif
 
-enum io_type {
-	IO_READ = 0,
-	IO_WRITE,
-	IO_SYNC,
-	IO_ASYNC,
-	IO_TYPE_MAX
+enum stat_type {
+	/* Total time spent (in ns) between request dispatch to the driver and
+	 * request completion for IOs doen by this cgroup. This may not be
+	 * accurate when NCQ is turned on. */
+	BLKIO_STAT_SERVICE_TIME = 0,
+	/* Total bytes transferred */
+	BLKIO_STAT_SERVICE_BYTES,
+	/* Total IOs serviced, post merge */
+	BLKIO_STAT_SERVICED,
+	/* Total time spent waiting in scheduler queue in ns */
+	BLKIO_STAT_WAIT_TIME,
+	/* All the single valued stats go below this */
+	BLKIO_STAT_TIME,
+	BLKIO_STAT_SECTORS,
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+	BLKIO_STAT_DEQUEUE
+#endif
+};
+
+enum stat_sub_type {
+	BLKIO_STAT_READ = 0,
+	BLKIO_STAT_WRITE,
+	BLKIO_STAT_SYNC,
+	BLKIO_STAT_ASYNC,
+	BLKIO_STAT_TOTAL
 };
 
 struct blkio_cgroup {
@@ -42,13 +61,7 @@ struct blkio_group_stats {
 	/* total disk time and nr sectors dispatched by this group */
 	uint64_t time;
 	uint64_t sectors;
-	/* Total disk time used by IOs in ns */
-	uint64_t io_service_time[IO_TYPE_MAX];
-	uint64_t io_service_bytes[IO_TYPE_MAX]; /* Total bytes transferred */
-	/* Total IOs serviced, post merge */
-	uint64_t io_serviced[IO_TYPE_MAX];
-	/* Total time spent waiting in scheduler queue in ns */
-	uint64_t io_wait_time[IO_TYPE_MAX];
+	uint64_t stat_arr[BLKIO_STAT_WAIT_TIME + 1][BLKIO_STAT_TOTAL];
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	/* How many times this group has been removed from service tree */
 	unsigned long dequeue;
@@ -65,7 +78,7 @@ struct blkio_group {
 	char path[128];
 #endif
 	/* The device MKDEV(major, minor), this group has been created for */
-	dev_t   dev;
+	dev_t dev;
 
 	/* Need to serialize the stats in the case of reset/update */
 	spinlock_t stats_lock;
@@ -128,21 +141,21 @@ extern void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 						void *key);
+void blkio_group_init(struct blkio_group *blkg);
 void blkiocg_update_timeslice_used(struct blkio_group *blkg,
 					unsigned long time);
-void blkiocg_update_request_dispatch_stats(struct blkio_group *blkg,
-						struct request *rq);
-void blkiocg_update_request_completion_stats(struct blkio_group *blkg,
-						struct request *rq);
+void blkiocg_update_dispatch_stats(struct blkio_group *blkg, uint64_t bytes,
+						bool direction, bool sync);
+void blkiocg_update_completion_stats(struct blkio_group *blkg,
+	uint64_t start_time, uint64_t io_start_time, bool direction, bool sync);
 #else
 struct cgroup;
 static inline struct blkio_cgroup *
 cgroup_to_blkio_cgroup(struct cgroup *cgroup) { return NULL; }
 
+static inline void blkio_group_init(struct blkio_group *blkg) {}
 static inline void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-			struct blkio_group *blkg, void *key, dev_t dev)
-{
-}
+			struct blkio_group *blkg, void *key, dev_t dev) {}
 
 static inline int
 blkiocg_del_blkio_group(struct blkio_group *blkg) { return 0; }
@@ -151,9 +164,10 @@ static inline struct blkio_group *
 blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key) { return NULL; }
 static inline void blkiocg_update_timeslice_used(struct blkio_group *blkg,
 						unsigned long time) {}
-static inline void blkiocg_update_request_dispatch_stats(
-		struct blkio_group *blkg, struct request *rq) {}
-static inline void blkiocg_update_request_completion_stats(
-		struct blkio_group *blkg, struct request *rq) {}
+static inline void blkiocg_update_dispatch_stats(struct blkio_group *blkg,
+				uint64_t bytes, bool direction, bool sync) {}
+static inline void blkiocg_update_completion_stats(struct blkio_group *blkg,
+		uint64_t start_time, uint64_t io_start_time, bool direction,
+		bool sync) {}
 #endif
 #endif /* _BLK_CGROUP_H */
