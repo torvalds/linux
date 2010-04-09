@@ -47,13 +47,18 @@
 #define ntohll(x) be64_to_cpu(x)
 #define htonll(x) cpu_to_be64(x)
 
-#define ntoh24(p) (((p)[0] << 16) | ((p)[1] << 8) | ((p)[2]))
 
-#define hton24(p, v)	do {			\
-		p[0] = (((v) >> 16) & 0xFF);	\
-		p[1] = (((v) >> 8) & 0xFF);	\
-		p[2] = ((v) & 0xFF);		\
-	} while (0)
+static inline u32 ntoh24(const u8 *p)
+{
+	return (p[0] << 16) | (p[1] << 8) | p[2];
+}
+
+static inline void hton24(u8 *p, u32 v)
+{
+	p[0] = (v >> 16) & 0xff;
+	p[1] = (v >> 8) & 0xff;
+	p[2] = v & 0xff;
+}
 
 /**
  * enum fc_lport_state - Local port states
