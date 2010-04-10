@@ -1280,7 +1280,6 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 
 			priv->dev->stats.rx_packets++;
 			priv->dev->stats.rx_bytes += frame_len;
-			priv->dev->last_rx = jiffies;
 		}
 		entry = next_entry;
 		p = p_next;	/* use prefetched values */

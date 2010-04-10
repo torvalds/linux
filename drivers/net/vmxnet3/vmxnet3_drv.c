@@ -1174,7 +1174,6 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 				netif_receive_skb(skb);
 			}
 
-			adapter->netdev->last_rx = jiffies;
 			ctx->skb = NULL;
 		}
 

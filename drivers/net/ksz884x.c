@@ -5054,8 +5054,6 @@ static inline int rx_proc(struct net_device *dev, struct ksz_hw* hw,
 	priv->stats.rx_bytes += packet_len;
 
 	/* Notify upper layer for received packet. */
-	dev->last_rx = jiffies;
-
 	rx_status = netif_rx(skb);
 
 	return 0;

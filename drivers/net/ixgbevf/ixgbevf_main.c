@@ -611,7 +611,6 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		skb->protocol = eth_type_trans(skb, adapter->netdev);
 
 		ixgbevf_receive_skb(q_vector, skb, staterr, rx_ring, rx_desc);
-		adapter->netdev->last_rx = jiffies;
 
 next_desc:
 		rx_desc->wb.upper.status_error = 0;

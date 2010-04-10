@@ -317,7 +317,6 @@ good:
 		skb->protocol = eth_type_trans(skb, netdev);
 		netdev->stats.rx_packets++;
 		netdev->stats.rx_bytes += skb->len;
-		netdev->last_rx = jiffies;
 		netif_receive_skb(skb);
 		rc = 0;
 	} else if (re.s.code == RING_ENTRY_CODE_MORE) {
