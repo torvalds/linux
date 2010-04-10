@@ -568,7 +568,7 @@ void __init *early_get_page(void);
 extern unsigned long ioremap_bot, ioremap_base;
 
 void *consistent_alloc(int gfp, size_t size, dma_addr_t *dma_handle);
-void consistent_free(void *vaddr);
+void consistent_free(size_t size, void *vaddr);
 void consistent_sync(void *vaddr, size_t size, int direction);
 void consistent_sync_page(struct page *page, unsigned long offset,
 	size_t size, int direction);
