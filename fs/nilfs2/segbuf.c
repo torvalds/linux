@@ -134,7 +134,7 @@ int nilfs_segbuf_extend_payload(struct nilfs_segment_buffer *segbuf,
 }
 
 int nilfs_segbuf_reset(struct nilfs_segment_buffer *segbuf, unsigned flags,
-		       time_t ctime)
+		       time_t ctime, __u64 cno)
 {
 	int err;
 
@@ -147,6 +147,7 @@ int nilfs_segbuf_reset(struct nilfs_segment_buffer *segbuf, unsigned flags,
 	segbuf->sb_sum.sumbytes = sizeof(struct nilfs_segment_summary);
 	segbuf->sb_sum.nfinfo = segbuf->sb_sum.nfileblk = 0;
 	segbuf->sb_sum.ctime = ctime;
+	segbuf->sb_sum.cno = cno;
 	return 0;
 }
 
@@ -172,6 +173,7 @@ void nilfs_segbuf_fill_in_segsum(struct nilfs_segment_buffer *segbuf)
 	raw_sum->ss_nfinfo   = cpu_to_le32(segbuf->sb_sum.nfinfo);
 	raw_sum->ss_sumbytes = cpu_to_le32(segbuf->sb_sum.sumbytes);
 	raw_sum->ss_pad      = 0;
+	raw_sum->ss_cno      = cpu_to_le64(segbuf->sb_sum.cno);
 }
 
 /*

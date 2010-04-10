@@ -377,6 +377,7 @@ union nilfs_binfo {
  * @ss_nfinfo: number of finfo structures
  * @ss_sumbytes: total size of segment summary in bytes
  * @ss_pad: padding
+ * @ss_cno: checkpoint number
  */
 struct nilfs_segment_summary {
 	__le32 ss_datasum;
@@ -391,6 +392,7 @@ struct nilfs_segment_summary {
 	__le32 ss_nfinfo;
 	__le32 ss_sumbytes;
 	__le32 ss_pad;
+	__le64 ss_cno;
 	/* array of finfo structures */
 };
 

@@ -366,7 +366,8 @@ static int nilfs_segctor_reset_segment_buffer(struct nilfs_sc_info *sci)
 
 	if (nilfs_doing_gc())
 		flags = NILFS_SS_GC;
-	err = nilfs_segbuf_reset(segbuf, flags, sci->sc_seg_ctime);
+	err = nilfs_segbuf_reset(segbuf, flags, sci->sc_seg_ctime,
+				 sci->sc_sbi->s_nilfs->ns_cno);
 	if (unlikely(err))
 		return err;
 
