@@ -647,8 +647,8 @@ struct fw_cdev_get_cycle_timer2 {
  * instead of allocated.
  * An %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event concludes this operation.
  *
- * To summarize, %FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE allocates iso resources
- * for the lifetime of the fd or handle.
+ * To summarize, %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE allocates iso resources
+ * for the lifetime of the fd or @handle.
  * In contrast, %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE_ONCE allocates iso resources
  * for the duration of a bus generation.
  *
