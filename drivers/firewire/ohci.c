@@ -463,35 +463,51 @@ static inline void flush_writes(const struct fw_ohci *ohci)
 	reg_read(ohci, OHCI1394_Version);
 }
 
-static int read_phy_reg(struct fw_card *card, int addr, u32 *value)
+static int read_phy_reg(struct fw_ohci *ohci, int addr)
 {
-	struct fw_ohci *ohci = fw_ohci(card);
 	u32 val;
+	int i;
 
 	reg_write(ohci, OHCI1394_PhyControl, OHCI1394_PhyControl_Read(addr));
-	flush_writes(ohci);
-	msleep(2);
-	val = reg_read(ohci, OHCI1394_PhyControl);
-	if ((val & OHCI1394_PhyControl_ReadDone) == 0) {
-		fw_error("failed to read phy reg bits\n");
-		return -EBUSY;
+	for (i = 0; i < 10; i++) {
+		val = reg_read(ohci, OHCI1394_PhyControl);
+		if (val & OHCI1394_PhyControl_ReadDone)
+			return OHCI1394_PhyControl_ReadData(val);
+
+		msleep(1);
 	}
+	fw_error("failed to read phy reg\n");
 
-	*value = OHCI1394_PhyControl_ReadData(val);
+	return -EBUSY;
+}
 
-	return 0;
+static int write_phy_reg(const struct fw_ohci *ohci, int addr, u32 val)
+{
+	int i;
+
+	reg_write(ohci, OHCI1394_PhyControl,
+		  OHCI1394_PhyControl_Write(addr, val));
+	for (i = 0; i < 100; i++) {
+		val = reg_read(ohci, OHCI1394_PhyControl);
+		if (!(val & OHCI1394_PhyControl_WritePending))
+			return 0;
+
+		msleep(1);
+	}
+	fw_error("failed to write phy reg\n");
+
+	return -EBUSY;
 }
 
 static int ohci_update_phy_reg(struct fw_card *card, int addr,
 			       int clear_bits, int set_bits)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
-	u32 old;
-	int err;
+	int ret;
 
-	err = read_phy_reg(card, addr, &old);
-	if (err < 0)
-		return err;
+	ret = read_phy_reg(ohci, addr);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * The interrupt status bits are cleared by writing a one bit.
@@ -500,32 +516,18 @@ static int ohci_update_phy_reg(struct fw_card *card, int addr,
 	if (addr == 5)
 		clear_bits |= PHY_INT_STATUS_BITS;
 
-	old = (old & ~clear_bits) | set_bits;
-	reg_write(ohci, OHCI1394_PhyControl,
-		  OHCI1394_PhyControl_Write(addr, old));
-
-	return 0;
+	return write_phy_reg(ohci, addr, (ret & ~clear_bits) | set_bits);
 }
 
-static int read_paged_phy_reg(struct fw_card *card,
-			      int page, int addr, u32 *value)
+static int read_paged_phy_reg(struct fw_ohci *ohci, int page, int addr)
 {
-	struct fw_ohci *ohci = fw_ohci(card);
-	u32 reg;
-	int err;
+	int ret;
 
-	err = ohci_update_phy_reg(card, 7, PHY_PAGE_SELECT, page << 5);
-	if (err < 0)
-		return err;
-	flush_writes(ohci);
-	msleep(2);
-	reg = reg_read(ohci, OHCI1394_PhyControl);
-	if ((reg & OHCI1394_PhyControl_WritePending) != 0) {
-		fw_error("failed to write phy reg bits\n");
-		return -EBUSY;
-	}
+	ret = ohci_update_phy_reg(&ohci->card, 7, PHY_PAGE_SELECT, page << 5);
+	if (ret < 0)
+		return ret;
 
-	return read_phy_reg(card, addr, value);
+	return read_phy_reg(ohci, addr);
 }
 
 static int ar_context_add_page(struct ar_context *ctx)
@@ -1538,8 +1540,7 @@ static void copy_config_rom(__be32 *dest, const __be32 *src, size_t length)
 static int configure_1394a_enhancements(struct fw_ohci *ohci)
 {
 	bool enable_1394a;
-	u32 reg, phy_compliance;
-	int clear, set, offset;
+	int ret, clear, set, offset;
 
 	/* Check if the driver should configure link and PHY. */
 	if (!(reg_read(ohci, OHCI1394_HCControlSet) &
@@ -1548,12 +1549,14 @@ static int configure_1394a_enhancements(struct fw_ohci *ohci)
 
 	/* Paranoia: check whether the PHY supports 1394a, too. */
 	enable_1394a = false;
-	if (read_phy_reg(&ohci->card, 2, &reg) < 0)
-		return -EIO;
-	if ((reg & PHY_EXTENDED_REGISTERS) == PHY_EXTENDED_REGISTERS) {
-		if (read_paged_phy_reg(&ohci->card, 1, 8, &phy_compliance) < 0)
-			return -EIO;
-		if (phy_compliance >= 1)
+	ret = read_phy_reg(ohci, 2);
+	if (ret < 0)
+		return ret;
+	if ((ret & PHY_EXTENDED_REGISTERS) == PHY_EXTENDED_REGISTERS) {
+		ret = read_paged_phy_reg(ohci, 1, 8);
+		if (ret < 0)
+			return ret;
+		if (ret >= 1)
 			enable_1394a = true;
 	}
 
@@ -1568,10 +1571,9 @@ static int configure_1394a_enhancements(struct fw_ohci *ohci)
 		clear = PHY_ENABLE_ACCEL | PHY_ENABLE_MULTI;
 		set = 0;
 	}
-	if (ohci_update_phy_reg(&ohci->card, 5, clear, set) < 0)
-		return -EIO;
-	flush_writes(ohci);
-	msleep(2);
+	ret = ohci_update_phy_reg(&ohci->card, 5, clear, set);
+	if (ret < 0)
+		return ret;
 
 	if (enable_1394a)
 		offset = OHCI1394_HCControlSet;
@@ -1592,7 +1594,7 @@ static int ohci_enable(struct fw_card *card,
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct pci_dev *dev = to_pci_dev(card->device);
 	u32 lps;
-	int i, err;
+	int i, ret;
 
 	if (software_reset(ohci)) {
 		fw_error("Failed to reset ohci card.\n");
@@ -1656,14 +1658,14 @@ static int ohci_enable(struct fw_card *card,
 	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
 		reg_write(ohci, OHCI1394_IntMaskSet, OHCI1394_busReset);
 
-	err = configure_1394a_enhancements(ohci);
-	if (err < 0)
-		return err;
+	ret = configure_1394a_enhancements(ohci);
+	if (ret < 0)
+		return ret;
 
 	/* Activate link_on bit and contender bit in our self ID packets.*/
-	if (ohci_update_phy_reg(card, 4, 0,
-				PHY_LINK_ACTIVE | PHY_CONTENDER) < 0)
-		return -EIO;
+	ret = ohci_update_phy_reg(card, 4, 0, PHY_LINK_ACTIVE | PHY_CONTENDER);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * When the link is not yet enabled, the atomic config rom
