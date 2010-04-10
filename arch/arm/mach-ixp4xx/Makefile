@@ -16,6 +16,7 @@ obj-pci-$(CONFIG_MACH_DSMG600)		+= dsmg600-pci.o
 obj-pci-$(CONFIG_MACH_GATEWAY7001)	+= gateway7001-pci.o
 obj-pci-$(CONFIG_MACH_WG302V2)		+= wg302v2-pci.o
 obj-pci-$(CONFIG_MACH_FSG)		+= fsg-pci.o
+obj-pci-$(CONFIG_MACH_ARCOM_VULCAN)	+= vulcan-pci.o
 
 obj-y	+= common.o
 
