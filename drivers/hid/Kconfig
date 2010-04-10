@@ -122,6 +122,12 @@ config DRAGONRISE_FF
 	Say Y here if you want to enable force feedback support for DragonRise Inc.
 	game controllers.
 
+config HID_EGALAX
+	tristate "eGalax multi-touch panel"
+	depends on USB_HID
+	---help---
+	Support for the eGalax dual-touch panel
+
 config HID_EZKEY
 	tristate "Ezkey" if EMBEDDED
 	depends on USB_HID
