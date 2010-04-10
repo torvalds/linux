@@ -104,6 +104,15 @@ uint8_t r600_audio_category_code(struct radeon_device *rdev)
 }
 
 /*
+ * schedule next audio update event
+ */
+void r600_audio_schedule_polling(struct radeon_device *rdev)
+{
+	mod_timer(&rdev->audio_timer,
+		jiffies + msecs_to_jiffies(AUDIO_TIMER_INTERVALL));
+}
+
+/*
  * update all hdmi interfaces with current audio parameters
  */
 static void r600_audio_update_hdmi(unsigned long param)
@@ -136,16 +145,12 @@ static void r600_audio_update_hdmi(unsigned long param)
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-		if (radeon_encoder->audio_polling_active) {
-			still_going = 1;
-			if (changes || r600_hdmi_buffer_status_changed(encoder))
-				r600_hdmi_update_audio_settings(encoder);
-		}
+		still_going |= radeon_encoder->audio_polling_active;
+		if (changes || r600_hdmi_buffer_status_changed(encoder))
+			r600_hdmi_update_audio_settings(encoder);
 	}
 
-	if(still_going)
-		mod_timer(&rdev->audio_timer,
-			jiffies + msecs_to_jiffies(AUDIO_TIMER_INTERVALL));
+	if(still_going) r600_audio_schedule_polling(rdev);
 }
 
 /*

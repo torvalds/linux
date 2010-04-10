@@ -2527,6 +2527,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 cp_int_cntl = CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE;
 	u32 mode_int = 0;
 	u32 hpd1, hpd2, hpd3, hpd4 = 0, hpd5 = 0, hpd6 = 0;
+	u32 hdmi1, hdmi2;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
@@ -2540,7 +2541,9 @@ int r600_irq_set(struct radeon_device *rdev)
 		return 0;
 	}
 
+	hdmi1 = RREG32(R600_HDMI_BLOCK1 + R600_HDMI_CNTL) & ~R600_HDMI_INT_EN;
 	if (ASIC_IS_DCE3(rdev)) {
+		hdmi2 = RREG32(R600_HDMI_BLOCK3 + R600_HDMI_CNTL) & ~R600_HDMI_INT_EN;
 		hpd1 = RREG32(DC_HPD1_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd2 = RREG32(DC_HPD2_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd3 = RREG32(DC_HPD3_INT_CONTROL) & ~DC_HPDx_INT_EN;
@@ -2550,6 +2553,7 @@ int r600_irq_set(struct radeon_device *rdev)
 			hpd6 = RREG32(DC_HPD6_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		}
 	} else {
+		hdmi2 = RREG32(R600_HDMI_BLOCK2 + R600_HDMI_CNTL) & ~R600_HDMI_INT_EN;
 		hpd1 = RREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd2 = RREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd3 = RREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL) & ~DC_HPDx_INT_EN;
@@ -2591,10 +2595,20 @@ int r600_irq_set(struct radeon_device *rdev)
 		DRM_DEBUG("r600_irq_set: hpd 6\n");
 		hpd6 |= DC_HPDx_INT_EN;
 	}
+	if (rdev->irq.hdmi[0]) {
+		DRM_DEBUG("r600_irq_set: hdmi 1\n");
+		hdmi1 |= R600_HDMI_INT_EN;
+	}
+	if (rdev->irq.hdmi[1]) {
+		DRM_DEBUG("r600_irq_set: hdmi 2\n");
+		hdmi2 |= R600_HDMI_INT_EN;
+	}
 
 	WREG32(CP_INT_CNTL, cp_int_cntl);
 	WREG32(DxMODE_INT_MASK, mode_int);
+	WREG32(R600_HDMI_BLOCK1 + R600_HDMI_CNTL, hdmi1);
 	if (ASIC_IS_DCE3(rdev)) {
+		WREG32(R600_HDMI_BLOCK3 + R600_HDMI_CNTL, hdmi2);
 		WREG32(DC_HPD1_INT_CONTROL, hpd1);
 		WREG32(DC_HPD2_INT_CONTROL, hpd2);
 		WREG32(DC_HPD3_INT_CONTROL, hpd3);
@@ -2604,6 +2618,7 @@ int r600_irq_set(struct radeon_device *rdev)
 			WREG32(DC_HPD6_INT_CONTROL, hpd6);
 		}
 	} else {
+		WREG32(R600_HDMI_BLOCK2 + R600_HDMI_CNTL, hdmi2);
 		WREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL, hpd1);
 		WREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL, hpd2);
 		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, hpd3);
@@ -2687,6 +2702,18 @@ static inline void r600_irq_ack(struct radeon_device *rdev,
 			WREG32(DC_HPD6_INT_CONTROL, tmp);
 		}
 	}
+	if (RREG32(R600_HDMI_BLOCK1 + R600_HDMI_STATUS) & R600_HDMI_INT_PENDING) {
+		WREG32_P(R600_HDMI_BLOCK1 + R600_HDMI_CNTL, R600_HDMI_INT_ACK, ~R600_HDMI_INT_ACK);
+	}
+	if (ASIC_IS_DCE3(rdev)) {
+		if (RREG32(R600_HDMI_BLOCK3 + R600_HDMI_STATUS) & R600_HDMI_INT_PENDING) {
+			WREG32_P(R600_HDMI_BLOCK3 + R600_HDMI_CNTL, R600_HDMI_INT_ACK, ~R600_HDMI_INT_ACK);
+		}
+	} else {
+		if (RREG32(R600_HDMI_BLOCK2 + R600_HDMI_STATUS) & R600_HDMI_INT_PENDING) {
+			WREG32_P(R600_HDMI_BLOCK2 + R600_HDMI_CNTL, R600_HDMI_INT_ACK, ~R600_HDMI_INT_ACK);
+		}
+	}
 }
 
 void r600_irq_disable(struct radeon_device *rdev)
@@ -2740,6 +2767,8 @@ static inline u32 r600_get_ih_wptr(struct radeon_device *rdev)
  *     19         1  FP Hot plug detection B
  *     19         2  DAC A auto-detection
  *     19         3  DAC B auto-detection
+ *     21         4  HDMI block A
+ *     21         5  HDMI block B
  *    176         -  CP_INT RB
  *    177         -  CP_INT IB1
  *    178         -  CP_INT IB2
@@ -2878,6 +2907,10 @@ restart_ih:
 				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
+			break;
+		case 21: /* HDMI */
+			DRM_DEBUG("IH: HDMI: 0x%x\n", src_data);
+			r600_audio_schedule_polling(rdev);
 			break;
 		case 176: /* CP_INT in ring buffer */
 		case 177: /* CP_INT in IB1 */

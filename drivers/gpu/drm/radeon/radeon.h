@@ -376,6 +376,8 @@ struct radeon_irq {
 	wait_queue_head_t	vblank_queue;
 	/* FIXME: use defines for max hpd/dacs */
 	bool            hpd[6];
+	/* FIXME: use defines for max HDMI blocks */
+	bool		hdmi[2];
 	spinlock_t sw_lock;
 	int sw_refcount;
 };
@@ -1332,6 +1334,7 @@ extern int r600_audio_bits_per_sample(struct radeon_device *rdev);
 extern int r600_audio_rate(struct radeon_device *rdev);
 extern uint8_t r600_audio_status_bits(struct radeon_device *rdev);
 extern uint8_t r600_audio_category_code(struct radeon_device *rdev);
+extern void r600_audio_schedule_polling(struct radeon_device *rdev);
 extern void r600_audio_enable_polling(struct drm_encoder *encoder);
 extern void r600_audio_disable_polling(struct drm_encoder *encoder);
 extern void r600_audio_fini(struct radeon_device *rdev);
