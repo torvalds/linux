@@ -177,7 +177,7 @@ struct nilfs_sc_info {
 	unsigned long		sc_lseg_stime;	/* in 1/HZ seconds */
 	unsigned long		sc_watermark;
 
-	struct timer_list      *sc_timer;
+	struct timer_list	sc_timer;
 	struct task_struct     *sc_task;
 };
 
