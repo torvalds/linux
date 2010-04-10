@@ -2834,7 +2834,7 @@ static int raw1394_open(struct inode *inode, struct file *file)
 
 	file->private_data = fi;
 
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static int raw1394_release(struct inode *inode, struct file *file)
@@ -3035,6 +3035,7 @@ static const struct file_operations raw1394_fops = {
 	.poll = raw1394_poll,
 	.open = raw1394_open,
 	.release = raw1394_release,
+	.llseek = no_llseek,
 };
 
 static int __init init_raw1394(void)
