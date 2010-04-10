@@ -121,7 +121,7 @@
 		.endm
 #else
 		.macro	get_saved_sp	/* Uniprocessor variation */
-#ifdef CONFIG_CPU_LOONGSON2F
+#ifdef CONFIG_CPU_JUMP_WORKAROUNDS
 		/*
 		 * Clear BTB (branch target buffer), forbid RAS (return address
 		 * stack) to workaround the Out-of-order Issue in Loongson2F
