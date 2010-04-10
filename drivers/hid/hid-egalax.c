@@ -16,6 +16,7 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/slab.h>
 #include "usbhid/usbhid.h"
 
 MODULE_AUTHOR("Stephane Chatty <chatty@enac.fr>");
