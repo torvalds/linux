@@ -59,13 +59,17 @@
 #define RF3320				0x000b
 
 /*
- * Chipset version.
+ * Chipset revisions.
  */
-#define RT2860C_VERSION			0x0100
-#define RT2860D_VERSION			0x0101
-#define RT2880E_VERSION			0x0200
-#define RT2883_VERSION			0x0300
-#define RT3070_VERSION			0x0200
+#define REV_RT2860C			0x0100
+#define REV_RT2860D			0x0101
+#define REV_RT2870D			0x0101
+#define REV_RT2872E			0x0200
+#define REV_RT3070E			0x0200
+#define REV_RT3070F			0x0201
+#define REV_RT3071E			0x0211
+#define REV_RT3090E			0x0211
+#define REV_RT3390E			0x0211
 
 /*
  * Signal information.

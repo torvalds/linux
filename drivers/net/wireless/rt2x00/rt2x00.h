@@ -929,12 +929,12 @@ static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
 	     rt2x00dev->chip.rt, rt2x00dev->chip.rf, rt2x00dev->chip.rev);
 }
 
-static inline char rt2x00_rt(struct rt2x00_dev *rt2x00dev, const u16 rt)
+static inline bool rt2x00_rt(struct rt2x00_dev *rt2x00dev, const u16 rt)
 {
 	return (rt2x00dev->chip.rt == rt);
 }
 
-static inline char rt2x00_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
+static inline bool rt2x00_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
 {
 	return (rt2x00dev->chip.rf == rf);
 }
@@ -942,6 +942,24 @@ static inline char rt2x00_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
 static inline u16 rt2x00_rev(struct rt2x00_dev *rt2x00dev)
 {
 	return rt2x00dev->chip.rev;
+}
+
+static inline bool rt2x00_rt_rev(struct rt2x00_dev *rt2x00dev,
+				 const u16 rt, const u16 rev)
+{
+	return (rt2x00_rt(rt2x00dev, rt) && rt2x00_rev(rt2x00dev) == rev);
+}
+
+static inline bool rt2x00_rt_rev_lt(struct rt2x00_dev *rt2x00dev,
+				    const u16 rt, const u16 rev)
+{
+	return (rt2x00_rt(rt2x00dev, rt) && rt2x00_rev(rt2x00dev) < rev);
+}
+
+static inline bool rt2x00_rt_rev_gte(struct rt2x00_dev *rt2x00dev,
+				     const u16 rt, const u16 rev)
+{
+	return (rt2x00_rt(rt2x00dev, rt) && rt2x00_rev(rt2x00dev) >= rev);
 }
 
 static inline void rt2x00_set_chip_intf(struct rt2x00_dev *rt2x00dev,
