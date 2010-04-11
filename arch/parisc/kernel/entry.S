@@ -997,13 +997,6 @@ intr_restore:
 
 	rfi
 	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
 
 #ifndef CONFIG_PREEMPT
 # define intr_do_preempt	intr_restore
