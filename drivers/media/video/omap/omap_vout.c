@@ -622,8 +622,7 @@ static int omap_vout_calculate_offset(struct omap_vout_device *vout)
 /*
  * Convert V4L2 pixel format to DSS pixel format
  */
-static enum omap_color_mode video_mode_to_dss_mode(struct omap_vout_device
-			*vout)
+static int video_mode_to_dss_mode(struct omap_vout_device *vout)
 {
 	struct omap_overlay *ovl;
 	struct omapvideo_info *ovid;
