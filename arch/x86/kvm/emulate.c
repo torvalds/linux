@@ -646,21 +646,22 @@ static unsigned long ss_base(struct x86_emulate_ctxt *ctxt)
 
 static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
 			      struct x86_emulate_ops *ops,
-			      unsigned long linear, u8 *dest)
+			      unsigned long eip, u8 *dest)
 {
 	struct fetch_cache *fc = &ctxt->decode.fetch;
 	int rc;
-	int size;
+	int size, cur_size;
 
-	if (linear < fc->start || linear >= fc->end) {
-		size = min(15UL, PAGE_SIZE - offset_in_page(linear));
-		rc = ops->fetch(linear, fc->data, size, ctxt->vcpu, NULL);
+	if (eip == fc->end) {
+		cur_size = fc->end - fc->start;
+		size = min(15UL - cur_size, PAGE_SIZE - offset_in_page(eip));
+		rc = ops->fetch(ctxt->cs_base + eip, fc->data + cur_size,
+				size, ctxt->vcpu, NULL);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
-		fc->start = linear;
-		fc->end = linear + size;
+		fc->end += size;
 	}
-	*dest = fc->data[linear - fc->start];
+	*dest = fc->data[eip - fc->start];
 	return X86EMUL_CONTINUE;
 }
 
@@ -673,7 +674,6 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 	/* x86 instructions are limited to 15 bytes. */
 	if (eip + size - ctxt->eip > 15)
 		return X86EMUL_UNHANDLEABLE;
-	eip += ctxt->cs_base;
 	while (size--) {
 		rc = do_fetch_insn_byte(ctxt, ops, eip++, dest++);
 		if (rc != X86EMUL_CONTINUE)
@@ -935,6 +935,7 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	/* Shadow copy of register state. Committed on successful emulation. */
 	memset(c, 0, sizeof(struct decode_cache));
 	c->eip = ctxt->eip;
+	c->fetch.start = c->fetch.end = c->eip;
 	ctxt->cs_base = seg_base(ctxt, VCPU_SREG_CS);
 	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
 
