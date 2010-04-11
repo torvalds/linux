@@ -137,6 +137,17 @@ config HAVE_HW_BREAKPOINT
 	bool
 	depends on PERF_EVENTS
 
+config HAVE_MIXED_BREAKPOINTS_REGS
+	bool
+	depends on HAVE_HW_BREAKPOINT
+	help
+	  Depending on the arch implementation of hardware breakpoints,
+	  some of them have separate registers for data and instruction
+	  breakpoints addresses, others have mixed registers to store
+	  them but define the access type in a control register.
+	  Select this option if your arch implements breakpoints under the
+	  latter fashion.
+
 config HAVE_USER_RETURN_NOTIFIER
 	bool
 
