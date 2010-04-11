@@ -78,7 +78,6 @@ static char lancestr[] = "LANCE";
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -94,6 +93,7 @@ static char lancestr[] = "LANCE";
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

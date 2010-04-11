@@ -38,6 +38,7 @@
 #include <linux/net.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 #include <net/sock.h>
 #include <asm/uaccess.h>

@@ -3602,21 +3602,10 @@ EXPORT_SYMBOL(kmem_cache_alloc_notrace);
  */
 int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr)
 {
-	unsigned long addr = (unsigned long)ptr;
-	unsigned long min_addr = PAGE_OFFSET;
-	unsigned long align_mask = BYTES_PER_WORD - 1;
 	unsigned long size = cachep->buffer_size;
 	struct page *page;
 
-	if (unlikely(addr < min_addr))
-		goto out;
-	if (unlikely(addr > (unsigned long)high_memory - size))
-		goto out;
-	if (unlikely(addr & align_mask))
-		goto out;
-	if (unlikely(!kern_addr_valid(addr)))
-		goto out;
-	if (unlikely(!kern_addr_valid(addr + size - 1)))
+	if (unlikely(!kern_ptr_validate(ptr, size)))
 		goto out;
 	page = virt_to_page(ptr);
 	if (unlikely(!PageSlab(page)))

@@ -21,6 +21,7 @@
 \*************************************/
 
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"

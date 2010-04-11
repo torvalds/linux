@@ -42,6 +42,7 @@
 #include <linux/skbuff.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include "b43.h"

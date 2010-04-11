@@ -9,6 +9,7 @@
 #include <linux/ieee80211.h>
 #include <linux/nl80211.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <linux/rcupdate.h>
 #include <net/cfg80211.h>

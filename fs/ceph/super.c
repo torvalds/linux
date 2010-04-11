@@ -11,6 +11,7 @@
 #include <linux/rwsem.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/string.h>
 #include <linux/version.h>

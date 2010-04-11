@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/nl80211.h>
+#include <linux/slab.h>
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
 #include <net/iw_handler.h>

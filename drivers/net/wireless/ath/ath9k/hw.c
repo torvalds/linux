@@ -15,6 +15,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include "hw.h"

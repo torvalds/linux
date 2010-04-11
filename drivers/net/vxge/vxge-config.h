@@ -14,6 +14,7 @@
 #ifndef VXGE_CONFIG_H
 #define VXGE_CONFIG_H
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #ifndef VXGE_CACHE_LINE_SIZE
 #define VXGE_CACHE_LINE_SIZE 128

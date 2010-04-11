@@ -33,6 +33,7 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/random.h>
 #include <linux/nl80211.h>

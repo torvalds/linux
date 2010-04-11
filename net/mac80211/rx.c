@@ -10,6 +10,7 @@
  */
 
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -1963,6 +1964,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			ieee80211_process_sa_query_req(sdata, mgmt, len);
 			goto handled;
 		}
+		break;
+	case MESH_PLINK_CATEGORY:
+	case MESH_PATH_SEL_CATEGORY:
+		if (ieee80211_vif_is_mesh(&sdata->vif))
+			return ieee80211_mesh_rx_mgmt(sdata, rx->skb);
 		break;
 	}
 

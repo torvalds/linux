@@ -29,6 +29,7 @@
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include "wl1251.h"
 #include "wl12xx_80211.h"

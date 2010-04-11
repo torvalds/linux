@@ -28,6 +28,7 @@
 #include <linux/if.h>
 #include <linux/termios.h>	/* For TIOCOUTQ/INQ */
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/datalink.h>
 #include <net/psnap.h>
 #include <net/sock.h>

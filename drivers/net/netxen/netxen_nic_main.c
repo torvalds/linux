@@ -23,6 +23,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 #include "netxen_nic_hw.h"

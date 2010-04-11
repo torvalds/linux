@@ -42,6 +42,7 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/mii.h>
+#include <linux/slab.h>
 #include <asm/irq.h>
 
 #include "skge.h"

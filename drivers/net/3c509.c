@@ -76,7 +76,6 @@
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>

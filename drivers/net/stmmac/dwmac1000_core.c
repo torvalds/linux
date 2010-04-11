@@ -27,6 +27,7 @@
 *******************************************************************************/
 
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include "dwmac1000.h"
 
 static void dwmac1000_core_init(unsigned long ioaddr)

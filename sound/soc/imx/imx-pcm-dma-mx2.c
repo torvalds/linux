@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -83,10 +84,12 @@ static void snd_imx_dma_err_callback(int channel, void *data, int err)
 static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct imx_pcm_dma_params *dma_params = rtd->dai->cpu_dai->dma_data;
+	struct imx_pcm_dma_params *dma_params;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
 	int ret;
+
+	dma_params = snd_soc_get_dma_data(rtd->dai->cpu_dai, substream);
 
 	iprtd->dma = imx_dma_request_by_prio(DRV_NAME, DMA_PRIO_HIGH);
 	if (iprtd->dma < 0) {
@@ -192,9 +195,11 @@ static int snd_imx_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct imx_pcm_dma_params *dma_params = rtd->dai->cpu_dai->dma_data;
+	struct imx_pcm_dma_params *dma_params;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
 	int err;
+
+	dma_params = snd_soc_get_dma_data(rtd->dai->cpu_dai, substream);
 
 	iprtd->substream = substream;
 	iprtd->buf = (unsigned int *)substream->dma_buffer.area;

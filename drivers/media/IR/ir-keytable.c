@@ -14,6 +14,7 @@
 
 
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <media/ir-common.h>
 
 #define IR_TAB_MIN_SIZE	32

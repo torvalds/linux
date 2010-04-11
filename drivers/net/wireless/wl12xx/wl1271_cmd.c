@@ -27,6 +27,7 @@
 #include <linux/spi/spi.h>
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
+#include <linux/slab.h>
 
 #include "wl1271.h"
 #include "wl1271_reg.h"

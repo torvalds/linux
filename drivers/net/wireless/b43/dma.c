@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <asm/div64.h>
 
 

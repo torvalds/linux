@@ -244,6 +244,7 @@
  *                               (FIFO empty).
  */
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include "i2400m.h"
 
 

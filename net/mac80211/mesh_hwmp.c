@@ -7,6 +7,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/slab.h>
 #include "mesh.h"
 
 #ifdef CONFIG_MAC80211_VERBOSE_MHWMP_DEBUG

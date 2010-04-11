@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/audit.h>
+#include <linux/slab.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <asm/bug.h>

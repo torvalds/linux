@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <plat/mailbox.h>
 

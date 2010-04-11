@@ -21,6 +21,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "ath5k.h"
 #include "reg.h"

@@ -58,6 +58,7 @@
 #include <linux/netdevice.h>
 #include <linux/init.h>
 #include <linux/ipsec.h>
+#include <linux/slab.h>
 
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>

@@ -32,6 +32,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/in.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include "rds.h"

@@ -40,6 +40,7 @@
 #include <linux/skbuff.h>
 #include <linux/sysctl.h>
 #include <linux/notifier.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <net/net_namespace.h>

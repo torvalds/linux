@@ -69,7 +69,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>

@@ -80,6 +80,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/hash.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/string.h>

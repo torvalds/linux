@@ -30,6 +30,7 @@
 #include <linux/vmalloc.h>
 #include <linux/inetdevice.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include "wl1271.h"
 #include "wl12xx_80211.h"

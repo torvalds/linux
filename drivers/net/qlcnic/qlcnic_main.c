@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 

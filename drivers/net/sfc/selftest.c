@@ -18,6 +18,7 @@
 #include <linux/in.h>
 #include <linux/udp.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include "net_driver.h"
 #include "efx.h"

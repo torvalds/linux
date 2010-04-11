@@ -20,6 +20,7 @@
 #include <linux/crc32.h>
 #include <linux/bitrev.h>
 #include <linux/ethtool.h>
+#include <linux/slab.h>
 #include <asm/prom.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>

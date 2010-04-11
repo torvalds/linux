@@ -12,6 +12,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/time.h>
 #include <asm/uaccess.h>
@@ -1618,10 +1619,8 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	save_mount_options(s, data);
 
 	sbi = kzalloc(sizeof(struct reiserfs_sb_info), GFP_KERNEL);
-	if (!sbi) {
-		errval = -ENOMEM;
-		goto error_alloc;
-	}
+	if (!sbi)
+		return -ENOMEM;
 	s->s_fs_info = sbi;
 	/* Set default values for options: non-aggressive tails, RO on errors */
 	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_SMALLTAIL);
@@ -1878,11 +1877,11 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	return (0);
 
 error:
-	reiserfs_write_unlock(s);
-error_alloc:
 	if (jinit_done) {	/* kill the commit thread, free journal ram */
 		journal_release_error(NULL, s);
 	}
+
+	reiserfs_write_unlock(s);
 
 	reiserfs_free_bitmap_cache(s);
 	if (SB_BUFFER_WITH_SB(s))

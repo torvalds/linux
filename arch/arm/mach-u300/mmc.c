@@ -20,6 +20,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/gpio.h>
 #include <linux/amba/mmci.h>
+#include <linux/slab.h>
 
 #include "mmc.h"
 #include "padmux.h"

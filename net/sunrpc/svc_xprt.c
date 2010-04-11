@@ -9,6 +9,7 @@
 #include <linux/errno.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svc_xprt.h>

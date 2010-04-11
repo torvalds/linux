@@ -53,6 +53,7 @@
 #include <linux/route.h>
 #include <linux/inetdevice.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif

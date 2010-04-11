@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/crc32.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <asm/irq.h>
 
 #define PHY_MAX_ADDR		32

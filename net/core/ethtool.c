@@ -19,6 +19,7 @@
 #include <linux/netdevice.h>
 #include <linux/bitops.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 /*
  * Some useful ethtool_ops methods that're device independent.

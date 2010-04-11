@@ -49,6 +49,7 @@
 #include <linux/proc_fs.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <asm/hvcall.h>
 #include <asm/atomic.h>

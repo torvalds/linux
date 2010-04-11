@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <mach/hardware.h>

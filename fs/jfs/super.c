@@ -30,6 +30,7 @@
 #include <linux/buffer_head.h>
 #include <linux/exportfs.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/smp_lock.h>

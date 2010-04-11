@@ -23,6 +23,7 @@
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <linux/llc.h>
+#include <linux/slab.h>
 
 static int llc_mac_header_len(unsigned short devtype)
 {

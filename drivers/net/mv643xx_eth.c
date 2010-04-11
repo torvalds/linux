@@ -54,6 +54,7 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/inet_lro.h>
+#include <linux/slab.h>
 #include <asm/system.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";

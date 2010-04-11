@@ -13,6 +13,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>

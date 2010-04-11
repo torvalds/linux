@@ -24,6 +24,7 @@
 
 #include "qlcnic.h"
 
+#include <linux/slab.h>
 #include <net/ip.h>
 
 #define MASK(n) ((1ULL<<(n))-1)
@@ -418,6 +419,9 @@ void qlcnic_set_multi(struct net_device *netdev)
 	struct netdev_hw_addr *ha;
 	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	u32 mode = VPORT_MISS_MODE_DROP;
+
+	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+		return;
 
 	qlcnic_nic_add_mac(adapter, adapter->mac_addr);
 	qlcnic_nic_add_mac(adapter, bcast_addr);

@@ -33,6 +33,7 @@
 #include <linux/mii.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #define	DRV_NAME	"ks8851_mll"
 

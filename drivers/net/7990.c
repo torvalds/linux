@@ -26,7 +26,6 @@
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/route.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <asm/irq.h>

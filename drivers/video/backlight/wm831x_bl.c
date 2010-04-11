@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
+#include <linux/slab.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>

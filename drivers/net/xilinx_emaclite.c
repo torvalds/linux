@@ -19,6 +19,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <linux/of_device.h>
 #include <linux/of_platform.h>

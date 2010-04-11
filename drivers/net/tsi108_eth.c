@@ -38,7 +38,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/crc32.h>
@@ -48,6 +47,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/timer.h>
 #include <linux/platform_device.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
