@@ -162,9 +162,9 @@ static int ir_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 	struct ir_input_dev *ir_dev = dev_get_drvdata(device);
 
 	if (ir_dev->rc_tab.name)
-		ADD_HOTPLUG_VAR("NAME=\"%s\"", ir_dev->rc_tab.name);
+		ADD_HOTPLUG_VAR("NAME=%s", ir_dev->rc_tab.name);
 	if (ir_dev->driver_name)
-		ADD_HOTPLUG_VAR("DRV_NAME=\"%s\"", ir_dev->driver_name);
+		ADD_HOTPLUG_VAR("DRV_NAME=%s", ir_dev->driver_name);
 
 	return 0;
 }
