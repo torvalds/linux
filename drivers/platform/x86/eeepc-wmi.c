@@ -32,8 +32,11 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/platform_device.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+
+#define	EEEPC_WMI_FILE	"eeepc-wmi"
 
 MODULE_AUTHOR("Yong Wang <yong.y.wang@intel.com>");
 MODULE_DESCRIPTION("Eee PC WMI Hotkey Driver");
@@ -64,7 +67,7 @@ struct eeepc_wmi {
 	struct input_dev *inputdev;
 };
 
-static struct eeepc_wmi *eeepc;
+static struct platform_device *platform_device;
 
 static void eeepc_wmi_notify(u32 value, void *context)
 {
@@ -107,8 +110,9 @@ static int eeepc_wmi_input_init(struct eeepc_wmi *eeepc)
 		return -ENOMEM;
 
 	eeepc->inputdev->name = "Eee PC WMI hotkeys";
-	eeepc->inputdev->phys = "wmi/input0";
+	eeepc->inputdev->phys = EEEPC_WMI_FILE "/input0";
 	eeepc->inputdev->id.bustype = BUS_HOST;
+	eeepc->inputdev->dev.parent = &platform_device->dev;
 
 	err = sparse_keymap_setup(eeepc->inputdev, eeepc_wmi_keymap, NULL);
 	if (err)
@@ -137,10 +141,59 @@ static void eeepc_wmi_input_exit(struct eeepc_wmi *eeepc)
 	eeepc->inputdev = NULL;
 }
 
-static int __init eeepc_wmi_init(void)
+static int __devinit eeepc_wmi_platform_probe(struct platform_device *device)
 {
+	struct eeepc_wmi *eeepc;
 	int err;
 	acpi_status status;
+
+	eeepc = platform_get_drvdata(device);
+
+	err = eeepc_wmi_input_init(eeepc);
+	if (err)
+		return err;
+
+	status = wmi_install_notify_handler(EEEPC_WMI_EVENT_GUID,
+					eeepc_wmi_notify, eeepc);
+	if (ACPI_FAILURE(status)) {
+		pr_err("Unable to register notify handler - %d\n",
+			status);
+		err = -ENODEV;
+		goto error_wmi;
+	}
+
+	return 0;
+
+error_wmi:
+	eeepc_wmi_input_exit(eeepc);
+
+	return err;
+}
+
+static int __devexit eeepc_wmi_platform_remove(struct platform_device *device)
+{
+	struct eeepc_wmi *eeepc;
+
+	eeepc = platform_get_drvdata(device);
+	wmi_remove_notify_handler(EEEPC_WMI_EVENT_GUID);
+	eeepc_wmi_input_exit(eeepc);
+
+	return 0;
+}
+
+static struct platform_driver platform_driver = {
+	.driver = {
+		.name = EEEPC_WMI_FILE,
+		.owner = THIS_MODULE,
+	},
+	.probe = eeepc_wmi_platform_probe,
+	.remove = __devexit_p(eeepc_wmi_platform_remove),
+};
+
+static int __init eeepc_wmi_init(void)
+{
+	struct eeepc_wmi *eeepc;
+	int err;
 
 	if (!wmi_has_guid(EEEPC_WMI_EVENT_GUID)) {
 		pr_warning("No known WMI GUID found\n");
@@ -151,29 +204,46 @@ static int __init eeepc_wmi_init(void)
 	if (!eeepc)
 		return -ENOMEM;
 
-	err = eeepc_wmi_input_init(eeepc);
-	if (err) {
-		kfree(eeepc);
-		return err;
+	platform_device = platform_device_alloc(EEEPC_WMI_FILE, -1);
+	if (!platform_device) {
+		pr_warning("Unable to allocate platform device\n");
+		err = -ENOMEM;
+		goto fail_platform;
 	}
 
-	status = wmi_install_notify_handler(EEEPC_WMI_EVENT_GUID,
-					eeepc_wmi_notify, eeepc);
-	if (ACPI_FAILURE(status)) {
-		pr_err("Unable to register notify handler - %d\n",
-			status);
-		eeepc_wmi_input_exit(eeepc);
-		kfree(eeepc);
-		return -ENODEV;
+	err = platform_device_add(platform_device);
+	if (err) {
+		pr_warning("Unable to add platform device\n");
+		goto put_dev;
+	}
+
+	platform_set_drvdata(platform_device, eeepc);
+
+	err = platform_driver_register(&platform_driver);
+	if (err) {
+		pr_warning("Unable to register platform driver\n");
+		goto del_dev;
 	}
 
 	return 0;
+
+del_dev:
+	platform_device_del(platform_device);
+put_dev:
+	platform_device_put(platform_device);
+fail_platform:
+	kfree(eeepc);
+
+	return err;
 }
 
 static void __exit eeepc_wmi_exit(void)
 {
-	wmi_remove_notify_handler(EEEPC_WMI_EVENT_GUID);
-	eeepc_wmi_input_exit(eeepc);
+	struct eeepc_wmi *eeepc;
+
+	eeepc = platform_get_drvdata(platform_device);
+	platform_driver_unregister(&platform_driver);
+	platform_device_unregister(platform_device);
 	kfree(eeepc);
 }
 
