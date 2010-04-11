@@ -537,7 +537,7 @@ static void __tcp_v4_send_check(struct sk_buff *skb,
 }
 
 /* This routine computes an IPv4 TCP checksum. */
-void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
+void tcp_v4_send_check(struct sock *sk, struct sk_buff *skb)
 {
 	struct inet_sock *inet = inet_sk(sk);
 

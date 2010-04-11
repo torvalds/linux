@@ -223,7 +223,7 @@ static inline void dccp_csum_outgoing(struct sk_buff *skb)
 	skb->csum = skb_checksum(skb, 0, (cov > skb->len)? skb->len : cov, 0);
 }
 
-extern void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
+extern void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 
 extern int  dccp_retransmit_skb(struct sock *sk);
 

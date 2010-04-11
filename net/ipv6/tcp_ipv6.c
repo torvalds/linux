@@ -933,7 +933,7 @@ static void __tcp_v6_send_check(struct sk_buff *skb,
 	}
 }
 
-static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
+static void tcp_v6_send_check(struct sock *sk, struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 

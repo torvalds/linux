@@ -60,8 +60,7 @@ static inline __sum16 dccp_v6_csum_finish(struct sk_buff *skb,
 	return csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_DCCP, skb->csum);
 }
 
-static inline void dccp_v6_send_check(struct sock *sk, int unused_value,
-				      struct sk_buff *skb)
+static inline void dccp_v6_send_check(struct sock *sk, struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct dccp_hdr *dh = dccp_hdr(skb);
