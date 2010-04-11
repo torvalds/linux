@@ -44,11 +44,11 @@ MODULE_LICENSE("GPL");
 #define SEG_TYPE_LDT 2
 #define SEG_TYPE_BUSY_TSS16 3
 
-#define SVM_FEATURE_NPT  (1 << 0)
-#define SVM_FEATURE_LBRV (1 << 1)
-#define SVM_FEATURE_SVML (1 << 2)
-#define SVM_FEATURE_NRIP (1 << 3)
-#define SVM_FEATURE_PAUSE_FILTER (1 << 10)
+#define SVM_FEATURE_NPT            (1 <<  0)
+#define SVM_FEATURE_LBRV           (1 <<  1)
+#define SVM_FEATURE_SVML           (1 <<  2)
+#define SVM_FEATURE_NRIP           (1 <<  3)
+#define SVM_FEATURE_PAUSE_FILTER   (1 << 10)
 
 #define NESTED_EXIT_HOST	0	/* Exit handled on host level */
 #define NESTED_EXIT_DONE	1	/* Exit caused nested vmexit  */
@@ -319,6 +319,9 @@ static void svm_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
 static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (svm->vmcb->control.next_rip != 0)
+		svm->next_rip = svm->vmcb->control.next_rip;
 
 	if (!svm->next_rip) {
 		if (emulate_instruction(vcpu, 0, 0, EMULTYPE_SKIP) !=
