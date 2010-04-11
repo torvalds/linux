@@ -631,6 +631,8 @@ config VIDEO_ISIF
 	   To compile this driver as a module, choose M here: the
 	   module will be called vpfe.
 
+source "drivers/media/video/omap/Kconfig"
+
 source "drivers/media/video/bt8xx/Kconfig"
 
 config VIDEO_PMS
