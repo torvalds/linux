@@ -717,10 +717,10 @@ static void rt2800_config_lna_gain(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->lna_gain = lna_gain;
 }
 
-static void rt2800_config_channel_rt2x(struct rt2x00_dev *rt2x00dev,
-				       struct ieee80211_conf *conf,
-				       struct rf_channel *rf,
-				       struct channel_info *info)
+static void rt2800_config_channel_rf2xxx(struct rt2x00_dev *rt2x00dev,
+					 struct ieee80211_conf *conf,
+					 struct rf_channel *rf,
+					 struct channel_info *info)
 {
 	rt2x00_set_field32(&rf->rf4, RF4_FREQ_OFFSET, rt2x00dev->freq_offset);
 
@@ -786,10 +786,10 @@ static void rt2800_config_channel_rt2x(struct rt2x00_dev *rt2x00dev,
 	rt2800_rf_write(rt2x00dev, 4, rf->rf4);
 }
 
-static void rt2800_config_channel_rt3x(struct rt2x00_dev *rt2x00dev,
-				       struct ieee80211_conf *conf,
-				       struct rf_channel *rf,
-				       struct channel_info *info)
+static void rt2800_config_channel_rf3xxx(struct rt2x00_dev *rt2x00dev,
+					 struct ieee80211_conf *conf,
+					 struct rf_channel *rf,
+					 struct channel_info *info)
 {
 	u8 rfcsr;
 
@@ -826,16 +826,13 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	unsigned int tx_pin;
 	u8 bbp;
 
-	if ((rt2x00_rt(rt2x00dev, RT3070) ||
-	     rt2x00_rt(rt2x00dev, RT3090) ||
-	     rt2x00_rt(rt2x00dev, RT2872)) &&
-	    (rt2x00_rf(rt2x00dev, RF2020) ||
-	     rt2x00_rf(rt2x00dev, RF3020) ||
-	     rt2x00_rf(rt2x00dev, RF3021) ||
-	     rt2x00_rf(rt2x00dev, RF3022)))
-		rt2800_config_channel_rt3x(rt2x00dev, conf, rf, info);
+	if (rt2x00_rf(rt2x00dev, RF2020) ||
+	    rt2x00_rf(rt2x00dev, RF3020) ||
+	    rt2x00_rf(rt2x00dev, RF3021) ||
+	    rt2x00_rf(rt2x00dev, RF3022))
+		rt2800_config_channel_rf3xxx(rt2x00dev, conf, rf, info);
 	else
-		rt2800_config_channel_rt2x(rt2x00dev, conf, rf, info);
+		rt2800_config_channel_rf2xxx(rt2x00dev, conf, rf, info);
 
 	/*
 	 * Change BBP settings
