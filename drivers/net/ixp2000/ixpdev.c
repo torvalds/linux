@@ -15,6 +15,7 @@
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>
+#include <linux/gfp.h>
 #include <asm/hardware/uengine.h>
 #include <asm/io.h>
 #include "ixp2400_rx.ucode"

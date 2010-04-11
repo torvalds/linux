@@ -26,6 +26,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/ftrace.h>
+#include <linux/slab.h>
 
 #include <asm/cpu.h>
 #include <asm/processor.h>

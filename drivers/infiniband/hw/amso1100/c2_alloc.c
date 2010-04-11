@@ -32,7 +32,6 @@
  */
 
 #include <linux/errno.h>
-#include <linux/slab.h>
 #include <linux/bitmap.h>
 
 #include "c2.h"

@@ -29,7 +29,6 @@
 
 #include <linux/types.h>
 #include <linux/param.h>
-#include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/errno.h>

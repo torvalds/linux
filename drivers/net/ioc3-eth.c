@@ -44,6 +44,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #ifdef CONFIG_SERIAL_8250
 #include <linux/serial_core.h>

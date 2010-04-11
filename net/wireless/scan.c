@@ -4,6 +4,7 @@
  * Copyright 2008 Johannes Berg <johannes@sipsolutions.net>
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>

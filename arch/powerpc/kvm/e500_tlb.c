@@ -13,6 +13,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>

@@ -26,7 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/timer.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>

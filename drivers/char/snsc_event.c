@@ -17,6 +17,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/unaligned.h>

@@ -60,6 +60,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
+#include <linux/slab.h>
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"

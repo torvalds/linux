@@ -18,6 +18,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/ip.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>

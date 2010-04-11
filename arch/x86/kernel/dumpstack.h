@@ -30,6 +30,11 @@ struct stack_frame {
 	unsigned long return_address;
 };
 
+struct stack_frame_ia32 {
+    u32 next_frame;
+    u32 return_address;
+};
+
 static inline unsigned long rewind_frame_pointer(int n)
 {
 	struct stack_frame *frame;

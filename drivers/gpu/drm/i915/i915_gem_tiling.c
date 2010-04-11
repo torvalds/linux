@@ -325,9 +325,12 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 * need to ensure that any fence register is cleared.
 		 */
 		if (!i915_gem_object_fence_offset_ok(obj, args->tiling_mode))
-		    ret = i915_gem_object_unbind(obj);
+			ret = i915_gem_object_unbind(obj);
+		else if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
+			ret = i915_gem_object_put_fence_reg(obj);
 		else
-		    ret = i915_gem_object_put_fence_reg(obj);
+			i915_gem_release_mmap(obj);
+
 		if (ret != 0) {
 			WARN(ret != -ERESTARTSYS,
 			     "failed to reset object for tiling switch");

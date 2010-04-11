@@ -19,7 +19,6 @@
 #include <linux/string.h>
 #include <linux/syscalls.h>
 #include <linux/file.h>
-#include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/unistd.h>
 #include <linux/sem.h>
@@ -29,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/ipc.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 #include <asm/asm.h>
 #include <asm/branch.h>

@@ -54,6 +54,7 @@ enum p9_proto_versions{
 
 enum p9_trans_status {
 	Connected,
+	BeginDisconnect,
 	Disconnected,
 	Hung,
 };
@@ -198,6 +199,7 @@ int p9_client_version(struct p9_client *);
 struct p9_client *p9_client_create(const char *dev_name, char *options);
 void p9_client_destroy(struct p9_client *clnt);
 void p9_client_disconnect(struct p9_client *clnt);
+void p9_client_begin_disconnect(struct p9_client *clnt);
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 					char *uname, u32 n_uname, char *aname);
 struct p9_fid *p9_client_auth(struct p9_client *clnt, char *uname,

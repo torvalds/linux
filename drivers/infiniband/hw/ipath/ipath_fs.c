@@ -37,6 +37,7 @@
 #include <linux/pagemap.h>
 #include <linux/init.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 
 #include "ipath_kernel.h"
 

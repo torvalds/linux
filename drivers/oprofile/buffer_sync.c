@@ -30,6 +30,7 @@
 #include <linux/fs.h>
 #include <linux/oprofile.h>
 #include <linux/sched.h>
+#include <linux/gfp.h>
 
 #include "oprofile_stats.h"
 #include "event_buffer.h"

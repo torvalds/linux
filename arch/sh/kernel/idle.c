@@ -112,7 +112,7 @@ void cpu_idle(void)
 	}
 }
 
-void __cpuinit select_idle_routine(void)
+void __init select_idle_routine(void)
 {
 	/*
 	 * If a platform has set its own idle routine, leave it alone.

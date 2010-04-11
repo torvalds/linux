@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <acpi/acpi_drivers.h>
 

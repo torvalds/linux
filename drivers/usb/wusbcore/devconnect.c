@@ -88,6 +88,7 @@
 
 #include <linux/jiffies.h>
 #include <linux/ctype.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include "wusbhc.h"
 

@@ -43,6 +43,7 @@
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
 #include <linux/security.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>

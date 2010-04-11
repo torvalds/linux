@@ -2,6 +2,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/bitops.h>

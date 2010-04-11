@@ -24,6 +24,7 @@
  */
 
 #include <linux/swab.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "drm_sarea.h"
@@ -35,7 +36,6 @@
 #include "nouveau_drm.h"
 #include "nv50_display.h"
 
-static int nouveau_stub_init(struct drm_device *dev) { return 0; }
 static void nouveau_stub_takedown(struct drm_device *dev) {}
 
 static int nouveau_init_engine_ptrs(struct drm_device *dev)
@@ -277,8 +277,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
-		engine->fb.init			= nouveau_stub_init;
-		engine->fb.takedown		= nouveau_stub_takedown;
+		engine->fb.init			= nv50_fb_init;
+		engine->fb.takedown		= nv50_fb_takedown;
 		engine->graph.grclass		= nv50_graph_grclass;
 		engine->graph.init		= nv50_graph_init;
 		engine->graph.takedown		= nv50_graph_takedown;
@@ -341,7 +341,7 @@ nouveau_card_init_channel(struct drm_device *dev)
 
 	gpuobj = NULL;
 	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
-				     0, nouveau_mem_fb_amount(dev),
+				     0, dev_priv->vram_size,
 				     NV_DMA_ACCESS_RW, NV_DMA_TARGET_VIDMEM,
 				     &gpuobj);
 	if (ret)
@@ -427,6 +427,10 @@ nouveau_card_init(struct drm_device *dev)
 			goto out;
 	}
 
+	ret = nouveau_mem_detect(dev);
+	if (ret)
+		goto out_bios;
+
 	ret = nouveau_gpuobj_early_init(dev);
 	if (ret)
 		goto out_bios;
@@ -502,7 +506,7 @@ nouveau_card_init(struct drm_device *dev)
 		else
 			ret = nv04_display_create(dev);
 		if (ret)
-			goto out_irq;
+			goto out_channel;
 	}
 
 	ret = nouveau_backlight_init(dev);
@@ -516,6 +520,11 @@ nouveau_card_init(struct drm_device *dev)
 
 	return 0;
 
+out_channel:
+	if (dev_priv->channel) {
+		nouveau_channel_free(dev_priv->channel);
+		dev_priv->channel = NULL;
+	}
 out_irq:
 	drm_irq_uninstall(dev);
 out_fifo:
@@ -533,6 +542,7 @@ out_mc:
 out_gpuobj:
 	nouveau_gpuobj_takedown(dev);
 out_mem:
+	nouveau_sgdma_takedown(dev);
 	nouveau_mem_close(dev);
 out_instmem:
 	engine->instmem.takedown(dev);

@@ -24,6 +24,7 @@
 
 #include "qlcnic.h"
 
+#include <linux/slab.h>
 #include <net/ip.h>
 
 #define MASK(n) ((1ULL<<(n))-1)

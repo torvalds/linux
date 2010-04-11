@@ -27,6 +27,7 @@
 
 #include <linux/firmware.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include "rt_config.h"
 
 unsigned long RTDebugLevel = RT_DEBUG_ERROR;

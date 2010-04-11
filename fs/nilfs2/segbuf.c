@@ -25,6 +25,7 @@
 #include <linux/writeback.h>
 #include <linux/crc32.h>
 #include <linux/backing-dev.h>
+#include <linux/slab.h>
 #include "page.h"
 #include "segbuf.h"
 
@@ -323,14 +324,14 @@ int nilfs_write_logs(struct list_head *logs, struct the_nilfs *nilfs)
 int nilfs_wait_on_logs(struct list_head *logs)
 {
 	struct nilfs_segment_buffer *segbuf;
-	int err;
+	int err, ret = 0;
 
 	list_for_each_entry(segbuf, logs, sb_list) {
 		err = nilfs_segbuf_wait(segbuf);
-		if (err)
-			return err;
+		if (err && !ret)
+			ret = err;
 	}
-	return 0;
+	return ret;
 }
 
 /*

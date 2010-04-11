@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/io.h>
 #include <linux/of.h>

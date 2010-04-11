@@ -32,6 +32,7 @@ config SND_SOC_SH4_SIU
 	select DMA_ENGINE
 	select DMADEVICES
 	select SH_DMAE
+	select FW_LOADER
 
 ##
 ## Boards

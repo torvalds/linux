@@ -17,6 +17,7 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
+#include <linux/slab.h>
 #include <asm/blackfin.h>
 #include <asm/mem_map.h>
 #include "blackfin_sram.h"

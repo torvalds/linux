@@ -232,6 +232,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
  out_error_free_anon_vma:
 	anon_vma_free(anon_vma);
  out_error:
+	unlink_anon_vmas(vma);
 	return -ENOMEM;
 }
 

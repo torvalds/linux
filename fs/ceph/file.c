@@ -1,6 +1,7 @@
 #include "ceph_debug.h"
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/namei.h>
 #include <linux/writeback.h>

@@ -16,6 +16,7 @@
  */
 #include "layer2.h"
 #include <linux/random.h>
+#include <linux/slab.h>
 #include "core.h"
 
 #define ID_REQUEST	1

@@ -50,6 +50,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/if_arp.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

@@ -51,6 +51,7 @@
 #include <linux/skbuff.h>	/* struct sk_buff */
 #include <linux/mm.h>
 #include <linux/security.h>
+#include <linux/slab.h>
 
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
