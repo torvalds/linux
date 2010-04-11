@@ -648,6 +648,14 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 	bucket = kzalloc(sizeof(struct ino_bucket), GFP_ATOMIC);
 	if (unlikely(!bucket))
 		return 0;
+
+	/* The only reference we store to the IRQ bucket is
+	 * by physical address which kmemleak can't see, tell
+	 * it that this object explicitly is not a leak and
+	 * should be scanned.
+	 */
+	kmemleak_not_leak(bucket);
+
 	__flush_dcache_range((unsigned long) bucket,
 			     ((unsigned long) bucket +
 			      sizeof(struct ino_bucket)));
