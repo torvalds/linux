@@ -1479,7 +1479,7 @@ static struct dvb_frontend_ops cx24116_ops = {
 			FE_CAN_FEC_4_5 | FE_CAN_FEC_5_6 | FE_CAN_FEC_6_7 |
 			FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_2G_MODULATION |
-			FE_CAN_QPSK | FE_CAN_RECOVER
+                       FE_CAN_QPSK | FE_CAN_RECOVER | FE_CAN_PSK_8
 	},
 
 	.release = cx24116_release,
