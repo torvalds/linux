@@ -1537,6 +1537,15 @@ struct mac_iveiv_entry {
  */
 
 /*
+ * RFCSR 1:
+ */
+#define RFCSR1_RF_BLOCK_EN		FIELD8(0x01)
+#define RFCSR1_RX0_PD			FIELD8(0x04)
+#define RFCSR1_TX0_PD			FIELD8(0x08)
+#define RFCSR1_RX1_PD			FIELD8(0x10)
+#define RFCSR1_TX1_PD			FIELD8(0x20)
+
+/*
  * RFCSR 6:
  */
 #define RFCSR6_R1			FIELD8(0x03)
@@ -1553,12 +1562,26 @@ struct mac_iveiv_entry {
 #define RFCSR12_TX_POWER		FIELD8(0x1f)
 
 /*
+ * RFCSR 15:
+ */
+#define RFCSR15_TX_LO2_EN		FIELD8(0x08)
+
+/*
  * RFCSR 17:
  */
-#define RFCSR17_R1			FIELD8(0x07)
-#define RFCSR17_R2			FIELD8(0x08)
-#define RFCSR17_R3			FIELD8(0x20)
+#define RFCSR17_TXMIXER_GAIN		FIELD8(0x07)
+#define RFCSR17_TX_LO1_EN		FIELD8(0x08)
+#define RFCSR17_R			FIELD8(0x20)
 
+/*
+ * RFCSR 20:
+ */
+#define RFCSR20_RX_LO1_EN		FIELD8(0x08)
+
+/*
+ * RFCSR 21:
+ */
+#define RFCSR21_RX_LO2_EN		FIELD8(0x08)
 
 /*
  * RFCSR 22:
@@ -1569,6 +1592,14 @@ struct mac_iveiv_entry {
  * RFCSR 23:
  */
 #define RFCSR23_FREQ_OFFSET		FIELD8(0x7f)
+
+/*
+ * RFCSR 27:
+ */
+#define RFCSR27_R1			FIELD8(0x03)
+#define RFCSR27_R2			FIELD8(0x04)
+#define RFCSR27_R3			FIELD8(0x30)
+#define RFCSR27_R4			FIELD8(0x40)
 
 /*
  * RFCSR 30:
@@ -1708,6 +1739,12 @@ struct mac_iveiv_entry {
 #define EEPROM_RSSI_BG2			0x0024
 #define EEPROM_RSSI_BG2_OFFSET2		FIELD16(0x00ff)
 #define EEPROM_RSSI_BG2_LNA_A1		FIELD16(0xff00)
+
+/*
+ * EEPROM TXMIXER GAIN BG offset (note overlaps with EEPROM RSSI BG2).
+ */
+#define EEPROM_TXMIXER_GAIN_BG		0x0024
+#define EEPROM_TXMIXER_GAIN_BG_VAL	FIELD16(0x0007)
 
 /*
  * EEPROM RSSI A offset

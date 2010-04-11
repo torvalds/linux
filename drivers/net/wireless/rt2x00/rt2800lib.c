@@ -1209,10 +1209,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_MPDU, AGGREGATION_SIZE);
 	if ((rt2x00_rt(rt2x00dev, RT2872) &&
 	     (rt2x00_rev(rt2x00dev) >= RT2880E_VERSION)) ||
-	    rt2x00_rt(rt2x00dev, RT2880) ||
 	    rt2x00_rt(rt2x00dev, RT2883) ||
-	    rt2x00_rt(rt2x00dev, RT2890) ||
-	    rt2x00_rt(rt2x00dev, RT3052) ||
 	    (rt2x00_rt(rt2x00dev, RT3070) &&
 	     (rt2x00_rev(rt2x00dev) < RT3070_VERSION)))
 		rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_PSDU, 2);
@@ -1503,18 +1500,18 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	    (rt2x00_rev(rt2x00dev) > RT2860D_VERSION))
 		rt2800_bbp_write(rt2x00dev, 84, 0x19);
 
+	if (rt2x00_rt(rt2x00dev, RT2872)) {
+		rt2800_bbp_write(rt2x00dev, 31, 0x08);
+		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
+		rt2800_bbp_write(rt2x00dev, 80, 0x08);
+	}
+
 	if (rt2x00_is_usb(rt2x00dev) &&
 	    rt2x00_rt(rt2x00dev, RT3070) &&
 	    (rt2x00_rev(rt2x00dev) == RT3070_VERSION)) {
 		rt2800_bbp_write(rt2x00dev, 70, 0x0a);
 		rt2800_bbp_write(rt2x00dev, 84, 0x99);
 		rt2800_bbp_write(rt2x00dev, 105, 0x05);
-	}
-
-	if (rt2x00_rt(rt2x00dev, RT3052)) {
-		rt2800_bbp_write(rt2x00dev, 31, 0x08);
-		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
-		rt2800_bbp_write(rt2x00dev, 80, 0x08);
 	}
 
 	for (i = 0; i < EEPROM_BBP_SIZE; i++) {
@@ -1772,9 +1769,7 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	} else if (rt2x00_rt(rt2x00dev, RT2860) ||
 		   rt2x00_rt(rt2x00dev, RT2870) ||
 		   rt2x00_rt(rt2x00dev, RT2872) ||
-		   rt2x00_rt(rt2x00dev, RT2880) ||
-		   (rt2x00_rt(rt2x00dev, RT2883) &&
-		    (rt2x00_rev(rt2x00dev) < RT2883_VERSION))) {
+		   rt2x00_rt(rt2x00dev, RT2872)) {
 		/*
 		 * There is a max of 2 RX streams for RT28x0 series
 		 */
@@ -1879,10 +1874,7 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	if (!rt2x00_rt(rt2x00dev, RT2860) &&
 	    !rt2x00_rt(rt2x00dev, RT2870) &&
 	    !rt2x00_rt(rt2x00dev, RT2872) &&
-	    !rt2x00_rt(rt2x00dev, RT2880) &&
 	    !rt2x00_rt(rt2x00dev, RT2883) &&
-	    !rt2x00_rt(rt2x00dev, RT2890) &&
-	    !rt2x00_rt(rt2x00dev, RT3052) &&
 	    !rt2x00_rt(rt2x00dev, RT3070) &&
 	    !rt2x00_rt(rt2x00dev, RT3071) &&
 	    !rt2x00_rt(rt2x00dev, RT3090) &&
