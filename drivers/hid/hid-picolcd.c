@@ -77,7 +77,7 @@
 #define REPORT_HOOK_VERSION    0xf7 /* LCD: IN[2], OUT[1]   */
 #define REPORT_EXIT_FLASHER    0xff /*                      Bootloader: OUT[2]         */
 
-#if defined(CONFIG_FB) || defined(CONFIG_FB_MODULE)
+#ifdef CONFIG_HID_PICOLCD_FB
 /* Framebuffer
  *
  * The PicoLCD use a Topway LCD module of 256x64 pixel
@@ -128,7 +128,7 @@ static const struct fb_var_screeninfo picolcdfb_var = {
 	.bits_per_pixel = 1,
 	.grayscale      = 1,
 };
-#endif /* CONFIG_FB */
+#endif /* CONFIG_HID_PICOLCD_FB */
 
 /* Input device
  *
@@ -183,7 +183,7 @@ struct picolcd_data {
 	struct input_dev *input_cir;
 	unsigned short keycode[PICOLCD_KEYS];
 
-#if defined(CONFIG_FB) || defined(CONFIG_FB_MODULE)
+#ifdef CONFIG_HID_PICOLCD_FB
 	/* Framebuffer stuff */
 	u8 fb_update_rate;
 	u8 fb_bpp;
@@ -191,21 +191,21 @@ struct picolcd_data {
 	u8 *fb_bitmap;		/* framebuffer */
 	struct fb_info *fb_info;
 	struct fb_deferred_io fb_defio;
-#endif /* CONFIG_FB */
-#if defined(CONFIG_LCD_CLASS_DEVICE) || defined(CONFIG_LCD_CLASS_DEVICE_MODULE)
+#endif /* CONFIG_HID_PICOLCD_FB */
+#ifdef CONFIG_HID_PICOLCD_LCD
 	struct lcd_device *lcd;
 	u8 lcd_contrast;
-#endif
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+#endif /* CONFIG_HID_PICOLCD_LCD */
+#ifdef CONFIG_HID_PICOLCD_BACKLIGHT
 	struct backlight_device *backlight;
 	u8 lcd_brightness;
 	u8 lcd_power;
-#endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#endif /* CONFIG_HID_PICOLCD_BACKLIGHT */
+#ifdef CONFIG_HID_PICOLCD_LEDS
 	/* LED stuff */
 	u8 led_state;
 	struct led_classdev *led[8];
-#endif /* CONFIG_LEDS_CLASS */
+#endif /* CONFIG_HID_PICOLCD_LEDS */
 
 	/* Housekeeping stuff */
 	spinlock_t lock;
@@ -287,7 +287,7 @@ static struct picolcd_pending *picolcd_send_and_wait(struct hid_device *hdev,
 	return work;
 }
 
-#if defined(CONFIG_FB) || defined(CONFIG_FB_MODULE)
+#ifdef CONFIG_HID_PICOLCD_FB
 /* Send a given tile to PicoLCD */
 static int picolcd_fb_send_tile(struct hid_device *hdev, int chip, int tile)
 {
@@ -766,9 +766,9 @@ static void picolcd_exit_framebuffer(struct picolcd_data *data)
 {
 }
 #define picolcd_fbinfo(d) NULL
-#endif /* CONFIG_FB */
+#endif /* CONFIG_HID_PICOLCD_FB */
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+#ifdef CONFIG_HID_PICOLCD_BACKLIGHT
 /*
  * backlight class device
  */
@@ -864,9 +864,9 @@ static inline int picolcd_resume_backlight(struct picolcd_data *data)
 {
 	return 0;
 }
-#endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
+#endif /* CONFIG_HID_PICOLCD_BACKLIGHT */
 
-#if defined(CONFIG_LCD_CLASS_DEVICE) || defined(CONFIG_LCD_CLASS_DEVICE_MODULE)
+#ifdef CONFIG_HID_PICOLCD_LCD
 /*
  * lcd class device
  */
@@ -957,9 +957,9 @@ static inline int picolcd_resume_lcd(struct picolcd_data *data)
 {
 	return 0;
 }
-#endif /* CONFIG_LCD_CLASS_DEVICE */
+#endif /* CONFIG_HID_PICOLCD_LCD */
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#ifdef CONFIG_HID_PICOLCD_LEDS
 /**
  * LED class device
  */
@@ -1104,7 +1104,7 @@ static inline int picolcd_leds_set(struct picolcd_data *data)
 {
 	return 0;
 }
-#endif /* CONFIG_LEDS_CLASS */
+#endif /* CONFIG_HID_PICOLCD_LEDS */
 
 /*
  * input class device
@@ -1243,10 +1243,10 @@ static int picolcd_reset(struct hid_device *hdev)
 
 	picolcd_resume_lcd(data);
 	picolcd_resume_backlight(data);
-#if defined(CONFIG_FB) || defined(CONFIG_FB_MODULE)
+#ifdef CONFIG_HID_PICOLCD_FB
 	if (data->fb_info)
 		schedule_delayed_work(&data->fb_info->deferred_work, 0);
-#endif /* CONFIG_FB */
+#endif /* CONFIG_HID_PICOLCD_FB */
 
 	picolcd_leds_set(data);
 	return 0;
