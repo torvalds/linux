@@ -1113,6 +1113,10 @@ int be_cmd_promiscuous_config(struct be_adapter *adapter, u8 port_num, bool en)
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
 		OPCODE_ETH_PROMISCUOUS, sizeof(*req));
 
+	/* In FW versions X.102.149/X.101.487 and later,
+	 * the port setting associated only with the
+	 * issuing pci function will take effect
+	 */
 	if (port_num)
 		req->port1_promiscuous = en;
 	else
