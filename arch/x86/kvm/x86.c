@@ -3718,6 +3718,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 			? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
 
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
+		trace_kvm_emulate_insn_start(vcpu);
 
 		/* Only allow emulation of specific instructions on #UD
 		 * (namely VMMCALL, sysenter, sysexit, syscall)*/
@@ -3750,6 +3751,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 		++vcpu->stat.insn_emulation;
 		if (r)  {
 			++vcpu->stat.insn_emulation_fail;
+			trace_kvm_emulate_insn_failed(vcpu);
 			if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
 				return EMULATE_DONE;
 			return EMULATE_FAIL;
@@ -3786,6 +3788,8 @@ restart:
 		if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
 			goto done;
 		if (!vcpu->mmio_needed) {
+			++vcpu->stat.insn_emulation_fail;
+			trace_kvm_emulate_insn_failed(vcpu);
 			kvm_report_emulation_failure(vcpu, "mmio");
 			return EMULATE_FAIL;
 		}
