@@ -23,6 +23,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -58,10 +60,15 @@ static const struct key_entry eeepc_wmi_keymap[] = {
 	{ KE_END, 0},
 };
 
-static struct input_dev *eeepc_wmi_input_dev;
+struct eeepc_wmi {
+	struct input_dev *inputdev;
+};
+
+static struct eeepc_wmi *eeepc;
 
 static void eeepc_wmi_notify(u32 value, void *context)
 {
+	struct eeepc_wmi *eeepc = context;
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
 	acpi_status status;
@@ -69,7 +76,7 @@ static void eeepc_wmi_notify(u32 value, void *context)
 
 	status = wmi_get_event_data(value, &response);
 	if (status != AE_OK) {
-		pr_err("EEEPC WMI: bad event status 0x%x\n", status);
+		pr_err("bad event status 0x%x\n", status);
 		return;
 	}
 
@@ -83,41 +90,51 @@ static void eeepc_wmi_notify(u32 value, void *context)
 		else if (code >= NOTIFY_BRNDOWN_MIN && code <= NOTIFY_BRNDOWN_MAX)
 			code = NOTIFY_BRNDOWN_MIN;
 
-		if (!sparse_keymap_report_event(eeepc_wmi_input_dev,
+		if (!sparse_keymap_report_event(eeepc->inputdev,
 						code, 1, true))
-			pr_info("EEEPC WMI: Unknown key %x pressed\n", code);
+			pr_info("Unknown key %x pressed\n", code);
 	}
 
 	kfree(obj);
 }
 
-static int eeepc_wmi_input_setup(void)
+static int eeepc_wmi_input_init(struct eeepc_wmi *eeepc)
 {
 	int err;
 
-	eeepc_wmi_input_dev = input_allocate_device();
-	if (!eeepc_wmi_input_dev)
+	eeepc->inputdev = input_allocate_device();
+	if (!eeepc->inputdev)
 		return -ENOMEM;
 
-	eeepc_wmi_input_dev->name = "Eee PC WMI hotkeys";
-	eeepc_wmi_input_dev->phys = "wmi/input0";
-	eeepc_wmi_input_dev->id.bustype = BUS_HOST;
+	eeepc->inputdev->name = "Eee PC WMI hotkeys";
+	eeepc->inputdev->phys = "wmi/input0";
+	eeepc->inputdev->id.bustype = BUS_HOST;
 
-	err = sparse_keymap_setup(eeepc_wmi_input_dev, eeepc_wmi_keymap, NULL);
+	err = sparse_keymap_setup(eeepc->inputdev, eeepc_wmi_keymap, NULL);
 	if (err)
 		goto err_free_dev;
 
-	err = input_register_device(eeepc_wmi_input_dev);
+	err = input_register_device(eeepc->inputdev);
 	if (err)
 		goto err_free_keymap;
 
 	return 0;
 
 err_free_keymap:
-	sparse_keymap_free(eeepc_wmi_input_dev);
+	sparse_keymap_free(eeepc->inputdev);
 err_free_dev:
-	input_free_device(eeepc_wmi_input_dev);
+	input_free_device(eeepc->inputdev);
 	return err;
+}
+
+static void eeepc_wmi_input_exit(struct eeepc_wmi *eeepc)
+{
+	if (eeepc->inputdev) {
+		sparse_keymap_free(eeepc->inputdev);
+		input_unregister_device(eeepc->inputdev);
+	}
+
+	eeepc->inputdev = NULL;
 }
 
 static int __init eeepc_wmi_init(void)
@@ -126,21 +143,27 @@ static int __init eeepc_wmi_init(void)
 	acpi_status status;
 
 	if (!wmi_has_guid(EEEPC_WMI_EVENT_GUID)) {
-		pr_warning("EEEPC WMI: No known WMI GUID found\n");
+		pr_warning("No known WMI GUID found\n");
 		return -ENODEV;
 	}
 
-	err = eeepc_wmi_input_setup();
-	if (err)
+	eeepc = kzalloc(sizeof(struct eeepc_wmi), GFP_KERNEL);
+	if (!eeepc)
+		return -ENOMEM;
+
+	err = eeepc_wmi_input_init(eeepc);
+	if (err) {
+		kfree(eeepc);
 		return err;
+	}
 
 	status = wmi_install_notify_handler(EEEPC_WMI_EVENT_GUID,
-					eeepc_wmi_notify, NULL);
+					eeepc_wmi_notify, eeepc);
 	if (ACPI_FAILURE(status)) {
-		sparse_keymap_free(eeepc_wmi_input_dev);
-		input_unregister_device(eeepc_wmi_input_dev);
-		pr_err("EEEPC WMI: Unable to register notify handler - %d\n",
+		pr_err("Unable to register notify handler - %d\n",
 			status);
+		eeepc_wmi_input_exit(eeepc);
+		kfree(eeepc);
 		return -ENODEV;
 	}
 
@@ -150,8 +173,8 @@ static int __init eeepc_wmi_init(void)
 static void __exit eeepc_wmi_exit(void)
 {
 	wmi_remove_notify_handler(EEEPC_WMI_EVENT_GUID);
-	sparse_keymap_free(eeepc_wmi_input_dev);
-	input_unregister_device(eeepc_wmi_input_dev);
+	eeepc_wmi_input_exit(eeepc);
+	kfree(eeepc);
 }
 
 module_init(eeepc_wmi_init);
