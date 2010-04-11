@@ -127,7 +127,7 @@ static int ir_do_setkeycode(struct input_dev *dev,
 		break;
 	}
 
-	if (old_keycode == KEY_RESERVED) {
+	if (old_keycode == KEY_RESERVED && keycode != KEY_RESERVED) {
 		/* No previous mapping found, we might need to grow the table */
 		if (ir_resize_table(rc_tab))
 			return -ENOMEM;
