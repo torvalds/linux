@@ -56,6 +56,7 @@
 #define RF3021				0x0007
 #define RF3022				0x0008
 #define RF3052				0x0009
+#define RF3320				0x000b
 
 /*
  * Chipset version.
@@ -90,8 +91,14 @@
 #define NUM_TX_QUEUES			4
 
 /*
- * USB registers.
+ * Registers.
  */
+
+/*
+ * OPT_14: Unknown register used by rt3xxx devices.
+ */
+#define OPT_14_CSR			0x0114
+#define OPT_14_CSR_BIT0			FIELD32(0x00000001)
 
 /*
  * INT_SOURCE_CSR: Interrupt source register.
@@ -396,6 +403,31 @@
  * EFUSE_DATA3
  */
 #define EFUSE_DATA3			0x059c
+
+/*
+ * LDO_CFG0
+ */
+#define LDO_CFG0			0x05d4
+#define LDO_CFG0_DELAY3			FIELD32(0x000000ff)
+#define LDO_CFG0_DELAY2			FIELD32(0x0000ff00)
+#define LDO_CFG0_DELAY1			FIELD32(0x00ff0000)
+#define LDO_CFG0_BGSEL			FIELD32(0x03000000)
+#define LDO_CFG0_LDO_CORE_VLEVEL	FIELD32(0x1c000000)
+#define LD0_CFG0_LDO25_LEVEL		FIELD32(0x60000000)
+#define LDO_CFG0_LDO25_LARGEA		FIELD32(0x80000000)
+
+/*
+ * GPIO_SWITCH
+ */
+#define GPIO_SWITCH			0x05dc
+#define GPIO_SWITCH_0			FIELD32(0x00000001)
+#define GPIO_SWITCH_1			FIELD32(0x00000002)
+#define GPIO_SWITCH_2			FIELD32(0x00000004)
+#define GPIO_SWITCH_3			FIELD32(0x00000008)
+#define GPIO_SWITCH_4			FIELD32(0x00000010)
+#define GPIO_SWITCH_5			FIELD32(0x00000020)
+#define GPIO_SWITCH_6			FIELD32(0x00000040)
+#define GPIO_SWITCH_7			FIELD32(0x00000080)
 
 /*
  * MAC Control/Status Registers(CSR).
@@ -1492,6 +1524,14 @@ struct mac_iveiv_entry {
 #define BBP4_BANDWIDTH			FIELD8(0x18)
 
 /*
+ * BBP 138: Unknown
+ */
+#define BBP138_RX_ADC1			FIELD8(0x02)
+#define BBP138_RX_ADC2			FIELD8(0x04)
+#define BBP138_TX_DAC1			FIELD8(0x20)
+#define BBP138_TX_DAC2			FIELD8(0x40)
+
+/*
  * RFCSR registers
  * The wordsize of the RFCSR is 8 bits.
  */
@@ -1499,7 +1539,8 @@ struct mac_iveiv_entry {
 /*
  * RFCSR 6:
  */
-#define RFCSR6_R			FIELD8(0x03)
+#define RFCSR6_R1			FIELD8(0x03)
+#define RFCSR6_R2			FIELD8(0x40)
 
 /*
  * RFCSR 7:
@@ -1510,6 +1551,14 @@ struct mac_iveiv_entry {
  * RFCSR 12:
  */
 #define RFCSR12_TX_POWER		FIELD8(0x1f)
+
+/*
+ * RFCSR 17:
+ */
+#define RFCSR17_R1			FIELD8(0x07)
+#define RFCSR17_R2			FIELD8(0x08)
+#define RFCSR17_R3			FIELD8(0x20)
+
 
 /*
  * RFCSR 22:
@@ -1603,6 +1652,8 @@ struct mac_iveiv_entry {
 #define EEPROM_NIC_WPS_PBC		FIELD16(0x0080)
 #define EEPROM_NIC_BW40M_BG		FIELD16(0x0100)
 #define EEPROM_NIC_BW40M_A		FIELD16(0x0200)
+#define EEPROM_NIC_ANT_DIVERSITY	FIELD16(0x0800)
+#define EEPROM_NIC_DAC_TEST		FIELD16(0x8000)
 
 /*
  * EEPROM frequency
