@@ -672,8 +672,6 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	/* it seems we have to wait a bit until taal is ready */
 	msleep(5);
 
-	dsi_bus_lock();
-
 	r = omapdss_dsi_display_enable(dssdev);
 	if (r) {
 		dev_err(&dssdev->dev, "failed to enable DSI\n");
@@ -744,8 +742,6 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 
 	omapdss_dsi_vc_enable_hs(TCH, true);
 
-	dsi_bus_unlock();
-
 	return 0;
 err:
 	dev_err(&dssdev->dev, "error while enabling panel, issuing HW reset\n");
@@ -754,8 +750,6 @@ err:
 
 	omapdss_dsi_display_disable(dssdev);
 err0:
-	dsi_bus_unlock();
-
 	return r;
 }
 
@@ -763,8 +757,6 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	int r;
-
-	dsi_bus_lock();
 
 	cancel_delayed_work(&td->esd_work);
 
@@ -784,8 +776,6 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 	omapdss_dsi_display_disable(dssdev);
 
 	td->enabled = 0;
-
-	dsi_bus_unlock();
 }
 
 static int taal_enable(struct omap_dss_device *dssdev)
@@ -802,7 +792,12 @@ static int taal_enable(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
+	dsi_bus_lock();
+
 	r = taal_power_on(dssdev);
+
+	dsi_bus_unlock();
+
 	if (r)
 		goto err;
 
@@ -825,8 +820,12 @@ static void taal_disable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&td->lock);
 
+	dsi_bus_lock();
+
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
 		taal_power_off(dssdev);
+
+	dsi_bus_unlock();
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 
@@ -847,7 +846,12 @@ static int taal_suspend(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
+	dsi_bus_lock();
+
 	taal_power_off(dssdev);
+
+	dsi_bus_unlock();
+
 	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
 
 	mutex_unlock(&td->lock);
@@ -872,7 +876,12 @@ static int taal_resume(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
+	dsi_bus_lock();
+
 	r = taal_power_on(dssdev);
+
+	dsi_bus_unlock();
+
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	mutex_unlock(&td->lock);
