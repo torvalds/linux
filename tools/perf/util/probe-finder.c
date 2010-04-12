@@ -484,35 +484,40 @@ static void convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 	convert_location(expr, pf);
 
 	if (pf->pvar->field)
-		convert_variable_fields(vr_die, pf->pvar->name,
+		convert_variable_fields(vr_die, pf->pvar->var,
 					pf->pvar->field, &pf->tvar->ref);
 	/* *expr will be cached in libdw. Don't free it. */
 	return ;
 error:
 	/* TODO: Support const_value */
 	die("Failed to find the location of %s at this address.\n"
-	    " Perhaps, it has been optimized out.", pf->pvar->name);
+	    " Perhaps, it has been optimized out.", pf->pvar->var);
 }
 
 /* Find a variable in a subprogram die */
 static void find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
 	Dwarf_Die vr_die;
-	char buf[128];
+	char buf[32];
 
-	/* TODO: Support struct members and arrays */
-	if (!is_c_varname(pf->pvar->name)) {
-		/* Copy raw parameters */
-		pf->tvar->value = xstrdup(pf->pvar->name);
-	} else {
-		synthesize_perf_probe_arg(pf->pvar, buf, 128);
+	/* TODO: Support arrays */
+	if (pf->pvar->name)
+		pf->tvar->name = xstrdup(pf->pvar->name);
+	else {
+		synthesize_perf_probe_arg(pf->pvar, buf, 32);
 		pf->tvar->name = xstrdup(buf);
+	}
+
+	if (!is_c_varname(pf->pvar->var)) {
+		/* Copy raw parameters */
+		pf->tvar->value = xstrdup(pf->pvar->var);
+	} else {
 		pr_debug("Searching '%s' variable in context.\n",
-			 pf->pvar->name);
+			 pf->pvar->var);
 		/* Search child die for local variables and parameters. */
-		if (!die_find_variable(sp_die, pf->pvar->name, &vr_die))
+		if (!die_find_variable(sp_die, pf->pvar->var, &vr_die))
 			die("Failed to find '%s' in this function.",
-			    pf->pvar->name);
+			    pf->pvar->var);
 		convert_variable(&vr_die, pf);
 	}
 }

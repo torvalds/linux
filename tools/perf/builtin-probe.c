@@ -142,9 +142,9 @@ static const struct option options[] = {
 	OPT_CALLBACK('a', "add", NULL,
 #ifdef DWARF_SUPPORT
 		"[EVENT=]FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT"
-		" [ARG ...]",
+		" [[NAME=]ARG ...]",
 #else
-		"[EVENT=]FUNC[+OFF|%return] [ARG ...]",
+		"[EVENT=]FUNC[+OFF|%return] [[NAME=]ARG ...]",
 #endif
 		"probe point definition, where\n"
 		"\t\tGROUP:\tGroup name (optional)\n"

@@ -55,6 +55,7 @@ struct perf_probe_arg_field {
 /* Perf probe probing argument */
 struct perf_probe_arg {
 	char				*name;	/* Argument name */
+	char				*var;	/* Variable name */
 	struct perf_probe_arg_field	*field;	/* Structure fields */
 };
 

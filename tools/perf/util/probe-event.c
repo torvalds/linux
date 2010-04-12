@@ -437,22 +437,28 @@ static void parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 /* Parse perf-probe event argument */
 static void parse_perf_probe_arg(const char *str, struct perf_probe_arg *arg)
 {
-	const char *tmp;
+	char *tmp;
 	struct perf_probe_arg_field **fieldp;
 
 	pr_debug("parsing arg: %s into ", str);
 
+	tmp = strchr(str, '=');
+	if (tmp) {
+		arg->name = xstrndup(str, tmp - str);
+		str = tmp + 1;
+	}
+
 	tmp = strpbrk(str, "-.");
 	if (!is_c_varname(str) || !tmp) {
 		/* A variable, register, symbol or special value */
-		arg->name = xstrdup(str);
-		pr_debug("%s\n", arg->name);
+		arg->var = xstrdup(str);
+		pr_debug("%s\n", arg->var);
 		return;
 	}
 
 	/* Structure fields */
-	arg->name = xstrndup(str, tmp - str);
-	pr_debug("%s, ", arg->name);
+	arg->var = xstrndup(str, tmp - str);
+	pr_debug("%s, ", arg->var);
 	fieldp = &arg->field;
 
 	do {
@@ -497,7 +503,7 @@ void parse_perf_probe_command(const char *cmd, struct perf_probe_event *pev)
 	pev->args = xzalloc(sizeof(struct perf_probe_arg) * pev->nargs);
 	for (i = 0; i < pev->nargs; i++) {
 		parse_perf_probe_arg(argv[i + 1], &pev->args[i]);
-		if (is_c_varname(pev->args[i].name) && pev->point.retprobe)
+		if (is_c_varname(pev->args[i].var) && pev->point.retprobe)
 			semantic_error("You can't specify local variable for"
 				       " kretprobe");
 	}
@@ -514,7 +520,7 @@ bool perf_probe_event_need_dwarf(struct perf_probe_event *pev)
 		return true;
 
 	for (i = 0; i < pev->nargs; i++)
-		if (is_c_varname(pev->args[i].name))
+		if (is_c_varname(pev->args[i].var))
 			return true;
 
 	return false;
@@ -575,7 +581,10 @@ int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf, size_t len)
 	int ret;
 	char *tmp = buf;
 
-	ret = e_snprintf(tmp, len, "%s", pa->name);
+	if (pa->name && pa->var)
+		ret = e_snprintf(tmp, len, "%s=%s", pa->name, pa->var);
+	else
+		ret = e_snprintf(tmp, len, "%s", pa->name ? pa->name : pa->var);
 	if (ret <= 0)
 		goto error;
 	tmp += ret;
@@ -803,6 +812,8 @@ void clear_perf_probe_event(struct perf_probe_event *pev)
 	for (i = 0; i < pev->nargs; i++) {
 		if (pev->args[i].name)
 			free(pev->args[i].name);
+		if (pev->args[i].var)
+			free(pev->args[i].var);
 		field = pev->args[i].field;
 		while (field) {
 			next = field->next;
@@ -1117,8 +1128,11 @@ static int convert_to_kprobe_trace_events(struct perf_probe_event *pev,
 	if (tev->nargs) {
 		tev->args = xzalloc(sizeof(struct kprobe_trace_arg)
 				    * tev->nargs);
-		for (i = 0; i < tev->nargs; i++)
-			tev->args[i].value = xstrdup(pev->args[i].name);
+		for (i = 0; i < tev->nargs; i++) {
+			if (pev->args[i].name)
+				tev->args[i].name = xstrdup(pev->args[i].name);
+			tev->args[i].value = xstrdup(pev->args[i].var);
+		}
 	}
 
 	/* Currently just checking function name from symbol map */
