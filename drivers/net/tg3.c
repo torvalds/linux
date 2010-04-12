@@ -4400,7 +4400,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 		}
 
 		pci_unmap_single(tp->pdev,
-				 pci_unmap_addr(ri, mapping),
+				 dma_unmap_addr(ri, mapping),
 				 skb_headlen(skb),
 				 PCI_DMA_TODEVICE);
 
@@ -4414,7 +4414,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 				tx_bug = 1;
 
 			pci_unmap_page(tp->pdev,
-				       pci_unmap_addr(ri, mapping),
+				       dma_unmap_addr(ri, mapping),
 				       skb_shinfo(skb)->frags[i].size,
 				       PCI_DMA_TODEVICE);
 			sw_idx = NEXT_TX(sw_idx);
@@ -4452,7 +4452,7 @@ static void tg3_rx_skb_free(struct tg3 *tp, struct ring_info *ri, u32 map_sz)
 	if (!ri->skb)
 		return;
 
-	pci_unmap_single(tp->pdev, pci_unmap_addr(ri, mapping),
+	pci_unmap_single(tp->pdev, dma_unmap_addr(ri, mapping),
 			 map_sz, PCI_DMA_FROMDEVICE);
 	dev_kfree_skb_any(ri->skb);
 	ri->skb = NULL;
@@ -4518,7 +4518,7 @@ static int tg3_alloc_rx_skb(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 	}
 
 	map->skb = skb;
-	pci_unmap_addr_set(map, mapping, mapping);
+	dma_unmap_addr_set(map, mapping, mapping);
 
 	desc->addr_hi = ((u64)mapping >> 32);
 	desc->addr_lo = ((u64)mapping & 0xffffffff);
@@ -4563,8 +4563,8 @@ static void tg3_recycle_rx(struct tg3_napi *tnapi,
 	}
 
 	dest_map->skb = src_map->skb;
-	pci_unmap_addr_set(dest_map, mapping,
-			   pci_unmap_addr(src_map, mapping));
+	dma_unmap_addr_set(dest_map, mapping,
+			   dma_unmap_addr(src_map, mapping));
 	dest_desc->addr_hi = src_desc->addr_hi;
 	dest_desc->addr_lo = src_desc->addr_lo;
 
@@ -4634,13 +4634,13 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		opaque_key = desc->opaque & RXD_OPAQUE_RING_MASK;
 		if (opaque_key == RXD_OPAQUE_RING_STD) {
 			ri = &tp->prodring[0].rx_std_buffers[desc_idx];
-			dma_addr = pci_unmap_addr(ri, mapping);
+			dma_addr = dma_unmap_addr(ri, mapping);
 			skb = ri->skb;
 			post_ptr = &std_prod_idx;
 			rx_std_posted++;
 		} else if (opaque_key == RXD_OPAQUE_RING_JUMBO) {
 			ri = &tp->prodring[0].rx_jmb_buffers[desc_idx];
-			dma_addr = pci_unmap_addr(ri, mapping);
+			dma_addr = dma_unmap_addr(ri, mapping);
 			skb = ri->skb;
 			post_ptr = &jmb_prod_idx;
 		} else
@@ -5474,12 +5474,12 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 			len = skb_shinfo(skb)->frags[i-1].size;
 
 		pci_unmap_single(tp->pdev,
-				 pci_unmap_addr(&tnapi->tx_buffers[entry],
+				 dma_unmap_addr(&tnapi->tx_buffers[entry],
 						mapping),
 				 len, PCI_DMA_TODEVICE);
 		if (i == 0) {
 			tnapi->tx_buffers[entry].skb = new_skb;
-			pci_unmap_addr_set(&tnapi->tx_buffers[entry], mapping,
+			dma_unmap_addr_set(&tnapi->tx_buffers[entry], mapping,
 					   new_addr);
 		} else {
 			tnapi->tx_buffers[entry].skb = NULL;
@@ -5609,7 +5609,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb,
 	}
 
 	tnapi->tx_buffers[entry].skb = skb;
-	pci_unmap_addr_set(&tnapi->tx_buffers[entry], mapping, mapping);
+	dma_unmap_addr_set(&tnapi->tx_buffers[entry], mapping, mapping);
 
 	if ((tp->tg3_flags3 & TG3_FLG3_USE_JUMBO_BDFLAG) &&
 	    !mss && skb->len > ETH_DATA_LEN)
@@ -5635,7 +5635,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb,
 				goto dma_error;
 
 			tnapi->tx_buffers[entry].skb = NULL;
-			pci_unmap_addr_set(&tnapi->tx_buffers[entry], mapping,
+			dma_unmap_addr_set(&tnapi->tx_buffers[entry], mapping,
 					   mapping);
 
 			tg3_set_txd(tnapi, entry, mapping, len,
@@ -5665,7 +5665,7 @@ dma_error:
 	entry = tnapi->tx_prod;
 	tnapi->tx_buffers[entry].skb = NULL;
 	pci_unmap_single(tp->pdev,
-			 pci_unmap_addr(&tnapi->tx_buffers[entry], mapping),
+			 dma_unmap_addr(&tnapi->tx_buffers[entry], mapping),
 			 skb_headlen(skb),
 			 PCI_DMA_TODEVICE);
 	for (i = 0; i <= last; i++) {
@@ -5673,7 +5673,7 @@ dma_error:
 		entry = NEXT_TX(entry);
 
 		pci_unmap_page(tp->pdev,
-			       pci_unmap_addr(&tnapi->tx_buffers[entry],
+			       dma_unmap_addr(&tnapi->tx_buffers[entry],
 					      mapping),
 			       frag->size, PCI_DMA_TODEVICE);
 	}
@@ -5835,7 +5835,7 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 	}
 
 	tnapi->tx_buffers[entry].skb = skb;
-	pci_unmap_addr_set(&tnapi->tx_buffers[entry], mapping, mapping);
+	dma_unmap_addr_set(&tnapi->tx_buffers[entry], mapping, mapping);
 
 	would_hit_hwbug = 0;
 
@@ -5871,7 +5871,7 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 					       len, PCI_DMA_TODEVICE);
 
 			tnapi->tx_buffers[entry].skb = NULL;
-			pci_unmap_addr_set(&tnapi->tx_buffers[entry], mapping,
+			dma_unmap_addr_set(&tnapi->tx_buffers[entry], mapping,
 					   mapping);
 			if (pci_dma_mapping_error(tp->pdev, mapping))
 				goto dma_error;
@@ -5936,7 +5936,7 @@ dma_error:
 	entry = tnapi->tx_prod;
 	tnapi->tx_buffers[entry].skb = NULL;
 	pci_unmap_single(tp->pdev,
-			 pci_unmap_addr(&tnapi->tx_buffers[entry], mapping),
+			 dma_unmap_addr(&tnapi->tx_buffers[entry], mapping),
 			 skb_headlen(skb),
 			 PCI_DMA_TODEVICE);
 	for (i = 0; i <= last; i++) {
@@ -5944,7 +5944,7 @@ dma_error:
 		entry = NEXT_TX(entry);
 
 		pci_unmap_page(tp->pdev,
-			       pci_unmap_addr(&tnapi->tx_buffers[entry],
+			       dma_unmap_addr(&tnapi->tx_buffers[entry],
 					      mapping),
 			       frag->size, PCI_DMA_TODEVICE);
 	}
@@ -6229,7 +6229,7 @@ static void tg3_free_rings(struct tg3 *tp)
 			}
 
 			pci_unmap_single(tp->pdev,
-					 pci_unmap_addr(txp, mapping),
+					 dma_unmap_addr(txp, mapping),
 					 skb_headlen(skb),
 					 PCI_DMA_TODEVICE);
 			txp->skb = NULL;
@@ -6239,7 +6239,7 @@ static void tg3_free_rings(struct tg3 *tp)
 			for (k = 0; k < skb_shinfo(skb)->nr_frags; k++) {
 				txp = &tnapi->tx_buffers[i & (TG3_TX_RING_SIZE - 1)];
 				pci_unmap_page(tp->pdev,
-					       pci_unmap_addr(txp, mapping),
+					       dma_unmap_addr(txp, mapping),
 					       skb_shinfo(skb)->frags[k].size,
 					       PCI_DMA_TODEVICE);
 				i++;
@@ -10742,7 +10742,7 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 
 	rx_skb = tpr->rx_std_buffers[desc_idx].skb;
 
-	map = pci_unmap_addr(&tpr->rx_std_buffers[desc_idx], mapping);
+	map = dma_unmap_addr(&tpr->rx_std_buffers[desc_idx], mapping);
 	pci_dma_sync_single_for_cpu(tp->pdev, map, rx_len, PCI_DMA_FROMDEVICE);
 
 	for (i = 14; i < tx_len; i++) {

@@ -2512,7 +2512,7 @@ struct tg3_hw_stats {
  */
 struct ring_info {
 	struct sk_buff			*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
 struct tg3_config_info {
