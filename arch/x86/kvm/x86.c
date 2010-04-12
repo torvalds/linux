@@ -2133,7 +2133,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 				      struct kvm_dirty_log *log)
 {
 	int r;
-	int n;
+	unsigned long n;
 	struct kvm_memory_slot *memslot;
 	int is_dirty = 0;
 
@@ -2149,7 +2149,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 		kvm_mmu_slot_remove_write_access(kvm, log->slot);
 		spin_unlock(&kvm->mmu_lock);
 		memslot = &kvm->memslots[log->slot];
-		n = ALIGN(memslot->npages, BITS_PER_LONG) / 8;
+		n = kvm_dirty_bitmap_bytes(memslot);
 		memset(memslot->dirty_bitmap, 0, n);
 	}
 	r = 0;
