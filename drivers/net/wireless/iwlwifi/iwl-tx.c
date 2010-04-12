@@ -394,6 +394,26 @@ out_free_arrays:
 }
 EXPORT_SYMBOL(iwl_tx_queue_init);
 
+void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+			int slots_num, u32 txq_id)
+{
+	int actual_slots = slots_num;
+
+	if (txq_id == IWL_CMD_QUEUE_NUM)
+		actual_slots++;
+
+	memset(txq->meta, 0, sizeof(struct iwl_cmd_meta) * actual_slots);
+
+	txq->need_update = 0;
+
+	/* Initialize queue's high/low-water marks, and head/tail indexes */
+	iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
+
+	/* Tell device where to find queue */
+	priv->cfg->ops->lib->txq_init(priv, txq);
+}
+EXPORT_SYMBOL(iwl_tx_queue_reset);
+
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
 
 /**
@@ -629,29 +649,36 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 EXPORT_SYMBOL(iwl_tx_cmd_complete);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-#define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
+#define TX_STATUS_FAIL(x) case TX_STATUS_FAIL_ ## x: return #x
+#define TX_STATUS_POSTPONE(x) case TX_STATUS_POSTPONE_ ## x: return #x
 
 const char *iwl_get_tx_fail_reason(u32 status)
 {
 	switch (status & TX_STATUS_MSK) {
 	case TX_STATUS_SUCCESS:
 		return "SUCCESS";
-		TX_STATUS_ENTRY(SHORT_LIMIT);
-		TX_STATUS_ENTRY(LONG_LIMIT);
-		TX_STATUS_ENTRY(FIFO_UNDERRUN);
-		TX_STATUS_ENTRY(MGMNT_ABORT);
-		TX_STATUS_ENTRY(NEXT_FRAG);
-		TX_STATUS_ENTRY(LIFE_EXPIRE);
-		TX_STATUS_ENTRY(DEST_PS);
-		TX_STATUS_ENTRY(ABORTED);
-		TX_STATUS_ENTRY(BT_RETRY);
-		TX_STATUS_ENTRY(STA_INVALID);
-		TX_STATUS_ENTRY(FRAG_DROPPED);
-		TX_STATUS_ENTRY(TID_DISABLE);
-		TX_STATUS_ENTRY(FRAME_FLUSHED);
-		TX_STATUS_ENTRY(INSUFFICIENT_CF_POLL);
-		TX_STATUS_ENTRY(TX_LOCKED);
-		TX_STATUS_ENTRY(NO_BEACON_ON_RADAR);
+		TX_STATUS_POSTPONE(DELAY);
+		TX_STATUS_POSTPONE(FEW_BYTES);
+		TX_STATUS_POSTPONE(BT_PRIO);
+		TX_STATUS_POSTPONE(QUIET_PERIOD);
+		TX_STATUS_POSTPONE(CALC_TTAK);
+		TX_STATUS_FAIL(INTERNAL_CROSSED_RETRY);
+		TX_STATUS_FAIL(SHORT_LIMIT);
+		TX_STATUS_FAIL(LONG_LIMIT);
+		TX_STATUS_FAIL(FIFO_UNDERRUN);
+		TX_STATUS_FAIL(DRAIN_FLOW);
+		TX_STATUS_FAIL(RFKILL_FLUSH);
+		TX_STATUS_FAIL(LIFE_EXPIRE);
+		TX_STATUS_FAIL(DEST_PS);
+		TX_STATUS_FAIL(HOST_ABORTED);
+		TX_STATUS_FAIL(BT_RETRY);
+		TX_STATUS_FAIL(STA_INVALID);
+		TX_STATUS_FAIL(FRAG_DROPPED);
+		TX_STATUS_FAIL(TID_DISABLE);
+		TX_STATUS_FAIL(FIFO_FLUSHED);
+		TX_STATUS_FAIL(INSUFFICIENT_CF_POLL);
+		TX_STATUS_FAIL(FW_DROP);
+		TX_STATUS_FAIL(STA_COLOR_MISMATCH_DROP);
 	}
 
 	return "UNKNOWN";

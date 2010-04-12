@@ -191,12 +191,12 @@ static int iwl3945_hwrate_to_plcp_idx(u8 plcp)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-#define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
+#define TX_STATUS_ENTRY(x) case TX_3945_STATUS_FAIL_ ## x: return #x
 
 static const char *iwl3945_get_tx_fail_reason(u32 status)
 {
 	switch (status & TX_STATUS_MSK) {
-	case TX_STATUS_SUCCESS:
+	case TX_3945_STATUS_SUCCESS:
 		return "SUCCESS";
 		TX_STATUS_ENTRY(SHORT_LIMIT);
 		TX_STATUS_ENTRY(LONG_LIMIT);
@@ -597,8 +597,8 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 	struct iwl3945_rx_frame_stats *rx_stats = IWL_RX_STATS(pkt);
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
-	u16 rx_stats_sig_avg = le16_to_cpu(rx_stats->sig_avg);
-	u16 rx_stats_noise_diff = le16_to_cpu(rx_stats->noise_diff);
+	u16 rx_stats_sig_avg __maybe_unused = le16_to_cpu(rx_stats->sig_avg);
+	u16 rx_stats_noise_diff __maybe_unused = le16_to_cpu(rx_stats->noise_diff);
 	u8 network_packet;
 
 	rx_status.flag = 0;
@@ -2770,6 +2770,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2789,6 +2790,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 DEFINE_PCI_DEVICE_TABLE(iwl3945_hw_card_ids) = {

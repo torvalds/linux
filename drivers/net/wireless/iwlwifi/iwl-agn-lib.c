@@ -161,6 +161,14 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 	return 0;
 }
 
+void iwl_check_abort_status(struct iwl_priv *priv,
+			    u8 frame_count, u32 status)
+{
+	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
+		IWL_ERR(priv, "TODO: Implement Tx flush command!!!\n");
+	}
+}
+
 static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
@@ -246,8 +254,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 
 	iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
-	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
-		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
+	iwl_check_abort_status(priv, tx_resp->frame_count, status);
 }
 
 void iwlagn_rx_handler_setup(struct iwl_priv *priv)
@@ -505,10 +512,13 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Allocate and init all Tx and Command queues */
-	ret = iwlagn_txq_ctx_reset(priv);
-	if (ret)
-		return ret;
+	/* Allocate or reset and init all Tx and Command queues */
+	if (!priv->txq) {
+		ret = iwlagn_txq_ctx_alloc(priv);
+		if (ret)
+			return ret;
+	} else
+		iwlagn_txq_ctx_reset(priv);
 
 	set_bit(STATUS_INIT, &priv->status);
 
@@ -1001,11 +1011,11 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 				phy_res->cfg_phy_cnt + len);
 		ampdu_status = le32_to_cpu(rx_pkt_status);
 	} else {
-		if (!priv->last_phy_res[0]) {
+		if (!priv->_agn.last_phy_res_valid) {
 			IWL_ERR(priv, "MPDU frame without cached PHY data\n");
 			return;
 		}
-		phy_res = (struct iwl_rx_phy_res *)&priv->last_phy_res[1];
+		phy_res = &priv->_agn.last_phy_res;
 		amsdu = (struct iwl4965_rx_mpdu_res_start *)pkt->u.raw;
 		header = (struct ieee80211_hdr *)(pkt->u.raw + sizeof(*amsdu));
 		len = le16_to_cpu(amsdu->byte_count);
@@ -1094,10 +1104,10 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 /* Cache phy data (Rx signal strength, etc) for HT frame (REPLY_RX_PHY_CMD).
  * This will be used later in iwl_rx_reply_rx() for REPLY_RX_MPDU_CMD. */
 void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
-				    struct iwl_rx_mem_buffer *rxb)
+			    struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	priv->last_phy_res[0] = 1;
-	memcpy(&priv->last_phy_res[1], &(pkt->u.raw[0]),
+	priv->_agn.last_phy_res_valid = true;
+	memcpy(&priv->_agn.last_phy_res, pkt->u.raw,
 	       sizeof(struct iwl_rx_phy_res));
 }

@@ -194,7 +194,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		.flags = flags,
 		.data = data,
 	};
-	u8 sta_id = sta->sta.sta_id;
+	u8 sta_id __maybe_unused = sta->sta.sta_id;
 
 	IWL_DEBUG_INFO(priv, "Adding sta %u (%pM) %ssynchronously\n",
 		       sta_id, sta->sta.addr, flags & CMD_ASYNC ?  "a" : "");
@@ -425,6 +425,7 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, bool is_ap)
 		.reserved1 = 0,
 	};
 	u32 rate_flags;
+	int ret = 0;
 
 	/* Set up the rate scaling to start at selected rate, fall back
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
@@ -458,8 +459,10 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, bool is_ap)
 	/* Update the rate scaling for control frame Tx to AP */
 	link_cmd.sta_id = is_ap ? IWL_AP_ID : priv->hw_params.bcast_sta_id;
 
-	iwl_send_cmd_pdu(priv, REPLY_TX_LINK_QUALITY_CMD,
+	ret = iwl_send_cmd_pdu(priv, REPLY_TX_LINK_QUALITY_CMD,
 			       sizeof(link_cmd), &link_cmd);
+	if (ret)
+		IWL_ERR(priv, "REPLY_TX_LINK_QUALITY_CMD failed (%d)\n", ret);
 }
 
 /*
@@ -759,7 +762,7 @@ int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_get_free_ucode_key_index);
 
-int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
+static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 {
 	int i, not_empty = 0;
 	u8 buff[sizeof(struct iwl_wep_cmd) +
@@ -803,7 +806,14 @@ int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 	else
 		return 0;
 }
-EXPORT_SYMBOL(iwl_send_static_wepkey_cmd);
+
+int iwl_restore_default_wep_keys(struct iwl_priv *priv)
+{
+	WARN_ON(!mutex_is_locked(&priv->mutex));
+
+	return iwl_send_static_wepkey_cmd(priv, 0);
+}
+EXPORT_SYMBOL(iwl_restore_default_wep_keys);
 
 int iwl_remove_default_wep_key(struct iwl_priv *priv,
 			       struct ieee80211_key_conf *keyconf)
@@ -815,11 +825,6 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 	IWL_DEBUG_WEP(priv, "Removing default WEP key: idx=%d\n",
 		      keyconf->keyidx);
 
-	if (!test_and_clear_bit(keyconf->keyidx, &priv->ucode_key_table))
-		IWL_ERR(priv, "index %d not used in uCode key table.\n",
-			  keyconf->keyidx);
-
-	priv->default_wep_key--;
 	memset(&priv->wep_keys[keyconf->keyidx], 0, sizeof(priv->wep_keys[0]));
 	if (iwl_is_rfkill(priv)) {
 		IWL_DEBUG_WEP(priv, "Not sending REPLY_WEPKEY command due to RFKILL.\n");
@@ -850,12 +855,6 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
 	keyconf->hw_key_idx = HW_KEY_DEFAULT;
 	priv->stations[IWL_AP_ID].keyinfo.alg = ALG_WEP;
-
-	priv->default_wep_key++;
-
-	if (test_and_set_bit(keyconf->keyidx, &priv->ucode_key_table))
-		IWL_ERR(priv, "index %d already used in uCode key table.\n",
-			  keyconf->keyidx);
 
 	priv->wep_keys[keyconf->keyidx].key_size = keyconf->keylen;
 	memcpy(&priv->wep_keys[keyconf->keyidx].key, &keyconf->key,
@@ -1191,12 +1190,8 @@ int iwl_send_lq_cmd(struct iwl_priv *priv,
 		.data = lq,
 	};
 
-	if ((lq->sta_id == 0xFF) &&
-	    (priv->iw_mode == NL80211_IFTYPE_ADHOC))
+	if (WARN_ON(lq->sta_id == IWL_INVALID_STATION))
 		return -EINVAL;
-
-	if (lq->sta_id == 0xFF)
-		lq->sta_id = IWL_AP_ID;
 
 	iwl_dump_lq_cmd(priv, lq);
 	BUG_ON(init && (cmd.flags & CMD_ASYNC));

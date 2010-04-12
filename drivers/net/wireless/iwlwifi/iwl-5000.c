@@ -423,6 +423,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 struct iwl_cfg iwl5100_bgn_cfg = {
@@ -450,6 +451,7 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -475,6 +477,7 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -502,6 +505,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -529,6 +533,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -556,6 +561,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 struct iwl_cfg iwl5150_abg_cfg = {
@@ -581,6 +587,7 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));

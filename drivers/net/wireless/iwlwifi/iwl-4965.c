@@ -2054,8 +2054,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	if (qc && likely(sta_id != IWL_INVALID_STATION))
 		iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
-	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
-		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
+	iwl_check_abort_status(priv, tx_resp->frame_count, status);
 }
 
 static int iwl4965_calc_rssi(struct iwl_priv *priv,
@@ -2255,6 +2254,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.temperature_kelvin = true,
 	.off_channel_workaround = true,
+	.max_event_log_size = 512,
 };
 
 /* Module firmware */
