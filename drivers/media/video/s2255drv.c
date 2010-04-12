@@ -58,7 +58,7 @@
 #include <linux/usb.h>
 
 #define S2255_MAJOR_VERSION	1
-#define S2255_MINOR_VERSION	19
+#define S2255_MINOR_VERSION	20
 #define S2255_RELEASE		0
 #define S2255_VERSION		KERNEL_VERSION(S2255_MAJOR_VERSION, \
 					       S2255_MINOR_VERSION, \
@@ -1755,7 +1755,7 @@ static int s2255_open(struct file *file)
 				     == S2255_FW_SUCCESS) ||
 				    (atomic_read(&dev->fw_data->fw_state)
 				     == S2255_FW_DISCONNECTING)),
-			msecs_to_jiffies(S2255_LOAD_TIMEOUT));
+				   msecs_to_jiffies(S2255_LOAD_TIMEOUT));
 		/* state may have changed, re-read */
 		state = atomic_read(&dev->fw_data->fw_state);
 		break;
@@ -1763,27 +1763,38 @@ static int s2255_open(struct file *file)
 	default:
 		break;
 	}
-	mutex_unlock(&dev->open_lock);
 	/* state may have changed in above switch statement */
 	switch (state) {
 	case S2255_FW_SUCCESS:
 		break;
 	case S2255_FW_FAILED:
 		printk(KERN_INFO "2255 firmware load failed.\n");
+		mutex_unlock(&dev->open_lock);
 		return -ENODEV;
 	case S2255_FW_DISCONNECTING:
 		printk(KERN_INFO "%s: disconnecting\n", __func__);
+		mutex_unlock(&dev->open_lock);
 		return -ENODEV;
 	case S2255_FW_LOADED_DSPWAIT:
 	case S2255_FW_NOTLOADED:
 		printk(KERN_INFO "%s: firmware not loaded yet"
 		       "please try again later\n",
 		       __func__);
+		/*
+		 * Timeout on firmware load means device unusable.
+		 * Set firmware failure state.
+		 * On next s2255_open the firmware will be reloaded.
+		 */
+		atomic_set(&dev->fw_data->fw_state,
+			   S2255_FW_FAILED);
+		mutex_unlock(&dev->open_lock);
 		return -EAGAIN;
 	default:
 		printk(KERN_INFO "%s: unknown state\n", __func__);
+		mutex_unlock(&dev->open_lock);
 		return -EFAULT;
 	}
+	mutex_unlock(&dev->open_lock);
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (NULL == fh)
@@ -2074,7 +2085,6 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 					dprintk(5, "setmode ready %d\n", cc);
 					break;
 				case S2255_RESPONSE_FW:
-
 					dev->chn_ready |= (1 << cc);
 					if ((dev->chn_ready & 0x0f) != 0x0f)
 						break;
