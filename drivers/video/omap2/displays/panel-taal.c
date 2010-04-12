@@ -654,7 +654,7 @@ static void taal_remove(struct omap_dss_device *dssdev)
 	taal_bl_update_status(bldev);
 	backlight_device_unregister(bldev);
 
-	cancel_delayed_work_sync(&td->esd_work);
+	cancel_delayed_work(&td->esd_work);
 	destroy_workqueue(td->esd_wq);
 
 	/* reset, to be sure that the panel is in a valid state */
@@ -725,10 +725,6 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		goto err;
 
-#ifdef TAAL_USE_ESD_CHECK
-	queue_delayed_work(td->esd_wq, &td->esd_work, TAAL_ESD_CHECK_PERIOD);
-#endif
-
 	td->enabled = 1;
 
 	if (!td->intro_printed) {
@@ -757,8 +753,6 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	int r;
-
-	cancel_delayed_work(&td->esd_work);
 
 	r = taal_dcs_write_0(DCS_DISPLAY_OFF);
 	if (!r) {
@@ -801,6 +795,10 @@ static int taal_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err;
 
+#ifdef TAAL_USE_ESD_CHECK
+	queue_delayed_work(td->esd_wq, &td->esd_work, TAAL_ESD_CHECK_PERIOD);
+#endif
+
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	mutex_unlock(&td->lock);
@@ -819,6 +817,8 @@ static void taal_disable(struct omap_dss_device *dssdev)
 	dev_dbg(&dssdev->dev, "disable\n");
 
 	mutex_lock(&td->lock);
+
+	cancel_delayed_work(&td->esd_work);
 
 	dsi_bus_lock();
 
@@ -845,6 +845,8 @@ static int taal_suspend(struct omap_dss_device *dssdev)
 		r = -EINVAL;
 		goto err;
 	}
+
+	cancel_delayed_work(&td->esd_work);
 
 	dsi_bus_lock();
 
@@ -882,10 +884,15 @@ static int taal_resume(struct omap_dss_device *dssdev)
 
 	dsi_bus_unlock();
 
-	if (r)
+	if (r) {
 		dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
-	else
+	} else {
 		dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+#ifdef TAAL_USE_ESD_CHECK
+		queue_delayed_work(td->esd_wq, &td->esd_work,
+				TAAL_ESD_CHECK_PERIOD);
+#endif
+	}
 
 	mutex_unlock(&td->lock);
 
