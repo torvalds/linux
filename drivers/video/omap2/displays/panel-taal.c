@@ -946,10 +946,7 @@ static int taal_sync(struct omap_dss_device *dssdev)
 
 static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
-	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	int r;
-
-	td->te_enabled = enable;
 
 	if (enable)
 		r = taal_dcs_write_1(DCS_TEAR_ON, 0);
@@ -973,8 +970,19 @@ static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 	mutex_lock(&td->lock);
 	dsi_bus_lock();
 
-	r = _taal_enable_te(dssdev, enable);
+	if (td->enabled) {
+		r = _taal_enable_te(dssdev, enable);
+		if (r)
+			goto err;
+	}
 
+	td->te_enabled = enable;
+
+	dsi_bus_unlock();
+	mutex_unlock(&td->lock);
+
+	return 0;
+err:
 	dsi_bus_unlock();
 	mutex_unlock(&td->lock);
 
@@ -1077,23 +1085,30 @@ static int taal_run_test(struct omap_dss_device *dssdev, int test_num)
 	int r;
 
 	mutex_lock(&td->lock);
+
+	if (!td->enabled) {
+		r = -ENODEV;
+		goto err1;
+	}
+
 	dsi_bus_lock();
 
 	r = taal_dcs_read_1(DCS_GET_ID1, &id1);
 	if (r)
-		goto err;
+		goto err2;
 	r = taal_dcs_read_1(DCS_GET_ID2, &id2);
 	if (r)
-		goto err;
+		goto err2;
 	r = taal_dcs_read_1(DCS_GET_ID3, &id3);
 	if (r)
-		goto err;
+		goto err2;
 
 	dsi_bus_unlock();
 	mutex_unlock(&td->lock);
 	return 0;
-err:
+err2:
 	dsi_bus_unlock();
+err1:
 	mutex_unlock(&td->lock);
 	return r;
 }
