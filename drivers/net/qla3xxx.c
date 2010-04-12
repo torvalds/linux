@@ -343,8 +343,8 @@ static void ql_release_to_lrg_buf_free_list(struct ql3_adapter *qdev,
 			    cpu_to_le32(LS_64BITS(map));
 			lrg_buf_cb->buf_phy_addr_high =
 			    cpu_to_le32(MS_64BITS(map));
-			pci_unmap_addr_set(lrg_buf_cb, mapaddr, map);
-			pci_unmap_len_set(lrg_buf_cb, maplen,
+			dma_unmap_addr_set(lrg_buf_cb, mapaddr, map);
+			dma_unmap_len_set(lrg_buf_cb, maplen,
 					  qdev->lrg_buffer_len -
 					  QL_HEADER_SPACE);
 		}
@@ -1924,8 +1924,8 @@ static int ql_populate_free_queue(struct ql3_adapter *qdev)
 				    cpu_to_le32(LS_64BITS(map));
 				lrg_buf_cb->buf_phy_addr_high =
 				    cpu_to_le32(MS_64BITS(map));
-				pci_unmap_addr_set(lrg_buf_cb, mapaddr, map);
-				pci_unmap_len_set(lrg_buf_cb, maplen,
+				dma_unmap_addr_set(lrg_buf_cb, mapaddr, map);
+				dma_unmap_len_set(lrg_buf_cb, maplen,
 						  qdev->lrg_buffer_len -
 						  QL_HEADER_SPACE);
 				--qdev->lrg_buf_skb_check;
@@ -2041,16 +2041,16 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 	}
 
 	pci_unmap_single(qdev->pdev,
-			 pci_unmap_addr(&tx_cb->map[0], mapaddr),
-			 pci_unmap_len(&tx_cb->map[0], maplen),
+			 dma_unmap_addr(&tx_cb->map[0], mapaddr),
+			 dma_unmap_len(&tx_cb->map[0], maplen),
 			 PCI_DMA_TODEVICE);
 	tx_cb->seg_count--;
 	if (tx_cb->seg_count) {
 		for (i = 1; i < tx_cb->seg_count; i++) {
 			pci_unmap_page(qdev->pdev,
-				       pci_unmap_addr(&tx_cb->map[i],
+				       dma_unmap_addr(&tx_cb->map[i],
 						      mapaddr),
-				       pci_unmap_len(&tx_cb->map[i], maplen),
+				       dma_unmap_len(&tx_cb->map[i], maplen),
 				       PCI_DMA_TODEVICE);
 		}
 	}
@@ -2119,8 +2119,8 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 
 	skb_put(skb, length);
 	pci_unmap_single(qdev->pdev,
-			 pci_unmap_addr(lrg_buf_cb2, mapaddr),
-			 pci_unmap_len(lrg_buf_cb2, maplen),
+			 dma_unmap_addr(lrg_buf_cb2, mapaddr),
+			 dma_unmap_len(lrg_buf_cb2, maplen),
 			 PCI_DMA_FROMDEVICE);
 	prefetch(skb->data);
 	skb->ip_summed = CHECKSUM_NONE;
@@ -2165,8 +2165,8 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 
 	skb_put(skb2, length);	/* Just the second buffer length here. */
 	pci_unmap_single(qdev->pdev,
-			 pci_unmap_addr(lrg_buf_cb2, mapaddr),
-			 pci_unmap_len(lrg_buf_cb2, maplen),
+			 dma_unmap_addr(lrg_buf_cb2, mapaddr),
+			 dma_unmap_len(lrg_buf_cb2, maplen),
 			 PCI_DMA_FROMDEVICE);
 	prefetch(skb2->data);
 
@@ -2454,8 +2454,8 @@ static int ql_send_map(struct ql3_adapter *qdev,
 	oal_entry->dma_lo = cpu_to_le32(LS_64BITS(map));
 	oal_entry->dma_hi = cpu_to_le32(MS_64BITS(map));
 	oal_entry->len = cpu_to_le32(len);
-	pci_unmap_addr_set(&tx_cb->map[seg], mapaddr, map);
-	pci_unmap_len_set(&tx_cb->map[seg], maplen, len);
+	dma_unmap_addr_set(&tx_cb->map[seg], mapaddr, map);
+	dma_unmap_len_set(&tx_cb->map[seg], maplen, len);
 	seg++;
 
 	if (seg_cnt == 1) {
@@ -2488,9 +2488,9 @@ static int ql_send_map(struct ql3_adapter *qdev,
 				oal_entry->len =
 				    cpu_to_le32(sizeof(struct oal) |
 						OAL_CONT_ENTRY);
-				pci_unmap_addr_set(&tx_cb->map[seg], mapaddr,
+				dma_unmap_addr_set(&tx_cb->map[seg], mapaddr,
 						   map);
-				pci_unmap_len_set(&tx_cb->map[seg], maplen,
+				dma_unmap_len_set(&tx_cb->map[seg], maplen,
 						  sizeof(struct oal));
 				oal_entry = (struct oal_entry *)oal;
 				oal++;
@@ -2512,8 +2512,8 @@ static int ql_send_map(struct ql3_adapter *qdev,
 			oal_entry->dma_lo = cpu_to_le32(LS_64BITS(map));
 			oal_entry->dma_hi = cpu_to_le32(MS_64BITS(map));
 			oal_entry->len = cpu_to_le32(frag->size);
-			pci_unmap_addr_set(&tx_cb->map[seg], mapaddr, map);
-			pci_unmap_len_set(&tx_cb->map[seg], maplen,
+			dma_unmap_addr_set(&tx_cb->map[seg], mapaddr, map);
+			dma_unmap_len_set(&tx_cb->map[seg], maplen,
 					  frag->size);
 		}
 		/* Terminate the last segment. */
@@ -2539,22 +2539,22 @@ map_error:
 		   (seg == 12 && seg_cnt > 13) ||      /* but necessary. */
 		   (seg == 17 && seg_cnt > 18)) {
 			pci_unmap_single(qdev->pdev,
-				pci_unmap_addr(&tx_cb->map[seg], mapaddr),
-				pci_unmap_len(&tx_cb->map[seg], maplen),
+				dma_unmap_addr(&tx_cb->map[seg], mapaddr),
+				dma_unmap_len(&tx_cb->map[seg], maplen),
 				 PCI_DMA_TODEVICE);
 			oal++;
 			seg++;
 		}
 
 		pci_unmap_page(qdev->pdev,
-			       pci_unmap_addr(&tx_cb->map[seg], mapaddr),
-			       pci_unmap_len(&tx_cb->map[seg], maplen),
+			       dma_unmap_addr(&tx_cb->map[seg], mapaddr),
+			       dma_unmap_len(&tx_cb->map[seg], maplen),
 			       PCI_DMA_TODEVICE);
 	}
 
 	pci_unmap_single(qdev->pdev,
-			 pci_unmap_addr(&tx_cb->map[0], mapaddr),
-			 pci_unmap_addr(&tx_cb->map[0], maplen),
+			 dma_unmap_addr(&tx_cb->map[0], mapaddr),
+			 dma_unmap_addr(&tx_cb->map[0], maplen),
 			 PCI_DMA_TODEVICE);
 
 	return NETDEV_TX_BUSY;
@@ -2841,8 +2841,8 @@ static void ql_free_large_buffers(struct ql3_adapter *qdev)
 		if (lrg_buf_cb->skb) {
 			dev_kfree_skb(lrg_buf_cb->skb);
 			pci_unmap_single(qdev->pdev,
-					 pci_unmap_addr(lrg_buf_cb, mapaddr),
-					 pci_unmap_len(lrg_buf_cb, maplen),
+					 dma_unmap_addr(lrg_buf_cb, mapaddr),
+					 dma_unmap_len(lrg_buf_cb, maplen),
 					 PCI_DMA_FROMDEVICE);
 			memset(lrg_buf_cb, 0, sizeof(struct ql_rcv_buf_cb));
 		} else {
@@ -2912,8 +2912,8 @@ static int ql_alloc_large_buffers(struct ql3_adapter *qdev)
 				return -ENOMEM;
 			}
 
-			pci_unmap_addr_set(lrg_buf_cb, mapaddr, map);
-			pci_unmap_len_set(lrg_buf_cb, maplen,
+			dma_unmap_addr_set(lrg_buf_cb, mapaddr, map);
+			dma_unmap_len_set(lrg_buf_cb, maplen,
 					  qdev->lrg_buffer_len -
 					  QL_HEADER_SPACE);
 			lrg_buf_cb->buf_phy_addr_low =
@@ -3793,13 +3793,13 @@ static void ql_reset_work(struct work_struct *work)
 				       "%s: Freeing lost SKB.\n",
 				       qdev->ndev->name);
 				pci_unmap_single(qdev->pdev,
-					 pci_unmap_addr(&tx_cb->map[0], mapaddr),
-					 pci_unmap_len(&tx_cb->map[0], maplen),
+					 dma_unmap_addr(&tx_cb->map[0], mapaddr),
+					 dma_unmap_len(&tx_cb->map[0], maplen),
 					 PCI_DMA_TODEVICE);
 				for(j=1;j<tx_cb->seg_count;j++) {
 					pci_unmap_page(qdev->pdev,
-					       pci_unmap_addr(&tx_cb->map[j],mapaddr),
-					       pci_unmap_len(&tx_cb->map[j],maplen),
+					       dma_unmap_addr(&tx_cb->map[j],mapaddr),
+					       dma_unmap_len(&tx_cb->map[j],maplen),
 					       PCI_DMA_TODEVICE);
 				}
 				dev_kfree_skb(tx_cb->skb);
