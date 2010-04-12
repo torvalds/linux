@@ -151,10 +151,10 @@ static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
 
 	/* Error path */
 	if (need_dwarf) {
-		if (ntevs == -ENOENT)
+		if (ntevs == -EBADF)
 			pr_warning("No dwarf info found in the vmlinux - "
 				"please rebuild with CONFIG_DEBUG_INFO=y.\n");
-		die("Could not analyze debuginfo.");
+		die("Failed to analyze debuginfo.");
 	}
 	pr_debug("An error occurred in debuginfo analysis."
 		 " Try to use symbols.\n");
