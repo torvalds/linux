@@ -189,7 +189,7 @@ static int manage_bandwidth(struct fw_card *card, int irm_id, int generation,
 	for (try = 0; try < 5; try++) {
 		new = allocate ? old - bandwidth : old + bandwidth;
 		if (new < 0 || new > BANDWIDTH_AVAILABLE_INITIAL)
-			break;
+			return -EBUSY;
 
 		data[0] = cpu_to_be32(old);
 		data[1] = cpu_to_be32(new);
@@ -217,13 +217,15 @@ static int manage_channel(struct fw_card *card, int irm_id, int generation,
 		u32 channels_mask, u64 offset, bool allocate, __be32 data[2])
 {
 	__be32 c, all, old;
-	int i, retry = 5;
+	int i, ret = -EIO, retry = 5;
 
 	old = all = allocate ? cpu_to_be32(~0) : 0;
 
 	for (i = 0; i < 32; i++) {
 		if (!(channels_mask & 1 << i))
 			continue;
+
+		ret = -EBUSY;
 
 		c = cpu_to_be32(1 << (31 - i));
 		if ((old & c) != (all & c))
@@ -253,11 +255,13 @@ static int manage_channel(struct fw_card *card, int irm_id, int generation,
 			if (retry) {
 				retry--;
 				i--;
+			} else {
+				ret = -EIO;
 			}
 		}
 	}
 
-	return -EIO;
+	return ret;
 }
 
 static void deallocate_channel(struct fw_card *card, int irm_id,
