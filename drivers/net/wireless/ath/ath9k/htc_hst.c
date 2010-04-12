@@ -146,7 +146,7 @@ static int htc_config_pipe_credits(struct htc_target *target)
 	struct htc_config_pipe_msg *cp_msg;
 	int ret, time_left;
 
-	skb = dev_alloc_skb(50 + sizeof(struct htc_frame_hdr));
+	skb = alloc_skb(50 + sizeof(struct htc_frame_hdr), GFP_ATOMIC);
 	if (!skb) {
 		dev_err(target->dev, "failed to allocate send buffer\n");
 		return -ENOMEM;
@@ -174,7 +174,7 @@ static int htc_config_pipe_credits(struct htc_target *target)
 
 	return 0;
 err:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return -EINVAL;
 }
 
@@ -184,7 +184,7 @@ static int htc_setup_complete(struct htc_target *target)
 	struct htc_comp_msg *comp_msg;
 	int ret = 0, time_left;
 
-	skb = dev_alloc_skb(50 + sizeof(struct htc_frame_hdr));
+	skb = alloc_skb(50 + sizeof(struct htc_frame_hdr), GFP_ATOMIC);
 	if (!skb) {
 		dev_err(target->dev, "failed to allocate send buffer\n");
 		return -ENOMEM;
@@ -210,7 +210,7 @@ static int htc_setup_complete(struct htc_target *target)
 	return 0;
 
 err:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return -EINVAL;
 }
 
@@ -250,8 +250,8 @@ int htc_connect_service(struct htc_target *target,
 	endpoint->dl_pipeid = service_to_dlpipe(service_connreq->service_id);
 	endpoint->ep_callbacks = service_connreq->ep_callbacks;
 
-	skb = dev_alloc_skb(sizeof(struct htc_conn_svc_msg) +
-			    sizeof(struct htc_frame_hdr));
+	skb = alloc_skb(sizeof(struct htc_conn_svc_msg) +
+			    sizeof(struct htc_frame_hdr), GFP_ATOMIC);
 	if (!skb) {
 		dev_err(target->dev, "Failed to allocate buf to send"
 			"service connect req\n");
@@ -282,7 +282,7 @@ int htc_connect_service(struct htc_target *target,
 	*conn_rsp_epid = target->conn_rsp_epid;
 	return 0;
 err:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return ret;
 }
 
@@ -321,7 +321,7 @@ void ath9k_htc_txcompletion_cb(struct htc_target *htc_handle,
 			       struct sk_buff *skb, bool txok)
 {
 	struct htc_endpoint *endpoint;
-	struct htc_frame_hdr *htc_hdr;
+	struct htc_frame_hdr *htc_hdr = NULL;
 
 	if (htc_handle->htc_flags & HTC_OP_CONFIG_PIPE_CREDITS) {
 		complete(&htc_handle->cmd_wait);
@@ -349,7 +349,10 @@ void ath9k_htc_txcompletion_cb(struct htc_target *htc_handle,
 	return;
 ret:
 	/* HTC-generated packets are freed here. */
-	dev_kfree_skb_any(skb);
+	if (htc_hdr && htc_hdr->endpoint_id != ENDPOINT0)
+		dev_kfree_skb_any(skb);
+	else
+		kfree_skb(skb);
 }
 
 /*

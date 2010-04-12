@@ -213,7 +213,7 @@ free_skb:
 static void ath9k_wmi_ctrl_tx(void *priv, struct sk_buff *skb,
 			      enum htc_endpoint_id epid, bool txok)
 {
-	dev_kfree_skb_any(skb);
+	kfree_skb(skb);
 }
 
 int ath9k_wmi_connect(struct htc_target *htc, struct wmi *wmi,
@@ -269,7 +269,7 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	if (!wmi)
 		return -EINVAL;
 
-	skb = dev_alloc_skb(headroom + cmd_len);
+	skb = alloc_skb(headroom + cmd_len, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -313,7 +313,7 @@ out:
 	ath_print(common, ATH_DBG_WMI,
 		  "WMI failure for: %s\n", wmi_cmd_to_name(cmd_id));
 	mutex_unlock(&wmi->op_mutex);
-	dev_kfree_skb_any(skb);
+	kfree_skb(skb);
 
 	return ret;
 }

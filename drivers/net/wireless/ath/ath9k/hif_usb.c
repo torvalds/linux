@@ -53,7 +53,7 @@ static void hif_usb_regout_cb(struct urb *urb)
 
 	return;
 free:
-	dev_kfree_skb_any(cmd->skb);
+	kfree_skb(cmd->skb);
 	kfree(cmd);
 }
 
