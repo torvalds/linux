@@ -77,6 +77,40 @@ struct virtqueue_ops {
 	void *(*detach_unused_buf)(struct virtqueue *vq);
 };
 
+static inline int virtqueue_add_buf(struct virtqueue *vq,
+				    struct scatterlist sg[],
+				    unsigned int out_num,
+				    unsigned int in_num,
+				    void *data)
+{
+	return vq->vq_ops->add_buf(vq, sg, out_num, in_num, data);
+}
+
+static inline int void virtqueue_kick(struct virtqueue *vq)
+{
+	return vq->vq_ops->kick(vq);
+}
+
+static inline void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len)
+{
+	return vq->vq_ops->get_buf(vq, len);
+}
+
+static inline void virtqueue_disable_cb(struct virtqueue *vq)
+{
+	vq->vq_ops->disable_cb(vq);
+}
+
+static inline bool virtqueue_enable_cb(struct virtqueue *vq)
+{
+	return vq->vq_ops->enable_cb(vq);
+}
+
+static inline void *virtqueue_detach_unused_buf(struct virtqueue *vq)
+{
+	return vq->vq_ops->detach_unused_buf(vq);
+}
+
 /**
  * virtio_device - representation of a device using virtio
  * @index: unique position on the virtio bus
