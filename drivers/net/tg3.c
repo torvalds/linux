@@ -7654,6 +7654,11 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		     val | TG3_PCIE_PL_LO_PHYCTL5_DIS_L2CLKREQ);
 
 		tw32(GRC_MODE, grc_mode);
+
+		val = tr32(TG3_CPMU_LSPD_10MB_CLK);
+		val &= ~CPMU_LSPD_10MB_MACCLK_MASK;
+		val |= CPMU_LSPD_10MB_MACCLK_6_25;
+		tw32(TG3_CPMU_LSPD_10MB_CLK, val);
 	}
 
 	/* This works around an issue with Athlon chipsets on
