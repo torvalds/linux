@@ -1139,8 +1139,8 @@
 #define AR5K_STA_ID1_DEFAULT_ANTENNA	0x00200000	/* Use default antenna */
 #define AR5K_STA_ID1_DESC_ANTENNA	0x00400000	/* Update antenna from descriptor */
 #define AR5K_STA_ID1_RTS_DEF_ANTENNA	0x00800000	/* Use default antenna for RTS */
-#define AR5K_STA_ID1_ACKCTS_6MB		0x01000000	/* Use 6Mbit/s for ACK/CTS */
-#define AR5K_STA_ID1_BASE_RATE_11B	0x02000000	/* Use 11b base rate for ACK/CTS [5211+] */
+#define AR5K_STA_ID1_ACKCTS_6MB		0x01000000	/* Rate to use for ACK/CTS. 0: highest mandatory rate <= RX rate; 1: 1Mbps in B mode */
+#define AR5K_STA_ID1_BASE_RATE_11B	0x02000000	/* 802.11b base rate. 0: 1, 2, 5.5 and 11Mbps; 1: 1 and 2Mbps. [5211+] */
 #define AR5K_STA_ID1_SELFGEN_DEF_ANT	0x04000000	/* Use def. antenna for self generated frames */
 #define AR5K_STA_ID1_CRYPT_MIC_EN	0x08000000	/* Enable MIC */
 #define AR5K_STA_ID1_KEYSRCH_MODE	0x10000000	/* Look up key when key id != 0 */
