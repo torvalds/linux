@@ -398,7 +398,6 @@ static void convert_location(Dwarf_Op *op, struct probe_finder *pf)
 	const char *regs;
 	struct kprobe_trace_arg *tvar = pf->tvar;
 
-	/* TODO: support CFA */
 	/* If this is based on frame buffer, set the offset */
 	if (op->atom == DW_OP_fbreg) {
 		if (pf->fb_ops == NULL)
@@ -629,11 +628,17 @@ static void convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 	/* Get the frame base attribute/ops */
 	dwarf_attr(sp_die, DW_AT_frame_base, &fb_attr);
 	ret = dwarf_getlocation_addr(&fb_attr, pf->addr, &pf->fb_ops, &nops, 1);
-	if (ret <= 0 || nops == 0)
+	if (ret <= 0 || nops == 0) {
 		pf->fb_ops = NULL;
+	} else if (nops == 1 && pf->fb_ops[0].atom == DW_OP_call_frame_cfa &&
+		   pf->cfi != NULL) {
+		Dwarf_Frame *frame;
+		ret = dwarf_cfi_addrframe(pf->cfi, pf->addr, &frame);
+		DIE_IF(ret != 0);
+		dwarf_frame_cfa(frame, &pf->fb_ops, &nops);
+	}
 
 	/* Find each argument */
-	/* TODO: use dwarf_cfi_addrframe */
 	tev->nargs = pf->pev->nargs;
 	tev->args = xzalloc(sizeof(struct kprobe_trace_arg) * tev->nargs);
 	for (i = 0; i < pf->pev->nargs; i++) {
@@ -841,6 +846,9 @@ int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
 	dbg = dwarf_begin(fd, DWARF_C_READ);
 	if (!dbg)
 		return -ENOENT;
+
+	/* Get the call frame information from this dwarf */
+	pf.cfi = dwarf_getcfi(dbg);
 
 	off = 0;
 	line_list__init(&pf.lcache);
