@@ -1507,7 +1507,8 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	/* enable CPU FDI TX and PCH FDI RX */
 	temp = I915_READ(fdi_tx_reg);
 	temp |= FDI_TX_ENABLE;
-	temp |= FDI_DP_PORT_WIDTH_X4; /* default */
+	temp &= ~(7 << 19);
+	temp |= (intel_crtc->fdi_lanes - 1) << 19;
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	I915_WRITE(fdi_tx_reg, temp);
@@ -1607,7 +1608,8 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	/* enable CPU FDI TX and PCH FDI RX */
 	temp = I915_READ(fdi_tx_reg);
 	temp |= FDI_TX_ENABLE;
-	temp |= FDI_DP_PORT_WIDTH_X4; /* default */
+	temp &= ~(7 << 19);
+	temp |= (intel_crtc->fdi_lanes - 1) << 19;
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -1769,8 +1771,9 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			 */
 			temp &= ~(0x7 << 16);
 			temp |= (pipe_bpc << 11);
-			I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE |
-					FDI_DP_PORT_WIDTH_X4); /* default 4 lanes */
+			temp &= ~(7 << 19);
+			temp |= (intel_crtc->fdi_lanes - 1) << 19;
+			I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE);
 			I915_READ(fdi_rx_reg);
 			udelay(200);
 
@@ -3368,7 +3371,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* FDI link */
 	if (HAS_PCH_SPLIT(dev)) {
-		int lane, link_bw, bpp;
+		int lane = 0, link_bw, bpp;
 		/* eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
 		if (is_edp) {
@@ -3382,7 +3385,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				target_clock = mode->clock;
 			else
 				target_clock = adjusted_mode->clock;
-			lane = 4;
 			link_bw = 270000;
 		}
 
@@ -3433,6 +3435,18 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			DRM_ERROR("unknown pipe bpc value\n");
 			bpp = 24;
 		}
+
+		if (!lane) {
+			/* 
+			 * Account for spread spectrum to avoid
+			 * oversubscribing the link. Max center spread
+			 * is 2.5%; use 5% for safety's sake.
+			 */
+			u32 bps = target_clock * bpp * 21 / 20;
+			lane = bps / (link_bw * 8) + 1;
+		}
+
+		intel_crtc->fdi_lanes = lane;
 
 		ironlake_compute_m_n(bpp, lane, target_clock, link_bw, &m_n);
 	}

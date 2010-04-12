@@ -152,6 +152,7 @@ struct intel_crtc {
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
 	struct intel_unpin_work *unpin_work;
+	int fdi_lanes;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
