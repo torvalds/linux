@@ -111,7 +111,7 @@ static int strtailcmp(const char *s1, const char *s2)
 /* Line number list operations */
 
 /* Add a line to line number list */
-static void line_list__add_line(struct list_head *head, unsigned int line)
+static int line_list__add_line(struct list_head *head, unsigned int line)
 {
 	struct line_node *ln;
 	struct list_head *p;
@@ -122,16 +122,19 @@ static void line_list__add_line(struct list_head *head, unsigned int line)
 			p = &ln->list;
 			goto found;
 		} else if (ln->line == line)	/* Already exist */
-			return ;
+			return 1;
 	}
 	/* List is empty, or the smallest entry */
 	p = head;
 found:
 	pr_debug("line list: add a line %u\n", line);
-	ln = xzalloc(sizeof(struct line_node));
+	ln = zalloc(sizeof(struct line_node));
+	if (ln == NULL)
+		return -ENOMEM;
 	ln->line = line;
 	INIT_LIST_HEAD(&ln->list);
 	list_add(&ln->list, p);
+	return 0;
 }
 
 /* Check if the line in line number list */
@@ -423,7 +426,9 @@ static int convert_location(Dwarf_Op *op, struct probe_finder *pf)
 
 	tvar->value = xstrdup(regs);
 	if (ref) {
-		tvar->ref = xzalloc(sizeof(struct kprobe_trace_arg_ref));
+		tvar->ref = zalloc(sizeof(struct kprobe_trace_arg_ref));
+		if (tvar->ref == NULL)
+			return -ENOMEM;
 		tvar->ref->offset = (long)offs;
 	}
 	return 0;
@@ -500,7 +505,9 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 			return -EINVAL;
 		}
 
-		ref = xzalloc(sizeof(struct kprobe_trace_arg_ref));
+		ref = zalloc(sizeof(struct kprobe_trace_arg_ref));
+		if (ref == NULL)
+			return -ENOMEM;
 		if (*ref_ptr)
 			(*ref_ptr)->next = ref;
 		else
@@ -680,7 +687,9 @@ static int convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 
 	/* Find each argument */
 	tev->nargs = pf->pev->nargs;
-	tev->args = xzalloc(sizeof(struct kprobe_trace_arg) * tev->nargs);
+	tev->args = zalloc(sizeof(struct kprobe_trace_arg) * tev->nargs);
+	if (tev->args == NULL)
+		return -ENOMEM;
 	for (i = 0; i < pf->pev->nargs; i++) {
 		pf->pvar = &pf->pev->args[i];
 		pf->tvar = &tev->args[i];
@@ -938,7 +947,9 @@ int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
 	Dwarf *dbg;
 	int ret = 0;
 
-	pf.tevs = xzalloc(sizeof(struct kprobe_trace_event) * MAX_PROBES);
+	pf.tevs = zalloc(sizeof(struct kprobe_trace_event) * MAX_PROBES);
+	if (pf.tevs == NULL)
+		return -ENOMEM;
 	*tevs = pf.tevs;
 	pf.ntevs = 0;
 
