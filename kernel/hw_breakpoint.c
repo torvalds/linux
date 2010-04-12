@@ -77,6 +77,11 @@ struct bp_busy_slots {
 /* Serialize accesses to the above constraints */
 static DEFINE_MUTEX(nr_bp_mutex);
 
+__weak int hw_breakpoint_weight(struct perf_event *bp)
+{
+	return 1;
+}
+
 static inline enum bp_type_idx find_slot_idx(struct perf_event *bp)
 {
 	if (bp->attr.bp_type & HW_BREAKPOINT_RW)
@@ -124,7 +129,7 @@ static int task_bp_pinned(struct task_struct *tsk, enum bp_type_idx type)
 	list_for_each_entry(bp, list, event_entry) {
 		if (bp->attr.type == PERF_TYPE_BREAKPOINT)
 			if (find_slot_idx(bp) == type)
-				count++;
+				count += hw_breakpoint_weight(bp);
 	}
 
 	raw_spin_unlock_irqrestore(&ctx->lock, flags);
@@ -174,25 +179,40 @@ fetch_bp_busy_slots(struct bp_busy_slots *slots, struct perf_event *bp,
 }
 
 /*
+ * For now, continue to consider flexible as pinned, until we can
+ * ensure no flexible event can ever be scheduled before a pinned event
+ * in a same cpu.
+ */
+static void
+fetch_this_slot(struct bp_busy_slots *slots, int weight)
+{
+	slots->pinned += weight;
+}
+
+/*
  * Add a pinned breakpoint for the given task in our constraint table
  */
 static void toggle_bp_task_slot(struct task_struct *tsk, int cpu, bool enable,
-				enum bp_type_idx type)
+				enum bp_type_idx type, int weight)
 {
 	unsigned int *tsk_pinned;
-	int count = 0;
+	int old_count = 0;
+	int old_idx = 0;
+	int idx = 0;
 
-	count = task_bp_pinned(tsk, type);
+	old_count = task_bp_pinned(tsk, type);
+	old_idx = old_count - 1;
+	idx = old_idx + weight;
 
 	tsk_pinned = per_cpu(nr_task_bp_pinned[type], cpu);
 	if (enable) {
-		tsk_pinned[count]++;
-		if (count > 0)
-			tsk_pinned[count-1]--;
+		tsk_pinned[idx]++;
+		if (old_count > 0)
+			tsk_pinned[old_idx]--;
 	} else {
-		tsk_pinned[count]--;
-		if (count > 0)
-			tsk_pinned[count-1]++;
+		tsk_pinned[idx]--;
+		if (old_count > 0)
+			tsk_pinned[old_idx]++;
 	}
 }
 
@@ -200,7 +220,8 @@ static void toggle_bp_task_slot(struct task_struct *tsk, int cpu, bool enable,
  * Add/remove the given breakpoint in our constraint table
  */
 static void
-toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type)
+toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type,
+	       int weight)
 {
 	int cpu = bp->cpu;
 	struct task_struct *tsk = bp->ctx->task;
@@ -208,20 +229,20 @@ toggle_bp_slot(struct perf_event *bp, bool enable, enum bp_type_idx type)
 	/* Pinned counter task profiling */
 	if (tsk) {
 		if (cpu >= 0) {
-			toggle_bp_task_slot(tsk, cpu, enable, type);
+			toggle_bp_task_slot(tsk, cpu, enable, type, weight);
 			return;
 		}
 
 		for_each_online_cpu(cpu)
-			toggle_bp_task_slot(tsk, cpu, enable, type);
+			toggle_bp_task_slot(tsk, cpu, enable, type, weight);
 		return;
 	}
 
 	/* Pinned counter cpu profiling */
 	if (enable)
-		per_cpu(nr_cpu_bp_pinned[type], bp->cpu)++;
+		per_cpu(nr_cpu_bp_pinned[type], bp->cpu) += weight;
 	else
-		per_cpu(nr_cpu_bp_pinned[type], bp->cpu)--;
+		per_cpu(nr_cpu_bp_pinned[type], bp->cpu) -= weight;
 }
 
 /*
@@ -269,6 +290,7 @@ static int __reserve_bp_slot(struct perf_event *bp)
 {
 	struct bp_busy_slots slots = {0};
 	enum bp_type_idx type;
+	int weight;
 
 	/* Basic checks */
 	if (bp->attr.bp_type == HW_BREAKPOINT_EMPTY ||
@@ -276,13 +298,16 @@ static int __reserve_bp_slot(struct perf_event *bp)
 		return -EINVAL;
 
 	type = find_slot_idx(bp);
+	weight = hw_breakpoint_weight(bp);
+
 	fetch_bp_busy_slots(&slots, bp, type);
+	fetch_this_slot(&slots, weight);
 
 	/* Flexible counters need to keep at least one slot */
-	if (slots.pinned + (!!slots.flexible) == HBP_NUM)
+	if (slots.pinned + (!!slots.flexible) > HBP_NUM)
 		return -ENOSPC;
 
-	toggle_bp_slot(bp, true, type);
+	toggle_bp_slot(bp, true, type, weight);
 
 	return 0;
 }
@@ -303,9 +328,11 @@ int reserve_bp_slot(struct perf_event *bp)
 static void __release_bp_slot(struct perf_event *bp)
 {
 	enum bp_type_idx type;
+	int weight;
 
 	type = find_slot_idx(bp);
-	toggle_bp_slot(bp, false, type);
+	weight = hw_breakpoint_weight(bp);
+	toggle_bp_slot(bp, false, type, weight);
 }
 
 void release_bp_slot(struct perf_event *bp)
