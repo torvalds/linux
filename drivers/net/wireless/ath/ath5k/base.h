@@ -135,6 +135,7 @@ struct ath5k_statistics {
 	unsigned int beacons;
 
 	unsigned int mib_intr;
+	unsigned int rxorn_intr;
 };
 
 #if CHAN_DEBUG
