@@ -481,6 +481,10 @@ static void parse_perf_probe_arg(const char *str, struct perf_probe_arg *arg)
 	} while (tmp);
 	(*fieldp)->name = xstrdup(str);
 	pr_debug("%s(%d)\n", (*fieldp)->name, (*fieldp)->ref);
+
+	/* If no name is specified, set the last field name */
+	if (!arg->name)
+		arg->name = xstrdup((*fieldp)->name);
 }
 
 /* Parse perf-probe event command */
