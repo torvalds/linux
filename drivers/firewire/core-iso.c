@@ -250,8 +250,10 @@ static int manage_channel(struct fw_card *card, int irm_id, int generation,
 
 			/* 1394-1995 IRM, fall through to retry. */
 		default:
-			if (retry--)
+			if (retry) {
+				retry--;
 				i--;
+			}
 		}
 	}
 
