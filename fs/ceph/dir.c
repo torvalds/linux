@@ -170,10 +170,10 @@ more:
 	spin_lock(&inode->i_lock);
 	spin_lock(&dcache_lock);
 
+	last = dentry;
+
 	if (err < 0)
 		goto out_unlock;
-
-	last = dentry;
 
 	p = p->prev;
 	filp->f_pos++;
