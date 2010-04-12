@@ -25,7 +25,6 @@
 
 #define TG3_RX_INTERNAL_RING_SZ_5906	32
 
-#define RX_STD_MAX_SIZE			1536
 #define RX_STD_MAX_SIZE_5705		512
 #define RX_JUMBO_MAX_SIZE		0xdeadbeef /* XXX */
 

@@ -7905,9 +7905,9 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765)
 			val = (RX_STD_MAX_SIZE_5705 << BDINFO_FLAGS_MAXLEN_SHIFT) |
-			      (RX_STD_MAX_SIZE << 2);
+			      (TG3_RX_STD_DMA_SZ << 2);
 		else
-			val = RX_STD_MAX_SIZE << BDINFO_FLAGS_MAXLEN_SHIFT;
+			val = TG3_RX_STD_DMA_SZ << BDINFO_FLAGS_MAXLEN_SHIFT;
 	} else
 		val = RX_STD_MAX_SIZE_5705 << BDINFO_FLAGS_MAXLEN_SHIFT;
 
