@@ -2704,17 +2704,18 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 			/* Flag it for later restoration when link comes up */
 			ifa->flags |= IFA_F_TENTATIVE;
 			in6_ifa_hold(ifa);
+			write_unlock_bh(&idev->lock);
 		} else {
 			list_del(&ifa->if_list);
 			ifa->dead = 1;
-		}
-		write_unlock_bh(&idev->lock);
+			write_unlock_bh(&idev->lock);
 
-		/* clear hash table */
-		spin_lock_bh(&addrconf_hash_lock);
-		hlist_del_init_rcu(&ifa->addr_lst);
-		__in6_ifa_put(ifa);
-		spin_unlock_bh(&addrconf_hash_lock);
+			/* clear hash table */
+			spin_lock_bh(&addrconf_hash_lock);
+			hlist_del_init_rcu(&ifa->addr_lst);
+			__in6_ifa_put(ifa);
+			spin_unlock_bh(&addrconf_hash_lock);
+		}
 
 		__ipv6_ifa_notify(RTM_DELADDR, ifa);
 		atomic_notifier_call_chain(&inet6addr_chain, NETDEV_DOWN, ifa);
