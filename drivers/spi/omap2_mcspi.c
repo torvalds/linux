@@ -113,7 +113,7 @@ struct omap2_mcspi_dma {
 /* use PIO for small transfers, avoiding DMA setup/teardown overhead and
  * cache operations; better heuristics consider wordsize and bitrate.
  */
-#define DMA_MIN_BYTES			8
+#define DMA_MIN_BYTES			160
 
 
 struct omap2_mcspi {
