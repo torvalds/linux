@@ -75,7 +75,7 @@ static void balloon_ack(struct virtqueue *vq)
 	struct virtio_balloon *vb;
 	unsigned int len;
 
-	vb = vq->vq_ops->get_buf(vq, &len);
+	vb = virtqueue_get_buf(vq, &len);
 	if (vb)
 		complete(&vb->acked);
 }
@@ -89,9 +89,9 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
 	init_completion(&vb->acked);
 
 	/* We should always be able to add one buffer to an empty queue. */
-	if (vq->vq_ops->add_buf(vq, &sg, 1, 0, vb) < 0)
+	if (virtqueue_add_buf(vq, &sg, 1, 0, vb) < 0)
 		BUG();
-	vq->vq_ops->kick(vq);
+	virtqueue_kick(vq);
 
 	/* When host has read buffer, this completes via balloon_ack */
 	wait_for_completion(&vb->acked);
@@ -204,7 +204,7 @@ static void stats_request(struct virtqueue *vq)
 	struct virtio_balloon *vb;
 	unsigned int len;
 
-	vb = vq->vq_ops->get_buf(vq, &len);
+	vb = virtqueue_get_buf(vq, &len);
 	if (!vb)
 		return;
 	vb->need_stats_update = 1;
@@ -221,9 +221,9 @@ static void stats_handle_request(struct virtio_balloon *vb)
 
 	vq = vb->stats_vq;
 	sg_init_one(&sg, vb->stats, sizeof(vb->stats));
-	if (vq->vq_ops->add_buf(vq, &sg, 1, 0, vb) < 0)
+	if (virtqueue_add_buf(vq, &sg, 1, 0, vb) < 0)
 		BUG();
-	vq->vq_ops->kick(vq);
+	virtqueue_kick(vq);
 }
 
 static void virtballoon_changed(struct virtio_device *vdev)
@@ -314,10 +314,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
 		 * use it to signal us later.
 		 */
 		sg_init_one(&sg, vb->stats, sizeof vb->stats);
-		if (vb->stats_vq->vq_ops->add_buf(vb->stats_vq,
-						  &sg, 1, 0, vb) < 0)
+		if (virtqueue_add_buf(vb->stats_vq, &sg, 1, 0, vb) < 0)
 			BUG();
-		vb->stats_vq->vq_ops->kick(vb->stats_vq);
+		virtqueue_kick(vb->stats_vq);
 	}
 
 	vb->thread = kthread_run(balloon, vb, "vballoon");
