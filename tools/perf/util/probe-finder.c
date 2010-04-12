@@ -84,6 +84,9 @@ const char *x86_64_regs_table[X86_64_MAX_REGS] = {
 #define arch_regs_table x86_32_regs_table
 #endif
 
+/* Kprobe tracer basic type is up to u64 */
+#define MAX_BASIC_TYPE_BITS	64
+
 /* Return architecture dependent register string (for kprobe-tracer) */
 static const char *get_arch_regstr(unsigned int n)
 {
@@ -228,6 +231,31 @@ static Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem)
 		 tag == DW_TAG_typedef);
 
 	return die_mem;
+}
+
+static bool die_is_signed_type(Dwarf_Die *tp_die)
+{
+	Dwarf_Attribute attr;
+	Dwarf_Word ret;
+
+	if (dwarf_attr(tp_die, DW_AT_encoding, &attr) == NULL ||
+	    dwarf_formudata(&attr, &ret) != 0)
+		return false;
+
+	return (ret == DW_ATE_signed_char || ret == DW_ATE_signed ||
+		ret == DW_ATE_signed_fixed);
+}
+
+static int die_get_byte_size(Dwarf_Die *tp_die)
+{
+	Dwarf_Attribute attr;
+	Dwarf_Word ret;
+
+	if (dwarf_attr(tp_die, DW_AT_byte_size, &attr) == NULL ||
+	    dwarf_formudata(&attr, &ret) != 0)
+		return 0;
+
+	return (int)ret;
 }
 
 /* Return values for die_find callbacks */
@@ -406,13 +434,42 @@ static void convert_location(Dwarf_Op *op, struct probe_finder *pf)
 	}
 }
 
+static void convert_variable_type(Dwarf_Die *vr_die,
+				  struct kprobe_trace_arg *targ)
+{
+	Dwarf_Die type;
+	char buf[16];
+	int ret;
+
+	if (die_get_real_type(vr_die, &type) == NULL)
+		die("Failed to get a type information of %s.",
+		    dwarf_diename(vr_die));
+
+	ret = die_get_byte_size(&type) * 8;
+	if (ret) {
+		/* Check the bitwidth */
+		if (ret > MAX_BASIC_TYPE_BITS) {
+			pr_warning("  Warning: %s exceeds max-bitwidth."
+				   " Cut down to %d bits.\n",
+				   dwarf_diename(&type), MAX_BASIC_TYPE_BITS);
+			ret = MAX_BASIC_TYPE_BITS;
+		}
+
+		ret = snprintf(buf, 16, "%c%d",
+			       die_is_signed_type(&type) ? 's' : 'u', ret);
+		if (ret < 0 || ret >= 16)
+			die("Failed to convert variable type.");
+		targ->type = xstrdup(buf);
+	}
+}
+
 static void convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 				    struct perf_probe_arg_field *field,
-				    struct kprobe_trace_arg_ref **ref_ptr)
+				    struct kprobe_trace_arg_ref **ref_ptr,
+				    Dwarf_Die *die_mem)
 {
 	struct kprobe_trace_arg_ref *ref = *ref_ptr;
 	Dwarf_Attribute attr;
-	Dwarf_Die member;
 	Dwarf_Die type;
 	Dwarf_Word offs;
 
@@ -450,26 +507,27 @@ static void convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 			die("Structure on a register is not supported yet.");
 	}
 
-	if (die_find_member(&type, field->name, &member) == NULL)
+	if (die_find_member(&type, field->name, die_mem) == NULL)
 		die("%s(tyep:%s) has no member %s.", varname,
 		    dwarf_diename(&type), field->name);
 
 	/* Get the offset of the field */
-	if (dwarf_attr(&member, DW_AT_data_member_location, &attr) == NULL ||
+	if (dwarf_attr(die_mem, DW_AT_data_member_location, &attr) == NULL ||
 	    dwarf_formudata(&attr, &offs) != 0)
 		die("Failed to get the offset of %s.", field->name);
 	ref->offset += (long)offs;
 
 	/* Converting next field */
 	if (field->next)
-		convert_variable_fields(&member, field->name, field->next,
-					&ref);
+		convert_variable_fields(die_mem, field->name, field->next,
+					&ref, die_mem);
 }
 
 /* Show a variables in kprobe event format */
 static void convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 {
 	Dwarf_Attribute attr;
+	Dwarf_Die die_mem;
 	Dwarf_Op *expr;
 	size_t nexpr;
 	int ret;
@@ -483,9 +541,13 @@ static void convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 
 	convert_location(expr, pf);
 
-	if (pf->pvar->field)
+	if (pf->pvar->field) {
 		convert_variable_fields(vr_die, pf->pvar->var,
-					pf->pvar->field, &pf->tvar->ref);
+					pf->pvar->field, &pf->tvar->ref,
+					&die_mem);
+		vr_die = &die_mem;
+	}
+	convert_variable_type(vr_die, pf->tvar);
 	/* *expr will be cached in libdw. Don't free it. */
 	return ;
 error:

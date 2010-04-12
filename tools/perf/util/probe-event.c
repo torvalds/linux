@@ -740,6 +740,13 @@ static int synthesize_kprobe_trace_arg(struct kprobe_trace_arg *arg,
 		buf += ret;
 		buflen -= ret;
 	}
+	/* Print argument type */
+	if (arg->type) {
+		ret = e_snprintf(buf, buflen, ":%s", arg->type);
+		if (ret <= 0)
+			return ret;
+		buf += ret;
+	}
 
 	return buf - tmp;
 }
@@ -848,6 +855,8 @@ void clear_kprobe_trace_event(struct kprobe_trace_event *tev)
 			free(tev->args[i].name);
 		if (tev->args[i].value)
 			free(tev->args[i].value);
+		if (tev->args[i].type)
+			free(tev->args[i].type);
 		ref = tev->args[i].ref;
 		while (ref) {
 			next = ref->next;

@@ -23,6 +23,7 @@ struct kprobe_trace_arg_ref {
 struct kprobe_trace_arg {
 	char				*name;	/* Argument name */
 	char				*value;	/* Base value */
+	char				*type;	/* Type name */
 	struct kprobe_trace_arg_ref	*ref;	/* Referencing offset */
 };
 
