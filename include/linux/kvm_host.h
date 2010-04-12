@@ -119,6 +119,11 @@ struct kvm_memory_slot {
 	int user_alloc;
 };
 
+static inline unsigned long kvm_dirty_bitmap_bytes(struct kvm_memory_slot *memslot)
+{
+	return ALIGN(memslot->npages, BITS_PER_LONG) / 8;
+}
+
 struct kvm_kernel_irq_routing_entry {
 	u32 gsi;
 	u32 type;

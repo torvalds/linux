@@ -2612,8 +2612,9 @@ static int kvm_vm_ioctl_reinject(struct kvm *kvm,
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 				      struct kvm_dirty_log *log)
 {
-	int r, n, i;
+	int r, i;
 	struct kvm_memory_slot *memslot;
+	unsigned long n;
 	unsigned long is_dirty = 0;
 	unsigned long *dirty_bitmap = NULL;
 
@@ -2628,7 +2629,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	if (!memslot->dirty_bitmap)
 		goto out;
 
-	n = ALIGN(memslot->npages, BITS_PER_LONG) / 8;
+	n = kvm_dirty_bitmap_bytes(memslot);
 
 	r = -ENOMEM;
 	dirty_bitmap = vmalloc(n);
