@@ -25,6 +25,7 @@ obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= addi_apci_3120.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= addi_apci_3501.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= addi_apci_3xxx.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= adl_pci6208.o
+obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= adl_pci7230.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= adl_pci7296.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= adl_pci7432.o
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= adl_pci8164.o
