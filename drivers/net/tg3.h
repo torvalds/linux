@@ -23,8 +23,6 @@
 #define TG3_BDINFO_NIC_ADDR		0xcUL /* 32-bit */
 #define TG3_BDINFO_SIZE			0x10UL
 
-#define RX_COPY_THRESHOLD		256
-
 #define TG3_RX_INTERNAL_RING_SZ_5906	32
 
 #define RX_STD_MAX_SIZE			1536
@@ -2754,9 +2752,11 @@ struct tg3 {
 	struct tg3_napi			napi[TG3_IRQ_MAX_VECS];
 	void				(*write32_rx_mbox) (struct tg3 *, u32,
 							    u32);
+	u32				rx_copy_thresh;
 	u32				rx_pending;
 	u32				rx_jumbo_pending;
 	u32				rx_std_max_post;
+	u32				rx_offset;
 	u32				rx_pkt_map_sz;
 #if TG3_VLAN_TAG_USED
 	struct vlan_group		*vlgrp;
@@ -2776,7 +2776,6 @@ struct tg3 {
 	unsigned long			last_event_jiffies;
 	};
 
-	u32				rx_offset;
 	u32				tg3_flags;
 #define TG3_FLAG_TAGGED_STATUS		0x00000001
 #define TG3_FLAG_TXD_MBOX_HWBUG		0x00000002

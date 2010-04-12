@@ -144,6 +144,24 @@
 
 #define TG3_RSS_MIN_NUM_MSIX_VECS	2
 
+/* Due to a hardware bug, the 5701 can only DMA to memory addresses
+ * that are at least dword aligned when used in PCIX mode.  The driver
+ * works around this bug by double copying the packet.  This workaround
+ * is built into the normal double copy length check for efficiency.
+ *
+ * However, the double copy is only necessary on those architectures
+ * where unaligned memory accesses are inefficient.  For those architectures
+ * where unaligned memory accesses incur little penalty, we can reintegrate
+ * the 5701 in the normal rx path.  Doing so saves a device structure
+ * dereference by hardcoding the double copy threshold in place.
+ */
+#define TG3_RX_COPY_THRESHOLD		256
+#if NET_IP_ALIGN == 0 || defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	#define TG3_RX_COPY_THRESH(tp)	TG3_RX_COPY_THRESHOLD
+#else
+	#define TG3_RX_COPY_THRESH(tp)	((tp)->rx_copy_thresh)
+#endif
+
 /* minimum number of free TX descriptors required to wake up TX process */
 #define TG3_TX_WAKEUP_THRESH(tnapi)		((tnapi)->tx_pending / 4)
 
@@ -4639,12 +4657,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		len = ((desc->idx_len & RXD_LEN_MASK) >> RXD_LEN_SHIFT) -
 		      ETH_FCS_LEN;
 
-		if (len > RX_COPY_THRESHOLD &&
-		    tp->rx_offset == NET_IP_ALIGN) {
-		    /* rx_offset will likely not equal NET_IP_ALIGN
-		     * if this is a 5701 card running in PCI-X mode
-		     * [see tg3_get_invariants()]
-		     */
+		if (len > TG3_RX_COPY_THRESH(tp)) {
 			int skb_size;
 
 			skb_size = tg3_alloc_rx_skb(tp, tpr, opaque_key,
@@ -13469,9 +13482,14 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags &= ~TG3_FLAG_POLL_SERDES;
 
 	tp->rx_offset = NET_IP_ALIGN;
+	tp->rx_copy_thresh = TG3_RX_COPY_THRESHOLD;
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701 &&
-	    (tp->tg3_flags & TG3_FLAG_PCIX_MODE) != 0)
+	    (tp->tg3_flags & TG3_FLAG_PCIX_MODE) != 0) {
 		tp->rx_offset = 0;
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+		tp->rx_copy_thresh = ~0;
+#endif
+	}
 
 	tp->rx_std_max_post = TG3_RX_RING_SIZE;
 
