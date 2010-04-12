@@ -50,7 +50,7 @@ static void blk_done(struct virtqueue *vq)
 	unsigned long flags;
 
 	spin_lock_irqsave(&vblk->lock, flags);
-	while ((vbr = vblk->vq->vq_ops->get_buf(vblk->vq, &len)) != NULL) {
+	while ((vbr = virtqueue_get_buf(vblk->vq, &len)) != NULL) {
 		int error;
 
 		switch (vbr->status) {
@@ -158,7 +158,7 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 		}
 	}
 
-	if (vblk->vq->vq_ops->add_buf(vblk->vq, vblk->sg, out, in, vbr) < 0) {
+	if (virtqueue_add_buf(vblk->vq, vblk->sg, out, in, vbr) < 0) {
 		mempool_free(vbr, vblk->pool);
 		return false;
 	}
@@ -187,7 +187,7 @@ static void do_virtblk_request(struct request_queue *q)
 	}
 
 	if (issued)
-		vblk->vq->vq_ops->kick(vblk->vq);
+		virtqueue_kick(vblk->vq);
 }
 
 static void virtblk_prepare_flush(struct request_queue *q, struct request *req)
