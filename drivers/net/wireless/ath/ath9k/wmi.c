@@ -169,7 +169,7 @@ void ath9k_wmi_tasklet(unsigned long data)
 		break;
 	}
 
-	dev_kfree_skb_any(skb);
+	kfree_skb(skb);
 }
 
 static void ath9k_wmi_rsp_callback(struct wmi *wmi, struct sk_buff *skb)
@@ -207,7 +207,7 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 	ath9k_wmi_rsp_callback(wmi, skb);
 
 free_skb:
-	dev_kfree_skb_any(skb);
+	kfree_skb(skb);
 }
 
 static void ath9k_wmi_ctrl_tx(void *priv, struct sk_buff *skb,

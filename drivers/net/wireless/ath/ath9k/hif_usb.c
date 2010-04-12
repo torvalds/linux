@@ -499,7 +499,7 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 	if (likely(urb->actual_length != 0)) {
 		skb_put(skb, urb->actual_length);
 
-		nskb = __dev_alloc_skb(MAX_REG_IN_BUF_SIZE, GFP_ATOMIC);
+		nskb = alloc_skb(MAX_REG_IN_BUF_SIZE, GFP_ATOMIC);
 		if (!nskb)
 			goto resubmit;
 
@@ -510,7 +510,7 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 
 		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret) {
-			dev_kfree_skb_any(nskb);
+			kfree_skb(nskb);
 			goto free;
 		}
 
@@ -530,7 +530,7 @@ resubmit:
 
 	return;
 free:
-	dev_kfree_skb_any(skb);
+	kfree_skb(skb);
 	urb->context = NULL;
 }
 
@@ -670,7 +670,7 @@ static void ath9k_hif_usb_dealloc_reg_in_urb(struct hif_device_usb *hif_dev)
 	if (hif_dev->reg_in_urb) {
 		usb_kill_urb(hif_dev->reg_in_urb);
 		if (hif_dev->reg_in_urb->context)
-			dev_kfree_skb_any((void *)hif_dev->reg_in_urb->context);
+			kfree_skb((void *)hif_dev->reg_in_urb->context);
 		usb_free_urb(hif_dev->reg_in_urb);
 		hif_dev->reg_in_urb = NULL;
 	}
@@ -684,7 +684,7 @@ static int ath9k_hif_usb_alloc_reg_in_urb(struct hif_device_usb *hif_dev)
 	if (hif_dev->reg_in_urb == NULL)
 		return -ENOMEM;
 
-	skb = __dev_alloc_skb(MAX_REG_IN_BUF_SIZE, GFP_KERNEL);
+	skb = alloc_skb(MAX_REG_IN_BUF_SIZE, GFP_KERNEL);
 	if (!skb)
 		goto err;
 

@@ -374,7 +374,10 @@ void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 	epid = htc_hdr->endpoint_id;
 
 	if (epid >= ENDPOINT_MAX) {
-		dev_kfree_skb_any(skb);
+		if (pipe_id != USB_REG_IN_PIPE)
+			dev_kfree_skb_any(skb);
+		else
+			kfree_skb(skb);
 		return;
 	}
 
@@ -403,7 +406,7 @@ void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 			break;
 		}
 
-		dev_kfree_skb_any(skb);
+		kfree_skb(skb);
 
 	} else {
 		if (htc_hdr->flags & HTC_FLAGS_RECV_TRAILER)
