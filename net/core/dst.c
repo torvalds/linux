@@ -286,8 +286,8 @@ EXPORT_SYMBOL(dst_release);
  *
  * Commented and originally written by Alexey.
  */
-static inline void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
-			      int unregister)
+static void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
+		       int unregister)
 {
 	if (dst->ops->ifdown)
 		dst->ops->ifdown(dst, dev, unregister);
