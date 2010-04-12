@@ -424,7 +424,10 @@ static int convert_location(Dwarf_Op *op, struct probe_finder *pf)
 		return -ERANGE;
 	}
 
-	tvar->value = xstrdup(regs);
+	tvar->value = strdup(regs);
+	if (tvar->value == NULL)
+		return -ENOMEM;
+
 	if (ref) {
 		tvar->ref = zalloc(sizeof(struct kprobe_trace_arg_ref));
 		if (tvar->ref == NULL)
@@ -466,7 +469,9 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 				   strerror(-ret));
 			return ret;
 		}
-		targ->type = xstrdup(buf);
+		targ->type = strdup(buf);
+		if (targ->type == NULL)
+			return -ENOMEM;
 	}
 	return 0;
 }
@@ -576,9 +581,11 @@ static int convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 		vr_die = &die_mem;
 	}
 	if (ret == 0) {
-		if (pf->pvar->type)
-			pf->tvar->type = xstrdup(pf->pvar->type);
-		else
+		if (pf->pvar->type) {
+			pf->tvar->type = strdup(pf->pvar->type);
+			if (pf->tvar->type == NULL)
+				ret = -ENOMEM;
+		} else
 			ret = convert_variable_type(vr_die, pf->tvar);
 	}
 	/* *expr will be cached in libdw. Don't free it. */
@@ -595,22 +602,30 @@ static int find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
 	Dwarf_Die vr_die;
 	char buf[32], *ptr;
+	int ret;
 
 	/* TODO: Support arrays */
 	if (pf->pvar->name)
-		pf->tvar->name = xstrdup(pf->pvar->name);
+		pf->tvar->name = strdup(pf->pvar->name);
 	else {
-		synthesize_perf_probe_arg(pf->pvar, buf, 32);
+		ret = synthesize_perf_probe_arg(pf->pvar, buf, 32);
+		if (ret < 0)
+			return ret;
 		ptr = strchr(buf, ':');	/* Change type separator to _ */
 		if (ptr)
 			*ptr = '_';
-		pf->tvar->name = xstrdup(buf);
+		pf->tvar->name = strdup(buf);
 	}
+	if (pf->tvar->name == NULL)
+		return -ENOMEM;
 
 	if (!is_c_varname(pf->pvar->var)) {
 		/* Copy raw parameters */
-		pf->tvar->value = xstrdup(pf->pvar->var);
-		return 0;
+		pf->tvar->value = strdup(pf->pvar->var);
+		if (pf->tvar->value == NULL)
+			return -ENOMEM;
+		else
+			return 0;
 	}
 
 	pr_debug("Searching '%s' variable in context.\n",
@@ -660,7 +675,9 @@ static int convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 				   dwarf_diename(sp_die));
 			return -ENOENT;
 		}
-		tev->point.symbol = xstrdup(name);
+		tev->point.symbol = strdup(name);
+		if (tev->point.symbol == NULL)
+			return -ENOMEM;
 		tev->point.offset = (unsigned long)(pf->addr - eaddr);
 	} else
 		/* This function has no name. */
@@ -1028,7 +1045,11 @@ int find_perf_probe_point(int fd, unsigned long addr,
 			tmp = dwarf_linesrc(line, NULL, NULL);
 			if (tmp) {
 				ppt->line = lineno;
-				ppt->file = xstrdup(tmp);
+				ppt->file = strdup(tmp);
+				if (ppt->file == NULL) {
+					ret = -ENOMEM;
+					goto end;
+				}
 				found = true;
 			}
 		}
@@ -1064,7 +1085,11 @@ int find_perf_probe_point(int fd, unsigned long addr,
 		/* We don't have a line number, let's use offset */
 		ppt->offset = addr - (unsigned long)eaddr;
 found:
-		ppt->function = xstrdup(tmp);
+		ppt->function = strdup(tmp);
+		if (ppt->function == NULL) {
+			ret = -ENOMEM;
+			goto end;
+		}
 		found = true;
 	}
 
@@ -1116,8 +1141,11 @@ static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 			continue;
 
 		/* Copy real path */
-		if (!lf->lr->path)
-			lf->lr->path = xstrdup(src);
+		if (!lf->lr->path) {
+			lf->lr->path = strdup(src);
+			if (lf->lr->path == NULL)
+				return -ENOMEM;
+		}
 		line_list__add_line(&lf->lr->line_list, (unsigned int)lineno);
 	}
 	/* Update status */
