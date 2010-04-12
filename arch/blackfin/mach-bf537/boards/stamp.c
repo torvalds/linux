@@ -1035,6 +1035,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.modalias = "ad2s90",
 		.bus_num = 0,
 		.chip_select = 3,            /* change it for your board */
+		.mode = SPI_MODE_3,
 		.platform_data = NULL,
 		.controller_data = &ad2s90_spi_chip_info,
 	},
