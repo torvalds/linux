@@ -2277,212 +2277,108 @@ int dsi_vc_set_max_rx_packet_size(int channel, u16 len)
 }
 EXPORT_SYMBOL(dsi_vc_set_max_rx_packet_size);
 
-static void dsi_set_lp_rx_timeout(unsigned long ns)
+static void dsi_set_lp_rx_timeout(unsigned ticks, bool x4, bool x16)
 {
-	u32 r;
-	unsigned x4, x16;
 	unsigned long fck;
-	unsigned long ticks;
+	unsigned long total_ticks;
+	u32 r;
+
+	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
-
 	fck = dsi_fclk_rate();
-	ticks = (fck / 1000 / 1000) * ns / 1000;
-	x4 = 0;
-	x16 = 0;
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 4;
-		x4 = 1;
-		x16 = 0;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 16;
-		x4 = 0;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / (4 * 16);
-		x4 = 1;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		DSSWARN("LP_TX_TO over limit, setting it to max\n");
-		ticks = 0x1fff;
-		x4 = 1;
-		x16 = 1;
-	}
 
 	r = dsi_read_reg(DSI_TIMING2);
 	r = FLD_MOD(r, 1, 15, 15);	/* LP_RX_TO */
-	r = FLD_MOD(r, x16, 14, 14);	/* LP_RX_TO_X16 */
-	r = FLD_MOD(r, x4, 13, 13);	/* LP_RX_TO_X4 */
+	r = FLD_MOD(r, x16 ? 1 : 0, 14, 14);	/* LP_RX_TO_X16 */
+	r = FLD_MOD(r, x4 ? 1 : 0, 13, 13);	/* LP_RX_TO_X4 */
 	r = FLD_MOD(r, ticks, 12, 0);	/* LP_RX_COUNTER */
 	dsi_write_reg(DSI_TIMING2, r);
 
-	DSSDBG("LP_RX_TO %lu ns (%#lx ticks%s%s)\n",
-			(ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1) * 1000) /
-			(fck / 1000 / 1000),
-			ticks, x4 ? " x4" : "", x16 ? " x16" : "");
+	total_ticks = ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1);
+
+	DSSDBG("LP_RX_TO %lu ticks (%#x%s%s) = %lu ns\n",
+			total_ticks,
+			ticks, x4 ? " x4" : "", x16 ? " x16" : "",
+			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 
-static void dsi_set_ta_timeout(unsigned long ns)
+static void dsi_set_ta_timeout(unsigned ticks, bool x8, bool x16)
 {
-	u32 r;
-	unsigned x8, x16;
 	unsigned long fck;
-	unsigned long ticks;
+	unsigned long total_ticks;
+	u32 r;
+
+	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
 	fck = dsi_fclk_rate();
-	ticks = (fck / 1000 / 1000) * ns / 1000;
-	x8 = 0;
-	x16 = 0;
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 8;
-		x8 = 1;
-		x16 = 0;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 16;
-		x8 = 0;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / (8 * 16);
-		x8 = 1;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		DSSWARN("TA_TO over limit, setting it to max\n");
-		ticks = 0x1fff;
-		x8 = 1;
-		x16 = 1;
-	}
 
 	r = dsi_read_reg(DSI_TIMING1);
 	r = FLD_MOD(r, 1, 31, 31);	/* TA_TO */
-	r = FLD_MOD(r, x16, 30, 30);	/* TA_TO_X16 */
-	r = FLD_MOD(r, x8, 29, 29);	/* TA_TO_X8 */
+	r = FLD_MOD(r, x16 ? 1 : 0, 30, 30);	/* TA_TO_X16 */
+	r = FLD_MOD(r, x8 ? 1 : 0, 29, 29);	/* TA_TO_X8 */
 	r = FLD_MOD(r, ticks, 28, 16);	/* TA_TO_COUNTER */
 	dsi_write_reg(DSI_TIMING1, r);
 
-	DSSDBG("TA_TO %lu ns (%#lx ticks%s%s)\n",
-			(ticks * (x16 ? 16 : 1) * (x8 ? 8 : 1) * 1000) /
-			(fck / 1000 / 1000),
-			ticks, x8 ? " x8" : "", x16 ? " x16" : "");
+	total_ticks = ticks * (x16 ? 16 : 1) * (x8 ? 8 : 1);
+
+	DSSDBG("TA_TO %lu ticks (%#x%s%s) = %lu ns\n",
+			total_ticks,
+			ticks, x8 ? " x8" : "", x16 ? " x16" : "",
+			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 
-static void dsi_set_stop_state_counter(unsigned long ns)
+static void dsi_set_stop_state_counter(unsigned ticks, bool x4, bool x16)
 {
-	u32 r;
-	unsigned x4, x16;
 	unsigned long fck;
-	unsigned long ticks;
+	unsigned long total_ticks;
+	u32 r;
+
+	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
-
 	fck = dsi_fclk_rate();
-	ticks = (fck / 1000 / 1000) * ns / 1000;
-	x4 = 0;
-	x16 = 0;
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 4;
-		x4 = 1;
-		x16 = 0;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 16;
-		x4 = 0;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / (4 * 16);
-		x4 = 1;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		DSSWARN("STOP_STATE_COUNTER_IO over limit, "
-				"setting it to max\n");
-		ticks = 0x1fff;
-		x4 = 1;
-		x16 = 1;
-	}
 
 	r = dsi_read_reg(DSI_TIMING1);
 	r = FLD_MOD(r, 1, 15, 15);	/* FORCE_TX_STOP_MODE_IO */
-	r = FLD_MOD(r, x16, 14, 14);	/* STOP_STATE_X16_IO */
-	r = FLD_MOD(r, x4, 13, 13);	/* STOP_STATE_X4_IO */
+	r = FLD_MOD(r, x16 ? 1 : 0, 14, 14);	/* STOP_STATE_X16_IO */
+	r = FLD_MOD(r, x4 ? 1 : 0, 13, 13);	/* STOP_STATE_X4_IO */
 	r = FLD_MOD(r, ticks, 12, 0);	/* STOP_STATE_COUNTER_IO */
 	dsi_write_reg(DSI_TIMING1, r);
 
-	DSSDBG("STOP_STATE_COUNTER %lu ns (%#lx ticks%s%s)\n",
-			(ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1) * 1000) /
-			(fck / 1000 / 1000),
-			ticks, x4 ? " x4" : "", x16 ? " x16" : "");
+	total_ticks = ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1);
+
+	DSSDBG("STOP_STATE_COUNTER %lu ticks (%#x%s%s) = %lu ns\n",
+			total_ticks,
+			ticks, x4 ? " x4" : "", x16 ? " x16" : "",
+			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 
-static void dsi_set_hs_tx_timeout(unsigned long ns)
+static void dsi_set_hs_tx_timeout(unsigned ticks, bool x4, bool x16)
 {
-	u32 r;
-	unsigned x4, x16;
 	unsigned long fck;
-	unsigned long ticks;
+	unsigned long total_ticks;
+	u32 r;
+
+	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in TxByteClkHS */
-
 	fck = dsi_get_txbyteclkhs();
-	ticks = (fck / 1000 / 1000) * ns / 1000;
-	x4 = 0;
-	x16 = 0;
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 4;
-		x4 = 1;
-		x16 = 0;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / 16;
-		x4 = 0;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		ticks = (fck / 1000 / 1000) * ns / 1000 / (4 * 16);
-		x4 = 1;
-		x16 = 1;
-	}
-
-	if (ticks > 0x1fff) {
-		DSSWARN("HS_TX_TO over limit, setting it to max\n");
-		ticks = 0x1fff;
-		x4 = 1;
-		x16 = 1;
-	}
 
 	r = dsi_read_reg(DSI_TIMING2);
 	r = FLD_MOD(r, 1, 31, 31);	/* HS_TX_TO */
-	r = FLD_MOD(r, x16, 30, 30);	/* HS_TX_TO_X16 */
-	r = FLD_MOD(r, x4, 29, 29);	/* HS_TX_TO_X8 (4 really) */
+	r = FLD_MOD(r, x16 ? 1 : 0, 30, 30);	/* HS_TX_TO_X16 */
+	r = FLD_MOD(r, x4 ? 1 : 0, 29, 29);	/* HS_TX_TO_X8 (4 really) */
 	r = FLD_MOD(r, ticks, 28, 16);	/* HS_TX_TO_COUNTER */
 	dsi_write_reg(DSI_TIMING2, r);
 
-	DSSDBG("HS_TX_TO %lu ns (%#lx ticks%s%s)\n",
-			(ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1) * 1000) /
-			(fck / 1000 / 1000),
-			ticks, x4 ? " x4" : "", x16 ? " x16" : "");
+	total_ticks = ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1);
+
+	DSSDBG("HS_TX_TO %lu ticks (%#x%s%s) = %lu ns\n",
+			total_ticks,
+			ticks, x4 ? " x4" : "", x16 ? " x16" : "",
+			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 static int dsi_proto_config(struct omap_dss_device *dssdev)
 {
@@ -2500,10 +2396,10 @@ static int dsi_proto_config(struct omap_dss_device *dssdev)
 			DSI_FIFO_SIZE_32);
 
 	/* XXX what values for the timeouts? */
-	dsi_set_stop_state_counter(1000);
-	dsi_set_ta_timeout(6400000);
-	dsi_set_lp_rx_timeout(48000);
-	dsi_set_hs_tx_timeout(8000000);
+	dsi_set_stop_state_counter(0x1000, false, false);
+	dsi_set_ta_timeout(0x1fff, true, true);
+	dsi_set_lp_rx_timeout(0x1fff, true, true);
+	dsi_set_hs_tx_timeout(0x1fff, true, true);
 
 	switch (dssdev->ctrl.pixel_size) {
 	case 16:
