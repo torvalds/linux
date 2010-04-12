@@ -276,14 +276,14 @@ static void free_urbs(struct wdm_device *desc)
 
 static void cleanup(struct wdm_device *desc)
 {
-	usb_buffer_free(interface_to_usbdev(desc->intf),
-			desc->wMaxPacketSize,
-			desc->sbuf,
-			desc->validity->transfer_dma);
-	usb_buffer_free(interface_to_usbdev(desc->intf),
-			desc->wMaxCommand,
-			desc->inbuf,
-			desc->response->transfer_dma);
+	usb_free_coherent(interface_to_usbdev(desc->intf),
+			  desc->wMaxPacketSize,
+			  desc->sbuf,
+			  desc->validity->transfer_dma);
+	usb_free_coherent(interface_to_usbdev(desc->intf),
+			  desc->wMaxCommand,
+			  desc->inbuf,
+			  desc->response->transfer_dma);
 	kfree(desc->orq);
 	kfree(desc->irq);
 	kfree(desc->ubuf);
@@ -705,17 +705,17 @@ next_desc:
 	if (!desc->ubuf)
 		goto err;
 
-	desc->sbuf = usb_buffer_alloc(interface_to_usbdev(intf),
+	desc->sbuf = usb_alloc_coherent(interface_to_usbdev(intf),
 					desc->wMaxPacketSize,
 					GFP_KERNEL,
 					&desc->validity->transfer_dma);
 	if (!desc->sbuf)
 		goto err;
 
-	desc->inbuf = usb_buffer_alloc(interface_to_usbdev(intf),
-					desc->bMaxPacketSize0,
-					GFP_KERNEL,
-					&desc->response->transfer_dma);
+	desc->inbuf = usb_alloc_coherent(interface_to_usbdev(intf),
+					 desc->bMaxPacketSize0,
+					 GFP_KERNEL,
+					 &desc->response->transfer_dma);
 	if (!desc->inbuf)
 		goto err2;
 
@@ -742,15 +742,15 @@ out:
 	return rv;
 err3:
 	usb_set_intfdata(intf, NULL);
-	usb_buffer_free(interface_to_usbdev(desc->intf),
-			desc->bMaxPacketSize0,
+	usb_free_coherent(interface_to_usbdev(desc->intf),
+			  desc->bMaxPacketSize0,
 			desc->inbuf,
 			desc->response->transfer_dma);
 err2:
-	usb_buffer_free(interface_to_usbdev(desc->intf),
-			desc->wMaxPacketSize,
-			desc->sbuf,
-			desc->validity->transfer_dma);
+	usb_free_coherent(interface_to_usbdev(desc->intf),
+			  desc->wMaxPacketSize,
+			  desc->sbuf,
+			  desc->validity->transfer_dma);
 err:
 	free_urbs(desc);
 	kfree(desc->ubuf);

@@ -414,7 +414,7 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 		return -ENOMEM;
 	}
 
-	us->iobuf = usb_buffer_alloc(us->pusb_dev, US_IOBUF_SIZE,
+	us->iobuf = usb_alloc_coherent(us->pusb_dev, US_IOBUF_SIZE,
 			GFP_KERNEL, &us->iobuf_dma);
 	if (!us->iobuf) {
 		US_DEBUGP("I/O buffer allocation failed\n");
@@ -758,7 +758,7 @@ static void dissociate_dev(struct us_data *us)
 
 	/* Free the buffers */
 	kfree(us->cr);
-	usb_buffer_free(us->pusb_dev, US_IOBUF_SIZE, us->iobuf, us->iobuf_dma);
+	usb_free_coherent(us->pusb_dev, US_IOBUF_SIZE, us->iobuf, us->iobuf_dma);
 
 	/* Remove our private data from the interface */
 	usb_set_intfdata(us->pusb_intf, NULL);

@@ -129,7 +129,7 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (!kbtab || !input_dev)
 		goto fail1;
 
-	kbtab->data = usb_buffer_alloc(dev, 8, GFP_KERNEL, &kbtab->data_dma);
+	kbtab->data = usb_alloc_coherent(dev, 8, GFP_KERNEL, &kbtab->data_dma);
 	if (!kbtab->data)
 		goto fail1;
 
@@ -182,7 +182,7 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	return 0;
 
  fail3:	usb_free_urb(kbtab->irq);
- fail2:	usb_buffer_free(dev, 10, kbtab->data, kbtab->data_dma);
+ fail2:	usb_free_coherent(dev, 10, kbtab->data, kbtab->data_dma);
  fail1:	input_free_device(input_dev);
 	kfree(kbtab);
 	return error;
@@ -197,7 +197,7 @@ static void kbtab_disconnect(struct usb_interface *intf)
 		usb_kill_urb(kbtab->irq);
 		input_unregister_device(kbtab->dev);
 		usb_free_urb(kbtab->irq);
-		usb_buffer_free(interface_to_usbdev(intf), 10, kbtab->data, kbtab->data_dma);
+		usb_free_coherent(interface_to_usbdev(intf), 10, kbtab->data, kbtab->data_dma);
 		kfree(kbtab);
 	}
 }

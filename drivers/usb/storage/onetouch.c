@@ -201,8 +201,8 @@ static int onetouch_connect_input(struct us_data *ss)
 	if (!onetouch || !input_dev)
 		goto fail1;
 
-	onetouch->data = usb_buffer_alloc(udev, ONETOUCH_PKT_LEN,
-					  GFP_KERNEL, &onetouch->data_dma);
+	onetouch->data = usb_alloc_coherent(udev, ONETOUCH_PKT_LEN,
+					    GFP_KERNEL, &onetouch->data_dma);
 	if (!onetouch->data)
 		goto fail1;
 
@@ -264,8 +264,8 @@ static int onetouch_connect_input(struct us_data *ss)
 	return 0;
 
  fail3:	usb_free_urb(onetouch->irq);
- fail2:	usb_buffer_free(udev, ONETOUCH_PKT_LEN,
-			onetouch->data, onetouch->data_dma);
+ fail2:	usb_free_coherent(udev, ONETOUCH_PKT_LEN,
+			  onetouch->data, onetouch->data_dma);
  fail1:	kfree(onetouch);
 	input_free_device(input_dev);
 	return error;
@@ -279,8 +279,8 @@ static void onetouch_release_input(void *onetouch_)
 		usb_kill_urb(onetouch->irq);
 		input_unregister_device(onetouch->dev);
 		usb_free_urb(onetouch->irq);
-		usb_buffer_free(onetouch->udev, ONETOUCH_PKT_LEN,
-				onetouch->data, onetouch->data_dma);
+		usb_free_coherent(onetouch->udev, ONETOUCH_PKT_LEN,
+				  onetouch->data, onetouch->data_dma);
 	}
 }
 

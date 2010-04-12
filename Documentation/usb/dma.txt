@@ -43,10 +43,10 @@ and effects like cache-trashing can impose subtle penalties.
   kind of addresses to store in urb->transfer_buffer and urb->transfer_dma.
   You'd also set URB_NO_TRANSFER_DMA_MAP in urb->transfer_flags:
 
-	void *usb_buffer_alloc (struct usb_device *dev, size_t size,
+	void *usb_alloc_coherent (struct usb_device *dev, size_t size,
 		int mem_flags, dma_addr_t *dma);
 
-	void usb_buffer_free (struct usb_device *dev, size_t size,
+	void usb_free_coherent (struct usb_device *dev, size_t size,
 		void *addr, dma_addr_t dma);
 
   Most drivers should *NOT* be using these primitives; they don't need

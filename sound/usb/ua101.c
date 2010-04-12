@@ -41,7 +41,7 @@ MODULE_SUPPORTED_DEVICE("{{Edirol,UA-101},{Edirol,UA-1000}}");
 /*
  * This magic value optimizes memory usage efficiency for the UA-101's packet
  * sizes at all sample rates, taking into account the stupid cache pool sizes
- * that usb_buffer_alloc() uses.
+ * that usb_alloc_coherent() uses.
  */
 #define DEFAULT_QUEUE_LENGTH	21
 
@@ -1056,7 +1056,7 @@ static int alloc_stream_buffers(struct ua101 *ua, struct ua101_stream *stream)
 				   (unsigned int)MAX_QUEUE_LENGTH);
 
 	/*
-	 * The cache pool sizes used by usb_buffer_alloc() (128, 512, 2048) are
+	 * The cache pool sizes used by usb_alloc_coherent() (128, 512, 2048) are
 	 * quite bad when used with the packet sizes of this device (e.g. 280,
 	 * 520, 624).  Therefore, we allocate and subdivide entire pages, using
 	 * a smaller buffer only for the last chunk.
@@ -1067,8 +1067,8 @@ static int alloc_stream_buffers(struct ua101 *ua, struct ua101_stream *stream)
 		packets = min(remaining_packets, packets_per_page);
 		size = packets * stream->max_packet_bytes;
 		stream->buffers[i].addr =
-			usb_buffer_alloc(ua->dev, size, GFP_KERNEL,
-					 &stream->buffers[i].dma);
+			usb_alloc_coherent(ua->dev, size, GFP_KERNEL,
+					   &stream->buffers[i].dma);
 		if (!stream->buffers[i].addr)
 			return -ENOMEM;
 		stream->buffers[i].size = size;
@@ -1088,10 +1088,10 @@ static void free_stream_buffers(struct ua101 *ua, struct ua101_stream *stream)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(stream->buffers); ++i)
-		usb_buffer_free(ua->dev,
-				stream->buffers[i].size,
-				stream->buffers[i].addr,
-				stream->buffers[i].dma);
+		usb_free_coherent(ua->dev,
+				  stream->buffers[i].size,
+				  stream->buffers[i].addr,
+				  stream->buffers[i].dma);
 }
 
 static int alloc_stream_urbs(struct ua101 *ua, struct ua101_stream *stream,

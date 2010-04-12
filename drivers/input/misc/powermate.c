@@ -273,8 +273,8 @@ static int powermate_input_event(struct input_dev *dev, unsigned int type, unsig
 
 static int powermate_alloc_buffers(struct usb_device *udev, struct powermate_device *pm)
 {
-	pm->data = usb_buffer_alloc(udev, POWERMATE_PAYLOAD_SIZE_MAX,
-				    GFP_ATOMIC, &pm->data_dma);
+	pm->data = usb_alloc_coherent(udev, POWERMATE_PAYLOAD_SIZE_MAX,
+				      GFP_ATOMIC, &pm->data_dma);
 	if (!pm->data)
 		return -1;
 
@@ -287,8 +287,8 @@ static int powermate_alloc_buffers(struct usb_device *udev, struct powermate_dev
 
 static void powermate_free_buffers(struct usb_device *udev, struct powermate_device *pm)
 {
-	usb_buffer_free(udev, POWERMATE_PAYLOAD_SIZE_MAX,
-			pm->data, pm->data_dma);
+	usb_free_coherent(udev, POWERMATE_PAYLOAD_SIZE_MAX,
+			  pm->data, pm->data_dma);
 	kfree(pm->configcr);
 }
 

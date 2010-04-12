@@ -836,10 +836,8 @@ static int usb_cleanup(struct yealink_dev *yld, int err)
 	usb_free_urb(yld->urb_ctl);
 
 	kfree(yld->ctl_req);
-	usb_buffer_free(yld->udev, USB_PKT_LEN,
-			yld->ctl_data, yld->ctl_dma);
-	usb_buffer_free(yld->udev, USB_PKT_LEN,
-			yld->irq_data, yld->irq_dma);
+	usb_free_coherent(yld->udev, USB_PKT_LEN, yld->ctl_data, yld->ctl_dma);
+	usb_free_coherent(yld->udev, USB_PKT_LEN, yld->irq_data, yld->irq_dma);
 
 	kfree(yld);
 	return err;
@@ -884,13 +882,13 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		return usb_cleanup(yld, -ENOMEM);
 
 	/* allocate usb buffers */
-	yld->irq_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					GFP_ATOMIC, &yld->irq_dma);
+	yld->irq_data = usb_alloc_coherent(udev, USB_PKT_LEN,
+					   GFP_ATOMIC, &yld->irq_dma);
 	if (yld->irq_data == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 
-	yld->ctl_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					GFP_ATOMIC, &yld->ctl_dma);
+	yld->ctl_data = usb_alloc_coherent(udev, USB_PKT_LEN,
+					   GFP_ATOMIC, &yld->ctl_dma);
 	if (!yld->ctl_data)
 		return usb_cleanup(yld, -ENOMEM);
 

@@ -630,11 +630,11 @@ static void cm109_usb_cleanup(struct cm109_dev *dev)
 {
 	kfree(dev->ctl_req);
 	if (dev->ctl_data)
-		usb_buffer_free(dev->udev, USB_PKT_LEN,
-				dev->ctl_data, dev->ctl_dma);
+		usb_free_coherent(dev->udev, USB_PKT_LEN,
+				  dev->ctl_data, dev->ctl_dma);
 	if (dev->irq_data)
-		usb_buffer_free(dev->udev, USB_PKT_LEN,
-				dev->irq_data, dev->irq_dma);
+		usb_free_coherent(dev->udev, USB_PKT_LEN,
+				  dev->irq_data, dev->irq_dma);
 
 	usb_free_urb(dev->urb_irq);	/* parameter validation in core/urb */
 	usb_free_urb(dev->urb_ctl);	/* parameter validation in core/urb */
@@ -683,13 +683,13 @@ static int cm109_usb_probe(struct usb_interface *intf,
 		goto err_out;
 
 	/* allocate usb buffers */
-	dev->irq_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					 GFP_KERNEL, &dev->irq_dma);
+	dev->irq_data = usb_alloc_coherent(udev, USB_PKT_LEN,
+					   GFP_KERNEL, &dev->irq_dma);
 	if (!dev->irq_data)
 		goto err_out;
 
-	dev->ctl_data = usb_buffer_alloc(udev, USB_PKT_LEN,
-					 GFP_KERNEL, &dev->ctl_dma);
+	dev->ctl_data = usb_alloc_coherent(udev, USB_PKT_LEN,
+					   GFP_KERNEL, &dev->ctl_dma);
 	if (!dev->ctl_data)
 		goto err_out;
 

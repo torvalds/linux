@@ -516,8 +516,8 @@ static void ems_usb_write_bulk_callback(struct urb *urb)
 	netdev = dev->netdev;
 
 	/* free up our allocated buffer */
-	usb_buffer_free(urb->dev, urb->transfer_buffer_length,
-			urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 
 	atomic_dec(&dev->active_tx_urbs);
 
@@ -614,8 +614,8 @@ static int ems_usb_start(struct ems_usb *dev)
 			return -ENOMEM;
 		}
 
-		buf = usb_buffer_alloc(dev->udev, RX_BUFFER_SIZE, GFP_KERNEL,
-				       &urb->transfer_dma);
+		buf = usb_alloc_coherent(dev->udev, RX_BUFFER_SIZE, GFP_KERNEL,
+					 &urb->transfer_dma);
 		if (!buf) {
 			dev_err(netdev->dev.parent,
 				"No memory left for USB buffer\n");
@@ -635,8 +635,8 @@ static int ems_usb_start(struct ems_usb *dev)
 				netif_device_detach(dev->netdev);
 
 			usb_unanchor_urb(urb);
-			usb_buffer_free(dev->udev, RX_BUFFER_SIZE, buf,
-					urb->transfer_dma);
+			usb_free_coherent(dev->udev, RX_BUFFER_SIZE, buf,
+					  urb->transfer_dma);
 			break;
 		}
 
@@ -777,7 +777,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 		goto nomem;
 	}
 
-	buf = usb_buffer_alloc(dev->udev, size, GFP_ATOMIC, &urb->transfer_dma);
+	buf = usb_alloc_coherent(dev->udev, size, GFP_ATOMIC, &urb->transfer_dma);
 	if (!buf) {
 		dev_err(netdev->dev.parent, "No memory left for USB buffer\n");
 		usb_free_urb(urb);
@@ -820,7 +820,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 	 */
 	if (!context) {
 		usb_unanchor_urb(urb);
-		usb_buffer_free(dev->udev, size, buf, urb->transfer_dma);
+		usb_free_coherent(dev->udev, size, buf, urb->transfer_dma);
 
 		dev_warn(netdev->dev.parent, "couldn't find free context\n");
 
@@ -845,7 +845,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 		can_free_echo_skb(netdev, context->echo_index);
 
 		usb_unanchor_urb(urb);
-		usb_buffer_free(dev->udev, size, buf, urb->transfer_dma);
+		usb_free_coherent(dev->udev, size, buf, urb->transfer_dma);
 		dev_kfree_skb(skb);
 
 		atomic_dec(&dev->active_tx_urbs);

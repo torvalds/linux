@@ -589,7 +589,7 @@ static int ati_remote2_urb_init(struct ati_remote2 *ar2)
 	int i, pipe, maxp;
 
 	for (i = 0; i < 2; i++) {
-		ar2->buf[i] = usb_buffer_alloc(udev, 4, GFP_KERNEL, &ar2->buf_dma[i]);
+		ar2->buf[i] = usb_alloc_coherent(udev, 4, GFP_KERNEL, &ar2->buf_dma[i]);
 		if (!ar2->buf[i])
 			return -ENOMEM;
 
@@ -617,7 +617,7 @@ static void ati_remote2_urb_cleanup(struct ati_remote2 *ar2)
 
 	for (i = 0; i < 2; i++) {
 		usb_free_urb(ar2->urb[i]);
-		usb_buffer_free(ar2->udev, 4, ar2->buf[i], ar2->buf_dma[i]);
+		usb_free_coherent(ar2->udev, 4, ar2->buf[i], ar2->buf_dma[i]);
 	}
 }
 

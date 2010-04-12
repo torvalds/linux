@@ -985,9 +985,9 @@ static void release_urb_ctx(struct snd_urb_ctx *u)
 {
 	if (u->urb) {
 		if (u->buffer_size)
-			usb_buffer_free(u->subs->dev, u->buffer_size,
-					u->urb->transfer_buffer,
-					u->urb->transfer_dma);
+			usb_free_coherent(u->subs->dev, u->buffer_size,
+					  u->urb->transfer_buffer,
+					  u->urb->transfer_dma);
 		usb_free_urb(u->urb);
 		u->urb = NULL;
 	}
@@ -1008,8 +1008,8 @@ static void release_substream_urbs(struct snd_usb_substream *subs, int force)
 		release_urb_ctx(&subs->dataurb[i]);
 	for (i = 0; i < SYNC_URBS; i++)
 		release_urb_ctx(&subs->syncurb[i]);
-	usb_buffer_free(subs->dev, SYNC_URBS * 4,
-			subs->syncbuf, subs->sync_dma);
+	usb_free_coherent(subs->dev, SYNC_URBS * 4,
+			  subs->syncbuf, subs->sync_dma);
 	subs->syncbuf = NULL;
 	subs->nurbs = 0;
 }
@@ -1113,8 +1113,8 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 		if (!u->urb)
 			goto out_of_memory;
 		u->urb->transfer_buffer =
-			usb_buffer_alloc(subs->dev, u->buffer_size, GFP_KERNEL,
-					 &u->urb->transfer_dma);
+			usb_alloc_coherent(subs->dev, u->buffer_size, GFP_KERNEL,
+					   &u->urb->transfer_dma);
 		if (!u->urb->transfer_buffer)
 			goto out_of_memory;
 		u->urb->pipe = subs->datapipe;
@@ -1126,8 +1126,8 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 
 	if (subs->syncpipe) {
 		/* allocate and initialize sync urbs */
-		subs->syncbuf = usb_buffer_alloc(subs->dev, SYNC_URBS * 4,
-						 GFP_KERNEL, &subs->sync_dma);
+		subs->syncbuf = usb_alloc_coherent(subs->dev, SYNC_URBS * 4,
+						   GFP_KERNEL, &subs->sync_dma);
 		if (!subs->syncbuf)
 			goto out_of_memory;
 		for (i = 0; i < SYNC_URBS; i++) {

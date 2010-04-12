@@ -202,7 +202,7 @@ static struct urb *simple_alloc_urb (
 	urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 	if (usb_pipein (pipe))
 		urb->transfer_flags |= URB_SHORT_NOT_OK;
-	urb->transfer_buffer = usb_buffer_alloc (udev, bytes, GFP_KERNEL,
+	urb->transfer_buffer = usb_alloc_coherent (udev, bytes, GFP_KERNEL,
 			&urb->transfer_dma);
 	if (!urb->transfer_buffer) {
 		usb_free_urb (urb);
@@ -272,8 +272,8 @@ static inline int simple_check_buf(struct usbtest_dev *tdev, struct urb *urb)
 
 static void simple_free_urb (struct urb *urb)
 {
-	usb_buffer_free (urb->dev, urb->transfer_buffer_length,
-			urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 	usb_free_urb (urb);
 }
 
@@ -1416,7 +1416,7 @@ static struct urb *iso_alloc_urb (
 
 	urb->number_of_packets = packets;
 	urb->transfer_buffer_length = bytes;
-	urb->transfer_buffer = usb_buffer_alloc (udev, bytes, GFP_KERNEL,
+	urb->transfer_buffer = usb_alloc_coherent (udev, bytes, GFP_KERNEL,
 			&urb->transfer_dma);
 	if (!urb->transfer_buffer) {
 		usb_free_urb (urb);
