@@ -1390,22 +1390,31 @@ struct alc_fixup {
 
 static void alc_pick_fixup(struct hda_codec *codec,
 			   const struct snd_pci_quirk *quirk,
-			   const struct alc_fixup *fix)
+			   const struct alc_fixup *fix,
+			   int pre_init)
 {
 	const struct alc_pincfg *cfg;
 
 	quirk = snd_pci_quirk_lookup(codec->bus->pci, quirk);
 	if (!quirk)
 		return;
-
 	fix += quirk->value;
 	cfg = fix->pins;
-	if (cfg) {
+	if (pre_init && cfg) {
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+		snd_printdd(KERN_INFO "hda_codec: %s: Apply pincfg for %s\n",
+			    codec->chip_name, quirk->name);
+#endif
 		for (; cfg->nid; cfg++)
 			snd_hda_codec_set_pincfg(codec, cfg->nid, cfg->val);
 	}
-	if (fix->verbs)
+	if (!pre_init && fix->verbs) {
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+		snd_printdd(KERN_INFO "hda_codec: %s: Apply fix-verbs for %s\n",
+			    codec->chip_name, quirk->name);
+#endif
 		add_verb(codec->spec, fix->verbs);
+	}
 }
 
 static int alc_read_coef_idx(struct hda_codec *codec,
@@ -10439,7 +10448,8 @@ static int patch_alc882(struct hda_codec *codec)
 		board_config = ALC882_AUTO;
 	}
 
-	alc_pick_fixup(codec, alc882_fixup_tbl, alc882_fixups);
+	if (board_config == ALC882_AUTO)
+		alc_pick_fixup(codec, alc882_fixup_tbl, alc882_fixups, 1);
 
 	if (board_config == ALC882_AUTO) {
 		/* automatic parse from the BIOS config */
@@ -10511,6 +10521,9 @@ static int patch_alc882(struct hda_codec *codec)
 
 	set_capture_mixer(codec);
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
+
+	if (board_config == ALC882_AUTO)
+		alc_pick_fixup(codec, alc882_fixup_tbl, alc882_fixups, 0);
 
 	spec->vmaster_nid = 0x0c;
 
@@ -15417,7 +15430,8 @@ static int patch_alc861(struct hda_codec *codec)
 		board_config = ALC861_AUTO;
 	}
 
-	alc_pick_fixup(codec, alc861_fixup_tbl, alc861_fixups);
+	if (board_config == ALC861_AUTO)
+		alc_pick_fixup(codec, alc861_fixup_tbl, alc861_fixups, 1);
 
 	if (board_config == ALC861_AUTO) {
 		/* automatic parse from the BIOS config */
@@ -15453,6 +15467,9 @@ static int patch_alc861(struct hda_codec *codec)
 	set_beep_amp(spec, 0x23, 0, HDA_OUTPUT);
 
 	spec->vmaster_nid = 0x03;
+
+	if (board_config == ALC861_AUTO)
+		alc_pick_fixup(codec, alc861_fixup_tbl, alc861_fixups, 0);
 
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC861_AUTO) {
@@ -16388,7 +16405,8 @@ static int patch_alc861vd(struct hda_codec *codec)
 		board_config = ALC861VD_AUTO;
 	}
 
-	alc_pick_fixup(codec, alc861vd_fixup_tbl, alc861vd_fixups);
+	if (board_config == ALC861VD_AUTO)
+		alc_pick_fixup(codec, alc861vd_fixup_tbl, alc861vd_fixups, 1);
 
 	if (board_config == ALC861VD_AUTO) {
 		/* automatic parse from the BIOS config */
@@ -16435,6 +16453,9 @@ static int patch_alc861vd(struct hda_codec *codec)
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 
 	spec->vmaster_nid = 0x02;
+
+	if (board_config == ALC861VD_AUTO)
+		alc_pick_fixup(codec, alc861vd_fixup_tbl, alc861vd_fixups, 0);
 
 	codec->patch_ops = alc_patch_ops;
 
