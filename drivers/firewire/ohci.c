@@ -1198,8 +1198,7 @@ static void handle_local_lock(struct fw_ohci *ohci,
 
 static void handle_local_request(struct context *ctx, struct fw_packet *packet)
 {
-	u64 offset;
-	u32 csr;
+	u64 offset, csr;
 
 	if (ctx == &ctx->ohci->at_request_ctx) {
 		packet->ack = ACK_PENDING;
