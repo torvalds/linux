@@ -238,6 +238,8 @@ static struct
 
 	bool te_enabled;
 
+	struct workqueue_struct *workqueue;
+
 	struct work_struct framedone_work;
 	void (*framedone_callback)(int, void *);
 	void *framedone_data;
@@ -2759,6 +2761,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	unsigned packet_payload;
 	unsigned packet_len;
 	u32 l;
+	int r;
 	const unsigned channel = dsi.update_channel;
 	/* line buffer is 1024 x 24bits */
 	/* XXX: for some reason using full buffer size causes considerable TX
@@ -2809,8 +2812,9 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 
 	dsi_perf_mark_start();
 
-	schedule_delayed_work(&dsi.framedone_timeout_work,
+	r = queue_delayed_work(dsi.workqueue, &dsi.framedone_timeout_work,
 			msecs_to_jiffies(250));
+	BUG_ON(r == 0);
 
 	dss_start_update(dssdev);
 
@@ -2840,6 +2844,11 @@ static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 	const int channel = dsi.update_channel;
 
 	DSSERR("Framedone not received for 250ms!\n");
+
+	/* XXX While extremely unlikely, we could get FRAMEDONE interrupt after
+	 * 250ms which would conflict with this timeout work. What should be
+	 * done is first cancel the transfer on the HW, and then cancel the
+	 * possibly scheduled framedone work */
 
 	/* SIDLEMODE back to smart-idle */
 	dispc_enable_sidle();
@@ -2873,6 +2882,7 @@ static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 
 static void dsi_framedone_irq_callback(void *data, u32 mask)
 {
+	int r;
 	/* Note: We get FRAMEDONE when DISPC has finished sending pixels and
 	 * turns itself off. However, DSI still has the pixels in its buffers,
 	 * and is sending the data.
@@ -2881,7 +2891,8 @@ static void dsi_framedone_irq_callback(void *data, u32 mask)
 	/* SIDLEMODE back to smart-idle */
 	dispc_enable_sidle();
 
-	schedule_work(&dsi.framedone_work);
+	r = queue_work(dsi.workqueue, &dsi.framedone_work);
+	BUG_ON(r == 0);
 }
 
 static void dsi_handle_framedone(void)
@@ -3292,6 +3303,10 @@ int dsi_init(struct platform_device *pdev)
 	mutex_init(&dsi.lock);
 	sema_init(&dsi.bus_lock, 1);
 
+	dsi.workqueue = create_singlethread_workqueue("dsi");
+	if (dsi.workqueue == NULL)
+		return -ENOMEM;
+
 	INIT_WORK(&dsi.framedone_work, dsi_framedone_work_callback);
 	INIT_DELAYED_WORK_DEFERRABLE(&dsi.framedone_timeout_work,
 			dsi_framedone_timeout_work_callback);
@@ -3328,12 +3343,15 @@ int dsi_init(struct platform_device *pdev)
 err2:
 	iounmap(dsi.base);
 err1:
+	destroy_workqueue(dsi.workqueue);
 	return r;
 }
 
 void dsi_exit(void)
 {
 	iounmap(dsi.base);
+
+	destroy_workqueue(dsi.workqueue);
 
 	DSSDBG("omap_dsi_exit\n");
 }
