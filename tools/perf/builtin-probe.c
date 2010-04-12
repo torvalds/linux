@@ -59,23 +59,25 @@ static struct {
 
 
 /* Parse an event definition. Note that any error must die. */
-static void parse_probe_event(const char *str)
+static int parse_probe_event(const char *str)
 {
 	struct perf_probe_event *pev = &params.events[params.nevents];
+	int ret;
 
 	pr_debug("probe-definition(%d): %s\n", params.nevents, str);
 	if (++params.nevents == MAX_PROBES)
 		die("Too many probes (> %d) are specified.", MAX_PROBES);
 
 	/* Parse a perf-probe command into event */
-	parse_perf_probe_command(str, pev);
-
+	ret = parse_perf_probe_command(str, pev);
 	pr_debug("%d arguments\n", pev->nargs);
+
+	return ret;
 }
 
-static void parse_probe_event_argv(int argc, const char **argv)
+static int parse_probe_event_argv(int argc, const char **argv)
 {
-	int i, len;
+	int i, len, ret;
 	char *buf;
 
 	/* Bind up rest arguments */
@@ -86,16 +88,18 @@ static void parse_probe_event_argv(int argc, const char **argv)
 	len = 0;
 	for (i = 0; i < argc; i++)
 		len += sprintf(&buf[len], "%s ", argv[i]);
-	parse_probe_event(buf);
+	ret = parse_probe_event(buf);
 	free(buf);
+	return ret;
 }
 
 static int opt_add_probe_event(const struct option *opt __used,
 			      const char *str, int unset __used)
 {
 	if (str)
-		parse_probe_event(str);
-	return 0;
+		return parse_probe_event(str);
+	else
+		return 0;
 }
 
 static int opt_del_probe_event(const struct option *opt __used,
@@ -113,11 +117,14 @@ static int opt_del_probe_event(const struct option *opt __used,
 static int opt_show_lines(const struct option *opt __used,
 			  const char *str, int unset __used)
 {
+	int ret = 0;
+
 	if (str)
-		parse_line_range_desc(str, &params.line_range);
+		ret = parse_line_range_desc(str, &params.line_range);
 	INIT_LIST_HEAD(&params.line_range.line_list);
 	params.show_lines = true;
-	return 0;
+
+	return ret;
 }
 #endif
 
@@ -178,6 +185,8 @@ static const struct option options[] = {
 
 int cmd_probe(int argc, const char **argv, const char *prefix __used)
 {
+	int ret;
+
 	argc = parse_options(argc, argv, options, probe_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (argc > 0) {
@@ -185,7 +194,11 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			pr_warning("  Error: '-' is not supported.\n");
 			usage_with_options(probe_usage, options);
 		}
-		parse_probe_event_argv(argc, argv);
+		ret = parse_probe_event_argv(argc, argv);
+		if (ret < 0) {
+			pr_err("  Error: Parse Error.  (%d)\n", ret);
+			return ret;
+		}
 	}
 
 	if ((!params.nevents && !params.dellist && !params.list_events &&
@@ -197,16 +210,18 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 	if (params.list_events) {
 		if (params.nevents != 0 || params.dellist) {
-			pr_warning("  Error: Don't use --list with"
-				   " --add/--del.\n");
+			pr_err("  Error: Don't use --list with --add/--del.\n");
 			usage_with_options(probe_usage, options);
 		}
 		if (params.show_lines) {
-			pr_warning("  Error: Don't use --list with --line.\n");
+			pr_err("  Error: Don't use --list with --line.\n");
 			usage_with_options(probe_usage, options);
 		}
-		show_perf_probe_events();
-		return 0;
+		ret = show_perf_probe_events();
+		if (ret < 0)
+			pr_err("  Error: Failed to show event list. (%d)\n",
+			       ret);
+		return ret;
 	}
 
 #ifdef DWARF_SUPPORT
@@ -217,19 +232,30 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			usage_with_options(probe_usage, options);
 		}
 
-		show_line_range(&params.line_range);
-		return 0;
+		ret = show_line_range(&params.line_range);
+		if (ret < 0)
+			pr_err("  Error: Failed to show lines. (%d)\n", ret);
+		return ret;
 	}
 #endif
 
 	if (params.dellist) {
-		del_perf_probe_events(params.dellist);
+		ret = del_perf_probe_events(params.dellist);
 		strlist__delete(params.dellist);
-		if (params.nevents == 0)
-			return 0;
+		if (ret < 0) {
+			pr_err("  Error: Failed to delete events. (%d)\n", ret);
+			return ret;
+		}
 	}
 
-	add_perf_probe_events(params.events, params.nevents, params.force_add);
+	if (params.nevents) {
+		ret = add_perf_probe_events(params.events, params.nevents,
+					    params.force_add);
+		if (ret < 0) {
+			pr_err("  Error: Failed to add events. (%d)\n", ret);
+			return ret;
+		}
+	}
 	return 0;
 }
 
