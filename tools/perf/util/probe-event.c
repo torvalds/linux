@@ -435,7 +435,7 @@ static void parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 }
 
 /* Parse perf-probe event argument */
-static void parse_perf_probe_arg(const char *str, struct perf_probe_arg *arg)
+static void parse_perf_probe_arg(char *str, struct perf_probe_arg *arg)
 {
 	char *tmp;
 	struct perf_probe_arg_field **fieldp;
@@ -445,7 +445,15 @@ static void parse_perf_probe_arg(const char *str, struct perf_probe_arg *arg)
 	tmp = strchr(str, '=');
 	if (tmp) {
 		arg->name = xstrndup(str, tmp - str);
+		pr_debug("name:%s ", arg->name);
 		str = tmp + 1;
+	}
+
+	tmp = strchr(str, ':');
+	if (tmp) {	/* Type setting */
+		*tmp = '\0';
+		arg->type = xstrdup(tmp + 1);
+		pr_debug("type:%s ", arg->type);
 	}
 
 	tmp = strpbrk(str, "-.");
@@ -603,6 +611,15 @@ int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf, size_t len)
 		len -= ret;
 		field = field->next;
 	}
+
+	if (pa->type) {
+		ret = e_snprintf(tmp, len, ":%s", pa->type);
+		if (ret <= 0)
+			goto error;
+		tmp += ret;
+		len -= ret;
+	}
+
 	return tmp - buf;
 error:
 	die("Failed to synthesize perf probe argument: %s", strerror(-ret));
@@ -825,6 +842,8 @@ void clear_perf_probe_event(struct perf_probe_event *pev)
 			free(pev->args[i].name);
 		if (pev->args[i].var)
 			free(pev->args[i].var);
+		if (pev->args[i].type)
+			free(pev->args[i].type);
 		field = pev->args[i].field;
 		while (field) {
 			next = field->next;
@@ -1145,6 +1164,8 @@ static int convert_to_kprobe_trace_events(struct perf_probe_event *pev,
 			if (pev->args[i].name)
 				tev->args[i].name = xstrdup(pev->args[i].name);
 			tev->args[i].value = xstrdup(pev->args[i].var);
+			if (pev->args[i].type)
+				tev->args[i].type = xstrdup(pev->args[i].type);
 		}
 	}
 

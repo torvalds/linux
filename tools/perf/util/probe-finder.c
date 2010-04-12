@@ -547,7 +547,10 @@ static void convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 					&die_mem);
 		vr_die = &die_mem;
 	}
-	convert_variable_type(vr_die, pf->tvar);
+	if (pf->pvar->type)
+		pf->tvar->type = xstrdup(pf->pvar->type);
+	else
+		convert_variable_type(vr_die, pf->tvar);
 	/* *expr will be cached in libdw. Don't free it. */
 	return ;
 error:
@@ -560,13 +563,16 @@ error:
 static void find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
 	Dwarf_Die vr_die;
-	char buf[32];
+	char buf[32], *ptr;
 
 	/* TODO: Support arrays */
 	if (pf->pvar->name)
 		pf->tvar->name = xstrdup(pf->pvar->name);
 	else {
 		synthesize_perf_probe_arg(pf->pvar, buf, 32);
+		ptr = strchr(buf, ':');	/* Change type separator to _ */
+		if (ptr)
+			*ptr = '_';
 		pf->tvar->name = xstrdup(buf);
 	}
 
