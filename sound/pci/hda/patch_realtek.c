@@ -14077,6 +14077,27 @@ static void alc269_auto_init(struct hda_codec *codec)
 		alc_inithook(codec);
 }
 
+enum {
+	ALC269_FIXUP_SONY_VAIO,
+};
+
+const static struct hda_verb alc269_sony_vaio_fixup_verbs[] = {
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREFGRD},
+	{}
+};
+
+static const struct alc_fixup alc269_fixups[] = {
+	[ALC269_FIXUP_SONY_VAIO] = {
+		.verbs = alc269_sony_vaio_fixup_verbs
+	},
+};
+
+static struct snd_pci_quirk alc269_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x104d, 0x9071, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
+	{}
+};
+
+
 /*
  * configuration and preset
  */
@@ -14136,7 +14157,7 @@ static struct snd_pci_quirk alc269_cfg_tbl[] = {
 		      ALC269_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x8398, "ASUS P1005HA", ALC269_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x83ce, "ASUS P1005HA", ALC269_DMIC),
-	SND_PCI_QUIRK(0x104d, 0x9071, "SONY XTB", ALC269_DMIC),
+	SND_PCI_QUIRK(0x104d, 0x9071, "Sony VAIO", ALC269_AUTO),
 	SND_PCI_QUIRK(0x10cf, 0x1475, "Lifebook ICH9M-based", ALC269_LIFEBOOK),
 	SND_PCI_QUIRK(0x152d, 0x1778, "Quanta ON1", ALC269_DMIC),
 	SND_PCI_QUIRK(0x1734, 0x115d, "FSC Amilo", ALC269_FUJITSU),
@@ -14290,6 +14311,9 @@ static int patch_alc269(struct hda_codec *codec)
 		board_config = ALC269_AUTO;
 	}
 
+	if (board_config == ALC269_AUTO)
+		alc_pick_fixup(codec, alc269_fixup_tbl, alc269_fixups, 1);
+
 	if (board_config == ALC269_AUTO) {
 		/* automatic parse from the BIOS config */
 		err = alc269_parse_auto_config(codec);
@@ -14341,6 +14365,9 @@ static int patch_alc269(struct hda_codec *codec)
 	if (!spec->cap_mixer)
 		set_capture_mixer(codec);
 	set_beep_amp(spec, 0x0b, 0x04, HDA_INPUT);
+
+	if (board_config == ALC269_AUTO)
+		alc_pick_fixup(codec, alc269_fixup_tbl, alc269_fixups, 0);
 
 	spec->vmaster_nid = 0x02;
 
