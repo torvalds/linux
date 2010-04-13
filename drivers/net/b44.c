@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/ssb/ssb.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>

@@ -34,6 +34,7 @@
 #include <linux/crc32.h>
 #include <linux/time.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include "heartbeat.h"
 #include "tcp.h"

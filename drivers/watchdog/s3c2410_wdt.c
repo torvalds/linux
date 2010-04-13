@@ -37,6 +37,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/cpufreq.h>
+#include <linux/slab.h>
 
 #include <mach/map.h>
 

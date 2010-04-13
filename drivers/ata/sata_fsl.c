@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>

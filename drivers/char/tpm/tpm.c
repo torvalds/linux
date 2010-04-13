@@ -24,6 +24,7 @@
  */
 
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 

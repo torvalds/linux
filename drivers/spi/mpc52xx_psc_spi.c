@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/fsl_devices.h>
+#include <linux/slab.h>
 
 #include <asm/mpc52xx.h>
 #include <asm/mpc52xx_psc.h>

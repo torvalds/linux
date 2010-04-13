@@ -1,4 +1,5 @@
 
+#include <linux/gfp.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 

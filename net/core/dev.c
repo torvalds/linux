@@ -80,6 +80,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/hash.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/string.h>
@@ -2483,6 +2484,7 @@ int netif_receive_skb(struct sk_buff *skb)
 {
 	struct packet_type *ptype, *pt_prev;
 	struct net_device *orig_dev;
+	struct net_device *master;
 	struct net_device *null_or_orig;
 	struct net_device *null_or_bond;
 	int ret = NET_RX_DROP;
@@ -2503,11 +2505,12 @@ int netif_receive_skb(struct sk_buff *skb)
 
 	null_or_orig = NULL;
 	orig_dev = skb->dev;
-	if (orig_dev->master) {
-		if (skb_bond_should_drop(skb))
+	master = ACCESS_ONCE(orig_dev->master);
+	if (master) {
+		if (skb_bond_should_drop(skb, master))
 			null_or_orig = orig_dev; /* deliver only exact match */
 		else
-			skb->dev = orig_dev->master;
+			skb->dev = master;
 	}
 
 	__get_cpu_var(netdev_rx_stat).total++;

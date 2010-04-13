@@ -26,6 +26,7 @@
 #include <linux/hrtimer.h>
 #include <linux/input.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 
 #include "cx88.h"

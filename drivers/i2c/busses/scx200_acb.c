@@ -31,6 +31,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 #include <linux/scx200.h>

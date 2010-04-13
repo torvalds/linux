@@ -3,6 +3,7 @@
 #include <linux/spinlock.h>
 #include <linux/fs_struct.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 
 #include "super.h"
@@ -288,8 +289,10 @@ more:
 			CEPH_MDS_OP_LSSNAP : CEPH_MDS_OP_READDIR;
 
 		/* discard old result, if any */
-		if (fi->last_readdir)
+		if (fi->last_readdir) {
 			ceph_mdsc_put_request(fi->last_readdir);
+			fi->last_readdir = NULL;
+		}
 
 		/* requery frag tree, as the frag topology may have changed */
 		frag = ceph_choose_frag(ceph_inode(inode), frag, NULL, NULL);

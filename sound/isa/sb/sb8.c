@@ -22,7 +22,6 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/isa.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>

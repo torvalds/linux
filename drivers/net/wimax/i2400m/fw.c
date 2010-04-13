@@ -156,6 +156,7 @@
  */
 #include <linux/firmware.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include "i2400m.h"
 

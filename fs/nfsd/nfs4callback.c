@@ -32,6 +32,7 @@
  */
 
 #include <linux/sunrpc/clnt.h>
+#include <linux/slab.h>
 #include "nfsd.h"
 #include "state.h"
 

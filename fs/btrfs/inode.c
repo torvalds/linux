@@ -36,6 +36,7 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/falloc.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -796,7 +797,7 @@ static noinline int cow_file_range(struct inode *inode,
 	while (disk_num_bytes > 0) {
 		unsigned long op;
 
-		cur_alloc_size = min(disk_num_bytes, root->fs_info->max_extent);
+		cur_alloc_size = disk_num_bytes;
 		ret = btrfs_reserve_extent(trans, root, cur_alloc_size,
 					   root->sectorsize, 0, alloc_hint,
 					   (u64)-1, &ins, 1);
@@ -1227,29 +1228,8 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 static int btrfs_split_extent_hook(struct inode *inode,
 				    struct extent_state *orig, u64 split)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 size;
-
 	if (!(orig->state & EXTENT_DELALLOC))
 		return 0;
-
-	size = orig->end - orig->start + 1;
-	if (size > root->fs_info->max_extent) {
-		u64 num_extents;
-		u64 new_size;
-
-		new_size = orig->end - split + 1;
-		num_extents = div64_u64(size + root->fs_info->max_extent - 1,
-					root->fs_info->max_extent);
-
-		/*
-		 * if we break a large extent up then leave oustanding_extents
-		 * be, since we've already accounted for the large extent.
-		 */
-		if (div64_u64(new_size + root->fs_info->max_extent - 1,
-			      root->fs_info->max_extent) < num_extents)
-			return 0;
-	}
 
 	spin_lock(&BTRFS_I(inode)->accounting_lock);
 	BTRFS_I(inode)->outstanding_extents++;
@@ -1268,36 +1248,8 @@ static int btrfs_merge_extent_hook(struct inode *inode,
 				   struct extent_state *new,
 				   struct extent_state *other)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 new_size, old_size;
-	u64 num_extents;
-
 	/* not delalloc, ignore it */
 	if (!(other->state & EXTENT_DELALLOC))
-		return 0;
-
-	old_size = other->end - other->start + 1;
-	if (new->start < other->start)
-		new_size = other->end - new->start + 1;
-	else
-		new_size = new->end - other->start + 1;
-
-	/* we're not bigger than the max, unreserve the space and go */
-	if (new_size <= root->fs_info->max_extent) {
-		spin_lock(&BTRFS_I(inode)->accounting_lock);
-		BTRFS_I(inode)->outstanding_extents--;
-		spin_unlock(&BTRFS_I(inode)->accounting_lock);
-		return 0;
-	}
-
-	/*
-	 * If we grew by another max_extent, just return, we want to keep that
-	 * reserved amount.
-	 */
-	num_extents = div64_u64(old_size + root->fs_info->max_extent - 1,
-				root->fs_info->max_extent);
-	if (div64_u64(new_size + root->fs_info->max_extent - 1,
-		      root->fs_info->max_extent) > num_extents)
 		return 0;
 
 	spin_lock(&BTRFS_I(inode)->accounting_lock);
@@ -1328,6 +1280,7 @@ static int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 		BTRFS_I(inode)->outstanding_extents++;
 		spin_unlock(&BTRFS_I(inode)->accounting_lock);
 		btrfs_delalloc_reserve_space(root, inode, end - start + 1);
+
 		spin_lock(&root->fs_info->delalloc_lock);
 		BTRFS_I(inode)->delalloc_bytes += end - start + 1;
 		root->fs_info->delalloc_bytes += end - start + 1;
@@ -1356,6 +1309,7 @@ static int btrfs_clear_bit_hook(struct inode *inode,
 
 		if (bits & EXTENT_DO_ACCOUNTING) {
 			spin_lock(&BTRFS_I(inode)->accounting_lock);
+			WARN_ON(!BTRFS_I(inode)->outstanding_extents);
 			BTRFS_I(inode)->outstanding_extents--;
 			spin_unlock(&BTRFS_I(inode)->accounting_lock);
 			btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
@@ -5384,7 +5338,6 @@ free:
 void btrfs_drop_inode(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-
 	if (inode->i_nlink > 0 && btrfs_root_refs(&root->root_item) == 0)
 		generic_delete_inode(inode);
 	else
@@ -5788,18 +5741,15 @@ static int prealloc_file_range(struct inode *inode, u64 start, u64 end,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key ins;
-	u64 alloc_size;
 	u64 cur_offset = start;
 	u64 num_bytes = end - start;
 	int ret = 0;
 	u64 i_size;
 
 	while (num_bytes > 0) {
-		alloc_size = min(num_bytes, root->fs_info->max_extent);
-
 		trans = btrfs_start_transaction(root, 1);
 
-		ret = btrfs_reserve_extent(trans, root, alloc_size,
+		ret = btrfs_reserve_extent(trans, root, num_bytes,
 					   root->sectorsize, 0, alloc_hint,
 					   (u64)-1, &ins, 1);
 		if (ret) {

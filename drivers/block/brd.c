@@ -15,9 +15,9 @@
 #include <linux/blkdev.h>
 #include <linux/bio.h>
 #include <linux/highmem.h>
-#include <linux/gfp.h>
 #include <linux/radix-tree.h>
 #include <linux/buffer_head.h> /* invalidate_bh_lrus() */
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 

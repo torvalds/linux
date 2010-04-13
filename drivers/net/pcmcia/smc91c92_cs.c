@@ -493,13 +493,14 @@ static int pcmcia_get_versmac(struct pcmcia_device *p_dev,
 {
 	struct net_device *dev = priv;
 	cisparse_t parse;
+	u8 *buf;
 
 	if (pcmcia_parse_tuple(tuple, &parse))
 		return -EINVAL;
 
-	if ((parse.version_1.ns > 3) &&
-	    (cvt_ascii_address(dev,
-			       (parse.version_1.str + parse.version_1.ofs[3]))))
+	buf = parse.version_1.str + parse.version_1.ofs[3];
+
+	if ((parse.version_1.ns > 3) && (cvt_ascii_address(dev, buf) == 0))
 		return 0;
 
 	return -EINVAL;
@@ -528,7 +529,7 @@ static int mhz_setup(struct pcmcia_device *link)
     len = pcmcia_get_tuple(link, 0x81, &buf);
     if (buf && len >= 13) {
 	    buf[12] = '\0';
-	    if (cvt_ascii_address(dev, buf))
+	    if (cvt_ascii_address(dev, buf) == 0)
 		    rc = 0;
     }
     kfree(buf);
@@ -910,7 +911,7 @@ static int smc91c92_config(struct pcmcia_device *link)
 
     if (i != 0) {
 	printk(KERN_NOTICE "smc91c92_cs: Unable to find hardware address.\n");
-	goto config_undo;
+	goto config_failed;
     }
 
     smc->duplex = 0;
@@ -998,6 +999,7 @@ config_undo:
     unregister_netdev(dev);
 config_failed:
     smc91c92_release(link);
+    free_netdev(dev);
     return -ENODEV;
 } /* smc91c92_config */
 

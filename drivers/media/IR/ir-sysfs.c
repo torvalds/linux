@@ -12,6 +12,7 @@
  *  GNU General Public License for more details.
  */
 
+#include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/device.h>
 #include <media/ir-core.h>

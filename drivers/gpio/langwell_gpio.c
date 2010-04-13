@@ -29,6 +29,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 struct lnw_gpio_register {
 	u32	GPLR[2];

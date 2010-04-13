@@ -23,8 +23,8 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/percpu.h>
-#include <linux/gfp.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>

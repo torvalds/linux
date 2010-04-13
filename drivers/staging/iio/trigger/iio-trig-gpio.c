@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include "../iio.h"
 #include "../trigger.h"

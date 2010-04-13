@@ -180,15 +180,21 @@ struct pci_ops loongson_pci_ops = {
 };
 
 #ifdef CONFIG_CS5536
+DEFINE_RAW_SPINLOCK(msr_lock);
+
 void _rdmsr(u32 msr, u32 *hi, u32 *lo)
 {
 	struct pci_bus bus = {
 		.number = PCI_BUS_CS5536
 	};
 	u32 devfn = PCI_DEVFN(PCI_IDSEL_CS5536, 0);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&msr_lock, flags);
 	loongson_pcibios_write(&bus, devfn, PCI_MSR_ADDR, 4, msr);
 	loongson_pcibios_read(&bus, devfn, PCI_MSR_DATA_LO, 4, lo);
 	loongson_pcibios_read(&bus, devfn, PCI_MSR_DATA_HI, 4, hi);
+	raw_spin_unlock_irqrestore(&msr_lock, flags);
 }
 EXPORT_SYMBOL(_rdmsr);
 
@@ -198,9 +204,13 @@ void _wrmsr(u32 msr, u32 hi, u32 lo)
 		.number = PCI_BUS_CS5536
 	};
 	u32 devfn = PCI_DEVFN(PCI_IDSEL_CS5536, 0);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&msr_lock, flags);
 	loongson_pcibios_write(&bus, devfn, PCI_MSR_ADDR, 4, msr);
 	loongson_pcibios_write(&bus, devfn, PCI_MSR_DATA_LO, 4, lo);
 	loongson_pcibios_write(&bus, devfn, PCI_MSR_DATA_HI, 4, hi);
+	raw_spin_unlock_irqrestore(&msr_lock, flags);
 }
 EXPORT_SYMBOL(_wrmsr);
 #endif

@@ -116,6 +116,24 @@ static int generic_panel_resume(struct omap_dss_device *dssdev)
 	return 0;
 }
 
+static void generic_panel_set_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	dpi_set_timings(dssdev, timings);
+}
+
+static void generic_panel_get_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	*timings = dssdev->panel.timings;
+}
+
+static int generic_panel_check_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	return dpi_check_timings(dssdev, timings);
+}
+
 static struct omap_dss_driver generic_driver = {
 	.probe		= generic_panel_probe,
 	.remove		= generic_panel_remove,
@@ -124,6 +142,10 @@ static struct omap_dss_driver generic_driver = {
 	.disable	= generic_panel_disable,
 	.suspend	= generic_panel_suspend,
 	.resume		= generic_panel_resume,
+
+	.set_timings	= generic_panel_set_timings,
+	.get_timings	= generic_panel_get_timings,
+	.check_timings	= generic_panel_check_timings,
 
 	.driver         = {
 		.name   = "generic_panel",

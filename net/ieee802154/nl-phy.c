@@ -23,6 +23,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <net/wpan-phy.h>

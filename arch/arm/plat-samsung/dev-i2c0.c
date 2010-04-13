@@ -11,6 +11,7 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/platform_device.h>

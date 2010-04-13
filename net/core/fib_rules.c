@@ -10,6 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>

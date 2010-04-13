@@ -19,7 +19,6 @@
 #ifndef __ASSEMBLY__
 # include <linux/types.h>
 # include <asm/processor.h>
-# include <asm/segment.h>
 
 /*
  * low level task data that entry.S needs immediate access to
@@ -59,6 +58,10 @@ struct cpu_context {
 	__u32	esr;
 	__u32	fsr;
 };
+
+typedef struct {
+	unsigned long seg;
+} mm_segment_t;
 
 struct thread_info {
 	struct task_struct	*task; /* main task structure */

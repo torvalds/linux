@@ -27,6 +27,7 @@
 #include <linux/vmalloc.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include <asm/delay.h>
 #include <sound/core.h>

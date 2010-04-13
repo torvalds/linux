@@ -26,9 +26,11 @@
  *          Jerome Glisse
  */
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "atom.h"
 #include "r100d.h"
 #include "r420d.h"
@@ -266,6 +268,7 @@ int r420_suspend(struct radeon_device *rdev)
 
 void r420_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);

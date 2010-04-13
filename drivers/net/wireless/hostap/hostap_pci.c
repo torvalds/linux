@@ -9,6 +9,7 @@
 #include <linux/if.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>

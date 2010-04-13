@@ -33,12 +33,12 @@
 #include <linux/string.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
-#include <linux/gfp.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -1768,7 +1768,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		int len, lsr;
 
 		len = mxser_chars_in_buffer(tty);
-		spin_lock(&info->slock);
+		spin_lock_irq(&info->slock);
 		lsr = inb(info->ioaddr + UART_LSR) & UART_LSR_THRE;
 		spin_unlock_irq(&info->slock);
 		len += (lsr ? 0 : 1);
@@ -1778,12 +1778,12 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 	case MOXA_ASPP_MON: {
 		int mcr, status;
 
-		spin_lock(&info->slock);
+		spin_lock_irq(&info->slock);
 		status = mxser_get_msr(info->ioaddr, 1, tty->index);
 		mxser_check_modem_status(tty, info, status);
 
 		mcr = inb(info->ioaddr + UART_MCR);
-		spin_unlock(&info->slock);
+		spin_unlock_irq(&info->slock);
 
 		if (mcr & MOXA_MUST_MCR_XON_FLAG)
 			info->mon_data.hold_reason &= ~NPPI_NOTIFY_XOFFHOLD;

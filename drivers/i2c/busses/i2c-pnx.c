@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 
 #include <mach/hardware.h>
 #include <mach/i2c.h>

@@ -21,6 +21,7 @@
  *  02111-1307  USA
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include "cx18-driver.h"
 #include "cx18-cards.h"

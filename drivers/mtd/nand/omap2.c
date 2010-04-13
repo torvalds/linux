@@ -17,6 +17,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <plat/dma.h>
 #include <plat/gpmc.h>

@@ -37,6 +37,7 @@
 
 #include <linux/module.h>
 #include <linux/stat.h>
+#include <linux/slab.h>
 #include <linux/ioctl.h>
 #include <linux/capability.h>
 #include <linux/uaccess.h>
