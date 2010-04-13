@@ -591,15 +591,15 @@ ulite_of_probe(struct of_device *op, const struct of_device_id *match)
 
 	dev_dbg(&op->dev, "%s(%p, %p)\n", __func__, op, match);
 
-	rc = of_address_to_resource(op->node, 0, &res);
+	rc = of_address_to_resource(op->dev.of_node, 0, &res);
 	if (rc) {
 		dev_err(&op->dev, "invalid address\n");
 		return rc;
 	}
 
-	irq = irq_of_parse_and_map(op->node, 0);
+	irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
-	id = of_get_property(op->node, "port-number", NULL);
+	id = of_get_property(op->dev.of_node, "port-number", NULL);
 
 	return ulite_assign(&op->dev, id ? *id : -1, res.start+3, irq);
 }

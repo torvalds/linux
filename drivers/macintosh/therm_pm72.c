@@ -2215,7 +2215,7 @@ static int fcu_of_probe(struct of_device* dev, const struct of_device_id *match)
 	state = state_detached;
 
 	/* Lookup the fans in the device tree */
-	fcu_lookup_fans(dev->node);
+	fcu_lookup_fans(dev->dev.of_node);
 
 	/* Add the driver */
 	return i2c_add_driver(&therm_pm72_driver);

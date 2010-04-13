@@ -143,7 +143,7 @@ static int of_flash_remove(struct of_device *dev)
 static struct mtd_info * __devinit obsolete_probe(struct of_device *dev,
 						  struct map_info *map)
 {
-	struct device_node *dp = dev->node;
+	struct device_node *dp = dev->dev.of_node;
 	const char *of_probe;
 	struct mtd_info *mtd;
 	static const char *rom_probe_types[]
@@ -180,7 +180,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	static const char *part_probe_types[]
 		= { "cmdlinepart", "RedBoot", NULL };
 #endif
-	struct device_node *dp = dev->node;
+	struct device_node *dp = dev->dev.of_node;
 	struct resource res;
 	struct of_flash *info;
 	const char *probe_type = match->data;
@@ -204,7 +204,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	p = of_get_property(dp, "reg", &count);
 	if (count % reg_tuple_size != 0) {
 		dev_err(&dev->dev, "Malformed reg property on %s\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		err = -EINVAL;
 		goto err_flash_remove;
 	}

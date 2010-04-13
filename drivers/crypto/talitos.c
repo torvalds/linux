@@ -1807,7 +1807,7 @@ static int talitos_probe(struct of_device *ofdev,
 			 const struct of_device_id *match)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct talitos_private *priv;
 	const unsigned int *prop;
 	int i, err;

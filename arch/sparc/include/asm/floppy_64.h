@@ -589,7 +589,7 @@ static unsigned long __init sun_floppy_init(void)
 		if (!op)
 			return 0;
 
-		state_prop = of_get_property(op->node, "status", NULL);
+		state_prop = of_get_property(op->dev.of_node, "status", NULL);
 		if (state_prop && !strncmp(state_prop, "disabled", 8))
 			return 0;
 
@@ -716,7 +716,7 @@ static unsigned long __init sun_floppy_init(void)
 
 		return sun_floppy_types[0];
 	}
-	prop = of_get_property(op->node, "status", NULL);
+	prop = of_get_property(op->dev.of_node, "status", NULL);
 	if (prop && !strncmp(state, "disabled", 8))
 		return 0;
 

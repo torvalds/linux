@@ -98,7 +98,7 @@ static int __devinit rng_probe(struct of_device *ofdev,
 			       const struct of_device_id *match)
 {
 	void __iomem *rng_regs;
-	struct device_node *rng_np = ofdev->node;
+	struct device_node *rng_np = ofdev->dev.of_node;
 	struct resource res;
 	int err = 0;
 

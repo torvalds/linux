@@ -110,7 +110,7 @@ int uflash_devinit(struct of_device *op, struct device_node *dp)
 
 static int __devinit uflash_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 
 	/* Flashprom must have the "user" property in order to
 	 * be used by this driver.

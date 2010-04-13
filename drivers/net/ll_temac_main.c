@@ -858,14 +858,14 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 	mutex_init(&lp->indirect_mutex);
 
 	/* map device registers */
-	lp->regs = of_iomap(op->node, 0);
+	lp->regs = of_iomap(op->dev.of_node, 0);
 	if (!lp->regs) {
 		dev_err(&op->dev, "could not map temac regs.\n");
 		goto nodev;
 	}
 
 	/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */
-	np = of_parse_phandle(op->node, "llink-connected", 0);
+	np = of_parse_phandle(op->dev.of_node, "llink-connected", 0);
 	if (!np) {
 		dev_err(&op->dev, "could not find DMA node\n");
 		goto nodev;
@@ -890,7 +890,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 	of_node_put(np); /* Finished with the DMA node; drop the reference */
 
 	/* Retrieve the MAC address */
-	addr = of_get_property(op->node, "local-mac-address", &size);
+	addr = of_get_property(op->dev.of_node, "local-mac-address", &size);
 	if ((!addr) || (size != 6)) {
 		dev_err(&op->dev, "could not find MAC address\n");
 		rc = -ENODEV;
@@ -898,11 +898,11 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 	}
 	temac_set_mac_address(ndev, (void *)addr);
 
-	rc = temac_mdio_setup(lp, op->node);
+	rc = temac_mdio_setup(lp, op->dev.of_node);
 	if (rc)
 		dev_warn(&op->dev, "error registering MDIO bus\n");
 
-	lp->phy_node = of_parse_phandle(op->node, "phy-handle", 0);
+	lp->phy_node = of_parse_phandle(op->dev.of_node, "phy-handle", 0);
 	if (lp->phy_node)
 		dev_dbg(lp->dev, "using PHY node %s (%p)\n", np->full_name, np);
 

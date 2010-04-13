@@ -63,10 +63,10 @@ void sbus_set_sbus64(struct device *dev, int bursts)
 	int slot;
 	u64 val;
 
-	regs = of_get_property(op->node, "reg", NULL);
+	regs = of_get_property(op->dev.of_node, "reg", NULL);
 	if (!regs) {
 		printk(KERN_ERR "sbus_set_sbus64: Cannot find regs for %s\n",
-		       op->node->full_name);
+		       op->dev.of_node->full_name);
 		return;
 	}
 	slot = regs->which_io;
@@ -287,7 +287,7 @@ static irqreturn_t sysio_ue_handler(int irq, void *dev_id)
 		 SYSIO_UEAFSR_SPIO | SYSIO_UEAFSR_SDRD | SYSIO_UEAFSR_SDWR);
 	upa_writeq(error_bits, afsr_reg);
 
-	portid = of_getintprop_default(op->node, "portid", -1);
+	portid = of_getintprop_default(op->dev.of_node, "portid", -1);
 
 	/* Log the error. */
 	printk("SYSIO[%x]: Uncorrectable ECC Error, primary error type[%s]\n",
@@ -361,7 +361,7 @@ static irqreturn_t sysio_ce_handler(int irq, void *dev_id)
 		 SYSIO_CEAFSR_SPIO | SYSIO_CEAFSR_SDRD | SYSIO_CEAFSR_SDWR);
 	upa_writeq(error_bits, afsr_reg);
 
-	portid = of_getintprop_default(op->node, "portid", -1);
+	portid = of_getintprop_default(op->dev.of_node, "portid", -1);
 
 	printk("SYSIO[%x]: Correctable ECC Error, primary error type[%s]\n",
 	       portid,
@@ -439,7 +439,7 @@ static irqreturn_t sysio_sbus_error_handler(int irq, void *dev_id)
 		 SYSIO_SBAFSR_SLE | SYSIO_SBAFSR_STO | SYSIO_SBAFSR_SBERR);
 	upa_writeq(error_bits, afsr_reg);
 
-	portid = of_getintprop_default(op->node, "portid", -1);
+	portid = of_getintprop_default(op->dev.of_node, "portid", -1);
 
 	/* Log the error. */
 	printk("SYSIO[%x]: SBUS Error, primary error type[%s] read(%d)\n",
@@ -496,7 +496,7 @@ static void __init sysio_register_error_handlers(struct of_device *op)
 	u64 control;
 	int portid;
 
-	portid = of_getintprop_default(op->node, "portid", -1);
+	portid = of_getintprop_default(op->dev.of_node, "portid", -1);
 
 	irq = sbus_build_irq(op, SYSIO_UE_INO);
 	if (request_irq(irq, sysio_ue_handler, 0,
@@ -537,7 +537,7 @@ static void __init sysio_register_error_handlers(struct of_device *op)
 static void __init sbus_iommu_init(struct of_device *op)
 {
 	const struct linux_prom64_registers *pr;
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct iommu *iommu;
 	struct strbuf *strbuf;
 	unsigned long regs, reg_base;
@@ -589,7 +589,7 @@ static void __init sbus_iommu_init(struct of_device *op)
 	 */
 	iommu->write_complete_reg = regs + 0x2000UL;
 
-	portid = of_getintprop_default(op->node, "portid", -1);
+	portid = of_getintprop_default(op->dev.of_node, "portid", -1);
 	printk(KERN_INFO "SYSIO: UPA portID %x, at %016lx\n",
 	       portid, regs);
 

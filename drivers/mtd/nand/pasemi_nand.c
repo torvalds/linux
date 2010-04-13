@@ -93,7 +93,7 @@ static int __devinit pasemi_nand_probe(struct of_device *ofdev,
 				      const struct of_device_id *match)
 {
 	struct pci_dev *pdev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct nand_chip *chip;
 	int err = 0;

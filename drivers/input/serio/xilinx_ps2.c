@@ -244,17 +244,17 @@ static int __devinit xps2_of_probe(struct of_device *ofdev,
 	int error;
 
 	dev_info(dev, "Device Tree Probing \'%s\'\n",
-			ofdev->node->name);
+			ofdev->dev.of_node->name);
 
 	/* Get iospace for the device */
-	error = of_address_to_resource(ofdev->node, 0, &r_mem);
+	error = of_address_to_resource(ofdev->dev.of_node, 0, &r_mem);
 	if (error) {
 		dev_err(dev, "invalid address\n");
 		return error;
 	}
 
 	/* Get IRQ for the device */
-	if (of_irq_to_resource(ofdev->node, 0, &r_irq) == NO_IRQ) {
+	if (of_irq_to_resource(ofdev->dev.of_node, 0, &r_irq) == NO_IRQ) {
 		dev_err(dev, "no IRQ found\n");
 		return -ENODEV;
 	}
@@ -342,7 +342,7 @@ static int __devexit xps2_of_remove(struct of_device *of_dev)
 	iounmap(drvdata->base_address);
 
 	/* Get iospace of the device */
-	if (of_address_to_resource(of_dev->node, 0, &r_mem))
+	if (of_address_to_resource(of_dev->dev.of_node, 0, &r_mem))
 		dev_err(dev, "invalid address\n");
 	else
 		release_mem_region(r_mem.start, resource_size(&r_mem));

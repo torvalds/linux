@@ -124,7 +124,7 @@ static void pmi_notify_handlers(struct work_struct *work)
 static int pmi_of_probe(struct of_device *dev,
 			const struct of_device_id *match)
 {
-	struct device_node *np = dev->node;
+	struct device_node *np = dev->dev.of_node;
 	int rc;
 
 	if (data) {

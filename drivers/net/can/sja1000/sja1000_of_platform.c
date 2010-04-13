@@ -72,7 +72,7 @@ static int __devexit sja1000_ofp_remove(struct of_device *ofdev)
 {
 	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
 	struct sja1000_priv *priv = netdev_priv(dev);
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 
 	dev_set_drvdata(&ofdev->dev, NULL);
@@ -91,7 +91,7 @@ static int __devexit sja1000_ofp_remove(struct of_device *ofdev)
 static int __devinit sja1000_ofp_probe(struct of_device *ofdev,
 				       const struct of_device_id *id)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct net_device *dev;
 	struct sja1000_priv *priv;
 	struct resource res;

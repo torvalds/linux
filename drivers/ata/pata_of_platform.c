@@ -18,7 +18,7 @@ static int __devinit pata_of_platform_probe(struct of_device *ofdev,
 					    const struct of_device_id *match)
 {
 	int ret;
-	struct device_node *dn = ofdev->node;
+	struct device_node *dn = ofdev->dev.of_node;
 	struct resource io_res;
 	struct resource ctl_res;
 	struct resource irq_res;

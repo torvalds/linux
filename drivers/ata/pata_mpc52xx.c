@@ -694,7 +694,7 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 	struct bcom_task *dmatsk = NULL;
 
 	/* Get ipb frequency */
-	ipb_freq = mpc5xxx_get_bus_frequency(op->node);
+	ipb_freq = mpc5xxx_get_bus_frequency(op->dev.of_node);
 	if (!ipb_freq) {
 		dev_err(&op->dev, "could not determine IPB bus frequency\n");
 		return -ENODEV;
@@ -702,7 +702,7 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 
 	/* Get device base address from device tree, request the region
 	 * and ioremap it. */
-	rv = of_address_to_resource(op->node, 0, &res_mem);
+	rv = of_address_to_resource(op->dev.of_node, 0, &res_mem);
 	if (rv) {
 		dev_err(&op->dev, "could not determine device base address\n");
 		return rv;
@@ -735,14 +735,14 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 	 * The MPC5200 ATA controller supports MWDMA modes 0, 1 and 2 and
 	 * UDMA modes 0, 1 and 2.
 	 */
-	prop = of_get_property(op->node, "mwdma-mode", &proplen);
+	prop = of_get_property(op->dev.of_node, "mwdma-mode", &proplen);
 	if ((prop) && (proplen >= 4))
 		mwdma_mask = ATA_MWDMA2 & ((1 << (*prop + 1)) - 1);
-	prop = of_get_property(op->node, "udma-mode", &proplen);
+	prop = of_get_property(op->dev.of_node, "udma-mode", &proplen);
 	if ((prop) && (proplen >= 4))
 		udma_mask = ATA_UDMA2 & ((1 << (*prop + 1)) - 1);
 
-	ata_irq = irq_of_parse_and_map(op->node, 0);
+	ata_irq = irq_of_parse_and_map(op->dev.of_node, 0);
 	if (ata_irq == NO_IRQ) {
 		dev_err(&op->dev, "error mapping irq\n");
 		return -EINVAL;

@@ -1015,7 +1015,7 @@ static int __devinit fs_enet_probe(struct of_device *ofdev,
 		return -ENOMEM;
 
 	if (!IS_FEC(match)) {
-		data = of_get_property(ofdev->node, "fsl,cpm-command", &len);
+		data = of_get_property(ofdev->dev.of_node, "fsl,cpm-command", &len);
 		if (!data || len != 4)
 			goto out_free_fpi;
 
@@ -1027,8 +1027,8 @@ static int __devinit fs_enet_probe(struct of_device *ofdev,
 	fpi->rx_copybreak = 240;
 	fpi->use_napi = 1;
 	fpi->napi_weight = 17;
-	fpi->phy_node = of_parse_phandle(ofdev->node, "phy-handle", 0);
-	if ((!fpi->phy_node) && (!of_get_property(ofdev->node, "fixed-link",
+	fpi->phy_node = of_parse_phandle(ofdev->dev.of_node, "phy-handle", 0);
+	if ((!fpi->phy_node) && (!of_get_property(ofdev->dev.of_node, "fixed-link",
 						  NULL)))
 		goto out_free_fpi;
 
@@ -1061,7 +1061,7 @@ static int __devinit fs_enet_probe(struct of_device *ofdev,
 	spin_lock_init(&fep->lock);
 	spin_lock_init(&fep->tx_lock);
 
-	mac_addr = of_get_mac_address(ofdev->node);
+	mac_addr = of_get_mac_address(ofdev->dev.of_node);
 	if (mac_addr)
 		memcpy(ndev->dev_addr, mac_addr, 6);
 

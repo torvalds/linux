@@ -660,7 +660,7 @@ static int __devinit n2rng_probe(struct of_device *op,
 				np->hvapi_major);
 			goto out_hvapi_unregister;
 		}
-		np->num_units = of_getintprop_default(op->node,
+		np->num_units = of_getintprop_default(op->dev.of_node,
 						      "rng-#units", 0);
 		if (!np->num_units) {
 			dev_err(&op->dev, "VF RNG lacks rng-#units property\n");

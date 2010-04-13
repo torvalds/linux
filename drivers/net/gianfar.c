@@ -603,7 +603,7 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 	int err = 0, i;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct device_node *child = NULL;
 	const u32 *stash;
 	const u32 *stash_len;
@@ -641,7 +641,7 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 		return -ENOMEM;
 
 	priv = netdev_priv(dev);
-	priv->node = ofdev->node;
+	priv->node = ofdev->dev.of_node;
 	priv->ndev = dev;
 
 	dev->num_tx_queues = num_tx_qs;
@@ -888,7 +888,7 @@ static int gfar_probe(struct of_device *ofdev,
 	priv = netdev_priv(dev);
 	priv->ndev = dev;
 	priv->ofdev = ofdev;
-	priv->node = ofdev->node;
+	priv->node = ofdev->dev.of_node;
 	SET_NETDEV_DEV(dev, &ofdev->dev);
 
 	spin_lock_init(&priv->bflock);

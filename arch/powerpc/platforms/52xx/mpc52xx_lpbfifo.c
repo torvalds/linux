@@ -445,14 +445,14 @@ mpc52xx_lpbfifo_probe(struct of_device *op, const struct of_device_id *match)
 	if (lpbfifo.dev != NULL)
 		return -ENOSPC;
 
-	lpbfifo.irq = irq_of_parse_and_map(op->node, 0);
+	lpbfifo.irq = irq_of_parse_and_map(op->dev.of_node, 0);
 	if (!lpbfifo.irq)
 		return -ENODEV;
 
-	if (of_address_to_resource(op->node, 0, &res))
+	if (of_address_to_resource(op->dev.of_node, 0, &res))
 		return -ENODEV;
 	lpbfifo.regs_phys = res.start;
-	lpbfifo.regs = of_iomap(op->node, 0);
+	lpbfifo.regs = of_iomap(op->dev.of_node, 0);
 	if (!lpbfifo.regs)
 		return -ENOMEM;
 

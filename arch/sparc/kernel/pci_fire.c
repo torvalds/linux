@@ -413,7 +413,7 @@ static int __devinit pci_fire_pbm_init(struct pci_pbm_info *pbm,
 				       struct of_device *op, u32 portid)
 {
 	const struct linux_prom64_registers *regs;
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	int err;
 
 	pbm->numa_node = -1;
@@ -458,7 +458,7 @@ static int __devinit pci_fire_pbm_init(struct pci_pbm_info *pbm,
 static int __devinit fire_probe(struct of_device *op,
 				const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	u32 portid;

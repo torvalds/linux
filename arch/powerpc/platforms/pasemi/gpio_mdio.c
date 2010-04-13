@@ -220,7 +220,7 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 				     const struct of_device_id *match)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct mii_bus *new_bus;
 	struct gpio_priv *priv;
 	const unsigned int *prop;

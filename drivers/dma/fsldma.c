@@ -1313,7 +1313,7 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 	INIT_LIST_HEAD(&fdev->common.channels);
 
 	/* ioremap the registers for use */
-	fdev->regs = of_iomap(op->node, 0);
+	fdev->regs = of_iomap(op->dev.of_node, 0);
 	if (!fdev->regs) {
 		dev_err(&op->dev, "unable to ioremap registers\n");
 		err = -ENOMEM;
@@ -1321,7 +1321,7 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 	}
 
 	/* map the channel IRQ if it exists, but don't hookup the handler yet */
-	fdev->irq = irq_of_parse_and_map(op->node, 0);
+	fdev->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
 	dma_cap_set(DMA_MEMCPY, fdev->common.cap_mask);
 	dma_cap_set(DMA_INTERRUPT, fdev->common.cap_mask);
@@ -1343,7 +1343,7 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 	 * of_platform_bus_remove(). Instead, we manually instantiate every DMA
 	 * channel object.
 	 */
-	for_each_child_of_node(op->node, child) {
+	for_each_child_of_node(op->dev.of_node, child) {
 		if (of_device_is_compatible(child, "fsl,eloplus-dma-channel")) {
 			fsl_dma_chan_probe(fdev, child,
 				FSL_DMA_IP_85XX | FSL_DMA_BIG_ENDIAN,

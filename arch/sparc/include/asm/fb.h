@@ -18,7 +18,7 @@ static inline int fb_is_primary_device(struct fb_info *info)
 	struct device *dev = info->device;
 	struct device_node *node;
 
-	node = dev->archdata.prom_node;
+	node = dev->of_node;
 	if (node &&
 	    node == of_console_device)
 		return 1;

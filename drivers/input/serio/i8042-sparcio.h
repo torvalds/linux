@@ -51,7 +51,7 @@ static inline void i8042_write_command(int val)
 
 static int __devinit sparc_i8042_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 
 	dp = dp->child;
 	while (dp) {

@@ -1313,7 +1313,7 @@ static int sata_fsl_probe(struct of_device *ofdev,
 	dev_printk(KERN_INFO, &ofdev->dev,
 		   "Sata FSL Platform/CSB Driver init\n");
 
-	hcr_base = of_iomap(ofdev->node, 0);
+	hcr_base = of_iomap(ofdev->dev.of_node, 0);
 	if (!hcr_base)
 		goto error_exit_with_cleanup;
 
@@ -1332,7 +1332,7 @@ static int sata_fsl_probe(struct of_device *ofdev,
 	host_priv->ssr_base = ssr_base;
 	host_priv->csr_base = csr_base;
 
-	irq = irq_of_parse_and_map(ofdev->node, 0);
+	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
 	if (irq < 0) {
 		dev_printk(KERN_ERR, &ofdev->dev, "invalid irq from platform\n");
 		goto error_exit_with_cleanup;

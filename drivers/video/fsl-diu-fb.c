@@ -1421,7 +1421,7 @@ static ssize_t show_monitor(struct device *device,
 static int __devinit fsl_diu_probe(struct of_device *ofdev,
 	const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct mfb_info *mfbi;
 	phys_addr_t dummy_ad_addr;
 	int ret, i, error = 0;

@@ -797,7 +797,7 @@ static void mpc8xxx_spi_free_dummy_rx(void)
 static unsigned long mpc8xxx_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 {
 	struct device *dev = mspi->dev;
-	struct device_node *np = dev_archdata_get_node(&dev->archdata);
+	struct device_node *np = dev->of_node;
 	const u32 *iprop;
 	int size;
 	unsigned long spi_base_ofs;
@@ -851,7 +851,7 @@ static unsigned long mpc8xxx_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 static int mpc8xxx_spi_cpm_init(struct mpc8xxx_spi *mspi)
 {
 	struct device *dev = mspi->dev;
-	struct device_node *np = dev_archdata_get_node(&dev->archdata);
+	struct device_node *np = dev->of_node;
 	const u32 *iprop;
 	int size;
 	unsigned long pram_ofs;
@@ -1123,7 +1123,7 @@ static void mpc8xxx_spi_cs_control(struct spi_device *spi, bool on)
 
 static int of_mpc8xxx_spi_get_chipselects(struct device *dev)
 {
-	struct device_node *np = dev_archdata_get_node(&dev->archdata);
+	struct device_node *np = dev->of_node;
 	struct fsl_spi_platform_data *pdata = dev->platform_data;
 	struct mpc8xxx_spi_probe_info *pinfo = to_of_pinfo(pdata);
 	unsigned int ngpios;
@@ -1224,7 +1224,7 @@ static int __devinit of_mpc8xxx_spi_probe(struct of_device *ofdev,
 					  const struct of_device_id *ofid)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct mpc8xxx_spi_probe_info *pinfo;
 	struct fsl_spi_platform_data *pdata;
 	struct spi_master *master;

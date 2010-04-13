@@ -321,7 +321,7 @@ static struct platform_suspend_ops mpc83xx_suspend_ops = {
 static int pmc_probe(struct of_device *ofdev,
                      const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct pmc_type *type = match->data;
 	int ret = 0;

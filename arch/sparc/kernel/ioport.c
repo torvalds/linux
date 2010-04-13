@@ -290,7 +290,7 @@ static void *sbus_alloc_coherent(struct device *dev, size_t len,
 	if (mmu_map_dma_area(dev, dma_addrp, va, res->start, len_total) != 0)
 		goto err_noiommu;
 
-	res->name = op->node->name;
+	res->name = op->dev.of_node->name;
 
 	return (void *)(unsigned long)res->start;
 

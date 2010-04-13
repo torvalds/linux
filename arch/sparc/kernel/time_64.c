@@ -424,7 +424,7 @@ static int __devinit rtc_probe(struct of_device *op, const struct of_device_id *
 	struct resource *r;
 
 	printk(KERN_INFO "%s: RTC regs at 0x%llx\n",
-	       op->node->full_name, op->resource[0].start);
+	       op->dev.of_node->full_name, op->resource[0].start);
 
 	/* The CMOS RTC driver only accepts IORESOURCE_IO, so cons
 	 * up a fake resource so that the probe works for all cases.
@@ -480,7 +480,7 @@ static int __devinit bq4802_probe(struct of_device *op, const struct of_device_i
 {
 
 	printk(KERN_INFO "%s: BQ4802 regs at 0x%llx\n",
-	       op->node->full_name, op->resource[0].start);
+	       op->dev.of_node->full_name, op->resource[0].start);
 
 	rtc_bq4802_device.resource = &op->resource[0];
 	return platform_device_register(&rtc_bq4802_device);
@@ -534,7 +534,7 @@ static struct platform_device m48t59_rtc = {
 
 static int __devinit mostek_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 
 	/* On an Enterprise system there can be multiple mostek clocks.
 	 * We should only match the one that is on the central FHC bus.

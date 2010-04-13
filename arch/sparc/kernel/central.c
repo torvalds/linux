@@ -168,7 +168,7 @@ static int __devinit fhc_probe(struct of_device *op,
 		goto out;
 	}
 
-	if (!strcmp(op->node->parent->name, "central"))
+	if (!strcmp(op->dev.of_node->parent->name, "central"))
 		p->central = true;
 
 	p->pregs = of_ioremap(&op->resource[0], 0,
@@ -183,7 +183,7 @@ static int __devinit fhc_probe(struct of_device *op,
 		reg = upa_readl(p->pregs + FHC_PREGS_BSR);
 		p->board_num = ((reg >> 16) & 1) | ((reg >> 12) & 0x0e);
 	} else {
-		p->board_num = of_getintprop_default(op->node, "board#", -1);
+		p->board_num = of_getintprop_default(op->dev.of_node, "board#", -1);
 		if (p->board_num == -1) {
 			printk(KERN_ERR "fhc: No board# property\n");
 			goto out_unmap_pregs;

@@ -3035,7 +3035,7 @@ static DEVICE_ATTR(log_port_id, S_IRUSR | S_IRGRP | S_IROTH, ehea_show_port_id,
 static void __devinit logical_port_release(struct device *dev)
 {
 	struct ehea_port *port = container_of(dev, struct ehea_port, ofdev.dev);
-	of_node_put(port->ofdev.node);
+	of_node_put(port->ofdev.dev.of_node);
 }
 
 static struct device *ehea_register_port(struct ehea_port *port,
@@ -3043,7 +3043,7 @@ static struct device *ehea_register_port(struct ehea_port *port,
 {
 	int ret;
 
-	port->ofdev.node = of_node_get(dn);
+	port->ofdev.dev.of_node = of_node_get(dn);
 	port->ofdev.dev.parent = &port->adapter->ofdev->dev;
 	port->ofdev.dev.bus = &ibmebus_bus_type;
 
@@ -3210,7 +3210,7 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 	const u32 *dn_log_port_id;
 	int i = 0;
 
-	lhea_dn = adapter->ofdev->node;
+	lhea_dn = adapter->ofdev->dev.of_node;
 	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
 
 		dn_log_port_id = of_get_property(eth_dn, "ibm,hea-port-no",
@@ -3249,7 +3249,7 @@ static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter,
 	struct device_node *eth_dn = NULL;
 	const u32 *dn_log_port_id;
 
-	lhea_dn = adapter->ofdev->node;
+	lhea_dn = adapter->ofdev->dev.of_node;
 	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
 
 		dn_log_port_id = of_get_property(eth_dn, "ibm,hea-port-no",
@@ -3379,7 +3379,7 @@ static int __devinit ehea_probe_adapter(struct of_device *dev,
 	const u64 *adapter_handle;
 	int ret;
 
-	if (!dev || !dev->node) {
+	if (!dev || !dev->dev.of_node) {
 		ehea_error("Invalid ibmebus device probed");
 		return -EINVAL;
 	}
@@ -3395,14 +3395,14 @@ static int __devinit ehea_probe_adapter(struct of_device *dev,
 
 	adapter->ofdev = dev;
 
-	adapter_handle = of_get_property(dev->node, "ibm,hea-handle",
+	adapter_handle = of_get_property(dev->dev.of_node, "ibm,hea-handle",
 					 NULL);
 	if (adapter_handle)
 		adapter->handle = *adapter_handle;
 
 	if (!adapter->handle) {
 		dev_err(&dev->dev, "failed getting handle for adapter"
-			" '%s'\n", dev->node->full_name);
+			" '%s'\n", dev->dev.of_node->full_name);
 		ret = -ENODEV;
 		goto out_free_ad;
 	}

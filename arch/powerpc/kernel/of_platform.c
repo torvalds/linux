@@ -195,7 +195,7 @@ EXPORT_SYMBOL(of_platform_bus_probe);
 
 static int of_dev_node_match(struct device *dev, void *data)
 {
-	return to_of_device(dev)->node == data;
+	return to_of_device(dev)->dev.of_node == data;
 }
 
 struct of_device *of_find_device_by_node(struct device_node *np)
@@ -213,7 +213,7 @@ EXPORT_SYMBOL(of_find_device_by_node);
 static int of_dev_phandle_match(struct device *dev, void *data)
 {
 	phandle *ph = data;
-	return to_of_device(dev)->node->phandle == *ph;
+	return to_of_device(dev)->dev.of_node->phandle == *ph;
 }
 
 struct of_device *of_find_device_by_phandle(phandle ph)
@@ -246,10 +246,10 @@ static int __devinit of_pci_phb_probe(struct of_device *dev,
 	if (ppc_md.pci_setup_phb == NULL)
 		return -ENODEV;
 
-	printk(KERN_INFO "Setting up PCI bus %s\n", dev->node->full_name);
+	pr_info("Setting up PCI bus %s\n", dev->dev.of_node->full_name);
 
 	/* Alloc and setup PHB data structure */
-	phb = pcibios_alloc_controller(dev->node);
+	phb = pcibios_alloc_controller(dev->dev.of_node);
 	if (!phb)
 		return -ENODEV;
 
@@ -263,19 +263,19 @@ static int __devinit of_pci_phb_probe(struct of_device *dev,
 	}
 
 	/* Process "ranges" property */
-	pci_process_bridge_OF_ranges(phb, dev->node, 0);
+	pci_process_bridge_OF_ranges(phb, dev->dev.of_node, 0);
 
 	/* Init pci_dn data structures */
 	pci_devs_phb_init_dynamic(phb);
 
 	/* Register devices with EEH */
 #ifdef CONFIG_EEH
-	if (dev->node->child)
-		eeh_add_device_tree_early(dev->node);
+	if (dev->dev.of_node->child)
+		eeh_add_device_tree_early(dev->dev.of_node);
 #endif /* CONFIG_EEH */
 
 	/* Scan the bus */
-	pcibios_scan_phb(phb, dev->node);
+	pcibios_scan_phb(phb, dev->dev.of_node);
 	if (phb->bus == NULL)
 		return -ENXIO;
 

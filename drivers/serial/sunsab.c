@@ -883,7 +883,7 @@ static int sunsab_console_setup(struct console *con, char *options)
 	printk("Console: ttyS%d (SAB82532)\n",
 	       (sunsab_reg.minor - 64) + con->index);
 
-	sunserial_console_termios(con, to_of_device(up->port.dev)->node);
+	sunserial_console_termios(con, to_of_device(up->port.dev)->dev.of_node);
 
 	switch (con->cflag & CBAUD) {
 	case B150: baud = 150; break;
@@ -1026,11 +1026,11 @@ static int __devinit sab_probe(struct of_device *op, const struct of_device_id *
 	if (err)
 		goto out1;
 
-	sunserial_console_match(SUNSAB_CONSOLE(), op->node,
+	sunserial_console_match(SUNSAB_CONSOLE(), op->dev.of_node,
 				&sunsab_reg, up[0].port.line,
 				false);
 
-	sunserial_console_match(SUNSAB_CONSOLE(), op->node,
+	sunserial_console_match(SUNSAB_CONSOLE(), op->dev.of_node,
 				&sunsab_reg, up[1].port.line,
 				false);
 

@@ -1004,7 +1004,7 @@ static const struct block_device_operations floppy_fops = {
 
 static int swim3_add_device(struct macio_dev *mdev, int index)
 {
-	struct device_node *swim = mdev->ofdev.node;
+	struct device_node *swim = mdev->ofdev.dev.of_node;
 	struct floppy_state *fs = &floppy_states[index];
 	int rc = -EBUSY;
 

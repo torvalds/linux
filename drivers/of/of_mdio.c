@@ -101,7 +101,7 @@ EXPORT_SYMBOL(of_mdiobus_register);
 /* Helper function for of_phy_find_device */
 static int of_phy_match(struct device *dev, void *phy_np)
 {
-	return dev_archdata_get_node(&dev->archdata) == phy_np;
+	return dev->of_node == phy_np;
 }
 
 /**
@@ -167,7 +167,7 @@ struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
 	if (!dev->dev.parent)
 		return NULL;
 
-	net_np = dev_archdata_get_node(&dev->dev.parent->archdata);
+	net_np = dev->dev.parent->of_node;
 	if (!net_np)
 		return NULL;
 

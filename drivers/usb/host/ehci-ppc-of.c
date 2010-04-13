@@ -108,7 +108,7 @@ ppc44x_enable_bmt(struct device_node *dn)
 static int __devinit
 ehci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dn = op->node;
+	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
 	struct ehci_hcd	*ehci = NULL;
 	struct resource res;

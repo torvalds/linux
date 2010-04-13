@@ -271,7 +271,7 @@ static int get_ucc_id_for_range(u64 start, u64 end, u32 *ucc_id)
 static int fsl_pq_mdio_probe(struct of_device *ofdev,
 		const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct device_node *tbi;
 	struct fsl_pq_mdio_priv *priv;
 	struct fsl_pq_mdio __iomem *regs = NULL;

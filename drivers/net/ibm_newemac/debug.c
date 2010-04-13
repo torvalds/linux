@@ -33,7 +33,7 @@ static void emac_desc_dump(struct emac_instance *p)
 	int i;
 	printk("** EMAC %s TX BDs **\n"
 	       " tx_cnt = %d tx_slot = %d ack_slot = %d\n",
-	       p->ofdev->node->full_name,
+	       p->ofdev->dev.of_node->full_name,
 	       p->tx_cnt, p->tx_slot, p->ack_slot);
 	for (i = 0; i < NUM_TX_BUFF / 2; ++i)
 		printk
@@ -49,7 +49,7 @@ static void emac_desc_dump(struct emac_instance *p)
 	printk("** EMAC %s RX BDs **\n"
 	       " rx_slot = %d flags = 0x%lx rx_skb_size = %d rx_sync_size = %d\n"
 	       " rx_sg_skb = 0x%p\n",
-	       p->ofdev->node->full_name,
+	       p->ofdev->dev.of_node->full_name,
 	       p->rx_slot, p->commac.flags, p->rx_skb_size,
 	       p->rx_sync_size, p->rx_sg_skb);
 	for (i = 0; i < NUM_RX_BUFF / 2; ++i)
@@ -77,7 +77,8 @@ static void emac_mac_dump(struct emac_instance *dev)
 	       "MR0 = 0x%08x MR1 = 0x%08x TMR0 = 0x%08x TMR1 = 0x%08x\n"
 	       "RMR = 0x%08x ISR = 0x%08x ISER = 0x%08x\n"
 	       "IAR = %04x%08x VTPID = 0x%04x VTCI = 0x%04x\n",
-	       dev->ofdev->node->full_name, in_be32(&p->mr0), in_be32(&p->mr1),
+	       dev->ofdev->dev.of_node->full_name,
+	       in_be32(&p->mr0), in_be32(&p->mr1),
 	       in_be32(&p->tmr0), in_be32(&p->tmr1),
 	       in_be32(&p->rmr), in_be32(&p->isr), in_be32(&p->iser),
 	       in_be32(&p->iahr), in_be32(&p->ialr), in_be32(&p->vtpid),
@@ -128,7 +129,7 @@ static void emac_mal_dump(struct mal_instance *mal)
 	       "CFG = 0x%08x ESR = 0x%08x IER = 0x%08x\n"
 	       "TX|CASR = 0x%08x CARR = 0x%08x EOBISR = 0x%08x DEIR = 0x%08x\n"
 	       "RX|CASR = 0x%08x CARR = 0x%08x EOBISR = 0x%08x DEIR = 0x%08x\n",
-	       mal->ofdev->node->full_name,
+	       mal->ofdev->dev.of_node->full_name,
 	       get_mal_dcrn(mal, MAL_CFG), get_mal_dcrn(mal, MAL_ESR),
 	       get_mal_dcrn(mal, MAL_IER),
 	       get_mal_dcrn(mal, MAL_TXCASR), get_mal_dcrn(mal, MAL_TXCARR),

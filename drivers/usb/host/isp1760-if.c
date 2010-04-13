@@ -31,7 +31,7 @@ static int of_isp1760_probe(struct of_device *dev,
 		const struct of_device_id *match)
 {
 	struct usb_hcd *hcd;
-	struct device_node *dp = dev->node;
+	struct device_node *dp = dev->dev.of_node;
 	struct resource *res;
 	struct resource memory;
 	struct of_irq oirq;

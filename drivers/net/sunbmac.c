@@ -1133,8 +1133,8 @@ static int __devinit bigmac_ether_init(struct of_device *op,
 		goto fail_and_cleanup;
 
 	/* Get supported SBUS burst sizes. */
-	bsizes = of_getintprop_default(qec_op->node, "burst-sizes", 0xff);
-	bsizes_more = of_getintprop_default(qec_op->node, "burst-sizes", 0xff);
+	bsizes = of_getintprop_default(qec_op->dev.of_node, "burst-sizes", 0xff);
+	bsizes_more = of_getintprop_default(qec_op->dev.of_node, "burst-sizes", 0xff);
 
 	bsizes &= 0xff;
 	if (bsizes_more != 0xff)
@@ -1186,7 +1186,7 @@ static int __devinit bigmac_ether_init(struct of_device *op,
 	}
 
 	/* Get the board revision of this BigMAC. */
-	bp->board_rev = of_getintprop_default(bp->bigmac_op->node,
+	bp->board_rev = of_getintprop_default(bp->bigmac_op->dev.of_node,
 					      "board-version", 1);
 
 	/* Init auto-negotiation timer state. */

@@ -559,7 +559,7 @@ static int __devinit apbuart_probe(struct of_device *op,
 
 	i = 0;
 	for (i = 0; i < grlib_apbuart_port_nr; i++) {
-		if (op->node == grlib_apbuart_nodes[i])
+		if (op->dev.of_node == grlib_apbuart_nodes[i])
 			break;
 	}
 

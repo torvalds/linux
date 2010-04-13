@@ -1500,7 +1500,8 @@ static int __devinit greth_of_probe(struct of_device *ofdev, const struct of_dev
 	if (i == 6) {
 		const unsigned char *addr;
 		int len;
-		addr = of_get_property(ofdev->node, "local-mac-address", &len);
+		addr = of_get_property(ofdev->dev.of_node, "local-mac-address",
+					&len);
 		if (addr != NULL && len == 6) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];

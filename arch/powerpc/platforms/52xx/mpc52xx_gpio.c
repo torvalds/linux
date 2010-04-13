@@ -168,7 +168,7 @@ static int __devinit mpc52xx_wkup_gpiochip_probe(struct of_device *ofdev,
 	ofchip->gc.get              = mpc52xx_wkup_gpio_get;
 	ofchip->gc.set              = mpc52xx_wkup_gpio_set;
 
-	ret = of_mm_gpiochip_add(ofdev->node, &chip->mmchip);
+	ret = of_mm_gpiochip_add(ofdev->dev.of_node, &chip->mmchip);
 	if (ret)
 		return ret;
 
@@ -329,7 +329,7 @@ static int __devinit mpc52xx_simple_gpiochip_probe(struct of_device *ofdev,
 	ofchip->gc.get              = mpc52xx_simple_gpio_get;
 	ofchip->gc.set              = mpc52xx_simple_gpio_set;
 
-	ret = of_mm_gpiochip_add(ofdev->node, &chip->mmchip);
+	ret = of_mm_gpiochip_add(ofdev->dev.of_node, &chip->mmchip);
 	if (ret)
 		return ret;
 

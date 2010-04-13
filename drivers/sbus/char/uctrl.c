@@ -382,7 +382,7 @@ static int __devinit uctrl_probe(struct of_device *op,
 
 	sbus_writel(UCTRL_INTR_RXNE_REQ|UCTRL_INTR_RXNE_MSK, &p->regs->uctrl_intr);
 	printk(KERN_INFO "%s: uctrl regs[0x%p] (irq %d)\n",
-	       op->node->full_name, p->regs, p->irq);
+	       op->dev.of_node->full_name, p->regs, p->irq);
 	uctrl_get_event_status(p);
 	uctrl_get_external_status(p);
 

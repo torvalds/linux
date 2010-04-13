@@ -98,11 +98,11 @@ static int do_pd_setup(struct fs_enet_private *fep)
 {
 	struct of_device *ofdev = to_of_device(fep->dev);
 
-	fep->interrupt = of_irq_to_resource(ofdev->node, 0, NULL);
+	fep->interrupt = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
 	if (fep->interrupt == NO_IRQ)
 		return -EINVAL;
 
-	fep->fec.fecp = of_iomap(ofdev->node, 0);
+	fep->fec.fecp = of_iomap(ofdev->dev.of_node, 0);
 	if (!fep->fcc.fccp)
 		return -EINVAL;
 

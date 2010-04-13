@@ -53,8 +53,8 @@ extern void emac_dbg_dump_all(void);
 
 #endif
 
-#define EMAC_DBG(dev, name, fmt, arg...) \
-	printk(KERN_DEBUG #name "%s: " fmt, dev->ofdev->node->full_name, ## arg)
+#define EMAC_DBG(d, name, fmt, arg...) \
+	printk(KERN_DEBUG #name "%s: " fmt, d->ofdev->dev.of_node->full_name, ## arg)
 
 #if DBG_LEVEL > 0
 #  define DBG(d,f,x...)		EMAC_DBG(d, emac, f, ##x)

@@ -928,7 +928,7 @@ static const struct net_device_ops myri_ops = {
 
 static int __devinit myri_sbus_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;
 	struct net_device *dev;
 	struct myri_eth *mp;

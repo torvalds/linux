@@ -1030,14 +1030,14 @@ static int __devinit fsl_elbc_ctrl_probe(struct of_device *ofdev,
 	init_waitqueue_head(&ctrl->controller.wq);
 	init_waitqueue_head(&ctrl->irq_wait);
 
-	ctrl->regs = of_iomap(ofdev->node, 0);
+	ctrl->regs = of_iomap(ofdev->dev.of_node, 0);
 	if (!ctrl->regs) {
 		dev_err(&ofdev->dev, "failed to get memory region\n");
 		ret = -ENODEV;
 		goto err;
 	}
 
-	ctrl->irq = of_irq_to_resource(ofdev->node, 0, NULL);
+	ctrl->irq = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
 	if (ctrl->irq == NO_IRQ) {
 		dev_err(&ofdev->dev, "failed to get irq resource\n");
 		ret = -ENODEV;
@@ -1058,7 +1058,7 @@ static int __devinit fsl_elbc_ctrl_probe(struct of_device *ofdev,
 		goto err;
 	}
 
-	for_each_child_of_node(ofdev->node, child)
+	for_each_child_of_node(ofdev->dev.of_node, child)
 		if (of_device_is_compatible(child, "fsl,elbc-fcm-nand"))
 			fsl_elbc_chip_probe(ctrl, child);
 

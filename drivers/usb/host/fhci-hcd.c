@@ -565,7 +565,7 @@ static int __devinit of_fhci_probe(struct of_device *ofdev,
 				   const struct of_device_id *ofid)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *node = ofdev->node;
+	struct device_node *node = dev->of_node;
 	struct usb_hcd *hcd;
 	struct fhci_hcd *fhci;
 	struct resource usb_regs;
@@ -670,7 +670,7 @@ static int __devinit of_fhci_probe(struct of_device *ofdev,
 	}
 
 	for (j = 0; j < NUM_PINS; j++) {
-		fhci->pins[j] = qe_pin_request(ofdev->node, j);
+		fhci->pins[j] = qe_pin_request(node, j);
 		if (IS_ERR(fhci->pins[j])) {
 			ret = PTR_ERR(fhci->pins[j]);
 			dev_err(dev, "can't get pin %d: %d\n", j, ret);

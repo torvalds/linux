@@ -772,18 +772,18 @@ hwicap_of_probe(struct of_device *op, const struct of_device_id *match)
 
 	dev_dbg(&op->dev, "hwicap_of_probe(%p, %p)\n", op, match);
 
-	rc = of_address_to_resource(op->node, 0, &res);
+	rc = of_address_to_resource(op->dev.of_node, 0, &res);
 	if (rc) {
 		dev_err(&op->dev, "invalid address\n");
 		return rc;
 	}
 
-	id = of_get_property(op->node, "port-number", NULL);
+	id = of_get_property(op->dev.of_node, "port-number", NULL);
 
 	/* It's most likely that we're using V4, if the family is not
 	   specified */
 	regs = &v4_config_registers;
-	family = of_get_property(op->node, "xlnx,family", NULL);
+	family = of_get_property(op->dev.of_node, "xlnx,family", NULL);
 
 	if (family) {
 		if (!strcmp(family, "virtex2p")) {

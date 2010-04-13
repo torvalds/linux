@@ -1342,7 +1342,7 @@ static int __devinit cpm_uart_probe(struct of_device *ofdev,
 	/* initialize the device pointer for the port */
 	pinfo->port.dev = &ofdev->dev;
 
-	ret = cpm_uart_init_port(ofdev->node, pinfo);
+	ret = cpm_uart_init_port(ofdev->dev.of_node, pinfo);
 	if (ret)
 		return ret;
 

@@ -124,7 +124,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 	new_bus->write = &fs_enet_fec_mii_write;
 	new_bus->reset = &fs_enet_fec_mii_reset;
 
-	ret = of_address_to_resource(ofdev->node, 0, &res);
+	ret = of_address_to_resource(ofdev->dev.of_node, 0, &res);
 	if (ret)
 		goto out_res;
 
@@ -135,7 +135,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 		goto out_fec;
 
 	if (get_bus_freq) {
-		clock = get_bus_freq(ofdev->node);
+		clock = get_bus_freq(ofdev->dev.of_node);
 		if (!clock) {
 			/* Use maximum divider if clock is unknown */
 			dev_warn(&ofdev->dev, "could not determine IPS clock\n");
@@ -172,7 +172,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 	new_bus->parent = &ofdev->dev;
 	dev_set_drvdata(&ofdev->dev, new_bus);
 
-	ret = of_mdiobus_register(new_bus, ofdev->node);
+	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
 	if (ret)
 		goto out_free_irqs;
 

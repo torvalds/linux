@@ -3721,7 +3721,7 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *match)
 {
 	struct device *device = &ofdev->dev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct net_device *dev = NULL;
 	struct ucc_geth_private *ugeth = NULL;
 	struct ucc_geth_info *ug_info;
