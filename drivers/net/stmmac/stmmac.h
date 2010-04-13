@@ -120,3 +120,5 @@ static inline int stmmac_claim_resource(struct platform_device *pdev)
 extern int stmmac_mdio_unregister(struct net_device *ndev);
 extern int stmmac_mdio_register(struct net_device *ndev);
 extern void stmmac_set_ethtool_ops(struct net_device *netdev);
+extern struct stmmac_desc_ops enh_desc_ops;
+extern struct stmmac_desc_ops ndesc_ops;

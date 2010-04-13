@@ -206,15 +206,4 @@ enum rtc_control {
 #define GMAC_MMC_TX_INTR   0x108
 #define GMAC_MMC_RX_CSUM_OFFLOAD   0x208
 
-#undef DWMAC1000_DEBUG
-/* #define DWMAC1000__DEBUG */
-#undef FRAME_FILTER_DEBUG
-/* #define FRAME_FILTER_DEBUG */
-#ifdef DWMAC1000__DEBUG
-#define DBG(fmt, args...)  printk(fmt, ## args)
-#else
-#define DBG(fmt, args...)  do { } while (0)
-#endif
-
 extern struct stmmac_dma_ops dwmac1000_dma_ops;
-extern struct stmmac_desc_ops dwmac1000_desc_ops;

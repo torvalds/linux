@@ -141,7 +141,7 @@ static void dwmac100_set_filter(struct net_device *dev)
 
 	writel(value, ioaddr + MAC_CONTROL);
 
-	DBG(KERN_INFO "%s: CTRL reg: 0x%08x Hash regs: "
+	CHIP_DBG(KERN_INFO "%s: CTRL reg: 0x%08x Hash regs: "
 	    "HI 0x%08x, LO 0x%08x\n",
 	    __func__, readl(ioaddr + MAC_CONTROL),
 	    readl(ioaddr + MAC_HASH_HIGH), readl(ioaddr + MAC_HASH_LOW));
@@ -188,7 +188,6 @@ struct mac_device_info *dwmac100_setup(unsigned long ioaddr)
 	pr_info("\tDWMAC100\n");
 
 	mac->mac = &dwmac100_ops;
-	mac->desc = &dwmac100_desc_ops;
 	mac->dma = &dwmac100_dma_ops;
 
 	mac->pmt = PMT_NOT_SUPPORTED;

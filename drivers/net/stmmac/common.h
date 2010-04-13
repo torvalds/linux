@@ -22,8 +22,21 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#include "descs.h"
 #include <linux/netdevice.h>
+#include "descs.h"
+
+#undef CHIP_DEBUG_PRINT
+/* Turn-on extra printk debug for MAC core, dma and descriptors */
+/* #define CHIP_DEBUG_PRINT */
+
+#ifdef CHIP_DEBUG_PRINT
+#define CHIP_DBG(fmt, args...)  printk(fmt, ## args)
+#else
+#define CHIP_DBG(fmt, args...)  do { } while (0)
+#endif
+
+#undef FRAME_FILTER_DEBUG
+/* #define FRAME_FILTER_DEBUG */
 
 struct stmmac_extra_stats {
 	/* Transmit errors */

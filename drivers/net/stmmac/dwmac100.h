@@ -118,16 +118,4 @@ enum ttc_control {
 #define DMA_MISSED_FRAME_OVE_M	0x00010000	/* Missed Frame Overflow */
 #define DMA_MISSED_FRAME_M_CNTR	0x0000ffff	/* Missed Frame Couinter */
 
-#undef DWMAC100_DEBUG
-/* #define DWMAC100__DEBUG */
-#undef FRAME_FILTER_DEBUG
-/* #define FRAME_FILTER_DEBUG */
-#ifdef DWMAC100__DEBUG
-#define DBG(fmt, args...)  printk(fmt, ## args)
-#else
-#define DBG(fmt, args...)  do { } while (0)
-#endif
-
 extern struct stmmac_dma_ops dwmac100_dma_ops;
-extern struct stmmac_desc_ops dwmac100_desc_ops;
-

@@ -83,8 +83,8 @@ static void dwmac1000_set_filter(struct net_device *dev)
 	unsigned long ioaddr = dev->base_addr;
 	unsigned int value = 0;
 
-	DBG(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
-	    __func__, netdev_mc_count(dev), netdev_uc_count(dev));
+	CHIP_DBG(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
+		 __func__, netdev_mc_count(dev), netdev_uc_count(dev));
 
 	if (dev->flags & IFF_PROMISC)
 		value = GMAC_FRAME_FILTER_PR;
@@ -136,7 +136,7 @@ static void dwmac1000_set_filter(struct net_device *dev)
 #endif
 	writel(value, ioaddr + GMAC_FRAME_FILTER);
 
-	DBG(KERN_INFO "\tFrame Filter reg: 0x%08x\n\tHash regs: "
+	CHIP_DBG(KERN_INFO "\tFrame Filter reg: 0x%08x\n\tHash regs: "
 	    "HI 0x%08x, LO 0x%08x\n", readl(ioaddr + GMAC_FRAME_FILTER),
 	    readl(ioaddr + GMAC_HASH_HIGH), readl(ioaddr + GMAC_HASH_LOW));
 
@@ -148,18 +148,18 @@ static void dwmac1000_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
 {
 	unsigned int flow = 0;
 
-	DBG(KERN_DEBUG "GMAC Flow-Control:\n");
+	CHIP_DBG(KERN_DEBUG "GMAC Flow-Control:\n");
 	if (fc & FLOW_RX) {
-		DBG(KERN_DEBUG "\tReceive Flow-Control ON\n");
+		CHIP_DBG(KERN_DEBUG "\tReceive Flow-Control ON\n");
 		flow |= GMAC_FLOW_CTRL_RFE;
 	}
 	if (fc & FLOW_TX) {
-		DBG(KERN_DEBUG "\tTransmit Flow-Control ON\n");
+		CHIP_DBG(KERN_DEBUG "\tTransmit Flow-Control ON\n");
 		flow |= GMAC_FLOW_CTRL_TFE;
 	}
 
 	if (duplex) {
-		DBG(KERN_DEBUG "\tduplex mode: pause time: %d\n", pause_time);
+		CHIP_DBG(KERN_DEBUG "\tduplex mode: PAUSE %d\n", pause_time);
 		flow |= (pause_time << GMAC_FLOW_CTRL_PT_SHIFT);
 	}
 
@@ -172,10 +172,10 @@ static void dwmac1000_pmt(unsigned long ioaddr, unsigned long mode)
 	unsigned int pmt = 0;
 
 	if (mode == WAKE_MAGIC) {
-		DBG(KERN_DEBUG "GMAC: WOL Magic frame\n");
+		CHIP_DBG(KERN_DEBUG "GMAC: WOL Magic frame\n");
 		pmt |= power_down | magic_pkt_en;
 	} else if (mode == WAKE_UCAST) {
-		DBG(KERN_DEBUG "GMAC: WOL on global unicast\n");
+		CHIP_DBG(KERN_DEBUG "GMAC: WOL on global unicast\n");
 		pmt |= global_unicast;
 	}
 
@@ -190,16 +190,16 @@ static void dwmac1000_irq_status(unsigned long ioaddr)
 
 	/* Not used events (e.g. MMC interrupts) are not handled. */
 	if ((intr_status & mmc_tx_irq))
-		DBG(KERN_DEBUG "GMAC: MMC tx interrupt: 0x%08x\n",
+		CHIP_DBG(KERN_DEBUG "GMAC: MMC tx interrupt: 0x%08x\n",
 		    readl(ioaddr + GMAC_MMC_TX_INTR));
 	if (unlikely(intr_status & mmc_rx_irq))
-		DBG(KERN_DEBUG "GMAC: MMC rx interrupt: 0x%08x\n",
+		CHIP_DBG(KERN_DEBUG "GMAC: MMC rx interrupt: 0x%08x\n",
 		    readl(ioaddr + GMAC_MMC_RX_INTR));
 	if (unlikely(intr_status & mmc_rx_csum_offload_irq))
-		DBG(KERN_DEBUG "GMAC: MMC rx csum offload: 0x%08x\n",
+		CHIP_DBG(KERN_DEBUG "GMAC: MMC rx csum offload: 0x%08x\n",
 		    readl(ioaddr + GMAC_MMC_RX_CSUM_OFFLOAD));
 	if (unlikely(intr_status & pmt_irq)) {
-		DBG(KERN_DEBUG "GMAC: received Magic frame\n");
+		CHIP_DBG(KERN_DEBUG "GMAC: received Magic frame\n");
 		/* clear the PMT bits 5 and 6 by reading the PMT
 		 * status register. */
 		readl(ioaddr + GMAC_PMT);
@@ -230,7 +230,6 @@ struct mac_device_info *dwmac1000_setup(unsigned long ioaddr)
 	mac = kzalloc(sizeof(const struct mac_device_info), GFP_KERNEL);
 
 	mac->mac = &dwmac1000_ops;
-	mac->desc = &dwmac1000_desc_ops;
 	mac->dma = &dwmac1000_dma_ops;
 
 	mac->pmt = PMT_SUPPORTED;
