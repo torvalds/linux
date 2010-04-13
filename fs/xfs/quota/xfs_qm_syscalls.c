@@ -442,7 +442,7 @@ xfs_qm_scall_getqstat(
 			IRELE(gip);
 	}
 	if (mp->m_quotainfo) {
-		out->qs_incoredqs = XFS_QI_MPLNDQUOTS(mp);
+		out->qs_incoredqs = mp->m_quotainfo->qi_dquots;
 		out->qs_btimelimit = XFS_QI_BTIMELIMIT(mp);
 		out->qs_itimelimit = XFS_QI_ITIMELIMIT(mp);
 		out->qs_rtbtimelimit = XFS_QI_RTBTIMELIMIT(mp);

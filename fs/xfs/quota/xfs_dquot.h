@@ -57,7 +57,6 @@ struct xfs_trans;
 typedef struct xfs_dqmarker {
 	struct xfs_dquot*dqm_flnext;	/* link to freelist: must be first */
 	struct xfs_dquot*dqm_flprev;
-	xfs_dqlink_t	 dqm_mplist;	/* link to mount's list of dquots */
 	xfs_dqlink_t	 dqm_hashlist;	/* link to the hash chain */
 	uint		 dqm_flags;	/* various flags (XFS_DQ_*) */
 } xfs_dqmarker_t;
@@ -67,6 +66,7 @@ typedef struct xfs_dqmarker {
  */
 typedef struct xfs_dquot {
 	xfs_dqmarker_t	 q_lists;	/* list ptrs, q_flags (marker) */
+	struct list_head q_mplist;	/* mount's list of dquots */
 	xfs_dqhash_t	*q_hash;	/* the hashchain header */
 	struct xfs_mount*q_mount;	/* filesystem this relates to */
 	struct xfs_trans*q_transp;	/* trans this belongs to currently */

@@ -106,7 +106,9 @@ typedef struct xfs_qm {
 typedef struct xfs_quotainfo {
 	xfs_inode_t	*qi_uquotaip;	 /* user quota inode */
 	xfs_inode_t	*qi_gquotaip;	 /* group quota inode */
-	xfs_dqlist_t	 qi_dqlist;	 /* all dquots in filesys */
+	struct list_head qi_dqlist;	 /* all dquots in filesys */
+	struct mutex	 qi_dqlist_lock;
+	int		 qi_dquots;
 	int		 qi_dqreclaims;	 /* a change here indicates
 					    a removal in the dqlist */
 	time_t		 qi_btimelimit;	 /* limit for blks timer */

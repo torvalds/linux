@@ -29,7 +29,6 @@
 
 #define XFS_DQ_IS_ADDEDTO_TRX(t, d)	((d)->q_transp == (t))
 
-#define XFS_QI_MPLRECLAIMS(mp)	((mp)->m_quotainfo->qi_dqreclaims)
 #define XFS_QI_UQIP(mp)		((mp)->m_quotainfo->qi_uquotaip)
 #define XFS_QI_GQIP(mp)		((mp)->m_quotainfo->qi_gquotaip)
 #define XFS_QI_DQCHUNKLEN(mp)	((mp)->m_quotainfo->qi_dqchunklen)
@@ -40,19 +39,6 @@
 #define XFS_QI_RTBWARNLIMIT(mp)	((mp)->m_quotainfo->qi_rtbwarnlimit)
 #define XFS_QI_IWARNLIMIT(mp)	((mp)->m_quotainfo->qi_iwarnlimit)
 #define XFS_QI_QOFFLOCK(mp)	((mp)->m_quotainfo->qi_quotaofflock)
-
-#define XFS_QI_MPL_LIST(mp)	((mp)->m_quotainfo->qi_dqlist)
-#define XFS_QI_MPLNEXT(mp)	((mp)->m_quotainfo->qi_dqlist.qh_next)
-#define XFS_QI_MPLNDQUOTS(mp)	((mp)->m_quotainfo->qi_dqlist.qh_nelems)
-
-#define xfs_qm_mplist_lock(mp) \
-	mutex_lock(&(XFS_QI_MPL_LIST(mp).qh_lock))
-#define xfs_qm_mplist_nowait(mp) \
-	mutex_trylock(&(XFS_QI_MPL_LIST(mp).qh_lock))
-#define xfs_qm_mplist_unlock(mp) \
-	mutex_unlock(&(XFS_QI_MPL_LIST(mp).qh_lock))
-#define XFS_QM_IS_MPLIST_LOCKED(mp) \
-	mutex_is_locked(&(XFS_QI_MPL_LIST(mp).qh_lock))
 
 #define xfs_qm_freelist_lock(qm) \
 	mutex_lock(&((qm)->qm_dqfreelist.qh_lock))
@@ -88,8 +74,6 @@
 
 #define HL_PREVP	dq_hashlist.ql_prevp
 #define HL_NEXT		dq_hashlist.ql_next
-#define MPL_PREVP	dq_mplist.ql_prevp
-#define MPL_NEXT	dq_mplist.ql_next
 
 
 #define _LIST_REMOVE(h, dqp, PVP, NXT)				\
@@ -116,9 +100,6 @@
 		 (h)->qh_nelems++;				\
 	 }
 
-#define FOREACH_DQUOT_IN_MP(dqp, mp) \
-	for ((dqp) = XFS_QI_MPLNEXT(mp); (dqp) != NULL; (dqp) = (dqp)->MPL_NEXT)
-
 #define FOREACH_DQUOT_IN_FREELIST(dqp, qlist)	\
 for ((dqp) = (qlist)->qh_next; (dqp) != (xfs_dquot_t *)(qlist); \
      (dqp) = (dqp)->dq_flnext)
@@ -129,16 +110,10 @@ for ((dqp) = (qlist)->qh_next; (dqp) != (xfs_dquot_t *)(qlist); \
 #define XQM_FREELIST_INSERT(h, dqp)	\
 	 xfs_qm_freelist_append(h, dqp)
 
-#define XQM_MPLIST_INSERT(h, dqp)	\
-	 _LIST_INSERT(h, dqp, MPL_PREVP, MPL_NEXT)
-
 #define XQM_HASHLIST_REMOVE(h, dqp)	\
 	 _LIST_REMOVE(h, dqp, HL_PREVP, HL_NEXT)
 #define XQM_FREELIST_REMOVE(dqp)	\
 	 xfs_qm_freelist_unlink(dqp)
-#define XQM_MPLIST_REMOVE(h, dqp)	\
-	{ _LIST_REMOVE(h, dqp, MPL_PREVP, MPL_NEXT); \
-	  XFS_QI_MPLRECLAIMS((dqp)->q_mount)++; }
 
 #define XFS_DQ_IS_LOGITEM_INITD(dqp)	((dqp)->q_logitem.qli_dquot == (dqp))
 
