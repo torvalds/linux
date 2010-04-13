@@ -50,7 +50,7 @@ struct of_device *of_device_alloc(struct device_node *np,
 		return NULL;
 
 	dev->dev.of_node = of_node_get(np);
-	dev->dev.dma_mask = &dev->dma_mask;
+	dev->dev.dma_mask = &dev->archdata.dma_mask;
 	dev->dev.parent = parent;
 	dev->dev.release = of_release_dev;
 

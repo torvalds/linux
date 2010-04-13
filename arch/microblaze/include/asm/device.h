@@ -18,6 +18,7 @@ struct dev_archdata {
 };
 
 struct pdev_archdata {
+	u64 dma_mask;
 };
 
 #endif /* _ASM_MICROBLAZE_DEVICE_H */
