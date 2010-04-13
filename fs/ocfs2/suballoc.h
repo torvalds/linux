@@ -26,13 +26,14 @@
 #ifndef _CHAINALLOC_H_
 #define _CHAINALLOC_H_
 
+struct ocfs2_suballoc_result;
 typedef int (group_search_t)(struct inode *,
 			     struct buffer_head *,
 			     u32,			/* bits_wanted */
 			     u32,			/* min_bits */
 			     u64,			/* max_block */
-			     u16 *,			/* *bit_off */
-			     u16 *);			/* *bits_found */
+			     struct ocfs2_suballoc_result *);
+							/* found bits */
 
 struct ocfs2_alloc_context {
 	struct inode *ac_inode;    /* which bitmap are we allocating from? */
