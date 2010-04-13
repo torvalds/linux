@@ -1581,13 +1581,16 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 
 	struct mac_device_info *device;
 
-	if (priv->is_gmac) {
+	if (priv->is_gmac)
 		device = dwmac1000_setup(ioaddr);
-		device->desc = &enh_desc_ops;
-	} else {
+	else
 		device = dwmac100_setup(ioaddr);
+
+	if (priv->enh_desc) {
+		device->desc = &enh_desc_ops;
+		pr_info("\tEnhanced descriptor structure\n");
+	} else
 		device->desc = &ndesc_ops;
-	}
 
 	if (!device)
 		return -ENOMEM;
@@ -1729,6 +1732,7 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 	priv->bus_id = plat_dat->bus_id;
 	priv->pbl = plat_dat->pbl;	/* TLI */
 	priv->is_gmac = plat_dat->has_gmac;	/* GMAC is on board */
+	priv->enh_desc = plat_dat->enh_desc;
 
 	platform_set_drvdata(pdev, ndev);
 

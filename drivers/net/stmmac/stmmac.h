@@ -93,6 +93,7 @@ struct stmmac_priv {
 #ifdef STMMAC_VLAN_TAG_USED
 	struct vlan_group *vlgrp;
 #endif
+	int enh_desc;
 };
 
 #ifdef CONFIG_STM_DRIVERS
