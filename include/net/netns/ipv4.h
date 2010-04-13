@@ -59,18 +59,7 @@ struct netns_ipv4 {
 	atomic_t rt_genid;
 
 #ifdef CONFIG_IP_MROUTE
-	struct sock		*mroute_sk;
-	struct timer_list	ipmr_expire_timer;
-	struct list_head	mfc_unres_queue;
-	struct list_head	*mfc_cache_array;
-	struct vif_device	*vif_table;
-	int			maxvif;
-	atomic_t		cache_resolve_queue_len;
-	int			mroute_do_assert;
-	int			mroute_do_pim;
-#if defined(CONFIG_IP_PIMSM_V1) || defined(CONFIG_IP_PIMSM_V2)
-	int			mroute_reg_vif_num;
-#endif
+	struct mr_table		*mrt;
 #endif
 };
 #endif
