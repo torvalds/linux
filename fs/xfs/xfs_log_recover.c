@@ -66,6 +66,9 @@ STATIC void	xlog_recover_check_summary(xlog_t *);
 	((bbs + (log)->l_sectbb_mask + 1) & ~(log)->l_sectbb_mask) : (bbs) )
 #define XLOG_SECTOR_ROUNDDOWN_BLKNO(log, bno)	((bno) & ~(log)->l_sectbb_mask)
 
+/* Number of basic blocks in a log sector */
+#define xlog_sectbb(log) (1 << (log)->l_sectbb_log)
+
 STATIC xfs_buf_t *
 xlog_get_bp(
 	xlog_t		*log,
@@ -376,12 +379,16 @@ xlog_find_verify_cycle(
 	xfs_caddr_t	buf = NULL;
 	int		error = 0;
 
+	/*
+	 * Greedily allocate a buffer big enough to handle the full
+	 * range of basic blocks we'll be examining.  If that fails,
+	 * try a smaller size.  We need to be able to read at least
+	 * a log sector, or we're out of luck.
+	 */
 	bufblks = 1 << ffs(nbblks);
-
 	while (!(bp = xlog_get_bp(log, bufblks))) {
-		/* can't get enough memory to do everything in one big buffer */
 		bufblks >>= 1;
-		if (bufblks <= log->l_sectbb_log)
+		if (bufblks < xlog_sectbb(log))
 			return ENOMEM;
 	}
 
@@ -1158,10 +1165,16 @@ xlog_write_log_records(
 	int		error = 0;
 	int		i, j = 0;
 
+	/*
+	 * Greedily allocate a buffer big enough to handle the full
+	 * range of basic blocks to be written.  If that fails, try
+	 * a smaller size.  We need to be able to write at least a
+	 * log sector, or we're out of luck.
+	 */
 	bufblks = 1 << ffs(blocks);
 	while (!(bp = xlog_get_bp(log, bufblks))) {
 		bufblks >>= 1;
-		if (bufblks <= log->l_sectbb_log)
+		if (bufblks < xlog_sectbb(log))
 			return ENOMEM;
 	}
 
