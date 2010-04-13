@@ -12,8 +12,8 @@
  */
 struct of_device
 {
-	u64			dma_mask;	/* DMA mask */
 	struct device		dev;		/* Generic device interface */
+	struct pdev_archdata	archdata;
 };
 
 extern struct of_device *of_device_alloc(struct device_node *np,

@@ -74,7 +74,7 @@ struct of_device* of_platform_device_create(struct device_node *np,
 	if (!dev)
 		return NULL;
 
-	dev->dma_mask = 0xffffffffUL;
+	dev->archdata.dma_mask = 0xffffffffUL;
 	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	dev->dev.bus = &of_platform_bus_type;
