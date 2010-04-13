@@ -277,7 +277,7 @@ xfs_qm_rele_quotafs_ref(
 		if (dqp->dq_flags & XFS_DQ_INACTIVE) {
 			ASSERT(dqp->q_mount == NULL);
 			ASSERT(! XFS_DQ_IS_DIRTY(dqp));
-			ASSERT(dqp->HL_PREVP == NULL);
+			ASSERT(list_empty(&dqp->q_hashlist));
 			ASSERT(list_empty(&dqp->q_mplist));
 			XQM_FREELIST_REMOVE(dqp);
 			xfs_dqunlock(dqp);
@@ -1176,7 +1176,7 @@ xfs_qm_list_init(
 	int		n)
 {
 	mutex_init(&list->qh_lock);
-	list->qh_next = NULL;
+	INIT_LIST_HEAD(&list->qh_list);
 	list->qh_version = 0;
 	list->qh_nelems = 0;
 }
@@ -1976,7 +1976,7 @@ startagain:
 		if (dqp->dq_flags & XFS_DQ_INACTIVE) {
 			ASSERT(mp == NULL);
 			ASSERT(! XFS_DQ_IS_DIRTY(dqp));
-			ASSERT(dqp->HL_PREVP == NULL);
+			ASSERT(list_empty(&dqp->q_hashlist));
 			ASSERT(list_empty(&dqp->q_mplist));
 			XQM_FREELIST_REMOVE(dqp);
 			xfs_dqunlock(dqp);
@@ -2053,7 +2053,8 @@ startagain:
 		list_del_init(&dqp->q_mplist);
 		mp->m_quotainfo->qi_dquots--;
 		mp->m_quotainfo->qi_dqreclaims++;
-		XQM_HASHLIST_REMOVE(dqp->q_hash, dqp);
+		list_del_init(&dqp->q_hashlist);
+		dqp->q_hash->qh_version++;
 		XQM_FREELIST_REMOVE(dqp);
 		dqpout = dqp;
 		mutex_unlock(&mp->m_quotainfo->qi_dqlist_lock);

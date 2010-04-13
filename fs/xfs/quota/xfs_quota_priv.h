@@ -72,46 +72,13 @@
 	!dqp->q_core.d_rtbcount && \
 	!dqp->q_core.d_icount)
 
-#define HL_PREVP	dq_hashlist.ql_prevp
-#define HL_NEXT		dq_hashlist.ql_next
-
-
-#define _LIST_REMOVE(h, dqp, PVP, NXT)				\
-	{							\
-		 xfs_dquot_t *d;				\
-		 if (((d) = (dqp)->NXT))				\
-			 (d)->PVP = (dqp)->PVP;			\
-		 *((dqp)->PVP) = d;				\
-		 (dqp)->NXT = NULL;				\
-		 (dqp)->PVP = NULL;				\
-		 (h)->qh_version++;				\
-		 (h)->qh_nelems--;				\
-	}
-
-#define _LIST_INSERT(h, dqp, PVP, NXT)				\
-	{							\
-		 xfs_dquot_t *d;				\
-		 if (((d) = (h)->qh_next))			\
-			 (d)->PVP = &((dqp)->NXT);		\
-		 (dqp)->NXT = d;				\
-		 (dqp)->PVP = &((h)->qh_next);			\
-		 (h)->qh_next = dqp;				\
-		 (h)->qh_version++;				\
-		 (h)->qh_nelems++;				\
-	 }
-
 #define FOREACH_DQUOT_IN_FREELIST(dqp, qlist)	\
 for ((dqp) = (qlist)->qh_next; (dqp) != (xfs_dquot_t *)(qlist); \
      (dqp) = (dqp)->dq_flnext)
 
-#define XQM_HASHLIST_INSERT(h, dqp)	\
-	 _LIST_INSERT(h, dqp, HL_PREVP, HL_NEXT)
-
 #define XQM_FREELIST_INSERT(h, dqp)	\
 	 xfs_qm_freelist_append(h, dqp)
 
-#define XQM_HASHLIST_REMOVE(h, dqp)	\
-	 _LIST_REMOVE(h, dqp, HL_PREVP, HL_NEXT)
 #define XQM_FREELIST_REMOVE(dqp)	\
 	 xfs_qm_freelist_unlink(dqp)
 

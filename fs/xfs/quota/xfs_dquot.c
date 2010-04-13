@@ -122,8 +122,7 @@ xfs_qm_dqinit(
 		 dqp->q_nrefs = 0;
 		 dqp->q_blkno = 0;
 		 INIT_LIST_HEAD(&dqp->q_mplist);
-		 dqp->HL_NEXT = NULL;
-		 dqp->HL_PREVP = NULL;
+		 INIT_LIST_HEAD(&dqp->q_hashlist);
 		 dqp->q_bufoffset = 0;
 		 dqp->q_fileoffset = 0;
 		 dqp->q_transp = NULL;
@@ -752,7 +751,6 @@ xfs_qm_dqlookup(
 {
 	xfs_dquot_t		*dqp;
 	uint			flist_locked;
-	xfs_dquot_t		*d;
 
 	ASSERT(mutex_is_locked(&qh->qh_lock));
 
@@ -761,7 +759,7 @@ xfs_qm_dqlookup(
 	/*
 	 * Traverse the hashchain looking for a match
 	 */
-	for (dqp = qh->qh_next; dqp != NULL; dqp = dqp->HL_NEXT) {
+	list_for_each_entry(dqp, &qh->qh_list, q_hashlist) {
 		/*
 		 * We already have the hashlock. We don't need the
 		 * dqlock to look at the id field of the dquot, since the
@@ -828,21 +826,10 @@ xfs_qm_dqlookup(
 			 * move the dquot to the front of the hashchain
 			 */
 			ASSERT(mutex_is_locked(&qh->qh_lock));
-			if (dqp->HL_PREVP != &qh->qh_next) {
-				trace_xfs_dqlookup_move(dqp);
-				if ((d = dqp->HL_NEXT))
-					d->HL_PREVP = dqp->HL_PREVP;
-				*(dqp->HL_PREVP) = d;
-				d = qh->qh_next;
-				d->HL_PREVP = &dqp->HL_NEXT;
-				dqp->HL_NEXT = d;
-				dqp->HL_PREVP = &qh->qh_next;
-				qh->qh_next = dqp;
-			}
+			list_move(&dqp->q_hashlist, &qh->qh_list);
 			trace_xfs_dqlookup_done(dqp);
 			*O_dqpp = dqp;
-			ASSERT(mutex_is_locked(&qh->qh_lock));
-			return (0);
+			return 0;
 		}
 	}
 
@@ -1034,7 +1021,8 @@ xfs_qm_dqget(
 	 */
 	ASSERT(mutex_is_locked(&h->qh_lock));
 	dqp->q_hash = h;
-	XQM_HASHLIST_INSERT(h, dqp);
+	list_add(&dqp->q_hashlist, &h->qh_list);
+	h->qh_version++;
 
 	/*
 	 * Attach this dquot to this filesystem's list of all dquots,
@@ -1387,7 +1375,7 @@ int
 xfs_qm_dqpurge(
 	xfs_dquot_t	*dqp)
 {
-	xfs_dqhash_t	*thishash;
+	xfs_dqhash_t	*qh = dqp->q_hash;
 	xfs_mount_t	*mp = dqp->q_mount;
 
 	ASSERT(mutex_is_locked(&mp->m_quotainfo->qi_dqlist_lock));
@@ -1453,8 +1441,8 @@ xfs_qm_dqpurge(
 	ASSERT(XFS_FORCED_SHUTDOWN(mp) ||
 	       !(dqp->q_logitem.qli_item.li_flags & XFS_LI_IN_AIL));
 
-	thishash = dqp->q_hash;
-	XQM_HASHLIST_REMOVE(thishash, dqp);
+	list_del_init(&dqp->q_hashlist);
+	qh->qh_version++;
 	list_del_init(&dqp->q_mplist);
 	mp->m_quotainfo->qi_dqreclaims++;
 	mp->m_quotainfo->qi_dquots--;
@@ -1470,7 +1458,7 @@ xfs_qm_dqpurge(
 	memset(&dqp->q_core, 0, sizeof(dqp->q_core));
 	xfs_dqfunlock(dqp);
 	xfs_dqunlock(dqp);
-	mutex_unlock(&thishash->qh_lock);
+	mutex_unlock(&qh->qh_lock);
 	return (0);
 }
 
