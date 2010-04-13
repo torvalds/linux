@@ -326,6 +326,7 @@ struct rcu_state {
 	unsigned long jiffies_stall;		/* Time at which to check */
 						/*  for CPU stalls. */
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+	char *name;				/* Name of structure. */
 };
 
 /* Return values for rcu_preempt_offline_tasks(). */
