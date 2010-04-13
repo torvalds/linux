@@ -266,11 +266,6 @@ static void intel_i810_cleanup(void)
 	iounmap(intel_private.registers);
 }
 
-static void intel_i810_tlbflush(struct agp_memory *mem)
-{
-	return;
-}
-
 static void intel_i810_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 {
 	return;
@@ -372,7 +367,6 @@ static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 		goto out_err;
 	}
 
-	agp_bridge->driver->tlb_flush(mem);
 out:
 	ret = 0;
 out_err:
@@ -393,7 +387,6 @@ static int intel_i810_remove_entries(struct agp_memory *mem, off_t pg_start,
 	}
 	readl(intel_private.registers+I810_PTE_BASE+((i-1)*4));
 
-	agp_bridge->driver->tlb_flush(mem);
 	return 0;
 }
 
@@ -938,7 +931,6 @@ static int intel_i830_insert_entries(struct agp_memory *mem, off_t pg_start,
 		       intel_private.registers+I810_PTE_BASE+(j*4));
 	}
 	readl(intel_private.registers+I810_PTE_BASE+((j-1)*4));
-	agp_bridge->driver->tlb_flush(mem);
 
 out:
 	ret = 0;
@@ -966,7 +958,6 @@ static int intel_i830_remove_entries(struct agp_memory *mem, off_t pg_start,
 	}
 	readl(intel_private.registers+I810_PTE_BASE+((i-1)*4));
 
-	agp_bridge->driver->tlb_flush(mem);
 	return 0;
 }
 
@@ -1166,7 +1157,6 @@ static int intel_i915_insert_entries(struct agp_memory *mem, off_t pg_start,
 		global_cache_flush();
 
 	intel_agp_insert_sg_entries(mem, pg_start, mask_type);
-	agp_bridge->driver->tlb_flush(mem);
 
  out:
 	ret = 0;
@@ -1194,7 +1184,6 @@ static int intel_i915_remove_entries(struct agp_memory *mem, off_t pg_start,
 
 	readl(intel_private.gtt+i-1);
 
-	agp_bridge->driver->tlb_flush(mem);
 	return 0;
 }
 
@@ -1386,7 +1375,6 @@ static const struct agp_bridge_driver intel_810_driver = {
 	.configure		= intel_i810_configure,
 	.fetch_size		= intel_i810_fetch_size,
 	.cleanup		= intel_i810_cleanup,
-	.tlb_flush		= intel_i810_tlbflush,
 	.mask_memory		= intel_i810_mask_memory,
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_i810_agp_enable,
@@ -1413,7 +1401,6 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.configure		= intel_i830_configure,
 	.fetch_size		= intel_i830_fetch_size,
 	.cleanup		= intel_i830_cleanup,
-	.tlb_flush		= intel_i810_tlbflush,
 	.mask_memory		= intel_i810_mask_memory,
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_i810_agp_enable,
@@ -1441,7 +1428,6 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.configure		= intel_i915_configure,
 	.fetch_size		= intel_i9xx_fetch_size,
 	.cleanup		= intel_i915_cleanup,
-	.tlb_flush		= intel_i810_tlbflush,
 	.mask_memory		= intel_i810_mask_memory,
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_i810_agp_enable,
@@ -1475,7 +1461,6 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.configure		= intel_i915_configure,
 	.fetch_size		= intel_i9xx_fetch_size,
 	.cleanup		= intel_i915_cleanup,
-	.tlb_flush		= intel_i810_tlbflush,
 	.mask_memory		= intel_i965_mask_memory,
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_i810_agp_enable,
@@ -1509,7 +1494,6 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.configure		= intel_i915_configure,
 	.fetch_size		= intel_i9xx_fetch_size,
 	.cleanup		= intel_i915_cleanup,
-	.tlb_flush		= intel_i810_tlbflush,
 	.mask_memory		= intel_i965_mask_memory,
 	.masks			= intel_i810_masks,
 	.agp_enable		= intel_i810_agp_enable,
