@@ -828,18 +828,6 @@ static u8 iwl_count_chain_bitmap(u32 chain_bitmap)
 }
 
 /**
- * iwl_is_monitor_mode - Determine if interface in monitor mode
- *
- * priv->iw_mode is set in add_interface, but add_interface is
- * never called for monitor mode. The only way mac80211 informs us about
- * monitor mode is through configuring filters (call to configure_filter).
- */
-static bool iwl_is_monitor_mode(struct iwl_priv *priv)
-{
-	return !!(priv->staging_rxon.filter_flags & RXON_FILTER_PROMISC_MSK);
-}
-
-/**
  * iwl_set_rxon_chain - Set up Rx chain usage in "staging" RXON image
  *
  * Selects how many and which Rx receivers/antennas/chains to use.
@@ -881,19 +869,6 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 
 	rx_chain |= active_rx_cnt << RXON_RX_CHAIN_MIMO_CNT_POS;
 	rx_chain |= idle_rx_cnt  << RXON_RX_CHAIN_CNT_POS;
-
-	/* copied from 'iwl_bg_request_scan()' */
-	/* Force use of chains B and C (0x6) for Rx
-	 * Avoid A (0x1) for the device has off-channel reception on A-band.
-	 * MIMO is not used here, but value is required */
-	if (iwl_is_monitor_mode(priv) &&
-	    !(priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) &&
-	    priv->cfg->off_channel_workaround) {
-		rx_chain = ANT_ABC << RXON_RX_CHAIN_VALID_POS;
-		rx_chain |= ANT_BC << RXON_RX_CHAIN_FORCE_SEL_POS;
-		rx_chain |= ANT_ABC << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
-		rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
-	}
 
 	priv->staging_rxon.rx_chain = cpu_to_le16(rx_chain);
 
