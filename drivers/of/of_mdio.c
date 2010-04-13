@@ -80,6 +80,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 		 * can be looked up later */
 		of_node_get(child);
 		dev_archdata_set_node(&phy->dev.archdata, child);
+		phy->dev.of_node = child;
 
 		/* All data is now stored in the phy struct; register it */
 		rc = phy_device_register(phy);

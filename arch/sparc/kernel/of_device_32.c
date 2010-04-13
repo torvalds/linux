@@ -348,6 +348,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 	sd->prom_node = dp;
 	sd->op = op;
 
+	op->dev.of_node = dp;
 	op->node = dp;
 
 	op->clock_freq = of_getintprop_default(dp, "clock-frequency",

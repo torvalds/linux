@@ -262,6 +262,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	sd->stc = &pbm->stc;
 	sd->host_controller = pbm;
 	sd->prom_node = node;
+	dev->dev.of_node = node;
 	sd->op = op = of_find_device_by_node(node);
 	sd->numa_node = pbm->numa_node;
 
