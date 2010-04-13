@@ -326,7 +326,7 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 
 	/* Setup to process RIO completion. */
 	handle_cnt = 0;
-	if (IS_QLA81XX(ha))
+	if (IS_QLA8XXX_TYPE(ha))
 		goto skip_rio;
 	switch (mb[0]) {
 	case MBA_SCSI_COMPLETION:
@@ -544,7 +544,7 @@ skip_rio:
 		if (IS_QLA2100(ha))
 			break;
 
-		if (IS_QLA81XX(ha))
+		if (IS_QLA8XXX_TYPE(ha))
 			DEBUG2(printk("scsi(%ld): DCBX Completed -- %04x %04x "
 			    "%04x\n", vha->host_no, mb[1], mb[2], mb[3]));
 		else
@@ -845,7 +845,7 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 		qla2x00_sp_compl(ha, sp);
 	} else {
 		DEBUG2(printk("scsi(%ld) Req:%d: Invalid ISP SCSI completion"
-			" handle(%d)\n", vha->host_no, req->id, index));
+			" handle(0x%x)\n", vha->host_no, req->id, index));
 		qla_printk(KERN_WARNING, ha,
 		    "Invalid ISP SCSI completion handle\n");
 
@@ -1337,6 +1337,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	handle = (uint32_t) LSW(sts->handle);
 	que = MSW(sts->handle);
 	req = ha->req_q_map[que];
+
 	/* Fast path completion. */
 	if (comp_status == CS_COMPLETE && scsi_status == 0) {
 		qla2x00_process_completed_request(vha, req, handle);
@@ -1806,6 +1807,7 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 	struct rsp_que *rsp)
 {
 	struct sts_entry_24xx *pkt;
+	struct qla_hw_data *ha = vha->hw;
 
 	if (!vha->flags.online)
 		return;
@@ -1866,7 +1868,11 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 	}
 
 	/* Adjust ring index */
-	WRT_REG_DWORD(rsp->rsp_q_out, rsp->ring_index);
+	if (IS_QLA82XX(ha)) {
+		struct device_reg_82xx __iomem *reg = &ha->iobase->isp82;
+		WRT_REG_DWORD(&reg->rsp_q_out[0], rsp->ring_index);
+	} else
+		WRT_REG_DWORD(rsp->rsp_q_out, rsp->ring_index);
 }
 
 static void
@@ -2169,6 +2175,11 @@ static struct qla_init_msix_entry msix_entries[3] = {
 	{ "qla2xxx (multiq)", qla25xx_msix_rsp_q },
 };
 
+static struct qla_init_msix_entry qla82xx_msix_entries[2] = {
+	{ "qla2xxx (default)", qla82xx_msix_default },
+	{ "qla2xxx (rsp_q)", qla82xx_msix_rsp_q },
+};
+
 static void
 qla24xx_disable_msix(struct qla_hw_data *ha)
 {
@@ -2195,7 +2206,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	struct qla_msix_entry *qentry;
 
 	entries = kzalloc(sizeof(struct msix_entry) * ha->msix_count,
-					GFP_KERNEL);
+			GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
 
@@ -2240,8 +2251,15 @@ msix_failed:
 	/* Enable MSI-X vectors for the base queue */
 	for (i = 0; i < 2; i++) {
 		qentry = &ha->msix_entries[i];
-		ret = request_irq(qentry->vector, msix_entries[i].handler,
-					0, msix_entries[i].name, rsp);
+		if (IS_QLA82XX(ha)) {
+			ret = request_irq(qentry->vector,
+				qla82xx_msix_entries[i].handler,
+				0, qla82xx_msix_entries[i].name, rsp);
+		} else {
+			ret = request_irq(qentry->vector,
+				msix_entries[i].handler,
+				0, msix_entries[i].name, rsp);
+		}
 		if (ret) {
 			qla_printk(KERN_WARNING, ha,
 			"MSI-X: Unable to register handler -- %x/%d.\n",
@@ -2272,7 +2290,7 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 
 	/* If possible, enable MSI-X. */
 	if (!IS_QLA2432(ha) && !IS_QLA2532(ha) &&
-		!IS_QLA8432(ha) && !IS_QLA8001(ha))
+		!IS_QLA8432(ha) && !IS_QLA8XXX_TYPE(ha))
 		goto skip_msi;
 
 	if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
@@ -2302,7 +2320,7 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 		goto clear_risc_ints;
 	}
 	qla_printk(KERN_WARNING, ha,
-	    "MSI-X: Falling back-to INTa mode -- %d.\n", ret);
+	    "MSI-X: Falling back-to MSI mode -- %d.\n", ret);
 skip_msix:
 
 	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha) &&
@@ -2313,7 +2331,9 @@ skip_msix:
 	if (!ret) {
 		DEBUG2(qla_printk(KERN_INFO, ha, "MSI: Enabled.\n"));
 		ha->flags.msi_enabled = 1;
-	}
+	} else
+		qla_printk(KERN_WARNING, ha,
+		    "MSI-X: Falling back-to INTa mode -- %d.\n", ret);
 skip_msi:
 
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
@@ -2331,7 +2351,7 @@ clear_risc_ints:
 	 * FIXME: Noted that 8014s were being dropped during NK testing.
 	 * Timing deltas during MSI-X/INTa transitions?
 	 */
-	if (IS_QLA81XX(ha))
+	if (IS_QLA81XX(ha) || IS_QLA82XX(ha))
 		goto fail;
 	spin_lock_irq(&ha->hardware_lock);
 	if (IS_FWI2_CAPABLE(ha)) {

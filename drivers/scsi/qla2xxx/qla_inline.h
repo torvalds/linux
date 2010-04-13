@@ -37,7 +37,10 @@ qla2x00_poll(struct rsp_que *rsp)
 	unsigned long flags;
 	struct qla_hw_data *ha = rsp->hw;
 	local_irq_save(flags);
-	ha->isp_ops->intr_handler(0, rsp);
+	if (IS_QLA82XX(ha))
+		qla82xx_poll(0, rsp);
+	else
+		ha->isp_ops->intr_handler(0, rsp);
 	local_irq_restore(flags);
 }
 

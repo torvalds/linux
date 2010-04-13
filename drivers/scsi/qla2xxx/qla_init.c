@@ -328,6 +328,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 		if (rval)
 			return (rval);
 	}
+
 	if (IS_QLA84XX(ha)) {
 		ha->cs84xx = qla84xx_get_chip(vha);
 		if (!ha->cs84xx) {
@@ -961,6 +962,9 @@ qla24xx_chip_diag(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 
+	if (IS_QLA82XX(ha))
+		return QLA_SUCCESS;
+
 	ha->fw_transfer_size = REQUEST_ENTRY_SIZE * req->length;
 
 	rval = qla2x00_mbx_reg_test(vha);
@@ -1183,6 +1187,12 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 	unsigned long flags;
 	uint16_t fw_major_version;
 
+	if (IS_QLA82XX(ha)) {
+		rval = ha->isp_ops->load_risc(vha, &srisc_address);
+		if (rval == QLA_SUCCESS)
+			goto enable_82xx_npiv;
+	}
+
 	if (!IS_FWI2_CAPABLE(ha) && !IS_QLA2100(ha) && !IS_QLA2200(ha)) {
 		/* Disable SRAM, Instruction RAM and GP RAM parity.  */
 		spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1208,6 +1218,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			rval = qla2x00_execute_fw(vha, srisc_address);
 			/* Retrieve firmware information. */
 			if (rval == QLA_SUCCESS) {
+enable_82xx_npiv:
 				fw_major_version = ha->fw_major_version;
 				rval = qla2x00_get_fw_version(vha,
 				    &ha->fw_major_version,
@@ -1232,8 +1243,10 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 				    &ha->fw_xcb_count, NULL, NULL,
 				    &ha->max_npiv_vports, NULL);
 
-				if (!fw_major_version && ql2xallocfwdump)
-					qla2x00_alloc_fw_dump(vha);
+				if (!fw_major_version && ql2xallocfwdump) {
+					if (!IS_QLA82XX(ha))
+						qla2x00_alloc_fw_dump(vha);
+				}
 			}
 		} else {
 			DEBUG2(printk(KERN_INFO
@@ -1389,6 +1402,9 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 {
 	int rval;
 	struct qla_hw_data *ha = vha->hw;
+
+	if (IS_QLA82XX(ha))
+		return;
 
 	/* Update Serial Link options. */
 	if ((le16_to_cpu(ha->fw_seriallink_options24[0]) & BIT_0) == 0)
@@ -1824,7 +1840,7 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 	return(rval);
 }
 
-static inline void
+inline void
 qla2x00_set_model_info(scsi_qla_host_t *vha, uint8_t *model, size_t len,
 	char *def)
 {
@@ -1832,7 +1848,7 @@ qla2x00_set_model_info(scsi_qla_host_t *vha, uint8_t *model, size_t len,
 	uint16_t index;
 	struct qla_hw_data *ha = vha->hw;
 	int use_tbl = !IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha) &&
-	    !IS_QLA81XX(ha);
+	    !IS_QLA8XXX_TYPE(ha);
 
 	if (memcmp(model, BINZERO, len) != 0) {
 		strncpy(ha->model_number, model, len);
@@ -3552,6 +3568,45 @@ qla2x00_update_fcports(scsi_qla_host_t *base_vha)
 				qla2x00_rport_del(fcport);
 }
 
+void
+qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	struct scsi_qla_host *vp, *base_vha = pci_get_drvdata(ha->pdev);
+	struct scsi_qla_host *tvp;
+
+	vha->flags.online = 0;
+	ha->flags.chip_reset_done = 0;
+	clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+	ha->qla_stats.total_isp_aborts++;
+
+	qla_printk(KERN_INFO, ha,
+	    "Performing ISP error recovery - ha= %p.\n", ha);
+
+	/* Chip reset does not apply to 82XX */
+	if (!IS_QLA82XX(ha))
+		ha->isp_ops->reset_chip(vha);
+
+	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
+	if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
+		atomic_set(&vha->loop_state, LOOP_DOWN);
+		qla2x00_mark_all_devices_lost(vha, 0);
+		list_for_each_entry_safe(vp, tvp, &base_vha->hw->vp_list, list)
+			qla2x00_mark_all_devices_lost(vp, 0);
+	} else {
+		if (!atomic_read(&vha->loop_down_timer))
+			atomic_set(&vha->loop_down_timer,
+			    LOOP_DOWN_TIME);
+	}
+
+	/* Make sure for ISP 82XX IO DMA is complete */
+	if (IS_QLA82XX(ha))
+		qla82xx_wait_for_pending_commands(vha);
+
+	/* Requeue all commands in outstanding command list. */
+	qla2x00_abort_all_cmds(vha, DID_RESET << 16);
+}
+
 /*
 *  qla2x00_abort_isp
 *      Resets ISP and aborts all outstanding commands.
@@ -3573,27 +3628,7 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 	struct req_que *req = ha->req_q_map[0];
 
 	if (vha->flags.online) {
-		vha->flags.online = 0;
-		ha->flags.chip_reset_done = 0;
-		clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-		ha->qla_stats.total_isp_aborts++;
-
-		qla_printk(KERN_INFO, ha,
-		    "Performing ISP error recovery - ha= %p.\n", ha);
-		ha->isp_ops->reset_chip(vha);
-
-		atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
-		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
-			atomic_set(&vha->loop_state, LOOP_DOWN);
-			qla2x00_mark_all_devices_lost(vha, 0);
-		} else {
-			if (!atomic_read(&vha->loop_down_timer))
-				atomic_set(&vha->loop_down_timer,
-				    LOOP_DOWN_TIME);
-		}
-
-		/* Requeue all commands in outstanding command list. */
-		qla2x00_abort_all_cmds(vha, DID_RESET << 16);
+		qla2x00_abort_isp_cleanup(vha);
 
 		if (unlikely(pci_channel_offline(ha->pdev) &&
 		    ha->flags.pci_channel_io_perm_failure)) {
@@ -3849,6 +3884,9 @@ qla24xx_reset_adapter(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
+	if (IS_QLA82XX(ha))
+		return;
+
 	vha->flags.online = 0;
 	ha->isp_ops->disable_intrs(ha);
 
@@ -3912,6 +3950,8 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	}
 	ha->nvram_size = sizeof(struct nvram_24xx);
 	ha->vpd_size = FA_NVRAM_VPD_SIZE;
+	if (IS_QLA82XX(ha))
+		ha->vpd_size = FA_VPD_SIZE_82XX;
 
 	/* Get VPD data into cache */
 	ha->vpd = ha->nvram + VPD_OFFSET;
@@ -4775,7 +4815,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	 * Setup driver NVRAM options.
 	 */
 	qla2x00_set_model_info(vha, nv->model_name, sizeof(nv->model_name),
-	    "QLE81XX");
+	    "QLE8XXX");
 
 	/* Use alternate WWN? */
 	if (nv->host_p & __constant_cpu_to_le32(BIT_15)) {
@@ -4896,6 +4936,147 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		    "scsi(%ld): NVRAM configuration failed!\n", vha->host_no));
 	}
 	return (rval);
+}
+
+int
+qla82xx_restart_isp(scsi_qla_host_t *vha)
+{
+	int status, rval;
+	uint32_t wait_time;
+	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req = ha->req_q_map[0];
+	struct rsp_que *rsp = ha->rsp_q_map[0];
+	struct scsi_qla_host *vp;
+	struct scsi_qla_host *tvp;
+
+	status = qla2x00_init_rings(vha);
+	if (!status) {
+		clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags);
+		ha->flags.chip_reset_done = 1;
+
+		status = qla2x00_fw_ready(vha);
+		if (!status) {
+			qla_printk(KERN_INFO, ha,
+			"%s(): Start configure loop, "
+			"status = %d\n", __func__, status);
+
+			/* Issue a marker after FW becomes ready. */
+			qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL);
+
+			vha->flags.online = 1;
+			/* Wait at most MAX_TARGET RSCNs for a stable link. */
+			wait_time = 256;
+			do {
+				clear_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+				qla2x00_configure_loop(vha);
+				wait_time--;
+			} while (!atomic_read(&vha->loop_down_timer) &&
+			    !(test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags)) &&
+			    wait_time &&
+			    (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags)));
+		}
+
+		/* if no cable then assume it's good */
+		if ((vha->device_flags & DFLG_NO_CABLE))
+			status = 0;
+
+		qla_printk(KERN_INFO, ha,
+			"%s(): Configure loop done, status = 0x%x\n",
+			__func__, status);
+	}
+
+	if (!status) {
+		clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags);
+
+		if (!atomic_read(&vha->loop_down_timer)) {
+			/*
+			 * Issue marker command only when we are going
+			 * to start the I/O .
+			 */
+			vha->marker_needed = 1;
+		}
+
+		vha->flags.online = 1;
+
+		ha->isp_ops->enable_intrs(ha);
+
+		ha->isp_abort_cnt = 0;
+		clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
+
+		if (ha->fce) {
+			ha->flags.fce_enabled = 1;
+			memset(ha->fce, 0,
+			    fce_calc_size(ha->fce_bufs));
+			rval = qla2x00_enable_fce_trace(vha,
+			    ha->fce_dma, ha->fce_bufs, ha->fce_mb,
+			    &ha->fce_bufs);
+			if (rval) {
+				qla_printk(KERN_WARNING, ha,
+				    "Unable to reinitialize FCE "
+				    "(%d).\n", rval);
+				ha->flags.fce_enabled = 0;
+			}
+		}
+
+		if (ha->eft) {
+			memset(ha->eft, 0, EFT_SIZE);
+			rval = qla2x00_enable_eft_trace(vha,
+			    ha->eft_dma, EFT_NUM_BUFFERS);
+			if (rval) {
+				qla_printk(KERN_WARNING, ha,
+				    "Unable to reinitialize EFT "
+				    "(%d).\n", rval);
+			}
+		}
+	} else {	/* failed the ISP abort */
+		vha->flags.online = 1;
+		if (test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
+			if (ha->isp_abort_cnt == 0) {
+				qla_printk(KERN_WARNING, ha,
+				    "ISP error recovery failed - "
+				    "board disabled\n");
+				/*
+				 * The next call disables the board
+				 * completely.
+				 */
+				ha->isp_ops->reset_adapter(vha);
+				vha->flags.online = 0;
+				clear_bit(ISP_ABORT_RETRY,
+					&vha->dpc_flags);
+				status = 0;
+			} else { /* schedule another ISP abort */
+				ha->isp_abort_cnt--;
+				qla_printk(KERN_INFO, ha,
+					"qla%ld: ISP abort - "
+					"retry remaining %d\n",
+					vha->host_no, ha->isp_abort_cnt);
+				status = 1;
+			}
+		} else {
+			ha->isp_abort_cnt = MAX_RETRIES_OF_ISP_ABORT;
+			qla_printk(KERN_INFO, ha,
+				"(%ld): ISP error recovery "
+				"- retrying (%d) more times\n",
+				vha->host_no, ha->isp_abort_cnt);
+			set_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
+			status = 1;
+		}
+	}
+
+	if (!status) {
+		DEBUG(printk(KERN_INFO
+			"qla82xx_restart_isp(%ld): succeeded.\n",
+			vha->host_no));
+		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
+			if (vp->vp_idx)
+				qla2x00_vp_abort_isp(vp);
+		}
+	} else {
+		qla_printk(KERN_INFO, ha,
+			"qla82xx_restart_isp: **** FAILED ****\n");
+	}
+
+	return status;
 }
 
 void

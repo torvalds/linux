@@ -41,6 +41,12 @@ qla2x00_sysfs_write_fw_dump(struct kobject *kobj,
 	struct qla_hw_data *ha = vha->hw;
 	int reading;
 
+	if (IS_QLA82XX(ha)) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+			"Firmware dump not supported for ISP82xx\n"));
+		return count;
+	}
+
 	if (off != 0)
 		return (0);
 
@@ -313,8 +319,8 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		else if (start == (ha->flt_region_boot * 4) ||
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if (IS_QLA25XX(ha) || IS_QLA81XX(ha))
-		    valid = 1;
+		else if (IS_QLA25XX(ha) || IS_QLA8XXX_TYPE(ha))
+			valid = 1;
 		if (!valid) {
 			qla_printk(KERN_WARNING, ha,
 			    "Invalid start region 0x%x/0x%x.\n", start, size);
@@ -517,6 +523,7 @@ qla2x00_sysfs_write_reset(struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 	int type;
 
 	if (off != 0)
@@ -550,6 +557,20 @@ qla2x00_sysfs_write_reset(struct kobject *kobj,
 			qla_printk(KERN_WARNING, ha,
 			    "MPI reset failed on (%ld).\n", vha->host_no);
 		scsi_unblock_requests(vha->host);
+		break;
+	case 0x2025e:
+		if (!IS_QLA82XX(ha) || vha != base_vha) {
+			qla_printk(KERN_INFO, ha,
+			    "FCoE ctx reset not supported for host%ld.\n",
+			    vha->host_no);
+			return count;
+		}
+
+		qla_printk(KERN_INFO, ha,
+		    "Issuing FCoE CTX reset on host%ld.\n", vha->host_no);
+		set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		qla2xxx_wake_dpc(vha);
+		qla2x00_wait_for_fcoe_ctx_reset(vha);
 		break;
 	}
 	return count;
@@ -836,7 +857,7 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(vha->hw))
 			continue;
-		if (iter->is4GBp_only == 3 && !IS_QLA81XX(vha->hw))
+		if (iter->is4GBp_only == 3 && !(IS_QLA8XXX_TYPE(vha->hw)))
 			continue;
 
 		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
@@ -860,7 +881,7 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha)
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(ha))
 			continue;
-		if (iter->is4GBp_only == 3 && !IS_QLA81XX(ha))
+		if (iter->is4GBp_only == 3 && !!(IS_QLA8XXX_TYPE(vha->hw)))
 			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
@@ -1233,7 +1254,7 @@ qla2x00_vlan_id_show(struct device *dev, struct device_attribute *attr,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (!IS_QLA81XX(vha->hw))
+	if (!IS_QLA8XXX_TYPE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", vha->fcoe_vlan_id);
@@ -1245,7 +1266,7 @@ qla2x00_vn_port_mac_address_show(struct device *dev,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (!IS_QLA81XX(vha->hw))
+	if (!IS_QLA8XXX_TYPE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -1922,7 +1943,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	fc_host_max_npiv_vports(vha->host) = ha->max_npiv_vports;
 	fc_host_npiv_vports_inuse(vha->host) = ha->cur_vport_count;
 
-	if (IS_QLA81XX(ha))
+	if (IS_QLA8XXX_TYPE(ha))
 		speed = FC_PORTSPEED_10GBIT;
 	else if (IS_QLA25XX(ha))
 		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |

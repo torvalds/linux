@@ -769,6 +769,9 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	void		*nxt;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
+	if (IS_QLA82XX(ha))
+		return;
+
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
 

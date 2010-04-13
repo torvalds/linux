@@ -506,7 +506,10 @@ qla2x00_req_pkt(struct scsi_qla_host *vha, struct req_que *req,
 				cnt = (uint16_t)
 					RD_REG_DWORD(&reg->isp25mq.req_q_out);
 			else {
-				if (IS_FWI2_CAPABLE(ha))
+				if (IS_QLA82XX(ha))
+					cnt = (uint16_t)RD_REG_DWORD(
+					    &reg->isp82.req_q_out);
+				else if (IS_FWI2_CAPABLE(ha))
 					cnt = (uint16_t)RD_REG_DWORD(
 						&reg->isp24.req_q_out);
 				else
@@ -579,11 +582,29 @@ qla2x00_isp_cmd(struct scsi_qla_host *vha, struct req_que *req)
 		req->ring_ptr++;
 
 	/* Set chip new ring index. */
-	if (ha->mqenable) {
+	if (IS_QLA82XX(ha)) {
+		uint32_t dbval = 0x04 | (ha->portnum << 5);
+
+		/* write, read and verify logic */
+		dbval = dbval | (req->id << 8) | (req->ring_index << 16);
+		if (ql2xdbwr)
+			qla82xx_wr_32(ha, ha->nxdb_wr_ptr, dbval);
+		else {
+			WRT_REG_DWORD(
+				(unsigned long __iomem *)ha->nxdb_wr_ptr,
+				dbval);
+			wmb();
+			while (RD_REG_DWORD(ha->nxdb_rd_ptr) != dbval) {
+				WRT_REG_DWORD((unsigned long __iomem *)
+					ha->nxdb_wr_ptr, dbval);
+				wmb();
+			}
+		}
+	} else if (ha->mqenable) {
+		/* Set chip new ring index. */
 		WRT_REG_DWORD(&reg->isp25mq.req_q_in, req->ring_index);
 		RD_REG_DWORD(&ioreg->hccr);
-	}
-	else {
+	} else {
 		if (IS_FWI2_CAPABLE(ha)) {
 			WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
 			RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
@@ -604,7 +625,7 @@ qla2x00_isp_cmd(struct scsi_qla_host *vha, struct req_que *req)
  *
  * Returns the number of IOCB entries needed to store @dsds.
  */
-static inline uint16_t
+inline uint16_t
 qla24xx_calc_iocbs(uint16_t dsds)
 {
 	uint16_t iocbs;
@@ -626,7 +647,7 @@ qla24xx_calc_iocbs(uint16_t dsds)
  * @cmd_pkt: Command type 3 IOCB
  * @tot_dsds: Total number of segments to transfer
  */
-static inline void
+inline void
 qla24xx_build_scsi_iocbs(srb_t *sp, struct cmd_type_7 *cmd_pkt,
     uint16_t tot_dsds)
 {
@@ -931,24 +952,31 @@ qla2x00_start_iocbs(srb_t *sp)
 	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
 	struct device_reg_2xxx __iomem *ioreg = &ha->iobase->isp;
 
-	/* Adjust ring index. */
-	req->ring_index++;
-	if (req->ring_index == req->length) {
-		req->ring_index = 0;
-		req->ring_ptr = req->ring;
-	} else
-		req->ring_ptr++;
-
-	/* Set chip new ring index. */
-	if (ha->mqenable) {
-		WRT_REG_DWORD(&reg->isp25mq.req_q_in, req->ring_index);
-		RD_REG_DWORD(&ioreg->hccr);
-	} else if (IS_FWI2_CAPABLE(ha)) {
-		WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
-		RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
+	if (IS_QLA82XX(ha)) {
+		qla82xx_start_iocbs(sp);
 	} else {
-		WRT_REG_WORD(ISP_REQ_Q_IN(ha, &reg->isp), req->ring_index);
-		RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, &reg->isp));
+		/* Adjust ring index. */
+		req->ring_index++;
+		if (req->ring_index == req->length) {
+			req->ring_index = 0;
+			req->ring_ptr = req->ring;
+		} else
+			req->ring_ptr++;
+
+		/* Set chip new ring index. */
+		if (ha->mqenable) {
+			WRT_REG_DWORD(&reg->isp25mq.req_q_in, req->ring_index);
+			RD_REG_DWORD(&ioreg->hccr);
+		} else if (IS_QLA82XX(ha)) {
+			qla82xx_start_iocbs(sp);
+		} else if (IS_FWI2_CAPABLE(ha)) {
+			WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
+			RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
+		} else {
+			WRT_REG_WORD(ISP_REQ_Q_IN(ha, &reg->isp),
+				req->ring_index);
+			RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, &reg->isp));
+		}
 	}
 }
 
