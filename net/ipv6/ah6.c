@@ -26,6 +26,7 @@
 
 #include <crypto/hash.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <net/ah.h>
 #include <linux/crypto.h>

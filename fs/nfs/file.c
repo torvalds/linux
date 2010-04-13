@@ -24,9 +24,9 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/aio.h>
+#include <linux/gfp.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>

@@ -23,6 +23,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/leds.h>
 #include <linux/sysdev.h>
+#include <linux/slab.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>

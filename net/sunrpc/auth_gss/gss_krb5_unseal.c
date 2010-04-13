@@ -58,7 +58,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/crypto.h>

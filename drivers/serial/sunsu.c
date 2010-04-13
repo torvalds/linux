@@ -29,6 +29,7 @@
 #include <linux/serial.h>
 #include <linux/sysrq.h>
 #include <linux/console.h>
+#include <linux/slab.h>
 #ifdef CONFIG_SERIO
 #include <linux/serio.h>
 #endif

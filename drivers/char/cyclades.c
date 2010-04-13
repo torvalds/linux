@@ -79,6 +79,7 @@
 #include <linux/bitops.h>
 #include <linux/firmware.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 
 #include <linux/io.h>
 #include <linux/uaccess.h>

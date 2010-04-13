@@ -33,6 +33,7 @@
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/swap.h>
+#include <linux/slab.h>
 #include "drm_cache.h"
 #include "drm_mem_util.h"
 #include "ttm/ttm_module.h"

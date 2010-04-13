@@ -18,6 +18,7 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/xattr.h>
 #include <linux/security.h>
 #include "sysfs.h"

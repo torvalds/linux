@@ -24,6 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
+#include <linux/slab.h>
 
 #include <asm/head.h>
 #include <asm/ptrace.h>

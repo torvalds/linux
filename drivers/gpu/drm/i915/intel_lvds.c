@@ -30,6 +30,7 @@
 #include <acpi/button.h>
 #include <linux/dmi.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "drm_crtc.h"

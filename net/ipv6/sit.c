@@ -28,6 +28,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/icmp.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/init.h>
 #include <linux/netfilter_ipv4.h>

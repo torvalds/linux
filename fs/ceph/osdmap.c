@@ -1,4 +1,7 @@
 
+#include "ceph_debug.h"
+
+#include <linux/slab.h>
 #include <asm/div64.h>
 
 #include "super.h"
@@ -6,7 +9,6 @@
 #include "crush/hash.h"
 #include "crush/mapper.h"
 #include "decode.h"
-#include "ceph_debug.h"
 
 char *ceph_osdmap_state_str(char *str, int len, int state)
 {

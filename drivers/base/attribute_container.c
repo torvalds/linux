@@ -328,6 +328,7 @@ attribute_container_add_attrs(struct device *classdev)
 		return sysfs_create_group(&classdev->kobj, cont->grp);
 
 	for (i = 0; attrs[i]; i++) {
+		sysfs_attr_init(&attrs[i]->attr);
 		error = device_create_file(classdev, attrs[i]);
 		if (error)
 			return error;

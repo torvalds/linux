@@ -36,6 +36,7 @@
  */
 
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <media/ir-common.h>
 #include <media/v4l2-subdev.h>
 

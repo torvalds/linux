@@ -13,6 +13,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
 #include <asm/asm-offsets.h>

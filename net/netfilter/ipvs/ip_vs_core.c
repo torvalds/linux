@@ -33,6 +33,7 @@
 #include <linux/tcp.h>
 #include <linux/sctp.h>
 #include <linux/icmp.h>
+#include <linux/slab.h>
 
 #include <net/ip.h>
 #include <net/tcp.h>

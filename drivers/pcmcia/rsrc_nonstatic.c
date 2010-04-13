@@ -596,19 +596,17 @@ struct pcmcia_align_data {
 	struct resource_map	*map;
 };
 
-static resource_size_t
-pcmcia_common_align(void *align_data, const struct resource *res,
-			resource_size_t size, resource_size_t align)
+static resource_size_t pcmcia_common_align(struct pcmcia_align_data *align_data,
+					resource_size_t start)
 {
-	struct pcmcia_align_data *data = align_data;
-	resource_size_t start;
+	resource_size_t ret;
 	/*
 	 * Ensure that we have the correct start address
 	 */
-	start = (res->start & ~data->mask) + data->offset;
-	if (start < res->start)
-		start += data->mask + 1;
-	return start;
+	ret = (start & ~align_data->mask) + align_data->offset;
+	if (ret < start)
+		ret += align_data->mask + 1;
+	return ret;
 }
 
 static resource_size_t
@@ -619,29 +617,28 @@ pcmcia_align(void *align_data, const struct resource *res,
 	struct resource_map *m;
 	resource_size_t start;
 
-	start = pcmcia_common_align(data, res, size, align);
+	start = pcmcia_common_align(data, res->start);
 
 	for (m = data->map->next; m != data->map; m = m->next) {
-		unsigned long start = m->base;
-		unsigned long end = m->base + m->num - 1;
+		unsigned long map_start = m->base;
+		unsigned long map_end = m->base + m->num - 1;
 
 		/*
 		 * If the lower resources are not available, try aligning
 		 * to this entry of the resource database to see if it'll
 		 * fit here.
 		 */
-		if (res->start < start) {
-			start = pcmcia_common_align(data, res, size, align);
-		}
+		if (start < map_start)
+			start = pcmcia_common_align(data, map_start);
 
 		/*
 		 * If we're above the area which was passed in, there's
 		 * no point proceeding.
 		 */
-		if (res->start >= res->end)
+		if (start >= res->end)
 			break;
 
-		if ((res->start + size - 1) <= end)
+		if ((start + size - 1) <= map_end)
 			break;
 	}
 

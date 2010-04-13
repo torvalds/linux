@@ -44,6 +44,7 @@
 #include <linux/efi.h>
 #include <linux/mmzone.h>
 #include <linux/nodemask.h>
+#include <linux/slab.h>
 #include <acpi/processor.h>
 #include <asm/io.h>
 #include <asm/iosapic.h>

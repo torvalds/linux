@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <asm/atomic.h>
 #include "crc32defs.h"

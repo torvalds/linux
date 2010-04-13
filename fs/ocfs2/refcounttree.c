@@ -37,7 +37,6 @@
 
 #include <linux/bio.h>
 #include <linux/blkdev.h>
-#include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/writeback.h>
 #include <linux/pagevec.h>

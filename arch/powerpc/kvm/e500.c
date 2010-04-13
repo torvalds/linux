@@ -13,6 +13,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 
 #include <asm/reg.h>

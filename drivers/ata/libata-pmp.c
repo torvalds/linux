@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/libata.h>
+#include <linux/slab.h>
 #include "libata.h"
 
 const struct ata_port_operations sata_pmp_port_ops = {
