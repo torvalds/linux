@@ -1338,15 +1338,21 @@ static inline u16 ocfs2_local_alloc_size(struct super_block *sb)
 }
 
 static inline int ocfs2_group_bitmap_size(struct super_block *sb,
-					  int suballocator)
+					  int suballocator,
+					  u32 feature_incompat)
 {
-	int size;
+	int size = sb->s_blocksize -
+		offsetof(struct ocfs2_group_desc, bg_bitmap);
 
-	if (suballocator)
+	/*
+	 * The cluster allocator uses the entire block.  Suballocators have
+	 * never used more than OCFS2_MAX_BG_BITMAP_SIZE.  Unfortunately, older
+	 * code expects bg_size set to the maximum.  Thus we must keep
+	 * bg_size as-is unless discontig_bg is enabled.
+	 */
+	if (suballocator &&
+	    (feature_incompat & OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG))
 		size = OCFS2_MAX_BG_BITMAP_SIZE;
-	else
-		size = sb->s_blocksize -
-			offsetof(struct ocfs2_group_desc, bg_bitmap);
 
 	return size;
 }
@@ -1479,15 +1485,22 @@ static inline int ocfs2_local_alloc_size(int blocksize)
 	return size;
 }
 
-static inline int ocfs2_group_bitmap_size(int blocksize, int suballocator)
+static inline int ocfs2_group_bitmap_size(int blocksize,
+					  int suballocator,
+					  uint32_t feature_incompat)
 {
-	int size;
+	int size = sb->s_blocksize -
+		offsetof(struct ocfs2_group_desc, bg_bitmap);
 
-	if (suballocator)
+	/*
+	 * The cluster allocator uses the entire block.  Suballocators have
+	 * never used more than OCFS2_MAX_BG_BITMAP_SIZE.  Unfortunately, older
+	 * code expects bg_size set to the maximum.  Thus we must keep
+	 * bg_size as-is unless discontig_bg is enabled.
+	 */
+	if (suballocator &&
+	    (feature_incompat & OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG))
 		size = OCFS2_MAX_BG_BITMAP_SIZE;
-	else
-		size = blocksize -
-			offsetof(struct ocfs2_group_desc, bg_bitmap);
 
 	return size;
 }
