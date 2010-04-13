@@ -80,8 +80,6 @@ static DEFINE_RWLOCK(mrt_lock);
 
 #define VIF_EXISTS(_net, _idx) ((_net)->ipv4.vif_table[_idx].dev != NULL)
 
-static struct mfc_cache *mfc_unres_queue;		/* Queue of unresolved entries */
-
 /* Special spinlock for queue of unresolved entries */
 static DEFINE_SPINLOCK(mfc_unres_lock);
 
@@ -99,8 +97,6 @@ static int ip_mr_forward(struct sk_buff *skb, struct mfc_cache *cache, int local
 static int ipmr_cache_report(struct net *net,
 			     struct sk_buff *pkt, vifi_t vifi, int assert);
 static int ipmr_fill_mroute(struct sk_buff *skb, struct mfc_cache *c, struct rtmsg *rtm);
-
-static struct timer_list ipmr_expire_timer;
 
 /* Service routines creating virtual interfaces: DVMRP tunnels and PIMREG */
 
@@ -364,25 +360,26 @@ static void ipmr_destroy_unres(struct mfc_cache *c)
 }
 
 
-/* Single timer process for all the unresolved queue. */
+/* Timer process for the unresolved queue. */
 
-static void ipmr_expire_process(unsigned long dummy)
+static void ipmr_expire_process(unsigned long arg)
 {
+	struct net *net = (struct net *)arg;
 	unsigned long now;
 	unsigned long expires;
 	struct mfc_cache *c, **cp;
 
 	if (!spin_trylock(&mfc_unres_lock)) {
-		mod_timer(&ipmr_expire_timer, jiffies+HZ/10);
+		mod_timer(&net->ipv4.ipmr_expire_timer, jiffies+HZ/10);
 		return;
 	}
 
-	if (mfc_unres_queue == NULL)
+	if (net->ipv4.mfc_unres_queue == NULL)
 		goto out;
 
 	now = jiffies;
 	expires = 10*HZ;
-	cp = &mfc_unres_queue;
+	cp = &net->ipv4.mfc_unres_queue;
 
 	while ((c=*cp) != NULL) {
 		if (time_after(c->mfc_un.unres.expires, now)) {
@@ -398,8 +395,8 @@ static void ipmr_expire_process(unsigned long dummy)
 		ipmr_destroy_unres(c);
 	}
 
-	if (mfc_unres_queue != NULL)
-		mod_timer(&ipmr_expire_timer, jiffies + expires);
+	if (net->ipv4.mfc_unres_queue != NULL)
+		mod_timer(&net->ipv4.ipmr_expire_timer, jiffies + expires);
 
 out:
 	spin_unlock(&mfc_unres_lock);
@@ -708,9 +705,8 @@ ipmr_cache_unresolved(struct net *net, vifi_t vifi, struct sk_buff *skb)
 	const struct iphdr *iph = ip_hdr(skb);
 
 	spin_lock_bh(&mfc_unres_lock);
-	for (c=mfc_unres_queue; c; c=c->next) {
-		if (net_eq(mfc_net(c), net) &&
-		    c->mfc_mcastgrp == iph->daddr &&
+	for (c=net->ipv4.mfc_unres_queue; c; c=c->next) {
+		if (c->mfc_mcastgrp == iph->daddr &&
 		    c->mfc_origin == iph->saddr)
 			break;
 	}
@@ -751,10 +747,10 @@ ipmr_cache_unresolved(struct net *net, vifi_t vifi, struct sk_buff *skb)
 		}
 
 		atomic_inc(&net->ipv4.cache_resolve_queue_len);
-		c->next = mfc_unres_queue;
-		mfc_unres_queue = c;
+		c->next = net->ipv4.mfc_unres_queue;
+		net->ipv4.mfc_unres_queue = c;
 
-		mod_timer(&ipmr_expire_timer, c->mfc_un.unres.expires);
+		mod_timer(&net->ipv4.ipmr_expire_timer, c->mfc_un.unres.expires);
 	}
 
 	/*
@@ -849,18 +845,17 @@ static int ipmr_mfc_add(struct net *net, struct mfcctl *mfc, int mrtsock)
 	 *	need to send on the frames and tidy up.
 	 */
 	spin_lock_bh(&mfc_unres_lock);
-	for (cp = &mfc_unres_queue; (uc=*cp) != NULL;
+	for (cp = &net->ipv4.mfc_unres_queue; (uc=*cp) != NULL;
 	     cp = &uc->next) {
-		if (net_eq(mfc_net(uc), net) &&
-		    uc->mfc_origin == c->mfc_origin &&
+		if (uc->mfc_origin == c->mfc_origin &&
 		    uc->mfc_mcastgrp == c->mfc_mcastgrp) {
 			*cp = uc->next;
 			atomic_dec(&net->ipv4.cache_resolve_queue_len);
 			break;
 		}
 	}
-	if (mfc_unres_queue == NULL)
-		del_timer(&ipmr_expire_timer);
+	if (net->ipv4.mfc_unres_queue == NULL)
+		del_timer(&net->ipv4.ipmr_expire_timer);
 	spin_unlock_bh(&mfc_unres_lock);
 
 	if (uc) {
@@ -912,14 +907,9 @@ static void mroute_clean_tables(struct net *net)
 		struct mfc_cache *c, **cp;
 
 		spin_lock_bh(&mfc_unres_lock);
-		cp = &mfc_unres_queue;
+		cp = &net->ipv4.mfc_unres_queue;
 		while ((c = *cp) != NULL) {
-			if (!net_eq(mfc_net(c), net)) {
-				cp = &c->next;
-				continue;
-			}
 			*cp = c->next;
-
 			ipmr_destroy_unres(c);
 		}
 		spin_unlock_bh(&mfc_unres_lock);
@@ -1819,11 +1809,10 @@ static struct mfc_cache *ipmr_mfc_seq_idx(struct net *net,
 				return mfc;
 	read_unlock(&mrt_lock);
 
-	it->cache = &mfc_unres_queue;
+	it->cache = &net->ipv4.mfc_unres_queue;
 	spin_lock_bh(&mfc_unres_lock);
-	for (mfc = mfc_unres_queue; mfc; mfc = mfc->next)
-		if (net_eq(mfc_net(mfc), net) &&
-		    pos-- == 0)
+	for (mfc = net->ipv4.mfc_unres_queue; mfc; mfc = mfc->next)
+		if (pos-- == 0)
 			return mfc;
 	spin_unlock_bh(&mfc_unres_lock);
 
@@ -1857,7 +1846,7 @@ static void *ipmr_mfc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (mfc->next)
 		return mfc->next;
 
-	if (it->cache == &mfc_unres_queue)
+	if (it->cache == &net->ipv4.mfc_unres_queue)
 		goto end_of_list;
 
 	BUG_ON(it->cache != net->ipv4.mfc_cache_array);
@@ -1870,13 +1859,11 @@ static void *ipmr_mfc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	/* exhausted cache_array, show unresolved */
 	read_unlock(&mrt_lock);
-	it->cache = &mfc_unres_queue;
+	it->cache = &net->ipv4.mfc_unres_queue;
 	it->ct = 0;
 
 	spin_lock_bh(&mfc_unres_lock);
-	mfc = mfc_unres_queue;
-	while (mfc && !net_eq(mfc_net(mfc), net))
-		mfc = mfc->next;
+	mfc = net->ipv4.mfc_unres_queue;
 	if (mfc)
 		return mfc;
 
@@ -1892,7 +1879,7 @@ static void ipmr_mfc_seq_stop(struct seq_file *seq, void *v)
 	struct ipmr_mfc_iter *it = seq->private;
 	struct net *net = seq_file_net(seq);
 
-	if (it->cache == &mfc_unres_queue)
+	if (it->cache == &net->ipv4.mfc_unres_queue)
 		spin_unlock_bh(&mfc_unres_lock);
 	else if (it->cache == net->ipv4.mfc_cache_array)
 		read_unlock(&mrt_lock);
@@ -1915,7 +1902,7 @@ static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
 			   (unsigned long) mfc->mfc_origin,
 			   mfc->mfc_parent);
 
-		if (it->cache != &mfc_unres_queue) {
+		if (it->cache != &net->ipv4.mfc_unres_queue) {
 			seq_printf(seq, " %8lu %8lu %8lu",
 				   mfc->mfc_un.res.pkt,
 				   mfc->mfc_un.res.bytes,
@@ -1992,6 +1979,9 @@ static int __net_init ipmr_net_init(struct net *net)
 		goto fail_mfc_cache;
 	}
 
+	setup_timer(&net->ipv4.ipmr_expire_timer, ipmr_expire_process,
+		    (unsigned long)net);
+
 #ifdef CONFIG_IP_PIMSM
 	net->ipv4.mroute_reg_vif_num = -1;
 #endif
@@ -2047,7 +2037,6 @@ int __init ip_mr_init(void)
 	if (err)
 		goto reg_pernet_fail;
 
-	setup_timer(&ipmr_expire_timer, ipmr_expire_process, 0);
 	err = register_netdevice_notifier(&ip_mr_notifier);
 	if (err)
 		goto reg_notif_fail;
@@ -2065,7 +2054,6 @@ add_proto_fail:
 	unregister_netdevice_notifier(&ip_mr_notifier);
 #endif
 reg_notif_fail:
-	del_timer(&ipmr_expire_timer);
 	unregister_pernet_subsys(&ipmr_net_ops);
 reg_pernet_fail:
 	kmem_cache_destroy(mrt_cachep);
