@@ -341,10 +341,10 @@ static void snd_emu10k1_proc_acode_read(struct snd_info_entry *entry,
 #define TOTAL_SIZE_CODE		(0x200*8)
 #define A_TOTAL_SIZE_CODE	(0x400*8)
 
-static long snd_emu10k1_fx8010_read(struct snd_info_entry *entry,
-				    void *file_private_data,
-				    struct file *file, char __user *buf,
-				    unsigned long count, unsigned long pos)
+static ssize_t snd_emu10k1_fx8010_read(struct snd_info_entry *entry,
+				       void *file_private_data,
+				       struct file *file, char __user *buf,
+				       size_t count, loff_t pos)
 {
 	long size;
 	struct snd_emu10k1 *emu = entry->private_data;

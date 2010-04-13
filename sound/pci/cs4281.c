@@ -1139,10 +1139,10 @@ static void snd_cs4281_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "Spurious end IRQs    : %u\n", chip->spurious_dtc_irq);
 }
 
-static long snd_cs4281_BA0_read(struct snd_info_entry *entry,
-				void *file_private_data,
-				struct file *file, char __user *buf,
-				unsigned long count, unsigned long pos)
+static ssize_t snd_cs4281_BA0_read(struct snd_info_entry *entry,
+				   void *file_private_data,
+				   struct file *file, char __user *buf,
+				   size_t count, loff_t pos)
 {
 	long size;
 	struct cs4281 *chip = entry->private_data;
@@ -1157,10 +1157,10 @@ static long snd_cs4281_BA0_read(struct snd_info_entry *entry,
 	return size;
 }
 
-static long snd_cs4281_BA1_read(struct snd_info_entry *entry,
-				void *file_private_data,
-				struct file *file, char __user *buf,
-				unsigned long count, unsigned long pos)
+static ssize_t snd_cs4281_BA1_read(struct snd_info_entry *entry,
+				   void *file_private_data,
+				   struct file *file, char __user *buf,
+				   size_t count, loff_t pos)
 {
 	long size;
 	struct cs4281 *chip = entry->private_data;

@@ -49,9 +49,10 @@ static int snd_opl4_mem_proc_release(struct snd_info_entry *entry,
 	return 0;
 }
 
-static long snd_opl4_mem_proc_read(struct snd_info_entry *entry, void *file_private_data,
-				   struct file *file, char __user *_buf,
-				   unsigned long count, unsigned long pos)
+static ssize_t snd_opl4_mem_proc_read(struct snd_info_entry *entry,
+				      void *file_private_data,
+				      struct file *file, char __user *_buf,
+				      size_t count, loff_t pos)
 {
 	struct snd_opl4 *opl4 = entry->private_data;
 	long size;
@@ -75,9 +76,11 @@ static long snd_opl4_mem_proc_read(struct snd_info_entry *entry, void *file_priv
 	return 0;
 }
 
-static long snd_opl4_mem_proc_write(struct snd_info_entry *entry, void *file_private_data,
-				    struct file *file, const char __user *_buf,
-				    unsigned long count, unsigned long pos)
+static ssize_t snd_opl4_mem_proc_write(struct snd_info_entry *entry,
+				       void *file_private_data,
+				       struct file *file,
+				       const char __user *_buf,
+				       size_t count, size_t pos)
 {
 	struct snd_opl4 *opl4 = entry->private_data;
 	long size;
@@ -101,8 +104,10 @@ static long snd_opl4_mem_proc_write(struct snd_info_entry *entry, void *file_pri
 	return 0;
 }
 
-static long long snd_opl4_mem_proc_llseek(struct snd_info_entry *entry, void *file_private_data,
-					  struct file *file, long long offset, int orig)
+static loff_t snd_opl4_mem_proc_llseek(struct snd_info_entry *entry,
+				       void *file_private_data,
+				       struct file *file,
+				       loff_t offset, int orig)
 {
 	switch (orig) {
 	case SEEK_SET:
