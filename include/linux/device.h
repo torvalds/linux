@@ -129,6 +129,10 @@ struct device_driver {
 
 	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
 
+#if defined(CONFIG_OF)
+	const struct of_device_id	*of_match_table;
+#endif
+
 	int (*probe) (struct device *dev);
 	int (*remove) (struct device *dev);
 	void (*shutdown) (struct device *dev);

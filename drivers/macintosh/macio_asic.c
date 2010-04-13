@@ -40,8 +40,7 @@ static struct macio_chip      *macio_on_hold;
 static int macio_bus_match(struct device *dev, struct device_driver *drv) 
 {
 	struct macio_dev * macio_dev = to_macio_device(dev);
-	struct macio_driver * macio_drv = to_macio_driver(drv);
-	const struct of_device_id * matches = macio_drv->match_table;
+	const struct of_device_id * matches = drv->of_match_table;
 
 	if (!matches) 
 		return 0;
@@ -84,7 +83,7 @@ static int macio_device_probe(struct device *dev)
 
 	macio_dev_get(macio_dev);
 
-	match = of_match_device(drv->match_table, &macio_dev->ofdev);
+	match = of_match_device(drv->driver.of_match_table, &macio_dev->ofdev);
 	if (match)
 		error = drv->probe(macio_dev, match);
 	if (error)
