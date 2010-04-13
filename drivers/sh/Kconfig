@@ -1,0 +1,13 @@
+config INTC_USERIMASK
+	bool "Userspace interrupt masking support"
+	depends on ARCH_SHMOBILE || (SUPERH && CPU_SH4A)
+	help
+	  This enables support for hardware-assisted userspace hardirq
+	  masking.
+
+	  SH-4A and newer interrupt blocks all support a special shadowed
+	  page with all non-masking registers obscured when mapped in to
+	  userspace. This is primarily for use by userspace device
+	  drivers that are using special priority levels.
+
+	  If in doubt, say N.

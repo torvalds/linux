@@ -27,6 +27,7 @@
 #include <linux/topology.h>
 #include <linux/bitmap.h>
 #include <linux/cpumask.h>
+#include <asm/sizes.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -94,7 +95,8 @@ static DEFINE_SPINLOCK(vector_lock);
 #define SMP_NR(d, x) 1
 #endif
 
-static unsigned int intc_prio_level[NR_IRQS]; /* for now */
+static unsigned int intc_prio_level[NR_IRQS];	/* for now */
+static unsigned int default_prio_level = 2;	/* 2 - 16 */
 static unsigned long ack_handle[NR_IRQS];
 
 static inline struct intc_desc_int *get_intc_desc(unsigned int irq)
@@ -787,7 +789,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	/* set priority level
 	 * - this needs to be at least 2 for 5-bit priorities on 7780
 	 */
-	intc_prio_level[irq] = 2;
+	intc_prio_level[irq] = default_prio_level;
 
 	/* enable secondary masking method if present */
 	if (data[!primary])
@@ -1037,6 +1039,64 @@ err0:
 	return -ENOMEM;
 }
 
+#ifdef CONFIG_INTC_USERIMASK
+static void __iomem *uimask;
+
+int register_intc_userimask(unsigned long addr)
+{
+	if (unlikely(uimask))
+		return -EBUSY;
+
+	uimask = ioremap_nocache(addr, SZ_4K);
+	if (unlikely(!uimask))
+		return -ENOMEM;
+
+	pr_info("intc: userimask support registered for levels 0 -> %d\n",
+		default_prio_level - 1);
+
+	return 0;
+}
+
+static ssize_t
+show_intc_userimask(struct sysdev_class *cls,
+		    struct sysdev_class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", (__raw_readl(uimask) >> 4) & 0xf);
+}
+
+static ssize_t
+store_intc_userimask(struct sysdev_class *cls,
+		     struct sysdev_class_attribute *attr,
+		     const char *buf, size_t count)
+{
+	unsigned long level;
+
+	level = simple_strtoul(buf, NULL, 10);
+
+	/*
+	 * Minimal acceptable IRQ levels are in the 2 - 16 range, but
+	 * these are chomped so as to not interfere with normal IRQs.
+	 *
+	 * Level 1 is a special case on some CPUs in that it's not
+	 * directly settable, but given that USERIMASK cuts off below a
+	 * certain level, we don't care about this limitation here.
+	 * Level 0 on the other hand equates to user masking disabled.
+	 *
+	 * We use default_prio_level as a cut off so that only special
+	 * case opt-in IRQs can be mangled.
+	 */
+	if (level >= default_prio_level)
+		return -EINVAL;
+
+	__raw_writel(0xa5 << 24 | level << 4, uimask);
+
+	return count;
+}
+
+static SYSDEV_CLASS_ATTR(userimask, S_IRUSR | S_IWUSR,
+			 show_intc_userimask, store_intc_userimask);
+#endif
+
 static ssize_t
 show_intc_name(struct sys_device *dev, struct sysdev_attribute *attr, char *buf)
 {
@@ -1108,6 +1168,11 @@ static int __init register_intc_sysdevs(void)
 	int id = 0;
 
 	error = sysdev_class_register(&intc_sysdev_class);
+#ifdef CONFIG_INTC_USERIMASK
+	if (!error && uimask)
+		error = sysdev_class_create_file(&intc_sysdev_class,
+						 &attr_userimask);
+#endif
 	if (!error) {
 		list_for_each_entry(d, &intc_list, list) {
 			d->sysdev.id = id;

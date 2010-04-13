@@ -732,6 +732,8 @@ config GUSA_RB
 	  LLSC, this should be more efficient than the other alternative of
 	  disabling interrupts around the atomic sequence.
 
+source "drivers/sh/Kconfig"
+
 endmenu
 
 menu "Boot options"

@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/sh_timer.h>
+#include <linux/sh_intc.h>
 #include <cpu/dma-register.h>
 #include <asm/mmzone.h>
 #include <asm/dmaengine.h>
@@ -907,6 +908,7 @@ static DECLARE_INTC_DESC(intc_desc_irl4567, "sh7786-irl4567", vectors_irl4567,
 #define INTC_INTMSK2	INTMSK2
 #define INTC_INTMSKCLR1	CnINTMSKCLR1
 #define INTC_INTMSKCLR2	INTMSKCLR2
+#define INTC_USERIMASK	0xfe411000
 
 void __init plat_irq_setup(void)
 {
@@ -921,6 +923,7 @@ void __init plat_irq_setup(void)
 	__raw_writel(__raw_readl(INTC_ICR0) & ~0x00c00000, INTC_ICR0);
 
 	register_intc_controller(&intc_desc);
+	register_intc_userimask(INTC_USERIMASK);
 }
 
 void __init plat_irq_setup_pins(int mode)

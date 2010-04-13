@@ -99,6 +99,15 @@ struct intc_desc symbol __initdata = {					\
 int __init register_intc_controller(struct intc_desc *desc);
 int intc_set_priority(unsigned int irq, unsigned int prio);
 
+#ifdef CONFIG_INTC_USERIMASK
+int register_intc_userimask(unsigned long addr);
+#else
+static inline int register_intc_userimask(unsigned long addr)
+{
+	return 0;
+}
+#endif
+
 int reserve_irq_vector(unsigned int irq);
 void reserve_irq_legacy(void);
 
