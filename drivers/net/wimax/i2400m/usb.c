@@ -467,6 +467,13 @@ int i2400mu_probe(struct usb_interface *iface,
 	usb_set_intfdata(iface, i2400mu);
 
 	i2400m->bus_tx_block_size = I2400MU_BLK_SIZE;
+	/*
+	 * Room required in the Tx queue for USB message to accommodate
+	 * a smallest payload while allocating header space is 16 bytes.
+	 * Adding this room  for the new tx message increases the
+	 * possibilities of including any payload with size <= 16 bytes.
+	 */
+	i2400m->bus_tx_room_min = I2400MU_BLK_SIZE;
 	i2400m->bus_pl_size_max = I2400MU_PL_SIZE_MAX;
 	i2400m->bus_setup = NULL;
 	i2400m->bus_dev_start = i2400mu_bus_dev_start;
