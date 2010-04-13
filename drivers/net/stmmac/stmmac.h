@@ -20,7 +20,7 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#define DRV_MODULE_VERSION	"Jan_2010"
+#define DRV_MODULE_VERSION	"Apr_2010"
 #include <linux/stmmac.h>
 
 #include "common.h"
