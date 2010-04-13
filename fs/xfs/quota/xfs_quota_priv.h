@@ -40,13 +40,6 @@
 #define XFS_QI_IWARNLIMIT(mp)	((mp)->m_quotainfo->qi_iwarnlimit)
 #define XFS_QI_QOFFLOCK(mp)	((mp)->m_quotainfo->qi_quotaofflock)
 
-#define xfs_qm_freelist_lock(qm) \
-	mutex_lock(&((qm)->qm_dqfreelist.qh_lock))
-#define xfs_qm_freelist_lock_nowait(qm) \
-	mutex_trylock(&((qm)->qm_dqfreelist.qh_lock))
-#define xfs_qm_freelist_unlock(qm) \
-	mutex_unlock(&((qm)->qm_dqfreelist.qh_lock))
-
 /*
  * Hash into a bucket in the dquot hash table, based on <mp, id>.
  */
@@ -71,16 +64,6 @@
 	!dqp->q_core.d_bcount && \
 	!dqp->q_core.d_rtbcount && \
 	!dqp->q_core.d_icount)
-
-#define FOREACH_DQUOT_IN_FREELIST(dqp, qlist)	\
-for ((dqp) = (qlist)->qh_next; (dqp) != (xfs_dquot_t *)(qlist); \
-     (dqp) = (dqp)->dq_flnext)
-
-#define XQM_FREELIST_INSERT(h, dqp)	\
-	 xfs_qm_freelist_append(h, dqp)
-
-#define XQM_FREELIST_REMOVE(dqp)	\
-	 xfs_qm_freelist_unlink(dqp)
 
 #define XFS_DQ_IS_LOGITEM_INITD(dqp)	((dqp)->q_logitem.qli_dquot == (dqp))
 

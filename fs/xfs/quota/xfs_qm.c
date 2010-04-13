@@ -67,9 +67,6 @@ static cred_t	xfs_zerocr;
 STATIC void	xfs_qm_list_init(xfs_dqlist_t *, char *, int);
 STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);
 
-STATIC void	xfs_qm_freelist_init(xfs_frlist_t *);
-STATIC void	xfs_qm_freelist_destroy(xfs_frlist_t *);
-
 STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
 STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
 STATIC int	xfs_qm_shake(int, gfp_t);
@@ -148,7 +145,9 @@ xfs_Gqm_init(void)
 	/*
 	 * Freelist of all dquots of all file systems
 	 */
-	xfs_qm_freelist_init(&(xqm->qm_dqfreelist));
+	INIT_LIST_HEAD(&xqm->qm_dqfrlist);
+	xqm->qm_dqfrlist_cnt = 0;
+	mutex_init(&xqm->qm_dqfrlist_lock);
 
 	/*
 	 * dquot zone. we register our own low-memory callback.
@@ -193,6 +192,7 @@ STATIC void
 xfs_qm_destroy(
 	struct xfs_qm	*xqm)
 {
+	struct xfs_dquot *dqp, *n;
 	int		hsize, i;
 
 	ASSERT(xqm != NULL);
@@ -208,7 +208,21 @@ xfs_qm_destroy(
 	xqm->qm_usr_dqhtable = NULL;
 	xqm->qm_grp_dqhtable = NULL;
 	xqm->qm_dqhashmask = 0;
-	xfs_qm_freelist_destroy(&(xqm->qm_dqfreelist));
+
+	/* frlist cleanup */
+	mutex_lock(&xqm->qm_dqfrlist_lock);
+	list_for_each_entry_safe(dqp, n, &xqm->qm_dqfrlist, q_freelist) {
+		xfs_dqlock(dqp);
+#ifdef QUOTADEBUG
+		cmn_err(CE_DEBUG, "FREELIST destroy 0x%p", dqp);
+#endif
+		list_del_init(&dqp->q_freelist);
+		xfs_Gqm->qm_dqfrlist_cnt--;
+		xfs_dqunlock(dqp);
+		xfs_qm_dqdestroy(dqp);
+	}
+	mutex_unlock(&xqm->qm_dqfrlist_lock);
+	mutex_destroy(&xqm->qm_dqfrlist_lock);
 #ifdef DEBUG
 	mutex_destroy(&qcheck_lock);
 #endif
@@ -260,7 +274,7 @@ STATIC void
 xfs_qm_rele_quotafs_ref(
 	struct xfs_mount *mp)
 {
-	xfs_dquot_t	*dqp, *nextdqp;
+	xfs_dquot_t	*dqp, *n;
 
 	ASSERT(xfs_Gqm);
 	ASSERT(xfs_Gqm->qm_nrefs > 0);
@@ -268,26 +282,24 @@ xfs_qm_rele_quotafs_ref(
 	/*
 	 * Go thru the freelist and destroy all inactive dquots.
 	 */
-	xfs_qm_freelist_lock(xfs_Gqm);
+	mutex_lock(&xfs_Gqm->qm_dqfrlist_lock);
 
-	for (dqp = xfs_Gqm->qm_dqfreelist.qh_next;
-	     dqp != (xfs_dquot_t *)&(xfs_Gqm->qm_dqfreelist); ) {
+	list_for_each_entry_safe(dqp, n, &xfs_Gqm->qm_dqfrlist, q_freelist) {
 		xfs_dqlock(dqp);
-		nextdqp = dqp->dq_flnext;
 		if (dqp->dq_flags & XFS_DQ_INACTIVE) {
 			ASSERT(dqp->q_mount == NULL);
 			ASSERT(! XFS_DQ_IS_DIRTY(dqp));
 			ASSERT(list_empty(&dqp->q_hashlist));
 			ASSERT(list_empty(&dqp->q_mplist));
-			XQM_FREELIST_REMOVE(dqp);
+			list_del_init(&dqp->q_freelist);
+			xfs_Gqm->qm_dqfrlist_cnt--;
 			xfs_dqunlock(dqp);
 			xfs_qm_dqdestroy(dqp);
 		} else {
 			xfs_dqunlock(dqp);
 		}
-		dqp = nextdqp;
 	}
-	xfs_qm_freelist_unlock(xfs_Gqm);
+	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
 
 	/*
 	 * Destroy the entire XQM. If somebody mounts with quotaon, this'll
@@ -1943,9 +1955,9 @@ xfs_qm_dqreclaim_one(void)
 
 	/* lockorder: hashchainlock, freelistlock, mplistlock, dqlock, dqflock */
 startagain:
-	xfs_qm_freelist_lock(xfs_Gqm);
+	mutex_lock(&xfs_Gqm->qm_dqfrlist_lock);
 
-	FOREACH_DQUOT_IN_FREELIST(dqp, &(xfs_Gqm->qm_dqfreelist)) {
+	list_for_each_entry(dqp, &xfs_Gqm->qm_dqfrlist, q_freelist) {
 		struct xfs_mount *mp = dqp->q_mount;
 		xfs_dqlock(dqp);
 
@@ -1961,7 +1973,7 @@ startagain:
 			trace_xfs_dqreclaim_want(dqp);
 
 			xfs_dqunlock(dqp);
-			xfs_qm_freelist_unlock(xfs_Gqm);
+			mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
 			if (++restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
 				return NULL;
 			XQM_STATS_INC(xqmstats.xs_qm_dqwants);
@@ -1978,7 +1990,8 @@ startagain:
 			ASSERT(! XFS_DQ_IS_DIRTY(dqp));
 			ASSERT(list_empty(&dqp->q_hashlist));
 			ASSERT(list_empty(&dqp->q_mplist));
-			XQM_FREELIST_REMOVE(dqp);
+			list_del_init(&dqp->q_freelist);
+			xfs_Gqm->qm_dqfrlist_cnt--;
 			xfs_dqunlock(dqp);
 			dqpout = dqp;
 			XQM_STATS_INC(xqmstats.xs_qm_dqinact_reclaims);
@@ -2043,7 +2056,7 @@ startagain:
 			mutex_unlock(&dqp->q_hash->qh_lock);
 			xfs_dqfunlock(dqp);
 			xfs_dqunlock(dqp);
-			xfs_qm_freelist_unlock(xfs_Gqm);
+			mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
 			if (restarts++ >= XFS_QM_RECLAIM_MAX_RESTARTS)
 				return NULL;
 			goto startagain;
@@ -2055,7 +2068,8 @@ startagain:
 		mp->m_quotainfo->qi_dqreclaims++;
 		list_del_init(&dqp->q_hashlist);
 		dqp->q_hash->qh_version++;
-		XQM_FREELIST_REMOVE(dqp);
+		list_del_init(&dqp->q_freelist);
+		xfs_Gqm->qm_dqfrlist_cnt--;
 		dqpout = dqp;
 		mutex_unlock(&mp->m_quotainfo->qi_dqlist_lock);
 		mutex_unlock(&dqp->q_hash->qh_lock);
@@ -2067,7 +2081,7 @@ dqfunlock:
 		if (restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
 			return NULL;
 	}
-	xfs_qm_freelist_unlock(xfs_Gqm);
+	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
 	return dqpout;
 }
 
@@ -2110,7 +2124,7 @@ xfs_qm_shake(int nr_to_scan, gfp_t gfp_mask)
 	if (!xfs_Gqm)
 		return 0;
 
-	nfree = xfs_Gqm->qm_dqfreelist.qh_nelems; /* free dquots */
+	nfree = xfs_Gqm->qm_dqfrlist_cnt; /* free dquots */
 	/* incore dquots in all f/s's */
 	ndqused = atomic_read(&xfs_Gqm->qm_totaldquots) - nfree;
 
@@ -2550,66 +2564,3 @@ xfs_qm_vop_create_dqattach(
 	}
 }
 
-/* ------------- list stuff -----------------*/
-STATIC void
-xfs_qm_freelist_init(xfs_frlist_t *ql)
-{
-	ql->qh_next = ql->qh_prev = (xfs_dquot_t *) ql;
-	mutex_init(&ql->qh_lock);
-	ql->qh_version = 0;
-	ql->qh_nelems = 0;
-}
-
-STATIC void
-xfs_qm_freelist_destroy(xfs_frlist_t *ql)
-{
-	xfs_dquot_t	*dqp, *nextdqp;
-
-	mutex_lock(&ql->qh_lock);
-	for (dqp = ql->qh_next;
-	     dqp != (xfs_dquot_t *)ql; ) {
-		xfs_dqlock(dqp);
-		nextdqp = dqp->dq_flnext;
-#ifdef QUOTADEBUG
-		cmn_err(CE_DEBUG, "FREELIST destroy 0x%p", dqp);
-#endif
-		XQM_FREELIST_REMOVE(dqp);
-		xfs_dqunlock(dqp);
-		xfs_qm_dqdestroy(dqp);
-		dqp = nextdqp;
-	}
-	mutex_unlock(&ql->qh_lock);
-	mutex_destroy(&ql->qh_lock);
-
-	ASSERT(ql->qh_nelems == 0);
-}
-
-STATIC void
-xfs_qm_freelist_insert(xfs_frlist_t *ql, xfs_dquot_t *dq)
-{
-	dq->dq_flnext = ql->qh_next;
-	dq->dq_flprev = (xfs_dquot_t *)ql;
-	ql->qh_next = dq;
-	dq->dq_flnext->dq_flprev = dq;
-	xfs_Gqm->qm_dqfreelist.qh_nelems++;
-	xfs_Gqm->qm_dqfreelist.qh_version++;
-}
-
-void
-xfs_qm_freelist_unlink(xfs_dquot_t *dq)
-{
-	xfs_dquot_t *next = dq->dq_flnext;
-	xfs_dquot_t *prev = dq->dq_flprev;
-
-	next->dq_flprev = prev;
-	prev->dq_flnext = next;
-	dq->dq_flnext = dq->dq_flprev = dq;
-	xfs_Gqm->qm_dqfreelist.qh_nelems--;
-	xfs_Gqm->qm_dqfreelist.qh_version++;
-}
-
-void
-xfs_qm_freelist_append(xfs_frlist_t *ql, xfs_dquot_t *dq)
-{
-	xfs_qm_freelist_insert((xfs_frlist_t *)ql->qh_prev, dq);
-}
