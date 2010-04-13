@@ -562,6 +562,80 @@ unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_get_cr8);
 
+int kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
+{
+	switch (dr) {
+	case 0 ... 3:
+		vcpu->arch.db[dr] = val;
+		if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
+			vcpu->arch.eff_db[dr] = val;
+		break;
+	case 4:
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
+			kvm_queue_exception(vcpu, UD_VECTOR);
+			return 1;
+		}
+		/* fall through */
+	case 6:
+		if (val & 0xffffffff00000000ULL) {
+			kvm_inject_gp(vcpu, 0);
+			return 1;
+		}
+		vcpu->arch.dr6 = (val & DR6_VOLATILE) | DR6_FIXED_1;
+		break;
+	case 5:
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
+			kvm_queue_exception(vcpu, UD_VECTOR);
+			return 1;
+		}
+		/* fall through */
+	default: /* 7 */
+		if (val & 0xffffffff00000000ULL) {
+			kvm_inject_gp(vcpu, 0);
+			return 1;
+		}
+		vcpu->arch.dr7 = (val & DR7_VOLATILE) | DR7_FIXED_1;
+		if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)) {
+			kvm_x86_ops->set_dr7(vcpu, vcpu->arch.dr7);
+			vcpu->arch.switch_db_regs = (val & DR7_BP_EN_MASK);
+		}
+		break;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_set_dr);
+
+int kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
+{
+	switch (dr) {
+	case 0 ... 3:
+		*val = vcpu->arch.db[dr];
+		break;
+	case 4:
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
+			kvm_queue_exception(vcpu, UD_VECTOR);
+			return 1;
+		}
+		/* fall through */
+	case 6:
+		*val = vcpu->arch.dr6;
+		break;
+	case 5:
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
+			kvm_queue_exception(vcpu, UD_VECTOR);
+			return 1;
+		}
+		/* fall through */
+	default: /* 7 */
+		*val = vcpu->arch.dr7;
+		break;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_get_dr);
+
 static inline u32 bit(int bitno)
 {
 	return 1 << (bitno & 31);
@@ -3483,14 +3557,14 @@ int emulate_clts(struct kvm_vcpu *vcpu)
 
 int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long *dest)
 {
-	return kvm_x86_ops->get_dr(ctxt->vcpu, dr, dest);
+	return kvm_get_dr(ctxt->vcpu, dr, dest);
 }
 
 int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long value)
 {
 	unsigned long mask = (ctxt->mode == X86EMUL_MODE_PROT64) ? ~0ULL : ~0U;
 
-	return kvm_x86_ops->set_dr(ctxt->vcpu, dr, value & mask);
+	return kvm_set_dr(ctxt->vcpu, dr, value & mask);
 }
 
 void kvm_report_emulation_failure(struct kvm_vcpu *vcpu, const char *context)

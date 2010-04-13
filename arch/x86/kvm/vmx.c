@@ -3089,19 +3089,9 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int check_dr_alias(struct kvm_vcpu *vcpu)
-{
-	if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
-		kvm_queue_exception(vcpu, UD_VECTOR);
-		return -1;
-	}
-	return 0;
-}
-
 static int handle_dr(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification;
-	unsigned long val;
 	int dr, reg;
 
 	/* Do not handle if the CPL > 0, will trigger GP on re-entry */
@@ -3136,65 +3126,18 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 	dr = exit_qualification & DEBUG_REG_ACCESS_NUM;
 	reg = DEBUG_REG_ACCESS_REG(exit_qualification);
 	if (exit_qualification & TYPE_MOV_FROM_DR) {
-		switch (dr) {
-		case 0 ... 3:
-			val = vcpu->arch.db[dr];
-			break;
-		case 4:
-			if (check_dr_alias(vcpu) < 0)
-				return 1;
-			/* fall through */
-		case 6:
-			val = vcpu->arch.dr6;
-			break;
-		case 5:
-			if (check_dr_alias(vcpu) < 0)
-				return 1;
-			/* fall through */
-		default: /* 7 */
-			val = vcpu->arch.dr7;
-			break;
-		}
-		kvm_register_write(vcpu, reg, val);
-	} else {
-		val = vcpu->arch.regs[reg];
-		switch (dr) {
-		case 0 ... 3:
-			vcpu->arch.db[dr] = val;
-			if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
-				vcpu->arch.eff_db[dr] = val;
-			break;
-		case 4:
-			if (check_dr_alias(vcpu) < 0)
-				return 1;
-			/* fall through */
-		case 6:
-			if (val & 0xffffffff00000000ULL) {
-				kvm_inject_gp(vcpu, 0);
-				return 1;
-			}
-			vcpu->arch.dr6 = (val & DR6_VOLATILE) | DR6_FIXED_1;
-			break;
-		case 5:
-			if (check_dr_alias(vcpu) < 0)
-				return 1;
-			/* fall through */
-		default: /* 7 */
-			if (val & 0xffffffff00000000ULL) {
-				kvm_inject_gp(vcpu, 0);
-				return 1;
-			}
-			vcpu->arch.dr7 = (val & DR7_VOLATILE) | DR7_FIXED_1;
-			if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)) {
-				vmcs_writel(GUEST_DR7, vcpu->arch.dr7);
-				vcpu->arch.switch_db_regs =
-					(val & DR7_BP_EN_MASK);
-			}
-			break;
-		}
-	}
+		unsigned long val;
+		if (!kvm_get_dr(vcpu, dr, &val))
+			kvm_register_write(vcpu, reg, val);
+	} else
+		kvm_set_dr(vcpu, dr, vcpu->arch.regs[reg]);
 	skip_emulated_instruction(vcpu);
 	return 1;
+}
+
+static void vmx_set_dr7(struct kvm_vcpu *vcpu, unsigned long val)
+{
+	vmcs_writel(GUEST_DR7, val);
 }
 
 static int handle_cpuid(struct kvm_vcpu *vcpu)
@@ -4187,6 +4130,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_idt = vmx_set_idt,
 	.get_gdt = vmx_get_gdt,
 	.set_gdt = vmx_set_gdt,
+	.set_dr7 = vmx_set_dr7,
 	.cache_reg = vmx_cache_reg,
 	.get_rflags = vmx_get_rflags,
 	.set_rflags = vmx_set_rflags,

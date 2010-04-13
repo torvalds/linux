@@ -496,8 +496,7 @@ struct kvm_x86_ops {
 	void (*set_idt)(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
 	void (*get_gdt)(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
 	void (*set_gdt)(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
-	int (*get_dr)(struct kvm_vcpu *vcpu, int dr, unsigned long *dest);
-	int (*set_dr)(struct kvm_vcpu *vcpu, int dr, unsigned long value);
+	void (*set_dr7)(struct kvm_vcpu *vcpu, unsigned long value);
 	void (*cache_reg)(struct kvm_vcpu *vcpu, enum kvm_reg reg);
 	unsigned long (*get_rflags)(struct kvm_vcpu *vcpu);
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
@@ -602,6 +601,8 @@ void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
 void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8);
+int kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val);
+int kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val);
 unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu);
 void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw);
 void kvm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l);

@@ -1307,70 +1307,11 @@ static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *sd)
 	svm->vmcb->control.asid = sd->next_asid++;
 }
 
-static int svm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *dest)
+static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	switch (dr) {
-	case 0 ... 3:
-		*dest = vcpu->arch.db[dr];
-		break;
-	case 4:
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
-			return EMULATE_FAIL; /* will re-inject UD */
-		/* fall through */
-	case 6:
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
-			*dest = vcpu->arch.dr6;
-		else
-			*dest = svm->vmcb->save.dr6;
-		break;
-	case 5:
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
-			return EMULATE_FAIL; /* will re-inject UD */
-		/* fall through */
-	case 7:
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
-			*dest = vcpu->arch.dr7;
-		else
-			*dest = svm->vmcb->save.dr7;
-		break;
-	}
-
-	return EMULATE_DONE;
-}
-
-static int svm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long value)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	switch (dr) {
-	case 0 ... 3:
-		vcpu->arch.db[dr] = value;
-		if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
-			vcpu->arch.eff_db[dr] = value;
-		break;
-	case 4:
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
-			return EMULATE_FAIL; /* will re-inject UD */
-		/* fall through */
-	case 6:
-		vcpu->arch.dr6 = (value & DR6_VOLATILE) | DR6_FIXED_1;
-		break;
-	case 5:
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
-			return EMULATE_FAIL; /* will re-inject UD */
-		/* fall through */
-	case 7:
-		vcpu->arch.dr7 = (value & DR7_VOLATILE) | DR7_FIXED_1;
-		if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)) {
-			svm->vmcb->save.dr7 = vcpu->arch.dr7;
-			vcpu->arch.switch_db_regs = (value & DR7_BP_EN_MASK);
-		}
-		break;
-	}
-
-	return EMULATE_DONE;
+	svm->vmcb->save.dr7 = value;
 }
 
 static int pf_interception(struct vcpu_svm *svm)
@@ -3302,8 +3243,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.set_idt = svm_set_idt,
 	.get_gdt = svm_get_gdt,
 	.set_gdt = svm_set_gdt,
-	.get_dr = svm_get_dr,
-	.set_dr = svm_set_dr,
+	.set_dr7 = svm_set_dr7,
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
