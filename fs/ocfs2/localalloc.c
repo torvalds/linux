@@ -122,7 +122,7 @@ unsigned int ocfs2_la_default_mb(struct ocfs2_super *osb)
 	struct super_block *sb = osb->sb;
 
 	gd_mb = ocfs2_clusters_to_megabytes(osb->sb,
-					    8 * ocfs2_group_bitmap_size(sb));
+					    8 * ocfs2_group_bitmap_size(sb, 0));
 
 	/*
 	 * This takes care of files systems with very small group

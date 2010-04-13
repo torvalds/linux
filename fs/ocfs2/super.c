@@ -2277,7 +2277,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	osb->osb_clusters_at_boot = OCFS2_I(inode)->ip_clusters;
 	iput(inode);
 
-	osb->bitmap_cpg = ocfs2_group_bitmap_size(sb) * 8;
+	osb->bitmap_cpg = ocfs2_group_bitmap_size(sb, 0) * 8;
 
 	status = ocfs2_init_slot_info(osb);
 	if (status < 0) {

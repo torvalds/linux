@@ -165,6 +165,9 @@
 /* Refcount tree support */
 #define OCFS2_FEATURE_INCOMPAT_REFCOUNT_TREE	0x1000
 
+/* Discontigous block groups */
+#define OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG	0x2000
+
 /*
  * backup superblock flag is used to indicate that this volume
  * has backup superblocks.
@@ -832,6 +835,13 @@ struct ocfs2_dx_leaf {
 };
 
 /*
+ * Largest bitmap for a block (suballocator) group in bytes.  This limit
+ * does not affect cluster groups (global allocator).  Cluster group
+ * bitmaps run to the end of the block.
+ */
+#define OCFS2_MAX_BG_BITMAP_SIZE	256
+
+/*
  * On disk allocator group structure for OCFS2
  */
 struct ocfs2_group_desc
@@ -852,7 +862,29 @@ struct ocfs2_group_desc
 	__le64   bg_blkno;               /* Offset on disk, in blocks */
 /*30*/	struct ocfs2_block_check bg_check;	/* Error checking */
 	__le64   bg_reserved2;
-/*40*/	__u8    bg_bitmap[0];
+/*40*/	union {
+		__u8    bg_bitmap[0];
+		struct {
+			/*
+			 * Block groups may be discontiguous when
+			 * OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG is set.
+			 * The extents of a discontigous block group are
+			 * stored in bg_list.  It is a flat list.
+			 * l_tree_depth must always be zero.  A
+			 * discontiguous group is signified by a non-zero
+			 * bg_list->l_next_free_rec.  Only block groups
+			 * can be discontiguous; Cluster groups cannot.
+			 * We've never made a block group with more than
+			 * 2048 blocks (256 bytes of bg_bitmap).  This
+			 * codifies that limit so that we can fit bg_list.
+			 * bg_size of a discontiguous block group will
+			 * be 256 to match bg_bitmap_filler.
+			 */
+			__u8 bg_bitmap_filler[OCFS2_MAX_BG_BITMAP_SIZE];
+/*140*/			struct ocfs2_extent_list bg_list;
+		};
+	};
+/* Actual on-disk size is one block */
 };
 
 struct ocfs2_refcount_rec {
@@ -1276,12 +1308,16 @@ static inline u16 ocfs2_local_alloc_size(struct super_block *sb)
 	return size;
 }
 
-static inline int ocfs2_group_bitmap_size(struct super_block *sb)
+static inline int ocfs2_group_bitmap_size(struct super_block *sb,
+					  int suballocator)
 {
 	int size;
 
-	size = sb->s_blocksize -
-		offsetof(struct ocfs2_group_desc, bg_bitmap);
+	if (suballocator)
+		size = OCFS2_MAX_BG_BITMAP_SIZE;
+	else
+		size = sb->s_blocksize -
+			offsetof(struct ocfs2_group_desc, bg_bitmap);
 
 	return size;
 }
@@ -1404,12 +1440,15 @@ static inline int ocfs2_local_alloc_size(int blocksize)
 	return size;
 }
 
-static inline int ocfs2_group_bitmap_size(int blocksize)
+static inline int ocfs2_group_bitmap_size(int blocksize, int suballocator)
 {
 	int size;
 
-	size = blocksize -
-		offsetof(struct ocfs2_group_desc, bg_bitmap);
+	if (suballocator)
+		size = OCFS2_MAX_BG_BITMAP_SIZE;
+	else
+		size = blocksize -
+			offsetof(struct ocfs2_group_desc, bg_bitmap);
 
 	return size;
 }
