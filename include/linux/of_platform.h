@@ -11,6 +11,7 @@
  *
  */
 
+#ifdef CONFIG_OF_DEVICE
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
@@ -66,5 +67,6 @@ static inline void of_unregister_platform_driver(struct of_platform_driver *drv)
 extern struct of_device *of_find_device_by_node(struct device_node *np);
 
 extern int of_bus_type_init(struct bus_type *bus, const char *name);
+#endif /* CONFIG_OF_DEVICE */
 
 #endif	/* _LINUX_OF_PLATFORM_H */
