@@ -192,9 +192,6 @@ struct vif_device {
 
 struct mfc_cache {
 	struct mfc_cache *next;			/* Next entry on cache line 	*/
-#ifdef CONFIG_NET_NS
-	struct net *mfc_net;
-#endif
 	__be32 mfc_mcastgrp;			/* Group the entry belongs to 	*/
 	__be32 mfc_origin;			/* Source of packet 		*/
 	vifi_t mfc_parent;			/* Source interface		*/
@@ -216,18 +213,6 @@ struct mfc_cache {
 		} res;
 	} mfc_un;
 };
-
-static inline
-struct net *mfc_net(const struct mfc_cache *mfc)
-{
-	return read_pnet(&mfc->mfc_net);
-}
-
-static inline
-void mfc_net_set(struct mfc_cache *mfc, struct net *net)
-{
-	write_pnet(&mfc->mfc_net, hold_net(net));
-}
 
 #define MFC_STATIC		1
 #define MFC_NOTIFY		2
