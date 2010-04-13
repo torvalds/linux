@@ -743,12 +743,12 @@ unsigned __i2400m_roq_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 	unsigned new_nws, nsn_itr;
 
 	new_nws = __i2400m_roq_nsn(roq, sn);
-	if (unlikely(new_nws >= 1024) && d_test(1)) {
-		dev_err(dev, "SW BUG? __update_ws new_nws %u (sn %u ws %u)\n",
-			new_nws, sn, roq->ws);
-		WARN_ON(1);
-		i2400m_roq_log_dump(i2400m, roq);
-	}
+	/*
+	 * For type 2(update_window_start) rx messages, there is no
+	 * need to check if the normalized sequence number is greater 1023.
+	 * Simply insert and deliver all packets to the host up to the
+	 * window start.
+	 */
 	skb_queue_walk_safe(&roq->queue, skb_itr, tmp_itr) {
 		roq_data_itr = (struct i2400m_roq_data *) &skb_itr->cb;
 		nsn_itr = __i2400m_roq_nsn(roq, roq_data_itr->sn);
@@ -890,26 +890,27 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 		  i2400m, roq, skb, sn);
 	len = skb_queue_len(&roq->queue);
 	nsn = __i2400m_roq_nsn(roq, sn);
+	/*
+	 * For type 3(queue_update_window_start) rx messages, there is no
+	 * need to check if the normalized sequence number is greater 1023.
+	 * Simply insert and deliver all packets to the host up to the
+	 * window start.
+	 */
 	old_ws = roq->ws;
-	if (unlikely(nsn >= 1024)) {
-		dev_err(dev, "SW BUG? queue_update_ws nsn %u (sn %u ws %u)\n",
-			nsn, sn, roq->ws);
-		i2400m_roq_log_dump(i2400m, roq);
-		i2400m_reset(i2400m, I2400M_RT_WARM);
-	} else {
-		/* if the queue is empty, don't bother as we'd queue
-		 * it and inmediately unqueue it -- just deliver it */
-		if (len == 0) {
-			struct i2400m_roq_data *roq_data;
-			roq_data = (struct i2400m_roq_data *) &skb->cb;
-			i2400m_net_erx(i2400m, skb, roq_data->cs);
-		}
-		else
-			__i2400m_roq_queue(i2400m, roq, skb, sn, nsn);
-		__i2400m_roq_update_ws(i2400m, roq, sn + 1);
-		i2400m_roq_log_add(i2400m, roq, I2400M_RO_TYPE_PACKET_WS,
-				   old_ws, len, sn, nsn, roq->ws);
-	}
+	/* If the queue is empty, don't bother as we'd queue
+	 * it and immediately unqueue it -- just deliver it.
+	 */
+	if (len == 0) {
+		struct i2400m_roq_data *roq_data;
+		roq_data = (struct i2400m_roq_data *) &skb->cb;
+		i2400m_net_erx(i2400m, skb, roq_data->cs);
+	} else
+		__i2400m_roq_queue(i2400m, roq, skb, sn, nsn);
+
+	__i2400m_roq_update_ws(i2400m, roq, sn + 1);
+	i2400m_roq_log_add(i2400m, roq, I2400M_RO_TYPE_PACKET_WS,
+			   old_ws, len, sn, nsn, roq->ws);
+
 	d_fnend(2, dev, "(i2400m %p roq %p skb %p sn %u) = void\n",
 		i2400m, roq, skb, sn);
 	return;
