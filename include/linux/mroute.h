@@ -191,7 +191,7 @@ struct vif_device {
 #define VIFF_STATIC 0x8000
 
 struct mfc_cache {
-	struct mfc_cache *next;			/* Next entry on cache line 	*/
+	struct list_head list;
 	__be32 mfc_mcastgrp;			/* Group the entry belongs to 	*/
 	__be32 mfc_origin;			/* Source of packet 		*/
 	vifi_t mfc_parent;			/* Source interface		*/

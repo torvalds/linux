@@ -61,8 +61,8 @@ struct netns_ipv4 {
 #ifdef CONFIG_IP_MROUTE
 	struct sock		*mroute_sk;
 	struct timer_list	ipmr_expire_timer;
-	struct mfc_cache	*mfc_unres_queue;
-	struct mfc_cache	**mfc_cache_array;
+	struct list_head	mfc_unres_queue;
+	struct list_head	*mfc_cache_array;
 	struct vif_device	*vif_table;
 	int			maxvif;
 	atomic_t		cache_resolve_queue_len;
