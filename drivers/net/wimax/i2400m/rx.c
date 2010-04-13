@@ -917,6 +917,25 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 
 
 /*
+ * This routine destroys the memory allocated for rx_roq, when no
+ * other thread is accessing it. Access to rx_roq is refcounted by
+ * rx_roq_refcount, hence memory allocated must be destroyed when
+ * rx_roq_refcount becomes zero. This routine gets executed when
+ * rx_roq_refcount becomes zero.
+ */
+void i2400m_rx_roq_destroy(struct kref *ref)
+{
+	unsigned itr;
+	struct i2400m *i2400m
+			= container_of(ref, struct i2400m, rx_roq_refcount);
+	for (itr = 0; itr < I2400M_RO_CIN + 1; itr++)
+		__skb_queue_purge(&i2400m->rx_roq[itr].queue);
+	kfree(i2400m->rx_roq[0].log);
+	kfree(i2400m->rx_roq);
+	i2400m->rx_roq = NULL;
+}
+
+/*
  * Receive and send up an extended data packet
  *
  * @i2400m: device descriptor
@@ -969,6 +988,7 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 	unsigned ro_needed, ro_type, ro_cin, ro_sn;
 	struct i2400m_roq *roq;
 	struct i2400m_roq_data *roq_data;
+	unsigned long flags;
 
 	BUILD_BUG_ON(ETH_HLEN > sizeof(*hdr));
 
@@ -1007,7 +1027,16 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		ro_cin = (reorder >> I2400M_RO_CIN_SHIFT) & I2400M_RO_CIN;
 		ro_sn = (reorder >> I2400M_RO_SN_SHIFT) & I2400M_RO_SN;
 
+		spin_lock_irqsave(&i2400m->rx_lock, flags);
 		roq = &i2400m->rx_roq[ro_cin];
+		if (roq == NULL) {
+			kfree_skb(skb);	/* rx_roq is already destroyed */
+			spin_unlock_irqrestore(&i2400m->rx_lock, flags);
+			goto error;
+		}
+		kref_get(&i2400m->rx_roq_refcount);
+		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
+
 		roq_data = (struct i2400m_roq_data *) &skb->cb;
 		roq_data->sn = ro_sn;
 		roq_data->cs = cs;
@@ -1034,6 +1063,10 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		default:
 			dev_err(dev, "HW BUG? unknown reorder type %u\n", ro_type);
 		}
+
+		spin_lock_irqsave(&i2400m->rx_lock, flags);
+		kref_put(&i2400m->rx_roq_refcount, i2400m_rx_roq_destroy);
+		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	}
 	else
 		i2400m_net_erx(i2400m, skb, cs);
@@ -1344,6 +1377,7 @@ int i2400m_rx_setup(struct i2400m *i2400m)
 			__i2400m_roq_init(&i2400m->rx_roq[itr]);
 			i2400m->rx_roq[itr].log = &rd[itr];
 		}
+		kref_init(&i2400m->rx_roq_refcount);
 	}
 	return 0;
 
@@ -1357,12 +1391,12 @@ error_roq_alloc:
 /* Tear down the RX queue and infrastructure */
 void i2400m_rx_release(struct i2400m *i2400m)
 {
+	unsigned long flags;
+
 	if (i2400m->rx_reorder) {
-		unsigned itr;
-		for(itr = 0; itr < I2400M_RO_CIN + 1; itr++)
-			__skb_queue_purge(&i2400m->rx_roq[itr].queue);
-		kfree(i2400m->rx_roq[0].log);
-		kfree(i2400m->rx_roq);
+		spin_lock_irqsave(&i2400m->rx_lock, flags);
+		kref_put(&i2400m->rx_roq_refcount, i2400m_rx_roq_destroy);
+		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	}
 	/* at this point, nothing can be received... */
 	i2400m_report_hook_flush(i2400m);

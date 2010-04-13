@@ -412,7 +412,7 @@ struct i2400m_barker_db;
  *
  * @tx_size_max: biggest TX message sent.
  *
- * @rx_lock: spinlock to protect RX members
+ * @rx_lock: spinlock to protect RX members and rx_roq_refcount.
  *
  * @rx_pl_num: total number of payloads received
  *
@@ -435,6 +435,10 @@ struct i2400m_barker_db;
  *     packets until the ones that are received out of order can be
  *     delivered. Then the driver can release them to the host. See
  *     drivers/net/i2400m/rx.c for details.
+ *
+ * @rx_roq_refcount: refcount rx_roq. This refcounts any access to
+ *     rx_roq thus preventing rx_roq being destroyed when rx_roq
+ *     is being accessed. rx_roq_refcount is protected by rx_lock.
  *
  * @rx_reports: reports received from the device that couldn't be
  *     processed because the driver wasn't still ready; when ready,
@@ -597,10 +601,12 @@ struct i2400m {
 		tx_num, tx_size_acc, tx_size_min, tx_size_max;
 
 	/* RX stuff */
-	spinlock_t rx_lock;		/* protect RX state */
+	/* protect RX state and rx_roq_refcount */
+	spinlock_t rx_lock;
 	unsigned rx_pl_num, rx_pl_max, rx_pl_min,
 		rx_num, rx_size_acc, rx_size_min, rx_size_max;
-	struct i2400m_roq *rx_roq;	/* not under rx_lock! */
+	struct i2400m_roq *rx_roq;	/* access is refcounted */
+	struct kref rx_roq_refcount;	/* refcount access to rx_roq */
 	u8 src_mac_addr[ETH_HLEN];
 	struct list_head rx_reports;	/* under rx_lock! */
 	struct work_struct rx_report_ws;
