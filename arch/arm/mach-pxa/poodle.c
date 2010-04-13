@@ -276,6 +276,7 @@ static void poodle_mci_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data poodle_mci_platform_data = {
+	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init 			= poodle_mci_init,
 	.setpower 		= poodle_mci_setpower,
@@ -449,7 +450,6 @@ static void __init poodle_init(void)
 	set_pxa_fb_parent(&poodle_locomo_device.dev);
 	set_pxa_fb_info(&poodle_fb_info);
 	pxa_set_udc_info(&udc_info);
-	poodle_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

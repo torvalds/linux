@@ -121,7 +121,7 @@ static struct pxamci_platform_data palmtc_mci_platform_data = {
 	.gpio_power		= GPIO_NR_PALMTC_SD_POWER,
 	.gpio_card_ro		= GPIO_NR_PALMTC_SD_READONLY,
 	.gpio_card_detect	= GPIO_NR_PALMTC_SD_DETECT_N,
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 };
 
 /******************************************************************************

@@ -444,6 +444,7 @@ static struct platform_device corgiled_device = {
  * to give the card a chance to fully insert/eject.
  */
 static struct pxamci_platform_data corgi_mci_platform_data = {
+	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.gpio_card_detect	= -1,
 	.gpio_card_ro		= CORGI_GPIO_nSD_WP,
@@ -695,7 +696,6 @@ static void __init corgi_init(void)
 	corgi_init_spi();
 
  	pxa_set_udc_info(&udc_info);
-	corgi_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

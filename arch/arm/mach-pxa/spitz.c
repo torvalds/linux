@@ -539,6 +539,7 @@ static void spitz_mci_setpower(struct device *dev, unsigned int vdd)
 }
 
 static struct pxamci_platform_data spitz_mci_platform_data = {
+	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.setpower 		= spitz_mci_setpower,
 	.gpio_card_detect	= SPITZ_GPIO_nSD_DETECT,
@@ -759,7 +760,6 @@ static void __init common_init(void)
 	spitz_init_spi();
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-	spitz_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&spitz_mci_platform_data);
 	pxa_set_ohci_info(&spitz_ohci_platform_data);
 	pxa_set_ficp_info(&spitz_ficp_platform_data);

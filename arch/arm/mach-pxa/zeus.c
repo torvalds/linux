@@ -644,7 +644,7 @@ static struct pxafb_mach_info zeus_fb_info = {
 
 static struct pxamci_platform_data zeus_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.detect_delay		= HZ/4,
+	.detect_delay_ms	= 250,
 	.gpio_card_detect       = ZEUS_MMC_CD_GPIO,
 	.gpio_card_ro           = ZEUS_MMC_WP_GPIO,
 	.gpio_card_ro_invert	= 1,

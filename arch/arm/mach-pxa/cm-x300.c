@@ -433,7 +433,7 @@ static inline void cm_x300_init_nand(void) {}
 
 #if defined(CONFIG_MMC) || defined(CONFIG_MMC_MODULE)
 static struct pxamci_platform_data cm_x300_mci_platform_data = {
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.gpio_card_detect	= GPIO82_MMC_IRQ,
 	.gpio_card_ro		= GPIO85_MMC_WP,
@@ -454,7 +454,7 @@ static void cm_x300_mci2_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data cm_x300_mci2_platform_data = {
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init 			= cm_x300_mci2_init,
 	.exit			= cm_x300_mci2_exit,

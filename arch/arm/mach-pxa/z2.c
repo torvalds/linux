@@ -291,7 +291,7 @@ static struct pxamci_platform_data z2_mci_platform_data = {
 	.gpio_card_detect	= GPIO96_ZIPITZ2_SD_DETECT,
 	.gpio_power		= -1,
 	.gpio_card_ro		= -1,
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 };
 
 static void __init z2_mmc_init(void)

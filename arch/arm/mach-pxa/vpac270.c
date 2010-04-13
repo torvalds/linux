@@ -240,7 +240,7 @@ static struct pxamci_platform_data vpac270_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
 	.gpio_card_detect	= GPIO53_VPAC270_SD_DETECT_N,
 	.gpio_card_ro		= GPIO52_VPAC270_SD_READONLY,
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 };
 
 static void __init vpac270_mmc_init(void)
