@@ -38,22 +38,22 @@ static int			output;
 static const char		*output_name			= "perf.data";
 static int			group				=      0;
 static unsigned int		realtime_prio			=      0;
-static int			raw_samples			=      0;
-static int			system_wide			=      0;
+static bool			raw_samples			=  false;
+static bool			system_wide			=  false;
 static int			profile_cpu			=     -1;
 static pid_t			target_pid			=     -1;
 static pid_t			target_tid			=     -1;
 static pid_t			*all_tids			=      NULL;
 static int			thread_num			=      0;
 static pid_t			child_pid			=     -1;
-static int			inherit				=      1;
-static int			force				=      0;
-static int			append_file			=      0;
-static int			call_graph			=      0;
-static int			inherit_stat			=      0;
-static int			no_samples			=      0;
-static int			sample_address			=      0;
-static int			multiplex			=      0;
+static bool			inherit				=   true;
+static bool			force				=  false;
+static bool			append_file			=  false;
+static bool			call_graph			=  false;
+static bool			inherit_stat			=  false;
+static bool			no_samples			=  false;
+static bool			sample_address			=  false;
+static bool			multiplex			=  false;
 static int			multiplex_fd			=     -1;
 
 static long			samples				=      0;
@@ -465,7 +465,7 @@ static int __cmd_record(int argc, const char **argv)
 			rename(output_name, oldname);
 		}
 	} else {
-		append_file = 0;
+		append_file = false;
 	}
 
 	flags = O_CREAT|O_RDWR;
@@ -701,7 +701,7 @@ static const struct option options[] = {
 		    "number of mmap data pages"),
 	OPT_BOOLEAN('g', "call-graph", &call_graph,
 		    "do call-graph (stack chain/backtrace) recording"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('s', "stat", &inherit_stat,
 		    "per thread counts"),

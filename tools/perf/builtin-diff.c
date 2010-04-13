@@ -19,7 +19,7 @@
 static char const *input_old = "perf.data.old",
 		  *input_new = "perf.data";
 static char	  diff__default_sort_order[] = "dso,symbol";
-static int  force;
+static bool  force;
 static bool show_displacement;
 
 static int perf_session__add_hist_entry(struct perf_session *self,
@@ -188,7 +188,7 @@ static const char * const diff_usage[] = {
 };
 
 static const struct option options[] = {
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('m', "displacement", &show_displacement,
 		    "Show position displacement relative to baseline"),

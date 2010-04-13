@@ -31,9 +31,9 @@
 
 #define DATASIZE 100
 
-static int use_pipes = 0;
+static bool use_pipes = false;
 static unsigned int loops = 100;
-static unsigned int thread_mode = 0;
+static bool thread_mode = false;
 static unsigned int num_groups = 10;
 
 struct sender_context {

@@ -23,7 +23,7 @@
 
 static const char	*length_str	= "1MB";
 static const char	*routine	= "default";
-static int		use_clock	= 0;
+static bool		use_clock	= false;
 static int		clock_fd;
 
 static const struct option options[] = {

@@ -13,7 +13,7 @@
 #include "util.h"
 
 int verbose = 0;
-int dump_trace = 0;
+bool dump_trace = false;
 
 int eprintf(int level, const char *fmt, ...)
 {

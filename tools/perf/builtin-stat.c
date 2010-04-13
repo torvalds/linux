@@ -67,19 +67,19 @@ static struct perf_event_attr default_attrs[] = {
 
 };
 
-static int			system_wide			=  0;
+static bool			system_wide			=  false;
 static unsigned int		nr_cpus				=  0;
 static int			run_idx				=  0;
 
 static int			run_count			=  1;
-static int			inherit				=  1;
-static int			scale				=  1;
+static bool			inherit				=  true;
+static bool			scale				=  true;
 static pid_t			target_pid			= -1;
 static pid_t			target_tid			= -1;
 static pid_t			*all_tids			=  NULL;
 static int			thread_num			=  0;
 static pid_t			child_pid			= -1;
-static int			null_run			=  0;
+static bool			null_run			=  false;
 
 static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
@@ -528,7 +528,7 @@ static const struct option options[] = {
 		    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN('c', "scale", &scale,
 		    "scale/normalize counters"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_INTEGER('r', "repeat", &run_count,
 		    "repeat command and print average + stddev (max: 100)"),

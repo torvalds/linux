@@ -1,6 +1,7 @@
 #ifndef __PERF_TRACE_EVENTS_H
 #define __PERF_TRACE_EVENTS_H
 
+#include <stdbool.h>
 #include "parse-events.h"
 
 #define __unused __attribute__((unused))
@@ -241,7 +242,7 @@ extern int header_page_size_size;
 extern int header_page_data_offset;
 extern int header_page_data_size;
 
-extern int latency_format;
+extern bool latency_format;
 
 int parse_header_page(char *buf, unsigned long size);
 int trace_parse_common_type(void *data);
