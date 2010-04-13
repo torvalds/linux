@@ -1278,6 +1278,16 @@ static inline u16 ocfs2_extent_recs_per_eb(struct super_block *sb)
 	return size / sizeof(struct ocfs2_extent_rec);
 }
 
+static inline u16 ocfs2_extent_recs_per_gd(struct super_block *sb)
+{
+	int size;
+
+	size = sb->s_blocksize -
+		offsetof(struct ocfs2_group_desc, bg_list.l_recs);
+
+	return size / sizeof(struct ocfs2_extent_rec);
+}
+
 static inline int ocfs2_dx_entries_per_leaf(struct super_block *sb)
 {
 	int size;
@@ -1426,6 +1436,16 @@ static inline int ocfs2_extent_recs_per_eb(int blocksize)
 
 	size = blocksize -
 		offsetof(struct ocfs2_extent_block, h_list.l_recs);
+
+	return size / sizeof(struct ocfs2_extent_rec);
+}
+
+static inline int ocfs2_extent_recs_per_gd(int blocksize)
+{
+	int size;
+
+	size = blocksize -
+		offsetof(struct ocfs2_group_desc, bg_list.l_recs);
 
 	return size / sizeof(struct ocfs2_extent_rec);
 }
