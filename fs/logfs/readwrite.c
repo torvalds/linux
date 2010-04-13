@@ -1219,6 +1219,18 @@ static void free_shadow(struct inode *inode, struct logfs_shadow *shadow)
 	mempool_free(shadow, super->s_shadow_pool);
 }
 
+static void mark_segment(struct shadow_tree *tree, u32 segno)
+{
+	int err;
+
+	if (!btree_lookup32(&tree->segment_map, segno)) {
+		err = btree_insert32(&tree->segment_map, segno, (void *)1,
+				GFP_NOFS);
+		BUG_ON(err);
+		tree->no_shadowed_segments++;
+	}
+}
+
 /**
  * fill_shadow_tree - Propagate shadow tree changes due to a write
  * @inode:	Inode owning the page
@@ -1266,6 +1278,8 @@ static void fill_shadow_tree(struct inode *inode, struct page *page,
 
 		super->s_dirty_used_bytes += shadow->new_len;
 		super->s_dirty_free_bytes += shadow->old_len;
+		mark_segment(tree, shadow->old_ofs >> super->s_segshift);
+		mark_segment(tree, shadow->new_ofs >> super->s_segshift);
 	}
 }
 

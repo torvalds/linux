@@ -451,6 +451,8 @@ static int logfs_read_sb(struct super_block *sb, int read_only)
 
 	btree_init_mempool64(&super->s_shadow_tree.new, super->s_btree_pool);
 	btree_init_mempool64(&super->s_shadow_tree.old, super->s_btree_pool);
+	btree_init_mempool32(&super->s_shadow_tree.segment_map,
+			super->s_btree_pool);
 
 	ret = logfs_init_mapping(sb);
 	if (ret)

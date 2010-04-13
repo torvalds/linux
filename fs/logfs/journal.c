@@ -493,6 +493,8 @@ static void account_shadows(struct super_block *sb)
 
 	btree_grim_visitor64(&tree->new, (unsigned long)sb, account_shadow);
 	btree_grim_visitor64(&tree->old, (unsigned long)sb, account_shadow);
+	btree_grim_visitor32(&tree->segment_map, 0, NULL);
+	tree->no_shadowed_segments = 0;
 
 	if (li->li_block) {
 		/*
@@ -660,6 +662,7 @@ static int logfs_write_je_buf(struct super_block *sb, void *buf, u16 type,
 	if (ofs < 0)
 		return ofs;
 	logfs_buf_write(area, ofs, super->s_compressed_je, len);
+	BUG_ON(super->s_no_je >= MAX_JOURNAL_ENTRIES);
 	super->s_je_array[super->s_no_je++] = cpu_to_be64(ofs);
 	return 0;
 }
