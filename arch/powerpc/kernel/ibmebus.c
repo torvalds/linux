@@ -201,9 +201,6 @@ static int ibmebus_create_devices(const struct of_device_id *matches)
 
 int ibmebus_register_driver(struct of_platform_driver *drv)
 {
-	if (!drv->driver.of_match_table)
-		drv->driver.of_match_table = drv->match_table;
-
 	/* If the driver uses devices that ibmebus doesn't know, add them */
 	ibmebus_create_devices(drv->driver.of_match_table);
 

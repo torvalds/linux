@@ -306,10 +306,11 @@ static struct of_device_id of_pci_phb_ids[] = {
 };
 
 static struct of_platform_driver of_pci_phb_driver = {
-	.match_table = of_pci_phb_ids,
 	.probe = of_pci_phb_probe,
 	.driver = {
 		.name = "of-pci",
+		.owner = THIS_MODULE,
+		.of_match_table = of_pci_phb_ids,
 	},
 };
 

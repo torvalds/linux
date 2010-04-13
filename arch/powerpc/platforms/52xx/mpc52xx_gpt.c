@@ -784,8 +784,11 @@ static const struct of_device_id mpc52xx_gpt_match[] = {
 };
 
 static struct of_platform_driver mpc52xx_gpt_driver = {
-	.name = "mpc52xx-gpt",
-	.match_table = mpc52xx_gpt_match,
+	.driver = {
+		.name = "mpc52xx-gpt",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_gpt_match,
+	},
 	.probe = mpc52xx_gpt_probe,
 	.remove = mpc52xx_gpt_remove,
 };

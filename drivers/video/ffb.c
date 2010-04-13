@@ -1053,8 +1053,11 @@ static const struct of_device_id ffb_match[] = {
 MODULE_DEVICE_TABLE(of, ffb_match);
 
 static struct of_platform_driver ffb_driver = {
-	.name		= "ffb",
-	.match_table	= ffb_match,
+	.driver = {
+		.name = "ffb",
+		.owner = THIS_MODULE,
+		.of_match_table = ffb_match,
+	},
 	.probe		= ffb_probe,
 	.remove		= __devexit_p(ffb_remove),
 };

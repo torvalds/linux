@@ -241,8 +241,11 @@ static struct of_device_id mdio_ofgpio_match[] = {
 MODULE_DEVICE_TABLE(of, mdio_ofgpio_match);
 
 static struct of_platform_driver mdio_ofgpio_driver = {
-	.name = "mdio-gpio",
-	.match_table = mdio_ofgpio_match,
+	.driver = {
+		.name = "mdio-gpio",
+		.owner = THIS_MODULE,
+		.of_match_table = mdio_ofgpio_match,
+	},
 	.probe = mdio_ofgpio_probe,
 	.remove = __devexit_p(mdio_ofgpio_remove),
 };

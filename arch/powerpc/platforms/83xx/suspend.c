@@ -423,8 +423,11 @@ static struct of_device_id pmc_match[] = {
 };
 
 static struct of_platform_driver pmc_driver = {
-	.name = "mpc83xx-pmc",
-	.match_table = pmc_match,
+	.driver = {
+		.name = "mpc83xx-pmc",
+		.owner = THIS_MODULE,
+		.of_match_table = pmc_match,
+	},
 	.probe = pmc_probe,
 	.remove = pmc_remove
 };

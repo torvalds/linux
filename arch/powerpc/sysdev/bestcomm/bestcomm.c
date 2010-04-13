@@ -494,14 +494,12 @@ MODULE_DEVICE_TABLE(of, mpc52xx_bcom_of_match);
 
 
 static struct of_platform_driver mpc52xx_bcom_of_platform_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRIVER_NAME,
-	.match_table	= mpc52xx_bcom_of_match,
 	.probe		= mpc52xx_bcom_probe,
 	.remove		= mpc52xx_bcom_remove,
-	.driver		= {
-		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_bcom_of_match,
 	},
 };
 

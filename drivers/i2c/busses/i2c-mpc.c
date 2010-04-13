@@ -675,12 +675,12 @@ MODULE_DEVICE_TABLE(of, mpc_i2c_of_match);
 
 /* Structure for a device driver */
 static struct of_platform_driver mpc_i2c_driver = {
-	.match_table	= mpc_i2c_of_match,
 	.probe		= fsl_i2c_probe,
 	.remove		= __devexit_p(fsl_i2c_remove),
-	.driver		= {
-		.owner	= THIS_MODULE,
-		.name	= DRV_NAME,
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = DRV_NAME,
+		.of_match_table = mpc_i2c_of_match,
 	},
 };
 

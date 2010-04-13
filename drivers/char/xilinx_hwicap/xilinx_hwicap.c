@@ -812,13 +812,12 @@ static const struct of_device_id __devinitconst hwicap_of_match[] = {
 MODULE_DEVICE_TABLE(of, hwicap_of_match);
 
 static struct of_platform_driver hwicap_of_driver = {
-	.owner = THIS_MODULE,
-	.name = DRIVER_NAME,
-	.match_table = hwicap_of_match,
 	.probe = hwicap_of_probe,
 	.remove = __devexit_p(hwicap_of_remove),
 	.driver = {
 		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = hwicap_of_match,
 	},
 };
 

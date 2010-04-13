@@ -1161,8 +1161,11 @@ static const struct of_device_id myri_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, myri_sbus_match);
 
 static struct of_platform_driver myri_sbus_driver = {
-	.name		= "myri",
-	.match_table	= myri_sbus_match,
+	.driver = {
+		.name = "myri",
+		.owner = THIS_MODULE,
+		.of_match_table = myri_sbus_match,
+	},
 	.probe		= myri_sbus_probe,
 	.remove		= __devexit_p(myri_sbus_remove),
 };

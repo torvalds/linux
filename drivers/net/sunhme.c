@@ -3295,8 +3295,11 @@ static const struct of_device_id hme_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, hme_sbus_match);
 
 static struct of_platform_driver hme_sbus_driver = {
-	.name		= "hme",
-	.match_table	= hme_sbus_match,
+	.driver = {
+		.name = "hme",
+		.owner = THIS_MODULE,
+		.of_match_table = hme_sbus_match,
+	},
 	.probe		= hme_sbus_probe,
 	.remove		= __devexit_p(hme_sbus_remove),
 };

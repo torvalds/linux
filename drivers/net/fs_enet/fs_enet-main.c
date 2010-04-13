@@ -1158,8 +1158,11 @@ static struct of_device_id fs_enet_match[] = {
 MODULE_DEVICE_TABLE(of, fs_enet_match);
 
 static struct of_platform_driver fs_enet_driver = {
-	.name	= "fs_enet",
-	.match_table = fs_enet_match,
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "fs_enet",
+		.of_match_table = fs_enet_match,
+	},
 	.probe = fs_enet_probe,
 	.remove = fs_enet_remove,
 };

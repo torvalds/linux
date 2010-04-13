@@ -2555,8 +2555,11 @@ static struct of_device_id ipmi_match[] =
 };
 
 static struct of_platform_driver ipmi_of_platform_driver = {
-	.name		= "ipmi",
-	.match_table	= ipmi_match,
+	.driver = {
+		.name = "ipmi",
+		.owner = THIS_MODULE,
+		.of_match_table = ipmi_match,
+	},
 	.probe		= ipmi_of_probe,
 	.remove		= __devexit_p(ipmi_of_remove),
 };

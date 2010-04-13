@@ -790,9 +790,11 @@ static struct of_device_id mal_platform_match[] =
 };
 
 static struct of_platform_driver mal_of_driver = {
-	.name = "mcmal",
-	.match_table = mal_platform_match,
-
+	.driver = {
+		.name = "mcmal",
+		.owner = THIS_MODULE,
+		.of_match_table = mal_platform_match,
+	},
 	.probe = mal_probe,
 	.remove = mal_remove,
 };

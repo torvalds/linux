@@ -447,11 +447,12 @@ static const struct of_device_id axon_msi_device_id[] = {
 };
 
 static struct of_platform_driver axon_msi_driver = {
-	.match_table	= axon_msi_device_id,
 	.probe		= axon_msi_probe,
 	.shutdown	= axon_msi_shutdown,
-	.driver		= {
-		.name	= "axon-msi"
+	.driver = {
+		.name = "axon-msi",
+		.owner = THIS_MODULE,
+		.of_match_table = axon_msi_device_id,
 	},
 };
 

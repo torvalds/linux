@@ -463,10 +463,11 @@ static struct of_device_id __initdata rtc_match[] = {
 };
 
 static struct of_platform_driver rtc_driver = {
-	.match_table	= rtc_match,
 	.probe		= rtc_probe,
-	.driver		= {
-		.name	= "rtc",
+	.driver = {
+		.name = "rtc",
+		.owner = THIS_MODULE,
+		.of_match_table = rtc_match,
 	},
 };
 
@@ -495,10 +496,11 @@ static struct of_device_id __initdata bq4802_match[] = {
 };
 
 static struct of_platform_driver bq4802_driver = {
-	.match_table	= bq4802_match,
 	.probe		= bq4802_probe,
-	.driver		= {
-		.name	= "bq4802",
+	.driver = {
+		.name = "bq4802",
+		.owner = THIS_MODULE,
+		.of_match_table = bq4802_match,
 	},
 };
 
@@ -558,10 +560,11 @@ static struct of_device_id __initdata mostek_match[] = {
 };
 
 static struct of_platform_driver mostek_driver = {
-	.match_table	= mostek_match,
 	.probe		= mostek_probe,
-	.driver		= {
-		.name	= "mostek",
+	.driver = {
+		.name = "mostek",
+		.owner = THIS_MODULE,
+		.of_match_table = mostek_match,
 	},
 };
 

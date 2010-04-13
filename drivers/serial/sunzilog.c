@@ -1491,8 +1491,11 @@ static const struct of_device_id zs_match[] = {
 MODULE_DEVICE_TABLE(of, zs_match);
 
 static struct of_platform_driver zs_driver = {
-	.name		= "zs",
-	.match_table	= zs_match,
+	.driver = {
+		.name = "zs",
+		.owner = THIS_MODULE,
+		.of_match_table = zs_match,
+	},
 	.probe		= zs_probe,
 	.remove		= __devexit_p(zs_remove),
 };

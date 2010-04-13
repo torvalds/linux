@@ -856,8 +856,11 @@ static const struct of_device_id cg6_match[] = {
 MODULE_DEVICE_TABLE(of, cg6_match);
 
 static struct of_platform_driver cg6_driver = {
-	.name		= "cg6",
-	.match_table	= cg6_match,
+	.driver = {
+		.name = "cg6",
+		.owner = THIS_MODULE,
+		.of_match_table = cg6_match,
+	},
 	.probe		= cg6_probe,
 	.remove		= __devexit_p(cg6_remove),
 };

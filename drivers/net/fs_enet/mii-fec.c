@@ -222,8 +222,11 @@ static struct of_device_id fs_enet_mdio_fec_match[] = {
 MODULE_DEVICE_TABLE(of, fs_enet_mdio_fec_match);
 
 static struct of_platform_driver fs_enet_fec_mdio_driver = {
-	.name = "fsl-fec-mdio",
-	.match_table = fs_enet_mdio_fec_match,
+	.driver = {
+		.name = "fsl-fec-mdio",
+		.owner = THIS_MODULE,
+		.of_match_table = fs_enet_mdio_fec_match,
+	},
 	.probe = fs_enet_mdio_probe,
 	.remove = fs_enet_mdio_remove,
 };

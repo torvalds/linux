@@ -813,8 +813,11 @@ static const struct of_device_id of_fhci_match[] = {
 MODULE_DEVICE_TABLE(of, of_fhci_match);
 
 static struct of_platform_driver of_fhci_driver = {
-	.name		= "fsl,usb-fhci",
-	.match_table	= of_fhci_match,
+	.driver = {
+		.name = "fsl,usb-fhci",
+		.owner = THIS_MODULE,
+		.of_match_table = of_fhci_match,
+	},
 	.probe		= of_fhci_probe,
 	.remove		= __devexit_p(of_fhci_remove),
 };

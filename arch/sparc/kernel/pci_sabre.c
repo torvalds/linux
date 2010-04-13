@@ -596,8 +596,11 @@ static struct of_device_id __initdata sabre_match[] = {
 };
 
 static struct of_platform_driver sabre_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= sabre_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = sabre_match,
+	},
 	.probe		= sabre_probe,
 };
 

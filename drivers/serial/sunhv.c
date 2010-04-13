@@ -630,8 +630,11 @@ static const struct of_device_id hv_match[] = {
 MODULE_DEVICE_TABLE(of, hv_match);
 
 static struct of_platform_driver hv_driver = {
-	.name		= "hv",
-	.match_table	= hv_match,
+	.driver = {
+		.name = "hv",
+		.owner = THIS_MODULE,
+		.of_match_table = hv_match,
+	},
 	.probe		= hv_probe,
 	.remove		= __devexit_p(hv_remove),
 };

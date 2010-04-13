@@ -362,8 +362,11 @@ static const struct of_device_id xps2_of_match[] __devinitconst = {
 MODULE_DEVICE_TABLE(of, xps2_of_match);
 
 static struct of_platform_driver xps2_of_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= xps2_of_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = xps2_of_match,
+	},
 	.probe		= xps2_of_probe,
 	.remove		= __devexit_p(xps2_of_remove),
 };

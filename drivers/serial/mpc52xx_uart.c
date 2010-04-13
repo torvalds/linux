@@ -1464,15 +1464,16 @@ mpc52xx_uart_of_enumerate(void)
 MODULE_DEVICE_TABLE(of, mpc52xx_uart_of_match);
 
 static struct of_platform_driver mpc52xx_uart_of_driver = {
-	.match_table	= mpc52xx_uart_of_match,
 	.probe		= mpc52xx_uart_of_probe,
 	.remove		= mpc52xx_uart_of_remove,
 #ifdef CONFIG_PM
 	.suspend	= mpc52xx_uart_of_suspend,
 	.resume		= mpc52xx_uart_of_resume,
 #endif
-	.driver		= {
-		.name	= "mpc52xx-psc-uart",
+	.driver = {
+		.name = "mpc52xx-psc-uart",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_uart_of_match,
 	},
 };
 

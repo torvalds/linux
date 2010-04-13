@@ -978,8 +978,11 @@ static const struct of_device_id qec_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, qec_sbus_match);
 
 static struct of_platform_driver qec_sbus_driver = {
-	.name		= "qec",
-	.match_table	= qec_sbus_match,
+	.driver = {
+		.name = "qec",
+		.owner = THIS_MODULE,
+		.of_match_table = qec_sbus_match,
+	},
 	.probe		= qec_sbus_probe,
 	.remove		= __devexit_p(qec_sbus_remove),
 };

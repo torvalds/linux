@@ -884,9 +884,6 @@ static struct of_device_id mpc52xx_ata_of_match[] = {
 
 
 static struct of_platform_driver mpc52xx_ata_of_platform_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRV_NAME,
-	.match_table	= mpc52xx_ata_of_match,
 	.probe		= mpc52xx_ata_probe,
 	.remove		= mpc52xx_ata_remove,
 #ifdef CONFIG_PM
@@ -896,6 +893,7 @@ static struct of_platform_driver mpc52xx_ata_of_platform_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = mpc52xx_ata_of_match,
 	},
 };
 

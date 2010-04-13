@@ -1009,8 +1009,11 @@ static struct of_device_id __initdata pci_sun4v_match[] = {
 };
 
 static struct of_platform_driver pci_sun4v_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= pci_sun4v_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = pci_sun4v_match,
+	},
 	.probe		= pci_sun4v_probe,
 };
 

@@ -414,8 +414,11 @@ static const struct of_device_id bbc_i2c_match[] = {
 MODULE_DEVICE_TABLE(of, bbc_i2c_match);
 
 static struct of_platform_driver bbc_i2c_driver = {
-	.name		= "bbc_i2c",
-	.match_table	= bbc_i2c_match,
+	.driver = {
+		.name = "bbc_i2c",
+		.owner = THIS_MODULE,
+		.of_match_table = bbc_i2c_match,
+	},
 	.probe		= bbc_i2c_probe,
 	.remove		= __devexit_p(bbc_i2c_remove),
 };

@@ -492,13 +492,12 @@ static struct of_device_id xilinxfb_of_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, xilinxfb_of_match);
 
 static struct of_platform_driver xilinxfb_of_driver = {
-	.owner = THIS_MODULE,
-	.name = DRIVER_NAME,
-	.match_table = xilinxfb_of_match,
 	.probe = xilinxfb_of_probe,
 	.remove = __devexit_p(xilinxfb_of_remove),
 	.driver = {
 		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = xilinxfb_of_match,
 	},
 };
 

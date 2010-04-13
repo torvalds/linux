@@ -1546,8 +1546,11 @@ static const struct of_device_id sunlance_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, sunlance_sbus_match);
 
 static struct of_platform_driver sunlance_sbus_driver = {
-	.name		= "sunlance",
-	.match_table	= sunlance_sbus_match,
+	.driver = {
+		.name = "sunlance",
+		.owner = THIS_MODULE,
+		.of_match_table = sunlance_sbus_match,
+	},
 	.probe		= sunlance_sbus_probe,
 	.remove		= __devexit_p(sunlance_sbus_remove),
 };

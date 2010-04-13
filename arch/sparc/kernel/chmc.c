@@ -811,8 +811,11 @@ static const struct of_device_id us3mc_match[] = {
 MODULE_DEVICE_TABLE(of, us3mc_match);
 
 static struct of_platform_driver us3mc_driver = {
-	.name		= "us3mc",
-	.match_table	= us3mc_match,
+	.driver = {
+		.name = "us3mc",
+		.owner = THIS_MODULE,
+		.of_match_table = us3mc_match,
+	},
 	.probe		= us3mc_probe,
 	.remove		= __devexit_p(us3mc_remove),
 };

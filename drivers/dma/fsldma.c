@@ -1409,10 +1409,13 @@ static const struct of_device_id fsldma_of_ids[] = {
 };
 
 static struct of_platform_driver fsldma_of_driver = {
-	.name		= "fsl-elo-dma",
-	.match_table	= fsldma_of_ids,
-	.probe		= fsldma_of_probe,
-	.remove		= fsldma_of_remove,
+	.driver = {
+		.name = "fsl-elo-dma",
+		.owner = THIS_MODULE,
+		.of_match_table = fsldma_of_ids,
+	},
+	.probe = fsldma_of_probe,
+	.remove = fsldma_of_remove,
 };
 
 /*----------------------------------------------------------------------------*/

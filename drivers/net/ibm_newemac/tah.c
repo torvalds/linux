@@ -166,9 +166,11 @@ static struct of_device_id tah_match[] =
 };
 
 static struct of_platform_driver tah_driver = {
-	.name = "emac-tah",
-	.match_table = tah_match,
-
+	.driver = {
+		.name = "emac-tah",
+		.owner = THIS_MODULE,
+		.of_match_table = tah_match,
+	},
 	.probe = tah_probe,
 	.remove = tah_remove,
 };

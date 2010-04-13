@@ -175,11 +175,13 @@ static struct of_device_id __devinitdata of_platform_serial_table[] = {
 };
 
 static struct of_platform_driver of_platform_serial_driver = {
-	.owner = THIS_MODULE,
-	.name = "of_serial",
+	.driver = {
+		.name = "of_serial",
+		.owner = THIS_MODULE,
+		.of_match_table = of_platform_serial_table,
+	},
 	.probe = of_platform_serial_probe,
 	.remove = of_platform_serial_remove,
-	.match_table = of_platform_serial_table,
 };
 
 static int __init of_platform_serial_init(void)

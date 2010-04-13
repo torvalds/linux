@@ -244,18 +244,13 @@ MODULE_DEVICE_TABLE(of, ohci_hcd_ppc_of_match);
 
 
 static struct of_platform_driver ohci_hcd_ppc_of_driver = {
-	.name		= "ppc-of-ohci",
-	.match_table	= ohci_hcd_ppc_of_match,
 	.probe		= ohci_hcd_ppc_of_probe,
 	.remove		= ohci_hcd_ppc_of_remove,
 	.shutdown 	= ohci_hcd_ppc_of_shutdown,
-#ifdef CONFIG_PM
-	/*.suspend	= ohci_hcd_ppc_soc_drv_suspend,*/
-	/*.resume	= ohci_hcd_ppc_soc_drv_resume,*/
-#endif
-	.driver		= {
-		.name	= "ppc-of-ohci",
-		.owner	= THIS_MODULE,
+	.driver = {
+		.name = "ppc-of-ohci",
+		.owner = THIS_MODULE,
+		.of_match_table = ohci_hcd_ppc_of_match,
 	},
 };
 

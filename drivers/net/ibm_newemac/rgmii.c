@@ -319,9 +319,11 @@ static struct of_device_id rgmii_match[] =
 };
 
 static struct of_platform_driver rgmii_driver = {
-	.name = "emac-rgmii",
-	.match_table = rgmii_match,
-
+	.driver = {
+		.name = "emac-rgmii",
+		.owner = THIS_MODULE,
+		.of_match_table = rgmii_match,
+	},
 	.probe = rgmii_probe,
 	.remove = rgmii_remove,
 };

@@ -461,10 +461,13 @@ static struct of_device_id fsl_pq_mdio_match[] = {
 MODULE_DEVICE_TABLE(of, fsl_pq_mdio_match);
 
 static struct of_platform_driver fsl_pq_mdio_driver = {
-	.name = "fsl-pq_mdio",
+	.driver = {
+		.name = "fsl-pq_mdio",
+		.owner = THIS_MODULE,
+		.of_match_table = fsl_pq_mdio_match,
+	},
 	.probe = fsl_pq_mdio_probe,
 	.remove = fsl_pq_mdio_remove,
-	.match_table = fsl_pq_mdio_match,
 };
 
 int __init fsl_pq_mdio_init(void)

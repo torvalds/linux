@@ -751,8 +751,11 @@ static const struct of_device_id n2rng_match[] = {
 MODULE_DEVICE_TABLE(of, n2rng_match);
 
 static struct of_platform_driver n2rng_driver = {
-	.name		= "n2rng",
-	.match_table	= n2rng_match,
+	.driver = {
+		.name = "n2rng",
+		.owner = THIS_MODULE,
+		.of_match_table = n2rng_match,
+	},
 	.probe		= n2rng_probe,
 	.remove		= __devexit_p(n2rng_remove),
 };

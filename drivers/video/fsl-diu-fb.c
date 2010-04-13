@@ -1647,9 +1647,11 @@ static struct of_device_id fsl_diu_match[] = {
 MODULE_DEVICE_TABLE(of, fsl_diu_match);
 
 static struct of_platform_driver fsl_diu_driver = {
-	.owner  	= THIS_MODULE,
-	.name   	= "fsl_diu",
-	.match_table    = fsl_diu_match,
+	.driver = {
+		.name = "fsl_diu",
+		.owner = THIS_MODULE,
+		.of_match_table = fsl_diu_match,
+	},
 	.probe  	= fsl_diu_probe,
 	.remove 	= fsl_diu_remove,
 	.suspend	= fsl_diu_suspend,

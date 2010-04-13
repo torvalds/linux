@@ -207,8 +207,11 @@ static const struct of_device_id flash_match[] = {
 MODULE_DEVICE_TABLE(of, flash_match);
 
 static struct of_platform_driver flash_driver = {
-	.name		= "flash",
-	.match_table	= flash_match,
+	.driver = {
+		.name = "flash",
+		.owner = THIS_MODULE,
+		.of_match_table = flash_match,
+	},
 	.probe		= flash_probe,
 	.remove		= __devexit_p(flash_remove),
 };

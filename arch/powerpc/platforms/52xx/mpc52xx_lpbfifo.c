@@ -537,9 +537,11 @@ static struct of_device_id mpc52xx_lpbfifo_match[] __devinitconst = {
 };
 
 static struct of_platform_driver mpc52xx_lpbfifo_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc52xx-lpbfifo",
-	.match_table = mpc52xx_lpbfifo_match,
+	.driver = {
+		.name = "mpc52xx-lpbfifo",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_lpbfifo_match,
+	},
 	.probe = mpc52xx_lpbfifo_probe,
 	.remove = __devexit_p(mpc52xx_lpbfifo_remove),
 };

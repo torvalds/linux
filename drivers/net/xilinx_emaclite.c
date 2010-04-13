@@ -1293,8 +1293,11 @@ static struct of_device_id xemaclite_of_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, xemaclite_of_match);
 
 static struct of_platform_driver xemaclite_of_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= xemaclite_of_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = xemaclite_of_match,
+	},
 	.probe		= xemaclite_of_probe,
 	.remove		= __devexit_p(xemaclite_of_remove),
 };

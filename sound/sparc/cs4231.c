@@ -2109,8 +2109,11 @@ static const struct of_device_id cs4231_match[] = {
 MODULE_DEVICE_TABLE(of, cs4231_match);
 
 static struct of_platform_driver cs4231_driver = {
-	.name		= "audio",
-	.match_table	= cs4231_match,
+	.driver = {
+		.name = "audio",
+		.owner = THIS_MODULE,
+		.of_match_table = cs4231_match,
+	},
 	.probe		= cs4231_probe,
 	.remove		= __devexit_p(cs4231_remove),
 };

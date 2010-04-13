@@ -1065,9 +1065,11 @@ static struct of_device_id mpc52xx_fec_match[] = {
 MODULE_DEVICE_TABLE(of, mpc52xx_fec_match);
 
 static struct of_platform_driver mpc52xx_fec_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRIVER_NAME,
-	.match_table	= mpc52xx_fec_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_fec_match,
+	},
 	.probe		= mpc52xx_fec_probe,
 	.remove		= mpc52xx_fec_remove,
 #ifdef CONFIG_PM

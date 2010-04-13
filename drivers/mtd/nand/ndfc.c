@@ -294,9 +294,10 @@ MODULE_DEVICE_TABLE(of, ndfc_match);
 
 static struct of_platform_driver ndfc_driver = {
 	.driver = {
-		.name	= "ndfc",
+		.name = "ndfc",
+		.owner = THIS_MODULE,
+		.of_match_table = ndfc_match,
 	},
-	.match_table = ndfc_match,
 	.probe = ndfc_probe,
 	.remove = __devexit_p(ndfc_remove),
 };

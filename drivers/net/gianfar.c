@@ -3054,14 +3054,16 @@ MODULE_DEVICE_TABLE(of, gfar_match);
 
 /* Structure for a device driver */
 static struct of_platform_driver gfar_driver = {
-	.name = "fsl-gianfar",
-	.match_table = gfar_match,
-
+	.driver = {
+		.name = "fsl-gianfar",
+		.owner = THIS_MODULE,
+		.pm = GFAR_PM_OPS,
+		.of_match_table = gfar_match,
+	},
 	.probe = gfar_probe,
 	.remove = gfar_remove,
 	.suspend = gfar_legacy_suspend,
 	.resume = gfar_legacy_resume,
-	.driver.pm = GFAR_PM_OPS,
 };
 
 static int __init gfar_init(void)

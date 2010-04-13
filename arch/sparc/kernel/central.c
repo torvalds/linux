@@ -149,10 +149,11 @@ static struct of_device_id __initdata clock_board_match[] = {
 };
 
 static struct of_platform_driver clock_board_driver = {
-	.match_table	= clock_board_match,
 	.probe		= clock_board_probe,
-	.driver		= {
-		.name	= "clock_board",
+	.driver = {
+		.name = "clock_board",
+		.owner = THIS_MODULE,
+		.of_match_table = clock_board_match,
 	},
 };
 
@@ -254,10 +255,11 @@ static struct of_device_id __initdata fhc_match[] = {
 };
 
 static struct of_platform_driver fhc_driver = {
-	.match_table	= fhc_match,
 	.probe		= fhc_probe,
-	.driver		= {
-		.name	= "fhc",
+	.driver = {
+		.name = "fhc",
+		.owner = THIS_MODULE,
+		.of_match_table = fhc_match,
 	},
 };
 

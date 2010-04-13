@@ -159,10 +159,13 @@ static struct of_device_id mpc52xx_fec_mdio_match[] = {
 MODULE_DEVICE_TABLE(of, mpc52xx_fec_mdio_match);
 
 struct of_platform_driver mpc52xx_fec_mdio_driver = {
-	.name = "mpc5200b-fec-phy",
+	.driver = {
+		.name = "mpc5200b-fec-phy",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_fec_mdio_match,
+	},
 	.probe = mpc52xx_fec_mdio_probe,
 	.remove = mpc52xx_fec_mdio_remove,
-	.match_table = mpc52xx_fec_mdio_match,
 };
 
 /* let fec driver call it, since this has to be registered before it */

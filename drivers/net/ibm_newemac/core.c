@@ -2996,9 +2996,11 @@ static struct of_device_id emac_match[] =
 MODULE_DEVICE_TABLE(of, emac_match);
 
 static struct of_platform_driver emac_driver = {
-	.name = "emac",
-	.match_table = emac_match,
-
+	.driver = {
+		.name = "emac",
+		.owner = THIS_MODULE,
+		.of_match_table = emac_match,
+	},
 	.probe = emac_probe,
 	.remove = emac_remove,
 };

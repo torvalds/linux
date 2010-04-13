@@ -1539,8 +1539,11 @@ static const struct of_device_id su_match[] = {
 MODULE_DEVICE_TABLE(of, su_match);
 
 static struct of_platform_driver su_driver = {
-	.name		= "su",
-	.match_table	= su_match,
+	.driver = {
+		.name = "su",
+		.owner = THIS_MODULE,
+		.of_match_table = su_match,
+	},
 	.probe		= su_probe,
 	.remove		= __devexit_p(su_remove),
 };

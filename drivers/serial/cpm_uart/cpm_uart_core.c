@@ -1372,8 +1372,11 @@ static struct of_device_id cpm_uart_match[] = {
 };
 
 static struct of_platform_driver cpm_uart_driver = {
-	.name = "cpm_uart",
-	.match_table = cpm_uart_match,
+	.driver = {
+		.name = "cpm_uart",
+		.owner = THIS_MODULE,
+		.of_match_table = cpm_uart_match,
+	},
 	.probe = cpm_uart_probe,
 	.remove = cpm_uart_remove,
  };

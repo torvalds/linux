@@ -718,13 +718,13 @@ static const struct of_device_id cpm_i2c_match[] = {
 MODULE_DEVICE_TABLE(of, cpm_i2c_match);
 
 static struct of_platform_driver cpm_i2c_driver = {
-	.match_table	= cpm_i2c_match,
 	.probe		= cpm_i2c_probe,
 	.remove		= __devexit_p(cpm_i2c_remove),
-	.driver		= {
-		.name	= "fsl-i2c-cpm",
-		.owner	= THIS_MODULE,
-	}
+	.driver = {
+		.name = "fsl-i2c-cpm",
+		.owner = THIS_MODULE,
+		.of_match_table = cpm_i2c_match,
+	},
 };
 
 static int __init cpm_i2c_init(void)

@@ -1486,9 +1486,11 @@ static struct of_device_id ucc_uart_match[] = {
 MODULE_DEVICE_TABLE(of, ucc_uart_match);
 
 static struct of_platform_driver ucc_uart_of_driver = {
-	.owner  	= THIS_MODULE,
-	.name   	= "ucc_uart",
-	.match_table    = ucc_uart_match,
+	.driver = {
+		.name = "ucc_uart",
+		.owner = THIS_MODULE,
+		.of_match_table    = ucc_uart_match,
+	},
 	.probe  	= ucc_uart_probe,
 	.remove 	= ucc_uart_remove,
 };

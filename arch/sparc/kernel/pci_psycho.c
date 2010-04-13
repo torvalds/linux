@@ -602,8 +602,11 @@ static struct of_device_id __initdata psycho_match[] = {
 };
 
 static struct of_platform_driver psycho_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= psycho_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = psycho_match,
+	},
 	.probe		= psycho_probe,
 };
 

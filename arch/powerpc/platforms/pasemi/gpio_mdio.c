@@ -301,11 +301,12 @@ MODULE_DEVICE_TABLE(of, gpio_mdio_match);
 
 static struct of_platform_driver gpio_mdio_driver =
 {
-	.match_table	= gpio_mdio_match,
 	.probe		= gpio_mdio_probe,
 	.remove		= gpio_mdio_remove,
-	.driver		= {
-		.name	= "gpio-mdio-bitbang",
+	.driver = {
+		.name = "gpio-mdio-bitbang",
+		.owner = THIS_MODULE,
+		.of_match_table = gpio_mdio_match,
 	},
 };
 

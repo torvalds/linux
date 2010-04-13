@@ -10207,8 +10207,11 @@ static const struct of_device_id niu_match[] = {
 MODULE_DEVICE_TABLE(of, niu_match);
 
 static struct of_platform_driver niu_of_driver = {
-	.name		= "niu",
-	.match_table	= niu_match,
+	.driver = {
+		.name = "niu",
+		.owner = THIS_MODULE,
+		.of_match_table = niu_match,
+	},
 	.probe		= niu_of_probe,
 	.remove		= __devexit_p(niu_of_remove),
 };

@@ -610,13 +610,12 @@ static int __devexit ulite_of_remove(struct of_device *op)
 }
 
 static struct of_platform_driver ulite_of_driver = {
-	.owner = THIS_MODULE,
-	.name = "uartlite",
-	.match_table = ulite_of_match,
 	.probe = ulite_of_probe,
 	.remove = __devexit_p(ulite_of_remove),
 	.driver = {
 		.name = "uartlite",
+		.owner = THIS_MODULE,
+		.of_match_table = ulite_of_match,
 	},
 };
 

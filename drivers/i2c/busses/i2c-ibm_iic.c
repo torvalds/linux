@@ -807,8 +807,11 @@ static const struct of_device_id ibm_iic_match[] = {
 };
 
 static struct of_platform_driver ibm_iic_driver = {
-	.name	= "ibm-iic",
-	.match_table = ibm_iic_match,
+	.driver = {
+		.name = "ibm-iic",
+		.owner = THIS_MODULE,
+		.of_match_table = ibm_iic_match,
+	},
 	.probe	= iic_probe,
 	.remove	= __devexit_p(iic_remove),
 };

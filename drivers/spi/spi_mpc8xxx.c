@@ -1312,8 +1312,11 @@ static const struct of_device_id of_mpc8xxx_spi_match[] = {
 MODULE_DEVICE_TABLE(of, of_mpc8xxx_spi_match);
 
 static struct of_platform_driver of_mpc8xxx_spi_driver = {
-	.name		= "mpc8xxx_spi",
-	.match_table	= of_mpc8xxx_spi_match,
+	.driver = {
+		.name = "mpc8xxx_spi",
+		.owner = THIS_MODULE,
+		.of_match_table = of_mpc8xxx_spi_match,
+	},
 	.probe		= of_mpc8xxx_spi_probe,
 	.remove		= __devexit_p(of_mpc8xxx_spi_remove),
 };

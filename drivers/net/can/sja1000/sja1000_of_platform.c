@@ -216,11 +216,13 @@ static struct of_device_id __devinitdata sja1000_ofp_table[] = {
 MODULE_DEVICE_TABLE(of, sja1000_ofp_table);
 
 static struct of_platform_driver sja1000_ofp_driver = {
-	.owner = THIS_MODULE,
-	.name = DRV_NAME,
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = DRV_NAME,
+		.of_match_table = sja1000_ofp_table,
+	},
 	.probe = sja1000_ofp_probe,
 	.remove = __devexit_p(sja1000_ofp_remove),
-	.match_table = sja1000_ofp_table,
 };
 
 static int __init sja1000_ofp_init(void)

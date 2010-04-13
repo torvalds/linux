@@ -1093,8 +1093,11 @@ static const struct of_device_id sab_match[] = {
 MODULE_DEVICE_TABLE(of, sab_match);
 
 static struct of_platform_driver sab_driver = {
-	.name		= "sab",
-	.match_table	= sab_match,
+	.driver = {
+		.name = "sab",
+		.owner = THIS_MODULE,
+		.of_match_table = sab_match,
+	},
 	.probe		= sab_probe,
 	.remove		= __devexit_p(sab_remove),
 };

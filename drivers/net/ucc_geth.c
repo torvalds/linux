@@ -3965,8 +3965,11 @@ static struct of_device_id ucc_geth_match[] = {
 MODULE_DEVICE_TABLE(of, ucc_geth_match);
 
 static struct of_platform_driver ucc_geth_driver = {
-	.name		= DRV_NAME,
-	.match_table	= ucc_geth_match,
+	.driver = {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = ucc_geth_match,
+	},
 	.probe		= ucc_geth_probe,
 	.remove		= ucc_geth_remove,
 	.suspend	= ucc_geth_suspend,

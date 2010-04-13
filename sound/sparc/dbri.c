@@ -2687,8 +2687,11 @@ static const struct of_device_id dbri_match[] = {
 MODULE_DEVICE_TABLE(of, dbri_match);
 
 static struct of_platform_driver dbri_sbus_driver = {
-	.name		= "dbri",
-	.match_table	= dbri_match,
+	.driver = {
+		.name = "dbri",
+		.owner = THIS_MODULE,
+		.of_match_table = dbri_match,
+	},
 	.probe		= dbri_probe,
 	.remove		= __devexit_p(dbri_remove),
 };

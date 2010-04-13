@@ -220,12 +220,12 @@ static struct of_device_id psc_i2s_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, psc_i2s_match);
 
 static struct of_platform_driver psc_i2s_driver = {
-	.match_table = psc_i2s_match,
 	.probe = psc_i2s_of_probe,
 	.remove = __devexit_p(psc_i2s_of_remove),
 	.driver = {
 		.name = "mpc5200-psc-i2s",
 		.owner = THIS_MODULE,
+		.of_match_table = psc_i2s_match,
 	},
 };
 

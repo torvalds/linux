@@ -508,8 +508,11 @@ static struct of_device_id __initdata fire_match[] = {
 };
 
 static struct of_platform_driver fire_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= fire_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = fire_match,
+	},
 	.probe		= fire_probe,
 };
 

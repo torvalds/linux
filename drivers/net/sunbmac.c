@@ -1292,8 +1292,11 @@ static const struct of_device_id bigmac_sbus_match[] = {
 MODULE_DEVICE_TABLE(of, bigmac_sbus_match);
 
 static struct of_platform_driver bigmac_sbus_driver = {
-	.name		= "sunbmac",
-	.match_table	= bigmac_sbus_match,
+	.driver = {
+		.name = "sunbmac",
+		.owner = THIS_MODULE,
+		.of_match_table = bigmac_sbus_match,
+	},
 	.probe		= bigmac_sbus_probe,
 	.remove		= __devexit_p(bigmac_sbus_remove),
 };

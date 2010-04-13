@@ -955,12 +955,12 @@ static struct of_device_id temac_of_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, temac_of_match);
 
 static struct of_platform_driver temac_of_driver = {
-	.match_table = temac_of_match,
 	.probe = temac_of_probe,
 	.remove = __devexit_p(temac_of_remove),
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "xilinx_temac",
+		.of_match_table = temac_of_match,
 	},
 };
 

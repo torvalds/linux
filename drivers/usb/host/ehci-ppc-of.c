@@ -274,13 +274,12 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_ppc_of_match);
 
 
 static struct of_platform_driver ehci_hcd_ppc_of_driver = {
-	.name		= "ppc-of-ehci",
-	.match_table	= ehci_hcd_ppc_of_match,
 	.probe		= ehci_hcd_ppc_of_probe,
 	.remove		= ehci_hcd_ppc_of_remove,
 	.shutdown	= ehci_hcd_ppc_of_shutdown,
-	.driver		= {
-		.name	= "ppc-of-ehci",
-		.owner	= THIS_MODULE,
+	.driver = {
+		.name = "ppc-of-ehci",
+		.owner = THIS_MODULE,
+		.of_match_table = ehci_hcd_ppc_of_match,
 	},
 };
