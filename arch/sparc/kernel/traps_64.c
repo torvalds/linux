@@ -2203,27 +2203,6 @@ void dump_stack(void)
 
 EXPORT_SYMBOL(dump_stack);
 
-static inline int is_kernel_stack(struct task_struct *task,
-				  struct reg_window *rw)
-{
-	unsigned long rw_addr = (unsigned long) rw;
-	unsigned long thread_base, thread_end;
-
-	if (rw_addr < PAGE_OFFSET) {
-		if (task != &init_task)
-			return 0;
-	}
-
-	thread_base = (unsigned long) task_stack_page(task);
-	thread_end = thread_base + sizeof(union thread_union);
-	if (rw_addr >= thread_base &&
-	    rw_addr < thread_end &&
-	    !(rw_addr & 0x7UL))
-		return 1;
-
-	return 0;
-}
-
 static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
 {
 	unsigned long fp = rw->ins[6];
@@ -2252,6 +2231,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 	show_regs(regs);
 	add_taint(TAINT_DIE);
 	if (regs->tstate & TSTATE_PRIV) {
+		struct thread_info *tp = current_thread_info();
 		struct reg_window *rw = (struct reg_window *)
 			(regs->u_regs[UREG_FP] + STACK_BIAS);
 
@@ -2259,8 +2239,8 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 		 * find some badly aligned kernel stack.
 		 */
 		while (rw &&
-		       count++ < 30&&
-		       is_kernel_stack(current, rw)) {
+		       count++ < 30 &&
+		       kstack_valid(tp, (unsigned long) rw)) {
 			printk("Caller[%016lx]: %pS\n", rw->ins[7],
 			       (void *) rw->ins[7]);
 

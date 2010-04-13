@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/ftrace.h>
 #include <linux/irq.h>
 
 #include <asm/ptrace.h>
@@ -647,6 +648,14 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 	bucket = kzalloc(sizeof(struct ino_bucket), GFP_ATOMIC);
 	if (unlikely(!bucket))
 		return 0;
+
+	/* The only reference we store to the IRQ bucket is
+	 * by physical address which kmemleak can't see, tell
+	 * it that this object explicitly is not a leak and
+	 * should be scanned.
+	 */
+	kmemleak_not_leak(bucket);
+
 	__flush_dcache_range((unsigned long) bucket,
 			     ((unsigned long) bucket +
 			      sizeof(struct ino_bucket)));
@@ -721,7 +730,7 @@ static __attribute__((always_inline)) void restore_hardirq_stack(void *orig_sp)
 	__asm__ __volatile__("mov %0, %%sp" : : "r" (orig_sp));
 }
 
-void handler_irq(int irq, struct pt_regs *regs)
+void __irq_entry handler_irq(int irq, struct pt_regs *regs)
 {
 	unsigned long pstate, bucket_pa;
 	struct pt_regs *old_regs;
