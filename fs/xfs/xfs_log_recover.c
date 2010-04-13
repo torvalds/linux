@@ -77,6 +77,11 @@ xlog_buf_bbcount_valid(
 	return bbcount > 0 && bbcount <= log->l_logBBsize;
 }
 
+/*
+ * Allocate a buffer to hold log data.  The buffer needs to be able
+ * to map to a range of nbblks basic blocks at any valid (basic
+ * block) offset within the log.
+ */
 STATIC xfs_buf_t *
 xlog_get_bp(
 	xlog_t		*log,
@@ -89,11 +94,26 @@ xlog_get_bp(
 		return NULL;
 	}
 
-	if (log->l_sectbb_log) {
-		if (nbblks > 1)
-			nbblks += xlog_sectbb(log);
-		nbblks = round_up(nbblks, xlog_sectbb(log));
-	}
+	/*
+	 * We do log I/O in units of log sectors (a power-of-2
+	 * multiple of the basic block size), so we round up the
+	 * requested size to acommodate the basic blocks required
+	 * for complete log sectors.
+	 *
+	 * In addition, the buffer may be used for a non-sector-
+	 * aligned block offset, in which case an I/O of the
+	 * requested size could extend beyond the end of the
+	 * buffer.  If the requested size is only 1 basic block it
+	 * will never straddle a sector boundary, so this won't be
+	 * an issue.  Nor will this be a problem if the log I/O is
+	 * done in basic blocks (sector size 1).  But otherwise we
+	 * extend the buffer by one extra log sector to ensure
+	 * there's space to accomodate this possiblility.
+	 */
+	if (nbblks > 1 && log->l_sectbb_log)
+		nbblks += xlog_sectbb(log);
+	nbblks = round_up(nbblks, xlog_sectbb(log));
+
 	return xfs_buf_get_noaddr(BBTOB(nbblks), log->l_mp->m_logdev_targp);
 }
 
@@ -142,10 +162,8 @@ xlog_bread_noalign(
 		return EFSCORRUPTED;
 	}
 
-	if (log->l_sectbb_log) {
-		blk_no = round_down(blk_no, xlog_sectbb(log));
-		nbblks = round_up(nbblks, xlog_sectbb(log));
-	}
+	blk_no = round_down(blk_no, xlog_sectbb(log));
+	nbblks = round_up(nbblks, xlog_sectbb(log));
 
 	ASSERT(nbblks > 0);
 	ASSERT(BBTOB(nbblks) <= XFS_BUF_SIZE(bp));
@@ -204,10 +222,8 @@ xlog_bwrite(
 		return EFSCORRUPTED;
 	}
 
-	if (log->l_sectbb_log) {
-		blk_no = round_down(blk_no, xlog_sectbb(log));
-		nbblks = round_up(nbblks, xlog_sectbb(log));
-	}
+	blk_no = round_down(blk_no, xlog_sectbb(log));
+	nbblks = round_up(nbblks, xlog_sectbb(log));
 
 	ASSERT(nbblks > 0);
 	ASSERT(BBTOB(nbblks) <= XFS_BUF_SIZE(bp));
