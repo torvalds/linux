@@ -27,6 +27,7 @@
 #include <linux/bitops.h>
 #include <linux/skbuff.h>
 #include <linux/inet.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 

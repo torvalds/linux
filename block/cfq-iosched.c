@@ -7,6 +7,7 @@
  *  Copyright (C) 2003 Jens Axboe <axboe@kernel.dk>
  */
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/jiffies.h>
@@ -945,6 +946,11 @@ cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
 	unsigned int major, minor;
 
 	cfqg = cfqg_of_blkg(blkiocg_lookup_group(blkcg, key));
+	if (cfqg && !cfqg->blkg.dev && bdi->dev && dev_name(bdi->dev)) {
+		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
+		cfqg->blkg.dev = MKDEV(major, minor);
+		goto done;
+	}
 	if (cfqg || !create)
 		goto done;
 
@@ -2224,10 +2230,13 @@ static int cfq_forced_dispatch(struct cfq_data *cfqd)
 	struct cfq_queue *cfqq;
 	int dispatched = 0;
 
-	while ((cfqq = cfq_get_next_queue_forced(cfqd)) != NULL)
+	/* Expire the timeslice of the current active queue first */
+	cfq_slice_expired(cfqd, 0);
+	while ((cfqq = cfq_get_next_queue_forced(cfqd)) != NULL) {
+		__cfq_set_active_queue(cfqd, cfqq);
 		dispatched += __cfq_forced_dispatch_cfqq(cfqq);
+	}
 
-	cfq_slice_expired(cfqd, 0, true);
 	BUG_ON(cfqd->busy_queues);
 
 	cfq_log(cfqd, "forced_dispatch=%d", dispatched);

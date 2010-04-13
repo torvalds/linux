@@ -23,6 +23,7 @@
 /*
  * This implementation should follow RFC 4341
  */
+#include <linux/slab.h>
 #include "../feat.h"
 #include "../ccid.h"
 #include "../dccp.h"

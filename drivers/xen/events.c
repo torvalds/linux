@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq.h>

@@ -49,6 +49,7 @@
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/rfkill.h>
+#include <linux/slab.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 
@@ -139,7 +140,7 @@ MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
 
 /* Backlight */
 static acpi_handle lcd_switch_handle;
-static const char *lcd_switch_paths[] = {
+static char *lcd_switch_paths[] = {
   "\\_SB.PCI0.SBRG.EC0._Q10",	/* All new models */
   "\\_SB.PCI0.ISA.EC0._Q10",	/* A1x */
   "\\_SB.PCI0.PX40.ECD0._Q10",	/* L3C */
@@ -153,7 +154,7 @@ static const char *lcd_switch_paths[] = {
 #define METHOD_SWITCH_DISPLAY	"SDSP"
 
 static acpi_handle display_get_handle;
-static const char *display_get_paths[] = {
+static char *display_get_paths[] = {
   /* A6B, A6K A6R A7D F3JM L4R M6R A3G M6A M6V VX-1 V6J V6V W3Z */
   "\\_SB.PCI0.P0P1.VGA.GETD",
   /* A3E A4K, A4D A4L A6J A7J A8J Z71V M9V S5A M5A z33A W1Jc W2V G1 */

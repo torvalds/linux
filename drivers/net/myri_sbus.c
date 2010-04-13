@@ -14,7 +14,6 @@ static char version[] =
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -26,6 +25,7 @@ static char version[] =
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/firmware.h>
+#include <linux/gfp.h>
 
 #include <net/dst.h>
 #include <net/arp.h>

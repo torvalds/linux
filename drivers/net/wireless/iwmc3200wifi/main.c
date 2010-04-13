@@ -41,6 +41,7 @@
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
 #include <linux/wireless.h>
+#include <linux/slab.h>
 
 #include "iwm.h"
 #include "debug.h"

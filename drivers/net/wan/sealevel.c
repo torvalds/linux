@@ -23,6 +23,7 @@
 #include <linux/hdlc.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 
 #include <asm/irq.h>

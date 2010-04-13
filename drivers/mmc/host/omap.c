@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
 #include <linux/i2c/tps65010.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

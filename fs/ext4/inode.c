@@ -39,6 +39,7 @@
 #include <linux/bio.h>
 #include <linux/workqueue.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include "ext4_jbd2.h"
 #include "xattr.h"

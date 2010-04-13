@@ -57,6 +57,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/gfp.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include "registers.h"

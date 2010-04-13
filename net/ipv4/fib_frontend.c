@@ -34,6 +34,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <net/ip.h>
 #include <net/protocol.h>

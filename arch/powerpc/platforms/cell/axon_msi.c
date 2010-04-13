@@ -15,6 +15,7 @@
 #include <linux/msi.h>
 #include <linux/of_platform.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include <asm/dcr.h>
 #include <asm/machdep.h>

@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/console.h>

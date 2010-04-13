@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/math64.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/mod_devicetable.h>
 

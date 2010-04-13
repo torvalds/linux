@@ -38,6 +38,7 @@
 #include <linux/namei.h>
 #include <linux/miscdevice.h>
 #include <linux/magic.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -64,10 +65,9 @@ static void btrfs_put_super(struct super_block *sb)
 
 enum {
 	Opt_degraded, Opt_subvol, Opt_subvolid, Opt_device, Opt_nodatasum,
-	Opt_nodatacow, Opt_max_extent, Opt_max_inline, Opt_alloc_start,
-	Opt_nobarrier, Opt_ssd, Opt_nossd, Opt_ssd_spread, Opt_thread_pool,
-	Opt_noacl, Opt_compress, Opt_compress_force, Opt_notreelog, Opt_ratio,
-	Opt_flushoncommit,
+	Opt_nodatacow, Opt_max_inline, Opt_alloc_start, Opt_nobarrier, Opt_ssd,
+	Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl, Opt_compress,
+	Opt_compress_force, Opt_notreelog, Opt_ratio, Opt_flushoncommit,
 	Opt_discard, Opt_err,
 };
 
@@ -79,7 +79,6 @@ static match_table_t tokens = {
 	{Opt_nodatasum, "nodatasum"},
 	{Opt_nodatacow, "nodatacow"},
 	{Opt_nobarrier, "nobarrier"},
-	{Opt_max_extent, "max_extent=%s"},
 	{Opt_max_inline, "max_inline=%s"},
 	{Opt_alloc_start, "alloc_start=%s"},
 	{Opt_thread_pool, "thread_pool=%d"},
@@ -186,18 +185,6 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				info->thread_pool_size = intarg;
 				printk(KERN_INFO "btrfs: thread pool %d\n",
 				       info->thread_pool_size);
-			}
-			break;
-		case Opt_max_extent:
-			num = match_strdup(&args[0]);
-			if (num) {
-				info->max_extent = memparse(num, NULL);
-				kfree(num);
-
-				info->max_extent = max_t(u64,
-					info->max_extent, root->sectorsize);
-				printk(KERN_INFO "btrfs: max_extent at %llu\n",
-				       (unsigned long long)info->max_extent);
 			}
 			break;
 		case Opt_max_inline:
@@ -529,9 +516,6 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",nodatacow");
 	if (btrfs_test_opt(root, NOBARRIER))
 		seq_puts(seq, ",nobarrier");
-	if (info->max_extent != (u64)-1)
-		seq_printf(seq, ",max_extent=%llu",
-			   (unsigned long long)info->max_extent);
 	if (info->max_inline != 8192 * 1024)
 		seq_printf(seq, ",max_inline=%llu",
 			   (unsigned long long)info->max_inline);

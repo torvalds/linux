@@ -32,6 +32,7 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #define TTM_MEMORY_ALLOC_RETRIES 4
 
@@ -260,8 +261,8 @@ static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_kernel = zone;
-	kobject_init(&zone->kobj, &ttm_mem_zone_kobj_type);
-	ret = kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	ret = kobject_init_and_add(
+		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, zone->name);
 	if (unlikely(ret != 0)) {
 		kobject_put(&zone->kobj);
 		return ret;
@@ -296,8 +297,8 @@ static int ttm_mem_init_highmem_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_highmem = zone;
-	kobject_init(&zone->kobj, &ttm_mem_zone_kobj_type);
-	ret = kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	ret = kobject_init_and_add(
+		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, zone->name);
 	if (unlikely(ret != 0)) {
 		kobject_put(&zone->kobj);
 		return ret;
@@ -343,8 +344,8 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_dma32 = zone;
-	kobject_init(&zone->kobj, &ttm_mem_zone_kobj_type);
-	ret = kobject_add(&zone->kobj, &glob->kobj, zone->name);
+	ret = kobject_init_and_add(
+		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, zone->name);
 	if (unlikely(ret != 0)) {
 		kobject_put(&zone->kobj);
 		return ret;
@@ -365,10 +366,8 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	glob->swap_queue = create_singlethread_workqueue("ttm_swap");
 	INIT_WORK(&glob->work, ttm_shrink_work);
 	init_waitqueue_head(&glob->queue);
-	kobject_init(&glob->kobj, &ttm_mem_glob_kobj_type);
-	ret = kobject_add(&glob->kobj,
-			  ttm_get_kobj(),
-			  "memory_accounting");
+	ret = kobject_init_and_add(
+		&glob->kobj, &ttm_mem_glob_kobj_type, ttm_get_kobj(), "memory_accounting");
 	if (unlikely(ret != 0)) {
 		kobject_put(&glob->kobj);
 		return ret;

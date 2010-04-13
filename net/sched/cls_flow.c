@@ -20,6 +20,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/if_vlan.h>
+#include <linux/slab.h>
 
 #include <net/pkt_cls.h>
 #include <net/ip.h>

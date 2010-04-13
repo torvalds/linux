@@ -63,6 +63,7 @@
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 
 #include <net/checksum.h>
 

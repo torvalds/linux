@@ -65,6 +65,7 @@
 #include <linux/time.h>
 #include <linux/mutex.h>
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>

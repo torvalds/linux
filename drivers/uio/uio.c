@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/idr.h>
 #include <linux/sched.h>

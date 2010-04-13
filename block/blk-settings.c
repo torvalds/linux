@@ -10,6 +10,7 @@
 #include <linux/gcd.h>
 #include <linux/lcm.h>
 #include <linux/jiffies.h>
+#include <linux/gfp.h>
 
 #include "blk.h"
 

@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 #include <asm/numa.h>
 #include <asm/pci_x86.h>
 

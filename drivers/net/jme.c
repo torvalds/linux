@@ -37,6 +37,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
+#include <linux/slab.h>
 #include <net/ip6_checksum.h>
 #include "jme.h"
 
