@@ -172,7 +172,6 @@ enum rfd {
 	deac_full_minus_4 = 0x00401800,
 };
 #define DMA_CONTROL_TSF		0x00200000 /* Transmit  Store and Forward */
-#define DMA_CONTROL_FTF		0x00100000 /* Flush transmit FIFO */
 
 enum ttc_control {
 	DMA_CONTROL_TTC_64 = 0x00000000,

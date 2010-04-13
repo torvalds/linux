@@ -244,3 +244,4 @@ extern void stmmac_set_mac_addr(unsigned long ioaddr, u8 addr[6],
 				unsigned int high, unsigned int low);
 extern void stmmac_get_mac_addr(unsigned long ioaddr, unsigned char *addr,
 				unsigned int high, unsigned int low);
+extern void dwmac_dma_flush_tx_fifo(unsigned long ioaddr);

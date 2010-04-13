@@ -58,15 +58,6 @@ static int dwmac1000_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx,
 	return 0;
 }
 
-/* Transmit FIFO flush operation */
-static void dwmac1000_flush_tx_fifo(unsigned long ioaddr)
-{
-	u32 csr6 = readl(ioaddr + DMA_CONTROL);
-	writel((csr6 | DMA_CONTROL_FTF), ioaddr + DMA_CONTROL);
-
-	do {} while ((readl(ioaddr + DMA_CONTROL) & DMA_CONTROL_FTF));
-}
-
 static void dwmac1000_dma_operation_mode(unsigned long ioaddr, int txmode,
 				    int rxmode)
 {
