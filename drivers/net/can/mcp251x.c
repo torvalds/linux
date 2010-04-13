@@ -58,7 +58,6 @@
  *
  */
 
-#include <linux/can.h>
 #include <linux/can/core.h>
 #include <linux/can/dev.h>
 #include <linux/can/platform/mcp251x.h>

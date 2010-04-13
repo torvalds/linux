@@ -35,7 +35,6 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
 
