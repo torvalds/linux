@@ -105,6 +105,12 @@ struct kvm_vcpu {
 	struct kvm_vcpu_arch arch;
 };
 
+/*
+ * Some of the bitops functions do not support too long bitmaps.
+ * This number must be determined not to exceed such limits.
+ */
+#define KVM_MEM_MAX_NR_PAGES ((1UL << 31) - 1)
+
 struct kvm_memory_slot {
 	gfn_t base_gfn;
 	unsigned long npages;
