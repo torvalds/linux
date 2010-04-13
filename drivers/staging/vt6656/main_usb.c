@@ -26,7 +26,7 @@
  *
  * Functions:
  *
- *   vntwusb_found1 - module initial (insmod) driver entry
+ *   vt6656_probe - module initial (insmod) driver entry
  *   device_remove1 - module remove entry
  *   device_open - allocate dma/descripter resource & initial mac/bbp function
  *   device_xmit - asynchrous data tx function
@@ -222,14 +222,10 @@ DEVICE_PARAM(b80211hEnable, "802.11h mode");
 // Static vars definitions
 //
 
-
-
-static struct usb_device_id vntwusb_table[] = {
+static struct usb_device_id vt6656_table[] __devinitdata = {
 	{USB_DEVICE(VNT_USB_VENDOR_ID, VNT_USB_PRODUCT_ID)},
 	{}
 };
-
-
 
 // Frequency list (map channels to frequencies)
 /*
@@ -250,15 +246,17 @@ static const long frequency_list[] = {
 static const struct iw_handler_def	iwctl_handler_def;
 */
 
-
-
 /*---------------------  Static Functions  --------------------------*/
-static int vntwusb_found1(struct usb_interface *intf, const struct usb_device_id *id);
-static void vntwusb_disconnect(struct usb_interface *intf);
+
+static int vt6656_probe(struct usb_interface *intf,
+			const struct usb_device_id *id);
+static void vt6656_disconnect(struct usb_interface *intf);
+
 #ifdef CONFIG_PM	/* Minimal support for suspend and resume */
-static int vntwusb_suspend(struct usb_interface *intf, pm_message_t message);
-static int vntwusb_resume(struct usb_interface *intf);
-#endif
+static int vt6656_suspend(struct usb_interface *intf, pm_message_t message);
+static int vt6656_resume(struct usb_interface *intf);
+#endif /* CONFIG_PM */
+
 static struct net_device_stats *device_get_stats(struct net_device *dev);
 static int  device_open(struct net_device *dev);
 static int  device_xmit(struct sk_buff *skb, struct net_device *dev);
@@ -712,7 +710,8 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
 }
 
 #ifdef CONFIG_PM	/* Minimal support for suspend and resume */
-static int vntwusb_suspend(struct usb_interface *intf, pm_message_t message)
+
+static int vt6656_suspend(struct usb_interface *intf, pm_message_t message)
 {
  PSDevice  pDevice = usb_get_intfdata(intf);
  struct net_device *dev = pDevice->dev;
@@ -727,7 +726,7 @@ if(dev != NULL) {
  return 0;
 }
 
-static int vntwusb_resume(struct usb_interface *intf)
+static int vt6656_resume(struct usb_interface *intf)
 {
  PSDevice  pDevice = usb_get_intfdata(intf);
  struct net_device *dev = pDevice->dev;
@@ -742,8 +741,8 @@ static int vntwusb_resume(struct usb_interface *intf)
  }
  return 0;
 }
-#endif
 
+#endif /* CONFIG_PM */
 
 static const struct net_device_ops device_netdev_ops = {
     .ndo_open               = device_open,
@@ -755,8 +754,8 @@ static const struct net_device_ops device_netdev_ops = {
 };
 
 
-static int
-vntwusb_found1(struct usb_interface *intf, const struct usb_device_id *id)
+static int __devinit
+vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
    BYTE            fake_mac[U_ETHER_ADDR_LEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};//fake MAC address
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -1285,8 +1284,7 @@ device_release_WPADEV(pDevice);
 }
 
 
-static void vntwusb_disconnect(struct usb_interface *intf)
-
+static void __devexit vt6656_disconnect(struct usb_interface *intf)
 {
 
 	PSDevice  pDevice = usb_get_intfdata(intf);
@@ -2157,35 +2155,29 @@ static int ethtool_ioctl(struct net_device *dev, void *useraddr)
 
 /*------------------------------------------------------------------*/
 
+MODULE_DEVICE_TABLE(usb, vt6656_table);
 
-MODULE_DEVICE_TABLE(usb, vntwusb_table);
-
-
-static struct usb_driver vntwusb_driver = {
-	    .name =		DEVICE_NAME,
-	    .probe =	vntwusb_found1,
-	    .disconnect =	vntwusb_disconnect,
-	    .id_table =	vntwusb_table,
-
-//2008-0920-01<Add>by MikeLiu
-//for supporting S3 & S4 function
+static struct usb_driver vt6656_driver = {
+	.name =		DEVICE_NAME,
+	.probe =	vt6656_probe,
+	.disconnect =	vt6656_disconnect,
+	.id_table =	vt6656_table,
 #ifdef CONFIG_PM
-	   .suspend = vntwusb_suspend,
-	   .resume = vntwusb_resume,
-#endif
+	.suspend = vt6656_suspend,
+	.resume = vt6656_resume,
+#endif /* CONFIG_PM */
 };
 
-static int __init vntwusb_init_module(void)
+static int __init vt6656_init_module(void)
 {
     printk(KERN_NOTICE DEVICE_FULL_DRV_NAM " " DEVICE_VERSION);
-    return usb_register(&vntwusb_driver);
+    return usb_register(&vt6656_driver);
 }
 
-static void __exit vntwusb_cleanup_module(void)
+static void __exit vt6656_cleanup_module(void)
 {
-	usb_deregister(&vntwusb_driver);
+	usb_deregister(&vt6656_driver);
 }
 
-module_init(vntwusb_init_module);
-module_exit(vntwusb_cleanup_module);
-
+module_init(vt6656_init_module);
+module_exit(vt6656_cleanup_module);
