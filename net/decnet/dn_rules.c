@@ -217,7 +217,7 @@ static void dn_fib_rule_flush_cache(struct fib_rules_ops *ops)
 }
 
 static struct fib_rules_ops dn_fib_rules_ops_template = {
-	.family		= AF_DECnet,
+	.family		= FIB_RULES_DECNET,
 	.rule_size	= sizeof(struct dn_fib_rule),
 	.addr_size	= sizeof(u16),
 	.action		= dn_fib_rule_action,

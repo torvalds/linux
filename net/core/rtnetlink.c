@@ -118,7 +118,11 @@ static rtnl_doit_func rtnl_get_doit(int protocol, int msgindex)
 {
 	struct rtnl_link *tab;
 
-	tab = rtnl_msg_handlers[protocol];
+	if (protocol < NPROTO)
+		tab = rtnl_msg_handlers[protocol];
+	else
+		tab = NULL;
+
 	if (tab == NULL || tab[msgindex].doit == NULL)
 		tab = rtnl_msg_handlers[PF_UNSPEC];
 
@@ -129,7 +133,11 @@ static rtnl_dumpit_func rtnl_get_dumpit(int protocol, int msgindex)
 {
 	struct rtnl_link *tab;
 
-	tab = rtnl_msg_handlers[protocol];
+	if (protocol < NPROTO)
+		tab = rtnl_msg_handlers[protocol];
+	else
+		tab = NULL;
+
 	if (tab == NULL || tab[msgindex].dumpit == NULL)
 		tab = rtnl_msg_handlers[PF_UNSPEC];
 
@@ -1444,9 +1452,6 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return 0;
 
 	family = ((struct rtgenmsg *)NLMSG_DATA(nlh))->rtgen_family;
-	if (family >= NPROTO)
-		return -EAFNOSUPPORT;
-
 	sz_idx = type>>2;
 	kind = type&3;
 

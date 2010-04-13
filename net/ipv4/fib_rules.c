@@ -246,7 +246,7 @@ static void fib4_rule_flush_cache(struct fib_rules_ops *ops)
 }
 
 static struct fib_rules_ops fib4_rules_ops_template = {
-	.family		= AF_INET,
+	.family		= FIB_RULES_IPV4,
 	.rule_size	= sizeof(struct fib4_rule),
 	.addr_size	= sizeof(u32),
 	.action		= fib4_rule_action,
