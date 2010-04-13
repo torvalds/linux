@@ -61,13 +61,12 @@ STATIC void	xlog_recover_check_summary(xlog_t *);
  * Sector aligned buffer routines for buffer create/read/write/access
  */
 
-#define XLOG_SECTOR_ROUNDUP_BBCOUNT(log, bbs)	\
-	( ((log)->l_sectbb_mask && (bbs & (log)->l_sectbb_mask)) ? \
-	((bbs + (log)->l_sectbb_mask + 1) & ~(log)->l_sectbb_mask) : (bbs) )
-#define XLOG_SECTOR_ROUNDDOWN_BLKNO(log, bno)	((bno) & ~(log)->l_sectbb_mask)
-
 /* Number of basic blocks in a log sector */
 #define xlog_sectbb(log) (1 << (log)->l_sectbb_log)
+
+#define XLOG_SECTOR_ROUNDUP_BBCOUNT(log, bbs) round_up((bbs), xlog_sectbb(log))
+#define XLOG_SECTOR_ROUNDDOWN_BLKNO(log, bno) \
+		round_down((bno), xlog_sectbb(log))
 
 STATIC xfs_buf_t *
 xlog_get_bp(
