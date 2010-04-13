@@ -3001,18 +3001,6 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int iwl_mac_get_stats(struct ieee80211_hw *hw,
-			     struct ieee80211_low_level_stats *stats)
-{
-	struct iwl_priv *priv = hw->priv;
-
-	priv = hw->priv;
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	return 0;
-}
-
 static void iwl_mac_sta_notify(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       enum sta_notify_cmd cmd,
@@ -3390,7 +3378,6 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.configure_filter = iwl_configure_filter,
 	.set_key = iwl_mac_set_key,
 	.update_tkip_key = iwl_mac_update_tkip_key,
-	.get_stats = iwl_mac_get_stats,
 	.conf_tx = iwl_mac_conf_tx,
 	.reset_tsf = iwl_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,
