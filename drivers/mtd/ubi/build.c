@@ -42,7 +42,6 @@
 #include <linux/miscdevice.h>
 #include <linux/log2.h>
 #include <linux/kthread.h>
-#include <linux/reboot.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include "ubi.h"
@@ -832,34 +831,6 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
 }
 
 /**
- * ubi_reboot_notifier - halt UBI transactions immediately prior to a reboot.
- * @n: reboot notifier object
- * @state: SYS_RESTART, SYS_HALT, or SYS_POWER_OFF
- * @cmd: pointer to command string for RESTART2
- *
- * This function stops the UBI background thread so that the flash device
- * remains quiescent when Linux restarts the system. Any queued work will be
- * discarded, but this function will block until do_work() finishes if an
- * operation is already in progress.
- *
- * This function solves a real-life problem observed on NOR flashes when an
- * PEB erase operation starts, then the system is rebooted before the erase is
- * finishes, and the boot loader gets confused and dies. So we prefer to finish
- * the ongoing operation before rebooting.
- */
-static int ubi_reboot_notifier(struct notifier_block *n, unsigned long state,
-			       void *cmd)
-{
-	struct ubi_device *ubi;
-
-	ubi = container_of(n, struct ubi_device, reboot_notifier);
-	if (ubi->bgt_thread)
-		kthread_stop(ubi->bgt_thread);
-	ubi_sync(ubi->ubi_num);
-	return NOTIFY_DONE;
-}
-
-/**
  * ubi_attach_mtd_dev - attach an MTD device.
  * @mtd: MTD device description object
  * @ubi_num: number to assign to the new UBI device
@@ -1016,11 +987,6 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	wake_up_process(ubi->bgt_thread);
 	spin_unlock(&ubi->wl_lock);
 
-	/* Flash device priority is 0 - UBI needs to shut down first */
-	ubi->reboot_notifier.priority = 1;
-	ubi->reboot_notifier.notifier_call = ubi_reboot_notifier;
-	register_reboot_notifier(&ubi->reboot_notifier);
-
 	ubi_devices[ubi_num] = ubi;
 	ubi_notify_all(ubi, UBI_VOLUME_ADDED, NULL);
 	return ubi_num;
@@ -1091,7 +1057,6 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	 * Before freeing anything, we have to stop the background thread to
 	 * prevent it from doing anything on this device while we are freeing.
 	 */
-	unregister_reboot_notifier(&ubi->reboot_notifier);
 	if (ubi->bgt_thread)
 		kthread_stop(ubi->bgt_thread);
 
