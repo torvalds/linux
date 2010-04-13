@@ -169,7 +169,7 @@ static inline char *blkg_path(struct blkio_group *blkg)
 {
 	return blkg->path;
 }
-void blkiocg_update_set_active_queue_stats(struct blkio_group *blkg);
+void blkiocg_update_avg_queue_size_stats(struct blkio_group *blkg);
 void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 				unsigned long dequeue);
 void blkiocg_update_set_idle_time_stats(struct blkio_group *blkg);
@@ -198,7 +198,7 @@ BLKG_FLAG_FNS(empty)
 #undef BLKG_FLAG_FNS
 #else
 static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
-static inline void blkiocg_update_set_active_queue_stats(
+static inline void blkiocg_update_avg_queue_size_stats(
 						struct blkio_group *blkg) {}
 static inline void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 						unsigned long dequeue) {}
@@ -226,9 +226,9 @@ void blkiocg_update_completion_stats(struct blkio_group *blkg,
 	uint64_t start_time, uint64_t io_start_time, bool direction, bool sync);
 void blkiocg_update_io_merged_stats(struct blkio_group *blkg, bool direction,
 					bool sync);
-void blkiocg_update_request_add_stats(struct blkio_group *blkg,
+void blkiocg_update_io_add_stats(struct blkio_group *blkg,
 		struct blkio_group *curr_blkg, bool direction, bool sync);
-void blkiocg_update_request_remove_stats(struct blkio_group *blkg,
+void blkiocg_update_io_remove_stats(struct blkio_group *blkg,
 					bool direction, bool sync);
 #else
 struct cgroup;
@@ -253,9 +253,9 @@ static inline void blkiocg_update_completion_stats(struct blkio_group *blkg,
 		bool sync) {}
 static inline void blkiocg_update_io_merged_stats(struct blkio_group *blkg,
 						bool direction, bool sync) {}
-static inline void blkiocg_update_request_add_stats(struct blkio_group *blkg,
+static inline void blkiocg_update_io_add_stats(struct blkio_group *blkg,
 		struct blkio_group *curr_blkg, bool direction, bool sync) {}
-static inline void blkiocg_update_request_remove_stats(struct blkio_group *blkg,
+static inline void blkiocg_update_io_remove_stats(struct blkio_group *blkg,
 						bool direction, bool sync) {}
 #endif
 #endif /* _BLK_CGROUP_H */

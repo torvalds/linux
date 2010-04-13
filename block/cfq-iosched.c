@@ -1381,10 +1381,10 @@ static void cfq_reposition_rq_rb(struct cfq_queue *cfqq, struct request *rq)
 {
 	elv_rb_del(&cfqq->sort_list, rq);
 	cfqq->queued[rq_is_sync(rq)]--;
-	blkiocg_update_request_remove_stats(&cfqq->cfqg->blkg, rq_data_dir(rq),
+	blkiocg_update_io_remove_stats(&cfqq->cfqg->blkg, rq_data_dir(rq),
 						rq_is_sync(rq));
 	cfq_add_rq_rb(rq);
-	blkiocg_update_request_add_stats(
+	blkiocg_update_io_add_stats(
 			&cfqq->cfqg->blkg, &cfqq->cfqd->serving_group->blkg,
 			rq_data_dir(rq), rq_is_sync(rq));
 }
@@ -1442,7 +1442,7 @@ static void cfq_remove_request(struct request *rq)
 	cfq_del_rq_rb(rq);
 
 	cfqq->cfqd->rq_queued--;
-	blkiocg_update_request_remove_stats(&cfqq->cfqg->blkg, rq_data_dir(rq),
+	blkiocg_update_io_remove_stats(&cfqq->cfqg->blkg, rq_data_dir(rq),
 						rq_is_sync(rq));
 	if (rq_is_meta(rq)) {
 		WARN_ON(!cfqq->meta_pending);
@@ -1541,7 +1541,7 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
 	if (cfqq) {
 		cfq_log_cfqq(cfqd, cfqq, "set_active wl_prio:%d wl_type:%d",
 				cfqd->serving_prio, cfqd->serving_type);
-		blkiocg_update_set_active_queue_stats(&cfqq->cfqg->blkg);
+		blkiocg_update_avg_queue_size_stats(&cfqq->cfqg->blkg);
 		cfqq->slice_start = 0;
 		cfqq->dispatch_start = jiffies;
 		cfqq->allocated_slice = 0;
@@ -2395,11 +2395,6 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 	}
 
 	cfq_log_cfqq(cfqd, cfqq, "dispatched a request");
-	/*
-	 * This is needed since we don't exactly match the mod_timer() and
-	 * del_timer() calls in CFQ.
-	 */
-	blkiocg_update_idle_time_stats(&cfqq->cfqg->blkg);
 	return 1;
 }
 
@@ -3208,8 +3203,11 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 				cfq_del_timer(cfqd, cfqq);
 				cfq_clear_cfqq_wait_request(cfqq);
 				__blk_run_queue(cfqd->queue);
-			} else
+			} else {
+				blkiocg_update_idle_time_stats(
+						&cfqq->cfqg->blkg);
 				cfq_mark_cfqq_must_dispatch(cfqq);
+			}
 		}
 	} else if (cfq_should_preempt(cfqd, cfqq, rq)) {
 		/*
@@ -3235,7 +3233,7 @@ static void cfq_insert_request(struct request_queue *q, struct request *rq)
 	list_add_tail(&rq->queuelist, &cfqq->fifo);
 	cfq_add_rq_rb(rq);
 
-	blkiocg_update_request_add_stats(&cfqq->cfqg->blkg,
+	blkiocg_update_io_add_stats(&cfqq->cfqg->blkg,
 			&cfqd->serving_group->blkg, rq_data_dir(rq),
 			rq_is_sync(rq));
 	cfq_rq_enqueued(cfqd, cfqq, rq);

@@ -202,7 +202,7 @@ void blkiocg_update_idle_time_stats(struct blkio_group *blkg)
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_idle_time_stats);
 
-void blkiocg_update_set_active_queue_stats(struct blkio_group *blkg)
+void blkiocg_update_avg_queue_size_stats(struct blkio_group *blkg)
 {
 	unsigned long flags;
 	struct blkio_group_stats *stats;
@@ -216,14 +216,21 @@ void blkiocg_update_set_active_queue_stats(struct blkio_group *blkg)
 	blkio_update_group_wait_time(stats);
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
-EXPORT_SYMBOL_GPL(blkiocg_update_set_active_queue_stats);
+EXPORT_SYMBOL_GPL(blkiocg_update_avg_queue_size_stats);
+
+void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
+			unsigned long dequeue)
+{
+	blkg->stats.dequeue += dequeue;
+}
+EXPORT_SYMBOL_GPL(blkiocg_update_dequeue_stats);
 #else
 static inline void blkio_set_start_group_wait_time(struct blkio_group *blkg,
 					struct blkio_group *curr_blkg) {}
 static inline void blkio_end_empty_time(struct blkio_group_stats *stats) {}
 #endif
 
-void blkiocg_update_request_add_stats(struct blkio_group *blkg,
+void blkiocg_update_io_add_stats(struct blkio_group *blkg,
 			struct blkio_group *curr_blkg, bool direction,
 			bool sync)
 {
@@ -236,9 +243,9 @@ void blkiocg_update_request_add_stats(struct blkio_group *blkg,
 	blkio_set_start_group_wait_time(blkg, curr_blkg);
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
-EXPORT_SYMBOL_GPL(blkiocg_update_request_add_stats);
+EXPORT_SYMBOL_GPL(blkiocg_update_io_add_stats);
 
-void blkiocg_update_request_remove_stats(struct blkio_group *blkg,
+void blkiocg_update_io_remove_stats(struct blkio_group *blkg,
 						bool direction, bool sync)
 {
 	unsigned long flags;
@@ -248,7 +255,7 @@ void blkiocg_update_request_remove_stats(struct blkio_group *blkg,
 					direction, sync);
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
-EXPORT_SYMBOL_GPL(blkiocg_update_request_remove_stats);
+EXPORT_SYMBOL_GPL(blkiocg_update_io_remove_stats);
 
 void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time)
 {
@@ -635,15 +642,6 @@ SHOW_FUNCTION_PER_GROUP(idle_time, BLKIO_STAT_IDLE_TIME, 0);
 SHOW_FUNCTION_PER_GROUP(empty_time, BLKIO_STAT_EMPTY_TIME, 0);
 #endif
 #undef SHOW_FUNCTION_PER_GROUP
-
-#ifdef CONFIG_DEBUG_BLK_CGROUP
-void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
-			unsigned long dequeue)
-{
-	blkg->stats.dequeue += dequeue;
-}
-EXPORT_SYMBOL_GPL(blkiocg_update_dequeue_stats);
-#endif
 
 static int blkio_check_dev_num(dev_t dev)
 {
