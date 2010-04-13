@@ -2173,7 +2173,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	}
 
 	/* Configure Bluetooth device coexistence support */
-	iwl_send_bt_config(priv);
+	priv->cfg->ops->hcmd->send_bt_config(priv);
 
 	iwl_reset_run_time_calib(priv);
 

@@ -2687,6 +2687,7 @@ IWL3945_UCODE_GET(boot_size);
 static struct iwl_hcmd_ops iwl3945_hcmd = {
 	.rxon_assoc = iwl3945_send_rxon_assoc,
 	.commit_rxon = iwl3945_commit_rxon,
+	.send_bt_config = iwl_send_bt_config,
 };
 
 static struct iwl_ucode_ops iwl3945_ucode = {

@@ -1479,7 +1479,7 @@ irqreturn_t iwl_isr_legacy(int irq, void *data)
 }
 EXPORT_SYMBOL(iwl_isr_legacy);
 
-int iwl_send_bt_config(struct iwl_priv *priv)
+void iwl_send_bt_config(struct iwl_priv *priv)
 {
 	struct iwl_bt_cmd bt_cmd = {
 		.lead_time = BT_LEAD_TIME_DEF,
@@ -1496,8 +1496,9 @@ int iwl_send_bt_config(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "BT coex %s\n",
 		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
-	return iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-				sizeof(struct iwl_bt_cmd), &bt_cmd);
+	if (iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+			     sizeof(struct iwl_bt_cmd), &bt_cmd))
+		IWL_ERR(priv, "failed to send BT Coex Config\n");
 }
 EXPORT_SYMBOL(iwl_send_bt_config);
 

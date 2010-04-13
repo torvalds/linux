@@ -262,6 +262,7 @@ struct iwl_hcmd_ops iwlagn_hcmd = {
 	.commit_rxon = iwl_commit_rxon,
 	.set_rxon_chain = iwl_set_rxon_chain,
 	.set_tx_ant = iwlagn_send_tx_ant_config,
+	.send_bt_config = iwl_send_bt_config,
 };
 
 struct iwl_hcmd_utils_ops iwlagn_hcmd_utils = {
