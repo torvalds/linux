@@ -43,6 +43,7 @@ void of_register_i2c_devices(struct i2c_adapter *adap,
 		info.addr = be32_to_cpup(addr);
 
 		dev_archdata_set_node(&dev_ad, node);
+		info.of_node = node;
 		info.archdata = &dev_ad;
 
 		request_module("%s", info.type);
