@@ -2107,7 +2107,9 @@ static int snd_pcm_open_file(struct file *file,
 static int snd_pcm_playback_open(struct inode *inode, struct file *file)
 {
 	struct snd_pcm *pcm;
-
+	int err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
 	pcm = snd_lookup_minor_data(iminor(inode),
 				    SNDRV_DEVICE_TYPE_PCM_PLAYBACK);
 	return snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_PLAYBACK);
@@ -2116,7 +2118,9 @@ static int snd_pcm_playback_open(struct inode *inode, struct file *file)
 static int snd_pcm_capture_open(struct inode *inode, struct file *file)
 {
 	struct snd_pcm *pcm;
-
+	int err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
 	pcm = snd_lookup_minor_data(iminor(inode),
 				    SNDRV_DEVICE_TYPE_PCM_CAPTURE);
 	return snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_CAPTURE);
@@ -3450,6 +3454,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.aio_write =		snd_pcm_aio_write,
 		.open =			snd_pcm_playback_open,
 		.release =		snd_pcm_release,
+		.llseek =		no_llseek,
 		.poll =			snd_pcm_playback_poll,
 		.unlocked_ioctl =	snd_pcm_playback_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
@@ -3463,6 +3468,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.aio_read =		snd_pcm_aio_read,
 		.open =			snd_pcm_capture_open,
 		.release =		snd_pcm_release,
+		.llseek =		no_llseek,
 		.poll =			snd_pcm_capture_poll,
 		.unlocked_ioctl =	snd_pcm_capture_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,

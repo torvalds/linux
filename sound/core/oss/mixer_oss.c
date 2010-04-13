@@ -43,6 +43,10 @@ static int snd_mixer_oss_open(struct inode *inode, struct file *file)
 	struct snd_mixer_oss_file *fmixer;
 	int err;
 
+	err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
+
 	card = snd_lookup_oss_minor_data(iminor(inode),
 					 SNDRV_OSS_DEVICE_TYPE_MIXER);
 	if (card == NULL)
@@ -397,6 +401,7 @@ static const struct file_operations snd_mixer_oss_f_ops =
 	.owner =	THIS_MODULE,
 	.open =		snd_mixer_oss_open,
 	.release =	snd_mixer_oss_release,
+	.llseek =	no_llseek,
 	.unlocked_ioctl =	snd_mixer_oss_ioctl,
 	.compat_ioctl =	snd_mixer_oss_ioctl_compat,
 };

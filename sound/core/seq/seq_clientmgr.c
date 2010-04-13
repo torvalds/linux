@@ -318,6 +318,11 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 	int c, mode;			/* client id */
 	struct snd_seq_client *client;
 	struct snd_seq_user_client *user;
+	int err;
+
+	err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
 
 	if (mutex_lock_interruptible(&register_mutex))
 		return -ERESTARTSYS;
@@ -2550,6 +2555,7 @@ static const struct file_operations snd_seq_f_ops =
 	.write =	snd_seq_write,
 	.open =		snd_seq_open,
 	.release =	snd_seq_release,
+	.llseek =	no_llseek,
 	.poll =		snd_seq_poll,
 	.unlocked_ioctl =	snd_seq_ioctl,
 	.compat_ioctl =	snd_seq_ioctl_compat,
