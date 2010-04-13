@@ -10,9 +10,6 @@ struct dma_map_ops;
 struct device_node;
 
 struct dev_archdata {
-	/* Optional pointer to an OF device node */
-	struct device_node	*of_node;
-
 	/* DMA operations on that device */
 	struct dma_map_ops	*dma_ops;
 
@@ -29,18 +26,6 @@ struct dev_archdata {
 	dma_addr_t		max_direct_dma_addr;
 #endif
 };
-
-static inline void dev_archdata_set_node(struct dev_archdata *ad,
-					 struct device_node *np)
-{
-	ad->of_node = np;
-}
-
-static inline struct device_node *
-dev_archdata_get_node(const struct dev_archdata *ad)
-{
-	return ad->of_node;
-}
 
 struct pdev_archdata {
 };

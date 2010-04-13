@@ -1098,7 +1098,6 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 			continue;
 
 		/* Setup OF node pointer in the device */
-		sd->of_node = pci_device_to_OF_node(dev);
 		dev->dev.of_node = pci_device_to_OF_node(dev);
 
 		/* Fixup NUMA node as it may not be setup yet by the generic

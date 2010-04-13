@@ -468,7 +468,7 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 
 	pr_debug("pci_dma_dev_setup_pSeries: %s\n", pci_name(dev));
 
-	dn = dev->dev.archdata.of_node;
+	dn = dev->dev.of_node;
 
 	/* If we're the direct child of a root bus, then we need to allocate
 	 * an iommu table ourselves. The bus setup code should have setup
