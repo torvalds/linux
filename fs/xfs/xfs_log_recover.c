@@ -1408,6 +1408,7 @@ xlog_recover_add_item(
 
 STATIC int
 xlog_recover_add_to_cont_trans(
+	struct log		*log,
 	xlog_recover_t		*trans,
 	xfs_caddr_t		dp,
 	int			len)
@@ -1434,6 +1435,7 @@ xlog_recover_add_to_cont_trans(
 	memcpy(&ptr[old_len], dp, len); /* d, s, l */
 	item->ri_buf[item->ri_cnt-1].i_len += len;
 	item->ri_buf[item->ri_cnt-1].i_addr = ptr;
+	trace_xfs_log_recover_item_add_cont(log, trans, item, 0);
 	return 0;
 }
 
@@ -1452,6 +1454,7 @@ xlog_recover_add_to_cont_trans(
  */
 STATIC int
 xlog_recover_add_to_trans(
+	struct log		*log,
 	xlog_recover_t		*trans,
 	xfs_caddr_t		dp,
 	int			len)
@@ -1510,6 +1513,7 @@ xlog_recover_add_to_trans(
 	item->ri_buf[item->ri_cnt].i_addr = ptr;
 	item->ri_buf[item->ri_cnt].i_len  = len;
 	item->ri_cnt++;
+	trace_xfs_log_recover_item_add(log, trans, item, 0);
 	return 0;
 }
 
@@ -1521,7 +1525,9 @@ xlog_recover_add_to_trans(
  */
 STATIC int
 xlog_recover_reorder_trans(
-	xlog_recover_t		*trans)
+	struct log		*log,
+	xlog_recover_t		*trans,
+	int			pass)
 {
 	xlog_recover_item_t	*item, *n;
 	LIST_HEAD(sort_list);
@@ -1535,6 +1541,8 @@ xlog_recover_reorder_trans(
 		switch (ITEM_TYPE(item)) {
 		case XFS_LI_BUF:
 			if (!(buf_f->blf_flags & XFS_BLI_CANCEL)) {
+				trace_xfs_log_recover_item_reorder_head(log,
+							trans, item, pass);
 				list_move(&item->ri_list, &trans->r_itemq);
 				break;
 			}
@@ -1543,6 +1551,8 @@ xlog_recover_reorder_trans(
 		case XFS_LI_QUOTAOFF:
 		case XFS_LI_EFD:
 		case XFS_LI_EFI:
+			trace_xfs_log_recover_item_reorder_tail(log,
+							trans, item, pass);
 			list_move_tail(&item->ri_list, &trans->r_itemq);
 			break;
 		default:
@@ -1592,8 +1602,10 @@ xlog_recover_do_buffer_pass1(
 	/*
 	 * If this isn't a cancel buffer item, then just return.
 	 */
-	if (!(flags & XFS_BLI_CANCEL))
+	if (!(flags & XFS_BLI_CANCEL)) {
+		trace_xfs_log_recover_buf_not_cancel(log, buf_f);
 		return;
+	}
 
 	/*
 	 * Insert an xfs_buf_cancel record into the hash table of
@@ -1627,6 +1639,7 @@ xlog_recover_do_buffer_pass1(
 	while (nextp != NULL) {
 		if (nextp->bc_blkno == blkno && nextp->bc_len == len) {
 			nextp->bc_refcount++;
+			trace_xfs_log_recover_buf_cancel_ref_inc(log, buf_f);
 			return;
 		}
 		prevp = nextp;
@@ -1640,6 +1653,7 @@ xlog_recover_do_buffer_pass1(
 	bcp->bc_refcount = 1;
 	bcp->bc_next = NULL;
 	prevp->bc_next = bcp;
+	trace_xfs_log_recover_buf_cancel_add(log, buf_f);
 }
 
 /*
@@ -1779,6 +1793,8 @@ xlog_recover_do_inode_buffer(
 	unsigned int		*data_map = NULL;
 	unsigned int		map_size = 0;
 
+	trace_xfs_log_recover_buf_inode_buf(mp->m_log, buf_f);
+
 	switch (buf_f->blf_type) {
 	case XFS_LI_BUF:
 		data_map = buf_f->blf_data_map;
@@ -1874,6 +1890,7 @@ xlog_recover_do_inode_buffer(
 /*ARGSUSED*/
 STATIC void
 xlog_recover_do_reg_buffer(
+	struct xfs_mount	*mp,
 	xlog_recover_item_t	*item,
 	xfs_buf_t		*bp,
 	xfs_buf_log_format_t	*buf_f)
@@ -1884,6 +1901,8 @@ xlog_recover_do_reg_buffer(
 	unsigned int		*data_map = NULL;
 	unsigned int		map_size = 0;
 	int                     error;
+
+	trace_xfs_log_recover_buf_reg_buf(mp->m_log, buf_f);
 
 	switch (buf_f->blf_type) {
 	case XFS_LI_BUF:
@@ -2083,6 +2102,8 @@ xlog_recover_do_dquot_buffer(
 {
 	uint			type;
 
+	trace_xfs_log_recover_buf_dquot_buf(log, buf_f);
+
 	/*
 	 * Filesystems are required to send in quota flags at mount time.
 	 */
@@ -2103,7 +2124,7 @@ xlog_recover_do_dquot_buffer(
 	if (log->l_quotaoffs_flag & type)
 		return;
 
-	xlog_recover_do_reg_buffer(item, bp, buf_f);
+	xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
 }
 
 /*
@@ -2164,9 +2185,11 @@ xlog_recover_do_buffer_trans(
 		 */
 		cancel = xlog_recover_do_buffer_pass2(log, buf_f);
 		if (cancel) {
+			trace_xfs_log_recover_buf_cancel(log, buf_f);
 			return 0;
 		}
 	}
+	trace_xfs_log_recover_buf_recover(log, buf_f);
 	switch (buf_f->blf_type) {
 	case XFS_LI_BUF:
 		blkno = buf_f->blf_blkno;
@@ -2204,7 +2227,7 @@ xlog_recover_do_buffer_trans(
 		  (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
 		xlog_recover_do_dquot_buffer(mp, log, item, bp, buf_f);
 	} else {
-		xlog_recover_do_reg_buffer(item, bp, buf_f);
+		xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
 	}
 	if (error)
 		return XFS_ERROR(error);
@@ -2284,8 +2307,10 @@ xlog_recover_do_inode_trans(
 	if (xlog_check_buffer_cancelled(log, in_f->ilf_blkno,
 					in_f->ilf_len, 0)) {
 		error = 0;
+		trace_xfs_log_recover_inode_cancel(log, in_f);
 		goto error;
 	}
+	trace_xfs_log_recover_inode_recover(log, in_f);
 
 	bp = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkno, in_f->ilf_len,
 			  XBF_LOCK);
@@ -2337,6 +2362,7 @@ xlog_recover_do_inode_trans(
 			/* do nothing */
 		} else {
 			xfs_buf_relse(bp);
+			trace_xfs_log_recover_inode_skip(log, in_f);
 			error = 0;
 			goto error;
 		}
@@ -2758,11 +2784,12 @@ xlog_recover_do_trans(
 	int			error = 0;
 	xlog_recover_item_t	*item;
 
-	error = xlog_recover_reorder_trans(trans);
+	error = xlog_recover_reorder_trans(log, trans, pass);
 	if (error)
 		return error;
 
 	list_for_each_entry(item, &trans->r_itemq, ri_list) {
+		trace_xfs_log_recover_item_recover(log, trans, item, pass);
 		switch (ITEM_TYPE(item)) {
 		case XFS_LI_BUF:
 			error = xlog_recover_do_buffer_trans(log, item, pass);
@@ -2919,8 +2946,9 @@ xlog_recover_process_data(
 				error = xlog_recover_unmount_trans(trans);
 				break;
 			case XLOG_WAS_CONT_TRANS:
-				error = xlog_recover_add_to_cont_trans(trans,
-						dp, be32_to_cpu(ohead->oh_len));
+				error = xlog_recover_add_to_cont_trans(log,
+						trans, dp,
+						be32_to_cpu(ohead->oh_len));
 				break;
 			case XLOG_START_TRANS:
 				xlog_warn(
@@ -2930,7 +2958,7 @@ xlog_recover_process_data(
 				break;
 			case 0:
 			case XLOG_CONTINUE_TRANS:
-				error = xlog_recover_add_to_trans(trans,
+				error = xlog_recover_add_to_trans(log, trans,
 						dp, be32_to_cpu(ohead->oh_len));
 				break;
 			default:

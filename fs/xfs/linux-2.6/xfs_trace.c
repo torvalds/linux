@@ -50,6 +50,9 @@
 #include "xfs_aops.h"
 #include "quota/xfs_dquot_item.h"
 #include "quota/xfs_dquot.h"
+#include "xfs_log_recover.h"
+#include "xfs_buf_item.h"
+#include "xfs_inode_item.h"
 
 /*
  * We include this last to have the helpers above available for the trace
