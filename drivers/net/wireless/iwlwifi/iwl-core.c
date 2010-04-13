@@ -834,11 +834,10 @@ static u8 iwl_count_chain_bitmap(u32 chain_bitmap)
  * never called for monitor mode. The only way mac80211 informs us about
  * monitor mode is through configuring filters (call to configure_filter).
  */
-bool iwl_is_monitor_mode(struct iwl_priv *priv)
+static bool iwl_is_monitor_mode(struct iwl_priv *priv)
 {
 	return !!(priv->staging_rxon.filter_flags & RXON_FILTER_PROMISC_MSK);
 }
-EXPORT_SYMBOL(iwl_is_monitor_mode);
 
 /**
  * iwl_set_rxon_chain - Set up Rx chain usage in "staging" RXON image

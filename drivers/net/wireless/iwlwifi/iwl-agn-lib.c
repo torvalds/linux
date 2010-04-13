@@ -1458,8 +1458,6 @@ void iwlagn_request_scan(struct iwl_priv *priv)
 
 	}
 	scan->tx_cmd.len = cpu_to_le16(cmd_len);
-	if (iwl_is_monitor_mode(priv))
-		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
 
 	scan->filter_flags |= (RXON_FILTER_ACCEPT_GRP_MSK |
 			       RXON_FILTER_BCON_AWARE_MSK);

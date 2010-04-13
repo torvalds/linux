@@ -2963,9 +2963,6 @@ void iwl3945_request_scan(struct iwl_priv *priv)
 	/* select Rx antennas */
 	scan->flags |= iwl3945_get_antenna_flags(priv);
 
-	if (iwl_is_monitor_mode(priv))
-		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
-
 	scan->channel_count =
 		iwl3945_get_channels_for_scan(priv, band, is_active, n_probes,
 			(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
