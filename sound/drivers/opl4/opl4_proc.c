@@ -55,25 +55,18 @@ static ssize_t snd_opl4_mem_proc_read(struct snd_info_entry *entry,
 				      size_t count, loff_t pos)
 {
 	struct snd_opl4 *opl4 = entry->private_data;
-	long size;
 	char* buf;
 
-	size = count;
-	if (pos + size > entry->size)
-		size = entry->size - pos;
-	if (size > 0) {
-		buf = vmalloc(size);
-		if (!buf)
-			return -ENOMEM;
-		snd_opl4_read_memory(opl4, buf, pos, size);
-		if (copy_to_user(_buf, buf, size)) {
-			vfree(buf);
-			return -EFAULT;
-		}
+	buf = vmalloc(count);
+	if (!buf)
+		return -ENOMEM;
+	snd_opl4_read_memory(opl4, buf, pos, count);
+	if (copy_to_user(_buf, buf, count)) {
 		vfree(buf);
-		return size;
+		return -EFAULT;
 	}
-	return 0;
+	vfree(buf);
+	return count;
 }
 
 static ssize_t snd_opl4_mem_proc_write(struct snd_info_entry *entry,
@@ -83,25 +76,18 @@ static ssize_t snd_opl4_mem_proc_write(struct snd_info_entry *entry,
 				       size_t count, size_t pos)
 {
 	struct snd_opl4 *opl4 = entry->private_data;
-	long size;
 	char *buf;
 
-	size = count;
-	if (pos + size > entry->size)
-		size = entry->size - pos;
-	if (size > 0) {
-		buf = vmalloc(size);
-		if (!buf)
-			return -ENOMEM;
-		if (copy_from_user(buf, _buf, size)) {
-			vfree(buf);
-			return -EFAULT;
-		}
-		snd_opl4_write_memory(opl4, buf, pos, size);
+	buf = vmalloc(count);
+	if (!buf)
+		return -ENOMEM;
+	if (copy_from_user(buf, _buf, count)) {
 		vfree(buf);
-		return size;
+		return -EFAULT;
 	}
-	return 0;
+	snd_opl4_write_memory(opl4, buf, pos, count);
+	vfree(buf);
+	return count;
 }
 
 static loff_t snd_opl4_mem_proc_llseek(struct snd_info_entry *entry,

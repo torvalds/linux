@@ -36,20 +36,14 @@ static ssize_t snd_gf1_mem_proc_dump(struct snd_info_entry *entry,
 				     struct file *file, char __user *buf,
 				     size_t count, loff_t pos)
 {
-	long size;
 	struct gus_proc_private *priv = entry->private_data;
 	struct snd_gus_card *gus = priv->gus;
 	int err;
 
-	size = count;
-	if (pos + size > priv->size)
-		size = (long)priv->size - pos;
-	if (size > 0) {
-		if ((err = snd_gus_dram_read(gus, buf, pos, size, priv->rom)) < 0)
-			return err;
-		return size;
-	}
-	return 0;
+	err = snd_gus_dram_read(gus, buf, pos, count, priv->rom);
+	if (err < 0)
+		return err;
+	return count;
 }			
 
 static loff_t snd_gf1_mem_proc_llseek(struct snd_info_entry *entry,

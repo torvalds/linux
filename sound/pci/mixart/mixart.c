@@ -1161,13 +1161,7 @@ static ssize_t snd_mixart_BA0_read(struct snd_info_entry *entry,
 				   size_t count, loff_t pos)
 {
 	struct mixart_mgr *mgr = entry->private_data;
-	unsigned long maxsize;
 
-	if (pos >= MIXART_BA0_SIZE)
-		return 0;
-	maxsize = MIXART_BA0_SIZE - pos;
-	if (count > maxsize)
-		count = maxsize;
 	count = count & ~3; /* make sure the read size is a multiple of 4 bytes */
 	if (copy_to_user_fromio(buf, MIXART_MEM(mgr, pos), count))
 		return -EFAULT;
@@ -1183,13 +1177,7 @@ static ssize_t snd_mixart_BA1_read(struct snd_info_entry *entry,
 				   size_t count, loff_t pos)
 {
 	struct mixart_mgr *mgr = entry->private_data;
-	unsigned long maxsize;
 
-	if (pos > MIXART_BA1_SIZE)
-		return 0;
-	maxsize = MIXART_BA1_SIZE - pos;
-	if (count > maxsize)
-		count = maxsize;
 	count = count & ~3; /* make sure the read size is a multiple of 4 bytes */
 	if (copy_to_user_fromio(buf, MIXART_REG(mgr, pos), count))
 		return -EFAULT;

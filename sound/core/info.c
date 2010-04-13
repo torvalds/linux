@@ -232,10 +232,15 @@ static ssize_t snd_info_entry_read(struct file *file, char __user *buffer,
 			return -EFAULT;
 		break;
 	case SNDRV_INFO_CONTENT_DATA:
-		if (entry->c.ops->read)
+		if (pos >= entry->size)
+			return 0;
+		if (entry->c.ops->read) {
+			size = entry->size - pos;
+			size = min(count, size);
 			size = entry->c.ops->read(entry,
 						  data->file_private_data,
-						  file, buffer, count, pos);
+						  file, buffer, size, pos);
+		}
 		break;
 	}
 	if ((ssize_t) size > 0)
@@ -282,10 +287,13 @@ static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer
 		size = count;
 		break;
 	case SNDRV_INFO_CONTENT_DATA:
-		if (entry->c.ops->write)
+		if (entry->c.ops->write && count > 0) {
+			size_t maxsize = entry->size - pos;
+			count = min(count, maxsize);
 			size = entry->c.ops->write(entry,
 						   data->file_private_data,
 						   file, buffer, count, pos);
+		}
 		break;
 	}
 	if ((ssize_t) size > 0)
