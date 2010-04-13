@@ -1532,8 +1532,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		all_wiphys_idle =  ath9k_all_wiphys_idle(sc);
 		ath9k_set_wiphy_idle(aphy, idle);
 
-		if (!idle && all_wiphys_idle)
-			enable_radio = true;
+		enable_radio = (!idle && all_wiphys_idle);
 
 		/*
 		 * After we unlock here its possible another wiphy
