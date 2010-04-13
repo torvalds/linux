@@ -196,7 +196,6 @@ static int dn_fib_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 {
 	struct dn_fib_rule *r = (struct dn_fib_rule *)rule;
 
-	frh->family = AF_DECnet;
 	frh->dst_len = r->dst_len;
 	frh->src_len = r->src_len;
 	frh->tos = 0;
