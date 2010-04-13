@@ -860,6 +860,9 @@ int __init register_intc_controller(struct intc_desc *desc)
 	struct intc_desc_int *d;
 	struct resource *res;
 
+	pr_info("intc: Registered controller '%s' with %u IRQs\n",
+		desc->name, hw->nr_vectors);
+
 	d = kzalloc(sizeof(*d), GFP_NOWAIT);
 	if (!d)
 		goto err0;
@@ -974,7 +977,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 		irq_desc = irq_to_desc_alloc_node(irq, numa_node_id());
 		if (unlikely(!irq_desc)) {
-			pr_info("can't get irq_desc for %d\n", irq);
+			pr_err("can't get irq_desc for %d\n", irq);
 			continue;
 		}
 
@@ -994,7 +997,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 			 */
 			irq_desc = irq_to_desc_alloc_node(irq2, numa_node_id());
 			if (unlikely(!irq_desc)) {
-				pr_info("can't get irq_desc for %d\n", irq2);
+				pr_err("can't get irq_desc for %d\n", irq2);
 				continue;
 			}
 
@@ -1121,7 +1124,7 @@ static int __init register_intc_sysdevs(void)
 	}
 
 	if (error)
-		pr_warning("intc: sysdev registration error\n");
+		pr_err("intc: sysdev registration error\n");
 
 	return error;
 }
@@ -1154,7 +1157,7 @@ unsigned int create_irq_nr(unsigned int irq_want, int node)
 
 	desc = irq_to_desc_alloc_node(new, node);
 	if (unlikely(!desc)) {
-		pr_info("can't get irq_desc for %d\n", new);
+		pr_err("can't get irq_desc for %d\n", new);
 		goto out_unlock;
 	}
 
