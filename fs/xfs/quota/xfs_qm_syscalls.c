@@ -931,7 +931,7 @@ struct mutex  qcheck_lock;
 }
 
 typedef struct dqtest {
-	xfs_dqmarker_t	q_lists;
+	uint		 dq_flags;	/* various flags (XFS_DQ_*) */
 	struct list_head q_hashlist;
 	xfs_dqhash_t	*q_hash;	/* the hashchain header */
 	xfs_mount_t	*q_mount;	/* filesystem this relates to */
