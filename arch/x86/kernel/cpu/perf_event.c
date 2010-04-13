@@ -844,10 +844,10 @@ void hw_perf_enable(void)
 	x86_pmu.enable_all(added);
 }
 
-static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc)
+static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc,
+					  u64 enable_mask)
 {
-	wrmsrl(hwc->config_base + hwc->idx,
-			      hwc->config | ARCH_PERFMON_EVENTSEL_ENABLE);
+	wrmsrl(hwc->config_base + hwc->idx, hwc->config | enable_mask);
 }
 
 static inline void x86_pmu_disable_event(struct perf_event *event)
@@ -919,7 +919,8 @@ static void x86_pmu_enable_event(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	if (cpuc->enabled)
-		__x86_pmu_enable_event(&event->hw);
+		__x86_pmu_enable_event(&event->hw,
+				       ARCH_PERFMON_EVENTSEL_ENABLE);
 }
 
 /*

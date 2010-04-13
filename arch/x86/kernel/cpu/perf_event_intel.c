@@ -513,7 +513,8 @@ static void intel_pmu_nhm_enable_all(int added)
 			if (!event)
 				continue;
 
-			__x86_pmu_enable_event(&event->hw);
+			__x86_pmu_enable_event(&event->hw,
+					       ARCH_PERFMON_EVENTSEL_ENABLE);
 		}
 	}
 	intel_pmu_enable_all(added);
@@ -617,7 +618,7 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	if (unlikely(event->attr.precise))
 		intel_pmu_pebs_enable(event);
 
-	__x86_pmu_enable_event(hwc);
+	__x86_pmu_enable_event(hwc, ARCH_PERFMON_EVENTSEL_ENABLE);
 }
 
 /*
