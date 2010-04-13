@@ -106,9 +106,6 @@ static void save_core_regs(void)
 	sleep_usb[1] = au_readl(0xb4020024);	/* OTG_MUX */
 #endif
 
-	/* Save interrupt controller state. */
-	save_au1xxx_intctl();
-
 	/* Clocks and PLLs. */
 	sleep_sys_clocks[0] = au_readl(SYS_FREQCTRL0);
 	sleep_sys_clocks[1] = au_readl(SYS_FREQCTRL1);
@@ -199,8 +196,6 @@ static void restore_core_regs(void)
 		au_writel(sleep_uart0_linectl, UART0_ADDR + UART_LCR); au_sync();
 		au_writel(sleep_uart0_clkdiv, UART0_ADDR + UART_CLK); au_sync();
 	}
-
-	restore_au1xxx_intctl();
 
 #if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
 	au1xxx_dbdma_resume();
