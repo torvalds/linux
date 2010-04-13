@@ -59,7 +59,12 @@ struct netns_ipv4 {
 	atomic_t rt_genid;
 
 #ifdef CONFIG_IP_MROUTE
+#ifndef CONFIG_IP_MROUTE_MULTIPLE_TABLES
 	struct mr_table		*mrt;
+#else
+	struct list_head	mr_tables;
+	struct fib_rules_ops	*mr_rules_ops;
+#endif
 #endif
 };
 #endif

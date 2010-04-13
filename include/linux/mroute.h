@@ -27,7 +27,8 @@
 #define MRT_DEL_MFC	(MRT_BASE+5)	/* Delete a multicast forwarding entry	*/
 #define MRT_VERSION	(MRT_BASE+6)	/* Get the kernel multicast version	*/
 #define MRT_ASSERT	(MRT_BASE+7)	/* Activate PIM assert mode		*/
-#define MRT_PIM		(MRT_BASE+8)	/* enable PIM code	*/
+#define MRT_PIM		(MRT_BASE+8)	/* enable PIM code			*/
+#define MRT_TABLE	(MRT_BASE+9)	/* Specify mroute table ID		*/
 
 #define SIOCGETVIFCNT	SIOCPROTOPRIVATE	/* IP protocol privates */
 #define SIOCGETSGCNT	(SIOCPROTOPRIVATE+1)

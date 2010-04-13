@@ -61,6 +61,7 @@ struct raw_sock {
 	/* inet_sock has to be the first member */
 	struct inet_sock   inet;
 	struct icmp_filter filter;
+	u32		   ipmr_table;
 };
 
 static inline struct raw_sock *raw_sk(const struct sock *sk)
