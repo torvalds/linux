@@ -793,6 +793,7 @@ struct ieee80211_key_conf {
 	u8 iv_len;
 	u8 hw_key_idx;
 	u8 flags;
+	u8 *ap_addr;
 	s8 keyidx;
 	u8 keylen;
 	u8 key[0];
