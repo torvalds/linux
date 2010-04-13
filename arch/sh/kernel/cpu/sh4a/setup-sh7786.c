@@ -1,7 +1,7 @@
 /*
  * SH7786 Setup
  *
- * Copyright (C) 2009  Renesas Solutions Corp.
+ * Copyright (C) 2009 - 2010  Renesas Solutions Corp.
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
  * Paul Mundt <paul.mundt@renesas.com>
  *
@@ -21,7 +21,9 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/sh_timer.h>
+#include <cpu/dma-register.h>
 #include <asm/mmzone.h>
+#include <asm/dmaengine.h>
 
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xffea0000,
@@ -442,6 +444,83 @@ static struct platform_device tmu11_device = {
 	.num_resources	= ARRAY_SIZE(tmu11_resources),
 };
 
+static struct sh_dmae_channel dmac0_channels[] = {
+	{
+		.offset = 0,
+		.dmars = 0,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x10,
+		.dmars = 0,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x20,
+		.dmars = 4,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x30,
+		.dmars = 4,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x50,
+		.dmars = 8,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x60,
+		.dmars = 8,
+		.dmars_bit = 8,
+	}
+};
+
+static unsigned int ts_shift[] = TS_SHIFT;
+
+static struct sh_dmae_pdata dma0_platform_data = {
+	.channel	= dmac0_channels,
+	.channel_num	= ARRAY_SIZE(dmac0_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
+};
+
+/* Resource order important! */
+static struct resource dmac0_resources[] = {
+	{
+		/* Channel registers and DMAOR */
+		.start	= 0xfe008020,
+		.end	= 0xfe00808f,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		/* DMARSx */
+		.start	= 0xfe009000,
+		.end	= 0xfe00900b,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		/* DMA error IRQ */
+		.start	= evt2irq(0x5c0),
+		.end	= evt2irq(0x5c0),
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		/* IRQ for channels 0-5 */
+		.start	= evt2irq(0x500),
+		.end	= evt2irq(0x5a0),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dma0_device = {
+	.name		= "sh-dma-engine",
+	.id		= 0,
+	.resource	= dmac0_resources,
+	.num_resources	= ARRAY_SIZE(dmac0_resources),
+	.dev		= {
+		.platform_data	= &dma0_platform_data,
+	},
+};
+
 static struct resource usb_ohci_resources[] = {
 	[0] = {
 		.start	= 0xffe70400,
@@ -489,6 +568,7 @@ static struct platform_device *sh7786_early_devices[] __initdata = {
 };
 
 static struct platform_device *sh7786_devices[] __initdata = {
+	&dma0_device,
 	&usb_ohci_device,
 };
 
