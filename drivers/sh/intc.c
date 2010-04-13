@@ -1034,6 +1034,18 @@ err0:
 	return -ENOMEM;
 }
 
+static ssize_t
+show_intc_name(struct sys_device *dev, struct sysdev_attribute *attr, char *buf)
+{
+	struct intc_desc_int *d;
+
+	d = container_of(dev, struct intc_desc_int, sysdev);
+
+	return sprintf(buf, "%s\n", d->chip.name);
+}
+
+static SYSDEV_ATTR(name, S_IRUGO, show_intc_name, NULL);
+
 static int intc_suspend(struct sys_device *dev, pm_message_t state)
 {
 	struct intc_desc_int *d;
@@ -1098,8 +1110,12 @@ static int __init register_intc_sysdevs(void)
 			d->sysdev.id = id;
 			d->sysdev.cls = &intc_sysdev_class;
 			error = sysdev_register(&d->sysdev);
+			if (error == 0)
+				error = sysdev_create_file(&d->sysdev,
+							   &attr_name);
 			if (error)
 				break;
+
 			id++;
 		}
 	}
