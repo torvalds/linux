@@ -170,7 +170,7 @@ struct cpu_hw_events {
 	EVENT_CONSTRAINT(0, 0, 0)
 
 #define for_each_event_constraint(e, c)	\
-	for ((e) = (c); (e)->cmask; (e)++)
+	for ((e) = (c); (e)->weight; (e)++)
 
 union perf_capabilities {
 	struct {
