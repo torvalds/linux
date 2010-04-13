@@ -653,8 +653,6 @@ DEFINE_EVENT(xfs_dquot_class, name, \
 	TP_PROTO(struct xfs_dquot *dqp), \
 	TP_ARGS(dqp))
 DEFINE_DQUOT_EVENT(xfs_dqadjust);
-DEFINE_DQUOT_EVENT(xfs_dqshake_dirty);
-DEFINE_DQUOT_EVENT(xfs_dqshake_unlink);
 DEFINE_DQUOT_EVENT(xfs_dqreclaim_want);
 DEFINE_DQUOT_EVENT(xfs_dqreclaim_dirty);
 DEFINE_DQUOT_EVENT(xfs_dqreclaim_unlink);

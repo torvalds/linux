@@ -1926,194 +1926,6 @@ xfs_qm_init_quotainos(
 }
 
 
-/*
- * Traverse the freelist of dquots and attempt to reclaim a maximum of
- * 'howmany' dquots. This operation races with dqlookup(), and attempts to
- * favor the lookup function ...
- * XXXsup merge this with qm_reclaim_one().
- */
-STATIC int
-xfs_qm_shake_freelist(
-	int howmany)
-{
-	int		nreclaimed;
-	xfs_dqhash_t	*hash;
-	xfs_dquot_t	*dqp, *nextdqp;
-	int		restarts;
-	int		nflushes;
-
-	if (howmany <= 0)
-		return 0;
-
-	nreclaimed = 0;
-	restarts = 0;
-	nflushes = 0;
-
-#ifdef QUOTADEBUG
-	cmn_err(CE_DEBUG, "Shake free 0x%x", howmany);
-#endif
-	/* lock order is : hashchainlock, freelistlock, mplistlock */
- tryagain:
-	xfs_qm_freelist_lock(xfs_Gqm);
-
-	for (dqp = xfs_Gqm->qm_dqfreelist.qh_next;
-	     ((dqp != (xfs_dquot_t *) &xfs_Gqm->qm_dqfreelist) &&
-	      nreclaimed < howmany); ) {
-		struct xfs_mount *mp = dqp->q_mount;
-		xfs_dqlock(dqp);
-
-		/*
-		 * We are racing with dqlookup here. Naturally we don't
-		 * want to reclaim a dquot that lookup wants.
-		 */
-		if (dqp->dq_flags & XFS_DQ_WANT) {
-			xfs_dqunlock(dqp);
-			xfs_qm_freelist_unlock(xfs_Gqm);
-			if (++restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
-				return nreclaimed;
-			XQM_STATS_INC(xqmstats.xs_qm_dqwants);
-			goto tryagain;
-		}
-
-		/*
-		 * If the dquot is inactive, we are assured that it is
-		 * not on the mplist or the hashlist, and that makes our
-		 * life easier.
-		 */
-		if (dqp->dq_flags & XFS_DQ_INACTIVE) {
-			ASSERT(mp == NULL);
-			ASSERT(! XFS_DQ_IS_DIRTY(dqp));
-			ASSERT(dqp->HL_PREVP == NULL);
-			ASSERT(list_empty(&dqp->q_mplist));
-			XQM_STATS_INC(xqmstats.xs_qm_dqinact_reclaims);
-			nextdqp = dqp->dq_flnext;
-			goto off_freelist;
-		}
-
-		ASSERT(!list_empty(&dqp->q_mplist));
-		/*
-		 * Try to grab the flush lock. If this dquot is in the process of
-		 * getting flushed to disk, we don't want to reclaim it.
-		 */
-		if (!xfs_dqflock_nowait(dqp)) {
-			xfs_dqunlock(dqp);
-			dqp = dqp->dq_flnext;
-			continue;
-		}
-
-		/*
-		 * We have the flush lock so we know that this is not in the
-		 * process of being flushed. So, if this is dirty, flush it
-		 * DELWRI so that we don't get a freelist infested with
-		 * dirty dquots.
-		 */
-		if (XFS_DQ_IS_DIRTY(dqp)) {
-			int	error;
-
-			trace_xfs_dqshake_dirty(dqp);
-
-			/*
-			 * We flush it delayed write, so don't bother
-			 * releasing the mplock.
-			 */
-			error = xfs_qm_dqflush(dqp, 0);
-			if (error) {
-				xfs_fs_cmn_err(CE_WARN, mp,
-			"xfs_qm_dqflush_all: dquot %p flush failed", dqp);
-			}
-			xfs_dqunlock(dqp); /* dqflush unlocks dqflock */
-			dqp = dqp->dq_flnext;
-			continue;
-		}
-		/*
-		 * We're trying to get the hashlock out of order. This races
-		 * with dqlookup; so, we giveup and goto the next dquot if
-		 * we couldn't get the hashlock. This way, we won't starve
-		 * a dqlookup process that holds the hashlock that is
-		 * waiting for the freelist lock.
-		 */
-		if (!mutex_trylock(&dqp->q_hash->qh_lock)) {
-			xfs_dqfunlock(dqp);
-			xfs_dqunlock(dqp);
-			dqp = dqp->dq_flnext;
-			continue;
-		}
-		/*
-		 * This races with dquot allocation code as well as dqflush_all
-		 * and reclaim code. So, if we failed to grab the mplist lock,
-		 * giveup everything and start over.
-		 */
-		hash = dqp->q_hash;
-		ASSERT(hash);
-		if (!mutex_trylock(&mp->m_quotainfo->qi_dqlist_lock)) {
-			/* XXX put a sentinel so that we can come back here */
-			xfs_dqfunlock(dqp);
-			xfs_dqunlock(dqp);
-			mutex_unlock(&hash->qh_lock);
-			xfs_qm_freelist_unlock(xfs_Gqm);
-			if (++restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
-				return nreclaimed;
-			goto tryagain;
-		}
-
-		trace_xfs_dqshake_unlink(dqp);
-
-#ifdef QUOTADEBUG
-		cmn_err(CE_DEBUG, "Shake 0x%p, ID 0x%x\n",
-			dqp, be32_to_cpu(dqp->q_core.d_id));
-#endif
-		ASSERT(dqp->q_nrefs == 0);
-		nextdqp = dqp->dq_flnext;
-		XQM_HASHLIST_REMOVE(hash, dqp);
-		list_del_init(&dqp->q_mplist);
-		mp->m_quotainfo->qi_dquots--;
-		mp->m_quotainfo->qi_dqreclaims++;
-		xfs_dqfunlock(dqp);
-		mutex_unlock(&mp->m_quotainfo->qi_dqlist_lock);
-		mutex_unlock(&hash->qh_lock);
-
- off_freelist:
-		XQM_FREELIST_REMOVE(dqp);
-		xfs_dqunlock(dqp);
-		nreclaimed++;
-		XQM_STATS_INC(xqmstats.xs_qm_dqshake_reclaims);
-		xfs_qm_dqdestroy(dqp);
-		dqp = nextdqp;
-	}
-	xfs_qm_freelist_unlock(xfs_Gqm);
-	return nreclaimed;
-}
-
-
-/*
- * The kmem_shake interface is invoked when memory is running low.
- */
-/* ARGSUSED */
-STATIC int
-xfs_qm_shake(int nr_to_scan, gfp_t gfp_mask)
-{
-	int	ndqused, nfree, n;
-
-	if (!kmem_shake_allow(gfp_mask))
-		return 0;
-	if (!xfs_Gqm)
-		return 0;
-
-	nfree = xfs_Gqm->qm_dqfreelist.qh_nelems; /* free dquots */
-	/* incore dquots in all f/s's */
-	ndqused = atomic_read(&xfs_Gqm->qm_totaldquots) - nfree;
-
-	ASSERT(ndqused >= 0);
-
-	if (nfree <= ndqused && nfree < ndquot)
-		return 0;
-
-	ndqused *= xfs_Gqm->qm_dqfree_ratio;	/* target # of free dquots */
-	n = nfree - ndqused - ndquot;		/* # over target */
-
-	return xfs_qm_shake_freelist(MAX(nfree, n));
-}
-
 
 /*
  * Just pop the least recently used dquot off the freelist and
@@ -2125,14 +1937,12 @@ xfs_qm_dqreclaim_one(void)
 	xfs_dquot_t	*dqpout;
 	xfs_dquot_t	*dqp;
 	int		restarts;
-	int		nflushes;
 
 	restarts = 0;
 	dqpout = NULL;
-	nflushes = 0;
 
 	/* lockorder: hashchainlock, freelistlock, mplistlock, dqlock, dqflock */
- startagain:
+startagain:
 	xfs_qm_freelist_lock(xfs_Gqm);
 
 	FOREACH_DQUOT_IN_FREELIST(dqp, &(xfs_Gqm->qm_dqfreelist)) {
@@ -2211,16 +2021,33 @@ xfs_qm_dqreclaim_one(void)
 			continue;
 		}
 
-		if (!mutex_trylock(&mp->m_quotainfo->qi_dqlist_lock)) {
-			xfs_dqfunlock(dqp);
-			xfs_dqunlock(dqp);
-			continue;
+		/*
+		 * We're trying to get the hashlock out of order. This races
+		 * with dqlookup; so, we giveup and goto the next dquot if
+		 * we couldn't get the hashlock. This way, we won't starve
+		 * a dqlookup process that holds the hashlock that is
+		 * waiting for the freelist lock.
+		 */
+		if (!mutex_trylock(&dqp->q_hash->qh_lock)) {
+			restarts++;
+			goto dqfunlock;
 		}
 
-		if (!mutex_trylock(&dqp->q_hash->qh_lock))
-			goto mplistunlock;
-
-		trace_xfs_dqreclaim_unlink(dqp);
+		/*
+		 * This races with dquot allocation code as well as dqflush_all
+		 * and reclaim code. So, if we failed to grab the mplist lock,
+		 * giveup everything and start over.
+		 */
+		if (!mutex_trylock(&mp->m_quotainfo->qi_dqlist_lock)) {
+			restarts++;
+			mutex_unlock(&dqp->q_hash->qh_lock);
+			xfs_dqfunlock(dqp);
+			xfs_dqunlock(dqp);
+			xfs_qm_freelist_unlock(xfs_Gqm);
+			if (restarts++ >= XFS_QM_RECLAIM_MAX_RESTARTS)
+				return NULL;
+			goto startagain;
+		}
 
 		ASSERT(dqp->q_nrefs == 0);
 		list_del_init(&dqp->q_mplist);
@@ -2229,17 +2056,72 @@ xfs_qm_dqreclaim_one(void)
 		XQM_HASHLIST_REMOVE(dqp->q_hash, dqp);
 		XQM_FREELIST_REMOVE(dqp);
 		dqpout = dqp;
-		mutex_unlock(&dqp->q_hash->qh_lock);
- mplistunlock:
 		mutex_unlock(&mp->m_quotainfo->qi_dqlist_lock);
+		mutex_unlock(&dqp->q_hash->qh_lock);
+dqfunlock:
 		xfs_dqfunlock(dqp);
 		xfs_dqunlock(dqp);
 		if (dqpout)
 			break;
+		if (restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
+			return NULL;
 	}
-
 	xfs_qm_freelist_unlock(xfs_Gqm);
 	return dqpout;
+}
+
+/*
+ * Traverse the freelist of dquots and attempt to reclaim a maximum of
+ * 'howmany' dquots. This operation races with dqlookup(), and attempts to
+ * favor the lookup function ...
+ */
+STATIC int
+xfs_qm_shake_freelist(
+	int	howmany)
+{
+	int		nreclaimed = 0;
+	xfs_dquot_t	*dqp;
+
+	if (howmany <= 0)
+		return 0;
+
+	while (nreclaimed < howmany) {
+		dqp = xfs_qm_dqreclaim_one();
+		if (!dqp)
+			return nreclaimed;
+		xfs_qm_dqdestroy(dqp);
+		nreclaimed++;
+	}
+	return nreclaimed;
+}
+
+/*
+ * The kmem_shake interface is invoked when memory is running low.
+ */
+/* ARGSUSED */
+STATIC int
+xfs_qm_shake(int nr_to_scan, gfp_t gfp_mask)
+{
+	int	ndqused, nfree, n;
+
+	if (!kmem_shake_allow(gfp_mask))
+		return 0;
+	if (!xfs_Gqm)
+		return 0;
+
+	nfree = xfs_Gqm->qm_dqfreelist.qh_nelems; /* free dquots */
+	/* incore dquots in all f/s's */
+	ndqused = atomic_read(&xfs_Gqm->qm_totaldquots) - nfree;
+
+	ASSERT(ndqused >= 0);
+
+	if (nfree <= ndqused && nfree < ndquot)
+		return 0;
+
+	ndqused *= xfs_Gqm->qm_dqfree_ratio;	/* target # of free dquots */
+	n = nfree - ndqused - ndquot;		/* # over target */
+
+	return xfs_qm_shake_freelist(MAX(nfree, n));
 }
 
 
