@@ -203,13 +203,11 @@ static int intel_i810_fetch_size(void)
 		return 0;
 	}
 	if ((smram_miscc & I810_GFX_MEM_WIN_SIZE) == I810_GFX_MEM_WIN_32M) {
-		agp_bridge->previous_size =
-			agp_bridge->current_size = (void *) (values + 1);
+		agp_bridge->current_size = (void *) (values + 1);
 		agp_bridge->aperture_size_idx = 1;
 		return values[1].size;
 	} else {
-		agp_bridge->previous_size =
-			agp_bridge->current_size = (void *) (values);
+		agp_bridge->current_size = (void *) (values);
 		agp_bridge->aperture_size_idx = 0;
 		return values[0].size;
 	}
@@ -825,7 +823,7 @@ static int intel_i830_fetch_size(void)
 	if (agp_bridge->dev->device != PCI_DEVICE_ID_INTEL_82830_HB &&
 	    agp_bridge->dev->device != PCI_DEVICE_ID_INTEL_82845G_HB) {
 		/* 855GM/852GM/865G has 128MB aperture size */
-		agp_bridge->previous_size = agp_bridge->current_size = (void *) values;
+		agp_bridge->current_size = (void *) values;
 		agp_bridge->aperture_size_idx = 0;
 		return values[0].size;
 	}
@@ -833,11 +831,11 @@ static int intel_i830_fetch_size(void)
 	pci_read_config_word(agp_bridge->dev, I830_GMCH_CTRL, &gmch_ctrl);
 
 	if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_128M) {
-		agp_bridge->previous_size = agp_bridge->current_size = (void *) values;
+		agp_bridge->current_size = (void *) values;
 		agp_bridge->aperture_size_idx = 0;
 		return values[0].size;
 	} else {
-		agp_bridge->previous_size = agp_bridge->current_size = (void *) (values + 1);
+		agp_bridge->current_size = (void *) (values + 1);
 		agp_bridge->aperture_size_idx = 1;
 		return values[1].size;
 	}
@@ -1202,7 +1200,6 @@ static int intel_i9xx_fetch_size(void)
 	for (i = 0; i < num_sizes; i++) {
 		if (aper_size == intel_i830_sizes[i].size) {
 			agp_bridge->current_size = intel_i830_sizes + i;
-			agp_bridge->previous_size = agp_bridge->current_size;
 			return aper_size;
 		}
 	}
