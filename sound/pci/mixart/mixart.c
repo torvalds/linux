@@ -1102,55 +1102,6 @@ static int snd_mixart_free(struct mixart_mgr *mgr)
 /*
  * proc interface
  */
-static loff_t snd_mixart_BA0_llseek(struct snd_info_entry *entry,
-				    void *private_file_data,
-				    struct file *file,
-				    loff_t offset, int orig)
-{
-	offset = offset & ~3; /* 4 bytes aligned */
-
-	switch(orig) {
-	case SEEK_SET:
-		file->f_pos = offset;
-		break;
-	case SEEK_CUR:
-		file->f_pos += offset;
-		break;
-	case SEEK_END: /* offset is negative */
-		file->f_pos = MIXART_BA0_SIZE + offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-	if(file->f_pos > MIXART_BA0_SIZE)
-		file->f_pos = MIXART_BA0_SIZE;
-	return file->f_pos;
-}
-
-static loff_t snd_mixart_BA1_llseek(struct snd_info_entry *entry,
-				    void *private_file_data,
-				    struct file *file,
-				    loff_t offset, int orig)
-{
-	offset = offset & ~3; /* 4 bytes aligned */
-
-	switch(orig) {
-	case SEEK_SET:
-		file->f_pos = offset;
-		break;
-	case SEEK_CUR:
-		file->f_pos += offset;
-		break;
-	case SEEK_END: /* offset is negative */
-		file->f_pos = MIXART_BA1_SIZE + offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-	if(file->f_pos > MIXART_BA1_SIZE)
-		file->f_pos = MIXART_BA1_SIZE;
-	return file->f_pos;
-}
 
 /*
   mixart_BA0 proc interface for BAR 0 - read callback
@@ -1186,12 +1137,10 @@ static ssize_t snd_mixart_BA1_read(struct snd_info_entry *entry,
 
 static struct snd_info_entry_ops snd_mixart_proc_ops_BA0 = {
 	.read   = snd_mixart_BA0_read,
-	.llseek = snd_mixart_BA0_llseek
 };
 
 static struct snd_info_entry_ops snd_mixart_proc_ops_BA1 = {
 	.read   = snd_mixart_BA1_read,
-	.llseek = snd_mixart_BA1_llseek
 };
 
 

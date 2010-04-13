@@ -90,35 +90,11 @@ static ssize_t snd_opl4_mem_proc_write(struct snd_info_entry *entry,
 	return count;
 }
 
-static loff_t snd_opl4_mem_proc_llseek(struct snd_info_entry *entry,
-				       void *file_private_data,
-				       struct file *file,
-				       loff_t offset, int orig)
-{
-	switch (orig) {
-	case SEEK_SET:
-		file->f_pos = offset;
-		break;
-	case SEEK_CUR:
-		file->f_pos += offset;
-		break;
-	case SEEK_END: /* offset is negative */
-		file->f_pos = entry->size + offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-	if (file->f_pos > entry->size)
-		file->f_pos = entry->size;
-	return file->f_pos;
-}
-
 static struct snd_info_entry_ops snd_opl4_mem_proc_ops = {
 	.open = snd_opl4_mem_proc_open,
 	.release = snd_opl4_mem_proc_release,
 	.read = snd_opl4_mem_proc_read,
 	.write = snd_opl4_mem_proc_write,
-	.llseek = snd_opl4_mem_proc_llseek,
 };
 
 int snd_opl4_create_proc(struct snd_opl4 *opl4)
