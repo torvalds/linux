@@ -505,7 +505,7 @@ static int x86_pmu_hw_config(struct perf_event *event)
 	if (event->attr.type == PERF_TYPE_RAW)
 		event->hw.config |= event->attr.config & X86_RAW_EVENT_MASK;
 
-	return 0;
+	return x86_setup_perfctr(event);
 }
 
 /*
@@ -543,12 +543,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	event->hw.last_cpu = -1;
 	event->hw.last_tag = ~0ULL;
 
-	/* Processor specifics */
-	err = x86_pmu.hw_config(event);
-	if (err)
-		return err;
-
-	return x86_setup_perfctr(event);
+	return x86_pmu.hw_config(event);
 }
 
 static void x86_pmu_disable_all(void)

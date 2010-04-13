@@ -455,7 +455,7 @@ static int p4_hw_config(struct perf_event *event)
 		(p4_config_pack_escr(P4_ESCR_MASK_HT) |
 		 p4_config_pack_cccr(P4_CCCR_MASK_HT));
 
-	return 0;
+	return x86_setup_perfctr(event);
 }
 
 static inline void p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
