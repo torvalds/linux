@@ -33,6 +33,7 @@ struct plat_stmmacenet_data {
 	int bus_id;
 	int pbl;
 	int has_gmac;
+	int enh_desc;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(unsigned long ioaddr);
 #ifdef CONFIG_STM_DRIVERS
