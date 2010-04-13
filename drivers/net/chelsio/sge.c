@@ -460,7 +460,7 @@ static struct sk_buff *sched_skb(struct sge *sge, struct sk_buff *skb,
 
 again:
 	for (i = 0; i < MAX_NPORTS; i++) {
-		s->port = ++s->port & (MAX_NPORTS - 1);
+		s->port = (s->port + 1) & (MAX_NPORTS - 1);
 		skbq = &s->p[s->port].skbq;
 
 		skb = skb_peek(skbq);
