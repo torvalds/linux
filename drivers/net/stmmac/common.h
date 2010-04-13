@@ -23,6 +23,11 @@
 *******************************************************************************/
 
 #include <linux/netdevice.h>
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#define STMMAC_VLAN_TAG_USED
+#include <linux/if_vlan.h>
+#endif
+
 #include "descs.h"
 
 #undef CHIP_DEBUG_PRINT
