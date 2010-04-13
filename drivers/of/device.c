@@ -10,8 +10,7 @@
 #include <asm/errno.h>
 
 /**
- * of_match_device - Tell if an of_device structure has a matching
- * of_match structure
+ * of_match_device - Tell if a struct device matches an of_device_id list
  * @ids: array of of device match structures to search in
  * @dev: the of device structure to match against
  *
@@ -19,11 +18,11 @@
  * system is in its list of supported devices.
  */
 const struct of_device_id *of_match_device(const struct of_device_id *matches,
-					const struct of_device *dev)
+					   const struct device *dev)
 {
-	if (!dev->dev.of_node)
+	if (!dev->of_node)
 		return NULL;
-	return of_match_node(matches, dev->dev.of_node);
+	return of_match_node(matches, dev->of_node);
 }
 EXPORT_SYMBOL(of_match_device);
 
