@@ -935,22 +935,7 @@ static int agp_intel_resume(struct pci_dev *pdev)
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 	int ret_val;
 
-	if (bridge->driver == &intel_generic_driver)
-		intel_configure();
-	else if (bridge->driver == &intel_850_driver)
-		intel_850_configure();
-	else if (bridge->driver == &intel_845_driver)
-		intel_845_configure();
-	else if (bridge->driver == &intel_830mp_driver)
-		intel_830mp_configure();
-	else if (bridge->driver == &intel_915_driver)
-		intel_i915_configure();
-	else if (bridge->driver == &intel_830_driver)
-		intel_i830_configure();
-	else if (bridge->driver == &intel_810_driver)
-		intel_i810_configure();
-	else if (bridge->driver == &intel_i965_driver)
-		intel_i915_configure();
+	bridge->driver->configure();
 
 	ret_val = agp_rebind_memory();
 	if (ret_val != 0)
