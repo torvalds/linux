@@ -1405,13 +1405,6 @@ void iwlagn_request_scan(struct iwl_priv *priv)
 		 * detect transmissions.
 		 */
 		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH : 0;
-
-		/* Force use of chains B and C (0x6) for scan Rx
-		 * Avoid A (0x1) for the device has off-channel reception
-		 * on A-band.
-		 */
-		if (priv->cfg->off_channel_workaround)
-			rx_ant = ANT_BC;
 		break;
 	default:
 		IWL_WARN(priv, "Invalid scan band count\n");
@@ -1419,6 +1412,9 @@ void iwlagn_request_scan(struct iwl_priv *priv)
 	}
 
 	band = priv->scan_band;
+
+	if (priv->cfg->scan_antennas[band])
+		rx_ant = priv->cfg->scan_antennas[band];
 
 	priv->scan_tx_ant[band] =
 			iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band]);

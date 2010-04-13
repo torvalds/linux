@@ -2261,8 +2261,13 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.temperature_kelvin = true,
-	.off_channel_workaround = true,
 	.max_event_log_size = 512,
+
+	/*
+	 * Force use of chains B and C for scan RX on 5 GHz band
+	 * because the device has off-channel reception on chain A.
+	 */
+	.scan_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
 };
 
 /* Module firmware */
