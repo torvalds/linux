@@ -812,6 +812,41 @@ static const struct intel_driver_description {
 	{ 0, 0, NULL, NULL, NULL }
 };
 
+static int __devinit intel_gmch_probe(struct pci_dev *pdev,
+				      struct agp_bridge_data *bridge)
+{
+	int i;
+	bridge->driver = NULL;
+
+	for (i = 0; intel_agp_chipsets[i].name != NULL; i++) {
+		if ((intel_agp_chipsets[i].gmch_chip_id != 0) &&
+			find_gmch(intel_agp_chipsets[i].gmch_chip_id)) {
+			bridge->driver =
+				intel_agp_chipsets[i].gmch_driver;
+			break;
+		}
+	}
+
+	if (!bridge->driver)
+		return 0;
+
+	bridge->dev_private_data = &intel_private;
+	bridge->dev = pdev;
+
+	dev_info(&pdev->dev, "Intel %s Chipset\n", intel_agp_chipsets[i].name);
+
+	if (bridge->driver->mask_memory == intel_i965_mask_memory) {
+		if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(36)))
+			dev_err(&intel_private.pcidev->dev,
+				"set gfx device dma mask 36bit failed!\n");
+		else
+			pci_set_consistent_dma_mask(intel_private.pcidev,
+						    DMA_BIT_MASK(36));
+	}
+
+	return 1;
+}
+
 static int __devinit agp_intel_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
@@ -826,20 +861,18 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 	if (!bridge)
 		return -ENOMEM;
 
+	bridge->capndx = cap_ptr;
+
+	if (intel_gmch_probe(pdev, bridge))
+		goto found_gmch;
+
 	for (i = 0; intel_agp_chipsets[i].name != NULL; i++) {
 		/* In case that multiple models of gfx chip may
 		   stand on same host bridge type, this can be
 		   sure we detect the right IGD. */
 		if (pdev->device == intel_agp_chipsets[i].chip_id) {
-			if ((intel_agp_chipsets[i].gmch_chip_id != 0) &&
-				find_gmch(intel_agp_chipsets[i].gmch_chip_id)) {
-				bridge->driver =
-					intel_agp_chipsets[i].gmch_driver;
-				break;
-			} else {
-				bridge->driver = intel_agp_chipsets[i].driver;
-				break;
-			}
+			bridge->driver = intel_agp_chipsets[i].driver;
+			break;
 		}
 	}
 
@@ -851,18 +884,8 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	if (bridge->driver == NULL) {
-		/* bridge has no AGP and no IGD detected */
-		if (cap_ptr)
-			dev_warn(&pdev->dev, "can't find bridge device (chip_id: %04x)\n",
-				 intel_agp_chipsets[i].gmch_chip_id);
-		agp_put_bridge(bridge);
-		return -ENODEV;
-	}
-
 	bridge->dev = pdev;
-	bridge->capndx = cap_ptr;
-	bridge->dev_private_data = &intel_private;
+	bridge->dev_private_data = NULL;
 
 	dev_info(&pdev->dev, "Intel %s Chipset\n", intel_agp_chipsets[i].name);
 
@@ -898,15 +921,7 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 				&bridge->mode);
 	}
 
-	if (bridge->driver->mask_memory == intel_i965_mask_memory) {
-		if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(36)))
-			dev_err(&intel_private.pcidev->dev,
-				"set gfx device dma mask 36bit failed!\n");
-		else
-			pci_set_consistent_dma_mask(intel_private.pcidev,
-						    DMA_BIT_MASK(36));
-	}
-
+found_gmch:
 	pci_set_drvdata(pdev, bridge);
 	err = agp_add_bridge(bridge);
 	if (!err)
