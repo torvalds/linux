@@ -242,6 +242,11 @@ struct i2400m_barker_db;
  *     so we have a tx_blk_size variable that the bus layer sets to
  *     tell the engine how much of that we need.
  *
+ * @bus_tx_room_min: [fill] Minimum room required while allocating
+ *     TX queue's buffer space for message header. SDIO requires
+ *     224 bytes and USB 16 bytes. Refer bus specific driver code
+ *     for details.
+ *
  * @bus_pl_size_max: [fill] Maximum payload size.
  *
  * @bus_setup: [optional fill] Function called by the bus-generic code
@@ -573,6 +578,7 @@ struct i2400m {
 	wait_queue_head_t state_wq;	/* Woken up when on state updates */
 
 	size_t bus_tx_block_size;
+	size_t bus_tx_room_min;
 	size_t bus_pl_size_max;
 	unsigned bus_bm_retries;
 

@@ -563,8 +563,17 @@ void i2400m_tx_new(struct i2400m *i2400m)
 	struct i2400m_msg_hdr *tx_msg;
 	bool try_head = 0;
 	BUG_ON(i2400m->tx_msg != NULL);
+	/*
+	 * In certain situations, TX queue might have enough space to
+	 * accommodate the new message header I2400M_TX_PLD_SIZE, but
+	 * might not have enough space to accommodate the payloads.
+	 * Adding bus_tx_room_min padding while allocating a new TX message
+	 * increases the possibilities of including at least one payload of the
+	 * size <= bus_tx_room_min.
+	 */
 try_head:
-	tx_msg = i2400m_tx_fifo_push(i2400m, I2400M_TX_PLD_SIZE, 0, try_head);
+	tx_msg = i2400m_tx_fifo_push(i2400m, I2400M_TX_PLD_SIZE,
+				     i2400m->bus_tx_room_min, try_head);
 	if (tx_msg == NULL)
 		goto out;
 	else if (tx_msg == TAIL_FULL) {
