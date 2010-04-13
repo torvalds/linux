@@ -96,13 +96,12 @@ mcount:
 #endif
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
-	mov		%o7, %o0
-	.globl		mcount_call
-mcount_call:
-	call		ftrace_stub
-	 mov		%o0, %o7
+	/* Do nothing, the retl/nop below is all we need.  */
 #else
-	sethi		%hi(ftrace_trace_function), %g1
+	sethi		%hi(function_trace_stop), %g1
+	lduw		[%g1 + %lo(function_trace_stop)], %g2
+	brnz,pn		%g2, 1f
+	 sethi		%hi(ftrace_trace_function), %g1
 	sethi		%hi(ftrace_stub), %g2
 	ldx		[%g1 + %lo(ftrace_trace_function)], %g1
 	or		%g2, %lo(ftrace_stub), %g2
@@ -131,14 +130,23 @@ ftrace_stub:
 	.globl		ftrace_caller
 	.type		ftrace_caller,#function
 ftrace_caller:
+	sethi		%hi(function_trace_stop), %g1
 	mov		%i7, %o1
-	mov		%o7, %o0
+	lduw		[%g1 + %lo(function_trace_stop)], %g2
+	brnz,pn		%g2, ftrace_stub
+	 mov		%o7, %o0
 	.globl		ftrace_call
 ftrace_call:
+	/* If the final kernel link ever turns on relaxation, we'll need
+	 * to do something about this tail call.  Otherwise the linker
+	 * will rewrite the call into a branch and nop out the move
+	 * instruction.
+	 */
 	call		ftrace_stub
 	 mov		%o0, %o7
 	retl
 	 nop
+	.size		ftrace_call,.-ftrace_call
 	.size		ftrace_caller,.-ftrace_caller
 #endif
 #endif
