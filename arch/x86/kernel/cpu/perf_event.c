@@ -426,6 +426,8 @@ set_ext_hw_attr(struct hw_perf_event *hwc, struct perf_event_attr *attr)
 	return 0;
 }
 
+static int x86_setup_perfctr(struct perf_event *event);
+
 static int x86_pmu_hw_config(struct perf_event *event)
 {
 	/*
@@ -453,9 +455,6 @@ static int x86_pmu_hw_config(struct perf_event *event)
  */
 static int __hw_perf_event_init(struct perf_event *event)
 {
-	struct perf_event_attr *attr = &event->attr;
-	struct hw_perf_event *hwc = &event->hw;
-	u64 config;
 	int err;
 
 	if (!x86_pmu_initialized())
@@ -482,14 +481,23 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	event->destroy = hw_perf_event_destroy;
 
-	hwc->idx = -1;
-	hwc->last_cpu = -1;
-	hwc->last_tag = ~0ULL;
+	event->hw.idx = -1;
+	event->hw.last_cpu = -1;
+	event->hw.last_tag = ~0ULL;
 
 	/* Processor specifics */
 	err = x86_pmu.hw_config(event);
 	if (err)
 		return err;
+
+	return x86_setup_perfctr(event);
+}
+
+static int x86_setup_perfctr(struct perf_event *event)
+{
+	struct perf_event_attr *attr = &event->attr;
+	struct hw_perf_event *hwc = &event->hw;
+	u64 config;
 
 	if (!hwc->sample_period) {
 		hwc->sample_period = x86_pmu.max_period;
