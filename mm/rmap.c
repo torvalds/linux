@@ -182,7 +182,7 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 {
 	struct anon_vma_chain *avc, *pavc;
 
-	list_for_each_entry(pavc, &src->anon_vma_chain, same_vma) {
+	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
 		avc = anon_vma_chain_alloc();
 		if (!avc)
 			goto enomem_failure;
@@ -734,9 +734,20 @@ void page_move_anon_rmap(struct page *page,
 static void __page_set_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
-	struct anon_vma *anon_vma = vma->anon_vma;
+	struct anon_vma_chain *avc;
+	struct anon_vma *anon_vma;
 
-	BUG_ON(!anon_vma);
+	BUG_ON(!vma->anon_vma);
+
+	/*
+	 * We must use the _oldest_ possible anon_vma for the page mapping!
+	 *
+	 * So take the last AVC chain entry in the vma, which is the deepest
+	 * ancestor, and use the anon_vma from that.
+	 */
+	avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
+	anon_vma = avc->anon_vma;
+
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	page->mapping = (struct address_space *) anon_vma;
 	page->index = linear_page_index(vma, address);
