@@ -58,7 +58,7 @@ OPTIONS
 
 -f::
 --force::
-	Overwrite existing data file.
+	Overwrite existing data file. (deprecated)
 
 -c::
 --count=::
