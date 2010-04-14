@@ -11,7 +11,8 @@ P(conf_set_changed_callback, void,(void (*fn)(void)));
 /* menu.c */
 P(rootmenu,struct menu,);
 
-P(menu_is_visible,bool,(struct menu *menu));
+P(menu_is_visible, bool, (struct menu *menu));
+P(menu_has_prompt, bool, (struct menu *menu));
 P(menu_get_prompt,const char *,(struct menu *menu));
 P(menu_get_root_menu,struct menu *,(struct menu *menu));
 P(menu_get_parent_menu,struct menu *,(struct menu *menu));
