@@ -563,6 +563,7 @@ static ssize_t set_sensor(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	data->sensor = reg;
 	it87_write_value(data, IT87_REG_TEMP_ENABLE, data->sensor);
+	data->valid = 0;	/* Force cache refresh */
 	mutex_unlock(&data->update_lock);
 	return count;
 }
