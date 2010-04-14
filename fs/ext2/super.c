@@ -26,7 +26,6 @@
 #include <linux/random.h>
 #include <linux/buffer_head.h>
 #include <linux/exportfs.h>
-#include <linux/smp_lock.h>
 #include <linux/vfs.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
@@ -120,8 +119,6 @@ static void ext2_put_super (struct super_block * sb)
 	int i;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 
-	lock_kernel();
-
 	if (sb->s_dirt)
 		ext2_write_super(sb);
 
@@ -147,8 +144,6 @@ static void ext2_put_super (struct super_block * sb)
 	sb->s_fs_info = NULL;
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
-
-	unlock_kernel();
 }
 
 static struct kmem_cache * ext2_inode_cachep;
@@ -1170,7 +1165,6 @@ static int ext2_sync_fs(struct super_block *sb, int wait)
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 	struct ext2_super_block *es = EXT2_SB(sb)->s_es;
 
-	lock_kernel();
 	spin_lock(&sbi->s_lock);
 	if (es->s_state & cpu_to_le16(EXT2_VALID_FS)) {
 		ext2_debug("setting valid to 0\n");
@@ -1178,8 +1172,6 @@ static int ext2_sync_fs(struct super_block *sb, int wait)
 	}
 	spin_unlock(&sbi->s_lock);
 	ext2_sync_super(sb, es, wait);
-	unlock_kernel();
-
 	return 0;
 }
 
@@ -1201,7 +1193,6 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	unsigned long old_sb_flags;
 	int err;
 
-	lock_kernel();
 	spin_lock(&sbi->s_lock);
 
 	/* Store the old options */
@@ -1242,14 +1233,12 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	}
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
 		spin_unlock(&sbi->s_lock);
-		unlock_kernel();
 		return 0;
 	}
 	if (*flags & MS_RDONLY) {
 		if (le16_to_cpu(es->s_state) & EXT2_VALID_FS ||
 		    !(sbi->s_mount_state & EXT2_VALID_FS)) {
 			spin_unlock(&sbi->s_lock);
-			unlock_kernel();
 			return 0;
 		}
 		/*
@@ -1282,7 +1271,6 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 		spin_unlock(&sbi->s_lock);
 		ext2_write_super(sb);
 	}
-	unlock_kernel();
 	return 0;
 restore_opts:
 	sbi->s_mount_opt = old_opts.s_mount_opt;
@@ -1290,7 +1278,6 @@ restore_opts:
 	sbi->s_resgid = old_opts.s_resgid;
 	sb->s_flags = old_sb_flags;
 	spin_unlock(&sbi->s_lock);
-	unlock_kernel();
 	return err;
 }
 
