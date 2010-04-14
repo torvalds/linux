@@ -2385,6 +2385,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			return err;
 		sprintf(nm, "rd%d", rdev->raid_disk);
 		sysfs_remove_link(&rdev->mddev->kobj, nm);
+		rdev->raid_disk = -1;
 		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
 		md_wakeup_thread(rdev->mddev->thread);
 	} else if (rdev->mddev->pers) {
