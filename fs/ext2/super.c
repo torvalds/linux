@@ -1172,7 +1172,7 @@ static int ext2_sync_fs(struct super_block *sb, int wait)
 			cpu_to_le32(ext2_count_free_blocks(sb));
 		es->s_free_inodes_count =
 			cpu_to_le32(ext2_count_free_inodes(sb));
-		es->s_mtime = cpu_to_le32(get_seconds());
+		es->s_wtime = cpu_to_le32(get_seconds());
 		ext2_sync_super(sb, es);
 	} else {
 		ext2_commit_super(sb, es);
