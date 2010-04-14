@@ -508,7 +508,7 @@ out:
  * - there is no way to know old size
  * - there is no way inform user about error, if it happens in `truncate'
  */
-static int ufs_setattr(struct dentry *dentry, struct iattr *attr)
+int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
 	unsigned int ia_valid = attr->ia_valid;
