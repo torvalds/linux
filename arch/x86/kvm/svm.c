@@ -2222,6 +2222,8 @@ static int task_switch_interception(struct vcpu_svm *svm)
 		svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_TYPE_MASK;
 	uint32_t idt_v =
 		svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_VALID;
+	bool has_error_code = false;
+	u32 error_code = 0;
 
 	tss_selector = (u16)svm->vmcb->control.exit_info_1;
 
@@ -2242,6 +2244,12 @@ static int task_switch_interception(struct vcpu_svm *svm)
 			svm->vcpu.arch.nmi_injected = false;
 			break;
 		case SVM_EXITINTINFO_TYPE_EXEPT:
+			if (svm->vmcb->control.exit_info_2 &
+			    (1ULL << SVM_EXITINFOSHIFT_TS_HAS_ERROR_CODE)) {
+				has_error_code = true;
+				error_code =
+					(u32)svm->vmcb->control.exit_info_2;
+			}
 			kvm_clear_exception_queue(&svm->vcpu);
 			break;
 		case SVM_EXITINTINFO_TYPE_INTR:
@@ -2258,7 +2266,8 @@ static int task_switch_interception(struct vcpu_svm *svm)
 	     (int_vec == OF_VECTOR || int_vec == BP_VECTOR)))
 		skip_emulated_instruction(&svm->vcpu);
 
-	return kvm_task_switch(&svm->vcpu, tss_selector, reason);
+	return kvm_task_switch(&svm->vcpu, tss_selector, reason,
+			       has_error_code, error_code);
 }
 
 static int cpuid_interception(struct vcpu_svm *svm)

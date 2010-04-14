@@ -2344,8 +2344,9 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 }
 
 static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
-				    struct x86_emulate_ops *ops,
-				    u16 tss_selector, int reason)
+				   struct x86_emulate_ops *ops,
+				   u16 tss_selector, int reason,
+				   bool has_error_code, u32 error_code)
 {
 	struct desc_struct curr_tss_desc, next_tss_desc;
 	int ret;
@@ -2418,12 +2419,22 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	ops->set_cached_descriptor(&next_tss_desc, VCPU_SREG_TR, ctxt->vcpu);
 	ops->set_segment_selector(tss_selector, VCPU_SREG_TR, ctxt->vcpu);
 
+	if (has_error_code) {
+		struct decode_cache *c = &ctxt->decode;
+
+		c->op_bytes = c->ad_bytes = (next_tss_desc.type & 8) ? 4 : 2;
+		c->lock_prefix = 0;
+		c->src.val = (unsigned long) error_code;
+		emulate_push(ctxt);
+	}
+
 	return ret;
 }
 
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 			 struct x86_emulate_ops *ops,
-			 u16 tss_selector, int reason)
+			 u16 tss_selector, int reason,
+			 bool has_error_code, u32 error_code)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
@@ -2431,12 +2442,15 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 	memset(c, 0, sizeof(struct decode_cache));
 	c->eip = ctxt->eip;
 	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
+	c->dst.type = OP_NONE;
 
-	rc = emulator_do_task_switch(ctxt, ops, tss_selector, reason);
+	rc = emulator_do_task_switch(ctxt, ops, tss_selector, reason,
+				     has_error_code, error_code);
 
 	if (rc == X86EMUL_CONTINUE) {
 		memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
 		kvm_rip_write(ctxt->vcpu, c->eip);
+		rc = writeback(ctxt, ops);
 	}
 
 	return rc;

@@ -595,7 +595,8 @@ int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr,
 void kvm_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector, int seg);
 
-int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason);
+int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
+		    bool has_error_code, u32 error_code);
 
 void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);

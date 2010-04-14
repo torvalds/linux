@@ -4778,7 +4778,8 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
+int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
+		    bool has_error_code, u32 error_code)
 {
 	int cs_db, cs_l, ret;
 	cache_all_regs(vcpu);
@@ -4796,7 +4797,8 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 		? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
 
 	ret = emulator_task_switch(&vcpu->arch.emulate_ctxt, &emulate_ops,
-				   tss_selector, reason);
+				   tss_selector, reason, has_error_code,
+				   error_code);
 
 	if (ret == X86EMUL_CONTINUE)
 		kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
