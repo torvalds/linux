@@ -219,6 +219,33 @@ void blkiocg_update_avg_queue_size_stats(struct blkio_group *blkg)
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_avg_queue_size_stats);
 
+void blkiocg_set_start_empty_time(struct blkio_group *blkg, bool ignore)
+{
+	unsigned long flags;
+	struct blkio_group_stats *stats;
+
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	stats = &blkg->stats;
+
+	if (stats->stat_arr[BLKIO_STAT_QUEUED][BLKIO_STAT_READ] ||
+			stats->stat_arr[BLKIO_STAT_QUEUED][BLKIO_STAT_WRITE]) {
+		spin_unlock_irqrestore(&blkg->stats_lock, flags);
+		return;
+	}
+
+	/*
+	 * If ignore is set, we do not panic on the empty flag being set
+	 * already. This is to avoid cases where there are superfluous timeslice
+	 * complete events (for eg., forced_dispatch in CFQ) when no IOs are
+	 * served which could result in triggering the empty check incorrectly.
+	 */
+	BUG_ON(!ignore && blkio_blkg_empty(stats));
+	stats->start_empty_time = sched_clock();
+	blkio_mark_blkg_empty(stats);
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
+}
+EXPORT_SYMBOL_GPL(blkiocg_set_start_empty_time);
+
 void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 			unsigned long dequeue)
 {
@@ -267,33 +294,6 @@ void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time)
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_timeslice_used);
-
-void blkiocg_set_start_empty_time(struct blkio_group *blkg, bool ignore)
-{
-	unsigned long flags;
-	struct blkio_group_stats *stats;
-
-	spin_lock_irqsave(&blkg->stats_lock, flags);
-	stats = &blkg->stats;
-
-	if (stats->stat_arr[BLKIO_STAT_QUEUED][BLKIO_STAT_READ] ||
-			stats->stat_arr[BLKIO_STAT_QUEUED][BLKIO_STAT_WRITE]) {
-		spin_unlock_irqrestore(&blkg->stats_lock, flags);
-		return;
-	}
-
-	/*
-	 * If ignore is set, we do not panic on the empty flag being set
-	 * already. This is to avoid cases where there are superfluous timeslice
-	 * complete events (for eg., forced_dispatch in CFQ) when no IOs are
-	 * served which could result in triggering the empty check incorrectly.
-	 */
-	BUG_ON(!ignore && blkio_blkg_empty(stats));
-	stats->start_empty_time = sched_clock();
-	blkio_mark_blkg_empty(stats);
-	spin_unlock_irqrestore(&blkg->stats_lock, flags);
-}
-EXPORT_SYMBOL_GPL(blkiocg_set_start_empty_time);
 
 void blkiocg_update_dispatch_stats(struct blkio_group *blkg,
 				uint64_t bytes, bool direction, bool sync)
