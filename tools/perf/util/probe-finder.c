@@ -249,6 +249,33 @@ static int die_get_byte_size(Dwarf_Die *tp_die)
 	return (int)ret;
 }
 
+/* Get data_member_location offset */
+static int die_get_data_member_location(Dwarf_Die *mb_die, Dwarf_Word *offs)
+{
+	Dwarf_Attribute attr;
+	Dwarf_Op *expr;
+	size_t nexpr;
+	int ret;
+
+	if (dwarf_attr(mb_die, DW_AT_data_member_location, &attr) == NULL)
+		return -ENOENT;
+
+	if (dwarf_formudata(&attr, offs) != 0) {
+		/* DW_AT_data_member_location should be DW_OP_plus_uconst */
+		ret = dwarf_getlocation(&attr, &expr, &nexpr);
+		if (ret < 0 || nexpr == 0)
+			return -ENOENT;
+
+		if (expr[0].atom != DW_OP_plus_uconst || nexpr != 1) {
+			pr_debug("Unable to get offset:Unexpected OP %x (%zd)\n",
+				 expr[0].atom, nexpr);
+			return -ENOTSUP;
+		}
+		*offs = (Dwarf_Word)expr[0].number;
+	}
+	return 0;
+}
+
 /* Return values for die_find callbacks */
 enum {
 	DIE_FIND_CB_FOUND = 0,		/* End of Search */
@@ -482,9 +509,9 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 				    Dwarf_Die *die_mem)
 {
 	struct kprobe_trace_arg_ref *ref = *ref_ptr;
-	Dwarf_Attribute attr;
 	Dwarf_Die type;
 	Dwarf_Word offs;
+	int ret;
 
 	pr_debug("converting %s in %s\n", field->name, varname);
 	if (die_get_real_type(vr_die, &type) == NULL) {
@@ -542,17 +569,17 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 	}
 
 	/* Get the offset of the field */
-	if (dwarf_attr(die_mem, DW_AT_data_member_location, &attr) == NULL ||
-	    dwarf_formudata(&attr, &offs) != 0) {
+	ret = die_get_data_member_location(die_mem, &offs);
+	if (ret < 0) {
 		pr_warning("Failed to get the offset of %s.\n", field->name);
-		return -ENOENT;
+		return ret;
 	}
 	ref->offset += (long)offs;
 
 	/* Converting next field */
 	if (field->next)
 		return convert_variable_fields(die_mem, field->name,
-					       field->next, &ref, die_mem);
+					field->next, &ref, die_mem);
 	else
 		return 0;
 }
