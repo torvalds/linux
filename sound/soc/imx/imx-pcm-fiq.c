@@ -174,7 +174,7 @@ static struct snd_pcm_hardware snd_imx_hardware = {
 	.buffer_bytes_max = IMX_SSI_DMABUF_SIZE,
 	.period_bytes_min = 128,
 	.period_bytes_max = 16 * 1024,
-	.periods_min = 2,
+	.periods_min = 4,
 	.periods_max = 255,
 	.fifo_size = 0,
 };
