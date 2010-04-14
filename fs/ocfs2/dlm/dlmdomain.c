@@ -511,7 +511,7 @@ static void __dlm_print_nodes(struct dlm_ctxt *dlm)
 
 	assert_spin_locked(&dlm->spinlock);
 
-	printk(KERN_INFO "ocfs2_dlm: Nodes in domain (\"%s\"): ", dlm->name);
+	printk(KERN_NOTICE "o2dlm: Nodes in domain %s: ", dlm->name);
 
 	while ((node = find_next_bit(dlm->domain_map, O2NM_MAX_NODES,
 				     node + 1)) < O2NM_MAX_NODES) {
@@ -534,7 +534,7 @@ static int dlm_exit_domain_handler(struct o2net_msg *msg, u32 len, void *data,
 
 	node = exit_msg->node_idx;
 
-	printk(KERN_INFO "ocfs2_dlm: Node %u leaves domain %s\n", node, dlm->name);
+	printk(KERN_NOTICE "o2dlm: Node %u leaves domain %s\n", node, dlm->name);
 
 	spin_lock(&dlm->spinlock);
 	clear_bit(node, dlm->domain_map);
@@ -906,7 +906,7 @@ static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data,
 		set_bit(assert->node_idx, dlm->domain_map);
 		__dlm_set_joining_node(dlm, DLM_LOCK_RES_OWNER_UNKNOWN);
 
-		printk(KERN_INFO "ocfs2_dlm: Node %u joins domain %s\n",
+		printk(KERN_NOTICE "o2dlm: Node %u joins domain %s\n",
 		       assert->node_idx, dlm->name);
 		__dlm_print_nodes(dlm);
 
