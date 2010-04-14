@@ -40,7 +40,6 @@
 #include "util/debug.h"
 #include "util/debugfs.h"
 #include "util/parse-options.h"
-#include "util/parse-events.h"	/* For debugfs_path */
 #include "util/probe-finder.h"
 #include "util/probe-event.h"
 
@@ -204,9 +203,6 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	if ((!params.nevents && !params.dellist && !params.list_events &&
 	     !params.show_lines))
 		usage_with_options(probe_usage, options);
-
-	if (debugfs_valid_mountpoint(debugfs_path) < 0)
-		die("Failed to find debugfs path.");
 
 	if (params.list_events) {
 		if (params.nevents != 0 || params.dellist) {

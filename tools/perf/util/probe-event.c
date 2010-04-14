@@ -42,8 +42,8 @@
 #include "color.h"
 #include "symbol.h"
 #include "thread.h"
+#include "debugfs.h"
 #include "trace-event.h"	/* For __unused */
-#include "parse-events.h"	/* For debugfs_path */
 #include "probe-event.h"
 #include "probe-finder.h"
 
@@ -1075,10 +1075,18 @@ void clear_kprobe_trace_event(struct kprobe_trace_event *tev)
 static int open_kprobe_events(bool readwrite)
 {
 	char buf[PATH_MAX];
+	const char *__debugfs;
 	int ret;
 
-	ret = e_snprintf(buf, PATH_MAX, "%s/../kprobe_events", debugfs_path);
+	__debugfs = debugfs_find_mountpoint();
+	if (__debugfs == NULL) {
+		pr_warning("Debugfs is not mounted.\n");
+		return -ENOENT;
+	}
+
+	ret = e_snprintf(buf, PATH_MAX, "%stracing/kprobe_events", __debugfs);
 	if (ret >= 0) {
+		pr_debug("Opening %s write=%d\n", buf, readwrite);
 		if (readwrite && !probe_event_dry_run)
 			ret = open(buf, O_RDWR, O_APPEND);
 		else
