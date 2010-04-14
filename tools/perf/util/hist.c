@@ -68,7 +68,7 @@ hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 	int64_t cmp = 0;
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		cmp = se->cmp(left, right);
+		cmp = se->se_cmp(left, right);
 		if (cmp)
 			break;
 	}
@@ -85,7 +85,7 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		int64_t (*f)(struct hist_entry *, struct hist_entry *);
 
-		f = se->collapse ?: se->cmp;
+		f = se->se_collapse ?: se->se_cmp;
 
 		cmp = f(left, right);
 		if (cmp)
@@ -536,8 +536,8 @@ int hist_entry__snprintf(struct hist_entry *self,
 			continue;
 
 		ret += snprintf(s + ret, size - ret, "%s", sep ?: "  ");
-		ret += se->snprintf(self, s + ret, size - ret,
-				    se->width ? *se->width : 0);
+		ret += se->se_snprintf(self, s + ret, size - ret,
+				       se->se_width ? *se->se_width : 0);
 	}
 
 	return ret;
@@ -564,7 +564,7 @@ static size_t hist_entry__fprintf_callchain(struct hist_entry *self, FILE *fp,
 	if (sort__first_dimension == SORT_COMM) {
 		struct sort_entry *se = list_first_entry(&hist_entry__sort_list,
 							 typeof(*se), list);
-		left_margin = se->width ? *se->width : 0;
+		left_margin = se->se_width ? *se->se_width : 0;
 		left_margin -= thread__comm_len(self->thread);
 	}
 
@@ -615,22 +615,22 @@ size_t perf_session__fprintf_hists(struct rb_root *hists,
 		if (se->elide)
 			continue;
 		if (sep) {
-			fprintf(fp, "%c%s", *sep, se->header);
+			fprintf(fp, "%c%s", *sep, se->se_header);
 			continue;
 		}
-		width = strlen(se->header);
-		if (se->width) {
+		width = strlen(se->se_header);
+		if (se->se_width) {
 			if (symbol_conf.col_width_list_str) {
 				if (col_width) {
-					*se->width = atoi(col_width);
+					*se->se_width = atoi(col_width);
 					col_width = strchr(col_width, ',');
 					if (col_width)
 						++col_width;
 				}
 			}
-			width = *se->width = max(*se->width, width);
+			width = *se->se_width = max(*se->se_width, width);
 		}
-		fprintf(fp, "  %*s", width, se->header);
+		fprintf(fp, "  %*s", width, se->se_header);
 	}
 	fprintf(fp, "\n");
 
@@ -652,10 +652,10 @@ size_t perf_session__fprintf_hists(struct rb_root *hists,
 			continue;
 
 		fprintf(fp, "  ");
-		if (se->width)
-			width = *se->width;
+		if (se->se_width)
+			width = *se->se_width;
 		else
-			width = strlen(se->header);
+			width = strlen(se->se_header);
 		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}

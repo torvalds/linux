@@ -78,13 +78,13 @@ enum sort_type {
 struct sort_entry {
 	struct list_head list;
 
-	const char *header;
+	const char *se_header;
 
-	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
-	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
-	int	(*snprintf)(struct hist_entry *self, char *bf, size_t size,
-			    unsigned int width);
-	unsigned int *width;
+	int64_t (*se_cmp)(struct hist_entry *, struct hist_entry *);
+	int64_t (*se_collapse)(struct hist_entry *, struct hist_entry *);
+	int	(*se_snprintf)(struct hist_entry *self, char *bf, size_t size,
+			       unsigned int width);
+	unsigned int *se_width;
 	bool	elide;
 };
 
