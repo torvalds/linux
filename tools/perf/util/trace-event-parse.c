@@ -761,7 +761,7 @@ static int field_is_string(struct format_field *field)
 
 static int field_is_dynamic(struct format_field *field)
 {
-	if (!strcmp(field->type, "__data_loc"))
+	if (!strncmp(field->type, "__data_loc", 10))
 		return 1;
 
 	return 0;
