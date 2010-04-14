@@ -101,7 +101,7 @@ OPTIONS
 
 -R::
 --raw-samples::
-Collect raw sample records from all opened counters (typically for tracepoint counters).
+Collect raw sample records from all opened counters (default for tracepoint counters).
 
 SEE ALSO
 --------
