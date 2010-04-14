@@ -303,13 +303,13 @@ error_ret:
  **/
 static inline int sht15_calc_temp(struct sht15_data *data)
 {
-	int d1 = 0;
+	int d1 = temppoints[0].d1;
 	int i;
 
-	for (i = 1; i < ARRAY_SIZE(temppoints); i++)
+	for (i = ARRAY_SIZE(temppoints) - 1; i > 0; i--)
 		/* Find pointer to interpolate */
 		if (data->supply_uV > temppoints[i - 1].vdd) {
-			d1 = (data->supply_uV/1000 - temppoints[i - 1].vdd)
+			d1 = (data->supply_uV - temppoints[i - 1].vdd)
 				* (temppoints[i].d1 - temppoints[i - 1].d1)
 				/ (temppoints[i].vdd - temppoints[i - 1].vdd)
 				+ temppoints[i - 1].d1;
