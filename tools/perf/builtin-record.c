@@ -33,11 +33,13 @@ enum write_mode_t {
 
 static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
+static unsigned int		user_interval 			= UINT_MAX;
 static long			default_interval		=      0;
 
 static int			nr_cpus				=      0;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			=    128;
+static unsigned int		user_freq 			= UINT_MAX;
 static int			freq				=   1000;
 static int			output;
 static const char		*output_name			= "perf.data";
@@ -255,10 +257,19 @@ static void create_counter(int counter, int cpu)
 	if (nr_counters > 1)
 		attr->sample_type |= PERF_SAMPLE_ID;
 
-	if (freq) {
-		attr->sample_type	|= PERF_SAMPLE_PERIOD;
-		attr->freq		= 1;
-		attr->sample_freq	= freq;
+	/*
+	 * We default some events to a 1 default interval. But keep
+	 * it a weak assumption overridable by the user.
+	 */
+	if (!attr->sample_period || (user_freq != UINT_MAX &&
+				     user_interval != UINT_MAX)) {
+		if (freq) {
+			attr->sample_type	|= PERF_SAMPLE_PERIOD;
+			attr->freq		= 1;
+			attr->sample_freq	= freq;
+		} else {
+			attr->sample_period = default_interval;
+		}
 	}
 
 	if (no_samples)
@@ -689,13 +700,13 @@ static const struct option options[] = {
 			    "CPU to profile on"),
 	OPT_BOOLEAN('f', "force", &force,
 			"overwrite existing data file (deprecated)"),
-	OPT_LONG('c', "count", &default_interval,
+	OPT_LONG('c', "count", &user_interval,
 		    "event period to sample"),
 	OPT_STRING('o', "output", &output_name, "file",
 		    "output file name"),
 	OPT_BOOLEAN('i', "inherit", &inherit,
 		    "child tasks inherit counters"),
-	OPT_INTEGER('F', "freq", &freq,
+	OPT_INTEGER('F', "freq", &user_freq,
 		    "profile at this frequency"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
@@ -716,7 +727,6 @@ static const struct option options[] = {
 
 int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
-	int counter;
 	int i,j;
 
 	argc = parse_options(argc, argv, options, record_usage,
@@ -774,6 +784,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	if (!event_array)
 		return -ENOMEM;
 
+	if (user_interval != UINT_MAX)
+		default_interval = user_interval;
+	if (user_freq != UINT_MAX)
+		freq = user_freq;
+
 	/*
 	 * User specified count overrides default frequency.
 	 */
@@ -784,13 +799,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	} else {
 		fprintf(stderr, "frequency and count are zero, aborting\n");
 		exit(EXIT_FAILURE);
-	}
-
-	for (counter = 0; counter < nr_counters; counter++) {
-		if (attrs[counter].sample_period)
-			continue;
-
-		attrs[counter].sample_period = default_interval;
 	}
 
 	return __cmd_record(argc, argv);

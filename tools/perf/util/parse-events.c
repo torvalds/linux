@@ -422,6 +422,8 @@ parse_single_tracepoint_event(char *sys_name,
 	attr->sample_type |= PERF_SAMPLE_TIME;
 	attr->sample_type |= PERF_SAMPLE_CPU;
 
+	attr->sample_period = 1;
+
 	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", debugfs_path,
 		 sys_name, evt_name);
 
