@@ -485,8 +485,8 @@ S:	Maintained
 F:	drivers/input/mouse/bcm5974.c
 
 APPLE SMC DRIVER
-M:	Nicolas Boichat <nicolas@boichat.ch>
-L:	mactel-linux-devel@lists.sourceforge.net
+M:	Henrik Rydberg <rydberg@euromail.se>
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/applesmc.c
 
