@@ -4313,36 +4313,6 @@ static const struct pmu perf_ops_task_clock = {
 	.read		= task_clock_perf_event_read,
 };
 
-#ifdef CONFIG_EVENT_TRACING
-
-void perf_tp_event(int event_id, u64 addr, u64 count, void *record,
-		   int entry_size, struct pt_regs *regs)
-{
-	struct perf_sample_data data;
-	struct perf_raw_record raw = {
-		.size = entry_size,
-		.data = record,
-	};
-
-	perf_sample_data_init(&data, addr);
-	data.raw = &raw;
-
-	/* Trace events already protected against recursion */
-	do_perf_sw_event(PERF_TYPE_TRACEPOINT, event_id, count, 1,
-			 &data, regs);
-}
-EXPORT_SYMBOL_GPL(perf_tp_event);
-
-static int perf_tp_event_match(struct perf_event *event,
-				struct perf_sample_data *data)
-{
-	void *record = data->raw->data;
-
-	if (likely(!event->filter) || filter_match_preds(event->filter, record))
-		return 1;
-	return 0;
-}
-
 static void swevent_hlist_release_rcu(struct rcu_head *rcu_head)
 {
 	struct swevent_hlist *hlist;
@@ -4440,6 +4410,36 @@ static int swevent_hlist_get(struct perf_event *event)
 
 	put_online_cpus();
 	return err;
+}
+
+#ifdef CONFIG_EVENT_TRACING
+
+void perf_tp_event(int event_id, u64 addr, u64 count, void *record,
+		   int entry_size, struct pt_regs *regs)
+{
+	struct perf_sample_data data;
+	struct perf_raw_record raw = {
+		.size = entry_size,
+		.data = record,
+	};
+
+	perf_sample_data_init(&data, addr);
+	data.raw = &raw;
+
+	/* Trace events already protected against recursion */
+	do_perf_sw_event(PERF_TYPE_TRACEPOINT, event_id, count, 1,
+			 &data, regs);
+}
+EXPORT_SYMBOL_GPL(perf_tp_event);
+
+static int perf_tp_event_match(struct perf_event *event,
+				struct perf_sample_data *data)
+{
+	void *record = data->raw->data;
+
+	if (likely(!event->filter) || filter_match_preds(event->filter, record))
+		return 1;
+	return 0;
 }
 
 static void tp_perf_event_destroy(struct perf_event *event)
