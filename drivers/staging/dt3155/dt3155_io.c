@@ -74,23 +74,22 @@ u8 i2c_pm_lut_data;
  * wait_ibsyclr()
  *
  * This function handles read/write timing and r/w timeout error
- *
- * Returns TRUE  if NEW_CYCLE clears
- * Returns FALSE if NEW_CYCLE doesn't clear in roughly 3 msecs, otherwise
- * returns 0
  */
 static int wait_ibsyclr(u8 *lpReg)
 {
 	/* wait 100 microseconds */
 	udelay(100L);
 	/* __delay(loops_per_sec/10000); */
+
+	ReadMReg(lpReg + IIC_CSR2, iic_csr2_r.reg);
 	if (iic_csr2_r.fld.NEW_CYCLE) {
 		/* if NEW_CYCLE didn't clear */
 		/* TIMEOUT ERROR */
 		dt3155_errno = DT_ERR_I2C_TIMEOUT;
-		return FALSE;
-	} else
-		return TRUE;	/* no error */
+		return -ETIMEDOUT;
+	}
+
+	return 0;	/* no error */
 }
 
 /*
@@ -101,14 +100,9 @@ static int wait_ibsyclr(u8 *lpReg)
  * 1st parameter is pointer to 32-bit register base address
  * 2nd parameter is reg. index;
  * 3rd is value to be written
- *
- * Returns TRUE   -  Successful completion
- *         FALSE  -  Timeout error - cycle did not complete!
  */
 int WriteI2C(u8 *lpReg, u_short wIregIndex, u8 byVal)
 {
-	int writestat;	/* status for return */
-
 	/* read 32 bit IIC_CSR2 register data into union */
 
 	ReadMReg((lpReg + IIC_CSR2), iic_csr2_r.reg);
@@ -126,8 +120,7 @@ int WriteI2C(u8 *lpReg, u_short wIregIndex, u8 byVal)
 	WriteMReg((lpReg + IIC_CSR2), iic_csr2_r.reg);
 
 	/* wait for IIC cycle to finish */
-	writestat = wait_ibsyclr(lpReg);
-	return writestat;
+	return wait_ibsyclr(lpReg);
 }
 
 /*
@@ -138,9 +131,6 @@ int WriteI2C(u8 *lpReg, u_short wIregIndex, u8 byVal)
  * 1st parameter is pointer to 32-bit register base address
  * 2nd parameter is reg. index;
  * 3rd is adrs of value to be read
- *
- * Returns TRUE   -  Successful completion
- *         FALSE  -  Timeout error - cycle did not complete!
  */
 int ReadI2C(u8 *lpReg, u_short wIregIndex, u8 *byVal)
 {
