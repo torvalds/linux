@@ -2929,7 +2929,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	unsigned int first, max_per_txd = E1000_MAX_DATA_PER_TXD;
 	unsigned int max_txd_pwr = E1000_MAX_TXD_PWR;
 	unsigned int tx_flags = 0;
-	unsigned int len = skb->len - skb->data_len;
+	unsigned int len = skb_headlen(skb);
 	unsigned int nr_frags;
 	unsigned int mss;
 	int count = 0;
@@ -2980,7 +2980,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 					dev_kfree_skb_any(skb);
 					return NETDEV_TX_OK;
 				}
-				len = skb->len - skb->data_len;
+				len = skb_headlen(skb);
 				break;
 			default:
 				/* do nothing */

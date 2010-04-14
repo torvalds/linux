@@ -2757,7 +2757,7 @@ again:
 	}
 
 	/* map the skb for DMA */
-	len = skb->len - skb->data_len;
+	len = skb_headlen(skb);
 	idx = tx->req & tx->mask;
 	tx->info[idx].skb = skb;
 	bus = pci_map_single(mgp->pdev, skb->data, len, PCI_DMA_TODEVICE);

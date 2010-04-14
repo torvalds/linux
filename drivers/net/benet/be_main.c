@@ -432,7 +432,7 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	map_head = txq->head;
 
 	if (skb->len > skb->data_len) {
-		int len = skb->len - skb->data_len;
+		int len = skb_headlen(skb);
 		busaddr = pci_map_single(pdev, skb->data, len,
 					 PCI_DMA_TODEVICE);
 		if (pci_dma_mapping_error(pdev, busaddr))
@@ -1098,7 +1098,7 @@ static void be_tx_compl_process(struct be_adapter *adapter, u16 last_index)
 		cur_index = txq->tail;
 		wrb = queue_tail_node(txq);
 		unmap_tx_frag(adapter->pdev, wrb, (unmap_skb_hdr &&
-					sent_skb->len > sent_skb->data_len));
+					skb_headlen(sent_skb)));
 		unmap_skb_hdr = false;
 
 		num_wrbs++;

@@ -604,7 +604,7 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		 * packets not getting split correctly
 		 */
 		if (staterr & IXGBE_RXD_STAT_LB) {
-			u32 header_fixup_len = skb->len - skb->data_len;
+			u32 header_fixup_len = skb_headlen(skb);
 			if (header_fixup_len < 14)
 				skb_push(skb, header_fixup_len);
 		}

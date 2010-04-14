@@ -2664,8 +2664,8 @@ he_send(struct atm_vcc *vcc, struct sk_buff *skb)
 
 #ifdef USE_SCATTERGATHER
 	tpd->iovec[slot].addr = pci_map_single(he_dev->pci_dev, skb->data,
-				skb->len - skb->data_len, PCI_DMA_TODEVICE);
-	tpd->iovec[slot].len = skb->len - skb->data_len;
+				skb_headlen(skb), PCI_DMA_TODEVICE);
+	tpd->iovec[slot].len = skb_headlen(skb);
 	++slot;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {

@@ -704,8 +704,8 @@ static int tsi108_send_packet(struct sk_buff * skb, struct net_device *dev)
 
 		if (i == 0) {
 			data->txring[tx].buf0 = dma_map_single(NULL, skb->data,
-					skb->len - skb->data_len, DMA_TO_DEVICE);
-			data->txring[tx].len = skb->len - skb->data_len;
+					skb_headlen(skb), DMA_TO_DEVICE);
+			data->txring[tx].len = skb_headlen(skb);
 			misc |= TSI108_TX_SOF;
 		} else {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];

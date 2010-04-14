@@ -4684,7 +4684,7 @@ static void send_packet(struct sk_buff *skb, struct net_device *dev)
 		int frag;
 		skb_frag_t *this_frag;
 
-		dma_buf->len = skb->len - skb->data_len;
+		dma_buf->len = skb_headlen(skb);
 
 		dma_buf->dma = pci_map_single(
 			hw_priv->pdev, skb->data, dma_buf->len,

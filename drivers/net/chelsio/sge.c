@@ -1123,7 +1123,7 @@ static inline unsigned int compute_large_page_tx_descs(struct sk_buff *skb)
 
 	if (PAGE_SIZE > SGE_TX_DESC_MAX_PLEN) {
 		unsigned int nfrags = skb_shinfo(skb)->nr_frags;
-		unsigned int i, len = skb->len - skb->data_len;
+		unsigned int i, len = skb_headlen(skb);
 		while (len > SGE_TX_DESC_MAX_PLEN) {
 			count++;
 			len -= SGE_TX_DESC_MAX_PLEN;
@@ -1219,10 +1219,10 @@ static inline void write_tx_descs(struct adapter *adapter, struct sk_buff *skb,
 	ce = &q->centries[pidx];
 
 	mapping = pci_map_single(adapter->pdev, skb->data,
-				skb->len - skb->data_len, PCI_DMA_TODEVICE);
+				 skb_headlen(skb), PCI_DMA_TODEVICE);
 
 	desc_mapping = mapping;
-	desc_len = skb->len - skb->data_len;
+	desc_len = skb_headlen(skb);
 
 	flags = F_CMD_DATAVALID | F_CMD_SOP |
 	    V_CMD_EOP(nfrags == 0 && desc_len <= SGE_TX_DESC_MAX_PLEN) |
@@ -1258,7 +1258,7 @@ static inline void write_tx_descs(struct adapter *adapter, struct sk_buff *skb,
 
 	ce->skb = NULL;
 	dma_unmap_addr_set(ce, dma_addr, mapping);
-	dma_unmap_len_set(ce, dma_len, skb->len - skb->data_len);
+	dma_unmap_len_set(ce, dma_len, skb_headlen(skb));
 
 	for (i = 0; nfrags--; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];

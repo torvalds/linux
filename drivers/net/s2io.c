@@ -2400,7 +2400,7 @@ static struct sk_buff *s2io_txdl_getskb(struct fifo_info *fifo_data,
 		return NULL;
 	}
 	pci_unmap_single(nic->pdev, (dma_addr_t)txds->Buffer_Pointer,
-			 skb->len - skb->data_len, PCI_DMA_TODEVICE);
+			 skb_headlen(skb), PCI_DMA_TODEVICE);
 	frg_cnt = skb_shinfo(skb)->nr_frags;
 	if (frg_cnt) {
 		txds++;
@@ -4202,7 +4202,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Control_2 |= TXD_VLAN_TAG(vlan_tag);
 	}
 
-	frg_len = skb->len - skb->data_len;
+	frg_len = skb_headlen(skb);
 	if (offload_type == SKB_GSO_UDP) {
 		int ufo_size;
 
