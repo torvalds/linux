@@ -1297,7 +1297,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 		   options ? options : "(none)");
 
 	mopt->commit_interval = 0;
-	mopt->mount_opt = 0;
+	mopt->mount_opt = OCFS2_MOUNT_NOINTR;
 	mopt->atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
 	mopt->slot = OCFS2_INVALID_SLOT;
 	mopt->localalloc_opt = -1;
