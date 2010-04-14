@@ -627,7 +627,6 @@ static irqreturn_t cd2401_rx_interrupt(int irq, void *dev_id)
 	char data;
 	int char_count;
 	int save_cnt;
-	int len;
 
 	/* determine the channel and change to that context */
 	channel = (u_short) (base_addr[CyLICR] >> 2);
@@ -1528,7 +1527,6 @@ static int
 cy_ioctl(struct tty_struct *tty, struct file *file,
 	 unsigned int cmd, unsigned long arg)
 {
-	unsigned long val;
 	struct cyclades_port *info = tty->driver_data;
 	int ret_val = 0;
 	void __user *argp = (void __user *)arg;
