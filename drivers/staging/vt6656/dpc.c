@@ -234,11 +234,11 @@ s_vProcessRxMACHeader (
         }
     }
 
-    cbHeaderSize -= (U_ETHER_ADDR_LEN * 2);
+    cbHeaderSize -= (ETH_ALEN * 2);
     pbyRxBuffer = (PBYTE) (pbyRxBufferAddr + cbHeaderSize);
-    for(ii=0;ii<U_ETHER_ADDR_LEN;ii++)
+    for (ii = 0; ii < ETH_ALEN; ii++)
         *pbyRxBuffer++ = pDevice->sRxEthHeader.abyDstAddr[ii];
-    for(ii=0;ii<U_ETHER_ADDR_LEN;ii++)
+    for (ii = 0; ii < ETH_ALEN; ii++)
         *pbyRxBuffer++ = pDevice->sRxEthHeader.abySrcAddr[ii];
 
     *pcbHeadSize = cbHeaderSize;
@@ -267,43 +267,48 @@ s_vGetDASA (
     OUT PSEthernetHeader psEthHeader
     )
 {
-    UINT            cbHeaderSize = 0;
-    PS802_11Header  pMACHeader;
-    int             ii;
+	UINT            cbHeaderSize = 0;
+	PS802_11Header  pMACHeader;
+	int             ii;
 
-    pMACHeader = (PS802_11Header) (pbyRxBufferAddr + cbHeaderSize);
+	pMACHeader = (PS802_11Header) (pbyRxBufferAddr + cbHeaderSize);
 
-    if ((pMACHeader->wFrameCtl & FC_TODS) == 0) {
-        if (pMACHeader->wFrameCtl & FC_FROMDS) {
-            for(ii=0;ii<U_ETHER_ADDR_LEN;ii++) {
-                psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr1[ii];
-                psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr3[ii];
-            }
-        }
-        else {
-            // IBSS mode
-            for(ii=0;ii<U_ETHER_ADDR_LEN;ii++) {
-                psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr1[ii];
-                psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr2[ii];
-            }
-        }
-    }
-    else {
-        // Is AP mode..
-        if (pMACHeader->wFrameCtl & FC_FROMDS) {
-            for(ii=0;ii<U_ETHER_ADDR_LEN;ii++) {
-                psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr3[ii];
-                psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr4[ii];
-                cbHeaderSize += 6;
-            }
-        }
-        else {
-            for(ii=0;ii<U_ETHER_ADDR_LEN;ii++) {
-                psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr3[ii];
-                psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr2[ii];
-            }
-        }
-    };
+	if ((pMACHeader->wFrameCtl & FC_TODS) == 0) {
+		if (pMACHeader->wFrameCtl & FC_FROMDS) {
+			for (ii = 0; ii < ETH_ALEN; ii++) {
+				psEthHeader->abyDstAddr[ii] =
+					pMACHeader->abyAddr1[ii];
+				psEthHeader->abySrcAddr[ii] =
+					pMACHeader->abyAddr3[ii];
+			}
+		} else {
+			/* IBSS mode */
+			for (ii = 0; ii < ETH_ALEN; ii++) {
+				psEthHeader->abyDstAddr[ii] =
+					pMACHeader->abyAddr1[ii];
+				psEthHeader->abySrcAddr[ii] =
+					pMACHeader->abyAddr2[ii];
+			}
+		}
+	} else {
+		/* Is AP mode.. */
+		if (pMACHeader->wFrameCtl & FC_FROMDS) {
+			for (ii = 0; ii < ETH_ALEN; ii++) {
+				psEthHeader->abyDstAddr[ii] =
+					pMACHeader->abyAddr3[ii];
+				psEthHeader->abySrcAddr[ii] =
+					pMACHeader->abyAddr4[ii];
+				cbHeaderSize += 6;
+			}
+		} else {
+			for (ii = 0; ii < ETH_ALEN; ii++) {
+				psEthHeader->abyDstAddr[ii] =
+					pMACHeader->abyAddr3[ii];
+				psEthHeader->abySrcAddr[ii] =
+					pMACHeader->abyAddr2[ii];
+			}
+		}
+	};
     *pcbHeaderSize = cbHeaderSize;
 }
 

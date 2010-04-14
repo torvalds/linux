@@ -480,7 +480,9 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 		};
 		if (sValue.dwValue == 1) {
                      DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "up wpadev\n");
-		   memcpy(pDevice->wpadev->dev_addr, pDevice->dev->dev_addr, U_ETHER_ADDR_LEN);
+		   memcpy(pDevice->wpadev->dev_addr,
+			  pDevice->dev->dev_addr,
+			  ETH_ALEN);
 		   pDevice->bWPADEVUp = TRUE;
         }
         else {

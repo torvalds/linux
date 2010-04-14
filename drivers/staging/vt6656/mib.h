@@ -91,7 +91,7 @@ typedef struct tagSMib2Counter {
     LONG    ifType;
     LONG    ifMtu;
     DWORD   ifSpeed;
-    BYTE    ifPhysAddress[U_ETHER_ADDR_LEN];
+    BYTE    ifPhysAddress[ETH_ALEN];
     LONG    ifAdminStatus;
     LONG    ifOperStatus;
     DWORD   ifLastChange;
@@ -231,7 +231,7 @@ typedef struct tagSTxPktInfo {
     BYTE    byBroadMultiUni;
     WORD    wLength;
     WORD    wFIFOCtl;
-    BYTE    abyDestAddr[U_ETHER_ADDR_LEN];
+    BYTE    abyDestAddr[ETH_ALEN];
 } STxPktInfo, *PSTxPktInfo;
 
 

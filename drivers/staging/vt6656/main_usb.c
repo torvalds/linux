@@ -295,14 +295,13 @@ static void usb_device_reset(PSDevice pDevice);
 static void
 device_set_options(PSDevice pDevice) {
 
-    BYTE    abyBroadcastAddr[U_ETHER_ADDR_LEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    BYTE    abySNAP_RFC1042[U_ETHER_ADDR_LEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
-    BYTE    abySNAP_Bridgetunnel[U_ETHER_ADDR_LEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
+    BYTE    abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    BYTE    abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
+    u8 abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
 
-
-    memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, U_ETHER_ADDR_LEN);
-    memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, U_ETHER_ADDR_LEN);
-    memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, U_ETHER_ADDR_LEN);
+    memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
+    memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
+    memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, ETH_ALEN);
 
     pDevice->cbTD = TX_DESC_DEF0;
     pDevice->cbRD = RX_DESC_DEF0;
@@ -359,9 +358,9 @@ static VOID device_init_diversity_timer(PSDevice pDevice) {
 
 static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 {
-    BYTE            abyBroadcastAddr[U_ETHER_ADDR_LEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    BYTE            abySNAP_RFC1042[U_ETHER_ADDR_LEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
-    BYTE            abySNAP_Bridgetunnel[U_ETHER_ADDR_LEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
+    u8 abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    u8 abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
+    u8 abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
     BYTE            byAntenna;
     UINT            ii;
     CMD_CARD_INIT   sInitCmd;
@@ -375,10 +374,12 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---->INIbInitAdapter. [%d][%d]\n", InitType, pDevice->byPacketType);
 	spin_lock_irq(&pDevice->lock);
-    if (InitType == DEVICE_INIT_COLD) {
-        memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, U_ETHER_ADDR_LEN);
-        memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, U_ETHER_ADDR_LEN);
-        memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, U_ETHER_ADDR_LEN);
+	if (InitType == DEVICE_INIT_COLD) {
+		memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
+		memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
+		memcpy(pDevice->abySNAP_Bridgetunnel,
+		       abySNAP_Bridgetunnel,
+		       ETH_ALEN);
 
         if ( !FIRMWAREbCheckVersion(pDevice) ) {
             if (FIRMWAREbDownload(pDevice) == TRUE) {
@@ -603,7 +604,9 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 
         // get Permanent network address
         memcpy(pDevice->abyPermanentNetAddr,&(sInitRsp.byNetAddr[0]),6);
-        memcpy(pDevice->abyCurrentNetAddr, pDevice->abyPermanentNetAddr, U_ETHER_ADDR_LEN);
+	memcpy(pDevice->abyCurrentNetAddr,
+	       pDevice->abyPermanentNetAddr,
+	       ETH_ALEN);
 
         // if exist SW network address, use SW network address.
 
@@ -757,7 +760,7 @@ static const struct net_device_ops device_netdev_ops = {
 static int __devinit
 vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
-   BYTE            fake_mac[U_ETHER_ADDR_LEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};//fake MAC address
+	u8 fake_mac[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
 	struct usb_device *udev = interface_to_usbdev(intf);
     int         rc = 0;
     struct net_device *netdev = NULL;
@@ -798,7 +801,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
   //2007-0821-01<Add>by MikeLiu
          usb_set_intfdata(intf, pDevice);
 	SET_NETDEV_DEV(netdev, &intf->dev);
-    memcpy(pDevice->dev->dev_addr, fake_mac, U_ETHER_ADDR_LEN); //use fake mac address
+    memcpy(pDevice->dev->dev_addr, fake_mac, ETH_ALEN);
     rc = register_netdev(netdev);
     if (rc != 0) {
         printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
@@ -1101,8 +1104,8 @@ static int  device_open(struct net_device *dev) {
     // Init for Key Management
 
     KeyvInitTable(pDevice,&pDevice->sKey);
-    memcpy(pDevice->sMgmtObj.abyMACAddr, pDevice->abyCurrentNetAddr, U_ETHER_ADDR_LEN);
-    memcpy(pDevice->dev->dev_addr, pDevice->abyCurrentNetAddr, U_ETHER_ADDR_LEN);
+    memcpy(pDevice->sMgmtObj.abyMACAddr, pDevice->abyCurrentNetAddr, ETH_ALEN);
+    memcpy(pDevice->dev->dev_addr, pDevice->abyCurrentNetAddr, ETH_ALEN);
     pDevice->bStopTx0Pkt = FALSE;
     pDevice->bStopDataPkt = FALSE;
     pDevice->bRoaming = FALSE;  //DavidWang

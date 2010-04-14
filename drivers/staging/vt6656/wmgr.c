@@ -3773,13 +3773,17 @@ s_MgrMakeAssocRequest(
             pwPMKID = (PWORD)pbyRSN; // Point to PMKID count
             *pwPMKID = 0;            // Initialize PMKID count
             pbyRSN += 2;             // Point to PMKID list
-            for (ii = 0; ii < pDevice->gsPMKID.BSSIDInfoCount; ii++) {
-                if ( !memcmp(&pDevice->gsPMKID.BSSIDInfo[ii].BSSID[0], pMgmt->abyCurrBSSID, U_ETHER_ADDR_LEN)) {
-                    (*pwPMKID) ++;
-                    memcpy(pbyRSN, pDevice->gsPMKID.BSSIDInfo[ii].PMKID, 16);
-                    pbyRSN += 16;
-                }
-            }
+	for (ii = 0; ii < pDevice->gsPMKID.BSSIDInfoCount; ii++) {
+		if (!memcmp(&pDevice->gsPMKID.BSSIDInfo[ii].BSSID[0],
+			     pMgmt->abyCurrBSSID,
+			     ETH_ALEN)) {
+			(*pwPMKID)++;
+			memcpy(pbyRSN,
+			       pDevice->gsPMKID.BSSIDInfo[ii].PMKID,
+			       16);
+			pbyRSN += 16;
+		}
+	}
             if (*pwPMKID != 0) {
                 sFrame.pRSN->len += (2 + (*pwPMKID)*16);
             }
@@ -4030,10 +4034,14 @@ s_MgrMakeReAssocRequest(
             *pwPMKID = 0;            // Initialize PMKID count
             pbyRSN += 2;             // Point to PMKID list
             for (ii = 0; ii < pDevice->gsPMKID.BSSIDInfoCount; ii++) {
-                if ( !memcmp(&pDevice->gsPMKID.BSSIDInfo[ii].BSSID[0], pMgmt->abyCurrBSSID, U_ETHER_ADDR_LEN)) {
-                    (*pwPMKID) ++;
-                    memcpy(pbyRSN, pDevice->gsPMKID.BSSIDInfo[ii].PMKID, 16);
-                    pbyRSN += 16;
+		if (!memcmp(&pDevice->gsPMKID.BSSIDInfo[ii].BSSID[0],
+			    pMgmt->abyCurrBSSID,
+			    ETH_ALEN)) {
+			(*pwPMKID)++;
+			memcpy(pbyRSN,
+			       pDevice->gsPMKID.BSSIDInfo[ii].PMKID,
+			       16);
+			pbyRSN += 16;
                 }
             }
             if (*pwPMKID != 0) {
@@ -4057,8 +4065,6 @@ s_MgrMakeReAssocRequest(
     return pTxPacket;
 }
 
-
-
 /*+
  *
  * Routine Description:
@@ -4069,7 +4075,6 @@ s_MgrMakeReAssocRequest(
  *    PTR to frame; or NULL on allocation failue
  *
 -*/
-
 
 PSTxMgmtPacket
 s_MgrMakeAssocResponse(
@@ -4745,13 +4750,16 @@ bAdd_PMKID_Candidate (
 
     // Update Old Candidate
     for (ii = 0; ii < pDevice->gsPMKIDCandidate.NumCandidates; ii++) {
-        pCandidateList = &pDevice->gsPMKIDCandidate.CandidateList[ii];
-        if ( !memcmp(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN)) {
-            if ((psRSNCapObj->bRSNCapExist == TRUE) && (psRSNCapObj->wRSNCap & BIT0)) {
-                pCandidateList->Flags |= NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED;
-            } else {
-                pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
-            }
+	pCandidateList = &pDevice->gsPMKIDCandidate.CandidateList[ii];
+	if (!memcmp(pCandidateList->BSSID, pbyBSSID, ETH_ALEN)) {
+		if ((psRSNCapObj->bRSNCapExist == TRUE)
+		    && (psRSNCapObj->wRSNCap & BIT0)) {
+			pCandidateList->Flags |=
+				NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED;
+		} else {
+			pCandidateList->Flags &=
+				~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
+		}
             return TRUE;
         }
     }
@@ -4763,7 +4771,7 @@ bAdd_PMKID_Candidate (
     } else {
         pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
     }
-    memcpy(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN);
+    memcpy(pCandidateList->BSSID, pbyBSSID, ETH_ALEN);
     pDevice->gsPMKIDCandidate.NumCandidates++;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"NumCandidates:%d\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
     return TRUE;

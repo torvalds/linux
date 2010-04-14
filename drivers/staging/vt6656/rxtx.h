@@ -43,8 +43,8 @@
 typedef struct tagSRTSDataF {
     WORD    wFrameControl;
     WORD    wDurationID;
-    BYTE    abyRA[U_ETHER_ADDR_LEN];
-    BYTE    abyTA[U_ETHER_ADDR_LEN];
+    BYTE    abyRA[ETH_ALEN];
+    BYTE    abyTA[ETH_ALEN];
 } SRTSDataF, *PSRTSDataF;
 
 //
@@ -53,7 +53,7 @@ typedef struct tagSRTSDataF {
 typedef struct tagSCTSDataF {
     WORD    wFrameControl;
     WORD    wDurationID;
-    BYTE    abyRA[U_ETHER_ADDR_LEN];
+    BYTE    abyRA[ETH_ALEN];
     WORD    wReserved;
 } SCTSDataF, *PSCTSDataF;
 

@@ -107,7 +107,7 @@
 #define MAC_MAX_CONTEXT_REG     (256+128)
 
 #define MAX_MULTICAST_ADDRESS_NUM       32
-#define MULTICAST_ADDRESS_LIST_SIZE     (MAX_MULTICAST_ADDRESS_NUM * U_ETHER_ADDR_LEN)
+#define MULTICAST_ADDRESS_LIST_SIZE     (MAX_MULTICAST_ADDRESS_NUM * ETH_ALEN)
 
 
 //#define OP_MODE_INFRASTRUCTURE  0
@@ -369,7 +369,7 @@ typedef struct tagSQuietControl {
 // The receive duplicate detection cache entry
 typedef struct tagSCacheEntry{
     WORD        wFmSequence;
-    BYTE        abyAddr2[U_ETHER_ADDR_LEN];
+    BYTE        abyAddr2[ETH_ALEN];
     WORD        wFrameCtl;
 } SCacheEntry, *PSCacheEntry;
 
@@ -387,7 +387,7 @@ typedef struct tagSDeFragControlBlock
 {
     WORD            wSequence;
     WORD            wFragNum;
-    BYTE            abyAddr2[U_ETHER_ADDR_LEN];
+    BYTE            abyAddr2[ETH_ALEN];
 	UINT            uLifetime;
     struct sk_buff* skb;
     PBYTE           pbyRxBuffer;
@@ -547,10 +547,10 @@ typedef struct __device_info {
     BYTE                        byOriginalZonetype;
 
     BOOL                        bLinkPass;          // link status: OK or fail
-    BYTE                        abyCurrentNetAddr[U_ETHER_ADDR_LEN];
-    BYTE                        abyPermanentNetAddr[U_ETHER_ADDR_LEN];
+    BYTE                        abyCurrentNetAddr[ETH_ALEN];
+    BYTE                        abyPermanentNetAddr[ETH_ALEN];
     // SW network address
-//    BYTE                        abySoftwareNetAddr[U_ETHER_ADDR_LEN];
+	/* u8 abySoftwareNetAddr[ETH_ALEN]; */
     BOOL                        bExistSWNetAddr;
 
     // Adapter statistics
@@ -671,8 +671,8 @@ typedef struct __device_info {
     CARD_OP_MODE                eOPMode;
     BOOL                        bBSSIDFilter;
     WORD                        wMaxTransmitMSDULifetime;
-    BYTE                        abyBSSID[U_ETHER_ADDR_LEN];
-    BYTE                        abyDesireBSSID[U_ETHER_ADDR_LEN];
+    BYTE                        abyBSSID[ETH_ALEN];
+    BYTE                        abyDesireBSSID[ETH_ALEN];
     WORD                        wCTSDuration;       // update while speed change
     WORD                        wACKDuration;       // update while speed change
     WORD                        wRTSTransmitLen;    // update while speed change
@@ -826,9 +826,9 @@ typedef struct __device_info {
 
     SEthernetHeader         sTxEthHeader;
     SEthernetHeader         sRxEthHeader;
-    BYTE                    abyBroadcastAddr[U_ETHER_ADDR_LEN];
-    BYTE                    abySNAP_RFC1042[U_ETHER_ADDR_LEN];
-    BYTE                    abySNAP_Bridgetunnel[U_ETHER_ADDR_LEN];
+    BYTE                    abyBroadcastAddr[ETH_ALEN];
+    BYTE                    abySNAP_RFC1042[ETH_ALEN];
+    BYTE                    abySNAP_Bridgetunnel[ETH_ALEN];
 
     // Pre-Authentication & PMK cache
     SPMKID                  gsPMKID;

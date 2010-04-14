@@ -71,7 +71,7 @@ typedef struct tagSKeyItem
 
 typedef struct tagSKeyTable
 {
-    BYTE        abyBSSID[U_ETHER_ADDR_LEN];  //6
+    BYTE        abyBSSID[ETH_ALEN];  /* 6 */
     BYTE        byReserved0[2];              //8
     SKeyItem    PairwiseKey;
     SKeyItem    GroupKey[MAX_GROUP_KEY]; //64*5 = 320, 320+8=328

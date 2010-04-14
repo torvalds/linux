@@ -156,18 +156,17 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
                               BYTE byRSR, BYTE byNewRSR, BYTE byRxSts, BYTE byRxRate,
                               PBYTE pbyBuffer, UINT cbFrameLength)
 {
-    //need change
-    PS802_11Header pHeader = (PS802_11Header)pbyBuffer;
+	/* need change */
+	PS802_11Header pHeader = (PS802_11Header)pbyBuffer;
 
-    if (byRSR & RSR_ADDROK)
-        pStatistic->dwRsrADDROk++;
-    if (byRSR & RSR_CRCOK) {
-        pStatistic->dwRsrCRCOk++;
+	if (byRSR & RSR_ADDROK)
+		pStatistic->dwRsrADDROk++;
+	if (byRSR & RSR_CRCOK) {
+		pStatistic->dwRsrCRCOk++;
+		pStatistic->ullRsrOK++;
 
-        pStatistic->ullRsrOK++;
-
-        if (cbFrameLength >= U_ETHER_ADDR_LEN) {
-            // update counters in case that successful transmit
+		if (cbFrameLength >= ETH_ALEN) {
+			/* update counters in case of successful transmission */
             if (byRSR & RSR_ADDRBROAD) {
                 pStatistic->ullRxBroadcastFrames++;
                 pStatistic->ullRxBroadcastBytes += (ULONGLONG)cbFrameLength;

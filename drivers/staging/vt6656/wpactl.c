@@ -103,7 +103,7 @@ static int wpa_init_wpadev(PSDevice pDevice)
 
     wpadev_priv = netdev_priv(pDevice->wpadev);
     *wpadev_priv = *pDevice;
-	memcpy(pDevice->wpadev->dev_addr, dev->dev_addr, U_ETHER_ADDR_LEN);
+	memcpy(pDevice->wpadev->dev_addr, dev->dev_addr, ETH_ALEN);
          pDevice->wpadev->base_addr = dev->base_addr;
 	pDevice->wpadev->irq = dev->irq;
 	pDevice->wpadev->mem_start = dev->mem_start;
