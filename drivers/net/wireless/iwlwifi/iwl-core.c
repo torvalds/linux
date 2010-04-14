@@ -2930,6 +2930,12 @@ int iwl_pci_resume(struct pci_dev *pdev)
 	struct iwl_priv *priv = pci_get_drvdata(pdev);
 	int ret;
 
+	/*
+	 * We disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state.
+	 */
+	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
+
 	pci_set_power_state(pdev, PCI_D0);
 	ret = pci_enable_device(pdev);
 	if (ret)
