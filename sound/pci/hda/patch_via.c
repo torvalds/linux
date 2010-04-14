@@ -476,7 +476,7 @@ static struct snd_kcontrol_new *via_clone_control(struct via_spec *spec,
 	knew->name = kstrdup(tmpl->name, GFP_KERNEL);
 	if (!knew->name)
 		return NULL;
-	return 0;
+	return knew;
 }
 
 static void via_free_kctls(struct hda_codec *codec)
