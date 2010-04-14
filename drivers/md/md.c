@@ -3059,6 +3059,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
+	sysfs_notify(&mddev->kobj, NULL, "level");
 	return rv;
 }
 
