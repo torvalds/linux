@@ -76,36 +76,7 @@ static void conf_changed(void);
 
 /* Helping/Debugging Functions */
 
-
-const char *dbg_print_stype(int val)
-{
-	static char buf[256];
-
-	bzero(buf, 256);
-
-	if (val == S_UNKNOWN)
-		strcpy(buf, "unknown");
-	if (val == S_BOOLEAN)
-		strcpy(buf, "boolean");
-	if (val == S_TRISTATE)
-		strcpy(buf, "tristate");
-	if (val == S_INT)
-		strcpy(buf, "int");
-	if (val == S_HEX)
-		strcpy(buf, "hex");
-	if (val == S_STRING)
-		strcpy(buf, "string");
-	if (val == S_OTHER)
-		strcpy(buf, "other");
-
-#ifdef DEBUG
-	printf("%s", buf);
-#endif
-
-	return buf;
-}
-
-const char *dbg_print_flags(int val)
+const char *dbg_sym_flags(int val)
 {
 	static char buf[256];
 
@@ -131,39 +102,9 @@ const char *dbg_print_flags(int val)
 		strcat(buf, "auto/");
 
 	buf[strlen(buf) - 1] = '\0';
-#ifdef DEBUG
-	printf("%s", buf);
-#endif
 
 	return buf;
 }
-
-const char *dbg_print_ptype(int val)
-{
-	static char buf[256];
-
-	bzero(buf, 256);
-
-	if (val == P_UNKNOWN)
-		strcpy(buf, "unknown");
-	if (val == P_PROMPT)
-		strcpy(buf, "prompt");
-	if (val == P_COMMENT)
-		strcpy(buf, "comment");
-	if (val == P_MENU)
-		strcpy(buf, "menu");
-	if (val == P_DEFAULT)
-		strcpy(buf, "default");
-	if (val == P_CHOICE)
-		strcpy(buf, "choice");
-
-#ifdef DEBUG
-	printf("%s", buf);
-#endif
-
-	return buf;
-}
-
 
 void replace_button_icon(GladeXML * xml, GdkDrawable * window,
 			 GtkStyle * style, gchar * btn_name, gchar ** xpm)
@@ -1469,12 +1410,12 @@ static void display_tree(struct menu *menu)
 #ifdef DEBUG
 		printf("%*c%s: ", indent, ' ', menu_get_prompt(child));
 		printf("%s", child->flags & MENU_ROOT ? "rootmenu | " : "");
-		dbg_print_ptype(ptype);
+		printf("%s", prop_get_type_name(ptype));
 		printf(" | ");
 		if (sym) {
-			dbg_print_stype(sym->type);
+			printf("%s", sym_type_name(sym->type));
 			printf(" | ");
-			dbg_print_flags(sym->flags);
+			printf("%s", dbg_sym_flags(sym->flags));
 			printf("\n");
 		} else
 			printf("\n");
