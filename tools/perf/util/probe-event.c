@@ -290,7 +290,7 @@ int show_line_range(struct line_range *lr)
 
 	if (lr->end == INT_MAX)
 		lr->end = l + NR_ADDITIONAL_LINES;
-	while (l < lr->end && !feof(fp) && ret >= 0)
+	while (l <= lr->end && !feof(fp) && ret >= 0)
 		ret = show_one_line(fp, (l++) - lr->offset, false, false);
 end:
 	fclose(fp);
@@ -341,9 +341,15 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 	ptr = strchr(arg, ':');
 	if (ptr) {
 		lr->start = (int)strtoul(ptr + 1, &tmp, 0);
-		if (*tmp == '+')
+		if (*tmp == '+') {
 			lr->end = lr->start + (int)strtoul(tmp + 1, &tmp, 0);
-		else if (*tmp == '-')
+			lr->end--;	/*
+					 * Adjust the number of lines here.
+					 * If the number of lines == 1, the
+					 * the end of line should be equal to
+					 * the start of line.
+					 */
+		} else if (*tmp == '-')
 			lr->end = (int)strtoul(tmp + 1, &tmp, 0);
 		else
 			lr->end = INT_MAX;
