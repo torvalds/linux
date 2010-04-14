@@ -197,7 +197,7 @@ static void sym_check_prop(struct symbol *sym)
 			if ((sym->type == S_STRING || sym->type == S_INT || sym->type == S_HEX) &&
 			    prop->expr->type != E_SYMBOL)
 				prop_warn(prop,
-				    "default for config symbol '%'"
+				    "default for config symbol '%s'"
 				    " must be a single symbol", sym->name);
 			break;
 		case P_SELECT:
