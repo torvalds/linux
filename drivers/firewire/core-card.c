@@ -63,7 +63,7 @@ static size_t config_rom_length = 1 + 4 + 1 + 1;
 #define BIB_CRC(v)		((v) <<  0)
 #define BIB_CRC_LENGTH(v)	((v) << 16)
 #define BIB_INFO_LENGTH(v)	((v) << 24)
-
+#define BIB_BUS_NAME		0x31333934 /* "1394" */
 #define BIB_LINK_SPEED(v)	((v) <<  0)
 #define BIB_GENERATION(v)	((v) <<  4)
 #define BIB_MAX_ROM(v)		((v) <<  8)
@@ -73,7 +73,8 @@ static size_t config_rom_length = 1 + 4 + 1 + 1;
 #define BIB_BMC			((1) << 28)
 #define BIB_ISC			((1) << 29)
 #define BIB_CMC			((1) << 30)
-#define BIB_IMC			((1) << 31)
+#define BIB_IRMC		((1) << 31)
+#define NODE_CAPABILITIES	0x0c0083c0 /* per IEEE 1394 clause 8.3.2.6.5.2 */
 
 static void generate_config_rom(struct fw_card *card, __be32 *config_rom)
 {
@@ -91,18 +92,18 @@ static void generate_config_rom(struct fw_card *card, __be32 *config_rom)
 
 	config_rom[0] = cpu_to_be32(
 		BIB_CRC_LENGTH(4) | BIB_INFO_LENGTH(4) | BIB_CRC(0));
-	config_rom[1] = cpu_to_be32(0x31333934);
+	config_rom[1] = cpu_to_be32(BIB_BUS_NAME);
 	config_rom[2] = cpu_to_be32(
 		BIB_LINK_SPEED(card->link_speed) |
 		BIB_GENERATION(card->config_rom_generation++ % 14 + 2) |
 		BIB_MAX_ROM(2) |
 		BIB_MAX_RECEIVE(card->max_receive) |
-		BIB_BMC | BIB_ISC | BIB_CMC | BIB_IMC);
+		BIB_BMC | BIB_ISC | BIB_CMC | BIB_IRMC);
 	config_rom[3] = cpu_to_be32(card->guid >> 32);
 	config_rom[4] = cpu_to_be32(card->guid);
 
 	/* Generate root directory. */
-	config_rom[6] = cpu_to_be32(0x0c0083c0); /* node capabilities */
+	config_rom[6] = cpu_to_be32(NODE_CAPABILITIES);
 	i = 7;
 	j = 7 + descriptor_count;
 
