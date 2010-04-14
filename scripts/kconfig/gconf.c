@@ -35,7 +35,6 @@ static gboolean show_name = TRUE;
 static gboolean show_range = TRUE;
 static gboolean show_value = TRUE;
 static gboolean show_all = FALSE;
-static gboolean show_debug = FALSE;
 static gboolean resizeable = FALSE;
 
 GtkWidget *main_wnd = NULL;
@@ -644,14 +643,6 @@ on_show_all_options1_activate(GtkMenuItem * menuitem, gpointer user_data)
 
 	gtk_tree_store_clear(tree2);
 	display_tree(&rootmenu);	// instead of update_tree to speed-up
-}
-
-
-void
-on_show_debug_info1_activate(GtkMenuItem * menuitem, gpointer user_data)
-{
-	show_debug = GTK_CHECK_MENU_ITEM(menuitem)->active;
-	update_tree(&rootmenu, NULL);
 }
 
 

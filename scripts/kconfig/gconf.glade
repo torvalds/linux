@@ -200,16 +200,6 @@
 		    </widget>
 		  </child>
 
-		  <child>
-		    <widget class="GtkCheckMenuItem" id="show_debug_info1">
-		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Show masked options</property>
-		      <property name="label" translatable="yes">Show _debug info</property>
-		      <property name="use_underline">True</property>
-		      <property name="active">False</property>
-		      <signal name="activate" handler="on_show_debug_info1_activate"/>
-		    </widget>
-		  </child>
 		</widget>
 	      </child>
 	    </widget>
