@@ -1407,9 +1407,11 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
 				* created, add a flag to the superblock.
 				*/
 				lock_kernel();
+				spin_lock(&EXT2_SB(sb)->s_lock);
 				ext2_update_dynamic_rev(sb);
 				EXT2_SET_RO_COMPAT_FEATURE(sb,
 					EXT2_FEATURE_RO_COMPAT_LARGE_FILE);
+				spin_unlock(&EXT2_SB(sb)->s_lock);
 				unlock_kernel();
 				ext2_write_super(sb);
 			}
