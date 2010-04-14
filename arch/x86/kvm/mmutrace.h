@@ -28,9 +28,10 @@
 								        \
 	role.word = __entry->role;					\
 									\
-	trace_seq_printf(p, "sp gfn %llx %u/%u q%u%s %s%s %spge"	\
+	trace_seq_printf(p, "sp gfn %llx %u%s q%u%s %s%s %spge"		\
 			 " %snxe root %u %s%c",				\
-			 __entry->gfn, role.level, role.glevels,	\
+			 __entry->gfn, role.level,			\
+			 role.cr4_pae ? " pae" : "",			\
 			 role.quadrant,					\
 			 role.direct ? " direct" : "",			\
 			 access_str[role.access],			\

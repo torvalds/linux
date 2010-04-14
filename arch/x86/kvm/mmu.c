@@ -1206,7 +1206,7 @@ static int kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp);
 
 static int kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
-	if (sp->role.glevels != vcpu->arch.mmu.root_level) {
+	if (sp->role.cr4_pae != !!is_pae(vcpu)) {
 		kvm_mmu_zap_page(vcpu->kvm, sp);
 		return 1;
 	}
@@ -1329,7 +1329,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	role.level = level;
 	role.direct = direct;
 	if (role.direct)
-		role.glevels = 0;
+		role.cr4_pae = 0;
 	role.access = access;
 	if (vcpu->arch.mmu.root_level <= PT32_ROOT_LEVEL) {
 		quadrant = gaddr >> (PAGE_SHIFT + (PT64_PT_BITS * level));
@@ -2443,7 +2443,7 @@ static int init_kvm_softmmu(struct kvm_vcpu *vcpu)
 	else
 		r = paging32_init_context(vcpu);
 
-	vcpu->arch.mmu.base_role.glevels = vcpu->arch.mmu.root_level;
+	vcpu->arch.mmu.base_role.cr4_pae = !!is_pae(vcpu);
 
 	return r;
 }
@@ -2532,7 +2532,7 @@ static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
         }
 
 	++vcpu->kvm->stat.mmu_pte_updated;
-	if (sp->role.glevels == PT32_ROOT_LEVEL)
+	if (!sp->role.cr4_pae)
 		paging32_update_pte(vcpu, sp, spte, new);
 	else
 		paging64_update_pte(vcpu, sp, spte, new);
@@ -2681,7 +2681,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link) {
 		if (sp->gfn != gfn || sp->role.direct || sp->role.invalid)
 			continue;
-		pte_size = sp->role.glevels == PT32_ROOT_LEVEL ? 4 : 8;
+		pte_size = sp->role.cr4_pae ? 8 : 4;
 		misaligned = (offset ^ (offset + bytes - 1)) & ~(pte_size - 1);
 		misaligned |= bytes < 4;
 		if (misaligned || flooded) {
@@ -2705,7 +2705,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		page_offset = offset;
 		level = sp->role.level;
 		npte = 1;
-		if (sp->role.glevels == PT32_ROOT_LEVEL) {
+		if (!sp->role.cr4_pae) {
 			page_offset <<= 1;	/* 32->64 */
 			/*
 			 * A 32-bit pde maps 4MB while the shadow pdes map

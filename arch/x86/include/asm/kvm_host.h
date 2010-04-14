@@ -171,8 +171,8 @@ struct kvm_pte_chain {
 union kvm_mmu_page_role {
 	unsigned word;
 	struct {
-		unsigned glevels:4;
 		unsigned level:4;
+		unsigned cr4_pae:1;
 		unsigned quadrant:2;
 		unsigned pad_for_nice_hex_output:6;
 		unsigned direct:1;
