@@ -542,7 +542,12 @@ static int __devinit sht15_probe(struct platform_device *pdev)
 /* If a regulator is available, query what the supply voltage actually is!*/
 	data->reg = regulator_get(data->dev, "vcc");
 	if (!IS_ERR(data->reg)) {
-		data->supply_uV = regulator_get_voltage(data->reg);
+		int voltage;
+
+		voltage = regulator_get_voltage(data->reg);
+		if (voltage)
+			data->supply_uV = voltage;
+
 		regulator_enable(data->reg);
 		/* setup a notifier block to update this if another device
 		 *  causes the voltage to change */
