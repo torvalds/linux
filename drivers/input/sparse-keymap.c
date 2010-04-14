@@ -68,12 +68,14 @@ static int sparse_keymap_getkeycode(struct input_dev *dev,
 				    unsigned int scancode,
 				    unsigned int *keycode)
 {
-	const struct key_entry *key =
-			sparse_keymap_entry_from_scancode(dev, scancode);
+	const struct key_entry *key;
 
-	if (key && key->type == KE_KEY) {
-		*keycode = key->keycode;
-		return 0;
+	if (dev->keycode) {
+		key = sparse_keymap_entry_from_scancode(dev, scancode);
+		if (key && key->type == KE_KEY) {
+			*keycode = key->keycode;
+			return 0;
+		}
 	}
 
 	return -EINVAL;
@@ -86,17 +88,16 @@ static int sparse_keymap_setkeycode(struct input_dev *dev,
 	struct key_entry *key;
 	int old_keycode;
 
-	if (keycode < 0 || keycode > KEY_MAX)
-		return -EINVAL;
-
-	key = sparse_keymap_entry_from_scancode(dev, scancode);
-	if (key && key->type == KE_KEY) {
-		old_keycode = key->keycode;
-		key->keycode = keycode;
-		set_bit(keycode, dev->keybit);
-		if (!sparse_keymap_entry_from_keycode(dev, old_keycode))
-			clear_bit(old_keycode, dev->keybit);
-		return 0;
+	if (dev->keycode) {
+		key = sparse_keymap_entry_from_scancode(dev, scancode);
+		if (key && key->type == KE_KEY) {
+			old_keycode = key->keycode;
+			key->keycode = keycode;
+			set_bit(keycode, dev->keybit);
+			if (!sparse_keymap_entry_from_keycode(dev, old_keycode))
+				clear_bit(old_keycode, dev->keybit);
+			return 0;
+		}
 	}
 
 	return -EINVAL;
@@ -164,7 +165,7 @@ int sparse_keymap_setup(struct input_dev *dev,
 	return 0;
 
  err_out:
-	kfree(keymap);
+	kfree(map);
 	return error;
 
 }
@@ -176,14 +177,27 @@ EXPORT_SYMBOL(sparse_keymap_setup);
  *
  * This function is used to free memory allocated by sparse keymap
  * in an input device that was set up by sparse_keymap_setup().
+ * NOTE: It is safe to cal this function while input device is
+ * still registered (however the drivers should care not to try to
+ * use freed keymap and thus have to shut off interrups/polling
+ * before freeing the keymap).
  */
 void sparse_keymap_free(struct input_dev *dev)
 {
+	unsigned long flags;
+
+	/*
+	 * Take event lock to prevent racing with input_get_keycode()
+	 * and input_set_keycode() if we are called while input device
+	 * is still registered.
+	 */
+	spin_lock_irqsave(&dev->event_lock, flags);
+
 	kfree(dev->keycode);
 	dev->keycode = NULL;
 	dev->keycodemax = 0;
-	dev->getkeycode = NULL;
-	dev->setkeycode = NULL;
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 EXPORT_SYMBOL(sparse_keymap_free);
 
