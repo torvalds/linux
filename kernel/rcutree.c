@@ -1913,7 +1913,7 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 
 	rnp = rsp->level[NUM_RCU_LVLS - 1];
 	for_each_possible_cpu(i) {
-		if (i > rnp->grphi)
+		while (i > rnp->grphi)
 			rnp++;
 		rsp->rda[i]->mynode = rnp;
 		rcu_boot_init_percpu_data(i, rsp);
