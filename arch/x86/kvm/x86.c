@@ -5126,6 +5126,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 	int ret = 0;
 	u32 old_tss_base = get_segment_base(vcpu, VCPU_SREG_TR);
 	u16 old_tss_sel = get_segment_selector(vcpu, VCPU_SREG_TR);
+	u32 desc_limit;
 
 	old_tss_base = kvm_mmu_gva_to_gpa_write(vcpu, old_tss_base, NULL);
 
@@ -5148,7 +5149,10 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 		}
 	}
 
-	if (!nseg_desc.p || get_desc_limit(&nseg_desc) < 0x67) {
+	desc_limit = get_desc_limit(&nseg_desc);
+	if (!nseg_desc.p ||
+	    ((desc_limit < 0x67 && (nseg_desc.type & 8)) ||
+	     desc_limit < 0x2b)) {
 		kvm_queue_exception_e(vcpu, TS_VECTOR, tss_selector & 0xfffc);
 		return 1;
 	}
