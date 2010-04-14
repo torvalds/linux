@@ -331,7 +331,7 @@ static const struct snd_soc_dapm_route audio_paths_capless[] = {
 static int wm8960_add_widgets(struct snd_soc_codec *codec)
 {
 	struct wm8960_data *pdata = codec->dev->platform_data;
-	struct wm8960_priv *wm8960 = codec->private_data;
+	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_widget *w;
 
 	snd_soc_dapm_new_controls(codec, wm8960_dapm_widgets,
@@ -534,7 +534,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_codec *codec,
 static int wm8960_set_bias_level_capless(struct snd_soc_codec *codec,
 					 enum snd_soc_bias_level level)
 {
-	struct wm8960_priv *wm8960 = codec->private_data;
+	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
 	int reg;
 
 	switch (level) {
@@ -915,7 +915,7 @@ static int wm8960_register(struct wm8960_priv *wm8960,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8960;
+	snd_soc_codec_set_drvdata(codec, wm8960);
 	codec->name = "WM8960";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;

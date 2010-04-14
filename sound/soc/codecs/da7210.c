@@ -460,7 +460,7 @@ static int da7210_init(struct da7210_priv *da7210)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data	= da7210;
+	snd_soc_codec_set_drvdata(codec, da7210);
 	codec->name		= "DA7210";
 	codec->owner		= THIS_MODULE;
 	codec->read		= da7210_read;

@@ -252,7 +252,7 @@ static int wm8903_run_sequence(struct snd_soc_codec *codec, unsigned int start)
 {
 	u16 reg[5];
 	struct i2c_client *i2c = codec->control_data;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
 	BUG_ON(start > 48);
 
@@ -420,7 +420,7 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_codec *codec = widget->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = codec->control_data;
 	u16 reg;
 	int ret;
@@ -1001,7 +1001,7 @@ static int wm8903_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
 	wm8903->sysclk = freq;
 
@@ -1229,7 +1229,7 @@ static int wm8903_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = codec->control_data;
 	struct snd_pcm_runtime *master_runtime;
 
@@ -1265,7 +1265,7 @@ static void wm8903_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		wm8903->playback_active--;
@@ -1285,7 +1285,7 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = codec->control_data;
 	int fs = params_rate(params);
 	int bclk;
@@ -1464,7 +1464,7 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 int wm8903_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		      int det, int shrt)
 {
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	int irq_mask = WM8903_MICDET_EINT | WM8903_MICSHRT_EINT;
 
 	dev_dbg(codec->dev, "Enabling microphone detection: %x %x\n",
@@ -1674,7 +1674,7 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 	codec->num_dai = 1;
 	codec->reg_cache_size = ARRAY_SIZE(wm8903->reg_cache);
 	codec->reg_cache = &wm8903->reg_cache[0];
-	codec->private_data = wm8903;
+	snd_soc_codec_set_drvdata(codec, wm8903);
 	codec->volatile_register = wm8903_volatile_register;
 	init_completion(&wm8903->wseq);
 
@@ -1812,7 +1812,7 @@ err:
 static __devexit int wm8903_i2c_remove(struct i2c_client *client)
 {
 	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-	struct wm8903_priv *priv = codec->private_data;
+	struct wm8903_priv *priv = snd_soc_codec_get_drvdata(codec);
 
 	snd_soc_unregister_dai(&wm8903_dai);
 	snd_soc_unregister_codec(codec);
@@ -1822,7 +1822,7 @@ static __devexit int wm8903_i2c_remove(struct i2c_client *client)
 	if (client->irq)
 		free_irq(client->irq, priv);
 
-	kfree(codec->private_data);
+	kfree(priv);
 
 	wm8903_codec = NULL;
 	wm8903_dai.dev = NULL;

@@ -409,7 +409,7 @@ reset_err:
 pcm_err:
 	snd_soc_free_ac97_codec(codec);
 codec_err:
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 cache_err:
 	kfree(socdev->card->codec);
 	socdev->card->codec = NULL;

@@ -482,7 +482,7 @@ static int wm8750_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8750_priv *wm8750 = codec->private_data;
+	struct wm8750_priv *wm8750 = snd_soc_codec_get_drvdata(codec);
 
 	switch (freq) {
 	case 11289600:
@@ -561,7 +561,7 @@ static int wm8750_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8750_priv *wm8750 = codec->private_data;
+	struct wm8750_priv *wm8750 = snd_soc_codec_get_drvdata(codec);
 	u16 iface = snd_soc_read(codec, WM8750_IFACE) & 0x1f3;
 	u16 srate = snd_soc_read(codec, WM8750_SRATE) & 0x1c0;
 	int coeff = get_coeff(wm8750->sysclk, params_rate(params));
@@ -775,10 +775,9 @@ static int wm8750_register(struct wm8750_priv *wm8750,
 	codec->set_bias_level = wm8750_set_bias_level;
 	codec->dai = &wm8750_dai;
 	codec->num_dai = 1;
-	codec->private_data = wm8750;
 	codec->reg_cache_size = ARRAY_SIZE(wm8750->reg_cache) + 1;
 	codec->reg_cache = &wm8750->reg_cache;
-	codec->private_data = wm8750;
+	snd_soc_codec_set_drvdata(codec, wm8750);
 
 	memcpy(codec->reg_cache, wm8750_reg, sizeof(wm8750->reg_cache));
 

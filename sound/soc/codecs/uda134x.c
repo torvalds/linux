@@ -174,7 +174,7 @@ static int uda134x_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct uda134x_priv *uda134x = codec->private_data;
+	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 	struct snd_pcm_runtime *master_runtime;
 
 	if (uda134x->master_substream) {
@@ -207,7 +207,7 @@ static void uda134x_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct uda134x_priv *uda134x = codec->private_data;
+	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 
 	if (uda134x->master_substream == substream)
 		uda134x->master_substream = uda134x->slave_substream;
@@ -222,7 +222,7 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct uda134x_priv *uda134x = codec->private_data;
+	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 	u8 hw_params;
 
 	if (substream == uda134x->slave_substream) {
@@ -294,7 +294,7 @@ static int uda134x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				  int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct uda134x_priv *uda134x = codec->private_data;
+	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 
 	pr_debug("%s clk_id: %d, freq: %u, dir: %d\n", __func__,
 		 clk_id, freq, dir);
@@ -316,7 +316,7 @@ static int uda134x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			       unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct uda134x_priv *uda134x = codec->private_data;
+	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 
 	pr_debug("%s fmt: %08X\n", __func__, fmt);
 
@@ -503,7 +503,7 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 	uda134x = kzalloc(sizeof(struct uda134x_priv), GFP_KERNEL);
 	if (uda134x == NULL)
 		goto priv_err;
-	codec->private_data = uda134x;
+	snd_soc_codec_set_drvdata(codec, uda134x);
 
 	codec->reg_cache = kmemdup(uda134x_reg, sizeof(uda134x_reg),
 				   GFP_KERNEL);
@@ -567,7 +567,7 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 pcm_err:
 	kfree(codec->reg_cache);
 reg_err:
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 priv_err:
 	kfree(codec);
 	return ret;
@@ -585,7 +585,7 @@ static int uda134x_soc_remove(struct platform_device *pdev)
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
 
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 	kfree(codec->reg_cache);
 	kfree(codec);
 

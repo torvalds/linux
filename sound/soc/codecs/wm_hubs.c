@@ -91,7 +91,7 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, unsigned int op)
  */
 static void calibrate_dc_servo(struct snd_soc_codec *codec)
 {
-	struct wm_hubs_data *hubs = codec->private_data;
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	u16 reg, reg_l, reg_r, dcs_cfg;
 
 	/* Set for 32 series updates */
@@ -154,7 +154,7 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm_hubs_data *hubs = codec->private_data;
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
@@ -327,7 +327,7 @@ static int hp_supply_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct wm_hubs_data *hubs = codec->private_data;
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:

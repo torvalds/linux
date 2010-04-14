@@ -167,7 +167,7 @@ static inline void dac33_write_reg_cache(struct snd_soc_codec *codec,
 static int dac33_read(struct snd_soc_codec *codec, unsigned int reg,
 		      u8 *value)
 {
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int val;
 
 	*value = reg & 0xff;
@@ -192,7 +192,7 @@ static int dac33_read(struct snd_soc_codec *codec, unsigned int reg,
 static int dac33_write(struct snd_soc_codec *codec, unsigned int reg,
 		       unsigned int value)
 {
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	u8 data[2];
 	int ret = 0;
 
@@ -219,7 +219,7 @@ static int dac33_write(struct snd_soc_codec *codec, unsigned int reg,
 static int dac33_write_locked(struct snd_soc_codec *codec, unsigned int reg,
 		       unsigned int value)
 {
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	mutex_lock(&dac33->mutex);
@@ -233,7 +233,7 @@ static int dac33_write_locked(struct snd_soc_codec *codec, unsigned int reg,
 static int dac33_write16(struct snd_soc_codec *codec, unsigned int reg,
 		       unsigned int value)
 {
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	u8 data[3];
 	int ret = 0;
 
@@ -265,7 +265,7 @@ static int dac33_write16(struct snd_soc_codec *codec, unsigned int reg,
 
 static void dac33_restore_regs(struct snd_soc_codec *codec)
 {
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	u8 *cache = codec->reg_cache;
 	u8 data[2];
 	int i, ret;
@@ -319,7 +319,7 @@ static inline void dac33_soft_power(struct snd_soc_codec *codec, int power)
 
 static int dac33_hard_power(struct snd_soc_codec *codec, int power)
 {
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	mutex_lock(&dac33->mutex);
@@ -366,7 +366,7 @@ static int dac33_get_nsample(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = dac33->nsample;
 
@@ -377,7 +377,7 @@ static int dac33_set_nsample(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
 	if (dac33->nsample == ucontrol->value.integer.value[0])
@@ -396,7 +396,7 @@ static int dac33_get_fifo_mode(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = dac33->fifo_mode;
 
@@ -407,7 +407,7 @@ static int dac33_set_fifo_mode(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
 	if (dac33->fifo_mode == ucontrol->value.integer.value[0])
@@ -630,7 +630,7 @@ static void dac33_work(struct work_struct *work)
 static irqreturn_t dac33_interrupt_handler(int irq, void *dev)
 {
 	struct snd_soc_codec *codec = dev;
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
 	queue_work(dac33->dac33_wq, &dac33->work);
 
@@ -697,7 +697,7 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	unsigned int oscset, ratioset, pwr_ctrl, reg_tmp;
 	u8 aictrl_a, aictrl_b, fifoctrl_a;
 
@@ -883,7 +883,7 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	unsigned int nsample_limit;
 
 	/* Number of samples (16bit, stereo) in one period */
@@ -936,7 +936,7 @@ static int dac33_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
 	switch (cmd) {
@@ -967,7 +967,7 @@ static int dac33_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	u8 ioc_reg, asrcb_reg;
 
 	ioc_reg = dac33_read_reg_cache(codec, DAC33_INT_OSC_CTRL);
@@ -997,7 +997,7 @@ static int dac33_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			     unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct tlv320dac33_priv *dac33 = codec->private_data;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	u8 aictrl_a, aictrl_b;
 
 	aictrl_a = dac33_read_reg_cache(codec, DAC33_SER_AUDIOIF_CTRL_A);
@@ -1088,7 +1088,7 @@ static int dac33_soc_probe(struct platform_device *pdev)
 
 	codec = tlv320dac33_codec;
 	socdev->card->codec = codec;
-	dac33 = codec->private_data;
+	dac33 = snd_soc_codec_get_drvdata(codec);
 
 	/* Power up the codec */
 	dac33_hard_power(codec, 1);
@@ -1209,7 +1209,7 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	codec = &dac33->codec;
-	codec->private_data = dac33;
+	snd_soc_codec_set_drvdata(codec, dac33);
 	codec->control_data = client;
 
 	mutex_init(&codec->mutex);

@@ -210,7 +210,7 @@ static int cs4270_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct cs4270_private *cs4270 = codec->private_data;
+	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	unsigned int rates = 0;
 	unsigned int rate_min = -1;
 	unsigned int rate_max = 0;
@@ -269,7 +269,7 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			      unsigned int format)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct cs4270_private *cs4270 = codec->private_data;
+	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
 	/* set DAI format */
@@ -411,7 +411,7 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct cs4270_private *cs4270 = codec->private_data;
+	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 	unsigned int i;
 	unsigned int rate;
@@ -490,7 +490,7 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 static int cs4270_dai_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct cs4270_private *cs4270 = codec->private_data;
+	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int reg6;
 
 	reg6 = snd_soc_read(codec, CS4270_MUTE);
@@ -523,7 +523,7 @@ static int cs4270_soc_put_mute(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct cs4270_private *cs4270 = codec->private_data;
+	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int left = !ucontrol->value.integer.value[0];
 	int right = !ucontrol->value.integer.value[1];
 
@@ -599,7 +599,7 @@ static int cs4270_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = cs4270_codec;
-	struct cs4270_private *cs4270 = codec->private_data;
+	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 
 	/* Connect the codec to the socdev.  snd_soc_new_pcms() needs this. */
@@ -656,7 +656,7 @@ static int cs4270_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = cs4270_codec;
-	struct cs4270_private *cs4270 = codec->private_data;
+	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 
 	snd_soc_free_pcms(socdev);
 	regulator_bulk_disable(ARRAY_SIZE(cs4270->supplies), cs4270->supplies);
@@ -729,7 +729,7 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 	codec->owner = THIS_MODULE;
 	codec->dai = &cs4270_dai;
 	codec->num_dai = 1;
-	codec->private_data = cs4270;
+	snd_soc_codec_set_drvdata(codec, cs4270);
 	codec->control_data = i2c_client;
 	codec->read = cs4270_read_reg_cache;
 	codec->write = cs4270_i2c_write;
@@ -842,7 +842,7 @@ MODULE_DEVICE_TABLE(i2c, cs4270_id);
 static int cs4270_soc_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct snd_soc_codec *codec = cs4270_codec;
-	struct cs4270_private *cs4270 = codec->private_data;
+	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int reg, ret;
 
 	reg = snd_soc_read(codec, CS4270_PWRCTL) | CS4270_PWRCTL_PDN_ALL;
@@ -862,7 +862,7 @@ static int cs4270_soc_suspend(struct platform_device *pdev, pm_message_t mesg)
 static int cs4270_soc_resume(struct platform_device *pdev)
 {
 	struct snd_soc_codec *codec = cs4270_codec;
-	struct cs4270_private *cs4270 = codec->private_data;
+	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c_client = codec->control_data;
 	int reg;
 

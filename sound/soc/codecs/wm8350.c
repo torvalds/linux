@@ -95,7 +95,7 @@ static int wm8350_codec_write(struct snd_soc_codec *codec, unsigned int reg,
  */
 static inline int wm8350_out1_ramp_step(struct snd_soc_codec *codec)
 {
-	struct wm8350_data *wm8350_data = codec->private_data;
+	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out1 = &wm8350_data->out1;
 	struct wm8350 *wm8350 = codec->control_data;
 	int left_complete = 0, right_complete = 0;
@@ -161,7 +161,7 @@ static inline int wm8350_out1_ramp_step(struct snd_soc_codec *codec)
  */
 static inline int wm8350_out2_ramp_step(struct snd_soc_codec *codec)
 {
-	struct wm8350_data *wm8350_data = codec->private_data;
+	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out2 = &wm8350_data->out2;
 	struct wm8350 *wm8350 = codec->control_data;
 	int left_complete = 0, right_complete = 0;
@@ -231,7 +231,7 @@ static void wm8350_pga_work(struct work_struct *work)
 {
 	struct snd_soc_codec *codec =
 	    container_of(work, struct snd_soc_codec, delayed_work.work);
-	struct wm8350_data *wm8350_data = codec->private_data;
+	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out1 = &wm8350_data->out1,
 	    *out2 = &wm8350_data->out2;
 	int i, out1_complete, out2_complete;
@@ -278,7 +278,7 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 		     struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct wm8350_data *wm8350_data = codec->private_data;
+	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out;
 
 	switch (w->shift) {
@@ -323,7 +323,7 @@ static int wm8350_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8350_data *wm8350_priv = codec->private_data;
+	struct wm8350_data *wm8350_priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out = NULL;
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
@@ -366,7 +366,7 @@ static int wm8350_get_volsw_2r(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8350_data *wm8350_priv = codec->private_data;
+	struct wm8350_data *wm8350_priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out1 = &wm8350_priv->out1;
 	struct wm8350_output *out2 = &wm8350_priv->out2;
 	struct soc_mixer_control *mc =
@@ -1108,7 +1108,7 @@ static int wm8350_set_fll(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct wm8350 *wm8350 = codec->control_data;
-	struct wm8350_data *priv = codec->private_data;
+	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
 	struct _fll_div fll_div;
 	int ret = 0;
 	u16 fll_1, fll_4;
@@ -1160,7 +1160,7 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	struct wm8350 *wm8350 = codec->control_data;
-	struct wm8350_data *priv = codec->private_data;
+	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_audio_platform_data *platform =
 		wm8350->codec.platform_data;
 	u16 pm1;
@@ -1399,7 +1399,7 @@ static irqreturn_t wm8350_hp_jack_handler(int irq, void *data)
 int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 			  struct snd_soc_jack *jack, int report)
 {
-	struct wm8350_data *priv = codec->private_data;
+	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350 *wm8350 = codec->control_data;
 	int irq;
 	int ena;
@@ -1471,7 +1471,7 @@ int wm8350_mic_jack_detect(struct snd_soc_codec *codec,
 			   struct snd_soc_jack *jack,
 			   int detect_report, int short_report)
 {
-	struct wm8350_data *priv = codec->private_data;
+	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350 *wm8350 = codec->control_data;
 
 	priv->mic.jack = jack;
@@ -1508,7 +1508,7 @@ static int wm8350_probe(struct platform_device *pdev)
 	socdev->card->codec = wm8350_codec;
 	codec = socdev->card->codec;
 	wm8350 = codec->control_data;
-	priv = codec->private_data;
+	priv = snd_soc_codec_get_drvdata(codec);
 
 	/* Enable the codec */
 	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
@@ -1579,7 +1579,7 @@ static int wm8350_remove(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8350 *wm8350 = codec->control_data;
-	struct wm8350_data *priv = codec->private_data;
+	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	wm8350_clear_bits(wm8350, WM8350_JACK_DETECT,
@@ -1698,7 +1698,7 @@ static __devinit int wm8350_codec_probe(struct platform_device *pdev)
 	codec->dai = &wm8350_dai;
 	codec->num_dai = 1;
 	codec->reg_cache_size = WM8350_MAX_REGISTER;
-	codec->private_data = priv;
+	snd_soc_codec_set_drvdata(codec, priv);
 	codec->control_data = wm8350;
 
 	/* Put the codec into reset if it wasn't already */
@@ -1730,7 +1730,7 @@ static int __devexit wm8350_codec_remove(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = wm8350->codec.codec;
-	struct wm8350_data *priv = codec->private_data;
+	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
 
 	snd_soc_unregister_dai(&wm8350_dai);
 	snd_soc_unregister_codec(codec);

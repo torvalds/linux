@@ -431,7 +431,7 @@ static int ak4642_init(struct ak4642_priv *ak4642)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data	= ak4642;
+	snd_soc_codec_set_drvdata(codec, ak4642);
 	codec->name		= "AK4642";
 	codec->owner		= THIS_MODULE;
 	codec->read		= ak4642_read_reg_cache;

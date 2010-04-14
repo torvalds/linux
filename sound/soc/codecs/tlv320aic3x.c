@@ -763,7 +763,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct aic3x_priv *aic3x = codec->private_data;
+	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	int codec_clk = 0, bypass_pll = 0, fsref, last_clk = 0;
 	u8 data, j, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
 	u16 d, pll_d = 1;
@@ -930,7 +930,7 @@ static int aic3x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct aic3x_priv *aic3x = codec->private_data;
+	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 
 	aic3x->sysclk = freq;
 	return 0;
@@ -940,7 +940,7 @@ static int aic3x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			     unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct aic3x_priv *aic3x = codec->private_data;
+	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	u8 iface_areg, iface_breg;
 	int delay = 0;
 
@@ -994,7 +994,7 @@ static int aic3x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 				enum snd_soc_bias_level level)
 {
-	struct aic3x_priv *aic3x = codec->private_data;
+	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	u8 reg;
 
 	switch (level) {
@@ -1338,7 +1338,7 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 
 	codec = &aic3x->codec;
 	codec->dev = &i2c->dev;
-	codec->private_data = aic3x;
+	snd_soc_codec_set_drvdata(codec, aic3x);
 	codec->control_data = i2c;
 	codec->hw_write = (hw_write_t) i2c_master_send;
 

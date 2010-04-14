@@ -676,7 +676,7 @@ static __devinit int wm8974_register(struct wm8974_priv *wm8974)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8974;
+	snd_soc_codec_set_drvdata(codec, wm8974);
 	codec->name = "WM8974";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;

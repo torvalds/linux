@@ -301,7 +301,7 @@ static int ak4535_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct ak4535_priv *ak4535 = codec->private_data;
+	struct ak4535_priv *ak4535 = snd_soc_codec_get_drvdata(codec);
 
 	ak4535->sysclk = freq;
 	return 0;
@@ -314,7 +314,7 @@ static int ak4535_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct ak4535_priv *ak4535 = codec->private_data;
+	struct ak4535_priv *ak4535 = snd_soc_codec_get_drvdata(codec);
 	u8 mode2 = ak4535_read_reg_cache(codec, AK4535_MODE2) & ~(0x3 << 5);
 	int rate = params_rate(params), fs = 256;
 
@@ -599,7 +599,7 @@ static int ak4535_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	codec->private_data = ak4535;
+	snd_soc_codec_set_drvdata(codec, ak4535);
 	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
@@ -616,7 +616,7 @@ static int ak4535_probe(struct platform_device *pdev)
 #endif
 
 	if (ret != 0) {
-		kfree(codec->private_data);
+		kfree(snd_soc_codec_get_drvdata(codec));
 		kfree(codec);
 	}
 	return ret;
@@ -638,7 +638,7 @@ static int ak4535_remove(struct platform_device *pdev)
 		i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&ak4535_i2c_driver);
 #endif
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 	kfree(codec);
 
 	return 0;

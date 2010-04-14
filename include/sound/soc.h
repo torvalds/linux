@@ -414,7 +414,7 @@ struct snd_soc_codec {
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
 	unsigned int active;
 	unsigned int pcm_devs;
-	void *private_data;
+	void *drvdata;
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
@@ -595,6 +595,17 @@ static inline unsigned int snd_soc_write(struct snd_soc_codec *codec,
 					 unsigned int reg, unsigned int val)
 {
 	return codec->write(codec, reg, val);
+}
+
+static inline void snd_soc_codec_set_drvdata(struct snd_soc_codec *codec,
+					     void *data)
+{
+	codec->drvdata = data;
+}
+
+static inline void *snd_soc_codec_get_drvdata(struct snd_soc_codec *codec)
+{
+	return codec->drvdata;
 }
 
 #include <sound/soc-dai.h>

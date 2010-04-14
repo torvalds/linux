@@ -1703,7 +1703,7 @@ static int wm8994_volatile(unsigned int reg)
 static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int value)
 {
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	BUG_ON(reg > WM8994_MAX_REGISTER);
 
@@ -1728,7 +1728,7 @@ static unsigned int wm8994_read(struct snd_soc_codec *codec,
 
 static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
 {
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	int rate;
 	int reg1 = 0;
 	int offset;
@@ -1780,7 +1780,7 @@ static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
 
 static int configure_clock(struct snd_soc_codec *codec)
 {
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	int old, new;
 
 	/* Bring up the AIF clocks first */
@@ -1877,7 +1877,7 @@ static int wm8994_put_drc_sw(struct snd_kcontrol *kcontrol,
 
 static void wm8994_set_drc(struct snd_soc_codec *codec, int drc)
 {
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994_pdata *pdata = wm8994->pdata;
 	int base = wm8994_drc_base[drc];
 	int cfg = wm8994->drc_cfg[drc];
@@ -1913,7 +1913,7 @@ static int wm8994_put_drc_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8994_priv *wm8994 = codec->private_data;	
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);	
 	struct wm8994_pdata *pdata = wm8994->pdata;
 	int drc = wm8994_get_drc(kcontrol->id.name);
 	int value = ucontrol->value.integer.value[0];
@@ -1935,7 +1935,7 @@ static int wm8994_get_drc_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	int drc = wm8994_get_drc(kcontrol->id.name);
 
 	ucontrol->value.enumerated.item[0] = wm8994->drc_cfg[drc];
@@ -1945,7 +1945,7 @@ static int wm8994_get_drc_enum(struct snd_kcontrol *kcontrol,
 
 static void wm8994_set_retune_mobile(struct snd_soc_codec *codec, int block)
 {
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994_pdata *pdata = wm8994->pdata;
 	int base = wm8994_retune_mobile_base[block];
 	int iface, best, best_val, save, i, cfg;
@@ -2016,7 +2016,7 @@ static int wm8994_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8994_priv *wm8994 = codec->private_data;	
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);	
 	struct wm8994_pdata *pdata = wm8994->pdata;
 	int block = wm8994_get_retune_mobile_block(kcontrol->id.name);
 	int value = ucontrol->value.integer.value[0];
@@ -2038,7 +2038,7 @@ static int wm8994_get_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	int block = wm8994_get_retune_mobile_block(kcontrol->id.name);
 
 	ucontrol->value.enumerated.item[0] = wm8994->retune_mobile_cfg[block];
@@ -2819,7 +2819,7 @@ static int wm8994_set_fll(struct snd_soc_dai *dai, int id, int src,
 			  unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	int reg_offset, ret;
 	struct fll_div fll;
 	u16 reg, aif1, aif2;
@@ -2915,7 +2915,7 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	switch (dai->id) {
 	case 1:
@@ -3181,7 +3181,7 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	int aif1_reg;
 	int bclk_reg;
 	int lrclk_reg;
@@ -3468,7 +3468,7 @@ static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll); i++) {
@@ -3489,7 +3489,7 @@ static int wm8994_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	u16 *reg_cache = codec->reg_cache;
 	int i, ret;
 
@@ -3684,7 +3684,7 @@ static int wm8994_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	wm8994_handle_pdata(codec->private_data);
+	wm8994_handle_pdata(snd_soc_codec_get_drvdata(codec));
 
 	wm_hubs_add_analogue_controls(codec);
 	snd_soc_add_controls(codec, wm8994_snd_controls,
@@ -3735,7 +3735,7 @@ EXPORT_SYMBOL_GPL(soc_codec_dev_wm8994);
 int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		      int micbias, int det, int shrt)
 {
-	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994_micdet *micdet;
 	int reg;
 
@@ -3830,7 +3830,7 @@ static int wm8994_codec_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8994;
+	snd_soc_codec_set_drvdata(codec, wm8994);
 	codec->control_data = dev_get_drvdata(pdev->dev.parent);
 	codec->name = "WM8994";
 	codec->owner = THIS_MODULE;
