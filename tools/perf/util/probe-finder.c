@@ -111,7 +111,7 @@ static int strtailcmp(const char *s1, const char *s2)
 /* Line number list operations */
 
 /* Add a line to line number list */
-static int line_list__add_line(struct list_head *head, unsigned int line)
+static int line_list__add_line(struct list_head *head, int line)
 {
 	struct line_node *ln;
 	struct list_head *p;
@@ -138,7 +138,7 @@ found:
 }
 
 /* Check if the line in line number list */
-static int line_list__has_line(struct list_head *head, unsigned int line)
+static int line_list__has_line(struct list_head *head, int line)
 {
 	struct line_node *ln;
 
@@ -1146,7 +1146,7 @@ static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 			if (lf->lr->path == NULL)
 				return -ENOMEM;
 		}
-		line_list__add_line(&lf->lr->line_list, (unsigned int)lineno);
+		line_list__add_line(&lf->lr->line_list, lineno);
 	}
 	/* Update status */
 	if (!list_empty(&lf->lr->line_list))
@@ -1179,10 +1179,12 @@ static int line_range_search_cb(Dwarf_Die *sp_die, void *data)
 		dwarf_decl_line(sp_die, &lr->offset);
 		pr_debug("fname: %s, lineno:%d\n", lf->fname, lr->offset);
 		lf->lno_s = lr->offset + lr->start;
-		if (!lr->end)
+		if (lf->lno_s < 0)	/* Overflow */
+			lf->lno_s = INT_MAX;
+		lf->lno_e = lr->offset + lr->end;
+		if (lf->lno_e < 0)	/* Overflow */
 			lf->lno_e = INT_MAX;
-		else
-			lf->lno_e = lr->offset + lr->end;
+		pr_debug("New line range: %d to %d\n", lf->lno_s, lf->lno_e);
 		lr->start = lf->lno_s;
 		lr->end = lf->lno_e;
 		if (dwarf_func_inline(sp_die)) {
@@ -1244,10 +1246,7 @@ int find_line_range(int fd, struct line_range *lr)
 				ret = find_line_range_by_func(&lf);
 			else {
 				lf.lno_s = lr->start;
-				if (!lr->end)
-					lf.lno_e = INT_MAX;
-				else
-					lf.lno_e = lr->end;
+				lf.lno_e = lr->end;
 				ret = find_line_range_by_line(NULL, &lf);
 			}
 		}

@@ -74,15 +74,15 @@ struct perf_probe_event {
 /* Line number container */
 struct line_node {
 	struct list_head	list;
-	unsigned int		line;
+	int			line;
 };
 
 /* Line range */
 struct line_range {
 	char			*file;		/* File name */
 	char			*function;	/* Function name */
-	unsigned int		start;		/* Start line number */
-	unsigned int		end;		/* End line number */
+	int			start;		/* Start line number */
+	int			end;		/* End line number */
 	int			offset;		/* Start line offset */
 	char			*path;		/* Real path name */
 	struct list_head	line_list;	/* Visible lines */

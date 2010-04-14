@@ -189,7 +189,7 @@ static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
 #define LINEBUF_SIZE 256
 #define NR_ADDITIONAL_LINES 2
 
-static int show_one_line(FILE *fp, unsigned int l, bool skip, bool show_num)
+static int show_one_line(FILE *fp, int l, bool skip, bool show_num)
 {
 	char buf[LINEBUF_SIZE];
 	const char *color = PERF_COLOR_BLUE;
@@ -198,7 +198,7 @@ static int show_one_line(FILE *fp, unsigned int l, bool skip, bool show_num)
 		goto error;
 	if (!skip) {
 		if (show_num)
-			fprintf(stdout, "%7u  %s", l, buf);
+			fprintf(stdout, "%7d  %s", l, buf);
 		else
 			color_fprintf(stdout, color, "         %s", buf);
 	}
@@ -231,7 +231,7 @@ error:
  */
 int show_line_range(struct line_range *lr)
 {
-	unsigned int l = 1;
+	int l = 1;
 	struct line_node *ln;
 	FILE *fp;
 	int fd, ret;
@@ -340,16 +340,15 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 	 */
 	ptr = strchr(arg, ':');
 	if (ptr) {
-		lr->start = (unsigned int)strtoul(ptr + 1, &tmp, 0);
+		lr->start = (int)strtoul(ptr + 1, &tmp, 0);
 		if (*tmp == '+')
-			lr->end = lr->start + (unsigned int)strtoul(tmp + 1,
-								    &tmp, 0);
+			lr->end = lr->start + (int)strtoul(tmp + 1, &tmp, 0);
 		else if (*tmp == '-')
-			lr->end = (unsigned int)strtoul(tmp + 1, &tmp, 0);
+			lr->end = (int)strtoul(tmp + 1, &tmp, 0);
 		else
-			lr->end = 0;
-		pr_debug("Line range is %u to %u\n", lr->start, lr->end);
-		if (lr->end && lr->start > lr->end) {
+			lr->end = INT_MAX;
+		pr_debug("Line range is %d to %d\n", lr->start, lr->end);
+		if (lr->start > lr->end) {
 			semantic_error("Start line must be smaller"
 				       " than end line.\n");
 			return -EINVAL;
@@ -360,8 +359,10 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 			return -EINVAL;
 		}
 		tmp = strndup(arg, (ptr - arg));
-	} else
+	} else {
 		tmp = strdup(arg);
+		lr->end = INT_MAX;
+	}
 
 	if (tmp == NULL)
 		return -ENOMEM;
