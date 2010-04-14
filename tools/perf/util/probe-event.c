@@ -806,12 +806,12 @@ static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 			goto error;
 	}
 	if (pp->file) {
-		len = strlen(pp->file) - 32;
+		len = strlen(pp->file) - 31;
 		if (len < 0)
 			len = 0;
 		tmp = strchr(pp->file + len, '/');
 		if (!tmp)
-			tmp = pp->file + len - 1;
+			tmp = pp->file + len;
 		ret = e_snprintf(file, 32, "@%s", tmp + 1);
 		if (ret <= 0)
 			goto error;
