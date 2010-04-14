@@ -948,18 +948,20 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
  * try_rgrp_unlink - Look for any unlinked, allocated, but unused inodes
  * @rgd: The rgrp
  *
- * Returns: The inode, if one has been found
+ * Returns: 0 if no error
+ *          The inode, if one has been found, in inode.
  */
 
-static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked,
-				     u64 skip)
+static int try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked,
+			   u64 skip, struct inode **inode)
 {
-	struct inode *inode;
 	u32 goal = 0, block;
 	u64 no_addr;
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	unsigned int n;
+	int error = 0;
 
+	*inode = NULL;
 	for(;;) {
 		if (goal >= rgd->rd_data)
 			break;
@@ -979,14 +981,14 @@ static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked,
 		if (no_addr == skip)
 			continue;
 		*last_unlinked = no_addr;
-		inode = gfs2_inode_lookup(rgd->rd_sbd->sd_vfs, DT_UNKNOWN,
-					  no_addr, -1, 1);
-		if (!IS_ERR(inode))
-			return inode;
+		error = gfs2_unlinked_inode_lookup(rgd->rd_sbd->sd_vfs,
+						   no_addr, inode);
+		if (*inode || error)
+			return error;
 	}
 
 	rgd->rd_flags &= ~GFS2_RDF_CHECK;
-	return NULL;
+	return 0;
 }
 
 /**
@@ -1096,12 +1098,27 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 		case 0:
 			if (try_rgrp_fit(rgd, al))
 				goto out;
-			if (rgd->rd_flags & GFS2_RDF_CHECK)
-				inode = try_rgrp_unlink(rgd, last_unlinked, ip->i_no_addr);
+			/* If the rg came in already locked, there's no
+			   way we can recover from a failed try_rgrp_unlink
+			   because that would require an iput which can only
+			   happen after the rgrp is unlocked. */
+			if (!rg_locked && rgd->rd_flags & GFS2_RDF_CHECK)
+				error = try_rgrp_unlink(rgd, last_unlinked,
+							ip->i_no_addr, &inode);
 			if (!rg_locked)
 				gfs2_glock_dq_uninit(&al->al_rgd_gh);
-			if (inode)
+			if (inode) {
+				if (error) {
+					if (inode->i_state & I_NEW)
+						iget_failed(inode);
+					else
+						iput(inode);
+					return ERR_PTR(error);
+				}
 				return inode;
+			}
+			if (error)
+				return ERR_PTR(error);
 			/* fall through */
 		case GLR_TRYFAILED:
 			rgd = recent_rgrp_next(rgd);
@@ -1130,12 +1147,23 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 		case 0:
 			if (try_rgrp_fit(rgd, al))
 				goto out;
-			if (rgd->rd_flags & GFS2_RDF_CHECK)
-				inode = try_rgrp_unlink(rgd, last_unlinked, ip->i_no_addr);
+			if (!rg_locked && rgd->rd_flags & GFS2_RDF_CHECK)
+				error = try_rgrp_unlink(rgd, last_unlinked,
+							ip->i_no_addr, &inode);
 			if (!rg_locked)
 				gfs2_glock_dq_uninit(&al->al_rgd_gh);
-			if (inode)
+			if (inode) {
+				if (error) {
+					if (inode->i_state & I_NEW)
+						iget_failed(inode);
+					else
+						iput(inode);
+					return ERR_PTR(error);
+				}
 				return inode;
+			}
+			if (error)
+				return ERR_PTR(error);
 			break;
 
 		case GLR_TRYFAILED:
