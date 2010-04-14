@@ -1127,6 +1127,45 @@ end:
 	return ret;
 }
 
+/* Add a line and store the src path */
+static int line_range_add_line(const char *src, unsigned int lineno,
+			       struct line_range *lr)
+{
+	/* Copy real path */
+	if (!lr->path) {
+		lr->path = strdup(src);
+		if (lr->path == NULL)
+			return -ENOMEM;
+	}
+	return line_list__add_line(&lr->line_list, lineno);
+}
+
+/* Search function declaration lines */
+static int line_range_funcdecl_cb(Dwarf_Die *sp_die, void *data)
+{
+	struct dwarf_callback_param *param = data;
+	struct line_finder *lf = param->data;
+	const char *src;
+	int lineno;
+
+	src = dwarf_decl_file(sp_die);
+	if (src && strtailcmp(src, lf->fname) != 0)
+		return DWARF_CB_OK;
+
+	if (dwarf_decl_line(sp_die, &lineno) != 0 ||
+	    (lf->lno_s > lineno || lf->lno_e < lineno))
+		return DWARF_CB_OK;
+
+	param->retval = line_range_add_line(src, lineno, lf->lr);
+	return DWARF_CB_OK;
+}
+
+static int find_line_range_func_decl_lines(struct line_finder *lf)
+{
+	struct dwarf_callback_param param = {.data = (void *)lf, .retval = 0};
+	dwarf_getfuncs(&lf->cu_die, line_range_funcdecl_cb, &param, 0);
+	return param.retval;
+}
 
 /* Find line range from its line number */
 static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
@@ -1135,7 +1174,7 @@ static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 	Dwarf_Line *line;
 	size_t nlines, i;
 	Dwarf_Addr addr;
-	int lineno;
+	int lineno, ret = 0;
 	const char *src;
 	Dwarf_Die die_mem;
 
@@ -1145,6 +1184,7 @@ static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 		return -ENOENT;
 	}
 
+	/* Search probable lines on lines list */
 	for (i = 0; i < nlines; i++) {
 		line = dwarf_onesrcline(lines, i);
 		if (dwarf_lineno(line, &lineno) != 0 ||
@@ -1167,22 +1207,34 @@ static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 		if (strtailcmp(src, lf->fname) != 0)
 			continue;
 
-		/* Copy real path */
-		if (!lf->lr->path) {
-			lf->lr->path = strdup(src);
-			if (lf->lr->path == NULL)
-				return -ENOMEM;
-		}
-		line_list__add_line(&lf->lr->line_list, lineno);
+		ret = line_range_add_line(src, lineno, lf->lr);
+		if (ret < 0)
+			return ret;
 	}
+
+	/*
+	 * Dwarf lines doesn't include function declarations. We have to
+	 * check functions list or given function.
+	 */
+	if (sp_die) {
+		src = dwarf_decl_file(sp_die);
+		if (src && dwarf_decl_line(sp_die, &lineno) == 0 &&
+		    (lf->lno_s <= lineno && lf->lno_e >= lineno))
+			ret = line_range_add_line(src, lineno, lf->lr);
+	} else
+		ret = find_line_range_func_decl_lines(lf);
+
 	/* Update status */
-	if (!list_empty(&lf->lr->line_list))
-		lf->found = 1;
+	if (ret >= 0)
+		if (!list_empty(&lf->lr->line_list))
+			ret = lf->found = 1;
+		else
+			ret = 0;	/* Lines are not found */
 	else {
 		free(lf->lr->path);
 		lf->lr->path = NULL;
 	}
-	return lf->found;
+	return ret;
 }
 
 static int line_range_inline_cb(Dwarf_Die *in_die, void *data)
