@@ -76,6 +76,7 @@ struct pll_data {
 	u32 num;
 	u32 flags;
 	u32 input_rate;
+	u32 div_ratio_mask;
 };
 #define PLL_HAS_PREDIV          0x01
 #define PLL_HAS_POSTDIV         0x02

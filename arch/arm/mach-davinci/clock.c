@@ -279,7 +279,7 @@ static unsigned long clk_sysclk_recalc(struct clk *clk)
 
 	v = __raw_readl(pll->base + clk->div_reg);
 	if (v & PLLDIV_EN) {
-		plldiv = (v & PLLDIV_RATIO_MASK) + 1;
+		plldiv = (v & pll->div_ratio_mask) + 1;
 		if (plldiv)
 			rate /= plldiv;
 	}
@@ -319,7 +319,7 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 	if (pll->flags & PLL_HAS_PREDIV) {
 		prediv = __raw_readl(pll->base + PREDIV);
 		if (prediv & PLLDIV_EN)
-			prediv = (prediv & PLLDIV_RATIO_MASK) + 1;
+			prediv = (prediv & pll->div_ratio_mask) + 1;
 		else
 			prediv = 1;
 	}
@@ -331,7 +331,7 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 	if (pll->flags & PLL_HAS_POSTDIV) {
 		postdiv = __raw_readl(pll->base + POSTDIV);
 		if (postdiv & PLLDIV_EN)
-			postdiv = (postdiv & PLLDIV_RATIO_MASK) + 1;
+			postdiv = (postdiv & pll->div_ratio_mask) + 1;
 		else
 			postdiv = 1;
 	}
@@ -457,6 +457,9 @@ int __init davinci_clk_init(struct clk_lookup *clocks)
 			else if (clk->parent)
 				clk->recalc = clk_leafclk_recalc;
 		}
+
+		if (clk->pll_data && !clk->pll_data->div_ratio_mask)
+			clk->pll_data->div_ratio_mask = PLLDIV_RATIO_MASK;
 
 		if (clk->recalc)
 			clk->rate = clk->recalc(clk);
