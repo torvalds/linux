@@ -241,6 +241,7 @@ static const struct ide_port_ops pdc20246_port_ops = {
 static const struct ide_port_ops pdc2026x_port_ops = {
 	.set_pio_mode		= pdc202xx_set_pio_mode,
 	.set_dma_mode		= pdc202xx_set_mode,
+	.test_irq		= pdc202xx_test_irq,
 	.cable_detect		= pdc2026x_cable_detect,
 };
 
