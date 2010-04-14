@@ -2402,6 +2402,8 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	else
 		ret = task_switch_16(ctxt, ops, tss_selector, old_tss_sel,
 				     old_tss_base, &next_tss_desc);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
 	if (reason == TASK_SWITCH_CALL || reason == TASK_SWITCH_GATE)
 		ctxt->eflags = ctxt->eflags | X86_EFLAGS_NT;
