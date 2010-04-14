@@ -329,7 +329,6 @@ static int add_recvbuf_small(struct virtnet_info *vi, gfp_t gfp)
 	struct skb_vnet_hdr *hdr;
 	int err;
 
-	sg_init_table(sg, 2);
 	skb = netdev_alloc_skb_ip_align(vi->dev, MAX_PACKET_LEN);
 	if (unlikely(!skb))
 		return -ENOMEM;
