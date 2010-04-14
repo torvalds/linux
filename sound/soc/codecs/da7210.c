@@ -181,7 +181,7 @@ static const u8 da7210_reg[] = {
 static inline u32 da7210_read_reg_cache(struct snd_soc_codec *codec, u32 reg)
 {
 	u8 *cache = codec->reg_cache;
-	BUG_ON(reg > ARRAY_SIZE(da7210_reg));
+	BUG_ON(reg >= ARRAY_SIZE(da7210_reg));
 	return cache[reg];
 }
 
