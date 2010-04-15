@@ -1089,12 +1089,14 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
 	 *	Check to see if we resolved a queued list. If so we
 	 *	need to send on the frames and tidy up.
 	 */
+	found = false;
 	spin_lock_bh(&mfc_unres_lock);
 	list_for_each_entry(uc, &mrt->mfc_unres_queue, list) {
 		if (uc->mfc_origin == c->mfc_origin &&
 		    uc->mfc_mcastgrp == c->mfc_mcastgrp) {
 			list_del(&uc->list);
 			atomic_dec(&mrt->cache_resolve_queue_len);
+			found = true;
 			break;
 		}
 	}
@@ -1102,7 +1104,7 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
 		del_timer(&mrt->ipmr_expire_timer);
 	spin_unlock_bh(&mfc_unres_lock);
 
-	if (uc) {
+	if (found) {
 		ipmr_cache_resolve(net, mrt, uc, c);
 		ipmr_cache_free(uc);
 	}
