@@ -810,7 +810,7 @@ static int adjust_memory(struct pcmcia_socket *s, unsigned int action, unsigned 
 static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long start, unsigned long end)
 {
 	struct socket_data *data = s->resource_data;
-	unsigned long size = end - start + 1;
+	unsigned long size;
 	int ret = 0;
 
 #if defined(CONFIG_X86)
@@ -819,6 +819,8 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 	if (start < 0x100)
 		start = 0x100;
 #endif
+
+	size = end - start + 1;
 
 	if (end < start)
 		return -EINVAL;
