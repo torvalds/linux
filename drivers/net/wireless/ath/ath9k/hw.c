@@ -600,36 +600,6 @@ static bool ar9003_hw_macversion_supported(u32 macversion)
 	return false;
 }
 
-static void ar9002_hw_init_cal_settings(struct ath_hw *ah)
-{
-	if (AR_SREV_9100(ah)) {
-		ah->iq_caldata.calData = &iq_cal_multi_sample;
-		ah->supp_cals = IQ_MISMATCH_CAL;
-		return;
-	}
-
-	if (AR_SREV_9160_10_OR_LATER(ah)) {
-		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			ah->iq_caldata.calData = &iq_cal_single_sample;
-			ah->adcgain_caldata.calData =
-				&adc_gain_cal_single_sample;
-			ah->adcdc_caldata.calData =
-				&adc_dc_cal_single_sample;
-			ah->adcdc_calinitdata.calData =
-				&adc_init_dc_cal;
-		} else {
-			ah->iq_caldata.calData = &iq_cal_multi_sample;
-			ah->adcgain_caldata.calData =
-				&adc_gain_cal_multi_sample;
-			ah->adcdc_caldata.calData =
-				&adc_dc_cal_multi_sample;
-			ah->adcdc_calinitdata.calData =
-				&adc_init_dc_cal;
-		}
-		ah->supp_cals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
-	}
-}
-
 static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 {
 	if (AR_SREV_9271(ah)) {
@@ -3641,7 +3611,6 @@ static void ar9002_hw_attach_ops(struct ath_hw *ah)
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 
-	priv_ops->init_cal_settings = ar9002_hw_init_cal_settings;
 	priv_ops->init_mode_regs = ar9002_hw_init_mode_regs;
 	priv_ops->macversion_supported = ar9002_hw_macversion_supported;
 
@@ -3651,6 +3620,7 @@ static void ar9002_hw_attach_ops(struct ath_hw *ah)
 	if (AR_SREV_9280_10_OR_LATER(ah))
 		ar9002_hw_attach_phy_ops(ah);
 
+	ar9002_hw_attach_calib_ops(ah);
 	ar9002_hw_attach_mac_ops(ah);
 }
 
@@ -3663,6 +3633,6 @@ static void ar9003_hw_attach_ops(struct ath_hw *ah)
 	priv_ops->macversion_supported = ar9003_hw_macversion_supported;
 
 	ar9003_hw_attach_phy_ops(ah);
-
+	ar9003_hw_attach_calib_ops(ah);
 	ar9003_hw_attach_mac_ops(ah);
 }

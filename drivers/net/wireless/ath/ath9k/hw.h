@@ -469,7 +469,9 @@ struct ath_gen_timer_table {
  * This structure contains private callbacks designed to only be used internally
  * by the hardware core.
  *
- * @init_cal_settings: Initializes calibration settings
+ * @init_cal_settings: setup types of calibrations supported
+ * @init_cal: starts actual calibration
+ *
  * @init_mode_regs: Initializes mode registers
  * @macversion_supported: If this specific mac revision is supported
  *
@@ -480,11 +482,20 @@ struct ath_gen_timer_table {
  * @set_rf_regs:
  * @compute_pll_control: compute the PLL control value to use for
  *	AR_RTC_PLL_CONTROL for a given channel
+ * @setup_calibration: set up calibration
+ * @iscal_supported: used to query if a type of calibration is supported
  */
 struct ath_hw_private_ops {
+	/* Calibration ops */
 	void (*init_cal_settings)(struct ath_hw *ah);
+	bool (*init_cal)(struct ath_hw *ah, struct ath9k_channel *chan);
+
 	void (*init_mode_regs)(struct ath_hw *ah);
 	bool (*macversion_supported)(u32 macversion);
+	void (*setup_calibration)(struct ath_hw *ah,
+				  struct ath9k_cal_list *currCal);
+	bool (*iscal_supported)(struct ath_hw *ah,
+				enum ath9k_cal_types calType);
 
 	/* PHY ops */
 	int (*rf_set_freq)(struct ath_hw *ah,
@@ -523,6 +534,7 @@ struct ath_hw_private_ops {
  * hardware code and also by the lower level driver.
  *
  * @config_pci_powersave:
+ * @calibrate: periodic calibration for NF, ANI, IQ, ADC gain, ADC-DC
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
@@ -531,6 +543,10 @@ struct ath_hw_ops {
 	void (*rx_enable)(struct ath_hw *ah);
 	void (*set_desc_link)(void *ds, u32 link);
 	void (*get_desc_link)(void *ds, u32 **link);
+	bool (*calibrate)(struct ath_hw *ah,
+			  struct ath9k_channel *chan,
+			  u8 rxchainmask,
+			  bool longcal);
 };
 
 struct ath_hw {
@@ -832,6 +848,9 @@ void ar9003_hw_set_nf_limits(struct ath_hw *ah);
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah);
 void ar9002_hw_attach_phy_ops(struct ath_hw *ah);
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah);
+
+void ar9002_hw_attach_calib_ops(struct ath_hw *ah);
+void ar9003_hw_attach_calib_ops(struct ath_hw *ah);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1

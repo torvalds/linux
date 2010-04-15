@@ -44,6 +44,14 @@ static inline void ath9k_hw_get_desc_link(struct ath_hw *ah, void *ds,
 {
 	ath9k_hw_ops(ah)->get_desc_link(ds, link);
 }
+static inline bool ath9k_hw_calibrate(struct ath_hw *ah,
+				      struct ath9k_channel *chan,
+				      u8 rxchainmask,
+				      bool longcal)
+{
+	return ath9k_hw_ops(ah)->calibrate(ah, chan, rxchainmask, longcal);
+}
+
 /* Private hardware call ops */
 
 /* PHY ops */
@@ -166,7 +174,25 @@ static inline bool ath9k_hw_ani_control(struct ath_hw *ah,
 static inline void ath9k_hw_do_getnf(struct ath_hw *ah,
 				     int16_t nfarray[NUM_NF_READINGS])
 {
-	return ath9k_hw_private_ops(ah)->do_getnf(ah, nfarray);
+	ath9k_hw_private_ops(ah)->do_getnf(ah, nfarray);
+}
+
+static inline bool ath9k_hw_init_cal(struct ath_hw *ah,
+				     struct ath9k_channel *chan)
+{
+	return ath9k_hw_private_ops(ah)->init_cal(ah, chan);
+}
+
+static inline void ath9k_hw_setup_calibration(struct ath_hw *ah,
+					      struct ath9k_cal_list *currCal)
+{
+	ath9k_hw_private_ops(ah)->setup_calibration(ah, currCal);
+}
+
+static inline bool ath9k_hw_iscal_supported(struct ath_hw *ah,
+					    enum ath9k_cal_types calType)
+{
+	return ath9k_hw_private_ops(ah)->iscal_supported(ah, calType);
 }
 
 #endif /* ATH9K_HW_OPS_H */
