@@ -147,6 +147,7 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 	conn->c_next_tx_seq = 1;
 
 	spin_lock_init(&conn->c_send_lock);
+	atomic_set(&conn->c_send_generation, 1);
 	INIT_LIST_HEAD(&conn->c_send_queue);
 	INIT_LIST_HEAD(&conn->c_retrans);
 

@@ -112,6 +112,7 @@ int rds_send_xmit(struct rds_connection *conn)
 	unsigned int tmp;
 	struct scatterlist *sg;
 	int ret = 0;
+	int gen = 0;
 	LIST_HEAD(to_be_dropped);
 
 restart:
@@ -133,6 +134,8 @@ restart:
 
 	if (conn->c_trans->xmit_prepare)
 		conn->c_trans->xmit_prepare(conn);
+
+	gen = atomic_inc_return(&conn->c_send_generation);
 
 	/*
 	 * spin trying to push headers and data down the connection until
@@ -359,13 +362,13 @@ restart:
 	if (ret == 0) {
 		/* A simple bit test would be way faster than taking the
 		 * spin lock */
-		spin_lock_irqsave(&conn->c_lock, flags);
+		smp_mb();
 		if (!list_empty(&conn->c_send_queue)) {
 			rds_stats_inc(s_send_lock_queue_raced);
-			spin_unlock_irqrestore(&conn->c_lock, flags);
-			goto restart;
+			if (gen == atomic_read(&conn->c_send_generation)) {
+				goto restart;
+			}
 		}
-		spin_unlock_irqrestore(&conn->c_lock, flags);
 	}
 out:
 	return ret;

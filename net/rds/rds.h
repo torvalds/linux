@@ -92,6 +92,7 @@ struct rds_connection {
 	struct rds_cong_map	*c_fcong;
 
 	spinlock_t		c_send_lock;	/* protect send ring */
+	atomic_t		c_send_generation;
 	struct rds_message	*c_xmit_rm;
 	unsigned long		c_xmit_sg;
 	unsigned int		c_xmit_hdr_off;
