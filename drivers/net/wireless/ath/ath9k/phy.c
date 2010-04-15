@@ -42,21 +42,6 @@
 #include "hw.h"
 
 /**
- * ath9k_hw_write_regs - ??
- *
- * @ah: atheros hardware structure
- * @freqIndex:
- * @regWrites:
- *
- * Used for both the chipsets with an external AR2133/AR5133 radios and
- * single-chip devices.
- */
-void ath9k_hw_write_regs(struct ath_hw *ah, u32 freqIndex, int regWrites)
-{
-	REG_WRITE_ARRAY(&ah->iniBB_RfGain, freqIndex, regWrites);
-}
-
-/**
  * ath9k_hw_ar9280_set_channel - set channel on single-chip device
  * @ah: atheros hardware structure
  * @chan:

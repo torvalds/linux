@@ -1483,7 +1483,7 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 					modesIndex, regWrites);
 	}
 
-	ath9k_hw_write_regs(ah, freqIndex, regWrites);
+	REG_WRITE_ARRAY(&ah->iniBB_RfGain, freqIndex, regWrites);
 
 	if (AR_SREV_9280_20(ah) && IS_CHAN_A_5MHZ_SPACED(chan)) {
 		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex,
