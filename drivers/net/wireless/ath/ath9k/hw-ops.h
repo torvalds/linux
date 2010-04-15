@@ -182,6 +182,12 @@ static inline void ath9k_hw_do_getnf(struct ath_hw *ah,
 	ath9k_hw_private_ops(ah)->do_getnf(ah, nfarray);
 }
 
+static inline void ath9k_hw_loadnf(struct ath_hw *ah,
+				   struct ath9k_channel *chan)
+{
+	ath9k_hw_private_ops(ah)->loadnf(ah, chan);
+}
+
 static inline bool ath9k_hw_init_cal(struct ath_hw *ah,
 				     struct ath9k_channel *chan)
 {

@@ -16,7 +16,6 @@
 
 #include "hw.h"
 #include "hw-ops.h"
-#include "ar9002_phy.h"
 
 /* Common calibration code */
 
@@ -172,72 +171,6 @@ void ath9k_hw_start_nfcal(struct ath_hw *ah)
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
 		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
-}
-
-void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
-{
-	struct ath9k_nfcal_hist *h;
-	int i, j;
-	int32_t val;
-	const u32 ar5416_cca_regs[6] = {
-		AR_PHY_CCA,
-		AR_PHY_CH1_CCA,
-		AR_PHY_CH2_CCA,
-		AR_PHY_EXT_CCA,
-		AR_PHY_CH1_EXT_CCA,
-		AR_PHY_CH2_EXT_CCA
-	};
-	u8 chainmask, rx_chain_status;
-
-	rx_chain_status = REG_READ(ah, AR_PHY_RX_CHAINMASK);
-	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
-		chainmask = 0x9;
-	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah)) {
-		if ((rx_chain_status & 0x2) || (rx_chain_status & 0x4))
-			chainmask = 0x1B;
-		else
-			chainmask = 0x09;
-	} else {
-		if (rx_chain_status & 0x4)
-			chainmask = 0x3F;
-		else if (rx_chain_status & 0x2)
-			chainmask = 0x1B;
-		else
-			chainmask = 0x09;
-	}
-
-	h = ah->nfCalHist;
-
-	for (i = 0; i < NUM_NF_READINGS; i++) {
-		if (chainmask & (1 << i)) {
-			val = REG_READ(ah, ar5416_cca_regs[i]);
-			val &= 0xFFFFFE00;
-			val |= (((u32) (h[i].privNF) << 1) & 0x1ff);
-			REG_WRITE(ah, ar5416_cca_regs[i], val);
-		}
-	}
-
-	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
-		    AR_PHY_AGC_CONTROL_ENABLE_NF);
-	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
-		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
-	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
-
-	for (j = 0; j < 5; j++) {
-		if ((REG_READ(ah, AR_PHY_AGC_CONTROL) &
-		     AR_PHY_AGC_CONTROL_NF) == 0)
-			break;
-		udelay(50);
-	}
-
-	for (i = 0; i < NUM_NF_READINGS; i++) {
-		if (chainmask & (1 << i)) {
-			val = REG_READ(ah, ar5416_cca_regs[i]);
-			val &= 0xFFFFFE00;
-			val |= (((u32) (-50) << 1) & 0x1ff);
-			REG_WRITE(ah, ar5416_cca_regs[i], val);
-		}
-	}
 }
 
 int16_t ath9k_hw_getnf(struct ath_hw *ah,

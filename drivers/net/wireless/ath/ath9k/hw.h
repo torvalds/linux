@@ -486,6 +486,7 @@ struct ath_gen_timer_table {
  *	AR_RTC_PLL_CONTROL for a given channel
  * @setup_calibration: set up calibration
  * @iscal_supported: used to query if a type of calibration is supported
+ * @loadnf: load noise floor read from each chain on the CCA registers
  */
 struct ath_hw_private_ops {
 	/* Calibration ops */
@@ -528,6 +529,7 @@ struct ath_hw_private_ops {
 	bool (*ani_control)(struct ath_hw *ah, enum ath9k_ani_cmd cmd,
 			    int param);
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
+	void (*loadnf)(struct ath_hw *ah, struct ath9k_channel *chan);
 };
 
 /**

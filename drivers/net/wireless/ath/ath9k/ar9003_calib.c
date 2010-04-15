@@ -195,6 +195,11 @@ static bool ar9003_hw_iscal_supported(struct ath_hw *ah,
 	return false;
 }
 
+static void ar9003_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	/* TODO */
+}
+
 void ar9003_hw_attach_calib_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -204,6 +209,7 @@ void ar9003_hw_attach_calib_ops(struct ath_hw *ah)
 	priv_ops->init_cal = ar9003_hw_init_cal;
 	priv_ops->setup_calibration = ar9003_hw_setup_calibration;
 	priv_ops->iscal_supported = ar9003_hw_iscal_supported;
+	priv_ops->loadnf = ar9003_hw_loadnf;
 
 	ops->calibrate = ar9003_hw_calibrate;
 }
