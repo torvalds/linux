@@ -274,6 +274,7 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_INTFL_NL80211_FRAME_TX: Frame was requested through nl80211
  *	MLME command (internal to mac80211 to figure out whether to send TX
  *	status to user space)
+ * @IEEE80211_TX_CTL_LDPC: tells the driver to use LDPC for this frame
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -297,6 +298,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_RETRANSMISSION	= BIT(19),
 	IEEE80211_TX_INTFL_HAS_RADIOTAP		= BIT(20),
 	IEEE80211_TX_INTFL_NL80211_FRAME_TX	= BIT(21),
+	IEEE80211_TX_CTL_LDPC			= BIT(22),
 };
 
 /**
