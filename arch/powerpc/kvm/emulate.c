@@ -69,7 +69,7 @@
 #define OP_STH  44
 #define OP_STHU 45
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 static int kvmppc_dec_enabled(struct kvm_vcpu *vcpu)
 {
 	return 1;
@@ -86,7 +86,7 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 	unsigned long dec_nsec;
 
 	pr_debug("mtDEC: %x\n", vcpu->arch.dec);
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	/* mtdec lowers the interrupt line when positive. */
 	kvmppc_core_dequeue_dec(vcpu);
 
@@ -153,7 +153,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	switch (get_op(inst)) {
 	case OP_TRAP:
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	case OP_TRAP_64:
 		kvmppc_core_queue_program(vcpu, SRR1_PROGTRAP);
 #else

@@ -426,8 +426,8 @@ int main(void)
 	DEFINE(VCPU_FAULT_DEAR, offsetof(struct kvm_vcpu, arch.fault_dear));
 	DEFINE(VCPU_FAULT_ESR, offsetof(struct kvm_vcpu, arch.fault_esr));
 
-	/* book3s_64 */
-#ifdef CONFIG_PPC64
+	/* book3s */
+#ifdef CONFIG_PPC_BOOK3S
 	DEFINE(VCPU_FAULT_DSISR, offsetof(struct kvm_vcpu, arch.fault_dsisr));
 	DEFINE(VCPU_HOST_RETIP, offsetof(struct kvm_vcpu, arch.host_retip));
 	DEFINE(VCPU_HOST_R2, offsetof(struct kvm_vcpu, arch.host_r2));
@@ -442,7 +442,7 @@ int main(void)
 #else
 	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
 	DEFINE(VCPU_XER, offsetof(struct kvm_vcpu, arch.xer));
-#endif /* CONFIG_PPC64 */
+#endif /* CONFIG_PPC_BOOK3S */
 #endif
 #ifdef CONFIG_44x
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);

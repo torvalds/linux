@@ -31,7 +31,7 @@ config KVM_BOOK3S_64_HANDLER
 
 config KVM_BOOK3S_64
 	tristate "KVM support for PowerPC book3s_64 processors"
-	depends on EXPERIMENTAL && PPC64
+	depends on EXPERIMENTAL && PPC_BOOK3S_64
 	select KVM
 	select KVM_BOOK3S_64_HANDLER
 	---help---

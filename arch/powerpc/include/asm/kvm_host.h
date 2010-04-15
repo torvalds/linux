@@ -66,7 +66,7 @@ struct kvm_vcpu_stat {
 	u32 dec_exits;
 	u32 ext_intr_exits;
 	u32 halt_wakeup;
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	u32 pf_storage;
 	u32 pf_instruc;
 	u32 sp_storage;
@@ -160,7 +160,7 @@ struct hpte_cache {
 struct kvm_vcpu_arch {
 	ulong host_stack;
 	u32 host_pid;
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	ulong host_msr;
 	ulong host_r2;
 	void *host_retip;
@@ -201,7 +201,7 @@ struct kvm_vcpu_arch {
 #endif
 
 	ulong msr;
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	ulong shadow_msr;
 	ulong shadow_srr1;
 	ulong hflags;
@@ -283,7 +283,7 @@ struct kvm_vcpu_arch {
 	u64 dec_jiffies;
 	unsigned long pending_exceptions;
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S
 	struct hpte_cache hpte_cache[HPTEG_CACHE_NUM];
 	int hpte_cache_offset;
 #endif
