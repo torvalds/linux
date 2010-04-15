@@ -465,8 +465,7 @@ static pci_ers_result_t reset_link(struct pcie_device *aerdev,
  * error detected message to all downstream drivers within a hierarchy in
  * question and return the returned code.
  */
-static pci_ers_result_t do_recovery(struct pcie_device *aerdev,
-		struct pci_dev *dev,
+static void do_recovery(struct pcie_device *aerdev, struct pci_dev *dev,
 		int severity)
 {
 	pci_ers_result_t status, result = PCI_ERS_RESULT_RECOVERED;
@@ -484,10 +483,8 @@ static pci_ers_result_t do_recovery(struct pcie_device *aerdev,
 
 	if (severity == AER_FATAL) {
 		result = reset_link(aerdev, dev);
-		if (result != PCI_ERS_RESULT_RECOVERED) {
-			/* TODO: Should panic here? */
-			return result;
-		}
+		if (result != PCI_ERS_RESULT_RECOVERED)
+			goto failed;
 	}
 
 	if (status == PCI_ERS_RESULT_CAN_RECOVER)
@@ -508,13 +505,22 @@ static pci_ers_result_t do_recovery(struct pcie_device *aerdev,
 				report_slot_reset);
 	}
 
-	if (status == PCI_ERS_RESULT_RECOVERED)
-		broadcast_error_message(dev,
+	if (status != PCI_ERS_RESULT_RECOVERED)
+		goto failed;
+
+	broadcast_error_message(dev,
 				state,
 				"resume",
 				report_resume);
 
-	return status;
+	dev_printk(KERN_DEBUG, &dev->dev,
+		"AER driver successfully recovered\n");
+	return;
+
+failed:
+	/* TODO: Should kernel panic here? */
+	dev_printk(KERN_DEBUG, &dev->dev,
+		"AER driver didn't recover\n");
 }
 
 /**
@@ -529,7 +535,6 @@ static void handle_error_source(struct pcie_device *aerdev,
 	struct pci_dev *dev,
 	struct aer_err_info *info)
 {
-	pci_ers_result_t status = 0;
 	int pos;
 
 	if (info->severity == AER_CORRECTABLE) {
@@ -541,17 +546,8 @@ static void handle_error_source(struct pcie_device *aerdev,
 		if (pos)
 			pci_write_config_dword(dev, pos + PCI_ERR_COR_STATUS,
 					info->status);
-	} else {
-		status = do_recovery(aerdev, dev, info->severity);
-		if (status == PCI_ERS_RESULT_RECOVERED) {
-			dev_printk(KERN_DEBUG, &dev->dev, "AER driver "
-				   "successfully recovered\n");
-		} else {
-			/* TODO: Should kernel panic here? */
-			dev_printk(KERN_DEBUG, &dev->dev, "AER driver didn't "
-				   "recover\n");
-		}
-	}
+	} else
+		do_recovery(aerdev, dev, info->severity);
 }
 
 /**
