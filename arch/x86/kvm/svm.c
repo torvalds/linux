@@ -2266,8 +2266,14 @@ static int task_switch_interception(struct vcpu_svm *svm)
 	     (int_vec == OF_VECTOR || int_vec == BP_VECTOR)))
 		skip_emulated_instruction(&svm->vcpu);
 
-	return kvm_task_switch(&svm->vcpu, tss_selector, reason,
-			       has_error_code, error_code);
+	if (kvm_task_switch(&svm->vcpu, tss_selector, reason,
+				has_error_code, error_code) == EMULATE_FAIL) {
+		svm->vcpu.run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		svm->vcpu.run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
+		svm->vcpu.run->internal.ndata = 0;
+		return 0;
+	}
+	return 1;
 }
 
 static int cpuid_interception(struct vcpu_svm *svm)

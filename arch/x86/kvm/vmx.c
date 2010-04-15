@@ -3316,9 +3316,13 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 		       type != INTR_TYPE_NMI_INTR))
 		skip_emulated_instruction(vcpu);
 
-	if (!kvm_task_switch(vcpu, tss_selector, reason, has_error_code,
-			     error_code))
+	if (kvm_task_switch(vcpu, tss_selector, reason,
+				has_error_code, error_code) == EMULATE_FAIL) {
+		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
+		vcpu->run->internal.ndata = 0;
 		return 0;
+	}
 
 	/* clear all local breakpoint enable flags */
 	vmcs_writel(GUEST_DR7, vmcs_readl(GUEST_DR7) & ~55);
