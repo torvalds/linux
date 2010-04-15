@@ -290,24 +290,26 @@ static int taal_bl_update_status(struct backlight_device *dev)
 
 	dev_dbg(&dssdev->dev, "update brightness to %d\n", level);
 
+	mutex_lock(&td->lock);
+
 	if (td->use_dsi_bl) {
 		if (td->enabled) {
 			dsi_bus_lock();
 			r = taal_dcs_write_1(DCS_BRIGHTNESS, level);
 			dsi_bus_unlock();
-			if (r)
-				return r;
+		} else {
+			r = 0;
 		}
 	} else {
 		if (!dssdev->set_backlight)
-			return -EINVAL;
-
-		r = dssdev->set_backlight(dssdev, level);
-		if (r)
-			return r;
+			r = -EINVAL;
+		else
+			r = dssdev->set_backlight(dssdev, level);
 	}
 
-	return 0;
+	mutex_unlock(&td->lock);
+
+	return r;
 }
 
 static int taal_bl_get_intensity(struct backlight_device *dev)
