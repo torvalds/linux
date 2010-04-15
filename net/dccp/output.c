@@ -136,7 +136,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 
 		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 
-		err = icsk->icsk_af_ops->queue_xmit(skb, 0);
+		err = icsk->icsk_af_ops->queue_xmit(skb);
 		return net_xmit_eval(err);
 	}
 	return -ENOBUFS;

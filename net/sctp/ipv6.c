@@ -232,7 +232,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 	if (!(transport->param_flags & SPP_PMTUD_ENABLE))
 		skb->local_df = 1;
 
-	return ip6_xmit(sk, skb, &fl, np->opt, 0);
+	return ip6_xmit(sk, skb, &fl, np->opt);
 }
 
 /* Returns the dst cache entry for the given source and destination ip

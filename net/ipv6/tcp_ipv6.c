@@ -509,7 +509,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 		__tcp_v6_send_check(skb, &treq->loc_addr, &treq->rmt_addr);
 
 		ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
-		err = ip6_xmit(sk, skb, &fl, opt, 0);
+		err = ip6_xmit(sk, skb, &fl, opt);
 		err = net_xmit_eval(err);
 	}
 
@@ -1071,7 +1071,7 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 	if (!ip6_dst_lookup(ctl_sk, &dst, &fl)) {
 		if (xfrm_lookup(net, &dst, &fl, NULL, 0) >= 0) {
 			skb_dst_set(buff, dst);
-			ip6_xmit(ctl_sk, buff, &fl, NULL, 0);
+			ip6_xmit(ctl_sk, buff, &fl, NULL);
 			TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
 			if (rst)
 				TCP_INC_STATS_BH(net, TCP_MIB_OUTRSTS);

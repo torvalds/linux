@@ -501,7 +501,7 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 	skb_dst_set(skb, dst_clone(&rt->u.dst));
 
 	/* Queue the packet to IP for output */
-	rc = ip_queue_xmit(skb, 0);
+	rc = ip_queue_xmit(skb);
 
 error:
 	/* Update stats */
