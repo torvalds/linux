@@ -483,6 +483,49 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 	}
 }
 
+static int ar9002_hw_get_radiorev(struct ath_hw *ah)
+{
+	u32 val;
+	int i;
+
+	REG_WRITE(ah, AR_PHY(0x36), 0x00007058);
+
+	for (i = 0; i < 8; i++)
+		REG_WRITE(ah, AR_PHY(0x20), 0x00010000);
+	val = (REG_READ(ah, AR_PHY(256)) >> 24) & 0xff;
+	val = ((val & 0xf0) >> 4) | ((val & 0x0f) << 4);
+
+	return ath9k_hw_reverse_bits(val, 8);
+}
+
+int ar9002_hw_rf_claim(struct ath_hw *ah)
+{
+	u32 val;
+
+	REG_WRITE(ah, AR_PHY(0), 0x00000007);
+
+	val = ar9002_hw_get_radiorev(ah);
+	switch (val & AR_RADIO_SREV_MAJOR) {
+	case 0:
+		val = AR_RAD5133_SREV_MAJOR;
+		break;
+	case AR_RAD5133_SREV_MAJOR:
+	case AR_RAD5122_SREV_MAJOR:
+	case AR_RAD2133_SREV_MAJOR:
+	case AR_RAD2122_SREV_MAJOR:
+		break;
+	default:
+		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
+			  "Radio Chip Rev 0x%02X not supported\n",
+			  val & AR_RADIO_SREV_MAJOR);
+		return -EOPNOTSUPP;
+	}
+
+	ah->hw_version.analog5GhzRev = val;
+
+	return 0;
+}
+
 /* Sets up the AR5008/AR9001/AR9002 hardware familiy callbacks */
 void ar9002_hw_attach_ops(struct ath_hw *ah)
 {

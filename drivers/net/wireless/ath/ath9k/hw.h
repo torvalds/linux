@@ -844,7 +844,12 @@ void ath9k_hw_htc_resetinit(struct ath_hw *ah);
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 				   u32 *coef_mantissa, u32 *coef_exponent);
 
+/*
+ * Code Specific to AR5008, AR9001 or AR9002,
+ * we stuff these here to avoid callbacks for AR9003.
+ */
 void ar9002_hw_cck_chan14_spread(struct ath_hw *ah);
+int ar9002_hw_rf_claim(struct ath_hw *ah);
 
 /*
  * Code specifric to AR9003, we stuff these here to avoid callbacks

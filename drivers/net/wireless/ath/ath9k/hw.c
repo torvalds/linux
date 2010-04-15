@@ -264,21 +264,6 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 	}
 }
 
-static int ath9k_hw_get_radiorev(struct ath_hw *ah)
-{
-	u32 val;
-	int i;
-
-	REG_WRITE(ah, AR_PHY(0x36), 0x00007058);
-
-	for (i = 0; i < 8; i++)
-		REG_WRITE(ah, AR_PHY(0x20), 0x00010000);
-	val = (REG_READ(ah, AR_PHY(256)) >> 24) & 0xff;
-	val = ((val & 0xf0) >> 4) | ((val & 0x0f) << 4);
-
-	return ath9k_hw_reverse_bits(val, 8);
-}
-
 /************************************/
 /* HW Attach, Detach, Init Routines */
 /************************************/
@@ -438,34 +423,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 }
 
-static int ath9k_hw_rf_claim(struct ath_hw *ah)
-{
-	u32 val;
-
-	REG_WRITE(ah, AR_PHY(0), 0x00000007);
-
-	val = ath9k_hw_get_radiorev(ah);
-	switch (val & AR_RADIO_SREV_MAJOR) {
-	case 0:
-		val = AR_RAD5133_SREV_MAJOR;
-		break;
-	case AR_RAD5133_SREV_MAJOR:
-	case AR_RAD5122_SREV_MAJOR:
-	case AR_RAD2133_SREV_MAJOR:
-	case AR_RAD2122_SREV_MAJOR:
-		break;
-	default:
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "Radio Chip Rev 0x%02X not supported\n",
-			  val & AR_RADIO_SREV_MAJOR);
-		return -EOPNOTSUPP;
-	}
-
-	ah->hw_version.analog5GhzRev = val;
-
-	return 0;
-}
-
 static int ath9k_hw_init_macaddr(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -496,9 +453,11 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 			return -ENODEV;
 	}
 
-	ecode = ath9k_hw_rf_claim(ah);
-	if (ecode != 0)
-		return ecode;
+	if (!AR_SREV_9300_20_OR_LATER(ah)) {
+		ecode = ar9002_hw_rf_claim(ah);
+		if (ecode != 0)
+			return ecode;
+	}
 
 	ecode = ath9k_hw_eeprom_init(ah);
 	if (ecode != 0)
