@@ -15,6 +15,7 @@
  */
 
 #include "ath9k.h"
+#include "ar9003_mac.h"
 
 #define SKB_CB_ATHBUF(__skb)	(*((struct ath_buf **)__skb->cb))
 

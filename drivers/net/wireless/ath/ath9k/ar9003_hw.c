@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "ar9003_mac.h"
 #include "ar9003_initvals.h"
 
 /* General hardware code for the AR9003 hadware family */

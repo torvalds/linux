@@ -28,7 +28,6 @@
 #include "reg.h"
 #include "phy.h"
 #include "btcoex.h"
-#include "ar9003_mac.h"
 
 #include "../regd.h"
 #include "../debug.h"

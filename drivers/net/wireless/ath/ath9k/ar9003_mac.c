@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "hw.h"
+#include "ar9003_mac.h"
 
 static void ar9003_hw_rx_enable(struct ath_hw *hw)
 {

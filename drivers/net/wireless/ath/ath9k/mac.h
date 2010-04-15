@@ -354,7 +354,6 @@ struct ar5416_desc {
 #define AR_DestIdxValid     0x40000000
 #define AR_CTSEnable        0x80000000
 
-#define AR_BufLen           0x00000fff
 #define AR_TxMore           0x00001000
 #define AR_DestIdx          0x000fe000
 #define AR_DestIdx_S        13
@@ -494,7 +493,6 @@ struct ar5416_desc {
 
 #define AR_RxCTLRsvd00  0xffffffff
 
-#define AR_BufLen       0x00000fff
 #define AR_RxCtlRsvd00  0x00001000
 #define AR_RxIntrReq    0x00002000
 #define AR_RxCtlRsvd01  0xffffc000

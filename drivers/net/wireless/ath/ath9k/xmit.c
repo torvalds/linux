@@ -15,6 +15,7 @@
  */
 
 #include "ath9k.h"
+#include "ar9003_mac.h"
 
 #define BITS_PER_BYTE           8
 #define OFDM_PLCP_BITS          22
