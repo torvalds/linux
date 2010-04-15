@@ -375,30 +375,20 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 
 struct find_aer_service_data {
 	struct pcie_port_service_driver *aer_driver;
-	int is_downstream;
 };
 
 static int find_aer_service_iter(struct device *device, void *data)
 {
-	struct device_driver *driver;
 	struct pcie_port_service_driver *service_driver;
 	struct find_aer_service_data *result;
 
 	result = (struct find_aer_service_data *) data;
 
-	if (device->bus == &pcie_port_bus_type) {
-		struct pcie_device *pcie = to_pcie_device(device);
-
-		if (pcie->port->pcie_type == PCI_EXP_TYPE_DOWNSTREAM)
-			result->is_downstream = 1;
-
-		driver = device->driver;
-		if (driver) {
-			service_driver = to_service_driver(driver);
-			if (service_driver->service == PCIE_PORT_SERVICE_AER) {
-				result->aer_driver = service_driver;
-				return 1;
-			}
+	if (device->bus == &pcie_port_bus_type && device->driver) {
+		service_driver = to_service_driver(device->driver);
+		if (service_driver->service == PCIE_PORT_SERVICE_AER) {
+			result->aer_driver = service_driver;
+			return 1;
 		}
 	}
 
@@ -424,7 +414,6 @@ static pci_ers_result_t reset_link(struct pcie_device *aerdev,
 	else
 		udev = dev->bus->self;
 
-	data.is_downstream = 0;
 	data.aer_driver = NULL;
 	find_aer_service(udev, &data);
 
@@ -433,22 +422,24 @@ static pci_ers_result_t reset_link(struct pcie_device *aerdev,
 	 * If it hasn't the aer driver, use the root port's
 	 */
 	if (!data.aer_driver || !data.aer_driver->reset_link) {
-		if (data.is_downstream &&
+		if (udev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM &&
 			aerdev->device.driver &&
 			to_service_driver(aerdev->device.driver)->reset_link) {
 			data.aer_driver =
 				to_service_driver(aerdev->device.driver);
 		} else {
-			dev_printk(KERN_DEBUG, &dev->dev, "no link-reset "
-				   "support\n");
+			dev_printk(KERN_DEBUG, &dev->dev,
+				"no link-reset support at upstream device %s\n",
+				pci_name(udev));
 			return PCI_ERS_RESULT_DISCONNECT;
 		}
 	}
 
 	status = data.aer_driver->reset_link(udev);
 	if (status != PCI_ERS_RESULT_RECOVERED) {
-		dev_printk(KERN_DEBUG, &dev->dev, "link reset at upstream "
-			   "device %s failed\n", pci_name(udev));
+		dev_printk(KERN_DEBUG, &dev->dev,
+			"link reset at upstream device %s failed\n",
+			pci_name(udev));
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
