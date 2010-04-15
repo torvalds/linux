@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/qtouch_obp_ts.h>
+#include <linux/slab.h>
 
 #define IGNORE_CHECKSUM_MISMATCH
 
@@ -234,7 +235,7 @@ static struct qtm_object *find_object_rid(struct qtouch_ts_data *ts, int rid)
 {
 	int i;
 
-	for_each_bit(i, ts->obj_map, QTM_OBP_MAX_OBJECT_NUM) {
+	for_each_set_bit(i, ts->obj_map, QTM_OBP_MAX_OBJECT_NUM) {
 		struct qtm_object *obj = &ts->obj_tbl[i];
 
 		if ((rid >= obj->report_id_min) && (rid <= obj->report_id_max))
