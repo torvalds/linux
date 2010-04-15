@@ -31,6 +31,7 @@
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
+#include <asm/pmu.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 
@@ -261,6 +262,19 @@ static struct resource realview_pb1176_isp1761_resources[] = {
 	},
 };
 
+static struct resource pmu_resource = {
+	.start		= IRQ_DC1176_CORE_PMU,
+	.end		= IRQ_DC1176_CORE_PMU,
+	.flags		= IORESOURCE_IRQ,
+};
+
+static struct platform_device pmu_device = {
+	.name			= "arm-pmu",
+	.id			= ARM_PMU_DEVICE_CPU,
+	.num_resources		= 1,
+	.resource		= &pmu_resource,
+};
+
 static void __init gic_init_irq(void)
 {
 	/* ARM1176 DevChip GIC, primary */
@@ -322,6 +336,7 @@ static void __init realview_pb1176_init(void)
 	realview_eth_register(NULL, realview_pb1176_smsc911x_resources);
 	platform_device_register(&realview_i2c_device);
 	realview_usb_register(realview_pb1176_isp1761_resources);
+	platform_device_register(&pmu_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

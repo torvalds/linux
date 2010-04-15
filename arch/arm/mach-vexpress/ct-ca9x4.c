@@ -4,6 +4,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 
@@ -12,6 +13,7 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
+#include <asm/pmu.h>
 
 #include <mach/clkdev.h>
 #include <mach/ct-ca9x4.h>
@@ -186,6 +188,36 @@ static struct clk_lookup lookups[] = {
 	},
 };
 
+static struct resource pmu_resources[] = {
+	[0] = {
+		.start	= IRQ_CT_CA9X4_PMU_CPU0,
+		.end	= IRQ_CT_CA9X4_PMU_CPU0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start	= IRQ_CT_CA9X4_PMU_CPU1,
+		.end	= IRQ_CT_CA9X4_PMU_CPU1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= IRQ_CT_CA9X4_PMU_CPU2,
+		.end	= IRQ_CT_CA9X4_PMU_CPU2,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= IRQ_CT_CA9X4_PMU_CPU3,
+		.end	= IRQ_CT_CA9X4_PMU_CPU3,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device pmu_device = {
+	.name		= "arm-pmu",
+	.id		= ARM_PMU_DEVICE_CPU,
+	.num_resources	= ARRAY_SIZE(pmu_resources),
+	.resource	= pmu_resources,
+};
+
 static void ct_ca9x4_init(void)
 {
 	int i;
@@ -198,6 +230,8 @@ static void ct_ca9x4_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(ct_ca9x4_amba_devs); i++)
 		amba_device_register(ct_ca9x4_amba_devs[i], &iomem_resource);
+
+	platform_device_register(&pmu_device);
 }
 
 MACHINE_START(VEXPRESS, "ARM-Versatile Express CA9x4")

@@ -30,6 +30,7 @@
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
+#include <asm/pmu.h>
 #include <asm/hardware/gic.h>
 
 #include <asm/mach/arch.h>
@@ -248,6 +249,19 @@ static struct resource realview_pba8_isp1761_resources[] = {
 	},
 };
 
+static struct resource pmu_resource = {
+	.start		= IRQ_PBA8_PMU,
+	.end		= IRQ_PBA8_PMU,
+	.flags		= IORESOURCE_IRQ,
+};
+
+static struct platform_device pmu_device = {
+	.name			= "arm-pmu",
+	.id			= ARM_PMU_DEVICE_CPU,
+	.num_resources		= 1,
+	.resource		= &pmu_resource,
+};
+
 static void __init gic_init_irq(void)
 {
 	/* ARM PB-A8 on-board GIC */
@@ -294,6 +308,7 @@ static void __init realview_pba8_init(void)
 	platform_device_register(&realview_i2c_device);
 	platform_device_register(&realview_cf_device);
 	realview_usb_register(realview_pba8_isp1761_resources);
+	platform_device_register(&pmu_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
