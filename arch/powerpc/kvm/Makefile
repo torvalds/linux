@@ -50,9 +50,21 @@ kvm-book3s_64-objs := \
 	book3s_32_mmu.o
 kvm-objs-$(CONFIG_KVM_BOOK3S_64) := $(kvm-book3s_64-objs)
 
+kvm-book3s_32-objs := \
+	$(common-objs-y) \
+	fpu.o \
+	book3s_paired_singles.o \
+	book3s.o \
+	book3s_emulate.o \
+	book3s_interrupts.o \
+	book3s_32_mmu_host.o \
+	book3s_32_mmu.o
+kvm-objs-$(CONFIG_KVM_BOOK3S_32) := $(kvm-book3s_32-objs)
+
 kvm-objs := $(kvm-objs-m) $(kvm-objs-y)
 
 obj-$(CONFIG_KVM_440) += kvm.o
 obj-$(CONFIG_KVM_E500) += kvm.o
 obj-$(CONFIG_KVM_BOOK3S_64) += kvm.o
+obj-$(CONFIG_KVM_BOOK3S_32) += kvm.o
 
