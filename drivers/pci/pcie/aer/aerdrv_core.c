@@ -555,32 +555,6 @@ static void handle_error_source(struct pcie_device *aerdev,
 }
 
 /**
- * get_e_source - retrieve an error source
- * @rpc: pointer to the root port which holds an error
- *
- * Invoked by DPC handler to consume an error.
- */
-static struct aer_err_source *get_e_source(struct aer_rpc *rpc)
-{
-	struct aer_err_source *e_source;
-	unsigned long flags;
-
-	/* Lock access to Root error producer/consumer index */
-	spin_lock_irqsave(&rpc->e_lock, flags);
-	if (rpc->prod_idx == rpc->cons_idx) {
-		spin_unlock_irqrestore(&rpc->e_lock, flags);
-		return NULL;
-	}
-	e_source = &rpc->e_sources[rpc->cons_idx];
-	rpc->cons_idx++;
-	if (rpc->cons_idx == AER_ERROR_SOURCES_MAX)
-		rpc->cons_idx = 0;
-	spin_unlock_irqrestore(&rpc->e_lock, flags);
-
-	return e_source;
-}
-
-/**
  * get_device_error_info - read error status from dev and store it to info
  * @dev: pointer to the device expected to have a error record
  * @info: pointer to structure to store the error record
@@ -717,6 +691,34 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 }
 
 /**
+ * get_e_source - retrieve an error source
+ * @rpc: pointer to the root port which holds an error
+ * @e_src: pointer to store retrieved error source
+ *
+ * Return 1 if an error source is retrieved, otherwise 0.
+ *
+ * Invoked by DPC handler to consume an error.
+ */
+static int get_e_source(struct aer_rpc *rpc, struct aer_err_source *e_src)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	/* Lock access to Root error producer/consumer index */
+	spin_lock_irqsave(&rpc->e_lock, flags);
+	if (rpc->prod_idx != rpc->cons_idx) {
+		*e_src = rpc->e_sources[rpc->cons_idx];
+		rpc->cons_idx++;
+		if (rpc->cons_idx == AER_ERROR_SOURCES_MAX)
+			rpc->cons_idx = 0;
+		ret = 1;
+	}
+	spin_unlock_irqrestore(&rpc->e_lock, flags);
+
+	return ret;
+}
+
+/**
  * aer_isr - consume errors detected by root port
  * @work: definition of this work item
  *
@@ -726,14 +728,11 @@ void aer_isr(struct work_struct *work)
 {
 	struct aer_rpc *rpc = container_of(work, struct aer_rpc, dpc_handler);
 	struct pcie_device *p_device = rpc->rpd;
-	struct aer_err_source *e_src;
+	struct aer_err_source e_src;
 
 	mutex_lock(&rpc->rpc_mutex);
-	e_src = get_e_source(rpc);
-	while (e_src) {
-		aer_isr_one_error(p_device, e_src);
-		e_src = get_e_source(rpc);
-	}
+	while (get_e_source(rpc, &e_src))
+		aer_isr_one_error(p_device, &e_src);
 	mutex_unlock(&rpc->rpc_mutex);
 
 	wake_up(&rpc->wait_release);
