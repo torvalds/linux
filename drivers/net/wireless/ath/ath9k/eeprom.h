@@ -707,6 +707,6 @@ int ath9k_hw_eeprom_init(struct ath_hw *ah);
 
 extern const struct eeprom_ops eep_def_ops;
 extern const struct eeprom_ops eep_4k_ops;
-extern const struct eeprom_ops eep_AR9287_ops;
+extern const struct eeprom_ops eep_ar9287_ops;
 
 #endif /* EEPROM_H */

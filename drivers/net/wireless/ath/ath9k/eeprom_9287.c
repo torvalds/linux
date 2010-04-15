@@ -1170,7 +1170,7 @@ static u16 ath9k_hw_AR9287_get_spur_channel(struct ath_hw *ah,
 #undef EEP_MAP9287_SPURCHAN
 }
 
-const struct eeprom_ops eep_AR9287_ops = {
+const struct eeprom_ops eep_ar9287_ops = {
 	.check_eeprom		= ath9k_hw_AR9287_check_eeprom,
 	.get_eeprom		= ath9k_hw_AR9287_get_eeprom,
 	.fill_eeprom		= ath9k_hw_AR9287_fill_eeprom,
