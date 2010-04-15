@@ -44,7 +44,52 @@
  */
 static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 {
-	/* TODO */
+	u16 bMode, fracMode = 0, aModeRefSel = 0;
+	u32 freq, channelSel = 0, reg32 = 0;
+	struct chan_centers centers;
+	int loadSynthChannel;
+
+	ath9k_hw_get_channel_centers(ah, chan, &centers);
+	freq = centers.synth_center;
+
+	if (freq < 4800) {     /* 2 GHz, fractional mode */
+		channelSel = CHANSEL_2G(freq);
+		/* Set to 2G mode */
+		bMode = 1;
+	} else {
+		channelSel = CHANSEL_5G(freq);
+		/* Doubler is ON, so, divide channelSel by 2. */
+		channelSel >>= 1;
+		/* Set to 5G mode */
+		bMode = 0;
+	}
+
+	/* Enable fractional mode for all channels */
+	fracMode = 1;
+	aModeRefSel = 0;
+	loadSynthChannel = 0;
+
+	reg32 = (bMode << 29);
+	REG_WRITE(ah, AR_PHY_SYNTH_CONTROL, reg32);
+
+	/* Enable Long shift Select for Synthesizer */
+	REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_SYNTH4,
+		      AR_PHY_SYNTH4_LONG_SHIFT_SELECT, 1);
+
+	/* Program Synth. setting */
+	reg32 = (channelSel << 2) | (fracMode << 30) |
+		(aModeRefSel << 28) | (loadSynthChannel << 31);
+	REG_WRITE(ah, AR_PHY_65NM_CH0_SYNTH7, reg32);
+
+	/* Toggle Load Synth channel bit */
+	loadSynthChannel = 1;
+	reg32 = (channelSel << 2) | (fracMode << 30) |
+		(aModeRefSel << 28) | (loadSynthChannel << 31);
+	REG_WRITE(ah, AR_PHY_65NM_CH0_SYNTH7, reg32);
+
+	ah->curchan = chan;
+	ah->curchan_rad_index = -1;
+
 	return 0;
 }
 
