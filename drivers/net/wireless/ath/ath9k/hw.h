@@ -526,6 +526,8 @@ struct ath_hw_ops {
 				     int restore,
 				     int power_off);
 	void (*rx_enable)(struct ath_hw *ah);
+	void (*set_desc_link)(void *ds, u32 link);
+	void (*get_desc_link)(void *ds, u32 **link);
 };
 
 struct ath_hw {

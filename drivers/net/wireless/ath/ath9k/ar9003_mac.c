@@ -20,11 +20,23 @@ static void ar9003_hw_rx_enable(struct ath_hw *hw)
 	REG_WRITE(hw, AR_CR, 0);
 }
 
+static void ar9003_hw_set_desc_link(void *ds, u32 ds_link)
+{
+	((struct ar9003_txc *) ds)->link = ds_link;
+}
+
+static void ar9003_hw_get_desc_link(void *ds, u32 **ds_link)
+{
+	*ds_link = &((struct ar9003_txc *) ds)->link;
+}
+
 void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 {
 	struct ath_hw_ops *ops = ath9k_hw_ops(hw);
 
 	ops->rx_enable = ar9003_hw_rx_enable;
+	ops->set_desc_link = ar9003_hw_set_desc_link;
+	ops->get_desc_link = ar9003_hw_get_desc_link;
 }
 
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size)

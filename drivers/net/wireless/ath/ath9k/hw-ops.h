@@ -33,6 +33,17 @@ static inline void ath9k_hw_rxena(struct ath_hw *ah)
 	ath9k_hw_ops(ah)->rx_enable(ah);
 }
 
+static inline void ath9k_hw_set_desc_link(struct ath_hw *ah, void *ds,
+					  u32 link)
+{
+	ath9k_hw_ops(ah)->set_desc_link(ds, link);
+}
+
+static inline void ath9k_hw_get_desc_link(struct ath_hw *ah, void *ds,
+					  u32 **link)
+{
+	ath9k_hw_ops(ah)->get_desc_link(ds, link);
+}
 /* Private hardware call ops */
 
 /* PHY ops */

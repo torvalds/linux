@@ -665,7 +665,7 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		bpad = PADBYTES(al_delta) + (ndelim << 2);
 
 		bf->bf_next = NULL;
-		bf->bf_desc->ds_link = 0;
+		ath9k_hw_set_desc_link(sc->sc_ah, bf->bf_desc, 0);
 
 		/* link buffers of this frame to the aggregate */
 		ath_tx_addto_baw(sc, tid, bf);
@@ -673,7 +673,8 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		list_move_tail(&bf->list, bf_q);
 		if (bf_prev) {
 			bf_prev->bf_next = bf;
-			bf_prev->bf_desc->ds_link = bf->bf_daddr;
+			ath9k_hw_set_desc_link(sc->sc_ah, bf_prev->bf_desc,
+					       bf->bf_daddr);
 		}
 		bf_prev = bf;
 
@@ -1659,7 +1660,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	list_add_tail(&bf->list, &bf_head);
 
 	ds = bf->bf_desc;
-	ds->ds_link = 0;
+	ath9k_hw_set_desc_link(ah, ds, 0);
 
 	ath9k_hw_set11n_txdesc(ah, ds, bf->bf_frmlen, frm_type, MAX_RATE_POWER,
 			       bf->bf_keyix, bf->bf_keytype, bf->bf_flags);

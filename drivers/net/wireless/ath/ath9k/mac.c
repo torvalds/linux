@@ -21,12 +21,25 @@ static void ar9002_hw_rx_enable(struct ath_hw *ah)
 	REG_WRITE(ah, AR_CR, AR_CR_RXE);
 }
 
+static void ar9002_hw_set_desc_link(void *ds, u32 ds_link)
+{
+	((struct ath_desc *) ds)->ds_link = ds_link;
+}
+
+static void ar9002_hw_get_desc_link(void *ds, u32 **ds_link)
+{
+	*ds_link = &((struct ath_desc *)ds)->ds_link;
+}
+
 void ar9002_hw_attach_mac_ops(struct ath_hw *ah)
 {
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 
 	ops->rx_enable = ar9002_hw_rx_enable;
+	ops->set_desc_link = ar9002_hw_set_desc_link;
+	ops->get_desc_link = ar9002_hw_get_desc_link;
 }
+
 static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 					struct ath9k_tx_queue_info *qi)
 {
