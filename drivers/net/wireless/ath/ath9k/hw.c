@@ -2420,14 +2420,25 @@ void ath9k_hw_write_associd(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_write_associd);
 
+#define ATH9K_MAX_TSF_READ 10
+
 u64 ath9k_hw_gettsf64(struct ath_hw *ah)
 {
-	u64 tsf;
+	u32 tsf_lower, tsf_upper1, tsf_upper2;
+	int i;
 
-	tsf = REG_READ(ah, AR_TSF_U32);
-	tsf = (tsf << 32) | REG_READ(ah, AR_TSF_L32);
+	tsf_upper1 = REG_READ(ah, AR_TSF_U32);
+	for (i = 0; i < ATH9K_MAX_TSF_READ; i++) {
+		tsf_lower = REG_READ(ah, AR_TSF_L32);
+		tsf_upper2 = REG_READ(ah, AR_TSF_U32);
+		if (tsf_upper2 == tsf_upper1)
+			break;
+		tsf_upper1 = tsf_upper2;
+	}
 
-	return tsf;
+	WARN_ON( i == ATH9K_MAX_TSF_READ );
+
+	return (((u64)tsf_upper1 << 32) | tsf_lower);
 }
 EXPORT_SYMBOL(ath9k_hw_gettsf64);
 
