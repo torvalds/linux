@@ -25,20 +25,6 @@ int ip6_route_me_harder(struct sk_buff *skb)
 	};
 
 	dst = ip6_route_output(net, skb->sk, &fl);
-
-#ifdef CONFIG_XFRM
-	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
-	    xfrm_decode_session(skb, &fl, AF_INET6) == 0) {
-		struct dst_entry *dst2 = skb_dst(skb);
-
-		if (xfrm_lookup(net, &dst2, &fl, skb->sk, 0)) {
-			skb_dst_set(skb, NULL);
-			return -1;
-		}
-		skb_dst_set(skb, dst2);
-	}
-#endif
-
 	if (dst->error) {
 		IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
 		LIMIT_NETDEBUG(KERN_DEBUG "ip6_route_me_harder: No more route.\n");
@@ -50,6 +36,17 @@ int ip6_route_me_harder(struct sk_buff *skb)
 	skb_dst_drop(skb);
 
 	skb_dst_set(skb, dst);
+
+#ifdef CONFIG_XFRM
+	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
+	    xfrm_decode_session(skb, &fl, AF_INET6) == 0) {
+		skb_dst_set(skb, NULL);
+		if (xfrm_lookup(net, &dst, &fl, skb->sk, 0))
+			return -1;
+		skb_dst_set(skb, dst);
+	}
+#endif
+
 	return 0;
 }
 EXPORT_SYMBOL(ip6_route_me_harder);
