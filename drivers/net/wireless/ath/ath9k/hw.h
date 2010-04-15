@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2010 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -851,6 +851,9 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah);
 
 void ar9002_hw_attach_calib_ops(struct ath_hw *ah);
 void ar9003_hw_attach_calib_ops(struct ath_hw *ah);
+
+void ar9002_hw_attach_ops(struct ath_hw *ah);
+void ar9003_hw_attach_ops(struct ath_hw *ah);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1

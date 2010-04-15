@@ -13,7 +13,10 @@ ath9k-$(CONFIG_ATH9K_DEBUGFS) += debug.o
 
 obj-$(CONFIG_ATH9K) += ath9k.o
 
-ath9k_hw-y:=	hw.o \
+ath9k_hw-y:=	\
+		ar9002_hw.o \
+		ar9003_hw.o \
+		hw.o \
 		ar9003_phy.o \
 		ar9002_phy.o \
 		ar5008_phy.o \
