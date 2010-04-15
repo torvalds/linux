@@ -14,7 +14,7 @@ CFLAGS_emulate.o  := -I.
 
 common-objs-y += powerpc.o emulate.o
 obj-$(CONFIG_KVM_EXIT_TIMING) += timing.o
-obj-$(CONFIG_KVM_BOOK3S_64_HANDLER) += book3s_64_exports.o
+obj-$(CONFIG_KVM_BOOK3S_64_HANDLER) += book3s_exports.o
 
 AFLAGS_booke_interrupts.o := -I$(obj)
 
@@ -43,8 +43,8 @@ kvm-book3s_64-objs := \
 	fpu.o \
 	book3s_paired_singles.o \
 	book3s.o \
-	book3s_64_emulate.o \
-	book3s_64_interrupts.o \
+	book3s_emulate.o \
+	book3s_interrupts.o \
 	book3s_64_mmu_host.o \
 	book3s_64_mmu.o \
 	book3s_32_mmu.o

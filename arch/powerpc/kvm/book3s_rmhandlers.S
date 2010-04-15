@@ -192,4 +192,3 @@ kvmppc_trampoline_enter:
 	.long kvmppc_handler_trampoline_enter - _stext
 
 #include "book3s_64_slb.S"
-

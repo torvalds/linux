@@ -23,7 +23,7 @@
 #include <asm/page.h>
 #include <asm/exception-64e.h>
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-#include <asm/kvm_book3s_64_asm.h>
+#include <asm/kvm_book3s_asm.h>
 #endif
 
 register struct paca_struct *local_paca asm("r13");

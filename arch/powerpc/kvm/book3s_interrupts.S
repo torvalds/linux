@@ -315,4 +315,3 @@ kvm_loop_lightweight:
 
 	/* Jump back into the beginning of this function */
 	b	kvm_start_lightweight
-

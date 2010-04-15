@@ -22,7 +22,7 @@
 
 #include <linux/types.h>
 #include <linux/kvm_host.h>
-#include <asm/kvm_book3s_64_asm.h>
+#include <asm/kvm_book3s_asm.h>
 
 struct kvmppc_slb {
 	u64 esid;
