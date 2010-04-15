@@ -1161,8 +1161,6 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
  */
 void rcu_check_callbacks(int cpu, int user)
 {
-	if (!rcu_pending(cpu))
-		return; /* if nothing for RCU to do. */
 	if (user ||
 	    (idle_cpu(cpu) && rcu_scheduler_active &&
 	     !in_softirq() && hardirq_count() <= (1 << HARDIRQ_SHIFT))) {
@@ -1194,7 +1192,8 @@ void rcu_check_callbacks(int cpu, int user)
 		rcu_bh_qs(cpu);
 	}
 	rcu_preempt_check_callbacks(cpu);
-	raise_softirq(RCU_SOFTIRQ);
+	if (rcu_pending(cpu))
+		raise_softirq(RCU_SOFTIRQ);
 }
 
 #ifdef CONFIG_SMP
@@ -1534,18 +1533,20 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 	check_cpu_stall(rsp, rdp);
 
 	/* Is the RCU core waiting for a quiescent state from this CPU? */
-	if (rdp->qs_pending) {
+	if (rdp->qs_pending && !rdp->passed_quiesc) {
 
 		/*
 		 * If force_quiescent_state() coming soon and this CPU
 		 * needs a quiescent state, and this is either RCU-sched
 		 * or RCU-bh, force a local reschedule.
 		 */
+		rdp->n_rp_qs_pending++;
 		if (!rdp->preemptable &&
 		    ULONG_CMP_LT(ACCESS_ONCE(rsp->jiffies_force_qs) - 1,
 				 jiffies))
 			set_need_resched();
-		rdp->n_rp_qs_pending++;
+	} else if (rdp->qs_pending && rdp->passed_quiesc) {
+		rdp->n_rp_report_qs++;
 		return 1;
 	}
 
