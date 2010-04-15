@@ -946,7 +946,7 @@ static void ath9k_hw_init_eeprom_fix(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	ah->need_an_top2_fixup = (ah->hw_version.devid == AR9280_DEVID_PCI) &&
-				 (ah->eep_map != EEP_MAP_4KBITS) &&
+				 !AR_SREV_9285(ah) && !AR_SREV_9271(ah) &&
 				 ((pBase->version & 0xff) > 0x0a) &&
 				 (pBase->pwdclkind == 0);
 
