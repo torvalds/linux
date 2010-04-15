@@ -1566,8 +1566,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (tsf && AR_SREV_9280(ah) && ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 		ath9k_hw_settsf64(ah, tsf);
 
-	ar9002_hw_attach_mac_ops(ah);
-
 	if (AR_SREV_9280_10_OR_LATER(ah))
 		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
 
@@ -3563,6 +3561,8 @@ static void ar9002_hw_attach_ops(struct ath_hw *ah)
 	ar5008_hw_attach_phy_ops(ah);
 	if (AR_SREV_9280_10_OR_LATER(ah))
 		ar9002_hw_attach_phy_ops(ah);
+
+	ar9002_hw_attach_mac_ops(ah);
 }
 
 /* Sets up the AR9003 hardware familiy callbacks */
@@ -3573,4 +3573,6 @@ static void ar9003_hw_attach_ops(struct ath_hw *ah)
 	priv_ops->macversion_supported = ar9003_hw_macversion_supported;
 
 	ar9003_hw_attach_phy_ops(ah);
+
+	ar9003_hw_attach_mac_ops(ah);
 }

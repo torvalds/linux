@@ -13,25 +13,16 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include "hw.h"
 
-#ifndef AR9003_MAC_H
-#define AR9003_MAC_H
+static void ar9003_hw_rx_enable(struct ath_hw *hw)
+{
+	REG_WRITE(hw, AR_CR, 0);
+}
 
-struct ar9003_rxs {
-	u32 ds_info;
-	u32 status1;
-	u32 status2;
-	u32 status3;
-	u32 status4;
-	u32 status5;
-	u32 status6;
-	u32 status7;
-	u32 status8;
-	u32 status9;
-	u32 status10;
-	u32 status11;
-} __packed;
+void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
+{
+	struct ath_hw_ops *ops = ath9k_hw_ops(hw);
 
-void ar9003_hw_attach_mac_ops(struct ath_hw *hw);
-
-#endif
+	ops->rx_enable = ar9003_hw_rx_enable;
+}
