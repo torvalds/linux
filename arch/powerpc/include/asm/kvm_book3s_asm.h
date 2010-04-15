@@ -22,7 +22,7 @@
 
 #ifdef __ASSEMBLY__
 
-#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#ifdef CONFIG_KVM_BOOK3S_HANDLER
 
 #include <asm/kvm_asm.h>
 
@@ -55,7 +55,7 @@ kvmppc_resume_\intno:
 .macro DO_KVM intno
 .endm
 
-#endif /* CONFIG_KVM_BOOK3S_64_HANDLER */
+#endif /* CONFIG_KVM_BOOK3S_HANDLER */
 
 #else  /*__ASSEMBLY__ */
 

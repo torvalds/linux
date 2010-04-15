@@ -22,8 +22,12 @@ config KVM
 	select ANON_INODES
 	select KVM_MMIO
 
+config KVM_BOOK3S_HANDLER
+	bool
+
 config KVM_BOOK3S_64_HANDLER
 	bool
+	select KVM_BOOK3S_HANDLER
 
 config KVM_BOOK3S_64
 	tristate "KVM support for PowerPC book3s_64 processors"

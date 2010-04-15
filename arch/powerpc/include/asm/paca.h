@@ -136,7 +136,7 @@ struct paca_struct {
 	u64 startpurr;			/* PURR/TB value snapshot */
 	u64 startspurr;			/* SPURR value snapshot */
 
-#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#ifdef CONFIG_KVM_BOOK3S_HANDLER
 	struct  {
 		u64     esid;
 		u64     vsid;
