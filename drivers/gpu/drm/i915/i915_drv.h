@@ -195,6 +195,7 @@ struct intel_overlay;
 struct intel_device_info {
 	u8 is_mobile : 1;
 	u8 is_i8xx : 1;
+	u8 is_i85x : 1;
 	u8 is_i915g : 1;
 	u8 is_i9xx : 1;
 	u8 is_i945gm : 1;
@@ -1070,7 +1071,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define IS_I830(dev)		((dev)->pci_device == 0x3577)
 #define IS_845G(dev)		((dev)->pci_device == 0x2562)
-#define IS_I85X(dev)		((dev)->pci_device == 0x3582)
+#define IS_I85X(dev)		(INTEL_INFO(dev)->is_i85x)
 #define IS_I865G(dev)		((dev)->pci_device == 0x2572)
 #define IS_GEN2(dev)		(INTEL_INFO(dev)->is_i8xx)
 #define IS_I915G(dev)		(INTEL_INFO(dev)->is_i915g)
