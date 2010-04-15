@@ -71,6 +71,9 @@
 
 struct mr_table {
 	struct list_head	list;
+#ifdef CONFIG_NET_NS
+	struct net		*net;
+#endif
 	u32			id;
 	struct sock		*mroute_sk;
 	struct timer_list	ipmr_expire_timer;
@@ -308,6 +311,7 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 	mrt = kzalloc(sizeof(*mrt), GFP_KERNEL);
 	if (mrt == NULL)
 		return NULL;
+	write_pnet(&mrt->net, net);
 	mrt->id = id;
 
 	/* Forwarding cache */
@@ -580,7 +584,7 @@ static inline void ipmr_cache_free(struct mfc_cache *c)
 
 static void ipmr_destroy_unres(struct mr_table *mrt, struct mfc_cache *c)
 {
-	struct net *net = NULL; //mrt->net;
+	struct net *net = read_pnet(&mrt->net);
 	struct sk_buff *skb;
 	struct nlmsgerr *e;
 
