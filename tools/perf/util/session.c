@@ -14,6 +14,16 @@ static int perf_session__open(struct perf_session *self, bool force)
 {
 	struct stat input_stat;
 
+	if (!strcmp(self->filename, "-")) {
+		self->fd_pipe = true;
+		self->fd = STDIN_FILENO;
+
+		if (perf_header__read(self, self->fd) < 0)
+			pr_err("incompatible file format");
+
+		return 0;
+	}
+
 	self->fd = open(self->filename, O_RDONLY);
 	if (self->fd < 0) {
 		pr_err("failed to open file: %s", self->filename);
@@ -38,7 +48,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 		goto out_close;
 	}
 
-	if (perf_header__read(&self->header, self->fd) < 0) {
+	if (perf_header__read(self, self->fd) < 0) {
 		pr_err("incompatible file format");
 		goto out_close;
 	}
@@ -50,6 +60,11 @@ out_close:
 	close(self->fd);
 	self->fd = -1;
 	return -1;
+}
+
+void perf_session__update_sample_type(struct perf_session *self)
+{
+	self->sample_type = perf_header__sample_type(&self->header);
 }
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force)
@@ -85,7 +100,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 			goto out_delete;
 	}
 
-	self->sample_type = perf_header__sample_type(&self->header);
+	perf_session__update_sample_type(self);
 out:
 	return self;
 out_free:
@@ -185,6 +200,14 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 		handler->throttle = process_event_stub;
 	if (handler->unthrottle == NULL)
 		handler->unthrottle = process_event_stub;
+	if (handler->attr == NULL)
+		handler->attr = process_event_stub;
+	if (handler->event_type == NULL)
+		handler->event_type = process_event_stub;
+	if (handler->tracing_data == NULL)
+		handler->tracing_data = process_event_stub;
+	if (handler->build_id == NULL)
+		handler->build_id = process_event_stub;
 }
 
 static const char *event__name[] = {
@@ -198,16 +221,23 @@ static const char *event__name[] = {
 	[PERF_RECORD_FORK]	 = "FORK",
 	[PERF_RECORD_READ]	 = "READ",
 	[PERF_RECORD_SAMPLE]	 = "SAMPLE",
+	[PERF_RECORD_HEADER_ATTR]	 = "ATTR",
+	[PERF_RECORD_HEADER_EVENT_TYPE]	 = "EVENT_TYPE",
+	[PERF_RECORD_HEADER_TRACING_DATA]	 = "TRACING_DATA",
+	[PERF_RECORD_HEADER_BUILD_ID]	 = "BUILD_ID",
 };
 
-unsigned long event__total[PERF_RECORD_MAX];
+unsigned long event__total[PERF_RECORD_HEADER_MAX];
 
 void event__print_totals(void)
 {
 	int i;
-	for (i = 0; i < PERF_RECORD_MAX; ++i)
+	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
+		if (!event__name[i])
+			continue;
 		pr_info("%10s events: %10ld\n",
 			event__name[i], event__total[i]);
+	}
 }
 
 void mem_bswap_64(void *src, int byte_size)
@@ -261,6 +291,37 @@ static void event__read_swap(event_t *self)
 	self->read.id		= bswap_64(self->read.id);
 }
 
+static void event__attr_swap(event_t *self)
+{
+	size_t size;
+
+	self->attr.attr.type		= bswap_32(self->attr.attr.type);
+	self->attr.attr.size		= bswap_32(self->attr.attr.size);
+	self->attr.attr.config		= bswap_64(self->attr.attr.config);
+	self->attr.attr.sample_period	= bswap_64(self->attr.attr.sample_period);
+	self->attr.attr.sample_type	= bswap_64(self->attr.attr.sample_type);
+	self->attr.attr.read_format	= bswap_64(self->attr.attr.read_format);
+	self->attr.attr.wakeup_events	= bswap_32(self->attr.attr.wakeup_events);
+	self->attr.attr.bp_type		= bswap_32(self->attr.attr.bp_type);
+	self->attr.attr.bp_addr		= bswap_64(self->attr.attr.bp_addr);
+	self->attr.attr.bp_len		= bswap_64(self->attr.attr.bp_len);
+
+	size = self->header.size;
+	size -= (void *)&self->attr.id - (void *)self;
+	mem_bswap_64(self->attr.id, size);
+}
+
+static void event__event_type_swap(event_t *self)
+{
+	self->event_type.event_type.event_id =
+		bswap_64(self->event_type.event_type.event_id);
+}
+
+static void event__tracing_data_swap(event_t *self)
+{
+	self->tracing_data.size = bswap_32(self->tracing_data.size);
+}
+
 typedef void (*event__swap_op)(event_t *self);
 
 static event__swap_op event__swap_ops[] = {
@@ -271,7 +332,11 @@ static event__swap_op event__swap_ops[] = {
 	[PERF_RECORD_LOST]   = event__all64_swap,
 	[PERF_RECORD_READ]   = event__read_swap,
 	[PERF_RECORD_SAMPLE] = event__all64_swap,
-	[PERF_RECORD_MAX]    = NULL,
+	[PERF_RECORD_HEADER_ATTR]   = event__attr_swap,
+	[PERF_RECORD_HEADER_EVENT_TYPE]   = event__event_type_swap,
+	[PERF_RECORD_HEADER_TRACING_DATA]   = event__tracing_data_swap,
+	[PERF_RECORD_HEADER_BUILD_ID]   = NULL,
+	[PERF_RECORD_HEADER_MAX]    = NULL,
 };
 
 static int perf_session__process_event(struct perf_session *self,
@@ -281,7 +346,7 @@ static int perf_session__process_event(struct perf_session *self,
 {
 	trace_event(event);
 
-	if (event->header.type < PERF_RECORD_MAX) {
+	if (event->header.type < PERF_RECORD_HEADER_MAX) {
 		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
 			    offset + head, event->header.size,
 			    event__name[event->header.type]);
@@ -311,6 +376,16 @@ static int perf_session__process_event(struct perf_session *self,
 		return ops->throttle(event, self);
 	case PERF_RECORD_UNTHROTTLE:
 		return ops->unthrottle(event, self);
+	case PERF_RECORD_HEADER_ATTR:
+		return ops->attr(event, self);
+	case PERF_RECORD_HEADER_EVENT_TYPE:
+		return ops->event_type(event, self);
+	case PERF_RECORD_HEADER_TRACING_DATA:
+		/* setup for reading amidst mmap */
+		lseek(self->fd, offset + head, SEEK_SET);
+		return ops->tracing_data(event, self);
+	case PERF_RECORD_HEADER_BUILD_ID:
+		return ops->build_id(event, self);
 	default:
 		self->unknown_events++;
 		return -1;
@@ -374,6 +449,101 @@ static struct thread *perf_session__register_idle_thread(struct perf_session *se
 	}
 
 	return thread;
+}
+
+int do_read(int fd, void *buf, size_t size)
+{
+	void *buf_start = buf;
+
+	while (size) {
+		int ret = read(fd, buf, size);
+
+		if (ret <= 0)
+			return ret;
+
+		size -= ret;
+		buf += ret;
+	}
+
+	return buf - buf_start;
+}
+
+#define session_done()	(*(volatile int *)(&session_done))
+volatile int session_done;
+
+static int __perf_session__process_pipe_events(struct perf_session *self,
+					       struct perf_event_ops *ops)
+{
+	event_t event;
+	uint32_t size;
+	int skip = 0;
+	u64 head;
+	int err;
+	void *p;
+
+	perf_event_ops__fill_defaults(ops);
+
+	head = 0;
+more:
+	err = do_read(self->fd, &event, sizeof(struct perf_event_header));
+	if (err <= 0) {
+		if (err == 0)
+			goto done;
+
+		pr_err("failed to read event header\n");
+		goto out_err;
+	}
+
+	if (self->header.needs_swap)
+		perf_event_header__bswap(&event.header);
+
+	size = event.header.size;
+	if (size == 0)
+		size = 8;
+
+	p = &event;
+	p += sizeof(struct perf_event_header);
+
+	err = do_read(self->fd, p, size - sizeof(struct perf_event_header));
+	if (err <= 0) {
+		if (err == 0) {
+			pr_err("unexpected end of event stream\n");
+			goto done;
+		}
+
+		pr_err("failed to read event data\n");
+		goto out_err;
+	}
+
+	if (size == 0 ||
+	    (skip = perf_session__process_event(self, &event, ops,
+						0, head)) < 0) {
+		dump_printf("%#Lx [%#x]: skipping unknown header type: %d\n",
+			    head, event.header.size, event.header.type);
+		/*
+		 * assume we lost track of the stream, check alignment, and
+		 * increment a single u64 in the hope to catch on again 'soon'.
+		 */
+		if (unlikely(head & 7))
+			head &= ~7ULL;
+
+		size = 8;
+	}
+
+	head += size;
+
+	dump_printf("\n%#Lx [%#x]: event: %d\n",
+		    head, event.header.size, event.header.type);
+
+	if (skip > 0)
+		head += skip;
+
+	if (!session_done())
+		goto more;
+done:
+	err = 0;
+out_err:
+	return err;
 }
 
 int __perf_session__process_events(struct perf_session *self,
@@ -499,9 +669,13 @@ out_getcwd_err:
 		self->cwdlen = strlen(self->cwd);
 	}
 
-	err = __perf_session__process_events(self, self->header.data_offset,
-					     self->header.data_size,
-					     self->size, ops);
+	if (!self->fd_pipe)
+		err = __perf_session__process_events(self,
+						     self->header.data_offset,
+						     self->header.data_size,
+						     self->size, ops);
+	else
+		err = __perf_session__process_pipe_events(self, ops);
 out_err:
 	return err;
 }

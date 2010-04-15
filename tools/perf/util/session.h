@@ -27,6 +27,7 @@ struct perf_session {
 	u64			sample_type;
 	struct ref_reloc_sym	ref_reloc_sym;
 	int			fd;
+	bool			fd_pipe;
 	int			cwdlen;
 	char			*cwd;
 	char filename[0];
@@ -43,7 +44,11 @@ struct perf_event_ops {
 		 lost,
 		 read,
 		 throttle,
-		 unthrottle;
+		 unthrottle,
+		 attr,
+		 event_type,
+		 tracing_data,
+		 build_id;
 };
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force);
@@ -91,6 +96,9 @@ static inline struct map *
 {
 	return map_groups__new_module(&self->kmaps, start, filename);
 }
+
+int do_read(int fd, void *buf, size_t size);
+void perf_session__update_sample_type(struct perf_session *self);
 
 #ifdef NO_NEWT_SUPPORT
 static inline int perf_session__browse_hists(struct rb_root *hists __used,
