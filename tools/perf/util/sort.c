@@ -30,38 +30,38 @@ static int hist_entry__parent_snprintf(struct hist_entry *self, char *bf,
 				       size_t size, unsigned int width);
 
 struct sort_entry sort_thread = {
-	.header = "Command:  Pid",
-	.cmp	= sort__thread_cmp,
-	.snprintf = hist_entry__thread_snprintf,
-	.width	= &threads__col_width,
+	.se_header	= "Command:  Pid",
+	.se_cmp		= sort__thread_cmp,
+	.se_snprintf	= hist_entry__thread_snprintf,
+	.se_width	= &threads__col_width,
 };
 
 struct sort_entry sort_comm = {
-	.header		= "Command",
-	.cmp		= sort__comm_cmp,
-	.collapse	= sort__comm_collapse,
-	.snprintf	= hist_entry__comm_snprintf,
-	.width		= &comms__col_width,
+	.se_header	= "Command",
+	.se_cmp		= sort__comm_cmp,
+	.se_collapse	= sort__comm_collapse,
+	.se_snprintf	= hist_entry__comm_snprintf,
+	.se_width	= &comms__col_width,
 };
 
 struct sort_entry sort_dso = {
-	.header = "Shared Object",
-	.cmp	= sort__dso_cmp,
-	.snprintf = hist_entry__dso_snprintf,
-	.width	= &dsos__col_width,
+	.se_header	= "Shared Object",
+	.se_cmp		= sort__dso_cmp,
+	.se_snprintf	= hist_entry__dso_snprintf,
+	.se_width	= &dsos__col_width,
 };
 
 struct sort_entry sort_sym = {
-	.header = "Symbol",
-	.cmp	= sort__sym_cmp,
-	.snprintf = hist_entry__sym_snprintf,
+	.se_header	= "Symbol",
+	.se_cmp		= sort__sym_cmp,
+	.se_snprintf	= hist_entry__sym_snprintf,
 };
 
 struct sort_entry sort_parent = {
-	.header = "Parent symbol",
-	.cmp	= sort__parent_cmp,
-	.snprintf = hist_entry__parent_snprintf,
-	.width	= &parent_symbol__col_width,
+	.se_header	= "Parent symbol",
+	.se_cmp		= sort__parent_cmp,
+	.se_snprintf	= hist_entry__parent_snprintf,
+	.se_width	= &parent_symbol__col_width,
 };
 
 struct sort_dimension {
@@ -255,7 +255,7 @@ int sort_dimension__add(const char *tok)
 		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
-		if (sd->entry->collapse)
+		if (sd->entry->se_collapse)
 			sort__need_collapse = 1;
 
 		if (sd->entry == &sort_parent) {
