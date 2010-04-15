@@ -31,6 +31,10 @@ static bool ar9003_hw_macversion_supported(u32 macversion)
 }
 
 /* AR9003 2.0 - new INI format (pre, core, post arrays per subsystem) */
+/*
+ * XXX: move TX/RX gain INI to its own init_mode_gain_regs after
+ * ensuring it does not affect hardware bring up
+ */
 static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 {
 	/* mac */

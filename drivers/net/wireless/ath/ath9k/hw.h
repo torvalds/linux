@@ -473,6 +473,7 @@ struct ath_gen_timer_table {
  * @init_cal: starts actual calibration
  *
  * @init_mode_regs: Initializes mode registers
+ * @init_mode_gain_regs: Initialize TX/RX gain registers
  * @macversion_supported: If this specific mac revision is supported
  *
  * @rf_set_freq: change frequency
@@ -491,6 +492,7 @@ struct ath_hw_private_ops {
 	bool (*init_cal)(struct ath_hw *ah, struct ath9k_channel *chan);
 
 	void (*init_mode_regs)(struct ath_hw *ah);
+	void (*init_mode_gain_regs)(struct ath_hw *ah);
 	bool (*macversion_supported)(u32 macversion);
 	void (*setup_calibration)(struct ath_hw *ah,
 				  struct ath9k_cal_list *currCal);
