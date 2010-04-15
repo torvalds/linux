@@ -1242,7 +1242,7 @@ static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 			  txq->axq_qnum, txq->axq_link,
 			  ito64(bf->bf_daddr), bf->bf_desc);
 	}
-	txq->axq_link = &(bf->bf_lastbf->bf_desc->ds_link);
+	ath9k_hw_get_desc_link(ah, bf->bf_lastbf->bf_desc, &txq->axq_link);
 	ath9k_hw_txstart(ah, txq->axq_qnum);
 }
 
