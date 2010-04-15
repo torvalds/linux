@@ -700,38 +700,42 @@ static void ar9287_hw_olc_temp_compensation(struct ath_hw *ah)
 	}
 }
 
-static void ath9k_olc_temp_compensation(struct ath_hw *ah)
+static void ar9280_hw_olc_temp_compensation(struct ath_hw *ah)
 {
 	u32 rddata, i;
 	int delta, currPDADC, regval;
 
-	if (OLC_FOR_AR9287_10_LATER) {
-		ar9287_hw_olc_temp_compensation(ah);
-	} else {
-		rddata = REG_READ(ah, AR_PHY_TX_PWRCTRL4);
-		currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
+	rddata = REG_READ(ah, AR_PHY_TX_PWRCTRL4);
+	currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
 
-		if (ah->initPDADC == 0 || currPDADC == 0)
-			return;
+	if (ah->initPDADC == 0 || currPDADC == 0)
+		return;
 
-		if (ah->eep_ops->get_eeprom(ah, EEP_DAC_HPWR_5G))
-			delta = (currPDADC - ah->initPDADC + 4) / 8;
-		else
-			delta = (currPDADC - ah->initPDADC + 5) / 10;
+	if (ah->eep_ops->get_eeprom(ah, EEP_DAC_HPWR_5G))
+		delta = (currPDADC - ah->initPDADC + 4) / 8;
+	else
+		delta = (currPDADC - ah->initPDADC + 5) / 10;
 
-		if (delta != ah->PDADCdelta) {
-			ah->PDADCdelta = delta;
-			for (i = 1; i < AR9280_TX_GAIN_TABLE_SIZE; i++) {
-				regval = ah->originalGain[i] - delta;
-				if (regval < 0)
-					regval = 0;
+	if (delta != ah->PDADCdelta) {
+		ah->PDADCdelta = delta;
+		for (i = 1; i < AR9280_TX_GAIN_TABLE_SIZE; i++) {
+			regval = ah->originalGain[i] - delta;
+			if (regval < 0)
+				regval = 0;
 
-				REG_RMW_FIELD(ah,
-					      AR_PHY_TX_GAIN_TBL1 + i * 4,
-					      AR_PHY_TX_GAIN, regval);
-			}
+			REG_RMW_FIELD(ah,
+				      AR_PHY_TX_GAIN_TBL1 + i * 4,
+				      AR_PHY_TX_GAIN, regval);
 		}
 	}
+}
+
+static void ath9k_olc_temp_compensation(struct ath_hw *ah)
+{
+	if (OLC_FOR_AR9287_10_LATER)
+		ar9287_hw_olc_temp_compensation(ah);
+	else
+		ar9280_hw_olc_temp_compensation(ah);
 }
 
 static void ath9k_hw_9271_pa_cal(struct ath_hw *ah, bool is_reset)
