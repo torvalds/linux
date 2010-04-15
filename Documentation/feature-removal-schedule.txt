@@ -520,7 +520,6 @@ Who:	Hans de Goede <hdegoede@redhat.com>
 
 ----------------------------
 
-
 What:	corgikbd, spitzkbd, tosakbd driver
 When:	2.6.35
 Files:	drivers/input/keyboard/{corgi,spitz,tosa}kbd.c
@@ -608,3 +607,24 @@ Why:	Useful in 2003, implementation is a hack.
 	Generally invoked by accident today.
 	Seen as doing more harm than good.
 Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
+What:	iwlwifi 50XX module parameters
+When:	2.6.40
+Why:	The "..50" modules parameters were used to configure 5000 series and
+	up devices; different set of module parameters also available for 4965
+	with same functionalities. Consolidate both set into single place
+	in drivers/net/wireless/iwlwifi/iwl-agn.c
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+
+----------------------------
+
+What:	iwl4965 alias support
+When:	2.6.40
+Why:	Internal alias support has been present in module-init-tools for some
+	time, the MODULE_ALIAS("iwl4965") boilerplate aliases can be removed
+	with no impact.
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>

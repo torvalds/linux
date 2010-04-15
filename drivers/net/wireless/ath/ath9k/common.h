@@ -128,10 +128,6 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 
 int ath9k_cmn_padpos(__le16 frame_control);
 int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb);
-u32 ath9k_cmn_calcrxfilter(struct ieee80211_hw *hw, struct ath_hw *ah,
-			   unsigned int rxfilter);
-void ath9k_cmn_opmode_init(struct ieee80211_hw *hw, struct ath_hw *ah,
-			   unsigned int rxfilter);
 void ath9k_cmn_update_ichannel(struct ieee80211_hw *hw,
 			       struct ath9k_channel *ichan);
 struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,

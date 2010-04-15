@@ -454,7 +454,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 		added++;
 	}
 
-	IWL_DEBUG_SCAN(priv, "total channels to scan %d \n", added);
+	IWL_DEBUG_SCAN(priv, "total channels to scan %d\n", added);
 	return added;
 }
 
@@ -814,10 +814,11 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		 */
 		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH : 0;
 
-		/* Force use of chains B and C (0x6) for scan Rx for 4965
-		 * Avoid A (0x1) because of its off-channel reception on A-band.
+		/* Force use of chains B and C (0x6) for scan Rx
+		 * Avoid A (0x1) for the device has off-channel reception
+		 * on A-band.
 		 */
-		if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
+		if (priv->cfg->off_channel_workaround)
 			rx_ant = ANT_BC;
 	} else {
 		IWL_WARN(priv, "Invalid scan band count\n");

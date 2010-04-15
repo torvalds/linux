@@ -46,7 +46,7 @@
 static int led_mode;
 module_param(led_mode, int, S_IRUGO);
 MODULE_PARM_DESC(led_mode, "led mode: 0=blinking, 1=On(RF On)/Off(RF Off), "
-			   "(default 0)\n");
+			   "(default 0)");
 
 
 static const struct {

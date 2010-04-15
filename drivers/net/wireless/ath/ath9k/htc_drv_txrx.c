@@ -188,9 +188,19 @@ void ath9k_tx_tasklet(unsigned long data)
 		hdr = (struct ieee80211_hdr *) skb->data;
 		fc = hdr->frame_control;
 		tx_info = IEEE80211_SKB_CB(skb);
-		sta = tx_info->control.sta;
+
+		memset(&tx_info->status, 0, sizeof(tx_info->status));
 
 		rcu_read_lock();
+
+		sta = ieee80211_find_sta(priv->vif, hdr->addr1);
+		if (!sta) {
+			rcu_read_unlock();
+			ieee80211_tx_status(priv->hw, skb);
+			continue;
+		}
+
+		/* Check if we need to start aggregation */
 
 		if (sta && conf_is_ht(&priv->hw->conf) &&
 		    (priv->op_flags & OP_TXAGGR)
@@ -213,9 +223,21 @@ void ath9k_tx_tasklet(unsigned long data)
 
 		rcu_read_unlock();
 
-		memset(&tx_info->status, 0, sizeof(tx_info->status));
+		/* Send status to mac80211 */
 		ieee80211_tx_status(priv->hw, skb);
 	}
+
+	/* Wake TX queues if needed */
+	spin_lock_bh(&priv->tx_lock);
+	if (priv->tx_queues_stop) {
+		priv->tx_queues_stop = false;
+		spin_unlock_bh(&priv->tx_lock);
+		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+			  "Waking up TX queues\n");
+		ieee80211_wake_queues(priv->hw);
+		return;
+	}
+	spin_unlock_bh(&priv->tx_lock);
 }
 
 void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
@@ -290,10 +312,84 @@ bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
 /* RX */
 /******/
 
+/*
+ * Calculate the RX filter to be set in the HW.
+ */
+u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
+{
+#define	RX_FILTER_PRESERVE (ATH9K_RX_FILTER_PHYERR | ATH9K_RX_FILTER_PHYRADAR)
+
+	struct ath_hw *ah = priv->ah;
+	u32 rfilt;
+
+	rfilt = (ath9k_hw_getrxfilter(ah) & RX_FILTER_PRESERVE)
+		| ATH9K_RX_FILTER_UCAST | ATH9K_RX_FILTER_BCAST
+		| ATH9K_RX_FILTER_MCAST;
+
+	/* If not a STA, enable processing of Probe Requests */
+	if (ah->opmode != NL80211_IFTYPE_STATION)
+		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
+
+	/*
+	 * Set promiscuous mode when FIF_PROMISC_IN_BSS is enabled for station
+	 * mode interface or when in monitor mode. AP mode does not need this
+	 * since it receives all in-BSS frames anyway.
+	 */
+	if (((ah->opmode != NL80211_IFTYPE_AP) &&
+	     (priv->rxfilter & FIF_PROMISC_IN_BSS)) ||
+	    (ah->opmode == NL80211_IFTYPE_MONITOR))
+		rfilt |= ATH9K_RX_FILTER_PROM;
+
+	if (priv->rxfilter & FIF_CONTROL)
+		rfilt |= ATH9K_RX_FILTER_CONTROL;
+
+	if ((ah->opmode == NL80211_IFTYPE_STATION) &&
+	    !(priv->rxfilter & FIF_BCN_PRBRESP_PROMISC))
+		rfilt |= ATH9K_RX_FILTER_MYBEACON;
+	else
+		rfilt |= ATH9K_RX_FILTER_BEACON;
+
+	if (conf_is_ht(&priv->hw->conf))
+		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
+
+	return rfilt;
+
+#undef RX_FILTER_PRESERVE
+}
+
+/*
+ * Recv initialization for opmode change.
+ */
+static void ath9k_htc_opmode_init(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	u32 rfilt, mfilt[2];
+
+	/* configure rx filter */
+	rfilt = ath9k_htc_calcrxfilter(priv);
+	ath9k_hw_setrxfilter(ah, rfilt);
+
+	/* configure bssid mask */
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
+		ath_hw_setbssidmask(common);
+
+	/* configure operational mode */
+	ath9k_hw_setopmode(ah);
+
+	/* Handle any link-level address change. */
+	ath9k_hw_setmac(ah, common->macaddr);
+
+	/* calculate and install multicast filter */
+	mfilt[0] = mfilt[1] = ~0;
+	ath9k_hw_setmcastfilter(ah, mfilt[0], mfilt[1]);
+}
+
 void ath9k_host_rx_init(struct ath9k_htc_priv *priv)
 {
 	ath9k_hw_rxena(priv->ah);
-	ath9k_cmn_opmode_init(priv->hw, priv->ah, priv->rxfilter);
+	ath9k_htc_opmode_init(priv);
 	ath9k_hw_startpcureceive(priv->ah);
 	priv->rx.last_rssi = ATH_RSSI_DUMMY_MARKER;
 }
@@ -354,7 +450,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	padpos = ath9k_cmn_padpos(fc);
 
 	padsize = padpos & 3;
-	if (padsize && skb->len >= padpos+padsize) {
+	if (padsize && skb->len >= padpos+padsize+FCS_LEN) {
 		memmove(skb->data + padsize, skb->data, padpos);
 		skb_pull(skb, padsize);
 	}
@@ -457,7 +553,7 @@ void ath9k_rx_tasklet(unsigned long data)
 	struct ieee80211_rx_status rx_status;
 	struct sk_buff *skb;
 	unsigned long flags;
-
+	struct ieee80211_hdr *hdr;
 
 	do {
 		spin_lock_irqsave(&priv->rx.rxbuflock, flags);
@@ -484,6 +580,11 @@ void ath9k_rx_tasklet(unsigned long data)
 		memcpy(IEEE80211_SKB_RXCB(rxbuf->skb), &rx_status,
 		       sizeof(struct ieee80211_rx_status));
 		skb = rxbuf->skb;
+		hdr = (struct ieee80211_hdr *) skb->data;
+
+		if (ieee80211_is_beacon(hdr->frame_control) && priv->ps_enabled)
+				ieee80211_queue_work(priv->hw, &priv->ps_work);
+
 		spin_unlock_irqrestore(&priv->rx.rxbuflock, flags);
 
 		ieee80211_rx(priv->hw, skb);
@@ -550,7 +651,6 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	spin_lock(&priv->rx.rxbuflock);
 	memcpy(&rxbuf->rxstatus, rxstatus, HTC_RX_FRAME_HEADER_SIZE);
 	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);
-	skb->len = rxstatus->rs_datalen;
 	rxbuf->skb = skb;
 	rxbuf->in_process = true;
 	spin_unlock(&priv->rx.rxbuflock);

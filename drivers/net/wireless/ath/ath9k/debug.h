@@ -167,8 +167,8 @@ void ath9k_debug_remove_root(void);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_rc(struct ath_softc *sc, int final_rate);
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
-		       struct ath_buf *bf);
-void ath_debug_stat_rx(struct ath_softc *sc, struct ath_buf *bf);
+		       struct ath_buf *bf, struct ath_tx_status *ts);
+void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
 void ath_debug_stat_retries(struct ath_softc *sc, int rix,
 			    int xretries, int retries, u8 per);
 
@@ -204,12 +204,13 @@ static inline void ath_debug_stat_rc(struct ath_softc *sc,
 
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     struct ath_txq *txq,
-				     struct ath_buf *bf)
+				     struct ath_buf *bf,
+				     struct ath_tx_status *ts)
 {
 }
 
 static inline void ath_debug_stat_rx(struct ath_softc *sc,
-				     struct ath_buf *bf)
+				     struct ath_rx_status *rs)
 {
 }
 

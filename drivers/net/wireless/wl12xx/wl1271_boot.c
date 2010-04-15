@@ -1,7 +1,7 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2010 Nokia Corporation
  *
  * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
@@ -411,7 +411,10 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	/* unmask required mbox events  */
 	wl->event_mask = BSS_LOSE_EVENT_ID |
 		SCAN_COMPLETE_EVENT_ID |
-		PS_REPORT_EVENT_ID;
+		PS_REPORT_EVENT_ID |
+		JOIN_EVENT_COMPLETE_ID |
+		DISCONNECT_EVENT_COMPLETE_ID |
+		RSSI_SNR_TRIGGER_0_EVENT_ID;
 
 	ret = wl1271_event_unmask(wl);
 	if (ret < 0) {
@@ -452,11 +455,15 @@ int wl1271_boot(struct wl1271 *wl)
 
 	if (REF_CLOCK != 0) {
 		u16 val;
-		/* Set clock type */
+		/* Set clock type (open drain) */
 		val = wl1271_top_reg_read(wl, OCP_REG_CLK_TYPE);
 		val &= FREF_CLK_TYPE_BITS;
-		val |= CLK_REQ_PRCM;
 		wl1271_top_reg_write(wl, OCP_REG_CLK_TYPE, val);
+
+		/* Set clock pull mode (no pull) */
+		val = wl1271_top_reg_read(wl, OCP_REG_CLK_PULL);
+		val |= NO_PULL;
+		wl1271_top_reg_write(wl, OCP_REG_CLK_PULL, val);
 	} else {
 		u16 val;
 		/* Set clock polarity */

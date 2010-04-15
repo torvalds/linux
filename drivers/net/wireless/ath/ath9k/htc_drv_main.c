@@ -65,6 +65,56 @@ static enum htc_phymode ath9k_htc_get_curmode(struct ath9k_htc_priv *priv,
 	return mode;
 }
 
+static bool ath9k_htc_setpower(struct ath9k_htc_priv *priv,
+			       enum ath9k_power_mode mode)
+{
+	bool ret;
+
+	mutex_lock(&priv->htc_pm_lock);
+	ret = ath9k_hw_setpower(priv->ah, mode);
+	mutex_unlock(&priv->htc_pm_lock);
+
+	return ret;
+}
+
+void ath9k_htc_ps_wakeup(struct ath9k_htc_priv *priv)
+{
+	mutex_lock(&priv->htc_pm_lock);
+	if (++priv->ps_usecount != 1)
+		goto unlock;
+	ath9k_hw_setpower(priv->ah, ATH9K_PM_AWAKE);
+
+unlock:
+	mutex_unlock(&priv->htc_pm_lock);
+}
+
+void ath9k_htc_ps_restore(struct ath9k_htc_priv *priv)
+{
+	mutex_lock(&priv->htc_pm_lock);
+	if (--priv->ps_usecount != 0)
+		goto unlock;
+
+	if (priv->ps_enabled)
+		ath9k_hw_setpower(priv->ah, ATH9K_PM_NETWORK_SLEEP);
+unlock:
+	mutex_unlock(&priv->htc_pm_lock);
+}
+
+void ath9k_ps_work(struct work_struct *work)
+{
+	struct ath9k_htc_priv *priv =
+		container_of(work, struct ath9k_htc_priv,
+			     ps_work);
+	ath9k_htc_setpower(priv, ATH9K_PM_AWAKE);
+
+	/* The chip wakes up after receiving the first beacon
+	   while network sleep is enabled. For the driver to
+	   be in sync with the hw, set the chip to awake and
+	   only then set it to sleep.
+	 */
+	ath9k_htc_setpower(priv, ATH9K_PM_NETWORK_SLEEP);
+}
+
 static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 				 struct ieee80211_hw *hw,
 				 struct ath9k_channel *hchan)
@@ -87,7 +137,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 
 	/* Fiddle around with fastcc later on, for now just use full reset */
 	fastcc = false;
-
+	ath9k_htc_ps_wakeup(priv);
 	htc_stop(priv->htc);
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
@@ -103,6 +153,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset channel (%u Mhz) "
 			  "reset status %d\n", channel->center_freq, ret);
+		ath9k_htc_ps_restore(priv);
 		goto err;
 	}
 
@@ -128,6 +179,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 
 	priv->op_flags &= ~OP_FULL_RESET;
 err:
+	ath9k_htc_ps_restore(priv);
 	return ret;
 }
 
@@ -412,31 +464,30 @@ static int ath9k_htc_aggr_oper(struct ath9k_htc_priv *priv,
 	if (tid > ATH9K_HTC_MAX_TID)
 		return -EINVAL;
 
-	rcu_read_lock();
-	sta = ieee80211_find_sta(vif, sta_addr);
-	if (sta) {
-		ista = (struct ath9k_htc_sta *) sta->drv_priv;
-	} else {
-		rcu_read_unlock();
-		return -EINVAL;
-	}
-
-	if (!ista) {
-		rcu_read_unlock();
-		return -EINVAL;
-	}
-
 	memset(&aggr, 0, sizeof(struct ath9k_htc_target_aggr));
 
-	aggr.sta_index = ista->index;
-	rcu_read_unlock();
-	aggr.tidno = tid;
-	aggr.aggr_enable = oper;
+	rcu_read_lock();
+
+	/* Check if we are able to retrieve the station */
+	sta = ieee80211_find_sta(vif, sta_addr);
+	if (!sta) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+
+	ista = (struct ath9k_htc_sta *) sta->drv_priv;
 
 	if (oper)
 		ista->tid_state[tid] = AGGR_START;
 	else
 		ista->tid_state[tid] = AGGR_STOP;
+
+	aggr.sta_index = ista->index;
+
+	rcu_read_unlock();
+
+	aggr.tidno = tid;
+	aggr.aggr_enable = oper;
 
 	WMI_CMD_BUF(WMI_TX_AGGR_ENABLE_CMDID, &aggr);
 	if (ret)
@@ -694,6 +745,10 @@ void ath9k_ani_work(struct work_struct *work)
 
 	short_cal_interval = ATH_STA_SHORT_CALINTERVAL;
 
+	/* Only calibrate if awake */
+	if (ah->power_mode != ATH9K_PM_AWAKE)
+		goto set_timer;
+
 	/* Long calibration runs independently of short calibration. */
 	if ((timestamp - common->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
 		longcal = true;
@@ -728,6 +783,9 @@ void ath9k_ani_work(struct work_struct *work)
 
 	/* Skip all processing if there's nothing to do. */
 	if (longcal || shortcal || aniflag) {
+
+		ath9k_htc_ps_wakeup(priv);
+
 		/* Call ANI routine if necessary */
 		if (aniflag)
 			ath9k_hw_ani_monitor(ah, ah->curchan);
@@ -749,8 +807,11 @@ void ath9k_ani_work(struct work_struct *work)
 				  ah->curchan->channelFlags,
 				  common->ani.noise_floor);
 		}
+
+		ath9k_htc_ps_restore(priv);
 	}
 
+set_timer:
 	/*
 	* Set timer interval based on previous results.
 	* The interval must be the shortest necessary to satisfy ANI,
@@ -995,7 +1056,7 @@ static int ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	struct ath9k_htc_priv *priv = hw->priv;
-	int padpos, padsize;
+	int padpos, padsize, ret;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 
@@ -1009,8 +1070,19 @@ static int ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		memmove(skb->data, skb->data + padsize, padpos);
 	}
 
-	if (ath9k_htc_tx_start(priv, skb) != 0) {
-		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT, "Tx failed");
+	ret = ath9k_htc_tx_start(priv, skb);
+	if (ret != 0) {
+		if (ret == -ENOMEM) {
+			ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+				  "Stopping TX queues\n");
+			ieee80211_stop_queues(hw);
+			spin_lock_bh(&priv->tx_lock);
+			priv->tx_queues_stop = true;
+			spin_unlock_bh(&priv->tx_lock);
+		} else {
+			ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+				  "Tx failed");
+		}
 		goto fail_tx;
 	}
 
@@ -1075,6 +1147,12 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	priv->op_flags &= ~OP_INVALID;
 	htc_start(priv->htc);
 
+	spin_lock_bh(&priv->tx_lock);
+	priv->tx_queues_stop = false;
+	spin_unlock_bh(&priv->tx_lock);
+
+	ieee80211_wake_queues(hw);
+
 mutex_unlock:
 	mutex_unlock(&priv->mutex);
 	return ret;
@@ -1096,6 +1174,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 		return;
 	}
 
+	ath9k_htc_ps_wakeup(priv);
 	htc_stop(priv->htc);
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
@@ -1103,8 +1182,10 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	ath9k_hw_phy_disable(ah);
 	ath9k_hw_disable(ah);
 	ath9k_hw_configpcipowersave(ah, 1, 1);
-	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
+	ath9k_htc_ps_restore(priv);
+	ath9k_htc_setpower(priv, ATH9K_PM_FULL_SLEEP);
 
+	cancel_work_sync(&priv->ps_work);
 	cancel_delayed_work_sync(&priv->ath9k_ani_work);
 	cancel_delayed_work_sync(&priv->ath9k_aggr_work);
 	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
@@ -1145,6 +1226,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
+	ath9k_htc_ps_wakeup(priv);
 	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
 	memcpy(&hvif.myaddr, vif->addr, ETH_ALEN);
 
@@ -1191,6 +1273,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	priv->vif = vif;
 out:
+	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
 	return ret;
 }
@@ -1259,6 +1342,16 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		}
 
 	}
+	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		if (conf->flags & IEEE80211_CONF_PS) {
+			ath9k_htc_setpower(priv, ATH9K_PM_NETWORK_SLEEP);
+			priv->ps_enabled = true;
+		} else {
+			priv->ps_enabled = false;
+			cancel_work_sync(&priv->ps_work);
+			ath9k_htc_setpower(priv, ATH9K_PM_AWAKE);
+		}
+	}
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		if (conf->flags & IEEE80211_CONF_MONITOR) {
@@ -1295,16 +1388,18 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
+	ath9k_htc_ps_wakeup(priv);
 	changed_flags &= SUPPORTED_FILTERS;
 	*total_flags &= SUPPORTED_FILTERS;
 
 	priv->rxfilter = *total_flags;
-	rfilt = ath9k_cmn_calcrxfilter(hw, priv->ah, priv->rxfilter);
+	rfilt = ath9k_htc_calcrxfilter(priv);
 	ath9k_hw_setrxfilter(priv->ah, rfilt);
 
 	ath_print(ath9k_hw_common(priv->ah), ATH_DBG_CONFIG,
 		  "Set HW RX filter: 0x%x\n", rfilt);
 
+	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -1382,6 +1477,7 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 	ath_print(common, ATH_DBG_CONFIG, "Set HW Key\n");
+	ath9k_htc_ps_wakeup(priv);
 
 	switch (cmd) {
 	case SET_KEY:
@@ -1404,6 +1500,7 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 		ret = -EINVAL;
 	}
 
+	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
 
 	return ret;
@@ -1419,6 +1516,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	mutex_lock(&priv->mutex);
+	ath9k_htc_ps_wakeup(priv);
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		common->curaid = bss_conf->assoc ?
@@ -1431,6 +1529,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 			ath_start_ani(priv);
 		} else {
 			priv->op_flags &= ~OP_ASSOCIATED;
+			cancel_work_sync(&priv->ps_work);
 			cancel_delayed_work_sync(&priv->ath9k_ani_work);
 		}
 	}
@@ -1450,7 +1549,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	    ((changed & BSS_CHANGED_BEACON_ENABLED) &&
 	    bss_conf->enable_beacon)) {
 		priv->op_flags |= OP_ENABLE_BEACON;
-		ath9k_htc_beacon_config(priv, vif, bss_conf);
+		ath9k_htc_beacon_config(priv, vif);
 	}
 
 	if (changed & BSS_CHANGED_BEACON)
@@ -1459,7 +1558,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
 	    !bss_conf->enable_beacon) {
 		priv->op_flags &= ~OP_ENABLE_BEACON;
-		ath9k_htc_beacon_config(priv, vif, bss_conf);
+		ath9k_htc_beacon_config(priv, vif);
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
@@ -1490,6 +1589,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 		ath9k_hw_init_global_settings(ah);
 	}
 
+	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -1518,9 +1618,11 @@ static void ath9k_htc_reset_tsf(struct ieee80211_hw *hw)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 
+	ath9k_htc_ps_wakeup(priv);
 	mutex_lock(&priv->mutex);
 	ath9k_hw_reset_tsf(priv->ah);
 	mutex_unlock(&priv->mutex);
+	ath9k_htc_ps_restore(priv);
 }
 
 static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
@@ -1569,6 +1671,7 @@ static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
 	spin_lock_bh(&priv->beacon_lock);
 	priv->op_flags |= OP_SCANNING;
 	spin_unlock_bh(&priv->beacon_lock);
+	cancel_work_sync(&priv->ps_work);
 	cancel_delayed_work_sync(&priv->ath9k_ani_work);
 	mutex_unlock(&priv->mutex);
 }
@@ -1577,13 +1680,17 @@ static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 
+	ath9k_htc_ps_wakeup(priv);
 	mutex_lock(&priv->mutex);
 	spin_lock_bh(&priv->beacon_lock);
 	priv->op_flags &= ~OP_SCANNING;
 	spin_unlock_bh(&priv->beacon_lock);
 	priv->op_flags |= OP_FULL_RESET;
+	if (priv->op_flags & OP_ASSOCIATED)
+		ath9k_htc_beacon_config(priv, NULL);
 	ath_start_ani(priv);
 	mutex_unlock(&priv->mutex);
+	ath9k_htc_ps_restore(priv);
 }
 
 static int ath9k_htc_set_rts_threshold(struct ieee80211_hw *hw, u32 value)

@@ -176,9 +176,9 @@ struct ath_rate_priv {
 #define ATH_TX_INFO_UNDERRUN		(1 << 4)
 
 enum ath9k_internal_frame_type {
-	ATH9K_NOT_INTERNAL,
-	ATH9K_INT_PAUSE,
-	ATH9K_INT_UNPAUSE
+	ATH9K_IFT_NOT_INTERNAL,
+	ATH9K_IFT_PAUSE,
+	ATH9K_IFT_UNPAUSE
 };
 
 int ath_rate_control_register(void);

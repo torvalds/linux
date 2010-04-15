@@ -679,7 +679,7 @@
 
 #define AR_WA                		0x4004
 #define AR_WA_D3_L1_DISABLE		(1 << 14)
-#define AR9285_WA_DEFAULT 		0x004a05cb
+#define AR9285_WA_DEFAULT		0x004a050b
 #define AR9280_WA_DEFAULT           	0x0040073b
 #define AR_WA_DEFAULT               	0x0000073f
 
@@ -844,6 +844,10 @@
 #define AR_SREV_9271_11(_ah) \
     (AR_SREV_9271(_ah) && \
      ((_ah)->hw_version.macRev == AR_SREV_REVISION_9271_11))
+
+#define AR_SREV_9285E_20(_ah) \
+    (AR_SREV_9285_12_OR_LATER(_ah) && \
+     ((REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
 
 #define AR_RADIO_SREV_MAJOR                   0xf0
 #define AR_RAD5133_SREV_MAJOR                 0xc0
@@ -1180,6 +1184,13 @@ enum {
 #define AR9285_AN_RF2G4_DB2_3_S    14
 #define AR9285_AN_RF2G4_DB2_4    0x00003800
 #define AR9285_AN_RF2G4_DB2_4_S    11
+
+#define AR9285_RF2G5			0x7830
+#define AR9285_RF2G5_IC50TX		0xfffff8ff
+#define AR9285_RF2G5_IC50TX_SET		0x00000400
+#define AR9285_RF2G5_IC50TX_XE_SET	0x00000500
+#define AR9285_RF2G5_IC50TX_CLEAR	0x00000700
+#define AR9285_RF2G5_IC50TX_CLEAR_S	8
 
 /* AR9271 : 0x7828, 0x782c different setting from AR9285 */
 #define AR9271_AN_RF2G3_OB_cck		0x001C0000

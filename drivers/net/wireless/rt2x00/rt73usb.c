@@ -861,15 +861,15 @@ static void rt73usb_config_ps(struct rt2x00_dev *rt2x00dev,
 		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
 					    USB_MODE_SLEEP, REGISTER_TIMEOUT);
 	} else {
-		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
-					    USB_MODE_WAKEUP, REGISTER_TIMEOUT);
-
 		rt2x00usb_register_read(rt2x00dev, MAC_CSR11, &reg);
 		rt2x00_set_field32(&reg, MAC_CSR11_DELAY_AFTER_TBCN, 0);
 		rt2x00_set_field32(&reg, MAC_CSR11_TBCN_BEFORE_WAKEUP, 0);
 		rt2x00_set_field32(&reg, MAC_CSR11_AUTOWAKE, 0);
 		rt2x00_set_field32(&reg, MAC_CSR11_WAKEUP_LATENCY, 0);
 		rt2x00usb_register_write(rt2x00dev, MAC_CSR11, reg);
+
+		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
+					    USB_MODE_WAKEUP, REGISTER_TIMEOUT);
 	}
 }
 

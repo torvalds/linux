@@ -44,11 +44,11 @@
  */
 u8 iwl_find_station(struct iwl_priv *priv, const u8 *bssid);
 
-int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty);
 int iwl_remove_default_wep_key(struct iwl_priv *priv,
 			       struct ieee80211_key_conf *key);
 int iwl_set_default_wep_key(struct iwl_priv *priv,
 			    struct ieee80211_key_conf *key);
+int iwl_restore_default_wep_keys(struct iwl_priv *priv);
 int iwl_set_dynamic_key(struct iwl_priv *priv,
 			struct ieee80211_key_conf *key, u8 sta_id);
 int iwl_remove_dynamic_key(struct iwl_priv *priv,

@@ -141,13 +141,14 @@ static irqreturn_t iwl_isr(int irq, void *data)
 {
 	struct iwl_priv *priv = data;
 	u32 inta, inta_mask;
+	unsigned long flags;
 #ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_fh;
 #endif
 	if (!priv)
 		return IRQ_NONE;
 
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 *    back-to-back ISRs and sporadic interrupts from our NIC.
@@ -190,7 +191,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 		iwl_enable_interrupts(priv);
 
  unplugged:
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return IRQ_HANDLED;
 
  none:
@@ -199,7 +200,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	if (test_bit(STATUS_INT_ENABLED, &priv->status) && !priv->_agn.inta)
 		iwl_enable_interrupts(priv);
 
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return IRQ_NONE;
 }
 
@@ -216,6 +217,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	struct iwl_priv *priv = data;
 	u32 inta, inta_mask;
 	u32 val = 0;
+	unsigned long flags;
 
 	if (!priv)
 		return IRQ_NONE;
@@ -226,7 +228,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	if (!priv->_agn.use_ict)
 		return iwl_isr(irq, data);
 
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 * back-to-back ISRs and sporadic interrupts from our NIC.
@@ -290,7 +292,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 		iwl_enable_interrupts(priv);
 	}
 
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return IRQ_HANDLED;
 
  none:
@@ -300,6 +302,6 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	if (test_bit(STATUS_INT_ENABLED, &priv->status) && !priv->_agn.inta)
 		iwl_enable_interrupts(priv);
 
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return IRQ_NONE;
 }

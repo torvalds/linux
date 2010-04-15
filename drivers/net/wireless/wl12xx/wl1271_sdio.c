@@ -117,7 +117,7 @@ static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 		else
 			ret = sdio_memcpy_fromio(func, buf, addr, len);
 
-		wl1271_debug(DEBUG_SDIO, "sdio read 53 addr 0x%x, %d bytes",
+		wl1271_debug(DEBUG_SDIO, "sdio read 53 addr 0x%x, %zu bytes",
 			     addr, len);
 		wl1271_dump_ascii(DEBUG_SDIO, "data: ", buf, len);
 	}
@@ -138,7 +138,7 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 		wl1271_debug(DEBUG_SDIO, "sdio write 52 addr 0x%x, byte 0x%02x",
 			     addr, ((u8 *)buf)[0]);
 	} else {
-		wl1271_debug(DEBUG_SDIO, "sdio write 53 addr 0x%x, %d bytes",
+		wl1271_debug(DEBUG_SDIO, "sdio write 53 addr 0x%x, %zu bytes",
 			     addr, len);
 		wl1271_dump_ascii(DEBUG_SDIO, "data: ", buf, len);
 
@@ -255,7 +255,7 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 }
 
 static struct sdio_driver wl1271_sdio_driver = {
-	.name		= "wl1271",
+	.name		= "wl1271_sdio",
 	.id_table	= wl1271_devices,
 	.probe		= wl1271_probe,
 	.remove		= __devexit_p(wl1271_remove),

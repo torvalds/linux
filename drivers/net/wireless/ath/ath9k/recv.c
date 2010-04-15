@@ -477,7 +477,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 	struct ath_buf *bf;
 	struct ath_desc *ds;
-	struct ath_rx_status *rx_stats;
 	struct sk_buff *skb = NULL, *requeue_skb;
 	struct ieee80211_rx_status *rxs;
 	struct ath_hw *ah = sc->sc_ah;
@@ -491,6 +490,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 	struct ieee80211_hdr *hdr;
 	int retval;
 	bool decrypt_error = false;
+	struct ath_rx_status rs;
 
 	spin_lock_bh(&sc->rx.rxbuflock);
 
@@ -518,14 +518,14 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * on.  All this is necessary because of our use of
 		 * a self-linked list to avoid rx overruns.
 		 */
-		retval = ath9k_hw_rxprocdesc(ah, ds,
-					     bf->bf_daddr,
-					     PA2DESC(sc, ds->ds_link),
-					     0);
+		memset(&rs, 0, sizeof(rs));
+		retval = ath9k_hw_rxprocdesc(ah, ds, &rs, 0);
 		if (retval == -EINPROGRESS) {
+			struct ath_rx_status trs;
 			struct ath_buf *tbf;
 			struct ath_desc *tds;
 
+			memset(&trs, 0, sizeof(trs));
 			if (list_is_last(&bf->list, &sc->rx.rxbuf)) {
 				sc->rx.rxlink = NULL;
 				break;
@@ -545,8 +545,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			 */
 
 			tds = tbf->bf_desc;
-			retval = ath9k_hw_rxprocdesc(ah, tds, tbf->bf_daddr,
-					     PA2DESC(sc, tds->ds_link), 0);
+			retval = ath9k_hw_rxprocdesc(ah, tds, &trs, 0);
 			if (retval == -EINPROGRESS) {
 				break;
 			}
@@ -569,9 +568,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		rxs =  IEEE80211_SKB_RXCB(skb);
 
 		hw = ath_get_virt_hw(sc, hdr);
-		rx_stats = &ds->ds_rxstat;
 
-		ath_debug_stat_rx(sc, bf);
+		ath_debug_stat_rx(sc, &rs);
 
 		/*
 		 * If we're asked to flush receive queue, directly
@@ -580,7 +578,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		if (flush)
 			goto requeue;
 
-		retval = ath9k_cmn_rx_skb_preprocess(common, hw, skb, rx_stats,
+		retval = ath9k_cmn_rx_skb_preprocess(common, hw, skb, &rs,
 						     rxs, &decrypt_error);
 		if (retval)
 			goto requeue;
@@ -601,9 +599,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 				 common->rx_bufsize,
 				 DMA_FROM_DEVICE);
 
-		skb_put(skb, rx_stats->rs_datalen);
+		skb_put(skb, rs.rs_datalen);
 
-		ath9k_cmn_rx_skb_postprocess(common, skb, rx_stats,
+		ath9k_cmn_rx_skb_postprocess(common, skb, &rs,
 					     rxs, decrypt_error);
 
 		/* We will now give hardware our shiny new allocated skb */
@@ -626,9 +624,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * change the default rx antenna if rx diversity chooses the
 		 * other antenna 3 times in a row.
 		 */
-		if (sc->rx.defant != ds->ds_rxstat.rs_antenna) {
+		if (sc->rx.defant != rs.rs_antenna) {
 			if (++sc->rx.rxotherant >= 3)
-				ath_setdefantenna(sc, rx_stats->rs_antenna);
+				ath_setdefantenna(sc, rs.rs_antenna);
 		} else {
 			sc->rx.rxotherant = 0;
 		}

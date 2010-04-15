@@ -703,6 +703,12 @@ enum nl80211_commands {
  * @NL80211_ATTR_CQM: connection quality monitor configuration in a
  *	nested attribute with %NL80211_ATTR_CQM_* sub-attributes.
  *
+ * @NL80211_ATTR_LOCAL_STATE_CHANGE: Flag attribute to indicate that a command
+ *	is requesting a local authentication/association state change without
+ *	invoking actual management frame exchange. This can be used with
+ *	NL80211_CMD_AUTHENTICATE, NL80211_CMD_DEAUTHENTICATE,
+ *	NL80211_CMD_DISASSOCIATE.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -855,6 +861,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_PS_STATE,
 
 	NL80211_ATTR_CQM,
+
+	NL80211_ATTR_LOCAL_STATE_CHANGE,
 
 	/* add attributes here, update the policy in nl80211.c */
 

@@ -59,8 +59,8 @@
 #include "base.h"
 #include "reg.h"
 #include "debug.h"
+#include "ani.h"
 
-static u8 ath5k_calinterval = 10; /* Calibrate PHY every 10 secs (TODO: Fixme) */
 static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
@@ -365,6 +365,7 @@ static void 	ath5k_beacon_send(struct ath5k_softc *sc);
 static void 	ath5k_beacon_config(struct ath5k_softc *sc);
 static void	ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf);
 static void	ath5k_tasklet_beacon(unsigned long data);
+static void	ath5k_tasklet_ani(unsigned long data);
 
 static inline u64 ath5k_extend_tsf(struct ath5k_hw *ah, u32 rstamp)
 {
@@ -830,6 +831,7 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	tasklet_init(&sc->restq, ath5k_tasklet_reset, (unsigned long)sc);
 	tasklet_init(&sc->calib, ath5k_tasklet_calibrate, (unsigned long)sc);
 	tasklet_init(&sc->beacontq, ath5k_tasklet_beacon, (unsigned long)sc);
+	tasklet_init(&sc->ani_tasklet, ath5k_tasklet_ani, (unsigned long)sc);
 
 	ret = ath5k_eeprom_read_mac(ah, mac);
 	if (ret) {
@@ -1635,7 +1637,6 @@ ath5k_txq_cleanup(struct ath5k_softc *sc)
 					sc->txqs[i].link);
 			}
 	}
-	ieee80211_wake_queues(sc->hw); /* XXX move to callers */
 
 	for (i = 0; i < ARRAY_SIZE(sc->txqs); i++)
 		if (sc->txqs[i].setup)
@@ -1805,6 +1806,25 @@ ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
 	}
 }
 
+static void
+ath5k_update_beacon_rssi(struct ath5k_softc *sc, struct sk_buff *skb, int rssi)
+{
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
+	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
+
+	/* only beacons from our BSSID */
+	if (!ieee80211_is_beacon(mgmt->frame_control) ||
+	    memcmp(mgmt->bssid, common->curbssid, ETH_ALEN) != 0)
+		return;
+
+	ah->ah_beacon_rssi_avg = ath5k_moving_average(ah->ah_beacon_rssi_avg,
+						      rssi);
+
+	/* in IBSS mode we should keep RSSI statistics per neighbour */
+	/* le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS */
+}
+
 /*
  * Compute padding position. skb must contains an IEEE 802.11 frame
  */
@@ -1923,6 +1943,8 @@ ath5k_tasklet_rx(unsigned long data)
 				sc->stats.rxerr_fifo++;
 			if (rs.rs_status & AR5K_RXERR_PHY) {
 				sc->stats.rxerr_phy++;
+				if (rs.rs_phyerr > 0 && rs.rs_phyerr < 32)
+					sc->stats.rxerr_phy_code[rs.rs_phyerr]++;
 				goto next;
 			}
 			if (rs.rs_status & AR5K_RXERR_DECRYPT) {
@@ -2024,6 +2046,8 @@ accept:
 
 		ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
 
+		ath5k_update_beacon_rssi(sc, skb, rs.rs_rssi);
+
 		/* check beacons in IBSS mode */
 		if (sc->opmode == NL80211_IFTYPE_ADHOC)
 			ath5k_check_ibss_tsf(sc, skb, rxs);
@@ -2060,6 +2084,17 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 	list_for_each_entry_safe(bf, bf0, &txq->q, list) {
 		ds = bf->desc;
 
+		/*
+		 * It's possible that the hardware can say the buffer is
+		 * completed when it hasn't yet loaded the ds_link from
+		 * host memory and moved on.  If there are more TX
+		 * descriptors in the queue, wait for TXDP to change
+		 * before processing this one.
+		 */
+		if (ath5k_hw_get_txdp(sc->ah, txq->qnum) == bf->daddr &&
+		    !list_is_last(&bf->list, &txq->q))
+			break;
+
 		ret = sc->ah->ah_proc_tx_desc(sc->ah, ds, &ts);
 		if (unlikely(ret == -EINPROGRESS))
 			break;
@@ -2095,7 +2130,7 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		info->status.rates[ts.ts_final_idx].count++;
 
 		if (unlikely(ts.ts_status)) {
-			sc->ll_stats.dot11ACKFailureCount++;
+			sc->stats.ack_fail++;
 			if (ts.ts_status & AR5K_TXERR_FILT) {
 				info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 				sc->stats.txerr_filt++;
@@ -2498,9 +2533,6 @@ ath5k_init(struct ath5k_softc *sc)
 	 */
 	ath5k_stop_locked(sc);
 
-	/* Set PHY calibration interval */
-	ah->ah_cal_intval = ath5k_calinterval;
-
 	/*
 	 * The basic interface to setting the hardware in a good
 	 * state is ``reset''.  On return the hardware is known to
@@ -2512,7 +2544,8 @@ ath5k_init(struct ath5k_softc *sc)
 	sc->curband = &sc->sbands[sc->curchan->band];
 	sc->imask = AR5K_INT_RXOK | AR5K_INT_RXERR | AR5K_INT_RXEOL |
 		AR5K_INT_RXORN | AR5K_INT_TXDESC | AR5K_INT_TXEOL |
-		AR5K_INT_FATAL | AR5K_INT_GLOBAL | AR5K_INT_SWI;
+		AR5K_INT_FATAL | AR5K_INT_GLOBAL | AR5K_INT_MIB;
+
 	ret = ath5k_reset(sc, NULL);
 	if (ret)
 		goto done;
@@ -2526,8 +2559,7 @@ ath5k_init(struct ath5k_softc *sc)
 	for (i = 0; i < AR5K_KEYTABLE_SIZE; i++)
 		ath5k_hw_reset_key(ah, i);
 
-	/* Set ack to be sent at low bit-rates */
-	ath5k_hw_set_ack_bitrate_high(ah, false);
+	ath5k_hw_set_ack_bitrate_high(ah, true);
 	ret = 0;
 done:
 	mmiowb();
@@ -2624,10 +2656,31 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 	tasklet_kill(&sc->restq);
 	tasklet_kill(&sc->calib);
 	tasklet_kill(&sc->beacontq);
+	tasklet_kill(&sc->ani_tasklet);
 
 	ath5k_rfkill_hw_stop(sc->ah);
 
 	return ret;
+}
+
+static void
+ath5k_intr_calibration_poll(struct ath5k_hw *ah)
+{
+	if (time_is_before_eq_jiffies(ah->ah_cal_next_ani) &&
+	    !(ah->ah_cal_mask & AR5K_CALIBRATION_FULL)) {
+		/* run ANI only when full calibration is not active */
+		ah->ah_cal_next_ani = jiffies +
+			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_ANI);
+		tasklet_schedule(&ah->ah_sc->ani_tasklet);
+
+	} else if (time_is_before_eq_jiffies(ah->ah_cal_next_full)) {
+		ah->ah_cal_next_full = jiffies +
+			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
+		tasklet_schedule(&ah->ah_sc->calib);
+	}
+	/* we could use SWI to generate enough interrupts to meet our
+	 * calibration interval requirements, if necessary:
+	 * AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI); */
 }
 
 static irqreturn_t
@@ -2653,7 +2706,20 @@ ath5k_intr(int irq, void *dev_id)
 			 */
 			tasklet_schedule(&sc->restq);
 		} else if (unlikely(status & AR5K_INT_RXORN)) {
-			tasklet_schedule(&sc->restq);
+			/*
+			 * Receive buffers are full. Either the bus is busy or
+			 * the CPU is not fast enough to process all received
+			 * frames.
+			 * Older chipsets need a reset to come out of this
+			 * condition, but we treat it as RX for newer chips.
+			 * We don't know exactly which versions need a reset -
+			 * this guess is copied from the HAL.
+			 */
+			sc->stats.rxorn_intr++;
+			if (ah->ah_mac_srev < AR5K_SREV_AR5212)
+				tasklet_schedule(&sc->restq);
+			else
+				tasklet_schedule(&sc->rxtq);
 		} else {
 			if (status & AR5K_INT_SWBA) {
 				tasklet_hi_schedule(&sc->beacontq);
@@ -2678,15 +2744,10 @@ ath5k_intr(int irq, void *dev_id)
 			if (status & AR5K_INT_BMISS) {
 				/* TODO */
 			}
-			if (status & AR5K_INT_SWI) {
-				tasklet_schedule(&sc->calib);
-			}
 			if (status & AR5K_INT_MIB) {
-				/*
-				 * These stats are also used for ANI i think
-				 * so how about updating them more often ?
-				 */
-				ath5k_hw_update_mib_counters(ah, &sc->ll_stats);
+				sc->stats.mib_intr++;
+				ath5k_hw_update_mib_counters(ah);
+				ath5k_ani_mib_intr(ah);
 			}
 			if (status & AR5K_INT_GPIO)
 				tasklet_schedule(&sc->rf_kill.toggleq);
@@ -2697,7 +2758,7 @@ ath5k_intr(int irq, void *dev_id)
 	if (unlikely(!counter))
 		ATH5K_WARN(sc, "too many interrupts, giving up for now\n");
 
-	ath5k_hw_calibration_poll(ah);
+	ath5k_intr_calibration_poll(ah);
 
 	return IRQ_HANDLED;
 }
@@ -2721,8 +2782,7 @@ ath5k_tasklet_calibrate(unsigned long data)
 	struct ath5k_hw *ah = sc->ah;
 
 	/* Only full calibration for now */
-	if (ah->ah_swi_mask != AR5K_SWI_FULL_CALIBRATION)
-		return;
+	ah->ah_cal_mask |= AR5K_CALIBRATION_FULL;
 
 	/* Stop queues so that calibration
 	 * doesn't interfere with tx */
@@ -2738,18 +2798,29 @@ ath5k_tasklet_calibrate(unsigned long data)
 		 * to load new gain values.
 		 */
 		ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "calibration, resetting\n");
-		ath5k_reset_wake(sc);
+		ath5k_reset(sc, sc->curchan);
 	}
 	if (ath5k_hw_phy_calibrate(ah, sc->curchan))
 		ATH5K_ERR(sc, "calibration of channel %u failed\n",
 			ieee80211_frequency_to_channel(
 				sc->curchan->center_freq));
 
-	ah->ah_swi_mask = 0;
-
 	/* Wake queues */
 	ieee80211_wake_queues(sc->hw);
 
+	ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
+}
+
+
+static void
+ath5k_tasklet_ani(unsigned long data)
+{
+	struct ath5k_softc *sc = (void *)data;
+	struct ath5k_hw *ah = sc->ah;
+
+	ah->ah_cal_mask |= AR5K_CALIBRATION_ANI;
+	ath5k_ani_calibration(ah);
+	ah->ah_cal_mask &= ~AR5K_CALIBRATION_ANI;
 }
 
 
@@ -2851,6 +2922,8 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 		ATH5K_ERR(sc, "can't start recv logic\n");
 		goto err;
 	}
+
+	ath5k_ani_init(ah, ah->ah_sc->ani_state.ani_mode);
 
 	/*
 	 * Change channels and update the h/w rate map if we're switching;
@@ -3207,12 +3280,14 @@ ath5k_get_stats(struct ieee80211_hw *hw,
 		struct ieee80211_low_level_stats *stats)
 {
 	struct ath5k_softc *sc = hw->priv;
-	struct ath5k_hw *ah = sc->ah;
 
 	/* Force update */
-	ath5k_hw_update_mib_counters(ah, &sc->ll_stats);
+	ath5k_hw_update_mib_counters(sc->ah);
 
-	memcpy(stats, &sc->ll_stats, sizeof(sc->ll_stats));
+	stats->dot11ACKFailureCount = sc->stats.ack_fail;
+	stats->dot11RTSFailureCount = sc->stats.rts_fail;
+	stats->dot11RTSSuccessCount = sc->stats.rts_ok;
+	stats->dot11FCSErrorCount = sc->stats.fcs_error;
 
 	return 0;
 }

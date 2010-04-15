@@ -66,6 +66,32 @@ enum {
 };
 
 enum {
+	CONF_HW_RXTX_RATE_MCS7 = 0,
+	CONF_HW_RXTX_RATE_MCS6,
+	CONF_HW_RXTX_RATE_MCS5,
+	CONF_HW_RXTX_RATE_MCS4,
+	CONF_HW_RXTX_RATE_MCS3,
+	CONF_HW_RXTX_RATE_MCS2,
+	CONF_HW_RXTX_RATE_MCS1,
+	CONF_HW_RXTX_RATE_MCS0,
+	CONF_HW_RXTX_RATE_54,
+	CONF_HW_RXTX_RATE_48,
+	CONF_HW_RXTX_RATE_36,
+	CONF_HW_RXTX_RATE_24,
+	CONF_HW_RXTX_RATE_22,
+	CONF_HW_RXTX_RATE_18,
+	CONF_HW_RXTX_RATE_12,
+	CONF_HW_RXTX_RATE_11,
+	CONF_HW_RXTX_RATE_9,
+	CONF_HW_RXTX_RATE_6,
+	CONF_HW_RXTX_RATE_5_5,
+	CONF_HW_RXTX_RATE_2,
+	CONF_HW_RXTX_RATE_1,
+	CONF_HW_RXTX_RATE_MAX,
+	CONF_HW_RXTX_RATE_UNSUPPORTED = 0xff
+};
+
+enum {
 	CONF_SG_DISABLE = 0,
 	CONF_SG_PROTECTIVE,
 	CONF_SG_OPPORTUNISTIC
@@ -648,6 +674,19 @@ struct conf_tx_settings {
 	 */
 	u16 tx_compl_threshold;
 
+	/*
+	 * The rate used for control messages and scanning on the 2.4GHz band
+	 *
+	 * Range: CONF_HW_BIT_RATE_* bit mask
+	 */
+	u32 basic_rate;
+
+	/*
+	 * The rate used for control messages and scanning on the 5GHz band
+	 *
+	 * Range: CONF_HW_BIT_RATE_* bit mask
+	 */
+	u32 basic_rate_5;
 };
 
 enum {
@@ -715,65 +754,6 @@ enum {
 	CONF_TRIG_EVENT_DIR_LOW = 0,
 	CONF_TRIG_EVENT_DIR_HIGH,
 	CONF_TRIG_EVENT_DIR_BIDIR
-};
-
-
-struct conf_sig_trigger {
-	/*
-	 * The RSSI / SNR threshold value.
-	 *
-	 * FIXME: what is the range?
-	 */
-	s16 threshold;
-
-	/*
-	 * Minimum delay between two trigger events for this trigger in ms.
-	 *
-	 * Range: 0 - 60000
-	 */
-	u16 pacing;
-
-	/*
-	 * The measurement data source for this trigger.
-	 *
-	 * Range: CONF_TRIG_METRIC_*
-	 */
-	u8 metric;
-
-	/*
-	 * The trigger type of this trigger.
-	 *
-	 * Range: CONF_TRIG_EVENT_TYPE_*
-	 */
-	u8 type;
-
-	/*
-	 * The direction of the trigger.
-	 *
-	 * Range: CONF_TRIG_EVENT_DIR_*
-	 */
-	u8 direction;
-
-	/*
-	 * Hysteresis range of the trigger around the threshold (in dB)
-	 *
-	 * Range: u8
-	 */
-	u8 hysteresis;
-
-	/*
-	 * Index of the trigger rule.
-	 *
-	 * Range: 0 - CONF_MAX_RSSI_SNR_TRIGGERS-1
-	 */
-	u8 index;
-
-	/*
-	 * Enable / disable this rule (to use for clearing rules.)
-	 *
-	 * Range: 1 - Enabled, 2 - Not enabled
-	 */
-	u8 enable;
 };
 
 struct conf_sig_weights {
@@ -894,12 +874,6 @@ struct conf_conn_settings {
 	u8 ps_poll_threshold;
 
 	/*
-	 * Configuration of signal (rssi/snr) triggers.
-	 */
-	u8 sig_trigger_count;
-	struct conf_sig_trigger sig_trigger[CONF_MAX_RSSI_SNR_TRIGGERS];
-
-	/*
 	 * Configuration of signal average weights.
 	 */
 	struct conf_sig_weights sig_weights;
@@ -929,6 +903,22 @@ struct conf_conn_settings {
 	 * Range 0 - 255
 	 */
 	u8 psm_entry_retries;
+
+	/*
+	 *
+	 * Specifies the interval of the connection keep-alive null-func
+	 * frame in ms.
+	 *
+	 * Range: 1000 - 3600000
+	 */
+	u32 keep_alive_interval;
+
+	/*
+	 * Maximum listen interval supported by the driver in units of beacons.
+	 *
+	 * Range: u16
+	 */
+	u8 max_listen_interval;
 };
 
 enum {
@@ -990,6 +980,43 @@ struct conf_pm_config_settings {
 	bool host_fast_wakeup_support;
 };
 
+struct conf_roam_trigger_settings {
+	/*
+	 * The minimum interval between two trigger events.
+	 *
+	 * Range: 0 - 60000 ms
+	 */
+	u16 trigger_pacing;
+
+	/*
+	 * The weight for rssi/beacon average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_rssi_beacon;
+
+	/*
+	 * The weight for rssi/data frame average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_rssi_data;
+
+	/*
+	 * The weight for snr/beacon average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_snr_beacon;
+
+	/*
+	 * The weight for snr/data frame average calculation
+	 *
+	 * Range: 0 - 255
+	 */
+	u8 avg_weight_snr_data;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -998,6 +1025,7 @@ struct conf_drv_settings {
 	struct conf_init_settings init;
 	struct conf_itrim_settings itrim;
 	struct conf_pm_config_settings pm_config;
+	struct conf_roam_trigger_settings roam_trigger;
 };
 
 #endif

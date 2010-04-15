@@ -980,7 +980,7 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 			return -EINVAL;
 
 		data0 = ath5k_hw_bitswap((data0 << 2) & 0xff, 8);
-	} else if ((c - (c % 5)) != 2 || c > 5435) {
+	} else if ((c % 5) != 2 || c > 5435) {
 		if (!(c % 20) && c >= 5120) {
 			data0 = ath5k_hw_bitswap(((c - 4800) / 20 << 2), 8);
 			data2 = ath5k_hw_bitswap(3, 2);
@@ -993,7 +993,7 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 		} else
 			return -EINVAL;
 	} else {
-		data0 = ath5k_hw_bitswap((10 * (c - 2) - 4800) / 25 + 1, 8);
+		data0 = ath5k_hw_bitswap((10 * (c - 2 - 4800)) / 25 + 1, 8);
 		data2 = ath5k_hw_bitswap(0, 2);
 	}
 
@@ -1021,7 +1021,7 @@ static int ath5k_hw_rf2425_channel(struct ath5k_hw *ah,
 		data0 = ath5k_hw_bitswap((c - 2272), 8);
 		data2 = 0;
 	/* ? 5GHz ? */
-	} else if ((c - (c % 5)) != 2 || c > 5435) {
+	} else if ((c % 5) != 2 || c > 5435) {
 		if (!(c % 20) && c < 5120)
 			data0 = ath5k_hw_bitswap(((c - 4800) / 20 << 2), 8);
 		else if (!(c % 10))
@@ -1032,7 +1032,7 @@ static int ath5k_hw_rf2425_channel(struct ath5k_hw *ah,
 			return -EINVAL;
 		data2 = ath5k_hw_bitswap(1, 2);
 	} else {
-		data0 = ath5k_hw_bitswap((10 * (c - 2) - 4800) / 25 + 1, 8);
+		data0 = ath5k_hw_bitswap((10 * (c - 2 - 4800)) / 25 + 1, 8);
 		data2 = ath5k_hw_bitswap(0, 2);
 	}
 
@@ -1102,28 +1102,6 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 /*****************\
   PHY calibration
 \*****************/
-
-void
-ath5k_hw_calibration_poll(struct ath5k_hw *ah)
-{
-	/* Calibration interval in jiffies */
-	unsigned long cal_intval;
-
-	cal_intval = msecs_to_jiffies(ah->ah_cal_intval * 1000);
-
-	/* Initialize timestamp if needed */
-	if (!ah->ah_cal_tstamp)
-		ah->ah_cal_tstamp = jiffies;
-
-	/* For now we always do full calibration
-	 * Mark software interrupt mask and fire software
-	 * interrupt (bit gets auto-cleared) */
-	if (time_is_before_eq_jiffies(ah->ah_cal_tstamp + cal_intval)) {
-		ah->ah_cal_tstamp = jiffies;
-		ah->ah_swi_mask = AR5K_SWI_FULL_CALIBRATION;
-		AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI);
-	}
-}
 
 static int sign_extend(int val, const int nbits)
 {
@@ -1411,7 +1389,10 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 	i_coff = (-iq_corr) / i_coffd;
 	i_coff = clamp(i_coff, -32, 31); /* signed 6 bit */
 
-	q_coff = (i_pwr / q_coffd) - 128;
+	if (ah->ah_version == AR5K_AR5211)
+		q_coff = (i_pwr / q_coffd) - 64;
+	else
+		q_coff = (i_pwr / q_coffd) - 128;
 	q_coff = clamp(q_coff, -16, 15); /* signed 5 bit */
 
 	ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
@@ -2580,7 +2561,7 @@ ath5k_combine_pwr_to_pdadc_curves(struct ath5k_hw *ah,
 		max_idx = (pdadc_n < table_size) ? pdadc_n : table_size;
 
 		/* Fill pdadc_out table */
-		while (pdadc_0 < max_idx)
+		while (pdadc_0 < max_idx && pdadc_i < 128)
 			pdadc_out[pdadc_i++] = pdadc_tmp[pdadc_0++];
 
 		/* Need to extrapolate above this pdgain? */

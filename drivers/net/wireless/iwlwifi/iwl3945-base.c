@@ -598,9 +598,9 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		txq->need_update = 0;
 	}
 
-	IWL_DEBUG_TX(priv, "sequence nr = 0X%x \n",
+	IWL_DEBUG_TX(priv, "sequence nr = 0X%x\n",
 		     le16_to_cpu(out_cmd->hdr.sequence));
-	IWL_DEBUG_TX(priv, "tx_flags = 0X%x \n", le32_to_cpu(tx_cmd->tx_flags));
+	IWL_DEBUG_TX(priv, "tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));
 	iwl_print_hex_dump(priv, IWL_DL_TX, tx_cmd, sizeof(*tx_cmd));
 	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)tx_cmd->hdr,
 			   ieee80211_hdrlen(fc));
@@ -1604,9 +1604,6 @@ static int iwl3945_print_last_event_logs(struct iwl_priv *priv, u32 capacity,
 	return pos;
 }
 
-/* For sanity check only.  Actual size is determined by uCode, typ. 512 */
-#define IWL3945_MAX_EVENT_LOG_SIZE (512)
-
 #define DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES (20)
 
 int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
@@ -1633,16 +1630,16 @@ int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
 	next_entry = iwl_read_targ_mem(priv, base + (3 * sizeof(u32)));
 
-	if (capacity > IWL3945_MAX_EVENT_LOG_SIZE) {
+	if (capacity > priv->cfg->max_event_log_size) {
 		IWL_ERR(priv, "Log capacity %d is bogus, limit to %d entries\n",
-			capacity, IWL3945_MAX_EVENT_LOG_SIZE);
-		capacity = IWL3945_MAX_EVENT_LOG_SIZE;
+			capacity, priv->cfg->max_event_log_size);
+		capacity = priv->cfg->max_event_log_size;
 	}
 
-	if (next_entry > IWL3945_MAX_EVENT_LOG_SIZE) {
+	if (next_entry > priv->cfg->max_event_log_size) {
 		IWL_ERR(priv, "Log write index %d is bogus, limit to %d\n",
-			next_entry, IWL3945_MAX_EVENT_LOG_SIZE);
-		next_entry = IWL3945_MAX_EVENT_LOG_SIZE;
+			next_entry, priv->cfg->max_event_log_size);
+		next_entry = priv->cfg->max_event_log_size;
 	}
 
 	size = num_wraps ? capacity : next_entry;
@@ -1938,7 +1935,7 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 		added++;
 	}
 
-	IWL_DEBUG_SCAN(priv, "total channels to scan %d \n", added);
+	IWL_DEBUG_SCAN(priv, "total channels to scan %d\n", added);
 	return added;
 }
 
@@ -3141,8 +3138,6 @@ void iwl3945_post_associate(struct iwl_priv *priv)
 		break;
 	}
 
-	iwl_activate_qos(priv, 0);
-
 	/* we have just associated, don't start scan too early */
 	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 }
@@ -3404,7 +3399,7 @@ static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
 	}
 
 	/* Initialize rate scaling */
-	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM \n",
+	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",
 		       sta->addr);
 	iwl3945_rs_rate_init(priv, sta, sta_id);
 
@@ -3889,11 +3884,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 
 	priv->iw_mode = NL80211_IFTYPE_STATION;
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
-
-	iwl_reset_qos(priv);
-
-	priv->qos_data.qos_active = 0;
-	priv->qos_data.qos_cap.val = 0;
 
 	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
 

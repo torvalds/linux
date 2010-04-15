@@ -1,7 +1,7 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009-2010 Nokia Corporation
  *
  * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
@@ -35,6 +35,9 @@
 #include "wl1271_acx.h"
 #include "wl12xx_80211.h"
 #include "wl1271_cmd.h"
+#include "wl1271_event.h"
+
+#define WL1271_CMD_POLL_COUNT       5
 
 /*
  * send command to firmware
@@ -52,6 +55,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	u32 intr;
 	int ret = 0;
 	u16 status;
+	u16 poll_count = 0;
 
 	cmd = buf;
 	cmd->id = cpu_to_le16(id);
@@ -73,7 +77,11 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 			goto out;
 		}
 
-		msleep(1);
+		udelay(10);
+		poll_count++;
+		if (poll_count == WL1271_CMD_POLL_COUNT)
+			wl1271_info("cmd polling took over %d cycles",
+				    poll_count);
 
 		intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 	}
@@ -249,6 +257,35 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	return ret;
 }
 
+/*
+ * Poll the mailbox event field until any of the bits in the mask is set or a
+ * timeout occurs (WL1271_EVENT_TIMEOUT in msecs)
+ */
+static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
+{
+	u32 events_vector, event;
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(WL1271_EVENT_TIMEOUT);
+
+	do {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+
+		msleep(1);
+
+		/* read from both event fields */
+		wl1271_read(wl, wl->mbox_ptr[0], &events_vector,
+			    sizeof(events_vector), false);
+		event = events_vector & mask;
+		wl1271_read(wl, wl->mbox_ptr[1], &events_vector,
+			    sizeof(events_vector), false);
+		event |= events_vector & mask;
+	} while (!event);
+
+	return 0;
+}
+
 int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 {
 	static bool do_cal = true;
@@ -281,20 +318,12 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	join->rx_config_options = cpu_to_le32(wl->rx_config);
 	join->rx_filter_options = cpu_to_le32(wl->rx_filter);
 	join->bss_type = bss_type;
+	join->basic_rate_set = wl->basic_rate_set;
 
-	if (wl->band == IEEE80211_BAND_2GHZ)
-		join->basic_rate_set = cpu_to_le32(CONF_HW_BIT_RATE_1MBPS   |
-						   CONF_HW_BIT_RATE_2MBPS   |
-						   CONF_HW_BIT_RATE_5_5MBPS |
-						   CONF_HW_BIT_RATE_11MBPS);
-	else {
+	if (wl->band == IEEE80211_BAND_5GHZ)
 		join->bss_type |= WL1271_JOIN_CMD_BSS_TYPE_5GHZ;
-		join->basic_rate_set = cpu_to_le32(CONF_HW_BIT_RATE_6MBPS  |
-						   CONF_HW_BIT_RATE_12MBPS |
-						   CONF_HW_BIT_RATE_24MBPS);
-	}
 
-	join->beacon_interval = cpu_to_le16(WL1271_DEFAULT_BEACON_INT);
+	join->beacon_interval = cpu_to_le16(wl->beacon_int);
 	join->dtim_interval = WL1271_DEFAULT_DTIM_PERIOD;
 
 	join->channel = wl->channel;
@@ -319,11 +348,9 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 		goto out_free;
 	}
 
-	/*
-	 * ugly hack: we should wait for JOIN_EVENT_COMPLETE_ID but to
-	 * simplify locking we just sleep instead, for now
-	 */
-	msleep(10);
+	ret = wl1271_cmd_wait_for_event(wl, JOIN_EVENT_COMPLETE_ID);
+	if (ret < 0)
+		wl1271_error("cmd join event completion error");
 
 out_free:
 	kfree(join);
@@ -455,7 +482,7 @@ int wl1271_cmd_data_path(struct wl1271 *wl, bool enable)
 	if (ret < 0) {
 		wl1271_error("tx %s cmd for channel %d failed",
 			     enable ? "start" : "stop", cmd->channel);
-		return ret;
+		goto out;
 	}
 
 	wl1271_debug(DEBUG_BOOT, "tx %s cmd channel %d",
@@ -547,17 +574,21 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 	struct wl1271_cmd_trigger_scan_to *trigger = NULL;
 	struct wl1271_cmd_scan *params = NULL;
 	struct ieee80211_channel *channels;
+	u32 rate;
 	int i, j, n_ch, ret;
 	u16 scan_options = 0;
 	u8 ieee_band;
 
-	if (band == WL1271_SCAN_BAND_2_4_GHZ)
+	if (band == WL1271_SCAN_BAND_2_4_GHZ) {
 		ieee_band = IEEE80211_BAND_2GHZ;
-	else if (band == WL1271_SCAN_BAND_DUAL && wl1271_11a_enabled())
+		rate = wl->conf.tx.basic_rate;
+	} else if (band == WL1271_SCAN_BAND_DUAL && wl1271_11a_enabled()) {
 		ieee_band = IEEE80211_BAND_2GHZ;
-	else if (band == WL1271_SCAN_BAND_5_GHZ && wl1271_11a_enabled())
+		rate = wl->conf.tx.basic_rate;
+	} else if (band == WL1271_SCAN_BAND_5_GHZ && wl1271_11a_enabled()) {
 		ieee_band = IEEE80211_BAND_5GHZ;
-	else
+		rate = wl->conf.tx.basic_rate_5;
+	} else
 		return -EINVAL;
 
 	if (wl->hw->wiphy->bands[ieee_band]->channels == NULL)
@@ -584,8 +615,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 	params->params.scan_options = cpu_to_le16(scan_options);
 
 	params->params.num_probe_requests = probe_requests;
-	/* Let the fw autodetect suitable tx_rate for probes */
-	params->params.tx_rate = 0;
+	params->params.tx_rate = rate;
 	params->params.tid_trigger = 0;
 	params->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;
 
@@ -666,11 +696,12 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 
 out:
 	kfree(params);
+	kfree(trigger);
 	return ret;
 }
 
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
-			    void *buf, size_t buf_len)
+			    void *buf, size_t buf_len, int index, u32 rates)
 {
 	struct wl1271_cmd_template_set *cmd;
 	int ret = 0;
@@ -688,9 +719,10 @@ int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
 
 	cmd->len = cpu_to_le16(buf_len);
 	cmd->template_type = template_id;
-	cmd->enabled_rates = cpu_to_le32(wl->conf.tx.rc_conf.enabled_rates);
+	cmd->enabled_rates = cpu_to_le32(rates);
 	cmd->short_retry_limit = wl->conf.tx.rc_conf.short_retry_limit;
 	cmd->long_retry_limit = wl->conf.tx.rc_conf.long_retry_limit;
+	cmd->index = index;
 
 	if (buf)
 		memcpy(cmd->template_data, buf, buf_len);
@@ -727,12 +759,36 @@ int wl1271_cmd_build_null_data(struct wl1271 *wl)
 		ptr = skb->data;
 	}
 
-	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, ptr, size);
+	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, ptr, size, 0,
+				      WL1271_RATE_AUTOMATIC);
 
 out:
 	dev_kfree_skb(skb);
 	if (ret)
 		wl1271_warning("cmd buld null data failed %d", ret);
+
+	return ret;
+
+}
+
+int wl1271_cmd_build_klv_null_data(struct wl1271 *wl)
+{
+	struct sk_buff *skb = NULL;
+	int ret = -ENOMEM;
+
+	skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
+	if (!skb)
+		goto out;
+
+	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_KLV,
+				      skb->data, skb->len,
+				      CMD_TEMPL_KLV_IDX_NULL_DATA,
+				      WL1271_RATE_AUTOMATIC);
+
+out:
+	dev_kfree_skb(skb);
+	if (ret)
+		wl1271_warning("cmd build klv null data failed %d", ret);
 
 	return ret;
 
@@ -748,7 +804,7 @@ int wl1271_cmd_build_ps_poll(struct wl1271 *wl, u16 aid)
 		goto out;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PS_POLL, skb->data,
-				      skb->len);
+				      skb->len, 0, wl->basic_rate);
 
 out:
 	dev_kfree_skb(skb);
@@ -773,10 +829,12 @@ int wl1271_cmd_build_probe_req(struct wl1271 *wl,
 
 	if (band == IEEE80211_BAND_2GHZ)
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
-					      skb->data, skb->len);
+					      skb->data, skb->len, 0,
+					      wl->conf.tx.basic_rate);
 	else
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
-					      skb->data, skb->len);
+					      skb->data, skb->len, 0,
+					      wl->conf.tx.basic_rate_5);
 
 out:
 	dev_kfree_skb(skb);
@@ -801,7 +859,8 @@ int wl1271_build_qos_null_data(struct wl1271 *wl)
 	template.qos_ctrl = cpu_to_le16(0);
 
 	return wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, &template,
-				       sizeof(template));
+				       sizeof(template), 0,
+				       WL1271_RATE_AUTOMATIC);
 }
 
 int wl1271_cmd_set_default_wep_key(struct wl1271 *wl, u8 id)
@@ -913,6 +972,10 @@ int wl1271_cmd_disconnect(struct wl1271 *wl)
 		wl1271_error("failed to send disconnect command");
 		goto out_free;
 	}
+
+	ret = wl1271_cmd_wait_for_event(wl, DISCONNECT_EVENT_COMPLETE_ID);
+	if (ret < 0)
+		wl1271_error("cmd disconnect event completion error");
 
 out_free:
 	kfree(cmd);

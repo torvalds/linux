@@ -323,7 +323,7 @@ typedef int (*iw_handler)(struct net_device *dev, struct iw_request_info *info,
 struct iw_handler_def {
 
 	/* Array of handlers for standard ioctls
-	 * We will call dev->wireless_handlers->standard[ioctl - SIOCSIWCOMMIT]
+	 * We will call dev->wireless_handlers->standard[ioctl - SIOCIWFIRST]
 	 */
 	const iw_handler *	standard;
 	/* Number of handlers defined (more precisely, index of the

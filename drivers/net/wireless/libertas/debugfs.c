@@ -75,7 +75,7 @@ static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 		return -ENOMEM;
 
 	pos += snprintf(buf+pos, len-pos,
-		"# | ch  | rssi |       bssid       |   cap    | Qual | SSID \n");
+		"# | ch  | rssi |       bssid       |   cap    | Qual | SSID\n");
 
 	mutex_lock(&priv->lock);
 	list_for_each_entry (iter_bss, &priv->network_list, list) {

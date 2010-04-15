@@ -305,6 +305,9 @@ struct iwl_cfg {
 	s32 chain_noise_scale;
 	/* timer period for monitor the driver queues */
 	u32 monitor_recover_period;
+	bool temperature_kelvin;
+	bool off_channel_workaround;
+	u32 max_event_log_size;
 };
 
 /***************************
@@ -314,8 +317,7 @@ struct iwl_cfg {
 struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 		struct ieee80211_ops *hw_ops);
 void iwl_hw_detect(struct iwl_priv *priv);
-void iwl_reset_qos(struct iwl_priv *priv);
-void iwl_activate_qos(struct iwl_priv *priv, u8 force);
+void iwl_activate_qos(struct iwl_priv *priv);
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt);
@@ -336,7 +338,6 @@ void iwl_irq_handle_error(struct iwl_priv *priv);
 void iwl_configure_filter(struct ieee80211_hw *hw,
 			  unsigned int changed_flags,
 			  unsigned int *total_flags, u64 multicast);
-int iwl_hw_nic_init(struct iwl_priv *priv);
 int iwl_set_hw_params(struct iwl_priv *priv);
 bool iwl_is_monitor_mode(struct iwl_priv *priv);
 void iwl_post_associate(struct iwl_priv *priv);
@@ -420,21 +421,13 @@ void iwl_rx_reply_error(struct iwl_priv *priv,
 /*****************************************************
 * RX
 ******************************************************/
-void iwl_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 void iwl_cmd_queue_free(struct iwl_priv *priv);
 int iwl_rx_queue_alloc(struct iwl_priv *priv);
 void iwl_rx_handle(struct iwl_priv *priv);
 void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
-void iwl_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
-void iwl_rx_replenish(struct iwl_priv *priv);
-void iwl_rx_replenish_now(struct iwl_priv *priv);
-int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
-void iwl_rx_queue_restock(struct iwl_priv *priv);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
-void iwl_rx_allocate(struct iwl_priv *priv, gfp_t priority);
 void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
-int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
 /* Handlers */
 void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
@@ -455,14 +448,10 @@ void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 /*****************************************************
 * TX
 ******************************************************/
-int iwl_txq_ctx_alloc(struct iwl_priv *priv);
-void iwl_txq_ctx_reset(struct iwl_priv *priv);
 void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 				 struct iwl_tx_queue *txq,
 				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
-int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
-void iwl_hw_txq_ctx_free(struct iwl_priv *priv);
 int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 			 struct iwl_tx_queue *txq);
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
@@ -473,9 +462,6 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 			int slots_num, u32 txq_id);
 void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id);
-int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn);
-int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid);
-int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id);
 /*****************************************************
  * TX power
  ****************************************************/
@@ -485,10 +471,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
  * Rate
  ******************************************************************************/
 
-void iwl_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
-			      struct ieee80211_tx_info *info);
 int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
-int iwl_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
 
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv);
 
@@ -688,12 +671,6 @@ extern int iwl_send_statistics_request(struct iwl_priv *priv,
 extern int iwl_verify_ucode(struct iwl_priv *priv);
 extern int iwl_send_lq_cmd(struct iwl_priv *priv,
 		struct iwl_link_quality_cmd *lq, u8 flags, bool init);
-extern void iwl_rx_reply_rx(struct iwl_priv *priv,
-		struct iwl_rx_mem_buffer *rxb);
-extern void iwl_rx_reply_rx_phy(struct iwl_priv *priv,
-				    struct iwl_rx_mem_buffer *rxb);
-void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
-					   struct iwl_rx_mem_buffer *rxb);
 void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 

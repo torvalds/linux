@@ -66,7 +66,7 @@ MODULE_LICENSE("GPL");
  */
 static bool bt_coex_active = true;
 module_param(bt_coex_active, bool, S_IRUGO);
-MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist\n");
+MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist");
 
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 	{COEX_CU_UNASSOC_IDLE_RP, COEX_CU_UNASSOC_IDLE_WP,
@@ -141,30 +141,6 @@ const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT] = {
 };
 EXPORT_SYMBOL(iwl_rates);
 
-/**
- * translate ucode response to mac80211 tx status control values
- */
-void iwl_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
-				  struct ieee80211_tx_info *info)
-{
-	struct ieee80211_tx_rate *r = &info->control.rates[0];
-
-	info->antenna_sel_tx =
-		((rate_n_flags & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS);
-	if (rate_n_flags & RATE_MCS_HT_MSK)
-		r->flags |= IEEE80211_TX_RC_MCS;
-	if (rate_n_flags & RATE_MCS_GF_MSK)
-		r->flags |= IEEE80211_TX_RC_GREEN_FIELD;
-	if (rate_n_flags & RATE_MCS_HT40_MSK)
-		r->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
-	if (rate_n_flags & RATE_MCS_DUP_MSK)
-		r->flags |= IEEE80211_TX_RC_DUP_DATA;
-	if (rate_n_flags & RATE_MCS_SGI_MSK)
-		r->flags |= IEEE80211_TX_RC_SHORT_GI;
-	r->idx = iwl_hwrate_to_mac80211_idx(rate_n_flags, info->band);
-}
-EXPORT_SYMBOL(iwl_hwrate_to_tx_control);
-
 int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 {
 	int idx = 0;
@@ -195,27 +171,6 @@ int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 	return -1;
 }
 EXPORT_SYMBOL(iwl_hwrate_to_plcp_idx);
-
-int iwl_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
-{
-	int idx = 0;
-	int band_offset = 0;
-
-	/* HT rate format: mac80211 wants an MCS number, which is just LSB */
-	if (rate_n_flags & RATE_MCS_HT_MSK) {
-		idx = (rate_n_flags & 0xff);
-		return idx;
-	/* Legacy rate format, search for match in table */
-	} else {
-		if (band == IEEE80211_BAND_5GHZ)
-			band_offset = IWL_FIRST_OFDM_RATE;
-		for (idx = band_offset; idx < IWL_RATE_COUNT_LEGACY; idx++)
-			if (iwl_rates[idx].plcp == (rate_n_flags & 0xFF))
-				return idx - band_offset;
-	}
-
-	return -1;
-}
 
 u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant)
 {
@@ -266,74 +221,16 @@ void iwl_hw_detect(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_hw_detect);
 
-int iwl_hw_nic_init(struct iwl_priv *priv)
-{
-	unsigned long flags;
-	struct iwl_rx_queue *rxq = &priv->rxq;
-	int ret;
-
-	/* nic_init */
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->cfg->ops->lib->apm_ops.init(priv);
-
-	/* Set interrupt coalescing calibration timer to default (512 usecs) */
-	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_CALIB_TIMEOUT_DEF);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	ret = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
-
-	priv->cfg->ops->lib->apm_ops.config(priv);
-
-	/* Allocate the RX queue, or reset if it is already allocated */
-	if (!rxq->bd) {
-		ret = iwl_rx_queue_alloc(priv);
-		if (ret) {
-			IWL_ERR(priv, "Unable to initialize Rx queue\n");
-			return -ENOMEM;
-		}
-	} else
-		iwl_rx_queue_reset(priv, rxq);
-
-	iwl_rx_replenish(priv);
-
-	iwl_rx_init(priv, rxq);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	rxq->need_update = 1;
-	iwl_rx_queue_update_write_ptr(priv, rxq);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* Allocate or reset and init all Tx and Command queues */
-	if (!priv->txq) {
-		ret = iwl_txq_ctx_alloc(priv);
-		if (ret)
-			return ret;
-	} else
-		iwl_txq_ctx_reset(priv);
-
-	set_bit(STATUS_INIT, &priv->status);
-
-	return 0;
-}
-EXPORT_SYMBOL(iwl_hw_nic_init);
-
 /*
  * QoS  support
 */
-void iwl_activate_qos(struct iwl_priv *priv, u8 force)
+static void iwl_update_qos(struct iwl_priv *priv)
 {
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	priv->qos_data.def_qos_parm.qos_flags = 0;
 
-	if (priv->qos_data.qos_cap.q_AP.queue_request &&
-	    !priv->qos_data.qos_cap.q_AP.txop_request)
-		priv->qos_data.def_qos_parm.qos_flags |=
-			QOS_PARAM_FLG_TXOP_TYPE_MSK;
 	if (priv->qos_data.qos_active)
 		priv->qos_data.def_qos_parm.qos_flags |=
 			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
@@ -341,118 +238,14 @@ void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 	if (priv->current_ht_config.is_ht)
 		priv->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
 
-	if (force || iwl_is_associated(priv)) {
-		IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
-				priv->qos_data.qos_active,
-				priv->qos_data.def_qos_parm.qos_flags);
+	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
+		      priv->qos_data.qos_active,
+		      priv->qos_data.def_qos_parm.qos_flags);
 
-		iwl_send_cmd_pdu_async(priv, REPLY_QOS_PARAM,
-				       sizeof(struct iwl_qosparam_cmd),
-				       &priv->qos_data.def_qos_parm, NULL);
-	}
+	iwl_send_cmd_pdu_async(priv, REPLY_QOS_PARAM,
+			       sizeof(struct iwl_qosparam_cmd),
+			       &priv->qos_data.def_qos_parm, NULL);
 }
-EXPORT_SYMBOL(iwl_activate_qos);
-
-/*
- * AC        CWmin         CW max      AIFSN      TXOP Limit    TXOP Limit
- *                                              (802.11b)      (802.11a/g)
- * AC_BK      15            1023        7           0               0
- * AC_BE      15            1023        3           0               0
- * AC_VI       7              15        2          6.016ms       3.008ms
- * AC_VO       3               7        2          3.264ms       1.504ms
- */
-void iwl_reset_qos(struct iwl_priv *priv)
-{
-	u16 cw_min = 15;
-	u16 cw_max = 1023;
-	u8 aifs = 2;
-	bool is_legacy = false;
-	unsigned long flags;
-	int i;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	/* QoS always active in AP and ADHOC mode
-	 * In STA mode wait for association
-	 */
-	if (priv->iw_mode == NL80211_IFTYPE_ADHOC ||
-	    priv->iw_mode == NL80211_IFTYPE_AP)
-		priv->qos_data.qos_active = 1;
-	else
-		priv->qos_data.qos_active = 0;
-
-	/* check for legacy mode */
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC &&
-	    (priv->active_rate & IWL_OFDM_RATES_MASK) == 0) ||
-	    (priv->iw_mode == NL80211_IFTYPE_STATION &&
-	    (priv->staging_rxon.flags & RXON_FLG_SHORT_SLOT_MSK) == 0)) {
-		cw_min = 31;
-		is_legacy = 1;
-	}
-
-	if (priv->qos_data.qos_active)
-		aifs = 3;
-
-	/* AC_BE */
-	priv->qos_data.def_qos_parm.ac[0].cw_min = cpu_to_le16(cw_min);
-	priv->qos_data.def_qos_parm.ac[0].cw_max = cpu_to_le16(cw_max);
-	priv->qos_data.def_qos_parm.ac[0].aifsn = aifs;
-	priv->qos_data.def_qos_parm.ac[0].edca_txop = 0;
-	priv->qos_data.def_qos_parm.ac[0].reserved1 = 0;
-
-	if (priv->qos_data.qos_active) {
-		/* AC_BK */
-		i = 1;
-		priv->qos_data.def_qos_parm.ac[i].cw_min = cpu_to_le16(cw_min);
-		priv->qos_data.def_qos_parm.ac[i].cw_max = cpu_to_le16(cw_max);
-		priv->qos_data.def_qos_parm.ac[i].aifsn = 7;
-		priv->qos_data.def_qos_parm.ac[i].edca_txop = 0;
-		priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
-
-		/* AC_VI */
-		i = 2;
-		priv->qos_data.def_qos_parm.ac[i].cw_min =
-			cpu_to_le16((cw_min + 1) / 2 - 1);
-		priv->qos_data.def_qos_parm.ac[i].cw_max =
-			cpu_to_le16(cw_min);
-		priv->qos_data.def_qos_parm.ac[i].aifsn = 2;
-		if (is_legacy)
-			priv->qos_data.def_qos_parm.ac[i].edca_txop =
-				cpu_to_le16(6016);
-		else
-			priv->qos_data.def_qos_parm.ac[i].edca_txop =
-				cpu_to_le16(3008);
-		priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
-
-		/* AC_VO */
-		i = 3;
-		priv->qos_data.def_qos_parm.ac[i].cw_min =
-			cpu_to_le16((cw_min + 1) / 4 - 1);
-		priv->qos_data.def_qos_parm.ac[i].cw_max =
-			cpu_to_le16((cw_min + 1) / 2 - 1);
-		priv->qos_data.def_qos_parm.ac[i].aifsn = 2;
-		priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
-		if (is_legacy)
-			priv->qos_data.def_qos_parm.ac[i].edca_txop =
-				cpu_to_le16(3264);
-		else
-			priv->qos_data.def_qos_parm.ac[i].edca_txop =
-				cpu_to_le16(1504);
-	} else {
-		for (i = 1; i < 4; i++) {
-			priv->qos_data.def_qos_parm.ac[i].cw_min =
-				cpu_to_le16(cw_min);
-			priv->qos_data.def_qos_parm.ac[i].cw_max =
-				cpu_to_le16(cw_max);
-			priv->qos_data.def_qos_parm.ac[i].aifsn = aifs;
-			priv->qos_data.def_qos_parm.ac[i].edca_txop = 0;
-			priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
-		}
-	}
-	IWL_DEBUG_QOS(priv, "set QoS to default \n");
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-EXPORT_SYMBOL(iwl_reset_qos);
 
 #define MAX_BIT_RATE_40_MHZ 150 /* Mbps */
 #define MAX_BIT_RATE_20_MHZ 72 /* Mbps */
@@ -1092,12 +885,12 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 	rx_chain |= idle_rx_cnt  << RXON_RX_CHAIN_CNT_POS;
 
 	/* copied from 'iwl_bg_request_scan()' */
-	/* Force use of chains B and C (0x6) for Rx for 4965
-	 * Avoid A (0x1) because of its off-channel reception on A-band.
+	/* Force use of chains B and C (0x6) for Rx
+	 * Avoid A (0x1) for the device has off-channel reception on A-band.
 	 * MIMO is not used here, but value is required */
 	if (iwl_is_monitor_mode(priv) &&
 	    !(priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) &&
-	    ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)) {
+	    priv->cfg->off_channel_workaround) {
 		rx_chain = ANT_ABC << RXON_RX_CHAIN_VALID_POS;
 		rx_chain |= ANT_BC << RXON_RX_CHAIN_FORCE_SEL_POS;
 		rx_chain |= ANT_ABC << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
@@ -1584,10 +1377,11 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	int ret = 0;
 	s8 prev_tx_power = priv->tx_power_user_lmt;
 
-	if (tx_power < IWL_TX_POWER_TARGET_POWER_MIN) {
-		IWL_WARN(priv, "Requested user TXPOWER %d below lower limit %d.\n",
+	if (tx_power < IWLAGN_TX_POWER_TARGET_POWER_MIN) {
+		IWL_WARN(priv,
+			 "Requested user TXPOWER %d below lower limit %d.\n",
 			 tx_power,
-			 IWL_TX_POWER_TARGET_POWER_MIN);
+			 IWLAGN_TX_POWER_TARGET_POWER_MIN);
 		return -EINVAL;
 	}
 
@@ -1631,10 +1425,11 @@ irqreturn_t iwl_isr_legacy(int irq, void *data)
 	struct iwl_priv *priv = data;
 	u32 inta, inta_mask;
 	u32 inta_fh;
+	unsigned long flags;
 	if (!priv)
 		return IRQ_NONE;
 
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 *    back-to-back ISRs and sporadic interrupts from our NIC.
@@ -1672,7 +1467,7 @@ irqreturn_t iwl_isr_legacy(int irq, void *data)
 		tasklet_schedule(&priv->irq_tasklet);
 
  unplugged:
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return IRQ_HANDLED;
 
  none:
@@ -1680,7 +1475,7 @@ irqreturn_t iwl_isr_legacy(int irq, void *data)
 	/* only Re-enable if diabled by irq */
 	if (test_bit(STATUS_INT_ENABLED, &priv->status))
 		iwl_enable_interrupts(priv);
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return IRQ_NONE;
 }
 EXPORT_SYMBOL(iwl_isr_legacy);
@@ -1993,12 +1788,6 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			cpu_to_le16((params->txop * 32));
 
 	priv->qos_data.def_qos_parm.ac[q].reserved1 = 0;
-	priv->qos_data.qos_active = 1;
-
-	if (priv->iw_mode == NL80211_IFTYPE_AP)
-		iwl_activate_qos(priv, 1);
-	else if (priv->assoc_id && iwl_is_associated(priv))
-		iwl_activate_qos(priv, 0);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -2013,7 +1802,7 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
 	struct ieee80211_sta *sta;
 
-	IWL_DEBUG_MAC80211(priv, "enter: \n");
+	IWL_DEBUG_MAC80211(priv, "enter:\n");
 
 	if (!ht_conf->is_ht)
 		return;
@@ -2269,10 +2058,7 @@ int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	iwl_reset_qos(priv);
-
 	priv->cfg->ops->lib->post_associate(priv);
-
 
 	return 0;
 }
@@ -2495,6 +2281,15 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		iwl_set_tx_power(priv, conf->power_level, false);
 	}
 
+	if (changed & IEEE80211_CONF_CHANGE_QOS) {
+		bool qos_active = !!(conf->flags & IEEE80211_CONF_QOS);
+
+		spin_lock_irqsave(&priv->lock, flags);
+		priv->qos_data.qos_active = qos_active;
+		iwl_update_qos(priv);
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
+
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		goto out;
@@ -2528,8 +2323,6 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_lock_irqsave(&priv->lock, flags);
 	memset(&priv->current_ht_config, 0, sizeof(struct iwl_ht_config));
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	iwl_reset_qos(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->assoc_id = 0;
@@ -2574,7 +2367,7 @@ int iwl_alloc_txq_mem(struct iwl_priv *priv)
 			sizeof(struct iwl_tx_queue) * priv->cfg->num_of_queues,
 			GFP_KERNEL);
 	if (!priv->txq) {
-		IWL_ERR(priv, "Not enough memory for txq \n");
+		IWL_ERR(priv, "Not enough memory for txq\n");
 		return -ENOMEM;
 	}
 	return 0;
