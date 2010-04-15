@@ -1660,7 +1660,6 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 
 	ds = bf->bf_desc;
 	ds->ds_link = 0;
-	ds->ds_data = bf->bf_buf_addr;
 
 	ath9k_hw_set11n_txdesc(ah, ds, bf->bf_frmlen, frm_type, MAX_RATE_POWER,
 			       bf->bf_keyix, bf->bf_keytype, bf->bf_flags);
@@ -1669,7 +1668,8 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 			    skb->len,	/* segment length */
 			    true,	/* first segment */
 			    true,	/* last segment */
-			    ds);	/* first descriptor */
+			    ds,		/* first descriptor */
+			    bf->bf_buf_addr);
 
 	spin_lock_bh(&txctl->txq->axq_lock);
 

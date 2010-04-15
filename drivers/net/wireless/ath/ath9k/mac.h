@@ -693,7 +693,8 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel);
 bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q);
 void ath9k_hw_filltxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			 u32 segLen, bool firstSeg,
-			 bool lastSeg, const struct ath_desc *ds0);
+			 bool lastSeg, const struct ath_desc *ds0,
+			 dma_addr_t buf_addr);
 void ath9k_hw_cleartxdesc(struct ath_hw *ah, struct ath_desc *ds);
 int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 			struct ath_tx_status *ts);

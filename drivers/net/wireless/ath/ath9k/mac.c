@@ -220,9 +220,12 @@ EXPORT_SYMBOL(ath9k_hw_stoptxdma);
 
 void ath9k_hw_filltxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			 u32 segLen, bool firstSeg,
-			 bool lastSeg, const struct ath_desc *ds0)
+			 bool lastSeg, const struct ath_desc *ds0,
+			 dma_addr_t buf_addr)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_data = buf_addr;
 
 	if (firstSeg) {
 		ads->ds_ctl1 |= segLen | (lastSeg ? 0 : AR_TxMore);
