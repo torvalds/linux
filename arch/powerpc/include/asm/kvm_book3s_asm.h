@@ -63,12 +63,33 @@ struct kvmppc_book3s_shadow_vcpu {
 	ulong gpr[14];
 	u32 cr;
 	u32 xer;
+
+	u32 fault_dsisr;
+	u32 last_inst;
+	ulong ctr;
+	ulong lr;
+	ulong pc;
+	ulong shadow_srr1;
+	ulong fault_dar;
+
 	ulong host_r1;
 	ulong host_r2;
 	ulong handler;
 	ulong scratch0;
 	ulong scratch1;
 	ulong vmhandler;
+	u8 in_guest;
+
+#ifdef CONFIG_PPC_BOOK3S_32
+	u32     sr[16];			/* Guest SRs */
+#endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	u8 slb_max;			/* highest used guest slb entry */
+	struct  {
+		u64     esid;
+		u64     vsid;
+	} slb[64];			/* guest SLB */
+#endif
 };
 
 #endif /*__ASSEMBLY__ */
