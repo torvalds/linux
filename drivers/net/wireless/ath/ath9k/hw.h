@@ -227,6 +227,7 @@ struct ath9k_ops_config {
 	u32 enable_ani;
 	int serialize_regmode;
 	bool rx_intr_mitigation;
+	bool tx_intr_mitigation;
 #define SPUR_DISABLE        	0
 #define SPUR_ENABLE_IOCTL   	1
 #define SPUR_ENABLE_EEPROM  	2
@@ -549,6 +550,7 @@ struct ath_hw_ops {
 			  struct ath9k_channel *chan,
 			  u8 rxchainmask,
 			  bool longcal);
+	bool (*get_isr)(struct ath_hw *ah, enum ath9k_int *masked);
 };
 
 struct ath_hw {
@@ -809,11 +811,6 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 				    const struct ath9k_beacon_state *bs);
 
 bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode);
-
-/* Interrupt Handling */
-bool ath9k_hw_intrpend(struct ath_hw *ah);
-bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked);
-enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints);
 
 /* Generic hw timer primitives */
 struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,

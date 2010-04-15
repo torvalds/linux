@@ -736,6 +736,11 @@ void ath9k_hw_stoppcurecv(struct ath_hw *ah);
 bool ath9k_hw_stopdmarecv(struct ath_hw *ah);
 int ath9k_hw_beaconq_setup(struct ath_hw *ah);
 
+/* Interrupt Handling */
+bool ath9k_hw_intrpend(struct ath_hw *ah);
+enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah,
+				       enum ath9k_int ints);
+
 void ar9002_hw_attach_mac_ops(struct ath_hw *ah);
 
 #endif /* MAC_H */

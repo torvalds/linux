@@ -253,6 +253,8 @@
 #define AR_IMR               0x00a0
 #define AR_IMR_RXOK          0x00000001
 #define AR_IMR_RXDESC        0x00000002
+#define AR_IMR_RXOK_HP	     0x00000001
+#define AR_IMR_RXOK_LP	     0x00000002
 #define AR_IMR_RXERR         0x00000004
 #define AR_IMR_RXNOPKT       0x00000008
 #define AR_IMR_RXEOL         0x00000010
