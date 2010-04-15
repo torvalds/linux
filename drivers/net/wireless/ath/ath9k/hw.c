@@ -1286,6 +1286,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, 2000);
 	}
 
+	if (ah->config.tx_intr_mitigation) {
+		REG_RMW_FIELD(ah, AR_TIMT, AR_TIMT_LAST, 300);
+		REG_RMW_FIELD(ah, AR_TIMT, AR_TIMT_FIRST, 750);
+	}
+
 	ath9k_hw_init_bb(ah, chan);
 
 	if (!ath9k_hw_init_cal(ah, chan))
