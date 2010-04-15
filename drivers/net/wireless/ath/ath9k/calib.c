@@ -671,7 +671,7 @@ s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
 }
 EXPORT_SYMBOL(ath9k_hw_getchan_noise);
 
-static void ath9k_olc_temp_compensation_9287(struct ath_hw *ah)
+static void ar9287_hw_olc_temp_compensation(struct ath_hw *ah)
 {
 	u32 rddata;
 	int32_t delta, currPDADC, slope;
@@ -706,7 +706,7 @@ static void ath9k_olc_temp_compensation(struct ath_hw *ah)
 	int delta, currPDADC, regval;
 
 	if (OLC_FOR_AR9287_10_LATER) {
-		ath9k_olc_temp_compensation_9287(ah);
+		ar9287_hw_olc_temp_compensation(ah);
 	} else {
 		rddata = REG_READ(ah, AR_PHY_TX_PWRCTRL4);
 		currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
