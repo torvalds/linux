@@ -856,8 +856,9 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		goto err;
 
-	/* on early revisions CABC is broken */
-	if (id2 == 0x00 || id2 == 0xff || id2 == 0x81)
+	/* on early Taal revisions CABC is broken */
+	if (td->panel_config->type == PANEL_TAAL &&
+		(id2 == 0x00 || id2 == 0xff || id2 == 0x81))
 		td->cabc_broken = true;
 
 	r = taal_dcs_write_1(DCS_BRIGHTNESS, 0xff);
