@@ -57,12 +57,12 @@ static struct work_struct wq_load;
 
 static void ir_raw_event_work(struct work_struct *work)
 {
-	s64 d;
+	struct ir_raw_event ev;
 	struct ir_raw_event_ctrl *raw =
 		container_of(work, struct ir_raw_event_ctrl, rx_work);
 
-	while (kfifo_out(&raw->kfifo, &d, sizeof(d)) == sizeof(d))
-		RUN_DECODER(decode, raw->input_dev, d);
+	while (kfifo_out(&raw->kfifo, &ev, sizeof(ev)) == sizeof(ev))
+		RUN_DECODER(decode, raw->input_dev, ev);
 }
 
 int ir_raw_event_register(struct input_dev *input_dev)
@@ -114,21 +114,21 @@ void ir_raw_event_unregister(struct input_dev *input_dev)
 /**
  * ir_raw_event_store() - pass a pulse/space duration to the raw ir decoders
  * @input_dev:	the struct input_dev device descriptor
- * @duration:	duration of the pulse or space in ns
+ * @ev:		the struct ir_raw_event descriptor of the pulse/space
  *
  * This routine (which may be called from an interrupt context) stores a
  * pulse/space duration for the raw ir decoding state machines. Pulses are
  * signalled as positive values and spaces as negative values. A zero value
  * will reset the decoding state machines.
  */
-int ir_raw_event_store(struct input_dev *input_dev, s64 duration)
+int ir_raw_event_store(struct input_dev *input_dev, struct ir_raw_event *ev)
 {
 	struct ir_input_dev *ir = input_get_drvdata(input_dev);
 
 	if (!ir->raw)
 		return -EINVAL;
 
-	if (kfifo_in(&ir->raw->kfifo, &duration, sizeof(duration)) != sizeof(duration))
+	if (kfifo_in(&ir->raw->kfifo, ev, sizeof(*ev)) != sizeof(*ev))
 		return -ENOMEM;
 
 	return 0;
@@ -151,6 +151,7 @@ int ir_raw_event_store_edge(struct input_dev *input_dev, enum raw_event_type typ
 	struct ir_input_dev	*ir = input_get_drvdata(input_dev);
 	ktime_t			now;
 	s64			delta; /* ns */
+	struct ir_raw_event	ev;
 	int			rc = 0;
 
 	if (!ir->raw)
@@ -163,16 +164,21 @@ int ir_raw_event_store_edge(struct input_dev *input_dev, enum raw_event_type typ
 	 * being called for the first time, note that delta can't
 	 * possibly be negative.
 	 */
-	if (delta > NSEC_PER_SEC || !ir->raw->last_type)
+	ev.duration = 0;
+	if (delta > IR_MAX_DURATION || !ir->raw->last_type)
 		type |= IR_START_EVENT;
+	else
+		ev.duration = delta;
 
 	if (type & IR_START_EVENT)
 		ir_raw_event_reset(input_dev);
-	else if (ir->raw->last_type & IR_SPACE)
-		rc = ir_raw_event_store(input_dev, -delta);
-	else if (ir->raw->last_type & IR_PULSE)
-		rc = ir_raw_event_store(input_dev, delta);
-	else
+	else if (ir->raw->last_type & IR_SPACE) {
+		ev.pulse = false;
+		rc = ir_raw_event_store(input_dev, &ev);
+	} else if (ir->raw->last_type & IR_PULSE) {
+		ev.pulse = true;
+		rc = ir_raw_event_store(input_dev, &ev);
+	} else
 		return 0;
 
 	ir->raw->last_event = now;

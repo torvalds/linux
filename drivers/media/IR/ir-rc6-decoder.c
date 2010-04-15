@@ -26,8 +26,12 @@
 #define RC6_0_NBITS		16
 #define RC6_6A_SMALL_NBITS	24
 #define RC6_6A_LARGE_NBITS	32
-#define RC6_PREFIX_PULSE	PULSE(6)
-#define RC6_PREFIX_SPACE	SPACE(2)
+#define RC6_PREFIX_PULSE	(6 * RC6_UNIT)
+#define RC6_PREFIX_SPACE	(2 * RC6_UNIT)
+#define RC6_BIT_START		(1 * RC6_UNIT)
+#define RC6_BIT_END		(1 * RC6_UNIT)
+#define RC6_TOGGLE_START	(2 * RC6_UNIT)
+#define RC6_TOGGLE_END		(2 * RC6_UNIT)
 #define RC6_MODE_MASK		0x07	/* for the header bits */
 #define RC6_STARTBIT_MASK	0x08	/* for the header bits */
 #define RC6_6A_MCE_TOGGLE_MASK	0x8000	/* for the body bits */
@@ -63,7 +67,7 @@ struct decoder_data {
 	enum rc6_state		state;
 	u8			header;
 	u32			body;
-	int			last_unit;
+	struct ir_raw_event	prev_ev;
 	bool			toggle;
 	unsigned		count;
 	unsigned		wanted_bits;
@@ -152,17 +156,16 @@ static enum rc6_mode rc6_mode(struct decoder_data *data) {
 /**
  * ir_rc6_decode() - Decode one RC6 pulse or space
  * @input_dev:	the struct input_dev descriptor of the device
- * @duration:	duration of pulse/space in ns
+ * @ev:		the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int ir_rc6_decode(struct input_dev *input_dev, s64 duration)
+static int ir_rc6_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 {
 	struct decoder_data *data;
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	u32 scancode;
 	u8 toggle;
-	int u;
 
 	data = get_decoder_data(ir_dev);
 	if (!data)
@@ -171,140 +174,144 @@ static int ir_rc6_decode(struct input_dev *input_dev, s64 duration)
 	if (!data->enabled)
 		return 0;
 
-	if (IS_RESET(duration)) {
+	if (IS_RESET(ev)) {
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
 
-	u =  TO_UNITS(duration, RC6_UNIT);
-	if (DURATION(u) == 0)
+	if (!geq_margin(ev.duration, RC6_UNIT, RC6_UNIT / 2))
 		goto out;
 
 again:
-	IR_dprintk(2, "RC6 decode started at state %i (%i units, %ius)\n",
-		   data->state, u, TO_US(duration));
+	IR_dprintk(2, "RC6 decode started at state %i (%uus %s)\n",
+		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
-	if (DURATION(u) == 0 && data->state != STATE_FINISHED)
+	if (!geq_margin(ev.duration, RC6_UNIT, RC6_UNIT / 2))
 		return 0;
 
 	switch (data->state) {
 
 	case STATE_INACTIVE:
-		if (u >= RC6_PREFIX_PULSE - 1 && u <= RC6_PREFIX_PULSE + 1) {
-			data->state = STATE_PREFIX_SPACE;
-			data->count = 0;
-			return 0;
-		}
-		break;
+		if (!ev.pulse)
+			break;
+
+		/* Note: larger margin on first pulse since each RC6_UNIT
+		   is quite short and some hardware takes some time to
+		   adjust to the signal */
+		if (!eq_margin(ev.duration, RC6_PREFIX_PULSE, RC6_UNIT))
+			break;
+
+		data->state = STATE_PREFIX_SPACE;
+		data->count = 0;
+		return 0;
 
 	case STATE_PREFIX_SPACE:
-		if (u == RC6_PREFIX_SPACE) {
-			data->state = STATE_HEADER_BIT_START;
-			return 0;
-		}
-		break;
+		if (ev.pulse)
+			break;
+
+		if (!eq_margin(ev.duration, RC6_PREFIX_SPACE, RC6_UNIT / 2))
+			break;
+
+		data->state = STATE_HEADER_BIT_START;
+		return 0;
 
 	case STATE_HEADER_BIT_START:
-		if (DURATION(u) == 1) {
-			data->header <<= 1;
-			if (IS_PULSE(u))
-				data->header |= 1;
-			data->count++;
-			data->last_unit = u;
-			data->state = STATE_HEADER_BIT_END;
-			return 0;
-		}
-		break;
+		if (!eq_margin(ev.duration, RC6_BIT_START, RC6_UNIT / 2))
+			break;
+
+		data->header <<= 1;
+		if (ev.pulse)
+			data->header |= 1;
+		data->count++;
+		data->prev_ev = ev;
+		data->state = STATE_HEADER_BIT_END;
+		return 0;
 
 	case STATE_HEADER_BIT_END:
-		if (IS_TRANSITION(u, data->last_unit)) {
-			if (data->count == RC6_HEADER_NBITS)
-				data->state = STATE_TOGGLE_START;
-			else
-				data->state = STATE_HEADER_BIT_START;
+		if (!is_transition(&ev, &data->prev_ev))
+			break;
 
-			DECREASE_DURATION(u, 1);
-			goto again;
-		}
-		break;
+		if (data->count == RC6_HEADER_NBITS)
+			data->state = STATE_TOGGLE_START;
+		else
+			data->state = STATE_HEADER_BIT_START;
+
+		decrease_duration(&ev, RC6_BIT_END);
+		goto again;
 
 	case STATE_TOGGLE_START:
-		if (DURATION(u) == 2) {
-			data->toggle = IS_PULSE(u);
-			data->last_unit = u;
-			data->state = STATE_TOGGLE_END;
-			return 0;
-		}
-		break;
+		if (!eq_margin(ev.duration, RC6_TOGGLE_START, RC6_UNIT / 2))
+			break;
+
+		data->toggle = ev.pulse;
+		data->prev_ev = ev;
+		data->state = STATE_TOGGLE_END;
+		return 0;
 
 	case STATE_TOGGLE_END:
-		if (IS_TRANSITION(u, data->last_unit) && DURATION(u) >= 2) {
-			data->state = STATE_BODY_BIT_START;
-			data->last_unit = u;
-			DECREASE_DURATION(u, 2);
-			data->count = 0;
+		if (!is_transition(&ev, &data->prev_ev) ||
+		    !geq_margin(ev.duration, RC6_TOGGLE_END, RC6_UNIT / 2))
+			break;
 
-			if (!(data->header & RC6_STARTBIT_MASK)) {
-				IR_dprintk(1, "RC6 invalid start bit\n");
-				break;
-			}
-
-			switch (rc6_mode(data)) {
-			case RC6_MODE_0:
-				data->wanted_bits = RC6_0_NBITS;
-				break;
-			case RC6_MODE_6A:
-				/* This might look weird, but we basically
-				   check the value of the first body bit to
-				   determine the number of bits in mode 6A */
-				if ((DURATION(u) == 0 && IS_SPACE(data->last_unit)) || DURATION(u) > 0)
-					data->wanted_bits = RC6_6A_LARGE_NBITS;
-				else
-					data->wanted_bits = RC6_6A_SMALL_NBITS;
-				break;
-			default:
-				IR_dprintk(1, "RC6 unknown mode\n");
-				goto out;
-			}
-			goto again;
+		if (!(data->header & RC6_STARTBIT_MASK)) {
+			IR_dprintk(1, "RC6 invalid start bit\n");
+			break;
 		}
-		break;
+
+		data->state = STATE_BODY_BIT_START;
+		data->prev_ev = ev;
+		decrease_duration(&ev, RC6_TOGGLE_END);
+		data->count = 0;
+
+		switch (rc6_mode(data)) {
+		case RC6_MODE_0:
+			data->wanted_bits = RC6_0_NBITS;
+			break;
+		case RC6_MODE_6A:
+			/* This might look weird, but we basically
+			   check the value of the first body bit to
+			   determine the number of bits in mode 6A */
+			if ((!ev.pulse && !geq_margin(ev.duration, RC6_UNIT, RC6_UNIT / 2)) ||
+			    geq_margin(ev.duration, RC6_UNIT, RC6_UNIT / 2))
+				data->wanted_bits = RC6_6A_LARGE_NBITS;
+			else
+				data->wanted_bits = RC6_6A_SMALL_NBITS;
+			break;
+		default:
+			IR_dprintk(1, "RC6 unknown mode\n");
+			goto out;
+		}
+		goto again;
 
 	case STATE_BODY_BIT_START:
-		if (DURATION(u) == 1) {
-			data->body <<= 1;
-			if (IS_PULSE(u))
-				data->body |= 1;
-			data->count++;
-			data->last_unit = u;
+		if (!eq_margin(ev.duration, RC6_BIT_START, RC6_UNIT / 2))
+			break;
 
-			/*
-			 * If the last bit is one, a space will merge
-			 * with the silence after the command.
-			 */
-			if (IS_PULSE(u) && data->count == data->wanted_bits) {
-				data->state = STATE_FINISHED;
-				goto again;
-			}
+		data->body <<= 1;
+		if (ev.pulse)
+			data->body |= 1;
+		data->count++;
+		data->prev_ev = ev;
 
-			data->state = STATE_BODY_BIT_END;
-			return 0;
-		}
-		break;
+		data->state = STATE_BODY_BIT_END;
+		return 0;
 
 	case STATE_BODY_BIT_END:
-		if (IS_TRANSITION(u, data->last_unit)) {
-			if (data->count == data->wanted_bits)
-				data->state = STATE_FINISHED;
-			else
-				data->state = STATE_BODY_BIT_START;
+		if (!is_transition(&ev, &data->prev_ev))
+			break;
 
-			DECREASE_DURATION(u, 1);
-			goto again;
-		}
-		break;
+		if (data->count == data->wanted_bits)
+			data->state = STATE_FINISHED;
+		else
+			data->state = STATE_BODY_BIT_START;
+
+		decrease_duration(&ev, RC6_BIT_END);
+		goto again;
 
 	case STATE_FINISHED:
+		if (ev.pulse)
+			break;
+
 		switch (rc6_mode(data)) {
 		case RC6_MODE_0:
 			scancode = data->body & 0xffff;
@@ -335,8 +342,8 @@ again:
 	}
 
 out:
-	IR_dprintk(1, "RC6 decode failed at state %i (%i units, %ius)\n",
-		   data->state, u, TO_US(duration));
+	IR_dprintk(1, "RC6 decode failed at state %i (%uus %s)\n",
+		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

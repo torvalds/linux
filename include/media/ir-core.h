@@ -128,9 +128,21 @@ u32 ir_g_keycode_from_table(struct input_dev *input_dev, u32 scancode);
 
 /* From ir-raw-event.c */
 
-void ir_raw_event_handle(struct input_dev *input_dev);
-int ir_raw_event_store(struct input_dev *input_dev, s64 duration);
-int ir_raw_event_store_edge(struct input_dev *input_dev, enum raw_event_type type);
+struct ir_raw_event {
+	unsigned                        pulse:1;
+	unsigned                        duration:31;
+};
 
+#define IR_MAX_DURATION                 0x7FFFFFFF      /* a bit more than 2 seconds */
+
+void ir_raw_event_handle(struct input_dev *input_dev);
+int ir_raw_event_store(struct input_dev *input_dev, struct ir_raw_event *ev);
+int ir_raw_event_store_edge(struct input_dev *input_dev, enum raw_event_type type);
+static inline void ir_raw_event_reset(struct input_dev *input_dev)
+{
+	struct ir_raw_event ev = { .pulse = false, .duration = 0 };
+	ir_raw_event_store(input_dev, &ev);
+	ir_raw_event_handle(input_dev);
+}
 
 #endif /* _IR_CORE */

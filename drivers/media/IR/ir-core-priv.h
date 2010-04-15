@@ -22,7 +22,7 @@
 struct ir_raw_handler {
 	struct list_head list;
 
-	int (*decode)(struct input_dev *input_dev, s64 duration);
+	int (*decode)(struct input_dev *input_dev, struct ir_raw_event event);
 	int (*raw_register)(struct input_dev *input_dev);
 	int (*raw_unregister)(struct input_dev *input_dev);
 };
@@ -36,26 +36,28 @@ struct ir_raw_event_ctrl {
 };
 
 /* macros for IR decoders */
-#define PULSE(units)				((units))
-#define SPACE(units)				(-(units))
-#define IS_RESET(duration)			((duration) == 0)
-#define IS_PULSE(duration)			((duration) > 0)
-#define IS_SPACE(duration)			((duration) < 0)
-#define DURATION(duration)			(abs((duration)))
-#define IS_TRANSITION(x, y)			((x) * (y) < 0)
-#define DECREASE_DURATION(duration, amount)			\
-	do {							\
-		if (IS_SPACE(duration))				\
-			duration += (amount);			\
-		else if (IS_PULSE(duration))			\
-			duration -= (amount);			\
-	} while (0)
+static inline bool geq_margin(unsigned d1, unsigned d2, unsigned margin) {
+	return d1 > (d2 - margin);
+}
 
-#define TO_UNITS(duration, unit_len)				\
-	((int)((duration) > 0 ?					\
-		DIV_ROUND_CLOSEST(abs((duration)), (unit_len)) :\
-		-DIV_ROUND_CLOSEST(abs((duration)), (unit_len))))
-#define TO_US(duration)		((int)TO_UNITS(duration, 1000))
+static inline bool eq_margin(unsigned d1, unsigned d2, unsigned margin) {
+	return ((d1 > (d2 - margin)) && (d1 < (d2 + margin)));
+}
+
+static inline bool is_transition(struct ir_raw_event *x, struct ir_raw_event *y) {
+	return x->pulse != y->pulse;
+}
+
+static inline void decrease_duration(struct ir_raw_event *ev, unsigned duration) {
+	if (duration > ev->duration)
+		ev->duration = 0;
+	else
+		ev->duration -= duration;
+}
+
+#define TO_US(duration)			(((duration) + 500) / 1000)
+#define TO_STR(is_pulse)		((is_pulse) ? "pulse" : "space")
+#define IS_RESET(ev)			(ev.duration == 0)
 
 /*
  * Routines from ir-sysfs.c - Meant to be called only internally inside
@@ -70,11 +72,6 @@ void ir_unregister_class(struct input_dev *input_dev);
  */
 int ir_raw_event_register(struct input_dev *input_dev);
 void ir_raw_event_unregister(struct input_dev *input_dev);
-static inline void ir_raw_event_reset(struct input_dev *input_dev)
-{
-	ir_raw_event_store(input_dev, 0);
-	ir_raw_event_handle(input_dev);
-}
 int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_init(void);

@@ -25,8 +25,10 @@
 #define RC5_NBITS		14
 #define RC5X_NBITS		20
 #define CHECK_RC5X_NBITS	8
-#define RC5X_SPACE		SPACE(4)
 #define RC5_UNIT		888888 /* ns */
+#define RC5_BIT_START		(1 * RC5_UNIT)
+#define RC5_BIT_END		(1 * RC5_UNIT)
+#define RC5X_SPACE		(4 * RC5_UNIT)
 
 /* Used to register rc5_decoder clients */
 static LIST_HEAD(decoder_list);
@@ -48,7 +50,7 @@ struct decoder_data {
 	/* State machine control */
 	enum rc5_state		state;
 	u32			rc5_bits;
-	int			last_unit;
+	struct ir_raw_event	prev_ev;
 	unsigned		count;
 	unsigned		wanted_bits;
 };
@@ -124,17 +126,16 @@ static struct attribute_group decoder_attribute_group = {
 /**
  * ir_rc5_decode() - Decode one RC-5 pulse or space
  * @input_dev:	the struct input_dev descriptor of the device
- * @duration:	duration of pulse/space in ns
+ * @ev:		the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int ir_rc5_decode(struct input_dev *input_dev, s64 duration)
+static int ir_rc5_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 {
 	struct decoder_data *data;
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	u8 toggle;
 	u32 scancode;
-	int u;
 
 	data = get_decoder_data(ir_dev);
 	if (!data)
@@ -143,76 +144,65 @@ static int ir_rc5_decode(struct input_dev *input_dev, s64 duration)
 	if (!data->enabled)
 		return 0;
 
-	if (IS_RESET(duration)) {
+	if (IS_RESET(ev)) {
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
 
-	u = TO_UNITS(duration, RC5_UNIT);
-	if (DURATION(u) == 0)
+	if (!geq_margin(ev.duration, RC5_UNIT, RC5_UNIT / 2))
 		goto out;
 
 again:
-	IR_dprintk(2, "RC5(x) decode started at state %i (%i units, %ius)\n",
-		   data->state, u, TO_US(duration));
+	IR_dprintk(2, "RC5(x) decode started at state %i (%uus %s)\n",
+		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
-	if (DURATION(u) == 0 && data->state != STATE_FINISHED)
+	if (!geq_margin(ev.duration, RC5_UNIT, RC5_UNIT / 2))
 		return 0;
 
 	switch (data->state) {
 
 	case STATE_INACTIVE:
-		if (IS_PULSE(u)) {
-			data->state = STATE_BIT_START;
-			data->count = 1;
-			/* We just need enough bits to get to STATE_CHECK_RC5X */
-			data->wanted_bits = RC5X_NBITS;
-			DECREASE_DURATION(u, 1);
-			goto again;
-		}
-		break;
+		if (!ev.pulse)
+			break;
+
+		data->state = STATE_BIT_START;
+		data->count = 1;
+		/* We just need enough bits to get to STATE_CHECK_RC5X */
+		data->wanted_bits = RC5X_NBITS;
+		decrease_duration(&ev, RC5_BIT_START);
+		goto again;
 
 	case STATE_BIT_START:
-		if (DURATION(u) == 1) {
-			data->rc5_bits <<= 1;
-			if (IS_SPACE(u))
-				data->rc5_bits |= 1;
-			data->count++;
-			data->last_unit = u;
+		if (!eq_margin(ev.duration, RC5_BIT_START, RC5_UNIT / 2))
+			break;
 
-			/*
-			 * If the last bit is zero, a space will merge
-			 * with the silence after the command.
-			 */
-			if (IS_PULSE(u) && data->count == data->wanted_bits) {
-				data->state = STATE_FINISHED;
-				goto again;
-			}
-
-			data->state = STATE_BIT_END;
-			return 0;
-		}
-		break;
+		data->rc5_bits <<= 1;
+		if (!ev.pulse)
+			data->rc5_bits |= 1;
+		data->count++;
+		data->prev_ev = ev;
+		data->state = STATE_BIT_END;
+		return 0;
 
 	case STATE_BIT_END:
-		if (IS_TRANSITION(u, data->last_unit)) {
-			if (data->count == data->wanted_bits)
-				data->state = STATE_FINISHED;
-			else if (data->count == CHECK_RC5X_NBITS)
-				data->state = STATE_CHECK_RC5X;
-			else
-				data->state = STATE_BIT_START;
+		if (!is_transition(&ev, &data->prev_ev))
+			break;
 
-			DECREASE_DURATION(u, 1);
-			goto again;
-		}
-		break;
+		if (data->count == data->wanted_bits)
+			data->state = STATE_FINISHED;
+		else if (data->count == CHECK_RC5X_NBITS)
+			data->state = STATE_CHECK_RC5X;
+		else
+			data->state = STATE_BIT_START;
+
+		decrease_duration(&ev, RC5_BIT_END);
+		goto again;
 
 	case STATE_CHECK_RC5X:
-		if (IS_SPACE(u) && DURATION(u) >= DURATION(RC5X_SPACE)) {
+		if (!ev.pulse && geq_margin(ev.duration, RC5X_SPACE, RC5_UNIT / 2)) {
 			/* RC5X */
 			data->wanted_bits = RC5X_NBITS;
-			DECREASE_DURATION(u, DURATION(RC5X_SPACE));
+			decrease_duration(&ev, RC5X_SPACE);
 		} else {
 			/* RC5 */
 			data->wanted_bits = RC5_NBITS;
@@ -221,6 +211,9 @@ again:
 		goto again;
 
 	case STATE_FINISHED:
+		if (ev.pulse)
+			break;
+
 		if (data->wanted_bits == RC5X_NBITS) {
 			/* RC5X */
 			u8 xdata, command, system;
@@ -253,8 +246,8 @@ again:
 	}
 
 out:
-	IR_dprintk(1, "RC5(x) decode failed at state %i (%i units, %ius)\n",
-		   data->state, u, TO_US(duration));
+	IR_dprintk(1, "RC5(x) decode failed at state %i (%uus %s)\n",
+		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
