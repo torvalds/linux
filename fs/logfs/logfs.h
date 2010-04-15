@@ -727,4 +727,10 @@ static inline struct logfs_area *get_area(struct super_block *sb,
 	return logfs_super(sb)->s_area[(__force u8)gc_level];
 }
 
+static inline void logfs_mempool_destroy(mempool_t *pool)
+{
+	if (pool)
+		mempool_destroy(pool);
+}
+
 #endif

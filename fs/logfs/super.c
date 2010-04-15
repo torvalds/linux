@@ -517,8 +517,8 @@ static void logfs_kill_sb(struct super_block *sb)
 	if (super->s_erase_page)
 		__free_page(super->s_erase_page);
 	super->s_devops->put_device(sb);
-	mempool_destroy(super->s_btree_pool);
-	mempool_destroy(super->s_alias_pool);
+	logfs_mempool_destroy(super->s_btree_pool);
+	logfs_mempool_destroy(super->s_alias_pool);
 	kfree(super);
 	log_super("LogFS: Finished unmounting\n");
 }

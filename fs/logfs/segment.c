@@ -912,7 +912,7 @@ err:
 	for (i--; i >= 0; i--)
 		free_area(super->s_area[i]);
 	free_area(super->s_journal_area);
-	mempool_destroy(super->s_alias_pool);
+	logfs_mempool_destroy(super->s_alias_pool);
 	return -ENOMEM;
 }
 
