@@ -373,21 +373,16 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 	return result_data.result;
 }
 
-struct find_aer_service_data {
-	struct pcie_port_service_driver *aer_driver;
-};
-
 static int find_aer_service_iter(struct device *device, void *data)
 {
-	struct pcie_port_service_driver *service_driver;
-	struct find_aer_service_data *result;
+	struct pcie_port_service_driver *service_driver, **drv;
 
-	result = (struct find_aer_service_data *) data;
+	drv = (struct pcie_port_service_driver **) data;
 
 	if (device->bus == &pcie_port_bus_type && device->driver) {
 		service_driver = to_service_driver(device->driver);
 		if (service_driver->service == PCIE_PORT_SERVICE_AER) {
-			result->aer_driver = service_driver;
+			*drv = service_driver;
 			return 1;
 		}
 	}
@@ -395,11 +390,13 @@ static int find_aer_service_iter(struct device *device, void *data)
 	return 0;
 }
 
-static void find_aer_service(struct pci_dev *dev,
-		struct find_aer_service_data *data)
+static struct pcie_port_service_driver *find_aer_service(struct pci_dev *dev)
 {
-	int retval;
-	retval = device_for_each_child(&dev->dev, data, find_aer_service_iter);
+	struct pcie_port_service_driver *drv = NULL;
+
+	device_for_each_child(&dev->dev, &drv, find_aer_service_iter);
+
+	return drv;
 }
 
 static pci_ers_result_t reset_link(struct pcie_device *aerdev,
@@ -407,26 +404,24 @@ static pci_ers_result_t reset_link(struct pcie_device *aerdev,
 {
 	struct pci_dev *udev;
 	pci_ers_result_t status;
-	struct find_aer_service_data data;
+	struct pcie_port_service_driver *driver;
 
 	if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE)
 		udev = dev;
 	else
 		udev = dev->bus->self;
 
-	data.aer_driver = NULL;
-	find_aer_service(udev, &data);
+	/* Use the aer driver of the component firstly */
+	driver = find_aer_service(udev);
 
 	/*
-	 * Use the aer driver of the error agent firstly.
-	 * If it hasn't the aer driver, use the root port's
+	 * If it hasn't the driver and is downstream port, use the root port's
 	 */
-	if (!data.aer_driver || !data.aer_driver->reset_link) {
+	if (!driver || !driver->reset_link) {
 		if (udev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM &&
 			aerdev->device.driver &&
 			to_service_driver(aerdev->device.driver)->reset_link) {
-			data.aer_driver =
-				to_service_driver(aerdev->device.driver);
+			driver = to_service_driver(aerdev->device.driver);
 		} else {
 			dev_printk(KERN_DEBUG, &dev->dev,
 				"no link-reset support at upstream device %s\n",
@@ -435,7 +430,7 @@ static pci_ers_result_t reset_link(struct pcie_device *aerdev,
 		}
 	}
 
-	status = data.aer_driver->reset_link(udev);
+	status = driver->reset_link(udev);
 	if (status != PCI_ERS_RESULT_RECOVERED) {
 		dev_printk(KERN_DEBUG, &dev->dev,
 			"link reset at upstream device %s failed\n",
