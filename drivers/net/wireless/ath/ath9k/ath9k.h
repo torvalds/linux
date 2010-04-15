@@ -190,6 +190,7 @@ enum ATH_AGGR_STATUS {
 	ATH_AGGR_LIMITED,
 };
 
+#define ATH_TXFIFO_DEPTH 8
 struct ath_txq {
 	u32 axq_qnum;
 	u32 *axq_link;
@@ -199,6 +200,10 @@ struct ath_txq {
 	bool stopped;
 	bool axq_tx_inprogress;
 	struct list_head axq_acq;
+	struct list_head txq_fifo[ATH_TXFIFO_DEPTH];
+	struct list_head txq_fifo_pending;
+	u8 txq_headidx;
+	u8 txq_tailidx;
 };
 
 #define AGGR_CLEANUP         BIT(1)
@@ -268,6 +273,7 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		 struct ath_tx_control *txctl);
 void ath_tx_tasklet(struct ath_softc *sc);
+void ath_tx_edma_tasklet(struct ath_softc *sc);
 void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb);
 bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno);
 void ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,

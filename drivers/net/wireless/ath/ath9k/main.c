@@ -429,8 +429,12 @@ void ath9k_tasklet(unsigned long data)
 		spin_unlock_bh(&sc->rx.rxflushlock);
 	}
 
-	if (status & ATH9K_INT_TX)
-		ath_tx_tasklet(sc);
+	if (status & ATH9K_INT_TX) {
+		if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+			ath_tx_edma_tasklet(sc);
+		else
+			ath_tx_tasklet(sc);
+	}
 
 	if ((status & ATH9K_INT_TSFOOR) && sc->ps_enabled) {
 		/*
