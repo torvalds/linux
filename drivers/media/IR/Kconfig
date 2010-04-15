@@ -37,6 +37,15 @@ config IR_RC6_DECODER
 	   Enable this option if you have an infrared remote control which
 	   uses the RC6 protocol, and you need software decoding support.
 
+config IR_JVC_DECODER
+	tristate "Enable IR raw decoder for the JVC protocol"
+	depends on IR_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the JVC protocol, and you need software decoding support.
+
 config IR_IMON
 	tristate "SoundGraph iMON Receiver and Display"
 	depends on USB_ARCH_HAS_HCD

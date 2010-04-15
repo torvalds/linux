@@ -109,4 +109,11 @@ void ir_raw_init(void);
 #define load_rc6_decode()	0
 #endif
 
+/* from ir-jvc-decoder.c */
+#ifdef CONFIG_IR_JVC_DECODER_MODULE
+#define load_jvc_decode()	request_module("ir-jvc-decoder")
+#else
+#define load_jvc_decode()	0
+#endif
+
 #endif /* _IR_RAW_EVENT */
