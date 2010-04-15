@@ -185,7 +185,7 @@ static void aer_disable_rootport(struct aer_rpc *rpc)
  * @context: pointer to Root Port data structure
  *
  * Invoked when Root Port detects AER messages.
- **/
+ */
 irqreturn_t aer_irq(int irq, void *context)
 {
 	unsigned int status, id;
@@ -242,7 +242,7 @@ EXPORT_SYMBOL_GPL(aer_irq);
  * @dev: pointer to the pcie_dev data structure
  *
  * Invoked when Root Port's AER service is loaded.
- **/
+ */
 static struct aer_rpc *aer_alloc_rpc(struct pcie_device *dev)
 {
 	struct aer_rpc *rpc;
@@ -251,15 +251,11 @@ static struct aer_rpc *aer_alloc_rpc(struct pcie_device *dev)
 	if (!rpc)
 		return NULL;
 
-	/*
-	 * Initialize Root lock access, e_lock, to Root Error Status Reg,
-	 * Root Error ID Reg, and Root error producer/consumer index.
-	 */
+	/* Initialize Root lock access, e_lock, to Root Error Status Reg */
 	spin_lock_init(&rpc->e_lock);
 
 	rpc->rpd = dev;
 	INIT_WORK(&rpc->dpc_handler, aer_isr);
-	rpc->prod_idx = rpc->cons_idx = 0;
 	mutex_init(&rpc->rpc_mutex);
 	init_waitqueue_head(&rpc->wait_release);
 
@@ -274,7 +270,7 @@ static struct aer_rpc *aer_alloc_rpc(struct pcie_device *dev)
  * @dev: pointer to the pcie_dev data structure
  *
  * Invoked when PCI Express bus unloads or AER probe fails.
- **/
+ */
 static void aer_remove(struct pcie_device *dev)
 {
 	struct aer_rpc *rpc = get_service_data(dev);
@@ -298,7 +294,7 @@ static void aer_remove(struct pcie_device *dev)
  * @id: pointer to the service id data structure
  *
  * Invoked when PCI Express bus loads AER service driver.
- **/
+ */
 static int __devinit aer_probe(struct pcie_device *dev)
 {
 	int status;
@@ -338,7 +334,7 @@ static int __devinit aer_probe(struct pcie_device *dev)
  * @dev: pointer to Root Port's pci_dev data structure
  *
  * Invoked by Port Bus driver when performing link reset at Root Port.
- **/
+ */
 static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 {
 	u32 reg32;
@@ -372,7 +368,7 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
  * @error: error severity being notified by port bus
  *
  * Invoked by Port Bus driver during error recovery.
- **/
+ */
 static pci_ers_result_t aer_error_detected(struct pci_dev *dev,
 			enum pci_channel_state error)
 {
@@ -385,7 +381,7 @@ static pci_ers_result_t aer_error_detected(struct pci_dev *dev,
  * @dev: pointer to Root Port's pci_dev data structure
  *
  * Invoked by Port Bus driver during nonfatal recovery.
- **/
+ */
 static void aer_error_resume(struct pci_dev *dev)
 {
 	int pos;
@@ -412,7 +408,7 @@ static void aer_error_resume(struct pci_dev *dev)
  * aer_service_init - register AER root service driver
  *
  * Invoked when AER root service driver is loaded.
- **/
+ */
 static int __init aer_service_init(void)
 {
 	if (pcie_aer_disable)
@@ -426,7 +422,7 @@ static int __init aer_service_init(void)
  * aer_service_exit - unregister AER root service driver
  *
  * Invoked when AER root service driver is unloaded.
- **/
+ */
 static void __exit aer_service_exit(void)
 {
 	pcie_port_service_unregister(&aerdriver);
