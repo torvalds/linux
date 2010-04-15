@@ -409,8 +409,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->hw_version.subvendorid = 0;
 
 	ah->ah_flags = 0;
-	if (ah->hw_version.devid == AR5416_AR9100_DEVID)
-		ah->hw_version.macVersion = AR_SREV_VERSION_9100;
 	if (!AR_SREV_9100(ah))
 		ah->ah_flags = AH_USE_EEPROM;
 
@@ -873,14 +871,17 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	int r = 0;
 
-	ath9k_hw_init_defaults(ah);
-	ath9k_hw_init_config(ah);
+	if (ah->hw_version.devid == AR5416_AR9100_DEVID)
+		ah->hw_version.macVersion = AR_SREV_VERSION_9100;
 
 	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Couldn't reset chip\n");
 		return -EIO;
 	}
+
+	ath9k_hw_init_defaults(ah);
+	ath9k_hw_init_config(ah);
 
 	ath9k_hw_attach_ops(ah);
 
