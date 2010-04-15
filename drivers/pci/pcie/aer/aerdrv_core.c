@@ -99,17 +99,20 @@ int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_cleanup_aer_uncorrect_error_status);
 
+/**
+ * add_error_device - list device to be handled
+ * @e_info: pointer to error info
+ * @dev: pointer to pci_dev to be added
+ */
 static int add_error_device(struct aer_err_info *e_info, struct pci_dev *dev)
 {
 	if (e_info->error_dev_num < AER_MAX_MULTI_ERR_DEVICES) {
 		e_info->dev[e_info->error_dev_num] = dev;
 		e_info->error_dev_num++;
-		return 1;
+		return 0;
 	}
-
-	return 0;
+	return -ENOSPC;
 }
-
 
 #define	PCI_BUS(x)	(((x) >> 8) & 0xff)
 
@@ -183,7 +186,12 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 	struct aer_err_info *e_info = (struct aer_err_info *)data;
 
 	if (is_error_source(dev, e_info)) {
-		add_error_device(e_info, dev);
+		/* List this device */
+		if (add_error_device(e_info, dev)) {
+			/* We cannot handle more... Stop iteration */
+			/* TODO: Should print error message here? */
+			return 1;
+		}
 
 		/* If there is only a single error, stop iteration */
 		if (!e_info->multi_error_valid)
