@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "ar9003_phy.h"
 
 /**
  * ar9003_hw_set_channel - set channel on single-chip device
