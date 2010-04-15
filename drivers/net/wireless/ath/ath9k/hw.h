@@ -206,6 +206,7 @@ struct ath9k_hw_capabilities {
 	u8 rx_hp_qdepth;
 	u8 rx_lp_qdepth;
 	u8 rx_status_len;
+	u8 tx_desc_len;
 };
 
 struct ath9k_ops_config {

@@ -37,6 +37,34 @@ struct ar9003_rxs {
 	u32 status11;
 } __packed;
 
+/* Transmit Control Descriptor */
+struct ar9003_txc {
+	u32 info;   /* descriptor information */
+	u32 link;   /* link pointer */
+	u32 data0;  /* data pointer to 1st buffer */
+	u32 ctl3;   /* DMA control 3  */
+	u32 data1;  /* data pointer to 2nd buffer */
+	u32 ctl5;   /* DMA control 5  */
+	u32 data2;  /* data pointer to 3rd buffer */
+	u32 ctl7;   /* DMA control 7  */
+	u32 data3;  /* data pointer to 4th buffer */
+	u32 ctl9;   /* DMA control 9  */
+	u32 ctl10;  /* DMA control 10 */
+	u32 ctl11;  /* DMA control 11 */
+	u32 ctl12;  /* DMA control 12 */
+	u32 ctl13;  /* DMA control 13 */
+	u32 ctl14;  /* DMA control 14 */
+	u32 ctl15;  /* DMA control 15 */
+	u32 ctl16;  /* DMA control 16 */
+	u32 ctl17;  /* DMA control 17 */
+	u32 ctl18;  /* DMA control 18 */
+	u32 ctl19;  /* DMA control 19 */
+	u32 ctl20;  /* DMA control 20 */
+	u32 ctl21;  /* DMA control 21 */
+	u32 ctl22;  /* DMA control 22 */
+	u32 pad[9]; /* pad to cache line (128 bytes/32 dwords) */
+} __packed;
+
 void ar9003_hw_attach_mac_ops(struct ath_hw *hw);
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size);
 void ath9k_hw_addrxbuf_edma(struct ath_hw *ah, u32 rxdp,
