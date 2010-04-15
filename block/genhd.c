@@ -596,6 +596,7 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
 
 	return disk;
 }
+EXPORT_SYMBOL(get_gendisk);
 
 /**
  * bdget_disk - do bdget() by gendisk and partition number
