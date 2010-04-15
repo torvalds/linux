@@ -1756,4 +1756,17 @@ enum {
 #define AR9271_CORE_CLOCK	117   /* clock to 117Mhz */
 #define AR9271_TARGET_BAUD_RATE	19200 /* 115200 */
 
+#define AR_AGG_WEP_ENABLE_FIX		0x00000008  /* This allows the use of AR_AGG_WEP_ENABLE */
+#define AR_ADHOC_MCAST_KEYID_ENABLE     0x00000040  /* This bit enables the Multicast search
+						     * based on both MAC Address and Key ID.
+						     * If bit is 0, then Multicast search is
+						     * based on MAC address only.
+						     * For Merlin and above only.
+						     */
+#define AR_AGG_WEP_ENABLE               0x00020000  /* This field enables AGG_WEP feature,
+						     * when it is enable, AGG_WEP would takes
+						     * charge of the encryption interface of
+						     * pcu_txsm.
+						     */
+
 #endif
