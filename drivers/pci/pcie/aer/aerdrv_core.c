@@ -208,12 +208,18 @@ static int find_device_iter(struct pci_dev *dev, void *data)
  * Return true if found.
  *
  * Invoked by DPC when error is detected at the Root Port.
+ * Caller of this function must set id, severity, and multi_error_valid of
+ * struct aer_err_info pointed by @e_info properly.  This function must fill
+ * e_info->error_dev_num and e_info->dev[], based on the given information.
  */
 static bool find_source_device(struct pci_dev *parent,
 		struct aer_err_info *e_info)
 {
 	struct pci_dev *dev = parent;
 	int result;
+
+	/* Must reset in this function */
+	e_info->error_dev_num = 0;
 
 	/* Is Root Port an agent that sends error message? */
 	result = find_device_iter(dev, e_info);
@@ -580,11 +586,14 @@ static struct aer_err_source *get_e_source(struct aer_rpc *rpc)
  * @info: pointer to structure to store the error record
  *
  * Return 1 on success, 0 on error.
+ *
+ * Note that @info is reused among all error devices. Clear fields properly.
  */
 static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 {
 	int pos, temp;
 
+	/* Must reset in this function */
 	info->status = 0;
 	info->tlp_header_valid = 0;
 
@@ -657,11 +666,10 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 		struct aer_err_source *e_src)
 {
 	struct aer_err_info *e_info;
-	int i;
 
 	/* struct aer_err_info might be big, so we allocate it with slab */
 	e_info = kmalloc(sizeof(struct aer_err_info), GFP_KERNEL);
-	if (e_info == NULL) {
+	if (!e_info) {
 		dev_printk(KERN_DEBUG, &p_device->port->dev,
 			"Can't allocate mem when processing AER errors\n");
 		return;
@@ -671,26 +679,33 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 	 * There is a possibility that both correctable error and
 	 * uncorrectable error being logged. Report correctable error first.
 	 */
-	for (i = 1; i & ROOT_ERR_STATUS_MASKS ; i <<= 2) {
-		if (i > 4)
-			break;
-		if (!(e_src->status & i))
-			continue;
+	if (e_src->status & PCI_ERR_ROOT_COR_RCV) {
+		e_info->id = ERR_COR_ID(e_src->id);
+		e_info->severity = AER_CORRECTABLE;
 
-		memset(e_info, 0, sizeof(struct aer_err_info));
-
-		/* Init comprehensive error information */
-		if (i & PCI_ERR_ROOT_COR_RCV) {
-			e_info->id = ERR_COR_ID(e_src->id);
-			e_info->severity = AER_CORRECTABLE;
-		} else {
-			e_info->id = ERR_UNCOR_ID(e_src->id);
-			e_info->severity = ((e_src->status >> 6) & 1);
-		}
-		if (e_src->status &
-			(PCI_ERR_ROOT_MULTI_COR_RCV |
-			 PCI_ERR_ROOT_MULTI_UNCOR_RCV))
+		if (e_src->status & PCI_ERR_ROOT_MULTI_COR_RCV)
 			e_info->multi_error_valid = 1;
+		else
+			e_info->multi_error_valid = 0;
+
+		aer_print_port_info(p_device->port, e_info);
+
+		if (find_source_device(p_device->port, e_info))
+			aer_process_err_devices(p_device, e_info);
+	}
+
+	if (e_src->status & PCI_ERR_ROOT_UNCOR_RCV) {
+		e_info->id = ERR_UNCOR_ID(e_src->id);
+
+		if (e_src->status & PCI_ERR_ROOT_FATAL_RCV)
+			e_info->severity = AER_FATAL;
+		else
+			e_info->severity = AER_NONFATAL;
+
+		if (e_src->status & PCI_ERR_ROOT_MULTI_UNCOR_RCV)
+			e_info->multi_error_valid = 1;
+		else
+			e_info->multi_error_valid = 0;
 
 		aer_print_port_info(p_device->port, e_info);
 
