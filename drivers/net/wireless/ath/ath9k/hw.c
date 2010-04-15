@@ -2594,6 +2594,37 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 }
 EXPORT_SYMBOL(ath9k_hw_set_interrupts);
 
+/*
+ * Helper for ASPM support.
+ *
+ * Disable PLL when in L0s as well as receiver clock when in L1.
+ * This power saving option must be enabled through the SerDes.
+ *
+ * Programming the SerDes must go through the same 288 bit serial shift
+ * register as the other analog registers.  Hence the 9 writes.
+ */
+static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
+					 int restore,
+					 int power_off)
+{
+	if (ah->is_pciexpress != true)
+		return;
+
+	/* Do not touch SerDes registers */
+	if (ah->config.pcie_powersave_enable == 2)
+		return;
+
+	/* Nothing to do on restore for 11N */
+	if (!restore) {
+		/* set bit 19 to allow forcing of pcie core into L1 state */
+		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+
+		/* Several PCIe massages to ensure proper behaviour */
+		if (ah->config.pcie_waen)
+			REG_WRITE(ah, AR_WA, ah->config.pcie_waen);
+	}
+}
+
 /*******************/
 /* Beacon Handling */
 /*******************/
@@ -3628,9 +3659,12 @@ static void ar9002_hw_attach_ops(struct ath_hw *ah)
 static void ar9003_hw_attach_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 
 	priv_ops->init_mode_regs = ar9003_hw_init_mode_regs;
 	priv_ops->macversion_supported = ar9003_hw_macversion_supported;
+
+	ops->config_pci_powersave = ar9003_hw_configpcipowersave;
 
 	ar9003_hw_attach_phy_ops(ah);
 	ar9003_hw_attach_calib_ops(ah);
