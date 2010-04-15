@@ -155,6 +155,7 @@
 #define AR5416_BCHAN_UNUSED             0xFF
 #define AR5416_MAX_PWR_RANGE_IN_HALF_DB 64
 #define AR5416_MAX_CHAINS               3
+#define AR9300_MAX_CHAINS		3
 #define AR5416_PWR_TABLE_OFFSET_DB     -5
 
 /* Rx gain type values */
