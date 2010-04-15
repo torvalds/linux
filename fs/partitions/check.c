@@ -374,6 +374,8 @@ static int part_uevent(struct device *dev, struct kobj_uevent_env *env)
 	struct hd_struct *part = dev_to_part(dev);
 
 	add_uevent_var(env, "PARTN=%u", part->partno);
+	if (part->partition_name)
+		add_uevent_var(env, "PARTNAME=%s", part->partition_name);
 	return 0;
 }
 
