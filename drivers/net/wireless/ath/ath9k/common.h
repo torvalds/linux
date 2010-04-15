@@ -77,7 +77,7 @@ struct ath_buf {
 					   an aggregate) */
 	struct ath_buf *bf_next;	/* next subframe in the aggregate */
 	struct sk_buff *bf_mpdu;	/* enclosing frame structure */
-	struct ath_desc *bf_desc;	/* virtual addr of desc */
+	void *bf_desc;			/* virtual addr of desc */
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
 	bool bf_stale;
