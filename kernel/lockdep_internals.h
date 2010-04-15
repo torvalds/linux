@@ -140,19 +140,13 @@ struct lockdep_stats {
 DECLARE_PER_CPU(struct lockdep_stats, lockdep_stats);
 
 #define debug_atomic_inc(ptr)			{		\
-	struct lockdep_stats *__cpu_lockdep_stats;		\
-								\
 	WARN_ON_ONCE(!irqs_disabled());				\
-	__cpu_lockdep_stats = &__get_cpu_var(lockdep_stats);	\
-	__cpu_lockdep_stats->ptr++;				\
+	this_cpu_inc(lockdep_stats.ptr);			\
 }
 
 #define debug_atomic_dec(ptr)			{		\
-	struct lockdep_stats *__cpu_lockdep_stats;		\
-								\
 	WARN_ON_ONCE(!irqs_disabled());				\
-	__cpu_lockdep_stats = &__get_cpu_var(lockdep_stats);	\
-	__cpu_lockdep_stats->ptr--;				\
+	this_cpu_inc(lockdep_stats.ptr);			\
 }
 
 #define debug_atomic_read(ptr)		({				\
