@@ -573,6 +573,17 @@ static bool ar9002_hw_macversion_supported(u32 macversion)
 	return false;
 }
 
+static bool ar9003_hw_macversion_supported(u32 macversion)
+{
+	switch (macversion) {
+	case AR_SREV_VERSION_9300:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+
 static void ar9002_hw_init_cal_settings(struct ath_hw *ah)
 {
 	if (AR_SREV_9160_10_OR_LATER(ah)) {
@@ -3542,5 +3553,9 @@ static void ar9002_hw_attach_ops(struct ath_hw *ah)
 /* Sets up the AR9003 hardware familiy callbacks */
 static void ar9003_hw_attach_ops(struct ath_hw *ah)
 {
+	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+
+	priv_ops->macversion_supported = ar9003_hw_macversion_supported;
+
 	ar9003_hw_attach_phy_ops(ah);
 }
