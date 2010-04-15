@@ -715,8 +715,8 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 	return 0;
 }
 
-int translate_desc(struct vhost_dev *dev, u64 addr, u32 len,
-		   struct iovec iov[], int iov_size)
+static int translate_desc(struct vhost_dev *dev, u64 addr, u32 len,
+			  struct iovec iov[], int iov_size)
 {
 	const struct vhost_memory_region *reg;
 	struct vhost_memory *mem;
@@ -741,7 +741,7 @@ int translate_desc(struct vhost_dev *dev, u64 addr, u32 len,
 		_iov = iov + ret;
 		size = reg->memory_size - addr + reg->guest_phys_addr;
 		_iov->iov_len = min((u64)len, size);
-		_iov->iov_base = (void *)(unsigned long)
+		_iov->iov_base = (void __user *)(unsigned long)
 			(reg->userspace_addr + addr - reg->guest_phys_addr);
 		s += size;
 		addr += size;
@@ -995,7 +995,7 @@ void vhost_discard_vq_desc(struct vhost_virtqueue *vq)
  * want to notify the guest, using eventfd. */
 int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 {
-	struct vring_used_elem *used;
+	struct vring_used_elem __user *used;
 
 	/* The virtqueue contains a ring of used buffers.  Get a pointer to the
 	 * next entry in that used ring. */
@@ -1019,7 +1019,8 @@ int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 		smp_wmb();
 		/* Log used ring entry write. */
 		log_write(vq->log_base,
-			  vq->log_addr + ((void *)used - (void *)vq->used),
+			  vq->log_addr +
+			   ((void __user *)used - (void __user *)vq->used),
 			  sizeof *used);
 		/* Log used index update. */
 		log_write(vq->log_base,

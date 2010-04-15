@@ -642,7 +642,7 @@ static struct miscdevice vhost_net_misc = {
 	&vhost_net_fops,
 };
 
-int vhost_net_init(void)
+static int vhost_net_init(void)
 {
 	int r = vhost_init();
 	if (r)
@@ -659,7 +659,7 @@ err_init:
 }
 module_init(vhost_net_init);
 
-void vhost_net_exit(void)
+static void vhost_net_exit(void)
 {
 	misc_deregister(&vhost_net_misc);
 	vhost_cleanup();
