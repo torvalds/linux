@@ -2145,6 +2145,9 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->tx_desc_len = sizeof(struct ath_desc);
 	}
 
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		pCap->hw_caps |= ATH9K_HW_CAP_RAC_SUPPORTED;
+
 	return 0;
 }
 

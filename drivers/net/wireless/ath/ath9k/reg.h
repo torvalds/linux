@@ -169,6 +169,8 @@
 #define AR_ISR               0x0080
 #define AR_ISR_RXOK          0x00000001
 #define AR_ISR_RXDESC        0x00000002
+#define AR_ISR_HP_RXOK	     0x00000001
+#define AR_ISR_LP_RXOK	     0x00000002
 #define AR_ISR_RXERR         0x00000004
 #define AR_ISR_RXNOPKT       0x00000008
 #define AR_ISR_RXEOL         0x00000010

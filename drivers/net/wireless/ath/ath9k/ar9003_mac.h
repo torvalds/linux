@@ -22,6 +22,14 @@
 #define AR_CtrlStat	0x00004000
 #define AR_TxRxDesc	0x00008000
 
+#define MAP_ISR_S2_CST          6
+#define MAP_ISR_S2_GTT          6
+#define MAP_ISR_S2_TIM          3
+#define MAP_ISR_S2_CABEND       0
+#define MAP_ISR_S2_DTIMSYNC     7
+#define MAP_ISR_S2_DTIM         7
+#define MAP_ISR_S2_TSFOOR       4
+
 struct ar9003_rxs {
 	u32 ds_info;
 	u32 status1;
