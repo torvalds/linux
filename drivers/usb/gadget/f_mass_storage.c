@@ -2261,18 +2261,19 @@ static int do_set_config(struct fsg_dev *fsg, u8 new_config)
 {
 	int	rc = 0;
 
-	if (new_config == fsg->config)
-		return rc;
-
 	/* Disable the single interface */
 	if (fsg->config != 0) {
 		DBG(fsg, "reset config\n");
 		fsg->config = 0;
+		rc = do_set_interface(fsg, -1);
 	}
 
 	/* Enable the interface */
-	if (new_config != 0)
+	if (new_config != 0) {
 		fsg->config = new_config;
+		if ((rc = do_set_interface(fsg, 0)) != 0)
+			fsg->config = 0;	// Reset on errors
+	}
 
 	switch_set_state(&fsg->sdev, new_config);
 	adjust_wake_lock(fsg);
@@ -2287,6 +2288,7 @@ static void handle_exception(struct fsg_dev *fsg)
 	siginfo_t		info;
 	int			sig;
 	int			i;
+	int			num_active;
 	struct fsg_buffhd	*bh;
 	enum fsg_state		old_state;
 	u8			new_config;
@@ -2306,6 +2308,28 @@ static void handle_exception(struct fsg_dev *fsg)
 				DBG(fsg, "Main thread exiting on signal\n");
 			raise_exception(fsg, FSG_STATE_EXIT);
 		}
+	}
+
+	/* Cancel all the pending transfers */
+	for (i = 0; i < NUM_BUFFERS; ++i) {
+		bh = &fsg->buffhds[i];
+		if (bh->inreq_busy)
+			usb_ep_dequeue(fsg->bulk_in, bh->inreq);
+		if (bh->outreq_busy)
+			usb_ep_dequeue(fsg->bulk_out, bh->outreq);
+	}
+
+	/* Wait until everything is idle */
+	for (;;) {
+		num_active = 0;
+		for (i = 0; i < NUM_BUFFERS; ++i) {
+			bh = &fsg->buffhds[i];
+			num_active += bh->outreq_busy;
+		}
+		if (num_active == 0)
+			break;
+		if (sleep_thread(fsg))
+			return;
 	}
 
 	/*
@@ -2378,10 +2402,6 @@ static void handle_exception(struct fsg_dev *fsg)
 
 	case FSG_STATE_EXIT:
 	case FSG_STATE_TERMINATED:
-		if (new_config)  {
-			fsg->new_config = 0;
-			do_set_interface(fsg, -1);
-		}
 		do_set_config(fsg, 0);			/* Free resources */
 		spin_lock_irqsave(&fsg->lock, flags);
 		fsg->state = FSG_STATE_TERMINATED;	/* Stop the thread */
@@ -2885,7 +2905,6 @@ static int fsg_function_set_alt(struct usb_function *f,
 	struct fsg_dev	*fsg = func_to_dev(f);
 	DBG(fsg, "fsg_function_set_alt intf: %d alt: %d\n", intf, alt);
 	fsg->new_config = 1;
-	do_set_interface(fsg, 0);
 	raise_exception(fsg, FSG_STATE_CONFIG_CHANGE);
 	return 0;
 }
@@ -2894,8 +2913,6 @@ static void fsg_function_disable(struct usb_function *f)
 {
 	struct fsg_dev	*fsg = func_to_dev(f);
 	DBG(fsg, "fsg_function_disable\n");
-	if (fsg->new_config)
-		do_set_interface(fsg, -1);
 	fsg->new_config = 0;
 	raise_exception(fsg, FSG_STATE_CONFIG_CHANGE);
 }
