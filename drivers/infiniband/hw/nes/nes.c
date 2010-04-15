@@ -44,6 +44,7 @@
 #include <linux/init.h>
 #include <linux/if_arp.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>

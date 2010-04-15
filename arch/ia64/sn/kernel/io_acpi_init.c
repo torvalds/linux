@@ -13,6 +13,7 @@
 #include <asm/sn/sn_sal.h>
 #include "xtalk/hubdev.h"
 #include <linux/acpi.h>
+#include <linux/slab.h>
 
 
 /*

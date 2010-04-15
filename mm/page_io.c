@@ -12,6 +12,7 @@
 
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
+#include <linux/gfp.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
 #include <linux/bio.h>

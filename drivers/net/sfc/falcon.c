@@ -15,6 +15,7 @@
 #include <linux/seq_file.h>
 #include <linux/i2c.h>
 #include <linux/mii.h>
+#include <linux/slab.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"

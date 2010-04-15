@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/lmb.h>
+#include <linux/slab.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>

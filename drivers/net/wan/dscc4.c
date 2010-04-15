@@ -89,6 +89,7 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/cache.h>

@@ -11,6 +11,7 @@
  */
 #include "logfs.h"
 #include <linux/bio.h>
+#include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/statfs.h>
 #include <linux/buffer_head.h>

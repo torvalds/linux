@@ -29,6 +29,7 @@
 #include "ntlmssp.h"
 #include "nterr.h"
 #include <linux/utsname.h>
+#include <linux/slab.h>
 #include "cifs_spnego.h"
 
 extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,

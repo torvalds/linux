@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/pci.h>		/* for hppa_dma_ops and pcxl_dma_ops */

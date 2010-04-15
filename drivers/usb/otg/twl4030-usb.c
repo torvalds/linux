@@ -37,6 +37,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/notifier.h>
+#include <linux/slab.h>
 
 /* Register defines */
 

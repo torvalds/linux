@@ -12,6 +12,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>

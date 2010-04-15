@@ -20,6 +20,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/slab.h>
 
 #include "saa7164.h"
 

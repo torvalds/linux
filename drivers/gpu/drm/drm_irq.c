@@ -36,6 +36,7 @@
 #include "drmP.h"
 
 #include <linux/interrupt.h>	/* For task queue support */
+#include <linux/slab.h>
 
 #include <linux/vgaarb.h>
 /**

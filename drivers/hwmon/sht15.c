@@ -36,6 +36,7 @@
 #include <linux/err.h>
 #include <linux/sht15.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 #include <asm/atomic.h>
 
 #define SHT15_MEASURE_TEMP	3

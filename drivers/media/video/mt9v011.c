@@ -6,6 +6,7 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/delay.h>
 #include <asm/div64.h>

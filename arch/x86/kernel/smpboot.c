@@ -49,6 +49,7 @@
 #include <linux/nmi.h>
 #include <linux/tboot.h>
 #include <linux/stackprotector.h>
+#include <linux/gfp.h>
 
 #include <asm/acpi.h>
 #include <asm/desc.h>
@@ -242,8 +243,6 @@ static void __cpuinit smp_callin(void)
 	end_local_APIC_setup();
 	map_cpu_to_logical_apicid();
 
-	notify_cpu_starting(cpuid);
-
 	/*
 	 * Need to setup vector mappings before we enable interrupts.
 	 */
@@ -263,6 +262,8 @@ static void __cpuinit smp_callin(void)
 	 * Save our processor parameters
 	 */
 	smp_store_cpu_info(cpuid);
+
+	notify_cpu_starting(cpuid);
 
 	/*
 	 * Allow the master to continue.

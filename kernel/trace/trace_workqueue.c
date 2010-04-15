@@ -9,6 +9,7 @@
 #include <trace/events/workqueue.h>
 #include <linux/list.h>
 #include <linux/percpu.h>
+#include <linux/slab.h>
 #include <linux/kref.h>
 #include "trace_stat.h"
 #include "trace.h"

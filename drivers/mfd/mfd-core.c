@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/mfd/core.h>
+#include <linux/slab.h>
 
 static int mfd_add_device(struct device *parent, int id,
 			  const struct mfd_cell *cell,

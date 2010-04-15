@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/net.h>
 #include <linux/in6.h>
 #include <asm/uaccess.h>

@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <linux/wireless.h>
 #include <linux/uaccess.h>
 #include <net/cfg80211.h>

@@ -53,6 +53,7 @@
  * good, and GC takes extra care when moving them.
  */
 
+#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/list_sort.h>
 #include "ubifs.h"

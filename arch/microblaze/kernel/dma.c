@@ -8,6 +8,7 @@
 
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 #include <linux/dma-debug.h>
 #include <asm/bug.h>
 #include <asm/cacheflush.h>

@@ -26,6 +26,7 @@
 #include <linux/security.h>
 #include <linux/pid.h>
 #include <linux/nsproxy.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>

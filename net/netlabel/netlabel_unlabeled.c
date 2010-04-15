@@ -43,6 +43,7 @@
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
 #include <linux/security.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
@@ -114,6 +115,9 @@ struct netlbl_unlhsh_walk_arg {
 /* updates should be so rare that having one spinlock for the entire
  * hash table should be okay */
 static DEFINE_SPINLOCK(netlbl_unlhsh_lock);
+#define netlbl_unlhsh_rcu_deref(p) \
+	rcu_dereference_check(p, rcu_read_lock_held() || \
+				 lockdep_is_held(&netlbl_unlhsh_lock))
 static struct netlbl_unlhsh_tbl *netlbl_unlhsh = NULL;
 static struct netlbl_unlhsh_iface *netlbl_unlhsh_def = NULL;
 
@@ -235,15 +239,13 @@ static void netlbl_unlhsh_free_iface(struct rcu_head *entry)
  * Description:
  * This is the hashing function for the unlabeled hash table, it returns the
  * bucket number for the given device/interface.  The caller is responsible for
- * calling the rcu_read_[un]lock() functions.
+ * ensuring that the hash table is protected with either a RCU read lock or
+ * the hash table lock.
  *
  */
 static u32 netlbl_unlhsh_hash(int ifindex)
 {
-	/* this is taken _almost_ directly from
-	 * security/selinux/netif.c:sel_netif_hasfn() as they do pretty much
-	 * the same thing */
-	return ifindex & (rcu_dereference(netlbl_unlhsh)->size - 1);
+	return ifindex & (netlbl_unlhsh_rcu_deref(netlbl_unlhsh)->size - 1);
 }
 
 /**
@@ -253,7 +255,8 @@ static u32 netlbl_unlhsh_hash(int ifindex)
  * Description:
  * Searches the unlabeled connection hash table and returns a pointer to the
  * interface entry which matches @ifindex, otherwise NULL is returned.  The
- * caller is responsible for calling the rcu_read_[un]lock() functions.
+ * caller is responsible for ensuring that the hash table is protected with
+ * either a RCU read lock or the hash table lock.
  *
  */
 static struct netlbl_unlhsh_iface *netlbl_unlhsh_search_iface(int ifindex)
@@ -263,37 +266,10 @@ static struct netlbl_unlhsh_iface *netlbl_unlhsh_search_iface(int ifindex)
 	struct netlbl_unlhsh_iface *iter;
 
 	bkt = netlbl_unlhsh_hash(ifindex);
-	bkt_list = &rcu_dereference(netlbl_unlhsh)->tbl[bkt];
+	bkt_list = &netlbl_unlhsh_rcu_deref(netlbl_unlhsh)->tbl[bkt];
 	list_for_each_entry_rcu(iter, bkt_list, list)
 		if (iter->valid && iter->ifindex == ifindex)
 			return iter;
-
-	return NULL;
-}
-
-/**
- * netlbl_unlhsh_search_iface_def - Search for a matching interface entry
- * @ifindex: the network interface
- *
- * Description:
- * Searches the unlabeled connection hash table and returns a pointer to the
- * interface entry which matches @ifindex.  If an exact match can not be found
- * and there is a valid default entry, the default entry is returned, otherwise
- * NULL is returned.  The caller is responsible for calling the
- * rcu_read_[un]lock() functions.
- *
- */
-static struct netlbl_unlhsh_iface *netlbl_unlhsh_search_iface_def(int ifindex)
-{
-	struct netlbl_unlhsh_iface *entry;
-
-	entry = netlbl_unlhsh_search_iface(ifindex);
-	if (entry != NULL)
-		return entry;
-
-	entry = rcu_dereference(netlbl_unlhsh_def);
-	if (entry != NULL && entry->valid)
-		return entry;
 
 	return NULL;
 }
@@ -308,8 +284,7 @@ static struct netlbl_unlhsh_iface *netlbl_unlhsh_search_iface_def(int ifindex)
  * Description:
  * Add a new address entry into the unlabeled connection hash table using the
  * interface entry specified by @iface.  On success zero is returned, otherwise
- * a negative value is returned.  The caller is responsible for calling the
- * rcu_read_[un]lock() functions.
+ * a negative value is returned.
  *
  */
 static int netlbl_unlhsh_add_addr4(struct netlbl_unlhsh_iface *iface,
@@ -349,8 +324,7 @@ static int netlbl_unlhsh_add_addr4(struct netlbl_unlhsh_iface *iface,
  * Description:
  * Add a new address entry into the unlabeled connection hash table using the
  * interface entry specified by @iface.  On success zero is returned, otherwise
- * a negative value is returned.  The caller is responsible for calling the
- * rcu_read_[un]lock() functions.
+ * a negative value is returned.
  *
  */
 static int netlbl_unlhsh_add_addr6(struct netlbl_unlhsh_iface *iface,
@@ -391,8 +365,7 @@ static int netlbl_unlhsh_add_addr6(struct netlbl_unlhsh_iface *iface,
  * Description:
  * Add a new, empty, interface entry into the unlabeled connection hash table.
  * On success a pointer to the new interface entry is returned, on failure NULL
- * is returned.  The caller is responsible for calling the rcu_read_[un]lock()
- * functions.
+ * is returned.
  *
  */
 static struct netlbl_unlhsh_iface *netlbl_unlhsh_add_iface(int ifindex)
@@ -415,10 +388,10 @@ static struct netlbl_unlhsh_iface *netlbl_unlhsh_add_iface(int ifindex)
 		if (netlbl_unlhsh_search_iface(ifindex) != NULL)
 			goto add_iface_failure;
 		list_add_tail_rcu(&iface->list,
-				  &rcu_dereference(netlbl_unlhsh)->tbl[bkt]);
+			     &netlbl_unlhsh_rcu_deref(netlbl_unlhsh)->tbl[bkt]);
 	} else {
 		INIT_LIST_HEAD(&iface->list);
-		if (rcu_dereference(netlbl_unlhsh_def) != NULL)
+		if (netlbl_unlhsh_rcu_deref(netlbl_unlhsh_def) != NULL)
 			goto add_iface_failure;
 		rcu_assign_pointer(netlbl_unlhsh_def, iface);
 	}
@@ -548,8 +521,7 @@ unlhsh_add_return:
  *
  * Description:
  * Remove an IP address entry from the unlabeled connection hash table.
- * Returns zero on success, negative values on failure.  The caller is
- * responsible for calling the rcu_read_[un]lock() functions.
+ * Returns zero on success, negative values on failure.
  *
  */
 static int netlbl_unlhsh_remove_addr4(struct net *net,
@@ -611,8 +583,7 @@ static int netlbl_unlhsh_remove_addr4(struct net *net,
  *
  * Description:
  * Remove an IP address entry from the unlabeled connection hash table.
- * Returns zero on success, negative values on failure.  The caller is
- * responsible for calling the rcu_read_[un]lock() functions.
+ * Returns zero on success, negative values on failure.
  *
  */
 static int netlbl_unlhsh_remove_addr6(struct net *net,
@@ -1547,8 +1518,10 @@ int netlbl_unlabel_getattr(const struct sk_buff *skb,
 	struct netlbl_unlhsh_iface *iface;
 
 	rcu_read_lock();
-	iface = netlbl_unlhsh_search_iface_def(skb->skb_iif);
+	iface = netlbl_unlhsh_search_iface(skb->skb_iif);
 	if (iface == NULL)
+		iface = rcu_dereference(netlbl_unlhsh_def);
+	if (iface == NULL || !iface->valid)
 		goto unlabel_getattr_nolabel;
 	switch (family) {
 	case PF_INET: {

@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/stringify.h>

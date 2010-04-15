@@ -22,6 +22,7 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include "ctree.h"
 #include "btrfs_inode.h"

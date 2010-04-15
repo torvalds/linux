@@ -6,6 +6,7 @@
 #include <linux/inet.h>
 #include <linux/kthread.h>
 #include <linux/net.h>
+#include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/string.h>
 #include <net/tcp.h>

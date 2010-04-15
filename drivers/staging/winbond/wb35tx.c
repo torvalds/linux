@@ -9,6 +9,7 @@
 //
 //============================================================================
 #include <linux/usb.h>
+#include <linux/gfp.h>
 
 #include "wb35tx_f.h"
 #include "mds_f.h"

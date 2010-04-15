@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 #include <linux/console.h>
+#include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>

@@ -23,6 +23,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/ip.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>

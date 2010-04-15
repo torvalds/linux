@@ -30,7 +30,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/if_ether.h>
 
 #include "e1000_mac.h"

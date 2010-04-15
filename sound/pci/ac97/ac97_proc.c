@@ -22,7 +22,6 @@
  *
  */
 
-#include <linux/slab.h>
 #include <linux/mutex.h>
 
 #include <sound/core.h>

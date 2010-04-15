@@ -27,6 +27,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/netfilter.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/protocol.h>
 #include <net/tcp.h>

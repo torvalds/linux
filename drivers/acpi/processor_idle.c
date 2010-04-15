@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
+#include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/acpi.h>

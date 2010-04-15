@@ -486,8 +486,4 @@ void proc_sched_set_task(struct task_struct *p)
 #ifdef CONFIG_SCHEDSTATS
 	memset(&p->se.statistics, 0, sizeof(p->se.statistics));
 #endif
-	p->se.sum_exec_runtime			= 0;
-	p->se.prev_sum_exec_runtime		= 0;
-	p->nvcsw				= 0;
-	p->nivcsw				= 0;
 }

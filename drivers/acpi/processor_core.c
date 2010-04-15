@@ -8,6 +8,7 @@
  *	- Added _PDC for platforms with Intel CPUs
  */
 #include <linux/dmi.h>
+#include <linux/slab.h>
 
 #include <acpi/acpi_drivers.h>
 #include <acpi/processor.h>
