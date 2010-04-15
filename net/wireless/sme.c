@@ -517,12 +517,16 @@ void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	ev->type = EVENT_CONNECT_RESULT;
 	if (bssid)
 		memcpy(ev->cr.bssid, bssid, ETH_ALEN);
-	ev->cr.req_ie = ((u8 *)ev) + sizeof(*ev);
-	ev->cr.req_ie_len = req_ie_len;
-	memcpy((void *)ev->cr.req_ie, req_ie, req_ie_len);
-	ev->cr.resp_ie = ((u8 *)ev) + sizeof(*ev) + req_ie_len;
-	ev->cr.resp_ie_len = resp_ie_len;
-	memcpy((void *)ev->cr.resp_ie, resp_ie, resp_ie_len);
+	if (req_ie_len) {
+		ev->cr.req_ie = ((u8 *)ev) + sizeof(*ev);
+		ev->cr.req_ie_len = req_ie_len;
+		memcpy((void *)ev->cr.req_ie, req_ie, req_ie_len);
+	}
+	if (resp_ie_len) {
+		ev->cr.resp_ie = ((u8 *)ev) + sizeof(*ev) + req_ie_len;
+		ev->cr.resp_ie_len = resp_ie_len;
+		memcpy((void *)ev->cr.resp_ie, resp_ie, resp_ie_len);
+	}
 	ev->cr.status = status;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
