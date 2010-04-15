@@ -337,7 +337,7 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 		printk(KERN_EMERG "KVM: Check pending: %lx\n", vcpu->arch.pending_exceptions);
 #endif
 	priority = __ffs(*pending);
-	while (priority <= (sizeof(unsigned int) * 8)) {
+	while (priority < BOOK3S_IRQPRIO_MAX) {
 		if (kvmppc_book3s_irqprio_deliver(vcpu, priority) &&
 		    (priority != BOOK3S_IRQPRIO_DECREMENTER)) {
 			/* DEC interrupts get cleared by mtdec */
