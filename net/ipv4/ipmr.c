@@ -71,6 +71,9 @@
 
 struct mr_table {
 	struct list_head	list;
+#ifdef CONFIG_NET_NS
+	struct net		*net;
+#endif
 	u32			id;
 	struct sock		*mroute_sk;
 	struct timer_list	ipmr_expire_timer;
@@ -308,6 +311,7 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 	mrt = kzalloc(sizeof(*mrt), GFP_KERNEL);
 	if (mrt == NULL)
 		return NULL;
+	write_pnet(&mrt->net, net);
 	mrt->id = id;
 
 	/* Forwarding cache */
@@ -580,7 +584,7 @@ static inline void ipmr_cache_free(struct mfc_cache *c)
 
 static void ipmr_destroy_unres(struct mr_table *mrt, struct mfc_cache *c)
 {
-	struct net *net = NULL; //mrt->net;
+	struct net *net = read_pnet(&mrt->net);
 	struct sk_buff *skb;
 	struct nlmsgerr *e;
 
@@ -1089,12 +1093,14 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
 	 *	Check to see if we resolved a queued list. If so we
 	 *	need to send on the frames and tidy up.
 	 */
+	found = false;
 	spin_lock_bh(&mfc_unres_lock);
 	list_for_each_entry(uc, &mrt->mfc_unres_queue, list) {
 		if (uc->mfc_origin == c->mfc_origin &&
 		    uc->mfc_mcastgrp == c->mfc_mcastgrp) {
 			list_del(&uc->list);
 			atomic_dec(&mrt->cache_resolve_queue_len);
+			found = true;
 			break;
 		}
 	}
@@ -1102,7 +1108,7 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
 		del_timer(&mrt->ipmr_expire_timer);
 	spin_unlock_bh(&mfc_unres_lock);
 
-	if (uc) {
+	if (found) {
 		ipmr_cache_resolve(net, mrt, uc, c);
 		ipmr_cache_free(uc);
 	}

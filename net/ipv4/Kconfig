@@ -252,7 +252,7 @@ config IP_MROUTE
 
 config IP_MROUTE_MULTIPLE_TABLES
 	bool "IP: multicast policy routing"
-	depends on IP_ADVANCED_ROUTER
+	depends on IP_MROUTE && IP_ADVANCED_ROUTER
 	select FIB_RULES
 	help
 	  Normally, a multicast router runs a userspace daemon and decides
