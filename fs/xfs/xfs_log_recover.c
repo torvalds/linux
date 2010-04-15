@@ -739,7 +739,7 @@ xlog_find_head(
 			goto bp_err;
 		if (new_blk != -1) {
 			head_blk = new_blk;
-			goto bad_blk;
+			goto validate_head;
 		}
 
 		/*
@@ -757,7 +757,7 @@ xlog_find_head(
 			head_blk = new_blk;
 	}
 
- bad_blk:
+validate_head:
 	/*
 	 * Now we need to make sure head_blk is not pointing to a block in
 	 * the middle of a log record.
@@ -864,12 +864,12 @@ xlog_find_tail(
 	if (*head_blk == 0) {				/* special case */
 		error = xlog_bread(log, 0, 1, bp, &offset);
 		if (error)
-			goto bread_err;
+			goto done;
 
 		if (xlog_get_cycle(offset) == 0) {
 			*tail_blk = 0;
 			/* leave all other log inited values alone */
-			goto exit;
+			goto done;
 		}
 	}
 
@@ -880,7 +880,7 @@ xlog_find_tail(
 	for (i = (int)(*head_blk) - 1; i >= 0; i--) {
 		error = xlog_bread(log, i, 1, bp, &offset);
 		if (error)
-			goto bread_err;
+			goto done;
 
 		if (XLOG_HEADER_MAGIC_NUM == be32_to_cpu(*(__be32 *)offset)) {
 			found = 1;
@@ -897,7 +897,7 @@ xlog_find_tail(
 		for (i = log->l_logBBsize - 1; i >= (int)(*head_blk); i--) {
 			error = xlog_bread(log, i, 1, bp, &offset);
 			if (error)
-				goto bread_err;
+				goto done;
 
 			if (XLOG_HEADER_MAGIC_NUM ==
 			    be32_to_cpu(*(__be32 *)offset)) {
@@ -972,7 +972,7 @@ xlog_find_tail(
 		umount_data_blk = (i + hblks) % log->l_logBBsize;
 		error = xlog_bread(log, umount_data_blk, 1, bp, &offset);
 		if (error)
-			goto bread_err;
+			goto done;
 
 		op_head = (xlog_op_header_t *)offset;
 		if (op_head->oh_flags & XLOG_UNMOUNT_TRANS) {
@@ -1018,12 +1018,10 @@ xlog_find_tail(
 	 * But... if the -device- itself is readonly, just skip this.
 	 * We can't recover this device anyway, so it won't matter.
 	 */
-	if (!xfs_readonly_buftarg(log->l_mp->m_logdev_targp)) {
+	if (!xfs_readonly_buftarg(log->l_mp->m_logdev_targp))
 		error = xlog_clear_stale_blocks(log, tail_lsn);
-	}
 
-bread_err:
-exit:
+done:
 	xlog_put_bp(bp);
 
 	if (error)
