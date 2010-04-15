@@ -467,6 +467,58 @@ static u32 ar9002_hw_compute_pll_control(struct ath_hw *ah,
 	return pll;
 }
 
+static void ar9002_hw_do_getnf(struct ath_hw *ah,
+			      int16_t nfarray[NUM_NF_READINGS])
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	int16_t nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_CCA), AR9280_PHY_MINCCA_PWR);
+
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ctl] [chain 0] is %d\n", nf);
+
+	if (AR_SREV_9271(ah) && (nf >= -114))
+		nf = -116;
+
+	nfarray[0] = nf;
+
+	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
+		nf = MS(REG_READ(ah, AR_PHY_CH1_CCA),
+				AR9280_PHY_CH1_MINCCA_PWR);
+
+		if (nf & 0x100)
+			nf = 0 - ((nf ^ 0x1ff) + 1);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "NF calibrated [ctl] [chain 1] is %d\n", nf);
+		nfarray[1] = nf;
+	}
+
+	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA), AR9280_PHY_EXT_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ext] [chain 0] is %d\n", nf);
+
+	if (AR_SREV_9271(ah) && (nf >= -114))
+		nf = -116;
+
+	nfarray[3] = nf;
+
+	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
+		nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA),
+				AR9280_PHY_CH1_EXT_MINCCA_PWR);
+
+		if (nf & 0x100)
+			nf = 0 - ((nf ^ 0x1ff) + 1);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "NF calibrated [ext] [chain 1] is %d\n", nf);
+		nfarray[4] = nf;
+	}
+}
+
 void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -478,4 +530,5 @@ void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->spur_mitigate_freq = ar9002_hw_spur_mitigate;
 	priv_ops->olc_init = ar9002_olc_init;
 	priv_ops->compute_pll_control = ar9002_hw_compute_pll_control;
+	priv_ops->do_getnf = ar9002_hw_do_getnf;
 }

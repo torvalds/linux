@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "hw-ops.h"
 #include "ar9002_phy.h"
 
 /* We can tune this as we go by monitoring really low values */
@@ -86,95 +87,6 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath9k_nfcal_hist *h,
 		}
 	}
 	return;
-}
-
-static void ath9k_hw_do_getnf(struct ath_hw *ah,
-			      int16_t nfarray[NUM_NF_READINGS])
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-	int16_t nf;
-
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		nf = MS(REG_READ(ah, AR_PHY_CCA), AR9280_PHY_MINCCA_PWR);
-	else
-		nf = MS(REG_READ(ah, AR_PHY_CCA), AR_PHY_MINCCA_PWR);
-
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "NF calibrated [ctl] [chain 0] is %d\n", nf);
-
-	if (AR_SREV_9271(ah) && (nf >= -114))
-		nf = -116;
-
-	nfarray[0] = nf;
-
-	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
-		if (AR_SREV_9280_10_OR_LATER(ah))
-			nf = MS(REG_READ(ah, AR_PHY_CH1_CCA),
-					AR9280_PHY_CH1_MINCCA_PWR);
-		else
-			nf = MS(REG_READ(ah, AR_PHY_CH1_CCA),
-					AR_PHY_CH1_MINCCA_PWR);
-
-		if (nf & 0x100)
-			nf = 0 - ((nf ^ 0x1ff) + 1);
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "NF calibrated [ctl] [chain 1] is %d\n", nf);
-		nfarray[1] = nf;
-
-		if (!AR_SREV_9280(ah) && !AR_SREV_9287(ah)) {
-			nf = MS(REG_READ(ah, AR_PHY_CH2_CCA),
-					AR_PHY_CH2_MINCCA_PWR);
-			if (nf & 0x100)
-				nf = 0 - ((nf ^ 0x1ff) + 1);
-			ath_print(common, ATH_DBG_CALIBRATE,
-				  "NF calibrated [ctl] [chain 2] is %d\n", nf);
-			nfarray[2] = nf;
-		}
-	}
-
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		nf = MS(REG_READ(ah, AR_PHY_EXT_CCA),
-			AR9280_PHY_EXT_MINCCA_PWR);
-	else
-		nf = MS(REG_READ(ah, AR_PHY_EXT_CCA),
-			AR_PHY_EXT_MINCCA_PWR);
-
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "NF calibrated [ext] [chain 0] is %d\n", nf);
-
-	if (AR_SREV_9271(ah) && (nf >= -114))
-		nf = -116;
-
-	nfarray[3] = nf;
-
-	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
-		if (AR_SREV_9280_10_OR_LATER(ah))
-			nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA),
-					AR9280_PHY_CH1_EXT_MINCCA_PWR);
-		else
-			nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA),
-					AR_PHY_CH1_EXT_MINCCA_PWR);
-
-		if (nf & 0x100)
-			nf = 0 - ((nf ^ 0x1ff) + 1);
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "NF calibrated [ext] [chain 1] is %d\n", nf);
-		nfarray[4] = nf;
-
-		if (!AR_SREV_9280(ah) && !AR_SREV_9287(ah)) {
-			nf = MS(REG_READ(ah, AR_PHY_CH2_EXT_CCA),
-					AR_PHY_CH2_EXT_MINCCA_PWR);
-			if (nf & 0x100)
-				nf = 0 - ((nf ^ 0x1ff) + 1);
-			ath_print(common, ATH_DBG_CALIBRATE,
-				  "NF calibrated [ext] [chain 2] is %d\n", nf);
-			nfarray[5] = nf;
-		}
-	}
 }
 
 static bool getNoiseFloorThresh(struct ath_hw *ah,

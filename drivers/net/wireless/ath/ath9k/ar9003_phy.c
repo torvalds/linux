@@ -705,6 +705,115 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 	return true;
 }
 
+static void ar9003_hw_nf_sanitize_2g(struct ath_hw *ah, s16 *nf)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (*nf > ah->nf_2g_max) {
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "2 GHz NF (%d) > MAX (%d), "
+			  "correcting to MAX",
+			  *nf, ah->nf_2g_max);
+		*nf = ah->nf_2g_max;
+	} else if (*nf < ah->nf_2g_min) {
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "2 GHz NF (%d) < MIN (%d), "
+			  "correcting to MIN",
+			  *nf, ah->nf_2g_min);
+		*nf = ah->nf_2g_min;
+	}
+}
+
+static void ar9003_hw_nf_sanitize_5g(struct ath_hw *ah, s16 *nf)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (*nf > ah->nf_5g_max) {
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "5 GHz NF (%d) > MAX (%d), "
+			  "correcting to MAX",
+			  *nf, ah->nf_5g_max);
+		*nf = ah->nf_5g_max;
+	} else if (*nf < ah->nf_5g_min) {
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "5 GHz NF (%d) < MIN (%d), "
+			  "correcting to MIN",
+			  *nf, ah->nf_5g_min);
+		*nf = ah->nf_5g_min;
+	}
+}
+
+static void ar9003_hw_nf_sanitize(struct ath_hw *ah, s16 *nf)
+{
+	if (IS_CHAN_2GHZ(ah->curchan))
+		ar9003_hw_nf_sanitize_2g(ah, nf);
+	else
+		ar9003_hw_nf_sanitize_5g(ah, nf);
+}
+
+static void ar9003_hw_do_getnf(struct ath_hw *ah,
+			      int16_t nfarray[NUM_NF_READINGS])
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	int16_t nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_CCA_0), AR_PHY_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ar9003_hw_nf_sanitize(ah, &nf);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ctl] [chain 0] is %d\n", nf);
+	nfarray[0] = nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_CCA_1), AR_PHY_CH1_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ar9003_hw_nf_sanitize(ah, &nf);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ctl] [chain 1] is %d\n", nf);
+	nfarray[1] = nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_CCA_2), AR_PHY_CH2_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ar9003_hw_nf_sanitize(ah, &nf);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ctl] [chain 2] is %d\n", nf);
+	nfarray[2] = nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA), AR_PHY_EXT_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ar9003_hw_nf_sanitize(ah, &nf);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ext] [chain 0] is %d\n", nf);
+	nfarray[3] = nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA_1), AR_PHY_CH1_EXT_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ar9003_hw_nf_sanitize(ah, &nf);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ext] [chain 1] is %d\n", nf);
+	nfarray[4] = nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA_2), AR_PHY_CH2_EXT_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ar9003_hw_nf_sanitize(ah, &nf);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ext] [chain 2] is %d\n", nf);
+	nfarray[5] = nf;
+}
+
+void ar9003_hw_set_nf_limits(struct ath_hw *ah)
+{
+	ah->nf_2g_max = AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ;
+	ah->nf_2g_min = AR_PHY_CCA_MIN_GOOD_VAL_9300_2GHZ;
+	ah->nf_5g_max = AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ;
+	ah->nf_5g_min = AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ;
+}
+
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -723,4 +832,5 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->enable_rfkill = ar9003_hw_enable_rfkill;
 	priv_ops->set_diversity = ar9003_hw_set_diversity;
 	priv_ops->ani_control = ar9003_hw_ani_control;
+	priv_ops->do_getnf = ar9003_hw_do_getnf;
 }

@@ -1071,6 +1071,9 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	else
 		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
 
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		ar9003_hw_set_nf_limits(ah);
+
 	ath9k_init_nfcal_hist_buffer(ah);
 
 	common->state = ATH_HW_INITIALIZED;

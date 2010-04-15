@@ -163,4 +163,10 @@ static inline bool ath9k_hw_ani_control(struct ath_hw *ah,
 	return ath9k_hw_private_ops(ah)->ani_control(ah, cmd, param);
 }
 
+static inline void ath9k_hw_do_getnf(struct ath_hw *ah,
+				     int16_t nfarray[NUM_NF_READINGS])
+{
+	return ath9k_hw_private_ops(ah)->do_getnf(ah, nfarray);
+}
+
 #endif /* ATH9K_HW_OPS_H */

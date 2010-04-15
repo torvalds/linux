@@ -513,6 +513,7 @@ struct ath_hw_private_ops {
 				   struct ath9k_channel *chan);
 	bool (*ani_control)(struct ath_hw *ah, enum ath9k_ani_cmd cmd,
 			    int param);
+	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
 };
 
 /**
@@ -553,6 +554,10 @@ struct ath_hw {
 	bool is_pciexpress;
 	bool need_an_top2_fixup;
 	u16 tx_trig_level;
+	s16 nf_2g_max;
+	s16 nf_2g_min;
+	s16 nf_5g_max;
+	s16 nf_5g_min;
 	u16 rfsilent;
 	u32 rfkill_gpio;
 	u32 rfkill_polarity;
@@ -818,6 +823,13 @@ void ath9k_hw_htc_resetinit(struct ath_hw *ah);
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 				   u32 *coef_mantissa, u32 *coef_exponent);
 
+/*
+ * Code specifric to AR9003, we stuff these here to avoid callbacks
+ * for older families
+ */
+void ar9003_hw_set_nf_limits(struct ath_hw *ah);
+
+/* Hardware family op attach helpers */
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah);
 void ar9002_hw_attach_phy_ops(struct ath_hw *ah);
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah);

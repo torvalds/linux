@@ -1198,6 +1198,55 @@ static bool ar5008_hw_ani_control(struct ath_hw *ah,
 	return true;
 }
 
+static void ar5008_hw_do_getnf(struct ath_hw *ah,
+			      int16_t nfarray[NUM_NF_READINGS])
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	int16_t nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_CCA), AR_PHY_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ctl] [chain 0] is %d\n", nf);
+	nfarray[0] = nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_CH1_CCA), AR_PHY_CH1_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ctl] [chain 1] is %d\n", nf);
+	nfarray[1] = nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_CH2_CCA), AR_PHY_CH2_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ctl] [chain 2] is %d\n", nf);
+	nfarray[2] = nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA), AR_PHY_EXT_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ext] [chain 0] is %d\n", nf);
+	nfarray[3] = nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA), AR_PHY_CH1_EXT_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ext] [chain 1] is %d\n", nf);
+	nfarray[4] = nf;
+
+	nf = MS(REG_READ(ah, AR_PHY_CH2_EXT_CCA), AR_PHY_CH2_EXT_MINCCA_PWR);
+	if (nf & 0x100)
+		nf = 0 - ((nf ^ 0x1ff) + 1);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ext] [chain 2] is %d\n", nf);
+	nfarray[5] = nf;
+}
+
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -1220,6 +1269,7 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->restore_chainmask = ar5008_restore_chainmask;
 	priv_ops->set_diversity = ar5008_set_diversity;
 	priv_ops->ani_control = ar5008_hw_ani_control;
+	priv_ops->do_getnf = ar5008_hw_do_getnf;
 
 	if (AR_SREV_9100(ah))
 		priv_ops->compute_pll_control = ar9100_hw_compute_pll_control;
