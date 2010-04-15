@@ -62,7 +62,6 @@
 #define DCS_GET_ID2		0xdb
 #define DCS_GET_ID3		0xdc
 
-/* #define TAAL_USE_ESD_CHECK */
 #define TAAL_ESD_CHECK_PERIOD	msecs_to_jiffies(5000)
 
 static irqreturn_t taal_te_isr(int irq, void *data);
@@ -793,6 +792,7 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 static int taal_enable(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 	int r;
 
 	dev_dbg(&dssdev->dev, "enable\n");
@@ -813,9 +813,9 @@ static int taal_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err;
 
-#ifdef TAAL_USE_ESD_CHECK
-	queue_delayed_work(td->esd_wq, &td->esd_work, TAAL_ESD_CHECK_PERIOD);
-#endif
+	if (panel_data->use_esd_check)
+		queue_delayed_work(td->esd_wq, &td->esd_work,
+				TAAL_ESD_CHECK_PERIOD);
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
@@ -885,6 +885,7 @@ err:
 static int taal_resume(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 	int r;
 
 	dev_dbg(&dssdev->dev, "resume\n");
@@ -906,10 +907,9 @@ static int taal_resume(struct omap_dss_device *dssdev)
 		dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 	} else {
 		dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-#ifdef TAAL_USE_ESD_CHECK
-		queue_delayed_work(td->esd_wq, &td->esd_work,
-				TAAL_ESD_CHECK_PERIOD);
-#endif
+		if (panel_data->use_esd_check)
+			queue_delayed_work(td->esd_wq, &td->esd_work,
+					TAAL_ESD_CHECK_PERIOD);
 	}
 
 	mutex_unlock(&td->lock);
