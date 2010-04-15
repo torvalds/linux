@@ -27,6 +27,7 @@
 #define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
 
 static void ar9002_hw_attach_ops(struct ath_hw *ah);
+static void ar9003_hw_attach_ops(struct ath_hw *ah);
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type);
 
@@ -858,6 +859,14 @@ static void ath9k_hw_init_eeprom_fix(struct ath_hw *ah)
 			  "needs fixup for AR_AN_TOP2 register\n");
 }
 
+static void ath9k_hw_attach_ops(struct ath_hw *ah)
+{
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		ar9003_hw_attach_ops(ah);
+	else
+		ar9002_hw_attach_ops(ah);
+}
+
 /* Called for all hardware families */
 static int __ath9k_hw_init(struct ath_hw *ah)
 {
@@ -873,7 +882,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		return -EIO;
 	}
 
-	ar9002_hw_attach_ops(ah);
+	ath9k_hw_attach_ops(ah);
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
 		ath_print(common, ATH_DBG_FATAL, "Couldn't wakeup chip\n");
@@ -3524,8 +3533,13 @@ static void ar9002_hw_attach_ops(struct ath_hw *ah)
 
 	ops->config_pci_powersave = ar9002_hw_configpcipowersave;
 
+	ar5008_hw_attach_phy_ops(ah);
 	if (AR_SREV_9280_10_OR_LATER(ah))
 		ar9002_hw_attach_phy_ops(ah);
-	else
-		ar5008_hw_attach_phy_ops(ah);
+}
+
+/* Sets up the AR9003 hardware familiy callbacks */
+static void ar9003_hw_attach_ops(struct ath_hw *ah)
+{
+	ar9003_hw_attach_phy_ops(ah);
 }

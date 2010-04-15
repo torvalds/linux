@@ -783,8 +783,9 @@ void ath9k_hw_htc_resetinit(struct ath_hw *ah);
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 				   u32 *coef_mantissa, u32 *coef_exponent);
 
-void ar9002_hw_attach_phy_ops(struct ath_hw *ah);
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah);
+void ar9002_hw_attach_phy_ops(struct ath_hw *ah);
+void ar9003_hw_attach_phy_ops(struct ath_hw *ah);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1
