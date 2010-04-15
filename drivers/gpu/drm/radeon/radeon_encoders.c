@@ -865,6 +865,8 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 			if (dig->coherent_mode)
 				args.v3.acConfig.fCoherentMode = 1;
+			if (radeon_encoder->pixel_clock > 165000)
+				args.v3.acConfig.fDualLinkConnector = 1;
 		}
 	} else if (ASIC_IS_DCE32(rdev)) {
 		args.v2.acConfig.ucEncoderSel = dig->dig_encoder;
@@ -888,6 +890,8 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 			if (dig->coherent_mode)
 				args.v2.acConfig.fCoherentMode = 1;
+			if (radeon_encoder->pixel_clock > 165000)
+				args.v2.acConfig.fDualLinkConnector = 1;
 		}
 	} else {
 		args.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
