@@ -23,6 +23,7 @@
 #include "ar5008_initvals.h"
 #include "ar9001_initvals.h"
 #include "ar9002_initvals.h"
+#include "ar9003_initvals.h"
 
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
@@ -811,6 +812,77 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac,
 			       ARRAY_SIZE(ar5416Addac), 2);
 	}
+}
+
+/* AR9003 2.0 - new INI format (pre, core, post arrays per subsystem) */
+static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
+{
+	/* mac */
+	INIT_INI_ARRAY(&ah->iniMac[ATH_INI_PRE], NULL, 0, 0);
+	INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
+		       ar9300_2p0_mac_core,
+		       ARRAY_SIZE(ar9300_2p0_mac_core), 2);
+	INIT_INI_ARRAY(&ah->iniMac[ATH_INI_POST],
+		       ar9300_2p0_mac_postamble,
+		       ARRAY_SIZE(ar9300_2p0_mac_postamble), 5);
+
+	/* bb */
+	INIT_INI_ARRAY(&ah->iniBB[ATH_INI_PRE], NULL, 0, 0);
+	INIT_INI_ARRAY(&ah->iniBB[ATH_INI_CORE],
+		       ar9300_2p0_baseband_core,
+		       ARRAY_SIZE(ar9300_2p0_baseband_core), 2);
+	INIT_INI_ARRAY(&ah->iniBB[ATH_INI_POST],
+		       ar9300_2p0_baseband_postamble,
+		       ARRAY_SIZE(ar9300_2p0_baseband_postamble), 5);
+
+	/* radio */
+	INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_PRE], NULL, 0, 0);
+	INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_CORE],
+		       ar9300_2p0_radio_core,
+		       ARRAY_SIZE(ar9300_2p0_radio_core), 2);
+	INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_POST],
+		       ar9300_2p0_radio_postamble,
+		       ARRAY_SIZE(ar9300_2p0_radio_postamble), 5);
+
+	/* soc */
+	INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_PRE],
+		       ar9300_2p0_soc_preamble,
+		       ARRAY_SIZE(ar9300_2p0_soc_preamble), 2);
+	INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_CORE], NULL, 0, 0);
+	INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_POST],
+		       ar9300_2p0_soc_postamble,
+		       ARRAY_SIZE(ar9300_2p0_soc_postamble), 5);
+
+	/* rx/tx gain */
+	INIT_INI_ARRAY(&ah->iniModesRxGain,
+		       ar9300Common_rx_gain_table_2p0,
+		       ARRAY_SIZE(ar9300Common_rx_gain_table_2p0), 2);
+	INIT_INI_ARRAY(&ah->iniModesTxGain,
+		       ar9300Modes_lowest_ob_db_tx_gain_table_2p0,
+		       ARRAY_SIZE(ar9300Modes_lowest_ob_db_tx_gain_table_2p0),
+		       5);
+
+	/* Load PCIE SERDES settings from INI */
+
+	/* Awake Setting */
+
+	INIT_INI_ARRAY(&ah->iniPcieSerdes,
+		       ar9300PciePhy_pll_on_clkreq_disable_L1_2p0,
+		       ARRAY_SIZE(ar9300PciePhy_pll_on_clkreq_disable_L1_2p0),
+		       2);
+
+	/* Sleep Setting */
+
+	INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
+		       ar9300PciePhy_clkreq_enable_L1_2p0,
+		       ARRAY_SIZE(ar9300PciePhy_clkreq_enable_L1_2p0),
+		       2);
+
+	/* Fast clock modal settings */
+	INIT_INI_ARRAY(&ah->iniModesAdditional,
+		       ar9300Modes_fast_clock_2p0,
+		       ARRAY_SIZE(ar9300Modes_fast_clock_2p0),
+		       3);
 }
 
 static void ath9k_hw_init_mode_gain_regs(struct ath_hw *ah)
@@ -3581,6 +3653,7 @@ static void ar9003_hw_attach_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 
+	priv_ops->init_mode_regs = ar9003_hw_init_mode_regs;
 	priv_ops->macversion_supported = ar9003_hw_macversion_supported;
 
 	ar9003_hw_attach_phy_ops(ah);

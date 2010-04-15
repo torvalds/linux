@@ -139,6 +139,13 @@
 #define ATH9K_HW_RX_HP_QDEPTH	16
 #define ATH9K_HW_RX_LP_QDEPTH	128
 
+enum ath_ini_subsys {
+	ATH_INI_PRE = 0,
+	ATH_INI_CORE,
+	ATH_INI_POST,
+	ATH_INI_NUM_SPLIT,
+};
+
 enum wireless_mode {
 	ATH9K_MODE_11A = 0,
 	ATH9K_MODE_11G,
@@ -668,6 +675,7 @@ struct ath_hw {
 	struct ar5416IniArray iniBank7;
 	struct ar5416IniArray iniAddac;
 	struct ar5416IniArray iniPcieSerdes;
+	struct ar5416IniArray iniPcieSerdesLowPower;
 	struct ar5416IniArray iniModesAdditional;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
@@ -679,6 +687,11 @@ struct ath_hw {
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray iniModes_high_power_tx_gain_9271;
 	struct ar5416IniArray iniModes_normal_power_tx_gain_9271;
+
+	struct ar5416IniArray iniMac[ATH_INI_NUM_SPLIT];
+	struct ar5416IniArray iniBB[ATH_INI_NUM_SPLIT];
+	struct ar5416IniArray iniRadio[ATH_INI_NUM_SPLIT];
+	struct ar5416IniArray iniSOC[ATH_INI_NUM_SPLIT];
 
 	u32 intr_gen_timer_trigger;
 	u32 intr_gen_timer_thresh;
