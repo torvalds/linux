@@ -71,15 +71,11 @@ console. If it's a correctable error, it is outputed as a warning.
 Otherwise, it is printed as an error. So users could choose different
 log level to filter out correctable error messages.
 
-Below shows an example.
-+------ PCI-Express Device Error -----+
-Error Severity          : Uncorrected (Fatal)
-PCIE Bus Error type     : Transaction Layer
-Unsupported Request     : First
-Requester ID            : 0500
-VendorID=8086h, DeviceID=0329h, Bus=05h, Device=00h, Function=00h
-TLB Header:
-04000001 00200a03 05010000 00050100
+Below shows an example:
+0000:50:00.0: PCIe Bus Error: severity=Uncorrected (Fatal), type=Transaction Layer, id=0500(Requester ID)
+0000:50:00.0:   device [8086:0329] error status/mask=00100000/00000000
+0000:50:00.0:    [20] Unsupported Request    (First)
+0000:50:00.0:   TLP Header: 04000001 00200a03 05010000 00050100
 
 In the example, 'Requester ID' means the ID of the device who sends
 the error message to root port. Pls. refer to pci express specs for
