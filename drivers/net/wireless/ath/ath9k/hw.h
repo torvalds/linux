@@ -370,6 +370,12 @@ enum ser_reg_mode {
 	SER_REG_MODE_AUTO = 2,
 };
 
+enum ath9k_rx_qtype {
+	ATH9K_RX_QUEUE_HP,
+	ATH9K_RX_QUEUE_LP,
+	ATH9K_RX_QUEUE_MAX,
+};
+
 struct ath9k_beacon_state {
 	u32 bs_nexttbtt;
 	u32 bs_nextdtim;

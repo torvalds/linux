@@ -17,6 +17,11 @@
 #ifndef AR9003_MAC_H
 #define AR9003_MAC_H
 
+#define AR_DescId	0xffff0000
+#define AR_DescId_S	16
+#define AR_CtrlStat	0x00004000
+#define AR_TxRxDesc	0x00008000
+
 struct ar9003_rxs {
 	u32 ds_info;
 	u32 status1;
@@ -33,5 +38,12 @@ struct ar9003_rxs {
 } __packed;
 
 void ar9003_hw_attach_mac_ops(struct ath_hw *hw);
+void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size);
+void ath9k_hw_addrxbuf_edma(struct ath_hw *ah, u32 rxdp,
+			    enum ath9k_rx_qtype qtype);
+
+int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah,
+				 struct ath_rx_status *rxs,
+				 void *buf_addr);
 
 #endif

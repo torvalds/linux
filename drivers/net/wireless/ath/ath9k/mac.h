@@ -148,6 +148,8 @@ struct ath_rx_status {
 	u32 evm0;
 	u32 evm1;
 	u32 evm2;
+	u32 evm3;
+	u32 evm4;
 };
 
 struct ath_htc_rx_status {
