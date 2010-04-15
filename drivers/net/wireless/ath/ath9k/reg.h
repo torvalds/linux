@@ -1544,7 +1544,7 @@ enum {
 #define AR_TSFOOR_THRESHOLD       0x813c
 #define AR_TSFOOR_THRESHOLD_VAL   0x0000FFFF
 
-#define AR_PHY_ERR_EIFS_MASK   8144
+#define AR_PHY_ERR_EIFS_MASK   0x8144
 
 #define AR_PHY_ERR_3           0x8168
 #define AR_PHY_ERR_3_COUNT     0x00FFFFFF
