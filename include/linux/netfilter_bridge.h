@@ -41,9 +41,8 @@ enum nf_br_hook_priorities {
 
 #define BRNF_PKT_TYPE			0x01
 #define BRNF_BRIDGED_DNAT		0x02
-#define BRNF_DONT_TAKE_PARENT		0x04
-#define BRNF_BRIDGED			0x08
-#define BRNF_NF_BRIDGE_PREROUTING	0x10
+#define BRNF_BRIDGED			0x04
+#define BRNF_NF_BRIDGE_PREROUTING	0x08
 
 
 /* Only used in br_forward.c */
@@ -66,6 +65,18 @@ static inline unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb)
 	default:
 		return 0;
 	}
+}
+
+extern int br_handle_frame_finish(struct sk_buff *skb);
+/* Only used in br_device.c */
+static inline int br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
+{
+	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
+
+	skb_pull(skb, ETH_HLEN);
+	nf_bridge->mask ^= BRNF_BRIDGED_DNAT;
+	skb->dev = nf_bridge->physindev;
+	return br_handle_frame_finish(skb);
 }
 
 /* This is called by the IP fragmenting code and it ensures there is
