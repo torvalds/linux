@@ -775,6 +775,18 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	switch (exit_nr) {
 	case BOOK3S_INTERRUPT_INST_STORAGE:
 		vcpu->stat.pf_instruc++;
+
+#ifdef CONFIG_PPC_BOOK3S_32
+		/* We set segments as unused segments when invalidating them. So
+		 * treat the respective fault as segment fault. */
+		if (to_svcpu(vcpu)->sr[kvmppc_get_pc(vcpu) >> SID_SHIFT]
+		    == SR_INVALID) {
+			kvmppc_mmu_map_segment(vcpu, kvmppc_get_pc(vcpu));
+			r = RESUME_GUEST;
+			break;
+		}
+#endif
+
 		/* only care about PTEG not found errors, but leave NX alone */
 		if (to_svcpu(vcpu)->shadow_srr1 & 0x40000000) {
 			r = kvmppc_handle_pagefault(run, vcpu, kvmppc_get_pc(vcpu), exit_nr);
@@ -799,6 +811,17 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	{
 		ulong dar = kvmppc_get_fault_dar(vcpu);
 		vcpu->stat.pf_storage++;
+
+#ifdef CONFIG_PPC_BOOK3S_32
+		/* We set segments as unused segments when invalidating them. So
+		 * treat the respective fault as segment fault. */
+		if ((to_svcpu(vcpu)->sr[dar >> SID_SHIFT]) == SR_INVALID) {
+			kvmppc_mmu_map_segment(vcpu, dar);
+			r = RESUME_GUEST;
+			break;
+		}
+#endif
+
 		/* The only case we need to handle is missing shadow PTEs */
 		if (to_svcpu(vcpu)->fault_dsisr & DSISR_NOHPTE) {
 			r = kvmppc_handle_pagefault(run, vcpu, dar, exit_nr);
