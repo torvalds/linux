@@ -1331,7 +1331,7 @@ struct softnet_data {
 	struct sk_buff		*completion_queue;
 
 	/* Elements below can be accessed between CPUs for RPS */
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RPS
 	struct call_single_data	csd ____cacheline_aligned_in_smp;
 #endif
 	struct sk_buff_head	input_pkt_queue;
