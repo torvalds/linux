@@ -229,6 +229,21 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 	}
 }
 
+/* Support for Japan ch.14 (2484) spread */
+void ar9002_hw_cck_chan14_spread(struct ath_hw *ah)
+{
+	if (AR_SREV_9287_11_OR_LATER(ah)) {
+		INIT_INI_ARRAY(&ah->iniCckfirNormal,
+		       ar9287Common_normal_cck_fir_coeff_92871_1,
+		       ARRAY_SIZE(ar9287Common_normal_cck_fir_coeff_92871_1),
+		       2);
+		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
+		       ar9287Common_japan_2484_cck_fir_coeff_92871_1,
+		       ARRAY_SIZE(ar9287Common_japan_2484_cck_fir_coeff_92871_1),
+		       2);
+	}
+}
+
 /*
  * Helper for ASPM support.
  *
