@@ -569,6 +569,9 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			  AR_D_MISC_POST_FR_BKOFF_DIS);
 	}
 
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		REG_WRITE(ah, AR_Q_DESC_CRCCHK, AR_Q_DESC_CRCCHK_EN);
+
 	if (qi->tqi_qflags & TXQ_FLAG_TXOKINT_ENABLE)
 		ah->txok_interrupt_mask |= 1 << q;
 	else

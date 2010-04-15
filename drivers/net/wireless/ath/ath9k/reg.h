@@ -478,6 +478,10 @@
 #define AR_Q_RDYTIMESHDN    0x0a40
 #define AR_Q_RDYTIMESHDN_M  0x000003FF
 
+/* MAC Descriptor CRC check */
+#define AR_Q_DESC_CRCCHK    0xa44
+/* Enable CRC check on the descriptor fetched from host */
+#define AR_Q_DESC_CRCCHK_EN 1
 
 #define AR_NUM_DCU      10
 #define AR_DCU_0        0x0001
