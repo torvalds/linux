@@ -126,14 +126,17 @@ static int add_error_device(struct aer_err_info *e_info, struct pci_dev *dev)
 
 #define	PCI_BUS(x)	(((x) >> 8) & 0xff)
 
-static int find_device_iter(struct pci_dev *dev, void *data)
+/**
+ * is_error_source - check whether the device is source of reported error
+ * @dev: pointer to pci_dev to be checked
+ * @e_info: pointer to reported error info
+ */
+static bool is_error_source(struct pci_dev *dev, struct aer_err_info *e_info)
 {
 	int pos;
-	u32 status;
-	u32 mask;
+	u32 status, mask;
 	u16 reg16;
 	int result;
-	struct aer_err_info *e_info = (struct aer_err_info *)data;
 
 	/*
 	 * When bus id is equal to 0, it might be a bad id
@@ -142,22 +145,11 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 	if (!nosourceid && (PCI_BUS(e_info->id) != 0)) {
 		result = compare_device_id(dev, e_info);
 		if (result)
-			add_error_device(e_info, dev);
+			return true;
 
-		/*
-		 * If there is no multiple error, we stop
-		 * or continue based on the id comparing.
-		 */
+		/* Continue id comparing if there is no multiple error */
 		if (!e_info->multi_error_valid)
-			return result;
-
-		/*
-		 * If there are multiple errors and id does match,
-		 * We need continue to search other devices under
-		 * the root port. Return 0 means that.
-		 */
-		if (result)
-			return 0;
+			return false;
 	}
 
 	/*
@@ -166,50 +158,52 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 	 *      2) bus id is equal to 0. Some ports might lose the bus
 	 *              id of error source id;
 	 *      3) There are multiple errors and prior id comparing fails;
-	 * We check AER status registers to find the initial reporter.
+	 * We check AER status registers to find possible reporter.
 	 */
 	if (atomic_read(&dev->enable_cnt) == 0)
-		return 0;
+		return false;
 	pos = pci_pcie_cap(dev);
 	if (!pos)
-		return 0;
+		return false;
+
 	/* Check if AER is enabled */
-	pci_read_config_word(dev, pos+PCI_EXP_DEVCTL, &reg16);
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &reg16);
 	if (!(reg16 & (
 		PCI_EXP_DEVCTL_CERE |
 		PCI_EXP_DEVCTL_NFERE |
 		PCI_EXP_DEVCTL_FERE |
 		PCI_EXP_DEVCTL_URRE)))
-		return 0;
+		return false;
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 	if (!pos)
-		return 0;
+		return false;
 
-	status = 0;
-	mask = 0;
+	/* Check if error is recorded */
 	if (e_info->severity == AER_CORRECTABLE) {
 		pci_read_config_dword(dev, pos + PCI_ERR_COR_STATUS, &status);
 		pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, &mask);
-		if (status & ~mask) {
-			add_error_device(e_info, dev);
-			goto added;
-		}
 	} else {
 		pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, &status);
 		pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, &mask);
-		if (status & ~mask) {
-			add_error_device(e_info, dev);
-			goto added;
-		}
 	}
+	if (status & ~mask)
+		return true;
 
+	return false;
+}
+
+static int find_device_iter(struct pci_dev *dev, void *data)
+{
+	struct aer_err_info *e_info = (struct aer_err_info *)data;
+
+	if (is_error_source(dev, e_info)) {
+		add_error_device(e_info, dev);
+
+		/* If there is only a single error, stop iteration */
+		if (!e_info->multi_error_valid)
+			return 1;
+	}
 	return 0;
-
-added:
-	if (e_info->multi_error_valid)
-		return 0;
-	else
-		return 1;
 }
 
 /**
