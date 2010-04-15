@@ -21,14 +21,33 @@ static void ar9003_hw_rx_enable(struct ath_hw *hw)
 	REG_WRITE(hw, AR_CR, 0);
 }
 
+static u16 ar9003_calc_ptr_chksum(struct ar9003_txc *ads)
+{
+	int checksum;
+
+	checksum = ads->info + ads->link
+		+ ads->data0 + ads->ctl3
+		+ ads->data1 + ads->ctl5
+		+ ads->data2 + ads->ctl7
+		+ ads->data3 + ads->ctl9;
+
+	return ((checksum & 0xffff) + (checksum >> 16)) & AR_TxPtrChkSum;
+}
+
 static void ar9003_hw_set_desc_link(void *ds, u32 ds_link)
 {
-	((struct ar9003_txc *) ds)->link = ds_link;
+	struct ar9003_txc *ads = ds;
+
+	ads->link = ds_link;
+	ads->ctl10 &= ~AR_TxPtrChkSum;
+	ads->ctl10 |= ar9003_calc_ptr_chksum(ads);
 }
 
 static void ar9003_hw_get_desc_link(void *ds, u32 **ds_link)
 {
-	*ds_link = &((struct ar9003_txc *) ds)->link;
+	struct ar9003_txc *ads = ds;
+
+	*ds_link = &ads->link;
 }
 
 static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
@@ -166,19 +185,6 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 
 	}
 	return true;
-}
-
-static u16 ar9003_calc_ptr_chksum(struct ar9003_txc *ads)
-{
-	int checksum;
-
-	checksum = ads->info + ads->link
-		+ ads->data0 + ads->ctl3
-		+ ads->data1 + ads->ctl5
-		+ ads->data2 + ads->ctl7
-		+ ads->data3 + ads->ctl9;
-
-	return ((checksum & 0xffff) + (checksum >> 16)) & AR_TxPtrChkSum;
 }
 
 static void ar9003_hw_fill_txdesc(struct ath_hw *ah, void *ds, u32 seglen,
