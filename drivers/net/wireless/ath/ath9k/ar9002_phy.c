@@ -83,7 +83,7 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 		bMode = 1;
 		fracMode = 1;
 		aModeRefSel = 0;
-		channelSel = (freq * 0x10000) / 15;
+		channelSel = CHANSEL_2G(freq);
 
 		if (AR_SREV_9287_11_OR_LATER(ah)) {
 			if (freq == 2484) {
@@ -126,7 +126,7 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			 */
 			fracMode = 1;
 			refDivA = 1;
-			channelSel = (freq * 0x8000) / 15;
+			channelSel = CHANSEL_5G(freq);
 
 			/* RefDivA setting */
 			REG_RMW_FIELD(ah, AR_AN_SYNTH9,
