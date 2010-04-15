@@ -255,7 +255,8 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 
 	keyix = rx_stats->rs_keyix;
 
-	if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error) {
+	if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error &&
+	    ieee80211_has_protected(fc)) {
 		rxs->flag |= RX_FLAG_DECRYPTED;
 	} else if (ieee80211_has_protected(fc)
 		   && !decrypt_error && skb->len >= hdrlen + 4) {
@@ -302,88 +303,6 @@ int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb)
 	return ATH9K_KEY_TYPE_CLEAR;
 }
 EXPORT_SYMBOL(ath9k_cmn_get_hw_crypto_keytype);
-
-/*
- * Calculate the RX filter to be set in the HW.
- */
-u32 ath9k_cmn_calcrxfilter(struct ieee80211_hw *hw, struct ath_hw *ah,
-			   unsigned int rxfilter)
-{
-#define	RX_FILTER_PRESERVE (ATH9K_RX_FILTER_PHYERR | ATH9K_RX_FILTER_PHYRADAR)
-
-	u32 rfilt;
-
-	rfilt = (ath9k_hw_getrxfilter(ah) & RX_FILTER_PRESERVE)
-		| ATH9K_RX_FILTER_UCAST | ATH9K_RX_FILTER_BCAST
-		| ATH9K_RX_FILTER_MCAST;
-
-	/* If not a STA, enable processing of Probe Requests */
-	if (ah->opmode != NL80211_IFTYPE_STATION)
-		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
-
-	/*
-	 * Set promiscuous mode when FIF_PROMISC_IN_BSS is enabled for station
-	 * mode interface or when in monitor mode. AP mode does not need this
-	 * since it receives all in-BSS frames anyway.
-	 */
-	if (((ah->opmode != NL80211_IFTYPE_AP) &&
-	     (rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (ah->opmode == NL80211_IFTYPE_MONITOR))
-		rfilt |= ATH9K_RX_FILTER_PROM;
-
-	if (rxfilter & FIF_CONTROL)
-		rfilt |= ATH9K_RX_FILTER_CONTROL;
-
-	if ((ah->opmode == NL80211_IFTYPE_STATION) &&
-	    !(rxfilter & FIF_BCN_PRBRESP_PROMISC))
-		rfilt |= ATH9K_RX_FILTER_MYBEACON;
-	else
-		rfilt |= ATH9K_RX_FILTER_BEACON;
-
-	if ((AR_SREV_9280_10_OR_LATER(ah) ||
-	    AR_SREV_9285_10_OR_LATER(ah)) &&
-	    (ah->opmode == NL80211_IFTYPE_AP) &&
-	    (rxfilter & FIF_PSPOLL))
-		rfilt |= ATH9K_RX_FILTER_PSPOLL;
-
-	if (conf_is_ht(&hw->conf))
-		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
-
-	return rfilt;
-
-#undef RX_FILTER_PRESERVE
-}
-EXPORT_SYMBOL(ath9k_cmn_calcrxfilter);
-
-/*
- * Recv initialization for opmode change.
- */
-void ath9k_cmn_opmode_init(struct ieee80211_hw *hw, struct ath_hw *ah,
-			   unsigned int rxfilter)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	u32 rfilt, mfilt[2];
-
-	/* configure rx filter */
-	rfilt = ath9k_cmn_calcrxfilter(hw, ah, rxfilter);
-	ath9k_hw_setrxfilter(ah, rfilt);
-
-	/* configure bssid mask */
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath_hw_setbssidmask(common);
-
-	/* configure operational mode */
-	ath9k_hw_setopmode(ah);
-
-	/* Handle any link-level address change. */
-	ath9k_hw_setmac(ah, common->macaddr);
-
-	/* calculate and install multicast filter */
-	mfilt[0] = mfilt[1] = ~0;
-	ath9k_hw_setmcastfilter(ah, mfilt[0], mfilt[1]);
-}
-EXPORT_SYMBOL(ath9k_cmn_opmode_init);
 
 static u32 ath9k_get_extchanmode(struct ieee80211_channel *chan,
 				 enum nl80211_channel_type channel_type)

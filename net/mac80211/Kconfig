@@ -221,8 +221,8 @@ config MAC80211_DRIVER_API_TRACER
 	depends on EVENT_TRACING
 	help
 	  Say Y here to make mac80211 register with the ftrace
-	  framework for the driver API -- you can see which
-	  driver methods it is calling then by looking at the
-	  trace.
+	  framework for the driver API -- you can then see which
+	  driver methods it is calling and which API functions
+	  drivers are calling by looking at the trace.
 
-	  If unsure, say N.
+	  If unsure, say Y.

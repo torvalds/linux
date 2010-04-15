@@ -43,6 +43,7 @@
 #include "iwl-debug.h"
 #include "iwl-4965-hw.h"
 #include "iwl-3945-hw.h"
+#include "iwl-agn-hw.h"
 #include "iwl-led.h"
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
@@ -57,6 +58,7 @@ extern struct iwl_cfg iwl5100_abg_cfg;
 extern struct iwl_cfg iwl5150_agn_cfg;
 extern struct iwl_cfg iwl5150_abg_cfg;
 extern struct iwl_cfg iwl6000i_2agn_cfg;
+extern struct iwl_cfg iwl6000i_g2_2agn_cfg;
 extern struct iwl_cfg iwl6000i_2abg_cfg;
 extern struct iwl_cfg iwl6000i_2bg_cfg;
 extern struct iwl_cfg iwl6000_3agn_cfg;
@@ -66,45 +68,6 @@ extern struct iwl_cfg iwl1000_bgn_cfg;
 extern struct iwl_cfg iwl1000_bg_cfg;
 
 struct iwl_tx_queue;
-
-/* shared structures from iwl-5000.c */
-extern struct iwl_mod_params iwl50_mod_params;
-extern struct iwl_ucode_ops iwl5000_ucode;
-extern struct iwl_lib_ops iwl5000_lib;
-extern struct iwl_hcmd_ops iwl5000_hcmd;
-extern struct iwl_hcmd_utils_ops iwl5000_hcmd_utils;
-
-/* shared functions from iwl-5000.c */
-extern u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len);
-extern u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd,
-				     u8 *data);
-extern void iwl5000_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
-				    __le32 *tx_flags);
-extern int iwl5000_calc_rssi(struct iwl_priv *priv,
-			     struct iwl_rx_phy_res *rx_resp);
-extern void iwl5000_nic_config(struct iwl_priv *priv);
-extern u16 iwl5000_eeprom_calib_version(struct iwl_priv *priv);
-extern const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
-				    size_t offset);
-extern void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
-					    struct iwl_tx_queue *txq,
-					    u16 byte_cnt);
-extern void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
-				    struct iwl_tx_queue *txq);
-extern int iwl5000_load_ucode(struct iwl_priv *priv);
-extern void iwl5000_init_alive_start(struct iwl_priv *priv);
-extern int iwl5000_alive_notify(struct iwl_priv *priv);
-extern int iwl5000_hw_set_hw_params(struct iwl_priv *priv);
-extern int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
-			   int tx_fifo, int sta_id, int tid, u16 ssn_idx);
-extern int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
-			    u16 ssn_idx, u8 tx_fifo);
-extern void iwl5000_txq_set_sched(struct iwl_priv *priv, u32 mask);
-extern void iwl5000_setup_deferred_work(struct iwl_priv *priv);
-extern void iwl5000_rx_handler_setup(struct iwl_priv *priv);
-extern int iwl5000_hw_valid_rtc_data_addr(u32 addr);
-extern int iwl5000_send_tx_power(struct iwl_priv *priv);
-extern void iwl5000_temperature(struct iwl_priv *priv);
 
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD_LEGACY   110 /* in Celsius */
@@ -363,13 +326,6 @@ enum {
 
 #define DEF_CMD_PAYLOAD_SIZE 320
 
-/*
- * IWL_LINK_HDR_MAX should include ieee80211_hdr, radiotap header,
- * SNAP header and alignment. It should also be big enough for 802.11
- * control frames.
- */
-#define IWL_LINK_HDR_MAX 64
-
 /**
  * struct iwl_device_cmd
  *
@@ -521,30 +477,9 @@ struct iwl_ht_config {
 	u8 non_GF_STA_present;
 };
 
-union iwl_qos_capabity {
-	struct {
-		u8 edca_count:4;	/* bit 0-3 */
-		u8 q_ack:1;		/* bit 4 */
-		u8 queue_request:1;	/* bit 5 */
-		u8 txop_request:1;	/* bit 6 */
-		u8 reserved:1;		/* bit 7 */
-	} q_AP;
-	struct {
-		u8 acvo_APSD:1;		/* bit 0 */
-		u8 acvi_APSD:1;		/* bit 1 */
-		u8 ac_bk_APSD:1;	/* bit 2 */
-		u8 ac_be_APSD:1;	/* bit 3 */
-		u8 q_ack:1;		/* bit 4 */
-		u8 max_len:2;		/* bit 5-6 */
-		u8 more_data_ack:1;	/* bit 7 */
-	} q_STA;
-	u8 val;
-};
-
 /* QoS structures */
 struct iwl_qos_info {
 	int qos_active;
-	union iwl_qos_capabity qos_cap;
 	struct iwl_qosparam_cmd def_qos_parm;
 };
 
@@ -1185,7 +1120,6 @@ struct iwl_priv {
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
 
 	struct iwl_ht_config current_ht_config;
-	u8 last_phy_res[100];
 
 	/* Rate scaling data */
 	u8 retry_rate;
@@ -1204,8 +1138,6 @@ struct iwl_priv {
 	u32 scd_base_addr;	/* scheduler sram base address */
 
 	unsigned long status;
-
-	int last_rx_noise;	/* From beacon statistics */
 
 	/* counts mgmt, ctl, and data packets */
 	struct traffic_stats tx_stats;
@@ -1234,7 +1166,6 @@ struct iwl_priv {
 	int num_stations;
 	struct iwl_station_entry stations[IWL_STATION_COUNT];
 	struct iwl_wep_key wep_keys[WEP_KEYS_MAX]; /* protected by mutex */
-	u8 default_wep_key;
 	u8 key_mapping_key;
 	unsigned long ucode_key_table;
 
@@ -1305,6 +1236,9 @@ struct iwl_priv {
 			 * no AGGREGATION
 			 */
 			u8 agg_tids_count;
+
+			struct iwl_rx_phy_res last_phy_res;
+			bool last_phy_res_valid;
 		} _agn;
 #endif
 	};

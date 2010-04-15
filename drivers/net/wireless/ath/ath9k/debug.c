@@ -157,10 +157,10 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 		"txfifo_dcu_num_0:   %2d    txfifo_dcu_num_1:       %2d\n",
 		(val[6] & 0x0001e000) >> 13, (val[6] & 0x001e0000) >> 17);
 
-	len += snprintf(buf + len, DMA_BUF_LEN - len, "pcu observe: 0x%x \n",
+	len += snprintf(buf + len, DMA_BUF_LEN - len, "pcu observe: 0x%x\n",
 			REG_READ_D(ah, AR_OBS_BUS_1));
 	len += snprintf(buf + len, DMA_BUF_LEN - len,
-			"AR_CR: 0x%x \n", REG_READ_D(ah, AR_CR));
+			"AR_CR: 0x%x\n", REG_READ_D(ah, AR_CR));
 
 	ath9k_ps_restore(sc);
 
@@ -557,10 +557,8 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 }
 
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
-		       struct ath_buf *bf)
+		       struct ath_buf *bf, struct ath_tx_status *ts)
 {
-	struct ath_desc *ds = bf->bf_desc;
-
 	if (bf_isampdu(bf)) {
 		if (bf_isxretried(bf))
 			TX_STAT_INC(txq->axq_qnum, a_xretries);
@@ -570,17 +568,17 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
 		TX_STAT_INC(txq->axq_qnum, completed);
 	}
 
-	if (ds->ds_txstat.ts_status & ATH9K_TXERR_FIFO)
+	if (ts->ts_status & ATH9K_TXERR_FIFO)
 		TX_STAT_INC(txq->axq_qnum, fifo_underrun);
-	if (ds->ds_txstat.ts_status & ATH9K_TXERR_XTXOP)
+	if (ts->ts_status & ATH9K_TXERR_XTXOP)
 		TX_STAT_INC(txq->axq_qnum, xtxop);
-	if (ds->ds_txstat.ts_status & ATH9K_TXERR_TIMER_EXPIRED)
+	if (ts->ts_status & ATH9K_TXERR_TIMER_EXPIRED)
 		TX_STAT_INC(txq->axq_qnum, timer_exp);
-	if (ds->ds_txstat.ts_flags & ATH9K_TX_DESC_CFG_ERR)
+	if (ts->ts_flags & ATH9K_TX_DESC_CFG_ERR)
 		TX_STAT_INC(txq->axq_qnum, desc_cfg_err);
-	if (ds->ds_txstat.ts_flags & ATH9K_TX_DATA_UNDERRUN)
+	if (ts->ts_flags & ATH9K_TX_DATA_UNDERRUN)
 		TX_STAT_INC(txq->axq_qnum, data_underrun);
-	if (ds->ds_txstat.ts_flags & ATH9K_TX_DELIM_UNDERRUN)
+	if (ts->ts_flags & ATH9K_TX_DELIM_UNDERRUN)
 		TX_STAT_INC(txq->axq_qnum, delim_underrun);
 }
 
@@ -663,30 +661,29 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 #undef PHY_ERR
 }
 
-void ath_debug_stat_rx(struct ath_softc *sc, struct ath_buf *bf)
+void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 {
 #define RX_STAT_INC(c) sc->debug.stats.rxstats.c++
 #define RX_PHY_ERR_INC(c) sc->debug.stats.rxstats.phy_err_stats[c]++
 
-	struct ath_desc *ds = bf->bf_desc;
 	u32 phyerr;
 
-	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_CRC)
+	if (rs->rs_status & ATH9K_RXERR_CRC)
 		RX_STAT_INC(crc_err);
-	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_DECRYPT)
+	if (rs->rs_status & ATH9K_RXERR_DECRYPT)
 		RX_STAT_INC(decrypt_crc_err);
-	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_MIC)
+	if (rs->rs_status & ATH9K_RXERR_MIC)
 		RX_STAT_INC(mic_err);
-	if (ds->ds_rxstat.rs_status & ATH9K_RX_DELIM_CRC_PRE)
+	if (rs->rs_status & ATH9K_RX_DELIM_CRC_PRE)
 		RX_STAT_INC(pre_delim_crc_err);
-	if (ds->ds_rxstat.rs_status & ATH9K_RX_DELIM_CRC_POST)
+	if (rs->rs_status & ATH9K_RX_DELIM_CRC_POST)
 		RX_STAT_INC(post_delim_crc_err);
-	if (ds->ds_rxstat.rs_status & ATH9K_RX_DECRYPT_BUSY)
+	if (rs->rs_status & ATH9K_RX_DECRYPT_BUSY)
 		RX_STAT_INC(decrypt_busy_err);
 
-	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_PHY) {
+	if (rs->rs_status & ATH9K_RXERR_PHY) {
 		RX_STAT_INC(phy_err);
-		phyerr = ds->ds_rxstat.rs_phyerr & 0x24;
+		phyerr = rs->rs_phyerr & 0x24;
 		RX_PHY_ERR_INC(phyerr);
 	}
 

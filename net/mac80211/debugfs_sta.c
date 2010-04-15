@@ -119,7 +119,7 @@ STA_OPS(last_seq_ctrl);
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
 {
-	char buf[64 + STA_TID_NUM * 40], *p = buf;
+	char buf[71 + STA_TID_NUM * 40], *p = buf;
 	int i;
 	struct sta_info *sta = file->private_data;
 
@@ -127,16 +127,16 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 	p += scnprintf(p, sizeof(buf) + buf - p, "next dialog_token: %#02x\n",
 			sta->ampdu_mlme.dialog_token_allocator + 1);
 	p += scnprintf(p, sizeof(buf) + buf - p,
-		       "TID\t\tRX\tDTKN\tSSN\t\tTX\tDTKN\tSSN\tpending\n");
+		       "TID\t\tRX active\tDTKN\tSSN\t\tTX\tDTKN\tSSN\tpending\n");
 	for (i = 0; i < STA_TID_NUM; i++) {
 		p += scnprintf(p, sizeof(buf) + buf - p, "%02d", i);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
-				sta->ampdu_mlme.tid_state_rx[i]);
+				sta->ampdu_mlme.tid_active_rx[i]);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
-				sta->ampdu_mlme.tid_state_rx[i] ?
+				sta->ampdu_mlme.tid_active_rx[i] ?
 				sta->ampdu_mlme.tid_rx[i]->dialog_token : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
-				sta->ampdu_mlme.tid_state_rx[i] ?
+				sta->ampdu_mlme.tid_active_rx[i] ?
 				sta->ampdu_mlme.tid_rx[i]->ssn : 0);
 
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
@@ -176,7 +176,7 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 	if (htc->ht_supported) {
 		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.4x\n", htc->cap);
 
-		PRINT_HT_CAP((htc->cap & BIT(0)), "RX LDCP");
+		PRINT_HT_CAP((htc->cap & BIT(0)), "RX LDPC");
 		PRINT_HT_CAP((htc->cap & BIT(1)), "HT20/HT40");
 		PRINT_HT_CAP(!(htc->cap & BIT(1)), "HT20");
 

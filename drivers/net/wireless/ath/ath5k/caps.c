@@ -109,6 +109,12 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 	else
 		ah->ah_capabilities.cap_queues.q_tx_num = AR5K_NUM_TX_QUEUES;
 
+	/* newer hardware has PHY error counters */
+	if (ah->ah_mac_srev >= AR5K_SREV_AR5213A)
+		ah->ah_capabilities.cap_has_phyerr_counters = true;
+	else
+		ah->ah_capabilities.cap_has_phyerr_counters = false;
+
 	return 0;
 }
 

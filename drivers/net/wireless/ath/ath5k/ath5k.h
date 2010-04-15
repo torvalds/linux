@@ -202,6 +202,8 @@
 #define AR5K_TUNE_MAX_TXPOWER			63
 #define AR5K_TUNE_DEFAULT_TXPOWER		25
 #define AR5K_TUNE_TPC_TXPOWER			false
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_FULL    10000   /* 10 sec */
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_ANI	1000	/* 1 sec */
 
 #define AR5K_INIT_CARR_SENSE_EN			1
 
@@ -799,9 +801,9 @@ struct ath5k_athchan_2ghz {
  * @AR5K_INT_TXURN: received when we should increase the TX trigger threshold
  * 	We currently do increments on interrupt by
  * 	(AR5K_TUNE_MAX_TX_FIFO_THRES - current_trigger_level) / 2
- * @AR5K_INT_MIB: Indicates the Management Information Base counters should be
- * 	checked. We should do this with ath5k_hw_update_mib_counters() but
- * 	it seems we should also then do some noise immunity work.
+ * @AR5K_INT_MIB: Indicates the either Management Information Base counters or
+ *	one of the PHY error counters reached the maximum value and should be
+ *	read and cleared.
  * @AR5K_INT_RXPHY: RX PHY Error
  * @AR5K_INT_RXKCM: RX Key cache miss
  * @AR5K_INT_SWBA: SoftWare Beacon Alert - indicates its time to send a
@@ -889,10 +891,11 @@ enum ath5k_int {
 	AR5K_INT_NOCARD	= 0xffffffff
 };
 
-/* Software interrupts used for calibration */
-enum ath5k_software_interrupt {
-	AR5K_SWI_FULL_CALIBRATION = 0x01,
-	AR5K_SWI_SHORT_CALIBRATION = 0x02,
+/* mask which calibration is active at the moment */
+enum ath5k_calibration_mask {
+	AR5K_CALIBRATION_FULL = 0x01,
+	AR5K_CALIBRATION_SHORT = 0x02,
+	AR5K_CALIBRATION_ANI = 0x04,
 };
 
 /*
@@ -981,6 +984,8 @@ struct ath5k_capabilities {
 	struct {
 		u8	q_tx_num;
 	} cap_queues;
+
+	bool cap_has_phyerr_counters;
 };
 
 /* size of noise floor history (keep it a power of two) */
@@ -991,6 +996,15 @@ struct ath5k_nfcal_hist
 	s16 nfval[ATH5K_NF_CAL_HIST_MAX];	/* last few noise floors */
 };
 
+/**
+ * struct avg_val - Helper structure for average calculation
+ * @avg: contains the actual average value
+ * @avg_weight: is used internally during calculation to prevent rounding errors
+ */
+struct ath5k_avg_val {
+	int avg;
+	int avg_weight;
+};
 
 /***************************************\
   HARDWARE ABSTRACTION LAYER STRUCTURE
@@ -1095,17 +1109,18 @@ struct ath5k_hw {
 
 	struct ath5k_nfcal_hist ah_nfcal_hist;
 
+	/* average beacon RSSI in our BSS (used by ANI) */
+	struct ath5k_avg_val	ah_beacon_rssi_avg;
+
 	/* noise floor from last periodic calibration */
 	s32			ah_noise_floor;
 
 	/* Calibration timestamp */
-	unsigned long		ah_cal_tstamp;
+	unsigned long		ah_cal_next_full;
+	unsigned long		ah_cal_next_ani;
 
-	/* Calibration interval (secs) */
-	u8			ah_cal_intval;
-
-	/* Software interrupt mask */
-	u8			ah_swi_mask;
+	/* Calibration mask */
+	u8			ah_cal_mask;
 
 	/*
 	 * Function pointers
@@ -1163,8 +1178,7 @@ int ath5k_hw_update_tx_triglevel(struct ath5k_hw *ah, bool increase);
 bool ath5k_hw_is_intr_pending(struct ath5k_hw *ah);
 int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask);
 enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask);
-void ath5k_hw_update_mib_counters(struct ath5k_hw *ah,
-				  struct ieee80211_low_level_stats *stats);
+void ath5k_hw_update_mib_counters(struct ath5k_hw *ah);
 
 /* EEPROM access functions */
 int ath5k_eeprom_init(struct ath5k_hw *ah);
@@ -1256,7 +1270,6 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah);
 int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
 			   struct ieee80211_channel *channel);
-void ath5k_hw_calibration_poll(struct ath5k_hw *ah);
 /* Spur mitigation */
 bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
 				  struct ieee80211_channel *channel);
@@ -1306,6 +1319,29 @@ static inline u32 ath5k_hw_bitswap(u32 val, unsigned int bits)
 	}
 
 	return retval;
+}
+
+#define AVG_SAMPLES	8
+#define AVG_FACTOR	1000
+
+/**
+ * ath5k_moving_average -  Exponentially weighted moving average
+ * @avg: average structure
+ * @val: current value
+ *
+ * This implementation make use of a struct ath5k_avg_val to prevent rounding
+ * errors.
+ */
+static inline struct ath5k_avg_val
+ath5k_moving_average(const struct ath5k_avg_val avg, const int val)
+{
+	struct ath5k_avg_val new;
+	new.avg_weight = avg.avg_weight  ?
+		(((avg.avg_weight * ((AVG_SAMPLES) - 1)) +
+			(val * (AVG_FACTOR))) / (AVG_SAMPLES)) :
+		(val * (AVG_FACTOR));
+	new.avg = new.avg_weight / (AVG_FACTOR);
+	return new;
 }
 
 #endif

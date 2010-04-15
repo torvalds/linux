@@ -192,12 +192,12 @@ static int iwl3945_hwrate_to_plcp_idx(u8 plcp)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-#define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
+#define TX_STATUS_ENTRY(x) case TX_3945_STATUS_FAIL_ ## x: return #x
 
 static const char *iwl3945_get_tx_fail_reason(u32 status)
 {
 	switch (status & TX_STATUS_MSK) {
-	case TX_STATUS_SUCCESS:
+	case TX_3945_STATUS_SUCCESS:
 		return "SUCCESS";
 		TX_STATUS_ENTRY(SHORT_LIMIT);
 		TX_STATUS_ENTRY(LONG_LIMIT);
@@ -487,7 +487,7 @@ static void _iwl3945_dbg_report_frame(struct iwl_priv *priv,
 		 *    but you can hack it to show more, if you'd like to. */
 		if (dataframe)
 			IWL_DEBUG_RX(priv, "%s: mhd=0x%04x, dst=0x%02x, "
-				     "len=%u, rssi=%d, chnl=%d, rate=%d, \n",
+				     "len=%u, rssi=%d, chnl=%d, rate=%d,\n",
 				     title, le16_to_cpu(fc), header->addr1[5],
 				     length, rssi, channel, rate);
 		else {
@@ -549,7 +549,6 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
 	u16 len = le16_to_cpu(rx_hdr->len);
 	struct sk_buff *skb;
-	int ret;
 	__le16 fc = hdr->frame_control;
 
 	/* We received data from the HW, so stop the watchdog */
@@ -566,9 +565,9 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 		return;
 	}
 
-	skb = alloc_skb(IWL_LINK_HDR_MAX * 2, GFP_ATOMIC);
+	skb = dev_alloc_skb(128);
 	if (!skb) {
-		IWL_ERR(priv, "alloc_skb failed\n");
+		IWL_ERR(priv, "dev_alloc_skb failed\n");
 		return;
 	}
 
@@ -577,37 +576,13 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 				       (struct ieee80211_hdr *)rxb_addr(rxb),
 				       le32_to_cpu(rx_end->status), stats);
 
-	skb_reserve(skb, IWL_LINK_HDR_MAX);
 	skb_add_rx_frag(skb, 0, rxb->page,
 			(void *)rx_hdr->payload - (void *)pkt, len);
-
-	/* mac80211 currently doesn't support paged SKB. Convert it to
-	 * linear SKB for management frame and data frame requires
-	 * software decryption or software defragementation. */
-	if (ieee80211_is_mgmt(fc) ||
-	    ieee80211_has_protected(fc) ||
-	    ieee80211_has_morefrags(fc) ||
-	    le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG)
-		ret = skb_linearize(skb);
-	else
-		ret = __pskb_pull_tail(skb, min_t(u16, IWL_LINK_HDR_MAX, len)) ?
-			0 : -ENOMEM;
-
-	if (ret) {
-		kfree_skb(skb);
-		goto out;
-	}
-
-	/*
-	 * XXX: We cannot touch the page and its virtual memory (pkt) after
-	 * here. It might have already been freed by the above skb change.
-	 */
 
 	iwl_update_stats(priv, false, fc, len);
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
 	ieee80211_rx(priv->hw, skb);
- out:
 	priv->alloc_rxb_page--;
 	rxb->page = NULL;
 }
@@ -623,9 +598,8 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 	struct iwl3945_rx_frame_stats *rx_stats = IWL_RX_STATS(pkt);
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
-	int snr;
-	u16 rx_stats_sig_avg = le16_to_cpu(rx_stats->sig_avg);
-	u16 rx_stats_noise_diff = le16_to_cpu(rx_stats->noise_diff);
+	u16 rx_stats_sig_avg __maybe_unused = le16_to_cpu(rx_stats->sig_avg);
+	u16 rx_stats_noise_diff __maybe_unused = le16_to_cpu(rx_stats->noise_diff);
 	u8 network_packet;
 
 	rx_status.flag = 0;
@@ -663,43 +637,19 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 	/* Convert 3945's rssi indicator to dBm */
 	rx_status.signal = rx_stats->rssi - IWL39_RSSI_OFFSET;
 
-	/* Set default noise value to -127 */
-	if (priv->last_rx_noise == 0)
-		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
-
-	/* 3945 provides noise info for OFDM frames only.
-	 * sig_avg and noise_diff are measured by the 3945's digital signal
-	 *   processor (DSP), and indicate linear levels of signal level and
-	 *   distortion/noise within the packet preamble after
-	 *   automatic gain control (AGC).  sig_avg should stay fairly
-	 *   constant if the radio's AGC is working well.
-	 * Since these values are linear (not dB or dBm), linear
-	 *   signal-to-noise ratio (SNR) is (sig_avg / noise_diff).
-	 * Convert linear SNR to dB SNR, then subtract that from rssi dBm
-	 *   to obtain noise level in dBm.
-	 * Calculate rx_status.signal (quality indicator in %) based on SNR. */
-	if (rx_stats_noise_diff) {
-		snr = rx_stats_sig_avg / rx_stats_noise_diff;
-		rx_status.noise = rx_status.signal -
-					iwl3945_calc_db_from_ratio(snr);
-	} else {
-		rx_status.noise = priv->last_rx_noise;
-	}
-
-
-	IWL_DEBUG_STATS(priv, "Rssi %d noise %d sig_avg %d noise_diff %d\n",
-			rx_status.signal, rx_status.noise,
-			rx_stats_sig_avg, rx_stats_noise_diff);
+	IWL_DEBUG_STATS(priv, "Rssi %d sig_avg %d noise_diff %d\n",
+			rx_status.signal, rx_stats_sig_avg,
+			rx_stats_noise_diff);
 
 	header = (struct ieee80211_hdr *)IWL_RX_DATA(pkt);
 
 	network_packet = iwl3945_is_network_packet(priv, header);
 
-	IWL_DEBUG_STATS_LIMIT(priv, "[%c] %d RSSI:%d Signal:%u, Noise:%u, Rate:%u\n",
+	IWL_DEBUG_STATS_LIMIT(priv, "[%c] %d RSSI:%d Signal:%u, Rate:%u\n",
 			      network_packet ? '*' : ' ',
 			      le16_to_cpu(rx_hdr->channel),
 			      rx_status.signal, rx_status.signal,
-			      rx_status.noise, rx_status.rate_idx);
+			      rx_status.rate_idx);
 
 	/* Set "1" to report good data frames in groups of 100 */
 	iwl3945_dbg_report_frame(priv, pkt, header, 1);
@@ -710,7 +660,6 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 			le32_to_cpu(rx_end->beacon_timestamp);
 		priv->_3945.last_tsf = le64_to_cpu(rx_end->timestamp);
 		priv->_3945.last_rx_rssi = rx_status.signal;
-		priv->last_rx_noise = rx_status.noise;
 	}
 
 	iwl3945_pass_packet_to_mac80211(priv, rxb, &rx_status);
@@ -1050,7 +999,7 @@ static void iwl3945_nic_config(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", rev_id);
 
 	if (rev_id & PCI_CFG_REV_ID_BIT_RTP)
-		IWL_DEBUG_INFO(priv, "RTP type \n");
+		IWL_DEBUG_INFO(priv, "RTP type\n");
 	else if (rev_id & PCI_CFG_REV_ID_BIT_BASIC_SKU) {
 		IWL_DEBUG_INFO(priv, "3945 RADIO-MB type\n");
 		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
@@ -2822,6 +2771,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2841,6 +2791,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 512,
 };
 
 DEFINE_PCI_DEVICE_TABLE(iwl3945_hw_card_ids) = {

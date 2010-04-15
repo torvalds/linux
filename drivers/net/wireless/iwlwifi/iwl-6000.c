@@ -44,7 +44,7 @@
 #include "iwl-sta.h"
 #include "iwl-agn.h"
 #include "iwl-helpers.h"
-#include "iwl-5000-hw.h"
+#include "iwl-agn-hw.h"
 #include "iwl-6000-hw.h"
 #include "iwl-agn-led.h"
 
@@ -57,6 +57,7 @@
 #define IWL6050_UCODE_API_MIN 4
 
 #define IWL6000_FW_PRE "iwlwifi-6000-"
+#define IWL6000_G2_FW_PRE "iwlwifi-6005-"
 #define _IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE #api ".ucode"
 #define IWL6000_MODULE_FIRMWARE(api) _IWL6000_MODULE_FIRMWARE(api)
 
@@ -137,7 +138,7 @@ static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
 static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWL50_NUM_QUEUES)
+	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
 		priv->cfg->num_of_queues =
 			priv->cfg->mod_params->num_of_queues;
 
@@ -145,7 +146,7 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			priv->cfg->num_of_queues *
-			sizeof(struct iwl5000_scd_bc_tbl);
+			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
@@ -226,25 +227,25 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 
 static struct iwl_lib_ops iwl6000_lib = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
-	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
-	.txq_inval_byte_cnt_tbl = iwl5000_txq_inval_byte_cnt_tbl,
-	.txq_set_sched = iwl5000_txq_set_sched,
-	.txq_agg_enable = iwl5000_txq_agg_enable,
-	.txq_agg_disable = iwl5000_txq_agg_disable,
+	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
+	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
+	.txq_set_sched = iwlagn_txq_set_sched,
+	.txq_agg_enable = iwlagn_txq_agg_enable,
+	.txq_agg_disable = iwlagn_txq_agg_disable,
 	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = iwl_hw_txq_free_tfd,
 	.txq_init = iwl_hw_tx_queue_init,
-	.rx_handler_setup = iwl5000_rx_handler_setup,
-	.setup_deferred_work = iwl5000_setup_deferred_work,
-	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
-	.load_ucode = iwl5000_load_ucode,
+	.rx_handler_setup = iwlagn_rx_handler_setup,
+	.setup_deferred_work = iwlagn_setup_deferred_work,
+	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
+	.load_ucode = iwlagn_load_ucode,
 	.dump_nic_event_log = iwl_dump_nic_event_log,
 	.dump_nic_error_log = iwl_dump_nic_error_log,
 	.dump_csr = iwl_dump_csr,
 	.dump_fh = iwl_dump_fh,
-	.init_alive_start = iwl5000_init_alive_start,
-	.alive_notify = iwl5000_alive_notify,
-	.send_tx_power = iwl5000_send_tx_power,
+	.init_alive_start = iwlagn_init_alive_start,
+	.alive_notify = iwlagn_alive_notify,
+	.send_tx_power = iwlagn_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.apm_ops = {
@@ -255,26 +256,26 @@ static struct iwl_lib_ops iwl6000_lib = {
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {
-			EEPROM_5000_REG_BAND_1_CHANNELS,
-			EEPROM_5000_REG_BAND_2_CHANNELS,
-			EEPROM_5000_REG_BAND_3_CHANNELS,
-			EEPROM_5000_REG_BAND_4_CHANNELS,
-			EEPROM_5000_REG_BAND_5_CHANNELS,
-			EEPROM_5000_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_5000_REG_BAND_52_HT40_CHANNELS
+			EEPROM_REG_BAND_1_CHANNELS,
+			EEPROM_REG_BAND_2_CHANNELS,
+			EEPROM_REG_BAND_3_CHANNELS,
+			EEPROM_REG_BAND_4_CHANNELS,
+			EEPROM_REG_BAND_5_CHANNELS,
+			EEPROM_REG_BAND_24_HT40_CHANNELS,
+			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
-		.calib_version	= iwl5000_eeprom_calib_version,
-		.query_addr = iwl5000_eeprom_query_addr,
+		.calib_version	= iwlagn_eeprom_calib_version,
+		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
 	.post_associate = iwl_post_associate,
 	.isr = iwl_isr_ict,
 	.config_ap = iwl_config_ap,
 	.temp_ops = {
-		.temperature = iwl5000_temperature,
+		.temperature = iwlagn_temperature,
 		.set_ct_kill = iwl6000_set_ct_threshold,
 	 },
 	.add_bcast_station = iwl_add_bcast_station,
@@ -284,34 +285,34 @@ static struct iwl_lib_ops iwl6000_lib = {
 };
 
 static const struct iwl_ops iwl6000_ops = {
-	.ucode = &iwl5000_ucode,
+	.ucode = &iwlagn_ucode,
 	.lib = &iwl6000_lib,
-	.hcmd = &iwl5000_hcmd,
-	.utils = &iwl5000_hcmd_utils,
+	.hcmd = &iwlagn_hcmd,
+	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
 };
 
 static struct iwl_lib_ops iwl6050_lib = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
-	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
-	.txq_inval_byte_cnt_tbl = iwl5000_txq_inval_byte_cnt_tbl,
-	.txq_set_sched = iwl5000_txq_set_sched,
-	.txq_agg_enable = iwl5000_txq_agg_enable,
-	.txq_agg_disable = iwl5000_txq_agg_disable,
+	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
+	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
+	.txq_set_sched = iwlagn_txq_set_sched,
+	.txq_agg_enable = iwlagn_txq_agg_enable,
+	.txq_agg_disable = iwlagn_txq_agg_disable,
 	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = iwl_hw_txq_free_tfd,
 	.txq_init = iwl_hw_tx_queue_init,
-	.rx_handler_setup = iwl5000_rx_handler_setup,
-	.setup_deferred_work = iwl5000_setup_deferred_work,
-	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
-	.load_ucode = iwl5000_load_ucode,
+	.rx_handler_setup = iwlagn_rx_handler_setup,
+	.setup_deferred_work = iwlagn_setup_deferred_work,
+	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
+	.load_ucode = iwlagn_load_ucode,
 	.dump_nic_event_log = iwl_dump_nic_event_log,
 	.dump_nic_error_log = iwl_dump_nic_error_log,
 	.dump_csr = iwl_dump_csr,
 	.dump_fh = iwl_dump_fh,
-	.init_alive_start = iwl5000_init_alive_start,
-	.alive_notify = iwl5000_alive_notify,
-	.send_tx_power = iwl5000_send_tx_power,
+	.init_alive_start = iwlagn_init_alive_start,
+	.alive_notify = iwlagn_alive_notify,
+	.send_tx_power = iwlagn_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.apm_ops = {
@@ -322,26 +323,26 @@ static struct iwl_lib_ops iwl6050_lib = {
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {
-			EEPROM_5000_REG_BAND_1_CHANNELS,
-			EEPROM_5000_REG_BAND_2_CHANNELS,
-			EEPROM_5000_REG_BAND_3_CHANNELS,
-			EEPROM_5000_REG_BAND_4_CHANNELS,
-			EEPROM_5000_REG_BAND_5_CHANNELS,
-			EEPROM_5000_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_5000_REG_BAND_52_HT40_CHANNELS
+			EEPROM_REG_BAND_1_CHANNELS,
+			EEPROM_REG_BAND_2_CHANNELS,
+			EEPROM_REG_BAND_3_CHANNELS,
+			EEPROM_REG_BAND_4_CHANNELS,
+			EEPROM_REG_BAND_5_CHANNELS,
+			EEPROM_REG_BAND_24_HT40_CHANNELS,
+			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
-		.calib_version	= iwl5000_eeprom_calib_version,
-		.query_addr = iwl5000_eeprom_query_addr,
+		.calib_version	= iwlagn_eeprom_calib_version,
+		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
 	.post_associate = iwl_post_associate,
 	.isr = iwl_isr_ict,
 	.config_ap = iwl_config_ap,
 	.temp_ops = {
-		.temperature = iwl5000_temperature,
+		.temperature = iwlagn_temperature,
 		.set_ct_kill = iwl6000_set_ct_threshold,
 		.set_calib_version = iwl6050_set_calib_version,
 	 },
@@ -352,16 +353,50 @@ static struct iwl_lib_ops iwl6050_lib = {
 };
 
 static const struct iwl_ops iwl6050_ops = {
-	.ucode = &iwl5000_ucode,
+	.ucode = &iwlagn_ucode,
 	.lib = &iwl6050_lib,
-	.hcmd = &iwl5000_hcmd,
-	.utils = &iwl5000_hcmd_utils,
+	.hcmd = &iwlagn_hcmd,
+	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
 };
 
 /*
  * "i": Internal configuration, use internal Power Amplifier
  */
+struct iwl_cfg iwl6000i_g2_2agn_cfg = {
+	.name = "6000 Series 2x2 AGN Gen2",
+	.fw_name_pre = IWL6000_G2_FW_PRE,
+	.ucode_api_max = IWL6000_UCODE_API_MAX,
+	.ucode_api_min = IWL6000_UCODE_API_MIN,
+	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.ops = &iwl6000_ops,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE,
+	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.mod_params = &iwlagn_mod_params,
+	.valid_tx_ant = ANT_AB,
+	.valid_rx_ant = ANT_AB,
+	.pll_cfg_val = 0,
+	.set_l0s = true,
+	.use_bsm = false,
+	.pa_type = IWL_PA_INTERNAL,
+	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
+	.shadow_ram_support = true,
+	.ht_greenfield_support = true,
+	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.supports_idle = true,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 1024,
+};
+
 struct iwl_cfg iwl6000i_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6200 AGN",
 	.fw_name_pre = IWL6000_FW_PRE,
@@ -371,10 +406,10 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.ops = &iwl6000_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_BC,
 	.valid_rx_ant = ANT_BC,
 	.pll_cfg_val = 0,
@@ -393,6 +428,7 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 1024,
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
@@ -404,10 +440,10 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.ops = &iwl6000_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_BC,
 	.valid_rx_ant = ANT_BC,
 	.pll_cfg_val = 0,
@@ -425,6 +461,7 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 1024,
 };
 
 struct iwl_cfg iwl6000i_2bg_cfg = {
@@ -436,10 +473,10 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.ops = &iwl6000_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_BC,
 	.valid_rx_ant = ANT_BC,
 	.pll_cfg_val = 0,
@@ -457,6 +494,7 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 1024,
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
@@ -468,10 +506,10 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.ops = &iwl6050_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = 0,
@@ -490,6 +528,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1500,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 1024,
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
@@ -501,10 +540,10 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.ops = &iwl6050_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = 0,
@@ -522,6 +561,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1500,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 1024,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
@@ -533,10 +573,10 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.ops = &iwl6000_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
 	.pll_cfg_val = 0,
@@ -555,6 +595,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 1024,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

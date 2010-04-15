@@ -317,6 +317,7 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_MFP_ENABLED	= BIT(6),
 	IEEE80211_STA_UAPSD_ENABLED	= BIT(7),
 	IEEE80211_STA_NULLFUNC_ACKED	= BIT(8),
+	IEEE80211_STA_RESET_SIGNAL_AVE	= BIT(9),
 };
 
 struct ieee80211_if_managed {
@@ -359,6 +360,24 @@ struct ieee80211_if_managed {
 	int wmm_last_param_set;
 
 	u8 use_4addr;
+
+	/* Signal strength from the last Beacon frame in the current BSS. */
+	int last_beacon_signal;
+
+	/*
+	 * Weighted average of the signal strength from Beacon frames in the
+	 * current BSS. This is in units of 1/16 of the signal unit to maintain
+	 * accuracy and to speed up calculations, i.e., the value need to be
+	 * divided by 16 to get the actual value.
+	 */
+	int ave_beacon_signal;
+
+	/*
+	 * Last Beacon frame signal strength average (ave_beacon_signal / 16)
+	 * that triggered a cqm event. 0 indicates that no event has been
+	 * generated for the current association.
+	 */
+	int last_cqm_event_signal;
 };
 
 enum ieee80211_ibss_request {
@@ -1078,8 +1097,6 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_smps_mode smps, const u8 *da,
 			       const u8 *bssid);
 
-void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,
-				u16 tid, u16 initiator, u16 reason);
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				    u16 initiator, u16 reason);
 void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta);

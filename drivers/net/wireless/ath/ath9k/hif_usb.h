@@ -34,6 +34,7 @@
 
 #define MAX_RX_URB_NUM  8
 #define MAX_RX_BUF_SIZE 16384
+#define MAX_PKT_NUM_IN_TRANSFER 10
 
 #define MAX_REG_OUT_URB_NUM  1
 #define MAX_REG_OUT_BUF_NUM  8
@@ -85,18 +86,17 @@ struct hif_device_usb {
 	struct usb_interface *interface;
 	const struct firmware *firmware;
 	struct htc_target *htc_handle;
-	u8 flags;
-
 	struct hif_usb_tx tx;
-
-	struct urb *wlan_rx_data_urb[MAX_RX_URB_NUM];
 	struct urb *reg_in_urb;
-
+	struct usb_anchor regout_submitted;
+	struct usb_anchor rx_submitted;
 	struct sk_buff *remain_skb;
 	int rx_remain_len;
 	int rx_pkt_len;
 	int rx_transfer_len;
 	int rx_pad_len;
+	spinlock_t rx_lock;
+	u8 flags; /* HIF_USB_* */
 };
 
 int ath9k_hif_usb_init(void);

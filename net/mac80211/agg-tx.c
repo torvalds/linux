@@ -215,6 +215,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 	int ret = 0;
 	u16 start_seq_num;
 
+	trace_api_start_tx_ba_session(pubsta, tid);
+
 	if (WARN_ON(!local->ops->ampdu_action))
 		return -EINVAL;
 
@@ -246,7 +248,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 		return -EINVAL;
 	}
 
-	if (test_sta_flags(sta, WLAN_STA_SUSPEND)) {
+	if (test_sta_flags(sta, WLAN_STA_BLOCK_BA)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Suspend in progress. "
 		       "Denying BA session request\n");
@@ -415,7 +417,7 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 					 struct sta_info *sta, u16 tid)
 {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Aggregation is on for tid %d \n", tid);
+	printk(KERN_DEBUG "Aggregation is on for tid %d\n", tid);
 #endif
 
 	spin_lock(&local->ampdu_lock);
@@ -440,6 +442,8 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	u8 *state;
+
+	trace_api_start_tx_ba_cb(sdata, ra, tid);
 
 	if (tid >= STA_TID_NUM) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -542,6 +546,8 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 
+	trace_api_stop_tx_ba_session(pubsta, tid, initiator);
+
 	if (!local->ops->ampdu_action)
 		return -EINVAL;
 
@@ -558,6 +564,8 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	u8 *state;
+
+	trace_api_stop_tx_ba_cb(sdata, ra, tid);
 
 	if (tid >= STA_TID_NUM) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -675,7 +683,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 	del_timer(&sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "switched off addBA timer for tid %d \n", tid);
+	printk(KERN_DEBUG "switched off addBA timer for tid %d\n", tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	if (le16_to_cpu(mgmt->u.action.u.addba_resp.status)

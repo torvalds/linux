@@ -105,7 +105,7 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
 }
 
 static void b43_chantab_radio_upload(struct b43_wldev *dev,
-				     const struct b43_nphy_channeltab_entry *e)
+				const struct b43_nphy_channeltab_entry_rev2 *e)
 {
 	b43_radio_write(dev, B2055_PLL_REF, e->radio_pll_ref);
 	b43_radio_write(dev, B2055_RF_PLLMOD0, e->radio_rf_pllmod0);
@@ -142,7 +142,7 @@ static void b43_chantab_radio_upload(struct b43_wldev *dev,
 }
 
 static void b43_chantab_phy_upload(struct b43_wldev *dev,
-				   const struct b43_nphy_channeltab_entry *e)
+				   const struct b43_phy_n_sfo_cfg *e)
 {
 	b43_phy_write(dev, B43_NPHY_BW1A, e->phy_bw1a);
 	b43_phy_write(dev, B43_NPHY_BW2, e->phy_bw2);
@@ -160,16 +160,16 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/Radio/2055Setup */
 static void b43_radio_2055_setup(struct b43_wldev *dev,
-				const struct b43_nphy_channeltab_entry *e)
+				const struct b43_nphy_channeltab_entry_rev2 *e)
 {
 	B43_WARN_ON(dev->phy.rev >= 3);
 
 	b43_chantab_radio_upload(dev, e);
 	udelay(50);
-	b43_radio_write(dev, B2055_VCO_CAL10, 5);
-	b43_radio_write(dev, B2055_VCO_CAL10, 45);
+	b43_radio_write(dev, B2055_VCO_CAL10, 0x05);
+	b43_radio_write(dev, B2055_VCO_CAL10, 0x45);
 	b43_read32(dev, B43_MMIO_MACCTL); /* flush writes */
-	b43_radio_write(dev, B2055_VCO_CAL10, 65);
+	b43_radio_write(dev, B2055_VCO_CAL10, 0x65);
 	udelay(300);
 }
 
@@ -253,6 +253,16 @@ static void b43_radio_init2055(struct b43_wldev *dev)
 		b2055_upload_inittab(dev, 0/*FIXME on 5ghz band*/, 0);
 	b43_radio_init2055_post(dev);
 }
+
+/*
+ * Initialize a Broadcom 2056 N-radio
+ * http://bcm-v4.sipsolutions.net/802.11/Radio/2056/Init
+ */
+static void b43_radio_init2056(struct b43_wldev *dev)
+{
+	/* TODO */
+}
+
 
 /*
  * Upload the N-PHY tables.
@@ -2791,7 +2801,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 			}
 			b43_ntab_write_bulk(dev, B43_NTAB16(15, 88), 4,
 						buffer);
-			b43_ntab_write_bulk(dev, B43_NTAB16(15, 101), 2,
+			b43_ntab_read_bulk(dev, B43_NTAB16(15, 101), 2,
 						buffer);
 			b43_ntab_write_bulk(dev, B43_NTAB16(15, 85), 2,
 						buffer);
@@ -3261,7 +3271,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ChanspecSetup */
 static void b43_nphy_chanspec_setup(struct b43_wldev *dev,
-				const struct b43_nphy_channeltab_entry *e,
+				const struct b43_phy_n_sfo_cfg *e,
 				struct b43_chanspec chanspec)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -3327,13 +3337,21 @@ static int b43_nphy_set_chanspec(struct b43_wldev *dev,
 {
 	struct b43_phy_n *nphy = dev->phy.n;
 
-	const struct b43_nphy_channeltab_entry *tabent;
+	const struct b43_nphy_channeltab_entry_rev2 *tabent_r2;
+	const struct b43_nphy_channeltab_entry_rev3 *tabent_r3;
 
 	u8 tmp;
 	u8 channel = chanspec.channel;
 
 	if (dev->phy.rev >= 3) {
 		/* TODO */
+		tabent_r3 = NULL;
+		if (!tabent_r3)
+			return -ESRCH;
+	} else {
+		tabent_r2 = b43_nphy_get_chantabent_rev2(dev, channel);
+		if (!tabent_r2)
+			return -ESRCH;
 	}
 
 	nphy->radio_chanspec = chanspec;
@@ -3354,17 +3372,13 @@ static int b43_nphy_set_chanspec(struct b43_wldev *dev,
 	if (dev->phy.rev >= 3) {
 		tmp = (chanspec.b_freq == 1) ? 4 : 0;
 		b43_radio_maskset(dev, 0x08, 0xFFFB, tmp);
-		/* TODO: PHY Radio2056 Setup (chan_info_ptr[i]) */
-		/* TODO: N PHY Chanspec Setup (chan_info_ptr[i]) */
+		/* TODO: PHY Radio2056 Setup (dev, tabent_r3); */
+		b43_nphy_chanspec_setup(dev, &(tabent_r3->phy_regs), chanspec);
 	} else {
-		tabent = b43_nphy_get_chantabent(dev, channel);
-		if (!tabent)
-			return -ESRCH;
-
 		tmp = (chanspec.b_freq == 1) ? 0x0020 : 0x0050;
 		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, tmp);
-		b43_radio_2055_setup(dev, tabent);
-		b43_nphy_chanspec_setup(dev, tabent, chanspec);
+		b43_radio_2055_setup(dev, tabent_r2);
+		b43_nphy_chanspec_setup(dev, &(tabent_r2->phy_regs), chanspec);
 	}
 
 	return 0;
@@ -3474,6 +3488,8 @@ static void b43_nphy_op_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
 static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 					bool blocked)
 {
+	struct b43_phy_n *nphy = dev->phy.n;
+
 	if (b43_read32(dev, B43_MMIO_MACCTL) & B43_MACCTL_ENABLED)
 		b43err(dev->wl, "MAC not suspended\n");
 
@@ -3499,8 +3515,8 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 		}
 	} else {
 		if (dev->phy.rev >= 3) {
-			/* TODO: b43_radio_init2056(dev); */
-			/* TODO: PHY Set Channel Spec (dev, radio_chanspec) */
+			b43_radio_init2056(dev);
+			b43_nphy_set_chanspec(dev, nphy->radio_chanspec);
 		} else {
 			b43_radio_init2055(dev);
 		}

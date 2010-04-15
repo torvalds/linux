@@ -113,39 +113,26 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 }
 
 /**
- * ath5k_hw_update - Update mib counters (mac layer statistics)
+ * ath5k_hw_update - Update MIB counters (mac layer statistics)
  *
  * @ah: The &struct ath5k_hw
- * @stats: The &struct ieee80211_low_level_stats we use to track
- * statistics on the driver
  *
- * Reads MIB counters from PCU and updates sw statistics. Must be
- * called after a MIB interrupt.
+ * Reads MIB counters from PCU and updates sw statistics. Is called after a
+ * MIB interrupt, because one of these counters might have reached their maximum
+ * and triggered the MIB interrupt, to let us read and clear the counter.
+ *
+ * Is called in interrupt context!
  */
-void ath5k_hw_update_mib_counters(struct ath5k_hw *ah,
-		struct ieee80211_low_level_stats  *stats)
+void ath5k_hw_update_mib_counters(struct ath5k_hw *ah)
 {
-	ATH5K_TRACE(ah->ah_sc);
+	struct ath5k_statistics *stats = &ah->ah_sc->stats;
 
 	/* Read-And-Clear */
-	stats->dot11ACKFailureCount += ath5k_hw_reg_read(ah, AR5K_ACK_FAIL);
-	stats->dot11RTSFailureCount += ath5k_hw_reg_read(ah, AR5K_RTS_FAIL);
-	stats->dot11RTSSuccessCount += ath5k_hw_reg_read(ah, AR5K_RTS_OK);
-	stats->dot11FCSErrorCount += ath5k_hw_reg_read(ah, AR5K_FCS_FAIL);
-
-	/* XXX: Should we use this to track beacon count ?
-	 * -we read it anyway to clear the register */
-	ath5k_hw_reg_read(ah, AR5K_BEACON_CNT);
-
-	/* Reset profile count registers on 5212*/
-	if (ah->ah_version == AR5K_AR5212) {
-		ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_TX);
-		ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_RX);
-		ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_RXCLR);
-		ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_CYCLE);
-	}
-
-	/* TODO: Handle ANI stats */
+	stats->ack_fail += ath5k_hw_reg_read(ah, AR5K_ACK_FAIL);
+	stats->rts_fail += ath5k_hw_reg_read(ah, AR5K_RTS_FAIL);
+	stats->rts_ok += ath5k_hw_reg_read(ah, AR5K_RTS_OK);
+	stats->fcs_error += ath5k_hw_reg_read(ah, AR5K_FCS_FAIL);
+	stats->beacons += ath5k_hw_reg_read(ah, AR5K_BEACON_CNT);
 }
 
 /**
@@ -167,9 +154,9 @@ void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high)
 	else {
 		u32 val = AR5K_STA_ID1_BASE_RATE_11B | AR5K_STA_ID1_ACKCTS_6MB;
 		if (high)
-			AR5K_REG_ENABLE_BITS(ah, AR5K_STA_ID1, val);
-		else
 			AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, val);
+		else
+			AR5K_REG_ENABLE_BITS(ah, AR5K_STA_ID1, val);
 	}
 }
 
@@ -392,7 +379,6 @@ void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
  * (ACK etc).
  *
  * NOTE: RX DMA should be already enabled using ath5k_hw_start_rx_dma
- * TODO: Init ANI here
  */
 void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah)
 {

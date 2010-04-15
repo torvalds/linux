@@ -287,6 +287,7 @@ static bool ath_usb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 }
 
 static const struct ath_bus_ops ath9k_usb_bus_ops = {
+	.ath_bus_type = ATH_USB,
 	.read_cachesize = ath_usb_read_cachesize,
 	.eeprom_read = ath_usb_eeprom_read,
 };
@@ -421,6 +422,7 @@ static void ath9k_init_misc(struct ath9k_htc_priv *priv)
 		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 
 	priv->op_flags |= OP_TXAGGR;
+	priv->ah->opmode = NL80211_IFTYPE_STATION;
 }
 
 static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
@@ -449,8 +451,10 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
 
 	spin_lock_init(&priv->wmi->wmi_lock);
 	spin_lock_init(&priv->beacon_lock);
+	spin_lock_init(&priv->tx_lock);
 	mutex_init(&priv->mutex);
 	mutex_init(&priv->aggr_work.mutex);
+	mutex_init(&priv->htc_pm_lock);
 	tasklet_init(&priv->wmi_tasklet, ath9k_wmi_tasklet,
 		     (unsigned long)priv);
 	tasklet_init(&priv->rx_tasklet, ath9k_rx_tasklet,
@@ -458,6 +462,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
 	tasklet_init(&priv->tx_tasklet, ath9k_tx_tasklet, (unsigned long)priv);
 	INIT_DELAYED_WORK(&priv->ath9k_aggr_work, ath9k_htc_aggr_work);
 	INIT_DELAYED_WORK(&priv->ath9k_ani_work, ath9k_ani_work);
+	INIT_WORK(&priv->ps_work, ath9k_ps_work);
 
 	/*
 	 * Cache line size is used to size and align various
@@ -511,11 +516,16 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_AMPDU_AGGREGATION |
 		IEEE80211_HW_SPECTRUM_MGMT |
-		IEEE80211_HW_HAS_RATE_CONTROL;
+		IEEE80211_HW_HAS_RATE_CONTROL |
+		IEEE80211_HW_RX_INCLUDES_FCS |
+		IEEE80211_HW_SUPPORTS_PS |
+		IEEE80211_HW_PS_NULLFUNC_STACK;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
+
+	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->queues = 4;
 	hw->channel_change_time = 5000;

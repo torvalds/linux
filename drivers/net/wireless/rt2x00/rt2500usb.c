@@ -649,6 +649,10 @@ static void rt2500usb_config_ps(struct rt2x00_dev *rt2x00dev,
 
 		rt2x00_set_field16(&reg, MAC_CSR18_AUTO_WAKE, 1);
 		rt2500usb_register_write(rt2x00dev, MAC_CSR18, reg);
+	} else {
+		rt2500usb_register_read(rt2x00dev, MAC_CSR18, &reg);
+		rt2x00_set_field16(&reg, MAC_CSR18_AUTO_WAKE, 0);
+		rt2500usb_register_write(rt2x00dev, MAC_CSR18, reg);
 	}
 
 	rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
@@ -1642,11 +1646,6 @@ static int rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	struct channel_info *info;
 	char *tx_power;
 	unsigned int i;
-
-	/*
-	 * Disable powersaving as default.
-	 */
-	rt2x00dev->hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	/*
 	 * Initialize all hw fields.

@@ -124,6 +124,8 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	ah->ah_limit_tx_retries = AR5K_INIT_TX_RETRY;
 	ah->ah_software_retry = false;
 	ah->ah_ant_mode = AR5K_ANTMODE_DEFAULT;
+	ah->ah_noise_floor = -95;	/* until first NF calibration is run */
+	sc->ani_state.ani_mode = ATH5K_ANI_MODE_AUTO;
 
 	/*
 	 * Find the mac version
