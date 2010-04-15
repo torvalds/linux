@@ -47,13 +47,12 @@ int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 	if (!pos)
 		return -EIO;
 
-	pci_read_config_word(dev, pos+PCI_EXP_DEVCTL, &reg16);
-	reg16 = reg16 |
-		PCI_EXP_DEVCTL_CERE |
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &reg16);
+	reg16 |= (PCI_EXP_DEVCTL_CERE |
 		PCI_EXP_DEVCTL_NFERE |
 		PCI_EXP_DEVCTL_FERE |
-		PCI_EXP_DEVCTL_URRE;
-	pci_write_config_word(dev, pos+PCI_EXP_DEVCTL, reg16);
+		PCI_EXP_DEVCTL_URRE);
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, reg16);
 
 	return 0;
 }
@@ -71,12 +70,12 @@ int pci_disable_pcie_error_reporting(struct pci_dev *dev)
 	if (!pos)
 		return -EIO;
 
-	pci_read_config_word(dev, pos+PCI_EXP_DEVCTL, &reg16);
-	reg16 = reg16 & ~(PCI_EXP_DEVCTL_CERE |
-			PCI_EXP_DEVCTL_NFERE |
-			PCI_EXP_DEVCTL_FERE |
-			PCI_EXP_DEVCTL_URRE);
-	pci_write_config_word(dev, pos+PCI_EXP_DEVCTL, reg16);
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &reg16);
+	reg16 &= ~(PCI_EXP_DEVCTL_CERE |
+		PCI_EXP_DEVCTL_NFERE |
+		PCI_EXP_DEVCTL_FERE |
+		PCI_EXP_DEVCTL_URRE);
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, reg16);
 
 	return 0;
 }
