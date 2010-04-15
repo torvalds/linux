@@ -2036,6 +2036,11 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 	}
 }
 
+/*
+ * Notify Power Management is enabled in self-generating
+ * frames. If request, set power mode of chip to
+ * auto/normal.  Duration in units of 128us (1/8 TU).
+ */
 static void ath9k_set_power_network_sleep(struct ath_hw *ah, int setChip)
 {
 	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
@@ -2043,9 +2048,14 @@ static void ath9k_set_power_network_sleep(struct ath_hw *ah, int setChip)
 		struct ath9k_hw_capabilities *pCap = &ah->caps;
 
 		if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
+			/* Set WakeOnInterrupt bit; clear ForceWake bit */
 			REG_WRITE(ah, AR_RTC_FORCE_WAKE,
 				  AR_RTC_FORCE_WAKE_ON_INT);
 		} else {
+			/*
+			 * Clear the RTC force wake bit to allow the
+			 * mac to go to sleep.
+			 */
 			REG_CLR_BIT(ah, AR_RTC_FORCE_WAKE,
 				    AR_RTC_FORCE_WAKE_EN);
 		}
