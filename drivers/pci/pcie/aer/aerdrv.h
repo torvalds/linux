@@ -17,9 +17,6 @@
 #define AER_FATAL			1
 #define AER_CORRECTABLE			2
 
-/* Root Error Status Register Bits */
-#define ROOT_ERR_STATUS_MASKS		0x0f
-
 #define SYSTEM_ERROR_INTR_ON_MESG_MASK	(PCI_EXP_RTCTL_SECEE|	\
 					PCI_EXP_RTCTL_SENFEE|	\
 					PCI_EXP_RTCTL_SEFEE)

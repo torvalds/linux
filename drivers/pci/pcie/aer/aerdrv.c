@@ -204,7 +204,7 @@ irqreturn_t aer_irq(int irq, void *context)
 
 	/* Read error status */
 	pci_read_config_dword(pdev->port, pos + PCI_ERR_ROOT_STATUS, &status);
-	if (!(status & ROOT_ERR_STATUS_MASKS)) {
+	if (!(status & (PCI_ERR_ROOT_UNCOR_RCV|PCI_ERR_ROOT_COR_RCV))) {
 		spin_unlock_irqrestore(&rpc->e_lock, flags);
 		return IRQ_NONE;
 	}
