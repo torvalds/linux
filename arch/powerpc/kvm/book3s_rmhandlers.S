@@ -248,4 +248,4 @@ kvmppc_trampoline_lowmem:
 kvmppc_trampoline_enter:
 	.long kvmppc_handler_trampoline_enter - _stext
 
-#include "book3s_64_slb.S"
+#include "book3s_segment.S"
