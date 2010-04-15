@@ -895,6 +895,9 @@ static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 		REG_WRITE(ah, AR_PCU_TXBUF_CTRL,
 			  AR_PCU_TXBUF_CTRL_USABLE_SIZE);
 	}
+
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		ath9k_hw_reset_txstatus_ring(ah);
 }
 
 static void ath9k_hw_set_operating_mode(struct ath_hw *ah, int opmode)

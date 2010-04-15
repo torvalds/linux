@@ -347,3 +347,33 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 	return 0;
 }
 EXPORT_SYMBOL(ath9k_hw_process_rxdesc_edma);
+
+void ath9k_hw_reset_txstatus_ring(struct ath_hw *ah)
+{
+	ah->ts_tail = 0;
+
+	memset((void *) ah->ts_ring, 0,
+		ah->ts_size * sizeof(struct ar9003_txs));
+
+	ath_print(ath9k_hw_common(ah), ATH_DBG_XMIT,
+		  "TS Start 0x%x End 0x%x Virt %p, Size %d\n",
+		   ah->ts_paddr_start, ah->ts_paddr_end,
+		   ah->ts_ring, ah->ts_size);
+
+	REG_WRITE(ah, AR_Q_STATUS_RING_START, ah->ts_paddr_start);
+	REG_WRITE(ah, AR_Q_STATUS_RING_END, ah->ts_paddr_end);
+}
+
+void ath9k_hw_setup_statusring(struct ath_hw *ah, void *ts_start,
+			       u32 ts_paddr_start,
+			       u8 size)
+{
+
+	ah->ts_paddr_start = ts_paddr_start;
+	ah->ts_paddr_end = ts_paddr_start + (size * sizeof(struct ar9003_txs));
+	ah->ts_size = size;
+	ah->ts_ring = (struct ar9003_txs *) ts_start;
+
+	ath9k_hw_reset_txstatus_ring(ah);
+}
+EXPORT_SYMBOL(ath9k_hw_setup_statusring);

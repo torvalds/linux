@@ -73,6 +73,18 @@ struct ar9003_txc {
 	u32 pad[9]; /* pad to cache line (128 bytes/32 dwords) */
 } __packed;
 
+struct ar9003_txs {
+	u32 ds_info;
+	u32 status1;
+	u32 status2;
+	u32 status3;
+	u32 status4;
+	u32 status5;
+	u32 status6;
+	u32 status7;
+	u32 status8;
+} __packed;
+
 void ar9003_hw_attach_mac_ops(struct ath_hw *hw);
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size);
 void ath9k_hw_addrxbuf_edma(struct ath_hw *ah, u32 rxdp,
@@ -81,5 +93,8 @@ void ath9k_hw_addrxbuf_edma(struct ath_hw *ah, u32 rxdp,
 int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah,
 				 struct ath_rx_status *rxs,
 				 void *buf_addr);
-
+void ath9k_hw_reset_txstatus_ring(struct ath_hw *ah);
+void ath9k_hw_setup_statusring(struct ath_hw *ah, void *ts_start,
+			       u32 ts_paddr_start,
+			       u8 size);
 #endif

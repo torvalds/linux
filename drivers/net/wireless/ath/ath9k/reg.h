@@ -383,6 +383,9 @@
 #define AR_Q9_TXDP           0x0824
 #define AR_QTXDP(_i)    (AR_Q0_TXDP + ((_i)<<2))
 
+#define AR_Q_STATUS_RING_START	0x830
+#define AR_Q_STATUS_RING_END	0x834
+
 #define AR_Q_TXE             0x0840
 #define AR_Q_TXE_M           0x000003FF
 

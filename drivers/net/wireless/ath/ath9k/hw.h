@@ -761,6 +761,13 @@ struct ath_hw {
 	u32 intr_gen_timer_trigger;
 	u32 intr_gen_timer_thresh;
 	struct ath_gen_timer_table hw_gen_timers;
+
+	struct ar9003_txs *ts_ring;
+	void *ts_start;
+	u32 ts_paddr_start;
+	u32 ts_paddr_end;
+	u16 ts_tail;
+	u8 ts_size;
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
