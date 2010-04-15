@@ -50,6 +50,8 @@ static void ar9002_hw_setup_calibration(struct ath_hw *ah,
 		ath_print(common, ATH_DBG_CALIBRATE,
 			  "starting Init ADC DC Calibration\n");
 		break;
+	case TEMP_COMP_CAL:
+		break; /* Not supported */
 	}
 
 	REG_SET_BIT(ah, AR_PHY_TIMING_CTRL4(0),

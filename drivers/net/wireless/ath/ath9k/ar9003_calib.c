@@ -21,7 +21,41 @@
 static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 					struct ath9k_cal_list *currCal)
 {
-	/* TODO */
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	/* Select calibration to run */
+	switch (currCal->calData->calType) {
+	case IQ_MISMATCH_CAL:
+		/*
+		 * Start calibration with
+		 * 2^(INIT_IQCAL_LOG_COUNT_MAX+1) samples
+		 */
+		REG_RMW_FIELD(ah, AR_PHY_TIMING4,
+			      AR_PHY_TIMING4_IQCAL_LOG_COUNT_MAX,
+		currCal->calData->calCountMax);
+		REG_WRITE(ah, AR_PHY_CALMODE, AR_PHY_CALMODE_IQ);
+
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "starting IQ Mismatch Calibration\n");
+
+		/* Kick-off cal */
+		REG_SET_BIT(ah, AR_PHY_TIMING4, AR_PHY_TIMING4_DO_CAL);
+		break;
+	case TEMP_COMP_CAL:
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_THERM,
+			      AR_PHY_65NM_CH0_THERM_LOCAL, 1);
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_THERM,
+			      AR_PHY_65NM_CH0_THERM_START, 1);
+
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "starting Temperature Compensation Calibration\n");
+		break;
+	case ADC_DC_INIT_CAL:
+	case ADC_GAIN_CAL:
+	case ADC_DC_CAL:
+		/* Not yet */
+		break;
+	}
 }
 
 static bool ar9003_hw_calibrate(struct ath_hw *ah,
