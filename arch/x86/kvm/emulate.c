@@ -2453,7 +2453,7 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 		rc = writeback(ctxt, ops);
 	}
 
-	return rc;
+	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
 }
 
 static void string_addr_inc(struct x86_emulate_ctxt *ctxt, unsigned long base,

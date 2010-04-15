@@ -4800,10 +4800,11 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 				   tss_selector, reason, has_error_code,
 				   error_code);
 
-	if (ret == X86EMUL_CONTINUE)
-		kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+	if (ret)
+		return EMULATE_FAIL;
 
-	return (ret != X86EMUL_CONTINUE);
+	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+	return EMULATE_DONE;
 }
 EXPORT_SYMBOL_GPL(kvm_task_switch);
 
