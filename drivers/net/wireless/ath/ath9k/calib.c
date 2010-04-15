@@ -730,14 +730,6 @@ static void ar9280_hw_olc_temp_compensation(struct ath_hw *ah)
 	}
 }
 
-static void ath9k_olc_temp_compensation(struct ath_hw *ah)
-{
-	if (OLC_FOR_AR9287_10_LATER)
-		ar9287_hw_olc_temp_compensation(ah);
-	else
-		ar9280_hw_olc_temp_compensation(ah);
-}
-
 static void ath9k_hw_9271_pa_cal(struct ath_hw *ah, bool is_reset)
 {
 	u32 regVal;
@@ -969,8 +961,10 @@ static void ar9002_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 
 static void ar9002_hw_olc_temp_compensation(struct ath_hw *ah)
 {
-	if (OLC_FOR_AR9280_20_LATER || OLC_FOR_AR9287_10_LATER)
-		ath9k_olc_temp_compensation(ah);
+	if (OLC_FOR_AR9287_10_LATER)
+		ar9287_hw_olc_temp_compensation(ah);
+	else if (OLC_FOR_AR9280_20_LATER)
+		ar9280_hw_olc_temp_compensation(ah);
 }
 
 bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
