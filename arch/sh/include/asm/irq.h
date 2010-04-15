@@ -12,6 +12,14 @@
 #define NR_IRQS_LEGACY		8	/* Legacy external IRQ0-7 */
 
 /*
+ * This is a special IRQ number for indicating that no IRQ has been
+ * triggered and to simply ignore the IRQ dispatch. This is a special
+ * case that can happen with IRQ auto-distribution when multiple CPUs
+ * are woken up and signalled in parallel.
+ */
+#define NO_IRQ_IGNORE		((unsigned int)-1)
+
+/*
  * Convert back and forth between INTEVT and IRQ values.
  */
 #ifdef CONFIG_CPU_HAS_INTEVT
@@ -51,6 +59,14 @@ extern void irq_ctx_exit(int cpu);
 #else
 # define irq_ctx_init(cpu) do { } while (0)
 # define irq_ctx_exit(cpu) do { } while (0)
+#endif
+
+#ifdef CONFIG_INTC_BALANCING
+extern unsigned int irq_lookup(unsigned int irq);
+extern void irq_finish(unsigned int irq);
+#else
+#define irq_lookup(irq)		(irq)
+#define irq_finish(irq)		do { } while (0)
 #endif
 
 #include <asm-generic/irq.h>

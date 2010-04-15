@@ -98,11 +98,55 @@ static DEFINE_SPINLOCK(vector_lock);
 static unsigned int intc_prio_level[NR_IRQS];	/* for now */
 static unsigned int default_prio_level = 2;	/* 2 - 16 */
 static unsigned long ack_handle[NR_IRQS];
+#ifdef CONFIG_INTC_BALANCING
+static unsigned long dist_handle[NR_IRQS];
+#endif
 
 static inline struct intc_desc_int *get_intc_desc(unsigned int irq)
 {
 	struct irq_chip *chip = get_irq_chip(irq);
 	return container_of(chip, struct intc_desc_int, chip);
+}
+
+static unsigned long intc_phys_to_virt(struct intc_desc_int *d,
+				       unsigned long address)
+{
+	struct intc_window *window;
+	int k;
+
+	/* scan through physical windows and convert address */
+	for (k = 0; k < d->nr_windows; k++) {
+		window = d->window + k;
+
+		if (address < window->phys)
+			continue;
+
+		if (address >= (window->phys + window->size))
+			continue;
+
+		address -= window->phys;
+		address += (unsigned long)window->virt;
+
+		return address;
+	}
+
+	/* no windows defined, register must be 1:1 mapped virt:phys */
+	return address;
+}
+
+static unsigned int intc_get_reg(struct intc_desc_int *d, unsigned long address)
+{
+	unsigned int k;
+
+	address = intc_phys_to_virt(d, address);
+
+	for (k = 0; k < d->nr_reg; k++) {
+		if (d->reg[k] == address)
+			return k;
+	}
+
+	BUG();
+	return 0;
 }
 
 static inline unsigned int set_field(unsigned int value,
@@ -238,6 +282,85 @@ static void (*intc_disable_fns[])(unsigned long addr,
 	[MODE_PCLR_REG] = intc_mode_field,
 };
 
+#ifdef CONFIG_INTC_BALANCING
+static inline void intc_balancing_enable(unsigned int irq)
+{
+	struct intc_desc_int *d = get_intc_desc(irq);
+	unsigned long handle = dist_handle[irq];
+	unsigned long addr;
+
+	if (irq_balancing_disabled(irq) || !handle)
+		return;
+
+	addr = INTC_REG(d, _INTC_ADDR_D(handle), 0);
+	intc_reg_fns[_INTC_FN(handle)](addr, handle, 1);
+}
+
+static inline void intc_balancing_disable(unsigned int irq)
+{
+	struct intc_desc_int *d = get_intc_desc(irq);
+	unsigned long handle = dist_handle[irq];
+	unsigned long addr;
+
+	if (irq_balancing_disabled(irq) || !handle)
+		return;
+
+	addr = INTC_REG(d, _INTC_ADDR_D(handle), 0);
+	intc_reg_fns[_INTC_FN(handle)](addr, handle, 0);
+}
+
+static unsigned int intc_dist_data(struct intc_desc *desc,
+				   struct intc_desc_int *d,
+				   intc_enum enum_id)
+{
+	struct intc_mask_reg *mr = desc->hw.mask_regs;
+	unsigned int i, j, fn, mode;
+	unsigned long reg_e, reg_d;
+
+	for (i = 0; mr && enum_id && i < desc->hw.nr_mask_regs; i++) {
+		mr = desc->hw.mask_regs + i;
+
+		/*
+		 * Skip this entry if there's no auto-distribution
+		 * register associated with it.
+		 */
+		if (!mr->dist_reg)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(mr->enum_ids); j++) {
+			if (mr->enum_ids[j] != enum_id)
+				continue;
+
+			fn = REG_FN_MODIFY_BASE;
+			mode = MODE_ENABLE_REG;
+			reg_e = mr->dist_reg;
+			reg_d = mr->dist_reg;
+
+			fn += (mr->reg_width >> 3) - 1;
+			return _INTC_MK(fn, mode,
+					intc_get_reg(d, reg_e),
+					intc_get_reg(d, reg_d),
+					1,
+					(mr->reg_width - 1) - j);
+		}
+	}
+
+	/*
+	 * It's possible we've gotten here with no distribution options
+	 * available for the IRQ in question, so we just skip over those.
+	 */
+	return 0;
+}
+#else
+static inline void intc_balancing_enable(unsigned int irq)
+{
+}
+
+static inline void intc_balancing_disable(unsigned int irq)
+{
+}
+#endif
+
 static inline void _intc_enable(unsigned int irq, unsigned long handle)
 {
 	struct intc_desc_int *d = get_intc_desc(irq);
@@ -253,6 +376,8 @@ static inline void _intc_enable(unsigned int irq, unsigned long handle)
 		intc_enable_fns[_INTC_MODE(handle)](addr, handle, intc_reg_fns\
 						    [_INTC_FN(handle)], irq);
 	}
+
+	intc_balancing_enable(irq);
 }
 
 static void intc_enable(unsigned int irq)
@@ -263,9 +388,11 @@ static void intc_enable(unsigned int irq)
 static void intc_disable(unsigned int irq)
 {
 	struct intc_desc_int *d = get_intc_desc(irq);
-	unsigned long handle = (unsigned long) get_irq_chip_data(irq);
+	unsigned long handle = (unsigned long)get_irq_chip_data(irq);
 	unsigned long addr;
 	unsigned int cpu;
+
+	intc_balancing_disable(irq);
 
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_D(handle)); cpu++) {
 #ifdef CONFIG_SMP
@@ -345,8 +472,7 @@ static void intc_mask_ack(unsigned int irq)
 
 	intc_disable(irq);
 
-	/* read register and write zero only to the assocaited bit */
-
+	/* read register and write zero only to the associated bit */
 	if (handle) {
 		addr = INTC_REG(d, _INTC_ADDR_D(handle), 0);
 		switch (_INTC_FN(handle)) {
@@ -375,7 +501,8 @@ static struct intc_handle_int *intc_find_irq(struct intc_handle_int *hp,
 {
 	int i;
 
-	/* this doesn't scale well, but...
+	/*
+	 * this doesn't scale well, but...
 	 *
 	 * this function should only be used for cerain uncommon
 	 * operations such as intc_set_priority() and intc_set_sense()
@@ -386,7 +513,6 @@ static struct intc_handle_int *intc_find_irq(struct intc_handle_int *hp,
 	 * memory footprint down is to make sure the array is sorted
 	 * and then perform a bisect to lookup the irq.
 	 */
-
 	for (i = 0; i < nr_hp; i++) {
 		if ((hp + i)->irq != irq)
 			continue;
@@ -417,7 +543,6 @@ int intc_set_priority(unsigned int irq, unsigned int prio)
 		 * primary masking method is using intc_prio_level[irq]
 		 * priority level will be set during next enable()
 		 */
-
 		if (_INTC_FN(ihp->handle) != REG_FN_ERR)
 			_intc_enable(irq, ihp->handle);
 	}
@@ -453,48 +578,6 @@ static int intc_set_sense(unsigned int irq, unsigned int type)
 		addr = INTC_REG(d, _INTC_ADDR_E(ihp->handle), 0);
 		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle, value);
 	}
-	return 0;
-}
-
-static unsigned long intc_phys_to_virt(struct intc_desc_int *d,
-				       unsigned long address)
-{
-	struct intc_window *window;
-	int k;
-
-	/* scan through physical windows and convert address */
-	for (k = 0; k < d->nr_windows; k++) {
-		window = d->window + k;
-
-		if (address < window->phys)
-			continue;
-
-		if (address >= (window->phys + window->size))
-			continue;
-
-		address -= window->phys;
-		address += (unsigned long)window->virt;
-
-		return address;
-	}
-
-	/* no windows defined, register must be 1:1 mapped virt:phys */
-	return address;
-}
-
-static unsigned int __init intc_get_reg(struct intc_desc_int *d,
-					unsigned long address)
-{
-	unsigned int k;
-
-	address = intc_phys_to_virt(d, address);
-
-	for (k = 0; k < d->nr_reg; k++) {
-		if (d->reg[k] == address)
-			return k;
-	}
-
-	BUG();
 	return 0;
 }
 
@@ -755,13 +838,14 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	 */
 	set_bit(irq, intc_irq_map);
 
-	/* Prefer single interrupt source bitmap over other combinations:
+	/*
+	 * Prefer single interrupt source bitmap over other combinations:
+	 *
 	 * 1. bitmap, single interrupt source
 	 * 2. priority, single interrupt source
 	 * 3. bitmap, multiple interrupt sources (groups)
 	 * 4. priority, multiple interrupt sources (groups)
 	 */
-
 	data[0] = intc_mask_data(desc, d, enum_id, 0);
 	data[1] = intc_prio_data(desc, d, enum_id, 0);
 
@@ -786,7 +870,8 @@ static void __init intc_register_irq(struct intc_desc *desc,
 				      handle_level_irq, "level");
 	set_irq_chip_data(irq, (void *)data[primary]);
 
-	/* set priority level
+	/*
+	 * set priority level
 	 * - this needs to be at least 2 for 5-bit priorities on 7780
 	 */
 	intc_prio_level[irq] = default_prio_level;
@@ -806,7 +891,6 @@ static void __init intc_register_irq(struct intc_desc *desc,
 			 * only secondary priority should access registers, so
 			 * set _INTC_FN(h) = REG_FN_ERR for intc_set_priority()
 			 */
-
 			hp->handle &= ~_INTC_MK(0x0f, 0, 0, 0, 0, 0);
 			hp->handle |= _INTC_MK(REG_FN_ERR, 0, 0, 0, 0, 0);
 		}
@@ -826,6 +910,11 @@ static void __init intc_register_irq(struct intc_desc *desc,
 
 	if (desc->hw.ack_regs)
 		ack_handle[irq] = intc_ack_data(desc, d, enum_id);
+
+#ifdef CONFIG_INTC_BALANCING
+	if (desc->hw.mask_regs)
+		dist_handle[irq] = intc_dist_data(desc, d, enum_id);
+#endif
 
 #ifdef CONFIG_ARM
 	set_irq_flags(irq, IRQF_VALID); /* Enable IRQ on ARM systems */
@@ -892,6 +981,10 @@ int __init register_intc_controller(struct intc_desc *desc)
 	}
 
 	d->nr_reg = hw->mask_regs ? hw->nr_mask_regs * 2 : 0;
+#ifdef CONFIG_INTC_BALANCING
+	if (d->nr_reg)
+		d->nr_reg += hw->nr_mask_regs;
+#endif
 	d->nr_reg += hw->prio_regs ? hw->nr_prio_regs * 2 : 0;
 	d->nr_reg += hw->sense_regs ? hw->nr_sense_regs : 0;
 	d->nr_reg += hw->ack_regs ? hw->nr_ack_regs : 0;
@@ -912,6 +1005,9 @@ int __init register_intc_controller(struct intc_desc *desc)
 			smp = IS_SMP(hw->mask_regs[i]);
 			k += save_reg(d, k, hw->mask_regs[i].set_reg, smp);
 			k += save_reg(d, k, hw->mask_regs[i].clr_reg, smp);
+#ifdef CONFIG_INTC_BALANCING
+			k += save_reg(d, k, hw->mask_regs[i].dist_reg, 0);
+#endif
 		}
 	}
 

@@ -573,7 +573,6 @@ static struct platform_device *sh7786_devices[] __initdata = {
 	&usb_ohci_device,
 };
 
-
 /*
  * Please call this function if your platform board
  * use external clock for USB
@@ -581,6 +580,7 @@ static struct platform_device *sh7786_devices[] __initdata = {
 #define USBCTL0		0xffe70858
 #define CLOCK_MODE_MASK 0xffffff7f
 #define EXT_CLOCK_MODE  0x00000080
+
 void __init sh7786_usb_use_exclock(void)
 {
 	u32 val = __raw_readl(USBCTL0) & CLOCK_MODE_MASK;
@@ -598,6 +598,7 @@ void __init sh7786_usb_use_exclock(void)
 #define PLL_ENB		0x00000002
 #define PHY_RST		0x00000004
 #define ACT_PLL_STATUS	0xc0000000
+
 static void __init sh7786_usb_setup(void)
 {
 	int i = 1000000;
@@ -753,9 +754,19 @@ static struct intc_vect vectors[] __initdata = {
 #define INTMSK2		0xfe410068
 #define INTMSKCLR2	0xfe41006c
 
+#define INTDISTCR0	0xfe4100b0
+#define INTDISTCR1	0xfe4100b4
+#define INTACK		0xfe4100b8
+#define INTACKCLR	0xfe4100bc
+#define INT2DISTCR0	0xfe410900
+#define INT2DISTCR1	0xfe410904
+#define INT2DISTCR2	0xfe410908
+#define INT2DISTCR3	0xfe41090c
+
 static struct intc_mask_reg mask_registers[] __initdata = {
 	{ CnINTMSK0, CnINTMSKCLR0, 32,
-	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
+	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 },
+	    INTC_SMP_BALANCING(INTDISTCR0) },
 	{ INTMSK2, INTMSKCLR2, 32,
 	  { IRL0_LLLL, IRL0_LLLH, IRL0_LLHL, IRL0_LLHH,
 	    IRL0_LHLL, IRL0_LHLH, IRL0_LHHL, IRL0_LHHH,
@@ -767,7 +778,8 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 	    IRL4_HHLL, IRL4_HHLH, IRL4_HHHL, 0, } },
 	{ CnINT2MSKR0, CnINT2MSKCR0 , 32,
 	  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, WDT } },
+	    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, WDT },
+	    INTC_SMP_BALANCING(INT2DISTCR0) },
 	{ CnINT2MSKR1, CnINT2MSKCR1, 32,
 	  { TMU0_0, TMU0_1, TMU0_2, TMU0_3, TMU1_0, TMU1_1, TMU1_2, 0,
 	    DMAC0_0, DMAC0_1, DMAC0_2, DMAC0_3, DMAC0_4, DMAC0_5, DMAC0_6,
@@ -776,14 +788,14 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 	    HPB_0, HPB_1, HPB_2,
 	    SCIF0_0, SCIF0_1, SCIF0_2, SCIF0_3,
 	    SCIF1,
-	    TMU2, TMU3, 0, } },
+	    TMU2, TMU3, 0, }, INTC_SMP_BALANCING(INT2DISTCR1) },
 	{ CnINT2MSKR2, CnINT2MSKCR2, 32,
 	  { 0, 0, SCIF2, SCIF3, SCIF4, SCIF5,
 	    Eth_0, Eth_1,
 	    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	    PCIeC0_0, PCIeC0_1, PCIeC0_2,
 	    PCIeC1_0, PCIeC1_1, PCIeC1_2,
-	    USB, 0, 0 } },
+	    USB, 0, 0 }, INTC_SMP_BALANCING(INT2DISTCR2) },
 	{ CnINT2MSKR3, CnINT2MSKCR3, 32,
 	  { 0, 0, 0, 0, 0, 0,
 	    I2C0, I2C1,
@@ -792,7 +804,7 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 	    HAC0, HAC1,
 	    FLCTL, 0,
 	    HSPI, GPIO0, GPIO1, Thermal,
-	    0, 0, 0, 0, 0, 0, 0, 0 } },
+	    0, 0, 0, 0, 0, 0, 0, 0 }, INTC_SMP_BALANCING(INT2DISTCR3) },
 };
 
 static struct intc_prio_reg prio_registers[] __initdata = {
@@ -909,6 +921,18 @@ static DECLARE_INTC_DESC(intc_desc_irl4567, "sh7786-irl4567", vectors_irl4567,
 #define INTC_INTMSKCLR1	CnINTMSKCLR1
 #define INTC_INTMSKCLR2	INTMSKCLR2
 #define INTC_USERIMASK	0xfe411000
+
+#ifdef CONFIG_INTC_BALANCING
+unsigned int irq_lookup(unsigned int irq)
+{
+	return __raw_readl(INTACK) & 1 ? irq : NO_IRQ_IGNORE;
+}
+
+void irq_finish(unsigned int irq)
+{
+	__raw_writel(irq2evt(irq), INTACKCLR);
+}
+#endif
 
 void __init plat_irq_setup(void)
 {

@@ -113,19 +113,14 @@ union irq_ctx {
 
 static union irq_ctx *hardirq_ctx[NR_CPUS] __read_mostly;
 static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
-#endif
 
-asmlinkage __irq_entry int do_IRQ(unsigned int irq, struct pt_regs *regs)
+static char softirq_stack[NR_CPUS * THREAD_SIZE] __page_aligned_bss;
+static char hardirq_stack[NR_CPUS * THREAD_SIZE] __page_aligned_bss;
+
+static inline void handle_one_irq(unsigned int irq)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
-#ifdef CONFIG_IRQSTACKS
 	union irq_ctx *curctx, *irqctx;
-#endif
 
-	irq_enter();
-	irq = irq_demux(irq);
-
-#ifdef CONFIG_IRQSTACKS
 	curctx = (union irq_ctx *)current_thread_info();
 	irqctx = hardirq_ctx[smp_processor_id()];
 
@@ -164,19 +159,8 @@ asmlinkage __irq_entry int do_IRQ(unsigned int irq, struct pt_regs *regs)
 			  "r5", "r6", "r7", "r8", "t", "pr"
 		);
 	} else
-#endif
 		generic_handle_irq(irq);
-
-	irq_exit();
-
-	set_irq_regs(old_regs);
-	return 1;
 }
-
-#ifdef CONFIG_IRQSTACKS
-static char softirq_stack[NR_CPUS * THREAD_SIZE] __page_aligned_bss;
-
-static char hardirq_stack[NR_CPUS * THREAD_SIZE] __page_aligned_bss;
 
 /*
  * allocate per-cpu stacks for hardirq and for softirq processing
@@ -257,7 +241,32 @@ asmlinkage void do_softirq(void)
 
 	local_irq_restore(flags);
 }
+#else
+static inline void handle_one_irq(unsigned int irq)
+{
+	generic_handle_irq(irq);
+}
 #endif
+
+asmlinkage __irq_entry int do_IRQ(unsigned int irq, struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	irq_enter();
+
+	irq = irq_demux(irq_lookup(irq));
+
+	if (irq != NO_IRQ_IGNORE) {
+		handle_one_irq(irq);
+		irq_finish(irq);
+	}
+
+	irq_exit();
+
+	set_irq_regs(old_regs);
+
+	return IRQ_HANDLED;
+}
 
 void __init init_IRQ(void)
 {

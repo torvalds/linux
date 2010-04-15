@@ -23,6 +23,9 @@ struct intc_group {
 struct intc_mask_reg {
 	unsigned long set_reg, clr_reg, reg_width;
 	intc_enum enum_ids[32];
+#ifdef CONFIG_INTC_BALANCING
+	unsigned long dist_reg;
+#endif
 #ifdef CONFIG_SMP
 	unsigned long smp;
 #endif
@@ -41,8 +44,14 @@ struct intc_sense_reg {
 	intc_enum enum_ids[16];
 };
 
+#ifdef CONFIG_INTC_BALANCING
+#define INTC_SMP_BALANCING(reg)	.dist_reg = (reg)
+#else
+#define INTC_SMP_BALANCING(reg)
+#endif
+
 #ifdef CONFIG_SMP
-#define INTC_SMP(stride, nr) .smp = (stride) | ((nr) << 8)
+#define INTC_SMP(stride, nr)	.smp = (stride) | ((nr) << 8)
 #else
 #define INTC_SMP(stride, nr)
 #endif
