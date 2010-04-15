@@ -325,7 +325,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 		/* Initialize rx descriptors */
 
 		error = ath_descdma_setup(sc, &sc->rx.rxdma, &sc->rx.rxbuf,
-				"rx", nbufs, 1);
+				"rx", nbufs, 1, 0);
 		if (error != 0) {
 			ath_print(common, ATH_DBG_FATAL,
 				  "failed to allocate rx descriptors: %d\n",

@@ -123,7 +123,7 @@ struct ath_descdma {
 
 int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		      struct list_head *head, const char *name,
-		      int nbuf, int ndesc);
+		      int nbuf, int ndesc, bool is_tx);
 void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 			 struct list_head *head);
 

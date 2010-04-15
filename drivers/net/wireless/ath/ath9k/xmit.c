@@ -2152,7 +2152,7 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 	spin_lock_init(&sc->tx.txbuflock);
 
 	error = ath_descdma_setup(sc, &sc->tx.txdma, &sc->tx.txbuf,
-				  "tx", nbufs, 1);
+				  "tx", nbufs, 1, 1);
 	if (error != 0) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Failed to allocate tx descriptors: %d\n", error);
@@ -2160,7 +2160,7 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 	}
 
 	error = ath_descdma_setup(sc, &sc->beacon.bdma, &sc->beacon.bbuf,
-				  "beacon", ATH_BCBUF, 1);
+				  "beacon", ATH_BCBUF, 1, 0);
 	if (error != 0) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Failed to allocate beacon descriptors: %d\n", error);
