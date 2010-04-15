@@ -72,8 +72,8 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
 	BUILD_BUG_ON(SMP_MSG_NR >= 8);
 
 	for (i = 0; i < SMP_MSG_NR; i++)
-		request_irq(104 + i, ipi_interrupt_handler, IRQF_DISABLED,
-			    "IPI", (void *)(long)i);
+		request_irq(104 + i, ipi_interrupt_handler,
+			    IRQF_DISABLED | IRQF_PERCPU, "IPI", (void *)(long)i);
 }
 
 void plat_start_cpu(unsigned int cpu, unsigned long entry_point)
