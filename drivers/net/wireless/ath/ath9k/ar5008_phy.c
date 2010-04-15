@@ -967,6 +967,54 @@ static void ar5008_set_diversity(struct ath_hw *ah, bool value)
 	REG_WRITE(ah, AR_PHY_CCK_DETECT, v);
 }
 
+static u32 ar9100_hw_compute_pll_control(struct ath_hw *ah,
+					 struct ath9k_channel *chan)
+{
+	if (chan && IS_CHAN_5GHZ(chan))
+		return 0x1450;
+	return 0x1458;
+}
+
+static u32 ar9160_hw_compute_pll_control(struct ath_hw *ah,
+					 struct ath9k_channel *chan)
+{
+	u32 pll;
+
+	pll = SM(0x5, AR_RTC_9160_PLL_REFDIV);
+
+	if (chan && IS_CHAN_HALF_RATE(chan))
+		pll |= SM(0x1, AR_RTC_9160_PLL_CLKSEL);
+	else if (chan && IS_CHAN_QUARTER_RATE(chan))
+		pll |= SM(0x2, AR_RTC_9160_PLL_CLKSEL);
+
+	if (chan && IS_CHAN_5GHZ(chan))
+		pll |= SM(0x50, AR_RTC_9160_PLL_DIV);
+	else
+		pll |= SM(0x58, AR_RTC_9160_PLL_DIV);
+
+	return pll;
+}
+
+static u32 ar5008_hw_compute_pll_control(struct ath_hw *ah,
+					 struct ath9k_channel *chan)
+{
+	u32 pll;
+
+	pll = AR_RTC_PLL_REFDIV_5 | AR_RTC_PLL_DIV2;
+
+	if (chan && IS_CHAN_HALF_RATE(chan))
+		pll |= SM(0x1, AR_RTC_PLL_CLKSEL);
+	else if (chan && IS_CHAN_QUARTER_RATE(chan))
+		pll |= SM(0x2, AR_RTC_PLL_CLKSEL);
+
+	if (chan && IS_CHAN_5GHZ(chan))
+		pll |= SM(0xa, AR_RTC_PLL_DIV);
+	else
+		pll |= SM(0xb, AR_RTC_PLL_DIV);
+
+	return pll;
+}
+
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -988,4 +1036,11 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->enable_rfkill = ar5008_hw_enable_rfkill;
 	priv_ops->restore_chainmask = ar5008_restore_chainmask;
 	priv_ops->set_diversity = ar5008_set_diversity;
+
+	if (AR_SREV_9100(ah))
+		priv_ops->compute_pll_control = ar9100_hw_compute_pll_control;
+	else if (AR_SREV_9160_10_OR_LATER(ah))
+		priv_ops->compute_pll_control = ar9160_hw_compute_pll_control;
+	else
+		priv_ops->compute_pll_control = ar5008_hw_compute_pll_control;
 }

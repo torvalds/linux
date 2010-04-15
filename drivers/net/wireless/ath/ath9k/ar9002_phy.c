@@ -437,6 +437,36 @@ static void ar9002_olc_init(struct ath_hw *ah)
 	}
 }
 
+static u32 ar9002_hw_compute_pll_control(struct ath_hw *ah,
+					 struct ath9k_channel *chan)
+{
+	u32 pll;
+
+	pll = SM(0x5, AR_RTC_9160_PLL_REFDIV);
+
+	if (chan && IS_CHAN_HALF_RATE(chan))
+		pll |= SM(0x1, AR_RTC_9160_PLL_CLKSEL);
+	else if (chan && IS_CHAN_QUARTER_RATE(chan))
+		pll |= SM(0x2, AR_RTC_9160_PLL_CLKSEL);
+
+	if (chan && IS_CHAN_5GHZ(chan)) {
+		pll |= SM(0x28, AR_RTC_9160_PLL_DIV);
+
+
+		if (AR_SREV_9280_20(ah)) {
+			if (((chan->channel % 20) == 0)
+			    || ((chan->channel % 10) == 0))
+				pll = 0x2850;
+			else
+				pll = 0x142c;
+		}
+	} else {
+		pll |= SM(0x2c, AR_RTC_9160_PLL_DIV);
+	}
+
+	return pll;
+}
+
 void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -447,4 +477,5 @@ void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->rf_set_freq = ar9002_hw_set_channel;
 	priv_ops->spur_mitigate_freq = ar9002_hw_spur_mitigate;
 	priv_ops->olc_init = ar9002_olc_init;
+	priv_ops->compute_pll_control = ar9002_hw_compute_pll_control;
 }

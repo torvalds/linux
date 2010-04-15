@@ -454,6 +454,8 @@ struct ath_gen_timer_table {
  * @rf_alloc_ext_banks:
  * @rf_free_ext_banks:
  * @set_rf_regs:
+ * @compute_pll_control: compute the PLL control value to use for
+ *	AR_RTC_PLL_CONTROL for a given channel
  */
 struct ath_hw_private_ops {
 	void (*init_cal_settings)(struct ath_hw *ah);
@@ -483,6 +485,8 @@ struct ath_hw_private_ops {
 	void (*enable_rfkill)(struct ath_hw *ah);
 	void (*restore_chainmask)(struct ath_hw *ah);
 	void (*set_diversity)(struct ath_hw *ah, bool value);
+	u32 (*compute_pll_control)(struct ath_hw *ah,
+				   struct ath9k_channel *chan);
 };
 
 /**

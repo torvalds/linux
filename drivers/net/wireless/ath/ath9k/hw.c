@@ -66,6 +66,12 @@ static bool ath9k_hw_macversion_supported(struct ath_hw *ah)
 	return priv_ops->macversion_supported(ah->hw_version.macVersion);
 }
 
+static u32 ath9k_hw_compute_pll_control(struct ath_hw *ah,
+					struct ath9k_channel *chan)
+{
+	return ath9k_hw_private_ops(ah)->compute_pll_control(ah, chan);
+}
+
 /********************/
 /* Helper Functions */
 /********************/
@@ -1023,64 +1029,8 @@ static void ath9k_hw_init_qos(struct ath_hw *ah)
 static void ath9k_hw_init_pll(struct ath_hw *ah,
 			      struct ath9k_channel *chan)
 {
-	u32 pll;
+	u32 pll = ath9k_hw_compute_pll_control(ah, chan);
 
-	if (AR_SREV_9100(ah)) {
-		if (chan && IS_CHAN_5GHZ(chan))
-			pll = 0x1450;
-		else
-			pll = 0x1458;
-	} else {
-		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			pll = SM(0x5, AR_RTC_9160_PLL_REFDIV);
-
-			if (chan && IS_CHAN_HALF_RATE(chan))
-				pll |= SM(0x1, AR_RTC_9160_PLL_CLKSEL);
-			else if (chan && IS_CHAN_QUARTER_RATE(chan))
-				pll |= SM(0x2, AR_RTC_9160_PLL_CLKSEL);
-
-			if (chan && IS_CHAN_5GHZ(chan)) {
-				pll |= SM(0x28, AR_RTC_9160_PLL_DIV);
-
-
-				if (AR_SREV_9280_20(ah)) {
-					if (((chan->channel % 20) == 0)
-					    || ((chan->channel % 10) == 0))
-						pll = 0x2850;
-					else
-						pll = 0x142c;
-				}
-			} else {
-				pll |= SM(0x2c, AR_RTC_9160_PLL_DIV);
-			}
-
-		} else if (AR_SREV_9160_10_OR_LATER(ah)) {
-
-			pll = SM(0x5, AR_RTC_9160_PLL_REFDIV);
-
-			if (chan && IS_CHAN_HALF_RATE(chan))
-				pll |= SM(0x1, AR_RTC_9160_PLL_CLKSEL);
-			else if (chan && IS_CHAN_QUARTER_RATE(chan))
-				pll |= SM(0x2, AR_RTC_9160_PLL_CLKSEL);
-
-			if (chan && IS_CHAN_5GHZ(chan))
-				pll |= SM(0x50, AR_RTC_9160_PLL_DIV);
-			else
-				pll |= SM(0x58, AR_RTC_9160_PLL_DIV);
-		} else {
-			pll = AR_RTC_PLL_REFDIV_5 | AR_RTC_PLL_DIV2;
-
-			if (chan && IS_CHAN_HALF_RATE(chan))
-				pll |= SM(0x1, AR_RTC_PLL_CLKSEL);
-			else if (chan && IS_CHAN_QUARTER_RATE(chan))
-				pll |= SM(0x2, AR_RTC_PLL_CLKSEL);
-
-			if (chan && IS_CHAN_5GHZ(chan))
-				pll |= SM(0xa, AR_RTC_PLL_DIV);
-			else
-				pll |= SM(0xb, AR_RTC_PLL_DIV);
-		}
-	}
 	REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
 
 	/* Switch the core clock for ar9271 to 117Mhz */
