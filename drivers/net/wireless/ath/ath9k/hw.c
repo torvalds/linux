@@ -602,6 +602,12 @@ static bool ar9003_hw_macversion_supported(u32 macversion)
 
 static void ar9002_hw_init_cal_settings(struct ath_hw *ah)
 {
+	if (AR_SREV_9100(ah)) {
+		ah->iq_caldata.calData = &iq_cal_multi_sample;
+		ah->supp_cals = IQ_MISMATCH_CAL;
+		return;
+	}
+
 	if (AR_SREV_9160_10_OR_LATER(ah)) {
 		if (AR_SREV_9280_10_OR_LATER(ah)) {
 			ah->iq_caldata.calData = &iq_cal_single_sample;
@@ -1015,13 +1021,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		return -EOPNOTSUPP;
 	}
 
-	if (AR_SREV_9100(ah)) {
-		ah->iq_caldata.calData = &iq_cal_multi_sample;
-		ah->supp_cals = IQ_MISMATCH_CAL;
-		ah->is_pciexpress = false;
-	}
-
-	if (AR_SREV_9271(ah))
+	if (AR_SREV_9271(ah) || AR_SREV_9100(ah))
 		ah->is_pciexpress = false;
 
 	ah->hw_version.phyRev = REG_READ(ah, AR_PHY_CHIP_ID);
