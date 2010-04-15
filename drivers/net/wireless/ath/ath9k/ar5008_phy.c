@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2010 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,408 +14,15 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/**
- * DOC: Programming Atheros 802.11n analog front end radios
- *
- * AR5416 MAC based PCI devices and AR518 MAC based PCI-Express
- * devices have either an external AR2133 analog front end radio for single
- * band 2.4 GHz communication or an AR5133 analog front end radio for dual
- * band 2.4 GHz / 5 GHz communication.
- *
- * All devices after the AR5416 and AR5418 family starting with the AR9280
- * have their analog front radios, MAC/BB and host PCIe/USB interface embedded
- * into a single-chip and require less programming.
- *
- * The following single-chips exist with a respective embedded radio:
- *
- * AR9280 - 11n dual-band 2x2 MIMO for PCIe
- * AR9281 - 11n single-band 1x2 MIMO for PCIe
- * AR9285 - 11n single-band 1x1 for PCIe
- * AR9287 - 11n single-band 2x2 MIMO for PCIe
- *
- * AR9220 - 11n dual-band 2x2 MIMO for PCI
- * AR9223 - 11n single-band 2x2 MIMO for PCI
- *
- * AR9287 - 11n single-band 1x1 MIMO for USB
- */
-
 #include "hw.h"
-
-/**
- * ath9k_hw_ar9280_set_channel - set channel on single-chip device
- * @ah: atheros hardware structure
- * @chan:
- *
- * This is the function to change channel on single-chip devices, that is
- * all devices after ar9280.
- *
- * This function takes the channel value in MHz and sets
- * hardware channel value. Assumes writes have been enabled to analog bus.
- *
- * Actual Expression,
- *
- * For 2GHz channel,
- * Channel Frequency = (3/4) * freq_ref * (chansel[8:0] + chanfrac[16:0]/2^17)
- * (freq_ref = 40MHz)
- *
- * For 5GHz channel,
- * Channel Frequency = (3/2) * freq_ref * (chansel[8:0] + chanfrac[16:0]/2^10)
- * (freq_ref = 40MHz/(24>>amodeRefSel))
- */
-int ath9k_hw_ar9280_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
-{
-	u16 bMode, fracMode, aModeRefSel = 0;
-	u32 freq, ndiv, channelSel = 0, channelFrac = 0, reg32 = 0;
-	struct chan_centers centers;
-	u32 refDivA = 24;
-
-	ath9k_hw_get_channel_centers(ah, chan, &centers);
-	freq = centers.synth_center;
-
-	reg32 = REG_READ(ah, AR_PHY_SYNTH_CONTROL);
-	reg32 &= 0xc0000000;
-
-	if (freq < 4800) { /* 2 GHz, fractional mode */
-		u32 txctl;
-		int regWrites = 0;
-
-		bMode = 1;
-		fracMode = 1;
-		aModeRefSel = 0;
-		channelSel = (freq * 0x10000) / 15;
-
-		if (AR_SREV_9287_11_OR_LATER(ah)) {
-			if (freq == 2484) {
-				/* Enable channel spreading for channel 14 */
-				REG_WRITE_ARRAY(&ah->iniCckfirJapan2484,
-						1, regWrites);
-			} else {
-				REG_WRITE_ARRAY(&ah->iniCckfirNormal,
-						1, regWrites);
-			}
-		} else {
-			txctl = REG_READ(ah, AR_PHY_CCK_TX_CTRL);
-			if (freq == 2484) {
-				/* Enable channel spreading for channel 14 */
-				REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
-					  txctl | AR_PHY_CCK_TX_CTRL_JAPAN);
-			} else {
-				REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
-					  txctl &~ AR_PHY_CCK_TX_CTRL_JAPAN);
-			}
-		}
-	} else {
-		bMode = 0;
-		fracMode = 0;
-
-		switch(ah->eep_ops->get_eeprom(ah, EEP_FRAC_N_5G)) {
-		case 0:
-			if ((freq % 20) == 0) {
-				aModeRefSel = 3;
-			} else if ((freq % 10) == 0) {
-				aModeRefSel = 2;
-			}
-			if (aModeRefSel)
-				break;
-		case 1:
-		default:
-			aModeRefSel = 0;
-			/*
-			 * Enable 2G (fractional) mode for channels
-			 * which are 5MHz spaced.
-			 */
-			fracMode = 1;
-			refDivA = 1;
-			channelSel = (freq * 0x8000) / 15;
-
-			/* RefDivA setting */
-			REG_RMW_FIELD(ah, AR_AN_SYNTH9,
-				      AR_AN_SYNTH9_REFDIVA, refDivA);
-
-		}
-
-		if (!fracMode) {
-			ndiv = (freq * (refDivA >> aModeRefSel)) / 60;
-			channelSel = ndiv & 0x1ff;
-			channelFrac = (ndiv & 0xfffffe00) * 2;
-			channelSel = (channelSel << 17) | channelFrac;
-		}
-	}
-
-	reg32 = reg32 |
-	    (bMode << 29) |
-	    (fracMode << 28) | (aModeRefSel << 26) | (channelSel);
-
-	REG_WRITE(ah, AR_PHY_SYNTH_CONTROL, reg32);
-
-	ah->curchan = chan;
-	ah->curchan_rad_index = -1;
-
-	return 0;
-}
-
-/**
- * ath9k_hw_9280_spur_mitigate - convert baseband spur frequency
- * @ah: atheros hardware structure
- * @chan:
- *
- * For single-chip solutions. Converts to baseband spur frequency given the
- * input channel frequency and compute register settings below.
- */
-void ath9k_hw_9280_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan)
-{
-	int bb_spur = AR_NO_SPUR;
-	int freq;
-	int bin, cur_bin;
-	int bb_spur_off, spur_subchannel_sd;
-	int spur_freq_sd;
-	int spur_delta_phase;
-	int denominator;
-	int upper, lower, cur_vit_mask;
-	int tmp, newVal;
-	int i;
-	int pilot_mask_reg[4] = { AR_PHY_TIMING7, AR_PHY_TIMING8,
-			  AR_PHY_PILOT_MASK_01_30, AR_PHY_PILOT_MASK_31_60
-	};
-	int chan_mask_reg[4] = { AR_PHY_TIMING9, AR_PHY_TIMING10,
-			 AR_PHY_CHANNEL_MASK_01_30, AR_PHY_CHANNEL_MASK_31_60
-	};
-	int inc[4] = { 0, 100, 0, 0 };
-	struct chan_centers centers;
-
-	int8_t mask_m[123];
-	int8_t mask_p[123];
-	int8_t mask_amt;
-	int tmp_mask;
-	int cur_bb_spur;
-	bool is2GHz = IS_CHAN_2GHZ(chan);
-
-	memset(&mask_m, 0, sizeof(int8_t) * 123);
-	memset(&mask_p, 0, sizeof(int8_t) * 123);
-
-	ath9k_hw_get_channel_centers(ah, chan, &centers);
-	freq = centers.synth_center;
-
-	ah->config.spurmode = SPUR_ENABLE_EEPROM;
-	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
-		cur_bb_spur = ah->eep_ops->get_spur_channel(ah, i, is2GHz);
-
-		if (is2GHz)
-			cur_bb_spur = (cur_bb_spur / 10) + AR_BASE_FREQ_2GHZ;
-		else
-			cur_bb_spur = (cur_bb_spur / 10) + AR_BASE_FREQ_5GHZ;
-
-		if (AR_NO_SPUR == cur_bb_spur)
-			break;
-		cur_bb_spur = cur_bb_spur - freq;
-
-		if (IS_CHAN_HT40(chan)) {
-			if ((cur_bb_spur > -AR_SPUR_FEEQ_BOUND_HT40) &&
-			    (cur_bb_spur < AR_SPUR_FEEQ_BOUND_HT40)) {
-				bb_spur = cur_bb_spur;
-				break;
-			}
-		} else if ((cur_bb_spur > -AR_SPUR_FEEQ_BOUND_HT20) &&
-			   (cur_bb_spur < AR_SPUR_FEEQ_BOUND_HT20)) {
-			bb_spur = cur_bb_spur;
-			break;
-		}
-	}
-
-	if (AR_NO_SPUR == bb_spur) {
-		REG_CLR_BIT(ah, AR_PHY_FORCE_CLKEN_CCK,
-			    AR_PHY_FORCE_CLKEN_CCK_MRC_MUX);
-		return;
-	} else {
-		REG_CLR_BIT(ah, AR_PHY_FORCE_CLKEN_CCK,
-			    AR_PHY_FORCE_CLKEN_CCK_MRC_MUX);
-	}
-
-	bin = bb_spur * 320;
-
-	tmp = REG_READ(ah, AR_PHY_TIMING_CTRL4(0));
-
-	newVal = tmp | (AR_PHY_TIMING_CTRL4_ENABLE_SPUR_RSSI |
-			AR_PHY_TIMING_CTRL4_ENABLE_SPUR_FILTER |
-			AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK |
-			AR_PHY_TIMING_CTRL4_ENABLE_PILOT_MASK);
-	REG_WRITE(ah, AR_PHY_TIMING_CTRL4(0), newVal);
-
-	newVal = (AR_PHY_SPUR_REG_MASK_RATE_CNTL |
-		  AR_PHY_SPUR_REG_ENABLE_MASK_PPM |
-		  AR_PHY_SPUR_REG_MASK_RATE_SELECT |
-		  AR_PHY_SPUR_REG_ENABLE_VIT_SPUR_RSSI |
-		  SM(SPUR_RSSI_THRESH, AR_PHY_SPUR_REG_SPUR_RSSI_THRESH));
-	REG_WRITE(ah, AR_PHY_SPUR_REG, newVal);
-
-	if (IS_CHAN_HT40(chan)) {
-		if (bb_spur < 0) {
-			spur_subchannel_sd = 1;
-			bb_spur_off = bb_spur + 10;
-		} else {
-			spur_subchannel_sd = 0;
-			bb_spur_off = bb_spur - 10;
-		}
-	} else {
-		spur_subchannel_sd = 0;
-		bb_spur_off = bb_spur;
-	}
-
-	if (IS_CHAN_HT40(chan))
-		spur_delta_phase =
-			((bb_spur * 262144) /
-			 10) & AR_PHY_TIMING11_SPUR_DELTA_PHASE;
-	else
-		spur_delta_phase =
-			((bb_spur * 524288) /
-			 10) & AR_PHY_TIMING11_SPUR_DELTA_PHASE;
-
-	denominator = IS_CHAN_2GHZ(chan) ? 44 : 40;
-	spur_freq_sd = ((bb_spur_off * 2048) / denominator) & 0x3ff;
-
-	newVal = (AR_PHY_TIMING11_USE_SPUR_IN_AGC |
-		  SM(spur_freq_sd, AR_PHY_TIMING11_SPUR_FREQ_SD) |
-		  SM(spur_delta_phase, AR_PHY_TIMING11_SPUR_DELTA_PHASE));
-	REG_WRITE(ah, AR_PHY_TIMING11, newVal);
-
-	newVal = spur_subchannel_sd << AR_PHY_SFCORR_SPUR_SUBCHNL_SD_S;
-	REG_WRITE(ah, AR_PHY_SFCORR_EXT, newVal);
-
-	cur_bin = -6000;
-	upper = bin + 100;
-	lower = bin - 100;
-
-	for (i = 0; i < 4; i++) {
-		int pilot_mask = 0;
-		int chan_mask = 0;
-		int bp = 0;
-		for (bp = 0; bp < 30; bp++) {
-			if ((cur_bin > lower) && (cur_bin < upper)) {
-				pilot_mask = pilot_mask | 0x1 << bp;
-				chan_mask = chan_mask | 0x1 << bp;
-			}
-			cur_bin += 100;
-		}
-		cur_bin += inc[i];
-		REG_WRITE(ah, pilot_mask_reg[i], pilot_mask);
-		REG_WRITE(ah, chan_mask_reg[i], chan_mask);
-	}
-
-	cur_vit_mask = 6100;
-	upper = bin + 120;
-	lower = bin - 120;
-
-	for (i = 0; i < 123; i++) {
-		if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
-
-			/* workaround for gcc bug #37014 */
-			volatile int tmp_v = abs(cur_vit_mask - bin);
-
-			if (tmp_v < 75)
-				mask_amt = 1;
-			else
-				mask_amt = 0;
-			if (cur_vit_mask < 0)
-				mask_m[abs(cur_vit_mask / 100)] = mask_amt;
-			else
-				mask_p[cur_vit_mask / 100] = mask_amt;
-		}
-		cur_vit_mask -= 100;
-	}
-
-	tmp_mask = (mask_m[46] << 30) | (mask_m[47] << 28)
-		| (mask_m[48] << 26) | (mask_m[49] << 24)
-		| (mask_m[50] << 22) | (mask_m[51] << 20)
-		| (mask_m[52] << 18) | (mask_m[53] << 16)
-		| (mask_m[54] << 14) | (mask_m[55] << 12)
-		| (mask_m[56] << 10) | (mask_m[57] << 8)
-		| (mask_m[58] << 6) | (mask_m[59] << 4)
-		| (mask_m[60] << 2) | (mask_m[61] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK_1, tmp_mask);
-	REG_WRITE(ah, AR_PHY_VIT_MASK2_M_46_61, tmp_mask);
-
-	tmp_mask = (mask_m[31] << 28)
-		| (mask_m[32] << 26) | (mask_m[33] << 24)
-		| (mask_m[34] << 22) | (mask_m[35] << 20)
-		| (mask_m[36] << 18) | (mask_m[37] << 16)
-		| (mask_m[48] << 14) | (mask_m[39] << 12)
-		| (mask_m[40] << 10) | (mask_m[41] << 8)
-		| (mask_m[42] << 6) | (mask_m[43] << 4)
-		| (mask_m[44] << 2) | (mask_m[45] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK_2, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_M_31_45, tmp_mask);
-
-	tmp_mask = (mask_m[16] << 30) | (mask_m[16] << 28)
-		| (mask_m[18] << 26) | (mask_m[18] << 24)
-		| (mask_m[20] << 22) | (mask_m[20] << 20)
-		| (mask_m[22] << 18) | (mask_m[22] << 16)
-		| (mask_m[24] << 14) | (mask_m[24] << 12)
-		| (mask_m[25] << 10) | (mask_m[26] << 8)
-		| (mask_m[27] << 6) | (mask_m[28] << 4)
-		| (mask_m[29] << 2) | (mask_m[30] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK_3, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_M_16_30, tmp_mask);
-
-	tmp_mask = (mask_m[0] << 30) | (mask_m[1] << 28)
-		| (mask_m[2] << 26) | (mask_m[3] << 24)
-		| (mask_m[4] << 22) | (mask_m[5] << 20)
-		| (mask_m[6] << 18) | (mask_m[7] << 16)
-		| (mask_m[8] << 14) | (mask_m[9] << 12)
-		| (mask_m[10] << 10) | (mask_m[11] << 8)
-		| (mask_m[12] << 6) | (mask_m[13] << 4)
-		| (mask_m[14] << 2) | (mask_m[15] << 0);
-	REG_WRITE(ah, AR_PHY_MASK_CTL, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_M_00_15, tmp_mask);
-
-	tmp_mask = (mask_p[15] << 28)
-		| (mask_p[14] << 26) | (mask_p[13] << 24)
-		| (mask_p[12] << 22) | (mask_p[11] << 20)
-		| (mask_p[10] << 18) | (mask_p[9] << 16)
-		| (mask_p[8] << 14) | (mask_p[7] << 12)
-		| (mask_p[6] << 10) | (mask_p[5] << 8)
-		| (mask_p[4] << 6) | (mask_p[3] << 4)
-		| (mask_p[2] << 2) | (mask_p[1] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_1, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_15_01, tmp_mask);
-
-	tmp_mask = (mask_p[30] << 28)
-		| (mask_p[29] << 26) | (mask_p[28] << 24)
-		| (mask_p[27] << 22) | (mask_p[26] << 20)
-		| (mask_p[25] << 18) | (mask_p[24] << 16)
-		| (mask_p[23] << 14) | (mask_p[22] << 12)
-		| (mask_p[21] << 10) | (mask_p[20] << 8)
-		| (mask_p[19] << 6) | (mask_p[18] << 4)
-		| (mask_p[17] << 2) | (mask_p[16] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_2, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_30_16, tmp_mask);
-
-	tmp_mask = (mask_p[45] << 28)
-		| (mask_p[44] << 26) | (mask_p[43] << 24)
-		| (mask_p[42] << 22) | (mask_p[41] << 20)
-		| (mask_p[40] << 18) | (mask_p[39] << 16)
-		| (mask_p[38] << 14) | (mask_p[37] << 12)
-		| (mask_p[36] << 10) | (mask_p[35] << 8)
-		| (mask_p[34] << 6) | (mask_p[33] << 4)
-		| (mask_p[32] << 2) | (mask_p[31] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_3, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_45_31, tmp_mask);
-
-	tmp_mask = (mask_p[61] << 30) | (mask_p[60] << 28)
-		| (mask_p[59] << 26) | (mask_p[58] << 24)
-		| (mask_p[57] << 22) | (mask_p[56] << 20)
-		| (mask_p[55] << 18) | (mask_p[54] << 16)
-		| (mask_p[53] << 14) | (mask_p[52] << 12)
-		| (mask_p[51] << 10) | (mask_p[50] << 8)
-		| (mask_p[49] << 6) | (mask_p[48] << 4)
-		| (mask_p[47] << 2) | (mask_p[46] << 0);
-	REG_WRITE(ah, AR_PHY_BIN_MASK2_4, tmp_mask);
-	REG_WRITE(ah, AR_PHY_MASK2_P_61_45, tmp_mask);
-}
+#include "hw-ops.h"
+#include "../regd.h"
+#include "ar9002_phy.h"
 
 /* All code below is for non single-chip solutions */
 
 /**
- * ath9k_phy_modify_rx_buffer() - perform analog swizzling of parameters
+ * ar5008_hw_phy_modify_rx_buffer() - perform analog swizzling of parameters
  * @rfbuf:
  * @reg32:
  * @numBits:
@@ -425,9 +32,9 @@ void ath9k_hw_9280_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan)
  * Performs analog "swizzling" of parameters into their location.
  * Used on external AR2133/AR5133 radios.
  */
-static void ath9k_phy_modify_rx_buffer(u32 *rfBuf, u32 reg32,
-				       u32 numBits, u32 firstBit,
-				       u32 column)
+static void ar5008_hw_phy_modify_rx_buffer(u32 *rfBuf, u32 reg32,
+					   u32 numBits, u32 firstBit,
+					   u32 column)
 {
 	u32 tmp32, mask, arrayEntry, lastBit;
 	int32_t bitPosition, bitsLeft;
@@ -478,16 +85,15 @@ static void ath9k_phy_modify_rx_buffer(u32 *rfBuf, u32 reg32,
  *  2nd Mod:
  *    Less than 2412 uses value of 0, 2412 and above uses value of 2
  */
-static void ath9k_hw_force_bias(struct ath_hw *ah, u16 synth_freq)
+static void ar5008_hw_force_bias(struct ath_hw *ah, u16 synth_freq)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 tmp_reg;
 	int reg_writes = 0;
 	u32 new_bias = 0;
 
-	if (!AR_SREV_5416(ah) || synth_freq >= 3000) {
+	if (!AR_SREV_5416(ah) || synth_freq >= 3000)
 		return;
-	}
 
 	BUG_ON(AR_SREV_9280_10_OR_LATER(ah));
 
@@ -506,14 +112,14 @@ static void ath9k_hw_force_bias(struct ath_hw *ah, u16 synth_freq)
 		  new_bias, synth_freq);
 
 	/* swizzle rf_pwd_icsyndiv */
-	ath9k_phy_modify_rx_buffer(ah->analogBank6Data, tmp_reg, 3, 181, 3);
+	ar5008_hw_phy_modify_rx_buffer(ah->analogBank6Data, tmp_reg, 3, 181, 3);
 
 	/* write Bank 6 with new params */
 	REG_WRITE_RF_ARRAY(&ah->iniBank6, ah->analogBank6Data, reg_writes);
 }
 
 /**
- * ath9k_hw_set_channel - tune to a channel on the external AR2133/AR5133 radios
+ * ar5008_hw_set_channel - tune to a channel on the external AR2133/AR5133 radios
  * @ah: atheros hardware stucture
  * @chan:
  *
@@ -521,7 +127,7 @@ static void ath9k_hw_force_bias(struct ath_hw *ah, u16 synth_freq)
  * the channel value. Assumes writes enabled to analog bus and bank6 register
  * cache in ah->analogBank6Data.
  */
-int ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
+static int ar5008_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 channelSel = 0;
@@ -582,7 +188,7 @@ int ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 		return -EINVAL;
 	}
 
-	ath9k_hw_force_bias(ah, freq);
+	ar5008_hw_force_bias(ah, freq);
 
 	reg32 =
 	    (channelSel << 8) | (aModeRefSel << 2) | (bModeSynth << 1) |
@@ -597,14 +203,15 @@ int ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 }
 
 /**
- * ath9k_hw_spur_mitigate - convert baseband spur frequency for external radios
+ * ar5008_hw_spur_mitigate - convert baseband spur frequency for external radios
  * @ah: atheros hardware structure
  * @chan:
  *
  * For non single-chip solutions. Converts to baseband spur frequency given the
  * input channel frequency and compute register settings below.
  */
-void ath9k_hw_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan)
+static void ar5008_hw_spur_mitigate(struct ath_hw *ah,
+				    struct ath9k_channel *chan)
 {
 	int bb_spur = AR_NO_SPUR;
 	int bin, cur_bin;
@@ -806,12 +413,12 @@ void ath9k_hw_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan)
 }
 
 /**
- * ath9k_hw_rf_alloc_ext_banks - allocates banks for external radio programming
+ * ar5008_hw_rf_alloc_ext_banks - allocates banks for external radio programming
  * @ah: atheros hardware structure
  *
  * Only required for older devices with external AR2133/AR5133 radios.
  */
-int ath9k_hw_rf_alloc_ext_banks(struct ath_hw *ah)
+static int ar5008_hw_rf_alloc_ext_banks(struct ath_hw *ah)
 {
 #define ATH_ALLOC_BANK(bank, size) do { \
 		bank = kzalloc((sizeof(u32) * size), GFP_KERNEL); \
@@ -843,12 +450,11 @@ int ath9k_hw_rf_alloc_ext_banks(struct ath_hw *ah)
 
 
 /**
- * ath9k_hw_rf_free_ext_banks - Free memory for analog bank scratch buffers
+ * ar5008_hw_rf_free_ext_banks - Free memory for analog bank scratch buffers
  * @ah: atheros hardware struture
  * For the external AR2133/AR5133 radios banks.
  */
-void
-ath9k_hw_rf_free_ext_banks(struct ath_hw *ah)
+static void ar5008_hw_rf_free_ext_banks(struct ath_hw *ah)
 {
 #define ATH_FREE_BANK(bank) do { \
 		kfree(bank); \
@@ -871,7 +477,7 @@ ath9k_hw_rf_free_ext_banks(struct ath_hw *ah)
 }
 
 /* *
- * ath9k_hw_set_rf_regs - programs rf registers based on EEPROM
+ * ar5008_hw_set_rf_regs - programs rf registers based on EEPROM
  * @ah: atheros hardware structure
  * @chan:
  * @modesIndex:
@@ -882,8 +488,9 @@ ath9k_hw_rf_free_ext_banks(struct ath_hw *ah)
  * all rf registers. This routine requires access to the analog
  * rf device. This is not required for single-chip devices.
  */
-bool ath9k_hw_set_rf_regs(struct ath_hw *ah, struct ath9k_channel *chan,
-			  u16 modesIndex)
+static bool ar5008_hw_set_rf_regs(struct ath_hw *ah,
+				  struct ath9k_channel *chan,
+				  u16 modesIndex)
 {
 	u32 eepMinorRev;
 	u32 ob5GHz = 0, db5GHz = 0;
@@ -926,17 +533,17 @@ bool ath9k_hw_set_rf_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 		if (IS_CHAN_2GHZ(chan)) {
 			ob2GHz = ah->eep_ops->get_eeprom(ah, EEP_OB_2);
 			db2GHz = ah->eep_ops->get_eeprom(ah, EEP_DB_2);
-			ath9k_phy_modify_rx_buffer(ah->analogBank6Data,
-						   ob2GHz, 3, 197, 0);
-			ath9k_phy_modify_rx_buffer(ah->analogBank6Data,
-						   db2GHz, 3, 194, 0);
+			ar5008_hw_phy_modify_rx_buffer(ah->analogBank6Data,
+						       ob2GHz, 3, 197, 0);
+			ar5008_hw_phy_modify_rx_buffer(ah->analogBank6Data,
+						       db2GHz, 3, 194, 0);
 		} else {
 			ob5GHz = ah->eep_ops->get_eeprom(ah, EEP_OB_5);
 			db5GHz = ah->eep_ops->get_eeprom(ah, EEP_DB_5);
-			ath9k_phy_modify_rx_buffer(ah->analogBank6Data,
-						   ob5GHz, 3, 203, 0);
-			ath9k_phy_modify_rx_buffer(ah->analogBank6Data,
-						   db5GHz, 3, 200, 0);
+			ar5008_hw_phy_modify_rx_buffer(ah->analogBank6Data,
+						       ob5GHz, 3, 203, 0);
+			ar5008_hw_phy_modify_rx_buffer(ah->analogBank6Data,
+						       db5GHz, 3, 200, 0);
 		}
 	}
 
@@ -958,4 +565,427 @@ bool ath9k_hw_set_rf_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 			   regWrites);
 
 	return true;
+}
+
+static void ar5008_hw_init_bb(struct ath_hw *ah,
+			      struct ath9k_channel *chan)
+{
+	u32 synthDelay;
+
+	synthDelay = REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
+	if (IS_CHAN_B(chan))
+		synthDelay = (4 * synthDelay) / 22;
+	else
+		synthDelay /= 10;
+
+	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
+
+	udelay(synthDelay + BASE_ACTIVATE_DELAY);
+}
+
+static void ar5008_hw_init_chain_masks(struct ath_hw *ah)
+{
+	int rx_chainmask, tx_chainmask;
+
+	rx_chainmask = ah->rxchainmask;
+	tx_chainmask = ah->txchainmask;
+
+	switch (rx_chainmask) {
+	case 0x5:
+		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
+			    AR_PHY_SWAP_ALT_CHAIN);
+	case 0x3:
+		if (ah->hw_version.macVersion == AR_SREV_REVISION_5416_10) {
+			REG_WRITE(ah, AR_PHY_RX_CHAINMASK, 0x7);
+			REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, 0x7);
+			break;
+		}
+	case 0x1:
+	case 0x2:
+	case 0x7:
+		REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx_chainmask);
+		REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx_chainmask);
+		break;
+	default:
+		break;
+	}
+
+	REG_WRITE(ah, AR_SELFGEN_MASK, tx_chainmask);
+	if (tx_chainmask == 0x5) {
+		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
+			    AR_PHY_SWAP_ALT_CHAIN);
+	}
+	if (AR_SREV_9100(ah))
+		REG_WRITE(ah, AR_PHY_ANALOG_SWAP,
+			  REG_READ(ah, AR_PHY_ANALOG_SWAP) | 0x00000001);
+}
+
+static void ar5008_hw_override_ini(struct ath_hw *ah,
+				   struct ath9k_channel *chan)
+{
+	u32 val;
+
+	/*
+	 * Set the RX_ABORT and RX_DIS and clear if off only after
+	 * RXE is set for MAC. This prevents frames with corrupted
+	 * descriptor status.
+	 */
+	REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
+
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
+		val = REG_READ(ah, AR_PCU_MISC_MODE2);
+
+		if (!AR_SREV_9271(ah))
+			val &= ~AR_PCU_MISC_MODE2_HWWAR1;
+
+		if (AR_SREV_9287_10_OR_LATER(ah))
+			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
+
+		REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
+	}
+
+	if (!AR_SREV_5416_20_OR_LATER(ah) ||
+	    AR_SREV_9280_10_OR_LATER(ah))
+		return;
+	/*
+	 * Disable BB clock gating
+	 * Necessary to avoid issues on AR5416 2.0
+	 */
+	REG_WRITE(ah, 0x9800 + (651 << 2), 0x11);
+
+	/*
+	 * Disable RIFS search on some chips to avoid baseband
+	 * hang issues.
+	 */
+	if (AR_SREV_9100(ah) || AR_SREV_9160(ah)) {
+		val = REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
+		val &= ~AR_PHY_RIFS_INIT_DELAY;
+		REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
+	}
+}
+
+static void ar5008_hw_set_channel_regs(struct ath_hw *ah,
+				       struct ath9k_channel *chan)
+{
+	u32 phymode;
+	u32 enableDacFifo = 0;
+
+	if (AR_SREV_9285_10_OR_LATER(ah))
+		enableDacFifo = (REG_READ(ah, AR_PHY_TURBO) &
+					 AR_PHY_FC_ENABLE_DAC_FIFO);
+
+	phymode = AR_PHY_FC_HT_EN | AR_PHY_FC_SHORT_GI_40
+		| AR_PHY_FC_SINGLE_HT_LTF1 | AR_PHY_FC_WALSH | enableDacFifo;
+
+	if (IS_CHAN_HT40(chan)) {
+		phymode |= AR_PHY_FC_DYN2040_EN;
+
+		if ((chan->chanmode == CHANNEL_A_HT40PLUS) ||
+		    (chan->chanmode == CHANNEL_G_HT40PLUS))
+			phymode |= AR_PHY_FC_DYN2040_PRI_CH;
+
+	}
+	REG_WRITE(ah, AR_PHY_TURBO, phymode);
+
+	ath9k_hw_set11nmac2040(ah);
+
+	REG_WRITE(ah, AR_GTXTO, 25 << AR_GTXTO_TIMEOUT_LIMIT_S);
+	REG_WRITE(ah, AR_CST, 0xF << AR_CST_TIMEOUT_LIMIT_S);
+}
+
+
+static int ar5008_hw_process_ini(struct ath_hw *ah,
+				 struct ath9k_channel *chan)
+{
+	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
+	int i, regWrites = 0;
+	struct ieee80211_channel *channel = chan->chan;
+	u32 modesIndex, freqIndex;
+
+	switch (chan->chanmode) {
+	case CHANNEL_A:
+	case CHANNEL_A_HT20:
+		modesIndex = 1;
+		freqIndex = 1;
+		break;
+	case CHANNEL_A_HT40PLUS:
+	case CHANNEL_A_HT40MINUS:
+		modesIndex = 2;
+		freqIndex = 1;
+		break;
+	case CHANNEL_G:
+	case CHANNEL_G_HT20:
+	case CHANNEL_B:
+		modesIndex = 4;
+		freqIndex = 2;
+		break;
+	case CHANNEL_G_HT40PLUS:
+	case CHANNEL_G_HT40MINUS:
+		modesIndex = 3;
+		freqIndex = 2;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if (AR_SREV_9287_12_OR_LATER(ah)) {
+		/* Enable ASYNC FIFO */
+		REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+				AR_MAC_PCU_ASYNC_FIFO_REG3_DATAPATH_SEL);
+		REG_SET_BIT(ah, AR_PHY_MODE, AR_PHY_MODE_ASYNCFIFO);
+		REG_CLR_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+				AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
+		REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+				AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
+	}
+
+	/*
+	 * Set correct baseband to analog shift setting to
+	 * access analog chips.
+	 */
+	REG_WRITE(ah, AR_PHY(0), 0x00000007);
+
+	/* Write ADDAC shifts */
+	REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_EXTERNAL_RADIO);
+	ah->eep_ops->set_addac(ah, chan);
+
+	if (AR_SREV_5416_22_OR_LATER(ah)) {
+		REG_WRITE_ARRAY(&ah->iniAddac, 1, regWrites);
+	} else {
+		struct ar5416IniArray temp;
+		u32 addacSize =
+			sizeof(u32) * ah->iniAddac.ia_rows *
+			ah->iniAddac.ia_columns;
+
+		/* For AR5416 2.0/2.1 */
+		memcpy(ah->addac5416_21,
+		       ah->iniAddac.ia_array, addacSize);
+
+		/* override CLKDRV value at [row, column] = [31, 1] */
+		(ah->addac5416_21)[31 * ah->iniAddac.ia_columns + 1] = 0;
+
+		temp.ia_array = ah->addac5416_21;
+		temp.ia_columns = ah->iniAddac.ia_columns;
+		temp.ia_rows = ah->iniAddac.ia_rows;
+		REG_WRITE_ARRAY(&temp, 1, regWrites);
+	}
+
+	REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_INTERNAL_ADDAC);
+
+	for (i = 0; i < ah->iniModes.ia_rows; i++) {
+		u32 reg = INI_RA(&ah->iniModes, i, 0);
+		u32 val = INI_RA(&ah->iniModes, i, modesIndex);
+
+		if (reg == AR_AN_TOP2 && ah->need_an_top2_fixup)
+			val &= ~AR_AN_TOP2_PWDCLKIND;
+
+		REG_WRITE(ah, reg, val);
+
+		if (reg >= 0x7800 && reg < 0x78a0
+		    && ah->config.analog_shiftreg) {
+			udelay(100);
+		}
+
+		DO_DELAY(regWrites);
+	}
+
+	if (AR_SREV_9280(ah) || AR_SREV_9287_10_OR_LATER(ah))
+		REG_WRITE_ARRAY(&ah->iniModesRxGain, modesIndex, regWrites);
+
+	if (AR_SREV_9280(ah) || AR_SREV_9285_12_OR_LATER(ah) ||
+	    AR_SREV_9287_10_OR_LATER(ah))
+		REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
+
+	if (AR_SREV_9271_10(ah))
+		REG_WRITE_ARRAY(&ah->iniModes_9271_1_0_only,
+				modesIndex, regWrites);
+
+	/* Write common array parameters */
+	for (i = 0; i < ah->iniCommon.ia_rows; i++) {
+		u32 reg = INI_RA(&ah->iniCommon, i, 0);
+		u32 val = INI_RA(&ah->iniCommon, i, 1);
+
+		REG_WRITE(ah, reg, val);
+
+		if (reg >= 0x7800 && reg < 0x78a0
+		    && ah->config.analog_shiftreg) {
+			udelay(100);
+		}
+
+		DO_DELAY(regWrites);
+	}
+
+	if (AR_SREV_9271(ah)) {
+		if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) == 1)
+			REG_WRITE_ARRAY(&ah->iniModes_high_power_tx_gain_9271,
+					modesIndex, regWrites);
+		else
+			REG_WRITE_ARRAY(&ah->iniModes_normal_power_tx_gain_9271,
+					modesIndex, regWrites);
+	}
+
+	REG_WRITE_ARRAY(&ah->iniBB_RfGain, freqIndex, regWrites);
+
+	if (AR_SREV_9280_20(ah) && IS_CHAN_A_5MHZ_SPACED(chan)) {
+		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex,
+				regWrites);
+	}
+
+	ar5008_hw_override_ini(ah, chan);
+	ar5008_hw_set_channel_regs(ah, chan);
+	ar5008_hw_init_chain_masks(ah);
+	ath9k_olc_init(ah);
+
+	/* Set TX power */
+	ah->eep_ops->set_txpower(ah, chan,
+				 ath9k_regd_get_ctl(regulatory, chan),
+				 channel->max_antenna_gain * 2,
+				 channel->max_power * 2,
+				 min((u32) MAX_RATE_POWER,
+				 (u32) regulatory->power_limit));
+
+	/* Write analog registers */
+	if (!ath9k_hw_set_rf_regs(ah, chan, freqIndex)) {
+		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
+			  "ar5416SetRfRegs failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void ar5008_hw_set_rfmode(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	u32 rfMode = 0;
+
+	if (chan == NULL)
+		return;
+
+	rfMode |= (IS_CHAN_B(chan) || IS_CHAN_G(chan))
+		? AR_PHY_MODE_DYNAMIC : AR_PHY_MODE_OFDM;
+
+	if (!AR_SREV_9280_10_OR_LATER(ah))
+		rfMode |= (IS_CHAN_5GHZ(chan)) ?
+			AR_PHY_MODE_RF5GHZ : AR_PHY_MODE_RF2GHZ;
+
+	if ((AR_SREV_9280_20(ah) || AR_SREV_9300_20_OR_LATER(ah))
+	    && IS_CHAN_A_5MHZ_SPACED(chan))
+		rfMode |= (AR_PHY_MODE_DYNAMIC | AR_PHY_MODE_DYN_CCK_DISABLE);
+
+	REG_WRITE(ah, AR_PHY_MODE, rfMode);
+}
+
+static void ar5008_hw_mark_phy_inactive(struct ath_hw *ah)
+{
+	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
+}
+
+static void ar5008_hw_set_delta_slope(struct ath_hw *ah,
+				      struct ath9k_channel *chan)
+{
+	u32 coef_scaled, ds_coef_exp, ds_coef_man;
+	u32 clockMhzScaled = 0x64000000;
+	struct chan_centers centers;
+
+	if (IS_CHAN_HALF_RATE(chan))
+		clockMhzScaled = clockMhzScaled >> 1;
+	else if (IS_CHAN_QUARTER_RATE(chan))
+		clockMhzScaled = clockMhzScaled >> 2;
+
+	ath9k_hw_get_channel_centers(ah, chan, &centers);
+	coef_scaled = clockMhzScaled / centers.synth_center;
+
+	ath9k_hw_get_delta_slope_vals(ah, coef_scaled, &ds_coef_man,
+				      &ds_coef_exp);
+
+	REG_RMW_FIELD(ah, AR_PHY_TIMING3,
+		      AR_PHY_TIMING3_DSC_MAN, ds_coef_man);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING3,
+		      AR_PHY_TIMING3_DSC_EXP, ds_coef_exp);
+
+	coef_scaled = (9 * coef_scaled) / 10;
+
+	ath9k_hw_get_delta_slope_vals(ah, coef_scaled, &ds_coef_man,
+				      &ds_coef_exp);
+
+	REG_RMW_FIELD(ah, AR_PHY_HALFGI,
+		      AR_PHY_HALFGI_DSC_MAN, ds_coef_man);
+	REG_RMW_FIELD(ah, AR_PHY_HALFGI,
+		      AR_PHY_HALFGI_DSC_EXP, ds_coef_exp);
+}
+
+static bool ar5008_hw_rfbus_req(struct ath_hw *ah)
+{
+	REG_WRITE(ah, AR_PHY_RFBUS_REQ, AR_PHY_RFBUS_REQ_EN);
+	return ath9k_hw_wait(ah, AR_PHY_RFBUS_GRANT, AR_PHY_RFBUS_GRANT_EN,
+			   AR_PHY_RFBUS_GRANT_EN, AH_WAIT_TIMEOUT);
+}
+
+static void ar5008_hw_rfbus_done(struct ath_hw *ah)
+{
+	u32 synthDelay = REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
+	if (IS_CHAN_B(ah->curchan))
+		synthDelay = (4 * synthDelay) / 22;
+	else
+		synthDelay /= 10;
+
+	udelay(synthDelay + BASE_ACTIVATE_DELAY);
+
+	REG_WRITE(ah, AR_PHY_RFBUS_REQ, 0);
+}
+
+static void ar5008_hw_enable_rfkill(struct ath_hw *ah)
+{
+	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
+		    AR_GPIO_INPUT_EN_VAL_RFSILENT_BB);
+
+	REG_CLR_BIT(ah, AR_GPIO_INPUT_MUX2,
+		    AR_GPIO_INPUT_MUX2_RFSILENT);
+
+	ath9k_hw_cfg_gpio_input(ah, ah->rfkill_gpio);
+	REG_SET_BIT(ah, AR_PHY_TEST, RFSILENT_BB);
+}
+
+static void ar5008_restore_chainmask(struct ath_hw *ah)
+{
+	int rx_chainmask = ah->rxchainmask;
+
+	if ((rx_chainmask == 0x5) || (rx_chainmask == 0x3)) {
+		REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx_chainmask);
+		REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx_chainmask);
+	}
+}
+
+static void ar5008_set_diversity(struct ath_hw *ah, bool value)
+{
+	u32 v = REG_READ(ah, AR_PHY_CCK_DETECT);
+	if (value)
+		v |= AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
+	else
+		v &= ~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
+	REG_WRITE(ah, AR_PHY_CCK_DETECT, v);
+}
+
+void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
+{
+	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+
+	priv_ops->rf_set_freq = ar5008_hw_set_channel;
+	priv_ops->spur_mitigate_freq = ar5008_hw_spur_mitigate;
+
+	priv_ops->rf_alloc_ext_banks = ar5008_hw_rf_alloc_ext_banks;
+	priv_ops->rf_free_ext_banks = ar5008_hw_rf_free_ext_banks;
+	priv_ops->set_rf_regs = ar5008_hw_set_rf_regs;
+	priv_ops->set_channel_regs = ar5008_hw_set_channel_regs;
+	priv_ops->init_bb = ar5008_hw_init_bb;
+	priv_ops->process_ini = ar5008_hw_process_ini;
+	priv_ops->set_rfmode = ar5008_hw_set_rfmode;
+	priv_ops->mark_phy_inactive = ar5008_hw_mark_phy_inactive;
+	priv_ops->set_delta_slope = ar5008_hw_set_delta_slope;
+	priv_ops->rfbus_req = ar5008_hw_rfbus_req;
+	priv_ops->rfbus_done = ar5008_hw_rfbus_done;
+	priv_ops->enable_rfkill = ar5008_hw_enable_rfkill;
+	priv_ops->restore_chainmask = ar5008_restore_chainmask;
+	priv_ops->set_diversity = ar5008_set_diversity;
 }

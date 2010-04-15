@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "ar9002_phy.h"
 
 /* We can tune this as we go by monitoring really low values */
 #define ATH9K_NF_TOO_LOW	-60

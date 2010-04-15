@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "ar9002_phy.h"
 
 static int ath9k_hw_AR9287_get_eeprom_ver(struct ath_hw *ah)
 {

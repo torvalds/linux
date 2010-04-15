@@ -512,7 +512,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	common->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
 	common->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
 
-	ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
+	ath9k_hw_set_diversity(sc->sc_ah, true);
 	sc->rx.defant = ath9k_hw_getdefantenna(sc->sc_ah);
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)

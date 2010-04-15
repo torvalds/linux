@@ -14,13 +14,14 @@ ath9k-$(CONFIG_ATH9K_DEBUGFS) += debug.o
 obj-$(CONFIG_ATH9K) += ath9k.o
 
 ath9k_hw-y:=	hw.o \
+		ar9002_phy.o \
+		ar5008_phy.o \
 		eeprom.o \
 		eeprom_def.o \
 		eeprom_4k.o \
 		eeprom_9287.o \
 		calib.o \
 		ani.o \
-		phy.o \
 		btcoex.o \
 		mac.o \
 

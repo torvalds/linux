@@ -171,7 +171,6 @@ enum ath9k_capability_type {
 	ATH9K_CAP_CIPHER = 0,
 	ATH9K_CAP_TKIP_MIC,
 	ATH9K_CAP_TKIP_SPLIT,
-	ATH9K_CAP_DIVERSITY,
 	ATH9K_CAP_TXPOW,
 	ATH9K_CAP_MCAST_KEYSRCH,
 	ATH9K_CAP_DS
@@ -449,11 +448,41 @@ struct ath_gen_timer_table {
  * @init_cal_settings: Initializes calibration settings
  * @init_mode_regs: Initializes mode registers
  * @macversion_supported: If this specific mac revision is supported
+ *
+ * @rf_set_freq: change frequency
+ * @spur_mitigate_freq: spur mitigation
+ * @rf_alloc_ext_banks:
+ * @rf_free_ext_banks:
+ * @set_rf_regs:
  */
 struct ath_hw_private_ops {
 	void (*init_cal_settings)(struct ath_hw *ah);
 	void (*init_mode_regs)(struct ath_hw *ah);
 	bool (*macversion_supported)(u32 macversion);
+
+	/* PHY ops */
+	int (*rf_set_freq)(struct ath_hw *ah,
+			   struct ath9k_channel *chan);
+	void (*spur_mitigate_freq)(struct ath_hw *ah,
+				   struct ath9k_channel *chan);
+	int (*rf_alloc_ext_banks)(struct ath_hw *ah);
+	void (*rf_free_ext_banks)(struct ath_hw *ah);
+	bool (*set_rf_regs)(struct ath_hw *ah,
+			    struct ath9k_channel *chan,
+			    u16 modesIndex);
+	void (*set_channel_regs)(struct ath_hw *ah, struct ath9k_channel *chan);
+	void (*init_bb)(struct ath_hw *ah,
+			struct ath9k_channel *chan);
+	int (*process_ini)(struct ath_hw *ah, struct ath9k_channel *chan);
+	void (*olc_init)(struct ath_hw *ah);
+	void (*set_rfmode)(struct ath_hw *ah, struct ath9k_channel *chan);
+	void (*mark_phy_inactive)(struct ath_hw *ah);
+	void (*set_delta_slope)(struct ath_hw *ah, struct ath9k_channel *chan);
+	bool (*rfbus_req)(struct ath_hw *ah);
+	void (*rfbus_done)(struct ath_hw *ah);
+	void (*enable_rfkill)(struct ath_hw *ah);
+	void (*restore_chainmask)(struct ath_hw *ah);
+	void (*set_diversity)(struct ath_hw *ah, bool value);
 };
 
 /**
@@ -563,13 +592,6 @@ struct ath_hw {
 		DONT_USE_32KHZ,
 	} enable_32kHz_clock;
 
-	/* Callback for radio frequency change */
-	int (*ath9k_hw_rf_set_freq)(struct ath_hw *ah, struct ath9k_channel *chan);
-
-	/* Callback for baseband spur frequency */
-	void (*ath9k_hw_spur_mitigate_freq)(struct ath_hw *ah,
-					    struct ath9k_channel *chan);
-
 	/* Private to hardware code */
 	struct ath_hw_private_ops private_ops;
 	/* Accessed by the lower level driver */
@@ -675,6 +697,7 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 *result);
 bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 setting, int *status);
+u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan);
 
 /* Key Cache Management */
 bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry);
@@ -751,6 +774,13 @@ void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len);
 
 /* HTC */
 void ath9k_hw_htc_resetinit(struct ath_hw *ah);
+
+/* PHY */
+void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
+				   u32 *coef_mantissa, u32 *coef_exponent);
+
+void ar9002_hw_attach_phy_ops(struct ath_hw *ah);
+void ar5008_hw_attach_phy_ops(struct ath_hw *ah);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1
