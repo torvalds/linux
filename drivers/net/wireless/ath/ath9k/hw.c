@@ -363,7 +363,13 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.ofdm_trig_high = 500;
 	ah->config.cck_trig_high = 200;
 	ah->config.cck_trig_low = 100;
-	ah->config.enable_ani = 1;
+
+	/*
+	 * For now ANI is disabled for AR9003, it is still
+	 * being tested.
+	 */
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		ah->config.enable_ani = 1;
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		ah->config.spurchans[i][0] = AR_NO_SPUR;
@@ -941,7 +947,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	ath9k_hw_init_cal_settings(ah);
 
 	ah->ani_function = ATH9K_ANI_ALL;
-	if (AR_SREV_9280_10_OR_LATER(ah))
+	if (AR_SREV_9280_10_OR_LATER(ah) && !AR_SREV_9300_20_OR_LATER(ah))
 		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
 
 	ath9k_hw_init_mode_regs(ah);
