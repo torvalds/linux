@@ -712,7 +712,7 @@ CONFIG_ATA_SFF=y
 # CONFIG_SATA_QSTOR is not set
 # CONFIG_SATA_PROMISE is not set
 # CONFIG_SATA_SX4 is not set
-# CONFIG_SATA_SIL is not set
+CONFIG_SATA_SIL=y
 # CONFIG_SATA_SIS is not set
 # CONFIG_SATA_ULI is not set
 # CONFIG_SATA_VIA is not set
