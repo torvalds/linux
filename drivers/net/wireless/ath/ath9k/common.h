@@ -20,6 +20,7 @@
 #include "../debug.h"
 
 #include "hw.h"
+#include "hw-ops.h"
 
 /* Common header for Atheros 802.11n base driver cores */
 

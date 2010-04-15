@@ -18,12 +18,15 @@
 #include <asm/unaligned.h>
 
 #include "hw.h"
+#include "hw-ops.h"
 #include "rc.h"
 #include "initvals.h"
 
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
 #define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
+
+static void ar9002_hw_attach_ops(struct ath_hw *ah);
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type);
 static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan);
@@ -44,6 +47,25 @@ static void __exit ath9k_exit(void)
 	return;
 }
 module_exit(ath9k_exit);
+
+/* Private hardware callbacks */
+
+static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
+{
+	ath9k_hw_private_ops(ah)->init_cal_settings(ah);
+}
+
+static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
+{
+	ath9k_hw_private_ops(ah)->init_mode_regs(ah);
+}
+
+static bool ath9k_hw_macversion_supported(struct ath_hw *ah)
+{
+	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+
+	return priv_ops->macversion_supported(ah->hw_version.macVersion);
+}
 
 /********************/
 /* Helper Functions */
@@ -368,7 +390,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	if (num_possible_cpus() > 1)
 		ah->config.serialize_regmode = SER_REG_MODE_AUTO;
 }
-EXPORT_SYMBOL(ath9k_hw_init);
 
 static void ath9k_hw_init_defaults(struct ath_hw *ah)
 {
@@ -532,27 +553,7 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 	return 0;
 }
 
-static bool ath9k_hw_devid_supported(u16 devid)
-{
-	switch (devid) {
-	case AR5416_DEVID_PCI:
-	case AR5416_DEVID_PCIE:
-	case AR5416_AR9100_DEVID:
-	case AR9160_DEVID_PCI:
-	case AR9280_DEVID_PCI:
-	case AR9280_DEVID_PCIE:
-	case AR9285_DEVID_PCIE:
-	case AR5416_DEVID_AR9287_PCI:
-	case AR5416_DEVID_AR9287_PCIE:
-	case AR2427_DEVID_PCIE:
-		return true;
-	default:
-		break;
-	}
-	return false;
-}
-
-static bool ath9k_hw_macversion_supported(u32 macversion)
+static bool ar9002_hw_macversion_supported(u32 macversion)
 {
 	switch (macversion) {
 	case AR_SREV_VERSION_5416_PCI:
@@ -570,7 +571,7 @@ static bool ath9k_hw_macversion_supported(u32 macversion)
 	return false;
 }
 
-static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
+static void ar9002_hw_init_cal_settings(struct ath_hw *ah)
 {
 	if (AR_SREV_9160_10_OR_LATER(ah)) {
 		if (AR_SREV_9280_10_OR_LATER(ah)) {
@@ -594,7 +595,7 @@ static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
 	}
 }
 
-static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
+static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 {
 	if (AR_SREV_9271(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271,
@@ -854,19 +855,11 @@ static void ath9k_hw_init_eeprom_fix(struct ath_hw *ah)
 			  "needs fixup for AR_AN_TOP2 register\n");
 }
 
-int ath9k_hw_init(struct ath_hw *ah)
+/* Called for all hardware families */
+static int __ath9k_hw_init(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	int r = 0;
-
-	if (common->bus_ops->ath_bus_type != ATH_USB) {
-		if (!ath9k_hw_devid_supported(ah->hw_version.devid)) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Unsupported device ID: 0x%0x\n",
-				  ah->hw_version.devid);
-			return -EOPNOTSUPP;
-		}
-	}
 
 	ath9k_hw_init_defaults(ah);
 	ath9k_hw_init_config(ah);
@@ -876,6 +869,8 @@ int ath9k_hw_init(struct ath_hw *ah)
 			  "Couldn't reset chip\n");
 		return -EIO;
 	}
+
+	ar9002_hw_attach_ops(ah);
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
 		ath_print(common, ATH_DBG_FATAL, "Couldn't wakeup chip\n");
@@ -901,7 +896,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	else
 		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD;
 
-	if (!ath9k_hw_macversion_supported(ah->hw_version.macVersion)) {
+	if (!ath9k_hw_macversion_supported(ah)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Mac Chip Rev 0x%02x.%x is not supported by "
 			  "this driver\n", ah->hw_version.macVersion,
@@ -918,6 +913,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	if (AR_SREV_9271(ah))
 		ah->is_pciexpress = false;
 
+	/* XXX: move this to its own hw op */
 	ah->hw_version.phyRev = REG_READ(ah, AR_PHY_CHIP_ID);
 
 	ath9k_hw_init_cal_settings(ah);
@@ -978,6 +974,45 @@ int ath9k_hw_init(struct ath_hw *ah)
 
 	return 0;
 }
+
+int ath9k_hw_init(struct ath_hw *ah)
+{
+	int ret;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	/* These are all the AR5008/AR9001/AR9002 hardware family of chipsets */
+	switch (ah->hw_version.devid) {
+	case AR5416_DEVID_PCI:
+	case AR5416_DEVID_PCIE:
+	case AR5416_AR9100_DEVID:
+	case AR9160_DEVID_PCI:
+	case AR9280_DEVID_PCI:
+	case AR9280_DEVID_PCIE:
+	case AR9285_DEVID_PCIE:
+	case AR5416_DEVID_AR9287_PCI:
+	case AR5416_DEVID_AR9287_PCIE:
+	case AR2427_DEVID_PCIE:
+		break;
+	default:
+		if (common->bus_ops->ath_bus_type == ATH_USB)
+			break;
+		ath_print(common, ATH_DBG_FATAL,
+			  "Hardware device ID 0x%04x not supported\n",
+			  ah->hw_version.devid);
+		return -EOPNOTSUPP;
+	}
+
+	ret = __ath9k_hw_init(ah);
+	if (ret) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to initialize hardware; "
+			  "initialization status: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ath9k_hw_init);
 
 static void ath9k_hw_init_bb(struct ath_hw *ah,
 			     struct ath9k_channel *chan)
@@ -2500,7 +2535,9 @@ EXPORT_SYMBOL(ath9k_hw_setpower);
  * Programming the SerDes must go through the same 288 bit serial shift
  * register as the other analog registers.  Hence the 9 writes.
  */
-void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore, int power_off)
+static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
+					 int restore,
+					 int power_off)
 {
 	u8 i;
 	u32 val;
@@ -2518,7 +2555,7 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore, int power_off)
 			/*
 			 * AR9280 2.0 or later chips use SerDes values from the
 			 * initvals.h initialized depending on chipset during
-			 * ath9k_hw_init()
+			 * __ath9k_hw_init()
 			 */
 			for (i = 0; i < ah->iniPcieSerdes.ia_rows; i++) {
 				REG_WRITE(ah, INI_RA(&ah->iniPcieSerdes, i, 0),
@@ -2622,7 +2659,6 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore, int power_off)
 		}
 	}
 }
-EXPORT_SYMBOL(ath9k_hw_configpcipowersave);
 
 /**********************/
 /* Interrupt Handling */
@@ -3917,3 +3953,16 @@ void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len)
 	hw_name[used] = '\0';
 }
 EXPORT_SYMBOL(ath9k_hw_name);
+
+/* Sets up the AR5008/AR9001/AR9002 hardware familiy callbacks */
+static void ar9002_hw_attach_ops(struct ath_hw *ah)
+{
+	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
+
+	priv_ops->init_cal_settings = ar9002_hw_init_cal_settings;
+	priv_ops->init_mode_regs = ar9002_hw_init_mode_regs;
+	priv_ops->macversion_supported = ar9002_hw_macversion_supported;
+
+	ops->config_pci_powersave = ar9002_hw_configpcipowersave;
+}

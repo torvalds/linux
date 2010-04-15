@@ -566,13 +566,10 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	ath_read_cachesize(common, &csz);
 	common->cachelsz = csz << 2; /* convert to bytes */
 
+	/* Initializes the hardware for all supported chipsets */
 	ret = ath9k_hw_init(ah);
-	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to initialize hardware; "
-			  "initialization status: %d\n", ret);
+	if (ret)
 		goto err_hw;
-	}
 
 	ret = ath9k_init_debug(ah);
 	if (ret) {

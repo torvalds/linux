@@ -440,6 +440,36 @@ struct ath_gen_timer_table {
 	} timer_mask;
 };
 
+/**
+ * struct ath_hw_private_ops - callbacks used internally by hardware code
+ *
+ * This structure contains private callbacks designed to only be used internally
+ * by the hardware core.
+ *
+ * @init_cal_settings: Initializes calibration settings
+ * @init_mode_regs: Initializes mode registers
+ * @macversion_supported: If this specific mac revision is supported
+ */
+struct ath_hw_private_ops {
+	void (*init_cal_settings)(struct ath_hw *ah);
+	void (*init_mode_regs)(struct ath_hw *ah);
+	bool (*macversion_supported)(u32 macversion);
+};
+
+/**
+ * struct ath_hw_ops - callbacks used by hardware code and driver code
+ *
+ * This structure contains callbacks designed to to be used internally by
+ * hardware code and also by the lower level driver.
+ *
+ * @config_pci_powersave:
+ */
+struct ath_hw_ops {
+	void (*config_pci_powersave)(struct ath_hw *ah,
+				     int restore,
+				     int power_off);
+};
+
 struct ath_hw {
 	struct ieee80211_hw *hw;
 	struct ath_common common;
@@ -540,6 +570,11 @@ struct ath_hw {
 	void (*ath9k_hw_spur_mitigate_freq)(struct ath_hw *ah,
 					    struct ath9k_channel *chan);
 
+	/* Private to hardware code */
+	struct ath_hw_private_ops private_ops;
+	/* Accessed by the lower level driver */
+	struct ath_hw_ops ops;
+
 	/* Used to program the radio on non single-chip devices */
 	u32 *analogBank0Data;
 	u32 *analogBank1Data;
@@ -619,6 +654,16 @@ static inline struct ath_regulatory *ath9k_hw_regulatory(struct ath_hw *ah)
 	return &(ath9k_hw_common(ah)->regulatory);
 }
 
+static inline struct ath_hw_private_ops *ath9k_hw_private_ops(struct ath_hw *ah)
+{
+	return &ah->private_ops;
+}
+
+static inline struct ath_hw_ops *ath9k_hw_ops(struct ath_hw *ah)
+{
+	return &ah->ops;
+}
+
 /* Initialization, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_deinit(struct ath_hw *ah);
@@ -680,8 +725,6 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 				    const struct ath9k_beacon_state *bs);
 
 bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode);
-
-void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore, int power_off);
 
 /* Interrupt Handling */
 bool ath9k_hw_intrpend(struct ath_hw *ah);
