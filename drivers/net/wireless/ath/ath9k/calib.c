@@ -89,9 +89,9 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath9k_nfcal_hist *h,
 	return;
 }
 
-static bool getNoiseFloorThresh(struct ath_hw *ah,
-				enum ieee80211_band band,
-				int16_t *nft)
+static bool ath9k_hw_get_nf_thresh(struct ath_hw *ah,
+				   enum ieee80211_band band,
+				   int16_t *nft)
 {
 	switch (band) {
 	case IEEE80211_BAND_5GHZ:
@@ -612,7 +612,7 @@ int16_t ath9k_hw_getnf(struct ath_hw *ah,
 	} else {
 		ath9k_hw_do_getnf(ah, nfarray);
 		nf = nfarray[0];
-		if (getNoiseFloorThresh(ah, c->band, &nfThresh)
+		if (ath9k_hw_get_nf_thresh(ah, c->band, &nfThresh)
 		    && nf > nfThresh) {
 			ath_print(common, ATH_DBG_CALIBRATE,
 				  "noise floor failed detected; "
