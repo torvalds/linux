@@ -99,19 +99,6 @@ int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_cleanup_aer_uncorrect_error_status);
 
-static inline int compare_device_id(struct pci_dev *dev,
-			struct aer_err_info *e_info)
-{
-	if (e_info->id == ((dev->bus->number << 8) | dev->devfn)) {
-		/*
-		 * Device ID match
-		 */
-		return 1;
-	}
-
-	return 0;
-}
-
 static int add_error_device(struct aer_err_info *e_info, struct pci_dev *dev)
 {
 	if (e_info->error_dev_num < AER_MAX_MULTI_ERR_DEVICES) {
@@ -136,15 +123,14 @@ static bool is_error_source(struct pci_dev *dev, struct aer_err_info *e_info)
 	int pos;
 	u32 status, mask;
 	u16 reg16;
-	int result;
 
 	/*
 	 * When bus id is equal to 0, it might be a bad id
 	 * reported by root port.
 	 */
 	if (!nosourceid && (PCI_BUS(e_info->id) != 0)) {
-		result = compare_device_id(dev, e_info);
-		if (result)
+		/* Device ID match? */
+		if (e_info->id == ((dev->bus->number << 8) | dev->devfn))
 			return true;
 
 		/* Continue id comparing if there is no multiple error */
