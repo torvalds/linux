@@ -2064,7 +2064,8 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah, int setChip)
 					   ATH9K_RESET_POWER_ON) != true) {
 				return false;
 			}
-			ath9k_hw_init_pll(ah, NULL);
+			if (!AR_SREV_9300_20_OR_LATER(ah))
+				ath9k_hw_init_pll(ah, NULL);
 		}
 		if (AR_SREV_9100(ah))
 			REG_SET_BIT(ah, AR_RTC_RESET,
