@@ -223,6 +223,12 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 		return -EINVAL;
 	}
 
+	/* Enable fixup for AR_AN_TOP2 if necessary */
+	if (AR_SREV_9280_10_OR_LATER(ah) &&
+	    (eep->baseEepHeader.version & 0xff) > 0x0a &&
+	    eep->baseEepHeader.pwdclkind == 0)
+		ah->need_an_top2_fixup = 1;
+
 	return 0;
 }
 
