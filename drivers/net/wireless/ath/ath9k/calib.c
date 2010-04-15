@@ -964,6 +964,12 @@ static void ar9002_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 	}
 }
 
+static void ar9002_hw_olc_temp_compensation(struct ath_hw *ah)
+{
+	if (OLC_FOR_AR9280_20_LATER || OLC_FOR_AR9287_10_LATER)
+		ath9k_olc_temp_compensation(ah);
+}
+
 bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 			u8 rxchainmask, bool longcal)
 {
@@ -989,9 +995,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (longcal) {
 		/* Do periodic PAOffset Cal */
 		ar9002_hw_pa_cal(ah, false);
-
-		if (OLC_FOR_AR9280_20_LATER || OLC_FOR_AR9287_10_LATER)
-			ath9k_olc_temp_compensation(ah);
+		ar9002_hw_olc_temp_compensation(ah);
 
 		/* Get the value from the previous NF cal and update history buffer */
 		ath9k_hw_getnf(ah, chan);
