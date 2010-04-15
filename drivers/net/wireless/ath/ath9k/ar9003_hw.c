@@ -105,6 +105,56 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 		       3);
 }
 
+static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
+{
+	switch (ar9003_hw_get_tx_gain_idx(ah)) {
+	case 0:
+	default:
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9300Modes_lowest_ob_db_tx_gain_table_2p0,
+			       ARRAY_SIZE(ar9300Modes_lowest_ob_db_tx_gain_table_2p0),
+			       5);
+		break;
+	case 1:
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9300Modes_high_ob_db_tx_gain_table_2p0,
+			       ARRAY_SIZE(ar9300Modes_high_ob_db_tx_gain_table_2p0),
+			       5);
+		break;
+	case 2:
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9300Modes_low_ob_db_tx_gain_table_2p0,
+			       ARRAY_SIZE(ar9300Modes_low_ob_db_tx_gain_table_2p0),
+			       5);
+		break;
+	}
+}
+
+static void ar9003_rx_gain_table_apply(struct ath_hw *ah)
+{
+	switch (ar9003_hw_get_rx_gain_idx(ah)) {
+	case 0:
+	default:
+		INIT_INI_ARRAY(&ah->iniModesRxGain, ar9300Common_rx_gain_table_2p0,
+			       ARRAY_SIZE(ar9300Common_rx_gain_table_2p0),
+			       2);
+		break;
+	case 1:
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
+			       ar9300Common_wo_xlna_rx_gain_table_2p0,
+			       ARRAY_SIZE(ar9300Common_wo_xlna_rx_gain_table_2p0),
+			       2);
+		break;
+	}
+}
+
+/* set gain table pointers according to values read from the eeprom */
+static void ar9003_hw_init_mode_gain_regs(struct ath_hw *ah)
+{
+	ar9003_tx_gain_table_apply(ah);
+	ar9003_rx_gain_table_apply(ah);
+}
+
 /*
  * Helper for ASPM support.
  *
@@ -143,6 +193,7 @@ void ar9003_hw_attach_ops(struct ath_hw *ah)
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 
 	priv_ops->init_mode_regs = ar9003_hw_init_mode_regs;
+	priv_ops->init_mode_gain_regs = ar9003_hw_init_mode_gain_regs;
 	priv_ops->macversion_supported = ar9003_hw_macversion_supported;
 
 	ops->config_pci_powersave = ar9003_hw_configpcipowersave;

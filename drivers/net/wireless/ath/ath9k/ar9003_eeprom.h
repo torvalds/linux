@@ -316,4 +316,8 @@ struct ar9300_eeprom {
 	u8 ctl_freqbin_5G[AR9300_NUM_CTLS_5G][AR9300_NUM_BAND_EDGES_5G];
 	struct cal_ctl_data_5g ctlPowerData_5G[AR9300_NUM_CTLS_5G];
 } __packed;
+
+s32 ar9003_hw_get_tx_gain_idx(struct ath_hw *ah);
+s32 ar9003_hw_get_rx_gain_idx(struct ath_hw *ah);
+
 #endif

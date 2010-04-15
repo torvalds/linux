@@ -1827,6 +1827,20 @@ static u16 ath9k_hw_ar9300_get_spur_channel(struct ath_hw *ah,
 	return AR_NO_SPUR;
 }
 
+s32 ar9003_hw_get_tx_gain_idx(struct ath_hw *ah)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+
+	return (eep->baseEepHeader.txrxgain >> 4) & 0xf; /* bits 7:4 */
+}
+
+s32 ar9003_hw_get_rx_gain_idx(struct ath_hw *ah)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+
+	return (eep->baseEepHeader.txrxgain) & 0xf; /* bits 3:0 */
+}
+
 const struct eeprom_ops eep_ar9300_ops = {
 	.check_eeprom = ath9k_hw_ar9300_check_eeprom,
 	.get_eeprom = ath9k_hw_ar9300_get_eeprom,
