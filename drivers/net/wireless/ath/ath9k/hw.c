@@ -1697,11 +1697,16 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 		if (tmpReg &
 		    (AR_INTR_SYNC_LOCAL_TIMEOUT |
 		     AR_INTR_SYNC_RADM_CPL_TIMEOUT)) {
+			u32 val;
 			REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
-			REG_WRITE(ah, AR_RC, AR_RC_AHB | AR_RC_HOSTIF);
-		} else {
+
+			val = AR_RC_HOSTIF;
+			if (!AR_SREV_9300_20_OR_LATER(ah))
+				val |= AR_RC_AHB;
+			REG_WRITE(ah, AR_RC, val);
+
+		} else if (!AR_SREV_9300_20_OR_LATER(ah))
 			REG_WRITE(ah, AR_RC, AR_RC_AHB);
-		}
 
 		rst_flags = AR_RTC_RC_MAC_WARM;
 		if (type == ATH9K_RESET_COLD)
@@ -1732,7 +1737,7 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 	REG_WRITE(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN |
 		  AR_RTC_FORCE_WAKE_ON_INT);
 
-	if (!AR_SREV_9100(ah))
+	if (!AR_SREV_9100(ah) && !AR_SREV_9300_20_OR_LATER(ah))
 		REG_WRITE(ah, AR_RC, AR_RC_AHB);
 
 	REG_WRITE(ah, AR_RTC_RESET, 0);
@@ -2413,15 +2418,24 @@ EXPORT_SYMBOL(ath9k_hw_keyisvalid);
 /* Power Management (Chipset) */
 /******************************/
 
+/*
+ * Notify Power Mgt is disabled in self-generated frames.
+ * If requested, force chip to sleep.
+ */
 static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 {
 	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	if (setChip) {
+		/*
+		 * Clear the RTC force wake bit to allow the
+		 * mac to go to sleep.
+		 */
 		REG_CLR_BIT(ah, AR_RTC_FORCE_WAKE,
 			    AR_RTC_FORCE_WAKE_EN);
-		if (!AR_SREV_9100(ah))
+		if (!AR_SREV_9100(ah) && !AR_SREV_9300_20_OR_LATER(ah))
 			REG_WRITE(ah, AR_RC, AR_RC_AHB | AR_RC_HOSTIF);
 
+		/* Shutdown chip. Active low */
 		if (!AR_SREV_5416(ah) && !AR_SREV_9271(ah))
 			REG_CLR_BIT(ah, (AR_RTC_RESET),
 				    AR_RTC_RESET_EN);
