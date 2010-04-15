@@ -949,6 +949,21 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah, bool is_reset)
 
 }
 
+static void ar9002_hw_pa_cal(struct ath_hw *ah, bool is_reset)
+{
+	if (AR_SREV_9271(ah)) {
+		if (is_reset || !ah->pacal_info.skipcount)
+			ath9k_hw_9271_pa_cal(ah, is_reset);
+		else
+			ah->pacal_info.skipcount--;
+	} else if (AR_SREV_9285_11_OR_LATER(ah)) {
+		if (is_reset || !ah->pacal_info.skipcount)
+			ath9k_hw_9285_pa_cal(ah, is_reset);
+		else
+			ah->pacal_info.skipcount--;
+	}
+}
+
 bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 			u8 rxchainmask, bool longcal)
 {
@@ -973,17 +988,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	/* Do NF cal only at longer intervals */
 	if (longcal) {
 		/* Do periodic PAOffset Cal */
-		if (AR_SREV_9271(ah)) {
-			if (!ah->pacal_info.skipcount)
-				ath9k_hw_9271_pa_cal(ah, false);
-			else
-				ah->pacal_info.skipcount--;
-		} else if (AR_SREV_9285_11_OR_LATER(ah)) {
-			if (!ah->pacal_info.skipcount)
-				ath9k_hw_9285_pa_cal(ah, false);
-			else
-				ah->pacal_info.skipcount--;
-		}
+		ar9002_hw_pa_cal(ah, false);
 
 		if (OLC_FOR_AR9280_20_LATER || OLC_FOR_AR9287_10_LATER)
 			ath9k_olc_temp_compensation(ah);
@@ -1142,10 +1147,7 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	}
 
 	/* Do PA Calibration */
-	if (AR_SREV_9271(ah))
-		ath9k_hw_9271_pa_cal(ah, true);
-	else if (AR_SREV_9285_11_OR_LATER(ah))
-		ath9k_hw_9285_pa_cal(ah, true);
+	ar9002_hw_pa_cal(ah, true);
 
 	/* Do NF Calibration after DC offset and other calibrations */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
