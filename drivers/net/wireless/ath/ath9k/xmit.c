@@ -886,11 +886,16 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	 * The UAPSD queue is an exception, since we take a desc-
 	 * based intr on the EOSP frames.
 	 */
-	if (qtype == ATH9K_TX_QUEUE_UAPSD)
-		qi.tqi_qflags = TXQ_FLAG_TXDESCINT_ENABLE;
-	else
-		qi.tqi_qflags = TXQ_FLAG_TXEOLINT_ENABLE |
-			TXQ_FLAG_TXDESCINT_ENABLE;
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
+		qi.tqi_qflags = TXQ_FLAG_TXOKINT_ENABLE |
+				TXQ_FLAG_TXERRINT_ENABLE;
+	} else {
+		if (qtype == ATH9K_TX_QUEUE_UAPSD)
+			qi.tqi_qflags = TXQ_FLAG_TXDESCINT_ENABLE;
+		else
+			qi.tqi_qflags = TXQ_FLAG_TXEOLINT_ENABLE |
+					TXQ_FLAG_TXDESCINT_ENABLE;
+	}
 	qnum = ath9k_hw_setuptxqueue(ah, qtype, &qi);
 	if (qnum == -1) {
 		/*
