@@ -19,6 +19,7 @@
 
 #include "../ath.h"
 #include <net/cfg80211.h>
+#include "ar9003_eeprom.h"
 
 #define AH_USE_EEPROM   0x1
 
@@ -249,16 +250,20 @@ enum eeprom_param {
 	EEP_MINOR_REV,
 	EEP_TX_MASK,
 	EEP_RX_MASK,
+	EEP_FSTCLK_5G,
 	EEP_RXGAIN_TYPE,
-	EEP_TXGAIN_TYPE,
 	EEP_OL_PWRCTRL,
+	EEP_TXGAIN_TYPE,
 	EEP_RC_CHAIN_MASK,
 	EEP_DAC_HPWR_5G,
 	EEP_FRAC_N_5G,
 	EEP_DEV_TYPE,
 	EEP_TEMPSENSE_SLOPE,
 	EEP_TEMPSENSE_SLOPE_PAL_ON,
-	EEP_PWR_TABLE_OFFSET
+	EEP_PWR_TABLE_OFFSET,
+	EEP_DRIVE_STRENGTH,
+	EEP_INTERNAL_REGULATOR,
+	EEP_SWREG
 };
 
 enum ar5416_rates {
@@ -707,5 +712,7 @@ int ath9k_hw_eeprom_init(struct ath_hw *ah);
 extern const struct eeprom_ops eep_def_ops;
 extern const struct eeprom_ops eep_4k_ops;
 extern const struct eeprom_ops eep_ar9287_ops;
+extern const struct eeprom_ops eep_ar9287_ops;
+extern const struct eeprom_ops eep_ar9300_ops;
 
 #endif /* EEPROM_H */

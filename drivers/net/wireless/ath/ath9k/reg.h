@@ -1070,6 +1070,16 @@ enum {
 #define AR_RTC_RC_COLD_RESET    0x00000004
 #define AR_RTC_RC_WARM_RESET    0x00000008
 
+/* Crystal Control */
+#define AR_RTC_XTAL_CONTROL     0x7004
+
+/* Reg Control 0 */
+#define AR_RTC_REG_CONTROL0     0x7008
+
+/* Reg Control 1 */
+#define AR_RTC_REG_CONTROL1     0x700c
+#define AR_RTC_REG_CONTROL1_SWREG_PROGRAM       0x00000001
+
 #define AR_RTC_PLL_CONTROL \
 	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0014) : 0x7014)
 
@@ -1100,6 +1110,7 @@ enum {
 #define AR_RTC_SLEEP_CLK \
 	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0048) : 0x7048)
 #define AR_RTC_FORCE_DERIVED_CLK    0x2
+#define AR_RTC_FORCE_SWREG_PRD      0x00000004
 
 #define AR_RTC_FORCE_WAKE \
 	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x004c) : 0x704c)

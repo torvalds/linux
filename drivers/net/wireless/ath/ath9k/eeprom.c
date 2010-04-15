@@ -256,7 +256,9 @@ int ath9k_hw_eeprom_init(struct ath_hw *ah)
 {
 	int status;
 
-	if (AR_SREV_9287(ah)) {
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		ah->eep_ops = &eep_ar9300_ops;
+	else if (AR_SREV_9287(ah)) {
 		ah->eep_ops = &eep_ar9287_ops;
 	} else if (AR_SREV_9285(ah) || AR_SREV_9271(ah)) {
 		ah->eep_ops = &eep_4k_ops;

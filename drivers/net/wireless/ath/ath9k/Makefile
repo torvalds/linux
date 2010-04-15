@@ -30,7 +30,8 @@ ath9k_hw-y:=	\
 		ani.o \
 		btcoex.o \
 		mac.o \
-		ar9003_mac.o
+		ar9003_mac.o \
+		ar9003_eeprom.o
 
 obj-$(CONFIG_ATH9K_HW) += ath9k_hw.o
 

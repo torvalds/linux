@@ -568,6 +568,7 @@ struct ath_hw {
 		struct ar5416_eeprom_def def;
 		struct ar5416_eeprom_4k map4k;
 		struct ar9287_eeprom map9287;
+		struct ar9300_eeprom ar9300_eep;
 	} eeprom;
 	const struct eeprom_ops *eep_ops;
 
