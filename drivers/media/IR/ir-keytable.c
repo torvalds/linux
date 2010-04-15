@@ -1,4 +1,4 @@
-/* ir-register.c - handle IR scancode->keycode tables
+/* ir-keytable.c - handle IR scancode->keycode tables
  *
  * Copyright (C) 2009 by Mauro Carvalho Chehab <mchehab@redhat.com>
  *

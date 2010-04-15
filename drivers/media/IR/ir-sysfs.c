@@ -1,4 +1,4 @@
-/* ir-register.c - handle IR scancode->keycode tables
+/* ir-sysfs.c - sysfs interface for RC devices (/sys/class/rc)
  *
  * Copyright (C) 2009-2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
  *
