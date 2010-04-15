@@ -2206,6 +2206,7 @@ DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
 /*
  * get_rps_cpu is called from netif_receive_skb and returns the target
  * CPU from the RPS map of the receiving queue for a given skb.
+ * rcu_read_lock must be held on entry.
  */
 static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
 {
@@ -2216,8 +2217,6 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
 	int cpu = -1;
 	u8 ip_proto;
 	u32 addr1, addr2, ports, ihl;
-
-	rcu_read_lock();
 
 	if (skb_rx_queue_recorded(skb)) {
 		u16 index = skb_get_rx_queue(skb);
@@ -2296,7 +2295,6 @@ got_hash:
 	}
 
 done:
-	rcu_read_unlock();
 	return cpu;
 }
 
@@ -2392,7 +2390,7 @@ enqueue:
 
 int netif_rx(struct sk_buff *skb)
 {
-	int cpu;
+	int ret;
 
 	/* if netpoll wants it, pretend we never saw it */
 	if (netpoll_rx(skb))
@@ -2402,14 +2400,21 @@ int netif_rx(struct sk_buff *skb)
 		net_timestamp(skb);
 
 #ifdef CONFIG_RPS
-	cpu = get_rps_cpu(skb->dev, skb);
-	if (cpu < 0)
-		cpu = smp_processor_id();
-#else
-	cpu = smp_processor_id();
-#endif
+	{
+		int cpu;
 
-	return enqueue_to_backlog(skb, cpu);
+		rcu_read_lock();
+		cpu = get_rps_cpu(skb->dev, skb);
+		if (cpu < 0)
+			cpu = smp_processor_id();
+		ret = enqueue_to_backlog(skb, cpu);
+		rcu_read_unlock();
+	}
+#else
+	ret = enqueue_to_backlog(skb, get_cpu());
+	put_cpu();
+#endif
+	return ret;
 }
 EXPORT_SYMBOL(netif_rx);
 
