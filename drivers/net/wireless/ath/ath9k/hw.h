@@ -28,6 +28,7 @@
 #include "reg.h"
 #include "phy.h"
 #include "btcoex.h"
+#include "ar9003_mac.h"
 
 #include "../regd.h"
 #include "../debug.h"
@@ -135,6 +136,9 @@
 
 #define TU_TO_USEC(_tu)             ((_tu) << 10)
 
+#define ATH9K_HW_RX_HP_QDEPTH	16
+#define ATH9K_HW_RX_LP_QDEPTH	128
+
 enum wireless_mode {
 	ATH9K_MODE_11A = 0,
 	ATH9K_MODE_11G,
@@ -192,6 +196,9 @@ struct ath9k_hw_capabilities {
 	u8 num_gpio_pins;
 	u8 num_antcfg_2ghz;
 	u8 num_antcfg_5ghz;
+	u8 rx_hp_qdepth;
+	u8 rx_lp_qdepth;
+	u8 rx_status_len;
 };
 
 struct ath9k_ops_config {

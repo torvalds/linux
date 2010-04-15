@@ -2873,8 +2873,12 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		btcoex_hw->scheme = ATH_BTCOEX_CFG_NONE;
 	}
 
-	if (AR_SREV_9300_20_OR_LATER(ah))
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		pCap->hw_caps |= ATH9K_HW_CAP_EDMA;
+		pCap->rx_hp_qdepth = ATH9K_HW_RX_HP_QDEPTH;
+		pCap->rx_lp_qdepth = ATH9K_HW_RX_LP_QDEPTH;
+		pCap->rx_status_len = sizeof(struct ar9003_rxs);
+	}
 
 	return 0;
 }
