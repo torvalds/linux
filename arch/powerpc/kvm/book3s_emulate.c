@@ -59,6 +59,10 @@
 #define SPRN_GQR6		918
 #define SPRN_GQR7		919
 
+/* Book3S_32 defines mfsrin(v) - but that messes up our abstract
+ * function pointers, so let's just disable the define. */
+#undef mfsrin
+
 int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                            unsigned int inst, int *advance)
 {

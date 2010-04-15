@@ -45,6 +45,9 @@
 
 #define PTEG_FLAG_ACCESSED	0x00000100
 #define PTEG_FLAG_DIRTY		0x00000080
+#ifndef SID_SHIFT
+#define SID_SHIFT		28
+#endif
 
 static inline bool check_debug_ip(struct kvm_vcpu *vcpu)
 {

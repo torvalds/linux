@@ -242,10 +242,10 @@ define_load_up(vsx)
 
 .global kvmppc_trampoline_lowmem
 kvmppc_trampoline_lowmem:
-	.long kvmppc_handler_lowmem_trampoline - _stext
+	.long kvmppc_handler_lowmem_trampoline - CONFIG_KERNEL_START
 
 .global kvmppc_trampoline_enter
 kvmppc_trampoline_enter:
-	.long kvmppc_handler_trampoline_enter - _stext
+	.long kvmppc_handler_trampoline_enter - CONFIG_KERNEL_START
 
 #include "book3s_segment.S"

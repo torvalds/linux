@@ -40,6 +40,13 @@
 static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 			     ulong msr);
 
+/* Some compatibility defines */
+#ifdef CONFIG_PPC_BOOK3S_32
+#define MSR_USER32 MSR_USER
+#define MSR_USER64 MSR_USER
+#define HW_PAGE_SIZE PAGE_SIZE
+#endif
+
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exits",       VCPU_STAT(sum_exits) },
 	{ "mmio",        VCPU_STAT(mmio_exits) },
@@ -348,11 +355,14 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 {
 	vcpu->arch.hflags &= ~BOOK3S_HFLAG_SLB;
 	vcpu->arch.pvr = pvr;
+#ifdef CONFIG_PPC_BOOK3S_64
 	if ((pvr >= 0x330000) && (pvr < 0x70330000)) {
 		kvmppc_mmu_book3s_64_init(vcpu);
 		to_book3s(vcpu)->hior = 0xfff00000;
 		to_book3s(vcpu)->msr_mask = 0xffffffffffffffffULL;
-	} else {
+	} else
+#endif
+	{
 		kvmppc_mmu_book3s_32_init(vcpu);
 		to_book3s(vcpu)->hior = 0;
 		to_book3s(vcpu)->msr_mask = 0xffffffffULL;
@@ -369,6 +379,11 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 	   really needs them in a VM on Cell and force disable them. */
 	if (!strcmp(cur_cpu_spec->platform, "ppc-cell-be"))
 		to_book3s(vcpu)->msr_mask &= ~(MSR_FE0 | MSR_FE1);
+
+#ifdef CONFIG_PPC_BOOK3S_32
+	/* 32 bit Book3S always has 32 byte dcbz */
+	vcpu->arch.hflags |= BOOK3S_HFLAG_DCBZ32;
+#endif
 }
 
 /* Book3s_32 CPUs always have 32 bytes cache line size, which Linux assumes. To
@@ -1212,8 +1227,13 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 
 	vcpu->arch.host_retip = kvm_return_point;
 	vcpu->arch.host_msr = mfmsr();
+#ifdef CONFIG_PPC_BOOK3S_64
 	/* default to book3s_64 (970fx) */
 	vcpu->arch.pvr = 0x3C0301;
+#else
+	/* default to book3s_32 (750) */
+	vcpu->arch.pvr = 0x84202;
+#endif
 	kvmppc_set_pvr(vcpu, vcpu->arch.pvr);
 	vcpu_book3s->slb_nr = 64;
 
@@ -1221,7 +1241,11 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	vcpu->arch.trampoline_lowmem = kvmppc_trampoline_lowmem;
 	vcpu->arch.trampoline_enter = kvmppc_trampoline_enter;
 	vcpu->arch.highmem_handler = (ulong)kvmppc_handler_highmem;
+#ifdef CONFIG_PPC_BOOK3S_64
 	vcpu->arch.rmcall = *(ulong*)kvmppc_rmcall;
+#else
+	vcpu->arch.rmcall = (ulong)kvmppc_rmcall;
+#endif
 
 	vcpu->arch.shadow_msr = MSR_USER64;
 
