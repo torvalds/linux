@@ -223,6 +223,12 @@ struct ath_tx {
 	struct ath_descdma txdma;
 };
 
+struct ath_rx_edma {
+	struct sk_buff_head rx_fifo;
+	struct sk_buff_head rx_buffers;
+	u32 rx_fifo_hwsize;
+};
+
 struct ath_rx {
 	u8 defant;
 	u8 rxotherant;
@@ -232,6 +238,8 @@ struct ath_rx {
 	spinlock_t rxbuflock;
 	struct list_head rxbuf;
 	struct ath_descdma rxdma;
+	struct ath_buf *rx_bufptr;
+	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
 };
 
 int ath_startrecv(struct ath_softc *sc);
@@ -240,7 +248,7 @@ void ath_flushrecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
 int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
-int ath_rx_tasklet(struct ath_softc *sc, int flush);
+int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp);
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype);
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
 int ath_tx_setup(struct ath_softc *sc, int haltype);

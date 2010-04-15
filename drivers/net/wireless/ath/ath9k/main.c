@@ -401,6 +401,7 @@ void ath9k_tasklet(unsigned long data)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	u32 status = sc->intrstatus;
+	u32 rxmask;
 
 	ath9k_ps_wakeup(sc);
 
@@ -410,9 +411,21 @@ void ath9k_tasklet(unsigned long data)
 		return;
 	}
 
-	if (status & (ATH9K_INT_RX | ATH9K_INT_RXEOL | ATH9K_INT_RXORN)) {
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+		rxmask = (ATH9K_INT_RXHP | ATH9K_INT_RXLP | ATH9K_INT_RXEOL |
+			  ATH9K_INT_RXORN);
+	else
+		rxmask = (ATH9K_INT_RX | ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
+
+	if (status & rxmask) {
 		spin_lock_bh(&sc->rx.rxflushlock);
-		ath_rx_tasklet(sc, 0);
+
+		/* Check for high priority Rx first */
+		if ((ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) &&
+		    (status & ATH9K_INT_RXHP))
+			ath_rx_tasklet(sc, 0, true);
+
+		ath_rx_tasklet(sc, 0, false);
 		spin_unlock_bh(&sc->rx.rxflushlock);
 	}
 
@@ -445,6 +458,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 		ATH9K_INT_RXORN |		\
 		ATH9K_INT_RXEOL |		\
 		ATH9K_INT_RX |			\
+		ATH9K_INT_RXLP |		\
+		ATH9K_INT_RXHP |		\
 		ATH9K_INT_TX |			\
 		ATH9K_INT_BMISS |		\
 		ATH9K_INT_CST |			\
@@ -496,7 +511,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 	 * If a FATAL or RXORN interrupt is received, we have to reset the
 	 * chip immediately.
 	 */
-	if (status & (ATH9K_INT_FATAL | ATH9K_INT_RXORN))
+	if ((status & ATH9K_INT_FATAL) || ((status & ATH9K_INT_RXORN) &&
+	    !(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)))
 		goto chip_reset;
 
 	if (status & ATH9K_INT_SWBA)
@@ -504,6 +520,13 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 	if (status & ATH9K_INT_TXURN)
 		ath9k_hw_updatetxtriglevel(ah, true);
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
+		if (status & ATH9K_INT_RXEOL) {
+			ah->imask &= ~(ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
+			ath9k_hw_set_interrupts(ah, ah->imask);
+		}
+	}
 
 	if (status & ATH9K_INT_MIB) {
 		/*
@@ -1162,9 +1185,14 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	}
 
 	/* Setup our intr mask. */
-	ah->imask = ATH9K_INT_RX | ATH9K_INT_TX
-		| ATH9K_INT_RXEOL | ATH9K_INT_RXORN
-		| ATH9K_INT_FATAL | ATH9K_INT_GLOBAL;
+	ah->imask = ATH9K_INT_TX | ATH9K_INT_RXEOL |
+		    ATH9K_INT_RXORN | ATH9K_INT_FATAL |
+		    ATH9K_INT_GLOBAL;
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+		ah->imask |= ATH9K_INT_RXHP | ATH9K_INT_RXLP;
+	else
+		ah->imask |= ATH9K_INT_RX;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_GTT)
 		ah->imask |= ATH9K_INT_GTT;

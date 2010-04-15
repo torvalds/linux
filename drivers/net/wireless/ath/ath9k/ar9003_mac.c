@@ -72,6 +72,9 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 	if ((rxsp->ds_info & (AR_TxRxDesc | AR_CtrlStat)) != 0)
 		return -EINPROGRESS;
 
+	if (!rxs)
+		return 0;
+
 	rxs->rs_status = 0;
 	rxs->rs_flags =  0;
 
