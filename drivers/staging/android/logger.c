@@ -23,6 +23,7 @@
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 #include "logger.h"
 
