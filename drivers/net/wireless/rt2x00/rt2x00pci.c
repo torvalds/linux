@@ -62,7 +62,8 @@ EXPORT_SYMBOL_GPL(rt2x00pci_regbusy_read);
 /*
  * TX data handlers.
  */
-int rt2x00pci_write_tx_data(struct queue_entry *entry)
+int rt2x00pci_write_tx_data(struct queue_entry *entry,
+			    struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;

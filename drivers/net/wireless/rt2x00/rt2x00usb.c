@@ -215,7 +215,8 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	rt2x00lib_txdone(entry, &txdesc);
 }
 
-int rt2x00usb_write_tx_data(struct queue_entry *entry)
+int rt2x00usb_write_tx_data(struct queue_entry *entry,
+			    struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
