@@ -81,8 +81,3 @@ void ir_unregister_map(struct rc_keymap *map)
 }
 EXPORT_SYMBOL_GPL(ir_unregister_map);
 
-void rc_map_init(void)
-{
-	spin_lock_init(&rc_map_lock);
-
-}

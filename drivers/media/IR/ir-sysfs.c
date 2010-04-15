@@ -295,8 +295,6 @@ static int __init ir_core_init(void)
 
 	/* Initialize/load the decoders/keymap code that will be used */
 	ir_raw_init();
-	rc_map_init();
-
 
 	return 0;
 }
