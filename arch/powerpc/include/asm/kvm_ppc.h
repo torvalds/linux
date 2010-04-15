@@ -30,6 +30,8 @@
 #include <linux/kvm_host.h>
 #ifdef CONFIG_PPC_BOOK3S
 #include <asm/kvm_book3s.h>
+#else
+#include <asm/kvm_booke.h>
 #endif
 
 enum emulation_result {
@@ -137,82 +139,5 @@ static inline u32 kvmppc_set_field(u64 inst, int msb, int lsb, int value)
 
 	return r;
 }
-
-#ifdef CONFIG_PPC_BOOK3S
-
-/* We assume we're always acting on the current vcpu */
-
-static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
-{
-	if ( num < 14 ) {
-		get_paca()->shadow_vcpu.gpr[num] = val;
-		to_book3s(vcpu)->shadow_vcpu.gpr[num] = val;
-	} else
-		vcpu->arch.gpr[num] = val;
-}
-
-static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
-{
-	if ( num < 14 )
-		return get_paca()->shadow_vcpu.gpr[num];
-	else
-		return vcpu->arch.gpr[num];
-}
-
-static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
-{
-	get_paca()->shadow_vcpu.cr = val;
-	to_book3s(vcpu)->shadow_vcpu.cr = val;
-}
-
-static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
-{
-	return get_paca()->shadow_vcpu.cr;
-}
-
-static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
-{
-	get_paca()->shadow_vcpu.xer = val;
-	to_book3s(vcpu)->shadow_vcpu.xer = val;
-}
-
-static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
-{
-	return get_paca()->shadow_vcpu.xer;
-}
-
-#else
-
-static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
-{
-	vcpu->arch.gpr[num] = val;
-}
-
-static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
-{
-	return vcpu->arch.gpr[num];
-}
-
-static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
-{
-	vcpu->arch.cr = val;
-}
-
-static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.cr;
-}
-
-static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
-{
-	vcpu->arch.xer = val;
-}
-
-static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.xer;
-}
-
-#endif
 
 #endif /* __POWERPC_KVM_PPC_H__ */

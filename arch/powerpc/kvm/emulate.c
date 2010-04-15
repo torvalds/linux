@@ -132,7 +132,7 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
  * from opcode tables in the future. */
 int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
-	u32 inst = vcpu->arch.last_inst;
+	u32 inst = kvmppc_get_last_inst(vcpu);
 	u32 ea;
 	int ra;
 	int rb;
@@ -516,10 +516,11 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		}
 	}
 
-	trace_kvm_ppc_instr(inst, vcpu->arch.pc, emulated);
+	trace_kvm_ppc_instr(inst, kvmppc_get_pc(vcpu), emulated);
 
+	/* Advance past emulated instruction. */
 	if (advance)
-		vcpu->arch.pc += 4; /* Advance past emulated instruction. */
+		kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
 
 	return emulated;
 }

@@ -331,14 +331,14 @@ static int kvmppc_mmu_next_segment(struct kvm_vcpu *vcpu, ulong esid)
 	int found_inval = -1;
 	int r;
 
-	if (!get_paca()->kvm_slb_max)
-		get_paca()->kvm_slb_max = 1;
+	if (!to_svcpu(vcpu)->slb_max)
+		to_svcpu(vcpu)->slb_max = 1;
 
 	/* Are we overwriting? */
-	for (i = 1; i < get_paca()->kvm_slb_max; i++) {
-		if (!(get_paca()->kvm_slb[i].esid & SLB_ESID_V))
+	for (i = 1; i < to_svcpu(vcpu)->slb_max; i++) {
+		if (!(to_svcpu(vcpu)->slb[i].esid & SLB_ESID_V))
 			found_inval = i;
-		else if ((get_paca()->kvm_slb[i].esid & ESID_MASK) == esid)
+		else if ((to_svcpu(vcpu)->slb[i].esid & ESID_MASK) == esid)
 			return i;
 	}
 
@@ -352,11 +352,11 @@ static int kvmppc_mmu_next_segment(struct kvm_vcpu *vcpu, ulong esid)
 		max_slb_size = mmu_slb_size;
 
 	/* Overflowing -> purge */
-	if ((get_paca()->kvm_slb_max) == max_slb_size)
+	if ((to_svcpu(vcpu)->slb_max) == max_slb_size)
 		kvmppc_mmu_flush_segments(vcpu);
 
-	r = get_paca()->kvm_slb_max;
-	get_paca()->kvm_slb_max++;
+	r = to_svcpu(vcpu)->slb_max;
+	to_svcpu(vcpu)->slb_max++;
 
 	return r;
 }
@@ -374,7 +374,7 @@ int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr)
 
 	if (vcpu->arch.mmu.esid_to_vsid(vcpu, esid, &gvsid)) {
 		/* Invalidate an entry */
-		get_paca()->kvm_slb[slb_index].esid = 0;
+		to_svcpu(vcpu)->slb[slb_index].esid = 0;
 		return -ENOENT;
 	}
 
@@ -388,8 +388,8 @@ int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr)
 	slb_vsid &= ~SLB_VSID_KP;
 	slb_esid |= slb_index;
 
-	get_paca()->kvm_slb[slb_index].esid = slb_esid;
-	get_paca()->kvm_slb[slb_index].vsid = slb_vsid;
+	to_svcpu(vcpu)->slb[slb_index].esid = slb_esid;
+	to_svcpu(vcpu)->slb[slb_index].vsid = slb_vsid;
 
 	dprintk_slb("slbmte %#llx, %#llx\n", slb_vsid, slb_esid);
 
@@ -398,8 +398,8 @@ int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr)
 
 void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu)
 {
-	get_paca()->kvm_slb_max = 1;
-	get_paca()->kvm_slb[0].esid = 0;
+	to_svcpu(vcpu)->slb_max = 1;
+	to_svcpu(vcpu)->slb[0].esid = 0;
 }
 
 void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)

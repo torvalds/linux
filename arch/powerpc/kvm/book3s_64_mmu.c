@@ -383,7 +383,7 @@ static void kvmppc_mmu_book3s_64_slbia(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.msr & MSR_IR) {
 		kvmppc_mmu_flush_segments(vcpu);
-		kvmppc_mmu_map_segment(vcpu, vcpu->arch.pc);
+		kvmppc_mmu_map_segment(vcpu, kvmppc_get_pc(vcpu));
 	}
 }
 

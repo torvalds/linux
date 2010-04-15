@@ -71,7 +71,7 @@ struct kvmppc_sid_map {
 
 struct kvmppc_vcpu_book3s {
 	struct kvm_vcpu vcpu;
-	struct kvmppc_book3s_shadow_vcpu shadow_vcpu;
+	struct kvmppc_book3s_shadow_vcpu *shadow_vcpu;
 	struct kvmppc_sid_map sid_map[SID_MAP_NUM];
 	struct kvmppc_slb slb[64];
 	struct {
@@ -147,6 +147,94 @@ static inline ulong dsisr(void)
 }
 
 extern void kvm_return_point(void);
+static inline struct kvmppc_book3s_shadow_vcpu *to_svcpu(struct kvm_vcpu *vcpu);
+
+static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
+{
+	if ( num < 14 ) {
+		to_svcpu(vcpu)->gpr[num] = val;
+		to_book3s(vcpu)->shadow_vcpu->gpr[num] = val;
+	} else
+		vcpu->arch.gpr[num] = val;
+}
+
+static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
+{
+	if ( num < 14 )
+		return to_svcpu(vcpu)->gpr[num];
+	else
+		return vcpu->arch.gpr[num];
+}
+
+static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
+{
+	to_svcpu(vcpu)->cr = val;
+	to_book3s(vcpu)->shadow_vcpu->cr = val;
+}
+
+static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
+{
+	return to_svcpu(vcpu)->cr;
+}
+
+static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
+{
+	to_svcpu(vcpu)->xer = val;
+	to_book3s(vcpu)->shadow_vcpu->xer = val;
+}
+
+static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
+{
+	return to_svcpu(vcpu)->xer;
+}
+
+static inline void kvmppc_set_ctr(struct kvm_vcpu *vcpu, ulong val)
+{
+	to_svcpu(vcpu)->ctr = val;
+}
+
+static inline ulong kvmppc_get_ctr(struct kvm_vcpu *vcpu)
+{
+	return to_svcpu(vcpu)->ctr;
+}
+
+static inline void kvmppc_set_lr(struct kvm_vcpu *vcpu, ulong val)
+{
+	to_svcpu(vcpu)->lr = val;
+}
+
+static inline ulong kvmppc_get_lr(struct kvm_vcpu *vcpu)
+{
+	return to_svcpu(vcpu)->lr;
+}
+
+static inline void kvmppc_set_pc(struct kvm_vcpu *vcpu, ulong val)
+{
+	to_svcpu(vcpu)->pc = val;
+}
+
+static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
+{
+	return to_svcpu(vcpu)->pc;
+}
+
+static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
+{
+	ulong pc = kvmppc_get_pc(vcpu);
+	struct kvmppc_book3s_shadow_vcpu *svcpu = to_svcpu(vcpu);
+
+	/* Load the instruction manually if it failed to do so in the
+	 * exit path */
+	if (svcpu->last_inst == KVM_INST_FETCH_FAILED)
+		kvmppc_ld(vcpu, &pc, sizeof(u32), &svcpu->last_inst, false);
+
+	return svcpu->last_inst;
+}
+
+static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
+{
+	return to_svcpu(vcpu)->fault_dar;
+}
 
 /* Magic register values loaded into r3 and r4 before the 'sc' assembly
  * instruction for the OSI hypercalls */
@@ -154,5 +242,13 @@ extern void kvm_return_point(void);
 #define OSI_SC_MAGIC_R4			0x77810F9B
 
 #define INS_DCBZ			0x7c0007ec
+
+/* Also add subarch specific defines */
+
+#ifdef CONFIG_PPC_BOOK3S_32
+#include <asm/kvm_book3s_32.h>
+#else
+#include <asm/kvm_book3s_64.h>
+#endif
 
 #endif /* __ASM_KVM_BOOK3S_H__ */

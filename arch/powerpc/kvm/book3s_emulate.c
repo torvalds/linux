@@ -69,7 +69,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		switch (get_xop(inst)) {
 		case OP_19_XOP_RFID:
 		case OP_19_XOP_RFI:
-			vcpu->arch.pc = vcpu->arch.srr0;
+			kvmppc_set_pc(vcpu, vcpu->arch.srr0);
 			kvmppc_set_msr(vcpu, vcpu->arch.srr1);
 			*advance = 0;
 			break;
@@ -208,7 +208,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			if ((r == -ENOENT) || (r == -EPERM)) {
 				*advance = 0;
 				vcpu->arch.dear = vaddr;
-				vcpu->arch.fault_dear = vaddr;
+				to_svcpu(vcpu)->fault_dar = vaddr;
 
 				dsisr = DSISR_ISSTORE;
 				if (r == -ENOENT)
@@ -217,7 +217,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 					dsisr |= DSISR_PROTFAULT;
 
 				to_book3s(vcpu)->dsisr = dsisr;
-				vcpu->arch.fault_dsisr = dsisr;
+				to_svcpu(vcpu)->fault_dsisr = dsisr;
 
 				kvmppc_book3s_queue_irqprio(vcpu,
 					BOOK3S_INTERRUPT_DATA_STORAGE);
