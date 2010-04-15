@@ -836,13 +836,16 @@ u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan)
 
 static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	u32 regval;
 
 	/*
 	 * set AHB_MODE not to do cacheline prefetches
 	*/
-	regval = REG_READ(ah, AR_AHB_MODE);
-	REG_WRITE(ah, AR_AHB_MODE, regval | AR_AHB_PREFETCH_RD_EN);
+	if (!AR_SREV_9300_20_OR_LATER(ah)) {
+		regval = REG_READ(ah, AR_AHB_MODE);
+		REG_WRITE(ah, AR_AHB_MODE, regval | AR_AHB_PREFETCH_RD_EN);
+	}
 
 	/*
 	 * let mac dma reads be in 128 byte chunks
@@ -855,7 +858,8 @@ static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 	 * The initial value depends on whether aggregation is enabled, and is
 	 * adjusted whenever underruns are detected.
 	 */
-	REG_RMW_FIELD(ah, AR_TXCFG, AR_FTRIG, ah->tx_trig_level);
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		REG_RMW_FIELD(ah, AR_TXCFG, AR_FTRIG, ah->tx_trig_level);
 
 	/*
 	 * let mac dma writes be in 128 byte chunks
@@ -867,6 +871,14 @@ static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 	 * Setup receive FIFO threshold to hold off TX activities
 	 */
 	REG_WRITE(ah, AR_RXFIFO_CFG, 0x200);
+
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		REG_RMW_FIELD(ah, AR_RXBP_THRESH, AR_RXBP_THRESH_HP, 0x1);
+		REG_RMW_FIELD(ah, AR_RXBP_THRESH, AR_RXBP_THRESH_LP, 0x1);
+
+		ath9k_hw_set_rx_bufsize(ah, common->rx_bufsize -
+			ah->caps.rx_status_len);
+	}
 
 	/*
 	 * reduce the number of usable entries in PCU TXBUF to avoid

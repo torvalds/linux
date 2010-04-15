@@ -39,6 +39,12 @@
 #define AR_CFG_PCI_MASTER_REQ_Q_THRESH         0x00060000
 #define AR_CFG_PCI_MASTER_REQ_Q_THRESH_S       17
 
+#define AR_RXBP_THRESH       0x0018
+#define AR_RXBP_THRESH_HP    0x0000000f
+#define AR_RXBP_THRESH_HP_S  0
+#define AR_RXBP_THRESH_LP    0x00003f00
+#define AR_RXBP_THRESH_LP_S  8
+
 #define AR_MIRT              0x0020
 #define AR_MIRT_VAL          0x0000ffff
 #define AR_MIRT_VAL_S        16
