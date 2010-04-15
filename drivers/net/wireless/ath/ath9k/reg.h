@@ -1040,6 +1040,12 @@ enum {
 #define AR_PCIE_MSI                              (AR_SREV_9300_20_OR_LATER(ah) ? 0x40a4 : 0x4094)
 #define AR_PCIE_MSI_ENABLE                       0x00000001
 
+#define AR_RTC_9300_PLL_DIV          0x000003ff
+#define AR_RTC_9300_PLL_DIV_S        0
+#define AR_RTC_9300_PLL_REFDIV       0x00003C00
+#define AR_RTC_9300_PLL_REFDIV_S     10
+#define AR_RTC_9300_PLL_CLKSEL       0x0000C000
+#define AR_RTC_9300_PLL_CLKSEL_S     14
 
 #define AR_RTC_9160_PLL_DIV	0x000003ff
 #define AR_RTC_9160_PLL_DIV_S   0

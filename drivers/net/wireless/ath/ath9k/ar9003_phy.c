@@ -112,8 +112,27 @@ static void ar9003_hw_spur_mitigate(struct ath_hw *ah,
 static u32 ar9003_hw_compute_pll_control(struct ath_hw *ah,
 					 struct ath9k_channel *chan)
 {
-	/* TODO */
-	return 0;
+	u32 pll;
+
+	pll = SM(0x5, AR_RTC_9300_PLL_REFDIV);
+
+	if (chan && IS_CHAN_HALF_RATE(chan))
+		pll |= SM(0x1, AR_RTC_9300_PLL_CLKSEL);
+	else if (chan && IS_CHAN_QUARTER_RATE(chan))
+		pll |= SM(0x2, AR_RTC_9300_PLL_CLKSEL);
+
+	if (chan && IS_CHAN_5GHZ(chan)) {
+		pll |= SM(0x28, AR_RTC_9300_PLL_DIV);
+
+		/*
+		 * When doing fast clock, set PLL to 0x142c
+		 */
+		if (IS_CHAN_A_5MHZ_SPACED(chan))
+			pll = 0x142c;
+	} else
+		pll |= SM(0x2c, AR_RTC_9300_PLL_DIV);
+
+	return pll;
 }
 
 static void ar9003_hw_set_channel_regs(struct ath_hw *ah,
