@@ -1483,8 +1483,7 @@ static void assign_aggr_tid_seqno(struct sk_buff *skb,
 	INCR(tid->seq_next, IEEE80211_SEQ_MAX);
 }
 
-static int setup_tx_flags(struct ath_softc *sc, struct sk_buff *skb,
-			  struct ath_txq *txq)
+static int setup_tx_flags(struct sk_buff *skb, bool use_ldpc)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	int flags = 0;
@@ -1494,6 +1493,9 @@ static int setup_tx_flags(struct ath_softc *sc, struct sk_buff *skb,
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
 		flags |= ATH9K_TXDESC_NOACK;
+
+	if (use_ldpc)
+		flags |= ATH9K_TXDESC_LDPC;
 
 	return flags;
 }
@@ -1646,6 +1648,7 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 	int hdrlen;
 	__le16 fc;
 	int padpos, padsize;
+	bool use_ldpc = false;
 
 	tx_info->pad[0] = 0;
 	switch (txctl->frame_type) {
@@ -1672,10 +1675,13 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 		bf->bf_frmlen -= padsize;
 	}
 
-	if (conf_is_ht(&hw->conf))
+	if (conf_is_ht(&hw->conf)) {
 		bf->bf_state.bf_type |= BUF_HT;
+		if (tx_info->flags & IEEE80211_TX_CTL_LDPC)
+			use_ldpc = true;
+	}
 
-	bf->bf_flags = setup_tx_flags(sc, skb, txctl->txq);
+	bf->bf_flags = setup_tx_flags(skb, use_ldpc);
 
 	bf->bf_keytype = get_hw_crypto_keytype(skb);
 	if (bf->bf_keytype != ATH9K_KEY_TYPE_CLEAR) {
