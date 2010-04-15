@@ -210,7 +210,7 @@ irqreturn_t aer_irq(int irq, void *context)
 	}
 
 	/* Read error source and clear error status */
-	pci_read_config_dword(pdev->port, pos + PCI_ERR_ROOT_COR_SRC, &id);
+	pci_read_config_dword(pdev->port, pos + PCI_ERR_ROOT_ERR_SRC, &id);
 	pci_write_config_dword(pdev->port, pos + PCI_ERR_ROOT_STATUS, status);
 
 	/* Store error source for later DPC handler */
