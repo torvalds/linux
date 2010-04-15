@@ -116,4 +116,11 @@ void ir_raw_init(void);
 #define load_jvc_decode()	0
 #endif
 
+/* from ir-sony-decoder.c */
+#ifdef CONFIG_IR_SONY_DECODER_MODULE
+#define load_sony_decode()	request_module("ir-sony-decoder")
+#else
+#define load_sony_decode()	0
+#endif
+
 #endif /* _IR_RAW_EVENT */

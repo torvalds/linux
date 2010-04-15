@@ -65,6 +65,8 @@ static ssize_t show_protocol(struct device *d,
 		s = "rc6";
 	else if (ir_type == IR_TYPE_JVC)
 		s = "jvc";
+	else if (ir_type == IR_TYPE_SONY)
+		s = "sony";
 	else
 		s = "other";
 
@@ -104,6 +106,8 @@ static ssize_t store_protocol(struct device *d,
 			ir_type |= IR_TYPE_NEC;
 		if (!strcasecmp(buf, "jvc"))
 			ir_type |= IR_TYPE_JVC;
+		if (!strcasecmp(buf, "sony"))
+			ir_type |= IR_TYPE_SONY;
 	}
 
 	if (!ir_type) {

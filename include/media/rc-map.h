@@ -17,6 +17,7 @@
 #define IR_TYPE_NEC	(1  << 2)
 #define IR_TYPE_RC6	(1  << 3)	/* Philips RC6 protocol */
 #define IR_TYPE_JVC	(1  << 4)	/* JVC protocol */
+#define IR_TYPE_SONY	(1  << 5)	/* Sony12/15/20 protocol */
 #define IR_TYPE_OTHER	(1u << 31)
 
 struct ir_scancode {

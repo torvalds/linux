@@ -46,6 +46,15 @@ config IR_JVC_DECODER
 	   Enable this option if you have an infrared remote control which
 	   uses the JVC protocol, and you need software decoding support.
 
+config IR_SONY_DECODER
+	tristate "Enable IR raw decoder for the Sony protocol"
+	depends on IR_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the Sony protocol, and you need software decoding support.
+
 config IR_IMON
 	tristate "SoundGraph iMON Receiver and Display"
 	depends on USB_ARCH_HAS_HCD

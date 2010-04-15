@@ -234,6 +234,7 @@ static void init_decoders(struct work_struct *work)
 	load_rc5_decode();
 	load_rc6_decode();
 	load_jvc_decode();
+	load_sony_decode();
 
 	/* If needed, we may later add some init code. In this case,
 	   it is needed to change the CONFIG_MODULE test at ir-core.h
