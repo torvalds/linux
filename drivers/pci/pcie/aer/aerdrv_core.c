@@ -623,9 +623,9 @@ void aer_enable_rootport(struct aer_rpc *rpc)
 	set_downstream_devices_error_reporting(pdev, true);
 
 	/* Enable Root Port's interrupt in response to error messages */
-	pci_write_config_dword(pdev,
-		aer_pos + PCI_ERR_ROOT_COMMAND,
-		ROOT_PORT_INTR_ON_MESG_MASK);
+	pci_read_config_dword(pdev, aer_pos + PCI_ERR_ROOT_COMMAND, &reg32);
+	reg32 |= ROOT_PORT_INTR_ON_MESG_MASK;
+	pci_write_config_dword(pdev, aer_pos + PCI_ERR_ROOT_COMMAND, reg32);
 }
 
 /**
@@ -648,7 +648,9 @@ static void disable_root_aer(struct aer_rpc *rpc)
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
 	/* Disable Root's interrupt in response to error messages */
-	pci_write_config_dword(pdev, pos + PCI_ERR_ROOT_COMMAND, 0);
+	pci_read_config_dword(pdev, pos + PCI_ERR_ROOT_COMMAND, &reg32);
+	reg32 &= ~ROOT_PORT_INTR_ON_MESG_MASK;
+	pci_write_config_dword(pdev, pos + PCI_ERR_ROOT_COMMAND, reg32);
 
 	/* Clear Root's error status reg */
 	pci_read_config_dword(pdev, pos + PCI_ERR_ROOT_STATUS, &reg32);

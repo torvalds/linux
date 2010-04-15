@@ -234,13 +234,15 @@ static int __devinit aer_probe(struct pcie_device *dev)
 static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 {
 	u16 p2p_ctrl;
-	u32 status;
+	u32 reg32;
 	int pos;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 
 	/* Disable Root's interrupt in response to error messages */
-	pci_write_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, 0);
+	pci_read_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, &reg32);
+	reg32 &= ~ROOT_PORT_INTR_ON_MESG_MASK;
+	pci_write_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, reg32);
 
 	/* Assert Secondary Bus Reset */
 	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &p2p_ctrl);
@@ -265,12 +267,14 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 	msleep(200);
 	dev_printk(KERN_DEBUG, &dev->dev, "Root Port link has been reset\n");
 
+	/* Clear Root Error Status */
+	pci_read_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, &reg32);
+	pci_write_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, reg32);
+
 	/* Enable Root Port's interrupt in response to error messages */
-	pci_read_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, &status);
-	pci_write_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, status);
-	pci_write_config_dword(dev,
-		pos + PCI_ERR_ROOT_COMMAND,
-		ROOT_PORT_INTR_ON_MESG_MASK);
+	pci_read_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, &reg32);
+	reg32 |= ROOT_PORT_INTR_ON_MESG_MASK;
+	pci_write_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, reg32);
 
 	return PCI_ERS_RESULT_RECOVERED;
 }
