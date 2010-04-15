@@ -72,6 +72,113 @@ void pci_no_aer(void)
 	pcie_aer_disable = 1;	/* has priority over 'forceload' */
 }
 
+static int set_device_error_reporting(struct pci_dev *dev, void *data)
+{
+	bool enable = *((bool *)data);
+
+	if ((dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT) ||
+	    (dev->pcie_type == PCI_EXP_TYPE_UPSTREAM) ||
+	    (dev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM)) {
+		if (enable)
+			pci_enable_pcie_error_reporting(dev);
+		else
+			pci_disable_pcie_error_reporting(dev);
+	}
+
+	if (enable)
+		pcie_set_ecrc_checking(dev);
+
+	return 0;
+}
+
+/**
+ * set_downstream_devices_error_reporting - enable/disable the error reporting  bits on the root port and its downstream ports.
+ * @dev: pointer to root port's pci_dev data structure
+ * @enable: true = enable error reporting, false = disable error reporting.
+ */
+static void set_downstream_devices_error_reporting(struct pci_dev *dev,
+						   bool enable)
+{
+	set_device_error_reporting(dev, &enable);
+
+	if (!dev->subordinate)
+		return;
+	pci_walk_bus(dev->subordinate, set_device_error_reporting, &enable);
+}
+
+/**
+ * aer_enable_rootport - enable Root Port's interrupts when receiving messages
+ * @rpc: pointer to a Root Port data structure
+ *
+ * Invoked when PCIe bus loads AER service driver.
+ */
+static void aer_enable_rootport(struct aer_rpc *rpc)
+{
+	struct pci_dev *pdev = rpc->rpd->port;
+	int pos, aer_pos;
+	u16 reg16;
+	u32 reg32;
+
+	pos = pci_pcie_cap(pdev);
+	/* Clear PCIe Capability's Device Status */
+	pci_read_config_word(pdev, pos+PCI_EXP_DEVSTA, &reg16);
+	pci_write_config_word(pdev, pos+PCI_EXP_DEVSTA, reg16);
+
+	/* Disable system error generation in response to error messages */
+	pci_read_config_word(pdev, pos + PCI_EXP_RTCTL, &reg16);
+	reg16 &= ~(SYSTEM_ERROR_INTR_ON_MESG_MASK);
+	pci_write_config_word(pdev, pos + PCI_EXP_RTCTL, reg16);
+
+	aer_pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
+	/* Clear error status */
+	pci_read_config_dword(pdev, aer_pos + PCI_ERR_ROOT_STATUS, &reg32);
+	pci_write_config_dword(pdev, aer_pos + PCI_ERR_ROOT_STATUS, reg32);
+	pci_read_config_dword(pdev, aer_pos + PCI_ERR_COR_STATUS, &reg32);
+	pci_write_config_dword(pdev, aer_pos + PCI_ERR_COR_STATUS, reg32);
+	pci_read_config_dword(pdev, aer_pos + PCI_ERR_UNCOR_STATUS, &reg32);
+	pci_write_config_dword(pdev, aer_pos + PCI_ERR_UNCOR_STATUS, reg32);
+
+	/*
+	 * Enable error reporting for the root port device and downstream port
+	 * devices.
+	 */
+	set_downstream_devices_error_reporting(pdev, true);
+
+	/* Enable Root Port's interrupt in response to error messages */
+	pci_read_config_dword(pdev, aer_pos + PCI_ERR_ROOT_COMMAND, &reg32);
+	reg32 |= ROOT_PORT_INTR_ON_MESG_MASK;
+	pci_write_config_dword(pdev, aer_pos + PCI_ERR_ROOT_COMMAND, reg32);
+}
+
+/**
+ * aer_disable_rootport - disable Root Port's interrupts when receiving messages
+ * @rpc: pointer to a Root Port data structure
+ *
+ * Invoked when PCIe bus unloads AER service driver.
+ */
+static void aer_disable_rootport(struct aer_rpc *rpc)
+{
+	struct pci_dev *pdev = rpc->rpd->port;
+	u32 reg32;
+	int pos;
+
+	/*
+	 * Disable error reporting for the root port device and downstream port
+	 * devices.
+	 */
+	set_downstream_devices_error_reporting(pdev, false);
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
+	/* Disable Root's interrupt in response to error messages */
+	pci_read_config_dword(pdev, pos + PCI_ERR_ROOT_COMMAND, &reg32);
+	reg32 &= ~ROOT_PORT_INTR_ON_MESG_MASK;
+	pci_write_config_dword(pdev, pos + PCI_ERR_ROOT_COMMAND, reg32);
+
+	/* Clear Root's error status reg */
+	pci_read_config_dword(pdev, pos + PCI_ERR_ROOT_STATUS, &reg32);
+	pci_write_config_dword(pdev, pos + PCI_ERR_ROOT_STATUS, reg32);
+}
+
 /**
  * aer_irq - Root Port's ISR
  * @irq: IRQ assigned to Root Port
