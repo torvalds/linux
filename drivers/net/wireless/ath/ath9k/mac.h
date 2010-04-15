@@ -116,7 +116,10 @@ struct ath_tx_status {
 	int8_t ts_rssi_ext0;
 	int8_t ts_rssi_ext1;
 	int8_t ts_rssi_ext2;
-	u8 pad[3];
+	u8 qid;
+	u16 desc_id;
+	u8 tid;
+	u8 pad[2];
 	u32 ba_low;
 	u32 ba_high;
 	u32 evm0;
@@ -260,7 +263,7 @@ struct ath_desc {
 #define ATH9K_TXDESC_EXT_AND_CTL	0x0080
 #define ATH9K_TXDESC_VMF		0x0100
 #define ATH9K_TXDESC_FRAG_IS_ON 	0x0200
-#define ATH9K_TXDESC_CAB		0x0400
+#define ATH9K_TXDESC_LOWRXCHAIN		0x0400
 
 #define ATH9K_RXDESC_INTREQ		0x0020
 

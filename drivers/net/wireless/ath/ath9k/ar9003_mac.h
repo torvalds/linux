@@ -20,7 +20,25 @@
 #define AR_DescId	0xffff0000
 #define AR_DescId_S	16
 #define AR_CtrlStat	0x00004000
+#define AR_CtrlStat_S	14
 #define AR_TxRxDesc	0x00008000
+#define AR_TxRxDesc_S	15
+#define AR_TxQcuNum	0x00000f00
+#define AR_TxQcuNum_S	8
+
+#define AR_BufLen	0x0fff0000
+#define AR_BufLen_S	16
+
+#define AR_TxDescId	0xffff0000
+#define AR_TxDescId_S	16
+#define AR_TxPtrChkSum	0x0000ffff
+
+#define AR_TxTid	0xf0000000
+#define AR_TxTid_S	28
+
+#define AR_LowRxChain	0x00004000
+
+#define AR_Not_Sounding	0x20000000
 
 #define MAP_ISR_S2_CST          6
 #define MAP_ISR_S2_GTT          6
@@ -29,6 +47,8 @@
 #define MAP_ISR_S2_DTIMSYNC     7
 #define MAP_ISR_S2_DTIM         7
 #define MAP_ISR_S2_TSFOOR       4
+
+#define AR9003TXC_CONST(_ds) ((const struct ar9003_txc *) _ds)
 
 struct ar9003_rxs {
 	u32 ds_info;
