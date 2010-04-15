@@ -1436,7 +1436,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	if ((vif->type == NL80211_IFTYPE_STATION) ||
 	    (vif->type == NL80211_IFTYPE_ADHOC) ||
 	    (vif->type == NL80211_IFTYPE_MESH_POINT)) {
-		ah->imask |= ATH9K_INT_MIB;
+		if (ah->config.enable_ani)
+			ah->imask |= ATH9K_INT_MIB;
 		ah->imask |= ATH9K_INT_TSFOOR;
 	}
 
