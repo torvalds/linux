@@ -178,6 +178,11 @@ EXPORT_SYMBOL(switch_mmu_context);
 extern long mol_trampoline;
 EXPORT_SYMBOL(mol_trampoline); /* For MOL */
 EXPORT_SYMBOL(flush_hash_pages); /* For MOL */
+
+extern struct hash_pte *Hash;
+extern unsigned long _SDR1;
+EXPORT_SYMBOL_GPL(Hash); /* For KVM */
+EXPORT_SYMBOL_GPL(_SDR1); /* For KVM */
 #ifdef CONFIG_SMP
 extern int mmu_hash_lock;
 EXPORT_SYMBOL(mmu_hash_lock); /* For MOL */
