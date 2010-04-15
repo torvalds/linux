@@ -106,7 +106,55 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 static void ar9003_hw_spur_mitigate(struct ath_hw *ah,
 				    struct ath9k_channel *chan)
 {
-	/* TODO */
+	u32 spur_freq[4] = { 2420, 2440, 2464, 2480 };
+	int cur_bb_spur, negative = 0, cck_spur_freq;
+	int i;
+
+	/*
+	 * Need to verify range +/- 10 MHz in control channel, otherwise spur
+	 * is out-of-band and can be ignored.
+	 */
+
+	for (i = 0; i < 4; i++) {
+		negative = 0;
+		cur_bb_spur = spur_freq[i] - chan->channel;
+
+		if (cur_bb_spur < 0) {
+			negative = 1;
+			cur_bb_spur = -cur_bb_spur;
+		}
+		if (cur_bb_spur < 10) {
+			cck_spur_freq = (int)((cur_bb_spur << 19) / 11);
+
+			if (negative == 1)
+				cck_spur_freq = -cck_spur_freq;
+
+			cck_spur_freq = cck_spur_freq & 0xfffff;
+
+			REG_RMW_FIELD(ah, AR_PHY_AGC_CONTROL,
+				      AR_PHY_AGC_CONTROL_YCOK_MAX, 0x7);
+			REG_RMW_FIELD(ah, AR_PHY_CCK_SPUR_MIT,
+				      AR_PHY_CCK_SPUR_MIT_SPUR_RSSI_THR, 0x7f);
+			REG_RMW_FIELD(ah, AR_PHY_CCK_SPUR_MIT,
+				      AR_PHY_CCK_SPUR_MIT_SPUR_FILTER_TYPE,
+				      0x2);
+			REG_RMW_FIELD(ah, AR_PHY_CCK_SPUR_MIT,
+				      AR_PHY_CCK_SPUR_MIT_USE_CCK_SPUR_MIT,
+				      0x1);
+			REG_RMW_FIELD(ah, AR_PHY_CCK_SPUR_MIT,
+				      AR_PHY_CCK_SPUR_MIT_CCK_SPUR_FREQ,
+				      cck_spur_freq);
+
+			return;
+		}
+	}
+
+	REG_RMW_FIELD(ah, AR_PHY_AGC_CONTROL,
+		      AR_PHY_AGC_CONTROL_YCOK_MAX, 0x5);
+	REG_RMW_FIELD(ah, AR_PHY_CCK_SPUR_MIT,
+		      AR_PHY_CCK_SPUR_MIT_USE_CCK_SPUR_MIT, 0x0);
+	REG_RMW_FIELD(ah, AR_PHY_CCK_SPUR_MIT,
+		      AR_PHY_CCK_SPUR_MIT_CCK_SPUR_FREQ, 0x0);
 }
 
 static u32 ar9003_hw_compute_pll_control(struct ath_hw *ah,
