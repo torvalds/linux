@@ -59,4 +59,7 @@
 			(_bank)[i] = INI_RA((_iniarray), i, _col);;	\
 	} while (0)
 
+#define	AR_PHY_TIMING11_SPUR_FREQ_SD		0x3FF00000
+#define	AR_PHY_TIMING11_SPUR_FREQ_SD_S		20
+
 #endif

@@ -103,8 +103,8 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
  *
  * Spur mitigation for MRC CCK
  */
-static void ar9003_hw_spur_mitigate(struct ath_hw *ah,
-				    struct ath9k_channel *chan)
+static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
+					    struct ath9k_channel *chan)
 {
 	u32 spur_freq[4] = { 2420, 2440, 2464, 2480 };
 	int cur_bb_spur, negative = 0, cck_spur_freq;
@@ -155,6 +155,212 @@ static void ar9003_hw_spur_mitigate(struct ath_hw *ah,
 		      AR_PHY_CCK_SPUR_MIT_USE_CCK_SPUR_MIT, 0x0);
 	REG_RMW_FIELD(ah, AR_PHY_CCK_SPUR_MIT,
 		      AR_PHY_CCK_SPUR_MIT_CCK_SPUR_FREQ, 0x0);
+}
+
+/* Clean all spur register fields */
+static void ar9003_hw_spur_ofdm_clear(struct ath_hw *ah)
+{
+	REG_RMW_FIELD(ah, AR_PHY_TIMING4,
+		      AR_PHY_TIMING4_ENABLE_SPUR_FILTER, 0);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING11,
+		      AR_PHY_TIMING11_SPUR_FREQ_SD, 0);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING11,
+		      AR_PHY_TIMING11_SPUR_DELTA_PHASE, 0);
+	REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
+		      AR_PHY_SFCORR_EXT_SPUR_SUBCHANNEL_SD, 0);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING11,
+		      AR_PHY_TIMING11_USE_SPUR_FILTER_IN_AGC, 0);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING11,
+		      AR_PHY_TIMING11_USE_SPUR_FILTER_IN_SELFCOR, 0);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING4,
+		      AR_PHY_TIMING4_ENABLE_SPUR_RSSI, 0);
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
+		      AR_PHY_SPUR_REG_EN_VIT_SPUR_RSSI, 0);
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
+		      AR_PHY_SPUR_REG_ENABLE_NF_RSSI_SPUR_MIT, 0);
+
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
+		      AR_PHY_SPUR_REG_ENABLE_MASK_PPM, 0);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING4,
+		      AR_PHY_TIMING4_ENABLE_PILOT_MASK, 0);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING4,
+		      AR_PHY_TIMING4_ENABLE_CHAN_MASK, 0);
+	REG_RMW_FIELD(ah, AR_PHY_PILOT_SPUR_MASK,
+		      AR_PHY_PILOT_SPUR_MASK_CF_PILOT_MASK_IDX_A, 0);
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_MASK_A,
+		      AR_PHY_SPUR_MASK_A_CF_PUNC_MASK_IDX_A, 0);
+	REG_RMW_FIELD(ah, AR_PHY_CHAN_SPUR_MASK,
+		      AR_PHY_CHAN_SPUR_MASK_CF_CHAN_MASK_IDX_A, 0);
+	REG_RMW_FIELD(ah, AR_PHY_PILOT_SPUR_MASK,
+		      AR_PHY_PILOT_SPUR_MASK_CF_PILOT_MASK_A, 0);
+	REG_RMW_FIELD(ah, AR_PHY_CHAN_SPUR_MASK,
+		      AR_PHY_CHAN_SPUR_MASK_CF_CHAN_MASK_A, 0);
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_MASK_A,
+		      AR_PHY_SPUR_MASK_A_CF_PUNC_MASK_A, 0);
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
+		      AR_PHY_SPUR_REG_MASK_RATE_CNTL, 0);
+}
+
+static void ar9003_hw_spur_ofdm(struct ath_hw *ah,
+				int freq_offset,
+				int spur_freq_sd,
+				int spur_delta_phase,
+				int spur_subchannel_sd)
+{
+	int mask_index = 0;
+
+	/* OFDM Spur mitigation */
+	REG_RMW_FIELD(ah, AR_PHY_TIMING4,
+		 AR_PHY_TIMING4_ENABLE_SPUR_FILTER, 0x1);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING11,
+		      AR_PHY_TIMING11_SPUR_FREQ_SD, spur_freq_sd);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING11,
+		      AR_PHY_TIMING11_SPUR_DELTA_PHASE, spur_delta_phase);
+	REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
+		      AR_PHY_SFCORR_EXT_SPUR_SUBCHANNEL_SD, spur_subchannel_sd);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING11,
+		      AR_PHY_TIMING11_USE_SPUR_FILTER_IN_AGC, 0x1);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING11,
+		      AR_PHY_TIMING11_USE_SPUR_FILTER_IN_SELFCOR, 0x1);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING4,
+		      AR_PHY_TIMING4_ENABLE_SPUR_RSSI, 0x1);
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
+		      AR_PHY_SPUR_REG_SPUR_RSSI_THRESH, 34);
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
+		      AR_PHY_SPUR_REG_EN_VIT_SPUR_RSSI, 1);
+
+	if (REG_READ_FIELD(ah, AR_PHY_MODE,
+			   AR_PHY_MODE_DYNAMIC) == 0x1)
+		REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
+			      AR_PHY_SPUR_REG_ENABLE_NF_RSSI_SPUR_MIT, 1);
+
+	mask_index = (freq_offset << 4) / 5;
+	if (mask_index < 0)
+		mask_index = mask_index - 1;
+
+	mask_index = mask_index & 0x7f;
+
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
+		      AR_PHY_SPUR_REG_ENABLE_MASK_PPM, 0x1);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING4,
+		      AR_PHY_TIMING4_ENABLE_PILOT_MASK, 0x1);
+	REG_RMW_FIELD(ah, AR_PHY_TIMING4,
+		      AR_PHY_TIMING4_ENABLE_CHAN_MASK, 0x1);
+	REG_RMW_FIELD(ah, AR_PHY_PILOT_SPUR_MASK,
+		      AR_PHY_PILOT_SPUR_MASK_CF_PILOT_MASK_IDX_A, mask_index);
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_MASK_A,
+		      AR_PHY_SPUR_MASK_A_CF_PUNC_MASK_IDX_A, mask_index);
+	REG_RMW_FIELD(ah, AR_PHY_CHAN_SPUR_MASK,
+		      AR_PHY_CHAN_SPUR_MASK_CF_CHAN_MASK_IDX_A, mask_index);
+	REG_RMW_FIELD(ah, AR_PHY_PILOT_SPUR_MASK,
+		      AR_PHY_PILOT_SPUR_MASK_CF_PILOT_MASK_A, 0xc);
+	REG_RMW_FIELD(ah, AR_PHY_CHAN_SPUR_MASK,
+		      AR_PHY_CHAN_SPUR_MASK_CF_CHAN_MASK_A, 0xc);
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_MASK_A,
+		      AR_PHY_SPUR_MASK_A_CF_PUNC_MASK_A, 0xa0);
+	REG_RMW_FIELD(ah, AR_PHY_SPUR_REG,
+		      AR_PHY_SPUR_REG_MASK_RATE_CNTL, 0xff);
+}
+
+static void ar9003_hw_spur_ofdm_work(struct ath_hw *ah,
+				     struct ath9k_channel *chan,
+				     int freq_offset)
+{
+	int spur_freq_sd = 0;
+	int spur_subchannel_sd = 0;
+	int spur_delta_phase = 0;
+
+	if (IS_CHAN_HT40(chan)) {
+		if (freq_offset < 0) {
+			if (REG_READ_FIELD(ah, AR_PHY_GEN_CTRL,
+					   AR_PHY_GC_DYN2040_PRI_CH) == 0x0)
+				spur_subchannel_sd = 1;
+			else
+				spur_subchannel_sd = 0;
+
+			spur_freq_sd = ((freq_offset + 10) << 9) / 11;
+
+		} else {
+			if (REG_READ_FIELD(ah, AR_PHY_GEN_CTRL,
+			    AR_PHY_GC_DYN2040_PRI_CH) == 0x0)
+				spur_subchannel_sd = 0;
+			else
+				spur_subchannel_sd = 1;
+
+			spur_freq_sd = ((freq_offset - 10) << 9) / 11;
+
+		}
+
+		spur_delta_phase = (freq_offset << 17) / 5;
+
+	} else {
+		spur_subchannel_sd = 0;
+		spur_freq_sd = (freq_offset << 9) /11;
+		spur_delta_phase = (freq_offset << 18) / 5;
+	}
+
+	spur_freq_sd = spur_freq_sd & 0x3ff;
+	spur_delta_phase = spur_delta_phase & 0xfffff;
+
+	ar9003_hw_spur_ofdm(ah,
+			    freq_offset,
+			    spur_freq_sd,
+			    spur_delta_phase,
+			    spur_subchannel_sd);
+}
+
+/* Spur mitigation for OFDM */
+static void ar9003_hw_spur_mitigate_ofdm(struct ath_hw *ah,
+					 struct ath9k_channel *chan)
+{
+	int synth_freq;
+	int range = 10;
+	int freq_offset = 0;
+	int mode;
+	u8* spurChansPtr;
+	unsigned int i;
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+
+	if (IS_CHAN_5GHZ(chan)) {
+		spurChansPtr = &(eep->modalHeader5G.spurChans[0]);
+		mode = 0;
+	}
+	else {
+		spurChansPtr = &(eep->modalHeader2G.spurChans[0]);
+		mode = 1;
+	}
+
+	if (spurChansPtr[0] == 0)
+		return; /* No spur in the mode */
+
+	if (IS_CHAN_HT40(chan)) {
+		range = 19;
+		if (REG_READ_FIELD(ah, AR_PHY_GEN_CTRL,
+				   AR_PHY_GC_DYN2040_PRI_CH) == 0x0)
+			synth_freq = chan->channel - 10;
+		else
+			synth_freq = chan->channel + 10;
+	} else {
+		range = 10;
+		synth_freq = chan->channel;
+	}
+
+	ar9003_hw_spur_ofdm_clear(ah);
+
+	for (i = 0; spurChansPtr[i] && i < 5; i++) {
+		freq_offset = FBIN2FREQ(spurChansPtr[i], mode) - synth_freq;
+		if (abs(freq_offset) < range) {
+			ar9003_hw_spur_ofdm_work(ah, chan, freq_offset);
+			break;
+		}
+	}
+}
+
+static void ar9003_hw_spur_mitigate(struct ath_hw *ah,
+				    struct ath9k_channel *chan)
+{
+	ar9003_hw_spur_mitigate_mrc_cck(ah, chan);
+	ar9003_hw_spur_mitigate_ofdm(ah, chan);
 }
 
 static u32 ar9003_hw_compute_pll_control(struct ath_hw *ah,

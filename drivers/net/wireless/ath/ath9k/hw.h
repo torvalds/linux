@@ -76,6 +76,8 @@
 #define REG_RMW_FIELD(_a, _r, _f, _v) \
 	REG_WRITE(_a, _r, \
 	(REG_READ(_a, _r) & ~_f) | (((_v) << _f##_S) & _f))
+#define REG_READ_FIELD(_a, _r, _f) \
+	(((REG_READ(_a, _r) & _f) >> _f##_S))
 #define REG_SET_BIT(_a, _r, _f) \
 	REG_WRITE(_a, _r, REG_READ(_a, _r) | _f)
 #define REG_CLR_BIT(_a, _r, _f) \
