@@ -1265,12 +1265,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_init_global_settings(ah);
 
-	if (!AR_SREV_9300_20_OR_LATER(ah))
+	if (!AR_SREV_9300_20_OR_LATER(ah)) {
 		ar9002_hw_enable_async_fifo(ah);
-
-	if (AR_SREV_9287_12_OR_LATER(ah)) {
-		REG_SET_BIT(ah, AR_PCU_MISC_MODE2,
-				AR_PCU_MISC_MODE2_ENABLE_AGGWEP);
+		ar9002_hw_enable_wep_aggregation(ah);
 	}
 
 	REG_WRITE(ah, AR_STA_ID1,

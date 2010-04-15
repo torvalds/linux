@@ -555,6 +555,18 @@ void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
 	}
 }
 
+/*
+ * We don't enable WEP aggregation on mac80211 but we keep this
+ * around for HAL unification purposes.
+ */
+void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah)
+{
+	if (AR_SREV_9287_12_OR_LATER(ah)) {
+		REG_SET_BIT(ah, AR_PCU_MISC_MODE2,
+				AR_PCU_MISC_MODE2_ENABLE_AGGWEP);
+	}
+}
+
 /* Sets up the AR5008/AR9001/AR9002 hardware familiy callbacks */
 void ar9002_hw_attach_ops(struct ath_hw *ah)
 {
