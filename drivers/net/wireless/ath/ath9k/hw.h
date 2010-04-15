@@ -179,6 +179,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(16),
 	ATH9K_HW_CAP_EDMA			= BIT(17),
 	ATH9K_HW_CAP_RAC_SUPPORTED		= BIT(18),
+	ATH9K_HW_CAP_LDPC			= BIT(19),
 };
 
 enum ath9k_capability_type {

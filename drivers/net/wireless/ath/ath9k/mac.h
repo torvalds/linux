@@ -264,6 +264,7 @@ struct ath_desc {
 #define ATH9K_TXDESC_VMF		0x0100
 #define ATH9K_TXDESC_FRAG_IS_ON 	0x0200
 #define ATH9K_TXDESC_LOWRXCHAIN		0x0400
+#define ATH9K_TXDESC_LDPC		0x00010000
 
 #define ATH9K_RXDESC_INTREQ		0x0020
 
@@ -413,6 +414,7 @@ struct ar5416_desc {
 #define AR_EncrType         0x0c000000
 #define AR_EncrType_S       26
 #define AR_TxCtlRsvd61      0xf0000000
+#define AR_LDPC             0x80000000
 
 #define AR_2040_0           0x00000001
 #define AR_GI0              0x00000002

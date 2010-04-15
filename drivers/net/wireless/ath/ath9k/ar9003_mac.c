@@ -330,7 +330,8 @@ static void ar9003_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 		| (flags & ATH9K_TXDESC_EXT_ONLY ? AR_ExtOnly : 0)
 		| (flags & ATH9K_TXDESC_EXT_AND_CTL ? AR_ExtAndCtl : 0);
 
-	ads->ctl17 = SM(keyType, AR_EncrType);
+	ads->ctl17 = SM(keyType, AR_EncrType) |
+		     (flags & ATH9K_TXDESC_LDPC ? AR_LDPC : 0);
 	ads->ctl18 = 0;
 	ads->ctl19 = AR_Not_Sounding;
 
