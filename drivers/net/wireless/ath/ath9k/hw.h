@@ -509,6 +509,7 @@ struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
 				     int restore,
 				     int power_off);
+	void (*rx_enable)(struct ath_hw *ah);
 };
 
 struct ath_hw {

@@ -28,6 +28,11 @@ static inline void ath9k_hw_configpcipowersave(struct ath_hw *ah,
 	ath9k_hw_ops(ah)->config_pci_powersave(ah, restore, power_off);
 }
 
+static inline void ath9k_hw_rxena(struct ath_hw *ah)
+{
+	ath9k_hw_ops(ah)->rx_enable(ah);
+}
+
 /* Private hardware call ops */
 
 /* PHY ops */
