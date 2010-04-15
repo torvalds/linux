@@ -730,7 +730,7 @@ static void ar9280_hw_olc_temp_compensation(struct ath_hw *ah)
 	}
 }
 
-static void ath9k_hw_9271_pa_cal(struct ath_hw *ah, bool is_reset)
+static void ar9271_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 {
 	u32 regVal;
 	unsigned int i;
@@ -831,7 +831,7 @@ static void ath9k_hw_9271_pa_cal(struct ath_hw *ah, bool is_reset)
 		REG_WRITE(ah, regList[i][0], regList[i][1]);
 }
 
-static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah, bool is_reset)
+static inline void ar9285_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 regVal;
@@ -948,12 +948,12 @@ static void ar9002_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 {
 	if (AR_SREV_9271(ah)) {
 		if (is_reset || !ah->pacal_info.skipcount)
-			ath9k_hw_9271_pa_cal(ah, is_reset);
+			ar9271_hw_pa_cal(ah, is_reset);
 		else
 			ah->pacal_info.skipcount--;
 	} else if (AR_SREV_9285_11_OR_LATER(ah)) {
 		if (is_reset || !ah->pacal_info.skipcount)
-			ath9k_hw_9285_pa_cal(ah, is_reset);
+			ar9285_hw_pa_cal(ah, is_reset);
 		else
 			ah->pacal_info.skipcount--;
 	}
