@@ -107,7 +107,8 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 
 	/* NB: beacon's BufLen must be a multiple of 4 bytes */
 	ath9k_hw_filltxdesc(ah, ds, roundup(skb->len, 4),
-			    true, true, ds, bf->bf_buf_addr);
+			    true, true, ds, bf->bf_buf_addr,
+			    sc->beacon.beaconq);
 
 	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
 	series[0].Tries = 1;

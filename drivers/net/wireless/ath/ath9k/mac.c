@@ -183,6 +183,264 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 	return true;
 }
 
+static void ar9002_hw_fill_txdesc(struct ath_hw *ah, void *ds, u32 seglen,
+				  bool is_firstseg, bool is_lastseg,
+				  const void *ds0, dma_addr_t buf_addr,
+				  unsigned int qcu)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_data = buf_addr;
+
+	if (is_firstseg) {
+		ads->ds_ctl1 |= seglen | (is_lastseg ? 0 : AR_TxMore);
+	} else if (is_lastseg) {
+		ads->ds_ctl0 = 0;
+		ads->ds_ctl1 = seglen;
+		ads->ds_ctl2 = AR5416DESC_CONST(ds0)->ds_ctl2;
+		ads->ds_ctl3 = AR5416DESC_CONST(ds0)->ds_ctl3;
+	} else {
+		ads->ds_ctl0 = 0;
+		ads->ds_ctl1 = seglen | AR_TxMore;
+		ads->ds_ctl2 = 0;
+		ads->ds_ctl3 = 0;
+	}
+	ads->ds_txstatus0 = ads->ds_txstatus1 = 0;
+	ads->ds_txstatus2 = ads->ds_txstatus3 = 0;
+	ads->ds_txstatus4 = ads->ds_txstatus5 = 0;
+	ads->ds_txstatus6 = ads->ds_txstatus7 = 0;
+	ads->ds_txstatus8 = ads->ds_txstatus9 = 0;
+}
+
+static int ar9002_hw_proc_txdesc(struct ath_hw *ah, void *ds,
+				 struct ath_tx_status *ts)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	if ((ads->ds_txstatus9 & AR_TxDone) == 0)
+		return -EINPROGRESS;
+
+	ts->ts_seqnum = MS(ads->ds_txstatus9, AR_SeqNum);
+	ts->ts_tstamp = ads->AR_SendTimestamp;
+	ts->ts_status = 0;
+	ts->ts_flags = 0;
+
+	if (ads->ds_txstatus1 & AR_FrmXmitOK)
+		ts->ts_status |= ATH9K_TX_ACKED;
+	if (ads->ds_txstatus1 & AR_ExcessiveRetries)
+		ts->ts_status |= ATH9K_TXERR_XRETRY;
+	if (ads->ds_txstatus1 & AR_Filtered)
+		ts->ts_status |= ATH9K_TXERR_FILT;
+	if (ads->ds_txstatus1 & AR_FIFOUnderrun) {
+		ts->ts_status |= ATH9K_TXERR_FIFO;
+		ath9k_hw_updatetxtriglevel(ah, true);
+	}
+	if (ads->ds_txstatus9 & AR_TxOpExceeded)
+		ts->ts_status |= ATH9K_TXERR_XTXOP;
+	if (ads->ds_txstatus1 & AR_TxTimerExpired)
+		ts->ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
+
+	if (ads->ds_txstatus1 & AR_DescCfgErr)
+		ts->ts_flags |= ATH9K_TX_DESC_CFG_ERR;
+	if (ads->ds_txstatus1 & AR_TxDataUnderrun) {
+		ts->ts_flags |= ATH9K_TX_DATA_UNDERRUN;
+		ath9k_hw_updatetxtriglevel(ah, true);
+	}
+	if (ads->ds_txstatus1 & AR_TxDelimUnderrun) {
+		ts->ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
+		ath9k_hw_updatetxtriglevel(ah, true);
+	}
+	if (ads->ds_txstatus0 & AR_TxBaStatus) {
+		ts->ts_flags |= ATH9K_TX_BA;
+		ts->ba_low = ads->AR_BaBitmapLow;
+		ts->ba_high = ads->AR_BaBitmapHigh;
+	}
+
+	ts->ts_rateindex = MS(ads->ds_txstatus9, AR_FinalTxIdx);
+	switch (ts->ts_rateindex) {
+	case 0:
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate0);
+		break;
+	case 1:
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate1);
+		break;
+	case 2:
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate2);
+		break;
+	case 3:
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate3);
+		break;
+	}
+
+	ts->ts_rssi = MS(ads->ds_txstatus5, AR_TxRSSICombined);
+	ts->ts_rssi_ctl0 = MS(ads->ds_txstatus0, AR_TxRSSIAnt00);
+	ts->ts_rssi_ctl1 = MS(ads->ds_txstatus0, AR_TxRSSIAnt01);
+	ts->ts_rssi_ctl2 = MS(ads->ds_txstatus0, AR_TxRSSIAnt02);
+	ts->ts_rssi_ext0 = MS(ads->ds_txstatus5, AR_TxRSSIAnt10);
+	ts->ts_rssi_ext1 = MS(ads->ds_txstatus5, AR_TxRSSIAnt11);
+	ts->ts_rssi_ext2 = MS(ads->ds_txstatus5, AR_TxRSSIAnt12);
+	ts->evm0 = ads->AR_TxEVM0;
+	ts->evm1 = ads->AR_TxEVM1;
+	ts->evm2 = ads->AR_TxEVM2;
+	ts->ts_shortretry = MS(ads->ds_txstatus1, AR_RTSFailCnt);
+	ts->ts_longretry = MS(ads->ds_txstatus1, AR_DataFailCnt);
+	ts->ts_virtcol = MS(ads->ds_txstatus1, AR_VirtRetryCnt);
+	ts->ts_antenna = 0;
+
+	return 0;
+}
+
+static void ar9002_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
+				    u32 pktLen, enum ath9k_pkt_type type,
+				    u32 txPower, u32 keyIx,
+				    enum ath9k_key_type keyType, u32 flags)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	txPower += ah->txpower_indexoffset;
+	if (txPower > 63)
+		txPower = 63;
+
+	ads->ds_ctl0 = (pktLen & AR_FrameLen)
+		| (flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
+		| SM(txPower, AR_XmitPower)
+		| (flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
+		| (flags & ATH9K_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
+		| (flags & ATH9K_TXDESC_INTREQ ? AR_TxIntrReq : 0)
+		| (keyIx != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0);
+
+	ads->ds_ctl1 =
+		(keyIx != ATH9K_TXKEYIX_INVALID ? SM(keyIx, AR_DestIdx) : 0)
+		| SM(type, AR_FrameType)
+		| (flags & ATH9K_TXDESC_NOACK ? AR_NoAck : 0)
+		| (flags & ATH9K_TXDESC_EXT_ONLY ? AR_ExtOnly : 0)
+		| (flags & ATH9K_TXDESC_EXT_AND_CTL ? AR_ExtAndCtl : 0);
+
+	ads->ds_ctl6 = SM(keyType, AR_EncrType);
+
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah)) {
+		ads->ds_ctl8 = 0;
+		ads->ds_ctl9 = 0;
+		ads->ds_ctl10 = 0;
+		ads->ds_ctl11 = 0;
+	}
+}
+
+static void ar9002_hw_set11n_ratescenario(struct ath_hw *ah, void *ds,
+					  void *lastds,
+					  u32 durUpdateEn, u32 rtsctsRate,
+					  u32 rtsctsDuration,
+					  struct ath9k_11n_rate_series series[],
+					  u32 nseries, u32 flags)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+	struct ar5416_desc *last_ads = AR5416DESC(lastds);
+	u32 ds_ctl0;
+
+	if (flags & (ATH9K_TXDESC_RTSENA | ATH9K_TXDESC_CTSENA)) {
+		ds_ctl0 = ads->ds_ctl0;
+
+		if (flags & ATH9K_TXDESC_RTSENA) {
+			ds_ctl0 &= ~AR_CTSEnable;
+			ds_ctl0 |= AR_RTSEnable;
+		} else {
+			ds_ctl0 &= ~AR_RTSEnable;
+			ds_ctl0 |= AR_CTSEnable;
+		}
+
+		ads->ds_ctl0 = ds_ctl0;
+	} else {
+		ads->ds_ctl0 =
+			(ads->ds_ctl0 & ~(AR_RTSEnable | AR_CTSEnable));
+	}
+
+	ads->ds_ctl2 = set11nTries(series, 0)
+		| set11nTries(series, 1)
+		| set11nTries(series, 2)
+		| set11nTries(series, 3)
+		| (durUpdateEn ? AR_DurUpdateEna : 0)
+		| SM(0, AR_BurstDur);
+
+	ads->ds_ctl3 = set11nRate(series, 0)
+		| set11nRate(series, 1)
+		| set11nRate(series, 2)
+		| set11nRate(series, 3);
+
+	ads->ds_ctl4 = set11nPktDurRTSCTS(series, 0)
+		| set11nPktDurRTSCTS(series, 1);
+
+	ads->ds_ctl5 = set11nPktDurRTSCTS(series, 2)
+		| set11nPktDurRTSCTS(series, 3);
+
+	ads->ds_ctl7 = set11nRateFlags(series, 0)
+		| set11nRateFlags(series, 1)
+		| set11nRateFlags(series, 2)
+		| set11nRateFlags(series, 3)
+		| SM(rtsctsRate, AR_RTSCTSRate);
+	last_ads->ds_ctl2 = ads->ds_ctl2;
+	last_ads->ds_ctl3 = ads->ds_ctl3;
+}
+
+static void ar9002_hw_set11n_aggr_first(struct ath_hw *ah, void *ds,
+					u32 aggrLen)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
+	ads->ds_ctl6 &= ~AR_AggrLen;
+	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen);
+}
+
+static void ar9002_hw_set11n_aggr_middle(struct ath_hw *ah, void *ds,
+					 u32 numDelims)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+	unsigned int ctl6;
+
+	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
+
+	ctl6 = ads->ds_ctl6;
+	ctl6 &= ~AR_PadDelim;
+	ctl6 |= SM(numDelims, AR_PadDelim);
+	ads->ds_ctl6 = ctl6;
+}
+
+static void ar9002_hw_set11n_aggr_last(struct ath_hw *ah, void *ds)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_ctl1 |= AR_IsAggr;
+	ads->ds_ctl1 &= ~AR_MoreAggr;
+	ads->ds_ctl6 &= ~AR_PadDelim;
+}
+
+static void ar9002_hw_clr11n_aggr(struct ath_hw *ah, void *ds)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_ctl1 &= (~AR_IsAggr & ~AR_MoreAggr);
+}
+
+static void ar9002_hw_set11n_burstduration(struct ath_hw *ah, void *ds,
+					   u32 burstDuration)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_ctl2 &= ~AR_BurstDur;
+	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
+}
+
+static void ar9002_hw_set11n_virtualmorefrag(struct ath_hw *ah, void *ds,
+					    u32 vmf)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	if (vmf)
+		ads->ds_ctl0 |= AR_VirtMoreFrag;
+	else
+		ads->ds_ctl0 &= ~AR_VirtMoreFrag;
+}
+
 void ar9002_hw_attach_mac_ops(struct ath_hw *ah)
 {
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
@@ -191,6 +449,16 @@ void ar9002_hw_attach_mac_ops(struct ath_hw *ah)
 	ops->set_desc_link = ar9002_hw_set_desc_link;
 	ops->get_desc_link = ar9002_hw_get_desc_link;
 	ops->get_isr = ar9002_hw_get_isr;
+	ops->fill_txdesc = ar9002_hw_fill_txdesc;
+	ops->proc_txdesc = ar9002_hw_proc_txdesc;
+	ops->set11n_txdesc = ar9002_hw_set11n_txdesc;
+	ops->set11n_ratescenario = ar9002_hw_set11n_ratescenario;
+	ops->set11n_aggr_first = ar9002_hw_set11n_aggr_first;
+	ops->set11n_aggr_middle = ar9002_hw_set11n_aggr_middle;
+	ops->set11n_aggr_last = ar9002_hw_set11n_aggr_last;
+	ops->clr11n_aggr = ar9002_hw_clr11n_aggr;
+	ops->set11n_burstduration = ar9002_hw_set11n_burstduration;
+	ops->set11n_virtualmorefrag = ar9002_hw_set11n_virtualmorefrag;
 }
 
 static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
@@ -233,6 +501,18 @@ void ath9k_hw_txstart(struct ath_hw *ah, u32 q)
 	REG_WRITE(ah, AR_Q_TXE, 1 << q);
 }
 EXPORT_SYMBOL(ath9k_hw_txstart);
+
+void ath9k_hw_cleartxdesc(struct ath_hw *ah, void *ds)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_txstatus0 = ads->ds_txstatus1 = 0;
+	ads->ds_txstatus2 = ads->ds_txstatus3 = 0;
+	ads->ds_txstatus4 = ads->ds_txstatus5 = 0;
+	ads->ds_txstatus6 = ads->ds_txstatus7 = 0;
+	ads->ds_txstatus8 = ads->ds_txstatus9 = 0;
+}
+EXPORT_SYMBOL(ath9k_hw_cleartxdesc);
 
 u32 ath9k_hw_numtxpending(struct ath_hw *ah, u32 q)
 {
@@ -383,284 +663,6 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 #undef ATH9K_TIME_QUANTUM
 }
 EXPORT_SYMBOL(ath9k_hw_stoptxdma);
-
-void ath9k_hw_filltxdesc(struct ath_hw *ah, struct ath_desc *ds,
-			 u32 segLen, bool firstSeg,
-			 bool lastSeg, const struct ath_desc *ds0,
-			 dma_addr_t buf_addr)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_data = buf_addr;
-
-	if (firstSeg) {
-		ads->ds_ctl1 |= segLen | (lastSeg ? 0 : AR_TxMore);
-	} else if (lastSeg) {
-		ads->ds_ctl0 = 0;
-		ads->ds_ctl1 = segLen;
-		ads->ds_ctl2 = AR5416DESC_CONST(ds0)->ds_ctl2;
-		ads->ds_ctl3 = AR5416DESC_CONST(ds0)->ds_ctl3;
-	} else {
-		ads->ds_ctl0 = 0;
-		ads->ds_ctl1 = segLen | AR_TxMore;
-		ads->ds_ctl2 = 0;
-		ads->ds_ctl3 = 0;
-	}
-	ads->ds_txstatus0 = ads->ds_txstatus1 = 0;
-	ads->ds_txstatus2 = ads->ds_txstatus3 = 0;
-	ads->ds_txstatus4 = ads->ds_txstatus5 = 0;
-	ads->ds_txstatus6 = ads->ds_txstatus7 = 0;
-	ads->ds_txstatus8 = ads->ds_txstatus9 = 0;
-}
-EXPORT_SYMBOL(ath9k_hw_filltxdesc);
-
-void ath9k_hw_cleartxdesc(struct ath_hw *ah, struct ath_desc *ds)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_txstatus0 = ads->ds_txstatus1 = 0;
-	ads->ds_txstatus2 = ads->ds_txstatus3 = 0;
-	ads->ds_txstatus4 = ads->ds_txstatus5 = 0;
-	ads->ds_txstatus6 = ads->ds_txstatus7 = 0;
-	ads->ds_txstatus8 = ads->ds_txstatus9 = 0;
-}
-EXPORT_SYMBOL(ath9k_hw_cleartxdesc);
-
-int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds,
-			struct ath_tx_status *ts)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	if ((ads->ds_txstatus9 & AR_TxDone) == 0)
-		return -EINPROGRESS;
-
-	ts->ts_seqnum = MS(ads->ds_txstatus9, AR_SeqNum);
-	ts->ts_tstamp = ads->AR_SendTimestamp;
-	ts->ts_status = 0;
-	ts->ts_flags = 0;
-
-	if (ads->ds_txstatus1 & AR_FrmXmitOK)
-		ts->ts_status |= ATH9K_TX_ACKED;
-	if (ads->ds_txstatus1 & AR_ExcessiveRetries)
-		ts->ts_status |= ATH9K_TXERR_XRETRY;
-	if (ads->ds_txstatus1 & AR_Filtered)
-		ts->ts_status |= ATH9K_TXERR_FILT;
-	if (ads->ds_txstatus1 & AR_FIFOUnderrun) {
-		ts->ts_status |= ATH9K_TXERR_FIFO;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->ds_txstatus9 & AR_TxOpExceeded)
-		ts->ts_status |= ATH9K_TXERR_XTXOP;
-	if (ads->ds_txstatus1 & AR_TxTimerExpired)
-		ts->ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
-
-	if (ads->ds_txstatus1 & AR_DescCfgErr)
-		ts->ts_flags |= ATH9K_TX_DESC_CFG_ERR;
-	if (ads->ds_txstatus1 & AR_TxDataUnderrun) {
-		ts->ts_flags |= ATH9K_TX_DATA_UNDERRUN;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->ds_txstatus1 & AR_TxDelimUnderrun) {
-		ts->ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
-		ath9k_hw_updatetxtriglevel(ah, true);
-	}
-	if (ads->ds_txstatus0 & AR_TxBaStatus) {
-		ts->ts_flags |= ATH9K_TX_BA;
-		ts->ba_low = ads->AR_BaBitmapLow;
-		ts->ba_high = ads->AR_BaBitmapHigh;
-	}
-
-	ts->ts_rateindex = MS(ads->ds_txstatus9, AR_FinalTxIdx);
-	switch (ts->ts_rateindex) {
-	case 0:
-		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate0);
-		break;
-	case 1:
-		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate1);
-		break;
-	case 2:
-		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate2);
-		break;
-	case 3:
-		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate3);
-		break;
-	}
-
-	ts->ts_rssi = MS(ads->ds_txstatus5, AR_TxRSSICombined);
-	ts->ts_rssi_ctl0 = MS(ads->ds_txstatus0, AR_TxRSSIAnt00);
-	ts->ts_rssi_ctl1 = MS(ads->ds_txstatus0, AR_TxRSSIAnt01);
-	ts->ts_rssi_ctl2 = MS(ads->ds_txstatus0, AR_TxRSSIAnt02);
-	ts->ts_rssi_ext0 = MS(ads->ds_txstatus5, AR_TxRSSIAnt10);
-	ts->ts_rssi_ext1 = MS(ads->ds_txstatus5, AR_TxRSSIAnt11);
-	ts->ts_rssi_ext2 = MS(ads->ds_txstatus5, AR_TxRSSIAnt12);
-	ts->evm0 = ads->AR_TxEVM0;
-	ts->evm1 = ads->AR_TxEVM1;
-	ts->evm2 = ads->AR_TxEVM2;
-	ts->ts_shortretry = MS(ads->ds_txstatus1, AR_RTSFailCnt);
-	ts->ts_longretry = MS(ads->ds_txstatus1, AR_DataFailCnt);
-	ts->ts_virtcol = MS(ads->ds_txstatus1, AR_VirtRetryCnt);
-	ts->ts_antenna = 0;
-
-	return 0;
-}
-EXPORT_SYMBOL(ath9k_hw_txprocdesc);
-
-void ath9k_hw_set11n_txdesc(struct ath_hw *ah, struct ath_desc *ds,
-			    u32 pktLen, enum ath9k_pkt_type type, u32 txPower,
-			    u32 keyIx, enum ath9k_key_type keyType, u32 flags)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	txPower += ah->txpower_indexoffset;
-	if (txPower > 63)
-		txPower = 63;
-
-	ads->ds_ctl0 = (pktLen & AR_FrameLen)
-		| (flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
-		| SM(txPower, AR_XmitPower)
-		| (flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
-		| (flags & ATH9K_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
-		| (flags & ATH9K_TXDESC_INTREQ ? AR_TxIntrReq : 0)
-		| (keyIx != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0);
-
-	ads->ds_ctl1 =
-		(keyIx != ATH9K_TXKEYIX_INVALID ? SM(keyIx, AR_DestIdx) : 0)
-		| SM(type, AR_FrameType)
-		| (flags & ATH9K_TXDESC_NOACK ? AR_NoAck : 0)
-		| (flags & ATH9K_TXDESC_EXT_ONLY ? AR_ExtOnly : 0)
-		| (flags & ATH9K_TXDESC_EXT_AND_CTL ? AR_ExtAndCtl : 0);
-
-	ads->ds_ctl6 = SM(keyType, AR_EncrType);
-
-	if (AR_SREV_9285(ah) || AR_SREV_9271(ah)) {
-		ads->ds_ctl8 = 0;
-		ads->ds_ctl9 = 0;
-		ads->ds_ctl10 = 0;
-		ads->ds_ctl11 = 0;
-	}
-}
-EXPORT_SYMBOL(ath9k_hw_set11n_txdesc);
-
-void ath9k_hw_set11n_ratescenario(struct ath_hw *ah, struct ath_desc *ds,
-				  struct ath_desc *lastds,
-				  u32 durUpdateEn, u32 rtsctsRate,
-				  u32 rtsctsDuration,
-				  struct ath9k_11n_rate_series series[],
-				  u32 nseries, u32 flags)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-	struct ar5416_desc *last_ads = AR5416DESC(lastds);
-	u32 ds_ctl0;
-
-	if (flags & (ATH9K_TXDESC_RTSENA | ATH9K_TXDESC_CTSENA)) {
-		ds_ctl0 = ads->ds_ctl0;
-
-		if (flags & ATH9K_TXDESC_RTSENA) {
-			ds_ctl0 &= ~AR_CTSEnable;
-			ds_ctl0 |= AR_RTSEnable;
-		} else {
-			ds_ctl0 &= ~AR_RTSEnable;
-			ds_ctl0 |= AR_CTSEnable;
-		}
-
-		ads->ds_ctl0 = ds_ctl0;
-	} else {
-		ads->ds_ctl0 =
-			(ads->ds_ctl0 & ~(AR_RTSEnable | AR_CTSEnable));
-	}
-
-	ads->ds_ctl2 = set11nTries(series, 0)
-		| set11nTries(series, 1)
-		| set11nTries(series, 2)
-		| set11nTries(series, 3)
-		| (durUpdateEn ? AR_DurUpdateEna : 0)
-		| SM(0, AR_BurstDur);
-
-	ads->ds_ctl3 = set11nRate(series, 0)
-		| set11nRate(series, 1)
-		| set11nRate(series, 2)
-		| set11nRate(series, 3);
-
-	ads->ds_ctl4 = set11nPktDurRTSCTS(series, 0)
-		| set11nPktDurRTSCTS(series, 1);
-
-	ads->ds_ctl5 = set11nPktDurRTSCTS(series, 2)
-		| set11nPktDurRTSCTS(series, 3);
-
-	ads->ds_ctl7 = set11nRateFlags(series, 0)
-		| set11nRateFlags(series, 1)
-		| set11nRateFlags(series, 2)
-		| set11nRateFlags(series, 3)
-		| SM(rtsctsRate, AR_RTSCTSRate);
-	last_ads->ds_ctl2 = ads->ds_ctl2;
-	last_ads->ds_ctl3 = ads->ds_ctl3;
-}
-EXPORT_SYMBOL(ath9k_hw_set11n_ratescenario);
-
-void ath9k_hw_set11n_aggr_first(struct ath_hw *ah, struct ath_desc *ds,
-				u32 aggrLen)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
-	ads->ds_ctl6 &= ~AR_AggrLen;
-	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen);
-}
-EXPORT_SYMBOL(ath9k_hw_set11n_aggr_first);
-
-void ath9k_hw_set11n_aggr_middle(struct ath_hw *ah, struct ath_desc *ds,
-				 u32 numDelims)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-	unsigned int ctl6;
-
-	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
-
-	ctl6 = ads->ds_ctl6;
-	ctl6 &= ~AR_PadDelim;
-	ctl6 |= SM(numDelims, AR_PadDelim);
-	ads->ds_ctl6 = ctl6;
-}
-EXPORT_SYMBOL(ath9k_hw_set11n_aggr_middle);
-
-void ath9k_hw_set11n_aggr_last(struct ath_hw *ah, struct ath_desc *ds)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_ctl1 |= AR_IsAggr;
-	ads->ds_ctl1 &= ~AR_MoreAggr;
-	ads->ds_ctl6 &= ~AR_PadDelim;
-}
-EXPORT_SYMBOL(ath9k_hw_set11n_aggr_last);
-
-void ath9k_hw_clr11n_aggr(struct ath_hw *ah, struct ath_desc *ds)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_ctl1 &= (~AR_IsAggr & ~AR_MoreAggr);
-}
-EXPORT_SYMBOL(ath9k_hw_clr11n_aggr);
-
-void ath9k_hw_set11n_burstduration(struct ath_hw *ah, struct ath_desc *ds,
-				   u32 burstDuration)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_ctl2 &= ~AR_BurstDur;
-	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
-}
-EXPORT_SYMBOL(ath9k_hw_set11n_burstduration);
-
-void ath9k_hw_set11n_virtualmorefrag(struct ath_hw *ah, struct ath_desc *ds,
-				     u32 vmf)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	if (vmf)
-		ads->ds_ctl0 |= AR_VirtMoreFrag;
-	else
-		ads->ds_ctl0 &= ~AR_VirtMoreFrag;
-}
 
 void ath9k_hw_gettxintrtxqs(struct ath_hw *ah, u32 *txqs)
 {

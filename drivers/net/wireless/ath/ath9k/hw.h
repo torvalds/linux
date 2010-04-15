@@ -556,6 +556,33 @@ struct ath_hw_ops {
 			  u8 rxchainmask,
 			  bool longcal);
 	bool (*get_isr)(struct ath_hw *ah, enum ath9k_int *masked);
+	void (*fill_txdesc)(struct ath_hw *ah, void *ds, u32 seglen,
+			    bool is_firstseg, bool is_is_lastseg,
+			    const void *ds0, dma_addr_t buf_addr,
+			    unsigned int qcu);
+	int (*proc_txdesc)(struct ath_hw *ah, void *ds,
+			   struct ath_tx_status *ts);
+	void (*set11n_txdesc)(struct ath_hw *ah, void *ds,
+			      u32 pktLen, enum ath9k_pkt_type type,
+			      u32 txPower, u32 keyIx,
+			      enum ath9k_key_type keyType,
+			      u32 flags);
+	void (*set11n_ratescenario)(struct ath_hw *ah, void *ds,
+				void *lastds,
+				u32 durUpdateEn, u32 rtsctsRate,
+				u32 rtsctsDuration,
+				struct ath9k_11n_rate_series series[],
+				u32 nseries, u32 flags);
+	void (*set11n_aggr_first)(struct ath_hw *ah, void *ds,
+				  u32 aggrLen);
+	void (*set11n_aggr_middle)(struct ath_hw *ah, void *ds,
+				   u32 numDelims);
+	void (*set11n_aggr_last)(struct ath_hw *ah, void *ds);
+	void (*clr11n_aggr)(struct ath_hw *ah, void *ds);
+	void (*set11n_burstduration)(struct ath_hw *ah, void *ds,
+				     u32 burstDuration);
+	void (*set11n_virtualmorefrag)(struct ath_hw *ah, void *ds,
+				       u32 vmf);
 };
 
 struct ath_hw {
