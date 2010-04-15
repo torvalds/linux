@@ -359,7 +359,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			acked_cnt++;
 		} else {
 			if (!(tid->state & AGGR_CLEANUP) &&
-			    ts->ts_flags != ATH9K_TX_SW_ABORTED) {
+			    !bf_last->bf_tx_aborted) {
 				if (bf->bf_retries < ATH_MAX_SW_RETRIES) {
 					ath_tx_set_retry(sc, txq, bf);
 					txpending = 1;
@@ -1036,9 +1036,6 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 	struct ath_tx_status ts;
 
 	memset(&ts, 0, sizeof(ts));
-	if (!retry_tx)
-		ts.ts_flags = ATH9K_TX_SW_ABORTED;
-
 	INIT_LIST_HEAD(&bf_head);
 
 	for (;;) {
@@ -1063,6 +1060,8 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 		}
 
 		lastbf = bf->bf_lastbf;
+		if (!retry_tx)
+			lastbf->bf_tx_aborted = true;
 
 		/* remove ath_buf's of the same mpdu from txq */
 		list_cut_position(&bf_head, &txq->axq_q, &lastbf->list);
@@ -1897,7 +1896,7 @@ static int ath_tx_num_badfrms(struct ath_softc *sc, struct ath_buf *bf,
 	int nbad = 0;
 	int isaggr = 0;
 
-	if (ts->ts_flags == ATH9K_TX_SW_ABORTED)
+	if (bf->bf_tx_aborted)
 		return 0;
 
 	isaggr = bf_isaggr(bf);

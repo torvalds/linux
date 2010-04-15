@@ -86,7 +86,6 @@
 #define ATH9K_TX_DESC_CFG_ERR      0x04
 #define ATH9K_TX_DATA_UNDERRUN     0x08
 #define ATH9K_TX_DELIM_UNDERRUN    0x10
-#define ATH9K_TX_SW_ABORTED        0x40
 #define ATH9K_TX_SW_FILTERED       0x80
 
 /* 64 bytes */
