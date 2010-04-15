@@ -440,6 +440,22 @@ Winchiphead CH341 Driver
   For any questions or problems with this driver, please contact
   frank@kingswood-consulting.co.uk.
 
+Moschip MCS7720, MCS7715 driver
+
+  These chips are present in devices sold by various manufacturers, such as Syba
+  and Cables Unlimited.  There may be others.  The 7720 provides two serial
+  ports, and the 7715 provides one serial and one standard PC parallel port.
+  Support for the 7715's parallel port is enabled by a separate option, which
+  will not appear unless parallel port support is first enabled at the top-level
+  of the Device Drivers config menu.  Currently only compatibility mode is
+  supported on the parallel port (no ECP/EPP).
+
+  TODO:
+    - Implement ECP/EPP modes for the parallel port.
+    - Baud rates higher than 115200 are currently broken.
+    - Devices with a single serial port based on the Moschip MCS7703 may work
+      with this driver with a simple addition to the usb_device_id table.  I
+      don't have one of these devices, so I can't say for sure.
 
 Generic Serial driver
 

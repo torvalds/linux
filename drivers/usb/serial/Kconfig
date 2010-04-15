@@ -425,6 +425,17 @@ config USB_SERIAL_MOS7720
 	  To compile this driver as a module, choose M here: the
 	  module will be called mos7720.
 
+if USB_SERIAL_MOS7720
+config USB_SERIAL_MOS7715_PARPORT
+	bool "Support for parallel port on the Moschip 7715"
+	select PARPORT_NOT_PC
+	depends on PARPORT
+	---help---
+	Say Y if you have a Moschip 7715 device and would like to use
+	the parallel port it provides.  The port will register with
+	the parport subsystem as a low-level driver.
+endif
+
 config USB_SERIAL_MOS7840
 	tristate "USB Moschip 7840/7820 USB Serial Driver"
 	---help---
