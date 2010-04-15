@@ -215,11 +215,13 @@ added:
 /**
  * find_source_device - search through device hierarchy for source device
  * @parent: pointer to Root Port pci_dev data structure
- * @err_info: including detailed error information such like id
+ * @e_info: including detailed error information such like id
  *
- * Invoked when error is detected at the Root Port.
+ * Return true if found.
+ *
+ * Invoked by DPC when error is detected at the Root Port.
  */
-static void find_source_device(struct pci_dev *parent,
+static bool find_source_device(struct pci_dev *parent,
 		struct aer_err_info *e_info)
 {
 	struct pci_dev *dev = parent;
@@ -228,9 +230,17 @@ static void find_source_device(struct pci_dev *parent,
 	/* Is Root Port an agent that sends error message? */
 	result = find_device_iter(dev, e_info);
 	if (result)
-		return;
+		return true;
 
 	pci_walk_bus(parent->subordinate, find_device_iter, e_info);
+
+	if (!e_info->error_dev_num) {
+		dev_printk(KERN_DEBUG, &parent->dev,
+				"can't find device of ID%04x\n",
+				e_info->id);
+		return false;
+	}
+	return true;
 }
 
 static int report_error_detected(struct pci_dev *dev, void *data)
@@ -639,12 +649,6 @@ static inline void aer_process_err_devices(struct pcie_device *p_device,
 {
 	int i;
 
-	if (!e_info->dev[0]) {
-		dev_printk(KERN_DEBUG, &p_device->port->dev,
-				"can't find device of ID%04x\n",
-				e_info->id);
-	}
-
 	/* Report all before handle them, not to lost records by reset etc. */
 	for (i = 0; i < e_info->error_dev_num && e_info->dev[i]; i++) {
 		if (get_device_error_info(e_info->dev[i], e_info))
@@ -702,8 +706,8 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 
 		aer_print_port_info(p_device->port, e_info);
 
-		find_source_device(p_device->port, e_info);
-		aer_process_err_devices(p_device, e_info);
+		if (find_source_device(p_device->port, e_info))
+			aer_process_err_devices(p_device, e_info);
 	}
 
 	kfree(e_info);
