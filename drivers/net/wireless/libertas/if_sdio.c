@@ -499,6 +499,11 @@ static int if_sdio_prog_helper(struct if_sdio_card *card)
 		if (ret)
 			goto release;
 
+		/* On some platforms (like Davinci) the chip needs more time
+		 * between helper blocks.
+		 */
+		mdelay(2);
+
 		chunk_size = min(size, (size_t)60);
 
 		*((__le32*)chunk_buffer) = cpu_to_le32(chunk_size);
