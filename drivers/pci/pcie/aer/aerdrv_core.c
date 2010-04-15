@@ -629,12 +629,12 @@ void aer_enable_rootport(struct aer_rpc *rpc)
 }
 
 /**
- * disable_root_aer - disable Root Port's interrupts when receiving messages
+ * aer_disable_rootport - disable Root Port's interrupts when receiving messages
  * @rpc: pointer to a Root Port data structure
  *
  * Invoked when PCIe bus unloads AER service driver.
  */
-static void disable_root_aer(struct aer_rpc *rpc)
+void aer_disable_rootport(struct aer_rpc *rpc)
 {
 	struct pci_dev *pdev = rpc->rpd->port;
 	u32 reg32;
@@ -837,20 +837,6 @@ void aer_isr(struct work_struct *work)
 	mutex_unlock(&rpc->rpc_mutex);
 
 	wake_up(&rpc->wait_release);
-}
-
-/**
- * aer_delete_rootport - disable root port aer and delete service data
- * @rpc: pointer to a root port device being deleted
- *
- * Invoked when AER service unloaded on a specific Root Port
- */
-void aer_delete_rootport(struct aer_rpc *rpc)
-{
-	/* Disable root port AER itself */
-	disable_root_aer(rpc);
-
-	kfree(rpc);
 }
 
 /**

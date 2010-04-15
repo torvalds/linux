@@ -179,7 +179,8 @@ static void aer_remove(struct pcie_device *dev)
 
 		wait_event(rpc->wait_release, rpc->prod_idx == rpc->cons_idx);
 
-		aer_delete_rootport(rpc);
+		aer_disable_rootport(rpc);
+		kfree(rpc);
 		set_service_data(dev, NULL);
 	}
 }
