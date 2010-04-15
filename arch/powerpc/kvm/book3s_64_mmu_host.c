@@ -55,7 +55,11 @@ static void invalidate_pte(struct hpte_cache *pte)
 			       MMU_PAGE_4K, MMU_SEGSIZE_256M,
 			       false);
 	pte->host_va = 0;
-	kvm_release_pfn_dirty(pte->pfn);
+
+	if (pte->pte.may_write)
+		kvm_release_pfn_dirty(pte->pfn);
+	else
+		kvm_release_pfn_clean(pte->pfn);
 }
 
 void kvmppc_mmu_pte_flush(struct kvm_vcpu *vcpu, u64 guest_ea, u64 ea_mask)
