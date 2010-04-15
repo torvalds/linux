@@ -373,6 +373,53 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 	return result_data.result;
 }
 
+/**
+ * aer_do_secondary_bus_reset - perform secondary bus reset
+ * @dev: pointer to bridge's pci_dev data structure
+ *
+ * Invoked when performing link reset at Root Port or Downstream Port.
+ */
+void aer_do_secondary_bus_reset(struct pci_dev *dev)
+{
+	u16 p2p_ctrl;
+
+	/* Assert Secondary Bus Reset */
+	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &p2p_ctrl);
+	p2p_ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
+	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
+
+	/*
+	 * we should send hot reset message for 2ms to allow it time to
+	 * propagate to all downstream ports
+	 */
+	msleep(2);
+
+	/* De-assert Secondary Bus Reset */
+	p2p_ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
+	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
+
+	/*
+	 * System software must wait for at least 100ms from the end
+	 * of a reset of one or more device before it is permitted
+	 * to issue Configuration Requests to those devices.
+	 */
+	msleep(200);
+}
+
+/**
+ * default_downstream_reset_link - default reset function for Downstream Port
+ * @dev: pointer to downstream port's pci_dev data structure
+ *
+ * Invoked when performing link reset at Downstream Port w/ no aer driver.
+ */
+static pci_ers_result_t default_downstream_reset_link(struct pci_dev *dev)
+{
+	aer_do_secondary_bus_reset(dev);
+	dev_printk(KERN_DEBUG, &dev->dev,
+		"Downstream Port link has been reset\n");
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
 static int find_aer_service_iter(struct device *device, void *data)
 {
 	struct pcie_port_service_driver *service_driver, **drv;
@@ -406,31 +453,28 @@ static pci_ers_result_t reset_link(struct pcie_device *aerdev,
 	pci_ers_result_t status;
 	struct pcie_port_service_driver *driver;
 
-	if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE)
+	if (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE) {
+		/* Reset this port for all subordinates */
 		udev = dev;
-	else
+	} else {
+		/* Reset the upstream component (likely downstream port) */
 		udev = dev->bus->self;
+	}
 
 	/* Use the aer driver of the component firstly */
 	driver = find_aer_service(udev);
 
-	/*
-	 * If it hasn't the driver and is downstream port, use the root port's
-	 */
-	if (!driver || !driver->reset_link) {
-		if (udev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM &&
-			aerdev->device.driver &&
-			to_service_driver(aerdev->device.driver)->reset_link) {
-			driver = to_service_driver(aerdev->device.driver);
-		} else {
-			dev_printk(KERN_DEBUG, &dev->dev,
-				"no link-reset support at upstream device %s\n",
-				pci_name(udev));
-			return PCI_ERS_RESULT_DISCONNECT;
-		}
+	if (driver && driver->reset_link) {
+		status = driver->reset_link(udev);
+	} else if (udev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM) {
+		status = default_downstream_reset_link(udev);
+	} else {
+		dev_printk(KERN_DEBUG, &dev->dev,
+			"no link-reset support at upstream device %s\n",
+			pci_name(udev));
+		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
-	status = driver->reset_link(udev);
 	if (status != PCI_ERS_RESULT_RECOVERED) {
 		dev_printk(KERN_DEBUG, &dev->dev,
 			"link reset at upstream device %s failed\n",
