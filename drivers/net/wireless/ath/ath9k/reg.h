@@ -1776,4 +1776,19 @@ enum {
 						     * pcu_txsm.
 						     */
 
+#define AR9300_SM_BASE				0xa200
+#define AR9002_PHY_AGC_CONTROL			0x9860
+#define AR9003_PHY_AGC_CONTROL			AR9300_SM_BASE + 0xc4
+#define AR_PHY_AGC_CONTROL			(AR_SREV_9300_20_OR_LATER(ah) ? AR9003_PHY_AGC_CONTROL : AR9002_PHY_AGC_CONTROL)
+#define AR_PHY_AGC_CONTROL_CAL			0x00000001  /* do internal calibration */
+#define AR_PHY_AGC_CONTROL_NF			0x00000002  /* do noise-floor calibration */
+#define AR_PHY_AGC_CONTROL_OFFSET_CAL		0x00000800  /* allow offset calibration */
+#define AR_PHY_AGC_CONTROL_ENABLE_NF		0x00008000  /* enable noise floor calibration to happen */
+#define AR_PHY_AGC_CONTROL_FLTR_CAL		0x00010000  /* allow tx filter calibration */
+#define AR_PHY_AGC_CONTROL_NO_UPDATE_NF		0x00020000  /* don't update noise floor automatically */
+#define AR_PHY_AGC_CONTROL_EXT_NF_PWR_MEAS	0x00040000  /* extend noise floor power measurement */
+#define AR_PHY_AGC_CONTROL_CLC_SUCCESS		0x00080000  /* carrier leak calibration done */
+#define AR_PHY_AGC_CONTROL_YCOK_MAX		0x000003c0
+#define AR_PHY_AGC_CONTROL_YCOK_MAX_S		6
+
 #endif

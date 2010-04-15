@@ -359,7 +359,6 @@
 #define AR_PHY_SWITCH_COM_2      (AR_SM_BASE + 0x8c)
 #define AR_PHY_RX_CHAINMASK      (AR_SM_BASE + 0xa0)
 #define AR_PHY_CAL_CHAINMASK     (AR_SM_BASE + 0xc0)
-#define AR_PHY_AGC_CONTROL       (AR_SM_BASE + 0xc4)
 #define AR_PHY_CALMODE           (AR_SM_BASE + 0xc8)
 #define AR_PHY_FCAL_1            (AR_SM_BASE + 0xcc)
 #define AR_PHY_FCAL_2_0          (AR_SM_BASE + 0xd0)
@@ -508,18 +507,6 @@
 #define AR_PHY_GC_GF_DETECT_EN     0x00000400  /* enable Green Field detection. Only affects rx, not tx */
 #define AR_PHY_GC_ENABLE_DAC_FIFO  0x00000800  /* fifo between bb and dac */
 #define AR_PHY_RX_DELAY_DELAY      0x00003FFF  /* delay from wakeup to rx ena */
-
-#define AR_PHY_AGC_CONTROL_CAL              0x00000001  /* do internal calibration */
-#define AR_PHY_AGC_CONTROL_NF               0x00000002  /* do noise-floor calibration */
-#define AR_PHY_AGC_CONTROL_OFFSET_CAL       0x00000800  /* allow offset calibration */
-#define AR_PHY_AGC_CONTROL_ENABLE_NF        0x00008000  /* enable noise floor calibration to happen */
-#define AR_PHY_AGC_CONTROL_FLTR_CAL         0x00010000  /* allow tx filter calibration */
-#define AR_PHY_AGC_CONTROL_NO_UPDATE_NF     0x00020000  /* don't update noise floor automatically */
-#define AR_PHY_AGC_CONTROL_EXT_NF_PWR_MEAS  0x00040000  /* extend noise floor power measurement */
-#define AR_PHY_AGC_CONTROL_CLC_SUCCESS      0x00080000  /* carrier leak calibration done */
-
-#define AR_PHY_AGC_CONTROL_YCOK_MAX         0x000003c0
-#define AR_PHY_AGC_CONTROL_YCOK_MAX_S                6
 
 #define AR_PHY_CALMODE_IQ           0x00000000
 #define AR_PHY_CALMODE_ADC_GAIN     0x00000001
