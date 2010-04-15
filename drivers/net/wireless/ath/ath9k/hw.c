@@ -472,10 +472,11 @@ static int ath9k_hw_init_macaddr(struct ath_hw *ah)
 	u32 sum;
 	int i;
 	u16 eeval;
+	u32 EEP_MAC[] = { EEP_MAC_LSW, EEP_MAC_MID, EEP_MAC_MSW };
 
 	sum = 0;
 	for (i = 0; i < 3; i++) {
-		eeval = ah->eep_ops->get_eeprom(ah, AR_EEPROM_MAC(i));
+		eeval = ah->eep_ops->get_eeprom(ah, EEP_MAC[i]);
 		sum += eeval;
 		common->macaddr[2 * i] = eeval >> 8;
 		common->macaddr[2 * i + 1] = eeval & 0xff;
