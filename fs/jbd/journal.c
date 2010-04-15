@@ -594,7 +594,7 @@ out:
 	spin_unlock(&journal->j_state_lock);
 	return ret;
 }
-EXPORT_SYMBOL(journal_commit_will_send_barrier);
+EXPORT_SYMBOL(journal_trans_will_send_data_barrier);
 
 /*
  * Log buffer allocation routines:
