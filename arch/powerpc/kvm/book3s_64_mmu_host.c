@@ -405,4 +405,22 @@ void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu)
 void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
 {
 	kvmppc_mmu_pte_flush(vcpu, 0, 0);
+	__destroy_context(to_book3s(vcpu)->context_id);
+}
+
+int kvmppc_mmu_init(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
+	int err;
+
+	err = __init_new_context();
+	if (err < 0)
+		return -1;
+	vcpu3s->context_id = err;
+
+	vcpu3s->vsid_max = ((vcpu3s->context_id + 1) << USER_ESID_BITS) - 1;
+	vcpu3s->vsid_first = vcpu3s->context_id << USER_ESID_BITS;
+	vcpu3s->vsid_next = vcpu3s->vsid_first;
+
+	return 0;
 }

@@ -1202,14 +1202,9 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 
 	vcpu->arch.shadow_msr = MSR_USER64;
 
-	err = __init_new_context();
+	err = kvmppc_mmu_init(vcpu);
 	if (err < 0)
 		goto free_shadow_vcpu;
-	vcpu_book3s->context_id = err;
-
-	vcpu_book3s->vsid_max = ((vcpu_book3s->context_id + 1) << USER_ESID_BITS) - 1;
-	vcpu_book3s->vsid_first = vcpu_book3s->context_id << USER_ESID_BITS;
-	vcpu_book3s->vsid_next = vcpu_book3s->vsid_first;
 
 	return vcpu;
 
@@ -1225,7 +1220,6 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
 
-	__destroy_context(vcpu_book3s->context_id);
 	kvm_vcpu_uninit(vcpu);
 	kfree(vcpu_book3s->shadow_vcpu);
 	vfree(vcpu_book3s);
