@@ -1324,6 +1324,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (ah->btcoex_hw.enabled)
 		ath9k_hw_btcoex_enable(ah);
 
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		ath9k_hw_loadnf(ah, curchan);
+		ath9k_hw_start_nfcal(ah);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(ath9k_hw_reset);
