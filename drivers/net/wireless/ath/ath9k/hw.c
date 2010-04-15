@@ -736,12 +736,24 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 		AR_IMR_RXORN |
 		AR_IMR_BCNMISC;
 
-	if (ah->config.rx_intr_mitigation)
-		imr_reg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
-	else
-		imr_reg |= AR_IMR_RXOK;
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		imr_reg |= AR_IMR_RXOK_HP;
+		if (ah->config.rx_intr_mitigation)
+			imr_reg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
+		else
+			imr_reg |= AR_IMR_RXOK_LP;
 
-	imr_reg |= AR_IMR_TXOK;
+	} else {
+		if (ah->config.rx_intr_mitigation)
+			imr_reg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
+		else
+			imr_reg |= AR_IMR_RXOK;
+	}
+
+	if (ah->config.tx_intr_mitigation)
+		imr_reg |= AR_IMR_TXINTM | AR_IMR_TXMINTR;
+	else
+		imr_reg |= AR_IMR_TXOK;
 
 	if (opmode == NL80211_IFTYPE_AP)
 		imr_reg |= AR_IMR_MIB;
@@ -754,6 +766,13 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 		REG_WRITE(ah, AR_INTR_SYNC_CAUSE, 0xFFFFFFFF);
 		REG_WRITE(ah, AR_INTR_SYNC_ENABLE, AR_INTR_SYNC_DEFAULT);
 		REG_WRITE(ah, AR_INTR_SYNC_MASK, 0);
+	}
+
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		REG_WRITE(ah, AR_INTR_PRIO_ASYNC_ENABLE, 0);
+		REG_WRITE(ah, AR_INTR_PRIO_ASYNC_MASK, 0);
+		REG_WRITE(ah, AR_INTR_PRIO_SYNC_ENABLE, 0);
+		REG_WRITE(ah, AR_INTR_PRIO_SYNC_MASK, 0);
 	}
 }
 
