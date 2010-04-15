@@ -191,11 +191,11 @@ struct kvm_vcpu_arch {
 	u32 qpr[32];
 #endif
 
+#ifdef CONFIG_BOOKE
 	ulong pc;
 	ulong ctr;
 	ulong lr;
 
-#ifdef CONFIG_BOOKE
 	ulong xer;
 	u32 cr;
 #endif
@@ -203,7 +203,6 @@ struct kvm_vcpu_arch {
 	ulong msr;
 #ifdef CONFIG_PPC_BOOK3S
 	ulong shadow_msr;
-	ulong shadow_srr1;
 	ulong hflags;
 	ulong guest_owned_ext;
 #endif
@@ -258,14 +257,13 @@ struct kvm_vcpu_arch {
 	struct dentry *debugfs_exit_timing;
 #endif
 
+#ifdef CONFIG_BOOKE
 	u32 last_inst;
-#ifdef CONFIG_PPC64
-	u32 fault_dsisr;
-#endif
 	ulong fault_dear;
 	ulong fault_esr;
 	ulong queued_dear;
 	ulong queued_esr;
+#endif
 	gpa_t paddr_accessed;
 
 	u8 io_gpr; /* GPR used as IO source/target */
