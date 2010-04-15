@@ -114,8 +114,10 @@ enum buffer_type {
 #define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
 #define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
 
+#define ATH_TXSTATUS_RING_SIZE 64
+
 struct ath_descdma {
-	struct ath_desc *dd_desc;
+	void *dd_desc;
 	dma_addr_t dd_desc_paddr;
 	u32 dd_desc_len;
 	struct ath_buf *dd_bufptr;
@@ -515,6 +517,8 @@ struct ath_softc {
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
 	struct ath_btcoex btcoex;
+
+	struct ath_descdma txsdma;
 };
 
 struct ath_wiphy {

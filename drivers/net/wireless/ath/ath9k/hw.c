@@ -2093,6 +2093,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->rx_lp_qdepth = ATH9K_HW_RX_LP_QDEPTH;
 		pCap->rx_status_len = sizeof(struct ar9003_rxs);
 		pCap->tx_desc_len = sizeof(struct ar9003_txc);
+		pCap->txs_len = sizeof(struct ar9003_txs);
 	} else {
 		pCap->tx_desc_len = sizeof(struct ath_desc);
 	}

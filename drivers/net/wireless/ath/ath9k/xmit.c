@@ -2144,6 +2144,41 @@ void ath_tx_tasklet(struct ath_softc *sc)
 /* Init, Cleanup */
 /*****************/
 
+static int ath_txstatus_setup(struct ath_softc *sc, int size)
+{
+	struct ath_descdma *dd = &sc->txsdma;
+	u8 txs_len = sc->sc_ah->caps.txs_len;
+
+	dd->dd_desc_len = size * txs_len;
+	dd->dd_desc = dma_alloc_coherent(sc->dev, dd->dd_desc_len,
+					 &dd->dd_desc_paddr, GFP_KERNEL);
+	if (!dd->dd_desc)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int ath_tx_edma_init(struct ath_softc *sc)
+{
+	int err;
+
+	err = ath_txstatus_setup(sc, ATH_TXSTATUS_RING_SIZE);
+	if (!err)
+		ath9k_hw_setup_statusring(sc->sc_ah, sc->txsdma.dd_desc,
+					  sc->txsdma.dd_desc_paddr,
+					  ATH_TXSTATUS_RING_SIZE);
+
+	return err;
+}
+
+static void ath_tx_edma_cleanup(struct ath_softc *sc)
+{
+	struct ath_descdma *dd = &sc->txsdma;
+
+	dma_free_coherent(sc->dev, dd->dd_desc_len, dd->dd_desc,
+			  dd->dd_desc_paddr);
+}
+
 int ath_tx_init(struct ath_softc *sc, int nbufs)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -2160,7 +2195,7 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 	}
 
 	error = ath_descdma_setup(sc, &sc->beacon.bdma, &sc->beacon.bbuf,
-				  "beacon", ATH_BCBUF, 1, 0);
+				  "beacon", ATH_BCBUF, 1, 1);
 	if (error != 0) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Failed to allocate beacon descriptors: %d\n", error);
@@ -2168,6 +2203,12 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 	}
 
 	INIT_DELAYED_WORK(&sc->tx_complete_work, ath_tx_complete_poll_work);
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
+		error = ath_tx_edma_init(sc);
+		if (error)
+			goto err;
+	}
 
 err:
 	if (error != 0)
@@ -2183,6 +2224,9 @@ void ath_tx_cleanup(struct ath_softc *sc)
 
 	if (sc->tx.txdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->tx.txdma, &sc->tx.txbuf);
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+		ath_tx_edma_cleanup(sc);
 }
 
 void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
