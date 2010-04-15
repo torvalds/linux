@@ -68,6 +68,58 @@ static irqreturn_t taal_te_isr(int irq, void *data);
 static void taal_te_timeout_work_callback(struct work_struct *work);
 static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable);
 
+/**
+ * struct panel_config - panel configuration
+ * @name: panel name
+ * @type: panel type
+ * @timings: panel resolution
+ * @sleep: various panel specific delays, passed to msleep() if non-zero
+ * @reset_sequence: reset sequence timings, passed to udelay() if non-zero
+ */
+struct panel_config {
+	const char *name;
+	int type;
+
+	struct omap_video_timings timings;
+
+	struct {
+		unsigned int sleep_in;
+		unsigned int sleep_out;
+		unsigned int hw_reset;
+		unsigned int enable_te;
+	} sleep;
+
+	struct {
+		unsigned int high;
+		unsigned int low;
+	} reset_sequence;
+};
+
+enum {
+	PANEL_TAAL,
+};
+
+static struct panel_config panel_configs[] = {
+	{
+		.name		= "taal",
+		.type		= PANEL_TAAL,
+		.timings	= {
+			.x_res		= 864,
+			.y_res		= 480,
+		},
+		.sleep		= {
+			.sleep_in	= 5,
+			.sleep_out	= 5,
+			.hw_reset	= 5,
+			.enable_te	= 100, /* possible panel bug */
+		},
+		.reset_sequence	= {
+			.high		= 10,
+			.low		= 10,
+		},
+	},
+};
+
 struct taal_data {
 	struct mutex lock;
 
@@ -104,6 +156,8 @@ struct taal_data {
 
 	struct workqueue_struct *esd_wq;
 	struct delayed_work esd_work;
+
+	struct panel_config *panel_config;
 };
 
 static inline struct nokia_dsi_panel_data
@@ -173,7 +227,8 @@ static int taal_sleep_in(struct taal_data *td)
 
 	hw_guard_start(td, 120);
 
-	msleep(5);
+	if (td->panel_config->sleep.sleep_in)
+		msleep(td->panel_config->sleep.sleep_in);
 
 	return 0;
 }
@@ -190,7 +245,8 @@ static int taal_sleep_out(struct taal_data *td)
 
 	hw_guard_start(td, 120);
 
-	msleep(5);
+	if (td->panel_config->sleep.sleep_out)
+		msleep(td->panel_config->sleep.sleep_out);
 
 	return 0;
 }
@@ -509,20 +565,24 @@ static struct attribute_group taal_attr_group = {
 
 static void taal_hw_reset(struct omap_dss_device *dssdev)
 {
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 
 	if (panel_data->reset_gpio == -1)
 		return;
 
 	gpio_set_value(panel_data->reset_gpio, 1);
-	udelay(10);
+	if (td->panel_config->reset_sequence.high)
+		udelay(td->panel_config->reset_sequence.high);
 	/* reset the panel */
 	gpio_set_value(panel_data->reset_gpio, 0);
-	/* assert reset for at least 10us */
-	udelay(10);
+	/* assert reset */
+	if (td->panel_config->reset_sequence.low)
+		udelay(td->panel_config->reset_sequence.low);
 	gpio_set_value(panel_data->reset_gpio, 1);
-	/* wait 5ms after releasing reset */
-	msleep(5);
+	/* wait after releasing reset */
+	if (td->panel_config->sleep.hw_reset)
+		msleep(td->panel_config->sleep.hw_reset);
 }
 
 static int taal_probe(struct omap_dss_device *dssdev)
@@ -531,12 +591,8 @@ static int taal_probe(struct omap_dss_device *dssdev)
 	struct taal_data *td;
 	struct backlight_device *bldev;
 	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
-	int r;
-
-	const struct omap_video_timings taal_panel_timings = {
-		.x_res		= 864,
-		.y_res		= 480,
-	};
+	struct panel_config *panel_config = NULL;
+	int r, i;
 
 	dev_dbg(&dssdev->dev, "probe\n");
 
@@ -545,8 +601,20 @@ static int taal_probe(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
+	for (i = 0; i < ARRAY_SIZE(panel_configs); i++) {
+		if (strcmp(panel_data->name, panel_configs[i].name) == 0) {
+			panel_config = &panel_configs[i];
+			break;
+		}
+	}
+
+	if (!panel_config) {
+		r = -EINVAL;
+		goto err;
+	}
+
 	dssdev->panel.config = OMAP_DSS_LCD_TFT;
-	dssdev->panel.timings = taal_panel_timings;
+	dssdev->panel.timings = panel_config->timings;
 	dssdev->ctrl.pixel_size = 24;
 
 	td = kzalloc(sizeof(*td), GFP_KERNEL);
@@ -555,6 +623,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 		goto err;
 	}
 	td->dssdev = dssdev;
+	td->panel_config = panel_config;
 
 	mutex_init(&td->lock);
 
@@ -686,9 +755,6 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	u8 id1, id2, id3;
 	int r;
 
-	/* it seems we have to wait a bit until taal is ready */
-	msleep(5);
-
 	r = omapdss_dsi_display_enable(dssdev);
 	if (r) {
 		dev_err(&dssdev->dev, "failed to enable DSI\n");
@@ -774,7 +840,7 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 	r = taal_dcs_write_0(DCS_DISPLAY_OFF);
 	if (!r) {
 		r = taal_sleep_in(td);
-		/* wait a bit so that the message goes through */
+		/* HACK: wait a bit so that the message goes through */
 		msleep(10);
 	}
 
@@ -1036,6 +1102,7 @@ static int taal_sync(struct omap_dss_device *dssdev)
 
 static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 	int r;
 
@@ -1047,9 +1114,8 @@ static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 	if (!panel_data->use_ext_te)
 		omapdss_dsi_enable_te(dssdev, enable);
 
-	/* XXX for some reason, DSI TE breaks if we don't wait here.
-	 * Panel bug? Needs more studying */
-	msleep(100);
+	if (td->panel_config->sleep.enable_te)
+		msleep(td->panel_config->sleep.enable_te);
 
 	return r;
 }
