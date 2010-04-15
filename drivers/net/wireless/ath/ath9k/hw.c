@@ -20,7 +20,9 @@
 #include "hw.h"
 #include "hw-ops.h"
 #include "rc.h"
-#include "initvals.h"
+#include "ar5008_initvals.h"
+#include "ar9001_initvals.h"
+#include "ar9002_initvals.h"
 
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
