@@ -377,7 +377,7 @@ static struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
-			.level	  = 0,
+			.level	  = 5,
 			.logflags = NF_LOG_MASK,
 		},
 	},
