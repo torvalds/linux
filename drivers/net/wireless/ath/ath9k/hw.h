@@ -508,6 +508,8 @@ struct ath_hw_private_ops {
 	void (*set_diversity)(struct ath_hw *ah, bool value);
 	u32 (*compute_pll_control)(struct ath_hw *ah,
 				   struct ath9k_channel *chan);
+	bool (*ani_control)(struct ath_hw *ah, enum ath9k_ani_cmd cmd,
+			    int param);
 };
 
 /**

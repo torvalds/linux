@@ -420,6 +420,13 @@ static void ar9003_hw_set_diversity(struct ath_hw *ah, bool value)
 	/* TODO */
 }
 
+static bool ar9003_hw_ani_control(struct ath_hw *ah,
+				  enum ath9k_ani_cmd cmd, int param)
+{
+	/* TODO */
+	return false;
+}
+
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -437,4 +444,5 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->rfbus_done = ar9003_hw_rfbus_done;
 	priv_ops->enable_rfkill = ar9003_hw_enable_rfkill;
 	priv_ops->set_diversity = ar9003_hw_set_diversity;
+	priv_ops->ani_control = ar9003_hw_ani_control;
 }

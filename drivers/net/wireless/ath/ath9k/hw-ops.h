@@ -146,4 +146,10 @@ static inline void ath9k_hw_set_diversity(struct ath_hw *ah, bool value)
 	return ath9k_hw_private_ops(ah)->set_diversity(ah, value);
 }
 
+static inline bool ath9k_hw_ani_control(struct ath_hw *ah,
+					enum ath9k_ani_cmd cmd, int param)
+{
+	return ath9k_hw_private_ops(ah)->ani_control(ah, cmd, param);
+}
+
 #endif /* ATH9K_HW_OPS_H */
