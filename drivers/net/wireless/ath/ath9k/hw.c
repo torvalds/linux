@@ -297,18 +297,25 @@ static void ath9k_hw_disablepcie(struct ath_hw *ah)
 	REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
 }
 
+/* This should work for all families including legacy */
 static bool ath9k_hw_chip_test(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 regAddr[2] = { AR_STA_ID0, AR_PHY_BASE + (8 << 2) };
+	u32 regAddr[2] = { AR_STA_ID0 };
 	u32 regHold[2];
 	u32 patternData[4] = { 0x55555555,
 			       0xaaaaaaaa,
 			       0x66666666,
 			       0x99999999 };
-	int i, j;
+	int i, j, loop_max;
 
-	for (i = 0; i < 2; i++) {
+	if (!AR_SREV_9300_20_OR_LATER(ah)) {
+		loop_max = 2;
+		regAddr[1] = AR_PHY_BASE + (8 << 2);
+	} else
+		loop_max = 1;
+
+	for (i = 0; i < loop_max; i++) {
 		u32 addr = regAddr[i];
 		u32 wrData, rdData;
 
