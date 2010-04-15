@@ -196,15 +196,24 @@ static inline void nf_bridge_save_header(struct sk_buff *skb)
 					 skb->nf_bridge->data, header_size);
 }
 
-/*
- * When forwarding bridge frames, we save a copy of the original
- * header before processing.
+static inline void nf_bridge_update_protocol(struct sk_buff *skb)
+{
+	if (skb->nf_bridge->mask & BRNF_8021Q)
+		skb->protocol = htons(ETH_P_8021Q);
+	else if (skb->nf_bridge->mask & BRNF_PPPoE)
+		skb->protocol = htons(ETH_P_PPP_SES);
+}
+
+/* Fill in the header for fragmented IP packets handled by
+ * the IPv4 connection tracking code.
  */
 int nf_bridge_copy_header(struct sk_buff *skb)
 {
 	int err;
-	int header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
+	unsigned int header_size;
 
+	nf_bridge_update_protocol(skb);
+	header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
 	err = skb_cow_head(skb, header_size);
 	if (err)
 		return err;
@@ -238,10 +247,43 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 	skb_dst_set(skb, &rt->u.dst);
 
 	skb->dev = nf_bridge->physindev;
+	nf_bridge_update_protocol(skb);
 	nf_bridge_push_encap_header(skb);
 	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 		       br_handle_frame_finish, 1);
 
+	return 0;
+}
+
+/* Obtain the correct destination MAC address, while preserving the original
+ * source MAC address. If we already know this address, we just copy it. If we
+ * don't, we use the neighbour framework to find out. In both cases, we make
+ * sure that br_handle_frame_finish() is called afterwards.
+ */
+static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
+{
+	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
+	struct dst_entry *dst;
+
+	skb->dev = bridge_parent(skb->dev);
+	if (!skb->dev)
+		goto free_skb;
+	dst = skb_dst(skb);
+	if (dst->hh) {
+		neigh_hh_bridge(dst->hh, skb);
+		skb->dev = nf_bridge->physindev;
+		return br_handle_frame_finish(skb);
+	} else if (dst->neighbour) {
+		/* the neighbour function below overwrites the complete
+		 * MAC header, so we save the Ethernet source address and
+		 * protocol number. */
+		skb_copy_from_linear_data_offset(skb, -(ETH_HLEN-ETH_ALEN), skb->nf_bridge->data, ETH_HLEN-ETH_ALEN);
+		/* tell br_dev_xmit to continue with forwarding */
+		nf_bridge->mask |= BRNF_BRIDGED_DNAT;
+		return dst->neighbour->output(skb);
+	}
+free_skb:
+	kfree_skb(skb);
 	return 0;
 }
 
@@ -283,25 +325,6 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
  * device, we proceed as if ip_route_input() succeeded. If it differs from the
  * logical bridge port or if ip_route_output_key() fails we drop the packet.
  */
-
-static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
-{
-	skb->dev = bridge_parent(skb->dev);
-	if (skb->dev) {
-		struct dst_entry *dst = skb_dst(skb);
-
-		nf_bridge_pull_encap_header(skb);
-		skb->nf_bridge->mask |= BRNF_BRIDGED_DNAT;
-
-		if (dst->hh)
-			return neigh_hh_output(dst->hh, skb);
-		else if (dst->neighbour)
-			return dst->neighbour->output(skb);
-	}
-	kfree_skb(skb);
-	return 0;
-}
-
 static int br_nf_pre_routing_finish(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
@@ -354,6 +377,7 @@ free_skb:
 			if (skb_dst(skb)->dev == dev) {
 bridged_dnat:
 				skb->dev = nf_bridge->physindev;
+				nf_bridge_update_protocol(skb);
 				nf_bridge_push_encap_header(skb);
 				NF_HOOK_THRESH(NFPROTO_BRIDGE,
 					       NF_BR_PRE_ROUTING,
@@ -376,6 +400,7 @@ bridged_dnat:
 	}
 
 	skb->dev = nf_bridge->physindev;
+	nf_bridge_update_protocol(skb);
 	nf_bridge_push_encap_header(skb);
 	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 		       br_handle_frame_finish, 1);
@@ -396,6 +421,10 @@ static struct net_device *setup_pre_routing(struct sk_buff *skb)
 	nf_bridge->mask |= BRNF_NF_BRIDGE_PREROUTING;
 	nf_bridge->physindev = skb->dev;
 	skb->dev = bridge_parent(skb->dev);
+	if (skb->protocol == htons(ETH_P_8021Q))
+		nf_bridge->mask |= BRNF_8021Q;
+	else if (skb->protocol == htons(ETH_P_PPP_SES))
+		nf_bridge->mask |= BRNF_PPPoE;
 
 	return skb->dev;
 }
@@ -494,6 +523,7 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
 
+	skb->protocol = htons(ETH_P_IPV6);
 	NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
 		br_nf_pre_routing_finish_ipv6);
 
@@ -566,6 +596,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
 	store_orig_dstaddr(skb);
+	skb->protocol = htons(ETH_P_IP);
 
 	NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
 		br_nf_pre_routing_finish);
@@ -614,7 +645,9 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 	} else {
 		in = *((struct net_device **)(skb->cb));
 	}
+	nf_bridge_update_protocol(skb);
 	nf_bridge_push_encap_header(skb);
+
 	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_FORWARD, skb, in,
 		       skb->dev, br_forward_finish, 1);
 	return 0;
@@ -666,6 +699,10 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 	/* The physdev module checks on this */
 	nf_bridge->mask |= BRNF_BRIDGED;
 	nf_bridge->physoutdev = skb->dev;
+	if (pf == PF_INET)
+		skb->protocol = htons(ETH_P_IP);
+	else
+		skb->protocol = htons(ETH_P_IPV6);
 
 	NF_HOOK(pf, NF_INET_FORWARD, skb, bridge_parent(in), parent,
 		br_nf_forward_finish);
@@ -706,8 +743,7 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff *skb,
 #if defined(CONFIG_NF_CONNTRACK_IPV4) || defined(CONFIG_NF_CONNTRACK_IPV4_MODULE)
 static int br_nf_dev_queue_xmit(struct sk_buff *skb)
 {
-	if (skb->nfct != NULL &&
-	    (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb)) &&
+	if (skb->nfct != NULL && skb->protocol == htons(ETH_P_IP) &&
 	    skb->len > skb->dev->mtu &&
 	    !skb_is_gso(skb))
 		return ip_fragment(skb, br_dev_queue_push_xmit);
@@ -755,6 +791,10 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 
 	nf_bridge_pull_encap_header(skb);
 	nf_bridge_save_header(skb);
+	if (pf == PF_INET)
+		skb->protocol = htons(ETH_P_IP);
+	else
+		skb->protocol = htons(ETH_P_IPV6);
 
 	NF_HOOK(pf, NF_INET_POST_ROUTING, skb, NULL, realoutdev,
 		br_nf_dev_queue_xmit);

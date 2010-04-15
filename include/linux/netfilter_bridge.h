@@ -43,7 +43,8 @@ enum nf_br_hook_priorities {
 #define BRNF_BRIDGED_DNAT		0x02
 #define BRNF_BRIDGED			0x04
 #define BRNF_NF_BRIDGE_PREROUTING	0x08
-
+#define BRNF_8021Q			0x10
+#define BRNF_PPPoE			0x20
 
 /* Only used in br_forward.c */
 extern int nf_bridge_copy_header(struct sk_buff *skb);
@@ -75,6 +76,8 @@ static inline int br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
 
 	skb_pull(skb, ETH_HLEN);
 	nf_bridge->mask ^= BRNF_BRIDGED_DNAT;
+	skb_copy_to_linear_data_offset(skb, -(ETH_HLEN-ETH_ALEN),
+				       skb->nf_bridge->data, ETH_HLEN-ETH_ALEN);
 	skb->dev = nf_bridge->physindev;
 	return br_handle_frame_finish(skb);
 }
