@@ -2382,11 +2382,11 @@ EXPORT_SYMBOL(iwl_free_txq_mem);
 
 int iwl_send_wimax_coex(struct iwl_priv *priv)
 {
-	struct iwl_wimax_coex_cmd uninitialized_var(coex_cmd);
+	struct iwl_wimax_coex_cmd coex_cmd;
 
 	if (priv->cfg->support_wimax_coexist) {
 		/* UnMask wake up src at associated sleep */
-		coex_cmd.flags |= COEX_FLAGS_ASSOC_WA_UNMASK_MSK;
+		coex_cmd.flags = COEX_FLAGS_ASSOC_WA_UNMASK_MSK;
 
 		/* UnMask wake up src at unassociated sleep */
 		coex_cmd.flags |= COEX_FLAGS_UNASSOC_WA_UNMASK_MSK;
