@@ -960,7 +960,6 @@ void ath9k_deinit_leds(struct ath9k_htc_priv *priv)
 	ath9k_unregister_led(&priv->tx_led);
 	ath9k_unregister_led(&priv->rx_led);
 	ath9k_unregister_led(&priv->radio_led);
-	ath9k_hw_set_gpio(priv->ah, priv->ah->led_pin, 1);
 }
 
 void ath9k_init_leds(struct ath9k_htc_priv *priv)
