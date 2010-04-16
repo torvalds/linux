@@ -811,8 +811,8 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	td->enabled = 1;
 
 	if (!td->intro_printed) {
-		dev_info(&dssdev->dev, "revision %02x.%02x.%02x\n",
-				id1, id2, id3);
+		dev_info(&dssdev->dev, "%s panel revision %02x.%02x.%02x\n",
+			td->panel_config->name, id1, id2, id3);
 		if (td->cabc_broken)
 			dev_info(&dssdev->dev,
 					"old Taal version, CABC disabled\n");
