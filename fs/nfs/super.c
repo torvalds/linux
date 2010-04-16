@@ -2672,10 +2672,14 @@ out_freepage:
 static int nfs_follow_remote_path(struct vfsmount *root_mnt,
 		const char *export_path, struct vfsmount *mnt_target)
 {
+	struct nameidata *nd = NULL;
 	struct mnt_namespace *ns_private;
-	struct nameidata nd;
 	struct super_block *s;
 	int ret;
+
+	nd = kmalloc(sizeof(*nd), GFP_KERNEL);
+	if (nd == NULL)
+		return -ENOMEM;
 
 	ns_private = create_mnt_ns(root_mnt);
 	ret = PTR_ERR(ns_private);
@@ -2683,27 +2687,29 @@ static int nfs_follow_remote_path(struct vfsmount *root_mnt,
 		goto out_mntput;
 
 	ret = vfs_path_lookup(root_mnt->mnt_root, root_mnt,
-			export_path, LOOKUP_FOLLOW, &nd);
+			export_path, LOOKUP_FOLLOW, nd);
 
 	put_mnt_ns(ns_private);
 
 	if (ret != 0)
 		goto out_err;
 
-	s = nd.path.mnt->mnt_sb;
+	s = nd->path.mnt->mnt_sb;
 	atomic_inc(&s->s_active);
 	mnt_target->mnt_sb = s;
-	mnt_target->mnt_root = dget(nd.path.dentry);
+	mnt_target->mnt_root = dget(nd->path.dentry);
 
 	/* Correct the device pathname */
-	nfs_fix_devname(&nd.path, mnt_target);
+	nfs_fix_devname(&nd->path, mnt_target);
 
-	path_put(&nd.path);
+	path_put(&nd->path);
+	kfree(nd);
 	down_write(&s->s_umount);
 	return 0;
 out_mntput:
 	mntput(root_mnt);
 out_err:
+	kfree(nd);
 	return ret;
 }
 
