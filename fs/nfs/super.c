@@ -2673,6 +2673,72 @@ out_freepage:
 	free_page((unsigned long)page);
 }
 
+struct nfs_referral_count {
+	struct list_head list;
+	const struct task_struct *task;
+	unsigned int referral_count;
+};
+
+static LIST_HEAD(nfs_referral_count_list);
+static DEFINE_SPINLOCK(nfs_referral_count_list_lock);
+
+static struct nfs_referral_count *nfs_find_referral_count(void)
+{
+	struct nfs_referral_count *p;
+
+	list_for_each_entry(p, &nfs_referral_count_list, list) {
+		if (p->task == current)
+			return p;
+	}
+	return NULL;
+}
+
+#define NFS_MAX_NESTED_REFERRALS 2
+
+static int nfs_referral_loop_protect(void)
+{
+	struct nfs_referral_count *p, *new;
+	int ret = -ENOMEM;
+
+	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		goto out;
+	new->task = current;
+	new->referral_count = 1;
+
+	ret = 0;
+	spin_lock(&nfs_referral_count_list_lock);
+	p = nfs_find_referral_count();
+	if (p != NULL) {
+		if (p->referral_count >= NFS_MAX_NESTED_REFERRALS)
+			ret = -ELOOP;
+		else
+			p->referral_count++;
+	} else {
+		list_add(&new->list, &nfs_referral_count_list);
+		new = NULL;
+	}
+	spin_unlock(&nfs_referral_count_list_lock);
+	kfree(new);
+out:
+	return ret;
+}
+
+static void nfs_referral_loop_unprotect(void)
+{
+	struct nfs_referral_count *p;
+
+	spin_lock(&nfs_referral_count_list_lock);
+	p = nfs_find_referral_count();
+	p->referral_count--;
+	if (p->referral_count == 0)
+		list_del(&p->list);
+	else
+		p = NULL;
+	spin_unlock(&nfs_referral_count_list_lock);
+	kfree(p);
+}
+
 static int nfs_follow_remote_path(struct vfsmount *root_mnt,
 		const char *export_path, struct vfsmount *mnt_target)
 {
@@ -2690,9 +2756,14 @@ static int nfs_follow_remote_path(struct vfsmount *root_mnt,
 	if (IS_ERR(ns_private))
 		goto out_mntput;
 
+	ret = nfs_referral_loop_protect();
+	if (ret != 0)
+		goto out_put_mnt_ns;
+
 	ret = vfs_path_lookup(root_mnt->mnt_root, root_mnt,
 			export_path, LOOKUP_FOLLOW, nd);
 
+	nfs_referral_loop_unprotect();
 	put_mnt_ns(ns_private);
 
 	if (ret != 0)
@@ -2710,6 +2781,8 @@ static int nfs_follow_remote_path(struct vfsmount *root_mnt,
 	kfree(nd);
 	down_write(&s->s_umount);
 	return 0;
+out_put_mnt_ns:
+	put_mnt_ns(ns_private);
 out_mntput:
 	mntput(root_mnt);
 out_err:
