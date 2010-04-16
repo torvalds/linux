@@ -1672,6 +1672,8 @@ process:
 
 	skb->dev = NULL;
 
+	inet_rps_save_rxhash(sk, skb->rxhash);
+
 	bh_lock_sock_nested(sk);
 	ret = 0;
 	if (!sock_owned_by_user(sk)) {
