@@ -423,15 +423,19 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	unsigned char blockbits;
 	unsigned long blockres;
 	struct nfs_fh *fh = NFS_FH(dentry->d_inode);
-	struct nfs_fattr fattr;
-	struct nfs_fsstat res = {
-			.fattr = &fattr,
-	};
-	int error;
+	struct nfs_fsstat res;
+	int error = -ENOMEM;
+
+	res.fattr = nfs_alloc_fattr();
+	if (res.fattr == NULL)
+		goto out_err;
 
 	error = server->nfs_client->rpc_ops->statfs(server, fh, &res);
+
+	nfs_free_fattr(res.fattr);
 	if (error < 0)
 		goto out_err;
+
 	buf->f_type = NFS_SUPER_MAGIC;
 
 	/*
