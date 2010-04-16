@@ -86,12 +86,6 @@ struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 }
 EXPORT_SYMBOL_GPL(cgroup_to_blkio_cgroup);
 
-void blkio_group_init(struct blkio_group *blkg)
-{
-	spin_lock_init(&blkg->stats_lock);
-}
-EXPORT_SYMBOL_GPL(blkio_group_init);
-
 /*
  * Add to the appropriate stat variable depending on the request type.
  * This should be called with the blkg->stats_lock held.
@@ -349,6 +343,7 @@ void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 	unsigned long flags;
 
 	spin_lock_irqsave(&blkcg->lock, flags);
+	spin_lock_init(&blkg->stats_lock);
 	rcu_assign_pointer(blkg->key, key);
 	blkg->blkcg_id = css_id(&blkcg->css);
 	hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);

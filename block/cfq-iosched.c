@@ -961,7 +961,6 @@ cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
 	for_each_cfqg_st(cfqg, i, j, st)
 		*st = CFQ_RB_ROOT;
 	RB_CLEAR_NODE(&cfqg->rb_node);
-	blkio_group_init(&cfqg->blkg);
 
 	/*
 	 * Take the initial reference that will be released on destroy

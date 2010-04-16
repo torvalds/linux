@@ -217,7 +217,6 @@ extern void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 						void *key);
-void blkio_group_init(struct blkio_group *blkg);
 void blkiocg_update_timeslice_used(struct blkio_group *blkg,
 					unsigned long time);
 void blkiocg_update_dispatch_stats(struct blkio_group *blkg, uint64_t bytes,
@@ -235,7 +234,6 @@ struct cgroup;
 static inline struct blkio_cgroup *
 cgroup_to_blkio_cgroup(struct cgroup *cgroup) { return NULL; }
 
-static inline void blkio_group_init(struct blkio_group *blkg) {}
 static inline void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 			struct blkio_group *blkg, void *key, dev_t dev) {}
 
