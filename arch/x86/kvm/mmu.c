@@ -1618,20 +1618,6 @@ static void mmu_convert_notrap(struct kvm_mmu_page *sp)
 	}
 }
 
-struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
-{
-	struct page *page;
-
-	gpa_t gpa = kvm_mmu_gva_to_gpa_read(vcpu, gva, NULL);
-
-	if (gpa == UNMAPPED_GVA)
-		return NULL;
-
-	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
-
-	return page;
-}
-
 /*
  * The function is based on mtrr_type_lookup() in
  * arch/x86/kernel/cpu/mtrr/generic.c
