@@ -234,7 +234,7 @@ out:
 static int nfs3_proc_readlink(struct inode *inode, struct page *page,
 		unsigned int pgbase, unsigned int pglen)
 {
-	struct nfs_fattr	fattr;
+	struct nfs_fattr	*fattr;
 	struct nfs3_readlinkargs args = {
 		.fh		= NFS_FH(inode),
 		.pgbase		= pgbase,
@@ -244,14 +244,19 @@ static int nfs3_proc_readlink(struct inode *inode, struct page *page,
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_READLINK],
 		.rpc_argp	= &args,
-		.rpc_resp	= &fattr,
 	};
-	int			status;
+	int status = -ENOMEM;
 
 	dprintk("NFS call  readlink\n");
-	nfs_fattr_init(&fattr);
+	fattr = nfs_alloc_fattr();
+	if (fattr == NULL)
+		goto out;
+	msg.rpc_resp = fattr;
+
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	nfs_refresh_inode(inode, &fattr);
+	nfs_refresh_inode(inode, fattr);
+	nfs_free_fattr(fattr);
+out:
 	dprintk("NFS reply readlink: %d\n", status);
 	return status;
 }
