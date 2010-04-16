@@ -781,8 +781,13 @@ static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
 		  inw(ioaddr + EL3_STATUS));
 
 	spin_lock_irqsave(&lp->window_lock, flags);
+
+	dev->stats.tx_bytes += skb->len;
+
+	/* Put out the doubleword header... */
 	outw(skb->len, ioaddr + TX_FIFO);
 	outw(0, ioaddr + TX_FIFO);
+	/* ... and the packet rounded to a doubleword. */
 	outsl(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
 
 	dev->trans_start = jiffies;
@@ -1020,8 +1025,6 @@ static void update_stats(struct net_device *dev)
 	EL3WINDOW(4);
 	/* BadSSD */				   inb(ioaddr + 12);
 	up					 = inb(ioaddr + 13);
-
-	dev->stats.tx_bytes 			+= tx + ((up & 0xf0) << 12);
 
 	EL3WINDOW(1);
 }
