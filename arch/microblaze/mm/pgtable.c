@@ -161,24 +161,6 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 	return err;
 }
 
-void __init adjust_total_lowmem(void)
-{
-/* TBD */
-#if 0
-	unsigned long max_low_mem = MAX_LOW_MEM;
-
-	if (total_lowmem > max_low_mem) {
-		total_lowmem = max_low_mem;
-#ifndef CONFIG_HIGHMEM
-		printk(KERN_INFO "Warning, memory limited to %ld Mb, use "
-				"CONFIG_HIGHMEM to reach %ld Mb\n",
-				max_low_mem >> 20, total_memory >> 20);
-		total_memory = total_lowmem;
-#endif /* CONFIG_HIGHMEM */
-	}
-#endif
-}
-
 /*
  * Map in all of physical memory starting at CONFIG_KERNEL_START.
  */
@@ -205,24 +187,6 @@ void __init mapin_ram(void)
 
 /* is x a power of 2? */
 #define is_power_of_2(x)	((x) != 0 && (((x) & ((x) - 1)) == 0))
-
-/*
- * Set up a mapping for a block of I/O.
- * virt, phys, size must all be page-aligned.
- * This should only be called before ioremap is called.
- */
-void __init io_block_mapping(unsigned long virt, phys_addr_t phys,
-			     unsigned int size, int flags)
-{
-	int i;
-
-	if (virt > CONFIG_KERNEL_START && virt < ioremap_bot)
-		ioremap_bot = ioremap_base = virt;
-
-	/* Put it in the page tables. */
-	for (i = 0; i < size; i += PAGE_SIZE)
-		map_page(virt + i, phys + i, flags);
-}
 
 /* Scan the real Linux page tables and return a PTE pointer for
  * a virtual address in a context.
