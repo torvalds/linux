@@ -204,6 +204,14 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 		return;
 	}
 
+	/* Check if there has been a timeout. */
+	spin_lock(&wmi->wmi_lock);
+	if (cmd_id != wmi->last_cmd_id) {
+		spin_unlock(&wmi->wmi_lock);
+		goto free_skb;
+	}
+	spin_unlock(&wmi->wmi_lock);
+
 	/* WMI command response */
 	ath9k_wmi_rsp_callback(wmi, skb);
 
@@ -266,6 +274,7 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	struct sk_buff *skb;
 	u8 *data;
 	int time_left, ret = 0;
+	unsigned long flags;
 
 	if (!wmi)
 		return -EINVAL;
@@ -296,6 +305,10 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	ret = ath9k_wmi_cmd_issue(wmi, skb, cmd_id, cmd_len);
 	if (ret)
 		goto out;
+
+	spin_lock_irqsave(&wmi->wmi_lock, flags);
+	wmi->last_cmd_id = cmd_id;
+	spin_unlock_irqrestore(&wmi->wmi_lock, flags);
 
 	time_left = wait_for_completion_timeout(&wmi->cmd_wait, timeout);
 	if (!time_left) {

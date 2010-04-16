@@ -97,6 +97,7 @@ struct wmi {
 	enum htc_endpoint_id ctrl_epid;
 	struct mutex op_mutex;
 	struct completion cmd_wait;
+	enum wmi_cmd_id last_cmd_id;
 	u16 tx_seq_id;
 	u8 *cmd_rsp_buf;
 	u32 cmd_rsp_len;
