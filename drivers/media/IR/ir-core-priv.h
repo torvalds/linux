@@ -58,13 +58,6 @@ struct ir_raw_event_ctrl {
 #define TO_US(duration)		((int)TO_UNITS(duration, 1000))
 
 /*
- * Routines from ir-keytable.c to be used internally on ir-core and decoders
- */
-
-u32 ir_g_keycode_from_table(struct input_dev *input_dev,
-			    u32 scancode);
-
-/*
  * Routines from ir-sysfs.c - Meant to be called only internally inside
  * ir-core
  */
