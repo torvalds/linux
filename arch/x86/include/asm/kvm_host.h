@@ -202,9 +202,9 @@ struct kvm_mmu_page {
 	 * in this shadow page.
 	 */
 	DECLARE_BITMAP(slot_bitmap, KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS);
-	int multimapped;         /* More than one parent_pte? */
-	int root_count;          /* Currently serving as active root */
+	bool multimapped;         /* More than one parent_pte? */
 	bool unsync;
+	int root_count;          /* Currently serving as active root */
 	unsigned int unsync_children;
 	union {
 		u64 *parent_pte;               /* !multimapped */
