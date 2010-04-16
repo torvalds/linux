@@ -684,6 +684,7 @@ restarted_transaction:
 		if (why == RESTART_META) {
 			mlog(0, "restarting function.\n");
 			restart_func = 1;
+			status = 0;
 		} else {
 			BUG_ON(why != RESTART_TRANS);
 
