@@ -644,10 +644,10 @@ u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 	if (WARN_ON(left < ie_len))
 		return len;
 
-	if (ies)
+	if (ies && ie_len) {
 		memcpy(pos, ies, ie_len);
-	len += ie_len;
-	left -= ie_len;
+		len += ie_len;
+	}
 
 	return (u16)len;
 }
