@@ -647,7 +647,6 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 static u64 *rmap_next(struct kvm *kvm, unsigned long *rmapp, u64 *spte)
 {
 	struct kvm_rmap_desc *desc;
-	struct kvm_rmap_desc *prev_desc;
 	u64 *prev_spte;
 	int i;
 
@@ -659,7 +658,6 @@ static u64 *rmap_next(struct kvm *kvm, unsigned long *rmapp, u64 *spte)
 		return NULL;
 	}
 	desc = (struct kvm_rmap_desc *)(*rmapp & ~1ul);
-	prev_desc = NULL;
 	prev_spte = NULL;
 	while (desc) {
 		for (i = 0; i < RMAP_EXT && desc->sptes[i]; ++i) {
