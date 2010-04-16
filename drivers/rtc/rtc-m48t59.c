@@ -19,6 +19,7 @@
 #include <linux/rtc.h>
 #include <linux/rtc/m48t59.h>
 #include <linux/bcd.h>
+#include <linux/slab.h>
 
 #ifndef NO_IRQ
 #define NO_IRQ	(-1)

@@ -25,7 +25,6 @@
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/genhd.h>
-#include <linux/slab.h>
 #include <linux/cdrom.h>
 #include <linux/ide.h>
 #include <linux/hdreg.h>

@@ -24,13 +24,9 @@ void tlb_wire_entry(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 
 	local_irq_save(flags);
 
-	/* Load the entry into the TLB */
-	__update_tlb(vma, addr, pte);
-
-	/* ... and wire it up. */
 	status = __raw_readl(MMUCR);
 	urb = (status & MMUCR_URB) >> MMUCR_URB_SHIFT;
-	status &= ~MMUCR_URB;
+	status &= ~MMUCR_URC;
 
 	/*
 	 * Make sure we're not trying to wire the last TLB entry slot.
@@ -39,7 +35,23 @@ void tlb_wire_entry(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 
 	urb = urb % MMUCR_URB_NENTRIES;
 
+	/*
+	 * Insert this entry into the highest non-wired TLB slot (via
+	 * the URC field).
+	 */
+	status |= (urb << MMUCR_URC_SHIFT);
+	__raw_writel(status, MMUCR);
+	ctrl_barrier();
+
+	/* Load the entry into the TLB */
+	__update_tlb(vma, addr, pte);
+
+	/* ... and wire it up. */
+	status = __raw_readl(MMUCR);
+
+	status &= ~MMUCR_URB;
 	status |= (urb << MMUCR_URB_SHIFT);
+
 	__raw_writel(status, MMUCR);
 	ctrl_barrier();
 

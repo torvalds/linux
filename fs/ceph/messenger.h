@@ -223,6 +223,7 @@ extern void ceph_con_init(struct ceph_messenger *msgr,
 			  struct ceph_connection *con);
 extern void ceph_con_open(struct ceph_connection *con,
 			  struct ceph_entity_addr *addr);
+extern bool ceph_con_opened(struct ceph_connection *con);
 extern void ceph_con_close(struct ceph_connection *con);
 extern void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg);
 extern void ceph_con_revoke(struct ceph_connection *con, struct ceph_msg *msg);

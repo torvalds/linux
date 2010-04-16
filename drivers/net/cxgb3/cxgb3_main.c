@@ -46,6 +46,7 @@
 #include <linux/log2.h>
 #include <linux/stringify.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 #include "common.h"

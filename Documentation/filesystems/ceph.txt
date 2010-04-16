@@ -8,7 +8,7 @@ Basic features include:
 
  * POSIX semantics
  * Seamless scaling from 1 to many thousands of nodes
- * High availability and reliability.  No single points of failure.
+ * High availability and reliability.  No single point of failure.
  * N-way replication of data across storage nodes
  * Fast recovery from node failures
  * Automatic rebalancing of data on node addition/removal
@@ -94,7 +94,7 @@ Mount Options
 
   wsize=X
 	Specify the maximum write size in bytes.  By default there is no
-	maximu.  Ceph will normally size writes based on the file stripe
+	maximum.  Ceph will normally size writes based on the file stripe
 	size.
 
   rsize=X
@@ -115,7 +115,7 @@ Mount Options
 	number of entries in that directory.
 
   nocrc
-	Disable CRC32C calculation for data writes.  If set, the OSD
+	Disable CRC32C calculation for data writes.  If set, the storage node
 	must rely on TCP's error correction to detect data corruption
 	in the data payload.
 
@@ -133,7 +133,8 @@ For more information on Ceph, see the home page at
 	http://ceph.newdream.net/
 
 The Linux kernel client source tree is available at
-	git://ceph.newdream.net/linux-ceph-client.git
+	git://ceph.newdream.net/git/ceph-client.git
+	git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 
 and the source for the full system is at
-	git://ceph.newdream.net/ceph.git
+	git://ceph.newdream.net/git/ceph.git

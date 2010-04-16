@@ -4,6 +4,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/irq.h>
 
 #include "pci_impl.h"

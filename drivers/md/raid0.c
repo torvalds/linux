@@ -20,6 +20,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "md.h"
 #include "raid0.h"
 

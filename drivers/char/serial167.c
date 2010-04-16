@@ -64,6 +64,7 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/tty_flip.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

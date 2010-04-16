@@ -92,7 +92,6 @@ static void die_nmi(const char *str, struct pt_regs *regs, int do_panic)
 notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 {
 	unsigned int sum, touched = 0;
-	int cpu = smp_processor_id();
 
 	clear_softint(1 << irq);
 
@@ -106,7 +105,7 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 	else
 		pcr_ops->write(PCR_PIC_PRIV);
 
-	sum = kstat_irqs_cpu(0, cpu);
+	sum = local_cpu_data().irq0_irqs;
 	if (__get_cpu_var(nmi_touch)) {
 		__get_cpu_var(nmi_touch) = 0;
 		touched = 1;

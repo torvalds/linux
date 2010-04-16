@@ -24,6 +24,7 @@
 #include <linux/mm.h>
 #include <linux/fb.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include "udlfb.h"
 

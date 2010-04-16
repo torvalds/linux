@@ -53,7 +53,8 @@
 #include <sound/rawmidi.h>
 #include <sound/asequencer.h>
 #include "usbaudio.h"
-
+#include "midi.h"
+#include "helper.h"
 
 /*
  * define this to log all USB packets

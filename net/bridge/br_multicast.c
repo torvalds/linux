@@ -723,7 +723,7 @@ static int br_multicast_igmp3_report(struct net_bridge *br,
 		if (!pskb_may_pull(skb, len))
 			return -EINVAL;
 
-		grec = (void *)(skb->data + len);
+		grec = (void *)(skb->data + len - sizeof(*grec));
 		group = grec->grec_mca;
 		type = grec->grec_type;
 

@@ -20,7 +20,6 @@
 #include <linux/poll.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 
 #undef DEBUG_HARD_HEADER
 

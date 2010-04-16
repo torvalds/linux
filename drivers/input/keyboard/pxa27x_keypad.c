@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/slab.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

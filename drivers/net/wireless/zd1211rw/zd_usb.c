@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/usb.h>
 #include <linux/workqueue.h>

@@ -836,6 +836,8 @@ static void __init sh_eth_init(struct sh_eth_plat_data *pd)
 		pd->mac_addr[i] = mac_read(a, 0x10 + i);
 		msleep(10);
 	}
+
+	i2c_put_adapter(a);
 }
 #else
 static void __init sh_eth_init(struct sh_eth_plat_data *pd)

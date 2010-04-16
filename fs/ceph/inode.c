@@ -378,6 +378,22 @@ void ceph_destroy_inode(struct inode *inode)
 
 	ceph_queue_caps_release(inode);
 
+	/*
+	 * we may still have a snap_realm reference if there are stray
+	 * caps in i_cap_exporting_issued or i_snap_caps.
+	 */
+	if (ci->i_snap_realm) {
+		struct ceph_mds_client *mdsc =
+			&ceph_client(ci->vfs_inode.i_sb)->mdsc;
+		struct ceph_snap_realm *realm = ci->i_snap_realm;
+
+		dout(" dropping residual ref to snap realm %p\n", realm);
+		spin_lock(&realm->inodes_with_caps_lock);
+		list_del_init(&ci->i_snap_realm_item);
+		spin_unlock(&realm->inodes_with_caps_lock);
+		ceph_put_snap_realm(mdsc, realm);
+	}
+
 	kfree(ci->i_symlink);
 	while ((n = rb_first(&ci->i_fragtree)) != NULL) {
 		frag = rb_entry(n, struct ceph_inode_frag, node);
@@ -870,6 +886,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 	struct inode *in = NULL;
 	struct ceph_mds_reply_inode *ininfo;
 	struct ceph_vino vino;
+	struct ceph_client *client = ceph_sb_to_client(sb);
 	int i = 0;
 	int err = 0;
 
@@ -933,7 +950,14 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			return err;
 	}
 
-	if (rinfo->head->is_dentry && !req->r_aborted) {
+	/*
+	 * ignore null lease/binding on snapdir ENOENT, or else we
+	 * will have trouble splicing in the virtual snapdir later
+	 */
+	if (rinfo->head->is_dentry && !req->r_aborted &&
+	    (rinfo->head->is_target || strncmp(req->r_dentry->d_name.name,
+					       client->mount_args->snapdir_name,
+					       req->r_dentry->d_name.len))) {
 		/*
 		 * lookup link rename   : null -> possibly existing inode
 		 * mknod symlink mkdir  : null -> new inode

@@ -58,6 +58,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <linux/nvram.h>
 #include <linux/proc_fs.h>

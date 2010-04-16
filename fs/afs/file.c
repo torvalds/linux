@@ -12,10 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
+#include <linux/gfp.h>
 #include "internal.h"
 
 static int afs_readpage(struct file *file, struct page *page);

@@ -59,6 +59,7 @@
 #include "amd7930_fn.h"
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 
 static void Amd7930_new_ph(struct IsdnCardState *cs);
 

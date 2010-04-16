@@ -46,6 +46,7 @@
 #include <linux/stddef.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <net/slhc_vj.h>
 #include <asm/atomic.h>
 

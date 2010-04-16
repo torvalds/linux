@@ -16,6 +16,7 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
 #include <sound/core.h>
@@ -25,6 +26,7 @@
 #define MODNAME "US122L"
 #include "usb_stream.c"
 #include "../usbaudio.h"
+#include "../midi.h"
 #include "us122l.h"
 
 MODULE_AUTHOR("Karsten Wiese <fzu@wemgehoertderstaat.de>");

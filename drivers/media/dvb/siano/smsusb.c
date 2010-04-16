@@ -23,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 
 #include "smscoreapi.h"
 #include "sms-cards.h"

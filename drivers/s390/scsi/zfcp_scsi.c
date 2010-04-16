@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <scsi/fc/fc_fcp.h>
 #include <asm/atomic.h>
 #include "zfcp_ext.h"

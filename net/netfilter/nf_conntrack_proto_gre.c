@@ -31,6 +31,7 @@
 #include <linux/in.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <net/dst.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>

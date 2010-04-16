@@ -18,6 +18,7 @@
 #include <linux/compat.h>
 #include <linux/ioctl.h>
 #include <linux/mount.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include "xfs.h"
 #include "xfs_fs.h"

@@ -14,6 +14,7 @@
 
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 
 #include "ieee80211_i.h"

@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/kdev_t.h>
+#include <linux/gfp.h>
 #include <linux/bio.h>
 #include <linux/fs.h>
 #include <linux/buffer_head.h>

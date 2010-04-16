@@ -26,6 +26,7 @@
  */
 #include <linux/mtd/pfow.h>
 #include <linux/mtd/qinfo.h>
+#include <linux/slab.h>
 
 static int lpddr_read(struct mtd_info *mtd, loff_t adr, size_t len,
 					size_t *retlen, u_char *buf);

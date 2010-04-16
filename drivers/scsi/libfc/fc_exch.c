@@ -24,7 +24,7 @@
  */
 
 #include <linux/timer.h>
-#include <linux/gfp.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 
 #include <scsi/fc/fc_fc2.h>

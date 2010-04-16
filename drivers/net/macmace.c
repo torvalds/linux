@@ -30,6 +30,7 @@
 #include <linux/bitrev.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
+#include <linux/gfp.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/macintosh.h>

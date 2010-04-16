@@ -20,6 +20,7 @@
 
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 
 #include <asm/lv1call.h>

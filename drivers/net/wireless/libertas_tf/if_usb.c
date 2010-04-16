@@ -11,6 +11,7 @@
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #define DRV_NAME "lbtf_usb"

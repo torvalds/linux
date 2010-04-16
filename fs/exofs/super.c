@@ -37,6 +37,7 @@
 #include <linux/vfs.h>
 #include <linux/random.h>
 #include <linux/exportfs.h>
+#include <linux/slab.h>
 
 #include "exofs.h"
 

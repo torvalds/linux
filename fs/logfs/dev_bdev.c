@@ -9,6 +9,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
+#include <linux/gfp.h>
 
 #define PAGE_OFS(ofs) ((ofs) & (PAGE_SIZE-1))
 
@@ -80,6 +81,7 @@ static void writeseg_end_io(struct bio *bio, int err)
 			prefetchw(&bvec->bv_page->flags);
 
 		end_page_writeback(page);
+		page_cache_release(page);
 	} while (bvec >= bio->bi_io_vec);
 	bio_put(bio);
 	if (atomic_dec_and_test(&super->s_pending_writes))
@@ -97,8 +99,10 @@ static int __bdev_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
 	unsigned int max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
 	int i;
 
+	if (max_pages > BIO_MAX_PAGES)
+		max_pages = BIO_MAX_PAGES;
 	bio = bio_alloc(GFP_NOFS, max_pages);
-	BUG_ON(!bio); /* FIXME: handle this */
+	BUG_ON(!bio);
 
 	for (i = 0; i < nr_pages; i++) {
 		if (i >= max_pages) {
@@ -191,8 +195,10 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
 	unsigned int max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
 	int i;
 
+	if (max_pages > BIO_MAX_PAGES)
+		max_pages = BIO_MAX_PAGES;
 	bio = bio_alloc(GFP_NOFS, max_pages);
-	BUG_ON(!bio); /* FIXME: handle this */
+	BUG_ON(!bio);
 
 	for (i = 0; i < nr_pages; i++) {
 		if (i >= max_pages) {
