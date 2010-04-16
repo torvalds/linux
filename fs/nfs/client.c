@@ -1364,7 +1364,7 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 		goto error;
 
 	/* Probe the root fh to retrieve its FSID */
-	error = nfs4_path_walk(server, mntfh, data->nfs_server.export_path);
+	error = nfs4_get_rootfh(server, mntfh);
 	if (error < 0)
 		goto error;
 
@@ -1443,7 +1443,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
 	/* Probe the root fh to retrieve its FSID and filehandle */
-	error = nfs4_path_walk(server, mntfh, data->mnt_path);
+	error = nfs4_get_rootfh(server, mntfh);
 	if (error < 0)
 		goto error;
 
