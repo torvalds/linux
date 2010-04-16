@@ -101,6 +101,7 @@ struct wmi *ath9k_init_wmi(struct ath9k_htc_priv *priv)
 	wmi->drv_priv = priv;
 	wmi->stopped = false;
 	mutex_init(&wmi->op_mutex);
+	mutex_init(&wmi->multi_write_mutex);
 	init_completion(&wmi->cmd_wait);
 
 	return wmi;

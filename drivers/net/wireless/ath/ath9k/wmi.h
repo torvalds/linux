@@ -84,6 +84,13 @@ enum wmi_event_id {
 	WMI_TXRATE_EVENTID,
 };
 
+#define MAX_CMD_NUMBER 62
+
+struct register_write {
+	u32 reg;
+	u32 val;
+};
+
 struct wmi {
 	struct ath9k_htc_priv *drv_priv;
 	struct htc_target *htc;
@@ -97,6 +104,11 @@ struct wmi {
 
 	struct sk_buff *wmi_skb;
 	spinlock_t wmi_lock;
+
+	atomic_t mwrite_cnt;
+	struct register_write multi_write[MAX_CMD_NUMBER];
+	u32 multi_write_idx;
+	struct mutex multi_write_mutex;
 };
 
 struct wmi *ath9k_init_wmi(struct ath9k_htc_priv *priv);
