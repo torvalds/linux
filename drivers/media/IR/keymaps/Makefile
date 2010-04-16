@@ -30,6 +30,8 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-genius-tvgo-a11mce.o \
 			rc-gotview7135.o \
 			rc-hauppauge-new.o \
+			rc-imon-mce.o \
+			rc-imon-pad.o \
 			rc-iodata-bctv7e.o \
 			rc-kaiomy.o \
 			rc-kworld-315u.o \

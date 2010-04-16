@@ -79,6 +79,8 @@ void rc_map_init(void);
 #define RC_MAP_GENIUS_TVGO_A11MCE        "rc-genius-tvgo-a11mce"
 #define RC_MAP_GOTVIEW7135               "rc-gotview7135"
 #define RC_MAP_HAUPPAUGE_NEW             "rc-hauppauge-new"
+#define RC_MAP_IMON_MCE                  "rc-imon-mce"
+#define RC_MAP_IMON_PAD                  "rc-imon-pad"
 #define RC_MAP_IODATA_BCTV7E             "rc-iodata-bctv7e"
 #define RC_MAP_KAIOMY                    "rc-kaiomy"
 #define RC_MAP_KWORLD_315U               "rc-kworld-315u"
