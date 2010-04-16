@@ -1565,13 +1565,14 @@ static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 	r = 0;
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
+restart:
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link)
 		if (sp->gfn == gfn && !sp->role.direct) {
 			pgprintk("%s: gfn %lx role %x\n", __func__, gfn,
 				 sp->role.word);
 			r = 1;
 			if (kvm_mmu_zap_page(kvm, sp))
-				n = bucket->first;
+				goto restart;
 		}
 	return r;
 }
@@ -1585,13 +1586,14 @@ static void mmu_unshadow(struct kvm *kvm, gfn_t gfn)
 
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
+restart:
 	hlist_for_each_entry_safe(sp, node, nn, bucket, hash_link) {
 		if (sp->gfn == gfn && !sp->role.direct
 		    && !sp->role.invalid) {
 			pgprintk("%s: zap %lx %x\n",
 				 __func__, gfn, sp->role.word);
 			if (kvm_mmu_zap_page(kvm, sp))
-				nn = bucket->first;
+				goto restart;
 		}
 	}
 }
@@ -2671,6 +2673,8 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	}
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
+
+restart:
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link) {
 		if (sp->gfn != gfn || sp->role.direct || sp->role.invalid)
 			continue;
@@ -2691,7 +2695,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			pgprintk("misaligned: gpa %llx bytes %d role %x\n",
 				 gpa, bytes, sp->role.word);
 			if (kvm_mmu_zap_page(vcpu->kvm, sp))
-				n = bucket->first;
+				goto restart;
 			++vcpu->kvm->stat.mmu_flooded;
 			continue;
 		}
@@ -2900,10 +2904,11 @@ void kvm_mmu_zap_all(struct kvm *kvm)
 	struct kvm_mmu_page *sp, *node;
 
 	spin_lock(&kvm->mmu_lock);
+restart:
 	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link)
 		if (kvm_mmu_zap_page(kvm, sp))
-			node = container_of(kvm->arch.active_mmu_pages.next,
-					    struct kvm_mmu_page, link);
+			goto restart;
+
 	spin_unlock(&kvm->mmu_lock);
 
 	kvm_flush_remote_tlbs(kvm);
