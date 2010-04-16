@@ -430,7 +430,8 @@ static int iwm_ntf_rx_ticket(struct iwm_priv *iwm, u8 *buf,
 				return PTR_ERR(ticket_node);
 
 			IWM_DBG_RX(iwm, DBG, "TICKET %s(%d)\n",
-				   ticket->action ==  IWM_RX_TICKET_RELEASE ?
+				   __le16_to_cpu(ticket->action) ==
+							IWM_RX_TICKET_RELEASE ?
 				   "RELEASE" : "DROP",
 				   ticket->id);
 			spin_lock(&iwm->ticket_lock);

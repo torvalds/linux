@@ -76,7 +76,7 @@ TRACE_EVENT(iwm_tx_wifi_cmd,
 		IWM_ASSIGN;
 		__entry->opcode = hdr->sw_hdr.cmd.cmd;
 		__entry->lmac = 0;
-		__entry->seq = hdr->sw_hdr.cmd.seq_num;
+		__entry->seq = __le16_to_cpu(hdr->sw_hdr.cmd.seq_num);
 		__entry->resp = GET_VAL8(hdr->sw_hdr.cmd.flags, UMAC_DEV_CMD_FLAGS_RESP_REQ);
 		__entry->color = GET_VAL32(hdr->sw_hdr.meta_data, UMAC_FW_CMD_TX_STA_COLOR);
 		__entry->eot = GET_VAL32(hdr->hw_hdr.cmd, UMAC_HDI_OUT_CMD_EOT);
@@ -123,7 +123,7 @@ TRACE_EVENT(iwm_tx_packets,
 		__entry->ra_tid = GET_VAL32(hdr->hw_hdr.meta_data, UMAC_HDI_OUT_RATID);
 		__entry->credit_group = GET_VAL32(hdr->hw_hdr.meta_data, UMAC_HDI_OUT_CREDIT_GRP);
 		__entry->color = GET_VAL32(hdr->sw_hdr.meta_data, UMAC_FW_CMD_TX_STA_COLOR);
-		__entry->seq = hdr->sw_hdr.cmd.seq_num;
+		__entry->seq = __le16_to_cpu(hdr->sw_hdr.cmd.seq_num);
 		__entry->npkt = 1;
 		__entry->bytes = len;
 

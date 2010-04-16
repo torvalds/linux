@@ -301,8 +301,8 @@ void iwm_tx_credit_init_pools(struct iwm_priv *iwm,
 
 #define IWM_UDMA_HDR_LEN	sizeof(struct iwm_umac_wifi_out_hdr)
 
-static int iwm_tx_build_packet(struct iwm_priv *iwm, struct sk_buff *skb,
-			       int pool_id, u8 *buf)
+static __le16 iwm_tx_build_packet(struct iwm_priv *iwm, struct sk_buff *skb,
+				  int pool_id, u8 *buf)
 {
 	struct iwm_umac_wifi_out_hdr *hdr = (struct iwm_umac_wifi_out_hdr *)buf;
 	struct iwm_udma_wifi_cmd udma_cmd;
