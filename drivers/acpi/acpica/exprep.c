@@ -471,13 +471,18 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		/* allow full data read from EC address space */
 		if (obj_desc->field.region_obj->region.space_id ==
 			ACPI_ADR_SPACE_EC) {
-			if (obj_desc->common_field.bit_length > 8)
-				obj_desc->common_field.access_bit_width =
-				ACPI_ROUND_UP(obj_desc->common_field.
-							bit_length, 8);
+			if (obj_desc->common_field.bit_length > 8) {
+				unsigned width =
+					ACPI_ROUND_BITS_UP_TO_BYTES(
+					obj_desc->common_field.bit_length);
+				// access_bit_width is u8, don't overflow it
+				if (width > 8)
+					width = 8;
 				obj_desc->common_field.access_byte_width =
-				ACPI_DIV_8(obj_desc->common_field.
-							access_bit_width);
+							width;
+				obj_desc->common_field.access_bit_width =
+							8 * width;
+			}
 		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
