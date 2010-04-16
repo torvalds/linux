@@ -3511,7 +3511,9 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 	return _nfs4_async_handle_error(task, server, server->nfs_client, state);
 }
 
-int nfs4_proc_setclientid(struct nfs_client *clp, u32 program, unsigned short port, struct rpc_cred *cred)
+int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
+		unsigned short port, struct rpc_cred *cred,
+		struct nfs4_setclientid_res *res)
 {
 	nfs4_verifier sc_verifier;
 	struct nfs4_setclientid setclientid = {
@@ -3521,7 +3523,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program, unsigned short po
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SETCLIENTID],
 		.rpc_argp = &setclientid,
-		.rpc_resp = clp,
+		.rpc_resp = res,
 		.rpc_cred = cred,
 	};
 	__be32 *p;
@@ -3564,12 +3566,14 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program, unsigned short po
 	return status;
 }
 
-static int _nfs4_proc_setclientid_confirm(struct nfs_client *clp, struct rpc_cred *cred)
+static int _nfs4_proc_setclientid_confirm(struct nfs_client *clp,
+		struct nfs4_setclientid_res *arg,
+		struct rpc_cred *cred)
 {
 	struct nfs_fsinfo fsinfo;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SETCLIENTID_CONFIRM],
-		.rpc_argp = clp,
+		.rpc_argp = arg,
 		.rpc_resp = &fsinfo,
 		.rpc_cred = cred,
 	};
@@ -3587,12 +3591,14 @@ static int _nfs4_proc_setclientid_confirm(struct nfs_client *clp, struct rpc_cre
 	return status;
 }
 
-int nfs4_proc_setclientid_confirm(struct nfs_client *clp, struct rpc_cred *cred)
+int nfs4_proc_setclientid_confirm(struct nfs_client *clp,
+		struct nfs4_setclientid_res *arg,
+		struct rpc_cred *cred)
 {
 	long timeout = 0;
 	int err;
 	do {
-		err = _nfs4_proc_setclientid_confirm(clp, cred);
+		err = _nfs4_proc_setclientid_confirm(clp, arg, cred);
 		switch (err) {
 			case 0:
 				return err;

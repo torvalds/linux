@@ -824,6 +824,11 @@ struct nfs4_setclientid {
 	u32				sc_cb_ident;
 };
 
+struct nfs4_setclientid_res {
+	u64				clientid;
+	nfs4_verifier			confirm;
+};
+
 struct nfs4_statfs_arg {
 	const struct nfs_fh *		fh;
 	const u32 *			bitmask;
