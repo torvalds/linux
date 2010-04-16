@@ -68,6 +68,24 @@
 #define REG_READ(_ah, _reg) \
 	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
+#define ENABLE_REGWRITE_BUFFER(_ah)					\
+	do {								\
+		if (AR_SREV_9271(_ah))					\
+			ath9k_hw_common(_ah)->ops->enable_write_buffer((_ah)); \
+	} while (0)
+
+#define DISABLE_REGWRITE_BUFFER(_ah)					\
+	do {								\
+		if (AR_SREV_9271(_ah))					\
+			ath9k_hw_common(_ah)->ops->disable_write_buffer((_ah)); \
+	} while (0)
+
+#define REGWRITE_BUFFER_FLUSH(_ah)					\
+	do {								\
+		if (AR_SREV_9271(_ah))					\
+			ath9k_hw_common(_ah)->ops->write_flush((_ah));	\
+	} while (0)
+
 #define SM(_v, _f)  (((_v) << _f##_S) & _f)
 #define MS(_v, _f)  (((_v) & _f) >> _f##_S)
 #define REG_RMW(_a, _r, _set, _clr)    \
