@@ -418,8 +418,8 @@ static int
 nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct page *page,
 		 unsigned int len, struct iattr *sattr)
 {
-	struct nfs_fh fhandle;
-	struct nfs_fattr fattr;
+	struct nfs_fh *fh;
+	struct nfs_fattr *fattr;
 	struct nfs_symlinkargs	arg = {
 		.fromfh		= NFS_FH(dir),
 		.fromname	= dentry->d_name.name,
@@ -432,12 +432,18 @@ nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct page *page,
 		.rpc_proc	= &nfs_procedures[NFSPROC_SYMLINK],
 		.rpc_argp	= &arg,
 	};
-	int			status;
-
-	if (len > NFS2_MAXPATHLEN)
-		return -ENAMETOOLONG;
+	int status = -ENAMETOOLONG;
 
 	dprintk("NFS call  symlink %s\n", dentry->d_name.name);
+
+	if (len > NFS2_MAXPATHLEN)
+		goto out;
+
+	fh = nfs_alloc_fhandle();
+	fattr = nfs_alloc_fattr();
+	status = -ENOMEM;
+	if (fh == NULL || fattr == NULL)
+		goto out;
 
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_mark_for_revalidate(dir);
@@ -447,12 +453,12 @@ nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct page *page,
 	 * filehandle size to zero indicates to nfs_instantiate that it
 	 * should fill in the data with a LOOKUP call on the wire.
 	 */
-	if (status == 0) {
-		nfs_fattr_init(&fattr);
-		fhandle.size = 0;
-		status = nfs_instantiate(dentry, &fhandle, &fattr);
-	}
+	if (status == 0)
+		status = nfs_instantiate(dentry, fh, fattr);
 
+	nfs_free_fattr(fattr);
+	nfs_free_fhandle(fh);
+out:
 	dprintk("NFS reply symlink: %d\n", status);
 	return status;
 }
