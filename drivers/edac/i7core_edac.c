@@ -1670,7 +1670,7 @@ static void i7core_check_error(struct mem_ctl_info *mci)
 	count = (pvt->mce_out + MCE_LOG_LEN - pvt->mce_in)
 		% MCE_LOG_LEN;
 	if (!count)
-		return;
+		goto check_ce_error;
 
 	m = pvt->mce_outentry;
 	if (pvt->mce_in + count > MCE_LOG_LEN) {
@@ -1703,6 +1703,7 @@ static void i7core_check_error(struct mem_ctl_info *mci)
 	/*
 	 * Now, let's increment CE error counts
 	 */
+check_ce_error:
 	if (!pvt->is_registered)
 		i7core_udimm_check_mc_ecc_err(mci);
 	else
