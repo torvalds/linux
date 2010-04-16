@@ -3780,7 +3780,7 @@ int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner)
 	 * the mutex owner just released it and exited.
 	 */
 	if (probe_kernel_address(&owner->cpu, cpu))
-		goto out;
+		return 0;
 #else
 	cpu = owner->cpu;
 #endif
@@ -3790,14 +3790,14 @@ int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner)
 	 * the cpu field may no longer be valid.
 	 */
 	if (cpu >= nr_cpumask_bits)
-		goto out;
+		return 0;
 
 	/*
 	 * We need to validate that we can do a
 	 * get_cpu() and that we have the percpu area.
 	 */
 	if (!cpu_online(cpu))
-		goto out;
+		return 0;
 
 	rq = cpu_rq(cpu);
 
@@ -3816,7 +3816,7 @@ int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner)
 
 		cpu_relax();
 	}
-out:
+
 	return 1;
 }
 #endif
