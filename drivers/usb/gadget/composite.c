@@ -892,6 +892,21 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		case USB_DT_STRING:
 			value = get_string(cdev, req->buf,
 					w_index, w_value & 0xff);
+
+			/* Allow functions to handle USB_DT_STRING.
+			 * This is required for MTP.
+			 */
+			if (value < 0) {
+				struct usb_configuration        *cfg;
+				list_for_each_entry(cfg, &cdev->configs, list) {
+					if (cfg && cfg->setup) {
+						value = cfg->setup(cfg, ctrl);
+						if (value >= 0)
+							break;
+					}
+				}
+			}
+
 			if (value >= 0)
 				value = min(w_length, (u16) value);
 			break;
