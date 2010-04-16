@@ -582,6 +582,19 @@ static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
 	return EP_INTERVAL(interval);
 }
 
+/* The "Mult" field in the endpoint context is only set for SuperSpeed devices.
+ * High speed endpoint descriptors can define "the number of additional
+ * transaction opportunities per microframe", but that goes in the Max Burst
+ * endpoint context field.
+ */
+static inline u32 xhci_get_endpoint_mult(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	if (udev->speed != USB_SPEED_SUPER || !ep->ss_ep_comp)
+		return 0;
+	return ep->ss_ep_comp->desc.bmAttributes;
+}
+
 static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
@@ -644,6 +657,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	ep_ctx->deq = ep_ring->first_seg->dma | ep_ring->cycle_state;
 
 	ep_ctx->ep_info = xhci_get_endpoint_interval(udev, ep);
+	ep_ctx->ep_info |= EP_MULT(xhci_get_endpoint_mult(udev, ep));
 
 	/* FIXME dig Mult and streams info out of ep companion desc */
 
