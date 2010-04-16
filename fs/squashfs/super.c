@@ -275,7 +275,8 @@ allocate_root:
 
 	err = squashfs_read_inode(root, root_inode);
 	if (err) {
-		iget_failed(root);
+		make_bad_inode(root);
+		iput(root);
 		goto failed_mount;
 	}
 	insert_inode_hash(root);
