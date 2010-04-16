@@ -173,11 +173,6 @@ struct kvm_shadow_walk_iterator {
 	     shadow_walk_okay(&(_walker));			\
 	     shadow_walk_next(&(_walker)))
 
-
-struct kvm_unsync_walk {
-	int (*entry) (struct kvm_mmu_page *sp, struct kvm_unsync_walk *walk);
-};
-
 typedef int (*mmu_parent_walk_fn) (struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp);
 
 static struct kmem_cache *pte_chain_cache;
