@@ -33,9 +33,6 @@
 #define DA830_EVM_PHY_MASK		0x0
 #define DA830_EVM_MDIO_FREQUENCY	2200000	/* PHY bus frequency */
 
-#define DA830_EMIF25_ASYNC_DATA_CE3_BASE	0x62000000
-#define DA830_EMIF25_CONTROL_BASE		0x68000000
-
 /*
  * USB1 VBUS is controlled by GPIO1[15], over-current is reported on GPIO2[4].
  */
@@ -375,13 +372,13 @@ static struct davinci_nand_pdata da830_evm_nand_pdata = {
 
 static struct resource da830_evm_nand_resources[] = {
 	[0] = {		/* First memory resource is NAND I/O window */
-		.start	= DA830_EMIF25_ASYNC_DATA_CE3_BASE,
-		.end	= DA830_EMIF25_ASYNC_DATA_CE3_BASE + PAGE_SIZE - 1,
+		.start	= DA8XX_AEMIF_CS3_BASE,
+		.end	= DA8XX_AEMIF_CS3_BASE + PAGE_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {		/* Second memory resource is AEMIF control registers */
-		.start	= DA830_EMIF25_CONTROL_BASE,
-		.end	= DA830_EMIF25_CONTROL_BASE + SZ_32K - 1,
+		.start	= DA8XX_AEMIF_CTL_BASE,
+		.end	= DA8XX_AEMIF_CTL_BASE + SZ_32K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
