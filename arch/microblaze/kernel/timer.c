@@ -235,6 +235,12 @@ static int __init microblaze_clocksource_init(void)
 	return 0;
 }
 
+/*
+ * We have to protect accesses before timer initialization
+ * and return 0 for sched_clock function below.
+ */
+static int timer_initialized;
+
 void __init time_init(void)
 {
 	u32 irq, i = 0;
@@ -289,4 +295,15 @@ void __init time_init(void)
 #endif
 	microblaze_clocksource_init();
 	microblaze_clockevent_init();
+	timer_initialized = 1;
+}
+
+unsigned long long notrace sched_clock(void)
+{
+	if (timer_initialized) {
+		struct clocksource *cs = &clocksource_microblaze;
+		cycle_t cyc = cs->read(NULL);
+		return clocksource_cyc2ns(cyc, cs->mult, cs->shift);
+	}
+	return 0;
 }
