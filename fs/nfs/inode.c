@@ -916,6 +916,26 @@ void nfs_fattr_init(struct nfs_fattr *fattr)
 	fattr->gencount = nfs_inc_attr_generation_counter();
 }
 
+struct nfs_fattr *nfs_alloc_fattr(void)
+{
+	struct nfs_fattr *fattr;
+
+	fattr = kmalloc(sizeof(*fattr), GFP_NOFS);
+	if (fattr != NULL)
+		nfs_fattr_init(fattr);
+	return fattr;
+}
+
+struct nfs_fh *nfs_alloc_fhandle(void)
+{
+	struct nfs_fh *fh;
+
+	fh = kmalloc(sizeof(struct nfs_fh), GFP_NOFS);
+	if (fh != NULL)
+		fh->size = 0;
+	return fh;
+}
+
 /**
  * nfs_inode_attrs_need_update - check if the inode attributes need updating
  * @inode - pointer to inode
