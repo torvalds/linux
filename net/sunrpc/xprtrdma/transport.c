@@ -449,21 +449,19 @@ xprt_rdma_connect(struct rpc_task *task)
 	struct rpc_xprt *xprt = (struct rpc_xprt *)task->tk_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
-	if (!xprt_test_and_set_connecting(xprt)) {
-		if (r_xprt->rx_ep.rep_connected != 0) {
-			/* Reconnect */
-			schedule_delayed_work(&r_xprt->rdma_connect,
-				xprt->reestablish_timeout);
-			xprt->reestablish_timeout <<= 1;
-			if (xprt->reestablish_timeout > (30 * HZ))
-				xprt->reestablish_timeout = (30 * HZ);
-			else if (xprt->reestablish_timeout < (5 * HZ))
-				xprt->reestablish_timeout = (5 * HZ);
-		} else {
-			schedule_delayed_work(&r_xprt->rdma_connect, 0);
-			if (!RPC_IS_ASYNC(task))
-				flush_scheduled_work();
-		}
+	if (r_xprt->rx_ep.rep_connected != 0) {
+		/* Reconnect */
+		schedule_delayed_work(&r_xprt->rdma_connect,
+			xprt->reestablish_timeout);
+		xprt->reestablish_timeout <<= 1;
+		if (xprt->reestablish_timeout > (30 * HZ))
+			xprt->reestablish_timeout = (30 * HZ);
+		else if (xprt->reestablish_timeout < (5 * HZ))
+			xprt->reestablish_timeout = (5 * HZ);
+	} else {
+		schedule_delayed_work(&r_xprt->rdma_connect, 0);
+		if (!RPC_IS_ASYNC(task))
+			flush_scheduled_work();
 	}
 }
 
