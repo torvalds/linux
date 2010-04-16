@@ -353,15 +353,14 @@ restart:
 	/*
 	 * Other senders will see we have c_send_lock and exit. We
 	 * need to recheck the send queue and race again for c_send_lock
-	 * to make sure messages don't just sit on the send queue.
+	 * to make sure messages don't just sit on the send queue, if
+	 * somebody hasn't already beat us into the loop.
 	 *
 	 * If the transport cannot continue (i.e ret != 0), then it must
 	 * call us when more room is available, such as from the tx
 	 * completion handler.
 	 */
 	if (ret == 0) {
-		/* A simple bit test would be way faster than taking the
-		 * spin lock */
 		smp_mb();
 		if (!list_empty(&conn->c_send_queue)) {
 			rds_stats_inc(s_send_lock_queue_raced);
