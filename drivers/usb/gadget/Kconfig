@@ -863,6 +863,12 @@ config USB_ANDROID_MASS_STORAGE
 	help
 	  Provides USB mass storage function for android gadget driver.
 
+config USB_ANDROID_MTP
+	boolean "Android MTP function"
+	depends on USB_ANDROID
+	help
+	  Provides Media Transfer Protocol (MTP) support for android gadget driver.
+
 config USB_ANDROID_RNDIS
 	boolean "Android gadget RNDIS ethernet function"
 	depends on USB_ANDROID
