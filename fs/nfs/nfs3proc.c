@@ -144,14 +144,12 @@ static int
 nfs3_proc_lookup(struct inode *dir, struct qstr *name,
 		 struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
-	struct nfs_fattr	dir_attr;
 	struct nfs3_diropargs	arg = {
 		.fh		= NFS_FH(dir),
 		.name		= name->name,
 		.len		= name->len
 	};
 	struct nfs3_diropres	res = {
-		.dir_attr	= &dir_attr,
 		.fh		= fhandle,
 		.fattr		= fattr
 	};
@@ -163,16 +161,20 @@ nfs3_proc_lookup(struct inode *dir, struct qstr *name,
 	int			status;
 
 	dprintk("NFS call  lookup %s\n", name->name);
-	nfs_fattr_init(&dir_attr);
+	res.dir_attr = nfs_alloc_fattr();
+	if (res.dir_attr == NULL)
+		return -ENOMEM;
+
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	nfs_refresh_inode(dir, &dir_attr);
+	nfs_refresh_inode(dir, res.dir_attr);
 	if (status >= 0 && !(fattr->valid & NFS_ATTR_FATTR)) {
 		msg.rpc_proc = &nfs3_procedures[NFS3PROC_GETATTR];
 		msg.rpc_argp = fhandle;
 		msg.rpc_resp = fattr;
 		status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	}
+	nfs_free_fattr(res.dir_attr);
 	dprintk("NFS reply lookup: %d\n", status);
 	return status;
 }

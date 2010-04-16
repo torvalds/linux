@@ -776,9 +776,9 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	struct inode *dir;
 	struct inode *inode;
 	struct dentry *parent;
+	struct nfs_fh *fhandle = NULL;
+	struct nfs_fattr *fattr = NULL;
 	int error;
-	struct nfs_fh fhandle;
-	struct nfs_fattr fattr;
 
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
@@ -811,14 +811,22 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	if (NFS_STALE(inode))
 		goto out_bad;
 
-	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, &fhandle, &fattr);
+	error = -ENOMEM;
+	fhandle = nfs_alloc_fhandle();
+	fattr = nfs_alloc_fattr();
+	if (fhandle == NULL || fattr == NULL)
+		goto out_error;
+
+	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr);
 	if (error)
 		goto out_bad;
-	if (nfs_compare_fh(NFS_FH(inode), &fhandle))
+	if (nfs_compare_fh(NFS_FH(inode), fhandle))
 		goto out_bad;
-	if ((error = nfs_refresh_inode(inode, &fattr)) != 0)
+	if ((error = nfs_refresh_inode(inode, fattr)) != 0)
 		goto out_bad;
 
+	nfs_free_fattr(fattr);
+	nfs_free_fhandle(fhandle);
 out_set_verifier:
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
  out_valid:
@@ -842,11 +850,21 @@ out_zap_parent:
 		shrink_dcache_parent(dentry);
 	}
 	d_drop(dentry);
+	nfs_free_fattr(fattr);
+	nfs_free_fhandle(fhandle);
 	dput(parent);
 	dfprintk(LOOKUPCACHE, "NFS: %s(%s/%s) is invalid\n",
 			__func__, dentry->d_parent->d_name.name,
 			dentry->d_name.name);
 	return 0;
+out_error:
+	nfs_free_fattr(fattr);
+	nfs_free_fhandle(fhandle);
+	dput(parent);
+	dfprintk(LOOKUPCACHE, "NFS: %s(%s/%s) lookup returned error %d\n",
+			__func__, dentry->d_parent->d_name.name,
+			dentry->d_name.name, error);
+	return error;
 }
 
 /*
@@ -911,9 +929,9 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 	struct dentry *res;
 	struct dentry *parent;
 	struct inode *inode = NULL;
+	struct nfs_fh *fhandle = NULL;
+	struct nfs_fattr *fattr = NULL;
 	int error;
-	struct nfs_fh fhandle;
-	struct nfs_fattr fattr;
 
 	dfprintk(VFS, "NFS: lookup(%s/%s)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
@@ -923,7 +941,6 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 	if (dentry->d_name.len > NFS_SERVER(dir)->namelen)
 		goto out;
 
-	res = ERR_PTR(-ENOMEM);
 	dentry->d_op = NFS_PROTO(dir)->dentry_ops;
 
 	/*
@@ -936,17 +953,23 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 		goto out;
 	}
 
+	res = ERR_PTR(-ENOMEM);
+	fhandle = nfs_alloc_fhandle();
+	fattr = nfs_alloc_fattr();
+	if (fhandle == NULL || fattr == NULL)
+		goto out;
+
 	parent = dentry->d_parent;
 	/* Protect against concurrent sillydeletes */
 	nfs_block_sillyrename(parent);
-	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, &fhandle, &fattr);
+	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr);
 	if (error == -ENOENT)
 		goto no_entry;
 	if (error < 0) {
 		res = ERR_PTR(error);
 		goto out_unblock_sillyrename;
 	}
-	inode = nfs_fhget(dentry->d_sb, &fhandle, &fattr);
+	inode = nfs_fhget(dentry->d_sb, fhandle, fattr);
 	res = (struct dentry *)inode;
 	if (IS_ERR(res))
 		goto out_unblock_sillyrename;
@@ -962,6 +985,8 @@ no_entry:
 out_unblock_sillyrename:
 	nfs_unblock_sillyrename(parent);
 out:
+	nfs_free_fattr(fattr);
+	nfs_free_fhandle(fhandle);
 	return res;
 }
 
