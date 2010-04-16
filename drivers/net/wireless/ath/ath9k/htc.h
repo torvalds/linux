@@ -261,6 +261,7 @@ struct ath_tx_stats {
 	u32 buf_completed;
 	u32 skb_queued;
 	u32 skb_completed;
+	u32 skb_dropped;
 };
 
 struct ath_rx_stats {

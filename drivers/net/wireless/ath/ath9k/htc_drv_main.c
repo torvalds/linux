@@ -609,6 +609,9 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "SKBs completed",
 			priv->debug.tx_stats.skb_completed);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "SKBs dropped",
+			priv->debug.tx_stats.skb_dropped);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
