@@ -2880,17 +2880,21 @@ static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
 	struct super_block *s;
 	struct nfs_server *server;
 	struct dentry *mntroot;
-	struct nfs_fh mntfh;
+	struct nfs_fh *mntfh;
 	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	struct nfs_sb_mountdata sb_mntdata = {
 		.mntflags = flags,
 	};
-	int error;
+	int error = -ENOMEM;
 
 	dprintk("--> nfs4_referral_get_sb()\n");
 
+	mntfh = nfs_alloc_fhandle();
+	if (mntfh == NULL)
+		goto out_err_nofh;
+
 	/* create a new volume representation */
-	server = nfs4_create_referral_server(data, &mntfh);
+	server = nfs4_create_referral_server(data, mntfh);
 	if (IS_ERR(server)) {
 		error = PTR_ERR(server);
 		goto out_err_noserver;
@@ -2922,7 +2926,7 @@ static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
 		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
-	mntroot = nfs4_get_root(s, &mntfh);
+	mntroot = nfs4_get_root(s, mntfh);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
@@ -2939,12 +2943,15 @@ static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
 
 	security_sb_clone_mnt_opts(data->sb, s);
 
+	nfs_free_fhandle(mntfh);
 	dprintk("<-- nfs4_referral_get_sb() = 0\n");
 	return 0;
 
 out_err_nosb:
 	nfs_free_server(server);
 out_err_noserver:
+	nfs_free_fhandle(mntfh);
+out_err_nofh:
 	dprintk("<-- nfs4_referral_get_sb() = %d [error]\n", error);
 	return error;
 
@@ -2953,6 +2960,7 @@ error_splat_super:
 		bdi_unregister(&server->backing_dev_info);
 error_splat_bdi:
 	deactivate_locked_super(s);
+	nfs_free_fhandle(mntfh);
 	dprintk("<-- nfs4_referral_get_sb() = %d [splat]\n", error);
 	return error;
 }
