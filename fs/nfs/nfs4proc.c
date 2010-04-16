@@ -70,6 +70,9 @@ static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinf
 static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *, struct nfs4_state *);
 static int _nfs4_proc_lookup(struct inode *dir, const struct qstr *name, struct nfs_fh *fhandle, struct nfs_fattr *fattr);
 static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fattr *fattr);
+static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
+			    struct nfs_fattr *fattr, struct iattr *sattr,
+			    struct nfs4_state *state);
 
 /* Prevent leaks of NFSv4 errors into userland */
 static int nfs4_map_errors(int err)
@@ -1659,15 +1662,24 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, in
 	if (status != 0)
 		goto err_opendata_put;
 
-	if (opendata->o_arg.open_flags & O_EXCL)
-		nfs4_exclusive_attrset(opendata, sattr);
-
 	state = nfs4_opendata_to_nfs4_state(opendata);
 	status = PTR_ERR(state);
 	if (IS_ERR(state))
 		goto err_opendata_put;
 	if (server->caps & NFS_CAP_POSIX_LOCK)
 		set_bit(NFS_STATE_POSIX_LOCKS, &state->flags);
+
+	if (opendata->o_arg.open_flags & O_EXCL) {
+		nfs4_exclusive_attrset(opendata, sattr);
+
+		nfs_fattr_init(opendata->o_res.f_attr);
+		status = nfs4_do_setattr(state->inode, cred,
+				opendata->o_res.f_attr, sattr,
+				state);
+		if (status == 0)
+			nfs_setattr_update_inode(state->inode, sattr);
+		nfs_post_op_update_inode(state->inode, opendata->o_res.f_attr);
+	}
 	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);
 	*res = state;
@@ -2565,13 +2577,6 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	}
 	d_add(dentry, igrab(state->inode));
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-	if (flags & O_EXCL) {
-		struct nfs_fattr fattr;
-		status = nfs4_do_setattr(state->inode, cred, &fattr, sattr, state);
-		if (status == 0)
-			nfs_setattr_update_inode(state->inode, sattr);
-		nfs_post_op_update_inode(state->inode, &fattr);
-	}
 	if (status == 0 && (nd->flags & LOOKUP_OPEN) != 0)
 		status = nfs4_intent_set_file(nd, &path, state, fmode);
 	else
