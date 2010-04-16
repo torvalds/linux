@@ -8,3 +8,6 @@ obj-$(CONFIG_VIDEO_IR) += ir-common.o
 obj-$(CONFIG_IR_NEC_DECODER) += ir-nec-decoder.o
 obj-$(CONFIG_IR_RC5_DECODER) += ir-rc5-decoder.o
 obj-$(CONFIG_IR_RC6_DECODER) += ir-rc6-decoder.o
+
+# stand-alone IR receivers/transmitters
+obj-$(CONFIG_IR_IMON) += imon.o
