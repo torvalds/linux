@@ -78,46 +78,52 @@ struct dentry *nfs_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 {
 	struct nfs_server *server = NFS_SB(sb);
 	struct nfs_fsinfo fsinfo;
-	struct nfs_fattr fattr;
-	struct dentry *mntroot;
+	struct dentry *ret;
 	struct inode *inode;
 	int error;
 
 	/* get the actual root for this mount */
-	fsinfo.fattr = &fattr;
+	fsinfo.fattr = nfs_alloc_fattr();
+	if (fsinfo.fattr == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	error = server->nfs_client->rpc_ops->getroot(server, mntfh, &fsinfo);
 	if (error < 0) {
 		dprintk("nfs_get_root: getattr error = %d\n", -error);
-		return ERR_PTR(error);
+		ret = ERR_PTR(error);
+		goto out;
 	}
 
 	inode = nfs_fhget(sb, mntfh, fsinfo.fattr);
 	if (IS_ERR(inode)) {
 		dprintk("nfs_get_root: get root inode failed\n");
-		return ERR_CAST(inode);
+		ret = ERR_CAST(inode);
+		goto out;
 	}
 
 	error = nfs_superblock_set_dummy_root(sb, inode);
-	if (error != 0)
-		return ERR_PTR(error);
+	if (error != 0) {
+		ret = ERR_PTR(error);
+		goto out;
+	}
 
 	/* root dentries normally start off anonymous and get spliced in later
 	 * if the dentry tree reaches them; however if the dentry already
 	 * exists, we'll pick it up at this point and use it as the root
 	 */
-	mntroot = d_obtain_alias(inode);
-	if (IS_ERR(mntroot)) {
+	ret = d_obtain_alias(inode);
+	if (IS_ERR(ret)) {
 		dprintk("nfs_get_root: get root dentry failed\n");
-		return mntroot;
+		goto out;
 	}
 
-	security_d_instantiate(mntroot, inode);
+	security_d_instantiate(ret, inode);
 
-	if (!mntroot->d_op)
-		mntroot->d_op = server->nfs_client->rpc_ops->dentry_ops;
-
-	return mntroot;
+	if (ret->d_op == NULL)
+		ret->d_op = server->nfs_client->rpc_ops->dentry_ops;
+out:
+	nfs_free_fattr(fsinfo.fattr);
+	return ret;
 }
 
 #ifdef CONFIG_NFS_V4
@@ -168,8 +174,8 @@ out:
 struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 {
 	struct nfs_server *server = NFS_SB(sb);
-	struct nfs_fattr fattr;
-	struct dentry *mntroot;
+	struct nfs_fattr *fattr = NULL;
+	struct dentry *ret;
 	struct inode *inode;
 	int error;
 
@@ -183,40 +189,50 @@ struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 		return ERR_PTR(error);
 	}
 
+	fattr = nfs_alloc_fattr();
+	if (fattr == NULL)
+		return ERR_PTR(-ENOMEM);;
+
 	/* get the actual root for this mount */
-	error = server->nfs_client->rpc_ops->getattr(server, mntfh, &fattr);
+	error = server->nfs_client->rpc_ops->getattr(server, mntfh, fattr);
 	if (error < 0) {
 		dprintk("nfs_get_root: getattr error = %d\n", -error);
-		return ERR_PTR(error);
+		ret = ERR_PTR(error);
+		goto out;
 	}
 
-	inode = nfs_fhget(sb, mntfh, &fattr);
+	inode = nfs_fhget(sb, mntfh, fattr);
 	if (IS_ERR(inode)) {
 		dprintk("nfs_get_root: get root inode failed\n");
-		return ERR_CAST(inode);
+		ret = ERR_CAST(inode);
+		goto out;
 	}
 
 	error = nfs_superblock_set_dummy_root(sb, inode);
-	if (error != 0)
-		return ERR_PTR(error);
+	if (error != 0) {
+		ret = ERR_PTR(error);
+		goto out;
+	}
 
 	/* root dentries normally start off anonymous and get spliced in later
 	 * if the dentry tree reaches them; however if the dentry already
 	 * exists, we'll pick it up at this point and use it as the root
 	 */
-	mntroot = d_obtain_alias(inode);
-	if (IS_ERR(mntroot)) {
+	ret = d_obtain_alias(inode);
+	if (IS_ERR(ret)) {
 		dprintk("nfs_get_root: get root dentry failed\n");
-		return mntroot;
+		goto out;
 	}
 
-	security_d_instantiate(mntroot, inode);
+	security_d_instantiate(ret, inode);
 
-	if (!mntroot->d_op)
-		mntroot->d_op = server->nfs_client->rpc_ops->dentry_ops;
+	if (ret->d_op == NULL)
+		ret->d_op = server->nfs_client->rpc_ops->dentry_ops;
 
+out:
+	nfs_free_fattr(fattr);
 	dprintk("<-- nfs4_get_root()\n");
-	return mntroot;
+	return ret;
 }
 
 #endif /* CONFIG_NFS_V4 */
