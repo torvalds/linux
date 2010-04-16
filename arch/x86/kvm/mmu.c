@@ -431,9 +431,9 @@ static void unaccount_shadowed(struct kvm *kvm, gfn_t gfn)
 	int i;
 
 	gfn = unalias_gfn(kvm, gfn);
+	slot = gfn_to_memslot_unaliased(kvm, gfn);
 	for (i = PT_DIRECTORY_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
-		slot          = gfn_to_memslot_unaliased(kvm, gfn);
 		write_count   = slot_largepage_idx(gfn, slot, i);
 		*write_count -= 1;
 		WARN_ON(*write_count < 0);
