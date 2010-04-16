@@ -454,6 +454,8 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 					    &tMinCalPower, gainBoundaries,
 					    pdadcValues, numXpdGain);
 
+			ENABLE_REGWRITE_BUFFER(ah);
+
 			if ((i == 0) || AR_SREV_5416_20_OR_LATER(ah)) {
 				REG_WRITE(ah, AR_PHY_TPCRG5 + regChainOffset,
 					  SM(pdGainOverlap_t2,
@@ -494,6 +496,9 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 
 				regOffset += 4;
 			}
+
+			REGWRITE_BUFFER_FLUSH(ah);
+			DISABLE_REGWRITE_BUFFER(ah);
 		}
 	}
 
@@ -759,6 +764,8 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 			ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
 	}
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	/* OFDM power per rate */
 	REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
 		  ATH9K_POW_SM(ratesArray[rate18mb], 24)
@@ -821,6 +828,9 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 			  | ATH9K_POW_SM(ratesArray[rateDupOfdm], 8)
 			  | ATH9K_POW_SM(ratesArray[rateDupCck], 0));
 	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 static void ath9k_hw_4k_set_addac(struct ath_hw *ah,

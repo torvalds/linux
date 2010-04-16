@@ -590,10 +590,14 @@ static void ar5008_hw_init_chain_masks(struct ath_hw *ah)
 	rx_chainmask = ah->rxchainmask;
 	tx_chainmask = ah->txchainmask;
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	switch (rx_chainmask) {
 	case 0x5:
+		DISABLE_REGWRITE_BUFFER(ah);
 		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
 			    AR_PHY_SWAP_ALT_CHAIN);
+		ENABLE_REGWRITE_BUFFER(ah);
 	case 0x3:
 		if (ah->hw_version.macVersion == AR_SREV_REVISION_5416_10) {
 			REG_WRITE(ah, AR_PHY_RX_CHAINMASK, 0x7);
@@ -611,6 +615,10 @@ static void ar5008_hw_init_chain_masks(struct ath_hw *ah)
 	}
 
 	REG_WRITE(ah, AR_SELFGEN_MASK, tx_chainmask);
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
+
 	if (tx_chainmask == 0x5) {
 		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
 			    AR_PHY_SWAP_ALT_CHAIN);
@@ -689,8 +697,13 @@ static void ar5008_hw_set_channel_regs(struct ath_hw *ah,
 
 	ath9k_hw_set11nmac2040(ah);
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	REG_WRITE(ah, AR_GTXTO, 25 << AR_GTXTO_TIMEOUT_LIMIT_S);
 	REG_WRITE(ah, AR_CST, 0xF << AR_CST_TIMEOUT_LIMIT_S);
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 
@@ -773,6 +786,8 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 
 	REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_INTERNAL_ADDAC);
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	for (i = 0; i < ah->iniModes.ia_rows; i++) {
 		u32 reg = INI_RA(&ah->iniModes, i, 0);
 		u32 val = INI_RA(&ah->iniModes, i, modesIndex);
@@ -790,6 +805,9 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 		DO_DELAY(regWrites);
 	}
 
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
+
 	if (AR_SREV_9280(ah) || AR_SREV_9287_10_OR_LATER(ah))
 		REG_WRITE_ARRAY(&ah->iniModesRxGain, modesIndex, regWrites);
 
@@ -800,6 +818,8 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	if (AR_SREV_9271_10(ah))
 		REG_WRITE_ARRAY(&ah->iniModes_9271_1_0_only,
 				modesIndex, regWrites);
+
+	ENABLE_REGWRITE_BUFFER(ah);
 
 	/* Write common array parameters */
 	for (i = 0; i < ah->iniCommon.ia_rows; i++) {
@@ -815,6 +835,9 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 
 		DO_DELAY(regWrites);
 	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 
 	if (AR_SREV_9271(ah)) {
 		if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) == 1)
@@ -1303,6 +1326,8 @@ static void ar5008_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		udelay(50);
 	}
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		if (chainmask & (1 << i)) {
 			val = REG_READ(ah, ar5416_cca_regs[i]);
@@ -1311,6 +1336,9 @@ static void ar5008_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 			REG_WRITE(ah, ar5416_cca_regs[i], val);
 		}
 	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah)

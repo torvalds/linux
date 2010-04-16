@@ -79,10 +79,16 @@ static void ath9k_ani_restart(struct ath_hw *ah)
 		  "Writing ofdmbase=%u   cckbase=%u\n",
 		  aniState->ofdmPhyErrBase,
 		  aniState->cckPhyErrBase);
+
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	REG_WRITE(ah, AR_PHY_ERR_1, aniState->ofdmPhyErrBase);
 	REG_WRITE(ah, AR_PHY_ERR_2, aniState->cckPhyErrBase);
 	REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_OFDM_TIMING);
 	REG_WRITE(ah, AR_PHY_ERR_MASK_2, AR_PHY_ERR_CCK_TIMING);
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 
 	ath9k_hw_update_mibstats(ah, &ah->ah_mibStats);
 
@@ -357,8 +363,14 @@ void ath9k_ani_reset(struct ath_hw *ah)
 	ath9k_hw_setrxfilter(ah, ath9k_hw_getrxfilter(ah) &
 			     ~ATH9K_RX_FILTER_PHYERR);
 	ath9k_ani_restart(ah);
+
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_OFDM_TIMING);
 	REG_WRITE(ah, AR_PHY_ERR_MASK_2, AR_PHY_ERR_CCK_TIMING);
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 void ath9k_hw_ani_monitor(struct ath_hw *ah,
@@ -456,6 +468,8 @@ void ath9k_enable_mib_counters(struct ath_hw *ah)
 
 	ath9k_hw_update_mibstats(ah, &ah->ah_mibStats);
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	REG_WRITE(ah, AR_FILT_OFDM, 0);
 	REG_WRITE(ah, AR_FILT_CCK, 0);
 	REG_WRITE(ah, AR_MIBC,
@@ -463,6 +477,9 @@ void ath9k_enable_mib_counters(struct ath_hw *ah)
 		  & 0x0f);
 	REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_OFDM_TIMING);
 	REG_WRITE(ah, AR_PHY_ERR_MASK_2, AR_PHY_ERR_CCK_TIMING);
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 /* Freeze the MIB counters, get the stats and then clear them */
@@ -626,8 +643,14 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 	ath_print(common, ATH_DBG_ANI, "Setting cckErrBase = 0x%08x\n",
 		  ah->ani[0].cckPhyErrBase);
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	REG_WRITE(ah, AR_PHY_ERR_1, ah->ani[0].ofdmPhyErrBase);
 	REG_WRITE(ah, AR_PHY_ERR_2, ah->ani[0].cckPhyErrBase);
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
+
 	ath9k_enable_mib_counters(ah);
 
 	ah->aniperiod = ATH9K_ANI_PERIOD;

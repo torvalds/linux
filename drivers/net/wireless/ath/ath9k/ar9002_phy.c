@@ -236,6 +236,8 @@ static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 
 	tmp = REG_READ(ah, AR_PHY_TIMING_CTRL4(0));
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	newVal = tmp | (AR_PHY_TIMING_CTRL4_ENABLE_SPUR_RSSI |
 			AR_PHY_TIMING_CTRL4_ENABLE_SPUR_FILTER |
 			AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK |
@@ -411,6 +413,9 @@ static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 		| (mask_p[47] << 2) | (mask_p[46] << 0);
 	REG_WRITE(ah, AR_PHY_BIN_MASK2_4, tmp_mask);
 	REG_WRITE(ah, AR_PHY_MASK2_P_61_45, tmp_mask);
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 static void ar9002_olc_init(struct ath_hw *ah)

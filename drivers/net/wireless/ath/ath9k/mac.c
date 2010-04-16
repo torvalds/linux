@@ -25,6 +25,8 @@ static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 		  ah->txdesc_interrupt_mask, ah->txeol_interrupt_mask,
 		  ah->txurn_interrupt_mask);
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	REG_WRITE(ah, AR_IMR_S0,
 		  SM(ah->txok_interrupt_mask, AR_IMR_S0_QCU_TXOK)
 		  | SM(ah->txdesc_interrupt_mask, AR_IMR_S0_QCU_TXDESC));
@@ -35,6 +37,9 @@ static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 	ah->imrs2_reg &= ~AR_IMR_S2_QCU_TXURN;
 	ah->imrs2_reg |= (ah->txurn_interrupt_mask & AR_IMR_S2_QCU_TXURN);
 	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q)
@@ -470,6 +475,8 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	} else
 		cwMin = qi->tqi_cwmin;
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	REG_WRITE(ah, AR_DLCL_IFS(q),
 		  SM(cwMin, AR_D_LCL_IFS_CWMIN) |
 		  SM(qi->tqi_cwmax, AR_D_LCL_IFS_CWMAX) |
@@ -483,6 +490,8 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	REG_WRITE(ah, AR_QMISC(q), AR_Q_MISC_DCU_EARLY_TERM_REQ);
 	REG_WRITE(ah, AR_DMISC(q),
 		  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2);
+
+	REGWRITE_BUFFER_FLUSH(ah);
 
 	if (qi->tqi_cbrPeriod) {
 		REG_WRITE(ah, AR_QCBRCFG(q),
@@ -498,6 +507,8 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			  SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_DURATION) |
 			  AR_Q_RDYTIMECFG_EN);
 	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
 
 	REG_WRITE(ah, AR_DCHNTIME(q),
 		  SM(qi->tqi_burstTime, AR_D_CHNTIME_DUR) |
@@ -516,6 +527,10 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			  REG_READ(ah, AR_DMISC(q)) |
 			  AR_D_MISC_POST_FR_BKOFF_DIS);
 	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
+
 	if (qi->tqi_qflags & TXQ_FLAG_FRAG_BURST_BACKOFF_ENABLE) {
 		REG_WRITE(ah, AR_DMISC(q),
 			  REG_READ(ah, AR_DMISC(q)) |
@@ -523,6 +538,8 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	}
 	switch (qi->tqi_type) {
 	case ATH9K_TX_QUEUE_BEACON:
+		ENABLE_REGWRITE_BUFFER(ah);
+
 		REG_WRITE(ah, AR_QMISC(q), REG_READ(ah, AR_QMISC(q))
 			  | AR_Q_MISC_FSP_DBA_GATED
 			  | AR_Q_MISC_BEACON_USE
@@ -533,6 +550,10 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			     AR_D_MISC_ARB_LOCKOUT_CNTRL_S)
 			  | AR_D_MISC_BEACON_USE
 			  | AR_D_MISC_POST_FR_BKOFF_DIS);
+
+		REGWRITE_BUFFER_FLUSH(ah);
+		DISABLE_REGWRITE_BUFFER(ah);
+
 		/* cwmin and cwmax should be 0 for beacon queue */
 		if (AR_SREV_9300_20_OR_LATER(ah)) {
 			REG_WRITE(ah, AR_DLCL_IFS(q), SM(0, AR_D_LCL_IFS_CWMIN)
@@ -541,6 +562,8 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 		}
 		break;
 	case ATH9K_TX_QUEUE_CAB:
+		ENABLE_REGWRITE_BUFFER(ah);
+
 		REG_WRITE(ah, AR_QMISC(q), REG_READ(ah, AR_QMISC(q))
 			  | AR_Q_MISC_FSP_DBA_GATED
 			  | AR_Q_MISC_CBR_INCR_DIS1
@@ -554,6 +577,10 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 		REG_WRITE(ah, AR_DMISC(q), REG_READ(ah, AR_DMISC(q))
 			  | (AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL <<
 			     AR_D_MISC_ARB_LOCKOUT_CNTRL_S));
+
+		REGWRITE_BUFFER_FLUSH(ah);
+		DISABLE_REGWRITE_BUFFER(ah);
+
 		break;
 	case ATH9K_TX_QUEUE_PSPOLL:
 		REG_WRITE(ah, AR_QMISC(q),

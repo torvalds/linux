@@ -488,10 +488,15 @@ static int ar9002_hw_get_radiorev(struct ath_hw *ah)
 	u32 val;
 	int i;
 
-	REG_WRITE(ah, AR_PHY(0x36), 0x00007058);
+	ENABLE_REGWRITE_BUFFER(ah);
 
+	REG_WRITE(ah, AR_PHY(0x36), 0x00007058);
 	for (i = 0; i < 8; i++)
 		REG_WRITE(ah, AR_PHY(0x20), 0x00010000);
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
+
 	val = (REG_READ(ah, AR_PHY(256)) >> 24) & 0xff;
 	val = ((val & 0xf0) >> 4) | ((val & 0x0f) << 4);
 

@@ -527,6 +527,8 @@ static void ar9271_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 		ah->pacal_info.prev_offset = regVal;
 	}
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	regVal = REG_READ(ah, 0x7834);
 	regVal |= 0x1;
 	REG_WRITE(ah, 0x7834, regVal);
@@ -536,6 +538,9 @@ static void ar9271_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 
 	for (i = 0; i < ARRAY_SIZE(regList); i++)
 		REG_WRITE(ah, regList[i][0], regList[i][1]);
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 static inline void ar9285_hw_pa_cal(struct ath_hw *ah, bool is_reset)
