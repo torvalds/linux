@@ -2656,29 +2656,31 @@ static int _nfs4_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		.new_name = new_name,
 		.bitmask = server->attr_bitmask,
 	};
-	struct nfs_fattr old_fattr, new_fattr;
 	struct nfs4_rename_res res = {
 		.server = server,
-		.old_fattr = &old_fattr,
-		.new_fattr = &new_fattr,
 	};
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RENAME],
 		.rpc_argp = &arg,
 		.rpc_resp = &res,
 	};
-	int			status;
+	int status = -ENOMEM;
 	
-	nfs_fattr_init(res.old_fattr);
-	nfs_fattr_init(res.new_fattr);
-	status = nfs4_call_sync(server, &msg, &arg, &res, 1);
+	res.old_fattr = nfs_alloc_fattr();
+	res.new_fattr = nfs_alloc_fattr();
+	if (res.old_fattr == NULL || res.new_fattr == NULL)
+		goto out;
 
+	status = nfs4_call_sync(server, &msg, &arg, &res, 1);
 	if (!status) {
 		update_changeattr(old_dir, &res.old_cinfo);
 		nfs_post_op_update_inode(old_dir, res.old_fattr);
 		update_changeattr(new_dir, &res.new_cinfo);
 		nfs_post_op_update_inode(new_dir, res.new_fattr);
 	}
+out:
+	nfs_free_fattr(res.new_fattr);
+	nfs_free_fattr(res.old_fattr);
 	return status;
 }
 
