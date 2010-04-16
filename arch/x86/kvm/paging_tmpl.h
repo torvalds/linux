@@ -572,11 +572,14 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
 	int i, offset, nr_present;
 	bool reset_host_protection;
+	gpa_t first_pte_gpa;
 
 	offset = nr_present = 0;
 
 	if (PTTYPE == 32)
 		offset = sp->role.quadrant << PT64_LEVEL_BITS;
+
+	first_pte_gpa = gfn_to_gpa(sp->gfn) + offset * sizeof(pt_element_t);
 
 	for (i = 0; i < PT64_ENT_PER_PAGE; i++) {
 		unsigned pte_access;
@@ -587,8 +590,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		if (!is_shadow_present_pte(sp->spt[i]))
 			continue;
 
-		pte_gpa = gfn_to_gpa(sp->gfn);
-		pte_gpa += (i+offset) * sizeof(pt_element_t);
+		pte_gpa = first_pte_gpa + i * sizeof(pt_element_t);
 
 		if (kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &gpte,
 					  sizeof(pt_element_t)))
