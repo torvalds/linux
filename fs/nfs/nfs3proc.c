@@ -597,7 +597,6 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		  u64 cookie, struct page *page, unsigned int count, int plus)
 {
 	struct inode		*dir = dentry->d_inode;
-	struct nfs_fattr	dir_attr;
 	__be32			*verf = NFS_COOKIEVERF(dir);
 	struct nfs3_readdirargs	arg = {
 		.fh		= NFS_FH(dir),
@@ -608,7 +607,6 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		.pages		= &page
 	};
 	struct nfs3_readdirres	res = {
-		.dir_attr	= &dir_attr,
 		.verf		= verf,
 		.plus		= plus
 	};
@@ -618,7 +616,7 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		.rpc_resp	= &res,
 		.rpc_cred	= cred
 	};
-	int			status;
+	int status = -ENOMEM;
 
 	if (plus)
 		msg.rpc_proc = &nfs3_procedures[NFS3PROC_READDIRPLUS];
@@ -626,12 +624,17 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	dprintk("NFS call  readdir%s %d\n",
 			plus? "plus" : "", (unsigned int) cookie);
 
-	nfs_fattr_init(&dir_attr);
+	res.dir_attr = nfs_alloc_fattr();
+	if (res.dir_attr == NULL)
+		goto out;
+
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 
 	nfs_invalidate_atime(dir);
+	nfs_refresh_inode(dir, res.dir_attr);
 
-	nfs_refresh_inode(dir, &dir_attr);
+	nfs_free_fattr(res.dir_attr);
+out:
 	dprintk("NFS reply readdir: %d\n", status);
 	return status;
 }

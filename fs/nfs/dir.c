@@ -530,9 +530,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	nfs_readdir_descriptor_t my_desc,
 			*desc = &my_desc;
 	struct nfs_entry my_entry;
-	struct nfs_fh	 fh;
-	struct nfs_fattr fattr;
-	long		res;
+	int res = -ENOMEM;
 
 	dfprintk(FILE, "NFS: readdir(%s/%s) starting at cookie %llu\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,
@@ -554,9 +552,11 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	my_entry.cookie = my_entry.prev_cookie = 0;
 	my_entry.eof = 0;
-	my_entry.fh = &fh;
-	my_entry.fattr = &fattr;
-	nfs_fattr_init(&fattr);
+	my_entry.fh = nfs_alloc_fhandle();
+	my_entry.fattr = nfs_alloc_fattr();
+	if (my_entry.fh == NULL || my_entry.fattr == NULL)
+		goto out_alloc_failed;
+
 	desc->entry = &my_entry;
 
 	nfs_block_sillyrename(dentry);
@@ -598,7 +598,10 @@ out:
 	nfs_unblock_sillyrename(dentry);
 	if (res > 0)
 		res = 0;
-	dfprintk(FILE, "NFS: readdir(%s/%s) returns %ld\n",
+out_alloc_failed:
+	nfs_free_fattr(my_entry.fattr);
+	nfs_free_fhandle(my_entry.fh);
+	dfprintk(FILE, "NFS: readdir(%s/%s) returns %d\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,
 			res);
 	return res;
