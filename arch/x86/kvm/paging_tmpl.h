@@ -190,10 +190,10 @@ walk:
 
 		if ((walker->level == PT_PAGE_TABLE_LEVEL) ||
 		    ((walker->level == PT_DIRECTORY_LEVEL) &&
-				(pte & PT_PAGE_SIZE_MASK)  &&
+				is_large_pte(pte) &&
 				(PTTYPE == 64 || is_pse(vcpu))) ||
 		    ((walker->level == PT_PDPE_LEVEL) &&
-				(pte & PT_PAGE_SIZE_MASK)  &&
+				is_large_pte(pte) &&
 				is_long_mode(vcpu))) {
 			int lvl = walker->level;
 
