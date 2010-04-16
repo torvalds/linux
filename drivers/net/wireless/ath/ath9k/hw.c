@@ -1238,6 +1238,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_spur_mitigate_freq(ah, chan);
 	ah->eep_ops->set_board_values(ah, chan);
 
+	ath9k_hw_set_operating_mode(ah, ah->opmode);
+
 	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));
 	REG_WRITE(ah, AR_STA_ID1, get_unaligned_le16(common->macaddr + 4)
 		  | macStaId1
@@ -1245,16 +1247,10 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		  | (ah->config.
 		     ack_6mb ? AR_STA_ID1_ACKCTS_6MB : 0)
 		  | ah->sta_id1_defaults);
-	ath9k_hw_set_operating_mode(ah, ah->opmode);
-
 	ath_hw_setbssidmask(common);
-
 	REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
-
 	ath9k_hw_write_associd(ah);
-
 	REG_WRITE(ah, AR_ISR, ~0);
-
 	REG_WRITE(ah, AR_RSSI_THR, INIT_RSSI_THR);
 
 	r = ath9k_hw_rf_set_freq(ah, chan);
