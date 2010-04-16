@@ -244,25 +244,20 @@ void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
-	enum nl80211_iftype iftype;
 	struct htc_beacon_config *cur_conf = &priv->cur_beacon_conf;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
-	if (vif) {
-		struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
-		iftype = vif->type;
-		cur_conf->beacon_interval = bss_conf->beacon_int;
-		cur_conf->dtim_period = bss_conf->dtim_period;
-		cur_conf->listen_interval = 1;
-		cur_conf->dtim_count = 1;
-		cur_conf->bmiss_timeout =
-			ATH_DEFAULT_BMISS_LIMIT * cur_conf->beacon_interval;
-	} else
-		iftype = priv->ah->opmode;
-
+	cur_conf->beacon_interval = bss_conf->beacon_int;
 	if (cur_conf->beacon_interval == 0)
 		cur_conf->beacon_interval = 100;
 
-	switch (iftype) {
+	cur_conf->dtim_period = bss_conf->dtim_period;
+	cur_conf->listen_interval = 1;
+	cur_conf->dtim_count = 1;
+	cur_conf->bmiss_timeout =
+		ATH_DEFAULT_BMISS_LIMIT * cur_conf->beacon_interval;
+
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		ath9k_htc_beacon_config_sta(priv, cur_conf);
 		break;

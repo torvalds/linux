@@ -1687,7 +1687,7 @@ static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
 	spin_unlock_bh(&priv->beacon_lock);
 	priv->op_flags |= OP_FULL_RESET;
 	if (priv->op_flags & OP_ASSOCIATED)
-		ath9k_htc_beacon_config(priv, NULL);
+		ath9k_htc_beacon_config(priv, priv->vif);
 	ath_start_ani(priv);
 	mutex_unlock(&priv->mutex);
 	ath9k_htc_ps_restore(priv);
