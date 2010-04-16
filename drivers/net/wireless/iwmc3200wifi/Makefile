@@ -6,3 +6,5 @@ iwmc3200wifi-$(CONFIG_IWM_DEBUG) += debugfs.o
 iwmc3200wifi-$(CONFIG_IWM_TRACING) += trace.o
 
 CFLAGS_trace.o := -I$(src)
+
+ccflags-y += -D__CHECK_ENDIAN__
