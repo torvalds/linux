@@ -2599,14 +2599,19 @@ static int _nfs4_proc_remove(struct inode *dir, struct qstr *name)
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
-	int			status;
+	int status = -ENOMEM;
 
-	nfs_fattr_init(&res.dir_attr);
+	res.dir_attr = nfs_alloc_fattr();
+	if (res.dir_attr == NULL)
+		goto out;
+
 	status = nfs4_call_sync(server, &msg, &args, &res, 1);
 	if (status == 0) {
 		update_changeattr(dir, &res.cinfo);
-		nfs_post_op_update_inode(dir, &res.dir_attr);
+		nfs_post_op_update_inode(dir, res.dir_attr);
 	}
+	nfs_free_fattr(res.dir_attr);
+out:
 	return status;
 }
 
@@ -2641,7 +2646,7 @@ static int nfs4_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	if (nfs4_async_handle_error(task, res->server, NULL) == -EAGAIN)
 		return 0;
 	update_changeattr(dir, &res->cinfo);
-	nfs_post_op_update_inode(dir, &res->dir_attr);
+	nfs_post_op_update_inode(dir, res->dir_attr);
 	return 1;
 }
 

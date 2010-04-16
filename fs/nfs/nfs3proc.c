@@ -406,12 +406,17 @@ nfs3_proc_remove(struct inode *dir, struct qstr *name)
 		.rpc_argp = &arg,
 		.rpc_resp = &res,
 	};
-	int			status;
+	int status = -ENOMEM;
 
 	dprintk("NFS call  remove %s\n", name->name);
-	nfs_fattr_init(&res.dir_attr);
+	res.dir_attr = nfs_alloc_fattr();
+	if (res.dir_attr == NULL)
+		goto out;
+
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	nfs_post_op_update_inode(dir, &res.dir_attr);
+	nfs_post_op_update_inode(dir, res.dir_attr);
+	nfs_free_fattr(res.dir_attr);
+out:
 	dprintk("NFS reply remove: %d\n", status);
 	return status;
 }
@@ -429,7 +434,7 @@ nfs3_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	if (nfs3_async_handle_jukebox(task, dir))
 		return 0;
 	res = task->tk_msg.rpc_resp;
-	nfs_post_op_update_inode(dir, &res->dir_attr);
+	nfs_post_op_update_inode(dir, res->dir_attr);
 	return 1;
 }
 
