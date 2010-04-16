@@ -2707,28 +2707,30 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, struct qstr *
 		.name   = name,
 		.bitmask = server->attr_bitmask,
 	};
-	struct nfs_fattr fattr, dir_attr;
 	struct nfs4_link_res res = {
 		.server = server,
-		.fattr = &fattr,
-		.dir_attr = &dir_attr,
 	};
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LINK],
 		.rpc_argp = &arg,
 		.rpc_resp = &res,
 	};
-	int			status;
+	int status = -ENOMEM;
 
-	nfs_fattr_init(res.fattr);
-	nfs_fattr_init(res.dir_attr);
+	res.fattr = nfs_alloc_fattr();
+	res.dir_attr = nfs_alloc_fattr();
+	if (res.fattr == NULL || res.dir_attr == NULL)
+		goto out;
+
 	status = nfs4_call_sync(server, &msg, &arg, &res, 1);
 	if (!status) {
 		update_changeattr(dir, &res.cinfo);
 		nfs_post_op_update_inode(dir, res.dir_attr);
 		nfs_post_op_update_inode(inode, res.fattr);
 	}
-
+out:
+	nfs_free_fattr(res.dir_attr);
+	nfs_free_fattr(res.fattr);
 	return status;
 }
 

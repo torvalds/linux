@@ -468,30 +468,32 @@ out:
 static int
 nfs3_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
 {
-	struct nfs_fattr	dir_attr, fattr;
 	struct nfs3_linkargs	arg = {
 		.fromfh		= NFS_FH(inode),
 		.tofh		= NFS_FH(dir),
 		.toname		= name->name,
 		.tolen		= name->len
 	};
-	struct nfs3_linkres	res = {
-		.dir_attr	= &dir_attr,
-		.fattr		= &fattr
-	};
+	struct nfs3_linkres	res;
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_LINK],
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
 	};
-	int			status;
+	int status = -ENOMEM;
 
 	dprintk("NFS call  link %s\n", name->name);
-	nfs_fattr_init(&dir_attr);
-	nfs_fattr_init(&fattr);
+	res.fattr = nfs_alloc_fattr();
+	res.dir_attr = nfs_alloc_fattr();
+	if (res.fattr == NULL || res.dir_attr == NULL)
+		goto out;
+
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	nfs_post_op_update_inode(dir, &dir_attr);
-	nfs_post_op_update_inode(inode, &fattr);
+	nfs_post_op_update_inode(dir, res.dir_attr);
+	nfs_post_op_update_inode(inode, res.fattr);
+out:
+	nfs_free_fattr(res.dir_attr);
+	nfs_free_fattr(res.fattr);
 	dprintk("NFS reply link: %d\n", status);
 	return status;
 }
