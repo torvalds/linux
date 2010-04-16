@@ -59,20 +59,20 @@ enum htc_endpoint_id {
 struct htc_frame_hdr {
 	u8 endpoint_id;
 	u8 flags;
-	u16 payload_len;
+	__be16 payload_len;
 	u8 control[4];
 } __packed;
 
 struct htc_ready_msg {
-	u16 message_id;
-	u16 credits;
-	u16 credit_size;
+	__be16 message_id;
+	__be16 credits;
+	__be16 credit_size;
 	u8 max_endpoints;
 	u8 pad;
 } __packed;
 
 struct htc_config_pipe_msg {
-	u16 message_id;
+	__be16 message_id;
 	u8 pipe_id;
 	u8 credits;
 } __packed;
@@ -192,9 +192,9 @@ enum htc_service_group_ids{
 #define WMI_DATA_BK_SVC   MAKE_SERVICE_ID(WMI_SERVICE_GROUP, 8)
 
 struct htc_conn_svc_msg {
-	u16 msg_id;
-	u16 service_id;
-	u16 con_flags;
+	__be16 msg_id;
+	__be16 service_id;
+	__be16 con_flags;
 	u8 dl_pipeid;
 	u8 ul_pipeid;
 	u8 svc_meta_len;
@@ -209,17 +209,17 @@ struct htc_conn_svc_msg {
 #define HTC_SERVICE_NO_MORE_EP   4
 
 struct htc_conn_svc_rspmsg {
-	u16 msg_id;
-	u16 service_id;
+	__be16 msg_id;
+	__be16 service_id;
 	u8 status;
 	u8 endpoint_id;
-	u16 max_msg_len;
+	__be16 max_msg_len;
 	u8 svc_meta_len;
 	u8 pad;
 } __packed;
 
 struct htc_comp_msg {
-	u16 msg_id;
+	__be16 msg_id;
 } __packed;
 
 int htc_init(struct htc_target *target);

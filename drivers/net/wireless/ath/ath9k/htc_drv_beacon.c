@@ -26,7 +26,8 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	enum ath9k_int imask = 0;
 	int dtimperiod, dtimcount, sleepduration;
 	int cfpperiod, cfpcount, bmiss_timeout;
-	u32 nexttbtt = 0, intval, tsftu, htc_imask = 0;
+	u32 nexttbtt = 0, intval, tsftu;
+	__be32 htc_imask = 0;
 	u64 tsf;
 	int num_beacons, offset, dtim_dec_count, cfp_dec_count;
 	int ret;
@@ -142,7 +143,8 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	enum ath9k_int imask = 0;
-	u32 nexttbtt, intval, htc_imask = 0;
+	u32 nexttbtt, intval;
+	__be32 htc_imask = 0;
 	int ret;
 	u8 cmd_rsp;
 

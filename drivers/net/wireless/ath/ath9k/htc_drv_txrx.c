@@ -530,7 +530,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 			priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
 	}
 
-	rx_status->mactime = rxbuf->rxstatus.rs_tstamp;
+	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
 	rx_status->band = hw->conf.channel->band;
 	rx_status->freq = hw->conf.channel->center_freq;
 	rx_status->signal =  rxbuf->rxstatus.rs_rssi + ATH_DEFAULT_NOISE_FLOOR;
@@ -634,13 +634,8 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 
 	rxstatus = (struct ath_htc_rx_status *)skb->data;
 
-	rxstatus->rs_tstamp = be64_to_cpu(rxstatus->rs_tstamp);
-	rxstatus->rs_datalen = be16_to_cpu(rxstatus->rs_datalen);
-	rxstatus->evm0 = be32_to_cpu(rxstatus->evm0);
-	rxstatus->evm1 = be32_to_cpu(rxstatus->evm1);
-	rxstatus->evm2 = be32_to_cpu(rxstatus->evm2);
-
-	if (rxstatus->rs_datalen - (len - HTC_RX_FRAME_HEADER_SIZE) != 0) {
+	if (be16_to_cpu(rxstatus->rs_datalen) -
+	    (len - HTC_RX_FRAME_HEADER_SIZE) != 0) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Corrupted RX data len, dropping "
 			  "(epid: %d, dlen: %d, skblen: %d)\n",

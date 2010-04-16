@@ -19,7 +19,7 @@
 
 
 struct wmi_event_txrate {
-	u32 txrate;
+	__be32 txrate;
 	struct {
 		u8 rssi_thresh;
 		u8 per;
@@ -27,8 +27,8 @@ struct wmi_event_txrate {
 } __packed;
 
 struct wmi_cmd_hdr {
-	u16 command_id;
-	u16 seq_no;
+	__be16 command_id;
+	__be16 seq_no;
 } __packed;
 
 struct wmi_swba {
@@ -87,8 +87,8 @@ enum wmi_event_id {
 #define MAX_CMD_NUMBER 62
 
 struct register_write {
-	u32 reg;
-	u32 val;
+	__be32 reg;
+	__be32 val;
 };
 
 struct wmi {

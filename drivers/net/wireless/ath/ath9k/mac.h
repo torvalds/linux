@@ -155,8 +155,8 @@ struct ath_rx_status {
 };
 
 struct ath_htc_rx_status {
-	u64 rs_tstamp;
-	u16 rs_datalen;
+	__be64 rs_tstamp;
+	__be16 rs_datalen;
 	u8 rs_status;
 	u8 rs_phyerr;
 	int8_t rs_rssi;
@@ -175,9 +175,9 @@ struct ath_htc_rx_status {
 	u8 rs_num_delims;
 	u8 rs_flags;
 	u8 rs_dummy;
-	u32 evm0;
-	u32 evm1;
-	u32 evm2;
+	__be32 evm0;
+	__be32 evm1;
+	__be32 evm2;
 };
 
 #define ATH9K_RXERR_CRC           0x01

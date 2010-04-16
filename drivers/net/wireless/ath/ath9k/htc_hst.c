@@ -368,7 +368,7 @@ void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 	struct htc_frame_hdr *htc_hdr;
 	enum htc_endpoint_id epid;
 	struct htc_endpoint *endpoint;
-	u16 *msg_id;
+	__be16 *msg_id;
 
 	if (!htc_handle || !skb)
 		return;
@@ -388,14 +388,14 @@ void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 
 		/* Handle trailer */
 		if (htc_hdr->flags & HTC_FLAGS_RECV_TRAILER) {
-			if (be32_to_cpu(*(u32 *) skb->data) == 0x00C60000)
+			if (be32_to_cpu(*(__be32 *) skb->data) == 0x00C60000)
 				/* Move past the Watchdog pattern */
 				htc_hdr = (struct htc_frame_hdr *)(skb->data + 4);
 		}
 
 		/* Get the message ID */
-		msg_id = (u16 *) ((void *) htc_hdr +
-					   sizeof(struct htc_frame_hdr));
+		msg_id = (__be16 *) ((void *) htc_hdr +
+				     sizeof(struct htc_frame_hdr));
 
 		/* Now process HTC messages */
 		switch (be16_to_cpu(*msg_id)) {

@@ -129,7 +129,7 @@ void ath9k_wmi_tasklet(unsigned long data)
 	void *wmi_event;
 	unsigned long flags;
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
-	u32 txrate;
+	__be32 txrate;
 #endif
 
 	spin_lock_irqsave(&priv->wmi->wmi_lock, flags);
