@@ -609,6 +609,10 @@ struct xhci_ep_ctx {
 #define MAX_PACKET_MASK		(0xffff << 16)
 #define MAX_PACKET_DECODED(p)	(((p) >> 16) & 0xffff)
 
+/* tx_info bitmasks */
+#define AVG_TRB_LENGTH_FOR_EP(p)	((p) & 0xffff)
+#define MAX_ESIT_PAYLOAD_FOR_EP(p)	(((p) & 0xffff) << 16)
+
 
 /**
  * struct xhci_input_control_context
