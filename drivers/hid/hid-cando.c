@@ -211,6 +211,9 @@ static int cando_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return -ENOMEM;
 	}
 	hid_set_drvdata(hdev, td);
+	td->first = false;
+	td->oldest = -1;
+	td->valid = false;
 
 	ret = hid_parse(hdev);
 	if (!ret)
