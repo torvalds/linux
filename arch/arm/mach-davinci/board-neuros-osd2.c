@@ -43,9 +43,6 @@
 
 #define DAVINCI_CFC_ATA_BASE		 0x01C66000
 
-#define DAVINCI_ASYNC_EMIF_CONTROL_BASE	 0x01e00000
-#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE 0x02000000
-
 #define LXT971_PHY_ID			0x001378e2
 #define LXT971_PHY_MASK			0xfffffff0
 
@@ -98,12 +95,12 @@ static struct davinci_nand_pdata davinci_ntosd2_nandflash_data = {
 
 static struct resource davinci_ntosd2_nandflash_resource[] = {
 	{
-		.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
+		.start		= DM644X_ASYNC_EMIF_DATA_CE0_BASE,
+		.end		= DM644X_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
 		.flags		= IORESOURCE_MEM,
 	}, {
-		.start		= DAVINCI_ASYNC_EMIF_CONTROL_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.start		= DM644X_ASYNC_EMIF_CONTROL_BASE,
+		.end		= DM644X_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 };

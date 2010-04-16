@@ -43,12 +43,6 @@
 
 #define DAVINCI_CFC_ATA_BASE		  0x01C66000
 
-#define DAVINCI_ASYNC_EMIF_CONTROL_BASE   0x01e00000
-#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE  0x02000000
-#define DAVINCI_ASYNC_EMIF_DATA_CE1_BASE  0x04000000
-#define DAVINCI_ASYNC_EMIF_DATA_CE2_BASE  0x06000000
-#define DAVINCI_ASYNC_EMIF_DATA_CE3_BASE  0x08000000
-
 #define LXT971_PHY_ID	(0x001378e2)
 #define LXT971_PHY_MASK	(0xfffffff0)
 
@@ -92,8 +86,8 @@ static struct physmap_flash_data davinci_evm_norflash_data = {
 /* NOTE: CFI probe will correctly detect flash part as 32M, but EMIF
  * limits addresses to 16M, so using addresses past 16M will wrap */
 static struct resource davinci_evm_norflash_resource = {
-	.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
-	.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
+	.start		= DM644X_ASYNC_EMIF_DATA_CE0_BASE,
+	.end		= DM644X_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -154,12 +148,12 @@ static struct davinci_nand_pdata davinci_evm_nandflash_data = {
 
 static struct resource davinci_evm_nandflash_resource[] = {
 	{
-		.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
+		.start		= DM644X_ASYNC_EMIF_DATA_CE0_BASE,
+		.end		= DM644X_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
 		.flags		= IORESOURCE_MEM,
 	}, {
-		.start		= DAVINCI_ASYNC_EMIF_CONTROL_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.start		= DM644X_ASYNC_EMIF_CONTROL_BASE,
+		.end		= DM644X_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 };

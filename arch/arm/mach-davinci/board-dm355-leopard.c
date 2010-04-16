@@ -30,9 +30,6 @@
 #include <mach/mmc.h>
 #include <mach/usb.h>
 
-#define DAVINCI_ASYNC_EMIF_CONTROL_BASE		0x01e10000
-#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
-
 /* NOTE:  this is geared for the standard config, with a socketed
  * 2 GByte Micron NAND (MT29F16G08FAA) using 128KB sectors.  If you
  * swap chips, maybe with a different block size, partitioning may
@@ -82,12 +79,12 @@ static struct davinci_nand_pdata davinci_nand_data = {
 
 static struct resource davinci_nand_resources[] = {
 	{
-		.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_32M - 1,
+		.start		= DM355_ASYNC_EMIF_DATA_CE0_BASE,
+		.end		= DM355_ASYNC_EMIF_DATA_CE0_BASE + SZ_32M - 1,
 		.flags		= IORESOURCE_MEM,
 	}, {
-		.start		= DAVINCI_ASYNC_EMIF_CONTROL_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.start		= DM355_ASYNC_EMIF_CONTROL_BASE,
+		.end		= DM355_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 };
