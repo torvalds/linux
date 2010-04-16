@@ -6,13 +6,20 @@ obj-y                                   += timer.o
 obj-y                                   += gpio.o
 obj-y                                   += pinmux.o
 obj-y                                   += powergate.o
+obj-y					+= suspend.o
 obj-y					+= fuse.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += clock.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += tegra2_clocks.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += tegra2_dvfs.o
+obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += suspend-t2.o
+obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= tegra2_save.o
+obj-$(CONFIG_CPU_V7)			+= cortex-a9.o
+
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= pinmux-t2-tables.o
-obj-$(CONFIG_SMP)                       += platsmp.o localtimer.o headsmp.o
-obj-$(CONFIG_HOTPLUG_CPU)               += hotplug.o
+ifeq ($(CONFIG_SMP),y)
+obj-y                                   += platsmp.o localtimer.o
+obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += headsmp-t2.o
+endif
 obj-$(CONFIG_TEGRA_SYSTEM_DMA)		+= dma.o
 obj-$(CONFIG_CPU_FREQ)                  += cpu-tegra.o
 
