@@ -305,7 +305,6 @@ xprt_setup_rdma(struct xprt_create *args)
 	/* 60 second timeout, no retries */
 	xprt->timeout = &xprt_rdma_default_timeout;
 	xprt->bind_timeout = (60U * HZ);
-	xprt->connect_timeout = (60U * HZ);
 	xprt->reestablish_timeout = (5U * HZ);
 	xprt->idle_timeout = (5U * 60 * HZ);
 

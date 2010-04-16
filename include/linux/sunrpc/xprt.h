@@ -174,8 +174,7 @@ struct rpc_xprt {
 	/*
 	 * Connection of transports
 	 */
-	unsigned long		connect_timeout,
-				bind_timeout,
+	unsigned long		bind_timeout,
 				reestablish_timeout;
 	unsigned int		connect_cookie;	/* A cookie that gets bumped
 						   every time the transport
