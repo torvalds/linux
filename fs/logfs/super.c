@@ -11,6 +11,7 @@
  */
 #include "logfs.h"
 #include <linux/bio.h>
+#include <linux/blkdev.h>
 #include <linux/mtd/mtd.h>
 #include <linux/statfs.h>
 #include <linux/buffer_head.h>
@@ -136,6 +137,10 @@ static int logfs_sb_set(struct super_block *sb, void *_super)
 	sb->s_fs_info = super;
 	sb->s_mtd = super->s_mtd;
 	sb->s_bdev = super->s_bdev;
+	if (sb->s_bdev)
+		sb->s_bdi = &bdev_get_queue(sb->s_bdev)->backing_dev_info;
+	if (sb->s_mtd)
+		sb->s_bdi = sb->s_mtd->backing_dev_info;
 	return 0;
 }
 
