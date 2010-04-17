@@ -98,18 +98,18 @@
 
 UINT
 BBuGetFrameTime(
-    IN BYTE byPreambleType,
-    IN BYTE byFreqType,
-    IN UINT cbFrameLength,
-    IN WORD wRate
+     BYTE byPreambleType,
+     BYTE byFreqType,
+     UINT cbFrameLength,
+     WORD wRate
     );
 
 VOID
 BBvCaculateParameter (
-    IN  PSDevice pDevice,
-    IN  UINT cbFrameLength,
-    IN  WORD wRate,
-    IN  BYTE byPacketType,
+      PSDevice pDevice,
+      UINT cbFrameLength,
+      WORD wRate,
+      BYTE byPacketType,
     OUT PWORD pwPhyLen,
     OUT PBYTE pbyPhySrv,
     OUT PBYTE pbyPhySgn
@@ -119,12 +119,12 @@ BBvCaculateParameter (
 
 VOID
 TimerSQ3CallBack (
-    IN  HANDLE      hDeviceContext
+      HANDLE      hDeviceContext
     );
 
 VOID
 TimerSQ3Tmax3CallBack (
-    IN  HANDLE      hDeviceContext
+      HANDLE      hDeviceContext
     );
 
 VOID BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);
@@ -139,8 +139,8 @@ BOOL BBbVT3184Init (PSDevice pDevice);
 VOID BBvSetDeepSleep (PSDevice pDevice);
 VOID BBvExitDeepSleep (PSDevice pDevice);
 VOID BBvUpdatePreEDThreshold(
-     IN  PSDevice    pDevice,
-     IN  BOOL        bScanning
+       PSDevice    pDevice,
+       BOOL        bScanning
      );
 
 #endif // __BASEBAND_H__

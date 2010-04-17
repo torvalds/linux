@@ -425,7 +425,7 @@ exit:
  ************************************************************************/
 BOOL
 CHvChannelGetList (
-    IN  UINT       uCountryCodeIdx,
+      UINT       uCountryCodeIdx,
     OUT PBYTE      pbyChannelTable
     )
 {

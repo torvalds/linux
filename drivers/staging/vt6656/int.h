@@ -74,7 +74,7 @@ INTvWorkItem(
 
 NTSTATUS
 INTnsProcessData(
-    IN  PSDevice pDevice
+      PSDevice pDevice
     );
 
 #endif // __INT_H__

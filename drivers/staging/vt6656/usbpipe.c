@@ -73,34 +73,34 @@ static int          msglevel                =MSG_LEVEL_INFO;
 static
 VOID
 s_nsInterruptUsbIoCompleteRead(
-    IN struct urb *urb
+     struct urb *urb
     );
 
 
 static
 VOID
 s_nsBulkInUsbIoCompleteRead(
-    IN struct urb *urb
+     struct urb *urb
     );
 
 
 static
 VOID
 s_nsBulkOutIoCompleteWrite(
-    IN struct urb *urb
+     struct urb *urb
     );
 
 
 static
 VOID
 s_nsControlInUsbIoCompleteRead(
-    IN struct urb *urb
+     struct urb *urb
     );
 
 static
 VOID
 s_nsControlInUsbIoCompleteWrite(
-    IN struct urb *urb
+     struct urb *urb
     );
 
 /*---------------------  Export Variables  --------------------------*/
@@ -111,12 +111,12 @@ s_nsControlInUsbIoCompleteWrite(
 
 NTSTATUS
 PIPEnsControlOutAsyn(
-    IN PSDevice     pDevice,
-    IN BYTE         byRequest,
-    IN WORD         wValue,
-    IN WORD         wIndex,
-    IN WORD         wLength,
-    IN PBYTE        pbyBuffer
+     PSDevice     pDevice,
+     BYTE         byRequest,
+     WORD         wValue,
+     WORD         wIndex,
+     WORD         wLength,
+     PBYTE        pbyBuffer
     )
 {
     NTSTATUS                ntStatus;
@@ -162,12 +162,12 @@ PIPEnsControlOutAsyn(
 
 NTSTATUS
 PIPEnsControlOut(
-    IN PSDevice     pDevice,
-    IN BYTE         byRequest,
-    IN WORD         wValue,
-    IN WORD         wIndex,
-    IN WORD         wLength,
-    IN PBYTE        pbyBuffer
+     PSDevice     pDevice,
+     BYTE         byRequest,
+     WORD         wValue,
+     WORD         wIndex,
+     WORD         wLength,
+     PBYTE        pbyBuffer
     )
 {
     NTSTATUS            ntStatus = 0;
@@ -224,12 +224,12 @@ PIPEnsControlOut(
 
 NTSTATUS
 PIPEnsControlIn(
-    IN PSDevice     pDevice,
-    IN BYTE         byRequest,
-    IN WORD         wValue,
-    IN WORD         wIndex,
-    IN WORD         wLength,
-    IN OUT  PBYTE   pbyBuffer
+     PSDevice     pDevice,
+     BYTE         byRequest,
+     WORD         wValue,
+     WORD         wIndex,
+     WORD         wLength,
+     OUT  PBYTE   pbyBuffer
     )
 {
     NTSTATUS            ntStatus = 0;
@@ -281,7 +281,7 @@ PIPEnsControlIn(
 static
 VOID
 s_nsControlInUsbIoCompleteWrite(
-    IN struct urb *urb
+     struct urb *urb
     )
 {
     PSDevice        pDevice;
@@ -322,7 +322,7 @@ s_nsControlInUsbIoCompleteWrite(
 static
 VOID
 s_nsControlInUsbIoCompleteRead(
-    IN struct urb *urb
+     struct urb *urb
     )
 {
     PSDevice        pDevice;
@@ -362,7 +362,7 @@ s_nsControlInUsbIoCompleteRead(
  */
 NTSTATUS
 PIPEnsInterruptRead(
-    IN PSDevice pDevice
+     PSDevice pDevice
     )
 {
     NTSTATUS            ntStatus = STATUS_FAILURE;
@@ -443,7 +443,7 @@ usb_fill_bulk_urb(pDevice->pInterruptURB,
 static
 VOID
 s_nsInterruptUsbIoCompleteRead(
-    IN struct urb *urb
+     struct urb *urb
     )
 
 {
@@ -543,8 +543,8 @@ s_nsInterruptUsbIoCompleteRead(
  */
 NTSTATUS
 PIPEnsBulkInUsbRead(
-    IN PSDevice pDevice,
-    IN PRCB     pRCB
+     PSDevice pDevice,
+     PRCB     pRCB
     )
 {
     NTSTATUS            ntStatus= 0;
@@ -608,7 +608,7 @@ PIPEnsBulkInUsbRead(
 static
 VOID
 s_nsBulkInUsbIoCompleteRead(
-    IN struct urb *urb
+     struct urb *urb
     )
 
 {
@@ -687,8 +687,8 @@ s_nsBulkInUsbIoCompleteRead(
  */
 NDIS_STATUS
 PIPEnsSendBulkOut(
-    IN  PSDevice pDevice,
-    IN  PUSB_SEND_CONTEXT pContext
+      PSDevice pDevice,
+      PUSB_SEND_CONTEXT pContext
     )
 {
     NTSTATUS            status;
@@ -768,7 +768,7 @@ PIPEnsSendBulkOut(
 static
 VOID
 s_nsBulkOutIoCompleteWrite(
-    IN struct urb *urb
+     struct urb *urb
     )
 {
     PSDevice            pDevice;

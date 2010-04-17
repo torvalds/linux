@@ -37,10 +37,6 @@
 #define VOID            void
 #endif
 
-#ifndef IN
-#define IN
-#endif
-
 #ifndef OUT
 #define OUT
 #endif

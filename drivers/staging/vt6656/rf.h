@@ -65,33 +65,33 @@ extern const BYTE RFaby11aChannelIndex[200];
 
 BOOL IFRFbWriteEmbeded(PSDevice pDevice, DWORD dwData);
 BOOL RFbSetPower (
-    IN  PSDevice  pDevice,
-    IN  UINT      uRATE,
-    IN  UINT      uCH
+      PSDevice  pDevice,
+      UINT      uRATE,
+      UINT      uCH
     );
 
 BOOL RFbRawSetPower(
-    IN  PSDevice  pDevice,
-    IN  BYTE      byPwr,
-    IN  UINT      uRATE
+      PSDevice  pDevice,
+      BYTE      byPwr,
+      UINT      uRATE
     );
 
 VOID
 RFvRSSITodBm (
-    IN  PSDevice pDevice,
-    IN  BYTE     byCurrRSSI,
+      PSDevice pDevice,
+      BYTE     byCurrRSSI,
     long *    pldBm
     );
 
 VOID
 RFbRFTableDownload (
-    IN  PSDevice pDevice
+      PSDevice pDevice
     );
 
 BOOL s_bVT3226D0_11bLoCurrentAdjust(
-    IN  PSDevice    pDevice,
-    IN  BYTE        byChannel,
-    IN  BOOL        b11bMode
+      PSDevice    pDevice,
+      BYTE        byChannel,
+      BOOL        b11bMode
     );
 
 #endif // __RF_H__

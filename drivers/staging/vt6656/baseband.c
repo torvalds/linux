@@ -691,10 +691,10 @@ s_vClearSQ3Value(PSDevice pDevice);
  */
 UINT
 BBuGetFrameTime (
-    IN BYTE byPreambleType,
-    IN BYTE byPktType,
-    IN UINT cbFrameLength,
-    IN WORD wRate
+     BYTE byPreambleType,
+     BYTE byPktType,
+     UINT cbFrameLength,
+     WORD wRate
     )
 {
     UINT uFrameTime;
@@ -758,10 +758,10 @@ BBuGetFrameTime (
  */
 VOID
 BBvCaculateParameter (
-    IN  PSDevice pDevice,
-    IN  UINT cbFrameLength,
-    IN  WORD wRate,
-    IN  BYTE byPacketType,
+      PSDevice pDevice,
+      UINT cbFrameLength,
+      WORD wRate,
+      BYTE byPacketType,
     OUT PWORD pwPhyLen,
     OUT PBYTE pbyPhySrv,
     OUT PBYTE pbyPhySgn
@@ -1578,7 +1578,7 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
 
 VOID
 TimerSQ3CallBack (
-    IN  HANDLE      hDeviceContext
+      HANDLE      hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1620,7 +1620,7 @@ TimerSQ3CallBack (
 
 VOID
 TimerSQ3Tmax3CallBack (
-    IN  HANDLE      hDeviceContext
+      HANDLE      hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1652,8 +1652,8 @@ TimerSQ3Tmax3CallBack (
 
 VOID
 BBvUpdatePreEDThreshold(
-    IN  PSDevice    pDevice,
-    IN  BOOL        bScanning)
+      PSDevice    pDevice,
+      BOOL        bScanning)
 {
 
 

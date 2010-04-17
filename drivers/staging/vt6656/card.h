@@ -83,10 +83,10 @@ void CARDvSetBSSMode(PVOID pDeviceHandler);
 
 BOOL
 CARDbChannelSwitch (
-    IN PVOID            pDeviceHandler,
-    IN BYTE             byMode,
-    IN BYTE             byNewChannel,
-    IN BYTE             byCount
+     PVOID            pDeviceHandler,
+     BYTE             byMode,
+     BYTE             byNewChannel,
+     BYTE             byCount
     );
 
 #endif // __CARD_H__

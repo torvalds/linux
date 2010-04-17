@@ -94,7 +94,7 @@ INTvWorkItem(PVOID Context)
 }
 
 NTSTATUS
-INTnsProcessData(IN  PSDevice pDevice)
+INTnsProcessData(PSDevice pDevice)
 {
 	NTSTATUS	status = STATUS_SUCCESS;
 	PSINTData	pINTData;

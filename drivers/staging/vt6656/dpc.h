@@ -53,15 +53,15 @@ RXvMngWorkItem(
 
 VOID
 RXvFreeRCB(
-    IN PRCB pRCB,
-    IN BOOL bReAllocSkb
+     PRCB pRCB,
+     BOOL bReAllocSkb
     );
 
 BOOL
 RXbBulkInProcessData(
-    IN PSDevice         pDevice,
-    IN PRCB             pRCB,
-    IN ULONG            BytesToIndicate
+     PSDevice         pDevice,
+     PRCB             pRCB,
+     ULONG            BytesToIndicate
     );
 
 #endif // __RXTX_H__

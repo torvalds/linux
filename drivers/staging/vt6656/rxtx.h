@@ -667,17 +667,17 @@ typedef struct tagSBEACON_BUFFER
 
 BOOL
 bPacketToWirelessUsb(
-    IN  PSDevice         pDevice,
-    IN  BYTE             byPktType,
-    IN  PBYTE            usbPacketBuf,
-    IN  BOOL             bNeedEncrypt,
-    IN  UINT             cbPayloadSize,
-    IN  UINT             uDMAIdx,
-    IN  PSEthernetHeader psEthHeader,
-    IN  PBYTE            pPacket,
-    IN  PSKeyItem        pTransmitKey,
-    IN  UINT             uNodeIndex,
-    IN  WORD             wCurrentRate,
+      PSDevice         pDevice,
+      BYTE             byPktType,
+      PBYTE            usbPacketBuf,
+      BOOL             bNeedEncrypt,
+      UINT             cbPayloadSize,
+      UINT             uDMAIdx,
+      PSEthernetHeader psEthHeader,
+      PBYTE            pPacket,
+      PSKeyItem        pTransmitKey,
+      UINT             uNodeIndex,
+      WORD             wCurrentRate,
     OUT UINT             *pcbHeaderLen,
     OUT UINT             *pcbTotalLen
     );

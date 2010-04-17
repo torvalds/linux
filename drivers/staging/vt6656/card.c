@@ -224,8 +224,8 @@ WORD swGetOFDMControlRate (PVOID pDeviceHandler, WORD wRateIdx)
  */
 VOID
 CARDvCaculateOFDMRParameter (
-    IN  WORD wRate,
-    IN  BYTE byBBType,
+      WORD wRate,
+      BYTE byBBType,
     OUT PBYTE pbyTxRate,
     OUT PBYTE pbyRsvTime
     )
@@ -1080,10 +1080,10 @@ void CARDvSetBSSMode (PVOID pDeviceHandler)
 -*/
 BOOL
 CARDbChannelSwitch (
-    IN PVOID            pDeviceHandler,
-    IN BYTE             byMode,
-    IN BYTE             byNewChannel,
-    IN BYTE             byCount
+     PVOID            pDeviceHandler,
+     BYTE             byMode,
+     BYTE             byNewChannel,
+     BYTE             byCount
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;

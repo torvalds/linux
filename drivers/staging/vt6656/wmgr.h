@@ -410,93 +410,93 @@ typedef struct tagSMgmtObject
 
 void
 vMgrObjectInit(
-    IN  HANDLE hDeviceContext
+      HANDLE hDeviceContext
     );
 
 
 void
 vMgrAssocBeginSta(
-    IN  HANDLE hDeviceContext,
-    IN  PSMgmtObject pMgmt,
+      HANDLE hDeviceContext,
+      PSMgmtObject pMgmt,
     OUT PCMD_STATUS pStatus
     );
 
 VOID
 vMgrReAssocBeginSta(
-    IN  HANDLE hDeviceContext,
-    IN  PSMgmtObject pMgmt,
+      HANDLE hDeviceContext,
+      PSMgmtObject pMgmt,
     OUT PCMD_STATUS pStatus
     );
 
 VOID
 vMgrDisassocBeginSta(
-    IN  HANDLE hDeviceContext,
-    IN  PSMgmtObject pMgmt,
-    IN  PBYTE  abyDestAddress,
-    IN  WORD    wReason,
+      HANDLE hDeviceContext,
+      PSMgmtObject pMgmt,
+      PBYTE  abyDestAddress,
+      WORD    wReason,
     OUT PCMD_STATUS pStatus
     );
 
 VOID
 vMgrAuthenBeginSta(
-    IN  HANDLE hDeviceContext,
-    IN  PSMgmtObject pMgmt,
+      HANDLE hDeviceContext,
+      PSMgmtObject pMgmt,
     OUT PCMD_STATUS pStatus
     );
 
 VOID
 vMgrCreateOwnIBSS(
-    IN  HANDLE hDeviceContext,
+      HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
     );
 
 VOID
 vMgrJoinBSSBegin(
-    IN  HANDLE hDeviceContext,
+      HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
     );
 
 VOID
 vMgrRxManagePacket(
-    IN  HANDLE hDeviceContext,
-    IN  PSMgmtObject pMgmt,
-    IN  PSRxMgmtPacket pRxPacket
+      HANDLE hDeviceContext,
+      PSMgmtObject pMgmt,
+      PSRxMgmtPacket pRxPacket
     );
 
 /*
 VOID
 vMgrScanBegin(
-    IN  HANDLE hDeviceContext,
+      HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
     );
 */
 
 VOID
 vMgrDeAuthenBeginSta(
-    IN  HANDLE hDeviceContext,
-    IN  PSMgmtObject  pMgmt,
-    IN  PBYTE   abyDestAddress,
-    IN  WORD    wReason,
+      HANDLE hDeviceContext,
+      PSMgmtObject  pMgmt,
+      PBYTE   abyDestAddress,
+      WORD    wReason,
     OUT PCMD_STATUS pStatus
     );
 
 BOOL
 bMgrPrepareBeaconToSend(
-    IN  HANDLE hDeviceContext,
-    IN  PSMgmtObject pMgmt
+      HANDLE hDeviceContext,
+      PSMgmtObject pMgmt
     );
 
 
 BOOL
 bAdd_PMKID_Candidate (
-    IN HANDLE    hDeviceContext,
-    IN PBYTE          pbyBSSID,
-    IN PSRSNCapObject psRSNCapObj
+     HANDLE    hDeviceContext,
+     PBYTE          pbyBSSID,
+     PSRSNCapObject psRSNCapObj
     );
 
 VOID
 vFlush_PMKID_Candidate (
-    IN HANDLE hDeviceContext
+     HANDLE hDeviceContext
     );
 
 #endif // __WMGR_H__

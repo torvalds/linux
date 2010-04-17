@@ -71,10 +71,10 @@
 
 VOID
 RATEvParseMaxRate(
-    IN PVOID pDeviceHandler,
-    IN PWLAN_IE_SUPP_RATES pItemRates,
-    IN PWLAN_IE_SUPP_RATES pItemExtRates,
-    IN BOOL bUpdateBasicRate,
+     PVOID pDeviceHandler,
+     PWLAN_IE_SUPP_RATES pItemRates,
+     PWLAN_IE_SUPP_RATES pItemExtRates,
+     BOOL bUpdateBasicRate,
     OUT PWORD pwMaxBasicRate,
     OUT PWORD pwMaxSuppRate,
     OUT PWORD pwSuppRate,
@@ -84,26 +84,26 @@ RATEvParseMaxRate(
 
 VOID
 RATEvTxRateFallBack(
-    IN PVOID pDeviceHandler,
-    IN PKnownNodeDB psNodeDBTable
+     PVOID pDeviceHandler,
+     PKnownNodeDB psNodeDBTable
     );
 
 BYTE
 RATEuSetIE(
-    IN PWLAN_IE_SUPP_RATES pSrcRates,
-    IN PWLAN_IE_SUPP_RATES pDstRates,
-    IN UINT                uRateLen
+     PWLAN_IE_SUPP_RATES pSrcRates,
+     PWLAN_IE_SUPP_RATES pDstRates,
+     UINT                uRateLen
     );
 
 WORD
 RATEwGetRateIdx(
-    IN BYTE byRate
+     BYTE byRate
     );
 
 
 BYTE
 DATARATEbyGetRateIdx(
-    IN BYTE byRate
+     BYTE byRate
     );
 
 
