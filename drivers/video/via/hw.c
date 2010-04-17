@@ -624,50 +624,50 @@ void viafb_set_iga_path(void)
 	}
 }
 
-void viafb_set_primary_address(u32 addr)
+void via_set_primary_address(u32 addr)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_address(0x%08X)\n", addr);
-	viafb_write_reg(CR0D, VIACR, addr & 0xFF);
-	viafb_write_reg(CR0C, VIACR, (addr >> 8) & 0xFF);
-	viafb_write_reg(CR34, VIACR, (addr >> 16) & 0xFF);
-	viafb_write_reg_mask(CR48, VIACR, (addr >> 24) & 0x1F, 0x1F);
+	DEBUG_MSG(KERN_DEBUG "via_set_primary_address(0x%08X)\n", addr);
+	via_write_reg(VIACR, 0x0D, addr & 0xFF);
+	via_write_reg(VIACR, 0x0C, (addr >> 8) & 0xFF);
+	via_write_reg(VIACR, 0x34, (addr >> 16) & 0xFF);
+	via_write_reg_mask(VIACR, 0x48, (addr >> 24) & 0x1F, 0x1F);
 }
 
-void viafb_set_secondary_address(u32 addr)
+void via_set_secondary_address(u32 addr)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_address(0x%08X)\n", addr);
+	DEBUG_MSG(KERN_DEBUG "via_set_secondary_address(0x%08X)\n", addr);
 	/* secondary display supports only quadword aligned memory */
-	viafb_write_reg_mask(CR62, VIACR, (addr >> 2) & 0xFE, 0xFE);
-	viafb_write_reg(CR63, VIACR, (addr >> 10) & 0xFF);
-	viafb_write_reg(CR64, VIACR, (addr >> 18) & 0xFF);
-	viafb_write_reg_mask(CRA3, VIACR, (addr >> 26) & 0x07, 0x07);
+	via_write_reg_mask(VIACR, 0x62, (addr >> 2) & 0xFE, 0xFE);
+	via_write_reg(VIACR, 0x63, (addr >> 10) & 0xFF);
+	via_write_reg(VIACR, 0x64, (addr >> 18) & 0xFF);
+	via_write_reg_mask(VIACR, 0xA3, (addr >> 26) & 0x07, 0x07);
 }
 
-void viafb_set_primary_pitch(u32 pitch)
+void via_set_primary_pitch(u32 pitch)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_pitch(0x%08X)\n", pitch);
+	DEBUG_MSG(KERN_DEBUG "via_set_primary_pitch(0x%08X)\n", pitch);
 	/* spec does not say that first adapter skips 3 bits but old
 	 * code did it and seems to be reasonable in analogy to 2nd adapter
 	 */
 	pitch = pitch >> 3;
-	viafb_write_reg(0x13, VIACR, pitch & 0xFF);
-	viafb_write_reg_mask(0x35, VIACR, (pitch >> (8 - 5)) & 0xE0, 0xE0);
+	via_write_reg(VIACR, 0x13, pitch & 0xFF);
+	via_write_reg_mask(VIACR, 0x35, (pitch >> (8 - 5)) & 0xE0, 0xE0);
 }
 
-void viafb_set_secondary_pitch(u32 pitch)
+void via_set_secondary_pitch(u32 pitch)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_pitch(0x%08X)\n", pitch);
+	DEBUG_MSG(KERN_DEBUG "via_set_secondary_pitch(0x%08X)\n", pitch);
 	pitch = pitch >> 3;
-	viafb_write_reg(0x66, VIACR, pitch & 0xFF);
-	viafb_write_reg_mask(0x67, VIACR, (pitch >> 8) & 0x03, 0x03);
-	viafb_write_reg_mask(0x71, VIACR, (pitch >> (10 - 7)) & 0x80, 0x80);
+	via_write_reg(VIACR, 0x66, pitch & 0xFF);
+	via_write_reg_mask(VIACR, 0x67, (pitch >> 8) & 0x03, 0x03);
+	via_write_reg_mask(VIACR, 0x71, (pitch >> (10 - 7)) & 0x80, 0x80);
 }
 
-void viafb_set_primary_color_depth(u8 depth)
+void via_set_primary_color_depth(u8 depth)
 {
 	u8 value;
 
-	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_color_depth(%d)\n", depth);
+	DEBUG_MSG(KERN_DEBUG "via_set_primary_color_depth(%d)\n", depth);
 	switch (depth) {
 	case 8:
 		value = 0x00;
@@ -685,19 +685,19 @@ void viafb_set_primary_color_depth(u8 depth)
 		value = 0x08;
 		break;
 	default:
-		printk(KERN_WARNING "viafb_set_primary_color_depth: "
+		printk(KERN_WARNING "via_set_primary_color_depth: "
 			"Unsupported depth: %d\n", depth);
 		return;
 	}
 
-	viafb_write_reg_mask(0x15, VIASR, value, 0x1C);
+	via_write_reg_mask(VIASR, 0x15, value, 0x1C);
 }
 
-void viafb_set_secondary_color_depth(u8 depth)
+void via_set_secondary_color_depth(u8 depth)
 {
 	u8 value;
 
-	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_color_depth(%d)\n", depth);
+	DEBUG_MSG(KERN_DEBUG "via_set_secondary_color_depth(%d)\n", depth);
 	switch (depth) {
 	case 8:
 		value = 0x00;
@@ -712,12 +712,12 @@ void viafb_set_secondary_color_depth(u8 depth)
 		value = 0x80;
 		break;
 	default:
-		printk(KERN_WARNING "viafb_set_secondary_color_depth: "
+		printk(KERN_WARNING "via_set_secondary_color_depth: "
 			"Unsupported depth: %d\n", depth);
 		return;
 	}
 
-	viafb_write_reg_mask(0x67, VIACR, value, 0xC0);
+	via_write_reg_mask(VIACR, 0x67, value, 0xC0);
 }
 
 static void set_color_register(u8 index, u8 red, u8 green, u8 blue)
@@ -2268,11 +2268,11 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		}
 	}
 
-	viafb_set_primary_pitch(viafbinfo->fix.line_length);
-	viafb_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
+	via_set_primary_pitch(viafbinfo->fix.line_length);
+	via_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
 		: viafbinfo->fix.line_length);
-	viafb_set_primary_color_depth(viaparinfo->depth);
-	viafb_set_secondary_color_depth(viafb_dual_fb ? viaparinfo1->depth
+	via_set_primary_color_depth(viaparinfo->depth);
+	via_set_secondary_color_depth(viafb_dual_fb ? viaparinfo1->depth
 		: viaparinfo->depth);
 	/* Update Refresh Rate Setting */
 

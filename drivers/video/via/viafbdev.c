@@ -317,12 +317,12 @@ static int viafb_pan_display(struct fb_var_screeninfo *var,
 
 	DEBUG_MSG(KERN_DEBUG "viafb_pan_display, address = %d\n", vram_addr);
 	if (!viafb_dual_fb) {
-		viafb_set_primary_address(vram_addr);
-		viafb_set_secondary_address(vram_addr);
+		via_set_primary_address(vram_addr);
+		via_set_secondary_address(vram_addr);
 	} else if (viapar->iga_path == IGA1)
-		viafb_set_primary_address(vram_addr);
+		via_set_primary_address(vram_addr);
 	else
-		viafb_set_secondary_address(vram_addr);
+		via_set_secondary_address(vram_addr);
 
 	return 0;
 }
@@ -1018,8 +1018,8 @@ static void viafb_set_device(struct device_t active_dev)
 		viafb_SAMM_ON = active_dev.samm;
 	viafb_primary_dev = active_dev.primary_dev;
 
-	viafb_set_primary_address(0);
-	viafb_set_secondary_address(viafb_SAMM_ON ? viafb_second_offset : 0);
+	via_set_primary_address(0);
+	via_set_secondary_address(viafb_SAMM_ON ? viafb_second_offset : 0);
 	viafb_set_iga_path();
 }
 
@@ -1165,8 +1165,9 @@ static int apply_device_setting(struct viafb_ioctl_setting setting_info,
 			if (viafb_SAMM_ON)
 				viafb_primary_dev = setting_info.primary_device;
 
-			viafb_set_primary_address(0);
-			viafb_set_secondary_address(viafb_SAMM_ON ? viafb_second_offset : 0);
+			via_set_primary_address(0);
+			via_set_secondary_address(viafb_SAMM_ON ?
+				viafb_second_offset : 0);
 			viafb_set_iga_path();
 		}
 		need_set_mode = 1;
