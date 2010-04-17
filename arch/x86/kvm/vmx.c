@@ -2333,6 +2333,16 @@ static void allocate_vpid(struct vcpu_vmx *vmx)
 	spin_unlock(&vmx_vpid_lock);
 }
 
+static void free_vpid(struct vcpu_vmx *vmx)
+{
+	if (!enable_vpid)
+		return;
+	spin_lock(&vmx_vpid_lock);
+	if (vmx->vpid != 0)
+		__clear_bit(vmx->vpid, vmx_vpid_bitmap);
+	spin_unlock(&vmx_vpid_lock);
+}
+
 static void __vmx_disable_intercept_for_msr(unsigned long *msr_bitmap, u32 msr)
 {
 	int f = sizeof(unsigned long);
@@ -3916,10 +3926,7 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	spin_lock(&vmx_vpid_lock);
-	if (vmx->vpid != 0)
-		__clear_bit(vmx->vpid, vmx_vpid_bitmap);
-	spin_unlock(&vmx_vpid_lock);
+	free_vpid(vmx);
 	vmx_free_vmcs(vcpu);
 	kfree(vmx->guest_msrs);
 	kvm_vcpu_uninit(vcpu);
@@ -3981,6 +3988,7 @@ free_msrs:
 uninit_vcpu:
 	kvm_vcpu_uninit(&vmx->vcpu);
 free_vcpu:
+	free_vpid(vmx);
 	kmem_cache_free(kvm_vcpu_cache, vmx);
 	return ERR_PTR(err);
 }
