@@ -631,7 +631,7 @@ efi_partition(struct parsed_partitions *state, struct block_device *bdev)
 		/* If this is a RAID volume, tell md */
 		if (!efi_guidcmp(ptes[i].partition_type_guid,
 				 PARTITION_LINUX_RAID_GUID))
-			state->parts[i+1].flags = 1;
+			state->parts[i + 1].flags = ADDPART_FLAG_RAID;
 	}
 	kfree(ptes);
 	kfree(gpt);
