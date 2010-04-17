@@ -316,17 +316,7 @@ int register_perf_hw_breakpoint(struct perf_event *bp)
 	if (ret)
 		return ret;
 
-	/*
-	 * Ptrace breakpoints can be temporary perf events only
-	 * meant to reserve a slot. In this case, it is created disabled and
-	 * we don't want to check the params right now (as we put a null addr)
-	 * But perf tools create events as disabled and we want to check
-	 * the params for them.
-	 * This is a quick hack that will be removed soon, once we remove
-	 * the tmp breakpoints from ptrace
-	 */
-	if (!bp->attr.disabled || !bp->overflow_handler)
-		ret = arch_validate_hwbkpt_settings(bp, bp->ctx->task);
+	ret = arch_validate_hwbkpt_settings(bp, bp->ctx->task);
 
 	/* if arch_validate_hwbkpt_settings() fails then release bp slot */
 	if (ret)
