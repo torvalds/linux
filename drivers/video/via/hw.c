@@ -537,18 +537,6 @@ static void device_on(void);
 static void enable_second_display_channel(void);
 static void disable_second_display_channel(void);
 
-void viafb_write_reg(u8 index, u16 io_port, u8 data)
-{
-	outb(index, io_port);
-	outb(data, io_port + 1);
-	/*DEBUG_MSG(KERN_INFO "\nIndex=%2d Value=%2d", index, data); */
-}
-u8 viafb_read_reg(int io_port, u8 index)
-{
-	outb(index, io_port);
-	return inb(io_port + 1);
-}
-
 void viafb_lock_crt(void)
 {
 	viafb_write_reg_mask(CR11, VIACR, BIT7, BIT7);
@@ -558,16 +546,6 @@ void viafb_unlock_crt(void)
 {
 	viafb_write_reg_mask(CR11, VIACR, 0, BIT7);
 	viafb_write_reg_mask(CR47, VIACR, 0, BIT0);
-}
-
-void viafb_write_reg_mask(u8 index, int io_port, u8 data, u8 mask)
-{
-	u8 tmp;
-
-	outb(index, io_port);
-	tmp = inb(io_port + 1);
-	outb((data & mask) | (tmp & (~mask)), io_port + 1);
-	/*DEBUG_MSG(KERN_INFO "\nIndex=%2d Value=%2d", index, tmp); */
 }
 
 void write_dac_reg(u8 index, u8 r, u8 g, u8 b)

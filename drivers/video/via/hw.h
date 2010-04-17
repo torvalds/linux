@@ -24,6 +24,11 @@
 
 #include "viamode.h"
 #include "global.h"
+#include "via_io.h"
+
+#define viafb_read_reg(p, i)			via_read_reg(p, i)
+#define viafb_write_reg(i, p, d)		via_write_reg(p, i, d)
+#define viafb_write_reg_mask(i, p, d, m)	via_write_reg_mask(p, i, d, m)
 
 /***************************************************
 * Definition IGA1 Design Method of CRTC Registers *
@@ -870,7 +875,6 @@ extern int viafb_LCD_ON;
 extern int viafb_DVI_ON;
 extern int viafb_hotplug;
 
-void viafb_write_reg_mask(u8 index, int io_port, u8 data, u8 mask);
 void viafb_set_output_path(int device, int set_iga,
 	int output_interface);
 
@@ -885,8 +889,6 @@ void viafb_crt_disable(void);
 void viafb_crt_enable(void);
 void init_ad9389(void);
 /* Access I/O Function */
-void viafb_write_reg(u8 index, u16 io_port, u8 data);
-u8 viafb_read_reg(int io_port, u8 index);
 void viafb_lock_crt(void);
 void viafb_unlock_crt(void);
 void viafb_load_fetch_count_reg(int h_addr, int bpp_byte, int set_iga);
