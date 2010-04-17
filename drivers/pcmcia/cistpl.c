@@ -1484,6 +1484,11 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
 	if (!s)
 		return -EINVAL;
 
+	if (s->functions) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
 	/* We do not want to validate the CIS cache... */
 	mutex_lock(&s->ops_mutex);
 	destroy_cis_cache(s);
@@ -1639,7 +1644,7 @@ static ssize_t pccard_show_cis(struct kobject *kobj,
 		count = 0;
 	else {
 		struct pcmcia_socket *s;
-		unsigned int chains;
+		unsigned int chains = 1;
 
 		if (off + count > size)
 			count = size - off;
@@ -1648,7 +1653,7 @@ static ssize_t pccard_show_cis(struct kobject *kobj,
 
 		if (!(s->state & SOCKET_PRESENT))
 			return -ENODEV;
-		if (pccard_validate_cis(s, &chains))
+		if (!s->functions && pccard_validate_cis(s, &chains))
 			return -EIO;
 		if (!chains)
 			return -ENODATA;
