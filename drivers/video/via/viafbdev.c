@@ -1326,6 +1326,8 @@ static void parse_dvi_port(void)
 		  output_interface);
 }
 
+#ifdef CONFIG_FB_VIA_DIRECT_PROCFS
+
 /*
  * The proc filesystem read/write function, a simple proc implement to
  * get/set the value of DPA  DVP0,   DVP0DataDriving,  DVP0ClockDriving, DVP1,
@@ -1715,6 +1717,8 @@ static void viafb_remove_proc(struct proc_dir_entry *viafb_entry)
 	remove_proc_entry("viafb", NULL);
 }
 
+#endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
+
 static int parse_mode(const char *str, u32 *xres, u32 *yres)
 {
 	char *ptr;
@@ -1943,7 +1947,9 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 		  viafbinfo->node, viafbinfo->fix.id, default_var.xres,
 		  default_var.yres, default_var.bits_per_pixel);
 
+#ifdef CONFIG_FB_VIA_DIRECT_PROCFS
 	viafb_init_proc(&viaparinfo->shared->proc_entry);
+#endif
 	viafb_init_dac(IGA2);
 	return 0;
 
@@ -1970,7 +1976,9 @@ void __devexit via_fb_pci_remove(struct pci_dev *pdev)
 	unregister_framebuffer(viafbinfo);
 	if (viafb_dual_fb)
 		unregister_framebuffer(viafbinfo1);
+#ifdef CONFIG_FB_VIA_DIRECT_PROCFS
 	viafb_remove_proc(viaparinfo->shared->proc_entry);
+#endif
 	framebuffer_release(viafbinfo);
 	if (viafb_dual_fb)
 		framebuffer_release(viafbinfo1);
