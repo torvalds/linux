@@ -412,7 +412,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 			break;
 		};
 		if (sValue.dwValue == 1) {
-            if (hostap_set_hostapd(pDevice, 1, 1) == 0){
+            if (vt6656_hostap_set_hostapd(pDevice, 1, 1) == 0){
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable HOSTAP\n");
             }
             else {
@@ -421,7 +421,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 			}
         }
         else {
-            hostap_set_hostapd(pDevice, 0, 1);
+            vt6656_hostap_set_hostapd(pDevice, 0, 1);
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable HOSTAP\n");
         }
 

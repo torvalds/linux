@@ -2069,7 +2069,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		    rc = 0;
 		}
 
-		rc = hostap_ioctl(pDevice, &wrq->u.data);
+		rc = vt6656_hostap_ioctl(pDevice, &wrq->u.data);
         break;
 
     case IOCTL_CMD_WPA:

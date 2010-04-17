@@ -178,7 +178,7 @@ static int hostap_disable_hostapd(PSDevice pDevice, int rtnl_locked)
  *
  */
 
-int hostap_set_hostapd(PSDevice pDevice, int val, int rtnl_locked)
+int vt6656_hostap_set_hostapd(PSDevice pDevice, int val, int rtnl_locked)
 {
 	if (val < 0 || val > 1)
 		return -EINVAL;
@@ -744,7 +744,7 @@ static int hostap_get_encryption(PSDevice pDevice,
 
 /*
  * Description:
- *      hostap_ioctl main function supported for hostap deamon.
+ *      vt6656_hostap_ioctl main function supported for hostap deamon.
  *
  * Parameters:
  *  In:
@@ -756,7 +756,7 @@ static int hostap_get_encryption(PSDevice pDevice,
  *
  */
 
-int hostap_ioctl(PSDevice pDevice, struct iw_point *p)
+int vt6656_hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 {
 	struct viawget_hostapd_param *param;
 	int ret = 0;
@@ -844,7 +844,7 @@ int hostap_ioctl(PSDevice pDevice, struct iw_point *p)
 	    return -EOPNOTSUPP;
 
 	default:
-	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "hostap_ioctl: unknown cmd=%d\n",
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "vt6656_hostap_ioctl: unknown cmd=%d\n",
 		       (int)param->cmd);
 		return -EOPNOTSUPP;
 		break;
