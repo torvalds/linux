@@ -25,6 +25,7 @@
 #include "viamode.h"
 #include "global.h"
 #include "via_io.h"
+#include "via_modesetting.h"
 
 #define viafb_read_reg(p, i)			via_read_reg(p, i)
 #define viafb_write_reg(i, p, d)		via_write_reg(p, i, d)
@@ -910,10 +911,6 @@ void viafb_update_device_setting(int hres, int vres, int bpp,
 			   int vmode_refresh, int flag);
 
 void viafb_set_iga_path(void);
-void via_set_primary_address(u32 addr);
-void via_set_secondary_address(u32 addr);
-void via_set_primary_pitch(u32 pitch);
-void via_set_secondary_pitch(u32 pitch);
 void viafb_set_primary_color_register(u8 index, u8 red, u8 green, u8 blue);
 void viafb_set_secondary_color_register(u8 index, u8 red, u8 green, u8 blue);
 void viafb_get_fb_info(unsigned int *fb_base, unsigned int *fb_len);
