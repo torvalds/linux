@@ -1243,7 +1243,7 @@ device_release_WPADEV(pDevice);
     }
 #ifdef HOSTAP
     if (dev)
-        hostap_set_hostapd(pDevice, 0, 0);
+        vt6655_hostap_set_hostapd(pDevice, 0, 0);
 #endif
     if (dev)
         unregister_netdev(dev);
@@ -3524,7 +3524,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
     case IOCTL_CMD_HOSTAPD:
 
 
-	rc = hostap_ioctl(pDevice, &wrq->u.data);
+	rc = vt6655_hostap_ioctl(pDevice, &wrq->u.data);
         break;
 
     case IOCTL_CMD_WPA:
