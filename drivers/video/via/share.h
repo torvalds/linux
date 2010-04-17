@@ -45,8 +45,6 @@
 
 /* standard VGA IO port
 */
-#define VIARMisc    0x3CC
-#define VIAWMisc    0x3C2
 #define VIAStatus   0x3DA
 #define VIACR       0x3D4
 #define VIASR       0x3C4

@@ -29,6 +29,9 @@
 #include <linux/types.h>
 #include <linux/io.h>
 
+#define VIA_MISC_REG_READ	0x03CC
+#define VIA_MISC_REG_WRITE	0x03C2
+
 /*
  * Indexed port operations.  Note that these are all multi-op
  * functions; every invocation will be racy if you're not holding
@@ -53,6 +56,12 @@ static inline void via_write_reg_mask(u16 port, u8 index, u8 data, u8 mask)
 	outb(index, port);
 	old = inb(port + 1);
 	outb((data & mask) | (old & ~mask), port + 1);
+}
+
+static inline void via_write_misc_reg_mask(u8 data, u8 mask)
+{
+	u8 old = inb(VIA_MISC_REG_READ);
+	outb((data & mask) | (old & ~mask), VIA_MISC_REG_WRITE);
 }
 
 #endif /* __VIA_IO_H__ */
