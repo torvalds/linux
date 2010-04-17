@@ -79,6 +79,14 @@ extern void rcu_init(void);
        (ptr)->next = NULL; (ptr)->func = NULL; \
 } while (0)
 
+static inline void init_rcu_head_on_stack(struct rcu_head *head)
+{
+}
+
+static inline void destroy_rcu_head_on_stack(struct rcu_head *head)
+{
+}
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
 extern struct lockdep_map rcu_lock_map;
