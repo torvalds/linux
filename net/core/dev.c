@@ -264,7 +264,7 @@ static RAW_NOTIFIER_HEAD(netdev_chain);
  *	queue in the local softnet handler.
  */
 
-DEFINE_PER_CPU(struct softnet_data, softnet_data);
+DEFINE_PER_CPU_ALIGNED(struct softnet_data, softnet_data);
 EXPORT_PER_CPU_SYMBOL(softnet_data);
 
 #ifdef CONFIG_LOCKDEP
@@ -3232,7 +3232,6 @@ static int process_backlog(struct napi_struct *napi, int quota)
 {
 	int work = 0;
 	struct softnet_data *queue = &__get_cpu_var(softnet_data);
-	unsigned long start_time = jiffies;
 
 	napi->weight = weight_p;
 	do {
@@ -3252,7 +3251,7 @@ static int process_backlog(struct napi_struct *napi, int quota)
 		local_irq_enable();
 
 		__netif_receive_skb(skb);
-	} while (++work < quota && jiffies == start_time);
+	} while (++work < quota);
 
 	return work;
 }
