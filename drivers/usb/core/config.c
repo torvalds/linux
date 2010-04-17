@@ -735,7 +735,6 @@ int usb_get_configuration(struct usb_device *dev)
 	int ncfg = dev->descriptor.bNumConfigurations;
 	int result = 0;
 	unsigned int cfgno, length;
-	unsigned char *buffer;
 	unsigned char *bigbuffer;
 	struct usb_config_descriptor *desc;
 
@@ -764,17 +763,16 @@ int usb_get_configuration(struct usb_device *dev)
 	if (!dev->rawdescriptors)
 		goto err2;
 
-	buffer = kmalloc(USB_DT_CONFIG_SIZE, GFP_KERNEL);
-	if (!buffer)
+	desc = kmalloc(USB_DT_CONFIG_SIZE, GFP_KERNEL);
+	if (!desc)
 		goto err2;
-	desc = (struct usb_config_descriptor *)buffer;
 
 	result = 0;
 	for (; cfgno < ncfg; cfgno++) {
 		/* We grab just the first descriptor so we know how long
 		 * the whole configuration is */
 		result = usb_get_descriptor(dev, USB_DT_CONFIG, cfgno,
-		    buffer, USB_DT_CONFIG_SIZE);
+		    desc, USB_DT_CONFIG_SIZE);
 		if (result < 0) {
 			dev_err(ddev, "unable to read config index %d "
 			    "descriptor/%s: %d\n", cfgno, "start", result);
@@ -823,7 +821,7 @@ int usb_get_configuration(struct usb_device *dev)
 	result = 0;
 
 err:
-	kfree(buffer);
+	kfree(desc);
 out_not_authorized:
 	dev->descriptor.bNumConfigurations = cfgno;
 err2:
