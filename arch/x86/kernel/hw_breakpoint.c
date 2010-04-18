@@ -189,25 +189,16 @@ static int get_hbp_len(u8 hbp_len)
 }
 
 /*
- * Check for virtual address in user space.
- */
-int arch_check_va_in_userspace(unsigned long va, u8 hbp_len)
-{
-	unsigned int len;
-
-	len = get_hbp_len(hbp_len);
-
-	return (va <= TASK_SIZE - len);
-}
-
-/*
  * Check for virtual address in kernel space.
  */
-static int arch_check_va_in_kernelspace(unsigned long va, u8 hbp_len)
+int arch_check_bp_in_kernelspace(struct perf_event *bp)
 {
 	unsigned int len;
+	unsigned long va;
+	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 
-	len = get_hbp_len(hbp_len);
+	va = info->address;
+	len = get_hbp_len(info->len);
 
 	return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
 }
@@ -300,8 +291,7 @@ static int arch_build_bp_info(struct perf_event *bp)
 /*
  * Validate the arch-specific HW Breakpoint register settings
  */
-int arch_validate_hwbkpt_settings(struct perf_event *bp,
-				  struct task_struct *tsk)
+int arch_validate_hwbkpt_settings(struct perf_event *bp)
 {
 	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 	unsigned int align;
@@ -313,16 +303,6 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp,
 		return ret;
 
 	ret = -EINVAL;
-
-	if (info->type == X86_BREAKPOINT_EXECUTE)
-		/*
-		 * Ptrace-refactoring code
-		 * For now, we'll allow instruction breakpoint only for user-space
-		 * addresses
-		 */
-		if ((!arch_check_va_in_userspace(info->address, info->len)) &&
-			info->len != X86_BREAKPOINT_EXECUTE)
-			return ret;
 
 	switch (info->len) {
 	case X86_BREAKPOINT_LEN_1:
@@ -349,15 +329,6 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp,
 	 */
 	if (info->address & align)
 		return -EINVAL;
-
-	/* Check that the virtual address is in the proper range */
-	if (tsk) {
-		if (!arch_check_va_in_userspace(info->address, info->len))
-			return -EFAULT;
-	} else {
-		if (!arch_check_va_in_kernelspace(info->address, info->len))
-			return -EFAULT;
-	}
 
 	return 0;
 }

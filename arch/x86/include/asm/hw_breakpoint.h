@@ -44,9 +44,8 @@ struct arch_hw_breakpoint {
 struct perf_event;
 struct pmu;
 
-extern int arch_check_va_in_userspace(unsigned long va, u8 hbp_len);
-extern int arch_validate_hwbkpt_settings(struct perf_event *bp,
-					 struct task_struct *tsk);
+extern int arch_check_bp_in_kernelspace(struct perf_event *bp);
+extern int arch_validate_hwbkpt_settings(struct perf_event *bp);
 extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 					   unsigned long val, void *data);
 

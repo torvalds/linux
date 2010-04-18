@@ -308,6 +308,28 @@ int dbg_release_bp_slot(struct perf_event *bp)
 	return 0;
 }
 
+static int validate_hw_breakpoint(struct perf_event *bp)
+{
+	int ret;
+
+	ret = arch_validate_hwbkpt_settings(bp);
+	if (ret)
+		return ret;
+
+	if (arch_check_bp_in_kernelspace(bp)) {
+		if (bp->attr.exclude_kernel)
+			return -EINVAL;
+		/*
+		 * Don't let unprivileged users set a breakpoint in the trap
+		 * path to avoid trap recursion attacks.
+		 */
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+	}
+
+	return 0;
+}
+
 int register_perf_hw_breakpoint(struct perf_event *bp)
 {
 	int ret;
@@ -316,7 +338,7 @@ int register_perf_hw_breakpoint(struct perf_event *bp)
 	if (ret)
 		return ret;
 
-	ret = arch_validate_hwbkpt_settings(bp, bp->ctx->task);
+	ret = validate_hw_breakpoint(bp);
 
 	/* if arch_validate_hwbkpt_settings() fails then release bp slot */
 	if (ret)
@@ -363,7 +385,7 @@ int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *att
 	if (attr->disabled)
 		goto end;
 
-	err = arch_validate_hwbkpt_settings(bp, bp->ctx->task);
+	err = validate_hw_breakpoint(bp);
 	if (!err)
 		perf_event_enable(bp);
 
