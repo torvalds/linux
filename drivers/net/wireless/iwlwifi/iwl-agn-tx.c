@@ -1233,8 +1233,9 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	memset(&info->status, 0, sizeof(info->status));
 	info->flags |= IEEE80211_TX_STAT_ACK;
 	info->flags |= IEEE80211_TX_STAT_AMPDU;
-	info->status.ampdu_ack_map = successes;
-	info->status.ampdu_ack_len = agg->frame_count;
+	info->status.ampdu_ack_len = successes;
+	info->status.ampdu_ack_map = bitmap;
+	info->status.ampdu_len = agg->frame_count;
 	iwlagn_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
 
 	IWL_DEBUG_TX_REPLY(priv, "Bitmap %llx\n", (unsigned long long)bitmap);
