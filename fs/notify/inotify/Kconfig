@@ -17,6 +17,7 @@ config INOTIFY_USER
 	bool "Inotify support for userspace"
 	select ANON_INODES
 	select FSNOTIFY
+	select ANON_INODES
 	default y
 	---help---
 	  Say Y here to enable inotify support for userspace, including the
