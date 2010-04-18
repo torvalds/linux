@@ -117,9 +117,12 @@ static cpumask_var_t __read_mostly	tracing_buffer_mask;
  *
  * It is default off, but you can enable it with either specifying
  * "ftrace_dump_on_oops" in the kernel command line, or setting
- * /proc/sys/kernel/ftrace_dump_on_oops to true.
+ * /proc/sys/kernel/ftrace_dump_on_oops
+ * Set 1 if you want to dump buffers of all CPUs
+ * Set 2 if you want to dump the buffer of the CPU that triggered oops
  */
-int ftrace_dump_on_oops;
+
+enum ftrace_dump_mode ftrace_dump_on_oops;
 
 static int tracing_set_tracer(const char *buf);
 
@@ -139,8 +142,17 @@ __setup("ftrace=", set_cmdline_ftrace);
 
 static int __init set_ftrace_dump_on_oops(char *str)
 {
-	ftrace_dump_on_oops = 1;
-	return 1;
+	if (*str++ != '=' || !*str) {
+		ftrace_dump_on_oops = DUMP_ALL;
+		return 1;
+	}
+
+	if (!strcmp("orig_cpu", str)) {
+		ftrace_dump_on_oops = DUMP_ORIG;
+                return 1;
+        }
+
+        return 0;
 }
 __setup("ftrace_dump_on_oops", set_ftrace_dump_on_oops);
 
@@ -4338,7 +4350,7 @@ static int trace_panic_handler(struct notifier_block *this,
 			       unsigned long event, void *unused)
 {
 	if (ftrace_dump_on_oops)
-		ftrace_dump();
+		ftrace_dump(ftrace_dump_on_oops);
 	return NOTIFY_OK;
 }
 
@@ -4355,7 +4367,7 @@ static int trace_die_handler(struct notifier_block *self,
 	switch (val) {
 	case DIE_OOPS:
 		if (ftrace_dump_on_oops)
-			ftrace_dump();
+			ftrace_dump(ftrace_dump_on_oops);
 		break;
 	default:
 		break;
@@ -4396,7 +4408,8 @@ trace_printk_seq(struct trace_seq *s)
 	trace_seq_init(s);
 }
 
-static void __ftrace_dump(bool disable_tracing)
+static void
+__ftrace_dump(bool disable_tracing, enum ftrace_dump_mode oops_dump_mode)
 {
 	static arch_spinlock_t ftrace_dump_lock =
 		(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
@@ -4429,12 +4442,25 @@ static void __ftrace_dump(bool disable_tracing)
 	/* don't look at user memory in panic mode */
 	trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
 
-	printk(KERN_TRACE "Dumping ftrace buffer:\n");
-
 	/* Simulate the iterator */
 	iter.tr = &global_trace;
 	iter.trace = current_trace;
-	iter.cpu_file = TRACE_PIPE_ALL_CPU;
+
+	switch (oops_dump_mode) {
+	case DUMP_ALL:
+		iter.cpu_file = TRACE_PIPE_ALL_CPU;
+		break;
+	case DUMP_ORIG:
+		iter.cpu_file = raw_smp_processor_id();
+		break;
+	case DUMP_NONE:
+		goto out_enable;
+	default:
+		printk(KERN_TRACE "Bad dumping mode, switching to all CPUs dump\n");
+		iter.cpu_file = TRACE_PIPE_ALL_CPU;
+	}
+
+	printk(KERN_TRACE "Dumping ftrace buffer:\n");
 
 	/*
 	 * We need to stop all tracing on all CPUS to read the
@@ -4473,6 +4499,7 @@ static void __ftrace_dump(bool disable_tracing)
 	else
 		printk(KERN_TRACE "---------------------------------\n");
 
+ out_enable:
 	/* Re-enable tracing if requested */
 	if (!disable_tracing) {
 		trace_flags |= old_userobj;
@@ -4489,9 +4516,9 @@ static void __ftrace_dump(bool disable_tracing)
 }
 
 /* By default: disable tracing after the dump */
-void ftrace_dump(void)
+void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 {
-	__ftrace_dump(true);
+	__ftrace_dump(true, oops_dump_mode);
 }
 
 __init static int tracer_alloc_buffers(void)

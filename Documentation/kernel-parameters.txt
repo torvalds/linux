@@ -789,8 +789,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			as early as possible in order to facilitate early
 			boot debugging.
 
-	ftrace_dump_on_oops
+	ftrace_dump_on_oops[=orig_cpu]
 			[FTRACE] will dump the trace buffers on oops.
+			If no parameter is passed, ftrace will dump
+			buffers of all CPUs, but if you pass orig_cpu, it will
+			dump only the buffer of the CPU that triggered the
+			oops.
 
 	ftrace_filter=[function-list]
 			[FTRACE] Limit the functions traced by the function

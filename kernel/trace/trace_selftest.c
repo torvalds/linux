@@ -256,7 +256,8 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 /* Maximum number of functions to trace before diagnosing a hang */
 #define GRAPH_MAX_FUNC_TEST	100000000
 
-static void __ftrace_dump(bool disable_tracing);
+static void
+__ftrace_dump(bool disable_tracing, enum ftrace_dump_mode oops_dump_mode);
 static unsigned int graph_hang_thresh;
 
 /* Wrap the real function entry probe to avoid possible hanging */
@@ -267,7 +268,7 @@ static int trace_graph_entry_watchdog(struct ftrace_graph_ent *trace)
 		ftrace_graph_stop();
 		printk(KERN_WARNING "BUG: Function graph tracer hang!\n");
 		if (ftrace_dump_on_oops)
-			__ftrace_dump(false);
+			__ftrace_dump(false, DUMP_ALL);
 		return 0;
 	}
 

@@ -289,7 +289,7 @@ static struct sysrq_key_op sysrq_showstate_blocked_op = {
 
 static void sysrq_ftrace_dump(int key, struct tty_struct *tty)
 {
-	ftrace_dump();
+	ftrace_dump(DUMP_ALL);
 }
 static struct sysrq_key_op sysrq_ftrace_dump_op = {
 	.handler	= sysrq_ftrace_dump,

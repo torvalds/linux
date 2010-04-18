@@ -492,7 +492,9 @@ static inline int test_tsk_trace_graph(struct task_struct *tsk)
 	return tsk->trace & TSK_TRACE_FL_GRAPH;
 }
 
-extern int ftrace_dump_on_oops;
+enum ftrace_dump_mode;
+
+extern enum ftrace_dump_mode ftrace_dump_on_oops;
 
 #ifdef CONFIG_PREEMPT
 #define INIT_TRACE_RECURSION		.trace_recursion = 0,
