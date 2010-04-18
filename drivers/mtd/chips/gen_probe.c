@@ -155,8 +155,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 			pchip->start = (i << cfi.chipshift);
 			pchip->state = FL_READY;
 			init_waitqueue_head(&pchip->wq);
-			spin_lock_init(&pchip->_spinlock);
-			pchip->mutex = &pchip->_spinlock;
+			mutex_init(&pchip->mutex);
 		}
 	}
 
