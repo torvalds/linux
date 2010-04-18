@@ -45,6 +45,14 @@ struct mac_addr
 	unsigned char	addr[6];
 };
 
+struct br_ip
+{
+	union {
+		__be32	ip4;
+	} u;
+	__be16		proto;
+};
+
 struct net_bridge_fdb_entry
 {
 	struct hlist_node		hlist;
@@ -64,7 +72,7 @@ struct net_bridge_port_group {
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct timer_list		query_timer;
-	__be32				addr;
+	struct br_ip			addr;
 	u32				queries_sent;
 };
 
@@ -77,7 +85,7 @@ struct net_bridge_mdb_entry
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct timer_list		query_timer;
-	__be32				addr;
+	struct br_ip			addr;
 	u32				queries_sent;
 };
 
