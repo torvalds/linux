@@ -537,125 +537,6 @@ static int orinoco_ioctl_setsens(struct net_device *dev,
 	return -EINPROGRESS;		/* Call commit handler */
 }
 
-static int orinoco_ioctl_setrts(struct net_device *dev,
-				struct iw_request_info *info,
-				struct iw_param *rrq,
-				char *extra)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-	int val = rrq->value;
-	unsigned long flags;
-
-	if (rrq->disabled)
-		val = 2347;
-
-	if ((val < 0) || (val > 2347))
-		return -EINVAL;
-
-	if (orinoco_lock(priv, &flags) != 0)
-		return -EBUSY;
-
-	priv->rts_thresh = val;
-	orinoco_unlock(priv, &flags);
-
-	return -EINPROGRESS;		/* Call commit handler */
-}
-
-static int orinoco_ioctl_getrts(struct net_device *dev,
-				struct iw_request_info *info,
-				struct iw_param *rrq,
-				char *extra)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-
-	rrq->value = priv->rts_thresh;
-	rrq->disabled = (rrq->value == 2347);
-	rrq->fixed = 1;
-
-	return 0;
-}
-
-static int orinoco_ioctl_setfrag(struct net_device *dev,
-				 struct iw_request_info *info,
-				 struct iw_param *frq,
-				 char *extra)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-	int err = -EINPROGRESS;		/* Call commit handler */
-	unsigned long flags;
-
-	if (orinoco_lock(priv, &flags) != 0)
-		return -EBUSY;
-
-	if (priv->has_mwo) {
-		if (frq->disabled)
-			priv->mwo_robust = 0;
-		else {
-			if (frq->fixed)
-				printk(KERN_WARNING "%s: Fixed fragmentation "
-				       "is not supported on this firmware. "
-				       "Using MWO robust instead.\n",
-				       dev->name);
-			priv->mwo_robust = 1;
-		}
-	} else {
-		if (frq->disabled)
-			priv->frag_thresh = 2346;
-		else {
-			if ((frq->value < 256) || (frq->value > 2346))
-				err = -EINVAL;
-			else
-				/* must be even */
-				priv->frag_thresh = frq->value & ~0x1;
-		}
-	}
-
-	orinoco_unlock(priv, &flags);
-
-	return err;
-}
-
-static int orinoco_ioctl_getfrag(struct net_device *dev,
-				 struct iw_request_info *info,
-				 struct iw_param *frq,
-				 char *extra)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-	hermes_t *hw = &priv->hw;
-	int err;
-	u16 val;
-	unsigned long flags;
-
-	if (orinoco_lock(priv, &flags) != 0)
-		return -EBUSY;
-
-	if (priv->has_mwo) {
-		err = hermes_read_wordrec(hw, USER_BAP,
-					  HERMES_RID_CNFMWOROBUST_AGERE,
-					  &val);
-		if (err)
-			val = 0;
-
-		frq->value = val ? 2347 : 0;
-		frq->disabled = !val;
-		frq->fixed = 0;
-	} else {
-		err = hermes_read_wordrec(hw, USER_BAP,
-					  HERMES_RID_CNFFRAGMENTATIONTHRESHOLD,
-					  &val);
-		if (err)
-			val = 0;
-
-		frq->value = val;
-		frq->disabled = (val >= 2346);
-		frq->fixed = 1;
-	}
-
-	orinoco_unlock(priv, &flags);
-
-	return err;
-}
-
 static int orinoco_ioctl_setrate(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_param *rrq,
@@ -1200,60 +1081,6 @@ static int orinoco_ioctl_set_mlme(struct net_device *dev,
 	return ret;
 }
 
-static int orinoco_ioctl_getretry(struct net_device *dev,
-				  struct iw_request_info *info,
-				  struct iw_param *rrq,
-				  char *extra)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-	hermes_t *hw = &priv->hw;
-	int err = 0;
-	u16 short_limit, long_limit, lifetime;
-	unsigned long flags;
-
-	if (orinoco_lock(priv, &flags) != 0)
-		return -EBUSY;
-
-	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_SHORTRETRYLIMIT,
-				  &short_limit);
-	if (err)
-		goto out;
-
-	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_LONGRETRYLIMIT,
-				  &long_limit);
-	if (err)
-		goto out;
-
-	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_MAXTRANSMITLIFETIME,
-				  &lifetime);
-	if (err)
-		goto out;
-
-	rrq->disabled = 0;		/* Can't be disabled */
-
-	/* Note : by default, display the retry number */
-	if ((rrq->flags & IW_RETRY_TYPE) == IW_RETRY_LIFETIME) {
-		rrq->flags = IW_RETRY_LIFETIME;
-		rrq->value = lifetime * 1000;	/* ??? */
-	} else {
-		/* By default, display the min number */
-		if ((rrq->flags & IW_RETRY_LONG)) {
-			rrq->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
-			rrq->value = long_limit;
-		} else {
-			rrq->flags = IW_RETRY_LIMIT;
-			rrq->value = short_limit;
-			if (short_limit != long_limit)
-				rrq->flags |= IW_RETRY_SHORT;
-		}
-	}
-
- out:
-	orinoco_unlock(priv, &flags);
-
-	return err;
-}
-
 static int orinoco_ioctl_reset(struct net_device *dev,
 			       struct iw_request_info *info,
 			       void *wrqu,
@@ -1527,11 +1354,11 @@ static const iw_handler	orinoco_handler[] = {
 	IW_HANDLER(SIOCGIWESSID,	(iw_handler)orinoco_ioctl_getessid),
 	IW_HANDLER(SIOCSIWRATE,		(iw_handler)orinoco_ioctl_setrate),
 	IW_HANDLER(SIOCGIWRATE,		(iw_handler)orinoco_ioctl_getrate),
-	IW_HANDLER(SIOCSIWRTS,		(iw_handler)orinoco_ioctl_setrts),
-	IW_HANDLER(SIOCGIWRTS,		(iw_handler)orinoco_ioctl_getrts),
-	IW_HANDLER(SIOCSIWFRAG,		(iw_handler)orinoco_ioctl_setfrag),
-	IW_HANDLER(SIOCGIWFRAG,		(iw_handler)orinoco_ioctl_getfrag),
-	IW_HANDLER(SIOCGIWRETRY,	(iw_handler)orinoco_ioctl_getretry),
+	IW_HANDLER(SIOCSIWRTS,		(iw_handler)cfg80211_wext_siwrts),
+	IW_HANDLER(SIOCGIWRTS,		(iw_handler)cfg80211_wext_giwrts),
+	IW_HANDLER(SIOCSIWFRAG,		(iw_handler)cfg80211_wext_siwfrag),
+	IW_HANDLER(SIOCGIWFRAG,		(iw_handler)cfg80211_wext_giwfrag),
+	IW_HANDLER(SIOCGIWRETRY,	(iw_handler)cfg80211_wext_giwretry),
 	IW_HANDLER(SIOCSIWENCODE,	(iw_handler)orinoco_ioctl_setiwencode),
 	IW_HANDLER(SIOCGIWENCODE,	(iw_handler)orinoco_ioctl_getiwencode),
 	IW_HANDLER(SIOCSIWPOWER,	(iw_handler)orinoco_ioctl_setpower),

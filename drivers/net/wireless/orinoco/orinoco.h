@@ -131,6 +131,8 @@ struct orinoco_private {
 	u16 ap_density, rts_thresh;
 	u16 pm_on, pm_mcast, pm_period, pm_timeout;
 	u16 preamble;
+	u16 short_retry_limit, long_retry_limit;
+	u16 retry_lifetime;
 #ifdef WIRELESS_SPY
 	struct iw_spy_data spy_data; /* iwspy support */
 	struct iw_public_data	wireless_data;
