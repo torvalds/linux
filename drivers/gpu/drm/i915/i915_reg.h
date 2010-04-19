@@ -1922,7 +1922,10 @@
 /* Display & cursor control */
 
 /* dithering flag on Ironlake */
-#define PIPE_ENABLE_DITHER	(1 << 4)
+#define PIPE_ENABLE_DITHER		(1 << 4)
+#define PIPE_DITHER_TYPE_MASK		(3 << 2)
+#define PIPE_DITHER_TYPE_SPATIAL	(0 << 2)
+#define PIPE_DITHER_TYPE_ST01		(1 << 2)
 /* Pipe A */
 #define PIPEADSL		0x70000
 #define PIPEACONF		0x70008

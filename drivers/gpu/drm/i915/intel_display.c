@@ -3677,14 +3677,16 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		/* set the dithering flag */
 		if (IS_I965G(dev)) {
 			if (dev_priv->lvds_dither) {
-				if (HAS_PCH_SPLIT(dev))
+				if (HAS_PCH_SPLIT(dev)) {
 					pipeconf |= PIPE_ENABLE_DITHER;
-				else
+					pipeconf |= PIPE_DITHER_TYPE_ST01;
+				} else
 					lvds |= LVDS_ENABLE_DITHER;
 			} else {
-				if (HAS_PCH_SPLIT(dev))
+				if (HAS_PCH_SPLIT(dev)) {
 					pipeconf &= ~PIPE_ENABLE_DITHER;
-				else
+					pipeconf &= ~PIPE_DITHER_TYPE_MASK;
+				} else
 					lvds &= ~LVDS_ENABLE_DITHER;
 			}
 		}
