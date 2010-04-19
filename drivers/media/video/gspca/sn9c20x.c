@@ -55,7 +55,7 @@ MODULE_LICENSE("GPL");
 #define SENSOR_MT9VPRB	20
 
 /* camera flags */
-#define HAS_BUTTON	0x1
+#define HAS_NO_BUTTON	0x1
 #define LED_REVERSE	0x2 /* some cameras unset gpio to turn on leds */
 #define FLIP_DETECT	0x4
 
@@ -2340,7 +2340,7 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret = -EINVAL;
-	if (sd->flags & HAS_BUTTON && len == 1) {
+	if (!(sd->flags & HAS_NO_BUTTON) && len == 1) {
 			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
 			input_sync(gspca_dev->input_dev);
 			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
@@ -2438,9 +2438,9 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6242), SN9C20X(MT9M111, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6248), SN9C20X(OV9655, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x624c), SN9C20X(MT9M112, 0x5d, 0)},
-	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30,
-					     (HAS_BUTTON | LED_REVERSE))},
-	{USB_DEVICE(0x0c45, 0x624f), SN9C20X(OV9650, 0x30, FLIP_DETECT)},
+	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30, LED_REVERSE)},
+	{USB_DEVICE(0x0c45, 0x624f), SN9C20X(OV9650, 0x30,
+					     (FLIP_DETECT | HAS_NO_BUTTON))},
 	{USB_DEVICE(0x0c45, 0x6251), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6253), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6260), SN9C20X(OV7670, 0x21, 0)},
@@ -2450,14 +2450,14 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x627f), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6280), SN9C20X(MT9M001, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6282), SN9C20X(MT9M111, 0x5d, 0)},
-	{USB_DEVICE(0x0c45, 0x6288), SN9C20X(OV9655, 0x30, HAS_BUTTON)},
+	{USB_DEVICE(0x0c45, 0x6288), SN9C20X(OV9655, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x628c), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x628e), SN9C20X(SOI968, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x628f), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x62a0), SN9C20X(OV7670, 0x21, 0)},
 	{USB_DEVICE(0x0c45, 0x62b0), SN9C20X(MT9VPRB, 0x00, 0)},
 	{USB_DEVICE(0x0c45, 0x62b3), SN9C20X(OV9655, 0x30, 0)},
-	{USB_DEVICE(0x0c45, 0x62bb), SN9C20X(OV7660, 0x21, HAS_BUTTON)},
+	{USB_DEVICE(0x0c45, 0x62bb), SN9C20X(OV7660, 0x21, 0)},
 	{USB_DEVICE(0x0c45, 0x62bc), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0x045e, 0x00f4), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x145f, 0x013d), SN9C20X(OV7660, 0x21, 0)},
@@ -2468,7 +2468,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0xa168, 0x0611), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0xa168, 0x0613), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0xa168, 0x0618), SN9C20X(HV7131R, 0x11, 0)},
-	{USB_DEVICE(0xa168, 0x0614), SN9C20X(MT9M111, 0x5d, HAS_BUTTON)},
+	{USB_DEVICE(0xa168, 0x0614), SN9C20X(MT9M111, 0x5d, 0)},
 	{USB_DEVICE(0xa168, 0x0615), SN9C20X(MT9M111, 0x5d, 0)},
 	{USB_DEVICE(0xa168, 0x0617), SN9C20X(MT9M111, 0x5d, 0)},
 	{}
