@@ -1381,7 +1381,7 @@ static void kvm_release_vm_pages(struct kvm *kvm)
 	int i, j;
 	unsigned long base_gfn;
 
-	slots = rcu_dereference(kvm->memslots);
+	slots = kvm_memslots(kvm);
 	for (i = 0; i < slots->nmemslots; i++) {
 		memslot = &slots->memslots[i];
 		base_gfn = memslot->base_gfn;

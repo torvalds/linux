@@ -1558,7 +1558,7 @@ static gva_t rmode_tss_base(struct kvm *kvm)
 		struct kvm_memslots *slots;
 		gfn_t base_gfn;
 
-		slots = rcu_dereference(kvm->memslots);
+		slots = kvm_memslots(kvm);
 		base_gfn = kvm->memslots->memslots[0].base_gfn +
 				 kvm->memslots->memslots[0].npages - 3;
 		return base_gfn << PAGE_SHIFT;

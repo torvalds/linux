@@ -72,7 +72,7 @@ static inline void kvm_s390_vcpu_set_mem(struct kvm_vcpu *vcpu)
 	struct kvm_memslots *memslots;
 
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
-	memslots = rcu_dereference(vcpu->kvm->memslots);
+	memslots = kvm_memslots(vcpu->kvm);
 
 	mem = &memslots->memslots[0];
 

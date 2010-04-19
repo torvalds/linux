@@ -834,7 +834,7 @@ EXPORT_SYMBOL_GPL(kvm_is_error_hva);
 struct kvm_memory_slot *gfn_to_memslot_unaliased(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
-	struct kvm_memslots *slots = rcu_dereference(kvm->memslots);
+	struct kvm_memslots *slots = kvm_memslots(kvm);
 
 	for (i = 0; i < slots->nmemslots; ++i) {
 		struct kvm_memory_slot *memslot = &slots->memslots[i];
@@ -856,7 +856,7 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
-	struct kvm_memslots *slots = rcu_dereference(kvm->memslots);
+	struct kvm_memslots *slots = kvm_memslots(kvm);
 
 	gfn = unalias_gfn_instantiation(kvm, gfn);
 	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
@@ -900,7 +900,7 @@ out:
 int memslot_id(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
-	struct kvm_memslots *slots = rcu_dereference(kvm->memslots);
+	struct kvm_memslots *slots = kvm_memslots(kvm);
 	struct kvm_memory_slot *memslot = NULL;
 
 	gfn = unalias_gfn(kvm, gfn);
@@ -1994,7 +1994,9 @@ int kvm_io_bus_write(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 		     int len, const void *val)
 {
 	int i;
-	struct kvm_io_bus *bus = rcu_dereference(kvm->buses[bus_idx]);
+	struct kvm_io_bus *bus;
+
+	bus = srcu_dereference(kvm->buses[bus_idx], &kvm->srcu);
 	for (i = 0; i < bus->dev_count; i++)
 		if (!kvm_iodevice_write(bus->devs[i], addr, len, val))
 			return 0;
@@ -2006,8 +2008,9 @@ int kvm_io_bus_read(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 		    int len, void *val)
 {
 	int i;
-	struct kvm_io_bus *bus = rcu_dereference(kvm->buses[bus_idx]);
+	struct kvm_io_bus *bus;
 
+	bus = srcu_dereference(kvm->buses[bus_idx], &kvm->srcu);
 	for (i = 0; i < bus->dev_count; i++)
 		if (!kvm_iodevice_read(bus->devs[i], addr, len, val))
 			return 0;

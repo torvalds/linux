@@ -787,7 +787,7 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 	int retval = 0;
 	struct kvm_memslots *slots;
 
-	slots = rcu_dereference(kvm->memslots);
+	slots = kvm_memslots(kvm);
 
 	for (i = 0; i < slots->nmemslots; i++) {
 		struct kvm_memory_slot *memslot = &slots->memslots[i];
@@ -3016,7 +3016,8 @@ unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm)
 	unsigned int  nr_pages = 0;
 	struct kvm_memslots *slots;
 
-	slots = rcu_dereference(kvm->memslots);
+	slots = kvm_memslots(kvm);
+
 	for (i = 0; i < slots->nmemslots; i++)
 		nr_pages += slots->memslots[i].npages;
 
@@ -3292,7 +3293,7 @@ static int count_rmaps(struct kvm_vcpu *vcpu)
 	int i, j, k, idx;
 
 	idx = srcu_read_lock(&kvm->srcu);
-	slots = rcu_dereference(kvm->memslots);
+	slots = kvm_memslots(kvm);
 	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
 		struct kvm_memory_slot *m = &slots->memslots[i];
 		struct kvm_rmap_desc *d;

@@ -2497,7 +2497,7 @@ gfn_t unalias_gfn_instantiation(struct kvm *kvm, gfn_t gfn)
 	struct kvm_mem_alias *alias;
 	struct kvm_mem_aliases *aliases;
 
-	aliases = rcu_dereference(kvm->arch.aliases);
+	aliases = kvm_aliases(kvm);
 
 	for (i = 0; i < aliases->naliases; ++i) {
 		alias = &aliases->aliases[i];
@@ -2516,7 +2516,7 @@ gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 	struct kvm_mem_alias *alias;
 	struct kvm_mem_aliases *aliases;
 
-	aliases = rcu_dereference(kvm->arch.aliases);
+	aliases = kvm_aliases(kvm);
 
 	for (i = 0; i < aliases->naliases; ++i) {
 		alias = &aliases->aliases[i];
