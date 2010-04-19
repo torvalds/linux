@@ -275,6 +275,8 @@ struct ieee80211_bss_conf {
  *	MLME command (internal to mac80211 to figure out whether to send TX
  *	status to user space)
  * @IEEE80211_TX_CTL_LDPC: tells the driver to use LDPC for this frame
+ * @IEEE80211_TX_CTL_STBC: Enables Space-Time Block Coding (STBC) for this
+ *	frame and selects the maximum number of streams that it can use.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -299,6 +301,8 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_HAS_RADIOTAP		= BIT(20),
 	IEEE80211_TX_INTFL_NL80211_FRAME_TX	= BIT(21),
 	IEEE80211_TX_CTL_LDPC			= BIT(22),
+	IEEE80211_TX_CTL_STBC			= BIT(23) | BIT(24),
+#define IEEE80211_TX_CTL_STBC_SHIFT		23
 };
 
 /**
