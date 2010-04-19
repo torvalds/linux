@@ -229,6 +229,23 @@ static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 	packet->payload_mapped = false;
 }
 
+static int allocate_tlabel(struct fw_card *card)
+{
+	int tlabel;
+
+	tlabel = card->current_tlabel;
+	while (card->tlabel_mask & (1ULL << tlabel)) {
+		tlabel = (tlabel + 1) & 0x3f;
+		if (tlabel == card->current_tlabel)
+			return -EBUSY;
+	}
+
+	card->current_tlabel = (tlabel + 1) & 0x3f;
+	card->tlabel_mask |= 1ULL << tlabel;
+
+	return tlabel;
+}
+
 /**
  * This function provides low-level access to the IEEE1394 transaction
  * logic.  Most C programs would use either fw_read(), fw_write() or
@@ -290,15 +307,12 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 
 	spin_lock_irqsave(&card->lock, flags);
 
-	tlabel = card->current_tlabel;
-	if (card->tlabel_mask & (1ULL << tlabel)) {
+	tlabel = allocate_tlabel(card);
+	if (tlabel < 0) {
 		spin_unlock_irqrestore(&card->lock, flags);
 		callback(card, RCODE_SEND_ERROR, NULL, 0, callback_data);
 		return;
 	}
-
-	card->current_tlabel = (card->current_tlabel + 1) & 0x3f;
-	card->tlabel_mask |= (1ULL << tlabel);
 
 	t->node_id = destination_id;
 	t->tlabel = tlabel;
