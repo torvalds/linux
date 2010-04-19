@@ -1974,7 +1974,7 @@ u16 skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb)
 	if (skb->sk && skb->sk->sk_hash)
 		hash = skb->sk->sk_hash;
 	else
-		hash = skb->protocol;
+		hash = (__force u16) skb->protocol;
 
 	hash = jhash_1word(hash, hashrnd);
 
@@ -2253,8 +2253,8 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 
 		ip = (struct iphdr *) skb->data;
 		ip_proto = ip->protocol;
-		addr1 = ip->saddr;
-		addr2 = ip->daddr;
+		addr1 = (__force u32) ip->saddr;
+		addr2 = (__force u32) ip->daddr;
 		ihl = ip->ihl;
 		break;
 	case __constant_htons(ETH_P_IPV6):
@@ -2263,8 +2263,8 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 
 		ip6 = (struct ipv6hdr *) skb->data;
 		ip_proto = ip6->nexthdr;
-		addr1 = ip6->saddr.s6_addr32[3];
-		addr2 = ip6->daddr.s6_addr32[3];
+		addr1 = (__force u32) ip6->saddr.s6_addr32[3];
+		addr2 = (__force u32) ip6->daddr.s6_addr32[3];
 		ihl = (40 >> 2);
 		break;
 	default:
@@ -2279,14 +2279,25 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	case IPPROTO_AH:
 	case IPPROTO_SCTP:
 	case IPPROTO_UDPLITE:
-		if (pskb_may_pull(skb, (ihl * 4) + 4))
-			ports = *((u32 *) (skb->data + (ihl * 4)));
+		if (pskb_may_pull(skb, (ihl * 4) + 4)) {
+			__be16 *hports = (__be16 *) (skb->data + (ihl * 4));
+			u32 sport, dport;
+
+			sport = (__force u16) hports[0];
+			dport = (__force u16) hports[1];
+			if (dport < sport)
+				swap(sport, dport);
+			ports = (sport << 16) + dport;
+		}
 		break;
 
 	default:
 		break;
 	}
 
+	/* get a consistent hash (same value on both flow directions) */
+	if (addr2 < addr1)
+		swap(addr1, addr2);
 	skb->rxhash = jhash_3words(addr1, addr2, ports, hashrnd);
 	if (!skb->rxhash)
 		skb->rxhash = 1;
