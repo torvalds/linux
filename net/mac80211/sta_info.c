@@ -575,7 +575,7 @@ static int sta_info_buffer_expired(struct sta_info *sta,
 }
 
 
-static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
+static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 					     struct sta_info *sta)
 {
 	unsigned long flags;
@@ -583,7 +583,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	struct ieee80211_sub_if_data *sdata;
 
 	if (skb_queue_empty(&sta->ps_tx_buf))
-		return;
+		return false;
 
 	for (;;) {
 		spin_lock_irqsave(&sta->ps_tx_buf.lock, flags);
@@ -608,6 +608,8 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 		if (skb_queue_empty(&sta->ps_tx_buf))
 			sta_info_clear_tim_bit(sta);
 	}
+
+	return true;
 }
 
 static int __must_check __sta_info_destroy(struct sta_info *sta)
@@ -755,13 +757,18 @@ static void sta_info_cleanup(unsigned long data)
 {
 	struct ieee80211_local *local = (struct ieee80211_local *) data;
 	struct sta_info *sta;
+	bool timer_needed = false;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &local->sta_list, list)
-		sta_info_cleanup_expire_buffered(local, sta);
+		if (sta_info_cleanup_expire_buffered(local, sta))
+			timer_needed = true;
 	rcu_read_unlock();
 
 	if (local->quiescing)
+		return;
+
+	if (!timer_needed)
 		return;
 
 	local->sta_cleanup.expires =
