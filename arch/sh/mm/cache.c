@@ -334,6 +334,13 @@ void __init cpu_cache_init(void)
 		extern void __weak sh4_cache_init(void);
 
 		sh4_cache_init();
+
+		if ((boot_cpu_data.type == CPU_SH7786) ||
+		    (boot_cpu_data.type == CPU_SHX3)) {
+			extern void __weak shx3_cache_init(void);
+
+			shx3_cache_init();
+		}
 	}
 
 	if (boot_cpu_data.family == CPU_FAMILY_SH5) {
