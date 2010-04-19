@@ -550,7 +550,7 @@ static void rps_map_release(struct rcu_head *rcu)
 	kfree(map);
 }
 
-ssize_t store_rps_map(struct netdev_rx_queue *queue,
+static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 		      struct rx_queue_attribute *attribute,
 		      const char *buf, size_t len)
 {
@@ -635,7 +635,7 @@ static void rps_dev_flow_table_release(struct rcu_head *rcu)
 	schedule_work(&table->free_work);
 }
 
-ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
+static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 				     struct rx_queue_attribute *attr,
 				     const char *buf, size_t len)
 {
