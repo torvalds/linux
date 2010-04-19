@@ -1401,10 +1401,10 @@ struct softnet_data {
 	struct napi_struct	backlog;
 };
 
-static inline void incr_input_queue_head(struct softnet_data *queue)
+static inline void input_queue_head_incr(struct softnet_data *sd)
 {
 #ifdef CONFIG_RPS
-	queue->input_queue_head++;
+	sd->input_queue_head++;
 #endif
 }
 
