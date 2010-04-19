@@ -2345,21 +2345,6 @@ done:
 	return cpu;
 }
 
-/*
- * This structure holds the per-CPU mask of CPUs for which IPIs are scheduled
- * to be sent to kick remote softirq processing.  There are two masks since
- * the sending of IPIs must be done with interrupts enabled.  The select field
- * indicates the current mask that enqueue_backlog uses to schedule IPIs.
- * select is flipped before net_rps_action is called while still under lock,
- * net_rps_action then uses the non-selected mask to send the IPIs and clears
- * it without conflicting with enqueue_backlog operation.
- */
-struct rps_remote_softirq_cpus {
-	cpumask_t mask[2];
-	int select;
-};
-static DEFINE_PER_CPU(struct rps_remote_softirq_cpus, rps_remote_softirq_cpus);
-
 /* Called from hardirq (IPI) context */
 static void trigger_softirq(void *data)
 {
@@ -2402,10 +2387,12 @@ enqueue:
 		if (napi_schedule_prep(&queue->backlog)) {
 #ifdef CONFIG_RPS
 			if (cpu != smp_processor_id()) {
-				struct rps_remote_softirq_cpus *rcpus =
-				    &__get_cpu_var(rps_remote_softirq_cpus);
+				struct softnet_data *myqueue;
 
-				cpu_set(cpu, rcpus->mask[rcpus->select]);
+				myqueue = &__get_cpu_var(softnet_data);
+				queue->rps_ipi_next = myqueue->rps_ipi_list;
+				myqueue->rps_ipi_list = queue;
+
 				__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 				goto enqueue;
 			}
@@ -2910,7 +2897,9 @@ int netif_receive_skb(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(netif_receive_skb);
 
-/* Network device is going away, flush any packets still pending  */
+/* Network device is going away, flush any packets still pending
+ * Called with irqs disabled.
+ */
 static void flush_backlog(void *arg)
 {
 	struct net_device *dev = arg;
@@ -3338,24 +3327,33 @@ void netif_napi_del(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(netif_napi_del);
 
-#ifdef CONFIG_RPS
 /*
- * net_rps_action sends any pending IPI's for rps.  This is only called from
- * softirq and interrupts must be enabled.
+ * net_rps_action sends any pending IPI's for rps.
+ * Note: called with local irq disabled, but exits with local irq enabled.
  */
-static void net_rps_action(cpumask_t *mask)
+static void net_rps_action(void)
 {
-	int cpu;
+#ifdef CONFIG_RPS
+	struct softnet_data *locqueue = &__get_cpu_var(softnet_data);
+	struct softnet_data *remqueue = locqueue->rps_ipi_list;
 
-	/* Send pending IPI's to kick RPS processing on remote cpus. */
-	for_each_cpu_mask_nr(cpu, *mask) {
-		struct softnet_data *queue = &per_cpu(softnet_data, cpu);
-		if (cpu_online(cpu))
-			__smp_call_function_single(cpu, &queue->csd, 0);
-	}
-	cpus_clear(*mask);
-}
+	if (remqueue) {
+		locqueue->rps_ipi_list = NULL;
+
+		local_irq_enable();
+
+		/* Send pending IPI's to kick RPS processing on remote cpus. */
+		while (remqueue) {
+			struct softnet_data *next = remqueue->rps_ipi_next;
+			if (cpu_online(remqueue->cpu))
+				__smp_call_function_single(remqueue->cpu,
+							   &remqueue->csd, 0);
+			remqueue = next;
+		}
+	} else
 #endif
+		local_irq_enable();
+}
 
 static void net_rx_action(struct softirq_action *h)
 {
@@ -3363,10 +3361,6 @@ static void net_rx_action(struct softirq_action *h)
 	unsigned long time_limit = jiffies + 2;
 	int budget = netdev_budget;
 	void *have;
-#ifdef CONFIG_RPS
-	int select;
-	struct rps_remote_softirq_cpus *rcpus;
-#endif
 
 	local_irq_disable();
 
@@ -3429,17 +3423,7 @@ static void net_rx_action(struct softirq_action *h)
 		netpoll_poll_unlock(have);
 	}
 out:
-#ifdef CONFIG_RPS
-	rcpus = &__get_cpu_var(rps_remote_softirq_cpus);
-	select = rcpus->select;
-	rcpus->select ^= 1;
-
-	local_irq_enable();
-
-	net_rps_action(&rcpus->mask[select]);
-#else
-	local_irq_enable();
-#endif
+	net_rps_action();
 
 #ifdef CONFIG_NET_DMA
 	/*
@@ -5839,6 +5823,7 @@ static int __init net_dev_init(void)
 		queue->csd.func = trigger_softirq;
 		queue->csd.info = queue;
 		queue->csd.flags = 0;
+		queue->cpu = i;
 #endif
 
 		queue->backlog.poll = process_backlog;

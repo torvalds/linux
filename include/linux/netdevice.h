@@ -1381,17 +1381,20 @@ static inline int unregister_gifconf(unsigned int family)
 }
 
 /*
- * Incoming packets are placed on per-cpu queues so that
- * no locking is needed.
+ * Incoming packets are placed on per-cpu queues
  */
 struct softnet_data {
 	struct Qdisc		*output_queue;
 	struct list_head	poll_list;
 	struct sk_buff		*completion_queue;
 
-	/* Elements below can be accessed between CPUs for RPS */
 #ifdef CONFIG_RPS
+	struct softnet_data	*rps_ipi_list;
+
+	/* Elements below can be accessed between CPUs for RPS */
 	struct call_single_data	csd ____cacheline_aligned_in_smp;
+	struct softnet_data	*rps_ipi_next;
+	unsigned int		cpu;
 	unsigned int		input_queue_head;
 #endif
 	struct sk_buff_head	input_pkt_queue;
