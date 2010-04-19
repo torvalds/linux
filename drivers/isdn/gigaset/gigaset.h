@@ -22,9 +22,9 @@
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/usb.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/ppp_defs.h>
