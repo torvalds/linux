@@ -1944,7 +1944,7 @@ static int rtl8139_rx(struct net_device *dev, struct rtl8139_private *tp,
 		netif_dbg(tp, rx_status, dev, "%s() status %04x, size %04x, cur %04x\n",
 			  __func__, rx_status, rx_size, cur_rx);
 #if RTL8139_DEBUG > 2
-		print_dump_hex(KERN_DEBUG, "Frame contents: ",
+		print_hex_dump(KERN_DEBUG, "Frame contents: ",
 			       DUMP_PREFIX_OFFSET, 16, 1,
 			       &rx_ring[ring_offset], 70, true);
 #endif
