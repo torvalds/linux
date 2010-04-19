@@ -346,6 +346,15 @@ static inline int drv_ampdu_action(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline int drv_get_survey(struct ieee80211_local *local, int idx,
+				struct survey_info *survey)
+{
+	int ret = -EOPNOTSUPP;
+	if (local->ops->conf_tx)
+		ret = local->ops->get_survey(&local->hw, idx, survey);
+	/* trace_drv_get_survey(local, idx, survey, ret); */
+	return ret;
+}
 
 static inline void drv_rfkill_poll(struct ieee80211_local *local)
 {
