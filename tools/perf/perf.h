@@ -131,4 +131,6 @@ struct ip_callchain {
 	u64 ips[0];
 };
 
+extern int perf_host, perf_guest;
+
 #endif

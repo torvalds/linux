@@ -108,7 +108,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 		return -ENOMEM;
 
 	if (hit)
-		he->count += data->period;
+		__perf_session__add_count(he, al,  data->period);
 
 	if (symbol_conf.use_callchain) {
 		if (!hit)
@@ -313,7 +313,7 @@ static int __cmd_report(void)
 		perf_session__fprintf(session, stdout);
 
 	if (verbose > 2)
-		dsos__fprintf(stdout);
+		dsos__fprintf(&session->kerninfo_root, stdout);
 
 	next = rb_first(&session->stats_by_id);
 	while (next) {
@@ -450,6 +450,8 @@ static const struct option options[] = {
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
 	OPT_BOOLEAN('P', "full-paths", &symbol_conf.full_paths,
 		    "Don't shorten the pathnames taking into account the cwd"),
+	OPT_BOOLEAN(0, "showcpuutilization", &symbol_conf.show_cpu_utilization,
+		    "Show sample percentage for different cpu modes"),
 	OPT_STRING('p', "parent", &parent_pattern, "regex",
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "map.h"
 
 const char *map_type__name[MAP__NR_TYPES] = {
@@ -37,9 +38,11 @@ void map__init(struct map *self, enum map_type type,
 	self->map_ip   = map__map_ip;
 	self->unmap_ip = map__unmap_ip;
 	RB_CLEAR_NODE(&self->rb_node);
+	self->groups   = NULL;
 }
 
-struct map *map__new(u64 start, u64 len, u64 pgoff, u32 pid, char *filename,
+struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
+		     u64 pgoff, u32 pid, char *filename,
 		     enum map_type type, char *cwd, int cwdlen)
 {
 	struct map *self = malloc(sizeof(*self));
@@ -66,7 +69,7 @@ struct map *map__new(u64 start, u64 len, u64 pgoff, u32 pid, char *filename,
 			filename = newfilename;
 		}
 
-		dso = dsos__findnew(filename);
+		dso = __dsos__findnew(dsos__list, filename);
 		if (dso == NULL)
 			goto out_delete;
 
@@ -242,6 +245,7 @@ void map_groups__init(struct map_groups *self)
 		self->maps[i] = RB_ROOT;
 		INIT_LIST_HEAD(&self->removed_maps[i]);
 	}
+	 self->this_kerninfo = NULL;
 }
 
 void map_groups__flush(struct map_groups *self)
@@ -507,4 +511,135 @@ struct map *maps__find(struct rb_root *maps, u64 ip)
 	}
 
 	return NULL;
+}
+
+struct kernel_info *add_new_kernel_info(struct rb_root *kerninfo_root,
+			pid_t pid, const char *root_dir)
+{
+	struct rb_node **p = &kerninfo_root->rb_node;
+	struct rb_node *parent = NULL;
+	struct kernel_info *kerninfo, *pos;
+
+	kerninfo = malloc(sizeof(struct kernel_info));
+	if (!kerninfo)
+		return NULL;
+
+	kerninfo->pid = pid;
+	map_groups__init(&kerninfo->kmaps);
+	kerninfo->root_dir = strdup(root_dir);
+	RB_CLEAR_NODE(&kerninfo->rb_node);
+	INIT_LIST_HEAD(&kerninfo->dsos__user);
+	INIT_LIST_HEAD(&kerninfo->dsos__kernel);
+	kerninfo->kmaps.this_kerninfo = kerninfo;
+
+	while (*p != NULL) {
+		parent = *p;
+		pos = rb_entry(parent, struct kernel_info, rb_node);
+		if (pid < pos->pid)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&kerninfo->rb_node, parent, p);
+	rb_insert_color(&kerninfo->rb_node, kerninfo_root);
+
+	return kerninfo;
+}
+
+struct kernel_info *kerninfo__find(struct rb_root *kerninfo_root, pid_t pid)
+{
+	struct rb_node **p = &kerninfo_root->rb_node;
+	struct rb_node *parent = NULL;
+	struct kernel_info *kerninfo;
+	struct kernel_info *default_kerninfo = NULL;
+
+	while (*p != NULL) {
+		parent = *p;
+		kerninfo = rb_entry(parent, struct kernel_info, rb_node);
+		if (pid < kerninfo->pid)
+			p = &(*p)->rb_left;
+		else if (pid > kerninfo->pid)
+			p = &(*p)->rb_right;
+		else
+			return kerninfo;
+		if (!kerninfo->pid)
+			default_kerninfo = kerninfo;
+	}
+
+	return default_kerninfo;
+}
+
+struct kernel_info *kerninfo__findhost(struct rb_root *kerninfo_root)
+{
+	struct rb_node **p = &kerninfo_root->rb_node;
+	struct rb_node *parent = NULL;
+	struct kernel_info *kerninfo;
+	pid_t pid = HOST_KERNEL_ID;
+
+	while (*p != NULL) {
+		parent = *p;
+		kerninfo = rb_entry(parent, struct kernel_info, rb_node);
+		if (pid < kerninfo->pid)
+			p = &(*p)->rb_left;
+		else if (pid > kerninfo->pid)
+			p = &(*p)->rb_right;
+		else
+			return kerninfo;
+	}
+
+	return NULL;
+}
+
+struct kernel_info *kerninfo__findnew(struct rb_root *kerninfo_root, pid_t pid)
+{
+	char path[PATH_MAX];
+	const char *root_dir;
+	int ret;
+	struct kernel_info *kerninfo = kerninfo__find(kerninfo_root, pid);
+
+	if (!kerninfo || kerninfo->pid != pid) {
+		if (pid == HOST_KERNEL_ID || pid == DEFAULT_GUEST_KERNEL_ID)
+			root_dir = "";
+		else {
+			if (!symbol_conf.guestmount)
+				goto out;
+			sprintf(path, "%s/%d", symbol_conf.guestmount, pid);
+			ret = access(path, R_OK);
+			if (ret) {
+				pr_err("Can't access file %s\n", path);
+				goto out;
+			}
+			root_dir = path;
+		}
+		kerninfo = add_new_kernel_info(kerninfo_root, pid, root_dir);
+	}
+
+out:
+	return kerninfo;
+}
+
+void kerninfo__process_allkernels(struct rb_root *kerninfo_root,
+		process_kernel_info process,
+		void *data)
+{
+	struct rb_node *nd;
+
+	for (nd = rb_first(kerninfo_root); nd; nd = rb_next(nd)) {
+		struct kernel_info *pos = rb_entry(nd, struct kernel_info,
+							rb_node);
+		process(pos, data);
+	}
+}
+
+char *kern_mmap_name(struct kernel_info *kerninfo, char *buff)
+{
+	if (is_host_kernel(kerninfo))
+		sprintf(buff, "[%s]", "kernel.kallsyms");
+	else if (is_default_guest(kerninfo))
+		sprintf(buff, "[%s]", "guest.kernel.kallsyms");
+	else
+		sprintf(buff, "[%s.%d]", "guest.kernel.kallsyms", kerninfo->pid);
+
+	return buff;
 }

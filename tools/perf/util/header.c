@@ -190,7 +190,8 @@ static int write_padded(int fd, const void *bf, size_t count,
 			continue;		\
 		else
 
-static int __dsos__write_buildid_table(struct list_head *head, u16 misc, int fd)
+static int __dsos__write_buildid_table(struct list_head *head, pid_t pid,
+				u16 misc, int fd)
 {
 	struct dso *pos;
 
@@ -205,6 +206,7 @@ static int __dsos__write_buildid_table(struct list_head *head, u16 misc, int fd)
 		len = ALIGN(len, NAME_ALIGN);
 		memset(&b, 0, sizeof(b));
 		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
+		b.pid = pid;
 		b.header.misc = misc;
 		b.header.size = sizeof(b) + len;
 		err = do_write(fd, &b, sizeof(b));
@@ -219,13 +221,33 @@ static int __dsos__write_buildid_table(struct list_head *head, u16 misc, int fd)
 	return 0;
 }
 
-static int dsos__write_buildid_table(int fd)
+static int dsos__write_buildid_table(struct perf_header *header, int fd)
 {
-	int err = __dsos__write_buildid_table(&dsos__kernel,
-					      PERF_RECORD_MISC_KERNEL, fd);
-	if (err == 0)
-		err = __dsos__write_buildid_table(&dsos__user,
-						  PERF_RECORD_MISC_USER, fd);
+	struct perf_session *session = container_of(header,
+			struct perf_session, header);
+	struct rb_node *nd;
+	int err = 0;
+	u16 kmisc, umisc;
+
+	for (nd = rb_first(&session->kerninfo_root); nd; nd = rb_next(nd)) {
+		struct kernel_info *pos = rb_entry(nd, struct kernel_info,
+				rb_node);
+		if (is_host_kernel(pos)) {
+			kmisc = PERF_RECORD_MISC_KERNEL;
+			umisc = PERF_RECORD_MISC_USER;
+		} else {
+			kmisc = PERF_RECORD_MISC_GUEST_KERNEL;
+			umisc = PERF_RECORD_MISC_GUEST_USER;
+		}
+
+		err = __dsos__write_buildid_table(&pos->dsos__kernel, pos->pid,
+				kmisc, fd);
+		if (err == 0)
+			err = __dsos__write_buildid_table(&pos->dsos__user,
+				pos->pid, umisc, fd);
+		if (err)
+			break;
+	}
 	return err;
 }
 
@@ -342,9 +364,12 @@ static int __dsos__cache_build_ids(struct list_head *head, const char *debugdir)
 	return err;
 }
 
-static int dsos__cache_build_ids(void)
+static int dsos__cache_build_ids(struct perf_header *self)
 {
-	int err_kernel, err_user;
+	struct perf_session *session = container_of(self,
+			struct perf_session, header);
+	struct rb_node *nd;
+	int ret = 0;
 	char debugdir[PATH_MAX];
 
 	snprintf(debugdir, sizeof(debugdir), "%s/%s", getenv("HOME"),
@@ -353,9 +378,30 @@ static int dsos__cache_build_ids(void)
 	if (mkdir(debugdir, 0755) != 0 && errno != EEXIST)
 		return -1;
 
-	err_kernel = __dsos__cache_build_ids(&dsos__kernel, debugdir);
-	err_user   = __dsos__cache_build_ids(&dsos__user, debugdir);
-	return err_kernel || err_user ? -1 : 0;
+	for (nd = rb_first(&session->kerninfo_root); nd; nd = rb_next(nd)) {
+		struct kernel_info *pos = rb_entry(nd, struct kernel_info,
+				rb_node);
+		ret |= __dsos__cache_build_ids(&pos->dsos__kernel, debugdir);
+		ret |= __dsos__cache_build_ids(&pos->dsos__user, debugdir);
+	}
+	return ret ? -1 : 0;
+}
+
+static bool dsos__read_build_ids(struct perf_header *self, bool with_hits)
+{
+	bool ret = false;
+	struct perf_session *session = container_of(self,
+			struct perf_session, header);
+	struct rb_node *nd;
+
+	for (nd = rb_first(&session->kerninfo_root); nd; nd = rb_next(nd)) {
+		struct kernel_info *pos = rb_entry(nd, struct kernel_info,
+				rb_node);
+		ret |= __dsos__read_build_ids(&pos->dsos__kernel, with_hits);
+		ret |= __dsos__read_build_ids(&pos->dsos__user, with_hits);
+	}
+
+	return ret;
 }
 
 static int perf_header__adds_write(struct perf_header *self, int fd)
@@ -366,7 +412,7 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 	u64 sec_start;
 	int idx = 0, err;
 
-	if (dsos__read_build_ids(true))
+	if (dsos__read_build_ids(self, true))
 		perf_header__set_feat(self, HEADER_BUILD_ID);
 
 	nr_sections = bitmap_weight(self->adds_features, HEADER_FEAT_BITS);
@@ -401,14 +447,14 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 
 		/* Write build-ids */
 		buildid_sec->offset = lseek(fd, 0, SEEK_CUR);
-		err = dsos__write_buildid_table(fd);
+		err = dsos__write_buildid_table(self, fd);
 		if (err < 0) {
 			pr_debug("failed to write buildid table\n");
 			goto out_free;
 		}
 		buildid_sec->size = lseek(fd, 0, SEEK_CUR) -
 					  buildid_sec->offset;
-		dsos__cache_build_ids();
+		dsos__cache_build_ids(self);
 	}
 
 	lseek(fd, sec_start, SEEK_SET);
@@ -631,6 +677,85 @@ int perf_file_header__read(struct perf_file_header *self,
 	ph->data_offset  = self->data.offset;
 	ph->data_size	 = self->data.size;
 	return 0;
+}
+
+static int __event_process_build_id(struct build_id_event *bev,
+				    char *filename,
+				    struct perf_session *session)
+{
+	int err = -1;
+	struct list_head *head;
+	struct kernel_info *kerninfo;
+	u16 misc;
+	struct dso *dso;
+	enum dso_kernel_type dso_type;
+
+	kerninfo = kerninfo__findnew(&session->kerninfo_root, bev->pid);
+	if (!kerninfo)
+		goto out;
+
+	misc = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+
+	switch (misc) {
+	case PERF_RECORD_MISC_KERNEL:
+		dso_type = DSO_TYPE_KERNEL;
+		head = &kerninfo->dsos__kernel;
+		break;
+	case PERF_RECORD_MISC_GUEST_KERNEL:
+		dso_type = DSO_TYPE_GUEST_KERNEL;
+		head = &kerninfo->dsos__kernel;
+		break;
+	case PERF_RECORD_MISC_USER:
+	case PERF_RECORD_MISC_GUEST_USER:
+		dso_type = DSO_TYPE_USER;
+		head = &kerninfo->dsos__user;
+		break;
+	default:
+		goto out;
+	}
+
+	dso = __dsos__findnew(head, filename);
+	if (dso != NULL) {
+		dso__set_build_id(dso, &bev->build_id);
+			if (filename[0] == '[')
+				dso->kernel = dso_type;
+		}
+
+	err = 0;
+out:
+	return err;
+}
+
+static int perf_header__read_build_ids(struct perf_header *self,
+			int input, u64 offset, u64 size)
+{
+	struct perf_session *session = container_of(self,
+			struct perf_session, header);
+	struct build_id_event bev;
+	char filename[PATH_MAX];
+	u64 limit = offset + size;
+	int err = -1;
+
+	while (offset < limit) {
+		ssize_t len;
+
+		if (read(input, &bev, sizeof(bev)) != sizeof(bev))
+			goto out;
+
+		if (self->needs_swap)
+			perf_event_header__bswap(&bev.header);
+
+		len = bev.header.size - sizeof(bev);
+		if (read(input, filename, len) != len)
+			goto out;
+
+		__event_process_build_id(&bev, filename, session);
+
+		offset += bev.header.size;
+	}
+	err = 0;
+out:
+	return err;
 }
 
 static int perf_file_section__process(struct perf_file_section *self,
@@ -989,6 +1114,7 @@ int event__process_tracing_data(event_t *self,
 
 int event__synthesize_build_id(struct dso *pos, u16 misc,
 			       event__handler_t process,
+			       struct kernel_info *kerninfo,
 			       struct perf_session *session)
 {
 	event_t ev;
@@ -1005,6 +1131,7 @@ int event__synthesize_build_id(struct dso *pos, u16 misc,
 	memcpy(&ev.build_id.build_id, pos->build_id, sizeof(pos->build_id));
 	ev.build_id.header.type = PERF_RECORD_HEADER_BUILD_ID;
 	ev.build_id.header.misc = misc;
+	ev.build_id.pid = kerninfo->pid;
 	ev.build_id.header.size = sizeof(ev.build_id) + len;
 	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
 
@@ -1015,6 +1142,7 @@ int event__synthesize_build_id(struct dso *pos, u16 misc,
 
 static int __event_synthesize_build_ids(struct list_head *head, u16 misc,
 					event__handler_t process,
+					struct kernel_info *kerninfo,
 					struct perf_session *session)
 {
 	struct dso *pos;
@@ -1024,7 +1152,8 @@ static int __event_synthesize_build_ids(struct list_head *head, u16 misc,
 		if (!pos->hit)
 			continue;
 
-		err = event__synthesize_build_id(pos, misc, process, session);
+		err = event__synthesize_build_id(pos, misc, process,
+					kerninfo, session);
 		if (err < 0)
 			return err;
 	}
@@ -1035,44 +1164,48 @@ static int __event_synthesize_build_ids(struct list_head *head, u16 misc,
 int event__synthesize_build_ids(event__handler_t process,
 				struct perf_session *session)
 {
-	int err;
+	int err = 0;
+	u16 kmisc, umisc;
+	struct kernel_info *pos;
+	struct rb_node *nd;
 
-	if (!dsos__read_build_ids(true))
+	if (!dsos__read_build_ids(&session->header, true))
 		return 0;
 
-	err = __event_synthesize_build_ids(&dsos__kernel,
-					   PERF_RECORD_MISC_KERNEL,
-					   process, session);
-	if (err == 0)
-		err = __event_synthesize_build_ids(&dsos__user,
-						   PERF_RECORD_MISC_USER,
-						   process, session);
+	for (nd = rb_first(&session->kerninfo_root); nd; nd = rb_next(nd)) {
+		pos = rb_entry(nd, struct kernel_info, rb_node);
+		if (is_host_kernel(pos)) {
+			kmisc = PERF_RECORD_MISC_KERNEL;
+			umisc = PERF_RECORD_MISC_USER;
+		} else {
+			kmisc = PERF_RECORD_MISC_GUEST_KERNEL;
+			umisc = PERF_RECORD_MISC_GUEST_USER;
+		}
+
+		err = __event_synthesize_build_ids(&pos->dsos__kernel,
+				kmisc, process, pos, session);
+		if (err == 0)
+			err = __event_synthesize_build_ids(&pos->dsos__user,
+					umisc, process, pos, session);
+		if (err)
+			break;
+	}
 
 	if (err < 0) {
 		pr_debug("failed to synthesize build ids\n");
 		return err;
 	}
 
-	dsos__cache_build_ids();
+	dsos__cache_build_ids(&session->header);
 
 	return 0;
 }
 
 int event__process_build_id(event_t *self,
-			    struct perf_session *session __unused)
+			    struct perf_session *session)
 {
-	struct list_head *head = &dsos__user;
-	struct dso *dso;
-
-	if (self->build_id.header.misc & PERF_RECORD_MISC_KERNEL)
-		head = &dsos__kernel;
-
-	dso = __dsos__findnew(head, self->build_id.filename);
-	if (dso != NULL) {
-		dso__set_build_id(dso, &self->build_id.build_id);
-		if (head == &dsos__kernel && self->build_id.filename[0] == '[')
-			dso->kernel = 1;
-	}
-
+	__event_process_build_id(&self->build_id,
+				 self->build_id.filename,
+				 session);
 	return 0;
 }

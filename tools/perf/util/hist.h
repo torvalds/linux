@@ -12,6 +12,9 @@ struct addr_location;
 struct symbol;
 struct rb_root;
 
+void __perf_session__add_count(struct hist_entry *he,
+			struct addr_location *al,
+			u64 count);
 struct hist_entry *__perf_session__add_hist_entry(struct rb_root *hists,
 						  struct addr_location *al,
 						  struct symbol *parent,

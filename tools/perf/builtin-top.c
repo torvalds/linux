@@ -420,8 +420,9 @@ static double sym_weight(const struct sym_entry *sym)
 }
 
 static long			samples;
-static long			userspace_samples;
+static long			kernel_samples, us_samples;
 static long			exact_samples;
+static long			guest_us_samples, guest_kernel_samples;
 static const char		CONSOLE_CLEAR[] = "[H[2J";
 
 static void __list_insert_active_sym(struct sym_entry *syme)
@@ -461,7 +462,10 @@ static void print_sym_table(void)
 	int printed = 0, j;
 	int counter, snap = !display_weighted ? sym_counter : 0;
 	float samples_per_sec = samples/delay_secs;
-	float ksamples_per_sec = (samples-userspace_samples)/delay_secs;
+	float ksamples_per_sec = kernel_samples/delay_secs;
+	float us_samples_per_sec = (us_samples)/delay_secs;
+	float guest_kernel_samples_per_sec = (guest_kernel_samples)/delay_secs;
+	float guest_us_samples_per_sec = (guest_us_samples)/delay_secs;
 	float esamples_percent = (100.0*exact_samples)/samples;
 	float sum_ksamples = 0.0;
 	struct sym_entry *syme, *n;
@@ -470,7 +474,8 @@ static void print_sym_table(void)
 	int sym_width = 0, dso_width = 0, dso_short_width = 0;
 	const int win_width = winsize.ws_col - 1;
 
-	samples = userspace_samples = exact_samples = 0;
+	samples = us_samples = kernel_samples = exact_samples = 0;
+	guest_kernel_samples = guest_us_samples = 0;
 
 	/* Sort the active symbols */
 	pthread_mutex_lock(&active_symbols_lock);
@@ -501,10 +506,30 @@ static void print_sym_table(void)
 	puts(CONSOLE_CLEAR);
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
-	printf( "   PerfTop:%8.0f irqs/sec  kernel:%4.1f%%  exact: %4.1f%% [",
-		samples_per_sec,
-		100.0 - (100.0*((samples_per_sec-ksamples_per_sec)/samples_per_sec)),
-		esamples_percent);
+	if (!perf_guest) {
+		printf("   PerfTop:%8.0f irqs/sec  kernel:%4.1f%%"
+			"  exact: %4.1f%% [",
+			samples_per_sec,
+			100.0 - (100.0 * ((samples_per_sec - ksamples_per_sec) /
+					 samples_per_sec)),
+			esamples_percent);
+	} else {
+		printf("   PerfTop:%8.0f irqs/sec  kernel:%4.1f%% us:%4.1f%%"
+			" guest kernel:%4.1f%% guest us:%4.1f%%"
+			" exact: %4.1f%% [",
+			samples_per_sec,
+			100.0 - (100.0 * ((samples_per_sec-ksamples_per_sec) /
+					  samples_per_sec)),
+			100.0 - (100.0 * ((samples_per_sec-us_samples_per_sec) /
+					  samples_per_sec)),
+			100.0 - (100.0 * ((samples_per_sec -
+						guest_kernel_samples_per_sec) /
+					  samples_per_sec)),
+			100.0 - (100.0 * ((samples_per_sec -
+					   guest_us_samples_per_sec) /
+					  samples_per_sec)),
+			esamples_percent);
+	}
 
 	if (nr_counters == 1 || !display_weighted) {
 		printf("%Ld", (u64)attrs[0].sample_period);
@@ -597,7 +622,6 @@ static void print_sym_table(void)
 
 		syme = rb_entry(nd, struct sym_entry, rb_node);
 		sym = sym_entry__symbol(syme);
-
 		if (++printed > print_entries || (int)syme->snap_count < count_filter)
 			continue;
 
@@ -761,7 +785,7 @@ static int key_mapped(int c)
 	return 0;
 }
 
-static void handle_keypress(int c)
+static void handle_keypress(struct perf_session *session, int c)
 {
 	if (!key_mapped(c)) {
 		struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
@@ -830,7 +854,7 @@ static void handle_keypress(int c)
 		case 'Q':
 			printf("exiting.\n");
 			if (dump_symtab)
-				dsos__fprintf(stderr);
+				dsos__fprintf(&session->kerninfo_root, stderr);
 			exit(0);
 		case 's':
 			prompt_symbol(&sym_filter_entry, "Enter details symbol");
@@ -866,6 +890,7 @@ static void *display_thread(void *arg __used)
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
 	struct termios tc, save;
 	int delay_msecs, c;
+	struct perf_session *session = (struct perf_session *) arg;
 
 	tcgetattr(0, &save);
 	tc = save;
@@ -886,7 +911,7 @@ repeat:
 	c = getc(stdin);
 	tcsetattr(0, TCSAFLUSH, &save);
 
-	handle_keypress(c);
+	handle_keypress(session, c);
 	goto repeat;
 
 	return NULL;
@@ -957,21 +982,43 @@ static void event__process_sample(const event_t *self,
 	u64 ip = self->ip.ip;
 	struct sym_entry *syme;
 	struct addr_location al;
+	struct kernel_info *kerninfo;
 	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	++samples;
 
 	switch (origin) {
 	case PERF_RECORD_MISC_USER:
-		++userspace_samples;
+		++us_samples;
 		if (hide_user_symbols)
 			return;
+		kerninfo = kerninfo__findhost(&session->kerninfo_root);
 		break;
 	case PERF_RECORD_MISC_KERNEL:
+		++kernel_samples;
 		if (hide_kernel_symbols)
 			return;
+		kerninfo = kerninfo__findhost(&session->kerninfo_root);
 		break;
+	case PERF_RECORD_MISC_GUEST_KERNEL:
+		++guest_kernel_samples;
+		kerninfo = kerninfo__find(&session->kerninfo_root,
+					  self->ip.pid);
+		break;
+	case PERF_RECORD_MISC_GUEST_USER:
+		++guest_us_samples;
+		/*
+		 * TODO: we don't process guest user from host side
+		 * except simple counting.
+		 */
+		return;
 	default:
+		return;
+	}
+
+	if (!kerninfo && perf_guest) {
+		pr_err("Can't find guest [%d]'s kernel information\n",
+			self->ip.pid);
 		return;
 	}
 
@@ -994,7 +1041,7 @@ static void event__process_sample(const event_t *self,
 		 * --hide-kernel-symbols, even if the user specifies an
 		 * invalid --vmlinux ;-)
 		 */
-		if (al.map == session->vmlinux_maps[MAP__FUNCTION] &&
+		if (al.map == kerninfo->vmlinux_maps[MAP__FUNCTION] &&
 		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
 			pr_err("The %s file can't be used\n",
 			       symbol_conf.vmlinux_name);
@@ -1261,7 +1308,7 @@ static int __cmd_top(void)
 
 	perf_session__mmap_read(session);
 
-	if (pthread_create(&thread, NULL, display_thread, NULL)) {
+	if (pthread_create(&thread, NULL, display_thread, session)) {
 		printf("Could not create display thread.\n");
 		exit(-1);
 	}

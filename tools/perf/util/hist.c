@@ -8,6 +8,30 @@ struct callchain_param	callchain_param = {
 	.min_percent = 0.5
 };
 
+void __perf_session__add_count(struct hist_entry *he,
+			struct addr_location *al,
+			u64 count)
+{
+	he->count += count;
+
+	switch (al->cpumode) {
+	case PERF_RECORD_MISC_KERNEL:
+		he->count_sys += count;
+		break;
+	case PERF_RECORD_MISC_USER:
+		he->count_us += count;
+		break;
+	case PERF_RECORD_MISC_GUEST_KERNEL:
+		he->count_guest_sys += count;
+		break;
+	case PERF_RECORD_MISC_GUEST_USER:
+		he->count_guest_us += count;
+		break;
+	default:
+		break;
+	}
+}
+
 /*
  * histogram, sorted on item, collects counts
  */
@@ -464,7 +488,7 @@ int hist_entry__snprintf(struct hist_entry *self,
 			   u64 session_total)
 {
 	struct sort_entry *se;
-	u64 count, total;
+	u64 count, total, count_sys, count_us, count_guest_sys, count_guest_us;
 	const char *sep = symbol_conf.field_sep;
 	int ret;
 
@@ -474,9 +498,17 @@ int hist_entry__snprintf(struct hist_entry *self,
 	if (pair_session) {
 		count = self->pair ? self->pair->count : 0;
 		total = pair_session->events_stats.total;
+		count_sys = self->pair ? self->pair->count_sys : 0;
+		count_us = self->pair ? self->pair->count_us : 0;
+		count_guest_sys = self->pair ? self->pair->count_guest_sys : 0;
+		count_guest_us = self->pair ? self->pair->count_guest_us : 0;
 	} else {
 		count = self->count;
 		total = session_total;
+		count_sys = self->count_sys;
+		count_us = self->count_us;
+		count_guest_sys = self->count_guest_sys;
+		count_guest_us = self->count_guest_us;
 	}
 
 	if (total) {
@@ -487,6 +519,26 @@ int hist_entry__snprintf(struct hist_entry *self,
 		else
 			ret = snprintf(s, size, sep ? "%.2f" : "   %6.2f%%",
 				       (count * 100.0) / total);
+		if (symbol_conf.show_cpu_utilization) {
+			ret += percent_color_snprintf(s + ret, size - ret,
+					sep ? "%.2f" : "   %6.2f%%",
+					(count_sys * 100.0) / total);
+			ret += percent_color_snprintf(s + ret, size - ret,
+					sep ? "%.2f" : "   %6.2f%%",
+					(count_us * 100.0) / total);
+			if (perf_guest) {
+				ret += percent_color_snprintf(s + ret,
+						size - ret,
+						sep ? "%.2f" : "   %6.2f%%",
+						(count_guest_sys * 100.0) /
+								total);
+				ret += percent_color_snprintf(s + ret,
+						size - ret,
+						sep ? "%.2f" : "   %6.2f%%",
+						(count_guest_us * 100.0) /
+								total);
+			}
+		}
 	} else
 		ret = snprintf(s, size, sep ? "%lld" : "%12lld ", count);
 
@@ -595,6 +647,24 @@ size_t perf_session__fprintf_hists(struct rb_root *hists,
 			fprintf(fp, "%cSamples", *sep);
 		else
 			fputs("  Samples  ", fp);
+	}
+
+	if (symbol_conf.show_cpu_utilization) {
+		if (sep) {
+			ret += fprintf(fp, "%csys", *sep);
+			ret += fprintf(fp, "%cus", *sep);
+			if (perf_guest) {
+				ret += fprintf(fp, "%cguest sys", *sep);
+				ret += fprintf(fp, "%cguest us", *sep);
+			}
+		} else {
+			ret += fprintf(fp, "  sys  ");
+			ret += fprintf(fp, "  us  ");
+			if (perf_guest) {
+				ret += fprintf(fp, "  guest sys  ");
+				ret += fprintf(fp, "  guest us  ");
+			}
+		}
 	}
 
 	if (pair) {

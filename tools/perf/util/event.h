@@ -79,6 +79,7 @@ struct sample_data {
 
 struct build_id_event {
 	struct perf_event_header header;
+	pid_t			 pid;
 	u8			 build_id[ALIGN(BUILD_ID_SIZE, sizeof(u64))];
 	char			 filename[];
 };
@@ -154,10 +155,13 @@ int event__synthesize_thread(pid_t pid, event__handler_t process,
 void event__synthesize_threads(event__handler_t process,
 			       struct perf_session *session);
 int event__synthesize_kernel_mmap(event__handler_t process,
-				  struct perf_session *session,
-				  const char *symbol_name);
+				struct perf_session *session,
+				struct kernel_info *kerninfo,
+				const char *symbol_name);
+
 int event__synthesize_modules(event__handler_t process,
-			      struct perf_session *session);
+			      struct perf_session *session,
+			      struct kernel_info *kerninfo);
 
 int event__process_comm(event_t *self, struct perf_session *session);
 int event__process_lost(event_t *self, struct perf_session *session);

@@ -456,6 +456,52 @@ static void atexit_header(void)
 	}
 }
 
+static void event__synthesize_guest_os(struct kernel_info *kerninfo,
+		void *data __attribute__((unused)))
+{
+	int err;
+	char *guest_kallsyms;
+	char path[PATH_MAX];
+
+	if (is_host_kernel(kerninfo))
+		return;
+
+	/*
+	 *As for guest kernel when processing subcommand record&report,
+	 *we arrange module mmap prior to guest kernel mmap and trigger
+	 *a preload dso because default guest module symbols are loaded
+	 *from guest kallsyms instead of /lib/modules/XXX/XXX. This
+	 *method is used to avoid symbol missing when the first addr is
+	 *in module instead of in guest kernel.
+	 */
+	err = event__synthesize_modules(process_synthesized_event,
+			session,
+			kerninfo);
+	if (err < 0)
+		pr_err("Couldn't record guest kernel [%d]'s reference"
+			" relocation symbol.\n", kerninfo->pid);
+
+	if (is_default_guest(kerninfo))
+		guest_kallsyms = (char *) symbol_conf.default_guest_kallsyms;
+	else {
+		sprintf(path, "%s/proc/kallsyms", kerninfo->root_dir);
+		guest_kallsyms = path;
+	}
+
+	/*
+	 * We use _stext for guest kernel because guest kernel's /proc/kallsyms
+	 * have no _text sometimes.
+	 */
+	err = event__synthesize_kernel_mmap(process_synthesized_event,
+			session, kerninfo, "_text");
+	if (err < 0)
+		err = event__synthesize_kernel_mmap(process_synthesized_event,
+				session, kerninfo, "_stext");
+	if (err < 0)
+		pr_err("Couldn't record guest kernel [%d]'s reference"
+			" relocation symbol.\n", kerninfo->pid);
+}
+
 static int __cmd_record(int argc, const char **argv)
 {
 	int i, counter;
@@ -467,6 +513,7 @@ static int __cmd_record(int argc, const char **argv)
 	int child_ready_pipe[2], go_pipe[2];
 	const bool forks = argc > 0;
 	char buf;
+	struct kernel_info *kerninfo;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 
@@ -635,21 +682,31 @@ static int __cmd_record(int argc, const char **argv)
 		advance_output(err);
 	}
 
+	kerninfo = kerninfo__findhost(&session->kerninfo_root);
+	if (!kerninfo) {
+		pr_err("Couldn't find native kernel information.\n");
+		return -1;
+	}
+
 	err = event__synthesize_kernel_mmap(process_synthesized_event,
-					    session, "_text");
+			session, kerninfo, "_text");
 	if (err < 0)
 		err = event__synthesize_kernel_mmap(process_synthesized_event,
-						    session, "_stext");
+				session, kerninfo, "_stext");
 	if (err < 0) {
 		pr_err("Couldn't record kernel reference relocation symbol.\n");
 		return err;
 	}
 
-	err = event__synthesize_modules(process_synthesized_event, session);
+	err = event__synthesize_modules(process_synthesized_event,
+				session, kerninfo);
 	if (err < 0) {
 		pr_err("Couldn't record kernel reference relocation symbol.\n");
 		return err;
 	}
+	if (perf_guest)
+		kerninfo__process_allkernels(&session->kerninfo_root,
+			event__synthesize_guest_os, session);
 
 	if (!system_wide && profile_cpu == -1)
 		event__synthesize_thread(target_tid, process_synthesized_event,

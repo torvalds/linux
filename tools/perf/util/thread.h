@@ -33,12 +33,12 @@ static inline struct map *thread__find_map(struct thread *self,
 
 void thread__find_addr_map(struct thread *self,
 			   struct perf_session *session, u8 cpumode,
-			   enum map_type type, u64 addr,
+			   enum map_type type, pid_t pid, u64 addr,
 			   struct addr_location *al);
 
 void thread__find_addr_location(struct thread *self,
 				struct perf_session *session, u8 cpumode,
-				enum map_type type, u64 addr,
+				enum map_type type, pid_t pid, u64 addr,
 				struct addr_location *al,
 				symbol_filter_t filter);
 #endif	/* __PERF_THREAD_H */

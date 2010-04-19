@@ -15,17 +15,15 @@ struct perf_session {
 	struct perf_header	header;
 	unsigned long		size;
 	unsigned long		mmap_window;
-	struct map_groups	kmaps;
 	struct rb_root		threads;
 	struct thread		*last_match;
-	struct map		*vmlinux_maps[MAP__NR_TYPES];
+	struct rb_root		kerninfo_root;
 	struct events_stats	events_stats;
 	struct rb_root		stats_by_id;
 	unsigned long		event_total[PERF_RECORD_MAX];
 	unsigned long		unknown_events;
 	struct rb_root		hists;
 	u64			sample_type;
-	struct ref_reloc_sym	ref_reloc_sym;
 	int			fd;
 	bool			fd_pipe;
 	int			cwdlen;
@@ -69,33 +67,13 @@ struct map_symbol *perf_session__resolve_callchain(struct perf_session *self,
 
 bool perf_session__has_traces(struct perf_session *self, const char *msg);
 
-int perf_header__read_build_ids(struct perf_header *self, int input,
-				u64 offset, u64 file_size);
-
-int perf_session__set_kallsyms_ref_reloc_sym(struct perf_session *self,
+int perf_session__set_kallsyms_ref_reloc_sym(struct map **maps,
 					     const char *symbol_name,
 					     u64 addr);
 
 void mem_bswap_64(void *src, int byte_size);
 
-static inline int __perf_session__create_kernel_maps(struct perf_session *self,
-						struct dso *kernel)
-{
-	return __map_groups__create_kernel_maps(&self->kmaps,
-						self->vmlinux_maps, kernel);
-}
-
-static inline int perf_session__create_kernel_maps(struct perf_session *self)
-{
-	return map_groups__create_kernel_maps(&self->kmaps, self->vmlinux_maps);
-}
-
-static inline struct map *
-	perf_session__new_module_map(struct perf_session *self,
-				     u64 start, const char *filename)
-{
-	return map_groups__new_module(&self->kmaps, start, filename);
-}
+int perf_session__create_kernel_maps(struct perf_session *self);
 
 int do_read(int fd, void *buf, size_t size);
 void perf_session__update_sample_type(struct perf_session *self);

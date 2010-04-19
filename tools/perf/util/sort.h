@@ -44,6 +44,11 @@ extern enum sort_type sort__first_dimension;
 struct hist_entry {
 	struct rb_node		rb_node;
 	u64			count;
+	u64			count_sys;
+	u64			count_us;
+	u64			count_guest_sys;
+	u64			count_guest_us;
+
 	/*
 	 * XXX WARNING!
 	 * thread _has_ to come after ms, see

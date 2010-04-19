@@ -67,6 +67,17 @@ void perf_session__update_sample_type(struct perf_session *self)
 	self->sample_type = perf_header__sample_type(&self->header);
 }
 
+int perf_session__create_kernel_maps(struct perf_session *self)
+{
+	int ret;
+	struct rb_root *root = &self->kerninfo_root;
+
+	ret = map_groups__create_kernel_maps(root, HOST_KERNEL_ID);
+	if (ret >= 0)
+		ret = map_groups__create_guest_kernel_maps(root);
+	return ret;
+}
+
 struct perf_session *perf_session__new(const char *filename, int mode, bool force)
 {
 	size_t len = filename ? strlen(filename) + 1 : 0;
@@ -86,7 +97,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->cwd = NULL;
 	self->cwdlen = 0;
 	self->unknown_events = 0;
-	map_groups__init(&self->kmaps);
+	self->kerninfo_root = RB_ROOT;
 
 	if (mode == O_RDONLY) {
 		if (perf_session__open(self, force) < 0)
@@ -157,8 +168,9 @@ struct map_symbol *perf_session__resolve_callchain(struct perf_session *self,
 			continue;
 		}
 
+		al.filtered = false;
 		thread__find_addr_location(thread, self, cpumode,
-					   MAP__FUNCTION, ip, &al, NULL);
+				MAP__FUNCTION, thread->pid, ip, &al, NULL);
 		if (al.sym != NULL) {
 			if (sort__has_parent && !*parent &&
 			    symbol__match_parent_regex(al.sym))
@@ -397,46 +409,6 @@ void perf_event_header__bswap(struct perf_event_header *self)
 	self->type = bswap_32(self->type);
 	self->misc = bswap_16(self->misc);
 	self->size = bswap_16(self->size);
-}
-
-int perf_header__read_build_ids(struct perf_header *self,
-				int input, u64 offset, u64 size)
-{
-	struct build_id_event bev;
-	char filename[PATH_MAX];
-	u64 limit = offset + size;
-	int err = -1;
-
-	while (offset < limit) {
-		struct dso *dso;
-		ssize_t len;
-		struct list_head *head = &dsos__user;
-
-		if (read(input, &bev, sizeof(bev)) != sizeof(bev))
-			goto out;
-
-		if (self->needs_swap)
-			perf_event_header__bswap(&bev.header);
-
-		len = bev.header.size - sizeof(bev);
-		if (read(input, filename, len) != len)
-			goto out;
-
-		if (bev.header.misc & PERF_RECORD_MISC_KERNEL)
-			head = &dsos__kernel;
-
-		dso = __dsos__findnew(head, filename);
-		if (dso != NULL) {
-			dso__set_build_id(dso, &bev.build_id);
-			if (head == &dsos__kernel && filename[0] == '[')
-				dso->kernel = 1;
-		}
-
-		offset += bev.header.size;
-	}
-	err = 0;
-out:
-	return err;
 }
 
 static struct thread *perf_session__register_idle_thread(struct perf_session *self)
@@ -690,26 +662,33 @@ bool perf_session__has_traces(struct perf_session *self, const char *msg)
 	return true;
 }
 
-int perf_session__set_kallsyms_ref_reloc_sym(struct perf_session *self,
+int perf_session__set_kallsyms_ref_reloc_sym(struct map **maps,
 					     const char *symbol_name,
 					     u64 addr)
 {
 	char *bracket;
 	enum map_type i;
+	struct ref_reloc_sym *ref;
 
-	self->ref_reloc_sym.name = strdup(symbol_name);
-	if (self->ref_reloc_sym.name == NULL)
+	ref = zalloc(sizeof(struct ref_reloc_sym));
+	if (ref == NULL)
 		return -ENOMEM;
 
-	bracket = strchr(self->ref_reloc_sym.name, ']');
+	ref->name = strdup(symbol_name);
+	if (ref->name == NULL) {
+		free(ref);
+		return -ENOMEM;
+	}
+
+	bracket = strchr(ref->name, ']');
 	if (bracket)
 		*bracket = '\0';
 
-	self->ref_reloc_sym.addr = addr;
+	ref->addr = addr;
 
 	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		struct kmap *kmap = map__kmap(self->vmlinux_maps[i]);
-		kmap->ref_reloc_sym = &self->ref_reloc_sym;
+		struct kmap *kmap = map__kmap(maps[i]);
+		kmap->ref_reloc_sym = ref;
 	}
 
 	return 0;

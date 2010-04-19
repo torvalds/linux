@@ -19,6 +19,7 @@ extern const char *map_type__name[MAP__NR_TYPES];
 struct dso;
 struct ref_reloc_sym;
 struct map_groups;
+struct kernel_info;
 
 struct map {
 	union {
@@ -36,11 +37,32 @@ struct map {
 	u64			(*unmap_ip)(struct map *, u64);
 
 	struct dso		*dso;
+	struct map_groups	*groups;
 };
 
 struct kmap {
 	struct ref_reloc_sym	*ref_reloc_sym;
 	struct map_groups	*kmaps;
+};
+
+struct map_groups {
+	struct rb_root		maps[MAP__NR_TYPES];
+	struct list_head	removed_maps[MAP__NR_TYPES];
+	struct kernel_info	*this_kerninfo;
+};
+
+/* Native host kernel uses -1 as pid index in kernel_info */
+#define	HOST_KERNEL_ID			(-1)
+#define	DEFAULT_GUEST_KERNEL_ID		(0)
+
+struct kernel_info {
+	struct rb_node rb_node;
+	pid_t pid;
+	char *root_dir;
+	struct list_head dsos__user;
+	struct list_head dsos__kernel;
+	struct map_groups kmaps;
+	struct map *vmlinux_maps[MAP__NR_TYPES];
 };
 
 static inline struct kmap *map__kmap(struct map *self)
@@ -74,7 +96,8 @@ typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
 
 void map__init(struct map *self, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso);
-struct map *map__new(u64 start, u64 len, u64 pgoff, u32 pid, char *filename,
+struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
+		     u64 pgoff, u32 pid, char *filename,
 		     enum map_type type, char *cwd, int cwdlen);
 void map__delete(struct map *self);
 struct map *map__clone(struct map *self);
@@ -91,11 +114,6 @@ void map__fixup_end(struct map *self);
 
 void map__reloc_vmlinux(struct map *self);
 
-struct map_groups {
-	struct rb_root		maps[MAP__NR_TYPES];
-	struct list_head	removed_maps[MAP__NR_TYPES];
-};
-
 size_t __map_groups__fprintf_maps(struct map_groups *self,
 				  enum map_type type, int verbose, FILE *fp);
 void maps__insert(struct rb_root *maps, struct map *map);
@@ -106,9 +124,40 @@ int map_groups__clone(struct map_groups *self,
 size_t map_groups__fprintf(struct map_groups *self, int verbose, FILE *fp);
 size_t map_groups__fprintf_maps(struct map_groups *self, int verbose, FILE *fp);
 
+struct kernel_info *add_new_kernel_info(struct rb_root *kerninfo_root,
+			pid_t pid, const char *root_dir);
+struct kernel_info *kerninfo__find(struct rb_root *kerninfo_root, pid_t pid);
+struct kernel_info *kerninfo__findnew(struct rb_root *kerninfo_root, pid_t pid);
+struct kernel_info *kerninfo__findhost(struct rb_root *kerninfo_root);
+char *kern_mmap_name(struct kernel_info *kerninfo, char *buff);
+
+/*
+ * Default guest kernel is defined by parameter --guestkallsyms
+ * and --guestmodules
+ */
+static inline int is_default_guest(struct kernel_info *kerninfo)
+{
+	if (!kerninfo)
+		return 0;
+	return kerninfo->pid == DEFAULT_GUEST_KERNEL_ID;
+}
+
+static inline int is_host_kernel(struct kernel_info *kerninfo)
+{
+	if (!kerninfo)
+		return 0;
+	return kerninfo->pid == HOST_KERNEL_ID;
+}
+
+typedef void (*process_kernel_info)(struct kernel_info *kerninfo, void *data);
+void kerninfo__process_allkernels(struct rb_root *kerninfo_root,
+				  process_kernel_info process,
+				  void *data);
+
 static inline void map_groups__insert(struct map_groups *self, struct map *map)
 {
-	 maps__insert(&self->maps[map->type], map);
+	maps__insert(&self->maps[map->type], map);
+	map->groups = self;
 }
 
 static inline struct map *map_groups__find(struct map_groups *self,
@@ -148,13 +197,11 @@ int map_groups__fixup_overlappings(struct map_groups *self, struct map *map,
 
 struct map *map_groups__find_by_name(struct map_groups *self,
 				     enum map_type type, const char *name);
-int __map_groups__create_kernel_maps(struct map_groups *self,
-				     struct map *vmlinux_maps[MAP__NR_TYPES],
-				     struct dso *kernel);
-int map_groups__create_kernel_maps(struct map_groups *self,
-				   struct map *vmlinux_maps[MAP__NR_TYPES]);
-struct map *map_groups__new_module(struct map_groups *self, u64 start,
-				   const char *filename);
+struct map *map_groups__new_module(struct map_groups *self,
+				    u64 start,
+				    const char *filename,
+				    struct kernel_info *kerninfo);
+
 void map_groups__flush(struct map_groups *self);
 
 #endif /* __PERF_MAP_H */
