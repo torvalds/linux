@@ -225,8 +225,8 @@ out:
 
 /*
  * nfs_do_refmount - handle crossing a referral on server
+ * @mnt_parent - mountpoint of referral
  * @dentry - dentry of referral
- * @nd - nameidata info
  *
  */
 struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentry *dentry)
