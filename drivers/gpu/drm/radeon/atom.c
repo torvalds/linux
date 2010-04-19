@@ -908,11 +908,16 @@ static void atom_op_shl(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++), shift;
 	uint32_t saved, dst;
 	int dptr = *ptr;
+	uint32_t dst_align = atom_dst_to_src[(attr >> 3) & 7][(attr >> 6) & 3];
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
+	/* op needs to full dst value */
+	dst = saved;
 	shift = atom_get_src(ctx, attr, ptr);
 	SDEBUG("   shift: %d\n", shift);
 	dst <<= shift;
+	dst &= atom_arg_mask[dst_align];
+	dst >>= atom_arg_shift[dst_align];
 	SDEBUG("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
@@ -922,11 +927,16 @@ static void atom_op_shr(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++), shift;
 	uint32_t saved, dst;
 	int dptr = *ptr;
+	uint32_t dst_align = atom_dst_to_src[(attr >> 3) & 7][(attr >> 6) & 3];
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
+	/* op needs to full dst value */
+	dst = saved;
 	shift = atom_get_src(ctx, attr, ptr);
 	SDEBUG("   shift: %d\n", shift);
 	dst >>= shift;
+	dst &= atom_arg_mask[dst_align];
+	dst >>= atom_arg_shift[dst_align];
 	SDEBUG("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
