@@ -1074,6 +1074,10 @@ config PCI
 	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
 	  VESA. If you have PCI, say Y, otherwise N.
 
+config PCI_DOMAINS
+	bool
+	depends on PCI
+
 config PCI_SYSCALL
 	def_bool PCI
 
