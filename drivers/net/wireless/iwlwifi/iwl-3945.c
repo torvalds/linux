@@ -2687,6 +2687,7 @@ IWL3945_UCODE_GET(boot_size);
 static struct iwl_hcmd_ops iwl3945_hcmd = {
 	.rxon_assoc = iwl3945_send_rxon_assoc,
 	.commit_rxon = iwl3945_commit_rxon,
+	.send_bt_config = iwl_send_bt_config,
 };
 
 static struct iwl_ucode_ops iwl3945_ucode = {
@@ -2740,6 +2741,7 @@ static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 	.get_hcmd_size = iwl3945_get_hcmd_size,
 	.build_addsta_hcmd = iwl3945_build_addsta_hcmd,
 	.rts_tx_cmd_flag = iwlcore_rts_tx_cmd_flag,
+	.request_scan = iwl3945_request_scan,
 };
 
 static const struct iwl_ops iwl3945_ops = {

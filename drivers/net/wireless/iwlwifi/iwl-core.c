@@ -828,19 +828,6 @@ static u8 iwl_count_chain_bitmap(u32 chain_bitmap)
 }
 
 /**
- * iwl_is_monitor_mode - Determine if interface in monitor mode
- *
- * priv->iw_mode is set in add_interface, but add_interface is
- * never called for monitor mode. The only way mac80211 informs us about
- * monitor mode is through configuring filters (call to configure_filter).
- */
-bool iwl_is_monitor_mode(struct iwl_priv *priv)
-{
-	return !!(priv->staging_rxon.filter_flags & RXON_FILTER_PROMISC_MSK);
-}
-EXPORT_SYMBOL(iwl_is_monitor_mode);
-
-/**
  * iwl_set_rxon_chain - Set up Rx chain usage in "staging" RXON image
  *
  * Selects how many and which Rx receivers/antennas/chains to use.
@@ -882,19 +869,6 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 
 	rx_chain |= active_rx_cnt << RXON_RX_CHAIN_MIMO_CNT_POS;
 	rx_chain |= idle_rx_cnt  << RXON_RX_CHAIN_CNT_POS;
-
-	/* copied from 'iwl_bg_request_scan()' */
-	/* Force use of chains B and C (0x6) for Rx
-	 * Avoid A (0x1) for the device has off-channel reception on A-band.
-	 * MIMO is not used here, but value is required */
-	if (iwl_is_monitor_mode(priv) &&
-	    !(priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) &&
-	    priv->cfg->off_channel_workaround) {
-		rx_chain = ANT_ABC << RXON_RX_CHAIN_VALID_POS;
-		rx_chain |= ANT_BC << RXON_RX_CHAIN_FORCE_SEL_POS;
-		rx_chain |= ANT_ABC << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
-		rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
-	}
 
 	priv->staging_rxon.rx_chain = cpu_to_le16(rx_chain);
 
@@ -1479,7 +1453,7 @@ irqreturn_t iwl_isr_legacy(int irq, void *data)
 }
 EXPORT_SYMBOL(iwl_isr_legacy);
 
-int iwl_send_bt_config(struct iwl_priv *priv)
+void iwl_send_bt_config(struct iwl_priv *priv)
 {
 	struct iwl_bt_cmd bt_cmd = {
 		.lead_time = BT_LEAD_TIME_DEF,
@@ -1496,8 +1470,9 @@ int iwl_send_bt_config(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "BT coex %s\n",
 		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
-	return iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-				sizeof(struct iwl_bt_cmd), &bt_cmd);
+	if (iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+			     sizeof(struct iwl_bt_cmd), &bt_cmd))
+		IWL_ERR(priv, "failed to send BT Coex Config\n");
 }
 EXPORT_SYMBOL(iwl_send_bt_config);
 
@@ -1867,7 +1842,6 @@ static inline void iwl_set_no_assoc(struct iwl_priv *priv)
 	iwlcore_commit_rxon(priv);
 }
 
-#define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
 void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif,
 			  struct ieee80211_bss_conf *bss_conf,
@@ -1988,14 +1962,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 			iwl_led_associate(priv);
 
-			/*
-			 * We have just associated, don't start scan too early
-			 * leave time for EAPOL exchange to complete.
-			 *
-			 * XXX: do this in mac80211
-			 */
-			priv->next_scan_jiffies = jiffies +
-					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
 			if (!iwl_is_rfkill(priv))
 				priv->cfg->ops->lib->post_associate(priv);
 		} else
@@ -2801,7 +2767,6 @@ static void iwl_force_rf_reset(struct iwl_priv *priv)
 	 */
 	IWL_DEBUG_INFO(priv, "perform radio reset.\n");
 	iwl_internal_short_hw_scan(priv);
-	return;
 }
 
 

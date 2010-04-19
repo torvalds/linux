@@ -78,6 +78,8 @@ static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
 void iwl_dbgfs_unregister(struct iwl_priv *priv);
+extern int iwl_dbgfs_statistics_flag(struct iwl_priv *priv, char *buf,
+				     int bufsz);
 #else
 static inline int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 {

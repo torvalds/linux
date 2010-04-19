@@ -294,6 +294,9 @@ extern const struct iwl_channel_info *iwl3945_get_channel_info(
 
 extern int iwl3945_rs_next_rate(struct iwl_priv *priv, int rate);
 
+/* scanning */
+void iwl3945_request_scan(struct iwl_priv *priv);
+
 /* Requires full declaration of iwl_priv before including */
 #include "iwl-io.h"
 

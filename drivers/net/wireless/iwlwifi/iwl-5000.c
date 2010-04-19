@@ -48,6 +48,7 @@
 #include "iwl-agn-led.h"
 #include "iwl-agn-hw.h"
 #include "iwl-5000-hw.h"
+#include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
 #define IWL5000_UCODE_API_MAX 2
@@ -320,6 +321,11 @@ static struct iwl_lib_ops iwl5000_lib = {
 		.set_ct_kill = iwl5000_set_ct_threshold,
 	 },
 	.add_bcast_station = iwl_add_bcast_station,
+	.debugfs_ops = {
+		.rx_stats_read = iwl_ucode_rx_stats_read,
+		.tx_stats_read = iwl_ucode_tx_stats_read,
+		.general_stats_read = iwl_ucode_general_stats_read,
+	},
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
@@ -377,6 +383,11 @@ static struct iwl_lib_ops iwl5150_lib = {
 		.set_ct_kill = iwl5150_set_ct_threshold,
 	 },
 	.add_bcast_station = iwl_add_bcast_station,
+	.debugfs_ops = {
+		.rx_stats_read = iwl_ucode_rx_stats_read,
+		.tx_stats_read = iwl_ucode_tx_stats_read,
+		.general_stats_read = iwl_ucode_general_stats_read,
+	},
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
