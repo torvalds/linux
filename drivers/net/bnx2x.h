@@ -83,7 +83,12 @@ do {								\
 	       __func__, __LINE__,				\
 	       bp->dev ? (bp->dev->name) : "?",			\
 	       ##__args);					\
-} while (0)
+	} while (0)
+
+#define BNX2X_ERROR(__fmt, __args...) do { \
+	pr_err("[%s:%d]" __fmt, __func__, __LINE__, ##__args); \
+	} while (0)
+
 
 /* before we have a dev->name use dev_info() */
 #define BNX2X_DEV_INFO(__fmt, __args...)			 \
@@ -975,6 +980,8 @@ struct bnx2x {
 	u16			rx_quick_cons_trip;
 	u16			rx_ticks_int;
 	u16			rx_ticks;
+/* Maximal coalescing timeout in us */
+#define BNX2X_MAX_COALESCE_TOUT		(0xf0*12)
 
 	u32			lin_cnt;
 
