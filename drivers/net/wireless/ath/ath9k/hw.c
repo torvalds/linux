@@ -1159,6 +1159,34 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	return true;
 }
 
+bool ath9k_hw_check_alive(struct ath_hw *ah)
+{
+	int count = 50;
+	u32 reg;
+
+	if (AR_SREV_9285_10_OR_LATER(ah))
+		return true;
+
+	do {
+		reg = REG_READ(ah, AR_OBS_BUS_1);
+
+		if ((reg & 0x7E7FFFEF) == 0x00702400)
+			continue;
+
+		switch (reg & 0x7E000B00) {
+		case 0x1E000000:
+		case 0x52000B00:
+		case 0x18000B00:
+			continue;
+		default:
+			return true;
+		}
+	} while (count-- > 0);
+
+	return false;
+}
+EXPORT_SYMBOL(ath9k_hw_check_alive);
+
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		    bool bChannelChange)
 {

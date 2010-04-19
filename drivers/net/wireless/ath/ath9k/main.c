@@ -405,7 +405,8 @@ void ath9k_tasklet(unsigned long data)
 
 	ath9k_ps_wakeup(sc);
 
-	if (status & ATH9K_INT_FATAL) {
+	if ((status & ATH9K_INT_FATAL) ||
+	    !ath9k_hw_check_alive(ah)) {
 		ath_reset(sc, false);
 		ath9k_ps_restore(sc);
 		return;
