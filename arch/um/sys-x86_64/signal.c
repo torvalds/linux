@@ -165,8 +165,6 @@ struct rt_sigframe
 	struct _fpstate fpstate;
 };
 
-#define round_down(m, n) (((m) / (n)) * (n))
-
 int setup_signal_stack_si(unsigned long stack_top, int sig,
 			  struct k_sigaction *ka, struct pt_regs * regs,
 			  siginfo_t *info, sigset_t *set)
