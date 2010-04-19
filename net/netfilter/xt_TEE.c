@@ -12,6 +12,7 @@
  */
 #include <linux/ip.h>
 #include <linux/module.h>
+#include <linux/percpu.h>
 #include <linux/route.h>
 #include <linux/skbuff.h>
 #include <net/checksum.h>
@@ -32,6 +33,7 @@
 #endif
 
 static const union nf_inet_addr tee_zero_address;
+static DEFINE_PER_CPU(bool, tee_active);
 
 static struct net *pick_net(struct sk_buff *skb)
 {
@@ -91,6 +93,8 @@ tee_tg4(struct sk_buff *skb, const struct xt_target_param *par)
 	const struct xt_tee_tginfo *info = par->targinfo;
 	struct iphdr *iph;
 
+	if (percpu_read(tee_active))
+		return XT_CONTINUE;
 	/*
 	 * Copy the skb, and route the copy. Will later return %XT_CONTINUE for
 	 * the original skb, which should continue on its way as if nothing has
@@ -125,24 +129,13 @@ tee_tg4(struct sk_buff *skb, const struct xt_target_param *par)
 		--iph->ttl;
 	ip_send_check(iph);
 
-	/*
-	 * Xtables is not reentrant currently, so a choice has to be made:
-	 * 1. return absolute verdict for the original and let the cloned
-	 *    packet travel through the chains
-	 * 2. let the original continue travelling and not pass the clone
-	 *    to Xtables.
-	 * #2 is chosen. Normally, we would use ip_local_out for the clone.
-	 * Because iph->check is already correct and we don't pass it to
-	 * Xtables anyway, a shortcut to dst_output [forwards to ip_output] can
-	 * be taken. %IPSKB_REROUTED needs to be set so that ip_output does not
-	 * invoke POSTROUTING on the cloned packet.
-	 */
-	IPCB(skb)->flags |= IPSKB_REROUTED;
-	if (tee_tg_route4(skb, info))
-		ip_output(skb);
-	else
+	if (tee_tg_route4(skb, info)) {
+		percpu_write(tee_active, true);
+		ip_local_out(skb);
+		percpu_write(tee_active, false);
+	} else {
 		kfree_skb(skb);
-
+	}
 	return XT_CONTINUE;
 }
 
@@ -177,6 +170,8 @@ tee_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	const struct xt_tee_tginfo *info = par->targinfo;
 
+	if (percpu_read(tee_active))
+		return XT_CONTINUE;
 	skb = pskb_copy(skb, GFP_ATOMIC);
 	if (skb == NULL)
 		return XT_CONTINUE;
@@ -192,12 +187,13 @@ tee_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 		--iph->hop_limit;
 	}
-	IP6CB(skb)->flags |= IP6SKB_REROUTED;
-	if (tee_tg_route6(skb, info))
-		ip6_output(skb);
-	else
+	if (tee_tg_route6(skb, info)) {
+		percpu_write(tee_active, true);
+		ip6_local_out(skb);
+		percpu_write(tee_active, false);
+	} else {
 		kfree_skb(skb);
-
+	}
 	return XT_CONTINUE;
 }
 #endif /* WITH_IPV6 */
