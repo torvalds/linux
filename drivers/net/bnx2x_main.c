@@ -11935,6 +11935,14 @@ static int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 		break;
 
 	case PCI_D3hot:
+		/* If there are other clients above don't
+		   shut down the power */
+		if (atomic_read(&bp->pdev->enable_cnt) != 1)
+			return 0;
+		/* Don't shut down the power for emulation and FPGA */
+		if (CHIP_REV_IS_SLOW(bp))
+			return 0;
+
 		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
 		pmcsr |= 3;
 
@@ -12551,9 +12559,7 @@ static int bnx2x_close(struct net_device *dev)
 
 	/* Unload the driver, release IRQs */
 	bnx2x_nic_unload(bp, UNLOAD_CLOSE);
-	if (atomic_read(&bp->pdev->enable_cnt) == 1)
-		if (!CHIP_REV_IS_SLOW(bp))
-			bnx2x_set_power_state(bp, PCI_D3hot);
+	bnx2x_set_power_state(bp, PCI_D3hot);
 
 	return 0;
 }
