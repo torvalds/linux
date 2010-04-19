@@ -698,6 +698,10 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	    (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING))
 		tx_info->flags |= IEEE80211_TX_CTL_LDPC;
 
+	if (conf_is_ht(&sc->hw->conf) &&
+	    (sta->ht_cap.cap & IEEE80211_HT_CAP_TX_STBC))
+		tx_info->flags |= (1 << IEEE80211_TX_CTL_STBC_SHIFT);
+
 	if (is_probe) {
 		/* set one try for probe rates. For the
 		 * probes don't enable rts */
