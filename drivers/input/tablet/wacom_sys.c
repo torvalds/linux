@@ -562,11 +562,15 @@ static int wacom_resume(struct usb_interface *intf)
 	int rv;
 
 	mutex_lock(&wacom->lock);
-	if (wacom->open) {
+
+	/* switch to wacom mode first */
+	wacom_query_tablet_data(intf);
+
+	if (wacom->open)
 		rv = usb_submit_urb(wacom->irq, GFP_NOIO);
-		wacom_query_tablet_data(intf);
-	} else
+	else
 		rv = 0;
+
 	mutex_unlock(&wacom->lock);
 
 	return rv;
