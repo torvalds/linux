@@ -18,8 +18,9 @@
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
-void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
-				    u16 initiator, u16 reason)
+static void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
+					    u16 initiator, u16 reason,
+					    bool from_timer)
 {
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_rx *tid_rx;
@@ -69,8 +70,15 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 
 	spin_unlock_bh(&sta->lock);
 
-	del_timer_sync(&tid_rx->session_timer);
+	if (!from_timer)
+		del_timer_sync(&tid_rx->session_timer);
 	kfree(tid_rx);
+}
+
+void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
+				    u16 initiator, u16 reason)
+{
+	___ieee80211_stop_rx_ba_session(sta, tid, initiator, reason, false);
 }
 
 /*
@@ -91,8 +99,8 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "rx session timer expired on tid %d\n", (u16)*ptid);
 #endif
-	__ieee80211_stop_rx_ba_session(sta, *ptid, WLAN_BACK_RECIPIENT,
-				       WLAN_REASON_QSTA_TIMEOUT);
+	___ieee80211_stop_rx_ba_session(sta, *ptid, WLAN_BACK_RECIPIENT,
+					WLAN_REASON_QSTA_TIMEOUT, true);
 }
 
 static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *da, u16 tid,
