@@ -155,8 +155,14 @@ do {								 \
 #define SHMEM2_RD(bp, field)		REG_RD(bp, SHMEM2_ADDR(bp, field))
 #define SHMEM2_WR(bp, field, val)	REG_WR(bp, SHMEM2_ADDR(bp, field), val)
 
+#define MF_CFG_RD(bp, field)		SHMEM_RD(bp, mf_cfg.field)
+#define MF_CFG_WR(bp, field, val)	SHMEM_WR(bp, mf_cfg.field, val)
+
 #define EMAC_RD(bp, reg)		REG_RD(bp, emac_base + reg)
 #define EMAC_WR(bp, reg, val)		REG_WR(bp, emac_base + reg, val)
+
+#define AEU_IN_ATTN_BITS_PXPPCICLOCKCLIENT_PARITY_ERROR \
+	AEU_INPUTS_ATTN_BITS_PXPPCICLOCKCLIENT_PARITY_ERROR
 
 
 /* fast path */
@@ -818,6 +824,12 @@ struct attn_route {
 	u32	sig[4];
 };
 
+typedef enum {
+	BNX2X_RECOVERY_DONE,
+	BNX2X_RECOVERY_INIT,
+	BNX2X_RECOVERY_WAIT,
+} bnx2x_recovery_state_t;
+
 struct bnx2x {
 	/* Fields used in the tx and intr/napi performance paths
 	 * are grouped together in the beginning of the structure
@@ -835,6 +847,9 @@ struct bnx2x {
 	struct pci_dev		*pdev;
 
 	atomic_t		intr_sem;
+
+	bnx2x_recovery_state_t	recovery_state;
+	int			is_leader;
 #ifdef BCM_CNIC
 	struct msix_entry	msix_table[MAX_CONTEXT+2];
 #else
@@ -924,8 +939,7 @@ struct bnx2x {
 	int			mrrs;
 
 	struct delayed_work	sp_task;
-	struct work_struct	reset_task;
-
+	struct delayed_work	reset_task;
 	struct timer_list	timer;
 	int			current_interval;
 
@@ -1125,6 +1139,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define LOAD_DIAG			2
 #define UNLOAD_NORMAL			0
 #define UNLOAD_CLOSE			1
+#define UNLOAD_RECOVERY                 2
 
 
 /* DMAE command defines */
@@ -1294,6 +1309,10 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 				 AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR)
 
+#define HW_PRTY_ASSERT_SET_3 (AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY | \
+		AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY | \
+		AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY | \
+		AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY)
 
 #define MULTI_FLAGS(bp) \
 		(TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV4_CAPABILITY | \

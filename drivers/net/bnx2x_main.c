@@ -764,6 +764,40 @@ static void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
  * General service functions
  */
 
+/* Return true if succeeded to acquire the lock */
+static bool bnx2x_trylock_hw_lock(struct bnx2x *bp, u32 resource)
+{
+	u32 lock_status;
+	u32 resource_bit = (1 << resource);
+	int func = BP_FUNC(bp);
+	u32 hw_lock_control_reg;
+
+	DP(NETIF_MSG_HW, "Trying to take a lock on resource %d\n", resource);
+
+	/* Validating that the resource is within range */
+	if (resource > HW_LOCK_MAX_RESOURCE_VALUE) {
+		DP(NETIF_MSG_HW,
+		   "resource(0x%x) > HW_LOCK_MAX_RESOURCE_VALUE(0x%x)\n",
+		   resource, HW_LOCK_MAX_RESOURCE_VALUE);
+		return -EINVAL;
+	}
+
+	if (func <= 5)
+		hw_lock_control_reg = (MISC_REG_DRIVER_CONTROL_1 + func*8);
+	else
+		hw_lock_control_reg =
+				(MISC_REG_DRIVER_CONTROL_7 + (func - 6)*8);
+
+	/* Try to acquire the lock */
+	REG_WR(bp, hw_lock_control_reg + 4, resource_bit);
+	lock_status = REG_RD(bp, hw_lock_control_reg);
+	if (lock_status & resource_bit)
+		return true;
+
+	DP(NETIF_MSG_HW, "Failed to get a lock on resource %d\n", resource);
+	return false;
+}
+
 static inline void bnx2x_ack_sb(struct bnx2x *bp, u8 sb_id,
 				u8 storm, u16 index, u8 op, u8 update)
 {
@@ -1901,6 +1935,8 @@ static int bnx2x_release_hw_lock(struct bnx2x *bp, u32 resource)
 	int func = BP_FUNC(bp);
 	u32 hw_lock_control_reg;
 
+	DP(NETIF_MSG_HW, "Releasing a lock on resource %d\n", resource);
+
 	/* Validating that the resource is within range */
 	if (resource > HW_LOCK_MAX_RESOURCE_VALUE) {
 		DP(NETIF_MSG_HW,
@@ -2741,12 +2777,11 @@ static int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 /* acquire split MCP access lock register */
 static int bnx2x_acquire_alr(struct bnx2x *bp)
 {
-	u32 i, j, val;
+	u32 j, val;
 	int rc = 0;
 
 	might_sleep();
-	i = 100;
-	for (j = 0; j < i*10; j++) {
+	for (j = 0; j < 1000; j++) {
 		val = (1UL << 31);
 		REG_WR(bp, GRCBASE_MCP + 0x9c, val);
 		val = REG_RD(bp, GRCBASE_MCP + 0x9c);
@@ -2766,9 +2801,7 @@ static int bnx2x_acquire_alr(struct bnx2x *bp)
 /* release split MCP access lock register */
 static void bnx2x_release_alr(struct bnx2x *bp)
 {
-	u32 val = 0;
-
-	REG_WR(bp, GRCBASE_MCP + 0x9c, val);
+	REG_WR(bp, GRCBASE_MCP + 0x9c, 0);
 }
 
 static inline u16 bnx2x_update_dsb_idx(struct bnx2x *bp)
@@ -2824,7 +2857,7 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 
 	DP(NETIF_MSG_HW, "aeu_mask %x  newly asserted %x\n",
 	   aeu_mask, asserted);
-	aeu_mask &= ~(asserted & 0xff);
+	aeu_mask &= ~(asserted & 0x3ff);
 	DP(NETIF_MSG_HW, "new mask %x\n", aeu_mask);
 
 	REG_WR(bp, aeu_addr, aeu_mask);
@@ -3105,10 +3138,311 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 	}
 }
 
-static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
+static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode);
+static int bnx2x_nic_load(struct bnx2x *bp, int load_mode);
+
+
+#define BNX2X_MISC_GEN_REG      MISC_REG_GENERIC_POR_1
+#define LOAD_COUNTER_BITS	16 /* Number of bits for load counter */
+#define LOAD_COUNTER_MASK	(((u32)0x1 << LOAD_COUNTER_BITS) - 1)
+#define RESET_DONE_FLAG_MASK	(~LOAD_COUNTER_MASK)
+#define RESET_DONE_FLAG_SHIFT	LOAD_COUNTER_BITS
+#define CHIP_PARITY_SUPPORTED(bp)   (CHIP_IS_E1(bp) || CHIP_IS_E1H(bp))
+/*
+ * should be run under rtnl lock
+ */
+static inline void bnx2x_set_reset_done(struct bnx2x *bp)
+{
+	u32 val	= REG_RD(bp, BNX2X_MISC_GEN_REG);
+	val &= ~(1 << RESET_DONE_FLAG_SHIFT);
+	REG_WR(bp, BNX2X_MISC_GEN_REG, val);
+	barrier();
+	mmiowb();
+}
+
+/*
+ * should be run under rtnl lock
+ */
+static inline void bnx2x_set_reset_in_progress(struct bnx2x *bp)
+{
+	u32 val	= REG_RD(bp, BNX2X_MISC_GEN_REG);
+	val |= (1 << 16);
+	REG_WR(bp, BNX2X_MISC_GEN_REG, val);
+	barrier();
+	mmiowb();
+}
+
+/*
+ * should be run under rtnl lock
+ */
+static inline bool bnx2x_reset_is_done(struct bnx2x *bp)
+{
+	u32 val	= REG_RD(bp, BNX2X_MISC_GEN_REG);
+	DP(NETIF_MSG_HW, "GEN_REG_VAL=0x%08x\n", val);
+	return (val & RESET_DONE_FLAG_MASK) ? false : true;
+}
+
+/*
+ * should be run under rtnl lock
+ */
+static inline void bnx2x_inc_load_cnt(struct bnx2x *bp)
+{
+	u32 val1, val = REG_RD(bp, BNX2X_MISC_GEN_REG);
+
+	DP(NETIF_MSG_HW, "Old GEN_REG_VAL=0x%08x\n", val);
+
+	val1 = ((val & LOAD_COUNTER_MASK) + 1) & LOAD_COUNTER_MASK;
+	REG_WR(bp, BNX2X_MISC_GEN_REG, (val & RESET_DONE_FLAG_MASK) | val1);
+	barrier();
+	mmiowb();
+}
+
+/*
+ * should be run under rtnl lock
+ */
+static inline u32 bnx2x_dec_load_cnt(struct bnx2x *bp)
+{
+	u32 val1, val = REG_RD(bp, BNX2X_MISC_GEN_REG);
+
+	DP(NETIF_MSG_HW, "Old GEN_REG_VAL=0x%08x\n", val);
+
+	val1 = ((val & LOAD_COUNTER_MASK) - 1) & LOAD_COUNTER_MASK;
+	REG_WR(bp, BNX2X_MISC_GEN_REG, (val & RESET_DONE_FLAG_MASK) | val1);
+	barrier();
+	mmiowb();
+
+	return val1;
+}
+
+/*
+ * should be run under rtnl lock
+ */
+static inline u32 bnx2x_get_load_cnt(struct bnx2x *bp)
+{
+	return REG_RD(bp, BNX2X_MISC_GEN_REG) & LOAD_COUNTER_MASK;
+}
+
+static inline void bnx2x_clear_load_cnt(struct bnx2x *bp)
+{
+	u32 val = REG_RD(bp, BNX2X_MISC_GEN_REG);
+	REG_WR(bp, BNX2X_MISC_GEN_REG, val & (~LOAD_COUNTER_MASK));
+}
+
+static inline void _print_next_block(int idx, const char *blk)
+{
+	if (idx)
+		pr_cont(", ");
+	pr_cont("%s", blk);
+}
+
+static inline int bnx2x_print_blocks_with_parity0(u32 sig, int par_num)
+{
+	int i = 0;
+	u32 cur_bit = 0;
+	for (i = 0; sig; i++) {
+		cur_bit = ((u32)0x1 << i);
+		if (sig & cur_bit) {
+			switch (cur_bit) {
+			case AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR:
+				_print_next_block(par_num++, "BRB");
+				break;
+			case AEU_INPUTS_ATTN_BITS_PARSER_PARITY_ERROR:
+				_print_next_block(par_num++, "PARSER");
+				break;
+			case AEU_INPUTS_ATTN_BITS_TSDM_PARITY_ERROR:
+				_print_next_block(par_num++, "TSDM");
+				break;
+			case AEU_INPUTS_ATTN_BITS_SEARCHER_PARITY_ERROR:
+				_print_next_block(par_num++, "SEARCHER");
+				break;
+			case AEU_INPUTS_ATTN_BITS_TSEMI_PARITY_ERROR:
+				_print_next_block(par_num++, "TSEMI");
+				break;
+			}
+
+			/* Clear the bit */
+			sig &= ~cur_bit;
+		}
+	}
+
+	return par_num;
+}
+
+static inline int bnx2x_print_blocks_with_parity1(u32 sig, int par_num)
+{
+	int i = 0;
+	u32 cur_bit = 0;
+	for (i = 0; sig; i++) {
+		cur_bit = ((u32)0x1 << i);
+		if (sig & cur_bit) {
+			switch (cur_bit) {
+			case AEU_INPUTS_ATTN_BITS_PBCLIENT_PARITY_ERROR:
+				_print_next_block(par_num++, "PBCLIENT");
+				break;
+			case AEU_INPUTS_ATTN_BITS_QM_PARITY_ERROR:
+				_print_next_block(par_num++, "QM");
+				break;
+			case AEU_INPUTS_ATTN_BITS_XSDM_PARITY_ERROR:
+				_print_next_block(par_num++, "XSDM");
+				break;
+			case AEU_INPUTS_ATTN_BITS_XSEMI_PARITY_ERROR:
+				_print_next_block(par_num++, "XSEMI");
+				break;
+			case AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR:
+				_print_next_block(par_num++, "DOORBELLQ");
+				break;
+			case AEU_INPUTS_ATTN_BITS_VAUX_PCI_CORE_PARITY_ERROR:
+				_print_next_block(par_num++, "VAUX PCI CORE");
+				break;
+			case AEU_INPUTS_ATTN_BITS_DEBUG_PARITY_ERROR:
+				_print_next_block(par_num++, "DEBUG");
+				break;
+			case AEU_INPUTS_ATTN_BITS_USDM_PARITY_ERROR:
+				_print_next_block(par_num++, "USDM");
+				break;
+			case AEU_INPUTS_ATTN_BITS_USEMI_PARITY_ERROR:
+				_print_next_block(par_num++, "USEMI");
+				break;
+			case AEU_INPUTS_ATTN_BITS_UPB_PARITY_ERROR:
+				_print_next_block(par_num++, "UPB");
+				break;
+			case AEU_INPUTS_ATTN_BITS_CSDM_PARITY_ERROR:
+				_print_next_block(par_num++, "CSDM");
+				break;
+			}
+
+			/* Clear the bit */
+			sig &= ~cur_bit;
+		}
+	}
+
+	return par_num;
+}
+
+static inline int bnx2x_print_blocks_with_parity2(u32 sig, int par_num)
+{
+	int i = 0;
+	u32 cur_bit = 0;
+	for (i = 0; sig; i++) {
+		cur_bit = ((u32)0x1 << i);
+		if (sig & cur_bit) {
+			switch (cur_bit) {
+			case AEU_INPUTS_ATTN_BITS_CSEMI_PARITY_ERROR:
+				_print_next_block(par_num++, "CSEMI");
+				break;
+			case AEU_INPUTS_ATTN_BITS_PXP_PARITY_ERROR:
+				_print_next_block(par_num++, "PXP");
+				break;
+			case AEU_IN_ATTN_BITS_PXPPCICLOCKCLIENT_PARITY_ERROR:
+				_print_next_block(par_num++,
+					"PXPPCICLOCKCLIENT");
+				break;
+			case AEU_INPUTS_ATTN_BITS_CFC_PARITY_ERROR:
+				_print_next_block(par_num++, "CFC");
+				break;
+			case AEU_INPUTS_ATTN_BITS_CDU_PARITY_ERROR:
+				_print_next_block(par_num++, "CDU");
+				break;
+			case AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR:
+				_print_next_block(par_num++, "IGU");
+				break;
+			case AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR:
+				_print_next_block(par_num++, "MISC");
+				break;
+			}
+
+			/* Clear the bit */
+			sig &= ~cur_bit;
+		}
+	}
+
+	return par_num;
+}
+
+static inline int bnx2x_print_blocks_with_parity3(u32 sig, int par_num)
+{
+	int i = 0;
+	u32 cur_bit = 0;
+	for (i = 0; sig; i++) {
+		cur_bit = ((u32)0x1 << i);
+		if (sig & cur_bit) {
+			switch (cur_bit) {
+			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY:
+				_print_next_block(par_num++, "MCP ROM");
+				break;
+			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY:
+				_print_next_block(par_num++, "MCP UMP RX");
+				break;
+			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY:
+				_print_next_block(par_num++, "MCP UMP TX");
+				break;
+			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY:
+				_print_next_block(par_num++, "MCP SCPAD");
+				break;
+			}
+
+			/* Clear the bit */
+			sig &= ~cur_bit;
+		}
+	}
+
+	return par_num;
+}
+
+static inline bool bnx2x_parity_attn(struct bnx2x *bp, u32 sig0, u32 sig1,
+				     u32 sig2, u32 sig3)
+{
+	if ((sig0 & HW_PRTY_ASSERT_SET_0) || (sig1 & HW_PRTY_ASSERT_SET_1) ||
+	    (sig2 & HW_PRTY_ASSERT_SET_2) || (sig3 & HW_PRTY_ASSERT_SET_3)) {
+		int par_num = 0;
+		DP(NETIF_MSG_HW, "Was parity error: HW block parity attention: "
+			"[0]:0x%08x [1]:0x%08x "
+			"[2]:0x%08x [3]:0x%08x\n",
+			  sig0 & HW_PRTY_ASSERT_SET_0,
+			  sig1 & HW_PRTY_ASSERT_SET_1,
+			  sig2 & HW_PRTY_ASSERT_SET_2,
+			  sig3 & HW_PRTY_ASSERT_SET_3);
+		printk(KERN_ERR"%s: Parity errors detected in blocks: ",
+		       bp->dev->name);
+		par_num = bnx2x_print_blocks_with_parity0(
+			sig0 & HW_PRTY_ASSERT_SET_0, par_num);
+		par_num = bnx2x_print_blocks_with_parity1(
+			sig1 & HW_PRTY_ASSERT_SET_1, par_num);
+		par_num = bnx2x_print_blocks_with_parity2(
+			sig2 & HW_PRTY_ASSERT_SET_2, par_num);
+		par_num = bnx2x_print_blocks_with_parity3(
+			sig3 & HW_PRTY_ASSERT_SET_3, par_num);
+		printk("\n");
+		return true;
+	} else
+		return false;
+}
+
+static bool bnx2x_chk_parity_attn(struct bnx2x *bp)
 {
 	struct attn_route attn;
-	struct attn_route group_mask;
+	int port = BP_PORT(bp);
+
+	attn.sig[0] = REG_RD(bp,
+		MISC_REG_AEU_AFTER_INVERT_1_FUNC_0 +
+			     port*4);
+	attn.sig[1] = REG_RD(bp,
+		MISC_REG_AEU_AFTER_INVERT_2_FUNC_0 +
+			     port*4);
+	attn.sig[2] = REG_RD(bp,
+		MISC_REG_AEU_AFTER_INVERT_3_FUNC_0 +
+			     port*4);
+	attn.sig[3] = REG_RD(bp,
+		MISC_REG_AEU_AFTER_INVERT_4_FUNC_0 +
+			     port*4);
+
+	return bnx2x_parity_attn(bp, attn.sig[0], attn.sig[1], attn.sig[2],
+					attn.sig[3]);
+}
+
+static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
+{
+	struct attn_route attn, *group_mask;
 	int port = BP_PORT(bp);
 	int index;
 	u32 reg_addr;
@@ -3119,6 +3453,19 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 	   try to handle this event */
 	bnx2x_acquire_alr(bp);
 
+	if (bnx2x_chk_parity_attn(bp)) {
+		bp->recovery_state = BNX2X_RECOVERY_INIT;
+		bnx2x_set_reset_in_progress(bp);
+		schedule_delayed_work(&bp->reset_task, 0);
+		/* Disable HW interrupts */
+		bnx2x_int_disable(bp);
+		bnx2x_release_alr(bp);
+		/* In case of parity errors don't handle attentions so that
+		 * other function would "see" parity errors.
+		 */
+		return;
+	}
+
 	attn.sig[0] = REG_RD(bp, MISC_REG_AEU_AFTER_INVERT_1_FUNC_0 + port*4);
 	attn.sig[1] = REG_RD(bp, MISC_REG_AEU_AFTER_INVERT_2_FUNC_0 + port*4);
 	attn.sig[2] = REG_RD(bp, MISC_REG_AEU_AFTER_INVERT_3_FUNC_0 + port*4);
@@ -3128,28 +3475,20 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 
 	for (index = 0; index < MAX_DYNAMIC_ATTN_GRPS; index++) {
 		if (deasserted & (1 << index)) {
-			group_mask = bp->attn_group[index];
+			group_mask = &bp->attn_group[index];
 
 			DP(NETIF_MSG_HW, "group[%d]: %08x %08x %08x %08x\n",
-			   index, group_mask.sig[0], group_mask.sig[1],
-			   group_mask.sig[2], group_mask.sig[3]);
+			   index, group_mask->sig[0], group_mask->sig[1],
+			   group_mask->sig[2], group_mask->sig[3]);
 
 			bnx2x_attn_int_deasserted3(bp,
-					attn.sig[3] & group_mask.sig[3]);
+					attn.sig[3] & group_mask->sig[3]);
 			bnx2x_attn_int_deasserted1(bp,
-					attn.sig[1] & group_mask.sig[1]);
+					attn.sig[1] & group_mask->sig[1]);
 			bnx2x_attn_int_deasserted2(bp,
-					attn.sig[2] & group_mask.sig[2]);
+					attn.sig[2] & group_mask->sig[2]);
 			bnx2x_attn_int_deasserted0(bp,
-					attn.sig[0] & group_mask.sig[0]);
-
-			if ((attn.sig[0] & group_mask.sig[0] &
-						HW_PRTY_ASSERT_SET_0) ||
-			    (attn.sig[1] & group_mask.sig[1] &
-						HW_PRTY_ASSERT_SET_1) ||
-			    (attn.sig[2] & group_mask.sig[2] &
-						HW_PRTY_ASSERT_SET_2))
-				BNX2X_ERR("FATAL HW block parity attention\n");
+					attn.sig[0] & group_mask->sig[0]);
 		}
 	}
 
@@ -3173,7 +3512,7 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 
 	DP(NETIF_MSG_HW, "aeu_mask %x  newly deasserted %x\n",
 	   aeu_mask, deasserted);
-	aeu_mask |= (deasserted & 0xff);
+	aeu_mask |= (deasserted & 0x3ff);
 	DP(NETIF_MSG_HW, "new mask %x\n", aeu_mask);
 
 	REG_WR(bp, reg_addr, aeu_mask);
@@ -5963,6 +6302,50 @@ static void enable_blocks_attention(struct bnx2x *bp)
 	REG_WR(bp, PBF_REG_PBF_INT_MASK, 0X18);		/* bit 3,4 masked */
 }
 
+static const struct {
+	u32 addr;
+	u32 mask;
+} bnx2x_parity_mask[] = {
+	{PXP_REG_PXP_PRTY_MASK, 0xffffffff},
+	{PXP2_REG_PXP2_PRTY_MASK_0, 0xffffffff},
+	{PXP2_REG_PXP2_PRTY_MASK_1, 0xffffffff},
+	{HC_REG_HC_PRTY_MASK, 0xffffffff},
+	{MISC_REG_MISC_PRTY_MASK, 0xffffffff},
+	{QM_REG_QM_PRTY_MASK, 0x0},
+	{DORQ_REG_DORQ_PRTY_MASK, 0x0},
+	{GRCBASE_UPB + PB_REG_PB_PRTY_MASK, 0x0},
+	{GRCBASE_XPB + PB_REG_PB_PRTY_MASK, 0x0},
+	{SRC_REG_SRC_PRTY_MASK, 0x4}, /* bit 2 */
+	{CDU_REG_CDU_PRTY_MASK, 0x0},
+	{CFC_REG_CFC_PRTY_MASK, 0x0},
+	{DBG_REG_DBG_PRTY_MASK, 0x0},
+	{DMAE_REG_DMAE_PRTY_MASK, 0x0},
+	{BRB1_REG_BRB1_PRTY_MASK, 0x0},
+	{PRS_REG_PRS_PRTY_MASK, (1<<6)},/* bit 6 */
+	{TSDM_REG_TSDM_PRTY_MASK, 0x18},/* bit 3,4 */
+	{CSDM_REG_CSDM_PRTY_MASK, 0x8},	/* bit 3 */
+	{USDM_REG_USDM_PRTY_MASK, 0x38},/* bit 3,4,5 */
+	{XSDM_REG_XSDM_PRTY_MASK, 0x8},	/* bit 3 */
+	{TSEM_REG_TSEM_PRTY_MASK_0, 0x0},
+	{TSEM_REG_TSEM_PRTY_MASK_1, 0x0},
+	{USEM_REG_USEM_PRTY_MASK_0, 0x0},
+	{USEM_REG_USEM_PRTY_MASK_1, 0x0},
+	{CSEM_REG_CSEM_PRTY_MASK_0, 0x0},
+	{CSEM_REG_CSEM_PRTY_MASK_1, 0x0},
+	{XSEM_REG_XSEM_PRTY_MASK_0, 0x0},
+	{XSEM_REG_XSEM_PRTY_MASK_1, 0x0}
+};
+
+static void enable_blocks_parity(struct bnx2x *bp)
+{
+	int i, mask_arr_len =
+		sizeof(bnx2x_parity_mask)/(sizeof(bnx2x_parity_mask[0]));
+
+	for (i = 0; i < mask_arr_len; i++)
+		REG_WR(bp, bnx2x_parity_mask[i].addr,
+			bnx2x_parity_mask[i].mask);
+}
+
 
 static void bnx2x_reset_common(struct bnx2x *bp)
 {
@@ -6306,6 +6689,8 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	REG_RD(bp, PXP2_REG_PXP2_INT_STS_CLR_0);
 
 	enable_blocks_attention(bp);
+	if (CHIP_PARITY_SUPPORTED(bp))
+		enable_blocks_parity(bp);
 
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
@@ -7657,6 +8042,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	if (bp->state == BNX2X_STATE_OPEN)
 		bnx2x_cnic_notify(bp, CNIC_CTL_START_CMD);
 #endif
+	bnx2x_inc_load_cnt(bp);
 
 	return 0;
 
@@ -7844,32 +8230,11 @@ static void bnx2x_reset_chip(struct bnx2x *bp, u32 reset_code)
 	}
 }
 
-/* must be called with rtnl_lock */
-static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
+static void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 {
 	int port = BP_PORT(bp);
 	u32 reset_code = 0;
 	int i, cnt, rc;
-
-#ifdef BCM_CNIC
-	bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
-#endif
-	bp->state = BNX2X_STATE_CLOSING_WAIT4_HALT;
-
-	/* Set "drop all" */
-	bp->rx_mode = BNX2X_RX_MODE_NONE;
-	bnx2x_set_storm_rx_mode(bp);
-
-	/* Disable HW interrupts, NAPI and Tx */
-	bnx2x_netif_stop(bp, 1);
-
-	del_timer_sync(&bp->timer);
-	SHMEM_WR(bp, func_mb[BP_FUNC(bp)].drv_pulse_mb,
-		 (DRV_PULSE_ALWAYS_ALIVE | bp->fw_drv_pulse_wr_seq));
-	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
-
-	/* Release IRQs */
-	bnx2x_free_irq(bp, false);
 
 	/* Wait until tx fastpath tasks complete */
 	for_each_queue(bp, i) {
@@ -8011,6 +8376,69 @@ unload_error:
 	if (!BP_NOMCP(bp))
 		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE);
 
+}
+
+static inline void bnx2x_disable_close_the_gate(struct bnx2x *bp)
+{
+	u32 val;
+
+	DP(NETIF_MSG_HW, "Disabling \"close the gates\"\n");
+
+	if (CHIP_IS_E1(bp)) {
+		int port = BP_PORT(bp);
+		u32 addr = port ? MISC_REG_AEU_MASK_ATTN_FUNC_1 :
+			MISC_REG_AEU_MASK_ATTN_FUNC_0;
+
+		val = REG_RD(bp, addr);
+		val &= ~(0x300);
+		REG_WR(bp, addr, val);
+	} else if (CHIP_IS_E1H(bp)) {
+		val = REG_RD(bp, MISC_REG_AEU_GENERAL_MASK);
+		val &= ~(MISC_AEU_GENERAL_MASK_REG_AEU_PXP_CLOSE_MASK |
+			 MISC_AEU_GENERAL_MASK_REG_AEU_NIG_CLOSE_MASK);
+		REG_WR(bp, MISC_REG_AEU_GENERAL_MASK, val);
+	}
+}
+
+/* must be called with rtnl_lock */
+static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
+{
+	int i;
+
+	if (bp->state == BNX2X_STATE_CLOSED) {
+		/* Interface has been removed - nothing to recover */
+		bp->recovery_state = BNX2X_RECOVERY_DONE;
+		bp->is_leader = 0;
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESERVED_08);
+		smp_wmb();
+
+		return -EINVAL;
+	}
+
+#ifdef BCM_CNIC
+	bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
+#endif
+	bp->state = BNX2X_STATE_CLOSING_WAIT4_HALT;
+
+	/* Set "drop all" */
+	bp->rx_mode = BNX2X_RX_MODE_NONE;
+	bnx2x_set_storm_rx_mode(bp);
+
+	/* Disable HW interrupts, NAPI and Tx */
+	bnx2x_netif_stop(bp, 1);
+
+	del_timer_sync(&bp->timer);
+	SHMEM_WR(bp, func_mb[BP_FUNC(bp)].drv_pulse_mb,
+		 (DRV_PULSE_ALWAYS_ALIVE | bp->fw_drv_pulse_wr_seq));
+	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+
+	/* Release IRQs */
+	bnx2x_free_irq(bp, false);
+
+	/* Cleanup the chip if needed */
+	if (unload_mode != UNLOAD_RECOVERY)
+		bnx2x_chip_cleanup(bp, unload_mode);
+
 	bp->port.pmf = 0;
 
 	/* Free SKBs, SGEs, TPA pool and driver internals */
@@ -8025,17 +8453,448 @@ unload_error:
 
 	netif_carrier_off(bp->dev);
 
+	/* The last driver must disable a "close the gate" if there is no
+	 * parity attention or "process kill" pending.
+	 */
+	if ((!bnx2x_dec_load_cnt(bp)) && (!bnx2x_chk_parity_attn(bp)) &&
+	    bnx2x_reset_is_done(bp))
+		bnx2x_disable_close_the_gate(bp);
+
+	/* Reset MCP mail box sequence if there is on going recovery */
+	if (unload_mode == UNLOAD_RECOVERY)
+		bp->fw_seq = 0;
+
 	return 0;
 }
 
+/* Close gates #2, #3 and #4: */
+static void bnx2x_set_234_gates(struct bnx2x *bp, bool close)
+{
+	u32 val, addr;
+
+	/* Gates #2 and #4a are closed/opened for "not E1" only */
+	if (!CHIP_IS_E1(bp)) {
+		/* #4 */
+		val = REG_RD(bp, PXP_REG_HST_DISCARD_DOORBELLS);
+		REG_WR(bp, PXP_REG_HST_DISCARD_DOORBELLS,
+		       close ? (val | 0x1) : (val & (~(u32)1)));
+		/* #2 */
+		val = REG_RD(bp, PXP_REG_HST_DISCARD_INTERNAL_WRITES);
+		REG_WR(bp, PXP_REG_HST_DISCARD_INTERNAL_WRITES,
+		       close ? (val | 0x1) : (val & (~(u32)1)));
+	}
+
+	/* #3 */
+	addr = BP_PORT(bp) ? HC_REG_CONFIG_1 : HC_REG_CONFIG_0;
+	val = REG_RD(bp, addr);
+	REG_WR(bp, addr, (!close) ? (val | 0x1) : (val & (~(u32)1)));
+
+	DP(NETIF_MSG_HW, "%s gates #2, #3 and #4\n",
+		close ? "closing" : "opening");
+	mmiowb();
+}
+
+#define SHARED_MF_CLP_MAGIC  0x80000000 /* `magic' bit */
+
+static void bnx2x_clp_reset_prep(struct bnx2x *bp, u32 *magic_val)
+{
+	/* Do some magic... */
+	u32 val = MF_CFG_RD(bp, shared_mf_config.clp_mb);
+	*magic_val = val & SHARED_MF_CLP_MAGIC;
+	MF_CFG_WR(bp, shared_mf_config.clp_mb, val | SHARED_MF_CLP_MAGIC);
+}
+
+/* Restore the value of the `magic' bit.
+ *
+ * @param pdev Device handle.
+ * @param magic_val Old value of the `magic' bit.
+ */
+static void bnx2x_clp_reset_done(struct bnx2x *bp, u32 magic_val)
+{
+	/* Restore the `magic' bit value... */
+	/* u32 val = SHMEM_RD(bp, mf_cfg.shared_mf_config.clp_mb);
+	SHMEM_WR(bp, mf_cfg.shared_mf_config.clp_mb,
+		(val & (~SHARED_MF_CLP_MAGIC)) | magic_val); */
+	u32 val = MF_CFG_RD(bp, shared_mf_config.clp_mb);
+	MF_CFG_WR(bp, shared_mf_config.clp_mb,
+		(val & (~SHARED_MF_CLP_MAGIC)) | magic_val);
+}
+
+/* Prepares for MCP reset: takes care of CLP configurations.
+ *
+ * @param bp
+ * @param magic_val Old value of 'magic' bit.
+ */
+static void bnx2x_reset_mcp_prep(struct bnx2x *bp, u32 *magic_val)
+{
+	u32 shmem;
+	u32 validity_offset;
+
+	DP(NETIF_MSG_HW, "Starting\n");
+
+	/* Set `magic' bit in order to save MF config */
+	if (!CHIP_IS_E1(bp))
+		bnx2x_clp_reset_prep(bp, magic_val);
+
+	/* Get shmem offset */
+	shmem = REG_RD(bp, MISC_REG_SHARED_MEM_ADDR);
+	validity_offset = offsetof(struct shmem_region, validity_map[0]);
+
+	/* Clear validity map flags */
+	if (shmem > 0)
+		REG_WR(bp, shmem + validity_offset, 0);
+}
+
+#define MCP_TIMEOUT      5000   /* 5 seconds (in ms) */
+#define MCP_ONE_TIMEOUT  100    /* 100 ms */
+
+/* Waits for MCP_ONE_TIMEOUT or MCP_ONE_TIMEOUT*10,
+ * depending on the HW type.
+ *
+ * @param bp
+ */
+static inline void bnx2x_mcp_wait_one(struct bnx2x *bp)
+{
+	/* special handling for emulation and FPGA,
+	   wait 10 times longer */
+	if (CHIP_REV_IS_SLOW(bp))
+		msleep(MCP_ONE_TIMEOUT*10);
+	else
+		msleep(MCP_ONE_TIMEOUT);
+}
+
+static int bnx2x_reset_mcp_comp(struct bnx2x *bp, u32 magic_val)
+{
+	u32 shmem, cnt, validity_offset, val;
+	int rc = 0;
+
+	msleep(100);
+
+	/* Get shmem offset */
+	shmem = REG_RD(bp, MISC_REG_SHARED_MEM_ADDR);
+	if (shmem == 0) {
+		BNX2X_ERR("Shmem 0 return failure\n");
+		rc = -ENOTTY;
+		goto exit_lbl;
+	}
+
+	validity_offset = offsetof(struct shmem_region, validity_map[0]);
+
+	/* Wait for MCP to come up */
+	for (cnt = 0; cnt < (MCP_TIMEOUT / MCP_ONE_TIMEOUT); cnt++) {
+		/* TBD: its best to check validity map of last port.
+		 * currently checks on port 0.
+		 */
+		val = REG_RD(bp, shmem + validity_offset);
+		DP(NETIF_MSG_HW, "shmem 0x%x validity map(0x%x)=0x%x\n", shmem,
+		   shmem + validity_offset, val);
+
+		/* check that shared memory is valid. */
+		if ((val & (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB))
+		    == (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB))
+			break;
+
+		bnx2x_mcp_wait_one(bp);
+	}
+
+	DP(NETIF_MSG_HW, "Cnt=%d Shmem validity map 0x%x\n", cnt, val);
+
+	/* Check that shared memory is valid. This indicates that MCP is up. */
+	if ((val & (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB)) !=
+	    (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB)) {
+		BNX2X_ERR("Shmem signature not present. MCP is not up !!\n");
+		rc = -ENOTTY;
+		goto exit_lbl;
+	}
+
+exit_lbl:
+	/* Restore the `magic' bit value */
+	if (!CHIP_IS_E1(bp))
+		bnx2x_clp_reset_done(bp, magic_val);
+
+	return rc;
+}
+
+static void bnx2x_pxp_prep(struct bnx2x *bp)
+{
+	if (!CHIP_IS_E1(bp)) {
+		REG_WR(bp, PXP2_REG_RD_START_INIT, 0);
+		REG_WR(bp, PXP2_REG_RQ_RBC_DONE, 0);
+		REG_WR(bp, PXP2_REG_RQ_CFG_DONE, 0);
+		mmiowb();
+	}
+}
+
+/*
+ * Reset the whole chip except for:
+ *      - PCIE core
+ *      - PCI Glue, PSWHST, PXP/PXP2 RF (all controlled by
+ *              one reset bit)
+ *      - IGU
+ *      - MISC (including AEU)
+ *      - GRC
+ *      - RBCN, RBCP
+ */
+static void bnx2x_process_kill_chip_reset(struct bnx2x *bp)
+{
+	u32 not_reset_mask1, reset_mask1, not_reset_mask2, reset_mask2;
+
+	not_reset_mask1 =
+		MISC_REGISTERS_RESET_REG_1_RST_HC |
+		MISC_REGISTERS_RESET_REG_1_RST_PXPV |
+		MISC_REGISTERS_RESET_REG_1_RST_PXP;
+
+	not_reset_mask2 =
+		MISC_REGISTERS_RESET_REG_2_RST_MDIO |
+		MISC_REGISTERS_RESET_REG_2_RST_EMAC0_HARD_CORE |
+		MISC_REGISTERS_RESET_REG_2_RST_EMAC1_HARD_CORE |
+		MISC_REGISTERS_RESET_REG_2_RST_MISC_CORE |
+		MISC_REGISTERS_RESET_REG_2_RST_RBCN |
+		MISC_REGISTERS_RESET_REG_2_RST_GRC  |
+		MISC_REGISTERS_RESET_REG_2_RST_MCP_N_RESET_REG_HARD_CORE |
+		MISC_REGISTERS_RESET_REG_2_RST_MCP_N_HARD_CORE_RST_B;
+
+	reset_mask1 = 0xffffffff;
+
+	if (CHIP_IS_E1(bp))
+		reset_mask2 = 0xffff;
+	else
+		reset_mask2 = 0x1ffff;
+
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_CLEAR,
+	       reset_mask1 & (~not_reset_mask1));
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
+	       reset_mask2 & (~not_reset_mask2));
+
+	barrier();
+	mmiowb();
+
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, reset_mask1);
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET, reset_mask2);
+	mmiowb();
+}
+
+static int bnx2x_process_kill(struct bnx2x *bp)
+{
+	int cnt = 1000;
+	u32 val = 0;
+	u32 sr_cnt, blk_cnt, port_is_idle_0, port_is_idle_1, pgl_exp_rom2;
+
+
+	/* Empty the Tetris buffer, wait for 1s */
+	do {
+		sr_cnt  = REG_RD(bp, PXP2_REG_RD_SR_CNT);
+		blk_cnt = REG_RD(bp, PXP2_REG_RD_BLK_CNT);
+		port_is_idle_0 = REG_RD(bp, PXP2_REG_RD_PORT_IS_IDLE_0);
+		port_is_idle_1 = REG_RD(bp, PXP2_REG_RD_PORT_IS_IDLE_1);
+		pgl_exp_rom2 = REG_RD(bp, PXP2_REG_PGL_EXP_ROM2);
+		if ((sr_cnt == 0x7e) && (blk_cnt == 0xa0) &&
+		    ((port_is_idle_0 & 0x1) == 0x1) &&
+		    ((port_is_idle_1 & 0x1) == 0x1) &&
+		    (pgl_exp_rom2 == 0xffffffff))
+			break;
+		msleep(1);
+	} while (cnt-- > 0);
+
+	if (cnt <= 0) {
+		DP(NETIF_MSG_HW, "Tetris buffer didn't get empty or there"
+			  " are still"
+			  " outstanding read requests after 1s!\n");
+		DP(NETIF_MSG_HW, "sr_cnt=0x%08x, blk_cnt=0x%08x,"
+			  " port_is_idle_0=0x%08x,"
+			  " port_is_idle_1=0x%08x, pgl_exp_rom2=0x%08x\n",
+			  sr_cnt, blk_cnt, port_is_idle_0, port_is_idle_1,
+			  pgl_exp_rom2);
+		return -EAGAIN;
+	}
+
+	barrier();
+
+	/* Close gates #2, #3 and #4 */
+	bnx2x_set_234_gates(bp, true);
+
+	/* TBD: Indicate that "process kill" is in progress to MCP */
+
+	/* Clear "unprepared" bit */
+	REG_WR(bp, MISC_REG_UNPREPARED, 0);
+	barrier();
+
+	/* Make sure all is written to the chip before the reset */
+	mmiowb();
+
+	/* Wait for 1ms to empty GLUE and PCI-E core queues,
+	 * PSWHST, GRC and PSWRD Tetris buffer.
+	 */
+	msleep(1);
+
+	/* Prepare to chip reset: */
+	/* MCP */
+	bnx2x_reset_mcp_prep(bp, &val);
+
+	/* PXP */
+	bnx2x_pxp_prep(bp);
+	barrier();
+
+	/* reset the chip */
+	bnx2x_process_kill_chip_reset(bp);
+	barrier();
+
+	/* Recover after reset: */
+	/* MCP */
+	if (bnx2x_reset_mcp_comp(bp, val))
+		return -EAGAIN;
+
+	/* PXP */
+	bnx2x_pxp_prep(bp);
+
+	/* Open the gates #2, #3 and #4 */
+	bnx2x_set_234_gates(bp, false);
+
+	/* TBD: IGU/AEU preparation bring back the AEU/IGU to a
+	 * reset state, re-enable attentions. */
+
+	return 0;
+}
+
+static int bnx2x_leader_reset(struct bnx2x *bp)
+{
+	int rc = 0;
+	/* Try to recover after the failure */
+	if (bnx2x_process_kill(bp)) {
+		printk(KERN_ERR "%s: Something bad had happen! Aii!\n",
+		       bp->dev->name);
+		rc = -EAGAIN;
+		goto exit_leader_reset;
+	}
+
+	/* Clear "reset is in progress" bit and update the driver state */
+	bnx2x_set_reset_done(bp);
+	bp->recovery_state = BNX2X_RECOVERY_DONE;
+
+exit_leader_reset:
+	bp->is_leader = 0;
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESERVED_08);
+	smp_wmb();
+	return rc;
+}
+
+static int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state);
+
+/* Assumption: runs under rtnl lock. This together with the fact
+ * that it's called only from bnx2x_reset_task() ensure that it
+ * will never be called when netif_running(bp->dev) is false.
+ */
+static void bnx2x_parity_recover(struct bnx2x *bp)
+{
+	DP(NETIF_MSG_HW, "Handling parity\n");
+	while (1) {
+		switch (bp->recovery_state) {
+		case BNX2X_RECOVERY_INIT:
+			DP(NETIF_MSG_HW, "State is BNX2X_RECOVERY_INIT\n");
+			/* Try to get a LEADER_LOCK HW lock */
+			if (bnx2x_trylock_hw_lock(bp,
+				HW_LOCK_RESOURCE_RESERVED_08))
+				bp->is_leader = 1;
+
+			/* Stop the driver */
+			/* If interface has been removed - break */
+			if (bnx2x_nic_unload(bp, UNLOAD_RECOVERY))
+				return;
+
+			bp->recovery_state = BNX2X_RECOVERY_WAIT;
+			/* Ensure "is_leader" and "recovery_state"
+			 *  update values are seen on other CPUs
+			 */
+			smp_wmb();
+			break;
+
+		case BNX2X_RECOVERY_WAIT:
+			DP(NETIF_MSG_HW, "State is BNX2X_RECOVERY_WAIT\n");
+			if (bp->is_leader) {
+				u32 load_counter = bnx2x_get_load_cnt(bp);
+				if (load_counter) {
+					/* Wait until all other functions get
+					 * down.
+					 */
+					schedule_delayed_work(&bp->reset_task,
+								HZ/10);
+					return;
+				} else {
+					/* If all other functions got down -
+					 * try to bring the chip back to
+					 * normal. In any case it's an exit
+					 * point for a leader.
+					 */
+					if (bnx2x_leader_reset(bp) ||
+					bnx2x_nic_load(bp, LOAD_NORMAL)) {
+						printk(KERN_ERR"%s: Recovery "
+						"has failed. Power cycle is "
+						"needed.\n", bp->dev->name);
+						/* Disconnect this device */
+						netif_device_detach(bp->dev);
+						/* Block ifup for all function
+						 * of this ASIC until
+						 * "process kill" or power
+						 * cycle.
+						 */
+						bnx2x_set_reset_in_progress(bp);
+						/* Shut down the power */
+						bnx2x_set_power_state(bp,
+								PCI_D3hot);
+						return;
+					}
+
+					return;
+				}
+			} else { /* non-leader */
+				if (!bnx2x_reset_is_done(bp)) {
+					/* Try to get a LEADER_LOCK HW lock as
+					 * long as a former leader may have
+					 * been unloaded by the user or
+					 * released a leadership by another
+					 * reason.
+					 */
+					if (bnx2x_trylock_hw_lock(bp,
+					    HW_LOCK_RESOURCE_RESERVED_08)) {
+						/* I'm a leader now! Restart a
+						 * switch case.
+						 */
+						bp->is_leader = 1;
+						break;
+					}
+
+					schedule_delayed_work(&bp->reset_task,
+								HZ/10);
+					return;
+
+				} else { /* A leader has completed
+					  * the "process kill". It's an exit
+					  * point for a non-leader.
+					  */
+					bnx2x_nic_load(bp, LOAD_NORMAL);
+					bp->recovery_state =
+						BNX2X_RECOVERY_DONE;
+					smp_wmb();
+					return;
+				}
+			}
+		default:
+			return;
+		}
+	}
+}
+
+/* bnx2x_nic_unload() flushes the bnx2x_wq, thus reset task is
+ * scheduled on a general queue in order to prevent a dead lock.
+ */
 static void bnx2x_reset_task(struct work_struct *work)
 {
-	struct bnx2x *bp = container_of(work, struct bnx2x, reset_task);
+	struct bnx2x *bp = container_of(work, struct bnx2x, reset_task.work);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	BNX2X_ERR("reset task called but STOP_ON_ERROR defined"
 		  " so reset not done to allow debug dump,\n"
-		  " you will need to reboot when done\n");
+	 KERN_ERR " you will need to reboot when done\n");
 	return;
 #endif
 
@@ -8044,8 +8903,12 @@ static void bnx2x_reset_task(struct work_struct *work)
 	if (!netif_running(bp->dev))
 		goto reset_task_exit;
 
-	bnx2x_nic_unload(bp, UNLOAD_NORMAL);
-	bnx2x_nic_load(bp, LOAD_NORMAL);
+	if (unlikely(bp->recovery_state != BNX2X_RECOVERY_DONE))
+		bnx2x_parity_recover(bp);
+	else {
+		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+		bnx2x_nic_load(bp, LOAD_NORMAL);
+	}
 
 reset_task_exit:
 	rtnl_unlock();
@@ -8913,7 +9776,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 #endif
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
-	INIT_WORK(&bp->reset_task, bnx2x_reset_task);
+	INIT_DELAYED_WORK(&bp->reset_task, bnx2x_reset_task);
 
 	rc = bnx2x_get_hwinfo(bp);
 
@@ -9888,6 +10751,11 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 	int rc = 0;
 
+	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
+		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		return -EAGAIN;
+	}
+
 	if ((ering->rx_pending > MAX_RX_AVAIL) ||
 	    (ering->tx_pending > MAX_TX_AVAIL) ||
 	    (ering->tx_pending <= MAX_SKB_FRAGS + 4))
@@ -9973,6 +10841,11 @@ static int bnx2x_set_flags(struct net_device *dev, u32 data)
 	int changed = 0;
 	int rc = 0;
 
+	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
+		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		return -EAGAIN;
+	}
+
 	/* TPA requires Rx CSUM offloading */
 	if ((data & ETH_FLAG_LRO) && bp->rx_csum) {
 		if (!disable_tpa) {
@@ -10008,6 +10881,11 @@ static int bnx2x_set_rx_csum(struct net_device *dev, u32 data)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int rc = 0;
+
+	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
+		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		return -EAGAIN;
+	}
 
 	bp->rx_csum = data;
 
@@ -10470,6 +11348,12 @@ static void bnx2x_self_test(struct net_device *dev,
 			    struct ethtool_test *etest, u64 *buf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
+
+	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
+		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		etest->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
 
 	memset(buf, 0, sizeof(u64) * BNX2X_NUM_TESTS);
 
@@ -11456,6 +12340,40 @@ static int bnx2x_open(struct net_device *dev)
 
 	bnx2x_set_power_state(bp, PCI_D0);
 
+	if (!bnx2x_reset_is_done(bp)) {
+		do {
+			/* Reset MCP mail box sequence if there is on going
+			 * recovery
+			 */
+			bp->fw_seq = 0;
+
+			/* If it's the first function to load and reset done
+			 * is still not cleared it may mean that. We don't
+			 * check the attention state here because it may have
+			 * already been cleared by a "common" reset but we
+			 * shell proceed with "process kill" anyway.
+			 */
+			if ((bnx2x_get_load_cnt(bp) == 0) &&
+				bnx2x_trylock_hw_lock(bp,
+				HW_LOCK_RESOURCE_RESERVED_08) &&
+				(!bnx2x_leader_reset(bp))) {
+				DP(NETIF_MSG_HW, "Recovered in open\n");
+				break;
+			}
+
+			bnx2x_set_power_state(bp, PCI_D3hot);
+
+			printk(KERN_ERR"%s: Recovery flow hasn't been properly"
+			" completed yet. Try again later. If u still see this"
+			" message after a few retries then power cycle is"
+			" required.\n", bp->dev->name);
+
+			return -EAGAIN;
+		} while (0);
+	}
+
+	bp->recovery_state = BNX2X_RECOVERY_DONE;
+
 	return bnx2x_nic_load(bp, LOAD_OPEN);
 }
 
@@ -11694,6 +12612,11 @@ static int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 	struct bnx2x *bp = netdev_priv(dev);
 	int rc = 0;
 
+	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
+		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		return -EAGAIN;
+	}
+
 	if ((new_mtu > ETH_MAX_JUMBO_PACKET_SIZE) ||
 	    ((new_mtu + ETH_HLEN) < ETH_MIN_PACKET_SIZE))
 		return -EINVAL;
@@ -11721,7 +12644,7 @@ static void bnx2x_tx_timeout(struct net_device *dev)
 		bnx2x_panic();
 #endif
 	/* This allows the netif to be shutdown gracefully before resetting */
-	schedule_work(&bp->reset_task);
+	schedule_delayed_work(&bp->reset_task, 0);
 }
 
 #ifdef BCM_VLAN
@@ -11879,6 +12802,9 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F0 + BP_PORT(bp)*16, 0);
 	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F0 + BP_PORT(bp)*16, 0);
 	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F0 + BP_PORT(bp)*16, 0);
+
+	/* Reset the load counter */
+	bnx2x_clear_load_cnt(bp);
 
 	dev->watchdog_timeo = TX_TIMEOUT;
 
@@ -12205,6 +13131,9 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 
+	/* Make sure RESET task is not scheduled before continuing */
+	cancel_delayed_work_sync(&bp->reset_task);
+
 	kfree(bp->init_ops_offsets);
 	kfree(bp->init_ops);
 	kfree(bp->init_data);
@@ -12267,6 +13196,11 @@ static int bnx2x_resume(struct pci_dev *pdev)
 		return -ENODEV;
 	}
 	bp = netdev_priv(dev);
+
+	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
+		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		return -EAGAIN;
+	}
 
 	rtnl_lock();
 
@@ -12433,6 +13367,11 @@ static void bnx2x_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2x *bp = netdev_priv(dev);
+
+	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
+		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
+		return;
+	}
 
 	rtnl_lock();
 
