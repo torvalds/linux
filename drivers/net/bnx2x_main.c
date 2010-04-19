@@ -513,6 +513,10 @@ static void bnx2x_fw_dump(struct bnx2x *bp)
 	__be32 data[9];
 	int word;
 
+	if (BP_NOMCP(bp)) {
+		BNX2X_ERR("NO MCP - can not dump\n");
+		return;
+	}
 	mark = REG_RD(bp, MCP_REG_MCPR_SCRATCH + 0xf104);
 	mark = ((mark + 0x3) & ~0x3);
 	pr_err("begin fw dump (mark 0x%x)\n", mark);
@@ -2292,11 +2296,14 @@ static void bnx2x__link_reset(struct bnx2x *bp)
 
 static u8 bnx2x_link_test(struct bnx2x *bp)
 {
-	u8 rc;
+	u8 rc = 0;
 
-	bnx2x_acquire_phy_lock(bp);
-	rc = bnx2x_test_link(&bp->link_params, &bp->link_vars);
-	bnx2x_release_phy_lock(bp);
+	if (!BP_NOMCP(bp)) {
+		bnx2x_acquire_phy_lock(bp);
+		rc = bnx2x_test_link(&bp->link_params, &bp->link_vars);
+		bnx2x_release_phy_lock(bp);
+	} else
+		BNX2X_ERR("Bootcode is missing - can not test link\n");
 
 	return rc;
 }
@@ -4288,7 +4295,6 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 		u32 lo;
 		u32 hi;
 	} diff;
-	u32 nig_timer_max;
 
 	if (bp->link_vars.mac_type == MAC_TYPE_BMAC)
 		bnx2x_bmac_stats_update(bp);
@@ -4319,10 +4325,14 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 
 	pstats->host_port_stats_start = ++pstats->host_port_stats_end;
 
-	nig_timer_max = SHMEM_RD(bp, port_mb[BP_PORT(bp)].stat_nig_timer);
-	if (nig_timer_max != estats->nig_timer_max) {
-		estats->nig_timer_max = nig_timer_max;
-		BNX2X_ERR("NIG timer max (%u)\n", estats->nig_timer_max);
+	if (!BP_NOMCP(bp)) {
+		u32 nig_timer_max =
+			SHMEM_RD(bp, port_mb[BP_PORT(bp)].stat_nig_timer);
+		if (nig_timer_max != estats->nig_timer_max) {
+			estats->nig_timer_max = nig_timer_max;
+			BNX2X_ERR("NIG timer max (%u)\n",
+				  estats->nig_timer_max);
+		}
 	}
 
 	return 0;
@@ -6377,10 +6387,14 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 
 static void bnx2x_setup_fan_failure_detection(struct bnx2x *bp)
 {
+	int is_required;
 	u32 val;
-	u8 port;
-	u8 is_required = 0;
+	int port;
 
+	if (BP_NOMCP(bp))
+		return;
+
+	is_required = 0;
 	val = SHMEM_RD(bp, dev_info.shared_hw_config.config2) &
 	      SHARED_HW_CFG_FAN_FAILURE_MASK;
 
@@ -9688,7 +9702,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 
 	bp->e1hov = 0;
 	bp->e1hmf = 0;
-	if (CHIP_IS_E1H(bp)) {
+	if (CHIP_IS_E1H(bp) && !BP_NOMCP(bp)) {
 		bp->mf_config =
 			SHMEM_RD(bp, mf_cfg.func_mf_config[func].config);
 
@@ -11293,6 +11307,9 @@ static int bnx2x_test_loopback(struct bnx2x *bp, u8 link_up)
 {
 	int rc = 0, res;
 
+	if (BP_NOMCP(bp))
+		return rc;
+
 	if (!netif_running(bp->dev))
 		return BNX2X_LOOPBACK_FAILED;
 
@@ -11339,6 +11356,9 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 	u8 *data = (u8 *)buf;
 	int i, rc;
 	u32 magic, crc;
+
+	if (BP_NOMCP(bp))
+		return 0;
 
 	rc = bnx2x_nvram_read(bp, 0, data, 4);
 	if (rc) {
