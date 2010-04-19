@@ -2217,7 +2217,7 @@ static void create_debug_file(struct isp1362_hcd *isp1362_hcd)
 static void remove_debug_file(struct isp1362_hcd *isp1362_hcd)
 {
 	if (isp1362_hcd->pde)
-		remove_proc_entry(proc_filename, 0);
+		remove_proc_entry(proc_filename, NULL);
 }
 
 #endif

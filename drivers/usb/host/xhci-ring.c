@@ -388,7 +388,7 @@ static struct xhci_segment *find_trb_seg(
 		cur_seg = cur_seg->next;
 		if (cur_seg == start_seg)
 			/* Looped over the entire list.  Oops! */
-			return 0;
+			return NULL;
 	}
 	return cur_seg;
 }
@@ -582,7 +582,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	struct xhci_ring *ep_ring;
 	struct xhci_virt_ep *ep;
 	struct list_head *entry;
-	struct xhci_td *cur_td = 0;
+	struct xhci_td *cur_td = NULL;
 	struct xhci_td *last_unlinked_td;
 
 	struct xhci_dequeue_state deq_state;
@@ -1115,7 +1115,7 @@ struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
 
 	do {
 		if (start_dma == 0)
-			return 0;
+			return NULL;
 		/* We may get an event for a Link TRB in the middle of a TD */
 		end_seg_dma = xhci_trb_virt_to_dma(cur_seg,
 				&cur_seg->trbs[TRBS_PER_SEGMENT - 1]);
@@ -1137,7 +1137,7 @@ struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
 						 suspect_dma <= end_trb_dma))
 					return cur_seg;
 			}
-			return 0;
+			return NULL;
 		} else {
 			/* Might still be somewhere in this segment */
 			if (suspect_dma >= start_dma && suspect_dma <= end_seg_dma)
@@ -1147,7 +1147,7 @@ struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
 		start_dma = xhci_trb_virt_to_dma(cur_seg, &cur_seg->trbs[0]);
 	} while (cur_seg != start_seg);
 
-	return 0;
+	return NULL;
 }
 
 static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
@@ -1223,11 +1223,11 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	struct xhci_ring *ep_ring;
 	unsigned int slot_id;
 	int ep_index;
-	struct xhci_td *td = 0;
+	struct xhci_td *td = NULL;
 	dma_addr_t event_dma;
 	struct xhci_segment *event_seg;
 	union xhci_trb *event_trb;
-	struct urb *urb = 0;
+	struct urb *urb = NULL;
 	int status = -EINPROGRESS;
 	struct xhci_ep_ctx *ep_ctx;
 	u32 trb_comp_code;

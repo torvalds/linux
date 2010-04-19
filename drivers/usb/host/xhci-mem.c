@@ -41,13 +41,13 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci, gfp_t flag
 
 	seg = kzalloc(sizeof *seg, flags);
 	if (!seg)
-		return 0;
+		return NULL;
 	xhci_dbg(xhci, "Allocating priv segment structure at %p\n", seg);
 
 	seg->trbs = dma_pool_alloc(xhci->segment_pool, flags, &dma);
 	if (!seg->trbs) {
 		kfree(seg);
-		return 0;
+		return NULL;
 	}
 	xhci_dbg(xhci, "// Allocating segment at %p (virtual) 0x%llx (DMA)\n",
 			seg->trbs, (unsigned long long)dma);
@@ -159,7 +159,7 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 	ring = kzalloc(sizeof *(ring), flags);
 	xhci_dbg(xhci, "Allocating ring at %p\n", ring);
 	if (!ring)
-		return 0;
+		return NULL;
 
 	INIT_LIST_HEAD(&ring->td_list);
 	if (num_segs == 0)
@@ -196,7 +196,7 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 
 fail:
 	xhci_ring_free(xhci, ring);
-	return 0;
+	return NULL;
 }
 
 void xhci_free_or_cache_endpoint_ring(struct xhci_hcd *xhci,
@@ -247,7 +247,7 @@ static void xhci_reinit_cached_ring(struct xhci_hcd *xhci,
 
 #define CTX_SIZE(_hcc) (HCC_64BYTE_CONTEXT(_hcc) ? 64 : 32)
 
-struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
+static struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 						    int type, gfp_t flags)
 {
 	struct xhci_container_ctx *ctx = kzalloc(sizeof(*ctx), flags);
@@ -265,7 +265,7 @@ struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 	return ctx;
 }
 
-void xhci_free_container_ctx(struct xhci_hcd *xhci,
+static void xhci_free_container_ctx(struct xhci_hcd *xhci,
 			     struct xhci_container_ctx *ctx)
 {
 	if (!ctx)
@@ -764,7 +764,7 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 		xhci_free_container_ctx(xhci, dev->out_ctx);
 
 	kfree(xhci->devs[slot_id]);
-	xhci->devs[slot_id] = 0;
+	xhci->devs[slot_id] = NULL;
 }
 
 int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
@@ -1779,7 +1779,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 */
 	init_completion(&xhci->addr_dev);
 	for (i = 0; i < MAX_HC_SLOTS; ++i)
-		xhci->devs[i] = 0;
+		xhci->devs[i] = NULL;
 
 	if (scratchpad_alloc(xhci, flags))
 		goto fail;

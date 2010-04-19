@@ -177,12 +177,12 @@ static struct pci_driver xhci_pci_driver = {
 	.shutdown = 	usb_hcd_pci_shutdown,
 };
 
-int xhci_register_pci()
+int xhci_register_pci(void)
 {
 	return pci_register_driver(&xhci_pci_driver);
 }
 
-void xhci_unregister_pci()
+void xhci_unregister_pci(void)
 {
 	pci_unregister_driver(&xhci_pci_driver);
 }
