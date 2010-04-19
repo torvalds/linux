@@ -352,13 +352,14 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
 			       u32 addr, u32 len)
 {
+	int dmae_wr_max = DMAE_LEN32_WR_MAX(bp);
 	int offset = 0;
 
-	while (len > DMAE_LEN32_WR_MAX) {
+	while (len > dmae_wr_max) {
 		bnx2x_write_dmae(bp, phys_addr + offset,
-				 addr + offset, DMAE_LEN32_WR_MAX);
-		offset += DMAE_LEN32_WR_MAX * 4;
-		len -= DMAE_LEN32_WR_MAX;
+				 addr + offset, dmae_wr_max);
+		offset += dmae_wr_max * 4;
+		len -= dmae_wr_max;
 	}
 
 	bnx2x_write_dmae(bp, phys_addr + offset, addr + offset, len);

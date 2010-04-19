@@ -1168,7 +1168,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define DMAE_CMD_E1HVN_SHIFT		DMAE_COMMAND_E1HVN_SHIFT
 
 #define DMAE_LEN32_RD_MAX		0x80
-#define DMAE_LEN32_WR_MAX		0x400
+#define DMAE_LEN32_WR_MAX(bp)		(CHIP_IS_E1(bp) ? 0x400 : 0x2000)
 
 #define DMAE_COMP_VAL			0xe0d0d0ae
 
