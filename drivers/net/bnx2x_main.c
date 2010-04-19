@@ -2458,6 +2458,7 @@ static void bnx2x_init_vn_minmax(struct bnx2x *bp, int func)
 /* This function is called upon link interrupt */
 static void bnx2x_link_attn(struct bnx2x *bp)
 {
+	u32 prev_link_status = bp->link_vars.link_status;
 	/* Make sure that we are synced with the current statistics */
 	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
@@ -2490,8 +2491,9 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 	}
 
-	/* indicate link status */
-	bnx2x_link_report(bp);
+	/* indicate link status only if link status actually changed */
+	if (prev_link_status != bp->link_vars.link_status)
+		bnx2x_link_report(bp);
 
 	if (IS_E1HMF(bp)) {
 		int port = BP_PORT(bp);
