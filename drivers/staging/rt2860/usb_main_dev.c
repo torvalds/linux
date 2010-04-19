@@ -153,7 +153,7 @@ static void rt2870_disconnect(struct usb_device *dev, struct rt_rtmp_adapter *pA
 static int __devinit rt2870_probe(IN struct usb_interface *intf,
 				  IN struct usb_device *usb_dev,
 				  IN const struct usb_device_id *dev_id,
-				  struct rt_rtmp_adapter ** ppAd);
+				  struct rt_rtmp_adapter **ppAd);
 
 #ifndef PF_NOFREEZE
 #define PF_NOFREEZE  0
@@ -801,7 +801,7 @@ static void rt2870_disconnect(struct usb_device *dev, struct rt_rtmp_adapter *pA
 static int __devinit rt2870_probe(IN struct usb_interface *intf,
 				  IN struct usb_device *usb_dev,
 				  IN const struct usb_device_id *dev_id,
-				  struct rt_rtmp_adapter ** ppAd)
+				  struct rt_rtmp_adapter **ppAd)
 {
 	struct net_device *net_dev = NULL;
 	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)NULL;
