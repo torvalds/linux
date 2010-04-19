@@ -9759,6 +9759,70 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 	return rc;
 }
 
+static void __devinit bnx2x_read_fwinfo(struct bnx2x *bp)
+{
+	int cnt, i, block_end, rodi;
+	char vpd_data[BNX2X_VPD_LEN+1];
+	char str_id_reg[VENDOR_ID_LEN+1];
+	char str_id_cap[VENDOR_ID_LEN+1];
+	u8 len;
+
+	cnt = pci_read_vpd(bp->pdev, 0, BNX2X_VPD_LEN, vpd_data);
+	memset(bp->fw_ver, 0, sizeof(bp->fw_ver));
+
+	if (cnt < BNX2X_VPD_LEN)
+		goto out_not_found;
+
+	i = pci_vpd_find_tag(vpd_data, 0, BNX2X_VPD_LEN,
+			     PCI_VPD_LRDT_RO_DATA);
+	if (i < 0)
+		goto out_not_found;
+
+
+	block_end = i + PCI_VPD_LRDT_TAG_SIZE +
+		    pci_vpd_lrdt_size(&vpd_data[i]);
+
+	i += PCI_VPD_LRDT_TAG_SIZE;
+
+	if (block_end > BNX2X_VPD_LEN)
+		goto out_not_found;
+
+	rodi = pci_vpd_find_info_keyword(vpd_data, i, block_end,
+				   PCI_VPD_RO_KEYWORD_MFR_ID);
+	if (rodi < 0)
+		goto out_not_found;
+
+	len = pci_vpd_info_field_size(&vpd_data[rodi]);
+
+	if (len != VENDOR_ID_LEN)
+		goto out_not_found;
+
+	rodi += PCI_VPD_INFO_FLD_HDR_SIZE;
+
+	/* vendor specific info */
+	snprintf(str_id_reg, VENDOR_ID_LEN + 1, "%04x", PCI_VENDOR_ID_DELL);
+	snprintf(str_id_cap, VENDOR_ID_LEN + 1, "%04X", PCI_VENDOR_ID_DELL);
+	if (!strncmp(str_id_reg, &vpd_data[rodi], VENDOR_ID_LEN) ||
+	    !strncmp(str_id_cap, &vpd_data[rodi], VENDOR_ID_LEN)) {
+
+		rodi = pci_vpd_find_info_keyword(vpd_data, i, block_end,
+						PCI_VPD_RO_KEYWORD_VENDOR0);
+		if (rodi >= 0) {
+			len = pci_vpd_info_field_size(&vpd_data[rodi]);
+
+			rodi += PCI_VPD_INFO_FLD_HDR_SIZE;
+
+			if (len < 32 && (len + rodi) <= BNX2X_VPD_LEN) {
+				memcpy(bp->fw_ver, &vpd_data[rodi], len);
+				bp->fw_ver[len] = ' ';
+			}
+		}
+		return;
+	}
+out_not_found:
+	return;
+}
+
 static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 {
 	int func = BP_FUNC(bp);
@@ -9780,6 +9844,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 
 	rc = bnx2x_get_hwinfo(bp);
 
+	bnx2x_read_fwinfo(bp);
 	/* need to reset chip if undi was active */
 	if (!BP_NOMCP(bp))
 		bnx2x_undi_unload(bp);
@@ -10170,11 +10235,13 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 		bnx2x_release_phy_lock(bp);
 	}
 
-	snprintf(info->fw_version, 32, "BC:%d.%d.%d%s%s",
+	strncpy(info->fw_version, bp->fw_ver, 32);
+	snprintf(info->fw_version + strlen(bp->fw_ver), 32 - strlen(bp->fw_ver),
+		 "bc %d.%d.%d%s%s",
 		 (bp->common.bc_ver & 0xff0000) >> 16,
 		 (bp->common.bc_ver & 0xff00) >> 8,
 		 (bp->common.bc_ver & 0xff),
-		 ((phy_fw_ver[0] != '\0') ? " PHY:" : ""), phy_fw_ver);
+		 ((phy_fw_ver[0] != '\0') ? " phy " : ""), phy_fw_ver);
 	strcpy(info->bus_info, pci_name(bp->pdev));
 	info->n_stats = BNX2X_NUM_STATS;
 	info->testinfo_len = BNX2X_NUM_TESTS;

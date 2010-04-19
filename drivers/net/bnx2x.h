@@ -1089,6 +1089,7 @@ struct bnx2x {
 #define INIT_CSEM_INT_TABLE_DATA(bp)	(bp->csem_int_table_data)
 #define INIT_CSEM_PRAM_DATA(bp)		(bp->csem_pram_data)
 
+	char			fw_ver[32];
 	const struct firmware	*firmware;
 };
 
@@ -1351,6 +1352,9 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #ifndef PXP2_REG_PXP2_INT_STS
 #define PXP2_REG_PXP2_INT_STS		PXP2_REG_PXP2_INT_STS_0
 #endif
+
+#define BNX2X_VPD_LEN			128
+#define VENDOR_ID_LEN			4
 
 /* MISC_REG_RESET_REG - this is here for the hsi to work don't touch */
 
