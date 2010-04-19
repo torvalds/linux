@@ -401,6 +401,13 @@ struct xt_table_info {
 	unsigned int hook_entry[NF_INET_NUMHOOKS];
 	unsigned int underflow[NF_INET_NUMHOOKS];
 
+	/*
+	 * Number of user chains. Since tables cannot have loops, at most
+	 * @stacksize jumps (number of user chains) can possibly be made.
+	 */
+	unsigned int stacksize;
+	unsigned int *stackptr;
+	void ***jumpstack;
 	/* ipt_entry tables: one per CPU */
 	/* Note : this field MUST be the last one, see XT_TABLE_INFO_SZ */
 	void *entries[1];
