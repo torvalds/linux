@@ -28,7 +28,7 @@
 								        \
 	role.word = __entry->role;					\
 									\
-	trace_seq_printf(p, "sp gfn %llx %u%s q%u%s %s%s %spge"		\
+	trace_seq_printf(p, "sp gfn %llx %u%s q%u%s %s%s"		\
 			 " %snxe root %u %s%c",				\
 			 __entry->gfn, role.level,			\
 			 role.cr4_pae ? " pae" : "",			\
@@ -36,7 +36,6 @@
 			 role.direct ? " direct" : "",			\
 			 access_str[role.access],			\
 			 role.invalid ? " invalid" : "",		\
-			 role.cr4_pge ? "" : "!",			\
 			 role.nxe ? "" : "!",				\
 			 __entry->root_count,				\
 			 __entry->unsync ? "unsync" : "sync", 0);	\
