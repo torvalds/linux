@@ -1314,6 +1314,8 @@ static void l2cap_monitor_timeout(unsigned long arg)
 {
 	struct sock *sk = (void *) arg;
 
+	BT_DBG("sk %p", sk);
+
 	bh_lock_sock(sk);
 	if (l2cap_pi(sk)->retry_count >= l2cap_pi(sk)->remote_max_tx) {
 		l2cap_send_disconn_req(l2cap_pi(sk)->conn, sk, ECONNABORTED);
@@ -1331,6 +1333,8 @@ static void l2cap_monitor_timeout(unsigned long arg)
 static void l2cap_retrans_timeout(unsigned long arg)
 {
 	struct sock *sk = (void *) arg;
+
+	BT_DBG("sk %p", sk);
 
 	bh_lock_sock(sk);
 	l2cap_pi(sk)->retry_count = 1;
@@ -3645,6 +3649,8 @@ done:
 	pi->conn_state &= ~L2CAP_CONN_LOCAL_BUSY;
 	pi->conn_state &= ~L2CAP_CONN_RNR_SENT;
 
+	BT_DBG("sk %p, Exit local busy", sk);
+
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);
 
@@ -3669,6 +3675,8 @@ static int l2cap_push_rx_skb(struct sock *sk, struct sk_buff *skb, u16 control)
 	}
 
 	/* Busy Condition */
+	BT_DBG("sk %p, Enter local busy", sk);
+
 	pi->conn_state |= L2CAP_CONN_LOCAL_BUSY;
 	bt_cb(skb)->sar = control >> L2CAP_CTRL_SAR_SHIFT;
 	__skb_queue_tail(BUSY_QUEUE(sk), skb);
@@ -3847,7 +3855,8 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 	int num_to_ack = (pi->tx_win/6) + 1;
 	int err = 0;
 
-	BT_DBG("sk %p rx_control 0x%4.4x len %d", sk, rx_control, skb->len);
+	BT_DBG("sk %p len %d tx_seq %d rx_control 0x%4.4x", sk, skb->len, tx_seq,
+								rx_control);
 
 	if (L2CAP_CTRL_FINAL & rx_control &&
 			l2cap_pi(sk)->conn_state & L2CAP_CONN_WAIT_F) {
@@ -3892,6 +3901,7 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 				pi->buffer_seq = pi->buffer_seq_srej;
 				pi->conn_state &= ~L2CAP_CONN_SREJ_SENT;
 				l2cap_send_ack(pi);
+				BT_DBG("sk %p, Exit SREJ_SENT", sk);
 			}
 		} else {
 			struct srej_list *l;
@@ -3919,6 +3929,8 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 			goto drop;
 
 		pi->conn_state |= L2CAP_CONN_SREJ_SENT;
+
+		BT_DBG("sk %p, Enter SREJ", sk);
 
 		INIT_LIST_HEAD(SREJ_LIST(sk));
 		pi->buffer_seq_srej = pi->buffer_seq;
@@ -3973,6 +3985,9 @@ static inline void l2cap_data_channel_rrframe(struct sock *sk, u16 rx_control)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 
+	BT_DBG("sk %p, req_seq %d ctrl 0x%4.4x", sk, __get_reqseq(rx_control),
+						rx_control);
+
 	pi->expected_ack_seq = __get_reqseq(rx_control);
 	l2cap_drop_acked_frames(sk);
 
@@ -4018,6 +4033,8 @@ static inline void l2cap_data_channel_rejframe(struct sock *sk, u16 rx_control)
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	u8 tx_seq = __get_reqseq(rx_control);
 
+	BT_DBG("sk %p, req_seq %d ctrl 0x%4.4x", sk, tx_seq, rx_control);
+
 	pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
 
 	pi->expected_ack_seq = tx_seq;
@@ -4039,6 +4056,8 @@ static inline void l2cap_data_channel_srejframe(struct sock *sk, u16 rx_control)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	u8 tx_seq = __get_reqseq(rx_control);
+
+	BT_DBG("sk %p, req_seq %d ctrl 0x%4.4x", sk, tx_seq, rx_control);
 
 	pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
 
@@ -4076,6 +4095,8 @@ static inline void l2cap_data_channel_rnrframe(struct sock *sk, u16 rx_control)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	u8 tx_seq = __get_reqseq(rx_control);
+
+	BT_DBG("sk %p, req_seq %d ctrl 0x%4.4x", sk, tx_seq, rx_control);
 
 	pi->conn_state |= L2CAP_CONN_REMOTE_BUSY;
 	pi->expected_ack_seq = tx_seq;
