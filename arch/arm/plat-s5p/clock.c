@@ -33,6 +33,11 @@ struct clk clk_ext_xtal_mux = {
 	.id		= -1,
 };
 
+struct clk clk_xusbxti = {
+	.name		= "xusbxti",
+	.id		= -1,
+};
+
 static struct clk s5p_clk_27m = {
 	.name		= "clk_27m",
 	.id		= -1,
