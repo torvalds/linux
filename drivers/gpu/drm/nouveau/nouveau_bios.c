@@ -26,6 +26,7 @@
 #define NV_DEBUG_NOTRACE
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
+#include "nouveau_encoder.h"
 
 /* these defines are made up */
 #define NV_CIO_CRE_44_HEADA 0x0
@@ -1063,6 +1064,126 @@ init_io_flag_condition(struct nvbios *bios, uint16_t offset,
 		iexec->execute = false;
 	}
 
+	return 2;
+}
+
+static int
+init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_DP_CONDITION   opcode: 0x3A ('')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): "sub" opcode
+	 * offset + 2  (8 bit): unknown
+	 *
+	 */
+
+	struct bit_displayport_encoder_table *dpe = NULL;
+	struct dcb_entry *dcb = bios->display.output;
+	struct drm_device *dev = bios->dev;
+	uint8_t cond = bios->data[offset + 1];
+	int dummy;
+
+	BIOSLOG(bios, "0x%04X: subop 0x%02X\n", offset, cond);
+
+	if (!iexec->execute)
+		return 3;
+
+	dpe = nouveau_bios_dp_table(dev, dcb, &dummy);
+	if (!dpe) {
+		NV_ERROR(dev, "0x%04X: INIT_3A: no encoder table!!\n", offset);
+		return -EINVAL;
+	}
+
+	switch (cond) {
+	case 0:
+	{
+		struct dcb_connector_table_entry *ent =
+			&bios->dcb.connector.entry[dcb->connector];
+
+		if (ent->type != DCB_CONNECTOR_eDP)
+			iexec->execute = false;
+	}
+		break;
+	case 1:
+	case 2:
+		if (!(dpe->unknown & cond))
+			iexec->execute = false;
+		break;
+	case 5:
+	{
+		struct nouveau_i2c_chan *auxch;
+		int ret;
+
+		auxch = nouveau_i2c_find(dev, bios->display.output->i2c_index);
+		if (!auxch)
+			return -ENODEV;
+
+		ret = nouveau_dp_auxch(auxch, 9, 0xd, &cond, 1);
+		if (ret)
+			return ret;
+
+		if (cond & 1)
+			iexec->execute = false;
+	}
+		break;
+	default:
+		NV_WARN(dev, "0x%04X: unknown INIT_3A op: %d\n", offset, cond);
+		break;
+	}
+
+	if (iexec->execute)
+		BIOSLOG(bios, "0x%04X: continuing to execute\n", offset);
+	else
+		BIOSLOG(bios, "0x%04X: skipping following commands\n", offset);
+
+	return 3;
+}
+
+static int
+init_op_3b(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_3B   opcode: 0x3B ('')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): crtc index
+	 *
+	 */
+
+	uint8_t or = ffs(bios->display.output->or) - 1;
+	uint8_t index = bios->data[offset + 1];
+	uint8_t data;
+
+	if (!iexec->execute)
+		return 2;
+
+	data = bios_idxprt_rd(bios, 0x3d4, index);
+	bios_idxprt_wr(bios, 0x3d4, index, data & ~(1 << or));
+	return 2;
+}
+
+static int
+init_op_3c(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_3C   opcode: 0x3C ('')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): crtc index
+	 *
+	 */
+
+	uint8_t or = ffs(bios->display.output->or) - 1;
+	uint8_t index = bios->data[offset + 1];
+	uint8_t data;
+
+	if (!iexec->execute)
+		return 2;
+
+	data = bios_idxprt_rd(bios, 0x3d4, index);
+	bios_idxprt_wr(bios, 0x3d4, index, data | (1 << or));
 	return 2;
 }
 
@@ -2934,6 +3055,9 @@ static struct init_tbl_entry itbl_entry[] = {
 	{ "INIT_COPY"                         , 0x37, init_copy                       },
 	{ "INIT_NOT"                          , 0x38, init_not                        },
 	{ "INIT_IO_FLAG_CONDITION"            , 0x39, init_io_flag_condition          },
+	{ "INIT_DP_CONDITION"                 , 0x3A, init_dp_condition               },
+	{ "INIT_OP_3B"                        , 0x3B, init_op_3b                      },
+	{ "INIT_OP_3C"                        , 0x3C, init_op_3c                      },
 	{ "INIT_INDEX_ADDRESS_LATCHED"        , 0x49, init_idx_addr_latched           },
 	{ "INIT_IO_RESTRICT_PLL2"             , 0x4A, init_io_restrict_pll2           },
 	{ "INIT_PLL2"                         , 0x4B, init_pll2                       },
