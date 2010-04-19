@@ -343,6 +343,13 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"None",
 		"Black & White",
 		"Sepia",
+		"Negative",
+		"Emboss",
+		"Sketch",
+		"Sky blue",
+		"Grass green",
+		"Skin whiten",
+		"Vivid",
 		NULL
 	};
 	static const char *tune_preemphasis[] = {

@@ -283,8 +283,15 @@ minimum value disables backlight compensation.</entry>
 	    <entry>Selects a color effect. Possible values for
 <constant>enum v4l2_colorfx</constant> are:
 <constant>V4L2_COLORFX_NONE</constant> (0),
-<constant>V4L2_COLORFX_BW</constant> (1) and
-<constant>V4L2_COLORFX_SEPIA</constant> (2).</entry>
+<constant>V4L2_COLORFX_BW</constant> (1),
+<constant>V4L2_COLORFX_SEPIA</constant> (2),
+<constant>V4L2_COLORFX_NEGATIVE</constant> (3),
+<constant>V4L2_COLORFX_EMBOSS</constant> (4),
+<constant>V4L2_COLORFX_SKETCH</constant> (5),
+<constant>V4L2_COLORFX_SKY_BLUE</constant> (6),
+<constant>V4L2_COLORFX_GRASS_GREEN</constant> (7),
+<constant>V4L2_COLORFX_SKIN_WHITEN</constant> (8) and
+<constant>V4L2_COLORFX_VIVID</constant> (9).</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CID_ROTATE</constant></entry>
