@@ -1502,6 +1502,35 @@ out:
 }
 
 __be32
+nfsd4_reclaim_complete(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_reclaim_complete *rc)
+{
+	if (rc->rca_one_fs) {
+		if (!cstate->current_fh.fh_dentry)
+			return nfserr_nofilehandle;
+		/*
+		 * We don't take advantage of the rca_one_fs case.
+		 * That's OK, it's optional, we can safely ignore it.
+		 */
+		 return nfs_ok;
+	}
+	nfs4_lock_state();
+	if (is_client_expired(cstate->session->se_client)) {
+		nfs4_unlock_state();
+		/*
+		 * The following error isn't really legal.
+		 * But we only get here if the client just explicitly
+		 * destroyed the client.  Surely it no longer cares what
+		 * error it gets back on an operation for the dead
+		 * client.
+		 */
+		return nfserr_stale_clientid;
+	}
+	nfsd4_create_clid_dir(cstate->session->se_client);
+	nfs4_unlock_state();
+	return nfs_ok;
+}
+
+__be32
 nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		  struct nfsd4_setclientid *setclid)
 {
@@ -2510,10 +2539,8 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	}
 	memcpy(&open->op_stateid, &stp->st_stateid, sizeof(stateid_t));
 
-	if (nfsd4_has_session(&resp->cstate)) {
+	if (nfsd4_has_session(&resp->cstate))
 		open->op_stateowner->so_confirmed = 1;
-		nfsd4_create_clid_dir(open->op_stateowner->so_client);
-	}
 
 	/*
 	* Attempt to hand out a delegation. No error return, because the
