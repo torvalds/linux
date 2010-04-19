@@ -1607,6 +1607,8 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 			series[i].Rate = rix | 0x80;
 			series[i].PktDuration = ath_pkt_duration(sc, rix, bf,
 				 is_40, is_sgi, is_sp);
+			if (rix < 8 && (tx_info->flags & IEEE80211_TX_CTL_STBC))
+				series[i].RateFlags |= ATH9K_RATESERIES_STBC;
 			continue;
 		}
 

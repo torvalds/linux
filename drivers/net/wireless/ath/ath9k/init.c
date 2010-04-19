@@ -214,6 +214,12 @@ static void setup_ht_cap(struct ath_softc *sc,
 	else
 		max_streams = 2;
 
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
+		if (max_streams >= 2)
+			ht_info->cap |= IEEE80211_HT_CAP_TX_STBC;
+		ht_info->cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
+	}
+
 	/* set up supported mcs set */
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
 	tx_streams = count_streams(common->tx_chainmask, max_streams);

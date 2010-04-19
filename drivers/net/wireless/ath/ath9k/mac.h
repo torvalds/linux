@@ -37,6 +37,8 @@
 	  AR_2040_##_index : 0)						\
 	 |((_series)[_index].RateFlags & ATH9K_RATESERIES_HALFGI ?	\
 	   AR_GI##_index : 0)						\
+	 |((_series)[_index].RateFlags & ATH9K_RATESERIES_STBC ?	\
+	   AR_STBC##_index : 0)						\
 	 |SM((_series)[_index].ChSel, AR_ChainSel##_index))
 
 #define CCK_SIFS_TIME        10
@@ -434,7 +436,10 @@ struct ar5416_desc {
 #define AR_ChainSel3_S      17
 #define AR_RTSCTSRate       0x0ff00000
 #define AR_RTSCTSRate_S     20
-#define AR_TxCtlRsvd70      0xf0000000
+#define AR_STBC0            0x10000000
+#define AR_STBC1            0x20000000
+#define AR_STBC2            0x40000000
+#define AR_STBC3            0x80000000
 
 #define AR_TxRSSIAnt00      0x000000ff
 #define AR_TxRSSIAnt00_S    0
@@ -647,6 +652,7 @@ enum ath9k_rx_filter {
 #define ATH9K_RATESERIES_RTS_CTS  0x0001
 #define ATH9K_RATESERIES_2040     0x0002
 #define ATH9K_RATESERIES_HALFGI   0x0004
+#define ATH9K_RATESERIES_STBC     0x0008
 
 struct ath9k_11n_rate_series {
 	u32 Tries;
