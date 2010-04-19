@@ -11137,7 +11137,7 @@ static int bnx2x_test_registers(struct bnx2x *bp)
 
 			save_val = REG_RD(bp, offset);
 
-			REG_WR(bp, offset, wr_val);
+			REG_WR(bp, offset, (wr_val & mask));
 			val = REG_RD(bp, offset);
 
 			/* Restore the original register's value */
