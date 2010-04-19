@@ -14,7 +14,6 @@
 #include "util/cache.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"
-#include "util/string.h"
 #include "util/callchain.h"
 #include "util/strlist.h"
 #include "util/values.h"
@@ -33,11 +32,11 @@
 
 static char		const *input_name = "perf.data";
 
-static int		force;
+static bool		force;
 static bool		hide_unresolved;
 static bool		dont_use_callchains;
 
-static int		show_threads;
+static bool		show_threads;
 static struct perf_read_values	show_threads_values;
 
 static char		default_pretty_printing_style[] = "normal";
@@ -81,15 +80,20 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 					struct addr_location *al,
 					struct sample_data *data)
 {
-	struct symbol **syms = NULL, *parent = NULL;
+	struct map_symbol *syms = NULL;
+	struct symbol *parent = NULL;
 	bool hit;
+	int err;
 	struct hist_entry *he;
 	struct event_stat_id *stats;
 	struct perf_event_attr *attr;
 
-	if ((sort__has_parent || symbol_conf.use_callchain) && data->callchain)
+	if ((sort__has_parent || symbol_conf.use_callchain) && data->callchain) {
 		syms = perf_session__resolve_callchain(self, al->thread,
 						       data->callchain, &parent);
+		if (syms == NULL)
+			return -ENOMEM;
+	}
 
 	attr = perf_header__find_attr(data->id, &self->header);
 	if (attr)
@@ -104,13 +108,16 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 		return -ENOMEM;
 
 	if (hit)
-		he->count += data->period;
+		__perf_session__add_count(he, al,  data->period);
 
 	if (symbol_conf.use_callchain) {
 		if (!hit)
-			callchain_init(&he->callchain);
-		append_chain(&he->callchain, data->callchain, syms);
+			callchain_init(he->callchain);
+		err = append_chain(he->callchain, data->callchain, syms);
 		free(syms);
+
+		if (err)
+			return err;
 	}
 
 	return 0;
@@ -260,13 +267,27 @@ static struct perf_event_ops event_ops = {
 	.fork	= event__process_task,
 	.lost	= event__process_lost,
 	.read	= process_read_event,
+	.attr	= event__process_attr,
+	.event_type = event__process_event_type,
+	.tracing_data = event__process_tracing_data,
+	.build_id = event__process_build_id,
 };
+
+extern volatile int session_done;
+
+static void sig_handler(int sig __attribute__((__unused__)))
+{
+	session_done = 1;
+}
 
 static int __cmd_report(void)
 {
 	int ret = -EINVAL;
 	struct perf_session *session;
 	struct rb_node *next;
+	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
+
+	signal(SIGINT, sig_handler);
 
 	session = perf_session__new(input_name, O_RDONLY, force);
 	if (session == NULL)
@@ -292,39 +313,49 @@ static int __cmd_report(void)
 		perf_session__fprintf(session, stdout);
 
 	if (verbose > 2)
-		dsos__fprintf(stdout);
+		dsos__fprintf(&session->kerninfo_root, stdout);
 
 	next = rb_first(&session->stats_by_id);
 	while (next) {
 		struct event_stat_id *stats;
+		u64 nr_hists;
 
 		stats = rb_entry(next, struct event_stat_id, rb_node);
 		perf_session__collapse_resort(&stats->hists);
-		perf_session__output_resort(&stats->hists, stats->stats.total);
-		if (rb_first(&session->stats_by_id) ==
-		    rb_last(&session->stats_by_id))
-			fprintf(stdout, "# Samples: %Ld\n#\n",
-				stats->stats.total);
-		else
-			fprintf(stdout, "# Samples: %Ld %s\n#\n",
-				stats->stats.total,
-				__event_name(stats->type, stats->config));
+		nr_hists = perf_session__output_resort(&stats->hists,
+						       stats->stats.total);
+		if (use_browser)
+			perf_session__browse_hists(&stats->hists, nr_hists,
+						   stats->stats.total, help,
+						   input_name);
+		else {
+			if (rb_first(&session->stats_by_id) ==
+			    rb_last(&session->stats_by_id))
+				fprintf(stdout, "# Samples: %Ld\n#\n",
+					stats->stats.total);
+			else
+				fprintf(stdout, "# Samples: %Ld %s\n#\n",
+					stats->stats.total,
+					__event_name(stats->type, stats->config));
 
-		perf_session__fprintf_hists(&stats->hists, NULL, false, stdout,
+			perf_session__fprintf_hists(&stats->hists, NULL, false, stdout,
 					    stats->stats.total);
-		fprintf(stdout, "\n\n");
+			fprintf(stdout, "\n\n");
+		}
+
 		next = rb_next(&stats->rb_node);
 	}
 
-	if (sort_order == default_sort_order &&
-	    parent_pattern == default_parent_pattern)
-		fprintf(stdout, "#\n# (For a higher level overview, try: perf report --sort comm,dso)\n#\n");
+	if (!use_browser && sort_order == default_sort_order &&
+	    parent_pattern == default_parent_pattern) {
+		fprintf(stdout, "#\n# (%s)\n#\n", help);
 
-	if (show_threads) {
-		bool raw_printing_style = !strcmp(pretty_printing_style, "raw");
-		perf_read_values_display(stdout, &show_threads_values,
-					 raw_printing_style);
-		perf_read_values_destroy(&show_threads_values);
+		if (show_threads) {
+			bool style = !strcmp(pretty_printing_style, "raw");
+			perf_read_values_display(stdout, &show_threads_values,
+						 style);
+			perf_read_values_destroy(&show_threads_values);
+		}
 	}
 out_delete:
 	perf_session__delete(session);
@@ -400,7 +431,7 @@ static const char * const report_usage[] = {
 static const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
@@ -419,6 +450,8 @@ static const struct option options[] = {
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
 	OPT_BOOLEAN('P', "full-paths", &symbol_conf.full_paths,
 		    "Don't shorten the pathnames taking into account the cwd"),
+	OPT_BOOLEAN(0, "showcpuutilization", &symbol_conf.show_cpu_utilization,
+		    "Show sample percentage for different cpu modes"),
 	OPT_STRING('p', "parent", &parent_pattern, "regex",
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
@@ -447,7 +480,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
-	setup_pager();
+	if (strcmp(input_name, "-") != 0)
+		setup_browser();
 
 	if (symbol__init() < 0)
 		return -1;
@@ -455,7 +489,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	setup_sorting(report_usage, options);
 
 	if (parent_pattern != default_parent_pattern) {
-		sort_dimension__add("parent");
+		if (sort_dimension__add("parent") < 0)
+			return -1;
 		sort_parent.elide = 1;
 	} else
 		symbol_conf.exclude_other = false;

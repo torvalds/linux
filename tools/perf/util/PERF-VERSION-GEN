@@ -1,6 +1,10 @@
 #!/bin/sh
 
-GVF=PERF-VERSION-FILE
+if [ $# -eq 1 ]  ; then
+	OUTPUT=$1
+fi
+
+GVF=${OUTPUT}PERF-VERSION-FILE
 DEF_VER=v0.0.2.PERF
 
 LF='

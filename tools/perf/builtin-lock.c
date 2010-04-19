@@ -744,7 +744,7 @@ static const char * const lock_usage[] = {
 
 static const struct option lock_options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
-	OPT_BOOLEAN('v', "verbose", &verbose, "be more verbose (show symbol address, etc)"),
+	OPT_INCR('v', "verbose", &verbose, "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace, "dump raw trace in ASCII"),
 	OPT_END()
 };

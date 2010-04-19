@@ -5,6 +5,7 @@
 #include "parse-events.h"
 #include "exec_cmd.h"
 #include "string.h"
+#include "symbol.h"
 #include "cache.h"
 #include "header.h"
 #include "debugfs.h"
@@ -409,7 +410,6 @@ static enum event_result
 parse_single_tracepoint_event(char *sys_name,
 			      const char *evt_name,
 			      unsigned int evt_length,
-			      char *flags,
 			      struct perf_event_attr *attr,
 			      const char **strp)
 {
@@ -418,13 +418,11 @@ parse_single_tracepoint_event(char *sys_name,
 	u64 id;
 	int fd;
 
-	if (flags) {
-		if (!strncmp(flags, "record", strlen(flags))) {
-			attr->sample_type |= PERF_SAMPLE_RAW;
-			attr->sample_type |= PERF_SAMPLE_TIME;
-			attr->sample_type |= PERF_SAMPLE_CPU;
-		}
-	}
+	attr->sample_type |= PERF_SAMPLE_RAW;
+	attr->sample_type |= PERF_SAMPLE_TIME;
+	attr->sample_type |= PERF_SAMPLE_CPU;
+
+	attr->sample_period = 1;
 
 	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", debugfs_path,
 		 sys_name, evt_name);
@@ -532,8 +530,7 @@ static enum event_result parse_tracepoint_event(const char **strp,
 						       flags);
 	} else
 		return parse_single_tracepoint_event(sys_name, evt_name,
-						     evt_length, flags,
-						     attr, strp);
+						     evt_length, attr, strp);
 }
 
 static enum event_result
@@ -656,6 +653,10 @@ parse_raw_event(const char **strp, struct perf_event_attr *attr)
 		return EVT_FAILED;
 	n = hex2u64(str + 1, &config);
 	if (n > 0) {
+		if (str[n+1] == 'p') {
+			attr->precise = 1;
+			n++;
+		}
 		*strp = str + n + 1;
 		attr->type = PERF_TYPE_RAW;
 		attr->config = config;

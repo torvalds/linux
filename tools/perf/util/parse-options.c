@@ -49,6 +49,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 				break;
 			/* FALLTHROUGH */
 		case OPTION_BOOLEAN:
+		case OPTION_INCR:
 		case OPTION_BIT:
 		case OPTION_SET_INT:
 		case OPTION_SET_PTR:
@@ -73,6 +74,10 @@ static int get_value(struct parse_opt_ctx_t *p,
 		return 0;
 
 	case OPTION_BOOLEAN:
+		*(bool *)opt->value = unset ? false : true;
+		return 0;
+
+	case OPTION_INCR:
 		*(int *)opt->value = unset ? 0 : *(int *)opt->value + 1;
 		return 0;
 
@@ -478,6 +483,7 @@ int usage_with_options_internal(const char * const *usagestr,
 		case OPTION_GROUP:
 		case OPTION_BIT:
 		case OPTION_BOOLEAN:
+		case OPTION_INCR:
 		case OPTION_SET_INT:
 		case OPTION_SET_PTR:
 		case OPTION_LONG:
@@ -500,6 +506,7 @@ int usage_with_options_internal(const char * const *usagestr,
 void usage_with_options(const char * const *usagestr,
 			const struct option *opts)
 {
+	exit_browser(false);
 	usage_with_options_internal(usagestr, opts, 0);
 	exit(129);
 }

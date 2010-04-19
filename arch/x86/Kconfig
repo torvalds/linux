@@ -58,6 +58,9 @@ config X86
 	select HAVE_ARCH_KMEMCHECK
 	select HAVE_USER_RETURN_NOTIFIER
 
+config INSTRUCTION_DECODER
+	def_bool (KPROBES || PERF_EVENTS)
+
 config OUTPUT_FORMAT
 	string
 	default "elf32-i386" if X86_32

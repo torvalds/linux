@@ -44,9 +44,6 @@ config HAVE_FTRACE_MCOUNT_RECORD
 	help
 	  See Documentation/trace/ftrace-design.txt
 
-config HAVE_HW_BRANCH_TRACER
-	bool
-
 config HAVE_SYSCALL_TRACEPOINTS
 	bool
 	help
@@ -373,14 +370,6 @@ config STACK_TRACER
 	  sysctl kernel.stack_tracer_enabled
 
 	  Say N if unsure.
-
-config HW_BRANCH_TRACER
-	depends on HAVE_HW_BRANCH_TRACER
-	bool "Trace hw branches"
-	select GENERIC_TRACER
-	help
-	  This tracer records all branches on the system in a circular
-	  buffer, giving access to the last N branches for each cpu.
 
 config KMEMTRACE
 	bool "Trace SLAB allocations"

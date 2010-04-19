@@ -42,15 +42,10 @@ config KPROBES
 	  If in doubt, say "N".
 
 config OPTPROBES
-	bool "Kprobes jump optimization support (EXPERIMENTAL)"
-	default y
-	depends on KPROBES
+	def_bool y
+	depends on KPROBES && HAVE_OPTPROBES
 	depends on !PREEMPT
-	depends on HAVE_OPTPROBES
 	select KALLSYMS_ALL
-	help
-	  This option will allow kprobes to optimize breakpoint to
-	  a jump for reducing its overhead.
 
 config HAVE_EFFICIENT_UNALIGNED_ACCESS
 	bool

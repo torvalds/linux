@@ -14,6 +14,16 @@ static int perf_session__open(struct perf_session *self, bool force)
 {
 	struct stat input_stat;
 
+	if (!strcmp(self->filename, "-")) {
+		self->fd_pipe = true;
+		self->fd = STDIN_FILENO;
+
+		if (perf_header__read(self, self->fd) < 0)
+			pr_err("incompatible file format");
+
+		return 0;
+	}
+
 	self->fd = open(self->filename, O_RDONLY);
 	if (self->fd < 0) {
 		pr_err("failed to open file: %s", self->filename);
@@ -38,7 +48,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 		goto out_close;
 	}
 
-	if (perf_header__read(&self->header, self->fd) < 0) {
+	if (perf_header__read(self, self->fd) < 0) {
 		pr_err("incompatible file format");
 		goto out_close;
 	}
@@ -52,9 +62,20 @@ out_close:
 	return -1;
 }
 
-static inline int perf_session__create_kernel_maps(struct perf_session *self)
+void perf_session__update_sample_type(struct perf_session *self)
 {
-	return map_groups__create_kernel_maps(&self->kmaps, self->vmlinux_maps);
+	self->sample_type = perf_header__sample_type(&self->header);
+}
+
+int perf_session__create_kernel_maps(struct perf_session *self)
+{
+	int ret;
+	struct rb_root *root = &self->kerninfo_root;
+
+	ret = map_groups__create_kernel_maps(root, HOST_KERNEL_ID);
+	if (ret >= 0)
+		ret = map_groups__create_guest_kernel_maps(root);
+	return ret;
 }
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force)
@@ -76,7 +97,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->cwd = NULL;
 	self->cwdlen = 0;
 	self->unknown_events = 0;
-	map_groups__init(&self->kmaps);
+	self->kerninfo_root = RB_ROOT;
 
 	if (mode == O_RDONLY) {
 		if (perf_session__open(self, force) < 0)
@@ -90,7 +111,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 			goto out_delete;
 	}
 
-	self->sample_type = perf_header__sample_type(&self->header);
+	perf_session__update_sample_type(self);
 out:
 	return self;
 out_free:
@@ -117,22 +138,17 @@ static bool symbol__match_parent_regex(struct symbol *sym)
 	return 0;
 }
 
-struct symbol **perf_session__resolve_callchain(struct perf_session *self,
-						struct thread *thread,
-						struct ip_callchain *chain,
-						struct symbol **parent)
+struct map_symbol *perf_session__resolve_callchain(struct perf_session *self,
+						   struct thread *thread,
+						   struct ip_callchain *chain,
+						   struct symbol **parent)
 {
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	struct symbol **syms = NULL;
 	unsigned int i;
+	struct map_symbol *syms = calloc(chain->nr, sizeof(*syms));
 
-	if (symbol_conf.use_callchain) {
-		syms = calloc(chain->nr, sizeof(*syms));
-		if (!syms) {
-			fprintf(stderr, "Can't allocate memory for symbols\n");
-			exit(-1);
-		}
-	}
+	if (!syms)
+		return NULL;
 
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip = chain->ips[i];
@@ -152,15 +168,17 @@ struct symbol **perf_session__resolve_callchain(struct perf_session *self,
 			continue;
 		}
 
+		al.filtered = false;
 		thread__find_addr_location(thread, self, cpumode,
-					   MAP__FUNCTION, ip, &al, NULL);
+				MAP__FUNCTION, thread->pid, ip, &al, NULL);
 		if (al.sym != NULL) {
 			if (sort__has_parent && !*parent &&
 			    symbol__match_parent_regex(al.sym))
 				*parent = al.sym;
 			if (!symbol_conf.use_callchain)
 				break;
-			syms[i] = al.sym;
+			syms[i].map = al.map;
+			syms[i].sym = al.sym;
 		}
 	}
 
@@ -194,6 +212,14 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 		handler->throttle = process_event_stub;
 	if (handler->unthrottle == NULL)
 		handler->unthrottle = process_event_stub;
+	if (handler->attr == NULL)
+		handler->attr = process_event_stub;
+	if (handler->event_type == NULL)
+		handler->event_type = process_event_stub;
+	if (handler->tracing_data == NULL)
+		handler->tracing_data = process_event_stub;
+	if (handler->build_id == NULL)
+		handler->build_id = process_event_stub;
 }
 
 static const char *event__name[] = {
@@ -207,16 +233,23 @@ static const char *event__name[] = {
 	[PERF_RECORD_FORK]	 = "FORK",
 	[PERF_RECORD_READ]	 = "READ",
 	[PERF_RECORD_SAMPLE]	 = "SAMPLE",
+	[PERF_RECORD_HEADER_ATTR]	 = "ATTR",
+	[PERF_RECORD_HEADER_EVENT_TYPE]	 = "EVENT_TYPE",
+	[PERF_RECORD_HEADER_TRACING_DATA]	 = "TRACING_DATA",
+	[PERF_RECORD_HEADER_BUILD_ID]	 = "BUILD_ID",
 };
 
-unsigned long event__total[PERF_RECORD_MAX];
+unsigned long event__total[PERF_RECORD_HEADER_MAX];
 
 void event__print_totals(void)
 {
 	int i;
-	for (i = 0; i < PERF_RECORD_MAX; ++i)
+	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
+		if (!event__name[i])
+			continue;
 		pr_info("%10s events: %10ld\n",
 			event__name[i], event__total[i]);
+	}
 }
 
 void mem_bswap_64(void *src, int byte_size)
@@ -270,6 +303,37 @@ static void event__read_swap(event_t *self)
 	self->read.id		= bswap_64(self->read.id);
 }
 
+static void event__attr_swap(event_t *self)
+{
+	size_t size;
+
+	self->attr.attr.type		= bswap_32(self->attr.attr.type);
+	self->attr.attr.size		= bswap_32(self->attr.attr.size);
+	self->attr.attr.config		= bswap_64(self->attr.attr.config);
+	self->attr.attr.sample_period	= bswap_64(self->attr.attr.sample_period);
+	self->attr.attr.sample_type	= bswap_64(self->attr.attr.sample_type);
+	self->attr.attr.read_format	= bswap_64(self->attr.attr.read_format);
+	self->attr.attr.wakeup_events	= bswap_32(self->attr.attr.wakeup_events);
+	self->attr.attr.bp_type		= bswap_32(self->attr.attr.bp_type);
+	self->attr.attr.bp_addr		= bswap_64(self->attr.attr.bp_addr);
+	self->attr.attr.bp_len		= bswap_64(self->attr.attr.bp_len);
+
+	size = self->header.size;
+	size -= (void *)&self->attr.id - (void *)self;
+	mem_bswap_64(self->attr.id, size);
+}
+
+static void event__event_type_swap(event_t *self)
+{
+	self->event_type.event_type.event_id =
+		bswap_64(self->event_type.event_type.event_id);
+}
+
+static void event__tracing_data_swap(event_t *self)
+{
+	self->tracing_data.size = bswap_32(self->tracing_data.size);
+}
+
 typedef void (*event__swap_op)(event_t *self);
 
 static event__swap_op event__swap_ops[] = {
@@ -280,7 +344,11 @@ static event__swap_op event__swap_ops[] = {
 	[PERF_RECORD_LOST]   = event__all64_swap,
 	[PERF_RECORD_READ]   = event__read_swap,
 	[PERF_RECORD_SAMPLE] = event__all64_swap,
-	[PERF_RECORD_MAX]    = NULL,
+	[PERF_RECORD_HEADER_ATTR]   = event__attr_swap,
+	[PERF_RECORD_HEADER_EVENT_TYPE]   = event__event_type_swap,
+	[PERF_RECORD_HEADER_TRACING_DATA]   = event__tracing_data_swap,
+	[PERF_RECORD_HEADER_BUILD_ID]   = NULL,
+	[PERF_RECORD_HEADER_MAX]    = NULL,
 };
 
 static int perf_session__process_event(struct perf_session *self,
@@ -290,7 +358,7 @@ static int perf_session__process_event(struct perf_session *self,
 {
 	trace_event(event);
 
-	if (event->header.type < PERF_RECORD_MAX) {
+	if (event->header.type < PERF_RECORD_HEADER_MAX) {
 		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
 			    offset + head, event->header.size,
 			    event__name[event->header.type]);
@@ -320,6 +388,16 @@ static int perf_session__process_event(struct perf_session *self,
 		return ops->throttle(event, self);
 	case PERF_RECORD_UNTHROTTLE:
 		return ops->unthrottle(event, self);
+	case PERF_RECORD_HEADER_ATTR:
+		return ops->attr(event, self);
+	case PERF_RECORD_HEADER_EVENT_TYPE:
+		return ops->event_type(event, self);
+	case PERF_RECORD_HEADER_TRACING_DATA:
+		/* setup for reading amidst mmap */
+		lseek(self->fd, offset + head, SEEK_SET);
+		return ops->tracing_data(event, self);
+	case PERF_RECORD_HEADER_BUILD_ID:
+		return ops->build_id(event, self);
 	default:
 		self->unknown_events++;
 		return -1;
@@ -331,46 +409,6 @@ void perf_event_header__bswap(struct perf_event_header *self)
 	self->type = bswap_32(self->type);
 	self->misc = bswap_16(self->misc);
 	self->size = bswap_16(self->size);
-}
-
-int perf_header__read_build_ids(struct perf_header *self,
-				int input, u64 offset, u64 size)
-{
-	struct build_id_event bev;
-	char filename[PATH_MAX];
-	u64 limit = offset + size;
-	int err = -1;
-
-	while (offset < limit) {
-		struct dso *dso;
-		ssize_t len;
-		struct list_head *head = &dsos__user;
-
-		if (read(input, &bev, sizeof(bev)) != sizeof(bev))
-			goto out;
-
-		if (self->needs_swap)
-			perf_event_header__bswap(&bev.header);
-
-		len = bev.header.size - sizeof(bev);
-		if (read(input, filename, len) != len)
-			goto out;
-
-		if (bev.header.misc & PERF_RECORD_MISC_KERNEL)
-			head = &dsos__kernel;
-
-		dso = __dsos__findnew(head, filename);
-		if (dso != NULL) {
-			dso__set_build_id(dso, &bev.build_id);
-			if (head == &dsos__kernel && filename[0] == '[')
-				dso->kernel = 1;
-		}
-
-		offset += bev.header.size;
-	}
-	err = 0;
-out:
-	return err;
 }
 
 static struct thread *perf_session__register_idle_thread(struct perf_session *self)
@@ -385,6 +423,101 @@ static struct thread *perf_session__register_idle_thread(struct perf_session *se
 	return thread;
 }
 
+int do_read(int fd, void *buf, size_t size)
+{
+	void *buf_start = buf;
+
+	while (size) {
+		int ret = read(fd, buf, size);
+
+		if (ret <= 0)
+			return ret;
+
+		size -= ret;
+		buf += ret;
+	}
+
+	return buf - buf_start;
+}
+
+#define session_done()	(*(volatile int *)(&session_done))
+volatile int session_done;
+
+static int __perf_session__process_pipe_events(struct perf_session *self,
+					       struct perf_event_ops *ops)
+{
+	event_t event;
+	uint32_t size;
+	int skip = 0;
+	u64 head;
+	int err;
+	void *p;
+
+	perf_event_ops__fill_defaults(ops);
+
+	head = 0;
+more:
+	err = do_read(self->fd, &event, sizeof(struct perf_event_header));
+	if (err <= 0) {
+		if (err == 0)
+			goto done;
+
+		pr_err("failed to read event header\n");
+		goto out_err;
+	}
+
+	if (self->header.needs_swap)
+		perf_event_header__bswap(&event.header);
+
+	size = event.header.size;
+	if (size == 0)
+		size = 8;
+
+	p = &event;
+	p += sizeof(struct perf_event_header);
+
+	err = do_read(self->fd, p, size - sizeof(struct perf_event_header));
+	if (err <= 0) {
+		if (err == 0) {
+			pr_err("unexpected end of event stream\n");
+			goto done;
+		}
+
+		pr_err("failed to read event data\n");
+		goto out_err;
+	}
+
+	if (size == 0 ||
+	    (skip = perf_session__process_event(self, &event, ops,
+						0, head)) < 0) {
+		dump_printf("%#Lx [%#x]: skipping unknown header type: %d\n",
+			    head, event.header.size, event.header.type);
+		/*
+		 * assume we lost track of the stream, check alignment, and
+		 * increment a single u64 in the hope to catch on again 'soon'.
+		 */
+		if (unlikely(head & 7))
+			head &= ~7ULL;
+
+		size = 8;
+	}
+
+	head += size;
+
+	dump_printf("\n%#Lx [%#x]: event: %d\n",
+		    head, event.header.size, event.header.type);
+
+	if (skip > 0)
+		head += skip;
+
+	if (!session_done())
+		goto more;
+done:
+	err = 0;
+out_err:
+	return err;
+}
+
 int __perf_session__process_events(struct perf_session *self,
 				   u64 data_offset, u64 data_size,
 				   u64 file_size, struct perf_event_ops *ops)
@@ -396,6 +529,10 @@ int __perf_session__process_events(struct perf_session *self,
 	event_t *event;
 	uint32_t size;
 	char *buf;
+	struct ui_progress *progress = ui_progress__new("Processing events...",
+							self->size);
+	if (progress == NULL)
+		return -1;
 
 	perf_event_ops__fill_defaults(ops);
 
@@ -424,6 +561,7 @@ remap:
 
 more:
 	event = (event_t *)(buf + head);
+	ui_progress__update(progress, offset);
 
 	if (self->header.needs_swap)
 		perf_event_header__bswap(&event->header);
@@ -474,6 +612,7 @@ more:
 done:
 	err = 0;
 out_err:
+	ui_progress__delete(progress);
 	return err;
 }
 
@@ -502,9 +641,13 @@ out_getcwd_err:
 		self->cwdlen = strlen(self->cwd);
 	}
 
-	err = __perf_session__process_events(self, self->header.data_offset,
-					     self->header.data_size,
-					     self->size, ops);
+	if (!self->fd_pipe)
+		err = __perf_session__process_events(self,
+						     self->header.data_offset,
+						     self->header.data_size,
+						     self->size, ops);
+	else
+		err = __perf_session__process_pipe_events(self, ops);
 out_err:
 	return err;
 }
@@ -519,56 +662,34 @@ bool perf_session__has_traces(struct perf_session *self, const char *msg)
 	return true;
 }
 
-int perf_session__set_kallsyms_ref_reloc_sym(struct perf_session *self,
+int perf_session__set_kallsyms_ref_reloc_sym(struct map **maps,
 					     const char *symbol_name,
 					     u64 addr)
 {
 	char *bracket;
 	enum map_type i;
+	struct ref_reloc_sym *ref;
 
-	self->ref_reloc_sym.name = strdup(symbol_name);
-	if (self->ref_reloc_sym.name == NULL)
+	ref = zalloc(sizeof(struct ref_reloc_sym));
+	if (ref == NULL)
 		return -ENOMEM;
 
-	bracket = strchr(self->ref_reloc_sym.name, ']');
+	ref->name = strdup(symbol_name);
+	if (ref->name == NULL) {
+		free(ref);
+		return -ENOMEM;
+	}
+
+	bracket = strchr(ref->name, ']');
 	if (bracket)
 		*bracket = '\0';
 
-	self->ref_reloc_sym.addr = addr;
+	ref->addr = addr;
 
 	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		struct kmap *kmap = map__kmap(self->vmlinux_maps[i]);
-		kmap->ref_reloc_sym = &self->ref_reloc_sym;
+		struct kmap *kmap = map__kmap(maps[i]);
+		kmap->ref_reloc_sym = ref;
 	}
 
 	return 0;
-}
-
-static u64 map__reloc_map_ip(struct map *map, u64 ip)
-{
-	return ip + (s64)map->pgoff;
-}
-
-static u64 map__reloc_unmap_ip(struct map *map, u64 ip)
-{
-	return ip - (s64)map->pgoff;
-}
-
-void map__reloc_vmlinux(struct map *self)
-{
-	struct kmap *kmap = map__kmap(self);
-	s64 reloc;
-
-	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->unrelocated_addr)
-		return;
-
-	reloc = (kmap->ref_reloc_sym->unrelocated_addr -
-		 kmap->ref_reloc_sym->addr);
-
-	if (!reloc)
-		return;
-
-	self->map_ip   = map__reloc_map_ip;
-	self->unmap_ip = map__reloc_unmap_ip;
-	self->pgoff    = reloc;
 }

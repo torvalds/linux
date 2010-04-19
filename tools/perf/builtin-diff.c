@@ -19,7 +19,7 @@
 static char const *input_old = "perf.data.old",
 		  *input_new = "perf.data";
 static char	  diff__default_sort_order[] = "dso,symbol";
-static int  force;
+static bool  force;
 static bool show_displacement;
 
 static int perf_session__add_hist_entry(struct perf_session *self,
@@ -33,7 +33,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 		return -ENOMEM;
 
 	if (hit)
-		he->count += count;
+		__perf_session__add_count(he, al, count);
 
 	return 0;
 }
@@ -188,7 +188,7 @@ static const char * const diff_usage[] = {
 };
 
 static const struct option options[] = {
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('m', "displacement", &show_displacement,
 		    "Show position displacement relative to baseline"),
@@ -225,6 +225,10 @@ int cmd_diff(int argc, const char **argv, const char *prefix __used)
 			input_new = argv[1];
 		} else
 			input_new = argv[0];
+	} else if (symbol_conf.default_guest_vmlinux_name ||
+		   symbol_conf.default_guest_kallsyms) {
+		input_old = "perf.data.host";
+		input_new = "perf.data.guest";
 	}
 
 	symbol_conf.exclude_other = false;
