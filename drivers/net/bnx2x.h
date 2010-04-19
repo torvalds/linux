@@ -24,16 +24,25 @@
 #define BCM_VLAN			1
 #endif
 
-#if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
-#define BCM_CNIC 1
-#include "cnic_if.h"
-#endif
-
 #define BNX2X_MULTI_QUEUE
 
 #define BNX2X_NEW_NAPI
 
 
+
+#if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
+#define BCM_CNIC 1
+#include "cnic_if.h"
+#endif
+
+
+#ifdef BCM_CNIC
+#define BNX2X_MIN_MSIX_VEC_CNT 3
+#define BNX2X_MSIX_VEC_FP_START 2
+#else
+#define BNX2X_MIN_MSIX_VEC_CNT 2
+#define BNX2X_MSIX_VEC_FP_START 1
+#endif
 
 #include <linux/mdio.h>
 #include "bnx2x_reg.h"
@@ -862,7 +871,6 @@ struct bnx2x {
 #endif
 #define INT_MODE_INTx			1
 #define INT_MODE_MSI			2
-#define INT_MODE_MSIX			3
 
 	int			tx_ring_size;
 

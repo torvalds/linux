@@ -7418,7 +7418,31 @@ static int bnx2x_enable_msix(struct bnx2x *bp)
 
 	rc = pci_enable_msix(bp->pdev, &bp->msix_table[0],
 			     BNX2X_NUM_QUEUES(bp) + offset);
-	if (rc) {
+
+	/*
+	 * reconfigure number of tx/rx queues according to available
+	 * MSI-X vectors
+	 */
+	if (rc >= BNX2X_MIN_MSIX_VEC_CNT) {
+		/* vectors available for FP */
+		int fp_vec = rc - BNX2X_MSIX_VEC_FP_START;
+
+		DP(NETIF_MSG_IFUP,
+		   "Trying to use less MSI-X vectors: %d\n", rc);
+
+		rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], rc);
+
+		if (rc) {
+			DP(NETIF_MSG_IFUP,
+			   "MSI-X is not attainable  rc %d\n", rc);
+			return rc;
+		}
+
+		bp->num_queues = min(bp->num_queues, fp_vec);
+
+		DP(NETIF_MSG_IFUP, "New queue configuration set: %d\n",
+				  bp->num_queues);
+	} else if (rc) {
 		DP(NETIF_MSG_IFUP, "MSI-X is not attainable  rc %d\n", rc);
 		return rc;
 	}
@@ -7841,8 +7865,6 @@ static int bnx2x_set_num_queues(struct bnx2x *bp)
 		bp->num_queues = 1;
 		DP(NETIF_MSG_IFUP, "set number of queues to 1\n");
 		break;
-
-	case INT_MODE_MSIX:
 	default:
 		/* Set number of queues according to bp->multi_mode value */
 		bnx2x_set_num_queues_msix(bp);
