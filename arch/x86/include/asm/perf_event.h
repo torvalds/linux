@@ -135,17 +135,10 @@ extern void perf_events_lapic_init(void);
  */
 #define PERF_EFLAGS_EXACT	(1UL << 3)
 
-#define perf_misc_flags(regs)				\
-({	int misc = 0;					\
-	if (user_mode(regs))				\
-		misc |= PERF_RECORD_MISC_USER;		\
-	else						\
-		misc |= PERF_RECORD_MISC_KERNEL;	\
-	if (regs->flags & PERF_EFLAGS_EXACT)		\
-		misc |= PERF_RECORD_MISC_EXACT;		\
-	misc; })
-
-#define perf_instruction_pointer(regs)	((regs)->ip)
+struct pt_regs;
+extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
+extern unsigned long perf_misc_flags(struct pt_regs *regs);
+#define perf_misc_flags(regs)	perf_misc_flags(regs)
 
 #else
 static inline void init_hw_perf_events(void)		{ }
