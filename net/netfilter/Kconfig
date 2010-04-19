@@ -502,6 +502,13 @@ config NETFILTER_XT_TARGET_RATEEST
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_TARGET_TEE
+	tristate '"TEE" - packet cloning to alternate destiantion'
+	depends on NETFILTER_ADVANCED
+	---help---
+	This option adds a "TEE" target with which a packet can be cloned and
+	this clone be rerouted to another nexthop.
+
 config NETFILTER_XT_TARGET_TPROXY
 	tristate '"TPROXY" target support (EXPERIMENTAL)'
 	depends on EXPERIMENTAL

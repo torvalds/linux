@@ -309,6 +309,7 @@ int ip_output(struct sk_buff *skb)
 			    ip_finish_output,
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
+EXPORT_SYMBOL_GPL(ip_output);
 
 int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 {
