@@ -261,18 +261,39 @@ static void ath_tx_set_retry(struct ath_softc *sc, struct ath_txq *txq,
 	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_RETRY);
 }
 
+static struct ath_buf *ath_tx_get_buffer(struct ath_softc *sc)
+{
+	struct ath_buf *bf = NULL;
+
+	spin_lock_bh(&sc->tx.txbuflock);
+
+	if (unlikely(list_empty(&sc->tx.txbuf))) {
+		spin_unlock_bh(&sc->tx.txbuflock);
+		return NULL;
+	}
+
+	bf = list_first_entry(&sc->tx.txbuf, struct ath_buf, list);
+	list_del(&bf->list);
+
+	spin_unlock_bh(&sc->tx.txbuflock);
+
+	return bf;
+}
+
+static void ath_tx_return_buffer(struct ath_softc *sc, struct ath_buf *bf)
+{
+	spin_lock_bh(&sc->tx.txbuflock);
+	list_add_tail(&bf->list, &sc->tx.txbuf);
+	spin_unlock_bh(&sc->tx.txbuflock);
+}
+
 static struct ath_buf* ath_clone_txbuf(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_buf *tbf;
 
-	spin_lock_bh(&sc->tx.txbuflock);
-	if (WARN_ON(list_empty(&sc->tx.txbuf))) {
-		spin_unlock_bh(&sc->tx.txbuflock);
+	tbf = ath_tx_get_buffer(sc);
+	if (WARN_ON(!tbf))
 		return NULL;
-	}
-	tbf = list_first_entry(&sc->tx.txbuf, struct ath_buf, list);
-	list_del(&tbf->list);
-	spin_unlock_bh(&sc->tx.txbuflock);
 
 	ATH_TXBUF_RESET(tbf);
 
@@ -1081,9 +1102,7 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 				list_del(&bf->list);
 				spin_unlock_bh(&txq->axq_lock);
 
-				spin_lock_bh(&sc->tx.txbuflock);
-				list_add_tail(&bf->list, &sc->tx.txbuf);
-				spin_unlock_bh(&sc->tx.txbuflock);
+				ath_tx_return_buffer(sc, bf);
 				continue;
 			}
 		}
@@ -1323,25 +1342,6 @@ static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 		ath9k_hw_txstart(ah, txq->axq_qnum);
 	}
 	txq->axq_depth++;
-}
-
-static struct ath_buf *ath_tx_get_buffer(struct ath_softc *sc)
-{
-	struct ath_buf *bf = NULL;
-
-	spin_lock_bh(&sc->tx.txbuflock);
-
-	if (unlikely(list_empty(&sc->tx.txbuf))) {
-		spin_unlock_bh(&sc->tx.txbuflock);
-		return NULL;
-	}
-
-	bf = list_first_entry(&sc->tx.txbuf, struct ath_buf, list);
-	list_del(&bf->list);
-
-	spin_unlock_bh(&sc->tx.txbuflock);
-
-	return bf;
 }
 
 static void ath_tx_send_ampdu(struct ath_softc *sc, struct ath_atx_tid *tid,
@@ -1825,9 +1825,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		}
 		spin_unlock_bh(&txq->axq_lock);
 
-		spin_lock_bh(&sc->tx.txbuflock);
-		list_add_tail(&bf->list, &sc->tx.txbuf);
-		spin_unlock_bh(&sc->tx.txbuflock);
+		ath_tx_return_buffer(sc, bf);
 
 		return r;
 	}
@@ -2141,13 +2139,12 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		txq->axq_depth--;
 		txok = !(ts.ts_status & ATH9K_TXERR_MASK);
 		txq->axq_tx_inprogress = false;
+		if (bf_held)
+			list_del(&bf_held->list);
 		spin_unlock_bh(&txq->axq_lock);
 
-		if (bf_held) {
-			spin_lock_bh(&sc->tx.txbuflock);
-			list_move_tail(&bf_held->list, &sc->tx.txbuf);
-			spin_unlock_bh(&sc->tx.txbuflock);
-		}
+		if (bf_held)
+			ath_tx_return_buffer(sc, bf_held);
 
 		if (!bf_isampdu(bf)) {
 			/*
