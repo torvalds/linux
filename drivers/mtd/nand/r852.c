@@ -666,7 +666,7 @@ int r852_register_nand_device(struct r852_device *dev)
 
 	r852_engine_enable(dev);
 
-	if (sm_register_device(dev->mtd))
+	if (sm_register_device(dev->mtd, dev->sm))
 		goto error2;
 
 	if (device_create_file(&dev->mtd->dev, &dev_attr_media_type))
