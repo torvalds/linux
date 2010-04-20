@@ -1263,15 +1263,6 @@ intel_tv_detect_type (struct drm_crtc *crtc, struct intel_encoder *intel_encoder
 		   DAC_A_0_7_V |
 		   DAC_B_0_7_V |
 		   DAC_C_0_7_V);
-
-	/*
-	 * The TV sense state should be cleared to zero on cantiga platform. Otherwise
-	 * the TV is misdetected. This is hardware requirement.
-	 */
-	if (IS_GM45(dev))
-		tv_dac &= ~(TVDAC_STATE_CHG_EN | TVDAC_A_SENSE_CTL |
-			    TVDAC_B_SENSE_CTL | TVDAC_C_SENSE_CTL);
-
 	I915_WRITE(TV_CTL, tv_ctl);
 	I915_WRITE(TV_DAC, tv_dac);
 	intel_wait_for_vblank(dev);
