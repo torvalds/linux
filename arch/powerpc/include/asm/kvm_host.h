@@ -124,9 +124,9 @@ struct kvm_arch {
 };
 
 struct kvmppc_pte {
-	u64 eaddr;
+	ulong eaddr;
 	u64 vpage;
-	u64 raddr;
+	ulong raddr;
 	bool may_read		: 1;
 	bool may_write		: 1;
 	bool may_execute	: 1;
@@ -145,7 +145,7 @@ struct kvmppc_mmu {
 	int  (*xlate)(struct kvm_vcpu *vcpu, gva_t eaddr, struct kvmppc_pte *pte, bool data);
 	void (*reset_msr)(struct kvm_vcpu *vcpu);
 	void (*tlbie)(struct kvm_vcpu *vcpu, ulong addr, bool large);
-	int  (*esid_to_vsid)(struct kvm_vcpu *vcpu, u64 esid, u64 *vsid);
+	int  (*esid_to_vsid)(struct kvm_vcpu *vcpu, ulong esid, u64 *vsid);
 	u64  (*ea_to_vp)(struct kvm_vcpu *vcpu, gva_t eaddr, bool data);
 	bool (*is_dcbz32)(struct kvm_vcpu *vcpu);
 };

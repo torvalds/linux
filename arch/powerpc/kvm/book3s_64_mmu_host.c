@@ -62,7 +62,7 @@ static void invalidate_pte(struct hpte_cache *pte)
 		kvm_release_pfn_clean(pte->pfn);
 }
 
-void kvmppc_mmu_pte_flush(struct kvm_vcpu *vcpu, u64 guest_ea, u64 ea_mask)
+void kvmppc_mmu_pte_flush(struct kvm_vcpu *vcpu, ulong guest_ea, ulong ea_mask)
 {
 	int i;
 
@@ -110,7 +110,7 @@ void kvmppc_mmu_pte_vflush(struct kvm_vcpu *vcpu, u64 guest_vp, u64 vp_mask)
 	}
 }
 
-void kvmppc_mmu_pte_pflush(struct kvm_vcpu *vcpu, u64 pa_start, u64 pa_end)
+void kvmppc_mmu_pte_pflush(struct kvm_vcpu *vcpu, ulong pa_start, ulong pa_end)
 {
 	int i;
 
@@ -216,7 +216,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 	/* Get host physical address for gpa */
 	hpaddr = gfn_to_pfn(vcpu->kvm, orig_pte->raddr >> PAGE_SHIFT);
 	if (kvm_is_error_hva(hpaddr)) {
-		printk(KERN_INFO "Couldn't get guest page for gfn %llx!\n", orig_pte->eaddr);
+		printk(KERN_INFO "Couldn't get guest page for gfn %lx!\n", orig_pte->eaddr);
 		return -EINVAL;
 	}
 	hpaddr <<= PAGE_SHIFT;

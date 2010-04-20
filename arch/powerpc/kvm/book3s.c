@@ -813,12 +813,12 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 *     so we can't use the NX bit inside the guest. Let's cross our fingers,
 			 *     that no guest that needs the dcbz hack does NX.
 			 */
-			kvmppc_mmu_pte_flush(vcpu, kvmppc_get_pc(vcpu), ~0xFFFULL);
+			kvmppc_mmu_pte_flush(vcpu, kvmppc_get_pc(vcpu), ~0xFFFUL);
 			r = RESUME_GUEST;
 		} else {
 			vcpu->arch.msr |= to_svcpu(vcpu)->shadow_srr1 & 0x58000000;
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
-			kvmppc_mmu_pte_flush(vcpu, kvmppc_get_pc(vcpu), ~0xFFFULL);
+			kvmppc_mmu_pte_flush(vcpu, kvmppc_get_pc(vcpu), ~0xFFFUL);
 			r = RESUME_GUEST;
 		}
 		break;
@@ -844,7 +844,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			vcpu->arch.dear = dar;
 			to_book3s(vcpu)->dsisr = to_svcpu(vcpu)->fault_dsisr;
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
-			kvmppc_mmu_pte_flush(vcpu, vcpu->arch.dear, ~0xFFFULL);
+			kvmppc_mmu_pte_flush(vcpu, vcpu->arch.dear, ~0xFFFUL);
 			r = RESUME_GUEST;
 		}
 		break;

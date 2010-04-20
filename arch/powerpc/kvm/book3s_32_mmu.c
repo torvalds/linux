@@ -60,7 +60,7 @@ static inline bool check_debug_ip(struct kvm_vcpu *vcpu)
 
 static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
 					  struct kvmppc_pte *pte, bool data);
-static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, u64 esid,
+static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 					     u64 *vsid);
 
 static struct kvmppc_sr *find_sr(struct kvmppc_vcpu_book3s *vcpu_book3s, gva_t eaddr)
@@ -183,7 +183,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 	struct kvmppc_sr *sre;
 	hva_t ptegp;
 	u32 pteg[16];
-	u64 ptem = 0;
+	u32 ptem = 0;
 	int i;
 	int found = 0;
 
@@ -327,7 +327,7 @@ static void kvmppc_mmu_book3s_32_tlbie(struct kvm_vcpu *vcpu, ulong ea, bool lar
 	kvmppc_mmu_pte_flush(vcpu, ea, 0x0FFFF000);
 }
 
-static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, u64 esid,
+static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 					     u64 *vsid)
 {
 	/* In case we only have one of MSR_IR or MSR_DR set, let's put

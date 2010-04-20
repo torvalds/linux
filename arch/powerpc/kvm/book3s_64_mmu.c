@@ -232,7 +232,7 @@ do_second:
 			}
 
 			dprintk("KVM MMU: Translated 0x%lx [0x%llx] -> 0x%llx "
-				"-> 0x%llx\n",
+				"-> 0x%lx\n",
 				eaddr, avpn, gpte->vpage, gpte->raddr);
 			found = true;
 			break;
@@ -439,7 +439,7 @@ static void kvmppc_mmu_book3s_64_tlbie(struct kvm_vcpu *vcpu, ulong va,
 	kvmppc_mmu_pte_vflush(vcpu, va >> 12, mask);
 }
 
-static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, u64 esid,
+static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 					     u64 *vsid)
 {
 	switch (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
