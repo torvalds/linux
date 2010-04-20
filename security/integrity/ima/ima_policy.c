@@ -445,19 +445,26 @@ ssize_t ima_parse_add_rule(char *rule)
 
 	p = strsep(&rule, "\n");
 	len = strlen(p) + 1;
+
+	if (*p == '#') {
+		kfree(entry);
+		return len;
+	}
+
 	result = ima_parse_rule(p, entry);
-	if (!result) {
-		result = len;
-		mutex_lock(&ima_measure_mutex);
-		list_add_tail(&entry->list, &measure_policy_rules);
-		mutex_unlock(&ima_measure_mutex);
-	} else {
+	if (result) {
 		kfree(entry);
 		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL,
 				    NULL, op, "invalid policy", result,
 				    audit_info);
+		return result;
 	}
-	return result;
+
+	mutex_lock(&ima_measure_mutex);
+	list_add_tail(&entry->list, &measure_policy_rules);
+	mutex_unlock(&ima_measure_mutex);
+
+	return len;
 }
 
 /* ima_delete_rules called to cleanup invalid policy */
