@@ -48,8 +48,8 @@
 
 static void invalidate_pte(struct hpte_cache *pte)
 {
-	dprintk_mmu("KVM: Flushing SPT %d: 0x%llx (0x%llx) -> 0x%llx\n",
-		    i, pte->pte.eaddr, pte->pte.vpage, pte->host_va);
+	dprintk_mmu("KVM: Flushing SPT: 0x%lx (0x%llx) -> 0x%llx\n",
+		    pte->pte.eaddr, pte->pte.vpage, pte->host_va);
 
 	ppc_md.hpte_invalidate(pte->slot, pte->host_va,
 			       MMU_PAGE_4K, MMU_SEGSIZE_256M,
@@ -66,7 +66,7 @@ void kvmppc_mmu_pte_flush(struct kvm_vcpu *vcpu, ulong guest_ea, ulong ea_mask)
 {
 	int i;
 
-	dprintk_mmu("KVM: Flushing %d Shadow PTEs: 0x%llx & 0x%llx\n",
+	dprintk_mmu("KVM: Flushing %d Shadow PTEs: 0x%lx & 0x%lx\n",
 		    vcpu->arch.hpte_cache_offset, guest_ea, ea_mask);
 	BUG_ON(vcpu->arch.hpte_cache_offset > HPTEG_CACHE_NUM);
 
@@ -114,8 +114,8 @@ void kvmppc_mmu_pte_pflush(struct kvm_vcpu *vcpu, ulong pa_start, ulong pa_end)
 {
 	int i;
 
-	dprintk_mmu("KVM: Flushing %d Shadow pPTEs: 0x%llx & 0x%llx\n",
-		    vcpu->arch.hpte_cache_offset, guest_pa, pa_mask);
+	dprintk_mmu("KVM: Flushing %d Shadow pPTEs: 0x%lx & 0x%lx\n",
+		    vcpu->arch.hpte_cache_offset, pa_start, pa_end);
 	BUG_ON(vcpu->arch.hpte_cache_offset > HPTEG_CACHE_NUM);
 
 	for (i = 0; i < vcpu->arch.hpte_cache_offset; i++) {
@@ -186,7 +186,7 @@ static struct kvmppc_sid_map *find_sid_vsid(struct kvm_vcpu *vcpu, u64 gvsid)
 	sid_map_mask = kvmppc_sid_hash(vcpu, gvsid);
 	map = &to_book3s(vcpu)->sid_map[sid_map_mask];
 	if (map->guest_vsid == gvsid) {
-		dprintk_slb("SLB: Searching 0x%llx -> 0x%llx\n",
+		dprintk_slb("SLB: Searching: 0x%llx -> 0x%llx\n",
 			    gvsid, map->host_vsid);
 		return map;
 	}
@@ -198,7 +198,8 @@ static struct kvmppc_sid_map *find_sid_vsid(struct kvm_vcpu *vcpu, u64 gvsid)
 		return map;
 	}
 
-	dprintk_slb("SLB: Searching 0x%llx -> not found\n", gvsid);
+	dprintk_slb("SLB: Searching %d/%d: 0x%llx -> not found\n",
+		    sid_map_mask, SID_MAP_MASK - sid_map_mask, gvsid);
 	return NULL;
 }
 
@@ -275,7 +276,7 @@ map_again:
 		int hpte_id = kvmppc_mmu_hpte_cache_next(vcpu);
 		struct hpte_cache *pte = &vcpu->arch.hpte_cache[hpte_id];
 
-		dprintk_mmu("KVM: %c%c Map 0x%llx: [%lx] 0x%lx (0x%llx) -> %lx\n",
+		dprintk_mmu("KVM: %c%c Map 0x%lx: [%lx] 0x%lx (0x%llx) -> %lx\n",
 			    ((rflags & HPTE_R_PP) == 3) ? '-' : 'w',
 			    (rflags & HPTE_R_N) ? '-' : 'x',
 			    orig_pte->eaddr, hpteg, va, orig_pte->vpage, hpaddr);
@@ -330,6 +331,9 @@ static struct kvmppc_sid_map *create_sid_map(struct kvm_vcpu *vcpu, u64 gvsid)
 
 	map->guest_vsid = gvsid;
 	map->valid = true;
+
+	dprintk_slb("SLB: New mapping at %d: 0x%llx -> 0x%llx\n",
+		    sid_map_mask, gvsid, map->host_vsid);
 
 	return map;
 }
