@@ -121,6 +121,10 @@ xlog_put_bp(
 	xfs_buf_free(bp);
 }
 
+/*
+ * Return the address of the start of the given block number's data
+ * in a log buffer.  The buffer covers a log sector-aligned region.
+ */
 STATIC xfs_caddr_t
 xlog_align(
 	xlog_t		*log,
@@ -128,14 +132,14 @@ xlog_align(
 	int		nbblks,
 	xfs_buf_t	*bp)
 {
+	xfs_daddr_t	offset;
 	xfs_caddr_t	ptr;
 
-	if (log->l_sectBBsize == 1)
-		return XFS_BUF_PTR(bp);
+	offset = blk_no & ((xfs_daddr_t) log->l_sectBBsize - 1);
+	ptr = XFS_BUF_PTR(bp) + BBTOB(offset);
 
-	ptr = XFS_BUF_PTR(bp) + BBTOB((int)blk_no & log->l_sectbb_mask);
-	ASSERT(XFS_BUF_SIZE(bp) >=
-		BBTOB(nbblks + (blk_no & log->l_sectbb_mask)));
+	ASSERT(ptr + BBTOB(nbblks) <= XFS_BUF_PTR(bp) + XFS_BUF_SIZE(bp));
+
 	return ptr;
 }
 
