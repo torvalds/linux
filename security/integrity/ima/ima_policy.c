@@ -265,15 +265,15 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 
 	entry->uid = -1;
 	entry->action = UNKNOWN;
-	while ((p = strsep(&rule, " ")) != NULL) {
+	while ((p = strsep(&rule, " \t")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
 		int token;
 		unsigned long lnum;
 
 		if (result < 0)
 			break;
-		if (!*p)
-			break;
+		if ((*p == '\0') || (*p == ' ') || (*p == '\t'))
+			continue;
 		token = match_token(p, policy_tokens, args);
 		switch (token) {
 		case Opt_measure:
