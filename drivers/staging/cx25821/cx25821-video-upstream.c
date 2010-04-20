@@ -258,7 +258,7 @@ void cx25821_stop_upstream_video_ch1(struct cx25821_dev *dev)
 
 	if (!dev->_is_running) {
 		printk
-		   ("cx25821: No video file is currently running so return!\n");
+		   (KERN_INFO "cx25821: No video file is currently running so return!\n");
 		return;
 	}
 	/* Disable RISC interrupts */
@@ -346,19 +346,19 @@ int cx25821_get_frame(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 
 	if (IS_ERR(myfile)) {
 		const int open_errno = -PTR_ERR(myfile);
-		printk("%s(): ERROR opening file(%s) with errno = %d!\n",
+		printk(KERN_ERR "%s(): ERROR opening file(%s) with errno = %d!\n",
 		       __func__, dev->_filename, open_errno);
 		return PTR_ERR(myfile);
 	} else {
 		if (!(myfile->f_op)) {
-			printk("%s: File has no file operations registered!",
+			printk(KERN_ERR "%s: File has no file operations registered!",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
 
 		if (!myfile->f_op->read) {
-			printk("%s: File has no READ operations registered!",
+			printk(KERN_ERR "%s: File has no READ operations registered!",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
@@ -411,7 +411,7 @@ static void cx25821_vidups_handler(struct work_struct *work)
 	    container_of(work, struct cx25821_dev, _irq_work_entry);
 
 	if (!dev) {
-		printk("ERROR %s(): since container_of(work_struct) FAILED!\n",
+		printk(KERN_ERR "ERROR %s(): since container_of(work_struct) FAILED!\n",
 		       __func__);
 		return;
 	}
@@ -437,12 +437,12 @@ int cx25821_openfile(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 
 	if (IS_ERR(myfile)) {
 		const int open_errno = -PTR_ERR(myfile);
-		printk("%s(): ERROR opening file(%s) with errno = %d!\n",
+		printk(KERN_ERR "%s(): ERROR opening file(%s) with errno = %d!\n",
 		       __func__, dev->_filename, open_errno);
 		return PTR_ERR(myfile);
 	} else {
 		if (!(myfile->f_op)) {
-			printk("%s: File has no file operations registered!",
+			printk(KERN_ERR "%s: File has no file operations registered!",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
@@ -450,7 +450,7 @@ int cx25821_openfile(struct cx25821_dev *dev, struct sram_channel *sram_ch)
 
 		if (!myfile->f_op->read) {
 			printk
-			    ("%s: File has no READ operations registered!  Returning.",
+			    (KERN_ERR "%s: File has no READ operations registered!  Returning.",
 			     __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
@@ -526,7 +526,7 @@ int cx25821_upstream_buffer_prepare(struct cx25821_dev *dev,
 
 	if (!dev->_dma_virt_addr) {
 		printk
-		    ("cx25821: FAILED to allocate memory for Risc buffer! Returning.\n");
+		    (KERN_ERR "cx25821: FAILED to allocate memory for Risc buffer! Returning.\n");
 		return -ENOMEM;
 	}
 
@@ -547,7 +547,7 @@ int cx25821_upstream_buffer_prepare(struct cx25821_dev *dev,
 
 	if (!dev->_data_buf_virt_addr) {
 		printk
-		    ("cx25821: FAILED to allocate memory for data buffer! Returning.\n");
+		    (KERN_ERR "cx25821: FAILED to allocate memory for data buffer! Returning.\n");
 		return -ENOMEM;
 	}
 
@@ -642,20 +642,20 @@ int cx25821_video_upstream_irq(struct cx25821_dev *dev, int chan_num,
 	} else {
 		if (status & FLD_VID_SRC_UF)
 			printk
-			    ("%s: Video Received Underflow Error Interrupt!\n",
+			    (KERN_ERR "%s: Video Received Underflow Error Interrupt!\n",
 			     __func__);
 
 		if (status & FLD_VID_SRC_SYNC)
-			printk("%s: Video Received Sync Error Interrupt!\n",
+			printk(KERN_ERR "%s: Video Received Sync Error Interrupt!\n",
 			       __func__);
 
 		if (status & FLD_VID_SRC_OPC_ERR)
-			printk("%s: Video Received OpCode Error Interrupt!\n",
+			printk(KERN_ERR "%s: Video Received OpCode Error Interrupt!\n",
 			       __func__);
 	}
 
 	if (dev->_file_status == END_OF_FILE) {
-		printk("cx25821: EOF Channel 1 Framecount = %d\n",
+		printk(KERN_ERR "cx25821: EOF Channel 1 Framecount = %d\n",
 		       dev->_frame_count);
 		return -1;
 	}
@@ -795,7 +795,7 @@ int cx25821_vidupstream_init_ch1(struct cx25821_dev *dev, int channel_select,
 	int str_length = 0;
 
 	if (dev->_is_running) {
-		printk("Video Channel is still running so return!\n");
+		printk(KERN_INFO "Video Channel is still running so return!\n");
 		return 0;
 	}
 
@@ -807,7 +807,7 @@ int cx25821_vidupstream_init_ch1(struct cx25821_dev *dev, int channel_select,
 
 	if (!dev->_irq_queues) {
 		printk
-		    ("cx25821: create_singlethread_workqueue() for Video FAILED!\n");
+		    (KERN_ERR "cx25821: create_singlethread_workqueue() for Video FAILED!\n");
 		return -ENOMEM;
 	}
 	/* 656/VIP SRC Upstream Channel I & J and 7 - Host Bus Interface for
