@@ -33,6 +33,7 @@
 #include <linux/i2c.h>
 #include <linux/rtc.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

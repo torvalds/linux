@@ -33,6 +33,7 @@
 #include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/ip.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <linux/tcp.h>
 #include <linux/in.h>
@@ -226,7 +227,7 @@ static void sky2_power_on(struct sky2_hw *hw)
 	/* disable Core Clock Division, */
 	sky2_write32(hw, B2_Y2_CLK_CTRL, Y2_CLK_DIV_DIS);
 
-	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
+	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > CHIP_REV_YU_XL_A1)
 		/* enable bits are inverted */
 		sky2_write8(hw, B2_Y2_CLK_GATE,
 			    Y2_PCI_CLK_LNK1_DIS | Y2_COR_CLK_LNK1_DIS |
@@ -268,7 +269,7 @@ static void sky2_power_on(struct sky2_hw *hw)
 
 static void sky2_power_aux(struct sky2_hw *hw)
 {
-	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
+	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > CHIP_REV_YU_XL_A1)
 		sky2_write8(hw, B2_Y2_CLK_GATE, 0);
 	else
 		/* enable bits are inverted */
@@ -651,7 +652,7 @@ static void sky2_phy_power_up(struct sky2_hw *hw, unsigned port)
 	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
 	reg1 &= ~phy_power[port];
 
-	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
+	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > CHIP_REV_YU_XL_A1)
 		reg1 |= coma_mode[port];
 
 	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
@@ -823,7 +824,9 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_RST_CLR);
 
-	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev == 0 && port == 1) {
+	if (hw->chip_id == CHIP_ID_YUKON_XL &&
+	    hw->chip_rev == CHIP_REV_YU_XL_A0 &&
+	    port == 1) {
 		/* WA DEV_472 -- looks like crossed wires on port 2 */
 		/* clear GMAC 1 Control reset */
 		sky2_write8(hw, SK_REG(0, GMAC_CTRL), GMC_RST_CLR);
@@ -876,6 +879,10 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	if (hw->dev[port]->mtu > ETH_DATA_LEN)
 		reg |= GM_SMOD_JUMBO_ENA;
+
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
+	    hw->chip_rev == CHIP_REV_YU_EC_U_B1)
+		reg |= GM_NEW_FLOW_CTRL;
 
 	gma_write16(hw, port, GM_SERIAL_MODE, reg);
 
@@ -1413,8 +1420,7 @@ static void sky2_rx_start(struct sky2_port *sky2)
 	/* These chips have no ram buffer?
 	 * MAC Rx RAM Read is controlled by hardware */
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
-	    (hw->chip_rev == CHIP_REV_YU_EC_U_A1 ||
-	     hw->chip_rev == CHIP_REV_YU_EC_U_B0))
+	    hw->chip_rev > CHIP_REV_YU_EC_U_A0)
 		sky2_write32(hw, Q_ADDR(rxq, Q_TEST), F_M_RX_RAM_DIS);
 
 	sky2_prefetch_init(hw, rxq, sky2->rx_le_map, RX_LE_SIZE - 1);
@@ -2141,7 +2147,8 @@ static void sky2_phy_intr(struct sky2_hw *hw, unsigned port)
 		   istatus, phystat);
 
 	if (istatus & PHY_M_IS_AN_COMPL) {
-		if (sky2_autoneg_done(sky2, phystat) == 0)
+		if (sky2_autoneg_done(sky2, phystat) == 0 &&
+		    !netif_carrier_ok(dev))
 			sky2_link_up(sky2);
 		goto out;
 	}
@@ -3621,7 +3628,7 @@ static void sky2_set_multicast(struct net_device *dev)
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
-	struct dev_mc_list *list;
+	struct netdev_hw_addr *ha;
 	u16 reg;
 	u8 filter[8];
 	int rx_pause;
@@ -3645,8 +3652,8 @@ static void sky2_set_multicast(struct net_device *dev)
 		if (rx_pause)
 			sky2_add_filter(filter, pause_mc_addr);
 
-		netdev_for_each_mc_addr(list, dev)
-			sky2_add_filter(filter, list->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			sky2_add_filter(filter, ha->addr);
 	}
 
 	gma_write16(hw, port, GM_MC_ADDR_H1,

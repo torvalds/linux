@@ -42,6 +42,7 @@
 #include <linux/skbuff.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include "b43.h"
@@ -4348,11 +4349,10 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	b43_set_phytxctl_defaults(dev);
 
 	/* Minimum Contention Window */
-	if (phy->type == B43_PHYTYPE_B) {
+	if (phy->type == B43_PHYTYPE_B)
 		b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MINCONT, 0x1F);
-	} else {
+	else
 		b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MINCONT, 0xF);
-	}
 	/* Maximum Contention Window */
 	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MAXCONT, 0x3FF);
 

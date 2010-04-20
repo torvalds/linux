@@ -46,6 +46,7 @@
 #include "iwl-calib.h"
 #include "iwl-sta.h"
 #include "iwl-agn-led.h"
+#include "iwl-agn.h"
 
 static int iwl4965_send_tx_power(struct iwl_priv *priv);
 static int iwl4965_hw_get_temperature(struct iwl_priv *priv);
@@ -59,14 +60,6 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv);
 #define IWL4965_FW_PRE "iwlwifi-4965-"
 #define _IWL4965_MODULE_FIRMWARE(api) IWL4965_FW_PRE #api ".ucode"
 #define IWL4965_MODULE_FIRMWARE(api) _IWL4965_MODULE_FIRMWARE(api)
-
-
-/* module parameters */
-static struct iwl_mod_params iwl4965_mod_params = {
-	.amsdu_size_8K = 1,
-	.restart_fw = 1,
-	/* the rest are 0 by default */
-};
 
 /* check contents of special bootstrap uCode SRAM */
 static int iwl4965_verify_bsm(struct iwl_priv *priv)
@@ -417,7 +410,7 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 				      sizeof(cmd), &cmd);
 		if (ret)
 			IWL_DEBUG_CALIB(priv, "fail sending cmd "
-				     "REPLY_PHY_CALIBRATION_CMD \n");
+				     "REPLY_PHY_CALIBRATION_CMD\n");
 
 		/* TODO we might want recalculate
 		 * rx_chain in rxon cmd */
@@ -502,14 +495,14 @@ static void iwl4965_tx_queue_set_status(struct iwl_priv *priv,
 		       scd_retry ? "BA" : "AC", txq_id, tx_fifo_id);
 }
 
-static const u16 default_queue_to_tx_fifo[] = {
-	IWL_TX_FIFO_AC3,
-	IWL_TX_FIFO_AC2,
-	IWL_TX_FIFO_AC1,
-	IWL_TX_FIFO_AC0,
+static const s8 default_queue_to_tx_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
 	IWL49_CMD_FIFO_NUM,
-	IWL_TX_FIFO_HCCA_1,
-	IWL_TX_FIFO_HCCA_2
+	IWL_TX_FIFO_UNUSED,
+	IWL_TX_FIFO_UNUSED,
 };
 
 static int iwl4965_alive_notify(struct iwl_priv *priv)
@@ -589,9 +582,15 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 	/* reset to 0 to enable all the queue first */
 	priv->txq_ctx_active_msk = 0;
 	/* Map each Tx/cmd queue to its corresponding fifo */
+	BUILD_BUG_ON(ARRAY_SIZE(default_queue_to_tx_fifo) != 7);
 	for (i = 0; i < ARRAY_SIZE(default_queue_to_tx_fifo); i++) {
 		int ac = default_queue_to_tx_fifo[i];
+
 		iwl_txq_ctx_activate(priv, i);
+
+		if (ac == IWL_TX_FIFO_UNUSED)
+			continue;
+
 		iwl4965_tx_queue_set_status(priv, &priv->txq[i], ac, 0);
 	}
 
@@ -1613,19 +1612,19 @@ static int iwl4965_is_temp_calib_needed(struct iwl_priv *priv)
 
 	/* get absolute value */
 	if (temp_diff < 0) {
-		IWL_DEBUG_POWER(priv, "Getting cooler, delta %d, \n", temp_diff);
+		IWL_DEBUG_POWER(priv, "Getting cooler, delta %d\n", temp_diff);
 		temp_diff = -temp_diff;
 	} else if (temp_diff == 0)
-		IWL_DEBUG_POWER(priv, "Same temp, \n");
+		IWL_DEBUG_POWER(priv, "Temperature unchanged\n");
 	else
-		IWL_DEBUG_POWER(priv, "Getting warmer, delta %d, \n", temp_diff);
+		IWL_DEBUG_POWER(priv, "Getting warmer, delta %d\n", temp_diff);
 
 	if (temp_diff < IWL_TEMPERATURE_THRESHOLD) {
-		IWL_DEBUG_POWER(priv, "Thermal txpower calib not needed\n");
+		IWL_DEBUG_POWER(priv, " => thermal txpower calib not needed\n");
 		return 0;
 	}
 
-	IWL_DEBUG_POWER(priv, "Thermal txpower calib needed\n");
+	IWL_DEBUG_POWER(priv, " => thermal txpower calib needed\n");
 
 	return 1;
 }
@@ -1874,7 +1873,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= iwl_tx_status_to_mac80211(status);
-		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
+		iwlagn_hwrate_to_tx_control(priv, rate_n_flags, info);
 		/* FIXME: code repetition end */
 
 		IWL_DEBUG_TX_REPLY(priv, "1 Frame 0x%x failure :%d\n",
@@ -2014,8 +2013,10 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
 			IWL_DEBUG_TX_REPLY(priv, "Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
-			freed = iwl_tx_queue_reclaim(priv, txq_id, index);
-			iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
+			freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
+			if (qc)
+				iwl_free_tfds_in_queue(priv, sta_id,
+						       tid, freed);
 
 			if (priv->mac80211_registered &&
 			    (iwl_queue_space(&txq->q) > txq->q.low_mark) &&
@@ -2029,7 +2030,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	} else {
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags |= iwl_tx_status_to_mac80211(status);
-		iwl_hwrate_to_tx_control(priv,
+		iwlagn_hwrate_to_tx_control(priv,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
 
@@ -2040,20 +2041,20 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 				   le32_to_cpu(tx_resp->rate_n_flags),
 				   tx_resp->failure_frame);
 
-		freed = iwl_tx_queue_reclaim(priv, txq_id, index);
+		freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
 		if (qc && likely(sta_id != IWL_INVALID_STATION))
-			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
+			iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
+		else if (sta_id == IWL_INVALID_STATION)
+			IWL_DEBUG_TX_REPLY(priv, "Station not known\n");
 
 		if (priv->mac80211_registered &&
 		    (iwl_queue_space(&txq->q) > txq->q.low_mark))
 			iwl_wake_queue(priv, txq_id);
 	}
-
 	if (qc && likely(sta_id != IWL_INVALID_STATION))
-		iwl_txq_check_empty(priv, sta_id, tid, txq_id);
+		iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
-	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
-		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
+	iwl_check_abort_status(priv, tx_resp->frame_count, status);
 }
 
 static int iwl4965_calc_rssi(struct iwl_priv *priv,
@@ -2087,7 +2088,7 @@ static int iwl4965_calc_rssi(struct iwl_priv *priv,
 
 	/* dBm = max_rssi dB - agc dB - constant.
 	 * Higher AGC (higher radio gain) means lower signal. */
-	return max_rssi - agc - IWL49_RSSI_OFFSET;
+	return max_rssi - agc - IWLAGN_RSSI_OFFSET;
 }
 
 
@@ -2095,7 +2096,7 @@ static int iwl4965_calc_rssi(struct iwl_priv *priv,
 static void iwl4965_rx_handler_setup(struct iwl_priv *priv)
 {
 	/* Legacy Rx frames */
-	priv->rx_handlers[REPLY_RX] = iwl_rx_reply_rx;
+	priv->rx_handlers[REPLY_RX] = iwlagn_rx_reply_rx;
 	/* Tx response */
 	priv->rx_handlers[REPLY_TX] = iwl4965_rx_reply_tx;
 }
@@ -2181,6 +2182,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.load_ucode = iwl4965_load_bsm,
 	.dump_nic_event_log = iwl_dump_nic_event_log,
 	.dump_nic_error_log = iwl_dump_nic_error_log,
+	.dump_fh = iwl_dump_fh,
 	.set_channel_switch = iwl4965_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
@@ -2214,6 +2216,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.set_ct_kill = iwl4965_set_ct_threshold,
 	},
 	.add_bcast_station = iwl_add_bcast_station,
+	.check_plcp_health = iwl_good_plcp_health,
 };
 
 static const struct iwl_ops iwl4965_ops = {
@@ -2225,7 +2228,7 @@ static const struct iwl_ops iwl4965_ops = {
 };
 
 struct iwl_cfg iwl4965_agn_cfg = {
-	.name = "4965AGN",
+	.name = "Intel(R) Wireless WiFi Link 4965AGN",
 	.fw_name_pre = IWL4965_FW_PRE,
 	.ucode_api_max = IWL4965_UCODE_API_MAX,
 	.ucode_api_min = IWL4965_UCODE_API_MIN,
@@ -2236,7 +2239,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.ops = &iwl4965_ops,
 	.num_of_queues = IWL49_NUM_QUEUES,
 	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl4965_mod_params,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_ABC,
 	.pll_cfg_val = 0,
@@ -2248,27 +2251,12 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.led_compensation = 61,
 	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.temperature_kelvin = true,
+	.off_channel_workaround = true,
+	.max_event_log_size = 512,
 };
 
 /* Module firmware */
 MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE(IWL4965_UCODE_API_MAX));
 
-module_param_named(antenna, iwl4965_mod_params.antenna, int, S_IRUGO);
-MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
-module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, S_IRUGO);
-MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
-module_param_named(
-	disable_hw_scan, iwl4965_mod_params.disable_hw_scan, int, S_IRUGO);
-MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
-
-module_param_named(queues_num, iwl4965_mod_params.num_of_queues, int, S_IRUGO);
-MODULE_PARM_DESC(queues_num, "number of hw queues.");
-/* 11n */
-module_param_named(11n_disable, iwl4965_mod_params.disable_11n, int, S_IRUGO);
-MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
-module_param_named(amsdu_size_8K, iwl4965_mod_params.amsdu_size_8K,
-		   int, S_IRUGO);
-MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
-
-module_param_named(fw_restart4965, iwl4965_mod_params.restart_fw, int, S_IRUGO);
-MODULE_PARM_DESC(fw_restart4965, "restart firmware in case of error");

@@ -42,6 +42,7 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/mii.h>
+#include <linux/slab.h>
 #include <asm/irq.h>
 
 #include "skge.h"
@@ -2917,7 +2918,7 @@ static void genesis_set_multicast(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	struct dev_mc_list *list;
+	struct netdev_hw_addr *ha;
 	u32 mode;
 	u8 filter[8];
 
@@ -2937,8 +2938,8 @@ static void genesis_set_multicast(struct net_device *dev)
 		    skge->flow_status == FLOW_STAT_SYMMETRIC)
 			genesis_add_filter(filter, pause_mc_addr);
 
-		netdev_for_each_mc_addr(list, dev)
-			genesis_add_filter(filter, list->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			genesis_add_filter(filter, ha->addr);
 	}
 
 	xm_write32(hw, port, XM_MODE, mode);
@@ -2956,7 +2957,7 @@ static void yukon_set_multicast(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	struct dev_mc_list *list;
+	struct netdev_hw_addr *ha;
 	int rx_pause = (skge->flow_status == FLOW_STAT_REM_SEND ||
 			skge->flow_status == FLOW_STAT_SYMMETRIC);
 	u16 reg;
@@ -2979,8 +2980,8 @@ static void yukon_set_multicast(struct net_device *dev)
 		if (rx_pause)
 			yukon_add_filter(filter, pause_mc_addr);
 
-		netdev_for_each_mc_addr(list, dev)
-			yukon_add_filter(filter, list->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			yukon_add_filter(filter, ha->addr);
 	}
 
 
@@ -3666,7 +3667,7 @@ static int skge_debug_show(struct seq_file *seq, void *v)
 			   t->csum_offs, t->csum_write, t->csum_start);
 	}
 
-	seq_printf(seq, "\nRx Ring: \n");
+	seq_printf(seq, "\nRx Ring:\n");
 	for (e = skge->rx_ring.to_clean; ; e = e->next) {
 		const struct skge_rx_desc *r = e->desc;
 

@@ -33,6 +33,7 @@
 #include <linux/mii.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #define	DRV_NAME	"ks8851_mll"
 
@@ -362,7 +363,6 @@ static u8 KS_DEFAULT_MAC_ADDRESS[] = { 0x00, 0x10, 0xA1, 0x86, 0x95, 0x11 };
 
 #define MAX_MCAST_LST			32
 #define HW_MCAST_SIZE			8
-#define MAC_ADDR_LEN			6
 
 /**
  * union ks_tx_hdr - tx header data
@@ -450,7 +450,7 @@ struct ks_net {
 	u16			promiscuous;
 	u16			all_mcast;
 	u16			mcast_lst_size;
-	u8			mcast_lst[MAX_MCAST_LST][MAC_ADDR_LEN];
+	u8			mcast_lst[MAX_MCAST_LST][ETH_ALEN];
 	u8			mcast_bits[HW_MCAST_SIZE];
 	u8			mac_addr[6];
 	u8                      fid;
@@ -801,7 +801,6 @@ static void ks_rcv(struct ks_net *ks, struct net_device *netdev)
 			/* read data block including CRC 4 bytes */
 			ks_read_qmu(ks, (u16 *)skb->data, frame_hdr->len);
 			skb_put(skb, frame_hdr->len);
-			skb->dev = netdev;
 			skb->protocol = eth_type_trans(skb, netdev);
 			netif_rx(skb);
 		} else {
@@ -1171,7 +1170,7 @@ static void ks_set_mcast(struct ks_net *ks, u16 mcast)
 static void ks_set_rx_mode(struct net_device *netdev)
 {
 	struct ks_net *ks = netdev_priv(netdev);
-	struct dev_mc_list *ptr;
+	struct netdev_hw_addr *ha;
 
 	/* Turn on/off promiscuous mode. */
 	if ((netdev->flags & IFF_PROMISC) == IFF_PROMISC)
@@ -1188,13 +1187,12 @@ static void ks_set_rx_mode(struct net_device *netdev)
 		if (netdev_mc_count(netdev) <= MAX_MCAST_LST) {
 			int i = 0;
 
-			netdev_for_each_mc_addr(ptr, netdev) {
-				if (!(*ptr->dmi_addr & 1))
+			netdev_for_each_mc_addr(ha, netdev) {
+				if (!(*ha->addr & 1))
 					continue;
 				if (i >= MAX_MCAST_LST)
 					break;
-				memcpy(ks->mcast_lst[i++], ptr->dmi_addr,
-				MAC_ADDR_LEN);
+				memcpy(ks->mcast_lst[i++], ha->addr, ETH_ALEN);
 			}
 			ks->mcast_lst_size = (u8)i;
 			ks_set_grpaddr(ks);

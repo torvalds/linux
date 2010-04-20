@@ -956,17 +956,16 @@ static void ks8851_set_rx_mode(struct net_device *dev)
 		rxctrl.rxcr1 = (RXCR1_RXME | RXCR1_RXAE |
 				RXCR1_RXPAFMA | RXCR1_RXMAFMA);
 	} else if (dev->flags & IFF_MULTICAST && !netdev_mc_empty(dev)) {
-		struct dev_mc_list *mcptr;
+		struct netdev_hw_addr *ha;
 		u32 crc;
 
 		/* accept some multicast */
 
-		netdev_for_each_mc_addr(mcptr, dev) {
-			crc = ether_crc(ETH_ALEN, mcptr->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			crc = ether_crc(ETH_ALEN, ha->addr);
 			crc >>= (32 - 6);  /* get top six bits */
 
 			rxctrl.mchash[crc >> 4] |= (1 << (crc & 0xf));
-			mcptr = mcptr->next;
 		}
 
 		rxctrl.rxcr1 = RXCR1_RXME | RXCR1_RXPAFMA;

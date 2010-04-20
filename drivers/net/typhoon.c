@@ -109,7 +109,6 @@ static const int multicast_filter_limit = 32;
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -921,11 +920,11 @@ typhoon_set_rx_mode(struct net_device *dev)
 		/* Too many to match, or accept all multicasts. */
 		filter |= TYPHOON_RX_FILTER_ALL_MCAST;
 	} else if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
-			int bit = ether_crc(ETH_ALEN, mclist->dmi_addr) & 0x3f;
+		netdev_for_each_mc_addr(ha, dev) {
+			int bit = ether_crc(ETH_ALEN, ha->addr) & 0x3f;
 			mc_filter[bit >> 5] |= 1 << (bit & 0x1f);
 		}
 

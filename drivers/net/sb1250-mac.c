@@ -2112,7 +2112,7 @@ static void sbmac_setmulti(struct sbmac_softc *sc)
 	uint64_t reg;
 	void __iomem *port;
 	int idx;
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	struct net_device *dev = sc->sbm_dev;
 
 	/*
@@ -2161,10 +2161,10 @@ static void sbmac_setmulti(struct sbmac_softc *sc)
 	 * XXX if the table overflows */
 
 	idx = 1;		/* skip station address */
-	netdev_for_each_mc_addr(mclist, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		if (idx == MAC_ADDR_COUNT)
 			break;
-		reg = sbmac_addr2reg(mclist->dmi_addr);
+		reg = sbmac_addr2reg(ha->addr);
 		port = sc->sbm_base + R_MAC_ADDR_BASE+(idx * sizeof(uint64_t));
 		__raw_writeq(reg, port);
 		idx++;
@@ -2664,7 +2664,6 @@ static int sbmac_close(struct net_device *dev)
 static int sbmac_poll(struct napi_struct *napi, int budget)
 {
 	struct sbmac_softc *sc = container_of(napi, struct sbmac_softc, napi);
-	struct net_device *dev = sc->sbm_dev;
 	int work_done;
 
 	work_done = sbdma_rx_process(sc, &(sc->sbm_rxdma), budget, 1);

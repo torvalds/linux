@@ -60,6 +60,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
+#include <linux/slab.h>
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"
@@ -592,7 +593,7 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 	IWL_DEBUG_CALIB(priv, "rx_enable_time = %u usecs\n", rx_enable_time);
 
 	if (!rx_enable_time) {
-		IWL_DEBUG_CALIB(priv, "<< RX Enable Time == 0! \n");
+		IWL_DEBUG_CALIB(priv, "<< RX Enable Time == 0!\n");
 		return;
 	}
 

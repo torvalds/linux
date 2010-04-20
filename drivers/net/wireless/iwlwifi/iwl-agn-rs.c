@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/wireless.h>
 #include <net/mac80211.h>
 
@@ -345,6 +346,17 @@ static inline int get_num_of_ant_from_rate(u32 rate_n_flags)
 	       !!(rate_n_flags & RATE_MCS_ANT_C_MSK);
 }
 
+/*
+ * Static function to get the expected throughput from an iwl_scale_tbl_info
+ * that wraps a NULL pointer check
+ */
+static s32 get_expected_tpt(struct iwl_scale_tbl_info *tbl, int rs_index)
+{
+	if (tbl->expected_tpt)
+		return tbl->expected_tpt[rs_index];
+	return 0;
+}
+
 /**
  * rs_collect_tx_data - Update the success/failure sliding window
  *
@@ -352,19 +364,21 @@ static inline int get_num_of_ant_from_rate(u32 rate_n_flags)
  * at this rate.  window->data contains the bitmask of successful
  * packets.
  */
-static int rs_collect_tx_data(struct iwl_rate_scale_data *windows,
-			      int scale_index, s32 tpt, int attempts,
-			      int successes)
+static int rs_collect_tx_data(struct iwl_scale_tbl_info *tbl,
+			      int scale_index, int attempts, int successes)
 {
 	struct iwl_rate_scale_data *window = NULL;
 	static const u64 mask = (((u64)1) << (IWL_RATE_MAX_WINDOW - 1));
-	s32 fail_count;
+	s32 fail_count, tpt;
 
 	if (scale_index < 0 || scale_index >= IWL_RATE_COUNT)
 		return -EINVAL;
 
 	/* Select window for current tx bit rate */
-	window = &(windows[scale_index]);
+	window = &(tbl->win[scale_index]);
+
+	/* Get expected throughput */
+	tpt = get_expected_tpt(tbl, scale_index);
 
 	/*
 	 * Keep track of only the latest 62 tx frame attempts in this rate's
@@ -597,10 +611,6 @@ static u16 rs_get_supported_rates(struct iwl_lq_sta *lq_sta,
 				  struct ieee80211_hdr *hdr,
 				  enum iwl_table_type rate_type)
 {
-	if (hdr && is_multicast_ether_addr(hdr->addr1) &&
-	    lq_sta->active_rate_basic)
-		return lq_sta->active_rate_basic;
-
 	if (is_legacy(rate_type)) {
 		return lq_sta->active_legacy_rate;
 	} else {
@@ -738,16 +748,6 @@ static bool table_type_matches(struct iwl_scale_tbl_info *a,
 	return (a->lq_type == b->lq_type) && (a->ant_type == b->ant_type) &&
 		(a->is_SGI == b->is_SGI);
 }
-/*
- * Static function to get the expected throughput from an iwl_scale_tbl_info
- * that wraps a NULL pointer check
- */
-static s32 get_expected_tpt(struct iwl_scale_tbl_info *tbl, int rs_index)
-{
-	if (tbl->expected_tpt)
-		return tbl->expected_tpt[rs_index];
-	return 0;
-}
 
 /*
  * mac80211 sends us Tx status
@@ -764,14 +764,21 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct iwl_rate_scale_data *window = NULL;
 	enum mac80211_rate_control_flags mac_flags;
 	u32 tx_rate;
 	struct iwl_scale_tbl_info tbl_type;
-	struct iwl_scale_tbl_info *curr_tbl, *other_tbl;
-	s32 tpt = 0;
+	struct iwl_scale_tbl_info *curr_tbl, *other_tbl, *tmp_tbl;
 
 	IWL_DEBUG_RATE_LIMIT(priv, "get frame ack response, update rate scale window\n");
+
+	/* Treat uninitialized rate scaling data same as non-existing. */
+	if (!lq_sta) {
+		IWL_DEBUG_RATE(priv, "Station rate scaling not created yet.\n");
+		return;
+	} else if (!lq_sta->drv) {
+		IWL_DEBUG_RATE(priv, "Rate scaling not initialized yet.\n");
+		return;
+	}
 
 	if (!ieee80211_is_data(hdr->frame_control) ||
 	    info->flags & IEEE80211_TX_CTL_NO_ACK)
@@ -780,10 +787,6 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	/* This packet was aggregated but doesn't carry status info */
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) &&
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
-		return;
-
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
-	    !lq_sta->ibss_sta_added)
 		return;
 
 	/*
@@ -831,7 +834,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		lq_sta->missed_rate_counter++;
 		if (lq_sta->missed_rate_counter > IWL_MISSED_RATE_MAX) {
 			lq_sta->missed_rate_counter = 0;
-			iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
+			iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC, false);
 		}
 		/* Regardless, ignore this status info for outdated rate */
 		return;
@@ -852,7 +855,6 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		IWL_DEBUG_RATE(priv, "Neither active nor search matches tx rate\n");
 		return;
 	}
-	window = (struct iwl_rate_scale_data *)&(curr_tbl->win[0]);
 
 	/*
 	 * Updating the frame history depends on whether packets were
@@ -865,8 +867,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		tx_rate = le32_to_cpu(table->rs_table[0].rate_n_flags);
 		rs_get_tbl_info_from_mcs(tx_rate, priv->band, &tbl_type,
 				&rs_index);
-		tpt = get_expected_tpt(curr_tbl, rs_index);
-		rs_collect_tx_data(window, rs_index, tpt,
+		rs_collect_tx_data(curr_tbl, rs_index,
 				   info->status.ampdu_ack_len,
 				   info->status.ampdu_ack_map);
 
@@ -896,19 +897,13 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 			 * table as active/search.
 			 */
 			if (table_type_matches(&tbl_type, curr_tbl))
-				tpt = get_expected_tpt(curr_tbl, rs_index);
+				tmp_tbl = curr_tbl;
 			else if (table_type_matches(&tbl_type, other_tbl))
-				tpt = get_expected_tpt(other_tbl, rs_index);
+				tmp_tbl = other_tbl;
 			else
 				continue;
-
-			/* Constants mean 1 transmission, 0 successes */
-			if (i < retries)
-				rs_collect_tx_data(window, rs_index, tpt, 1,
-						0);
-			else
-				rs_collect_tx_data(window, rs_index, tpt, 1,
-						legacy_success);
+			rs_collect_tx_data(tmp_tbl, rs_index, 1,
+					   i < retries ? 0 : legacy_success);
 		}
 
 		/* Update success/fail counts if not searching for new mode */
@@ -1919,7 +1914,7 @@ static u32 rs_update_rate_tbl(struct iwl_priv *priv,
 	/* Update uCode's rate table. */
 	rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
 	rs_fill_link_cmd(priv, lq_sta, rate);
-	iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
+	iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC, false);
 
 	return rate;
 }
@@ -2008,7 +2003,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	/* rates available for this association, and for modulation mode */
 	rate_mask = rs_get_supported_rates(lq_sta, hdr, tbl->lq_type);
 
-	IWL_DEBUG_RATE(priv, "mask 0x%04X \n", rate_mask);
+	IWL_DEBUG_RATE(priv, "mask 0x%04X\n", rate_mask);
 
 	/* mask with station rate restriction */
 	if (is_legacy(tbl->lq_type)) {
@@ -2295,7 +2290,7 @@ lq_update:
 			IWL_DEBUG_RATE(priv, "Switch current  mcs: %X index: %d\n",
 				     tbl->current_rate, index);
 			rs_fill_link_cmd(priv, lq_sta, tbl->current_rate);
-			iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
+			iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC, false);
 		} else
 			done_search = 1;
 	}
@@ -2344,7 +2339,20 @@ out:
 	return;
 }
 
-
+/**
+ * rs_initialize_lq - Initialize a station's hardware rate table
+ *
+ * The uCode's station table contains a table of fallback rates
+ * for automatic fallback during transmission.
+ *
+ * NOTE: This sets up a default set of values.  These will be replaced later
+ *       if the driver's iwl-agn-rs rate scaling algorithm is used, instead of
+ *       rc80211_simple.
+ *
+ * NOTE: Run REPLY_ADD_STA command to set up station table entry, before
+ *       calling this function (which runs REPLY_TX_LINK_QUALITY_CMD,
+ *       which requires station table entry to exist).
+ */
 static void rs_initialize_lq(struct iwl_priv *priv,
 			     struct ieee80211_conf *conf,
 			     struct ieee80211_sta *sta,
@@ -2362,10 +2370,6 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 		goto out;
 
 	i = lq_sta->last_txrate_idx;
-
-	if ((lq_sta->lq.sta_id == 0xff) &&
-	    (priv->iw_mode == NL80211_IFTYPE_ADHOC))
-		goto out;
 
 	valid_tx_ant = priv->hw_params.valid_tx_ant;
 
@@ -2394,7 +2398,8 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	tbl->current_rate = rate;
 	rs_set_expected_tpt_table(lq_sta, tbl);
 	rs_fill_link_cmd(NULL, lq_sta, rate);
-	iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
+	priv->stations[lq_sta->lq.sta_id].lq = &lq_sta->lq;
+	iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_SYNC, true);
  out:
 	return;
 }
@@ -2405,10 +2410,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_supported_band *sband = txrc->sband;
-	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
-	struct ieee80211_conf *conf = &priv->hw->conf;
-	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct iwl_priv *priv __maybe_unused = (struct iwl_priv *)priv_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_lq_sta *lq_sta = priv_sta;
 	int rate_idx;
@@ -2426,29 +2428,17 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 			lq_sta->max_rate_idx = -1;
 	}
 
+	/* Treat uninitialized rate scaling data same as non-existing. */
+	if (lq_sta && !lq_sta->drv) {
+		IWL_DEBUG_RATE(priv, "Rate scaling not initialized yet.\n");
+		priv_sta = NULL;
+	}
+
 	/* Send management frames and NO_ACK data using lowest rate. */
 	if (rate_control_send_low(sta, priv_sta, txrc))
 		return;
 
 	rate_idx  = lq_sta->last_txrate_idx;
-
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
-	    !lq_sta->ibss_sta_added) {
-		u8 sta_id = iwl_find_station(priv, hdr->addr1);
-
-		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n",
-				       hdr->addr1);
-			sta_id = iwl_add_station(priv, hdr->addr1,
-						false, CMD_ASYNC, ht_cap);
-		}
-		if ((sta_id != IWL_INVALID_STATION)) {
-			lq_sta->lq.sta_id = sta_id;
-			lq_sta->lq.rs_table[0].rate_n_flags = 0;
-			lq_sta->ibss_sta_added = 1;
-			rs_initialize_lq(priv, conf, sta, lq_sta);
-		}
-	}
 
 	if (lq_sta->last_rate_n_flags & RATE_MCS_HT_MSK) {
 		rate_idx -= IWL_FIRST_OFDM_RATE;
@@ -2499,16 +2489,25 @@ static void *rs_alloc_sta(void *priv_rate, struct ieee80211_sta *sta,
 	return lq_sta;
 }
 
-static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
-			 struct ieee80211_sta *sta, void *priv_sta)
+/*
+ * Called after adding a new station to initialize rate scaling
+ */
+void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_id)
 {
 	int i, j;
-	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
+	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_conf *conf = &priv->hw->conf;
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
-	struct iwl_lq_sta *lq_sta = priv_sta;
+	struct iwl_station_priv *sta_priv;
+	struct iwl_lq_sta *lq_sta;
+	struct ieee80211_supported_band *sband;
 
-	lq_sta->lq.sta_id = 0xff;
+	sta_priv = (struct iwl_station_priv *) sta->drv_priv;
+	lq_sta = &sta_priv->lq_sta;
+	sband = hw->wiphy->bands[conf->channel->band];
+
+
+	lq_sta->lq.sta_id = sta_id;
 
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < IWL_RATE_COUNT; i++)
@@ -2520,39 +2519,18 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 		for (i = 0; i < IWL_RATE_COUNT; i++)
 			rs_rate_scale_clear_window(&lq_sta->lq_info[j].win[i]);
 
-	IWL_DEBUG_RATE(priv, "LQ: *** rate scale station global init ***\n");
+	IWL_DEBUG_RATE(priv, "LQ: *** rate scale station global init for station %d ***\n",
+		       sta_id);
 	/* TODO: what is a good starting rate for STA? About middle? Maybe not
 	 * the lowest or the highest rate.. Could consider using RSSI from
 	 * previous packets? Need to have IEEE 802.1X auth succeed immediately
 	 * after assoc.. */
-
-	lq_sta->ibss_sta_added = 0;
-	if (priv->iw_mode == NL80211_IFTYPE_AP) {
-		u8 sta_id = iwl_find_station(priv,
-								sta->addr);
-
-		/* for IBSS the call are from tasklet */
-		IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n", sta->addr);
-
-		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n", sta->addr);
-			sta_id = iwl_add_station(priv, sta->addr, false,
-						CMD_ASYNC, ht_cap);
-		}
-		if ((sta_id != IWL_INVALID_STATION)) {
-			lq_sta->lq.sta_id = sta_id;
-			lq_sta->lq.rs_table[0].rate_n_flags = 0;
-		}
-		/* FIXME: this is w/a remove it later */
-		priv->assoc_station_added = 1;
-	}
 
 	lq_sta->is_dup = 0;
 	lq_sta->max_rate_idx = -1;
 	lq_sta->missed_rate_counter = IWL_MISSED_RATE_MAX;
 	lq_sta->is_green = rs_use_green(sta, &priv->current_ht_config);
 	lq_sta->active_legacy_rate = priv->active_rate & ~(0x1000);
-	lq_sta->active_rate_basic = priv->active_rate_basic;
 	lq_sta->band = priv->band;
 	/*
 	 * active_siso_rate mask includes 9 MBits (bit 5), and CCK (bits 0-3),
@@ -2800,7 +2778,7 @@ static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 
 	if (lq_sta->dbg_fixed_rate) {
 		rs_fill_link_cmd(NULL, lq_sta, lq_sta->dbg_fixed_rate);
-		iwl_send_lq_cmd(lq_sta->drv, &lq_sta->lq, CMD_ASYNC);
+		iwl_send_lq_cmd(lq_sta->drv, &lq_sta->lq, CMD_ASYNC, false);
 	}
 
 	return count;
@@ -2956,12 +2934,6 @@ static ssize_t rs_sta_dbgfs_rate_scale_data_read(struct file *file,
 		desc += sprintf(buff+desc,
 				"Bit Rate= %d Mb/s\n",
 				iwl_rates[lq_sta->last_txrate_idx].ieee >> 1);
-	desc += sprintf(buff+desc,
-			"Signal Level= %d dBm\tNoise Level= %d dBm\n",
-			priv->last_rx_rssi, priv->last_rx_noise);
-	desc += sprintf(buff+desc,
-			"Tsf= 0x%llx\tBeacon time= 0x%08X\n",
-			priv->last_tsf, priv->last_beacon_time);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
 	return ret;
@@ -3001,12 +2973,21 @@ static void rs_remove_debugfs(void *priv, void *priv_sta)
 }
 #endif
 
+/*
+ * Initialization of rate scaling information is done by driver after
+ * the station is added. Since mac80211 calls this function before a
+ * station is added we ignore it.
+ */
+static void rs_rate_init_stub(void *priv_r, struct ieee80211_supported_band *sband,
+			 struct ieee80211_sta *sta, void *priv_sta)
+{
+}
 static struct rate_control_ops rs_ops = {
 	.module = NULL,
 	.name = RS_NAME,
 	.tx_status = rs_tx_status,
 	.get_rate = rs_get_rate,
-	.rate_init = rs_rate_init,
+	.rate_init = rs_rate_init_stub,
 	.alloc = rs_alloc,
 	.free = rs_free,
 	.alloc_sta = rs_alloc_sta,

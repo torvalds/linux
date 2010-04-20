@@ -46,7 +46,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
 		list_for_each_entry_rcu(sta, &local->sta_list, list) {
-			set_sta_flags(sta, WLAN_STA_SUSPEND);
+			set_sta_flags(sta, WLAN_STA_BLOCK_BA);
 			ieee80211_sta_tear_down_BA_sessions(sta);
 		}
 	}

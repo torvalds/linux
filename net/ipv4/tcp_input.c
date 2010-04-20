@@ -62,6 +62,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/sysctl.h>
 #include <linux/kernel.h>
@@ -2511,6 +2512,9 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 	int err;
 	unsigned int mss;
 
+	if (packets == 0)
+		return;
+
 	WARN_ON(packets > tp->packets_out);
 	if (tp->lost_skb_hint) {
 		skb = tp->lost_skb_hint;
@@ -3706,7 +3710,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	}
 
 	if ((flag & FLAG_FORWARD_PROGRESS) || !(flag & FLAG_NOT_DUP))
-		dst_confirm(sk->sk_dst_cache);
+		dst_confirm(__sk_dst_get(sk));
 
 	return 1;
 
@@ -4315,7 +4319,7 @@ static void tcp_ofo_queue(struct sock *sk)
 		}
 
 		if (!after(TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt)) {
-			SOCK_DEBUG(sk, "ofo packet was already received \n");
+			SOCK_DEBUG(sk, "ofo packet was already received\n");
 			__skb_unlink(skb, &tp->out_of_order_queue);
 			__kfree_skb(skb);
 			continue;
@@ -5829,7 +5833,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			if (tp->snd_una == tp->write_seq) {
 				tcp_set_state(sk, TCP_FIN_WAIT2);
 				sk->sk_shutdown |= SEND_SHUTDOWN;
-				dst_confirm(sk->sk_dst_cache);
+				dst_confirm(__sk_dst_get(sk));
 
 				if (!sock_flag(sk, SOCK_DEAD))
 					/* Wake up lingering close() */

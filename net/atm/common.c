@@ -18,6 +18,7 @@
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/sock.h>		/* struct sock */
 #include <linux/uaccess.h>
 #include <linux/poll.h>

@@ -31,8 +31,10 @@ static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 	REG_WRITE(ah, AR_IMR_S1,
 		  SM(ah->txerr_interrupt_mask, AR_IMR_S1_QCU_TXERR)
 		  | SM(ah->txeol_interrupt_mask, AR_IMR_S1_QCU_TXEOL));
-	REG_RMW_FIELD(ah, AR_IMR_S2,
-		      AR_IMR_S2_QCU_TXURN, ah->txurn_interrupt_mask);
+
+	ah->imrs2_reg &= ~AR_IMR_S2_QCU_TXURN;
+	ah->imrs2_reg |= (ah->txurn_interrupt_mask & AR_IMR_S2_QCU_TXURN);
+	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
 }
 
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q)
@@ -103,7 +105,7 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 	if (ah->tx_trig_level >= ah->config.max_txtrig_level)
 		return false;
 
-	omask = ath9k_hw_set_interrupts(ah, ah->mask_reg & ~ATH9K_INT_GLOBAL);
+	omask = ath9k_hw_set_interrupts(ah, ah->imask & ~ATH9K_INT_GLOBAL);
 
 	txcfg = REG_READ(ah, AR_TXCFG);
 	curLevel = MS(txcfg, AR_FTRIG);
@@ -244,79 +246,80 @@ void ath9k_hw_cleartxdesc(struct ath_hw *ah, struct ath_desc *ds)
 }
 EXPORT_SYMBOL(ath9k_hw_cleartxdesc);
 
-int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds)
+int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds,
+			struct ath_tx_status *ts)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 
 	if ((ads->ds_txstatus9 & AR_TxDone) == 0)
 		return -EINPROGRESS;
 
-	ds->ds_txstat.ts_seqnum = MS(ads->ds_txstatus9, AR_SeqNum);
-	ds->ds_txstat.ts_tstamp = ads->AR_SendTimestamp;
-	ds->ds_txstat.ts_status = 0;
-	ds->ds_txstat.ts_flags = 0;
+	ts->ts_seqnum = MS(ads->ds_txstatus9, AR_SeqNum);
+	ts->ts_tstamp = ads->AR_SendTimestamp;
+	ts->ts_status = 0;
+	ts->ts_flags = 0;
 
 	if (ads->ds_txstatus1 & AR_FrmXmitOK)
-		ds->ds_txstat.ts_status |= ATH9K_TX_ACKED;
+		ts->ts_status |= ATH9K_TX_ACKED;
 	if (ads->ds_txstatus1 & AR_ExcessiveRetries)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_XRETRY;
+		ts->ts_status |= ATH9K_TXERR_XRETRY;
 	if (ads->ds_txstatus1 & AR_Filtered)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_FILT;
+		ts->ts_status |= ATH9K_TXERR_FILT;
 	if (ads->ds_txstatus1 & AR_FIFOUnderrun) {
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_FIFO;
+		ts->ts_status |= ATH9K_TXERR_FIFO;
 		ath9k_hw_updatetxtriglevel(ah, true);
 	}
 	if (ads->ds_txstatus9 & AR_TxOpExceeded)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_XTXOP;
+		ts->ts_status |= ATH9K_TXERR_XTXOP;
 	if (ads->ds_txstatus1 & AR_TxTimerExpired)
-		ds->ds_txstat.ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
+		ts->ts_status |= ATH9K_TXERR_TIMER_EXPIRED;
 
 	if (ads->ds_txstatus1 & AR_DescCfgErr)
-		ds->ds_txstat.ts_flags |= ATH9K_TX_DESC_CFG_ERR;
+		ts->ts_flags |= ATH9K_TX_DESC_CFG_ERR;
 	if (ads->ds_txstatus1 & AR_TxDataUnderrun) {
-		ds->ds_txstat.ts_flags |= ATH9K_TX_DATA_UNDERRUN;
+		ts->ts_flags |= ATH9K_TX_DATA_UNDERRUN;
 		ath9k_hw_updatetxtriglevel(ah, true);
 	}
 	if (ads->ds_txstatus1 & AR_TxDelimUnderrun) {
-		ds->ds_txstat.ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
+		ts->ts_flags |= ATH9K_TX_DELIM_UNDERRUN;
 		ath9k_hw_updatetxtriglevel(ah, true);
 	}
 	if (ads->ds_txstatus0 & AR_TxBaStatus) {
-		ds->ds_txstat.ts_flags |= ATH9K_TX_BA;
-		ds->ds_txstat.ba_low = ads->AR_BaBitmapLow;
-		ds->ds_txstat.ba_high = ads->AR_BaBitmapHigh;
+		ts->ts_flags |= ATH9K_TX_BA;
+		ts->ba_low = ads->AR_BaBitmapLow;
+		ts->ba_high = ads->AR_BaBitmapHigh;
 	}
 
-	ds->ds_txstat.ts_rateindex = MS(ads->ds_txstatus9, AR_FinalTxIdx);
-	switch (ds->ds_txstat.ts_rateindex) {
+	ts->ts_rateindex = MS(ads->ds_txstatus9, AR_FinalTxIdx);
+	switch (ts->ts_rateindex) {
 	case 0:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate0);
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate0);
 		break;
 	case 1:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate1);
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate1);
 		break;
 	case 2:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate2);
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate2);
 		break;
 	case 3:
-		ds->ds_txstat.ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate3);
+		ts->ts_ratecode = MS(ads->ds_ctl3, AR_XmitRate3);
 		break;
 	}
 
-	ds->ds_txstat.ts_rssi = MS(ads->ds_txstatus5, AR_TxRSSICombined);
-	ds->ds_txstat.ts_rssi_ctl0 = MS(ads->ds_txstatus0, AR_TxRSSIAnt00);
-	ds->ds_txstat.ts_rssi_ctl1 = MS(ads->ds_txstatus0, AR_TxRSSIAnt01);
-	ds->ds_txstat.ts_rssi_ctl2 = MS(ads->ds_txstatus0, AR_TxRSSIAnt02);
-	ds->ds_txstat.ts_rssi_ext0 = MS(ads->ds_txstatus5, AR_TxRSSIAnt10);
-	ds->ds_txstat.ts_rssi_ext1 = MS(ads->ds_txstatus5, AR_TxRSSIAnt11);
-	ds->ds_txstat.ts_rssi_ext2 = MS(ads->ds_txstatus5, AR_TxRSSIAnt12);
-	ds->ds_txstat.evm0 = ads->AR_TxEVM0;
-	ds->ds_txstat.evm1 = ads->AR_TxEVM1;
-	ds->ds_txstat.evm2 = ads->AR_TxEVM2;
-	ds->ds_txstat.ts_shortretry = MS(ads->ds_txstatus1, AR_RTSFailCnt);
-	ds->ds_txstat.ts_longretry = MS(ads->ds_txstatus1, AR_DataFailCnt);
-	ds->ds_txstat.ts_virtcol = MS(ads->ds_txstatus1, AR_VirtRetryCnt);
-	ds->ds_txstat.ts_antenna = 0;
+	ts->ts_rssi = MS(ads->ds_txstatus5, AR_TxRSSICombined);
+	ts->ts_rssi_ctl0 = MS(ads->ds_txstatus0, AR_TxRSSIAnt00);
+	ts->ts_rssi_ctl1 = MS(ads->ds_txstatus0, AR_TxRSSIAnt01);
+	ts->ts_rssi_ctl2 = MS(ads->ds_txstatus0, AR_TxRSSIAnt02);
+	ts->ts_rssi_ext0 = MS(ads->ds_txstatus5, AR_TxRSSIAnt10);
+	ts->ts_rssi_ext1 = MS(ads->ds_txstatus5, AR_TxRSSIAnt11);
+	ts->ts_rssi_ext2 = MS(ads->ds_txstatus5, AR_TxRSSIAnt12);
+	ts->evm0 = ads->AR_TxEVM0;
+	ts->evm1 = ads->AR_TxEVM1;
+	ts->evm2 = ads->AR_TxEVM2;
+	ts->ts_shortretry = MS(ads->ds_txstatus1, AR_RTSFailCnt);
+	ts->ts_longretry = MS(ads->ds_txstatus1, AR_DataFailCnt);
+	ts->ts_virtcol = MS(ads->ds_txstatus1, AR_VirtRetryCnt);
+	ts->ts_antenna = 0;
 
 	return 0;
 }
@@ -349,7 +352,7 @@ void ath9k_hw_set11n_txdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	ads->ds_ctl6 = SM(keyType, AR_EncrType);
 
-	if (AR_SREV_9285(ah)) {
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah)) {
 		ads->ds_ctl8 = 0;
 		ads->ds_ctl9 = 0;
 		ads->ds_ctl10 = 0;
@@ -856,7 +859,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 EXPORT_SYMBOL(ath9k_hw_resettxqueue);
 
 int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
-			u32 pa, struct ath_desc *nds, u64 tsf)
+			struct ath_rx_status *rs, u64 tsf)
 {
 	struct ar5416_desc ads;
 	struct ar5416_desc *adsp = AR5416DESC(ds);
@@ -867,70 +870,70 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	ads.u.rx = adsp->u.rx;
 
-	ds->ds_rxstat.rs_status = 0;
-	ds->ds_rxstat.rs_flags = 0;
+	rs->rs_status = 0;
+	rs->rs_flags = 0;
 
-	ds->ds_rxstat.rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
-	ds->ds_rxstat.rs_tstamp = ads.AR_RcvTimestamp;
+	rs->rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
+	rs->rs_tstamp = ads.AR_RcvTimestamp;
 
 	if (ads.ds_rxstatus8 & AR_PostDelimCRCErr) {
-		ds->ds_rxstat.rs_rssi = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ctl0 = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ctl1 = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ctl2 = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ext0 = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ext1 = ATH9K_RSSI_BAD;
-		ds->ds_rxstat.rs_rssi_ext2 = ATH9K_RSSI_BAD;
+		rs->rs_rssi = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl0 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl1 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl2 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext0 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext1 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext2 = ATH9K_RSSI_BAD;
 	} else {
-		ds->ds_rxstat.rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
-		ds->ds_rxstat.rs_rssi_ctl0 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
+		rs->rs_rssi_ctl0 = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt00);
-		ds->ds_rxstat.rs_rssi_ctl1 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl1 = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt01);
-		ds->ds_rxstat.rs_rssi_ctl2 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl2 = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt02);
-		ds->ds_rxstat.rs_rssi_ext0 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext0 = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt10);
-		ds->ds_rxstat.rs_rssi_ext1 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext1 = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt11);
-		ds->ds_rxstat.rs_rssi_ext2 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext2 = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt12);
 	}
 	if (ads.ds_rxstatus8 & AR_RxKeyIdxValid)
-		ds->ds_rxstat.rs_keyix = MS(ads.ds_rxstatus8, AR_KeyIdx);
+		rs->rs_keyix = MS(ads.ds_rxstatus8, AR_KeyIdx);
 	else
-		ds->ds_rxstat.rs_keyix = ATH9K_RXKEYIX_INVALID;
+		rs->rs_keyix = ATH9K_RXKEYIX_INVALID;
 
-	ds->ds_rxstat.rs_rate = RXSTATUS_RATE(ah, (&ads));
-	ds->ds_rxstat.rs_more = (ads.ds_rxstatus1 & AR_RxMore) ? 1 : 0;
+	rs->rs_rate = RXSTATUS_RATE(ah, (&ads));
+	rs->rs_more = (ads.ds_rxstatus1 & AR_RxMore) ? 1 : 0;
 
-	ds->ds_rxstat.rs_isaggr = (ads.ds_rxstatus8 & AR_RxAggr) ? 1 : 0;
-	ds->ds_rxstat.rs_moreaggr =
+	rs->rs_isaggr = (ads.ds_rxstatus8 & AR_RxAggr) ? 1 : 0;
+	rs->rs_moreaggr =
 		(ads.ds_rxstatus8 & AR_RxMoreAggr) ? 1 : 0;
-	ds->ds_rxstat.rs_antenna = MS(ads.ds_rxstatus3, AR_RxAntenna);
-	ds->ds_rxstat.rs_flags =
+	rs->rs_antenna = MS(ads.ds_rxstatus3, AR_RxAntenna);
+	rs->rs_flags =
 		(ads.ds_rxstatus3 & AR_GI) ? ATH9K_RX_GI : 0;
-	ds->ds_rxstat.rs_flags |=
+	rs->rs_flags |=
 		(ads.ds_rxstatus3 & AR_2040) ? ATH9K_RX_2040 : 0;
 
 	if (ads.ds_rxstatus8 & AR_PreDelimCRCErr)
-		ds->ds_rxstat.rs_flags |= ATH9K_RX_DELIM_CRC_PRE;
+		rs->rs_flags |= ATH9K_RX_DELIM_CRC_PRE;
 	if (ads.ds_rxstatus8 & AR_PostDelimCRCErr)
-		ds->ds_rxstat.rs_flags |= ATH9K_RX_DELIM_CRC_POST;
+		rs->rs_flags |= ATH9K_RX_DELIM_CRC_POST;
 	if (ads.ds_rxstatus8 & AR_DecryptBusyErr)
-		ds->ds_rxstat.rs_flags |= ATH9K_RX_DECRYPT_BUSY;
+		rs->rs_flags |= ATH9K_RX_DECRYPT_BUSY;
 
 	if ((ads.ds_rxstatus8 & AR_RxFrameOK) == 0) {
 		if (ads.ds_rxstatus8 & AR_CRCErr)
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_CRC;
+			rs->rs_status |= ATH9K_RXERR_CRC;
 		else if (ads.ds_rxstatus8 & AR_PHYErr) {
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_PHY;
+			rs->rs_status |= ATH9K_RXERR_PHY;
 			phyerr = MS(ads.ds_rxstatus8, AR_PHYErrCode);
-			ds->ds_rxstat.rs_phyerr = phyerr;
+			rs->rs_phyerr = phyerr;
 		} else if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_DECRYPT;
+			rs->rs_status |= ATH9K_RXERR_DECRYPT;
 		else if (ads.ds_rxstatus8 & AR_MichaelErr)
-			ds->ds_rxstat.rs_status |= ATH9K_RXERR_MIC;
+			rs->rs_status |= ATH9K_RXERR_MIC;
 	}
 
 	return 0;

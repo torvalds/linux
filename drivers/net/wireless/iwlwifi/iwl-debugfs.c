@@ -26,6 +26,7 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/debugfs.h>
@@ -560,8 +561,6 @@ static ssize_t iwl_dbgfs_status_read(struct file *file,
 		test_bit(STATUS_POWER_PMI, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_FW_ERROR:\t %d\n",
 		test_bit(STATUS_FW_ERROR, &priv->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_MODE_PENDING:\t %d\n",
-		test_bit(STATUS_MODE_PENDING, &priv->status));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
@@ -660,7 +659,6 @@ static ssize_t iwl_dbgfs_qos_read(struct file *file, char __user *user_buf,
 	int pos = 0, i;
 	char buf[256];
 	const size_t bufsz = sizeof(buf);
-	ssize_t ret;
 
 	for (i = 0; i < AC_NUM; i++) {
 		pos += scnprintf(buf + pos, bufsz - pos,
@@ -672,8 +670,7 @@ static ssize_t iwl_dbgfs_qos_read(struct file *file, char __user *user_buf,
 				priv->qos_data.def_qos_parm.ac[i].aifsn,
 				priv->qos_data.def_qos_parm.ac[i].edca_txop);
 	}
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	return ret;
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
 static ssize_t iwl_dbgfs_led_read(struct file *file, char __user *user_buf,
@@ -683,7 +680,6 @@ static ssize_t iwl_dbgfs_led_read(struct file *file, char __user *user_buf,
 	int pos = 0;
 	char buf[256];
 	const size_t bufsz = sizeof(buf);
-	ssize_t ret;
 
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 "allow blinking: %s\n",
@@ -697,8 +693,7 @@ static ssize_t iwl_dbgfs_led_read(struct file *file, char __user *user_buf,
 				 priv->last_blink_time);
 	}
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	return ret;
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
 static ssize_t iwl_dbgfs_thermal_throttling_read(struct file *file,
@@ -711,7 +706,6 @@ static ssize_t iwl_dbgfs_thermal_throttling_read(struct file *file,
 	char buf[100];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
-	ssize_t ret;
 
 	pos += scnprintf(buf + pos, bufsz - pos,
 			"Thermal Throttling Mode: %s\n",
@@ -731,8 +725,7 @@ static ssize_t iwl_dbgfs_thermal_throttling_read(struct file *file,
 				"HT mode: %d\n",
 				restriction->is_ht);
 	}
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	return ret;
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
 static ssize_t iwl_dbgfs_disable_ht40_write(struct file *file,
@@ -769,13 +762,11 @@ static ssize_t iwl_dbgfs_disable_ht40_read(struct file *file,
 	char buf[100];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
-	ssize_t ret;
 
 	pos += scnprintf(buf + pos, bufsz - pos,
 			"11n 40MHz Mode: %s\n",
 			priv->disable_ht40 ? "Disabled" : "Enabled");
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	return ret;
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
 static ssize_t iwl_dbgfs_sleep_level_override_write(struct file *file,
@@ -2051,7 +2042,6 @@ static ssize_t iwl_dbgfs_ucode_tracing_read(struct file *file,
 	int pos = 0;
 	char buf[128];
 	const size_t bufsz = sizeof(buf);
-	ssize_t ret;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "ucode trace timer is %s\n",
 			priv->event_log.ucode_trace ? "On" : "Off");
@@ -2062,8 +2052,7 @@ static ssize_t iwl_dbgfs_ucode_tracing_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos, "wraps_more_count:\t\t %u\n",
 			priv->event_log.wraps_more_count);
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	return ret;
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
 static ssize_t iwl_dbgfs_ucode_tracing_write(struct file *file,
@@ -2095,6 +2084,31 @@ static ssize_t iwl_dbgfs_ucode_tracing_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_rxon_flags_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int len = 0;
+	char buf[20];
+
+	len = sprintf(buf, "0x%04X\n", le32_to_cpu(priv->active_rxon.flags));
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t iwl_dbgfs_rxon_filter_flags_read(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int len = 0;
+	char buf[20];
+
+	len = sprintf(buf, "0x%04X\n",
+		      le32_to_cpu(priv->active_rxon.filter_flags));
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
 static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
@@ -2124,13 +2138,11 @@ static ssize_t iwl_dbgfs_missed_beacon_read(struct file *file,
 	int pos = 0;
 	char buf[12];
 	const size_t bufsz = sizeof(buf);
-	ssize_t ret;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "%d\n",
 			priv->missed_beacon_threshold);
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	return ret;
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
 static ssize_t iwl_dbgfs_missed_beacon_write(struct file *file,
@@ -2159,27 +2171,6 @@ static ssize_t iwl_dbgfs_missed_beacon_write(struct file *file,
 	return count;
 }
 
-static ssize_t iwl_dbgfs_internal_scan_write(struct file *file,
-					 const char __user *user_buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	char buf[8];
-	int buf_size;
-	int scan;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &scan) != 1)
-		return -EINVAL;
-
-	iwl_internal_short_hw_scan(priv);
-
-	return count;
-}
-
 static ssize_t iwl_dbgfs_plcp_delta_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
@@ -2188,13 +2179,11 @@ static ssize_t iwl_dbgfs_plcp_delta_read(struct file *file,
 	int pos = 0;
 	char buf[12];
 	const size_t bufsz = sizeof(buf);
-	ssize_t ret;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "%u\n",
 			priv->cfg->plcp_delta_threshold);
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	return ret;
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
 static ssize_t iwl_dbgfs_plcp_delta_write(struct file *file,
@@ -2295,9 +2284,10 @@ DEBUGFS_WRITE_FILE_OPS(csr);
 DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
 DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
-DEBUGFS_WRITE_FILE_OPS(internal_scan);
 DEBUGFS_READ_WRITE_FILE_OPS(plcp_delta);
 DEBUGFS_READ_WRITE_FILE_OPS(force_reset);
+DEBUGFS_READ_FILE_OPS(rxon_flags);
+DEBUGFS_READ_FILE_OPS(rxon_filter_flags);
 
 /*
  * Create the debugfs files and directories
@@ -2349,7 +2339,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(csr, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(fh_reg, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(internal_scan, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(plcp_delta, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(force_reset, dir_debug, S_IWUSR | S_IRUSR);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
@@ -2360,6 +2349,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
 	}
+	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
 			 &priv->disable_chain_noise_cal);

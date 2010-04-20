@@ -13,6 +13,7 @@
 
 #include "ext2.h"
 #include <linux/quotaops.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/buffer_head.h>
 #include <linux/capability.h>

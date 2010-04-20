@@ -51,8 +51,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 0
-#define QLCNIC_LINUX_VERSIONID  "5.0.0"
+#define _QLCNIC_LINUX_SUBVERSION 1
+#define QLCNIC_LINUX_VERSIONID  "5.0.1"
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -958,8 +958,10 @@ struct qlcnic_adapter {
 	u8 dev_state;
 	u8 diag_test;
 	u8 diag_cnt;
+	u8 reset_ack_timeo;
+	u8 dev_init_timeo;
 	u8 rsrd1;
-	u16 rsrd2;
+	u16 msg_enable;
 
 	u8 mac_addr[ETH_ALEN];
 
@@ -994,6 +996,11 @@ u32 qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off);
 int qlcnic_hw_write_wx_2M(struct qlcnic_adapter *, ulong off, u32 data);
 int qlcnic_pci_mem_write_2M(struct qlcnic_adapter *, u64 off, u64 data);
 int qlcnic_pci_mem_read_2M(struct qlcnic_adapter *, u64 off, u64 *data);
+void qlcnic_pci_camqm_read_2M(struct qlcnic_adapter *, u64, u64 *);
+void qlcnic_pci_camqm_write_2M(struct qlcnic_adapter *, u64, u64);
+
+#define ADDR_IN_RANGE(addr, low, high)	\
+	(((addr) < (high)) && ((addr) >= (low)))
 
 #define QLCRD32(adapter, off) \
 	(qlcnic_hw_read_wx_2M(adapter, off))
@@ -1035,6 +1042,7 @@ int qlcnic_need_fw_reset(struct qlcnic_adapter *adapter);
 void qlcnic_request_firmware(struct qlcnic_adapter *adapter);
 void qlcnic_release_firmware(struct qlcnic_adapter *adapter);
 int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter);
+void qlcnic_setup_idc_param(struct qlcnic_adapter *adapter);
 
 int qlcnic_rom_fast_read(struct qlcnic_adapter *adapter, int addr, int *valp);
 int qlcnic_rom_fast_read_words(struct qlcnic_adapter *adapter, int addr,
@@ -1127,5 +1135,12 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 }
 
 extern const struct ethtool_ops qlcnic_ethtool_ops;
+
+#define QLCDB(adapter, lvl, _fmt, _args...) do {	\
+	if (NETIF_MSG_##lvl & adapter->msg_enable)	\
+		printk(KERN_INFO "%s: %s: " _fmt,	\
+			 dev_name(&adapter->pdev->dev),	\
+			__func__, ##_args);		\
+	} while (0)
 
 #endif				/* __QLCNIC_H_ */

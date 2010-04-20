@@ -446,7 +446,7 @@ static void dn_destruct(struct sock *sk)
 	skb_queue_purge(&scp->other_xmit_queue);
 	skb_queue_purge(&scp->other_receive_queue);
 
-	dst_release(xchg(&sk->sk_dst_cache, NULL));
+	dst_release(rcu_dereference_check(sk->sk_dst_cache, 1));
 }
 
 static int dn_memory_pressure;
@@ -1105,7 +1105,7 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
 	release_sock(sk);
 
 	dst = skb_dst(skb);
-	dst_release(xchg(&newsk->sk_dst_cache, dst));
+	sk_dst_set(newsk, dst);
 	skb_dst_set(skb, NULL);
 
 	DN_SK(newsk)->state        = DN_CR;
@@ -1956,7 +1956,7 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 	}
 
 	if ((flags & MSG_TRYHARD) && sk->sk_dst_cache)
-		dst_negative_advice(&sk->sk_dst_cache, sk);
+		dst_negative_advice(sk);
 
 	mss = scp->segsize_rem;
 	fctype = scp->services_rem & NSP_FC_MASK;

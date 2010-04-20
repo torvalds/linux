@@ -109,7 +109,6 @@ static int fifo = 0x8;	/* don't change */
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -596,7 +595,7 @@ static int init586(struct net_device *dev)
 	struct iasetup_cmd_struct __iomem *ias_cmd;
 	struct tdr_cmd_struct __iomem *tdr_cmd;
 	struct mcsetup_cmd_struct __iomem *mc_cmd;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	int num_addrs = netdev_mc_count(dev);
 
 	ptr = p->scb + 1;
@@ -725,8 +724,8 @@ static int init586(struct net_device *dev)
 		writew(num_addrs * 6, &mc_cmd->mc_cnt);
 
 		i = 0;
-		netdev_for_each_mc_addr(dmi, dev)
-			memcpy_toio(mc_cmd->mc_list[i++], dmi->dmi_addr, 6);
+		netdev_for_each_mc_addr(ha, dev)
+			memcpy_toio(mc_cmd->mc_list[i++], ha->addr, 6);
 
 		writew(make16(mc_cmd), &p->scb->cbl_offset);
 		writeb(CUC_START, &p->scb->cmd_cuc);

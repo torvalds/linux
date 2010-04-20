@@ -1398,7 +1398,7 @@ static void set_addresses(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
 	local_info_t *lp = netdev_priv(dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct set_address_info sa_info;
 	int i;
 
@@ -1413,10 +1413,10 @@ static void set_addresses(struct net_device *dev)
 
 	set_address(&sa_info, dev->dev_addr);
 	i = 0;
-	netdev_for_each_mc_addr(dmi, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		if (i++ == 9)
 			break;
-		set_address(&sa_info, dmi->dmi_addr);
+		set_address(&sa_info, ha->addr);
 	}
 	while (i++ < 9)
 		set_address(&sa_info, dev->dev_addr);

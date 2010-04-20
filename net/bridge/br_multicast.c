@@ -723,7 +723,7 @@ static int br_multicast_igmp3_report(struct net_bridge *br,
 		if (!pskb_may_pull(skb, len))
 			return -EINVAL;
 
-		grec = (void *)(skb->data + len);
+		grec = (void *)(skb->data + len - sizeof(*grec));
 		group = grec->grec_mca;
 		type = grec->grec_type;
 
@@ -1002,8 +1002,6 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	err = -EINVAL;
 	if (!pskb_may_pull(skb2, sizeof(*ih)))
 		goto out;
-
-	iph = ip_hdr(skb2);
 
 	switch (skb2->ip_summed) {
 	case CHECKSUM_COMPLETE:

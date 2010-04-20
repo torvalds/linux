@@ -23,6 +23,7 @@
 #include <linux/icmp.h>
 #include <linux/inetdevice.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -286,11 +287,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		   __be16 port, u32 info, u8 *payload)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct sock_exterr_skb *serr;
-
-	if (!inet->recverr)
-		return;
 
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (!skb)

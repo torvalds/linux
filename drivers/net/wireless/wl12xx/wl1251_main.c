@@ -29,6 +29,7 @@
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include "wl1251.h"
 #include "wl12xx_80211.h"
@@ -146,8 +147,8 @@ static void wl1251_fw_wakeup(struct wl1251 *wl)
 	u32 elp_reg;
 
 	elp_reg = ELPCTRL_WAKE_UP;
-	wl1251_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
-	elp_reg = wl1251_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
+	wl1251_write_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
+	elp_reg = wl1251_read_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 
 	if (!(elp_reg & ELPCTRL_WLAN_READY))
 		wl1251_warning("WLAN not ready");
@@ -201,8 +202,8 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 			goto out;
 	}
 
-	/* No NVS from netlink, try to get it from the filesystem */
-	if (wl->nvs == NULL) {
+	if (wl->nvs == NULL && !wl->use_eeprom) {
+		/* No NVS from netlink, try to get it from the filesystem */
 		ret = wl1251_fetch_nvs(wl);
 		if (ret < 0)
 			goto out;

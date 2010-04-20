@@ -7,6 +7,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/slab.h>
 #include "mesh.h"
 
 #ifdef CONFIG_MAC80211_VERBOSE_MHWMP_DEBUG
@@ -131,7 +132,7 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	/* BSSID == SA */
 	memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
-	mgmt->u.action.category = MESH_PATH_SEL_CATEGORY;
+	mgmt->u.action.category = WLAN_CATEGORY_MESH_PATH_SEL;
 	mgmt->u.action.u.mesh_action.action_code = MESH_PATH_SEL_ACTION;
 
 	switch (action) {
@@ -224,7 +225,7 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 	memcpy(mgmt->da, ra, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	/* BSSID is left zeroed, wildcard value */
-	mgmt->u.action.category = MESH_PATH_SEL_CATEGORY;
+	mgmt->u.action.category = WLAN_CATEGORY_MESH_PATH_SEL;
 	mgmt->u.action.u.mesh_action.action_code = MESH_PATH_SEL_ACTION;
 	ie_len = 15;
 	pos = skb_put(skb, 2 + ie_len);
@@ -391,7 +392,7 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 				if (SN_GT(mpath->sn, orig_sn) ||
 				    (mpath->sn == orig_sn &&
 				     action == MPATH_PREQ &&
-				     new_metric > mpath->metric)) {
+				     new_metric >= mpath->metric)) {
 					process = false;
 					fresh_info = false;
 				}
@@ -611,7 +612,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 
 	mesh_path_sel_frame_tx(MPATH_PREP, flags, orig_addr,
 		cpu_to_le32(orig_sn), 0, target_addr,
-		cpu_to_le32(target_sn), mpath->next_hop->sta.addr, hopcount,
+		cpu_to_le32(target_sn), next_hop, hopcount,
 		ttl, cpu_to_le32(lifetime), cpu_to_le32(metric),
 		0, sdata);
 	rcu_read_unlock();

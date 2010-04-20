@@ -144,6 +144,7 @@ struct ieee80211_low_level_stats {
  *	new beacon (beaconing modes)
  * @BSS_CHANGED_BEACON_ENABLED: Beaconing should be
  *	enabled/disabled (beaconing modes)
+ * @BSS_CHANGED_CQM: Connection quality monitor config changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -156,6 +157,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_BSSID		= 1<<7,
 	BSS_CHANGED_BEACON		= 1<<8,
 	BSS_CHANGED_BEACON_ENABLED	= 1<<9,
+	BSS_CHANGED_CQM			= 1<<10,
 };
 
 /**
@@ -185,6 +187,9 @@ enum ieee80211_bss_change {
  * @enable_beacon: whether beaconing should be enabled or not
  * @ht_operation_mode: HT operation mode (like in &struct ieee80211_ht_info).
  *	This field is only valid when the channel type is one of the HT types.
+ * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
+ *	implies disabled
+ * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -202,6 +207,8 @@ struct ieee80211_bss_conf {
 	u64 timestamp;
 	u32 basic_rates;
 	u16 ht_operation_mode;
+	s32 cqm_rssi_thold;
+	u32 cqm_rssi_hyst;
 };
 
 /**
@@ -543,7 +550,7 @@ enum mac80211_rx_flags {
  * @signal: signal strength when receiving this frame, either in dBm, in dB or
  *	unspecified depending on the hardware capabilities flags
  *	@IEEE80211_HW_SIGNAL_*
- * @noise: noise when receiving this frame, in dBm.
+ * @noise: noise when receiving this frame, in dBm (DEPRECATED).
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT rates are use (RX_FLAG_HT)
@@ -554,7 +561,7 @@ struct ieee80211_rx_status {
 	enum ieee80211_band band;
 	int freq;
 	int signal;
-	int noise;
+	int noise __deprecated;
 	int antenna;
 	int rate_idx;
 	int flag;
@@ -580,11 +587,15 @@ struct ieee80211_rx_status {
  *	may turn the device off as much as possible. Typically, this flag will
  *	be set when an interface is set UP but not associated or scanning, but
  *	it can also be unset in that case when monitor interfaces are active.
+ * @IEEE80211_CONF_QOS: Enable 802.11e QoS also know as WMM (Wireless
+ *      Multimedia). On some drivers (iwlwifi is one of know) we have
+ *      to enable/disable QoS explicitly.
  */
 enum ieee80211_conf_flags {
 	IEEE80211_CONF_MONITOR		= (1<<0),
 	IEEE80211_CONF_PS		= (1<<1),
 	IEEE80211_CONF_IDLE		= (1<<2),
+	IEEE80211_CONF_QOS		= (1<<3),
 };
 
 
@@ -609,6 +620,7 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
 	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
 	IEEE80211_CONF_CHANGE_IDLE		= BIT(8),
+	IEEE80211_CONF_CHANGE_QOS		= BIT(9),
 };
 
 /**
@@ -954,6 +966,17 @@ enum ieee80211_tkip_key_type {
  *	Hardware can provide ack status reports of Tx frames to
  *	the stack.
  *
+ * @IEEE80211_HW_CONNECTION_MONITOR:
+ *      The hardware performs its own connection monitoring, including
+ *      periodic keep-alives to the AP and probing the AP on beacon loss.
+ *      When this flag is set, signaling beacon-loss will cause an immediate
+ *      change to disassociated state.
+ *
+ * @IEEE80211_HW_SUPPORTS_CQM_RSSI:
+ *	Hardware can do connection quality monitoring - i.e. it can monitor
+ *	connection quality related parameters, such as the RSSI level and
+ *	provide notifications if configured trigger levels are reached.
+ *
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -975,6 +998,8 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS		= 1<<16,
 	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
+	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
+	IEEE80211_HW_SUPPORTS_CQM_RSSI			= 1<<20,
 };
 
 /**
@@ -1606,7 +1631,7 @@ struct ieee80211_ops {
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
-				 int mc_count, struct dev_addr_list *mc_list);
+				 struct netdev_hw_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
@@ -1802,7 +1827,10 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw);
  * ieee80211_rx - receive frame
  *
  * Use this function to hand received frames to mac80211. The receive
- * buffer in @skb must start with an IEEE 802.11 header.
+ * buffer in @skb must start with an IEEE 802.11 header. In case of a
+ * paged @skb is used, the driver is recommended to put the ieee80211
+ * header of the frame on the linear part of the @skb to avoid memory
+ * allocation and/or memcpy by the stack.
  *
  * This function may not be called in IRQ context. Calls to this function
  * for a single hardware must be synchronized against each other. Calls to
@@ -2364,11 +2392,41 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
- * When beacon filtering is enabled with IEEE80211_HW_BEACON_FILTERING and
- * IEEE80211_CONF_PS is set, the driver needs to inform whenever the
+ * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTERING and
+ * %IEEE80211_CONF_PS is set, the driver needs to inform whenever the
  * hardware is not receiving beacons with this function.
  */
 void ieee80211_beacon_loss(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_connection_loss - inform hardware has lost connection to the AP
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTERING, and
+ * %IEEE80211_CONF_PS and %IEEE80211_HW_CONNECTION_MONITOR are set, the driver
+ * needs to inform if the connection to the AP has been lost.
+ *
+ * This function will cause immediate change to disassociated state,
+ * without connection recovery attempts.
+ */
+void ieee80211_connection_loss(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_cqm_rssi_notify - inform a configured connection quality monitoring
+ *	rssi threshold triggered
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @rssi_event: the RSSI trigger event type
+ * @gfp: context flags
+ *
+ * When the %IEEE80211_HW_SUPPORTS_CQM_RSSI is set, and a connection quality
+ * monitoring is configured with an rssi threshold, the driver will inform
+ * whenever the rssi level reaches the threshold.
+ */
+void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
+			       enum nl80211_cqm_rssi_threshold_event rssi_event,
+			       gfp_t gfp);
 
 /* Rate control API */
 

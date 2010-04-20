@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/cpufreq.h>
+#include <linux/slab.h>
 
 #include <plat/clock.h>
 #include <plat/sram.h>

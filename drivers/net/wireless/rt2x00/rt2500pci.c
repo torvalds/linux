@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/slab.h>
 
 #include "rt2x00.h"
 #include "rt2x00pci.h"
@@ -572,6 +573,10 @@ static void rt2500pci_config_ps(struct rt2x00_dev *rt2x00dev,
 		rt2x00pci_register_write(rt2x00dev, CSR20, reg);
 
 		rt2x00_set_field32(&reg, CSR20_AUTOWAKE, 1);
+		rt2x00pci_register_write(rt2x00dev, CSR20, reg);
+	} else {
+		rt2x00pci_register_read(rt2x00dev, CSR20, &reg);
+		rt2x00_set_field32(&reg, CSR20_AUTOWAKE, 0);
 		rt2x00pci_register_write(rt2x00dev, CSR20, reg);
 	}
 

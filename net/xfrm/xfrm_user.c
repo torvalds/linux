@@ -1741,6 +1741,10 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err)
 		return err;
 
+	err = verify_policy_dir(p->dir);
+	if (err)
+		return err;
+
 	if (p->index)
 		xp = xfrm_policy_byid(net, mark, type, p->dir, p->index, 0, &err);
 	else {
@@ -1766,13 +1770,9 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (xp == NULL)
 		return -ENOENT;
 
-	read_lock(&xp->lock);
-	if (xp->walk.dead) {
-		read_unlock(&xp->lock);
+	if (unlikely(xp->walk.dead))
 		goto out;
-	}
 
-	read_unlock(&xp->lock);
 	err = 0;
 	if (up->hard) {
 		uid_t loginuid = NETLINK_CB(skb).loginuid;

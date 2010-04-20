@@ -212,10 +212,10 @@
  * MIB control register
  */
 #define AR5K_MIBC		0x0040			/* Register Address */
-#define AR5K_MIBC_COW		0x00000001	/* Warn test indicator */
+#define AR5K_MIBC_COW		0x00000001	/* Counter Overflow Warning */
 #define AR5K_MIBC_FMC		0x00000002	/* Freeze MIB Counters  */
-#define AR5K_MIBC_CMC		0x00000004	/* Clean MIB Counters  */
-#define AR5K_MIBC_MCS		0x00000008	/* MIB counter strobe */
+#define AR5K_MIBC_CMC		0x00000004	/* Clear MIB Counters  */
+#define AR5K_MIBC_MCS		0x00000008	/* MIB counter strobe, increment all */
 
 /*
  * Timeout prescale register
@@ -1139,8 +1139,8 @@
 #define AR5K_STA_ID1_DEFAULT_ANTENNA	0x00200000	/* Use default antenna */
 #define AR5K_STA_ID1_DESC_ANTENNA	0x00400000	/* Update antenna from descriptor */
 #define AR5K_STA_ID1_RTS_DEF_ANTENNA	0x00800000	/* Use default antenna for RTS */
-#define AR5K_STA_ID1_ACKCTS_6MB		0x01000000	/* Use 6Mbit/s for ACK/CTS */
-#define AR5K_STA_ID1_BASE_RATE_11B	0x02000000	/* Use 11b base rate for ACK/CTS [5211+] */
+#define AR5K_STA_ID1_ACKCTS_6MB		0x01000000	/* Rate to use for ACK/CTS. 0: highest mandatory rate <= RX rate; 1: 1Mbps in B mode */
+#define AR5K_STA_ID1_BASE_RATE_11B	0x02000000	/* 802.11b base rate. 0: 1, 2, 5.5 and 11Mbps; 1: 1 and 2Mbps. [5211+] */
 #define AR5K_STA_ID1_SELFGEN_DEF_ANT	0x04000000	/* Use def. antenna for self generated frames */
 #define AR5K_STA_ID1_CRYPT_MIC_EN	0x08000000	/* Enable MIC */
 #define AR5K_STA_ID1_KEYSRCH_MODE	0x10000000	/* Look up key when key id != 0 */
@@ -1516,7 +1516,14 @@
 				AR5K_NAV_5210 : AR5K_NAV_5211)
 
 /*
- * RTS success register
+ * MIB counters:
+ *
+ * max value is 0xc000, if this is reached we get a MIB interrupt.
+ * they can be controlled via AR5K_MIBC and are cleared on read.
+ */
+
+/*
+ * RTS success (MIB counter)
  */
 #define AR5K_RTS_OK_5210	0x8090
 #define AR5K_RTS_OK_5211	0x8088
@@ -1524,7 +1531,7 @@
 				AR5K_RTS_OK_5210 : AR5K_RTS_OK_5211)
 
 /*
- * RTS failure register
+ * RTS failure (MIB counter)
  */
 #define AR5K_RTS_FAIL_5210	0x8094
 #define AR5K_RTS_FAIL_5211	0x808c
@@ -1532,7 +1539,7 @@
 				AR5K_RTS_FAIL_5210 : AR5K_RTS_FAIL_5211)
 
 /*
- * ACK failure register
+ * ACK failure (MIB counter)
  */
 #define AR5K_ACK_FAIL_5210	0x8098
 #define AR5K_ACK_FAIL_5211	0x8090
@@ -1540,7 +1547,7 @@
 				AR5K_ACK_FAIL_5210 : AR5K_ACK_FAIL_5211)
 
 /*
- * FCS failure register
+ * FCS failure (MIB counter)
  */
 #define AR5K_FCS_FAIL_5210	0x809c
 #define AR5K_FCS_FAIL_5211	0x8094
@@ -1667,11 +1674,17 @@
 
 /*
  * Profile count registers
+ *
+ * These registers can be cleared and freezed with ATH5K_MIBC, but they do not
+ * generate a MIB interrupt.
+ * Instead of overflowing, they shift by one bit to the right. All registers
+ * shift together, i.e. when one reaches the max, all shift at the same time by
+ * one bit to the right. This way we should always get consistent values.
  */
 #define AR5K_PROFCNT_TX			0x80ec	/* Tx count */
 #define AR5K_PROFCNT_RX			0x80f0	/* Rx count */
-#define AR5K_PROFCNT_RXCLR		0x80f4	/* Clear Rx count */
-#define AR5K_PROFCNT_CYCLE		0x80f8	/* Cycle count (?) */
+#define AR5K_PROFCNT_RXCLR		0x80f4	/* Busy count */
+#define AR5K_PROFCNT_CYCLE		0x80f8	/* Cycle counter */
 
 /*
  * Quiet period control registers
@@ -1758,13 +1771,16 @@
 #define	AR5K_CCK_FIL_CNT		0x8128
 
 /*
- * PHY Error Counters (?)
+ * PHY Error Counters (same masks as AR5K_PHY_ERR_FIL)
  */
 #define	AR5K_PHYERR_CNT1		0x812c
 #define	AR5K_PHYERR_CNT1_MASK		0x8130
 
 #define	AR5K_PHYERR_CNT2		0x8134
 #define	AR5K_PHYERR_CNT2_MASK		0x8138
+
+/* if the PHY Error Counters reach this maximum, we get MIB interrupts */
+#define ATH5K_PHYERR_CNT_MAX		0x00c00000
 
 /*
  * TSF Threshold register (?)
@@ -1974,7 +1990,7 @@
 #define AR5K_PHY_SETTLING		0x9844			/* Register Address */
 #define	AR5K_PHY_SETTLING_AGC		0x0000007f	/* AGC settling time */
 #define	AR5K_PHY_SETTLING_AGC_S		0
-#define	AR5K_PHY_SETTLING_SWITCH	0x00003f80	/* Switch settlig time */
+#define	AR5K_PHY_SETTLING_SWITCH	0x00003f80	/* Switch settling time */
 #define	AR5K_PHY_SETTLING_SWITCH_S	7
 
 /*

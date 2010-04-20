@@ -22,6 +22,7 @@
 #include <linux/poll.h>
 #include <linux/file.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 
 #include <linux/net.h>
 #include <linux/if_packet.h>
@@ -235,6 +236,10 @@ static int vq_memory_access_ok(void __user *log_base, struct vhost_memory *mem,
 			       int log_all)
 {
 	int i;
+
+        if (!mem)
+                return 0;
+
 	for (i = 0; i < mem->nregions; ++i) {
 		struct vhost_memory_region *m = mem->regions + i;
 		unsigned long a = m->userspace_addr;
@@ -476,8 +481,10 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 		if (r < 0)
 			break;
 		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-		if (IS_ERR(eventfp))
-			return PTR_ERR(eventfp);
+		if (IS_ERR(eventfp)) {
+			r = PTR_ERR(eventfp);
+			break;
+		}
 		if (eventfp != vq->kick) {
 			pollstop = filep = vq->kick;
 			pollstart = vq->kick = eventfp;
@@ -489,8 +496,10 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 		if (r < 0)
 			break;
 		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-		if (IS_ERR(eventfp))
-			return PTR_ERR(eventfp);
+		if (IS_ERR(eventfp)) {
+			r = PTR_ERR(eventfp);
+			break;
+		}
 		if (eventfp != vq->call) {
 			filep = vq->call;
 			ctx = vq->call_ctx;
@@ -505,8 +514,10 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 		if (r < 0)
 			break;
 		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-		if (IS_ERR(eventfp))
-			return PTR_ERR(eventfp);
+		if (IS_ERR(eventfp)) {
+			r = PTR_ERR(eventfp);
+			break;
+		}
 		if (eventfp != vq->error) {
 			filep = vq->error;
 			vq->error = eventfp;
@@ -704,8 +715,8 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 	return 0;
 }
 
-int translate_desc(struct vhost_dev *dev, u64 addr, u32 len,
-		   struct iovec iov[], int iov_size)
+static int translate_desc(struct vhost_dev *dev, u64 addr, u32 len,
+			  struct iovec iov[], int iov_size)
 {
 	const struct vhost_memory_region *reg;
 	struct vhost_memory *mem;
@@ -730,7 +741,7 @@ int translate_desc(struct vhost_dev *dev, u64 addr, u32 len,
 		_iov = iov + ret;
 		size = reg->memory_size - addr + reg->guest_phys_addr;
 		_iov->iov_len = min((u64)len, size);
-		_iov->iov_base = (void *)(unsigned long)
+		_iov->iov_base = (void __user *)(unsigned long)
 			(reg->userspace_addr + addr - reg->guest_phys_addr);
 		s += size;
 		addr += size;
@@ -984,7 +995,7 @@ void vhost_discard_vq_desc(struct vhost_virtqueue *vq)
  * want to notify the guest, using eventfd. */
 int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 {
-	struct vring_used_elem *used;
+	struct vring_used_elem __user *used;
 
 	/* The virtqueue contains a ring of used buffers.  Get a pointer to the
 	 * next entry in that used ring. */
@@ -1008,7 +1019,8 @@ int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 		smp_wmb();
 		/* Log used ring entry write. */
 		log_write(vq->log_base,
-			  vq->log_addr + ((void *)used - (void *)vq->used),
+			  vq->log_addr +
+			   ((void __user *)used - (void __user *)vq->used),
 			  sizeof *used);
 		/* Log used index update. */
 		log_write(vq->log_base,

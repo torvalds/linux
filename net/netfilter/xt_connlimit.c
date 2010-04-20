@@ -17,6 +17,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/jhash.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/random.h>

@@ -1499,7 +1499,7 @@ static void sis900_read_mode(struct net_device *net_dev, int *speed, int *duplex
 	}
 
 	if(netif_msg_link(sis_priv))
-		printk(KERN_INFO "%s: Media Link On %s %s-duplex \n",
+		printk(KERN_INFO "%s: Media Link On %s %s-duplex\n",
 	       				net_dev->name,
 	       				*speed == HW_SPEED_100_MBPS ?
 	       					"100mbps" : "10mbps",
@@ -1523,7 +1523,7 @@ static void sis900_tx_timeout(struct net_device *net_dev)
 	int i;
 
 	if(netif_msg_tx_err(sis_priv))
-		printk(KERN_INFO "%s: Transmit timeout, status %8.8x %8.8x \n",
+		printk(KERN_INFO "%s: Transmit timeout, status %8.8x %8.8x\n",
 	       		net_dev->name, inl(ioaddr + cr), inl(ioaddr + isr));
 
 	/* Disable interrupts by clearing the interrupt mask. */
@@ -2298,12 +2298,14 @@ static void set_rx_mode(struct net_device *net_dev)
 		/* Accept Broadcast packet, destination address matchs our
 		 * MAC address, use Receive Filter to reject unwanted MCAST
 		 * packets */
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		rx_mode = RFAAB;
 
-		netdev_for_each_mc_addr(mclist, net_dev) {
-			unsigned int bit_nr =
-				sis900_mcast_bitnr(mclist->dmi_addr, sis_priv->chipset_rev);
+		netdev_for_each_mc_addr(ha, net_dev) {
+			unsigned int bit_nr;
+
+			bit_nr = sis900_mcast_bitnr(ha->addr,
+						    sis_priv->chipset_rev);
 			mc_filter[bit_nr >> 4] |= (1 << (bit_nr & 0xf));
 		}
 	}

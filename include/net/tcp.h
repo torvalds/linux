@@ -423,7 +423,7 @@ extern u8			*tcp_parse_md5sig_option(struct tcphdr *th);
  *	TCP v4 functions exported for the inet6 API
  */
 
-extern void		       	tcp_v4_send_check(struct sock *sk, int len,
+extern void		       	tcp_v4_send_check(struct sock *sk,
 						  struct sk_buff *skb);
 
 extern int			tcp_v4_conn_request(struct sock *sk,

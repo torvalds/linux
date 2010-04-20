@@ -149,6 +149,7 @@ EXPORT_SYMBOL(phy_scan_fixups);
 struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 {
 	struct phy_device *dev;
+
 	/* We allocate the device, and initialize the
 	 * default values */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -178,6 +179,17 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 
 	mutex_init(&dev->lock);
 	INIT_DELAYED_WORK(&dev->state_queue, phy_state_machine);
+
+	/* Request the appropriate module unconditionally; don't
+	   bother trying to do so only if it isn't already loaded,
+	   because that gets complicated. A hotplug event would have
+	   done an unconditional modprobe anyway.
+	   We don't do normal hotplug because it won't work for MDIO
+	   -- because it relies on the device staying around for long
+	   enough for the driver to get loaded. With MDIO, the NIC
+	   driver will get bored and give up as soon as it finds that
+	   there's no driver _already_ loaded. */
+	request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT, MDIO_ID_ARGS(phy_id));
 
 	return dev;
 }

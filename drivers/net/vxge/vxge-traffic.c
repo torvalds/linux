@@ -231,8 +231,7 @@ void vxge_hw_channel_msix_mask(struct __vxge_hw_channel *channel, int msix_id)
 {
 
 	__vxge_hw_pio_mem_write32_upper(
-		(u32)vxge_bVALn(vxge_mBIT(channel->first_vp_id+(msix_id/4)),
-			0, 32),
+		(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 		&channel->common_reg->set_msix_mask_vect[msix_id%4]);
 
 	return;
@@ -252,8 +251,7 @@ vxge_hw_channel_msix_unmask(struct __vxge_hw_channel *channel, int msix_id)
 {
 
 	__vxge_hw_pio_mem_write32_upper(
-		(u32)vxge_bVALn(vxge_mBIT(channel->first_vp_id+(msix_id/4)),
-			0, 32),
+		(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 		&channel->common_reg->clear_msix_mask_vect[msix_id%4]);
 
 	return;
@@ -878,7 +876,7 @@ void vxge_hw_ring_rxd_post_post(struct __vxge_hw_ring *ring, void *rxdh)
 
 	channel = &ring->channel;
 
-	rxdp->control_0	|= VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
+	rxdp->control_0	= VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
 
 	if (ring->stats->common_stats.usage_cnt > 0)
 		ring->stats->common_stats.usage_cnt--;
@@ -902,7 +900,7 @@ void vxge_hw_ring_rxd_post(struct __vxge_hw_ring *ring, void *rxdh)
 	channel = &ring->channel;
 
 	wmb();
-	rxdp->control_0	|= VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
+	rxdp->control_0	= VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
 
 	vxge_hw_channel_dtr_post(channel, rxdh);
 
@@ -966,6 +964,7 @@ enum vxge_hw_status vxge_hw_ring_rxd_next_completed(
 	struct __vxge_hw_channel *channel;
 	struct vxge_hw_ring_rxd_1 *rxdp;
 	enum vxge_hw_status status = VXGE_HW_OK;
+	u64 control_0, own;
 
 	channel = &ring->channel;
 
@@ -977,16 +976,18 @@ enum vxge_hw_status vxge_hw_ring_rxd_next_completed(
 		goto exit;
 	}
 
+	control_0 = rxdp->control_0;
+	own = control_0 & VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
+	*t_code	= (u8)VXGE_HW_RING_RXD_T_CODE_GET(control_0);
+
 	/* check whether it is not the end */
-	if (!(rxdp->control_0 &	VXGE_HW_RING_RXD_LIST_OWN_ADAPTER)) {
+	if (!own || ((*t_code == VXGE_HW_RING_T_CODE_FRM_DROP) && own)) {
 
 		vxge_assert(((struct vxge_hw_ring_rxd_1 *)rxdp)->host_control !=
 				0);
 
 		++ring->cmpl_cnt;
 		vxge_hw_channel_dtr_complete(channel);
-
-		*t_code	= (u8)VXGE_HW_RING_RXD_T_CODE_GET(rxdp->control_0);
 
 		vxge_assert(*t_code != VXGE_HW_RING_RXD_T_CODE_UNUSED);
 
@@ -1035,12 +1036,13 @@ enum vxge_hw_status vxge_hw_ring_handle_tcode(
 	 * such as unknown UPV6 header), Drop it !!!
 	 */
 
-	if (t_code == 0 || t_code == 5) {
+	if (t_code ==  VXGE_HW_RING_T_CODE_OK ||
+		t_code == VXGE_HW_RING_T_CODE_L3_PKT_ERR) {
 		status = VXGE_HW_OK;
 		goto exit;
 	}
 
-	if (t_code > 0xF) {
+	if (t_code > VXGE_HW_RING_T_CODE_MULTI_ERR) {
 		status = VXGE_HW_ERR_INVALID_TCODE;
 		goto exit;
 	}
@@ -2216,29 +2218,24 @@ exit:
  * This API will associate a given MSIX vector numbers with the four TIM
  * interrupts and alarm interrupt.
  */
-enum vxge_hw_status
+void
 vxge_hw_vpath_msix_set(struct __vxge_hw_vpath_handle *vp, int *tim_msix_id,
 		       int alarm_msix_id)
 {
 	u64 val64;
 	struct __vxge_hw_virtualpath *vpath = vp->vpath;
 	struct vxge_hw_vpath_reg __iomem *vp_reg = vpath->vp_reg;
-	u32 first_vp_id = vpath->hldev->first_vp_id;
+	u32 vp_id = vp->vpath->vp_id;
 
 	val64 =  VXGE_HW_INTERRUPT_CFG0_GROUP0_MSIX_FOR_TXTI(
-		  (first_vp_id * 4) + tim_msix_id[0]) |
+		  (vp_id * 4) + tim_msix_id[0]) |
 		 VXGE_HW_INTERRUPT_CFG0_GROUP1_MSIX_FOR_TXTI(
-		  (first_vp_id * 4) + tim_msix_id[1]) |
-		 VXGE_HW_INTERRUPT_CFG0_GROUP2_MSIX_FOR_TXTI(
-			(first_vp_id * 4) + tim_msix_id[2]);
-
-		val64 |= VXGE_HW_INTERRUPT_CFG0_GROUP3_MSIX_FOR_TXTI(
-			(first_vp_id * 4) + tim_msix_id[3]);
+		  (vp_id * 4) + tim_msix_id[1]);
 
 	writeq(val64, &vp_reg->interrupt_cfg0);
 
 	writeq(VXGE_HW_INTERRUPT_CFG2_ALARM_MAP_TO_MSG(
-			(first_vp_id * 4) + alarm_msix_id),
+			(vpath->hldev->first_vp_id * 4) + alarm_msix_id),
 			&vp_reg->interrupt_cfg2);
 
 	if (vpath->hldev->config.intr_mode ==
@@ -2259,7 +2256,7 @@ vxge_hw_vpath_msix_set(struct __vxge_hw_vpath_handle *vp, int *tim_msix_id,
 				0, 32), &vp_reg->one_shot_vect3_en);
 	}
 
-	return VXGE_HW_OK;
+	return;
 }
 
 /**
@@ -2279,8 +2276,7 @@ vxge_hw_vpath_msix_mask(struct __vxge_hw_vpath_handle *vp, int msix_id)
 {
 	struct __vxge_hw_device *hldev = vp->vpath->hldev;
 	__vxge_hw_pio_mem_write32_upper(
-		(u32) vxge_bVALn(vxge_mBIT(hldev->first_vp_id +
-			(msix_id  / 4)), 0, 32),
+		(u32) vxge_bVALn(vxge_mBIT(msix_id  >> 2), 0, 32),
 		&hldev->common_reg->set_msix_mask_vect[msix_id % 4]);
 
 	return;
@@ -2305,14 +2301,12 @@ vxge_hw_vpath_msix_clear(struct __vxge_hw_vpath_handle *vp, int msix_id)
 	if (hldev->config.intr_mode ==
 			VXGE_HW_INTR_MODE_MSIX_ONE_SHOT) {
 		__vxge_hw_pio_mem_write32_upper(
-			(u32)vxge_bVALn(vxge_mBIT(hldev->first_vp_id +
-				(msix_id/4)), 0, 32),
+			(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 				&hldev->common_reg->
 					clr_msix_one_shot_vec[msix_id%4]);
 	} else {
 		__vxge_hw_pio_mem_write32_upper(
-			(u32)vxge_bVALn(vxge_mBIT(hldev->first_vp_id +
-				(msix_id/4)), 0, 32),
+			(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 				&hldev->common_reg->
 					clear_msix_mask_vect[msix_id%4]);
 	}
@@ -2337,8 +2331,7 @@ vxge_hw_vpath_msix_unmask(struct __vxge_hw_vpath_handle *vp, int msix_id)
 {
 	struct __vxge_hw_device *hldev = vp->vpath->hldev;
 	__vxge_hw_pio_mem_write32_upper(
-			(u32)vxge_bVALn(vxge_mBIT(hldev->first_vp_id +
-			(msix_id/4)), 0, 32),
+			(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 			&hldev->common_reg->clear_msix_mask_vect[msix_id%4]);
 
 	return;

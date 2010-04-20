@@ -1,5 +1,4 @@
 #include <linux/err.h>
-#include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>

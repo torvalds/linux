@@ -40,6 +40,7 @@
 #include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 #include "xfs_bmap.h"
+#include <linux/gfp.h>
 #include <linux/mpage.h>
 #include <linux/pagevec.h>
 #include <linux/writeback.h>
@@ -932,6 +933,9 @@ xfs_aops_discard_page(
 	if (!xfs_is_delayed_page(page, IOMAP_DELAY))
 		goto out_invalidate;
 
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+		goto out_invalidate;
+
 	xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
 		"page discard on page %p, inode 0x%llx, offset %llu.",
 			page, ip->i_ino, offset);
@@ -964,8 +968,10 @@ xfs_aops_discard_page(
 
 		if (error) {
 			/* something screwed, just bail */
-			xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
-			"page discard failed delalloc mapping lookup.");
+			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+				"page discard failed delalloc mapping lookup.");
+			}
 			break;
 		}
 		if (!nimaps) {
@@ -991,8 +997,10 @@ xfs_aops_discard_page(
 		ASSERT(!flist.xbf_count && !flist.xbf_first);
 		if (error) {
 			/* something screwed, just bail */
-			xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
 			"page discard unable to remove delalloc mapping.");
+			}
 			break;
 		}
 next_buffer:

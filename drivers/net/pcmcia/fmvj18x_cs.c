@@ -1196,11 +1196,11 @@ static void set_rx_mode(struct net_device *dev)
 	memset(mc_filter, 0x00, sizeof(mc_filter));
 	outb(1, ioaddr + RX_MODE);	/* Ignore almost all multicasts. */
     } else {
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 
 	memset(mc_filter, 0, sizeof(mc_filter));
-	netdev_for_each_mc_addr(mclist, dev) {
-	    unsigned int bit = ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 26;
+	netdev_for_each_mc_addr(ha, dev) {
+	    unsigned int bit = ether_crc_le(ETH_ALEN, ha->addr) >> 26;
 	    mc_filter[bit >> 3] |= (1 << (bit & 7));
 	}
 	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */

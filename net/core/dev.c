@@ -80,6 +80,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/hash.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/string.h>
@@ -129,6 +130,7 @@
 #include <linux/jhash.h>
 #include <linux/random.h>
 #include <trace/events/napi.h>
+#include <linux/pci.h>
 
 #include "net-sysfs.h"
 
@@ -206,6 +208,20 @@ static inline struct hlist_head *dev_index_hash(struct net *net, int ifindex)
 	return &net->dev_index_head[ifindex & (NETDEV_HASHENTRIES - 1)];
 }
 
+static inline void rps_lock(struct softnet_data *sd)
+{
+#ifdef CONFIG_RPS
+	spin_lock(&sd->input_pkt_queue.lock);
+#endif
+}
+
+static inline void rps_unlock(struct softnet_data *sd)
+{
+#ifdef CONFIG_RPS
+	spin_unlock(&sd->input_pkt_queue.lock);
+#endif
+}
+
 /* Device list insertion */
 static int list_netdevice(struct net_device *dev)
 {
@@ -248,7 +264,7 @@ static RAW_NOTIFIER_HEAD(netdev_chain);
  *	queue in the local softnet handler.
  */
 
-DEFINE_PER_CPU(struct softnet_data, softnet_data);
+DEFINE_PER_CPU_ALIGNED(struct softnet_data, softnet_data);
 EXPORT_PER_CPU_SYMBOL(softnet_data);
 
 #ifdef CONFIG_LOCKDEP
@@ -772,14 +788,17 @@ EXPORT_SYMBOL(__dev_getfirstbyhwtype);
 
 struct net_device *dev_getfirstbyhwtype(struct net *net, unsigned short type)
 {
-	struct net_device *dev;
+	struct net_device *dev, *ret = NULL;
 
-	rtnl_lock();
-	dev = __dev_getfirstbyhwtype(net, type);
-	if (dev)
-		dev_hold(dev);
-	rtnl_unlock();
-	return dev;
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev)
+		if (dev->type == type) {
+			dev_hold(dev);
+			ret = dev;
+			break;
+		}
+	rcu_read_unlock();
+	return ret;
 }
 EXPORT_SYMBOL(dev_getfirstbyhwtype);
 
@@ -1084,9 +1103,9 @@ void netdev_state_change(struct net_device *dev)
 }
 EXPORT_SYMBOL(netdev_state_change);
 
-void netdev_bonding_change(struct net_device *dev, unsigned long event)
+int netdev_bonding_change(struct net_device *dev, unsigned long event)
 {
-	call_netdevice_notifiers(event, dev);
+	return call_netdevice_notifiers(event, dev);
 }
 EXPORT_SYMBOL(netdev_bonding_change);
 
@@ -1416,6 +1435,7 @@ EXPORT_SYMBOL(unregister_netdevice_notifier);
 
 int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 {
+	ASSERT_RTNL();
 	return raw_notifier_call_chain(&netdev_chain, val, dev);
 }
 
@@ -1783,18 +1803,27 @@ EXPORT_SYMBOL(netdev_rx_csum_fault);
  * 2. No high memory really exists on this machine.
  */
 
-static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
+static int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 {
 #ifdef CONFIG_HIGHMEM
 	int i;
+	if (!(dev->features & NETIF_F_HIGHDMA)) {
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+			if (PageHighMem(skb_shinfo(skb)->frags[i].page))
+				return 1;
+	}
 
-	if (dev->features & NETIF_F_HIGHDMA)
-		return 0;
+	if (PCI_DMA_BUS_IS_PHYS) {
+		struct device *pdev = dev->dev.parent;
 
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-		if (PageHighMem(skb_shinfo(skb)->frags[i].page))
-			return 1;
-
+		if (!pdev)
+			return 0;
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+			dma_addr_t addr = page_to_phys(skb_shinfo(skb)->frags[i].page);
+			if (!pdev->dma_mask || addr + PAGE_SIZE - 1 > *pdev->dma_mask)
+				return 1;
+		}
+	}
 #endif
 	return 0;
 }
@@ -1852,6 +1881,17 @@ static int dev_gso_segment(struct sk_buff *skb)
 	return 0;
 }
 
+/*
+ * Try to orphan skb early, right before transmission by the device.
+ * We cannot orphan skb if tx timestamp is requested, since
+ * drivers need to call skb_tstamp_tx() to send the timestamp.
+ */
+static inline void skb_orphan_try(struct sk_buff *skb)
+{
+	if (!skb_tx(skb)->flags)
+		skb_orphan(skb);
+}
+
 int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			struct netdev_queue *txq)
 {
@@ -1876,23 +1916,10 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
 			skb_dst_drop(skb);
 
+		skb_orphan_try(skb);
 		rc = ops->ndo_start_xmit(skb, dev);
 		if (rc == NETDEV_TX_OK)
 			txq_trans_update(txq);
-		/*
-		 * TODO: if skb_orphan() was called by
-		 * dev->hard_start_xmit() (for example, the unmodified
-		 * igb driver does that; bnx2 doesn't), then
-		 * skb_tx_software_timestamp() will be unable to send
-		 * back the time stamp.
-		 *
-		 * How can this be prevented? Always create another
-		 * reference to the socket before calling
-		 * dev->hard_start_xmit()? Prevent that skb_orphan()
-		 * does anything in dev->hard_start_xmit() by clearing
-		 * the skb destructor before the call and restoring it
-		 * afterwards, then doing the skb_orphan() ourselves?
-		 */
 		return rc;
 	}
 
@@ -1910,6 +1937,7 @@ gso:
 		if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
 			skb_dst_drop(nskb);
 
+		skb_orphan_try(nskb);
 		rc = ops->ndo_start_xmit(nskb, dev);
 		if (unlikely(rc != NETDEV_TX_OK)) {
 			if (rc & ~NETDEV_TX_MASK)
@@ -1947,7 +1975,7 @@ u16 skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb)
 	if (skb->sk && skb->sk->sk_hash)
 		hash = skb->sk->sk_hash;
 	else
-		hash = skb->protocol;
+		hash = (__force u16) skb->protocol;
 
 	hash = jhash_1word(hash, hashrnd);
 
@@ -1959,9 +1987,9 @@ static inline u16 dev_cap_txqueue(struct net_device *dev, u16 queue_index)
 {
 	if (unlikely(queue_index >= dev->real_num_tx_queues)) {
 		if (net_ratelimit()) {
-			netdev_warn(dev, "selects TX queue %d, but "
-			     "real number of TX queues is %d\n",
-			     queue_index, dev->real_num_tx_queues);
+			pr_warning("%s selects TX queue %d, but "
+				"real number of TX queues is %d\n",
+				dev->name, queue_index, dev->real_num_tx_queues);
 		}
 		return 0;
 	}
@@ -1987,7 +2015,7 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 			if (dev->real_num_tx_queues > 1)
 				queue_index = skb_tx_hash(dev, skb);
 
-			if (sk && sk->sk_dst_cache)
+			if (sk && rcu_dereference_check(sk->sk_dst_cache, 1))
 				sk_tx_queue_set(sk, queue_index);
 		}
 	}
@@ -2174,29 +2202,38 @@ int weight_p __read_mostly = 64;            /* old backlog weight */
 
 DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
 
+#ifdef CONFIG_RPS
+
+/* One global table that all flow-based protocols share. */
+struct rps_sock_flow_table *rps_sock_flow_table __read_mostly;
+EXPORT_SYMBOL(rps_sock_flow_table);
+
 /*
  * get_rps_cpu is called from netif_receive_skb and returns the target
  * CPU from the RPS map of the receiving queue for a given skb.
+ * rcu_read_lock must be held on entry.
  */
-static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
+static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
+		       struct rps_dev_flow **rflowp)
 {
 	struct ipv6hdr *ip6;
 	struct iphdr *ip;
 	struct netdev_rx_queue *rxqueue;
 	struct rps_map *map;
+	struct rps_dev_flow_table *flow_table;
+	struct rps_sock_flow_table *sock_flow_table;
 	int cpu = -1;
 	u8 ip_proto;
+	u16 tcpu;
 	u32 addr1, addr2, ports, ihl;
-
-	rcu_read_lock();
 
 	if (skb_rx_queue_recorded(skb)) {
 		u16 index = skb_get_rx_queue(skb);
 		if (unlikely(index >= dev->num_rx_queues)) {
 			if (net_ratelimit()) {
-				netdev_warn(dev, "received packet on queue "
-				    "%u, but number of RX queues is %u\n",
-				     index, dev->num_rx_queues);
+				pr_warning("%s received packet on queue "
+					"%u, but number of RX queues is %u\n",
+					dev->name, index, dev->num_rx_queues);
 			}
 			goto done;
 		}
@@ -2204,7 +2241,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
 	} else
 		rxqueue = dev->_rx;
 
-	if (!rxqueue->rps_map)
+	if (!rxqueue->rps_map && !rxqueue->rps_flow_table)
 		goto done;
 
 	if (skb->rxhash)
@@ -2217,8 +2254,8 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
 
 		ip = (struct iphdr *) skb->data;
 		ip_proto = ip->protocol;
-		addr1 = ip->saddr;
-		addr2 = ip->daddr;
+		addr1 = (__force u32) ip->saddr;
+		addr2 = (__force u32) ip->daddr;
 		ihl = ip->ihl;
 		break;
 	case __constant_htons(ETH_P_IPV6):
@@ -2227,8 +2264,8 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
 
 		ip6 = (struct ipv6hdr *) skb->data;
 		ip_proto = ip6->nexthdr;
-		addr1 = ip6->saddr.s6_addr32[3];
-		addr2 = ip6->daddr.s6_addr32[3];
+		addr1 = (__force u32) ip6->saddr.s6_addr32[3];
+		addr2 = (__force u32) ip6->daddr.s6_addr32[3];
 		ihl = (40 >> 2);
 		break;
 	default:
@@ -2243,22 +2280,72 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
 	case IPPROTO_AH:
 	case IPPROTO_SCTP:
 	case IPPROTO_UDPLITE:
-		if (pskb_may_pull(skb, (ihl * 4) + 4))
-			ports = *((u32 *) (skb->data + (ihl * 4)));
+		if (pskb_may_pull(skb, (ihl * 4) + 4)) {
+			__be16 *hports = (__be16 *) (skb->data + (ihl * 4));
+			u32 sport, dport;
+
+			sport = (__force u16) hports[0];
+			dport = (__force u16) hports[1];
+			if (dport < sport)
+				swap(sport, dport);
+			ports = (sport << 16) + dport;
+		}
 		break;
 
 	default:
 		break;
 	}
 
+	/* get a consistent hash (same value on both flow directions) */
+	if (addr2 < addr1)
+		swap(addr1, addr2);
 	skb->rxhash = jhash_3words(addr1, addr2, ports, hashrnd);
 	if (!skb->rxhash)
 		skb->rxhash = 1;
 
 got_hash:
+	flow_table = rcu_dereference(rxqueue->rps_flow_table);
+	sock_flow_table = rcu_dereference(rps_sock_flow_table);
+	if (flow_table && sock_flow_table) {
+		u16 next_cpu;
+		struct rps_dev_flow *rflow;
+
+		rflow = &flow_table->flows[skb->rxhash & flow_table->mask];
+		tcpu = rflow->cpu;
+
+		next_cpu = sock_flow_table->ents[skb->rxhash &
+		    sock_flow_table->mask];
+
+		/*
+		 * If the desired CPU (where last recvmsg was done) is
+		 * different from current CPU (one in the rx-queue flow
+		 * table entry), switch if one of the following holds:
+		 *   - Current CPU is unset (equal to RPS_NO_CPU).
+		 *   - Current CPU is offline.
+		 *   - The current CPU's queue tail has advanced beyond the
+		 *     last packet that was enqueued using this table entry.
+		 *     This guarantees that all previous packets for the flow
+		 *     have been dequeued, thus preserving in order delivery.
+		 */
+		if (unlikely(tcpu != next_cpu) &&
+		    (tcpu == RPS_NO_CPU || !cpu_online(tcpu) ||
+		     ((int)(per_cpu(softnet_data, tcpu).input_queue_head -
+		      rflow->last_qtail)) >= 0)) {
+			tcpu = rflow->cpu = next_cpu;
+			if (tcpu != RPS_NO_CPU)
+				rflow->last_qtail = per_cpu(softnet_data,
+				    tcpu).input_queue_head;
+		}
+		if (tcpu != RPS_NO_CPU && cpu_online(tcpu)) {
+			*rflowp = rflow;
+			cpu = tcpu;
+			goto done;
+		}
+	}
+
 	map = rcu_dereference(rxqueue->rps_map);
 	if (map) {
-		u16 tcpu = map->cpus[((u64) skb->rxhash * map->len) >> 32];
+		tcpu = map->cpus[((u64) skb->rxhash * map->len) >> 32];
 
 		if (cpu_online(tcpu)) {
 			cpu = tcpu;
@@ -2267,72 +2354,78 @@ got_hash:
 	}
 
 done:
-	rcu_read_unlock();
 	return cpu;
 }
 
-/*
- * This structure holds the per-CPU mask of CPUs for which IPIs are scheduled
- * to be sent to kick remote softirq processing.  There are two masks since
- * the sending of IPIs must be done with interrupts enabled.  The select field
- * indicates the current mask that enqueue_backlog uses to schedule IPIs.
- * select is flipped before net_rps_action is called while still under lock,
- * net_rps_action then uses the non-selected mask to send the IPIs and clears
- * it without conflicting with enqueue_backlog operation.
- */
-struct rps_remote_softirq_cpus {
-	cpumask_t mask[2];
-	int select;
-};
-static DEFINE_PER_CPU(struct rps_remote_softirq_cpus, rps_remote_softirq_cpus);
-
 /* Called from hardirq (IPI) context */
-static void trigger_softirq(void *data)
+static void rps_trigger_softirq(void *data)
 {
-	struct softnet_data *queue = data;
-	__napi_schedule(&queue->backlog);
+	struct softnet_data *sd = data;
+
+	__napi_schedule(&sd->backlog);
 	__get_cpu_var(netdev_rx_stat).received_rps++;
+}
+
+#endif /* CONFIG_RPS */
+
+/*
+ * Check if this softnet_data structure is another cpu one
+ * If yes, queue it to our IPI list and return 1
+ * If no, return 0
+ */
+static int rps_ipi_queued(struct softnet_data *sd)
+{
+#ifdef CONFIG_RPS
+	struct softnet_data *mysd = &__get_cpu_var(softnet_data);
+
+	if (sd != mysd) {
+		sd->rps_ipi_next = mysd->rps_ipi_list;
+		mysd->rps_ipi_list = sd;
+
+		__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+		return 1;
+	}
+#endif /* CONFIG_RPS */
+	return 0;
 }
 
 /*
  * enqueue_to_backlog is called to queue an skb to a per CPU backlog
  * queue (may be a remote CPU queue).
  */
-static int enqueue_to_backlog(struct sk_buff *skb, int cpu)
+static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
+			      unsigned int *qtail)
 {
-	struct softnet_data *queue;
+	struct softnet_data *sd;
 	unsigned long flags;
 
-	queue = &per_cpu(softnet_data, cpu);
+	sd = &per_cpu(softnet_data, cpu);
 
 	local_irq_save(flags);
 	__get_cpu_var(netdev_rx_stat).total++;
 
-	spin_lock(&queue->input_pkt_queue.lock);
-	if (queue->input_pkt_queue.qlen <= netdev_max_backlog) {
-		if (queue->input_pkt_queue.qlen) {
+	rps_lock(sd);
+	if (sd->input_pkt_queue.qlen <= netdev_max_backlog) {
+		if (sd->input_pkt_queue.qlen) {
 enqueue:
-			__skb_queue_tail(&queue->input_pkt_queue, skb);
-			spin_unlock_irqrestore(&queue->input_pkt_queue.lock,
-			    flags);
+			__skb_queue_tail(&sd->input_pkt_queue, skb);
+#ifdef CONFIG_RPS
+			*qtail = sd->input_queue_head + sd->input_pkt_queue.qlen;
+#endif
+			rps_unlock(sd);
+			local_irq_restore(flags);
 			return NET_RX_SUCCESS;
 		}
 
 		/* Schedule NAPI for backlog device */
-		if (napi_schedule_prep(&queue->backlog)) {
-			if (cpu != smp_processor_id()) {
-				struct rps_remote_softirq_cpus *rcpus =
-				    &__get_cpu_var(rps_remote_softirq_cpus);
-
-				cpu_set(cpu, rcpus->mask[rcpus->select]);
-				__raise_softirq_irqoff(NET_RX_SOFTIRQ);
-			} else
-				__napi_schedule(&queue->backlog);
+		if (napi_schedule_prep(&sd->backlog)) {
+			if (!rps_ipi_queued(sd))
+				__napi_schedule(&sd->backlog);
 		}
 		goto enqueue;
 	}
 
-	spin_unlock(&queue->input_pkt_queue.lock);
+	rps_unlock(sd);
 
 	__get_cpu_var(netdev_rx_stat).dropped++;
 	local_irq_restore(flags);
@@ -2358,7 +2451,7 @@ enqueue:
 
 int netif_rx(struct sk_buff *skb)
 {
-	int cpu;
+	int ret;
 
 	/* if netpoll wants it, pretend we never saw it */
 	if (netpoll_rx(skb))
@@ -2367,11 +2460,29 @@ int netif_rx(struct sk_buff *skb)
 	if (!skb->tstamp.tv64)
 		net_timestamp(skb);
 
-	cpu = get_rps_cpu(skb->dev, skb);
-	if (cpu < 0)
-		cpu = smp_processor_id();
+#ifdef CONFIG_RPS
+	{
+		struct rps_dev_flow voidflow, *rflow = &voidflow;
+		int cpu;
 
-	return enqueue_to_backlog(skb, cpu);
+		rcu_read_lock();
+
+		cpu = get_rps_cpu(skb->dev, skb, &rflow);
+		if (cpu < 0)
+			cpu = smp_processor_id();
+
+		ret = enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
+
+		rcu_read_unlock();
+	}
+#else
+	{
+		unsigned int qtail;
+		ret = enqueue_to_backlog(skb, get_cpu(), &qtail);
+		put_cpu();
+	}
+#endif
+	return ret;
 }
 EXPORT_SYMBOL(netif_rx);
 
@@ -2608,10 +2719,60 @@ void netif_nit_deliver(struct sk_buff *skb)
 	rcu_read_unlock();
 }
 
-int __netif_receive_skb(struct sk_buff *skb)
+static inline void skb_bond_set_mac_by_master(struct sk_buff *skb,
+					      struct net_device *master)
+{
+	if (skb->pkt_type == PACKET_HOST) {
+		u16 *dest = (u16 *) eth_hdr(skb)->h_dest;
+
+		memcpy(dest, master->dev_addr, ETH_ALEN);
+	}
+}
+
+/* On bonding slaves other than the currently active slave, suppress
+ * duplicates except for 802.3ad ETH_P_SLOW, alb non-mcast/bcast, and
+ * ARP on active-backup slaves with arp_validate enabled.
+ */
+int __skb_bond_should_drop(struct sk_buff *skb, struct net_device *master)
+{
+	struct net_device *dev = skb->dev;
+
+	if (master->priv_flags & IFF_MASTER_ARPMON)
+		dev->last_rx = jiffies;
+
+	if ((master->priv_flags & IFF_MASTER_ALB) && master->br_port) {
+		/* Do address unmangle. The local destination address
+		 * will be always the one master has. Provides the right
+		 * functionality in a bridge.
+		 */
+		skb_bond_set_mac_by_master(skb, master);
+	}
+
+	if (dev->priv_flags & IFF_SLAVE_INACTIVE) {
+		if ((dev->priv_flags & IFF_SLAVE_NEEDARP) &&
+		    skb->protocol == __cpu_to_be16(ETH_P_ARP))
+			return 0;
+
+		if (master->priv_flags & IFF_MASTER_ALB) {
+			if (skb->pkt_type != PACKET_BROADCAST &&
+			    skb->pkt_type != PACKET_MULTICAST)
+				return 0;
+		}
+		if (master->priv_flags & IFF_MASTER_8023AD &&
+		    skb->protocol == __cpu_to_be16(ETH_P_SLOW))
+			return 0;
+
+		return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(__skb_bond_should_drop);
+
+static int __netif_receive_skb(struct sk_buff *skb)
 {
 	struct packet_type *ptype, *pt_prev;
 	struct net_device *orig_dev;
+	struct net_device *master;
 	struct net_device *null_or_orig;
 	struct net_device *null_or_bond;
 	int ret = NET_RX_DROP;
@@ -2632,11 +2793,12 @@ int __netif_receive_skb(struct sk_buff *skb)
 
 	null_or_orig = NULL;
 	orig_dev = skb->dev;
-	if (orig_dev->master) {
-		if (skb_bond_should_drop(skb))
+	master = ACCESS_ONCE(orig_dev->master);
+	if (master) {
+		if (skb_bond_should_drop(skb, master))
 			null_or_orig = orig_dev; /* deliver only exact match */
 		else
-			skb->dev = orig_dev->master;
+			skb->dev = master;
 	}
 
 	__get_cpu_var(netdev_rx_stat).total++;
@@ -2735,29 +2897,46 @@ out:
  */
 int netif_receive_skb(struct sk_buff *skb)
 {
-	int cpu;
+#ifdef CONFIG_RPS
+	struct rps_dev_flow voidflow, *rflow = &voidflow;
+	int cpu, ret;
 
-	cpu = get_rps_cpu(skb->dev, skb);
+	rcu_read_lock();
 
-	if (cpu < 0)
-		return __netif_receive_skb(skb);
-	else
-		return enqueue_to_backlog(skb, cpu);
+	cpu = get_rps_cpu(skb->dev, skb, &rflow);
+
+	if (cpu >= 0) {
+		ret = enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
+		rcu_read_unlock();
+	} else {
+		rcu_read_unlock();
+		ret = __netif_receive_skb(skb);
+	}
+
+	return ret;
+#else
+	return __netif_receive_skb(skb);
+#endif
 }
 EXPORT_SYMBOL(netif_receive_skb);
 
-/* Network device is going away, flush any packets still pending  */
+/* Network device is going away, flush any packets still pending
+ * Called with irqs disabled.
+ */
 static void flush_backlog(void *arg)
 {
 	struct net_device *dev = arg;
-	struct softnet_data *queue = &__get_cpu_var(softnet_data);
+	struct softnet_data *sd = &__get_cpu_var(softnet_data);
 	struct sk_buff *skb, *tmp;
 
-	skb_queue_walk_safe(&queue->input_pkt_queue, skb, tmp)
+	rps_lock(sd);
+	skb_queue_walk_safe(&sd->input_pkt_queue, skb, tmp)
 		if (skb->dev == dev) {
-			__skb_unlink(skb, &queue->input_pkt_queue);
+			__skb_unlink(skb, &sd->input_pkt_queue);
 			kfree_skb(skb);
+			input_queue_head_incr(sd);
 		}
+	rps_unlock(sd);
 }
 
 static int napi_gro_complete(struct sk_buff *skb)
@@ -3063,24 +3242,27 @@ EXPORT_SYMBOL(napi_gro_frags);
 static int process_backlog(struct napi_struct *napi, int quota)
 {
 	int work = 0;
-	struct softnet_data *queue = &__get_cpu_var(softnet_data);
-	unsigned long start_time = jiffies;
+	struct softnet_data *sd = &__get_cpu_var(softnet_data);
 
 	napi->weight = weight_p;
 	do {
 		struct sk_buff *skb;
 
-		spin_lock_irq(&queue->input_pkt_queue.lock);
-		skb = __skb_dequeue(&queue->input_pkt_queue);
+		local_irq_disable();
+		rps_lock(sd);
+		skb = __skb_dequeue(&sd->input_pkt_queue);
 		if (!skb) {
 			__napi_complete(napi);
-			spin_unlock_irq(&queue->input_pkt_queue.lock);
+			rps_unlock(sd);
+			local_irq_enable();
 			break;
 		}
-		spin_unlock_irq(&queue->input_pkt_queue.lock);
+		input_queue_head_incr(sd);
+		rps_unlock(sd);
+		local_irq_enable();
 
 		__netif_receive_skb(skb);
-	} while (++work < quota && jiffies == start_time);
+	} while (++work < quota);
 
 	return work;
 }
@@ -3169,20 +3351,32 @@ void netif_napi_del(struct napi_struct *napi)
 EXPORT_SYMBOL(netif_napi_del);
 
 /*
- * net_rps_action sends any pending IPI's for rps.  This is only called from
- * softirq and interrupts must be enabled.
+ * net_rps_action sends any pending IPI's for rps.
+ * Note: called with local irq disabled, but exits with local irq enabled.
  */
-static void net_rps_action(cpumask_t *mask)
+static void net_rps_action_and_irq_disable(void)
 {
-	int cpu;
+#ifdef CONFIG_RPS
+	struct softnet_data *sd = &__get_cpu_var(softnet_data);
+	struct softnet_data *remsd = sd->rps_ipi_list;
 
-	/* Send pending IPI's to kick RPS processing on remote cpus. */
-	for_each_cpu_mask_nr(cpu, *mask) {
-		struct softnet_data *queue = &per_cpu(softnet_data, cpu);
-		if (cpu_online(cpu))
-			__smp_call_function_single(cpu, &queue->csd, 0);
-	}
-	cpus_clear(*mask);
+	if (remsd) {
+		sd->rps_ipi_list = NULL;
+
+		local_irq_enable();
+
+		/* Send pending IPI's to kick RPS processing on remote cpus. */
+		while (remsd) {
+			struct softnet_data *next = remsd->rps_ipi_next;
+
+			if (cpu_online(remsd->cpu))
+				__smp_call_function_single(remsd->cpu,
+							   &remsd->csd, 0);
+			remsd = next;
+		}
+	} else
+#endif
+		local_irq_enable();
 }
 
 static void net_rx_action(struct softirq_action *h)
@@ -3191,8 +3385,6 @@ static void net_rx_action(struct softirq_action *h)
 	unsigned long time_limit = jiffies + 2;
 	int budget = netdev_budget;
 	void *have;
-	int select;
-	struct rps_remote_softirq_cpus *rcpus;
 
 	local_irq_disable();
 
@@ -3255,13 +3447,7 @@ static void net_rx_action(struct softirq_action *h)
 		netpoll_poll_unlock(have);
 	}
 out:
-	rcpus = &__get_cpu_var(rps_remote_softirq_cpus);
-	select = rcpus->select;
-	rcpus->select ^= 1;
-
-	local_irq_enable();
-
-	net_rps_action(&rcpus->mask[select]);
+	net_rps_action_and_irq_disable();
 
 #ifdef CONFIG_NET_DMA
 	/*
@@ -3733,11 +3919,10 @@ int netdev_set_master(struct net_device *slave, struct net_device *master)
 
 	slave->master = master;
 
-	synchronize_net();
-
-	if (old)
+	if (old) {
+		synchronize_net();
 		dev_put(old);
-
+	}
 	if (master)
 		slave->flags |= IFF_SLAVE;
 	else
@@ -3911,562 +4096,6 @@ void dev_set_rx_mode(struct net_device *dev)
 {
 	netif_addr_lock_bh(dev);
 	__dev_set_rx_mode(dev);
-	netif_addr_unlock_bh(dev);
-}
-
-/* hw addresses list handling functions */
-
-static int __hw_addr_add(struct netdev_hw_addr_list *list, unsigned char *addr,
-			 int addr_len, unsigned char addr_type)
-{
-	struct netdev_hw_addr *ha;
-	int alloc_size;
-
-	if (addr_len > MAX_ADDR_LEN)
-		return -EINVAL;
-
-	list_for_each_entry(ha, &list->list, list) {
-		if (!memcmp(ha->addr, addr, addr_len) &&
-		    ha->type == addr_type) {
-			ha->refcount++;
-			return 0;
-		}
-	}
-
-
-	alloc_size = sizeof(*ha);
-	if (alloc_size < L1_CACHE_BYTES)
-		alloc_size = L1_CACHE_BYTES;
-	ha = kmalloc(alloc_size, GFP_ATOMIC);
-	if (!ha)
-		return -ENOMEM;
-	memcpy(ha->addr, addr, addr_len);
-	ha->type = addr_type;
-	ha->refcount = 1;
-	ha->synced = false;
-	list_add_tail_rcu(&ha->list, &list->list);
-	list->count++;
-	return 0;
-}
-
-static void ha_rcu_free(struct rcu_head *head)
-{
-	struct netdev_hw_addr *ha;
-
-	ha = container_of(head, struct netdev_hw_addr, rcu_head);
-	kfree(ha);
-}
-
-static int __hw_addr_del(struct netdev_hw_addr_list *list, unsigned char *addr,
-			 int addr_len, unsigned char addr_type)
-{
-	struct netdev_hw_addr *ha;
-
-	list_for_each_entry(ha, &list->list, list) {
-		if (!memcmp(ha->addr, addr, addr_len) &&
-		    (ha->type == addr_type || !addr_type)) {
-			if (--ha->refcount)
-				return 0;
-			list_del_rcu(&ha->list);
-			call_rcu(&ha->rcu_head, ha_rcu_free);
-			list->count--;
-			return 0;
-		}
-	}
-	return -ENOENT;
-}
-
-static int __hw_addr_add_multiple(struct netdev_hw_addr_list *to_list,
-				  struct netdev_hw_addr_list *from_list,
-				  int addr_len,
-				  unsigned char addr_type)
-{
-	int err;
-	struct netdev_hw_addr *ha, *ha2;
-	unsigned char type;
-
-	list_for_each_entry(ha, &from_list->list, list) {
-		type = addr_type ? addr_type : ha->type;
-		err = __hw_addr_add(to_list, ha->addr, addr_len, type);
-		if (err)
-			goto unroll;
-	}
-	return 0;
-
-unroll:
-	list_for_each_entry(ha2, &from_list->list, list) {
-		if (ha2 == ha)
-			break;
-		type = addr_type ? addr_type : ha2->type;
-		__hw_addr_del(to_list, ha2->addr, addr_len, type);
-	}
-	return err;
-}
-
-static void __hw_addr_del_multiple(struct netdev_hw_addr_list *to_list,
-				   struct netdev_hw_addr_list *from_list,
-				   int addr_len,
-				   unsigned char addr_type)
-{
-	struct netdev_hw_addr *ha;
-	unsigned char type;
-
-	list_for_each_entry(ha, &from_list->list, list) {
-		type = addr_type ? addr_type : ha->type;
-		__hw_addr_del(to_list, ha->addr, addr_len, addr_type);
-	}
-}
-
-static int __hw_addr_sync(struct netdev_hw_addr_list *to_list,
-			  struct netdev_hw_addr_list *from_list,
-			  int addr_len)
-{
-	int err = 0;
-	struct netdev_hw_addr *ha, *tmp;
-
-	list_for_each_entry_safe(ha, tmp, &from_list->list, list) {
-		if (!ha->synced) {
-			err = __hw_addr_add(to_list, ha->addr,
-					    addr_len, ha->type);
-			if (err)
-				break;
-			ha->synced = true;
-			ha->refcount++;
-		} else if (ha->refcount == 1) {
-			__hw_addr_del(to_list, ha->addr, addr_len, ha->type);
-			__hw_addr_del(from_list, ha->addr, addr_len, ha->type);
-		}
-	}
-	return err;
-}
-
-static void __hw_addr_unsync(struct netdev_hw_addr_list *to_list,
-			     struct netdev_hw_addr_list *from_list,
-			     int addr_len)
-{
-	struct netdev_hw_addr *ha, *tmp;
-
-	list_for_each_entry_safe(ha, tmp, &from_list->list, list) {
-		if (ha->synced) {
-			__hw_addr_del(to_list, ha->addr,
-				      addr_len, ha->type);
-			ha->synced = false;
-			__hw_addr_del(from_list, ha->addr,
-				      addr_len, ha->type);
-		}
-	}
-}
-
-static void __hw_addr_flush(struct netdev_hw_addr_list *list)
-{
-	struct netdev_hw_addr *ha, *tmp;
-
-	list_for_each_entry_safe(ha, tmp, &list->list, list) {
-		list_del_rcu(&ha->list);
-		call_rcu(&ha->rcu_head, ha_rcu_free);
-	}
-	list->count = 0;
-}
-
-static void __hw_addr_init(struct netdev_hw_addr_list *list)
-{
-	INIT_LIST_HEAD(&list->list);
-	list->count = 0;
-}
-
-/* Device addresses handling functions */
-
-static void dev_addr_flush(struct net_device *dev)
-{
-	/* rtnl_mutex must be held here */
-
-	__hw_addr_flush(&dev->dev_addrs);
-	dev->dev_addr = NULL;
-}
-
-static int dev_addr_init(struct net_device *dev)
-{
-	unsigned char addr[MAX_ADDR_LEN];
-	struct netdev_hw_addr *ha;
-	int err;
-
-	/* rtnl_mutex must be held here */
-
-	__hw_addr_init(&dev->dev_addrs);
-	memset(addr, 0, sizeof(addr));
-	err = __hw_addr_add(&dev->dev_addrs, addr, sizeof(addr),
-			    NETDEV_HW_ADDR_T_LAN);
-	if (!err) {
-		/*
-		 * Get the first (previously created) address from the list
-		 * and set dev_addr pointer to this location.
-		 */
-		ha = list_first_entry(&dev->dev_addrs.list,
-				      struct netdev_hw_addr, list);
-		dev->dev_addr = ha->addr;
-	}
-	return err;
-}
-
-/**
- *	dev_addr_add	- Add a device address
- *	@dev: device
- *	@addr: address to add
- *	@addr_type: address type
- *
- *	Add a device address to the device or increase the reference count if
- *	it already exists.
- *
- *	The caller must hold the rtnl_mutex.
- */
-int dev_addr_add(struct net_device *dev, unsigned char *addr,
-		 unsigned char addr_type)
-{
-	int err;
-
-	ASSERT_RTNL();
-
-	err = __hw_addr_add(&dev->dev_addrs, addr, dev->addr_len, addr_type);
-	if (!err)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
-	return err;
-}
-EXPORT_SYMBOL(dev_addr_add);
-
-/**
- *	dev_addr_del	- Release a device address.
- *	@dev: device
- *	@addr: address to delete
- *	@addr_type: address type
- *
- *	Release reference to a device address and remove it from the device
- *	if the reference count drops to zero.
- *
- *	The caller must hold the rtnl_mutex.
- */
-int dev_addr_del(struct net_device *dev, unsigned char *addr,
-		 unsigned char addr_type)
-{
-	int err;
-	struct netdev_hw_addr *ha;
-
-	ASSERT_RTNL();
-
-	/*
-	 * We can not remove the first address from the list because
-	 * dev->dev_addr points to that.
-	 */
-	ha = list_first_entry(&dev->dev_addrs.list,
-			      struct netdev_hw_addr, list);
-	if (ha->addr == dev->dev_addr && ha->refcount == 1)
-		return -ENOENT;
-
-	err = __hw_addr_del(&dev->dev_addrs, addr, dev->addr_len,
-			    addr_type);
-	if (!err)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
-	return err;
-}
-EXPORT_SYMBOL(dev_addr_del);
-
-/**
- *	dev_addr_add_multiple	- Add device addresses from another device
- *	@to_dev: device to which addresses will be added
- *	@from_dev: device from which addresses will be added
- *	@addr_type: address type - 0 means type will be used from from_dev
- *
- *	Add device addresses of the one device to another.
- **
- *	The caller must hold the rtnl_mutex.
- */
-int dev_addr_add_multiple(struct net_device *to_dev,
-			  struct net_device *from_dev,
-			  unsigned char addr_type)
-{
-	int err;
-
-	ASSERT_RTNL();
-
-	if (from_dev->addr_len != to_dev->addr_len)
-		return -EINVAL;
-	err = __hw_addr_add_multiple(&to_dev->dev_addrs, &from_dev->dev_addrs,
-				     to_dev->addr_len, addr_type);
-	if (!err)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, to_dev);
-	return err;
-}
-EXPORT_SYMBOL(dev_addr_add_multiple);
-
-/**
- *	dev_addr_del_multiple	- Delete device addresses by another device
- *	@to_dev: device where the addresses will be deleted
- *	@from_dev: device by which addresses the addresses will be deleted
- *	@addr_type: address type - 0 means type will used from from_dev
- *
- *	Deletes addresses in to device by the list of addresses in from device.
- *
- *	The caller must hold the rtnl_mutex.
- */
-int dev_addr_del_multiple(struct net_device *to_dev,
-			  struct net_device *from_dev,
-			  unsigned char addr_type)
-{
-	ASSERT_RTNL();
-
-	if (from_dev->addr_len != to_dev->addr_len)
-		return -EINVAL;
-	__hw_addr_del_multiple(&to_dev->dev_addrs, &from_dev->dev_addrs,
-			       to_dev->addr_len, addr_type);
-	call_netdevice_notifiers(NETDEV_CHANGEADDR, to_dev);
-	return 0;
-}
-EXPORT_SYMBOL(dev_addr_del_multiple);
-
-/* multicast addresses handling functions */
-
-int __dev_addr_delete(struct dev_addr_list **list, int *count,
-		      void *addr, int alen, int glbl)
-{
-	struct dev_addr_list *da;
-
-	for (; (da = *list) != NULL; list = &da->next) {
-		if (memcmp(da->da_addr, addr, da->da_addrlen) == 0 &&
-		    alen == da->da_addrlen) {
-			if (glbl) {
-				int old_glbl = da->da_gusers;
-				da->da_gusers = 0;
-				if (old_glbl == 0)
-					break;
-			}
-			if (--da->da_users)
-				return 0;
-
-			*list = da->next;
-			kfree(da);
-			(*count)--;
-			return 0;
-		}
-	}
-	return -ENOENT;
-}
-
-int __dev_addr_add(struct dev_addr_list **list, int *count,
-		   void *addr, int alen, int glbl)
-{
-	struct dev_addr_list *da;
-
-	for (da = *list; da != NULL; da = da->next) {
-		if (memcmp(da->da_addr, addr, da->da_addrlen) == 0 &&
-		    da->da_addrlen == alen) {
-			if (glbl) {
-				int old_glbl = da->da_gusers;
-				da->da_gusers = 1;
-				if (old_glbl)
-					return 0;
-			}
-			da->da_users++;
-			return 0;
-		}
-	}
-
-	da = kzalloc(sizeof(*da), GFP_ATOMIC);
-	if (da == NULL)
-		return -ENOMEM;
-	memcpy(da->da_addr, addr, alen);
-	da->da_addrlen = alen;
-	da->da_users = 1;
-	da->da_gusers = glbl ? 1 : 0;
-	da->next = *list;
-	*list = da;
-	(*count)++;
-	return 0;
-}
-
-/**
- *	dev_unicast_delete	- Release secondary unicast address.
- *	@dev: device
- *	@addr: address to delete
- *
- *	Release reference to a secondary unicast address and remove it
- *	from the device if the reference count drops to zero.
- *
- * 	The caller must hold the rtnl_mutex.
- */
-int dev_unicast_delete(struct net_device *dev, void *addr)
-{
-	int err;
-
-	ASSERT_RTNL();
-
-	netif_addr_lock_bh(dev);
-	err = __hw_addr_del(&dev->uc, addr, dev->addr_len,
-			    NETDEV_HW_ADDR_T_UNICAST);
-	if (!err)
-		__dev_set_rx_mode(dev);
-	netif_addr_unlock_bh(dev);
-	return err;
-}
-EXPORT_SYMBOL(dev_unicast_delete);
-
-/**
- *	dev_unicast_add		- add a secondary unicast address
- *	@dev: device
- *	@addr: address to add
- *
- *	Add a secondary unicast address to the device or increase
- *	the reference count if it already exists.
- *
- *	The caller must hold the rtnl_mutex.
- */
-int dev_unicast_add(struct net_device *dev, void *addr)
-{
-	int err;
-
-	ASSERT_RTNL();
-
-	netif_addr_lock_bh(dev);
-	err = __hw_addr_add(&dev->uc, addr, dev->addr_len,
-			    NETDEV_HW_ADDR_T_UNICAST);
-	if (!err)
-		__dev_set_rx_mode(dev);
-	netif_addr_unlock_bh(dev);
-	return err;
-}
-EXPORT_SYMBOL(dev_unicast_add);
-
-int __dev_addr_sync(struct dev_addr_list **to, int *to_count,
-		    struct dev_addr_list **from, int *from_count)
-{
-	struct dev_addr_list *da, *next;
-	int err = 0;
-
-	da = *from;
-	while (da != NULL) {
-		next = da->next;
-		if (!da->da_synced) {
-			err = __dev_addr_add(to, to_count,
-					     da->da_addr, da->da_addrlen, 0);
-			if (err < 0)
-				break;
-			da->da_synced = 1;
-			da->da_users++;
-		} else if (da->da_users == 1) {
-			__dev_addr_delete(to, to_count,
-					  da->da_addr, da->da_addrlen, 0);
-			__dev_addr_delete(from, from_count,
-					  da->da_addr, da->da_addrlen, 0);
-		}
-		da = next;
-	}
-	return err;
-}
-EXPORT_SYMBOL_GPL(__dev_addr_sync);
-
-void __dev_addr_unsync(struct dev_addr_list **to, int *to_count,
-		       struct dev_addr_list **from, int *from_count)
-{
-	struct dev_addr_list *da, *next;
-
-	da = *from;
-	while (da != NULL) {
-		next = da->next;
-		if (da->da_synced) {
-			__dev_addr_delete(to, to_count,
-					  da->da_addr, da->da_addrlen, 0);
-			da->da_synced = 0;
-			__dev_addr_delete(from, from_count,
-					  da->da_addr, da->da_addrlen, 0);
-		}
-		da = next;
-	}
-}
-EXPORT_SYMBOL_GPL(__dev_addr_unsync);
-
-/**
- *	dev_unicast_sync - Synchronize device's unicast list to another device
- *	@to: destination device
- *	@from: source device
- *
- *	Add newly added addresses to the destination device and release
- *	addresses that have no users left. The source device must be
- *	locked by netif_tx_lock_bh.
- *
- *	This function is intended to be called from the dev->set_rx_mode
- *	function of layered software devices.
- */
-int dev_unicast_sync(struct net_device *to, struct net_device *from)
-{
-	int err = 0;
-
-	if (to->addr_len != from->addr_len)
-		return -EINVAL;
-
-	netif_addr_lock_bh(to);
-	err = __hw_addr_sync(&to->uc, &from->uc, to->addr_len);
-	if (!err)
-		__dev_set_rx_mode(to);
-	netif_addr_unlock_bh(to);
-	return err;
-}
-EXPORT_SYMBOL(dev_unicast_sync);
-
-/**
- *	dev_unicast_unsync - Remove synchronized addresses from the destination device
- *	@to: destination device
- *	@from: source device
- *
- *	Remove all addresses that were added to the destination device by
- *	dev_unicast_sync(). This function is intended to be called from the
- *	dev->stop function of layered software devices.
- */
-void dev_unicast_unsync(struct net_device *to, struct net_device *from)
-{
-	if (to->addr_len != from->addr_len)
-		return;
-
-	netif_addr_lock_bh(from);
-	netif_addr_lock(to);
-	__hw_addr_unsync(&to->uc, &from->uc, to->addr_len);
-	__dev_set_rx_mode(to);
-	netif_addr_unlock(to);
-	netif_addr_unlock_bh(from);
-}
-EXPORT_SYMBOL(dev_unicast_unsync);
-
-static void dev_unicast_flush(struct net_device *dev)
-{
-	netif_addr_lock_bh(dev);
-	__hw_addr_flush(&dev->uc);
-	netif_addr_unlock_bh(dev);
-}
-
-static void dev_unicast_init(struct net_device *dev)
-{
-	__hw_addr_init(&dev->uc);
-}
-
-
-static void __dev_addr_discard(struct dev_addr_list **list)
-{
-	struct dev_addr_list *tmp;
-
-	while (*list != NULL) {
-		tmp = *list;
-		*list = tmp->next;
-		if (tmp->da_users > tmp->da_gusers)
-			printk("__dev_addr_discard: address leakage! "
-			       "da_users=%d\n", tmp->da_users);
-		kfree(tmp);
-	}
-}
-
-static void dev_addr_discard(struct net_device *dev)
-{
-	netif_addr_lock_bh(dev);
-
-	__dev_addr_discard(&dev->mc_list);
-	netdev_mc_count(dev) = 0;
-
 	netif_addr_unlock_bh(dev);
 }
 
@@ -4780,8 +4409,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 			return -EINVAL;
 		if (!netif_device_present(dev))
 			return -ENODEV;
-		return dev_mc_add(dev, ifr->ifr_hwaddr.sa_data,
-				  dev->addr_len, 1);
+		return dev_mc_add_global(dev, ifr->ifr_hwaddr.sa_data);
 
 	case SIOCDELMULTI:
 		if ((!ops->ndo_set_multicast_list && !ops->ndo_set_rx_mode) ||
@@ -4789,8 +4417,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 			return -EINVAL;
 		if (!netif_device_present(dev))
 			return -ENODEV;
-		return dev_mc_delete(dev, ifr->ifr_hwaddr.sa_data,
-				     dev->addr_len, 1);
+		return dev_mc_del_global(dev, ifr->ifr_hwaddr.sa_data);
 
 	case SIOCSIFTXQLEN:
 		if (ifr->ifr_qlen < 0)
@@ -5097,8 +4724,8 @@ static void rollback_registered_many(struct list_head *head)
 		/*
 		 *	Flush the unicast and multicast chains
 		 */
-		dev_unicast_flush(dev);
-		dev_addr_discard(dev);
+		dev_uc_flush(dev);
+		dev_mc_flush(dev);
 
 		if (dev->netdev_ops->ndo_uninit)
 			dev->netdev_ops->ndo_uninit(dev);
@@ -5247,6 +4874,7 @@ int register_netdevice(struct net_device *dev)
 
 	dev->iflink = -1;
 
+#ifdef CONFIG_RPS
 	if (!dev->num_rx_queues) {
 		/*
 		 * Allocate a single RX queue if driver never called
@@ -5263,7 +4891,7 @@ int register_netdevice(struct net_device *dev)
 		atomic_set(&dev->_rx->count, 1);
 		dev->num_rx_queues = 1;
 	}
-
+#endif
 	/* Init, if this function is available */
 	if (dev->netdev_ops->ndo_init) {
 		ret = dev->netdev_ops->ndo_init(dev);
@@ -5621,11 +5249,13 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		void (*setup)(struct net_device *), unsigned int queue_count)
 {
 	struct netdev_queue *tx;
-	struct netdev_rx_queue *rx;
 	struct net_device *dev;
 	size_t alloc_size;
 	struct net_device *p;
+#ifdef CONFIG_RPS
+	struct netdev_rx_queue *rx;
 	int i;
+#endif
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
@@ -5651,6 +5281,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		goto free_p;
 	}
 
+#ifdef CONFIG_RPS
 	rx = kcalloc(queue_count, sizeof(struct netdev_rx_queue), GFP_KERNEL);
 	if (!rx) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
@@ -5666,6 +5297,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	 */
 	for (i = 0; i < queue_count; i++)
 		rx[i].first = rx;
+#endif
 
 	dev = PTR_ALIGN(p, NETDEV_ALIGN);
 	dev->padded = (char *)dev - (char *)p;
@@ -5673,7 +5305,8 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	if (dev_addr_init(dev))
 		goto free_rx;
 
-	dev_unicast_init(dev);
+	dev_mc_init(dev);
+	dev_uc_init(dev);
 
 	dev_net_set(dev, &init_net);
 
@@ -5681,8 +5314,10 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	dev->num_tx_queues = queue_count;
 	dev->real_num_tx_queues = queue_count;
 
+#ifdef CONFIG_RPS
 	dev->_rx = rx;
 	dev->num_rx_queues = queue_count;
+#endif
 
 	dev->gso_max_size = GSO_MAX_SIZE;
 
@@ -5699,8 +5334,10 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	return dev;
 
 free_rx:
+#ifdef CONFIG_RPS
 	kfree(rx);
 free_tx:
+#endif
 	kfree(tx);
 free_p:
 	kfree(p);
@@ -5903,8 +5540,8 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	/*
 	 *	Flush the unicast and multicast chains
 	 */
-	dev_unicast_flush(dev);
-	dev_addr_discard(dev);
+	dev_uc_flush(dev);
+	dev_mc_flush(dev);
 
 	netdev_unregister_kobject(dev);
 
@@ -5980,8 +5617,10 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 	local_irq_enable();
 
 	/* Process offline CPU's input_pkt_queue */
-	while ((skb = __skb_dequeue(&oldsd->input_pkt_queue)))
+	while ((skb = __skb_dequeue(&oldsd->input_pkt_queue))) {
 		netif_rx(skb);
+		input_queue_head_incr(oldsd);
+	}
 
 	return NOTIFY_OK;
 }
@@ -6197,21 +5836,23 @@ static int __init net_dev_init(void)
 	 */
 
 	for_each_possible_cpu(i) {
-		struct softnet_data *queue;
+		struct softnet_data *sd = &per_cpu(softnet_data, i);
 
-		queue = &per_cpu(softnet_data, i);
-		skb_queue_head_init(&queue->input_pkt_queue);
-		queue->completion_queue = NULL;
-		INIT_LIST_HEAD(&queue->poll_list);
+		skb_queue_head_init(&sd->input_pkt_queue);
+		sd->completion_queue = NULL;
+		INIT_LIST_HEAD(&sd->poll_list);
 
-		queue->csd.func = trigger_softirq;
-		queue->csd.info = queue;
-		queue->csd.flags = 0;
+#ifdef CONFIG_RPS
+		sd->csd.func = rps_trigger_softirq;
+		sd->csd.info = sd;
+		sd->csd.flags = 0;
+		sd->cpu = i;
+#endif
 
-		queue->backlog.poll = process_backlog;
-		queue->backlog.weight = weight_p;
-		queue->backlog.gro_list = NULL;
-		queue->backlog.gro_count = 0;
+		sd->backlog.poll = process_backlog;
+		sd->backlog.weight = weight_p;
+		sd->backlog.gro_list = NULL;
+		sd->backlog.gro_count = 0;
 	}
 
 	dev_boot_phase = 0;

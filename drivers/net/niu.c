@@ -25,6 +25,7 @@
 #include <linux/jiffies.h>
 #include <linux/crc32.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <linux/io.h>
 
@@ -6313,7 +6314,6 @@ static void niu_set_rx_mode(struct net_device *dev)
 {
 	struct niu *np = netdev_priv(dev);
 	int i, alt_cnt, err;
-	struct dev_addr_list *addr;
 	struct netdev_hw_addr *ha;
 	unsigned long flags;
 	u16 hash[16] = { 0, };
@@ -6365,8 +6365,8 @@ static void niu_set_rx_mode(struct net_device *dev)
 		for (i = 0; i < 16; i++)
 			hash[i] = 0xffff;
 	} else if (!netdev_mc_empty(dev)) {
-		netdev_for_each_mc_addr(addr, dev) {
-			u32 crc = ether_crc_le(ETH_ALEN, addr->da_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			u32 crc = ether_crc_le(ETH_ALEN, ha->addr);
 
 			crc >>= 24;
 			hash[crc >> 4] |= (1 << (15 - (crc & 0xf)));

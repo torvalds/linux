@@ -36,6 +36,7 @@ struct lbs_private {
 
 	/* CFG80211 */
 	struct wireless_dev *wdev;
+	bool wiphy_registered;
 
 	/* Mesh */
 	struct net_device *mesh_dev; /* Virtual device */
@@ -133,6 +134,7 @@ struct lbs_private {
 	u8 wpa_ie_len;
 	u16 wep_tx_keyidx;
 	struct enc_key wep_keys[4];
+	u8 authtype_auto;
 
 	/* Wake On LAN */
 	uint32_t wol_criteria;

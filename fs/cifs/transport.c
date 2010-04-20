@@ -22,6 +22,7 @@
 
 #include <linux/fs.h>
 #include <linux/list.h>
+#include <linux/gfp.h>
 #include <linux/wait.h>
 #include <linux/net.h>
 #include <linux/delay.h>

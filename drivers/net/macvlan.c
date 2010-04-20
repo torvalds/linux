@@ -282,7 +282,7 @@ static int macvlan_open(struct net_device *dev)
 	if (macvlan_addr_busy(vlan->port, dev->dev_addr))
 		goto out;
 
-	err = dev_unicast_add(lowerdev, dev->dev_addr);
+	err = dev_uc_add(lowerdev, dev->dev_addr);
 	if (err < 0)
 		goto out;
 	if (dev->flags & IFF_ALLMULTI) {
@@ -294,7 +294,7 @@ static int macvlan_open(struct net_device *dev)
 	return 0;
 
 del_unicast:
-	dev_unicast_delete(lowerdev, dev->dev_addr);
+	dev_uc_del(lowerdev, dev->dev_addr);
 out:
 	return err;
 }
@@ -308,7 +308,7 @@ static int macvlan_stop(struct net_device *dev)
 	if (dev->flags & IFF_ALLMULTI)
 		dev_set_allmulti(lowerdev, -1);
 
-	dev_unicast_delete(lowerdev, dev->dev_addr);
+	dev_uc_del(lowerdev, dev->dev_addr);
 
 	macvlan_hash_del(vlan);
 	return 0;
@@ -332,11 +332,11 @@ static int macvlan_set_mac_address(struct net_device *dev, void *p)
 		if (macvlan_addr_busy(vlan->port, addr->sa_data))
 			return -EBUSY;
 
-		err = dev_unicast_add(lowerdev, addr->sa_data);
+		err = dev_uc_add(lowerdev, addr->sa_data);
 		if (err)
 			return err;
 
-		dev_unicast_delete(lowerdev, dev->dev_addr);
+		dev_uc_del(lowerdev, dev->dev_addr);
 
 		macvlan_hash_change_addr(vlan, addr->sa_data);
 	}
@@ -748,6 +748,9 @@ static int macvlan_device_event(struct notifier_block *unused,
 		list_for_each_entry_safe(vlan, next, &port->vlans, list)
 			vlan->dev->rtnl_link_ops->dellink(vlan->dev, NULL);
 		break;
+	case NETDEV_PRE_TYPE_CHANGE:
+		/* Forbid underlaying device to change its type. */
+		return NOTIFY_BAD;
 	}
 	return NOTIFY_DONE;
 }

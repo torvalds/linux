@@ -60,7 +60,6 @@
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
 

@@ -35,6 +35,7 @@
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/device.h>
@@ -168,7 +169,7 @@ static void mlx4_en_clear_list(struct net_device *dev)
 static void mlx4_en_cache_mclist(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	char *mc_addrs;
 	int mc_addrs_cnt = netdev_mc_count(dev);
 	int i;
@@ -179,8 +180,8 @@ static void mlx4_en_cache_mclist(struct net_device *dev)
 		return;
 	}
 	i = 0;
-	netdev_for_each_mc_addr(mclist, dev)
-		memcpy(mc_addrs + i++ * ETH_ALEN, mclist->dmi_addr, ETH_ALEN);
+	netdev_for_each_mc_addr(ha, dev)
+		memcpy(mc_addrs + i++ * ETH_ALEN, ha->addr, ETH_ALEN);
 	priv->mc_addrs = mc_addrs;
 	priv->mc_addrs_cnt = mc_addrs_cnt;
 }
@@ -503,7 +504,7 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 
 	err = mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 0);
 	if (err)
-		en_dbg(HW, priv, "Could not update stats \n");
+		en_dbg(HW, priv, "Could not update stats\n");
 
 	mutex_lock(&mdev->state_lock);
 	if (mdev->device_up) {

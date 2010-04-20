@@ -548,8 +548,6 @@ static int xs_udp_send_request(struct rpc_task *task)
 		/* Still some bytes left; set up for a retry later. */
 		status = -EAGAIN;
 	}
-	if (!transport->sock)
-		goto out;
 
 	switch (status) {
 	case -ENOTSOCK:
@@ -569,7 +567,7 @@ static int xs_udp_send_request(struct rpc_task *task)
 		 * prompts ECONNREFUSED. */
 		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
 	}
-out:
+
 	return status;
 }
 
@@ -651,8 +649,6 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		status = -EAGAIN;
 		break;
 	}
-	if (!transport->sock)
-		goto out;
 
 	switch (status) {
 	case -ENOTSOCK:
@@ -672,7 +668,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	case -ENOTCONN:
 		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
 	}
-out:
+
 	return status;
 }
 
@@ -2255,9 +2251,6 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.buf_free		= rpc_free,
 	.send_request		= xs_tcp_send_request,
 	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
-#if defined(CONFIG_NFS_V4_1)
-	.release_request	= bc_release_request,
-#endif /* CONFIG_NFS_V4_1 */
 	.close			= xs_tcp_close,
 	.destroy		= xs_destroy,
 	.print_stats		= xs_tcp_print_stats,

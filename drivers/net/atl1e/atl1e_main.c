@@ -284,7 +284,7 @@ static void atl1e_set_multi(struct net_device *netdev)
 {
 	struct atl1e_adapter *adapter = netdev_priv(netdev);
 	struct atl1e_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u32 mac_ctrl_data = 0;
 	u32 hash_value;
 
@@ -307,8 +307,8 @@ static void atl1e_set_multi(struct net_device *netdev)
 	AT_WRITE_REG_ARRAY(hw, REG_RX_HASH_TABLE, 1, 0);
 
 	/* comoute mc addresses' hash value ,and put it into hash table */
-	netdev_for_each_mc_addr(mc_ptr, netdev) {
-		hash_value = atl1e_hash_mc_addr(hw, mc_ptr->dmi_addr);
+	netdev_for_each_mc_addr(ha, netdev) {
+		hash_value = atl1e_hash_mc_addr(hw, ha->addr);
 		atl1e_hash_set(hw, hash_value);
 	}
 }
@@ -1428,7 +1428,6 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 					    "Memory squeeze, deferring packet\n");
 				goto skip_pkt;
 			}
-			skb->dev = netdev;
 			memcpy(skb->data, (u8 *)(prrs + 1), packet_size);
 			skb_put(skb, packet_size);
 			skb->protocol = eth_type_trans(skb, netdev);
@@ -1680,7 +1679,7 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 {
 	struct atl1e_tpd_desc *use_tpd = NULL;
 	struct atl1e_tx_buffer *tx_buffer = NULL;
-	u16 buf_len = skb->len - skb->data_len;
+	u16 buf_len = skb_headlen(skb);
 	u16 map_len = 0;
 	u16 mapped_len = 0;
 	u16 hdr_len = 0;

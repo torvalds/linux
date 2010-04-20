@@ -38,6 +38,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
@@ -235,7 +236,7 @@ static void __ar9170_dump_txqueue(struct ar9170 *ar,
 	       wiphy_name(ar->hw->wiphy), skb_queue_len(queue));
 
 	skb_queue_walk(queue, skb) {
-		printk(KERN_DEBUG "index:%d => \n", i++);
+		printk(KERN_DEBUG "index:%d =>\n", i++);
 		ar9170_print_txheader(ar, skb);
 	}
 	if (i != skb_queue_len(queue))
@@ -280,7 +281,7 @@ static void ar9170_dump_tx_status_ampdu(struct ar9170 *ar)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ar->tx_status_ampdu.lock, flags);
-	printk(KERN_DEBUG "%s: A-MPDU tx_status queue => \n",
+	printk(KERN_DEBUG "%s: A-MPDU tx_status queue =>\n",
 	       wiphy_name(ar->hw->wiphy));
 	__ar9170_dump_txqueue(ar, &ar->tx_status_ampdu);
 	spin_unlock_irqrestore(&ar->tx_status_ampdu.lock, flags);
@@ -307,7 +308,7 @@ static void ar9170_recycle_expired(struct ar9170 *ar,
 		if (time_is_before_jiffies(arinfo->timeout)) {
 #ifdef AR9170_QUEUE_DEBUG
 			printk(KERN_DEBUG "%s: [%ld > %ld] frame expired => "
-			       "recycle \n", wiphy_name(ar->hw->wiphy),
+			       "recycle\n", wiphy_name(ar->hw->wiphy),
 			       jiffies, arinfo->timeout);
 			ar9170_print_txheader(ar, skb);
 #endif /* AR9170_QUEUE_DEBUG */
@@ -688,7 +689,8 @@ void ar9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 
 	/* firmware debug */
 	case 0xca:
-		printk(KERN_DEBUG "ar9170 FW: %.*s\n", len - 4, (char *)buf + 4);
+		printk(KERN_DEBUG "ar9170 FW: %.*s\n", len - 4,
+				(char *)buf + 4);
 		break;
 	case 0xcb:
 		len -= 4;
@@ -1727,7 +1729,7 @@ static void ar9170_tx(struct ar9170 *ar)
 			printk(KERN_DEBUG "%s: queue %d full\n",
 			       wiphy_name(ar->hw->wiphy), i);
 
-			printk(KERN_DEBUG "%s: stuck frames: ===> \n",
+			printk(KERN_DEBUG "%s: stuck frames: ===>\n",
 			       wiphy_name(ar->hw->wiphy));
 			ar9170_dump_txqueue(ar, &ar->tx_pending[i]);
 			ar9170_dump_txqueue(ar, &ar->tx_status[i]);
@@ -2045,21 +2047,17 @@ out:
 	return err;
 }
 
-static u64 ar9170_op_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
-				       struct dev_addr_list *mclist)
+static u64 ar9170_op_prepare_multicast(struct ieee80211_hw *hw,
+				       struct netdev_hw_addr_list *mc_list)
 {
 	u64 mchash;
-	int i;
+	struct netdev_hw_addr *ha;
 
 	/* always get broadcast frames */
 	mchash = 1ULL << (0xff >> 2);
 
-	for (i = 0; i < mc_count; i++) {
-		if (WARN_ON(!mclist))
-			break;
-		mchash |= 1ULL << (mclist->dmi_addr[5] >> 2);
-		mclist = mclist->next;
-	}
+	netdev_hw_addr_list_for_each(ha, mc_list)
+		mchash |= 1ULL << (ha->addr[5] >> 2);
 
 	return mchash;
 }
@@ -2515,7 +2513,7 @@ void *ar9170_alloc(size_t priv_size)
 	 * tends to split the streams into separate rx descriptors.
 	 */
 
-	skb = __dev_alloc_skb(AR9170_MAX_RX_BUFFER_SIZE, GFP_KERNEL);
+	skb = __dev_alloc_skb(AR9170_RX_STREAM_MAX_SIZE, GFP_KERNEL);
 	if (!skb)
 		goto err_nomem;
 

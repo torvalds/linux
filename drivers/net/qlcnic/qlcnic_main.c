@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 
@@ -649,7 +650,10 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 	if (err)
 		return err;
 
-	if (!qlcnic_can_start_firmware(adapter))
+	err = qlcnic_can_start_firmware(adapter);
+	if (err < 0)
+		return err;
+	else if (!err)
 		goto wait_init;
 
 	first_boot = QLCRD32(adapter, QLCNIC_CAM_RAM(0x1fc));
@@ -949,11 +953,11 @@ void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings)
 	adapter->max_sds_rings = max_sds_rings;
 
 	if (qlcnic_attach(adapter))
-		return;
+		goto out;
 
 	if (netif_running(netdev))
 		__qlcnic_up(adapter, netdev);
-
+out:
 	netif_device_attach(netdev);
 }
 
@@ -975,8 +979,10 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	adapter->diag_test = test;
 
 	ret = qlcnic_attach(adapter);
-	if (ret)
+	if (ret) {
+		netif_device_attach(netdev);
 		return ret;
+	}
 
 	if (adapter->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
@@ -1009,16 +1015,12 @@ qlcnic_reset_context(struct qlcnic_adapter *adapter)
 		if (netif_running(netdev)) {
 			err = qlcnic_attach(adapter);
 			if (!err)
-				err = __qlcnic_up(adapter, netdev);
-
-			if (err)
-				goto done;
+				__qlcnic_up(adapter, netdev);
 		}
 
 		netif_device_attach(netdev);
 	}
 
-done:
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return err;
 }
@@ -1138,6 +1140,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_iounmap;
 	}
 
+	qlcnic_setup_idc_param(adapter);
 
 	err = qlcnic_start_firmware(adapter);
 	if (err)
@@ -1333,6 +1336,7 @@ err_out_detach:
 	qlcnic_detach(adapter);
 err_out:
 	qlcnic_clr_all_drv_state(adapter);
+	netif_device_attach(netdev);
 	return err;
 }
 #endif
@@ -1738,6 +1742,7 @@ static void qlcnic_tx_timeout_task(struct work_struct *work)
 request_reset:
 	adapter->need_fw_reset = 1;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	QLCDB(adapter, DRV, "Resetting adapter\n");
 }
 
 static struct net_device_stats *qlcnic_get_stats(struct net_device *netdev)
@@ -2027,7 +2032,7 @@ static int
 qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 {
 	u32 val, prev_state;
-	int cnt = 0;
+	u8 dev_init_timeo = adapter->dev_init_timeo;
 	int portnum = adapter->portnum;
 
 	if (qlcnic_api_lock(adapter))
@@ -2042,6 +2047,7 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 	}
 
 	prev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
+	QLCDB(adapter, HW, "Device state = %u\n", prev_state);
 
 	switch (prev_state) {
 	case QLCNIC_DEV_COLD:
@@ -2072,13 +2078,17 @@ start_fw:
 	}
 
 	qlcnic_api_unlock(adapter);
-	msleep(1000);
-	while ((QLCRD32(adapter, QLCNIC_CRB_DEV_STATE) != QLCNIC_DEV_READY) &&
-			++cnt < 20)
-		msleep(1000);
 
-	if (cnt >= 20)
+	do {
+		msleep(1000);
+	} while ((QLCRD32(adapter, QLCNIC_CRB_DEV_STATE) != QLCNIC_DEV_READY)
+			&& --dev_init_timeo);
+
+	if (!dev_init_timeo) {
+		dev_err(&adapter->pdev->dev,
+			"Waiting for device to initialize timeout\n");
 		return -1;
+	}
 
 	if (qlcnic_api_lock(adapter))
 		return -1;
@@ -2099,17 +2109,16 @@ qlcnic_fwinit_work(struct work_struct *work)
 			struct qlcnic_adapter, fw_work.work);
 	int dev_state;
 
-	if (++adapter->fw_wait_cnt > FW_POLL_THRESH)
-		goto err_ret;
-
 	if (test_bit(__QLCNIC_START_FW, &adapter->state)) {
 
-		if (qlcnic_check_drv_state(adapter)) {
+		if (qlcnic_check_drv_state(adapter) &&
+			(adapter->fw_wait_cnt++ < adapter->reset_ack_timeo)) {
 			qlcnic_schedule_work(adapter,
 					qlcnic_fwinit_work, FW_POLL_DELAY);
 			return;
 		}
 
+		QLCDB(adapter, DRV, "Resetting FW\n");
 		if (!qlcnic_start_firmware(adapter)) {
 			qlcnic_schedule_work(adapter, qlcnic_attach_work, 0);
 			return;
@@ -2118,7 +2127,15 @@ qlcnic_fwinit_work(struct work_struct *work)
 		goto err_ret;
 	}
 
+	if (adapter->fw_wait_cnt++ > (adapter->dev_init_timeo / 2)) {
+		dev_err(&adapter->pdev->dev,
+				"Waiting for device to reset timeout\n");
+		goto err_ret;
+	}
+
 	dev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
+	QLCDB(adapter, HW, "Func waiting: Device state=%d\n", dev_state);
+
 	switch (dev_state) {
 	case QLCNIC_DEV_READY:
 		if (!qlcnic_start_firmware(adapter)) {
@@ -2135,6 +2152,7 @@ qlcnic_fwinit_work(struct work_struct *work)
 	}
 
 err_ret:
+	netif_device_attach(adapter->netdev);
 	qlcnic_clr_all_drv_state(adapter);
 }
 
@@ -2171,6 +2189,9 @@ qlcnic_detach_work(struct work_struct *work)
 	return;
 
 err_ret:
+	dev_err(&adapter->pdev->dev, "detach failed; status=%d temp=%d\n",
+			status, adapter->temp);
+	netif_device_attach(netdev);
 	qlcnic_clr_all_drv_state(adapter);
 
 }
@@ -2188,6 +2209,7 @@ qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 	if (state != QLCNIC_DEV_INITALIZING && state != QLCNIC_DEV_NEED_RESET) {
 		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_NEED_RESET);
 		set_bit(__QLCNIC_START_FW, &adapter->state);
+		QLCDB(adapter, DRV, "NEED_RESET state set\n");
 	}
 
 	qlcnic_api_unlock(adapter);
@@ -2232,9 +2254,8 @@ qlcnic_attach_work(struct work_struct *work)
 		qlcnic_config_indev_addr(netdev, NETDEV_UP);
 	}
 
-	netif_device_attach(netdev);
-
 done:
+	netif_device_attach(netdev);
 	adapter->fw_fail_cnt = 0;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 
@@ -2284,8 +2305,11 @@ detach:
 		QLCNIC_DEV_NEED_RESET;
 
 	if ((auto_fw_reset == AUTO_FW_RESET_ENABLED) &&
-			!test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+		!test_and_set_bit(__QLCNIC_RESETTING, &adapter->state)) {
+
 		qlcnic_schedule_work(adapter, qlcnic_detach_work, 0);
+		QLCDB(adapter, DRV, "fw recovery scheduled.\n");
+	}
 
 	return 1;
 }
@@ -2386,14 +2410,21 @@ static int
 qlcnic_sysfs_validate_crb(struct qlcnic_adapter *adapter,
 		loff_t offset, size_t size)
 {
+	size_t crb_size = 4;
+
 	if (!(adapter->flags & QLCNIC_DIAG_ENABLED))
 		return -EIO;
 
-	if ((size != 4) || (offset & 0x3))
-		return  -EINVAL;
+	if (offset < QLCNIC_PCI_CRBSPACE) {
+		if (ADDR_IN_RANGE(offset, QLCNIC_PCI_CAMQM,
+					QLCNIC_PCI_CAMQM_END))
+			crb_size = 8;
+		else
+			return -EINVAL;
+	}
 
-	if (offset < QLCNIC_PCI_CRBSPACE)
-		return -EINVAL;
+	if ((size != crb_size) || (offset & (crb_size-1)))
+		return  -EINVAL;
 
 	return 0;
 }
@@ -2405,14 +2436,20 @@ qlcnic_sysfs_read_crb(struct kobject *kobj, struct bin_attribute *attr,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	u32 data;
+	u64 qmdata;
 	int ret;
 
 	ret = qlcnic_sysfs_validate_crb(adapter, offset, size);
 	if (ret != 0)
 		return ret;
 
-	data = QLCRD32(adapter, offset);
-	memcpy(buf, &data, size);
+	if (ADDR_IN_RANGE(offset, QLCNIC_PCI_CAMQM, QLCNIC_PCI_CAMQM_END)) {
+		qlcnic_pci_camqm_read_2M(adapter, offset, &qmdata);
+		memcpy(buf, &qmdata, size);
+	} else {
+		data = QLCRD32(adapter, offset);
+		memcpy(buf, &data, size);
+	}
 	return size;
 }
 
@@ -2423,14 +2460,20 @@ qlcnic_sysfs_write_crb(struct kobject *kobj, struct bin_attribute *attr,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	u32 data;
+	u64 qmdata;
 	int ret;
 
 	ret = qlcnic_sysfs_validate_crb(adapter, offset, size);
 	if (ret != 0)
 		return ret;
 
-	memcpy(&data, buf, size);
-	QLCWR32(adapter, offset, data);
+	if (ADDR_IN_RANGE(offset, QLCNIC_PCI_CAMQM, QLCNIC_PCI_CAMQM_END)) {
+		memcpy(&qmdata, buf, size);
+		qlcnic_pci_camqm_write_2M(adapter, offset, qmdata);
+	} else {
+		memcpy(&data, buf, size);
+		QLCWR32(adapter, offset, data);
+	}
 	return size;
 }
 

@@ -53,6 +53,7 @@
 #include <linux/root_dev.h>
 #include <linux/delay.h>
 #include <linux/nfs_fs.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/arp.h>
 #include <net/ip.h>
@@ -975,7 +976,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	/* Is it a reply for the device we are configuring? */
 	if (b->xid != ic_dev_xid) {
 		if (net_ratelimit())
-			printk(KERN_ERR "DHCP/BOOTP: Ignoring delayed packet \n");
+			printk(KERN_ERR "DHCP/BOOTP: Ignoring delayed packet\n");
 		goto drop_unlock;
 	}
 

@@ -3419,7 +3419,7 @@ static void wv_82586_config(struct net_device * dev)
 	ac_cfg_t cfg;		/* Configure action */
 	ac_ias_t ias;		/* IA-setup action */
 	ac_mcs_t mcs;		/* Multicast setup */
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 
 #ifdef DEBUG_CONFIG_TRACE
 	printk(KERN_DEBUG "%s: ->wv_82586_config()\n", dev->name);
@@ -3531,16 +3531,16 @@ static void wv_82586_config(struct net_device * dev)
 
 	/* Any address to set? */
 	if (lp->mc_count) {
-		netdev_for_each_mc_addr(dmi, dev)
-			outsw(PIOP1(ioaddr), (u16 *) dmi->dmi_addr,
+		netdev_for_each_mc_addr(ha, dev)
+			outsw(PIOP1(ioaddr), (u16 *) ha->addr,
 			      WAVELAN_ADDR_SIZE >> 1);
 
 #ifdef DEBUG_CONFIG_INFO
 		printk(KERN_DEBUG
 		       "%s: wv_82586_config(): set %d multicast addresses:\n",
 		       dev->name, lp->mc_count);
-		netdev_for_each_mc_addr(dmi, dev)
-			printk(KERN_DEBUG " %pM\n", dmi->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			printk(KERN_DEBUG " %pM\n", ha->addr);
 #endif
 	}
 

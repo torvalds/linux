@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 MODULE_AUTHOR("Stephane Chatty <chatty@enac.fr>");
 MODULE_DESCRIPTION("Quanta dual-touch panel");

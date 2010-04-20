@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/netfilter.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/vmalloc.h>
 #include <linux/stddef.h>

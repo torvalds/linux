@@ -87,6 +87,7 @@
 #include <linux/wireless.h>
 #include <linux/nsproxy.h>
 #include <linux/magic.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -619,10 +620,9 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 			put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMP,
 				 sizeof(tv), &tv);
 		} else {
-			struct timespec ts;
-			skb_get_timestampns(skb, &ts);
+			skb_get_timestampns(skb, &ts[0]);
 			put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMPNS,
-				 sizeof(ts), &ts);
+				 sizeof(ts[0]), &ts[0]);
 		}
 	}
 
@@ -2134,6 +2134,10 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 		if (err)
 			break;
 		++datagrams;
+
+		/* MSG_WAITFORONE turns on MSG_DONTWAIT after one packet */
+		if (flags & MSG_WAITFORONE)
+			flags |= MSG_DONTWAIT;
 
 		if (timeout) {
 			ktime_get_ts(timeout);

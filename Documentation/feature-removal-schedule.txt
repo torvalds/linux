@@ -533,6 +533,24 @@ Who:	Eric Miao <eric.y.miao@gmail.com>
 
 ----------------------------
 
+What:	sysfs-class-rfkill state file
+When:	Feb 2014
+Files:	net/rfkill/core.c
+Why: 	Documented as obsolete since Feb 2010. This file is limited to 3
+	states while the rfkill drivers can have 4 states.
+Who: 	anybody or Florian Mickler <florian@mickler.org>
+
+----------------------------
+
+What: 	sysfs-class-rfkill claim file
+When:	Feb 2012
+Files:	net/rfkill/core.c
+Why:	It is not possible to claim an rfkill driver since 2007. This is
+	Documented as obsolete since Feb 2010.
+Who: 	anybody or Florian Mickler <florian@mickler.org>
+
+----------------------------
+
 What:	capifs
 When:	February 2011
 Files:	drivers/isdn/capi/capifs.*
@@ -579,6 +597,27 @@ Why:	Useful in 2003, implementation is a hack.
 	Generally invoked by accident today.
 	Seen as doing more harm than good.
 Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
+What:	iwlwifi 50XX module parameters
+When:	2.6.40
+Why:	The "..50" modules parameters were used to configure 5000 series and
+	up devices; different set of module parameters also available for 4965
+	with same functionalities. Consolidate both set into single place
+	in drivers/net/wireless/iwlwifi/iwl-agn.c
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+
+----------------------------
+
+What:	iwl4965 alias support
+When:	2.6.40
+Why:	Internal alias support has been present in module-init-tools for some
+	time, the MODULE_ALIAS("iwl4965") boilerplate aliases can be removed
+	with no impact.
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 
 ---------------------------
 

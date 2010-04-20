@@ -59,6 +59,7 @@
 #include <linux/init.h>
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -2147,7 +2148,7 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int i;
 	u32 offset = 0;
 	u32 bcnt;
-	u32 size = skb->len-skb->data_len;
+	u32 size = skb_headlen(skb);
 	u32 entries = (size >> NV_TX2_TSO_MAX_SHIFT) + ((size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
 	u32 empty_slots;
 	struct ring_desc* put_tx;
@@ -2268,7 +2269,7 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 	unsigned int i;
 	u32 offset = 0;
 	u32 bcnt;
-	u32 size = skb->len-skb->data_len;
+	u32 size = skb_headlen(skb);
 	u32 entries = (size >> NV_TX2_TSO_MAX_SHIFT) + ((size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
 	u32 empty_slots;
 	struct ring_desc_ex* put_tx;
@@ -3103,12 +3104,14 @@ static void nv_set_multicast(struct net_device *dev)
 			if (dev->flags & IFF_ALLMULTI) {
 				alwaysOn[0] = alwaysOn[1] = alwaysOff[0] = alwaysOff[1] = 0;
 			} else {
-				struct dev_mc_list *walk;
+				struct netdev_hw_addr *ha;
 
-				netdev_for_each_mc_addr(walk, dev) {
+				netdev_for_each_mc_addr(ha, dev) {
+					unsigned char *addr = ha->addr;
 					u32 a, b;
-					a = le32_to_cpu(*(__le32 *) walk->dmi_addr);
-					b = le16_to_cpu(*(__le16 *) (&walk->dmi_addr[4]));
+
+					a = le32_to_cpu(*(__le32 *) addr);
+					b = le16_to_cpu(*(__le16 *) (&addr[4]));
 					alwaysOn[0] &= a;
 					alwaysOff[0] &= ~a;
 					alwaysOn[1] &= b;
@@ -5898,7 +5901,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	/* Limit the number of tx's outstanding for hw bug */
 	if (id->driver_data & DEV_NEED_TX_LIMIT) {
 		np->tx_limit = 1;
-		if ((id->driver_data & DEV_NEED_TX_LIMIT2) &&
+		if (((id->driver_data & DEV_NEED_TX_LIMIT2) == DEV_NEED_TX_LIMIT2) &&
 		    pci_dev->revision >= 0xA2)
 			np->tx_limit = 0;
 	}

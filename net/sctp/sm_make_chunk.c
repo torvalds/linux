@@ -58,6 +58,7 @@
 #include <linux/inet.h>
 #include <linux/scatterlist.h>
 #include <linux/crypto.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 
 #include <linux/skbuff.h>

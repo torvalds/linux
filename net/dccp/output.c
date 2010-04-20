@@ -13,6 +13,7 @@
 #include <linux/dccp.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 
 #include <net/inet_sock.h>
 #include <net/sock.h>
@@ -128,14 +129,14 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			break;
 		}
 
-		icsk->icsk_af_ops->send_check(sk, 0, skb);
+		icsk->icsk_af_ops->send_check(sk, skb);
 
 		if (set_ack)
 			dccp_event_ack_sent(sk);
 
 		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 
-		err = icsk->icsk_af_ops->queue_xmit(skb, 0);
+		err = icsk->icsk_af_ops->queue_xmit(skb);
 		return net_xmit_eval(err);
 	}
 	return -ENOBUFS;

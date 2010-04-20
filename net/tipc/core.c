@@ -49,7 +49,7 @@
 #include "config.h"
 
 
-#define TIPC_MOD_VER "1.6.4"
+#define TIPC_MOD_VER "2.0.0"
 
 #ifndef CONFIG_TIPC_ZONES
 #define CONFIG_TIPC_ZONES 3

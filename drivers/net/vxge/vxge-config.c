@@ -15,6 +15,7 @@
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/slab.h>
 
 #include "vxge-traffic.h"
 #include "vxge-config.h"
@@ -356,8 +357,10 @@ __vxge_hw_device_access_rights_get(u32 host_type, u32 func_id)
 
 	switch (host_type) {
 	case VXGE_HW_NO_MR_NO_SR_NORMAL_FUNCTION:
-		access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
-				VXGE_HW_DEVICE_ACCESS_RIGHT_SRPCIM;
+		if (func_id == 0) {
+			access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
+					VXGE_HW_DEVICE_ACCESS_RIGHT_SRPCIM;
+		}
 		break;
 	case VXGE_HW_MR_NO_SR_VH0_BASE_FUNCTION:
 		access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
@@ -632,8 +635,10 @@ vxge_hw_device_initialize(
 	__vxge_hw_device_pci_e_init(hldev);
 
 	status = __vxge_hw_device_reg_addr_get(hldev);
-	if (status != VXGE_HW_OK)
+	if (status != VXGE_HW_OK) {
+		vfree(hldev);
 		goto exit;
+	}
 	__vxge_hw_device_id_get(hldev);
 
 	__vxge_hw_device_host_info_get(hldev);
@@ -1217,14 +1222,13 @@ __vxge_hw_ring_mempool_item_alloc(struct vxge_hw_mempool *mempoolh,
 }
 
 /*
- * __vxge_hw_ring_initial_replenish - Initial replenish of RxDs
+ * __vxge_hw_ring_replenish - Initial replenish of RxDs
  * This function replenishes the RxDs from reserve array to work array
  */
 enum vxge_hw_status
-vxge_hw_ring_replenish(struct __vxge_hw_ring *ring, u16 min_flag)
+vxge_hw_ring_replenish(struct __vxge_hw_ring *ring)
 {
 	void *rxd;
-	int i = 0;
 	struct __vxge_hw_channel *channel;
 	enum vxge_hw_status status = VXGE_HW_OK;
 
@@ -1245,11 +1249,6 @@ vxge_hw_ring_replenish(struct __vxge_hw_ring *ring, u16 min_flag)
 		}
 
 		vxge_hw_ring_rxd_post(ring, rxd);
-		if (min_flag) {
-			i++;
-			if (i == VXGE_HW_RING_MIN_BUFF_ALLOCATION)
-				break;
-		}
 	}
 	status = VXGE_HW_OK;
 exit:
@@ -1354,7 +1353,7 @@ __vxge_hw_ring_create(struct __vxge_hw_vpath_handle *vp,
 	 * Currently we don't have a case when the 1) is done without the 2).
 	 */
 	if (ring->rxd_init) {
-		status = vxge_hw_ring_replenish(ring, 1);
+		status = vxge_hw_ring_replenish(ring);
 		if (status != VXGE_HW_OK) {
 			__vxge_hw_ring_delete(vp);
 			goto exit;
@@ -1416,7 +1415,7 @@ enum vxge_hw_status __vxge_hw_ring_reset(struct __vxge_hw_ring *ring)
 		goto exit;
 
 	if (ring->rxd_init) {
-		status = vxge_hw_ring_replenish(ring, 1);
+		status = vxge_hw_ring_replenish(ring);
 		if (status != VXGE_HW_OK)
 			goto exit;
 	}

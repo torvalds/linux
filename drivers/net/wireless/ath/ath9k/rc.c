@@ -15,6 +15,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include "ath9k.h"
 
 static const struct ath_rate_table ar5416_11na_ratetable = {
@@ -1226,8 +1228,12 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		long_retry = rate->count - 1;
 	}
 
-	if (!priv_sta || !ieee80211_is_data(fc) ||
-	    !(tx_info->pad[0] & ATH_TX_INFO_UPDATE_RC))
+	if (!priv_sta || !ieee80211_is_data(fc))
+		return;
+
+	/* This packet was aggregated but doesn't carry status info */
+	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) &&
+	    !(tx_info->flags & IEEE80211_TX_STAT_AMPDU))
 		return;
 
 	if (tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED)

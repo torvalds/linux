@@ -88,34 +88,37 @@ struct rt6_info {
 		struct dst_entry	dst;
 	} u;
 
-	struct inet6_dev		*rt6i_idev;
-
 #define rt6i_dev			u.dst.dev
 #define rt6i_nexthop			u.dst.neighbour
 #define rt6i_expires			u.dst.expires
 
+	/*
+	 * Tail elements of dst_entry (__refcnt etc.)
+	 * and these elements (rarely used in hot path) are in
+	 * the same cache line.
+	 */
+	struct fib6_table		*rt6i_table;
 	struct fib6_node		*rt6i_node;
 
 	struct in6_addr			rt6i_gateway;
-	
-	u32				rt6i_flags;
-	u32				rt6i_metric;
+
 	atomic_t			rt6i_ref;
 
-	/* more non-fragment space at head required */
-	unsigned short			rt6i_nfheader_len;
+	/* These are in a separate cache line. */
+	struct rt6key			rt6i_dst ____cacheline_aligned_in_smp;
+	u32				rt6i_flags;
+	struct rt6key			rt6i_src;
+	u32				rt6i_metric;
 
-	u8				rt6i_protocol;
-
-	struct fib6_table		*rt6i_table;
-
-	struct rt6key			rt6i_dst;
+	struct inet6_dev		*rt6i_idev;
 
 #ifdef CONFIG_XFRM
 	u32				rt6i_flow_cache_genid;
 #endif
+	/* more non-fragment space at head required */
+	unsigned short			rt6i_nfheader_len;
 
-	struct rt6key			rt6i_src;
+	u8				rt6i_protocol;
 };
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)

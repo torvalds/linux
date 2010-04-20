@@ -27,6 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/crc32c.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -263,13 +264,15 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 static int verify_parent_transid(struct extent_io_tree *io_tree,
 				 struct extent_buffer *eb, u64 parent_transid)
 {
+	struct extent_state *cached_state = NULL;
 	int ret;
 
 	if (!parent_transid || btrfs_header_generation(eb) == parent_transid)
 		return 0;
 
-	lock_extent(io_tree, eb->start, eb->start + eb->len - 1, GFP_NOFS);
-	if (extent_buffer_uptodate(io_tree, eb) &&
+	lock_extent_bits(io_tree, eb->start, eb->start + eb->len - 1,
+			 0, &cached_state, GFP_NOFS);
+	if (extent_buffer_uptodate(io_tree, eb, cached_state) &&
 	    btrfs_header_generation(eb) == parent_transid) {
 		ret = 0;
 		goto out;
@@ -282,10 +285,10 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		       (unsigned long long)btrfs_header_generation(eb));
 	}
 	ret = 1;
-	clear_extent_buffer_uptodate(io_tree, eb);
+	clear_extent_buffer_uptodate(io_tree, eb, &cached_state);
 out:
-	unlock_extent(io_tree, eb->start, eb->start + eb->len - 1,
-		      GFP_NOFS);
+	unlock_extent_cached(io_tree, eb->start, eb->start + eb->len - 1,
+			     &cached_state, GFP_NOFS);
 	return ret;
 }
 
@@ -1632,7 +1635,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	atomic_set(&fs_info->async_submit_draining, 0);
 	atomic_set(&fs_info->nr_async_bios, 0);
 	fs_info->sb = sb;
-	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;
 	fs_info->metadata_ratio = 0;
 
@@ -1920,7 +1922,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	csum_root->track_dirty = 1;
 
-	btrfs_read_block_groups(extent_root);
+	ret = btrfs_read_block_groups(extent_root);
+	if (ret) {
+		printk(KERN_ERR "Failed to read block groups: %d\n", ret);
+		goto fail_block_groups;
+	}
 
 	fs_info->generation = generation;
 	fs_info->last_trans_committed = generation;
@@ -1930,7 +1936,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
 					       "btrfs-cleaner");
 	if (IS_ERR(fs_info->cleaner_kthread))
-		goto fail_csum_root;
+		goto fail_block_groups;
 
 	fs_info->transaction_kthread = kthread_run(transaction_kthread,
 						   tree_root,
@@ -2018,7 +2024,8 @@ fail_cleaner:
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 
-fail_csum_root:
+fail_block_groups:
+	btrfs_free_block_groups(fs_info);
 	free_extent_buffer(csum_root->node);
 	free_extent_buffer(csum_root->commit_root);
 fail_dev_root:
@@ -2497,7 +2504,8 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid)
 	int ret;
 	struct inode *btree_inode = buf->first_page->mapping->host;
 
-	ret = extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree, buf);
+	ret = extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree, buf,
+				     NULL);
 	if (!ret)
 		return ret;
 

@@ -13,9 +13,11 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
+#include <linux/vmalloc.h>
 #include <net/wext.h>
 
 #include "net-sysfs.h"
@@ -466,6 +468,7 @@ static struct attribute_group wireless_group = {
 };
 #endif
 
+#ifdef CONFIG_RPS
 /*
  * RX queue sysfs structures and functions.
  */
@@ -547,7 +550,7 @@ static void rps_map_release(struct rcu_head *rcu)
 	kfree(map);
 }
 
-ssize_t store_rps_map(struct netdev_rx_queue *queue,
+static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 		      struct rx_queue_attribute *attribute,
 		      const char *buf, size_t len)
 {
@@ -599,22 +602,109 @@ ssize_t store_rps_map(struct netdev_rx_queue *queue,
 	return len;
 }
 
+static ssize_t show_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
+					   struct rx_queue_attribute *attr,
+					   char *buf)
+{
+	struct rps_dev_flow_table *flow_table;
+	unsigned int val = 0;
+
+	rcu_read_lock();
+	flow_table = rcu_dereference(queue->rps_flow_table);
+	if (flow_table)
+		val = flow_table->mask + 1;
+	rcu_read_unlock();
+
+	return sprintf(buf, "%u\n", val);
+}
+
+static void rps_dev_flow_table_release_work(struct work_struct *work)
+{
+	struct rps_dev_flow_table *table = container_of(work,
+	    struct rps_dev_flow_table, free_work);
+
+	vfree(table);
+}
+
+static void rps_dev_flow_table_release(struct rcu_head *rcu)
+{
+	struct rps_dev_flow_table *table = container_of(rcu,
+	    struct rps_dev_flow_table, rcu);
+
+	INIT_WORK(&table->free_work, rps_dev_flow_table_release_work);
+	schedule_work(&table->free_work);
+}
+
+static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
+				     struct rx_queue_attribute *attr,
+				     const char *buf, size_t len)
+{
+	unsigned int count;
+	char *endp;
+	struct rps_dev_flow_table *table, *old_table;
+	static DEFINE_SPINLOCK(rps_dev_flow_lock);
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	count = simple_strtoul(buf, &endp, 0);
+	if (endp == buf)
+		return -EINVAL;
+
+	if (count) {
+		int i;
+
+		if (count > 1<<30) {
+			/* Enforce a limit to prevent overflow */
+			return -EINVAL;
+		}
+		count = roundup_pow_of_two(count);
+		table = vmalloc(RPS_DEV_FLOW_TABLE_SIZE(count));
+		if (!table)
+			return -ENOMEM;
+
+		table->mask = count - 1;
+		for (i = 0; i < count; i++)
+			table->flows[i].cpu = RPS_NO_CPU;
+	} else
+		table = NULL;
+
+	spin_lock(&rps_dev_flow_lock);
+	old_table = queue->rps_flow_table;
+	rcu_assign_pointer(queue->rps_flow_table, table);
+	spin_unlock(&rps_dev_flow_lock);
+
+	if (old_table)
+		call_rcu(&old_table->rcu, rps_dev_flow_table_release);
+
+	return len;
+}
+
 static struct rx_queue_attribute rps_cpus_attribute =
 	__ATTR(rps_cpus, S_IRUGO | S_IWUSR, show_rps_map, store_rps_map);
 
+
+static struct rx_queue_attribute rps_dev_flow_table_cnt_attribute =
+	__ATTR(rps_flow_cnt, S_IRUGO | S_IWUSR,
+	    show_rps_dev_flow_table_cnt, store_rps_dev_flow_table_cnt);
+
 static struct attribute *rx_queue_default_attrs[] = {
 	&rps_cpus_attribute.attr,
+	&rps_dev_flow_table_cnt_attribute.attr,
 	NULL
 };
 
 static void rx_queue_release(struct kobject *kobj)
 {
 	struct netdev_rx_queue *queue = to_rx_queue(kobj);
-	struct rps_map *map = queue->rps_map;
 	struct netdev_rx_queue *first = queue->first;
 
-	if (map)
-		call_rcu(&map->rcu, rps_map_release);
+	if (queue->rps_map)
+		call_rcu(&queue->rps_map->rcu, rps_map_release);
+
+	if (queue->rps_flow_table)
+		call_rcu(&queue->rps_flow_table->rcu,
+		    rps_dev_flow_table_release);
 
 	if (atomic_dec_and_test(&first->count))
 		kfree(first);
@@ -675,7 +765,7 @@ static void rx_queue_remove_kobjects(struct net_device *net)
 		kobject_put(&net->_rx[i].kobj);
 	kset_unregister(net->queues_kset);
 }
-
+#endif /* CONFIG_RPS */
 #endif /* CONFIG_SYSFS */
 
 #ifdef CONFIG_HOTPLUG
@@ -739,7 +829,9 @@ void netdev_unregister_kobject(struct net_device * net)
 	if (!net_eq(dev_net(net), &init_net))
 		return;
 
+#ifdef CONFIG_RPS
 	rx_queue_remove_kobjects(net);
+#endif
 
 	device_del(dev);
 }
@@ -780,11 +872,13 @@ int netdev_register_kobject(struct net_device *net)
 	if (error)
 		return error;
 
+#ifdef CONFIG_RPS
 	error = rx_queue_register_kobjects(net);
 	if (error) {
 		device_del(dev);
 		return error;
 	}
+#endif
 
 	return error;
 }

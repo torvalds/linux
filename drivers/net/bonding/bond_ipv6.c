@@ -37,7 +37,6 @@
 static void bond_glean_dev_ipv6(struct net_device *dev, struct in6_addr *addr)
 {
 	struct inet6_dev *idev;
-	struct inet6_ifaddr *ifa;
 
 	if (!dev)
 		return;
@@ -47,10 +46,12 @@ static void bond_glean_dev_ipv6(struct net_device *dev, struct in6_addr *addr)
 		return;
 
 	read_lock_bh(&idev->lock);
-	ifa = idev->addr_list;
-	if (ifa)
+	if (!list_empty(&idev->addr_list)) {
+		struct inet6_ifaddr *ifa
+			= list_first_entry(&idev->addr_list,
+					   struct inet6_ifaddr, if_list);
 		ipv6_addr_copy(addr, &ifa->addr);
-	else
+	} else
 		ipv6_addr_set(addr, 0, 0, 0, 0);
 
 	read_unlock_bh(&idev->lock);

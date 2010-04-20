@@ -433,13 +433,13 @@ static void _sc92031_set_mar(struct net_device *dev)
 	    (dev->flags & IFF_ALLMULTI))
 		mar0 = mar1 = 0xffffffff;
 	else if (dev->flags & IFF_MULTICAST) {
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 
-		netdev_for_each_mc_addr(mc_list, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			u32 crc;
 			unsigned bit = 0;
 
-			crc = ~ether_crc(ETH_ALEN, mc_list->dmi_addr);
+			crc = ~ether_crc(ETH_ALEN, ha->addr);
 			crc >>= 24;
 
 			if (crc & 0x01)	bit |= 0x02;

@@ -36,6 +36,8 @@ struct memory_block {
 	struct sys_device sysdev;
 };
 
+int arch_get_memory_phys_device(unsigned long start_pfn);
+
 /* These states are exposed to userspace as text strings in sysfs */
 #define	MEM_ONLINE		(1<<0) /* exposed to userspace */
 #define	MEM_GOING_OFFLINE	(1<<1) /* exposed to userspace */

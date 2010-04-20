@@ -17,6 +17,7 @@
  */
 #include <linux/sched.h>
 #include <linux/bio.h>
+#include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/random.h>
@@ -256,13 +257,13 @@ loop_lock:
 			wake_up(&fs_info->async_submit_wait);
 
 		BUG_ON(atomic_read(&cur->bi_cnt) == 0);
-		submit_bio(cur->bi_rw, cur);
-		num_run++;
-		batch_run++;
 
 		if (bio_rw_flagged(cur, BIO_RW_SYNCIO))
 			num_sync_run++;
 
+		submit_bio(cur->bi_rw, cur);
+		num_run++;
+		batch_run++;
 		if (need_resched()) {
 			if (num_sync_run) {
 				blk_run_backing_dev(bdi, NULL);
@@ -325,16 +326,6 @@ loop_lock:
 		num_sync_run = 0;
 		blk_run_backing_dev(bdi, NULL);
 	}
-
-	cond_resched();
-	if (again)
-		goto loop;
-
-	spin_lock(&device->io_lock);
-	if (device->pending_bios.head || device->pending_sync_bios.head)
-		goto loop_lock;
-	spin_unlock(&device->io_lock);
-
 	/*
 	 * IO has already been through a long path to get here.  Checksumming,
 	 * async helper threads, perhaps compression.  We've done a pretty
@@ -346,6 +337,16 @@ loop_lock:
 	 * cared about found its way down here.
 	 */
 	blk_run_backing_dev(bdi, NULL);
+
+	cond_resched();
+	if (again)
+		goto loop;
+
+	spin_lock(&device->io_lock);
+	if (device->pending_bios.head || device->pending_sync_bios.head)
+		goto loop_lock;
+	spin_unlock(&device->io_lock);
+
 done:
 	return 0;
 }
@@ -365,6 +366,7 @@ static noinline int device_list_add(const char *path,
 	struct btrfs_device *device;
 	struct btrfs_fs_devices *fs_devices;
 	u64 found_transid = btrfs_super_generation(disk_super);
+	char *name;
 
 	fs_devices = find_fsid(disk_super->fsid);
 	if (!fs_devices) {
@@ -411,6 +413,12 @@ static noinline int device_list_add(const char *path,
 
 		device->fs_devices = fs_devices;
 		fs_devices->num_devices++;
+	} else if (strcmp(device->name, path)) {
+		name = kstrdup(path, GFP_NOFS);
+		if (!name)
+			return -ENOMEM;
+		kfree(device->name);
+		device->name = name;
 	}
 
 	if (found_transid > fs_devices->latest_trans) {
@@ -592,7 +600,7 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 			goto error_close;
 
 		disk_super = (struct btrfs_super_block *)bh->b_data;
-		devid = le64_to_cpu(disk_super->dev_item.devid);
+		devid = btrfs_stack_device_id(&disk_super->dev_item);
 		if (devid != device->devid)
 			goto error_brelse;
 
@@ -694,7 +702,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 		goto error_close;
 	}
 	disk_super = (struct btrfs_super_block *)bh->b_data;
-	devid = le64_to_cpu(disk_super->dev_item.devid);
+	devid = btrfs_stack_device_id(&disk_super->dev_item);
 	transid = btrfs_super_generation(disk_super);
 	if (disk_super->label[0])
 		printk(KERN_INFO "device label %s ", disk_super->label);
@@ -1187,7 +1195,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 			goto error_close;
 		}
 		disk_super = (struct btrfs_super_block *)bh->b_data;
-		devid = le64_to_cpu(disk_super->dev_item.devid);
+		devid = btrfs_stack_device_id(&disk_super->dev_item);
 		dev_uuid = disk_super->dev_item.uuid;
 		device = btrfs_find_device(root, devid, dev_uuid,
 					   disk_super->fsid);
@@ -2191,9 +2199,9 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		min_stripes = 2;
 	}
 	if (type & (BTRFS_BLOCK_GROUP_RAID1)) {
-		num_stripes = min_t(u64, 2, fs_devices->rw_devices);
-		if (num_stripes < 2)
+		if (fs_devices->rw_devices < 2)
 			return -ENOSPC;
+		num_stripes = 2;
 		min_stripes = 2;
 	}
 	if (type & (BTRFS_BLOCK_GROUP_RAID10)) {
@@ -2237,8 +2245,10 @@ again:
 		do_div(calc_size, stripe_len);
 		calc_size *= stripe_len;
 	}
+
 	/* we don't want tiny stripes */
-	calc_size = max_t(u64, min_stripe_size, calc_size);
+	if (!looped)
+		calc_size = max_t(u64, min_stripe_size, calc_size);
 
 	do_div(calc_size, stripe_len);
 	calc_size *= stripe_len;
@@ -3382,6 +3392,8 @@ int btrfs_read_chunk_tree(struct btrfs_root *root)
 	key.type = 0;
 again:
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto error;
 	while (1) {
 		leaf = path->nodes[0];
 		slot = path->slots[0];

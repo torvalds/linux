@@ -20,6 +20,7 @@
  */
 #include <linux/module.h>
 #include <linux/rculist.h>
+#include <linux/slab.h>
 #include "ima.h"
 
 LIST_HEAD(ima_measurements);	/* list of all measurements */

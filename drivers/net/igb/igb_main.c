@@ -32,6 +32,7 @@
 #include <linux/pagemap.h>
 #include <linux/netdevice.h>
 #include <linux/ipv6.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <linux/net_tstamp.h>
@@ -61,6 +62,10 @@ static const struct e1000_info *igb_info_tbl[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(igb_pci_tbl) = {
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_COPPER), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_FIBER), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_SERDES), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_SGMII), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_FIBER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_SERDES), board_82575 },
@@ -72,6 +77,7 @@ static DEFINE_PCI_DEVICE_TABLE(igb_pci_tbl) = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_FIBER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_SERDES), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_SERDES_QUAD), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_QUAD_COPPER_ET2), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_QUAD_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_FIBER_SERDES), board_82575 },
@@ -221,41 +227,15 @@ static cycle_t igb_read_clock(const struct cyclecounter *tc)
 	return stamp;
 }
 
-#ifdef DEBUG
 /**
- * igb_get_hw_dev_name - return device name string
+ * igb_get_hw_dev - return device
  * used by hardware layer to print debugging information
  **/
-char *igb_get_hw_dev_name(struct e1000_hw *hw)
+struct net_device *igb_get_hw_dev(struct e1000_hw *hw)
 {
 	struct igb_adapter *adapter = hw->back;
-	return adapter->netdev->name;
+	return adapter->netdev;
 }
-
-/**
- * igb_get_time_str - format current NIC and system time as string
- */
-static char *igb_get_time_str(struct igb_adapter *adapter,
-			      char buffer[160])
-{
-	cycle_t hw = adapter->cycles.read(&adapter->cycles);
-	struct timespec nic = ns_to_timespec(timecounter_read(&adapter->clock));
-	struct timespec sys;
-	struct timespec delta;
-	getnstimeofday(&sys);
-
-	delta = timespec_sub(nic, sys);
-
-	sprintf(buffer,
-		"HW %llu, NIC %ld.%09lus, SYS %ld.%09lus, NIC-SYS %lds + %09luns",
-		hw,
-		(long)nic.tv_sec, nic.tv_nsec,
-		(long)sys.tv_sec, sys.tv_nsec,
-		(long)delta.tv_sec, delta.tv_nsec);
-
-	return buffer;
-}
-#endif
 
 /**
  * igb_init_module - Driver Registration Routine
@@ -326,6 +306,7 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 		}
 	case e1000_82575:
 	case e1000_82580:
+	case e1000_i350:
 	default:
 		for (; i < adapter->num_rx_queues; i++)
 			adapter->rx_ring[i]->reg_idx = rbase_offset + i;
@@ -469,6 +450,7 @@ static void igb_assign_vector(struct igb_q_vector *q_vector, int msix_vector)
 		q_vector->eims_value = 1 << msix_vector;
 		break;
 	case e1000_82580:
+	case e1000_i350:
 		/* 82580 uses the same table-based approach as 82576 but has fewer
 		   entries as a result we carry over for queues greater than 4. */
 		if (rx_queue > IGB_N0_QUEUE) {
@@ -549,6 +531,7 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 
 	case e1000_82576:
 	case e1000_82580:
+	case e1000_i350:
 		/* Turn on MSI-X capability first, or our settings
 		 * won't stick.  And it will take days to debug. */
 		wr32(E1000_GPIE, E1000_GPIE_MSIX_MODE |
@@ -1104,9 +1087,6 @@ static void igb_configure(struct igb_adapter *adapter)
 		struct igb_ring *ring = adapter->rx_ring[i];
 		igb_alloc_rx_buffers_adv(ring, igb_desc_unused(ring));
 	}
-
-
-	adapter->tx_queue_len = netdev->tx_queue_len;
 }
 
 /**
@@ -1212,7 +1192,6 @@ void igb_down(struct igb_adapter *adapter)
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
 
-	netdev->tx_queue_len = adapter->tx_queue_len;
 	netif_carrier_off(netdev);
 
 	/* record the stats before reset*/
@@ -1255,6 +1234,7 @@ void igb_reset(struct igb_adapter *adapter)
 	 * To take effect CTRL.RST is required.
 	 */
 	switch (mac->type) {
+	case e1000_i350:
 	case e1000_82580:
 		pba = rd32(E1000_RXPBS);
 		pba = igb_rxpbs_adjust_82580(pba);
@@ -1614,6 +1594,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 			adapter->eeprom_wol = 0;
 		break;
 	case E1000_DEV_ID_82576_QUAD_COPPER:
+	case E1000_DEV_ID_82576_QUAD_COPPER_ET2:
 		/* if quad port adapter, disable WoL on all but port A */
 		if (global_quad_port_a != 0)
 			adapter->eeprom_wol = 0;
@@ -1827,6 +1808,7 @@ static void igb_init_hw_timer(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	switch (hw->mac.type) {
+	case e1000_i350:
 	case e1000_82580:
 		memset(&adapter->cycles, 0, sizeof(adapter->cycles));
 		adapter->cycles.read = igb_read_clock;
@@ -2340,6 +2322,7 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 	if (adapter->vfs_allocated_count) {
 		/* 82575 and 82576 supports 2 RSS queues for VMDq */
 		switch (hw->mac.type) {
+		case e1000_i350:
 		case e1000_82580:
 			num_rx_queues = 1;
 			shift = 0;
@@ -2591,6 +2574,8 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 		         E1000_SRRCTL_BSIZEPKT_SHIFT;
 		srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 	}
+	if (hw->mac.type == e1000_82580)
+		srrctl |= E1000_SRRCTL_TIMESTAMP;
 	/* Only set Drop Enable if we are supporting multiple queues */
 	if (adapter->vfs_allocated_count || adapter->num_rx_queues > 1)
 		srrctl |= E1000_SRRCTL_DROP_EN;
@@ -2877,7 +2862,7 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8  *mta_list;
 	int i;
 
@@ -2894,8 +2879,8 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 
 	/* The shared function expects a packed array of only addresses. */
 	i = 0;
-	netdev_for_each_mc_addr(mc_ptr, netdev)
-		memcpy(mta_list + (i++ * ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
+	netdev_for_each_mc_addr(ha, netdev)
+		memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
 
 	igb_update_mc_addr_list(hw, mta_list, i);
 	kfree(mta_list);
@@ -3105,17 +3090,13 @@ static void igb_watchdog_task(struct work_struct *work)
 			       ((ctrl & E1000_CTRL_RFCE) ?  "RX" :
 			       ((ctrl & E1000_CTRL_TFCE) ?  "TX" : "None")));
 
-			/* tweak tx_queue_len according to speed/duplex and
-			 * adjust the timeout factor */
-			netdev->tx_queue_len = adapter->tx_queue_len;
+			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
-				netdev->tx_queue_len = 10;
 				adapter->tx_timeout_factor = 14;
 				break;
 			case SPEED_100:
-				netdev->tx_queue_len = 100;
 				/* maybe add some timeout factor ? */
 				break;
 			}
@@ -3925,12 +3906,23 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 	 * i.e. RXBUFFER_2048 --> size-4096 slab
 	 */
 
+	if (adapter->hw.mac.type == e1000_82580)
+		max_frame += IGB_TS_HDR_LEN;
+
 	if (max_frame <= IGB_RXBUFFER_1024)
 		rx_buffer_len = IGB_RXBUFFER_1024;
 	else if (max_frame <= MAXIMUM_ETHERNET_VLAN_SIZE)
 		rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 	else
 		rx_buffer_len = IGB_RXBUFFER_128;
+
+	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN + IGB_TS_HDR_LEN) ||
+	     (max_frame == MAXIMUM_ETHERNET_VLAN_SIZE + IGB_TS_HDR_LEN))
+		rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE + IGB_TS_HDR_LEN;
+
+	if ((adapter->hw.mac.type == e1000_82580) &&
+	    (rx_buffer_len == IGB_RXBUFFER_128))
+		rx_buffer_len += IGB_RXBUFFER_64;
 
 	if (netif_running(netdev))
 		igb_down(adapter);
@@ -3962,7 +3954,7 @@ void igb_update_stats(struct igb_adapter *adapter)
 	struct net_device_stats *net_stats = igb_get_stats(adapter->netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
-	u32 rnbc, reg;
+	u32 reg, mpc;
 	u16 phy_tmp;
 	int i;
 	u64 bytes, packets;
@@ -4020,7 +4012,9 @@ void igb_update_stats(struct igb_adapter *adapter)
 	adapter->stats.symerrs += rd32(E1000_SYMERRS);
 	adapter->stats.sec += rd32(E1000_SEC);
 
-	adapter->stats.mpc += rd32(E1000_MPC);
+	mpc = rd32(E1000_MPC);
+	adapter->stats.mpc += mpc;
+	net_stats->rx_fifo_errors += mpc;
 	adapter->stats.scc += rd32(E1000_SCC);
 	adapter->stats.ecol += rd32(E1000_ECOL);
 	adapter->stats.mcc += rd32(E1000_MCC);
@@ -4035,9 +4029,7 @@ void igb_update_stats(struct igb_adapter *adapter)
 	adapter->stats.gptc += rd32(E1000_GPTC);
 	adapter->stats.gotc += rd32(E1000_GOTCL);
 	rd32(E1000_GOTCH); /* clear GOTCL */
-	rnbc = rd32(E1000_RNBC);
-	adapter->stats.rnbc += rnbc;
-	net_stats->rx_fifo_errors += rnbc;
+	adapter->stats.rnbc += rd32(E1000_RNBC);
 	adapter->stats.ruc += rd32(E1000_RUC);
 	adapter->stats.rfc += rd32(E1000_RFC);
 	adapter->stats.rjc += rd32(E1000_RJC);
@@ -5109,7 +5101,7 @@ static void igb_receive_skb(struct igb_q_vector *q_vector,
 {
 	struct igb_adapter *adapter = q_vector->adapter;
 
-	if (vlan_tag)
+	if (vlan_tag && adapter->vlgrp)
 		vlan_gro_receive(&q_vector->napi, adapter->vlgrp,
 		                 vlan_tag, skb);
 	else
@@ -5148,7 +5140,7 @@ static inline void igb_rx_checksum_adv(struct igb_ring *ring,
 	dev_dbg(&ring->pdev->dev, "cksum success: bits %08X\n", status_err);
 }
 
-static inline void igb_rx_hwtstamp(struct igb_q_vector *q_vector, u32 staterr,
+static void igb_rx_hwtstamp(struct igb_q_vector *q_vector, u32 staterr,
                                    struct sk_buff *skb)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
@@ -5166,13 +5158,18 @@ static inline void igb_rx_hwtstamp(struct igb_q_vector *q_vector, u32 staterr,
 	 * If nothing went wrong, then it should have a skb_shared_tx that we
 	 * can turn into a skb_shared_hwtstamps.
 	 */
-	if (likely(!(staterr & E1000_RXDADV_STAT_TS)))
-		return;
-	if (!(rd32(E1000_TSYNCRXCTL) & E1000_TSYNCRXCTL_VALID))
-		return;
+	if (staterr & E1000_RXDADV_STAT_TSIP) {
+		u32 *stamp = (u32 *)skb->data;
+		regval = le32_to_cpu(*(stamp + 2));
+		regval |= (u64)le32_to_cpu(*(stamp + 3)) << 32;
+		skb_pull(skb, IGB_TS_HDR_LEN);
+	} else {
+		if(!(rd32(E1000_TSYNCRXCTL) & E1000_TSYNCRXCTL_VALID))
+			return;
 
-	regval = rd32(E1000_RXSTMPL);
-	regval |= (u64)rd32(E1000_RXSTMPH) << 32;
+		regval = rd32(E1000_RXSTMPL);
+		regval |= (u64)rd32(E1000_RXSTMPH) << 32;
+	}
 
 	igb_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
 }
@@ -5280,7 +5277,8 @@ send_up:
 			goto next_desc;
 		}
 
-		igb_rx_hwtstamp(q_vector, staterr, skb);
+		if (staterr & (E1000_RXDADV_STAT_TSIP | E1000_RXDADV_STAT_TS))
+			igb_rx_hwtstamp(q_vector, staterr, skb);
 		total_bytes += skb->len;
 		total_packets++;
 
@@ -5558,6 +5556,16 @@ static int igb_hwtstamp_ioctl(struct net_device *netdev,
 		if (tsync_rx_ctl | tsync_tx_ctl)
 			return -EINVAL;
 		return 0;
+	}
+
+	/*
+	 * Per-packet timestamping only works if all packets are
+	 * timestamped, so enable timestamping in all packets as
+	 * long as one rx filter was configured.
+	 */
+	if ((hw->mac.type == e1000_82580) && tsync_rx_ctl) {
+		tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
 	}
 
 	/* enable/disable TX */
@@ -6136,19 +6144,25 @@ static void igb_vmm_control(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 reg;
 
-	/* replication is not supported for 82575 */
-	if (hw->mac.type == e1000_82575)
+	switch (hw->mac.type) {
+	case e1000_82575:
+	default:
+		/* replication is not supported for 82575 */
 		return;
-
-	/* enable replication vlan tag stripping */
-	reg = rd32(E1000_RPLOLR);
-	reg |= E1000_RPLOLR_STRVLAN;
-	wr32(E1000_RPLOLR, reg);
-
-	/* notify HW that the MAC is adding vlan tags */
-	reg = rd32(E1000_DTXCTL);
-	reg |= E1000_DTXCTL_VLAN_ADDED;
-	wr32(E1000_DTXCTL, reg);
+	case e1000_82576:
+		/* notify HW that the MAC is adding vlan tags */
+		reg = rd32(E1000_DTXCTL);
+		reg |= E1000_DTXCTL_VLAN_ADDED;
+		wr32(E1000_DTXCTL, reg);
+	case e1000_82580:
+		/* enable replication vlan tag stripping */
+		reg = rd32(E1000_RPLOLR);
+		reg |= E1000_RPLOLR_STRVLAN;
+		wr32(E1000_RPLOLR, reg);
+	case e1000_i350:
+		/* none of the above registers are supported by i350 */
+		break;
+	}
 
 	if (adapter->vfs_allocated_count) {
 		igb_vmdq_set_loopback_pf(hw, true);

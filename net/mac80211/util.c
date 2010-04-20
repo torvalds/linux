@@ -270,6 +270,8 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 
+	trace_wake_queue(local, queue, reason);
+
 	if (WARN_ON(queue >= hw->queues))
 		return;
 
@@ -279,13 +281,13 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 		/* someone still has this queue stopped */
 		return;
 
-	if (!skb_queue_empty(&local->pending[queue]))
+	if (skb_queue_empty(&local->pending[queue])) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(sdata, &local->interfaces, list)
+			netif_tx_wake_queue(netdev_get_tx_queue(sdata->dev, queue));
+		rcu_read_unlock();
+	} else
 		tasklet_schedule(&local->tx_pending_tasklet);
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list)
-		netif_tx_wake_queue(netdev_get_tx_queue(sdata->dev, queue));
-	rcu_read_unlock();
 }
 
 void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
@@ -311,6 +313,8 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
+
+	trace_stop_queue(local, queue, reason);
 
 	if (WARN_ON(queue >= hw->queues))
 		return;
@@ -796,6 +800,11 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 		drv_conf_tx(local, queue, &qparam);
 	}
+
+	/* after reinitialize QoS TX queues setting to default,
+	 * disable QoS at all */
+	local->hw.conf.flags &=	~IEEE80211_CONF_QOS;
+	drv_config(local, IEEE80211_CONF_CHANGE_QOS);
 }
 
 void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
@@ -1097,9 +1106,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		 */
 		res = drv_start(local);
 		if (res) {
-			WARN(local->suspended, "Harware became unavailable "
-			     "upon resume. This is could be a software issue"
-			     "prior to suspend or a hardware issue\n");
+			WARN(local->suspended, "Hardware became unavailable "
+			     "upon resume. This could be a software issue "
+			     "prior to suspend or a hardware issue.\n");
 			return res;
 		}
 
@@ -1135,7 +1144,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
 		list_for_each_entry_rcu(sta, &local->sta_list, list) {
-			clear_sta_flags(sta, WLAN_STA_SUSPEND);
+			clear_sta_flags(sta, WLAN_STA_BLOCK_BA);
 		}
 	}
 

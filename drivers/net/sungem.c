@@ -39,7 +39,6 @@
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -58,6 +57,7 @@
 #include <linux/bitops.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -1846,12 +1846,12 @@ static u32 gem_setup_multicast(struct gem *gp)
 	} else {
 		u16 hash_table[16];
 		u32 crc;
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 		int i;
 
 		memset(hash_table, 0, sizeof(hash_table));
-		netdev_for_each_mc_addr(dmi, gp->dev) {
-			char *addrs = dmi->dmi_addr;
+		netdev_for_each_mc_addr(ha, gp->dev) {
+			char *addrs = ha->addr;
 
 			if (!(*addrs & 1))
 				continue;

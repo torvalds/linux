@@ -31,6 +31,7 @@
 #define PCI_DEVICE_ID_TITAN_UNI		0x5833
 #define	VXGE_USE_DEFAULT		0xffffffff
 #define VXGE_HW_VPATH_MSIX_ACTIVE	4
+#define VXGE_ALARM_MSIX_ID		2
 #define VXGE_HW_RXSYNC_FREQ_CNT		4
 #define VXGE_LL_WATCH_DOG_TIMEOUT	(15 * HZ)
 #define VXGE_LL_RX_COPY_THRESHOLD	256
@@ -88,6 +89,11 @@
 #define VXGE_TIMER_DELAY		10000
 
 #define VXGE_LL_MAX_FRAME_SIZE(dev) ((dev)->mtu + VXGE_HW_MAC_HEADER_MAX_SIZE)
+
+#define is_sriov(function_mode) \
+	((function_mode == VXGE_HW_FUNCTION_MODE_SRIOV) || \
+	(function_mode == VXGE_HW_FUNCTION_MODE_SRIOV_8) || \
+	(function_mode == VXGE_HW_FUNCTION_MODE_SRIOV_4))
 
 enum vxge_reset_event {
 	/* reset events */

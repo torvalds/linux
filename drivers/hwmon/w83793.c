@@ -1294,7 +1294,7 @@ static int watchdog_close(struct inode *inode, struct file *filp)
 static ssize_t watchdog_write(struct file *filp, const char __user *buf,
 	size_t count, loff_t *offset)
 {
-	size_t ret;
+	ssize_t ret;
 	struct w83793_data *data = filp->private_data;
 
 	if (count) {

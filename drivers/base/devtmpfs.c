@@ -23,6 +23,7 @@
 #include <linux/cred.h>
 #include <linux/sched.h>
 #include <linux/init_task.h>
+#include <linux/slab.h>
 
 static struct vfsmount *dev_mnt;
 

@@ -24,6 +24,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include "qlcnic.h"
 
 struct crb_addr_pair {
@@ -529,6 +530,22 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
+void
+qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
+
+	int timeo;
+
+	if (qlcnic_rom_fast_read(adapter, QLCNIC_ROM_DEV_INIT_TIMEOUT, &timeo))
+		timeo = 30;
+
+	adapter->dev_init_timeo = timeo;
+
+	if (qlcnic_rom_fast_read(adapter, QLCNIC_ROM_DRV_RESET_TIMEOUT, &timeo))
+		timeo = 10;
+
+	adapter->reset_ack_timeo = timeo;
+}
+
 static int
 qlcnic_has_mn(struct qlcnic_adapter *adapter)
 {
@@ -611,7 +628,7 @@ qlcnic_validate_bootld(struct qlcnic_adapter *adapter)
 		return -EINVAL;
 
 	tab_size = cpu_to_le32(tab_desc->findex) +
-			(cpu_to_le32(tab_desc->entry_size * (idx + 1)));
+			(cpu_to_le32(tab_desc->entry_size) * (idx + 1));
 
 	if (adapter->fw->size < tab_size)
 		return -EINVAL;
@@ -620,7 +637,7 @@ qlcnic_validate_bootld(struct qlcnic_adapter *adapter)
 		(cpu_to_le32(tab_desc->entry_size) * (idx));
 	descr = (struct uni_data_desc *)&unirom[offs];
 
-	data_size = descr->findex + cpu_to_le32(descr->size);
+	data_size = cpu_to_le32(descr->findex) + cpu_to_le32(descr->size);
 
 	if (adapter->fw->size < data_size)
 		return -EINVAL;
@@ -646,7 +663,7 @@ qlcnic_validate_fw(struct qlcnic_adapter *adapter)
 		return -EINVAL;
 
 	tab_size = cpu_to_le32(tab_desc->findex) +
-			(cpu_to_le32(tab_desc->entry_size * (idx + 1)));
+			(cpu_to_le32(tab_desc->entry_size) * (idx + 1));
 
 	if (adapter->fw->size < tab_size)
 		return -EINVAL;
@@ -654,7 +671,7 @@ qlcnic_validate_fw(struct qlcnic_adapter *adapter)
 	offs = cpu_to_le32(tab_desc->findex) +
 		(cpu_to_le32(tab_desc->entry_size) * (idx));
 	descr = (struct uni_data_desc *)&unirom[offs];
-	data_size = descr->findex + cpu_to_le32(descr->size);
+	data_size = cpu_to_le32(descr->findex) + cpu_to_le32(descr->size);
 
 	if (adapter->fw->size < data_size)
 		return -EINVAL;
@@ -949,6 +966,16 @@ qlcnic_load_firmware(struct qlcnic_adapter *adapter)
 
 			flashaddr += 8;
 		}
+
+		size = (__force u32)qlcnic_get_fw_size(adapter) % 8;
+		if (size) {
+			data = cpu_to_le64(ptr64[i]);
+
+			if (qlcnic_pci_mem_write_2M(adapter,
+						flashaddr, data))
+				return -EIO;
+		}
+
 	} else {
 		u64 data;
 		u32 hi, lo;

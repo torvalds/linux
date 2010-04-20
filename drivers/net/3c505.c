@@ -102,12 +102,12 @@
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -1216,7 +1216,7 @@ static int elp_close(struct net_device *dev)
 static void elp_set_mc_list(struct net_device *dev)
 {
 	elp_device *adapter = netdev_priv(dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	int i;
 	unsigned long flags;
 
@@ -1231,8 +1231,9 @@ static void elp_set_mc_list(struct net_device *dev)
 		adapter->tx_pcb.command = CMD_LOAD_MULTICAST_LIST;
 		adapter->tx_pcb.length = 6 * netdev_mc_count(dev);
 		i = 0;
-		netdev_for_each_mc_addr(dmi, dev)
-			memcpy(adapter->tx_pcb.data.multicast[i++], dmi->dmi_addr, 6);
+		netdev_for_each_mc_addr(ha, dev)
+			memcpy(adapter->tx_pcb.data.multicast[i++],
+			       ha->addr, 6);
 		adapter->got[CMD_LOAD_MULTICAST_LIST] = 0;
 		if (!send_pcb(dev, &adapter->tx_pcb))
 			pr_err("%s: couldn't send set_multicast command\n", dev->name);

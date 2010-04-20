@@ -383,8 +383,6 @@ static void e1000_configure(struct e1000_adapter *adapter)
 		adapter->alloc_rx_buf(adapter, ring,
 		                      E1000_DESC_UNUSED(ring));
 	}
-
-	adapter->tx_queue_len = netdev->tx_queue_len;
 }
 
 int e1000_up(struct e1000_adapter *adapter)
@@ -503,7 +501,6 @@ void e1000_down(struct e1000_adapter *adapter)
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
 
-	netdev->tx_queue_len = adapter->tx_queue_len;
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
 	netif_carrier_off(netdev);
@@ -2101,7 +2098,6 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 	struct e1000_hw *hw = &adapter->hw;
 	struct netdev_hw_addr *ha;
 	bool use_uc = false;
-	struct dev_addr_list *mc_ptr;
 	u32 rctl;
 	u32 hash_value;
 	int i, rar_entries = E1000_RAR_ENTRIES;
@@ -2161,17 +2157,17 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 
 	WARN_ON(i == rar_entries);
 
-	netdev_for_each_mc_addr(mc_ptr, netdev) {
+	netdev_for_each_mc_addr(ha, netdev) {
 		if (i == rar_entries) {
 			/* load any remaining addresses into the hash table */
 			u32 hash_reg, hash_bit, mta;
-			hash_value = e1000_hash_mc_addr(hw, mc_ptr->da_addr);
+			hash_value = e1000_hash_mc_addr(hw, ha->addr);
 			hash_reg = (hash_value >> 5) & 0x7F;
 			hash_bit = hash_value & 0x1F;
 			mta = (1 << hash_bit);
 			mcarray[hash_reg] |= mta;
 		} else {
-			e1000_rar_set(hw, mc_ptr->da_addr, i++);
+			e1000_rar_set(hw, ha->addr, i++);
 		}
 	}
 
@@ -2316,19 +2312,15 @@ static void e1000_watchdog(unsigned long data)
 			        E1000_CTRL_RFCE) ? "RX" : ((ctrl &
 			        E1000_CTRL_TFCE) ? "TX" : "None" )));
 
-			/* tweak tx_queue_len according to speed/duplex
-			 * and adjust the timeout factor */
-			netdev->tx_queue_len = adapter->tx_queue_len;
+			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
 				txb2b = false;
-				netdev->tx_queue_len = 10;
 				adapter->tx_timeout_factor = 16;
 				break;
 			case SPEED_100:
 				txb2b = false;
-				netdev->tx_queue_len = 100;
 				/* maybe add some timeout factor ? */
 				break;
 			}
@@ -2937,7 +2929,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	unsigned int first, max_per_txd = E1000_MAX_DATA_PER_TXD;
 	unsigned int max_txd_pwr = E1000_MAX_TXD_PWR;
 	unsigned int tx_flags = 0;
-	unsigned int len = skb->len - skb->data_len;
+	unsigned int len = skb_headlen(skb);
 	unsigned int nr_frags;
 	unsigned int mss;
 	int count = 0;
@@ -2988,7 +2980,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 					dev_kfree_skb_any(skb);
 					return NETDEV_TX_OK;
 				}
-				len = skb->len - skb->data_len;
+				len = skb_headlen(skb);
 				break;
 			default:
 				/* do nothing */

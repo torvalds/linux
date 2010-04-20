@@ -102,7 +102,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/eisa.h>
 #include <linux/pci.h>
@@ -2100,15 +2099,15 @@ static void hp100_set_multicast_list(struct net_device *dev)
 		} else {
 			int i, idx;
 			u_char *addrs;
-			struct dev_mc_list *dmi;
+			struct netdev_hw_addr *ha;
 
 			memset(&lp->hash_bytes, 0x00, 8);
 #ifdef HP100_DEBUG
 			printk("hp100: %s: computing hash filter - mc_count = %i\n",
 			       dev->name, netdev_mc_count(dev));
 #endif
-			netdev_for_each_mc_addr(dmi, dev) {
-				addrs = dmi->dmi_addr;
+			netdev_for_each_mc_addr(ha, dev) {
+				addrs = ha->addr;
 				if ((*addrs & 0x01) == 0x01) {	/* multicast address? */
 #ifdef HP100_DEBUG
 					printk("hp100: %s: multicast = %pM, ",

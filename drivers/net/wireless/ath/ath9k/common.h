@@ -23,6 +23,8 @@
 
 /* Common header for Atheros 802.11n base driver cores */
 
+#define IEEE80211_WEP_NKID 4
+
 #define WME_NUM_TID             16
 #define WME_BA_BMP_SIZE         64
 #define WME_MAX_BA              WME_BA_BMP_SIZE
@@ -125,3 +127,14 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 				  bool decrypt_error);
 
 int ath9k_cmn_padpos(__le16 frame_control);
+int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb);
+void ath9k_cmn_update_ichannel(struct ieee80211_hw *hw,
+			       struct ath9k_channel *ichan);
+struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
+					       struct ath_hw *ah);
+int ath9k_cmn_key_config(struct ath_common *common,
+			 struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta,
+			 struct ieee80211_key_conf *key);
+void ath9k_cmn_key_delete(struct ath_common *common,
+			  struct ieee80211_key_conf *key);

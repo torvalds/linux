@@ -629,6 +629,7 @@
 #define M88E1111_I_PHY_ID    0x01410CC0
 #define IGP03E1000_E_PHY_ID  0x02A80390
 #define I82580_I_PHY_ID      0x015403A0
+#define I350_I_PHY_ID        0x015403B0
 #define M88_VENDOR           0x0141
 
 /* M88E1000 Specific Registers */

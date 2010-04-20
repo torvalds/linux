@@ -482,7 +482,7 @@ static void korina_multicast_list(struct net_device *dev)
 {
 	struct korina_private *lp = netdev_priv(dev);
 	unsigned long flags;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	u32 recognise = ETH_ARC_AB;	/* always accept broadcasts */
 	int i;
 
@@ -502,8 +502,8 @@ static void korina_multicast_list(struct net_device *dev)
 		for (i = 0; i < 4; i++)
 			hash_table[i] = 0;
 
-		netdev_for_each_mc_addr(dmi, dev) {
-			char *addrs = dmi->dmi_addr;
+		netdev_for_each_mc_addr(ha, dev) {
+			char *addrs = ha->addr;
 
 			if (!(*addrs & 1))
 				continue;
@@ -1135,7 +1135,7 @@ static int korina_probe(struct platform_device *pdev)
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_regs");
 	dev->base_addr = r->start;
-	lp->eth_regs = ioremap_nocache(r->start, r->end - r->start);
+	lp->eth_regs = ioremap_nocache(r->start, resource_size(r));
 	if (!lp->eth_regs) {
 		printk(KERN_ERR DRV_NAME ": cannot remap registers\n");
 		rc = -ENXIO;
@@ -1143,7 +1143,7 @@ static int korina_probe(struct platform_device *pdev)
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_dma_rx");
-	lp->rx_dma_regs = ioremap_nocache(r->start, r->end - r->start);
+	lp->rx_dma_regs = ioremap_nocache(r->start, resource_size(r));
 	if (!lp->rx_dma_regs) {
 		printk(KERN_ERR DRV_NAME ": cannot remap Rx DMA registers\n");
 		rc = -ENXIO;
@@ -1151,7 +1151,7 @@ static int korina_probe(struct platform_device *pdev)
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_dma_tx");
-	lp->tx_dma_regs = ioremap_nocache(r->start, r->end - r->start);
+	lp->tx_dma_regs = ioremap_nocache(r->start, resource_size(r));
 	if (!lp->tx_dma_regs) {
 		printk(KERN_ERR DRV_NAME ": cannot remap Tx DMA registers\n");
 		rc = -ENXIO;

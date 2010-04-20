@@ -225,21 +225,6 @@ static inline void dst_confirm(struct dst_entry *dst)
 		neigh_confirm(dst->neighbour);
 }
 
-static inline void dst_negative_advice(struct dst_entry **dst_p,
-				       struct sock *sk)
-{
-	struct dst_entry * dst = *dst_p;
-	if (dst && dst->ops->negative_advice) {
-		*dst_p = dst->ops->negative_advice(dst);
-
-		if (dst != *dst_p) {
-			extern void sk_reset_txq(struct sock *sk);
-
-			sk_reset_txq(sk);
-		}
-	}
-}
-
 static inline void dst_link_failure(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);

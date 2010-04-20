@@ -77,7 +77,6 @@ static int vortex_debug = 1;
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/mii.h>
@@ -90,6 +89,7 @@ static int vortex_debug = 1;
 #include <linux/eisa.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
+#include <linux/gfp.h>
 #include <asm/irq.h>			/* For nr_irqs only. */
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -2129,8 +2129,8 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		int i;
 
 		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data,
-										skb->len-skb->data_len, PCI_DMA_TODEVICE));
-		vp->tx_ring[entry].frag[0].length = cpu_to_le32(skb->len-skb->data_len);
+										skb_headlen(skb), PCI_DMA_TODEVICE));
+		vp->tx_ring[entry].frag[0].length = cpu_to_le32(skb_headlen(skb));
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];

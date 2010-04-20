@@ -1,6 +1,7 @@
 #include <linux/interrupt.h>
 #include <linux/dmar.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/hpet.h>
 #include <linux/pci.h>

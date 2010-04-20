@@ -28,3 +28,13 @@ obj-$(CONFIG_ATH9K_HW) += ath9k_hw.o
 
 obj-$(CONFIG_ATH9K_COMMON) += ath9k_common.o
 ath9k_common-y:=	common.o
+
+ath9k_htc-y +=	htc_hst.o \
+		hif_usb.o \
+		wmi.o \
+		htc_drv_txrx.o \
+		htc_drv_main.o \
+		htc_drv_beacon.o \
+		htc_drv_init.o
+
+obj-$(CONFIG_ATH9K_HTC) += ath9k_htc.o

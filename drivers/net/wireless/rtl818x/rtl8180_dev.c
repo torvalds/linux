@@ -17,6 +17,7 @@
 
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/eeprom_93cx6.h>
@@ -723,10 +724,10 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 	        priv->rf->conf_erp(dev, info);
 }
 
-static u64 rtl8180_prepare_multicast(struct ieee80211_hw *dev, int mc_count,
-				     struct dev_addr_list *mc_list)
+static u64 rtl8180_prepare_multicast(struct ieee80211_hw *dev,
+				     struct netdev_hw_addr_list *mc_list)
 {
-	return mc_count;
+	return netdev_hw_addr_list_count(mc_list);
 }
 
 static void rtl8180_configure_filter(struct ieee80211_hw *dev,

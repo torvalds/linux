@@ -22,6 +22,7 @@
  */
 
 #include <linux/kfifo.h>
+#include <linux/slab.h>
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>

@@ -14,6 +14,9 @@
 
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
+#include <linux/pm_qos_params.h>
+#include <net/sch_generic.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 
 #include "ieee80211_i.h"
@@ -245,6 +248,8 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	struct ieee80211_local *local = hw_to_local(hw);
 	bool was_hw_scan;
 
+	trace_api_scan_completed(local, aborted);
+
 	mutex_lock(&local->scan_mtx);
 
 	/*
@@ -321,6 +326,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 
 	ieee80211_offchannel_stop_beaconing(local);
 
+	local->leave_oper_channel_time = 0;
 	local->next_scan_state = SCAN_DECISION;
 	local->scan_channel_idx = 0;
 
@@ -425,11 +431,28 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	return rc;
 }
 
+static unsigned long
+ieee80211_scan_get_channel_time(struct ieee80211_channel *chan)
+{
+	/*
+	 * TODO: channel switching also consumes quite some time,
+	 * add that delay as well to get a better estimation
+	 */
+	if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+		return IEEE80211_PASSIVE_CHANNEL_TIME;
+	return IEEE80211_PROBE_DELAY + IEEE80211_CHANNEL_TIME;
+}
+
 static int ieee80211_scan_state_decision(struct ieee80211_local *local,
 					 unsigned long *next_delay)
 {
 	bool associated = false;
+	bool tx_empty = true;
+	bool bad_latency;
+	bool listen_int_exceeded;
+	unsigned long min_beacon_int = 0;
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_channel *next_chan;
 
 	/* if no more bands/channels left, complete scan and advance to the idle state */
 	if (local->scan_channel_idx >= local->scan_req->n_channels) {
@@ -437,7 +460,11 @@ static int ieee80211_scan_state_decision(struct ieee80211_local *local,
 		return 1;
 	}
 
-	/* check if at least one STA interface is associated */
+	/*
+	 * check if at least one STA interface is associated,
+	 * check if at least one STA interface has pending tx frames
+	 * and grab the lowest used beacon interval
+	 */
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!ieee80211_sdata_running(sdata))
@@ -446,7 +473,16 @@ static int ieee80211_scan_state_decision(struct ieee80211_local *local,
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.mgd.associated) {
 				associated = true;
-				break;
+
+				if (sdata->vif.bss_conf.beacon_int <
+				    min_beacon_int || min_beacon_int == 0)
+					min_beacon_int =
+						sdata->vif.bss_conf.beacon_int;
+
+				if (!qdisc_all_tx_empty(sdata->dev)) {
+					tx_empty = false;
+					break;
+				}
 			}
 		}
 	}
@@ -455,11 +491,34 @@ static int ieee80211_scan_state_decision(struct ieee80211_local *local,
 	if (local->scan_channel) {
 		/*
 		 * we're currently scanning a different channel, let's
-		 * switch back to the operating channel now if at least
-		 * one interface is associated. Otherwise just scan the
-		 * next channel
+		 * see if we can scan another channel without interfering
+		 * with the current traffic situation.
+		 *
+		 * Since we don't know if the AP has pending frames for us
+		 * we can only check for our tx queues and use the current
+		 * pm_qos requirements for rx. Hence, if no tx traffic occurs
+		 * at all we will scan as many channels in a row as the pm_qos
+		 * latency allows us to. Additionally we also check for the
+		 * currently negotiated listen interval to prevent losing
+		 * frames unnecessarily.
+		 *
+		 * Otherwise switch back to the operating channel.
 		 */
-		if (associated)
+		next_chan = local->scan_req->channels[local->scan_channel_idx];
+
+		bad_latency = time_after(jiffies +
+				ieee80211_scan_get_channel_time(next_chan),
+				local->leave_oper_channel_time +
+				usecs_to_jiffies(pm_qos_requirement(PM_QOS_NETWORK_LATENCY)));
+
+		listen_int_exceeded = time_after(jiffies +
+				ieee80211_scan_get_channel_time(next_chan),
+				local->leave_oper_channel_time +
+				usecs_to_jiffies(min_beacon_int * 1024) *
+				local->hw.conf.listen_interval);
+
+		if (associated && ( !tx_empty || bad_latency ||
+		    listen_int_exceeded))
 			local->next_scan_state = SCAN_ENTER_OPER_CHANNEL;
 		else
 			local->next_scan_state = SCAN_SET_CHANNEL;
@@ -490,6 +549,9 @@ static void ieee80211_scan_state_leave_oper_channel(struct ieee80211_local *loca
 		*next_delay = 0;
 	else
 		*next_delay = HZ / 10;
+
+	/* remember when we left the operating channel */
+	local->leave_oper_channel_time = jiffies;
 
 	/* advance to the next channel to be scanned */
 	local->next_scan_state = SCAN_SET_CHANNEL;

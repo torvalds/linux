@@ -283,22 +283,17 @@ static void ath9k_gen_timer_start(struct ath_hw *ah,
 				  u32 timer_next,
 				  u32 timer_period)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-
 	ath9k_hw_gen_timer_start(ah, timer, timer_next, timer_period);
 
-	if ((sc->imask & ATH9K_INT_GENTIMER) == 0) {
+	if ((ah->imask & ATH9K_INT_GENTIMER) == 0) {
 		ath9k_hw_set_interrupts(ah, 0);
-		sc->imask |= ATH9K_INT_GENTIMER;
-		ath9k_hw_set_interrupts(ah, sc->imask);
+		ah->imask |= ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah, ah->imask);
 	}
 }
 
 static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
 	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
 
 	ath9k_hw_gen_timer_stop(ah, timer);
@@ -306,8 +301,8 @@ static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 	/* if no timer is enabled, turn off interrupt mask */
 	if (timer_table->timer_mask.val == 0) {
 		ath9k_hw_set_interrupts(ah, 0);
-		sc->imask &= ~ATH9K_INT_GENTIMER;
-		ath9k_hw_set_interrupts(ah, sc->imask);
+		ah->imask &= ~ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah, ah->imask);
 	}
 }
 
@@ -364,7 +359,7 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	bool is_btscan = sc->sc_flags & SC_OP_BT_SCAN;
 
 	ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
-		  "no stomp timer running \n");
+		  "no stomp timer running\n");
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 

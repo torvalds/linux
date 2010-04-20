@@ -60,6 +60,12 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	unsigned int i;
 	u32 reg;
 
+	/*
+	 * SOC devices don't support MCU requests.
+	 */
+	if (rt2x00_is_soc(rt2x00dev))
+		return;
+
 	for (i = 0; i < 200; i++) {
 		rt2800_register_read(rt2x00dev, H2M_MAILBOX_CID, &reg);
 
@@ -340,19 +346,6 @@ static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 {
 	struct queue_entry_priv_pci *entry_priv;
 	u32 reg;
-
-	rt2800_register_read(rt2x00dev, WPDMA_RST_IDX, &reg);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX3, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX4, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX5, 1);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DRX_IDX0, 1);
-	rt2800_register_write(rt2x00dev, WPDMA_RST_IDX, reg);
-
-	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e1f);
-	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
 
 	/*
 	 * Initialize registers.
@@ -907,14 +900,12 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	struct queue_entry *entry;
-	struct queue_entry *entry_done;
-	struct queue_entry_priv_pci *entry_priv;
+	__le32 *txwi;
 	struct txdone_entry_desc txdesc;
 	u32 word;
 	u32 reg;
 	u32 old_reg;
-	unsigned int type;
-	unsigned int index;
+	int wcid, ack, pid, tx_wcid, tx_ack, tx_pid;
 	u16 mcs, real_mcs;
 
 	/*
@@ -936,74 +927,87 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		old_reg = reg;
 
+		wcid    = rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
+		ack     = rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
+		pid     = rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
+
 		/*
 		 * Skip this entry when it contains an invalid
 		 * queue identication number.
 		 */
-		type = rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE) - 1;
-		if (type >= QID_RX)
+		if (pid <= 0 || pid > QID_RX)
 			continue;
 
-		queue = rt2x00queue_get_queue(rt2x00dev, type);
+		queue = rt2x00queue_get_queue(rt2x00dev, pid - 1);
 		if (unlikely(!queue))
 			continue;
 
 		/*
-		 * Skip this entry when it contains an invalid
-		 * index number.
+		 * Inside each queue, we process each entry in a chronological
+		 * order. We first check that the queue is not empty.
 		 */
-		index = rt2x00_get_field32(reg, TX_STA_FIFO_WCID) - 1;
-		if (unlikely(index >= queue->limit))
+		if (rt2x00queue_empty(queue))
 			continue;
+		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 
-		entry = &queue->entries[index];
-		entry_priv = entry->priv_data;
-		rt2x00_desc_read((__le32 *)entry->skb->data, 0, &word);
+		/* Check if we got a match by looking at WCID/ACK/PID
+		 * fields */
+		txwi = (__le32 *)(entry->skb->data -
+				  rt2x00dev->ops->extra_tx_headroom);
 
-		entry_done = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		while (entry != entry_done) {
-			/*
-			 * Catch up.
-			 * Just report any entries we missed as failed.
-			 */
-			WARNING(rt2x00dev,
-				"TX status report missed for entry %d\n",
-				entry_done->entry_idx);
+		rt2x00_desc_read(txwi, 1, &word);
+		tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
+		tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
+		tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
 
-			txdesc.flags = 0;
-			__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
-			txdesc.retry = 0;
-
-			rt2x00lib_txdone(entry_done, &txdesc);
-			entry_done = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		}
+		if ((wcid != tx_wcid) || (ack != tx_ack) || (pid != tx_pid))
+			WARNING(rt2x00dev, "invalid TX_STA_FIFO content\n");
 
 		/*
 		 * Obtain the status about this packet.
 		 */
 		txdesc.flags = 0;
-		if (rt2x00_get_field32(reg, TX_STA_FIFO_TX_SUCCESS))
-			__set_bit(TXDONE_SUCCESS, &txdesc.flags);
-		else
-			__set_bit(TXDONE_FAILURE, &txdesc.flags);
+		rt2x00_desc_read(txwi, 0, &word);
+		mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
+		real_mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
 
 		/*
 		 * Ralink has a retry mechanism using a global fallback
-		 * table. We setup this fallback table to try immediate
-		 * lower rate for all rates. In the TX_STA_FIFO,
-		 * the MCS field contains the MCS used for the successfull
-		 * transmission. If the first transmission succeed,
-		 * we have mcs == tx_mcs. On the second transmission,
-		 * we have mcs = tx_mcs - 1. So the number of
-		 * retry is (tx_mcs - mcs).
+		 * table. We setup this fallback table to try the immediate
+		 * lower rate for all rates. In the TX_STA_FIFO, the MCS field
+		 * always contains the MCS used for the last transmission, be
+		 * it successful or not.
 		 */
-		mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
-		real_mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
+		if (rt2x00_get_field32(reg, TX_STA_FIFO_TX_SUCCESS)) {
+			/*
+			 * Transmission succeeded. The number of retries is
+			 * mcs - real_mcs
+			 */
+			__set_bit(TXDONE_SUCCESS, &txdesc.flags);
+			txdesc.retry = ((mcs > real_mcs) ? mcs - real_mcs : 0);
+		} else {
+			/*
+			 * Transmission failed. The number of retries is
+			 * always 7 in this case (for a total number of 8
+			 * frames sent).
+			 */
+			__set_bit(TXDONE_FAILURE, &txdesc.flags);
+			txdesc.retry = 7;
+		}
+
 		__set_bit(TXDONE_FALLBACK, &txdesc.flags);
-		txdesc.retry = mcs - min(mcs, real_mcs);
+
 
 		rt2x00lib_txdone(entry, &txdesc);
 	}
+}
+
+static void rt2800pci_wakeup(struct rt2x00_dev *rt2x00dev)
+{
+	struct ieee80211_conf conf = { .flags = 0 };
+	struct rt2x00lib_conf libconf = { .conf = &conf };
+
+	rt2800_config(rt2x00dev, &libconf, IEEE80211_CONF_CHANGE_PS);
 }
 
 static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
@@ -1029,6 +1033,9 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS))
 		rt2800pci_txdone(rt2x00dev);
+
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_AUTO_WAKEUP))
+		rt2800pci_wakeup(rt2x00dev);
 
 	return IRQ_HANDLED;
 }
@@ -1184,6 +1191,7 @@ static const struct rt2x00_ops rt2800pci_ops = {
 /*
  * RT2800pci module information.
  */
+#ifdef CONFIG_RT2800PCI_PCI
 static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1814, 0x0601), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x0681), PCI_DEVICE_DATA(&rt2800pci_ops) },
@@ -1208,9 +1216,11 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1814, 0x3062), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3562), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3592), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x3593), PCI_DEVICE_DATA(&rt2800pci_ops) },
 #endif
 	{ 0, }
 };
+#endif /* CONFIG_RT2800PCI_PCI */
 
 MODULE_AUTHOR(DRV_PROJECT);
 MODULE_VERSION(DRV_VERSION);

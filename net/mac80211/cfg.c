@@ -9,6 +9,7 @@
 #include <linux/ieee80211.h>
 #include <linux/nl80211.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <linux/rcupdate.h>
 #include <net/cfg80211.h>
@@ -1136,6 +1137,10 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	/* enable WMM or activate new settings */
+	local->hw.conf.flags |= IEEE80211_CONF_QOS;
+	drv_config(local, IEEE80211_CONF_CHANGE_QOS);
+
 	return 0;
 }
 
@@ -1402,6 +1407,35 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
+					 struct net_device *dev,
+					 s32 rssi_thold, u32 rssi_hyst)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_vif *vif = &sdata->vif;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+
+	if (rssi_thold == bss_conf->cqm_rssi_thold &&
+	    rssi_hyst == bss_conf->cqm_rssi_hyst)
+		return 0;
+
+	bss_conf->cqm_rssi_thold = rssi_thold;
+	bss_conf->cqm_rssi_hyst = rssi_hyst;
+
+	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
+		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+			return -EOPNOTSUPP;
+		return 0;
+	}
+
+	/* tell the driver upon association, unless already associated */
+	if (sdata->u.mgd.associated)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
+
+	return 0;
+}
+
 static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 				      struct net_device *dev,
 				      const u8 *addr,
@@ -1506,4 +1540,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.remain_on_channel = ieee80211_remain_on_channel,
 	.cancel_remain_on_channel = ieee80211_cancel_remain_on_channel,
 	.action = ieee80211_action,
+	.set_cqm_rssi_config = ieee80211_set_cqm_rssi_config,
 };

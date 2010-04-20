@@ -208,7 +208,6 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 {
 	struct fib6_rule *rule6 = (struct fib6_rule *) rule;
 
-	frh->family = AF_INET6;
 	frh->dst_len = rule6->dst.plen;
 	frh->src_len = rule6->src.plen;
 	frh->tos = rule6->tclass;
@@ -239,7 +238,7 @@ static size_t fib6_rule_nlmsg_payload(struct fib_rule *rule)
 }
 
 static struct fib_rules_ops fib6_rules_ops_template = {
-	.family			= AF_INET6,
+	.family			= FIB_RULES_IPV6,
 	.rule_size		= sizeof(struct fib6_rule),
 	.addr_size		= sizeof(struct in6_addr),
 	.action			= fib6_rule_action,

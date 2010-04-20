@@ -114,7 +114,6 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -1367,13 +1366,15 @@ static u32 __set_rx_mode(struct net_device *dev)
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = RxAcceptBroadcast | AcceptMulticast | AcceptMyPhys;
 	} else {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
-			int filterbit = (ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26) ^ 0x3F;
-			filterbit &= 0x3f;
-			mc_filter[filterbit >> 5] |= 1 << (filterbit & 31);
+		netdev_for_each_mc_addr(ha, dev) {
+			int filbit;
+
+			filbit = (ether_crc(ETH_ALEN, ha->addr) >> 26) ^ 0x3F;
+			filbit &= 0x3f;
+			mc_filter[filbit >> 5] |= 1 << (filbit & 31);
 		}
 		rx_mode = RxAcceptBroadcast | AcceptMulticast | AcceptMyPhys;
 	}

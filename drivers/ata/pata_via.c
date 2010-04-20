@@ -58,6 +58,7 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <linux/dmi.h>
@@ -576,6 +577,10 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			u8 rev = isa->revision;
 			pci_dev_put(isa);
 
+			if ((id->device == 0x0415 || id->device == 0x3164) &&
+			    (config->id != id->device))
+				continue;
+
 			if (rev >= config->rev_min && rev <= config->rev_max)
 				break;
 		}
@@ -677,6 +682,7 @@ static const struct pci_device_id via[] = {
 	{ PCI_VDEVICE(VIA, 0x3164), },
 	{ PCI_VDEVICE(VIA, 0x5324), },
 	{ PCI_VDEVICE(VIA, 0xC409), VIA_IDFLAG_SINGLE },
+	{ PCI_VDEVICE(VIA, 0x9001), VIA_IDFLAG_SINGLE },
 
 	{ },
 };

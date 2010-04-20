@@ -18,6 +18,7 @@
 
 /* We can tune this as we go by monitoring really low values */
 #define ATH9K_NF_TOO_LOW	-60
+#define AR9285_CLCAL_REDO_THRESH    1
 
 /* AR5416 may return very high value (like -31 dBm), in those cases the nf
  * is incorrect and we should use the static NF value. Later we can try to
@@ -101,9 +102,13 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 		nf = 0 - ((nf ^ 0x1ff) + 1);
 	ath_print(common, ATH_DBG_CALIBRATE,
 		  "NF calibrated [ctl] [chain 0] is %d\n", nf);
+
+	if (AR_SREV_9271(ah) && (nf >= -114))
+		nf = -116;
+
 	nfarray[0] = nf;
 
-	if (!AR_SREV_9285(ah)) {
+	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
 		if (AR_SREV_9280_10_OR_LATER(ah))
 			nf = MS(REG_READ(ah, AR_PHY_CH1_CCA),
 					AR9280_PHY_CH1_MINCCA_PWR);
@@ -139,9 +144,13 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 		nf = 0 - ((nf ^ 0x1ff) + 1);
 	ath_print(common, ATH_DBG_CALIBRATE,
 		  "NF calibrated [ext] [chain 0] is %d\n", nf);
+
+	if (AR_SREV_9271(ah) && (nf >= -114))
+		nf = -116;
+
 	nfarray[3] = nf;
 
-	if (!AR_SREV_9285(ah)) {
+	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
 		if (AR_SREV_9280_10_OR_LATER(ah))
 			nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA),
 					AR9280_PHY_CH1_EXT_MINCCA_PWR);
@@ -621,7 +630,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	u8 chainmask, rx_chain_status;
 
 	rx_chain_status = REG_READ(ah, AR_PHY_RX_CHAINMASK);
-	if (AR_SREV_9285(ah))
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
 		chainmask = 0x9;
 	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah)) {
 		if ((rx_chain_status & 0x2) || (rx_chain_status & 0x4))
@@ -715,7 +724,7 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah)
 
 	if (AR_SREV_9280(ah))
 		noise_floor = AR_PHY_CCA_MAX_AR9280_GOOD_VALUE;
-	else if (AR_SREV_9285(ah))
+	else if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
 		noise_floor = AR_PHY_CCA_MAX_AR9285_GOOD_VALUE;
 	else if (AR_SREV_9287(ah))
 		noise_floor = AR_PHY_CCA_MAX_AR9287_GOOD_VALUE;
@@ -1051,9 +1060,12 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	/* Do NF cal only at longer intervals */
 	if (longcal) {
 		/* Do periodic PAOffset Cal */
-		if (AR_SREV_9271(ah))
-			ath9k_hw_9271_pa_cal(ah, false);
-		else if (AR_SREV_9285_11_OR_LATER(ah)) {
+		if (AR_SREV_9271(ah)) {
+			if (!ah->pacal_info.skipcount)
+				ath9k_hw_9271_pa_cal(ah, false);
+			else
+				ah->pacal_info.skipcount--;
+		} else if (AR_SREV_9285_11_OR_LATER(ah)) {
 			if (!ah->pacal_info.skipcount)
 				ath9k_hw_9285_pa_cal(ah, false);
 			else
@@ -1080,7 +1092,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 EXPORT_SYMBOL(ath9k_hw_calibrate);
 
 /* Carrier leakage Calibration fix */
-static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
+static bool ar9285_cl_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
@@ -1119,6 +1131,62 @@ static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
 	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
 
 	return true;
+}
+
+static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	int i;
+	u_int32_t txgain_max;
+	u_int32_t clc_gain, gain_mask = 0, clc_num = 0;
+	u_int32_t reg_clc_I0, reg_clc_Q0;
+	u_int32_t i0_num = 0;
+	u_int32_t q0_num = 0;
+	u_int32_t total_num = 0;
+	u_int32_t reg_rf2g5_org;
+	bool retv = true;
+
+	if (!(ar9285_cl_cal(ah, chan)))
+		return false;
+
+	txgain_max = MS(REG_READ(ah, AR_PHY_TX_PWRCTRL7),
+			AR_PHY_TX_PWRCTRL_TX_GAIN_TAB_MAX);
+
+	for (i = 0; i < (txgain_max+1); i++) {
+		clc_gain = (REG_READ(ah, (AR_PHY_TX_GAIN_TBL1+(i<<2))) &
+			   AR_PHY_TX_GAIN_CLC) >> AR_PHY_TX_GAIN_CLC_S;
+		if (!(gain_mask & (1 << clc_gain))) {
+			gain_mask |= (1 << clc_gain);
+			clc_num++;
+		}
+	}
+
+	for (i = 0; i < clc_num; i++) {
+		reg_clc_I0 = (REG_READ(ah, (AR_PHY_CLC_TBL1 + (i << 2)))
+			      & AR_PHY_CLC_I0) >> AR_PHY_CLC_I0_S;
+		reg_clc_Q0 = (REG_READ(ah, (AR_PHY_CLC_TBL1 + (i << 2)))
+			      & AR_PHY_CLC_Q0) >> AR_PHY_CLC_Q0_S;
+		if (reg_clc_I0 == 0)
+			i0_num++;
+
+		if (reg_clc_Q0 == 0)
+			q0_num++;
+	}
+	total_num = i0_num + q0_num;
+	if (total_num > AR9285_CLCAL_REDO_THRESH) {
+		reg_rf2g5_org = REG_READ(ah, AR9285_RF2G5);
+		if (AR_SREV_9285E_20(ah)) {
+			REG_WRITE(ah, AR9285_RF2G5,
+				  (reg_rf2g5_org & AR9285_RF2G5_IC50TX) |
+				  AR9285_RF2G5_IC50TX_XE_SET);
+		} else {
+			REG_WRITE(ah, AR9285_RF2G5,
+				  (reg_rf2g5_org & AR9285_RF2G5_IC50TX) |
+				  AR9285_RF2G5_IC50TX_SET);
+		}
+		retv = ar9285_cl_cal(ah, chan);
+		REG_WRITE(ah, AR9285_RF2G5, reg_rf2g5_org);
+	}
+	return retv;
 }
 
 bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)

@@ -35,6 +35,7 @@
 #include <linux/netdevice.h>
 #include <linux/tcp.h>
 #include <linux/ipv6.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <linux/mii.h>
@@ -1304,8 +1305,6 @@ static void igbvf_configure_tx(struct igbvf_adapter *adapter)
 
 	/* enable Report Status bit */
 	adapter->txd_cmd |= E1000_ADVTXD_DCMD_RS;
-
-	adapter->tx_queue_len = adapter->netdev->tx_queue_len;
 }
 
 /**
@@ -1399,7 +1398,7 @@ static void igbvf_set_multi(struct net_device *netdev)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8  *mta_list = NULL;
 	int i;
 
@@ -1414,8 +1413,8 @@ static void igbvf_set_multi(struct net_device *netdev)
 
 	/* prepare a packed array of only addresses. */
 	i = 0;
-	netdev_for_each_mc_addr(mc_ptr, netdev)
-		memcpy(mta_list + (i++ * ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
+	netdev_for_each_mc_addr(ha, netdev)
+		memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
 
 	hw->mac.ops.update_mc_addr_list(hw, mta_list, i, 0, 0);
 	kfree(mta_list);
@@ -1524,7 +1523,6 @@ void igbvf_down(struct igbvf_adapter *adapter)
 
 	del_timer_sync(&adapter->watchdog_timer);
 
-	netdev->tx_queue_len = adapter->tx_queue_len;
 	netif_carrier_off(netdev);
 
 	/* record the stats before reset*/
@@ -1857,21 +1855,15 @@ static void igbvf_watchdog_task(struct work_struct *work)
 			                          &adapter->link_duplex);
 			igbvf_print_link_info(adapter);
 
-			/*
-			 * tweak tx_queue_len according to speed/duplex
-			 * and adjust the timeout factor
-			 */
-			netdev->tx_queue_len = adapter->tx_queue_len;
+			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
 				txb2b = 0;
-				netdev->tx_queue_len = 10;
 				adapter->tx_timeout_factor = 16;
 				break;
 			case SPEED_100:
 				txb2b = 0;
-				netdev->tx_queue_len = 100;
 				/* maybe add some timeout factor ? */
 				break;
 			}

@@ -33,6 +33,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 
 #include <asm/delay.h>
 #include <asm/irq.h>
@@ -724,7 +725,7 @@ static void
 dm9000_hash_table(struct net_device *dev)
 {
 	board_info_t *db = netdev_priv(dev);
-	struct dev_mc_list *mcptr;
+	struct netdev_hw_addr *ha;
 	int i, oft;
 	u32 hash_val;
 	u16 hash_table[4];
@@ -752,8 +753,8 @@ dm9000_hash_table(struct net_device *dev)
 		rcr |= RCR_ALL;
 
 	/* the multicast address in Hash Table : 64 bits */
-	netdev_for_each_mc_addr(mcptr, dev) {
-		hash_val = ether_crc_le(6, mcptr->dmi_addr) & 0x3f;
+	netdev_for_each_mc_addr(ha, dev) {
+		hash_val = ether_crc_le(6, ha->addr) & 0x3f;
 		hash_table[hash_val / 16] |= (u16) 1 << (hash_val % 16);
 	}
 

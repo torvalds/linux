@@ -15,6 +15,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <linux/gfp.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/icmpv6.h>

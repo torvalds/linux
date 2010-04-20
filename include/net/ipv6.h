@@ -422,7 +422,7 @@ static inline int __ipv6_addr_diff(const void *token1, const void *token2, int a
 	for (i = 0; i < addrlen; i++) {
 		__be32 xb = a1[i] ^ a2[i];
 		if (xb)
-			return i * 32 + 32 - fls(ntohl(xb));
+			return i * 32 + 31 - __fls(ntohl(xb));
 	}
 
 	/*
@@ -482,8 +482,7 @@ extern int			ip6_rcv_finish(struct sk_buff *skb);
 extern int			ip6_xmit(struct sock *sk,
 					 struct sk_buff *skb,
 					 struct flowi *fl,
-					 struct ipv6_txoptions *opt,
-					 int ipfragok);
+					 struct ipv6_txoptions *opt);
 
 extern int			ip6_nd_hdr(struct sock *sk,
 					   struct sk_buff *skb,

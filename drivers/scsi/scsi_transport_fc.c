@@ -27,6 +27,7 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
@@ -1232,6 +1233,15 @@ store_fc_vport_delete(struct device *dev, struct device_attribute *attr,
 {
 	struct fc_vport *vport = transport_class_to_vport(dev);
 	struct Scsi_Host *shost = vport_to_shost(vport);
+	unsigned long flags;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING)) {
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		return -EBUSY;
+	}
+	vport->flags |= FC_VPORT_DELETING;
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	fc_queue_work(shost, &vport->vport_delete_work);
 	return count;
@@ -1821,6 +1831,9 @@ store_fc_host_vport_delete(struct device *dev, struct device_attribute *attr,
 	list_for_each_entry(vport, &fc_host->vports, peers) {
 		if ((vport->channel == 0) &&
 		    (vport->port_name == wwpn) && (vport->node_name == wwnn)) {
+			if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING))
+				break;
+			vport->flags |= FC_VPORT_DELETING;
 			match = 1;
 			break;
 		}
@@ -3370,18 +3383,6 @@ fc_vport_terminate(struct fc_vport *vport)
 	unsigned long flags;
 	int stat;
 
-	spin_lock_irqsave(shost->host_lock, flags);
-	if (vport->flags & FC_VPORT_CREATING) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		return -EBUSY;
-	}
-	if (vport->flags & (FC_VPORT_DEL)) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		return -EALREADY;
-	}
-	vport->flags |= FC_VPORT_DELETING;
-	spin_unlock_irqrestore(shost->host_lock, flags);
-
 	if (i->f->vport_delete)
 		stat = i->f->vport_delete(vport);
 	else
@@ -3852,7 +3853,7 @@ fc_bsg_request_handler(struct request_queue *q, struct Scsi_Host *shost,
 		if (rport && (rport->port_state != FC_PORTSTATE_ONLINE)) {
 			req->errors = -ENXIO;
 			spin_unlock_irq(q->queue_lock);
-			blk_end_request(req, -ENXIO, blk_rq_bytes(req));
+			blk_end_request_all(req, -ENXIO);
 			spin_lock_irq(q->queue_lock);
 			continue;
 		}
@@ -3862,7 +3863,7 @@ fc_bsg_request_handler(struct request_queue *q, struct Scsi_Host *shost,
 		ret = fc_req_to_bsgjob(shost, rport, req);
 		if (ret) {
 			req->errors = ret;
-			blk_end_request(req, ret, blk_rq_bytes(req));
+			blk_end_request_all(req, ret);
 			spin_lock_irq(q->queue_lock);
 			continue;
 		}

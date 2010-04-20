@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/eeprom_93cx6.h>
 
@@ -2117,6 +2118,14 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
+static void rt61pci_wakeup(struct rt2x00_dev *rt2x00dev)
+{
+	struct ieee80211_conf conf = { .flags = 0 };
+	struct rt2x00lib_conf libconf = { .conf = &conf };
+
+	rt61pci_config(rt2x00dev, &libconf, IEEE80211_CONF_CHANGE_PS);
+}
+
 static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 {
 	struct rt2x00_dev *rt2x00dev = dev_instance;
@@ -2163,6 +2172,12 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	if (reg_mcu)
 		rt2x00pci_register_write(rt2x00dev,
 					 M2H_CMD_DONE_CSR, 0xffffffff);
+
+	/*
+	 * 4 - MCU Autowakeup interrupt.
+	 */
+	if (rt2x00_get_field32(reg_mcu, MCU_INT_SOURCE_CSR_TWAKEUP))
+		rt61pci_wakeup(rt2x00dev);
 
 	return IRQ_HANDLED;
 }

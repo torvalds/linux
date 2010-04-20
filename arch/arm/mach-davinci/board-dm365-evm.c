@@ -22,6 +22,7 @@
 #include <linux/leds.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/slab.h>
 #include <linux/mtd/nand.h>
 #include <linux/input.h>
 #include <linux/spi/spi.h>

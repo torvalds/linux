@@ -26,6 +26,7 @@
 #include <linux/security.h>
 #include <linux/net.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/route.h>

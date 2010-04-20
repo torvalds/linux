@@ -277,12 +277,6 @@ extern struct pccard_resource_ops pccard_nonstatic_ops;
 #endif
 
 
-/* socket drivers are expected to use these callbacks in their .drv struct */
-extern int pcmcia_socket_dev_suspend(struct device *dev);
-extern void pcmcia_socket_dev_early_resume(struct device *dev);
-extern void pcmcia_socket_dev_late_resume(struct device *dev);
-extern int pcmcia_socket_dev_resume(struct device *dev);
-
 /* socket drivers use this callback in their IRQ handler */
 extern void pcmcia_parse_events(struct pcmcia_socket *socket,
 				unsigned int events);

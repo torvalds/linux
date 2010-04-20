@@ -43,6 +43,7 @@
 #include <linux/ftrace.h>
 #include <linux/stringify.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/sections.h>
 
@@ -582,9 +583,6 @@ static int static_obj(void *obj)
 	unsigned long start = (unsigned long) &_stext,
 		      end   = (unsigned long) &_end,
 		      addr  = (unsigned long) obj;
-#ifdef CONFIG_SMP
-	int i;
-#endif
 
 	/*
 	 * static variable?
@@ -595,24 +593,16 @@ static int static_obj(void *obj)
 	if (arch_is_kernel_data(addr))
 		return 1;
 
-#ifdef CONFIG_SMP
 	/*
-	 * percpu var?
+	 * in-kernel percpu var?
 	 */
-	for_each_possible_cpu(i) {
-		start = (unsigned long) &__per_cpu_start + per_cpu_offset(i);
-		end   = (unsigned long) &__per_cpu_start + PERCPU_ENOUGH_ROOM
-					+ per_cpu_offset(i);
-
-		if ((addr >= start) && (addr < end))
-			return 1;
-	}
-#endif
+	if (is_kernel_percpu_address(addr))
+		return 1;
 
 	/*
-	 * module var?
+	 * module static or percpu var?
 	 */
-	return is_module_address(addr);
+	return is_module_address(addr) || is_module_percpu_address(addr);
 }
 
 /*
@@ -3211,8 +3201,6 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 {
 	unsigned long flags;
 
-	trace_lock_acquire(lock, subclass, trylock, read, check, nest_lock, ip);
-
 	if (unlikely(current->lockdep_recursion))
 		return;
 
@@ -3220,6 +3208,7 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	check_flags(flags);
 
 	current->lockdep_recursion = 1;
+	trace_lock_acquire(lock, subclass, trylock, read, check, nest_lock, ip);
 	__lock_acquire(lock, subclass, trylock, read, check,
 		       irqs_disabled_flags(flags), nest_lock, ip, 0);
 	current->lockdep_recursion = 0;
@@ -3232,14 +3221,13 @@ void lock_release(struct lockdep_map *lock, int nested,
 {
 	unsigned long flags;
 
-	trace_lock_release(lock, nested, ip);
-
 	if (unlikely(current->lockdep_recursion))
 		return;
 
 	raw_local_irq_save(flags);
 	check_flags(flags);
 	current->lockdep_recursion = 1;
+	trace_lock_release(lock, nested, ip);
 	__lock_release(lock, nested, ip);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
@@ -3413,8 +3401,6 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
 {
 	unsigned long flags;
 
-	trace_lock_contended(lock, ip);
-
 	if (unlikely(!lock_stat))
 		return;
 
@@ -3424,6 +3410,7 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
 	raw_local_irq_save(flags);
 	check_flags(flags);
 	current->lockdep_recursion = 1;
+	trace_lock_contended(lock, ip);
 	__lock_contended(lock, ip);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);

@@ -3591,20 +3591,20 @@ wv_82593_config(struct net_device *	dev)
     /* If roaming is enabled, join the "Beacon Request" multicast group... */
     /* But only if it's not in there already! */
   if(do_roaming)
-    dev_mc_add(dev,WAVELAN_BEACON_ADDRESS, WAVELAN_ADDR_SIZE, 1);
+    dev_mc_add(dev, WAVELAN_BEACON_ADDRESS);
 #endif	/* WAVELAN_ROAMING */
 
   /* If any multicast address to set */
   if(lp->mc_count)
     {
-      struct dev_mc_list *dmi;
+      struct netdev_hw_addr *ha;
       int			addrs_len = WAVELAN_ADDR_SIZE * lp->mc_count;
 
 #ifdef DEBUG_CONFIG_INFO
       printk(KERN_DEBUG "%s: wv_hw_config(): set %d multicast addresses:\n",
 	     dev->name, lp->mc_count);
-      netdev_for_each_mc_addr(dmi, dev)
-	printk(KERN_DEBUG " %pM\n", dmi->dmi_addr);
+      netdev_for_each_mc_addr(ha, dev)
+	printk(KERN_DEBUG " %pM\n", ha->addr);
 #endif
 
       /* Initialize adapter's ethernet multicast addresses */
@@ -3612,8 +3612,8 @@ wv_82593_config(struct net_device *	dev)
       outb(((TX_BASE >> 8) & PIORH_MASK) | PIORH_SEL_TX, PIORH(base));
       outb(addrs_len & 0xff, PIOP(base));	/* byte count lsb */
       outb((addrs_len >> 8), PIOP(base));	/* byte count msb */
-      netdev_for_each_mc_addr(dmi, dev)
-	outsb(PIOP(base), dmi->dmi_addr, dmi->dmi_addrlen);
+      netdev_for_each_mc_addr(ha, dev)
+	outsb(PIOP(base), ha->addr, dev->addr_len);
 
       /* reset transmit DMA pointer */
       hacr_write_slow(base, HACR_PWR_STAT | HACR_TX_DMA_RESET);

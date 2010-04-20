@@ -323,6 +323,12 @@
  *	the TX command and %NL80211_ATTR_FRAME includes the contents of the
  *	frame. %NL80211_ATTR_ACK flag is included if the recipient acknowledged
  *	the frame.
+ * @NL80211_CMD_SET_CQM: Connection quality monitor configuration. This command
+ *	is used to configure connection quality monitoring notification trigger
+ *	levels.
+ * @NL80211_CMD_NOTIFY_CQM: Connection quality monitor notification. This
+ *	command is used as an event to indicate the that a trigger level was
+ *	reached.
  *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
@@ -418,6 +424,9 @@ enum nl80211_commands {
 
 	NL80211_CMD_SET_POWER_SAVE,
 	NL80211_CMD_GET_POWER_SAVE,
+
+	NL80211_CMD_SET_CQM,
+	NL80211_CMD_NOTIFY_CQM,
 
 	/* add new commands above here */
 
@@ -691,6 +700,15 @@ enum nl80211_commands {
  * @NL80211_ATTR_ACK: Flag attribute indicating that the frame was
  *	acknowledged by the recipient.
  *
+ * @NL80211_ATTR_CQM: connection quality monitor configuration in a
+ *	nested attribute with %NL80211_ATTR_CQM_* sub-attributes.
+ *
+ * @NL80211_ATTR_LOCAL_STATE_CHANGE: Flag attribute to indicate that a command
+ *	is requesting a local authentication/association state change without
+ *	invoking actual management frame exchange. This can be used with
+ *	NL80211_CMD_AUTHENTICATE, NL80211_CMD_DEAUTHENTICATE,
+ *	NL80211_CMD_DISASSOCIATE.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -841,6 +859,10 @@ enum nl80211_attrs {
 	NL80211_ATTR_ACK,
 
 	NL80211_ATTR_PS_STATE,
+
+	NL80211_ATTR_CQM,
+
+	NL80211_ATTR_LOCAL_STATE_CHANGE,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -1581,6 +1603,42 @@ enum nl80211_band {
 enum nl80211_ps_state {
 	NL80211_PS_DISABLED,
 	NL80211_PS_ENABLED,
+};
+
+/**
+ * enum nl80211_attr_cqm - connection quality monitor attributes
+ * @__NL80211_ATTR_CQM_INVALID: invalid
+ * @NL80211_ATTR_CQM_RSSI_THOLD: RSSI threshold in dBm. This value specifies
+ *	the threshold for the RSSI level at which an event will be sent. Zero
+ *	to disable.
+ * @NL80211_ATTR_CQM_RSSI_HYST: RSSI hysteresis in dBm. This value specifies
+ *	the minimum amount the RSSI level must change after an event before a
+ *	new event may be issued (to reduce effects of RSSI oscillation).
+ * @NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT: RSSI threshold event
+ * @__NL80211_ATTR_CQM_AFTER_LAST: internal
+ * @NL80211_ATTR_CQM_MAX: highest key attribute
+ */
+enum nl80211_attr_cqm {
+	__NL80211_ATTR_CQM_INVALID,
+	NL80211_ATTR_CQM_RSSI_THOLD,
+	NL80211_ATTR_CQM_RSSI_HYST,
+	NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT,
+
+	/* keep last */
+	__NL80211_ATTR_CQM_AFTER_LAST,
+	NL80211_ATTR_CQM_MAX = __NL80211_ATTR_CQM_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_cqm_rssi_threshold_event - RSSI threshold event
+ * @NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW - The RSSI level is lower than the
+ *      configured threshold
+ * @NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH - The RSSI is higher than the
+ *      configured threshold
+ */
+enum nl80211_cqm_rssi_threshold_event {
+	NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+	NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
 };
 
 #endif /* __LINUX_NL80211_H */

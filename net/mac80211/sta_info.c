@@ -93,12 +93,18 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
-	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
+	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
+				    rcu_read_lock_held() ||
+				    lockdep_is_held(&local->sta_lock) ||
+				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if (sta->sdata == sdata &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
-		sta = rcu_dereference(sta->hnext);
+		sta = rcu_dereference_check(sta->hnext,
+					    rcu_read_lock_held() ||
+					    lockdep_is_held(&local->sta_lock) ||
+					    lockdep_is_held(&local->sta_mtx));
 	}
 	return sta;
 }
@@ -113,13 +119,19 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
-	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
+	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
+				    rcu_read_lock_held() ||
+				    lockdep_is_held(&local->sta_lock) ||
+				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if ((sta->sdata == sdata ||
 		     sta->sdata->bss == sdata->bss) &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
-		sta = rcu_dereference(sta->hnext);
+		sta = rcu_dereference_check(sta->hnext,
+					    rcu_read_lock_held() ||
+					    lockdep_is_held(&local->sta_lock) ||
+					    lockdep_is_held(&local->sta_mtx));
 	}
 	return sta;
 }
@@ -238,9 +250,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		 * enable session_timer's data differentiation. refer to
 		 * sta_rx_agg_session_timer_expired for useage */
 		sta->timer_to_tid[i] = i;
-		/* rx */
-		sta->ampdu_mlme.tid_state_rx[i] = HT_AGG_STATE_IDLE;
-		sta->ampdu_mlme.tid_rx[i] = NULL;
 		/* tx */
 		sta->ampdu_mlme.tid_state_tx[i] = HT_AGG_STATE_IDLE;
 		sta->ampdu_mlme.tid_tx[i] = NULL;
@@ -607,7 +616,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	struct ieee80211_sub_if_data *sdata;
 	struct sk_buff *skb;
 	unsigned long flags;
-	int ret, i;
+	int ret;
 
 	might_sleep();
 
@@ -616,6 +625,15 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	local = sta->local;
 	sdata = sta->sdata;
+
+	/*
+	 * Before removing the station from the driver and
+	 * rate control, it might still start new aggregation
+	 * sessions -- block that to make sure the tear-down
+	 * will be sufficient.
+	 */
+	set_sta_flags(sta, WLAN_STA_BLOCK_BA);
+	ieee80211_sta_tear_down_BA_sessions(sta);
 
 	spin_lock_irqsave(&local->sta_lock, flags);
 	ret = sta_info_hash_del(local, sta);
@@ -633,9 +651,6 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 		 * may mean it is removed from hardware which requires that
 		 * the key->sta pointer is still valid, so flush the key todo
 		 * list here.
-		 *
-		 * ieee80211_key_todo() will synchronize_rcu() so after this
-		 * nothing can reference this sta struct any more.
 		 */
 		ieee80211_key_todo();
 
@@ -667,11 +682,17 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 		sdata = sta->sdata;
 	}
 
+	/*
+	 * At this point, after we wait for an RCU grace period,
+	 * neither mac80211 nor the driver can reference this
+	 * sta struct any more except by still existing timers
+	 * associated with this station that we clean up below.
+	 */
+	synchronize_rcu();
+
 #ifdef CONFIG_MAC80211_MESH
-	if (ieee80211_vif_is_mesh(&sdata->vif)) {
+	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_accept_plinks_update(sdata);
-		del_timer(&sta->plink_timer);
-	}
 #endif
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -697,50 +718,6 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL)
 		dev_kfree_skb_any(skb);
-
-	for (i = 0; i <  STA_TID_NUM; i++) {
-		struct tid_ampdu_rx *tid_rx;
-		struct tid_ampdu_tx *tid_tx;
-
-		spin_lock_bh(&sta->lock);
-		tid_rx = sta->ampdu_mlme.tid_rx[i];
-		/* Make sure timer won't free the tid_rx struct, see below */
-		if (tid_rx)
-			tid_rx->shutdown = true;
-
-		spin_unlock_bh(&sta->lock);
-
-		/*
-		 * Outside spinlock - shutdown is true now so that the timer
-		 * won't free tid_rx, we have to do that now. Can't let the
-		 * timer do it because we have to sync the timer outside the
-		 * lock that it takes itself.
-		 */
-		if (tid_rx) {
-			del_timer_sync(&tid_rx->session_timer);
-			kfree(tid_rx);
-		}
-
-		/*
-		 * No need to do such complications for TX agg sessions, the
-		 * path leading to freeing the tid_tx struct goes via a call
-		 * from the driver, and thus needs to look up the sta struct
-		 * again, which cannot be found when we get here. Hence, we
-		 * just need to delete the timer and free the aggregation
-		 * info; we won't be telling the peer about it then but that
-		 * doesn't matter if we're not talking to it again anyway.
-		 */
-		tid_tx = sta->ampdu_mlme.tid_tx[i];
-		if (tid_tx) {
-			del_timer_sync(&tid_tx->addba_resp_timer);
-			/*
-			 * STA removed while aggregation session being
-			 * started? Bit odd, but purge frames anyway.
-			 */
-			skb_queue_purge(&tid_tx->pending);
-			kfree(tid_tx);
-		}
-	}
 
 	__sta_info_free(local, sta);
 
@@ -979,6 +956,8 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 			       struct ieee80211_sta *pubsta, bool block)
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+
+	trace_api_sta_block_awake(sta->local, pubsta, block);
 
 	if (block)
 		set_sta_flags(sta, WLAN_STA_PS_DRIVER);

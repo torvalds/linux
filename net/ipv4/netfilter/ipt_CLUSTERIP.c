@@ -15,6 +15,7 @@
 #include <linux/jhash.h>
 #include <linux/bitops.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
@@ -88,7 +89,7 @@ clusterip_config_entry_put(struct clusterip_config *c)
 		list_del(&c->list);
 		write_unlock_bh(&clusterip_lock);
 
-		dev_mc_delete(c->dev, c->clustermac, ETH_ALEN, 0);
+		dev_mc_del(c->dev, c->clustermac);
 		dev_put(c->dev);
 
 		/* In case anyone still accesses the file, the open/close
@@ -397,7 +398,7 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 				dev_put(dev);
 				return -ENOMEM;
 			}
-			dev_mc_add(config->dev,config->clustermac, ETH_ALEN, 0);
+			dev_mc_add(config->dev, config->clustermac);
 		}
 	}
 	cipinfo->config = config;

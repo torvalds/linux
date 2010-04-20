@@ -21,6 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -527,7 +528,7 @@ static void gelic_wl_parse_ie(u8 *data, size_t len,
 	u8 item_len;
 	u8 item_id;
 
-	pr_debug("%s: data=%p len=%ld \n", __func__,
+	pr_debug("%s: data=%p len=%ld\n", __func__,
 		 data, len);
 	memset(ie_info, 0, sizeof(struct ie_info));
 
@@ -978,7 +979,7 @@ static int gelic_wl_set_essid(struct net_device *netdev,
 		pr_debug("%s: essid = '%s'\n", __func__, extra);
 		set_bit(GELIC_WL_STAT_ESSID_SET, &wl->stat);
 	} else {
-		pr_debug("%s: ESSID any \n", __func__);
+		pr_debug("%s: ESSID any\n", __func__);
 		clear_bit(GELIC_WL_STAT_ESSID_SET, &wl->stat);
 	}
 	set_bit(GELIC_WL_STAT_CONFIGURED, &wl->stat);
@@ -986,7 +987,7 @@ static int gelic_wl_set_essid(struct net_device *netdev,
 
 
 	gelic_wl_try_associate(netdev); /* FIXME */
-	pr_debug("%s: -> \n", __func__);
+	pr_debug("%s: ->\n", __func__);
 	return 0;
 }
 
@@ -997,7 +998,7 @@ static int gelic_wl_get_essid(struct net_device *netdev,
 	struct gelic_wl_info *wl = port_wl(netdev_priv(netdev));
 	unsigned long irqflag;
 
-	pr_debug("%s: <- \n", __func__);
+	pr_debug("%s: <-\n", __func__);
 	mutex_lock(&wl->assoc_stat_lock);
 	spin_lock_irqsave(&wl->lock, irqflag);
 	if (test_bit(GELIC_WL_STAT_ESSID_SET, &wl->stat) ||
@@ -1010,7 +1011,7 @@ static int gelic_wl_get_essid(struct net_device *netdev,
 
 	mutex_unlock(&wl->assoc_stat_lock);
 	spin_unlock_irqrestore(&wl->lock, irqflag);
-	pr_debug("%s: -> len=%d \n", __func__, data->essid.length);
+	pr_debug("%s: -> len=%d\n", __func__, data->essid.length);
 
 	return 0;
 }
@@ -1027,7 +1028,7 @@ static int gelic_wl_set_encode(struct net_device *netdev,
 	int key_index, index_specified;
 	int ret = 0;
 
-	pr_debug("%s: <- \n", __func__);
+	pr_debug("%s: <-\n", __func__);
 	flags = enc->flags & IW_ENCODE_FLAGS;
 	key_index = enc->flags & IW_ENCODE_INDEX;
 
@@ -1086,7 +1087,7 @@ static int gelic_wl_set_encode(struct net_device *netdev,
 	set_bit(GELIC_WL_STAT_CONFIGURED, &wl->stat);
 done:
 	spin_unlock_irqrestore(&wl->lock, irqflag);
-	pr_debug("%s: -> \n", __func__);
+	pr_debug("%s: ->\n", __func__);
 	return ret;
 }
 
@@ -1100,7 +1101,7 @@ static int gelic_wl_get_encode(struct net_device *netdev,
 	unsigned int key_index, index_specified;
 	int ret = 0;
 
-	pr_debug("%s: <- \n", __func__);
+	pr_debug("%s: <-\n", __func__);
 	key_index = enc->flags & IW_ENCODE_INDEX;
 	pr_debug("%s: flag=%#x point=%p len=%d extra=%p\n", __func__,
 		 enc->flags, enc->pointer, enc->length, extra);
@@ -1214,7 +1215,7 @@ static int gelic_wl_set_encodeext(struct net_device *netdev,
 	int key_index;
 	int ret = 0;
 
-	pr_debug("%s: <- \n", __func__);
+	pr_debug("%s: <-\n", __func__);
 	flags = enc->flags & IW_ENCODE_FLAGS;
 	alg = ext->alg;
 	key_index = enc->flags & IW_ENCODE_INDEX;
@@ -1287,7 +1288,7 @@ static int gelic_wl_set_encodeext(struct net_device *netdev,
 	}
 done:
 	spin_unlock_irqrestore(&wl->lock, irqflag);
-	pr_debug("%s: -> \n", __func__);
+	pr_debug("%s: ->\n", __func__);
 	return ret;
 }
 
@@ -1303,7 +1304,7 @@ static int gelic_wl_get_encodeext(struct net_device *netdev,
 	int ret = 0;
 	int max_key_len;
 
-	pr_debug("%s: <- \n", __func__);
+	pr_debug("%s: <-\n", __func__);
 
 	max_key_len = enc->length - sizeof(struct iw_encode_ext);
 	if (max_key_len < 0)
@@ -1358,7 +1359,7 @@ static int gelic_wl_get_encodeext(struct net_device *netdev,
 	}
 out:
 	spin_unlock_irqrestore(&wl->lock, irqflag);
-	pr_debug("%s: -> \n", __func__);
+	pr_debug("%s: ->\n", __func__);
 	return ret;
 }
 /* SIOC{S,G}IWMODE */
@@ -1369,7 +1370,7 @@ static int gelic_wl_set_mode(struct net_device *netdev,
 	__u32 mode = data->mode;
 	int ret;
 
-	pr_debug("%s: <- \n", __func__);
+	pr_debug("%s: <-\n", __func__);
 	if (mode == IW_MODE_INFRA)
 		ret = 0;
 	else
@@ -1383,7 +1384,7 @@ static int gelic_wl_get_mode(struct net_device *netdev,
 			     union iwreq_data *data, char *extra)
 {
 	__u32 *mode = &data->mode;
-	pr_debug("%s: <- \n", __func__);
+	pr_debug("%s: <-\n", __func__);
 	*mode = IW_MODE_INFRA;
 	pr_debug("%s: ->\n", __func__);
 	return 0;
@@ -2021,7 +2022,7 @@ static int gelic_wl_associate_bss(struct gelic_wl_info *wl,
 
 	if (!rc) {
 		/* timeouted.  Maybe key or cyrpt mode is wrong */
-		pr_info("%s: connect timeout \n", __func__);
+		pr_info("%s: connect timeout\n", __func__);
 		cmd = gelic_eurus_sync_cmd(wl, GELIC_EURUS_CMD_DISASSOC,
 					   NULL, 0);
 		kfree(cmd);
@@ -2062,7 +2063,7 @@ static void gelic_wl_connected_event(struct gelic_wl_info *wl,
 	}
 
 	if (desired_event == event) {
-		pr_debug("%s: completed \n", __func__);
+		pr_debug("%s: completed\n", __func__);
 		complete(&wl->assoc_done);
 		netif_carrier_on(port_to_netdev(wl_port(wl)));
 	} else
@@ -2279,26 +2280,25 @@ void gelic_wl_interrupt(struct net_device *netdev, u64 status)
 /*
  * driver helpers
  */
-#define IW_IOCTL(n) [(n) - SIOCSIWCOMMIT]
 static const iw_handler gelic_wl_wext_handler[] =
 {
-	IW_IOCTL(SIOCGIWNAME)		= gelic_wl_get_name,
-	IW_IOCTL(SIOCGIWRANGE)		= gelic_wl_get_range,
-	IW_IOCTL(SIOCSIWSCAN)		= gelic_wl_set_scan,
-	IW_IOCTL(SIOCGIWSCAN)		= gelic_wl_get_scan,
-	IW_IOCTL(SIOCSIWAUTH)		= gelic_wl_set_auth,
-	IW_IOCTL(SIOCGIWAUTH)		= gelic_wl_get_auth,
-	IW_IOCTL(SIOCSIWESSID)		= gelic_wl_set_essid,
-	IW_IOCTL(SIOCGIWESSID)		= gelic_wl_get_essid,
-	IW_IOCTL(SIOCSIWENCODE)		= gelic_wl_set_encode,
-	IW_IOCTL(SIOCGIWENCODE)		= gelic_wl_get_encode,
-	IW_IOCTL(SIOCSIWAP)		= gelic_wl_set_ap,
-	IW_IOCTL(SIOCGIWAP)		= gelic_wl_get_ap,
-	IW_IOCTL(SIOCSIWENCODEEXT)	= gelic_wl_set_encodeext,
-	IW_IOCTL(SIOCGIWENCODEEXT)	= gelic_wl_get_encodeext,
-	IW_IOCTL(SIOCSIWMODE)		= gelic_wl_set_mode,
-	IW_IOCTL(SIOCGIWMODE)		= gelic_wl_get_mode,
-	IW_IOCTL(SIOCGIWNICKN)		= gelic_wl_get_nick,
+	IW_HANDLER(SIOCGIWNAME, gelic_wl_get_name),
+	IW_HANDLER(SIOCGIWRANGE, gelic_wl_get_range),
+	IW_HANDLER(SIOCSIWSCAN, gelic_wl_set_scan),
+	IW_HANDLER(SIOCGIWSCAN, gelic_wl_get_scan),
+	IW_HANDLER(SIOCSIWAUTH, gelic_wl_set_auth),
+	IW_HANDLER(SIOCGIWAUTH, gelic_wl_get_auth),
+	IW_HANDLER(SIOCSIWESSID, gelic_wl_set_essid),
+	IW_HANDLER(SIOCGIWESSID, gelic_wl_get_essid),
+	IW_HANDLER(SIOCSIWENCODE, gelic_wl_set_encode),
+	IW_HANDLER(SIOCGIWENCODE, gelic_wl_get_encode),
+	IW_HANDLER(SIOCSIWAP, gelic_wl_set_ap),
+	IW_HANDLER(SIOCGIWAP, gelic_wl_get_ap),
+	IW_HANDLER(SIOCSIWENCODEEXT, gelic_wl_set_encodeext),
+	IW_HANDLER(SIOCGIWENCODEEXT, gelic_wl_get_encodeext),
+	IW_HANDLER(SIOCSIWMODE, gelic_wl_set_mode),
+	IW_HANDLER(SIOCGIWMODE, gelic_wl_get_mode),
+	IW_HANDLER(SIOCGIWNICKN, gelic_wl_get_nick),
 };
 
 static const struct iw_handler_def gelic_wl_wext_handler_def = {
@@ -2317,7 +2317,7 @@ static struct net_device * __devinit gelic_wl_alloc(struct gelic_card *card)
 	pr_debug("%s:start\n", __func__);
 	netdev = alloc_etherdev(sizeof(struct gelic_port) +
 				sizeof(struct gelic_wl_info));
-	pr_debug("%s: netdev =%p card=%p \np", __func__, netdev, card);
+	pr_debug("%s: netdev =%p card=%p\n", __func__, netdev, card);
 	if (!netdev)
 		return NULL;
 

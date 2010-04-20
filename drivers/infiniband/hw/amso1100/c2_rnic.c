@@ -51,6 +51,7 @@
 #include <linux/mm.h>
 #include <linux/inet.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include <linux/route.h>
 

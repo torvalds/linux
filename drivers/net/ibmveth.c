@@ -49,6 +49,7 @@
 #include <linux/proc_fs.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <asm/hvcall.h>
 #include <asm/atomic.h>
@@ -1072,7 +1073,7 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 			ibmveth_error_printk("h_multicast_ctrl rc=%ld when entering promisc mode\n", lpar_rc);
 		}
 	} else {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		/* clear the filter table & disable filtering */
 		lpar_rc = h_multicast_ctrl(adapter->vdev->unit_address,
 					   IbmVethMcastEnableRecv |
@@ -1083,10 +1084,10 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 			ibmveth_error_printk("h_multicast_ctrl rc=%ld when attempting to clear filter table\n", lpar_rc);
 		}
 		/* add the addresses to the filter table */
-		netdev_for_each_mc_addr(mclist, netdev) {
+		netdev_for_each_mc_addr(ha, netdev) {
 			// add the multicast address to the filter table
 			unsigned long mcast_addr = 0;
-			memcpy(((char *)&mcast_addr)+2, mclist->dmi_addr, 6);
+			memcpy(((char *)&mcast_addr)+2, ha->addr, 6);
 			lpar_rc = h_multicast_ctrl(adapter->vdev->unit_address,
 						   IbmVethMcastAddFilter,
 						   mcast_addr);

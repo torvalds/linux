@@ -25,6 +25,7 @@
  *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
@@ -453,7 +454,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 		added++;
 	}
 
-	IWL_DEBUG_SCAN(priv, "total channels to scan %d \n", added);
+	IWL_DEBUG_SCAN(priv, "total channels to scan %d\n", added);
 	return added;
 }
 
@@ -580,7 +581,6 @@ int iwl_internal_short_hw_scan(struct iwl_priv *priv)
 out:
 	return ret;
 }
-EXPORT_SYMBOL(iwl_internal_short_hw_scan);
 
 #define IWL_SCAN_CHECK_WATCHDOG (7 * HZ)
 
@@ -665,7 +665,6 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	};
 	struct iwl_scan_cmd *scan;
 	struct ieee80211_conf *conf = NULL;
-	int ret = 0;
 	u32 rate_flags = 0;
 	u16 cmd_len;
 	u16 rx_chain = 0;
@@ -698,7 +697,6 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
 		IWL_DEBUG_INFO(priv, "Multiple concurrent scan requests in parallel. "
 			       "Ignoring second request.\n");
-		ret = -EIO;
 		goto done;
 	}
 
@@ -731,7 +729,8 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		priv->scan = kmalloc(sizeof(struct iwl_scan_cmd) +
 				     IWL_MAX_SCAN_SIZE, GFP_KERNEL);
 		if (!priv->scan) {
-			ret = -ENOMEM;
+			IWL_DEBUG_SCAN(priv,
+				       "fail to allocate memory for scan\n");
 			goto done;
 		}
 	}
@@ -815,10 +814,11 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		 */
 		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH : 0;
 
-		/* Force use of chains B and C (0x6) for scan Rx for 4965
-		 * Avoid A (0x1) because of its off-channel reception on A-band.
+		/* Force use of chains B and C (0x6) for scan Rx
+		 * Avoid A (0x1) for the device has off-channel reception
+		 * on A-band.
 		 */
-		if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
+		if (priv->cfg->off_channel_workaround)
 			rx_ant = ANT_BC;
 	} else {
 		IWL_WARN(priv, "Invalid scan band count\n");
@@ -892,8 +892,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	scan->len = cpu_to_le16(cmd.len);
 
 	set_bit(STATUS_SCAN_HW, &priv->status);
-	ret = iwl_send_cmd_sync(priv, &cmd);
-	if (ret)
+	if (iwl_send_cmd_sync(priv, &cmd))
 		goto done;
 
 	queue_delayed_work(priv->workqueue, &priv->scan_check,

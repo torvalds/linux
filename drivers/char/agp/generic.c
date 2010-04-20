@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>

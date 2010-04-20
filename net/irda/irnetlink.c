@@ -15,6 +15,7 @@
 
 #include <linux/socket.h>
 #include <linux/irda.h>
+#include <linux/gfp.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/irda/irda.h>

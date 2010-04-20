@@ -21,6 +21,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
@@ -265,7 +266,7 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 					  size_t count, loff_t *ppos)
 {
 	struct iwm_priv *iwm = filp->private_data;
-	struct iwm_rx_ticket_node *ticket, *next;
+	struct iwm_rx_ticket_node *ticket;
 	char *buf;
 	int buf_len = 4096, i;
 	size_t len = 0;
@@ -280,7 +281,8 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 	if (!buf)
 		return -ENOMEM;
 
-	list_for_each_entry_safe(ticket, next, &iwm->rx_tickets, node) {
+	spin_lock(&iwm->ticket_lock);
+	list_for_each_entry(ticket, &iwm->rx_tickets, node) {
 		len += snprintf(buf + len, buf_len - len, "Ticket #%d\n",
 				ticket->ticket->id);
 		len += snprintf(buf + len, buf_len - len, "\taction: 0x%x\n",
@@ -288,14 +290,17 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 		len += snprintf(buf + len, buf_len - len, "\tflags:  0x%x\n",
 				ticket->ticket->flags);
 	}
+	spin_unlock(&iwm->ticket_lock);
 
 	for (i = 0; i < IWM_RX_ID_HASH; i++) {
-		struct iwm_rx_packet *packet, *nxt;
+		struct iwm_rx_packet *packet;
 		struct list_head *pkt_list = &iwm->rx_packets[i];
+
 		if (!list_empty(pkt_list)) {
 			len += snprintf(buf + len, buf_len - len,
 					"Packet hash #%d\n", i);
-			list_for_each_entry_safe(packet, nxt, pkt_list, node) {
+			spin_lock(&iwm->packet_lock[i]);
+			list_for_each_entry(packet, pkt_list, node) {
 				len += snprintf(buf + len, buf_len - len,
 						"\tPacket id:     %d\n",
 						packet->id);
@@ -303,6 +308,7 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 						"\tPacket length: %lu\n",
 						packet->pkt_size);
 			}
+			spin_unlock(&iwm->packet_lock[i]);
 		}
 	}
 

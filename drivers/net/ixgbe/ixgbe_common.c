@@ -1484,26 +1484,24 @@ static void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr)
 /**
  *  ixgbe_update_mc_addr_list_generic - Updates MAC list of multicast addresses
  *  @hw: pointer to hardware structure
- *  @mc_addr_list: the list of new multicast addresses
- *  @mc_addr_count: number of addresses
- *  @next: iterator function to walk the multicast address list
+ *  @netdev: pointer to net device structure
  *
  *  The given list replaces any existing list. Clears the MC addrs from receive
  *  address registers and the multicast table. Uses unused receive address
  *  registers for the first multicast addresses, and hashes the rest into the
  *  multicast table.
  **/
-s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
-                                      u32 mc_addr_count, ixgbe_mc_addr_itr next)
+s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw,
+				      struct net_device *netdev)
 {
+	struct netdev_hw_addr *ha;
 	u32 i;
-	u32 vmdq;
 
 	/*
 	 * Set the new number of MC addresses that we are being requested to
 	 * use.
 	 */
-	hw->addr_ctrl.num_mc_addrs = mc_addr_count;
+	hw->addr_ctrl.num_mc_addrs = netdev_mc_count(netdev);
 	hw->addr_ctrl.mta_in_use = 0;
 
 	/* Clear the MTA */
@@ -1512,9 +1510,9 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
 		IXGBE_WRITE_REG(hw, IXGBE_MTA(i), 0);
 
 	/* Add the new addresses */
-	for (i = 0; i < mc_addr_count; i++) {
+	netdev_for_each_mc_addr(ha, netdev) {
 		hw_dbg(hw, " Adding the multicast addresses:\n");
-		ixgbe_set_mta(hw, next(hw, &mc_addr_list, &vmdq));
+		ixgbe_set_mta(hw, ha->addr);
 	}
 
 	/* Enable mta */

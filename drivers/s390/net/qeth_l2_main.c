@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/ip.h>
@@ -607,7 +608,6 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 static void qeth_l2_set_multicast_list(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
-	struct dev_addr_list *dm;
 	struct netdev_hw_addr *ha;
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
@@ -619,8 +619,8 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 		return;
 	qeth_l2_del_all_mc(card);
 	spin_lock_bh(&card->mclock);
-	netdev_for_each_mc_addr(dm, dev)
-		qeth_l2_add_mc(card, dm->da_addr, 0);
+	netdev_for_each_mc_addr(ha, dev)
+		qeth_l2_add_mc(card, ha->addr, 0);
 
 	netdev_for_each_uc_addr(ha, dev)
 		qeth_l2_add_mc(card, ha->addr, 1);

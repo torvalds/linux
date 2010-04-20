@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/sysctl.h>
 #include <linux/netfilter.h>
+#include <linux/slab.h>
 
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -113,9 +114,9 @@ struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
 		}
 		opt = xchg(&inet6_sk(sk)->opt, opt);
 	} else {
-		write_lock(&sk->sk_dst_lock);
+		spin_lock(&sk->sk_dst_lock);
 		opt = xchg(&inet6_sk(sk)->opt, opt);
-		write_unlock(&sk->sk_dst_lock);
+		spin_unlock(&sk->sk_dst_lock);
 	}
 	sk_dst_reset(sk);
 
@@ -970,14 +971,13 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	case IPV6_MTU:
 	{
 		struct dst_entry *dst;
+
 		val = 0;
-		lock_sock(sk);
-		dst = sk_dst_get(sk);
-		if (dst) {
+		rcu_read_lock();
+		dst = __sk_dst_get(sk);
+		if (dst)
 			val = dst_mtu(dst);
-			dst_release(dst);
-		}
-		release_sock(sk);
+		rcu_read_unlock();
 		if (!val)
 			return -ENOTCONN;
 		break;
@@ -1065,12 +1065,14 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		else
 			val = np->mcast_hops;
 
-		dst = sk_dst_get(sk);
-		if (dst) {
-			if (val < 0)
+		if (val < 0) {
+			rcu_read_lock();
+			dst = __sk_dst_get(sk);
+			if (dst)
 				val = ip6_dst_hoplimit(dst);
-			dst_release(dst);
+			rcu_read_unlock();
 		}
+
 		if (val < 0)
 			val = sock_net(sk)->ipv6.devconf_all->hop_limit;
 		break;

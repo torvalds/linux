@@ -186,6 +186,7 @@ source "net/sctp/Kconfig"
 source "net/rds/Kconfig"
 source "net/tipc/Kconfig"
 source "net/atm/Kconfig"
+source "net/l2tp/Kconfig"
 source "net/802/Kconfig"
 source "net/bridge/Kconfig"
 source "net/dsa/Kconfig"
@@ -202,6 +203,11 @@ source "net/phonet/Kconfig"
 source "net/ieee802154/Kconfig"
 source "net/sched/Kconfig"
 source "net/dcb/Kconfig"
+
+config RPS
+	boolean
+	depends on SMP && SYSFS
+	default y
 
 menu "Network testing"
 
@@ -275,5 +281,7 @@ source "net/wimax/Kconfig"
 
 source "net/rfkill/Kconfig"
 source "net/9p/Kconfig"
+source "net/caif/Kconfig"
+
 
 endif   # if NET

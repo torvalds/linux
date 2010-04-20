@@ -31,6 +31,7 @@
 #include <linux/if_vlan.h>
 #include <linux/in.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <linux/ioport.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
@@ -40,7 +41,6 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
@@ -625,7 +625,7 @@ spider_net_get_multicast_hash(struct net_device *netdev, __u8 *addr)
 static void
 spider_net_set_multi(struct net_device *netdev)
 {
-	struct dev_mc_list *mc;
+	struct netdev_hw_addr *ha;
 	u8 hash;
 	int i;
 	u32 reg;
@@ -646,8 +646,8 @@ spider_net_set_multi(struct net_device *netdev)
 	hash = spider_net_get_multicast_hash(netdev, netdev->broadcast); */
 	set_bit(0xfd, bitmask);
 
-	netdev_for_each_mc_addr(mc, netdev) {
-		hash = spider_net_get_multicast_hash(netdev, mc->dmi_addr);
+	netdev_for_each_mc_addr(ha, netdev) {
+		hash = spider_net_get_multicast_hash(netdev, ha->addr);
 		set_bit(hash, bitmask);
 	}
 

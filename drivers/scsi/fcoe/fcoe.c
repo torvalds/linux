@@ -26,6 +26,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/sysfs.h>
@@ -308,10 +309,10 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	 * for multiple unicast MACs.
 	 */
 	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
-	dev_unicast_add(netdev, flogi_maddr);
+	dev_uc_add(netdev, flogi_maddr);
 	if (fip->spma)
-		dev_unicast_add(netdev, fip->ctl_src_addr);
-	dev_mc_add(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
+		dev_uc_add(netdev, fip->ctl_src_addr);
+	dev_mc_add(netdev, FIP_ALL_ENODE_MACS);
 
 	/*
 	 * setup the receive function from ethernet driver
@@ -394,10 +395,10 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 
 	/* Delete secondary MAC addresses */
 	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
-	dev_unicast_delete(netdev, flogi_maddr);
+	dev_uc_del(netdev, flogi_maddr);
 	if (fip->spma)
-		dev_unicast_delete(netdev, fip->ctl_src_addr);
-	dev_mc_delete(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
+		dev_uc_del(netdev, fip->ctl_src_addr);
+	dev_mc_del(netdev, FIP_ALL_ENODE_MACS);
 
 	/* Tell the LLD we are done w/ FCoE */
 	ops = netdev->netdev_ops;
@@ -490,9 +491,9 @@ static void fcoe_update_src_mac(struct fc_lport *lport, u8 *addr)
 
 	rtnl_lock();
 	if (!is_zero_ether_addr(port->data_src_addr))
-		dev_unicast_delete(fcoe->netdev, port->data_src_addr);
+		dev_uc_del(fcoe->netdev, port->data_src_addr);
 	if (!is_zero_ether_addr(addr))
-		dev_unicast_add(fcoe->netdev, addr);
+		dev_uc_add(fcoe->netdev, addr);
 	memcpy(port->data_src_addr, addr, ETH_ALEN);
 	rtnl_unlock();
 }
@@ -819,7 +820,7 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 
 	rtnl_lock();
 	if (!is_zero_ether_addr(port->data_src_addr))
-		dev_unicast_delete(netdev, port->data_src_addr);
+		dev_uc_del(netdev, port->data_src_addr);
 	rtnl_unlock();
 
 	/* receives may not be stopped until after this */

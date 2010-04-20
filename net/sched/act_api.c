@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
@@ -667,7 +668,8 @@ nlmsg_failure:
 }
 
 static int
-act_get_notify(u32 pid, struct nlmsghdr *n, struct tc_action *a, int event)
+act_get_notify(struct net *net, u32 pid, struct nlmsghdr *n,
+	       struct tc_action *a, int event)
 {
 	struct sk_buff *skb;
 
@@ -679,7 +681,7 @@ act_get_notify(u32 pid, struct nlmsghdr *n, struct tc_action *a, int event)
 		return -EINVAL;
 	}
 
-	return rtnl_unicast(skb, &init_net, pid);
+	return rtnl_unicast(skb, net, pid);
 }
 
 static struct tc_action *
@@ -749,7 +751,8 @@ static struct tc_action *create_a(int i)
 	return act;
 }
 
-static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
+static int tca_action_flush(struct net *net, struct nlattr *nla,
+			    struct nlmsghdr *n, u32 pid)
 {
 	struct sk_buff *skb;
 	unsigned char *b;
@@ -808,7 +811,7 @@ static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 	nlh->nlmsg_flags |= NLM_F_ROOT;
 	module_put(a->ops->owner);
 	kfree(a);
-	err = rtnetlink_send(skb, &init_net, pid, RTNLGRP_TC, n->nlmsg_flags&NLM_F_ECHO);
+	err = rtnetlink_send(skb, net, pid, RTNLGRP_TC, n->nlmsg_flags&NLM_F_ECHO);
 	if (err > 0)
 		return 0;
 
@@ -825,7 +828,8 @@ noflush_out:
 }
 
 static int
-tca_action_gd(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int event)
+tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
+	      u32 pid, int event)
 {
 	int i, ret;
 	struct nlattr *tb[TCA_ACT_MAX_PRIO+1];
@@ -837,7 +841,7 @@ tca_action_gd(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int event)
 
 	if (event == RTM_DELACTION && n->nlmsg_flags&NLM_F_ROOT) {
 		if (tb[1] != NULL)
-			return tca_action_flush(tb[1], n, pid);
+			return tca_action_flush(net, tb[1], n, pid);
 		else
 			return -EINVAL;
 	}
@@ -858,7 +862,7 @@ tca_action_gd(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int event)
 	}
 
 	if (event == RTM_GETACTION)
-		ret = act_get_notify(pid, n, head, event);
+		ret = act_get_notify(net, pid, n, head, event);
 	else { /* delete */
 		struct sk_buff *skb;
 
@@ -877,7 +881,7 @@ tca_action_gd(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int event)
 
 		/* now do the delete */
 		tcf_action_destroy(head, 0);
-		ret = rtnetlink_send(skb, &init_net, pid, RTNLGRP_TC,
+		ret = rtnetlink_send(skb, net, pid, RTNLGRP_TC,
 				     n->nlmsg_flags&NLM_F_ECHO);
 		if (ret > 0)
 			return 0;
@@ -888,8 +892,8 @@ err:
 	return ret;
 }
 
-static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
-			  u16 flags)
+static int tcf_add_notify(struct net *net, struct tc_action *a,
+			  u32 pid, u32 seq, int event, u16 flags)
 {
 	struct tcamsg *t;
 	struct nlmsghdr *nlh;
@@ -922,7 +926,7 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	NETLINK_CB(skb).dst_group = RTNLGRP_TC;
 
-	err = rtnetlink_send(skb, &init_net, pid, RTNLGRP_TC, flags&NLM_F_ECHO);
+	err = rtnetlink_send(skb, net, pid, RTNLGRP_TC, flags&NLM_F_ECHO);
 	if (err > 0)
 		err = 0;
 	return err;
@@ -935,7 +939,8 @@ nlmsg_failure:
 
 
 static int
-tcf_action_add(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int ovr)
+tcf_action_add(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
+	       u32 pid, int ovr)
 {
 	int ret = 0;
 	struct tc_action *act;
@@ -953,7 +958,7 @@ tcf_action_add(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int ovr)
 	/* dump then free all the actions after update; inserted policy
 	 * stays intact
 	 * */
-	ret = tcf_add_notify(act, pid, seq, RTM_NEWACTION, n->nlmsg_flags);
+	ret = tcf_add_notify(net, act, pid, seq, RTM_NEWACTION, n->nlmsg_flags);
 	for (a = act; a; a = act) {
 		act = a->next;
 		kfree(a);
@@ -968,9 +973,6 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	struct nlattr *tca[TCA_ACT_MAX + 1];
 	u32 pid = skb ? NETLINK_CB(skb).pid : 0;
 	int ret = 0, ovr = 0;
-
-	if (!net_eq(net, &init_net))
-		return -EINVAL;
 
 	ret = nlmsg_parse(n, sizeof(struct tcamsg), tca, TCA_ACT_MAX, NULL);
 	if (ret < 0)
@@ -994,15 +996,17 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 		if (n->nlmsg_flags&NLM_F_REPLACE)
 			ovr = 1;
 replay:
-		ret = tcf_action_add(tca[TCA_ACT_TAB], n, pid, ovr);
+		ret = tcf_action_add(net, tca[TCA_ACT_TAB], n, pid, ovr);
 		if (ret == -EAGAIN)
 			goto replay;
 		break;
 	case RTM_DELACTION:
-		ret = tca_action_gd(tca[TCA_ACT_TAB], n, pid, RTM_DELACTION);
+		ret = tca_action_gd(net, tca[TCA_ACT_TAB], n,
+				    pid, RTM_DELACTION);
 		break;
 	case RTM_GETACTION:
-		ret = tca_action_gd(tca[TCA_ACT_TAB], n, pid, RTM_GETACTION);
+		ret = tca_action_gd(net, tca[TCA_ACT_TAB], n,
+				    pid, RTM_GETACTION);
 		break;
 	default:
 		BUG();
@@ -1042,7 +1046,6 @@ find_dump_kind(const struct nlmsghdr *n)
 static int
 tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = sock_net(skb->sk);
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
@@ -1051,9 +1054,6 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	int ret = 0;
 	struct tcamsg *t = (struct tcamsg *) NLMSG_DATA(cb->nlh);
 	struct nlattr *kind = find_dump_kind(cb->nlh);
-
-	if (!net_eq(net, &init_net))
-		return 0;
 
 	if (kind == NULL) {
 		printk("tc_dump_action: action bad kind\n");

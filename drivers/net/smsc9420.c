@@ -26,6 +26,7 @@
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "smsc9420.h"
 
@@ -1063,12 +1064,12 @@ static void smsc9420_set_multicast_list(struct net_device *dev)
 		mac_cr |= MAC_CR_MCPAS_;
 		mac_cr &= (~MAC_CR_HPFILT_);
 	} else if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 		u32 hash_lo = 0, hash_hi = 0;
 
 		smsc_dbg(HW, "Multicast filter enabled");
-		netdev_for_each_mc_addr(mc_list, dev) {
-			u32 bit_num = smsc9420_hash(mc_list->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			u32 bit_num = smsc9420_hash(ha->addr);
 			u32 mask = 1 << (bit_num & 0x1F);
 
 			if (bit_num & 0x20)

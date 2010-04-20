@@ -1298,6 +1298,7 @@
 #define IXGBE_ETQF_FILTER_BCN            1
 #define IXGBE_ETQF_FILTER_FCOE           2
 #define IXGBE_ETQF_FILTER_1588           3
+#define IXGBE_ETQF_FILTER_FIP            4
 /* VLAN Control Bit Masks */
 #define IXGBE_VLNCTRL_VET       0x0000FFFF  /* bits 0-15 */
 #define IXGBE_VLNCTRL_CFI       0x10000000  /* bit 28 */
@@ -2397,6 +2398,7 @@ struct ixgbe_mac_operations {
 	s32 (*enable_rx_dma)(struct ixgbe_hw *, u32);
 
 	/* Link */
+	void (*flap_tx_laser)(struct ixgbe_hw *);
 	s32 (*setup_link)(struct ixgbe_hw *, ixgbe_link_speed, bool, bool);
 	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *, bool);
 	s32 (*get_link_capabilities)(struct ixgbe_hw *, ixgbe_link_speed *,
@@ -2415,8 +2417,7 @@ struct ixgbe_mac_operations {
 	s32 (*clear_vmdq)(struct ixgbe_hw *, u32, u32);
 	s32 (*init_rx_addrs)(struct ixgbe_hw *);
 	s32 (*update_uc_addr_list)(struct ixgbe_hw *, struct net_device *);
-	s32 (*update_mc_addr_list)(struct ixgbe_hw *, u8 *, u32,
-	                           ixgbe_mc_addr_itr);
+	s32 (*update_mc_addr_list)(struct ixgbe_hw *, struct net_device *);
 	s32 (*enable_mc)(struct ixgbe_hw *);
 	s32 (*disable_mc)(struct ixgbe_hw *);
 	s32 (*clear_vfta)(struct ixgbe_hw *);

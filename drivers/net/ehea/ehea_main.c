@@ -32,6 +32,7 @@
 #include <linux/udp.h>
 #include <linux/if.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/if_ether.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
@@ -1617,7 +1618,7 @@ static void write_swqe2_TSO(struct sk_buff *skb,
 {
 	struct ehea_vsgentry *sg1entry = &swqe->u.immdata_desc.sg_entry;
 	u8 *imm_data = &swqe->u.immdata_desc.immediate_data[0];
-	int skb_data_size = skb->len - skb->data_len;
+	int skb_data_size = skb_headlen(skb);
 	int headersize;
 
 	/* Packet is TCP with TSO enabled */
@@ -1628,7 +1629,7 @@ static void write_swqe2_TSO(struct sk_buff *skb,
 	 */
 	headersize = ETH_HLEN + ip_hdrlen(skb) + tcp_hdrlen(skb);
 
-	skb_data_size = skb->len - skb->data_len;
+	skb_data_size = skb_headlen(skb);
 
 	if (skb_data_size >= headersize) {
 		/* copy immediate data */
@@ -1650,7 +1651,7 @@ static void write_swqe2_TSO(struct sk_buff *skb,
 static void write_swqe2_nonTSO(struct sk_buff *skb,
 			       struct ehea_swqe *swqe, u32 lkey)
 {
-	int skb_data_size = skb->len - skb->data_len;
+	int skb_data_size = skb_headlen(skb);
 	u8 *imm_data = &swqe->u.immdata_desc.immediate_data[0];
 	struct ehea_vsgentry *sg1entry = &swqe->u.immdata_desc.sg_entry;
 
@@ -1966,7 +1967,7 @@ static void ehea_add_multicast_entry(struct ehea_port *port, u8 *mc_mac_addr)
 static void ehea_set_multicast_list(struct net_device *dev)
 {
 	struct ehea_port *port = netdev_priv(dev);
-	struct dev_mc_list *k_mcl_entry;
+	struct netdev_hw_addr *ha;
 	int ret;
 
 	if (dev->flags & IFF_PROMISC) {
@@ -1997,8 +1998,8 @@ static void ehea_set_multicast_list(struct net_device *dev)
 			goto out;
 		}
 
-		netdev_for_each_mc_addr(k_mcl_entry, dev)
-			ehea_add_multicast_entry(port, k_mcl_entry->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			ehea_add_multicast_entry(port, ha->addr);
 
 	}
 out:
@@ -2107,8 +2108,8 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 	} else {
 		/* first copy data from the skb->data buffer ... */
 		skb_copy_from_linear_data(skb, imm_data,
-					  skb->len - skb->data_len);
-		imm_data += skb->len - skb->data_len;
+					  skb_headlen(skb));
+		imm_data += skb_headlen(skb);
 
 		/* ... then copy data from the fragments */
 		for (i = 0; i < nfrags; i++) {

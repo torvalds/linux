@@ -23,6 +23,7 @@
 #include <linux/rio_drv.h>
 #include <linux/of_platform.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 

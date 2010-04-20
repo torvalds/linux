@@ -107,6 +107,7 @@ struct vf_data_storage {
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
 
 /* Supported Rx Buffer Sizes */
+#define IGB_RXBUFFER_64    64     /* Used for packet split */
 #define IGB_RXBUFFER_128   128    /* Used for packet split */
 #define IGB_RXBUFFER_1024  1024
 #define IGB_RXBUFFER_2048  2048
@@ -267,7 +268,6 @@ struct igb_adapter {
 
 	/* TX */
 	struct igb_ring *tx_ring[16];
-	unsigned long tx_queue_len;
 	u32 tx_timeout_count;
 
 	/* RX */
@@ -324,6 +324,7 @@ struct igb_adapter {
 
 #define IGB_82576_TSYNC_SHIFT 19
 #define IGB_82580_TSYNC_SHIFT 24
+#define IGB_TS_HDR_LEN        16
 enum e1000_state_t {
 	__IGB_TESTING,
 	__IGB_RESETTING,

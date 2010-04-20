@@ -39,6 +39,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/ipv6.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <linux/ethtool.h>
@@ -603,14 +604,13 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		 * packets not getting split correctly
 		 */
 		if (staterr & IXGBE_RXD_STAT_LB) {
-			u32 header_fixup_len = skb->len - skb->data_len;
+			u32 header_fixup_len = skb_headlen(skb);
 			if (header_fixup_len < 14)
 				skb_push(skb, header_fixup_len);
 		}
 		skb->protocol = eth_type_trans(skb, adapter->netdev);
 
 		ixgbevf_receive_skb(q_vector, skb, staterr, rx_ring, rx_desc);
-		adapter->netdev->last_rx = jiffies;
 
 next_desc:
 		rx_desc->wb.upper.status_error = 0;
@@ -965,7 +965,7 @@ static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
 
 	if ((msg & IXGBE_MBVFICR_VFREQ_MASK) == IXGBE_PF_CONTROL_MSG)
 		mod_timer(&adapter->watchdog_timer,
-			  round_jiffies(jiffies + 10));
+			  round_jiffies(jiffies + 1));
 
 	return IRQ_HANDLED;
 }
@@ -1495,22 +1495,6 @@ static void ixgbevf_restore_vlan(struct ixgbevf_adapter *adapter)
 	}
 }
 
-static u8 *ixgbevf_addr_list_itr(struct ixgbe_hw *hw, u8 **mc_addr_ptr,
-				 u32 *vmdq)
-{
-	struct dev_mc_list *mc_ptr;
-	u8 *addr = *mc_addr_ptr;
-	*vmdq = 0;
-
-	mc_ptr = container_of(addr, struct dev_mc_list, dmi_addr[0]);
-	if (mc_ptr->next)
-		*mc_addr_ptr = mc_ptr->next->dmi_addr;
-	else
-		*mc_addr_ptr = NULL;
-
-	return addr;
-}
-
 /**
  * ixgbevf_set_rx_mode - Multicast set
  * @netdev: network interface device structure
@@ -1523,16 +1507,10 @@ static void ixgbevf_set_rx_mode(struct net_device *netdev)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u8 *addr_list = NULL;
-	int addr_count = 0;
 
 	/* reprogram multicast list */
-	addr_count = netdev_mc_count(netdev);
-	if (addr_count)
-		addr_list = netdev->mc_list->dmi_addr;
 	if (hw->mac.ops.update_mc_addr_list)
-		hw->mac.ops.update_mc_addr_list(hw, addr_list, addr_count,
-						ixgbevf_addr_list_itr);
+		hw->mac.ops.update_mc_addr_list(hw, netdev);
 }
 
 static void ixgbevf_napi_enable_all(struct ixgbevf_adapter *adapter)
@@ -1610,6 +1588,44 @@ static inline void ixgbevf_rx_desc_queue_enable(struct ixgbevf_adapter *adapter,
 				(adapter->rx_ring[rxr].count - 1));
 }
 
+static void ixgbevf_save_reset_stats(struct ixgbevf_adapter *adapter)
+{
+	/* Only save pre-reset stats if there are some */
+	if (adapter->stats.vfgprc || adapter->stats.vfgptc) {
+		adapter->stats.saved_reset_vfgprc += adapter->stats.vfgprc -
+			adapter->stats.base_vfgprc;
+		adapter->stats.saved_reset_vfgptc += adapter->stats.vfgptc -
+			adapter->stats.base_vfgptc;
+		adapter->stats.saved_reset_vfgorc += adapter->stats.vfgorc -
+			adapter->stats.base_vfgorc;
+		adapter->stats.saved_reset_vfgotc += adapter->stats.vfgotc -
+			adapter->stats.base_vfgotc;
+		adapter->stats.saved_reset_vfmprc += adapter->stats.vfmprc -
+			adapter->stats.base_vfmprc;
+	}
+}
+
+static void ixgbevf_init_last_counter_stats(struct ixgbevf_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+
+	adapter->stats.last_vfgprc = IXGBE_READ_REG(hw, IXGBE_VFGPRC);
+	adapter->stats.last_vfgorc = IXGBE_READ_REG(hw, IXGBE_VFGORC_LSB);
+	adapter->stats.last_vfgorc |=
+		(((u64)(IXGBE_READ_REG(hw, IXGBE_VFGORC_MSB))) << 32);
+	adapter->stats.last_vfgptc = IXGBE_READ_REG(hw, IXGBE_VFGPTC);
+	adapter->stats.last_vfgotc = IXGBE_READ_REG(hw, IXGBE_VFGOTC_LSB);
+	adapter->stats.last_vfgotc |=
+		(((u64)(IXGBE_READ_REG(hw, IXGBE_VFGOTC_MSB))) << 32);
+	adapter->stats.last_vfmprc = IXGBE_READ_REG(hw, IXGBE_VFMPRC);
+
+	adapter->stats.base_vfgprc = adapter->stats.last_vfgprc;
+	adapter->stats.base_vfgorc = adapter->stats.last_vfgorc;
+	adapter->stats.base_vfgptc = adapter->stats.last_vfgptc;
+	adapter->stats.base_vfgotc = adapter->stats.last_vfgotc;
+	adapter->stats.base_vfmprc = adapter->stats.last_vfmprc;
+}
+
 static int ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -1655,6 +1671,9 @@ static int ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 
 	/* enable transmits */
 	netif_tx_start_all_queues(netdev);
+
+	ixgbevf_save_reset_stats(adapter);
+	ixgbevf_init_last_counter_stats(adapter);
 
 	/* bring the link up in the watchdog, this could race with our first
 	 * link up interrupt but shouldn't be a problem */
@@ -2228,27 +2247,6 @@ out:
 	return err;
 }
 
-static void ixgbevf_init_last_counter_stats(struct ixgbevf_adapter *adapter)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-
-	adapter->stats.last_vfgprc = IXGBE_READ_REG(hw, IXGBE_VFGPRC);
-	adapter->stats.last_vfgorc = IXGBE_READ_REG(hw, IXGBE_VFGORC_LSB);
-	adapter->stats.last_vfgorc |=
-		(((u64)(IXGBE_READ_REG(hw, IXGBE_VFGORC_MSB))) << 32);
-	adapter->stats.last_vfgptc = IXGBE_READ_REG(hw, IXGBE_VFGPTC);
-	adapter->stats.last_vfgotc = IXGBE_READ_REG(hw, IXGBE_VFGOTC_LSB);
-	adapter->stats.last_vfgotc |=
-		(((u64)(IXGBE_READ_REG(hw, IXGBE_VFGOTC_MSB))) << 32);
-	adapter->stats.last_vfmprc = IXGBE_READ_REG(hw, IXGBE_VFMPRC);
-
-	adapter->stats.base_vfgprc = adapter->stats.last_vfgprc;
-	adapter->stats.base_vfgorc = adapter->stats.last_vfgorc;
-	adapter->stats.base_vfgptc = adapter->stats.last_vfgptc;
-	adapter->stats.base_vfgotc = adapter->stats.last_vfgotc;
-	adapter->stats.base_vfmprc = adapter->stats.last_vfmprc;
-}
-
 #define UPDATE_VF_COUNTER_32bit(reg, last_counter, counter)	\
 	{							\
 		u32 current_counter = IXGBE_READ_REG(hw, reg);	\
@@ -2397,9 +2395,9 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 
 	if (link_up) {
 		if (!netif_carrier_ok(netdev)) {
-			hw_dbg(&adapter->hw, "NIC Link is Up %s, ",
-			       ((link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
-				"10 Gbps" : "1 Gbps"));
+			hw_dbg(&adapter->hw, "NIC Link is Up, %u Gbps\n",
+			       (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
+			       10 : 1);
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
 		} else {
@@ -2416,9 +2414,9 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 		}
 	}
 
-pf_has_reset:
 	ixgbevf_update_stats(adapter);
 
+pf_has_reset:
 	/* Force detection of hung controller every watchdog period */
 	adapter->detect_tx_hung = true;
 
@@ -2675,7 +2673,7 @@ static int ixgbevf_open(struct net_device *netdev)
 		if (hw->adapter_stopped) {
 			err = IXGBE_ERR_MBX;
 			printk(KERN_ERR "Unable to start - perhaps the PF"
-			       "Driver isn't up yet\n");
+			       " Driver isn't up yet\n");
 			goto err_setup_reset;
 		}
 	}
@@ -2923,9 +2921,10 @@ static int ixgbevf_tx_map(struct ixgbevf_adapter *adapter,
 	struct ixgbevf_tx_buffer *tx_buffer_info;
 	unsigned int len;
 	unsigned int total = skb->len;
-	unsigned int offset = 0, size, count = 0, i;
+	unsigned int offset = 0, size, count = 0;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
+	int i;
 
 	i = tx_ring->next_to_use;
 
@@ -3390,8 +3389,6 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	/* setup the private structure */
 	err = ixgbevf_sw_init(adapter);
 
-	ixgbevf_init_last_counter_stats(adapter);
-
 #ifdef MAX_SKB_FRAGS
 	netdev->features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
@@ -3449,6 +3446,8 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 
 	adapter->netdev_registered = true;
 
+	ixgbevf_init_last_counter_stats(adapter);
+
 	/* print the MAC address */
 	hw_dbg(hw, "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
 	       netdev->dev_addr[0],
@@ -3460,7 +3459,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 
 	hw_dbg(hw, "MAC: %d\n", hw->mac.type);
 
-	hw_dbg(hw, "LRO is disabled \n");
+	hw_dbg(hw, "LRO is disabled\n");
 
 	hw_dbg(hw, "Intel(R) 82599 Virtual Function\n");
 	cards_found++;

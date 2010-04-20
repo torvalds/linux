@@ -150,6 +150,32 @@ struct ath_rx_status {
 	u32 evm2;
 };
 
+struct ath_htc_rx_status {
+	u64 rs_tstamp;
+	u16 rs_datalen;
+	u8 rs_status;
+	u8 rs_phyerr;
+	int8_t rs_rssi;
+	int8_t rs_rssi_ctl0;
+	int8_t rs_rssi_ctl1;
+	int8_t rs_rssi_ctl2;
+	int8_t rs_rssi_ext0;
+	int8_t rs_rssi_ext1;
+	int8_t rs_rssi_ext2;
+	u8 rs_keyix;
+	u8 rs_rate;
+	u8 rs_antenna;
+	u8 rs_more;
+	u8 rs_isaggr;
+	u8 rs_moreaggr;
+	u8 rs_num_delims;
+	u8 rs_flags;
+	u8 rs_dummy;
+	u32 evm0;
+	u32 evm1;
+	u32 evm2;
+};
+
 #define ATH9K_RXERR_CRC           0x01
 #define ATH9K_RXERR_PHY           0x02
 #define ATH9K_RXERR_FIFO          0x04
@@ -207,17 +233,8 @@ struct ath_desc {
 	u32 ds_ctl0;
 	u32 ds_ctl1;
 	u32 ds_hw[20];
-	union {
-		struct ath_tx_status tx;
-		struct ath_rx_status rx;
-		void *stats;
-	} ds_us;
 	void *ds_vdata;
 } __packed;
-
-#define	ds_txstat	ds_us.tx
-#define	ds_rxstat	ds_us.rx
-#define ds_stat		ds_us.stats
 
 #define ATH9K_TXDESC_CLRDMASK		0x0001
 #define ATH9K_TXDESC_NOACK		0x0002
@@ -676,7 +693,8 @@ void ath9k_hw_filltxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			 u32 segLen, bool firstSeg,
 			 bool lastSeg, const struct ath_desc *ds0);
 void ath9k_hw_cleartxdesc(struct ath_hw *ah, struct ath_desc *ds);
-int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds);
+int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds,
+			struct ath_tx_status *ts);
 void ath9k_hw_set11n_txdesc(struct ath_hw *ah, struct ath_desc *ds,
 			    u32 pktLen, enum ath9k_pkt_type type, u32 txPower,
 			    u32 keyIx, enum ath9k_key_type keyType, u32 flags);
@@ -706,7 +724,7 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q);
 bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q);
 int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
-			u32 pa, struct ath_desc *nds, u64 tsf);
+			struct ath_rx_status *rs, u64 tsf);
 void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags);
 bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set);

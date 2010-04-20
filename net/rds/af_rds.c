@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/in.h>
 #include <linux/poll.h>
 #include <net/sock.h>
@@ -451,7 +452,6 @@ static void rds_sock_inc_info(struct socket *sock, unsigned int len,
 			      struct rds_info_lengths *lens)
 {
 	struct rds_sock *rs;
-	struct sock *sk;
 	struct rds_incoming *inc;
 	unsigned long flags;
 	unsigned int total = 0;
@@ -461,7 +461,6 @@ static void rds_sock_inc_info(struct socket *sock, unsigned int len,
 	spin_lock_irqsave(&rds_sock_lock, flags);
 
 	list_for_each_entry(rs, &rds_sock_list, rs_item) {
-		sk = rds_rs_to_sk(rs);
 		read_lock(&rs->rs_recv_lock);
 
 		/* XXX too lazy to maintain counts.. */

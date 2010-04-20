@@ -73,7 +73,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -85,6 +84,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/gfp.h>
 
 /* DEBUG flags
  */
@@ -1388,7 +1388,7 @@ static void set_multicast_list(struct net_device *dev)
 	}
 
 	if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 		unsigned char *cp;
 		struct mc_cmd *cmd;
 
@@ -1396,10 +1396,10 @@ static void set_multicast_list(struct net_device *dev)
 		cmd->cmd.command = SWAP16(CmdMulticastList);
 		cmd->mc_cnt = SWAP16(netdev_mc_count(dev) * 6);
 		cp = cmd->mc_addrs;
-		netdev_for_each_mc_addr(dmi, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			if (!cnt--)
 				break;
-			memcpy(cp, dmi->dmi_addr, 6);
+			memcpy(cp, ha->addr, 6);
 			if (i596_debug > 1)
 				DEB(DEB_MULTI,
 				    printk(KERN_DEBUG

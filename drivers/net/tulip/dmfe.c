@@ -74,7 +74,6 @@
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -1454,7 +1453,7 @@ static void update_cr6(u32 cr6_data, unsigned long ioaddr)
 
 static void dm9132_id_table(struct DEVICE *dev)
 {
-	struct dev_mc_list *mcptr;
+	struct netdev_hw_addr *ha;
 	u16 * addrptr;
 	unsigned long ioaddr = dev->base_addr+0xc0;		/* ID Table */
 	u32 hash_val;
@@ -1478,8 +1477,8 @@ static void dm9132_id_table(struct DEVICE *dev)
 	hash_table[3] = 0x8000;
 
 	/* the multicast address in Hash Table : 64 bits */
-	netdev_for_each_mc_addr(mcptr, dev) {
-		hash_val = cal_CRC((char *) mcptr->dmi_addr, 6, 0) & 0x3f;
+	netdev_for_each_mc_addr(ha, dev) {
+		hash_val = cal_CRC((char *) ha->addr, 6, 0) & 0x3f;
 		hash_table[hash_val / 16] |= (u16) 1 << (hash_val % 16);
 	}
 
@@ -1497,7 +1496,7 @@ static void dm9132_id_table(struct DEVICE *dev)
 static void send_filter_frame(struct DEVICE *dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
-	struct dev_mc_list *mcptr;
+	struct netdev_hw_addr *ha;
 	struct tx_desc *txptr;
 	u16 * addrptr;
 	u32 * suptr;
@@ -1520,8 +1519,8 @@ static void send_filter_frame(struct DEVICE *dev)
 	*suptr++ = 0xffff;
 
 	/* fit the multicast address */
-	netdev_for_each_mc_addr(mcptr, dev) {
-		addrptr = (u16 *) mcptr->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		addrptr = (u16 *) ha->addr;
 		*suptr++ = addrptr[0];
 		*suptr++ = addrptr[1];
 		*suptr++ = addrptr[2];

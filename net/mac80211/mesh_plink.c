@@ -6,6 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
 #include "ieee80211_i.h"
@@ -171,7 +172,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	/* BSSID is left zeroed, wildcard value */
-	mgmt->u.action.category = MESH_PLINK_CATEGORY;
+	mgmt->u.action.category = WLAN_CATEGORY_MESH_PLINK;
 	mgmt->u.action.u.plink_action.action_code = action;
 
 	if (action == PLINK_CLOSE)

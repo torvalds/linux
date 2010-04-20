@@ -15,6 +15,7 @@
 #include <linux/smp.h>
 #include <linux/file.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/dcache.h>
 #include <linux/percpu.h>
@@ -81,10 +82,6 @@ extern __weak const struct pmu *hw_perf_event_init(struct perf_event *event)
 void __weak hw_perf_disable(void)		{ barrier(); }
 void __weak hw_perf_enable(void)		{ barrier(); }
 
-void __weak hw_perf_event_setup(int cpu)	{ barrier(); }
-void __weak hw_perf_event_setup_online(int cpu)	{ barrier(); }
-void __weak hw_perf_event_setup_offline(int cpu)	{ barrier(); }
-
 int __weak
 hw_perf_group_sched_in(struct perf_event *group_leader,
 	       struct perf_cpu_context *cpuctx,
@@ -97,25 +94,15 @@ void __weak perf_event_print_debug(void)	{ }
 
 static DEFINE_PER_CPU(int, perf_disable_count);
 
-void __perf_disable(void)
-{
-	__get_cpu_var(perf_disable_count)++;
-}
-
-bool __perf_enable(void)
-{
-	return !--__get_cpu_var(perf_disable_count);
-}
-
 void perf_disable(void)
 {
-	__perf_disable();
-	hw_perf_disable();
+	if (!__get_cpu_var(perf_disable_count)++)
+		hw_perf_disable();
 }
 
 void perf_enable(void)
 {
-	if (__perf_enable())
+	if (!--__get_cpu_var(perf_disable_count))
 		hw_perf_enable();
 }
 
@@ -1178,11 +1165,9 @@ void perf_event_task_sched_out(struct task_struct *task,
 	struct perf_event_context *ctx = task->perf_event_ctxp;
 	struct perf_event_context *next_ctx;
 	struct perf_event_context *parent;
-	struct pt_regs *regs;
 	int do_switch = 1;
 
-	regs = task_pt_regs(task);
-	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, 1, regs, 0);
+	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, 1, NULL, 0);
 
 	if (likely(!ctx || !cpuctx->task_ctx))
 		return;
@@ -1538,12 +1523,15 @@ static void perf_ctx_adjust_freq(struct perf_event_context *ctx)
 		 */
 		if (interrupts == MAX_INTERRUPTS) {
 			perf_log_throttle(event, 1);
+			perf_disable();
 			event->pmu->unthrottle(event);
+			perf_enable();
 		}
 
 		if (!event->attr.freq || !event->attr.sample_freq)
 			continue;
 
+		perf_disable();
 		event->pmu->read(event);
 		now = atomic64_read(&event->count);
 		delta = now - hwc->freq_count_stamp;
@@ -1551,6 +1539,7 @@ static void perf_ctx_adjust_freq(struct perf_event_context *ctx)
 
 		if (delta > 0)
 			perf_adjust_period(event, TICK_NSEC, delta);
+		perf_enable();
 	}
 	raw_spin_unlock(&ctx->lock);
 }
@@ -1560,9 +1549,6 @@ static void perf_ctx_adjust_freq(struct perf_event_context *ctx)
  */
 static void rotate_ctx(struct perf_event_context *ctx)
 {
-	if (!ctx->nr_events)
-		return;
-
 	raw_spin_lock(&ctx->lock);
 
 	/* Rotate the first entry last of non-pinned groups */
@@ -1575,19 +1561,28 @@ void perf_event_task_tick(struct task_struct *curr)
 {
 	struct perf_cpu_context *cpuctx;
 	struct perf_event_context *ctx;
+	int rotate = 0;
 
 	if (!atomic_read(&nr_events))
 		return;
 
 	cpuctx = &__get_cpu_var(perf_cpu_context);
-	ctx = curr->perf_event_ctxp;
+	if (cpuctx->ctx.nr_events &&
+	    cpuctx->ctx.nr_events != cpuctx->ctx.nr_active)
+		rotate = 1;
 
-	perf_disable();
+	ctx = curr->perf_event_ctxp;
+	if (ctx && ctx->nr_events && ctx->nr_events != ctx->nr_active)
+		rotate = 1;
 
 	perf_ctx_adjust_freq(&cpuctx->ctx);
 	if (ctx)
 		perf_ctx_adjust_freq(ctx);
 
+	if (!rotate)
+		return;
+
+	perf_disable();
 	cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
 	if (ctx)
 		task_ctx_sched_out(ctx, EVENT_FLEXIBLE);
@@ -1599,7 +1594,6 @@ void perf_event_task_tick(struct task_struct *curr)
 	cpu_ctx_sched_in(cpuctx, EVENT_FLEXIBLE);
 	if (ctx)
 		task_ctx_sched_in(curr, EVENT_FLEXIBLE);
-
 	perf_enable();
 }
 
@@ -2791,6 +2785,12 @@ __weak struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 	return NULL;
 }
 
+__weak
+void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int skip)
+{
+}
+
+
 /*
  * Output
  */
@@ -3376,15 +3376,23 @@ static void perf_event_task_output(struct perf_event *event,
 				     struct perf_task_event *task_event)
 {
 	struct perf_output_handle handle;
-	int size;
 	struct task_struct *task = task_event->task;
-	int ret;
+	unsigned long flags;
+	int size, ret;
+
+	/*
+	 * If this CPU attempts to acquire an rq lock held by a CPU spinning
+	 * in perf_output_lock() from interrupt context, it's game over.
+	 */
+	local_irq_save(flags);
 
 	size  = task_event->event_id.header.size;
 	ret = perf_output_begin(&handle, event, size, 0, 0);
 
-	if (ret)
+	if (ret) {
+		local_irq_restore(flags);
 		return;
+	}
 
 	task_event->event_id.pid = perf_event_pid(event, task);
 	task_event->event_id.ppid = perf_event_pid(event, current);
@@ -3395,6 +3403,7 @@ static void perf_event_task_output(struct perf_event *event,
 	perf_output_put(&handle, task_event->event_id);
 
 	perf_output_end(&handle);
+	local_irq_restore(flags);
 }
 
 static int perf_event_task_match(struct perf_event *event)
@@ -4318,9 +4327,8 @@ static const struct pmu perf_ops_task_clock = {
 #ifdef CONFIG_EVENT_TRACING
 
 void perf_tp_event(int event_id, u64 addr, u64 count, void *record,
-			  int entry_size)
+		   int entry_size, struct pt_regs *regs)
 {
-	struct pt_regs *regs = get_irq_regs();
 	struct perf_sample_data data;
 	struct perf_raw_record raw = {
 		.size = entry_size,
@@ -4330,12 +4338,9 @@ void perf_tp_event(int event_id, u64 addr, u64 count, void *record,
 	perf_sample_data_init(&data, addr);
 	data.raw = &raw;
 
-	if (!regs)
-		regs = task_pt_regs(current);
-
 	/* Trace events already protected against recursion */
 	do_perf_sw_event(PERF_TYPE_TRACEPOINT, event_id, count, 1,
-				&data, regs);
+			 &data, regs);
 }
 EXPORT_SYMBOL_GPL(perf_tp_event);
 
@@ -4351,7 +4356,7 @@ static int perf_tp_event_match(struct perf_event *event,
 
 static void tp_perf_event_destroy(struct perf_event *event)
 {
-	ftrace_profile_disable(event->attr.config);
+	perf_trace_disable(event->attr.config);
 }
 
 static const struct pmu *tp_perf_event_init(struct perf_event *event)
@@ -4365,7 +4370,7 @@ static const struct pmu *tp_perf_event_init(struct perf_event *event)
 			!capable(CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
-	if (ftrace_profile_enable(event->attr.config))
+	if (perf_trace_enable(event->attr.config))
 		return NULL;
 
 	event->destroy = tp_perf_event_destroy;
@@ -5372,18 +5377,26 @@ int perf_event_init_task(struct task_struct *child)
 	return ret;
 }
 
+static void __init perf_event_init_all_cpus(void)
+{
+	int cpu;
+	struct perf_cpu_context *cpuctx;
+
+	for_each_possible_cpu(cpu) {
+		cpuctx = &per_cpu(perf_cpu_context, cpu);
+		__perf_event_init_context(&cpuctx->ctx, NULL);
+	}
+}
+
 static void __cpuinit perf_event_init_cpu(int cpu)
 {
 	struct perf_cpu_context *cpuctx;
 
 	cpuctx = &per_cpu(perf_cpu_context, cpu);
-	__perf_event_init_context(&cpuctx->ctx, NULL);
 
 	spin_lock(&perf_resource_lock);
 	cpuctx->max_pertask = perf_max_events - perf_reserved_percpu;
 	spin_unlock(&perf_resource_lock);
-
-	hw_perf_event_setup(cpu);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -5423,18 +5436,9 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 		perf_event_init_cpu(cpu);
 		break;
 
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		hw_perf_event_setup_online(cpu);
-		break;
-
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		perf_event_exit_cpu(cpu);
-		break;
-
-	case CPU_DEAD:
-		hw_perf_event_setup_offline(cpu);
 		break;
 
 	default:
@@ -5454,6 +5458,7 @@ static struct notifier_block __cpuinitdata perf_cpu_nb = {
 
 void __init perf_event_init(void)
 {
+	perf_event_init_all_cpus();
 	perf_cpu_notify(&perf_cpu_nb, (unsigned long)CPU_UP_PREPARE,
 			(void *)(long)smp_processor_id());
 	perf_cpu_notify(&perf_cpu_nb, (unsigned long)CPU_ONLINE,

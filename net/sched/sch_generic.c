@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/rcupdate.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/pkt_sched.h>
 
 /* Main transmission queue. */
@@ -528,7 +529,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	unsigned int size;
 	int err = -ENOBUFS;
 
-	/* ensure that the Qdisc and the private data are 32-byte aligned */
+	/* ensure that the Qdisc and the private data are 64-byte aligned */
 	size = QDISC_ALIGN(sizeof(*sch));
 	size += ops->priv_size + (QDISC_ALIGNTO - 1);
 
@@ -590,6 +591,13 @@ void qdisc_reset(struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_reset);
 
+static void qdisc_rcu_free(struct rcu_head *head)
+{
+	struct Qdisc *qdisc = container_of(head, struct Qdisc, rcu_head);
+
+	kfree((char *) qdisc - qdisc->padded);
+}
+
 void qdisc_destroy(struct Qdisc *qdisc)
 {
 	const struct Qdisc_ops  *ops = qdisc->ops;
@@ -613,7 +621,11 @@ void qdisc_destroy(struct Qdisc *qdisc)
 	dev_put(qdisc_dev(qdisc));
 
 	kfree_skb(qdisc->gso_skb);
-	kfree((char *) qdisc - qdisc->padded);
+	/*
+	 * gen_estimator est_timer() might access qdisc->q.lock,
+	 * wait a RCU grace period before freeing qdisc.
+	 */
+	call_rcu(&qdisc->rcu_head, qdisc_rcu_free);
 }
 EXPORT_SYMBOL(qdisc_destroy);
 

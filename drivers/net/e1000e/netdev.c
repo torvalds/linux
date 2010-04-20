@@ -26,6 +26,8 @@
 
 *******************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -36,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/tcp.h>
 #include <linux/ipv6.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <linux/mii.h>
@@ -661,6 +664,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 				i = 0;
 		}
 
+		if (i == tx_ring->next_to_use)
+			break;
 		eop = tx_ring->buffer_info[i].next_to_watch;
 		eop_desc = E1000_TX_DESC(*tx_ring, eop);
 	}
@@ -2290,8 +2295,6 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 	ew32(TCTL, tctl);
 
 	e1000e_config_collision_dist(hw);
-
-	adapter->tx_queue_len = adapter->netdev->tx_queue_len;
 }
 
 /**
@@ -2565,7 +2568,7 @@ static void e1000_set_multi(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8  *mta_list;
 	u32 rctl;
 	int i;
@@ -2597,9 +2600,8 @@ static void e1000_set_multi(struct net_device *netdev)
 
 		/* prepare a packed array of only addresses. */
 		i = 0;
-		netdev_for_each_mc_addr(mc_ptr, netdev)
-			memcpy(mta_list + (i++ * ETH_ALEN),
-			       mc_ptr->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, netdev)
+			memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
 
 		e1000_update_mc_addr_list(hw, mta_list, i);
 		kfree(mta_list);
@@ -2878,7 +2880,6 @@ void e1000e_down(struct e1000_adapter *adapter)
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
 
-	netdev->tx_queue_len = adapter->tx_queue_len;
 	netif_carrier_off(netdev);
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
@@ -3611,21 +3612,15 @@ static void e1000_watchdog_task(struct work_struct *work)
 					       "link gets many collisions.\n");
 			}
 
-			/*
-			 * tweak tx_queue_len according to speed/duplex
-			 * and adjust the timeout factor
-			 */
-			netdev->tx_queue_len = adapter->tx_queue_len;
+			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
 				txb2b = 0;
-				netdev->tx_queue_len = 10;
 				adapter->tx_timeout_factor = 16;
 				break;
 			case SPEED_100:
 				txb2b = 0;
-				netdev->tx_queue_len = 100;
 				adapter->tx_timeout_factor = 10;
 				break;
 			}
@@ -4137,7 +4132,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	unsigned int max_per_txd = E1000_MAX_PER_TXD;
 	unsigned int max_txd_pwr = E1000_MAX_TXD_PWR;
 	unsigned int tx_flags = 0;
-	unsigned int len = skb->len - skb->data_len;
+	unsigned int len = skb_headlen(skb);
 	unsigned int nr_frags;
 	unsigned int mss;
 	int count = 0;
@@ -4187,7 +4182,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 				dev_kfree_skb_any(skb);
 				return NETDEV_TX_OK;
 			}
-			len = skb->len - skb->data_len;
+			len = skb_headlen(skb);
 		}
 	}
 
@@ -4664,56 +4659,10 @@ static void e1000e_disable_l1aspm(struct pci_dev *pdev)
 	}
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_OPS
 static bool e1000e_pm_ready(struct e1000_adapter *adapter)
 {
 	return !!adapter->tx_ring->buffer_info;
-}
-
-static int e1000_idle(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-
-	if (!e1000e_pm_ready(adapter))
-		return 0;
-
-	if (adapter->idle_check) {
-		adapter->idle_check = false;
-		if (!e1000e_has_link(adapter))
-			pm_schedule_suspend(dev, MSEC_PER_SEC);
-	}
-
-	return -EBUSY;
-}
-
-static int e1000_suspend(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	int retval;
-	bool wake;
-
-	retval = __e1000_shutdown(pdev, &wake, false);
-	if (!retval)
-		e1000_complete_shutdown(pdev, true, wake);
-
-	return retval;
-}
-
-static int e1000_runtime_suspend(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-
-	if (e1000e_pm_ready(adapter)) {
-		bool wake;
-
-		__e1000_shutdown(pdev, &wake, true);
-	}
-
-	return 0;
 }
 
 static int __e1000_resume(struct pci_dev *pdev)
@@ -4783,6 +4732,20 @@ static int __e1000_resume(struct pci_dev *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int e1000_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	int retval;
+	bool wake;
+
+	retval = __e1000_shutdown(pdev, &wake, false);
+	if (!retval)
+		e1000_complete_shutdown(pdev, true, wake);
+
+	return retval;
+}
+
 static int e1000_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -4793,6 +4756,41 @@ static int e1000_resume(struct device *dev)
 		adapter->idle_check = true;
 
 	return __e1000_resume(pdev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM_RUNTIME
+static int e1000_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+
+	if (e1000e_pm_ready(adapter)) {
+		bool wake;
+
+		__e1000_shutdown(pdev, &wake, true);
+	}
+
+	return 0;
+}
+
+static int e1000_idle(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+
+	if (!e1000e_pm_ready(adapter))
+		return 0;
+
+	if (adapter->idle_check) {
+		adapter->idle_check = false;
+		if (!e1000e_has_link(adapter))
+			pm_schedule_suspend(dev, MSEC_PER_SEC);
+	}
+
+	return -EBUSY;
 }
 
 static int e1000_runtime_resume(struct device *dev)
@@ -4807,7 +4805,8 @@ static int e1000_runtime_resume(struct device *dev)
 	adapter->idle_check = !dev->power.runtime_auto;
 	return __e1000_resume(pdev);
 }
-#endif
+#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM_OPS */
 
 static void e1000_shutdown(struct pci_dev *pdev)
 {
@@ -5475,17 +5474,11 @@ static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 };
 MODULE_DEVICE_TABLE(pci, e1000_pci_tbl);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_OPS
 static const struct dev_pm_ops e1000_pm_ops = {
-	.suspend  = e1000_suspend,
-	.resume   = e1000_resume,
-	.freeze = e1000_suspend,
-	.thaw = e1000_resume,
-	.poweroff = e1000_suspend,
-	.restore = e1000_resume,
-	.runtime_suspend = e1000_runtime_suspend,
-	.runtime_resume = e1000_runtime_resume,
-	.runtime_idle = e1000_idle,
+	SET_SYSTEM_SLEEP_PM_OPS(e1000_suspend, e1000_resume)
+	SET_RUNTIME_PM_OPS(e1000_runtime_suspend,
+				e1000_runtime_resume, e1000_idle)
 };
 #endif
 
@@ -5495,7 +5488,7 @@ static struct pci_driver e1000_driver = {
 	.id_table = e1000_pci_tbl,
 	.probe    = e1000_probe,
 	.remove   = __devexit_p(e1000_remove),
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_OPS
 	.driver.pm = &e1000_pm_ops,
 #endif
 	.shutdown = e1000_shutdown,
@@ -5511,10 +5504,9 @@ static struct pci_driver e1000_driver = {
 static int __init e1000_init_module(void)
 {
 	int ret;
-	printk(KERN_INFO "%s: Intel(R) PRO/1000 Network Driver - %s\n",
-	       e1000e_driver_name, e1000e_driver_version);
-	printk(KERN_INFO "%s: Copyright (c) 1999 - 2009 Intel Corporation.\n",
-	       e1000e_driver_name);
+	pr_info("Intel(R) PRO/1000 Network Driver - %s\n",
+		e1000e_driver_version);
+	pr_info("Copyright (c) 1999 - 2009 Intel Corporation.\n");
 	ret = pci_register_driver(&e1000_driver);
 
 	return ret;

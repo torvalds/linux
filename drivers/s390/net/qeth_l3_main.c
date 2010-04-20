@@ -22,6 +22,7 @@
 #include <linux/ipv6.h>
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
+#include <linux/slab.h>
 
 #include <net/ip.h>
 #include <net/arp.h>
@@ -1928,7 +1929,7 @@ static void qeth_l3_free_vlan_addresses6(struct qeth_card *card,
 	in6_dev = in6_dev_get(vlan_group_get_device(card->vlangrp, vid));
 	if (!in6_dev)
 		return;
-	for (ifa = in6_dev->addr_list; ifa; ifa = ifa->lst_next) {
+	list_for_each_entry(ifa, &in6_dev->addr_list, if_list) {
 		addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
 		if (addr) {
 			memcpy(&addr->u.a6.addr, &ifa->addr,

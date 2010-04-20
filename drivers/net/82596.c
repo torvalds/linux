@@ -45,7 +45,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -53,6 +52,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -1542,7 +1542,7 @@ static void set_multicast_list(struct net_device *dev)
 	}
 
 	if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 		unsigned char *cp;
 		struct mc_cmd *cmd;
 
@@ -1552,10 +1552,10 @@ static void set_multicast_list(struct net_device *dev)
 		cmd->cmd.command = CmdMulticastList;
 		cmd->mc_cnt = cnt * ETH_ALEN;
 		cp = cmd->mc_addrs;
-		netdev_for_each_mc_addr(dmi, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			if (!cnt--)
 				break;
-			memcpy(cp, dmi->dmi_addr, ETH_ALEN);
+			memcpy(cp, ha->addr, ETH_ALEN);
 			if (i596_debug > 1)
 				DEB(DEB_MULTI,printk(KERN_INFO "%s: Adding address %pM\n",
 						dev->name, cp));

@@ -97,6 +97,7 @@ static const struct snmp_mib snmp6_icmp6_list[] = {
 	SNMP_MIB_ITEM("Icmp6InMsgs", ICMP6_MIB_INMSGS),
 	SNMP_MIB_ITEM("Icmp6InErrors", ICMP6_MIB_INERRORS),
 	SNMP_MIB_ITEM("Icmp6OutMsgs", ICMP6_MIB_OUTMSGS),
+	SNMP_MIB_ITEM("Icmp6OutErrors", ICMP6_MIB_OUTERRORS),
 	SNMP_MIB_SENTINEL
 };
 

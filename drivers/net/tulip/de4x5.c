@@ -450,7 +450,6 @@
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/eisa.h>
 #include <linux/delay.h>
@@ -467,6 +466,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -1951,7 +1951,7 @@ static void
 SetMulticastFilter(struct net_device *dev)
 {
     struct de4x5_private *lp = netdev_priv(dev);
-    struct dev_mc_list *dmi;
+    struct netdev_hw_addr *ha;
     u_long iobase = dev->base_addr;
     int i, bit, byte;
     u16 hashcode;
@@ -1966,8 +1966,8 @@ SetMulticastFilter(struct net_device *dev)
     if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 14)) {
 	omr |= OMR_PM;                       /* Pass all multicasts */
     } else if (lp->setup_f == HASH_PERF) {   /* Hash Filtering */
-	netdev_for_each_mc_addr(dmi, dev) {
-	    addrs = dmi->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+	    addrs = ha->addr;
 	    if ((*addrs & 0x01) == 1) {      /* multicast address? */
 		crc = ether_crc_le(ETH_ALEN, addrs);
 		hashcode = crc & HASH_BITS;  /* hashcode is 9 LSb of CRC */
@@ -1983,8 +1983,8 @@ SetMulticastFilter(struct net_device *dev)
 	    }
 	}
     } else {                                 /* Perfect filtering */
-	netdev_for_each_mc_addr(dmi, dev) {
-	    addrs = dmi->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+	    addrs = ha->addr;
 	    for (i=0; i<ETH_ALEN; i++) {
 		*(pa + (i&1)) = *addrs++;
 		if (i & 0x01) pa += 4;
@@ -5077,7 +5077,7 @@ mii_get_phy(struct net_device *dev)
 	    lp->phy[k].spd.value = GENERIC_VALUE;  /* TX & T4, H/F Duplex    */
 	    lp->mii_cnt++;
 	    lp->active++;
-	    printk("%s: Using generic MII device control. If the board doesn't operate, \nplease mail the following dump to the author:\n", dev->name);
+	    printk("%s: Using generic MII device control. If the board doesn't operate,\nplease mail the following dump to the author:\n", dev->name);
 	    j = de4x5_debug;
 	    de4x5_debug |= DEBUG_MII;
 	    de4x5_dbg_mii(dev, k);
@@ -5337,7 +5337,7 @@ de4x5_dbg_open(struct net_device *dev)
 	    }
 	}
 	printk("...0x%8.8x\n", le32_to_cpu(lp->tx_ring[i].buf));
-	printk("Ring size: \nRX: %d\nTX: %d\n",
+	printk("Ring size:\nRX: %d\nTX: %d\n",
 	       (short)lp->rxRingSize,
 	       (short)lp->txRingSize);
     }

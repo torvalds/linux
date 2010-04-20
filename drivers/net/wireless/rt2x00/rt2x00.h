@@ -177,16 +177,15 @@ struct rt2x00_chip {
 #define RT2573		0x2573
 #define RT2860		0x2860	/* 2.4GHz PCI/CB */
 #define RT2870		0x2870
-#define RT2872		0x2872
-#define RT2880		0x2880	/* WSOC */
+#define RT2872		0x2872	/* WSOC */
 #define RT2883		0x2883	/* WSOC */
-#define RT2890		0x2890	/* 2.4GHz PCIe */
-#define RT3052		0x3052	/* WSOC */
 #define RT3070		0x3070
 #define RT3071		0x3071
 #define RT3090		0x3090	/* 2.4GHz PCIe */
 #define RT3390		0x3390
 #define RT3572		0x3572
+#define RT3593		0x3593	/* PCIe */
+#define RT3883		0x3883	/* WSOC */
 
 	u16 rf;
 	u16 rev;
@@ -930,12 +929,12 @@ static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
 	     rt2x00dev->chip.rt, rt2x00dev->chip.rf, rt2x00dev->chip.rev);
 }
 
-static inline char rt2x00_rt(struct rt2x00_dev *rt2x00dev, const u16 rt)
+static inline bool rt2x00_rt(struct rt2x00_dev *rt2x00dev, const u16 rt)
 {
 	return (rt2x00dev->chip.rt == rt);
 }
 
-static inline char rt2x00_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
+static inline bool rt2x00_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
 {
 	return (rt2x00dev->chip.rf == rf);
 }
@@ -943,6 +942,24 @@ static inline char rt2x00_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
 static inline u16 rt2x00_rev(struct rt2x00_dev *rt2x00dev)
 {
 	return rt2x00dev->chip.rev;
+}
+
+static inline bool rt2x00_rt_rev(struct rt2x00_dev *rt2x00dev,
+				 const u16 rt, const u16 rev)
+{
+	return (rt2x00_rt(rt2x00dev, rt) && rt2x00_rev(rt2x00dev) == rev);
+}
+
+static inline bool rt2x00_rt_rev_lt(struct rt2x00_dev *rt2x00dev,
+				    const u16 rt, const u16 rev)
+{
+	return (rt2x00_rt(rt2x00dev, rt) && rt2x00_rev(rt2x00dev) < rev);
+}
+
+static inline bool rt2x00_rt_rev_gte(struct rt2x00_dev *rt2x00dev,
+				     const u16 rt, const u16 rev)
+{
+	return (rt2x00_rt(rt2x00dev, rt) && rt2x00_rev(rt2x00dev) >= rev);
 }
 
 static inline void rt2x00_set_chip_intf(struct rt2x00_dev *rt2x00dev,

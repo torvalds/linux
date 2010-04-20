@@ -190,6 +190,11 @@ nv50_dma_push(struct nouveau_channel *chan, struct nouveau_bo *bo,
 	nouveau_bo_wr32(pb, ip++, upper_32_bits(offset) | length << 8);
 
 	chan->dma.ib_put = (chan->dma.ib_put + 1) & chan->dma.ib_max;
+
+	DRM_MEMORYBARRIER();
+	/* Flush writes. */
+	nouveau_bo_rd32(pb, 0);
+
 	nvchan_wr32(chan, 0x8c, chan->dma.ib_put);
 	chan->dma.ib_free--;
 }

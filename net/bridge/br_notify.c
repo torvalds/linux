@@ -82,6 +82,10 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	case NETDEV_UNREGISTER:
 		br_del_if(br, dev);
 		break;
+
+	case NETDEV_PRE_TYPE_CHANGE:
+		/* Forbid underlaying device to change its type. */
+		return NOTIFY_BAD;
 	}
 
 	/* Events that may cause spanning tree to refresh */

@@ -101,7 +101,7 @@ extern int		ip_do_nat(struct sk_buff *skb);
 extern void		ip_send_check(struct iphdr *ip);
 extern int		__ip_local_out(struct sk_buff *skb);
 extern int		ip_local_out(struct sk_buff *skb);
-extern int		ip_queue_xmit(struct sk_buff *skb, int ipfragok);
+extern int		ip_queue_xmit(struct sk_buff *skb);
 extern void		ip_init(void);
 extern int		ip_append_data(struct sock *sk,
 				       int getfrag(void *from, char *to, int offset, int len,

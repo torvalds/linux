@@ -58,7 +58,6 @@
  *
  */
 
-#include <linux/can.h>
 #include <linux/can/core.h>
 #include <linux/can/dev.h>
 #include <linux/can/platform/mcp251x.h>
@@ -73,6 +72,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/uaccess.h>
 
@@ -922,11 +922,15 @@ static int __devinit mcp251x_can_probe(struct spi_device *spi)
 	struct net_device *net;
 	struct mcp251x_priv *priv;
 	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
+	int model = spi_get_device_id(spi)->driver_data;
 	int ret = -ENODEV;
 
 	if (!pdata)
 		/* Platform data is required for osc freq */
 		goto error_out;
+
+	if (model)
+		pdata->model = model;
 
 	/* Allocate can/net device */
 	net = alloc_candev(sizeof(struct mcp251x_priv), TX_ECHO_SKB_MAX);
@@ -1117,6 +1121,15 @@ static int mcp251x_can_resume(struct spi_device *spi)
 #define mcp251x_can_resume NULL
 #endif
 
+static struct spi_device_id mcp251x_id_table[] = {
+	{ "mcp251x", 	0 /* Use pdata.model */ },
+	{ "mcp2510",	CAN_MCP251X_MCP2510 },
+	{ "mcp2515",	CAN_MCP251X_MCP2515 },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(spi, mcp251x_id_table);
+
 static struct spi_driver mcp251x_can_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
@@ -1124,6 +1137,7 @@ static struct spi_driver mcp251x_can_driver = {
 		.owner = THIS_MODULE,
 	},
 
+	.id_table = mcp251x_id_table,
 	.probe = mcp251x_can_probe,
 	.remove = __devexit_p(mcp251x_can_remove),
 	.suspend = mcp251x_can_suspend,

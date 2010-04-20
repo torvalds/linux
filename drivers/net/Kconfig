@@ -483,7 +483,7 @@ config XTENSA_XT2000_SONIC
 	  This is the driver for the onboard card of the Xtensa XT2000 board.
 
 config MIPS_AU1X00_ENET
-	bool "MIPS AU1000 Ethernet support"
+	tristate "MIPS AU1000 Ethernet support"
 	depends on SOC_AU1X00
 	select PHYLIB
 	select CRC32
@@ -1916,6 +1916,7 @@ config FEC
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
 	depends on M523x || M527x || M5272 || M528x || M520x || M532x || \
 		MACH_MX27 || ARCH_MX35 || ARCH_MX25 || ARCH_MX5
+	select PHYLIB
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire and Freescale i.MX processors.
@@ -2434,8 +2435,8 @@ config MV643XX_ETH
 
 config XILINX_LL_TEMAC
 	tristate "Xilinx LL TEMAC (LocalLink Tri-mode Ethernet MAC) driver"
+	depends on PPC || MICROBLAZE
 	select PHYLIB
-	depends on PPC_DCR_NATIVE
 	help
 	  This driver supports the Xilinx 10/100/1000 LocalLink TEMAC
 	  core used in Xilinx Spartan and Virtex FPGAs
@@ -2582,6 +2583,31 @@ config CHELSIO_T3
 	  To compile this driver as a module, choose M here: the module
 	  will be called cxgb3.
 
+config CHELSIO_T4_DEPENDS
+	tristate
+	depends on PCI && INET
+	default y
+
+config CHELSIO_T4
+	tristate "Chelsio Communications T4 Ethernet support"
+	depends on CHELSIO_T4_DEPENDS
+	select FW_LOADER
+	select MDIO
+	help
+	  This driver supports Chelsio T4-based gigabit and 10Gb Ethernet
+	  adapters.
+
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
+
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.htm>.
+
+	  Please send feedback to <linux-bugs@chelsio.com>.
+
+	  To compile this driver as a module choose M here; the module
+	  will be called cxgb4.
+
 config EHEA
 	tristate "eHEA Ethernet support"
 	depends on IBMEBUS && INET && SPARSEMEM
@@ -2593,11 +2619,11 @@ config EHEA
 	  will be called ehea.
 
 config ENIC
-	tristate "Cisco 10G Ethernet NIC support"
+	tristate "Cisco VIC Ethernet NIC Support"
 	depends on PCI && INET
 	select INET_LRO
 	help
-	  This enables the support for the Cisco 10G Ethernet card.
+	  This enables the support for the Cisco VIC Ethernet card.
 
 config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
@@ -2836,6 +2862,8 @@ source "drivers/atm/Kconfig"
 source "drivers/ieee802154/Kconfig"
 
 source "drivers/s390/net/Kconfig"
+
+source "drivers/net/caif/Kconfig"
 
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"
@@ -3155,16 +3183,11 @@ config PPPOATM
 
 config PPPOL2TP
 	tristate "PPP over L2TP (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PPP && INET
+	depends on EXPERIMENTAL && L2TP && PPP
 	help
 	  Support for PPP-over-L2TP socket family. L2TP is a protocol
 	  used by ISPs and enterprises to tunnel PPP traffic over UDP
 	  tunnels. L2TP is replacing PPTP for VPN uses.
-
-	  This kernel component handles only L2TP data packets: a
-	  userland daemon handles L2TP the control protocol (tunnel
-	  and session setup). One such daemon is OpenL2TP
-	  (http://openl2tp.sourceforge.net/).
 
 config SLIP
 	tristate "SLIP (serial line) support"
@@ -3252,15 +3275,14 @@ config NET_FC
 	  "SCSI generic support".
 
 config NETCONSOLE
-	tristate "Network console logging support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Network console logging support"
 	---help---
 	If you want to log kernel messages over the network, enable this.
 	See <file:Documentation/networking/netconsole.txt> for details.
 
 config NETCONSOLE_DYNAMIC
-	bool "Dynamic reconfiguration of logging targets (EXPERIMENTAL)"
-	depends on NETCONSOLE && SYSFS && EXPERIMENTAL
+	bool "Dynamic reconfiguration of logging targets"
+	depends on NETCONSOLE && SYSFS
 	select CONFIGFS_FS
 	help
 	  This option enables the ability to dynamically reconfigure target

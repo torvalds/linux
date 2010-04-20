@@ -12,6 +12,7 @@
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
 #include <linux/net.h>
+#include <linux/slab.h>
 
 #include <linux/netfilter/xt_statistic.h>
 #include <linux/netfilter/x_tables.h>

@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/ioport.h>
+#include <linux/gfp.h>
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/console.h>

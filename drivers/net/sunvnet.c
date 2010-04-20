@@ -763,12 +763,12 @@ static struct vnet_mcast_entry *__vnet_mc_find(struct vnet *vp, u8 *addr)
 
 static void __update_mc_list(struct vnet *vp, struct net_device *dev)
 {
-	struct dev_addr_list *p;
+	struct netdev_hw_addr *ha;
 
-	netdev_for_each_mc_addr(p, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		struct vnet_mcast_entry *m;
 
-		m = __vnet_mc_find(vp, p->dmi_addr);
+		m = __vnet_mc_find(vp, ha->addr);
 		if (m) {
 			m->hit = 1;
 			continue;
@@ -778,7 +778,7 @@ static void __update_mc_list(struct vnet *vp, struct net_device *dev)
 			m = kzalloc(sizeof(*m), GFP_ATOMIC);
 			if (!m)
 				continue;
-			memcpy(m->addr, p->dmi_addr, ETH_ALEN);
+			memcpy(m->addr, ha->addr, ETH_ALEN);
 			m->hit = 1;
 
 			m->next = vp->mcast_list;

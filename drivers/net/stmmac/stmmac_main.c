@@ -44,6 +44,7 @@
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include "stmmac.h"
 
 #define STMMAC_RESOURCE_NAME	"stmmaceth"
@@ -836,7 +837,7 @@ static int stmmac_open(struct net_device *dev)
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm = kzalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
 	if (unlikely(priv->tm == NULL)) {
-		pr_err("%s: ERROR: timer memory alloc failed \n", __func__);
+		pr_err("%s: ERROR: timer memory alloc failed\n", __func__);
 		return -ENOMEM;
 	}
 	priv->tm->freq = tmrate;
@@ -1279,7 +1280,6 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 
 			priv->dev->stats.rx_packets++;
 			priv->dev->stats.rx_bytes += frame_len;
-			priv->dev->last_rx = jiffies;
 		}
 		entry = next_entry;
 		p = p_next;	/* use prefetched values */
@@ -1586,6 +1586,12 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 	else
 		device = dwmac100_setup(ioaddr);
 
+	if (priv->enh_desc) {
+		device->desc = &enh_desc_ops;
+		pr_info("\tEnhanced descriptor structure\n");
+	} else
+		device->desc = &ndesc_ops;
+
 	if (!device)
 		return -ENOMEM;
 
@@ -1685,7 +1691,7 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 	}
 	pr_info("done!\n");
 
-	if (!request_mem_region(res->start, (res->end - res->start),
+	if (!request_mem_region(res->start, resource_size(res),
 				pdev->name)) {
 		pr_err("%s: ERROR: memory allocation failed"
 		       "cannot get the I/O addr 0x%x\n",
@@ -1694,9 +1700,9 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	addr = ioremap(res->start, (res->end - res->start));
+	addr = ioremap(res->start, resource_size(res));
 	if (!addr) {
-		pr_err("%s: ERROR: memory mapping failed \n", __func__);
+		pr_err("%s: ERROR: memory mapping failed\n", __func__);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1726,6 +1732,7 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 	priv->bus_id = plat_dat->bus_id;
 	priv->pbl = plat_dat->pbl;	/* TLI */
 	priv->is_gmac = plat_dat->has_gmac;	/* GMAC is on board */
+	priv->enh_desc = plat_dat->enh_desc;
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -1774,7 +1781,7 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 out:
 	if (ret < 0) {
 		platform_set_drvdata(pdev, NULL);
-		release_mem_region(res->start, (res->end - res->start));
+		release_mem_region(res->start, resource_size(res));
 		if (addr != NULL)
 			iounmap(addr);
 	}
@@ -1812,7 +1819,7 @@ static int stmmac_dvr_remove(struct platform_device *pdev)
 
 	iounmap((void *)ndev->base_addr);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, (res->end - res->start));
+	release_mem_region(res->start, resource_size(res));
 
 	free_netdev(ndev);
 

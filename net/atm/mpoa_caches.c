@@ -1,5 +1,6 @@
 #include <linux/types.h>
 #include <linux/atmmpc.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 
 #include "mpoa_caches.h"

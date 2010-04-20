@@ -796,6 +796,28 @@ static int do_platform_entry(const char *filename,
 	return 1;
 }
 
+static int do_mdio_entry(const char *filename,
+			 struct mdio_device_id *id, char *alias)
+{
+	int i;
+
+	alias += sprintf(alias, MDIO_MODULE_PREFIX);
+
+	for (i = 0; i < 32; i++) {
+		if (!((id->phy_id_mask >> (31-i)) & 1))
+			*(alias++) = '?';
+		else if ((id->phy_id >> (31-i)) & 1)
+			*(alias++) = '1';
+		else
+			*(alias++) = '0';
+	}
+
+	/* Terminate the string */
+	*alias = 0;
+
+	return 1;
+}
+
 /* Ignore any prefix, eg. some architectures prepend _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -943,6 +965,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct platform_device_id), "platform",
 			 do_platform_entry, mod);
+	else if (sym_is(symname, "__mod_mdio_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct mdio_device_id), "mdio",
+			 do_mdio_entry, mod);
 	free(zeros);
 }
 

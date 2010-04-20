@@ -990,7 +990,7 @@ static s32 e1000_copper_link_preconfig(struct e1000_hw *hw)
 		DEBUGOUT("Error, did not detect valid phy.\n");
 		return ret_val;
 	}
-	DEBUGOUT1("Phy ID = %x \n", hw->phy_id);
+	DEBUGOUT1("Phy ID = %x\n", hw->phy_id);
 
 	/* Set PHY to class A mode (if necessary) */
 	ret_val = e1000_set_phy_mode(hw);
@@ -1680,7 +1680,7 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 
-		DEBUGOUT1("M88E1000 PSCR: %x \n", phy_data);
+		DEBUGOUT1("M88E1000 PSCR: %x\n", phy_data);
 
 		/* Need to reset the PHY or these changes will be ignored */
 		mii_ctrl_reg |= MII_CR_RESET;

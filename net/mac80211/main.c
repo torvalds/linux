@@ -71,7 +71,7 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	spin_lock_bh(&local->filter_lock);
 	changed_flags = local->filter_flags ^ new_flags;
 
-	mc = drv_prepare_multicast(local, local->mc_count, local->mc_list);
+	mc = drv_prepare_multicast(local, &local->mc_list);
 	spin_unlock_bh(&local->filter_lock);
 
 	/* be a bit nasty */
@@ -225,11 +225,11 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 			switch (sdata->vif.type) {
 			case NL80211_IFTYPE_AP:
 				sdata->vif.bss_conf.enable_beacon =
-					!!rcu_dereference(sdata->u.ap.beacon);
+					!!sdata->u.ap.beacon;
 				break;
 			case NL80211_IFTYPE_ADHOC:
 				sdata->vif.bss_conf.enable_beacon =
-					!!rcu_dereference(sdata->u.ibss.presp);
+					!!sdata->u.ibss.presp;
 				break;
 			case NL80211_IFTYPE_MESH_POINT:
 				sdata->vif.bss_conf.enable_beacon = true;
@@ -308,6 +308,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 void ieee80211_restart_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+
+	trace_api_restart_hw(local);
 
 	/* use this reason, __ieee80211_resume will unblock it */
 	ieee80211_stop_queues_by_reason(hw,
@@ -388,6 +390,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->uapsd_max_sp_len = IEEE80211_DEFAULT_MAX_SP_LEN;
 
 	INIT_LIST_HEAD(&local->interfaces);
+
+	__hw_addr_init(&local->mc_list);
+
 	mutex_init(&local->iflist_mtx);
 	mutex_init(&local->scan_mtx);
 

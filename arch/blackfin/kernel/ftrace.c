@@ -16,7 +16,8 @@
  * Hook the return address and push it in the stack of return addrs
  * in current thread info.
  */
-void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
+void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
+                           unsigned long frame_pointer)
 {
 	struct ftrace_graph_ent trace;
 	unsigned long return_hooker = (unsigned long)&return_to_handler;
@@ -24,7 +25,8 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
 
-	if (ftrace_push_return_trace(*parent, self_addr, &trace.depth, 0) == -EBUSY)
+	if (ftrace_push_return_trace(*parent, self_addr, &trace.depth,
+	                             frame_pointer) == -EBUSY)
 		return;
 
 	trace.func = self_addr;

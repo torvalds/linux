@@ -66,6 +66,7 @@
 #include <linux/inet.h>
 #include <linux/route.h>
 #include <linux/in_route.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>

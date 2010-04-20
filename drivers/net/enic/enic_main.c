@@ -822,14 +822,14 @@ static int enic_set_mac_addr(struct net_device *netdev, char *addr)
 static void enic_set_multicast_list(struct net_device *netdev)
 {
 	struct enic *enic = netdev_priv(netdev);
-	struct dev_mc_list *list;
+	struct netdev_hw_addr *ha;
 	int directed = 1;
 	int multicast = (netdev->flags & IFF_MULTICAST) ? 1 : 0;
 	int broadcast = (netdev->flags & IFF_BROADCAST) ? 1 : 0;
 	int promisc = (netdev->flags & IFF_PROMISC) ? 1 : 0;
 	unsigned int mc_count = netdev_mc_count(netdev);
 	int allmulti = (netdev->flags & IFF_ALLMULTI) ||
-		       mc_count > ENIC_MULTICAST_PERFECT_FILTERS;
+		mc_count > ENIC_MULTICAST_PERFECT_FILTERS;
 	unsigned int flags = netdev->flags | (allmulti ? IFF_ALLMULTI : 0);
 	u8 mc_addr[ENIC_MULTICAST_PERFECT_FILTERS][ETH_ALEN];
 	unsigned int i, j;
@@ -852,10 +852,10 @@ static void enic_set_multicast_list(struct net_device *netdev)
 	 */
 
 	i = 0;
-	netdev_for_each_mc_addr(list, netdev) {
+	netdev_for_each_mc_addr(ha, netdev) {
 		if (i == mc_count)
 			break;
-		memcpy(mc_addr[i++], list->dmi_addr, ETH_ALEN);
+		memcpy(mc_addr[i++], ha->addr, ETH_ALEN);
 	}
 
 	for (i = 0; i < enic->mc_count; i++) {
@@ -2058,8 +2058,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	netdev->watchdog_timeo = 2 * HZ;
 	netdev->ethtool_ops = &enic_ethtool_ops;
 
-	netdev->features |= NETIF_F_HW_VLAN_TX |
-		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+	netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 	if (ENIC_SETTING(enic, TXCSUM))
 		netdev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 	if (ENIC_SETTING(enic, TSO))

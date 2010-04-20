@@ -37,6 +37,7 @@
 #include <linux/tcp.h>
 #include <linux/route.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
@@ -178,11 +179,11 @@ int ip6_output(struct sk_buff *skb)
 }
 
 /*
- *	xmit an sk_buff (used by TCP)
+ *	xmit an sk_buff (used by TCP, SCTP and DCCP)
  */
 
 int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
-	     struct ipv6_txoptions *opt, int ipfragok)
+	     struct ipv6_txoptions *opt)
 {
 	struct net *net = sock_net(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -227,10 +228,6 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
 	hdr = ipv6_hdr(skb);
-
-	/* Allow local fragmentation. */
-	if (ipfragok)
-		skb->local_df = 1;
 
 	/*
 	 *	Fill in the IPv6 header

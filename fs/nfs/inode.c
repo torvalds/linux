@@ -36,6 +36,7 @@
 #include <linux/vfs.h>
 #include <linux/inet.h>
 #include <linux/nfs_xdr.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -729,7 +730,7 @@ int nfs_attribute_timeout(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 
-	if (nfs_have_delegation(inode, FMODE_READ))
+	if (nfs_have_delegated_attributes(inode))
 		return 0;
 	return !time_in_range_open(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
 }

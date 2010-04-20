@@ -493,13 +493,14 @@ static int pcmcia_get_versmac(struct pcmcia_device *p_dev,
 {
 	struct net_device *dev = priv;
 	cisparse_t parse;
+	u8 *buf;
 
 	if (pcmcia_parse_tuple(tuple, &parse))
 		return -EINVAL;
 
-	if ((parse.version_1.ns > 3) &&
-	    (cvt_ascii_address(dev,
-			       (parse.version_1.str + parse.version_1.ofs[3]))))
+	buf = parse.version_1.str + parse.version_1.ofs[3];
+
+	if ((parse.version_1.ns > 3) && (cvt_ascii_address(dev, buf) == 0))
 		return 0;
 
 	return -EINVAL;
@@ -528,7 +529,7 @@ static int mhz_setup(struct pcmcia_device *link)
     len = pcmcia_get_tuple(link, 0x81, &buf);
     if (buf && len >= 13) {
 	    buf[12] = '\0';
-	    if (cvt_ascii_address(dev, buf))
+	    if (cvt_ascii_address(dev, buf) == 0)
 		    rc = 0;
     }
     kfree(buf);
@@ -910,7 +911,7 @@ static int smc91c92_config(struct pcmcia_device *link)
 
     if (i != 0) {
 	printk(KERN_NOTICE "smc91c92_cs: Unable to find hardware address.\n");
-	goto config_undo;
+	goto config_failed;
     }
 
     smc->duplex = 0;
@@ -998,6 +999,7 @@ config_undo:
     unregister_netdev(dev);
 config_failed:
     smc91c92_release(link);
+    free_netdev(dev);
     return -ENODEV;
 } /* smc91c92_config */
 
@@ -1606,9 +1608,12 @@ static void set_rx_mode(struct net_device *dev)
 {
     unsigned int ioaddr = dev->base_addr;
     struct smc_private *smc = netdev_priv(dev);
-    u_int multicast_table[ 2 ] = { 0, };
+    unsigned char multicast_table[8];
     unsigned long flags;
     u_short rx_cfg_setting;
+    int i;
+
+    memset(multicast_table, 0, sizeof(multicast_table));
 
     if (dev->flags & IFF_PROMISC) {
 	rx_cfg_setting = RxStripCRC | RxEnable | RxPromisc | RxAllMulti;
@@ -1616,14 +1621,10 @@ static void set_rx_mode(struct net_device *dev)
 	rx_cfg_setting = RxStripCRC | RxEnable | RxAllMulti;
     else {
 	if (!netdev_mc_empty(dev)) {
-	    struct dev_mc_list *mc_addr;
+	    struct netdev_hw_addr *ha;
 
-	    netdev_for_each_mc_addr(mc_addr, dev) {
-		u_int position = ether_crc(6, mc_addr->dmi_addr);
-#ifndef final_version		/* Verify multicast address. */
-		if ((mc_addr->dmi_addr[0] & 1) == 0)
-		    continue;
-#endif
+	    netdev_for_each_mc_addr(ha, dev) {
+		u_int position = ether_crc(6, ha->addr);
 		multicast_table[position >> 29] |= 1 << ((position >> 26) & 7);
 	    }
 	}
@@ -1633,8 +1634,8 @@ static void set_rx_mode(struct net_device *dev)
     /* Load MC table and Rx setting into the chip without interrupts. */
     spin_lock_irqsave(&smc->lock, flags);
     SMC_SELECT_BANK(3);
-    outl(multicast_table[0], ioaddr + MULTICAST0);
-    outl(multicast_table[1], ioaddr + MULTICAST4);
+    for (i = 0; i < 8; i++)
+	outb(multicast_table[i], ioaddr + MULTICAST0 + i);
     SMC_SELECT_BANK(0);
     outw(rx_cfg_setting, ioaddr + RCR);
     SMC_SELECT_BANK(2);

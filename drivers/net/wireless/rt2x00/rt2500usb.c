@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #include "rt2x00.h"
@@ -647,6 +648,10 @@ static void rt2500usb_config_ps(struct rt2x00_dev *rt2x00dev,
 		rt2500usb_register_write(rt2x00dev, MAC_CSR18, reg);
 
 		rt2x00_set_field16(&reg, MAC_CSR18_AUTO_WAKE, 1);
+		rt2500usb_register_write(rt2x00dev, MAC_CSR18, reg);
+	} else {
+		rt2500usb_register_read(rt2x00dev, MAC_CSR18, &reg);
+		rt2x00_set_field16(&reg, MAC_CSR18_AUTO_WAKE, 0);
 		rt2500usb_register_write(rt2x00dev, MAC_CSR18, reg);
 	}
 

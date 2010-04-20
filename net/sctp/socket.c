@@ -67,6 +67,7 @@
 #include <linux/poll.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
+#include <linux/slab.h>
 
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -5481,7 +5482,6 @@ pp_found:
 		 */
 		int reuse = sk->sk_reuse;
 		struct sock *sk2;
-		struct hlist_node *node;
 
 		SCTP_DEBUG_PRINTK("sctp_get_port() found a possible match\n");
 		if (pp->fastreuse && sk->sk_reuse &&

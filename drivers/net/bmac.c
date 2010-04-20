@@ -20,6 +20,7 @@
 #include <linux/crc32.h>
 #include <linux/bitrev.h>
 #include <linux/ethtool.h>
+#include <linux/slab.h>
 #include <asm/prom.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
@@ -971,7 +972,7 @@ bmac_remove_multi(struct net_device *dev,
  */
 static void bmac_set_multicast(struct net_device *dev)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct bmac_data *bp = netdev_priv(dev);
 	int num_addrs = netdev_mc_count(dev);
 	unsigned short rx_cfg;
@@ -1000,8 +1001,8 @@ static void bmac_set_multicast(struct net_device *dev)
 			rx_cfg = bmac_rx_on(dev, 0, 0);
 			XXDEBUG(("bmac: multi disabled, rx_cfg=%#08x\n", rx_cfg));
 		} else {
-			netdev_for_each_mc_addr(dmi, dev)
-				bmac_addhash(bp, dmi->dmi_addr);
+			netdev_for_each_mc_addr(ha, dev)
+				bmac_addhash(bp, ha->addr);
 			bmac_update_hash_table_mask(dev, bp);
 			rx_cfg = bmac_rx_on(dev, 1, 0);
 			XXDEBUG(("bmac: multi enabled, rx_cfg=%#08x\n", rx_cfg));
@@ -1015,7 +1016,7 @@ static void bmac_set_multicast(struct net_device *dev)
 
 static void bmac_set_multicast(struct net_device *dev)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	char *addrs;
 	int i;
 	unsigned short rx_cfg;
@@ -1039,8 +1040,8 @@ static void bmac_set_multicast(struct net_device *dev)
 
 		for(i = 0; i < 4; i++) hash_table[i] = 0;
 
-		netdev_for_each_mc_addr(dmi, dev) {
-			addrs = dmi->dmi_addr;
+		netdev_for_each_mc_addr(ha, dev) {
+			addrs = ha->addr;
 
 			if(!(*addrs & 1))
 				continue;

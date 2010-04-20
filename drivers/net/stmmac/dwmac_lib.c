@@ -227,6 +227,13 @@ int dwmac_dma_interrupt(unsigned long ioaddr,
 	return ret;
 }
 
+void dwmac_dma_flush_tx_fifo(unsigned long ioaddr)
+{
+	u32 csr6 = readl(ioaddr + DMA_CONTROL);
+	writel((csr6 | DMA_CONTROL_FTF), ioaddr + DMA_CONTROL);
+
+	do {} while ((readl(ioaddr + DMA_CONTROL) & DMA_CONTROL_FTF));
+}
 
 void stmmac_set_mac_addr(unsigned long ioaddr, u8 addr[6],
 			 unsigned int high, unsigned int low)

@@ -90,7 +90,6 @@ static int gx_fix;
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -1300,25 +1299,25 @@ static void set_rx_mode(struct net_device *dev)
 		/* Too many to filter well, or accept all multicasts. */
 		iowrite16(0x000B, ioaddr + AddrMode);
 	} else if (!netdev_mc_empty(dev)) { /* Must use the multicast hash table. */
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		u16 hash_table[4];
 		int i;
 
 		memset(hash_table, 0, sizeof(hash_table));
-		netdev_for_each_mc_addr(mclist, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			unsigned int bit;
 
 			/* Due to a bug in the early chip versions, multiple filter
 			   slots must be set for each address. */
 			if (yp->drv_flags & HasMulticastBug) {
-				bit = (ether_crc_le(3, mclist->dmi_addr) >> 3) & 0x3f;
+				bit = (ether_crc_le(3, ha->addr) >> 3) & 0x3f;
 				hash_table[bit >> 4] |= (1 << bit);
-				bit = (ether_crc_le(4, mclist->dmi_addr) >> 3) & 0x3f;
+				bit = (ether_crc_le(4, ha->addr) >> 3) & 0x3f;
 				hash_table[bit >> 4] |= (1 << bit);
-				bit = (ether_crc_le(5, mclist->dmi_addr) >> 3) & 0x3f;
+				bit = (ether_crc_le(5, ha->addr) >> 3) & 0x3f;
 				hash_table[bit >> 4] |= (1 << bit);
 			}
-			bit = (ether_crc_le(6, mclist->dmi_addr) >> 3) & 0x3f;
+			bit = (ether_crc_le(6, ha->addr) >> 3) & 0x3f;
 			hash_table[bit >> 4] |= (1 << bit);
 		}
 		/* Copy the hash table to the chip. */

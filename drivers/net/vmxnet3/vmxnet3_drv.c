@@ -1174,7 +1174,6 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 				netif_receive_skb(skb);
 			}
 
-			adapter->netdev->last_rx = jiffies;
 			ctx->skb = NULL;
 		}
 
@@ -1675,11 +1674,11 @@ vmxnet3_copy_mc(struct net_device *netdev)
 		/* We may be called with BH disabled */
 		buf = kmalloc(sz, GFP_ATOMIC);
 		if (buf) {
-			struct dev_mc_list *mc;
+			struct netdev_hw_addr *ha;
 			int i = 0;
 
-			netdev_for_each_mc_addr(mc, netdev)
-				memcpy(buf + i++ * ETH_ALEN, mc->dmi_addr,
+			netdev_for_each_mc_addr(ha, netdev)
+				memcpy(buf + i++ * ETH_ALEN, ha->addr,
 				       ETH_ALEN);
 		}
 	}

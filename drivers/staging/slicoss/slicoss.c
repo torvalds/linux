@@ -1367,12 +1367,12 @@ static void slic_mcast_set_list(struct net_device *dev)
 	struct adapter *adapter = netdev_priv(dev);
 	int status = STATUS_SUCCESS;
 	char *addresses;
-	struct dev_mc_list *mc_list;
+	struct netdev_hw_addr *ha;
 
 	ASSERT(adapter);
 
-	netdev_for_each_mc_addr(mc_list, dev) {
-		addresses = (char *) &mc_list->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		addresses = (char *) &ha->addr;
 		status = slic_mcast_add_list(adapter, addresses);
 		if (status != STATUS_SUCCESS)
 			break;

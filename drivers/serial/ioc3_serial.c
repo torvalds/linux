@@ -20,6 +20,7 @@
 #include <linux/pci.h>
 #include <linux/serial_core.h>
 #include <linux/ioc3.h>
+#include <linux/slab.h>
 
 /*
  * Interesting things about the ioc3

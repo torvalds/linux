@@ -116,7 +116,7 @@
 */
 
 DEFINE_RWLOCK(tipc_net_lock);
-struct _zone *tipc_zones[256] = { NULL, };
+static struct _zone *tipc_zones[256] = { NULL, };
 struct network tipc_net = { tipc_zones };
 
 struct tipc_node *tipc_net_select_remote_node(u32 addr, u32 ref)
@@ -291,6 +291,6 @@ void tipc_net_stop(void)
 	tipc_bclink_stop();
 	net_stop();
 	write_unlock_bh(&tipc_net_lock);
-	info("Left network mode \n");
+	info("Left network mode\n");
 }
 

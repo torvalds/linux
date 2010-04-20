@@ -15,6 +15,14 @@
 /* try to find source address in routing lookups */
 #define FIB_RULE_FIND_SADDR	0x00010000
 
+/* fib_rules families. values up to 127 are reserved for real address
+ * families, values above 128 may be used arbitrarily.
+ */
+#define FIB_RULES_IPV4		AF_INET
+#define FIB_RULES_IPV6		AF_INET6
+#define FIB_RULES_DECNET	AF_DECnet
+#define FIB_RULES_IPMR		128
+
 struct fib_rule_hdr {
 	__u8		family;
 	__u8		dst_len;

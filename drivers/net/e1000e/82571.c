@@ -323,7 +323,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	}
 
 	/*
-	 * Initialze device specific counter of SMBI acquisition
+	 * Initialize device specific counter of SMBI acquisition
 	 * timeouts.
 	 */
 	 hw->dev_spec.e82571.smb_counter = 0;

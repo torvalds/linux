@@ -19,6 +19,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <net/tcp.h>
 
 int sysctl_tcp_syn_retries __read_mostly = TCP_SYN_RETRIES;
@@ -171,14 +172,14 @@ static int tcp_write_timeout(struct sock *sk)
 
 	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
 		if (icsk->icsk_retransmits)
-			dst_negative_advice(&sk->sk_dst_cache, sk);
+			dst_negative_advice(sk);
 		retry_until = icsk->icsk_syn_retries ? : sysctl_tcp_syn_retries;
 	} else {
 		if (retransmits_timed_out(sk, sysctl_tcp_retries1)) {
 			/* Black hole detection */
 			tcp_mtu_probing(icsk, sk);
 
-			dst_negative_advice(&sk->sk_dst_cache, sk);
+			dst_negative_advice(sk);
 		}
 
 		retry_until = sysctl_tcp_retries2;

@@ -73,7 +73,6 @@ static int rx_copybreak;
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -1400,12 +1399,12 @@ static void set_rx_mode(struct net_device *dev)
 		outl(0x0004, ioaddr + RxCtrl);
 		return;
 	} else {					/* Never executed, for now. */
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			unsigned int bit_nr =
-				ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x3f;
+				ether_crc_le(ETH_ALEN, ha->addr) & 0x3f;
 			mc_filter[bit_nr >> 3] |= (1 << bit_nr);
 		}
 	}

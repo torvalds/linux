@@ -54,6 +54,7 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/inet_lro.h>
+#include <linux/slab.h>
 #include <asm/system.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
@@ -1769,7 +1770,7 @@ static void mv643xx_eth_program_multicast_filter(struct net_device *dev)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	u32 *mc_spec;
 	u32 *mc_other;
-	struct dev_addr_list *addr;
+	struct netdev_hw_addr *ha;
 	int i;
 
 	if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) {
@@ -1794,8 +1795,8 @@ oom:
 	memset(mc_spec, 0, 0x100);
 	memset(mc_other, 0, 0x100);
 
-	netdev_for_each_mc_addr(addr, dev) {
-		u8 *a = addr->da_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		u8 *a = ha->addr;
 		u32 *table;
 		int entry;
 

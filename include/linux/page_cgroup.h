@@ -39,6 +39,7 @@ enum {
 	PCG_CACHE, /* charged as cache */
 	PCG_USED, /* this object is in use. */
 	PCG_ACCT_LRU, /* page has been accounted for */
+	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
 };
 
 #define TESTPCGFLAG(uname, lname)			\
@@ -72,6 +73,11 @@ SETPCGFLAG(AcctLRU, ACCT_LRU)
 CLEARPCGFLAG(AcctLRU, ACCT_LRU)
 TESTPCGFLAG(AcctLRU, ACCT_LRU)
 TESTCLEARPCGFLAG(AcctLRU, ACCT_LRU)
+
+
+SETPCGFLAG(FileMapped, FILE_MAPPED)
+CLEARPCGFLAG(FileMapped, FILE_MAPPED)
+TESTPCGFLAG(FileMapped, FILE_MAPPED)
 
 static inline int page_cgroup_nid(struct page_cgroup *pc)
 {

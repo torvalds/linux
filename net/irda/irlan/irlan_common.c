@@ -27,6 +27,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/proc_fs.h>

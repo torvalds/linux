@@ -12,6 +12,7 @@
 #include <linux/workqueue.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/string.h>
@@ -43,7 +44,7 @@ static atomic_t			 dst_total = ATOMIC_INIT(0);
  */
 static struct {
 	spinlock_t		lock;
-	struct dst_entry 	*list;
+	struct dst_entry	*list;
 	unsigned long		timer_inc;
 	unsigned long		timer_expires;
 } dst_garbage = {
@@ -51,7 +52,7 @@ static struct {
 	.timer_inc = DST_GC_MAX,
 };
 static void dst_gc_task(struct work_struct *work);
-static void ___dst_free(struct dst_entry * dst);
+static void ___dst_free(struct dst_entry *dst);
 
 static DECLARE_DELAYED_WORK(dst_gc_work, dst_gc_task);
 
@@ -135,8 +136,8 @@ loop:
 		}
 		expires = dst_garbage.timer_expires;
 		/*
-		 * if the next desired timer is more than 4 seconds in the future
-		 * then round the timer to whole seconds
+		 * if the next desired timer is more than 4 seconds in the
+		 * future then round the timer to whole seconds
 		 */
 		if (expires > 4*HZ)
 			expires = round_jiffies_relative(expires);
@@ -151,7 +152,8 @@ loop:
 		" expires: %lu elapsed: %lu us\n",
 		atomic_read(&dst_total), delayed, work_performed,
 		expires,
-		elapsed.tv_sec * USEC_PER_SEC + elapsed.tv_nsec / NSEC_PER_USEC);
+		elapsed.tv_sec * USEC_PER_SEC +
+		  elapsed.tv_nsec / NSEC_PER_USEC);
 #endif
 }
 
@@ -162,9 +164,9 @@ int dst_discard(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(dst_discard);
 
-void * dst_alloc(struct dst_ops * ops)
+void *dst_alloc(struct dst_ops *ops)
 {
-	struct dst_entry * dst;
+	struct dst_entry *dst;
 
 	if (ops->gc && atomic_read(&ops->entries) > ops->gc_thresh) {
 		if (ops->gc(ops))
@@ -184,19 +186,20 @@ void * dst_alloc(struct dst_ops * ops)
 	atomic_inc(&ops->entries);
 	return dst;
 }
+EXPORT_SYMBOL(dst_alloc);
 
-static void ___dst_free(struct dst_entry * dst)
+static void ___dst_free(struct dst_entry *dst)
 {
 	/* The first case (dev==NULL) is required, when
 	   protocol module is unloaded.
 	 */
-	if (dst->dev == NULL || !(dst->dev->flags&IFF_UP)) {
+	if (dst->dev == NULL || !(dst->dev->flags&IFF_UP))
 		dst->input = dst->output = dst_discard;
-	}
 	dst->obsolete = 2;
 }
+EXPORT_SYMBOL(__dst_free);
 
-void __dst_free(struct dst_entry * dst)
+void __dst_free(struct dst_entry *dst)
 {
 	spin_lock_bh(&dst_garbage.lock);
 	___dst_free(dst);
@@ -261,15 +264,16 @@ again:
 	}
 	return NULL;
 }
+EXPORT_SYMBOL(dst_destroy);
 
 void dst_release(struct dst_entry *dst)
 {
 	if (dst) {
-               int newrefcnt;
+		int newrefcnt;
 
 		smp_mb__before_atomic_dec();
-               newrefcnt = atomic_dec_return(&dst->__refcnt);
-               WARN_ON(newrefcnt < 0);
+		newrefcnt = atomic_dec_return(&dst->__refcnt);
+		WARN_ON(newrefcnt < 0);
 	}
 }
 EXPORT_SYMBOL(dst_release);
@@ -282,8 +286,8 @@ EXPORT_SYMBOL(dst_release);
  *
  * Commented and originally written by Alexey.
  */
-static inline void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
-			      int unregister)
+static void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
+		       int unregister)
 {
 	if (dst->ops->ifdown)
 		dst->ops->ifdown(dst, dev, unregister);
@@ -305,7 +309,8 @@ static inline void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	}
 }
 
-static int dst_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
+static int dst_dev_event(struct notifier_block *this, unsigned long event,
+			 void *ptr)
 {
 	struct net_device *dev = ptr;
 	struct dst_entry *dst, *last = NULL;
@@ -328,9 +333,8 @@ static int dst_dev_event(struct notifier_block *this, unsigned long event, void 
 			last->next = dst;
 		else
 			dst_busy_list = dst;
-		for (; dst; dst = dst->next) {
+		for (; dst; dst = dst->next)
 			dst_ifdown(dst, dev, event != NETDEV_DOWN);
-		}
 		mutex_unlock(&dst_gc_mutex);
 		break;
 	}
@@ -345,7 +349,3 @@ void __init dst_init(void)
 {
 	register_netdevice_notifier(&dst_dev_notifier);
 }
-
-EXPORT_SYMBOL(__dst_free);
-EXPORT_SYMBOL(dst_alloc);
-EXPORT_SYMBOL(dst_destroy);

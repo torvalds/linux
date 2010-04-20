@@ -44,8 +44,6 @@
 
 #define AR5416_AR9100_DEVID	0x000b
 
-#define AR9271_USB             0x9271
-
 #define	AR_SUBVENDOR_ID_NOG	0x0e11
 #define AR_SUBVENDOR_ID_NEW_A	0x7065
 #define AR5416_MAGIC		0x19641014
@@ -461,6 +459,7 @@ struct ath_hw {
 
 	bool sw_mgmt_crypto;
 	bool is_pciexpress;
+	bool need_an_top2_fixup;
 	u16 tx_trig_level;
 	u16 rfsilent;
 	u32 rfkill_gpio;
@@ -478,7 +477,8 @@ struct ath_hw {
 	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
 
 	int16_t curchan_rad_index;
-	u32 mask_reg;
+	enum ath9k_int imask;
+	u32 imrs2_reg;
 	u32 txok_interrupt_mask;
 	u32 txerr_interrupt_mask;
 	u32 txdesc_interrupt_mask;
@@ -598,6 +598,11 @@ struct ath_hw {
 	struct ar5416IniArray iniModes_9271_1_0_only;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
+	struct ar5416IniArray iniCommon_normal_cck_fir_coeff_9271;
+	struct ar5416IniArray iniCommon_japan_2484_cck_fir_coeff_9271;
+	struct ar5416IniArray iniModes_9271_ANI_reg;
+	struct ar5416IniArray iniModes_high_power_tx_gain_9271;
+	struct ar5416IniArray iniModes_normal_power_tx_gain_9271;
 
 	u32 intr_gen_timer_trigger;
 	u32 intr_gen_timer_thresh;
@@ -700,6 +705,9 @@ void ath_gen_timer_isr(struct ath_hw *hw);
 u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 
 void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len);
+
+/* HTC */
+void ath9k_hw_htc_resetinit(struct ath_hw *ah);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1

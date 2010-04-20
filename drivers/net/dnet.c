@@ -918,7 +918,7 @@ static int __devinit dnet_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Dave DNET at 0x%p (0x%08x) irq %d %pM\n",
 	       bp->regs, mem_base, dev->irq, dev->dev_addr);
-	dev_info(&pdev->dev, "has %smdio, %sirq, %sgigabit, %sdma \n",
+	dev_info(&pdev->dev, "has %smdio, %sirq, %sgigabit, %sdma\n",
 	       (bp->capabilities & DNET_HAS_MDIO) ? "" : "no ",
 	       (bp->capabilities & DNET_HAS_IRQ) ? "" : "no ",
 	       (bp->capabilities & DNET_HAS_GIGABIT) ? "" : "no ",

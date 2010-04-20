@@ -153,7 +153,6 @@ static int tx_params[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -1858,12 +1857,12 @@ static void set_rx_mode(struct net_device *dev)
 		/* Too many to match, or accept all multicasts. */
 		writew(0x000B, ioaddr + AddrMode);
 	} else if (!netdev_mc_empty(dev)) { /* Must use the CAM filter. */
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		int i = 0;
 
-		netdev_for_each_mc_addr(mclist, dev) {
-			writel(*(u32*)(mclist->dmi_addr), ioaddr + 0x100 + i*8);
-			writel(0x20000 | (*(u16*)&mclist->dmi_addr[4]),
+		netdev_for_each_mc_addr(ha, dev) {
+			writel(*(u32 *)(ha->addr), ioaddr + 0x100 + i*8);
+			writel(0x20000 | (*(u16 *)&ha->addr[4]),
 				   ioaddr + 0x104 + i*8);
 			i++;
 		}

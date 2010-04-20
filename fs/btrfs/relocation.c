@@ -21,6 +21,7 @@
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
 #include <linux/rbtree.h>
+#include <linux/slab.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -2659,7 +2660,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 					EXTENT_BOUNDARY, GFP_NOFS);
 			nr++;
 		}
-		btrfs_set_extent_delalloc(inode, page_start, page_end);
+		btrfs_set_extent_delalloc(inode, page_start, page_end, NULL);
 
 		set_page_dirty(page);
 		dirty_page++;
@@ -3487,7 +3488,7 @@ static struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	key.objectid = objectid;
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
-	inode = btrfs_iget(root->fs_info->sb, &key, root);
+	inode = btrfs_iget(root->fs_info->sb, &key, root, NULL);
 	BUG_ON(IS_ERR(inode) || is_bad_inode(inode));
 	BTRFS_I(inode)->index_cnt = group->key.objectid;
 

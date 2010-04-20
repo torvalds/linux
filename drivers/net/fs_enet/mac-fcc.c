@@ -19,7 +19,6 @@
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -34,6 +33,7 @@
 #include <linux/platform_device.h>
 #include <linux/phy.h>
 #include <linux/of_device.h>
+#include <linux/gfp.h>
 
 #include <asm/immap_cpm2.h>
 #include <asm/mpc8260.h>
@@ -231,12 +231,12 @@ static void set_multicast_finish(struct net_device *dev)
 
 static void set_multicast_list(struct net_device *dev)
 {
-	struct dev_mc_list *pmc;
+	struct netdev_hw_addr *ha;
 
 	if ((dev->flags & IFF_PROMISC) == 0) {
 		set_multicast_start(dev);
-		netdev_for_each_mc_addr(pmc, dev)
-			set_multicast_one(dev, pmc->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			set_multicast_one(dev, ha->addr);
 		set_multicast_finish(dev);
 	} else
 		set_promiscuous_mode(dev);

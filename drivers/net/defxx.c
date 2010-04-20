@@ -2195,7 +2195,7 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 {
 	DFX_board_t *bp = netdev_priv(dev);
 	int					i;			/* used as index in for loop */
-	struct dev_mc_list	*dmi;		/* ptr to multicast addr entry */
+	struct netdev_hw_addr *ha;
 
 	/* Enable LLC frame promiscuous mode, if necessary */
 
@@ -2241,9 +2241,9 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 		/* Copy addresses to multicast address table, then update adapter CAM */
 
 		i = 0;
-		netdev_for_each_mc_addr(dmi, dev)
+		netdev_for_each_mc_addr(ha, dev)
 			memcpy(&bp->mc_table[i++ * FDDI_K_ALEN],
-			       dmi->dmi_addr, FDDI_K_ALEN);
+			       ha->addr, FDDI_K_ALEN);
 
 		if (dfx_ctl_update_cam(bp) != DFX_K_SUCCESS)
 			{

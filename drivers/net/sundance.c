@@ -84,7 +84,6 @@ static char *media[MAX_UNITS];
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -1523,13 +1522,13 @@ static void set_rx_mode(struct net_device *dev)
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptMyPhys;
 	} else if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		int bit;
 		int index;
 		int crc;
 		memset (mc_filter, 0, sizeof (mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
-			crc = ether_crc_le (ETH_ALEN, mclist->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			crc = ether_crc_le(ETH_ALEN, ha->addr);
 			for (index=0, bit=0; bit < 6; bit++, crc <<= 1)
 				if (crc & 0x80000000) index |= 1 << bit;
 			mc_filter[index/16] |= (1 << (index % 16));

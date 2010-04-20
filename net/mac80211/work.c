@@ -19,6 +19,7 @@
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 #include <asm/unaligned.h>
 
@@ -919,10 +920,15 @@ static void ieee80211_work_work(struct work_struct *work)
 		run_again(local, jiffies + HZ/2);
 	}
 
-	if (list_empty(&local->work_list) && local->scan_req)
+	mutex_lock(&local->scan_mtx);
+
+	if (list_empty(&local->work_list) && local->scan_req &&
+	    !local->scanning)
 		ieee80211_queue_delayed_work(&local->hw,
 					     &local->scan_work,
 					     round_jiffies_relative(0));
+
+	mutex_unlock(&local->scan_mtx);
 
 	mutex_unlock(&local->work_mtx);
 

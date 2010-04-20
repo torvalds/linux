@@ -43,6 +43,7 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
@@ -714,7 +715,7 @@ static void igmp6_group_added(struct ifmcaddr6 *mc)
 	if (!(mc->mca_flags&MAF_LOADED)) {
 		mc->mca_flags |= MAF_LOADED;
 		if (ndisc_mc_map(&mc->mca_addr, buf, dev, 0) == 0)
-			dev_mc_add(dev, buf, dev->addr_len, 0);
+			dev_mc_add(dev, buf);
 	}
 	spin_unlock_bh(&mc->mca_lock);
 
@@ -740,7 +741,7 @@ static void igmp6_group_dropped(struct ifmcaddr6 *mc)
 	if (mc->mca_flags&MAF_LOADED) {
 		mc->mca_flags &= ~MAF_LOADED;
 		if (ndisc_mc_map(&mc->mca_addr, buf, dev, 0) == 0)
-			dev_mc_delete(dev, buf, dev->addr_len, 0);
+			dev_mc_del(dev, buf);
 	}
 
 	if (mc->mca_flags & MAF_NOREPORT)
