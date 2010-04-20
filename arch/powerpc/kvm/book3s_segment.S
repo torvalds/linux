@@ -196,6 +196,8 @@ kvmppc_handler_trampoline_exit:
 	beq	ld_last_inst
 	cmpwi	r12, BOOK3S_INTERRUPT_PROGRAM
 	beq	ld_last_inst
+	cmpwi	r12, BOOK3S_INTERRUPT_ALIGNMENT
+	beq-	ld_last_inst
 
 	b	no_ld_last_inst
 
