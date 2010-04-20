@@ -473,6 +473,9 @@ static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 		break;
 	}
 
+	if (vcpu->arch.msr & MSR_PR)
+		*vsid |= VSID_PR;
+
 	return 0;
 }
 
