@@ -261,7 +261,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_INTEGRITY_RULE);
 
 	entry->action = -1;
-	while ((p = strsep(&rule, " \n")) != NULL) {
+	while ((p = strsep(&rule, " ")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
 		int token;
 		unsigned long lnum;
@@ -269,7 +269,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 		if (result < 0)
 			break;
 		if (!*p)
-			continue;
+			break;
 		token = match_token(p, policy_tokens, args);
 		switch (token) {
 		case Opt_measure:
@@ -373,7 +373,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 	if (entry->action == UNKNOWN)
 		result = -EINVAL;
 
-	audit_log_format(ab, "res=%d", !result ? 0 : 1);
+	audit_log_format(ab, "res=%d", !!result);
 	audit_log_end(ab);
 	return result;
 }
@@ -383,13 +383,14 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
  * @rule - ima measurement policy rule
  *
  * Uses a mutex to protect the policy list from multiple concurrent writers.
- * Returns 0 on success, an error code on failure.
+ * Returns the length of the rule parsed, an error code on failure
  */
-int ima_parse_add_rule(char *rule)
+ssize_t ima_parse_add_rule(char *rule)
 {
 	const char *op = "update_policy";
+	char *p;
 	struct ima_measure_rule_entry *entry;
-	int result = 0;
+	ssize_t result, len;
 	int audit_info = 0;
 
 	/* Prevent installed policy from changing */
@@ -409,8 +410,11 @@ int ima_parse_add_rule(char *rule)
 
 	INIT_LIST_HEAD(&entry->list);
 
-	result = ima_parse_rule(rule, entry);
+	p = strsep(&rule, "\n");
+	len = strlen(p) + 1;
+	result = ima_parse_rule(p, entry);
 	if (!result) {
+		result = len;
 		mutex_lock(&ima_measure_mutex);
 		list_add_tail(&entry->list, &measure_policy_rules);
 		mutex_unlock(&ima_measure_mutex);
