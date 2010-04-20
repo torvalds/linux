@@ -1039,6 +1039,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	int			i;
 	int			iclogsize;
 	int			error = ENOMEM;
+	uint			log2_size = 0;
 
 	log = kmem_zalloc(sizeof(xlog_t), KM_MAYFAIL);
 	if (!log) {
@@ -1064,29 +1065,31 @@ xlog_alloc_log(xfs_mount_t	*mp,
 
 	error = EFSCORRUPTED;
 	if (xfs_sb_version_hassector(&mp->m_sb)) {
-		log->l_sectbb_log = mp->m_sb.sb_logsectlog - BBSHIFT;
-		if (log->l_sectbb_log < 0 ||
-		    log->l_sectbb_log > mp->m_sectbb_log) {
-			xlog_warn("XFS: Log sector size (0x%x) out of range.",
-						log->l_sectbb_log);
+	        log2_size = mp->m_sb.sb_logsectlog;
+		if (log2_size < BBSHIFT) {
+			xlog_warn("XFS: Log sector size too small "
+				"(0x%x < 0x%x)", log2_size, BBSHIFT);
+			goto out_free_log;
+		}
+
+	        log2_size -= BBSHIFT;
+		if (log2_size > mp->m_sectbb_log) {
+			xlog_warn("XFS: Log sector size too large "
+				"(0x%x > 0x%x)", log2_size, mp->m_sectbb_log);
 			goto out_free_log;
 		}
 
 		/* for larger sector sizes, must have v2 or external log */
-		if (log->l_sectbb_log != 0 &&
-		    (log->l_logBBstart != 0 &&
-		     !xfs_sb_version_haslogv2(&mp->m_sb))) {
+		if (log2_size && log->l_logBBstart > 0 &&
+			    !xfs_sb_version_haslogv2(&mp->m_sb)) {
+
 			xlog_warn("XFS: log sector size (0x%x) invalid "
-				  "for configuration.", log->l_sectbb_log);
-			goto out_free_log;
-		}
-		if (mp->m_sb.sb_logsectlog < BBSHIFT) {
-			xlog_warn("XFS: Log sector log (0x%x) too small.",
-						mp->m_sb.sb_logsectlog);
+				  "for configuration.", log2_size);
 			goto out_free_log;
 		}
 	}
-	log->l_sectbb_mask = (1 << log->l_sectbb_log) - 1;
+	log->l_sectBBsize = 1 << log2_size;
+	log->l_sectbb_mask = log->l_sectBBsize - 1;
 
 	xlog_get_iclog_buffer_size(mp, log);
 

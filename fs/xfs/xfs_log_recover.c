@@ -60,9 +60,6 @@ STATIC void	xlog_recover_check_summary(xlog_t *);
  * Sector aligned buffer routines for buffer create/read/write/access
  */
 
-/* Number of basic blocks in a log sector */
-#define xlog_sectbb(log) (1 << (log)->l_sectbb_log)
-
 /*
  * Verify the given count of basic blocks is valid number of blocks
  * to specify for an operation involving the given XFS log buffer.
@@ -110,9 +107,9 @@ xlog_get_bp(
 	 * extend the buffer by one extra log sector to ensure
 	 * there's space to accomodate this possiblility.
 	 */
-	if (nbblks > 1 && log->l_sectbb_log)
-		nbblks += xlog_sectbb(log);
-	nbblks = round_up(nbblks, xlog_sectbb(log));
+	if (nbblks > 1 && log->l_sectBBsize > 1)
+		nbblks += log->l_sectBBsize;
+	nbblks = round_up(nbblks, log->l_sectBBsize);
 
 	return xfs_buf_get_noaddr(BBTOB(nbblks), log->l_mp->m_logdev_targp);
 }
@@ -133,7 +130,7 @@ xlog_align(
 {
 	xfs_caddr_t	ptr;
 
-	if (!log->l_sectbb_log)
+	if (log->l_sectBBsize == 1)
 		return XFS_BUF_PTR(bp);
 
 	ptr = XFS_BUF_PTR(bp) + BBTOB((int)blk_no & log->l_sectbb_mask);
@@ -162,8 +159,8 @@ xlog_bread_noalign(
 		return EFSCORRUPTED;
 	}
 
-	blk_no = round_down(blk_no, xlog_sectbb(log));
-	nbblks = round_up(nbblks, xlog_sectbb(log));
+	blk_no = round_down(blk_no, log->l_sectBBsize);
+	nbblks = round_up(nbblks, log->l_sectBBsize);
 
 	ASSERT(nbblks > 0);
 	ASSERT(BBTOB(nbblks) <= XFS_BUF_SIZE(bp));
@@ -221,8 +218,8 @@ xlog_bwrite(
 		return EFSCORRUPTED;
 	}
 
-	blk_no = round_down(blk_no, xlog_sectbb(log));
-	nbblks = round_up(nbblks, xlog_sectbb(log));
+	blk_no = round_down(blk_no, log->l_sectBBsize);
+	nbblks = round_up(nbblks, log->l_sectBBsize);
 
 	ASSERT(nbblks > 0);
 	ASSERT(BBTOB(nbblks) <= XFS_BUF_SIZE(bp));
@@ -410,7 +407,7 @@ xlog_find_verify_cycle(
 	bufblks = 1 << ffs(nbblks);
 	while (!(bp = xlog_get_bp(log, bufblks))) {
 		bufblks >>= 1;
-		if (bufblks < xlog_sectbb(log))
+		if (bufblks < log->l_sectBBsize)
 			return ENOMEM;
 	}
 
@@ -1181,7 +1178,7 @@ xlog_write_log_records(
 	xfs_caddr_t	offset;
 	xfs_buf_t	*bp;
 	int		balign, ealign;
-	int		sectbb = xlog_sectbb(log);
+	int		sectbb = log->l_sectBBsize;
 	int		end_block = start_block + blocks;
 	int		bufblks;
 	int		error = 0;
@@ -1196,7 +1193,7 @@ xlog_write_log_records(
 	bufblks = 1 << ffs(blocks);
 	while (!(bp = xlog_get_bp(log, bufblks))) {
 		bufblks >>= 1;
-		if (bufblks < xlog_sectbb(log))
+		if (bufblks < sectbb)
 			return ENOMEM;
 	}
 
@@ -3515,7 +3512,7 @@ xlog_do_recovery_pass(
 			hblks = 1;
 		}
 	} else {
-		ASSERT(log->l_sectbb_log == 0);
+		ASSERT(log->l_sectBBsize == 1);
 		hblks = 1;
 		hbp = xlog_get_bp(log, 1);
 		h_size = XLOG_BIG_RECORD_BSIZE;
