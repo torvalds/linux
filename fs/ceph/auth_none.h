@@ -1,6 +1,8 @@
 #ifndef _FS_CEPH_AUTH_NONE_H
 #define _FS_CEPH_AUTH_NONE_H
 
+#include <linux/slab.h>
+
 #include "auth.h"
 
 /*
