@@ -113,10 +113,14 @@ void tracing_record_cmdline(struct task_struct *tsk);
 
 struct event_filter;
 
+struct ftrace_event_class {
+	char			*system;
+};
+
 struct ftrace_event_call {
 	struct list_head	list;
+	struct ftrace_event_class *class;
 	char			*name;
-	char			*system;
 	struct dentry		*dir;
 	struct trace_event	*event;
 	int			enabled;

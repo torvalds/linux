@@ -628,7 +628,7 @@ static int init_subsystem_preds(struct event_subsystem *system)
 		if (!call->define_fields)
 			continue;
 
-		if (strcmp(call->system, system->name) != 0)
+		if (strcmp(call->class->system, system->name) != 0)
 			continue;
 
 		err = init_preds(call);
@@ -647,7 +647,7 @@ static void filter_free_subsystem_preds(struct event_subsystem *system)
 		if (!call->define_fields)
 			continue;
 
-		if (strcmp(call->system, system->name) != 0)
+		if (strcmp(call->class->system, system->name) != 0)
 			continue;
 
 		filter_disable_preds(call);
@@ -1252,7 +1252,7 @@ static int replace_system_preds(struct event_subsystem *system,
 		if (!call->define_fields)
 			continue;
 
-		if (strcmp(call->system, system->name) != 0)
+		if (strcmp(call->class->system, system->name) != 0)
 			continue;
 
 		/* try to see if the filter can be applied */

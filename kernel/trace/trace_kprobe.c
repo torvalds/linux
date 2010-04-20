@@ -332,8 +332,8 @@ static struct trace_probe *alloc_trace_probe(const char *group,
 		goto error;
 	}
 
-	tp->call.system = kstrdup(group, GFP_KERNEL);
-	if (!tp->call.system)
+	tp->call.class->system = kstrdup(group, GFP_KERNEL);
+	if (!tp->call.class->system)
 		goto error;
 
 	INIT_LIST_HEAD(&tp->list);
@@ -361,7 +361,7 @@ static void free_trace_probe(struct trace_probe *tp)
 	for (i = 0; i < tp->nr_args; i++)
 		free_probe_arg(&tp->args[i]);
 
-	kfree(tp->call.system);
+	kfree(tp->call.class->system);
 	kfree(tp->call.name);
 	kfree(tp->symbol);
 	kfree(tp);
@@ -374,7 +374,7 @@ static struct trace_probe *find_probe_event(const char *event,
 
 	list_for_each_entry(tp, &probe_list, list)
 		if (strcmp(tp->call.name, event) == 0 &&
-		    strcmp(tp->call.system, group) == 0)
+		    strcmp(tp->call.class->system, group) == 0)
 			return tp;
 	return NULL;
 }
@@ -399,7 +399,7 @@ static int register_trace_probe(struct trace_probe *tp)
 	mutex_lock(&probe_lock);
 
 	/* register as an event */
-	old_tp = find_probe_event(tp->call.name, tp->call.system);
+	old_tp = find_probe_event(tp->call.name, tp->call.class->system);
 	if (old_tp) {
 		/* delete old event */
 		unregister_trace_probe(old_tp);
@@ -798,7 +798,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	char buf[MAX_ARGSTR_LEN + 1];
 
 	seq_printf(m, "%c", probe_is_return(tp) ? 'r' : 'p');
-	seq_printf(m, ":%s/%s", tp->call.system, tp->call.name);
+	seq_printf(m, ":%s/%s", tp->call.class->system, tp->call.name);
 
 	if (!tp->symbol)
 		seq_printf(m, " 0x%p", tp->rp.kp.addr);

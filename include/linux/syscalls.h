@@ -134,6 +134,8 @@ struct perf_event_attr;
 #define __SC_STR_TDECL5(t, a, ...)	#t, __SC_STR_TDECL4(__VA_ARGS__)
 #define __SC_STR_TDECL6(t, a, ...)	#t, __SC_STR_TDECL5(__VA_ARGS__)
 
+extern struct ftrace_event_class event_class_syscalls;
+
 #define SYSCALL_TRACE_ENTER_EVENT(sname)				\
 	static const struct syscall_metadata __syscall_meta_##sname;	\
 	static struct ftrace_event_call					\
@@ -146,7 +148,7 @@ struct perf_event_attr;
 	  __attribute__((section("_ftrace_events")))			\
 	  event_enter_##sname = {					\
 		.name                   = "sys_enter"#sname,		\
-		.system                 = "syscalls",			\
+		.class			= &event_class_syscalls,	\
 		.event                  = &enter_syscall_print_##sname,	\
 		.raw_init		= init_syscall_trace,		\
 		.define_fields		= syscall_enter_define_fields,	\
@@ -168,7 +170,7 @@ struct perf_event_attr;
 	  __attribute__((section("_ftrace_events")))			\
 	  event_exit_##sname = {					\
 		.name                   = "sys_exit"#sname,		\
-		.system                 = "syscalls",			\
+		.class			= &event_class_syscalls,	\
 		.event                  = &exit_syscall_print_##sname,	\
 		.raw_init		= init_syscall_trace,		\
 		.define_fields		= syscall_exit_define_fields,	\

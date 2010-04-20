@@ -18,6 +18,10 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM	ftrace
 
+struct ftrace_event_class event_class_ftrace = {
+	.system			= __stringify(TRACE_SYSTEM),
+};
+
 /* not needed for this file */
 #undef __field_struct
 #define __field_struct(type, item)
@@ -160,7 +164,7 @@ __attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name			= #call,				\
 	.id			= type,					\
-	.system			= __stringify(TRACE_SYSTEM),		\
+	.class			= &event_class_ftrace,			\
 	.raw_init		= ftrace_raw_init_event,		\
 	.print_fmt		= print,				\
 	.define_fields		= ftrace_define_fields_##call,		\

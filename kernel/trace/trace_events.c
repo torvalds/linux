@@ -176,10 +176,10 @@ static int __ftrace_set_clr_event(const char *match, const char *sub,
 
 		if (match &&
 		    strcmp(match, call->name) != 0 &&
-		    strcmp(match, call->system) != 0)
+		    strcmp(match, call->class->system) != 0)
 			continue;
 
-		if (sub && strcmp(sub, call->system) != 0)
+		if (sub && strcmp(sub, call->class->system) != 0)
 			continue;
 
 		if (event && strcmp(event, call->name) != 0)
@@ -355,8 +355,8 @@ static int t_show(struct seq_file *m, void *v)
 {
 	struct ftrace_event_call *call = v;
 
-	if (strcmp(call->system, TRACE_SYSTEM) != 0)
-		seq_printf(m, "%s:", call->system);
+	if (strcmp(call->class->system, TRACE_SYSTEM) != 0)
+		seq_printf(m, "%s:", call->class->system);
 	seq_printf(m, "%s\n", call->name);
 
 	return 0;
@@ -453,7 +453,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		if (!call->name || !call->regfunc)
 			continue;
 
-		if (system && strcmp(call->system, system) != 0)
+		if (system && strcmp(call->class->system, system) != 0)
 			continue;
 
 		/*
@@ -925,8 +925,8 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 	 * If the trace point header did not define TRACE_SYSTEM
 	 * then the system would be called "TRACE_SYSTEM".
 	 */
-	if (strcmp(call->system, TRACE_SYSTEM) != 0)
-		d_events = event_subsystem_dir(call->system, d_events);
+	if (strcmp(call->class->system, TRACE_SYSTEM) != 0)
+		d_events = event_subsystem_dir(call->class->system, d_events);
 
 	call->dir = debugfs_create_dir(call->name, d_events);
 	if (!call->dir) {
@@ -1041,7 +1041,7 @@ static void __trace_remove_event_call(struct ftrace_event_call *call)
 	list_del(&call->list);
 	trace_destroy_fields(call);
 	destroy_preds(call);
-	remove_subsystem_dir(call->system);
+	remove_subsystem_dir(call->class->system);
 }
 
 /* Remove an event_call */
@@ -1399,8 +1399,8 @@ static __init void event_trace_self_tests(void)
  * syscalls as we test.
  */
 #ifndef CONFIG_EVENT_TRACE_TEST_SYSCALLS
-		if (call->system &&
-		    strcmp(call->system, "syscalls") == 0)
+		if (call->class->system &&
+		    strcmp(call->class->system, "syscalls") == 0)
 			continue;
 #endif
 

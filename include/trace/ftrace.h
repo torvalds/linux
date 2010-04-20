@@ -62,7 +62,10 @@
 		struct trace_entry	ent;				\
 		tstruct							\
 		char			__data[0];			\
-	};
+	};								\
+									\
+	static struct ftrace_event_class event_class_##name;
+
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, name, proto, args)	\
 	static struct ftrace_event_call			\
@@ -430,22 +433,6 @@ perf_trace_disable_##name(struct ftrace_event_call *unused)		\
  *
  * Override the macros in <trace/trace_events.h> to include the following:
  *
- * static void ftrace_event_<call>(proto)
- * {
- *	event_trace_printk(_RET_IP_, "<call>: " <fmt>);
- * }
- *
- * static int ftrace_reg_event_<call>(struct ftrace_event_call *unused)
- * {
- *	return register_trace_<call>(ftrace_event_<call>);
- * }
- *
- * static void ftrace_unreg_event_<call>(struct ftrace_event_call *unused)
- * {
- *	unregister_trace_<call>(ftrace_event_<call>);
- * }
- *
- *
  * For those macros defined with TRACE_EVENT:
  *
  * static struct ftrace_event_call event_<call>;
@@ -497,17 +484,21 @@ perf_trace_disable_##name(struct ftrace_event_call *unused)		\
  *
  * static const char print_fmt_<call>[] = <TP_printk>;
  *
+ * static struct ftrace_event_class __used event_class_<template> = {
+ *	.system			= "<system>",
+ * };
+ *
  * static struct ftrace_event_call __used
  * __attribute__((__aligned__(4)))
  * __attribute__((section("_ftrace_events"))) event_<call> = {
  *	.name			= "<call>",
- *	.system			= "<system>",
+ *	.class			= event_class_<template>,
  *	.raw_init		= trace_event_raw_init,
- *	.regfunc		= ftrace_reg_event_<call>,
- *	.unregfunc		= ftrace_unreg_event_<call>,
+ *	.regfunc		= ftrace_raw_reg_event_<call>,
+ *	.unregfunc		= ftrace_raw_unreg_event_<call>,
  *	.print_fmt		= print_fmt_<call>,
  *	.define_fields		= ftrace_define_fields_<call>,
- * }
+ * };
  *
  */
 
@@ -627,7 +618,10 @@ static struct trace_event ftrace_event_type_##call = {			\
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
-static const char print_fmt_##call[] = print;
+static const char print_fmt_##call[] = print;				\
+static struct ftrace_event_class __used event_class_##call = {		\
+	.system			= __stringify(TRACE_SYSTEM)		\
+};
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)			\
@@ -636,7 +630,7 @@ static struct ftrace_event_call __used					\
 __attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name			= #call,				\
-	.system			= __stringify(TRACE_SYSTEM),		\
+	.class			= &event_class_##template,		\
 	.event			= &ftrace_event_type_##call,		\
 	.raw_init		= trace_event_raw_init,			\
 	.regfunc		= ftrace_raw_reg_event_##call,		\
@@ -644,7 +638,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.print_fmt		= print_fmt_##template,			\
 	.define_fields		= ftrace_define_fields_##template,	\
 	_TRACE_PERF_INIT(call)					\
-}
+};
 
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, call, proto, args, print)		\
@@ -655,7 +649,7 @@ static struct ftrace_event_call __used					\
 __attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name			= #call,				\
-	.system			= __stringify(TRACE_SYSTEM),		\
+	.class			= &event_class_##template,		\
 	.event			= &ftrace_event_type_##call,		\
 	.raw_init		= trace_event_raw_init,			\
 	.regfunc		= ftrace_raw_reg_event_##call,		\
