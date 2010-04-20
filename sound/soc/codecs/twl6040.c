@@ -364,7 +364,7 @@ static int twl6040_power_mode_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct twl6040_data *priv = codec->private_data;
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
 	if (SND_SOC_DAPM_EVENT_ON(event))
 		priv->non_lp++;
@@ -378,7 +378,7 @@ static int twl6040_power_mode_event(struct snd_soc_dapm_widget *w,
 static irqreturn_t twl6040_naudint_handler(int irq, void *data)
 {
 	struct snd_soc_codec *codec = data;
-	struct twl6040_data *priv = codec->private_data;
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	u8 intid;
 
 	twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &intid, TWL6040_REG_INTID);
@@ -636,7 +636,7 @@ static int twl6040_add_widgets(struct snd_soc_codec *codec)
 static int twl6040_power_up_completion(struct snd_soc_codec *codec,
 					int naudint)
 {
-	struct twl6040_data *priv = codec->private_data;
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	int time_left;
 	u8 intid;
 
@@ -660,7 +660,7 @@ static int twl6040_power_up_completion(struct snd_soc_codec *codec,
 static int twl6040_set_bias_level(struct snd_soc_codec *codec,
 				enum snd_soc_bias_level level)
 {
-	struct twl6040_data *priv = codec->private_data;
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	int audpwron = priv->audpwron;
 	int naudint = priv->naudint;
 	int ret;
@@ -753,7 +753,7 @@ static int twl6040_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct twl6040_data *priv = codec->private_data;
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
 	if (!priv->sysclk) {
 		dev_err(codec->dev,
@@ -786,7 +786,7 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct twl6040_data *priv = codec->private_data;
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	u8 lppllctl;
 	int rate;
 
@@ -822,7 +822,7 @@ static int twl6040_trigger(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct twl6040_data *priv = codec->private_data;
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -849,7 +849,7 @@ static int twl6040_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct twl6040_data *priv = codec->private_data;
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	u8 hppllctl, lppllctl;
 
 	hppllctl = twl6040_read_reg_cache(codec, TWL6040_REG_HPPLLCTL);
@@ -1095,7 +1095,7 @@ static int __devinit twl6040_codec_probe(struct platform_device *pdev)
 	codec->read = twl6040_read_reg_cache;
 	codec->write = twl6040_write;
 	codec->set_bias_level = twl6040_set_bias_level;
-	codec->private_data = priv;
+	snd_soc_codec_set_drvdata(codec, priv);
 	codec->dai = &twl6040_dai;
 	codec->num_dai = 1;
 	codec->reg_cache_size = ARRAY_SIZE(twl6040_reg);
@@ -1183,7 +1183,7 @@ cache_err:
 
 static int __devexit twl6040_codec_remove(struct platform_device *pdev)
 {
-	struct twl6040_data *priv = twl6040_codec->private_data;
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(twl6040_codec);
 	int audpwron = priv->audpwron;
 	int naudint = priv->naudint;
 
