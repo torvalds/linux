@@ -398,6 +398,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 						   AUDIT_SUBJ_TYPE);
 			break;
 		case Opt_err:
+			result = -EINVAL;
 			audit_log_format(ab, "UNKNOWN=%s ", p);
 			break;
 		}
