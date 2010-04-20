@@ -406,18 +406,18 @@ static inline notrace int ftrace_get_offsets_##call(			\
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, name, proto, args)			\
 									\
-static void perf_trace_##name(proto);					\
+static void perf_trace_##name(void *, proto);				\
 									\
 static notrace int							\
 perf_trace_enable_##name(struct ftrace_event_call *unused)		\
 {									\
-	return register_trace_##name(perf_trace_##name);		\
+	return register_trace_##name(perf_trace_##name, NULL);		\
 }									\
 									\
 static notrace void							\
 perf_trace_disable_##name(struct ftrace_event_call *unused)		\
 {									\
-	unregister_trace_##name(perf_trace_##name);			\
+	unregister_trace_##name(perf_trace_##name, NULL);		\
 }
 
 #undef DEFINE_EVENT_PRINT
@@ -578,7 +578,7 @@ ftrace_raw_event_id_##call(struct ftrace_event_call *event_call,	\
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)			\
 									\
-static notrace void ftrace_raw_event_##call(proto)			\
+static notrace void ftrace_raw_event_##call(void *__ignore, proto)	\
 {									\
 	ftrace_raw_event_id_##template(&event_##call, args);		\
 }									\
@@ -586,13 +586,13 @@ static notrace void ftrace_raw_event_##call(proto)			\
 static notrace int							\
 ftrace_raw_reg_event_##call(struct ftrace_event_call *unused)		\
 {									\
-	return register_trace_##call(ftrace_raw_event_##call);		\
+	return register_trace_##call(ftrace_raw_event_##call, NULL);	\
 }									\
 									\
 static notrace void							\
 ftrace_raw_unreg_event_##call(struct ftrace_event_call *unused)		\
 {									\
-	unregister_trace_##call(ftrace_raw_event_##call);		\
+	unregister_trace_##call(ftrace_raw_event_##call, NULL);		\
 }									\
 									\
 static struct trace_event ftrace_event_type_##call = {			\
@@ -793,7 +793,7 @@ perf_trace_templ_##call(struct ftrace_event_call *event_call,		\
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)		\
-static notrace void perf_trace_##call(proto)			\
+static notrace void perf_trace_##call(void *__ignore, proto)	\
 {								\
 	struct ftrace_event_call *event_call = &event_##call;	\
 								\

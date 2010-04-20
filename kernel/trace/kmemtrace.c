@@ -95,7 +95,8 @@ static inline void kmemtrace_free(enum kmemtrace_type_id type_id,
 	trace_wake_up();
 }
 
-static void kmemtrace_kmalloc(unsigned long call_site,
+static void kmemtrace_kmalloc(void *ignore,
+			      unsigned long call_site,
 			      const void *ptr,
 			      size_t bytes_req,
 			      size_t bytes_alloc,
@@ -105,7 +106,8 @@ static void kmemtrace_kmalloc(unsigned long call_site,
 			bytes_req, bytes_alloc, gfp_flags, -1);
 }
 
-static void kmemtrace_kmem_cache_alloc(unsigned long call_site,
+static void kmemtrace_kmem_cache_alloc(void *ignore,
+				       unsigned long call_site,
 				       const void *ptr,
 				       size_t bytes_req,
 				       size_t bytes_alloc,
@@ -115,7 +117,8 @@ static void kmemtrace_kmem_cache_alloc(unsigned long call_site,
 			bytes_req, bytes_alloc, gfp_flags, -1);
 }
 
-static void kmemtrace_kmalloc_node(unsigned long call_site,
+static void kmemtrace_kmalloc_node(void *ignore,
+				   unsigned long call_site,
 				   const void *ptr,
 				   size_t bytes_req,
 				   size_t bytes_alloc,
@@ -126,7 +129,8 @@ static void kmemtrace_kmalloc_node(unsigned long call_site,
 			bytes_req, bytes_alloc, gfp_flags, node);
 }
 
-static void kmemtrace_kmem_cache_alloc_node(unsigned long call_site,
+static void kmemtrace_kmem_cache_alloc_node(void *ignore,
+					    unsigned long call_site,
 					    const void *ptr,
 					    size_t bytes_req,
 					    size_t bytes_alloc,
@@ -137,12 +141,14 @@ static void kmemtrace_kmem_cache_alloc_node(unsigned long call_site,
 			bytes_req, bytes_alloc, gfp_flags, node);
 }
 
-static void kmemtrace_kfree(unsigned long call_site, const void *ptr)
+static void
+kmemtrace_kfree(void *ignore, unsigned long call_site, const void *ptr)
 {
 	kmemtrace_free(KMEMTRACE_TYPE_KMALLOC, call_site, ptr);
 }
 
-static void kmemtrace_kmem_cache_free(unsigned long call_site, const void *ptr)
+static void kmemtrace_kmem_cache_free(void *ignore,
+				      unsigned long call_site, const void *ptr)
 {
 	kmemtrace_free(KMEMTRACE_TYPE_CACHE, call_site, ptr);
 }
@@ -151,34 +157,34 @@ static int kmemtrace_start_probes(void)
 {
 	int err;
 
-	err = register_trace_kmalloc(kmemtrace_kmalloc);
+	err = register_trace_kmalloc(kmemtrace_kmalloc, NULL);
 	if (err)
 		return err;
-	err = register_trace_kmem_cache_alloc(kmemtrace_kmem_cache_alloc);
+	err = register_trace_kmem_cache_alloc(kmemtrace_kmem_cache_alloc, NULL);
 	if (err)
 		return err;
-	err = register_trace_kmalloc_node(kmemtrace_kmalloc_node);
+	err = register_trace_kmalloc_node(kmemtrace_kmalloc_node, NULL);
 	if (err)
 		return err;
-	err = register_trace_kmem_cache_alloc_node(kmemtrace_kmem_cache_alloc_node);
+	err = register_trace_kmem_cache_alloc_node(kmemtrace_kmem_cache_alloc_node, NULL);
 	if (err)
 		return err;
-	err = register_trace_kfree(kmemtrace_kfree);
+	err = register_trace_kfree(kmemtrace_kfree, NULL);
 	if (err)
 		return err;
-	err = register_trace_kmem_cache_free(kmemtrace_kmem_cache_free);
+	err = register_trace_kmem_cache_free(kmemtrace_kmem_cache_free, NULL);
 
 	return err;
 }
 
 static void kmemtrace_stop_probes(void)
 {
-	unregister_trace_kmalloc(kmemtrace_kmalloc);
-	unregister_trace_kmem_cache_alloc(kmemtrace_kmem_cache_alloc);
-	unregister_trace_kmalloc_node(kmemtrace_kmalloc_node);
-	unregister_trace_kmem_cache_alloc_node(kmemtrace_kmem_cache_alloc_node);
-	unregister_trace_kfree(kmemtrace_kfree);
-	unregister_trace_kmem_cache_free(kmemtrace_kmem_cache_free);
+	unregister_trace_kmalloc(kmemtrace_kmalloc, NULL);
+	unregister_trace_kmem_cache_alloc(kmemtrace_kmem_cache_alloc, NULL);
+	unregister_trace_kmalloc_node(kmemtrace_kmalloc_node, NULL);
+	unregister_trace_kmem_cache_alloc_node(kmemtrace_kmem_cache_alloc_node, NULL);
+	unregister_trace_kfree(kmemtrace_kfree, NULL);
+	unregister_trace_kmem_cache_free(kmemtrace_kmem_cache_free, NULL);
 }
 
 static int kmem_trace_init(struct trace_array *tr)
