@@ -2201,15 +2201,20 @@ __tracing_open(struct inode *inode, struct file *file)
 
 	if (iter->cpu_file == TRACE_PIPE_ALL_CPU) {
 		for_each_tracing_cpu(cpu) {
-
 			iter->buffer_iter[cpu] =
-				ring_buffer_read_start(iter->tr->buffer, cpu);
+				ring_buffer_read_prepare(iter->tr->buffer, cpu);
+		}
+		ring_buffer_read_prepare_sync();
+		for_each_tracing_cpu(cpu) {
+			ring_buffer_read_start(iter->buffer_iter[cpu]);
 			tracing_iter_reset(iter, cpu);
 		}
 	} else {
 		cpu = iter->cpu_file;
 		iter->buffer_iter[cpu] =
-				ring_buffer_read_start(iter->tr->buffer, cpu);
+			ring_buffer_read_prepare(iter->tr->buffer, cpu);
+		ring_buffer_read_prepare_sync();
+		ring_buffer_read_start(iter->buffer_iter[cpu]);
 		tracing_iter_reset(iter, cpu);
 	}
 
