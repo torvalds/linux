@@ -22,6 +22,7 @@
 #include <linux/seq_file.h>
 #include <linux/ftrace.h>
 #include <linux/irq.h>
+#include <linux/kmemleak.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -46,6 +47,7 @@
 
 #include "entry.h"
 #include "cpumap.h"
+#include "kstack.h"
 
 #define NUM_IVECS	(IMAP_INR + 1)
 
@@ -711,24 +713,6 @@ void ack_bad_irq(unsigned int virt_irq)
 
 void *hardirq_stack[NR_CPUS];
 void *softirq_stack[NR_CPUS];
-
-static __attribute__((always_inline)) void *set_hardirq_stack(void)
-{
-	void *orig_sp, *sp = hardirq_stack[smp_processor_id()];
-
-	__asm__ __volatile__("mov %%sp, %0" : "=r" (orig_sp));
-	if (orig_sp < sp ||
-	    orig_sp > (sp + THREAD_SIZE)) {
-		sp += THREAD_SIZE - 192 - STACK_BIAS;
-		__asm__ __volatile__("mov %0, %%sp" : : "r" (sp));
-	}
-
-	return orig_sp;
-}
-static __attribute__((always_inline)) void restore_hardirq_stack(void *orig_sp)
-{
-	__asm__ __volatile__("mov %0, %%sp" : : "r" (orig_sp));
-}
 
 void __irq_entry handler_irq(int irq, struct pt_regs *regs)
 {
