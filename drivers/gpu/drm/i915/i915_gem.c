@@ -5066,6 +5066,20 @@ void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv)
 }
 
 static int
+i915_gpu_is_active(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int lists_empty;
+
+	spin_lock(&dev_priv->mm.active_list_lock);
+	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
+		      list_empty(&dev_priv->mm.active_list);
+	spin_unlock(&dev_priv->mm.active_list_lock);
+
+	return !lists_empty;
+}
+
+static int
 i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 {
 	drm_i915_private_t *dev_priv, *next_dev;
@@ -5094,6 +5108,7 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 
 	spin_lock(&shrink_list_lock);
 
+rescan:
 	/* first scan for clean buffers */
 	list_for_each_entry_safe(dev_priv, next_dev,
 				 &shrink_list, mm.shrink_list) {
@@ -5149,6 +5164,36 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 		mutex_unlock(&dev->struct_mutex);
 
 		would_deadlock = 0;
+	}
+
+	if (nr_to_scan) {
+		int active = 0;
+
+		/*
+		 * We are desperate for pages, so as a last resort, wait
+		 * for the GPU to finish and discard whatever we can.
+		 * This has a dramatic impact to reduce the number of
+		 * OOM-killer events whilst running the GPU aggressively.
+		 */
+		list_for_each_entry(dev_priv, &shrink_list, mm.shrink_list) {
+			struct drm_device *dev = dev_priv->dev;
+
+			if (!mutex_trylock(&dev->struct_mutex))
+				continue;
+
+			spin_unlock(&shrink_list_lock);
+
+			if (i915_gpu_is_active(dev)) {
+				i915_gpu_idle(dev);
+				active++;
+			}
+
+			spin_lock(&shrink_list_lock);
+			mutex_unlock(&dev->struct_mutex);
+		}
+
+		if (active)
+			goto rescan;
 	}
 
 	spin_unlock(&shrink_list_lock);
