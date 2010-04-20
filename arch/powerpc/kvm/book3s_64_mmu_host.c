@@ -231,10 +231,16 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 	vcpu->arch.mmu.esid_to_vsid(vcpu, orig_pte->eaddr >> SID_SHIFT, &vsid);
 	map = find_sid_vsid(vcpu, vsid);
 	if (!map) {
-		kvmppc_mmu_map_segment(vcpu, orig_pte->eaddr);
+		ret = kvmppc_mmu_map_segment(vcpu, orig_pte->eaddr);
+		WARN_ON(ret < 0);
 		map = find_sid_vsid(vcpu, vsid);
 	}
-	BUG_ON(!map);
+	if (!map) {
+		printk(KERN_ERR "KVM: Segment map for 0x%llx (0x%lx) failed\n",
+				vsid, orig_pte->eaddr);
+		WARN_ON(true);
+		return -EINVAL;
+	}
 
 	vsid = map->host_vsid;
 	va = hpt_va(orig_pte->eaddr, vsid, MMU_SEGSIZE_256M);
