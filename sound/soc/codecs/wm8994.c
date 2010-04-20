@@ -2843,6 +2843,16 @@ static int wm8994_set_fll(struct snd_soc_dai *dai, int id, int src,
 		return -EINVAL;
 	}
 
+	switch (src) {
+	case WM8994_FLL_SRC_MCLK1:
+	case WM8994_FLL_SRC_MCLK2:
+	case WM8994_FLL_SRC_LRCLK:
+	case WM8994_FLL_SRC_BCLK:
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	/* Are we changing anything? */
 	if (wm8994->fll[id].src == src &&
 	    wm8994->fll[id].in == freq_in && wm8994->fll[id].out == freq_out)
@@ -2883,8 +2893,10 @@ static int wm8994_set_fll(struct snd_soc_dai *dai, int id, int src,
 				    fll.n << WM8994_FLL1_N_SHIFT);
 
 	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_5 + reg_offset,
-			    WM8994_FLL1_REFCLK_DIV_MASK,
-			    fll.clk_ref_div << WM8994_FLL1_REFCLK_DIV_SHIFT);
+			    WM8994_FLL1_REFCLK_DIV_MASK |
+			    WM8994_FLL1_REFCLK_SRC_MASK,
+			    (fll.clk_ref_div << WM8994_FLL1_REFCLK_DIV_SHIFT) |
+			    (src - 1));
 
 	/* Enable (with fractional mode if required) */
 	if (freq_out) {
@@ -2899,6 +2911,7 @@ static int wm8994_set_fll(struct snd_soc_dai *dai, int id, int src,
 
 	wm8994->fll[id].in = freq_in;
 	wm8994->fll[id].out = freq_out;
+	wm8994->fll[id].src = src;
 
 	/* Enable any gated AIF clocks */
 	snd_soc_update_bits(codec, WM8994_AIF1_CLOCKING_1,
