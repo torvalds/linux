@@ -173,7 +173,7 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 	int i, j;
 
 	if (!rdev->gart.ready) {
-		DRM_ERROR("trying to bind memory to unitialized GART !\n");
+		WARN(1, "trying to bind memory to unitialized GART !\n");
 		return -EINVAL;
 	}
 	t = offset / RADEON_GPU_PAGE_SIZE;

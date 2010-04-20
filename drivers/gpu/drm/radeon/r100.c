@@ -663,26 +663,6 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	if (r100_debugfs_cp_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for CP !\n");
 	}
-	/* Reset CP */
-	tmp = RREG32(RADEON_CP_CSQ_STAT);
-	if ((tmp & (1 << 31))) {
-		DRM_INFO("radeon: cp busy (0x%08X) resetting\n", tmp);
-		WREG32(RADEON_CP_CSQ_MODE, 0);
-		WREG32(RADEON_CP_CSQ_CNTL, 0);
-		WREG32(RADEON_RBBM_SOFT_RESET, RADEON_SOFT_RESET_CP);
-		tmp = RREG32(RADEON_RBBM_SOFT_RESET);
-		mdelay(2);
-		WREG32(RADEON_RBBM_SOFT_RESET, 0);
-		tmp = RREG32(RADEON_RBBM_SOFT_RESET);
-		mdelay(2);
-		tmp = RREG32(RADEON_CP_CSQ_STAT);
-		if ((tmp & (1 << 31))) {
-			DRM_INFO("radeon: cp reset failed (0x%08X)\n", tmp);
-		}
-	} else {
-		DRM_INFO("radeon: cp idle (0x%08X)\n", tmp);
-	}
-
 	if (!rdev->me_fw) {
 		r = r100_cp_init_microcode(rdev);
 		if (r) {
@@ -785,39 +765,6 @@ void r100_cp_disable(struct radeon_device *rdev)
 		printk(KERN_WARNING "Failed to wait GUI idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
-}
-
-int r100_cp_reset(struct radeon_device *rdev)
-{
-	uint32_t tmp;
-	bool reinit_cp;
-	int i;
-
-	reinit_cp = rdev->cp.ready;
-	rdev->cp.ready = false;
-	WREG32(RADEON_CP_CSQ_MODE, 0);
-	WREG32(RADEON_CP_CSQ_CNTL, 0);
-	WREG32(RADEON_RBBM_SOFT_RESET, RADEON_SOFT_RESET_CP);
-	(void)RREG32(RADEON_RBBM_SOFT_RESET);
-	udelay(200);
-	WREG32(RADEON_RBBM_SOFT_RESET, 0);
-	/* Wait to prevent race in RBBM_STATUS */
-	mdelay(1);
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		tmp = RREG32(RADEON_RBBM_STATUS);
-		if (!(tmp & (1 << 16))) {
-			DRM_INFO("CP reset succeed (RBBM_STATUS=0x%08X)\n",
-				 tmp);
-			if (reinit_cp) {
-				return r100_cp_init(rdev, rdev->cp.ring_size);
-			}
-			return 0;
-		}
-		DRM_UDELAY(1);
-	}
-	tmp = RREG32(RADEON_RBBM_STATUS);
-	DRM_ERROR("Failed to reset CP (RBBM_STATUS=0x%08X)!\n", tmp);
-	return -1;
 }
 
 void r100_cp_commit(struct radeon_device *rdev)
@@ -1733,76 +1680,163 @@ int r100_mc_wait_for_idle(struct radeon_device *rdev)
 	return -1;
 }
 
-void r100_gpu_init(struct radeon_device *rdev)
+void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup, struct radeon_cp *cp)
 {
-	/* TODO: anythings to do here ? pipes ? */
-	r100_hdp_reset(rdev);
+	lockup->last_cp_rptr = cp->rptr;
+	lockup->last_jiffies = jiffies;
 }
 
-void r100_hdp_reset(struct radeon_device *rdev)
+/**
+ * r100_gpu_cp_is_lockup() - check if CP is lockup by recording information
+ * @rdev:	radeon device structure
+ * @lockup:	r100_gpu_lockup structure holding CP lockup tracking informations
+ * @cp:		radeon_cp structure holding CP information
+ *
+ * We don't need to initialize the lockup tracking information as we will either
+ * have CP rptr to a different value of jiffies wrap around which will force
+ * initialization of the lockup tracking informations.
+ *
+ * A possible false positivie is if we get call after while and last_cp_rptr ==
+ * the current CP rptr, even if it's unlikely it might happen. To avoid this
+ * if the elapsed time since last call is bigger than 2 second than we return
+ * false and update the tracking information. Due to this the caller must call
+ * r100_gpu_cp_is_lockup several time in less than 2sec for lockup to be reported
+ * the fencing code should be cautious about that.
+ *
+ * Caller should write to the ring to force CP to do something so we don't get
+ * false positive when CP is just gived nothing to do.
+ *
+ **/
+bool r100_gpu_cp_is_lockup(struct radeon_device *rdev, struct r100_gpu_lockup *lockup, struct radeon_cp *cp)
 {
-	uint32_t tmp;
+	unsigned long cjiffies, elapsed;
 
-	tmp = RREG32(RADEON_HOST_PATH_CNTL) & RADEON_HDP_APER_CNTL;
-	tmp |= (7 << 28);
-	WREG32(RADEON_HOST_PATH_CNTL, tmp | RADEON_HDP_SOFT_RESET | RADEON_HDP_READ_BUFFER_INVALIDATE);
-	(void)RREG32(RADEON_HOST_PATH_CNTL);
-	udelay(200);
-	WREG32(RADEON_RBBM_SOFT_RESET, 0);
-	WREG32(RADEON_HOST_PATH_CNTL, tmp);
-	(void)RREG32(RADEON_HOST_PATH_CNTL);
+	cjiffies = jiffies;
+	if (!time_after(cjiffies, lockup->last_jiffies)) {
+		/* likely a wrap around */
+		lockup->last_cp_rptr = cp->rptr;
+		lockup->last_jiffies = jiffies;
+		return false;
+	}
+	if (cp->rptr != lockup->last_cp_rptr) {
+		/* CP is still working no lockup */
+		lockup->last_cp_rptr = cp->rptr;
+		lockup->last_jiffies = jiffies;
+		return false;
+	}
+	elapsed = jiffies_to_msecs(cjiffies - lockup->last_jiffies);
+	if (elapsed >= 3000) {
+		/* very likely the improbable case where current
+		 * rptr is equal to last recorded, a while ago, rptr
+		 * this is more likely a false positive update tracking
+		 * information which should force us to be recall at
+		 * latter point
+		 */
+		lockup->last_cp_rptr = cp->rptr;
+		lockup->last_jiffies = jiffies;
+		return false;
+	}
+	if (elapsed >= 1000) {
+		dev_err(rdev->dev, "GPU lockup CP stall for more than %lumsec\n", elapsed);
+		return true;
+	}
+	/* give a chance to the GPU ... */
+	return false;
 }
 
-int r100_rb2d_reset(struct radeon_device *rdev)
+bool r100_gpu_is_lockup(struct radeon_device *rdev)
 {
-	uint32_t tmp;
-	int i;
+	u32 rbbm_status;
+	int r;
 
-	WREG32(RADEON_RBBM_SOFT_RESET, RADEON_SOFT_RESET_E2);
-	(void)RREG32(RADEON_RBBM_SOFT_RESET);
-	udelay(200);
-	WREG32(RADEON_RBBM_SOFT_RESET, 0);
-	/* Wait to prevent race in RBBM_STATUS */
+	rbbm_status = RREG32(R_000E40_RBBM_STATUS);
+	if (!G_000E40_GUI_ACTIVE(rbbm_status)) {
+		r100_gpu_lockup_update(&rdev->config.r100.lockup, &rdev->cp);
+		return false;
+	}
+	/* force CP activities */
+	r = radeon_ring_lock(rdev, 2);
+	if (!r) {
+		/* PACKET2 NOP */
+		radeon_ring_write(rdev, 0x80000000);
+		radeon_ring_write(rdev, 0x80000000);
+		radeon_ring_unlock_commit(rdev);
+	}
+	rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
+	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r100.lockup, &rdev->cp);
+}
+
+void r100_bm_disable(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	/* disable bus mastering */
+	tmp = RREG32(R_000030_BUS_CNTL);
+	WREG32(R_000030_BUS_CNTL, (tmp & 0xFFFFFFFF) | 0x00000044);
 	mdelay(1);
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		tmp = RREG32(RADEON_RBBM_STATUS);
-		if (!(tmp & (1 << 26))) {
-			DRM_INFO("RB2D reset succeed (RBBM_STATUS=0x%08X)\n",
-				 tmp);
-			return 0;
-		}
-		DRM_UDELAY(1);
-	}
-	tmp = RREG32(RADEON_RBBM_STATUS);
-	DRM_ERROR("Failed to reset RB2D (RBBM_STATUS=0x%08X)!\n", tmp);
-	return -1;
+	WREG32(R_000030_BUS_CNTL, (tmp & 0xFFFFFFFF) | 0x00000042);
+	mdelay(1);
+	WREG32(R_000030_BUS_CNTL, (tmp & 0xFFFFFFFF) | 0x00000040);
+	tmp = RREG32(RADEON_BUS_CNTL);
+	mdelay(1);
+	pci_read_config_word(rdev->pdev, 0x4, (u16*)&tmp);
+	pci_write_config_word(rdev->pdev, 0x4, tmp & 0xFFFB);
+	mdelay(1);
 }
 
-int r100_gpu_reset(struct radeon_device *rdev)
+int r100_asic_reset(struct radeon_device *rdev)
 {
-	uint32_t status;
+	struct r100_mc_save save;
+	u32 status, tmp;
 
-	/* reset order likely matter */
-	status = RREG32(RADEON_RBBM_STATUS);
-	/* reset HDP */
-	r100_hdp_reset(rdev);
-	/* reset rb2d */
-	if (status & ((1 << 17) | (1 << 18) | (1 << 27))) {
-		r100_rb2d_reset(rdev);
+	r100_mc_stop(rdev, &save);
+	status = RREG32(R_000E40_RBBM_STATUS);
+	if (!G_000E40_GUI_ACTIVE(status)) {
+		return 0;
 	}
-	/* TODO: reset 3D engine */
+	status = RREG32(R_000E40_RBBM_STATUS);
+	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
+	/* stop CP */
+	WREG32(RADEON_CP_CSQ_CNTL, 0);
+	tmp = RREG32(RADEON_CP_RB_CNTL);
+	WREG32(RADEON_CP_RB_CNTL, tmp | RADEON_RB_RPTR_WR_ENA);
+	WREG32(RADEON_CP_RB_RPTR_WR, 0);
+	WREG32(RADEON_CP_RB_WPTR, 0);
+	WREG32(RADEON_CP_RB_CNTL, tmp);
+	/* save PCI state */
+	pci_save_state(rdev->pdev);
+	/* disable bus mastering */
+	r100_bm_disable(rdev);
+	WREG32(R_0000F0_RBBM_SOFT_RESET, S_0000F0_SOFT_RESET_SE(1) |
+					S_0000F0_SOFT_RESET_RE(1) |
+					S_0000F0_SOFT_RESET_PP(1) |
+					S_0000F0_SOFT_RESET_RB(1));
+	RREG32(R_0000F0_RBBM_SOFT_RESET);
+	mdelay(500);
+	WREG32(R_0000F0_RBBM_SOFT_RESET, 0);
+	mdelay(1);
+	status = RREG32(R_000E40_RBBM_STATUS);
+	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
 	/* reset CP */
-	status = RREG32(RADEON_RBBM_STATUS);
-	if (status & (1 << 16)) {
-		r100_cp_reset(rdev);
-	}
+	WREG32(R_0000F0_RBBM_SOFT_RESET, S_0000F0_SOFT_RESET_CP(1));
+	RREG32(R_0000F0_RBBM_SOFT_RESET);
+	mdelay(500);
+	WREG32(R_0000F0_RBBM_SOFT_RESET, 0);
+	mdelay(1);
+	status = RREG32(R_000E40_RBBM_STATUS);
+	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
+	/* restore PCI & busmastering */
+	pci_restore_state(rdev->pdev);
+	r100_enable_bm(rdev);
 	/* Check if GPU is idle */
-	status = RREG32(RADEON_RBBM_STATUS);
-	if (status & RADEON_RBBM_ACTIVE) {
-		DRM_ERROR("Failed to reset GPU (RBBM_STATUS=0x%08X)\n", status);
+	if (G_000E40_SE_BUSY(status) || G_000E40_RE_BUSY(status) ||
+		G_000E40_TAM_BUSY(status) || G_000E40_PB_BUSY(status)) {
+		dev_err(rdev->dev, "failed to reset GPU\n");
+		rdev->gpu_lockup = true;
 		return -1;
 	}
-	DRM_INFO("GPU reset succeed (RBBM_STATUS=0x%08X)\n", status);
+	r100_mc_resume(rdev, &save);
+	dev_info(rdev->dev, "GPU reset succeed\n");
 	return 0;
 }
 
@@ -3399,7 +3433,7 @@ static int r100_startup(struct radeon_device *rdev)
 	/* Resume clock */
 	r100_clock_startup(rdev);
 	/* Initialize GPU configuration (# pipes, ...) */
-	r100_gpu_init(rdev);
+//	r100_gpu_init(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
 	r100_enable_bm(rdev);
@@ -3436,7 +3470,7 @@ int r100_resume(struct radeon_device *rdev)
 	/* Resume clock before doing reset */
 	r100_clock_startup(rdev);
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
+	if (radeon_asic_reset(rdev)) {
 		dev_warn(rdev->dev, "GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
@@ -3505,7 +3539,7 @@ int r100_init(struct radeon_device *rdev)
 			return r;
 	}
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
+	if (radeon_asic_reset(rdev)) {
 		dev_warn(rdev->dev,
 			"GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
 			RREG32(R_000E40_RBBM_STATUS),

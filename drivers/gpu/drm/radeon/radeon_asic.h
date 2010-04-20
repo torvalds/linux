@@ -60,7 +60,8 @@ int r100_resume(struct radeon_device *rdev);
 uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg);
 void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void r100_vga_set_state(struct radeon_device *rdev, bool state);
-int r100_gpu_reset(struct radeon_device *rdev);
+bool r100_gpu_is_lockup(struct radeon_device *rdev);
+int r100_asic_reset(struct radeon_device *rdev);
 u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc);
 void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
 int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
@@ -110,8 +111,6 @@ void r100_vram_init_sizes(struct radeon_device *rdev);
 void r100_wb_disable(struct radeon_device *rdev);
 void r100_wb_fini(struct radeon_device *rdev);
 int r100_wb_init(struct radeon_device *rdev);
-void r100_hdp_reset(struct radeon_device *rdev);
-int r100_rb2d_reset(struct radeon_device *rdev);
 int r100_cp_reset(struct radeon_device *rdev);
 void r100_vga_render_disable(struct radeon_device *rdev);
 int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
@@ -126,7 +125,7 @@ int r100_cs_packet_parse(struct radeon_cs_parser *p,
 			 unsigned idx);
 void r100_enable_bm(struct radeon_device *rdev);
 void r100_set_common_regs(struct radeon_device *rdev);
-
+void r100_bm_disable(struct radeon_device *rdev);
 /*
  * r200,rv250,rs300,rv280
  */
@@ -134,7 +133,7 @@ extern int r200_copy_dma(struct radeon_device *rdev,
 			uint64_t src_offset,
 			uint64_t dst_offset,
 			unsigned num_pages,
-			struct radeon_fence *fence);
+			 struct radeon_fence *fence);
 
 /*
  * r300,r350,rv350,rv380
@@ -143,7 +142,8 @@ extern int r300_init(struct radeon_device *rdev);
 extern void r300_fini(struct radeon_device *rdev);
 extern int r300_suspend(struct radeon_device *rdev);
 extern int r300_resume(struct radeon_device *rdev);
-extern int r300_gpu_reset(struct radeon_device *rdev);
+extern bool r300_gpu_is_lockup(struct radeon_device *rdev);
+extern int r300_asic_reset(struct radeon_device *rdev);
 extern void r300_ring_start(struct radeon_device *rdev);
 extern void r300_fence_ring_emit(struct radeon_device *rdev,
 				struct radeon_fence *fence);
@@ -178,6 +178,7 @@ void rs400_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 /*
  * rs600.
  */
+extern int rs600_asic_reset(struct radeon_device *rdev);
 extern int rs600_init(struct radeon_device *rdev);
 extern void rs600_fini(struct radeon_device *rdev);
 extern int rs600_suspend(struct radeon_device *rdev);
@@ -212,7 +213,6 @@ void rs690_bandwidth_update(struct radeon_device *rdev);
  */
 int rv515_init(struct radeon_device *rdev);
 void rv515_fini(struct radeon_device *rdev);
-int rv515_gpu_reset(struct radeon_device *rdev);
 uint32_t rv515_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rv515_ring_start(struct radeon_device *rdev);
@@ -252,7 +252,8 @@ int r600_copy_dma(struct radeon_device *rdev,
 		  struct radeon_fence *fence);
 int r600_irq_process(struct radeon_device *rdev);
 int r600_irq_set(struct radeon_device *rdev);
-int r600_gpu_reset(struct radeon_device *rdev);
+bool r600_gpu_is_lockup(struct radeon_device *rdev);
+int r600_asic_reset(struct radeon_device *rdev);
 int r600_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t tiling_flags, uint32_t pitch,
 			 uint32_t offset, uint32_t obj_size);
@@ -276,7 +277,6 @@ int rv770_init(struct radeon_device *rdev);
 void rv770_fini(struct radeon_device *rdev);
 int rv770_suspend(struct radeon_device *rdev);
 int rv770_resume(struct radeon_device *rdev);
-int rv770_gpu_reset(struct radeon_device *rdev);
 
 /*
  * evergreen
@@ -285,7 +285,8 @@ int evergreen_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 int evergreen_suspend(struct radeon_device *rdev);
 int evergreen_resume(struct radeon_device *rdev);
-int evergreen_gpu_reset(struct radeon_device *rdev);
+bool evergreen_gpu_is_lockup(struct radeon_device *rdev);
+int evergreen_asic_reset(struct radeon_device *rdev);
 void evergreen_bandwidth_update(struct radeon_device *rdev);
 void evergreen_hpd_init(struct radeon_device *rdev);
 void evergreen_hpd_fini(struct radeon_device *rdev);

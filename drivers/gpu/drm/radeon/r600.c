@@ -750,7 +750,6 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 			S_008014_DB2_BUSY(1) | S_008014_DB3_BUSY(1) |
 			S_008014_CB0_BUSY(1) | S_008014_CB1_BUSY(1) |
 			S_008014_CB2_BUSY(1) | S_008014_CB3_BUSY(1);
-	u32 srbm_reset = 0;
 	u32 tmp;
 
 	dev_info(rdev->dev, "GPU softreset \n");
@@ -765,7 +764,7 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
 	}
 	/* Disable CP parsing/prefetching */
-	WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(0xff));
+	WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1));
 	/* Check if any of the rendering block is busy and reset it */
 	if ((RREG32(R_008010_GRBM_STATUS) & grbm_busy_mask) ||
 	    (RREG32(R_008014_GRBM_STATUS2) & grbm2_busy_mask)) {
@@ -784,72 +783,56 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 			S_008020_SOFT_RESET_VGT(1);
 		dev_info(rdev->dev, "  R_008020_GRBM_SOFT_RESET=0x%08X\n", tmp);
 		WREG32(R_008020_GRBM_SOFT_RESET, tmp);
-		(void)RREG32(R_008020_GRBM_SOFT_RESET);
-		udelay(50);
+		RREG32(R_008020_GRBM_SOFT_RESET);
+		mdelay(15);
 		WREG32(R_008020_GRBM_SOFT_RESET, 0);
-		(void)RREG32(R_008020_GRBM_SOFT_RESET);
 	}
 	/* Reset CP (we always reset CP) */
 	tmp = S_008020_SOFT_RESET_CP(1);
 	dev_info(rdev->dev, "R_008020_GRBM_SOFT_RESET=0x%08X\n", tmp);
 	WREG32(R_008020_GRBM_SOFT_RESET, tmp);
-	(void)RREG32(R_008020_GRBM_SOFT_RESET);
-	udelay(50);
+	RREG32(R_008020_GRBM_SOFT_RESET);
+	mdelay(15);
 	WREG32(R_008020_GRBM_SOFT_RESET, 0);
-	(void)RREG32(R_008020_GRBM_SOFT_RESET);
-	/* Reset others GPU block if necessary */
-	if (G_000E50_RLC_BUSY(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_RLC(1);
-	if (G_000E50_GRBM_RQ_PENDING(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_GRBM(1);
-	if (G_000E50_HI_RQ_PENDING(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_IH(1);
-	if (G_000E50_VMC_BUSY(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_VMC(1);
-	if (G_000E50_MCB_BUSY(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_MC(1);
-	if (G_000E50_MCDZ_BUSY(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_MC(1);
-	if (G_000E50_MCDY_BUSY(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_MC(1);
-	if (G_000E50_MCDX_BUSY(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_MC(1);
-	if (G_000E50_MCDW_BUSY(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_MC(1);
-	if (G_000E50_RLC_BUSY(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_RLC(1);
-	if (G_000E50_SEM_BUSY(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_SEM(1);
-	if (G_000E50_BIF_BUSY(RREG32(R_000E50_SRBM_STATUS)))
-		srbm_reset |= S_000E60_SOFT_RESET_BIF(1);
-	dev_info(rdev->dev, "  R_000E60_SRBM_SOFT_RESET=0x%08X\n", srbm_reset);
-	WREG32(R_000E60_SRBM_SOFT_RESET, srbm_reset);
-	(void)RREG32(R_000E60_SRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(R_000E60_SRBM_SOFT_RESET, 0);
-	(void)RREG32(R_000E60_SRBM_SOFT_RESET);
-	WREG32(R_000E60_SRBM_SOFT_RESET, srbm_reset);
-	(void)RREG32(R_000E60_SRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(R_000E60_SRBM_SOFT_RESET, 0);
-	(void)RREG32(R_000E60_SRBM_SOFT_RESET);
 	/* Wait a little for things to settle down */
-	udelay(50);
+	mdelay(1);
 	dev_info(rdev->dev, "  R_008010_GRBM_STATUS=0x%08X\n",
 		RREG32(R_008010_GRBM_STATUS));
 	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2=0x%08X\n",
 		RREG32(R_008014_GRBM_STATUS2));
 	dev_info(rdev->dev, "  R_000E50_SRBM_STATUS=0x%08X\n",
 		RREG32(R_000E50_SRBM_STATUS));
-	/* After reset we need to reinit the asic as GPU often endup in an
-	 * incoherent state.
-	 */
-	atom_asic_init(rdev->mode_info.atom_context);
 	rv515_mc_resume(rdev, &save);
 	return 0;
 }
 
-int r600_gpu_reset(struct radeon_device *rdev)
+bool r600_gpu_is_lockup(struct radeon_device *rdev)
+{
+	u32 srbm_status;
+	u32 grbm_status;
+	u32 grbm_status2;
+	int r;
+
+	srbm_status = RREG32(R_000E50_SRBM_STATUS);
+	grbm_status = RREG32(R_008010_GRBM_STATUS);
+	grbm_status2 = RREG32(R_008014_GRBM_STATUS2);
+	if (!G_008010_GUI_ACTIVE(grbm_status)) {
+		r100_gpu_lockup_update(&rdev->config.r300.lockup, &rdev->cp);
+		return false;
+	}
+	/* force CP activities */
+	r = radeon_ring_lock(rdev, 2);
+	if (!r) {
+		/* PACKET2 NOP */
+		radeon_ring_write(rdev, 0x80000000);
+		radeon_ring_write(rdev, 0x80000000);
+		radeon_ring_unlock_commit(rdev);
+	}
+	rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
+	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r300.lockup, &rdev->cp);
+}
+
+int r600_asic_reset(struct radeon_device *rdev)
 {
 	return r600_gpu_soft_reset(rdev);
 }

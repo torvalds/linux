@@ -917,12 +917,6 @@ int rv770_mc_init(struct radeon_device *rdev)
 	return 0;
 }
 
-int rv770_gpu_reset(struct radeon_device *rdev)
-{
-	/* FIXME: implement any rv770 specific bits */
-	return r600_gpu_reset(rdev);
-}
-
 static int rv770_startup(struct radeon_device *rdev)
 {
 	int r;
