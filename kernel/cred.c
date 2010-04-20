@@ -398,6 +398,8 @@ struct cred *prepare_usermodehelper_creds(void)
 
 error:
 	put_cred(new);
+	return NULL;
+
 free_tgcred:
 #ifdef CONFIG_KEYS
 	kfree(tgcred);
