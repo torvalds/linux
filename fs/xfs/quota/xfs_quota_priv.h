@@ -24,8 +24,6 @@
  */
 #define XFS_DQITER_MAP_SIZE	10
 
-#define XFS_DQ_IS_ADDEDTO_TRX(t, d)	((d)->q_transp == (t))
-
 /*
  * Hash into a bucket in the dquot hash table, based on <mp, id>.
  */
@@ -37,9 +35,6 @@
 				      XFS_DQ_HASHVAL(mp, id)) : \
 				     (xfs_Gqm->qm_grp_dqhtable + \
 				      XFS_DQ_HASHVAL(mp, id)))
-#define XFS_IS_DQTYPE_ON(mp, type)   (type == XFS_DQ_USER ? \
-					XFS_IS_UQUOTA_ON(mp) : \
-					XFS_IS_OQUOTA_ON(mp))
 #define XFS_IS_DQUOT_UNINITIALIZED(dqp) ( \
 	!dqp->q_core.d_blk_hardlimit && \
 	!dqp->q_core.d_blk_softlimit && \
@@ -50,14 +45,6 @@
 	!dqp->q_core.d_bcount && \
 	!dqp->q_core.d_rtbcount && \
 	!dqp->q_core.d_icount)
-
-#define XFS_DQ_IS_LOGITEM_INITD(dqp)	((dqp)->q_logitem.qli_dquot == (dqp))
-
-#define XFS_QM_DQP_TO_DQACCT(tp, dqp)	(XFS_QM_ISUDQ(dqp) ? \
-					 (tp)->t_dqinfo->dqa_usrdquots : \
-					 (tp)->t_dqinfo->dqa_grpdquots)
-#define XFS_IS_SUSER_DQUOT(dqp)		\
-	(!((dqp)->q_core.d_id))
 
 #define DQFLAGTO_TYPESTR(d)	(((d)->dq_flags & XFS_DQ_USER) ? "USR" : \
 				 (((d)->dq_flags & XFS_DQ_GROUP) ? "GRP" : \

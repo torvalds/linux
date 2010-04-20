@@ -59,12 +59,11 @@ xfs_trans_dqjoin(
 	xfs_trans_t	*tp,
 	xfs_dquot_t	*dqp)
 {
-	xfs_dq_logitem_t    *lp;
+	xfs_dq_logitem_t    *lp = &dqp->q_logitem;
 
-	ASSERT(! XFS_DQ_IS_ADDEDTO_TRX(tp, dqp));
+	ASSERT(dqp->q_transp != tp);
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-	ASSERT(XFS_DQ_IS_LOGITEM_INITD(dqp));
-	lp = &dqp->q_logitem;
+	ASSERT(lp->qli_dquot == dqp);
 
 	/*
 	 * Get a log_item_desc to point at the new item.
@@ -96,7 +95,7 @@ xfs_trans_log_dquot(
 {
 	xfs_log_item_desc_t	*lidp;
 
-	ASSERT(XFS_DQ_IS_ADDEDTO_TRX(tp, dqp));
+	ASSERT(dqp->q_transp == tp);
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 
 	lidp = xfs_trans_find_item(tp, (xfs_log_item_t*)(&dqp->q_logitem));
@@ -198,16 +197,16 @@ xfs_trans_get_dqtrx(
 	int		i;
 	xfs_dqtrx_t	*qa;
 
-	for (i = 0; i < XFS_QM_TRANS_MAXDQS; i++) {
-		qa = XFS_QM_DQP_TO_DQACCT(tp, dqp);
+	qa = XFS_QM_ISUDQ(dqp) ?
+		tp->t_dqinfo->dqa_usrdquots : tp->t_dqinfo->dqa_grpdquots;
 
+	for (i = 0; i < XFS_QM_TRANS_MAXDQS; i++) {
 		if (qa[i].qt_dquot == NULL ||
-		    qa[i].qt_dquot == dqp) {
-			return (&qa[i]);
-		}
+		    qa[i].qt_dquot == dqp)
+			return &qa[i];
 	}
 
-	return (NULL);
+	return NULL;
 }
 
 /*
@@ -381,7 +380,7 @@ xfs_trans_apply_dquot_deltas(
 				break;
 
 			ASSERT(XFS_DQ_IS_LOCKED(dqp));
-			ASSERT(XFS_DQ_IS_ADDEDTO_TRX(tp, dqp));
+			ASSERT(dqp->q_transp == tp);
 
 			/*
 			 * adjust the actual number of blocks used

@@ -956,16 +956,17 @@ xfs_qm_dqget(
 	 */
 	if (ip) {
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		if (! XFS_IS_DQTYPE_ON(mp, type)) {
-			/* inode stays locked on return */
-			xfs_qm_dqdestroy(dqp);
-			return XFS_ERROR(ESRCH);
-		}
+
 		/*
 		 * A dquot could be attached to this inode by now, since
 		 * we had dropped the ilock.
 		 */
 		if (type == XFS_DQ_USER) {
+			if (!XFS_IS_UQUOTA_ON(mp)) {
+				/* inode stays locked on return */
+				xfs_qm_dqdestroy(dqp);
+				return XFS_ERROR(ESRCH);
+			}
 			if (ip->i_udquot) {
 				xfs_qm_dqdestroy(dqp);
 				dqp = ip->i_udquot;
@@ -973,6 +974,11 @@ xfs_qm_dqget(
 				goto dqret;
 			}
 		} else {
+			if (!XFS_IS_OQUOTA_ON(mp)) {
+				/* inode stays locked on return */
+				xfs_qm_dqdestroy(dqp);
+				return XFS_ERROR(ESRCH);
+			}
 			if (ip->i_gdquot) {
 				xfs_qm_dqdestroy(dqp);
 				dqp = ip->i_gdquot;

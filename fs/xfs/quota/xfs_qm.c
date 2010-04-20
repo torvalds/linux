@@ -1591,8 +1591,10 @@ xfs_qm_quotacheck_dqadjust(
 
 	/*
 	 * Set default limits, adjust timers (since we changed usages)
+	 *
+	 * There are no timers for the default values set in the root dquot.
 	 */
-	if (! XFS_IS_SUSER_DQUOT(dqp)) {
+	if (dqp->q_core.d_id) {
 		xfs_qm_adjust_dqlimits(dqp->q_mount, &dqp->q_core);
 		xfs_qm_adjust_dqtimers(dqp->q_mount, &dqp->q_core);
 	}
