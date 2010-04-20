@@ -210,6 +210,7 @@ static const struct agp_bridge_driver amd_8151_driver = {
 	.aperture_sizes		= amd_8151_sizes,
 	.size_type		= U32_APER_SIZE,
 	.num_aperture_sizes	= 7,
+	.needs_scratch_page	= true,
 	.configure		= amd_8151_configure,
 	.fetch_size		= amd64_fetch_size,
 	.cleanup		= amd64_cleanup,

@@ -125,6 +125,7 @@ static struct agp_bridge_driver sis_driver = {
 	.aperture_sizes		= sis_generic_sizes,
 	.size_type		= U8_APER_SIZE,
 	.num_aperture_sizes	= 7,
+	.needs_scratch_page	= true,
 	.configure		= sis_configure,
 	.fetch_size		= sis_fetch_size,
 	.cleanup		= sis_cleanup,
