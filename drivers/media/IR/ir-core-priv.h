@@ -36,19 +36,23 @@ struct ir_raw_event_ctrl {
 };
 
 /* macros for IR decoders */
-static inline bool geq_margin(unsigned d1, unsigned d2, unsigned margin) {
+static inline bool geq_margin(unsigned d1, unsigned d2, unsigned margin)
+{
 	return d1 > (d2 - margin);
 }
 
-static inline bool eq_margin(unsigned d1, unsigned d2, unsigned margin) {
+static inline bool eq_margin(unsigned d1, unsigned d2, unsigned margin)
+{
 	return ((d1 > (d2 - margin)) && (d1 < (d2 + margin)));
 }
 
-static inline bool is_transition(struct ir_raw_event *x, struct ir_raw_event *y) {
+static inline bool is_transition(struct ir_raw_event *x, struct ir_raw_event *y)
+{
 	return x->pulse != y->pulse;
 }
 
-static inline void decrease_duration(struct ir_raw_event *ev, unsigned duration) {
+static inline void decrease_duration(struct ir_raw_event *ev, unsigned duration)
+{
 	if (duration > ev->duration)
 		ev->duration = 0;
 	else
