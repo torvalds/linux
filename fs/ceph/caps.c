@@ -1861,8 +1861,8 @@ static void kick_flushing_capsnaps(struct ceph_mds_client *mdsc,
 		} else {
 			pr_err("%p auth cap %p not mds%d ???\n", inode,
 			       cap, session->s_mds);
-			spin_unlock(&inode->i_lock);
 		}
+		spin_unlock(&inode->i_lock);
 	}
 }
 
