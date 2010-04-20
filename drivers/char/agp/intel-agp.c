@@ -885,6 +885,14 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
+	if (!bridge->driver) {
+		if (cap_ptr)
+			dev_warn(&pdev->dev, "can't find bridge device (chip_id: %04x)\n",
+			    	 intel_agp_chipsets[i].gmch_chip_id);
+		agp_put_bridge(bridge);
+		return -ENODEV;
+	}
+
 	bridge->dev = pdev;
 	bridge->dev_private_data = NULL;
 
