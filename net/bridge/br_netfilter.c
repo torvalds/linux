@@ -745,7 +745,7 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff *skb,
 static int br_nf_dev_queue_xmit(struct sk_buff *skb)
 {
 	if (skb->nfct != NULL && skb->protocol == htons(ETH_P_IP) &&
-	    skb->len > skb->dev->mtu &&
+	    skb->len + nf_bridge_mtu_reduction(skb) > skb->dev->mtu &&
 	    !skb_is_gso(skb))
 		return ip_fragment(skb, br_dev_queue_push_xmit);
 	else

@@ -68,6 +68,13 @@ static inline unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb)
 	}
 }
 
+static inline unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
+{
+	if (unlikely(skb->nf_bridge->mask & BRNF_PPPoE))
+		return PPPOE_SES_HLEN;
+	return 0;
+}
+
 extern int br_handle_frame_finish(struct sk_buff *skb);
 /* Only used in br_device.c */
 static inline int br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
