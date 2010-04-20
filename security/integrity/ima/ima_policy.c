@@ -245,6 +245,9 @@ static int ima_lsm_rule_init(struct ima_measure_rule_entry *entry,
 {
 	int result;
 
+	if (entry->lsm[lsm_rule].rule)
+		return -EINVAL;
+
 	entry->lsm[lsm_rule].type = audit_type;
 	result = security_filter_rule_init(entry->lsm[lsm_rule].type,
 					   Audit_equal, args,
@@ -260,6 +263,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_INTEGRITY_RULE);
 
+	entry->uid = -1;
 	entry->action = -1;
 	while ((p = strsep(&rule, " ")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
@@ -274,14 +278,26 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 		switch (token) {
 		case Opt_measure:
 			audit_log_format(ab, "%s ", "measure");
+
+			if (entry->action != UNKNOWN)
+				result = -EINVAL;
+
 			entry->action = MEASURE;
 			break;
 		case Opt_dont_measure:
 			audit_log_format(ab, "%s ", "dont_measure");
+
+			if (entry->action != UNKNOWN)
+				result = -EINVAL;
+
 			entry->action = DONT_MEASURE;
 			break;
 		case Opt_func:
 			audit_log_format(ab, "func=%s ", args[0].from);
+
+			if (entry->func)
+				result  = -EINVAL;
+
 			if (strcmp(args[0].from, "FILE_CHECK") == 0)
 				entry->func = FILE_CHECK;
 			/* PATH_CHECK is for backwards compat */
@@ -298,6 +314,10 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 			break;
 		case Opt_mask:
 			audit_log_format(ab, "mask=%s ", args[0].from);
+
+			if (entry->mask)
+				result = -EINVAL;
+
 			if ((strcmp(args[0].from, "MAY_EXEC")) == 0)
 				entry->mask = MAY_EXEC;
 			else if (strcmp(args[0].from, "MAY_WRITE") == 0)
@@ -313,6 +333,12 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 			break;
 		case Opt_fsmagic:
 			audit_log_format(ab, "fsmagic=%s ", args[0].from);
+
+			if (entry->fsmagic) {
+				result = -EINVAL;
+				break;
+			}
+
 			result = strict_strtoul(args[0].from, 16,
 						&entry->fsmagic);
 			if (!result)
@@ -320,6 +346,12 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 			break;
 		case Opt_uid:
 			audit_log_format(ab, "uid=%s ", args[0].from);
+
+			if (entry->uid != -1) {
+				result = -EINVAL;
+				break;
+			}
+
 			result = strict_strtoul(args[0].from, 10, &lnum);
 			if (!result) {
 				entry->uid = (uid_t) lnum;
@@ -370,7 +402,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 			break;
 		}
 	}
-	if (entry->action == UNKNOWN)
+	if (!result && (entry->action == UNKNOWN))
 		result = -EINVAL;
 
 	audit_log_format(ab, "res=%d", !!result);
