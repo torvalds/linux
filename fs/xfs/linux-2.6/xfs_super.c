@@ -1093,6 +1093,7 @@ xfs_fs_write_inode(
 		 * the code will only flush the inode if it isn't already
 		 * being flushed.
 		 */
+		xfs_ioend_wait(ip);
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
 		if (ip->i_update_core) {
 			error = xfs_log_inode(ip);
