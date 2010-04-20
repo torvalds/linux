@@ -286,28 +286,28 @@ static const struct {
 	u64 hw_code;
 	u32 keycode;
 } imon_panel_key_table[] = {
-	{ 0x000000000f00ffee, KEY_PROG1 }, /* Go */
-	{ 0x000000001f00ffee, KEY_AUDIO },
-	{ 0x000000002000ffee, KEY_VIDEO },
-	{ 0x000000002100ffee, KEY_CAMERA },
-	{ 0x000000002700ffee, KEY_DVD },
-	{ 0x000000002300ffee, KEY_TV },
-	{ 0x000000000500ffee, KEY_PREVIOUS },
-	{ 0x000000000700ffee, KEY_REWIND },
-	{ 0x000000000400ffee, KEY_STOP },
-	{ 0x000000003c00ffee, KEY_PLAYPAUSE },
-	{ 0x000000000800ffee, KEY_FASTFORWARD },
-	{ 0x000000000600ffee, KEY_NEXT },
-	{ 0x000000010000ffee, KEY_RIGHT },
-	{ 0x000001000000ffee, KEY_LEFT },
-	{ 0x000000003d00ffee, KEY_SELECT },
-	{ 0x000100000000ffee, KEY_VOLUMEUP },
-	{ 0x010000000000ffee, KEY_VOLUMEDOWN },
-	{ 0x000000000100ffee, KEY_MUTE },
+	{ 0x000000000f00ffeell, KEY_PROG1 }, /* Go */
+	{ 0x000000001f00ffeell, KEY_AUDIO },
+	{ 0x000000002000ffeell, KEY_VIDEO },
+	{ 0x000000002100ffeell, KEY_CAMERA },
+	{ 0x000000002700ffeell, KEY_DVD },
+	{ 0x000000002300ffeell, KEY_TV },
+	{ 0x000000000500ffeell, KEY_PREVIOUS },
+	{ 0x000000000700ffeell, KEY_REWIND },
+	{ 0x000000000400ffeell, KEY_STOP },
+	{ 0x000000003c00ffeell, KEY_PLAYPAUSE },
+	{ 0x000000000800ffeell, KEY_FASTFORWARD },
+	{ 0x000000000600ffeell, KEY_NEXT },
+	{ 0x000000010000ffeell, KEY_RIGHT },
+	{ 0x000001000000ffeell, KEY_LEFT },
+	{ 0x000000003d00ffeell, KEY_SELECT },
+	{ 0x000100000000ffeell, KEY_VOLUMEUP },
+	{ 0x010000000000ffeell, KEY_VOLUMEDOWN },
+	{ 0x000000000100ffeell, KEY_MUTE },
 	/* iMON Knob values */
-	{ 0x000100ffffffffee, KEY_VOLUMEUP },
-	{ 0x010000ffffffffee, KEY_VOLUMEDOWN },
-	{ 0x000008ffffffffee, KEY_MUTE },
+	{ 0x000100ffffffffeell, KEY_VOLUMEUP },
+	{ 0x010000ffffffffeell, KEY_VOLUMEDOWN },
+	{ 0x000008ffffffffeell, KEY_MUTE },
 };
 
 /* to prevent races between open() and disconnect(), probing, etc */
@@ -1906,7 +1906,7 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 	struct urb *tx_urb;
 	struct device *dev = &intf->dev;
 	struct usb_host_interface *iface_desc;
-	int ret;
+	int ret = -ENOMEM;
 
 	ictx = kzalloc(sizeof(struct imon_context), GFP_KERNEL);
 	if (!ictx) {
@@ -1938,9 +1938,11 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 	ictx->vendor  = le16_to_cpu(ictx->usbdev_intf0->descriptor.idVendor);
 	ictx->product = le16_to_cpu(ictx->usbdev_intf0->descriptor.idProduct);
 
+	ret = -ENODEV;
 	iface_desc = intf->cur_altsetting;
-	if (!imon_find_endpoints(ictx, iface_desc))
+	if (!imon_find_endpoints(ictx, iface_desc)) {
 		goto find_endpoint_failed;
+	}
 
 	ictx->idev = imon_init_idev(ictx);
 	if (!ictx->idev) {
@@ -1986,12 +1988,11 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 {
 	struct urb *rx_urb;
 	struct usb_host_interface *iface_desc;
-	int ret;
+	int ret = -ENOMEM;
 
 	rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!rx_urb) {
 		err("%s: usb_alloc_urb failed for IR urb", __func__);
-		ret = -ENOMEM;
 		goto rx_urb_alloc_failed;
 	}
 
@@ -2007,6 +2008,7 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 	ictx->dev_present_intf1 = 1;
 	ictx->rx_urb_intf1 = rx_urb;
 
+	ret = -ENODEV;
 	iface_desc = intf->cur_altsetting;
 	if (!imon_find_endpoints(ictx, iface_desc))
 		goto find_endpoint_failed;
