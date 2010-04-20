@@ -92,7 +92,7 @@ static void vcc_def_wakeup(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
 	if (sk_has_sleeper(sk))
-		wake_up(sk->sk_sleep);
+		wake_up(sk_sleep(sk));
 	read_unlock(&sk->sk_callback_lock);
 }
 
@@ -110,7 +110,7 @@ static void vcc_write_space(struct sock *sk)
 
 	if (vcc_writable(sk)) {
 		if (sk_has_sleeper(sk))
-			wake_up_interruptible(sk->sk_sleep);
+			wake_up_interruptible(sk_sleep(sk));
 
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
@@ -549,7 +549,7 @@ int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
 	}
 
 	eff = (size+3) & ~3; /* align to word boundary */
-	prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 	error = 0;
 	while (!(skb = alloc_tx(vcc, eff))) {
 		if (m->msg_flags & MSG_DONTWAIT) {
@@ -568,9 +568,9 @@ int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
 			send_sig(SIGPIPE, current, 0);
 			break;
 		}
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 	}
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	if (error)
 		goto out;
 	skb->dev = NULL; /* for paths shared with net_device interfaces */
@@ -595,7 +595,7 @@ unsigned int vcc_poll(struct file *file, struct socket *sock, poll_table *wait)
 	struct atm_vcc *vcc;
 	unsigned int mask;
 
-	sock_poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;
 
 	vcc = ATM_SD(sock);

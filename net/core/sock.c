@@ -1395,7 +1395,7 @@ static long sock_wait_for_wmem(struct sock *sk, long timeo)
 		if (signal_pending(current))
 			break;
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 		if (atomic_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf)
 			break;
 		if (sk->sk_shutdown & SEND_SHUTDOWN)
@@ -1404,7 +1404,7 @@ static long sock_wait_for_wmem(struct sock *sk, long timeo)
 			break;
 		timeo = schedule_timeout(timeo);
 	}
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	return timeo;
 }
 
@@ -1570,11 +1570,11 @@ int sk_wait_data(struct sock *sk, long *timeo)
 	int rc;
 	DEFINE_WAIT(wait);
 
-	prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 	set_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
 	rc = sk_wait_event(sk, timeo, !skb_queue_empty(&sk->sk_receive_queue));
 	clear_bit(SOCK_ASYNC_WAITDATA, &sk->sk_socket->flags);
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	return rc;
 }
 EXPORT_SYMBOL(sk_wait_data);
@@ -1798,7 +1798,7 @@ static void sock_def_wakeup(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
 	if (sk_has_sleeper(sk))
-		wake_up_interruptible_all(sk->sk_sleep);
+		wake_up_interruptible_all(sk_sleep(sk));
 	read_unlock(&sk->sk_callback_lock);
 }
 
@@ -1806,7 +1806,7 @@ static void sock_def_error_report(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
 	if (sk_has_sleeper(sk))
-		wake_up_interruptible_poll(sk->sk_sleep, POLLERR);
+		wake_up_interruptible_poll(sk_sleep(sk), POLLERR);
 	sk_wake_async(sk, SOCK_WAKE_IO, POLL_ERR);
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -1815,7 +1815,7 @@ static void sock_def_readable(struct sock *sk, int len)
 {
 	read_lock(&sk->sk_callback_lock);
 	if (sk_has_sleeper(sk))
-		wake_up_interruptible_sync_poll(sk->sk_sleep, POLLIN |
+		wake_up_interruptible_sync_poll(sk_sleep(sk), POLLIN |
 						POLLRDNORM | POLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	read_unlock(&sk->sk_callback_lock);
@@ -1830,7 +1830,7 @@ static void sock_def_write_space(struct sock *sk)
 	 */
 	if ((atomic_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf) {
 		if (sk_has_sleeper(sk))
-			wake_up_interruptible_sync_poll(sk->sk_sleep, POLLOUT |
+			wake_up_interruptible_sync_poll(sk_sleep(sk), POLLOUT |
 						POLLWRNORM | POLLWRBAND);
 
 		/* Should agree with poll, otherwise some programs break */

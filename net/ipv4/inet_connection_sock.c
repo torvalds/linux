@@ -234,7 +234,7 @@ static int inet_csk_wait_for_connect(struct sock *sk, long timeo)
 	 * having to remove and re-insert us on the wait queue.
 	 */
 	for (;;) {
-		prepare_to_wait_exclusive(sk->sk_sleep, &wait,
+		prepare_to_wait_exclusive(sk_sleep(sk), &wait,
 					  TASK_INTERRUPTIBLE);
 		release_sock(sk);
 		if (reqsk_queue_empty(&icsk->icsk_accept_queue))
@@ -253,7 +253,7 @@ static int inet_csk_wait_for_connect(struct sock *sk, long timeo)
 		if (!timeo)
 			break;
 	}
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	return err;
 }
 

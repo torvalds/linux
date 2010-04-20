@@ -1160,6 +1160,10 @@ static inline void sk_set_socket(struct sock *sk, struct socket *sock)
 	sk->sk_socket = sock;
 }
 
+static inline wait_queue_head_t *sk_sleep(struct sock *sk)
+{
+	return sk->sk_sleep;
+}
 /* Detach socket from process context.
  * Announce socket dead, detach it from wait queue and inode.
  * Note that parent inode held reference count on this struct sock,
@@ -1346,8 +1350,8 @@ static inline int sk_has_allocations(const struct sock *sk)
  *   tp->rcv_nxt check   sock_def_readable
  *   ...                 {
  *   schedule               ...
- *                          if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
- *                              wake_up_interruptible(sk->sk_sleep)
+ *                          if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+ *                              wake_up_interruptible(sk_sleep(sk))
  *                          ...
  *                       }
  *
@@ -1368,7 +1372,7 @@ static inline int sk_has_sleeper(struct sock *sk)
 	 * This memory barrier is paired in the sock_poll_wait.
 	 */
 	smp_mb__after_lock();
-	return sk->sk_sleep && waitqueue_active(sk->sk_sleep);
+	return sk_sleep(sk) && waitqueue_active(sk_sleep(sk));
 }
 
 /**

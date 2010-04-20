@@ -32,8 +32,8 @@ void sk_stream_write_space(struct sock *sk)
 	if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk) && sock) {
 		clear_bit(SOCK_NOSPACE, &sock->flags);
 
-		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-			wake_up_interruptible_poll(sk->sk_sleep, POLLOUT |
+		if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+			wake_up_interruptible_poll(sk_sleep(sk), POLLOUT |
 						POLLWRNORM | POLLWRBAND);
 		if (sock->fasync_list && !(sk->sk_shutdown & SEND_SHUTDOWN))
 			sock_wake_async(sock, SOCK_WAKE_SPACE, POLL_OUT);
@@ -66,13 +66,13 @@ int sk_stream_wait_connect(struct sock *sk, long *timeo_p)
 		if (signal_pending(tsk))
 			return sock_intr_errno(*timeo_p);
 
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 		sk->sk_write_pending++;
 		done = sk_wait_event(sk, timeo_p,
 				     !sk->sk_err &&
 				     !((1 << sk->sk_state) &
 				       ~(TCPF_ESTABLISHED | TCPF_CLOSE_WAIT)));
-		finish_wait(sk->sk_sleep, &wait);
+		finish_wait(sk_sleep(sk), &wait);
 		sk->sk_write_pending--;
 	} while (!done);
 	return 0;
@@ -96,13 +96,13 @@ void sk_stream_wait_close(struct sock *sk, long timeout)
 		DEFINE_WAIT(wait);
 
 		do {
-			prepare_to_wait(sk->sk_sleep, &wait,
+			prepare_to_wait(sk_sleep(sk), &wait,
 					TASK_INTERRUPTIBLE);
 			if (sk_wait_event(sk, &timeout, !sk_stream_closing(sk)))
 				break;
 		} while (!signal_pending(current) && timeout);
 
-		finish_wait(sk->sk_sleep, &wait);
+		finish_wait(sk_sleep(sk), &wait);
 	}
 }
 
@@ -126,7 +126,7 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 	while (1) {
 		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
 
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
 		if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
 			goto do_error;
@@ -157,7 +157,7 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 		*timeo_p = current_timeo;
 	}
 out:
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	return err;
 
 do_error:

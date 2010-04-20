@@ -689,7 +689,7 @@ static unsigned int caif_poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
 	u32 mask = 0;
-	poll_wait(file, sk->sk_sleep, wait);
+	poll_wait(file, sk_sleep(sk), wait);
 	lock_sock(&(cf_sk->sk));
 	if (!STATE_IS_OPEN(cf_sk)) {
 		if (!STATE_IS_PENDING(cf_sk))

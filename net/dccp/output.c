@@ -198,7 +198,7 @@ void dccp_write_space(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 
 	if (sk_has_sleeper(sk))
-		wake_up_interruptible(sk->sk_sleep);
+		wake_up_interruptible(sk_sleep(sk));
 	/* Should agree with poll, otherwise some programs break */
 	if (sock_writeable(sk))
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
@@ -225,7 +225,7 @@ static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb, int delay)
 		dccp_pr_debug("delayed send by %d msec\n", delay);
 		jiffdelay = msecs_to_jiffies(delay);
 
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
 		sk->sk_write_pending++;
 		release_sock(sk);
@@ -241,7 +241,7 @@ static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb, int delay)
 		rc = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb);
 	} while ((delay = rc) > 0);
 out:
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	return rc;
 
 do_error:

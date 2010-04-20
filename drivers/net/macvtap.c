@@ -246,8 +246,8 @@ static void macvtap_sock_write_space(struct sock *sk)
 	    !test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags))
 		return;
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible_poll(sk->sk_sleep, POLLOUT | POLLWRNORM | POLLWRBAND);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible_poll(sk_sleep(sk), POLLOUT | POLLWRNORM | POLLWRBAND);
 }
 
 static int macvtap_open(struct inode *inode, struct file *file)

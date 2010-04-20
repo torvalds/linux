@@ -915,7 +915,7 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 			goto out;
 		}
 
-		timeo = wait_event_interruptible_timeout(*sk->sk_sleep,
+		timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
 					rds_send_queue_rm(rs, conn, rm,
 							  rs->rs_bound_port,
 							  dport,

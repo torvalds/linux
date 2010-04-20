@@ -65,7 +65,7 @@ static void rxrpc_write_space(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 	if (rxrpc_writable(sk)) {
 		if (sk_has_sleeper(sk))
-			wake_up_interruptible(sk->sk_sleep);
+			wake_up_interruptible(sk_sleep(sk));
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 	read_unlock(&sk->sk_callback_lock);
@@ -589,7 +589,7 @@ static unsigned int rxrpc_poll(struct file *file, struct socket *sock,
 	unsigned int mask;
 	struct sock *sk = sock->sk;
 
-	sock_poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;
 
 	/* the socket is readable if there are any messages waiting on the Rx
