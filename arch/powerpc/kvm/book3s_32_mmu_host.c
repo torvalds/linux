@@ -54,6 +54,9 @@
 #error Only 32 bit pages are supported for now
 #endif
 
+static ulong htab;
+static u32 htabmask;
+
 static void invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
 	volatile u32 *pteg;
@@ -217,14 +220,11 @@ static struct kvmppc_sid_map *find_sid_vsid(struct kvm_vcpu *vcpu, u64 gvsid)
 	return NULL;
 }
 
-extern struct hash_pte *Hash;
-extern unsigned long _SDR1;
-
 static u32 *kvmppc_mmu_get_pteg(struct kvm_vcpu *vcpu, u32 vsid, u32 eaddr,
 				bool primary)
 {
-	u32 page, hash, htabmask;
-	ulong pteg = (ulong)Hash;
+	u32 page, hash;
+	ulong pteg = htab;
 
 	page = (eaddr & ~ESID_MASK) >> 12;
 
@@ -232,13 +232,12 @@ static u32 *kvmppc_mmu_get_pteg(struct kvm_vcpu *vcpu, u32 vsid, u32 eaddr,
 	if (!primary)
 		hash = ~hash;
 
-	htabmask = ((_SDR1 & 0x1FF) << 16) | 0xFFC0;
 	hash &= htabmask;
 
 	pteg |= hash;
 
-	dprintk_mmu("htab: %p | hash: %x | htabmask: %x | pteg: %lx\n",
-		Hash, hash, htabmask, pteg);
+	dprintk_mmu("htab: %lx | hash: %x | htabmask: %x | pteg: %lx\n",
+		htab, hash, htabmask, pteg);
 
 	return (u32*)pteg;
 }
@@ -453,6 +452,7 @@ int kvmppc_mmu_init(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	int err;
+	ulong sdr1;
 
 	err = __init_new_context();
 	if (err < 0)
@@ -473,6 +473,11 @@ int kvmppc_mmu_init(struct kvm_vcpu *vcpu)
 	BUG_ON(vcpu3s->vsid_max < vcpu3s->vsid_first);
 
 	vcpu3s->vsid_next = vcpu3s->vsid_first;
+
+	/* Remember where the HTAB is */
+	asm ( "mfsdr1 %0" : "=r"(sdr1) );
+	htabmask = ((sdr1 & 0x1FF) << 16) | 0xFFC0;
+	htab = (ulong)__va(sdr1 & 0xffff0000);
 
 	return 0;
 }
