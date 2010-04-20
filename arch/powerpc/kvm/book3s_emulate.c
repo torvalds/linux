@@ -365,7 +365,10 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		case 0x00083213:	/* gekko 2.3b */
 		case 0x00083204:	/* gekko 2.4 */
 		case 0x00083214:	/* gekko 2.4e (8SE) - retail HW2 */
-			if (spr_val & (1 << 29)) { /* HID2.PSE */
+		case 0x00087200:	/* broadway */
+			if (vcpu->arch.hflags & BOOK3S_HFLAG_NATIVE_PS) {
+				/* Native paired singles */
+			} else if (spr_val & (1 << 29)) { /* HID2.PSE */
 				vcpu->arch.hflags |= BOOK3S_HFLAG_PAIRED_SINGLE;
 				kvmppc_giveup_ext(vcpu, MSR_FP);
 			} else {

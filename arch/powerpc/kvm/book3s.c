@@ -345,6 +345,8 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 
 void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 {
+	u32 host_pvr;
+
 	vcpu->arch.hflags &= ~BOOK3S_HFLAG_SLB;
 	vcpu->arch.pvr = pvr;
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -376,6 +378,23 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 	/* 32 bit Book3S always has 32 byte dcbz */
 	vcpu->arch.hflags |= BOOK3S_HFLAG_DCBZ32;
 #endif
+
+	/* On some CPUs we can execute paired single operations natively */
+	asm ( "mfpvr %0" : "=r"(host_pvr));
+	switch (host_pvr) {
+	case 0x00080200:	/* lonestar 2.0 */
+	case 0x00088202:	/* lonestar 2.2 */
+	case 0x70000100:	/* gekko 1.0 */
+	case 0x00080100:	/* gekko 2.0 */
+	case 0x00083203:	/* gekko 2.3a */
+	case 0x00083213:	/* gekko 2.3b */
+	case 0x00083204:	/* gekko 2.4 */
+	case 0x00083214:	/* gekko 2.4e (8SE) - retail HW2 */
+	case 0x00087200:	/* broadway */
+		vcpu->arch.hflags |= BOOK3S_HFLAG_NATIVE_PS;
+		/* Enable HID2.PSE - in case we need it later */
+		mtspr(SPRN_HID2_GEKKO, mfspr(SPRN_HID2_GEKKO) | (1 << 29));
+	}
 }
 
 /* Book3s_32 CPUs always have 32 bytes cache line size, which Linux assumes. To
