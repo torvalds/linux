@@ -330,30 +330,35 @@ static void kvmppc_mmu_book3s_32_tlbie(struct kvm_vcpu *vcpu, ulong ea, bool lar
 static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 					     u64 *vsid)
 {
+	ulong ea = esid << SID_SHIFT;
+	struct kvmppc_sr *sr;
+	u64 gvsid = esid;
+
+	if (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
+		sr = find_sr(to_book3s(vcpu), ea);
+		if (sr->valid)
+			gvsid = sr->vsid;
+	}
+
 	/* In case we only have one of MSR_IR or MSR_DR set, let's put
 	   that in the real-mode context (and hope RM doesn't access
 	   high memory) */
 	switch (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
 	case 0:
-		*vsid = (VSID_REAL >> 16) | esid;
+		*vsid = VSID_REAL | esid;
 		break;
 	case MSR_IR:
-		*vsid = (VSID_REAL_IR >> 16) | esid;
+		*vsid = VSID_REAL_IR | gvsid;
 		break;
 	case MSR_DR:
-		*vsid = (VSID_REAL_DR >> 16) | esid;
+		*vsid = VSID_REAL_DR | gvsid;
 		break;
 	case MSR_DR|MSR_IR:
-	{
-		ulong ea = esid << SID_SHIFT;
-		struct kvmppc_sr *sr = find_sr(to_book3s(vcpu), ea);
-
 		if (!sr->valid)
 			return -1;
 
 		*vsid = sr->vsid;
 		break;
-	}
 	default:
 		BUG();
 	}

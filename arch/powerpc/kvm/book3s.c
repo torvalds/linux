@@ -148,16 +148,8 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 		}
 	}
 
-	if (((vcpu->arch.msr & (MSR_IR|MSR_DR)) != (old_msr & (MSR_IR|MSR_DR))) ||
-	    (vcpu->arch.msr & MSR_PR) != (old_msr & MSR_PR)) {
-		bool dr = (vcpu->arch.msr & MSR_DR) ? true : false;
-		bool ir = (vcpu->arch.msr & MSR_IR) ? true : false;
-
-		/* Flush split mode PTEs */
-		if (dr != ir)
-			kvmppc_mmu_pte_vflush(vcpu, VSID_SPLIT_MASK,
-					      VSID_SPLIT_MASK);
-
+	if ((vcpu->arch.msr & (MSR_PR|MSR_IR|MSR_DR)) !=
+		   (old_msr & (MSR_PR|MSR_IR|MSR_DR))) {
 		kvmppc_mmu_flush_segments(vcpu);
 		kvmppc_mmu_map_segment(vcpu, kvmppc_get_pc(vcpu));
 	}
@@ -535,6 +527,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	bool is_mmio = false;
 	bool dr = (vcpu->arch.msr & MSR_DR) ? true : false;
 	bool ir = (vcpu->arch.msr & MSR_IR) ? true : false;
+	u64 vsid;
 
 	relocated = data ? dr : ir;
 
@@ -552,13 +545,20 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	switch (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
 	case 0:
-		pte.vpage |= VSID_REAL;
+		pte.vpage |= ((u64)VSID_REAL << (SID_SHIFT - 12));
 		break;
 	case MSR_DR:
-		pte.vpage |= VSID_REAL_DR;
-		break;
 	case MSR_IR:
-		pte.vpage |= VSID_REAL_IR;
+		vcpu->arch.mmu.esid_to_vsid(vcpu, eaddr >> SID_SHIFT, &vsid);
+
+		if ((vcpu->arch.msr & (MSR_DR|MSR_IR)) == MSR_DR)
+			pte.vpage |= ((u64)VSID_REAL_DR << (SID_SHIFT - 12));
+		else
+			pte.vpage |= ((u64)VSID_REAL_IR << (SID_SHIFT - 12));
+		pte.vpage |= vsid;
+
+		if (vsid == -1)
+			page_found = -EINVAL;
 		break;
 	}
 

@@ -442,29 +442,32 @@ static void kvmppc_mmu_book3s_64_tlbie(struct kvm_vcpu *vcpu, ulong va,
 static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 					     u64 *vsid)
 {
-	switch (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
-	case 0:
-		*vsid = (VSID_REAL >> 16) | esid;
-		break;
-	case MSR_IR:
-		*vsid = (VSID_REAL_IR >> 16) | esid;
-		break;
-	case MSR_DR:
-		*vsid = (VSID_REAL_DR >> 16) | esid;
-		break;
-	case MSR_DR|MSR_IR:
-	{
-		ulong ea;
-		struct kvmppc_slb *slb;
-		ea = esid << SID_SHIFT;
+	ulong ea = esid << SID_SHIFT;
+	struct kvmppc_slb *slb;
+	u64 gvsid = esid;
+
+	if (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
 		slb = kvmppc_mmu_book3s_64_find_slbe(to_book3s(vcpu), ea);
 		if (slb)
-			*vsid = slb->vsid;
-		else
+			gvsid = slb->vsid;
+	}
+
+	switch (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
+	case 0:
+		*vsid = VSID_REAL | esid;
+		break;
+	case MSR_IR:
+		*vsid = VSID_REAL_IR | gvsid;
+		break;
+	case MSR_DR:
+		*vsid = VSID_REAL_DR | gvsid;
+		break;
+	case MSR_DR|MSR_IR:
+		if (!slb)
 			return -ENOENT;
 
+		*vsid = gvsid;
 		break;
-	}
 	default:
 		BUG();
 		break;
