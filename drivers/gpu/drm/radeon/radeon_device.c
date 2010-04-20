@@ -730,9 +730,10 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 			continue;
 		}
 		robj = rfb->obj->driver_private;
-		if (robj != rdev->fbdev_rbo) {
+		/* don't unpin kernel fb objects */
+		if (!radeon_fbdev_robj_is_fb(rdev, robj)) {
 			r = radeon_bo_reserve(robj, false);
-			if (unlikely(r == 0)) {
+			if (r == 0) {
 				radeon_bo_unpin(robj);
 				radeon_bo_unreserve(robj);
 			}
@@ -757,7 +758,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 		pci_set_power_state(dev->pdev, PCI_D3hot);
 	}
 	acquire_console_sem();
-	fb_set_suspend(rdev->fbdev_info, 1);
+	radeon_fbdev_set_suspend(rdev, 1);
 	release_console_sem();
 	return 0;
 }
@@ -781,7 +782,7 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_agp_resume(rdev);
 	radeon_resume(rdev);
 	radeon_restore_bios_scratch_regs(rdev);
-	fb_set_suspend(rdev->fbdev_info, 0);
+	radeon_fbdev_set_suspend(rdev, 0);
 	release_console_sem();
 
 	/* reset hpd state */

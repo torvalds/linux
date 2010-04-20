@@ -226,6 +226,8 @@ enum intel_pch {
 	PCH_CPT,	/* Cougarpoint PCH */
 };
 
+struct intel_fbdev;
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -638,6 +640,9 @@ typedef struct drm_i915_private {
 	u8 max_delay;
 
 	enum no_fbc_reason no_fbc_reason;
+
+	/* list of fbdev register on this device */
+	struct intel_fbdev *fbdev;
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */

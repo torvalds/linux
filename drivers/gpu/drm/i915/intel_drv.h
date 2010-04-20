@@ -206,9 +206,6 @@ extern void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 extern struct drm_connector* intel_sdvo_find(struct drm_device *dev, int sdvoB);
 extern int intel_sdvo_supports_hotplug(struct drm_connector *connector);
 extern void intel_sdvo_set_hotplug(struct drm_connector *connector, int enable);
-extern int intelfb_probe(struct drm_device *dev);
-extern int intelfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
-extern int intelfb_resize(struct drm_device *dev, struct drm_crtc *crtc);
 extern void intelfb_restore(void);
 extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				    u16 blue, int regno);
@@ -218,10 +215,12 @@ extern void intel_init_clock_gating(struct drm_device *dev);
 extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
 
-extern int intel_framebuffer_create(struct drm_device *dev,
-				    struct drm_mode_fb_cmd *mode_cmd,
-				    struct drm_framebuffer **fb,
-				    struct drm_gem_object *obj);
+extern int intel_framebuffer_init(struct drm_device *dev,
+				  struct intel_framebuffer *ifb,
+				  struct drm_mode_fb_cmd *mode_cmd,
+				  struct drm_gem_object *obj);
+extern int intel_fbdev_init(struct drm_device *dev);
+extern void intel_fbdev_fini(struct drm_device *dev);
 
 extern void intel_prepare_page_flip(struct drm_device *dev, int plane);
 extern void intel_finish_page_flip(struct drm_device *dev, int pipe);
@@ -235,4 +234,6 @@ extern int intel_overlay_put_image(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
 extern int intel_overlay_attrs(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv);
+
+void intelfb_hotplug(struct drm_device *dev, bool polled);
 #endif /* __INTEL_DRV_H__ */

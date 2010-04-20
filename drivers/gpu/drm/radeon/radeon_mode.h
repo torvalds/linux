@@ -39,6 +39,7 @@
 #include <linux/i2c-algo-bit.h>
 #include "radeon_fixed.h"
 
+struct radeon_bo;
 struct radeon_device;
 
 #define to_radeon_crtc(x) container_of(x, struct radeon_crtc, base)
@@ -202,6 +203,8 @@ enum radeon_dvo_chip {
 	DVO_SIL1178,
 };
 
+struct radeon_fbdev;
+
 struct radeon_mode_info {
 	struct atom_context *atom_context;
 	struct card_info *atom_card_info;
@@ -218,6 +221,9 @@ struct radeon_mode_info {
 	struct drm_property *tmds_pll_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
+
+	/* pointer to fbdev info structure */
+	struct radeon_fbdev *rfbdev;
 };
 
 #define MAX_H_CODE_TIMING_LEN 32
@@ -532,11 +538,10 @@ extern void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				     u16 blue, int regno);
 extern void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 				     u16 *blue, int regno);
-struct drm_framebuffer *radeon_framebuffer_create(struct drm_device *dev,
-						  struct drm_mode_fb_cmd *mode_cmd,
-						  struct drm_gem_object *obj);
-
-int radeonfb_probe(struct drm_device *dev);
+void radeon_framebuffer_init(struct drm_device *dev,
+			     struct radeon_framebuffer *rfb,
+			     struct drm_mode_fb_cmd *mode_cmd,
+			     struct drm_gem_object *obj);
 
 int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
 bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev);
@@ -573,4 +578,12 @@ void radeon_legacy_tv_adjust_pll2(struct drm_encoder *encoder,
 void radeon_legacy_tv_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode);
+
+/* fbdev layer */
+int radeon_fbdev_init(struct radeon_device *rdev);
+void radeon_fbdev_fini(struct radeon_device *rdev);
+void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state);
+int radeon_fbdev_total_size(struct radeon_device *rdev);
+bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj);
+void radeonfb_hotplug(struct drm_device *dev, bool polled);
 #endif

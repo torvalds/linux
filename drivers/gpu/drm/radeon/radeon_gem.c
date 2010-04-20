@@ -158,8 +158,7 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 	args->vram_visible = rdev->mc.real_vram_size;
 	if (rdev->stollen_vga_memory)
 		args->vram_visible -= radeon_bo_size(rdev->stollen_vga_memory);
-	if (rdev->fbdev_rbo)
-		args->vram_visible -= radeon_bo_size(rdev->fbdev_rbo);
+	args->vram_visible -= radeon_fbdev_total_size(rdev);
 	args->gart_size = rdev->mc.gtt_size - rdev->cp.ring_size - 4096 -
 		RADEON_IB_POOL_SIZE*64*1024;
 	return 0;

@@ -938,9 +938,6 @@ struct radeon_device {
 	bool				is_atom_bios;
 	uint16_t			bios_header_start;
 	struct radeon_bo		*stollen_vga_memory;
-	struct fb_info			*fbdev_info;
-	struct radeon_bo		*fbdev_rbo;
-	struct radeon_framebuffer	*fbdev_rfb;
 	/* Register mmio */
 	resource_size_t			rmmio_base;
 	resource_size_t			rmmio_size;

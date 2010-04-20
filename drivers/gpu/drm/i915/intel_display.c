@@ -4889,10 +4889,6 @@ static void intel_setup_outputs(struct drm_device *dev)
 static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_device *dev = fb->dev;
-
-	if (fb->fbdev)
-		intelfb_remove(dev, fb);
 
 	drm_framebuffer_cleanup(fb);
 	drm_gem_object_unreference_unlocked(intel_fb->obj);
@@ -4915,17 +4911,12 @@ static const struct drm_framebuffer_funcs intel_fb_funcs = {
 	.create_handle = intel_user_framebuffer_create_handle,
 };
 
-int intel_framebuffer_create(struct drm_device *dev,
-			     struct drm_mode_fb_cmd *mode_cmd,
-			     struct drm_framebuffer **fb,
-			     struct drm_gem_object *obj)
+int intel_framebuffer_init(struct drm_device *dev,
+			   struct intel_framebuffer *intel_fb,
+			   struct drm_mode_fb_cmd *mode_cmd,
+			   struct drm_gem_object *obj)
 {
-	struct intel_framebuffer *intel_fb;
 	int ret;
-
-	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
-	if (!intel_fb)
-		return -ENOMEM;
 
 	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
 	if (ret) {
@@ -4934,14 +4925,9 @@ int intel_framebuffer_create(struct drm_device *dev,
 	}
 
 	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
-
 	intel_fb->obj = obj;
-
-	*fb = &intel_fb->base;
-
 	return 0;
 }
-
 
 static struct drm_framebuffer *
 intel_user_framebuffer_create(struct drm_device *dev,
@@ -4949,25 +4935,30 @@ intel_user_framebuffer_create(struct drm_device *dev,
 			      struct drm_mode_fb_cmd *mode_cmd)
 {
 	struct drm_gem_object *obj;
-	struct drm_framebuffer *fb;
+	struct intel_framebuffer *intel_fb;
 	int ret;
 
 	obj = drm_gem_object_lookup(dev, filp, mode_cmd->handle);
 	if (!obj)
 		return NULL;
 
-	ret = intel_framebuffer_create(dev, mode_cmd, &fb, obj);
+	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
+	if (!intel_fb)
+		return NULL;
+
+	ret = intel_framebuffer_init(dev, intel_fb,
+				     mode_cmd, obj);
 	if (ret) {
 		drm_gem_object_unreference_unlocked(obj);
+		kfree(intel_fb);
 		return NULL;
 	}
 
-	return fb;
+	return &intel_fb->base;
 }
 
 static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_create = intel_user_framebuffer_create,
-	.fb_changed = intelfb_probe,
 };
 
 static struct drm_gem_object *
@@ -5354,6 +5345,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	struct intel_crtc *intel_crtc;
 
 	mutex_lock(&dev->struct_mutex);
+
+	intel_fbdev_fini(dev);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */
