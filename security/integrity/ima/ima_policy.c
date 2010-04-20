@@ -255,6 +255,13 @@ static int ima_lsm_rule_init(struct ima_measure_rule_entry *entry,
 	return result;
 }
 
+static void ima_log_string(struct audit_buffer *ab, char *key, char *value)
+{
+	audit_log_format(ab, "%s=", key);
+	audit_log_untrustedstring(ab, value);
+	audit_log_format(ab, " ");
+}
+
 static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 {
 	struct audit_buffer *ab;
@@ -277,7 +284,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 		token = match_token(p, policy_tokens, args);
 		switch (token) {
 		case Opt_measure:
-			audit_log_format(ab, "%s ", "measure");
+			ima_log_string(ab, "action", "measure");
 
 			if (entry->action != UNKNOWN)
 				result = -EINVAL;
@@ -285,7 +292,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 			entry->action = MEASURE;
 			break;
 		case Opt_dont_measure:
-			audit_log_format(ab, "%s ", "dont_measure");
+			ima_log_string(ab, "action", "dont_measure");
 
 			if (entry->action != UNKNOWN)
 				result = -EINVAL;
@@ -293,7 +300,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 			entry->action = DONT_MEASURE;
 			break;
 		case Opt_func:
-			audit_log_format(ab, "func=%s ", args[0].from);
+			ima_log_string(ab, "func", args[0].from);
 
 			if (entry->func)
 				result  = -EINVAL;
@@ -313,7 +320,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 				entry->flags |= IMA_FUNC;
 			break;
 		case Opt_mask:
-			audit_log_format(ab, "mask=%s ", args[0].from);
+			ima_log_string(ab, "mask", args[0].from);
 
 			if (entry->mask)
 				result = -EINVAL;
@@ -332,7 +339,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 				entry->flags |= IMA_MASK;
 			break;
 		case Opt_fsmagic:
-			audit_log_format(ab, "fsmagic=%s ", args[0].from);
+			ima_log_string(ab, "fsmagic", args[0].from);
 
 			if (entry->fsmagic) {
 				result = -EINVAL;
@@ -345,7 +352,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 				entry->flags |= IMA_FSMAGIC;
 			break;
 		case Opt_uid:
-			audit_log_format(ab, "uid=%s ", args[0].from);
+			ima_log_string(ab, "uid", args[0].from);
 
 			if (entry->uid != -1) {
 				result = -EINVAL;
@@ -362,44 +369,44 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 			}
 			break;
 		case Opt_obj_user:
-			audit_log_format(ab, "obj_user=%s ", args[0].from);
+			ima_log_string(ab, "obj_user", args[0].from);
 			result = ima_lsm_rule_init(entry, args[0].from,
 						   LSM_OBJ_USER,
 						   AUDIT_OBJ_USER);
 			break;
 		case Opt_obj_role:
-			audit_log_format(ab, "obj_role=%s ", args[0].from);
+			ima_log_string(ab, "obj_role", args[0].from);
 			result = ima_lsm_rule_init(entry, args[0].from,
 						   LSM_OBJ_ROLE,
 						   AUDIT_OBJ_ROLE);
 			break;
 		case Opt_obj_type:
-			audit_log_format(ab, "obj_type=%s ", args[0].from);
+			ima_log_string(ab, "obj_type", args[0].from);
 			result = ima_lsm_rule_init(entry, args[0].from,
 						   LSM_OBJ_TYPE,
 						   AUDIT_OBJ_TYPE);
 			break;
 		case Opt_subj_user:
-			audit_log_format(ab, "subj_user=%s ", args[0].from);
+			ima_log_string(ab, "subj_user", args[0].from);
 			result = ima_lsm_rule_init(entry, args[0].from,
 						   LSM_SUBJ_USER,
 						   AUDIT_SUBJ_USER);
 			break;
 		case Opt_subj_role:
-			audit_log_format(ab, "subj_role=%s ", args[0].from);
+			ima_log_string(ab, "subj_role", args[0].from);
 			result = ima_lsm_rule_init(entry, args[0].from,
 						   LSM_SUBJ_ROLE,
 						   AUDIT_SUBJ_ROLE);
 			break;
 		case Opt_subj_type:
-			audit_log_format(ab, "subj_type=%s ", args[0].from);
+			ima_log_string(ab, "subj_type", args[0].from);
 			result = ima_lsm_rule_init(entry, args[0].from,
 						   LSM_SUBJ_TYPE,
 						   AUDIT_SUBJ_TYPE);
 			break;
 		case Opt_err:
+			ima_log_string(ab, "UNKNOWN", p);
 			result = -EINVAL;
-			audit_log_format(ab, "UNKNOWN=%s ", p);
 			break;
 		}
 	}
