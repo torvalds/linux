@@ -3776,16 +3776,20 @@ static int kvm_is_in_guest(void)
 static int kvm_is_user_mode(void)
 {
 	int user_mode = 3;
+
 	if (percpu_read(current_vcpu))
 		user_mode = kvm_x86_ops->get_cpl(percpu_read(current_vcpu));
+
 	return user_mode != 0;
 }
 
 static unsigned long kvm_get_guest_ip(void)
 {
 	unsigned long ip = 0;
+
 	if (percpu_read(current_vcpu))
 		ip = kvm_rip_read(percpu_read(current_vcpu));
+
 	return ip;
 }
 

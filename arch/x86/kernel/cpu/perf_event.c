@@ -1752,23 +1752,31 @@ void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int ski
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
 	unsigned long ip;
+
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest())
 		ip = perf_guest_cbs->get_guest_ip();
 	else
 		ip = instruction_pointer(regs);
+
 	return ip;
 }
 
 unsigned long perf_misc_flags(struct pt_regs *regs)
 {
 	int misc = 0;
+
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		misc |= perf_guest_cbs->is_user_mode() ?
-			PERF_RECORD_MISC_GUEST_USER :
-			PERF_RECORD_MISC_GUEST_KERNEL;
-	} else
-		misc |= user_mode(regs) ? PERF_RECORD_MISC_USER :
-			PERF_RECORD_MISC_KERNEL;
+		if (perf_guest_cbs->is_user_mode())
+			misc |= PERF_RECORD_MISC_GUEST_USER;
+		else
+			misc |= PERF_RECORD_MISC_GUEST_KERNEL;
+	} else {
+		if (user_mode(regs))
+			misc |= PERF_RECORD_MISC_USER;
+		else
+			misc |= PERF_RECORD_MISC_KERNEL;
+	}
+
 	if (regs->flags & PERF_EFLAGS_EXACT)
 		misc |= PERF_RECORD_MISC_EXACT;
 
