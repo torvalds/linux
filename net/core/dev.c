@@ -1990,7 +1990,7 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 				queue_index = skb_tx_hash(dev, skb);
 
 			if (sk) {
-				struct dst_entry *dst = rcu_dereference(sk->sk_dst_cache);
+				struct dst_entry *dst = rcu_dereference_bh(sk->sk_dst_cache);
 
 				if (dst && skb_dst(skb) == dst)
 					sk_tx_queue_set(sk, queue_index);
