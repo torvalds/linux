@@ -3394,42 +3394,6 @@ xlog_pack_data(
 	}
 }
 
-#if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)
-STATIC void
-xlog_unpack_data_checksum(
-	xlog_rec_header_t	*rhead,
-	xfs_caddr_t		dp,
-	xlog_t			*log)
-{
-	__be32			*up = (__be32 *)dp;
-	uint			chksum = 0;
-	int			i;
-
-	/* divide length by 4 to get # words */
-	for (i=0; i < be32_to_cpu(rhead->h_len) >> 2; i++) {
-		chksum ^= be32_to_cpu(*up);
-		up++;
-	}
-	if (chksum != be32_to_cpu(rhead->h_chksum)) {
-	    if (rhead->h_chksum ||
-		((log->l_flags & XLOG_CHKSUM_MISMATCH) == 0)) {
-		    cmn_err(CE_DEBUG,
-			"XFS: LogR chksum mismatch: was (0x%x) is (0x%x)\n",
-			    be32_to_cpu(rhead->h_chksum), chksum);
-		    cmn_err(CE_DEBUG,
-"XFS: Disregard message if filesystem was created with non-DEBUG kernel");
-		    if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
-			    cmn_err(CE_DEBUG,
-				"XFS: LogR this is a LogV2 filesystem\n");
-		    }
-		    log->l_flags |= XLOG_CHKSUM_MISMATCH;
-	    }
-	}
-}
-#else
-#define xlog_unpack_data_checksum(rhead, dp, log)
-#endif
-
 STATIC void
 xlog_unpack_data(
 	xlog_rec_header_t	*rhead,
@@ -3453,8 +3417,6 @@ xlog_unpack_data(
 			dp += BBSIZE;
 		}
 	}
-
-	xlog_unpack_data_checksum(rhead, dp, log);
 }
 
 STATIC int
@@ -4009,10 +3971,6 @@ xlog_recover_check_summary(
 	xfs_agf_t	*agfp;
 	xfs_buf_t	*agfbp;
 	xfs_buf_t	*agibp;
-	xfs_buf_t	*sbbp;
-#ifdef XFS_LOUD_RECOVERY
-	xfs_sb_t	*sbp;
-#endif
 	xfs_agnumber_t	agno;
 	__uint64_t	freeblks;
 	__uint64_t	itotal;
@@ -4047,30 +4005,5 @@ xlog_recover_check_summary(
 			xfs_buf_relse(agibp);
 		}
 	}
-
-	sbbp = xfs_getsb(mp, 0);
-#ifdef XFS_LOUD_RECOVERY
-	sbp = &mp->m_sb;
-	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(sbbp));
-	cmn_err(CE_NOTE,
-		"xlog_recover_check_summary: sb_icount %Lu itotal %Lu",
-		sbp->sb_icount, itotal);
-	cmn_err(CE_NOTE,
-		"xlog_recover_check_summary: sb_ifree %Lu itotal %Lu",
-		sbp->sb_ifree, ifree);
-	cmn_err(CE_NOTE,
-		"xlog_recover_check_summary: sb_fdblocks %Lu freeblks %Lu",
-		sbp->sb_fdblocks, freeblks);
-#if 0
-	/*
-	 * This is turned off until I account for the allocation
-	 * btree blocks which live in free space.
-	 */
-	ASSERT(sbp->sb_icount == itotal);
-	ASSERT(sbp->sb_ifree == ifree);
-	ASSERT(sbp->sb_fdblocks == freeblks);
-#endif
-#endif
-	xfs_buf_relse(sbbp);
 }
 #endif /* DEBUG */

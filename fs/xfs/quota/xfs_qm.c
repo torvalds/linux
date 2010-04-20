@@ -1331,9 +1331,6 @@ xfs_qm_qino_alloc(
 	 */
 	spin_lock(&mp->m_sb_lock);
 	if (flags & XFS_QMOPT_SBVERSION) {
-#if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)
-		unsigned oldv = mp->m_sb.sb_versionnum;
-#endif
 		ASSERT(!xfs_sb_version_hasquota(&mp->m_sb));
 		ASSERT((sbfields & (XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO |
 				   XFS_SB_GQUOTINO | XFS_SB_QFLAGS)) ==
@@ -1346,11 +1343,6 @@ xfs_qm_qino_alloc(
 
 		/* qflags will get updated _after_ quotacheck */
 		mp->m_sb.sb_qflags = 0;
-#if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)
-		cmn_err(CE_NOTE,
-			"Old superblock version %x, converting to %x.",
-			oldv, mp->m_sb.sb_versionnum);
-#endif
 	}
 	if (flags & XFS_QMOPT_UQUOTA)
 		mp->m_sb.sb_uquotino = (*ip)->i_ino;
