@@ -742,34 +742,16 @@ bool intel_pipe_has_type (struct drm_crtc *crtc, int type)
 {
     struct drm_device *dev = crtc->dev;
     struct drm_mode_config *mode_config = &dev->mode_config;
-    struct drm_connector *l_entry;
+    struct drm_encoder *l_entry;
 
-    list_for_each_entry(l_entry, &mode_config->connector_list, head) {
-	    if (l_entry->encoder &&
-	        l_entry->encoder->crtc == crtc) {
-		    struct intel_encoder *intel_encoder = to_intel_encoder(l_entry);
+    list_for_each_entry(l_entry, &mode_config->encoder_list, head) {
+	    if (l_entry && l_entry->crtc == crtc) {
+		    struct intel_encoder *intel_encoder = enc_to_intel_encoder(l_entry);
 		    if (intel_encoder->type == type)
 			    return true;
 	    }
     }
     return false;
-}
-
-static struct drm_connector *
-intel_pipe_get_connector (struct drm_crtc *crtc)
-{
-    struct drm_device *dev = crtc->dev;
-    struct drm_mode_config *mode_config = &dev->mode_config;
-    struct drm_connector *l_entry, *ret = NULL;
-
-    list_for_each_entry(l_entry, &mode_config->connector_list, head) {
-	    if (l_entry->encoder &&
-	        l_entry->encoder->crtc == crtc) {
-		    ret = l_entry;
-		    break;
-	    }
-    }
-    return ret;
 }
 
 #define INTELPllInvalid(s)   do { /* DRM_DEBUG(s); */ return false; } while (0)
@@ -1510,6 +1492,219 @@ static void ironlake_set_pll_edp (struct drm_crtc *crtc, int clock)
 	udelay(500);
 }
 
+/* The FDI link training functions for ILK/Ibexpeak. */
+static void ironlake_fdi_link_train(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	int fdi_tx_reg = (pipe == 0) ? FDI_TXA_CTL : FDI_TXB_CTL;
+	int fdi_rx_reg = (pipe == 0) ? FDI_RXA_CTL : FDI_RXB_CTL;
+	int fdi_rx_iir_reg = (pipe == 0) ? FDI_RXA_IIR : FDI_RXB_IIR;
+	int fdi_rx_imr_reg = (pipe == 0) ? FDI_RXA_IMR : FDI_RXB_IMR;
+	u32 temp, tries = 0;
+
+	/* enable CPU FDI TX and PCH FDI RX */
+	temp = I915_READ(fdi_tx_reg);
+	temp |= FDI_TX_ENABLE;
+	temp &= ~(7 << 19);
+	temp |= (intel_crtc->fdi_lanes - 1) << 19;
+	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp |= FDI_LINK_TRAIN_PATTERN_1;
+	I915_WRITE(fdi_tx_reg, temp);
+	I915_READ(fdi_tx_reg);
+
+	temp = I915_READ(fdi_rx_reg);
+	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp |= FDI_LINK_TRAIN_PATTERN_1;
+	I915_WRITE(fdi_rx_reg, temp | FDI_RX_ENABLE);
+	I915_READ(fdi_rx_reg);
+	udelay(150);
+
+	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
+	   for train result */
+	temp = I915_READ(fdi_rx_imr_reg);
+	temp &= ~FDI_RX_SYMBOL_LOCK;
+	temp &= ~FDI_RX_BIT_LOCK;
+	I915_WRITE(fdi_rx_imr_reg, temp);
+	I915_READ(fdi_rx_imr_reg);
+	udelay(150);
+
+	for (;;) {
+		temp = I915_READ(fdi_rx_iir_reg);
+		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+
+		if ((temp & FDI_RX_BIT_LOCK)) {
+			DRM_DEBUG_KMS("FDI train 1 done.\n");
+			I915_WRITE(fdi_rx_iir_reg,
+				   temp | FDI_RX_BIT_LOCK);
+			break;
+		}
+
+		tries++;
+
+		if (tries > 5) {
+			DRM_DEBUG_KMS("FDI train 1 fail!\n");
+			break;
+		}
+	}
+
+	/* Train 2 */
+	temp = I915_READ(fdi_tx_reg);
+	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp |= FDI_LINK_TRAIN_PATTERN_2;
+	I915_WRITE(fdi_tx_reg, temp);
+
+	temp = I915_READ(fdi_rx_reg);
+	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp |= FDI_LINK_TRAIN_PATTERN_2;
+	I915_WRITE(fdi_rx_reg, temp);
+	udelay(150);
+
+	tries = 0;
+
+	for (;;) {
+		temp = I915_READ(fdi_rx_iir_reg);
+		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+
+		if (temp & FDI_RX_SYMBOL_LOCK) {
+			I915_WRITE(fdi_rx_iir_reg,
+				   temp | FDI_RX_SYMBOL_LOCK);
+			DRM_DEBUG_KMS("FDI train 2 done.\n");
+			break;
+		}
+
+		tries++;
+
+		if (tries > 5) {
+			DRM_DEBUG_KMS("FDI train 2 fail!\n");
+			break;
+		}
+	}
+
+	DRM_DEBUG_KMS("FDI train done\n");
+}
+
+static int snb_b_fdi_train_param [] = {
+	FDI_LINK_TRAIN_400MV_0DB_SNB_B,
+	FDI_LINK_TRAIN_400MV_6DB_SNB_B,
+	FDI_LINK_TRAIN_600MV_3_5DB_SNB_B,
+	FDI_LINK_TRAIN_800MV_0DB_SNB_B,
+};
+
+/* The FDI link training functions for SNB/Cougarpoint. */
+static void gen6_fdi_link_train(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	int fdi_tx_reg = (pipe == 0) ? FDI_TXA_CTL : FDI_TXB_CTL;
+	int fdi_rx_reg = (pipe == 0) ? FDI_RXA_CTL : FDI_RXB_CTL;
+	int fdi_rx_iir_reg = (pipe == 0) ? FDI_RXA_IIR : FDI_RXB_IIR;
+	int fdi_rx_imr_reg = (pipe == 0) ? FDI_RXA_IMR : FDI_RXB_IMR;
+	u32 temp, i;
+
+	/* enable CPU FDI TX and PCH FDI RX */
+	temp = I915_READ(fdi_tx_reg);
+	temp |= FDI_TX_ENABLE;
+	temp &= ~(7 << 19);
+	temp |= (intel_crtc->fdi_lanes - 1) << 19;
+	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp |= FDI_LINK_TRAIN_PATTERN_1;
+	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
+	/* SNB-B */
+	temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
+	I915_WRITE(fdi_tx_reg, temp);
+	I915_READ(fdi_tx_reg);
+
+	temp = I915_READ(fdi_rx_reg);
+	if (HAS_PCH_CPT(dev)) {
+		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+		temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
+	} else {
+		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp |= FDI_LINK_TRAIN_PATTERN_1;
+	}
+	I915_WRITE(fdi_rx_reg, temp | FDI_RX_ENABLE);
+	I915_READ(fdi_rx_reg);
+	udelay(150);
+
+	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
+	   for train result */
+	temp = I915_READ(fdi_rx_imr_reg);
+	temp &= ~FDI_RX_SYMBOL_LOCK;
+	temp &= ~FDI_RX_BIT_LOCK;
+	I915_WRITE(fdi_rx_imr_reg, temp);
+	I915_READ(fdi_rx_imr_reg);
+	udelay(150);
+
+	for (i = 0; i < 4; i++ ) {
+		temp = I915_READ(fdi_tx_reg);
+		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
+		temp |= snb_b_fdi_train_param[i];
+		I915_WRITE(fdi_tx_reg, temp);
+		udelay(500);
+
+		temp = I915_READ(fdi_rx_iir_reg);
+		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+
+		if (temp & FDI_RX_BIT_LOCK) {
+			I915_WRITE(fdi_rx_iir_reg,
+				   temp | FDI_RX_BIT_LOCK);
+			DRM_DEBUG_KMS("FDI train 1 done.\n");
+			break;
+		}
+	}
+	if (i == 4)
+		DRM_DEBUG_KMS("FDI train 1 fail!\n");
+
+	/* Train 2 */
+	temp = I915_READ(fdi_tx_reg);
+	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp |= FDI_LINK_TRAIN_PATTERN_2;
+	if (IS_GEN6(dev)) {
+		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
+		/* SNB-B */
+		temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
+	}
+	I915_WRITE(fdi_tx_reg, temp);
+
+	temp = I915_READ(fdi_rx_reg);
+	if (HAS_PCH_CPT(dev)) {
+		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+		temp |= FDI_LINK_TRAIN_PATTERN_2_CPT;
+	} else {
+		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp |= FDI_LINK_TRAIN_PATTERN_2;
+	}
+	I915_WRITE(fdi_rx_reg, temp);
+	udelay(150);
+
+	for (i = 0; i < 4; i++ ) {
+		temp = I915_READ(fdi_tx_reg);
+		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
+		temp |= snb_b_fdi_train_param[i];
+		I915_WRITE(fdi_tx_reg, temp);
+		udelay(500);
+
+		temp = I915_READ(fdi_rx_iir_reg);
+		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+
+		if (temp & FDI_RX_SYMBOL_LOCK) {
+			I915_WRITE(fdi_rx_iir_reg,
+				   temp | FDI_RX_SYMBOL_LOCK);
+			DRM_DEBUG_KMS("FDI train 2 done.\n");
+			break;
+		}
+	}
+	if (i == 4)
+		DRM_DEBUG_KMS("FDI train 2 fail!\n");
+
+	DRM_DEBUG_KMS("FDI train done.\n");
+}
+
 static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1523,8 +1718,6 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int dspbase_reg = (plane == 0) ? DSPAADDR : DSPBADDR;
 	int fdi_tx_reg = (pipe == 0) ? FDI_TXA_CTL : FDI_TXB_CTL;
 	int fdi_rx_reg = (pipe == 0) ? FDI_RXA_CTL : FDI_RXB_CTL;
-	int fdi_rx_iir_reg = (pipe == 0) ? FDI_RXA_IIR : FDI_RXB_IIR;
-	int fdi_rx_imr_reg = (pipe == 0) ? FDI_RXA_IMR : FDI_RXB_IMR;
 	int transconf_reg = (pipe == 0) ? TRANSACONF : TRANSBCONF;
 	int pf_ctl_reg = (pipe == 0) ? PFA_CTL_1 : PFB_CTL_1;
 	int pf_win_size = (pipe == 0) ? PFA_WIN_SZ : PFB_WIN_SZ;
@@ -1541,8 +1734,9 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int trans_vtot_reg = (pipe == 0) ? TRANS_VTOTAL_A : TRANS_VTOTAL_B;
 	int trans_vblank_reg = (pipe == 0) ? TRANS_VBLANK_A : TRANS_VBLANK_B;
 	int trans_vsync_reg = (pipe == 0) ? TRANS_VSYNC_A : TRANS_VSYNC_B;
+	int trans_dpll_sel = (pipe == 0) ? 0 : 1;
 	u32 temp;
-	int tries = 5, j, n;
+	int n;
 	u32 pipe_bpc;
 
 	temp = I915_READ(pipeconf_reg);
@@ -1569,12 +1763,6 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			/* enable eDP PLL */
 			ironlake_enable_pll_edp(crtc);
 		} else {
-			/* enable PCH DPLL */
-			temp = I915_READ(pch_dpll_reg);
-			if ((temp & DPLL_VCO_ENABLE) == 0) {
-				I915_WRITE(pch_dpll_reg, temp | DPLL_VCO_ENABLE);
-				I915_READ(pch_dpll_reg);
-			}
 
 			/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
 			temp = I915_READ(fdi_rx_reg);
@@ -1584,9 +1772,15 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			 */
 			temp &= ~(0x7 << 16);
 			temp |= (pipe_bpc << 11);
-			I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE |
-					FDI_SEL_PCDCLK |
-					FDI_DP_PORT_WIDTH_X4); /* default 4 lanes */
+			temp &= ~(7 << 19);
+			temp |= (intel_crtc->fdi_lanes - 1) << 19;
+			I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE);
+			I915_READ(fdi_rx_reg);
+			udelay(200);
+
+			/* Switch from Rawclk to PCDclk */
+			temp = I915_READ(fdi_rx_reg);
+			I915_WRITE(fdi_rx_reg, temp | FDI_SEL_PCDCLK);
 			I915_READ(fdi_rx_reg);
 			udelay(200);
 
@@ -1629,91 +1823,32 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 
 		if (!HAS_eDP) {
-			/* enable CPU FDI TX and PCH FDI RX */
-			temp = I915_READ(fdi_tx_reg);
-			temp |= FDI_TX_ENABLE;
-			temp |= FDI_DP_PORT_WIDTH_X4; /* default */
-			temp &= ~FDI_LINK_TRAIN_NONE;
-			temp |= FDI_LINK_TRAIN_PATTERN_1;
-			I915_WRITE(fdi_tx_reg, temp);
-			I915_READ(fdi_tx_reg);
+			/* For PCH output, training FDI link */
+			if (IS_GEN6(dev))
+				gen6_fdi_link_train(crtc);
+			else
+				ironlake_fdi_link_train(crtc);
 
-			temp = I915_READ(fdi_rx_reg);
-			temp &= ~FDI_LINK_TRAIN_NONE;
-			temp |= FDI_LINK_TRAIN_PATTERN_1;
-			I915_WRITE(fdi_rx_reg, temp | FDI_RX_ENABLE);
-			I915_READ(fdi_rx_reg);
-
-			udelay(150);
-
-			/* Train FDI. */
-			/* umask FDI RX Interrupt symbol_lock and bit_lock bit
-			   for train result */
-			temp = I915_READ(fdi_rx_imr_reg);
-			temp &= ~FDI_RX_SYMBOL_LOCK;
-			temp &= ~FDI_RX_BIT_LOCK;
-			I915_WRITE(fdi_rx_imr_reg, temp);
-			I915_READ(fdi_rx_imr_reg);
-			udelay(150);
-
-			temp = I915_READ(fdi_rx_iir_reg);
-			DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
-
-			if ((temp & FDI_RX_BIT_LOCK) == 0) {
-				for (j = 0; j < tries; j++) {
-					temp = I915_READ(fdi_rx_iir_reg);
-					DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n",
-								temp);
-					if (temp & FDI_RX_BIT_LOCK)
-						break;
-					udelay(200);
-				}
-				if (j != tries)
-					I915_WRITE(fdi_rx_iir_reg,
-							temp | FDI_RX_BIT_LOCK);
-				else
-					DRM_DEBUG_KMS("train 1 fail\n");
-			} else {
-				I915_WRITE(fdi_rx_iir_reg,
-						temp | FDI_RX_BIT_LOCK);
-				DRM_DEBUG_KMS("train 1 ok 2!\n");
+			/* enable PCH DPLL */
+			temp = I915_READ(pch_dpll_reg);
+			if ((temp & DPLL_VCO_ENABLE) == 0) {
+				I915_WRITE(pch_dpll_reg, temp | DPLL_VCO_ENABLE);
+				I915_READ(pch_dpll_reg);
 			}
-			temp = I915_READ(fdi_tx_reg);
-			temp &= ~FDI_LINK_TRAIN_NONE;
-			temp |= FDI_LINK_TRAIN_PATTERN_2;
-			I915_WRITE(fdi_tx_reg, temp);
+			udelay(200);
 
-			temp = I915_READ(fdi_rx_reg);
-			temp &= ~FDI_LINK_TRAIN_NONE;
-			temp |= FDI_LINK_TRAIN_PATTERN_2;
-			I915_WRITE(fdi_rx_reg, temp);
-
-			udelay(150);
-
-			temp = I915_READ(fdi_rx_iir_reg);
-			DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
-
-			if ((temp & FDI_RX_SYMBOL_LOCK) == 0) {
-				for (j = 0; j < tries; j++) {
-					temp = I915_READ(fdi_rx_iir_reg);
-					DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n",
-								temp);
-					if (temp & FDI_RX_SYMBOL_LOCK)
-						break;
-					udelay(200);
-				}
-				if (j != tries) {
-					I915_WRITE(fdi_rx_iir_reg,
-							temp | FDI_RX_SYMBOL_LOCK);
-					DRM_DEBUG_KMS("train 2 ok 1!\n");
-				} else
-					DRM_DEBUG_KMS("train 2 fail\n");
-			} else {
-				I915_WRITE(fdi_rx_iir_reg,
-						temp | FDI_RX_SYMBOL_LOCK);
-				DRM_DEBUG_KMS("train 2 ok 2!\n");
+			if (HAS_PCH_CPT(dev)) {
+				/* Be sure PCH DPLL SEL is set */
+				temp = I915_READ(PCH_DPLL_SEL);
+				if (trans_dpll_sel == 0 &&
+						(temp & TRANSA_DPLL_ENABLE) == 0)
+					temp |= (TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL);
+				else if (trans_dpll_sel == 1 &&
+						(temp & TRANSB_DPLL_ENABLE) == 0)
+					temp |= (TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
+				I915_WRITE(PCH_DPLL_SEL, temp);
+				I915_READ(PCH_DPLL_SEL);
 			}
-			DRM_DEBUG_KMS("train done\n");
 
 			/* set transcoder timing */
 			I915_WRITE(trans_htot_reg, I915_READ(cpu_htot_reg));
@@ -1723,6 +1858,60 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(trans_vtot_reg, I915_READ(cpu_vtot_reg));
 			I915_WRITE(trans_vblank_reg, I915_READ(cpu_vblank_reg));
 			I915_WRITE(trans_vsync_reg, I915_READ(cpu_vsync_reg));
+
+			/* enable normal train */
+			temp = I915_READ(fdi_tx_reg);
+			temp &= ~FDI_LINK_TRAIN_NONE;
+			I915_WRITE(fdi_tx_reg, temp | FDI_LINK_TRAIN_NONE |
+					FDI_TX_ENHANCE_FRAME_ENABLE);
+			I915_READ(fdi_tx_reg);
+
+			temp = I915_READ(fdi_rx_reg);
+			if (HAS_PCH_CPT(dev)) {
+				temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+				temp |= FDI_LINK_TRAIN_NORMAL_CPT;
+			} else {
+				temp &= ~FDI_LINK_TRAIN_NONE;
+				temp |= FDI_LINK_TRAIN_NONE;
+			}
+			I915_WRITE(fdi_rx_reg, temp | FDI_RX_ENHANCE_FRAME_ENABLE);
+			I915_READ(fdi_rx_reg);
+
+			/* wait one idle pattern time */
+			udelay(100);
+
+			/* For PCH DP, enable TRANS_DP_CTL */
+			if (HAS_PCH_CPT(dev) &&
+			    intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+				int trans_dp_ctl = (pipe == 0) ? TRANS_DP_CTL_A : TRANS_DP_CTL_B;
+				int reg;
+
+				reg = I915_READ(trans_dp_ctl);
+				reg &= ~TRANS_DP_PORT_SEL_MASK;
+				reg = TRANS_DP_OUTPUT_ENABLE |
+				      TRANS_DP_ENH_FRAMING |
+				      TRANS_DP_VSYNC_ACTIVE_HIGH |
+				      TRANS_DP_HSYNC_ACTIVE_HIGH;
+
+				switch (intel_trans_dp_port_sel(crtc)) {
+				case PCH_DP_B:
+					reg |= TRANS_DP_PORT_SEL_B;
+					break;
+				case PCH_DP_C:
+					reg |= TRANS_DP_PORT_SEL_C;
+					break;
+				case PCH_DP_D:
+					reg |= TRANS_DP_PORT_SEL_D;
+					break;
+				default:
+					DRM_DEBUG_KMS("Wrong PCH DP port return. Guess port B\n");
+					reg |= TRANS_DP_PORT_SEL_B;
+					break;
+				}
+
+				I915_WRITE(trans_dp_ctl, reg);
+				POSTING_READ(trans_dp_ctl);
+			}
 
 			/* enable PCH transcoder */
 			temp = I915_READ(transconf_reg);
@@ -1737,23 +1926,6 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 			while ((I915_READ(transconf_reg) & TRANS_STATE_ENABLE) == 0)
 				;
-
-			/* enable normal */
-
-			temp = I915_READ(fdi_tx_reg);
-			temp &= ~FDI_LINK_TRAIN_NONE;
-			I915_WRITE(fdi_tx_reg, temp | FDI_LINK_TRAIN_NONE |
-					FDI_TX_ENHANCE_FRAME_ENABLE);
-			I915_READ(fdi_tx_reg);
-
-			temp = I915_READ(fdi_rx_reg);
-			temp &= ~FDI_LINK_TRAIN_NONE;
-			I915_WRITE(fdi_rx_reg, temp | FDI_LINK_TRAIN_NONE |
-					FDI_RX_ENHANCE_FRAME_ENABLE);
-			I915_READ(fdi_rx_reg);
-
-			/* wait one idle pattern time */
-			udelay(100);
 
 		}
 
@@ -1805,6 +1977,8 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_READ(pf_ctl_reg);
 		}
 		I915_WRITE(pf_win_size, 0);
+		POSTING_READ(pf_win_size);
+
 
 		/* disable CPU FDI tx and PCH FDI rx */
 		temp = I915_READ(fdi_tx_reg);
@@ -1825,11 +1999,18 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		temp &= ~FDI_LINK_TRAIN_NONE;
 		temp |= FDI_LINK_TRAIN_PATTERN_1;
 		I915_WRITE(fdi_tx_reg, temp);
+		POSTING_READ(fdi_tx_reg);
 
 		temp = I915_READ(fdi_rx_reg);
-		temp &= ~FDI_LINK_TRAIN_NONE;
-		temp |= FDI_LINK_TRAIN_PATTERN_1;
+		if (HAS_PCH_CPT(dev)) {
+			temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+			temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
+		} else {
+			temp &= ~FDI_LINK_TRAIN_NONE;
+			temp |= FDI_LINK_TRAIN_PATTERN_1;
+		}
 		I915_WRITE(fdi_rx_reg, temp);
+		POSTING_READ(fdi_rx_reg);
 
 		udelay(100);
 
@@ -1859,6 +2040,7 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 				}
 			}
 		}
+
 		temp = I915_READ(transconf_reg);
 		/* BPC in transcoder is consistent with that in pipeconf */
 		temp &= ~PIPE_BPC_MASK;
@@ -1867,34 +2049,52 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		I915_READ(transconf_reg);
 		udelay(100);
 
+		if (HAS_PCH_CPT(dev)) {
+			/* disable TRANS_DP_CTL */
+			int trans_dp_ctl = (pipe == 0) ? TRANS_DP_CTL_A : TRANS_DP_CTL_B;
+			int reg;
+
+			reg = I915_READ(trans_dp_ctl);
+			reg &= ~(TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK);
+			I915_WRITE(trans_dp_ctl, reg);
+			POSTING_READ(trans_dp_ctl);
+
+			/* disable DPLL_SEL */
+			temp = I915_READ(PCH_DPLL_SEL);
+			if (trans_dpll_sel == 0)
+				temp &= ~(TRANSA_DPLL_ENABLE | TRANSA_DPLLB_SEL);
+			else
+				temp &= ~(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
+			I915_WRITE(PCH_DPLL_SEL, temp);
+			I915_READ(PCH_DPLL_SEL);
+
+		}
+
 		/* disable PCH DPLL */
 		temp = I915_READ(pch_dpll_reg);
-		if ((temp & DPLL_VCO_ENABLE) != 0) {
-			I915_WRITE(pch_dpll_reg, temp & ~DPLL_VCO_ENABLE);
-			I915_READ(pch_dpll_reg);
-		}
+		I915_WRITE(pch_dpll_reg, temp & ~DPLL_VCO_ENABLE);
+		I915_READ(pch_dpll_reg);
 
 		if (HAS_eDP) {
 			ironlake_disable_pll_edp(crtc);
 		}
 
+		/* Switch from PCDclk to Rawclk */
 		temp = I915_READ(fdi_rx_reg);
 		temp &= ~FDI_SEL_PCDCLK;
 		I915_WRITE(fdi_rx_reg, temp);
 		I915_READ(fdi_rx_reg);
 
+		/* Disable CPU FDI TX PLL */
+		temp = I915_READ(fdi_tx_reg);
+		I915_WRITE(fdi_tx_reg, temp & ~FDI_TX_PLL_ENABLE);
+		I915_READ(fdi_tx_reg);
+		udelay(100);
+
 		temp = I915_READ(fdi_rx_reg);
 		temp &= ~FDI_RX_PLL_ENABLE;
 		I915_WRITE(fdi_rx_reg, temp);
 		I915_READ(fdi_rx_reg);
-
-		/* Disable CPU FDI TX PLL */
-		temp = I915_READ(fdi_tx_reg);
-		if ((temp & FDI_TX_PLL_ENABLE) != 0) {
-			I915_WRITE(fdi_tx_reg, temp & ~FDI_TX_PLL_ENABLE);
-			I915_READ(fdi_tx_reg);
-			udelay(100);
-		}
 
 		/* Wait for the clocks to turn off. */
 		udelay(100);
@@ -2331,6 +2531,30 @@ static struct intel_watermark_params i830_wm_info = {
 	I830_FIFO_LINE_SIZE
 };
 
+static struct intel_watermark_params ironlake_display_wm_info = {
+	ILK_DISPLAY_FIFO,
+	ILK_DISPLAY_MAXWM,
+	ILK_DISPLAY_DFTWM,
+	2,
+	ILK_FIFO_LINE_SIZE
+};
+
+static struct intel_watermark_params ironlake_display_srwm_info = {
+	ILK_DISPLAY_SR_FIFO,
+	ILK_DISPLAY_MAX_SRWM,
+	ILK_DISPLAY_DFT_SRWM,
+	2,
+	ILK_FIFO_LINE_SIZE
+};
+
+static struct intel_watermark_params ironlake_cursor_srwm_info = {
+	ILK_CURSOR_SR_FIFO,
+	ILK_CURSOR_MAX_SRWM,
+	ILK_CURSOR_DFT_SRWM,
+	2,
+	ILK_FIFO_LINE_SIZE
+};
+
 /**
  * intel_calculate_wm - calculate watermark level
  * @clock_in_khz: pixel clock
@@ -2449,66 +2673,6 @@ static void pineview_disable_cxsr(struct drm_device *dev)
 	DRM_INFO("Big FIFO is disabled\n");
 }
 
-static void pineview_enable_cxsr(struct drm_device *dev, unsigned long clock,
-				 int pixel_size)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg;
-	unsigned long wm;
-	struct cxsr_latency *latency;
-
-	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->fsb_freq,
-		dev_priv->mem_freq);
-	if (!latency) {
-		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
-		pineview_disable_cxsr(dev);
-		return;
-	}
-
-	/* Display SR */
-	wm = intel_calculate_wm(clock, &pineview_display_wm, pixel_size,
-				latency->display_sr);
-	reg = I915_READ(DSPFW1);
-	reg &= 0x7fffff;
-	reg |= wm << 23;
-	I915_WRITE(DSPFW1, reg);
-	DRM_DEBUG_KMS("DSPFW1 register is %x\n", reg);
-
-	/* cursor SR */
-	wm = intel_calculate_wm(clock, &pineview_cursor_wm, pixel_size,
-				latency->cursor_sr);
-	reg = I915_READ(DSPFW3);
-	reg &= ~(0x3f << 24);
-	reg |= (wm & 0x3f) << 24;
-	I915_WRITE(DSPFW3, reg);
-
-	/* Display HPLL off SR */
-	wm = intel_calculate_wm(clock, &pineview_display_hplloff_wm,
-		latency->display_hpll_disable, I915_FIFO_LINE_SIZE);
-	reg = I915_READ(DSPFW3);
-	reg &= 0xfffffe00;
-	reg |= wm & 0x1ff;
-	I915_WRITE(DSPFW3, reg);
-
-	/* cursor HPLL off SR */
-	wm = intel_calculate_wm(clock, &pineview_cursor_hplloff_wm, pixel_size,
-				latency->cursor_hpll_disable);
-	reg = I915_READ(DSPFW3);
-	reg &= ~(0x3f << 16);
-	reg |= (wm & 0x3f) << 16;
-	I915_WRITE(DSPFW3, reg);
-	DRM_DEBUG_KMS("DSPFW3 register is %x\n", reg);
-
-	/* activate cxsr */
-	reg = I915_READ(DSPFW3);
-	reg |= PINEVIEW_SELF_REFRESH_EN;
-	I915_WRITE(DSPFW3, reg);
-
-	DRM_INFO("Big FIFO is enabled\n");
-
-	return;
-}
-
 /*
  * Latency for FIFO fetches is dependent on several factors:
  *   - memory configuration (speed, channels)
@@ -2591,6 +2755,71 @@ static int i830_get_fifo_size(struct drm_device *dev, int plane)
 			plane ? "B" : "A", size);
 
 	return size;
+}
+
+static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
+			  int planeb_clock, int sr_hdisplay, int pixel_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg;
+	unsigned long wm;
+	struct cxsr_latency *latency;
+	int sr_clock;
+
+	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->fsb_freq,
+					 dev_priv->mem_freq);
+	if (!latency) {
+		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
+		pineview_disable_cxsr(dev);
+		return;
+	}
+
+	if (!planea_clock || !planeb_clock) {
+		sr_clock = planea_clock ? planea_clock : planeb_clock;
+
+		/* Display SR */
+		wm = intel_calculate_wm(sr_clock, &pineview_display_wm,
+					pixel_size, latency->display_sr);
+		reg = I915_READ(DSPFW1);
+		reg &= ~DSPFW_SR_MASK;
+		reg |= wm << DSPFW_SR_SHIFT;
+		I915_WRITE(DSPFW1, reg);
+		DRM_DEBUG_KMS("DSPFW1 register is %x\n", reg);
+
+		/* cursor SR */
+		wm = intel_calculate_wm(sr_clock, &pineview_cursor_wm,
+					pixel_size, latency->cursor_sr);
+		reg = I915_READ(DSPFW3);
+		reg &= ~DSPFW_CURSOR_SR_MASK;
+		reg |= (wm & 0x3f) << DSPFW_CURSOR_SR_SHIFT;
+		I915_WRITE(DSPFW3, reg);
+
+		/* Display HPLL off SR */
+		wm = intel_calculate_wm(sr_clock, &pineview_display_hplloff_wm,
+					pixel_size, latency->display_hpll_disable);
+		reg = I915_READ(DSPFW3);
+		reg &= ~DSPFW_HPLL_SR_MASK;
+		reg |= wm & DSPFW_HPLL_SR_MASK;
+		I915_WRITE(DSPFW3, reg);
+
+		/* cursor HPLL off SR */
+		wm = intel_calculate_wm(sr_clock, &pineview_cursor_hplloff_wm,
+					pixel_size, latency->cursor_hpll_disable);
+		reg = I915_READ(DSPFW3);
+		reg &= ~DSPFW_HPLL_CURSOR_MASK;
+		reg |= (wm & 0x3f) << DSPFW_HPLL_CURSOR_SHIFT;
+		I915_WRITE(DSPFW3, reg);
+		DRM_DEBUG_KMS("DSPFW3 register is %x\n", reg);
+
+		/* activate cxsr */
+		reg = I915_READ(DSPFW3);
+		reg |= PINEVIEW_SELF_REFRESH_EN;
+		I915_WRITE(DSPFW3, reg);
+		DRM_DEBUG_KMS("Self-refresh is enabled\n");
+	} else {
+		pineview_disable_cxsr(dev);
+		DRM_DEBUG_KMS("Self-refresh is disabled\n");
+	}
 }
 
 static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
@@ -2813,6 +3042,108 @@ static void i830_update_wm(struct drm_device *dev, int planea_clock, int unused,
 	I915_WRITE(FW_BLC, fwater_lo);
 }
 
+#define ILK_LP0_PLANE_LATENCY		700
+
+static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
+		       int planeb_clock, int sr_hdisplay, int pixel_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
+	int sr_wm, cursor_wm;
+	unsigned long line_time_us;
+	int sr_clock, entries_required;
+	u32 reg_value;
+
+	/* Calculate and update the watermark for plane A */
+	if (planea_clock) {
+		entries_required = ((planea_clock / 1000) * pixel_size *
+				     ILK_LP0_PLANE_LATENCY) / 1000;
+		entries_required = DIV_ROUND_UP(entries_required,
+				   ironlake_display_wm_info.cacheline_size);
+		planea_wm = entries_required +
+			    ironlake_display_wm_info.guard_size;
+
+		if (planea_wm > (int)ironlake_display_wm_info.max_wm)
+			planea_wm = ironlake_display_wm_info.max_wm;
+
+		cursora_wm = 16;
+		reg_value = I915_READ(WM0_PIPEA_ILK);
+		reg_value &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
+		reg_value |= (planea_wm << WM0_PIPE_PLANE_SHIFT) |
+			     (cursora_wm & WM0_PIPE_CURSOR_MASK);
+		I915_WRITE(WM0_PIPEA_ILK, reg_value);
+		DRM_DEBUG_KMS("FIFO watermarks For pipe A - plane %d, "
+				"cursor: %d\n", planea_wm, cursora_wm);
+	}
+	/* Calculate and update the watermark for plane B */
+	if (planeb_clock) {
+		entries_required = ((planeb_clock / 1000) * pixel_size *
+				     ILK_LP0_PLANE_LATENCY) / 1000;
+		entries_required = DIV_ROUND_UP(entries_required,
+				   ironlake_display_wm_info.cacheline_size);
+		planeb_wm = entries_required +
+			    ironlake_display_wm_info.guard_size;
+
+		if (planeb_wm > (int)ironlake_display_wm_info.max_wm)
+			planeb_wm = ironlake_display_wm_info.max_wm;
+
+		cursorb_wm = 16;
+		reg_value = I915_READ(WM0_PIPEB_ILK);
+		reg_value &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
+		reg_value |= (planeb_wm << WM0_PIPE_PLANE_SHIFT) |
+			     (cursorb_wm & WM0_PIPE_CURSOR_MASK);
+		I915_WRITE(WM0_PIPEB_ILK, reg_value);
+		DRM_DEBUG_KMS("FIFO watermarks For pipe B - plane %d, "
+				"cursor: %d\n", planeb_wm, cursorb_wm);
+	}
+
+	/*
+	 * Calculate and update the self-refresh watermark only when one
+	 * display plane is used.
+	 */
+	if (!planea_clock || !planeb_clock) {
+		int line_count;
+		/* Read the self-refresh latency. The unit is 0.5us */
+		int ilk_sr_latency = I915_READ(MLTR_ILK) & ILK_SRLT_MASK;
+
+		sr_clock = planea_clock ? planea_clock : planeb_clock;
+		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+
+		/* Use ns/us then divide to preserve precision */
+		line_count = ((ilk_sr_latency * 500) / line_time_us + 1000)
+			       / 1000;
+
+		/* calculate the self-refresh watermark for display plane */
+		entries_required = line_count * sr_hdisplay * pixel_size;
+		entries_required = DIV_ROUND_UP(entries_required,
+				   ironlake_display_srwm_info.cacheline_size);
+		sr_wm = entries_required +
+			ironlake_display_srwm_info.guard_size;
+
+		/* calculate the self-refresh watermark for display cursor */
+		entries_required = line_count * pixel_size * 64;
+		entries_required = DIV_ROUND_UP(entries_required,
+				   ironlake_cursor_srwm_info.cacheline_size);
+		cursor_wm = entries_required +
+			    ironlake_cursor_srwm_info.guard_size;
+
+		/* configure watermark and enable self-refresh */
+		reg_value = I915_READ(WM1_LP_ILK);
+		reg_value &= ~(WM1_LP_LATENCY_MASK | WM1_LP_SR_MASK |
+			       WM1_LP_CURSOR_MASK);
+		reg_value |= WM1_LP_SR_EN |
+			     (ilk_sr_latency << WM1_LP_LATENCY_SHIFT) |
+			     (sr_wm << WM1_LP_SR_SHIFT) | cursor_wm;
+
+		I915_WRITE(WM1_LP_ILK, reg_value);
+		DRM_DEBUG_KMS("self-refresh watermark: display plane %d "
+				"cursor %d\n", sr_wm, cursor_wm);
+
+	} else {
+		/* Turn off self refresh if both pipes are enabled */
+		I915_WRITE(WM1_LP_ILK, I915_READ(WM1_LP_ILK) & ~WM1_LP_SR_EN);
+	}
+}
 /**
  * intel_update_watermarks - update FIFO watermark values based on current modes
  *
@@ -2882,12 +3213,6 @@ static void intel_update_watermarks(struct drm_device *dev)
 	if (enabled <= 0)
 		return;
 
-	/* Single plane configs can enable self refresh */
-	if (enabled == 1 && IS_PINEVIEW(dev))
-		pineview_enable_cxsr(dev, sr_clock, pixel_size);
-	else if (IS_PINEVIEW(dev))
-		pineview_disable_cxsr(dev);
-
 	dev_priv->display.update_wm(dev, planea_clock, planeb_clock,
 				    sr_hdisplay, pixel_size);
 }
@@ -2924,7 +3249,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	bool is_edp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_connector *connector;
+	struct drm_encoder *encoder;
+	struct intel_encoder *intel_encoder = NULL;
 	const intel_limit_t *limit;
 	int ret;
 	struct fdi_m_n m_n = {0};
@@ -2935,6 +3261,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	int pch_fp_reg = (pipe == 0) ? PCH_FPA0 : PCH_FPB0;
 	int pch_dpll_reg = (pipe == 0) ? PCH_DPLL_A : PCH_DPLL_B;
 	int fdi_rx_reg = (pipe == 0) ? FDI_RXA_CTL : FDI_RXB_CTL;
+	int fdi_tx_reg = (pipe == 0) ? FDI_TXA_CTL : FDI_TXB_CTL;
+	int trans_dpll_sel = (pipe == 0) ? 0 : 1;
 	int lvds_reg = LVDS;
 	u32 temp;
 	int sdvo_pixel_multiply;
@@ -2942,11 +3270,12 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	drm_vblank_pre_modeset(dev, pipe);
 
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
 
-		if (!connector->encoder || connector->encoder->crtc != crtc)
+		if (!encoder || encoder->crtc != crtc)
 			continue;
+
+		intel_encoder = enc_to_intel_encoder(encoder);
 
 		switch (intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
@@ -3043,14 +3372,12 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* FDI link */
 	if (HAS_PCH_SPLIT(dev)) {
-		int lane, link_bw, bpp;
+		int lane = 0, link_bw, bpp;
 		/* eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
 		if (is_edp) {
-			struct drm_connector *edp;
 			target_clock = mode->clock;
-			edp = intel_pipe_get_connector(crtc);
-			intel_edp_link_config(to_intel_encoder(edp),
+			intel_edp_link_config(intel_encoder,
 					&lane, &link_bw);
 		} else {
 			/* DP over FDI requires target mode clock
@@ -3059,7 +3386,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				target_clock = mode->clock;
 			else
 				target_clock = adjusted_mode->clock;
-			lane = 4;
 			link_bw = 270000;
 		}
 
@@ -3110,6 +3436,18 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			DRM_ERROR("unknown pipe bpc value\n");
 			bpp = 24;
 		}
+
+		if (!lane) {
+			/* 
+			 * Account for spread spectrum to avoid
+			 * oversubscribing the link. Max center spread
+			 * is 2.5%; use 5% for safety's sake.
+			 */
+			u32 bps = target_clock * bpp * 21 / 20;
+			lane = bps / (link_bw * 8) + 1;
+		}
+
+		intel_crtc->fdi_lanes = lane;
 
 		ironlake_compute_m_n(bpp, lane, target_clock, link_bw, &m_n);
 	}
@@ -3265,11 +3603,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
 	}
 
-	dspcntr |= DISPLAY_PLANE_ENABLE;
-	pipeconf |= PIPEACONF_ENABLE;
-	dpll |= DPLL_VCO_ENABLE;
-
-
 	/* Disable the panel fitter if it was on our pipe */
 	if (!HAS_PCH_SPLIT(dev) && intel_panel_fitter_pipe(dev) == pipe)
 		I915_WRITE(PFIT_CONTROL, 0);
@@ -3292,6 +3625,18 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		udelay(150);
 	}
 
+	/* enable transcoder DPLL */
+	if (HAS_PCH_CPT(dev)) {
+		temp = I915_READ(PCH_DPLL_SEL);
+		if (trans_dpll_sel == 0)
+			temp |= (TRANSA_DPLL_ENABLE | TRANSA_DPLLA_SEL);
+		else
+			temp |=	(TRANSB_DPLL_ENABLE | TRANSB_DPLLB_SEL);
+		I915_WRITE(PCH_DPLL_SEL, temp);
+		I915_READ(PCH_DPLL_SEL);
+		udelay(150);
+	}
+
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
 	 * This is an exception to the general rule that mode_set doesn't turn
 	 * things on.
@@ -3303,7 +3648,18 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			lvds_reg = PCH_LVDS;
 
 		lvds = I915_READ(lvds_reg);
-		lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP | LVDS_PIPEB_SELECT;
+		lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
+		if (pipe == 1) {
+			if (HAS_PCH_CPT(dev))
+				lvds |= PORT_TRANS_B_SEL_CPT;
+			else
+				lvds |= LVDS_PIPEB_SELECT;
+		} else {
+			if (HAS_PCH_CPT(dev))
+				lvds &= ~PORT_TRANS_SEL_MASK;
+			else
+				lvds &= ~LVDS_PIPEB_SELECT;
+		}
 		/* set the corresponsding LVDS_BORDER bit */
 		lvds |= dev_priv->lvds_border_bits;
 		/* Set the B0-B3 data pairs corresponding to whether we're going to
@@ -3337,6 +3693,20 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 	if (is_dp)
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
+	else if (HAS_PCH_SPLIT(dev)) {
+		/* For non-DP output, clear any trans DP clock recovery setting.*/
+		if (pipe == 0) {
+			I915_WRITE(TRANSA_DATA_M1, 0);
+			I915_WRITE(TRANSA_DATA_N1, 0);
+			I915_WRITE(TRANSA_DP_LINK_M1, 0);
+			I915_WRITE(TRANSA_DP_LINK_N1, 0);
+		} else {
+			I915_WRITE(TRANSB_DATA_M1, 0);
+			I915_WRITE(TRANSB_DATA_N1, 0);
+			I915_WRITE(TRANSB_DP_LINK_M1, 0);
+			I915_WRITE(TRANSB_DP_LINK_N1, 0);
+		}
+	}
 
 	if (!is_edp) {
 		I915_WRITE(fp_reg, fp);
@@ -3411,6 +3781,18 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			/* enable FDI RX PLL too */
 			temp = I915_READ(fdi_rx_reg);
 			I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE);
+			I915_READ(fdi_rx_reg);
+			udelay(200);
+
+			/* enable FDI TX PLL too */
+			temp = I915_READ(fdi_tx_reg);
+			I915_WRITE(fdi_tx_reg, temp | FDI_TX_PLL_ENABLE);
+			I915_READ(fdi_tx_reg);
+
+			/* enable FDI RX PCDCLK */
+			temp = I915_READ(fdi_rx_reg);
+			I915_WRITE(fdi_rx_reg, temp | FDI_SEL_PCDCLK);
+			I915_READ(fdi_rx_reg);
 			udelay(200);
 		}
 	}
@@ -3671,6 +4053,7 @@ static struct drm_display_mode load_detect_mode = {
 };
 
 struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
+					    struct drm_connector *connector,
 					    struct drm_display_mode *mode,
 					    int *dpms_mode)
 {
@@ -3729,7 +4112,7 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	}
 
 	encoder->crtc = crtc;
-	intel_encoder->base.encoder = encoder;
+	connector->encoder = encoder;
 	intel_encoder->load_detect_temp = true;
 
 	intel_crtc = to_intel_crtc(crtc);
@@ -3755,7 +4138,8 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	return crtc;
 }
 
-void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder, int dpms_mode)
+void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
+				    struct drm_connector *connector, int dpms_mode)
 {
 	struct drm_encoder *encoder = &intel_encoder->enc;
 	struct drm_device *dev = encoder->dev;
@@ -3765,7 +4149,7 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder, int dpm
 
 	if (intel_encoder->load_detect_temp) {
 		encoder->crtc = NULL;
-		intel_encoder->base.encoder = NULL;
+		connector->encoder = NULL;
 		intel_encoder->load_detect_temp = false;
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		drm_helper_disable_unused_functions(dev);
@@ -4392,14 +4776,14 @@ struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
 	return crtc;
 }
 
-static int intel_connector_clones(struct drm_device *dev, int type_mask)
+static int intel_encoder_clones(struct drm_device *dev, int type_mask)
 {
 	int index_mask = 0;
-	struct drm_connector *connector;
+	struct drm_encoder *encoder;
 	int entry = 0;
 
-        list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+        list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 		if (type_mask & intel_encoder->clone_mask)
 			index_mask |= (1 << entry);
 		entry++;
@@ -4411,7 +4795,7 @@ static int intel_connector_clones(struct drm_device *dev, int type_mask)
 static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_connector *connector;
+	struct drm_encoder *encoder;
 
 	intel_crt_init(dev);
 
@@ -4426,9 +4810,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_dp_init(dev, DP_A);
 
 		if (I915_READ(HDMIB) & PORT_DETECTED) {
-			/* check SDVOB */
-			/* found = intel_sdvo_init(dev, HDMIB); */
-			found = 0;
+			/* PCH SDVOB multiplex with HDMIB */
+			found = intel_sdvo_init(dev, PCH_SDVOB);
 			if (!found)
 				intel_hdmi_init(dev, HDMIB);
 			if (!found && (I915_READ(PCH_DP_B) & DP_DETECTED))
@@ -4494,12 +4877,11 @@ static void intel_setup_outputs(struct drm_device *dev)
 	if (SUPPORTS_TV(dev))
 		intel_tv_init(dev);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-		struct drm_encoder *encoder = &intel_encoder->enc;
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 
 		encoder->possible_crtcs = intel_encoder->crtc_mask;
-		encoder->possible_clones = intel_connector_clones(dev,
+		encoder->possible_clones = intel_encoder_clones(dev,
 						intel_encoder->clone_mask);
 	}
 }
@@ -4732,6 +5114,25 @@ void intel_init_clock_gating(struct drm_device *dev)
 		}
 
 		I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
+
+		/*
+		 * According to the spec the following bits should be set in
+		 * order to enable memory self-refresh
+		 * The bit 22/21 of 0x42004
+		 * The bit 5 of 0x42020
+		 * The bit 15 of 0x45000
+		 */
+		if (IS_IRONLAKE(dev)) {
+			I915_WRITE(ILK_DISPLAY_CHICKEN2,
+					(I915_READ(ILK_DISPLAY_CHICKEN2) |
+					ILK_DPARB_GATE | ILK_VSDPFD_FULL));
+			I915_WRITE(ILK_DSPCLK_GATE,
+					(I915_READ(ILK_DSPCLK_GATE) |
+						ILK_DPARB_CLK_GATE));
+			I915_WRITE(DISP_ARB_CTL,
+					(I915_READ(DISP_ARB_CTL) |
+						DISP_FBC_WM_DIS));
+		}
 		return;
 	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
@@ -4847,9 +5248,31 @@ static void intel_init_display(struct drm_device *dev)
 			i830_get_display_clock_speed;
 
 	/* For FIFO watermark updates */
-	if (HAS_PCH_SPLIT(dev))
-		dev_priv->display.update_wm = NULL;
-	else if (IS_G4X(dev))
+	if (HAS_PCH_SPLIT(dev)) {
+		if (IS_IRONLAKE(dev)) {
+			if (I915_READ(MLTR_ILK) & ILK_SRLT_MASK)
+				dev_priv->display.update_wm = ironlake_update_wm;
+			else {
+				DRM_DEBUG_KMS("Failed to get proper latency. "
+					      "Disable CxSR\n");
+				dev_priv->display.update_wm = NULL;
+			}
+		} else
+			dev_priv->display.update_wm = NULL;
+	} else if (IS_PINEVIEW(dev)) {
+		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
+					    dev_priv->fsb_freq,
+					    dev_priv->mem_freq)) {
+			DRM_INFO("failed to find known CxSR latency "
+				 "(found fsb freq %d, mem freq %d), "
+				 "disabling CxSR\n",
+				 dev_priv->fsb_freq, dev_priv->mem_freq);
+			/* Disable CxSR and never update its watermark again */
+			pineview_disable_cxsr(dev);
+			dev_priv->display.update_wm = NULL;
+		} else
+			dev_priv->display.update_wm = pineview_update_wm;
+	} else if (IS_G4X(dev))
 		dev_priv->display.update_wm = g4x_update_wm;
 	else if (IS_I965G(dev))
 		dev_priv->display.update_wm = i965_update_wm;
@@ -4922,13 +5345,6 @@ void intel_modeset_init(struct drm_device *dev)
 		    (unsigned long)dev);
 
 	intel_setup_overlay(dev);
-
-	if (IS_PINEVIEW(dev) && !intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
-							dev_priv->fsb_freq,
-							dev_priv->mem_freq))
-		DRM_INFO("failed to find known CxSR latency "
-			 "(found fsb freq %d, mem freq %d), disabling CxSR\n",
-			 dev_priv->fsb_freq, dev_priv->mem_freq);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)
@@ -4973,14 +5389,29 @@ void intel_modeset_cleanup(struct drm_device *dev)
 }
 
 
-/* current intel driver doesn't take advantage of encoders
-   always give back the encoder for the connector
-*/
-struct drm_encoder *intel_best_encoder(struct drm_connector *connector)
+/*
+ * Return which encoder is currently attached for connector.
+ */
+struct drm_encoder *intel_attached_encoder (struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_mode_object *obj;
+	struct drm_encoder *encoder;
+	int i;
 
-	return &intel_encoder->enc;
+	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+		if (connector->encoder_ids[i] == 0)
+			break;
+
+		obj = drm_mode_object_find(connector->dev,
+                                           connector->encoder_ids[i],
+                                           DRM_MODE_OBJECT_ENCODER);
+		if (!obj)
+			continue;
+
+		encoder = obj_to_encoder(obj);
+		return encoder;
+	}
+	return NULL;
 }
 
 /*

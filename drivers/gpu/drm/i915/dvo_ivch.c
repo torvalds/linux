@@ -153,9 +153,6 @@ struct ivch_priv {
 	bool quiet;
 
 	uint16_t width, height;
-
-	uint16_t save_VR01;
-	uint16_t save_VR40;
 };
 
 
@@ -405,22 +402,6 @@ static void ivch_dump_regs(struct intel_dvo_device *dvo)
 	DRM_LOG_KMS("VR8F: 0x%04x\n", val);
 }
 
-static void ivch_save(struct intel_dvo_device *dvo)
-{
-	struct ivch_priv *priv = dvo->dev_priv;
-
-	ivch_read(dvo, VR01, &priv->save_VR01);
-	ivch_read(dvo, VR40, &priv->save_VR40);
-}
-
-static void ivch_restore(struct intel_dvo_device *dvo)
-{
-	struct ivch_priv *priv = dvo->dev_priv;
-
-	ivch_write(dvo, VR01, priv->save_VR01);
-	ivch_write(dvo, VR40, priv->save_VR40);
-}
-
 static void ivch_destroy(struct intel_dvo_device *dvo)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
@@ -434,8 +415,6 @@ static void ivch_destroy(struct intel_dvo_device *dvo)
 struct intel_dvo_dev_ops ivch_ops= {
 	.init = ivch_init,
 	.dpms = ivch_dpms,
-	.save = ivch_save,
-	.restore = ivch_restore,
 	.mode_valid = ivch_mode_valid,
 	.mode_set = ivch_mode_set,
 	.detect = ivch_detect,

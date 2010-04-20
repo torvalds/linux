@@ -221,6 +221,11 @@ enum no_fbc_reason {
 	FBC_NOT_TILED, /* buffer not tiled */
 };
 
+enum intel_pch {
+	PCH_IBX,	/* Ibexpeak PCH */
+	PCH_CPT,	/* Cougarpoint PCH */
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -330,6 +335,9 @@ typedef struct drm_i915_private {
 
 	/* Display functions */
 	struct drm_i915_display_funcs display;
+
+	/* PCH chipset type */
+	enum intel_pch pch_type;
 
 	/* Register state */
 	bool modeset_on_lid;
@@ -992,6 +1000,9 @@ extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
 extern void i8xx_disable_fbc(struct drm_device *dev);
 extern void g4x_disable_fbc(struct drm_device *dev);
 
+extern void intel_detect_pch (struct drm_device *dev);
+extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
+
 /**
  * Lock test for when it's just for synchronization of ring access.
  *
@@ -1123,7 +1134,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IRONLAKE(dev))
 #define SUPPORTS_EDP(dev)		(IS_IRONLAKE_M(dev))
 #define SUPPORTS_TV(dev)		(IS_I9XX(dev) && IS_MOBILE(dev) && \
-					!IS_IRONLAKE(dev) && !IS_PINEVIEW(dev))
+					!IS_IRONLAKE(dev) && !IS_PINEVIEW(dev) && \
+					!IS_GEN6(dev))
 #define I915_HAS_HOTPLUG(dev)		 (INTEL_INFO(dev)->has_hotplug)
 /* dsparb controlled by hw only */
 #define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IRONLAKE(dev))
@@ -1135,6 +1147,9 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define HAS_PCH_SPLIT(dev) (IS_IRONLAKE(dev) ||	\
 			    IS_GEN6(dev))
+
+#define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
+#define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

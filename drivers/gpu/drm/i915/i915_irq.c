@@ -169,9 +169,13 @@ void intel_enable_asle (struct drm_device *dev)
 
 	if (HAS_PCH_SPLIT(dev))
 		ironlake_enable_display_irq(dev_priv, DE_GSE);
-	else
+	else {
 		i915_enable_pipestat(dev_priv, 1,
 				     I915_LEGACY_BLC_EVENT_ENABLE);
+		if (IS_I965G(dev))
+			i915_enable_pipestat(dev_priv, 0,
+					     I915_LEGACY_BLC_EVENT_ENABLE);
+	}
 }
 
 /**
@@ -256,11 +260,11 @@ static void i915_hotplug_work_func(struct work_struct *work)
 						    hotplug_work);
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_connector *connector;
+	struct drm_encoder *encoder;
 
-	if (mode_config->num_connector) {
-		list_for_each_entry(connector, &mode_config->connector_list, head) {
-			struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	if (mode_config->num_encoder) {
+		list_for_each_entry(encoder, &mode_config->encoder_list, head) {
+			struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	
 			if (intel_encoder->hot_plug)
 				(*intel_encoder->hot_plug) (intel_encoder);
@@ -946,7 +950,8 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 			intel_finish_page_flip(dev, 1);
 		}
 
-		if ((pipeb_stats & I915_LEGACY_BLC_EVENT_STATUS) ||
+		if ((pipea_stats & I915_LEGACY_BLC_EVENT_STATUS) ||
+		    (pipeb_stats & I915_LEGACY_BLC_EVENT_STATUS) ||
 		    (iir & I915_ASLE_INTERRUPT))
 			opregion_asle_intr(dev);
 
