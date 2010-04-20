@@ -2784,9 +2784,18 @@ static int wm8994_get_fll_config(struct fll_div *fll,
 
 	if (freq_in > 1000000) {
 		fll->fll_fratio = 0;
-	} else {
+	} else if (freq_in > 256000) {
+		fll->fll_fratio = 1;
+		freq_in *= 2;
+	} else if (freq_in > 128000) {
+		fll->fll_fratio = 2;
+		freq_in *= 4;
+	} else if (freq_in > 64000) {
 		fll->fll_fratio = 3;
 		freq_in *= 8;
+	} else {
+		fll->fll_fratio = 4;
+		freq_in *= 16;
 	}
 	pr_debug("FLL_FRATIO=%d, Fref=%dHz\n", fll->fll_fratio, freq_in);
 
