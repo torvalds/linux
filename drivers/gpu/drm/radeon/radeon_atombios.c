@@ -1462,6 +1462,10 @@ static const char *pp_lib_thermal_controller_names[] = {
 	"RV6xx",
 	"RV770",
 	"ADT7473",
+	"External GPIO",
+	"Evergreen",
+	"ADT7473 with internal",
+
 };
 
 union power_info {
@@ -1707,15 +1711,21 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					break;
 				}
 			}
-		} else if (frev == 4) {
+		} else {
 			/* add the i2c bus for thermal/fan chip */
 			/* no support for internal controller yet */
 			if (power_info->info_4.sThermalController.ucType > 0) {
 				if ((power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) ||
-				    (power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_RV770)) {
+				    (power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_RV770) ||
+				    (power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_EVERGREEN)) {
 					DRM_INFO("Internal thermal controller %s fan control\n",
 						 (power_info->info_4.sThermalController.ucFanParameters &
 						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				} else if ((power_info->info_4.sThermalController.ucType ==
+					    ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) ||
+					   (power_info->info_4.sThermalController.ucType ==
+					    ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL)) {
+					DRM_INFO("Special thermal controller config\n");
 				} else {
 					DRM_INFO("Possible %s thermal controller at 0x%02x %s fan control\n",
 						 pp_lib_thermal_controller_names[power_info->info_4.sThermalController.ucType],
@@ -1762,6 +1772,36 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 							VOLTAGE_SW;
 						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
 							clock_info->usVDDC;
+						mode_index++;
+					} else if (ASIC_IS_DCE4(rdev)) {
+						struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO *clock_info =
+							(struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO *)
+							(mode_info->atom_context->bios +
+							 data_offset +
+							 le16_to_cpu(power_info->info_4.usClockInfoArrayOffset) +
+							 (power_state->ucClockStateIndices[j] *
+							  power_info->info_4.ucClockInfoSize));
+						sclk = le16_to_cpu(clock_info->usEngineClockLow);
+						sclk |= clock_info->ucEngineClockHigh << 16;
+						mclk = le16_to_cpu(clock_info->usMemoryClockLow);
+						mclk |= clock_info->ucMemoryClockHigh << 16;
+						rdev->pm.power_state[state_index].clock_info[mode_index].mclk = mclk;
+						rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
+						/* skip invalid modes */
+						if ((rdev->pm.power_state[state_index].clock_info[mode_index].mclk == 0) ||
+						    (rdev->pm.power_state[state_index].clock_info[mode_index].sclk == 0))
+							continue;
+						/* skip overclock modes for now */
+						if ((rdev->pm.power_state[state_index].clock_info[mode_index].mclk >
+						     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
+						    (rdev->pm.power_state[state_index].clock_info[mode_index].sclk >
+						     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
+							continue;
+						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
+							VOLTAGE_SW;
+						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
+							clock_info->usVDDC;
+						/* XXX usVDDCI */
 						mode_index++;
 					} else {
 						struct _ATOM_PPLIB_R600_CLOCK_INFO *clock_info =
