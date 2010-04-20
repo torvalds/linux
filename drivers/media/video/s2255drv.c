@@ -229,7 +229,7 @@ struct s2255_fmt; /*forward declaration */
 
 struct s2255_dev {
 	struct video_device	vdev[MAX_CHANNELS];
-	struct v4l2_device 	v4l2_dev[MAX_CHANNELS];
+	struct v4l2_device 	v4l2_dev;
 	int                     channels; /* number of channels registered */
 	int			frames;
 	struct mutex		lock;
@@ -278,7 +278,14 @@ struct s2255_dev {
 	u16                     pid; /* product id */
 	struct kref		kref;
 };
-#define to_s2255_dev(d) container_of(d, struct s2255_dev, kref)
+
+/* kref will be removed soon */
+#define to_s2255_dev_from_kref(d) container_of(d, struct s2255_dev, kref)
+
+static inline struct s2255_dev *to_s2255_dev(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct s2255_dev, v4l2_dev);
+}
 
 struct s2255_fmt {
 	char *name;
@@ -1829,7 +1836,7 @@ static unsigned int s2255_poll(struct file *file,
 
 static void s2255_destroy(struct kref *kref)
 {
-	struct s2255_dev *dev = to_s2255_dev(kref);
+	struct s2255_dev *dev = to_s2255_dev_from_kref(kref);
 	/* board shutdown stops the read pipe if it is running */
 	s2255_board_shutdown(dev);
 	/* make sure firmware still not trying to load */
@@ -1947,11 +1954,9 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 	int ret;
 	int i;
 	int cur_nr = video_nr;
-	for (i = 0; i < MAX_CHANNELS; i++) {
-		ret = v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev[i]);
-		if (ret)
-			goto unreg_v4l2;
-	}
+	ret = v4l2_device_register(&dev->interface->dev, &dev->v4l2_dev);
+	if (ret)
+		return ret;
 	/* initialize all video 4 linux */
 	/* register 4 video devices */
 	for (i = 0; i < MAX_CHANNELS; i++) {
@@ -1976,7 +1981,7 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 			break;
 		}
 		dev->channels++;
-		v4l2_info(&dev->v4l2_dev[i], "V4L2 device registered as %s\n",
+		v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
 			  video_device_node_name(&dev->vdev[i]));
 
 	}
@@ -1985,15 +1990,13 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 	       S2255_MAJOR_VERSION,
 	       S2255_MINOR_VERSION);
 	/* if no channels registered, return error and probe will fail*/
-	if (dev->channels == 0)
+	if (dev->channels == 0) {
+		v4l2_device_unregister(&dev->v4l2_dev);
 		return ret;
+	}
 	if (dev->channels != MAX_CHANNELS)
 		printk(KERN_WARNING "s2255: Not all channels available.\n");
 	return 0;
-unreg_v4l2:
-	for (i-- ; i > 0; i--)
-		v4l2_device_unregister(&dev->v4l2_dev[i]);
-	return ret;
 }
 
 /* this function moves the usb stream read pipe data
@@ -2596,8 +2599,6 @@ static int s2255_probe(struct usb_interface *interface,
 		dev_err(&interface->dev, "Could not find bulk-in endpoint\n");
 		goto errorEP;
 	}
-	/* set intfdata */
-	usb_set_intfdata(interface, dev);
 	init_timer(&dev->timer);
 	dev->timer.function = s2255_timer;
 	dev->timer.data = (unsigned long)dev->fw_data;
@@ -2682,13 +2683,12 @@ errorFWDATA1:
 	return retval;
 }
 
-
 /* disconnect routine. when board is removed physically or with rmmod */
 static void s2255_disconnect(struct usb_interface *interface)
 {
-	struct s2255_dev *dev = NULL;
+	struct s2255_dev *dev = to_s2255_dev(usb_get_intfdata(interface));
 	int i;
-	dev = usb_get_intfdata(interface);
+	v4l2_device_unregister(&dev->v4l2_dev);
 	/* unregister each video device. */
 	for (i = 0; i < MAX_CHANNELS; i++)
 		if (video_is_registered(&dev->vdev[i]))
@@ -2702,7 +2702,6 @@ static void s2255_disconnect(struct usb_interface *interface)
 		dev->vidstatus_ready[i] = 1;
 		wake_up(&dev->wait_vidstatus[i]);
 	}
-	usb_set_intfdata(interface, NULL);
 	kref_put(&dev->kref, s2255_destroy);
 	dev_info(&interface->dev, "%s\n", __func__);
 }
