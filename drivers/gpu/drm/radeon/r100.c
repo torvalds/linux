@@ -2036,11 +2036,6 @@ void r100_vram_init_sizes(struct radeon_device *rdev)
 		else
 			rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
 	}
-	/* FIXME remove this once we support unmappable VRAM */
-	if (rdev->mc.mc_vram_size > rdev->mc.aper_size) {
-		rdev->mc.mc_vram_size = rdev->mc.aper_size;
-		rdev->mc.real_vram_size = rdev->mc.aper_size;
-	}
 }
 
 void r100_vga_set_state(struct radeon_device *rdev, bool state)

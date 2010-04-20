@@ -66,6 +66,26 @@ struct ttm_placement {
 	const uint32_t	*busy_placement;
 };
 
+/**
+ * struct ttm_bus_placement
+ *
+ * @addr:		mapped virtual address
+ * @base:		bus base address
+ * @is_iomem:		is this io memory ?
+ * @size:		size in byte
+ * @offset:		offset from the base address
+ *
+ * Structure indicating the bus placement of an object.
+ */
+struct ttm_bus_placement {
+	void		*addr;
+	unsigned long	base;
+	unsigned long	size;
+	unsigned long	offset;
+	bool		is_iomem;
+	bool		io_reserved;
+};
+
 
 /**
  * struct ttm_mem_reg
@@ -75,6 +95,7 @@ struct ttm_placement {
  * @num_pages: Actual size of memory region in pages.
  * @page_alignment: Page alignment.
  * @placement: Placement flags.
+ * @bus: Placement on io bus accessible to the CPU
  *
  * Structure indicating the placement and space resources used by a
  * buffer object.
@@ -87,6 +108,7 @@ struct ttm_mem_reg {
 	uint32_t page_alignment;
 	uint32_t mem_type;
 	uint32_t placement;
+	struct ttm_bus_placement bus;
 };
 
 /**
@@ -274,6 +296,7 @@ struct ttm_bo_kmap_obj {
 		ttm_bo_map_kmap         = 3,
 		ttm_bo_map_premapped    = 4 | TTM_BO_MAP_IOMEM_MASK,
 	} bo_kmap_type;
+	struct ttm_buffer_object *bo;
 };
 
 /**
@@ -313,7 +336,8 @@ extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
  * @bo: The buffer object.
  * @placement: Proposed placement for the buffer object.
  * @interruptible: Sleep interruptible if sleeping.
- * @no_wait: Return immediately if the buffer is busy.
+ * @no_wait_reserve: Return immediately if other buffers are busy.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
  *
  * Changes placement and caching policy of the buffer object
  * according proposed placement.
@@ -325,7 +349,8 @@ extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
  */
 extern int ttm_bo_validate(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement,
-				bool interruptible, bool no_wait);
+				bool interruptible, bool no_wait_reserve,
+				bool no_wait_gpu);
 
 /**
  * ttm_bo_unref
