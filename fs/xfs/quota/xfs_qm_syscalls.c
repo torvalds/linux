@@ -200,7 +200,7 @@ xfs_qm_scall_quotaoff(
 	 * So, if we couldn't purge all the dquots from the filesystem,
 	 * we can't get rid of the incore data structures.
 	 */
-	while ((nculprits = xfs_qm_dqpurge_all(mp, dqtype|XFS_QMOPT_QUOTAOFF)))
+	while ((nculprits = xfs_qm_dqpurge_all(mp, dqtype)))
 		delay(10 * nculprits);
 
 	/*
