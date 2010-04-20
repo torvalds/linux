@@ -333,7 +333,7 @@ static struct device_attribute connector_attrs_opt1[] = {
 static struct bin_attribute edid_attr = {
 	.attr.name = "edid",
 	.attr.mode = 0444,
-	.size = 128,
+	.size = 0,
 	.read = edid_show,
 };
 
