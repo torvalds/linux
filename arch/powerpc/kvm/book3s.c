@@ -873,6 +873,9 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		vcpu->stat.ext_intr_exits++;
 		r = RESUME_GUEST;
 		break;
+	case BOOK3S_INTERRUPT_PERFMON:
+		r = RESUME_GUEST;
+		break;
 	case BOOK3S_INTERRUPT_PROGRAM:
 	{
 		enum emulation_result er;

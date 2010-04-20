@@ -228,6 +228,8 @@ no_dcbz32_off:
 	beq	call_linux_handler
 	cmpwi	r12, BOOK3S_INTERRUPT_DECREMENTER
 	beq	call_linux_handler
+	cmpwi	r12, BOOK3S_INTERRUPT_PERFMON
+	beq	call_linux_handler
 
 	/* Back to EE=1 */
 	mtmsr	r6
