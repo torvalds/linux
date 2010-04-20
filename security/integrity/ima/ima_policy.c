@@ -264,7 +264,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_INTEGRITY_RULE);
 
 	entry->uid = -1;
-	entry->action = -1;
+	entry->action = UNKNOWN;
 	while ((p = strsep(&rule, " ")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
 		int token;
