@@ -39,6 +39,7 @@
 #include "ttm/ttm_module.h"
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_placement.h"
+#include "ttm/ttm_page_alloc.h"
 
 static int ttm_tt_swapin(struct ttm_tt *ttm);
 
@@ -54,21 +55,6 @@ static void ttm_tt_free_page_directory(struct ttm_tt *ttm)
 {
 	drm_free_large(ttm->pages);
 	ttm->pages = NULL;
-}
-
-static struct page *ttm_tt_alloc_page(unsigned page_flags)
-{
-	gfp_t gfp_flags = GFP_USER;
-
-	if (page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
-		gfp_flags |= __GFP_ZERO;
-
-	if (page_flags & TTM_PAGE_FLAG_DMA32)
-		gfp_flags |= __GFP_DMA32;
-	else
-		gfp_flags |= __GFP_HIGHMEM;
-
-	return alloc_page(gfp_flags);
 }
 
 static void ttm_tt_free_user_pages(struct ttm_tt *ttm)
@@ -111,14 +97,20 @@ static void ttm_tt_free_user_pages(struct ttm_tt *ttm)
 static struct page *__ttm_tt_get_page(struct ttm_tt *ttm, int index)
 {
 	struct page *p;
+	struct list_head h;
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
 	int ret;
 
 	while (NULL == (p = ttm->pages[index])) {
-		p = ttm_tt_alloc_page(ttm->page_flags);
 
-		if (!p)
+		INIT_LIST_HEAD(&h);
+
+		ret = ttm_get_pages(&h, ttm->page_flags, ttm->caching_state, 1);
+
+		if (ret != 0)
 			return NULL;
+
+		p = list_first_entry(&h, struct page, lru);
 
 		ret = ttm_mem_global_alloc_page(mem_glob, p, false, false);
 		if (unlikely(ret != 0))
@@ -228,10 +220,10 @@ static int ttm_tt_set_caching(struct ttm_tt *ttm,
 	if (ttm->caching_state == c_state)
 		return 0;
 
-	if (c_state != tt_cached) {
-		ret = ttm_tt_populate(ttm);
-		if (unlikely(ret != 0))
-			return ret;
+	if (ttm->state == tt_unpopulated) {
+		/* Change caching but don't populate */
+		ttm->caching_state = c_state;
+		return 0;
 	}
 
 	if (ttm->caching_state == tt_cached)
@@ -282,13 +274,17 @@ EXPORT_SYMBOL(ttm_tt_set_placement_caching);
 static void ttm_tt_free_alloced_pages(struct ttm_tt *ttm)
 {
 	int i;
+	unsigned count = 0;
+	struct list_head h;
 	struct page *cur_page;
 	struct ttm_backend *be = ttm->be;
 
+	INIT_LIST_HEAD(&h);
+
 	if (be)
 		be->func->clear(be);
-	(void)ttm_tt_set_caching(ttm, tt_cached);
 	for (i = 0; i < ttm->num_pages; ++i) {
+
 		cur_page = ttm->pages[i];
 		ttm->pages[i] = NULL;
 		if (cur_page) {
@@ -298,9 +294,11 @@ static void ttm_tt_free_alloced_pages(struct ttm_tt *ttm)
 				       "Leaking pages.\n");
 			ttm_mem_global_free_page(ttm->glob->mem_glob,
 						 cur_page);
-			__free_page(cur_page);
+			list_add(&cur_page->lru, &h);
+			count++;
 		}
 	}
+	ttm_put_pages(&h, count, ttm->page_flags, ttm->caching_state);
 	ttm->state = tt_unpopulated;
 	ttm->first_himem_page = ttm->num_pages;
 	ttm->last_lomem_page = -1;
