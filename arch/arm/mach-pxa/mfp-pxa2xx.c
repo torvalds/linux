@@ -178,8 +178,17 @@ int gpio_set_wake(unsigned int gpio, unsigned int on)
 	if (!d->valid)
 		return -EINVAL;
 
-	if (d->keypad_gpio)
-		return -EINVAL;
+	/* Allow keypad GPIOs to wakeup system when
+	 * configured as generic GPIOs.
+	 */
+	if (d->keypad_gpio && (MFP_AF(d->config) == 0) &&
+	    (d->config & MFP_LPM_CAN_WAKEUP)) {
+		if (on)
+			PKWR |= d->mask;
+		else
+			PKWR &= ~d->mask;
+		return 0;
+	}
 
 	mux_taken = (PWER & d->mux_mask) & (~d->mask);
 	if (on && mux_taken)
@@ -239,21 +248,25 @@ static int pxa27x_pkwr_gpio[] = {
 int keypad_set_wake(unsigned int on)
 {
 	unsigned int i, gpio, mask = 0;
-
-	if (!on) {
-		PKWR = 0;
-		return 0;
-	}
+	struct gpio_desc *d;
 
 	for (i = 0; i < ARRAY_SIZE(pxa27x_pkwr_gpio); i++) {
 
 		gpio = pxa27x_pkwr_gpio[i];
+		d = &gpio_desc[gpio];
 
-		if (gpio_desc[gpio].config & MFP_LPM_CAN_WAKEUP)
+		/* skip if configured as generic GPIO */
+		if (MFP_AF(d->config) == 0)
+			continue;
+
+		if (d->config & MFP_LPM_CAN_WAKEUP)
 			mask |= gpio_desc[gpio].mask;
 	}
 
-	PKWR = mask;
+	if (on)
+		PKWR |= mask;
+	else
+		PKWR &= ~mask;
 	return 0;
 }
 
