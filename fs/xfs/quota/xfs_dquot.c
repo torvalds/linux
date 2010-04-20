@@ -252,7 +252,7 @@ xfs_qm_adjust_dqtimers(
 		     (be64_to_cpu(d->d_bcount) >=
 		      be64_to_cpu(d->d_blk_hardlimit)))) {
 			d->d_btimer = cpu_to_be32(get_seconds() +
-					XFS_QI_BTIMELIMIT(mp));
+					mp->m_quotainfo->qi_btimelimit);
 		} else {
 			d->d_bwarns = 0;
 		}
@@ -275,7 +275,7 @@ xfs_qm_adjust_dqtimers(
 		     (be64_to_cpu(d->d_icount) >=
 		      be64_to_cpu(d->d_ino_hardlimit)))) {
 			d->d_itimer = cpu_to_be32(get_seconds() +
-					XFS_QI_ITIMELIMIT(mp));
+					mp->m_quotainfo->qi_itimelimit);
 		} else {
 			d->d_iwarns = 0;
 		}
@@ -298,7 +298,7 @@ xfs_qm_adjust_dqtimers(
 		     (be64_to_cpu(d->d_rtbcount) >=
 		      be64_to_cpu(d->d_rtb_hardlimit)))) {
 			d->d_rtbtimer = cpu_to_be32(get_seconds() +
-					XFS_QI_RTBTIMELIMIT(mp));
+					mp->m_quotainfo->qi_rtbtimelimit);
 		} else {
 			d->d_rtbwarns = 0;
 		}
@@ -325,6 +325,7 @@ xfs_qm_init_dquot_blk(
 	uint		type,
 	xfs_buf_t	*bp)
 {
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	xfs_dqblk_t	*d;
 	int		curid, i;
 
@@ -337,16 +338,16 @@ xfs_qm_init_dquot_blk(
 	/*
 	 * ID of the first dquot in the block - id's are zero based.
 	 */
-	curid = id - (id % XFS_QM_DQPERBLK(mp));
+	curid = id - (id % q->qi_dqperchunk);
 	ASSERT(curid >= 0);
-	memset(d, 0, BBTOB(XFS_QI_DQCHUNKLEN(mp)));
-	for (i = 0; i < XFS_QM_DQPERBLK(mp); i++, d++, curid++)
+	memset(d, 0, BBTOB(q->qi_dqchunklen));
+	for (i = 0; i < q->qi_dqperchunk; i++, d++, curid++)
 		xfs_qm_dqinit_core(curid, type, d);
 	xfs_trans_dquot_buf(tp, bp,
 			    (type & XFS_DQ_USER ? XFS_BLI_UDQUOT_BUF :
 			    ((type & XFS_DQ_PROJ) ? XFS_BLI_PDQUOT_BUF :
 			     XFS_BLI_GDQUOT_BUF)));
-	xfs_trans_log_buf(tp, bp, 0, BBTOB(XFS_QI_DQCHUNKLEN(mp)) - 1);
+	xfs_trans_log_buf(tp, bp, 0, BBTOB(q->qi_dqchunklen) - 1);
 }
 
 
@@ -419,7 +420,7 @@ xfs_qm_dqalloc(
 	/* now we can just get the buffer (there's nothing to read yet) */
 	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp,
 			       dqp->q_blkno,
-			       XFS_QI_DQCHUNKLEN(mp),
+			       mp->m_quotainfo->qi_dqchunklen,
 			       0);
 	if (!bp || (error = XFS_BUF_GETERROR(bp)))
 		goto error1;
@@ -500,7 +501,8 @@ xfs_qm_dqtobp(
 	 */
 	if (dqp->q_blkno == (xfs_daddr_t) 0) {
 		/* We use the id as an index */
-		dqp->q_fileoffset = (xfs_fileoff_t)id / XFS_QM_DQPERBLK(mp);
+		dqp->q_fileoffset = (xfs_fileoff_t)id /
+					mp->m_quotainfo->qi_dqperchunk;
 		nmaps = 1;
 		quotip = XFS_DQ_TO_QIP(dqp);
 		xfs_ilock(quotip, XFS_ILOCK_SHARED);
@@ -529,7 +531,7 @@ xfs_qm_dqtobp(
 		/*
 		 * offset of dquot in the (fixed sized) dquot chunk.
 		 */
-		dqp->q_bufoffset = (id % XFS_QM_DQPERBLK(mp)) *
+		dqp->q_bufoffset = (id % mp->m_quotainfo->qi_dqperchunk) *
 			sizeof(xfs_dqblk_t);
 		if (map.br_startblock == HOLESTARTBLOCK) {
 			/*
@@ -559,15 +561,13 @@ xfs_qm_dqtobp(
 	 * Read in the buffer, unless we've just done the allocation
 	 * (in which case we already have the buf).
 	 */
-	if (! newdquot) {
+	if (!newdquot) {
 		trace_xfs_dqtobp_read(dqp);
 
-		if ((error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
-					       dqp->q_blkno,
-					       XFS_QI_DQCHUNKLEN(mp),
-					       0, &bp))) {
-			return (error);
-		}
+		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
+					   dqp->q_blkno,
+					   mp->m_quotainfo->qi_dqchunklen,
+					   0, &bp);
 		if (error || !bp)
 			return XFS_ERROR(error);
 	}
@@ -689,14 +689,14 @@ xfs_qm_idtodq(
 	tp = NULL;
 	if (flags & XFS_QMOPT_DQALLOC) {
 		tp = xfs_trans_alloc(mp, XFS_TRANS_QM_DQALLOC);
-		if ((error = xfs_trans_reserve(tp,
-				       XFS_QM_DQALLOC_SPACE_RES(mp),
-				       XFS_WRITE_LOG_RES(mp) +
-					      BBTOB(XFS_QI_DQCHUNKLEN(mp)) - 1 +
-					      128,
-				       0,
-				       XFS_TRANS_PERM_LOG_RES,
-				       XFS_WRITE_LOG_COUNT))) {
+		error = xfs_trans_reserve(tp, XFS_QM_DQALLOC_SPACE_RES(mp),
+				XFS_WRITE_LOG_RES(mp) +
+				BBTOB(mp->m_quotainfo->qi_dqchunklen) - 1 +
+				128,
+				0,
+				XFS_TRANS_PERM_LOG_RES,
+				XFS_WRITE_LOG_COUNT);
+		if (error) {
 			cancelflags = 0;
 			goto error0;
 		}
@@ -1495,6 +1495,7 @@ void
 xfs_qm_dqflock_pushbuf_wait(
 	xfs_dquot_t	*dqp)
 {
+	xfs_mount_t	*mp = dqp->q_mount;
 	xfs_buf_t	*bp;
 
 	/*
@@ -1503,14 +1504,14 @@ xfs_qm_dqflock_pushbuf_wait(
 	 * out immediately.  We'll be able to acquire
 	 * the flush lock when the I/O completes.
 	 */
-	bp = xfs_incore(dqp->q_mount->m_ddev_targp, dqp->q_blkno,
-		    XFS_QI_DQCHUNKLEN(dqp->q_mount), XBF_TRYLOCK);
+	bp = xfs_incore(mp->m_ddev_targp, dqp->q_blkno,
+			mp->m_quotainfo->qi_dqchunklen, XBF_TRYLOCK);
 	if (!bp)
 		goto out_lock;
 
 	if (XFS_BUF_ISDELAYWRITE(bp)) {
 		if (XFS_BUF_ISPINNED(bp))
-			xfs_log_force(dqp->q_mount, 0);
+			xfs_log_force(mp, 0);
 		xfs_buf_delwri_promote(bp);
 		wake_up_process(bp->b_target->bt_task);
 	}

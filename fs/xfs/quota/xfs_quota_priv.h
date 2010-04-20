@@ -24,21 +24,7 @@
  */
 #define XFS_DQITER_MAP_SIZE	10
 
-/* Number of dquots that fit in to a dquot block */
-#define XFS_QM_DQPERBLK(mp)	((mp)->m_quotainfo->qi_dqperchunk)
-
 #define XFS_DQ_IS_ADDEDTO_TRX(t, d)	((d)->q_transp == (t))
-
-#define XFS_QI_UQIP(mp)		((mp)->m_quotainfo->qi_uquotaip)
-#define XFS_QI_GQIP(mp)		((mp)->m_quotainfo->qi_gquotaip)
-#define XFS_QI_DQCHUNKLEN(mp)	((mp)->m_quotainfo->qi_dqchunklen)
-#define XFS_QI_BTIMELIMIT(mp)	((mp)->m_quotainfo->qi_btimelimit)
-#define XFS_QI_RTBTIMELIMIT(mp) ((mp)->m_quotainfo->qi_rtbtimelimit)
-#define XFS_QI_ITIMELIMIT(mp)	((mp)->m_quotainfo->qi_itimelimit)
-#define XFS_QI_BWARNLIMIT(mp)	((mp)->m_quotainfo->qi_bwarnlimit)
-#define XFS_QI_RTBWARNLIMIT(mp)	((mp)->m_quotainfo->qi_rtbwarnlimit)
-#define XFS_QI_IWARNLIMIT(mp)	((mp)->m_quotainfo->qi_iwarnlimit)
-#define XFS_QI_QOFFLOCK(mp)	((mp)->m_quotainfo->qi_quotaofflock)
 
 /*
  * Hash into a bucket in the dquot hash table, based on <mp, id>.

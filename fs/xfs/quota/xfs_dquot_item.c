@@ -227,7 +227,7 @@ xfs_qm_dquot_logitem_pushbuf(
 	}
 	mp = dqp->q_mount;
 	bp = xfs_incore(mp->m_ddev_targp, qip->qli_format.qlf_blkno,
-		    XFS_QI_DQCHUNKLEN(mp), XBF_TRYLOCK);
+			mp->m_quotainfo->qi_dqchunklen, XBF_TRYLOCK);
 	xfs_dqunlock(dqp);
 	if (!bp)
 		return;
