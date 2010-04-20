@@ -2189,13 +2189,13 @@ static void wm8994_update_class_w(struct snd_soc_codec *codec)
 	/* Only support direct DAC->headphone paths */
 	reg = snd_soc_read(codec, WM8994_OUTPUT_MIXER_1);
 	if (!(reg & WM8994_DAC1L_TO_HPOUT1L)) {
-		dev_dbg(codec->dev, "HPL connected to output mixer\n");
+		dev_vdbg(codec->dev, "HPL connected to output mixer\n");
 		enable = 0;
 	}
 
 	reg = snd_soc_read(codec, WM8994_OUTPUT_MIXER_2);
 	if (!(reg & WM8994_DAC1R_TO_HPOUT1R)) {
-		dev_dbg(codec->dev, "HPR connected to output mixer\n");
+		dev_vdbg(codec->dev, "HPR connected to output mixer\n");
 		enable = 0;
 	}
 
@@ -2203,26 +2203,26 @@ static void wm8994_update_class_w(struct snd_soc_codec *codec)
 	reg = snd_soc_read(codec, WM8994_DAC1_LEFT_MIXER_ROUTING);
 	switch (reg) {
 	case WM8994_AIF2DACL_TO_DAC1L:
-		dev_dbg(codec->dev, "Class W source AIF2DAC\n");
+		dev_vdbg(codec->dev, "Class W source AIF2DAC\n");
 		source = 2 << WM8994_CP_DYN_SRC_SEL_SHIFT;
 		break;
 	case WM8994_AIF1DAC2L_TO_DAC1L:
-		dev_dbg(codec->dev, "Class W source AIF1DAC2\n");
+		dev_vdbg(codec->dev, "Class W source AIF1DAC2\n");
 		source = 1 << WM8994_CP_DYN_SRC_SEL_SHIFT;
 		break;
 	case WM8994_AIF1DAC1L_TO_DAC1L:
-		dev_dbg(codec->dev, "Class W source AIF1DAC1\n");
+		dev_vdbg(codec->dev, "Class W source AIF1DAC1\n");
 		source = 0 << WM8994_CP_DYN_SRC_SEL_SHIFT;
 		break;
 	default:
-		dev_dbg(codec->dev, "DAC mixer setting: %x\n", reg);
+		dev_vdbg(codec->dev, "DAC mixer setting: %x\n", reg);
 		enable = 0;
 		break;
 	}
 
 	reg_r = snd_soc_read(codec, WM8994_DAC1_RIGHT_MIXER_ROUTING);
 	if (reg_r != reg) {
-		dev_dbg(codec->dev, "Left and right DAC mixers different\n");
+		dev_vdbg(codec->dev, "Left and right DAC mixers different\n");
 		enable = 0;
 	}
 
