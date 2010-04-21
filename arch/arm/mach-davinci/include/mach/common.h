@@ -12,6 +12,9 @@
 #ifndef __ARCH_ARM_MACH_DAVINCI_COMMON_H
 #define __ARCH_ARM_MACH_DAVINCI_COMMON_H
 
+#include <linux/compiler.h>
+#include <linux/types.h>
+
 struct sys_timer;
 
 extern struct sys_timer davinci_timer;
