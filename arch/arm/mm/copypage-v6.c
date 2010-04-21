@@ -41,14 +41,7 @@ static void v6_copy_user_highpage_nonaliasing(struct page *to,
 	kfrom = kmap_atomic(from, KM_USER0);
 	kto = kmap_atomic(to, KM_USER1);
 	copy_page(kto, kfrom);
-#ifdef CONFIG_HIGHMEM
-	/*
-	 * kmap_atomic() doesn't set the page virtual address, and
-	 * kunmap_atomic() takes care of cache flushing already.
-	 */
-	if (page_address(to) != NULL)
-#endif
-		__cpuc_flush_dcache_area(kto, PAGE_SIZE);
+	__cpuc_flush_dcache_area(kto, PAGE_SIZE);
 	kunmap_atomic(kto, KM_USER1);
 	kunmap_atomic(kfrom, KM_USER0);
 }

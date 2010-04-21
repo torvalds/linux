@@ -163,7 +163,7 @@ fast_shmem_read(struct page **pages,
 static int i915_gem_object_needs_bit17_swizzle(struct drm_gem_object *obj)
 {
 	drm_i915_private_t *dev_priv = obj->dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
 		obj_priv->tiling_mode != I915_TILING_NONE;
@@ -264,7 +264,7 @@ i915_gem_shmem_pread_fast(struct drm_device *dev, struct drm_gem_object *obj,
 			  struct drm_i915_gem_pread *args,
 			  struct drm_file *file_priv)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	ssize_t remain;
 	loff_t offset, page_base;
 	char __user *user_data;
@@ -285,7 +285,7 @@ i915_gem_shmem_pread_fast(struct drm_device *dev, struct drm_gem_object *obj,
 	if (ret != 0)
 		goto fail_put_pages;
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	offset = args->offset;
 
 	while (remain > 0) {
@@ -354,7 +354,7 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 			  struct drm_i915_gem_pread *args,
 			  struct drm_file *file_priv)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct mm_struct *mm = current->mm;
 	struct page **user_pages;
 	ssize_t remain;
@@ -403,7 +403,7 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	if (ret != 0)
 		goto fail_put_pages;
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	offset = args->offset;
 
 	while (remain > 0) {
@@ -479,7 +479,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
 		return -EBADF;
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	/* Bounds check source.
 	 *
@@ -581,7 +581,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev, struct drm_gem_object *obj,
 			 struct drm_i915_gem_pwrite *args,
 			 struct drm_file *file_priv)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	ssize_t remain;
 	loff_t offset, page_base;
@@ -605,7 +605,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev, struct drm_gem_object *obj,
 	if (ret)
 		goto fail;
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	offset = obj_priv->gtt_offset + args->offset;
 
 	while (remain > 0) {
@@ -655,7 +655,7 @@ i915_gem_gtt_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 			 struct drm_i915_gem_pwrite *args,
 			 struct drm_file *file_priv)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	ssize_t remain;
 	loff_t gtt_page_base, offset;
@@ -699,7 +699,7 @@ i915_gem_gtt_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	if (ret)
 		goto out_unpin_object;
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	offset = obj_priv->gtt_offset + args->offset;
 
 	while (remain > 0) {
@@ -761,7 +761,7 @@ i915_gem_shmem_pwrite_fast(struct drm_device *dev, struct drm_gem_object *obj,
 			   struct drm_i915_gem_pwrite *args,
 			   struct drm_file *file_priv)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	ssize_t remain;
 	loff_t offset, page_base;
 	char __user *user_data;
@@ -781,7 +781,7 @@ i915_gem_shmem_pwrite_fast(struct drm_device *dev, struct drm_gem_object *obj,
 	if (ret != 0)
 		goto fail_put_pages;
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	offset = args->offset;
 	obj_priv->dirty = 1;
 
@@ -829,7 +829,7 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 			   struct drm_i915_gem_pwrite *args,
 			   struct drm_file *file_priv)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct mm_struct *mm = current->mm;
 	struct page **user_pages;
 	ssize_t remain;
@@ -877,7 +877,7 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	if (ret != 0)
 		goto fail_put_pages;
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	offset = args->offset;
 	obj_priv->dirty = 1;
 
@@ -952,7 +952,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
 		return -EBADF;
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	/* Bounds check destination.
 	 *
@@ -1034,7 +1034,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
 		return -EBADF;
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -1096,7 +1096,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	DRM_INFO("%s: sw_finish %d (%p %zd)\n",
 		 __func__, args->handle, obj, obj->size);
 #endif
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	/* Pinned buffers may be scanout, so flush the cache */
 	if (obj_priv->pin_count)
@@ -1167,7 +1167,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	pgoff_t page_offset;
 	unsigned long pfn;
 	int ret = 0;
@@ -1234,7 +1234,7 @@ i915_gem_create_mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_gem_mm *mm = dev->mm_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct drm_map_list *list;
 	struct drm_local_map *map;
 	int ret = 0;
@@ -1305,7 +1305,7 @@ void
 i915_gem_release_mmap(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	if (dev->dev_mapping)
 		unmap_mapping_range(dev->dev_mapping,
@@ -1316,7 +1316,7 @@ static void
 i915_gem_free_mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct drm_gem_mm *mm = dev->mm_private;
 	struct drm_map_list *list;
 
@@ -1347,7 +1347,7 @@ static uint32_t
 i915_gem_get_gtt_alignment(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int start, i;
 
 	/*
@@ -1406,7 +1406,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->struct_mutex);
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	if (obj_priv->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to mmap a purgeable buffer\n");
@@ -1450,7 +1450,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 void
 i915_gem_object_put_pages(struct drm_gem_object *obj)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page_count = obj->size / PAGE_SIZE;
 	int i;
 
@@ -1486,7 +1486,7 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj, uint32_t seqno)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	/* Add a reference if we're newly entering the active list. */
 	if (!obj_priv->active) {
@@ -1506,7 +1506,7 @@ i915_gem_object_move_to_flushing(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	BUG_ON(!obj_priv->active);
 	list_move_tail(&obj_priv->list, &dev_priv->mm.flushing_list);
@@ -1517,7 +1517,7 @@ i915_gem_object_move_to_flushing(struct drm_gem_object *obj)
 static void
 i915_gem_object_truncate(struct drm_gem_object *obj)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct inode *inode;
 
 	inode = obj->filp->f_path.dentry->d_inode;
@@ -1538,7 +1538,7 @@ i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 	if (obj_priv->pin_count != 0)
@@ -1965,7 +1965,7 @@ static int
 i915_gem_object_wait_rendering(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int ret;
 
 	/* This function only exists to support waiting for existing rendering,
@@ -1997,7 +1997,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int ret = 0;
 
 #if WATCH_BUF
@@ -2173,7 +2173,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 #if WATCH_LRU
 			DRM_INFO("%s: evicting %p\n", __func__, obj);
 #endif
-			obj_priv = obj->driver_private;
+			obj_priv = to_intel_bo(obj);
 			BUG_ON(obj_priv->pin_count != 0);
 			BUG_ON(obj_priv->active);
 
@@ -2244,7 +2244,7 @@ int
 i915_gem_object_get_pages(struct drm_gem_object *obj,
 			  gfp_t gfpmask)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page_count, i;
 	struct address_space *mapping;
 	struct inode *inode;
@@ -2297,7 +2297,7 @@ static void sandybridge_write_fence_reg(struct drm_i915_fence_reg *reg)
 	struct drm_gem_object *obj = reg->obj;
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int regnum = obj_priv->fence_reg;
 	uint64_t val;
 
@@ -2319,7 +2319,7 @@ static void i965_write_fence_reg(struct drm_i915_fence_reg *reg)
 	struct drm_gem_object *obj = reg->obj;
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int regnum = obj_priv->fence_reg;
 	uint64_t val;
 
@@ -2339,7 +2339,7 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *reg)
 	struct drm_gem_object *obj = reg->obj;
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int regnum = obj_priv->fence_reg;
 	int tile_width;
 	uint32_t fence_reg, val;
@@ -2381,7 +2381,7 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 	struct drm_gem_object *obj = reg->obj;
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int regnum = obj_priv->fence_reg;
 	uint32_t val;
 	uint32_t pitch_val;
@@ -2425,7 +2425,7 @@ static int i915_find_fence_reg(struct drm_device *dev)
 		if (!reg->obj)
 			return i;
 
-		obj_priv = reg->obj->driver_private;
+		obj_priv = to_intel_bo(reg->obj);
 		if (!obj_priv->pin_count)
 		    avail++;
 	}
@@ -2480,7 +2480,7 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct drm_i915_fence_reg *reg = NULL;
 	int ret;
 
@@ -2547,7 +2547,7 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	if (IS_GEN6(dev)) {
 		I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 +
@@ -2583,7 +2583,7 @@ int
 i915_gem_object_put_fence_reg(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE)
 		return 0;
@@ -2621,7 +2621,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct drm_mm_node *free_space;
 	gfp_t gfpmask =  __GFP_NORETRY | __GFP_NOWARN;
 	int ret;
@@ -2728,7 +2728,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 void
 i915_gem_clflush_object(struct drm_gem_object *obj)
 {
-	struct drm_i915_gem_object	*obj_priv = obj->driver_private;
+	struct drm_i915_gem_object	*obj_priv = to_intel_bo(obj);
 
 	/* If we don't have a page list set up, then we're not pinned
 	 * to GPU, and we can ignore the cache flush because it'll happen
@@ -2829,7 +2829,7 @@ i915_gem_object_flush_write_domain(struct drm_gem_object *obj)
 int
 i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
@@ -2879,7 +2879,7 @@ int
 i915_gem_object_set_to_display_plane(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
@@ -3092,7 +3092,7 @@ static void
 i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 {
 	struct drm_device		*dev = obj->dev;
-	struct drm_i915_gem_object	*obj_priv = obj->driver_private;
+	struct drm_i915_gem_object	*obj_priv = to_intel_bo(obj);
 	uint32_t			invalidate_domains = 0;
 	uint32_t			flush_domains = 0;
 	uint32_t			old_read_domains;
@@ -3177,7 +3177,7 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 static void
 i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	if (!obj_priv->page_cpu_valid)
 		return;
@@ -3217,7 +3217,7 @@ static int
 i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 					  uint64_t offset, uint64_t size)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	uint32_t old_read_domains;
 	int i, ret;
 
@@ -3286,7 +3286,7 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int i, ret;
 	void __iomem *reloc_page;
 	bool need_fence;
@@ -3337,7 +3337,7 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			i915_gem_object_unpin(obj);
 			return -EBADF;
 		}
-		target_obj_priv = target_obj->driver_private;
+		target_obj_priv = to_intel_bo(target_obj);
 
 #if WATCH_RELOC
 		DRM_INFO("%s: obj %p offset %08x target %d "
@@ -3689,7 +3689,7 @@ i915_gem_wait_for_pending_flip(struct drm_device *dev,
 		prepare_to_wait(&dev_priv->pending_flip_queue,
 				&wait, TASK_INTERRUPTIBLE);
 		for (i = 0; i < count; i++) {
-			obj_priv = object_list[i]->driver_private;
+			obj_priv = to_intel_bo(object_list[i]);
 			if (atomic_read(&obj_priv->pending_flip) > 0)
 				break;
 		}
@@ -3798,7 +3798,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto err;
 		}
 
-		obj_priv = object_list[i]->driver_private;
+		obj_priv = to_intel_bo(object_list[i]);
 		if (obj_priv->in_execbuffer) {
 			DRM_ERROR("Object %p appears more than once in object list\n",
 				   object_list[i]);
@@ -3924,7 +3924,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
+		struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 		uint32_t old_write_domain = obj->write_domain;
 
 		obj->write_domain = obj->pending_write_domain;
@@ -3999,7 +3999,7 @@ err:
 
 	for (i = 0; i < args->buffer_count; i++) {
 		if (object_list[i]) {
-			obj_priv = object_list[i]->driver_private;
+			obj_priv = to_intel_bo(object_list[i]);
 			obj_priv->in_execbuffer = false;
 		}
 		drm_gem_object_unreference(object_list[i]);
@@ -4177,7 +4177,7 @@ int
 i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int ret;
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
@@ -4210,7 +4210,7 @@ i915_gem_object_unpin(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 	obj_priv->pin_count--;
@@ -4250,7 +4250,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 		mutex_unlock(&dev->struct_mutex);
 		return -EBADF;
 	}
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	if (obj_priv->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to pin a purgeable buffer\n");
@@ -4307,7 +4307,7 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 		return -EBADF;
 	}
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	if (obj_priv->pin_filp != file_priv) {
 		DRM_ERROR("Not pinned by caller in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
@@ -4349,7 +4349,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	 */
 	i915_gem_retire_requests(dev);
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	/* Don't count being on the flushing list against the object being
 	 * done.  Otherwise, a buffer left on the flushing list but not getting
 	 * flushed (because nobody's flushing that domain) won't ever return
@@ -4395,7 +4395,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	if (obj_priv->pin_count) {
 		drm_gem_object_unreference(obj);
@@ -4456,7 +4456,7 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 void i915_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	trace_i915_gem_object_destroy(obj);
 
@@ -4565,7 +4565,7 @@ i915_gem_init_hws(struct drm_device *dev)
 		DRM_ERROR("Failed to allocate status page\n");
 		return -ENOMEM;
 	}
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	obj_priv->agp_type = AGP_USER_CACHED_MEMORY;
 
 	ret = i915_gem_object_pin(obj, 4096);
@@ -4609,7 +4609,7 @@ i915_gem_cleanup_hws(struct drm_device *dev)
 		return;
 
 	obj = dev_priv->hws_obj;
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	kunmap(obj_priv->pages[0]);
 	i915_gem_object_unpin(obj);
@@ -4643,7 +4643,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 		i915_gem_cleanup_hws(dev);
 		return -ENOMEM;
 	}
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	ret = i915_gem_object_pin(obj, 4096);
 	if (ret != 0) {
@@ -4936,7 +4936,7 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 	int ret;
 	int page_count;
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	if (!obj_priv->phys_obj)
 		return;
 
@@ -4975,7 +4975,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 	if (id > I915_MAX_PHYS_OBJECT)
 		return -EINVAL;
 
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	if (obj_priv->phys_obj) {
 		if (obj_priv->phys_obj->id == id)
@@ -5026,7 +5026,7 @@ i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 		     struct drm_i915_gem_pwrite *args,
 		     struct drm_file *file_priv)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	void *obj_addr;
 	int ret;
 	char __user *user_data;

@@ -23,6 +23,7 @@ struct ceph_pg_pool_info {
 	int id;
 	struct ceph_pg_pool v;
 	int pg_num_mask, pgp_num_mask, lpg_num_mask, lpgp_num_mask;
+	char *name;
 };
 
 struct ceph_pg_mapping {

@@ -108,7 +108,7 @@ static int ip6_dev_loopback_xmit(struct sk_buff *newskb)
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;
 	WARN_ON(!skb_dst(newskb));
 
-	netif_rx(newskb);
+	netif_rx_ni(newskb);
 	return 0;
 }
 

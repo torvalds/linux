@@ -1205,6 +1205,12 @@ retry:
 		if (capsnap->dirty_pages || capsnap->writing)
 			continue;
 
+		/*
+		 * if cap writeback already occurred, we should have dropped
+		 * the capsnap in ceph_put_wrbuffer_cap_refs.
+		 */
+		BUG_ON(capsnap->dirty == 0);
+
 		/* pick mds, take s_mutex */
 		mds = __ceph_get_cap_mds(ci, &mseq);
 		if (session && session->s_mds != mds) {
@@ -2118,8 +2124,8 @@ void ceph_put_cap_refs(struct ceph_inode_info *ci, int had)
 		}
 	spin_unlock(&inode->i_lock);
 
-	dout("put_cap_refs %p had %s %s\n", inode, ceph_cap_string(had),
-	     last ? "last" : "");
+	dout("put_cap_refs %p had %s%s%s\n", inode, ceph_cap_string(had),
+	     last ? " last" : "", put ? " put" : "");
 
 	if (last && !flushsnaps)
 		ceph_check_caps(ci, 0, NULL);
@@ -2143,7 +2149,8 @@ void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 {
 	struct inode *inode = &ci->vfs_inode;
 	int last = 0;
-	int last_snap = 0;
+	int complete_capsnap = 0;
+	int drop_capsnap = 0;
 	int found = 0;
 	struct ceph_cap_snap *capsnap = NULL;
 
@@ -2166,19 +2173,32 @@ void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 		list_for_each_entry(capsnap, &ci->i_cap_snaps, ci_item) {
 			if (capsnap->context == snapc) {
 				found = 1;
-				capsnap->dirty_pages -= nr;
-				last_snap = !capsnap->dirty_pages;
 				break;
 			}
 		}
 		BUG_ON(!found);
+		capsnap->dirty_pages -= nr;
+		if (capsnap->dirty_pages == 0) {
+			complete_capsnap = 1;
+			if (capsnap->dirty == 0)
+				/* cap writeback completed before we created
+				 * the cap_snap; no FLUSHSNAP is needed */
+				drop_capsnap = 1;
+		}
 		dout("put_wrbuffer_cap_refs on %p cap_snap %p "
-		     " snap %lld %d/%d -> %d/%d %s%s\n",
+		     " snap %lld %d/%d -> %d/%d %s%s%s\n",
 		     inode, capsnap, capsnap->context->seq,
 		     ci->i_wrbuffer_ref+nr, capsnap->dirty_pages + nr,
 		     ci->i_wrbuffer_ref, capsnap->dirty_pages,
 		     last ? " (wrbuffer last)" : "",
-		     last_snap ? " (capsnap last)" : "");
+		     complete_capsnap ? " (complete capsnap)" : "",
+		     drop_capsnap ? " (drop capsnap)" : "");
+		if (drop_capsnap) {
+			ceph_put_snap_context(capsnap->context);
+			list_del(&capsnap->ci_item);
+			list_del(&capsnap->flushing_item);
+			ceph_put_cap_snap(capsnap);
+		}
 	}
 
 	spin_unlock(&inode->i_lock);
@@ -2186,10 +2206,12 @@ void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 	if (last) {
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
 		iput(inode);
-	} else if (last_snap) {
+	} else if (complete_capsnap) {
 		ceph_flush_snaps(ci);
 		wake_up(&ci->i_cap_wq);
 	}
+	if (drop_capsnap)
+		iput(inode);
 }
 
 /*
@@ -2465,8 +2487,8 @@ static void handle_cap_flushsnap_ack(struct inode *inode, u64 flush_tid,
 				break;
 			}
 			WARN_ON(capsnap->dirty_pages || capsnap->writing);
-			dout(" removing cap_snap %p follows %lld\n",
-			     capsnap, follows);
+			dout(" removing %p cap_snap %p follows %lld\n",
+			     inode, capsnap, follows);
 			ceph_put_snap_context(capsnap->context);
 			list_del(&capsnap->ci_item);
 			list_del(&capsnap->flushing_item);

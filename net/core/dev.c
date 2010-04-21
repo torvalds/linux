@@ -2015,8 +2015,12 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 			if (dev->real_num_tx_queues > 1)
 				queue_index = skb_tx_hash(dev, skb);
 
-			if (sk && rcu_dereference_check(sk->sk_dst_cache, 1))
-				sk_tx_queue_set(sk, queue_index);
+			if (sk) {
+				struct dst_entry *dst = rcu_dereference_check(sk->sk_dst_cache, 1);
+
+				if (dst && skb_dst(skb) == dst)
+					sk_tx_queue_set(sk, queue_index);
+			}
 		}
 	}
 

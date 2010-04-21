@@ -428,26 +428,6 @@ static void vfp_pm_init(void)
 static inline void vfp_pm_init(void) { }
 #endif /* CONFIG_PM */
 
-/*
- * Synchronise the hardware VFP state of a thread other than current with the
- * saved one. This function is used by the ptrace mechanism.
- */
-#ifdef CONFIG_SMP
-void vfp_sync_hwstate(struct thread_info *thread)
-{
-}
-
-void vfp_flush_hwstate(struct thread_info *thread)
-{
-	/*
-	 * On SMP systems, the VFP state is automatically saved at every
-	 * context switch. We mark the thread VFP state as belonging to a
-	 * non-existent CPU so that the saved one will be reloaded when
-	 * needed.
-	 */
-	thread->vfpstate.hard.cpu = NR_CPUS;
-}
-#else
 void vfp_sync_hwstate(struct thread_info *thread)
 {
 	unsigned int cpu = get_cpu();
@@ -490,9 +470,18 @@ void vfp_flush_hwstate(struct thread_info *thread)
 		last_VFP_context[cpu] = NULL;
 	}
 
+#ifdef CONFIG_SMP
+	/*
+	 * For SMP we still have to take care of the case where the thread
+	 * migrates to another CPU and then back to the original CPU on which
+	 * the last VFP user is still the same thread. Mark the thread VFP
+	 * state as belonging to a non-existent CPU so that the saved one will
+	 * be reloaded in the above case.
+	 */
+	thread->vfpstate.hard.cpu = NR_CPUS;
+#endif
 	put_cpu();
 }
-#endif
 
 #include <linux/smp.h>
 

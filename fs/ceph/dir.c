@@ -171,10 +171,10 @@ more:
 	spin_lock(&inode->i_lock);
 	spin_lock(&dcache_lock);
 
+	last = dentry;
+
 	if (err < 0)
 		goto out_unlock;
-
-	last = dentry;
 
 	p = p->prev;
 	filp->f_pos++;
@@ -312,7 +312,7 @@ more:
 		req->r_readdir_offset = fi->next_offset;
 		req->r_args.readdir.frag = cpu_to_le32(frag);
 		req->r_args.readdir.max_entries = cpu_to_le32(max_entries);
-		req->r_num_caps = max_entries;
+		req->r_num_caps = max_entries + 1;
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
 		if (err < 0) {
 			ceph_mdsc_put_request(req);
@@ -489,6 +489,7 @@ struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 		struct inode *inode = ceph_get_snapdir(parent);
 		dout("ENOENT on snapdir %p '%.*s', linking to snapdir %p\n",
 		     dentry, dentry->d_name.len, dentry->d_name.name, inode);
+		BUG_ON(!d_unhashed(dentry));
 		d_add(dentry, inode);
 		err = 0;
 	}

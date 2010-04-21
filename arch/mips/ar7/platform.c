@@ -168,7 +168,7 @@ static struct plat_vlynq_data vlynq_high_data = {
 		.on	= vlynq_on,
 		.off	= vlynq_off,
 	},
-	.reset_bit	= 26,
+	.reset_bit	= 16,
 	.gpio_bit	= 19,
 };
 
@@ -600,6 +600,7 @@ static int __init ar7_register_devices(void)
 	}
 
 	if (ar7_has_high_cpmac()) {
+		res = fixed_phy_add(PHY_POLL, cpmac_high.id, &fixed_phy_status);
 		if (!res) {
 			cpmac_get_mac(1, cpmac_high_data.dev_addr);
 
