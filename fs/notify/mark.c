@@ -133,8 +133,8 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 	spin_lock(&group->mark_lock);
 
 	if (mark->flags & FSNOTIFY_MARK_FLAG_INODE) {
-		fsnotify_destroy_inode_mark(mark);
 		inode = mark->i.inode;
+		fsnotify_destroy_inode_mark(mark);
 	} else if (mark->flags & FSNOTIFY_MARK_FLAG_VFSMOUNT)
 		fsnotify_destroy_vfsmount_mark(mark);
 	else
