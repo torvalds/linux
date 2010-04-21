@@ -193,8 +193,6 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	input_dev->close = usb_acecad_close;
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-	input_dev->keybit[BIT_WORD(BTN_LEFT)] =
-		BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_MIDDLE);
 	input_dev->keybit[BIT_WORD(BTN_DIGI)] = BIT_MASK(BTN_TOOL_PEN) |
 		BIT_MASK(BTN_TOUCH) | BIT_MASK(BTN_STYLUS) |
 		BIT_MASK(BTN_STYLUS2);
