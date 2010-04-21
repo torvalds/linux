@@ -193,13 +193,11 @@ static void kbtab_disconnect(struct usb_interface *intf)
 	struct kbtab *kbtab = usb_get_intfdata(intf);
 
 	usb_set_intfdata(intf, NULL);
-	if (kbtab) {
-		usb_kill_urb(kbtab->irq);
-		input_unregister_device(kbtab->dev);
-		usb_free_urb(kbtab->irq);
-		usb_buffer_free(interface_to_usbdev(intf), 8, kbtab->data, kbtab->data_dma);
-		kfree(kbtab);
-	}
+
+	input_unregister_device(kbtab->dev);
+	usb_free_urb(kbtab->irq);
+	usb_buffer_free(kbtab->usbdev, 8, kbtab->data, kbtab->data_dma);
+	kfree(kbtab);
 }
 
 static struct usb_driver kbtab_driver = {
