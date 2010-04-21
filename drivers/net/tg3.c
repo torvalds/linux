@@ -12993,6 +12993,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 		if (tp->tg3_flags3 & TG3_FLG3_5755_PLUS)
 			tp->dev->features |= NETIF_F_IPV6_CSUM;
+		tp->dev->features |= NETIF_F_GRO;
 	}
 
 	/* Determine TSO capabilities */
