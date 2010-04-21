@@ -539,7 +539,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 	struct mce m;
 	int i;
 
-	__get_cpu_var(mce_poll_count)++;
+	percpu_inc(mce_poll_count);
 
 	mce_setup(&m);
 
@@ -934,7 +934,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 	atomic_inc(&mce_entry);
 
-	__get_cpu_var(mce_exception_count)++;
+	percpu_inc(mce_exception_count);
 
 	if (notify_die(DIE_NMI, "machine check", regs, error_code,
 			   18, SIGKILL) == NOTIFY_STOP)
