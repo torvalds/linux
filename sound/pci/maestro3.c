@@ -849,6 +849,7 @@ struct snd_m3 {
 	struct snd_kcontrol *master_switch;
 	struct snd_kcontrol *master_volume;
 	struct tasklet_struct hwvol_tq;
+	unsigned int in_suspend;
 
 #ifdef CONFIG_PM
 	u16 *suspend_mem;
@@ -1613,6 +1614,11 @@ static void snd_m3_update_hw_volume(unsigned long private_data)
 	outb(0x88, chip->iobase + HW_VOL_COUNTER_VOICE);
 	outb(0x88, chip->iobase + SHADOW_MIX_REG_MASTER);
 	outb(0x88, chip->iobase + HW_VOL_COUNTER_MASTER);
+
+	/* Ignore spurious HV interrupts during suspend / resume, this avoids
+	   mistaking them for a mute button press. */
+	if (chip->in_suspend)
+		return;
 
 	if (!chip->master_switch || !chip->master_volume)
 		return;
@@ -2425,6 +2431,7 @@ static int m3_suspend(struct pci_dev *pci, pm_message_t state)
 	if (chip->suspend_mem == NULL)
 		return 0;
 
+	chip->in_suspend = 1;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
@@ -2498,6 +2505,7 @@ static int m3_resume(struct pci_dev *pci)
 	snd_m3_hv_init(chip);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	chip->in_suspend = 0;
 	return 0;
 }
 #endif /* CONFIG_PM */
