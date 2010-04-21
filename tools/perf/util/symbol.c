@@ -189,6 +189,7 @@ struct dso *dso__new(const char *name)
 		self->sorted_by_name = 0;
 		self->has_build_id = 0;
 		self->kernel = DSO_TYPE_USER;
+		INIT_LIST_HEAD(&self->node);
 	}
 
 	return self;
