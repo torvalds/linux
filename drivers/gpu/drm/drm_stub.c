@@ -516,8 +516,6 @@ void drm_put_dev(struct drm_device *dev)
 	}
 	driver = dev->driver;
 
-	drm_vblank_cleanup(dev);
-
 	drm_lastclose(dev);
 
 	if (drm_core_has_MTRR(dev) && drm_core_has_AGP(dev) &&
@@ -536,6 +534,8 @@ void drm_put_dev(struct drm_device *dev)
 		kfree(dev->agp);
 		dev->agp = NULL;
 	}
+
+	drm_vblank_cleanup(dev);
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_rmmap(dev, r_list->map);

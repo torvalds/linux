@@ -20,6 +20,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/ctype.h>
