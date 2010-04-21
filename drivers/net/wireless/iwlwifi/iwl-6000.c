@@ -67,9 +67,10 @@
 #define _IWL6050_MODULE_FIRMWARE(api) IWL6050_FW_PRE #api ".ucode"
 #define IWL6050_MODULE_FIRMWARE(api) _IWL6050_MODULE_FIRMWARE(api)
 
-#define IWL6000G2_FW_PRE "iwlwifi-6005-"
-#define _IWL6000G2_MODULE_FIRMWARE(api) IWL6000G2_FW_PRE #api ".ucode"
-#define IWL6000G2_MODULE_FIRMWARE(api) _IWL6000G2_MODULE_FIRMWARE(api)
+#define IWL6000G2A_FW_PRE "iwlwifi-6000g2a-"
+#define _IWL6000G2A_MODULE_FIRMWARE(api) IWL6000G2A_FW_PRE #api ".ucode"
+#define IWL6000G2A_MODULE_FIRMWARE(api) _IWL6000G2A_MODULE_FIRMWARE(api)
+
 
 static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 {
@@ -408,12 +409,10 @@ static const struct iwl_ops iwl6050_ops = {
 	.led = &iwlagn_led_ops,
 };
 
-/*
- * "i": Internal configuration, use internal Power Amplifier
- */
-struct iwl_cfg iwl6000g2_2agn_cfg = {
-	.name = "6000 Series 2x2 AGN Gen2",
-	.fw_name_pre = IWL6000G2_FW_PRE,
+
+struct iwl_cfg iwl6000g2a_2agn_cfg = {
+	.name = "6000 Series 2x2 AGN Gen2a",
+	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
@@ -442,9 +441,12 @@ struct iwl_cfg iwl6000g2_2agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
-	.max_event_log_size = 1024,
+	.max_event_log_size = 512,
 };
 
+/*
+ * "i": Internal configuration, use internal Power Amplifier
+ */
 struct iwl_cfg iwl6000i_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6200 AGN",
 	.fw_name_pre = IWL6000_FW_PRE,
@@ -645,4 +647,4 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6050_MODULE_FIRMWARE(IWL6050_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL6000G2_MODULE_FIRMWARE(IWL6000G2_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL6000G2A_MODULE_FIRMWARE(IWL6000G2_UCODE_API_MAX));
