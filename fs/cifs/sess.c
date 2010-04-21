@@ -284,7 +284,7 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
 	int len;
 	char *data = *pbcc_area;
 
-	cFYI(1, ("bleft %d", bleft));
+	cFYI(1, "bleft %d", bleft);
 
 	/*
 	 * Windows servers do not always double null terminate their final
@@ -301,7 +301,7 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
 
 	kfree(ses->serverOS);
 	ses->serverOS = cifs_strndup_from_ucs(data, bleft, true, nls_cp);
-	cFYI(1, ("serverOS=%s", ses->serverOS));
+	cFYI(1, "serverOS=%s", ses->serverOS);
 	len = (UniStrnlen((wchar_t *) data, bleft / 2) * 2) + 2;
 	data += len;
 	bleft -= len;
@@ -310,7 +310,7 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
 
 	kfree(ses->serverNOS);
 	ses->serverNOS = cifs_strndup_from_ucs(data, bleft, true, nls_cp);
-	cFYI(1, ("serverNOS=%s", ses->serverNOS));
+	cFYI(1, "serverNOS=%s", ses->serverNOS);
 	len = (UniStrnlen((wchar_t *) data, bleft / 2) * 2) + 2;
 	data += len;
 	bleft -= len;
@@ -319,7 +319,7 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
 
 	kfree(ses->serverDomain);
 	ses->serverDomain = cifs_strndup_from_ucs(data, bleft, true, nls_cp);
-	cFYI(1, ("serverDomain=%s", ses->serverDomain));
+	cFYI(1, "serverDomain=%s", ses->serverDomain);
 
 	return;
 }
@@ -332,7 +332,7 @@ static int decode_ascii_ssetup(char **pbcc_area, int bleft,
 	int len;
 	char *bcc_ptr = *pbcc_area;
 
-	cFYI(1, ("decode sessetup ascii. bleft %d", bleft));
+	cFYI(1, "decode sessetup ascii. bleft %d", bleft);
 
 	len = strnlen(bcc_ptr, bleft);
 	if (len >= bleft)
@@ -344,7 +344,7 @@ static int decode_ascii_ssetup(char **pbcc_area, int bleft,
 	if (ses->serverOS)
 		strncpy(ses->serverOS, bcc_ptr, len);
 	if (strncmp(ses->serverOS, "OS/2", 4) == 0) {
-			cFYI(1, ("OS/2 server"));
+			cFYI(1, "OS/2 server");
 			ses->flags |= CIFS_SES_OS2;
 	}
 
@@ -373,7 +373,7 @@ static int decode_ascii_ssetup(char **pbcc_area, int bleft,
 	/* BB For newer servers which do not support Unicode,
 	   but thus do return domain here we could add parsing
 	   for it later, but it is not very important */
-	cFYI(1, ("ascii: bytes left %d", bleft));
+	cFYI(1, "ascii: bytes left %d", bleft);
 
 	return rc;
 }
@@ -384,16 +384,16 @@ static int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 	CHALLENGE_MESSAGE *pblob = (CHALLENGE_MESSAGE *)bcc_ptr;
 
 	if (blob_len < sizeof(CHALLENGE_MESSAGE)) {
-		cERROR(1, ("challenge blob len %d too small", blob_len));
+		cERROR(1, "challenge blob len %d too small", blob_len);
 		return -EINVAL;
 	}
 
 	if (memcmp(pblob->Signature, "NTLMSSP", 8)) {
-		cERROR(1, ("blob signature incorrect %s", pblob->Signature));
+		cERROR(1, "blob signature incorrect %s", pblob->Signature);
 		return -EINVAL;
 	}
 	if (pblob->MessageType != NtLmChallenge) {
-		cERROR(1, ("Incorrect message type %d", pblob->MessageType));
+		cERROR(1, "Incorrect message type %d", pblob->MessageType);
 		return -EINVAL;
 	}
 
@@ -583,7 +583,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 	type = ses->server->secType;
 
-	cFYI(1, ("sess setup type %d", type));
+	cFYI(1, "sess setup type %d", type);
 ssetup_ntlmssp_authenticate:
 	if (phase == NtLmChallenge)
 		phase = NtLmAuthenticate; /* if ntlmssp, now final phase */
@@ -664,7 +664,7 @@ ssetup_ntlmssp_authenticate:
 		changed to do higher than lanman dialect and
 		we reconnected would we ever calc signing_key? */
 
-		cFYI(1, ("Negotiating LANMAN setting up strings"));
+		cFYI(1, "Negotiating LANMAN setting up strings");
 		/* Unicode not allowed for LANMAN dialects */
 		ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
 #endif
@@ -758,17 +758,17 @@ ssetup_ntlmssp_authenticate:
 		/* check version field to make sure that cifs.upcall is
 		   sending us a response in an expected form */
 		if (msg->version != CIFS_SPNEGO_UPCALL_VERSION) {
-			cERROR(1, ("incorrect version of cifs.upcall (expected"
+			cERROR(1, "incorrect version of cifs.upcall (expected"
 				   " %d but got %d)",
-				   CIFS_SPNEGO_UPCALL_VERSION, msg->version));
+				   CIFS_SPNEGO_UPCALL_VERSION, msg->version);
 			rc = -EKEYREJECTED;
 			goto ssetup_exit;
 		}
 		/* bail out if key is too long */
 		if (msg->sesskey_len >
 		    sizeof(ses->server->mac_signing_key.data.krb5)) {
-			cERROR(1, ("Kerberos signing key too long (%u bytes)",
-				msg->sesskey_len));
+			cERROR(1, "Kerberos signing key too long (%u bytes)",
+				msg->sesskey_len);
 			rc = -EOVERFLOW;
 			goto ssetup_exit;
 		}
@@ -796,7 +796,7 @@ ssetup_ntlmssp_authenticate:
 		/* BB: is this right? */
 			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
 #else /* ! CONFIG_CIFS_UPCALL */
-		cERROR(1, ("Kerberos negotiated but upcall support disabled!"));
+		cERROR(1, "Kerberos negotiated but upcall support disabled!");
 		rc = -ENOSYS;
 		goto ssetup_exit;
 #endif /* CONFIG_CIFS_UPCALL */
@@ -804,12 +804,12 @@ ssetup_ntlmssp_authenticate:
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 		if (type == RawNTLMSSP) {
 			if ((pSMB->req.hdr.Flags2 & SMBFLG2_UNICODE) == 0) {
-				cERROR(1, ("NTLMSSP requires Unicode support"));
+				cERROR(1, "NTLMSSP requires Unicode support");
 				rc = -ENOSYS;
 				goto ssetup_exit;
 			}
 
-			cFYI(1, ("ntlmssp session setup phase %d", phase));
+			cFYI(1, "ntlmssp session setup phase %d", phase);
 			pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
 			capabilities |= CAP_EXTENDED_SECURITY;
 			pSMB->req.Capabilities |= cpu_to_le32(capabilities);
@@ -827,7 +827,7 @@ ssetup_ntlmssp_authenticate:
 				   on the response (challenge) */
 				smb_buf->Uid = ses->Suid;
 			} else {
-				cERROR(1, ("invalid phase %d", phase));
+				cERROR(1, "invalid phase %d", phase);
 				rc = -ENOSYS;
 				goto ssetup_exit;
 			}
@@ -839,12 +839,12 @@ ssetup_ntlmssp_authenticate:
 			}
 			unicode_oslm_strings(&bcc_ptr, nls_cp);
 		} else {
-			cERROR(1, ("secType %d not supported!", type));
+			cERROR(1, "secType %d not supported!", type);
 			rc = -ENOSYS;
 			goto ssetup_exit;
 		}
 #else
-		cERROR(1, ("secType %d not supported!", type));
+		cERROR(1, "secType %d not supported!", type);
 		rc = -ENOSYS;
 		goto ssetup_exit;
 #endif
@@ -862,7 +862,7 @@ ssetup_ntlmssp_authenticate:
 			  CIFS_STD_OP /* not long */ | CIFS_LOG_ERROR);
 	/* SMB request buf freed in SendReceive2 */
 
-	cFYI(1, ("ssetup rc from sendrecv2 is %d", rc));
+	cFYI(1, "ssetup rc from sendrecv2 is %d", rc);
 
 	pSMB = (SESSION_SETUP_ANDX *)iov[0].iov_base;
 	smb_buf = (struct smb_hdr *)iov[0].iov_base;
@@ -870,7 +870,7 @@ ssetup_ntlmssp_authenticate:
 	if ((type == RawNTLMSSP) && (smb_buf->Status.CifsError ==
 			cpu_to_le32(NT_STATUS_MORE_PROCESSING_REQUIRED))) {
 		if (phase != NtLmNegotiate) {
-			cERROR(1, ("Unexpected more processing error"));
+			cERROR(1, "Unexpected more processing error");
 			goto ssetup_exit;
 		}
 		/* NTLMSSP Negotiate sent now processing challenge (response) */
@@ -882,14 +882,14 @@ ssetup_ntlmssp_authenticate:
 
 	if ((smb_buf->WordCount != 3) && (smb_buf->WordCount != 4)) {
 		rc = -EIO;
-		cERROR(1, ("bad word count %d", smb_buf->WordCount));
+		cERROR(1, "bad word count %d", smb_buf->WordCount);
 		goto ssetup_exit;
 	}
 	action = le16_to_cpu(pSMB->resp.Action);
 	if (action & GUEST_LOGIN)
-		cFYI(1, ("Guest login")); /* BB mark SesInfo struct? */
+		cFYI(1, "Guest login"); /* BB mark SesInfo struct? */
 	ses->Suid = smb_buf->Uid;   /* UID left in wire format (le) */
-	cFYI(1, ("UID = %d ", ses->Suid));
+	cFYI(1, "UID = %d ", ses->Suid);
 	/* response can have either 3 or 4 word count - Samba sends 3 */
 	/* and lanman response is 3 */
 	bytes_remaining = BCC(smb_buf);
@@ -899,7 +899,7 @@ ssetup_ntlmssp_authenticate:
 		__u16 blob_len;
 		blob_len = le16_to_cpu(pSMB->resp.SecurityBlobLength);
 		if (blob_len > bytes_remaining) {
-			cERROR(1, ("bad security blob length %d", blob_len));
+			cERROR(1, "bad security blob length %d", blob_len);
 			rc = -EINVAL;
 			goto ssetup_exit;
 		}
@@ -933,7 +933,7 @@ ssetup_exit:
 	}
 	kfree(str_area);
 	if (resp_buf_type == CIFS_SMALL_BUFFER) {
-		cFYI(1, ("ssetup freeing small buf %p", iov[0].iov_base));
+		cFYI(1, "ssetup freeing small buf %p", iov[0].iov_base);
 		cifs_small_buf_release(iov[0].iov_base);
 	} else if (resp_buf_type == CIFS_LARGE_BUFFER)
 		cifs_buf_release(iov[0].iov_base);

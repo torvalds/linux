@@ -39,8 +39,20 @@ extern int smb_send(struct TCP_Server_Info *, struct smb_hdr *,
 			unsigned int /* length */);
 extern unsigned int _GetXid(void);
 extern void _FreeXid(unsigned int);
-#define GetXid() (int)_GetXid(); cFYI(1,("CIFS VFS: in %s as Xid: %d with uid: %d",__func__, xid,current_fsuid()));
-#define FreeXid(curr_xid) {_FreeXid(curr_xid); cFYI(1,("CIFS VFS: leaving %s (xid = %d) rc = %d",__func__,curr_xid,(int)rc));}
+#define GetXid()						\
+({								\
+	int __xid = (int)_GetXid();				\
+	cFYI(1, "CIFS VFS: in %s as Xid: %d with uid: %d",	\
+	     __func__, __xid, current_fsuid());			\
+	__xid;							\
+})
+
+#define FreeXid(curr_xid)					\
+do {								\
+	_FreeXid(curr_xid);					\
+	cFYI(1, "CIFS VFS: leaving %s (xid = %d) rc = %d",	\
+	     __func__, curr_xid, (int)rc);			\
+} while (0)
 extern char *build_path_from_dentry(struct dentry *);
 extern char *cifs_build_path_to_root(struct cifs_sb_info *cifs_sb);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);

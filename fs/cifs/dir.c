@@ -73,7 +73,7 @@ cifs_bp_rename_retry:
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
 		if (temp == NULL) {
-			cERROR(1, ("corrupt dentry"));
+			cERROR(1, "corrupt dentry");
 			return NULL;
 		}
 	}
@@ -90,19 +90,18 @@ cifs_bp_rename_retry:
 			full_path[namelen] = dirsep;
 			strncpy(full_path + namelen + 1, temp->d_name.name,
 				temp->d_name.len);
-			cFYI(0, ("name: %s", full_path + namelen));
+			cFYI(0, "name: %s", full_path + namelen);
 		}
 		temp = temp->d_parent;
 		if (temp == NULL) {
-			cERROR(1, ("corrupt dentry"));
+			cERROR(1, "corrupt dentry");
 			kfree(full_path);
 			return NULL;
 		}
 	}
 	if (namelen != pplen + dfsplen) {
-		cERROR(1,
-		       ("did not end path lookup where expected namelen is %d",
-			namelen));
+		cERROR(1, "did not end path lookup where expected namelen is %d",
+			namelen);
 		/* presumably this is only possible if racing with a rename
 		of one of the parent directories  (we can not lock the dentries
 		above us to prevent this, but retrying should be harmless) */
@@ -173,7 +172,7 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
 		if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
 			pCifsInode->clientCanCacheAll = true;
 			pCifsInode->clientCanCacheRead = true;
-			cFYI(1, ("Exclusive Oplock inode %p", newinode));
+			cFYI(1, "Exclusive Oplock inode %p", newinode);
 		} else if ((oplock & 0xF) == OPLOCK_READ)
 				pCifsInode->clientCanCacheRead = true;
 	}
@@ -192,7 +191,7 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(mnt->mnt_sb);
 	struct cifs_fattr fattr;
 
-	cFYI(1, ("posix open %s", full_path));
+	cFYI(1, "posix open %s", full_path);
 
 	presp_data = kzalloc(sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
 	if (presp_data == NULL)
@@ -358,7 +357,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		else if ((oflags & O_CREAT) == O_CREAT)
 			disposition = FILE_OPEN_IF;
 		else
-			cFYI(1, ("Create flag not set in create function"));
+			cFYI(1, "Create flag not set in create function");
 	}
 
 	/* BB add processing to set equivalent of mode - e.g. via CreateX with
@@ -394,7 +393,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
 	if (rc) {
-		cFYI(1, ("cifs_create returned 0x%x", rc));
+		cFYI(1, "cifs_create returned 0x%x", rc);
 		goto cifs_create_out;
 	}
 
@@ -457,7 +456,7 @@ cifs_create_set_dentry:
 	if (rc == 0)
 		setup_cifs_dentry(tcon, direntry, newinode);
 	else
-		cFYI(1, ("Create worked, get_inode_info failed rc = %d", rc));
+		cFYI(1, "Create worked, get_inode_info failed rc = %d", rc);
 
 	/* nfsd case - nfs srv does not set nd */
 	if ((nd == NULL) || (!(nd->flags & LOOKUP_OPEN))) {
@@ -531,7 +530,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 			u16 fileHandle;
 			FILE_ALL_INFO *buf;
 
-			cFYI(1, ("sfu compat create special file"));
+			cFYI(1, "sfu compat create special file");
 
 			buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
 			if (buf == NULL) {
@@ -616,8 +615,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 	xid = GetXid();
 
-	cFYI(1, ("parent inode = 0x%p name is: %s and dentry = 0x%p",
-	      parent_dir_inode, direntry->d_name.name, direntry));
+	cFYI(1, "parent inode = 0x%p name is: %s and dentry = 0x%p",
+	      parent_dir_inode, direntry->d_name.name, direntry);
 
 	/* check whether path exists */
 
@@ -632,7 +631,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		int i;
 		for (i = 0; i < direntry->d_name.len; i++)
 			if (direntry->d_name.name[i] == '\\') {
-				cFYI(1, ("Invalid file name"));
+				cFYI(1, "Invalid file name");
 				FreeXid(xid);
 				return ERR_PTR(-EINVAL);
 			}
@@ -657,11 +656,11 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	}
 
 	if (direntry->d_inode != NULL) {
-		cFYI(1, ("non-NULL inode in lookup"));
+		cFYI(1, "non-NULL inode in lookup");
 	} else {
-		cFYI(1, ("NULL inode in lookup"));
+		cFYI(1, "NULL inode in lookup");
 	}
-	cFYI(1, ("Full path: %s inode = 0x%p", full_path, direntry->d_inode));
+	cFYI(1, "Full path: %s inode = 0x%p", full_path, direntry->d_inode);
 
 	/* Posix open is only called (at lookup time) for file create now.
 	 * For opens (rather than creates), because we do not know if it
@@ -723,7 +722,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */
 	} else if (rc != -EACCES) {
-		cERROR(1, ("Unexpected lookup error %d", rc));
+		cERROR(1, "Unexpected lookup error %d", rc);
 		/* We special case check for Access Denied - since that
 		is a common return code */
 	}
@@ -742,8 +741,8 @@ cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 		if (cifs_revalidate_dentry(direntry))
 			return 0;
 	} else {
-		cFYI(1, ("neg dentry 0x%p name = %s",
-			 direntry, direntry->d_name.name));
+		cFYI(1, "neg dentry 0x%p name = %s",
+			 direntry, direntry->d_name.name);
 		if (time_after(jiffies, direntry->d_time + HZ) ||
 			!lookupCacheEnabled) {
 			d_drop(direntry);
@@ -758,7 +757,7 @@ cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 {
 	int rc = 0;
 
-	cFYI(1, ("In cifs d_delete, name = %s", direntry->d_name.name));
+	cFYI(1, "In cifs d_delete, name = %s", direntry->d_name.name);
 
 	return rc;
 }     */
