@@ -34,10 +34,6 @@ struct kbtab {
 	struct input_dev *dev;
 	struct usb_device *usbdev;
 	struct urb *irq;
-	int x, y;
-	int button;
-	int pressure;
-	__u32 serial[2];
 	char phys[32];
 };
 
@@ -46,6 +42,7 @@ static void kbtab_irq(struct urb *urb)
 	struct kbtab *kbtab = urb->context;
 	unsigned char *data = kbtab->data;
 	struct input_dev *dev = kbtab->dev;
+	int pressure;
 	int retval;
 
 	switch (urb->status) {
@@ -63,31 +60,27 @@ static void kbtab_irq(struct urb *urb)
 		goto exit;
 	}
 
-	kbtab->x = get_unaligned_le16(&data[1]);
-	kbtab->y = get_unaligned_le16(&data[3]);
-
-	kbtab->pressure = (data[5]);
 
 	input_report_key(dev, BTN_TOOL_PEN, 1);
 
-	input_report_abs(dev, ABS_X, kbtab->x);
-	input_report_abs(dev, ABS_Y, kbtab->y);
+	input_report_abs(dev, ABS_X, get_unaligned_le16(&data[1]));
+	input_report_abs(dev, ABS_Y, get_unaligned_le16(&data[3]));
 
 	/*input_report_key(dev, BTN_TOUCH , data[0] & 0x01);*/
 	input_report_key(dev, BTN_RIGHT, data[0] & 0x02);
 
-	if (-1 == kb_pressure_click) {
-		input_report_abs(dev, ABS_PRESSURE, kbtab->pressure);
-	} else {
-		input_report_key(dev, BTN_LEFT, (kbtab->pressure > kb_pressure_click) ? 1 : 0);
-	};
+	pressure = data[5];
+	if (kb_pressure_click == -1)
+		input_report_abs(dev, ABS_PRESSURE, pressure);
+	else
+		input_report_key(dev, BTN_LEFT, pressure > kb_pressure_click ? 1 : 0);
 
 	input_sync(dev);
 
  exit:
-	retval = usb_submit_urb (urb, GFP_ATOMIC);
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err ("%s - usb_submit_urb failed with result %d",
+		err("%s - usb_submit_urb failed with result %d",
 		     __func__, retval);
 }
 
@@ -153,13 +146,11 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	input_dev->open = kbtab_open;
 	input_dev->close = kbtab_close;
 
-	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) |
-		BIT_MASK(EV_MSC);
-	input_dev->keybit[BIT_WORD(BTN_LEFT)] |= BIT_MASK(BTN_LEFT) |
-		BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_MIDDLE);
-	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_PEN) |
-		BIT_MASK(BTN_TOUCH);
-	input_dev->mscbit[0] |= BIT_MASK(MSC_SERIAL);
+	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	input_dev->keybit[BIT_WORD(BTN_LEFT)] |=
+		BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_RIGHT);
+	input_dev->keybit[BIT_WORD(BTN_DIGI)] |=
+		BIT_MASK(BTN_TOOL_PEN) | BIT_MASK(BTN_TOUCH);
 	input_set_abs_params(input_dev, ABS_X, 0, 0x2000, 4, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, 0x1750, 4, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, 0xff, 0, 0);
