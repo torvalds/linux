@@ -257,7 +257,7 @@ int c2_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 static void c2_free_cq_buf(struct c2_dev *c2dev, struct c2_mq *mq)
 {
 	dma_free_coherent(&c2dev->pcidev->dev, mq->q_size * mq->msg_size,
-			  mq->msg_pool.host, pci_unmap_addr(mq, mapping));
+			  mq->msg_pool.host, dma_unmap_addr(mq, mapping));
 }
 
 static int c2_alloc_cq_buf(struct c2_dev *c2dev, struct c2_mq *mq, int q_size,
@@ -278,7 +278,7 @@ static int c2_alloc_cq_buf(struct c2_dev *c2dev, struct c2_mq *mq, int q_size,
 		       NULL,	/* peer (currently unknown) */
 		       C2_MQ_HOST_TARGET);
 
-	pci_unmap_addr_set(mq, mapping, mq->host_dma);
+	dma_unmap_addr_set(mq, mapping, mq->host_dma);
 
 	return 0;
 }
