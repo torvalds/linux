@@ -41,8 +41,6 @@
 #define DM644X_EVM_PHY_MASK		(0x2)
 #define DM644X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
 
-#define DAVINCI_CFC_ATA_BASE		  0x01C66000
-
 #define LXT971_PHY_ID	(0x001378e2)
 #define LXT971_PHY_MASK	(0xfffffff0)
 
@@ -250,32 +248,6 @@ static struct vpfe_config vpfe_cfg = {
 static struct platform_device rtc_dev = {
 	.name           = "rtc_davinci_evm",
 	.id             = -1,
-};
-
-static struct resource ide_resources[] = {
-	{
-		.start          = DAVINCI_CFC_ATA_BASE,
-		.end            = DAVINCI_CFC_ATA_BASE + 0x7ff,
-		.flags          = IORESOURCE_MEM,
-	},
-	{
-		.start          = IRQ_IDE,
-		.end            = IRQ_IDE,
-		.flags          = IORESOURCE_IRQ,
-	},
-};
-
-static u64 ide_dma_mask = DMA_BIT_MASK(32);
-
-static struct platform_device ide_dev = {
-	.name           = "palm_bk3710",
-	.id             = -1,
-	.resource       = ide_resources,
-	.num_resources  = ARRAY_SIZE(ide_resources),
-	.dev = {
-		.dma_mask		= &ide_dma_mask,
-		.coherent_dma_mask      = DMA_BIT_MASK(32),
-	},
 };
 
 static struct snd_platform_data dm644x_evm_snd_data;
@@ -698,10 +670,7 @@ static __init void davinci_evm_init(void)
 			pr_warning("WARNING: both IDE and Flash are "
 				"enabled, but they share AEMIF pins.\n"
 				"\tDisable IDE for NAND/NOR support.\n");
-		davinci_cfg_reg(DM644X_HPIEN_DISABLE);
-		davinci_cfg_reg(DM644X_ATAEN);
-		davinci_cfg_reg(DM644X_HDIREN);
-		platform_device_register(&ide_dev);
+		davinci_init_ide();
 	} else if (HAS_NAND || HAS_NOR) {
 		davinci_cfg_reg(DM644X_HPIEN_DISABLE);
 		davinci_cfg_reg(DM644X_ATAEN_DISABLE);

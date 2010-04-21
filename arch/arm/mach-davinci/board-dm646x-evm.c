@@ -733,7 +733,7 @@ static __init void evm_init(void)
 	platform_device_register(&davinci_nand_device);
 
 	if (HAS_ATA)
-		dm646x_init_ide();
+		davinci_init_ide();
 
 	soc_info->emac_pdata->phy_mask = DM646X_EVM_PHY_MASK;
 	soc_info->emac_pdata->mdio_max_freq = DM646X_EVM_MDIO_FREQUENCY;
