@@ -30,8 +30,8 @@
 #ifdef CONFIG_SMP
 #define LOCK_PREFIX \
 		".section .smp_locks,\"a\"\n"	\
-		_ASM_ALIGN "\n"			\
-		_ASM_PTR "661f\n" /* address */	\
+		".balign 4\n"			\
+		".long 661f - .\n" /* offset */	\
 		".previous\n"			\
 		"661:\n\tlock; "
 
