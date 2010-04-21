@@ -180,15 +180,16 @@ static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
 		return -ENOENT;
 	}
 	/* Error path : ntevs < 0 */
-	if (need_dwarf) {
-		if (ntevs == -EBADF)
-			pr_warning("No dwarf info found in the vmlinux - "
-				"please rebuild with CONFIG_DEBUG_INFO=y.\n");
-		return ntevs;
+	pr_debug("An error occurred in debuginfo analysis (%d).\n", ntevs);
+	if (ntevs == -EBADF) {
+		pr_warning("Warning: No dwarf info found in the vmlinux - "
+			"please rebuild kernel with CONFIG_DEBUG_INFO=y.\n");
+		if (!need_dwarf) {
+			pr_debug("Trying to use symbols.\nn");
+			return 0;
+		}
 	}
-	pr_debug("An error occurred in debuginfo analysis."
-		 " Try to use symbols.\n");
-	return 0;
+	return ntevs;
 }
 
 #define LINEBUF_SIZE 256
