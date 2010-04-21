@@ -1054,6 +1054,9 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 	ipv6_addr_copy(&fl.fl6_dst, &ipv6_hdr(skb)->saddr);
 	ipv6_addr_copy(&fl.fl6_src, &ipv6_hdr(skb)->daddr);
 
+	buff->ip_summed = CHECKSUM_PARTIAL;
+	buff->csum = 0;
+
 	__tcp_v6_send_check(buff, &fl.fl6_src, &fl.fl6_dst);
 
 	fl.proto = IPPROTO_TCP;
