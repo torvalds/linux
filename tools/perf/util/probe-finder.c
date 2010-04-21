@@ -871,6 +871,8 @@ static int probe_point_inline_cb(Dwarf_Die *in_die, void *data)
 			 (uintmax_t)pf->addr);
 
 		param->retval = convert_probe_point(in_die, pf);
+		if (param->retval < 0)
+			return DWARF_CB_ABORT;
 	}
 
 	return DWARF_CB_OK;
@@ -1106,6 +1108,8 @@ static int line_range_funcdecl_cb(Dwarf_Die *sp_die, void *data)
 		return DWARF_CB_OK;
 
 	param->retval = line_range_add_line(src, lineno, lf->lr);
+	if (param->retval < 0)
+		return DWARF_CB_ABORT;
 	return DWARF_CB_OK;
 }
 
