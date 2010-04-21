@@ -35,8 +35,6 @@
 
 #include "rds.h"
 
-static DECLARE_WAIT_QUEUE_HEAD(rds_message_flush_waitq);
-
 static unsigned int	rds_exthdr_size[__RDS_EXTHDR_MAX] = {
 [RDS_EXTHDR_NONE]	= 0,
 [RDS_EXTHDR_VERSION]	= sizeof(struct rds_ext_header_version),
@@ -226,6 +224,7 @@ struct rds_message *rds_message_alloc(unsigned int extra_len, gfp_t gfp)
 	INIT_LIST_HEAD(&rm->m_sock_item);
 	INIT_LIST_HEAD(&rm->m_conn_item);
 	spin_lock_init(&rm->m_rs_lock);
+	init_waitqueue_head(&rm->m_flush_wait);
 
 out:
 	return rm;
@@ -399,14 +398,14 @@ int rds_message_inc_copy_to_user(struct rds_incoming *inc,
  */
 void rds_message_wait(struct rds_message *rm)
 {
-	wait_event_interruptible(rds_message_flush_waitq,
+	wait_event_interruptible(rm->m_flush_wait,
 			!test_bit(RDS_MSG_MAPPED, &rm->m_flags));
 }
 
 void rds_message_unmapped(struct rds_message *rm)
 {
 	clear_bit(RDS_MSG_MAPPED, &rm->m_flags);
-	wake_up_interruptible(&rds_message_flush_waitq);
+	wake_up_interruptible(&rm->m_flush_wait);
 }
 EXPORT_SYMBOL_GPL(rds_message_unmapped);
 

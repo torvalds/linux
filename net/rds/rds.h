@@ -301,6 +301,8 @@ struct rds_message {
 	 *   -> rs->rs_lock
 	 */
 	spinlock_t		m_rs_lock;
+	wait_queue_head_t	m_flush_wait;
+
 	struct rds_sock		*m_rs;
 
 	/* cookie to send to remote, in rds header */
