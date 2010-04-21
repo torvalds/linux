@@ -382,7 +382,7 @@ static struct page *find_super_block(struct super_block *sb)
 	if (!first || IS_ERR(first))
 		return NULL;
 	last = super->s_devops->find_last_sb(sb, &super->s_sb_ofs[1]);
-	if (!last || IS_ERR(first)) {
+	if (!last || IS_ERR(last)) {
 		page_cache_release(first);
 		return NULL;
 	}
