@@ -1263,7 +1263,7 @@ static struct strlist *get_kprobe_trace_event_names(int fd, bool include_group)
 
 static int write_kprobe_trace_event(int fd, struct kprobe_trace_event *tev)
 {
-	int ret;
+	int ret = 0;
 	char *buf = synthesize_kprobe_trace_command(tev);
 
 	if (!buf) {
