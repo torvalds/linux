@@ -3995,6 +3995,9 @@ static int ocfs2_complete_reflink(struct inode *s_inode,
 	di->i_attr = s_di->i_attr;
 
 	if (preserve) {
+		t_inode->i_uid = s_inode->i_uid;
+		t_inode->i_gid = s_inode->i_gid;
+		t_inode->i_mode = s_inode->i_mode;
 		di->i_uid = s_di->i_uid;
 		di->i_gid = s_di->i_gid;
 		di->i_mode = s_di->i_mode;
