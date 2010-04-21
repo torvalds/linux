@@ -275,7 +275,7 @@ static struct platform_device tmu5_device = {
 };
 
 /* DMA */
-static struct sh_dmae_channel sh7785_dmae0_channels[] = {
+static const struct sh_dmae_channel sh7785_dmae0_channels[] = {
 	{
 		.offset = 0,
 		.dmars = 0,
@@ -303,7 +303,7 @@ static struct sh_dmae_channel sh7785_dmae0_channels[] = {
 	}
 };
 
-static struct sh_dmae_channel sh7785_dmae1_channels[] = {
+static const struct sh_dmae_channel sh7785_dmae1_channels[] = {
 	{
 		.offset = 0,
 	}, {
@@ -319,7 +319,7 @@ static struct sh_dmae_channel sh7785_dmae1_channels[] = {
 	}
 };
 
-static unsigned int ts_shift[] = TS_SHIFT;
+static const unsigned int ts_shift[] = TS_SHIFT;
 
 static struct sh_dmae_pdata dma0_platform_data = {
 	.channel	= sh7785_dmae0_channels,

@@ -31,7 +31,7 @@
 #include <cpu/sh7724.h>
 
 /* DMA */
-static struct sh_dmae_channel sh7724_dmae0_channels[] = {
+static const struct sh_dmae_channel sh7724_dmae_channels[] = {
 	{
 		.offset = 0,
 		.dmars = 0,
@@ -59,51 +59,11 @@ static struct sh_dmae_channel sh7724_dmae0_channels[] = {
 	}
 };
 
-static struct sh_dmae_channel sh7724_dmae1_channels[] = {
-	{
-		.offset = 0,
-		.dmars = 0,
-		.dmars_bit = 0,
-	}, {
-		.offset = 0x10,
-		.dmars = 0,
-		.dmars_bit = 8,
-	}, {
-		.offset = 0x20,
-		.dmars = 4,
-		.dmars_bit = 0,
-	}, {
-		.offset = 0x30,
-		.dmars = 4,
-		.dmars_bit = 8,
-	}, {
-		.offset = 0x50,
-		.dmars = 8,
-		.dmars_bit = 0,
-	}, {
-		.offset = 0x60,
-		.dmars = 8,
-		.dmars_bit = 8,
-	}
-};
+static const unsigned int ts_shift[] = TS_SHIFT;
 
-static unsigned int ts_shift[] = TS_SHIFT;
-
-static struct sh_dmae_pdata dma0_platform_data = {
-	.channel	= sh7724_dmae0_channels,
-	.channel_num	= ARRAY_SIZE(sh7724_dmae0_channels),
-	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
-	.ts_low_mask	= CHCR_TS_LOW_MASK,
-	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
-	.ts_high_mask	= CHCR_TS_HIGH_MASK,
-	.ts_shift	= ts_shift,
-	.ts_shift_num	= ARRAY_SIZE(ts_shift),
-	.dmaor_init	= DMAOR_INIT,
-};
-
-static struct sh_dmae_pdata dma1_platform_data = {
-	.channel	= sh7724_dmae1_channels,
-	.channel_num	= ARRAY_SIZE(sh7724_dmae1_channels),
+static struct sh_dmae_pdata dma_platform_data = {
+	.channel	= sh7724_dmae_channels,
+	.channel_num	= ARRAY_SIZE(sh7724_dmae_channels),
 	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
 	.ts_low_mask	= CHCR_TS_LOW_MASK,
 	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
@@ -187,7 +147,7 @@ static struct platform_device dma0_device = {
 	.resource	= sh7724_dmae0_resources,
 	.num_resources	= ARRAY_SIZE(sh7724_dmae0_resources),
 	.dev		= {
-		.platform_data	= &dma0_platform_data,
+		.platform_data	= &dma_platform_data,
 	},
 	.archdata = {
 		.hwblk_id = HWBLK_DMAC0,
@@ -200,7 +160,7 @@ static struct platform_device dma1_device = {
 	.resource	= sh7724_dmae1_resources,
 	.num_resources	= ARRAY_SIZE(sh7724_dmae1_resources),
 	.dev		= {
-		.platform_data	= &dma1_platform_data,
+		.platform_data	= &dma_platform_data,
 	},
 	.archdata = {
 		.hwblk_id = HWBLK_DMAC1,

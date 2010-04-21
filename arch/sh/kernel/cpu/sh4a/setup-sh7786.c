@@ -445,7 +445,7 @@ static struct platform_device tmu11_device = {
 	.num_resources	= ARRAY_SIZE(tmu11_resources),
 };
 
-static struct sh_dmae_channel dmac0_channels[] = {
+static const struct sh_dmae_channel dmac0_channels[] = {
 	{
 		.offset = 0,
 		.dmars = 0,
@@ -473,7 +473,7 @@ static struct sh_dmae_channel dmac0_channels[] = {
 	}
 };
 
-static unsigned int ts_shift[] = TS_SHIFT;
+static const unsigned int ts_shift[] = TS_SHIFT;
 
 static struct sh_dmae_pdata dma0_platform_data = {
 	.channel	= dmac0_channels,

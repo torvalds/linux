@@ -188,7 +188,7 @@ static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 	struct sh_dmae_device *shdev = container_of(sh_chan->common.device,
 						struct sh_dmae_device, common);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
-	struct sh_dmae_channel *chan_pdata = &pdata->channel[sh_chan->id];
+	const struct sh_dmae_channel *chan_pdata = &pdata->channel[sh_chan->id];
 	u16 __iomem *addr = shdev->dmars + chan_pdata->dmars / sizeof(u16);
 	int shift = chan_pdata->dmars_bit;
 
@@ -264,7 +264,7 @@ static struct sh_desc *sh_dmae_get_desc(struct sh_dmae_chan *sh_chan)
 	return NULL;
 }
 
-static struct sh_dmae_slave_config *sh_dmae_find_slave(
+static const struct sh_dmae_slave_config *sh_dmae_find_slave(
 	struct sh_dmae_chan *sh_chan, struct sh_dmae_slave *param)
 {
 	struct dma_device *dma_dev = sh_chan->common.device;
@@ -296,7 +296,7 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 	 * never runs concurrently with itself or free_chan_resources.
 	 */
 	if (param) {
-		struct sh_dmae_slave_config *cfg;
+		const struct sh_dmae_slave_config *cfg;
 
 		cfg = sh_dmae_find_slave(sh_chan, param);
 		if (!cfg)
@@ -557,12 +557,14 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 {
 	struct sh_dmae_slave *param;
 	struct sh_dmae_chan *sh_chan;
+	dma_addr_t slave_addr;
 
 	if (!chan)
 		return NULL;
 
 	sh_chan = to_sh_chan(chan);
 	param = chan->private;
+	slave_addr = param->config->addr;
 
 	/* Someone calling slave DMA on a public channel? */
 	if (!param || !sg_len) {
@@ -575,7 +577,7 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 	 * if (param != NULL), this is a successfully requested slave channel,
 	 * therefore param->config != NULL too.
 	 */
-	return sh_dmae_prep_sg(sh_chan, sgl, sg_len, &param->config->addr,
+	return sh_dmae_prep_sg(sh_chan, sgl, sg_len, &slave_addr,
 			       direction, flags);
 }
 
@@ -856,7 +858,7 @@ static int __devinit sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 					int irq, unsigned long flags)
 {
 	int err;
-	struct sh_dmae_channel *chan_pdata = &shdev->pdata->channel[id];
+	const struct sh_dmae_channel *chan_pdata = &shdev->pdata->channel[id];
 	struct platform_device *pdev = to_platform_device(shdev->common.dev);
 	struct sh_dmae_chan *new_sh_chan;
 

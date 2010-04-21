@@ -24,7 +24,7 @@
 #include <cpu/dma-register.h>
 #include <cpu/sh7722.h>
 
-static struct sh_dmae_slave_config sh7722_dmae_slaves[] = {
+static const struct sh_dmae_slave_config sh7722_dmae_slaves[] = {
 	{
 		.slave_id	= SHDMA_SLAVE_SCIF0_TX,
 		.addr		= 0xffe0000c,
@@ -78,7 +78,7 @@ static struct sh_dmae_slave_config sh7722_dmae_slaves[] = {
 	},
 };
 
-static struct sh_dmae_channel sh7722_dmae_channels[] = {
+static const struct sh_dmae_channel sh7722_dmae_channels[] = {
 	{
 		.offset = 0,
 		.dmars = 0,
@@ -106,7 +106,7 @@ static struct sh_dmae_channel sh7722_dmae_channels[] = {
 	}
 };
 
-static unsigned int ts_shift[] = TS_SHIFT;
+static const unsigned int ts_shift[] = TS_SHIFT;
 
 static struct sh_dmae_pdata dma_platform_data = {
 	.slave		= sh7722_dmae_slaves,
