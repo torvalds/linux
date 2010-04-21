@@ -801,6 +801,12 @@ xt_replace_table(struct xt_table *table,
 	struct xt_table_info *private;
 	int ret;
 
+	ret = xt_jumpstack_alloc(newinfo);
+	if (ret < 0) {
+		*error = ret;
+		return NULL;
+	}
+
 	/* Do the substitution. */
 	local_bh_disable();
 	private = table->private;
@@ -811,12 +817,6 @@ xt_replace_table(struct xt_table *table,
 			 num_counters, private->number);
 		local_bh_enable();
 		*error = -EAGAIN;
-		return NULL;
-	}
-
-	ret = xt_jumpstack_alloc(newinfo);
-	if (ret < 0) {
-		*error = ret;
 		return NULL;
 	}
 
