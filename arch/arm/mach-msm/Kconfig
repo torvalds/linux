@@ -10,6 +10,7 @@ config ARCH_MSM7X00A
 	select MSM_SMD
 	select MSM_SMD_PKG3
 	select CPU_V6
+	select MSM_PROC_COMM
 
 config ARCH_MSM7X30
 	bool "MSM7x30"
@@ -19,6 +20,7 @@ config ARCH_MSM7X30
 	select CPU_V7
 	select MSM_REMOTE_SPINLOCK_DEKKERS
 	select MSM_GPIOMUX
+	select MSM_PROC_COMM
 
 config ARCH_QSD8X50
 	bool "QSD8X50"
@@ -28,6 +30,7 @@ config ARCH_QSD8X50
 	select CPU_V7
 	select MSM_REMOTE_SPINLOCK_LDREX
 	select MSM_GPIOMUX
+	select MSM_PROC_COMM
 endchoice
 
 config MSM_SOC_REV_A
@@ -103,6 +106,9 @@ choice
 endchoice
 
 config MSM_SMD_PKG3
+	bool
+
+config MSM_PROC_COMM
 	bool
 
 config MSM_SMD

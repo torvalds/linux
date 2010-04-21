@@ -1,8 +1,5 @@
-obj-y += proc_comm.o
 obj-y += io.o idle.o timer.o dma.o
-obj-y += vreg.o
 obj-y += acpuclock-arm11.o
-obj-y += clock.o clock-pcom.o
 
 ifdef CONFIG_MSM_VIC
 obj-y += irq-vic.o
@@ -10,6 +7,8 @@ else
 obj-y += irq.o
 endif
 
+obj-$(CONFIG_MSM_PROC_COMM) += proc_comm.o clock-pcom.o vreg.o
+obj-$(CONFIG_MSM_PROC_COMM) += clock.o
 obj-$(CONFIG_ARCH_QSD8X50) += sirc.o
 obj-$(CONFIG_MSM_SMD) += smd.o smd_debug.o
 obj-$(CONFIG_MSM_SMD) += last_radio_log.o
