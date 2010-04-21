@@ -56,7 +56,6 @@ extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 int arch_install_hw_breakpoint(struct perf_event *bp);
 void arch_uninstall_hw_breakpoint(struct perf_event *bp);
 void hw_breakpoint_pmu_read(struct perf_event *bp);
-void hw_breakpoint_pmu_unthrottle(struct perf_event *bp);
 
 extern void arch_fill_perf_breakpoint(struct perf_event *bp);
 extern int register_sh_ubc(struct sh_ubc *);

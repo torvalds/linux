@@ -425,11 +425,6 @@ void hw_breakpoint_pmu_read(struct perf_event *bp)
 	/* TODO */
 }
 
-void hw_breakpoint_pmu_unthrottle(struct perf_event *bp)
-{
-	/* TODO */
-}
-
 int register_sh_ubc(struct sh_ubc *ubc)
 {
 	/* Bail if it's already assigned */
