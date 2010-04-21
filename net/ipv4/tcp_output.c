@@ -861,7 +861,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 			th->urg_ptr = htons(tp->snd_up - tcb->seq);
 			th->urg = 1;
 		} else if (after(tcb->seq + 0xFFFF, tp->snd_nxt)) {
-			th->urg_ptr = 0xFFFF;
+			th->urg_ptr = htons(0xFFFF);
 			th->urg = 1;
 		}
 	}
@@ -2485,7 +2485,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 			*tail-- ^= TCP_SKB_CB(skb)->seq + 1;
 
 			/* recommended */
-			*tail-- ^= ((th->dest << 16) | th->source);
+			*tail-- ^= (((__force u32)th->dest << 16) | (__force u32)th->source);
 			*tail-- ^= (u32)(unsigned long)cvp; /* per sockopt */
 
 			sha_transform((__u32 *)&xvp->cookie_bakery[0],

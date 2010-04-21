@@ -307,13 +307,13 @@ static int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
 static unsigned int udp4_portaddr_hash(struct net *net, __be32 saddr,
 				       unsigned int port)
 {
-	return jhash_1word(saddr, net_hash_mix(net)) ^ port;
+	return jhash_1word((__force u32)saddr, net_hash_mix(net)) ^ port;
 }
 
 int udp_v4_get_port(struct sock *sk, unsigned short snum)
 {
 	unsigned int hash2_nulladdr =
-		udp4_portaddr_hash(sock_net(sk), INADDR_ANY, snum);
+		udp4_portaddr_hash(sock_net(sk), htonl(INADDR_ANY), snum);
 	unsigned int hash2_partial =
 		udp4_portaddr_hash(sock_net(sk), inet_sk(sk)->inet_rcv_saddr, 0);
 
@@ -466,14 +466,14 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 					  daddr, hnum, dif,
 					  hslot2, slot2);
 		if (!result) {
-			hash2 = udp4_portaddr_hash(net, INADDR_ANY, hnum);
+			hash2 = udp4_portaddr_hash(net, htonl(INADDR_ANY), hnum);
 			slot2 = hash2 & udptable->mask;
 			hslot2 = &udptable->hash2[slot2];
 			if (hslot->count < hslot2->count)
 				goto begin;
 
 			result = udp4_lib_lookup2(net, saddr, sport,
-						  INADDR_ANY, hnum, dif,
+						  htonl(INADDR_ANY), hnum, dif,
 						  hslot2, slot2);
 		}
 		rcu_read_unlock();

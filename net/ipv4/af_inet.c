@@ -1323,8 +1323,8 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
 		goto out_unlock;
 
-	id = ntohl(*(u32 *)&iph->id);
-	flush = (u16)((ntohl(*(u32 *)iph) ^ skb_gro_len(skb)) | (id ^ IP_DF));
+	id = ntohl(*(__be32 *)&iph->id);
+	flush = (u16)((ntohl(*(__be32 *)iph) ^ skb_gro_len(skb)) | (id ^ IP_DF));
 	id >>= 16;
 
 	for (p = *head; p; p = p->next) {
@@ -1337,8 +1337,8 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 
 		if ((iph->protocol ^ iph2->protocol) |
 		    (iph->tos ^ iph2->tos) |
-		    (iph->saddr ^ iph2->saddr) |
-		    (iph->daddr ^ iph2->daddr)) {
+		    ((__force u32)iph->saddr ^ (__force u32)iph2->saddr) |
+		    ((__force u32)iph->daddr ^ (__force u32)iph2->daddr)) {
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}

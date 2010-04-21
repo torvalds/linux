@@ -1772,10 +1772,10 @@ int ip_mr_input(struct sk_buff *skb)
 
 		vif = ipmr_find_vif(mrt, skb->dev);
 		if (vif >= 0) {
-			int err = ipmr_cache_unresolved(mrt, vif, skb);
+			int err2 = ipmr_cache_unresolved(mrt, vif, skb);
 			read_unlock(&mrt_lock);
 
-			return err;
+			return err2;
 		}
 		read_unlock(&mrt_lock);
 		kfree_skb(skb);
@@ -2227,9 +2227,9 @@ static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
 		const struct ipmr_mfc_iter *it = seq->private;
 		const struct mr_table *mrt = it->mrt;
 
-		seq_printf(seq, "%08lX %08lX %-3hd",
-			   (unsigned long) mfc->mfc_mcastgrp,
-			   (unsigned long) mfc->mfc_origin,
+		seq_printf(seq, "%08X %08X %-3hd",
+			   (__force u32) mfc->mfc_mcastgrp,
+			   (__force u32) mfc->mfc_origin,
 			   mfc->mfc_parent);
 
 		if (it->cache != &mrt->mfc_unres_queue) {

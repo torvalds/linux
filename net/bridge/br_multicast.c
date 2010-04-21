@@ -29,7 +29,7 @@
 
 static inline int br_ip_hash(struct net_bridge_mdb_htable *mdb, __be32 ip)
 {
-	return jhash_1word(mdb->secret, (u32)ip) & (mdb->max - 1);
+	return jhash_1word(mdb->secret, (__force u32)ip) & (mdb->max - 1);
 }
 
 static struct net_bridge_mdb_entry *__br_mdb_ip_get(

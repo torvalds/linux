@@ -136,7 +136,7 @@ int eth_rebuild_header(struct sk_buff *skb)
 	default:
 		printk(KERN_DEBUG
 		       "%s: unable to resolve type %X addresses.\n",
-		       dev->name, (int)eth->h_proto);
+		       dev->name, (__force int)eth->h_proto);
 
 		memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
 		break;

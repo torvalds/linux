@@ -130,19 +130,20 @@ struct net_bridge_port
 #endif
 };
 
+struct br_cpu_netstats {
+	unsigned long	rx_packets;
+	unsigned long	rx_bytes;
+	unsigned long	tx_packets;
+	unsigned long	tx_bytes;
+};
+
 struct net_bridge
 {
 	spinlock_t			lock;
 	struct list_head		port_list;
 	struct net_device		*dev;
 
-	struct br_cpu_netstats __percpu {
-		unsigned long	rx_packets;
-		unsigned long	rx_bytes;
-		unsigned long	tx_packets;
-		unsigned long	tx_bytes;
-	} *stats;
-
+	struct br_cpu_netstats __percpu *stats;
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
 	unsigned long			feature_mask;

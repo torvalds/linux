@@ -258,10 +258,9 @@ static DEFINE_PER_CPU(struct rt_cache_stat, rt_cache_stat);
 	(__raw_get_cpu_var(rt_cache_stat).field++)
 
 static inline unsigned int rt_hash(__be32 daddr, __be32 saddr, int idx,
-		int genid)
+				   int genid)
 {
-	return jhash_3words((__force u32)(__be32)(daddr),
-			    (__force u32)(__be32)(saddr),
+	return jhash_3words((__force u32)daddr, (__force u32)saddr,
 			    idx, genid)
 		& rt_hash_mask;
 }
@@ -378,12 +377,13 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 		struct rtable *r = v;
 		int len;
 
-		seq_printf(seq, "%s\t%08lX\t%08lX\t%8X\t%d\t%u\t%d\t"
-			      "%08lX\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X%n",
+		seq_printf(seq, "%s\t%08X\t%08X\t%8X\t%d\t%u\t%d\t"
+			      "%08X\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X%n",
 			r->u.dst.dev ? r->u.dst.dev->name : "*",
-			(unsigned long)r->rt_dst, (unsigned long)r->rt_gateway,
+			(__force u32)r->rt_dst,
+			(__force u32)r->rt_gateway,
 			r->rt_flags, atomic_read(&r->u.dst.__refcnt),
-			r->u.dst.__use, 0, (unsigned long)r->rt_src,
+			r->u.dst.__use, 0, (__force u32)r->rt_src,
 			(dst_metric(&r->u.dst, RTAX_ADVMSS) ?
 			     (int)dst_metric(&r->u.dst, RTAX_ADVMSS) + 40 : 0),
 			dst_metric(&r->u.dst, RTAX_WINDOW),
@@ -685,18 +685,17 @@ static inline bool rt_caching(const struct net *net)
 static inline bool compare_hash_inputs(const struct flowi *fl1,
 					const struct flowi *fl2)
 {
-	return (__force u32)(((fl1->nl_u.ip4_u.daddr ^ fl2->nl_u.ip4_u.daddr) |
-		(fl1->nl_u.ip4_u.saddr ^ fl2->nl_u.ip4_u.saddr) |
+	return ((((__force u32)fl1->nl_u.ip4_u.daddr ^ (__force u32)fl2->nl_u.ip4_u.daddr) |
+		((__force u32)fl1->nl_u.ip4_u.saddr ^ (__force u32)fl2->nl_u.ip4_u.saddr) |
 		(fl1->iif ^ fl2->iif)) == 0);
 }
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
-	return ((__force u32)((fl1->nl_u.ip4_u.daddr ^ fl2->nl_u.ip4_u.daddr) |
-		(fl1->nl_u.ip4_u.saddr ^ fl2->nl_u.ip4_u.saddr)) |
+	return (((__force u32)fl1->nl_u.ip4_u.daddr ^ (__force u32)fl2->nl_u.ip4_u.daddr) |
+		((__force u32)fl1->nl_u.ip4_u.saddr ^ (__force u32)fl2->nl_u.ip4_u.saddr) |
 		(fl1->mark ^ fl2->mark) |
-		(*(u16 *)&fl1->nl_u.ip4_u.tos ^
-		 *(u16 *)&fl2->nl_u.ip4_u.tos) |
+		(*(u16 *)&fl1->nl_u.ip4_u.tos ^ *(u16 *)&fl2->nl_u.ip4_u.tos) |
 		(fl1->oif ^ fl2->oif) |
 		(fl1->iif ^ fl2->iif)) == 0;
 }
@@ -2319,8 +2318,8 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rcu_read_lock();
 	for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
 	     rth = rcu_dereference(rth->u.dst.rt_next)) {
-		if (((rth->fl.fl4_dst ^ daddr) |
-		     (rth->fl.fl4_src ^ saddr) |
+		if ((((__force u32)rth->fl.fl4_dst ^ (__force u32)daddr) |
+		     ((__force u32)rth->fl.fl4_src ^ (__force u32)saddr) |
 		     (rth->fl.iif ^ iif) |
 		     rth->fl.oif |
 		     (rth->fl.fl4_tos ^ tos)) == 0 &&

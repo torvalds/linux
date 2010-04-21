@@ -91,9 +91,9 @@ static unsigned int udp6_portaddr_hash(struct net *net,
 	if (ipv6_addr_any(addr6))
 		hash = jhash_1word(0, mix);
 	else if (ipv6_addr_v4mapped(addr6))
-		hash = jhash_1word(addr6->s6_addr32[3], mix);
+		hash = jhash_1word((__force u32)addr6->s6_addr32[3], mix);
 	else
-		hash = jhash2(addr6->s6_addr32, 4, mix);
+		hash = jhash2((__force u32 *)addr6->s6_addr32, 4, mix);
 
 	return hash ^ port;
 }

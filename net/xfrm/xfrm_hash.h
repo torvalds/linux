@@ -16,7 +16,8 @@ static inline unsigned int __xfrm6_addr_hash(xfrm_address_t *addr)
 
 static inline unsigned int __xfrm4_daddr_saddr_hash(xfrm_address_t *daddr, xfrm_address_t *saddr)
 {
-	return ntohl(daddr->a4 + saddr->a4);
+	u32 sum = (__force u32)daddr->a4 + (__force u32)saddr->a4;
+	return ntohl((__force __be32)sum);
 }
 
 static inline unsigned int __xfrm6_daddr_saddr_hash(xfrm_address_t *daddr, xfrm_address_t *saddr)

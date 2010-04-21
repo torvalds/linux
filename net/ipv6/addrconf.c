@@ -588,7 +588,8 @@ static u32 ipv6_addr_hash(const struct in6_addr *addr)
 	 * We perform the hash function over the last 64 bits of the address
 	 * This will include the IEEE address token on links that support it.
 	 */
-	return jhash_2words(addr->s6_addr32[2],  addr->s6_addr32[3], 0)
+	return jhash_2words((__force u32)addr->s6_addr32[2],
+			    (__force u32)addr->s6_addr32[3], 0)
 		& (IN6_ADDR_HSIZE - 1);
 }
 

@@ -2721,7 +2721,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	struct tcphdr *th2;
 	unsigned int len;
 	unsigned int thlen;
-	unsigned int flags;
+	__be32 flags;
 	unsigned int mss = 1;
 	unsigned int hlen;
 	unsigned int off;
@@ -2771,10 +2771,10 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 found:
 	flush = NAPI_GRO_CB(p)->flush;
-	flush |= flags & TCP_FLAG_CWR;
-	flush |= (flags ^ tcp_flag_word(th2)) &
-		  ~(TCP_FLAG_CWR | TCP_FLAG_FIN | TCP_FLAG_PSH);
-	flush |= th->ack_seq ^ th2->ack_seq;
+	flush |= (__force int)(flags & TCP_FLAG_CWR);
+	flush |= (__force int)((flags ^ tcp_flag_word(th2)) &
+		  ~(TCP_FLAG_CWR | TCP_FLAG_FIN | TCP_FLAG_PSH));
+	flush |= (__force int)(th->ack_seq ^ th2->ack_seq);
 	for (i = sizeof(*th); i < thlen; i += 4)
 		flush |= *(u32 *)((u8 *)th + i) ^
 			 *(u32 *)((u8 *)th2 + i);
@@ -2795,8 +2795,9 @@ found:
 
 out_check_final:
 	flush = len < mss;
-	flush |= flags & (TCP_FLAG_URG | TCP_FLAG_PSH | TCP_FLAG_RST |
-			  TCP_FLAG_SYN | TCP_FLAG_FIN);
+	flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
+					TCP_FLAG_RST | TCP_FLAG_SYN |
+					TCP_FLAG_FIN));
 
 	if (p && (!NAPI_GRO_CB(skb)->same_flow || flush))
 		pp = head;

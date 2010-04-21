@@ -144,7 +144,8 @@ static __inline__ __be32 addr_bit_set(void *token, int fn_bit)
 	 *	htonl(1 << ((~fn_bit)&0x1F))
 	 * See include/asm-generic/bitops/le.h.
 	 */
-	return (1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)) & addr[fn_bit >> 5];
+	return (__force __be32)(1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)) &
+	       addr[fn_bit >> 5];
 }
 
 static __inline__ struct fib6_node * node_alloc(void)

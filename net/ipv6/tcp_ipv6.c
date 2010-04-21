@@ -1234,12 +1234,12 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 			goto drop_and_free;
 
 		/* Secret recipe starts with IP addresses */
-		d = &ipv6_hdr(skb)->daddr.s6_addr32[0];
+		d = (__force u32 *)&ipv6_hdr(skb)->daddr.s6_addr32[0];
 		*mess++ ^= *d++;
 		*mess++ ^= *d++;
 		*mess++ ^= *d++;
 		*mess++ ^= *d++;
-		d = &ipv6_hdr(skb)->saddr.s6_addr32[0];
+		d = (__force u32 *)&ipv6_hdr(skb)->saddr.s6_addr32[0];
 		*mess++ ^= *d++;
 		*mess++ ^= *d++;
 		*mess++ ^= *d++;

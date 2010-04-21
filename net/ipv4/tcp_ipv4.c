@@ -1286,8 +1286,8 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 			goto drop_and_release;
 
 		/* Secret recipe starts with IP addresses */
-		*mess++ ^= daddr;
-		*mess++ ^= saddr;
+		*mess++ ^= (__force u32)daddr;
+		*mess++ ^= (__force u32)saddr;
 
 		/* plus variable length Initiator Cookie */
 		c = (u8 *)mess;
