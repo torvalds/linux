@@ -14,6 +14,7 @@
 
 #include <linux/perf_event.h>
 #include <linux/kprobes.h>
+#include <linux/ftrace.h>
 #include <linux/kernel.h>
 #include <linux/kdebug.h>
 #include <linux/mutex.h>
@@ -1276,6 +1277,9 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 				  struct perf_callchain_entry *entry)
 {
 	unsigned long ksp, fp;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	int graph = 0;
+#endif
 
 	callchain_store(entry, PERF_CONTEXT_KERNEL);
 	callchain_store(entry, regs->tpc);
@@ -1303,6 +1307,16 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 			fp = (unsigned long)sf->fp + STACK_BIAS;
 		}
 		callchain_store(entry, pc);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+		if ((pc + 8UL) == (unsigned long) &return_to_handler) {
+			int index = current->curr_ret_stack;
+			if (current->ret_stack && index >= graph) {
+				pc = current->ret_stack[index - graph].ret;
+				callchain_store(entry, pc);
+				graph++;
+			}
+		}
+#endif
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
 

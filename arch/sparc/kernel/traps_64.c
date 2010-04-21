@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/kdebug.h>
+#include <linux/ftrace.h>
 #include <linux/gfp.h>
 
 #include <asm/smp.h>
@@ -2154,6 +2155,9 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 	unsigned long fp, thread_base, ksp;
 	struct thread_info *tp;
 	int count = 0;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	int graph = 0;
+#endif
 
 	ksp = (unsigned long) _ksp;
 	if (!tsk)
@@ -2193,6 +2197,16 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 		}
 
 		printk(" [%016lx] %pS\n", pc, (void *) pc);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+		if ((pc + 8UL) == (unsigned long) &return_to_handler) {
+			int index = tsk->curr_ret_stack;
+			if (tsk->ret_stack && index >= graph) {
+				pc = tsk->ret_stack[index - graph].ret;
+				printk(" [%016lx] %pS\n", pc, (void *) pc);
+				graph++;
+			}
+		}
+#endif
 	} while (++count < 16);
 }
 
