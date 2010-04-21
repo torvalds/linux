@@ -247,7 +247,7 @@ static void __cpuinit smp_callin(void)
 	/*
 	 * Need to setup vector mappings before we enable interrupts.
 	 */
-	__setup_vector_irq(smp_processor_id());
+	setup_vector_irq(smp_processor_id());
 	/*
 	 * Get our bogomips.
 	 *

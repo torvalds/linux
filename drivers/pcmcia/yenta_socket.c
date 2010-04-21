@@ -1290,12 +1290,9 @@ static int yenta_dev_suspend_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct yenta_socket *socket = pci_get_drvdata(pdev);
-	int ret;
-
-	ret = pcmcia_socket_dev_suspend(dev);
 
 	if (!socket)
-		return ret;
+		return 0;
 
 	if (socket->type && socket->type->save_state)
 		socket->type->save_state(socket);
@@ -1312,7 +1309,7 @@ static int yenta_dev_suspend_noirq(struct device *dev)
 	 */
 	/* pci_set_power_state(dev, 3); */
 
-	return ret;
+	return 0;
 }
 
 static int yenta_dev_resume_noirq(struct device *dev)
@@ -1336,26 +1333,16 @@ static int yenta_dev_resume_noirq(struct device *dev)
 	if (socket->type && socket->type->restore_state)
 		socket->type->restore_state(socket);
 
-	pcmcia_socket_dev_early_resume(dev);
-	return 0;
-}
-
-static int yenta_dev_resume(struct device *dev)
-{
-	pcmcia_socket_dev_late_resume(dev);
 	return 0;
 }
 
 static const struct dev_pm_ops yenta_pm_ops = {
 	.suspend_noirq = yenta_dev_suspend_noirq,
 	.resume_noirq = yenta_dev_resume_noirq,
-	.resume = yenta_dev_resume,
 	.freeze_noirq = yenta_dev_suspend_noirq,
 	.thaw_noirq = yenta_dev_resume_noirq,
-	.thaw = yenta_dev_resume,
 	.poweroff_noirq = yenta_dev_suspend_noirq,
 	.restore_noirq = yenta_dev_resume_noirq,
-	.restore = yenta_dev_resume,
 };
 
 #define YENTA_PM_OPS	(&yenta_pm_ops)

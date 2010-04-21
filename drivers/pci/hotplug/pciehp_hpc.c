@@ -832,9 +832,8 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		if (!pci_resource_len(pdev, i))
 			continue;
-		ctrl_info(ctrl, "  PCI resource [%d]     : 0x%llx@0x%llx\n",
-			  i, (unsigned long long)pci_resource_len(pdev, i),
-			  (unsigned long long)pci_resource_start(pdev, i));
+		ctrl_info(ctrl, "  PCI resource [%d]     : %pR\n",
+			  i, &pdev->resource[i]);
 	}
 	ctrl_info(ctrl, "Slot Capabilities      : 0x%08x\n", ctrl->slot_cap);
 	ctrl_info(ctrl, "  Physical Slot Number : %d\n", PSN(ctrl));

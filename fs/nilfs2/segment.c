@@ -1510,6 +1510,12 @@ static int nilfs_segctor_collect(struct nilfs_sc_info *sci,
 		if (mode != SC_LSEG_SR || sci->sc_stage.scnt < NILFS_ST_CPFILE)
 			break;
 
+		nilfs_clear_logs(&sci->sc_segbufs);
+
+		err = nilfs_segctor_extend_segments(sci, nilfs, nadd);
+		if (unlikely(err))
+			return err;
+
 		if (sci->sc_stage.flags & NILFS_CF_SUFREED) {
 			err = nilfs_sufile_cancel_freev(nilfs->ns_sufile,
 							sci->sc_freesegs,
@@ -1517,12 +1523,6 @@ static int nilfs_segctor_collect(struct nilfs_sc_info *sci,
 							NULL);
 			WARN_ON(err); /* do not happen */
 		}
-		nilfs_clear_logs(&sci->sc_segbufs);
-
-		err = nilfs_segctor_extend_segments(sci, nilfs, nadd);
-		if (unlikely(err))
-			return err;
-
 		nadd = min_t(int, nadd << 1, SC_MAX_SEGDELTA);
 		sci->sc_stage = prev_stage;
 	}
@@ -1897,8 +1897,7 @@ static void nilfs_segctor_abort_construction(struct nilfs_sc_info *sci,
 
 	list_splice_tail_init(&sci->sc_write_logs, &logs);
 	ret = nilfs_wait_on_logs(&logs);
-	if (ret)
-		nilfs_abort_logs(&logs, NULL, sci->sc_super_root, ret);
+	nilfs_abort_logs(&logs, NULL, sci->sc_super_root, ret ? : err);
 
 	list_splice_tail_init(&sci->sc_segbufs, &logs);
 	nilfs_cancel_segusage(&logs, nilfs->ns_sufile);

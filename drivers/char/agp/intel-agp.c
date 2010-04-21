@@ -97,6 +97,9 @@ EXPORT_SYMBOL(intel_agp_enabled);
 #define IS_PINEVIEW (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_HB)
 
+#define IS_SNB (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB)
+
 #define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_EAGLELAKE_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
@@ -107,8 +110,7 @@ EXPORT_SYMBOL(intel_agp_enabled);
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB)
+		IS_SNB)
 
 extern int agp_memory_reserved;
 
@@ -175,6 +177,10 @@ extern int agp_memory_reserved;
 #define SNB_GMCH_GMS_STOLEN_448M	(0xe << 3)
 #define SNB_GMCH_GMS_STOLEN_480M	(0xf << 3)
 #define SNB_GMCH_GMS_STOLEN_512M	(0x10 << 3)
+#define SNB_GTT_SIZE_0M			(0 << 8)
+#define SNB_GTT_SIZE_1M			(1 << 8)
+#define SNB_GTT_SIZE_2M			(2 << 8)
+#define SNB_GTT_SIZE_MASK		(3 << 8)
 
 static const struct aper_size_info_fixed intel_i810_sizes[] =
 {
@@ -1200,6 +1206,9 @@ static void intel_i9xx_setup_flush(void)
 	if (intel_private.ifp_resource.start)
 		return;
 
+	if (IS_SNB)
+		return;
+
 	/* setup a resource for this object */
 	intel_private.ifp_resource.name = "Intel Flush Page";
 	intel_private.ifp_resource.flags = IORESOURCE_MEM;
@@ -1438,6 +1447,8 @@ static unsigned long intel_i965_mask_memory(struct agp_bridge_data *bridge,
 
 static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 {
+	u16 snb_gmch_ctl;
+
 	switch (agp_bridge->dev->device) {
 	case PCI_DEVICE_ID_INTEL_GM45_HB:
 	case PCI_DEVICE_ID_INTEL_EAGLELAKE_HB:
@@ -1449,9 +1460,26 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 	case PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB:
 	case PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB:
 	case PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB:
+		*gtt_offset = *gtt_size = MB(2);
+		break;
 	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB:
 	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB:
-		*gtt_offset = *gtt_size = MB(2);
+		*gtt_offset = MB(2);
+
+		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+		switch (snb_gmch_ctl & SNB_GTT_SIZE_MASK) {
+		default:
+		case SNB_GTT_SIZE_0M:
+			printk(KERN_ERR "Bad GTT size mask: 0x%04x.\n", snb_gmch_ctl);
+			*gtt_size = MB(0);
+			break;
+		case SNB_GTT_SIZE_1M:
+			*gtt_size = MB(1);
+			break;
+		case SNB_GTT_SIZE_2M:
+			*gtt_size = MB(2);
+			break;
+		}
 		break;
 	default:
 		*gtt_offset = *gtt_size = KB(512);

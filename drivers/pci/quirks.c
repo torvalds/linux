@@ -368,8 +368,9 @@ static void __devinit quirk_io_region(struct pci_dev *dev, unsigned region,
 		bus_region.end = res->end;
 		pcibios_bus_to_resource(dev, res, &bus_region);
 
-		pci_claim_resource(dev, nr);
-		dev_info(&dev->dev, "quirk: %pR claimed by %s\n", res, name);
+		if (pci_claim_resource(dev, nr) == 0)
+			dev_info(&dev->dev, "quirk: %pR claimed by %s\n",
+				 res, name);
 	}
 }	
 
@@ -1977,11 +1978,25 @@ static void __devinit quirk_via_cx700_pci_parking_caching(struct pci_dev *dev)
 	/*
 	 * Disable PCI Bus Parking and PCI Master read caching on CX700
 	 * which causes unspecified timing errors with a VT6212L on the PCI
-	 * bus leading to USB2.0 packet loss. The defaults are that these
-	 * features are turned off but some BIOSes turn them on.
+	 * bus leading to USB2.0 packet loss.
+	 *
+	 * This quirk is only enabled if a second (on the external PCI bus)
+	 * VT6212L is found -- the CX700 core itself also contains a USB
+	 * host controller with the same PCI ID as the VT6212L.
 	 */
 
+	/* Count VT6212L instances */
+	struct pci_dev *p = pci_get_device(PCI_VENDOR_ID_VIA,
+		PCI_DEVICE_ID_VIA_8235_USB_2, NULL);
 	uint8_t b;
+
+	/* p should contain the first (internal) VT6212L -- see if we have
+	   an external one by searching again */
+	p = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235_USB_2, p);
+	if (!p)
+		return;
+	pci_dev_put(p);
+
 	if (pci_read_config_byte(dev, 0x76, &b) == 0) {
 		if (b & 0x40) {
 			/* Turn off PCI Bus Parking */
@@ -2008,7 +2023,7 @@ static void __devinit quirk_via_cx700_pci_parking_caching(struct pci_dev *dev)
 		}
 	}
 }
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_VIA, 0x324e, quirk_via_cx700_pci_parking_caching);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, 0x324e, quirk_via_cx700_pci_parking_caching);
 
 /*
  * For Broadcom 5706, 5708, 5709 rev. A nics, any read beyond the
@@ -2108,6 +2123,7 @@ static void __devinit quirk_disable_msi(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_BRIDGE, quirk_disable_msi);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, 0xa238, quirk_disable_msi);
 
 /* Go through the list of Hypertransport capabilities and
  * return 1 if a HT MSI capability is found and enabled */
@@ -2478,6 +2494,39 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4374,
 			quirk_msi_intx_disable_bug);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4375,
 			quirk_msi_intx_disable_bug);
+
+/*
+ * MSI does not work with the AMD RS780/RS880 internal graphics and HDMI audio
+ * devices unless the BIOS has initialized the nb_cntl.strap_msi_enable bit.
+ */
+static void __init rs780_int_gfx_disable_msi(struct pci_dev *int_gfx_bridge)
+{
+	u32 nb_cntl;
+
+	if (!int_gfx_bridge->subordinate)
+		return;
+
+	pci_bus_write_config_dword(int_gfx_bridge->bus, PCI_DEVFN(0, 0),
+				   0x60, 0);
+	pci_bus_read_config_dword(int_gfx_bridge->bus, PCI_DEVFN(0, 0),
+				  0x64, &nb_cntl);
+
+	if (!(nb_cntl & BIT(10))) {
+		dev_warn(&int_gfx_bridge->dev,
+			 FW_WARN "RS780: MSI for internal graphics disabled\n");
+		int_gfx_bridge->subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
+	}
+}
+
+#define PCI_DEVICE_ID_AMD_RS780_P2P_INT_GFX	0x9602
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,
+			PCI_DEVICE_ID_AMD_RS780_P2P_INT_GFX,
+			rs780_int_gfx_disable_msi);
+/* wrong vendor ID on M4A785TD motherboard: */
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ASUSTEK,
+			PCI_DEVICE_ID_AMD_RS780_P2P_INT_GFX,
+			rs780_int_gfx_disable_msi);
 
 #endif /* CONFIG_PCI_MSI */
 

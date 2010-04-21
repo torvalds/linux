@@ -1610,8 +1610,7 @@ exit:
 
 static struct file *do_last(struct nameidata *nd, struct path *path,
 			    int open_flag, int acc_mode,
-			    int mode, const char *pathname,
-			    int *want_dir)
+			    int mode, const char *pathname)
 {
 	struct dentry *dir = nd->path.dentry;
 	struct file *filp;
@@ -1642,7 +1641,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (nd->last.name[nd->last.len]) {
 		if (open_flag & O_CREAT)
 			goto exit;
-		*want_dir = 1;
+		nd->flags |= LOOKUP_DIRECTORY;
 	}
 
 	/* just plain open? */
@@ -1656,8 +1655,10 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		if (path->dentry->d_inode->i_op->follow_link)
 			return NULL;
 		error = -ENOTDIR;
-		if (*want_dir && !path->dentry->d_inode->i_op->lookup)
-			goto exit_dput;
+		if (nd->flags & LOOKUP_DIRECTORY) {
+			if (!path->dentry->d_inode->i_op->lookup)
+				goto exit_dput;
+		}
 		path_to_nameidata(path, nd);
 		audit_inode(pathname, nd->path.dentry);
 		goto ok;
@@ -1766,7 +1767,6 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	int count = 0;
 	int flag = open_to_namei_flags(open_flag);
 	int force_reval = 0;
-	int want_dir = open_flag & O_DIRECTORY;
 
 	if (!(open_flag & O_CREAT))
 		mode = 0;
@@ -1828,7 +1828,9 @@ reval:
 		if (open_flag & O_EXCL)
 			nd.flags |= LOOKUP_EXCL;
 	}
-	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname, &want_dir);
+	if (open_flag & O_DIRECTORY)
+		nd.flags |= LOOKUP_DIRECTORY;
+	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
 		struct path holder;
 		struct inode *inode = path.dentry->d_inode;
@@ -1866,7 +1868,7 @@ reval:
 		}
 		holder = path;
 		nd.flags &= ~LOOKUP_PARENT;
-		filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname, &want_dir);
+		filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 		if (inode->i_op->put_link)
 			inode->i_op->put_link(holder.dentry, &nd, cookie);
 		path_put(&holder);

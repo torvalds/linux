@@ -470,8 +470,8 @@ static int __devexit max8660_remove(struct i2c_client *client)
 	for (i = 0; i < MAX8660_V_END; i++)
 		if (rdev[i])
 			regulator_unregister(rdev[i]);
-	kfree(rdev);
 	i2c_set_clientdata(client, NULL);
+	kfree(rdev);
 
 	return 0;
 }

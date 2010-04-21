@@ -810,6 +810,13 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 	unsigned long size = end - start + 1;
 	int ret = 0;
 
+#if defined(CONFIG_X86)
+	/* on x86, avoid anything < 0x100 for it is often used for
+	 * legacy platform devices */
+	if (start < 0x100)
+		start = 0x100;
+#endif
+
 	if (end < start)
 		return -EINVAL;
 
@@ -867,10 +874,8 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 			if (res == &ioport_resource)
 				continue;
 			dev_printk(KERN_INFO, &s->cb_dev->dev,
-				   "pcmcia: parent PCI bridge I/O "
-				   "window: 0x%llx - 0x%llx\n",
-				   (unsigned long long)res->start,
-				   (unsigned long long)res->end);
+				   "pcmcia: parent PCI bridge window: %pR\n",
+				   res);
 			if (!adjust_io(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_IO;
 
@@ -880,10 +885,8 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 			if (res == &iomem_resource)
 				continue;
 			dev_printk(KERN_INFO, &s->cb_dev->dev,
-				   "pcmcia: parent PCI bridge Memory "
-				   "window: 0x%llx - 0x%llx\n",
-				   (unsigned long long)res->start,
-				   (unsigned long long)res->end);
+				   "pcmcia: parent PCI bridge window: %pR\n",
+				   res);
 			if (!adjust_memory(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_MEM;
 		}

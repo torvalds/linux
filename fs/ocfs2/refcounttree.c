@@ -4075,6 +4075,7 @@ static int ocfs2_complete_reflink(struct inode *s_inode,
 	OCFS2_I(t_inode)->ip_dyn_features = OCFS2_I(s_inode)->ip_dyn_features;
 	spin_unlock(&OCFS2_I(t_inode)->ip_lock);
 	i_size_write(t_inode, size);
+	t_inode->i_blocks = s_inode->i_blocks;
 
 	di->i_xattr_inline_size = s_di->i_xattr_inline_size;
 	di->i_clusters = s_di->i_clusters;

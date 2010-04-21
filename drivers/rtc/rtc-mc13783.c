@@ -319,35 +319,38 @@ static int __devinit mc13783_rtc_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct mc13783_rtc *priv;
+	struct mc13783 *mc13783;
 	int rtcrst_pending;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->mc13783 = dev_get_drvdata(pdev->dev.parent);
+	mc13783 = dev_get_drvdata(pdev->dev.parent);
+	priv->mc13783 = mc13783;
+
 	platform_set_drvdata(pdev, priv);
 
-	mc13783_lock(priv->mc13783);
+	mc13783_lock(mc13783);
 
-	ret = mc13783_irq_request(priv->mc13783, MC13783_IRQ_RTCRST,
+	ret = mc13783_irq_request(mc13783, MC13783_IRQ_RTCRST,
 			mc13783_rtc_reset_handler, DRIVER_NAME, priv);
 	if (ret)
 		goto err_reset_irq_request;
 
-	ret = mc13783_irq_status(priv->mc13783, MC13783_IRQ_RTCRST,
+	ret = mc13783_irq_status(mc13783, MC13783_IRQ_RTCRST,
 			NULL, &rtcrst_pending);
 	if (ret)
 		goto err_reset_irq_status;
 
 	priv->valid = !rtcrst_pending;
 
-	ret = mc13783_irq_request_nounmask(priv->mc13783, MC13783_IRQ_1HZ,
+	ret = mc13783_irq_request_nounmask(mc13783, MC13783_IRQ_1HZ,
 			mc13783_rtc_update_handler, DRIVER_NAME, priv);
 	if (ret)
 		goto err_update_irq_request;
 
-	ret = mc13783_irq_request_nounmask(priv->mc13783, MC13783_IRQ_TODA,
+	ret = mc13783_irq_request_nounmask(mc13783, MC13783_IRQ_TODA,
 			mc13783_rtc_alarm_handler, DRIVER_NAME, priv);
 	if (ret)
 		goto err_alarm_irq_request;
@@ -357,22 +360,22 @@ static int __devinit mc13783_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->rtc)) {
 		ret = PTR_ERR(priv->rtc);
 
-		mc13783_irq_free(priv->mc13783, MC13783_IRQ_TODA, priv);
+		mc13783_irq_free(mc13783, MC13783_IRQ_TODA, priv);
 err_alarm_irq_request:
 
-		mc13783_irq_free(priv->mc13783, MC13783_IRQ_1HZ, priv);
+		mc13783_irq_free(mc13783, MC13783_IRQ_1HZ, priv);
 err_update_irq_request:
 
 err_reset_irq_status:
 
-		mc13783_irq_free(priv->mc13783, MC13783_IRQ_RTCRST, priv);
+		mc13783_irq_free(mc13783, MC13783_IRQ_RTCRST, priv);
 err_reset_irq_request:
 
 		platform_set_drvdata(pdev, NULL);
 		kfree(priv);
 	}
 
-	mc13783_unlock(priv->mc13783);
+	mc13783_unlock(mc13783);
 
 	return ret;
 }

@@ -333,8 +333,8 @@ static void show_location(Dwarf_Op *op, struct probe_finder *pf)
 		die("%u exceeds max register number.", regn);
 
 	if (deref)
-		ret = snprintf(pf->buf, pf->len, " %s=+%ju(%s)",
-			       pf->var, (uintmax_t)offs, regs);
+		ret = snprintf(pf->buf, pf->len, " %s=%+jd(%s)",
+			       pf->var, (intmax_t)offs, regs);
 	else
 		ret = snprintf(pf->buf, pf->len, " %s=%s", pf->var, regs);
 	DIE_IF(ret < 0);
@@ -352,8 +352,7 @@ static void show_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 	if (dwarf_attr(vr_die, DW_AT_location, &attr) == NULL)
 		goto error;
 	/* TODO: handle more than 1 exprs */
-	ret = dwarf_getlocation_addr(&attr, (pf->addr - pf->cu_base),
-				     &expr, &nexpr, 1);
+	ret = dwarf_getlocation_addr(&attr, pf->addr, &expr, &nexpr, 1);
 	if (ret <= 0 || nexpr == 0)
 		goto error;
 
@@ -437,8 +436,7 @@ static void show_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 
 	/* Get the frame base attribute/ops */
 	dwarf_attr(sp_die, DW_AT_frame_base, &fb_attr);
-	ret = dwarf_getlocation_addr(&fb_attr, (pf->addr - pf->cu_base),
-				     &pf->fb_ops, &nops, 1);
+	ret = dwarf_getlocation_addr(&fb_attr, pf->addr, &pf->fb_ops, &nops, 1);
 	if (ret <= 0 || nops == 0)
 		pf->fb_ops = NULL;
 
@@ -454,6 +452,9 @@ static void show_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 
 	/* *pf->fb_ops will be cached in libdw. Don't free it. */
 	pf->fb_ops = NULL;
+
+	if (pp->found == MAX_PROBES)
+		die("Too many( > %d) probe point found.\n", MAX_PROBES);
 
 	pp->probes[pp->found] = strdup(tmp);
 	pp->found++;
@@ -641,7 +642,6 @@ static void find_probe_point_by_func(struct probe_finder *pf)
 int find_probe_point(int fd, struct probe_point *pp)
 {
 	struct probe_finder pf = {.pp = pp};
-	int ret;
 	Dwarf_Off off, noff;
 	size_t cuhl;
 	Dwarf_Die *diep;
@@ -668,10 +668,6 @@ int find_probe_point(int fd, struct probe_point *pp)
 			pf.fname = NULL;
 
 		if (!pp->file || pf.fname) {
-			/* Save CU base address (for frame_base) */
-			ret = dwarf_lowpc(&pf.cu_die, &pf.cu_base);
-			if (ret != 0)
-				pf.cu_base = 0;
 			if (pp->function)
 				find_probe_point_by_func(&pf);
 			else if (pp->lazy_line)

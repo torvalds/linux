@@ -366,6 +366,14 @@ void ceph_con_open(struct ceph_connection *con, struct ceph_entity_addr *addr)
 }
 
 /*
+ * return true if this connection ever successfully opened
+ */
+bool ceph_con_opened(struct ceph_connection *con)
+{
+	return con->connect_seq > 0;
+}
+
+/*
  * generic get/put
  */
 struct ceph_connection *ceph_con_get(struct ceph_connection *con)
@@ -830,13 +838,6 @@ static void prepare_read_connect(struct ceph_connection *con)
 	con->in_base_pos = 0;
 }
 
-static void prepare_read_connect_retry(struct ceph_connection *con)
-{
-	dout("prepare_read_connect_retry %p\n", con);
-	con->in_base_pos = strlen(CEPH_BANNER) + sizeof(con->actual_peer_addr)
-		+ sizeof(con->peer_addr_for_me);
-}
-
 static void prepare_read_ack(struct ceph_connection *con)
 {
 	dout("prepare_read_ack %p\n", con);
@@ -1146,7 +1147,7 @@ static int process_connect(struct ceph_connection *con)
 		}
 		con->auth_retry = 1;
 		prepare_write_connect(con->msgr, con, 0);
-		prepare_read_connect_retry(con);
+		prepare_read_connect(con);
 		break;
 
 	case CEPH_MSGR_TAG_RESETSESSION:
@@ -1842,8 +1843,6 @@ static void ceph_fault(struct ceph_connection *con)
 		dout("fault on LOSSYTX channel\n");
 		goto out;
 	}
-
-	clear_bit(BUSY, &con->state);  /* to avoid an improbable race */
 
 	mutex_lock(&con->mutex);
 	if (test_bit(CLOSED, &con->state))

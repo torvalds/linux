@@ -186,8 +186,13 @@ static DEFINE_PCI_DEVICE_TABLE(rtl8169_pci_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
 
-static int rx_copybreak = 200;
-static int use_dac = -1;
+/*
+ * we set our copybreak very high so that we don't have
+ * to allocate 16k frames all the time (see note in
+ * rtl8169_open()
+ */
+static int rx_copybreak = 16383;
+static int use_dac;
 static struct {
 	u32 msg_enable;
 } debug = { -1 };
@@ -511,8 +516,7 @@ MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
 module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 module_param(use_dac, int, 0);
-MODULE_PARM_DESC(use_dac, "Enable PCI DAC. -1 defaults on for PCI Express only."
-" Unsafe on 32 bit PCI slot.");
+MODULE_PARM_DESC(use_dac, "Enable PCI DAC. Unsafe on 32 bit PCI slot.");
 module_param_named(debug, debug.msg_enable, int, 0);
 MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
 MODULE_LICENSE("GPL");
@@ -2821,8 +2825,8 @@ static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
 	spin_lock_irq(&tp->lock);
 
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
-	RTL_W32(MAC0, low);
 	RTL_W32(MAC4, high);
+	RTL_W32(MAC0, low);
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
 	spin_unlock_irq(&tp->lock);
@@ -2974,7 +2978,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *ioaddr;
 	unsigned int i;
 	int rc;
-	int this_use_dac = use_dac;
 
 	if (netif_msg_drv(&debug)) {
 		printk(KERN_INFO "%s Gigabit Ethernet driver %s loaded\n",
@@ -3040,17 +3043,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	tp->cp_cmd = PCIMulRW | RxChkSum;
 
-	tp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	if (!tp->pcie_cap)
-		netif_info(tp, probe, dev, "no PCI Express capability\n");
-
-	if (this_use_dac < 0)
-		this_use_dac = tp->pcie_cap != 0;
-
 	if ((sizeof(dma_addr_t) > 4) &&
-	    this_use_dac &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		netif_info(tp, probe, dev, "using 64-bit DMA\n");
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) && use_dac) {
 		tp->cp_cmd |= PCIDAC;
 		dev->features |= NETIF_F_HIGHDMA;
 	} else {
@@ -3068,6 +3062,10 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -EIO;
 		goto err_out_free_res_4;
 	}
+
+	tp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	if (!tp->pcie_cap)
+		netif_info(tp, probe, dev, "no PCI Express capability\n");
 
 	RTL_W16(IntrMask, 0x0000);
 
@@ -3224,9 +3222,13 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 }
 
 static void rtl8169_set_rxbufsize(struct rtl8169_private *tp,
-				  struct net_device *dev)
+				  unsigned int mtu)
 {
-	unsigned int max_frame = dev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
+	unsigned int max_frame = mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
+
+	if (max_frame != 16383)
+		printk(KERN_WARNING "WARNING! Changing of MTU on this NIC"
+			"May lead to frame reception errors!\n");
 
 	tp->rx_buf_sz = (max_frame > RX_BUF_SIZE) ? max_frame : RX_BUF_SIZE;
 }
@@ -3238,7 +3240,17 @@ static int rtl8169_open(struct net_device *dev)
 	int retval = -ENOMEM;
 
 
-	rtl8169_set_rxbufsize(tp, dev);
+	/*
+	 * Note that we use a magic value here, its wierd I know
+	 * its done because, some subset of rtl8169 hardware suffers from
+	 * a problem in which frames received that are longer than
+	 * the size set in RxMaxSize register return garbage sizes
+	 * when received.  To avoid this we need to turn off filtering,
+	 * which is done by setting a value of 16383 in the RxMaxSize register
+	 * and allocating 16k frames to handle the largest possible rx value
+	 * thats what the magic math below does.
+	 */
+	rtl8169_set_rxbufsize(tp, 16383 - VLAN_ETH_HLEN - ETH_FCS_LEN);
 
 	/*
 	 * Rx and Tx desscriptors needs 256 bytes alignment.
@@ -3891,7 +3903,7 @@ static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
 
 	rtl8169_down(dev);
 
-	rtl8169_set_rxbufsize(tp, dev);
+	rtl8169_set_rxbufsize(tp, dev->mtu);
 
 	ret = rtl8169_init_ring(dev);
 	if (ret < 0)
@@ -4754,8 +4766,8 @@ static void rtl_set_rx_mode(struct net_device *dev)
 		mc_filter[1] = swab32(data);
 	}
 
-	RTL_W32(MAR0 + 0, mc_filter[0]);
 	RTL_W32(MAR0 + 4, mc_filter[1]);
+	RTL_W32(MAR0 + 0, mc_filter[0]);
 
 	RTL_W32(RxConfig, tmp);
 

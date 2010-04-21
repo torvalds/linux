@@ -14,13 +14,13 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
+#include <linux/io.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
 
 #include <asm/system.h>
-#include <asm/io.h>
 
 #include "pd6729.h"
 #include "i82365.h"
@@ -222,9 +222,9 @@ static irqreturn_t pd6729_interrupt(int irq, void *dev)
 						? SS_READY : 0;
 			}
 
-			if (events) {
+			if (events)
 				pcmcia_parse_events(&socket[i].socket, events);
-			}
+
 			active |= events;
 		}
 
@@ -256,9 +256,8 @@ static int pd6729_get_status(struct pcmcia_socket *sock, u_int *value)
 	status = indirect_read(socket, I365_STATUS);
 	*value = 0;
 
-	if ((status & I365_CS_DETECT) == I365_CS_DETECT) {
+	if ((status & I365_CS_DETECT) == I365_CS_DETECT)
 		*value |= SS_DETECT;
-	}
 
 	/*
 	 * IO cards have a different meaning of bits 0,1
@@ -308,7 +307,7 @@ static int pd6729_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	socket->card_irq = state->io_irq;
 
 	reg = 0;
- 	/* The reset bit has "inverse" logic */
+	/* The reset bit has "inverse" logic */
 	if (!(state->flags & SS_RESET))
 		reg |= I365_PC_RESET;
 	if (state->flags & SS_IOCARD)
@@ -380,7 +379,7 @@ static int pd6729_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		indirect_write(socket, I365_POWER, reg);
 
 	if (irq_mode == 1) {
-		 /* all interrupts are to be done as PCI interrupts */
+		/* all interrupts are to be done as PCI interrupts */
 		data = PD67_EC1_INV_MGMT_IRQ | PD67_EC1_INV_CARD_IRQ;
 	} else
 		data = 0;
@@ -391,9 +390,9 @@ static int pd6729_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	/* Enable specific interrupt events */
 
 	reg = 0x00;
-	if (state->csc_mask & SS_DETECT) {
+	if (state->csc_mask & SS_DETECT)
 		reg |= I365_CSC_DETECT;
-	}
+
 	if (state->flags & SS_IOCARD) {
 		if (state->csc_mask & SS_STSCHG)
 			reg |= I365_CSC_STSCHG;
@@ -450,9 +449,12 @@ static int pd6729_set_io_map(struct pcmcia_socket *sock,
 
 	ioctl = indirect_read(socket, I365_IOCTL) & ~I365_IOCTL_MASK(map);
 
-	if (io->flags & MAP_0WS) ioctl |= I365_IOCTL_0WS(map);
-	if (io->flags & MAP_16BIT) ioctl |= I365_IOCTL_16BIT(map);
-	if (io->flags & MAP_AUTOSZ) ioctl |= I365_IOCTL_IOCS16(map);
+	if (io->flags & MAP_0WS)
+		ioctl |= I365_IOCTL_0WS(map);
+	if (io->flags & MAP_16BIT)
+		ioctl |= I365_IOCTL_16BIT(map);
+	if (io->flags & MAP_AUTOSZ)
+		ioctl |= I365_IOCTL_IOCS16(map);
 
 	indirect_write(socket, I365_IOCTL, ioctl);
 
@@ -497,7 +499,7 @@ static int pd6729_set_mem_map(struct pcmcia_socket *sock,
 
 	/* write the stop address */
 
-	i= (mem->res->end >> 12) & 0x0fff;
+	i = (mem->res->end >> 12) & 0x0fff;
 	switch (to_cycles(mem->speed)) {
 	case 0:
 		break;
@@ -563,7 +565,7 @@ static int pd6729_init(struct pcmcia_socket *sock)
 
 /* the pccard structure and its functions */
 static struct pccard_operations pd6729_operations = {
-	.init 			= pd6729_init,
+	.init			= pd6729_init,
 	.get_status		= pd6729_get_status,
 	.set_socket		= pd6729_set_socket,
 	.set_io_map		= pd6729_set_io_map,
@@ -578,8 +580,13 @@ static irqreturn_t pd6729_test(int irq, void *dev)
 
 static int pd6729_check_irq(int irq)
 {
-	if (request_irq(irq, pd6729_test, IRQF_PROBE_SHARED, "x", pd6729_test)
-		!= 0) return -1;
+	int ret;
+
+	ret = request_irq(irq, pd6729_test, IRQF_PROBE_SHARED, "x",
+			  pd6729_test);
+	if (ret)
+		return -1;
+
 	free_irq(irq, pd6729_test);
 	return 0;
 }
@@ -591,7 +598,7 @@ static u_int __devinit pd6729_isa_scan(void)
 
 	if (irq_mode == 1) {
 		printk(KERN_INFO "pd6729: PCI card interrupts, "
-						"PCI status changes\n");
+		       "PCI status changes\n");
 		return 0;
 	}
 
@@ -607,9 +614,10 @@ static u_int __devinit pd6729_isa_scan(void)
 		if (mask & (1<<i))
 			printk("%s%d", ((mask & ((1<<i)-1)) ? "," : ""), i);
 
-	if (mask == 0) printk("none!");
-
-	printk("  polling status changes.\n");
+	if (mask == 0)
+		printk("none!");
+	else
+		printk("  polling status changes.\n");
 
 	return mask;
 }
@@ -624,11 +632,16 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 
 	socket = kzalloc(sizeof(struct pd6729_socket) * MAX_SOCKETS,
 			 GFP_KERNEL);
-	if (!socket)
+	if (!socket) {
+		dev_warn(&dev->dev, "failed to kzalloc socket.\n");
 		return -ENOMEM;
+	}
 
-	if ((ret = pci_enable_device(dev)))
+	ret = pci_enable_device(dev);
+	if (ret) {
+		dev_warn(&dev->dev, "failed to enable pci_device.\n");
 		goto err_out_free_mem;
+	}
 
 	if (!pci_resource_start(dev, 0)) {
 		dev_warn(&dev->dev, "refusing to load the driver as the "
@@ -639,7 +652,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	dev_info(&dev->dev, "Cirrus PD6729 PCI to PCMCIA Bridge at 0x%llx "
 		"on irq %d\n",
 		(unsigned long long)pci_resource_start(dev, 0), dev->irq);
- 	/*
+	/*
 	 * Since we have no memory BARs some firmware may not
 	 * have had PCI_COMMAND_MEMORY enabled, yet the device needs it.
 	 */
@@ -685,8 +698,9 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	pci_set_drvdata(dev, socket);
 	if (irq_mode == 1) {
 		/* Register the interrupt handler */
-		if ((ret = request_irq(dev->irq, pd6729_interrupt, IRQF_SHARED,
-							"pd6729", socket))) {
+		ret = request_irq(dev->irq, pd6729_interrupt, IRQF_SHARED,
+				  "pd6729", socket);
+		if (ret) {
 			dev_err(&dev->dev, "Failed to register irq %d\n",
 				dev->irq);
 			goto err_out_free_res;
@@ -750,18 +764,6 @@ static void __devexit pd6729_pci_remove(struct pci_dev *dev)
 	kfree(socket);
 }
 
-#ifdef CONFIG_PM
-static int pd6729_socket_suspend(struct pci_dev *dev, pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&dev->dev);
-}
-
-static int pd6729_socket_resume(struct pci_dev *dev)
-{
-	return pcmcia_socket_dev_resume(&dev->dev);
-}
-#endif
-
 static struct pci_device_id pd6729_pci_ids[] = {
 	{
 		.vendor		= PCI_VENDOR_ID_CIRRUS,
@@ -778,10 +780,6 @@ static struct pci_driver pd6729_pci_driver = {
 	.id_table	= pd6729_pci_ids,
 	.probe		= pd6729_pci_probe,
 	.remove		= __devexit_p(pd6729_pci_remove),
-#ifdef CONFIG_PM
-	.suspend	= pd6729_socket_suspend,
-	.resume		= pd6729_socket_resume,
-#endif
 };
 
 static int pd6729_module_init(void)

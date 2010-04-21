@@ -681,6 +681,10 @@ static void resize_console(struct port *port)
 	struct virtio_device *vdev;
 	struct winsize ws;
 
+	/* The port could have been hot-unplugged */
+	if (!port)
+		return;
+
 	vdev = port->portdev->vdev;
 	if (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_SIZE)) {
 		vdev->config->get(vdev,
@@ -947,11 +951,18 @@ static void handle_control_message(struct ports_device *portdev,
 		 */
 		err = sysfs_create_group(&port->dev->kobj,
 					 &port_attribute_group);
-		if (err)
+		if (err) {
 			dev_err(port->dev,
 				"Error %d creating sysfs device attributes\n",
 				err);
-
+		} else {
+			/*
+			 * Generate a udev event so that appropriate
+			 * symlinks can be created based on udev
+			 * rules.
+			 */
+			kobject_uevent(&port->dev->kobj, KOBJ_CHANGE);
+		}
 		break;
 	case VIRTIO_CONSOLE_PORT_REMOVE:
 		/*
