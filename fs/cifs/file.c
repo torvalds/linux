@@ -1931,8 +1931,7 @@ int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 
 static void cifs_copy_cache_pages(struct address_space *mapping,
-	struct list_head *pages, int bytes_read, char *data,
-	struct pagevec *plru_pvec)
+	struct list_head *pages, int bytes_read, char *data)
 {
 	struct page *page;
 	char *target;
@@ -1944,7 +1943,7 @@ static void cifs_copy_cache_pages(struct address_space *mapping,
 		page = list_entry(pages->prev, struct page, lru);
 		list_del(&page->lru);
 
-		if (add_to_page_cache(page, mapping, page->index,
+		if (add_to_page_cache_lru(page, mapping, page->index,
 				      GFP_KERNEL)) {
 			page_cache_release(page);
 			cFYI(1, ("Add page cache failed"));
@@ -1970,8 +1969,6 @@ static void cifs_copy_cache_pages(struct address_space *mapping,
 		flush_dcache_page(page);
 		SetPageUptodate(page);
 		unlock_page(page);
-		if (!pagevec_add(plru_pvec, page))
-			__pagevec_lru_add_file(plru_pvec);
 		data += PAGE_CACHE_SIZE;
 	}
 	return;
@@ -1990,7 +1987,6 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	unsigned int read_size, i;
 	char *smb_read_data = NULL;
 	struct smb_com_read_rsp *pSMBr;
-	struct pagevec lru_pvec;
 	struct cifsFileInfo *open_file;
 	int buf_type = CIFS_NO_BUFFER;
 
@@ -2004,7 +2000,6 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
-	pagevec_init(&lru_pvec, 0);
 	cFYI(DBG2, ("rpages: num pages %d", num_pages));
 	for (i = 0; i < num_pages; ) {
 		unsigned contig_pages;
@@ -2073,7 +2068,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 			pSMBr = (struct smb_com_read_rsp *)smb_read_data;
 			cifs_copy_cache_pages(mapping, page_list, bytes_read,
 				smb_read_data + 4 /* RFC1001 hdr */ +
-				le16_to_cpu(pSMBr->DataOffset), &lru_pvec);
+				le16_to_cpu(pSMBr->DataOffset));
 
 			i +=  bytes_read >> PAGE_CACHE_SHIFT;
 			cifs_stats_bytes_read(pTcon, bytes_read);
@@ -2105,8 +2100,6 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		}
 		bytes_read = 0;
 	}
-
-	pagevec_lru_add_file(&lru_pvec);
 
 /* need to free smb_read_data buf before exit */
 	if (smb_read_data) {
