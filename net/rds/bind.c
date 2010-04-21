@@ -43,7 +43,7 @@
  * This is now called for every incoming frame so we arguably care much more
  * about it than we used to.
  */
-static DEFINE_SPINLOCK(rds_bind_lock);
+static DEFINE_RWLOCK(rds_bind_lock);
 static struct rb_root rds_bind_tree = RB_ROOT;
 
 static struct rds_sock *rds_bind_tree_walk(__be32 addr, __be16 port,
@@ -88,13 +88,13 @@ struct rds_sock *rds_find_bound(__be32 addr, __be16 port)
 	struct rds_sock *rs;
 	unsigned long flags;
 
-	spin_lock_irqsave(&rds_bind_lock, flags);
+	read_lock_irqsave(&rds_bind_lock, flags);
 	rs = rds_bind_tree_walk(addr, port, NULL);
 	if (rs && !sock_flag(rds_rs_to_sk(rs), SOCK_DEAD))
 		rds_sock_addref(rs);
 	else
 		rs = NULL;
-	spin_unlock_irqrestore(&rds_bind_lock, flags);
+	read_unlock_irqrestore(&rds_bind_lock, flags);
 
 	rdsdebug("returning rs %p for %pI4:%u\n", rs, &addr,
 		ntohs(port));
@@ -116,7 +116,7 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 		last = rover - 1;
 	}
 
-	spin_lock_irqsave(&rds_bind_lock, flags);
+	write_lock_irqsave(&rds_bind_lock, flags);
 
 	do {
 		if (rover == 0)
@@ -137,7 +137,7 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 		  rs, &addr, (int)ntohs(*port));
 	}
 
-	spin_unlock_irqrestore(&rds_bind_lock, flags);
+	write_unlock_irqrestore(&rds_bind_lock, flags);
 
 	return ret;
 }
@@ -146,7 +146,7 @@ void rds_remove_bound(struct rds_sock *rs)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&rds_bind_lock, flags);
+	write_lock_irqsave(&rds_bind_lock, flags);
 
 	if (rs->rs_bound_addr) {
 		rdsdebug("rs %p unbinding from %pI4:%d\n",
@@ -158,7 +158,7 @@ void rds_remove_bound(struct rds_sock *rs)
 		rs->rs_bound_addr = 0;
 	}
 
-	spin_unlock_irqrestore(&rds_bind_lock, flags);
+	write_unlock_irqrestore(&rds_bind_lock, flags);
 }
 
 int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
