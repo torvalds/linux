@@ -252,13 +252,11 @@ static void usb_acecad_disconnect(struct usb_interface *intf)
 	struct usb_acecad *acecad = usb_get_intfdata(intf);
 
 	usb_set_intfdata(intf, NULL);
-	if (acecad) {
-		usb_kill_urb(acecad->irq);
-		input_unregister_device(acecad->input);
-		usb_free_urb(acecad->irq);
-		usb_buffer_free(interface_to_usbdev(intf), 8, acecad->data, acecad->data_dma);
-		kfree(acecad);
-	}
+
+	input_unregister_device(acecad->input);
+	usb_free_urb(acecad->irq);
+	usb_buffer_free(acecad->usbdev, 8, acecad->data, acecad->data_dma);
+	kfree(acecad);
 }
 
 static struct usb_device_id usb_acecad_id_table [] = {
