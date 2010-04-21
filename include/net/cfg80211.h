@@ -1643,7 +1643,7 @@ struct ieee80211_radiotap_iterator {
 	const struct ieee80211_radiotap_namespace *current_namespace;
 
 	unsigned char *_arg, *_next_ns_data;
-	uint32_t *_next_bitmap;
+	__le32 *_next_bitmap;
 
 	unsigned char *this_arg;
 	int this_arg_index;
