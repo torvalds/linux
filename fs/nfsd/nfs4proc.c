@@ -968,20 +968,36 @@ static struct nfsd4_operation nfsd4_ops[];
 static const char *nfsd4_op_name(unsigned opnum);
 
 /*
- * Enforce NFSv4.1 COMPOUND ordering rules.
+ * Enforce NFSv4.1 COMPOUND ordering rules:
  *
- * TODO:
- * - enforce NFS4ERR_NOT_ONLY_OP,
- * - DESTROY_SESSION MUST be the final operation in the COMPOUND request.
+ * Also note, enforced elsewhere:
+ *	- SEQUENCE other than as first op results in
+ *	  NFS4ERR_SEQUENCE_POS. (Enforced in nfsd4_sequence().)
+ *	- BIND_CONN_TO_SESSION must be the only op in its compound
+ *	  (Will be enforced in nfsd4_bind_conn_to_session().)
+ *	- DESTROY_SESSION must be the final operation in a compound, if
+ *	  sessionid's in SEQUENCE and DESTROY_SESSION are the same.
+ *	  (Enforced in nfsd4_destroy_session().)
  */
-static bool nfs41_op_ordering_ok(struct nfsd4_compoundargs *args)
+static __be32 nfs41_check_op_ordering(struct nfsd4_compoundargs *args)
 {
-	if (args->minorversion && args->opcnt > 0) {
-		struct nfsd4_op *op = &args->ops[0];
-		return (op->status == nfserr_op_illegal) ||
-		       (nfsd4_ops[op->opnum].op_flags & ALLOWED_AS_FIRST_OP);
-	}
-	return true;
+	struct nfsd4_op *op = &args->ops[0];
+
+	/* These ordering requirements don't apply to NFSv4.0: */
+	if (args->minorversion == 0)
+		return nfs_ok;
+	/* This is weird, but OK, not our problem: */
+	if (args->opcnt == 0)
+		return nfs_ok;
+	if (op->status == nfserr_op_illegal)
+		return nfs_ok;
+	if (!(nfsd4_ops[op->opnum].op_flags & ALLOWED_AS_FIRST_OP))
+		return nfserr_op_not_in_session;
+	if (op->opnum == OP_SEQUENCE)
+		return nfs_ok;
+	if (args->opcnt != 1)
+		return nfserr_not_only_op;
+	return nfs_ok;
 }
 
 /*
@@ -1023,13 +1039,13 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	if (args->minorversion > nfsd_supported_minorversion)
 		goto out;
 
-	if (!nfs41_op_ordering_ok(args)) {
+	status = nfs41_check_op_ordering(args);
+	if (status) {
 		op = &args->ops[0];
-		op->status = nfserr_sequence_pos;
+		op->status = status;
 		goto encode_op;
 	}
 
-	status = nfs_ok;
 	while (!status && resp->opcnt < args->opcnt) {
 		op = &args->ops[resp->opcnt++];
 
