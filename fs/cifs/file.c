@@ -922,9 +922,10 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 							1, 0, li->type, false);
 					if (stored_rc)
 						rc = stored_rc;
-
-					list_del(&li->llist);
-					kfree(li);
+					else {
+						list_del(&li->llist);
+						kfree(li);
+					}
 				}
 			}
 			mutex_unlock(&fid->lock_mutex);
