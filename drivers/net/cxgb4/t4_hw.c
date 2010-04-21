@@ -53,8 +53,8 @@
  *	at the time it indicated completion is stored there.  Returns 0 if the
  *	operation completes and	-EAGAIN	otherwise.
  */
-int t4_wait_op_done_val(struct adapter *adapter, int reg, u32 mask,
-			int polarity, int attempts, int delay, u32 *valp)
+static int t4_wait_op_done_val(struct adapter *adapter, int reg, u32 mask,
+			       int polarity, int attempts, int delay, u32 *valp)
 {
 	while (1) {
 		u32 val = t4_read_reg(adapter, reg);
@@ -109,9 +109,9 @@ void t4_set_reg_field(struct adapter *adapter, unsigned int addr, u32 mask,
  *	Reads registers that are accessed indirectly through an address/data
  *	register pair.
  */
-void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
-		      unsigned int data_reg, u32 *vals, unsigned int nregs,
-		      unsigned int start_idx)
+static void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
+			     unsigned int data_reg, u32 *vals,
+			     unsigned int nregs, unsigned int start_idx)
 {
 	while (nregs--) {
 		t4_write_reg(adap, addr_reg, start_idx);
@@ -120,6 +120,7 @@ void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
 	}
 }
 
+#if 0
 /**
  *	t4_write_indirect - write indirectly addressed registers
  *	@adap: the adapter
@@ -132,15 +133,16 @@ void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
  *	Writes a sequential block of registers that are accessed indirectly
  *	through an address/data register pair.
  */
-void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
-		       unsigned int data_reg, const u32 *vals,
-		       unsigned int nregs, unsigned int start_idx)
+static void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
+			      unsigned int data_reg, const u32 *vals,
+			      unsigned int nregs, unsigned int start_idx)
 {
 	while (nregs--) {
 		t4_write_reg(adap, addr_reg, start_idx++);
 		t4_write_reg(adap, data_reg, *vals++);
 	}
 }
+#endif
 
 /*
  * Get the reply to a mailbox command and store it in @rpl in big-endian order.
@@ -537,8 +539,8 @@ static int flash_wait_op(struct adapter *adapter, int attempts, int delay)
  *	(i.e., big-endian), otherwise as 32-bit words in the platform's
  *	natural endianess.
  */
-int t4_read_flash(struct adapter *adapter, unsigned int addr,
-		  unsigned int nwords, u32 *data, int byte_oriented)
+static int t4_read_flash(struct adapter *adapter, unsigned int addr,
+			 unsigned int nwords, u32 *data, int byte_oriented)
 {
 	int ret;
 

@@ -1471,7 +1471,7 @@ EXPORT_SYMBOL(cxgb4_pktgl_to_skb);
  *	Releases the pages of a packet gather list.  We do not own the last
  *	page on the list and do not free it.
  */
-void t4_pktgl_free(const struct pkt_gl *gl)
+static void t4_pktgl_free(const struct pkt_gl *gl)
 {
 	int n;
 	const skb_frag_t *p;
