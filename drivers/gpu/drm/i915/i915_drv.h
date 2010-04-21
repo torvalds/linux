@@ -631,6 +631,9 @@ typedef struct drm_i915_private {
 	u8 max_delay;
 
 	enum no_fbc_reason no_fbc_reason;
+
+	struct drm_mm_node *compressed_fb;
+	struct drm_mm_node *compressed_llb;
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */

@@ -1357,6 +1357,8 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 
 	dev_priv->cfb_size = size;
 
+	dev_priv->compressed_fb = compressed_fb;
+
 	if (IS_GM45(dev)) {
 		g4x_disable_fbc(dev);
 		I915_WRITE(DPFC_CB_BASE, compressed_fb->start);
@@ -1364,10 +1366,20 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 		i8xx_disable_fbc(dev);
 		I915_WRITE(FBC_CFB_BASE, cfb_base);
 		I915_WRITE(FBC_LL_BASE, ll_base);
+		dev_priv->compressed_llb = compressed_llb;
 	}
 
 	DRM_DEBUG("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n", cfb_base,
 		  ll_base, size >> 20);
+}
+
+static void i915_cleanup_compression(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	drm_mm_put_block(dev_priv->compressed_fb);
+	if (!IS_GM45(dev))
+		drm_mm_put_block(dev_priv->compressed_llb);
 }
 
 /* true = enable decode, false = disable decoder */
@@ -1787,6 +1799,8 @@ int i915_driver_unload(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_cleanup_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
+		if (I915_HAS_FBC(dev) && i915_powersave)
+			i915_cleanup_compression(dev);
 		drm_mm_takedown(&dev_priv->vram);
 		i915_gem_lastclose(dev);
 
