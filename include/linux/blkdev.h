@@ -186,11 +186,12 @@ struct request {
 	};
 
 	/*
-	 * two pointers are available for the IO schedulers, if they need
+	 * Three pointers are available for the IO schedulers, if they need
 	 * more they have to dynamically allocate it.
 	 */
 	void *elevator_private;
 	void *elevator_private2;
+	void *elevator_private3;
 
 	struct gendisk *rq_disk;
 	unsigned long start_time;

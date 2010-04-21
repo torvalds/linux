@@ -55,6 +55,7 @@ static const int cfq_hist_divisor = 4;
 #define RQ_CIC(rq)		\
 	((struct cfq_io_context *) (rq)->elevator_private)
 #define RQ_CFQQ(rq)		(struct cfq_queue *) ((rq)->elevator_private2)
+#define RQ_CFQG(rq)		(struct cfq_group *) ((rq)->elevator_private3)
 
 static struct kmem_cache *cfq_pool;
 static struct kmem_cache *cfq_ioc_pool;
@@ -1001,6 +1002,12 @@ static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd, int create)
 	return cfqg;
 }
 
+static inline struct cfq_group *cfq_ref_get_cfqg(struct cfq_group *cfqg)
+{
+	atomic_inc(&cfqg->ref);
+	return cfqg;
+}
+
 static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
 {
 	/* Currently, all async queues are mapped to root group */
@@ -1084,6 +1091,12 @@ static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd, int create)
 {
 	return &cfqd->root_group;
 }
+
+static inline struct cfq_group *cfq_ref_get_cfqg(struct cfq_group *cfqg)
+{
+	return NULL;
+}
+
 static inline void
 cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg) {
 	cfqq->cfqg = cfqg;
@@ -1386,12 +1399,12 @@ static void cfq_reposition_rq_rb(struct cfq_queue *cfqq, struct request *rq)
 {
 	elv_rb_del(&cfqq->sort_list, rq);
 	cfqq->queued[rq_is_sync(rq)]--;
-	blkiocg_update_io_remove_stats(&cfqq->cfqg->blkg, rq_data_dir(rq),
+	blkiocg_update_io_remove_stats(&(RQ_CFQG(rq))->blkg, rq_data_dir(rq),
 						rq_is_sync(rq));
 	cfq_add_rq_rb(rq);
-	blkiocg_update_io_add_stats(
-			&cfqq->cfqg->blkg, &cfqq->cfqd->serving_group->blkg,
-			rq_data_dir(rq), rq_is_sync(rq));
+	blkiocg_update_io_add_stats(&(RQ_CFQG(rq))->blkg,
+			&cfqq->cfqd->serving_group->blkg, rq_data_dir(rq),
+			rq_is_sync(rq));
 }
 
 static struct request *
@@ -1447,7 +1460,7 @@ static void cfq_remove_request(struct request *rq)
 	cfq_del_rq_rb(rq);
 
 	cfqq->cfqd->rq_queued--;
-	blkiocg_update_io_remove_stats(&cfqq->cfqg->blkg, rq_data_dir(rq),
+	blkiocg_update_io_remove_stats(&(RQ_CFQG(rq))->blkg, rq_data_dir(rq),
 						rq_is_sync(rq));
 	if (rq_is_meta(rq)) {
 		WARN_ON(!cfqq->meta_pending);
@@ -1483,8 +1496,7 @@ static void cfq_merged_request(struct request_queue *q, struct request *req,
 static void cfq_bio_merged(struct request_queue *q, struct request *req,
 				struct bio *bio)
 {
-	struct cfq_queue *cfqq = RQ_CFQQ(req);
-	blkiocg_update_io_merged_stats(&cfqq->cfqg->blkg, bio_data_dir(bio),
+	blkiocg_update_io_merged_stats(&(RQ_CFQG(req))->blkg, bio_data_dir(bio),
 					cfq_bio_sync(bio));
 }
 
@@ -1505,7 +1517,7 @@ cfq_merged_requests(struct request_queue *q, struct request *rq,
 	if (cfqq->next_rq == next)
 		cfqq->next_rq = rq;
 	cfq_remove_request(next);
-	blkiocg_update_io_merged_stats(&cfqq->cfqg->blkg, rq_data_dir(next),
+	blkiocg_update_io_merged_stats(&(RQ_CFQG(rq))->blkg, rq_data_dir(next),
 					rq_is_sync(next));
 }
 
@@ -3240,8 +3252,7 @@ static void cfq_insert_request(struct request_queue *q, struct request *rq)
 	rq_set_fifo_time(rq, jiffies + cfqd->cfq_fifo_expire[rq_is_sync(rq)]);
 	list_add_tail(&rq->queuelist, &cfqq->fifo);
 	cfq_add_rq_rb(rq);
-
-	blkiocg_update_io_add_stats(&cfqq->cfqg->blkg,
+	blkiocg_update_io_add_stats(&(RQ_CFQG(rq))->blkg,
 			&cfqd->serving_group->blkg, rq_data_dir(rq),
 			rq_is_sync(rq));
 	cfq_rq_enqueued(cfqd, cfqq, rq);
@@ -3472,6 +3483,10 @@ static void cfq_put_request(struct request *rq)
 		rq->elevator_private = NULL;
 		rq->elevator_private2 = NULL;
 
+		/* Put down rq reference on cfqg */
+		cfq_put_cfqg(RQ_CFQG(rq));
+		rq->elevator_private3 = NULL;
+
 		cfq_put_queue(cfqq);
 	}
 }
@@ -3560,6 +3575,7 @@ new_queue:
 
 	rq->elevator_private = cic;
 	rq->elevator_private2 = cfqq;
+	rq->elevator_private3 = cfq_ref_get_cfqg(cfqq->cfqg);
 	return 0;
 
 queue_fail:
