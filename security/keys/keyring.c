@@ -39,7 +39,7 @@ static inline unsigned keyring_hash(const char *desc)
 	unsigned bucket = 0;
 
 	for (; *desc; desc++)
-		bucket += (unsigned char) *desc;
+		bucket += (unsigned char)*desc;
 
 	return bucket & (KEYRING_NAME_HASH_SIZE - 1);
 }
@@ -235,7 +235,7 @@ static long keyring_read(const struct key *keyring,
 		ret = qty;
 	}
 
- error:
+error:
 	return ret;
 
 } /* end keyring_read() */
@@ -506,7 +506,7 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 	rcu_read_unlock();
 	return ERR_PTR(-ENOKEY);
 
- found:
+found:
 	atomic_inc(&key->usage);
 	rcu_read_unlock();
 	return make_key_ref(key, possessed);
@@ -563,7 +563,7 @@ struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 	read_unlock(&keyring_name_lock);
 	keyring = ERR_PTR(-ENOKEY);
 
- error:
+error:
 	return keyring;
 
 } /* end find_keyring_by_name() */
@@ -596,7 +596,7 @@ static int keyring_detect_cycle(struct key *A, struct key *B)
 	sp = 0;
 
 	/* start processing a new keyring */
- descend:
+descend:
 	if (test_bit(KEY_FLAG_REVOKED, &subtree->flags))
 		goto not_this_keyring;
 
@@ -605,7 +605,7 @@ static int keyring_detect_cycle(struct key *A, struct key *B)
 		goto not_this_keyring;
 	kix = 0;
 
- ascend:
+ascend:
 	/* iterate through the remaining keys in this keyring */
 	for (; kix < keylist->nkeys; kix++) {
 		key = keylist->keys[kix];
@@ -631,7 +631,7 @@ static int keyring_detect_cycle(struct key *A, struct key *B)
 
 	/* the keyring we're looking at was disqualified or didn't contain a
 	 * matching key */
- not_this_keyring:
+not_this_keyring:
 	if (sp > 0) {
 		/* resume the checking of a keyring higher up in the tree */
 		sp--;
@@ -642,15 +642,15 @@ static int keyring_detect_cycle(struct key *A, struct key *B)
 
 	ret = 0; /* no cycles detected */
 
- error:
+error:
 	rcu_read_unlock();
 	return ret;
 
- too_deep:
+too_deep:
 	ret = -ELOOP;
 	goto error;
 
- cycle_detected:
+cycle_detected:
 	ret = -EDEADLK;
 	goto error;
 

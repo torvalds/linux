@@ -355,7 +355,7 @@ EXPORT_SYMBOL(key_alloc);
  */
 int key_payload_reserve(struct key *key, size_t datalen)
 {
-	int delta = (int) datalen - key->datalen;
+	int delta = (int)datalen - key->datalen;
 	int ret = 0;
 
 	key_check(key);
