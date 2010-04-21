@@ -66,18 +66,18 @@ static void usb_acecad_irq(struct urb *urb)
 	int prox, status;
 
 	switch (urb->status) {
-		case 0:
-			/* success */
-			break;
-		case -ECONNRESET:
-		case -ENOENT:
-		case -ESHUTDOWN:
-			/* this urb is terminated, clean up */
-			dbg("%s - urb shutting down with status: %d", __func__, urb->status);
-			return;
-		default:
-			dbg("%s - nonzero urb status received: %d", __func__, urb->status);
-			goto resubmit;
+	case 0:
+		/* success */
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		/* this urb is terminated, clean up */
+		dbg("%s - urb shutting down with status: %d", __func__, urb->status);
+		return;
+	default:
+		dbg("%s - nonzero urb status received: %d", __func__, urb->status);
+		goto resubmit;
 	}
 
 	prox = (data[0] & 0x04) >> 2;
@@ -135,7 +135,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	struct usb_acecad *acecad;
 	struct input_dev *input_dev;
 	int pipe, maxp;
-	int err = -ENOMEM;
+	int err;
 
 	if (interface->desc.bNumEndpoints != 1)
 		return -ENODEV;
@@ -193,39 +193,35 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	input_dev->close = usb_acecad_close;
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-	input_dev->absbit[0] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
-		BIT_MASK(ABS_PRESSURE);
-	input_dev->keybit[BIT_WORD(BTN_LEFT)] = BIT_MASK(BTN_LEFT) |
-		BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_MIDDLE);
+	input_dev->keybit[BIT_WORD(BTN_LEFT)] =
+		BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_MIDDLE);
 	input_dev->keybit[BIT_WORD(BTN_DIGI)] = BIT_MASK(BTN_TOOL_PEN) |
 		BIT_MASK(BTN_TOUCH) | BIT_MASK(BTN_STYLUS) |
 		BIT_MASK(BTN_STYLUS2);
 
 	switch (id->driver_info) {
-		case 0:
-			input_dev->absmax[ABS_X] = 5000;
-			input_dev->absmax[ABS_Y] = 3750;
-			input_dev->absmax[ABS_PRESSURE] = 512;
-			if (!strlen(acecad->name))
-				snprintf(acecad->name, sizeof(acecad->name),
-					"USB Acecad Flair Tablet %04x:%04x",
-					le16_to_cpu(dev->descriptor.idVendor),
-					le16_to_cpu(dev->descriptor.idProduct));
-			break;
-		case 1:
-			input_dev->absmax[ABS_X] = 3000;
-			input_dev->absmax[ABS_Y] = 2250;
-			input_dev->absmax[ABS_PRESSURE] = 1024;
-			if (!strlen(acecad->name))
-				snprintf(acecad->name, sizeof(acecad->name),
-					"USB Acecad 302 Tablet %04x:%04x",
-					le16_to_cpu(dev->descriptor.idVendor),
-					le16_to_cpu(dev->descriptor.idProduct));
-			break;
-	}
+	case 0:
+		input_set_abs_params(input_dev, ABS_X, 0, 5000, 4, 0);
+		input_set_abs_params(input_dev, ABS_Y, 0, 3750, 4, 0);
+		input_set_abs_params(input_dev, ABS_PRESSURE, 0, 512, 0, 0);
+		if (!strlen(acecad->name))
+			snprintf(acecad->name, sizeof(acecad->name),
+				"USB Acecad Flair Tablet %04x:%04x",
+				le16_to_cpu(dev->descriptor.idVendor),
+				le16_to_cpu(dev->descriptor.idProduct));
+		break;
 
-	input_dev->absfuzz[ABS_X] = 4;
-	input_dev->absfuzz[ABS_Y] = 4;
+	case 1:
+		input_set_abs_params(input_dev, ABS_X, 0, 53000, 4, 0);
+		input_set_abs_params(input_dev, ABS_Y, 0, 2250, 4, 0);
+		input_set_abs_params(input_dev, ABS_PRESSURE, 0, 1024, 0, 0);
+		if (!strlen(acecad->name))
+			snprintf(acecad->name, sizeof(acecad->name),
+				"USB Acecad 302 Tablet %04x:%04x",
+				le16_to_cpu(dev->descriptor.idVendor),
+				le16_to_cpu(dev->descriptor.idProduct));
+		break;
+	}
 
 	usb_fill_int_urb(acecad->irq, dev, pipe,
 			acecad->data, maxp > 8 ? 8 : maxp,
