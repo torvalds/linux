@@ -252,6 +252,47 @@ static void __meminit vmemmap_create_mapping(unsigned long start,
 }
 #endif /* CONFIG_PPC_BOOK3E */
 
+struct vmemmap_backing *vmemmap_list;
+
+static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
+{
+	static struct vmemmap_backing *next;
+	static int num_left;
+
+	/* allocate a page when required and hand out chunks */
+	if (!next || !num_left) {
+		next = vmemmap_alloc_block(PAGE_SIZE, node);
+		if (unlikely(!next)) {
+			WARN_ON(1);
+			return NULL;
+		}
+		num_left = PAGE_SIZE / sizeof(struct vmemmap_backing);
+	}
+
+	num_left--;
+
+	return next++;
+}
+
+static __meminit void vmemmap_list_populate(unsigned long phys,
+					    unsigned long start,
+					    int node)
+{
+	struct vmemmap_backing *vmem_back;
+
+	vmem_back = vmemmap_list_alloc(node);
+	if (unlikely(!vmem_back)) {
+		WARN_ON(1);
+		return;
+	}
+
+	vmem_back->phys = phys;
+	vmem_back->virt_addr = start;
+	vmem_back->list = vmemmap_list;
+
+	vmemmap_list = vmem_back;
+}
+
 int __meminit vmemmap_populate(struct page *start_page,
 			       unsigned long nr_pages, int node)
 {
@@ -275,6 +316,8 @@ int __meminit vmemmap_populate(struct page *start_page,
 		p = vmemmap_alloc_block(page_size, node);
 		if (!p)
 			return -ENOMEM;
+
+		vmemmap_list_populate(__pa(p), start, node);
 
 		pr_debug("      * %016lx..%016lx allocated at %p\n",
 			 start, start + page_size, p);
