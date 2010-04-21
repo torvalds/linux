@@ -76,7 +76,7 @@ enum {
 }
 
 #define TS_INDEX2VAL(i)	((((i) & 3) << CHCR_TS_LOW_SHIFT) | \
-			 ((((i) >> 2) & 3) << CHCR_TS_HIGH_SHIFT))
+			 (((i) & 0xc) << CHCR_TS_HIGH_SHIFT))
 
 #else /* CONFIG_CPU_SH4A */
 
