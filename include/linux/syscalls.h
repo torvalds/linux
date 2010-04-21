@@ -103,22 +103,6 @@ struct perf_event_attr;
 #define __SC_TEST5(t5, a5, ...)	__SC_TEST(t5); __SC_TEST4(__VA_ARGS__)
 #define __SC_TEST6(t6, a6, ...)	__SC_TEST(t6); __SC_TEST5(__VA_ARGS__)
 
-#ifdef CONFIG_PERF_EVENTS
-
-#define TRACE_SYS_ENTER_PERF_INIT(sname)				       \
-	.perf_event_enable = perf_sysenter_enable,			       \
-	.perf_event_disable = perf_sysenter_disable,
-
-#define TRACE_SYS_EXIT_PERF_INIT(sname)					       \
-	.perf_event_enable = perf_sysexit_enable,			       \
-	.perf_event_disable = perf_sysexit_disable,
-#else
-#define TRACE_SYS_ENTER_PERF(sname)
-#define TRACE_SYS_ENTER_PERF_INIT(sname)
-#define TRACE_SYS_EXIT_PERF(sname)
-#define TRACE_SYS_EXIT_PERF_INIT(sname)
-#endif /* CONFIG_PERF_EVENTS */
-
 #ifdef CONFIG_FTRACE_SYSCALLS
 #define __SC_STR_ADECL1(t, a)		#a
 #define __SC_STR_ADECL2(t, a, ...)	#a, __SC_STR_ADECL1(__VA_ARGS__)
@@ -134,7 +118,8 @@ struct perf_event_attr;
 #define __SC_STR_TDECL5(t, a, ...)	#t, __SC_STR_TDECL4(__VA_ARGS__)
 #define __SC_STR_TDECL6(t, a, ...)	#t, __SC_STR_TDECL5(__VA_ARGS__)
 
-extern struct ftrace_event_class event_class_syscalls;
+extern struct ftrace_event_class event_class_syscall_enter;
+extern struct ftrace_event_class event_class_syscall_exit;
 
 #define SYSCALL_TRACE_ENTER_EVENT(sname)				\
 	static const struct syscall_metadata __syscall_meta_##sname;	\
@@ -148,14 +133,11 @@ extern struct ftrace_event_class event_class_syscalls;
 	  __attribute__((section("_ftrace_events")))			\
 	  event_enter_##sname = {					\
 		.name                   = "sys_enter"#sname,		\
-		.class			= &event_class_syscalls,	\
+		.class			= &event_class_syscall_enter,	\
 		.event                  = &enter_syscall_print_##sname,	\
 		.raw_init		= init_syscall_trace,		\
 		.define_fields		= syscall_enter_define_fields,	\
-		.regfunc		= reg_event_syscall_enter,	\
-		.unregfunc		= unreg_event_syscall_enter,	\
 		.data			= (void *)&__syscall_meta_##sname,\
-		TRACE_SYS_ENTER_PERF_INIT(sname)			\
 	}
 
 #define SYSCALL_TRACE_EXIT_EVENT(sname)					\
@@ -170,14 +152,11 @@ extern struct ftrace_event_class event_class_syscalls;
 	  __attribute__((section("_ftrace_events")))			\
 	  event_exit_##sname = {					\
 		.name                   = "sys_exit"#sname,		\
-		.class			= &event_class_syscalls,	\
+		.class			= &event_class_syscall_exit,	\
 		.event                  = &exit_syscall_print_##sname,	\
 		.raw_init		= init_syscall_trace,		\
 		.define_fields		= syscall_exit_define_fields,	\
-		.regfunc		= reg_event_syscall_exit,	\
-		.unregfunc		= unreg_event_syscall_exit,	\
 		.data			= (void *)&__syscall_meta_##sname,\
-		TRACE_SYS_EXIT_PERF_INIT(sname)			\
 	}
 
 #define SYSCALL_METADATA(sname, nb)				\

@@ -113,8 +113,23 @@ void tracing_record_cmdline(struct task_struct *tsk);
 
 struct event_filter;
 
+enum trace_reg {
+	TRACE_REG_REGISTER,
+	TRACE_REG_UNREGISTER,
+	TRACE_REG_PERF_REGISTER,
+	TRACE_REG_PERF_UNREGISTER,
+};
+
+struct ftrace_event_call;
+
 struct ftrace_event_class {
 	char			*system;
+	void			*probe;
+#ifdef CONFIG_PERF_EVENTS
+	void			*perf_probe;
+#endif
+	int			(*reg)(struct ftrace_event_call *event,
+				       enum trace_reg type);
 };
 
 struct ftrace_event_call {
@@ -124,8 +139,6 @@ struct ftrace_event_call {
 	struct dentry		*dir;
 	struct trace_event	*event;
 	int			enabled;
-	int			(*regfunc)(struct ftrace_event_call *);
-	void			(*unregfunc)(struct ftrace_event_call *);
 	int			id;
 	const char		*print_fmt;
 	int			(*raw_init)(struct ftrace_event_call *);
@@ -137,8 +150,6 @@ struct ftrace_event_call {
 	void			*data;
 
 	int			perf_refcount;
-	int			(*perf_event_enable)(struct ftrace_event_call *);
-	void			(*perf_event_disable)(struct ftrace_event_call *);
 };
 
 #define PERF_MAX_TRACE_SIZE	2048

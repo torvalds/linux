@@ -49,7 +49,12 @@ static int perf_trace_event_enable(struct ftrace_event_call *event)
 		rcu_assign_pointer(perf_trace_buf_nmi, buf);
 	}
 
-	ret = event->perf_event_enable(event);
+	if (event->class->reg)
+		ret = event->class->reg(event, TRACE_REG_PERF_REGISTER);
+	else
+		ret = tracepoint_probe_register(event->name,
+						event->class->perf_probe,
+						event);
 	if (!ret) {
 		total_ref_count++;
 		return 0;
@@ -75,7 +80,8 @@ int perf_trace_enable(int event_id)
 
 	mutex_lock(&event_mutex);
 	list_for_each_entry(event, &ftrace_events, list) {
-		if (event->id == event_id && event->perf_event_enable &&
+		if (event->id == event_id &&
+		    event->class && event->class->perf_probe &&
 		    try_module_get(event->mod)) {
 			ret = perf_trace_event_enable(event);
 			break;
@@ -93,7 +99,10 @@ static void perf_trace_event_disable(struct ftrace_event_call *event)
 	if (--event->perf_refcount > 0)
 		return;
 
-	event->perf_event_disable(event);
+	if (event->class->reg)
+		event->class->reg(event, TRACE_REG_PERF_UNREGISTER);
+	else
+		tracepoint_probe_unregister(event->name, event->class->perf_probe, event);
 
 	if (!--total_ref_count) {
 		buf = perf_trace_buf;

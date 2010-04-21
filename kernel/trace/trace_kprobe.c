@@ -202,6 +202,7 @@ struct trace_probe {
 	unsigned long 		nhit;
 	unsigned int		flags;	/* For TP_FLAG_* */
 	const char		*symbol;	/* symbol name */
+	struct ftrace_event_class	class;
 	struct ftrace_event_call	call;
 	struct trace_event		event;
 	unsigned int		nr_args;
@@ -323,6 +324,7 @@ static struct trace_probe *alloc_trace_probe(const char *group,
 		goto error;
 	}
 
+	tp->call.class = &tp->class;
 	tp->call.name = kstrdup(event, GFP_KERNEL);
 	if (!tp->call.name)
 		goto error;
@@ -332,8 +334,8 @@ static struct trace_probe *alloc_trace_probe(const char *group,
 		goto error;
 	}
 
-	tp->call.class->system = kstrdup(group, GFP_KERNEL);
-	if (!tp->call.class->system)
+	tp->class.system = kstrdup(group, GFP_KERNEL);
+	if (!tp->class.system)
 		goto error;
 
 	INIT_LIST_HEAD(&tp->list);
@@ -1302,6 +1304,26 @@ static void probe_perf_disable(struct ftrace_event_call *call)
 }
 #endif	/* CONFIG_PERF_EVENTS */
 
+static __kprobes
+int kprobe_register(struct ftrace_event_call *event, enum trace_reg type)
+{
+	switch (type) {
+	case TRACE_REG_REGISTER:
+		return probe_event_enable(event);
+	case TRACE_REG_UNREGISTER:
+		probe_event_disable(event);
+		return 0;
+
+#ifdef CONFIG_PERF_EVENTS
+	case TRACE_REG_PERF_REGISTER:
+		return probe_perf_enable(event);
+	case TRACE_REG_PERF_UNREGISTER:
+		probe_perf_disable(event);
+		return 0;
+#endif
+	}
+	return 0;
+}
 
 static __kprobes
 int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
@@ -1355,13 +1377,7 @@ static int register_probe_event(struct trace_probe *tp)
 		return -ENODEV;
 	}
 	call->enabled = 0;
-	call->regfunc = probe_event_enable;
-	call->unregfunc = probe_event_disable;
-
-#ifdef CONFIG_PERF_EVENTS
-	call->perf_event_enable = probe_perf_enable;
-	call->perf_event_disable = probe_perf_disable;
-#endif
+	call->class->reg = kprobe_register;
 	call->data = tp;
 	ret = trace_add_event_call(call);
 	if (ret) {
