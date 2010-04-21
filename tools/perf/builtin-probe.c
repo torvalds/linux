@@ -54,6 +54,7 @@ static struct {
 	struct perf_probe_event events[MAX_PROBES];
 	struct strlist *dellist;
 	struct line_range line_range;
+	int max_probe_points;
 } params;
 
 
@@ -179,6 +180,8 @@ static const struct option options[] = {
 		   "file", "vmlinux pathname"),
 #endif
 	OPT__DRY_RUN(&probe_event_dry_run),
+	OPT_INTEGER('\0', "max-probes", &params.max_probe_points,
+		 "Set how many probe points can be found for a probe."),
 	OPT_END()
 };
 
@@ -199,6 +202,9 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			return ret;
 		}
 	}
+
+	if (params.max_probe_points == 0)
+		params.max_probe_points = MAX_PROBES;
 
 	if ((!params.nevents && !params.dellist && !params.list_events &&
 	     !params.show_lines))
@@ -246,7 +252,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 	if (params.nevents) {
 		ret = add_perf_probe_events(params.events, params.nevents,
-					    params.force_add);
+					    params.force_add,
+					    params.max_probe_points);
 		if (ret < 0) {
 			pr_err("  Error: Failed to add events. (%d)\n", ret);
 			return ret;

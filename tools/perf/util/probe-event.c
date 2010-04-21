@@ -150,7 +150,8 @@ static int convert_to_perf_probe_point(struct kprobe_trace_point *tp,
 
 /* Try to find perf_probe_event with debuginfo */
 static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
-					   struct kprobe_trace_event **tevs)
+					   struct kprobe_trace_event **tevs,
+					   int max_tevs)
 {
 	bool need_dwarf = perf_probe_event_need_dwarf(pev);
 	int fd, ntevs;
@@ -166,7 +167,7 @@ static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
 	}
 
 	/* Searching trace events corresponding to probe event */
-	ntevs = find_kprobe_trace_events(fd, pev, tevs);
+	ntevs = find_kprobe_trace_events(fd, pev, tevs, max_tevs);
 	close(fd);
 
 	if (ntevs > 0) {	/* Succeeded to find trace events */
@@ -318,7 +319,8 @@ static int convert_to_perf_probe_point(struct kprobe_trace_point *tp,
 }
 
 static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
-				struct kprobe_trace_event **tevs __unused)
+				struct kprobe_trace_event **tevs __unused,
+				int max_tevs __unused)
 {
 	if (perf_probe_event_need_dwarf(pev)) {
 		pr_warning("Debuginfo-analysis is not supported.\n");
@@ -1408,14 +1410,15 @@ static int __add_kprobe_trace_events(struct perf_probe_event *pev,
 }
 
 static int convert_to_kprobe_trace_events(struct perf_probe_event *pev,
-					  struct kprobe_trace_event **tevs)
+					  struct kprobe_trace_event **tevs,
+					  int max_tevs)
 {
 	struct symbol *sym;
 	int ret = 0, i;
 	struct kprobe_trace_event *tev;
 
 	/* Convert perf_probe_event with debuginfo */
-	ret = try_to_find_kprobe_trace_events(pev, tevs);
+	ret = try_to_find_kprobe_trace_events(pev, tevs, max_tevs);
 	if (ret != 0)
 		return ret;
 
@@ -1487,7 +1490,7 @@ struct __event_package {
 };
 
 int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
-			  bool force_add)
+			  bool force_add, int max_tevs)
 {
 	int i, j, ret;
 	struct __event_package *pkgs;
@@ -1506,7 +1509,7 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 		pkgs[i].pev = &pevs[i];
 		/* Convert with or without debuginfo */
 		ret  = convert_to_kprobe_trace_events(pkgs[i].pev,
-						      &pkgs[i].tevs);
+						      &pkgs[i].tevs, max_tevs);
 		if (ret < 0)
 			goto end;
 		pkgs[i].ntevs = ret;
