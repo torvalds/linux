@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/inode.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2008
+ *   Copyright (C) International Business Machines  Corp., 2002,2010
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -86,30 +86,30 @@ cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
 {
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
 
-	cFYI(1, ("%s: revalidating inode %llu", __func__, cifs_i->uniqueid));
+	cFYI(1, "%s: revalidating inode %llu", __func__, cifs_i->uniqueid);
 
 	if (inode->i_state & I_NEW) {
-		cFYI(1, ("%s: inode %llu is new", __func__, cifs_i->uniqueid));
+		cFYI(1, "%s: inode %llu is new", __func__, cifs_i->uniqueid);
 		return;
 	}
 
 	/* don't bother with revalidation if we have an oplock */
 	if (cifs_i->clientCanCacheRead) {
-		cFYI(1, ("%s: inode %llu is oplocked", __func__,
-			 cifs_i->uniqueid));
+		cFYI(1, "%s: inode %llu is oplocked", __func__,
+			 cifs_i->uniqueid);
 		return;
 	}
 
 	 /* revalidate if mtime or size have changed */
 	if (timespec_equal(&inode->i_mtime, &fattr->cf_mtime) &&
 	    cifs_i->server_eof == fattr->cf_eof) {
-		cFYI(1, ("%s: inode %llu is unchanged", __func__,
-			 cifs_i->uniqueid));
+		cFYI(1, "%s: inode %llu is unchanged", __func__,
+			 cifs_i->uniqueid);
 		return;
 	}
 
-	cFYI(1, ("%s: invalidating inode %llu mapping", __func__,
-		 cifs_i->uniqueid));
+	cFYI(1, "%s: invalidating inode %llu mapping", __func__,
+		 cifs_i->uniqueid);
 	cifs_i->invalid_mapping = true;
 }
 
@@ -1577,9 +1577,9 @@ int cifs_revalidate_dentry(struct dentry *dentry)
 		goto check_inval;
 	}
 
-	cFYI(1, ("Revalidate: %s inode 0x%p count %d dentry: 0x%p d_time %ld "
+	cFYI(1, "Revalidate: %s inode 0x%p count %d dentry: 0x%p d_time %ld "
 		 "jiffies %ld", full_path, inode, inode->i_count.counter,
-		 dentry, dentry->d_time, jiffies));
+		 dentry, dentry->d_time, jiffies);
 
 	if (CIFS_SB(sb)->tcon->unix_ext)
 		rc = cifs_get_inode_info_unix(&inode, full_path, sb, xid);

@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifssmb.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2009
+ *   Copyright (C) International Business Machines  Corp., 2002,2010
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   Contains the routines for constructing the SMB PDUs themselves
@@ -493,14 +493,14 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			goto neg_err_exit;
 		}
 
-		cFYI(1, ("LANMAN negotiated"));
+		cFYI(1, "LANMAN negotiated");
 		/* we will not end up setting signing flags - as no signing
 		was in LANMAN and server did not return the flags on */
 		goto signing_check;
 #else /* weak security disabled */
 	} else if (pSMBr->hdr.WordCount == 13) {
-		cERROR(1, ("mount failed, cifs module not built "
-			  "with CIFS_WEAK_PW_HASH support"));
+		cERROR(1, "mount failed, cifs module not built "
+			  "with CIFS_WEAK_PW_HASH support");
 		rc = -EOPNOTSUPP;
 #endif /* WEAK_PW_HASH */
 		goto neg_err_exit;
@@ -1513,7 +1513,7 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, long_op);
 	cifs_stats_inc(&tcon->num_writes);
 	if (rc) {
-		cFYI(1, ("Send error in write = %d", rc));
+		cFYI(1, "Send error in write = %d", rc);
 	} else {
 		*nbytes = le16_to_cpu(pSMBr->CountHigh);
 		*nbytes = (*nbytes) << 16;
@@ -2529,7 +2529,7 @@ validate_ntransact(char *buf, char **ppparm, char **ppdata,
 		cFYI(1, "data starts after end of smb");
 		return -EINVAL;
 	} else if (data_count + *ppdata > end_of_smb) {
-		cFYI(1, "data %p + count %d (%p) ends after end of smb %p start %p",
+		cFYI(1, "data %p + count %d (%p) past smb end %p start %p",
 			*ppdata, data_count, (data_count + *ppdata),
 			end_of_smb, pSMBr);
 		return -EINVAL;
@@ -3304,7 +3304,7 @@ QFileInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, ("Send error in QPathInfo = %d", rc));
+		cFYI(1, "Send error in QPathInfo = %d", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
@@ -3472,14 +3472,14 @@ UnixQFileInfoRetry:
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
-		cFYI(1, ("Send error in QPathInfo = %d", rc));
+		cFYI(1, "Send error in QPathInfo = %d", rc);
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc || (pSMBr->ByteCount < sizeof(FILE_UNIX_BASIC_INFO))) {
-			cERROR(1, ("Malformed FILE_UNIX_BASIC_INFO response.\n"
+			cERROR(1, "Malformed FILE_UNIX_BASIC_INFO response.\n"
 				   "Unix Extensions can be disabled on mount "
-				   "by specifying the nosfu mount option."));
+				   "by specifying the nosfu mount option.");
 			rc = -EIO;	/* bad smb */
 		} else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -4037,7 +4037,7 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 	data_end = (char *)(&(pSMBr->PathConsumed)) +
 				le16_to_cpu(pSMBr->t2.DataCount);
 
-	cFYI(1, "num_referrals: %d dfs flags: 0x%x ... \n",
+	cFYI(1, "num_referrals: %d dfs flags: 0x%x ...\n",
 			*num_of_nodes,
 			le32_to_cpu(pSMBr->DFSFlags));
 

@@ -3,7 +3,7 @@
  *
  *   vfs operations that deal with files
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2007
+ *   Copyright (C) International Business Machines  Corp., 2002,2010
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Jeremy Allison (jra@samba.org)
  *
@@ -855,9 +855,9 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 						0 /* wait flag */);
 					pfLock->fl_type = F_RDLCK;
 					if (rc != 0)
-						cERROR(1, ("Error unlocking "
+						cERROR(1, "Error unlocking "
 						"previously locked range %d "
-						"during test of lock", rc));
+						"during test of lock", rc);
 					rc = 0;
 				} else {
 					pfLock->fl_type = F_WRLCK;
@@ -1709,7 +1709,7 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	unsigned int rpages = 0;
 	int rc = 0;
 
-	cFYI(1, "sync page %p",page);
+	cFYI(1, "sync page %p", page);
 	mapping = page->mapping;
 	if (!mapping)
 		return 0;
@@ -1998,7 +1998,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
-	cFYI(DBG2, ("rpages: num pages %d", num_pages));
+	cFYI(DBG2, "rpages: num pages %d", num_pages);
 	for (i = 0; i < num_pages; ) {
 		unsigned contig_pages;
 		struct page *tmp_page;
@@ -2083,7 +2083,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 			}
 		} else {
 			cFYI(1, "No bytes read (%d) at offset %lld . "
-			        "Cleaning remaining pages from readahead list",
+				"Cleaning remaining pages from readahead list",
 				bytes_read, offset);
 			/* BB turn off caching and do new lookup on
 			   file size at server? */
