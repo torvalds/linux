@@ -63,9 +63,10 @@ nv50_instmem_init(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan;
 	uint32_t c_offset, c_size, c_ramfc, c_vmpd, c_base, pt_size;
+	uint32_t save_nv001700;
+	uint64_t v;
 	struct nv50_instmem_priv *priv;
 	int ret, i;
-	uint32_t v, save_nv001700;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -76,17 +77,12 @@ nv50_instmem_init(struct drm_device *dev)
 	for (i = 0x1700; i <= 0x1710; i += 4)
 		priv->save1700[(i-0x1700)/4] = nv_rd32(dev, i);
 
-	if (dev_priv->chipset == 0xaa || dev_priv->chipset == 0xac)
-		dev_priv->vram_sys_base = nv_rd32(dev, 0x100e10) << 12;
-	else
-		dev_priv->vram_sys_base = 0;
-
 	/* Reserve the last MiB of VRAM, we should probably try to avoid
 	 * setting up the below tables over the top of the VBIOS image at
 	 * some point.
 	 */
 	dev_priv->ramin_rsvd_vram = 1 << 20;
-	c_offset = nouveau_mem_fb_amount(dev) - dev_priv->ramin_rsvd_vram;
+	c_offset = dev_priv->vram_size - dev_priv->ramin_rsvd_vram;
 	c_size   = 128 << 10;
 	c_vmpd   = ((dev_priv->chipset & 0xf0) == 0x50) ? 0x1400 : 0x200;
 	c_ramfc  = ((dev_priv->chipset & 0xf0) == 0x50) ? 0x0 : 0x20;
@@ -106,7 +102,7 @@ nv50_instmem_init(struct drm_device *dev)
 	dev_priv->vm_gart_size = NV50_VM_BLOCK;
 
 	dev_priv->vm_vram_base = dev_priv->vm_gart_base + dev_priv->vm_gart_size;
-	dev_priv->vm_vram_size = nouveau_mem_fb_amount(dev);
+	dev_priv->vm_vram_size = dev_priv->vram_size;
 	if (dev_priv->vm_vram_size > NV50_VM_MAX_VRAM)
 		dev_priv->vm_vram_size = NV50_VM_MAX_VRAM;
 	dev_priv->vm_vram_size = roundup(dev_priv->vm_vram_size, NV50_VM_BLOCK);
@@ -189,8 +185,8 @@ nv50_instmem_init(struct drm_device *dev)
 
 	i = 0;
 	while (v < dev_priv->vram_sys_base + c_offset + c_size) {
-		BAR0_WI32(priv->pramin_pt->gpuobj, i + 0, v);
-		BAR0_WI32(priv->pramin_pt->gpuobj, i + 4, 0x00000000);
+		BAR0_WI32(priv->pramin_pt->gpuobj, i + 0, lower_32_bits(v));
+		BAR0_WI32(priv->pramin_pt->gpuobj, i + 4, upper_32_bits(v));
 		v += 0x1000;
 		i += 8;
 	}

@@ -1608,9 +1608,12 @@ static void set_rx_mode(struct net_device *dev)
 {
     unsigned int ioaddr = dev->base_addr;
     struct smc_private *smc = netdev_priv(dev);
-    u_int multicast_table[ 2 ] = { 0, };
+    unsigned char multicast_table[8];
     unsigned long flags;
     u_short rx_cfg_setting;
+    int i;
+
+    memset(multicast_table, 0, sizeof(multicast_table));
 
     if (dev->flags & IFF_PROMISC) {
 	rx_cfg_setting = RxStripCRC | RxEnable | RxPromisc | RxAllMulti;
@@ -1622,10 +1625,6 @@ static void set_rx_mode(struct net_device *dev)
 
 	    netdev_for_each_mc_addr(mc_addr, dev) {
 		u_int position = ether_crc(6, mc_addr->dmi_addr);
-#ifndef final_version		/* Verify multicast address. */
-		if ((mc_addr->dmi_addr[0] & 1) == 0)
-		    continue;
-#endif
 		multicast_table[position >> 29] |= 1 << ((position >> 26) & 7);
 	    }
 	}
@@ -1635,8 +1634,8 @@ static void set_rx_mode(struct net_device *dev)
     /* Load MC table and Rx setting into the chip without interrupts. */
     spin_lock_irqsave(&smc->lock, flags);
     SMC_SELECT_BANK(3);
-    outl(multicast_table[0], ioaddr + MULTICAST0);
-    outl(multicast_table[1], ioaddr + MULTICAST4);
+    for (i = 0; i < 8; i++)
+	outb(multicast_table[i], ioaddr + MULTICAST0 + i);
     SMC_SELECT_BANK(0);
     outw(rx_cfg_setting, ioaddr + RCR);
     SMC_SELECT_BANK(2);

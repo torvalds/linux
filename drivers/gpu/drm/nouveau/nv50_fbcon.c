@@ -157,7 +157,10 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 	struct nouveau_gpuobj *eng2d = NULL;
+	uint64_t fb;
 	int ret, format;
+
+	fb = info->fix.smem_start - dev_priv->fb_phys + dev_priv->vm_vram_base;
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
@@ -248,9 +251,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->fix.line_length);
 	OUT_RING(chan, info->var.xres_virtual);
 	OUT_RING(chan, info->var.yres_virtual);
-	OUT_RING(chan, 0);
-	OUT_RING(chan, info->fix.smem_start - dev_priv->fb_phys +
-			 dev_priv->vm_vram_base);
+	OUT_RING(chan, upper_32_bits(fb));
+	OUT_RING(chan, lower_32_bits(fb));
 	BEGIN_RING(chan, NvSub2D, 0x0230, 2);
 	OUT_RING(chan, format);
 	OUT_RING(chan, 1);
@@ -258,9 +260,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->fix.line_length);
 	OUT_RING(chan, info->var.xres_virtual);
 	OUT_RING(chan, info->var.yres_virtual);
-	OUT_RING(chan, 0);
-	OUT_RING(chan, info->fix.smem_start - dev_priv->fb_phys +
-			 dev_priv->vm_vram_base);
+	OUT_RING(chan, upper_32_bits(fb));
+	OUT_RING(chan, lower_32_bits(fb));
 
 	return 0;
 }

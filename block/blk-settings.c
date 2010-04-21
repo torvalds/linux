@@ -8,6 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/bootmem.h>	/* for max_pfn/max_low_pfn */
 #include <linux/gcd.h>
+#include <linux/lcm.h>
 #include <linux/jiffies.h>
 #include <linux/gfp.h>
 
@@ -461,16 +462,6 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 	}
 }
 EXPORT_SYMBOL(blk_queue_stack_limits);
-
-static unsigned int lcm(unsigned int a, unsigned int b)
-{
-	if (a && b)
-		return (a * b) / gcd(a, b);
-	else if (b)
-		return b;
-
-	return a;
-}
 
 /**
  * blk_stack_limits - adjust queue_limits for stacked devices
