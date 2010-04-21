@@ -470,10 +470,6 @@ extern int	       skb_cow_data(struct sk_buff *skb, int tailbits,
 				    struct sk_buff **trailer);
 extern int	       skb_pad(struct sk_buff *skb, int pad);
 #define dev_kfree_skb(a)	consume_skb(a)
-extern void	      skb_over_panic(struct sk_buff *skb, int len,
-				     void *here);
-extern void	      skb_under_panic(struct sk_buff *skb, int len,
-				      void *here);
 
 extern int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
 			int getfrag(void *from, char *to, int offset,
