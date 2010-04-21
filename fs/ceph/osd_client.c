@@ -715,7 +715,7 @@ static void handle_timeout(struct work_struct *work)
 	 * should mark the osd as failed and we should find out about
 	 * it from an updated osd map.
 	 */
-	while (!list_empty(&osdc->req_lru)) {
+	while (timeout && !list_empty(&osdc->req_lru)) {
 		req = list_entry(osdc->req_lru.next, struct ceph_osd_request,
 				 r_req_lru_item);
 
