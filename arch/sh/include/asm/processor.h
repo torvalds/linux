@@ -102,6 +102,7 @@ struct task_struct;
 
 extern struct pt_regs fake_swapper_regs;
 
+extern void cpu_init(void);
 extern void cpu_probe(void);
 
 /* arch/sh/kernel/process.c */

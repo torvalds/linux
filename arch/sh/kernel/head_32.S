@@ -335,7 +335,7 @@ ENTRY(stack_start)
 3:	.long	__bss_start
 4:	.long	_end
 5:	.long	start_kernel
-6:	.long	sh_cpu_init
+6:	.long	cpu_init
 7:	.long	init_thread_union
 
 #ifdef CONFIG_PMB
