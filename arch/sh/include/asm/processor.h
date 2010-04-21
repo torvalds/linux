@@ -102,6 +102,8 @@ struct task_struct;
 
 extern struct pt_regs fake_swapper_regs;
 
+extern void cpu_probe(void);
+
 /* arch/sh/kernel/process.c */
 extern unsigned int xstate_size;
 extern void free_thread_xstate(struct task_struct *);

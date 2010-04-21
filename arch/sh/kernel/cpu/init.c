@@ -293,14 +293,14 @@ static inline void __init dsp_init(void) { }
  * subtype and initial configuration will all be done.
  *
  * Each processor family is still responsible for doing its own probing
- * and cache configuration in detect_cpu_and_cache_system().
+ * and cache configuration in cpu_probe().
  */
 asmlinkage void __init sh_cpu_init(void)
 {
 	current_thread_info()->cpu = hard_smp_processor_id();
 
 	/* First, probe the CPU */
-	detect_cpu_and_cache_system();
+	cpu_probe();
 
 	if (current_cpu_data.type == CPU_SH_NONE)
 		panic("Unknown CPU");

@@ -15,7 +15,7 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 
-int __init detect_cpu_and_cache_system(void)
+void __cpuinit cpu_probe(void)
 {
 	unsigned long pvr, prr, cvr;
 	unsigned long size;
@@ -251,6 +251,4 @@ int __init detect_cpu_and_cache_system(void)
 				 boot_cpu_data.scache.linesz);
 		}
 	}
-
-	return 0;
 }
