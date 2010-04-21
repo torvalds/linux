@@ -46,13 +46,13 @@ static const struct soc_enum ad193x_deemp_enum =
 
 static const struct snd_kcontrol_new ad193x_snd_controls[] = {
 	/* DAC volume control */
-	SOC_DOUBLE_R("DAC1  Volume", AD193X_DAC_L1_VOL,
+	SOC_DOUBLE_R("DAC1 Volume", AD193X_DAC_L1_VOL,
 			AD193X_DAC_R1_VOL, 0, 0xFF, 1),
-	SOC_DOUBLE_R("DAC2  Volume", AD193X_DAC_L2_VOL,
+	SOC_DOUBLE_R("DAC2 Volume", AD193X_DAC_L2_VOL,
 			AD193X_DAC_R2_VOL, 0, 0xFF, 1),
-	SOC_DOUBLE_R("DAC3  Volume", AD193X_DAC_L3_VOL,
+	SOC_DOUBLE_R("DAC3 Volume", AD193X_DAC_L3_VOL,
 			AD193X_DAC_R3_VOL, 0, 0xFF, 1),
-	SOC_DOUBLE_R("DAC4  Volume", AD193X_DAC_L4_VOL,
+	SOC_DOUBLE_R("DAC4 Volume", AD193X_DAC_L4_VOL,
 			AD193X_DAC_R4_VOL, 0, 0xFF, 1),
 
 	/* ADC switch control */
