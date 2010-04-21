@@ -1650,8 +1650,8 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 				     int previous, int *dd_idx,
 				     struct stripe_head *sh)
 {
-	long stripe;
-	unsigned long chunk_number;
+	sector_t stripe;
+	sector_t chunk_number;
 	unsigned int chunk_offset;
 	int pd_idx, qd_idx;
 	int ddf_layout = 0;
@@ -1671,17 +1671,12 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 	 */
 	chunk_offset = sector_div(r_sector, sectors_per_chunk);
 	chunk_number = r_sector;
-	BUG_ON(r_sector != chunk_number);
 
 	/*
 	 * Compute the stripe number
 	 */
-	stripe = chunk_number / data_disks;
-
-	/*
-	 * Compute the data disk and parity disk indexes inside the stripe
-	 */
-	*dd_idx = chunk_number % data_disks;
+	stripe = chunk_number;
+	*dd_idx = sector_div(stripe, data_disks);
 
 	/*
 	 * Select the parity disk based on the user selected algorithm.
@@ -1870,14 +1865,14 @@ static sector_t compute_blocknr(struct stripe_head *sh, int i, int previous)
 				 : conf->algorithm;
 	sector_t stripe;
 	int chunk_offset;
-	int chunk_number, dummy1, dd_idx = i;
+	sector_t chunk_number;
+	int dummy1, dd_idx = i;
 	sector_t r_sector;
 	struct stripe_head sh2;
 
 
 	chunk_offset = sector_div(new_sector, sectors_per_chunk);
 	stripe = new_sector;
-	BUG_ON(new_sector != stripe);
 
 	if (i == sh->pd_idx)
 		return 0;
@@ -1970,7 +1965,7 @@ static sector_t compute_blocknr(struct stripe_head *sh, int i, int previous)
 	}
 
 	chunk_number = stripe * data_disks + i;
-	r_sector = (sector_t)chunk_number * sectors_per_chunk + chunk_offset;
+	r_sector = chunk_number * sectors_per_chunk + chunk_offset;
 
 	check = raid5_compute_sector(conf, r_sector,
 				     previous, &dummy1, &sh2);
