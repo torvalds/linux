@@ -91,6 +91,12 @@ static int pl061_direction_output(struct gpio_chip *gc, unsigned offset,
 	gpiodir = readb(chip->base + GPIODIR);
 	gpiodir |= 1 << offset;
 	writeb(gpiodir, chip->base + GPIODIR);
+
+	/*
+	 * gpio value is set again, because pl061 doesn't allow to set value of
+	 * a gpio pin before configuring it in OUT mode.
+	 */
+	writeb(!!value << offset, chip->base + (1 << (offset + 2)));
 	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
