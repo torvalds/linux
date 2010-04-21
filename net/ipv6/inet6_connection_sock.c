@@ -42,11 +42,16 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 		if (sk != sk2 &&
 		    (!sk->sk_bound_dev_if ||
 		     !sk2->sk_bound_dev_if ||
-		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if) &&
-		    (!sk->sk_reuse || !sk2->sk_reuse ||
-		     sk2->sk_state == TCP_LISTEN) &&
-		     ipv6_rcv_saddr_equal(sk, sk2))
-			break;
+		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
+			if ((!sk->sk_reuse || !sk2->sk_reuse ||
+			     sk2->sk_state == TCP_LISTEN) &&
+			     ipv6_rcv_saddr_equal(sk, sk2))
+				break;
+			else if (sk->sk_reuse && sk2->sk_reuse &&
+				!ipv6_addr_any(inet6_rcv_saddr(sk2)) &&
+				ipv6_rcv_saddr_equal(sk, sk2))
+				break;
+		}
 	}
 
 	return node != NULL;
