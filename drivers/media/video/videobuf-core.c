@@ -544,6 +544,13 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 				   "but buffer addr is zero!\n");
 			goto done;
 		}
+		if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT
+		    || q->type == V4L2_BUF_TYPE_VBI_OUTPUT
+		    || q->type == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT) {
+			buf->size = b->bytesused;
+			buf->field = b->field;
+			buf->ts = b->timestamp;
+		}
 		break;
 	case V4L2_MEMORY_USERPTR:
 		if (b->length < buf->bsize) {
