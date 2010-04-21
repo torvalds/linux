@@ -9838,7 +9838,7 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 		}
 	}
 
-	dev->features |= (NETIF_F_SG | NETIF_F_HW_CSUM);
+	dev->features |= (NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_GRO);
 
 	np->regs = pci_ioremap_bar(pdev, 0);
 	if (!np->regs) {
