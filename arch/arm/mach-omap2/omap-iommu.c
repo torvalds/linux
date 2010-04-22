@@ -1,5 +1,5 @@
 /*
- * omap iommu: omap3 device registration
+ * omap iommu: omap device registration
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *
@@ -21,6 +21,7 @@ struct iommu_device {
 	struct resource res[2];
 };
 
+#ifdef CONFIG_ARCH_OMAP3
 static struct iommu_device devices[] = {
 	{
 		.base = 0x480bd400,
@@ -43,11 +44,13 @@ static struct iommu_device devices[] = {
 	},
 #endif
 };
+#endif
+
 #define NR_IOMMU_DEVICES ARRAY_SIZE(devices)
 
-static struct platform_device *omap3_iommu_pdev[NR_IOMMU_DEVICES];
+static struct platform_device *omap_iommu_pdev[NR_IOMMU_DEVICES];
 
-static int __init omap3_iommu_init(void)
+static int __init omap_iommu_init(void)
 {
 	int i, err;
 	struct resource res[] = {
@@ -80,26 +83,26 @@ static int __init omap3_iommu_init(void)
 		err = platform_device_add(pdev);
 		if (err)
 			goto err_out;
-		omap3_iommu_pdev[i] = pdev;
+		omap_iommu_pdev[i] = pdev;
 	}
 	return 0;
 
 err_out:
 	while (i--)
-		platform_device_put(omap3_iommu_pdev[i]);
+		platform_device_put(omap_iommu_pdev[i]);
 	return err;
 }
-module_init(omap3_iommu_init);
+module_init(omap_iommu_init);
 
-static void __exit omap3_iommu_exit(void)
+static void __exit omap_iommu_exit(void)
 {
 	int i;
 
 	for (i = 0; i < NR_IOMMU_DEVICES; i++)
-		platform_device_unregister(omap3_iommu_pdev[i]);
+		platform_device_unregister(omap_iommu_pdev[i]);
 }
-module_exit(omap3_iommu_exit);
+module_exit(omap_iommu_exit);
 
 MODULE_AUTHOR("Hiroshi DOYU");
-MODULE_DESCRIPTION("omap iommu: omap3 device registration");
+MODULE_DESCRIPTION("omap iommu: omap device registration");
 MODULE_LICENSE("GPL v2");
