@@ -1902,13 +1902,6 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		if (!list_empty(&ptype_all))
 			dev_queue_xmit_nit(skb, dev);
 
-		if (netif_needs_gso(dev, skb)) {
-			if (unlikely(dev_gso_segment(skb)))
-				goto out_kfree_skb;
-			if (skb->next)
-				goto gso;
-		}
-
 		/*
 		 * If device doesnt need skb->dst, release it right now while
 		 * its hot in this cpu cache
@@ -1917,6 +1910,14 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			skb_dst_drop(skb);
 
 		skb_orphan_try(skb);
+
+		if (netif_needs_gso(dev, skb)) {
+			if (unlikely(dev_gso_segment(skb)))
+				goto out_kfree_skb;
+			if (skb->next)
+				goto gso;
+		}
+
 		rc = ops->ndo_start_xmit(skb, dev);
 		if (rc == NETDEV_TX_OK)
 			txq_trans_update(txq);
