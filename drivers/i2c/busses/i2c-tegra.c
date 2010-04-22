@@ -66,6 +66,8 @@
 #define DVC_CTRL_REG3				0x008
 #define DVC_CTRL_REG3_SW_PROG			(1<<26)
 #define DVC_CTRL_REG3_I2C_DONE_INTR_EN		(1<<30)
+#define DVC_STATUS				0x00c
+#define DVC_STATUS_I2C_DONE_INTR		(1<<30)
 
 #define I2C_ERR_NONE 				0x00
 #define I2C_ERR_NO_ACK				0x01
@@ -271,6 +273,7 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 static void tegra_dvc_init(struct tegra_i2c_dev *i2c_dev)
 {
 	u32 val = 0;
+	dev_dbg(i2c_dev->dev, "dvc init\n");
 	val = dvc_readl(i2c_dev, DVC_CTRL_REG3);
 	val |= DVC_CTRL_REG3_SW_PROG;
 	val |= DVC_CTRL_REG3_I2C_DONE_INTR_EN;
@@ -279,21 +282,16 @@ static void tegra_dvc_init(struct tegra_i2c_dev *i2c_dev)
 	val = dvc_readl(i2c_dev, DVC_CTRL_REG1);
 	val |= DVC_CTRL_REG1_INTR_EN;
 	dvc_writel(i2c_dev, val, DVC_CTRL_REG1);
-
-	val = I2C_SL_CNFG_NEWSL;
-	i2c_writel(i2c_dev, val, I2C_SL_CNFG);
-
-	val = 0xF;
-	i2c_writel(i2c_dev, val, I2C_SL_ADDR1);
 }
 
 static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 {
 	u32 val;
+	int err = 0;
 
 	clk_enable(i2c_dev->clk);
-	clk_enable(i2c_dev->i2c_clk);
 
+	dev_dbg(i2c_dev->dev, "init\n");
 	if (i2c_dev->is_dvc)
 		tegra_dvc_init(i2c_dev);
 
@@ -307,7 +305,9 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	i2c_writel(i2c_dev, val, I2C_FIFO_CONTROL);
 
 	if (tegra_i2c_flush_fifos(i2c_dev))
-		return -ETIMEDOUT;
+		err = -ETIMEDOUT;
+
+	clk_disable(i2c_dev->clk);
 	return 0;
 }
 
@@ -330,7 +330,8 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 	dev_dbg(i2c_dev->dev, "transfer: %08x fifo %02x\n", i2c_readl(i2c_dev, I2C_PACKET_TRANSFER_STATUS), i2c_readl(i2c_dev, I2C_FIFO_STATUS));
 	dev_dbg(i2c_dev->dev, "remaining: %d\n", i2c_dev->msg_buf_remaining);
 	dev_dbg(i2c_dev->dev, "xfer complete: %d \n", i2c_dev->msg_transfer_complete);
-
+	if (i2c_dev->is_dvc)
+		dev_dbg(i2c_dev->dev, "dvc status: %08x\n", dvc_readl(i2c_dev, DVC_STATUS));
 	if (unlikely(status & status_err)) {
 		if (status & I2C_INT_NO_ACK)
 			i2c_dev->msg_err |= I2C_ERR_NO_ACK;
@@ -360,6 +361,8 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 	if (i2c_dev->msg_transfer_complete && !i2c_dev->msg_buf_remaining)
 		complete(&i2c_dev->msg_complete);
 	i2c_writel(i2c_dev, status, I2C_INT_STATUS);
+	if (i2c_dev->is_dvc)
+		dvc_writel(i2c_dev, DVC_STATUS_I2C_DONE_INTR, DVC_STATUS);
 	return IRQ_HANDLED;
 err:
 	/* An error occured, mask all interrupts */
@@ -457,11 +460,12 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int n
 {
 	struct tegra_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	int i;
+	clk_enable(i2c_dev->clk);
 	for (i = 0; i < num; i++) {
 		int stop = (i == (num - 1)) ? 1  : 0;
 		tegra_i2c_xfer_msg(i2c_dev, &msgs[i], stop);
 	}
-
+	clk_disable(i2c_dev->clk);
 	return num;
 }
 
@@ -540,6 +544,8 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->irq = irq;
 	i2c_dev->cont_id = pdev->id;
 	i2c_dev->dev = &pdev->dev;
+	if (pdev->id == 3)
+		i2c_dev->is_dvc = 1;
 	init_completion(&i2c_dev->msg_complete);
 
 	platform_set_drvdata(pdev, i2c_dev);
@@ -548,13 +554,14 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free;
 
-
 	ret = request_irq(i2c_dev->irq, tegra_i2c_isr, IRQF_DISABLED,
 		pdev->name, i2c_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq %i\n", i2c_dev->irq);
 		goto err_free;
 	}
+
+	clk_enable(i2c_dev->i2c_clk);
 
 	i2c_set_adapdata(&i2c_dev->adapter, i2c_dev);
 	i2c_dev->adapter.owner = THIS_MODULE;
@@ -564,9 +571,6 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->adapter.algo = &tegra_i2c_algo;
 	i2c_dev->adapter.dev.parent = &pdev->dev;
 	i2c_dev->adapter.nr = pdev->id;
-	if (pdev->id == 3)
-		i2c_dev->is_dvc = 1;
-
 
 	ret = i2c_add_numbered_adapter(&i2c_dev->adapter);
 	if (ret) {
