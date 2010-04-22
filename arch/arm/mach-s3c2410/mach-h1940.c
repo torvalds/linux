@@ -271,7 +271,6 @@ static struct platform_device h1940_lcd_powerdev = {
 };
 
 static struct platform_device *h1940_devices[] __initdata = {
-	&s3c_device_ts,
 	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
@@ -285,6 +284,8 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_timer[0],
 	&h1940_backlight,
 	&h1940_lcd_powerdev,
+	&s3c_device_adc,
+	&s3c_device_ts,
 };
 
 static void __init h1940_map_io(void)
