@@ -1799,10 +1799,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_vmcb->save.gdtr   = vmcb->save.gdtr;
 	nested_vmcb->save.idtr   = vmcb->save.idtr;
 	nested_vmcb->save.cr0    = kvm_read_cr0(&svm->vcpu);
-	if (npt_enabled)
-		nested_vmcb->save.cr3    = vmcb->save.cr3;
-	else
-		nested_vmcb->save.cr3    = svm->vcpu.arch.cr3;
+	nested_vmcb->save.cr3    = svm->vcpu.arch.cr3;
 	nested_vmcb->save.cr2    = vmcb->save.cr2;
 	nested_vmcb->save.cr4    = svm->vcpu.arch.cr4;
 	nested_vmcb->save.rflags = vmcb->save.rflags;
@@ -2641,6 +2638,11 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 
 	trace_kvm_exit(exit_code, vcpu);
 
+	if (!(svm->vmcb->control.intercept_cr_write & INTERCEPT_CR0_MASK))
+		vcpu->arch.cr0 = svm->vmcb->save.cr0;
+	if (npt_enabled)
+		vcpu->arch.cr3 = svm->vmcb->save.cr3;
+
 	if (unlikely(svm->nested.exit_required)) {
 		nested_svm_vmexit(svm);
 		svm->nested.exit_required = false;
@@ -2667,11 +2669,6 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 	}
 
 	svm_complete_interrupts(svm);
-
-	if (!(svm->vmcb->control.intercept_cr_write & INTERCEPT_CR0_MASK))
-		vcpu->arch.cr0 = svm->vmcb->save.cr0;
-	if (npt_enabled)
-		vcpu->arch.cr3 = svm->vmcb->save.cr3;
 
 	if (svm->vmcb->control.exit_code == SVM_EXIT_ERR) {
 		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
