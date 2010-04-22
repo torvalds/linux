@@ -329,6 +329,13 @@ config SPI_STMP3XXX
 	help
 	  SPI driver for Freescale STMP37xx/378x SoC SSP interface
 
+config SPI_TEGRA
+	tristate "Nvidia Tegra SPI controller"
+	depends on ARCH_TEGRA
+	select TEGRA_SYSTEM_DMA
+	help
+	  SPI driver for NVidia Tegra SoCs
+
 config SPI_TOPCLIFF_PCH
 	tristate "Topcliff PCH SPI Controller"
 	depends on PCI
