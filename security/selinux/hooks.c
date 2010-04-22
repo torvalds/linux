@@ -3671,6 +3671,12 @@ static int selinux_skb_peerlbl_sid(struct sk_buff *skb, u16 family, u32 *sid)
 }
 
 /* socket security operations */
+
+static u32 socket_sockcreate_sid(const struct task_security_struct *tsec)
+{
+	return tsec->sockcreate_sid ? : tsec->sid;
+}
+
 static int socket_has_perm(struct task_struct *task, struct socket *sock,
 			   u32 perms)
 {
@@ -3698,21 +3704,15 @@ static int selinux_socket_create(int family, int type,
 {
 	const struct cred *cred = current_cred();
 	const struct task_security_struct *tsec = cred->security;
-	u32 sid, newsid;
+	u32 newsid;
 	u16 secclass;
-	int err = 0;
 
 	if (kern)
-		goto out;
+		return 0;
 
-	sid = tsec->sid;
-	newsid = tsec->sockcreate_sid ?: sid;
-
+	newsid = socket_sockcreate_sid(tsec);
 	secclass = socket_type_to_security_class(family, type, protocol);
-	err = avc_has_perm(sid, newsid, secclass, SOCKET__CREATE, NULL);
-
-out:
-	return err;
+	return avc_has_perm(tsec->sid, newsid, secclass, SOCKET__CREATE, NULL);
 }
 
 static int selinux_socket_post_create(struct socket *sock, int family,
@@ -3720,22 +3720,14 @@ static int selinux_socket_post_create(struct socket *sock, int family,
 {
 	const struct cred *cred = current_cred();
 	const struct task_security_struct *tsec = cred->security;
-	struct inode_security_struct *isec;
+	struct inode_security_struct *isec = SOCK_INODE(sock)->i_security;
 	struct sk_security_struct *sksec;
-	u32 sid, newsid;
 	int err = 0;
-
-	sid = tsec->sid;
-	newsid = tsec->sockcreate_sid;
-
-	isec = SOCK_INODE(sock)->i_security;
 
 	if (kern)
 		isec->sid = SECINITSID_KERNEL;
-	else if (newsid)
-		isec->sid = newsid;
 	else
-		isec->sid = sid;
+		isec->sid = socket_sockcreate_sid(tsec);
 
 	isec->sclass = socket_type_to_security_class(family, type, protocol);
 	isec->initialized = 1;
