@@ -353,14 +353,14 @@ out:
 /*
  * statfs
  */
-static struct ceph_mon_statfs_request *__lookup_statfs(
+static struct ceph_mon_generic_request *__lookup_generic_req(
 	struct ceph_mon_client *monc, u64 tid)
 {
-	struct ceph_mon_statfs_request *req;
-	struct rb_node *n = monc->statfs_request_tree.rb_node;
+	struct ceph_mon_generic_request *req;
+	struct rb_node *n = monc->generic_request_tree.rb_node;
 
 	while (n) {
-		req = rb_entry(n, struct ceph_mon_statfs_request, node);
+		req = rb_entry(n, struct ceph_mon_generic_request, node);
 		if (tid < req->tid)
 			n = n->rb_left;
 		else if (tid > req->tid)
@@ -371,16 +371,16 @@ static struct ceph_mon_statfs_request *__lookup_statfs(
 	return NULL;
 }
 
-static void __insert_statfs(struct ceph_mon_client *monc,
-			    struct ceph_mon_statfs_request *new)
+static void __insert_generic_request(struct ceph_mon_client *monc,
+			    struct ceph_mon_generic_request *new)
 {
-	struct rb_node **p = &monc->statfs_request_tree.rb_node;
+	struct rb_node **p = &monc->generic_request_tree.rb_node;
 	struct rb_node *parent = NULL;
-	struct ceph_mon_statfs_request *req = NULL;
+	struct ceph_mon_generic_request *req = NULL;
 
 	while (*p) {
 		parent = *p;
-		req = rb_entry(parent, struct ceph_mon_statfs_request, node);
+		req = rb_entry(parent, struct ceph_mon_generic_request, node);
 		if (new->tid < req->tid)
 			p = &(*p)->rb_left;
 		else if (new->tid > req->tid)
@@ -390,13 +390,13 @@ static void __insert_statfs(struct ceph_mon_client *monc,
 	}
 
 	rb_link_node(&new->node, parent, p);
-	rb_insert_color(&new->node, &monc->statfs_request_tree);
+	rb_insert_color(&new->node, &monc->generic_request_tree);
 }
 
-static void release_statfs_request(struct kref *kref)
+static void release_generic_request(struct kref *kref)
 {
-	struct ceph_mon_statfs_request *req =
-		container_of(kref, struct ceph_mon_statfs_request, kref);
+	struct ceph_mon_generic_request *req =
+		container_of(kref, struct ceph_mon_generic_request, kref);
 
 	if (req->reply)
 		ceph_msg_put(req->reply);
@@ -404,33 +404,33 @@ static void release_statfs_request(struct kref *kref)
 		ceph_msg_put(req->request);
 }
 
-static void put_statfs_request(struct ceph_mon_statfs_request *req)
+static void put_generic_request(struct ceph_mon_generic_request *req)
 {
-	kref_put(&req->kref, release_statfs_request);
+	kref_put(&req->kref, release_generic_request);
 }
 
-static void get_statfs_request(struct ceph_mon_statfs_request *req)
+static void get_generic_request(struct ceph_mon_generic_request *req)
 {
 	kref_get(&req->kref);
 }
 
-static struct ceph_msg *get_statfs_reply(struct ceph_connection *con,
+static struct ceph_msg *get_generic_reply(struct ceph_connection *con,
 					 struct ceph_msg_header *hdr,
 					 int *skip)
 {
 	struct ceph_mon_client *monc = con->private;
-	struct ceph_mon_statfs_request *req;
+	struct ceph_mon_generic_request *req;
 	u64 tid = le64_to_cpu(hdr->tid);
 	struct ceph_msg *m;
 
 	mutex_lock(&monc->mutex);
-	req = __lookup_statfs(monc, tid);
+	req = __lookup_generic_req(monc, tid);
 	if (!req) {
-		dout("get_statfs_reply %lld dne\n", tid);
+		dout("get_generic_reply %lld dne\n", tid);
 		*skip = 1;
 		m = NULL;
 	} else {
-		dout("get_statfs_reply %lld got %p\n", tid, req->reply);
+		dout("get_generic_reply %lld got %p\n", tid, req->reply);
 		m = ceph_msg_get(req->reply);
 		/*
 		 * we don't need to track the connection reading into
@@ -445,7 +445,7 @@ static struct ceph_msg *get_statfs_reply(struct ceph_connection *con,
 static void handle_statfs_reply(struct ceph_mon_client *monc,
 				struct ceph_msg *msg)
 {
-	struct ceph_mon_statfs_request *req;
+	struct ceph_mon_generic_request *req;
 	struct ceph_mon_statfs_reply *reply = msg->front.iov_base;
 	u64 tid = le64_to_cpu(msg->hdr.tid);
 
@@ -454,21 +454,21 @@ static void handle_statfs_reply(struct ceph_mon_client *monc,
 	dout("handle_statfs_reply %p tid %llu\n", msg, tid);
 
 	mutex_lock(&monc->mutex);
-	req = __lookup_statfs(monc, tid);
+	req = __lookup_generic_req(monc, tid);
 	if (req) {
-		*req->buf = reply->st;
+		*(struct ceph_statfs *)req->buf = reply->st;
 		req->result = 0;
-		get_statfs_request(req);
+		get_generic_request(req);
 	}
 	mutex_unlock(&monc->mutex);
 	if (req) {
 		complete(&req->completion);
-		put_statfs_request(req);
+		put_generic_request(req);
 	}
 	return;
 
 bad:
-	pr_err("corrupt statfs reply, no tid\n");
+	pr_err("corrupt generic reply, no tid\n");
 	ceph_msg_dump(msg);
 }
 
@@ -477,7 +477,7 @@ bad:
  */
 int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 {
-	struct ceph_mon_statfs_request *req;
+	struct ceph_mon_generic_request *req;
 	struct ceph_mon_statfs *h;
 	int err;
 
@@ -509,8 +509,8 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 	mutex_lock(&monc->mutex);
 	req->tid = ++monc->last_tid;
 	req->request->hdr.tid = cpu_to_le64(req->tid);
-	__insert_statfs(monc, req);
-	monc->num_statfs_requests++;
+	__insert_generic_request(monc, req);
+	monc->num_generic_requests++;
 	mutex_unlock(&monc->mutex);
 
 	/* send request and wait */
@@ -518,28 +518,28 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 	err = wait_for_completion_interruptible(&req->completion);
 
 	mutex_lock(&monc->mutex);
-	rb_erase(&req->node, &monc->statfs_request_tree);
-	monc->num_statfs_requests--;
+	rb_erase(&req->node, &monc->generic_request_tree);
+	monc->num_generic_requests--;
 	mutex_unlock(&monc->mutex);
 
 	if (!err)
 		err = req->result;
 
 out:
-	kref_put(&req->kref, release_statfs_request);
+	kref_put(&req->kref, release_generic_request);
 	return err;
 }
 
 /*
  * Resend pending statfs requests.
  */
-static void __resend_statfs(struct ceph_mon_client *monc)
+static void __resend_generic_request(struct ceph_mon_client *monc)
 {
-	struct ceph_mon_statfs_request *req;
+	struct ceph_mon_generic_request *req;
 	struct rb_node *p;
 
-	for (p = rb_first(&monc->statfs_request_tree); p; p = rb_next(p)) {
-		req = rb_entry(p, struct ceph_mon_statfs_request, node);
+	for (p = rb_first(&monc->generic_request_tree); p; p = rb_next(p)) {
+		req = rb_entry(p, struct ceph_mon_generic_request, node);
 		ceph_con_send(monc->con, ceph_msg_get(req->request));
 	}
 }
@@ -652,8 +652,8 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	monc->sub_sent = 0;
 
 	INIT_DELAYED_WORK(&monc->delayed_work, delayed_work);
-	monc->statfs_request_tree = RB_ROOT;
-	monc->num_statfs_requests = 0;
+	monc->generic_request_tree = RB_ROOT;
+	monc->num_generic_requests = 0;
 	monc->last_tid = 0;
 
 	monc->have_mdsmap = 0;
@@ -717,7 +717,7 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 		monc->client->msgr->inst.name.num = monc->auth->global_id;
 
 		__send_subscribe(monc);
-		__resend_statfs(monc);
+		__resend_generic_request(monc);
 	}
 	mutex_unlock(&monc->mutex);
 }
@@ -809,7 +809,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 		m = ceph_msg_get(monc->m_subscribe_ack);
 		break;
 	case CEPH_MSG_STATFS_REPLY:
-		return get_statfs_reply(con, hdr, skip);
+		return get_generic_reply(con, hdr, skip);
 	case CEPH_MSG_AUTH_REPLY:
 		m = ceph_msg_get(monc->m_auth_reply);
 		break;

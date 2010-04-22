@@ -113,7 +113,7 @@ static int osdmap_show(struct seq_file *s, void *p)
 static int monc_show(struct seq_file *s, void *p)
 {
 	struct ceph_client *client = s->private;
-	struct ceph_mon_statfs_request *req;
+	struct ceph_mon_generic_request *req;
 	struct ceph_mon_client *monc = &client->monc;
 	struct rb_node *rp;
 
@@ -126,9 +126,14 @@ static int monc_show(struct seq_file *s, void *p)
 	if (monc->want_next_osdmap)
 		seq_printf(s, "want next osdmap\n");
 
-	for (rp = rb_first(&monc->statfs_request_tree); rp; rp = rb_next(rp)) {
-		req = rb_entry(rp, struct ceph_mon_statfs_request, node);
-		seq_printf(s, "%lld statfs\n", req->tid);
+	for (rp = rb_first(&monc->generic_request_tree); rp; rp = rb_next(rp)) {
+		__u16 op;
+		req = rb_entry(rp, struct ceph_mon_generic_request, node);
+		op = le16_to_cpu(req->request->hdr.type);
+		if (op == CEPH_MSG_STATFS)
+			seq_printf(s, "%lld statfs\n", req->tid);
+		else
+			seq_printf(s, "%lld unknown\n", req->tid);
 	}
 
 	mutex_unlock(&monc->mutex);

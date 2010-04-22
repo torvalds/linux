@@ -22,7 +22,7 @@ struct ceph_monmap {
 };
 
 struct ceph_mon_client;
-struct ceph_mon_statfs_request;
+struct ceph_mon_generic_request;
 
 
 /*
@@ -40,15 +40,16 @@ struct ceph_mon_request {
 };
 
 /*
- * statfs() is done a bit differently because we need to get data back
+ * ceph_mon_generic_request is being used for the statfs and poolop requests
+ * which are bening done a bit differently because we need to get data back
  * to the caller
  */
-struct ceph_mon_statfs_request {
+struct ceph_mon_generic_request {
 	struct kref kref;
 	u64 tid;
 	struct rb_node node;
 	int result;
-	struct ceph_statfs *buf;
+	void *buf;
 	struct completion completion;
 	struct ceph_msg *request;  /* original request */
 	struct ceph_msg *reply;    /* and reply */
@@ -71,9 +72,9 @@ struct ceph_mon_client {
 	struct ceph_connection *con;
 	bool have_fsid;
 
-	/* pending statfs requests */
-	struct rb_root statfs_request_tree;
-	int num_statfs_requests;
+	/* pending generic requests */
+	struct rb_root generic_request_tree;
+	int num_generic_requests;
 	u64 last_tid;
 
 	/* mds/osd map */
