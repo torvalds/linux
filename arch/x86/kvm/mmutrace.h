@@ -11,7 +11,7 @@
 	__field(__u64, gfn) \
 	__field(__u32, role) \
 	__field(__u32, root_count) \
-	__field(__u32, unsync)
+	__field(bool, unsync)
 
 #define KVM_MMU_PAGE_ASSIGN(sp)			     \
 	__entry->gfn = sp->gfn;			     \
