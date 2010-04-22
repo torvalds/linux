@@ -3068,6 +3068,13 @@ err0:
 
 static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev)
 {
+	/* disable interface */
+	dsi_if_enable(0);
+	dsi_vc_enable(0, 0);
+	dsi_vc_enable(1, 0);
+	dsi_vc_enable(2, 0);
+	dsi_vc_enable(3, 0);
+
 	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 	dss_select_dsi_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 	dsi_complexio_uninit();
