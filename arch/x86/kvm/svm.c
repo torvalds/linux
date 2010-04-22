@@ -2960,16 +2960,16 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	u16 gs_selector;
 	u16 ldt_selector;
 
+	svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
+	svm->vmcb->save.rsp = vcpu->arch.regs[VCPU_REGS_RSP];
+	svm->vmcb->save.rip = vcpu->arch.regs[VCPU_REGS_RIP];
+
 	/*
 	 * A vmexit emulation is required before the vcpu can be executed
 	 * again.
 	 */
 	if (unlikely(svm->nested.exit_required))
 		return;
-
-	svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
-	svm->vmcb->save.rsp = vcpu->arch.regs[VCPU_REGS_RSP];
-	svm->vmcb->save.rip = vcpu->arch.regs[VCPU_REGS_RIP];
 
 	pre_svm_run(svm);
 
