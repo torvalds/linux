@@ -116,6 +116,99 @@ static struct platform_device tegra_i2c_device4 = {
 	},
 };
 
+static struct resource spi_resource1[] = {
+	[0] = {
+		.start  = INT_S_LINK1,
+		.end    = INT_S_LINK1,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start	= TEGRA_SPI1_BASE,
+		.end	= TEGRA_SPI1_BASE + TEGRA_SPI1_SIZE-1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct resource spi_resource2[] = {
+	[0] = {
+		.start  = INT_SPI_2,
+		.end    = INT_SPI_2,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start	= TEGRA_SPI2_BASE,
+		.end	= TEGRA_SPI2_BASE + TEGRA_SPI2_SIZE-1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct resource spi_resource3[] = {
+	[0] = {
+		.start  = INT_SPI_3,
+		.end    = INT_SPI_3,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start	= TEGRA_SPI3_BASE,
+		.end	= TEGRA_SPI3_BASE + TEGRA_SPI3_SIZE-1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct resource spi_resource4[] = {
+	[0] = {
+		.start  = INT_SPI_4,
+		.end    = INT_SPI_4,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start	= TEGRA_SPI4_BASE,
+		.end	= TEGRA_SPI4_BASE + TEGRA_SPI4_SIZE-1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device tegra_spi_device1 = {
+	.name           = "spi_tegra",
+	.id             = 0,
+	.resource       = spi_resource1,
+	.num_resources  = ARRAY_SIZE(spi_resource1),
+	.dev  = {
+		.coherent_dma_mask      = 0xffffffff,
+	},
+};
+
+static struct platform_device tegra_spi_device2 = {
+	.name           = "spi_tegra",
+	.id             = 1,
+	.resource       = spi_resource2,
+	.num_resources  = ARRAY_SIZE(spi_resource2),
+	.dev  = {
+		.coherent_dma_mask      = 0xffffffff,
+	},
+};
+
+static struct platform_device tegra_spi_device3 = {
+	.name           = "spi_tegra",
+	.id             = 2,
+	.resource       = spi_resource3,
+	.num_resources  = ARRAY_SIZE(spi_resource3),
+	.dev  = {
+		.coherent_dma_mask      = 0xffffffff,
+	},
+};
+
+static struct platform_device tegra_spi_device4 = {
+	.name           = "spi_tegra",
+	.id             = 3,
+	.resource       = spi_resource4,
+	.num_resources  = ARRAY_SIZE(spi_resource4),
+	.dev  = {
+		.coherent_dma_mask      = 0xffffffff,
+	},
+};
+
+
 static struct resource sdhci_resource1[] = {
 	[0] = {
 		.start  = INT_SDMMC1,
@@ -206,6 +299,10 @@ static struct platform_device *tegra_devices[] __initdata = {
 	&tegra_i2c_device2,
 	&tegra_i2c_device3,
 	&tegra_i2c_device4,
+	&tegra_spi_device1,
+	&tegra_spi_device2,
+	&tegra_spi_device3,
+	&tegra_spi_device4,
 };
 
 static int __init tegra_devices_init(void)
