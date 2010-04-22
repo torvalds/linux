@@ -1715,6 +1715,10 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 			vmexit = NESTED_EXIT_DONE;
 		break;
 	}
+	case SVM_EXIT_ERR: {
+		vmexit = NESTED_EXIT_DONE;
+		break;
+	}
 	default: {
 		u64 exit_bits = 1ULL << (exit_code - SVM_EXIT_INTR);
 		if (svm->nested.intercept & exit_bits)
