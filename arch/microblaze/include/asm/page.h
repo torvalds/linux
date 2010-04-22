@@ -70,11 +70,6 @@ typedef unsigned long pte_basic_t;
 
 #endif /* CONFIG_MMU */
 
-#  ifndef CONFIG_MMU
-#  define get_user_page(vaddr)			__get_free_page(GFP_KERNEL)
-#  define free_user_page(page, addr)		free_page(addr)
-#  endif /* CONFIG_MMU */
-
 # define copy_page(to, from)			memcpy((to), (from), PAGE_SIZE)
 # define clear_page(pgaddr)			memset((pgaddr), 0, PAGE_SIZE)
 
