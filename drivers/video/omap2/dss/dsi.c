@@ -2967,8 +2967,10 @@ static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
 	cinfo.regm3 = dssdev->phy.dsi.div.regm3;
 	cinfo.regm4 = dssdev->phy.dsi.div.regm4;
 	r = dsi_calc_clock_rates(&cinfo);
-	if (r)
+	if (r) {
+		DSSERR("Failed to calc dsi clocks\n");
 		return r;
+	}
 
 	r = dsi_pll_set_clock_div(&cinfo);
 	if (r) {
