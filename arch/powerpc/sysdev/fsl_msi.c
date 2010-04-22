@@ -25,6 +25,8 @@
 #include <asm/mpic.h>
 #include "fsl_msi.h"
 
+LIST_HEAD(msi_head);
+
 struct fsl_msi_feature {
 	u32 fsl_pic_ip;
 	u32 msiir_offset;
@@ -138,16 +140,19 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 
 static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
-	int rc, hwirq = NO_IRQ;
+	int rc, hwirq = -ENOMEM;
 	unsigned int virq;
 	struct msi_desc *entry;
 	struct msi_msg msg;
 	struct fsl_msi *msi_data;
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
-		msi_data = get_irq_chip_data(entry->irq);
+		list_for_each_entry(msi_data, &msi_head, list) {
+			hwirq = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
+			if (hwirq >= 0)
+				break;
+		}
 
-		hwirq = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
 		if (hwirq < 0) {
 			rc = hwirq;
 			pr_debug("%s: fail allocating msi interrupt\n",
@@ -173,6 +178,7 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	return 0;
 
 out_free:
+	/* free by the caller of this function */
 	return rc;
 }
 
@@ -336,6 +342,8 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 			set_irq_chained_handler(virt_msir, fsl_msi_cascade);
 		}
 	}
+
+	list_add_tail(&msi->list, &msi_head);
 
 	/* The multiple setting ppc_md.setup_msi_irqs will not harm things */
 	if (!ppc_md.setup_msi_irqs) {

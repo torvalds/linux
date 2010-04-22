@@ -34,6 +34,8 @@ struct fsl_msi {
 	u32 feature;
 
 	struct msi_bitmap bitmap;
+
+	struct list_head list;          /* support multiple MSI banks */
 };
 
 #endif /* _POWERPC_SYSDEV_FSL_MSI_H */
