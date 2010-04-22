@@ -1043,6 +1043,11 @@ static int __init channel_subsystem_init_sync(void)
 }
 subsys_initcall_sync(channel_subsystem_init_sync);
 
+void channel_subsystem_reinit(void)
+{
+	chsc_enable_facility(CHSC_SDA_OC_MSS);
+}
+
 #ifdef CONFIG_PROC_FS
 static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
