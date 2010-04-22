@@ -1949,8 +1949,8 @@ static void qlcnic_poll_controller(struct net_device *netdev)
 }
 #endif
 
-static void
-qlcnic_set_drv_state(struct qlcnic_adapter *adapter, int state)
+static int
+qlcnic_set_drv_state(struct qlcnic_adapter *adapter, u8 state)
 {
 	u32  val;
 
@@ -1958,7 +1958,7 @@ qlcnic_set_drv_state(struct qlcnic_adapter *adapter, int state)
 			state != QLCNIC_DEV_NEED_QUISCENT);
 
 	if (qlcnic_api_lock(adapter))
-		return ;
+		return -EIO;
 
 	val = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
 
@@ -1970,6 +1970,8 @@ qlcnic_set_drv_state(struct qlcnic_adapter *adapter, int state)
 	QLCWR32(adapter, QLCNIC_CRB_DRV_STATE, val);
 
 	qlcnic_api_unlock(adapter);
+
+	return 0;
 }
 
 static int
@@ -2195,7 +2197,8 @@ qlcnic_detach_work(struct work_struct *work)
 	if (adapter->temp == QLCNIC_TEMP_PANIC)
 		goto err_ret;
 
-	qlcnic_set_drv_state(adapter, adapter->dev_state);
+	if (qlcnic_set_drv_state(adapter, adapter->dev_state))
+		goto err_ret;
 
 	adapter->fw_wait_cnt = 0;
 
