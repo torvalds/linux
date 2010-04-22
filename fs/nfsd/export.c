@@ -1076,9 +1076,9 @@ exp_export(struct nfsctl_export *nxp)
 		err = 0;
 finish:
 	kfree(new.ex_pathname);
-	if (exp)
+	if (!IS_ERR_OR_NULL(exp))
 		exp_put(exp);
-	if (fsid_key && !IS_ERR(fsid_key))
+	if (!IS_ERR_OR_NULL(fsid_key))
 		cache_put(&fsid_key->h, &svc_expkey_cache);
 	path_put(&path);
 out_put_clp:
