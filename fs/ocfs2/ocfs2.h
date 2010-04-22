@@ -491,7 +491,7 @@ static inline int ocfs2_supports_indexed_dirs(struct ocfs2_super *osb)
 	return 0;
 }
 
-static inline int ocfs2_supports_discontig_bh(struct ocfs2_super *osb)
+static inline int ocfs2_supports_discontig_bg(struct ocfs2_super *osb)
 {
 	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG)
 		return 1;
