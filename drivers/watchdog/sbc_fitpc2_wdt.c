@@ -45,10 +45,10 @@ static DEFINE_SPINLOCK(wdt_lock);
 
 static void wdt_send_data(unsigned char command, unsigned char data)
 {
-	outb(command, COMMAND_PORT);
-	msleep(100);
 	outb(data, DATA_PORT);
 	msleep(200);
+	outb(command, COMMAND_PORT);
+	msleep(100);
 }
 
 static void wdt_enable(void)
