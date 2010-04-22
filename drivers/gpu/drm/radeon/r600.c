@@ -2535,6 +2535,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 cp_int_cntl = CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE;
 	u32 mode_int = 0;
 	u32 hpd1, hpd2, hpd3, hpd4 = 0, hpd5 = 0, hpd6 = 0;
+	u32 grbm_int_cntl = 0;
 	u32 hdmi1, hdmi2;
 
 	if (!rdev->irq.installed) {
@@ -2611,9 +2612,14 @@ int r600_irq_set(struct radeon_device *rdev)
 		DRM_DEBUG("r600_irq_set: hdmi 2\n");
 		hdmi2 |= R600_HDMI_INT_EN;
 	}
+	if (rdev->irq.gui_idle) {
+		DRM_DEBUG("gui idle\n");
+		grbm_int_cntl |= GUI_IDLE_INT_ENABLE;
+	}
 
 	WREG32(CP_INT_CNTL, cp_int_cntl);
 	WREG32(DxMODE_INT_MASK, mode_int);
+	WREG32(GRBM_INT_CNTL, grbm_int_cntl);
 	WREG32(R600_HDMI_BLOCK1 + R600_HDMI_CNTL, hdmi1);
 	if (ASIC_IS_DCE3(rdev)) {
 		WREG32(R600_HDMI_BLOCK3 + R600_HDMI_CNTL, hdmi2);
@@ -2928,6 +2934,11 @@ restart_ih:
 			break;
 		case 181: /* CP EOP event */
 			DRM_DEBUG("IH: CP EOP\n");
+			break;
+		case 233: /* GUI IDLE */
+			DRM_DEBUG("IH: CP EOP\n");
+			rdev->pm.gui_idle = true;
+			wake_up(&rdev->irq.idle_queue);
 			break;
 		default:
 			DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);

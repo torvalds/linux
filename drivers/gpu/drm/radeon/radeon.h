@@ -376,6 +376,9 @@ struct radeon_irq {
 	wait_queue_head_t	vblank_queue;
 	/* FIXME: use defines for max hpd/dacs */
 	bool            hpd[6];
+	bool            gui_idle;
+	bool            gui_idle_acked;
+	wait_queue_head_t	idle_queue;
 	/* FIXME: use defines for max HDMI blocks */
 	bool		hdmi[2];
 	spinlock_t sw_lock;
@@ -694,6 +697,7 @@ struct radeon_pm {
 	int			active_crtcs;
 	int			req_vblank;
 	bool			vblank_sync;
+	bool			gui_idle;
 	fixed20_12		max_bandwidth;
 	fixed20_12		igp_sideport_mclk;
 	fixed20_12		igp_system_mclk;

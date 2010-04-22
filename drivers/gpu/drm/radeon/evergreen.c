@@ -1418,6 +1418,7 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	u32 cp_int_cntl = CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE;
 	u32 crtc1 = 0, crtc2 = 0, crtc3 = 0, crtc4 = 0, crtc5 = 0, crtc6 = 0;
 	u32 hpd1, hpd2, hpd3, hpd4, hpd5, hpd6;
+	u32 grbm_int_cntl = 0;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
@@ -1490,8 +1491,13 @@ int evergreen_irq_set(struct radeon_device *rdev)
 		DRM_DEBUG("evergreen_irq_set: hpd 6\n");
 		hpd6 |= DC_HPDx_INT_EN;
 	}
+	if (rdev->irq.gui_idle) {
+		DRM_DEBUG("gui idle\n");
+		grbm_int_cntl |= GUI_IDLE_INT_ENABLE;
+	}
 
 	WREG32(CP_INT_CNTL, cp_int_cntl);
+	WREG32(GRBM_INT_CNTL, grbm_int_cntl);
 
 	WREG32(INT_MASK + EVERGREEN_CRTC0_REGISTER_OFFSET, crtc1);
 	WREG32(INT_MASK + EVERGREEN_CRTC1_REGISTER_OFFSET, crtc2);
@@ -1852,6 +1858,11 @@ restart_ih:
 			break;
 		case 181: /* CP EOP event */
 			DRM_DEBUG("IH: CP EOP\n");
+			break;
+		case 233: /* GUI IDLE */
+			DRM_DEBUG("IH: CP EOP\n");
+			rdev->pm.gui_idle = true;
+			wake_up(&rdev->irq.idle_queue);
 			break;
 		default:
 			DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);

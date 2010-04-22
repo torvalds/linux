@@ -262,6 +262,9 @@ int r100_irq_set(struct radeon_device *rdev)
 	if (rdev->irq.sw_int) {
 		tmp |= RADEON_SW_INT_ENABLE;
 	}
+	if (rdev->irq.gui_idle) {
+		tmp |= RADEON_GUI_IDLE_MASK;
+	}
 	if (rdev->irq.crtc_vblank_int[0]) {
 		tmp |= RADEON_CRTC_VBLANK_MASK;
 	}
@@ -296,6 +299,12 @@ static inline uint32_t r100_irq_ack(struct radeon_device *rdev)
 		RADEON_CRTC_VBLANK_STAT | RADEON_CRTC2_VBLANK_STAT |
 		RADEON_FP_DETECT_STAT | RADEON_FP2_DETECT_STAT;
 
+	/* the interrupt works, but the status bit is permanently asserted */
+	if (rdev->irq.gui_idle && radeon_gui_idle(rdev)) {
+		if (!rdev->irq.gui_idle_acked)
+			irq_mask |= RADEON_GUI_IDLE_STAT;
+	}
+
 	if (irqs) {
 		WREG32(RADEON_GEN_INT_STATUS, irqs);
 	}
@@ -306,6 +315,9 @@ int r100_irq_process(struct radeon_device *rdev)
 {
 	uint32_t status, msi_rearm;
 	bool queue_hotplug = false;
+
+	/* reset gui idle ack.  the status bit is broken */
+	rdev->irq.gui_idle_acked = false;
 
 	status = r100_irq_ack(rdev);
 	if (!status) {
@@ -318,6 +330,12 @@ int r100_irq_process(struct radeon_device *rdev)
 		/* SW interrupt */
 		if (status & RADEON_SW_INT_TEST) {
 			radeon_fence_process(rdev);
+		}
+		/* gui idle interrupt */
+		if (status & RADEON_GUI_IDLE_STAT) {
+			rdev->irq.gui_idle_acked = true;
+			rdev->pm.gui_idle = true;
+			wake_up(&rdev->irq.idle_queue);
 		}
 		/* Vertical blank interrupts */
 		if (status & RADEON_CRTC_VBLANK_STAT) {
@@ -340,6 +358,8 @@ int r100_irq_process(struct radeon_device *rdev)
 		}
 		status = r100_irq_ack(rdev);
 	}
+	/* reset gui idle ack.  the status bit is broken */
+	rdev->irq.gui_idle_acked = false;
 	if (queue_hotplug)
 		queue_work(rdev->wq, &rdev->hotplug_work);
 	if (rdev->msi_enabled) {

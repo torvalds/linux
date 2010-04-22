@@ -27,6 +27,7 @@
 #define RADEON_IDLE_LOOP_MS 100
 #define RADEON_RECLOCK_DELAY_MS 200
 #define RADEON_WAIT_VBLANK_TIMEOUT 200
+#define RADEON_WAIT_IDLE_TIMEOUT 200
 
 static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish);
 static void radeon_pm_set_clocks_locked(struct radeon_device *rdev);

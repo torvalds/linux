@@ -995,6 +995,7 @@
 #	define RADEON_FP_DETECT_MASK		(1 << 4)
 #	define RADEON_CRTC2_VBLANK_MASK		(1 << 9)
 #	define RADEON_FP2_DETECT_MASK		(1 << 10)
+#	define RADEON_GUI_IDLE_MASK		(1 << 19)
 #	define RADEON_SW_INT_ENABLE		(1 << 25)
 #define RADEON_GEN_INT_STATUS               0x0044
 #	define AVIVO_DISPLAY_INT_STATUS		(1 << 0)
@@ -1006,6 +1007,8 @@
 #	define RADEON_CRTC2_VBLANK_STAT_ACK	(1 << 9)
 #	define RADEON_FP2_DETECT_STAT		(1 << 10)
 #	define RADEON_FP2_DETECT_STAT_ACK	(1 << 10)
+#	define RADEON_GUI_IDLE_STAT		(1 << 19)
+#	define RADEON_GUI_IDLE_STAT_ACK		(1 << 19)
 #	define RADEON_SW_INT_FIRE		(1 << 26)
 #	define RADEON_SW_INT_TEST		(1 << 25)
 #	define RADEON_SW_INT_TEST_ACK		(1 << 25)

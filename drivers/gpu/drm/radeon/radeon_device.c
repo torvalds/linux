@@ -602,6 +602,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	rwlock_init(&rdev->fence_drv.lock);
 	INIT_LIST_HEAD(&rdev->gem.objects);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
+	init_waitqueue_head(&rdev->irq.idle_queue);
 
 	/* setup workqueue */
 	rdev->wq = create_workqueue("radeon");
