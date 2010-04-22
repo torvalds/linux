@@ -3242,11 +3242,48 @@ gro_result_t napi_gro_frags(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(napi_gro_frags);
 
+/*
+ * net_rps_action sends any pending IPI's for rps.
+ * Note: called with local irq disabled, but exits with local irq enabled.
+ */
+static void net_rps_action_and_irq_enable(struct softnet_data *sd)
+{
+#ifdef CONFIG_RPS
+	struct softnet_data *remsd = sd->rps_ipi_list;
+
+	if (remsd) {
+		sd->rps_ipi_list = NULL;
+
+		local_irq_enable();
+
+		/* Send pending IPI's to kick RPS processing on remote cpus. */
+		while (remsd) {
+			struct softnet_data *next = remsd->rps_ipi_next;
+
+			if (cpu_online(remsd->cpu))
+				__smp_call_function_single(remsd->cpu,
+							   &remsd->csd, 0);
+			remsd = next;
+		}
+	} else
+#endif
+		local_irq_enable();
+}
+
 static int process_backlog(struct napi_struct *napi, int quota)
 {
 	int work = 0;
 	struct softnet_data *sd = &__get_cpu_var(softnet_data);
 
+#ifdef CONFIG_RPS
+	/* Check if we have pending ipi, its better to send them now,
+	 * not waiting net_rx_action() end.
+	 */
+	if (sd->rps_ipi_list) {
+		local_irq_disable();
+		net_rps_action_and_irq_enable(sd);
+	}
+#endif
 	napi->weight = weight_p;
 	do {
 		struct sk_buff *skb;
@@ -3353,45 +3390,16 @@ void netif_napi_del(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(netif_napi_del);
 
-/*
- * net_rps_action sends any pending IPI's for rps.
- * Note: called with local irq disabled, but exits with local irq enabled.
- */
-static void net_rps_action_and_irq_disable(void)
-{
-#ifdef CONFIG_RPS
-	struct softnet_data *sd = &__get_cpu_var(softnet_data);
-	struct softnet_data *remsd = sd->rps_ipi_list;
-
-	if (remsd) {
-		sd->rps_ipi_list = NULL;
-
-		local_irq_enable();
-
-		/* Send pending IPI's to kick RPS processing on remote cpus. */
-		while (remsd) {
-			struct softnet_data *next = remsd->rps_ipi_next;
-
-			if (cpu_online(remsd->cpu))
-				__smp_call_function_single(remsd->cpu,
-							   &remsd->csd, 0);
-			remsd = next;
-		}
-	} else
-#endif
-		local_irq_enable();
-}
-
 static void net_rx_action(struct softirq_action *h)
 {
-	struct list_head *list = &__get_cpu_var(softnet_data).poll_list;
+	struct softnet_data *sd = &__get_cpu_var(softnet_data);
 	unsigned long time_limit = jiffies + 2;
 	int budget = netdev_budget;
 	void *have;
 
 	local_irq_disable();
 
-	while (!list_empty(list)) {
+	while (!list_empty(&sd->poll_list)) {
 		struct napi_struct *n;
 		int work, weight;
 
@@ -3409,7 +3417,7 @@ static void net_rx_action(struct softirq_action *h)
 		 * entries to the tail of this list, and only ->poll()
 		 * calls can remove this head entry from the list.
 		 */
-		n = list_first_entry(list, struct napi_struct, poll_list);
+		n = list_first_entry(&sd->poll_list, struct napi_struct, poll_list);
 
 		have = netpoll_poll_lock(n);
 
@@ -3444,13 +3452,13 @@ static void net_rx_action(struct softirq_action *h)
 				napi_complete(n);
 				local_irq_disable();
 			} else
-				list_move_tail(&n->poll_list, list);
+				list_move_tail(&n->poll_list, &sd->poll_list);
 		}
 
 		netpoll_poll_unlock(have);
 	}
 out:
-	net_rps_action_and_irq_disable();
+	net_rps_action_and_irq_enable(sd);
 
 #ifdef CONFIG_NET_DMA
 	/*
