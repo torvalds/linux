@@ -2268,6 +2268,7 @@ struct sky2_hw {
 	u8		     ports;
 
 	struct sky2_status_le *st_le;
+	u32		     st_size;
 	u32		     st_idx;
 	dma_addr_t   	     st_dma;
 
