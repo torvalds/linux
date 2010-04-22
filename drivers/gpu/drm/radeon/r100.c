@@ -137,7 +137,7 @@ void r100_get_power_state(struct radeon_device *rdev,
 		 rdev->pm.power_state[rdev->pm.requested_power_state_index].
 		 clock_info[rdev->pm.requested_clock_mode_index].mclk,
 		 rdev->pm.power_state[rdev->pm.requested_power_state_index].
-		 non_clock_info.pcie_lanes);
+		 pcie_lanes);
 }
 
 void r100_set_power_state(struct radeon_device *rdev)

@@ -654,13 +654,6 @@ struct radeon_voltage {
 	u32 voltage;
 };
 
-struct radeon_pm_non_clock_info {
-	/* pcie lanes */
-	int pcie_lanes;
-	/* standardized non-clock flags */
-	u32 flags;
-};
-
 struct radeon_pm_clock_info {
 	/* memory clock */
 	u32 mclk;
@@ -682,11 +675,11 @@ struct radeon_power_state {
 	/* number of valid clock modes in this power state */
 	int num_clock_modes;
 	struct radeon_pm_clock_info *default_clock_mode;
-	/* non clock info about this state */
-	struct radeon_pm_non_clock_info non_clock_info;
-	bool voltage_drop_active;
 	/* standardized state flags */
 	u32 flags;
+	u32 misc; /* vbios specific flags */
+	u32 misc2; /* vbios specific flags */
+	int pcie_lanes; /* pcie lanes */
 };
 
 /*

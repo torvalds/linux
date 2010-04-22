@@ -2382,17 +2382,13 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 			if ((rdev->pm.power_state[state_index].clock_info[0].mclk == 0) ||
 			    (rdev->pm.power_state[state_index].clock_info[0].sclk == 0))
 				goto default_mode;
-			/* skip overclock modes for now */
-			if ((rdev->pm.power_state[state_index].clock_info[0].mclk >
-			     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
-			    (rdev->pm.power_state[state_index].clock_info[0].sclk >
-			     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
-				goto default_mode;
 			rdev->pm.power_state[state_index].type =
 				POWER_STATE_TYPE_BATTERY;
 			misc = RBIOS16(offset + 0x5 + 0x0);
 			if (rev > 4)
 				misc2 = RBIOS16(offset + 0x5 + 0xe);
+			rdev->pm.power_state[state_index].misc = misc;
+			rdev->pm.power_state[state_index].misc2 = misc2;
 			if (misc & 0x4) {
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_GPIO;
 				if (misc & 0x8)
@@ -2439,7 +2435,7 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 			} else
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
 			if (rev > 6)
-				rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+				rdev->pm.power_state[state_index].pcie_lanes =
 					RBIOS8(offset + 0x5 + 0x10);
 			rdev->pm.power_state[state_index].flags = RADEON_PM_SINGLE_DISPLAY_ONLY;
 			state_index++;
@@ -2459,10 +2455,7 @@ default_mode:
 	rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
 	rdev->pm.power_state[state_index].default_clock_mode = &rdev->pm.power_state[state_index].clock_info[0];
 	rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
-	if (rdev->asic->get_pcie_lanes)
-		rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = radeon_get_pcie_lanes(rdev);
-	else
-		rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = 16;
+	rdev->pm.power_state[state_index].pcie_lanes = 16;
 	rdev->pm.power_state[state_index].flags = 0;
 	rdev->pm.default_power_state_index = state_index;
 	rdev->pm.num_power_states = state_index + 1;

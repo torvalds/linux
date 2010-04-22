@@ -1528,7 +1528,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					if ((rdev->pm.power_state[state_index].clock_info[0].mclk == 0) ||
 					    (rdev->pm.power_state[state_index].clock_info[0].sclk == 0))
 						continue;
-					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+					rdev->pm.power_state[state_index].pcie_lanes =
 						power_info->info.asPowerPlayInfo[i].ucNumPciELanes;
 					misc = le32_to_cpu(power_info->info.asPowerPlayInfo[i].ulMiscInfo);
 					if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) {
@@ -1550,6 +1550,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 							power_info->info.asPowerPlayInfo[i].ucVoltageDropIndex;
 					}
 					rdev->pm.power_state[state_index].flags = RADEON_PM_SINGLE_DISPLAY_ONLY;
+					rdev->pm.power_state[state_index].misc = misc;
 					/* order matters! */
 					if (misc & ATOM_PM_MISCINFO_POWER_SAVING_MODE)
 						rdev->pm.power_state[state_index].type =
@@ -1590,7 +1591,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					if ((rdev->pm.power_state[state_index].clock_info[0].mclk == 0) ||
 					    (rdev->pm.power_state[state_index].clock_info[0].sclk == 0))
 						continue;
-					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+					rdev->pm.power_state[state_index].pcie_lanes =
 						power_info->info_2.asPowerPlayInfo[i].ucNumPciELanes;
 					misc = le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulMiscInfo);
 					misc2 = le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulMiscInfo2);
@@ -1613,6 +1614,8 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 							power_info->info_2.asPowerPlayInfo[i].ucVoltageDropIndex;
 					}
 					rdev->pm.power_state[state_index].flags = RADEON_PM_SINGLE_DISPLAY_ONLY;
+					rdev->pm.power_state[state_index].misc = misc;
+					rdev->pm.power_state[state_index].misc2 = misc2;
 					/* order matters! */
 					if (misc & ATOM_PM_MISCINFO_POWER_SAVING_MODE)
 						rdev->pm.power_state[state_index].type =
@@ -1659,7 +1662,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					if ((rdev->pm.power_state[state_index].clock_info[0].mclk == 0) ||
 					    (rdev->pm.power_state[state_index].clock_info[0].sclk == 0))
 						continue;
-					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+					rdev->pm.power_state[state_index].pcie_lanes =
 						power_info->info_3.asPowerPlayInfo[i].ucNumPciELanes;
 					misc = le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulMiscInfo);
 					misc2 = le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulMiscInfo2);
@@ -1688,6 +1691,8 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						}
 					}
 					rdev->pm.power_state[state_index].flags = RADEON_PM_SINGLE_DISPLAY_ONLY;
+					rdev->pm.power_state[state_index].misc = misc;
+					rdev->pm.power_state[state_index].misc2 = misc2;
 					/* order matters! */
 					if (misc & ATOM_PM_MISCINFO_POWER_SAVING_MODE)
 						rdev->pm.power_state[state_index].type =
@@ -1730,6 +1735,8 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					&rdev->pm.power_state[state_index - 1].clock_info[0];
 				rdev->pm.power_state[state_index].flags &=
 					~RADEON_PM_SINGLE_DISPLAY_ONLY;
+				rdev->pm.power_state[state_index].misc = 0;
+				rdev->pm.power_state[state_index].misc2 = 0;
 			}
 		} else {
 			/* add the i2c bus for thermal/fan chip */
@@ -1852,7 +1859,9 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 				if (mode_index) {
 					misc = le32_to_cpu(non_clock_info->ulCapsAndSettings);
 					misc2 = le16_to_cpu(non_clock_info->usClassification);
-					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+					rdev->pm.power_state[state_index].misc = misc;
+					rdev->pm.power_state[state_index].misc2 = misc2;
+					rdev->pm.power_state[state_index].pcie_lanes =
 						((misc & ATOM_PPLIB_PCIE_LINK_WIDTH_MASK) >>
 						ATOM_PPLIB_PCIE_LINK_WIDTH_SHIFT) + 1;
 					switch (misc2 & ATOM_PPLIB_CLASSIFICATION_UI_MASK) {
@@ -1902,10 +1911,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 		rdev->pm.power_state[state_index].default_clock_mode =
 			&rdev->pm.power_state[state_index].clock_info[0];
 		rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
-		if (rdev->asic->get_pcie_lanes)
-			rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = radeon_get_pcie_lanes(rdev);
-		else
-			rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = 16;
+		rdev->pm.power_state[state_index].pcie_lanes = 16;
 		rdev->pm.default_power_state_index = state_index;
 		rdev->pm.power_state[state_index].flags = 0;
 		state_index++;
