@@ -130,6 +130,9 @@ struct ftrace_event_class {
 #endif
 	int			(*reg)(struct ftrace_event_call *event,
 				       enum trace_reg type);
+	int			(*define_fields)(struct ftrace_event_call *);
+	struct list_head	*(*get_fields)(struct ftrace_event_call *);
+	struct list_head	fields;
 };
 
 struct ftrace_event_call {
@@ -142,8 +145,6 @@ struct ftrace_event_call {
 	int			id;
 	const char		*print_fmt;
 	int			(*raw_init)(struct ftrace_event_call *);
-	int			(*define_fields)(struct ftrace_event_call *);
-	struct list_head	fields;
 	int			filter_active;
 	struct event_filter	*filter;
 	void			*mod;

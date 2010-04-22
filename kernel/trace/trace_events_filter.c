@@ -500,8 +500,10 @@ static struct ftrace_event_field *
 find_event_field(struct ftrace_event_call *call, char *name)
 {
 	struct ftrace_event_field *field;
+	struct list_head *head;
 
-	list_for_each_entry(field, &call->fields, link) {
+	head = trace_get_fields(call);
+	list_for_each_entry(field, head, link) {
 		if (!strcmp(field->name, name))
 			return field;
 	}
@@ -625,7 +627,7 @@ static int init_subsystem_preds(struct event_subsystem *system)
 	int err;
 
 	list_for_each_entry(call, &ftrace_events, list) {
-		if (!call->define_fields)
+		if (!call->class || !call->class->define_fields)
 			continue;
 
 		if (strcmp(call->class->system, system->name) != 0)
@@ -644,7 +646,7 @@ static void filter_free_subsystem_preds(struct event_subsystem *system)
 	struct ftrace_event_call *call;
 
 	list_for_each_entry(call, &ftrace_events, list) {
-		if (!call->define_fields)
+		if (!call->class || !call->class->define_fields)
 			continue;
 
 		if (strcmp(call->class->system, system->name) != 0)
@@ -1249,7 +1251,7 @@ static int replace_system_preds(struct event_subsystem *system,
 	list_for_each_entry(call, &ftrace_events, list) {
 		struct event_filter *filter = call->filter;
 
-		if (!call->define_fields)
+		if (!call->class || !call->class->define_fields)
 			continue;
 
 		if (strcmp(call->class->system, system->name) != 0)

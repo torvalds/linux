@@ -1112,8 +1112,6 @@ static void probe_event_disable(struct ftrace_event_call *call)
 
 static int probe_event_raw_init(struct ftrace_event_call *event_call)
 {
-	INIT_LIST_HEAD(&event_call->fields);
-
 	return 0;
 }
 
@@ -1362,11 +1360,13 @@ static int register_probe_event(struct trace_probe *tp)
 	if (probe_is_return(tp)) {
 		tp->event.trace = print_kretprobe_event;
 		call->raw_init = probe_event_raw_init;
-		call->define_fields = kretprobe_event_define_fields;
+		INIT_LIST_HEAD(&call->class->fields);
+		call->class->define_fields = kretprobe_event_define_fields;
 	} else {
 		tp->event.trace = print_kprobe_event;
 		call->raw_init = probe_event_raw_init;
-		call->define_fields = kprobe_event_define_fields;
+		INIT_LIST_HEAD(&call->class->fields);
+		call->class->define_fields = kprobe_event_define_fields;
 	}
 	if (set_print_fmt(tp) < 0)
 		return -ENOMEM;

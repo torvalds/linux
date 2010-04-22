@@ -29,11 +29,23 @@ DEFINE_MUTEX(event_mutex);
 
 LIST_HEAD(ftrace_events);
 
+struct list_head *
+trace_get_fields(struct ftrace_event_call *event_call)
+{
+	if (!event_call->class->get_fields)
+		return &event_call->class->fields;
+	return event_call->class->get_fields(event_call);
+}
+
 int trace_define_field(struct ftrace_event_call *call, const char *type,
 		       const char *name, int offset, int size, int is_signed,
 		       int filter_type)
 {
 	struct ftrace_event_field *field;
+	struct list_head *head;
+
+	if (WARN_ON(!call->class))
+		return 0;
 
 	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field)
@@ -56,7 +68,8 @@ int trace_define_field(struct ftrace_event_call *call, const char *type,
 	field->size = size;
 	field->is_signed = is_signed;
 
-	list_add(&field->link, &call->fields);
+	head = trace_get_fields(call);
+	list_add(&field->link, head);
 
 	return 0;
 
@@ -94,8 +107,10 @@ static int trace_define_common_fields(struct ftrace_event_call *call)
 void trace_destroy_fields(struct ftrace_event_call *call)
 {
 	struct ftrace_event_field *field, *next;
+	struct list_head *head;
 
-	list_for_each_entry_safe(field, next, &call->fields, link) {
+	head = trace_get_fields(call);
+	list_for_each_entry_safe(field, next, head, link) {
 		list_del(&field->link);
 		kfree(field->type);
 		kfree(field->name);
@@ -111,7 +126,6 @@ int trace_event_raw_init(struct ftrace_event_call *call)
 	if (!id)
 		return -ENODEV;
 	call->id = id;
-	INIT_LIST_HEAD(&call->fields);
 
 	return 0;
 }
@@ -537,6 +551,7 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 {
 	struct ftrace_event_call *call = filp->private_data;
 	struct ftrace_event_field *field;
+	struct list_head *head;
 	struct trace_seq *s;
 	int common_field_count = 5;
 	char *buf;
@@ -555,7 +570,8 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 	trace_seq_printf(s, "ID: %d\n", call->id);
 	trace_seq_printf(s, "format:\n");
 
-	list_for_each_entry_reverse(field, &call->fields, link) {
+	head = trace_get_fields(call);
+	list_for_each_entry_reverse(field, head, link) {
 		/*
 		 * Smartly shows the array type(except dynamic array).
 		 * Normal:
@@ -931,6 +947,7 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		 const struct file_operations *filter,
 		 const struct file_operations *format)
 {
+	struct list_head *head;
 	int ret;
 
 	/*
@@ -957,14 +974,21 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		 		  id);
 #endif
 
-	if (call->define_fields) {
-		ret = trace_define_common_fields(call);
-		if (!ret)
-			ret = call->define_fields(call);
-		if (ret < 0) {
-			pr_warning("Could not initialize trace point"
-				   " events/%s\n", call->name);
-			return ret;
+	if (call->class->define_fields) {
+		/*
+		 * Other events may have the same class. Only update
+		 * the fields if they are not already defined.
+		 */
+		head = trace_get_fields(call);
+		if (list_empty(head)) {
+			ret = trace_define_common_fields(call);
+			if (!ret)
+				ret = call->class->define_fields(call);
+			if (ret < 0) {
+				pr_warning("Could not initialize trace point"
+					   " events/%s\n", call->name);
+				return ret;
+			}
 		}
 		trace_create_file("filter", 0644, call->dir, call,
 				  filter);

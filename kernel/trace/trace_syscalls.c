@@ -20,14 +20,37 @@ static int syscall_enter_register(struct ftrace_event_call *event,
 static int syscall_exit_register(struct ftrace_event_call *event,
 				 enum trace_reg type);
 
+static int syscall_enter_define_fields(struct ftrace_event_call *call);
+static int syscall_exit_define_fields(struct ftrace_event_call *call);
+
+static struct list_head *
+syscall_get_enter_fields(struct ftrace_event_call *call)
+{
+	struct syscall_metadata *entry = call->data;
+
+	return &entry->enter_fields;
+}
+
+static struct list_head *
+syscall_get_exit_fields(struct ftrace_event_call *call)
+{
+	struct syscall_metadata *entry = call->data;
+
+	return &entry->exit_fields;
+}
+
 struct ftrace_event_class event_class_syscall_enter = {
 	.system			= "syscalls",
-	.reg			= syscall_enter_register
+	.reg			= syscall_enter_register,
+	.define_fields		= syscall_enter_define_fields,
+	.get_fields		= syscall_get_enter_fields,
 };
 
 struct ftrace_event_class event_class_syscall_exit = {
 	.system			= "syscalls",
-	.reg			= syscall_exit_register
+	.reg			= syscall_exit_register,
+	.define_fields		= syscall_exit_define_fields,
+	.get_fields		= syscall_get_exit_fields,
 };
 
 extern unsigned long __start_syscalls_metadata[];
@@ -220,7 +243,7 @@ static void free_syscall_print_fmt(struct ftrace_event_call *call)
 		kfree(call->print_fmt);
 }
 
-int syscall_enter_define_fields(struct ftrace_event_call *call)
+static int syscall_enter_define_fields(struct ftrace_event_call *call)
 {
 	struct syscall_trace_enter trace;
 	struct syscall_metadata *meta = call->data;
@@ -243,7 +266,7 @@ int syscall_enter_define_fields(struct ftrace_event_call *call)
 	return ret;
 }
 
-int syscall_exit_define_fields(struct ftrace_event_call *call)
+static int syscall_exit_define_fields(struct ftrace_event_call *call)
 {
 	struct syscall_trace_exit trace;
 	int ret;
