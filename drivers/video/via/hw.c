@@ -18,7 +18,7 @@
  * Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
+#include "via-core.h"
 #include "global.h"
 
 static struct pll_map pll_value[] = {
@@ -526,8 +526,7 @@ static void dvi_patch_skew_dvp_low(void);
 static void set_dvi_output_path(int set_iga, int output_interface);
 static void set_lcd_output_path(int set_iga, int output_interface);
 static void load_fix_bit_crtc_reg(void);
-static void init_gfx_chip_info(struct pci_dev *pdev,
-				const struct pci_device_id *pdi);
+static void init_gfx_chip_info(int chip_type);
 static void init_tmds_chip_info(void);
 static void init_lvds_chip_info(void);
 static void device_screen_off(void);
@@ -1911,10 +1910,9 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 
 }
 
-void viafb_init_chip_info(struct pci_dev *pdev,
-			  const struct pci_device_id *pdi)
+void viafb_init_chip_info(int chip_type)
 {
-	init_gfx_chip_info(pdev, pdi);
+	init_gfx_chip_info(chip_type);
 	init_tmds_chip_info();
 	init_lvds_chip_info();
 
@@ -1981,12 +1979,11 @@ void viafb_update_device_setting(int hres, int vres,
 	}
 }
 
-static void init_gfx_chip_info(struct pci_dev *pdev,
-			       const struct pci_device_id *pdi)
+static void init_gfx_chip_info(int chip_type)
 {
 	u8 tmp;
 
-	viaparinfo->chip_info->gfx_chip_name = pdi->driver_data;
+	viaparinfo->chip_info->gfx_chip_name = chip_type;
 
 	/* Check revision of CLE266 Chip */
 	if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266) {
@@ -2489,122 +2486,6 @@ static void disable_second_display_channel(void)
 	viafb_write_reg_mask(CR6A, VIACR, BIT6, BIT6);
 }
 
-static u_int16_t via_function3[] = {
-	CLE266_FUNCTION3, KM400_FUNCTION3, CN400_FUNCTION3, CN700_FUNCTION3,
-	CX700_FUNCTION3, KM800_FUNCTION3, KM890_FUNCTION3, P4M890_FUNCTION3,
-	P4M900_FUNCTION3, VX800_FUNCTION3, VX855_FUNCTION3,
-};
-
-/* Get the BIOS-configured framebuffer size from PCI configuration space
- * of function 3 in the respective chipset */
-int viafb_get_fb_size_from_pci(void)
-{
-	int i;
-	u_int8_t offset = 0;
-	u_int32_t FBSize;
-	u_int32_t VideoMemSize;
-
-	/* search for the "FUNCTION3" device in this chipset */
-	for (i = 0; i < ARRAY_SIZE(via_function3); i++) {
-		struct pci_dev *pdev;
-
-		pdev = pci_get_device(PCI_VENDOR_ID_VIA, via_function3[i],
-				      NULL);
-		if (!pdev)
-			continue;
-
-		DEBUG_MSG(KERN_INFO "Device ID = %x\n", pdev->device);
-
-		switch (pdev->device) {
-		case CLE266_FUNCTION3:
-		case KM400_FUNCTION3:
-			offset = 0xE0;
-			break;
-		case CN400_FUNCTION3:
-		case CN700_FUNCTION3:
-		case CX700_FUNCTION3:
-		case KM800_FUNCTION3:
-		case KM890_FUNCTION3:
-		case P4M890_FUNCTION3:
-		case P4M900_FUNCTION3:
-		case VX800_FUNCTION3:
-		case VX855_FUNCTION3:
-		/*case CN750_FUNCTION3: */
-			offset = 0xA0;
-			break;
-		}
-
-		if (!offset)
-			break;
-
-		pci_read_config_dword(pdev, offset, &FBSize);
-		pci_dev_put(pdev);
-	}
-
-	if (!offset) {
-		printk(KERN_ERR "cannot determine framebuffer size\n");
-		return -EIO;
-	}
-
-	FBSize = FBSize & 0x00007000;
-	DEBUG_MSG(KERN_INFO "FB Size = %x\n", FBSize);
-
-	if (viaparinfo->chip_info->gfx_chip_name < UNICHROME_CX700) {
-		switch (FBSize) {
-		case 0x00004000:
-			VideoMemSize = (16 << 20);	/*16M */
-			break;
-
-		case 0x00005000:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-
-		case 0x00006000:
-			VideoMemSize = (64 << 20);	/*64M */
-			break;
-
-		default:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-		}
-	} else {
-		switch (FBSize) {
-		case 0x00001000:
-			VideoMemSize = (8 << 20);	/*8M */
-			break;
-
-		case 0x00002000:
-			VideoMemSize = (16 << 20);	/*16M */
-			break;
-
-		case 0x00003000:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-
-		case 0x00004000:
-			VideoMemSize = (64 << 20);	/*64M */
-			break;
-
-		case 0x00005000:
-			VideoMemSize = (128 << 20);	/*128M */
-			break;
-
-		case 0x00006000:
-			VideoMemSize = (256 << 20);	/*256M */
-			break;
-
-		case 0x00007000:	/* Only on VX855/875 */
-			VideoMemSize = (512 << 20);	/*512M */
-			break;
-
-		default:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-		}
-	}
-
-	return VideoMemSize;
-}
 
 void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 					*p_gfx_dpa_setting)

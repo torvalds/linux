@@ -24,6 +24,7 @@
 #include <linux/stat.h>
 #define _MASTER_FILE
 
+#include "via-core.h"
 #include "global.h"
 
 static char *viafb_name = "Via";
@@ -220,7 +221,7 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	/* Adjust var according to our driver's own table */
 	viafb_fill_var_timing_info(var, viafb_refresh, vmode_entry);
 	if (info->var.accel_flags & FB_ACCELF_TEXT &&
-		!ppar->shared->engine_mmio)
+		!ppar->shared->vdev->engine_mmio)
 		info->var.accel_flags = 0;
 
 	return 0;
@@ -695,7 +696,7 @@ static void viafb_fillrect(struct fb_info *info,
 		rop = 0xF0;
 
 	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: fillrect\n");
-	if (shared->hw_bitblt(shared->engine_mmio, VIA_BITBLT_FILL,
+	if (shared->hw_bitblt(shared->vdev->engine_mmio, VIA_BITBLT_FILL,
 		rect->width, rect->height, info->var.bits_per_pixel,
 		viapar->vram_addr, info->fix.line_length, rect->dx, rect->dy,
 		NULL, 0, 0, 0, 0, fg_color, 0, rop))
@@ -717,7 +718,7 @@ static void viafb_copyarea(struct fb_info *info,
 		return;
 
 	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: copyarea\n");
-	if (shared->hw_bitblt(shared->engine_mmio, VIA_BITBLT_COLOR,
+	if (shared->hw_bitblt(shared->vdev->engine_mmio, VIA_BITBLT_COLOR,
 		area->width, area->height, info->var.bits_per_pixel,
 		viapar->vram_addr, info->fix.line_length, area->dx, area->dy,
 		NULL, viapar->vram_addr, info->fix.line_length,
@@ -754,7 +755,7 @@ static void viafb_imageblit(struct fb_info *info,
 		op = VIA_BITBLT_COLOR;
 
 	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: imageblit\n");
-	if (shared->hw_bitblt(shared->engine_mmio, op,
+	if (shared->hw_bitblt(shared->vdev->engine_mmio, op,
 		image->width, image->height, info->var.bits_per_pixel,
 		viapar->vram_addr, info->fix.line_length, image->dx, image->dy,
 		(u32 *)image->data, 0, 0, 0, 0, fg_color, bg_color, 0))
@@ -764,7 +765,7 @@ static void viafb_imageblit(struct fb_info *info,
 static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct viafb_par *viapar = info->par;
-	void __iomem *engine = viapar->shared->engine_mmio;
+	void __iomem *engine = viapar->shared->vdev->engine_mmio;
 	u32 temp, xx, yy, bg_color = 0, fg_color = 0,
 		chip_name = viapar->shared->chip_info.gfx_chip_name;
 	int i, j = 0, cur_size = 64;
@@ -1732,8 +1733,7 @@ static int parse_mode(const char *str, u32 *xres, u32 *yres)
 }
 
 
-int __devinit via_fb_pci_probe(struct pci_dev *pdev,
-		const struct pci_device_id *ent)
+int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 {
 	u32 default_xres, default_yres;
 	struct VideoModeTable *vmode_entry;
@@ -1750,7 +1750,7 @@ int __devinit via_fb_pci_probe(struct pci_dev *pdev,
 	*/
 	viafbinfo = framebuffer_alloc(viafb_par_length +
 		ALIGN(sizeof(struct viafb_shared), BITS_PER_LONG/8),
-		&pdev->dev);
+		&vdev->pdev->dev);
 	if (!viafbinfo) {
 		printk(KERN_ERR"Could not allocate memory for viafb_info.\n");
 		return -ENOMEM;
@@ -1758,6 +1758,7 @@ int __devinit via_fb_pci_probe(struct pci_dev *pdev,
 
 	viaparinfo = (struct viafb_par *)viafbinfo->par;
 	viaparinfo->shared = viafbinfo->par + viafb_par_length;
+	viaparinfo->shared->vdev = vdev;
 	viaparinfo->vram_addr = 0;
 	viaparinfo->tmds_setting_info = &viaparinfo->shared->tmds_setting_info;
 	viaparinfo->lvds_setting_info = &viaparinfo->shared->lvds_setting_info;
@@ -1765,7 +1766,6 @@ int __devinit via_fb_pci_probe(struct pci_dev *pdev,
 		&viaparinfo->shared->lvds_setting_info2;
 	viaparinfo->crt_setting_info = &viaparinfo->shared->crt_setting_info;
 	viaparinfo->chip_info = &viaparinfo->shared->chip_info;
-	spin_lock_init(&viaparinfo->reg_lock);
 
 	if (viafb_dual_fb)
 		viafb_SAMM_ON = 1;
@@ -1776,25 +1776,20 @@ int __devinit via_fb_pci_probe(struct pci_dev *pdev,
 	if (!viafb_SAMM_ON)
 		viafb_dual_fb = 0;
 
-	viafb_init_chip_info(pdev, ent);
-	viaparinfo->fbmem = pci_resource_start(pdev, 0);
-	viaparinfo->memsize = viafb_get_fb_size_from_pci();
-	if (viaparinfo->memsize < 0) {
-		rc = viaparinfo->memsize;
-		goto out_fb_release;
-	}
+	viafb_init_chip_info(vdev->chip_type);
+	/*
+	 * The framebuffer will have been successfully mapped by
+	 * the core (or we'd not be here), but we still need to
+	 * set up our own accounting.
+	 */
+	viaparinfo->fbmem = vdev->fbmem_start;
+	viaparinfo->memsize = vdev->fbmem_len;
 	viaparinfo->fbmem_free = viaparinfo->memsize;
 	viaparinfo->fbmem_used = 0;
-	viafbinfo->screen_base = ioremap_nocache(viaparinfo->fbmem,
-		viaparinfo->memsize);
-	if (!viafbinfo->screen_base) {
-		printk(KERN_ERR "ioremap of fbmem failed\n");
-		rc = -ENOMEM;
-		goto out_fb_release;
-	}
+	viafbinfo->screen_base = vdev->fbmem;
 
-	viafbinfo->fix.mmio_start = pci_resource_start(pdev, 1);
-	viafbinfo->fix.mmio_len = pci_resource_len(pdev, 1);
+	viafbinfo->fix.mmio_start = vdev->engine_start;
+	viafbinfo->fix.mmio_len = vdev->engine_len;
 	viafbinfo->node = 0;
 	viafbinfo->fbops = &viafb_ops;
 	viafbinfo->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
@@ -1862,12 +1857,13 @@ int __devinit via_fb_pci_probe(struct pci_dev *pdev,
 	viafbinfo->var = default_var;
 
 	if (viafb_dual_fb) {
-		viafbinfo1 = framebuffer_alloc(viafb_par_length, &pdev->dev);
+		viafbinfo1 = framebuffer_alloc(viafb_par_length,
+				&vdev->pdev->dev);
 		if (!viafbinfo1) {
 			printk(KERN_ERR
 			"allocate the second framebuffer struct error\n");
 			rc = -ENOMEM;
-			goto out_unmap_screen;
+			goto out_fb_release;
 		}
 		viaparinfo1 = viafbinfo1->par;
 		memcpy(viaparinfo1, viaparinfo, viafb_par_length);
@@ -1958,8 +1954,6 @@ out_dealloc_cmap:
 out_fb1_release:
 	if (viafbinfo1)
 		framebuffer_release(viafbinfo1);
-out_unmap_screen:
-	iounmap(viafbinfo->screen_base);
 out_fb_release:
 	framebuffer_release(viafbinfo);
 	return rc;
@@ -1972,8 +1966,6 @@ void __devexit via_fb_pci_remove(struct pci_dev *pdev)
 	unregister_framebuffer(viafbinfo);
 	if (viafb_dual_fb)
 		unregister_framebuffer(viafbinfo1);
-	iounmap((void *)viafbinfo->screen_base);
-	iounmap(viaparinfo->shared->engine_mmio);
 
 	framebuffer_release(viafbinfo);
 	if (viafb_dual_fb)

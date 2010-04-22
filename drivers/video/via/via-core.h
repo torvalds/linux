@@ -22,6 +22,9 @@
 
 #ifndef __VIA_CORE_H__
 #define __VIA_CORE_H__
+#include <linux/spinlock.h>
+#include <linux/pci.h>
+
 /*
  * A description of each known serial I2C/GPIO port.
  */
@@ -49,7 +52,38 @@ enum viafb_i2c_adap {
 struct via_port_cfg {
 	enum via_port_type	type;
 	enum via_port_mode	mode;
-	u_int16_t		io_port;
-	u_int8_t		ioport_index;
+	u16			io_port;
+	u8			ioport_index;
 };
+
+/*
+ * This is the global viafb "device" containing stuff needed by
+ * all subdevs.
+ */
+struct viafb_dev {
+	struct pci_dev *pdev;
+	int chip_type;
+	/*
+	 * Spinlock for access to device registers.  Not yet
+	 * globally used.
+	 */
+	spinlock_t reg_lock;
+	/*
+	 * The framebuffer MMIO region.  Little, if anything, touches
+	 * this memory directly, and certainly nothing outside of the
+	 * framebuffer device itself.  We *do* have to be able to allocate
+	 * chunks of this memory for other devices, though.
+	 */
+	unsigned long fbmem_start;
+	long fbmem_len;
+	void __iomem *fbmem;
+	/*
+	 * The MMIO region for device registers.
+	 */
+	unsigned long engine_start;
+	unsigned long engine_len;
+	void __iomem *engine_mmio;
+
+};
+
 #endif /* __VIA_CORE_H__ */

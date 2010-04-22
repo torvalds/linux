@@ -30,7 +30,6 @@
 #include "share.h"
 #include "chip.h"
 #include "hw.h"
-#include "via_i2c.h"
 
 #define VERSION_MAJOR       2
 #define VERSION_KERNEL      6	/* For kernel 2.6 */
@@ -42,6 +41,7 @@
 
 struct viafb_shared {
 	struct proc_dir_entry *proc_entry;	/*viafb proc entry */
+	struct viafb_dev *vdev;			/* Global dev info */
 
 	/* All the information will be needed to set engine */
 	struct tmds_setting_information tmds_setting_info;
@@ -51,7 +51,6 @@ struct viafb_shared {
 	struct chip_information chip_info;
 
 	/* hardware acceleration stuff */
-	void __iomem *engine_mmio;
 	u32 cursor_vram_addr;
 	u32 vq_vram_addr;	/* virtual queue address in video ram */
 	int (*hw_bitblt)(void __iomem *engine, u8 op, u32 width, u32 height,
@@ -71,14 +70,6 @@ struct viafb_par {
 	u32 iga_path;
 
 	struct viafb_shared *shared;
-
-	/*
-	 * (jc) I believe one should use locking to protect against
-	 * concurrent access to the device ports and registers.  Thus,
-	 * this lock.  Use of it is *far* from universal, though...
-	 * someday...
-	 */
-	spinlock_t reg_lock;
 
 	/* All the information will be needed to set engine */
 	/* depreciated, use the ones in shared directly */
@@ -107,7 +98,7 @@ u8 viafb_gpio_i2c_read_lvds(struct lvds_setting_information
 void viafb_gpio_i2c_write_mask_lvds(struct lvds_setting_information
 			      *plvds_setting_info, struct lvds_chip_information
 			      *plvds_chip_info, struct IODATA io_data);
-int via_fb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
+int via_fb_pci_probe(struct viafb_dev *vdev);
 void via_fb_pci_remove(struct pci_dev *pdev);
 /* Temporary */
 int viafb_init(void);

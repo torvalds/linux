@@ -19,6 +19,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include "via-core.h"
+#include "via_i2c.h"
 #include "global.h"
 
 u8 viafb_gpio_i2c_read_lvds(struct lvds_setting_information

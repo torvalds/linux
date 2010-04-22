@@ -35,14 +35,12 @@
 
 #include "debug.h"
 
-#include "via-core.h"
 #include "viafbdev.h"
 #include "chip.h"
 #include "accel.h"
 #include "share.h"
 #include "dvi.h"
 #include "viamode.h"
-#include "via_i2c.h"
 #include "hw.h"
 
 #include "lcd.h"

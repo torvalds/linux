@@ -18,6 +18,7 @@
  * Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#include "via-core.h"
 #include "global.h"
 
 /*
@@ -321,8 +322,7 @@ int viafb_init_engine(struct fb_info *info)
 	u32 vq_start_addr, vq_end_addr, vq_start_low, vq_end_low, vq_high,
 		vq_len, chip_name = viapar->shared->chip_info.gfx_chip_name;
 
-	engine = ioremap_nocache(info->fix.mmio_start, info->fix.mmio_len);
-	viapar->shared->engine_mmio = engine;
+	engine = viapar->shared->vdev->engine_mmio;
 	if (!engine) {
 		printk(KERN_WARNING "viafb_init_accel: ioremap failed, "
 			"hardware acceleration disabled\n");
@@ -465,7 +465,7 @@ void viafb_show_hw_cursor(struct fb_info *info, int Status)
 	struct viafb_par *viapar = info->par;
 	u32 temp, iga_path = viapar->iga_path;
 
-	temp = readl(viapar->shared->engine_mmio + VIA_REG_CURSOR_MODE);
+	temp = readl(viapar->shared->vdev->engine_mmio + VIA_REG_CURSOR_MODE);
 	switch (Status) {
 	case HW_Cursor_ON:
 		temp |= 0x1;
@@ -482,7 +482,7 @@ void viafb_show_hw_cursor(struct fb_info *info, int Status)
 	default:
 		temp &= 0x7FFFFFFF;
 	}
-	writel(temp, viapar->shared->engine_mmio + VIA_REG_CURSOR_MODE);
+	writel(temp, viapar->shared->vdev->engine_mmio + VIA_REG_CURSOR_MODE);
 }
 
 void viafb_wait_engine_idle(struct fb_info *info)
@@ -490,6 +490,7 @@ void viafb_wait_engine_idle(struct fb_info *info)
 	struct viafb_par *viapar = info->par;
 	int loop = 0;
 	u32 mask;
+	void __iomem *engine = viapar->shared->vdev->engine_mmio;
 
 	switch (viapar->shared->chip_info.twod_engine) {
 	case VIA_2D_ENG_H5:
@@ -498,7 +499,7 @@ void viafb_wait_engine_idle(struct fb_info *info)
 			      VIA_3D_ENG_BUSY_M1;
 		break;
 	default:
-		while (!(readl(viapar->shared->engine_mmio + VIA_REG_STATUS) &
+		while (!(readl(engine + VIA_REG_STATUS) &
 				VIA_VR_QUEUE_BUSY) && (loop < MAXLOOP)) {
 			loop++;
 			cpu_relax();
@@ -507,8 +508,7 @@ void viafb_wait_engine_idle(struct fb_info *info)
 		break;
 	}
 
-	while ((readl(viapar->shared->engine_mmio + VIA_REG_STATUS) & mask) &&
-		    (loop < MAXLOOP)) {
+	while ((readl(engine + VIA_REG_STATUS) & mask) && (loop < MAXLOOP)) {
 		loop++;
 		cpu_relax();
 	}

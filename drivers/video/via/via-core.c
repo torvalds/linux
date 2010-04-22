@@ -7,9 +7,12 @@
 /*
  * Core code for the Via multifunction framebuffer device.
  */
+#include "via-core.h"
+#include "via_i2c.h"
+#include "global.h"
+
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include "global.h"  	/* Includes everything under the sun */
 
 /*
  * The default port config.
@@ -23,6 +26,169 @@ static struct via_port_cfg adap_configs[] = {
 	{ 0, 0, 0, 0 }
 };
 
+/*
+ * We currently only support one viafb device (will there ever be
+ * more than one?), so just declare it globally here.
+ */
+static struct viafb_dev global_dev;
+
+
+/*
+ * Figure out how big our framebuffer memory is.  Kind of ugly,
+ * but evidently we can't trust the information found in the
+ * fbdev configuration area.
+ */
+static u16 via_function3[] = {
+	CLE266_FUNCTION3, KM400_FUNCTION3, CN400_FUNCTION3, CN700_FUNCTION3,
+	CX700_FUNCTION3, KM800_FUNCTION3, KM890_FUNCTION3, P4M890_FUNCTION3,
+	P4M900_FUNCTION3, VX800_FUNCTION3, VX855_FUNCTION3,
+};
+
+/* Get the BIOS-configured framebuffer size from PCI configuration space
+ * of function 3 in the respective chipset */
+static int viafb_get_fb_size_from_pci(int chip_type)
+{
+	int i;
+	u8 offset = 0;
+	u32 FBSize;
+	u32 VideoMemSize;
+
+	/* search for the "FUNCTION3" device in this chipset */
+	for (i = 0; i < ARRAY_SIZE(via_function3); i++) {
+		struct pci_dev *pdev;
+
+		pdev = pci_get_device(PCI_VENDOR_ID_VIA, via_function3[i],
+				      NULL);
+		if (!pdev)
+			continue;
+
+		DEBUG_MSG(KERN_INFO "Device ID = %x\n", pdev->device);
+
+		switch (pdev->device) {
+		case CLE266_FUNCTION3:
+		case KM400_FUNCTION3:
+			offset = 0xE0;
+			break;
+		case CN400_FUNCTION3:
+		case CN700_FUNCTION3:
+		case CX700_FUNCTION3:
+		case KM800_FUNCTION3:
+		case KM890_FUNCTION3:
+		case P4M890_FUNCTION3:
+		case P4M900_FUNCTION3:
+		case VX800_FUNCTION3:
+		case VX855_FUNCTION3:
+		/*case CN750_FUNCTION3: */
+			offset = 0xA0;
+			break;
+		}
+
+		if (!offset)
+			break;
+
+		pci_read_config_dword(pdev, offset, &FBSize);
+		pci_dev_put(pdev);
+	}
+
+	if (!offset) {
+		printk(KERN_ERR "cannot determine framebuffer size\n");
+		return -EIO;
+	}
+
+	FBSize = FBSize & 0x00007000;
+	DEBUG_MSG(KERN_INFO "FB Size = %x\n", FBSize);
+
+	if (chip_type < UNICHROME_CX700) {
+		switch (FBSize) {
+		case 0x00004000:
+			VideoMemSize = (16 << 20);	/*16M */
+			break;
+
+		case 0x00005000:
+			VideoMemSize = (32 << 20);	/*32M */
+			break;
+
+		case 0x00006000:
+			VideoMemSize = (64 << 20);	/*64M */
+			break;
+
+		default:
+			VideoMemSize = (32 << 20);	/*32M */
+			break;
+		}
+	} else {
+		switch (FBSize) {
+		case 0x00001000:
+			VideoMemSize = (8 << 20);	/*8M */
+			break;
+
+		case 0x00002000:
+			VideoMemSize = (16 << 20);	/*16M */
+			break;
+
+		case 0x00003000:
+			VideoMemSize = (32 << 20);	/*32M */
+			break;
+
+		case 0x00004000:
+			VideoMemSize = (64 << 20);	/*64M */
+			break;
+
+		case 0x00005000:
+			VideoMemSize = (128 << 20);	/*128M */
+			break;
+
+		case 0x00006000:
+			VideoMemSize = (256 << 20);	/*256M */
+			break;
+
+		case 0x00007000:	/* Only on VX855/875 */
+			VideoMemSize = (512 << 20);	/*512M */
+			break;
+
+		default:
+			VideoMemSize = (32 << 20);	/*32M */
+			break;
+		}
+	}
+
+	return VideoMemSize;
+}
+
+
+/*
+ * Figure out and map our MMIO regions.
+ */
+static int __devinit via_pci_setup_mmio(struct viafb_dev *vdev)
+{
+	/*
+	 * Hook up to the device registers.
+	 */
+	vdev->engine_start = pci_resource_start(vdev->pdev, 1);
+	vdev->engine_len = pci_resource_len(vdev->pdev, 1);
+	/* If this fails, others will notice later */
+	vdev->engine_mmio = ioremap_nocache(vdev->engine_start,
+			vdev->engine_len);
+
+	/*
+	 * Likewise with I/O memory.
+	 */
+	vdev->fbmem_start = pci_resource_start(vdev->pdev, 0);
+	vdev->fbmem_len = viafb_get_fb_size_from_pci(vdev->chip_type);
+	if (vdev->fbmem_len < 0)
+		return vdev->fbmem_len;
+	vdev->fbmem = ioremap_nocache(vdev->fbmem_start, vdev->fbmem_len);
+	if (vdev->fbmem == NULL)
+		return -ENOMEM;
+	return 0;
+}
+
+static void __devexit via_pci_teardown_mmio(struct viafb_dev *vdev)
+{
+	iounmap(vdev->fbmem);
+	iounmap(vdev->engine_mmio);
+}
+
 
 static int __devinit via_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
@@ -33,22 +199,34 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 	/*
+	 * Global device initialization.
+	 */
+	memset(&global_dev, 0, sizeof(global_dev));
+	global_dev.pdev = pdev;
+	global_dev.chip_type = ent->driver_data;
+	spin_lock_init(&global_dev.reg_lock);
+	ret = via_pci_setup_mmio(&global_dev);
+	if (ret)
+		goto out_disable;
+	/*
 	 * Create the I2C busses.  Bailing out on failure seems extreme,
 	 * but that's what the code did before.
 	 */
 	ret = viafb_create_i2c_busses(adap_configs);
 	if (ret)
-		goto out_disable;
+		goto out_teardown;
 	/*
 	 * Set up the framebuffer.
 	 */
-	ret = via_fb_pci_probe(pdev, ent);
+	ret = via_fb_pci_probe(&global_dev);
 	if (ret)
 		goto out_i2c;
 	return 0;
 
 out_i2c:
 	viafb_delete_i2c_busses();
+out_teardown:
+	via_pci_teardown_mmio(&global_dev);
 out_disable:
 	pci_disable_device(pdev);
 	return ret;
@@ -58,6 +236,7 @@ static void __devexit via_pci_remove(struct pci_dev *pdev)
 {
 	viafb_delete_i2c_busses();
 	via_fb_pci_remove(pdev);
+	via_pci_teardown_mmio(&global_dev);
 	pci_disable_device(pdev);
 }
 
