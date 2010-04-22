@@ -767,6 +767,14 @@ pref_skip_coa:
 
 		break;
 	    }
+	case IPV6_MINHOPCOUNT:
+		if (optlen < sizeof(int))
+			goto e_inval;
+		if (val < 0 || val > 255)
+			goto e_inval;
+		np->min_hopcount = val;
+		retv = 0;
+		break;
 	}
 
 	release_sock(sk);
@@ -1114,6 +1122,10 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			val |= IPV6_PREFER_SRC_COA;
 		else
 			val |= IPV6_PREFER_SRC_HOME;
+		break;
+
+	case IPV6_MINHOPCOUNT:
+		val = np->min_hopcount;
 		break;
 
 	default:

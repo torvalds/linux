@@ -348,6 +348,7 @@ struct ipv6_pinfo {
 						 * 010: prefer public address
 						 * 100: prefer care-of address
 						 */
+	__u8			min_hopcount;
 	__u8			tclass;
 
 	__u32			dst_cookie;
