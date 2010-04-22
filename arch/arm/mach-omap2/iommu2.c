@@ -147,6 +147,7 @@ static u32 omap2_iommu_fault_isr(struct iommu *obj, u32 *ra)
 	printk("\n");
 
 	iommu_write_reg(obj, stat, MMU_IRQSTATUS);
+	omap2_iommu_disable(obj);
 	return stat;
 }
 
@@ -212,7 +213,8 @@ static ssize_t omap2_dump_cr(struct iommu *obj, struct cr_regs *cr, char *buf)
 	char *p = buf;
 
 	/* FIXME: Need more detail analysis of cam/ram */
-	p += sprintf(p, "%08x %08x\n", cr->cam, cr->ram);
+	p += sprintf(p, "%08x %08x %01x\n", cr->cam, cr->ram,
+					(cr->cam & MMU_CAM_P) ? 1 : 0);
 
 	return p - buf;
 }

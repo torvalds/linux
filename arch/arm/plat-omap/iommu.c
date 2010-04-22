@@ -172,14 +172,11 @@ static void iotlb_lock_get(struct iommu *obj, struct iotlb_lock *l)
 	l->base = MMU_LOCK_BASE(val);
 	l->vict = MMU_LOCK_VICT(val);
 
-	BUG_ON(l->base != 0); /* Currently no preservation is used */
 }
 
 static void iotlb_lock_set(struct iommu *obj, struct iotlb_lock *l)
 {
 	u32 val;
-
-	BUG_ON(l->base != 0); /* Currently no preservation is used */
 
 	val = (l->base << MMU_LOCK_BASE_SHIFT);
 	val |= (l->vict << MMU_LOCK_VICT_SHIFT);
@@ -231,21 +228,31 @@ int load_iotlb_entry(struct iommu *obj, struct iotlb_entry *e)
 
 	clk_enable(obj->clk);
 
-	for (i = 0; i < obj->nr_tlb_entries; i++) {
-		struct cr_regs tmp;
-
-		iotlb_lock_get(obj, &l);
-		l.vict = i;
-		iotlb_lock_set(obj, &l);
-		iotlb_read_cr(obj, &tmp);
-		if (!iotlb_cr_valid(&tmp))
-			break;
-	}
-
-	if (i == obj->nr_tlb_entries) {
-		dev_dbg(obj->dev, "%s: full: no entry\n", __func__);
+	iotlb_lock_get(obj, &l);
+	if (l.base == obj->nr_tlb_entries) {
+		dev_warn(obj->dev, "%s: preserve entries full\n", __func__);
 		err = -EBUSY;
 		goto out;
+	}
+	if (!e->prsvd) {
+		for (i = l.base; i < obj->nr_tlb_entries; i++) {
+			struct cr_regs tmp;
+
+			iotlb_lock_get(obj, &l);
+			l.vict = i;
+			iotlb_lock_set(obj, &l);
+			iotlb_read_cr(obj, &tmp);
+			if (!iotlb_cr_valid(&tmp))
+				break;
+		}
+		if (i == obj->nr_tlb_entries) {
+			dev_dbg(obj->dev, "%s: full: no entry\n", __func__);
+			err = -EBUSY;
+			goto out;
+		}
+	} else {
+		l.vict = l.base;
+		iotlb_lock_set(obj, &l);
 	}
 
 	cr = iotlb_alloc_cr(obj, e);
@@ -257,9 +264,11 @@ int load_iotlb_entry(struct iommu *obj, struct iotlb_entry *e)
 	iotlb_load_cr(obj, cr);
 	kfree(cr);
 
+	if (e->prsvd)
+		l.base++;
 	/* increment victim for next tlb load */
 	if (++l.vict == obj->nr_tlb_entries)
-		l.vict = 0;
+		l.vict = l.base;
 	iotlb_lock_set(obj, &l);
 out:
 	clk_disable(obj->clk);
