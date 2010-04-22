@@ -261,6 +261,8 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 	const u32 *p;
 	struct fsl_msi_feature *features = match->data;
 	struct fsl_msi_cascade_data *cascade_data = NULL;
+	int len;
+	u32 offset;
 
 	printk(KERN_DEBUG "Setting up Freescale MSI support\n");
 
@@ -320,6 +322,10 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 		err = -EINVAL;
 		goto error_out;
 	}
+	offset = 0;
+	p = of_get_property(dev->node, "msi-available-ranges", &len);
+	if (p)
+		offset = *p / IRQS_PER_MSI_REG;
 
 	count /= sizeof(u32);
 	for (i = 0; i < count / 2; i++) {
@@ -336,7 +342,7 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 				err = -ENOMEM;
 				goto error_out;
 			}
-			cascade_data->index = i;
+			cascade_data->index = i + offset;
 			cascade_data->msi_data = msi;
 			set_irq_data(virt_msir, (void *)cascade_data);
 			set_irq_chained_handler(virt_msir, fsl_msi_cascade);
