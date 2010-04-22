@@ -2187,6 +2187,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	if (data->version == 4) {
 		error = nfs4_try_mount(flags, dev_name, data, mnt);
 		kfree(data->client_address);
+		kfree(data->nfs_server.export_path);
 		goto out;
 	}
 #endif	/* CONFIG_NFS_V4 */
