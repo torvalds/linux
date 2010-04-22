@@ -176,16 +176,11 @@ static unsigned long get_rate_ipg(struct clk *clk)
 	return get_rate_ahb(NULL) >> 1;
 }
 
-static unsigned long get_3_3_div(unsigned long in)
-{
-	return (((in >> 3) & 0x7) + 1) * ((in & 0x7) + 1);
-}
-
 static unsigned long get_rate_uart(struct clk *clk)
 {
 	unsigned long pdr3 = __raw_readl(CCM_BASE + CCM_PDR3);
 	unsigned long pdr4 = __raw_readl(CCM_BASE + CCM_PDR4);
-	unsigned long div = get_3_3_div(pdr4 >> 10);
+	unsigned long div = ((pdr4 >> 10) & 0x3f) + 1;
 
 	if (pdr3 & (1 << 14))
 		return get_rate_arm() / div;
@@ -216,7 +211,7 @@ static unsigned long get_rate_sdhc(struct clk *clk)
 		break;
 	}
 
-	return rate / get_3_3_div(div);
+	return rate / (div + 1);
 }
 
 static unsigned long get_rate_mshc(struct clk *clk)
@@ -270,7 +265,7 @@ static unsigned long get_rate_csi(struct clk *clk)
 	else
 		rate = get_rate_ppll();
 
-	return rate / get_3_3_div((pdr2 >> 16) & 0x3f);
+	return rate / (((pdr2 >> 16) & 0x3f) + 1);
 }
 
 static unsigned long get_rate_otg(struct clk *clk)
@@ -283,22 +278,21 @@ static unsigned long get_rate_otg(struct clk *clk)
 	else
 		rate = get_rate_ppll();
 
-	return rate / get_3_3_div((pdr4 >> 22) & 0x3f);
+	return rate / (((pdr4 >> 22) & 0x3f) + 1);
 }
 
 static unsigned long get_rate_ipg_per(struct clk *clk)
 {
 	unsigned long pdr0 = __raw_readl(CCM_BASE + CCM_PDR0);
 	unsigned long pdr4 = __raw_readl(CCM_BASE + CCM_PDR4);
-	unsigned long div1, div2;
+	unsigned long div;
 
 	if (pdr0 & (1 << 26)) {
-		div1 = (pdr4 >> 19) & 0x7;
-		div2 = (pdr4 >> 16) & 0x7;
-		return get_rate_arm() / ((div1 + 1) * (div2 + 1));
+		div = (pdr4 >> 16) & 0x3f;
+		return get_rate_arm() / (div + 1);
 	} else {
-		div1 = (pdr0 >> 12) & 0x7;
-		return get_rate_ahb(NULL) / div1;
+		div = (pdr0 >> 12) & 0x7;
+		return get_rate_ahb(NULL) / div;
 	}
 }
 
