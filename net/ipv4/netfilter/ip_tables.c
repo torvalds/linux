@@ -363,7 +363,7 @@ ipt_do_table(struct sk_buff *skb,
 
 	e = get_entry(table_base, private->hook_entry[hook]);
 
-	pr_devel("Entering %s(hook %u); sp at %u (UF %p)\n",
+	pr_debug("Entering %s(hook %u); sp at %u (UF %p)\n",
 		 table->name, hook, origptr,
 		 get_entry(table_base, private->underflow[hook]));
 
@@ -409,11 +409,11 @@ ipt_do_table(struct sk_buff *skb,
 				if (*stackptr == 0) {
 					e = get_entry(table_base,
 					    private->underflow[hook]);
-					pr_devel("Underflow (this is normal) "
+					pr_debug("Underflow (this is normal) "
 						 "to %p\n", e);
 				} else {
 					e = jumpstack[--*stackptr];
-					pr_devel("Pulled %p out from pos %u\n",
+					pr_debug("Pulled %p out from pos %u\n",
 						 e, *stackptr);
 					e = ipt_next_entry(e);
 				}
@@ -426,7 +426,7 @@ ipt_do_table(struct sk_buff *skb,
 					break;
 				}
 				jumpstack[(*stackptr)++] = e;
-				pr_devel("Pushed %p into pos %u\n",
+				pr_debug("Pushed %p into pos %u\n",
 					 e, *stackptr - 1);
 			}
 
@@ -448,7 +448,7 @@ ipt_do_table(struct sk_buff *skb,
 			break;
 	} while (!hotdrop);
 	xt_info_rdunlock_bh();
-	pr_devel("Exiting %s; resetting sp from %u to %u\n",
+	pr_debug("Exiting %s; resetting sp from %u to %u\n",
 		 __func__, *stackptr, origptr);
 	*stackptr = origptr;
 #ifdef DEBUG_ALLOW_ALL
