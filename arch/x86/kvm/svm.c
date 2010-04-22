@@ -338,7 +338,8 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 }
 
 static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
-				bool has_error_code, u32 error_code)
+				bool has_error_code, u32 error_code,
+				bool reinject)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
@@ -346,7 +347,8 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	 * If we are within a nested VM we'd better #VMEXIT and let the guest
 	 * handle the exception
 	 */
-	if (nested_svm_check_exception(svm, nr, has_error_code, error_code))
+	if (!reinject &&
+	    nested_svm_check_exception(svm, nr, has_error_code, error_code))
 		return;
 
 	if (nr == BP_VECTOR && !svm_has(SVM_FEATURE_NRIP)) {
@@ -2918,8 +2920,6 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 		svm->vcpu.arch.nmi_injected = true;
 		break;
 	case SVM_EXITINTINFO_TYPE_EXEPT:
-		if (is_nested(svm))
-			break;
 		/*
 		 * In case of software exceptions, do not reinject the vector,
 		 * but re-execute the instruction instead. Rewind RIP first
@@ -2935,10 +2935,10 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 		}
 		if (exitintinfo & SVM_EXITINTINFO_VALID_ERR) {
 			u32 err = svm->vmcb->control.exit_int_info_err;
-			kvm_queue_exception_e(&svm->vcpu, vector, err);
+			kvm_requeue_exception_e(&svm->vcpu, vector, err);
 
 		} else
-			kvm_queue_exception(&svm->vcpu, vector);
+			kvm_requeue_exception(&svm->vcpu, vector);
 		break;
 	case SVM_EXITINTINFO_TYPE_INTR:
 		kvm_queue_interrupt(&svm->vcpu, vector, false);

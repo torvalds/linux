@@ -312,6 +312,7 @@ struct kvm_vcpu_arch {
 	struct kvm_queued_exception {
 		bool pending;
 		bool has_error_code;
+		bool reinject;
 		u8 nr;
 		u32 error_code;
 	} exception;
@@ -514,7 +515,8 @@ struct kvm_x86_ops {
 	void (*set_irq)(struct kvm_vcpu *vcpu);
 	void (*set_nmi)(struct kvm_vcpu *vcpu);
 	void (*queue_exception)(struct kvm_vcpu *vcpu, unsigned nr,
-				bool has_error_code, u32 error_code);
+				bool has_error_code, u32 error_code,
+				bool reinject);
 	int (*interrupt_allowed)(struct kvm_vcpu *vcpu);
 	int (*nmi_allowed)(struct kvm_vcpu *vcpu);
 	bool (*get_nmi_mask)(struct kvm_vcpu *vcpu);
@@ -617,6 +619,8 @@ void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
 
 void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr);
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
+void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr);
+void kvm_requeue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long cr2,
 			   u32 error_code);
 bool kvm_require_cpl(struct kvm_vcpu *vcpu, int required_cpl);

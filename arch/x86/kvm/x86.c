@@ -265,7 +265,8 @@ static int exception_class(int vector)
 }
 
 static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
-		unsigned nr, bool has_error, u32 error_code)
+		unsigned nr, bool has_error, u32 error_code,
+		bool reinject)
 {
 	u32 prev_nr;
 	int class1, class2;
@@ -276,6 +277,7 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		vcpu->arch.exception.has_error_code = has_error;
 		vcpu->arch.exception.nr = nr;
 		vcpu->arch.exception.error_code = error_code;
+		vcpu->arch.exception.reinject = true;
 		return;
 	}
 
@@ -304,9 +306,15 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 
 void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 {
-	kvm_multiple_exception(vcpu, nr, false, 0);
+	kvm_multiple_exception(vcpu, nr, false, 0, false);
 }
 EXPORT_SYMBOL_GPL(kvm_queue_exception);
+
+void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr)
+{
+	kvm_multiple_exception(vcpu, nr, false, 0, true);
+}
+EXPORT_SYMBOL_GPL(kvm_requeue_exception);
 
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 			   u32 error_code)
@@ -324,9 +332,15 @@ EXPORT_SYMBOL_GPL(kvm_inject_nmi);
 
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code)
 {
-	kvm_multiple_exception(vcpu, nr, true, error_code);
+	kvm_multiple_exception(vcpu, nr, true, error_code, false);
 }
 EXPORT_SYMBOL_GPL(kvm_queue_exception_e);
+
+void kvm_requeue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code)
+{
+	kvm_multiple_exception(vcpu, nr, true, error_code, true);
+}
+EXPORT_SYMBOL_GPL(kvm_requeue_exception_e);
 
 /*
  * Checks if cpl <= required_cpl; if true, return true.  Otherwise queue
@@ -4408,7 +4422,8 @@ static void inject_pending_event(struct kvm_vcpu *vcpu)
 					vcpu->arch.exception.error_code);
 		kvm_x86_ops->queue_exception(vcpu, vcpu->arch.exception.nr,
 					  vcpu->arch.exception.has_error_code,
-					  vcpu->arch.exception.error_code);
+					  vcpu->arch.exception.error_code,
+					  vcpu->arch.exception.reinject);
 		return;
 	}
 

@@ -919,7 +919,8 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 }
 
 static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
-				bool has_error_code, u32 error_code)
+				bool has_error_code, u32 error_code,
+				bool reinject)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 intr_info = nr | INTR_INFO_VALID_MASK;
