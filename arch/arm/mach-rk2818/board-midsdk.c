@@ -1,0 +1,106 @@
+/* linux/arch/arm/mach-rk2818/board-midsdk.c
+ *
+ * Copyright (C) 2010 ROCKCHIP, Inc.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ */
+
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/platform_device.h>
+#include <linux/input.h>
+#include <linux/io.h>
+#include <linux/delay.h>
+
+#include <mach/hardware.h>
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
+#include <asm/mach/map.h>
+#include <asm/mach/flash.h>
+
+#include <mach/irqs.h>
+#include <mach/board.h>
+#include <mach/rk2818_iomap.h>
+
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
+
+#include "devices.h"
+//IO映射方式描述 ，每个为一段线性连续映射
+static struct map_desc rk2818_io_desc[] __initdata = {
+
+	{
+		.virtual	= RK2818_AHB_BASE,					//虚拟地址
+		.pfn		= __phys_to_pfn(RK2818_AHB_PHYS),    //物理地址，须与页表对齐
+		.length 	= RK2818_AHB_SIZE,							//长度
+		.type		= MT_DEVICE							//映射方式
+	},
+	
+	{
+			.virtual	= RK2818_APB_BASE,
+			.pfn		= __phys_to_pfn(RK2818_APB_PHYS),
+			.length 	= RK2818_APB_SIZE,
+			.type		= MT_DEVICE
+	},
+
+                {
+			.virtual	= RK2818_DSP_BASE,
+			.pfn		= __phys_to_pfn(RK2818_DSP_PHYS),
+			.length 	= RK2818_DSP_SIZE,
+			.type		= MT_DEVICE
+	},
+	
+                {
+			.virtual	= 0xff400000,           /* for itcm , vir = phy , for reboot */
+			.pfn		= __phys_to_pfn(0xff400000),
+			.length 	= SZ_16K,
+			.type		= MT_DEVICE
+	}
+		
+};
+
+static struct platform_device *devices[] __initdata = {
+	//&rk2818_add_device_serial,
+};
+
+extern struct sys_timer rk2818_timer;
+
+static void __init machine_rk2818_init_irq(void)
+{
+	rk2818_init_irq();
+}
+
+static void __init machine_rk2818_board_init(void)
+{
+	platform_add_devices(devices, ARRAY_SIZE(devices));
+}
+
+static void __init machine_rk2818_mapio(void)
+{
+	iotable_init(rk2818_io_desc, ARRAY_SIZE(rk2818_io_desc));
+	rk2818_clock_init();
+	//rk2818_iomux_init();
+	
+/* Setup the serial ports and console*/ 
+  //	rk2818_init_serial(&rk2818_uart_config);
+}
+
+MACHINE_START(RK2818, "rk2818midsdk")
+
+/* UART for LL DEBUG */
+	.phys_io	= 0x18002000,
+	.io_pg_offst	= ((0xFF100000) >> 18) & 0xfffc,
+	.boot_params	= RK2818_SDRAM_PHYS + 0x100,
+	.map_io		= machine_rk2818_mapio,
+	.init_irq	= machine_rk2818_init_irq,
+	.init_machine	= machine_rk2818_board_init,
+	.timer		= &rk2818_timer,
+MACHINE_END

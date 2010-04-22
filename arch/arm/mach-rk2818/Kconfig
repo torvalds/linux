@@ -1,0 +1,13 @@
+if ARCH_RK2818
+
+comment "ROCKCHIP rk2818 Board Type"
+	depends on ARCH_RK2818
+
+config MACH_RK2818MID
+	depends on ARCH_RK2818
+	default y
+	bool "ROCKCHIP Board For Mid"
+	help
+	  Support for the ROCKCHIP Board For Rk2818 Mid.
+
+endif
