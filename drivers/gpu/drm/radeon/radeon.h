@@ -672,6 +672,9 @@ struct radeon_pm_clock_info {
 	u32 flags;
 };
 
+/* state flags */
+#define RADEON_PM_SINGLE_DISPLAY_ONLY (1 << 0)
+
 struct radeon_power_state {
 	enum radeon_pm_state_type type;
 	/* XXX: use a define for num clock modes */
@@ -682,6 +685,8 @@ struct radeon_power_state {
 	/* non clock info about this state */
 	struct radeon_pm_non_clock_info non_clock_info;
 	bool voltage_drop_active;
+	/* standardized state flags */
+	u32 flags;
 };
 
 /*
@@ -695,8 +700,10 @@ struct radeon_pm {
 	enum radeon_pm_state	state;
 	enum radeon_pm_action	planned_action;
 	unsigned long		action_timeout;
-	bool 			downclocked;
-	int			active_crtcs;
+	bool                    can_upclock;
+	bool                    can_downclock;
+	u32			active_crtcs;
+	int			active_crtc_count;
 	int			req_vblank;
 	bool			vblank_sync;
 	bool			gui_idle;
@@ -716,11 +723,13 @@ struct radeon_pm {
 	struct radeon_power_state power_state[8];
 	/* number of valid power states */
 	int                     num_power_states;
-	struct radeon_power_state *current_power_state;
-	struct radeon_pm_clock_info *current_clock_mode;
-	struct radeon_power_state *requested_power_state;
-	struct radeon_pm_clock_info *requested_clock_mode;
-	struct radeon_power_state *default_power_state;
+	int                     current_power_state_index;
+	int                     current_clock_mode_index;
+	int                     requested_power_state_index;
+	int                     requested_clock_mode_index;
+	int                     default_power_state_index;
+	u32                     current_sclk;
+	u32                     current_mclk;
 	struct radeon_i2c_chan *i2c_bus;
 };
 
@@ -810,6 +819,7 @@ struct radeon_asic {
 	 */
 	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
 	bool (*gui_idle)(struct radeon_device *rdev);
+	void (*get_power_state)(struct radeon_device *rdev, enum radeon_pm_action action);
 	void (*set_power_state)(struct radeon_device *rdev);
 };
 
@@ -1218,6 +1228,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_hpd_sense(rdev, hpd) (rdev)->asic->hpd_sense((rdev), (hpd))
 #define radeon_hpd_set_polarity(rdev, hpd) (rdev)->asic->hpd_set_polarity((rdev), (hpd))
 #define radeon_gui_idle(rdev) (rdev)->asic->gui_idle((rdev))
+#define radeon_get_power_state(rdev, a) (rdev)->asic->get_power_state((rdev), (a))
 #define radeon_set_power_state(rdev) (rdev)->asic->set_power_state((rdev))
 
 /* Common functions */

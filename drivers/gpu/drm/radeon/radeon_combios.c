@@ -2368,7 +2368,7 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 	u8 rev, blocks, tmp;
 	int state_index = 0;
 
-	rdev->pm.default_power_state = NULL;
+	rdev->pm.default_power_state_index = -1;
 
 	if (rdev->flags & RADEON_IS_MOBILITY) {
 		offset = combios_get_table_offset(dev, COMBIOS_POWERPLAY_INFO_TABLE);
@@ -2441,6 +2441,7 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 			if (rev > 6)
 				rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
 					RBIOS8(offset + 0x5 + 0x10);
+			rdev->pm.power_state[state_index].flags = RADEON_PM_SINGLE_DISPLAY_ONLY;
 			state_index++;
 		} else {
 			/* XXX figure out some good default low power mode for mobility cards w/out power tables */
@@ -2462,12 +2463,12 @@ default_mode:
 		rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = radeon_get_pcie_lanes(rdev);
 	else
 		rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = 16;
-	rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
+	rdev->pm.power_state[state_index].flags = 0;
+	rdev->pm.default_power_state_index = state_index;
 	rdev->pm.num_power_states = state_index + 1;
 
-	rdev->pm.current_power_state = rdev->pm.default_power_state;
-	rdev->pm.current_clock_mode =
-		rdev->pm.default_power_state->default_clock_mode;
+	rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
+	rdev->pm.current_clock_mode_index = 0;
 }
 
 void radeon_external_tmds_setup(struct drm_encoder *encoder)

@@ -56,7 +56,7 @@ static void radeon_print_power_mode_info(struct radeon_device *rdev)
 
 	DRM_INFO("%d Power State(s)\n", rdev->pm.num_power_states);
 	for (i = 0; i < rdev->pm.num_power_states; i++) {
-		if (rdev->pm.default_power_state == &rdev->pm.power_state[i])
+		if (rdev->pm.default_power_state_index == i)
 			is_default = true;
 		else
 			is_default = false;
@@ -65,6 +65,8 @@ static void radeon_print_power_mode_info(struct radeon_device *rdev)
 			 is_default ? "(default)" : "");
 		if ((rdev->flags & RADEON_IS_PCIE) && !(rdev->flags & RADEON_IS_IGP))
 			DRM_INFO("\t%d PCIE Lanes\n", rdev->pm.power_state[i].non_clock_info.pcie_lanes);
+		if (rdev->pm.power_state[i].flags & RADEON_PM_SINGLE_DISPLAY_ONLY)
+			DRM_INFO("\tSingle display only\n");
 		DRM_INFO("\t%d Clock Mode(s)\n", rdev->pm.power_state[i].num_clock_modes);
 		for (j = 0; j < rdev->pm.power_state[i].num_clock_modes; j++) {
 			if (rdev->flags & RADEON_IS_IGP)
@@ -78,106 +80,6 @@ static void radeon_print_power_mode_info(struct radeon_device *rdev)
 					 rdev->pm.power_state[i].clock_info[j].mclk * 10);
 		}
 	}
-}
-
-static struct radeon_power_state * radeon_pick_power_state(struct radeon_device *rdev,
-							   enum radeon_pm_state_type type)
-{
-	int i, j;
-	enum radeon_pm_state_type wanted_types[2];
-	int wanted_count;
-
-	switch (type) {
-	case POWER_STATE_TYPE_DEFAULT:
-	default:
-		return rdev->pm.default_power_state;
-	case POWER_STATE_TYPE_POWERSAVE:
-		if (rdev->flags & RADEON_IS_MOBILITY) {
-			wanted_types[0] = POWER_STATE_TYPE_POWERSAVE;
-			wanted_types[1] = POWER_STATE_TYPE_BATTERY;
-			wanted_count = 2;
-		} else {
-			wanted_types[0] = POWER_STATE_TYPE_PERFORMANCE;
-			wanted_count = 1;
-		}
-		break;
-	case POWER_STATE_TYPE_BATTERY:
-		if (rdev->flags & RADEON_IS_MOBILITY) {
-			wanted_types[0] = POWER_STATE_TYPE_BATTERY;
-			wanted_types[1] = POWER_STATE_TYPE_POWERSAVE;
-			wanted_count = 2;
-		} else {
-			wanted_types[0] = POWER_STATE_TYPE_PERFORMANCE;
-			wanted_count = 1;
-		}
-		break;
-	case POWER_STATE_TYPE_BALANCED:
-	case POWER_STATE_TYPE_PERFORMANCE:
-		wanted_types[0] = type;
-		wanted_count = 1;
-		break;
-	}
-
-	for (i = 0; i < wanted_count; i++) {
-		for (j = 0; j < rdev->pm.num_power_states; j++) {
-			if (rdev->pm.power_state[j].type == wanted_types[i])
-				return &rdev->pm.power_state[j];
-		}
-	}
-
-	return rdev->pm.default_power_state;
-}
-
-static struct radeon_pm_clock_info * radeon_pick_clock_mode(struct radeon_device *rdev,
-							    struct radeon_power_state *power_state,
-							    enum radeon_pm_clock_mode_type type)
-{
-	switch (type) {
-	case POWER_MODE_TYPE_DEFAULT:
-	default:
-		return power_state->default_clock_mode;
-	case POWER_MODE_TYPE_LOW:
-		return &power_state->clock_info[0];
-	case POWER_MODE_TYPE_MID:
-		if (power_state->num_clock_modes > 2)
-			return &power_state->clock_info[1];
-		else
-			return &power_state->clock_info[0];
-		break;
-	case POWER_MODE_TYPE_HIGH:
-		return &power_state->clock_info[power_state->num_clock_modes - 1];
-	}
-
-}
-
-static void radeon_get_power_state(struct radeon_device *rdev,
-				   enum radeon_pm_action action)
-{
-	switch (action) {
-	case PM_ACTION_MINIMUM:
-		rdev->pm.requested_power_state = radeon_pick_power_state(rdev, POWER_STATE_TYPE_BATTERY);
-		rdev->pm.requested_clock_mode =
-			radeon_pick_clock_mode(rdev, rdev->pm.requested_power_state, POWER_MODE_TYPE_LOW);
-		break;
-	case PM_ACTION_DOWNCLOCK:
-		rdev->pm.requested_power_state = radeon_pick_power_state(rdev, POWER_STATE_TYPE_POWERSAVE);
-		rdev->pm.requested_clock_mode =
-			radeon_pick_clock_mode(rdev, rdev->pm.requested_power_state, POWER_MODE_TYPE_MID);
-		break;
-	case PM_ACTION_UPCLOCK:
-		rdev->pm.requested_power_state = radeon_pick_power_state(rdev, POWER_STATE_TYPE_DEFAULT);
-		rdev->pm.requested_clock_mode =
-			radeon_pick_clock_mode(rdev, rdev->pm.requested_power_state, POWER_MODE_TYPE_HIGH);
-		break;
-	case PM_ACTION_NONE:
-	default:
-		DRM_ERROR("Requested mode for not defined action\n");
-		return;
-	}
-	DRM_INFO("Requested: e: %d m: %d p: %d\n",
-		 rdev->pm.requested_clock_mode->sclk,
-		 rdev->pm.requested_clock_mode->mclk,
-		 rdev->pm.requested_power_state->non_clock_info.pcie_lanes);
 }
 
 void radeon_sync_with_vblank(struct radeon_device *rdev)
@@ -194,7 +96,8 @@ int radeon_pm_init(struct radeon_device *rdev)
 {
 	rdev->pm.state = PM_STATE_DISABLED;
 	rdev->pm.planned_action = PM_ACTION_NONE;
-	rdev->pm.downclocked = false;
+	rdev->pm.can_upclock = true;
+	rdev->pm.can_downclock = true;
 
 	if (rdev->bios) {
 		if (rdev->is_atom_bios)
@@ -229,9 +132,8 @@ void radeon_pm_fini(struct radeon_device *rdev)
 void radeon_pm_compute_clocks(struct radeon_device *rdev)
 {
 	struct drm_device *ddev = rdev->ddev;
-	struct drm_connector *connector;
+	struct drm_crtc *crtc;
 	struct radeon_crtc *radeon_crtc;
-	int count = 0;
 
 	if (rdev->pm.state == PM_STATE_DISABLED)
 		return;
@@ -239,29 +141,27 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 	mutex_lock(&rdev->pm.mutex);
 
 	rdev->pm.active_crtcs = 0;
-	list_for_each_entry(connector,
-		&ddev->mode_config.connector_list, head) {
-		if (connector->encoder &&
-		    connector->encoder->crtc &&
-		    connector->dpms != DRM_MODE_DPMS_OFF) {
-			radeon_crtc = to_radeon_crtc(connector->encoder->crtc);
+	rdev->pm.active_crtc_count = 0;
+	list_for_each_entry(crtc,
+		&ddev->mode_config.crtc_list, head) {
+		radeon_crtc = to_radeon_crtc(crtc);
+		if (radeon_crtc->enabled) {
 			rdev->pm.active_crtcs |= (1 << radeon_crtc->crtc_id);
-			++count;
+			rdev->pm.active_crtc_count++;
 		}
 	}
 
-	if (count > 1) {
+	if (rdev->pm.active_crtc_count > 1) {
 		if (rdev->pm.state == PM_STATE_ACTIVE) {
 			cancel_delayed_work(&rdev->pm.idle_work);
 
 			rdev->pm.state = PM_STATE_PAUSED;
 			rdev->pm.planned_action = PM_ACTION_UPCLOCK;
-			if (rdev->pm.downclocked)
-				radeon_pm_set_clocks(rdev);
+			radeon_pm_set_clocks(rdev);
 
 			DRM_DEBUG("radeon: dynamic power management deactivated\n");
 		}
-	} else if (count == 1) {
+	} else if (rdev->pm.active_crtc_count == 1) {
 		/* TODO: Increase clocks if needed for current mode */
 
 		if (rdev->pm.state == PM_STATE_MINIMUM) {
@@ -271,15 +171,13 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 
 			queue_delayed_work(rdev->wq, &rdev->pm.idle_work,
 				msecs_to_jiffies(RADEON_IDLE_LOOP_MS));
-		}
-		else if (rdev->pm.state == PM_STATE_PAUSED) {
+		} else if (rdev->pm.state == PM_STATE_PAUSED) {
 			rdev->pm.state = PM_STATE_ACTIVE;
 			queue_delayed_work(rdev->wq, &rdev->pm.idle_work,
 				msecs_to_jiffies(RADEON_IDLE_LOOP_MS));
 			DRM_DEBUG("radeon: dynamic power management activated\n");
 		}
-	}
-	else { /* count == 0 */
+	} else { /* count == 0 */
 		if (rdev->pm.state != PM_STATE_MINIMUM) {
 			cancel_delayed_work(&rdev->pm.idle_work);
 
@@ -359,19 +257,6 @@ bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish)
 static void radeon_pm_set_clocks_locked(struct radeon_device *rdev)
 {
 	/*radeon_fence_wait_last(rdev);*/
-	switch (rdev->pm.planned_action) {
-	case PM_ACTION_UPCLOCK:
-		rdev->pm.downclocked = false;
-		break;
-	case PM_ACTION_DOWNCLOCK:
-		rdev->pm.downclocked = true;
-		break;
-	case PM_ACTION_MINIMUM:
-		break;
-	case PM_ACTION_NONE:
-		DRM_ERROR("%s: PM_ACTION_NONE\n", __func__);
-		break;
-	}
 
 	radeon_set_power_state(rdev);
 	rdev->pm.planned_action = PM_ACTION_NONE;
@@ -437,7 +322,7 @@ static void radeon_pm_idle_work_handler(struct work_struct *work)
 			if (rdev->pm.planned_action == PM_ACTION_DOWNCLOCK) {
 				rdev->pm.planned_action = PM_ACTION_NONE;
 			} else if (rdev->pm.planned_action == PM_ACTION_NONE &&
-				rdev->pm.downclocked) {
+				   rdev->pm.can_upclock) {
 				rdev->pm.planned_action =
 					PM_ACTION_UPCLOCK;
 				rdev->pm.action_timeout = jiffies +
@@ -447,7 +332,7 @@ static void radeon_pm_idle_work_handler(struct work_struct *work)
 			if (rdev->pm.planned_action == PM_ACTION_UPCLOCK) {
 				rdev->pm.planned_action = PM_ACTION_NONE;
 			} else if (rdev->pm.planned_action == PM_ACTION_NONE &&
-				!rdev->pm.downclocked) {
+				   rdev->pm.can_downclock) {
 				rdev->pm.planned_action =
 					PM_ACTION_DOWNCLOCK;
 				rdev->pm.action_timeout = jiffies +
