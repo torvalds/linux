@@ -3980,34 +3980,32 @@ static int selinux_socket_unix_stream_connect(struct socket *sock,
 					      struct socket *other,
 					      struct sock *newsk)
 {
-	struct sk_security_struct *sksec;
-	struct inode_security_struct *isec;
-	struct inode_security_struct *other_isec;
+	struct sk_security_struct *sksec_sock = sock->sk->sk_security;
+	struct sk_security_struct *sksec_other = other->sk->sk_security;
+	struct sk_security_struct *sksec_new = newsk->sk_security;
 	struct common_audit_data ad;
 	int err;
-
-	isec = SOCK_INODE(sock)->i_security;
-	other_isec = SOCK_INODE(other)->i_security;
 
 	COMMON_AUDIT_DATA_INIT(&ad, NET);
 	ad.u.net.sk = other->sk;
 
-	err = avc_has_perm(isec->sid, other_isec->sid,
-			   isec->sclass,
+	err = avc_has_perm(sksec_sock->sid, sksec_other->sid,
+			   sksec_other->sclass,
 			   UNIX_STREAM_SOCKET__CONNECTTO, &ad);
 	if (err)
 		return err;
 
-	/* connecting socket */
-	sksec = sock->sk->sk_security;
-	sksec->peer_sid = other_isec->sid;
-
 	/* server child socket */
-	sksec = newsk->sk_security;
-	sksec->peer_sid = isec->sid;
-	err = security_sid_mls_copy(other_isec->sid, sksec->peer_sid, &sksec->sid);
+	sksec_new->peer_sid = sksec_sock->sid;
+	err = security_sid_mls_copy(sksec_other->sid, sksec_sock->sid,
+				    &sksec_new->sid);
+	if (err)
+		return err;
 
-	return err;
+	/* connecting socket */
+	sksec_sock->peer_sid = sksec_new->sid;
+
+	return 0;
 }
 
 static int selinux_socket_unix_may_send(struct socket *sock,
