@@ -870,15 +870,10 @@ static int __init css_bus_init(void)
 
 	/* Try to enable MSS. */
 	ret = chsc_enable_facility(CHSC_SDA_OC_MSS);
-	switch (ret) {
-	case 0: /* Success. */
-		max_ssid = __MAX_SSID;
-		break;
-	case -ENOMEM:
-		goto out;
-	default:
+	if (ret)
 		max_ssid = 0;
-	}
+	else /* Success. */
+		max_ssid = __MAX_SSID;
 
 	ret = slow_subchannel_init();
 	if (ret)
