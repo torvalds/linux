@@ -376,7 +376,7 @@ struct platform_device s3c_device_sdi = {
 
 EXPORT_SYMBOL(s3c_device_sdi);
 
-void s3c24xx_mci_set_platdata(struct s3c24xx_mci_pdata *pdata)
+void __init s3c24xx_mci_set_platdata(struct s3c24xx_mci_pdata *pdata)
 {
 	struct s3c24xx_mci_pdata *npd;
 
