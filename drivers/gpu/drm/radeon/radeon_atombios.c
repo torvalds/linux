@@ -1506,6 +1506,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 			num_modes = power_info->info.ucNumOfPowerModeEntries;
 			if (num_modes > ATOM_MAX_NUMBEROF_POWER_BLOCK)
 				num_modes = ATOM_MAX_NUMBEROF_POWER_BLOCK;
+			/* last mode is usually default, array is low to high */
 			for (i = 0; i < num_modes; i++) {
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
 				switch (frev) {
@@ -1711,6 +1712,14 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					break;
 				}
 			}
+			/* last mode is usually default */
+			if (!rdev->pm.default_power_state) {
+				rdev->pm.power_state[state_index - 1].type =
+					POWER_STATE_TYPE_DEFAULT;
+				rdev->pm.default_power_state = &rdev->pm.power_state[state_index - 1];
+				rdev->pm.power_state[state_index - 1].default_clock_mode =
+					&rdev->pm.power_state[state_index - 1].clock_info[0];
+			}
 		} else {
 			/* add the i2c bus for thermal/fan chip */
 			/* no support for internal controller yet */
@@ -1736,6 +1745,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					rdev->pm.i2c_bus = radeon_i2c_create(rdev->ddev, &i2c_bus, "Thermal");
 				}
 			}
+			/* first mode is usually default, followed by low to high */
 			for (i = 0; i < power_info->info_4.ucNumStates; i++) {
 				mode_index = 0;
 				power_state = (struct _ATOM_PPLIB_STATE *)
@@ -1865,12 +1875,16 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					state_index++;
 				}
 			}
+			/* first mode is usually default */
+			if (!rdev->pm.default_power_state) {
+				rdev->pm.power_state[0].type =
+					POWER_STATE_TYPE_DEFAULT;
+				rdev->pm.default_power_state = &rdev->pm.power_state[0];
+				rdev->pm.power_state[0].default_clock_mode =
+					&rdev->pm.power_state[0].clock_info[0];
+			}
 		}
 	} else {
-		/* XXX figure out some good default low power mode for cards w/out power tables */
-	}
-
-	if (rdev->pm.default_power_state == NULL) {
 		/* add the default mode */
 		rdev->pm.power_state[state_index].type =
 			POWER_STATE_TYPE_DEFAULT;
@@ -1887,6 +1901,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 		rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
 		state_index++;
 	}
+
 	rdev->pm.num_power_states = state_index;
 
 	rdev->pm.current_power_state = rdev->pm.default_power_state;
