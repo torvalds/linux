@@ -1100,6 +1100,7 @@ int dsi_pll_init(struct omap_dss_device *dssdev, bool enable_hsclk,
 	if (wait_for_bit_change(DSI_PLL_STATUS, 0, 1) != 1) {
 		DSSERR("PLL not coming out of reset.\n");
 		r = -ENODEV;
+		dispc_pck_free_enable(0);
 		goto err1;
 	}
 
