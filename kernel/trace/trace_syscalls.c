@@ -44,6 +44,7 @@ struct ftrace_event_class event_class_syscall_enter = {
 	.reg			= syscall_enter_register,
 	.define_fields		= syscall_enter_define_fields,
 	.get_fields		= syscall_get_enter_fields,
+	.raw_init		= init_syscall_trace,
 };
 
 struct ftrace_event_class event_class_syscall_exit = {
@@ -51,6 +52,7 @@ struct ftrace_event_class event_class_syscall_exit = {
 	.reg			= syscall_exit_register,
 	.define_fields		= syscall_exit_define_fields,
 	.get_fields		= syscall_get_exit_fields,
+	.raw_init		= init_syscall_trace,
 };
 
 extern unsigned long __start_syscalls_metadata[];

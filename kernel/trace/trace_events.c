@@ -1008,8 +1008,8 @@ static int __trace_add_event_call(struct ftrace_event_call *call)
 	if (!call->name)
 		return -EINVAL;
 
-	if (call->raw_init) {
-		ret = call->raw_init(call);
+	if (call->class->raw_init) {
+		ret = call->class->raw_init(call);
 		if (ret < 0) {
 			if (ret != -ENOSYS)
 				pr_warning("Could not initialize trace "
@@ -1170,8 +1170,8 @@ static void trace_module_add_events(struct module *mod)
 		/* The linker may leave blanks */
 		if (!call->name)
 			continue;
-		if (call->raw_init) {
-			ret = call->raw_init(call);
+		if (call->class->raw_init) {
+			ret = call->class->raw_init(call);
 			if (ret < 0) {
 				if (ret != -ENOSYS)
 					pr_warning("Could not initialize trace "
@@ -1324,8 +1324,8 @@ static __init int event_trace_init(void)
 		/* The linker may leave blanks */
 		if (!call->name)
 			continue;
-		if (call->raw_init) {
-			ret = call->raw_init(call);
+		if (call->class->raw_init) {
+			ret = call->class->raw_init(call);
 			if (ret < 0) {
 				if (ret != -ENOSYS)
 					pr_warning("Could not initialize trace "

@@ -431,8 +431,9 @@ static inline notrace int ftrace_get_offsets_##call(			\
  * static struct ftrace_event_class __used event_class_<template> = {
  *	.system			= "<system>",
  *	.define_fields		= ftrace_define_fields_<call>,
- *	.fields			= LIST_HEAD_INIT(event_class_##call.fields), \
- *	.probe			= ftrace_raw_event_##call,		\
+ *	.fields			= LIST_HEAD_INIT(event_class_##call.fields),
+ *	.raw_init		= trace_event_raw_init,
+ *	.probe			= ftrace_raw_event_##call,
  * };
  *
  * static struct ftrace_event_call __used
@@ -440,7 +441,6 @@ static inline notrace int ftrace_get_offsets_##call(			\
  * __attribute__((section("_ftrace_events"))) event_<call> = {
  *	.name			= "<call>",
  *	.class			= event_class_<template>,
- *	.raw_init		= trace_event_raw_init,
  *	.event			= &ftrace_event_type_<call>,
  *	.print_fmt		= print_fmt_<call>,
  * };
@@ -566,6 +566,7 @@ static struct ftrace_event_class __used event_class_##call = {		\
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.define_fields		= ftrace_define_fields_##call,		\
 	.fields			= LIST_HEAD_INIT(event_class_##call.fields),\
+	.raw_init		= trace_event_raw_init,			\
 	.probe			= ftrace_raw_event_##call,		\
 	_TRACE_PERF_INIT(call)						\
 };
@@ -579,7 +580,6 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name			= #call,				\
 	.class			= &event_class_##template,		\
 	.event			= &ftrace_event_type_##call,		\
-	.raw_init		= trace_event_raw_init,			\
 	.print_fmt		= print_fmt_##template,			\
 };
 
@@ -594,7 +594,6 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name			= #call,				\
 	.class			= &event_class_##template,		\
 	.event			= &ftrace_event_type_##call,		\
-	.raw_init		= trace_event_raw_init,			\
 	.print_fmt		= print_fmt_##call,			\
 }
 

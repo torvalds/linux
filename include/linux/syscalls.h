@@ -135,7 +135,6 @@ extern struct ftrace_event_class event_class_syscall_exit;
 		.name                   = "sys_enter"#sname,		\
 		.class			= &event_class_syscall_enter,	\
 		.event                  = &enter_syscall_print_##sname,	\
-		.raw_init		= init_syscall_trace,		\
 		.data			= (void *)&__syscall_meta_##sname,\
 	}
 
@@ -153,7 +152,6 @@ extern struct ftrace_event_class event_class_syscall_exit;
 		.name                   = "sys_exit"#sname,		\
 		.class			= &event_class_syscall_exit,	\
 		.event                  = &exit_syscall_print_##sname,	\
-		.raw_init		= init_syscall_trace,		\
 		.data			= (void *)&__syscall_meta_##sname,\
 	}
 

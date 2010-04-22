@@ -158,6 +158,7 @@ static int ftrace_raw_init_event(struct ftrace_event_call *call)
 struct ftrace_event_class event_class_ftrace_##call = {			\
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.define_fields		= ftrace_define_fields_##call,		\
+	.raw_init		= ftrace_raw_init_event,		\
 };									\
 									\
 struct ftrace_event_call __used						\
@@ -166,7 +167,6 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name			= #call,				\
 	.id			= type,					\
 	.class			= &event_class_ftrace_##call,		\
-	.raw_init		= ftrace_raw_init_event,		\
 	.print_fmt		= print,				\
 };									\
 

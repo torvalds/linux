@@ -133,6 +133,7 @@ struct ftrace_event_class {
 	int			(*define_fields)(struct ftrace_event_call *);
 	struct list_head	*(*get_fields)(struct ftrace_event_call *);
 	struct list_head	fields;
+	int			(*raw_init)(struct ftrace_event_call *);
 };
 
 struct ftrace_event_call {
@@ -144,7 +145,6 @@ struct ftrace_event_call {
 	int			enabled;
 	int			id;
 	const char		*print_fmt;
-	int			(*raw_init)(struct ftrace_event_call *);
 	int			filter_active;
 	struct event_filter	*filter;
 	void			*mod;

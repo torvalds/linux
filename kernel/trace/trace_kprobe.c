@@ -1359,13 +1359,13 @@ static int register_probe_event(struct trace_probe *tp)
 	/* Initialize ftrace_event_call */
 	if (probe_is_return(tp)) {
 		tp->event.trace = print_kretprobe_event;
-		call->raw_init = probe_event_raw_init;
 		INIT_LIST_HEAD(&call->class->fields);
+		call->class->raw_init = probe_event_raw_init;
 		call->class->define_fields = kretprobe_event_define_fields;
 	} else {
-		tp->event.trace = print_kprobe_event;
-		call->raw_init = probe_event_raw_init;
 		INIT_LIST_HEAD(&call->class->fields);
+		tp->event.trace = print_kprobe_event;
+		call->class->raw_init = probe_event_raw_init;
 		call->class->define_fields = kprobe_event_define_fields;
 	}
 	if (set_print_fmt(tp) < 0)
