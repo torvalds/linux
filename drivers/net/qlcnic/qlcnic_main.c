@@ -208,6 +208,9 @@ qlcnic_napi_enable(struct qlcnic_adapter *adapter)
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_recv_context *recv_ctx = &adapter->recv_ctx;
 
+	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+		return;
+
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		napi_enable(&sds_ring->napi);
@@ -221,6 +224,9 @@ qlcnic_napi_disable(struct qlcnic_adapter *adapter)
 	int ring;
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_recv_context *recv_ctx = &adapter->recv_ctx;
+
+	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+		return;
 
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
@@ -1572,6 +1578,11 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	u32 producer;
 	int frag_count, no_of_desc;
 	u32 num_txd = tx_ring->num_desc;
+
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+		netif_stop_queue(netdev);
+		return NETDEV_TX_BUSY;
+	}
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
 
