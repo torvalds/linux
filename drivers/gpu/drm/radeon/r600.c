@@ -92,6 +92,14 @@ void r600_gpu_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
 
+bool r600_gui_idle(struct radeon_device *rdev)
+{
+	if (RREG32(GRBM_STATUS) & GUI_ACTIVE)
+		return false;
+	else
+		return true;
+}
+
 /* hpd for digital panel detect/disconnect */
 bool r600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 {

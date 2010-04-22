@@ -803,6 +803,7 @@ struct radeon_asic {
 	 * through ring.
 	 */
 	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
+	bool (*gui_idle)(struct radeon_device *rdev);
 };
 
 /*
@@ -1209,6 +1210,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_hpd_fini(rdev) (rdev)->asic->hpd_fini((rdev))
 #define radeon_hpd_sense(rdev, hpd) (rdev)->asic->hpd_sense((rdev), (hpd))
 #define radeon_hpd_set_polarity(rdev, hpd) (rdev)->asic->hpd_set_polarity((rdev), (hpd))
+#define radeon_gui_idle(rdev) (rdev)->asic->gui_idle((rdev))
 
 /* Common functions */
 /* AGP */

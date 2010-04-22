@@ -165,6 +165,7 @@ static struct radeon_asic r100_asic = {
 	.hpd_sense = &r100_hpd_sense,
 	.hpd_set_polarity = &r100_hpd_set_polarity,
 	.ioctl_wait_idle = NULL,
+	.gui_idle = &r100_gui_idle,
 };
 
 static struct radeon_asic r200_asic = {
@@ -203,6 +204,7 @@ static struct radeon_asic r200_asic = {
 	.hpd_sense = &r100_hpd_sense,
 	.hpd_set_polarity = &r100_hpd_set_polarity,
 	.ioctl_wait_idle = NULL,
+	.gui_idle = &r100_gui_idle,
 };
 
 static struct radeon_asic r300_asic = {
@@ -242,6 +244,7 @@ static struct radeon_asic r300_asic = {
 	.hpd_sense = &r100_hpd_sense,
 	.hpd_set_polarity = &r100_hpd_set_polarity,
 	.ioctl_wait_idle = NULL,
+	.gui_idle = &r100_gui_idle,
 };
 
 static struct radeon_asic r300_asic_pcie = {
@@ -280,6 +283,7 @@ static struct radeon_asic r300_asic_pcie = {
 	.hpd_sense = &r100_hpd_sense,
 	.hpd_set_polarity = &r100_hpd_set_polarity,
 	.ioctl_wait_idle = NULL,
+	.gui_idle = &r100_gui_idle,
 };
 
 static struct radeon_asic r420_asic = {
@@ -319,6 +323,7 @@ static struct radeon_asic r420_asic = {
 	.hpd_sense = &r100_hpd_sense,
 	.hpd_set_polarity = &r100_hpd_set_polarity,
 	.ioctl_wait_idle = NULL,
+	.gui_idle = &r100_gui_idle,
 };
 
 static struct radeon_asic rs400_asic = {
@@ -358,6 +363,7 @@ static struct radeon_asic rs400_asic = {
 	.hpd_sense = &r100_hpd_sense,
 	.hpd_set_polarity = &r100_hpd_set_polarity,
 	.ioctl_wait_idle = NULL,
+	.gui_idle = &r100_gui_idle,
 };
 
 static struct radeon_asic rs600_asic = {
@@ -397,6 +403,7 @@ static struct radeon_asic rs600_asic = {
 	.hpd_sense = &rs600_hpd_sense,
 	.hpd_set_polarity = &rs600_hpd_set_polarity,
 	.ioctl_wait_idle = NULL,
+	.gui_idle = &r100_gui_idle,
 };
 
 static struct radeon_asic rs690_asic = {
@@ -436,6 +443,7 @@ static struct radeon_asic rs690_asic = {
 	.hpd_sense = &rs600_hpd_sense,
 	.hpd_set_polarity = &rs600_hpd_set_polarity,
 	.ioctl_wait_idle = NULL,
+	.gui_idle = &r100_gui_idle,
 };
 
 static struct radeon_asic rv515_asic = {
@@ -475,6 +483,7 @@ static struct radeon_asic rv515_asic = {
 	.hpd_sense = &rs600_hpd_sense,
 	.hpd_set_polarity = &rs600_hpd_set_polarity,
 	.ioctl_wait_idle = NULL,
+	.gui_idle = &r100_gui_idle,
 };
 
 static struct radeon_asic r520_asic = {
@@ -514,6 +523,7 @@ static struct radeon_asic r520_asic = {
 	.hpd_sense = &rs600_hpd_sense,
 	.hpd_set_polarity = &rs600_hpd_set_polarity,
 	.ioctl_wait_idle = NULL,
+	.gui_idle = &r100_gui_idle,
 };
 
 static struct radeon_asic r600_asic = {
@@ -552,6 +562,7 @@ static struct radeon_asic r600_asic = {
 	.hpd_sense = &r600_hpd_sense,
 	.hpd_set_polarity = &r600_hpd_set_polarity,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
+	.gui_idle = &r600_gui_idle,
 };
 
 static struct radeon_asic rs780_asic = {
@@ -590,6 +601,7 @@ static struct radeon_asic rs780_asic = {
 	.hpd_sense = &r600_hpd_sense,
 	.hpd_set_polarity = &r600_hpd_set_polarity,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
+	.gui_idle = &r600_gui_idle,
 };
 
 static struct radeon_asic rv770_asic = {
@@ -628,6 +640,7 @@ static struct radeon_asic rv770_asic = {
 	.hpd_sense = &r600_hpd_sense,
 	.hpd_set_polarity = &r600_hpd_set_polarity,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
+	.gui_idle = &r600_gui_idle,
 };
 
 static struct radeon_asic evergreen_asic = {
@@ -664,6 +677,7 @@ static struct radeon_asic evergreen_asic = {
 	.hpd_fini = &evergreen_hpd_fini,
 	.hpd_sense = &evergreen_hpd_sense,
 	.hpd_set_polarity = &evergreen_hpd_set_polarity,
+	.gui_idle = &r600_gui_idle,
 };
 
 int radeon_asic_init(struct radeon_device *rdev)

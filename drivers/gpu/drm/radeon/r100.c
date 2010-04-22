@@ -67,6 +67,14 @@ MODULE_FIRMWARE(FIRMWARE_R520);
  * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
  */
 
+bool r100_gui_idle(struct radeon_device *rdev)
+{
+	if (RREG32(RADEON_RBBM_STATUS) & RADEON_RBBM_ACTIVE)
+		return false;
+	else
+		return true;
+}
+
 /* hpd for digital panel detect/disconnect */
 bool r100_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 {
