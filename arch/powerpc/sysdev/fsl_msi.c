@@ -250,6 +250,30 @@ unlock:
 	raw_spin_unlock(&desc->lock);
 }
 
+static int fsl_of_msi_remove(struct of_device *ofdev)
+{
+	struct fsl_msi *msi = ofdev->dev.platform_data;
+	int virq, i;
+	struct fsl_msi_cascade_data *cascade_data;
+
+	if (msi->list.prev != NULL)
+		list_del(&msi->list);
+	for (i = 0; i < NR_MSI_REG; i++) {
+		virq = msi->msi_virqs[i];
+		if (virq != NO_IRQ) {
+			cascade_data = get_irq_data(virq);
+			kfree(cascade_data);
+			irq_dispose_mapping(virq);
+		}
+	}
+	if (msi->bitmap.bitmap)
+		msi_bitmap_free(&msi->bitmap);
+	iounmap(msi->msi_regs);
+	kfree(msi);
+
+	return 0;
+}
+
 static int __devinit fsl_of_msi_probe(struct of_device *dev,
 				const struct of_device_id *match)
 {
@@ -269,9 +293,9 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 	msi = kzalloc(sizeof(struct fsl_msi), GFP_KERNEL);
 	if (!msi) {
 		dev_err(&dev->dev, "No memory for MSI structure\n");
-		err = -ENOMEM;
-		goto error_out;
+		return -ENOMEM;
 	}
+	dev->dev.platform_data = msi;
 
 	msi->irqhost = irq_alloc_host(dev->node, IRQ_HOST_MAP_LINEAR,
 				      NR_MSI_IRQS, &fsl_msi_host_ops, 0);
@@ -328,9 +352,7 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 		offset = *p / IRQS_PER_MSI_REG;
 
 	count /= sizeof(u32);
-	for (i = 0; i < count / 2; i++) {
-		if (i > NR_MSI_REG)
-			break;
+	for (i = 0; i < min(count / 2, NR_MSI_REG); i++) {
 		virt_msir = irq_of_parse_and_map(dev->node, i);
 		if (virt_msir != NO_IRQ) {
 			cascade_data = kzalloc(
@@ -342,6 +364,7 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 				err = -ENOMEM;
 				goto error_out;
 			}
+			msi->msi_virqs[i] = virt_msir;
 			cascade_data->index = i + offset;
 			cascade_data->msi_data = msi;
 			set_irq_data(virt_msir, (void *)cascade_data);
@@ -363,7 +386,7 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 	}
 	return 0;
 error_out:
-	kfree(msi);
+	fsl_of_msi_remove(dev);
 	return err;
 }
 
@@ -393,6 +416,7 @@ static struct of_platform_driver fsl_of_msi_driver = {
 	.name = "fsl-msi",
 	.match_table = fsl_of_msi_ids,
 	.probe = fsl_of_msi_probe,
+	.remove = fsl_of_msi_remove,
 };
 
 static __init int fsl_of_msi_init(void)
