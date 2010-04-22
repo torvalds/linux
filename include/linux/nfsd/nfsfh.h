@@ -40,8 +40,8 @@ struct nfs_fhbase_old {
  * This is the new flexible, extensible style NFSv2/v3 file handle.
  * by Neil Brown <neilb@cse.unsw.edu.au> - March 2000
  *
- * The file handle is seens as a list of 4byte words.
- * The first word contains a version number (1) and four descriptor bytes
+ * The file handle is seens as a list of four-byte words.
+ * The first word contains a version number (1) and three descriptor bytes
  * that tell how the remaining 3 variable length fields should be handled.
  * These three bytes are auth_type, fsid_type and fileid_type.
  *
