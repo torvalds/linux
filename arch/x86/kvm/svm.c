@@ -2771,8 +2771,12 @@ static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
-	return !(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
-		!(svm->vcpu.arch.hflags & HF_NMI_MASK);
+	int ret;
+	ret = !(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
+	      !(svm->vcpu.arch.hflags & HF_NMI_MASK);
+	ret = ret && gif_set(svm) && nested_svm_nmi(svm);
+
+	return ret;
 }
 
 static bool svm_get_nmi_mask(struct kvm_vcpu *vcpu)
@@ -2841,11 +2845,9 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 	 * Something prevents NMI from been injected. Single step over possible
 	 * problem (IRET or exception injection or interrupt shadow)
 	 */
-	if (gif_set(svm) && nested_svm_nmi(svm)) {
-		svm->nmi_singlestep = true;
-		svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
-		update_db_intercept(vcpu);
-	}
+	svm->nmi_singlestep = true;
+	svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
+	update_db_intercept(vcpu);
 }
 
 static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
