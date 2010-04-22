@@ -475,6 +475,11 @@
 			phy_type = "ulpi";
 		};
 
+		/* USB2 is shared with localbus, so it must be disabled
+		   by default. We can't put 'status = "disabled";' here
+		   since U-Boot doesn't clear the status property when
+		   it enables USB2. OTOH, U-Boot does create a new node
+		   when there isn't any. So, just comment it out.
 		usb@23000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -484,6 +489,7 @@
 			interrupts = <46 0x2>;
 			phy_type = "ulpi";
 		};
+		*/
 
 		sdhci@2e000 {
 			compatible = "fsl,p1020-esdhc", "fsl,esdhc";
