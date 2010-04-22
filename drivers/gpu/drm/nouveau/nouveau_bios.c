@@ -4409,31 +4409,32 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 			break;
 		}
 
-#if 0 /* for easy debugging */
-	ErrorF("pll.vco1.minfreq: %d\n", pll_lim->vco1.minfreq);
-	ErrorF("pll.vco1.maxfreq: %d\n", pll_lim->vco1.maxfreq);
-	ErrorF("pll.vco2.minfreq: %d\n", pll_lim->vco2.minfreq);
-	ErrorF("pll.vco2.maxfreq: %d\n", pll_lim->vco2.maxfreq);
-
-	ErrorF("pll.vco1.min_inputfreq: %d\n", pll_lim->vco1.min_inputfreq);
-	ErrorF("pll.vco1.max_inputfreq: %d\n", pll_lim->vco1.max_inputfreq);
-	ErrorF("pll.vco2.min_inputfreq: %d\n", pll_lim->vco2.min_inputfreq);
-	ErrorF("pll.vco2.max_inputfreq: %d\n", pll_lim->vco2.max_inputfreq);
-
-	ErrorF("pll.vco1.min_n: %d\n", pll_lim->vco1.min_n);
-	ErrorF("pll.vco1.max_n: %d\n", pll_lim->vco1.max_n);
-	ErrorF("pll.vco1.min_m: %d\n", pll_lim->vco1.min_m);
-	ErrorF("pll.vco1.max_m: %d\n", pll_lim->vco1.max_m);
-	ErrorF("pll.vco2.min_n: %d\n", pll_lim->vco2.min_n);
-	ErrorF("pll.vco2.max_n: %d\n", pll_lim->vco2.max_n);
-	ErrorF("pll.vco2.min_m: %d\n", pll_lim->vco2.min_m);
-	ErrorF("pll.vco2.max_m: %d\n", pll_lim->vco2.max_m);
-
-	ErrorF("pll.max_log2p: %d\n", pll_lim->max_log2p);
-	ErrorF("pll.log2p_bias: %d\n", pll_lim->log2p_bias);
-
-	ErrorF("pll.refclk: %d\n", pll_lim->refclk);
-#endif
+	NV_DEBUG(dev, "pll.vco1.minfreq: %d\n", pll_lim->vco1.minfreq);
+	NV_DEBUG(dev, "pll.vco1.maxfreq: %d\n", pll_lim->vco1.maxfreq);
+	NV_DEBUG(dev, "pll.vco1.min_inputfreq: %d\n", pll_lim->vco1.min_inputfreq);
+	NV_DEBUG(dev, "pll.vco1.max_inputfreq: %d\n", pll_lim->vco1.max_inputfreq);
+	NV_DEBUG(dev, "pll.vco1.min_n: %d\n", pll_lim->vco1.min_n);
+	NV_DEBUG(dev, "pll.vco1.max_n: %d\n", pll_lim->vco1.max_n);
+	NV_DEBUG(dev, "pll.vco1.min_m: %d\n", pll_lim->vco1.min_m);
+	NV_DEBUG(dev, "pll.vco1.max_m: %d\n", pll_lim->vco1.max_m);
+	if (pll_lim->vco2.maxfreq) {
+		NV_DEBUG(dev, "pll.vco2.minfreq: %d\n", pll_lim->vco2.minfreq);
+		NV_DEBUG(dev, "pll.vco2.maxfreq: %d\n", pll_lim->vco2.maxfreq);
+		NV_DEBUG(dev, "pll.vco2.min_inputfreq: %d\n", pll_lim->vco2.min_inputfreq);
+		NV_DEBUG(dev, "pll.vco2.max_inputfreq: %d\n", pll_lim->vco2.max_inputfreq);
+		NV_DEBUG(dev, "pll.vco2.min_n: %d\n", pll_lim->vco2.min_n);
+		NV_DEBUG(dev, "pll.vco2.max_n: %d\n", pll_lim->vco2.max_n);
+		NV_DEBUG(dev, "pll.vco2.min_m: %d\n", pll_lim->vco2.min_m);
+		NV_DEBUG(dev, "pll.vco2.max_m: %d\n", pll_lim->vco2.max_m);
+	}
+	if (!pll_lim->max_p) {
+		NV_DEBUG(dev, "pll.max_log2p: %d\n", pll_lim->max_log2p);
+		NV_DEBUG(dev, "pll.log2p_bias: %d\n", pll_lim->log2p_bias);
+	} else {
+		NV_DEBUG(dev, "pll.min_p: %d\n", pll_lim->min_p);
+		NV_DEBUG(dev, "pll.max_p: %d\n", pll_lim->max_p);
+	}
+	NV_DEBUG(dev, "pll.refclk: %d\n", pll_lim->refclk);
 
 	return 0;
 }
