@@ -354,6 +354,7 @@ static void squashfs_put_super(struct super_block *sb)
 		kfree(sbi->id_table);
 		kfree(sbi->fragment_index);
 		kfree(sbi->meta_index);
+		kfree(sbi->inode_lookup_table);
 		kfree(sb->s_fs_info);
 		sb->s_fs_info = NULL;
 	}
