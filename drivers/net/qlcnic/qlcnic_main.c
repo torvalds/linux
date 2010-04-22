@@ -1963,9 +1963,9 @@ qlcnic_set_drv_state(struct qlcnic_adapter *adapter, int state)
 	val = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
 
 	if (state == QLCNIC_DEV_NEED_RESET)
-		val |= ((u32)0x1 << (adapter->portnum * 4));
+		QLC_DEV_SET_RST_RDY(val, adapter->portnum);
 	else if (state == QLCNIC_DEV_NEED_QUISCENT)
-		val |= ((u32)0x1 << ((adapter->portnum * 4) + 1));
+		QLC_DEV_SET_QSCNT_RDY(val, adapter->portnum);
 
 	QLCWR32(adapter, QLCNIC_CRB_DRV_STATE, val);
 
@@ -1981,7 +1981,7 @@ qlcnic_clr_drv_state(struct qlcnic_adapter *adapter)
 		return -EBUSY;
 
 	val = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
-	val &= ~((u32)0x3 << (adapter->portnum * 4));
+	QLC_DEV_CLR_RST_QSCNT(val, adapter->portnum);
 	QLCWR32(adapter, QLCNIC_CRB_DRV_STATE, val);
 
 	qlcnic_api_unlock(adapter);
@@ -1998,14 +1998,14 @@ qlcnic_clr_all_drv_state(struct qlcnic_adapter *adapter)
 		goto err;
 
 	val = QLCRD32(adapter, QLCNIC_CRB_DEV_REF_COUNT);
-	val &= ~((u32)0x1 << (adapter->portnum * 4));
+	QLC_DEV_CLR_REF_CNT(val, adapter->portnum);
 	QLCWR32(adapter, QLCNIC_CRB_DEV_REF_COUNT, val);
 
 	if (!(val & 0x11111111))
 		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_COLD);
 
 	val = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
-	val &= ~((u32)0x3 << (adapter->portnum * 4));
+	QLC_DEV_CLR_RST_QSCNT(val, adapter->portnum);
 	QLCWR32(adapter, QLCNIC_CRB_DRV_STATE, val);
 
 	qlcnic_api_unlock(adapter);
@@ -2036,7 +2036,7 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 {
 	u32 val, prev_state;
 	u8 dev_init_timeo = adapter->dev_init_timeo;
-	int portnum = adapter->portnum;
+	u8 portnum = adapter->portnum;
 
 	if (test_and_clear_bit(__QLCNIC_START_FW, &adapter->state))
 		return 1;
@@ -2045,8 +2045,8 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 		return -1;
 
 	val = QLCRD32(adapter, QLCNIC_CRB_DEV_REF_COUNT);
-	if (!(val & ((int)0x1 << (portnum * 4)))) {
-		val |= ((u32)0x1 << (portnum * 4));
+	if (!(val & (1 << (portnum * 4)))) {
+		QLC_DEV_SET_REF_CNT(val, portnum);
 		QLCWR32(adapter, QLCNIC_CRB_DEV_REF_COUNT, val);
 	}
 
@@ -2065,13 +2065,13 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 
 	case QLCNIC_DEV_NEED_RESET:
 		val = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
-		val |= ((u32)0x1 << (portnum * 4));
+		QLC_DEV_SET_RST_RDY(val, portnum);
 		QLCWR32(adapter, QLCNIC_CRB_DRV_STATE, val);
 		break;
 
 	case QLCNIC_DEV_NEED_QUISCENT:
 		val = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
-		val |= ((u32)0x1 << ((portnum * 4) + 1));
+		QLC_DEV_SET_QSCNT_RDY(val, portnum);
 		QLCWR32(adapter, QLCNIC_CRB_DRV_STATE, val);
 		break;
 
@@ -2101,7 +2101,7 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 		return -1;
 
 	val = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
-	val &= ~((u32)0x3 << (portnum * 4));
+	QLC_DEV_CLR_RST_QSCNT(val, portnum);
 	QLCWR32(adapter, QLCNIC_CRB_DRV_STATE, val);
 
 	qlcnic_api_unlock(adapter);
