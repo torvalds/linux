@@ -67,6 +67,43 @@ MODULE_FIRMWARE(FIRMWARE_R520);
  * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
  */
 
+void r100_set_power_state(struct radeon_device *rdev)
+{
+	/* if *_clock_mode are the same, *_power_state are as well */
+	if (rdev->pm.requested_clock_mode == rdev->pm.current_clock_mode)
+		return;
+
+	DRM_INFO("Setting: e: %d m: %d p: %d\n",
+		 rdev->pm.requested_clock_mode->sclk,
+		 rdev->pm.requested_clock_mode->mclk,
+		 rdev->pm.requested_power_state->non_clock_info.pcie_lanes);
+
+	/* set pcie lanes */
+	/* TODO */
+
+	/* set voltage */
+	/* TODO */
+
+	/* set engine clock */
+	radeon_sync_with_vblank(rdev);
+	radeon_pm_debug_check_in_vbl(rdev, false);
+	radeon_set_engine_clock(rdev, rdev->pm.requested_clock_mode->sclk);
+	radeon_pm_debug_check_in_vbl(rdev, true);
+
+#if 0
+	/* set memory clock */
+	if (rdev->asic->set_memory_clock) {
+		radeon_sync_with_vblank(rdev);
+		radeon_pm_debug_check_in_vbl(rdev, false);
+		radeon_set_memory_clock(rdev, rdev->pm.requested_clock_mode->mclk);
+		radeon_pm_debug_check_in_vbl(rdev, true);
+	}
+#endif
+
+	rdev->pm.current_power_state = rdev->pm.requested_power_state;
+	rdev->pm.current_clock_mode = rdev->pm.requested_clock_mode;
+}
+
 bool r100_gui_idle(struct radeon_device *rdev)
 {
 	if (RREG32(RADEON_RBBM_STATUS) & RADEON_RBBM_ACTIVE)

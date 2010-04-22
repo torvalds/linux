@@ -553,7 +553,6 @@
 #       define RADEON_CRTC_CRNT_VLINE_MASK  (0x7ff << 16)
 #define RADEON_CRTC2_CRNT_FRAME             0x0314
 #define RADEON_CRTC2_GUI_TRIG_VLINE         0x0318
-#define RADEON_CRTC2_STATUS                 0x03fc
 #define RADEON_CRTC2_VLINE_CRNT_VLINE       0x0310
 #define RADEON_CRTC8_DATA                   0x03d5 /* VGA, 0x3b5 */
 #define RADEON_CRTC8_IDX                    0x03d4 /* VGA, 0x3b4 */

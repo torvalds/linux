@@ -175,6 +175,8 @@ void radeon_pm_fini(struct radeon_device *rdev);
 void radeon_pm_compute_clocks(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
+bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish);
+void radeon_sync_with_vblank(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -808,6 +810,7 @@ struct radeon_asic {
 	 */
 	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
 	bool (*gui_idle)(struct radeon_device *rdev);
+	void (*set_power_state)(struct radeon_device *rdev);
 };
 
 /*
@@ -1215,6 +1218,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_hpd_sense(rdev, hpd) (rdev)->asic->hpd_sense((rdev), (hpd))
 #define radeon_hpd_set_polarity(rdev, hpd) (rdev)->asic->hpd_set_polarity((rdev), (hpd))
 #define radeon_gui_idle(rdev) (rdev)->asic->gui_idle((rdev))
+#define radeon_set_power_state(rdev) (rdev)->asic->set_power_state((rdev))
 
 /* Common functions */
 /* AGP */

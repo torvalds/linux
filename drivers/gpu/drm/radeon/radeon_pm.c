@@ -29,7 +29,6 @@
 #define RADEON_WAIT_VBLANK_TIMEOUT 200
 #define RADEON_WAIT_IDLE_TIMEOUT 200
 
-static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish);
 static void radeon_pm_set_clocks_locked(struct radeon_device *rdev);
 static void radeon_pm_set_clocks(struct radeon_device *rdev);
 static void radeon_pm_idle_work_handler(struct work_struct *work);
@@ -181,7 +180,7 @@ static void radeon_get_power_state(struct radeon_device *rdev,
 		 rdev->pm.requested_power_state->non_clock_info.pcie_lanes);
 }
 
-static inline void radeon_sync_with_vblank(struct radeon_device *rdev)
+void radeon_sync_with_vblank(struct radeon_device *rdev)
 {
 	if (rdev->pm.active_crtcs) {
 		rdev->pm.vblank_sync = false;
@@ -189,43 +188,6 @@ static inline void radeon_sync_with_vblank(struct radeon_device *rdev)
 			rdev->irq.vblank_queue, rdev->pm.vblank_sync,
 			msecs_to_jiffies(RADEON_WAIT_VBLANK_TIMEOUT));
 	}
-}
-
-static void radeon_set_power_state(struct radeon_device *rdev)
-{
-	/* if *_clock_mode are the same, *_power_state are as well */
-	if (rdev->pm.requested_clock_mode == rdev->pm.current_clock_mode)
-		return;
-
-	DRM_INFO("Setting: e: %d m: %d p: %d\n",
-		 rdev->pm.requested_clock_mode->sclk,
-		 rdev->pm.requested_clock_mode->mclk,
-		 rdev->pm.requested_power_state->non_clock_info.pcie_lanes);
-
-	/* set pcie lanes */
-	/* TODO */
-
-	/* set voltage */
-	/* TODO */
-
-	/* set engine clock */
-	radeon_sync_with_vblank(rdev);
-	radeon_pm_debug_check_in_vbl(rdev, false);
-	radeon_set_engine_clock(rdev, rdev->pm.requested_clock_mode->sclk);
-	radeon_pm_debug_check_in_vbl(rdev, true);
-
-#if 0
-	/* set memory clock */
-	if (rdev->asic->set_memory_clock) {
-		radeon_sync_with_vblank(rdev);
-		radeon_pm_debug_check_in_vbl(rdev, false);
-		radeon_set_memory_clock(rdev, rdev->pm.requested_clock_mode->mclk);
-		radeon_pm_debug_check_in_vbl(rdev, true);
-	}
-#endif
-
-	rdev->pm.current_power_state = rdev->pm.requested_power_state;
-	rdev->pm.current_clock_mode = rdev->pm.requested_clock_mode;
 }
 
 int radeon_pm_init(struct radeon_device *rdev)
@@ -330,26 +292,68 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 	mutex_unlock(&rdev->pm.mutex);
 }
 
-static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish)
+bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish)
 {
-	u32 stat_crtc1 = 0, stat_crtc2 = 0;
+	u32 stat_crtc = 0;
 	bool in_vbl = true;
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	if (ASIC_IS_DCE4(rdev)) {
 		if (rdev->pm.active_crtcs & (1 << 0)) {
-			stat_crtc1 = RREG32(D1CRTC_STATUS);
-			if (!(stat_crtc1 & 1))
+			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC0_REGISTER_OFFSET);
+			if (!(stat_crtc & 1))
 				in_vbl = false;
 		}
 		if (rdev->pm.active_crtcs & (1 << 1)) {
-			stat_crtc2 = RREG32(D2CRTC_STATUS);
-			if (!(stat_crtc2 & 1))
+			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC1_REGISTER_OFFSET);
+			if (!(stat_crtc & 1))
+				in_vbl = false;
+		}
+		if (rdev->pm.active_crtcs & (1 << 2)) {
+			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC2_REGISTER_OFFSET);
+			if (!(stat_crtc & 1))
+				in_vbl = false;
+		}
+		if (rdev->pm.active_crtcs & (1 << 3)) {
+			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC3_REGISTER_OFFSET);
+			if (!(stat_crtc & 1))
+				in_vbl = false;
+		}
+		if (rdev->pm.active_crtcs & (1 << 4)) {
+			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC4_REGISTER_OFFSET);
+			if (!(stat_crtc & 1))
+				in_vbl = false;
+		}
+		if (rdev->pm.active_crtcs & (1 << 5)) {
+			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC5_REGISTER_OFFSET);
+			if (!(stat_crtc & 1))
+				in_vbl = false;
+		}
+	} else if (ASIC_IS_AVIVO(rdev)) {
+		if (rdev->pm.active_crtcs & (1 << 0)) {
+			stat_crtc = RREG32(D1CRTC_STATUS);
+			if (!(stat_crtc & 1))
+				in_vbl = false;
+		}
+		if (rdev->pm.active_crtcs & (1 << 1)) {
+			stat_crtc = RREG32(D2CRTC_STATUS);
+			if (!(stat_crtc & 1))
+				in_vbl = false;
+		}
+	} else {
+		if (rdev->pm.active_crtcs & (1 << 0)) {
+			stat_crtc = RREG32(RADEON_CRTC_STATUS);
+			if (!(stat_crtc & 1))
+				in_vbl = false;
+		}
+		if (rdev->pm.active_crtcs & (1 << 1)) {
+			stat_crtc = RREG32(RADEON_CRTC2_STATUS);
+			if (!(stat_crtc & 1))
 				in_vbl = false;
 		}
 	}
 	if (in_vbl == false)
-		DRM_INFO("not in vbl for pm change %08x %08x at %s\n", stat_crtc1,
-			 stat_crtc2, finish ? "exit" : "entry");
+		DRM_INFO("not in vbl for pm change %08x at %s\n", stat_crtc,
+			 finish ? "exit" : "entry");
 	return in_vbl;
 }
 static void radeon_pm_set_clocks_locked(struct radeon_device *rdev)
