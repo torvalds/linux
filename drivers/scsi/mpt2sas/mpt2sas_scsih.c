@@ -2858,9 +2858,7 @@ _scsih_setup_eedp(struct scsi_cmnd *scmd, Mpi2SCSIIORequest_t *mpi_request)
 	unsigned char prot_op = scsi_get_prot_op(scmd);
 	unsigned char prot_type = scsi_get_prot_type(scmd);
 
-	if (prot_type == SCSI_PROT_DIF_TYPE0 ||
-	   prot_type == SCSI_PROT_DIF_TYPE2 ||
-	   prot_op == SCSI_PROT_NORMAL)
+	if (prot_type == SCSI_PROT_DIF_TYPE0 || prot_op == SCSI_PROT_NORMAL)
 		return;
 
 	if (prot_op ==  SCSI_PROT_READ_STRIP)
@@ -2882,7 +2880,13 @@ _scsih_setup_eedp(struct scsi_cmnd *scmd, Mpi2SCSIIORequest_t *mpi_request)
 		    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
 		mpi_request->CDB.EEDP32.PrimaryReferenceTag =
 		    cpu_to_be32(scsi_get_lba(scmd));
+		break;
 
+	case SCSI_PROT_DIF_TYPE2:
+
+		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
+		    MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG |
+		    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
 		break;
 
 	case SCSI_PROT_DIF_TYPE3:
@@ -3013,7 +3017,7 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 		mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
 	/* Make sure Device is not raid volume */
 	if (!_scsih_is_raid(&scmd->device->sdev_gendev) &&
-	    sas_is_tlr_enabled(scmd->device))
+	    sas_is_tlr_enabled(scmd->device) && scmd->cmd_len != 32)
 		mpi_control |= MPI2_SCSIIO_CONTROL_TLR_ON;
 
 	smid = mpt2sas_base_get_smid_scsiio(ioc, ioc->scsi_io_cb_idx, scmd);
@@ -3025,6 +3029,8 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	mpi_request = mpt2sas_base_get_msg_frame(ioc, smid);
 	memset(mpi_request, 0, sizeof(Mpi2SCSIIORequest_t));
 	_scsih_setup_eedp(scmd, mpi_request);
+	if (scmd->cmd_len == 32)
+		mpi_control |= 4 << MPI2_SCSIIO_CONTROL_ADDCDBLEN_SHIFT;
 	mpi_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
 	if (sas_device_priv_data->sas_target->flags &
 	    MPT_TARGET_FLAGS_RAID_COMPONENT)
@@ -6567,7 +6573,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&ioc->delayed_tr_list);
 
 	/* init shost parameters */
-	shost->max_cmd_len = 16;
+	shost->max_cmd_len = 32;
 	shost->max_lun = max_lun;
 	shost->transportt = mpt2sas_transport_template;
 	shost->unique_id = ioc->id;
@@ -6580,7 +6586,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	scsi_host_set_prot(shost, SHOST_DIF_TYPE1_PROTECTION
-	    | SHOST_DIF_TYPE3_PROTECTION);
+	    | SHOST_DIF_TYPE2_PROTECTION | SHOST_DIF_TYPE3_PROTECTION);
 	scsi_host_set_guard(shost, SHOST_DIX_GUARD_CRC);
 
 	/* event thread */
