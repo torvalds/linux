@@ -1976,6 +1976,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	}
 
 	le32_add_cpu(&fe->i_flags, OCFS2_ORPHANED_FL);
+	OCFS2_I(inode)->ip_flags &= ~OCFS2_INODE_SKIP_ORPHAN_DIR;
 
 	/* Record which orphan dir our inode now resides
 	 * in. delete_inode will use this to determine which orphan
