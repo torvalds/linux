@@ -1379,6 +1379,7 @@ static int read_partial_message(struct ceph_connection *con)
 			con->in_base_pos = -front_len - middle_len - data_len -
 				sizeof(m->footer);
 			con->in_tag = CEPH_MSGR_TAG_READY;
+			con->in_seq++;
 			return 0;
 		}
 		if (IS_ERR(con->in_msg)) {
@@ -2030,6 +2031,7 @@ void ceph_con_revoke_message(struct ceph_connection *con, struct ceph_msg *msg)
 		ceph_msg_put(con->in_msg);
 		con->in_msg = NULL;
 		con->in_tag = CEPH_MSGR_TAG_READY;
+		con->in_seq++;
 	} else {
 		dout("con_revoke_pages %p msg %p pages %p no-op\n",
 		     con, con->in_msg, msg);
