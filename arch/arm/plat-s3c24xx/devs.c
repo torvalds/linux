@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -149,10 +150,14 @@ void __init s3c24xx_fb_set_platdata(struct s3c2410fb_mach_info *pd)
 {
 	struct s3c2410fb_mach_info *npd;
 
-	npd = kmalloc(sizeof(*npd), GFP_KERNEL);
+	npd = kmemdup(pd, sizeof(*npd), GFP_KERNEL);
 	if (npd) {
-		memcpy(npd, pd, sizeof(*npd));
 		s3c_device_lcd.dev.platform_data = npd;
+		npd->displays = kmemdup(pd->displays,
+			sizeof(struct s3c2410fb_display) * npd->num_displays,
+			GFP_KERNEL);
+		if (!npd->displays)
+			printk(KERN_ERR "no memory for LCD display data\n");
 	} else {
 		printk(KERN_ERR "no memory for LCD platform data\n");
 	}
