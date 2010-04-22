@@ -1651,6 +1651,7 @@ static int nested_svm_exit_special(struct vcpu_svm *svm)
 	switch (exit_code) {
 	case SVM_EXIT_INTR:
 	case SVM_EXIT_NMI:
+	case SVM_EXIT_EXCP_BASE + MC_VECTOR:
 		return NESTED_EXIT_HOST;
 	case SVM_EXIT_NPF:
 		/* For now we are always handling NPFs when using them */
