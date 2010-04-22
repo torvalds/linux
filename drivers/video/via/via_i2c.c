@@ -19,6 +19,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/platform_device.h>
 #include "via-core.h"
 #include "via_i2c.h"
 #include "global.h"
@@ -185,11 +186,14 @@ static int create_i2c_bus(struct i2c_adapter *adapter,
 	return i2c_bit_add_bus(adapter);
 }
 
-int viafb_create_i2c_busses(struct viafb_dev *dev, struct via_port_cfg *configs)
+static int viafb_i2c_probe(struct platform_device *platdev)
 {
 	int i, ret;
+	struct via_port_cfg *configs;
 
-	i2c_vdev = dev;
+	i2c_vdev = platdev->dev.platform_data;
+	configs = i2c_vdev->port_cfg;
+
 	for (i = 0; i < VIAFB_NUM_PORTS; i++) {
 		struct via_port_cfg *adap_cfg = configs++;
 		struct via_i2c_stuff *i2c_stuff = &via_i2c_par[i];
@@ -211,7 +215,7 @@ int viafb_create_i2c_busses(struct viafb_dev *dev, struct via_port_cfg *configs)
 	return 0;
 }
 
-void viafb_delete_i2c_busses(void)
+static int viafb_i2c_remove(struct platform_device *platdev)
 {
 	int i;
 
@@ -224,4 +228,23 @@ void viafb_delete_i2c_busses(void)
 		if (i2c_stuff->adapter.algo_data == &i2c_stuff->algo)
 			i2c_del_adapter(&i2c_stuff->adapter);
 	}
+	return 0;
+}
+
+static struct platform_driver via_i2c_driver = {
+	.driver = {
+		.name = "viafb-i2c",
+	},
+	.probe = viafb_i2c_probe,
+	.remove = viafb_i2c_remove,
+};
+
+int viafb_i2c_init(void)
+{
+	return platform_driver_register(&via_i2c_driver);
+}
+
+void viafb_i2c_exit(void)
+{
+	platform_driver_unregister(&via_i2c_driver);
 }

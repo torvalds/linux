@@ -190,6 +190,70 @@ static void __devexit via_pci_teardown_mmio(struct viafb_dev *vdev)
 	iounmap(vdev->engine_mmio);
 }
 
+/*
+ * Create our subsidiary devices.
+ */
+static struct viafb_subdev_info {
+	char *name;
+	struct platform_device *platdev;
+} viafb_subdevs[] = {
+	{
+		.name = "viafb-gpio",
+	},
+	{
+		.name = "viafb-i2c",
+	}
+};
+#define N_SUBDEVS ARRAY_SIZE(viafb_subdevs)
+
+static int __devinit via_create_subdev(struct viafb_dev *vdev,
+		struct viafb_subdev_info *info)
+{
+	int ret;
+
+	info->platdev = platform_device_alloc(info->name, -1);
+	if (!info->platdev) {
+		dev_err(&vdev->pdev->dev, "Unable to allocate pdev %s\n",
+			info->name);
+		return -ENOMEM;
+	}
+	info->platdev->dev.parent = &vdev->pdev->dev;
+	info->platdev->dev.platform_data = vdev;
+	ret = platform_device_add(info->platdev);
+	if (ret) {
+		dev_err(&vdev->pdev->dev, "Unable to add pdev %s\n",
+				info->name);
+		platform_device_put(info->platdev);
+		info->platdev = NULL;
+	}
+	return ret;
+}
+
+static int __devinit via_setup_subdevs(struct viafb_dev *vdev)
+{
+	int i;
+
+	/*
+	 * Ignore return values.  Even if some of the devices
+	 * fail to be created, we'll still be able to use some
+	 * of the rest.
+	 */
+	for (i = 0; i < N_SUBDEVS; i++)
+		via_create_subdev(vdev, viafb_subdevs + i);
+	return 0;
+}
+
+static void __devexit via_teardown_subdevs(void)
+{
+	int i;
+
+	for (i = 0; i < N_SUBDEVS; i++)
+		if (viafb_subdevs[i].platdev) {
+			viafb_subdevs[i].platdev->dev.platform_data = NULL;
+			platform_device_unregister(viafb_subdevs[i].platdev);
+		}
+}
+
 
 static int __devinit via_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
@@ -205,33 +269,25 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	memset(&global_dev, 0, sizeof(global_dev));
 	global_dev.pdev = pdev;
 	global_dev.chip_type = ent->driver_data;
+	global_dev.port_cfg = adap_configs;
 	spin_lock_init(&global_dev.reg_lock);
 	ret = via_pci_setup_mmio(&global_dev);
 	if (ret)
 		goto out_disable;
 	/*
-	 * Create the I2C busses.  Bailing out on failure seems extreme,
-	 * but that's what the code did before.
+	 * Create our subdevices.  Continue even if some things fail.
 	 */
-	ret = viafb_create_i2c_busses(&global_dev, adap_configs);
-	if (ret)
-		goto out_teardown;
+	via_setup_subdevs(&global_dev);
 	/*
 	 * Set up the framebuffer.
 	 */
 	ret = via_fb_pci_probe(&global_dev);
 	if (ret)
-		goto out_i2c;
-	/*
-	 * Create the GPIOs.  We continue whether or not this succeeds;
-	 * the framebuffer might be useful even without GPIO ports.
-	 */
-	ret = viafb_create_gpios(&global_dev, adap_configs);
+		goto out_subdevs;
 	return 0;
 
-out_i2c:
-	viafb_delete_i2c_busses();
-out_teardown:
+out_subdevs:
+	via_teardown_subdevs();
 	via_pci_teardown_mmio(&global_dev);
 out_disable:
 	pci_disable_device(pdev);
@@ -240,8 +296,7 @@ out_disable:
 
 static void __devexit via_pci_remove(struct pci_dev *pdev)
 {
-	viafb_destroy_gpios();
-	viafb_delete_i2c_busses();
+	via_teardown_subdevs();
 	via_fb_pci_remove(pdev);
 	via_pci_teardown_mmio(&global_dev);
 	pci_disable_device(pdev);
@@ -289,12 +344,16 @@ static int __init via_core_init(void)
 	ret = viafb_init();
 	if (ret)
 		return ret;
+	viafb_i2c_init();
+	viafb_gpio_init();
 	return pci_register_driver(&via_driver);
 }
 
 static void __exit via_core_exit(void)
 {
 	pci_unregister_driver(&via_driver);
+	viafb_gpio_exit();
+	viafb_i2c_exit();
 	viafb_exit();
 }
 

@@ -7,6 +7,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 #include "via-core.h"
 #include "via-gpio.h"
 #include "global.h"
@@ -172,12 +173,27 @@ static void viafb_gpio_disable(struct viafb_gpio *gpio)
 	via_write_reg_mask(VIASR, gpio->vg_port_index, 0, 0x02);
 }
 
-
-
-
-int viafb_create_gpios(struct viafb_dev *vdev,
-		const struct via_port_cfg *port_cfg)
+/*
+ * Look up a specific gpio and return the number it was assigned.
+ */
+int viafb_gpio_lookup(const char *name)
 {
+	int i;
+
+	for (i = 0; i < gpio_config.gpio_chip.ngpio; i++)
+		if (!strcmp(name, gpio_config.active_gpios[i]->vg_name))
+			return gpio_config.gpio_chip.base + i;
+	return -1;
+}
+EXPORT_SYMBOL_GPL(viafb_gpio_lookup);
+
+/*
+ * Platform device stuff.
+ */
+static __devinit int viafb_gpio_probe(struct platform_device *platdev)
+{
+	struct viafb_dev *vdev = platdev->dev.platform_data;
+	struct via_port_cfg *port_cfg = vdev->port_cfg;
 	int i, ngpio = 0, ret;
 	struct viafb_gpio *gpio;
 	unsigned long flags;
@@ -222,11 +238,10 @@ int viafb_create_gpios(struct viafb_dev *vdev,
 		gpio_config.gpio_chip.ngpio = 0;
 	}
 	return ret;
-/* Port enable ? */
 }
 
 
-int viafb_destroy_gpios(void)
+static int viafb_gpio_remove(struct platform_device *platdev)
 {
 	unsigned long flags;
 	int ret = 0, i;
@@ -253,16 +268,20 @@ out:
 	return ret;
 }
 
-/*
- * Look up a specific gpio and return the number it was assigned.
- */
-int viafb_gpio_lookup(const char *name)
-{
-	int i;
+static struct platform_driver via_gpio_driver = {
+	.driver = {
+		.name = "viafb-gpio",
+	},
+	.probe = viafb_gpio_probe,
+	.remove = viafb_gpio_remove,
+};
 
-	for (i = 0; i < gpio_config.gpio_chip.ngpio; i++)
-		if (!strcmp(name, gpio_config.active_gpios[i]->vg_name))
-			return gpio_config.gpio_chip.base + i;
-	return -1;
+int viafb_gpio_init(void)
+{
+	return platform_driver_register(&via_gpio_driver);
 }
-EXPORT_SYMBOL_GPL(viafb_gpio_lookup);
+
+void viafb_gpio_exit(void)
+{
+	platform_driver_unregister(&via_gpio_driver);
+}

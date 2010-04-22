@@ -63,6 +63,7 @@ struct via_port_cfg {
 struct viafb_dev {
 	struct pci_dev *pdev;
 	int chip_type;
+	struct via_port_cfg *port_cfg;
 	/*
 	 * Spinlock for access to device registers.  Not yet
 	 * globally used.

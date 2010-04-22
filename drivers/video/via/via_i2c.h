@@ -35,8 +35,6 @@ int viafb_i2c_readbyte(u8 adap, u8 slave_addr, u8 index, u8 *pdata);
 int viafb_i2c_writebyte(u8 adap, u8 slave_addr, u8 index, u8 data);
 int viafb_i2c_readbytes(u8 adap, u8 slave_addr, u8 index, u8 *buff, int buff_len);
 
-struct viafb_par;
-int viafb_create_i2c_busses(struct viafb_dev *vdev, struct via_port_cfg *cfg);
-void viafb_delete_i2c_busses(void);
-struct i2c_adapter *viafb_find_adapter(enum viafb_i2c_adap which);
+extern int viafb_i2c_init(void);
+extern void viafb_i2c_exit(void);
 #endif /* __VIA_I2C_H__ */

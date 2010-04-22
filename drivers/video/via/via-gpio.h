@@ -8,8 +8,7 @@
 #ifndef __VIA_GPIO_H__
 #define __VIA_GPIO_H__
 
-extern int viafb_create_gpios(struct viafb_dev *vdev,
-		const struct via_port_cfg *port_cfg);
-extern int viafb_destroy_gpios(void);
 extern int viafb_gpio_lookup(const char *name);
+extern int viafb_gpio_init(void);
+extern void viafb_gpio_exit(void);
 #endif
