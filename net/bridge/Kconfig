@@ -33,14 +33,14 @@ config BRIDGE
 	  If unsure, say N.
 
 config BRIDGE_IGMP_SNOOPING
-	bool "IGMP snooping"
+	bool "IGMP/MLD snooping"
 	depends on BRIDGE
 	depends on INET
 	default y
 	---help---
 	  If you say Y here, then the Ethernet bridge will be able selectively
-	  forward multicast traffic based on IGMP traffic received from each
-	  port.
+	  forward multicast traffic based on IGMP/MLD traffic received from
+	  each port.
 
 	  Say N to exclude this support and reduce the binary size.
 
