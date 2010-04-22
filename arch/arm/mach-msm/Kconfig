@@ -7,6 +7,7 @@ choice
 config ARCH_MSM7X00A
 	bool "MSM7x00A / MSM7x01A"
 	select ARCH_MSM_ARM11
+	select MSM_SMD
 	select MSM_SMD_PKG3
 	select CPU_V6
 
@@ -61,13 +62,6 @@ config MSM_SMD_PKG3
 	bool
 
 config MSM_SMD
-	default y
-	bool "MSM Shared Memory Driver (SMD)"
-	help
-	  Support for the shared memory interface between the apps
-	  processor and the baseband processor.  Provides access to
-	  the "shared heap", as well as virtual serial channels
-	  used to communicate with various services on the baseband
-	  processor.
+	bool
 
 endif
