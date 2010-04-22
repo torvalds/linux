@@ -559,6 +559,7 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
+			handle = NULL;
 			mlog_errno(status);
 			goto out;
 		}
