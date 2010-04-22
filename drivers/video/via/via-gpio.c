@@ -91,13 +91,13 @@ static void via_gpio_set(struct gpio_chip *chip, unsigned int nr,
 
 	spin_lock_irqsave(&cfg->vdev->reg_lock, flags);
 	gpio = cfg->active_gpios[nr];
-	reg = viafb_read_reg(VIASR, gpio->vg_port_index);
+	reg = via_read_reg(VIASR, gpio->vg_port_index);
 	reg |= 0x40 << gpio->vg_mask_shift;  /* output enable */
 	if (value)
 		reg |= 0x10 << gpio->vg_mask_shift;
 	else
 		reg &= ~(0x10 << gpio->vg_mask_shift);
-	viafb_write_reg(gpio->vg_port_index, VIASR, reg);
+	via_write_reg(VIASR, gpio->vg_port_index, reg);
 	spin_unlock_irqrestore(&cfg->vdev->reg_lock, flags);
 }
 
@@ -122,8 +122,8 @@ static int via_gpio_dir_input(struct gpio_chip *chip, unsigned int nr)
 
 	spin_lock_irqsave(&cfg->vdev->reg_lock, flags);
 	gpio = cfg->active_gpios[nr];
-	viafb_write_reg_mask(gpio->vg_port_index, VIASR, 0,
-			     0x40 << gpio->vg_mask_shift);
+	via_write_reg_mask(VIASR, gpio->vg_port_index, 0,
+			0x40 << gpio->vg_mask_shift);
 	spin_unlock_irqrestore(&cfg->vdev->reg_lock, flags);
 	return 0;
 }
@@ -139,7 +139,7 @@ static int via_gpio_get(struct gpio_chip *chip, unsigned int nr)
 
 	spin_lock_irqsave(&cfg->vdev->reg_lock, flags);
 	gpio = cfg->active_gpios[nr];
-	reg = viafb_read_reg(VIASR, gpio->vg_port_index);
+	reg = via_read_reg(VIASR, gpio->vg_port_index);
 	spin_unlock_irqrestore(&cfg->vdev->reg_lock, flags);
 	return reg & (0x04 << gpio->vg_mask_shift);
 }
@@ -164,12 +164,12 @@ static struct viafb_gpio_cfg gpio_config = {
  */
 static void viafb_gpio_enable(struct viafb_gpio *gpio)
 {
-	viafb_write_reg_mask(gpio->vg_port_index, VIASR, 0x02, 0x02);
+	via_write_reg_mask(VIASR, gpio->vg_port_index, 0x02, 0x02);
 }
 
 static void viafb_gpio_disable(struct viafb_gpio *gpio)
 {
-	viafb_write_reg_mask(gpio->vg_port_index, VIASR, 0, 0x02);
+	via_write_reg_mask(VIASR, gpio->vg_port_index, 0, 0x02);
 }
 
 

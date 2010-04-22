@@ -29,14 +29,16 @@
  */
 #define VIAFB_NUM_I2C		5
 static struct via_i2c_stuff via_i2c_par[VIAFB_NUM_I2C];
+struct viafb_dev *i2c_vdev;  /* Passed in from core */
 
 static void via_i2c_setscl(void *data, int state)
 {
 	u8 val;
 	struct via_port_cfg *adap_data = data;
+	unsigned long flags;
 
-	val = viafb_read_reg(adap_data->io_port,
-			     adap_data->ioport_index) & 0xF0;
+	spin_lock_irqsave(&i2c_vdev->reg_lock, flags);
+	val = via_read_reg(adap_data->io_port, adap_data->ioport_index) & 0xF0;
 	if (state)
 		val |= 0x20;
 	else
@@ -51,35 +53,44 @@ static void via_i2c_setscl(void *data, int state)
 	default:
 		DEBUG_MSG("viafb_i2c: specify wrong i2c type.\n");
 	}
-	viafb_write_reg(adap_data->ioport_index,
-			adap_data->io_port, val);
+	via_write_reg(adap_data->io_port, adap_data->ioport_index, val);
+	spin_unlock_irqrestore(&i2c_vdev->reg_lock, flags);
 }
 
 static int via_i2c_getscl(void *data)
 {
 	struct via_port_cfg *adap_data = data;
+	unsigned long flags;
+	int ret = 0;
 
-	if (viafb_read_reg(adap_data->io_port, adap_data->ioport_index) & 0x08)
-		return 1;
-	return 0;
+	spin_lock_irqsave(&i2c_vdev->reg_lock, flags);
+	if (via_read_reg(adap_data->io_port, adap_data->ioport_index) & 0x08)
+		ret = 1;
+	spin_unlock_irqrestore(&i2c_vdev->reg_lock, flags);
+	return ret;
 }
 
 static int via_i2c_getsda(void *data)
 {
 	struct via_port_cfg *adap_data = data;
+	unsigned long flags;
+	int ret = 0;
 
-	if (viafb_read_reg(adap_data->io_port, adap_data->ioport_index) & 0x04)
-		return 1;
-	return 0;
+	spin_lock_irqsave(&i2c_vdev->reg_lock, flags);
+	if (via_read_reg(adap_data->io_port, adap_data->ioport_index) & 0x04)
+		ret = 1;
+	spin_unlock_irqrestore(&i2c_vdev->reg_lock, flags);
+	return ret;
 }
 
 static void via_i2c_setsda(void *data, int state)
 {
 	u8 val;
 	struct via_port_cfg *adap_data = data;
+	unsigned long flags;
 
-	val = viafb_read_reg(adap_data->io_port,
-			     adap_data->ioport_index) & 0xF0;
+	spin_lock_irqsave(&i2c_vdev->reg_lock, flags);
+	val = via_read_reg(adap_data->io_port, adap_data->ioport_index) & 0xF0;
 	if (state)
 		val |= 0x10;
 	else
@@ -94,8 +105,8 @@ static void via_i2c_setsda(void *data, int state)
 	default:
 		DEBUG_MSG("viafb_i2c: specify wrong i2c type.\n");
 	}
-	viafb_write_reg(adap_data->ioport_index,
-			adap_data->io_port, val);
+	via_write_reg(adap_data->io_port, adap_data->ioport_index, val);
+	spin_unlock_irqrestore(&i2c_vdev->reg_lock, flags);
 }
 
 int viafb_i2c_readbyte(u8 adap, u8 slave_addr, u8 index, u8 *pdata)
@@ -174,10 +185,11 @@ static int create_i2c_bus(struct i2c_adapter *adapter,
 	return i2c_bit_add_bus(adapter);
 }
 
-int viafb_create_i2c_busses(struct via_port_cfg *configs)
+int viafb_create_i2c_busses(struct viafb_dev *dev, struct via_port_cfg *configs)
 {
 	int i, ret;
 
+	i2c_vdev = dev;
 	for (i = 0; i < VIAFB_NUM_PORTS; i++) {
 		struct via_port_cfg *adap_cfg = configs++;
 		struct via_i2c_stuff *i2c_stuff = &via_i2c_par[i];

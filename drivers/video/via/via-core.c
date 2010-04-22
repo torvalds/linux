@@ -213,7 +213,7 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	 * Create the I2C busses.  Bailing out on failure seems extreme,
 	 * but that's what the code did before.
 	 */
-	ret = viafb_create_i2c_busses(adap_configs);
+	ret = viafb_create_i2c_busses(&global_dev, adap_configs);
 	if (ret)
 		goto out_teardown;
 	/*
