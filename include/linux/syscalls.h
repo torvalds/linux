@@ -125,8 +125,11 @@ extern struct ftrace_event_class event_class_syscall_exit;
 	static struct syscall_metadata __syscall_meta_##sname;		\
 	static struct ftrace_event_call					\
 	__attribute__((__aligned__(4))) event_enter_##sname;		\
-	static struct trace_event enter_syscall_print_##sname = {	\
+	static struct trace_event_functions enter_syscall_print_funcs_##sname = { \
 		.trace                  = print_syscall_enter,		\
+	};								\
+	static struct trace_event enter_syscall_print_##sname = {	\
+		.funcs                  = &enter_syscall_print_funcs_##sname, \
 	};								\
 	static struct ftrace_event_call __used				\
 	  __attribute__((__aligned__(4)))				\
@@ -142,8 +145,11 @@ extern struct ftrace_event_class event_class_syscall_exit;
 	static struct syscall_metadata __syscall_meta_##sname;		\
 	static struct ftrace_event_call					\
 	__attribute__((__aligned__(4))) event_exit_##sname;		\
-	static struct trace_event exit_syscall_print_##sname = {	\
+	static struct trace_event_functions exit_syscall_print_funcs_##sname = { \
 		.trace                  = print_syscall_exit,		\
+	};								\
+	static struct trace_event exit_syscall_print_##sname = {	\
+		.funcs                  = &exit_syscall_print_funcs_##sname, \
 	};								\
 	static struct ftrace_event_call __used				\
 	  __attribute__((__aligned__(4)))				\

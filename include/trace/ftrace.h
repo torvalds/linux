@@ -239,7 +239,8 @@ ftrace_raw_output_id_##call(int event_id, const char *name,		\
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, name, proto, args)			\
 static notrace enum print_line_t					\
-ftrace_raw_output_##name(struct trace_iterator *iter, int flags)	\
+ftrace_raw_output_##name(struct trace_iterator *iter, int flags,	\
+			 struct trace_event *event)			\
 {									\
 	return ftrace_raw_output_id_##template(event_##name.id,		\
 					       #name, iter, flags);	\
@@ -248,7 +249,8 @@ ftrace_raw_output_##name(struct trace_iterator *iter, int flags)	\
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, call, proto, args, print)		\
 static notrace enum print_line_t					\
-ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
+ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
+			 struct trace_event *event)			\
 {									\
 	struct trace_seq *s = &iter->seq;				\
 	struct ftrace_raw_##template *field;				\
@@ -531,11 +533,12 @@ ftrace_raw_event_##call(void *__data, proto)				\
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)			\
-									\
-static struct trace_event ftrace_event_type_##call = {			\
+static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
 	.trace			= ftrace_raw_output_##call,		\
 };									\
-									\
+static struct trace_event ftrace_event_type_##call = {			\
+	.funcs			= &ftrace_event_type_funcs_##call,	\
+};									\
 static inline void ftrace_test_probe_##call(void)			\
 {									\
 	check_trace_callback_type_##call(ftrace_raw_event_##template);	\

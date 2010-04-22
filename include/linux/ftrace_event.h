@@ -70,16 +70,23 @@ struct trace_iterator {
 };
 
 
+struct trace_event;
+
 typedef enum print_line_t (*trace_print_func)(struct trace_iterator *iter,
-					      int flags);
-struct trace_event {
-	struct hlist_node	node;
-	struct list_head	list;
-	int			type;
+				      int flags, struct trace_event *event);
+
+struct trace_event_functions {
 	trace_print_func	trace;
 	trace_print_func	raw;
 	trace_print_func	hex;
 	trace_print_func	binary;
+};
+
+struct trace_event {
+	struct hlist_node		node;
+	struct list_head		list;
+	int				type;
+	struct trace_event_functions	*funcs;
 };
 
 extern int register_ftrace_event(struct trace_event *event);

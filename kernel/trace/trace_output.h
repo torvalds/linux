@@ -25,7 +25,7 @@ extern void trace_event_read_unlock(void);
 extern struct trace_event *ftrace_find_event(int type);
 
 extern enum print_line_t trace_nop_print(struct trace_iterator *iter,
-					 int flags);
+					 int flags, struct trace_event *event);
 extern int
 trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry);
 

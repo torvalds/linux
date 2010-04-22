@@ -243,7 +243,8 @@ struct kmemtrace_user_event_alloc {
 };
 
 static enum print_line_t
-kmemtrace_print_alloc(struct trace_iterator *iter, int flags)
+kmemtrace_print_alloc(struct trace_iterator *iter, int flags,
+		      struct trace_event *event)
 {
 	struct trace_seq *s = &iter->seq;
 	struct kmemtrace_alloc_entry *entry;
@@ -263,7 +264,8 @@ kmemtrace_print_alloc(struct trace_iterator *iter, int flags)
 }
 
 static enum print_line_t
-kmemtrace_print_free(struct trace_iterator *iter, int flags)
+kmemtrace_print_free(struct trace_iterator *iter, int flags,
+		     struct trace_event *event)
 {
 	struct trace_seq *s = &iter->seq;
 	struct kmemtrace_free_entry *entry;
@@ -281,7 +283,8 @@ kmemtrace_print_free(struct trace_iterator *iter, int flags)
 }
 
 static enum print_line_t
-kmemtrace_print_alloc_user(struct trace_iterator *iter, int flags)
+kmemtrace_print_alloc_user(struct trace_iterator *iter, int flags,
+			   struct trace_event *event)
 {
 	struct trace_seq *s = &iter->seq;
 	struct kmemtrace_alloc_entry *entry;
@@ -315,7 +318,8 @@ kmemtrace_print_alloc_user(struct trace_iterator *iter, int flags)
 }
 
 static enum print_line_t
-kmemtrace_print_free_user(struct trace_iterator *iter, int flags)
+kmemtrace_print_free_user(struct trace_iterator *iter, int flags,
+			  struct trace_event *event)
 {
 	struct trace_seq *s = &iter->seq;
 	struct kmemtrace_free_entry *entry;
@@ -469,16 +473,24 @@ static enum print_line_t kmemtrace_print_line(struct trace_iterator *iter)
 	}
 }
 
-static struct trace_event kmem_trace_alloc = {
-	.type			= TRACE_KMEM_ALLOC,
+static struct trace_event_functions kmem_trace_alloc_funcs = {
 	.trace			= kmemtrace_print_alloc,
 	.binary			= kmemtrace_print_alloc_user,
 };
 
-static struct trace_event kmem_trace_free = {
-	.type			= TRACE_KMEM_FREE,
+static struct trace_event kmem_trace_alloc = {
+	.type			= TRACE_KMEM_ALLOC,
+	.funcs			= &kmem_trace_alloc_funcs,
+};
+
+static struct trace_event_functions kmem_trace_free_funcs = {
 	.trace			= kmemtrace_print_free,
 	.binary			= kmemtrace_print_free_user,
+};
+
+static struct trace_event kmem_trace_free = {
+	.type			= TRACE_KMEM_FREE,
+	.funcs			= &kmem_trace_free_funcs,
 };
 
 static struct tracer kmem_tracer __read_mostly = {

@@ -93,7 +93,8 @@ static struct syscall_metadata *syscall_nr_to_meta(int nr)
 }
 
 enum print_line_t
-print_syscall_enter(struct trace_iterator *iter, int flags)
+print_syscall_enter(struct trace_iterator *iter, int flags,
+		    struct trace_event *event)
 {
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *ent = iter->ent;
@@ -145,7 +146,8 @@ end:
 }
 
 enum print_line_t
-print_syscall_exit(struct trace_iterator *iter, int flags)
+print_syscall_exit(struct trace_iterator *iter, int flags,
+		   struct trace_event *event)
 {
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *ent = iter->ent;

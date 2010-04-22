@@ -1336,7 +1336,7 @@ out:
 }
 
 static enum print_line_t blk_trace_event_print(struct trace_iterator *iter,
-					       int flags)
+					       int flags, struct trace_event *event)
 {
 	return print_one_line(iter, false);
 }
@@ -1358,7 +1358,8 @@ static int blk_trace_synthesize_old_trace(struct trace_iterator *iter)
 }
 
 static enum print_line_t
-blk_trace_event_print_binary(struct trace_iterator *iter, int flags)
+blk_trace_event_print_binary(struct trace_iterator *iter, int flags,
+			     struct trace_event *event)
 {
 	return blk_trace_synthesize_old_trace(iter) ?
 			TRACE_TYPE_HANDLED : TRACE_TYPE_PARTIAL_LINE;
@@ -1396,10 +1397,14 @@ static struct tracer blk_tracer __read_mostly = {
 	.set_flag	= blk_tracer_set_flag,
 };
 
-static struct trace_event trace_blk_event = {
-	.type		= TRACE_BLK,
+static struct trace_event_functions trace_blk_event_funcs = {
 	.trace		= blk_trace_event_print,
 	.binary		= blk_trace_event_print_binary,
+};
+
+static struct trace_event trace_blk_event = {
+	.type		= TRACE_BLK,
+	.funcs		= &trace_blk_event_funcs,
 };
 
 static int __init init_blk_tracer(void)

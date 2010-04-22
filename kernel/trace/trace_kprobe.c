@@ -1011,16 +1011,15 @@ static __kprobes void kretprobe_trace_func(struct kretprobe_instance *ri,
 
 /* Event entry printers */
 enum print_line_t
-print_kprobe_event(struct trace_iterator *iter, int flags)
+print_kprobe_event(struct trace_iterator *iter, int flags,
+		   struct trace_event *event)
 {
 	struct kprobe_trace_entry *field;
 	struct trace_seq *s = &iter->seq;
-	struct trace_event *event;
 	struct trace_probe *tp;
 	int i;
 
 	field = (struct kprobe_trace_entry *)iter->ent;
-	event = ftrace_find_event(field->ent.type);
 	tp = container_of(event, struct trace_probe, event);
 
 	if (!trace_seq_printf(s, "%s: (", tp->call.name))
@@ -1046,16 +1045,15 @@ partial:
 }
 
 enum print_line_t
-print_kretprobe_event(struct trace_iterator *iter, int flags)
+print_kretprobe_event(struct trace_iterator *iter, int flags,
+		      struct trace_event *event)
 {
 	struct kretprobe_trace_entry *field;
 	struct trace_seq *s = &iter->seq;
-	struct trace_event *event;
 	struct trace_probe *tp;
 	int i;
 
 	field = (struct kretprobe_trace_entry *)iter->ent;
-	event = ftrace_find_event(field->ent.type);
 	tp = container_of(event, struct trace_probe, event);
 
 	if (!trace_seq_printf(s, "%s: (", tp->call.name))
@@ -1351,6 +1349,14 @@ int kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
 	return 0;	/* We don't tweek kernel, so just return 0 */
 }
 
+static struct trace_event_functions kretprobe_funcs = {
+	.trace		= print_kretprobe_event
+};
+
+static struct trace_event_functions kprobe_funcs = {
+	.trace		= print_kprobe_event
+};
+
 static int register_probe_event(struct trace_probe *tp)
 {
 	struct ftrace_event_call *call = &tp->call;
@@ -1358,13 +1364,13 @@ static int register_probe_event(struct trace_probe *tp)
 
 	/* Initialize ftrace_event_call */
 	if (probe_is_return(tp)) {
-		tp->event.trace = print_kretprobe_event;
+		tp->event.funcs = &kretprobe_funcs;
 		INIT_LIST_HEAD(&call->class->fields);
 		call->class->raw_init = probe_event_raw_init;
 		call->class->define_fields = kretprobe_event_define_fields;
 	} else {
 		INIT_LIST_HEAD(&call->class->fields);
-		tp->event.trace = print_kprobe_event;
+		tp->event.funcs = &kprobe_funcs;
 		call->class->raw_init = probe_event_raw_init;
 		call->class->define_fields = kprobe_event_define_fields;
 	}
