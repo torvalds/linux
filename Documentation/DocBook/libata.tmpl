@@ -81,16 +81,14 @@ void (*port_disable) (struct ata_port *);
 	</programlisting>
 
 	<para>
-	Called from ata_bus_probe() and ata_bus_reset() error paths,
-	as well as when unregistering from the SCSI module (rmmod, hot
-	unplug).
+	Called from ata_bus_probe() error path, as well as when
+	unregistering from the SCSI module (rmmod, hot unplug).
 	This function should do whatever needs to be done to take the
 	port out of use.  In most cases, ata_port_disable() can be used
 	as this hook.
 	</para>
 	<para>
 	Called from ata_bus_probe() on a failed probe.
-	Called from ata_bus_reset() on a failed bus reset.
 	Called from ata_scsi_release().
 	</para>
 
