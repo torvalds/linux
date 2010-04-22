@@ -445,11 +445,6 @@ leave:
 
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	if ((status < 0) && inode) {
-		clear_nlink(inode);
-		iput(inode);
-	}
-
 	if (inode_ac)
 		ocfs2_free_alloc_context(inode_ac);
 
@@ -458,6 +453,17 @@ leave:
 
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
+
+	/*
+	 * We should call iput after the i_mutex of the bitmap been
+	 * unlocked in ocfs2_free_alloc_context, or the
+	 * ocfs2_delete_inode will mutex_lock again.
+	 */
+	if ((status < 0) && inode) {
+		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SKIP_ORPHAN_DIR;
+		clear_nlink(inode);
+		iput(inode);
+	}
 
 	mlog_exit(status);
 
