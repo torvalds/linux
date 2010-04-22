@@ -2054,7 +2054,7 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 	switch (prev_state) {
 	case QLCNIC_DEV_COLD:
 start_fw:
-		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_INITALIZING);
+		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_INITIALIZING);
 		qlcnic_api_unlock(adapter);
 		return 1;
 
@@ -2077,6 +2077,10 @@ start_fw:
 	case QLCNIC_DEV_FAILED:
 		qlcnic_api_unlock(adapter);
 		return -1;
+
+	case QLCNIC_DEV_INITIALIZING:
+	case QLCNIC_DEV_QUISCENT:
+		break;
 	}
 
 	qlcnic_api_unlock(adapter);
@@ -2208,7 +2212,8 @@ qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 
 	state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
 
-	if (state != QLCNIC_DEV_INITALIZING && state != QLCNIC_DEV_NEED_RESET) {
+	if (state != QLCNIC_DEV_INITIALIZING &&
+					state != QLCNIC_DEV_NEED_RESET) {
 		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_NEED_RESET);
 		set_bit(__QLCNIC_START_FW, &adapter->state);
 		QLCDB(adapter, DRV, "NEED_RESET state set\n");
