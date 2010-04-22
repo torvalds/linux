@@ -3152,6 +3152,10 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 {
 }
 
+static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
+{
+}
+
 static const struct trace_print_flags svm_exit_reasons_str[] = {
 	{ SVM_EXIT_READ_CR0,			"read_cr0" },
 	{ SVM_EXIT_READ_CR3,			"read_cr3" },
@@ -3297,6 +3301,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.cpuid_update = svm_cpuid_update,
 
 	.rdtscp_supported = svm_rdtscp_supported,
+
+	.set_supported_cpuid = svm_set_supported_cpuid,
 };
 
 static int __init svm_init(void)
