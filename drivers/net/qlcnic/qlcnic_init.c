@@ -1287,6 +1287,7 @@ qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 			rds_ring->dma_size, PCI_DMA_FROMDEVICE);
 
 	if (pci_dma_mapping_error(pdev, dma)) {
+		adapter->stats.rx_dma_map_error++;
 		dev_kfree_skb_any(skb);
 		buffer->skb = NULL;
 		return -ENOMEM;
@@ -1311,8 +1312,10 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 			PCI_DMA_FROMDEVICE);
 
 	skb = buffer->skb;
-	if (!skb)
+	if (!skb) {
+		adapter->stats.null_skb++;
 		goto no_skb;
+	}
 
 	if (likely(adapter->rx_csum && cksum == STATUS_CKSUM_OK)) {
 		adapter->stats.csummed++;
@@ -1502,6 +1505,8 @@ qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max)
 
 		if (rxbuf)
 			list_add_tail(&rxbuf->list, &sds_ring->free_list[ring]);
+		else
+			adapter->stats.null_rxbuf++;
 
 skip:
 		for (; desc_cnt > 0; desc_cnt--) {

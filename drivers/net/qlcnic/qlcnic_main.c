@@ -1589,8 +1589,10 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	pdev = adapter->pdev;
 
-	if (qlcnic_map_tx_skb(pdev, skb, pbuf))
+	if (qlcnic_map_tx_skb(pdev, skb, pbuf)) {
+		adapter->stats.tx_dma_map_error++;
 		goto drop_packet;
+	}
 
 	pbuf->skb = skb;
 	pbuf->frag_count = frag_count;

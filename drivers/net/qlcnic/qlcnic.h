@@ -428,6 +428,10 @@ struct qlcnic_adapter_stats {
 	u64  xmit_on;
 	u64  xmit_off;
 	u64  skb_alloc_failure;
+	u64  null_skb;
+	u64  null_rxbuf;
+	u64  rx_dma_map_error;
+	u64  tx_dma_map_error;
 };
 
 /*
