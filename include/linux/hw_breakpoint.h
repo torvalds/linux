@@ -34,6 +34,12 @@ static inline void hw_breakpoint_init(struct perf_event_attr *attr)
 	attr->sample_period = 1;
 }
 
+static inline void ptrace_breakpoint_init(struct perf_event_attr *attr)
+{
+	hw_breakpoint_init(attr);
+	attr->exclude_kernel = 1;
+}
+
 static inline unsigned long hw_breakpoint_addr(struct perf_event *bp)
 {
 	return bp->attr.bp_addr;

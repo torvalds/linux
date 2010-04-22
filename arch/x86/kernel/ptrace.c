@@ -688,7 +688,7 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 	struct perf_event_attr attr;
 
 	if (!t->ptrace_bps[nr]) {
-		hw_breakpoint_init(&attr);
+		ptrace_breakpoint_init(&attr);
 		/*
 		 * Put stub len and type to register (reserve) an inactive but
 		 * correct bp
