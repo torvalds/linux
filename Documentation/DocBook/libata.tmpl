@@ -490,7 +490,7 @@ void (*host_stop) (struct ata_host_set *host_set);
 	allocates space for a legacy IDE PRD table and returns.
 	</para>
 	<para>
-	->port_stop() is called after ->host_stop().  It's sole function
+	->port_stop() is called after ->host_stop().  Its sole function
 	is to release DMA/memory resources, now that they are no longer
 	actively being used.  Many drivers also free driver-private
 	data from port at this time.

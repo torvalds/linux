@@ -43,7 +43,7 @@
 	void bfin_gpio_irq_free(unsigned gpio);
 
     The request functions will record the function state for a certain pin,
-    the free functions will clear it's function state.
+    the free functions will clear its function state.
     Once a pin is requested, it can't be requested again before it is freed by
     previous caller, otherwise kernel will dump stacks, and the request
     function fail.

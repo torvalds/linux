@@ -707,7 +707,7 @@ Changes from 20040920 to 20041018
 	* Integrate patches from Christoph Hellwig: two new helpers common
 	  to lpfc_sli_resume_iocb and lpfc_sli_issue_iocb - singificant
 	  cleanup of those two functions - the unused SLI_IOCB_USE_TXQ is
-	  gone - lpfc_sli_issue_iocb_wait loses it's flags argument
+	  gone - lpfc_sli_issue_iocb_wait loses its flags argument
 	  totally.
 	* Fix in lpfc_sli.c: we can not store a 5 bit value in a 4-bit
 	  field.
@@ -1028,7 +1028,7 @@ Changes from 20040614 to 20040709
 	* Remove the need for buf_tmo.
 	* Changed ULP_BDE64 to struct ulp_bde64.
 	* Changed ULP_BDE to struct ulp_bde.
-	* Cleanup lpfc_os_return_scsi_cmd() and it's call path.
+	* Cleanup lpfc_os_return_scsi_cmd() and its call path.
 	* Removed lpfc_no_device_delay.
 	* Consolidating lpfc_hba_put_event() into lpfc_put_event().
 	* Removed following attributes and their functionality:

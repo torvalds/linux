@@ -100,7 +100,7 @@ by the kernel.
 The destruction of the socket and all associated resources
 is done by a simple call to close(fd).
 
-Next I will describe PACKET_MMAP settings and it's constraints,
+Next I will describe PACKET_MMAP settings and its constraints,
 also the mapping of the circular buffer in the user process and 
 the use of this buffer.
 
@@ -432,7 +432,7 @@ TP_STATUS_LOSING      : indicates there were packet drops from last time
                         the PACKET_STATISTICS option.
 
 TP_STATUS_CSUMNOTREADY: currently it's used for outgoing IP packets which 
-                        it's checksum will be done in hardware. So while 
+                        its checksum will be done in hardware. So while
                         reading the packet we should not try to check the 
                         checksum. 
 

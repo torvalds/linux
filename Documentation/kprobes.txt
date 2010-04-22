@@ -332,7 +332,7 @@ occurs during execution of kp->pre_handler or kp->post_handler,
 or during single-stepping of the probed instruction, Kprobes calls
 kp->fault_handler.  Any or all handlers can be NULL. If kp->flags
 is set KPROBE_FLAG_DISABLED, that kp will be registered but disabled,
-so, it's handlers aren't hit until calling enable_kprobe(kp).
+so, its handlers aren't hit until calling enable_kprobe(kp).
 
 NOTE:
 1. With the introduction of the "symbol_name" field to struct kprobe,

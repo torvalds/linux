@@ -90,7 +90,7 @@ Mount Options
 	Specify the IP and/or port the client should bind to locally.
 	There is normally not much reason to do this.  If the IP is not
 	specified, the client's IP address is determined by looking at the
-	address it's connection to the monitor originates from.
+	address its connection to the monitor originates from.
 
   wsize=X
 	Specify the maximum write size in bytes.  By default there is no

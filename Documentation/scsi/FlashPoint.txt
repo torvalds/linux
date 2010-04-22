@@ -71,7 +71,7 @@ peters@mylex.com
 
 Ever since its introduction last October, the BusLogic FlashPoint LT has
 been problematic for members of the Linux community, in that no Linux
-drivers have been available for this new Ultra SCSI product.  Despite it's
+drivers have been available for this new Ultra SCSI product.  Despite its
 officially being positioned as a desktop workstation product, and not being
 particularly well suited for a high performance multitasking operating
 system like Linux, the FlashPoint LT has been touted by computer system

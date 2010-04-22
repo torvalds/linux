@@ -657,7 +657,7 @@ here.
 
 The waiter structure has a "task" field that points to the task that is blocked
 on the mutex.  This field can be NULL the first time it goes through the loop
-or if the task is a pending owner and had it's mutex stolen.  If the "task"
+or if the task is a pending owner and had its mutex stolen.  If the "task"
 field is NULL then we need to set up the accounting for it.
 
 Task blocks on mutex
