@@ -46,6 +46,7 @@ static struct proc_dir_entry *binder_proc_dir_entry_proc;
 static struct binder_node *binder_context_mgr_node;
 static uid_t binder_context_mgr_uid = -1;
 static int binder_last_id;
+static struct workqueue_struct *binder_deferred_workqueue;
 
 static int binder_read_proc_proc(char *page, char **start, off_t off,
 				 int count, int *eof, void *data);
@@ -3099,7 +3100,7 @@ binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer)
 	if (hlist_unhashed(&proc->deferred_work_node)) {
 		hlist_add_head(&proc->deferred_work_node,
 				&binder_deferred_list);
-		schedule_work(&binder_deferred_work);
+		queue_work(binder_deferred_workqueue, &binder_deferred_work);
 	}
 	mutex_unlock(&binder_deferred_lock);
 }
@@ -3726,6 +3727,10 @@ static struct miscdevice binder_miscdev = {
 static int __init binder_init(void)
 {
 	int ret;
+
+	binder_deferred_workqueue = create_singlethread_workqueue("binder");
+	if (!binder_deferred_workqueue)
+		return -ENOMEM;
 
 	binder_proc_dir_entry_root = proc_mkdir("binder", NULL);
 	if (binder_proc_dir_entry_root)
