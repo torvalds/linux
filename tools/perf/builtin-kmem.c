@@ -335,8 +335,9 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 }
 
 static struct perf_event_ops event_ops = {
-	.sample	= process_sample_event,
-	.comm	= event__process_comm,
+	.sample			= process_sample_event,
+	.comm			= event__process_comm,
+	.ordered_samples	= true,
 };
 
 static double fragmentation(unsigned long n_req, unsigned long n_alloc)
@@ -730,7 +731,6 @@ static const char *record_args[] = {
 	"record",
 	"-a",
 	"-R",
-	"-M",
 	"-f",
 	"-c", "1",
 	"-e", "kmem:kmalloc",
