@@ -513,6 +513,16 @@ config SND_ES1968
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-es1968.
 
+config SND_ES1968_INPUT
+	bool "Enable input device for es1968 volume buttons"
+	depends on SND_ES1968
+	depends on INPUT=y || INPUT=SND_ES1968
+	help
+	  If you say Y here, you will get an input device which reports
+	  keypresses for the volume buttons connected to the es1968 chip.
+	  If you say N the buttons will directly control the master volume.
+	  It is recommended to say Y.
+
 config SND_FM801
 	tristate "ForteMedia FM801"
 	select SND_OPL3_LIB
