@@ -549,7 +549,7 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 			if (dev->dev_type == TM6010)
 				ctl.fname = "xc3028-v27.fw";
 			else
-				ctl.fname = "tm6000-xc3028.fw";
+				ctl.fname = "xc3028-v24.fw";
 		}
 
 		printk(KERN_INFO "Setting firmware parameters for xc2028\n");
