@@ -59,8 +59,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
 
-EXPORT_TRACEPOINT_SYMBOL(module_get);
-
 #if 0
 #define DEBUGP printk
 #else
@@ -515,6 +513,9 @@ MODINFO_ATTR(srcversion);
 static char last_unloaded_module[MODULE_NAME_LEN+1];
 
 #ifdef CONFIG_MODULE_UNLOAD
+
+EXPORT_TRACEPOINT_SYMBOL(module_get);
+
 /* Init the unload section of the module. */
 static void module_unload_init(struct module *mod)
 {
@@ -867,8 +868,7 @@ void module_put(struct module *module)
 		smp_wmb(); /* see comment in module_refcount */
 		__this_cpu_inc(module->refptr->decs);
 
-		trace_module_put(module, _RET_IP_,
-				 __this_cpu_read(module->refptr->decs));
+		trace_module_put(module, _RET_IP_);
 		/* Maybe they're waiting for us to drop reference? */
 		if (unlikely(!module_is_live(module)))
 			wake_up_process(module->waiter);

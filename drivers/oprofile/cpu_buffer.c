@@ -159,7 +159,7 @@ int op_cpu_buffer_write_commit(struct op_entry *entry)
 struct op_sample *op_cpu_buffer_read_entry(struct op_entry *entry, int cpu)
 {
 	struct ring_buffer_event *e;
-	e = ring_buffer_consume(op_ring_buffer, cpu, NULL);
+	e = ring_buffer_consume(op_ring_buffer, cpu, NULL, NULL);
 	if (!e)
 		return NULL;
 
