@@ -408,6 +408,19 @@ static int ocfs2_mknod(struct inode *dir,
 		}
 	}
 
+	/*
+	 * Do this before adding the entry to the directory. We add
+	 * also set d_op after success so that ->d_iput() will cleanup
+	 * the dentry lock even if ocfs2_add_entry() fails below.
+	 */
+	status = ocfs2_dentry_attach_lock(dentry, inode,
+					  OCFS2_I(dir)->ip_blkno);
+	if (status) {
+		mlog_errno(status);
+		goto leave;
+	}
+	dentry->d_op = &ocfs2_dentry_ops;
+
 	status = ocfs2_add_entry(handle, dentry, inode,
 				 OCFS2_I(inode)->ip_blkno, parent_fe_bh,
 				 &lookup);
@@ -416,15 +429,7 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	}
 
-	status = ocfs2_dentry_attach_lock(dentry, inode,
-					  OCFS2_I(dir)->ip_blkno);
-	if (status) {
-		mlog_errno(status);
-		goto leave;
-	}
-
 	insert_inode_hash(inode);
-	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
 	status = 0;
 leave:
@@ -1777,6 +1782,18 @@ static int ocfs2_symlink(struct inode *dir,
 		}
 	}
 
+	/*
+	 * Do this before adding the entry to the directory. We add
+	 * also set d_op after success so that ->d_iput() will cleanup
+	 * the dentry lock even if ocfs2_add_entry() fails below.
+	 */
+	status = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
+	if (status) {
+		mlog_errno(status);
+		goto bail;
+	}
+	dentry->d_op = &ocfs2_dentry_ops;
+
 	status = ocfs2_add_entry(handle, dentry, inode,
 				 le64_to_cpu(fe->i_blkno), parent_fe_bh,
 				 &lookup);
@@ -1785,14 +1802,7 @@ static int ocfs2_symlink(struct inode *dir,
 		goto bail;
 	}
 
-	status = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
-	if (status) {
-		mlog_errno(status);
-		goto bail;
-	}
-
 	insert_inode_hash(inode);
-	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
 bail:
 	if (status < 0 && did_quota)
