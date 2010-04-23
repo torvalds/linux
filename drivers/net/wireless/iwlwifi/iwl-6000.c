@@ -47,23 +47,29 @@
 #include "iwl-agn-hw.h"
 #include "iwl-6000-hw.h"
 #include "iwl-agn-led.h"
+#include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
 #define IWL6000_UCODE_API_MAX 4
 #define IWL6050_UCODE_API_MAX 4
+#define IWL6000G2_UCODE_API_MAX 4
 
 /* Lowest firmware API version supported */
 #define IWL6000_UCODE_API_MIN 4
 #define IWL6050_UCODE_API_MIN 4
+#define IWL6000G2_UCODE_API_MIN 4
 
 #define IWL6000_FW_PRE "iwlwifi-6000-"
-#define IWL6000_G2_FW_PRE "iwlwifi-6005-"
 #define _IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE #api ".ucode"
 #define IWL6000_MODULE_FIRMWARE(api) _IWL6000_MODULE_FIRMWARE(api)
 
 #define IWL6050_FW_PRE "iwlwifi-6050-"
 #define _IWL6050_MODULE_FIRMWARE(api) IWL6050_FW_PRE #api ".ucode"
 #define IWL6050_MODULE_FIRMWARE(api) _IWL6050_MODULE_FIRMWARE(api)
+
+#define IWL6000G2_FW_PRE "iwlwifi-6005-"
+#define _IWL6000G2_MODULE_FIRMWARE(api) IWL6000G2_FW_PRE #api ".ucode"
+#define IWL6000G2_MODULE_FIRMWARE(api) _IWL6000G2_MODULE_FIRMWARE(api)
 
 static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 {
@@ -261,7 +267,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 			EEPROM_REG_BAND_3_CHANNELS,
 			EEPROM_REG_BAND_4_CHANNELS,
 			EEPROM_REG_BAND_5_CHANNELS,
-			EEPROM_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
@@ -280,6 +285,11 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.set_ct_kill = iwl6000_set_ct_threshold,
 	 },
 	.add_bcast_station = iwl_add_bcast_station,
+	.debugfs_ops = {
+		.rx_stats_read = iwl_ucode_rx_stats_read,
+		.tx_stats_read = iwl_ucode_tx_stats_read,
+		.general_stats_read = iwl_ucode_general_stats_read,
+	},
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
@@ -348,6 +358,11 @@ static struct iwl_lib_ops iwl6050_lib = {
 		.set_calib_version = iwl6050_set_calib_version,
 	 },
 	.add_bcast_station = iwl_add_bcast_station,
+	.debugfs_ops = {
+		.rx_stats_read = iwl_ucode_rx_stats_read,
+		.tx_stats_read = iwl_ucode_tx_stats_read,
+		.general_stats_read = iwl_ucode_general_stats_read,
+	},
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
@@ -364,16 +379,16 @@ static const struct iwl_ops iwl6050_ops = {
 /*
  * "i": Internal configuration, use internal Power Amplifier
  */
-struct iwl_cfg iwl6000i_g2_2agn_cfg = {
+struct iwl_cfg iwl6000g2_2agn_cfg = {
 	.name = "6000 Series 2x2 AGN Gen2",
-	.fw_name_pre = IWL6000_G2_FW_PRE,
-	.ucode_api_max = IWL6000_UCODE_API_MAX,
-	.ucode_api_min = IWL6000_UCODE_API_MIN,
+	.fw_name_pre = IWL6000G2_FW_PRE,
+	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
+	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl6000_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
-	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.mod_params = &iwlagn_mod_params,
@@ -382,7 +397,7 @@ struct iwl_cfg iwl6000i_g2_2agn_cfg = {
 	.pll_cfg_val = 0,
 	.set_l0s = true,
 	.use_bsm = false,
-	.pa_type = IWL_PA_INTERNAL,
+	.pa_type = IWL_PA_SYSTEM,
 	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
 	.shadow_ram_support = true,
 	.ht_greenfield_support = true,
@@ -601,3 +616,4 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6050_MODULE_FIRMWARE(IWL6050_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL6000G2_MODULE_FIRMWARE(IWL6000G2_UCODE_API_MAX));

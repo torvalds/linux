@@ -171,4 +171,7 @@ static inline bool iwl_is_tx_success(u32 status)
 	       (status == TX_STATUS_DIRECT_DONE);
 }
 
+/* scan */
+void iwlagn_request_scan(struct iwl_priv *priv);
+
 #endif /* __iwl_agn_h__ */

@@ -180,8 +180,15 @@ void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
 {
 	if (status)
 		sc->debug.stats.istats.total++;
-	if (status & ATH9K_INT_RX)
-		sc->debug.stats.istats.rxok++;
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
+		if (status & ATH9K_INT_RXLP)
+			sc->debug.stats.istats.rxlp++;
+		if (status & ATH9K_INT_RXHP)
+			sc->debug.stats.istats.rxhp++;
+	} else {
+		if (status & ATH9K_INT_RX)
+			sc->debug.stats.istats.rxok++;
+	}
 	if (status & ATH9K_INT_RXEOL)
 		sc->debug.stats.istats.rxeol++;
 	if (status & ATH9K_INT_RXORN)
@@ -223,8 +230,15 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 	char buf[512];
 	unsigned int len = 0;
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "RX", sc->debug.stats.istats.rxok);
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
+		len += snprintf(buf + len, sizeof(buf) - len,
+			"%8s: %10u\n", "RXLP", sc->debug.stats.istats.rxlp);
+		len += snprintf(buf + len, sizeof(buf) - len,
+			"%8s: %10u\n", "RXHP", sc->debug.stats.istats.rxhp);
+	} else {
+		len += snprintf(buf + len, sizeof(buf) - len,
+			"%8s: %10u\n", "RX", sc->debug.stats.istats.rxok);
+	}
 	len += snprintf(buf + len, sizeof(buf) - len,
 		"%8s: %10u\n", "RXEOL", sc->debug.stats.istats.rxeol);
 	len += snprintf(buf + len, sizeof(buf) - len,

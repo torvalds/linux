@@ -830,6 +830,33 @@ static int mac80211_hwsim_conf_tx(
 	return 0;
 }
 
+static int mac80211_hwsim_get_survey(
+	struct ieee80211_hw *hw, int idx,
+	struct survey_info *survey)
+{
+	struct ieee80211_conf *conf = &hw->conf;
+
+	printk(KERN_DEBUG "%s:%s (idx=%d)\n",
+	       wiphy_name(hw->wiphy), __func__, idx);
+
+	if (idx != 0)
+		return -ENOENT;
+
+	/* Current channel */
+	survey->channel = conf->channel;
+
+	/*
+	 * Magically conjured noise level --- this is only ok for simulated hardware.
+	 *
+	 * A real driver which cannot determine the real channel noise MUST NOT
+	 * report any noise, especially not a magically conjured one :-)
+	 */
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = -92;
+
+	return 0;
+}
+
 #ifdef CONFIG_NL80211_TESTMODE
 /*
  * This section contains example code for using netlink
@@ -1013,6 +1040,7 @@ static struct ieee80211_ops mac80211_hwsim_ops =
 	.sta_notify = mac80211_hwsim_sta_notify,
 	.set_tim = mac80211_hwsim_set_tim,
 	.conf_tx = mac80211_hwsim_conf_tx,
+	.get_survey = mac80211_hwsim_get_survey,
 	CFG80211_TESTMODE_CMD(mac80211_hwsim_testmode_cmd)
 	.ampdu_action = mac80211_hwsim_ampdu_action,
 	.sw_scan_start = mac80211_hwsim_sw_scan,

@@ -90,6 +90,7 @@ struct iwl_hcmd_ops {
 	int (*commit_rxon)(struct iwl_priv *priv);
 	void (*set_rxon_chain)(struct iwl_priv *priv);
 	int (*set_tx_ant)(struct iwl_priv *priv, u8 valid_tx_ant);
+	void (*send_bt_config)(struct iwl_priv *priv);
 };
 
 struct iwl_hcmd_utils_ops {
@@ -105,6 +106,7 @@ struct iwl_hcmd_utils_ops {
 			__le32 *tx_flags);
 	int  (*calc_rssi)(struct iwl_priv *priv,
 			  struct iwl_rx_phy_res *rx_resp);
+	void (*request_scan)(struct iwl_priv *priv);
 };
 
 struct iwl_apm_ops {
@@ -112,6 +114,15 @@ struct iwl_apm_ops {
 	void (*stop)(struct iwl_priv *priv);
 	void (*config)(struct iwl_priv *priv);
 	int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
+};
+
+struct iwl_debugfs_ops {
+	ssize_t (*rx_stats_read)(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos);
+	ssize_t (*tx_stats_read)(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos);
+	ssize_t (*general_stats_read)(struct file *file, char __user *user_buf,
+				      size_t count, loff_t *ppos);
 };
 
 struct iwl_temp_ops {
@@ -199,6 +210,7 @@ struct iwl_lib_ops {
 	/* check for ack health */
 	bool (*check_ack_health)(struct iwl_priv *priv,
 					struct iwl_rx_packet *pkt);
+	struct iwl_debugfs_ops debugfs_ops;
 };
 
 struct iwl_led_ops {
@@ -306,8 +318,8 @@ struct iwl_cfg {
 	/* timer period for monitor the driver queues */
 	u32 monitor_recover_period;
 	bool temperature_kelvin;
-	bool off_channel_workaround;
 	u32 max_event_log_size;
+	u8 scan_antennas[IEEE80211_NUM_BANDS];
 };
 
 /***************************
@@ -339,7 +351,6 @@ void iwl_configure_filter(struct ieee80211_hw *hw,
 			  unsigned int changed_flags,
 			  unsigned int *total_flags, u64 multicast);
 int iwl_set_hw_params(struct iwl_priv *priv);
-bool iwl_is_monitor_mode(struct iwl_priv *priv);
 void iwl_post_associate(struct iwl_priv *priv);
 void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
@@ -526,6 +537,7 @@ void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
 #define IWL_ACTIVE_QUIET_TIME       cpu_to_le16(10)  /* msec */
 #define IWL_PLCP_QUIET_THRESH       cpu_to_le16(1)  /* packets */
 
+#define IWL_SCAN_CHECK_WATCHDOG		(HZ * 7)
 
 /*******************************************************************************
  * Calibrations - implemented in iwl-calib.c
@@ -665,7 +677,7 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 }
 
 extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);
-extern int iwl_send_bt_config(struct iwl_priv *priv);
+extern void iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv,
 				       u8 flags, bool clear);
 extern int iwl_verify_ucode(struct iwl_priv *priv);

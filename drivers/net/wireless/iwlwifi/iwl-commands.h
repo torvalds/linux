@@ -1443,7 +1443,7 @@ struct iwl4965_rx_mpdu_res_start {
 
 /* 1: Ignore Bluetooth priority for this frame.
  * 0: Delay Tx until Bluetooth device is done (normal usage). */
-#define TX_CMD_FLG_BT_DIS_MSK cpu_to_le32(1 << 12)
+#define TX_CMD_FLG_IGNORE_BT cpu_to_le32(1 << 12)
 
 /* 1: uCode overrides sequence control field in MAC header.
  * 0: Driver provides sequence control field in MAC header.

@@ -124,13 +124,13 @@ struct ath9k_htc_cap_target {
 struct ath9k_htc_target_vif {
 	u8 index;
 	u8 des_bssid[ETH_ALEN];
-	enum htc_opmode opmode;
+	__be32 opmode;
 	u8 myaddr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u32 flags;
 	u32 flags_ext;
 	u16 ps_sta;
-	u16 rtsthreshold;
+	__be16 rtsthreshold;
 	u8 ath_cap;
 	u8 node;
 	s8 mcast_rate;
@@ -151,7 +151,7 @@ struct ath9k_htc_target_sta {
 	u8 sta_index;
 	u8 vif_index;
 	u8 vif_sta;
-	u16 flags; /* ATH_HTC_STA_* */
+	__be16 flags; /* ATH_HTC_STA_* */
 	u16 htcap;
 	u8 valid;
 	u16 capinfo;
@@ -191,16 +191,16 @@ struct ath9k_htc_rate {
 struct ath9k_htc_target_rate {
 	u8 sta_index;
 	u8 isnew;
-	u32 capflags;
+	__be32 capflags;
 	struct ath9k_htc_rate rates;
 };
 
 struct ath9k_htc_target_stats {
-	u32 tx_shortretry;
-	u32 tx_longretry;
-	u32 tx_xretries;
-	u32 ht_txunaggr_xretry;
-	u32 ht_tx_xretries;
+	__be32 tx_shortretry;
+	__be32 tx_longretry;
+	__be32 tx_xretries;
+	__be32 ht_txunaggr_xretry;
+	__be32 ht_tx_xretries;
 } __packed;
 
 struct ath9k_htc_vif {
@@ -261,6 +261,7 @@ struct ath_tx_stats {
 	u32 buf_completed;
 	u32 skb_queued;
 	u32 skb_completed;
+	u32 skb_dropped;
 };
 
 struct ath_rx_stats {

@@ -125,7 +125,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	bool fastcc = true;
 	struct ieee80211_channel *channel = hw->conf.channel;
 	enum htc_phymode mode;
-	u16 htc_mode;
+	__be16 htc_mode;
 	u8 cmd_rsp;
 	int ret;
 
@@ -378,7 +378,7 @@ static int ath9k_htc_init_rate(struct ath9k_htc_priv *priv,
 	priv->tgt_rate.sta_index = ista->index;
 	priv->tgt_rate.isnew = 1;
 	trate = priv->tgt_rate;
-	priv->tgt_rate.capflags = caps;
+	priv->tgt_rate.capflags = cpu_to_be32(caps);
 	trate.capflags = cpu_to_be32(caps);
 
 	WMI_CMD_BUF(WMI_RC_RATE_UPDATE_CMDID, &trate);
@@ -426,6 +426,7 @@ static void ath9k_htc_rc_update(struct ath9k_htc_priv *priv, bool is_cw40)
 	struct ath9k_htc_target_rate trate;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	int ret;
+	u32 caps = be32_to_cpu(priv->tgt_rate.capflags);
 	u8 cmd_rsp;
 
 	memset(&trate, 0, sizeof(trate));
@@ -433,11 +434,12 @@ static void ath9k_htc_rc_update(struct ath9k_htc_priv *priv, bool is_cw40)
 	trate = priv->tgt_rate;
 
 	if (is_cw40)
-		priv->tgt_rate.capflags |= WLAN_RC_40_FLAG;
+		caps |= WLAN_RC_40_FLAG;
 	else
-		priv->tgt_rate.capflags &= ~WLAN_RC_40_FLAG;
+		caps &= ~WLAN_RC_40_FLAG;
 
-	trate.capflags = cpu_to_be32(priv->tgt_rate.capflags);
+	priv->tgt_rate.capflags = cpu_to_be32(caps);
+	trate.capflags = cpu_to_be32(caps);
 
 	WMI_CMD_BUF(WMI_RC_RATE_UPDATE_CMDID, &trate);
 	if (ret) {
@@ -609,6 +611,9 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "SKBs completed",
 			priv->debug.tx_stats.skb_completed);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "SKBs dropped",
+			priv->debug.tx_stats.skb_dropped);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -960,7 +965,6 @@ void ath9k_deinit_leds(struct ath9k_htc_priv *priv)
 	ath9k_unregister_led(&priv->tx_led);
 	ath9k_unregister_led(&priv->rx_led);
 	ath9k_unregister_led(&priv->radio_led);
-	ath9k_hw_set_gpio(priv->ah, priv->ah->led_pin, 1);
 }
 
 void ath9k_init_leds(struct ath9k_htc_priv *priv)
@@ -1102,7 +1106,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	struct ath9k_channel *init_channel;
 	int ret = 0;
 	enum htc_phymode mode;
-	u16 htc_mode;
+	__be16 htc_mode;
 	u8 cmd_rsp;
 
 	ath_print(common, ATH_DBG_CONFIG,
@@ -1687,7 +1691,7 @@ static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
 	spin_unlock_bh(&priv->beacon_lock);
 	priv->op_flags |= OP_FULL_RESET;
 	if (priv->op_flags & OP_ASSOCIATED)
-		ath9k_htc_beacon_config(priv, NULL);
+		ath9k_htc_beacon_config(priv, priv->vif);
 	ath_start_ani(priv);
 	mutex_unlock(&priv->mutex);
 	ath9k_htc_ps_restore(priv);

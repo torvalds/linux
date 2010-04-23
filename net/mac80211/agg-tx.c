@@ -186,7 +186,7 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 		spin_unlock_bh(&sta->lock);
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "timer expired on tid %d but we are not "
-				"(or no longer) expecting addBA response there",
+				"(or no longer) expecting addBA response there\n",
 			tid);
 #endif
 		return;

@@ -47,6 +47,7 @@
 #include "iwl-sta.h"
 #include "iwl-agn-led.h"
 #include "iwl-agn.h"
+#include "iwl-agn-debugfs.h"
 
 static int iwl4965_send_tx_power(struct iwl_priv *priv);
 static int iwl4965_hw_get_temperature(struct iwl_priv *priv);
@@ -2143,6 +2144,7 @@ static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.rxon_assoc = iwl4965_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
 	.set_rxon_chain = iwl_set_rxon_chain,
+	.send_bt_config = iwl_send_bt_config,
 };
 
 static struct iwl_ucode_ops iwl4965_ucode = {
@@ -2162,6 +2164,7 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.gain_computation = iwl4965_gain_computation,
 	.rts_tx_cmd_flag = iwlcore_rts_tx_cmd_flag,
 	.calc_rssi = iwl4965_calc_rssi,
+	.request_scan = iwlagn_request_scan,
 };
 
 static struct iwl_lib_ops iwl4965_lib = {
@@ -2216,6 +2219,11 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.set_ct_kill = iwl4965_set_ct_threshold,
 	},
 	.add_bcast_station = iwl_add_bcast_station,
+	.debugfs_ops = {
+		.rx_stats_read = iwl_ucode_rx_stats_read,
+		.tx_stats_read = iwl_ucode_tx_stats_read,
+		.general_stats_read = iwl_ucode_general_stats_read,
+	},
 	.check_plcp_health = iwl_good_plcp_health,
 };
 
@@ -2253,8 +2261,13 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.temperature_kelvin = true,
-	.off_channel_workaround = true,
 	.max_event_log_size = 512,
+
+	/*
+	 * Force use of chains B and C for scan RX on 5 GHz band
+	 * because the device has off-channel reception on chain A.
+	 */
+	.scan_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
 };
 
 /* Module firmware */

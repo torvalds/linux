@@ -374,6 +374,32 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 		err = hermes_read_wordrec(hw, USER_BAP,
 					  HERMES_RID_CNFPREAMBLE_SYMBOL,
 					  &priv->preamble);
+		if (err) {
+			dev_err(dev, "Failed to read preamble setup\n");
+			goto out;
+		}
+	}
+
+	/* Retry settings */
+	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_SHORTRETRYLIMIT,
+				  &priv->short_retry_limit);
+	if (err) {
+		dev_err(dev, "Failed to read short retry limit\n");
+		goto out;
+	}
+
+	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_LONGRETRYLIMIT,
+				  &priv->long_retry_limit);
+	if (err) {
+		dev_err(dev, "Failed to read long retry limit\n");
+		goto out;
+	}
+
+	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_MAXTRANSMITLIFETIME,
+				  &priv->retry_lifetime);
+	if (err) {
+		dev_err(dev, "Failed to read max retry lifetime\n");
+		goto out;
 	}
 
 out:

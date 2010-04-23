@@ -401,23 +401,41 @@ void ath9k_tasklet(unsigned long data)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	u32 status = sc->intrstatus;
+	u32 rxmask;
 
 	ath9k_ps_wakeup(sc);
 
-	if (status & ATH9K_INT_FATAL) {
+	if ((status & ATH9K_INT_FATAL) ||
+	    !ath9k_hw_check_alive(ah)) {
 		ath_reset(sc, false);
 		ath9k_ps_restore(sc);
 		return;
 	}
 
-	if (status & (ATH9K_INT_RX | ATH9K_INT_RXEOL | ATH9K_INT_RXORN)) {
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+		rxmask = (ATH9K_INT_RXHP | ATH9K_INT_RXLP | ATH9K_INT_RXEOL |
+			  ATH9K_INT_RXORN);
+	else
+		rxmask = (ATH9K_INT_RX | ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
+
+	if (status & rxmask) {
 		spin_lock_bh(&sc->rx.rxflushlock);
-		ath_rx_tasklet(sc, 0);
+
+		/* Check for high priority Rx first */
+		if ((ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) &&
+		    (status & ATH9K_INT_RXHP))
+			ath_rx_tasklet(sc, 0, true);
+
+		ath_rx_tasklet(sc, 0, false);
 		spin_unlock_bh(&sc->rx.rxflushlock);
 	}
 
-	if (status & ATH9K_INT_TX)
-		ath_tx_tasklet(sc);
+	if (status & ATH9K_INT_TX) {
+		if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+			ath_tx_edma_tasklet(sc);
+		else
+			ath_tx_tasklet(sc);
+	}
 
 	if ((status & ATH9K_INT_TSFOOR) && sc->ps_enabled) {
 		/*
@@ -445,6 +463,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 		ATH9K_INT_RXORN |		\
 		ATH9K_INT_RXEOL |		\
 		ATH9K_INT_RX |			\
+		ATH9K_INT_RXLP |		\
+		ATH9K_INT_RXHP |		\
 		ATH9K_INT_TX |			\
 		ATH9K_INT_BMISS |		\
 		ATH9K_INT_CST |			\
@@ -496,7 +516,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 	 * If a FATAL or RXORN interrupt is received, we have to reset the
 	 * chip immediately.
 	 */
-	if (status & (ATH9K_INT_FATAL | ATH9K_INT_RXORN))
+	if ((status & ATH9K_INT_FATAL) || ((status & ATH9K_INT_RXORN) &&
+	    !(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)))
 		goto chip_reset;
 
 	if (status & ATH9K_INT_SWBA)
@@ -504,6 +525,13 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 	if (status & ATH9K_INT_TXURN)
 		ath9k_hw_updatetxtriglevel(ah, true);
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
+		if (status & ATH9K_INT_RXEOL) {
+			ah->imask &= ~(ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
+			ath9k_hw_set_interrupts(ah, ah->imask);
+		}
+	}
 
 	if (status & ATH9K_INT_MIB) {
 		/*
@@ -724,6 +752,7 @@ static int ath_key_config(struct ath_common *common,
 	struct ath_hw *ah = common->ah;
 	struct ath9k_keyval hk;
 	const u8 *mac = NULL;
+	u8 gmac[ETH_ALEN];
 	int ret = 0;
 	int idx;
 
@@ -747,9 +776,30 @@ static int ath_key_config(struct ath_common *common,
 	memcpy(hk.kv_val, key->key, key->keylen);
 
 	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
-		/* For now, use the default keys for broadcast keys. This may
-		 * need to change with virtual interfaces. */
-		idx = key->keyidx;
+
+		if (key->ap_addr) {
+			/*
+			 * Group keys on hardware that supports multicast frame
+			 * key search use a mac that is the sender's address with
+			 * the high bit set instead of the app-specified address.
+			 */
+			memcpy(gmac, key->ap_addr, ETH_ALEN);
+			gmac[0] |= 0x80;
+			mac = gmac;
+
+			if (key->alg == ALG_TKIP)
+				idx = ath_reserve_key_cache_slot_tkip(common);
+			else
+				idx = ath_reserve_key_cache_slot(common);
+			if (idx < 0)
+				mac = NULL; /* no free key cache entries */
+		}
+
+		if (!mac) {
+			/* For now, use the default keys for broadcast keys. This may
+			 * need to change with virtual interfaces. */
+			idx = key->keyidx;
+		}
 	} else if (key->keyidx) {
 		if (WARN_ON(!sta))
 			return -EOPNOTSUPP;
@@ -1162,9 +1212,14 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	}
 
 	/* Setup our intr mask. */
-	ah->imask = ATH9K_INT_RX | ATH9K_INT_TX
-		| ATH9K_INT_RXEOL | ATH9K_INT_RXORN
-		| ATH9K_INT_FATAL | ATH9K_INT_GLOBAL;
+	ah->imask = ATH9K_INT_TX | ATH9K_INT_RXEOL |
+		    ATH9K_INT_RXORN | ATH9K_INT_FATAL |
+		    ATH9K_INT_GLOBAL;
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+		ah->imask |= ATH9K_INT_RXHP | ATH9K_INT_RXLP;
+	else
+		ah->imask |= ATH9K_INT_RX;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_GTT)
 		ah->imask |= ATH9K_INT_GTT;
@@ -1436,7 +1491,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	if ((vif->type == NL80211_IFTYPE_STATION) ||
 	    (vif->type == NL80211_IFTYPE_ADHOC) ||
 	    (vif->type == NL80211_IFTYPE_MESH_POINT)) {
-		ah->imask |= ATH9K_INT_MIB;
+		if (ah->config.enable_ani)
+			ah->imask |= ATH9K_INT_MIB;
 		ah->imask |= ATH9K_INT_TSFOOR;
 	}
 
