@@ -337,6 +337,13 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		retv = 0;
 		break;
 
+	case IPV6_RECVPATHMTU:
+		if (optlen < sizeof(int))
+			goto e_inval;
+		np->rxopt.bits.rxpmtu = valbool;
+		retv = 0;
+		break;
+
 	case IPV6_HOPOPTS:
 	case IPV6_RTHDRDSTOPTS:
 	case IPV6_RTHDR:
@@ -773,6 +780,9 @@ pref_skip_coa:
 		if (val < 0 || val > 255)
 			goto e_inval;
 		np->min_hopcount = val;
+		break;
+	case IPV6_DONTFRAG:
+		np->dontfrag = valbool;
 		retv = 0;
 		break;
 	}
@@ -1063,6 +1073,38 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		val = np->rxopt.bits.rxflow;
 		break;
 
+	case IPV6_RECVPATHMTU:
+		val = np->rxopt.bits.rxpmtu;
+		break;
+
+	case IPV6_PATHMTU:
+	{
+		struct dst_entry *dst;
+		struct ip6_mtuinfo mtuinfo;
+
+		if (len < sizeof(mtuinfo))
+			return -EINVAL;
+
+		len = sizeof(mtuinfo);
+		memset(&mtuinfo, 0, sizeof(mtuinfo));
+
+		rcu_read_lock();
+		dst = __sk_dst_get(sk);
+		if (dst)
+			mtuinfo.ip6m_mtu = dst_mtu(dst);
+		rcu_read_unlock();
+		if (!mtuinfo.ip6m_mtu)
+			return -ENOTCONN;
+
+		if (put_user(len, optlen))
+			return -EFAULT;
+		if (copy_to_user(optval, &mtuinfo, len))
+			return -EFAULT;
+
+		return 0;
+		break;
+	}
+
 	case IPV6_UNICAST_HOPS:
 	case IPV6_MULTICAST_HOPS:
 	{
@@ -1126,6 +1168,10 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_MINHOPCOUNT:
 		val = np->min_hopcount;
+		break;
+
+	case IPV6_DONTFRAG:
+		val = np->dontfrag;
 		break;
 
 	default:
