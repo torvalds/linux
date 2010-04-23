@@ -53,6 +53,8 @@
 #define MODE7_LTHR		10
 #define MODE7_UTHR		(DAC33_BUFFER_SIZE_SAMPLES - 10)
 
+#define BURST_BASEFREQ_HZ	49152000
+
 static struct snd_soc_codec *tlv320dac33_codec;
 
 enum dac33_state {
@@ -95,6 +97,7 @@ struct tlv320dac33_priv {
 	enum dac33_fifo_modes fifo_mode;/* FIFO mode selection */
 	unsigned int nsample;		/* burst read amount from host */
 	u8 burst_bclkdiv;		/* BCLK divider value in burst mode */
+	unsigned int burst_rate;	/* Interface speed in Burst modes */
 
 	int keep_bclk;			/* Keep the BCLK continuously running
 					 * in FIFO modes */
@@ -1246,6 +1249,8 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 
 	dac33->power_gpio = pdata->power_gpio;
 	dac33->burst_bclkdiv = pdata->burst_bclkdiv;
+	/* Pre calculate the burst rate */
+	dac33->burst_rate = BURST_BASEFREQ_HZ / dac33->burst_bclkdiv / 32;
 	dac33->keep_bclk = pdata->keep_bclk;
 	dac33->irq = client->irq;
 	dac33->nsample = NSAMPLE_MAX;
