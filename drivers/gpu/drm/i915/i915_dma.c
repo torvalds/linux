@@ -1357,11 +1357,10 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 
 	dev_priv->cfb_size = size;
 
+	intel_disable_fbc(dev);
 	if (IS_GM45(dev)) {
-		g4x_disable_fbc(dev);
 		I915_WRITE(DPFC_CB_BASE, compressed_fb->start);
 	} else {
-		i8xx_disable_fbc(dev);
 		I915_WRITE(FBC_CFB_BASE, cfb_base);
 		I915_WRITE(FBC_LL_BASE, ll_base);
 	}
