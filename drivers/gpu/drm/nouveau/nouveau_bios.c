@@ -5141,8 +5141,12 @@ read_dcb_i2c_entry(struct drm_device *dev, int dcb_version, uint8_t *i2ctable, i
 			rdofs = wrofs = 0;
 	}
 
-	if (dcb_i2c_ver >= 0x40 && port_type != 5 && port_type != 6)
-		NV_WARN(dev, "DCB I2C table has port type %d\n", port_type);
+	if (dcb_i2c_ver >= 0x40) {
+		if (port_type != 5 && port_type != 6)
+			NV_WARN(dev, "DCB I2C table has port type %d\n", port_type);
+
+		i2c->entry = ROM32(i2ctable[headerlen + recordoffset + entry_len * index]);
+	}
 
 	i2c->port_type = port_type;
 	i2c->read = i2ctable[headerlen + recordoffset + rdofs + entry_len * index];
