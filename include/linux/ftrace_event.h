@@ -148,7 +148,7 @@ struct ftrace_event_call {
 	struct ftrace_event_class *class;
 	char			*name;
 	struct dentry		*dir;
-	struct trace_event	*event;
+	struct trace_event	event;
 	int			enabled;
 	int			id;
 	const char		*print_fmt;

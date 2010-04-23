@@ -39,6 +39,14 @@ syscall_get_exit_fields(struct ftrace_event_call *call)
 	return &entry->exit_fields;
 }
 
+struct trace_event_functions enter_syscall_print_funcs = {
+	.trace                  = print_syscall_enter,
+};
+
+struct trace_event_functions exit_syscall_print_funcs = {
+	.trace                  = print_syscall_exit,
+};
+
 struct ftrace_event_class event_class_syscall_enter = {
 	.system			= "syscalls",
 	.reg			= syscall_enter_register,

@@ -204,7 +204,6 @@ struct trace_probe {
 	const char		*symbol;	/* symbol name */
 	struct ftrace_event_class	class;
 	struct ftrace_event_call	call;
-	struct trace_event		event;
 	unsigned int		nr_args;
 	struct probe_arg	args[];
 };
@@ -1020,7 +1019,7 @@ print_kprobe_event(struct trace_iterator *iter, int flags,
 	int i;
 
 	field = (struct kprobe_trace_entry *)iter->ent;
-	tp = container_of(event, struct trace_probe, event);
+	tp = container_of(event, struct trace_probe, call.event);
 
 	if (!trace_seq_printf(s, "%s: (", tp->call.name))
 		goto partial;
@@ -1054,7 +1053,7 @@ print_kretprobe_event(struct trace_iterator *iter, int flags,
 	int i;
 
 	field = (struct kretprobe_trace_entry *)iter->ent;
-	tp = container_of(event, struct trace_probe, event);
+	tp = container_of(event, struct trace_probe, call.event);
 
 	if (!trace_seq_printf(s, "%s: (", tp->call.name))
 		goto partial;
@@ -1364,20 +1363,19 @@ static int register_probe_event(struct trace_probe *tp)
 
 	/* Initialize ftrace_event_call */
 	if (probe_is_return(tp)) {
-		tp->event.funcs = &kretprobe_funcs;
 		INIT_LIST_HEAD(&call->class->fields);
+		call->event.funcs = &kretprobe_funcs;
 		call->class->raw_init = probe_event_raw_init;
 		call->class->define_fields = kretprobe_event_define_fields;
 	} else {
 		INIT_LIST_HEAD(&call->class->fields);
-		tp->event.funcs = &kprobe_funcs;
+		call->event.funcs = &kprobe_funcs;
 		call->class->raw_init = probe_event_raw_init;
 		call->class->define_fields = kprobe_event_define_fields;
 	}
 	if (set_print_fmt(tp) < 0)
 		return -ENOMEM;
-	call->event = &tp->event;
-	call->id = register_ftrace_event(&tp->event);
+	call->id = register_ftrace_event(&call->event);
 	if (!call->id) {
 		kfree(call->print_fmt);
 		return -ENODEV;
@@ -1389,7 +1387,7 @@ static int register_probe_event(struct trace_probe *tp)
 	if (ret) {
 		pr_info("Failed to register kprobe event: %s\n", call->name);
 		kfree(call->print_fmt);
-		unregister_ftrace_event(&tp->event);
+		unregister_ftrace_event(&call->event);
 	}
 	return ret;
 }

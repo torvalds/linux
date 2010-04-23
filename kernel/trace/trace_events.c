@@ -122,7 +122,7 @@ int trace_event_raw_init(struct ftrace_event_call *call)
 {
 	int id;
 
-	id = register_ftrace_event(call->event);
+	id = register_ftrace_event(&call->event);
 	if (!id)
 		return -ENODEV;
 	call->id = id;
@@ -1073,8 +1073,8 @@ static void remove_subsystem_dir(const char *name)
 static void __trace_remove_event_call(struct ftrace_event_call *call)
 {
 	ftrace_event_enable_disable(call, 0);
-	if (call->event)
-		__unregister_ftrace_event(call->event);
+	if (call->event.funcs)
+		__unregister_ftrace_event(&call->event);
 	debugfs_remove_recursive(call->dir);
 	list_del(&call->list);
 	trace_destroy_fields(call);

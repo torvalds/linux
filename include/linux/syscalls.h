@@ -120,24 +120,20 @@ struct perf_event_attr;
 
 extern struct ftrace_event_class event_class_syscall_enter;
 extern struct ftrace_event_class event_class_syscall_exit;
+extern struct trace_event_functions enter_syscall_print_funcs;
+extern struct trace_event_functions exit_syscall_print_funcs;
 
 #define SYSCALL_TRACE_ENTER_EVENT(sname)				\
 	static struct syscall_metadata __syscall_meta_##sname;		\
 	static struct ftrace_event_call					\
 	__attribute__((__aligned__(4))) event_enter_##sname;		\
-	static struct trace_event_functions enter_syscall_print_funcs_##sname = { \
-		.trace                  = print_syscall_enter,		\
-	};								\
-	static struct trace_event enter_syscall_print_##sname = {	\
-		.funcs                  = &enter_syscall_print_funcs_##sname, \
-	};								\
 	static struct ftrace_event_call __used				\
 	  __attribute__((__aligned__(4)))				\
 	  __attribute__((section("_ftrace_events")))			\
 	  event_enter_##sname = {					\
 		.name                   = "sys_enter"#sname,		\
 		.class			= &event_class_syscall_enter,	\
-		.event                  = &enter_syscall_print_##sname,	\
+		.event.funcs            = &enter_syscall_print_funcs,	\
 		.data			= (void *)&__syscall_meta_##sname,\
 	}
 
@@ -145,19 +141,13 @@ extern struct ftrace_event_class event_class_syscall_exit;
 	static struct syscall_metadata __syscall_meta_##sname;		\
 	static struct ftrace_event_call					\
 	__attribute__((__aligned__(4))) event_exit_##sname;		\
-	static struct trace_event_functions exit_syscall_print_funcs_##sname = { \
-		.trace                  = print_syscall_exit,		\
-	};								\
-	static struct trace_event exit_syscall_print_##sname = {	\
-		.funcs                  = &exit_syscall_print_funcs_##sname, \
-	};								\
 	static struct ftrace_event_call __used				\
 	  __attribute__((__aligned__(4)))				\
 	  __attribute__((section("_ftrace_events")))			\
 	  event_exit_##sname = {					\
 		.name                   = "sys_exit"#sname,		\
 		.class			= &event_class_syscall_exit,	\
-		.event                  = &exit_syscall_print_##sname,	\
+		.event.funcs		= &exit_syscall_print_funcs,	\
 		.data			= (void *)&__syscall_meta_##sname,\
 	}
 
