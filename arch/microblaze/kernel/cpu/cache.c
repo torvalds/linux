@@ -393,7 +393,7 @@ static void __invalidate_dcache_range_wb(unsigned long start,
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_2(start, end, cpuinfo.dcache_line_length, wdc.clear);
 #else
-	for (i = start; i < end; i += cpuinfo.icache_line_length)
+	for (i = start; i < end; i += cpuinfo.dcache_line_length)
 		__asm__ __volatile__ ("wdc.clear	%0, r0;"	\
 				: : "r" (i));
 #endif
@@ -413,7 +413,7 @@ static void __invalidate_dcache_range_nomsr_wt(unsigned long start,
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_1(start, end, cpuinfo.dcache_line_length, wdc);
 #else
-	for (i = start; i < end; i += cpuinfo.icache_line_length)
+	for (i = start; i < end; i += cpuinfo.dcache_line_length)
 		__asm__ __volatile__ ("wdc	%0, r0;"	\
 				: : "r" (i));
 #endif
@@ -437,7 +437,7 @@ static void __invalidate_dcache_range_msr_irq_wt(unsigned long start,
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_1(start, end, cpuinfo.dcache_line_length, wdc);
 #else
-	for (i = start; i < end; i += cpuinfo.icache_line_length)
+	for (i = start; i < end; i += cpuinfo.dcache_line_length)
 		__asm__ __volatile__ ("wdc	%0, r0;"	\
 				: : "r" (i));
 #endif
@@ -465,7 +465,7 @@ static void __invalidate_dcache_range_nomsr_irq(unsigned long start,
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_1(start, end, cpuinfo.dcache_line_length, wdc);
 #else
-	for (i = start; i < end; i += cpuinfo.icache_line_length)
+	for (i = start; i < end; i += cpuinfo.dcache_line_length)
 		__asm__ __volatile__ ("wdc	%0, r0;"	\
 				: : "r" (i));
 #endif
@@ -504,7 +504,7 @@ static void __flush_dcache_range_wb(unsigned long start, unsigned long end)
 #ifdef ASM_LOOP
 	CACHE_RANGE_LOOP_2(start, end, cpuinfo.dcache_line_length, wdc.flush);
 #else
-	for (i = start; i < end; i += cpuinfo.icache_line_length)
+	for (i = start; i < end; i += cpuinfo.dcache_line_length)
 		__asm__ __volatile__ ("wdc.flush	%0, r0;"	\
 				: : "r" (i));
 #endif
