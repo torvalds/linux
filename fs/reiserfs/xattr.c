@@ -973,21 +973,13 @@ int reiserfs_permission(struct inode *inode, int mask)
 	return generic_permission(inode, mask, NULL);
 }
 
-/* This will catch lookups from the fs root to .reiserfs_priv */
-static int
-xattr_lookup_poison(struct dentry *dentry, struct qstr *q1, struct qstr *name)
+static int xattr_hide_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct dentry *priv_root = REISERFS_SB(dentry->d_sb)->priv_root;
-	if (container_of(q1, struct dentry, d_name) == priv_root)
-		return -ENOENT;
-	if (q1->len == name->len &&
-		   !memcmp(q1->name, name->name, name->len))
-		return 0;
-	return 1;
+	return -EPERM;
 }
 
 static const struct dentry_operations xattr_lookup_poison_ops = {
-	.d_compare = xattr_lookup_poison,
+	.d_revalidate = xattr_hide_revalidate,
 };
 
 int reiserfs_lookup_privroot(struct super_block *s)
@@ -1001,8 +993,7 @@ int reiserfs_lookup_privroot(struct super_block *s)
 				strlen(PRIVROOT_NAME));
 	if (!IS_ERR(dentry)) {
 		REISERFS_SB(s)->priv_root = dentry;
-		if (!reiserfs_expose_privroot(s))
-			s->s_root->d_op = &xattr_lookup_poison_ops;
+		dentry->d_op = &xattr_lookup_poison_ops;
 		if (dentry->d_inode)
 			dentry->d_inode->i_flags |= S_PRIVATE;
 	} else
