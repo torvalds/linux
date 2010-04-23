@@ -406,16 +406,23 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
  
 int blkdev_fsync(struct file *filp, struct dentry *dentry, int datasync)
 {
-	struct block_device *bdev = I_BDEV(filp->f_mapping->host);
+	struct inode *bd_inode = filp->f_mapping->host;
+	struct block_device *bdev = I_BDEV(bd_inode);
 	int error;
 
-	error = sync_blockdev(bdev);
-	if (error)
-		return error;
-	
+	/*
+	 * There is no need to serialise calls to blkdev_issue_flush with
+	 * i_mutex and doing so causes performance issues with concurrent
+	 * O_SYNC writers to a block device.
+	 */
+	mutex_unlock(&bd_inode->i_mutex);
+
 	error = blkdev_issue_flush(bdev, NULL);
 	if (error == -EOPNOTSUPP)
 		error = 0;
+
+	mutex_lock(&bd_inode->i_mutex);
+
 	return error;
 }
 EXPORT_SYMBOL(blkdev_fsync);
