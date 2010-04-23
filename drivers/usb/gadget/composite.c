@@ -898,6 +898,18 @@ static void composite_disconnect(struct usb_gadget *gadget)
 
 /*-------------------------------------------------------------------------*/
 
+static ssize_t composite_show_suspended(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct usb_gadget *gadget = dev_to_usb_gadget(dev);
+	struct usb_composite_dev *cdev = get_gadget_data(gadget);
+
+	return sprintf(buf, "%d\n", cdev->suspended);
+}
+
+static DEVICE_ATTR(suspended, 0444, composite_show_suspended, NULL);
+
 static void /* __init_or_exit */
 composite_unbind(struct usb_gadget *gadget)
 {
@@ -944,6 +956,7 @@ composite_unbind(struct usb_gadget *gadget)
 	}
 	kfree(cdev);
 	set_gadget_data(gadget, NULL);
+	device_remove_file(&gadget->dev, &dev_attr_suspended);
 	composite = NULL;
 }
 
@@ -1036,6 +1049,10 @@ static int __init composite_bind(struct usb_gadget *gadget)
 		string_override(composite->strings,
 			cdev->desc.iSerialNumber, iSerialNumber);
 
+	status = device_create_file(&gadget->dev, &dev_attr_suspended);
+	if (status)
+		goto fail;
+
 	INFO(cdev, "%s ready\n", composite->name);
 	return 0;
 
@@ -1064,6 +1081,8 @@ composite_suspend(struct usb_gadget *gadget)
 	}
 	if (composite->suspend)
 		composite->suspend(cdev);
+
+	cdev->suspended = 1;
 }
 
 static void
@@ -1084,6 +1103,8 @@ composite_resume(struct usb_gadget *gadget)
 				f->resume(f);
 		}
 	}
+
+	cdev->suspended = 0;
 }
 
 /*-------------------------------------------------------------------------*/

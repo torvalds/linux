@@ -1,0 +1,9 @@
+What:		/sys/devices/platform/_UDC_/gadget/suspended
+Date:		April 2010
+Contact:	Fabien Chouteau <fabien.chouteau@barco.com>
+Description:
+		Show the suspend state of an USB composite gadget.
+		1 -> suspended
+		0 -> resumed
+
+		(_UDC_ is the name of the USB Device Controller driver)
