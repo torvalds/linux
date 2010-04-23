@@ -557,9 +557,13 @@ static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 	switch (dac33->fifo_mode) {
 	case DAC33_FIFO_MODE1:
 		dac33_write16(codec, DAC33_NSAMPLE_MSB,
-				DAC33_THRREG(dac33->nsample));
+			DAC33_THRREG(dac33->nsample + dac33->alarm_threshold));
 		dac33_write16(codec, DAC33_PREFILL_MSB,
 				DAC33_THRREG(dac33->alarm_threshold));
+		/* Enable Alarm Threshold IRQ with a delay */
+		udelay(SAMPLES_TO_US(dac33->burst_rate,
+				     dac33->alarm_threshold));
+		dac33_write(codec, DAC33_FIFO_IRQ_MASK, DAC33_MAT);
 		break;
 	case DAC33_FIFO_MODE7:
 		dac33_write16(codec, DAC33_PREFILL_MSB,
@@ -782,7 +786,6 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 	case DAC33_FIFO_MODE1:
 		dac33_write(codec, DAC33_FIFO_IRQ_MODE_B,
 			    DAC33_ATM(DAC33_FIFO_IRQ_MODE_LEVEL));
-		dac33_write(codec, DAC33_FIFO_IRQ_MASK, DAC33_MAT);
 		break;
 	case DAC33_FIFO_MODE7:
 		/* Disable all interrupts */
