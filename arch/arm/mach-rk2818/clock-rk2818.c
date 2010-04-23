@@ -99,7 +99,7 @@ struct clk rk2818_clocks[] = {
 	CLOCK("tsif_ref_clk",	TSIF_REF_CLK,	NULL, 0),
 	CLOCK("tv_dac_clk",	TV_DAC_CLK,	NULL, 0),
 	CLOCK("tv_enc_clk",	TV_ENC_CLK,	NULL, 0),
-	///CLOCK("uart_clk",	UART1_CLK,	&rk2818_device_uart1.dev, OFF),
+	CLOCK("uart_clk",	UART1_CLK,	&rk2818_device_uart1.dev, OFF),
 	CLOCK("uart1dm_clk",	UART1DM_CLK,	NULL, OFF),
 	CLOCK("uart2dm_clk",	UART2DM_CLK,	NULL, 0),
 	CLOCK("usb_otg_clk",	USB_OTG_CLK,	NULL, 0),

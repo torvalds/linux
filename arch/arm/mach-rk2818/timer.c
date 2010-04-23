@@ -68,7 +68,7 @@ static irqreturn_t rk2818_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static cycle_t rk2818_timer_read(void)
+static cycle_t rk2818_timer_read(struct clocksource *cs)
 {
 
 	unsigned int elapsed;
@@ -117,7 +117,7 @@ static void rk2818_timer_set_mode(enum clock_event_mode mode,
 	}
 }
 
-static struct rk2818_clock rk2818_clocks[] = {
+static struct rk2818_clock rk2818_system_clocks[] = {
 	{
 		.clockevent = {
 			.name           = "timer",
@@ -139,26 +139,25 @@ static struct rk2818_clock rk2818_clocks[] = {
 			.name    = "timer",
 			.flags   = IRQF_DISABLED | IRQF_TIMER | IRQF_TRIGGER_RISING,
 			.handler = rk2818_timer_interrupt,
-			.dev_id  = &rk2818_clocks[0].clockevent,
+			.dev_id  = &rk2818_system_clocks[0].clockevent,
 			.irq     = IRQ_NR_TIMER3 
 		},
 		.regbase = RK2818_TIMER3_BASE,
 		.freq = TIMER_HZ
-	}
+	},
 };
 
 static void __init rk2818_timer_init(void)
 {
 	int i;
 	int res;
-	printk("%s [%d]\n",__FUNCTION__,__LINE__);
-	//rk2818_clock_init();
-	for (i = 0; i < ARRAY_SIZE(rk2818_clocks); i++) {
-		printk("%s::Enter %d\n",__FUNCTION__,i+1);
-		struct rk2818_clock *clock = &rk2818_clocks[i];
+		
+	for (i = 0; i < ARRAY_SIZE(rk2818_system_clocks); i++) {
+		struct rk2818_clock *clock = &rk2818_system_clocks[i];
 		struct clock_event_device *ce = &clock->clockevent;
 		struct clocksource *cs = &clock->clocksource;
-				
+		
+		printk("%s::Enter %d\n",__FUNCTION__,i+1);		
 		writel((TIMER_HZ+ HZ/2) / HZ,clock->regbase+TIMER_LOAD_COUNT);
 
 		writel(0x04, clock->regbase + TIMER_CONTROL_REG);

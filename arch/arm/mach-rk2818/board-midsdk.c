@@ -38,37 +38,58 @@
 static struct map_desc rk2818_io_desc[] __initdata = {
 
 	{
-		.virtual	= RK2818_AHB_BASE,					//虚拟地址
-		.pfn		= __phys_to_pfn(RK2818_AHB_PHYS),    //物理地址，须与页表对齐
-		.length 	= RK2818_AHB_SIZE,							//长度
+		.virtual	= RK2818_MCDMA_BASE,					//虚拟地址
+		.pfn		= __phys_to_pfn(RK2818_MCDMA_PHYS),    //物理地址，须与页表对齐
+		.length 	= RK2818_MCDMA_SIZE,							//长度
 		.type		= MT_DEVICE							//映射方式
 	},
 	
 	{
-			.virtual	= RK2818_APB_BASE,
-			.pfn		= __phys_to_pfn(RK2818_APB_PHYS),
-			.length 	= RK2818_APB_SIZE,
-			.type		= MT_DEVICE
-	},
-
-                {
-			.virtual	= RK2818_DSP_BASE,
-			.pfn		= __phys_to_pfn(RK2818_DSP_PHYS),
-			.length 	= RK2818_DSP_SIZE,
-			.type		= MT_DEVICE
+		.virtual	= RK2818_DWDMA_BASE,					
+		.pfn		= __phys_to_pfn(RK2818_DWDMA_PHYS),    
+		.length 	= RK2818_DWDMA_SIZE,						
+		.type		= MT_DEVICE							
 	},
 	
-                {
-			.virtual	= 0xff400000,           /* for itcm , vir = phy , for reboot */
-			.pfn		= __phys_to_pfn(0xff400000),
-			.length 	= SZ_16K,
-			.type		= MT_DEVICE
+	{
+		.virtual	= RK2818_INTC_BASE,					
+		.pfn		= __phys_to_pfn(RK2818_INTC_PHYS),   
+		.length 	= RK2818_INTC_SIZE,					
+		.type		= MT_DEVICE						
+	},
+	
+	{
+		.virtual	= RK2818_ARMDARBITER_BASE,					
+		.pfn		= __phys_to_pfn(RK2818_ARMDARBITER_PHYS),    
+		.length 	= RK2818_ARMDARBITER_SIZE,						
+		.type		= MT_DEVICE							
+	},
+	
+	{
+		.virtual	= RK2818_APB_BASE,
+		.pfn		= __phys_to_pfn(RK2818_APB_PHYS),
+		.length 	= 0xa0000,                     
+		.type		= MT_DEVICE
+	},
+	
+	{
+		.virtual	= RK2818_WDT_BASE,
+		.pfn		= __phys_to_pfn(RK2818_WDT_PHYS),
+		.length 	= 0xa0000,                      ///apb bus i2s i2c spi no map in this
+		.type		= MT_DEVICE
+	},
+	
+    {
+		.virtual	= 0xff400000,           /* for itcm , vir = phy , for reboot */
+		.pfn		= __phys_to_pfn(0xff400000),
+		.length 	= SZ_16K,
+		.type		= MT_DEVICE
 	}
 		
 };
 
 static struct platform_device *devices[] __initdata = {
-	//&rk2818_add_device_serial,
+	&rk2818_device_uart1,
 };
 
 extern struct sys_timer rk2818_timer;
@@ -80,6 +101,7 @@ static void __init machine_rk2818_init_irq(void)
 
 static void __init machine_rk2818_board_init(void)
 {
+	printk("%s [%d]\n",__FUNCTION__,__LINE__);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
@@ -87,10 +109,8 @@ static void __init machine_rk2818_mapio(void)
 {
 	iotable_init(rk2818_io_desc, ARRAY_SIZE(rk2818_io_desc));
 	rk2818_clock_init();
-	//rk2818_iomux_init();
-	
-/* Setup the serial ports and console*/ 
-  //	rk2818_init_serial(&rk2818_uart_config);
+	printk("%s [%d]\n",__FUNCTION__,__LINE__);
+	//rk2818_iomux_init();	
 }
 
 MACHINE_START(RK2818, "rk2818midsdk")

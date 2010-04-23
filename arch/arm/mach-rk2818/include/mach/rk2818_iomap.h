@@ -43,7 +43,6 @@
 #define RK2818_SDRAM_SIZE 		(0x00100000*64)	
 #endif
  
-#define RK2818_AHB_BASE          	    0xFF000000 
 #define RK2818_AHB_PHYS			        0x10000000			//AHB 总线设备基物理地址
 #define RK2818_AHB_SIZE				    0x00100000			// size:1M
 
@@ -51,15 +50,12 @@
 #define RK2818_APB_PHYS			        0x18000000			// APB总线设备基物理地址
 #define RK2818_APB_SIZE				    0x00100000			// size:1M
 
-#define RK2818_BOOTROM_BASE          	0xFF000000
 #define RK2818_BOOTROM_PHYS          	0x10000000
 #define RK2818_BOOTROM_SIZE          	SZ_8K
 
-#define RK2818_SRAM_BASE	       	    0xFF002000
 #define RK2818_SRAM_PHYS   	         	0x10002000
 #define RK2818_SRAM_SIZE             	SZ_8K
 
-#define RK2818_USBOTG_BASE           	0xFF040000
 #define RK2818_USBOTG_PHYS           	0x10040000
 #define RK2818_USBOTG_SIZE           	SZ_256K
 
@@ -67,7 +63,6 @@
 #define RK2818_MCDMA_PHYS            	0x10080000
 #define RK2818_MCDMA_SIZE            	SZ_8K
 
-#define RK2818_SHAREMEM_BASE        	0xFF090000
 #define RK2818_SHAREMEM_PHYS        	0x10090000
 #define RK2818_SHAREMEM_SIZE        	SZ_64K
 
@@ -75,19 +70,15 @@
 #define RK2818_DWDMA_PHYS            	0x100A0000
 #define RK2818_DWDMA_SIZE            	SZ_8K
 
-#define RK2818_HOSTIF_BASE           	0xFF0A2000
 #define RK2818_HOSTIF_PHYS           	0x100A2000
 #define RK2818_HOSTIF_SIZE           	SZ_8K
 
-#define RK2818_LCDC_BASE             	0xFF0A4000
 #define RK2818_LCDC_PHYS             	0x100A4000
 #define RK2818_LCDC_SIZE             	SZ_8K
 
-#define RK2818_VIP_BASE              	0xFF0A6000
 #define RK2818_VIP_PHYS              	0x100A6000
 #define RK2818_VIP_SIZE          	    SZ_8K
 
-#define RK2818_SDMMC1_BASE          	0xFF0A8000
 #define RK2818_SDMMC1_PHYS          	0x100A8000
 #define RK2818_SDMMC1_SIZE          	SZ_8K
 
@@ -95,15 +86,12 @@
 #define RK2818_INTC_PHYS          	    0x100AA000
 #define RK2818_INTC_SIZE          	    SZ_8K
 
-#define RK2818_SDMMC0_BASE          	0xFF0AC000
 #define RK2818_SDMMC0_PHYS          	0x100AC000
 #define RK2818_SDMMC0_SIZE          	SZ_8K
 
-#define RK2818_NANDC_BASE          	    0xFF0AE000
 #define RK2818_NANDC_PHYS          	    0x100AE000
 #define RK2818_NANDC_SIZE          	    SZ_16K
 
-#define RK2818_SDRAMC_BASE          	0xFF0B0000
 #define RK2818_SDRAMC_PHYS          	0x100B0000
 #define RK2818_SDRAMC_SIZE          	SZ_8K
 
@@ -111,15 +99,12 @@
 #define RK2818_ARMDARBITER_PHYS         0x100B4000
 #define RK2818_ARMDARBITER_SIZE         SZ_8K
 
-#define RK2818_VIDEOCOP_BASE            0xFF0B8000
 #define RK2818_VIDEOCOP_PHYS            0x100B8000
 #define RK2818_VIDEOCOP_SIZE            SZ_8K
 
-#define RK2818_ESRAM_BASE               0xFF0BA000
 #define RK2818_ESRAM_PHYS               0x100BA000
 #define RK2818_ESRAM_SIZE               SZ_8K
 
-#define RK2818_USBHOST_BASE             0xFF10000
 #define RK2818_USBHOST_PHYS             0x1010000
 #define RK2818_USBHOST_SIZE             SZ_256K
 
@@ -155,19 +140,15 @@
 #define RK2818_GPIO1_PHYS          	0x18009000
 #define RK2818_GPIO1_SIZE          	SZ_8K
 
-#define RK2818_I2S_BASE          	0xFF10A000
 #define RK2818_I2S_PHYS          	0x1800A000
 #define RK2818_I2S_SIZE          	SZ_8K
 
-#define RK2818_I2C0_BASE          	0xFF10C000
 #define RK2818_I2C0_PHYS          	0x1800C000
 #define RK2818_I2C0_SIZE          	SZ_4K
 
-#define RK2818_I2C1_BASE          	0xFF10D000
 #define RK2818_I2C1_PHYS          	0x1800D000
 #define RK2818_I2C1_SIZE          	SZ_4K
 
-#define RK2818_SPIMASTER_BASE         0xFF10E000
 #define RK2818_SPIMASTER_PHYS         0x1800E000
 #define RK2818_SPIMASTER_SIZE         SZ_4K
 
@@ -199,7 +180,6 @@
 #define RK2818_REGFILE_PHYS           0x18019000
 #define RK2818_REGFILE_SIZE           SZ_4K
 
-#define RK2818_DSP_BASE               0xE0000000
 #define RK2818_DSP_PHYS               0x80000000
 #define RK2818_DSP_SIZE               0x00600000
 

@@ -179,6 +179,8 @@
 /* BCM63xx family SoCs */
 #define PORT_BCM63XX	89
 
+#define PORT_RK2818	90
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

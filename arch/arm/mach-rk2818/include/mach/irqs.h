@@ -86,14 +86,14 @@
 #define IRQ_NR_SWI                   37// -- Software Interrupt
 #define IRQ_NR_DSPMEI                38// -- DSP master interface error interrupt
 #define IRQ_NR_DSPSAEI               39// -- DSP system access error interrupt
-#define IRQ_GPU_M55_INT              40
-#define IRQ_GPU_MMU_INT              41
-#define IRQ_DDRII_MOBILE_CTR_INIT    42
-#define IRQ_MC_DMA_INT               43
-#define IRQ_NAND_FLASH_RDY_INT       44
-#define IRQ_APB_UART2                45
-#define IRQ_APB_UART3                46
-#define IRQ_USB_HOST                 47
+#define IRQ_NR_GPU_M55               40
+#define IRQ_NR_GPU_MMU               41
+#define IRQ_NR_DDRII_MOBILE_CTR      42
+#define IRQ_NR_MC_DMA                43
+#define IRQ_NR_NAND_FLASH_RDY        44
+#define IRQ_NR_UART2                 45
+#define IRQ_NR_UART3                 46
+#define IRQ_NR_USB_HOST              47
 
 
 #endif
