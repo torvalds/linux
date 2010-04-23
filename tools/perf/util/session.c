@@ -98,6 +98,8 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->cwdlen = 0;
 	self->unknown_events = 0;
 	self->kerninfo_root = RB_ROOT;
+	self->ordered_samples.flush_limit = ULLONG_MAX;
+	INIT_LIST_HEAD(&self->ordered_samples.samples_head);
 
 	if (mode == O_RDONLY) {
 		if (perf_session__open(self, force) < 0)
@@ -351,6 +353,178 @@ static event__swap_op event__swap_ops[] = {
 	[PERF_RECORD_HEADER_MAX]    = NULL,
 };
 
+struct sample_queue {
+	u64			timestamp;
+	struct sample_event	*event;
+	struct list_head	list;
+};
+
+#define FLUSH_PERIOD	(2 * NSEC_PER_SEC)
+
+static void flush_sample_queue(struct perf_session *s,
+			       struct perf_event_ops *ops)
+{
+	struct list_head *head = &s->ordered_samples.samples_head;
+	u64 limit = s->ordered_samples.flush_limit;
+	struct sample_queue *tmp, *iter;
+
+	if (!ops->ordered_samples)
+		return;
+
+	list_for_each_entry_safe(iter, tmp, head, list) {
+		if (iter->timestamp > limit)
+			return;
+
+		if (iter == s->ordered_samples.last_inserted)
+			s->ordered_samples.last_inserted = NULL;
+
+		ops->sample((event_t *)iter->event, s);
+
+		s->ordered_samples.last_flush = iter->timestamp;
+		list_del(&iter->list);
+		free(iter->event);
+		free(iter);
+	}
+}
+
+static void __queue_sample_end(struct sample_queue *new, struct list_head *head)
+{
+	struct sample_queue *iter;
+
+	list_for_each_entry_reverse(iter, head, list) {
+		if (iter->timestamp < new->timestamp) {
+			list_add(&new->list, &iter->list);
+			return;
+		}
+	}
+
+	list_add(&new->list, head);
+}
+
+static void __queue_sample_before(struct sample_queue *new,
+				  struct sample_queue *iter,
+				  struct list_head *head)
+{
+	list_for_each_entry_continue_reverse(iter, head, list) {
+		if (iter->timestamp < new->timestamp) {
+			list_add(&new->list, &iter->list);
+			return;
+		}
+	}
+
+	list_add(&new->list, head);
+}
+
+static void __queue_sample_after(struct sample_queue *new,
+				 struct sample_queue *iter,
+				 struct list_head *head)
+{
+	list_for_each_entry_continue(iter, head, list) {
+		if (iter->timestamp > new->timestamp) {
+			list_add_tail(&new->list, &iter->list);
+			return;
+		}
+	}
+	list_add_tail(&new->list, head);
+}
+
+/* The queue is ordered by time */
+static void __queue_sample_event(struct sample_queue *new,
+				 struct perf_session *s)
+{
+	struct sample_queue *last_inserted = s->ordered_samples.last_inserted;
+	struct list_head *head = &s->ordered_samples.samples_head;
+
+
+	if (!last_inserted) {
+		__queue_sample_end(new, head);
+		return;
+	}
+
+	/*
+	 * Most of the time the current event has a timestamp
+	 * very close to the last event inserted, unless we just switched
+	 * to another event buffer. Having a sorting based on a list and
+	 * on the last inserted event that is close to the current one is
+	 * probably more efficient than an rbtree based sorting.
+	 */
+	if (last_inserted->timestamp >= new->timestamp)
+		__queue_sample_before(new, last_inserted, head);
+	else
+		__queue_sample_after(new, last_inserted, head);
+}
+
+static int queue_sample_event(event_t *event, struct sample_data *data,
+			      struct perf_session *s,
+			      struct perf_event_ops *ops)
+{
+	u64 timestamp = data->time;
+	struct sample_queue *new;
+	u64 flush_limit;
+
+
+	if (s->ordered_samples.flush_limit == ULLONG_MAX)
+		s->ordered_samples.flush_limit = timestamp + FLUSH_PERIOD;
+
+	if (timestamp < s->ordered_samples.last_flush) {
+		printf("Warning: Timestamp below last timeslice flush\n");
+		return -EINVAL;
+	}
+
+	new = malloc(sizeof(*new));
+	if (!new)
+		return -ENOMEM;
+
+	new->timestamp = timestamp;
+
+	new->event = malloc(event->header.size);
+	if (!new->event) {
+		free(new);
+		return -ENOMEM;
+	}
+
+	memcpy(new->event, event, event->header.size);
+
+	__queue_sample_event(new, s);
+	s->ordered_samples.last_inserted = new;
+
+	/*
+	 * We want to have a slice of events covering 2 * FLUSH_PERIOD
+	 * If FLUSH_PERIOD is big enough, it ensures every events that occured
+	 * in the first half of the timeslice have all been buffered and there
+	 * are none remaining (we need that because of the weakly ordered
+	 * event recording we have). Then once we reach the 2 * FLUSH_PERIOD
+	 * timeslice, we flush the first half to be gentle with the memory
+	 * (the second half can still get new events in the middle, so wait
+	 * another period to flush it)
+	 */
+	flush_limit = s->ordered_samples.flush_limit;
+
+	if (new->timestamp > flush_limit &&
+		new->timestamp - flush_limit > FLUSH_PERIOD) {
+		s->ordered_samples.flush_limit += FLUSH_PERIOD;
+		flush_sample_queue(s, ops);
+	}
+
+	return 0;
+}
+
+static int perf_session__process_sample(event_t *event, struct perf_session *s,
+					struct perf_event_ops *ops)
+{
+	struct sample_data data;
+
+	if (!ops->ordered_samples)
+		return ops->sample(event, s);
+
+	bzero(&data, sizeof(struct sample_data));
+	event__parse_sample(event, s->sample_type, &data);
+
+	queue_sample_event(event, &data, s, ops);
+
+	return 0;
+}
+
 static int perf_session__process_event(struct perf_session *self,
 				       event_t *event,
 				       struct perf_event_ops *ops,
@@ -371,7 +545,7 @@ static int perf_session__process_event(struct perf_session *self,
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		return ops->sample(event, self);
+		return perf_session__process_sample(event, self, ops);
 	case PERF_RECORD_MMAP:
 		return ops->mmap(event, self);
 	case PERF_RECORD_COMM:
@@ -611,6 +785,9 @@ more:
 		goto more;
 done:
 	err = 0;
+	/* do the final flush for ordered samples */
+	self->ordered_samples.flush_limit = ULLONG_MAX;
+	flush_sample_queue(self, ops);
 out_err:
 	ui_progress__delete(progress);
 	return err;

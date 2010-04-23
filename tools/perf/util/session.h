@@ -8,8 +8,16 @@
 #include <linux/rbtree.h>
 #include "../../../include/linux/perf_event.h"
 
+struct sample_queue;
 struct ip_callchain;
 struct thread;
+
+struct ordered_samples {
+	u64			last_flush;
+	u64			flush_limit;
+	struct list_head	samples_head;
+	struct sample_queue	*last_inserted;
+};
 
 struct perf_session {
 	struct perf_header	header;
@@ -28,6 +36,7 @@ struct perf_session {
 	bool			fd_pipe;
 	int			cwdlen;
 	char			*cwd;
+	struct ordered_samples	ordered_samples;
 	char filename[0];
 };
 
@@ -47,6 +56,7 @@ struct perf_event_ops {
 		 event_type,
 		 tracing_data,
 		 build_id;
+	bool	ordered_samples;
 };
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force);
