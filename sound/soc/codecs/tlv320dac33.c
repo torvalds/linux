@@ -55,6 +55,13 @@
 
 #define BURST_BASEFREQ_HZ	49152000
 
+#define SAMPLES_TO_US(rate, samples) \
+	(1000000000 / ((rate * 1000) / samples))
+
+#define US_TO_SAMPLES(rate, us) \
+	(rate / (1000000 / us))
+
+
 static struct snd_soc_codec *tlv320dac33_codec;
 
 enum dac33_state {
@@ -101,6 +108,14 @@ struct tlv320dac33_priv {
 
 	int keep_bclk;			/* Keep the BCLK continuously running
 					 * in FIFO modes */
+	spinlock_t lock;
+	unsigned long long t_stamp1;	/* Time stamp for FIFO modes to */
+	unsigned long long t_stamp2;	/* calculate the FIFO caused delay */
+
+	unsigned int mode1_us_burst;	/* Time to burst read n number of
+					 * samples */
+	unsigned int mode7_us_to_lthr;	/* Time to reach lthr from uthr */
+
 	enum dac33_state state;
 };
 
@@ -390,10 +405,14 @@ static int dac33_set_nsample(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	if (ucontrol->value.integer.value[0] < dac33->nsample_min ||
-	    ucontrol->value.integer.value[0] > dac33->nsample_max)
+	    ucontrol->value.integer.value[0] > dac33->nsample_max) {
 		ret = -EINVAL;
-	else
+	} else {
 		dac33->nsample = ucontrol->value.integer.value[0];
+		/* Re calculate the burst time */
+		dac33->mode1_us_burst = SAMPLES_TO_US(dac33->burst_rate,
+						      dac33->nsample);
+	}
 
 	return ret;
 }
@@ -564,6 +583,13 @@ static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 	case DAC33_FIFO_MODE1:
 		dac33_write16(codec, DAC33_NSAMPLE_MSB,
 			DAC33_THRREG(dac33->nsample + dac33->alarm_threshold));
+
+		/* Take the timestamps */
+		spin_lock_irq(&dac33->lock);
+		dac33->t_stamp2 = ktime_to_us(ktime_get());
+		dac33->t_stamp1 = dac33->t_stamp2;
+		spin_unlock_irq(&dac33->lock);
+
 		dac33_write16(codec, DAC33_PREFILL_MSB,
 				DAC33_THRREG(dac33->alarm_threshold));
 		/* Enable Alarm Threshold IRQ with a delay */
@@ -572,8 +598,18 @@ static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 		dac33_write(codec, DAC33_FIFO_IRQ_MASK, DAC33_MAT);
 		break;
 	case DAC33_FIFO_MODE7:
+		/* Take the timestamp */
+		spin_lock_irq(&dac33->lock);
+		dac33->t_stamp1 = ktime_to_us(ktime_get());
+		/* Move back the timestamp with drain time */
+		dac33->t_stamp1 -= dac33->mode7_us_to_lthr;
+		spin_unlock_irq(&dac33->lock);
+
 		dac33_write16(codec, DAC33_PREFILL_MSB,
 				DAC33_THRREG(MODE7_LTHR));
+
+		/* Enable Upper Threshold IRQ */
+		dac33_write(codec, DAC33_FIFO_IRQ_MASK, DAC33_MUT);
 		break;
 	default:
 		dev_warn(codec->dev, "Unhandled FIFO mode: %d\n",
@@ -590,6 +626,11 @@ static inline void dac33_playback_handler(struct tlv320dac33_priv *dac33)
 
 	switch (dac33->fifo_mode) {
 	case DAC33_FIFO_MODE1:
+		/* Take the timestamp */
+		spin_lock_irq(&dac33->lock);
+		dac33->t_stamp2 = ktime_to_us(ktime_get());
+		spin_unlock_irq(&dac33->lock);
+
 		dac33_write16(codec, DAC33_NSAMPLE_MSB,
 				DAC33_THRREG(dac33->nsample));
 		break;
@@ -642,7 +683,13 @@ static irqreturn_t dac33_interrupt_handler(int irq, void *dev)
 	struct snd_soc_codec *codec = dev;
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
-	queue_work(dac33->dac33_wq, &dac33->work);
+	spin_lock(&dac33->lock);
+	dac33->t_stamp1 = ktime_to_us(ktime_get());
+	spin_unlock(&dac33->lock);
+
+	/* Do not schedule the workqueue in Mode7 */
+	if (dac33->fifo_mode != DAC33_FIFO_MODE7)
+		queue_work(dac33->dac33_wq, &dac33->work);
 
 	return IRQ_HANDLED;
 }
@@ -794,8 +841,8 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 			    DAC33_ATM(DAC33_FIFO_IRQ_MODE_LEVEL));
 		break;
 	case DAC33_FIFO_MODE7:
-		/* Disable all interrupts */
-		dac33_write(codec, DAC33_FIFO_IRQ_MASK, 0);
+		dac33_write(codec, DAC33_FIFO_IRQ_MODE_A,
+			DAC33_UTM(DAC33_FIFO_IRQ_MODE_LEVEL));
 		break;
 	default:
 		/* in FIFO bypass mode, the interrupts are not used */
@@ -930,6 +977,24 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 
 	if (dac33->nsample > dac33->nsample_max)
 		dac33->nsample = dac33->nsample_max;
+
+	switch (dac33->fifo_mode) {
+	case DAC33_FIFO_MODE1:
+		dac33->mode1_us_burst = SAMPLES_TO_US(dac33->burst_rate,
+						      dac33->nsample);
+		dac33->t_stamp1 = 0;
+		dac33->t_stamp2 = 0;
+		break;
+	case DAC33_FIFO_MODE7:
+		dac33->mode7_us_to_lthr =
+					SAMPLES_TO_US(substream->runtime->rate,
+						MODE7_UTHR - MODE7_LTHR + 1);
+		dac33->t_stamp1 = 0;
+		break;
+	default:
+		break;
+	}
+
 }
 
 static int dac33_pcm_prepare(struct snd_pcm_substream *substream,
@@ -972,6 +1037,151 @@ static int dac33_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	}
 
 	return ret;
+}
+
+static snd_pcm_sframes_t dac33_dai_delay(
+			struct snd_pcm_substream *substream,
+			struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
+	unsigned long long t0, t1, t_now;
+	unsigned int time_delta;
+	int samples_out, samples_in, samples;
+	snd_pcm_sframes_t delay = 0;
+
+	switch (dac33->fifo_mode) {
+	case DAC33_FIFO_BYPASS:
+		break;
+	case DAC33_FIFO_MODE1:
+		spin_lock(&dac33->lock);
+		t0 = dac33->t_stamp1;
+		t1 = dac33->t_stamp2;
+		spin_unlock(&dac33->lock);
+		t_now = ktime_to_us(ktime_get());
+
+		/* We have not started to fill the FIFO yet, delay is 0 */
+		if (!t1)
+			goto out;
+
+		if (t0 > t1) {
+			/*
+			 * Phase 1:
+			 * After Alarm threshold, and before nSample write
+			 */
+			time_delta = t_now - t0;
+			samples_out = time_delta ? US_TO_SAMPLES(
+						substream->runtime->rate,
+						time_delta) : 0;
+
+			if (likely(dac33->alarm_threshold > samples_out))
+				delay = dac33->alarm_threshold - samples_out;
+			else
+				delay = 0;
+		} else if ((t_now - t1) <= dac33->mode1_us_burst) {
+			/*
+			 * Phase 2:
+			 * After nSample write (during burst operation)
+			 */
+			time_delta = t_now - t0;
+			samples_out = time_delta ? US_TO_SAMPLES(
+						substream->runtime->rate,
+						time_delta) : 0;
+
+			time_delta = t_now - t1;
+			samples_in = time_delta ? US_TO_SAMPLES(
+						dac33->burst_rate,
+						time_delta) : 0;
+
+			samples = dac33->alarm_threshold;
+			samples += (samples_in - samples_out);
+
+			if (likely(samples > 0))
+				delay = samples;
+			else
+				delay = 0;
+		} else {
+			/*
+			 * Phase 3:
+			 * After burst operation, before next alarm threshold
+			 */
+			time_delta = t_now - t0;
+			samples_out = time_delta ? US_TO_SAMPLES(
+						substream->runtime->rate,
+						time_delta) : 0;
+
+			samples_in = dac33->nsample;
+			samples = dac33->alarm_threshold;
+			samples += (samples_in - samples_out);
+
+			if (likely(samples > 0))
+				delay = samples > DAC33_BUFFER_SIZE_SAMPLES ?
+					DAC33_BUFFER_SIZE_SAMPLES : samples;
+			else
+				delay = 0;
+		}
+		break;
+	case DAC33_FIFO_MODE7:
+		spin_lock(&dac33->lock);
+		t0 = dac33->t_stamp1;
+		spin_unlock(&dac33->lock);
+		t_now = ktime_to_us(ktime_get());
+
+		/* We have not started to fill the FIFO yet, delay is 0 */
+		if (!t0)
+			goto out;
+
+		if (t_now <= t0) {
+			/*
+			 * Either the timestamps are messed or equal. Report
+			 * maximum delay
+			 */
+			delay = MODE7_UTHR;
+			goto out;
+		}
+
+		time_delta = t_now - t0;
+		if (time_delta <= dac33->mode7_us_to_lthr) {
+			/*
+			* Phase 1:
+			* After burst (draining phase)
+			*/
+			samples_out = US_TO_SAMPLES(
+					substream->runtime->rate,
+					time_delta);
+
+			if (likely(MODE7_UTHR > samples_out))
+				delay = MODE7_UTHR - samples_out;
+			else
+				delay = 0;
+		} else {
+			/*
+			* Phase 2:
+			* During burst operation
+			*/
+			time_delta = time_delta - dac33->mode7_us_to_lthr;
+
+			samples_out = US_TO_SAMPLES(
+					substream->runtime->rate,
+					time_delta);
+			samples_in = US_TO_SAMPLES(
+					dac33->burst_rate,
+					time_delta);
+			delay = MODE7_LTHR + samples_in - samples_out;
+
+			if (unlikely(delay > MODE7_UTHR))
+				delay = MODE7_UTHR;
+		}
+		break;
+	default:
+		dev_warn(codec->dev, "Unhandled FIFO mode: %d\n",
+							dac33->fifo_mode);
+		break;
+	}
+out:
+	return delay;
 }
 
 static int dac33_set_dai_sysclk(struct snd_soc_dai *codec_dai,
@@ -1185,6 +1395,7 @@ static struct snd_soc_dai_ops dac33_dai_ops = {
 	.hw_params	= dac33_hw_params,
 	.prepare	= dac33_pcm_prepare,
 	.trigger	= dac33_pcm_trigger,
+	.delay		= dac33_dai_delay,
 	.set_sysclk	= dac33_set_dai_sysclk,
 	.set_fmt	= dac33_set_dai_fmt,
 };
@@ -1225,6 +1436,7 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 
 	mutex_init(&codec->mutex);
 	mutex_init(&dac33->mutex);
+	spin_lock_init(&dac33->lock);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
