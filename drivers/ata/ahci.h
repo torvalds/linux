@@ -224,9 +224,12 @@ enum {
 	EM_MAX_RETRY			= 5,
 
 	/* em_ctl bits */
-	EM_CTL_RST			= (1 << 9), /* Reset */
-	EM_CTL_TM			= (1 << 8), /* Transmit Message */
-	EM_CTL_ALHD			= (1 << 26), /* Activity LED */
+	EM_CTL_RST		= (1 << 9), /* Reset */
+	EM_CTL_TM		= (1 << 8), /* Transmit Message */
+	EM_CTL_MR		= (1 << 0), /* Message Recieved */
+	EM_CTL_ALHD		= (1 << 26), /* Activity LED */
+	EM_CTL_XMT		= (1 << 25), /* Transmit Only */
+	EM_CTL_SMB		= (1 << 24), /* Single Message Buffer */
 
 	/* em message type */
 	EM_MSG_TYPE_LED		= (1 << 0), /* LED */
@@ -288,6 +291,7 @@ struct ahci_host_priv {
 	u32			saved_cap2;	/* saved initial cap2 */
 	u32			saved_port_map;	/* saved initial port_map */
 	u32 			em_loc; /* enclosure management location */
+	u32			em_buf_sz;	/* EM buffer size in byte */
 	u32			em_msg_type;	/* EM message type */
 };
 
