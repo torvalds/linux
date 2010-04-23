@@ -838,5 +838,41 @@
 #define   G_00000D_FORCE_RB(x)                         (((x) >> 28) & 0x1)
 #define   C_00000D_FORCE_RB                            0xEFFFFFFF
 
+/* PLL regs */
+#define SCLK_CNTL                                      0xd
+#define   FORCE_HDP                                    (1 << 17)
+#define CLK_PWRMGT_CNTL                                0x14
+#define   GLOBAL_PMAN_EN                               (1 << 10)
+#define   DISP_PM                                      (1 << 20)
+#define PLL_PWRMGT_CNTL                                0x15
+#define   MPLL_TURNOFF                                 (1 << 0)
+#define   SPLL_TURNOFF                                 (1 << 1)
+#define   PPLL_TURNOFF                                 (1 << 2)
+#define   P2PLL_TURNOFF                                (1 << 3)
+#define   TVPLL_TURNOFF                                (1 << 4)
+#define   MOBILE_SU                                    (1 << 16)
+#define   SU_SCLK_USE_BCLK                             (1 << 17)
+#define SCLK_CNTL2                                     0x1e
+#define   REDUCED_SPEED_SCLK_MODE                      (1 << 16)
+#define   REDUCED_SPEED_SCLK_SEL(x)                    ((x) << 17)
+#define MCLK_MISC                                      0x1f
+#define   EN_MCLK_TRISTATE_IN_SUSPEND                  (1 << 18)
+#define SCLK_MORE_CNTL                                 0x35
+#define   REDUCED_SPEED_SCLK_EN                        (1 << 16)
+#define   IO_CG_VOLTAGE_DROP                           (1 << 17)
+#define   VOLTAGE_DELAY_SEL(x)                         ((x) << 20)
+#define   VOLTAGE_DROP_SYNC                            (1 << 19)
+
+/* mmreg */
+#define DISP_PWR_MAN                                   0xd08
+#define   DISP_D3_GRPH_RST                             (1 << 18)
+#define   DISP_D3_SUBPIC_RST                           (1 << 19)
+#define   DISP_D3_OV0_RST                              (1 << 20)
+#define   DISP_D1D2_GRPH_RST                           (1 << 21)
+#define   DISP_D1D2_SUBPIC_RST                         (1 << 22)
+#define   DISP_D1D2_OV0_RST                            (1 << 23)
+#define   DISP_DVO_ENABLE_RST                          (1 << 24)
+#define   TV_ENABLE_RST                                (1 << 25)
+#define   AUTO_PWRUP_EN                                (1 << 26)
 
 #endif

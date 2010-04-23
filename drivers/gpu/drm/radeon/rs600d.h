@@ -634,4 +634,36 @@
 #define   G_006D4C_D2MODE_PRIORITY_B_FORCE_MASK(x)     (((x) >> 24) & 0x1)
 #define   C_006D4C_D2MODE_PRIORITY_B_FORCE_MASK        0xFEFFFFFF
 
+/* PLL regs */
+#define GENERAL_PWRMGT                                 0x8
+#define   GLOBAL_PWRMGT_EN                             (1 << 0)
+#define   MOBILE_SU                                    (1 << 2)
+#define DYN_PWRMGT_SCLK_LENGTH                         0xc
+#define   NORMAL_POWER_SCLK_HILEN(x)                   ((x) << 0)
+#define   NORMAL_POWER_SCLK_LOLEN(x)                   ((x) << 4)
+#define   REDUCED_POWER_SCLK_HILEN(x)                  ((x) << 8)
+#define   REDUCED_POWER_SCLK_LOLEN(x)                  ((x) << 12)
+#define   POWER_D1_SCLK_HILEN(x)                       ((x) << 16)
+#define   POWER_D1_SCLK_LOLEN(x)                       ((x) << 20)
+#define   STATIC_SCREEN_HILEN(x)                       ((x) << 24)
+#define   STATIC_SCREEN_LOLEN(x)                       ((x) << 28)
+#define DYN_SCLK_VOL_CNTL                              0xe
+#define   IO_CG_VOLTAGE_DROP                           (1 << 0)
+#define   VOLTAGE_DROP_SYNC                            (1 << 2)
+#define   VOLTAGE_DELAY_SEL(x)                         ((x) << 3)
+#define HDP_DYN_CNTL                                   0x10
+#define   HDP_FORCEON                                  (1 << 0)
+#define MC_HOST_DYN_CNTL                               0x1e
+#define   MC_HOST_FORCEON                              (1 << 0)
+
+/* mmreg */
+#define DOUT_POWER_MANAGEMENT_CNTL                     0x7ee0
+#define   PWRDN_WAIT_BUSY_OFF                          (1 << 0)
+#define   PWRDN_WAIT_PWRSEQ_OFF                        (1 << 4)
+#define   PWRDN_WAIT_PPLL_OFF                          (1 << 8)
+#define   PWRUP_WAIT_PPLL_ON                           (1 << 12)
+#define   PWRUP_WAIT_MEM_INIT_DONE                     (1 << 16)
+#define   PM_ASSERT_RESET                              (1 << 20)
+#define   PM_PWRDN_PPLL                                (1 << 24)
+
 #endif

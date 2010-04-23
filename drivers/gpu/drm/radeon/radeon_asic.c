@@ -168,6 +168,9 @@ static struct radeon_asic r100_asic = {
 	.gui_idle = &r100_gui_idle,
 	.get_power_state = &r100_get_power_state,
 	.set_power_state = &r100_set_power_state,
+	.pm_misc = &r100_pm_misc,
+	.pm_prepare = &r100_pm_prepare,
+	.pm_finish = &r100_pm_finish,
 };
 
 static struct radeon_asic r200_asic = {
@@ -209,6 +212,9 @@ static struct radeon_asic r200_asic = {
 	.gui_idle = &r100_gui_idle,
 	.get_power_state = &r100_get_power_state,
 	.set_power_state = &r100_set_power_state,
+	.pm_misc = &r100_pm_misc,
+	.pm_prepare = &r100_pm_prepare,
+	.pm_finish = &r100_pm_finish,
 };
 
 static struct radeon_asic r300_asic = {
@@ -251,6 +257,9 @@ static struct radeon_asic r300_asic = {
 	.gui_idle = &r100_gui_idle,
 	.get_power_state = &r100_get_power_state,
 	.set_power_state = &r100_set_power_state,
+	.pm_misc = &r100_pm_misc,
+	.pm_prepare = &r100_pm_prepare,
+	.pm_finish = &r100_pm_finish,
 };
 
 static struct radeon_asic r300_asic_pcie = {
@@ -292,6 +301,9 @@ static struct radeon_asic r300_asic_pcie = {
 	.gui_idle = &r100_gui_idle,
 	.get_power_state = &r100_get_power_state,
 	.set_power_state = &r100_set_power_state,
+	.pm_misc = &r100_pm_misc,
+	.pm_prepare = &r100_pm_prepare,
+	.pm_finish = &r100_pm_finish,
 };
 
 static struct radeon_asic r420_asic = {
@@ -334,6 +346,9 @@ static struct radeon_asic r420_asic = {
 	.gui_idle = &r100_gui_idle,
 	.get_power_state = &r100_get_power_state,
 	.set_power_state = &r100_set_power_state,
+	.pm_misc = &r100_pm_misc,
+	.pm_prepare = &r100_pm_prepare,
+	.pm_finish = &r100_pm_finish,
 };
 
 static struct radeon_asic rs400_asic = {
@@ -376,6 +391,9 @@ static struct radeon_asic rs400_asic = {
 	.gui_idle = &r100_gui_idle,
 	.get_power_state = &r100_get_power_state,
 	.set_power_state = &r100_set_power_state,
+	.pm_misc = &r100_pm_misc,
+	.pm_prepare = &r100_pm_prepare,
+	.pm_finish = &r100_pm_finish,
 };
 
 static struct radeon_asic rs600_asic = {
@@ -418,6 +436,9 @@ static struct radeon_asic rs600_asic = {
 	.gui_idle = &r100_gui_idle,
 	.get_power_state = &r100_get_power_state,
 	.set_power_state = &r100_set_power_state,
+	.pm_misc = &rs600_pm_misc,
+	.pm_prepare = &rs600_pm_prepare,
+	.pm_finish = &rs600_pm_finish,
 };
 
 static struct radeon_asic rs690_asic = {
@@ -460,6 +481,9 @@ static struct radeon_asic rs690_asic = {
 	.gui_idle = &r100_gui_idle,
 	.get_power_state = &r100_get_power_state,
 	.set_power_state = &r100_set_power_state,
+	.pm_misc = &rs600_pm_misc,
+	.pm_prepare = &rs600_pm_prepare,
+	.pm_finish = &rs600_pm_finish,
 };
 
 static struct radeon_asic rv515_asic = {
@@ -502,6 +526,9 @@ static struct radeon_asic rv515_asic = {
 	.gui_idle = &r100_gui_idle,
 	.get_power_state = &r100_get_power_state,
 	.set_power_state = &r100_set_power_state,
+	.pm_misc = &rs600_pm_misc,
+	.pm_prepare = &rs600_pm_prepare,
+	.pm_finish = &rs600_pm_finish,
 };
 
 static struct radeon_asic r520_asic = {
@@ -544,6 +571,9 @@ static struct radeon_asic r520_asic = {
 	.gui_idle = &r100_gui_idle,
 	.get_power_state = &r100_get_power_state,
 	.set_power_state = &r100_set_power_state,
+	.pm_misc = &rs600_pm_misc,
+	.pm_prepare = &rs600_pm_prepare,
+	.pm_finish = &rs600_pm_finish,
 };
 
 static struct radeon_asic r600_asic = {
@@ -585,6 +615,9 @@ static struct radeon_asic r600_asic = {
 	.gui_idle = &r600_gui_idle,
 	.get_power_state = &r600_get_power_state,
 	.set_power_state = &r600_set_power_state,
+	.pm_misc = &r600_pm_misc,
+	.pm_prepare = &rs600_pm_prepare,
+	.pm_finish = &rs600_pm_finish,
 };
 
 static struct radeon_asic rs780_asic = {
@@ -626,6 +659,9 @@ static struct radeon_asic rs780_asic = {
 	.gui_idle = &r600_gui_idle,
 	.get_power_state = &r600_get_power_state,
 	.set_power_state = &r600_set_power_state,
+	.pm_misc = &r600_pm_misc,
+	.pm_prepare = &rs600_pm_prepare,
+	.pm_finish = &rs600_pm_finish,
 };
 
 static struct radeon_asic rv770_asic = {
@@ -667,6 +703,9 @@ static struct radeon_asic rv770_asic = {
 	.gui_idle = &r600_gui_idle,
 	.get_power_state = &r600_get_power_state,
 	.set_power_state = &r600_set_power_state,
+	.pm_misc = &rv770_pm_misc,
+	.pm_prepare = &rs600_pm_prepare,
+	.pm_finish = &rs600_pm_finish,
 };
 
 static struct radeon_asic evergreen_asic = {
@@ -706,6 +745,9 @@ static struct radeon_asic evergreen_asic = {
 	.gui_idle = &r600_gui_idle,
 	.get_power_state = &r600_get_power_state,
 	.set_power_state = &r600_set_power_state,
+	.pm_misc = &evergreen_pm_misc,
+	.pm_prepare = &evergreen_pm_prepare,
+	.pm_finish = &evergreen_pm_finish,
 };
 
 int radeon_asic_init(struct radeon_device *rdev)

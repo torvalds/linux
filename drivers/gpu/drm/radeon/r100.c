@@ -37,6 +37,7 @@
 #include "rs100d.h"
 #include "rv200d.h"
 #include "rv250d.h"
+#include "atom.h"
 
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
@@ -198,6 +199,147 @@ void r100_set_power_state(struct radeon_device *rdev)
 		rdev->pm.current_clock_mode_index = rdev->pm.requested_clock_mode_index;
 	} else
 		DRM_INFO("GUI not idle!!!\n");
+}
+
+void r100_pm_misc(struct radeon_device *rdev)
+{
+#if 0
+	int requested_index = rdev->pm.requested_power_state_index;
+	struct radeon_power_state *ps = &rdev->pm.power_state[requested_index];
+	struct radeon_voltage *voltage = &ps->clock_info[0].voltage;
+	u32 tmp, sclk_cntl, sclk_cntl2, sclk_more_cntl;
+
+	if ((voltage->type == VOLTAGE_GPIO) && (voltage->gpio.valid)) {
+		if (ps->misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) {
+			tmp = RREG32(voltage->gpio.reg);
+			if (voltage->active_high)
+				tmp |= voltage->gpio.mask;
+			else
+				tmp &= ~(voltage->gpio.mask);
+			WREG32(voltage->gpio.reg, tmp);
+			if (voltage->delay)
+				udelay(voltage->delay);
+		} else {
+			tmp = RREG32(voltage->gpio.reg);
+			if (voltage->active_high)
+				tmp &= ~voltage->gpio.mask;
+			else
+				tmp |= voltage->gpio.mask;
+			WREG32(voltage->gpio.reg, tmp);
+			if (voltage->delay)
+				udelay(voltage->delay);
+		}
+	}
+
+	sclk_cntl = RREG32_PLL(SCLK_CNTL);
+	sclk_cntl2 = RREG32_PLL(SCLK_CNTL2);
+	sclk_cntl2 &= ~REDUCED_SPEED_SCLK_SEL(3);
+	sclk_more_cntl = RREG32_PLL(SCLK_MORE_CNTL);
+	sclk_more_cntl &= ~VOLTAGE_DELAY_SEL(3);
+	if (ps->misc & ATOM_PM_MISCINFO_ASIC_REDUCED_SPEED_SCLK_EN) {
+		sclk_more_cntl |= REDUCED_SPEED_SCLK_EN;
+		if (ps->misc & ATOM_PM_MISCINFO_DYN_CLK_3D_IDLE)
+			sclk_cntl2 |= REDUCED_SPEED_SCLK_MODE;
+		else
+			sclk_cntl2 &= ~REDUCED_SPEED_SCLK_MODE;
+		if (ps->misc & ATOM_PM_MISCINFO_DYNAMIC_CLOCK_DIVIDER_BY_2)
+			sclk_cntl2 |= REDUCED_SPEED_SCLK_SEL(0);
+		else if (ps->misc & ATOM_PM_MISCINFO_DYNAMIC_CLOCK_DIVIDER_BY_4)
+			sclk_cntl2 |= REDUCED_SPEED_SCLK_SEL(2);
+	} else
+		sclk_more_cntl &= ~REDUCED_SPEED_SCLK_EN;
+
+	if (ps->misc & ATOM_PM_MISCINFO_ASIC_DYNAMIC_VOLTAGE_EN) {
+		sclk_more_cntl |= IO_CG_VOLTAGE_DROP;
+		if (voltage->delay) {
+			sclk_more_cntl |= VOLTAGE_DROP_SYNC;
+			switch (voltage->delay) {
+			case 33:
+				sclk_more_cntl |= VOLTAGE_DELAY_SEL(0);
+				break;
+			case 66:
+				sclk_more_cntl |= VOLTAGE_DELAY_SEL(1);
+				break;
+			case 99:
+				sclk_more_cntl |= VOLTAGE_DELAY_SEL(2);
+				break;
+			case 132:
+				sclk_more_cntl |= VOLTAGE_DELAY_SEL(3);
+				break;
+			}
+		} else
+			sclk_more_cntl &= ~VOLTAGE_DROP_SYNC;
+	} else
+		sclk_more_cntl &= ~IO_CG_VOLTAGE_DROP;
+
+	if (ps->misc & ATOM_PM_MISCINFO_DYNAMIC_HDP_BLOCK_EN)
+		sclk_cntl &= ~FORCE_HDP;
+	else
+		sclk_cntl |= FORCE_HDP;
+
+	WREG32_PLL(SCLK_CNTL, sclk_cntl);
+	WREG32_PLL(SCLK_CNTL2, sclk_cntl2);
+	WREG32_PLL(SCLK_MORE_CNTL, sclk_more_cntl);
+
+	/* set pcie lanes */
+	if ((rdev->flags & RADEON_IS_PCIE) &&
+	    !(rdev->flags & RADEON_IS_IGP) &&
+	    rdev->asic->set_pcie_lanes &&
+	    (ps->pcie_lanes !=
+	     rdev->pm.power_state[rdev->pm.current_power_state_index].pcie_lanes)) {
+		radeon_set_pcie_lanes(rdev,
+				      ps->pcie_lanes);
+		DRM_INFO("Setting: p: %d\n", ps->pcie_lanes);
+	}
+#endif
+}
+
+void r100_pm_prepare(struct radeon_device *rdev)
+{
+	struct drm_device *ddev = rdev->ddev;
+	struct drm_crtc *crtc;
+	struct radeon_crtc *radeon_crtc;
+	u32 tmp;
+
+	/* disable any active CRTCs */
+	list_for_each_entry(crtc, &ddev->mode_config.crtc_list, head) {
+		radeon_crtc = to_radeon_crtc(crtc);
+		if (radeon_crtc->enabled) {
+			if (radeon_crtc->crtc_id) {
+				tmp = RREG32(RADEON_CRTC2_GEN_CNTL);
+				tmp |= RADEON_CRTC2_DISP_REQ_EN_B;
+				WREG32(RADEON_CRTC2_GEN_CNTL, tmp);
+			} else {
+				tmp = RREG32(RADEON_CRTC_GEN_CNTL);
+				tmp |= RADEON_CRTC_DISP_REQ_EN_B;
+				WREG32(RADEON_CRTC_GEN_CNTL, tmp);
+			}
+		}
+	}
+}
+
+void r100_pm_finish(struct radeon_device *rdev)
+{
+	struct drm_device *ddev = rdev->ddev;
+	struct drm_crtc *crtc;
+	struct radeon_crtc *radeon_crtc;
+	u32 tmp;
+
+	/* enable any active CRTCs */
+	list_for_each_entry(crtc, &ddev->mode_config.crtc_list, head) {
+		radeon_crtc = to_radeon_crtc(crtc);
+		if (radeon_crtc->enabled) {
+			if (radeon_crtc->crtc_id) {
+				tmp = RREG32(RADEON_CRTC2_GEN_CNTL);
+				tmp &= ~RADEON_CRTC2_DISP_REQ_EN_B;
+				WREG32(RADEON_CRTC2_GEN_CNTL, tmp);
+			} else {
+				tmp = RREG32(RADEON_CRTC_GEN_CNTL);
+				tmp &= ~RADEON_CRTC_DISP_REQ_EN_B;
+				WREG32(RADEON_CRTC_GEN_CNTL, tmp);
+			}
+		}
+	}
 }
 
 bool r100_gui_idle(struct radeon_device *rdev)

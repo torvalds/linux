@@ -39,6 +39,47 @@
 static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 
+void evergreen_pm_misc(struct radeon_device *rdev)
+{
+
+}
+
+void evergreen_pm_prepare(struct radeon_device *rdev)
+{
+	struct drm_device *ddev = rdev->ddev;
+	struct drm_crtc *crtc;
+	struct radeon_crtc *radeon_crtc;
+	u32 tmp;
+
+	/* disable any active CRTCs */
+	list_for_each_entry(crtc, &ddev->mode_config.crtc_list, head) {
+		radeon_crtc = to_radeon_crtc(crtc);
+		if (radeon_crtc->enabled) {
+			tmp = RREG32(EVERGREEN_CRTC_CONTROL + radeon_crtc->crtc_offset);
+			tmp |= EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE;
+			WREG32(EVERGREEN_CRTC_CONTROL + radeon_crtc->crtc_offset, tmp);
+		}
+	}
+}
+
+void evergreen_pm_finish(struct radeon_device *rdev)
+{
+	struct drm_device *ddev = rdev->ddev;
+	struct drm_crtc *crtc;
+	struct radeon_crtc *radeon_crtc;
+	u32 tmp;
+
+	/* enable any active CRTCs */
+	list_for_each_entry(crtc, &ddev->mode_config.crtc_list, head) {
+		radeon_crtc = to_radeon_crtc(crtc);
+		if (radeon_crtc->enabled) {
+			tmp = RREG32(EVERGREEN_CRTC_CONTROL + radeon_crtc->crtc_offset);
+			tmp &= ~EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE;
+			WREG32(EVERGREEN_CRTC_CONTROL + radeon_crtc->crtc_offset, tmp);
+		}
+	}
+}
+
 bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 {
 	bool connected = false;

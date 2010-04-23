@@ -130,6 +130,9 @@ extern bool r100_gui_idle(struct radeon_device *rdev);
 extern void r100_set_power_state(struct radeon_device *rdev);
 extern void r100_get_power_state(struct radeon_device *rdev,
 				 enum radeon_pm_action action);
+extern void r100_pm_misc(struct radeon_device *rdev);
+extern void r100_pm_prepare(struct radeon_device *rdev);
+extern void r100_pm_finish(struct radeon_device *rdev);
 
 /*
  * r200,rv250,rs300,rv280
@@ -201,6 +204,9 @@ void rs600_hpd_fini(struct radeon_device *rdev);
 bool rs600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 void rs600_hpd_set_polarity(struct radeon_device *rdev,
 			    enum radeon_hpd_id hpd);
+extern void rs600_pm_misc(struct radeon_device *rdev);
+extern void rs600_pm_prepare(struct radeon_device *rdev);
+extern void rs600_pm_finish(struct radeon_device *rdev);
 
 /*
  * rs690,rs740
@@ -278,6 +284,7 @@ extern bool r600_gui_idle(struct radeon_device *rdev);
 extern void r600_set_power_state(struct radeon_device *rdev);
 extern void r600_get_power_state(struct radeon_device *rdev,
 				 enum radeon_pm_action action);
+extern void r600_pm_misc(struct radeon_device *rdev);
 
 /*
  * rv770,rv730,rv710,rv740
@@ -286,6 +293,7 @@ int rv770_init(struct radeon_device *rdev);
 void rv770_fini(struct radeon_device *rdev);
 int rv770_suspend(struct radeon_device *rdev);
 int rv770_resume(struct radeon_device *rdev);
+extern void rv770_pm_misc(struct radeon_device *rdev);
 
 /*
  * evergreen
@@ -306,5 +314,8 @@ void evergreen_hpd_set_polarity(struct radeon_device *rdev,
 u32 evergreen_get_vblank_counter(struct radeon_device *rdev, int crtc);
 int evergreen_irq_set(struct radeon_device *rdev);
 int evergreen_irq_process(struct radeon_device *rdev);
+extern void evergreen_pm_misc(struct radeon_device *rdev);
+extern void evergreen_pm_prepare(struct radeon_device *rdev);
+extern void evergreen_pm_finish(struct radeon_device *rdev);
 
 #endif

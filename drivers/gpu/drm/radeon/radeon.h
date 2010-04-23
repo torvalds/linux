@@ -815,6 +815,9 @@ struct radeon_asic {
 	bool (*gui_idle)(struct radeon_device *rdev);
 	void (*get_power_state)(struct radeon_device *rdev, enum radeon_pm_action action);
 	void (*set_power_state)(struct radeon_device *rdev);
+	void (*pm_misc)(struct radeon_device *rdev);
+	void (*pm_prepare)(struct radeon_device *rdev);
+	void (*pm_finish)(struct radeon_device *rdev);
 };
 
 /*

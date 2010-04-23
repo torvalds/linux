@@ -166,6 +166,7 @@
 /* CRTC blocks at 0x6df0, 0x79f0, 0x105f0, 0x111f0, 0x11df0, 0x129f0 */
 #define EVERGREEN_CRTC_CONTROL                          0x6e70
 #       define EVERGREEN_CRTC_MASTER_EN                 (1 << 0)
+#       define EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE (1 << 24)
 #define EVERGREEN_CRTC_STATUS                           0x6e8c
 #define EVERGREEN_CRTC_UPDATE_LOCK                      0x6ed4
 

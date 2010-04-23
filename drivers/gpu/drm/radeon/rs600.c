@@ -46,6 +46,129 @@
 void rs600_gpu_init(struct radeon_device *rdev);
 int rs600_mc_wait_for_idle(struct radeon_device *rdev);
 
+void rs600_pm_misc(struct radeon_device *rdev)
+{
+#if 0
+	int requested_index = rdev->pm.requested_power_state_index;
+	struct radeon_power_state *ps = &rdev->pm.power_state[requested_index];
+	struct radeon_voltage *voltage = &ps->clock_info[0].voltage;
+	u32 tmp, dyn_pwrmgt_sclk_length, dyn_sclk_vol_cntl;
+	u32 hdp_dyn_cntl, mc_host_dyn_cntl;
+
+	if ((voltage->type == VOLTAGE_GPIO) && (voltage->gpio.valid)) {
+		if (ps->misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) {
+			tmp = RREG32(voltage->gpio.reg);
+			if (voltage->active_high)
+				tmp |= voltage->gpio.mask;
+			else
+				tmp &= ~(voltage->gpio.mask);
+			WREG32(voltage->gpio.reg, tmp);
+			if (voltage->delay)
+				udelay(voltage->delay);
+		} else {
+			tmp = RREG32(voltage->gpio.reg);
+			if (voltage->active_high)
+				tmp &= ~voltage->gpio.mask;
+			else
+				tmp |= voltage->gpio.mask;
+			WREG32(voltage->gpio.reg, tmp);
+			if (voltage->delay)
+				udelay(voltage->delay);
+		}
+	}
+
+	dyn_pwrmgt_sclk_length = RREG32_PLL(DYN_PWRMGT_SCLK_LENGTH);
+	dyn_pwrmgt_sclk_length &= ~REDUCED_POWER_SCLK_HILEN(0xf);
+	dyn_pwrmgt_sclk_length &= ~REDUCED_POWER_SCLK_LOLEN(0xf);
+	if (ps->misc & ATOM_PM_MISCINFO_ASIC_REDUCED_SPEED_SCLK_EN) {
+		if (ps->misc & ATOM_PM_MISCINFO_DYNAMIC_CLOCK_DIVIDER_BY_2) {
+			dyn_pwrmgt_sclk_length |= REDUCED_POWER_SCLK_HILEN(2);
+			dyn_pwrmgt_sclk_length |= REDUCED_POWER_SCLK_LOLEN(2);
+		} else if (ps->misc & ATOM_PM_MISCINFO_DYNAMIC_CLOCK_DIVIDER_BY_4) {
+			dyn_pwrmgt_sclk_length |= REDUCED_POWER_SCLK_HILEN(4);
+			dyn_pwrmgt_sclk_length |= REDUCED_POWER_SCLK_LOLEN(4);
+		}
+	} else {
+		dyn_pwrmgt_sclk_length |= REDUCED_POWER_SCLK_HILEN(1);
+		dyn_pwrmgt_sclk_length |= REDUCED_POWER_SCLK_LOLEN(1);
+	}
+	WREG32_PLL(DYN_PWRMGT_SCLK_LENGTH, dyn_pwrmgt_sclk_length);
+
+	dyn_sclk_vol_cntl = RREG32_PLL(DYN_SCLK_VOL_CNTL);
+	if (ps->misc & ATOM_PM_MISCINFO_ASIC_DYNAMIC_VOLTAGE_EN) {
+		dyn_sclk_vol_cntl |= IO_CG_VOLTAGE_DROP;
+		if (voltage->delay) {
+			dyn_sclk_vol_cntl |= VOLTAGE_DROP_SYNC;
+			dyn_sclk_vol_cntl |= VOLTAGE_DELAY_SEL(voltage->delay);
+		} else
+			dyn_sclk_vol_cntl &= ~VOLTAGE_DROP_SYNC;
+	} else
+		dyn_sclk_vol_cntl &= ~IO_CG_VOLTAGE_DROP;
+	WREG32_PLL(DYN_SCLK_VOL_CNTL, dyn_sclk_vol_cntl);
+
+	hdp_dyn_cntl = RREG32_PLL(HDP_DYN_CNTL);
+	if (ps->misc & ATOM_PM_MISCINFO_DYNAMIC_HDP_BLOCK_EN)
+		hdp_dyn_cntl &= ~HDP_FORCEON;
+	else
+		hdp_dyn_cntl |= HDP_FORCEON;
+	WREG32_PLL(HDP_DYN_CNTL, hdp_dyn_cntl);
+
+	mc_host_dyn_cntl = RREG32_PLL(MC_HOST_DYN_CNTL);
+	if (ps->misc & ATOM_PM_MISCINFO_DYNAMIC_MC_HOST_BLOCK_EN)
+		mc_host_dyn_cntl &= ~MC_HOST_FORCEON;
+	else
+		mc_host_dyn_cntl |= MC_HOST_FORCEON;
+	WREG32_PLL(MC_HOST_DYN_CNTL, mc_host_dyn_cntl);
+
+	/* set pcie lanes */
+	if ((rdev->flags & RADEON_IS_PCIE) &&
+	    !(rdev->flags & RADEON_IS_IGP) &&
+	    rdev->asic->set_pcie_lanes &&
+	    (ps->pcie_lanes !=
+	     rdev->pm.power_state[rdev->pm.current_power_state_index].pcie_lanes)) {
+		radeon_set_pcie_lanes(rdev,
+				      ps->pcie_lanes);
+		DRM_INFO("Setting: p: %d\n", ps->pcie_lanes);
+	}
+#endif
+}
+
+void rs600_pm_prepare(struct radeon_device *rdev)
+{
+	struct drm_device *ddev = rdev->ddev;
+	struct drm_crtc *crtc;
+	struct radeon_crtc *radeon_crtc;
+	u32 tmp;
+
+	/* disable any active CRTCs */
+	list_for_each_entry(crtc, &ddev->mode_config.crtc_list, head) {
+		radeon_crtc = to_radeon_crtc(crtc);
+		if (radeon_crtc->enabled) {
+			tmp = RREG32(AVIVO_D1CRTC_CONTROL + radeon_crtc->crtc_offset);
+			tmp |= AVIVO_CRTC_DISP_READ_REQUEST_DISABLE;
+			WREG32(AVIVO_D1CRTC_CONTROL + radeon_crtc->crtc_offset, tmp);
+		}
+	}
+}
+
+void rs600_pm_finish(struct radeon_device *rdev)
+{
+	struct drm_device *ddev = rdev->ddev;
+	struct drm_crtc *crtc;
+	struct radeon_crtc *radeon_crtc;
+	u32 tmp;
+
+	/* enable any active CRTCs */
+	list_for_each_entry(crtc, &ddev->mode_config.crtc_list, head) {
+		radeon_crtc = to_radeon_crtc(crtc);
+		if (radeon_crtc->enabled) {
+			tmp = RREG32(AVIVO_D1CRTC_CONTROL + radeon_crtc->crtc_offset);
+			tmp &= ~AVIVO_CRTC_DISP_READ_REQUEST_DISABLE;
+			WREG32(AVIVO_D1CRTC_CONTROL + radeon_crtc->crtc_offset, tmp);
+		}
+	}
+}
+
 /* hpd for digital panel detect/disconnect */
 bool rs600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 {

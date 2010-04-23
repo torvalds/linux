@@ -304,6 +304,11 @@ void r600_set_power_state(struct radeon_device *rdev)
 		DRM_INFO("GUI not idle!!!\n");
 }
 
+void r600_pm_misc(struct radeon_device *rdev)
+{
+
+}
+
 bool r600_gui_idle(struct radeon_device *rdev)
 {
 	if (RREG32(GRBM_STATUS) & GUI_ACTIVE)

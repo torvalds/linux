@@ -42,6 +42,10 @@
 static void rv770_gpu_init(struct radeon_device *rdev);
 void rv770_fini(struct radeon_device *rdev);
 
+void rv770_pm_misc(struct radeon_device *rdev)
+{
+
+}
 
 /*
  * GART
