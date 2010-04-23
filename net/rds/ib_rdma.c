@@ -32,6 +32,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/rculist.h>
 
 #include "rds.h"
 #include "ib.h"
@@ -83,14 +84,14 @@ static struct rds_ib_device *rds_ib_get_device(__be32 ipaddr)
 	struct rds_ib_ipaddr *i_ipaddr;
 
 	list_for_each_entry(rds_ibdev, &rds_ib_devices, list) {
-		spin_lock_irq(&rds_ibdev->spinlock);
-		list_for_each_entry(i_ipaddr, &rds_ibdev->ipaddr_list, list) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(i_ipaddr, &rds_ibdev->ipaddr_list, list) {
 			if (i_ipaddr->ipaddr == ipaddr) {
-				spin_unlock_irq(&rds_ibdev->spinlock);
+				rcu_read_unlock();
 				return rds_ibdev;
 			}
 		}
-		spin_unlock_irq(&rds_ibdev->spinlock);
+		rcu_read_unlock();
 	}
 
 	return NULL;
@@ -107,7 +108,7 @@ static int rds_ib_add_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
 	i_ipaddr->ipaddr = ipaddr;
 
 	spin_lock_irq(&rds_ibdev->spinlock);
-	list_add_tail(&i_ipaddr->list, &rds_ibdev->ipaddr_list);
+	list_add_tail_rcu(&i_ipaddr->list, &rds_ibdev->ipaddr_list);
 	spin_unlock_irq(&rds_ibdev->spinlock);
 
 	return 0;
@@ -116,16 +117,23 @@ static int rds_ib_add_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
 static void rds_ib_remove_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
 {
 	struct rds_ib_ipaddr *i_ipaddr, *next;
+	struct rds_ib_ipaddr *to_free = NULL;
+
 
 	spin_lock_irq(&rds_ibdev->spinlock);
-	list_for_each_entry_safe(i_ipaddr, next, &rds_ibdev->ipaddr_list, list) {
+	list_for_each_entry_rcu(i_ipaddr, &rds_ibdev->ipaddr_list, list) {
 		if (i_ipaddr->ipaddr == ipaddr) {
-			list_del(&i_ipaddr->list);
-			kfree(i_ipaddr);
+			list_del_rcu(&i_ipaddr->list);
+			to_free = i_ipaddr;
 			break;
 		}
 	}
 	spin_unlock_irq(&rds_ibdev->spinlock);
+
+	if (to_free) {
+		synchronize_rcu();
+		kfree(to_free);
+	}
 }
 
 int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)

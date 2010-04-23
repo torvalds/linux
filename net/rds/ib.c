@@ -137,6 +137,7 @@ void rds_ib_remove_one(struct ib_device *device)
 	if (!rds_ibdev)
 		return;
 
+	synchronize_rcu();
 	list_for_each_entry_safe(i_ipaddr, i_next, &rds_ibdev->ipaddr_list, list) {
 		list_del(&i_ipaddr->list);
 		kfree(i_ipaddr);
