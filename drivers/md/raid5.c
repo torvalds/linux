@@ -1650,7 +1650,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 				     int previous, int *dd_idx,
 				     struct stripe_head *sh)
 {
-	sector_t stripe;
+	sector_t stripe, stripe2;
 	sector_t chunk_number;
 	unsigned int chunk_offset;
 	int pd_idx, qd_idx;
@@ -1677,7 +1677,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 	 */
 	stripe = chunk_number;
 	*dd_idx = sector_div(stripe, data_disks);
-
+	stripe2 = stripe;
 	/*
 	 * Select the parity disk based on the user selected algorithm.
 	 */
@@ -1689,21 +1689,21 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 	case 5:
 		switch (algorithm) {
 		case ALGORITHM_LEFT_ASYMMETRIC:
-			pd_idx = data_disks - stripe % raid_disks;
+			pd_idx = data_disks - sector_div(stripe2, raid_disks);
 			if (*dd_idx >= pd_idx)
 				(*dd_idx)++;
 			break;
 		case ALGORITHM_RIGHT_ASYMMETRIC:
-			pd_idx = stripe % raid_disks;
+			pd_idx = sector_div(stripe2, raid_disks);
 			if (*dd_idx >= pd_idx)
 				(*dd_idx)++;
 			break;
 		case ALGORITHM_LEFT_SYMMETRIC:
-			pd_idx = data_disks - stripe % raid_disks;
+			pd_idx = data_disks - sector_div(stripe2, raid_disks);
 			*dd_idx = (pd_idx + 1 + *dd_idx) % raid_disks;
 			break;
 		case ALGORITHM_RIGHT_SYMMETRIC:
-			pd_idx = stripe % raid_disks;
+			pd_idx = sector_div(stripe2, raid_disks);
 			*dd_idx = (pd_idx + 1 + *dd_idx) % raid_disks;
 			break;
 		case ALGORITHM_PARITY_0:
@@ -1723,7 +1723,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 
 		switch (algorithm) {
 		case ALGORITHM_LEFT_ASYMMETRIC:
-			pd_idx = raid_disks - 1 - (stripe % raid_disks);
+			pd_idx = raid_disks - 1 - sector_div(stripe2, raid_disks);
 			qd_idx = pd_idx + 1;
 			if (pd_idx == raid_disks-1) {
 				(*dd_idx)++;	/* Q D D D P */
@@ -1732,7 +1732,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 				(*dd_idx) += 2; /* D D P Q D */
 			break;
 		case ALGORITHM_RIGHT_ASYMMETRIC:
-			pd_idx = stripe % raid_disks;
+			pd_idx = sector_div(stripe2, raid_disks);
 			qd_idx = pd_idx + 1;
 			if (pd_idx == raid_disks-1) {
 				(*dd_idx)++;	/* Q D D D P */
@@ -1741,12 +1741,12 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 				(*dd_idx) += 2; /* D D P Q D */
 			break;
 		case ALGORITHM_LEFT_SYMMETRIC:
-			pd_idx = raid_disks - 1 - (stripe % raid_disks);
+			pd_idx = raid_disks - 1 - sector_div(stripe2, raid_disks);
 			qd_idx = (pd_idx + 1) % raid_disks;
 			*dd_idx = (pd_idx + 2 + *dd_idx) % raid_disks;
 			break;
 		case ALGORITHM_RIGHT_SYMMETRIC:
-			pd_idx = stripe % raid_disks;
+			pd_idx = sector_div(stripe2, raid_disks);
 			qd_idx = (pd_idx + 1) % raid_disks;
 			*dd_idx = (pd_idx + 2 + *dd_idx) % raid_disks;
 			break;
@@ -1765,7 +1765,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 			/* Exactly the same as RIGHT_ASYMMETRIC, but or
 			 * of blocks for computing Q is different.
 			 */
-			pd_idx = stripe % raid_disks;
+			pd_idx = sector_div(stripe2, raid_disks);
 			qd_idx = pd_idx + 1;
 			if (pd_idx == raid_disks-1) {
 				(*dd_idx)++;	/* Q D D D P */
@@ -1780,7 +1780,8 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 			 * D D D P Q  rather than
 			 * Q D D D P
 			 */
-			pd_idx = raid_disks - 1 - ((stripe + 1) % raid_disks);
+			stripe2 += 1;
+			pd_idx = raid_disks - 1 - sector_div(stripe2, raid_disks);
 			qd_idx = pd_idx + 1;
 			if (pd_idx == raid_disks-1) {
 				(*dd_idx)++;	/* Q D D D P */
@@ -1792,7 +1793,7 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 
 		case ALGORITHM_ROTATING_N_CONTINUE:
 			/* Same as left_symmetric but Q is before P */
-			pd_idx = raid_disks - 1 - (stripe % raid_disks);
+			pd_idx = raid_disks - 1 - sector_div(stripe2, raid_disks);
 			qd_idx = (pd_idx + raid_disks - 1) % raid_disks;
 			*dd_idx = (pd_idx + 1 + *dd_idx) % raid_disks;
 			ddf_layout = 1;
@@ -1800,27 +1801,27 @@ static sector_t raid5_compute_sector(raid5_conf_t *conf, sector_t r_sector,
 
 		case ALGORITHM_LEFT_ASYMMETRIC_6:
 			/* RAID5 left_asymmetric, with Q on last device */
-			pd_idx = data_disks - stripe % (raid_disks-1);
+			pd_idx = data_disks - sector_div(stripe2, raid_disks-1);
 			if (*dd_idx >= pd_idx)
 				(*dd_idx)++;
 			qd_idx = raid_disks - 1;
 			break;
 
 		case ALGORITHM_RIGHT_ASYMMETRIC_6:
-			pd_idx = stripe % (raid_disks-1);
+			pd_idx = sector_div(stripe2, raid_disks-1);
 			if (*dd_idx >= pd_idx)
 				(*dd_idx)++;
 			qd_idx = raid_disks - 1;
 			break;
 
 		case ALGORITHM_LEFT_SYMMETRIC_6:
-			pd_idx = data_disks - stripe % (raid_disks-1);
+			pd_idx = data_disks - sector_div(stripe2, raid_disks-1);
 			*dd_idx = (pd_idx + 1 + *dd_idx) % (raid_disks-1);
 			qd_idx = raid_disks - 1;
 			break;
 
 		case ALGORITHM_RIGHT_SYMMETRIC_6:
-			pd_idx = stripe % (raid_disks-1);
+			pd_idx = sector_div(stripe2, raid_disks-1);
 			*dd_idx = (pd_idx + 1 + *dd_idx) % (raid_disks-1);
 			qd_idx = raid_disks - 1;
 			break;
