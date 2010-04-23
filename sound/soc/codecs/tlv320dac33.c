@@ -889,6 +889,10 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	unsigned int nsample_limit;
 
+	/* In bypass mode we don't need to calculate */
+	if (!dac33->fifo_mode)
+		return;
+
 	/* Number of samples (16bit, stereo) in one period */
 	dac33->nsample_min = snd_pcm_lib_period_bytes(substream) / 4;
 
@@ -1244,6 +1248,7 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 	dac33->keep_bclk = pdata->keep_bclk;
 	dac33->irq = client->irq;
 	dac33->nsample = NSAMPLE_MAX;
+	dac33->nsample_max = NSAMPLE_MAX;
 	/* Disable FIFO use by default */
 	dac33->fifo_mode = DAC33_FIFO_BYPASS;
 
