@@ -1386,6 +1386,7 @@ static void ivtv_remove(struct pci_dev *pdev)
 	printk(KERN_INFO "ivtv: Removed %s\n", itv->card_name);
 
 	v4l2_device_unregister(&itv->v4l2_dev);
+	v4l2_ctrl_handler_free(&itv->hdl_gpio);
 	kfree(itv);
 }
 

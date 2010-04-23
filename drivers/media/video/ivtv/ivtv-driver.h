@@ -632,6 +632,7 @@ struct ivtv {
 
 	struct v4l2_device v4l2_dev;
 	struct v4l2_subdev sd_gpio;	/* GPIO sub-device */
+	struct v4l2_ctrl_handler hdl_gpio;
 	u16 instance;
 
 	/* High-level state info */
