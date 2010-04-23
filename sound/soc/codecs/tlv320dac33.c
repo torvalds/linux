@@ -50,6 +50,9 @@
 
 #define LATENCY_TIME_MS		20
 
+#define MODE7_LTHR		10
+#define MODE7_UTHR		(DAC33_BUFFER_SIZE_SAMPLES - 10)
+
 static struct snd_soc_codec *tlv320dac33_codec;
 
 enum dac33_state {
@@ -567,7 +570,7 @@ static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 		break;
 	case DAC33_FIFO_MODE7:
 		dac33_write16(codec, DAC33_PREFILL_MSB,
-				DAC33_THRREG(10));
+				DAC33_THRREG(MODE7_LTHR));
 		break;
 	default:
 		dev_warn(codec->dev, "Unhandled FIFO mode: %d\n",
@@ -867,10 +870,8 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 		 * Configure the threshold levels, and leave 10 sample space
 		 * at the bottom, and also at the top of the FIFO
 		 */
-		dac33_write16(codec, DAC33_UTHR_MSB,
-			DAC33_THRREG(DAC33_BUFFER_SIZE_SAMPLES - 10));
-		dac33_write16(codec, DAC33_LTHR_MSB,
-			DAC33_THRREG(10));
+		dac33_write16(codec, DAC33_UTHR_MSB, DAC33_THRREG(MODE7_UTHR));
+		dac33_write16(codec, DAC33_LTHR_MSB, DAC33_THRREG(MODE7_LTHR));
 		break;
 	default:
 		break;
