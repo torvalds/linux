@@ -297,7 +297,7 @@ static struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev)
 		rds_ib_flush_mr_pool(pool, 0);
 	}
 
-	ibmr = kzalloc(sizeof(*ibmr), GFP_KERNEL);
+	ibmr = kzalloc_node(sizeof(*ibmr), GFP_KERNEL, rdsibdev_to_node(rds_ibdev));
 	if (!ibmr) {
 		err = -ENOMEM;
 		goto out_no_cigar;
@@ -376,7 +376,8 @@ static int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev, struct rds_ib_mr *ibm
 	if (page_cnt > fmr_message_size)
 		return -EINVAL;
 
-	dma_pages = kmalloc(sizeof(u64) * page_cnt, GFP_ATOMIC);
+	dma_pages = kmalloc_node(sizeof(u64) * page_cnt, GFP_ATOMIC,
+				 rdsibdev_to_node(rds_ibdev));
 	if (!dma_pages)
 		return -ENOMEM;
 

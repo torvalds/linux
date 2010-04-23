@@ -3,6 +3,8 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
 #include "rds.h"
 #include "rdma_transport.h"
 
@@ -166,6 +168,10 @@ struct rds_ib_device {
 	unsigned int		max_responder_resources;
 	spinlock_t		spinlock;	/* protect the above */
 };
+
+#define pcidev_to_node(pcidev) pcibus_to_node(pcidev->bus)
+#define ibdev_to_node(ibdev) pcidev_to_node(to_pci_dev(ibdev->dma_device))
+#define rdsibdev_to_node(rdsibdev) ibdev_to_node(rdsibdev->dev)
 
 /* bits for i_ack_flags */
 #define IB_ACK_IN_FLIGHT	0

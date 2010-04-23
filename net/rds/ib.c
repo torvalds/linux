@@ -77,7 +77,7 @@ void rds_ib_add_one(struct ib_device *device)
 		goto free_attr;
 	}
 
-	rds_ibdev = kmalloc(sizeof *rds_ibdev, GFP_KERNEL);
+	rds_ibdev = kmalloc_node(sizeof *rds_ibdev, GFP_KERNEL, ibdev_to_node(device));
 	if (!rds_ibdev)
 		goto free_attr;
 
