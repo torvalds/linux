@@ -116,7 +116,7 @@ static int rds_ib_add_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
 
 static void rds_ib_remove_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
 {
-	struct rds_ib_ipaddr *i_ipaddr, *next;
+	struct rds_ib_ipaddr *i_ipaddr;
 	struct rds_ib_ipaddr *to_free = NULL;
 
 
