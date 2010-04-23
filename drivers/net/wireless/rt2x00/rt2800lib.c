@@ -2317,8 +2317,11 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	else
 		spec->ht.ht_supported = false;
 
+	/*
+	 * Don't set IEEE80211_HT_CAP_SUP_WIDTH_20_40 for now as it causes
+	 * reception problems with HT40 capable 11n APs
+	 */
 	spec->ht.cap =
-	    IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 	    IEEE80211_HT_CAP_GRN_FLD |
 	    IEEE80211_HT_CAP_SGI_20 |
 	    IEEE80211_HT_CAP_SGI_40 |
