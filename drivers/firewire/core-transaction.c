@@ -842,7 +842,7 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	list_for_each_entry(t, &card->transaction_list, link) {
 		if (t->node_id == source && t->tlabel == tlabel) {
 			list_del(&t->link);
-			card->tlabel_mask &= ~(1 << t->tlabel);
+			card->tlabel_mask &= ~(1ULL << t->tlabel);
 			break;
 		}
 	}
