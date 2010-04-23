@@ -657,12 +657,3 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 	if (ah->config.enable_ani)
 		ah->proc_phyerr |= HAL_PROCESS_ANI;
 }
-
-void ath9k_hw_ani_disable(struct ath_hw *ah)
-{
-	ath_print(ath9k_hw_common(ah), ATH_DBG_ANI, "Disabling ANI\n");
-
-	ath9k_hw_disable_mib_counters(ah);
-	REG_WRITE(ah, AR_PHY_ERR_1, 0);
-	REG_WRITE(ah, AR_PHY_ERR_2, 0);
-}

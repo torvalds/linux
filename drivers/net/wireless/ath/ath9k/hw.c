@@ -818,9 +818,6 @@ void ath9k_hw_deinit(struct ath_hw *ah)
 	if (common->state < ATH_HW_INITIALIZED)
 		goto free_hw;
 
-	if (!AR_SREV_9100(ah))
-		ath9k_hw_ani_disable(ah);
-
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 
 free_hw:

@@ -118,6 +118,5 @@ u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah, u32 *rxc_pcnt,
 void ath9k_hw_procmibevent(struct ath_hw *ah);
 void ath9k_hw_ani_setup(struct ath_hw *ah);
 void ath9k_hw_ani_init(struct ath_hw *ah);
-void ath9k_hw_ani_disable(struct ath_hw *ah);
 
 #endif /* ANI_H */
