@@ -129,6 +129,7 @@ static struct scsi_transport_template *ahc_linux_transport_template = NULL;
 #include <linux/mm.h>		/* For fetching system memory size */
 #include <linux/blkdev.h>		/* For block_size() */
 #include <linux/delay.h>	/* For ssleep/msleep */
+#include <linux/slab.h>
 
 
 /*

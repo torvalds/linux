@@ -192,6 +192,7 @@
  * Jean II
  */
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irqueue.h>

@@ -1189,7 +1189,7 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 
 	regs = args->regs;
 
-	data.addr = 0;
+	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -1337,7 +1337,7 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 	callchain_store(entry, PERF_CONTEXT_USER);
 	callchain_store(entry, regs->tpc);
 
-	ufp = regs->u_regs[UREG_I6];
+	ufp = regs->u_regs[UREG_I6] & 0xffffffffUL;
 	do {
 		struct sparc_stackf32 *usf, sf;
 		unsigned long pc;

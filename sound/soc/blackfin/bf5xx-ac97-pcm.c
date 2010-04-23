@@ -29,8 +29,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>

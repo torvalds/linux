@@ -18,6 +18,7 @@
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include "ima.h"
 
 static int init_desc(struct hash_desc *desc)

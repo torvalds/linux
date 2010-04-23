@@ -15,6 +15,7 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/stat.h>
+#include <linux/slab.h>
 #include <linux/param.h>
 #include <linux/time.h>
 #include "autofs_i.h"

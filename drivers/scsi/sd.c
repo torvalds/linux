@@ -49,6 +49,7 @@
 #include <linux/mutex.h>
 #include <linux/string_helpers.h>
 #include <linux/async.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 
@@ -1948,7 +1949,7 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 {
 	struct request_queue *q = sdkp->disk->queue;
 	unsigned int sector_sz = sdkp->device->sector_size;
-	const int vpd_len = 32;
+	const int vpd_len = 64;
 	unsigned char *buffer = kmalloc(vpd_len, GFP_KERNEL);
 
 	if (!buffer ||
@@ -1998,7 +1999,7 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 {
 	unsigned char *buffer;
 	u16 rot;
-	const int vpd_len = 32;
+	const int vpd_len = 64;
 
 	buffer = kmalloc(vpd_len, GFP_KERNEL);
 
@@ -2185,7 +2186,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	blk_queue_prep_rq(sdp->request_queue, sd_prep_fn);
 
 	gd->driverfs_dev = &sdp->sdev_gendev;
-	gd->flags = GENHD_FL_EXT_DEVT | GENHD_FL_DRIVERFS;
+	gd->flags = GENHD_FL_EXT_DEVT;
 	if (sdp->removable)
 		gd->flags |= GENHD_FL_REMOVABLE;
 

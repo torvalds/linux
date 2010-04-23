@@ -129,6 +129,7 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
 #define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
 #define RADEON_PLL_USE_POST_DIV         (1 << 12)
+#define RADEON_PLL_IS_LCD               (1 << 13)
 
 /* pll algo */
 enum radeon_pll_algo {
@@ -149,6 +150,8 @@ struct radeon_pll {
 	uint32_t pll_in_max;
 	uint32_t pll_out_min;
 	uint32_t pll_out_max;
+	uint32_t lcd_pll_out_min;
+	uint32_t lcd_pll_out_max;
 	uint32_t best_vco;
 
 	/* divider limits */
@@ -170,17 +173,12 @@ struct radeon_pll {
 	enum radeon_pll_algo algo;
 };
 
-struct i2c_algo_radeon_data {
-	struct i2c_adapter bit_adapter;
-	struct i2c_algo_bit_data bit_data;
-};
-
 struct radeon_i2c_chan {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
 	union {
+		struct i2c_algo_bit_data bit;
 		struct i2c_algo_dp_aux_data dp;
-		struct i2c_algo_radeon_data radeon;
 	} algo;
 	struct radeon_i2c_bus_rec rec;
 };
@@ -342,6 +340,7 @@ struct radeon_encoder {
 	struct drm_display_mode native_mode;
 	void *enc_priv;
 	int hdmi_offset;
+	int hdmi_config_offset;
 	int hdmi_audio_workaround;
 	int hdmi_buffer_status;
 };
@@ -431,7 +430,6 @@ extern struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 						 struct radeon_i2c_bus_rec *rec,
 						 const char *name);
 extern void radeon_i2c_destroy(struct radeon_i2c_chan *i2c);
-extern void radeon_i2c_destroy_dp(struct radeon_i2c_chan *i2c);
 extern void radeon_i2c_get_byte(struct radeon_i2c_chan *i2c_bus,
 				u8 slave_addr,
 				u8 addr,

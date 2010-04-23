@@ -36,6 +36,7 @@
 #include <linux/vfs.h>
 #include <linux/inet.h>
 #include <linux/nfs_xdr.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -622,10 +623,10 @@ struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_c
 	list_for_each_entry(pos, &nfsi->open_files, list) {
 		if (cred != NULL && pos->cred != cred)
 			continue;
-		if ((pos->mode & mode) == mode) {
-			ctx = get_nfs_open_context(pos);
-			break;
-		}
+		if ((pos->mode & (FMODE_READ|FMODE_WRITE)) != mode)
+			continue;
+		ctx = get_nfs_open_context(pos);
+		break;
 	}
 	spin_unlock(&inode->i_lock);
 	return ctx;
@@ -729,7 +730,7 @@ int nfs_attribute_timeout(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 
-	if (nfs_have_delegation(inode, FMODE_READ))
+	if (nfs_have_delegated_attributes(inode))
 		return 0;
 	return !time_in_range_open(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
 }

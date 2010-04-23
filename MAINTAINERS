@@ -485,8 +485,8 @@ S:	Maintained
 F:	drivers/input/mouse/bcm5974.c
 
 APPLE SMC DRIVER
-M:	Nicolas Boichat <nicolas@boichat.ch>
-L:	mactel-linux-devel@lists.sourceforge.net
+M:	Henrik Rydberg <rydberg@euromail.se>
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/applesmc.c
 
@@ -797,12 +797,12 @@ M:	Michael Petchkovsky <mkpetch@internode.on.net>
 S:	Maintained
 
 ARM/NOMADIK ARCHITECTURE
-M:     Alessandro Rubini <rubini@unipv.it>
-M:     STEricsson <STEricsson_nomadik_linux@list.st.com>
-L:     linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:     Maintained
-F:     arch/arm/mach-nomadik/
-F:     arch/arm/plat-nomadik/
+M:	Alessandro Rubini <rubini@unipv.it>
+M:	STEricsson <STEricsson_nomadik_linux@list.st.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-nomadik/
+F:	arch/arm/plat-nomadik/
 
 ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
 M:	Nelson Castillo <arhuaco@freaks-unidos.net>
@@ -970,6 +970,16 @@ M:	Wan ZongShun <mcuos.com@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.mcuos.com
 S:	Maintained
+
+ARM/U300 MACHINE SUPPORT
+M:	Linus Walleij <linus.walleij@stericsson.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	arch/arm/mach-u300/
+F:	drivers/i2c/busses/i2c-stu300.c
+F:	drivers/rtc/rtc-coh901331.c
+F:	drivers/watchdog/coh901327_wdt.c
+F:	drivers/dma/coh901318*
 
 ARM/U8500 ARM ARCHITECTURE
 M:	Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
@@ -1405,20 +1415,30 @@ F:	arch/x86/include/asm/calgary.h
 F:	arch/x86/include/asm/tce.h
 
 CAN NETWORK LAYER
-M:	Urs Thuermann <urs.thuermann@volkswagen.de>
+M:	Oliver Hartkopp <socketcan@hartkopp.net>
 M:	Oliver Hartkopp <oliver.hartkopp@volkswagen.de>
-L:	socketcan-core@lists.berlios.de (subscribers-only)
+M:	Urs Thuermann <urs.thuermann@volkswagen.de>
+L:	socketcan-core@lists.berlios.de
+L:	netdev@vger.kernel.org
 W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
-F:	drivers/net/can/
-F:	include/linux/can/
+F:	net/can/
 F:	include/linux/can.h
+F:	include/linux/can/core.h
+F:	include/linux/can/bcm.h
+F:	include/linux/can/raw.h
 
 CAN NETWORK DRIVERS
 M:	Wolfgang Grandegger <wg@grandegger.com>
-L:	socketcan-core@lists.berlios.de (subscribers-only)
+L:	socketcan-core@lists.berlios.de
+L:	netdev@vger.kernel.org
 W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
+F:	drivers/net/can/
+F:	include/linux/can/dev.h
+F:	include/linux/can/error.h
+F:	include/linux/can/netlink.h
+F:	include/linux/can/platform/
 
 CELL BROADBAND ENGINE ARCHITECTURE
 M:	Arnd Bergmann <arnd@arndb.de>
@@ -1430,6 +1450,15 @@ F:	arch/powerpc/include/asm/cell*.h
 F:	arch/powerpc/include/asm/spu*.h
 F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
+
+CEPH DISTRIBUTED FILE SYSTEM CLIENT
+M:	Sage Weil <sage@newdream.net>
+L:	ceph-devel@vger.kernel.org
+W:	http://ceph.newdream.net/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
+S:	Supported
+F:	Documentation/filesystems/ceph.txt
+F:	fs/ceph
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 M:	David Vrabel <david.vrabel@csr.com>
@@ -1907,17 +1936,17 @@ F:	drivers/scsi/dpt*
 F:	drivers/scsi/dpt/
 
 DRBD DRIVER
-P:     Philipp Reisner
-P:     Lars Ellenberg
-M:     drbd-dev@lists.linbit.com
-L:     drbd-user@lists.linbit.com
-W:     http://www.drbd.org
-T:     git git://git.drbd.org/linux-2.6-drbd.git drbd
-T:     git git://git.drbd.org/drbd-8.3.git
-S:     Supported
-F:     drivers/block/drbd/
-F:     lib/lru_cache.c
-F:     Documentation/blockdev/drbd/
+P:	Philipp Reisner
+P:	Lars Ellenberg
+M:	drbd-dev@lists.linbit.com
+L:	drbd-user@lists.linbit.com
+W:	http://www.drbd.org
+T:	git git://git.drbd.org/linux-2.6-drbd.git drbd
+T:	git git://git.drbd.org/drbd-8.3.git
+S:	Supported
+F:	drivers/block/drbd/
+F:	lib/lru_cache.c
+F:	Documentation/blockdev/drbd/
 
 DRIVER CORE, KOBJECTS, AND SYSFS
 M:	Greg Kroah-Hartman <gregkh@suse.de>
@@ -2130,6 +2159,7 @@ F:	drivers/net/eexpress.*
 ETHERNET BRIDGE
 M:	Stephen Hemminger <shemminger@linux-foundation.org>
 L:	bridge@lists.linux-foundation.org
+L:	netdev@vger.kernel.org
 W:	http://www.linux-foundation.org/en/Net:Bridge
 S:	Maintained
 F:	include/linux/netfilter_bridge/
@@ -2453,12 +2483,6 @@ HYPERVISOR VIRTUAL CONSOLE DRIVER
 L:	linuxppc-dev@ozlabs.org
 S:	Odd Fixes
 F:	drivers/char/hvc_*
-
-VIRTIO CONSOLE DRIVER
-M:	Amit Shah <amit.shah@redhat.com>
-L:	virtualization@lists.linux-foundation.org
-S:	Maintained
-F:	drivers/char/virtio_console.c
 
 iSCSI BOOT FIRMWARE TABLE (iBFT) DRIVER
 M:	Peter Jones <pjones@redhat.com>
@@ -3059,6 +3083,7 @@ F:	include/scsi/*iscsi*
 ISDN SUBSYSTEM
 M:	Karsten Keil <isdn@linux-pingi.de>
 L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
+L:	netdev@vger.kernel.org
 W:	http://www.isdn4linux.de
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kkeil/isdn-2.6.git
 S:	Maintained
@@ -3244,6 +3269,16 @@ L:	kexec@lists.infradead.org
 S:	Maintained
 F:	include/linux/kexec.h
 F:	kernel/kexec.c
+
+KEYS/KEYRINGS:
+M:	David Howells <dhowells@redhat.com>
+L:	keyrings@linux-nfs.org
+S:	Maintained
+F:	Documentation/keys.txt
+F:	include/linux/key.h
+F:	include/linux/key-type.h
+F:	include/keys/
+F:	security/keys/
 
 KGDB
 M:	Jason Wessel <jason.wessel@windriver.com>
@@ -3494,8 +3529,8 @@ F:	drivers/scsi/sym53c8xx_2/
 LTP (Linux Test Project)
 M:	Rishikesh K Rajak <risrajak@linux.vnet.ibm.com>
 M:	Garrett Cooper <yanegomi@gmail.com>
-M:     Mike Frysinger <vapier@gentoo.org>
-M:     Subrata Modak <subrata@linux.vnet.ibm.com>
+M:	Mike Frysinger <vapier@gentoo.org>
+M:	Subrata Modak <subrata@linux.vnet.ibm.com>
 L:	ltp-list@lists.sourceforge.net (subscribers-only)
 W:	http://ltp.sourceforge.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/galak/ltp.git
@@ -4312,6 +4347,7 @@ PERFORMANCE EVENTS SUBSYSTEM
 M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 M:	Paul Mackerras <paulus@samba.org>
 M:	Ingo Molnar <mingo@elte.hu>
+M:	Arnaldo Carvalho de Melo <acme@redhat.com>
 S:	Supported
 F:	kernel/perf_event.c
 F:	include/linux/perf_event.h
@@ -4751,12 +4787,11 @@ F:	drivers/s390/crypto/
 
 S390 ZFCP DRIVER
 M:	Christof Schmitt <christof.schmitt@de.ibm.com>
-M:	Martin Peschke <mp3@de.ibm.com>
+M:	Swen Schillig <swen@vnet.ibm.com>
 M:	linux390@de.ibm.com
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
-F:	Documentation/s390/zfcpdump.txt
 F:	drivers/s390/scsi/zfcp_*
 
 S390 IUCV NETWORK LAYER
@@ -5198,6 +5233,21 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
 S:	Maintained
 F:	arch/sparc/
 
+SPARC SERIAL DRIVERS
+M:	"David S. Miller" <davem@davemloft.net>
+L:	sparclinux@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
+S:	Maintained
+F:	drivers/serial/suncore.c
+F:	drivers/serial/suncore.h
+F:	drivers/serial/sunhv.c
+F:	drivers/serial/sunsab.c
+F:	drivers/serial/sunsab.h
+F:	drivers/serial/sunsu.c
+F:	drivers/serial/sunzilog.c
+F:	drivers/serial/sunzilog.h
+
 SPECIALIX IO8+ MULTIPORT SERIAL CARD DRIVER
 M:	Roger Wolff <R.E.Wolff@BitWizard.nl>
 S:	Supported
@@ -5383,7 +5433,6 @@ S:	Maintained
 F:	sound/soc/codecs/twl4030*
 
 TIPC NETWORK LAYER
-M:	Per Liden <per.liden@ericsson.com>
 M:	Jon Maloy <jon.maloy@ericsson.com>
 M:	Allan Stephens <allan.stephens@windriver.com>
 L:	tipc-discussion@lists.sourceforge.net
@@ -5921,6 +5970,13 @@ S:	Maintained
 F:	Documentation/filesystems/vfat.txt
 F:	fs/fat/
 
+VIRTIO CONSOLE DRIVER
+M:	Amit Shah <amit.shah@redhat.com>
+L:	virtualization@lists.linux-foundation.org
+S:	Maintained
+F:	drivers/char/virtio_console.c
+F:	include/linux/virtio_console.h
+
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 L:	kvm@vger.kernel.org
@@ -6161,7 +6217,7 @@ F:	arch/x86/
 X86 PLATFORM DRIVERS
 M:	Matthew Garrett <mjg@redhat.com>
 L:	platform-driver-x86@vger.kernel.org
-T:      git git://git.kernel.org/pub/scm/linux/kernel/git/mjg59/platform-drivers-x86.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mjg59/platform-drivers-x86.git
 S:	Maintained
 F:	drivers/platform/x86
 

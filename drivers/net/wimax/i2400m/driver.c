@@ -69,6 +69,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/suspend.h>
+#include <linux/slab.h>
 
 #define D_SUBMODULE driver
 #include "debug-levels.h"

@@ -12,12 +12,18 @@
  */
 
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
 #include <linux/netfilter_bridge.h>
 #include "br_private.h"
+
+static int deliver_clone(const struct net_bridge_port *prev,
+			 struct sk_buff *skb,
+			 void (*__packet_hook)(const struct net_bridge_port *p,
+					       struct sk_buff *skb));
 
 /* Don't forward packets to originating port or forwarding diasabled */
 static inline int should_deliver(const struct net_bridge_port *p,
@@ -94,17 +100,22 @@ void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 }
 
 /* called with rcu_read_lock */
-void br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
+void br_forward(const struct net_bridge_port *to, struct sk_buff *skb, struct sk_buff *skb0)
 {
 	if (should_deliver(to, skb)) {
-		__br_forward(to, skb);
+		if (skb0)
+			deliver_clone(to, skb, __br_forward);
+		else
+			__br_forward(to, skb);
 		return;
 	}
 
-	kfree_skb(skb);
+	if (!skb0)
+		kfree_skb(skb);
 }
 
-static int deliver_clone(struct net_bridge_port *prev, struct sk_buff *skb,
+static int deliver_clone(const struct net_bridge_port *prev,
+			 struct sk_buff *skb,
 			 void (*__packet_hook)(const struct net_bridge_port *p,
 					       struct sk_buff *skb))
 {

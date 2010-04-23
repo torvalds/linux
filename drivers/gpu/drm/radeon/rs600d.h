@@ -535,4 +535,57 @@
 #define   G_00016C_INVALIDATE_L1_TLB(x)                (((x) >> 20) & 0x1)
 #define   C_00016C_INVALIDATE_L1_TLB                   0xFFEFFFFF
 
+#define R_006548_D1MODE_PRIORITY_A_CNT               0x006548
+#define   S_006548_D1MODE_PRIORITY_MARK_A(x)           (((x) & 0x7FFF) << 0)
+#define   G_006548_D1MODE_PRIORITY_MARK_A(x)           (((x) >> 0) & 0x7FFF)
+#define   C_006548_D1MODE_PRIORITY_MARK_A              0xFFFF8000
+#define   S_006548_D1MODE_PRIORITY_A_OFF(x)            (((x) & 0x1) << 16)
+#define   G_006548_D1MODE_PRIORITY_A_OFF(x)            (((x) >> 16) & 0x1)
+#define   C_006548_D1MODE_PRIORITY_A_OFF               0xFFFEFFFF
+#define   S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(x)      (((x) & 0x1) << 20)
+#define   G_006548_D1MODE_PRIORITY_A_ALWAYS_ON(x)      (((x) >> 20) & 0x1)
+#define   C_006548_D1MODE_PRIORITY_A_ALWAYS_ON         0xFFEFFFFF
+#define   S_006548_D1MODE_PRIORITY_A_FORCE_MASK(x)     (((x) & 0x1) << 24)
+#define   G_006548_D1MODE_PRIORITY_A_FORCE_MASK(x)     (((x) >> 24) & 0x1)
+#define   C_006548_D1MODE_PRIORITY_A_FORCE_MASK        0xFEFFFFFF
+#define R_00654C_D1MODE_PRIORITY_B_CNT               0x00654C
+#define   S_00654C_D1MODE_PRIORITY_MARK_B(x)           (((x) & 0x7FFF) << 0)
+#define   G_00654C_D1MODE_PRIORITY_MARK_B(x)           (((x) >> 0) & 0x7FFF)
+#define   C_00654C_D1MODE_PRIORITY_MARK_B              0xFFFF8000
+#define   S_00654C_D1MODE_PRIORITY_B_OFF(x)            (((x) & 0x1) << 16)
+#define   G_00654C_D1MODE_PRIORITY_B_OFF(x)            (((x) >> 16) & 0x1)
+#define   C_00654C_D1MODE_PRIORITY_B_OFF               0xFFFEFFFF
+#define   S_00654C_D1MODE_PRIORITY_B_ALWAYS_ON(x)      (((x) & 0x1) << 20)
+#define   G_00654C_D1MODE_PRIORITY_B_ALWAYS_ON(x)      (((x) >> 20) & 0x1)
+#define   C_00654C_D1MODE_PRIORITY_B_ALWAYS_ON         0xFFEFFFFF
+#define   S_00654C_D1MODE_PRIORITY_B_FORCE_MASK(x)     (((x) & 0x1) << 24)
+#define   G_00654C_D1MODE_PRIORITY_B_FORCE_MASK(x)     (((x) >> 24) & 0x1)
+#define   C_00654C_D1MODE_PRIORITY_B_FORCE_MASK        0xFEFFFFFF
+#define R_006D48_D2MODE_PRIORITY_A_CNT               0x006D48
+#define   S_006D48_D2MODE_PRIORITY_MARK_A(x)           (((x) & 0x7FFF) << 0)
+#define   G_006D48_D2MODE_PRIORITY_MARK_A(x)           (((x) >> 0) & 0x7FFF)
+#define   C_006D48_D2MODE_PRIORITY_MARK_A              0xFFFF8000
+#define   S_006D48_D2MODE_PRIORITY_A_OFF(x)            (((x) & 0x1) << 16)
+#define   G_006D48_D2MODE_PRIORITY_A_OFF(x)            (((x) >> 16) & 0x1)
+#define   C_006D48_D2MODE_PRIORITY_A_OFF               0xFFFEFFFF
+#define   S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(x)      (((x) & 0x1) << 20)
+#define   G_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(x)      (((x) >> 20) & 0x1)
+#define   C_006D48_D2MODE_PRIORITY_A_ALWAYS_ON         0xFFEFFFFF
+#define   S_006D48_D2MODE_PRIORITY_A_FORCE_MASK(x)     (((x) & 0x1) << 24)
+#define   G_006D48_D2MODE_PRIORITY_A_FORCE_MASK(x)     (((x) >> 24) & 0x1)
+#define   C_006D48_D2MODE_PRIORITY_A_FORCE_MASK        0xFEFFFFFF
+#define R_006D4C_D2MODE_PRIORITY_B_CNT               0x006D4C
+#define   S_006D4C_D2MODE_PRIORITY_MARK_B(x)           (((x) & 0x7FFF) << 0)
+#define   G_006D4C_D2MODE_PRIORITY_MARK_B(x)           (((x) >> 0) & 0x7FFF)
+#define   C_006D4C_D2MODE_PRIORITY_MARK_B              0xFFFF8000
+#define   S_006D4C_D2MODE_PRIORITY_B_OFF(x)            (((x) & 0x1) << 16)
+#define   G_006D4C_D2MODE_PRIORITY_B_OFF(x)            (((x) >> 16) & 0x1)
+#define   C_006D4C_D2MODE_PRIORITY_B_OFF               0xFFFEFFFF
+#define   S_006D4C_D2MODE_PRIORITY_B_ALWAYS_ON(x)      (((x) & 0x1) << 20)
+#define   G_006D4C_D2MODE_PRIORITY_B_ALWAYS_ON(x)      (((x) >> 20) & 0x1)
+#define   C_006D4C_D2MODE_PRIORITY_B_ALWAYS_ON         0xFFEFFFFF
+#define   S_006D4C_D2MODE_PRIORITY_B_FORCE_MASK(x)     (((x) & 0x1) << 24)
+#define   G_006D4C_D2MODE_PRIORITY_B_FORCE_MASK(x)     (((x) >> 24) & 0x1)
+#define   C_006D4C_D2MODE_PRIORITY_B_FORCE_MASK        0xFEFFFFFF
+
 #endif

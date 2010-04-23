@@ -33,6 +33,14 @@ config PRINT_QUOTA_WARNING
 	  Note that this behavior is currently deprecated and may go away in
 	  future. Please use notification via netlink socket instead.
 
+config QUOTA_DEBUG
+	bool "Additional quota sanity checks"
+	depends on QUOTA
+	default n
+	help
+	  If you say Y here, quota subsystem will perform some additional
+	  sanity checks of quota internal structures. If unsure, say N.
+
 # Generic support for tree structured quota files. Selected when needed.
 config QUOTA_TREE
 	 tristate

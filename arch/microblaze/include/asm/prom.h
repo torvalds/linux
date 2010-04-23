@@ -31,6 +31,21 @@
 /* Other Prototypes */
 extern int early_uartlite_console(void);
 
+#ifdef CONFIG_PCI
+/*
+ * PCI <-> OF matching functions
+ * (XXX should these be here?)
+ */
+struct pci_bus;
+struct pci_dev;
+extern int pci_device_from_OF_node(struct device_node *node,
+					u8 *bus, u8 *devfn);
+extern struct device_node *pci_busdev_to_OF_node(struct pci_bus *bus,
+							int devfn);
+extern struct device_node *pci_device_to_OF_node(struct pci_dev *dev);
+extern void pci_create_OF_bus_map(void);
+#endif
+
 /*
  * OF address retreival & translation
  */

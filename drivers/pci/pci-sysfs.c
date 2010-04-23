@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/capability.h>
 #include <linux/pci-aspm.h>
+#include <linux/slab.h>
 #include "pci.h"
 
 static int sysfs_initialized;	/* = 0 */
@@ -655,8 +656,8 @@ void pci_create_legacy_files(struct pci_bus *b)
 		goto legacy_io_err;
 
 	/* Allocated above after the legacy_io struct */
-	sysfs_bin_attr_init(b->legacy_mem);
 	b->legacy_mem = b->legacy_io + 1;
+	sysfs_bin_attr_init(b->legacy_mem);
 	b->legacy_mem->attr.name = "legacy_mem";
 	b->legacy_mem->size = 1024*1024;
 	b->legacy_mem->attr.mode = S_IRUSR | S_IWUSR;

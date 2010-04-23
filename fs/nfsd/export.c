@@ -12,6 +12,7 @@
  * Copyright (C) 1995, 1996 Olaf Kirch, <okir@monad.swb.de>
  */
 
+#include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/module.h>
 #include <linux/exportfs.h>

@@ -22,6 +22,7 @@
 
 #include <linux/usb.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/dmapool.h>
 
 #include "xhci.h"
@@ -566,8 +567,13 @@ static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
 			if (interval < 3)
 				interval = 3;
 			if ((1 << interval) != 8*ep->desc.bInterval)
-				dev_warn(&udev->dev, "ep %#x - rounding interval to %d microframes\n",
-						ep->desc.bEndpointAddress, 1 << interval);
+				dev_warn(&udev->dev,
+						"ep %#x - rounding interval"
+						" to %d microframes, "
+						"ep desc says %d microframes\n",
+						ep->desc.bEndpointAddress,
+						1 << interval,
+						8*ep->desc.bInterval);
 		}
 		break;
 	default:

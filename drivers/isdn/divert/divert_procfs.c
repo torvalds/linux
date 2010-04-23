@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
 #else

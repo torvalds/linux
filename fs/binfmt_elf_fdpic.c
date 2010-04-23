@@ -1590,7 +1590,7 @@ static size_t elf_core_vma_data_size(unsigned long mm_flags)
 	struct vm_area_struct *vma;
 	size_t size = 0;
 
-	for (vma = current->mm->mmap; vma; vma->vm_next)
+	for (vma = current->mm->mmap; vma; vma = vma->vm_next)
 		if (maydump(vma, mm_flags))
 			size += vma->vm_end - vma->vm_start;
 	return size;

@@ -13,7 +13,6 @@
 
 #include "gigaset.h"
 #include <linux/gigaset_dev.h>
-#include <linux/tty.h>
 #include <linux/tty_flip.h>
 
 /*** our ioctls ***/
@@ -628,7 +627,6 @@ void gigaset_if_receive(struct cardstate *cs,
 	if (tty == NULL)
 		gig_dbg(DEBUG_IF, "receive on closed device");
 	else {
-		tty_buffer_request_room(tty, len);
 		tty_insert_flip_string(tty, buffer, len);
 		tty_flip_buffer_push(tty);
 	}

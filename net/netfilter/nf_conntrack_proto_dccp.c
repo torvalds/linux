@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
 #include <linux/dccp.h>
+#include <linux/slab.h>
 
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>

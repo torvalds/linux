@@ -242,7 +242,7 @@ void parse_perf_probe_event(const char *str, struct probe_point *pp,
 
 	/* Parse probe point */
 	parse_perf_probe_probepoint(argv[0], pp);
-	if (pp->file || pp->line)
+	if (pp->file || pp->line || pp->lazy_line)
 		*need_dwarf = true;
 
 	/* Copy arguments and ensure return probe has no C argument */
@@ -508,8 +508,8 @@ void show_perf_probe_events(void)
 	struct str_node *ent;
 
 	setup_pager();
-
 	memset(&pp, 0, sizeof(pp));
+
 	fd = open_kprobe_events(O_RDONLY, 0);
 	rawlist = get_trace_kprobe_event_rawlist(fd);
 	close(fd);

@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include "rt2x00.h"
 #include "rt2x00soc.h"
@@ -112,6 +113,7 @@ exit_free_device:
 
 	return retval;
 }
+EXPORT_SYMBOL_GPL(rt2x00soc_probe);
 
 int rt2x00soc_remove(struct platform_device *pdev)
 {

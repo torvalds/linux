@@ -86,7 +86,14 @@ int max_threads;		/* tunable limit on nr_threads */
 DEFINE_PER_CPU(unsigned long, process_counts) = 0;
 
 __cacheline_aligned DEFINE_RWLOCK(tasklist_lock);  /* outer */
-EXPORT_SYMBOL_GPL(tasklist_lock);
+
+#ifdef CONFIG_PROVE_RCU
+int lockdep_tasklist_lock_is_held(void)
+{
+	return lockdep_is_held(&tasklist_lock);
+}
+EXPORT_SYMBOL_GPL(lockdep_tasklist_lock_is_held);
+#endif /* #ifdef CONFIG_PROVE_RCU */
 
 int nr_processes(void)
 {
@@ -1044,6 +1051,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
 	p->prev_utime = cputime_zero;
 	p->prev_stime = cputime_zero;
+#endif
+#if defined(SPLIT_RSS_COUNTING)
+	memset(&p->rss_stat, 0, sizeof(p->rss_stat));
 #endif
 
 	p->default_timer_slack_ns = current->timer_slack_ns;

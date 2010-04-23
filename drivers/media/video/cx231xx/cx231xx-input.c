@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/usb.h>
+#include <linux/slab.h>
 
 #include "cx231xx.h"
 

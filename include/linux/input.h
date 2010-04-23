@@ -58,10 +58,10 @@ struct input_absinfo {
 
 #define EVIOCGVERSION		_IOR('E', 0x01, int)			/* get driver version */
 #define EVIOCGID		_IOR('E', 0x02, struct input_id)	/* get device ID */
-#define EVIOCGREP		_IOR('E', 0x03, int[2])			/* get repeat settings */
-#define EVIOCSREP		_IOW('E', 0x03, int[2])			/* set repeat settings */
-#define EVIOCGKEYCODE		_IOR('E', 0x04, int[2])			/* get keycode */
-#define EVIOCSKEYCODE		_IOW('E', 0x04, int[2])			/* set keycode */
+#define EVIOCGREP		_IOR('E', 0x03, unsigned int[2])	/* get repeat settings */
+#define EVIOCSREP		_IOW('E', 0x03, unsigned int[2])	/* set repeat settings */
+#define EVIOCGKEYCODE		_IOR('E', 0x04, unsigned int[2])	/* get keycode */
+#define EVIOCSKEYCODE		_IOW('E', 0x04, unsigned int[2])	/* set keycode */
 
 #define EVIOCGNAME(len)		_IOC(_IOC_READ, 'E', 0x06, len)		/* get device name */
 #define EVIOCGPHYS(len)		_IOC(_IOC_READ, 'E', 0x07, len)		/* get physical location */
@@ -1142,8 +1142,10 @@ struct input_dev {
 	unsigned int keycodemax;
 	unsigned int keycodesize;
 	void *keycode;
-	int (*setkeycode)(struct input_dev *dev, int scancode, int keycode);
-	int (*getkeycode)(struct input_dev *dev, int scancode, int *keycode);
+	int (*setkeycode)(struct input_dev *dev,
+			  unsigned int scancode, unsigned int keycode);
+	int (*getkeycode)(struct input_dev *dev,
+			  unsigned int scancode, unsigned int *keycode);
 
 	struct ff_device *ff;
 
@@ -1415,8 +1417,10 @@ static inline void input_set_abs_params(struct input_dev *dev, int axis, int min
 	dev->absbit[BIT_WORD(axis)] |= BIT_MASK(axis);
 }
 
-int input_get_keycode(struct input_dev *dev, int scancode, int *keycode);
-int input_set_keycode(struct input_dev *dev, int scancode, int keycode);
+int input_get_keycode(struct input_dev *dev,
+		      unsigned int scancode, unsigned int *keycode);
+int input_set_keycode(struct input_dev *dev,
+		      unsigned int scancode, unsigned int keycode);
 
 extern struct class input_class;
 

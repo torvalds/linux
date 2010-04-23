@@ -54,7 +54,6 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/console.h>
-#include <linux/slab.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/bitops.h>

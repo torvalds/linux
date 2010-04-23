@@ -5072,7 +5072,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	INIT_WORK(&cp->reset_task, cas_reset_task);
 
 	/* Default link parameters */
-	if (link_mode >= 0 && link_mode <= 6)
+	if (link_mode >= 0 && link_mode < 6)
 		cp->link_cntl = link_modes[link_mode];
 	else
 		cp->link_cntl = BMCR_ANENABLE;

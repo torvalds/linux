@@ -5,6 +5,7 @@
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 
 #define RAW_VALID_HOOKS ((1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_OUT))

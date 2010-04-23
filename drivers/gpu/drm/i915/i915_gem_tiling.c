@@ -240,7 +240,7 @@ bool
 i915_gem_object_fence_offset_ok(struct drm_gem_object *obj, int tiling_mode)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	if (obj_priv->gtt_space == NULL)
 		return true;
@@ -280,7 +280,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
 		return -EINVAL;
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	if (!i915_tiling_ok(dev, args->stride, obj->size, args->tiling_mode)) {
 		drm_gem_object_unreference_unlocked(obj);
@@ -325,9 +325,12 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 * need to ensure that any fence register is cleared.
 		 */
 		if (!i915_gem_object_fence_offset_ok(obj, args->tiling_mode))
-		    ret = i915_gem_object_unbind(obj);
+			ret = i915_gem_object_unbind(obj);
+		else if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
+			ret = i915_gem_object_put_fence_reg(obj);
 		else
-		    ret = i915_gem_object_put_fence_reg(obj);
+			i915_gem_release_mmap(obj);
+
 		if (ret != 0) {
 			WARN(ret != -ERESTARTSYS,
 			     "failed to reset object for tiling switch");
@@ -361,7 +364,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
 		return -EINVAL;
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -424,7 +427,7 @@ i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page_count = obj->size >> PAGE_SHIFT;
 	int i;
 
@@ -453,7 +456,7 @@ i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page_count = obj->size >> PAGE_SHIFT;
 	int i;
 

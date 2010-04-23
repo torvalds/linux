@@ -33,6 +33,7 @@
 #include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/ip.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <linux/tcp.h>
 #include <linux/in.h>
@@ -4863,6 +4864,7 @@ static int sky2_resume(struct pci_dev *pdev)
 	if (!hw)
 		return 0;
 
+	rtnl_lock();
 	err = pci_set_power_state(pdev, PCI_D0);
 	if (err)
 		goto out;
@@ -4884,7 +4886,6 @@ static int sky2_resume(struct pci_dev *pdev)
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 	napi_enable(&hw->napi);
 
-	rtnl_lock();
 	for (i = 0; i < hw->ports; i++) {
 		err = sky2_reattach(hw->dev[i]);
 		if (err)

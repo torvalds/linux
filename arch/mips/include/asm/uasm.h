@@ -84,6 +84,7 @@ Ip_u2s3u1(_lw);
 Ip_u1u2u3(_mfc0);
 Ip_u1u2u3(_mtc0);
 Ip_u2u1u3(_ori);
+Ip_u3u1u2(_or);
 Ip_u2s3u1(_pref);
 Ip_0(_rfe);
 Ip_u2s3u1(_sc);
@@ -102,6 +103,7 @@ Ip_0(_tlbwr);
 Ip_u3u1u2(_xor);
 Ip_u2u1u3(_xori);
 Ip_u2u1msbu3(_dins);
+Ip_u1(_syscall);
 
 /* Handle labels. */
 struct uasm_label {

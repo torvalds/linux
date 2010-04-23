@@ -10,6 +10,7 @@
  */
 
 #include "common.h"
+#include <linux/slab.h>
 
 /* Keyword array for single path operations. */
 static const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {

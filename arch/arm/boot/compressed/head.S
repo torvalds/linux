@@ -172,7 +172,7 @@ not_angel:
 		adr	r0, LC0
  ARM(		ldmia	r0, {r1, r2, r3, r4, r5, r6, r11, ip, sp})
  THUMB(		ldmia	r0, {r1, r2, r3, r4, r5, r6, r11, ip}	)
- THUMB(		ldr	sp, [r0, #28]				)
+ THUMB(		ldr	sp, [r0, #32]				)
 		subs	r0, r0, r1		@ calculate the delta offset
 
 						@ if delta is zero, we are
@@ -742,7 +742,7 @@ proc_types:
 		.word	0x000f0000
 		W(b)	__armv4_mmu_cache_on
 		W(b)	__armv4_mmu_cache_off
-		W(b)	__armv4_mmu_cache_flush
+		W(b)	__armv5tej_mmu_cache_flush
 
 		.word	0x0007b000		@ ARMv6
 		.word	0x000ff000

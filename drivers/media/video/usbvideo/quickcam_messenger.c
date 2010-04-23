@@ -34,6 +34,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/usb/input.h>
+#include <linux/slab.h>
 
 #include "usbvideo.h"
 #include "quickcam_messenger.h"

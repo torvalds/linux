@@ -228,7 +228,7 @@ static int __devinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *
 		if (err) {
 			dev_warn(dev,
 				 "Unable to access MSR 0xEE, for Tjmax, left"
-				 " at default");
+				 " at default\n");
 		} else if (eax & 0x40000000) {
 			tjmax = tjmax_ee;
 		}
@@ -466,7 +466,7 @@ static int __init coretemp_init(void)
 			   family 6 CPU */
 			if ((c->x86 == 0x6) && (c->x86_model > 0xf))
 				printk(KERN_WARNING DRVNAME ": Unknown CPU "
-					"model %x\n", c->x86_model);
+					"model 0x%x\n", c->x86_model);
 			continue;
 		}
 

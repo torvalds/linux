@@ -31,6 +31,7 @@
  *
  */
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/dma-mapping.h> /* for DMA_*_DEVICE */
 

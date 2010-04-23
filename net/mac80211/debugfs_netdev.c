@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <linux/notifier.h>
 #include <net/mac80211.h>
 #include <net/cfg80211.h>
@@ -48,20 +49,24 @@ static ssize_t ieee80211_if_write(
 	ssize_t (*write)(struct ieee80211_sub_if_data *, const char *, int))
 {
 	u8 *buf;
-	ssize_t ret = -ENODEV;
+	ssize_t ret;
 
-	buf = kzalloc(count, GFP_KERNEL);
+	buf = kmalloc(count, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
+	ret = -EFAULT;
 	if (copy_from_user(buf, userbuf, count))
-		return -EFAULT;
+		goto freebuf;
 
+	ret = -ENODEV;
 	rtnl_lock();
 	if (sdata->dev->reg_state == NETREG_REGISTERED)
 		ret = (*write)(sdata, buf, count);
 	rtnl_unlock();
 
+freebuf:
+	kfree(buf);
 	return ret;
 }
 

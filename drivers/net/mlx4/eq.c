@@ -32,6 +32,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 

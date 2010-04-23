@@ -34,6 +34,7 @@
  */
 
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/log2.h>
 #include <asm/shmparam.h>
 #include "drmP.h"

@@ -2,6 +2,7 @@ config STMMAC_ETH
 	tristate "STMicroelectronics 10/100/1000 Ethernet driver"
 	select MII
 	select PHYLIB
+	select CRC32
 	depends on NETDEVICES && CPU_SUBTYPE_ST40
 	help
 	  This is the driver for the Ethernet IPs are built around a

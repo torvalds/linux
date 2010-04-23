@@ -430,18 +430,18 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 		if (unlikely(!res)) {
 			dev_err(&pdev->dev, "invalid irq resource\n");
 			ret = -ENODEV;
-			goto err_iva1;
+			omap_mbox_unregister(&mbox_dsp_info);
+			goto err_dsp;
 		}
 		mbox_iva_info.irq = res->start;
 		ret = omap_mbox_register(&pdev->dev, &mbox_iva_info);
-		if (ret)
-			goto err_iva1;
+		if (ret) {
+			omap_mbox_unregister(&mbox_dsp_info);
+			goto err_dsp;
+		}
 	}
 #endif
 	return 0;
-
-err_iva1:
-	omap_mbox_unregister(&mbox_dsp_info);
 
 err_dsp:
 	iounmap(mbox_base);

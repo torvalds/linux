@@ -12,6 +12,7 @@
 #include <linux/in6.h>
 #include <linux/mutex.h>
 #include <linux/audit.h>
+#include <linux/slab.h>
 
 #include <net/sock.h>
 #include <net/dst.h>
@@ -275,7 +276,8 @@ struct xfrm_policy_afinfo {
 					     struct dst_entry *dst,
 					     int nfheader_len);
 	int			(*fill_dst)(struct xfrm_dst *xdst,
-					    struct net_device *dev);
+					    struct net_device *dev,
+					    struct flowi *fl);
 };
 
 extern int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo);

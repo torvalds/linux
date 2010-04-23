@@ -138,6 +138,12 @@ static void decode_address(char *buf, unsigned long address)
 		if (!mm)
 			continue;
 
+		if (!down_read_trylock(&mm->mmap_sem)) {
+			if (!in_atomic)
+				mmput(mm);
+			continue;
+		}
+
 		for (n = rb_first(&mm->mm_rb); n; n = rb_next(n)) {
 			struct vm_area_struct *vma;
 
@@ -177,6 +183,7 @@ static void decode_address(char *buf, unsigned long address)
 					sprintf(buf, "[ %s vma:0x%lx-0x%lx]",
 						name, vma->vm_start, vma->vm_end);
 
+				up_read(&mm->mmap_sem);
 				if (!in_atomic)
 					mmput(mm);
 
@@ -186,11 +193,16 @@ static void decode_address(char *buf, unsigned long address)
 				goto done;
 			}
 		}
+
+		up_read(&mm->mmap_sem);
 		if (!in_atomic)
 			mmput(mm);
 	}
 
-	/* we were unable to find this address anywhere */
+	/*
+	 * we were unable to find this address anywhere,
+	 * or some MMs were skipped because they were in use.
+	 */
 	sprintf(buf, "/* kernel dynamic memory */");
 
 done:
@@ -248,9 +260,7 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
 	int j;
 #endif
-#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 	unsigned int cpu = raw_smp_processor_id();
-#endif
 	const char *strerror = NULL;
 	int sig = 0;
 	siginfo_t info;
@@ -639,7 +649,17 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 	{
 		info.si_signo = sig;
 		info.si_errno = 0;
-		info.si_addr = (void __user *)fp->pc;
+		switch (trapnr) {
+		case VEC_CPLB_VL:
+		case VEC_MISALI_D:
+		case VEC_CPLB_M:
+		case VEC_CPLB_MHIT:
+			info.si_addr = (void __user *)cpu_pda[cpu].dcplb_fault_addr;
+			break;
+		default:
+			info.si_addr = (void __user *)fp->pc;
+			break;
+		}
 		force_sig_info(sig, &info, current);
 	}
 
@@ -712,7 +732,7 @@ static void decode_instruction(unsigned short *address)
 			verbose_printk("RTE");
 		else if (opcode == 0x0025)
 			verbose_printk("EMUEXCPT");
-		else if (opcode == 0x0040 && opcode <= 0x0047)
+		else if (opcode >= 0x0040 && opcode <= 0x0047)
 			verbose_printk("STI R%i", opcode & 7);
 		else if (opcode >= 0x0050 && opcode <= 0x0057)
 			verbose_printk("JUMP (P%i)", opcode & 7);
@@ -1096,7 +1116,7 @@ void dump_bfin_mem(struct pt_regs *fp)
 			/* And the last RETI points to the current userspace context */
 			if ((fp + 1)->pc >= current->mm->start_code &&
 			    (fp + 1)->pc <= current->mm->end_code) {
-				verbose_printk(KERN_NOTICE "It might be better to look around here : \n");
+				verbose_printk(KERN_NOTICE "It might be better to look around here :\n");
 				verbose_printk(KERN_NOTICE "-------------------------------------------\n");
 				show_regs(fp + 1);
 				verbose_printk(KERN_NOTICE "-------------------------------------------\n");

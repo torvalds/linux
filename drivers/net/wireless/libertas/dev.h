@@ -36,6 +36,7 @@ struct lbs_private {
 
 	/* CFG80211 */
 	struct wireless_dev *wdev;
+	bool wiphy_registered;
 
 	/* Mesh */
 	struct net_device *mesh_dev; /* Virtual device */

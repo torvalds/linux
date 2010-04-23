@@ -11,6 +11,7 @@ extern unsigned long free_mem_end_ptr;
 extern void error(char *);
 
 #define STATIC static
+#define STATIC_RW_DATA	/* non-static please */
 
 #define ARCH_HAS_DECOMP_WDOG
 

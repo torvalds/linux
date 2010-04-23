@@ -25,6 +25,7 @@
 #include <linux/padata.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/rcupdate.h>
 
 #define MAX_SEQ_NR INT_MAX - NR_CPUS
