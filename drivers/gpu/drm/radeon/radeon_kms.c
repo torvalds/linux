@@ -164,7 +164,7 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc > 1) {
+	if (crtc < 0 || crtc >= rdev->num_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
@@ -176,7 +176,7 @@ int radeon_enable_vblank_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc > 1) {
+	if (crtc < 0 || crtc >= rdev->num_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
@@ -190,7 +190,7 @@ void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc > 1) {
+	if (crtc < 0 || crtc >= rdev->num_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return;
 	}
