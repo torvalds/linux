@@ -150,7 +150,7 @@
  *
  *	entry = iter->ent;
  *
- *	if (entry->type != event_<call>.id) {
+ *	if (entry->type != event_<call>->event.type) {
  *		WARN_ON_ONCE(1);
  *		return TRACE_TYPE_UNHANDLED;
  *	}
@@ -221,7 +221,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
 									\
 	entry = iter->ent;						\
 									\
-	if (entry->type != event->id) {					\
+	if (entry->type != event->event.type) {				\
 		WARN_ON_ONCE(1);					\
 		return TRACE_TYPE_UNHANDLED;				\
 	}								\
@@ -257,7 +257,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
 									\
 	entry = iter->ent;						\
 									\
-	if (entry->type != event_##call.id) {				\
+	if (entry->type != event_##call.event.type) {			\
 		WARN_ON_ONCE(1);					\
 		return TRACE_TYPE_UNHANDLED;				\
 	}								\
@@ -409,7 +409,7 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *	__data_size = ftrace_get_offsets_<call>(&__data_offsets, args);
  *
  *	event = trace_current_buffer_lock_reserve(&buffer,
- *				  event_<call>.id,
+ *				  event_<call>->event.type,
  *				  sizeof(*entry) + __data_size,
  *				  irq_flags, pc);
  *	if (!event)
@@ -510,7 +510,7 @@ ftrace_raw_event_##call(void *__data, proto)				\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
 	event = trace_current_buffer_lock_reserve(&buffer,		\
-				 event_call->id,			\
+				 event_call->event.type,		\
 				 sizeof(*entry) + __data_size,		\
 				 irq_flags, pc);			\
 	if (!event)							\
@@ -711,7 +711,7 @@ perf_trace_##call(void *__data, proto)					\
 		      "profile buffer not large enough"))		\
 		return;							\
 	entry = (struct ftrace_raw_##call *)perf_trace_buf_prepare(	\
-		__entry_size, event_call->id, &rctx, &irq_flags);	\
+		__entry_size, event_call->event.type, &rctx, &irq_flags); \
 	if (!entry)							\
 		return;							\
 	tstruct								\

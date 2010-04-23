@@ -125,7 +125,6 @@ int trace_event_raw_init(struct ftrace_event_call *call)
 	id = register_ftrace_event(&call->event);
 	if (!id)
 		return -ENODEV;
-	call->id = id;
 
 	return 0;
 }
@@ -567,7 +566,7 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 	trace_seq_init(s);
 
 	trace_seq_printf(s, "name: %s\n", call->name);
-	trace_seq_printf(s, "ID: %d\n", call->id);
+	trace_seq_printf(s, "ID: %d\n", call->event.type);
 	trace_seq_printf(s, "format:\n");
 
 	head = trace_get_fields(call);
@@ -641,7 +640,7 @@ event_id_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 		return -ENOMEM;
 
 	trace_seq_init(s);
-	trace_seq_printf(s, "%d\n", call->id);
+	trace_seq_printf(s, "%d\n", call->event.type);
 
 	r = simple_read_from_buffer(ubuf, cnt, ppos,
 				    s->buffer, s->len);
@@ -969,7 +968,7 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 				  enable);
 
 #ifdef CONFIG_PERF_EVENTS
-	if (call->id && (call->class->perf_probe || call->class->reg))
+	if (call->event.type && (call->class->perf_probe || call->class->reg))
 		trace_create_file("id", 0444, call->dir, call,
 		 		  id);
 #endif

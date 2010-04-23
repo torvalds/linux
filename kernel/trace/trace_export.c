@@ -153,7 +153,7 @@ static int ftrace_raw_init_event(struct ftrace_event_call *call)
 #define F_printk(fmt, args...) #fmt ", "  __stringify(args)
 
 #undef FTRACE_ENTRY
-#define FTRACE_ENTRY(call, struct_name, type, tstruct, print)		\
+#define FTRACE_ENTRY(call, struct_name, etype, tstruct, print)		\
 									\
 struct ftrace_event_class event_class_ftrace_##call = {			\
 	.system			= __stringify(TRACE_SYSTEM),		\
@@ -165,7 +165,7 @@ struct ftrace_event_call __used						\
 __attribute__((__aligned__(4)))						\
 __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name			= #call,				\
-	.id			= type,					\
+	.event.type		= etype,				\
 	.class			= &event_class_ftrace_##call,		\
 	.print_fmt		= print,				\
 };									\

@@ -117,7 +117,7 @@ print_syscall_enter(struct trace_iterator *iter, int flags,
 	if (!entry)
 		goto end;
 
-	if (entry->enter_event->id != ent->type) {
+	if (entry->enter_event->event.type != ent->type) {
 		WARN_ON_ONCE(1);
 		goto end;
 	}
@@ -173,7 +173,7 @@ print_syscall_exit(struct trace_iterator *iter, int flags,
 		return TRACE_TYPE_HANDLED;
 	}
 
-	if (entry->exit_event->id != ent->type) {
+	if (entry->exit_event->event.type != ent->type) {
 		WARN_ON_ONCE(1);
 		return TRACE_TYPE_UNHANDLED;
 	}
@@ -315,7 +315,7 @@ void ftrace_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 	size = sizeof(*entry) + sizeof(unsigned long) * sys_data->nb_args;
 
 	event = trace_current_buffer_lock_reserve(&buffer,
-			sys_data->enter_event->id, size, 0, 0);
+			sys_data->enter_event->event.type, size, 0, 0);
 	if (!event)
 		return;
 
@@ -347,7 +347,7 @@ void ftrace_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 		return;
 
 	event = trace_current_buffer_lock_reserve(&buffer,
-			sys_data->exit_event->id, sizeof(*entry), 0, 0);
+			sys_data->exit_event->event.type, sizeof(*entry), 0, 0);
 	if (!event)
 		return;
 
@@ -511,7 +511,8 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 		return;
 
 	rec = (struct syscall_trace_enter *)perf_trace_buf_prepare(size,
-				sys_data->enter_event->id, &rctx, &flags);
+				sys_data->enter_event->event.type,
+				&rctx, &flags);
 	if (!rec)
 		return;
 
@@ -586,7 +587,8 @@ static void perf_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 		return;
 
 	rec = (struct syscall_trace_exit *)perf_trace_buf_prepare(size,
-				sys_data->exit_event->id, &rctx, &flags);
+				sys_data->exit_event->event.type,
+				&rctx, &flags);
 	if (!rec)
 		return;
 

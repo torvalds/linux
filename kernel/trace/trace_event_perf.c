@@ -80,7 +80,7 @@ int perf_trace_enable(int event_id)
 
 	mutex_lock(&event_mutex);
 	list_for_each_entry(event, &ftrace_events, list) {
-		if (event->id == event_id &&
+		if (event->event.type == event_id &&
 		    event->class && event->class->perf_probe &&
 		    try_module_get(event->mod)) {
 			ret = perf_trace_event_enable(event);
@@ -128,7 +128,7 @@ void perf_trace_disable(int event_id)
 
 	mutex_lock(&event_mutex);
 	list_for_each_entry(event, &ftrace_events, list) {
-		if (event->id == event_id) {
+		if (event->event.type == event_id) {
 			perf_trace_event_disable(event);
 			module_put(event->mod);
 			break;

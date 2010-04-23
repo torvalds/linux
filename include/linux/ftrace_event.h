@@ -149,14 +149,13 @@ struct ftrace_event_call {
 	char			*name;
 	struct dentry		*dir;
 	struct trace_event	event;
-	int			enabled;
-	int			id;
 	const char		*print_fmt;
-	int			filter_active;
 	struct event_filter	*filter;
 	void			*mod;
 	void			*data;
 
+	int			enabled;
+	int			filter_active;
 	int			perf_refcount;
 };
 

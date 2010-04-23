@@ -960,8 +960,8 @@ static __kprobes void kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 
 	size = SIZEOF_KPROBE_TRACE_ENTRY(tp->nr_args);
 
-	event = trace_current_buffer_lock_reserve(&buffer, call->id, size,
-						  irq_flags, pc);
+	event = trace_current_buffer_lock_reserve(&buffer, call->event.type,
+						  size, irq_flags, pc);
 	if (!event)
 		return;
 
@@ -992,8 +992,8 @@ static __kprobes void kretprobe_trace_func(struct kretprobe_instance *ri,
 
 	size = SIZEOF_KRETPROBE_TRACE_ENTRY(tp->nr_args);
 
-	event = trace_current_buffer_lock_reserve(&buffer, call->id, size,
-						  irq_flags, pc);
+	event = trace_current_buffer_lock_reserve(&buffer, call->event.type,
+						  size, irq_flags, pc);
 	if (!event)
 		return;
 
@@ -1228,7 +1228,8 @@ static __kprobes void kprobe_perf_func(struct kprobe *kp,
 		     "profile buffer not large enough"))
 		return;
 
-	entry = perf_trace_buf_prepare(size, call->id, &rctx, &irq_flags);
+	entry = perf_trace_buf_prepare(size, call->event.type,
+				       &rctx, &irq_flags);
 	if (!entry)
 		return;
 
@@ -1258,7 +1259,8 @@ static __kprobes void kretprobe_perf_func(struct kretprobe_instance *ri,
 		     "profile buffer not large enough"))
 		return;
 
-	entry = perf_trace_buf_prepare(size, call->id, &rctx, &irq_flags);
+	entry = perf_trace_buf_prepare(size, call->event.type,
+				       &rctx, &irq_flags);
 	if (!entry)
 		return;
 
@@ -1375,8 +1377,8 @@ static int register_probe_event(struct trace_probe *tp)
 	}
 	if (set_print_fmt(tp) < 0)
 		return -ENOMEM;
-	call->id = register_ftrace_event(&call->event);
-	if (!call->id) {
+	ret = register_ftrace_event(&call->event);
+	if (!ret) {
 		kfree(call->print_fmt);
 		return -ENODEV;
 	}
