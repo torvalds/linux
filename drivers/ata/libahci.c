@@ -184,7 +184,7 @@ EXPORT_SYMBOL_GPL(ahci_em_messages);
 module_param(ahci_em_messages, int, 0444);
 /* add other LED protocol types when they become supported */
 MODULE_PARM_DESC(ahci_em_messages,
-	"Set AHCI Enclosure Management Message type (0 = disabled, 1 = LED");
+	"AHCI Enclosure Management Message control (0 = off, 1 = on)");
 
 static void ahci_enable_ahci(void __iomem *mmio)
 {
@@ -931,26 +931,28 @@ static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 		return -EBUSY;
 	}
 
-	/*
-	 * create message header - this is all zero except for
-	 * the message size, which is 4 bytes.
-	 */
-	message[0] |= (4 << 8);
+	if (hpriv->em_msg_type & EM_MSG_TYPE_LED) {
+		/*
+		 * create message header - this is all zero except for
+		 * the message size, which is 4 bytes.
+		 */
+		message[0] |= (4 << 8);
 
-	/* ignore 0:4 of byte zero, fill in port info yourself */
-	message[1] = ((state & ~EM_MSG_LED_HBA_PORT) | ap->port_no);
+		/* ignore 0:4 of byte zero, fill in port info yourself */
+		message[1] = ((state & ~EM_MSG_LED_HBA_PORT) | ap->port_no);
 
-	/* write message to EM_LOC */
-	writel(message[0], mmio + hpriv->em_loc);
-	writel(message[1], mmio + hpriv->em_loc+4);
+		/* write message to EM_LOC */
+		writel(message[0], mmio + hpriv->em_loc);
+		writel(message[1], mmio + hpriv->em_loc+4);
+
+		/*
+		 * tell hardware to transmit the message
+		 */
+		writel(em_ctl | EM_CTL_TM, mmio + HOST_EM_CTL);
+	}
 
 	/* save off new led state for port/slot */
 	emp->led_state = state;
-
-	/*
-	 * tell hardware to transmit the message
-	 */
-	writel(em_ctl | EM_CTL_TM, mmio + HOST_EM_CTL);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 	return size;
@@ -2094,10 +2096,10 @@ void ahci_set_em_messages(struct ahci_host_priv *hpriv,
 
 	messages = (em_ctl & EM_CTRL_MSG_TYPE) >> 16;
 
-	/* we only support LED message type right now */
-	if ((messages & 0x01) && (ahci_em_messages == 1)) {
+	if (messages) {
 		/* store em_loc */
 		hpriv->em_loc = ((em_loc >> 16) * 4);
+		hpriv->em_msg_type = messages;
 		pi->flags |= ATA_FLAG_EM;
 		if (!(em_ctl & EM_CTL_ALHD))
 			pi->flags |= ATA_FLAG_SW_ACTIVITY;

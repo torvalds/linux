@@ -227,6 +227,12 @@ enum {
 	EM_CTL_RST			= (1 << 9), /* Reset */
 	EM_CTL_TM			= (1 << 8), /* Transmit Message */
 	EM_CTL_ALHD			= (1 << 26), /* Activity LED */
+
+	/* em message type */
+	EM_MSG_TYPE_LED		= (1 << 0), /* LED */
+	EM_MSG_TYPE_SAFTE	= (1 << 1), /* SAF-TE */
+	EM_MSG_TYPE_SES2	= (1 << 2), /* SES-2 */
+	EM_MSG_TYPE_SGPIO	= (1 << 3), /* SGPIO */
 };
 
 struct ahci_cmd_hdr {
@@ -282,9 +288,9 @@ struct ahci_host_priv {
 	u32			saved_cap2;	/* saved initial cap2 */
 	u32			saved_port_map;	/* saved initial port_map */
 	u32 			em_loc; /* enclosure management location */
+	u32			em_msg_type;	/* EM message type */
 };
 
-extern int ahci_em_messages;
 extern int ahci_ignore_sss;
 
 extern struct scsi_host_template ahci_sht;
