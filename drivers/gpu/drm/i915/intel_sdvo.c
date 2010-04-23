@@ -2054,40 +2054,17 @@ static const struct drm_encoder_funcs intel_sdvo_enc_funcs = {
  * outputs, then LVDS outputs.
  */
 static void
-intel_sdvo_select_ddc_bus(struct intel_sdvo_priv *dev_priv)
+intel_sdvo_select_ddc_bus(struct drm_i915_private *dev_priv,
+			  struct intel_sdvo_priv *sdvo, u32 reg)
 {
-	uint16_t mask = 0;
-	unsigned int num_bits;
+	struct sdvo_device_mapping *mapping;
 
-	/* Make a mask of outputs less than or equal to our own priority in the
-	 * list.
-	 */
-	switch (dev_priv->controlled_output) {
-	case SDVO_OUTPUT_LVDS1:
-		mask |= SDVO_OUTPUT_LVDS1;
-	case SDVO_OUTPUT_LVDS0:
-		mask |= SDVO_OUTPUT_LVDS0;
-	case SDVO_OUTPUT_TMDS1:
-		mask |= SDVO_OUTPUT_TMDS1;
-	case SDVO_OUTPUT_TMDS0:
-		mask |= SDVO_OUTPUT_TMDS0;
-	case SDVO_OUTPUT_RGB1:
-		mask |= SDVO_OUTPUT_RGB1;
-	case SDVO_OUTPUT_RGB0:
-		mask |= SDVO_OUTPUT_RGB0;
-		break;
-	}
+	if (IS_SDVOB(reg))
+		mapping = &(dev_priv->sdvo_mappings[0]);
+	else
+		mapping = &(dev_priv->sdvo_mappings[1]);
 
-	/* Count bits to find what number we are in the priority list. */
-	mask &= dev_priv->caps.output_flags;
-	num_bits = hweight16(mask);
-	if (num_bits > 3) {
-		/* if more than 3 outputs, default to DDC bus 3 for now */
-		num_bits = 3;
-	}
-
-	/* Corresponds to SDVO_CONTROL_BUS_DDCx */
-	dev_priv->ddc_bus = 1 << num_bits;
+	sdvo->ddc_bus = 1 << ((mapping->ddc_pin & 0xf0) >> 4);
 }
 
 static bool
@@ -2864,7 +2841,7 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 		goto err_i2c;
 	}
 
-	intel_sdvo_select_ddc_bus(sdvo_priv);
+	intel_sdvo_select_ddc_bus(dev_priv, sdvo_priv, sdvo_reg);
 
 	/* Set the input timing to the screen. Assume always input 0. */
 	intel_sdvo_set_target_input(intel_encoder, true, false);

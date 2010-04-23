@@ -135,6 +135,7 @@ struct sdvo_device_mapping {
 	u8 slave_addr;
 	u8 dvo_wiring;
 	u8 initialized;
+	u8 ddc_pin;
 };
 
 struct drm_i915_error_state {
