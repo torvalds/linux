@@ -1,5 +1,5 @@
 perf-kvm(1)
-==============
+===========
 
 NAME
 ----
@@ -41,9 +41,9 @@ There are a couple of variants of perf kvm:
 OPTIONS
 -------
 --host=::
-        Collect host side perforamnce profile.
+        Collect host side performance profile.
 --guest=::
-        Collect guest side perforamnce profile.
+        Collect guest side performance profile.
 --guestmount=<path>::
 	Guest os root file system mount directory. Users mounts guest os
         root directories under <path> by a specific filesystem access method,
@@ -64,4 +64,5 @@ OPTIONS
 
 SEE ALSO
 --------
-linkperf:perf-top[1] perf-record[1] perf-report[1] perf-diff[1] perf-buildid-list[1]
+linkperf:perf-top[1], linkperf:perf-record[1], linkperf:perf-report[1],
+linkperf:perf-diff[1], linkperf:perf-buildid-list[1]
