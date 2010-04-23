@@ -705,6 +705,8 @@ config ARCH_RK2818
         bool "Rockchip soc rk2818"
         select CPU_ARM926T
         select CPU_CP15_MMU
+	select HAVE_CLK
+	select COMMON_CLKDEV
         select GENERIC_TIME
         select GENERIC_CLOCKEVENTS
 	help
