@@ -21,12 +21,6 @@
 
 /* platform device data structures */
 
-struct msm_mddi_platform_data
-{
-	void (*panel_power)(int on);
-	unsigned has_vsync_irq:1;
-};
-
 struct msm_acpu_clock_platform_data
 {
 	uint32_t acpu_switch_time_us;
