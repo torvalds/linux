@@ -1337,12 +1337,14 @@ ftrace_dump_on_oops must be set. To set ftrace_dump_on_oops, one
 can either use the sysctl function or set it via the proc system
 interface.
 
-  sysctl kernel.ftrace_dump_on_oops=1
+  sysctl kernel.ftrace_dump_on_oops=n
 
 or
 
-  echo 1 > /proc/sys/kernel/ftrace_dump_on_oops
+  echo n > /proc/sys/kernel/ftrace_dump_on_oops
 
+If n = 1, ftrace will dump buffers of all CPUs, if n = 2 ftrace will
+only dump the buffer of the CPU that triggered the oops.
 
 Here's an example of such a dump after a null pointer
 dereference in a kernel module:

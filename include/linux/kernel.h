@@ -490,6 +490,13 @@ static inline void tracing_off(void) { }
 static inline void tracing_off_permanent(void) { }
 static inline int tracing_is_on(void) { return 0; }
 #endif
+
+enum ftrace_dump_mode {
+	DUMP_NONE,
+	DUMP_ALL,
+	DUMP_ORIG,
+};
+
 #ifdef CONFIG_TRACING
 extern void tracing_start(void);
 extern void tracing_stop(void);
@@ -571,7 +578,7 @@ __ftrace_vbprintk(unsigned long ip, const char *fmt, va_list ap);
 extern int
 __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap);
 
-extern void ftrace_dump(void);
+extern void ftrace_dump(enum ftrace_dump_mode oops_dump_mode);
 #else
 static inline void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3) { }
@@ -592,7 +599,7 @@ ftrace_vprintk(const char *fmt, va_list ap)
 {
 	return 0;
 }
-static inline void ftrace_dump(void) { }
+static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 #endif /* CONFIG_TRACING */
 
 /*
