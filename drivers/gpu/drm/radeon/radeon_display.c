@@ -86,12 +86,12 @@ static void evergreen_crtc_load_lut(struct drm_crtc *crtc)
 	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_GREEN + radeon_crtc->crtc_offset, 0xffff);
 	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_RED + radeon_crtc->crtc_offset, 0xffff);
 
-	WREG32(EVERGREEN_DC_LUT_RW_MODE, radeon_crtc->crtc_id);
-	WREG32(EVERGREEN_DC_LUT_WRITE_EN_MASK, 0x00000007);
+	WREG32(EVERGREEN_DC_LUT_RW_MODE + radeon_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_DC_LUT_WRITE_EN_MASK + radeon_crtc->crtc_offset, 0x00000007);
 
-	WREG32(EVERGREEN_DC_LUT_RW_INDEX, 0);
+	WREG32(EVERGREEN_DC_LUT_RW_INDEX + radeon_crtc->crtc_offset, 0);
 	for (i = 0; i < 256; i++) {
-		WREG32(EVERGREEN_DC_LUT_30_COLOR,
+		WREG32(EVERGREEN_DC_LUT_30_COLOR + radeon_crtc->crtc_offset,
 		       (radeon_crtc->lut_r[i] << 20) |
 		       (radeon_crtc->lut_g[i] << 10) |
 		       (radeon_crtc->lut_b[i] << 0));
