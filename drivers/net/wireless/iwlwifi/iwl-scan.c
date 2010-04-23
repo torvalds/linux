@@ -367,7 +367,7 @@ void iwl_internal_short_hw_scan(struct iwl_priv *priv)
 	queue_work(priv->workqueue, &priv->start_internal_scan);
 }
 
-static void iwl_bg_start_internal_scan(struct work_struct *work)
+void iwl_bg_start_internal_scan(struct work_struct *work)
 {
 	struct iwl_priv *priv =
 		container_of(work, struct iwl_priv, start_internal_scan);
@@ -402,6 +402,7 @@ static void iwl_bg_start_internal_scan(struct work_struct *work)
  unlock:
 	mutex_unlock(&priv->mutex);
 }
+EXPORT_SYMBOL(iwl_bg_start_internal_scan);
 
 void iwl_bg_scan_check(struct work_struct *data)
 {
