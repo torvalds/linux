@@ -510,9 +510,18 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 	if (likely(urb->actual_length != 0)) {
 		skb_put(skb, urb->actual_length);
 
+		/* Process the command first */
+		ath9k_htc_rx_msg(hif_dev->htc_handle, skb,
+				 skb->len, USB_REG_IN_PIPE);
+
+
 		nskb = alloc_skb(MAX_REG_IN_BUF_SIZE, GFP_ATOMIC);
-		if (!nskb)
-			goto resubmit;
+		if (!nskb) {
+			dev_err(&hif_dev->udev->dev,
+				"ath9k_htc: REG_IN memory allocation failure\n");
+			urb->context = NULL;
+			return;
+		}
 
 		usb_fill_int_urb(urb, hif_dev->udev,
 				 usb_rcvintpipe(hif_dev->udev, USB_REG_IN_PIPE),
@@ -522,11 +531,8 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret) {
 			kfree_skb(nskb);
-			goto free;
+			urb->context = NULL;
 		}
-
-		ath9k_htc_rx_msg(hif_dev->htc_handle, skb,
-				 skb->len, USB_REG_IN_PIPE);
 
 		return;
 	}
