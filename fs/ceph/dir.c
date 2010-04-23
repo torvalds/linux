@@ -51,8 +51,11 @@ int ceph_init_dentry(struct dentry *dentry)
 		return -ENOMEM;          /* oh well */
 
 	spin_lock(&dentry->d_lock);
-	if (dentry->d_fsdata) /* lost a race */
+	if (dentry->d_fsdata) {
+		/* lost a race */
+		kmem_cache_free(ceph_dentry_cachep, di);
 		goto out_unlock;
+	}
 	di->dentry = dentry;
 	di->lease_session = NULL;
 	dentry->d_fsdata = di;
