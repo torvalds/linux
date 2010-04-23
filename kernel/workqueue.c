@@ -229,6 +229,16 @@ static inline void set_wq_data(struct work_struct *work,
 	atomic_long_set(&work->data, new);
 }
 
+/*
+ * Clear WORK_STRUCT_PENDING and the workqueue on which it was queued.
+ */
+static inline void clear_wq_data(struct work_struct *work)
+{
+	unsigned long flags = *work_data_bits(work) &
+				(1UL << WORK_STRUCT_STATIC);
+	atomic_long_set(&work->data, flags);
+}
+
 static inline
 struct cpu_workqueue_struct *get_wq_data(struct work_struct *work)
 {
@@ -671,7 +681,7 @@ static int __cancel_work_timer(struct work_struct *work,
 		wait_on_work(work);
 	} while (unlikely(ret < 0));
 
-	work_clear_pending(work);
+	clear_wq_data(work);
 	return ret;
 }
 
