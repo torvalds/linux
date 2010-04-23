@@ -417,6 +417,9 @@ void inet6_destroy_sock(struct sock *sk)
 	if ((skb = xchg(&np->pktoptions, NULL)) != NULL)
 		kfree_skb(skb);
 
+	if ((skb = xchg(&np->rxpmtu, NULL)) != NULL)
+		kfree_skb(skb);
+
 	/* Free flowlabels */
 	fl6_free_socklist(sk);
 

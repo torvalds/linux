@@ -257,6 +257,7 @@ struct inet6_skb_parm {
 };
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
+#define IP6CBMTU(skb)	((struct ip6_mtuinfo *)((skb)->cb))
 
 static inline int inet6_iif(const struct sk_buff *skb)
 {
@@ -366,6 +367,7 @@ struct ipv6_pinfo {
 
 	struct ipv6_txoptions	*opt;
 	struct sk_buff		*pktoptions;
+	struct sk_buff		*rxpmtu;
 	struct {
 		struct ipv6_txoptions *opt;
 		u8 hop_limit;
