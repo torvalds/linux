@@ -71,12 +71,8 @@ static pte_t __ref *vmem_pte_alloc(void)
 		pte = alloc_bootmem(PTRS_PER_PTE * sizeof(pte_t));
 	if (!pte)
 		return NULL;
-	if (MACHINE_HAS_HPAGE)
-		clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY | _PAGE_CO,
-			    PTRS_PER_PTE * sizeof(pte_t));
-	else
-		clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY,
-			    PTRS_PER_PTE * sizeof(pte_t));
+	clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY,
+		    PTRS_PER_PTE * sizeof(pte_t));
 	return pte;
 }
 
@@ -117,8 +113,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		if (MACHINE_HAS_HPAGE && !(address & ~HPAGE_MASK) &&
 		    (address + HPAGE_SIZE <= start + size) &&
 		    (address >= HPAGE_SIZE)) {
-			pte_val(pte) |= _SEGMENT_ENTRY_LARGE |
-					_SEGMENT_ENTRY_CO;
+			pte_val(pte) |= _SEGMENT_ENTRY_LARGE;
 			pmd_val(*pm_dir) = pte_val(pte);
 			address += HPAGE_SIZE - PAGE_SIZE;
 			continue;

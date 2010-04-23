@@ -264,8 +264,8 @@ void ide_retry_pc(ide_drive_t *drive)
 	 * of it.  The failed command will be retried after sense data
 	 * is acquired.
 	 */
-	blk_requeue_request(failed_rq->q, failed_rq);
 	drive->hwif->rq = NULL;
+	ide_requeue_and_plug(drive, failed_rq);
 	if (ide_queue_sense_rq(drive, pc)) {
 		blk_start_request(failed_rq);
 		ide_complete_rq(drive, -EIO, blk_rq_bytes(failed_rq));

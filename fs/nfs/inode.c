@@ -623,10 +623,10 @@ struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_c
 	list_for_each_entry(pos, &nfsi->open_files, list) {
 		if (cred != NULL && pos->cred != cred)
 			continue;
-		if ((pos->mode & mode) == mode) {
-			ctx = get_nfs_open_context(pos);
-			break;
-		}
+		if ((pos->mode & (FMODE_READ|FMODE_WRITE)) != mode)
+			continue;
+		ctx = get_nfs_open_context(pos);
+		break;
 	}
 	spin_unlock(&inode->i_lock);
 	return ctx;

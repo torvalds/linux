@@ -908,11 +908,16 @@ static void atom_op_shl(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++), shift;
 	uint32_t saved, dst;
 	int dptr = *ptr;
+	uint32_t dst_align = atom_dst_to_src[(attr >> 3) & 7][(attr >> 6) & 3];
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
+	/* op needs to full dst value */
+	dst = saved;
 	shift = atom_get_src(ctx, attr, ptr);
 	SDEBUG("   shift: %d\n", shift);
 	dst <<= shift;
+	dst &= atom_arg_mask[dst_align];
+	dst >>= atom_arg_shift[dst_align];
 	SDEBUG("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
@@ -922,11 +927,16 @@ static void atom_op_shr(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++), shift;
 	uint32_t saved, dst;
 	int dptr = *ptr;
+	uint32_t dst_align = atom_dst_to_src[(attr >> 3) & 7][(attr >> 6) & 3];
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
+	/* op needs to full dst value */
+	dst = saved;
 	shift = atom_get_src(ctx, attr, ptr);
 	SDEBUG("   shift: %d\n", shift);
 	dst >>= shift;
+	dst &= atom_arg_mask[dst_align];
+	dst >>= atom_arg_shift[dst_align];
 	SDEBUG("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
@@ -1137,6 +1147,7 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
 	int len, ws, ps, ptr;
 	unsigned char op;
 	atom_exec_context ectx;
+	int ret = 0;
 
 	if (!base)
 		return -EINVAL;
@@ -1169,7 +1180,8 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
 		if (ectx.abort) {
 			DRM_ERROR("atombios stuck executing %04X (len %d, WS %d, PS %d) @ 0x%04X\n",
 				base, len, ws, ps, ptr - 1);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto free;
 		}
 
 		if (op < ATOM_OP_CNT && op > 0)
@@ -1184,9 +1196,10 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
 	debug_depth--;
 	SDEBUG("<<\n");
 
+free:
 	if (ws)
 		kfree(ectx.ws);
-	return 0;
+	return ret;
 }
 
 int atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)

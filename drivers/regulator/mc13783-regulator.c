@@ -618,9 +618,12 @@ static int __devexit mc13783_regulator_remove(struct platform_device *pdev)
 		dev_get_platdata(&pdev->dev);
 	int i;
 
+	platform_set_drvdata(pdev, NULL);
+
 	for (i = 0; i < pdata->num_regulators; i++)
 		regulator_unregister(priv->regulators[i]);
 
+	kfree(priv);
 	return 0;
 }
 

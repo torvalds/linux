@@ -1690,7 +1690,7 @@ myri10ge_set_pauseparam(struct net_device *netdev,
 	if (pause->tx_pause != mgp->pause)
 		return myri10ge_change_pause(mgp, pause->tx_pause);
 	if (pause->rx_pause != mgp->pause)
-		return myri10ge_change_pause(mgp, pause->tx_pause);
+		return myri10ge_change_pause(mgp, pause->rx_pause);
 	if (pause->autoneg != 0)
 		return -EINVAL;
 	return 0;

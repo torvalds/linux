@@ -202,21 +202,17 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		 * reg, so dont bother to check the size */
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
 			return false;
-	} else if (IS_I9XX(dev)) {
-		uint32_t pitch_val = ffs(stride / tile_width) - 1;
-
-		/* XXX: For Y tiling, FENCE_MAX_PITCH_VAL is actually 6 (8KB)
-		 * instead of 4 (2KB) on 945s.
-		 */
-		if (pitch_val > I915_FENCE_MAX_PITCH_VAL ||
-		    size > (I830_FENCE_MAX_SIZE_VAL << 20))
+	} else if (IS_GEN3(dev) || IS_GEN2(dev)) {
+		if (stride > 8192)
 			return false;
-	} else {
-		uint32_t pitch_val = ffs(stride / tile_width) - 1;
 
-		if (pitch_val > I830_FENCE_MAX_PITCH_VAL ||
-		    size > (I830_FENCE_MAX_SIZE_VAL << 19))
-			return false;
+		if (IS_GEN3(dev)) {
+			if (size > I830_FENCE_MAX_SIZE_VAL << 20)
+				return false;
+		} else {
+			if (size > I830_FENCE_MAX_SIZE_VAL << 19)
+				return false;
+		}
 	}
 
 	/* 965+ just needs multiples of tile width */
@@ -240,7 +236,7 @@ bool
 i915_gem_object_fence_offset_ok(struct drm_gem_object *obj, int tiling_mode)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	if (obj_priv->gtt_space == NULL)
 		return true;
@@ -280,7 +276,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
 		return -EINVAL;
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	if (!i915_tiling_ok(dev, args->stride, obj->size, args->tiling_mode)) {
 		drm_gem_object_unreference_unlocked(obj);
@@ -364,7 +360,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
 		return -EINVAL;
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -427,7 +423,7 @@ i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page_count = obj->size >> PAGE_SHIFT;
 	int i;
 
@@ -456,7 +452,7 @@ i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page_count = obj->size >> PAGE_SHIFT;
 	int i;
 

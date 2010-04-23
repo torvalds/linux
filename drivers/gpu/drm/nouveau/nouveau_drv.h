@@ -76,6 +76,7 @@ struct nouveau_bo {
 	struct ttm_buffer_object bo;
 	struct ttm_placement placement;
 	u32 placements[3];
+	u32 busy_placements[3];
 	struct ttm_bo_kmap_obj kmap;
 	struct list_head head;
 
@@ -519,6 +520,7 @@ struct drm_nouveau_private {
 
 	struct workqueue_struct *wq;
 	struct work_struct irq_work;
+	struct work_struct hpd_work;
 
 	struct list_head vbl_waiting;
 
@@ -533,7 +535,6 @@ struct drm_nouveau_private {
 
 	struct fb_info *fbdev_info;
 
-	int fifo_alloc_count;
 	struct nouveau_channel *fifos[NOUVEAU_MAX_CHANNEL_NR];
 
 	struct nouveau_engine engine;
@@ -553,12 +554,6 @@ struct drm_nouveau_private {
 	uint32_t ramro_offset;
 	uint32_t ramro_size;
 
-	/* base physical addresses */
-	uint64_t fb_phys;
-	uint64_t fb_available_size;
-	uint64_t fb_mappable_pages;
-	uint64_t fb_aper_free;
-
 	struct {
 		enum {
 			NOUVEAU_GART_NONE = 0,
@@ -572,10 +567,6 @@ struct drm_nouveau_private {
 		struct nouveau_gpuobj *sg_ctxdma;
 		struct page *sg_dummy_page;
 		dma_addr_t sg_dummy_bus;
-
-		/* nottm hack */
-		struct drm_ttm_backend *sg_be;
-		unsigned long sg_handle;
 	} gart_info;
 
 	/* nv10-nv40 tiling regions */
@@ -583,6 +574,16 @@ struct drm_nouveau_private {
 		struct nouveau_tile_reg reg[NOUVEAU_MAX_TILE_NR];
 		spinlock_t lock;
 	} tile;
+
+	/* VRAM/fb configuration */
+	uint64_t vram_size;
+	uint64_t vram_sys_base;
+
+	uint64_t fb_phys;
+	uint64_t fb_available_size;
+	uint64_t fb_mappable_pages;
+	uint64_t fb_aper_free;
+	int fb_mtrr;
 
 	/* G8x/G9x virtual address space */
 	uint64_t vm_gart_base;
@@ -592,10 +593,6 @@ struct drm_nouveau_private {
 	uint64_t vm_end;
 	struct nouveau_gpuobj *vm_vram_pt[NV50_VM_VRAM_NR];
 	int vm_vram_pt_nr;
-	uint64_t vram_sys_base;
-
-	/* the mtrr covering the FB */
-	int fb_mtrr;
 
 	struct mem_block *ramin_heap;
 
@@ -614,11 +611,7 @@ struct drm_nouveau_private {
 	uint32_t dac_users[4];
 
 	struct nouveau_suspend_resume {
-		uint32_t fifo_mode;
-		uint32_t graph_ctx_control;
-		uint32_t graph_state;
 		uint32_t *ramin_copy;
-		uint64_t ramin_size;
 	} susres;
 
 	struct backlight_device *backlight;
@@ -717,7 +710,7 @@ extern struct mem_block *nouveau_mem_alloc_block(struct mem_block *,
 						 struct drm_file *, int tail);
 extern void nouveau_mem_takedown(struct mem_block **heap);
 extern void nouveau_mem_free_block(struct mem_block *);
-extern uint64_t nouveau_mem_fb_amount(struct drm_device *);
+extern int  nouveau_mem_detect(struct drm_device *dev);
 extern void nouveau_mem_release(struct drm_file *, struct mem_block *heap);
 extern int  nouveau_mem_init(struct drm_device *);
 extern int  nouveau_mem_init_agp(struct drm_device *);
@@ -1124,7 +1117,8 @@ extern int nouveau_bo_pin(struct nouveau_bo *, uint32_t flags);
 extern int nouveau_bo_unpin(struct nouveau_bo *);
 extern int nouveau_bo_map(struct nouveau_bo *);
 extern void nouveau_bo_unmap(struct nouveau_bo *);
-extern void nouveau_bo_placement_set(struct nouveau_bo *, uint32_t memtype);
+extern void nouveau_bo_placement_set(struct nouveau_bo *, uint32_t type,
+				     uint32_t busy);
 extern u16 nouveau_bo_rd16(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val);
 extern u32 nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index);
@@ -1167,6 +1161,10 @@ extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 /* nv17_gpio.c */
 int nv17_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
 int nv17_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
+
+/* nv50_gpio.c */
+int nv50_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
+int nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
 
 #ifndef ioread32_native
 #ifdef __BIG_ENDIAN

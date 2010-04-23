@@ -257,10 +257,14 @@ struct logfs_shadow {
  * struct shadow_tree
  * @new:			shadows where old_ofs==0, indexed by new_ofs
  * @old:			shadows where old_ofs!=0, indexed by old_ofs
+ * @segment_map:		bitfield of segments containing shadows
+ * @no_shadowed_segment:	number of segments containing shadows
  */
 struct shadow_tree {
 	struct btree_head64 new;
 	struct btree_head64 old;
+	struct btree_head32 segment_map;
+	int no_shadowed_segments;
 };
 
 struct object_alias_item {
@@ -305,12 +309,13 @@ typedef int write_alias_t(struct super_block *sb, u64 ino, u64 bix,
 		level_t level, int child_no, __be64 val);
 struct logfs_block_ops {
 	void	(*write_block)(struct logfs_block *block);
-	gc_level_t	(*block_level)(struct logfs_block *block);
 	void	(*free_block)(struct super_block *sb, struct logfs_block*block);
 	int	(*write_alias)(struct super_block *sb,
 			struct logfs_block *block,
 			write_alias_t *write_one_alias);
 };
+
+#define MAX_JOURNAL_ENTRIES 256
 
 struct logfs_super {
 	struct mtd_info *s_mtd;			/* underlying device */
@@ -378,7 +383,7 @@ struct logfs_super {
 	u32	 s_journal_ec[LOGFS_JOURNAL_SEGS]; /* journal erasecounts */
 	u64	 s_last_version;
 	struct logfs_area *s_journal_area;	/* open journal segment */
-	__be64	s_je_array[64];
+	__be64	s_je_array[MAX_JOURNAL_ENTRIES];
 	int	s_no_je;
 
 	int	 s_sum_index;			/* for the 12 summaries */
@@ -720,6 +725,12 @@ static inline struct logfs_area *get_area(struct super_block *sb,
 		gc_level_t gc_level)
 {
 	return logfs_super(sb)->s_area[(__force u8)gc_level];
+}
+
+static inline void logfs_mempool_destroy(mempool_t *pool)
+{
+	if (pool)
+		mempool_destroy(pool);
 }
 
 #endif

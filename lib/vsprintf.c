@@ -408,12 +408,12 @@ enum format_type {
 };
 
 struct printf_spec {
-	u16	type;
-	s16	field_width;	/* width of output field */
+	u8	type;		/* format_type enum */
 	u8	flags;		/* flags to number() */
-	u8	base;
-	s8	precision;	/* # of digits/chars */
-	u8	qualifier;
+	u8	base;		/* number base, 8, 10 or 16 only */
+	u8	qualifier;	/* number qualifier, one of 'hHlLtzZ' */
+	s16	field_width;	/* width of output field */
+	s16	precision;	/* # of digits/chars */
 };
 
 static char *number(char *buf, char *end, unsigned long long num,

@@ -239,8 +239,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct drm_encoder *tmp_encoder;
-	struct intel_output *intel_output = enc_to_intel_output(encoder);
-	struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_lvds_priv *lvds_priv = intel_encoder->dev_priv;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0;
 	int left_border = 0, right_border = 0, top_border = 0;
 	int bottom_border = 0;
@@ -587,8 +587,8 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_output *intel_output = enc_to_intel_output(encoder);
-	struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_lvds_priv *lvds_priv = intel_encoder->dev_priv;
 
 	/*
 	 * The LVDS pin pair will already have been turned on in the
@@ -635,14 +635,16 @@ static enum drm_connector_status intel_lvds_detect(struct drm_connector *connect
 static int intel_lvds_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 
-	ret = intel_ddc_get_modes(intel_output);
+	if (dev_priv->lvds_edid_good) {
+		ret = intel_ddc_get_modes(intel_encoder);
 
-	if (ret)
-		return ret;
+		if (ret)
+			return ret;
+	}
 
 	/* Didn't get an EDID, so
 	 * Set wide sync ranges so we get all modes
@@ -715,11 +717,11 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 static void intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (intel_output->ddc_bus)
-		intel_i2c_destroy(intel_output->ddc_bus);
+	if (intel_encoder->ddc_bus)
+		intel_i2c_destroy(intel_encoder->ddc_bus);
 	if (dev_priv->lid_notifier.notifier_call)
 		acpi_lid_notifier_unregister(&dev_priv->lid_notifier);
 	drm_sysfs_connector_remove(connector);
@@ -732,13 +734,13 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				   uint64_t value)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_output *intel_output =
-			to_intel_output(connector);
+	struct intel_encoder *intel_encoder =
+			to_intel_encoder(connector);
 
 	if (property == dev->mode_config.scaling_mode_property &&
 				connector->encoder) {
 		struct drm_crtc *crtc = connector->encoder->crtc;
-		struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
+		struct intel_lvds_priv *lvds_priv = intel_encoder->dev_priv;
 		if (value == DRM_MODE_SCALE_NONE) {
 			DRM_DEBUG_KMS("no scaling not supported\n");
 			return 0;
@@ -858,6 +860,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "AO00001JW"),
 		},
 	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Clientron U800",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Clientron"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "U800"),
+		},
+	},
 
 	{ }	/* terminating entry */
 };
@@ -968,7 +978,7 @@ static int lvds_is_present_in_vbt(struct drm_device *dev)
 void intel_lvds_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_output *intel_output;
+	struct intel_encoder *intel_encoder;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_display_mode *scan; /* *modes, *bios_mode; */
@@ -996,40 +1006,40 @@ void intel_lvds_init(struct drm_device *dev)
 		gpio = PCH_GPIOC;
 	}
 
-	intel_output = kzalloc(sizeof(struct intel_output) +
+	intel_encoder = kzalloc(sizeof(struct intel_encoder) +
 				sizeof(struct intel_lvds_priv), GFP_KERNEL);
-	if (!intel_output) {
+	if (!intel_encoder) {
 		return;
 	}
 
-	connector = &intel_output->base;
-	encoder = &intel_output->enc;
-	drm_connector_init(dev, &intel_output->base, &intel_lvds_connector_funcs,
+	connector = &intel_encoder->base;
+	encoder = &intel_encoder->enc;
+	drm_connector_init(dev, &intel_encoder->base, &intel_lvds_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
 
-	drm_encoder_init(dev, &intel_output->enc, &intel_lvds_enc_funcs,
+	drm_encoder_init(dev, &intel_encoder->enc, &intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 
-	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
-	intel_output->type = INTEL_OUTPUT_LVDS;
+	drm_mode_connector_attach_encoder(&intel_encoder->base, &intel_encoder->enc);
+	intel_encoder->type = INTEL_OUTPUT_LVDS;
 
-	intel_output->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
-	intel_output->crtc_mask = (1 << 1);
+	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
+	intel_encoder->crtc_mask = (1 << 1);
 	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	lvds_priv = (struct intel_lvds_priv *)(intel_output + 1);
-	intel_output->dev_priv = lvds_priv;
+	lvds_priv = (struct intel_lvds_priv *)(intel_encoder + 1);
+	intel_encoder->dev_priv = lvds_priv;
 	/* create the scaling mode property */
 	drm_mode_create_scaling_mode_property(dev);
 	/*
 	 * the initial panel fitting mode will be FULL_SCREEN.
 	 */
 
-	drm_connector_attach_property(&intel_output->base,
+	drm_connector_attach_property(&intel_encoder->base,
 				      dev->mode_config.scaling_mode_property,
 				      DRM_MODE_SCALE_FULLSCREEN);
 	lvds_priv->fitting_mode = DRM_MODE_SCALE_FULLSCREEN;
@@ -1044,8 +1054,8 @@ void intel_lvds_init(struct drm_device *dev)
 	 */
 
 	/* Set up the DDC bus. */
-	intel_output->ddc_bus = intel_i2c_create(dev, gpio, "LVDSDDC_C");
-	if (!intel_output->ddc_bus) {
+	intel_encoder->ddc_bus = intel_i2c_create(dev, gpio, "LVDSDDC_C");
+	if (!intel_encoder->ddc_bus) {
 		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
 			   "failed.\n");
 		goto failed;
@@ -1055,7 +1065,10 @@ void intel_lvds_init(struct drm_device *dev)
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
-	intel_ddc_get_modes(intel_output);
+	dev_priv->lvds_edid_good = true;
+
+	if (!intel_ddc_get_modes(intel_encoder))
+		dev_priv->lvds_edid_good = false;
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		mutex_lock(&dev->mode_config.mutex);
@@ -1133,9 +1146,9 @@ out:
 
 failed:
 	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
-	if (intel_output->ddc_bus)
-		intel_i2c_destroy(intel_output->ddc_bus);
+	if (intel_encoder->ddc_bus)
+		intel_i2c_destroy(intel_encoder->ddc_bus);
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);
-	kfree(intel_output);
+	kfree(intel_encoder);
 }

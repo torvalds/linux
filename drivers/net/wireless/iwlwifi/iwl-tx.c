@@ -194,9 +194,33 @@ void iwl_cmd_queue_free(struct iwl_priv *priv)
 	struct iwl_queue *q = &txq->q;
 	struct device *dev = &priv->pci_dev->dev;
 	int i;
+	bool huge = false;
 
 	if (q->n_bd == 0)
 		return;
+
+	for (; q->read_ptr != q->write_ptr;
+	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+		/* we have no way to tell if it is a huge cmd ATM */
+		i = get_cmd_index(q, q->read_ptr, 0);
+
+		if (txq->meta[i].flags & CMD_SIZE_HUGE) {
+			huge = true;
+			continue;
+		}
+
+		pci_unmap_single(priv->pci_dev,
+				 pci_unmap_addr(&txq->meta[i], mapping),
+				 pci_unmap_len(&txq->meta[i], len),
+				 PCI_DMA_BIDIRECTIONAL);
+	}
+	if (huge) {
+		i = q->n_window;
+		pci_unmap_single(priv->pci_dev,
+				 pci_unmap_addr(&txq->meta[i], mapping),
+				 pci_unmap_len(&txq->meta[i], len),
+				 PCI_DMA_BIDIRECTIONAL);
+	}
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i <= TFD_CMD_SLOTS; i++)
@@ -410,6 +434,26 @@ out_free_arrays:
 }
 EXPORT_SYMBOL(iwl_tx_queue_init);
 
+void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+			int slots_num, u32 txq_id)
+{
+	int actual_slots = slots_num;
+
+	if (txq_id == IWL_CMD_QUEUE_NUM)
+		actual_slots++;
+
+	memset(txq->meta, 0, sizeof(struct iwl_cmd_meta) * actual_slots);
+
+	txq->need_update = 0;
+
+	/* Initialize queue's high/low-water marks, and head/tail indexes */
+	iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
+
+	/* Tell device where to find queue */
+	priv->cfg->ops->lib->txq_init(priv, txq);
+}
+EXPORT_SYMBOL(iwl_tx_queue_reset);
+
 /**
  * iwl_hw_txq_ctx_free - Free TXQ Context
  *
@@ -421,8 +465,7 @@ void iwl_hw_txq_ctx_free(struct iwl_priv *priv)
 
 	/* Tx queues */
 	if (priv->txq) {
-		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num;
-		     txq_id++)
+		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
 			if (txq_id == IWL_CMD_QUEUE_NUM)
 				iwl_cmd_queue_free(priv);
 			else
@@ -438,15 +481,15 @@ void iwl_hw_txq_ctx_free(struct iwl_priv *priv)
 EXPORT_SYMBOL(iwl_hw_txq_ctx_free);
 
 /**
- * iwl_txq_ctx_reset - Reset TX queue context
- * Destroys all DMA structures and initialize them again
+ * iwl_txq_ctx_alloc - allocate TX queue context
+ * Allocate all Tx DMA structures and initialize them
  *
  * @param priv
  * @return error code
  */
-int iwl_txq_ctx_reset(struct iwl_priv *priv)
+int iwl_txq_ctx_alloc(struct iwl_priv *priv)
 {
-	int ret = 0;
+	int ret;
 	int txq_id, slots_num;
 	unsigned long flags;
 
@@ -504,8 +547,31 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 	return ret;
 }
 
+void iwl_txq_ctx_reset(struct iwl_priv *priv)
+{
+	int txq_id, slots_num;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	/* Turn off all Tx DMA fifos */
+	priv->cfg->ops->lib->txq_set_sched(priv, 0);
+
+	/* Tell NIC where to find the "keep warm" buffer */
+	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG, priv->kw.dma >> 4);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	/* Alloc and init all Tx queues, including the command queue (#4) */
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
+		slots_num = txq_id == IWL_CMD_QUEUE_NUM ?
+			    TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
+		iwl_tx_queue_reset(priv, &priv->txq[txq_id], slots_num, txq_id);
+	}
+}
+
 /**
- * iwl_txq_ctx_stop - Stop all Tx DMA channels, free Tx queue memory
+ * iwl_txq_ctx_stop - Stop all Tx DMA channels
  */
 void iwl_txq_ctx_stop(struct iwl_priv *priv)
 {
@@ -525,9 +591,6 @@ void iwl_txq_ctx_stop(struct iwl_priv *priv)
 				    1000);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* Deallocate memory for all Tx queues */
-	iwl_hw_txq_ctx_free(priv);
 }
 EXPORT_SYMBOL(iwl_txq_ctx_stop);
 
@@ -1050,6 +1113,14 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	spin_lock_irqsave(&priv->hcmd_lock, flags);
 
+	/* If this is a huge cmd, mark the huge flag also on the meta.flags
+	 * of the _original_ cmd. This is used for DMA mapping clean up.
+	 */
+	if (cmd->flags & CMD_SIZE_HUGE) {
+		idx = get_cmd_index(q, q->write_ptr, 0);
+		txq->meta[idx].flags = CMD_SIZE_HUGE;
+	}
+
 	idx = get_cmd_index(q, q->write_ptr, cmd->flags & CMD_SIZE_HUGE);
 	out_cmd = txq->cmd[idx];
 	out_meta = &txq->meta[idx];
@@ -1227,6 +1298,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	bool huge = !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
 	struct iwl_device_cmd *cmd;
 	struct iwl_cmd_meta *meta;
+	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
@@ -1240,9 +1312,17 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		return;
 	}
 
-	cmd_index = get_cmd_index(&priv->txq[IWL_CMD_QUEUE_NUM].q, index, huge);
-	cmd = priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_index];
-	meta = &priv->txq[IWL_CMD_QUEUE_NUM].meta[cmd_index];
+	/* If this is a huge cmd, clear the huge flag on the meta.flags
+	 * of the _original_ cmd. So that iwl_cmd_queue_free won't unmap
+	 * the DMA buffer for the scan (huge) command.
+	 */
+	if (huge) {
+		cmd_index = get_cmd_index(&txq->q, index, 0);
+		txq->meta[cmd_index].flags = 0;
+	}
+	cmd_index = get_cmd_index(&txq->q, index, huge);
+	cmd = txq->cmd[cmd_index];
+	meta = &txq->meta[cmd_index];
 
 	pci_unmap_single(priv->pci_dev,
 			 pci_unmap_addr(meta, mapping),
@@ -1264,6 +1344,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 			       get_cmd_string(cmd->hdr.cmd));
 		wake_up_interruptible(&priv->wait_command_queue);
 	}
+	meta->flags = 0;
 }
 EXPORT_SYMBOL(iwl_tx_cmd_complete);
 

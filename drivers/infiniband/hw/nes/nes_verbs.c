@@ -2821,11 +2821,10 @@ static int nes_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->cap.max_send_wr = nesqp->hwqp.sq_size;
 	attr->cap.max_recv_wr = nesqp->hwqp.rq_size;
 	attr->cap.max_recv_sge = 1;
-	if (nes_drv_opt & NES_DRV_OPT_NO_INLINE_DATA) {
-		init_attr->cap.max_inline_data = 0;
-	} else {
-		init_attr->cap.max_inline_data = 64;
-	}
+	if (nes_drv_opt & NES_DRV_OPT_NO_INLINE_DATA)
+		attr->cap.max_inline_data = 0;
+	else
+		attr->cap.max_inline_data = 64;
 
 	init_attr->event_handler = nesqp->ibqp.event_handler;
 	init_attr->qp_context = nesqp->ibqp.qp_context;

@@ -679,7 +679,10 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	int ret;
 
 	dprintk("svcrdma: Creating RDMA socket\n");
-
+	if (sa->sa_family != AF_INET) {
+		dprintk("svcrdma: Address family %d is not supported.\n", sa->sa_family);
+		return ERR_PTR(-EAFNOSUPPORT);
+	}
 	cma_xprt = rdma_create_xprt(serv, 1);
 	if (!cma_xprt)
 		return ERR_PTR(-ENOMEM);
