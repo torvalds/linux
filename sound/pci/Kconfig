@@ -667,6 +667,16 @@ config SND_MAESTRO3
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-maestro3.
 
+config SND_MAESTRO3_INPUT
+	bool "Enable input device for maestro3 volume buttons"
+	depends on SND_MAESTRO3
+	depends on INPUT=y || INPUT=SND_MAESTRO3
+	help
+	  If you say Y here, you will get an input device which reports
+	  keypresses for the volume buttons connected to the maestro3 chip.
+	  If you say N the buttons will directly control the master volume.
+	  It is recommended to say Y.
+
 config SND_MIXART
 	tristate "Digigram miXart"
 	select SND_HWDEP
