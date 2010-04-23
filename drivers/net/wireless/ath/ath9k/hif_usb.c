@@ -922,7 +922,8 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 		(struct hif_device_usb *) usb_get_intfdata(interface);
 
 	if (hif_dev) {
-		ath9k_htc_hw_deinit(hif_dev->htc_handle, true);
+		ath9k_htc_hw_deinit(hif_dev->htc_handle,
+		    (udev->state == USB_STATE_NOTATTACHED) ? true : false);
 		ath9k_htc_hw_free(hif_dev->htc_handle);
 		ath9k_hif_usb_dev_deinit(hif_dev);
 		usb_set_intfdata(interface, NULL);
