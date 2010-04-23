@@ -157,6 +157,19 @@ int viafb_i2c_readbytes(u8 adap, u8 slave_addr, u8 index, u8 *buff, int buff_len
 	return i2c_transfer(&via_i2c_par[adap].adapter, msgs, 2);
 }
 
+/*
+ * Allow other viafb subdevices to look up a specific adapter
+ * by port name.
+ */
+struct i2c_adapter *viafb_find_i2c_adapter(enum viafb_i2c_adap which)
+{
+	struct via_i2c_stuff *stuff = &via_i2c_par[which];
+
+	return &stuff->adapter;
+}
+EXPORT_SYMBOL_GPL(viafb_find_i2c_adapter);
+
+
 static int create_i2c_bus(struct i2c_adapter *adapter,
 			  struct i2c_algo_bit_data *algo,
 			  struct via_port_cfg *adap_cfg,
