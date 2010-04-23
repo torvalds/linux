@@ -276,43 +276,16 @@ out:
 
 static __net_init int l2tp_eth_init_net(struct net *net)
 {
-	struct l2tp_eth_net *pn;
-	int err;
-
-	pn = kzalloc(sizeof(*pn), GFP_KERNEL);
-	if (!pn)
-		return -ENOMEM;
+	struct l2tp_eth_net *pn = net_generic(net, l2tp_eth_net_id);
 
 	INIT_LIST_HEAD(&pn->l2tp_eth_dev_list);
 	spin_lock_init(&pn->l2tp_eth_lock);
 
-	err = net_assign_generic(net, l2tp_eth_net_id, pn);
-	if (err)
-		goto out;
-
 	return 0;
-
-out:
-	kfree(pn);
-	return err;
-}
-
-static __net_exit void l2tp_eth_exit_net(struct net *net)
-{
-	struct l2tp_eth_net *pn;
-
-	pn = net_generic(net, l2tp_eth_net_id);
-	/*
-	 * if someone has cached our net then
-	 * further net_generic call will return NULL
-	 */
-	net_assign_generic(net, l2tp_eth_net_id, NULL);
-	kfree(pn);
 }
 
 static __net_initdata struct pernet_operations l2tp_eth_net_ops = {
 	.init = l2tp_eth_init_net,
-	.exit = l2tp_eth_exit_net,
 	.id   = &l2tp_eth_net_id,
 	.size = sizeof(struct l2tp_eth_net),
 };
