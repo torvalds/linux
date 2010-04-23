@@ -11,6 +11,8 @@
 
 static char const		*script_name;
 static char const		*generate_script_lang;
+static bool			debug_ordering;
+static u64			last_timestamp;
 
 static int default_start_script(const char *script __unused,
 				int argc __unused,
@@ -87,6 +89,14 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	}
 
 	if (session->sample_type & PERF_SAMPLE_RAW) {
+		if (debug_ordering) {
+			if (data.time < last_timestamp) {
+				pr_err("Samples misordered, previous: %llu "
+					"this: %llu\n", last_timestamp,
+					data.time);
+			}
+			last_timestamp = data.time;
+		}
 		/*
 		 * FIXME: better resolve from pid from the struct trace_entry
 		 * field, although it should be the same than this perf
@@ -532,6 +542,8 @@ static const struct option options[] = {
 		   "generate perf-trace.xx script in specified language"),
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
+	OPT_BOOLEAN('d', "debug-ordering", &debug_ordering,
+		   "check that samples time ordering is monotonic"),
 
 	OPT_END()
 };
