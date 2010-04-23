@@ -1651,9 +1651,10 @@ static int process_lost_event(event_t *event __used,
 }
 
 static struct perf_event_ops event_ops = {
-	.sample	= process_sample_event,
-	.comm	= event__process_comm,
-	.lost	= process_lost_event,
+	.sample			= process_sample_event,
+	.comm			= event__process_comm,
+	.lost			= process_lost_event,
+	.ordered_samples	= true,
 };
 
 static int read_events(void)
@@ -1850,7 +1851,6 @@ static const char *record_args[] = {
 	"record",
 	"-a",
 	"-R",
-	"-M",
 	"-f",
 	"-m", "1024",
 	"-c", "1",
