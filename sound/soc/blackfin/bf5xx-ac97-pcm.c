@@ -29,8 +29,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -349,9 +349,7 @@ static int bf5xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 			sport_handle->tx_dma_buf = dma_alloc_coherent(NULL, \
 				size, &sport_handle->tx_dma_phy, GFP_KERNEL);
 			if (!sport_handle->tx_dma_buf) {
-				pr_err("Failed to allocate memory for tx dma \
-					buf - Please increase uncached DMA \
-					memory region\n");
+				pr_err("Failed to allocate memory for tx dma buf - Please increase uncached DMA memory region\n");
 				return -ENOMEM;
 			} else
 				memset(sport_handle->tx_dma_buf, 0, size);
@@ -362,9 +360,7 @@ static int bf5xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 			sport_handle->rx_dma_buf = dma_alloc_coherent(NULL, \
 				size, &sport_handle->rx_dma_phy, GFP_KERNEL);
 			if (!sport_handle->rx_dma_buf) {
-				pr_err("Failed to allocate memory for rx dma \
-					buf - Please increase uncached DMA \
-					memory region\n");
+				pr_err("Failed to allocate memory for rx dma buf - Please increase uncached DMA memory region\n");
 				return -ENOMEM;
 			} else
 				memset(sport_handle->rx_dma_buf, 0, size);

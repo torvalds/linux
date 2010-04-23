@@ -335,3 +335,27 @@ enum efx_fc_type efx_mdio_get_pause(struct efx_nic *efx)
 		mii_advertise_flowctrl(efx->wanted_fc),
 		efx_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_LPA));
 }
+
+int efx_mdio_test_alive(struct efx_nic *efx)
+{
+	int rc;
+	int devad = __ffs(efx->mdio.mmds);
+	u16 physid1, physid2;
+
+	mutex_lock(&efx->mac_lock);
+
+	physid1 = efx_mdio_read(efx, devad, MDIO_DEVID1);
+	physid2 = efx_mdio_read(efx, devad, MDIO_DEVID2);
+
+	if ((physid1 == 0x0000) || (physid1 == 0xffff) ||
+	    (physid2 == 0x0000) || (physid2 == 0xffff)) {
+		EFX_ERR(efx, "no MDIO PHY present with ID %d\n",
+			efx->mdio.prtad);
+		rc = -EINVAL;
+	} else {
+		rc = efx_mdio_check_mmds(efx, efx->mdio.mmds, 0);
+	}
+
+	mutex_unlock(&efx->mac_lock);
+	return rc;
+}

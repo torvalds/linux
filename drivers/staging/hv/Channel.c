@@ -20,6 +20,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include "osd.h"
 #include "logging.h"
 #include "VmbusPrivate.h"
@@ -991,9 +992,8 @@ void VmbusChannelOnTimer(unsigned long data)
 {
 	struct vmbus_channel *channel = (struct vmbus_channel *)data;
 
-	if (channel->OnChannelCallback) {
+	if (channel->OnChannelCallback)
 		channel->OnChannelCallback(channel->ChannelCallbackContext);
-	}
 }
 
 /**

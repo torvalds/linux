@@ -33,10 +33,8 @@
 #include <linux/fs.h>
 #include <linux/vfs.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/pagemap.h>
-#include <linux/zlib.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"

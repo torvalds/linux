@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/i2c-gpio.h>
+#include <linux/slab.h>
 
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>
@@ -523,7 +524,7 @@ unsigned long sm501_set_clock(struct device *dev,
 	unsigned long clock = readl(sm->regs + SM501_CURRENT_CLOCK);
 	unsigned char reg;
 	unsigned int pll_reg = 0;
-	unsigned long sm501_freq; /* the actual frequency acheived */
+	unsigned long sm501_freq; /* the actual frequency achieved */
 
 	struct sm501_clock to;
 
@@ -533,7 +534,7 @@ unsigned long sm501_set_clock(struct device *dev,
 
 	switch (clksrc) {
 	case SM501_CLOCK_P2XCLK:
-		/* This clock is divided in half so to achive the
+		/* This clock is divided in half so to achieve the
 		 * requested frequency the value must be multiplied by
 		 * 2. This clock also has an additional pre divisor */
 
@@ -562,7 +563,7 @@ unsigned long sm501_set_clock(struct device *dev,
 		break;
 
 	case SM501_CLOCK_V2XCLK:
-		/* This clock is divided in half so to achive the
+		/* This clock is divided in half so to achieve the
 		 * requested frequency the value must be multiplied by 2. */
 
 		sm501_freq = (sm501_select_clock(2 * req_freq, &to, 3) / 2);
@@ -648,7 +649,7 @@ unsigned long sm501_find_clock(struct device *dev,
 			       unsigned long req_freq)
 {
 	struct sm501_devdata *sm = dev_get_drvdata(dev);
-	unsigned long sm501_freq; /* the frequency achiveable by the 501 */
+	unsigned long sm501_freq; /* the frequency achieveable by the 501 */
 	struct sm501_clock to;
 
 	switch (clksrc) {
@@ -1440,8 +1441,7 @@ static int __devinit sm501_plat_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, sm);
 
-	sm->regs = ioremap(sm->io_res->start,
-			   (sm->io_res->end - sm->io_res->start) - 1);
+	sm->regs = ioremap(sm->io_res->start, resource_size(sm->io_res));
 
 	if (sm->regs == NULL) {
 		dev_err(&dev->dev, "cannot remap registers\n");

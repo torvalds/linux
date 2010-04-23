@@ -97,7 +97,7 @@
 int armv7_setup_pmu(void);
 int armv7_start_pmu(void);
 int armv7_stop_pmu(void);
-int armv7_request_interrupts(int *, int);
-void armv7_release_interrupts(int *, int);
+int armv7_request_interrupts(const int *, int);
+void armv7_release_interrupts(const int *, int);
 
 #endif

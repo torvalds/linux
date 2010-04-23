@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -261,8 +261,8 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 	union acpi_operand_object *return_desc2 = NULL;
 	u32 temp32;
 	u32 i;
-	acpi_integer power_of_ten;
-	acpi_integer digit;
+	u64 power_of_ten;
+	u64 digit;
 
 	ACPI_FUNCTION_TRACE_STR(ex_opcode_1A_1T_1R,
 				acpi_ps_get_opcode_name(walk_state->opcode));
@@ -362,7 +362,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 				/* Sum the digit into the result with the current power of 10 */
 
 				return_desc->integer.value +=
-				    (((acpi_integer) temp32) * power_of_ten);
+				    (((u64) temp32) * power_of_ten);
 
 				/* Shift to next BCD digit */
 
@@ -392,7 +392,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 				 * remainder from above
 				 */
 				return_desc->integer.value |=
-				    (((acpi_integer) temp32) << ACPI_MUL_4(i));
+				    (((u64) temp32) << ACPI_MUL_4(i));
 			}
 
 			/* Overflow if there is any data left in Digit */
@@ -439,7 +439,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 			/* The object exists in the namespace, return TRUE */
 
-			return_desc->integer.value = ACPI_INTEGER_MAX;
+			return_desc->integer.value = ACPI_UINT64_MAX;
 			goto cleanup;
 
 		default:
@@ -589,7 +589,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 	union acpi_operand_object *return_desc = NULL;
 	acpi_status status = AE_OK;
 	u32 type;
-	acpi_integer value;
+	u64 value;
 
 	ACPI_FUNCTION_TRACE_STR(ex_opcode_1A_0T_1R,
 				acpi_ps_get_opcode_name(walk_state->opcode));
@@ -610,7 +610,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		 * return_desc->Integer.Value is initially == 0 (FALSE) from above.
 		 */
 		if (!operand[0]->integer.value) {
-			return_desc->integer.value = ACPI_INTEGER_MAX;
+			return_desc->integer.value = ACPI_UINT64_MAX;
 		}
 		break;
 

@@ -54,12 +54,13 @@ buffer at any time after buffers have been allocated with the
 &VIDIOC-REQBUFS; ioctl.</para>
 
     <para>Applications set the <structfield>type</structfield> field
-    of a &v4l2-buffer; to the same buffer type as previously
+    of a &v4l2-buffer; to the same buffer type as was previously used with
 &v4l2-format; <structfield>type</structfield> and &v4l2-requestbuffers;
 <structfield>type</structfield>, and the <structfield>index</structfield>
     field. Valid index numbers range from zero
 to the number of buffers allocated with &VIDIOC-REQBUFS;
     (&v4l2-requestbuffers; <structfield>count</structfield>) minus one.
+The <structfield>reserved</structfield> field should to set to 0.
 After calling <constant>VIDIOC_QUERYBUF</constant> with a pointer to
     this structure drivers return an error code or fill the rest of
 the structure.</para>
@@ -68,8 +69,8 @@ the structure.</para>
 <constant>V4L2_BUF_FLAG_MAPPED</constant>,
 <constant>V4L2_BUF_FLAG_QUEUED</constant> and
 <constant>V4L2_BUF_FLAG_DONE</constant> flags will be valid. The
-<structfield>memory</structfield> field will be set to
-<constant>V4L2_MEMORY_MMAP</constant>, the <structfield>m.offset</structfield>
+<structfield>memory</structfield> field will be set to the current
+I/O method, the <structfield>m.offset</structfield>
 contains the offset of the buffer from the start of the device memory,
 the <structfield>length</structfield> field its size. The driver may
 or may not set the remaining fields and flags, they are meaningless in

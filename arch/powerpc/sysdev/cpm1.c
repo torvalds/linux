@@ -31,6 +31,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/8xx_immap.h>
@@ -77,7 +78,7 @@ static void cpm_end_irq(unsigned int irq)
 }
 
 static struct irq_chip cpm_pic = {
-	.name = " CPM PIC ",
+	.name = "CPM PIC",
 	.mask = cpm_mask_irq,
 	.unmask = cpm_unmask_irq,
 	.eoi = cpm_end_irq,

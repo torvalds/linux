@@ -362,7 +362,7 @@ static const int macroKeyEvents[] = {
 };
 
 /***********************************************************************
- * Map values to strings and back. Every map shoudl have the following
+ * Map values to strings and back. Every map should have the following
  * as its last element: { NULL, AIPTEK_INVALID_VALUE }.
  */
 #define AIPTEK_INVALID_VALUE	-1

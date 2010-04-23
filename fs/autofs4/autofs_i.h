@@ -60,11 +60,6 @@ do {							\
 		current->pid, __func__, ##args);	\
 } while (0)
 
-struct rehash_entry {
-	struct task_struct *task;
-	struct list_head list;
-};
-
 /* Unified info structure.  This is pointed to by both the dentry and
    inode structures.  Each file in the filesystem has an instance of this
    structure.  It holds a reference to the dentry, so dentries are never
@@ -81,7 +76,6 @@ struct autofs_info {
 
 	struct list_head active;
 	int active_count;
-	struct list_head rehash_list;
 
 	struct list_head expiring;
 
@@ -104,7 +98,6 @@ struct autofs_info {
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry is in the process of expiring */
 #define AUTOFS_INF_MOUNTPOINT	(1<<1) /* mountpoint status for direct expire */
 #define AUTOFS_INF_PENDING	(1<<2) /* dentry pending mount */
-#define AUTOFS_INF_REHASH	(1<<3) /* dentry in transit to ->lookup() */
 
 struct autofs_wait_queue {
 	wait_queue_head_t queue;

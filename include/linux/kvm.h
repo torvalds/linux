@@ -103,7 +103,7 @@ struct kvm_userspace_memory_region {
 
 /* for kvm_memory_region::flags */
 #define KVM_MEM_LOG_DIRTY_PAGES  1UL
-
+#define KVM_MEMSLOT_INVALID      (1UL << 1)
 
 /* for KVM_IRQ_LINE */
 struct kvm_irq_level {
@@ -497,6 +497,11 @@ struct kvm_ioeventfd {
 #endif
 #define KVM_CAP_S390_PSW 42
 #define KVM_CAP_PPC_SEGSTATE 43
+#define KVM_CAP_HYPERV 44
+#define KVM_CAP_HYPERV_VAPIC 45
+#define KVM_CAP_HYPERV_SPIN 46
+#define KVM_CAP_PCI_SEGMENT 47
+#define KVM_CAP_X86_ROBUST_SINGLESTEP 51
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -691,8 +696,9 @@ struct kvm_assigned_pci_dev {
 	__u32 busnr;
 	__u32 devfn;
 	__u32 flags;
+	__u32 segnr;
 	union {
-		__u32 reserved[12];
+		__u32 reserved[11];
 	};
 };
 

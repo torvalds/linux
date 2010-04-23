@@ -577,10 +577,14 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		clear_bit(IVTV_F_I_EOS, &itv->i_flags);
 
 		/* Initialize Digitizer for Capture */
+		/* Avoid tinny audio problem - ensure audio clocks are going */
+		v4l2_subdev_call(itv->sd_audio, audio, s_stream, 1);
+		/* Avoid unpredictable PCI bus hang - disable video clocks */
 		v4l2_subdev_call(itv->sd_video, video, s_stream, 0);
-		ivtv_msleep_timeout(300, 1);
+		ivtv_msleep_timeout(150, 1);
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
 		v4l2_subdev_call(itv->sd_video, video, s_stream, 1);
+		ivtv_msleep_timeout(150, 1);
 	}
 
 	/* begin_capture */

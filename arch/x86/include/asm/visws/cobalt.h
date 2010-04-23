@@ -122,4 +122,6 @@ extern char visws_board_type;
 
 extern char visws_board_rev;
 
+extern int pci_visws_init(void);
+
 #endif /* _ASM_X86_VISWS_COBALT_H */

@@ -254,7 +254,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	budget_ci->ir.timer_keyup.function = msp430_ir_keyup;
 	budget_ci->ir.timer_keyup.data = (unsigned long) &budget_ci->ir;
 	budget_ci->ir.last_raw = 0xffff; /* An impossible value */
-	error = ir_input_register(input_dev, ir_codes);
+	error = ir_input_register(input_dev, ir_codes, NULL);
 	if (error) {
 		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
 		return error;

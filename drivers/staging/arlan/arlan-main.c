@@ -1455,10 +1455,10 @@ static void arlan_rx_interrupt(struct net_device *dev, u_char rxStatus, u_short 
 #ifdef ARLAN_MULTICAST
 			if (!(dev->flags & IFF_ALLMULTI) &&
 				!(dev->flags & IFF_PROMISC) &&
-				dev->mc_list)
+				!netdev_mc_empty(dev))
 			{
 				char hw_dst_addr[6];
-				struct dev_mc_list *dmi = dev->mc_list;
+				struct dev_mc_list *dmi;
 				int i;
 
 				memcpy_fromio(hw_dst_addr, arlan->ultimateDestAddress, 6);
@@ -1469,20 +1469,15 @@ static void arlan_rx_interrupt(struct net_device *dev, u_char rxStatus, u_short 
 							printk(KERN_ERR "%s mcast 0x0100 \n", dev->name);
 						else if (hw_dst_addr[1] == 0x40)
 							printk(KERN_ERR "%s m/bcast 0x0140 \n", dev->name);
-					while (dmi)
-					{
-						if (dmi->dmi_addrlen == 6) {
-							if (arlan_debug & ARLAN_DEBUG_HEADER_DUMP)
-								printk(KERN_ERR "%s mcl %pM\n",
-								       dev->name, dmi->dmi_addr);
-							for (i = 0; i < 6; i++)
-								if (dmi->dmi_addr[i] != hw_dst_addr[i])
-									break;
-							if (i == 6)
+					netdev_for_each_mc_entry(dmi, dev) {
+						if (arlan_debug & ARLAN_DEBUG_HEADER_DUMP)
+							printk(KERN_ERR "%s mcl %pM\n",
+							       dev->name, dmi->dmi_addr);
+						for (i = 0; i < 6; i++)
+							if (dmi->dmi_addr[i] != hw_dst_addr[i])
 								break;
-						} else
-							printk(KERN_ERR "%s: invalid multicast address length given.\n", dev->name);
-						dmi = dmi->next;
+						if (i == 6)
+							break;
 					}
 					/* we reach here if multicast filtering is on and packet 
 					 * is multicast and not for receive */

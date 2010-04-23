@@ -31,6 +31,7 @@
 #include <linux/if_vlan.h>
 #include <linux/errno.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <net/rtnetlink.h>
 
 #include <scsi/fc/fc_els.h>
@@ -1187,7 +1188,7 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 			next_timer = fip->ctlr_ka_time;
 
 		if (time_after_eq(jiffies, fip->port_ka_time)) {
-			fip->port_ka_time += jiffies +
+			fip->port_ka_time = jiffies +
 				msecs_to_jiffies(FIP_VN_KA_PERIOD);
 			fip->send_port_ka = 1;
 		}

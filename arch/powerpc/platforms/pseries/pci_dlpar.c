@@ -165,7 +165,7 @@ int remove_phb_dynamic(struct pci_controller *phb)
 	struct resource *res;
 	int rc, i;
 
-	pr_debug("PCI: Removing PHB %04x:%02x... \n",
+	pr_debug("PCI: Removing PHB %04x:%02x...\n",
 		 pci_domain_nr(b), b->number);
 
 	/* We cannot to remove a root bus that has children */

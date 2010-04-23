@@ -64,6 +64,7 @@ struct r100_cs_track {
 	unsigned			maxy;
 	unsigned			vtx_size;
 	unsigned			vap_vf_cntl;
+	unsigned			vap_alt_nverts;
 	unsigned			immd_dwords;
 	unsigned			num_arrays;
 	unsigned			max_indx;

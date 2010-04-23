@@ -24,7 +24,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 
 #include "em28xx.h"
 
@@ -71,7 +70,11 @@ free_buffer(struct videobuf_queue *vq, struct em28xx_buffer *buf)
 static int
 vbi_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 {
-	*size = 720 * 12 * 2;
+	struct em28xx_fh     *fh  = q->priv_data;
+	struct em28xx        *dev = fh->dev;
+
+	*size = dev->vbi_width * dev->vbi_height * 2;
+
 	if (0 == *count)
 		*count = vbibufs;
 	if (*count < 2)
@@ -85,19 +88,18 @@ static int
 vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	    enum v4l2_field field)
 {
+	struct em28xx_fh     *fh  = q->priv_data;
+	struct em28xx        *dev = fh->dev;
 	struct em28xx_buffer *buf = container_of(vb, struct em28xx_buffer, vb);
 	int                  rc = 0;
-	unsigned int size;
 
-	size = 720 * 12 * 2;
-
-	buf->vb.size = size;
+	buf->vb.size = dev->vbi_width * dev->vbi_height * 2;
 
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < buf->vb.size)
 		return -EINVAL;
 
-	buf->vb.width  = 720;
-	buf->vb.height = 12;
+	buf->vb.width  = dev->vbi_width;
+	buf->vb.height = dev->vbi_height;
 	buf->vb.field  = field;
 
 	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {

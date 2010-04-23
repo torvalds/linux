@@ -12,6 +12,7 @@
 
 #include <linux/mfd/mcp.h>
 #include <linux/gpio.h>
+#include <linux/semaphore.h>
 
 #define UCB_IO_DATA	0x00
 #define UCB_IO_DIR	0x01

@@ -20,14 +20,17 @@ TRACE_EVENT(lock_acquire,
 	TP_STRUCT__entry(
 		__field(unsigned int, flags)
 		__string(name, lock->name)
+		__field(void *, lockdep_addr)
 	),
 
 	TP_fast_assign(
 		__entry->flags = (trylock ? 1 : 0) | (read ? 2 : 0);
 		__assign_str(name, lock->name);
+		__entry->lockdep_addr = lock;
 	),
 
-	TP_printk("%s%s%s", (__entry->flags & 1) ? "try " : "",
+	TP_printk("%p %s%s%s", __entry->lockdep_addr,
+		  (__entry->flags & 1) ? "try " : "",
 		  (__entry->flags & 2) ? "read " : "",
 		  __get_str(name))
 );
@@ -40,13 +43,16 @@ TRACE_EVENT(lock_release,
 
 	TP_STRUCT__entry(
 		__string(name, lock->name)
+		__field(void *, lockdep_addr)
 	),
 
 	TP_fast_assign(
 		__assign_str(name, lock->name);
+		__entry->lockdep_addr = lock;
 	),
 
-	TP_printk("%s", __get_str(name))
+	TP_printk("%p %s",
+		  __entry->lockdep_addr, __get_str(name))
 );
 
 #ifdef CONFIG_LOCK_STAT
@@ -59,13 +65,16 @@ TRACE_EVENT(lock_contended,
 
 	TP_STRUCT__entry(
 		__string(name, lock->name)
+		__field(void *, lockdep_addr)
 	),
 
 	TP_fast_assign(
 		__assign_str(name, lock->name);
+		__entry->lockdep_addr = lock;
 	),
 
-	TP_printk("%s", __get_str(name))
+	TP_printk("%p %s",
+		  __entry->lockdep_addr, __get_str(name))
 );
 
 TRACE_EVENT(lock_acquired,
@@ -75,16 +84,18 @@ TRACE_EVENT(lock_acquired,
 
 	TP_STRUCT__entry(
 		__string(name, lock->name)
-		__field(unsigned long, wait_usec)
-		__field(unsigned long, wait_nsec_rem)
+		__field(s64, wait_nsec)
+		__field(void *, lockdep_addr)
 	),
+
 	TP_fast_assign(
 		__assign_str(name, lock->name);
-		__entry->wait_nsec_rem = do_div(waittime, NSEC_PER_USEC);
-		__entry->wait_usec = (unsigned long) waittime;
+		__entry->wait_nsec = waittime;
+		__entry->lockdep_addr = lock;
 	),
-	TP_printk("%s (%lu.%03lu us)", __get_str(name), __entry->wait_usec,
-				       __entry->wait_nsec_rem)
+	TP_printk("%p %s (%llu ns)", __entry->lockdep_addr,
+		  __get_str(name),
+		  __entry->wait_nsec)
 );
 
 #endif

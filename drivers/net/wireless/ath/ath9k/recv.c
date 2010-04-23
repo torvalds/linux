@@ -364,10 +364,10 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 	if (memcmp(common->curbssid, mgmt->bssid, ETH_ALEN) != 0)
 		return; /* not from our current AP */
 
-	sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
+	sc->ps_flags &= ~PS_WAIT_FOR_BEACON;
 
-	if (sc->sc_flags & SC_OP_BEACON_SYNC) {
-		sc->sc_flags &= ~SC_OP_BEACON_SYNC;
+	if (sc->ps_flags & PS_BEACON_SYNC) {
+		sc->ps_flags &= ~PS_BEACON_SYNC;
 		ath_print(common, ATH_DBG_PS,
 			  "Reconfigure Beacon timers based on "
 			  "timestamp from the AP\n");
@@ -384,17 +384,17 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 */
 		ath_print(common, ATH_DBG_PS, "Received DTIM beacon indicating "
 			  "buffered broadcast/multicast frame(s)\n");
-		sc->sc_flags |= SC_OP_WAIT_FOR_CAB | SC_OP_WAIT_FOR_BEACON;
+		sc->ps_flags |= PS_WAIT_FOR_CAB | PS_WAIT_FOR_BEACON;
 		return;
 	}
 
-	if (sc->sc_flags & SC_OP_WAIT_FOR_CAB) {
+	if (sc->ps_flags & PS_WAIT_FOR_CAB) {
 		/*
 		 * This can happen if a broadcast frame is dropped or the AP
 		 * fails to send a frame indicating that all CAB frames have
 		 * been delivered.
 		 */
-		sc->sc_flags &= ~SC_OP_WAIT_FOR_CAB;
+		sc->ps_flags &= ~PS_WAIT_FOR_CAB;
 		ath_print(common, ATH_DBG_PS,
 			  "PS wait for CAB frames timed out\n");
 	}
@@ -408,10 +408,10 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *)skb->data;
 
 	/* Process Beacon and CAB receive in PS state */
-	if ((sc->sc_flags & SC_OP_WAIT_FOR_BEACON) &&
+	if ((sc->ps_flags & PS_WAIT_FOR_BEACON) &&
 	    ieee80211_is_beacon(hdr->frame_control))
 		ath_rx_ps_beacon(sc, skb);
-	else if ((sc->sc_flags & SC_OP_WAIT_FOR_CAB) &&
+	else if ((sc->ps_flags & PS_WAIT_FOR_CAB) &&
 		 (ieee80211_is_data(hdr->frame_control) ||
 		  ieee80211_is_action(hdr->frame_control)) &&
 		 is_multicast_ether_addr(hdr->addr1) &&
@@ -420,20 +420,20 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 		 * No more broadcast/multicast frames to be received at this
 		 * point.
 		 */
-		sc->sc_flags &= ~SC_OP_WAIT_FOR_CAB;
+		sc->ps_flags &= ~PS_WAIT_FOR_CAB;
 		ath_print(common, ATH_DBG_PS,
 			  "All PS CAB frames received, back to sleep\n");
-	} else if ((sc->sc_flags & SC_OP_WAIT_FOR_PSPOLL_DATA) &&
+	} else if ((sc->ps_flags & PS_WAIT_FOR_PSPOLL_DATA) &&
 		   !is_multicast_ether_addr(hdr->addr1) &&
 		   !ieee80211_has_morefrags(hdr->frame_control)) {
-		sc->sc_flags &= ~SC_OP_WAIT_FOR_PSPOLL_DATA;
+		sc->ps_flags &= ~PS_WAIT_FOR_PSPOLL_DATA;
 		ath_print(common, ATH_DBG_PS,
 			  "Going back to sleep after having received "
-			  "PS-Poll data (0x%x)\n",
-			sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
-					SC_OP_WAIT_FOR_CAB |
-					SC_OP_WAIT_FOR_PSPOLL_DATA |
-					SC_OP_WAIT_FOR_TX_ACK));
+			  "PS-Poll data (0x%lx)\n",
+			sc->ps_flags & (PS_WAIT_FOR_BEACON |
+					PS_WAIT_FOR_CAB |
+					PS_WAIT_FOR_PSPOLL_DATA |
+					PS_WAIT_FOR_TX_ACK));
 	}
 }
 
@@ -571,6 +571,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		hw = ath_get_virt_hw(sc, hdr);
 		rx_stats = &ds->ds_rxstat;
 
+		ath_debug_stat_rx(sc, bf);
+
 		/*
 		 * If we're asked to flush receive queue, directly
 		 * chain it back at the queue without processing it.
@@ -631,9 +633,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			sc->rx.rxotherant = 0;
 		}
 
-		if (unlikely(sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
-					     SC_OP_WAIT_FOR_CAB |
-					     SC_OP_WAIT_FOR_PSPOLL_DATA)))
+		if (unlikely(sc->ps_flags & (PS_WAIT_FOR_BEACON |
+					     PS_WAIT_FOR_CAB |
+					     PS_WAIT_FOR_PSPOLL_DATA)))
 			ath_rx_ps(sc, skb);
 
 		ath_rx_send_to_mac80211(hw, sc, skb, rxs);

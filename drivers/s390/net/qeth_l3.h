@@ -13,6 +13,8 @@
 
 #include "qeth_core.h"
 
+#define QETH_SNIFF_AVAIL	0x0008
+
 struct qeth_ipaddr {
 	struct list_head entry;
 	enum qeth_ip_types type;

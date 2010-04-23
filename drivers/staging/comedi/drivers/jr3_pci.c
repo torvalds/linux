@@ -46,6 +46,7 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #include <linux/ctype.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 #include <linux/timer.h>
 #include "comedi_pci.h"
 #include "jr3_pci.h"
@@ -953,6 +954,8 @@ static int jr3_pci_attach(struct comedi_device *dev,
 out:
 	return result;
 }
+
+MODULE_FIRMWARE("comedi/jr3pci.idm");
 
 static int jr3_pci_detach(struct comedi_device *dev)
 {

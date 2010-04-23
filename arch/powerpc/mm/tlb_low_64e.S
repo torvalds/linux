@@ -1,5 +1,5 @@
 /*
- *  Low leve TLB miss handlers for Book3E
+ *  Low level TLB miss handlers for Book3E
  *
  *  Copyright (C) 2008-2009
  *      Ben. Herrenschmidt (benh@kernel.crashing.org), IBM Corp.

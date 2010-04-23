@@ -400,6 +400,11 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 					flags |= IP_VS_CONN_F_INACTIVE;
 				else
 					flags &= ~IP_VS_CONN_F_INACTIVE;
+			} else if (s->protocol == IPPROTO_SCTP) {
+				if (state != IP_VS_SCTP_S_ESTABLISHED)
+					flags |= IP_VS_CONN_F_INACTIVE;
+				else
+					flags &= ~IP_VS_CONN_F_INACTIVE;
 			}
 			cp = ip_vs_conn_new(AF_INET, s->protocol,
 					    (union nf_inet_addr *)&s->caddr,
@@ -433,6 +438,15 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 				atomic_inc(&dest->activeconns);
 				atomic_dec(&dest->inactconns);
 				cp->flags &= ~IP_VS_CONN_F_INACTIVE;
+			}
+		} else if ((cp->dest) && (cp->protocol == IPPROTO_SCTP) &&
+			   (cp->state != state)) {
+			dest = cp->dest;
+			if (!(cp->flags & IP_VS_CONN_F_INACTIVE) &&
+			     (state != IP_VS_SCTP_S_ESTABLISHED)) {
+			    atomic_dec(&dest->activeconns);
+			    atomic_inc(&dest->inactconns);
+			    cp->flags &= ~IP_VS_CONN_F_INACTIVE;
 			}
 		}
 

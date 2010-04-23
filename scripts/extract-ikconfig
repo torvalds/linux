@@ -1,92 +1,53 @@
 #!/bin/sh
-# extracts .config info from a [b]zImage file
-# uses: binoffset (new), dd, zcat, strings, grep
-# $arg1 is [b]zImage filename
+# ----------------------------------------------------------------------
+# extract-ikconfig - Extract the .config file from a kernel image
+#
+# This will only work when the kernel was compiled with CONFIG_IKCONFIG.
+#
+# The obscure use of the "tr" filter is to work around older versions of
+# "grep" that report the byte offset of the line instead of the pattern.
+#
+# (c) 2009, Dick Streefland <dick@streefland.net>
+# Licensed under the terms of the GNU General Public License.
+# ----------------------------------------------------------------------
 
-binoffset="./scripts/binoffset"
-test -e $binoffset || cc -o $binoffset ./scripts/binoffset.c || exit 1
+gz1='\037\213\010'
+gz2='01'
+cf1='IKCFG_ST\037\213\010'
+cf2='0123456789'
 
-IKCFG_ST="0x49 0x4b 0x43 0x46 0x47 0x5f 0x53 0x54"
-IKCFG_ED="0x49 0x4b 0x43 0x46 0x47 0x5f 0x45 0x44"
-dump_config() {
-    file="$1"
-
-    start=`$binoffset $file $IKCFG_ST 2>/dev/null`
-    [ "$?" != "0" ] && start="-1"
-    if [ "$start" -eq "-1" ]; then
-	return
-    fi
-    end=`$binoffset $file $IKCFG_ED 2>/dev/null`
-    [ "$?" != "0" ] && end="-1"
-    if [ "$end" -eq "-1" ]; then
-	return
-    fi
-
-    start=`expr $start + 8`
-    size=`expr $end - $start`
-
-    dd if="$file" ibs=1 skip="$start" count="$size" 2>/dev/null | zcat
-
-    clean_up
-    exit 0
-}
-
-
-usage()
+dump_config()
 {
-	echo "  usage: extract-ikconfig [b]zImage_filename"
-}
-
-clean_up()
-{
-	if [ "$TMPFILE" != "" ]; then
-		rm -f $TMPFILE
+	if	pos=`tr "$cf1\n$cf2" "\n$cf2=" < "$1" | grep -abo "^$cf2"`
+	then
+		pos=${pos%%:*}
+		tail -c+$(($pos+8)) "$1" | zcat -q
+		exit 0
 	fi
 }
 
-if [ $# -lt 1 ]
+# Check invocation:
+me=${0##*/}
+img=$1
+if	[ $# -ne 1 -o ! -s "$img" ]
 then
-	usage
-	exit 1
+	echo "Usage: $me <kernel-image>" >&2
+	exit 2
 fi
 
-TMPFILE=`mktemp -t ikconfig-XXXXXX` || exit 1
-image="$1"
+# Initial attempt for uncompressed images or objects:
+dump_config "$img"
 
-# vmlinux: Attempt to dump the configuration from the file directly
-dump_config "$image"
+# That didn't work, so decompress and try again:
+tmp=/tmp/ikconfig$$
+trap "rm -f $tmp" 0
+for	pos in `tr "$gz1\n$gz2" "\n$gz2=" < "$img" | grep -abo "^$gz2"`
+do
+	pos=${pos%%:*}
+	tail -c+$pos "$img" | zcat 2> /dev/null > $tmp
+	dump_config $tmp
+done
 
-GZHDR1="0x1f 0x8b 0x08 0x00"
-GZHDR2="0x1f 0x8b 0x08 0x08"
-
-ELFHDR="0x7f 0x45 0x4c 0x46"
-
-# vmlinux.gz: Check for a compressed images
-off=`$binoffset "$image" $GZHDR1 2>/dev/null`
-[ "$?" != "0" ] && off="-1"
-if [ "$off" -eq "-1" ]; then
-	off=`$binoffset "$image" $GZHDR2 2>/dev/null`
-	[ "$?" != "0" ] && off="-1"
-fi
-if [ "$off" -eq "0" ]; then
-	zcat <"$image" >"$TMPFILE"
-	dump_config "$TMPFILE"
-elif [ "$off" -ne "-1" ]; then
-	(dd ibs="$off" skip=1 count=0 && dd bs=512k) <"$image" 2>/dev/null | \
-		zcat >"$TMPFILE"
-	dump_config "$TMPFILE"
-
-# check if this is simply an ELF file
-else
-	off=`$binoffset "$image" $ELFHDR 2>/dev/null`
-	[ "$?" != "0" ] && off="-1"
-	if [ "$off" -eq "0" ]; then
-		dump_config "$image"
-	fi
-fi
-
-echo "ERROR: Unable to extract kernel configuration information."
-echo "       This kernel image may not have the config info."
-
-clean_up
+# Bail out:
+echo "$me: Cannot find kernel config." >&2
 exit 1

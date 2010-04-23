@@ -226,19 +226,20 @@ out:
 void __exit ieee80211_crypto_deinit(void)
 {
 	struct list_head *ptr, *n;
+	struct ieee80211_crypto_alg *alg = NULL;
 
 	if (hcrypt == NULL)
 		return;
 
-	for (ptr = hcrypt->algs.next, n = ptr->next; ptr != &hcrypt->algs;
-	     ptr = n, n = ptr->next) {
-		struct ieee80211_crypto_alg *alg =
-			(struct ieee80211_crypto_alg *) ptr;
-		list_del(ptr);
-		printk(KERN_DEBUG "ieee80211_crypt: unregistered algorithm "
-		       "'%s' (deinit)\n", alg->ops->name);
-		kfree(alg);
+	list_for_each_safe(ptr, n, &hcrypt->algs) {
+		alg = list_entry(ptr, struct ieee80211_crypto_alg, list);
+		if (alg) {
+			list_del(ptr);
+			printk(KERN_DEBUG
+			       "ieee80211_crypt: unregistered algorithm '%s' (deinit)\n",
+			       alg->ops->name);
+			kfree(alg);
+		}
 	}
-
 	kfree(hcrypt);
 }

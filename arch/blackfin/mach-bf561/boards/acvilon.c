@@ -176,7 +176,7 @@ static struct resource smsc911x_resources[] = {
 };
 
 static struct smsc911x_platform_config smsc911x_config = {
-	.flags = SMSC911X_USE_32BIT,
+	.flags = SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
 	.irq_polarity = SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type = SMSC911X_IRQ_TYPE_OPEN_DRAIN,
 	.phy_interface = PHY_INTERFACE_MODE_MII,

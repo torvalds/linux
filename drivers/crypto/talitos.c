@@ -37,6 +37,7 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
@@ -1958,7 +1959,7 @@ err_out:
 	return err;
 }
 
-static struct of_device_id talitos_match[] = {
+static const struct of_device_id talitos_match[] = {
 	{
 		.compatible = "fsl,sec2.0",
 	},

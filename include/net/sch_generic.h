@@ -427,6 +427,25 @@ static inline struct sk_buff *qdisc_dequeue_head(struct Qdisc *sch)
 	return __qdisc_dequeue_head(sch, &sch->q);
 }
 
+static inline unsigned int __qdisc_queue_drop_head(struct Qdisc *sch,
+					      struct sk_buff_head *list)
+{
+	struct sk_buff *skb = __qdisc_dequeue_head(sch, list);
+
+	if (likely(skb != NULL)) {
+		unsigned int len = qdisc_pkt_len(skb);
+		kfree_skb(skb);
+		return len;
+	}
+
+	return 0;
+}
+
+static inline unsigned int qdisc_queue_drop_head(struct Qdisc *sch)
+{
+	return __qdisc_queue_drop_head(sch, &sch->q);
+}
+
 static inline struct sk_buff *__qdisc_dequeue_tail(struct Qdisc *sch,
 						   struct sk_buff_head *list)
 {

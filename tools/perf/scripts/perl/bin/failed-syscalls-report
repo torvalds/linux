@@ -1,0 +1,4 @@
+#!/bin/bash
+# description: system-wide failed syscalls
+# args: [comm]
+perf trace -s ~/libexec/perf-core/scripts/perl/failed-syscalls.pl $1

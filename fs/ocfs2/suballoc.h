@@ -56,6 +56,7 @@ struct ocfs2_alloc_context {
 				 is the same as ~0 - unlimited */
 };
 
+void ocfs2_init_steal_slots(struct ocfs2_super *osb);
 void ocfs2_free_alloc_context(struct ocfs2_alloc_context *ac);
 static inline int ocfs2_alloc_context_bits_left(struct ocfs2_alloc_context *ac)
 {
@@ -126,6 +127,11 @@ int ocfs2_free_clusters(handle_t *handle,
 			struct buffer_head *bitmap_bh,
 			u64 start_blk,
 			unsigned int num_clusters);
+int ocfs2_release_clusters(handle_t *handle,
+			   struct inode *bitmap_inode,
+			   struct buffer_head *bitmap_bh,
+			   u64 start_blk,
+			   unsigned int num_clusters);
 
 static inline u64 ocfs2_which_suballoc_group(u64 block, unsigned int bit)
 {

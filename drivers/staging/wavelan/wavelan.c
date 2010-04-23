@@ -1367,7 +1367,7 @@ static void wavelan_set_multicast_list(struct net_device * dev)
 #ifdef DEBUG_IOCTL_INFO
 	printk(KERN_DEBUG
 	       "%s: wavelan_set_multicast_list(): setting Rx mode %02X to %d addresses.\n",
-	       dev->name, dev->flags, dev->mc_count);
+	       dev->name, dev->flags, netdev_mc_count(dev));
 #endif
 
 	/* Are we asking for promiscuous mode,
@@ -1375,7 +1375,7 @@ static void wavelan_set_multicast_list(struct net_device * dev)
 	 * or too many multicast addresses for the hardware filter? */
 	if ((dev->flags & IFF_PROMISC) ||
 	    (dev->flags & IFF_ALLMULTI) ||
-	    (dev->mc_count > I82586_MAX_MULTICAST_ADDRESSES)) {
+	    (netdev_mc_count(dev) > I82586_MAX_MULTICAST_ADDRESSES)) {
 		/*
 		 * Enable promiscuous mode: receive all packets.
 		 */
@@ -1387,17 +1387,17 @@ static void wavelan_set_multicast_list(struct net_device * dev)
 		}
 	} else
 		/* Are there multicast addresses to send? */
-	if (dev->mc_list != (struct dev_mc_list *) NULL) {
+	if (!netdev_mc_empty(dev)) {
 		/*
 		 * Disable promiscuous mode, but receive all packets
 		 * in multicast list
 		 */
 #ifdef MULTICAST_AVOID
-		if (lp->promiscuous || (dev->mc_count != lp->mc_count))
+		if (lp->promiscuous || (netdev_mc_count(dev) != lp->mc_count))
 #endif
 		{
 			lp->promiscuous = 0;
-			lp->mc_count = dev->mc_count;
+			lp->mc_count = netdev_mc_count(dev);
 
 			wv_82586_reconfig(dev);
 		}
@@ -3531,7 +3531,7 @@ static void wv_82586_config(struct net_device * dev)
 
 	/* Any address to set? */
 	if (lp->mc_count) {
-		for (dmi = dev->mc_list; dmi; dmi = dmi->next)
+		netdev_for_each_mc_addr(dmi, dev)
 			outsw(PIOP1(ioaddr), (u16 *) dmi->dmi_addr,
 			      WAVELAN_ADDR_SIZE >> 1);
 
@@ -3539,7 +3539,7 @@ static void wv_82586_config(struct net_device * dev)
 		printk(KERN_DEBUG
 		       "%s: wv_82586_config(): set %d multicast addresses:\n",
 		       dev->name, lp->mc_count);
-		for (dmi = dev->mc_list; dmi; dmi = dmi->next)
+		netdev_for_each_mc_addr(dmi, dev)
 			printk(KERN_DEBUG " %pM\n", dmi->dmi_addr);
 #endif
 	}

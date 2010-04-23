@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/cpufreq.h>
 #include <linux/init.h>
 #include <linux/completion.h>
@@ -398,11 +397,11 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 	int rc = -ENODEV;
 
 	/* Check supported platforms */
-	if (machine_is_compatible("PowerMac8,1") ||
-	    machine_is_compatible("PowerMac8,2") ||
-	    machine_is_compatible("PowerMac9,1"))
+	if (of_machine_is_compatible("PowerMac8,1") ||
+	    of_machine_is_compatible("PowerMac8,2") ||
+	    of_machine_is_compatible("PowerMac9,1"))
 		use_volts_smu = 1;
-	else if (machine_is_compatible("PowerMac11,2"))
+	else if (of_machine_is_compatible("PowerMac11,2"))
 		use_volts_vdnap = 1;
 	else
 		return -ENODEV;
@@ -729,9 +728,9 @@ static int __init g5_cpufreq_init(void)
 		return -ENODEV;
 	}
 
-	if (machine_is_compatible("PowerMac7,2") ||
-	    machine_is_compatible("PowerMac7,3") ||
-	    machine_is_compatible("RackMac3,1"))
+	if (of_machine_is_compatible("PowerMac7,2") ||
+	    of_machine_is_compatible("PowerMac7,3") ||
+	    of_machine_is_compatible("RackMac3,1"))
 		rc = g5_pm72_cpufreq_init(cpus);
 #ifdef CONFIG_PMAC_SMU
 	else

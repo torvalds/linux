@@ -23,7 +23,6 @@
 #include <linux/ioctl.h>
 #include <linux/if.h>
 #include <linux/if_bridge.h>
-#include <linux/slab.h>
 #include <linux/raid/md_u.h>
 #include <linux/kd.h>
 #include <linux/route.h>
@@ -60,6 +59,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <linux/atalk.h>
+#include <linux/gfp.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci.h>
@@ -545,7 +545,7 @@ static int mt_ioctl_trans(unsigned int fd, unsigned int cmd, void __user *argp)
 		kcmd = MTIOCPOS;
 		karg = &pos;
 		break;
-	case MTIOCGET32:
+	default:	/* MTIOCGET32 */
 		kcmd = MTIOCGET;
 		karg = &get;
 		break;
@@ -663,7 +663,7 @@ static int raw_ioctl(unsigned fd, unsigned cmd,
 
         switch (cmd) {
         case RAW_SETBIND:
-        case RAW_GETBIND: {
+	default: {	/* RAW_GETBIND */
                 struct raw_config_request req;
                 mm_segment_t oldfs = get_fs();
 

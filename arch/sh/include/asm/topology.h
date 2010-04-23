@@ -35,7 +35,7 @@
 
 #define pcibus_to_node(bus)	((void)(bus), -1)
 #define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ? \
-					CPU_MASK_ALL_PTR : \
+					cpu_all_mask : \
 					cpumask_of_node(pcibus_to_node(bus)))
 
 #endif

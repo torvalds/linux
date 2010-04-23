@@ -58,7 +58,7 @@ static int hvc_udbg_get(uint32_t vtermno, char *buf, int count)
 	return i;
 }
 
-static struct hv_ops hvc_udbg_ops = {
+static const struct hv_ops hvc_udbg_ops = {
 	.get_chars = hvc_udbg_get,
 	.put_chars = hvc_udbg_put,
 };

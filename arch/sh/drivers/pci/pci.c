@@ -33,15 +33,22 @@ static int pci_initialized;
 static void __devinit pcibios_scanbus(struct pci_channel *hose)
 {
 	static int next_busno;
+	static int need_domain_info;
 	struct pci_bus *bus;
 
 	bus = pci_scan_bus(next_busno, hose->pci_ops, hose);
+	hose->bus = bus;
+
+	need_domain_info = need_domain_info || hose->index;
+	hose->need_domain_info = need_domain_info;
 	if (bus) {
 		next_busno = bus->subordinate + 1;
 		/* Don't allow 8-bit bus number overflow inside the hose -
 		   reserve some space for bridges. */
-		if (next_busno > 224)
+		if (next_busno > 224) {
 			next_busno = 0;
+			need_domain_info = 1;
+		}
 
 		pci_bus_size_bridges(bus);
 		pci_bus_assign_resources(bus);
@@ -51,10 +58,21 @@ static void __devinit pcibios_scanbus(struct pci_channel *hose)
 
 static DEFINE_MUTEX(pci_scan_mutex);
 
-void __devinit register_pci_controller(struct pci_channel *hose)
+int __devinit register_pci_controller(struct pci_channel *hose)
 {
-	request_resource(&iomem_resource, hose->mem_resource);
-	request_resource(&ioport_resource, hose->io_resource);
+	int i;
+
+	for (i = 0; i < hose->nr_resources; i++) {
+		struct resource *res = hose->resources + i;
+
+		if (res->flags & IORESOURCE_IO) {
+			if (request_resource(&ioport_resource, res) < 0)
+				goto out;
+		} else {
+			if (request_resource(&iomem_resource, res) < 0)
+				goto out;
+		}
+	}
 
 	*hose_tail = hose;
 	hose_tail = &hose->next;
@@ -68,6 +86,11 @@ void __devinit register_pci_controller(struct pci_channel *hose)
 	}
 
 	/*
+	 * Setup the ERR/PERR and SERR timers, if available.
+	 */
+	pcibios_enable_timers(hose);
+
+	/*
 	 * Scan the bus if it is register after the PCI subsystem
 	 * initialization.
 	 */
@@ -76,6 +99,15 @@ void __devinit register_pci_controller(struct pci_channel *hose)
 		pcibios_scanbus(hose);
 		mutex_unlock(&pci_scan_mutex);
 	}
+
+	return 0;
+
+out:
+	for (--i; i >= 0; i--)
+		release_resource(&hose->resources[i]);
+
+	printk(KERN_WARNING "Skipping PCI bus scan due to resource conflict\n");
+	return -1;
 }
 
 static int __init pcibios_init(void)
@@ -127,11 +159,13 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev = bus->self;
 	struct list_head *ln;
-	struct pci_channel *chan = bus->sysdata;
+	struct pci_channel *hose = bus->sysdata;
 
 	if (!dev) {
-		bus->resource[0] = chan->io_resource;
-		bus->resource[1] = chan->mem_resource;
+		int i;
+
+		for (i = 0; i < hose->nr_resources; i++)
+			bus->resource[i] = hose->resources + i;
 	}
 
 	for (ln = bus->devices.next; ln != &bus->devices; ln = ln->next) {
@@ -148,34 +182,29 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
  * addresses to be allocated in the 0x000-0x0ff region
  * modulo 0x400.
  */
-void pcibios_align_resource(void *data, struct resource *res,
-			    resource_size_t size, resource_size_t align)
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
+				resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
-	struct pci_channel *chan = dev->sysdata;
+	struct pci_channel *hose = dev->sysdata;
 	resource_size_t start = res->start;
 
 	if (res->flags & IORESOURCE_IO) {
-		if (start < PCIBIOS_MIN_IO + chan->io_resource->start)
-			start = PCIBIOS_MIN_IO + chan->io_resource->start;
+		if (start < PCIBIOS_MIN_IO + hose->resources[0].start)
+			start = PCIBIOS_MIN_IO + hose->resources[0].start;
 
 		/*
                  * Put everything into 0x00-0xff region modulo 0x400.
 		 */
-		if (start & 0x300) {
+		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
-			res->start = start;
-		}
-	} else if (res->flags & IORESOURCE_MEM) {
-		if (start < PCIBIOS_MIN_MEM + chan->mem_resource->start)
-			start = PCIBIOS_MIN_MEM + chan->mem_resource->start;
 	}
 
-	res->start = start;
+	return start;
 }
 
 void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			 struct resource *res)
+			     struct resource *res)
 {
 	struct pci_channel *hose = dev->sysdata;
 	unsigned long offset = 0;
@@ -189,9 +218,8 @@ void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 	region->end = res->end - offset;
 }
 
-void __devinit
-pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			struct pci_bus_region *region)
+void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			     struct pci_bus_region *region)
 {
 	struct pci_channel *hose = dev->sysdata;
 	unsigned long offset = 0;
@@ -274,6 +302,86 @@ char * __devinit pcibios_setup(char *str)
 	return str;
 }
 
+static void __init
+pcibios_bus_report_status_early(struct pci_channel *hose,
+				int top_bus, int current_bus,
+				unsigned int status_mask, int warn)
+{
+	unsigned int pci_devfn;
+	u16 status;
+	int ret;
+
+	for (pci_devfn = 0; pci_devfn < 0xff; pci_devfn++) {
+		if (PCI_FUNC(pci_devfn))
+			continue;
+		ret = early_read_config_word(hose, top_bus, current_bus,
+					     pci_devfn, PCI_STATUS, &status);
+		if (ret != PCIBIOS_SUCCESSFUL)
+			continue;
+		if (status == 0xffff)
+			continue;
+
+		early_write_config_word(hose, top_bus, current_bus,
+					pci_devfn, PCI_STATUS,
+					status & status_mask);
+		if (warn)
+			printk("(%02x:%02x: %04X) ", current_bus,
+			       pci_devfn, status);
+	}
+}
+
+/*
+ * We can't use pci_find_device() here since we are
+ * called from interrupt context.
+ */
+static void __init_refok
+pcibios_bus_report_status(struct pci_bus *bus, unsigned int status_mask,
+			  int warn)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		u16 status;
+
+		/*
+		 * ignore host bridge - we handle
+		 * that separately
+		 */
+		if (dev->bus->number == 0 && dev->devfn == 0)
+			continue;
+
+		pci_read_config_word(dev, PCI_STATUS, &status);
+		if (status == 0xffff)
+			continue;
+
+		if ((status & status_mask) == 0)
+			continue;
+
+		/* clear the status errors */
+		pci_write_config_word(dev, PCI_STATUS, status & status_mask);
+
+		if (warn)
+			printk("(%s: %04X) ", pci_name(dev), status);
+	}
+
+	list_for_each_entry(dev, &bus->devices, bus_list)
+		if (dev->subordinate)
+			pcibios_bus_report_status(dev->subordinate, status_mask, warn);
+}
+
+void __init_refok pcibios_report_status(unsigned int status_mask, int warn)
+{
+	struct pci_channel *hose;
+
+	for (hose = hose_head; hose; hose = hose->next) {
+		if (unlikely(!hose->bus))
+			pcibios_bus_report_status_early(hose, hose_head->index,
+					hose->index, status_mask, warn);
+		else
+			pcibios_bus_report_status(hose->bus, status_mask, warn);
+	}
+}
+
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine)
 {
@@ -302,8 +410,14 @@ static void __iomem *ioport_map_pci(struct pci_dev *dev,
 {
 	struct pci_channel *chan = dev->sysdata;
 
-	if (!chan->io_map_base)
+	if (unlikely(!chan->io_map_base)) {
 		chan->io_map_base = generic_io_base;
+
+		if (pci_domains_supported)
+			panic("To avoid data corruption io_map_base MUST be "
+			      "set with multiple PCI domains.");
+	}
+
 
 	return (void __iomem *)(chan->io_map_base + port);
 }
@@ -321,20 +435,9 @@ void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
 
 	if (flags & IORESOURCE_IO)
 		return ioport_map_pci(dev, start, len);
-
-	/*
-	 * Presently the IORESOURCE_MEM case is a bit special, most
-	 * SH7751 style PCI controllers have PCI memory at a fixed
-	 * location in the address space where no remapping is desired.
-	 * With the IORESOURCE_MEM case more care has to be taken
-	 * to inhibit page table mapping for legacy cores, but this is
-	 * punted off to __ioremap().
-	 *					-- PFM.
-	 */
 	if (flags & IORESOURCE_MEM) {
 		if (flags & IORESOURCE_CACHEABLE)
 			return ioremap(start, len);
-
 		return ioremap_nocache(start, len);
 	}
 

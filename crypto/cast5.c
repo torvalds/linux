@@ -569,12 +569,12 @@ static const u32 sb8[256] = {
 	0xeaee6801, 0x8db2a283, 0xea8bf59e
 };
 
-#define F1(D,m,r)  (  (I = ((m) + (D))), (I=rol32(I,(r))),   \
-    (((s1[I >> 24] ^ s2[(I>>16)&0xff]) - s3[(I>>8)&0xff]) + s4[I&0xff]) )
-#define F2(D,m,r)  (  (I = ((m) ^ (D))), (I=rol32(I,(r))),   \
-    (((s1[I >> 24] - s2[(I>>16)&0xff]) + s3[(I>>8)&0xff]) ^ s4[I&0xff]) )
-#define F3(D,m,r)  (  (I = ((m) - (D))), (I=rol32(I,(r))),   \
-    (((s1[I >> 24] + s2[(I>>16)&0xff]) ^ s3[(I>>8)&0xff]) - s4[I&0xff]) )
+#define F1(D, m, r)  ((I = ((m) + (D))), (I = rol32(I, (r))),   \
+    (((s1[I >> 24] ^ s2[(I>>16)&0xff]) - s3[(I>>8)&0xff]) + s4[I&0xff]))
+#define F2(D, m, r)  ((I = ((m) ^ (D))), (I = rol32(I, (r))),   \
+    (((s1[I >> 24] - s2[(I>>16)&0xff]) + s3[(I>>8)&0xff]) ^ s4[I&0xff]))
+#define F3(D, m, r)  ((I = ((m) - (D))), (I = rol32(I, (r))),   \
+    (((s1[I >> 24] + s2[(I>>16)&0xff]) ^ s3[(I>>8)&0xff]) - s4[I&0xff]))
 
 
 static void cast5_encrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
@@ -694,7 +694,7 @@ static void cast5_decrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
 	dst[1] = cpu_to_be32(l);
 }
 
-static void key_schedule(u32 * x, u32 * z, u32 * k)
+static void key_schedule(u32 *x, u32 *z, u32 *k)
 {
 
 #define xi(i)   ((x[(i)/4] >> (8*(3-((i)%4)))) & 0xff)

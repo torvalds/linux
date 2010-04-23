@@ -104,6 +104,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	if (connector->status == connector_status_disconnected) {
 		DRM_DEBUG_KMS("%s is disconnected\n",
 			  drm_get_connector_name(connector));
+		drm_mode_connector_update_edid_property(connector, NULL);
 		goto prune;
 	}
 
@@ -836,11 +837,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			mode_changed = true;
 		} else if (set->fb == NULL) {
 			mode_changed = true;
-		} else if ((set->fb->bits_per_pixel !=
-			 set->crtc->fb->bits_per_pixel) ||
-			 set->fb->depth != set->crtc->fb->depth)
-			fb_changed = true;
-		else
+		} else
 			fb_changed = true;
 	}
 

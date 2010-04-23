@@ -18,6 +18,7 @@
 
 #include <net/ipv6.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/slab.h>
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 
@@ -71,8 +72,9 @@ static size_t rpc_ntop6(const struct sockaddr *sap,
 	if (unlikely(len == 0))
 		return len;
 
-	if (!(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL) &&
-	    !(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_SITELOCAL))
+	if (!(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL))
+		return len;
+	if (sin6->sin6_scope_id == 0)
 		return len;
 
 	rc = snprintf(scopebuf, sizeof(scopebuf), "%c%u",
@@ -165,8 +167,7 @@ static int rpc_parse_scope_id(const char *buf, const size_t buflen,
 	if (*delim != IPV6_SCOPE_DELIMITER)
 		return 0;
 
-	if (!(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL) &&
-	    !(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_SITELOCAL))
+	if (!(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL))
 		return 0;
 
 	len = (buf + buflen) - delim - 1;

@@ -243,8 +243,6 @@ struct b43legacy_dmaring {
 	int used_slots;
 	/* Currently used slot in the ring. */
 	int current_slot;
-	/* Total number of packets sent. Statistics only. */
-	unsigned int nr_tx_packets;
 	/* Frameoffset in octets. */
 	u32 frameoffset;
 	/* Descriptor buffer size. */
@@ -292,9 +290,6 @@ void b43legacy_dma_free(struct b43legacy_wldev *dev);
 void b43legacy_dma_tx_suspend(struct b43legacy_wldev *dev);
 void b43legacy_dma_tx_resume(struct b43legacy_wldev *dev);
 
-void b43legacy_dma_get_tx_stats(struct b43legacy_wldev *dev,
-				struct ieee80211_tx_queue_stats *stats);
-
 int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		     struct sk_buff *skb);
 void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
@@ -312,11 +307,6 @@ int b43legacy_dma_init(struct b43legacy_wldev *dev)
 }
 static inline
 void b43legacy_dma_free(struct b43legacy_wldev *dev)
-{
-}
-static inline
-void b43legacy_dma_get_tx_stats(struct b43legacy_wldev *dev,
-				struct ieee80211_tx_queue_stats *stats)
 {
 }
 static inline

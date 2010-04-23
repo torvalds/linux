@@ -81,3 +81,4 @@ tuner=80 - Philips FQ1216LME MK3 PAL/SECAM w/active loopthrough
 tuner=81 - Partsnic (Daewoo) PTI-5NF05
 tuner=82 - Philips CU1216L
 tuner=83 - NXP TDA18271
+tuner=84 - Sony BTF-Pxn01Z

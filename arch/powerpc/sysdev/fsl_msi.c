@@ -16,6 +16,7 @@
 #include <linux/bootmem.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/prom.h>
@@ -47,7 +48,7 @@ static struct irq_chip fsl_msi_chip = {
 	.mask		= mask_msi_irq,
 	.unmask		= unmask_msi_irq,
 	.ack		= fsl_msi_end_irq,
-	.name	= " FSL-MSI  ",
+	.name		= "FSL-MSI",
 };
 
 static int fsl_msi_host_map(struct irq_host *h, unsigned int virq,

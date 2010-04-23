@@ -13,6 +13,7 @@
 #include <linux/ip.h>
 #include <linux/in.h>
 #include <linux/ipv6.h>
+#include <linux/slab.h>
 #include <net/ipv6.h>
 #include <linux/if_ether.h>
 #include <linux/highmem.h>

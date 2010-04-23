@@ -64,6 +64,7 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/tty_flip.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -658,8 +659,7 @@ static irqreturn_t cd2401_rx_interrupt(int irq, void *dev_id)
 			info->mon.char_max = char_count;
 		info->mon.char_last = char_count;
 #endif
-		len = tty_buffer_request_room(tty, char_count);
-		while (len--) {
+		while (char_count--) {
 			data = base_addr[CyRDR];
 			tty_insert_flip_char(tty, data, TTY_NORMAL);
 #ifdef CYCLOM_16Y_HACK
@@ -1990,7 +1990,7 @@ void mvme167_serial_console_setup(int cflag)
 	/*
 	 * Attempt to set up all channels to something reasonable, and
 	 * bang out a INIT_CHAN command.  We should then be able to limit
-	 * the ammount of fiddling we have to do in normal running.
+	 * the amount of fiddling we have to do in normal running.
 	 */
 
 	for (ch = 3; ch >= 0; ch--) {

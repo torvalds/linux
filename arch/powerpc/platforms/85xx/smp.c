@@ -46,6 +46,7 @@ smp_85xx_kick_cpu(int nr)
 	__iomem u32 *bptr_vaddr;
 	struct device_node *np;
 	int n = 0;
+	int ioremappable;
 
 	WARN_ON (nr < 0 || nr >= NR_CPUS);
 
@@ -59,13 +60,28 @@ smp_85xx_kick_cpu(int nr)
 		return;
 	}
 
+	/*
+	 * A secondary core could be in a spinloop in the bootpage
+	 * (0xfffff000), somewhere in highmem, or somewhere in lowmem.
+	 * The bootpage and highmem can be accessed via ioremap(), but
+	 * we need to directly access the spinloop if its in lowmem.
+	 */
+	ioremappable = *cpu_rel_addr > virt_to_phys(high_memory);
+
 	/* Map the spin table */
-	bptr_vaddr = ioremap(*cpu_rel_addr, SIZE_BOOT_ENTRY);
+	if (ioremappable)
+		bptr_vaddr = ioremap(*cpu_rel_addr, SIZE_BOOT_ENTRY);
+	else
+		bptr_vaddr = phys_to_virt(*cpu_rel_addr);
 
 	local_irq_save(flags);
 
 	out_be32(bptr_vaddr + BOOT_ENTRY_PIR, nr);
 	out_be32(bptr_vaddr + BOOT_ENTRY_ADDR_LOWER, __pa(__early_start));
+
+	if (!ioremappable)
+		flush_dcache_range((ulong)bptr_vaddr,
+				(ulong)(bptr_vaddr + SIZE_BOOT_ENTRY));
 
 	/* Wait a bit for the CPU to ack. */
 	while ((__secondary_hold_acknowledge != nr) && (++n < 1000))
@@ -73,7 +89,8 @@ smp_85xx_kick_cpu(int nr)
 
 	local_irq_restore(flags);
 
-	iounmap(bptr_vaddr);
+	if (ioremappable)
+		iounmap(bptr_vaddr);
 
 	pr_debug("waited %d msecs for CPU #%d.\n", n, nr);
 }

@@ -11,9 +11,10 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 	if (netpoll_rx(skb))
 		return NET_RX_DROP;
 
-	if (skb_bond_should_drop(skb))
+	if (skb_bond_should_drop(skb, ACCESS_ONCE(skb->dev->master)))
 		goto drop;
 
+	skb->skb_iif = skb->dev->ifindex;
 	__vlan_hwaccel_put_tag(skb, vlan_tci);
 	skb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
 
@@ -82,9 +83,10 @@ vlan_gro_common(struct napi_struct *napi, struct vlan_group *grp,
 {
 	struct sk_buff *p;
 
-	if (skb_bond_should_drop(skb))
+	if (skb_bond_should_drop(skb, ACCESS_ONCE(skb->dev->master)))
 		goto drop;
 
+	skb->skb_iif = skb->dev->ifindex;
 	__vlan_hwaccel_put_tag(skb, vlan_tci);
 	skb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
 

@@ -31,9 +31,6 @@
 	 *
 	 ****************************************************************/
 
-#define FALSE			0
-#define TRUE			1
-
 #define TLAN_MIN_FRAME_SIZE	64
 #define TLAN_MAX_FRAME_SIZE	1600
 

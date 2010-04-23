@@ -24,17 +24,18 @@
  */
 
 #include <linux/swab.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "drm_sarea.h"
 #include "drm_crtc_helper.h"
 #include <linux/vgaarb.h>
+#include <linux/vga_switcheroo.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 #include "nv50_display.h"
 
-static int nouveau_stub_init(struct drm_device *dev) { return 0; }
 static void nouveau_stub_takedown(struct drm_device *dev) {}
 
 static int nouveau_init_engine_ptrs(struct drm_device *dev)
@@ -276,8 +277,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
-		engine->fb.init			= nouveau_stub_init;
-		engine->fb.takedown		= nouveau_stub_takedown;
+		engine->fb.init			= nv50_fb_init;
+		engine->fb.takedown		= nv50_fb_takedown;
 		engine->graph.grclass		= nv50_graph_grclass;
 		engine->graph.init		= nv50_graph_init;
 		engine->graph.takedown		= nv50_graph_takedown;
@@ -340,7 +341,7 @@ nouveau_card_init_channel(struct drm_device *dev)
 
 	gpuobj = NULL;
 	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
-				     0, nouveau_mem_fb_amount(dev),
+				     0, dev_priv->vram_size,
 				     NV_DMA_ACCESS_RW, NV_DMA_TARGET_VIDMEM,
 				     &gpuobj);
 	if (ret)
@@ -371,6 +372,30 @@ out_err:
 	return ret;
 }
 
+static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
+					 enum vga_switcheroo_state state)
+{
+	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
+	if (state == VGA_SWITCHEROO_ON) {
+		printk(KERN_ERR "VGA switcheroo: switched nouveau on\n");
+		nouveau_pci_resume(pdev);
+	} else {
+		printk(KERN_ERR "VGA switcheroo: switched nouveau off\n");
+		nouveau_pci_suspend(pdev, pmm);
+	}
+}
+
+static bool nouveau_switcheroo_can_switch(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	bool can_switch;
+
+	spin_lock(&dev->count_lock);
+	can_switch = (dev->open_count == 0);
+	spin_unlock(&dev->count_lock);
+	return can_switch;
+}
+
 int
 nouveau_card_init(struct drm_device *dev)
 {
@@ -384,6 +409,8 @@ nouveau_card_init(struct drm_device *dev)
 		return 0;
 
 	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
+	vga_switcheroo_register_client(dev->pdev, nouveau_switcheroo_set_state,
+				       nouveau_switcheroo_can_switch);
 
 	/* Initialise internal driver API hooks */
 	ret = nouveau_init_engine_ptrs(dev);
@@ -391,6 +418,7 @@ nouveau_card_init(struct drm_device *dev)
 		goto out;
 	engine = &dev_priv->engine;
 	dev_priv->init_state = NOUVEAU_CARD_INIT_FAILED;
+	spin_lock_init(&dev_priv->context_switch_lock);
 
 	/* Parse BIOS tables / Run init tables if card not POSTed */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -398,6 +426,10 @@ nouveau_card_init(struct drm_device *dev)
 		if (ret)
 			goto out;
 	}
+
+	ret = nouveau_mem_detect(dev);
+	if (ret)
+		goto out_bios;
 
 	ret = nouveau_gpuobj_early_init(dev);
 	if (ret)
@@ -474,7 +506,7 @@ nouveau_card_init(struct drm_device *dev)
 		else
 			ret = nv04_display_create(dev);
 		if (ret)
-			goto out_irq;
+			goto out_channel;
 	}
 
 	ret = nouveau_backlight_init(dev);
@@ -488,6 +520,11 @@ nouveau_card_init(struct drm_device *dev)
 
 	return 0;
 
+out_channel:
+	if (dev_priv->channel) {
+		nouveau_channel_free(dev_priv->channel);
+		dev_priv->channel = NULL;
+	}
 out_irq:
 	drm_irq_uninstall(dev);
 out_fifo:
@@ -505,6 +542,7 @@ out_mc:
 out_gpuobj:
 	nouveau_gpuobj_takedown(dev);
 out_mem:
+	nouveau_sgdma_takedown(dev);
 	nouveau_mem_close(dev);
 out_instmem:
 	engine->instmem.takedown(dev);
@@ -616,11 +654,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 	NV_DEBUG(dev, "vendor: 0x%X device: 0x%X class: 0x%X\n",
 		 dev->pci_vendor, dev->pci_device, dev->pdev->class);
-
-	dev_priv->acpi_dsm = nouveau_dsm_probe(dev);
-
-	if (dev_priv->acpi_dsm)
-		nouveau_hybrid_setup(dev);
 
 	dev_priv->wq = create_workqueue("nouveau");
 	if (!dev_priv->wq)
@@ -774,13 +807,6 @@ int nouveau_unload(struct drm_device *dev)
 	kfree(dev_priv);
 	dev->dev_private = NULL;
 	return 0;
-}
-
-int
-nouveau_ioctl_card_init(struct drm_device *dev, void *data,
-			struct drm_file *file_priv)
-{
-	return nouveau_card_init(dev);
 }
 
 int nouveau_ioctl_getparam(struct drm_device *dev, void *data,

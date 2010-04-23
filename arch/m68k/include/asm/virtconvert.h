@@ -31,12 +31,7 @@ static inline void *phys_to_virt(unsigned long address)
 #define page_to_phys(page) \
 	__pa(PAGE_OFFSET + (((page) - pg_data_map[0].node_mem_map) << PAGE_SHIFT))
 #else
-#define page_to_phys(_page) ({						\
-	struct page *__page = _page;					\
-	struct pglist_data *pgdat;					\
-	pgdat = pg_data_table[page_to_nid(__page)];			\
-	page_to_pfn(__page) << PAGE_SHIFT;				\
-})
+#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 #endif
 #else
 #define page_to_phys(page)	(((page) - mem_map) << PAGE_SHIFT)

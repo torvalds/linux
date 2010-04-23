@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/of_platform.h>
@@ -578,7 +579,7 @@ static int __exit spi_ppc4xx_of_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id spi_ppc4xx_of_match[] = {
+static const struct of_device_id spi_ppc4xx_of_match[] = {
 	{ .compatible = "ibm,ppc4xx-spi", },
 	{},
 };

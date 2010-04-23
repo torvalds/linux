@@ -311,13 +311,13 @@ device_initcall(r7780rp_devices_setup);
  */
 static int ivdr_clk_enable(struct clk *clk)
 {
-	ctrl_outw(ctrl_inw(PA_IVDRCTL) | (1 << IVDR_CK_ON), PA_IVDRCTL);
+	__raw_writew(__raw_readw(PA_IVDRCTL) | (1 << IVDR_CK_ON), PA_IVDRCTL);
 	return 0;
 }
 
 static void ivdr_clk_disable(struct clk *clk)
 {
-	ctrl_outw(ctrl_inw(PA_IVDRCTL) & ~(1 << IVDR_CK_ON), PA_IVDRCTL);
+	__raw_writew(__raw_readw(PA_IVDRCTL) & ~(1 << IVDR_CK_ON), PA_IVDRCTL);
 }
 
 static struct clk_ops ivdr_clk_ops = {
@@ -337,7 +337,7 @@ static struct clk *r7780rp_clocks[] = {
 static void r7780rp_power_off(void)
 {
 	if (mach_is_r7780mp() || mach_is_r7785rp())
-		ctrl_outw(0x0001, PA_POFF);
+		__raw_writew(0x0001, PA_POFF);
 }
 
 /*
@@ -345,7 +345,7 @@ static void r7780rp_power_off(void)
  */
 static void __init highlander_setup(char **cmdline_p)
 {
-	u16 ver = ctrl_inw(PA_VERREG);
+	u16 ver = __raw_readw(PA_VERREG);
 	int i;
 
 	printk(KERN_INFO "Renesas Solutions Highlander %s support.\n",
@@ -370,12 +370,12 @@ static void __init highlander_setup(char **cmdline_p)
 		clk_enable(clk);
 	}
 
-	ctrl_outw(0x0000, PA_OBLED);	/* Clear LED. */
+	__raw_writew(0x0000, PA_OBLED);	/* Clear LED. */
 
 	if (mach_is_r7780rp())
-		ctrl_outw(0x0001, PA_SDPOW);	/* SD Power ON */
+		__raw_writew(0x0001, PA_SDPOW);	/* SD Power ON */
 
-	ctrl_outw(ctrl_inw(PA_IVDRCTL) | 0x01, PA_IVDRCTL);	/* Si13112 */
+	__raw_writew(__raw_readw(PA_IVDRCTL) | 0x01, PA_IVDRCTL);	/* Si13112 */
 
 	pm_power_off = r7780rp_power_off;
 }

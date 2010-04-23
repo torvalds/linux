@@ -175,16 +175,12 @@ ENTRY(at91_slow_clock)
 	orr	r3, r3, #(1 << 29)		/* bit 29 always set */
 	str	r3, [r1, #(AT91_CKGR_PLLAR - AT91_PMC)]
 
-	wait_pllalock
-
 	/* Save PLLB setting and disable it */
 	ldr	r3, [r1, #(AT91_CKGR_PLLBR - AT91_PMC)]
 	str	r3, .saved_pllbr
 
 	mov	r3, #AT91_PMC_PLLCOUNT
 	str	r3, [r1, #(AT91_CKGR_PLLBR - AT91_PMC)]
-
-	wait_pllblock
 
 	/* Turn off the main oscillator */
 	ldr	r3, [r1, #(AT91_CKGR_MOR - AT91_PMC)]
@@ -205,13 +201,25 @@ ENTRY(at91_slow_clock)
 	ldr	r3, .saved_pllbr
 	str	r3, [r1, #(AT91_CKGR_PLLBR - AT91_PMC)]
 
+	tst	r3, #(AT91_PMC_MUL &  0xff0000)
+	bne	1f
+	tst	r3, #(AT91_PMC_MUL & ~0xff0000)
+	beq	2f
+1:
 	wait_pllblock
+2:
 
 	/* Restore PLLA setting */
 	ldr	r3, .saved_pllar
 	str	r3, [r1, #(AT91_CKGR_PLLAR - AT91_PMC)]
 
+	tst	r3, #(AT91_PMC_MUL &  0xff0000)
+	bne	3f
+	tst	r3, #(AT91_PMC_MUL & ~0xff0000)
+	beq	4f
+3:
 	wait_pllalock
+4:
 
 #ifdef SLOWDOWN_MASTER_CLOCK
 	/*

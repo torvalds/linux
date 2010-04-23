@@ -128,7 +128,7 @@ static struct attribute *ttm_bo_global_attrs[] = {
 	NULL
 };
 
-static struct sysfs_ops ttm_bo_global_ops = {
+static const struct sysfs_ops ttm_bo_global_ops = {
 	.show = &ttm_bo_global_show
 };
 
@@ -1020,6 +1020,12 @@ static int ttm_bo_mem_compat(struct ttm_placement *placement,
 			     struct ttm_mem_reg *mem)
 {
 	int i;
+	struct drm_mm_node *node = mem->mm_node;
+
+	if (node && placement->lpfn != 0 &&
+	    (node->start < placement->fpfn ||
+	     node->start + node->size > placement->lpfn))
+		return -1;
 
 	for (i = 0; i < placement->num_placement; i++) {
 		if ((placement->placement[i] & mem->placement &
@@ -1419,8 +1425,8 @@ int ttm_bo_global_init(struct ttm_global_reference *ref)
 
 	atomic_set(&glob->bo_count, 0);
 
-	kobject_init(&glob->kobj, &ttm_bo_glob_kobj_type);
-	ret = kobject_add(&glob->kobj, ttm_get_kobj(), "buffer_objects");
+	ret = kobject_init_and_add(
+		&glob->kobj, &ttm_bo_glob_kobj_type, ttm_get_kobj(), "buffer_objects");
 	if (unlikely(ret != 0))
 		kobject_put(&glob->kobj);
 	return ret;

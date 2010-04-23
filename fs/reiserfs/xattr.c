@@ -38,6 +38,7 @@
 #include <linux/dcache.h>
 #include <linux/namei.h>
 #include <linux/errno.h>
+#include <linux/gfp.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>
@@ -61,7 +62,6 @@
 static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 {
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
-	vfs_dq_init(dir);
 	return dir->i_op->create(dir, dentry, mode, NULL);
 }
 #endif
@@ -69,7 +69,6 @@ static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 static int xattr_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
-	vfs_dq_init(dir);
 	return dir->i_op->mkdir(dir, dentry, mode);
 }
 
@@ -81,7 +80,6 @@ static int xattr_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int error;
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
-	vfs_dq_init(dir);
 
 	reiserfs_mutex_lock_nested_safe(&dentry->d_inode->i_mutex,
 					I_MUTEX_CHILD, dir->i_sb);
@@ -97,7 +95,6 @@ static int xattr_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int error;
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
-	vfs_dq_init(dir);
 
 	reiserfs_mutex_lock_nested_safe(&dentry->d_inode->i_mutex,
 					I_MUTEX_CHILD, dir->i_sb);

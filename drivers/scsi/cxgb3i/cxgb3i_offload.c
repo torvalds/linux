@@ -13,6 +13,7 @@
  */
 
 #include <linux/if_vlan.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 
 #include "cxgb3_defs.h"
@@ -1675,10 +1676,11 @@ int cxgb3i_c3cn_connect(struct net_device *dev, struct s3_conn *c3cn,
 	} else
 		c3cn->saddr.sin_addr.s_addr = sipv4;
 
-	c3cn_conn_debug("c3cn 0x%p, %u.%u.%u.%u,%u-%u.%u.%u.%u,%u SYN_SENT.\n",
-			c3cn, NIPQUAD(c3cn->saddr.sin_addr.s_addr),
+	c3cn_conn_debug("c3cn 0x%p, %pI4,%u-%pI4,%u SYN_SENT.\n",
+			c3cn,
+			&c3cn->saddr.sin_addr.s_addr,
 			ntohs(c3cn->saddr.sin_port),
-			NIPQUAD(c3cn->daddr.sin_addr.s_addr),
+			&c3cn->daddr.sin_addr.s_addr,
 			ntohs(c3cn->daddr.sin_port));
 
 	c3cn_set_state(c3cn, C3CN_STATE_CONNECTING);

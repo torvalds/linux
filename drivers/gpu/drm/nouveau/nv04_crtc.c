@@ -230,9 +230,9 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	struct drm_framebuffer *fb = crtc->fb;
 
 	/* Calculate our timings */
-	int horizDisplay	= (mode->crtc_hdisplay >> 3) 	- 1;
-	int horizStart		= (mode->crtc_hsync_start >> 3) 	- 1;
-	int horizEnd		= (mode->crtc_hsync_end >> 3) 	- 1;
+	int horizDisplay	= (mode->crtc_hdisplay >> 3)		- 1;
+	int horizStart		= (mode->crtc_hsync_start >> 3) 	+ 1;
+	int horizEnd		= (mode->crtc_hsync_end >> 3)		+ 1;
 	int horizTotal		= (mode->crtc_htotal >> 3)		- 5;
 	int horizBlankStart	= (mode->crtc_hdisplay >> 3)		- 1;
 	int horizBlankEnd	= (mode->crtc_htotal >> 3)		- 1;
@@ -926,9 +926,7 @@ nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.offset);
 	nv_crtc->cursor.show(nv_crtc, true);
 out:
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(gem);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(gem);
 	return ret;
 }
 

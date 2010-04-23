@@ -17,26 +17,17 @@
 #include <asm/heartbeat.h>
 
 /* Heartbeat */
-static struct heartbeat_data heartbeat_data = {
-	.regsize = 16,
-};
-
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start  = PA_LED,
-		.end    = PA_LED,
-		.flags  = IORESOURCE_MEM,
-	},
+static struct resource heartbeat_resource = {
+	.start  = PA_LED,
+	.end    = PA_LED,
+	.flags  = IORESOURCE_MEM | IORESOURCE_MEM_16BIT,
 };
 
 static struct platform_device heartbeat_device = {
 	.name           = "heartbeat",
 	.id             = -1,
-	.dev = {
-		.platform_data = &heartbeat_data,
-	},
-	.num_resources  = ARRAY_SIZE(heartbeat_resources),
-	.resource       = heartbeat_resources,
+	.num_resources  = 1,
+	.resource       = &heartbeat_resource,
 };
 
 /* SMC91x */
@@ -84,14 +75,14 @@ device_initcall(se7780_devices_setup);
 static void __init se7780_setup(char **cmdline_p)
 {
 	/* "SH-Linux" on LED Display */
-	ctrl_outw( 'S' , PA_LED_DISP + (DISP_SEL0_ADDR << 1) );
-	ctrl_outw( 'H' , PA_LED_DISP + (DISP_SEL1_ADDR << 1) );
-	ctrl_outw( '-' , PA_LED_DISP + (DISP_SEL2_ADDR << 1) );
-	ctrl_outw( 'L' , PA_LED_DISP + (DISP_SEL3_ADDR << 1) );
-	ctrl_outw( 'i' , PA_LED_DISP + (DISP_SEL4_ADDR << 1) );
-	ctrl_outw( 'n' , PA_LED_DISP + (DISP_SEL5_ADDR << 1) );
-	ctrl_outw( 'u' , PA_LED_DISP + (DISP_SEL6_ADDR << 1) );
-	ctrl_outw( 'x' , PA_LED_DISP + (DISP_SEL7_ADDR << 1) );
+	__raw_writew( 'S' , PA_LED_DISP + (DISP_SEL0_ADDR << 1) );
+	__raw_writew( 'H' , PA_LED_DISP + (DISP_SEL1_ADDR << 1) );
+	__raw_writew( '-' , PA_LED_DISP + (DISP_SEL2_ADDR << 1) );
+	__raw_writew( 'L' , PA_LED_DISP + (DISP_SEL3_ADDR << 1) );
+	__raw_writew( 'i' , PA_LED_DISP + (DISP_SEL4_ADDR << 1) );
+	__raw_writew( 'n' , PA_LED_DISP + (DISP_SEL5_ADDR << 1) );
+	__raw_writew( 'u' , PA_LED_DISP + (DISP_SEL6_ADDR << 1) );
+	__raw_writew( 'x' , PA_LED_DISP + (DISP_SEL7_ADDR << 1) );
 
 	printk(KERN_INFO "Hitachi UL Solutions Engine 7780SE03 support.\n");
 
@@ -102,15 +93,15 @@ static void __init se7780_setup(char **cmdline_p)
 	 *   REQ2/GNT2 -> Serial ATA
 	 *   REQ3/GNT3 -> PCI slot
 	 */
-	ctrl_outw(0x0213, FPGA_REQSEL);
+	__raw_writew(0x0213, FPGA_REQSEL);
 
 	/* GPIO setting */
-	ctrl_outw(0x0000, GPIO_PECR);
-	ctrl_outw(ctrl_inw(GPIO_PHCR)&0xfff3, GPIO_PHCR);
-	ctrl_outw(0x0c00, GPIO_PMSELR);
+	__raw_writew(0x0000, GPIO_PECR);
+	__raw_writew(__raw_readw(GPIO_PHCR)&0xfff3, GPIO_PHCR);
+	__raw_writew(0x0c00, GPIO_PMSELR);
 
 	/* iVDR Power ON */
-	ctrl_outw(0x0001, FPGA_IVDRPW);
+	__raw_writew(0x0001, FPGA_IVDRPW);
 }
 
 /*

@@ -39,6 +39,7 @@ enum {
 
 	/* module saa7115: reserved range 101-149 */
 	V4L2_IDENT_SAA7111 = 101,
+	V4L2_IDENT_SAA7111A = 102,
 	V4L2_IDENT_SAA7113 = 103,
 	V4L2_IDENT_SAA7114 = 104,
 	V4L2_IDENT_SAA7115 = 105,
@@ -134,6 +135,9 @@ enum {
 	/* modules tef6862: just ident 6862 */
 	V4L2_IDENT_TEF6862 = 6862,
 
+	/* module tvp7002: just ident 7002 */
+	V4L2_IDENT_TVP7002 = 7002,
+
 	/* module adv7170: just ident 7170 */
 	V4L2_IDENT_ADV7170 = 7170,
 
@@ -154,6 +158,9 @@ enum {
 
 	/* module adv7343: just ident 7343 */
 	V4L2_IDENT_ADV7343 = 7343,
+
+	/* module saa7706h: just ident 7706 */
+	V4L2_IDENT_SAA7706H = 7706,
 
 	/* module wm8739: just ident 8739 */
 	V4L2_IDENT_WM8739 = 8739,

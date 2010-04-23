@@ -58,6 +58,7 @@
 #include <linux/timer.h>
 #include <linux/pci.h>
 #include <linux/aer.h>
+#include <linux/slab.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <asm/system.h>

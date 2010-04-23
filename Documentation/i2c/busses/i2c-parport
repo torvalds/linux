@@ -29,6 +29,9 @@ can be easily added when needed.
 Earlier kernels defaulted to type=0 (Philips).  But now, if the type
 parameter is missing, the driver will simply fail to initialize.
 
+SMBus alert support is available on adapters which have this line properly
+connected to the parallel port's interrupt pin.
+
 
 Building your own adapter
 -------------------------

@@ -27,6 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/regulator/consumer.h>
 #include <asm/irq.h>
 
 /*
@@ -35,6 +36,7 @@
  * TSC2046 is just newer ads7846 silicon.
  * Support for ads7843 tested on Atmel at91sam926x-EK.
  * Support for ads7845 has only been stubbed in.
+ * Support for Analog Devices AD7873 and AD7843 tested.
  *
  * IRQ handling needs a workaround because of a shortcoming in handling
  * edge triggered IRQs on some platforms like the OMAP1/2. These
@@ -85,6 +87,7 @@ struct ads7846 {
 	char			name[32];
 
 	struct spi_device	*spi;
+	struct regulator	*reg;
 
 #if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
 	struct attribute_group	*attr_group;
@@ -788,6 +791,8 @@ static void ads7846_disable(struct ads7846 *ts)
 		}
 	}
 
+	regulator_disable(ts->reg);
+
 	/* we know the chip's in lowpower mode since we always
 	 * leave it that way after every request
 	 */
@@ -798,6 +803,8 @@ static void ads7846_enable(struct ads7846 *ts)
 {
 	if (!ts->disabled)
 		return;
+
+	regulator_enable(ts->reg);
 
 	ts->disabled = 0;
 	ts->irq_disabled = 0;
@@ -815,6 +822,9 @@ static int ads7846_suspend(struct spi_device *spi, pm_message_t message)
 
 	spin_unlock_irq(&ts->lock);
 
+	if (device_may_wakeup(&ts->spi->dev))
+		enable_irq_wake(ts->spi->irq);
+
 	return 0;
 
 }
@@ -822,6 +832,9 @@ static int ads7846_suspend(struct spi_device *spi, pm_message_t message)
 static int ads7846_resume(struct spi_device *spi)
 {
 	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
+
+	if (device_may_wakeup(&ts->spi->dev))
+		disable_irq_wake(ts->spi->irq);
 
 	spin_lock_irq(&ts->lock);
 
@@ -977,6 +990,15 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 			pdata->pressure_min, pdata->pressure_max, 0, 0);
 
 	vref = pdata->keep_vref_on;
+
+	if (ts->model == 7873) {
+		/* The AD7873 is almost identical to the ADS7846
+		 * keep VREF off during differential/ratiometric
+		 * conversion modes
+		 */
+		ts->model = 7846;
+		vref = 0;
+	}
 
 	/* set up the transfers to read touchscreen state; this assumes we
 	 * use formula #2 for pressure, not #3.
@@ -1139,6 +1161,19 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	ts->last_msg = m;
 
+	ts->reg = regulator_get(&spi->dev, "vcc");
+	if (IS_ERR(ts->reg)) {
+		dev_err(&spi->dev, "unable to get regulator: %ld\n",
+			PTR_ERR(ts->reg));
+		goto err_free_gpio;
+	}
+
+	err = regulator_enable(ts->reg);
+	if (err) {
+		dev_err(&spi->dev, "unable to enable regulator: %d\n", err);
+		goto err_put_regulator;
+	}
+
 	if (request_irq(spi->irq, ads7846_irq, IRQF_TRIGGER_FALLING,
 			spi->dev.driver->name, ts)) {
 		dev_info(&spi->dev,
@@ -1148,7 +1183,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 				  spi->dev.driver->name, ts);
 		if (err) {
 			dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
-			goto err_free_gpio;
+			goto err_disable_regulator;
 		}
 	}
 
@@ -1172,6 +1207,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	if (err)
 		goto err_remove_attr_group;
 
+	device_init_wakeup(&spi->dev, pdata->wakeup);
+
 	return 0;
 
  err_remove_attr_group:
@@ -1180,6 +1217,10 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	ads784x_hwmon_unregister(spi, ts);
  err_free_irq:
 	free_irq(spi->irq, ts);
+ err_disable_regulator:
+	regulator_disable(ts->reg);
+ err_put_regulator:
+	regulator_put(ts->reg);
  err_free_gpio:
 	if (ts->gpio_pendown != -1)
 		gpio_free(ts->gpio_pendown);
@@ -1197,6 +1238,8 @@ static int __devexit ads7846_remove(struct spi_device *spi)
 {
 	struct ads7846		*ts = dev_get_drvdata(&spi->dev);
 
+	device_init_wakeup(&spi->dev, false);
+
 	ads784x_hwmon_unregister(spi, ts);
 	input_unregister_device(ts->input);
 
@@ -1207,6 +1250,9 @@ static int __devexit ads7846_remove(struct spi_device *spi)
 	free_irq(ts->spi->irq, ts);
 	/* suspend left the IRQ disabled */
 	enable_irq(ts->spi->irq);
+
+	regulator_disable(ts->reg);
+	regulator_put(ts->reg);
 
 	if (ts->gpio_pendown != -1)
 		gpio_free(ts->gpio_pendown);

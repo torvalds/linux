@@ -92,7 +92,7 @@ Scott Hill shill@gtcocalcomp.com
 /* DATA STRUCTURES */
 
 /* Device table */
-static struct usb_device_id gtco_usbid_table [] = {
+static const struct usb_device_id gtco_usbid_table[] = {
 	{ USB_DEVICE(VENDOR_ID_GTCO, PID_400) },
 	{ USB_DEVICE(VENDOR_ID_GTCO, PID_401) },
 	{ USB_DEVICE(VENDOR_ID_GTCO, PID_1000) },

@@ -33,7 +33,8 @@ ATOMIC_NOTIFIER_HEAD(sh_mobile_post_sleep_notifier_list);
 #define SUSP_MODE_SLEEP		(SUSP_SH_SLEEP)
 #define SUSP_MODE_SLEEP_SF	(SUSP_SH_SLEEP | SUSP_SH_SF)
 #define SUSP_MODE_STANDBY_SF	(SUSP_SH_STANDBY | SUSP_SH_SF)
-#define SUSP_MODE_RSTANDBY	(SUSP_SH_RSTANDBY | SUSP_SH_MMU | SUSP_SH_SF)
+#define SUSP_MODE_RSTANDBY_SF \
+	(SUSP_SH_RSTANDBY | SUSP_SH_MMU | SUSP_SH_REGS | SUSP_SH_SF)
  /*
   * U-standby mode is unsupported since it needs bootloader hacks
   */

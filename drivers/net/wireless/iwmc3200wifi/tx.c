@@ -64,6 +64,7 @@
  * (i.e. half of the max size). [iwm_tx_worker]
  */
 
+#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/ieee80211.h>

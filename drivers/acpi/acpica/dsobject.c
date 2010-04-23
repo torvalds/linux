@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -684,7 +684,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 			case AML_ONES_OP:
 
-				obj_desc->integer.value = ACPI_INTEGER_MAX;
+				obj_desc->integer.value = ACPI_UINT64_MAX;
 
 				/* Truncate value if we are executing from a 32-bit ACPI table */
 
