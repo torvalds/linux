@@ -133,7 +133,8 @@ static struct rc_keymap imon_pad_map = {
 	.map = {
 		.scan    = imon_pad,
 		.size    = ARRAY_SIZE(imon_pad),
-		.ir_type = IR_TYPE_UNKNOWN,
+		/* actual protocol details unknown, hardware decoder */
+		.ir_type = IR_TYPE_OTHER,
 		.name    = RC_MAP_IMON_PAD,
 	}
 };
