@@ -45,6 +45,10 @@ config VIDEO_TUNER
 	tristate
 	depends on MEDIA_TUNER
 
+config V4L2_MEM2MEM_DEV
+	tristate
+	depends on VIDEOBUF_GEN
+
 #
 # Multimedia Video device configuration
 #
@@ -1121,3 +1125,13 @@ config USB_S2255
 
 endif # V4L_USB_DRIVERS
 endif # VIDEO_CAPTURE_DRIVERS
+
+menuconfig V4L_MEM2MEM_DRIVERS
+	bool "Memory-to-memory multimedia devices"
+	depends on VIDEO_V4L2
+	default n
+	---help---
+	  Say Y here to enable selecting drivers for V4L devices that
+	  use system memory for both source and destination buffers, as opposed
+	  to capture and output drivers, which use memory buffers for just
+	  one of those.
