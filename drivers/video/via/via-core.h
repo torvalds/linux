@@ -131,4 +131,33 @@ void viafb_irq_disable(u32 mask);
 #define   VDE_I_LVDSSIEN  0x40000000  /* LVDS Sense enable */
 #define   VDE_I_ENABLE	  0x80000000  /* Global interrupt enable */
 
+/*
+ * DMA management.
+ */
+int viafb_request_dma(void);
+void viafb_release_dma(void);
+/* void viafb_dma_copy_out(unsigned int offset, dma_addr_t paddr, int len); */
+int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg);
+
+/*
+ * DMA Controller registers.
+ */
+#define VDMA_MR0	0xe00		/* Mod reg 0 */
+#define   VDMA_MR_CHAIN   0x01		/* Chaining mode */
+#define   VDMA_MR_TDIE    0x02		/* Transfer done int enable */
+#define VDMA_CSR0	0xe04		/* Control/status */
+#define	  VDMA_C_ENABLE	  0x01		  /* DMA Enable */
+#define	  VDMA_C_START	  0x02		  /* Start a transfer */
+#define	  VDMA_C_ABORT	  0x04		  /* Abort a transfer */
+#define	  VDMA_C_DONE	  0x08		  /* Transfer is done */
+#define VDMA_MARL0	0xe20		/* Mem addr low */
+#define VDMA_MARH0	0xe24		/* Mem addr high */
+#define VDMA_DAR0	0xe28		/* Device address */
+#define VDMA_DQWCR0	0xe2c		/* Count (16-byte) */
+#define VDMA_TMR0	0xe30		/* Tile mode reg */
+#define VDMA_DPRL0	0xe34		/* Not sure */
+#define	  VDMA_DPR_IN	  0x08		/* Inbound transfer to FB */
+#define VDMA_DPRH0	0xe38
+#define VDMA_PMR0	(0xe00 + 0x134) /* Pitch mode */
+
 #endif /* __VIA_CORE_H__ */
