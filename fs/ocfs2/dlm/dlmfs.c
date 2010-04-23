@@ -205,7 +205,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	if ((count + *ppos) > i_size_read(inode))
 		readlen = i_size_read(inode) - *ppos;
 	else
-		readlen = count - *ppos;
+		readlen = count;
 
 	lvb_buf = kmalloc(readlen, GFP_NOFS);
 	if (!lvb_buf)
