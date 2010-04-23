@@ -1566,6 +1566,11 @@ struct mac_iveiv_entry {
 #define RFCSR12_TX_POWER		FIELD8(0x1f)
 
 /*
+ * RFCSR 13:
+ */
+#define RFCSR13_TX_POWER		FIELD8(0x1f)
+
+/*
  * RFCSR 15:
  */
 #define RFCSR15_TX_LO2_EN		FIELD8(0x08)
