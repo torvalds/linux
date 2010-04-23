@@ -87,4 +87,48 @@ struct viafb_dev {
 
 };
 
+/*
+ * Interrupt management.
+ */
+
+void viafb_irq_enable(u32 mask);
+void viafb_irq_disable(u32 mask);
+
+/*
+ * The global interrupt control register and its bits.
+ */
+#define VDE_INTERRUPT	0x200	/* Video interrupt flags/masks */
+#define   VDE_I_DVISENSE  0x00000001  /* DVI sense int status */
+#define   VDE_I_VBLANK    0x00000002  /* Vertical blank status */
+#define   VDE_I_MCCFI	  0x00000004  /* MCE compl. frame int status */
+#define   VDE_I_VSYNC	  0x00000008  /* VGA VSYNC int status */
+#define   VDE_I_DMA0DDONE 0x00000010  /* DMA 0 descr done */
+#define   VDE_I_DMA0TDONE 0x00000020  /* DMA 0 transfer done */
+#define   VDE_I_DMA1DDONE 0x00000040  /* DMA 1 descr done */
+#define   VDE_I_DMA1TDONE 0x00000080  /* DMA 1 transfer done */
+#define   VDE_I_C1AV      0x00000100  /* Cap Eng 1 act vid end */
+#define   VDE_I_HQV0	  0x00000200  /* First HQV engine */
+#define   VDE_I_HQV1      0x00000400  /* Second HQV engine */
+#define   VDE_I_HQV1EN	  0x00000800  /* Second HQV engine enable */
+#define   VDE_I_C0AV      0x00001000  /* Cap Eng 0 act vid end */
+#define   VDE_I_C0VBI     0x00002000  /* Cap Eng 0 VBI end */
+#define   VDE_I_C1VBI     0x00004000  /* Cap Eng 1 VBI end */
+#define   VDE_I_VSYNC2    0x00008000  /* Sec. Disp. VSYNC */
+#define   VDE_I_DVISNSEN  0x00010000  /* DVI sense enable */
+#define   VDE_I_VSYNC2EN  0x00020000  /* Sec Disp VSYNC enable */
+#define   VDE_I_MCCFIEN	  0x00040000  /* MC comp frame int mask enable */
+#define   VDE_I_VSYNCEN   0x00080000  /* VSYNC enable */
+#define   VDE_I_DMA0DDEN  0x00100000  /* DMA 0 descr done enable */
+#define   VDE_I_DMA0TDEN  0x00200000  /* DMA 0 trans done enable */
+#define   VDE_I_DMA1DDEN  0x00400000  /* DMA 1 descr done enable */
+#define   VDE_I_DMA1TDEN  0x00800000  /* DMA 1 trans done enable */
+#define   VDE_I_C1AVEN    0x01000000  /* cap 1 act vid end enable */
+#define   VDE_I_HQV0EN	  0x02000000  /* First hqv engine enable */
+#define   VDE_I_C1VBIEN	  0x04000000  /* Cap 1 VBI end enable */
+#define   VDE_I_LVDSSI    0x08000000  /* LVDS sense interrupt */
+#define   VDE_I_C0AVEN    0x10000000  /* Cap 0 act vid end enable */
+#define   VDE_I_C0VBIEN   0x20000000  /* Cap 0 VBI end enable */
+#define   VDE_I_LVDSSIEN  0x40000000  /* LVDS Sense enable */
+#define   VDE_I_ENABLE	  0x80000000  /* Global interrupt enable */
+
 #endif /* __VIA_CORE_H__ */

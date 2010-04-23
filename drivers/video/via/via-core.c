@@ -35,6 +35,65 @@ static struct viafb_dev global_dev;
 
 
 /*
+ * Basic register access; spinlock required.
+ */
+static inline void viafb_mmio_write(int reg, u32 v)
+{
+	iowrite32(v, global_dev.engine_mmio + reg);
+}
+
+static inline int viafb_mmio_read(int reg)
+{
+	return ioread32(global_dev.engine_mmio + reg);
+}
+
+/* ---------------------------------------------------------------------- */
+/*
+ * Interrupt management.  We have a single IRQ line for a lot of
+ * different functions, so we need to share it.  The design here
+ * is that we don't want to reimplement the shared IRQ code here;
+ * we also want to avoid having contention for a single handler thread.
+ * So each subdev driver which needs interrupts just requests
+ * them directly from the kernel.  We just have what's needed for
+ * overall access to the interrupt control register.
+ */
+
+/*
+ * Which interrupts are enabled now?
+ */
+static u32 viafb_enabled_ints;
+
+static void viafb_int_init(void)
+{
+	viafb_enabled_ints = 0;
+
+	viafb_mmio_write(VDE_INTERRUPT, 0);
+}
+
+/*
+ * Allow subdevs to ask for specific interrupts to be enabled.  These
+ * functions must be called with reg_lock held
+ */
+void viafb_irq_enable(u32 mask)
+{
+	viafb_enabled_ints |= mask;
+	viafb_mmio_write(VDE_INTERRUPT, viafb_enabled_ints | VDE_I_ENABLE);
+}
+EXPORT_SYMBOL_GPL(viafb_irq_enable);
+
+void viafb_irq_disable(u32 mask)
+{
+	viafb_enabled_ints &= ~mask;
+	if (viafb_enabled_ints == 0)
+		viafb_mmio_write(VDE_INTERRUPT, 0);  /* Disable entirely */
+	else
+		viafb_mmio_write(VDE_INTERRUPT,
+				viafb_enabled_ints | VDE_I_ENABLE);
+}
+EXPORT_SYMBOL_GPL(viafb_irq_disable);
+
+
+/*
  * Figure out how big our framebuffer memory is.  Kind of ugly,
  * but evidently we can't trust the information found in the
  * fbdev configuration area.
@@ -275,8 +334,10 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_disable;
 	/*
-	 * Create our subdevices.  Continue even if some things fail.
+	 * Set up interrupts and create our subdevices.  Continue even if
+	 * some things fail.
 	 */
+	viafb_int_init();
 	via_setup_subdevs(&global_dev);
 	/*
 	 * Set up the framebuffer.
@@ -284,6 +345,7 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	ret = via_fb_pci_probe(&global_dev);
 	if (ret)
 		goto out_subdevs;
+
 	return 0;
 
 out_subdevs:
