@@ -102,7 +102,7 @@ static void gpt_irq_acknowledge(void)
 			__raw_writel(MX2_TSTAT_CAPT | MX2_TSTAT_COMP,
 				timer_base + MX1_2_TSTAT);
 	} else if (timer_is_v2())
-		__raw_writel(MX3_TSTAT_OF1, timer_base + MX3_TSTAT);
+		__raw_writel(V2_TSTAT_OF1, timer_base + V2_TSTAT);
 }
 
 static cycle_t mx1_2_get_cycles(struct clocksource *cs)
