@@ -292,7 +292,7 @@
 			fsl,num-channels = <4>;
 			fsl,channel-fifo-len = <24>;
 			fsl,exec-units-mask = <0x97c>;
-			fsl,descriptor-types-mask = <0x3ab0abf>;
+			fsl,descriptor-types-mask = <0x3a30abf>;
 		};
 
 		sata@18000 {
