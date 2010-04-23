@@ -46,6 +46,11 @@ struct pmu;
 /* Maximum number of UBC channels */
 #define HBP_NUM		2
 
+static inline int hw_breakpoint_slots(int type)
+{
+	return HBP_NUM;
+}
+
 /* arch/sh/kernel/hw_breakpoint.c */
 extern int arch_check_bp_in_kernelspace(struct perf_event *bp);
 extern int arch_validate_hwbkpt_settings(struct perf_event *bp);

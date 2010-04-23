@@ -40,20 +40,12 @@
 #include <linux/percpu.h>
 #include <linux/sched.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
 
 #include <linux/hw_breakpoint.h>
 
-enum bp_type_idx {
-	TYPE_INST 	= 0,
-#ifdef CONFIG_HAVE_MIXED_BREAKPOINTS_REGS
-	TYPE_DATA	= 0,
-#else
-	TYPE_DATA	= 1,
-#endif
-	TYPE_MAX
-};
 
 /*
  * Constraints data
@@ -63,10 +55,14 @@ enum bp_type_idx {
 static DEFINE_PER_CPU(unsigned int, nr_cpu_bp_pinned[TYPE_MAX]);
 
 /* Number of pinned task breakpoints in a cpu */
-static DEFINE_PER_CPU(unsigned int, nr_task_bp_pinned[TYPE_MAX][HBP_NUM]);
+static DEFINE_PER_CPU(unsigned int, *nr_task_bp_pinned[TYPE_MAX]);
 
 /* Number of non-pinned cpu/task breakpoints in a cpu */
 static DEFINE_PER_CPU(unsigned int, nr_bp_flexible[TYPE_MAX]);
+
+static int nr_slots[TYPE_MAX];
+
+static int constraints_initialized;
 
 /* Gather the number of total pinned and un-pinned bp in a cpuset */
 struct bp_busy_slots {
@@ -99,7 +95,7 @@ static unsigned int max_task_bp_pinned(int cpu, enum bp_type_idx type)
 	int i;
 	unsigned int *tsk_pinned = per_cpu(nr_task_bp_pinned[type], cpu);
 
-	for (i = HBP_NUM -1; i >= 0; i--) {
+	for (i = nr_slots[type] - 1; i >= 0; i--) {
 		if (tsk_pinned[i] > 0)
 			return i + 1;
 	}
@@ -292,6 +288,10 @@ static int __reserve_bp_slot(struct perf_event *bp)
 	enum bp_type_idx type;
 	int weight;
 
+	/* We couldn't initialize breakpoint constraints on boot */
+	if (!constraints_initialized)
+		return -ENOMEM;
+
 	/* Basic checks */
 	if (bp->attr.bp_type == HW_BREAKPOINT_EMPTY ||
 	    bp->attr.bp_type == HW_BREAKPOINT_INVALID)
@@ -304,7 +304,7 @@ static int __reserve_bp_slot(struct perf_event *bp)
 	fetch_this_slot(&slots, weight);
 
 	/* Flexible counters need to keep at least one slot */
-	if (slots.pinned + (!!slots.flexible) > HBP_NUM)
+	if (slots.pinned + (!!slots.flexible) > nr_slots[type])
 		return -ENOSPC;
 
 	toggle_bp_slot(bp, true, type, weight);
@@ -551,7 +551,36 @@ static struct notifier_block hw_breakpoint_exceptions_nb = {
 
 static int __init init_hw_breakpoint(void)
 {
+	unsigned int **task_bp_pinned;
+	int cpu, err_cpu;
+	int i;
+
+	for (i = 0; i < TYPE_MAX; i++)
+		nr_slots[i] = hw_breakpoint_slots(i);
+
+	for_each_possible_cpu(cpu) {
+		for (i = 0; i < TYPE_MAX; i++) {
+			task_bp_pinned = &per_cpu(nr_task_bp_pinned[i], cpu);
+			*task_bp_pinned = kzalloc(sizeof(int) * nr_slots[i],
+						  GFP_KERNEL);
+			if (!*task_bp_pinned)
+				goto err_alloc;
+		}
+	}
+
+	constraints_initialized = 1;
+
 	return register_die_notifier(&hw_breakpoint_exceptions_nb);
+
+ err_alloc:
+	for_each_possible_cpu(err_cpu) {
+		if (err_cpu == cpu)
+			break;
+		for (i = 0; i < TYPE_MAX; i++)
+			kfree(per_cpu(nr_task_bp_pinned[i], cpu));
+	}
+
+	return -ENOMEM;
 }
 core_initcall(init_hw_breakpoint);
 
