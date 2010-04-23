@@ -69,7 +69,8 @@ const static struct intel_device_info intel_845g_info = {
 };
 
 const static struct intel_device_info intel_i85x_info = {
-	.is_i8xx = 1, .is_mobile = 1, .cursor_needs_physical = 1,
+	.is_i8xx = 1, .is_i85x = 1, .is_mobile = 1,
+	.cursor_needs_physical = 1,
 };
 
 const static struct intel_device_info intel_i865g_info = {
@@ -151,7 +152,7 @@ const static struct pci_device_id pciidlist[] = {
 	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),
 	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),
 	INTEL_VGA_DEVICE(0x3582, &intel_i85x_info),
-	INTEL_VGA_DEVICE(0x35e8, &intel_i85x_info),
+	INTEL_VGA_DEVICE(0x358e, &intel_i85x_info),
 	INTEL_VGA_DEVICE(0x2572, &intel_i865g_info),
 	INTEL_VGA_DEVICE(0x2582, &intel_i915g_info),
 	INTEL_VGA_DEVICE(0x258a, &intel_i915g_info),
