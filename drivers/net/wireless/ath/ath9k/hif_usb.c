@@ -93,63 +93,6 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 	return ret;
 }
 
-static void hif_usb_tx_cb(struct urb *urb)
-{
-	struct tx_buf *tx_buf = (struct tx_buf *) urb->context;
-	struct hif_device_usb *hif_dev = tx_buf->hif_dev;
-	struct sk_buff *skb;
-	bool drop, flush;
-
-	if (!hif_dev)
-		return;
-
-	switch (urb->status) {
-	case 0:
-		break;
-	case -ENOENT:
-	case -ECONNRESET:
-		break;
-	case -ENODEV:
-	case -ESHUTDOWN:
-		return;
-	default:
-		break;
-	}
-
-	if (tx_buf) {
-		spin_lock(&hif_dev->tx.tx_lock);
-		drop = !!(hif_dev->tx.flags & HIF_USB_TX_STOP);
-		flush = !!(hif_dev->tx.flags & HIF_USB_TX_FLUSH);
-		spin_unlock(&hif_dev->tx.tx_lock);
-
-		while ((skb = __skb_dequeue(&tx_buf->skb_queue)) != NULL) {
-			if (!drop && !flush) {
-				ath9k_htc_txcompletion_cb(hif_dev->htc_handle,
-							  skb, 1);
-				TX_STAT_INC(skb_completed);
-			} else {
-				dev_kfree_skb_any(skb);
-				TX_STAT_INC(skb_dropped);
-			}
-		}
-
-		if (flush)
-			return;
-
-		tx_buf->len = tx_buf->offset = 0;
-		__skb_queue_head_init(&tx_buf->skb_queue);
-
-		spin_lock(&hif_dev->tx.tx_lock);
-		list_del(&tx_buf->list);
-		list_add_tail(&tx_buf->list, &hif_dev->tx.tx_buf);
-		hif_dev->tx.tx_buf_cnt++;
-		if (!drop)
-			__hif_usb_tx(hif_dev); /* Check for pending SKBs */
-		TX_STAT_INC(buf_completed);
-		spin_unlock(&hif_dev->tx.tx_lock);
-	}
-}
-
 static inline void ath9k_skb_queue_purge(struct hif_device_usb *hif_dev,
 					 struct sk_buff_head *list)
 {
@@ -159,6 +102,63 @@ static inline void ath9k_skb_queue_purge(struct hif_device_usb *hif_dev,
 		dev_kfree_skb_any(skb);
 		TX_STAT_INC(skb_dropped);
 	}
+}
+
+static void hif_usb_tx_cb(struct urb *urb)
+{
+	struct tx_buf *tx_buf = (struct tx_buf *) urb->context;
+	struct hif_device_usb *hif_dev = tx_buf->hif_dev;
+	struct sk_buff *skb;
+
+	if (!hif_dev || !tx_buf)
+		return;
+
+	switch (urb->status) {
+	case 0:
+		break;
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ENODEV:
+	case -ESHUTDOWN:
+		/*
+		 * The URB has been killed, free the SKBs
+		 * and return.
+		 */
+		ath9k_skb_queue_purge(hif_dev, &tx_buf->skb_queue);
+		return;
+	default:
+		break;
+	}
+
+	/* Check if TX has been stopped */
+	spin_lock(&hif_dev->tx.tx_lock);
+	if (hif_dev->tx.flags & HIF_USB_TX_STOP) {
+		spin_unlock(&hif_dev->tx.tx_lock);
+		ath9k_skb_queue_purge(hif_dev, &tx_buf->skb_queue);
+		goto add_free;
+	}
+	spin_unlock(&hif_dev->tx.tx_lock);
+
+	/* Complete the queued SKBs. */
+	while ((skb = __skb_dequeue(&tx_buf->skb_queue)) != NULL) {
+		ath9k_htc_txcompletion_cb(hif_dev->htc_handle,
+					  skb, 1);
+		TX_STAT_INC(skb_completed);
+	}
+
+add_free:
+	/* Re-initialize the SKB queue */
+	tx_buf->len = tx_buf->offset = 0;
+	__skb_queue_head_init(&tx_buf->skb_queue);
+
+	/* Add this TX buffer to the free list */
+	spin_lock(&hif_dev->tx.tx_lock);
+	list_move_tail(&tx_buf->list, &hif_dev->tx.tx_buf);
+	hif_dev->tx.tx_buf_cnt++;
+	if (!(hif_dev->tx.flags & HIF_USB_TX_STOP))
+		__hif_usb_tx(hif_dev); /* Check for pending SKBs */
+	TX_STAT_INC(buf_completed);
+	spin_unlock(&hif_dev->tx.tx_lock);
 }
 
 /* TX lock has to be taken */
@@ -178,8 +178,7 @@ static int __hif_usb_tx(struct hif_device_usb *hif_dev)
 		return 0;
 
 	tx_buf = list_first_entry(&hif_dev->tx.tx_buf, struct tx_buf, list);
-	list_del(&tx_buf->list);
-	list_add_tail(&tx_buf->list, &hif_dev->tx.tx_pending);
+	list_move_tail(&tx_buf->list, &hif_dev->tx.tx_pending);
 	hif_dev->tx.tx_buf_cnt--;
 
 	tx_skb_cnt = min_t(u16, hif_dev->tx.tx_skb_cnt, MAX_TX_AGGR_NUM);
@@ -548,19 +547,16 @@ free:
 
 static void ath9k_hif_usb_dealloc_tx_urbs(struct hif_device_usb *hif_dev)
 {
-	unsigned long flags;
 	struct tx_buf *tx_buf = NULL, *tx_buf_tmp = NULL;
 
-	list_for_each_entry_safe(tx_buf, tx_buf_tmp, &hif_dev->tx.tx_buf, list) {
+	list_for_each_entry_safe(tx_buf, tx_buf_tmp,
+				 &hif_dev->tx.tx_buf, list) {
+		usb_kill_urb(tx_buf->urb);
 		list_del(&tx_buf->list);
 		usb_free_urb(tx_buf->urb);
 		kfree(tx_buf->buf);
 		kfree(tx_buf);
 	}
-
-	spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
-	hif_dev->tx.flags |= HIF_USB_TX_FLUSH;
-	spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
 
 	list_for_each_entry_safe(tx_buf, tx_buf_tmp,
 				 &hif_dev->tx.tx_pending, list) {
@@ -570,10 +566,6 @@ static void ath9k_hif_usb_dealloc_tx_urbs(struct hif_device_usb *hif_dev)
 		kfree(tx_buf->buf);
 		kfree(tx_buf);
 	}
-
-	spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
-	hif_dev->tx.flags &= ~HIF_USB_TX_FLUSH;
-	spin_unlock_irqrestore(&hif_dev->tx.tx_lock, flags);
 }
 
 static int ath9k_hif_usb_alloc_tx_urbs(struct hif_device_usb *hif_dev)
