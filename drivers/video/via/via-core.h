@@ -78,6 +78,10 @@ struct viafb_dev {
 	unsigned long fbmem_start;
 	long fbmem_len;
 	void __iomem *fbmem;
+#if defined(CONFIG_FB_VIA_CAMERA) || defined(CONFIG_FB_VIA_CAMERA_MODULE)
+	long camera_fbmem_offset;
+	long camera_fbmem_size;
+#endif
 	/*
 	 * The MMIO region for device registers.
 	 */
@@ -159,5 +163,11 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg);
 #define	  VDMA_DPR_IN	  0x08		/* Inbound transfer to FB */
 #define VDMA_DPRH0	0xe38
 #define VDMA_PMR0	(0xe00 + 0x134) /* Pitch mode */
+
+/*
+ * Useful stuff that probably belongs somewhere global.
+ */
+#define VGA_WIDTH	640
+#define VGA_HEIGHT	480
 
 #endif /* __VIA_CORE_H__ */

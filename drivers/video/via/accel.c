@@ -370,6 +370,22 @@ int viafb_init_engine(struct fb_info *info)
 	viapar->shared->vq_vram_addr = viapar->fbmem_free;
 	viapar->fbmem_used += VQ_SIZE;
 
+#if defined(CONFIG_FB_VIA_CAMERA) || defined(CONFIG_FB_VIA_CAMERA_MODULE)
+	/*
+	 * Set aside a chunk of framebuffer memory for the camera
+	 * driver.  Someday this driver probably needs a proper allocator
+	 * for fbmem; for now, we just have to do this before the
+	 * framebuffer initializes itself.
+	 *
+	 * As for the size: the engine can handle three frames,
+	 * 16 bits deep, up to VGA resolution.
+	 */
+	viapar->shared->vdev->camera_fbmem_size = 3*VGA_HEIGHT*VGA_WIDTH*2;
+	viapar->fbmem_free -= viapar->shared->vdev->camera_fbmem_size;
+	viapar->fbmem_used += viapar->shared->vdev->camera_fbmem_size;
+	viapar->shared->vdev->camera_fbmem_offset = viapar->fbmem_free;
+#endif
+
 	/* Init AGP and VQ regs */
 	switch (chip_name) {
 	case UNICHROME_K8M890:
