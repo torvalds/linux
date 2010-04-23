@@ -408,6 +408,8 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 			REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
 
 		} else {
+			ENABLE_REGWRITE_BUFFER(ah);
+
 			REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
 			REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
 
@@ -428,6 +430,9 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 
 			/* Load the new settings */
 			REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
+
+			REGWRITE_BUFFER_FLUSH(ah);
+			DISABLE_REGWRITE_BUFFER(ah);
 		}
 
 		udelay(1000);
