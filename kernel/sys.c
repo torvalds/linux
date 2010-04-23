@@ -1118,7 +1118,7 @@ DECLARE_RWSEM(uts_sem);
 
 #ifdef COMPAT_UTS_MACHINE
 #define override_architecture(name) \
-	(current->personality == PER_LINUX32 && \
+	(personality(current->personality) == PER_LINUX32 && \
 	 copy_to_user(name->machine, COMPAT_UTS_MACHINE, \
 		      sizeof(COMPAT_UTS_MACHINE)))
 #else
