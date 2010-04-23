@@ -341,8 +341,9 @@ void ath9k_htc_txcompletion_cb(struct htc_target *htc_handle,
 		skb_pull(skb, sizeof(struct htc_frame_hdr));
 
 		if (endpoint->ep_callbacks.tx) {
-			endpoint->ep_callbacks.tx(htc_handle->drv_priv, skb,
-						  htc_hdr->endpoint_id, txok);
+			endpoint->ep_callbacks.tx(endpoint->ep_callbacks.priv,
+						  skb, htc_hdr->endpoint_id,
+						  txok);
 		}
 	}
 
