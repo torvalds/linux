@@ -2042,7 +2042,9 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		goto out_err;
 
 	/* Add the broadcast address so we can send broadcast frames */
-	priv->cfg->ops->lib->add_bcast_station(priv);
+	err = priv->cfg->ops->lib->add_bcast_station(priv);
+	if (err)
+		goto out_err;
 
 	goto out;
 

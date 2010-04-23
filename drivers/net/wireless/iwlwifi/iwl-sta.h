@@ -36,6 +36,9 @@
 #define IWL_STA_UCODE_ACTIVE  BIT(1) /* ucode entry is active */
 #define IWL_STA_UCODE_INPROGRESS  BIT(2) /* ucode entry is in process of
 					    being activated */
+#define IWL_STA_LOCAL BIT(3) /* station state not directed by mac80211
+			     this is for bcast and bssid (when adhoc)
+			     stations */
 
 
 /**
@@ -57,8 +60,8 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 			struct ieee80211_key_conf *keyconf,
 			const u8 *addr, u32 iv32, u16 *phase1key);
 
-void iwl_add_bcast_station(struct iwl_priv *priv);
-void iwl3945_add_bcast_station(struct iwl_priv *priv);
+int iwl_add_bcast_station(struct iwl_priv *priv);
+int iwl3945_add_bcast_station(struct iwl_priv *priv);
 void iwl_restore_stations(struct iwl_priv *priv);
 void iwl_clear_ucode_stations(struct iwl_priv *priv, bool force);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
