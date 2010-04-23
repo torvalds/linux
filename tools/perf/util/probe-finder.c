@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <dwarf-regs.h>
 
 #include "string.h"
 #include "event.h"
@@ -38,60 +39,8 @@
 #include "util.h"
 #include "probe-finder.h"
 
-
-/*
- * Generic dwarf analysis helpers
- */
-
-#define X86_32_MAX_REGS 8
-const char *x86_32_regs_table[X86_32_MAX_REGS] = {
-	"%ax",
-	"%cx",
-	"%dx",
-	"%bx",
-	"$stack",	/* Stack address instead of %sp */
-	"%bp",
-	"%si",
-	"%di",
-};
-
-#define X86_64_MAX_REGS 16
-const char *x86_64_regs_table[X86_64_MAX_REGS] = {
-	"%ax",
-	"%dx",
-	"%cx",
-	"%bx",
-	"%si",
-	"%di",
-	"%bp",
-	"%sp",
-	"%r8",
-	"%r9",
-	"%r10",
-	"%r11",
-	"%r12",
-	"%r13",
-	"%r14",
-	"%r15",
-};
-
-/* TODO: switching by dwarf address size */
-#ifdef __x86_64__
-#define ARCH_MAX_REGS X86_64_MAX_REGS
-#define arch_regs_table x86_64_regs_table
-#else
-#define ARCH_MAX_REGS X86_32_MAX_REGS
-#define arch_regs_table x86_32_regs_table
-#endif
-
 /* Kprobe tracer basic type is up to u64 */
 #define MAX_BASIC_TYPE_BITS	64
-
-/* Return architecture dependent register string (for kprobe-tracer) */
-static const char *get_arch_regstr(unsigned int n)
-{
-	return (n <= ARCH_MAX_REGS) ? arch_regs_table[n] : NULL;
-}
 
 /*
  * Compare the tail of two strings.
@@ -447,7 +396,7 @@ static int convert_location(Dwarf_Op *op, struct probe_finder *pf)
 
 	regs = get_arch_regstr(regn);
 	if (!regs) {
-		pr_warning("%u exceeds max register number.\n", regn);
+		pr_warning("Mapping for DWARF register number %u missing on this architecture.", regn);
 		return -ERANGE;
 	}
 
