@@ -889,6 +889,26 @@ err_alloc:
 	return ret;
 }
 
+static void ath9k_hif_usb_reboot(struct usb_device *udev)
+{
+	u32 reboot_cmd = 0xffffffff;
+	void *buf;
+	int ret;
+
+	buf = kmalloc(4, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	memcpy(buf, &reboot_cmd, 4);
+
+	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, USB_REG_OUT_PIPE),
+			   buf, 4, NULL, HZ);
+	if (ret)
+		dev_err(&udev->dev, "ath9k_htc: USB reboot failed\n");
+
+	kfree(buf);
+}
+
 static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
@@ -903,7 +923,7 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 	}
 
 	if (hif_dev->flags & HIF_USB_START)
-		usb_reset_device(udev);
+		ath9k_hif_usb_reboot(udev);
 
 	kfree(hif_dev);
 	dev_info(&udev->dev, "ath9k_htc: USB layer deinitialized\n");
