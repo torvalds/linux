@@ -501,8 +501,8 @@ static unsigned int scc_devchk (struct ata_port *ap,
  *	Note: Original code is ata_sff_wait_after_reset
  */
 
-int scc_wait_after_reset(struct ata_link *link, unsigned int devmask,
-			 unsigned long deadline)
+static int scc_wait_after_reset(struct ata_link *link, unsigned int devmask,
+				unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	struct ata_ioports *ioaddr = &ap->ioaddr;
