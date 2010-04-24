@@ -49,6 +49,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
@@ -56,7 +57,6 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/byteorder.h>
-#include "../core/hcd.h"
 
 	/* FIXME ohci.h is ONLY for internal use by the OHCI driver.
 	 * If you're going to try stuff like this, you need to split

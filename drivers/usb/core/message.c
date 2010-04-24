@@ -14,9 +14,9 @@
 #include <linux/device.h>
 #include <linux/scatterlist.h>
 #include <linux/usb/quirks.h>
+#include <linux/usb/hcd.h>	/* for usbcore internals */
 #include <asm/byteorder.h>
 
-#include "hcd.h"	/* for usbcore internals */
 #include "usb.h"
 
 static void cancel_async_set_config(struct usb_device *udev);

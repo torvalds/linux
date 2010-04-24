@@ -6,7 +6,7 @@
 #include <linux/log2.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
-#include "hcd.h"
+#include <linux/usb/hcd.h>
 
 #define to_urb(d) container_of(d, struct urb, kref)
 

@@ -55,11 +55,11 @@
 #include <linux/usb.h>
 #include <linux/smp_lock.h>
 #include <linux/usbdevice_fs.h>
+#include <linux/usb/hcd.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #include "usb.h"
-#include "hcd.h"
 
 /* Define ALLOW_SERIAL_NUMBER if you want to see the serial number of devices */
 #define ALLOW_SERIAL_NUMBER

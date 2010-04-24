@@ -26,8 +26,8 @@
 #include <linux/usb.h>
 #include <linux/timer.h>
 #include <linux/kernel.h>
+#include <linux/usb/hcd.h>
 
-#include "../core/hcd.h"
 /* Code sharing between pci-quirks and xhci hcd */
 #include	"xhci-ext-caps.h"
 

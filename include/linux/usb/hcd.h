@@ -374,7 +374,7 @@ extern void usb_destroy_configuration(struct usb_device *dev);
  * HCD Root Hub support
  */
 
-#include "hub.h"
+#include <linux/../../drivers/usb/core/hub.h>
 
 /* (shifted) direction/type/recipient from the USB 2.0 spec, table 9.2 */
 #define DeviceRequest \

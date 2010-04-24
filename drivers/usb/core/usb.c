@@ -32,6 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
@@ -41,7 +42,6 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 
-#include "hcd.h"
 #include "usb.h"
 
 

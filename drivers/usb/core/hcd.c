@@ -42,10 +42,9 @@
 #include <linux/pm_runtime.h>
 
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 
 #include "usb.h"
-#include "hcd.h"
-#include "hub.h"
 
 
 /*-------------------------------------------------------------------------*/

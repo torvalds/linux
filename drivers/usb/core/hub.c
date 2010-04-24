@@ -19,6 +19,7 @@
 #include <linux/ioctl.h>
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
+#include <linux/usb/hcd.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
@@ -28,8 +29,6 @@
 #include <asm/byteorder.h>
 
 #include "usb.h"
-#include "hcd.h"
-#include "hub.h"
 
 /* if we are in debug mode, always announce new devices */
 #ifdef DEBUG

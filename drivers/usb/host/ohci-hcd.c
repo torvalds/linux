@@ -32,6 +32,7 @@
 #include <linux/list.h>
 #include <linux/usb.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/hcd.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/workqueue.h>
@@ -43,7 +44,6 @@
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
 
-#include "../core/hcd.h"
 
 #define DRIVER_AUTHOR "Roman Weissgaerber, David Brownell"
 #define DRIVER_DESC "USB 1.1 'Open' Host Controller (OHCI) Driver"

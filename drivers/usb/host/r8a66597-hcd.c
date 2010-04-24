@@ -33,6 +33,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mm.h>
@@ -40,7 +41,6 @@
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
 
-#include "../core/hcd.h"
 #include "r8a66597.h"
 
 MODULE_DESCRIPTION("R8A66597 USB Host Controller Driver");

@@ -34,11 +34,10 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
-
-#include "../core/hcd.h"
 
 #include <asm/irq.h>
 #include <asm/system.h>

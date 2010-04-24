@@ -45,6 +45,7 @@
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/usb/sl811.h>
+#include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
@@ -53,7 +54,6 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include "../core/hcd.h"
 #include "sl811.h"
 
 

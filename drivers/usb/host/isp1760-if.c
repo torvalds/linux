@@ -13,8 +13,8 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/usb/isp1760.h>
+#include <linux/usb/hcd.h>
 
-#include "../core/hcd.h"
 #include "isp1760-hcd.h"
 
 #ifdef CONFIG_PPC_OF

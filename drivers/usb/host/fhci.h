@@ -25,8 +25,8 @@
 #include <linux/kfifo.h>
 #include <linux/io.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <asm/qe.h>
-#include "../core/hcd.h"
 
 #define USB_CLOCK	48000000
 

@@ -77,6 +77,7 @@
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/usb/isp1362.h>
+#include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/io.h>
@@ -95,7 +96,6 @@ module_param(dbg_level, int, 0);
 #define	STUB_DEBUG_FILE
 #endif
 
-#include "../core/hcd.h"
 #include "../core/usb.h"
 #include "isp1362.h"
 

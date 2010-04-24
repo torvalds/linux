@@ -24,9 +24,9 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <asm/qe.h>
 #include <asm/fsl_gtm.h>
-#include "../core/hcd.h"
 #include "fhci.h"
 
 static void recycle_frame(struct fhci_usb *usb, struct packet *pkt)

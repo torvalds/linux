@@ -73,7 +73,7 @@ static struct list_head ftdi_static_list;
 */
 #include "usb_u132.h"
 #include <asm/io.h>
-#include "../core/hcd.h"
+#include <linux/usb/hcd.h>
 
 	/* FIXME ohci.h is ONLY for internal use by the OHCI driver.
 	 * If you're going to try stuff like this, you need to split

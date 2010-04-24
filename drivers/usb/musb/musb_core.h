@@ -69,7 +69,7 @@ struct musb_ep;
 #include "musb_regs.h"
 
 #include "musb_gadget.h"
-#include "../core/hcd.h"
+#include <linux/usb/hcd.h>
 #include "musb_host.h"
 
 

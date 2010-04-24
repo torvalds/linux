@@ -65,6 +65,7 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/isp116x.h>
+#include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
@@ -72,7 +73,6 @@
 #include <asm/system.h>
 #include <asm/byteorder.h>
 
-#include "../core/hcd.h"
 #include "isp116x.h"
 
 #define DRIVER_VERSION	"03 Nov 2005"

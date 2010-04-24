@@ -56,8 +56,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 
-#include "../core/hcd.h"
 #include "imx21-hcd.h"
 
 #ifdef DEBUG
