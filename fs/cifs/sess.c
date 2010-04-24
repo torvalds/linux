@@ -35,9 +35,11 @@
 extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
 			 unsigned char *p24);
 
-/* Checks if this is the first smb session to be reconnected after
-   the socket has been reestablished (so we know whether to use vc 0).
-   Called while holding the cifs_tcp_ses_lock, so do not block */
+/*
+ * Checks if this is the first smb session to be reconnected after
+ * the socket has been reestablished (so we know whether to use vc 0).
+ * Called while holding the cifs_tcp_ses_lock, so do not block
+ */
 static bool is_first_ses_reconnect(struct cifsSesInfo *ses)
 {
 	struct list_head *tmp;
@@ -447,7 +449,7 @@ static void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
    This function returns the length of the data in the blob */
 static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 				   struct cifsSesInfo *ses,
-				   const struct nls_table *nls_cp, int first)
+				   const struct nls_table *nls_cp, bool first)
 {
 	AUTHENTICATE_MESSAGE *sec_blob = (AUTHENTICATE_MESSAGE *)pbuffer;
 	__u32 flags;
@@ -546,7 +548,7 @@ static void setup_ntlmssp_neg_req(SESSION_SETUP_ANDX *pSMB,
 
 static int setup_ntlmssp_auth_req(SESSION_SETUP_ANDX *pSMB,
 				  struct cifsSesInfo *ses,
-				  const struct nls_table *nls, int first_time)
+				  const struct nls_table *nls, bool first_time)
 {
 	int bloblen;
 
@@ -559,8 +561,8 @@ static int setup_ntlmssp_auth_req(SESSION_SETUP_ANDX *pSMB,
 #endif
 
 int
-CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
-		const struct nls_table *nls_cp)
+CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
+	       const struct nls_table *nls_cp)
 {
 	int rc = 0;
 	int wct;
@@ -577,9 +579,14 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 	int bytes_remaining;
 	struct key *spnego_key = NULL;
 	__le32 phase = NtLmNegotiate; /* NTLMSSP, if needed, is multistage */
+	bool first_time;
 
 	if (ses == NULL)
 		return -EINVAL;
+
+	read_lock(&cifs_tcp_ses_lock);
+	first_time = is_first_ses_reconnect(ses);
+	read_unlock(&cifs_tcp_ses_lock);
 
 	type = ses->server->secType;
 
