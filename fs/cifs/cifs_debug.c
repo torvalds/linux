@@ -716,7 +716,7 @@ static const struct file_operations cifs_multiuser_mount_proc_fops = {
 
 static int cifs_security_flags_proc_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "0x%x\n", extended_security);
+	seq_printf(m, "0x%x\n", global_secflags);
 	return 0;
 }
 
@@ -744,10 +744,10 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 		/* single char or single char followed by null */
 		c = flags_string[0];
 		if (c == '0' || c == 'n' || c == 'N') {
-			extended_security = CIFSSEC_DEF; /* default */
+			global_secflags = CIFSSEC_DEF; /* default */
 			return count;
 		} else if (c == '1' || c == 'y' || c == 'Y') {
-			extended_security = CIFSSEC_MAX;
+			global_secflags = CIFSSEC_MAX;
 			return count;
 		} else if (!isdigit(c)) {
 			cERROR(1, "invalid flag %c", c);
@@ -771,12 +771,12 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 		return -EINVAL;
 	}
 	/* flags look ok - update the global security flags for cifs module */
-	extended_security = flags;
-	if (extended_security & CIFSSEC_MUST_SIGN) {
+	global_secflags = flags;
+	if (global_secflags & CIFSSEC_MUST_SIGN) {
 		/* requiring signing implies signing is allowed */
-		extended_security |= CIFSSEC_MAY_SIGN;
+		global_secflags |= CIFSSEC_MAY_SIGN;
 		cFYI(1, "packet signing now required");
-	} else if ((extended_security & CIFSSEC_MAY_SIGN) == 0) {
+	} else if ((global_secflags & CIFSSEC_MAY_SIGN) == 0) {
 		cFYI(1, "packet signing disabled");
 	}
 	/* BB should we turn on MAY flags for other MUST options? */

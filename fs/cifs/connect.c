@@ -2748,7 +2748,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		   by Samba (not sure whether other servers allow
 		   NTLMv2 password here) */
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-		if ((extended_security & CIFSSEC_MAY_LANMAN) &&
+		if ((global_secflags & CIFSSEC_MAY_LANMAN) &&
 		    (ses->server->secType == LANMAN))
 			calc_lanman_hash(tcon->password, ses->server->cryptKey,
 					 ses->server->secMode &

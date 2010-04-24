@@ -291,7 +291,7 @@ void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
 	if (password)
 		strncpy(password_with_pad, password, CIFS_ENCPWD_SIZE);
 
-	if (!encrypt && extended_security & CIFSSEC_MAY_PLNTXT) {
+	if (!encrypt && global_secflags & CIFSSEC_MAY_PLNTXT) {
 		memset(lnm_session_key, 0, CIFS_SESS_KEY_SIZE);
 		memcpy(lnm_session_key, password_with_pad,
 			CIFS_ENCPWD_SIZE);

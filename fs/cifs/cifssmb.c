@@ -372,7 +372,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	if (ses->overrideSecFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
 		secFlags = ses->overrideSecFlg;  /* BB FIXME fix sign flags? */
 	else /* if override flags set only sign/seal OR them with global auth */
-		secFlags = extended_security | ses->overrideSecFlg;
+		secFlags = global_secflags | ses->overrideSecFlg;
 
 	cFYI(1, "secFlags 0x%x", secFlags);
 
