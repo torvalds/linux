@@ -877,27 +877,40 @@ EXPORT_SYMBOL_GPL(i2400m_tx_msg_sent);
  * i2400m_tx_setup - Initialize the TX queue and infrastructure
  *
  * Make sure we reset the TX sequence to zero, as when this function
- * is called, the firmware has been just restarted.
+ * is called, the firmware has been just restarted. Same rational
+ * for tx_in, tx_out, tx_msg_size and tx_msg. We reset them since
+ * the memory for TX queue is reallocated.
  */
 int i2400m_tx_setup(struct i2400m *i2400m)
 {
-	int result;
+	int result = 0;
+	void *tx_buf;
+	unsigned long flags;
 
 	/* Do this here only once -- can't do on
 	 * i2400m_hard_start_xmit() as we'll cause race conditions if
 	 * the WS was scheduled on another CPU */
 	INIT_WORK(&i2400m->wake_tx_ws, i2400m_wake_tx_work);
 
-	i2400m->tx_sequence = 0;
+	tx_buf = kmalloc(I2400M_TX_BUF_SIZE, GFP_ATOMIC);
+	if (tx_buf == NULL) {
+		result = -ENOMEM;
+		goto error_kmalloc;
+	}
+
 	 /* Warn if the calculated buffer size exceeds I2400M_TX_BUF_SIZE. */
 	BUILD_BUG_ON(I2400M_TX_PDU_TOTAL_SIZE > I2400M_TX_BUF_SIZE);
-	i2400m->tx_buf = kmalloc(I2400M_TX_BUF_SIZE, GFP_KERNEL);
-	if (i2400m->tx_buf == NULL)
-		result = -ENOMEM;
-	else
-		result = 0;
+	spin_lock_irqsave(&i2400m->tx_lock, flags);
+	i2400m->tx_sequence = 0;
+	i2400m->tx_in = 0;
+	i2400m->tx_out = 0;
+	i2400m->tx_msg_size = 0;
+	i2400m->tx_msg = NULL;
+	i2400m->tx_buf = tx_buf;
+	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
 	/* Huh? the bus layer has to define this... */
 	BUG_ON(i2400m->bus_tx_block_size == 0);
+error_kmalloc:
 	return result;
 
 }
