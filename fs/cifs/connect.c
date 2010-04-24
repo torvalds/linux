@@ -1616,6 +1616,7 @@ cifs_put_smb_ses(struct cifsSesInfo *ses)
 	int xid;
 	struct TCP_Server_Info *server = ses->server;
 
+	cFYI(1, "%s: ses_count=%d\n", __func__, ses->ses_count);
 	write_lock(&cifs_tcp_ses_lock);
 	if (--ses->ses_count > 0) {
 		write_unlock(&cifs_tcp_ses_lock);
@@ -1632,6 +1633,92 @@ cifs_put_smb_ses(struct cifsSesInfo *ses)
 	}
 	sesInfoFree(ses);
 	cifs_put_tcp_session(server);
+}
+
+static struct cifsSesInfo *
+cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
+{
+	int rc = -ENOMEM, xid;
+	struct cifsSesInfo *ses;
+
+	xid = GetXid();
+
+	ses = cifs_find_smb_ses(server, volume_info->username);
+	if (ses) {
+		cFYI(1, "Existing smb sess found (status=%d)", ses->status);
+
+		/* existing SMB ses has a server reference already */
+		cifs_put_tcp_session(server);
+
+		mutex_lock(&ses->session_mutex);
+		if (ses->need_reconnect) {
+			cFYI(1, "Session needs reconnect");
+			rc = cifs_setup_session(xid, ses,
+						volume_info->local_nls);
+			if (rc) {
+				mutex_unlock(&ses->session_mutex);
+				/* problem -- put our reference */
+				cifs_put_smb_ses(ses);
+				FreeXid(xid);
+				return ERR_PTR(rc);
+			}
+		}
+		mutex_unlock(&ses->session_mutex);
+		FreeXid(xid);
+		return ses;
+	}
+
+	cFYI(1, "Existing smb sess not found");
+	ses = sesInfoAlloc();
+	if (ses == NULL)
+		goto get_ses_fail;
+
+	/* new SMB session uses our server ref */
+	ses->server = server;
+	if (server->addr.sockAddr6.sin6_family == AF_INET6)
+		sprintf(ses->serverName, "%pI6",
+			&server->addr.sockAddr6.sin6_addr);
+	else
+		sprintf(ses->serverName, "%pI4",
+			&server->addr.sockAddr.sin_addr.s_addr);
+
+	if (volume_info->username)
+		strncpy(ses->userName, volume_info->username,
+			MAX_USERNAME_SIZE);
+
+	/* volume_info->password freed at unmount */
+	if (volume_info->password) {
+		ses->password = kstrdup(volume_info->password, GFP_KERNEL);
+		if (!ses->password)
+			goto get_ses_fail;
+	}
+	if (volume_info->domainname) {
+		int len = strlen(volume_info->domainname);
+		ses->domainName = kmalloc(len + 1, GFP_KERNEL);
+		if (ses->domainName)
+			strcpy(ses->domainName, volume_info->domainname);
+	}
+	ses->linux_uid = volume_info->linux_uid;
+	ses->overrideSecFlg = volume_info->secFlg;
+
+	mutex_lock(&ses->session_mutex);
+	rc = cifs_setup_session(xid, ses, volume_info->local_nls);
+	mutex_unlock(&ses->session_mutex);
+	if (rc)
+		goto get_ses_fail;
+
+	/* success, put it on the list */
+	write_lock(&cifs_tcp_ses_lock);
+	list_add(&ses->smb_ses_list, &server->smb_ses_list);
+	write_unlock(&cifs_tcp_ses_lock);
+
+	FreeXid(xid);
+	return ses;
+
+get_ses_fail:
+	sesInfoFree(ses);
+	FreeXid(xid);
+	return ERR_PTR(rc);
 }
 
 static struct cifsTconInfo *
@@ -2376,71 +2463,12 @@ try_mount_again:
 		goto out;
 	}
 
-	pSesInfo = cifs_find_smb_ses(srvTcp, volume_info->username);
-	if (pSesInfo) {
-		cFYI(1, "Existing smb sess found (status=%d)",
-			pSesInfo->status);
-		/*
-		 * The existing SMB session already has a reference to srvTcp,
-		 * so we can put back the extra one we got before
-		 */
-		cifs_put_tcp_session(srvTcp);
-
-		mutex_lock(&pSesInfo->session_mutex);
-		if (pSesInfo->need_reconnect) {
-			cFYI(1, "Session needs reconnect");
-			rc = cifs_setup_session(xid, pSesInfo,
-						cifs_sb->local_nls);
-		}
-		mutex_unlock(&pSesInfo->session_mutex);
-	} else if (!rc) {
-		cFYI(1, "Existing smb sess not found");
-		pSesInfo = sesInfoAlloc();
-		if (pSesInfo == NULL) {
-			rc = -ENOMEM;
-			goto mount_fail_check;
-		}
-
-		/* new SMB session uses our srvTcp ref */
-		pSesInfo->server = srvTcp;
-		if (srvTcp->addr.sockAddr6.sin6_family == AF_INET6)
-			sprintf(pSesInfo->serverName, "%pI6",
-				&srvTcp->addr.sockAddr6.sin6_addr);
-		else
-			sprintf(pSesInfo->serverName, "%pI4",
-				&srvTcp->addr.sockAddr.sin_addr.s_addr);
-
-		write_lock(&cifs_tcp_ses_lock);
-		list_add(&pSesInfo->smb_ses_list, &srvTcp->smb_ses_list);
-		write_unlock(&cifs_tcp_ses_lock);
-
-		/* volume_info->password freed at unmount */
-		if (volume_info->password) {
-			pSesInfo->password = kstrdup(volume_info->password,
-						     GFP_KERNEL);
-			if (!pSesInfo->password) {
-				rc = -ENOMEM;
-				goto mount_fail_check;
-			}
-		}
-		if (volume_info->username)
-			strncpy(pSesInfo->userName, volume_info->username,
-				MAX_USERNAME_SIZE);
-		if (volume_info->domainname) {
-			int len = strlen(volume_info->domainname);
-			pSesInfo->domainName = kmalloc(len + 1, GFP_KERNEL);
-			if (pSesInfo->domainName)
-				strcpy(pSesInfo->domainName,
-					volume_info->domainname);
-		}
-		pSesInfo->linux_uid = volume_info->linux_uid;
-		pSesInfo->overrideSecFlg = volume_info->secFlg;
-		mutex_lock(&pSesInfo->session_mutex);
-
-		/* BB FIXME need to pass vol->secFlgs BB */
-		rc = cifs_setup_session(xid, pSesInfo,
-					cifs_sb->local_nls);
-		mutex_unlock(&pSesInfo->session_mutex);
+	/* get a reference to a SMB session */
+	pSesInfo = cifs_get_smb_ses(srvTcp, volume_info);
+	if (IS_ERR(pSesInfo)) {
+		rc = PTR_ERR(pSesInfo);
+		pSesInfo = NULL;
+		goto mount_fail_check;
 	}
 
 	/* search for existing tcon to this server share */
