@@ -185,6 +185,7 @@ struct TCP_Server_Info {
 	struct mac_key mac_signing_key;
 	char ntlmv2_hash[16];
 	unsigned long lstrp; /* when we got last response from this server */
+	u16 dialect; /* dialect index that server chose */
 };
 
 /*
