@@ -206,6 +206,11 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 #endif
 	}
 
+	if (cfi->cfiq->P_ID == P_ID_SST_OLD) {
+		addr_unlock1 = 0x5555;
+		addr_unlock2 = 0x2AAA;
+	}
+
 	/*
 	 * Note we put the device back into Read Mode BEFORE going into Auto
 	 * Select Mode, as some devices support nesting of modes, others
@@ -270,6 +275,9 @@ static char *vendorname(__u16 vendor)
 
 	case P_ID_SST_PAGE:
 		return "SST Page Write";
+
+	case P_ID_SST_OLD:
+		return "SST 39VF160x/39VF320x";
 
 	case P_ID_INTEL_PERFORMANCE:
 		return "Intel Performance Code";
