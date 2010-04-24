@@ -374,7 +374,42 @@ extern void usb_destroy_configuration(struct usb_device *dev);
  * HCD Root Hub support
  */
 
-#include <linux/usb/hub.h>
+#include <linux/usb/ch11.h>
+
+/*
+ * As of USB 2.0, full/low speed devices are segregated into trees.
+ * One type grows from USB 1.1 host controllers (OHCI, UHCI etc).
+ * The other type grows from high speed hubs when they connect to
+ * full/low speed devices using "Transaction Translators" (TTs).
+ *
+ * TTs should only be known to the hub driver, and high speed bus
+ * drivers (only EHCI for now).  They affect periodic scheduling and
+ * sometimes control/bulk error recovery.
+ */
+
+struct usb_device;
+
+struct usb_tt {
+	struct usb_device	*hub;	/* upstream highspeed hub */
+	int			multi;	/* true means one TT per port */
+	unsigned		think_time;	/* think time in ns */
+
+	/* for control/bulk error recovery (CLEAR_TT_BUFFER) */
+	spinlock_t		lock;
+	struct list_head	clear_list;	/* of usb_tt_clear */
+	struct work_struct	clear_work;
+};
+
+struct usb_tt_clear {
+	struct list_head	clear_list;
+	unsigned		tt;
+	u16			devinfo;
+	struct usb_hcd		*hcd;
+	struct usb_host_endpoint	*ep;
+};
+
+extern int usb_hub_clear_tt_buffer(struct urb *urb);
+extern void usb_ep0_reinit(struct usb_device *);
 
 /* (shifted) direction/type/recipient from the USB 2.0 spec, table 9.2 */
 #define DeviceRequest \
