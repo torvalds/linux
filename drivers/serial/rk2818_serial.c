@@ -600,10 +600,10 @@ static int __devinit rk2818_serial_probe(struct platform_device *pdev)
 	port->dev = &pdev->dev;
 	rk2818_port = UART_TO_RK2818(port);
 
-	rk2818_port->clk = clk_get(&pdev->dev, "uart_clk");
+	rk2818_port->clk = clk_get(&pdev->dev, "uart");
 	if (unlikely(IS_ERR(rk2818_port->clk)))
 		return PTR_ERR(rk2818_port->clk);
-	port->uartclk = 24000*1000;  ///clk_get_rate(rk2818_port->clk);
+	port->uartclk = clk_get_rate(rk2818_port->clk);
 
 	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (unlikely(!resource))
