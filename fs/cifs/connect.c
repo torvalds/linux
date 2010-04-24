@@ -102,6 +102,7 @@ struct smb_vol {
 	bool sockopt_tcp_nodelay:1;
 	unsigned short int port;
 	char *prepath;
+	struct nls_table *local_nls;
 };
 
 static int ipv4_connect(struct TCP_Server_Info *server);
@@ -2353,20 +2354,20 @@ try_mount_again:
 		goto out;
 	}
 
-
 	/* this is needed for ASCII cp to Unicode converts */
 	if (volume_info->iocharset == NULL) {
-		cifs_sb->local_nls = load_nls_default();
-	/* load_nls_default can not return null */
+		/* load_nls_default cannot return null */
+		volume_info->local_nls = load_nls_default();
 	} else {
-		cifs_sb->local_nls = load_nls(volume_info->iocharset);
-		if (cifs_sb->local_nls == NULL) {
+		volume_info->local_nls = load_nls(volume_info->iocharset);
+		if (volume_info->local_nls == NULL) {
 			cERROR(1, "CIFS mount error: iocharset %s not found",
 				 volume_info->iocharset);
 			rc = -ELIBACC;
 			goto out;
 		}
 	}
+	cifs_sb->local_nls = volume_info->local_nls;
 
 	/* get a reference to a tcp session */
 	srvTcp = cifs_get_tcp_session(volume_info);
