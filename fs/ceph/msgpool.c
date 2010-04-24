@@ -10,8 +10,12 @@
 static void *alloc_fn(gfp_t gfp_mask, void *arg)
 {
 	struct ceph_msgpool *pool = arg;
+	void *p;
 
-	return ceph_msg_new(0, pool->front_len);
+	p = ceph_msg_new(0, pool->front_len);
+	if (!p)
+		pr_err("msgpool %s alloc failed\n", pool->name);
+	return p;
 }
 
 static void free_fn(void *element, void *arg)
@@ -20,12 +24,13 @@ static void free_fn(void *element, void *arg)
 }
 
 int ceph_msgpool_init(struct ceph_msgpool *pool,
-		      int front_len, int size, bool blocking)
+		      int front_len, int size, bool blocking, const char *name)
 {
 	pool->front_len = front_len;
 	pool->pool = mempool_create(size, alloc_fn, free_fn, pool);
 	if (!pool->pool)
 		return -ENOMEM;
+	pool->name = name;
 	return 0;
 }
 
@@ -38,8 +43,8 @@ struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *pool,
 				  int front_len)
 {
 	if (front_len > pool->front_len) {
-		pr_err("msgpool_get pool %p need front %d, pool size is %d\n",
-		       pool, front_len, pool->front_len);
+		pr_err("msgpool_get pool %s need front %d, pool size is %d\n",
+		       pool->name, front_len, pool->front_len);
 		WARN_ON(1);
 
 		/* try to alloc a fresh message */

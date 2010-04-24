@@ -1214,11 +1214,13 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 	if (!osdc->req_mempool)
 		goto out;
 
-	err = ceph_msgpool_init(&osdc->msgpool_op, OSD_OP_FRONT_LEN, 10, true);
+	err = ceph_msgpool_init(&osdc->msgpool_op, OSD_OP_FRONT_LEN, 10, true,
+				"osd_op");
 	if (err < 0)
 		goto out_mempool;
 	err = ceph_msgpool_init(&osdc->msgpool_op_reply,
-				OSD_OPREPLY_FRONT_LEN, 10, true);
+				OSD_OPREPLY_FRONT_LEN, 10, true,
+				"osd_op_reply");
 	if (err < 0)
 		goto out_msgpool;
 	return 0;
