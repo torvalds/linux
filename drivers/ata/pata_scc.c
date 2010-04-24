@@ -903,8 +903,7 @@ static void scc_postreset(struct ata_link *link, unsigned int *classes)
 	}
 
 	/* set up device control */
-	if (ap->ioaddr.ctl_addr)
-		out_be32(ap->ioaddr.ctl_addr, ap->ctl);
+	out_be32(ap->ioaddr.ctl_addr, ap->ctl);
 
 	DPRINTK("EXIT\n");
 }
