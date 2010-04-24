@@ -357,65 +357,66 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 
 	if (cfi->cfi_mode==CFI_MODE_CFI){
 		unsigned char bootloc;
-		/*
-		 * It's a real CFI chip, not one for which the probe
-		 * routine faked a CFI structure. So we read the feature
-		 * table from it.
-		 */
 		__u16 adr = primary?cfi->cfiq->P_ADR:cfi->cfiq->A_ADR;
 		struct cfi_pri_amdstd *extp;
 
 		extp = (struct cfi_pri_amdstd*)cfi_read_pri(map, adr, sizeof(*extp), "Amd/Fujitsu");
-		if (!extp) {
-			kfree(mtd);
-			return NULL;
-		}
+		if (extp) {
+			/*
+			 * It's a real CFI chip, not one for which the probe
+			 * routine faked a CFI structure.
+			 */
+			cfi_fixup_major_minor(cfi, extp);
 
-		cfi_fixup_major_minor(cfi, extp);
+			if (extp->MajorVersion != '1' ||
+			    (extp->MinorVersion < '0' || extp->MinorVersion > '4')) {
+				printk(KERN_ERR "  Unknown Amd/Fujitsu Extended Query "
+				       "version %c.%c.\n",  extp->MajorVersion,
+				       extp->MinorVersion);
+				kfree(extp);
+				kfree(mtd);
+				return NULL;
+			}
 
-		if (extp->MajorVersion != '1' ||
-		    (extp->MinorVersion < '0' || extp->MinorVersion > '4')) {
-			printk(KERN_ERR "  Unknown Amd/Fujitsu Extended Query "
-			       "version %c.%c.\n",  extp->MajorVersion,
-			       extp->MinorVersion);
-			kfree(extp);
-			kfree(mtd);
-			return NULL;
-		}
+			/* Install our own private info structure */
+			cfi->cmdset_priv = extp;
 
-		/* Install our own private info structure */
-		cfi->cmdset_priv = extp;
-
-		/* Apply cfi device specific fixups */
-		cfi_fixup(mtd, cfi_fixup_table);
+			/* Apply cfi device specific fixups */
+			cfi_fixup(mtd, cfi_fixup_table);
 
 #ifdef DEBUG_CFI_FEATURES
-		/* Tell the user about it in lots of lovely detail */
-		cfi_tell_features(extp);
+			/* Tell the user about it in lots of lovely detail */
+			cfi_tell_features(extp);
 #endif
 
-		bootloc = extp->TopBottom;
-		if ((bootloc != 2) && (bootloc != 3)) {
-			printk(KERN_WARNING "%s: CFI does not contain boot "
-			       "bank location. Assuming top.\n", map->name);
-			bootloc = 2;
-		}
-
-		if (bootloc == 3 && cfi->cfiq->NumEraseRegions > 1) {
-			printk(KERN_WARNING "%s: Swapping erase regions for broken CFI table.\n", map->name);
-
-			for (i=0; i<cfi->cfiq->NumEraseRegions / 2; i++) {
-				int j = (cfi->cfiq->NumEraseRegions-1)-i;
-				__u32 swap;
-
-				swap = cfi->cfiq->EraseRegionInfo[i];
-				cfi->cfiq->EraseRegionInfo[i] = cfi->cfiq->EraseRegionInfo[j];
-				cfi->cfiq->EraseRegionInfo[j] = swap;
+			bootloc = extp->TopBottom;
+			if ((bootloc != 2) && (bootloc != 3)) {
+				printk(KERN_WARNING "%s: CFI does not contain boot "
+				       "bank location. Assuming top.\n", map->name);
+				bootloc = 2;
 			}
+
+			if (bootloc == 3 && cfi->cfiq->NumEraseRegions > 1) {
+				printk(KERN_WARNING "%s: Swapping erase regions for broken CFI table.\n", map->name);
+
+				for (i=0; i<cfi->cfiq->NumEraseRegions / 2; i++) {
+					int j = (cfi->cfiq->NumEraseRegions-1)-i;
+					__u32 swap;
+
+					swap = cfi->cfiq->EraseRegionInfo[i];
+					cfi->cfiq->EraseRegionInfo[i] = cfi->cfiq->EraseRegionInfo[j];
+					cfi->cfiq->EraseRegionInfo[j] = swap;
+				}
+			}
+			/* Set the default CFI lock/unlock addresses */
+			cfi->addr_unlock1 = 0x555;
+			cfi->addr_unlock2 = 0x2aa;
 		}
-		/* Set the default CFI lock/unlock addresses */
-		cfi->addr_unlock1 = 0x555;
-		cfi->addr_unlock2 = 0x2aa;
+
+		if (!cfi->addr_unlock1 || !cfi->addr_unlock2) {
+			kfree(mtd);
+			return NULL;
+		}
 
 	} /* CFI mode */
 	else if (cfi->cfi_mode == CFI_MODE_JEDEC) {
