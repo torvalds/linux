@@ -1651,6 +1651,14 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 		cifs_put_tcp_session(server);
 
 		mutex_lock(&ses->session_mutex);
+		rc = cifs_negotiate_protocol(xid, ses);
+		if (rc) {
+			mutex_unlock(&ses->session_mutex);
+			/* problem -- put our ses reference */
+			cifs_put_smb_ses(ses);
+			FreeXid(xid);
+			return ERR_PTR(rc);
+		}
 		if (ses->need_reconnect) {
 			cFYI(1, "Session needs reconnect");
 			rc = cifs_setup_session(xid, ses,
@@ -1702,7 +1710,9 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	ses->overrideSecFlg = volume_info->secFlg;
 
 	mutex_lock(&ses->session_mutex);
-	rc = cifs_setup_session(xid, ses, volume_info->local_nls);
+	rc = cifs_negotiate_protocol(xid, ses);
+	if (!rc)
+		rc = cifs_setup_session(xid, ses, volume_info->local_nls);
 	mutex_unlock(&ses->session_mutex);
 	if (rc)
 		goto get_ses_fail;
@@ -2874,55 +2884,61 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	return rc;
 }
 
-int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
-					   struct nls_table *nls_info)
+int cifs_negotiate_protocol(unsigned int xid, struct cifsSesInfo *ses)
 {
 	int rc = 0;
-	struct TCP_Server_Info *server = pSesInfo->server;
+	struct TCP_Server_Info *server = ses->server;
 
-	/* what if server changes its buffer size after dropping the session? */
-	if (server->maxBuf == 0) /* no need to send on reconnect */ {
-		rc = CIFSSMBNegotiate(xid, pSesInfo);
-		if (rc == -EAGAIN) {
-			/* retry only once on 1st time connection */
-			rc = CIFSSMBNegotiate(xid, pSesInfo);
-			if (rc == -EAGAIN)
-				rc = -EHOSTDOWN;
-		}
-		if (rc == 0) {
-			spin_lock(&GlobalMid_Lock);
-			if (server->tcpStatus != CifsExiting)
-				server->tcpStatus = CifsGood;
-			else
-				rc = -EHOSTDOWN;
-			spin_unlock(&GlobalMid_Lock);
+	/* only send once per connect */
+	if (server->maxBuf != 0)
+		return 0;
 
-		}
+	rc = CIFSSMBNegotiate(xid, ses);
+	if (rc == -EAGAIN) {
+		/* retry only once on 1st time connection */
+		rc = CIFSSMBNegotiate(xid, ses);
+		if (rc == -EAGAIN)
+			rc = -EHOSTDOWN;
+	}
+	if (rc == 0) {
+		spin_lock(&GlobalMid_Lock);
+		if (server->tcpStatus != CifsExiting)
+			server->tcpStatus = CifsGood;
+		else
+			rc = -EHOSTDOWN;
+		spin_unlock(&GlobalMid_Lock);
+
 	}
 
-	if (rc)
-		goto ss_err_exit;
+	return rc;
+}
 
-	pSesInfo->flags = 0;
-	pSesInfo->capabilities = server->capabilities;
+
+int cifs_setup_session(unsigned int xid, struct cifsSesInfo *ses,
+			struct nls_table *nls_info)
+{
+	int rc = 0;
+	struct TCP_Server_Info *server = ses->server;
+
+	ses->flags = 0;
+	ses->capabilities = server->capabilities;
 	if (linuxExtEnabled == 0)
-		pSesInfo->capabilities &= (~CAP_UNIX);
+		ses->capabilities &= (~CAP_UNIX);
 
 	cFYI(1, "Security Mode: 0x%x Capabilities: 0x%x TimeAdjust: %d",
 		 server->secMode, server->capabilities, server->timeAdj);
 
-	rc = CIFS_SessSetup(xid, pSesInfo, nls_info);
+	rc = CIFS_SessSetup(xid, ses, nls_info);
 	if (rc) {
 		cERROR(1, "Send error in SessSetup = %d", rc);
 	} else {
 		cFYI(1, "CIFS Session Established successfully");
 		spin_lock(&GlobalMid_Lock);
-		pSesInfo->status = CifsGood;
-		pSesInfo->need_reconnect = false;
+		ses->status = CifsGood;
+		ses->need_reconnect = false;
 		spin_unlock(&GlobalMid_Lock);
 	}
 
-ss_err_exit:
 	return rc;
 }
 

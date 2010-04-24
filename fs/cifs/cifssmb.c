@@ -172,7 +172,8 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 	 * reconnect the same SMB session
 	 */
 	mutex_lock(&ses->session_mutex);
-	if (ses->need_reconnect)
+	rc = cifs_negotiate_protocol(0, ses);
+	if (rc == 0 && ses->need_reconnect)
 		rc = cifs_setup_session(0, ses, nls_codepage);
 
 	/* do we need to reconnect tcon? */

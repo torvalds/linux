@@ -138,7 +138,9 @@ extern void cifs_dfs_release_automount_timer(void);
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 
-extern int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
+extern int cifs_negotiate_protocol(unsigned int xid,
+				  struct cifsSesInfo *ses);
+extern int cifs_setup_session(unsigned int xid, struct cifsSesInfo *ses,
 			struct nls_table *nls_info);
 extern int CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses);
 
