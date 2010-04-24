@@ -244,6 +244,7 @@ static void __init tegra_olympus_fixup(struct machine_desc *desc, struct tag *ta
 static void __init tegra_olympus_init(void)
 {
 	struct clk *clk;
+	struct clk *sys_clk;
 
 	tegra_common_init();
 
@@ -258,10 +259,36 @@ static void __init tegra_olympus_init(void)
 	clk = clk_get_sys(NULL, "pll_p");
 	clk_set_rate(clk, 216000000);
 	clk_enable(clk);
+	clk_put(clk);
+
+	clk = clk_get_sys(NULL, "pll_p_out1");
+	clk_set_rate(clk, 28800000);
+	clk_enable(clk);
+	clk_put(clk);
+
+	clk = clk_get_sys(NULL, "pll_p_out2");
+	clk_set_rate(clk, 48000000);
+	clk_enable(clk);
+	clk_put(clk);
 
 	clk = clk_get_sys(NULL, "pll_p_out3");
 	clk_set_rate(clk, 72000000);
 	clk_enable(clk);
+	clk_put(clk);
+
+	sys_clk = clk_get_sys(NULL, "sys");
+
+	clk = clk_get_sys(NULL, "clk_m");
+	clk_set_parent(sys_clk, clk);
+	clk_put(clk);
+
+	clk = clk_get_sys(NULL, "pll_p_out4");
+	clk_set_rate(clk, 108000000);
+	clk_enable(clk);
+	clk_set_parent(sys_clk, clk);
+
+	clk_put(clk);
+	clk_put(sys_clk);
 
 	olympus_pinmux_init();
 
