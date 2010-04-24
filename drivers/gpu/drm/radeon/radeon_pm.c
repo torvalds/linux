@@ -34,6 +34,128 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev);
 static void radeon_pm_idle_work_handler(struct work_struct *work);
 static int radeon_debugfs_pm_init(struct radeon_device *rdev);
 
+static void radeon_pm_set_power_mode_static_locked(struct radeon_device *rdev)
+{
+	mutex_lock(&rdev->cp.mutex);
+
+	/* wait for GPU idle */
+	rdev->pm.gui_idle = false;
+	rdev->irq.gui_idle = true;
+	radeon_irq_set(rdev);
+	wait_event_interruptible_timeout(
+		rdev->irq.idle_queue, rdev->pm.gui_idle,
+		msecs_to_jiffies(RADEON_WAIT_IDLE_TIMEOUT));
+	rdev->irq.gui_idle = false;
+	radeon_irq_set(rdev);
+
+	radeon_set_power_state(rdev, true);
+
+	/* update display watermarks based on new power state */
+	radeon_update_bandwidth_info(rdev);
+	if (rdev->pm.active_crtc_count)
+		radeon_bandwidth_update(rdev);
+
+	mutex_unlock(&rdev->cp.mutex);
+}
+
+static ssize_t radeon_get_power_state_static(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct radeon_device *rdev = ddev->dev_private;
+
+	return snprintf(buf, PAGE_SIZE, "%d.%d\n", rdev->pm.current_power_state_index,
+			rdev->pm.current_clock_mode_index);
+}
+
+static ssize_t radeon_set_power_state_static(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf,
+					     size_t count)
+{
+	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct radeon_device *rdev = ddev->dev_private;
+	int ps, cm;
+
+	if (sscanf(buf, "%u.%u", &ps, &cm) != 2) {
+		DRM_ERROR("Invalid power state!\n");
+		return count;
+	}
+
+	mutex_lock(&rdev->pm.mutex);
+	if ((ps >= 0) && (ps < rdev->pm.num_power_states) &&
+	    (cm >= 0) && (cm < rdev->pm.power_state[ps].num_clock_modes)) {
+		if ((rdev->pm.active_crtc_count > 1) &&
+		    (rdev->pm.power_state[ps].flags & RADEON_PM_SINGLE_DISPLAY_ONLY)) {
+			DRM_ERROR("Invalid power state for multi-head: %d.%d\n", ps, cm);
+		} else {
+			/* disable dynpm */
+			rdev->pm.state = PM_STATE_DISABLED;
+			rdev->pm.planned_action = PM_ACTION_NONE;
+			rdev->pm.requested_power_state_index = ps;
+			rdev->pm.requested_clock_mode_index = cm;
+			radeon_pm_set_power_mode_static_locked(rdev);
+		}
+	} else
+		DRM_ERROR("Invalid power state: %d.%d\n\n", ps, cm);
+	mutex_unlock(&rdev->pm.mutex);
+
+	return count;
+}
+
+static ssize_t radeon_get_dynpm(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct radeon_device *rdev = ddev->dev_private;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			(rdev->pm.state == PM_STATE_DISABLED) ? "disabled" : "enabled");
+}
+
+static ssize_t radeon_set_dynpm(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf,
+				size_t count)
+{
+	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct radeon_device *rdev = ddev->dev_private;
+	int tmp = simple_strtoul(buf, NULL, 10);
+
+	if (tmp == 0) {
+		/* update power mode info */
+		radeon_pm_compute_clocks(rdev);
+		/* disable dynpm */
+		mutex_lock(&rdev->pm.mutex);
+		rdev->pm.state = PM_STATE_DISABLED;
+		rdev->pm.planned_action = PM_ACTION_NONE;
+		mutex_unlock(&rdev->pm.mutex);
+		DRM_INFO("radeon: dynamic power management disabled\n");
+	} else if (tmp == 1) {
+		if (rdev->pm.num_power_states > 1) {
+			/* enable dynpm */
+			mutex_lock(&rdev->pm.mutex);
+			rdev->pm.state = PM_STATE_PAUSED;
+			rdev->pm.planned_action = PM_ACTION_DEFAULT;
+			radeon_get_power_state(rdev, rdev->pm.planned_action);
+			mutex_unlock(&rdev->pm.mutex);
+			/* update power mode info */
+			radeon_pm_compute_clocks(rdev);
+			DRM_INFO("radeon: dynamic power management enabled\n");
+		} else
+			DRM_ERROR("dynpm not valid on this system\n");
+	} else
+		DRM_ERROR("Invalid setting: %d\n", tmp);
+
+	return count;
+}
+
+static DEVICE_ATTR(power_state, S_IRUGO | S_IWUSR, radeon_get_power_state_static, radeon_set_power_state_static);
+static DEVICE_ATTR(dynpm, S_IRUGO | S_IWUSR, radeon_get_dynpm, radeon_set_dynpm);
+
+
 static const char *pm_state_names[4] = {
 	"PM_STATE_DISABLED",
 	"PM_STATE_MINIMUM",
@@ -111,6 +233,10 @@ int radeon_pm_init(struct radeon_device *rdev)
 		DRM_ERROR("Failed to register debugfs file for PM!\n");
 	}
 
+	/* where's the best place to put this? */
+	device_create_file(rdev->dev, &dev_attr_power_state);
+	device_create_file(rdev->dev, &dev_attr_dynpm);
+
 	INIT_DELAYED_WORK(&rdev->pm.idle_work, radeon_pm_idle_work_handler);
 
 	if ((radeon_dynpm != -1 && radeon_dynpm) && (rdev->pm.num_power_states > 1)) {
@@ -132,7 +258,18 @@ void radeon_pm_fini(struct radeon_device *rdev)
 		rdev->pm.state = PM_STATE_DISABLED;
 		rdev->pm.planned_action = PM_ACTION_DEFAULT;
 		radeon_pm_set_clocks(rdev);
+	} else if ((rdev->pm.current_power_state_index !=
+		    rdev->pm.default_power_state_index) ||
+		   (rdev->pm.current_clock_mode_index != 0)) {
+		rdev->pm.requested_power_state_index = rdev->pm.default_power_state_index;
+		rdev->pm.requested_clock_mode_index = 0;
+		mutex_lock(&rdev->pm.mutex);
+		radeon_pm_set_power_mode_static_locked(rdev);
+		mutex_unlock(&rdev->pm.mutex);
 	}
+
+	device_remove_file(rdev->dev, &dev_attr_power_state);
+	device_remove_file(rdev->dev, &dev_attr_dynpm);
 
 	if (rdev->pm.i2c_bus)
 		radeon_i2c_destroy(rdev->pm.i2c_bus);
@@ -267,7 +404,7 @@ static void radeon_pm_set_clocks_locked(struct radeon_device *rdev)
 {
 	/*radeon_fence_wait_last(rdev);*/
 
-	radeon_set_power_state(rdev);
+	radeon_set_power_state(rdev, false);
 	rdev->pm.planned_action = PM_ACTION_NONE;
 }
 

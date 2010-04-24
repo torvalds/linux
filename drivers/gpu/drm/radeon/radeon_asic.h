@@ -127,7 +127,7 @@ void r100_enable_bm(struct radeon_device *rdev);
 void r100_set_common_regs(struct radeon_device *rdev);
 void r100_bm_disable(struct radeon_device *rdev);
 extern bool r100_gui_idle(struct radeon_device *rdev);
-extern void r100_set_power_state(struct radeon_device *rdev);
+extern void r100_set_power_state(struct radeon_device *rdev, bool static_switch);
 extern void r100_get_power_state(struct radeon_device *rdev,
 				 enum radeon_pm_action action);
 extern void r100_pm_misc(struct radeon_device *rdev);
@@ -281,7 +281,7 @@ void r600_hpd_set_polarity(struct radeon_device *rdev,
 			   enum radeon_hpd_id hpd);
 extern void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo);
 extern bool r600_gui_idle(struct radeon_device *rdev);
-extern void r600_set_power_state(struct radeon_device *rdev);
+extern void r600_set_power_state(struct radeon_device *rdev, bool static_switch);
 extern void r600_get_power_state(struct radeon_device *rdev,
 				 enum radeon_pm_action action);
 extern void r600_pm_misc(struct radeon_device *rdev);

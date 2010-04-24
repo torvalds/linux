@@ -814,7 +814,7 @@ struct radeon_asic {
 	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
 	bool (*gui_idle)(struct radeon_device *rdev);
 	void (*get_power_state)(struct radeon_device *rdev, enum radeon_pm_action action);
-	void (*set_power_state)(struct radeon_device *rdev);
+	void (*set_power_state)(struct radeon_device *rdev, bool static_switch);
 	void (*pm_misc)(struct radeon_device *rdev);
 	void (*pm_prepare)(struct radeon_device *rdev);
 	void (*pm_finish)(struct radeon_device *rdev);
@@ -1226,7 +1226,10 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_hpd_set_polarity(rdev, hpd) (rdev)->asic->hpd_set_polarity((rdev), (hpd))
 #define radeon_gui_idle(rdev) (rdev)->asic->gui_idle((rdev))
 #define radeon_get_power_state(rdev, a) (rdev)->asic->get_power_state((rdev), (a))
-#define radeon_set_power_state(rdev) (rdev)->asic->set_power_state((rdev))
+#define radeon_set_power_state(rdev, s) (rdev)->asic->set_power_state((rdev), (s))
+#define radeon_pm_misc(rdev) (rdev)->asic->pm_misc((rdev))
+#define radeon_pm_prepare(rdev) (rdev)->asic->pm_prepare((rdev))
+#define radeon_pm_finish(rdev) (rdev)->asic->pm_finish((rdev))
 
 /* Common functions */
 /* AGP */
