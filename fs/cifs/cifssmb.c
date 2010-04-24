@@ -597,13 +597,19 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			server->secType = RawNTLMSSP;
 		} else {
 			rc = decode_negTokenInit(pSMBr->u.extended_response.
-						 SecurityBlob,
-						 count - 16,
-						 &server->secType);
+						 SecurityBlob, count - 16,
+						 server);
 			if (rc == 1)
 				rc = 0;
 			else
 				rc = -EINVAL;
+
+			if (server->sec_kerberos || server->sec_mskerberos)
+				server->secType = Kerberos;
+			else if (server->sec_ntlmssp)
+				server->secType = RawNTLMSSP;
+			else
+				rc = -EOPNOTSUPP;
 		}
 	} else
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;

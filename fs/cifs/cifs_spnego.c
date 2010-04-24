@@ -133,9 +133,9 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 	dp = description + strlen(description);
 
 	/* for now, only sec=krb5 and sec=mskrb5 are valid */
-	if (server->secType == Kerberos)
+	if (server->sec_kerberos)
 		sprintf(dp, ";sec=krb5");
-	else if (server->secType == MSKerberos)
+	else if (server->sec_mskerberos)
 		sprintf(dp, ";sec=mskrb5");
 	else
 		goto out;
