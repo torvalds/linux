@@ -57,8 +57,6 @@ static ssize_t show_protocol(struct device *d,
 		s = "Unknown";
 	else if (ir_type == IR_TYPE_RC5)
 		s = "rc-5";
-	else if (ir_type == IR_TYPE_PD)
-		s = "pulse-distance";
 	else if (ir_type == IR_TYPE_NEC)
 		s = "nec";
 	else if (ir_type == IR_TYPE_RC6)
@@ -100,8 +98,6 @@ static ssize_t store_protocol(struct device *d,
 	while ((buf = strsep((char **) &data, " \n")) != NULL) {
 		if (!strcasecmp(buf, "rc-5") || !strcasecmp(buf, "rc5"))
 			ir_type |= IR_TYPE_RC5;
-		if (!strcasecmp(buf, "pd") || !strcasecmp(buf, "pulse-distance"))
-			ir_type |= IR_TYPE_PD;
 		if (!strcasecmp(buf, "nec"))
 			ir_type |= IR_TYPE_NEC;
 		if (!strcasecmp(buf, "jvc"))
@@ -146,8 +142,6 @@ static ssize_t show_supported_protocols(struct device *d,
 		buf += sprintf(buf, "unknown ");
 	if (ir_dev->props->allowed_protos & IR_TYPE_RC5)
 		buf += sprintf(buf, "rc-5 ");
-	if (ir_dev->props->allowed_protos & IR_TYPE_PD)
-		buf += sprintf(buf, "pulse-distance ");
 	if (ir_dev->props->allowed_protos & IR_TYPE_NEC)
 		buf += sprintf(buf, "nec ");
 	if (buf == orgbuf)
