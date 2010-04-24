@@ -1443,11 +1443,10 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	cstate->slot = slot;
 	cstate->session = session;
 
-	/* Hold a session reference until done processing the compound:
-	 * nfsd4_put_session called only if the cstate slot is set.
-	 */
-	nfsd4_get_session(session);
 out:
+	/* Hold a session reference until done processing the compound. */
+	if (cstate->session)
+		nfsd4_get_session(cstate->session);
 	spin_unlock(&sessionid_lock);
 	/* Renew the clientid on success and on replay */
 	if (cstate->session) {
