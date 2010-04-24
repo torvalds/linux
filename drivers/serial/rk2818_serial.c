@@ -280,6 +280,8 @@ static int rk2818_serial_startup(struct uart_port *port)
 		rk2818_serial_shutdown(port);
 		return 	retval;
 	}	
+	rk2818_uart_write(port,0xf1,UART_FCR);
+	rk2818_uart_write(port,0x01,UART_SFE);///enable fifo
     rk2818_uart_write(port,UART_IER_RECV_DATA_AVAIL_INT_ENABLE,UART_IER);  //enable uart recevice IRQ
 	return 0;
 }
