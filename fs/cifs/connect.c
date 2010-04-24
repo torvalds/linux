@@ -1749,6 +1749,7 @@ cifs_put_tcon(struct cifsTconInfo *tcon)
 	int xid;
 	struct cifsSesInfo *ses = tcon->ses;
 
+	cFYI(1, "%s: tc_count=%d\n", __func__, tcon->tc_count);
 	write_lock(&cifs_tcp_ses_lock);
 	if (--tcon->tc_count > 0) {
 		write_unlock(&cifs_tcp_ses_lock);
@@ -1765,6 +1766,80 @@ cifs_put_tcon(struct cifsTconInfo *tcon)
 	tconInfoFree(tcon);
 	cifs_put_smb_ses(ses);
 }
+
+static struct cifsTconInfo *
+cifs_get_tcon(struct cifsSesInfo *ses, struct smb_vol *volume_info)
+{
+	int rc, xid;
+	struct cifsTconInfo *tcon;
+
+	tcon = cifs_find_tcon(ses, volume_info->UNC);
+	if (tcon) {
+		cFYI(1, "Found match on UNC path");
+		/* existing tcon already has a reference */
+		cifs_put_smb_ses(ses);
+		if (tcon->seal != volume_info->seal)
+			cERROR(1, "transport encryption setting "
+				   "conflicts with existing tid");
+		return tcon;
+	}
+
+	tcon = tconInfoAlloc();
+	if (tcon == NULL) {
+		rc = -ENOMEM;
+		goto out_fail;
+	}
+
+	tcon->ses = ses;
+	if (volume_info->password) {
+		tcon->password = kstrdup(volume_info->password, GFP_KERNEL);
+		if (!tcon->password) {
+			rc = -ENOMEM;
+			goto out_fail;
+		}
+	}
+
+	if (strchr(volume_info->UNC + 3, '\\') == NULL
+	    && strchr(volume_info->UNC + 3, '/') == NULL) {
+		cERROR(1, "Missing share name");
+		rc = -ENODEV;
+		goto out_fail;
+	}
+
+	/* BB Do we need to wrap session_mutex around
+	 * this TCon call and Unix SetFS as
+	 * we do on SessSetup and reconnect? */
+	xid = GetXid();
+	rc = CIFSTCon(xid, ses, volume_info->UNC, tcon, volume_info->local_nls);
+	FreeXid(xid);
+	cFYI(1, "CIFS Tcon rc = %d", rc);
+	if (rc)
+		goto out_fail;
+
+	if (volume_info->nodfs) {
+		tcon->Flags &= ~SMB_SHARE_IS_IN_DFS;
+		cFYI(1, "DFS disabled (%d)", tcon->Flags);
+	}
+	tcon->seal = volume_info->seal;
+	/* we can have only one retry value for a connection
+	   to a share so for resources mounted more than once
+	   to the same server share the last value passed in
+	   for the retry flag is used */
+	tcon->retry = volume_info->retry;
+	tcon->nocase = volume_info->nocase;
+	tcon->local_lease = volume_info->local_lease;
+
+	write_lock(&cifs_tcp_ses_lock);
+	list_add(&tcon->tcon_list, &ses->tcon_list);
+	write_unlock(&cifs_tcp_ses_lock);
+
+	return tcon;
+
+out_fail:
+	tconInfoFree(tcon);
+	return ERR_PTR(rc);
+}
+
 
 int
 get_dfs_path(int xid, struct cifsSesInfo *pSesInfo, const char *old_path,
@@ -2471,81 +2546,22 @@ try_mount_again:
 		goto mount_fail_check;
 	}
 
-	/* search for existing tcon to this server share */
-	if (!rc) {
-		setup_cifs_sb(volume_info, cifs_sb);
-
-		tcon = cifs_find_tcon(pSesInfo, volume_info->UNC);
-		if (tcon) {
-			cFYI(1, "Found match on UNC path");
-			/* existing tcon already has a reference */
-			cifs_put_smb_ses(pSesInfo);
-			if (tcon->seal != volume_info->seal)
-				cERROR(1, "transport encryption setting "
-					   "conflicts with existing tid");
-		} else {
-			tcon = tconInfoAlloc();
-			if (tcon == NULL) {
-				rc = -ENOMEM;
-				goto mount_fail_check;
-			}
-
-			tcon->ses = pSesInfo;
-			if (volume_info->password) {
-				tcon->password = kstrdup(volume_info->password,
-							 GFP_KERNEL);
-				if (!tcon->password) {
-					rc = -ENOMEM;
-					goto mount_fail_check;
-				}
-			}
-
-			if ((strchr(volume_info->UNC + 3, '\\') == NULL)
-			    && (strchr(volume_info->UNC + 3, '/') == NULL)) {
-				cERROR(1, "Missing share name");
-				rc = -ENODEV;
-				goto mount_fail_check;
-			} else {
-				/* BB Do we need to wrap sesSem around
-				 * this TCon call and Unix SetFS as
-				 * we do on SessSetup and reconnect? */
-				rc = CIFSTCon(xid, pSesInfo, volume_info->UNC,
-					      tcon, cifs_sb->local_nls);
-				cFYI(1, "CIFS Tcon rc = %d", rc);
-				if (volume_info->nodfs) {
-					tcon->Flags &= ~SMB_SHARE_IS_IN_DFS;
-					cFYI(1, "DFS disabled (%d)",
-						tcon->Flags);
-				}
-			}
-			if (rc)
-				goto remote_path_check;
-			tcon->seal = volume_info->seal;
-			write_lock(&cifs_tcp_ses_lock);
-			list_add(&tcon->tcon_list, &pSesInfo->tcon_list);
-			write_unlock(&cifs_tcp_ses_lock);
-		}
-
-		/* we can have only one retry value for a connection
-		   to a share so for resources mounted more than once
-		   to the same server share the last value passed in
-		   for the retry flag is used */
-		tcon->retry = volume_info->retry;
-		tcon->nocase = volume_info->nocase;
-		tcon->local_lease = volume_info->local_lease;
-	}
-	if (pSesInfo) {
-		if (pSesInfo->capabilities & CAP_LARGE_FILES)
-			sb->s_maxbytes = MAX_LFS_FILESIZE;
-		else
-			sb->s_maxbytes = MAX_NON_LFS;
-	}
+	setup_cifs_sb(volume_info, cifs_sb);
+	if (pSesInfo->capabilities & CAP_LARGE_FILES)
+		sb->s_maxbytes = MAX_LFS_FILESIZE;
+	else
+		sb->s_maxbytes = MAX_NON_LFS;
 
 	/* BB FIXME fix time_gran to be larger for LANMAN sessions */
 	sb->s_time_gran = 100;
 
-	if (rc)
+	/* search for existing tcon to this server share */
+	tcon = cifs_get_tcon(pSesInfo, volume_info);
+	if (IS_ERR(tcon)) {
+		rc = PTR_ERR(tcon);
+		tcon = NULL;
 		goto remote_path_check;
+	}
 
 	cifs_sb->tcon = tcon;
 
