@@ -820,11 +820,12 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) {
-		if (dev->device_no != did->device_no)
-			return 0;
+		dev_dbg(&dev->dev, "this is a pseudo-multi-function device\n");
 		mutex_lock(&dev->socket->ops_mutex);
 		dev->socket->pcmcia_state.has_pfc = 1;
 		mutex_unlock(&dev->socket->ops_mutex);
+		if (dev->device_no != did->device_no)
+			return 0;
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FUNC_ID) {
@@ -835,7 +836,7 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 
 		/* if this is a pseudo-multi-function device,
 		 * we need explicit matches */
-		if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO)
+		if (dev->socket->pcmcia_state.has_pfc)
 			return 0;
 		if (dev->device_no)
 			return 0;
