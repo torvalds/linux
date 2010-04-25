@@ -2467,6 +2467,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setvflip(sd);
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
+	setcolors(gspca_dev);
 	setautogain(gspca_dev);
 	setfreq(gspca_dev);
 	return 0;
