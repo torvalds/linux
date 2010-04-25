@@ -442,7 +442,7 @@ static const u8 sn_om6802[0x1c] = {
 
 static const u8 sn_ov7630[0x1c] = {
 /*	reg0	reg1	reg2	reg3	reg4	reg5	reg6	reg7 */
-	0x00,	0x21,	0x40,	0x00,	0x1a,	0x20,	0x1f,	0x20,
+	0x00,	0x21,	0x40,	0x00,	0x1a,	0x00,	0x00,	0x00,
 /*	reg8	reg9	rega	regb	regc	regd	rege	regf */
 	0x81,	0x21,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
 /*	reg10	reg11	reg12	reg13	reg14	reg15	reg16	reg17 */
@@ -2315,6 +2315,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_MT9V111:
 		reg_w1(gspca_dev, 0x9a, 0x07);
 		break;
+	case SENSOR_OV7630:
 	case SENSOR_OV7648:
 		reg_w1(gspca_dev, 0x9a, 0x0a);
 		break;
