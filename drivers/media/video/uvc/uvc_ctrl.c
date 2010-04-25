@@ -1071,6 +1071,8 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 				   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
 		step = mapping->get(mapping, UVC_GET_RES,
 				    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
+		if (step == 0)
+			step = 1;
 
 		xctrl->value = min + (xctrl->value - min + step/2) / step * step;
 		xctrl->value = clamp(xctrl->value, min, max);
