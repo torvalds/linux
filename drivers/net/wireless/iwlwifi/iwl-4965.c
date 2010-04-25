@@ -2264,6 +2264,8 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.max_event_log_size = 512,
 	.tx_power_by_driver = true,
 	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 	/*
 	 * Force use of chains B and C for scan RX on 5 GHz band
 	 * because the device has off-channel reception on chain A.

@@ -467,6 +467,8 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5100_bgn_cfg = {
@@ -496,6 +498,8 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -523,6 +527,8 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -552,6 +558,8 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -581,6 +589,8 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -610,6 +620,8 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5150_abg_cfg = {
@@ -637,6 +649,8 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));

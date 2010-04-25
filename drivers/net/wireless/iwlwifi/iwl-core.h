@@ -321,6 +321,8 @@ struct iwl_cfg {
 	u32 max_event_log_size;
 	const bool tx_power_by_driver;
 	const bool ucode_tracing;
+	const bool sensitivity_calib_by_driver;
+	const bool chain_noise_calib_by_driver;
 	u8 scan_antennas[IEEE80211_NUM_BANDS];
 };
 

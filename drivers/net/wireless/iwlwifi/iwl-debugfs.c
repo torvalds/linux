@@ -1637,17 +1637,20 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, S_IRUSR);
 
-	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
+	if (priv->cfg->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
+	if (priv->cfg->chain_noise_calib_by_driver)
 		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
-	}
 	if (priv->cfg->ucode_tracing)
 		DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf, &priv->disable_sens_cal);
-	DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
-			 &priv->disable_chain_noise_cal);
+	if (priv->cfg->sensitivity_calib_by_driver)
+		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
+				 &priv->disable_sens_cal);
+	if (priv->cfg->chain_noise_calib_by_driver)
+		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
+				 &priv->disable_chain_noise_cal);
 	if (priv->cfg->tx_power_by_driver)
 		DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf,
 				&priv->disable_tx_power_cal);
