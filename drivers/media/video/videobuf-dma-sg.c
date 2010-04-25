@@ -554,7 +554,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 {
 	struct videobuf_dma_sg_memory *mem = buf->priv;
 	struct videobuf_mapping *map;
-	unsigned int first, last, size, i;
+	unsigned int first, last, size = 0, i;
 	int retval;
 
 	retval = -EINVAL;
@@ -579,7 +579,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	}
 
 	/* paranoia, should never happen since buf is always valid. */
-	if (VIDEO_MAX_FRAME == first) {
+	if (!size) {
 		dprintk(1, "mmap app bug: offset invalid [offset=0x%lx]\n",
 				(vma->vm_pgoff << PAGE_SHIFT));
 		goto done;
