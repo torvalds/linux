@@ -349,6 +349,22 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 		case 0:
 			/* newer tuner can faster reset */
 			switch (dev->model) {
+			case TM5600_BOARD_10MOONS_UT821:
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       dev->gpio.tuner_reset, 0x01);
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       0x300, 0x01);
+				msleep(10);
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       dev->gpio.tuner_reset, 0x00);
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       0x300, 0x00);
+				msleep(10);
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       dev->gpio.tuner_reset, 0x01);
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       0x300, 0x01);
+				break;
 			case TM6010_BOARD_HAUPPAUGE_900H:
 			case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
 			case TM6010_BOARD_TWINHAN_TU501:
