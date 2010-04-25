@@ -843,6 +843,7 @@ static void configure_manager(enum omap_channel channel)
 
 	c = &dss_cache.manager_cache[channel];
 
+	dispc_set_default_color(channel, c->default_color);
 	dispc_set_trans_key(channel, c->trans_key_type, c->trans_key);
 	dispc_enable_trans_key(channel, c->trans_enabled);
 	dispc_enable_alpha_blending(channel, c->alpha_enabled);
