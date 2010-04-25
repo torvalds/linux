@@ -437,10 +437,10 @@ struct nilfs_palloc_group_desc {
 
 /**
  * struct nilfs_dat_entry - disk address translation entry
- * @dt_blocknr: block number
- * @dt_start: start checkpoint number
- * @dt_end: end checkpoint number
- * @dt_rsv: reserved for future use
+ * @de_blocknr: block number
+ * @de_start: start checkpoint number
+ * @de_end: end checkpoint number
+ * @de_rsv: reserved for future use
  */
 struct nilfs_dat_entry {
 	__le64 de_blocknr;
