@@ -6203,13 +6203,13 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 		 pas106b_50HZ, pas106b_50HZ,
 		 pas106b_60HZ, pas106b_60HZ},
 /* SENSOR_PAS202B 13 */
-		{pas202b_NoFlikerScale, pas202b_NoFliker,
-		 pas202b_50HZScale, pas202b_50HZ,
-		 pas202b_60HZScale, pas202b_60HZ},
+		{pas202b_NoFliker, pas202b_NoFlikerScale,
+		 pas202b_50HZ, pas202b_50HZScale,
+		 pas202b_60HZ, pas202b_60HZScale},
 /* SENSOR_PB0330 14 */
-		{pb0330_NoFlikerScale, pb0330_NoFliker,
-		 pb0330_50HZScale, pb0330_50HZ,
-		 pb0330_60HZScale, pb0330_60HZ},
+		{pb0330_NoFliker, pb0330_NoFlikerScale,
+		 pb0330_50HZ, pb0330_50HZScale,
+		 pb0330_60HZ, pb0330_60HZScale},
 /* SENSOR_PO2030 15 */
 		{po2030_NoFliker, po2030_NoFliker,
 		 po2030_50HZ, po2030_50HZ,
