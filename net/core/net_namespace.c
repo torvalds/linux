@@ -469,10 +469,10 @@ EXPORT_SYMBOL_GPL(register_pernet_subsys);
  *	addition run the exit method for all existing network
  *	namespaces.
  */
-void unregister_pernet_subsys(struct pernet_operations *module)
+void unregister_pernet_subsys(struct pernet_operations *ops)
 {
 	mutex_lock(&net_mutex);
-	unregister_pernet_operations(module);
+	unregister_pernet_operations(ops);
 	mutex_unlock(&net_mutex);
 }
 EXPORT_SYMBOL_GPL(unregister_pernet_subsys);
