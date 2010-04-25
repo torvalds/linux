@@ -1196,16 +1196,14 @@ static int picolcd_check_version(struct hid_device *hdev)
 	}
 
 	if (verinfo->raw_size == 2) {
+		data->version[0] = verinfo->raw_data[1];
+		data->version[1] = verinfo->raw_data[0];
 		if (data->status & PICOLCD_BOOTLOADER) {
 			dev_info(&hdev->dev, "PicoLCD, bootloader version %d.%d\n",
-					verinfo->raw_data[0], verinfo->raw_data[1]);
-			data->version[0] = verinfo->raw_data[0];
-			data->version[1] = verinfo->raw_data[1];
+					verinfo->raw_data[1], verinfo->raw_data[0]);
 		} else {
 			dev_info(&hdev->dev, "PicoLCD, firmware version %d.%d\n",
 					verinfo->raw_data[1], verinfo->raw_data[0]);
-			data->version[0] = verinfo->raw_data[1];
-			data->version[1] = verinfo->raw_data[0];
 		}
 	} else {
 		dev_err(&hdev->dev, "confused, got unexpected version response from PicoLCD\n");
