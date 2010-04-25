@@ -91,7 +91,7 @@ int rxrpc_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 			/* wait for a message to turn up */
 			release_sock(&rx->sk);
-			prepare_to_wait_exclusive(rx->sk.sk_sleep, &wait,
+			prepare_to_wait_exclusive(sk_sleep(&rx->sk), &wait,
 						  TASK_INTERRUPTIBLE);
 			ret = sock_error(&rx->sk);
 			if (ret)
@@ -102,7 +102,7 @@ int rxrpc_recvmsg(struct kiocb *iocb, struct socket *sock,
 					goto wait_interrupted;
 				timeo = schedule_timeout(timeo);
 			}
-			finish_wait(rx->sk.sk_sleep, &wait);
+			finish_wait(sk_sleep(&rx->sk), &wait);
 			lock_sock(&rx->sk);
 			continue;
 		}
@@ -356,7 +356,7 @@ csum_copy_error:
 wait_interrupted:
 	ret = sock_intr_errno(timeo);
 wait_error:
-	finish_wait(rx->sk.sk_sleep, &wait);
+	finish_wait(sk_sleep(&rx->sk), &wait);
 	if (continue_call)
 		rxrpc_put_call(continue_call);
 	if (copied)

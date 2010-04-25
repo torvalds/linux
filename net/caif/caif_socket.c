@@ -169,7 +169,7 @@ static int caif_sktrecv_cb(struct cflayer *layr, struct cfpkt *pkt)
 
 	/* Signal reader that data is available. */
 
-	wake_up_interruptible(cf_sk->sk.sk_sleep);
+	wake_up_interruptible(sk_sleep(&cf_sk->sk));
 
 	return 0;
 }
@@ -203,7 +203,7 @@ static void caif_sktflowctrl_cb(struct cflayer *layr,
 		dbfs_atomic_inc(&cnt.num_tx_flow_on_ind);
 		/* Signal reader that data is available. */
 		SET_TX_FLOW_ON(cf_sk);
-		wake_up_interruptible(cf_sk->sk.sk_sleep);
+		wake_up_interruptible(sk_sleep(&cf_sk->sk));
 		break;
 
 	case CAIF_CTRLCMD_FLOW_OFF_IND:
@@ -217,7 +217,7 @@ static void caif_sktflowctrl_cb(struct cflayer *layr,
 		caif_assert(STATE_IS_OPEN(cf_sk));
 		SET_PENDING_OFF(cf_sk);
 		SET_TX_FLOW_ON(cf_sk);
-		wake_up_interruptible(cf_sk->sk.sk_sleep);
+		wake_up_interruptible(sk_sleep(&cf_sk->sk));
 		break;
 
 	case CAIF_CTRLCMD_DEINIT_RSP:
@@ -225,8 +225,8 @@ static void caif_sktflowctrl_cb(struct cflayer *layr,
 		caif_assert(!STATE_IS_OPEN(cf_sk));
 		SET_PENDING_OFF(cf_sk);
 		if (!STATE_IS_PENDING_DESTROY(cf_sk)) {
-			if (cf_sk->sk.sk_sleep != NULL)
-				wake_up_interruptible(cf_sk->sk.sk_sleep);
+			if (sk_sleep(&cf_sk->sk) != NULL)
+				wake_up_interruptible(sk_sleep(&cf_sk->sk));
 		}
 		dbfs_atomic_inc(&cnt.num_deinit);
 		sock_put(&cf_sk->sk);
@@ -238,7 +238,7 @@ static void caif_sktflowctrl_cb(struct cflayer *layr,
 		SET_STATE_CLOSED(cf_sk);
 		SET_PENDING_OFF(cf_sk);
 		SET_TX_FLOW_OFF(cf_sk);
-		wake_up_interruptible(cf_sk->sk.sk_sleep);
+		wake_up_interruptible(sk_sleep(&cf_sk->sk));
 		break;
 
 	case CAIF_CTRLCMD_REMOTE_SHUTDOWN_IND:
@@ -247,7 +247,7 @@ static void caif_sktflowctrl_cb(struct cflayer *layr,
 		/* Use sk_shutdown to indicate remote shutdown indication */
 		cf_sk->sk.sk_shutdown |= RCV_SHUTDOWN;
 		cf_sk->file_mode = 0;
-		wake_up_interruptible(cf_sk->sk.sk_sleep);
+		wake_up_interruptible(sk_sleep(&cf_sk->sk));
 		break;
 
 	default:
@@ -325,7 +325,7 @@ static int caif_recvmsg(struct kiocb *iocb, struct socket *sock,
 		release_sock(&cf_sk->sk);
 
 		result =
-		    wait_event_interruptible(*cf_sk->sk.sk_sleep,
+		    wait_event_interruptible(*sk_sleep(&cf_sk->sk),
 					     !STATE_IS_PENDING(cf_sk));
 
 		lock_sock(&(cf_sk->sk));
@@ -365,7 +365,7 @@ static int caif_recvmsg(struct kiocb *iocb, struct socket *sock,
 		release_sock(&cf_sk->sk);
 
 		/* Block reader until data arrives or socket is closed. */
-		if (wait_event_interruptible(*cf_sk->sk.sk_sleep,
+		if (wait_event_interruptible(*sk_sleep(&cf_sk->sk),
 					cfpkt_qpeek(cf_sk->pktq)
 					|| STATE_IS_REMOTE_SHUTDOWN(cf_sk)
 					|| !STATE_IS_OPEN(cf_sk)) ==
@@ -537,7 +537,7 @@ static int caif_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		 * for its conclusion.
 		 */
 		result =
-		    wait_event_interruptible(*cf_sk->sk.sk_sleep,
+		    wait_event_interruptible(*sk_sleep(&cf_sk->sk),
 					     !STATE_IS_PENDING(cf_sk));
 		/* I want to be alone on cf_sk (except status and queue) */
 		lock_sock(&(cf_sk->sk));
@@ -573,7 +573,7 @@ static int caif_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		release_sock(&cf_sk->sk);
 
 		/* Wait until flow is on or socket is closed */
-		if (wait_event_interruptible(*cf_sk->sk.sk_sleep,
+		if (wait_event_interruptible(*sk_sleep(&cf_sk->sk),
 					TX_FLOW_IS_ON(cf_sk)
 					|| !STATE_IS_OPEN(cf_sk)
 					|| STATE_IS_REMOTE_SHUTDOWN(cf_sk)
@@ -650,7 +650,7 @@ static int caif_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		release_sock(&cf_sk->sk);
 
 		/* Wait until flow is on or socket is closed */
-		if (wait_event_interruptible(*cf_sk->sk.sk_sleep,
+		if (wait_event_interruptible(*sk_sleep(&cf_sk->sk),
 					TX_FLOW_IS_ON(cf_sk)
 					|| !STATE_IS_OPEN(cf_sk)
 					|| STATE_IS_REMOTE_SHUTDOWN(cf_sk)
@@ -898,7 +898,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uservaddr,
 			 * for its conclusion.
 			 */
 			result =
-			    wait_event_interruptible(*cf_sk->sk.sk_sleep,
+			    wait_event_interruptible(*sk_sleep(&cf_sk->sk),
 						     !STATE_IS_PENDING(cf_sk));
 
 			lock_sock(&(cf_sk->sk));
@@ -965,7 +965,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uservaddr,
 		release_sock(&cf_sk->sk);
 
 		result =
-		    wait_event_interruptible(*cf_sk->sk.sk_sleep,
+		    wait_event_interruptible(*sk_sleep(&cf_sk->sk),
 					     !STATE_IS_PENDING(cf_sk));
 
 		lock_sock(&(cf_sk->sk));
@@ -1107,7 +1107,7 @@ static int caif_release(struct socket *sock)
 	 * CAIF stack.
 	 */
 	if (!(sock->file->f_flags & O_NONBLOCK)) {
-		res = wait_event_interruptible(*cf_sk->sk.sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(&cf_sk->sk),
 						!STATE_IS_PENDING(cf_sk));
 
 		if (res == -ERESTARTSYS) {
