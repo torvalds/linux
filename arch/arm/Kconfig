@@ -187,6 +187,9 @@ config ARM_L1_CACHE_SHIFT_6
 	help
 	  Setting ARM L1 cache line size to 64 Bytes.
 
+config ARCH_PROVIDES_UDELAY
+  bool
+
 config VECTORS_BASE
 	hex
 	default 0xffff0000 if MMU || CPU_HIGH_VECTOR
