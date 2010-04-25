@@ -93,7 +93,7 @@ static int __devinit snd_card_es968_pnp(int dev, struct snd_card_es968 *acard,
 		return err;
 	}
 	port[dev] = pnp_port_start(pdev, 0);
-	dma8[dev] = pnp_dma(pdev, 1);
+	dma8[dev] = pnp_dma(pdev, 0);
 	irq[dev] = pnp_irq(pdev, 0);
 
 	return 0;
