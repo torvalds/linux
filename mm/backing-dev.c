@@ -27,6 +27,11 @@ struct backing_dev_info default_backing_dev_info = {
 };
 EXPORT_SYMBOL_GPL(default_backing_dev_info);
 
+struct backing_dev_info noop_backing_dev_info = {
+	.name		= "noop",
+};
+EXPORT_SYMBOL_GPL(noop_backing_dev_info);
+
 static struct class *bdi_class;
 
 /*
