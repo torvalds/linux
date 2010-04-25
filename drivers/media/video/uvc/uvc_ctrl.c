@@ -217,8 +217,7 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_EXPOSURE_TIME_RELATIVE_CONTROL,
 		.index		= 4,
 		.size		= 1,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
-				| UVC_CONTROL_RESTORE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_RESTORE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -233,8 +232,9 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_FOCUS_RELATIVE_CONTROL,
 		.index		= 6,
 		.size		= 2,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
-				| UVC_CONTROL_AUTO_UPDATE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN
+				| UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -249,8 +249,7 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_IRIS_RELATIVE_CONTROL,
 		.index		= 8,
 		.size		= 1,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
-				| UVC_CONTROL_AUTO_UPDATE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -265,8 +264,9 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_ZOOM_RELATIVE_CONTROL,
 		.index		= 10,
 		.size		= 3,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
-				| UVC_CONTROL_AUTO_UPDATE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN
+				| UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -281,8 +281,9 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_PANTILT_RELATIVE_CONTROL,
 		.index		= 12,
 		.size		= 4,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
-				| UVC_CONTROL_AUTO_UPDATE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN
+				| UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -297,8 +298,9 @@ static struct uvc_control_info uvc_ctrls[] = {
 		.selector	= UVC_CT_ROLL_RELATIVE_CONTROL,
 		.index		= 14,
 		.size		= 2,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
-				| UVC_CONTROL_AUTO_UPDATE,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN
+				| UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -842,6 +844,8 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	strlcpy(v4l2_ctrl->name, mapping->name, sizeof v4l2_ctrl->name);
 	v4l2_ctrl->flags = 0;
 
+	if (!(ctrl->info->flags & UVC_CONTROL_GET_CUR))
+		v4l2_ctrl->flags |= V4L2_CTRL_FLAG_WRITE_ONLY;
 	if (!(ctrl->info->flags & UVC_CONTROL_SET_CUR))
 		v4l2_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
