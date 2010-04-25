@@ -170,13 +170,18 @@ static int create_i2c_bus(struct i2c_adapter *adapter,
 	return i2c_bit_add_bus(adapter);
 }
 
+/*
+ * By default, we only activate busses on ports 2c and 31 to avoid
+ * conflicts with other possible users; that default can be changed
+ * below.
+ */
 static struct via_i2c_adap_cfg adap_configs[] = {
-	[VIA_I2C_ADAP_26]	= { VIA_I2C_I2C,  VIASR, 0x26 },
-	[VIA_I2C_ADAP_31]	= { VIA_I2C_I2C,  VIASR, 0x31 },
-	[VIA_I2C_ADAP_25]	= { VIA_I2C_GPIO, VIASR, 0x25 },
-	[VIA_I2C_ADAP_2C]	= { VIA_I2C_GPIO, VIASR, 0x2c },
-	[VIA_I2C_ADAP_3D]	= { VIA_I2C_GPIO, VIASR, 0x3d },
-	{ 0, 0, 0 }
+	[VIA_I2C_ADAP_26]	= { VIA_I2C_I2C,  VIASR, 0x26, 0 },
+	[VIA_I2C_ADAP_31]	= { VIA_I2C_I2C,  VIASR, 0x31, 1 },
+	[VIA_I2C_ADAP_25]	= { VIA_I2C_GPIO, VIASR, 0x25, 0 },
+	[VIA_I2C_ADAP_2C]	= { VIA_I2C_GPIO, VIASR, 0x2c, 1 },
+	[VIA_I2C_ADAP_3D]	= { VIA_I2C_GPIO, VIASR, 0x3d, 0 },
+	{ 0, 0, 0, 0 }
 };
 
 int viafb_create_i2c_busses(struct viafb_par *viapar)
@@ -189,6 +194,8 @@ int viafb_create_i2c_busses(struct viafb_par *viapar)
 
 		if (adap_cfg->type == 0)
 			break;
+		if (!adap_cfg->is_active)
+			continue;
 
 		ret = create_i2c_bus(&i2c_stuff->adapter,
 				     &i2c_stuff->algo, adap_cfg,

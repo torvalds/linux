@@ -35,6 +35,7 @@ struct via_i2c_adap_cfg {
 	enum via_i2c_type	type;
 	u_int16_t		io_port;
 	u_int8_t		ioport_index;
+	u8			is_active;
 };
 
 struct via_i2c_stuff {
