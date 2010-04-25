@@ -48,7 +48,7 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 			     ipv6_rcv_saddr_equal(sk, sk2))
 				break;
 			else if (sk->sk_reuse && sk2->sk_reuse &&
-				!ipv6_addr_any(inet6_rcv_saddr(sk2)) &&
+				!ipv6_addr_any(inet6_rcv_saddr(sk)) &&
 				ipv6_rcv_saddr_equal(sk, sk2))
 				break;
 		}
