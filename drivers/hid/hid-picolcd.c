@@ -177,6 +177,7 @@ struct picolcd_data {
 	int addr_sz;
 #endif
 	u8 version[2];
+	unsigned short opmode_delay;
 	/* input stuff */
 	u8 pressed_keys[2];
 	struct input_dev *input_keys;
@@ -1270,8 +1271,7 @@ static ssize_t picolcd_operation_mode_store(struct device *dev,
 	struct picolcd_data *data = dev_get_drvdata(dev);
 	struct hid_report *report = NULL;
 	size_t cnt = count;
-	int timeout = 5000;
-	unsigned u;
+	int timeout = data->opmode_delay;
 	unsigned long flags;
 
 	if (cnt >= 3 && strncmp("lcd", buf, 3) == 0) {
@@ -1288,20 +1288,10 @@ static ssize_t picolcd_operation_mode_store(struct device *dev,
 	if (!report)
 		return -EINVAL;
 
-	while (cnt > 0 && (*buf == ' ' || *buf == '\t')) {
-		buf++;
-		cnt--;
-	}
 	while (cnt > 0 && (buf[cnt-1] == '\n' || buf[cnt-1] == '\r'))
 		cnt--;
-	if (cnt > 0) {
-		if (sscanf(buf, "%u", &u) != 1)
-			return -EINVAL;
-		if (u > 30000)
-			return -EINVAL;
-		else
-			timeout = u;
-	}
+	if (cnt != 0)
+		return -EINVAL;
 
 	spin_lock_irqsave(&data->lock, flags);
 	hid_set_field(report->field[0], 0, timeout & 0xff);
@@ -1313,6 +1303,34 @@ static ssize_t picolcd_operation_mode_store(struct device *dev,
 
 static DEVICE_ATTR(operation_mode, 0644, picolcd_operation_mode_show,
 		picolcd_operation_mode_store);
+
+/*
+ * The "operation_mode_delay" sysfs attribute
+ */
+static ssize_t picolcd_operation_mode_delay_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct picolcd_data *data = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%hu\n", data->opmode_delay);
+}
+
+static ssize_t picolcd_operation_mode_delay_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct picolcd_data *data = dev_get_drvdata(dev);
+	unsigned u;
+	if (sscanf(buf, "%u", &u) != 1)
+		return -EINVAL;
+	if (u > 30000)
+		return -EINVAL;
+	else
+		data->opmode_delay = u;
+	return count;
+}
+
+static DEVICE_ATTR(operation_mode_delay, 0644, picolcd_operation_mode_delay_show,
+		picolcd_operation_mode_delay_store);
 
 
 #ifdef CONFIG_DEBUG_FS
@@ -2409,6 +2427,7 @@ static int picolcd_probe(struct hid_device *hdev,
 	spin_lock_init(&data->lock);
 	mutex_init(&data->mutex);
 	data->hdev = hdev;
+	data->opmode_delay = 5000;
 	if (hdev->product == USB_DEVICE_ID_PICOLCD_BOOTLOADER)
 		data->status |= PICOLCD_BOOTLOADER;
 	hid_set_drvdata(hdev, data);
@@ -2436,10 +2455,16 @@ static int picolcd_probe(struct hid_device *hdev,
 		goto err_cleanup_hid_hw;
 	}
 
-	error = device_create_file(&hdev->dev, &dev_attr_operation_mode);
+	error = device_create_file(&hdev->dev, &dev_attr_operation_mode_delay);
 	if (error) {
 		dev_err(&hdev->dev, "failed to create sysfs attributes\n");
 		goto err_cleanup_hid_ll;
+	}
+
+	error = device_create_file(&hdev->dev, &dev_attr_operation_mode);
+	if (error) {
+		dev_err(&hdev->dev, "failed to create sysfs attributes\n");
+		goto err_cleanup_sysfs1;
 	}
 
 	if (data->status & PICOLCD_BOOTLOADER)
@@ -2447,13 +2472,15 @@ static int picolcd_probe(struct hid_device *hdev,
 	else
 		error = picolcd_probe_lcd(hdev, data);
 	if (error)
-		goto err_cleanup_sysfs;
+		goto err_cleanup_sysfs2;
 
 	dbg_hid(PICOLCD_NAME " activated and initialized\n");
 	return 0;
 
-err_cleanup_sysfs:
+err_cleanup_sysfs2:
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode);
+err_cleanup_sysfs1:
+	device_remove_file(&hdev->dev, &dev_attr_operation_mode_delay);
 err_cleanup_hid_ll:
 	hdev->ll_driver->close(hdev);
 err_cleanup_hid_hw:
@@ -2478,6 +2505,7 @@ static void picolcd_remove(struct hid_device *hdev)
 
 	picolcd_exit_devfs(data);
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode);
+	device_remove_file(&hdev->dev, &dev_attr_operation_mode_delay);
 	hdev->ll_driver->close(hdev);
 	hid_hw_stop(hdev);
 	hid_set_drvdata(hdev, NULL);
