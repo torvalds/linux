@@ -47,7 +47,6 @@
 #include <linux/spinlock.h>
 #include <linux/kref.h>
 #include <linux/usb.h>
-#include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 
 #include "sisusb.h"
@@ -2416,14 +2415,11 @@ sisusb_open(struct inode *inode, struct file *file)
 	struct usb_interface *interface;
 	int subminor = iminor(inode);
 
-	lock_kernel();
 	if (!(interface = usb_find_interface(&sisusb_driver, subminor))) {
-		unlock_kernel();
 		return -ENODEV;
 	}
 
 	if (!(sisusb = usb_get_intfdata(interface))) {
-		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -2431,13 +2427,11 @@ sisusb_open(struct inode *inode, struct file *file)
 
 	if (!sisusb->present || !sisusb->ready) {
 		mutex_unlock(&sisusb->lock);
-		unlock_kernel();
 		return -ENODEV;
 	}
 
 	if (sisusb->isopen) {
 		mutex_unlock(&sisusb->lock);
-		unlock_kernel();
 		return -EBUSY;
 	}
 
@@ -2446,13 +2440,11 @@ sisusb_open(struct inode *inode, struct file *file)
 			if (sisusb_init_gfxdevice(sisusb, 0)) {
 				mutex_unlock(&sisusb->lock);
 				dev_err(&sisusb->sisusb_dev->dev, "Failed to initialize device\n");
-				unlock_kernel();
 				return -EIO;
 			}
 		} else {
 			mutex_unlock(&sisusb->lock);
 			dev_err(&sisusb->sisusb_dev->dev, "Device not attached to USB 2.0 hub\n");
-			unlock_kernel();
 			return -EIO;
 		}
 	}
@@ -2465,7 +2457,6 @@ sisusb_open(struct inode *inode, struct file *file)
 	file->private_data = sisusb;
 
 	mutex_unlock(&sisusb->lock);
-	unlock_kernel();
 
 	return 0;
 }
