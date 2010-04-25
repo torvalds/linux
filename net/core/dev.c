@@ -2229,7 +2229,11 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	int cpu = -1;
 	u8 ip_proto;
 	u16 tcpu;
-	u32 addr1, addr2, ports, ihl;
+	u32 addr1, addr2, ihl;
+	union {
+		u32 v32;
+		u16 v16[2];
+	} ports;
 
 	if (skb_rx_queue_recorded(skb)) {
 		u16 index = skb_get_rx_queue(skb);
@@ -2275,7 +2279,6 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	default:
 		goto done;
 	}
-	ports = 0;
 	switch (ip_proto) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
@@ -2285,25 +2288,20 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	case IPPROTO_SCTP:
 	case IPPROTO_UDPLITE:
 		if (pskb_may_pull(skb, (ihl * 4) + 4)) {
-			__be16 *hports = (__be16 *) (skb->data + (ihl * 4));
-			u32 sport, dport;
-
-			sport = (__force u16) hports[0];
-			dport = (__force u16) hports[1];
-			if (dport < sport)
-				swap(sport, dport);
-			ports = (sport << 16) + dport;
+			ports.v32 = * (__force u32 *) (skb->data + (ihl * 4));
+			if (ports.v16[1] < ports.v16[0])
+				swap(ports.v16[0], ports.v16[1]);
+			break;
 		}
-		break;
-
 	default:
+		ports.v32 = 0;
 		break;
 	}
 
 	/* get a consistent hash (same value on both flow directions) */
 	if (addr2 < addr1)
 		swap(addr1, addr2);
-	skb->rxhash = jhash_3words(addr1, addr2, ports, hashrnd);
+	skb->rxhash = jhash_3words(addr1, addr2, ports.v32, hashrnd);
 	if (!skb->rxhash)
 		skb->rxhash = 1;
 
