@@ -40,7 +40,6 @@ static int force_sensor = -1;
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	u8 brightness;
 	u8 contrast;
 	u8 gamma;
 	u8 autogain;
@@ -80,8 +79,6 @@ struct sd {
 };
 
 /* V4L2 controls supported by the driver */
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
@@ -94,21 +91,6 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
-#define BRIGHTNESS_IDX 0
-	{
-	    {
-		.id      = V4L2_CID_BRIGHTNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Brightness",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
-#define BRIGHTNESS_DEF 128
-		.default_value = BRIGHTNESS_DEF,
-	    },
-	    .set = sd_setbrightness,
-	    .get = sd_getbrightness,
-	},
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -150,7 +132,7 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
-#define LIGHTFREQ_IDX 4
+#define LIGHTFREQ_IDX 3
 	{
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -6004,33 +5986,6 @@ static void setmatrix(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev->dev, matrix[i], 0x010a + i);
 }
 
-static void setbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	u8 brightness;
-
-	switch (sd->sensor) {
-	case SENSOR_GC0305:
-	case SENSOR_OV7620:
-	case SENSOR_PAS202B:
-	case SENSOR_PO2030:
-		return;
-	}
-/*fixme: is it really write to 011d and 018d for all other sensors? */
-	brightness = sd->brightness;
-	reg_w(gspca_dev->dev, brightness, 0x011d);
-	switch (sd->sensor) {
-	case SENSOR_ADCM2700:
-	case SENSOR_HV7131B:
-		return;
-	}
-	if (brightness < 0x70)
-		brightness += 0x10;
-	else
-		brightness = 0x80;
-	reg_w(gspca_dev->dev, brightness, 0x018d);
-}
-
 static void setsharpness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -6789,7 +6744,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = ARRAY_SIZE(broken_vga_mode);
 		break;
 	}
-	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->gamma = gamma[sd->sensor];
 	sd->autogain = AUTOGAIN_DEF;
@@ -6797,12 +6751,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->quality = QUALITY_DEF;
 
 	switch (sd->sensor) {
-	case SENSOR_GC0305:
-	case SENSOR_OV7620:
-	case SENSOR_PAS202B:
-	case SENSOR_PO2030:
-		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX);
-		break;
 	case SENSOR_HV7131B:
 	case SENSOR_HV7131C:
 	case SENSOR_OV7630C:
@@ -6893,7 +6841,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	setmatrix(gspca_dev);
-	setbrightness(gspca_dev);
 	switch (sd->sensor) {
 	case SENSOR_ADCM2700:
 	case SENSOR_OV7620:
@@ -7013,24 +6960,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		len -= 18;
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
-}
-
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->brightness = val;
-	if (gspca_dev->streaming)
-		setbrightness(gspca_dev);
-	return 0;
-}
-
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->brightness;
-	return 0;
 }
 
 static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
