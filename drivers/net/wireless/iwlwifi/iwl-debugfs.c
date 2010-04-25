@@ -1612,8 +1612,11 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(interrupt, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(qos, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(led, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(sleep_level_override, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(current_sleep_command, dir_data, S_IRUSR);
+	if (!priv->cfg->broken_powersave) {
+		DEBUGFS_ADD_FILE(sleep_level_override, dir_data,
+				 S_IWUSR | S_IRUSR);
+		DEBUGFS_ADD_FILE(current_sleep_command, dir_data, S_IRUSR);
+	}
 	DEBUGFS_ADD_FILE(thermal_throttling, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rx_statistics, dir_debug, S_IRUSR);
