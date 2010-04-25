@@ -1337,7 +1337,7 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_USBO, "i2c_w2 [%02x] = %02x", reg, val);
+	PDEBUG(D_USBO, "i2c_w1 [%02x] = %02x", reg, val);
 	switch (sd->sensor) {
 	case SENSOR_ADCM1700:
 	case SENSOR_OM6802:
@@ -1369,6 +1369,8 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 static void i2c_w8(struct gspca_dev *gspca_dev,
 		   const u8 *buffer)
 {
+	PDEBUG(D_USBO, "i2c_w8 [%02x] = %02x ..",
+		buffer[2], buffer[3]);
 	memcpy(gspca_dev->usb_buf, buffer, 8);
 	usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
