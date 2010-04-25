@@ -1498,42 +1498,43 @@ static void mi0360_probe(struct gspca_dev *gspca_dev)
 static void ov7648_probe(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u16 val;
 
 	/* check ov76xx */
 	reg_w1(gspca_dev, 0x17, 0x62);
 	reg_w1(gspca_dev, 0x01, 0x08);
 	sd->i2c_addr = 0x21;
 	i2c_r(gspca_dev, 0x0a, 2);
-	if (gspca_dev->usb_buf[3] == 0x76) {	/* ov76xx */
-		PDEBUG(D_PROBE, "Sensor ov%02x%02x",
-			gspca_dev->usb_buf[3], gspca_dev->usb_buf[4]);
-		return;
-	}
-
-	/* reset */
+	val = (gspca_dev->usb_buf[3] << 8) | gspca_dev->usb_buf[4];
 	reg_w1(gspca_dev, 0x01, 0x29);
 	reg_w1(gspca_dev, 0x17, 0x42);
+	if ((val & 0xff00) == 0x7600) {		/* ov76xx */
+		PDEBUG(D_PROBE, "Sensor ov%04x", val);
+		return;
+	}
 
 	/* check po1030 */
 	reg_w1(gspca_dev, 0x17, 0x62);
 	reg_w1(gspca_dev, 0x01, 0x08);
 	sd->i2c_addr = 0x6e;
 	i2c_r(gspca_dev, 0x00, 2);
-	if (gspca_dev->usb_buf[3] == 0x10	/* po1030 */
-	    && gspca_dev->usb_buf[4] == 0x30) {
+	val = (gspca_dev->usb_buf[3] << 8) | gspca_dev->usb_buf[4];
+	reg_w1(gspca_dev, 0x01, 0x29);
+	reg_w1(gspca_dev, 0x17, 0x42);
+	if (val == 0x1030) {			/* po1030 */
 		PDEBUG(D_PROBE, "Sensor po1030");
 		sd->sensor = SENSOR_PO1030;
 		return;
 	}
 
-	PDEBUG(D_PROBE, "Unknown sensor %02x%02x",
-		gspca_dev->usb_buf[3], gspca_dev->usb_buf[4]);
+	PDEBUG(D_PROBE, "Unknown sensor %04x", val);
 }
 
 /* 0c45:6142 sensor may be po2030n, gc0305 or gc0307 */
 static void po2030n_probe(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u16 val;
 
 	/* check gc0307 */
 	reg_w1(gspca_dev, 0x17, 0x62);
@@ -1541,11 +1542,10 @@ static void po2030n_probe(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x02, 0x22);
 	sd->i2c_addr = 0x21;
 	i2c_r(gspca_dev, 0x00, 1);
-
+	val = gspca_dev->usb_buf[4];
 	reg_w1(gspca_dev, 0x01, 0x29);		/* reset */
 	reg_w1(gspca_dev, 0x17, 0x42);
-
-	if (gspca_dev->usb_buf[4] == 0x99) {	/* gc0307 (?) */
+	if (val == 0x99) {			/* gc0307 (?) */
 		PDEBUG(D_PROBE, "Sensor gc0307");
 		sd->sensor = SENSOR_GC0307;
 		return;
@@ -1556,18 +1556,15 @@ static void po2030n_probe(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x01, 0x0a);
 	sd->i2c_addr = 0x6e;
 	i2c_r(gspca_dev, 0x00, 2);
-
+	val = (gspca_dev->usb_buf[3] << 8) | gspca_dev->usb_buf[4];
 	reg_w1(gspca_dev, 0x01, 0x29);
 	reg_w1(gspca_dev, 0x17, 0x42);
-
-	if (gspca_dev->usb_buf[3] == 0x20
-	 && gspca_dev->usb_buf[4] == 0x30)
+	if (val == 0x2030) {
 		PDEBUG(D_PROBE, "Sensor po2030n");
 /*		sd->sensor = SENSOR_PO2030N; */
-	else
-		PDEBUG(D_PROBE, "Unknown sensor ID %02x%02x",
-			gspca_dev->usb_buf[3],
-			gspca_dev->usb_buf[4]);
+	} else {
+		PDEBUG(D_PROBE, "Unknown sensor ID %04x", val);
+	}
 }
 
 static void bridge_init(struct gspca_dev *gspca_dev,
