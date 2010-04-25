@@ -7,6 +7,7 @@
  *  the Free Software Foundation; either version 2 of the License, or (at
  *  your option) any later version.
  */
+#include "deb_defs.h"
 #include "libertas_tf.h"
 #include "linux/etherdevice.h"
 
@@ -16,7 +17,17 @@
 #define LBTF_FW_VER_MAX		0x0584ffff
 #define QOS_CONTROL_LEN		2
 
-static const char lbtf_driver_version[] = "THINFIRM-USB8388-" DRIVER_RELEASE_VERSION;
+/* Module parameters */
+unsigned int lbtf_debug;
+EXPORT_SYMBOL_GPL(lbtf_debug);
+module_param_named(libertas_tf_debug, lbtf_debug, int, 0644);
+
+static const char lbtf_driver_version[] = "THINFIRM-USB8388-" DRIVER_RELEASE_VERSION
+#ifdef DEBUG
+	"-dbg"
+#endif
+	"";
+
 struct workqueue_struct *lbtf_wq;
 
 static const struct ieee80211_channel lbtf_channels[] = {
@@ -79,6 +90,9 @@ static void lbtf_cmd_work(struct work_struct *work)
 {
 	struct lbtf_private *priv = container_of(work, struct lbtf_private,
 					 cmd_work);
+
+	lbtf_deb_enter(LBTF_DEB_CMD);
+
 	spin_lock_irq(&priv->driver_lock);
 	/* command response? */
 	if (priv->cmd_response_rxed) {
@@ -106,11 +120,16 @@ static void lbtf_cmd_work(struct work_struct *work)
 	priv->cmd_timed_out = 0;
 	spin_unlock_irq(&priv->driver_lock);
 
-	if (!priv->fw_ready)
+	if (!priv->fw_ready) {
+		lbtf_deb_leave_args(LBTF_DEB_CMD, "fw not ready");
 		return;
+	}
+
 	/* Execute the next command */
 	if (!priv->cur_cmd)
 		lbtf_execute_next_command(priv);
+
+	lbtf_deb_leave(LBTF_DEB_CMD);
 }
 
 /**
@@ -124,6 +143,7 @@ static int lbtf_setup_firmware(struct lbtf_private *priv)
 {
 	int ret = -1;
 
+	lbtf_deb_enter(LBTF_DEB_FW);
 	/*
 	 * Read priv address from HW
 	 */
@@ -139,6 +159,7 @@ static int lbtf_setup_firmware(struct lbtf_private *priv)
 
 	ret = 0;
 done:
+	lbtf_deb_leave_args(LBTF_DEB_FW, "ret: %d", ret);
 	return ret;
 }
 
@@ -150,6 +171,7 @@ static void command_timer_fn(unsigned long data)
 {
 	struct lbtf_private *priv = (struct lbtf_private *)data;
 	unsigned long flags;
+	lbtf_deb_enter(LBTF_DEB_CMD);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
@@ -166,10 +188,12 @@ static void command_timer_fn(unsigned long data)
 	queue_work(lbtf_wq, &priv->cmd_work);
 out:
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
+	lbtf_deb_leave(LBTF_DEB_CMD);
 }
 
 static int lbtf_init_adapter(struct lbtf_private *priv)
 {
+	lbtf_deb_enter(LBTF_DEB_MAIN);
 	memset(priv->current_addr, 0xff, ETH_ALEN);
 	mutex_init(&priv->lock);
 
@@ -186,13 +210,16 @@ static int lbtf_init_adapter(struct lbtf_private *priv)
 	if (lbtf_allocate_cmd_buffer(priv))
 		return -1;
 
+	lbtf_deb_leave(LBTF_DEB_MAIN);
 	return 0;
 }
 
 static void lbtf_free_adapter(struct lbtf_private *priv)
 {
+	lbtf_deb_enter(LBTF_DEB_MAIN);
 	lbtf_free_cmd_buffer(priv);
 	del_timer(&priv->command_timer);
+	lbtf_deb_leave(LBTF_DEB_MAIN);
 }
 
 static int lbtf_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -219,14 +246,18 @@ static void lbtf_tx_work(struct work_struct *work)
 	struct sk_buff *skb = NULL;
 	int err;
 
+	lbtf_deb_enter(LBTF_DEB_MACOPS | LBTF_DEB_TX);
+
 	if ((priv->vif->type == NL80211_IFTYPE_AP) &&
 	    (!skb_queue_empty(&priv->bc_ps_buf)))
 		skb = skb_dequeue(&priv->bc_ps_buf);
 	else if (priv->skb_to_tx) {
 		skb = priv->skb_to_tx;
 		priv->skb_to_tx = NULL;
-	} else
+	} else {
+		lbtf_deb_leave(LBTF_DEB_MACOPS | LBTF_DEB_TX);
 		return;
+	}
 
 	len = skb->len;
 	info  = IEEE80211_SKB_CB(skb);
@@ -234,6 +265,7 @@ static void lbtf_tx_work(struct work_struct *work)
 
 	if (priv->surpriseremoved) {
 		dev_kfree_skb_any(skb);
+		lbtf_deb_leave(LBTF_DEB_MACOPS | LBTF_DEB_TX);
 		return;
 	}
 
@@ -247,6 +279,7 @@ static void lbtf_tx_work(struct work_struct *work)
 		ETH_ALEN);
 	txpd->tx_packet_length = cpu_to_le16(len);
 	txpd->tx_packet_location = cpu_to_le32(sizeof(struct txpd));
+	lbtf_deb_hex(LBTF_DEB_TX, "TX Data", skb->data, min_t(unsigned int, skb->len, 100));
 	BUG_ON(priv->tx_skb);
 	spin_lock_irq(&priv->driver_lock);
 	priv->tx_skb = skb;
@@ -255,7 +288,9 @@ static void lbtf_tx_work(struct work_struct *work)
 	if (err) {
 		dev_kfree_skb_any(skb);
 		priv->tx_skb = NULL;
+		pr_err("TX error: %d", err);
 	}
+	lbtf_deb_leave(LBTF_DEB_MACOPS | LBTF_DEB_TX);
 }
 
 static int lbtf_op_start(struct ieee80211_hw *hw)
@@ -263,6 +298,8 @@ static int lbtf_op_start(struct ieee80211_hw *hw)
 	struct lbtf_private *priv = hw->priv;
 	void *card = priv->card;
 	int ret = -1;
+
+	lbtf_deb_enter(LBTF_DEB_MACOPS);
 
 	if (!priv->fw_ready)
 		/* Upload firmware */
@@ -284,10 +321,12 @@ static int lbtf_op_start(struct ieee80211_hw *hw)
 	}
 
 	printk(KERN_INFO "libertastf: Marvell WLAN 802.11 thinfirm adapter\n");
+	lbtf_deb_leave(LBTF_DEB_MACOPS);
 	return 0;
 
 err_prog_firmware:
 	priv->hw_reset_device(card);
+	lbtf_deb_leave_args(LBTF_DEB_MACOPS, "error programing fw; ret=%d", ret);
 	return ret;
 }
 
@@ -298,6 +337,9 @@ static void lbtf_op_stop(struct ieee80211_hw *hw)
 	struct sk_buff *skb;
 
 	struct cmd_ctrl_node *cmdnode;
+
+	lbtf_deb_enter(LBTF_DEB_MACOPS);
+
 	/* Flush pending command nodes */
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	list_for_each_entry(cmdnode, &priv->cmdpendingq, list) {
@@ -314,6 +356,7 @@ static void lbtf_op_stop(struct ieee80211_hw *hw)
 	priv->radioon = RADIO_OFF;
 	lbtf_set_radio_control(priv);
 
+	lbtf_deb_leave(LBTF_DEB_MACOPS);
 	return;
 }
 
@@ -321,6 +364,7 @@ static int lbtf_op_add_interface(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif)
 {
 	struct lbtf_private *priv = hw->priv;
+	lbtf_deb_enter(LBTF_DEB_MACOPS);
 	if (priv->vif != NULL)
 		return -EOPNOTSUPP;
 
@@ -338,6 +382,7 @@ static int lbtf_op_add_interface(struct ieee80211_hw *hw,
 		return -EOPNOTSUPP;
 	}
 	lbtf_set_mac_address(priv, (u8 *) vif->addr);
+	lbtf_deb_leave(LBTF_DEB_MACOPS);
 	return 0;
 }
 
@@ -345,6 +390,7 @@ static void lbtf_op_remove_interface(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif)
 {
 	struct lbtf_private *priv = hw->priv;
+	lbtf_deb_enter(LBTF_DEB_MACOPS);
 
 	if (priv->vif->type == NL80211_IFTYPE_AP ||
 	    priv->vif->type == NL80211_IFTYPE_MESH_POINT)
@@ -352,17 +398,20 @@ static void lbtf_op_remove_interface(struct ieee80211_hw *hw,
 	lbtf_set_mode(priv, LBTF_PASSIVE_MODE);
 	lbtf_set_bssid(priv, 0, NULL);
 	priv->vif = NULL;
+	lbtf_deb_leave(LBTF_DEB_MACOPS);
 }
 
 static int lbtf_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct lbtf_private *priv = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
+	lbtf_deb_enter(LBTF_DEB_MACOPS);
 
 	if (conf->channel->center_freq != priv->cur_freq) {
 		priv->cur_freq = conf->channel->center_freq;
 		lbtf_set_channel(priv, conf->channel->hw_value);
 	}
+	lbtf_deb_leave(LBTF_DEB_MACOPS);
 	return 0;
 }
 
@@ -395,11 +444,16 @@ static void lbtf_op_configure_filter(struct ieee80211_hw *hw,
 {
 	struct lbtf_private *priv = hw->priv;
 	int old_mac_control = priv->mac_control;
+
+	lbtf_deb_enter(LBTF_DEB_MACOPS);
+
 	changed_flags &= SUPPORTED_FIF_FLAGS;
 	*new_flags &= SUPPORTED_FIF_FLAGS;
 
-	if (!changed_flags)
+	if (!changed_flags) {
+		lbtf_deb_leave(LBTF_DEB_MACOPS);
 		return;
+	}
 
 	if (*new_flags & (FIF_PROMISC_IN_BSS))
 		priv->mac_control |= CMD_ACT_MAC_PROMISCUOUS_ENABLE;
@@ -425,6 +479,8 @@ static void lbtf_op_configure_filter(struct ieee80211_hw *hw,
 
 	if (priv->mac_control != old_mac_control)
 		lbtf_set_mac_control(priv);
+
+	lbtf_deb_leave(LBTF_DEB_MACOPS);
 }
 
 static void lbtf_op_bss_info_changed(struct ieee80211_hw *hw,
@@ -434,6 +490,7 @@ static void lbtf_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct lbtf_private *priv = hw->priv;
 	struct sk_buff *beacon;
+	lbtf_deb_enter(LBTF_DEB_MACOPS);
 
 	if (changes & (BSS_CHANGED_BEACON | BSS_CHANGED_BEACON_INT)) {
 		switch (priv->vif->type) {
@@ -464,6 +521,8 @@ static void lbtf_op_bss_info_changed(struct ieee80211_hw *hw,
 			priv->preamble = CMD_TYPE_LONG_PREAMBLE;
 		lbtf_set_radio_control(priv);
 	}
+
+	lbtf_deb_leave(LBTF_DEB_MACOPS);
 }
 
 static const struct ieee80211_ops lbtf_ops = {
@@ -485,6 +544,8 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 	int need_padding;
 	unsigned int flags;
 	struct ieee80211_hdr *hdr;
+
+	lbtf_deb_enter(LBTF_DEB_RX);
 
 	prxpd = (struct rxpd *) skb->data;
 
@@ -516,7 +577,15 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 	}
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &stats, sizeof(stats));
+
+	lbtf_deb_rx("rx data: skb->len-sizeof(RxPd) = %d-%zd = %zd\n",
+	       skb->len, sizeof(struct rxpd), skb->len - sizeof(struct rxpd));
+	lbtf_deb_hex(LBTF_DEB_RX, "RX Data", skb->data,
+	             min_t(unsigned int, skb->len, 100));
+
 	ieee80211_rx_irqsafe(priv->hw, skb);
+
+	lbtf_deb_leave(LBTF_DEB_RX);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lbtf_rx);
@@ -532,6 +601,8 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
 {
 	struct ieee80211_hw *hw;
 	struct lbtf_private *priv = NULL;
+
+	lbtf_deb_enter(LBTF_DEB_MAIN);
 
 	hw = ieee80211_alloc_hw(sizeof(struct lbtf_private), &lbtf_ops);
 	if (!hw)
@@ -575,6 +646,7 @@ err_init_adapter:
 	priv = NULL;
 
 done:
+	lbtf_deb_leave_args(LBTF_DEB_MAIN, "priv %p", priv);
 	return priv;
 }
 EXPORT_SYMBOL_GPL(lbtf_add_card);
@@ -584,6 +656,8 @@ int lbtf_remove_card(struct lbtf_private *priv)
 {
 	struct ieee80211_hw *hw = priv->hw;
 
+	lbtf_deb_enter(LBTF_DEB_MAIN);
+
 	priv->surpriseremoved = 1;
 	del_timer(&priv->command_timer);
 	lbtf_free_adapter(priv);
@@ -591,6 +665,7 @@ int lbtf_remove_card(struct lbtf_private *priv)
 	ieee80211_unregister_hw(hw);
 	ieee80211_free_hw(hw);
 
+    lbtf_deb_leave(LBTF_DEB_MAIN);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lbtf_remove_card);
@@ -649,17 +724,21 @@ EXPORT_SYMBOL_GPL(lbtf_bcn_sent);
 
 static int __init lbtf_init_module(void)
 {
+	lbtf_deb_enter(LBTF_DEB_MAIN);
 	lbtf_wq = create_workqueue("libertastf");
 	if (lbtf_wq == NULL) {
 		printk(KERN_ERR "libertastf: couldn't create workqueue\n");
 		return -ENOMEM;
 	}
+	lbtf_deb_leave(LBTF_DEB_MAIN);
 	return 0;
 }
 
 static void __exit lbtf_exit_module(void)
 {
+	lbtf_deb_enter(LBTF_DEB_MAIN);
 	destroy_workqueue(lbtf_wq);
+	lbtf_deb_leave(LBTF_DEB_MAIN);
 }
 
 module_init(lbtf_init_module);
