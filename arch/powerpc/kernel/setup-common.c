@@ -161,6 +161,38 @@ extern u32 cpu_temp_both(unsigned long cpu);
 DEFINE_PER_CPU(unsigned int, cpu_pvr);
 #endif
 
+static void show_cpuinfo_summary(struct seq_file *m)
+{
+	struct device_node *root;
+	const char *model = NULL;
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC32)
+	unsigned long bogosum = 0;
+	int i;
+	for_each_online_cpu(i)
+		bogosum += loops_per_jiffy;
+	seq_printf(m, "total bogomips\t: %lu.%02lu\n",
+		   bogosum/(500000/HZ), bogosum/(5000/HZ) % 100);
+#endif /* CONFIG_SMP && CONFIG_PPC32 */
+	seq_printf(m, "timebase\t: %lu\n", ppc_tb_freq);
+	if (ppc_md.name)
+		seq_printf(m, "platform\t: %s\n", ppc_md.name);
+	root = of_find_node_by_path("/");
+	if (root)
+		model = of_get_property(root, "model", NULL);
+	if (model)
+		seq_printf(m, "model\t\t: %s\n", model);
+	of_node_put(root);
+
+	if (ppc_md.show_cpuinfo != NULL)
+		ppc_md.show_cpuinfo(m);
+
+#ifdef CONFIG_PPC32
+	/* Display the amount of memory */
+	seq_printf(m, "Memory\t\t: %d MB\n",
+		   (unsigned int)(total_memory / (1024 * 1024)));
+#endif
+}
+
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	unsigned long cpu_id = (unsigned long)v - 1;
@@ -169,35 +201,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	unsigned short min;
 
 	if (cpu_id == NR_CPUS) {
-		struct device_node *root;
-		const char *model = NULL;
-#if defined(CONFIG_SMP) && defined(CONFIG_PPC32)
-		unsigned long bogosum = 0;
-		int i;
-		for_each_online_cpu(i)
-			bogosum += loops_per_jiffy;
-		seq_printf(m, "total bogomips\t: %lu.%02lu\n",
-			   bogosum/(500000/HZ), bogosum/(5000/HZ) % 100);
-#endif /* CONFIG_SMP && CONFIG_PPC32 */
-		seq_printf(m, "timebase\t: %lu\n", ppc_tb_freq);
-		if (ppc_md.name)
-			seq_printf(m, "platform\t: %s\n", ppc_md.name);
-		root = of_find_node_by_path("/");
-		if (root)
-			model = of_get_property(root, "model", NULL);
-		if (model)
-			seq_printf(m, "model\t\t: %s\n", model);
-		of_node_put(root);
-
-		if (ppc_md.show_cpuinfo != NULL)
-			ppc_md.show_cpuinfo(m);
-
-#ifdef CONFIG_PPC32
-		/* Display the amount of memory */
-		seq_printf(m, "Memory\t\t: %d MB\n",
-			   (unsigned int)(total_memory / (1024 * 1024)));
-#endif
-
+		show_cpuinfo_summary(m);
 		return 0;
 	}
 
