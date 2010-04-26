@@ -1385,6 +1385,7 @@ static inline int unregister_gifconf(unsigned int family)
  */
 struct softnet_data {
 	struct Qdisc		*output_queue;
+	struct Qdisc		**output_queue_tailp;
 	struct list_head	poll_list;
 	struct sk_buff		*completion_queue;
 
