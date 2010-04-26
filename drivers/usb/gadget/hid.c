@@ -275,8 +275,18 @@ MODULE_LICENSE("GPL");
 
 static int __init hidg_init(void)
 {
-	platform_driver_probe(&hidg_plat_driver, hidg_plat_driver_probe);
-	return usb_composite_register(&hidg_driver);
+	int status;
+
+	status = platform_driver_probe(&hidg_plat_driver,
+				hidg_plat_driver_probe);
+	if (status < 0)
+		return status;
+
+	status = usb_composite_register(&hidg_driver);
+	if (status < 0)
+		platform_driver_unregister(&hidg_plat_driver);
+
+	return status;
 }
 module_init(hidg_init);
 
