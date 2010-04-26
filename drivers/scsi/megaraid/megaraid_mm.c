@@ -22,7 +22,7 @@
 
 // Entry points for char node driver
 static int mraid_mm_open(struct inode *, struct file *);
-static int mraid_mm_ioctl(struct inode *, struct file *, uint, unsigned long);
+static long mraid_mm_unlocked_ioctl(struct file *, uint, unsigned long);
 
 
 // routines to convert to and from the old the format
@@ -70,7 +70,7 @@ static wait_queue_head_t wait_q;
 
 static const struct file_operations lsi_fops = {
 	.open	= mraid_mm_open,
-	.ioctl	= mraid_mm_ioctl,
+	.unlocked_ioctl = mraid_mm_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = mraid_mm_compat_ioctl,
 #endif
@@ -110,8 +110,7 @@ mraid_mm_open(struct inode *inode, struct file *filep)
  * @arg		: user ioctl packet
  */
 static int
-mraid_mm_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
-							unsigned long arg)
+mraid_mm_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	uioc_t		*kioc;
 	char		signature[EXT_IOCTL_SIGN_SZ]	= {0};
@@ -218,6 +217,19 @@ mraid_mm_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 	return rval;
 }
 
+static long
+mraid_mm_unlocked_ioctl(struct file *filep, unsigned int cmd,
+		        unsigned long arg)
+{
+	int err;
+
+	/* inconsistant: mraid_mm_compat_ioctl doesn't take the BKL */
+	lock_kernel();
+	err = mraid_mm_ioctl(filep, cmd, arg);
+	unlock_kernel();
+
+	return err;
+}
 
 /**
  * mraid_mm_get_adapter - Returns corresponding adapters for the mimd packet
@@ -1225,7 +1237,7 @@ mraid_mm_compat_ioctl(struct file *filep, unsigned int cmd,
 {
 	int err;
 
-	err = mraid_mm_ioctl(NULL, filep, cmd, arg);
+	err = mraid_mm_ioctl(filep, cmd, arg);
 
 	return err;
 }
