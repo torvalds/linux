@@ -237,10 +237,10 @@ retry:
 			 * as signaled for now
 			 */
 			rdev->gpu_lockup = true;
-			WREG32(rdev->fence_drv.scratch_reg, fence->seq);
 			r = radeon_gpu_reset(rdev);
 			if (r)
 				return r;
+			WREG32(rdev->fence_drv.scratch_reg, fence->seq);
 			rdev->gpu_lockup = false;
 		}
 		timeout = RADEON_FENCE_JIFFIES_TIMEOUT;
