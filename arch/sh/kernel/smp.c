@@ -33,6 +33,9 @@ int __cpu_logical_map[NR_CPUS];		/* Map logical to physical */
 
 struct plat_smp_ops *mp_ops = NULL;
 
+/* State of each CPU */
+DEFINE_PER_CPU(int, cpu_state) = { 0 };
+
 void __cpuinit register_smp_ops(struct plat_smp_ops *ops)
 {
 	if (mp_ops)
@@ -72,11 +75,13 @@ void __devinit smp_prepare_boot_cpu(void)
 
 	set_cpu_online(cpu, true);
 	set_cpu_possible(cpu, true);
+
+	per_cpu(cpu_state, cpu) = CPU_ONLINE;
 }
 
 asmlinkage void __cpuinit start_secondary(void)
 {
-	unsigned int cpu;
+	unsigned int cpu = smp_processor_id();
 	struct mm_struct *mm = &init_mm;
 
 	enable_mmu();
@@ -90,11 +95,9 @@ asmlinkage void __cpuinit start_secondary(void)
 
 	preempt_disable();
 
-	notify_cpu_starting(smp_processor_id());
+	notify_cpu_starting(cpu);
 
 	local_irq_enable();
-
-	cpu = smp_processor_id();
 
 	/* Enable local timers */
 	local_timer_setup(cpu);
@@ -103,6 +106,7 @@ asmlinkage void __cpuinit start_secondary(void)
 	smp_store_cpu_info(cpu);
 
 	set_cpu_online(cpu, true);
+	per_cpu(cpu_state, cpu) = CPU_ONLINE;
 
 	cpu_idle();
 }
@@ -126,6 +130,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		printk(KERN_ERR "Failed forking idle task for cpu %d\n", cpu);
 		return PTR_ERR(tsk);
 	}
+
+	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 
 	/* Fill in data in head.S for secondary cpus */
 	stack_start.sp = tsk->thread.sp;

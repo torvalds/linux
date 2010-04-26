@@ -10,6 +10,7 @@
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
 #include <asm/current.h>
+#include <asm/percpu.h>
 
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 
@@ -29,6 +30,8 @@ enum {
 
 	SMP_MSG_NR,	/* must be last */
 };
+
+DECLARE_PER_CPU(int, cpu_state);
 
 void smp_message_recv(unsigned int msg);
 void smp_timer_broadcast(const struct cpumask *mask);
