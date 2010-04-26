@@ -1200,7 +1200,7 @@ static u8 ar9003_hw_eeprom_get_tgt_pwr(struct ath_hw *ah,
 	u8 *pFreqBin;
 
 	if (is2GHz) {
-		numPiers = AR9300_NUM_5G_20_TARGET_POWERS;
+		numPiers = AR9300_NUM_2G_20_TARGET_POWERS;
 		pEepromTargetPwr = eep->calTargetPower2G;
 		pFreqBin = eep->calTarget_freqbin_2G;
 	} else {
@@ -1236,7 +1236,7 @@ static u8 ar9003_hw_eeprom_get_ht20_tgt_pwr(struct ath_hw *ah,
 	u8 *pFreqBin;
 
 	if (is2GHz) {
-		numPiers = AR9300_NUM_5G_20_TARGET_POWERS;
+		numPiers = AR9300_NUM_2G_20_TARGET_POWERS;
 		pEepromTargetPwr = eep->calTargetPower2GHT20;
 		pFreqBin = eep->calTarget_freqbin_2GHT20;
 	} else {
