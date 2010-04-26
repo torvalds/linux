@@ -1225,7 +1225,7 @@ static ssize_t iwl_dbgfs_chain_tx_power_read(struct file *file,
 	struct statistics_tx *tx;
 
 	if (!iwl_is_alive(priv))
-		pos += scnprintf(buf + pos, bufsz - pos, "N/A\n");
+		return -EAGAIN;
 	else {
 		tx = &priv->statistics.tx;
 		if (tx->tx_power.ant_a ||
