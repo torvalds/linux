@@ -39,6 +39,7 @@
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/clock.h>
+#include <asm/smp.h>
 #include <asm/mmu_context.h>
 
 /*
@@ -459,9 +460,7 @@ void __init setup_arch(char **cmdline_p)
 	if (likely(sh_mv.mv_setup))
 		sh_mv.mv_setup(cmdline_p);
 
-#ifdef CONFIG_SMP
 	plat_smp_setup();
-#endif
 }
 
 /* processor boot mode configuration */

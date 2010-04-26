@@ -12,6 +12,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
 #include <linux/ftrace.h>
+#include <linux/delay.h>
 #include <asm/processor.h>
 #include <asm/machvec.h>
 #include <asm/uaccess.h>
@@ -290,5 +291,46 @@ int __init arch_probe_nr_irqs(void)
 {
 	nr_irqs = sh_mv.mv_nr_irqs;
 	return 0;
+}
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
+{
+	printk(KERN_INFO "IRQ%u: moving from cpu%u to cpu%u\n",
+	       irq, desc->node, cpu);
+
+	raw_spin_lock_irq(&desc->lock);
+	desc->chip->set_affinity(irq, cpumask_of(cpu));
+	raw_spin_unlock_irq(&desc->lock);
+}
+
+/*
+ * The CPU has been marked offline.  Migrate IRQs off this CPU.  If
+ * the affinity settings do not allow other CPUs, force them onto any
+ * available CPU.
+ */
+void migrate_irqs(void)
+{
+	struct irq_desc *desc;
+	unsigned int irq, cpu = smp_processor_id();
+
+	for_each_irq_desc(irq, desc) {
+		if (desc->node == cpu) {
+			unsigned int newcpu = cpumask_any_and(desc->affinity,
+							      cpu_online_mask);
+			if (newcpu >= nr_cpu_ids) {
+				if (printk_ratelimit())
+					printk(KERN_INFO "IRQ%u no longer affine to CPU%u\n",
+					       irq, cpu);
+
+				cpumask_setall(desc->affinity);
+				newcpu = cpumask_any_and(desc->affinity,
+							 cpu_online_mask);
+			}
+
+			route_irq(desc, irq, newcpu);
+		}
+	}
 }
 #endif

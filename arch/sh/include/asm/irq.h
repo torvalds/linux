@@ -1,6 +1,7 @@
 #ifndef __ASM_SH_IRQ_H
 #define __ASM_SH_IRQ_H
 
+#include <linux/cpumask.h>
 #include <asm/machvec.h>
 
 /*
@@ -50,6 +51,8 @@ static inline int generic_irq_demux(int irq)
 #define irq_demux(irq)		sh_mv.mv_irq_demux(irq)
 
 void init_IRQ(void);
+void migrate_irqs(void);
+
 asmlinkage int do_IRQ(unsigned int irq, struct pt_regs *regs);
 
 #ifdef CONFIG_IRQSTACKS

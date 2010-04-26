@@ -85,6 +85,10 @@ struct sh_cpuinfo {
 	struct tlb_info itlb;
 	struct tlb_info dtlb;
 
+#ifdef CONFIG_SMP
+	struct task_struct *idle;
+#endif
+
 	unsigned long flags;
 } __attribute__ ((aligned(L1_CACHE_BYTES)));
 
