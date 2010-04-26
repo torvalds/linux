@@ -122,7 +122,7 @@ errout:
 }
 
 struct fib_rules_ops *
-fib_rules_register(struct fib_rules_ops *tmpl, struct net *net)
+fib_rules_register(const struct fib_rules_ops *tmpl, struct net *net)
 {
 	struct fib_rules_ops *ops;
 	int err;
