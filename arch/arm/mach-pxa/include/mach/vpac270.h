@@ -37,4 +37,6 @@
 
 #define	GPIO36_VPAC270_IDE_IRQ		36
 
+#define	GPIO113_VPAC270_TS_IRQ		113
+
 #endif
