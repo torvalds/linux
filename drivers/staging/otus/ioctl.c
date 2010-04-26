@@ -867,6 +867,7 @@ int usbdrvwext_giwscan(struct net_device *dev,
 	char *current_ev = extra;
 	char *end_buf;
 	int i;
+	struct zsBssListV1 *pBssList;
 	/* BssList = wd->sta.pBssList; */
 	/* zmw_get_wlan_dev(dev); */
 
@@ -874,8 +875,10 @@ int usbdrvwext_giwscan(struct net_device *dev,
 		return 0;
 
 	/* struct zsBssList BssList; */
-	struct zsBssListV1 *pBssList = kmalloc(sizeof(struct zsBssListV1),
-								GFP_KERNEL);
+	pBssList = kmalloc(sizeof(struct zsBssListV1), GFP_KERNEL);
+	if (pBssList == NULL)
+		return -ENOMEM;
+
 	if (data->length == 0)
 		end_buf = extra + IW_SCAN_MAX_DATA;
 	else
