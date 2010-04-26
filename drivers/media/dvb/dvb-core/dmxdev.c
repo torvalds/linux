@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
+#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/ioctl.h>
 #include <linux/wait.h>
@@ -963,7 +964,7 @@ dvb_demux_read(struct file *file, char __user *buf, size_t count,
 	return ret;
 }
 
-static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
+static int dvb_demux_do_ioctl(struct file *file,
 			      unsigned int cmd, void *parg)
 {
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
@@ -1084,10 +1085,16 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static int dvb_demux_ioctl(struct inode *inode, struct file *file,
-			   unsigned int cmd, unsigned long arg)
+static long dvb_demux_ioctl(struct file *file, unsigned int cmd,
+			    unsigned long arg)
 {
-	return dvb_usercopy(inode, file, cmd, arg, dvb_demux_do_ioctl);
+	int ret;
+
+	lock_kernel();
+	ret = dvb_usercopy(file, cmd, arg, dvb_demux_do_ioctl);
+	unlock_kernel();
+
+	return ret;
 }
 
 static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
@@ -1139,7 +1146,7 @@ static int dvb_demux_release(struct inode *inode, struct file *file)
 static const struct file_operations dvb_demux_fops = {
 	.owner = THIS_MODULE,
 	.read = dvb_demux_read,
-	.ioctl = dvb_demux_ioctl,
+	.unlocked_ioctl = dvb_demux_ioctl,
 	.open = dvb_demux_open,
 	.release = dvb_demux_release,
 	.poll = dvb_demux_poll,
@@ -1152,7 +1159,7 @@ static struct dvb_device dvbdev_demux = {
 	.fops = &dvb_demux_fops
 };
 
-static int dvb_dvr_do_ioctl(struct inode *inode, struct file *file,
+static int dvb_dvr_do_ioctl(struct file *file,
 			    unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1176,10 +1183,16 @@ static int dvb_dvr_do_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static int dvb_dvr_ioctl(struct inode *inode, struct file *file,
+static long dvb_dvr_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
-	return dvb_usercopy(inode, file, cmd, arg, dvb_dvr_do_ioctl);
+	int ret;
+
+	lock_kernel();
+	ret = dvb_usercopy(file, cmd, arg, dvb_dvr_do_ioctl);
+	unlock_kernel();
+
+	return ret;
 }
 
 static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
@@ -1208,7 +1221,7 @@ static const struct file_operations dvb_dvr_fops = {
 	.owner = THIS_MODULE,
 	.read = dvb_dvr_read,
 	.write = dvb_dvr_write,
-	.ioctl = dvb_dvr_ioctl,
+	.unlocked_ioctl = dvb_dvr_ioctl,
 	.open = dvb_dvr_open,
 	.release = dvb_dvr_release,
 	.poll = dvb_dvr_poll,
