@@ -300,13 +300,18 @@ static int ds278x_battery_remove(struct i2c_client *client)
 	return 0;
 }
 
+enum ds278x_num_id {
+	DS2782 = 0,
+	DS2786,
+};
+
 static struct ds278x_battery_ops ds278x_ops[] = {
-	[0] = {
+	[DS2782] = {
 		.get_current  = ds2782_get_current,
 		.get_voltage  = ds2782_get_voltage,
 		.get_capacity = ds2782_get_capacity,
 	},
-	[1] = {
+	[DS2786] = {
 		.get_current  = ds2786_get_current,
 		.get_voltage  = ds2786_get_voltage,
 		.get_capacity = ds2786_get_capacity,
@@ -325,7 +330,7 @@ static int ds278x_battery_probe(struct i2c_client *client,
 	 * ds2786 should have the sense resistor value set
 	 * in the platform data
 	 */
-	if (id->driver_data == 1 && !pdata) {
+	if (id->driver_data == DS2786 && !pdata) {
 		dev_err(&client->dev, "missing platform data for ds2786\n");
 		return -EINVAL;
 	}
@@ -355,7 +360,7 @@ static int ds278x_battery_probe(struct i2c_client *client,
 		goto fail_name;
 	}
 
-	if (id->driver_data == 1)
+	if (id->driver_data == DS2786)
 		info->rsns = pdata->rsns;
 
 	i2c_set_clientdata(client, info);
@@ -385,8 +390,8 @@ fail_id:
 }
 
 static const struct i2c_device_id ds278x_id[] = {
-	{"ds2782", 0},
-	{"ds2786", 1},
+	{"ds2782", DS2782},
+	{"ds2786", DS2786},
 	{},
 };
 
