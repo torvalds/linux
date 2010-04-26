@@ -2759,6 +2759,7 @@ static void rtl8169_release_board(struct pci_dev *pdev, struct net_device *dev,
 {
 	iounmap(ioaddr);
 	pci_release_regions(pdev);
+	pci_clear_mwi(pdev);
 	pci_disable_device(pdev);
 	free_netdev(dev);
 }
@@ -3014,9 +3015,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_dev_1;
 	}
 
-	rc = pci_set_mwi(pdev);
-	if (rc < 0)
-		goto err_out_disable_2;
+	if (pci_set_mwi(pdev) < 0)
+		netif_info(tp, probe, dev, "Mem-Wr-Inval unavailable\n");
 
 	/* make sure PCI base addr 1 is MMIO */
 	if (!(pci_resource_flags(pdev, region) & IORESOURCE_MEM)) {
@@ -3024,7 +3024,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			  "region #%d not an MMIO resource, aborting\n",
 			  region);
 		rc = -ENODEV;
-		goto err_out_mwi_3;
+		goto err_out_mwi_2;
 	}
 
 	/* check for weird/broken PCI region reporting */
@@ -3032,13 +3032,13 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netif_err(tp, probe, dev,
 			  "Invalid PCI region size(s), aborting\n");
 		rc = -ENODEV;
-		goto err_out_mwi_3;
+		goto err_out_mwi_2;
 	}
 
 	rc = pci_request_regions(pdev, MODULENAME);
 	if (rc < 0) {
 		netif_err(tp, probe, dev, "could not request regions\n");
-		goto err_out_mwi_3;
+		goto err_out_mwi_2;
 	}
 
 	tp->cp_cmd = PCIMulRW | RxChkSum;
@@ -3051,7 +3051,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc < 0) {
 			netif_err(tp, probe, dev, "DMA configuration failed\n");
-			goto err_out_free_res_4;
+			goto err_out_free_res_3;
 		}
 	}
 
@@ -3060,7 +3060,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!ioaddr) {
 		netif_err(tp, probe, dev, "cannot remap MMIO, aborting\n");
 		rc = -EIO;
-		goto err_out_free_res_4;
+		goto err_out_free_res_3;
 	}
 
 	tp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
@@ -3102,7 +3102,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (i == ARRAY_SIZE(rtl_chip_info)) {
 		dev_err(&pdev->dev,
 			"driver bug, MAC version not found in rtl_chip_info\n");
-		goto err_out_msi_5;
+		goto err_out_msi_4;
 	}
 	tp->chipset = i;
 
@@ -3167,7 +3167,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rc = register_netdev(dev);
 	if (rc < 0)
-		goto err_out_msi_5;
+		goto err_out_msi_4;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -3190,14 +3190,13 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 out:
 	return rc;
 
-err_out_msi_5:
+err_out_msi_4:
 	rtl_disable_msi(pdev, tp);
 	iounmap(ioaddr);
-err_out_free_res_4:
+err_out_free_res_3:
 	pci_release_regions(pdev);
-err_out_mwi_3:
+err_out_mwi_2:
 	pci_clear_mwi(pdev);
-err_out_disable_2:
 	pci_disable_device(pdev);
 err_out_free_dev_1:
 	free_netdev(dev);
