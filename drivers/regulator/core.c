@@ -2328,7 +2328,37 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 		goto scrub;
 
 	/* set supply regulator if it exists */
+	if (init_data->supply_regulator && init_data->supply_regulator_dev) {
+		dev_err(dev,
+			"Supply regulator specified by both name and dev\n");
+		goto scrub;
+	}
+
+	if (init_data->supply_regulator) {
+		struct regulator_dev *r;
+		int found = 0;
+
+		list_for_each_entry(r, &regulator_list, list) {
+			if (strcmp(rdev_get_name(r),
+				   init_data->supply_regulator) == 0) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found) {
+			dev_err(dev, "Failed to find supply %s\n",
+				init_data->supply_regulator);
+			goto scrub;
+		}
+
+		ret = set_supply(rdev, r);
+		if (ret < 0)
+			goto scrub;
+	}
+
 	if (init_data->supply_regulator_dev) {
+		dev_warn(dev, "Uses supply_regulator_dev instead of regulator_supply\n");
 		ret = set_supply(rdev,
 			dev_get_drvdata(init_data->supply_regulator_dev));
 		if (ret < 0)
