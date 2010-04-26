@@ -163,6 +163,10 @@
  * ro setting are not allowed when the medium is loaded or if CD-ROM
  * emulation is being used.
  *
+ * When a LUN receive an "eject" SCSI request (Start/Stop Unit),
+ * if the LUN is removable, the backing file is released to simulate
+ * ejection.
+ *
  *
  * This function is heavily based on "File-backed Storage Gadget" by
  * Alan Stern which in turn is heavily based on "Gadget Zero" by David
@@ -1384,11 +1388,49 @@ static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 
 static int do_start_stop(struct fsg_common *common)
 {
-	if (!common->curlun) {
+	struct fsg_lun	*curlun = common->curlun;
+	int		loej, start;
+
+	if (!curlun) {
 		return -EINVAL;
-	} else if (!common->curlun->removable) {
-		common->curlun->sense_data = SS_INVALID_COMMAND;
+	} else if (!curlun->removable) {
+		curlun->sense_data = SS_INVALID_COMMAND;
 		return -EINVAL;
+	}
+
+	loej = common->cmnd[4] & 0x02;
+	start = common->cmnd[4] & 0x01;
+
+	/* eject code from file_storage.c:do_start_stop() */
+
+	if ((common->cmnd[1] & ~0x01) != 0 ||	  /* Mask away Immed */
+		(common->cmnd[4] & ~0x03) != 0) { /* Mask LoEj, Start */
+		curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
+		return -EINVAL;
+	}
+
+	if (!start) {
+		/* Are we allowed to unload the media? */
+		if (curlun->prevent_medium_removal) {
+			LDBG(curlun, "unload attempt prevented\n");
+			curlun->sense_data = SS_MEDIUM_REMOVAL_PREVENTED;
+			return -EINVAL;
+		}
+		if (loej) {	/* Simulate an unload/eject */
+			up_read(&common->filesem);
+			down_write(&common->filesem);
+			fsg_lun_close(curlun);
+			up_write(&common->filesem);
+			down_read(&common->filesem);
+		}
+	} else {
+
+		/* Our emulation doesn't support mounting; the medium is
+		 * available for use as soon as it is loaded. */
+		if (!fsg_lun_is_open(curlun)) {
+			curlun->sense_data = SS_MEDIUM_NOT_PRESENT;
+			return -EINVAL;
+		}
 	}
 	return 0;
 }
