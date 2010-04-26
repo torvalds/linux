@@ -313,7 +313,7 @@ int generic_cpu_disable(void)
 	set_cpu_online(cpu, false);
 #ifdef CONFIG_PPC64
 	vdso_data->processorCount--;
-	fixup_irqs(cpu_online_map);
+	fixup_irqs(cpu_online_mask);
 #endif
 	return 0;
 }
@@ -333,7 +333,7 @@ int generic_cpu_enable(unsigned int cpu)
 		cpu_relax();
 
 #ifdef CONFIG_PPC64
-	fixup_irqs(cpu_online_map);
+	fixup_irqs(cpu_online_mask);
 	/* counter the irq disable in fixup_irqs */
 	local_irq_enable();
 #endif
