@@ -35,4 +35,6 @@
 
 #define	GPIO114_VPAC270_ETH_IRQ		114
 
+#define	GPIO36_VPAC270_IDE_IRQ		36
+
 #endif

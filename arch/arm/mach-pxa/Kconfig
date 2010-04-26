@@ -252,6 +252,7 @@ config MACH_COLIBRI320
 config MACH_VPAC270
 	bool "Voipac PXA270"
 	select PXA27x
+	select HAVE_PATA_PLATFORM
 	help
 	  PXA270 based Single Board Computer.
 
