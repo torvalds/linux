@@ -659,6 +659,9 @@ static void ar9300_swap_eeprom(struct ar9300_eeprom *eep)
 	word = swab16(eep->baseEepHeader.regDmn[1]);
 	eep->baseEepHeader.regDmn[1] = word;
 
+	dword = swab32(eep->baseEepHeader.swreg);
+	eep->baseEepHeader.swreg = dword;
+
 	dword = swab32(eep->modalHeader2G.antCtrlCommon);
 	eep->modalHeader2G.antCtrlCommon = dword;
 
