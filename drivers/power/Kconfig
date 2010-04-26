@@ -65,10 +65,10 @@ config BATTERY_DS2760
 	  Say Y here to enable support for batteries with ds2760 chip.
 
 config BATTERY_DS2782
-	tristate "DS2782 standalone gas-gauge"
+	tristate "DS2782/DS2786 standalone gas-gauge"
 	depends on I2C
 	help
-	  Say Y here to enable support for the DS2782 standalone battery
+	  Say Y here to enable support for the DS2782/DS2786 standalone battery
 	  gas-gauge.
 
 config BATTERY_PMU
