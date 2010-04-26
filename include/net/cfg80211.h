@@ -511,6 +511,7 @@ struct mpath_info {
  * @basic_rates: basic rates in IEEE 802.11 format
  *	(or NULL for no change)
  * @basic_rates_len: number of basic rates
+ * @ap_isolate: do not forward packets between connected stations
  */
 struct bss_parameters {
 	int use_cts_prot;
@@ -518,6 +519,7 @@ struct bss_parameters {
 	int use_short_slot_time;
 	u8 *basic_rates;
 	u8 basic_rates_len;
+	int ap_isolate;
 };
 
 struct mesh_config {
