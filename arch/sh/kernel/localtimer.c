@@ -60,3 +60,7 @@ void local_timer_setup(unsigned int cpu)
 
 	clockevents_register_device(clk);
 }
+
+void local_timer_stop(unsigned int cpu)
+{
+}

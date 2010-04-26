@@ -79,6 +79,105 @@ void __init smp_prepare_boot_cpu(void)
 	per_cpu(cpu_state, cpu) = CPU_ONLINE;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+void native_cpu_die(unsigned int cpu)
+{
+	unsigned int i;
+
+	for (i = 0; i < 10; i++) {
+		smp_rmb();
+		if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
+			if (system_state == SYSTEM_RUNNING)
+				pr_info("CPU %u is now offline\n", cpu);
+
+			return;
+		}
+
+		msleep(100);
+	}
+
+	pr_err("CPU %u didn't die...\n", cpu);
+}
+
+int native_cpu_disable(unsigned int cpu)
+{
+	return cpu == 0 ? -EPERM : 0;
+}
+
+void play_dead_common(void)
+{
+	idle_task_exit();
+	irq_ctx_exit(raw_smp_processor_id());
+	mb();
+
+	__get_cpu_var(cpu_state) = CPU_DEAD;
+	local_irq_disable();
+}
+
+void native_play_dead(void)
+{
+	play_dead_common();
+}
+
+int __cpu_disable(void)
+{
+	unsigned int cpu = smp_processor_id();
+	struct task_struct *p;
+	int ret;
+
+	ret = mp_ops->cpu_disable(cpu);
+	if (ret)
+		return ret;
+
+	/*
+	 * Take this CPU offline.  Once we clear this, we can't return,
+	 * and we must not schedule until we're ready to give up the cpu.
+	 */
+	set_cpu_online(cpu, false);
+
+	/*
+	 * OK - migrate IRQs away from this CPU
+	 */
+	migrate_irqs();
+
+	/*
+	 * Stop the local timer for this CPU.
+	 */
+	local_timer_stop(cpu);
+
+	/*
+	 * Flush user cache and TLB mappings, and then remove this CPU
+	 * from the vm mask set of all processes.
+	 */
+	flush_cache_all();
+	local_flush_tlb_all();
+
+	read_lock(&tasklist_lock);
+	for_each_process(p)
+		if (p->mm)
+			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
+	read_unlock(&tasklist_lock);
+
+	return 0;
+}
+#else /* ... !CONFIG_HOTPLUG_CPU */
+int native_cpu_disable(void)
+{
+	return -ENOSYS;
+}
+
+void native_cpu_die(unsigned int cpu)
+{
+	/* We said "no" in __cpu_disable */
+	BUG();
+}
+
+void native_play_dead(void)
+{
+	BUG();
+}
+#endif
+
 asmlinkage void __cpuinit start_secondary(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -88,8 +187,8 @@ asmlinkage void __cpuinit start_secondary(void)
 	atomic_inc(&mm->mm_count);
 	atomic_inc(&mm->mm_users);
 	current->active_mm = mm;
-	BUG_ON(current->mm);
 	enter_lazy_tlb(mm, current);
+	local_flush_tlb_all();
 
 	per_cpu_trap_init();
 
@@ -156,6 +255,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 			break;
 
 		udelay(10);
+		barrier();
 	}
 
 	if (cpu_online(cpu))
@@ -270,7 +370,6 @@ static void flush_tlb_mm_ipi(void *mm)
  * behalf of debugees, kswapd stealing pages from another process etc).
  * Kanoj 07/00.
  */
-
 void flush_tlb_mm(struct mm_struct *mm)
 {
 	preempt_disable();

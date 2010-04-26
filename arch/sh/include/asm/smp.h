@@ -38,9 +38,26 @@ void smp_timer_broadcast(const struct cpumask *mask);
 
 void local_timer_interrupt(void);
 void local_timer_setup(unsigned int cpu);
+void local_timer_stop(unsigned int cpu);
 
 void arch_send_call_function_single_ipi(int cpu);
-extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+
+void native_play_dead(void);
+void native_cpu_die(unsigned int cpu);
+int native_cpu_disable(unsigned int cpu);
+
+#ifdef CONFIG_HOTPLUG_CPU
+void play_dead_common(void);
+extern int __cpu_disable(void);
+
+static inline void __cpu_die(unsigned int cpu)
+{
+	extern struct plat_smp_ops *mp_ops;     /* private */
+
+	mp_ops->cpu_die(cpu);
+}
+#endif
 
 static inline int hard_smp_processor_id(void)
 {
