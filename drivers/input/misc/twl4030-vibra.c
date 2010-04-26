@@ -30,6 +30,7 @@
 #include <linux/i2c/twl.h>
 #include <linux/mfd/twl4030-codec.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 
 /* MODULE ID2 */
 #define LEDEN		0x00

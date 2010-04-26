@@ -22,6 +22,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/gfp.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
 

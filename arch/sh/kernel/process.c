@@ -1,5 +1,6 @@
 #include <linux/mm.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 
 struct kmem_cache *task_xstate_cachep = NULL;

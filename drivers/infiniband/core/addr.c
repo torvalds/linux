@@ -35,6 +35,7 @@
 
 #include <linux/mutex.h>
 #include <linux/inetdevice.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <net/arp.h>
 #include <net/neighbour.h>

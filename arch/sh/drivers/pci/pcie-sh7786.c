@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include "pcie-sh7786.h"
 #include <asm/sizes.h>
 

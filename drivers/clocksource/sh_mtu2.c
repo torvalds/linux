@@ -29,6 +29,7 @@
 #include <linux/err.h>
 #include <linux/clockchips.h>
 #include <linux/sh_timer.h>
+#include <linux/slab.h>
 
 struct sh_mtu2_priv {
 	void __iomem *mapbase;

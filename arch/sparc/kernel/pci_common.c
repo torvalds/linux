@@ -371,14 +371,19 @@ static void pci_register_iommu_region(struct pci_pbm_info *pbm)
 		struct resource *rp = kzalloc(sizeof(*rp), GFP_KERNEL);
 
 		if (!rp) {
-			prom_printf("Cannot allocate IOMMU resource.\n");
-			prom_halt();
+			pr_info("%s: Cannot allocate IOMMU resource.\n",
+				pbm->name);
+			return;
 		}
 		rp->name = "IOMMU";
 		rp->start = pbm->mem_space.start + (unsigned long) vdma[0];
 		rp->end = rp->start + (unsigned long) vdma[1] - 1UL;
 		rp->flags = IORESOURCE_BUSY;
-		request_resource(&pbm->mem_space, rp);
+		if (request_resource(&pbm->mem_space, rp)) {
+			pr_info("%s: Unable to request IOMMU resource.\n",
+				pbm->name);
+			kfree(rp);
+		}
 	}
 }
 

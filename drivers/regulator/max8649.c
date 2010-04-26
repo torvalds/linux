@@ -14,6 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/slab.h>
 #include <linux/regulator/max8649.h>
 
 #define MAX8649_DCDC_VMIN	750000		/* uV */

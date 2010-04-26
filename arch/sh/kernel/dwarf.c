@@ -23,6 +23,7 @@
 #include <linux/elf.h>
 #include <linux/ftrace.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <asm/dwarf.h>
 #include <asm/unwinder.h>
 #include <asm/sections.h>

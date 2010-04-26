@@ -37,6 +37,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/c67x00.h>
 

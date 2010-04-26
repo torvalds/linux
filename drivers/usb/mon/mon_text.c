@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/usb.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>

@@ -234,7 +234,7 @@ process is as follows:
     Linus, usually the patches that have already been included in the
     -next kernel for a few weeks.  The preferred way to submit big changes
     is using git (the kernel's source management tool, more information
-    can be found at http://git.or.cz/) but plain patches are also just
+    can be found at http://git-scm.com/) but plain patches are also just
     fine.
   - After two weeks a -rc1 kernel is released it is now possible to push
     only patches that do not include new features that could affect the

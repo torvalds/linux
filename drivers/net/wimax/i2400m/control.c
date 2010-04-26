@@ -76,6 +76,7 @@
 #include <stdarg.h>
 #include "i2400m.h"
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/wimax/i2400m.h>
 
 

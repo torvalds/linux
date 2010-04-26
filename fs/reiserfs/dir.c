@@ -8,6 +8,7 @@
 #include <linux/reiserfs_fs.h>
 #include <linux/stat.h>
 #include <linux/buffer_head.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 extern const struct reiserfs_key MIN_KEY;
@@ -45,8 +46,6 @@ static inline bool is_privroot_deh(struct dentry *dir,
 				   struct reiserfs_de_head *deh)
 {
 	struct dentry *privroot = REISERFS_SB(dir->d_sb)->priv_root;
-	if (reiserfs_expose_privroot(dir->d_sb))
-		return 0;
 	return (dir == dir->d_parent && privroot->d_inode &&
 	        deh->deh_objectid == INODE_PKEY(privroot->d_inode)->k_objectid);
 }

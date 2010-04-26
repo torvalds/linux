@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/android_pmem.h>
+#include <linux/slab.h>
 #include <mach/msm_adsp.h>
 #include <linux/delay.h>
 #include <linux/wait.h>

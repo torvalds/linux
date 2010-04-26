@@ -26,6 +26,7 @@
  */
 #include <linux/platform_device.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 
 #include <plat/dma.h>

@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 #include "rate.h"
 #include "mesh.h"

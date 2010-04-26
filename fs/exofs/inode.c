@@ -31,6 +31,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/slab.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>
 #include <scsi/scsi_device.h>

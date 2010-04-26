@@ -39,6 +39,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/rtc.h>
 #include <linux/spi/spi.h>
 

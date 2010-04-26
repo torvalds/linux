@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/selection.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/tc.h>
 

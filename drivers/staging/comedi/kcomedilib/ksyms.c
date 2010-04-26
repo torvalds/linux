@@ -34,7 +34,6 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 
 /* functions specific to kcomedilib */
 

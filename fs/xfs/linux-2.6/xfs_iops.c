@@ -56,6 +56,7 @@
 #include <linux/security.h>
 #include <linux/falloc.h>
 #include <linux/fiemap.h>
+#include <linux/slab.h>
 
 /*
  * Bring the timestamps in the XFS inode uptodate.

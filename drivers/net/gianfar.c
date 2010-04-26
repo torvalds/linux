@@ -549,12 +549,8 @@ static int gfar_parse_group(struct device_node *np,
 		struct gfar_private *priv, const char *model)
 {
 	u32 *queue_mask;
-	u64 addr, size;
 
-	addr = of_translate_address(np,
-			of_get_address(np, 0, &size, NULL));
-	priv->gfargrp[priv->num_grps].regs = ioremap(addr, size);
-
+	priv->gfargrp[priv->num_grps].regs = of_iomap(np, 0);
 	if (!priv->gfargrp[priv->num_grps].regs)
 		return -ENOMEM;
 
@@ -676,7 +672,7 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 		priv->rx_queue[i] = NULL;
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
-		priv->tx_queue[i] =  (struct gfar_priv_tx_q *)kmalloc(
+		priv->tx_queue[i] =  (struct gfar_priv_tx_q *)kzalloc(
 				sizeof (struct gfar_priv_tx_q), GFP_KERNEL);
 		if (!priv->tx_queue[i]) {
 			err = -ENOMEM;
@@ -689,7 +685,7 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
-		priv->rx_queue[i] = (struct gfar_priv_rx_q *)kmalloc(
+		priv->rx_queue[i] = (struct gfar_priv_rx_q *)kzalloc(
 					sizeof (struct gfar_priv_rx_q), GFP_KERNEL);
 		if (!priv->rx_queue[i]) {
 			err = -ENOMEM;
@@ -1120,10 +1116,10 @@ static int gfar_probe(struct of_device *ofdev,
 	/* provided which set of benchmarks. */
 	printk(KERN_INFO "%s: Running with NAPI enabled\n", dev->name);
 	for (i = 0; i < priv->num_rx_queues; i++)
-		printk(KERN_INFO "%s: :RX BD ring size for Q[%d]: %d\n",
+		printk(KERN_INFO "%s: RX BD ring size for Q[%d]: %d\n",
 			dev->name, i, priv->rx_queue[i]->rx_ring_size);
 	for(i = 0; i < priv->num_tx_queues; i++)
-		 printk(KERN_INFO "%s:TX BD ring size for Q[%d]: %d\n",
+		 printk(KERN_INFO "%s: TX BD ring size for Q[%d]: %d\n",
 			dev->name, i, priv->tx_queue[i]->tx_ring_size);
 
 	return 0;
@@ -1638,13 +1634,13 @@ static void free_skb_resources(struct gfar_private *priv)
 	/* Go through all the buffer descriptors and free their data buffers */
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		tx_queue = priv->tx_queue[i];
-		if(!tx_queue->tx_skbuff)
+		if(tx_queue->tx_skbuff)
 			free_skb_tx_queue(tx_queue);
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
 		rx_queue = priv->rx_queue[i];
-		if(!rx_queue->rx_skbuff)
+		if(rx_queue->rx_skbuff)
 			free_skb_rx_queue(rx_queue);
 	}
 

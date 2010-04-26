@@ -40,6 +40,7 @@
 #include <linux/delay.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/slab.h>
 
 #include <asm/mach/irq.h>
 

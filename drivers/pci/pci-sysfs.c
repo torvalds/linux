@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/capability.h>
 #include <linux/pci-aspm.h>
+#include <linux/slab.h>
 #include "pci.h"
 
 static int sysfs_initialized;	/* = 0 */

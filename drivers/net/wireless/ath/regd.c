@@ -15,7 +15,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include "regd.h"

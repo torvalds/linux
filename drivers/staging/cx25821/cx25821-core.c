@@ -22,6 +22,7 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include "cx25821.h"
 #include "cx25821-sram.h"
 #include "cx25821-video.h"

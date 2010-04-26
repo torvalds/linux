@@ -21,6 +21,7 @@
 #include <linux/poll.h>
 #include <linux/interrupt.h>
 #include <linux/cdev.h>
+#include <linux/slab.h>
 #include <linux/phantom.h>
 #include <linux/sched.h>
 #include <linux/smp_lock.h>

@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/completion.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
@@ -3851,6 +3852,7 @@ MODULE_FIRMWARE("mwl8k/helper_8366.fw");
 MODULE_FIRMWARE("mwl8k/fmimage_8366.fw");
 
 static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
+	{ PCI_VDEVICE(MARVELL, 0x2a0a), .driver_data = MWL8363, },
 	{ PCI_VDEVICE(MARVELL, 0x2a0c), .driver_data = MWL8363, },
 	{ PCI_VDEVICE(MARVELL, 0x2a24), .driver_data = MWL8363, },
 	{ PCI_VDEVICE(MARVELL, 0x2a2b), .driver_data = MWL8687, },

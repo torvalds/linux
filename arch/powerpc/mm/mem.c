@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/gfp.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/stddef.h>
