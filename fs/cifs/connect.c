@@ -2421,7 +2421,7 @@ cleanup_volume_info(struct smb_vol **pvolume_info)
 {
 	struct smb_vol *volume_info;
 
-	if (!pvolume_info && !*pvolume_info)
+	if (!pvolume_info || !*pvolume_info)
 		return;
 
 	volume_info = *pvolume_info;
