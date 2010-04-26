@@ -681,7 +681,7 @@ static void __init pmb_merge(struct pmb_entry *head)
 	/*
 	 * The merged page size must be valid.
 	 */
-	if (!pmb_size_valid(newsize))
+	if (!depth || !pmb_size_valid(newsize))
 		return;
 
 	head->flags &= ~PMB_SZ_MASK;
