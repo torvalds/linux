@@ -1674,11 +1674,6 @@ int viafb_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	if (state.event == PM_EVENT_SUSPEND) {
 		acquire_console_sem();
-
-		memcpy_fromio(viaparinfo->shared->saved_regs,
-			      viaparinfo->shared->vdev->engine_mmio + 0x100,
-			      0xff * sizeof(u32));
-
 		fb_set_suspend(viafbinfo, 1);
 
 		viafb_sync(viafbinfo);
@@ -1700,11 +1695,6 @@ int viafb_resume(struct pci_dev *pdev)
 	if (pci_enable_device(pdev))
 		goto fail;
 	pci_set_master(pdev);
-
-	memcpy_toio(viaparinfo->shared->vdev->engine_mmio + 0x100,
-		    viaparinfo->shared->saved_regs,
-		    0x100 * sizeof(u32));
-
 	viafb_set_par(viafbinfo);
 	if (viafb_dual_fb)
 		viafb_set_par(viafbinfo1);
