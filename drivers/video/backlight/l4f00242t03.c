@@ -222,9 +222,9 @@ static int __devexit l4f00242t03_remove(struct spi_device *spi)
 	gpio_free(pdata->reset_gpio);
 
 	if (priv->io_reg)
-		regulator_put(priv->core_reg);
-	if (priv->core_reg)
 		regulator_put(priv->io_reg);
+	if (priv->core_reg)
+		regulator_put(priv->core_reg);
 
 	kfree(priv);
 
