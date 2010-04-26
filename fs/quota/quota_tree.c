@@ -384,7 +384,7 @@ int qtree_write_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	} else {
 		ret = 0;
 	}
-	dqstats.writes++;
+	dqstats_inc(DQST_WRITES);
 	kfree(ddquot);
 
 	return ret;
@@ -634,7 +634,7 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 	spin_unlock(&dq_data_lock);
 	kfree(ddquot);
 out:
-	dqstats.reads++;
+	dqstats_inc(DQST_READS);
 	return ret;
 }
 EXPORT_SYMBOL(qtree_read_dquot);
