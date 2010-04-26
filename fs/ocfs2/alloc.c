@@ -1125,8 +1125,7 @@ static int ocfs2_adjust_rightmost_branch(handle_t *handle,
 		goto out;
 	}
 
-	status = ocfs2_extend_trans(handle, path_num_items(path) +
-				    handle->h_buffer_credits);
+	status = ocfs2_extend_trans(handle, path_num_items(path));
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
@@ -2288,20 +2287,14 @@ static int ocfs2_extend_rotate_transaction(handle_t *handle, int subtree_depth,
 					   int op_credits,
 					   struct ocfs2_path *path)
 {
-	int ret;
+	int ret = 0;
 	int credits = (path->p_tree_depth - subtree_depth) * 2 + 1 + op_credits;
 
-	if (handle->h_buffer_credits < credits) {
+	if (handle->h_buffer_credits < credits)
 		ret = ocfs2_extend_trans(handle,
 					 credits - handle->h_buffer_credits);
-		if (ret)
-			return ret;
 
-		if (unlikely(handle->h_buffer_credits < credits))
-			return ocfs2_extend_trans(handle, credits);
-	}
-
-	return 0;
+	return ret;
 }
 
 /*
@@ -2545,8 +2538,7 @@ static int ocfs2_update_edge_lengths(handle_t *handle,
 	 * records for all the bh in the path.
 	 * So we have to allocate extra credits and access them.
 	 */
-	ret = ocfs2_extend_trans(handle,
-				 handle->h_buffer_credits + subtree_index);
+	ret = ocfs2_extend_trans(handle, subtree_index);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -4141,17 +4133,13 @@ static int ocfs2_insert_path(handle_t *handle,
 	struct buffer_head *leaf_bh = path_leaf_bh(right_path);
 
 	if (left_path) {
-		int credits = handle->h_buffer_credits;
-
 		/*
 		 * There's a chance that left_path got passed back to
 		 * us without being accounted for in the
 		 * journal. Extend our transaction here to be sure we
 		 * can change those blocks.
 		 */
-		credits += left_path->p_tree_depth;
-
-		ret = ocfs2_extend_trans(handle, credits);
+		ret = ocfs2_extend_trans(handle, left_path->p_tree_depth);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -5237,7 +5225,7 @@ static int ocfs2_split_tree(handle_t *handle, struct ocfs2_extent_tree *et,
 			    int index, u32 new_range,
 			    struct ocfs2_alloc_context *meta_ac)
 {
-	int ret, depth, credits = handle->h_buffer_credits;
+	int ret, depth, credits;
 	struct buffer_head *last_eb_bh = NULL;
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list *rightmost_el, *el;
@@ -5268,8 +5256,8 @@ static int ocfs2_split_tree(handle_t *handle, struct ocfs2_extent_tree *et,
 	} else
 		rightmost_el = path_leaf_el(path);
 
-	credits += path->p_tree_depth +
-		   ocfs2_extend_meta_needed(et->et_root_el);
+	credits = path->p_tree_depth +
+		  ocfs2_extend_meta_needed(et->et_root_el);
 	ret = ocfs2_extend_trans(handle, credits);
 	if (ret) {
 		mlog_errno(ret);

@@ -3295,8 +3295,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 				goto out;
 			}
 
-			ret = ocfs2_extend_trans(ctxt->handle, credits +
-					ctxt->handle->h_buffer_credits);
+			ret = ocfs2_extend_trans(ctxt->handle, credits);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
@@ -3326,8 +3325,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 					goto out;
 				}
 
-				ret = ocfs2_extend_trans(ctxt->handle, credits +
-					ctxt->handle->h_buffer_credits);
+				ret = ocfs2_extend_trans(ctxt->handle, credits);
 				if (ret) {
 					mlog_errno(ret);
 					goto out;
@@ -3361,8 +3359,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 					goto out;
 				}
 
-				ret = ocfs2_extend_trans(ctxt->handle, credits +
-						ctxt->handle->h_buffer_credits);
+				ret = ocfs2_extend_trans(ctxt->handle, credits);
 				if (ret) {
 					mlog_errno(ret);
 					goto out;
@@ -4870,8 +4867,7 @@ static int ocfs2_mv_xattr_buckets(struct inode *inode, handle_t *handle,
 	 * We need to update the first bucket of the old extent and all
 	 * the buckets going to the new extent.
 	 */
-	credits = ((num_buckets + 1) * blks_per_bucket) +
-		handle->h_buffer_credits;
+	credits = ((num_buckets + 1) * blks_per_bucket);
 	ret = ocfs2_extend_trans(handle, credits);
 	if (ret) {
 		mlog_errno(ret);
@@ -4941,7 +4937,7 @@ static int ocfs2_divide_xattr_cluster(struct inode *inode,
 				      u32 *first_hash)
 {
 	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
-	int ret, credits = 2 * blk_per_bucket + handle->h_buffer_credits;
+	int ret, credits = 2 * blk_per_bucket;
 
 	BUG_ON(OCFS2_XATTR_BUCKET_SIZE < OCFS2_SB(inode->i_sb)->s_clustersize);
 
@@ -5181,8 +5177,7 @@ static int ocfs2_extend_xattr_bucket(struct inode *inode,
 	 * existing bucket.  Then we add the last existing bucket, the
 	 * new bucket, and the first bucket (3 * blk_per_bucket).
 	 */
-	credits = (end_blk - target_blk) + (3 * blk_per_bucket) +
-		  handle->h_buffer_credits;
+	credits = (end_blk - target_blk) + (3 * blk_per_bucket);
 	ret = ocfs2_extend_trans(handle, credits);
 	if (ret) {
 		mlog_errno(ret);

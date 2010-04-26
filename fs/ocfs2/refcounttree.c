@@ -1693,7 +1693,7 @@ static int ocfs2_adjust_refcount_rec(handle_t *handle,
 	 * 2 more credits, one for the leaf refcount block, one for
 	 * the extent block contains the extent rec.
 	 */
-	ret = ocfs2_extend_trans(handle, handle->h_buffer_credits + 2);
+	ret = ocfs2_extend_trans(handle, 2);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
