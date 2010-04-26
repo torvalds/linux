@@ -431,6 +431,14 @@ SOC_ENUM("PCM Playback De-emphasis", uda134x_mixer_enum[1]),
 SOC_SINGLE("DC Filter Enable Switch", UDA134X_STATUS0, 0, 1, 0),
 };
 
+static const struct snd_kcontrol_new uda1345_snd_controls[] = {
+SOC_SINGLE("Master Playback Volume", UDA134X_DATA000, 0, 0x3F, 1),
+
+SOC_ENUM("PCM Playback De-emphasis", uda134x_mixer_enum[1]),
+
+SOC_SINGLE("DC Filter Enable Switch", UDA134X_STATUS0, 0, 1, 0),
+};
+
 static struct snd_soc_dai_ops uda134x_dai_ops = {
 	.startup	= uda134x_startup,
 	.shutdown	= uda134x_shutdown,
@@ -486,6 +494,7 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 	case UDA134X_UDA1340:
 	case UDA134X_UDA1341:
 	case UDA134X_UDA1344:
+	case UDA134X_UDA1345:
 		break;
 	default:
 		printk(KERN_ERR "UDA134X SoC codec: "
@@ -550,6 +559,10 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 	case UDA134X_UDA1341:
 		ret = snd_soc_add_controls(codec, uda1341_snd_controls,
 					ARRAY_SIZE(uda1341_snd_controls));
+	break;
+	case UDA134X_UDA1345:
+		ret = snd_soc_add_controls(codec, uda1345_snd_controls,
+					ARRAY_SIZE(uda1345_snd_controls));
 	break;
 	default:
 		printk(KERN_ERR "%s unknown codec type: %d",
