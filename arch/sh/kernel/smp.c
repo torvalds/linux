@@ -125,10 +125,15 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	struct task_struct *tsk;
 	unsigned long timeout;
 
-	tsk = fork_idle(cpu);
-	if (IS_ERR(tsk)) {
-		printk(KERN_ERR "Failed forking idle task for cpu %d\n", cpu);
-		return PTR_ERR(tsk);
+	tsk = cpu_data[cpu].idle;
+	if (!tsk) {
+		tsk = fork_idle(cpu);
+		if (IS_ERR(tsk)) {
+			pr_err("Failed forking idle task for cpu %d\n", cpu);
+			return PTR_ERR(tsk);
+		}
+
+		cpu_data[cpu].idle = tsk;
 	}
 
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
