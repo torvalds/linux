@@ -49,8 +49,6 @@
 
 #include "tlv320aic3x.h"
 
-#define AIC3X_VERSION "0.2"
-
 /* codec private data */
 struct aic3x_priv {
 	struct snd_soc_codec codec;
