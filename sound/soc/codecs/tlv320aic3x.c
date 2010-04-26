@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/regulator/consumer.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -49,9 +50,18 @@
 
 #include "tlv320aic3x.h"
 
+#define AIC3X_NUM_SUPPLIES	4
+static const char *aic3x_supply_names[AIC3X_NUM_SUPPLIES] = {
+	"IOVDD",	/* I/O Voltage */
+	"DVDD",		/* Digital Core Voltage */
+	"AVDD",		/* Analog DAC Voltage */
+	"DRVDD",	/* ADC Analog and Output Driver Voltage */
+};
+
 /* codec private data */
 struct aic3x_priv {
 	struct snd_soc_codec codec;
+	struct regulator_bulk_data supplies[AIC3X_NUM_SUPPLIES];
 	unsigned int sysclk;
 	int master;
 };
@@ -1268,6 +1278,9 @@ static int aic3x_unregister(struct aic3x_priv *aic3x)
 	snd_soc_unregister_dai(&aic3x_dai);
 	snd_soc_unregister_codec(&aic3x->codec);
 
+	regulator_bulk_disable(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+
 	kfree(aic3x);
 	aic3x_codec = NULL;
 
@@ -1289,6 +1302,7 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 {
 	struct snd_soc_codec *codec;
 	struct aic3x_priv *aic3x;
+	int ret, i;
 
 	aic3x = kzalloc(sizeof(struct aic3x_priv), GFP_KERNEL);
 	if (aic3x == NULL) {
@@ -1304,7 +1318,30 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, aic3x);
 
+	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++)
+		aic3x->supplies[i].supply = aic3x_supply_names[i];
+
+	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(aic3x->supplies),
+				 aic3x->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
+		goto err_get;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(aic3x->supplies),
+				    aic3x->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
+		goto err_enable;
+	}
+
 	return aic3x_register(codec);
+
+err_enable:
+	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+err_get:
+	kfree(aic3x);
+	return ret;
 }
 
 static int aic3x_i2c_remove(struct i2c_client *client)
