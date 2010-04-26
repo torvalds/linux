@@ -162,7 +162,15 @@ static unsigned long clksel_recalc(struct clk *clk)
 {
 	u32 div = ((readl(clk->clksel_reg) & clk->clksel_mask) >> clk->clksel_shift) + 1;
 	unsigned long rate = clk->parent->rate / div;
-	pr_debug("clock: %s new clock rate is %ld (div %d) reg %p mask %x shift %d\n", clk->name, rate, div, clk->clksel_reg, clk->clksel_mask, clk->clksel_shift);
+	pr_debug("clock: %s new clock rate is %ld (div %d)\n", clk->name, rate, div);
+	return rate;
+}
+
+static unsigned long clksel_recalc_shift(struct clk *clk)
+{
+	u32 shift = (readl(clk->clksel_reg) & clk->clksel_mask) >> clk->clksel_shift;
+	unsigned long rate = clk->parent->rate >> shift;
+	pr_debug("clock: %s new clock rate is %ld (shift %d)\n", clk->name, rate, shift);
 	return rate;
 }
 
@@ -180,6 +188,27 @@ static int clksel_set_rate(struct clk *clk, unsigned long rate)
 			writel(v, reg);
 			clk->rate = new_rate;
 			pr_debug("clock: clksel_set_rate for clock %s to rate %ld (div %d)\n", clk->name, rate, div);
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+
+static int clksel_set_rate_shift(struct clk *clk, unsigned long rate)
+{
+	u32 shift;
+
+	for (shift = 0; (1 << shift) <= clk->clksel_maxdiv; shift++) {
+		u32 new_rate = clk->parent->rate >> shift;
+		if (new_rate <= rate) {
+			u32 *reg = clk->clksel_reg;
+			u32 v = readl(reg);
+			v &= ~clk->clksel_mask;
+			v |= shift << clk->clksel_shift;
+			writel(v, reg);
+			clk->rate = new_rate;
+			pr_debug("clock: clksel_set_rate for clock %s to rate %ld (shift %d)\n", clk->name, rate, shift);
 			return 0;
 		}
 	}
@@ -236,6 +265,7 @@ static struct clk arm_clk = {
 //	.set_rate	= arm_clk_set_rate,
 	.clksel_reg	= CLKSEL2_REG,
 	.clksel_mask	= 0xF,
+	.clksel_maxdiv	= 16,
 };
 
 static struct clk arm_hclk = {
@@ -244,6 +274,7 @@ static struct clk arm_hclk = {
 	.recalc		= clksel_recalc,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 0x3,
+	.clksel_maxdiv	= 4,
 };
 
 static struct clk clk48m = {
@@ -256,40 +287,28 @@ static struct clk clk48m = {
 	.clksel_shift	= 4,
 };
 
-static unsigned long arm_pclk_recalc(struct clk *clk)
-{
-	u32 shift = (readl(&scu_register_base->scu_clksel0_config) >> 2) & 0x3;
-	unsigned long rate = clk->parent->rate >> shift;
-	pr_debug("clock: %s new clock rate is %ld (shift %d)\n", clk->name, rate, shift);
-	return rate;
-}
-
 static struct clk arm_pclk = {
 	.name		= "arm_pclk",
 	.parent		= &arm_hclk,
-	.recalc		= arm_pclk_recalc,
+	.recalc		= clksel_recalc_shift,
+	.set_rate	= clksel_set_rate_shift,
+	.clksel_reg	= CLKSEL0_REG,
+	.clksel_mask	= 0x3 << 2,
+	.clksel_shift	= 2,
+	.clksel_maxdiv	= 4,
 };
 
 static void demod_clk_init(struct clk *clk)
 {
-	struct clk *real_parent = clk->parent;
+	struct clk *parent = clk->parent;
 	u32 r = readl(CLKSEL1_REG);
 	if (r & (1 << 26)) {
-		real_parent = &xin24m;
+		parent = &xin24m;
 	} else {
 		r >>= 24;
-		if (r == 0) {
-			real_parent = &codec_pll_clk;
-		} else if (r == 1) {
-			real_parent = &arm_pll_clk;
-		} else if (r == 2) {
-			real_parent = &dsp_pll_clk;
-		}
+		parent = (r == 0) ? &codec_pll_clk : (r == 1) ? &arm_pll_clk : (r == 2) ? &dsp_pll_clk : parent;
 	}
-	if (real_parent != clk->parent) {
-		pr_debug("clock: inited %s parent to %s (was %s)\n", clk->name, real_parent->name, ((clk->parent) ? clk->parent->name : "NULL"));
-		clk_reparent(clk, real_parent);
-	}
+	clk_reparent(clk, parent);
 }
 
 static struct clk demod_clk = {
@@ -298,7 +317,6 @@ static struct clk demod_clk = {
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
 	.init		= demod_clk_init,
-//	.set_parent	= demod_clk_set_parent,
 	.clksel_reg	= CLKSEL1_REG,
 	.clksel_mask	= 0xFF << 16,
 	.clksel_shift	= 16,
@@ -327,14 +345,39 @@ static struct clk lcdc_divider_clk = {
 	.clksel_maxdiv	= 128,
 };
 
+static void otgphy_clk_init(struct clk *clk)
+{
+	u32 r = (readl(CLKSEL0_REG) >> 18) & 3;
+	struct clk *parent = (r == 0) ? &xin24m : (r == 1) ? &clk12m : (r == 2) ? &clk48m : clk->parent;
+	clk_reparent(clk, parent);
+}
+
 static void lcdc_clk_init(struct clk *clk)
 {
-	u32 r = readl(&scu_register_base->scu_clksel0_config) & (1 << 7);
-	struct clk *real_parent = r ? &extclk : &lcdc_divider_clk;
-	if (real_parent != clk->parent) {
-		pr_debug("clock: inited %s parent to %s (was %s)\n", clk->name, real_parent->name, ((clk->parent) ? clk->parent->name : "NULL"));
-		clk_reparent(clk, real_parent);
-	}
+	u32 r = readl(CLKSEL0_REG) & (1 << 7);
+	struct clk *parent = r ? &extclk : &lcdc_divider_clk;
+	clk_reparent(clk, parent);
+}
+
+static void vip_clk_init(struct clk *clk)
+{
+	u32 r = (readl(CLKSEL0_REG) >> 23) & 3;
+	struct clk *parent = (r == 0) ? &xin24m : (r == 1) ? &extclk : (r == 2) ? &clk48m : clk->parent;
+	clk_reparent(clk, parent);
+}
+
+static void ddr_clk_init(struct clk *clk)
+{
+	u32 r = (readl(CLKSEL0_REG) >> 28) & 3;
+	struct clk *parent = (r == 0) ? &codec_pll_clk : (r == 1) ? &arm_pll_clk : (r == 2) ? &dsp_pll_clk : clk->parent;
+	clk_reparent(clk, parent);
+}
+
+static void i2s_clk_init(struct clk *clk)
+{
+	u32 r = readl(CLKSEL1_REG) & (1 << 2);
+	struct clk *parent = r ? &clk12m : &codec_clk;
+	clk_reparent(clk, parent);
 }
 
 static int gate_mode(struct clk *clk, int on)
@@ -372,30 +415,27 @@ static int gate_mode(struct clk *clk, int on)
 static void uart_clk_init(struct clk *clk)
 {
 	u32 r = readl(&scu_register_base->scu_clksel1_config) >> 31;
-	struct clk *real_parent = r ? &clk48m : &xin24m;
-	if (real_parent != clk->parent) {
-		pr_debug("clock: inited %s parent to %s (was %s)\n", clk->name, real_parent->name, ((clk->parent) ? clk->parent->name : "NULL"));
-		clk_reparent(clk, real_parent);
-	}
+	struct clk *parent = r ? &clk48m : &xin24m;
+	clk_reparent(clk, parent);
 }
 
 #define UART_CLK(n) \
 static struct clk uart##n##_clk = { \
 	.name		= "uart"#n, \
 	.parent		= &xin24m, \
-	.gate_idx	= SCU_IPID_UART##n, \
 	.mode		= gate_mode, \
 	.recalc		= followparent_recalc, \
 	.init		= uart_clk_init, \
+	.gate_idx	= SCU_IPID_UART##n, \
 }
 
 #define GATE_CLK(NAME,PARENT,ID) \
 static struct clk NAME##_clk = { \
 	.name		= #NAME, \
 	.parent		= &PARENT, \
-	.gate_idx	= SCU_IPID_##ID, \
 	.mode		= gate_mode, \
 	.recalc		= followparent_recalc, \
+	.gate_idx	= SCU_IPID_##ID, \
 }
 
 GATE_CLK(arm_core, arm_clk, ARM);
@@ -405,28 +445,48 @@ GATE_CLK(sramarm, arm_hclk, SRAMARM);
 GATE_CLK(sramdsp, arm_hclk, SRAMDSP);
 GATE_CLK(hif, arm_hclk, HIF);
 GATE_CLK(otgbus, arm_hclk, OTGBUS);
-//GATE_CLK(otgphy, arm_hclk, OTGPHY); //FIXME
+static struct clk otgphy_clk = {
+	.name		= "otgphy",
+	.parent		= &xin24m,
+	.mode		= gate_mode,
+	.recalc		= followparent_recalc,
+	.init		= otgphy_clk_init,
+	.gate_idx	= SCU_IPID_OTGPHY,
+};
 GATE_CLK(nandc, arm_hclk, NANDC);
 GATE_CLK(intc, arm_hclk, INTC);
 GATE_CLK(deblocking_rv, arm_hclk, DEBLK);
 static struct clk lcdc_clk = {
 	.name		= "lcdc",
 	.parent		= &lcdc_divider_clk,
-	.gate_idx	= SCU_IPID_LCDC,
 	.mode		= gate_mode,
 	.recalc		= followparent_recalc,
 	.init		= lcdc_clk_init,
-//	.set_parent	= lcdc_clk_set_parent,
+	.gate_idx	= SCU_IPID_LCDC,
 };
-GATE_CLK(vip, arm_hclk, VIP); //FIXME
-GATE_CLK(i2s, arm_pclk, I2S); //FIXME
+static struct clk vip_clk = {
+	.name		= "vip",
+	.parent		= &xin24m,
+	.mode		= gate_mode,
+	.recalc		= followparent_recalc,
+	.init		= vip_clk_init,
+	.gate_idx	= SCU_IPID_VIP,
+};
+static struct clk i2s_clk = {
+	.name		= "i2s",
+	.parent		= &clk12m,
+	.mode		= gate_mode,
+	.recalc		= followparent_recalc,
+	.init		= i2s_clk_init,
+	.gate_idx	= SCU_IPID_I2S,
+};
 static struct clk sdmmc0_clk = {
 	.name		= "sdmmc0",
 	.parent		= &arm_hclk,
-	.gate_idx	= SCU_IPID_SDMMC0,
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
+	.gate_idx	= SCU_IPID_SDMMC0,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 7 << 4,
 	.clksel_shift	= 4,
@@ -449,10 +509,10 @@ GATE_CLK(rtc, arm_pclk, RTC);
 static struct clk lsadc_clk = {
 	.name		= "lsadc",
 	.parent		= &arm_pclk,
-	.gate_idx	= SCU_IPID_LSADC,
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
+	.gate_idx	= SCU_IPID_LSADC,
 	.clksel_reg	= CLKSEL1_REG,
 	.clksel_mask	= 0xFF << 8,
 	.clksel_shift	= 8,
@@ -463,10 +523,10 @@ UART_CLK(3);
 static struct clk sdmmc1_clk = {
 	.name		= "sdmmc1",
 	.parent		= &arm_hclk,
-	.gate_idx	= SCU_IPID_SDMMC1,
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
+	.gate_idx	= SCU_IPID_SDMMC1,
 	.clksel_reg	= CLKSEL2_REG,
 	.clksel_mask	= 7 << 8,
 	.clksel_shift	= 8,
@@ -481,27 +541,39 @@ static unsigned long hsadc_clk_recalc(struct clk *clk)
 static struct clk hsadc_clk = {
 	.name		= "hsadc",
 	.parent		= &demod_clk,
-	.gate_idx	= SCU_IPID_HSADC,
 	.mode		= gate_mode,
 	.recalc		= hsadc_clk_recalc,
+	.gate_idx	= SCU_IPID_HSADC,
 };
-//GATE_CLK(mobile_sdram_common, arm_hclk, MOBILE_SDARM_COMMON);
-//GATE_CLK(sdram_controller, arm_hclk, SDRAM_CONTROLLER);
-//GATE_CLK(mobile_sdram_controller, arm_hclk, MOBILE_SDRAM_CONTROLLER);
-//GATE_CLK(lcdc_share_memory, arm_hclk, LCDC_SHARE_MEMORY); //FIXME
-//GATE_CLK(lcdc_hclk, arm_hclk, LCDC_HCLK); //FIXME
-//GATE_CLK(deblocking_h264, arm_hclk, DEBLK_H264);
-//GATE_CLK(gpu, arm_hclk, GPU);
-//GATE_CLK(ddr_hclk, arm_hclk, DDR_HCLK); //FIXME
-//GATE_CLK(ddr, arm_hclk, DDR); //FIXME
-//GATE_CLK(customized_sdram_controller, ); //FIXME
-//GATE_CLK(mcdma, arm_hclk, MCDMA); //FIXME
-//GATE_CLK(sdram, arm_hclk, SDRAM); //FIXME
-//GATE_CLK(ddr_axi, arm_hclk, DDR_AXI); //FIXME
-//GATE_CLK(dsp_timer, ); //FIXME
-//GATE_CLK(dsp_slave, ); //FIXME
-//GATE_CLK(dsp_master, ); //FIXME
-//GATE_CLK(usb_host, ); //FIXME
+GATE_CLK(mobile_sdram_common, arm_hclk, MOBILE_SDARM_COMMON);
+GATE_CLK(sdram_controller, arm_hclk, SDRAM_CONTROLLER);
+GATE_CLK(mobile_sdram_controller, arm_hclk, MOBILE_SDRAM_CONTROLLER);
+GATE_CLK(lcdc_share_memory, arm_hclk, LCDC_SHARE_MEMORY);
+GATE_CLK(lcdc_hclk, arm_hclk, LCDC_HCLK);
+GATE_CLK(deblocking_h264, arm_hclk, DEBLK_H264);
+GATE_CLK(gpu, arm_hclk, GPU);
+GATE_CLK(ddr_hclk, arm_hclk, DDR_HCLK);
+static struct clk ddr_clk = {
+	.name		= "ddr",
+	.parent		= &codec_pll_clk,
+	.mode		= gate_mode,
+	.recalc		= clksel_recalc_shift,
+	.set_rate	= clksel_set_rate_shift,
+	.init		= ddr_clk_init,
+	.gate_idx	= SCU_IPID_DDR,
+	.clksel_reg	= CLKSEL0_REG,
+	.clksel_mask	= 0x3 << 30,
+	.clksel_shift	= 30,
+	.clksel_maxdiv	= 8,
+};
+GATE_CLK(customized_sdram_controller, arm_hclk, CUSTOMIZED_SDRAM_CONTROLLER);
+GATE_CLK(mcdma, arm_hclk, MCDMA);
+GATE_CLK(sdram, arm_hclk, SDRAM);
+GATE_CLK(ddr_axi, arm_hclk, DDR_AXI);
+GATE_CLK(dsp_timer, arm_hclk, DSP_TIMER);
+GATE_CLK(dsp_slave, arm_hclk, DSP_SLAVE);
+GATE_CLK(dsp_master, arm_hclk, DSP_MASTER);
+GATE_CLK(usb_host, clk48m, USB_HOST);
 
 GATE_CLK(armibus, arm_hclk, ARMIBUS);
 GATE_CLK(armdbus, arm_hclk, ARMDBUS);
@@ -551,13 +623,13 @@ static struct clk_lookup clks[] = {
 	CLK1(sramdsp),
 	CLK1(hif),
 	CLK1(otgbus),
-	//CLK1(otgphy), //FIXME
+	CLK1(otgphy),
 	CLK1(nandc),
 	CLK1(intc),
 	CLK1(deblocking_rv),
 	CLK1(lcdc),
-	CLK1(vip), //FIXME
-	CLK1(i2s), //FIXME
+	CLK1(vip),
+	CLK1(i2s),
 	CLK1(sdmmc0),
 	CLK1(ebrom),
 	CLK1(gpio0),
@@ -578,23 +650,23 @@ static struct clk_lookup clks[] = {
 	CLK1(sdmmc1),
 
 	CLK1(hsadc),
-	//CLK1(mobile_sdram_common),
-	//CLK1(sdram_controller),
-	//CLK1(mobile_sdram_controller),
-	//CLK1(lcdc_share_memory), //FIXME
-	//CLK1(lcdc_hclk), //FIXME
-	//CLK1(deblocking_h264),
-	//CLK1(gpu),
-	//CLK1(ddr_hclk), //FIXME
-	//CLK1(ddr), //FIXME
-	//CLK1(customized_sdram_controller), //FIXME
-	//CLK1(mcdma), //FIXME
-	//CLK1(sdram), //FIXME
-	//CLK1(ddr_axi), //FIXME
-	//CLK1(dsp_timer), //FIXME
-	//CLK1(dsp_slave), //FIXME
-	//CLK1(dsp_master), //FIXME
-	//CLK1(usb_host), //FIXME
+	CLK1(mobile_sdram_common),
+	CLK1(sdram_controller),
+	CLK1(mobile_sdram_controller),
+	CLK1(lcdc_share_memory),
+	CLK1(lcdc_hclk),
+	CLK1(deblocking_h264),
+	CLK1(gpu),
+	CLK1(ddr_hclk),
+	CLK1(ddr),
+	CLK1(customized_sdram_controller),
+	CLK1(mcdma),
+	CLK1(sdram),
+	CLK1(ddr_axi),
+	CLK1(dsp_timer),
+	CLK1(dsp_slave),
+	CLK1(dsp_master),
+	CLK1(usb_host),
 
 	CLK1(armibus),
 	CLK1(armdbus),
@@ -808,6 +880,10 @@ EXPORT_SYMBOL(clk_get_parent);
 
 static void clk_reparent(struct clk *child, struct clk *parent)
 {
+	if (child->parent == parent)
+		return;
+	pr_debug("clock: %s reparent to %s (was %s)\n", child->name, parent->name, ((child->parent) ? child->parent->name : "NULL"));
+
 	list_del_init(&child->sibling);
 	if (parent)
 		list_add(&child->sibling, &parent->children);
