@@ -112,9 +112,11 @@ int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
 
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
+	mutex_lock(&rdev->vram_mutex);
 	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, 0, 0, !kernel, NULL, size,
 			&radeon_ttm_bo_destroy);
+	mutex_unlock(&rdev->vram_mutex);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(rdev->dev,
@@ -170,7 +172,9 @@ void radeon_bo_unref(struct radeon_bo **bo)
 	if ((*bo) == NULL)
 		return;
 	tbo = &((*bo)->tbo);
+	mutex_lock(&(*bo)->rdev->vram_mutex);
 	ttm_bo_unref(&tbo);
+	mutex_unlock(&(*bo)->rdev->vram_mutex);
 	if (tbo == NULL)
 		*bo = NULL;
 }

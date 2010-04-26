@@ -607,13 +607,17 @@ static const struct vm_operations_struct *ttm_vm_ops = NULL;
 static int radeon_ttm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *bo;
+	struct radeon_device *rdev;
 	int r;
 
-	bo = (struct ttm_buffer_object *)vma->vm_private_data;
+	bo = (struct ttm_buffer_object *)vma->vm_private_data;	
 	if (bo == NULL) {
 		return VM_FAULT_NOPAGE;
 	}
+	rdev = radeon_get_rdev(bo->bdev);
+	mutex_lock(&rdev->vram_mutex);
 	r = ttm_vm_ops->fault(vma, vmf);
+	mutex_unlock(&rdev->vram_mutex);
 	return r;
 }
 

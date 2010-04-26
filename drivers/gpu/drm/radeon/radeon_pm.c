@@ -32,6 +32,28 @@
 static void radeon_pm_idle_work_handler(struct work_struct *work);
 static int radeon_debugfs_pm_init(struct radeon_device *rdev);
 
+static void radeon_unmap_vram_bos(struct radeon_device *rdev)
+{
+	struct radeon_bo *bo, *n;
+
+	if (list_empty(&rdev->gem.objects))
+		return;
+
+	list_for_each_entry_safe(bo, n, &rdev->gem.objects, list) {
+		if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
+			ttm_bo_unmap_virtual(&bo->tbo);
+	}
+
+	if (rdev->gart.table.vram.robj)
+		ttm_bo_unmap_virtual(&rdev->gart.table.vram.robj->tbo);
+
+	if (rdev->stollen_vga_memory)
+		ttm_bo_unmap_virtual(&rdev->stollen_vga_memory->tbo);
+
+	if (rdev->r600_blit.shader_obj)
+		ttm_bo_unmap_virtual(&rdev->r600_blit.shader_obj->tbo);
+}
+
 static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 {
 	int i;
@@ -47,6 +69,10 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 		msecs_to_jiffies(RADEON_WAIT_IDLE_TIMEOUT));
 	rdev->irq.gui_idle = false;
 	radeon_irq_set(rdev);
+
+	mutex_lock(&rdev->vram_mutex);
+
+	radeon_unmap_vram_bos(rdev);
 
 	if (!static_switch) {
 		for (i = 0; i < rdev->num_crtc; i++) {
@@ -67,6 +93,8 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 			}
 		}
 	}
+
+	mutex_unlock(&rdev->vram_mutex);
 	
 	/* update display watermarks based on new power state */
 	radeon_update_bandwidth_info(rdev);

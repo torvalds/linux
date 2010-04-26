@@ -1024,6 +1024,7 @@ struct radeon_device {
 	struct work_struct hotplug_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
+	struct mutex vram_mutex;
 
 	/* audio stuff */
 	struct timer_list	audio_timer;
