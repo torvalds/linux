@@ -2029,8 +2029,7 @@ accept:
 		rxs->freq = sc->curchan->center_freq;
 		rxs->band = sc->curband->band;
 
-		rxs->noise = sc->ah->ah_noise_floor;
-		rxs->signal = rxs->noise + rs.rs_rssi;
+		rxs->signal = sc->ah->ah_noise_floor + rs.rs_rssi;
 
 		rxs->antenna = rs.rs_antenna;
 
