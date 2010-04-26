@@ -244,16 +244,25 @@ void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 		    enum htc_endpoint_id ep_id, bool txok)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) drv_priv;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ieee80211_tx_info *tx_info;
 
 	if (!skb)
 		return;
 
-	if (ep_id == priv->mgmt_ep)
+	if (ep_id == priv->mgmt_ep) {
 		skb_pull(skb, sizeof(struct tx_mgmt_hdr));
-	else
-		/* TODO: Check for cab/uapsd/data */
+	} else if ((ep_id == priv->data_bk_ep) ||
+		   (ep_id == priv->data_be_ep) ||
+		   (ep_id == priv->data_vi_ep) ||
+		   (ep_id == priv->data_vo_ep)) {
 		skb_pull(skb, sizeof(struct tx_frame_hdr));
+	} else {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unsupported TX EPID: %d\n", ep_id);
+		dev_kfree_skb_any(skb);
+		return;
+	}
 
 	tx_info = IEEE80211_SKB_CB(skb);
 
