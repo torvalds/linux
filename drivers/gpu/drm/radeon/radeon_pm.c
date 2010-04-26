@@ -29,13 +29,13 @@
 #define RADEON_WAIT_VBLANK_TIMEOUT 200
 #define RADEON_WAIT_IDLE_TIMEOUT 200
 
-static void radeon_pm_set_clocks_locked(struct radeon_device *rdev);
-static void radeon_pm_set_clocks(struct radeon_device *rdev);
 static void radeon_pm_idle_work_handler(struct work_struct *work);
 static int radeon_debugfs_pm_init(struct radeon_device *rdev);
 
-static void radeon_pm_set_power_mode_static_locked(struct radeon_device *rdev)
+static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 {
+	int i;
+
 	mutex_lock(&rdev->cp.mutex);
 
 	/* wait for GPU idle */
@@ -48,12 +48,32 @@ static void radeon_pm_set_power_mode_static_locked(struct radeon_device *rdev)
 	rdev->irq.gui_idle = false;
 	radeon_irq_set(rdev);
 
-	radeon_set_power_state(rdev, true);
+	if (!static_switch) {
+		for (i = 0; i < rdev->num_crtc; i++) {
+			if (rdev->pm.active_crtcs & (1 << i)) {
+				rdev->pm.req_vblank |= (1 << i);
+				drm_vblank_get(rdev->ddev, i);
+			}
+		}
+	}
+	
+	radeon_set_power_state(rdev, static_switch);
 
+	if (!static_switch) {
+		for (i = 0; i < rdev->num_crtc; i++) {
+			if (rdev->pm.req_vblank & (1 << i)) {
+				rdev->pm.req_vblank &= ~(1 << i);
+				drm_vblank_put(rdev->ddev, i);
+			}
+		}
+	}
+	
 	/* update display watermarks based on new power state */
 	radeon_update_bandwidth_info(rdev);
 	if (rdev->pm.active_crtc_count)
 		radeon_bandwidth_update(rdev);
+
+	rdev->pm.planned_action = PM_ACTION_NONE;
 
 	mutex_unlock(&rdev->cp.mutex);
 }
@@ -95,7 +115,7 @@ static ssize_t radeon_set_power_state_static(struct device *dev,
 			rdev->pm.planned_action = PM_ACTION_NONE;
 			rdev->pm.requested_power_state_index = ps;
 			rdev->pm.requested_clock_mode_index = cm;
-			radeon_pm_set_power_mode_static_locked(rdev);
+			radeon_pm_set_clocks(rdev, true);
 		}
 	} else
 		DRM_ERROR("Invalid power state: %d.%d\n\n", ps, cm);
@@ -257,14 +277,14 @@ void radeon_pm_fini(struct radeon_device *rdev)
 		/* reset default clocks */
 		rdev->pm.state = PM_STATE_DISABLED;
 		rdev->pm.planned_action = PM_ACTION_DEFAULT;
-		radeon_pm_set_clocks(rdev);
+		radeon_pm_set_clocks(rdev, false);
 	} else if ((rdev->pm.current_power_state_index !=
 		    rdev->pm.default_power_state_index) ||
 		   (rdev->pm.current_clock_mode_index != 0)) {
 		rdev->pm.requested_power_state_index = rdev->pm.default_power_state_index;
 		rdev->pm.requested_clock_mode_index = 0;
 		mutex_lock(&rdev->pm.mutex);
-		radeon_pm_set_power_mode_static_locked(rdev);
+		radeon_pm_set_clocks(rdev, true);
 		mutex_unlock(&rdev->pm.mutex);
 	}
 
@@ -303,7 +323,7 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 
 			rdev->pm.state = PM_STATE_PAUSED;
 			rdev->pm.planned_action = PM_ACTION_UPCLOCK;
-			radeon_pm_set_clocks(rdev);
+			radeon_pm_set_clocks(rdev, false);
 
 			DRM_DEBUG("radeon: dynamic power management deactivated\n");
 		}
@@ -313,7 +333,7 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 		if (rdev->pm.state == PM_STATE_MINIMUM) {
 			rdev->pm.state = PM_STATE_ACTIVE;
 			rdev->pm.planned_action = PM_ACTION_UPCLOCK;
-			radeon_pm_set_clocks(rdev);
+			radeon_pm_set_clocks(rdev, false);
 
 			queue_delayed_work(rdev->wq, &rdev->pm.idle_work,
 				msecs_to_jiffies(RADEON_IDLE_LOOP_MS));
@@ -329,7 +349,7 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 
 			rdev->pm.state = PM_STATE_MINIMUM;
 			rdev->pm.planned_action = PM_ACTION_MINIMUM;
-			radeon_pm_set_clocks(rdev);
+			radeon_pm_set_clocks(rdev, false);
 		}
 	}
 
@@ -400,52 +420,6 @@ bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish)
 			 finish ? "exit" : "entry");
 	return in_vbl;
 }
-static void radeon_pm_set_clocks_locked(struct radeon_device *rdev)
-{
-	/*radeon_fence_wait_last(rdev);*/
-
-	radeon_set_power_state(rdev, false);
-	rdev->pm.planned_action = PM_ACTION_NONE;
-}
-
-static void radeon_pm_set_clocks(struct radeon_device *rdev)
-{
-	int i;
-
-	radeon_get_power_state(rdev, rdev->pm.planned_action);
-	mutex_lock(&rdev->cp.mutex);
-
-	/* wait for GPU idle */
-	rdev->pm.gui_idle = false;
-	rdev->irq.gui_idle = true;
-	radeon_irq_set(rdev);
-	wait_event_interruptible_timeout(
-		rdev->irq.idle_queue, rdev->pm.gui_idle,
-		msecs_to_jiffies(RADEON_WAIT_IDLE_TIMEOUT));
-	rdev->irq.gui_idle = false;
-	radeon_irq_set(rdev);
-
-	for (i = 0; i < rdev->num_crtc; i++) {
-		if (rdev->pm.active_crtcs & (1 << i)) {
-			rdev->pm.req_vblank |= (1 << i);
-			drm_vblank_get(rdev->ddev, i);
-		}
-	}
-	radeon_pm_set_clocks_locked(rdev);
-	for (i = 0; i < rdev->num_crtc; i++) {
-		if (rdev->pm.req_vblank & (1 << i)) {
-			rdev->pm.req_vblank &= ~(1 << i);
-			drm_vblank_put(rdev->ddev, i);
-		}
-	}
-
-	/* update display watermarks based on new power state */
-	radeon_update_bandwidth_info(rdev);
-	if (rdev->pm.active_crtc_count)
-		radeon_bandwidth_update(rdev);
-
-	mutex_unlock(&rdev->cp.mutex);
-}
 
 static void radeon_pm_idle_work_handler(struct work_struct *work)
 {
@@ -493,7 +467,7 @@ static void radeon_pm_idle_work_handler(struct work_struct *work)
 
 		if (rdev->pm.planned_action != PM_ACTION_NONE &&
 		    jiffies > rdev->pm.action_timeout) {
-			radeon_pm_set_clocks(rdev);
+			radeon_pm_set_clocks(rdev, false);
 		}
 	}
 	mutex_unlock(&rdev->pm.mutex);
