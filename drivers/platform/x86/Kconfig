@@ -527,4 +527,12 @@ config ACPI_CMPC
 	  keys as input device, backlight device, tablet and accelerometer
 	  devices.
 
+config INTEL_SCU_IPC
+	bool "Intel SCU IPC Support"
+	depends on X86_MRST
+	default y
+	---help---
+	  IPC is used to bridge the communications between kernel and SCU on
+	  some embedded Intel x86 platforms.
+
 endif # X86_PLATFORM_DEVICES
