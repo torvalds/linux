@@ -375,16 +375,7 @@ static u32 ar9003_hw_compute_pll_control(struct ath_hw *ah,
 	else if (chan && IS_CHAN_QUARTER_RATE(chan))
 		pll |= SM(0x2, AR_RTC_9300_PLL_CLKSEL);
 
-	if (chan && IS_CHAN_5GHZ(chan)) {
-		pll |= SM(0x28, AR_RTC_9300_PLL_DIV);
-
-		/*
-		 * When doing fast clock, set PLL to 0x142c
-		 */
-		if (IS_CHAN_A_5MHZ_SPACED(chan))
-			pll = 0x142c;
-	} else
-		pll |= SM(0x2c, AR_RTC_9300_PLL_DIV);
+	pll |= SM(0x2c, AR_RTC_9300_PLL_DIV);
 
 	return pll;
 }
