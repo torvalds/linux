@@ -926,7 +926,6 @@ static void ar9170_rx_phy_status(struct ar9170 *ar,
 
 	/* TODO: we could do something with phy_errors */
 	status->signal = ar->noise[0] + phy->rssi_combined;
-	status->noise = ar->noise[0];
 }
 
 static struct sk_buff *ar9170_rx_copy_data(u8 *buf, int len)
