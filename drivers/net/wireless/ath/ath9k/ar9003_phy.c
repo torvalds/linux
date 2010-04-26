@@ -1093,6 +1093,7 @@ static void ar9003_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		ath_print(common, ATH_DBG_ANY, "Timeout while waiting for nf "
 			  "to load: AR_PHY_AGC_CONTROL=0x%x\n",
 			  REG_READ(ah, AR_PHY_AGC_CONTROL));
+		return;
 	}
 
 	/*
