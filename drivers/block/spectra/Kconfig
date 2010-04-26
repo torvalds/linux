@@ -1,0 +1,27 @@
+
+menuconfig MRST_NAND
+	tristate "Moorestown NAND Flash controller"
+	depends on BLOCK
+	default n
+	---help---
+	  Enable the driver for the NAND Flash controller in Intel Moorestown
+	  Platform
+
+choice
+	prompt "Compile for"
+	depends on MRST_NAND
+	default MRST_NAND_HW
+
+config MRST_NAND_HW
+	bool "Actual hardware mode"
+	help
+	  Driver communicates with the actual hardware's register interface.
+	  in DMA mode.
+
+config MRST_NAND_EMU
+	bool "RAM emulator testing"
+	help
+	  Driver emulates Flash on a RAM buffer and / or disk file.  Useful to test the behavior of FTL layer.
+
+endchoice
+
