@@ -1236,8 +1236,11 @@ __sk_dst_set(struct sock *sk, struct dst_entry *dst)
 	struct dst_entry *old_dst;
 
 	sk_tx_queue_clear(sk);
-	old_dst = rcu_dereference_check(sk->sk_dst_cache,
-					lockdep_is_held(&sk->sk_dst_lock));
+	/*
+	 * This can be called while sk is owned by the caller only,
+	 * with no state that can be checked in a rcu_dereference_check() cond
+	 */
+	old_dst = rcu_dereference_raw(sk->sk_dst_cache);
 	rcu_assign_pointer(sk->sk_dst_cache, dst);
 	dst_release(old_dst);
 }
