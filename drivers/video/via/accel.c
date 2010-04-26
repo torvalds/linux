@@ -315,13 +315,11 @@ static int hw_bitblt_2(void __iomem *engine, u8 op, u32 width, u32 height,
 	return 0;
 }
 
-int viafb_init_engine(struct fb_info *info)
+int viafb_setup_engine(struct fb_info *info)
 {
 	struct viafb_par *viapar = info->par;
 	void __iomem *engine;
-	int highest_reg, i;
-	u32 vq_start_addr, vq_end_addr, vq_start_low, vq_end_low, vq_high,
-		vq_len, chip_name = viapar->shared->chip_info.gfx_chip_name;
+	u32 chip_name = viapar->shared->chip_info.gfx_chip_name;
 
 	engine = viapar->shared->vdev->engine_mmio;
 	if (!engine) {
@@ -329,18 +327,6 @@ int viafb_init_engine(struct fb_info *info)
 			"hardware acceleration disabled\n");
 		return -ENOMEM;
 	}
-
-	/* Initialize registers to reset the 2D engine */
-	switch (viapar->shared->chip_info.twod_engine) {
-	case VIA_2D_ENG_M1:
-		highest_reg = 0x5c;
-		break;
-	default:
-		highest_reg = 0x40;
-		break;
-	}
-	for (i = 0; i <= highest_reg; i += 4)
-		writel(0x0, engine + i);
 
 	switch (chip_name) {
 	case UNICHROME_CLE266:
@@ -386,6 +372,29 @@ int viafb_init_engine(struct fb_info *info)
 	viapar->fbmem_used += viapar->shared->vdev->camera_fbmem_size;
 	viapar->shared->vdev->camera_fbmem_offset = viapar->fbmem_free;
 #endif
+
+	viafb_reset_engine(viapar);
+	return 0;
+}
+
+void viafb_reset_engine(struct viafb_par *viapar)
+{
+	void __iomem *engine = viapar->shared->vdev->engine_mmio;
+	int highest_reg, i;
+	u32 vq_start_addr, vq_end_addr, vq_start_low, vq_end_low, vq_high,
+		vq_len, chip_name = viapar->shared->chip_info.gfx_chip_name;
+
+	/* Initialize registers to reset the 2D engine */
+	switch (viapar->shared->chip_info.twod_engine) {
+	case VIA_2D_ENG_M1:
+		highest_reg = 0x5c;
+		break;
+	default:
+		highest_reg = 0x40;
+		break;
+	}
+	for (i = 0; i <= highest_reg; i += 4)
+		writel(0x0, engine + i);
 
 	/* Init AGP and VQ regs */
 	switch (chip_name) {
@@ -474,7 +483,7 @@ int viafb_init_engine(struct fb_info *info)
 	writel(0x0, engine + VIA_REG_CURSOR_ORG);
 	writel(0x0, engine + VIA_REG_CURSOR_BG);
 	writel(0x0, engine + VIA_REG_CURSOR_FG);
-	return 0;
+	return;
 }
 
 void viafb_show_hw_cursor(struct fb_info *info, int Status)

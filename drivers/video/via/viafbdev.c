@@ -1695,6 +1695,8 @@ int viafb_resume(struct pci_dev *pdev)
 	if (pci_enable_device(pdev))
 		goto fail;
 	pci_set_master(pdev);
+	if (viaparinfo->shared->vdev->engine_mmio)
+		viafb_reset_engine(viaparinfo);
 	viafb_set_par(viafbinfo);
 	if (viafb_dual_fb)
 		viafb_set_par(viafbinfo1);
@@ -1766,7 +1768,7 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 	viafbinfo->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 
 	viafbinfo->pseudo_palette = pseudo_pal;
-	if (viafb_accel && !viafb_init_engine(viafbinfo)) {
+	if (viafb_accel && !viafb_setup_engine(viafbinfo)) {
 		viafbinfo->flags |= FBINFO_HWACCEL_COPYAREA |
 			FBINFO_HWACCEL_FILLRECT |  FBINFO_HWACCEL_IMAGEBLIT;
 		default_var.accel_flags = FB_ACCELF_TEXT;
