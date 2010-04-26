@@ -787,8 +787,7 @@ capi_poll(struct file *file, poll_table * wait)
 }
 
 static int
-capi_ioctl(struct inode *inode, struct file *file,
-	   unsigned int cmd, unsigned long arg)
+capi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct capidev *cdev = file->private_data;
 	capi_ioctl_struct data;
@@ -981,6 +980,18 @@ register_out:
 	}
 }
 
+static long
+capi_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = capi_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 static int capi_open(struct inode *inode, struct file *file)
 {
 	struct capidev *cdev;
@@ -1026,7 +1037,7 @@ static const struct file_operations capi_fops =
 	.read		= capi_read,
 	.write		= capi_write,
 	.poll		= capi_poll,
-	.ioctl		= capi_ioctl,
+	.unlocked_ioctl	= capi_unlocked_ioctl,
 	.open		= capi_open,
 	.release	= capi_release,
 };
