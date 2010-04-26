@@ -122,25 +122,25 @@ static int ipheth_alloc_urbs(struct ipheth_device *iphone)
 
 	tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (tx_urb == NULL)
-		goto error;
+		goto error_nomem;
 
 	rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (rx_urb == NULL)
-		goto error;
+		goto free_tx_urb;
 
 	tx_buf = usb_buffer_alloc(iphone->udev,
 				  IPHETH_BUF_SIZE,
 				  GFP_KERNEL,
 				  &tx_urb->transfer_dma);
 	if (tx_buf == NULL)
-		goto error;
+		goto free_rx_urb;
 
 	rx_buf = usb_buffer_alloc(iphone->udev,
 				  IPHETH_BUF_SIZE,
 				  GFP_KERNEL,
 				  &rx_urb->transfer_dma);
 	if (rx_buf == NULL)
-		goto error;
+		goto free_tx_buf;
 
 
 	iphone->tx_urb = tx_urb;
@@ -149,13 +149,14 @@ static int ipheth_alloc_urbs(struct ipheth_device *iphone)
 	iphone->rx_buf = rx_buf;
 	return 0;
 
-error:
-	usb_buffer_free(iphone->udev, IPHETH_BUF_SIZE, rx_buf,
-			rx_urb->transfer_dma);
+free_tx_buf:
 	usb_buffer_free(iphone->udev, IPHETH_BUF_SIZE, tx_buf,
 			tx_urb->transfer_dma);
+free_rx_urb:
 	usb_free_urb(rx_urb);
+free_tx_urb:
 	usb_free_urb(tx_urb);
+error_nomem:
 	return -ENOMEM;
 }
 
