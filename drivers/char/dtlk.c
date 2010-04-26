@@ -93,8 +93,8 @@ static ssize_t dtlk_write(struct file *, const char __user *,
 static unsigned int dtlk_poll(struct file *, poll_table *);
 static int dtlk_open(struct inode *, struct file *);
 static int dtlk_release(struct inode *, struct file *);
-static int dtlk_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, unsigned long arg);
+static long dtlk_ioctl(struct file *file,
+		       unsigned int cmd, unsigned long arg);
 
 static const struct file_operations dtlk_fops =
 {
@@ -102,7 +102,7 @@ static const struct file_operations dtlk_fops =
 	.read		= dtlk_read,
 	.write		= dtlk_write,
 	.poll		= dtlk_poll,
-	.ioctl		= dtlk_ioctl,
+	.unlocked_ioctl	= dtlk_ioctl,
 	.open		= dtlk_open,
 	.release	= dtlk_release,
 };
@@ -263,10 +263,9 @@ static void dtlk_timer_tick(unsigned long data)
 	wake_up_interruptible(&dtlk_process_list);
 }
 
-static int dtlk_ioctl(struct inode *inode,
-		      struct file *file,
-		      unsigned int cmd,
-		      unsigned long arg)
+static long dtlk_ioctl(struct file *file,
+		       unsigned int cmd,
+		       unsigned long arg)
 {
 	char __user *argp = (char __user *)arg;
 	struct dtlk_settings *sp;
@@ -276,7 +275,9 @@ static int dtlk_ioctl(struct inode *inode,
 	switch (cmd) {
 
 	case DTLK_INTERROGATE:
+		lock_kernel();
 		sp = dtlk_interrogate();
+		unlock_kernel();
 		if (copy_to_user(argp, sp, sizeof(struct dtlk_settings)))
 			return -EINVAL;
 		return 0;
