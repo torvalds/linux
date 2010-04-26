@@ -1051,6 +1051,8 @@ static DEFINE_PER_CPU(unsigned long, rcu_dyntick_holdoff);
 int rcu_needs_cpu(int cpu)
 {
 	int c = 0;
+	int snap;
+	int snap_nmi;
 	int thatcpu;
 
 	/* Check for being in the holdoff period. */
@@ -1058,12 +1060,18 @@ int rcu_needs_cpu(int cpu)
 		return rcu_needs_cpu_quick_check(cpu);
 
 	/* Don't bother unless we are the last non-dyntick-idle CPU. */
-	for_each_cpu_not(thatcpu, nohz_cpu_mask)
-		if (cpu_online(thatcpu) && thatcpu != cpu) {
+	for_each_online_cpu(thatcpu) {
+		if (thatcpu == cpu)
+			continue;
+		snap = per_cpu(rcu_dynticks, thatcpu)->dynticks;
+		snap_nmi = per_cpu(rcu_dynticks, thatcpu)->dynticks_nmi;
+		smp_mb(); /* Order sampling of snap with end of grace period. */
+		if (((snap & 0x1) != 0) || ((snap_nmi & 0x1) != 0)) {
 			per_cpu(rcu_dyntick_drain, cpu) = 0;
 			per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
 			return rcu_needs_cpu_quick_check(cpu);
 		}
+	}
 
 	/* Check and update the rcu_dyntick_drain sequencing. */
 	if (per_cpu(rcu_dyntick_drain, cpu) <= 0) {
