@@ -562,19 +562,22 @@ int setup_profiling_timer(unsigned int multiplier)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	cpumask_t old_mask;
+	cpumask_var_t old_mask;
 
 	/* We want the setup_cpu() here to be called from CPU 0, but our
 	 * init thread may have been "borrowed" by another CPU in the meantime
 	 * se we pin us down to CPU 0 for a short while
 	 */
-	old_mask = current->cpus_allowed;
+	alloc_cpumask_var(&old_mask, GFP_NOWAIT);
+	cpumask_copy(old_mask, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(boot_cpuid));
 	
 	if (smp_ops && smp_ops->setup_cpu)
 		smp_ops->setup_cpu(boot_cpuid);
 
-	set_cpus_allowed_ptr(current, &old_mask);
+	set_cpus_allowed_ptr(current, old_mask);
+
+	free_cpumask_var(old_mask);
 
 	snapshot_timebases();
 
