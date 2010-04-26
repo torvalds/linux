@@ -44,7 +44,7 @@ void __cpuinit register_smp_ops(struct plat_smp_ops *ops)
 	mp_ops = ops;
 }
 
-static inline void __init smp_store_cpu_info(unsigned int cpu)
+static inline void __cpuinit smp_store_cpu_info(unsigned int cpu)
 {
 	struct sh_cpuinfo *c = cpu_data + cpu;
 
@@ -66,7 +66,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 #endif
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void __init smp_prepare_boot_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();
 
