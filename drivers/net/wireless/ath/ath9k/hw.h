@@ -719,6 +719,7 @@ struct ath_hw {
 	u32 *addac5416_21;
 	u32 *bank6Temp;
 
+	u8 txpower_limit;
 	int16_t txpower_indexoffset;
 	int coverage_class;
 	u32 beacon_interval;

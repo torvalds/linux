@@ -1817,6 +1817,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 					u8 twiceMaxRegulatoryPower,
 					u8 powerLimit)
 {
+	ah->txpower_limit = powerLimit;
 	ar9003_hw_set_target_power_eeprom(ah, chan->channel);
 	ar9003_hw_calibration_apply(ah, chan->channel);
 }
