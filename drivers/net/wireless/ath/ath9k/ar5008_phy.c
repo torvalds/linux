@@ -850,7 +850,7 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 
 	REG_WRITE_ARRAY(&ah->iniBB_RfGain, freqIndex, regWrites);
 
-	if (AR_SREV_9280_20(ah) && IS_CHAN_A_5MHZ_SPACED(chan)) {
+	if (IS_CHAN_A_FAST_CLOCK(ah, chan)) {
 		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex,
 				regWrites);
 	}
@@ -892,8 +892,7 @@ static void ar5008_hw_set_rfmode(struct ath_hw *ah, struct ath9k_channel *chan)
 		rfMode |= (IS_CHAN_5GHZ(chan)) ?
 			AR_PHY_MODE_RF5GHZ : AR_PHY_MODE_RF2GHZ;
 
-	if ((AR_SREV_9280_20(ah) || AR_SREV_9300_20_OR_LATER(ah))
-	    && IS_CHAN_A_5MHZ_SPACED(chan))
+	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		rfMode |= (AR_PHY_MODE_DYNAMIC | AR_PHY_MODE_DYN_CCK_DISABLE);
 
 	REG_WRITE(ah, AR_PHY_MODE, rfMode);

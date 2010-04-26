@@ -583,7 +583,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	 * For 5GHz channels requiring Fast Clock, apply
 	 * different modal values.
 	 */
-	if (IS_CHAN_A_5MHZ_SPACED(chan))
+	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		REG_WRITE_ARRAY(&ah->iniModesAdditional,
 				modesIndex, regWrites);
 
@@ -613,7 +613,7 @@ static void ar9003_hw_set_rfmode(struct ath_hw *ah,
 	rfMode |= (IS_CHAN_B(chan) || IS_CHAN_G(chan))
 		? AR_PHY_MODE_DYNAMIC : AR_PHY_MODE_OFDM;
 
-	if (IS_CHAN_A_5MHZ_SPACED(chan))
+	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		rfMode |= (AR_PHY_MODE_DYNAMIC | AR_PHY_MODE_DYN_CCK_DISABLE);
 
 	REG_WRITE(ah, AR_PHY_MODE, rfMode);

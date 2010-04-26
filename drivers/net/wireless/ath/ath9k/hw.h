@@ -369,10 +369,9 @@ struct ath9k_channel {
 #define IS_CHAN_2GHZ(_c) (((_c)->channelFlags & CHANNEL_2GHZ) != 0)
 #define IS_CHAN_HALF_RATE(_c) (((_c)->channelFlags & CHANNEL_HALF) != 0)
 #define IS_CHAN_QUARTER_RATE(_c) (((_c)->channelFlags & CHANNEL_QUARTER) != 0)
-#define IS_CHAN_A_5MHZ_SPACED(_c)			\
+#define IS_CHAN_A_FAST_CLOCK(_ah, _c)			\
 	((((_c)->channelFlags & CHANNEL_5GHZ) != 0) &&	\
-	 (((_c)->channel % 20) != 0) &&			\
-	 (((_c)->channel % 10) != 0))
+	 ((_ah)->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK))
 
 /* These macros check chanmode and not channelFlags */
 #define IS_CHAN_B(_c) ((_c)->chanmode == CHANNEL_B)

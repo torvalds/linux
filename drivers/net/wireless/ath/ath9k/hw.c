@@ -1228,8 +1228,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	    (chan->channel != ah->curchan->channel) &&
 	    ((chan->channelFlags & CHANNEL_ALL) ==
 	     (ah->curchan->channelFlags & CHANNEL_ALL)) &&
-	     !(AR_SREV_9280(ah) || IS_CHAN_A_5MHZ_SPACED(chan) ||
-	     IS_CHAN_A_5MHZ_SPACED(ah->curchan))) {
+	    !AR_SREV_9280(ah)) {
 
 		if (ath9k_hw_channel_change(ah, chan)) {
 			ath9k_hw_loadnf(ah, ah->curchan);
@@ -2202,6 +2201,11 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->txs_len = sizeof(struct ar9003_txs);
 	} else {
 		pCap->tx_desc_len = sizeof(struct ath_desc);
+		if (AR_SREV_9280_20(ah) &&
+		    ((ah->eep_ops->get_eeprom(ah, EEP_MINOR_REV) <=
+		      AR5416_EEP_MINOR_VER_16) ||
+		     ah->eep_ops->get_eeprom(ah, EEP_FSTCLK_5G)))
+			pCap->hw_caps |= ATH9K_HW_CAP_FASTCLOCK;
 	}
 
 	if (AR_SREV_9300_20_OR_LATER(ah))
