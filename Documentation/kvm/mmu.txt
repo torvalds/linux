@@ -75,8 +75,8 @@ direct mode; otherwise it operates in shadow mode (see below).
 Memory
 ======
 
-Guest memory (gpa) is part of user address space of the process that is using
-kvm.  Userspace defines the translation between guest addresses and user
+Guest memory (gpa) is part of the user address space of the process that is
+using kvm.  Userspace defines the translation between guest addresses and user
 addresses (gpa->hva); note that two gpas may alias to the same gva, but not
 vice versa.
 
@@ -111,7 +111,7 @@ is not related to a translation directly.  It points to other shadow pages.
 
 A leaf spte corresponds to either one or two translations encoded into
 one paging structure entry.  These are always the lowest level of the
-translation stack, with an optional higher level translations left to NPT/EPT.
+translation stack, with optional higher level translations left to NPT/EPT.
 Leaf ptes point at guest pages.
 
 The following table shows translations encoded by leaf ptes, with higher-level
@@ -167,7 +167,7 @@ Shadow pages contain the following information:
     Either the guest page table containing the translations shadowed by this
     page, or the base page frame for linear translations.  See role.direct.
   spt:
-    A pageful of 64-bit sptes containig the translations for this page.
+    A pageful of 64-bit sptes containing the translations for this page.
     Accessed by both kvm and hardware.
     The page pointed to by spt will have its page->private pointing back
     at the shadow page structure.
@@ -235,7 +235,7 @@ the amount of emulation we have to do when the guest modifies multiple gptes,
 or when the a guest page is no longer used as a page table and is used for
 random guest data.
 
-As a side effect we have resynchronize all reachable unsynchronized shadow
+As a side effect we have to resynchronize all reachable unsynchronized shadow
 pages on a tlb flush.
 
 
