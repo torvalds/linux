@@ -650,21 +650,24 @@ err:
 /* high bandwidth multiplier, as encoded in highspeed endpoint descriptors */
 #define hb_mult(wMaxPacketSize) (1 + (((wMaxPacketSize) >> 11) & 0x03))
 
-static void get_max_endpoint (  struct usb_device *usbdev,
-				char *msgtype,
-				struct usb_host_endpoint *curr_e,
-				unsigned int *maxsize,
-				struct usb_host_endpoint **ep  )
+static void get_max_endpoint(struct usb_device *udev,
+			     struct usb_host_interface *alt,
+			     char *msgtype,
+			     struct usb_host_endpoint *curr_e,
+			     struct tm6000_endpoint *tm_ep)
 {
 	u16 tmp = le16_to_cpu(curr_e->desc.wMaxPacketSize);
 	unsigned int size = tmp & 0x7ff;
 
-	if (usbdev->speed == USB_SPEED_HIGH)
+	if (udev->speed == USB_SPEED_HIGH)
 		size = size * hb_mult (tmp);
 
-	if (size>*maxsize) {
-		*ep = curr_e;
-		*maxsize = size;
+	if (size > tm_ep->maxsize) {
+		tm_ep->endp = curr_e;
+		tm_ep->maxsize = size;
+		tm_ep->bInterfaceNumber = alt->desc.bInterfaceNumber;
+		tm_ep->bAlternateSetting = alt->desc.bAlternateSetting;
+
 		printk("tm6000: %s endpoint: 0x%02x (max size=%u bytes)\n",
 					msgtype, curr_e->desc.bEndpointAddress,
 					size);
@@ -760,24 +763,28 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 			switch (e->desc.bmAttributes) {
 			case USB_ENDPOINT_XFER_BULK:
 				if (!dir_out) {
-					get_max_endpoint (usbdev, "Bulk IN", e,
-							&dev->max_bulk_in,
-							&dev->bulk_in);
+					get_max_endpoint(usbdev,
+							 &interface->altsetting[i],
+							 "Bulk IN", e,
+							 &dev->bulk_in);
 				} else {
-					get_max_endpoint (usbdev, "Bulk OUT", e,
-							&dev->max_bulk_out,
-							&dev->bulk_out);
+					get_max_endpoint(usbdev,
+							 &interface->altsetting[i],
+							 "Bulk OUT", e,
+							 &dev->bulk_out);
 				}
 				break;
 			case USB_ENDPOINT_XFER_ISOC:
 				if (!dir_out) {
-					get_max_endpoint (usbdev, "ISOC IN", e,
-							&dev->max_isoc_in,
-							&dev->isoc_in);
+					get_max_endpoint(usbdev,
+							 &interface->altsetting[i],
+							 "ISOC IN", e,
+							 &dev->isoc_in);
 				} else {
-					get_max_endpoint (usbdev, "ISOC OUT", e,
-							&dev->max_isoc_out,
-							&dev->isoc_out);
+					get_max_endpoint(usbdev,
+							 &interface->altsetting[i],
+							 "ISOC OUT", e,
+							 &dev->isoc_out);
 				}
 				break;
 			}
@@ -792,7 +799,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 		interface->altsetting->desc.bInterfaceNumber);
 
 /* check if the the device has the iso in endpoint at the correct place */
-	if (!dev->isoc_in) {
+	if (!dev->isoc_in.endp) {
 		printk("tm6000: probing error: no IN ISOC endpoint!\n");
 		rc= -ENODEV;
 

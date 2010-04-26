@@ -132,6 +132,13 @@ struct tm6000_dvb {
 	struct mutex		mutex;
 };
 
+struct tm6000_endpoint {
+	struct usb_host_endpoint	*endp;
+	__u8				bInterfaceNumber;
+	__u8				bAlternateSetting;
+	unsigned			maxsize;
+};
+
 struct tm6000_core {
 	/* generic device properties */
 	char				name[30];	/* name (including minor) of the device */
@@ -186,9 +193,7 @@ struct tm6000_core {
 	/* usb transfer */
 	struct usb_device		*udev;		/* the usb device */
 
-	struct usb_host_endpoint	*bulk_in, *bulk_out, *isoc_in, *isoc_out;
-	unsigned int			max_bulk_in, max_bulk_out;
-	unsigned int			max_isoc_in, max_isoc_out;
+	struct tm6000_endpoint		bulk_in, bulk_out, isoc_in, isoc_out;
 
 	/* scaler!=0 if scaler is active*/
 	int				scaler;

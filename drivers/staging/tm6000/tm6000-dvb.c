@@ -108,7 +108,7 @@ int tm6000_start_stream(struct tm6000_core *dev)
 		return -ENOMEM;
 	}
 
-	pipe = usb_rcvbulkpipe(dev->udev, dev->bulk_in->desc.bEndpointAddress
+	pipe = usb_rcvbulkpipe(dev->udev, dev->bulk_in.endp->desc.bEndpointAddress
 							  & USB_ENDPOINT_NUMBER_MASK);
 
 	size = usb_maxpacket(dev->udev, pipe, usb_pipeout(pipe));
