@@ -83,7 +83,6 @@ defaultimage-$(CONFIG_SH_AP325RXA)		:= uImage
 defaultimage-$(CONFIG_SH_7724_SOLUTION_ENGINE)	:= uImage
 defaultimage-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= vmlinux
 defaultimage-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= vmlinux
-defaultimage-$(CONFIG_SH_SDK7786)		:= vmlinux.bin
 
 # Set some sensible Kbuild defaults
 KBUILD_IMAGE		:= $(defaultimage-y)
