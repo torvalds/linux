@@ -315,7 +315,7 @@ static int __init smp_psurge_probe(void)
 	/* This is necessary because OF doesn't know about the
 	 * secondary cpu(s), and thus there aren't nodes in the
 	 * device tree for them, and smp_setup_cpu_maps hasn't
-	 * set their bits in cpu_present_map.
+	 * set their bits in cpu_present_mask.
 	 */
 	if (ncpus > NR_CPUS)
 		ncpus = NR_CPUS;
@@ -944,7 +944,7 @@ void __init pmac_setup_smp(void)
 	}
 #ifdef CONFIG_PPC32
 	else {
-		/* We have to set bits in cpu_possible_map here since the
+		/* We have to set bits in cpu_possible_mask here since the
 		 * secondary CPU(s) aren't in the device tree. Various
 		 * things won't be initialized for CPUs not in the possible
 		 * map, so we really need to fix it up here.

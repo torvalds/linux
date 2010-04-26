@@ -394,14 +394,14 @@ static void __init cpu_init_thread_core_maps(int tpc)
 
 /**
  * setup_cpu_maps - initialize the following cpu maps:
- *                  cpu_possible_map
- *                  cpu_present_map
+ *                  cpu_possible_mask
+ *                  cpu_present_mask
  *
  * Having the possible map set up early allows us to restrict allocations
  * of things like irqstacks to num_possible_cpus() rather than NR_CPUS.
  *
  * We do not initialize the online map here; cpus set their own bits in
- * cpu_online_map as they come up.
+ * cpu_online_mask as they come up.
  *
  * This function is valid only for Open Firmware systems.  finish_device_tree
  * must be called before using this.

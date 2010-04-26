@@ -468,7 +468,7 @@ out:
 	return id;
 }
 
-/* Must be called when no change can occur to cpu_present_map,
+/* Must be called when no change can occur to cpu_present_mask,
  * i.e. during cpu online or offline.
  */
 static struct device_node *cpu_to_l2cache(int cpu)

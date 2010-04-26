@@ -222,7 +222,7 @@ static void pseries_cpu_die(unsigned int cpu)
 }
 
 /*
- * Update cpu_present_map and paca(s) for a new cpu node.  The wrinkle
+ * Update cpu_present_mask and paca(s) for a new cpu node.  The wrinkle
  * here is that a cpu device node may represent up to two logical cpus
  * in the SMT case.  We must honor the assumption in other code that
  * the logical ids for sibling SMT threads x and y are adjacent, such
@@ -270,7 +270,7 @@ static int pseries_add_processor(struct device_node *np)
 			cpumask_shift_left(tmp, tmp, nthreads);
 
 	if (cpumask_empty(tmp)) {
-		printk(KERN_ERR "Unable to find space in cpu_present_map for"
+		printk(KERN_ERR "Unable to find space in cpu_present_mask for"
 		       " processor %s with %d thread(s)\n", np->name,
 		       nthreads);
 		goto out_unlock;

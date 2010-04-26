@@ -480,7 +480,7 @@ static void __init pmac_init_early(void)
 #endif
 
 	/* SMP Init has to be done early as we need to patch up
-	 * cpu_possible_map before interrupt stacks are allocated
+	 * cpu_possible_mask before interrupt stacks are allocated
 	 * or kaboom...
 	 */
 #ifdef CONFIG_SMP
