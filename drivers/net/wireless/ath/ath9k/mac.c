@@ -878,10 +878,12 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah,
 	if (ints & ATH9K_INT_TX) {
 		if (ah->config.tx_intr_mitigation)
 			mask |= AR_IMR_TXMINTR | AR_IMR_TXINTM;
-		if (ah->txok_interrupt_mask)
-			mask |= AR_IMR_TXOK;
-		if (ah->txdesc_interrupt_mask)
-			mask |= AR_IMR_TXDESC;
+		else {
+			if (ah->txok_interrupt_mask)
+				mask |= AR_IMR_TXOK;
+			if (ah->txdesc_interrupt_mask)
+				mask |= AR_IMR_TXDESC;
+		}
 		if (ah->txerr_interrupt_mask)
 			mask |= AR_IMR_TXERR;
 		if (ah->txeol_interrupt_mask)
