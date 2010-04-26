@@ -153,7 +153,6 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset channel (%u Mhz) "
 			  "reset status %d\n", channel->center_freq, ret);
-		ath9k_htc_ps_restore(priv);
 		goto err;
 	}
 
