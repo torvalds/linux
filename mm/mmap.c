@@ -1977,7 +1977,8 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 		return 0;
 
 	/* Clean everything up if vma_adjust failed. */
-	new->vm_ops->close(new);
+	if (new->vm_ops && new->vm_ops->close)
+		new->vm_ops->close(new);
 	if (new->vm_file) {
 		if (vma->vm_flags & VM_EXECUTABLE)
 			removed_exe_file_vma(mm);
