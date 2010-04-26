@@ -1012,41 +1012,7 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 		 * all power is driven by DAPM system,
 		 * so output power is safe if bypass was set
 		 */
-		if (aic3x->master) {
-			/* disable pll */
-			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
-			aic3x_write(codec, AIC3X_PLL_PROGA_REG,
-				    reg & ~PLL_ENABLE);
-		}
-		break;
 	case SND_SOC_BIAS_OFF:
-		/* force all power off */
-		reg = aic3x_read_reg_cache(codec, LINE1L_2_LADC_CTRL);
-		aic3x_write(codec, LINE1L_2_LADC_CTRL, reg & ~LADC_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, LINE1R_2_RADC_CTRL);
-		aic3x_write(codec, LINE1R_2_RADC_CTRL, reg & ~RADC_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, DAC_PWR);
-		aic3x_write(codec, DAC_PWR, reg & ~(LDAC_PWR_ON | RDAC_PWR_ON));
-
-		reg = aic3x_read_reg_cache(codec, HPLOUT_CTRL);
-		aic3x_write(codec, HPLOUT_CTRL, reg & ~HPLOUT_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, HPROUT_CTRL);
-		aic3x_write(codec, HPROUT_CTRL, reg & ~HPROUT_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, HPLCOM_CTRL);
-		aic3x_write(codec, HPLCOM_CTRL, reg & ~HPLCOM_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, HPRCOM_CTRL);
-		aic3x_write(codec, HPRCOM_CTRL, reg & ~HPRCOM_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, MONOLOPM_CTRL);
-		aic3x_write(codec, MONOLOPM_CTRL, reg & ~MONOLOPM_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, LLOPM_CTRL);
-		aic3x_write(codec, LLOPM_CTRL, reg & ~LLOPM_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, RLOPM_CTRL);
-		aic3x_write(codec, RLOPM_CTRL, reg & ~RLOPM_PWR_ON);
-
 		if (aic3x->master) {
 			/* disable pll */
 			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
