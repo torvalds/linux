@@ -997,7 +997,8 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		/* all power is driven by DAPM system */
+		break;
+	case SND_SOC_BIAS_PREPARE:
 		if (aic3x->master) {
 			/* enable pll */
 			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
@@ -1005,13 +1006,8 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 				    reg | PLL_ENABLE);
 		}
 		break;
-	case SND_SOC_BIAS_PREPARE:
-		break;
 	case SND_SOC_BIAS_STANDBY:
-		/*
-		 * all power is driven by DAPM system,
-		 * so output power is safe if bypass was set
-		 */
+		/* fall through and disable pll */
 	case SND_SOC_BIAS_OFF:
 		if (aic3x->master) {
 			/* disable pll */
