@@ -9,16 +9,22 @@
  * for more details.
  */
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/cpumask.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/sched.h>
+#include <linux/delay.h>
+#include <linux/cpu.h>
+#include <asm/sections.h>
 
 #define STBCR_REG(phys_id) (0xfe400004 | (phys_id << 12))
 #define RESET_REG(phys_id) (0xfe400008 | (phys_id << 12))
 
 #define STBCR_MSTP	0x00000001
 #define STBCR_RESET	0x00000002
+#define STBCR_SLEEP	0x00000004
 #define STBCR_LTSLP	0x80000000
 
 static irqreturn_t ipi_interrupt_handler(int irq, void *arg)
@@ -110,10 +116,51 @@ static void shx3_send_ipi(unsigned int cpu, unsigned int message)
 	__raw_writel(1 << (message << 2), addr); /* C0INTICI..CnINTICI */
 }
 
+static void shx3_update_boot_vector(unsigned int cpu)
+{
+	__raw_writel(STBCR_MSTP, STBCR_REG(cpu));
+	while (!(__raw_readl(STBCR_REG(cpu)) & STBCR_MSTP))
+		cpu_relax();
+	__raw_writel(STBCR_RESET, STBCR_REG(cpu));
+}
+
+static int __cpuinit
+shx3_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned int)hcpu;
+
+	switch (action) {
+	case CPU_UP_PREPARE:
+		shx3_update_boot_vector(cpu);
+		break;
+	case CPU_ONLINE:
+		pr_info("CPU %u is now online\n", cpu);
+		break;
+	case CPU_DEAD:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block __cpuinitdata shx3_cpu_notifier = {
+	.notifier_call		= shx3_cpu_callback,
+};
+
+static int __cpuinit register_shx3_cpu_notifier(void)
+{
+	register_hotcpu_notifier(&shx3_cpu_notifier);
+	return 0;
+}
+late_initcall(register_shx3_cpu_notifier);
+
 struct plat_smp_ops shx3_smp_ops = {
 	.smp_setup		= shx3_smp_setup,
 	.prepare_cpus		= shx3_prepare_cpus,
 	.start_cpu		= shx3_start_cpu,
 	.smp_processor_id	= shx3_smp_processor_id,
 	.send_ipi		= shx3_send_ipi,
+	.cpu_die		= native_cpu_die,
+	.cpu_disable		= native_cpu_disable,
+	.play_dead		= native_play_dead,
 };
