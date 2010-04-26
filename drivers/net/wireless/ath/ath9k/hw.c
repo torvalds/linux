@@ -25,6 +25,7 @@
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
 #define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
+#define ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM 44
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type);
 
@@ -90,7 +91,11 @@ static u32 ath9k_hw_mac_clks(struct ath_hw *ah, u32 usecs)
 		return usecs *ATH9K_CLOCK_RATE_CCK;
 	if (conf->channel->band == IEEE80211_BAND_2GHZ)
 		return usecs *ATH9K_CLOCK_RATE_2GHZ_OFDM;
-	return usecs *ATH9K_CLOCK_RATE_5GHZ_OFDM;
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK)
+		return usecs * ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM;
+	else
+		return usecs * ATH9K_CLOCK_RATE_5GHZ_OFDM;
 }
 
 static u32 ath9k_hw_mac_to_clks(struct ath_hw *ah, u32 usecs)
@@ -2188,7 +2193,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
-		pCap->hw_caps |= ATH9K_HW_CAP_EDMA | ATH9K_HW_CAP_LDPC;
+		pCap->hw_caps |= ATH9K_HW_CAP_EDMA | ATH9K_HW_CAP_LDPC |
+				 ATH9K_HW_CAP_FASTCLOCK;
 		pCap->rx_hp_qdepth = ATH9K_HW_RX_HP_QDEPTH;
 		pCap->rx_lp_qdepth = ATH9K_HW_RX_LP_QDEPTH;
 		pCap->rx_status_len = sizeof(struct ar9003_rxs);
