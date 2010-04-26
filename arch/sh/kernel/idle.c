@@ -133,7 +133,7 @@ static void do_nothing(void *unused)
 void stop_this_cpu(void *unused)
 {
 	local_irq_disable();
-	cpu_clear(smp_processor_id(), cpu_online_map);
+	set_cpu_online(smp_processor_id(), false);
 
 	for (;;)
 		cpu_sleep();

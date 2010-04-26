@@ -102,7 +102,7 @@ asmlinkage void __cpuinit start_secondary(void)
 
 	smp_store_cpu_info(cpu);
 
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 
 	cpu_idle();
 }
