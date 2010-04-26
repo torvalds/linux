@@ -74,6 +74,9 @@ static void shx3_prepare_cpus(unsigned int max_cpus)
 	for (i = 0; i < SMP_MSG_NR; i++)
 		request_irq(104 + i, ipi_interrupt_handler,
 			    IRQF_DISABLED | IRQF_PERCPU, "IPI", (void *)(long)i);
+
+	for (i = 0; i < max_cpus; i++)
+		set_cpu_present(i, true);
 }
 
 static void shx3_start_cpu(unsigned int cpu, unsigned long entry_point)
