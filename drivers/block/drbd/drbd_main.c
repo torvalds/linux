@@ -3668,7 +3668,8 @@ _drbd_fault_str(unsigned int type) {
 		[DRBD_FAULT_DT_RD] = "Data read",
 		[DRBD_FAULT_DT_RA] = "Data read ahead",
 		[DRBD_FAULT_BM_ALLOC] = "BM allocation",
-		[DRBD_FAULT_AL_EE] = "EE allocation"
+		[DRBD_FAULT_AL_EE] = "EE allocation",
+		[DRBD_FAULT_RECEIVE] = "receive data corruption",
 	};
 
 	return (type < DRBD_FAULT_MAX) ? _faults[type] : "**Unknown**";

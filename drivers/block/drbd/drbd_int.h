@@ -132,6 +132,7 @@ enum {
 	DRBD_FAULT_DT_RA = 6,	/* data read ahead */
 	DRBD_FAULT_BM_ALLOC = 7,	/* bitmap allocation */
 	DRBD_FAULT_AL_EE = 8,	/* alloc ee */
+	DRBD_FAULT_RECEIVE = 9, /* Changes some bytes upon receiving a [rs]data block */
 
 	DRBD_FAULT_MAX,
 };

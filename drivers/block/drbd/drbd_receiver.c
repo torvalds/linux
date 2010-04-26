@@ -1270,6 +1270,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 	int dgs, ds, i, rr;
 	void *dig_in = mdev->int_dig_in;
 	void *dig_vv = mdev->int_dig_vv;
+	unsigned long *data;
 
 	dgs = (mdev->agreed_pro_version >= 87 && mdev->integrity_r_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_r_tfm) : 0;
@@ -1307,7 +1308,12 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 	ds = data_size;
 	bio_for_each_segment(bvec, bio, i) {
 		page = bvec->bv_page;
-		rr = drbd_recv(mdev, kmap(page), min_t(int, ds, PAGE_SIZE));
+		data = kmap(page);
+		rr = drbd_recv(mdev, data, min_t(int, ds, PAGE_SIZE));
+		if (FAULT_ACTIVE(mdev, DRBD_FAULT_RECEIVE)) {
+			dev_err(DEV, "Fault injection: Corrupting data on receive\n");
+			data[0] = data[0] ^ (unsigned long)-1;
+		}
 		kunmap(page);
 		if (rr != min_t(int, ds, PAGE_SIZE)) {
 			drbd_free_ee(mdev, e);
