@@ -213,7 +213,7 @@ void blkiocg_update_avg_queue_size_stats(struct blkio_group *blkg)
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_avg_queue_size_stats);
 
-void blkiocg_set_start_empty_time(struct blkio_group *blkg, bool ignore)
+void blkiocg_set_start_empty_time(struct blkio_group *blkg)
 {
 	unsigned long flags;
 	struct blkio_group_stats *stats;
@@ -228,12 +228,15 @@ void blkiocg_set_start_empty_time(struct blkio_group *blkg, bool ignore)
 	}
 
 	/*
-	 * If ignore is set, we do not panic on the empty flag being set
-	 * already. This is to avoid cases where there are superfluous timeslice
-	 * complete events (for eg., forced_dispatch in CFQ) when no IOs are
-	 * served which could result in triggering the empty check incorrectly.
+	 * group is already marked empty. This can happen if cfqq got new
+	 * request in parent group and moved to this group while being added
+	 * to service tree. Just ignore the event and move on.
 	 */
-	BUG_ON(!ignore && blkio_blkg_empty(stats));
+	if(blkio_blkg_empty(stats)) {
+		spin_unlock_irqrestore(&blkg->stats_lock, flags);
+		return;
+	}
+
 	stats->start_empty_time = sched_clock();
 	blkio_mark_blkg_empty(stats);
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
