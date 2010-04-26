@@ -108,10 +108,8 @@ struct blkio_group {
 	void *key;
 	struct hlist_node blkcg_node;
 	unsigned short blkcg_id;
-#ifdef CONFIG_DEBUG_BLK_CGROUP
 	/* Store cgroup path */
 	char path[128];
-#endif
 	/* The device MKDEV(major, minor), this group has been created for */
 	dev_t dev;
 
@@ -147,6 +145,11 @@ struct blkio_policy_type {
 extern void blkio_policy_register(struct blkio_policy_type *);
 extern void blkio_policy_unregister(struct blkio_policy_type *);
 
+static inline char *blkg_path(struct blkio_group *blkg)
+{
+	return blkg->path;
+}
+
 #else
 
 struct blkio_group {
@@ -158,6 +161,8 @@ struct blkio_policy_type {
 static inline void blkio_policy_register(struct blkio_policy_type *blkiop) { }
 static inline void blkio_policy_unregister(struct blkio_policy_type *blkiop) { }
 
+static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
+
 #endif
 
 #define BLKIO_WEIGHT_MIN	100
@@ -165,10 +170,6 @@ static inline void blkio_policy_unregister(struct blkio_policy_type *blkiop) { }
 #define BLKIO_WEIGHT_DEFAULT	500
 
 #ifdef CONFIG_DEBUG_BLK_CGROUP
-static inline char *blkg_path(struct blkio_group *blkg)
-{
-	return blkg->path;
-}
 void blkiocg_update_avg_queue_size_stats(struct blkio_group *blkg);
 void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 				unsigned long dequeue);
@@ -197,7 +198,6 @@ BLKG_FLAG_FNS(idling)
 BLKG_FLAG_FNS(empty)
 #undef BLKG_FLAG_FNS
 #else
-static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
 static inline void blkiocg_update_avg_queue_size_stats(
 						struct blkio_group *blkg) {}
 static inline void blkiocg_update_dequeue_stats(struct blkio_group *blkg,

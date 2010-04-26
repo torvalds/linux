@@ -351,10 +351,8 @@ void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 	blkg->blkcg_id = css_id(&blkcg->css);
 	hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
 	spin_unlock_irqrestore(&blkcg->lock, flags);
-#ifdef CONFIG_DEBUG_BLK_CGROUP
 	/* Need to take css reference ? */
 	cgroup_path(blkcg->css.cgroup, blkg->path, sizeof(blkg->path));
-#endif
 	blkg->dev = dev;
 }
 EXPORT_SYMBOL_GPL(blkiocg_add_blkio_group);
