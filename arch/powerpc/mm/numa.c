@@ -33,15 +33,40 @@ static int numa_debug;
 #define dbg(args...) if (numa_debug) { printk(KERN_INFO args); }
 
 int numa_cpu_lookup_table[NR_CPUS];
-cpumask_t numa_cpumask_lookup_table[MAX_NUMNODES];
+cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 struct pglist_data *node_data[MAX_NUMNODES];
 
 EXPORT_SYMBOL(numa_cpu_lookup_table);
-EXPORT_SYMBOL(numa_cpumask_lookup_table);
+EXPORT_SYMBOL(node_to_cpumask_map);
 EXPORT_SYMBOL(node_data);
 
 static int min_common_depth;
 static int n_mem_addr_cells, n_mem_size_cells;
+
+/*
+ * Allocate node_to_cpumask_map based on number of available nodes
+ * Requires node_possible_map to be valid.
+ *
+ * Note: node_to_cpumask() is not valid until after this is done.
+ */
+static void __init setup_node_to_cpumask_map(void)
+{
+	unsigned int node, num = 0;
+
+	/* setup nr_node_ids if not done yet */
+	if (nr_node_ids == MAX_NUMNODES) {
+		for_each_node_mask(node, node_possible_map)
+			num = node;
+		nr_node_ids = num + 1;
+	}
+
+	/* allocate the map */
+	for (node = 0; node < nr_node_ids; node++)
+		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
+
+	/* cpumask_of_node() will now work */
+	dbg("Node to cpumask map for %d nodes\n", nr_node_ids);
+}
 
 static int __cpuinit fake_numa_create_new_node(unsigned long end_pfn,
 						unsigned int *nid)
@@ -138,8 +163,8 @@ static void __cpuinit map_cpu_to_node(int cpu, int node)
 
 	dbg("adding cpu %d to node %d\n", cpu, node);
 
-	if (!(cpu_isset(cpu, numa_cpumask_lookup_table[node])))
-		cpu_set(cpu, numa_cpumask_lookup_table[node]);
+	if (!(cpumask_test_cpu(cpu, node_to_cpumask_map[node])))
+		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -149,8 +174,8 @@ static void unmap_cpu_from_node(unsigned long cpu)
 
 	dbg("removing cpu %lu from node %d\n", cpu, node);
 
-	if (cpu_isset(cpu, numa_cpumask_lookup_table[node])) {
-		cpu_clear(cpu, numa_cpumask_lookup_table[node]);
+	if (cpumask_test_cpu(cpu, node_to_cpumask_map[node])) {
+		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
 	} else {
 		printk(KERN_ERR "WARNING: cpu %lu not found in node %d\n",
 		       cpu, node);
@@ -737,8 +762,9 @@ void __init dump_numa_cpu_topology(void)
 		 * If we used a CPU iterator here we would miss printing
 		 * the holes in the cpumap.
 		 */
-		for (cpu = 0; cpu < NR_CPUS; cpu++) {
-			if (cpu_isset(cpu, numa_cpumask_lookup_table[node])) {
+		for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+			if (cpumask_test_cpu(cpu,
+					node_to_cpumask_map[node])) {
 				if (count == 0)
 					printk(" %u", cpu);
 				++count;
@@ -750,7 +776,7 @@ void __init dump_numa_cpu_topology(void)
 		}
 
 		if (count > 1)
-			printk("-%u", NR_CPUS - 1);
+			printk("-%u", nr_cpu_ids - 1);
 		printk("\n");
 	}
 }
@@ -926,10 +952,6 @@ void __init do_init_bootmem(void)
 	else
 		dump_numa_memory_topology();
 
-	register_cpu_notifier(&ppc64_numa_nb);
-	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
-			  (void *)(unsigned long)boot_cpuid);
-
 	for_each_online_node(nid) {
 		unsigned long start_pfn, end_pfn;
 		void *bootmem_vaddr;
@@ -983,6 +1005,16 @@ void __init do_init_bootmem(void)
 	}
 
 	init_bootmem_done = 1;
+
+	/*
+	 * Now bootmem is initialised we can create the node to cpumask
+	 * lookup tables and setup the cpu callback to populate them.
+	 */
+	setup_node_to_cpumask_map();
+
+	register_cpu_notifier(&ppc64_numa_nb);
+	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
+			  (void *)(unsigned long)boot_cpuid);
 }
 
 void __init paging_init(void)

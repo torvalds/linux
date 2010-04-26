@@ -29,7 +29,7 @@ static inline int cpu_to_node(int cpu)
 
 #define cpumask_of_node(node) ((node) == -1 ?				\
 			       cpu_all_mask :				\
-			       &numa_cpumask_lookup_table[node])
+			       node_to_cpumask_map[node])
 
 int of_node_to_nid(struct device_node *device);
 
