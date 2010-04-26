@@ -258,7 +258,7 @@ static inline struct pppox_sock *get_item_by_addr(struct net *net,
 	dev = dev_get_by_name_rcu(net, sp->sa_addr.pppoe.dev);
 	if (dev) {
 		ifindex = dev->ifindex;
-		pn = net_generic(net, pppoe_net_id);
+		pn = pppoe_pernet(net);
 		pppox_sock = get_item(pn, sp->sa_addr.pppoe.sid,
 				sp->sa_addr.pppoe.remote, ifindex);
 	}
