@@ -27,6 +27,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include "drmP.h"
@@ -84,6 +85,8 @@ static struct edid_quirk {
 
 	/* Envision Peripherals, Inc. EN-7100e */
 	{ "EPI", 59264, EDID_QUIRK_135_CLOCK_TOO_HIGH },
+	/* Envision EN2028 */
+	{ "EPI", 8232, EDID_QUIRK_PREFER_LARGE_60 },
 
 	/* Funai Electronics PM36B */
 	{ "FCM", 13600, EDID_QUIRK_PREFER_LARGE_75 |

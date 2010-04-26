@@ -49,6 +49,7 @@ enum {
 	M_MBP_2,	/* MacBook Pro 2nd gen */
 	M_MBP_SR,	/* MacBook Pro (Santa Rosa) */
 	M_MBP_4,	/* MacBook Pro, 4th gen */
+	M_MBP_5_1,    /* MacBook Pro, 5,1th gen */
 	M_UNKNOWN	/* placeholder */
 };
 
@@ -70,6 +71,7 @@ static struct efifb_dmi_info {
 	[M_MBP_2] = { "mbp2", 0, 0, 0, 0 }, /* placeholder */
 	[M_MBP_SR] = { "mbp3", 0x80030000, 2048 * 4, 1440, 900 },
 	[M_MBP_4] = { "mbp4", 0xc0060000, 2048 * 4, 1920, 1200 },
+	[M_MBP_5_1] = { "mbp51", 0xc0010000, 2048 * 4, 1440, 900 },
 	[M_UNKNOWN] = { NULL, 0, 0, 0, 0 }
 };
 
@@ -106,6 +108,7 @@ static struct dmi_system_id __initdata dmi_system_table[] = {
 	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro3,1", M_MBP_SR),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro3,1", M_MBP_SR),
 	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro4,1", M_MBP_4),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro5,1", M_MBP_5_1),
 	{},
 };
 

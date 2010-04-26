@@ -27,6 +27,7 @@
 #include <linux/freezer.h>
 #include <linux/cpu.h>
 #include <linux/clockchips.h>
+#include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 

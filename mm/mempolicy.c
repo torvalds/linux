@@ -73,7 +73,6 @@
 #include <linux/sched.h>
 #include <linux/nodemask.h>
 #include <linux/cpuset.h>
-#include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/module.h>

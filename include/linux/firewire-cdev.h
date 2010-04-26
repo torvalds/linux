@@ -1,21 +1,26 @@
 /*
  * Char device interface.
  *
- * Copyright (C) 2005-2006  Kristian Hoegsberg <krh@bitplanet.net>
+ * Copyright (C) 2005-2007  Kristian Hoegsberg <krh@bitplanet.net>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
 #ifndef _LINUX_FIREWIRE_CDEV_H
@@ -438,7 +443,7 @@ struct fw_cdev_remove_descriptor {
  * @type:	%FW_CDEV_ISO_CONTEXT_TRANSMIT or %FW_CDEV_ISO_CONTEXT_RECEIVE
  * @header_size: Header size to strip for receive contexts
  * @channel:	Channel to bind to
- * @speed:	Speed to transmit at
+ * @speed:	Speed for transmit contexts
  * @closure:	To be returned in &fw_cdev_event_iso_interrupt
  * @handle:	Handle to context, written back by kernel
  *
@@ -450,6 +455,9 @@ struct fw_cdev_remove_descriptor {
  *
  * If a context was successfully created, the kernel writes back a handle to the
  * context, which must be passed in for subsequent operations on that context.
+ *
+ * For receive contexts, @header_size must be at least 4 and must be a multiple
+ * of 4.
  *
  * Note that the effect of a @header_size > 4 depends on
  * &fw_cdev_get_info.version, as documented at &fw_cdev_event_iso_interrupt.
@@ -481,10 +489,34 @@ struct fw_cdev_create_iso_context {
  *
  * &struct fw_cdev_iso_packet is used to describe isochronous packet queues.
  *
- * Use the FW_CDEV_ISO_ macros to fill in @control.  The sy and tag fields are
- * specified by IEEE 1394a and IEC 61883.
+ * Use the FW_CDEV_ISO_ macros to fill in @control.
  *
- * FIXME - finish this documentation
+ * For transmit packets, the header length must be a multiple of 4 and specifies
+ * the numbers of bytes in @header that will be prepended to the packet's
+ * payload; these bytes are copied into the kernel and will not be accessed
+ * after the ioctl has returned.  The sy and tag fields are copied to the iso
+ * packet header (these fields are specified by IEEE 1394a and IEC 61883-1).
+ * The skip flag specifies that no packet is to be sent in a frame; when using
+ * this, all other fields except the interrupt flag must be zero.
+ *
+ * For receive packets, the header length must be a multiple of the context's
+ * header size; if the header length is larger than the context's header size,
+ * multiple packets are queued for this entry.  The sy and tag fields are
+ * ignored.  If the sync flag is set, the context drops all packets until
+ * a packet with a matching sy field is received (the sync value to wait for is
+ * specified in the &fw_cdev_start_iso structure).  The payload length defines
+ * how many payload bytes can be received for one packet (in addition to payload
+ * quadlets that have been defined as headers and are stripped and returned in
+ * the &fw_cdev_event_iso_interrupt structure).  If more bytes are received, the
+ * additional bytes are dropped.  If less bytes are received, the remaining
+ * bytes in this part of the payload buffer will not be written to, not even by
+ * the next packet, i.e., packets received in consecutive frames will not
+ * necessarily be consecutive in memory.  If an entry has queued multiple
+ * packets, the payload length is divided equally among them.
+ *
+ * When a packet with the interrupt flag set has been completed, the
+ * &fw_cdev_event_iso_interrupt event will be sent.  An entry that has queued
+ * multiple receive packets is completed when its last packet is completed.
  */
 struct fw_cdev_iso_packet {
 	__u32 control;
@@ -501,7 +533,7 @@ struct fw_cdev_iso_packet {
  * Queue a number of isochronous packets for reception or transmission.
  * This ioctl takes a pointer to an array of &fw_cdev_iso_packet structs,
  * which describe how to transmit from or receive into a contiguous region
- * of a mmap()'ed payload buffer.  As part of the packet descriptors,
+ * of a mmap()'ed payload buffer.  As part of transmit packet descriptors,
  * a series of headers can be supplied, which will be prepended to the
  * payload during DMA.
  *
@@ -620,8 +652,8 @@ struct fw_cdev_get_cycle_timer2 {
  * instead of allocated.
  * An %FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED event concludes this operation.
  *
- * To summarize, %FW_CDEV_IOC_DEALLOCATE_ISO_RESOURCE allocates iso resources
- * for the lifetime of the fd or handle.
+ * To summarize, %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE allocates iso resources
+ * for the lifetime of the fd or @handle.
  * In contrast, %FW_CDEV_IOC_ALLOCATE_ISO_RESOURCE_ONCE allocates iso resources
  * for the duration of a bus generation.
  *

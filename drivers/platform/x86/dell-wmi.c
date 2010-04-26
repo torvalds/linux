@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/input.h>
 #include <acpi/acpi_drivers.h>
@@ -216,6 +217,7 @@ static void dell_wmi_notify(u32 value, void *context)
 		if (dell_new_hk_type && (buffer_entry[1] != 0x10)) {
 			printk(KERN_INFO "dell-wmi: Received unknown WMI event"
 					 " (0x%x)\n", buffer_entry[1]);
+			kfree(obj);
 			return;
 		}
 
@@ -233,7 +235,7 @@ static void dell_wmi_notify(u32 value, void *context)
 			    key->keycode == KEY_BRIGHTNESSDOWN) && acpi_video) {
 			/* Don't report brightness notifications that will also
 			 * come via ACPI */
-			return;
+			;
 		} else {
 			input_report_key(dell_wmi_input_dev, key->keycode, 1);
 			input_sync(dell_wmi_input_dev);

@@ -44,6 +44,7 @@
 #include <linux/ieee80211.h>
 #include <linux/if_arp.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 
 #include "iwm.h"

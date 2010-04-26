@@ -25,6 +25,7 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>

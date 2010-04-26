@@ -30,6 +30,7 @@
 #undef RX_DONT_PASS_UL
 #undef DUMMY_RX
 
+#include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/eeprom_93cx6.h>
 

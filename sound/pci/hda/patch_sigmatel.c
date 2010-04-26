@@ -1607,6 +1607,10 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 				"Dell Studio 1555", STAC_DELL_M6_DMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02bd,
 				"Dell Studio 1557", STAC_DELL_M6_DMIC),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02fe,
+				"Dell Studio XPS 1645", STAC_DELL_M6_BOTH),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0413,
+				"Dell Studio 1558", STAC_DELL_M6_BOTH),
 	{} /* terminator */
 };
 

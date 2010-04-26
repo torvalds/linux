@@ -21,6 +21,7 @@
 #include <linux/rcupdate.h>
 #include <linux/platform_device.h>
 #include <linux/i8042.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 
@@ -38,7 +39,7 @@ MODULE_PARM_DESC(noaux, "Do not probe or use AUX (mouse) port.");
 
 static bool i8042_nomux;
 module_param_named(nomux, i8042_nomux, bool, 0);
-MODULE_PARM_DESC(nomux, "Do not check whether an active multiplexing conrtoller is present.");
+MODULE_PARM_DESC(nomux, "Do not check whether an active multiplexing controller is present.");
 
 static bool i8042_unlock;
 module_param_named(unlock, i8042_unlock, bool, 0);

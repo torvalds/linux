@@ -261,6 +261,9 @@ static inline const char *cmdname(enum drbd_packets cmd)
 		[P_OV_REQUEST]          = "OVRequest",
 		[P_OV_REPLY]            = "OVReply",
 		[P_OV_RESULT]           = "OVResult",
+		[P_CSUM_RS_REQUEST]     = "CsumRSRequest",
+		[P_RS_IS_IN_SYNC]	= "CsumRSIsInSync",
+		[P_COMPRESSED_BITMAP]   = "CBitmap",
 		[P_MAX_CMD]	        = NULL,
 	};
 
@@ -443,13 +446,18 @@ struct p_rs_param_89 {
 	char csums_alg[SHARED_SECRET_MAX];
 } __packed;
 
+enum drbd_conn_flags {
+	CF_WANT_LOSE = 1,
+	CF_DRY_RUN = 2,
+};
+
 struct p_protocol {
 	struct p_header head;
 	u32 protocol;
 	u32 after_sb_0p;
 	u32 after_sb_1p;
 	u32 after_sb_2p;
-	u32 want_lose;
+	u32 conn_flags;
 	u32 two_primaries;
 
               /* Since protocol version 87 and higher. */
@@ -791,6 +799,8 @@ enum {
 				 * while this is set. */
 	RESIZE_PENDING,		/* Size change detected locally, waiting for the response from
 				 * the peer, if it changed there as well. */
+	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
+	GOT_PING_ACK,		/* set when we receive a ping_ack packet, misc wait gets woken */
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */

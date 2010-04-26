@@ -45,6 +45,7 @@
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
 #include <linux/cpuidle.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/system.h>

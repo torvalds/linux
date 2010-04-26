@@ -26,6 +26,7 @@
 #include <linux/console.h>
 #include <linux/highmem.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>

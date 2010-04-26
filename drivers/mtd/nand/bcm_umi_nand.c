@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/device.h>

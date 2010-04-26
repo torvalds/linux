@@ -12,6 +12,7 @@
 
 #include <linux/backlight.h>
 #include <linux/fb.h>
+#include <linux/gfp.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>

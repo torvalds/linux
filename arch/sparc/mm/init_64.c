@@ -13,7 +13,6 @@
 #include <linux/bootmem.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
-#include <linux/slab.h>
 #include <linux/initrd.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
@@ -26,6 +25,7 @@
 #include <linux/percpu.h>
 #include <linux/lmb.h>
 #include <linux/mmzone.h>
+#include <linux/gfp.h>
 
 #include <asm/head.h>
 #include <asm/system.h>

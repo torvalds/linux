@@ -1,3 +1,5 @@
+#include <linux/slab.h>
+
 #include "qlge.h"
 
 /* Read a NIC register from the alternate function. */

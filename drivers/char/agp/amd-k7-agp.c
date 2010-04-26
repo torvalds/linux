@@ -6,9 +6,9 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/agp_backend.h>
-#include <linux/gfp.h>
 #include <linux/page-flags.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include "agp.h"
 
 #define AMD_MMBASE	0x14

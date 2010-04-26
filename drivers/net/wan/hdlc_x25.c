@@ -10,6 +10,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/gfp.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
@@ -21,7 +22,6 @@
 #include <linux/poll.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <net/x25device.h>
 
 static int x25_ioctl(struct net_device *dev, struct ifreq *ifr);

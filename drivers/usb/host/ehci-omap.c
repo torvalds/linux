@@ -37,6 +37,7 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 #include <plat/usb.h>
 
 /*
@@ -628,11 +629,13 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		}
 		snprintf(supply, sizeof(supply), "hsusb%d", i);
 		omap->regulator[i] = regulator_get(omap->dev, supply);
-		if (IS_ERR(omap->regulator[i]))
+		if (IS_ERR(omap->regulator[i])) {
+			omap->regulator[i] = NULL;
 			dev_dbg(&pdev->dev,
 			"failed to get ehci port%d regulator\n", i);
-		else
+		} else {
 			regulator_enable(omap->regulator[i]);
+		}
 	}
 
 	ret = omap_start_ehc(omap, hcd);

@@ -11,6 +11,7 @@
 #include <linux/suspend.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 

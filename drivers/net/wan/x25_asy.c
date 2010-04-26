@@ -34,6 +34,7 @@
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
 #include <linux/compat.h>
+#include <linux/slab.h>
 #include "x25_asy.h"
 
 #include <net/x25device.h>
