@@ -39,6 +39,7 @@
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/clock.h>
+#include <asm/smp.h>
 #include <asm/mmu_context.h>
 
 /*
