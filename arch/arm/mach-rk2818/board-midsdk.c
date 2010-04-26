@@ -29,6 +29,7 @@
 #include <mach/irqs.h>
 #include <mach/board.h>
 #include <mach/rk2818_iomap.h>
+#include <mach/iomux.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -110,7 +111,7 @@ static void __init machine_rk2818_mapio(void)
 	iotable_init(rk2818_io_desc, ARRAY_SIZE(rk2818_io_desc));
 	rk2818_clock_init();
 	printk("%s [%d]\n",__FUNCTION__,__LINE__);
-	//rk2818_iomux_init();	
+	rk2818_iomux_init();	
 }
 
 MACHINE_START(RK2818, "rk2818midsdk")

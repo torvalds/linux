@@ -28,6 +28,7 @@
 #include <linux/serial.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <mach/iomux.h>
 
 #include "rk2818_serial.h"
 
@@ -333,8 +334,8 @@ static void rk2818_serial_set_termios(struct uart_port *port, struct ktermios *t
 	if(termios->c_cflag & CRTSCTS)                               
 	{        
 			/*¿ªÆôuart0Ó²¼þÁ÷¿Ø*/
-		//rk2818_mux_api_set(GPIOB2_U0CTSN_SEL_NAME, IOMUXB_UART0_CTS_N);
-		//rk2818_mux_api_set(GPIOB3_U0RTSN_SEL_NAME, IOMUXB_UART0_RTS_N);
+		rk2818_mux_api_set(GPIOB2_U0CTSN_SEL_NAME, IOMUXB_UART0_CTS_N);
+		rk2818_mux_api_set(GPIOB3_U0RTSN_SEL_NAME, IOMUXB_UART0_RTS_N);
 		printk("start CRTSCTS control and baudrate is %d\n",baud);
 		umcon=rk2818_uart_read(port,UART_MCR);
 		printk("UART_GET_MCR umcon=0x%x\n",umcon);
