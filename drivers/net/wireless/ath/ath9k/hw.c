@@ -386,6 +386,12 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.rx_intr_mitigation = true;
 
 	/*
+	 * Tx IQ Calibration (ah->config.tx_iq_calibration) is only
+	 * used by AR9003, but it is showing reliability issues.
+	 * It will take a while to fix so this is currently disabled.
+	 */
+
+	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
 	 * _and_ if on non-uniprocessor systems (Multiprocessor/HT).
 	 * This means we use it for all AR5416 devices, and the few
