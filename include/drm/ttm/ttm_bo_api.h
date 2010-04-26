@@ -362,6 +362,23 @@ extern int ttm_bo_validate(struct ttm_buffer_object *bo,
 extern void ttm_bo_unref(struct ttm_buffer_object **bo);
 
 /**
+ * ttm_bo_lock_delayed_workqueue
+ *
+ * Prevent the delayed workqueue from running.
+ * Returns
+ * True if the workqueue was queued at the time
+ */
+extern int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev);
+
+/**
+ * ttm_bo_unlock_delayed_workqueue
+ *
+ * Allows the delayed workqueue to run.
+ */
+extern void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev,
+					    int resched);
+
+/**
  * ttm_bo_synccpu_write_grab
  *
  * @bo: The buffer object:

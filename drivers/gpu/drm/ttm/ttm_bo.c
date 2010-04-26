@@ -604,6 +604,20 @@ void ttm_bo_unref(struct ttm_buffer_object **p_bo)
 }
 EXPORT_SYMBOL(ttm_bo_unref);
 
+int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev)
+{
+	return cancel_delayed_work_sync(&bdev->wq);
+}
+EXPORT_SYMBOL(ttm_bo_lock_delayed_workqueue);
+
+void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev, int resched)
+{
+	if (resched)
+		schedule_delayed_work(&bdev->wq,
+				      ((HZ / 100) < 1) ? 1 : HZ / 100);
+}
+EXPORT_SYMBOL(ttm_bo_unlock_delayed_workqueue);
+
 static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 			bool no_wait_reserve, bool no_wait_gpu)
 {
