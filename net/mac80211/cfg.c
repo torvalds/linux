@@ -1113,6 +1113,13 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 		changed |= BSS_CHANGED_BASIC_RATES;
 	}
 
+	if (params->ap_isolate >= 0) {
+		if (params->ap_isolate)
+			sdata->flags |= IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
+		else
+			sdata->flags &= ~IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
+	}
+
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	return 0;
