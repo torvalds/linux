@@ -475,6 +475,7 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 {
 	struct ieee80211_sub_if_data *sdata, *found = NULL;
 	int count = 0;
+	int timeout;
 
 	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS)) {
 		local->ps_sdata = NULL;
@@ -507,6 +508,26 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 
 		beaconint_us = ieee80211_tu_to_usec(
 					found->vif.bss_conf.beacon_int);
+
+		timeout = local->hw.conf.dynamic_ps_forced_timeout;
+		if (timeout < 0) {
+			/*
+			 * The 2 second value is there for compatibility until
+			 * the PM_QOS_NETWORK_LATENCY is configured with real
+			 * values.
+			 */
+			if (latency == 2000000000)
+				timeout = 100;
+			else if (latency <= 50000)
+				timeout = 300;
+			else if (latency <= 100000)
+				timeout = 100;
+			else if (latency <= 500000)
+				timeout = 50;
+			else
+				timeout = 0;
+		}
+		local->hw.conf.dynamic_ps_timeout = timeout;
 
 		if (beaconint_us > latency) {
 			local->ps_sdata = NULL;

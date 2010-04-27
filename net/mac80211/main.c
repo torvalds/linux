@@ -569,6 +569,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	local->hw.conf.listen_interval = local->hw.max_listen_interval;
 
+	local->hw.conf.dynamic_ps_forced_timeout = -1;
+
 	result = sta_info_start(local);
 	if (result < 0)
 		goto fail_sta_info;
