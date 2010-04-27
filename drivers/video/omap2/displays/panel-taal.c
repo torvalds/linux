@@ -670,12 +670,6 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	u8 id1, id2, id3;
 	int r;
 
-	if (dssdev->platform_enable) {
-		r = dssdev->platform_enable(dssdev);
-		if (r)
-			return r;
-	}
-
 	/* it seems we have to wait a bit until taal is ready */
 	msleep(5);
 
@@ -746,8 +740,6 @@ err:
 	omapdss_dsi_display_disable(dssdev);
 err0:
 	dsi_bus_unlock();
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
 
 	return r;
 }
@@ -775,9 +767,6 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 	}
 
 	omapdss_dsi_display_disable(dssdev);
-
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
 
 	td->enabled = 0;
 
