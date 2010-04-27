@@ -2306,12 +2306,10 @@ cifs_oplock_break(struct slow_work *work)
 	int rc, waitrc = 0;
 
 	if (inode && S_ISREG(inode->i_mode)) {
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-		if (cinode->clientCanCacheAll == 0)
+		if (cinode->clientCanCacheRead)
 			break_lease(inode, O_RDONLY);
-		else if (cinode->clientCanCacheRead == 0)
+		else
 			break_lease(inode, O_WRONLY);
-#endif
 		rc = filemap_fdatawrite(inode->i_mapping);
 		if (cinode->clientCanCacheRead == 0) {
 			waitrc = filemap_fdatawait(inode->i_mapping);
