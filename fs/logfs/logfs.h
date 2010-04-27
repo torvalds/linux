@@ -504,8 +504,7 @@ extern const struct inode_operations logfs_reg_iops;
 extern const struct file_operations logfs_reg_fops;
 extern const struct address_space_operations logfs_reg_aops;
 int logfs_readpage(struct file *file, struct page *page);
-int logfs_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		unsigned long arg);
+long logfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int logfs_fsync(struct file *file, int datasync);
 
 /* gc.c */
