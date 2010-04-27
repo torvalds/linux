@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
-#include <linux/timer.h>
 #include <linux/workqueue.h>
 
 #include <asm/atomic.h>
@@ -408,13 +407,6 @@ static void fw_card_bm_work(struct work_struct *work)
 	fw_card_put(card);
 }
 
-static void flush_timer_callback(unsigned long data)
-{
-	struct fw_card *card = (struct fw_card *)data;
-
-	fw_flush_transactions(card);
-}
-
 void fw_card_initialize(struct fw_card *card,
 			const struct fw_card_driver *driver,
 			struct device *device)
@@ -433,8 +425,6 @@ void fw_card_initialize(struct fw_card *card,
 	init_completion(&card->done);
 	INIT_LIST_HEAD(&card->transaction_list);
 	spin_lock_init(&card->lock);
-	setup_timer(&card->flush_timer,
-		    flush_timer_callback, (unsigned long)card);
 
 	card->local_node = NULL;
 
@@ -559,7 +549,6 @@ void fw_core_remove_card(struct fw_card *card)
 	wait_for_completion(&card->done);
 
 	WARN_ON(!list_empty(&card->transaction_list));
-	del_timer_sync(&card->flush_timer);
 }
 EXPORT_SYMBOL(fw_core_remove_card);
 

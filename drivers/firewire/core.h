@@ -220,7 +220,6 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *request);
 void fw_core_handle_response(struct fw_card *card, struct fw_packet *packet);
 void fw_fill_response(struct fw_packet *response, u32 *request_header,
 		      int rcode, void *payload, size_t length);
-void fw_flush_transactions(struct fw_card *card);
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count);
 

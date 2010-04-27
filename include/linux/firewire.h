@@ -87,7 +87,6 @@ struct fw_card {
 	int current_tlabel;
 	u64 tlabel_mask;
 	struct list_head transaction_list;
-	struct timer_list flush_timer;
 	unsigned long reset_jiffies;
 
 	unsigned long long guid;
@@ -288,6 +287,8 @@ struct fw_transaction {
 	int tlabel;
 	int timestamp;
 	struct list_head link;
+	struct fw_card *card;
+	struct timer_list split_timeout_timer;
 
 	struct fw_packet packet;
 
