@@ -665,7 +665,8 @@ int elantech_init(struct psmouse *psmouse)
 	 * Assume every version greater than this is new EeePC style
 	 * hardware with 6 byte packets
 	 */
-	if (etd->fw_version_maj >= 0x02 && etd->fw_version_min >= 0x30) {
+	if ((etd->fw_version_maj == 0x02 && etd->fw_version_min >= 0x30) ||
+	    etd->fw_version_maj > 0x02) {
 		etd->hw_version = 2;
 		/* For now show extra debug information */
 		etd->debug = 1;
