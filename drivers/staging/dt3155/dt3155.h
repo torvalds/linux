@@ -78,7 +78,7 @@ struct frame_info {
  * Structure for interrupt and buffer handling.
  * This is the setup for 1 card
  */
-struct dt3155_fbuffer_s {
+struct dt3155_fbuffer {
 	int    nbuffers;
 
 	struct frame_info frame_info[BOARD_MAX_BUFFS];
@@ -117,7 +117,7 @@ struct dt3155_status {
 	u32 mem_size;	/* This is the amount of mem available  */
 	u32 irq;		/* this card's irq */
 	struct dt3155_config config;		/* configuration struct */
-	struct dt3155_fbuffer_s fbuffer;	/* frame buffer state struct */
+	struct dt3155_fbuffer fbuffer;	/* frame buffer state struct */
 	u32 state;		/* this card's state */
 	u32 device_installed;	/* Flag if installed. 1=installed */
 };

@@ -60,7 +60,7 @@ Purpose: Buffer management routines, and other routines for the ISR
 
 
 /* Pointer into global structure for handling buffers */
-struct dt3155_fbuffer_s *dt3155_fbuffer[MAXBOARDS] = {NULL
+struct dt3155_fbuffer *dt3155_fbuffer[MAXBOARDS] = {NULL
 #if MAXBOARDS == 2
 						      , NULL
 #endif
@@ -317,7 +317,7 @@ u32 dt3155_setup_buffers(u32 *allocatorAddr)
       /* Make sure the buffering variables are consistent */
       {
 	u8 *ptr = (u8 *) dt3155_fbuffer[m];
-		for (index = 0; index < sizeof(struct dt3155_fbuffer_s); index++)
+		for (index = 0; index < sizeof(struct dt3155_fbuffer); index++)
 			*(ptr++) = 0;
       }
     }
