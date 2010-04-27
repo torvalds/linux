@@ -426,16 +426,6 @@ config KEYBOARD_TOSA
 	  To compile this driver as a module, choose M here: the
 	  module will be called tosakbd.
 
-config KEYBOARD_TOSA_USE_EXT_KEYCODES
-	bool "Tosa keyboard: use extended keycodes"
-	depends on KEYBOARD_TOSA
-	help
-	  Say Y here to enable the tosa keyboard driver to generate extended
-	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
-	  by either console keyboard driver or by Kdrive keybd driver.
-
-	  Say Y only if you know, what you are doing!
-
 config KEYBOARD_XTKBD
 	tristate "XT keyboard"
 	select SERIO

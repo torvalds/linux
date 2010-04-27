@@ -643,6 +643,18 @@ config TOSA_BT
 	  This is a simple driver that is able to control
 	  the state of built in bluetooth chip on tosa.
 
+config TOSA_USE_EXT_KEYCODES
+	bool "Tosa keyboard: use extended keycodes"
+	depends on MACH_TOSA
+	default n
+	help
+	  Say Y here to enable the tosa keyboard driver to generate extended
+	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
+	  by either console keyboard driver or by Kdrive keybd driver.
+
+	  Say Y only if you know, what you are doing!
+
+
 config PXA_HAVE_BOARD_IRQS
 	bool
 
