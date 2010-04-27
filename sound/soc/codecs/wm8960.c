@@ -738,10 +738,6 @@ static int wm8960_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 	u16 reg;
 
 	switch (div_id) {
-	case WM8960_SYSCLKSEL:
-		reg = snd_soc_read(codec, WM8960_CLOCK1) & 0x1fe;
-		snd_soc_write(codec, WM8960_CLOCK1, reg | div);
-		break;
 	case WM8960_SYSCLKDIV:
 		reg = snd_soc_read(codec, WM8960_CLOCK1) & 0x1f9;
 		snd_soc_write(codec, WM8960_CLOCK1, reg | div);
