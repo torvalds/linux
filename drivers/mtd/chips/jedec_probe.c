@@ -148,6 +148,8 @@
 #define SST39LF160	0x2782
 #define SST39VF1601	0x234b
 #define SST39VF3201	0x235b
+#define SST39WF1601	0x274b
+#define SST39WF1602	0x274a
 #define SST39LF512	0x00D4
 #define SST39LF010	0x00D5
 #define SST39LF020	0x00D6
@@ -1501,6 +1503,34 @@ static const struct amd_flash_info jedec_table[] = {
 		.mfr_id		= CFI_MFR_SST,     /* should be CFI */
 		.dev_id		= SST39VF1601,
 		.name		= "SST 39VF1601",
+		.devtypes	= CFI_DEVICETYPE_X16,
+		.uaddr		= MTD_UADDR_0xAAAA_0x5555,
+		.dev_size	= SIZE_2MiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 2,
+		.regions	= {
+			ERASEINFO(0x1000,256),
+			ERASEINFO(0x1000,256)
+		}
+	}, {
+		/* CFI is broken: reports AMD_STD, but needs custom uaddr */
+		.mfr_id		= CFI_MFR_SST,
+		.dev_id		= SST39WF1601,
+		.name		= "SST 39WF1601",
+		.devtypes	= CFI_DEVICETYPE_X16,
+		.uaddr		= MTD_UADDR_0xAAAA_0x5555,
+		.dev_size	= SIZE_2MiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 2,
+		.regions	= {
+			ERASEINFO(0x1000,256),
+			ERASEINFO(0x1000,256)
+		}
+	}, {
+		/* CFI is broken: reports AMD_STD, but needs custom uaddr */
+		.mfr_id		= CFI_MFR_SST,
+		.dev_id		= SST39WF1602,
+		.name		= "SST 39WF1602",
 		.devtypes	= CFI_DEVICETYPE_X16,
 		.uaddr		= MTD_UADDR_0xAAAA_0x5555,
 		.dev_size	= SIZE_2MiB,
