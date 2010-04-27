@@ -58,6 +58,9 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 {
 	int i;
 
+	if (!static_switch)
+		radeon_get_power_state(rdev, rdev->pm.planned_action);
+
 	mutex_lock(&rdev->cp.mutex);
 
 	/* wait for GPU idle */
