@@ -73,8 +73,7 @@ static unsigned int coda_psdev_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
-static int coda_psdev_ioctl(struct inode * inode, struct file * filp, 
-			    unsigned int cmd, unsigned long arg)
+static long coda_psdev_ioctl(struct file * filp, unsigned int cmd, unsigned long arg)
 {
 	unsigned int data;
 
@@ -344,7 +343,7 @@ static const struct file_operations coda_psdev_fops = {
 	.read		= coda_psdev_read,
 	.write		= coda_psdev_write,
 	.poll		= coda_psdev_poll,
-	.ioctl		= coda_psdev_ioctl,
+	.unlocked_ioctl	= coda_psdev_ioctl,
 	.open		= coda_psdev_open,
 	.release	= coda_psdev_release,
 };
