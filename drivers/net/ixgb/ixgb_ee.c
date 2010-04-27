@@ -26,6 +26,8 @@
 
 *******************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ixgb_hw.h"
 #include "ixgb_ee.h"
 /* Local prototypes */
@@ -467,11 +469,11 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 	u16 checksum = 0;
 	struct ixgb_ee_map_type *ee_map;
 
-	DEBUGFUNC("ixgb_get_eeprom_data");
+	ENTER();
 
 	ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
-	DEBUGOUT("ixgb_ee: Reading eeprom data\n");
+	pr_debug("Reading eeprom data\n");
 	for (i = 0; i < IXGB_EEPROM_SIZE ; i++) {
 		u16 ee_data;
 		ee_data = ixgb_read_eeprom(hw, i);
@@ -480,7 +482,7 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 	}
 
 	if (checksum != (u16) EEPROM_SUM) {
-		DEBUGOUT("ixgb_ee: Checksum invalid.\n");
+		pr_debug("Checksum invalid\n");
 		/* clear the init_ctrl_reg_1 to signify that the cache is
 		 * invalidated */
 		ee_map->init_ctrl_reg_1 = cpu_to_le16(EEPROM_ICW1_SIGNATURE_CLEAR);
@@ -489,7 +491,7 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 
 	if ((ee_map->init_ctrl_reg_1 & cpu_to_le16(EEPROM_ICW1_SIGNATURE_MASK))
 		 != cpu_to_le16(EEPROM_ICW1_SIGNATURE_VALID)) {
-		DEBUGOUT("ixgb_ee: Signature invalid.\n");
+		pr_debug("Signature invalid\n");
 		return(false);
 	}
 
@@ -555,13 +557,13 @@ ixgb_get_ee_mac_addr(struct ixgb_hw *hw,
 	int i;
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
-	DEBUGFUNC("ixgb_get_ee_mac_addr");
+	ENTER();
 
 	if (ixgb_check_and_get_eeprom_data(hw) == true) {
 		for (i = 0; i < IXGB_ETH_LENGTH_OF_ADDRESS; i++) {
 			mac_addr[i] = ee_map->mac_addr[i];
-			DEBUGOUT2("mac(%d) = %.2X\n", i, mac_addr[i]);
 		}
+		pr_debug("eeprom mac address = %pM\n", mac_addr);
 	}
 }
 

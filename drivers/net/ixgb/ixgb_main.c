@@ -26,6 +26,8 @@
 
 *******************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ixgb.h"
 
 char ixgb_driver_name[] = "ixgb";
@@ -146,10 +148,8 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 static int __init
 ixgb_init_module(void)
 {
-	printk(KERN_INFO "%s - version %s\n",
-	       ixgb_driver_string, ixgb_driver_version);
-
-	printk(KERN_INFO "%s\n", ixgb_copyright);
+	pr_info("%s - version %s\n", ixgb_driver_string, ixgb_driver_version);
+	pr_info("%s\n", ixgb_copyright);
 
 	return pci_register_driver(&ixgb_driver);
 }
@@ -374,8 +374,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) ||
 		    (err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))) {
-			printk(KERN_ERR
-			 "ixgb: No usable DMA configuration, aborting\n");
+			pr_err("No usable DMA configuration, aborting\n");
 			goto err_dma_mask;
 		}
 		pci_using_dac = 0;
@@ -1118,15 +1117,14 @@ ixgb_watchdog(unsigned long data)
 
 	if (adapter->hw.link_up) {
 		if (!netif_carrier_ok(netdev)) {
-			printk(KERN_INFO "ixgb: %s NIC Link is Up 10 Gbps "
-			       "Full Duplex, Flow Control: %s\n",
-			       netdev->name,
-			       (adapter->hw.fc.type == ixgb_fc_full) ?
-			        "RX/TX" :
-			        ((adapter->hw.fc.type == ixgb_fc_rx_pause) ?
-			         "RX" :
-			         ((adapter->hw.fc.type == ixgb_fc_tx_pause) ?
-			          "TX" : "None")));
+			netdev_info(netdev,
+				    "NIC Link is Up 10 Gbps Full Duplex, Flow Control: %s\n",
+				    (adapter->hw.fc.type == ixgb_fc_full) ?
+				    "RX/TX" :
+				    (adapter->hw.fc.type == ixgb_fc_rx_pause) ?
+				     "RX" :
+				    (adapter->hw.fc.type == ixgb_fc_tx_pause) ?
+				    "TX" : "None");
 			adapter->link_speed = 10000;
 			adapter->link_duplex = FULL_DUPLEX;
 			netif_carrier_on(netdev);
@@ -1135,8 +1133,7 @@ ixgb_watchdog(unsigned long data)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			printk(KERN_INFO "ixgb: %s NIC Link is Down\n",
-			       netdev->name);
+			netdev_info(netdev, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
 		}
 	}
@@ -2322,7 +2319,7 @@ static void ixgb_io_resume(struct pci_dev *pdev)
 
 	if (netif_running(netdev)) {
 		if (ixgb_up(adapter)) {
-			printk ("ixgb: can't bring device back up after reset\n");
+			pr_err("can't bring device back up after reset\n");
 			return;
 		}
 	}
