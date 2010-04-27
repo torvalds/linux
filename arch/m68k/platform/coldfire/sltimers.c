@@ -114,7 +114,6 @@ static struct clocksource mcfslt_clk = {
 	.name	= "slt",
 	.rating	= 250,
 	.read	= mcfslt_read_clk,
-	.shift	= 20,
 	.mask	= CLOCKSOURCE_MASK(32),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
@@ -136,8 +135,7 @@ void hw_timer_init(void)
 
 	setup_irq(MCF_IRQ_TIMER, &mcfslt_timer_irq);
 
-	mcfslt_clk.mult = clocksource_hz2mult(MCF_BUSCLK, mcfslt_clk.shift);
-	clocksource_register(&mcfslt_clk);
+	clocksource_register_hz(&mcfslt_clk, MCF_BUSCLK);
 
 #ifdef CONFIG_HIGHPROFILE
 	mcfslt_profile_init();
