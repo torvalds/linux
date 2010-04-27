@@ -503,6 +503,7 @@ struct cpl_rx_data_ack {
 };
 
 struct cpl_rx_pkt {
+	struct rss_header rsshdr;
 	u8 opcode;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	u8 iff:4;

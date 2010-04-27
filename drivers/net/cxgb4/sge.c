@@ -1524,6 +1524,8 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb->truesize += skb->data_len;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb_record_rx_queue(skb, rxq->rspq.idx);
+	if (rxq->rspq.netdev->features & NETIF_F_RXHASH)
+		skb->rxhash = (__force u32)pkt->rsshdr.hash_val;
 
 	if (unlikely(pkt->vlan_ex)) {
 		struct port_info *pi = netdev_priv(rxq->rspq.netdev);
@@ -1565,7 +1567,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	if (unlikely(*(u8 *)rsp == CPL_TRACE_PKT))
 		return handle_trace_pkt(q->adap, si);
 
-	pkt = (void *)&rsp[1];
+	pkt = (const struct cpl_rx_pkt *)rsp;
 	csum_ok = pkt->csum_calc && !pkt->err_vec;
 	if ((pkt->l2info & htonl(RXF_TCP)) &&
 	    (q->netdev->features & NETIF_F_GRO) && csum_ok && !pkt->ip_frag) {
@@ -1583,6 +1585,9 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	__skb_pull(skb, RX_PKT_PAD);      /* remove ethernet header padding */
 	skb->protocol = eth_type_trans(skb, q->netdev);
 	skb_record_rx_queue(skb, q->idx);
+	if (skb->dev->features & NETIF_F_RXHASH)
+		skb->rxhash = (__force u32)pkt->rsshdr.hash_val;
+
 	pi = netdev_priv(skb->dev);
 	rxq->stats.pkts++;
 
