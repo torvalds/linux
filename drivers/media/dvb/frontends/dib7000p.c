@@ -1330,7 +1330,7 @@ int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defau
 
 	dpst = kzalloc(sizeof(struct dib7000p_state), GFP_KERNEL);
 	if (!dpst)
-		return -ENODEV;
+		return -ENOMEM;
 
 	dpst->i2c_adap = i2c;
 
