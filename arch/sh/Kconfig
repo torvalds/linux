@@ -157,7 +157,6 @@ config LOCKDEP_SUPPORT
 
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
-	depends on !SMP
 
 config ARCH_HAS_ILOG2_U32
 	def_bool n
