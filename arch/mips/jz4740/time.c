@@ -121,8 +121,7 @@ void __init plat_time_init(void)
 
 	clockevents_register_device(&jz4740_clockevent);
 
-	clocksource_set_clock(&jz4740_clocksource, clk_rate);
-	ret = clocksource_register(&jz4740_clocksource);
+	ret = clocksource_register_hz(&jz4740_clocksource, clk_rate);
 
 	if (ret)
 		printk(KERN_ERR "Failed to register clocksource: %d\n", ret);

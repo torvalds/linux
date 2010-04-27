@@ -78,9 +78,7 @@ static void __init powertv_c0_hpt_clocksource_init(void)
 
 	clocksource_mips.rating = 200 + mips_hpt_frequency / 10000000;
 
-	clocksource_set_clock(&clocksource_mips, mips_hpt_frequency);
-
-	clocksource_register(&clocksource_mips);
+	clocksource_register_hz(&clocksource_mips, mips_hpt_frequency);
 }
 
 /**
@@ -130,43 +128,16 @@ static struct clocksource clocksource_tim_c = {
 /**
  * powertv_tim_c_clocksource_init - set up a clock source for the TIM_C clock
  *
- * The hard part here is coming up with a constant k and shift s such that
- * the 48-bit TIM_C value multiplied by k doesn't overflow and that value,
- * when shifted right by s, yields the corresponding number of nanoseconds.
  * We know that TIM_C counts at 27 MHz/8, so each cycle corresponds to
- * 1 / (27,000,000/8) seconds. Multiply that by a billion and you get the
- * number of nanoseconds. Since the TIM_C value has 48 bits and the math is
- * done in 64 bits, avoiding an overflow means that k must be less than
- * 64 - 48 = 16 bits.
+ * 1 / (27,000,000/8) seconds.
  */
 static void __init powertv_tim_c_clocksource_init(void)
 {
-	int			prescale;
-	unsigned long		dividend;
-	unsigned long		k;
-	int			s;
-	const int		max_k_bits = (64 - 48) - 1;
-	const unsigned long	billion = 1000000000;
 	const unsigned long	counts_per_second = 27000000 / 8;
 
-	prescale = BITS_PER_LONG - ilog2(billion) - 1;
-	dividend = billion << prescale;
-	k = dividend / counts_per_second;
-	s = ilog2(k) - max_k_bits;
-
-	if (s < 0)
-		s = prescale;
-
-	else {
-		k >>= s;
-		s += prescale;
-	}
-
-	clocksource_tim_c.mult = k;
-	clocksource_tim_c.shift = s;
 	clocksource_tim_c.rating = 200;
 
-	clocksource_register(&clocksource_tim_c);
+	clocksource_register_hz(&clocksource_tim_c, counts_per_second);
 	tim_c = (struct tim_c *) asic_reg_addr(tim_ch);
 }
 

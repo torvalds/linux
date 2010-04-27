@@ -196,8 +196,6 @@ static struct clocksource clocksource_pit = {
 	.rating = 110,
 	.read	= pit_read,
 	.mask	= CLOCKSOURCE_MASK(32),
-	.mult	= 0,
-	.shift	= 20,
 };
 
 static int __init init_pit_clocksource(void)
@@ -205,7 +203,6 @@ static int __init init_pit_clocksource(void)
 	if (num_possible_cpus() > 1) /* PIT does not scale! */
 		return 0;
 
-	clocksource_pit.mult = clocksource_hz2mult(CLOCK_TICK_RATE, 20);
-	return clocksource_register(&clocksource_pit);
+	return clocksource_register_hz(&clocksource_pit, CLOCK_TICK_RATE);
 }
 arch_initcall(init_pit_clocksource);
