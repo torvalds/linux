@@ -1127,3 +1127,30 @@ ENTRY(_break)
 
 syscall_table_size=(.-sys_call_table)
 
+type_SYSCALL:
+	.ascii "SYSCALL\0"
+type_IRQ:
+	.ascii "IRQ\0"
+type_IRQ_PREEMPT:
+	.ascii "IRQ (PREEMPTED)\0"
+type_SYSCALL_PREEMPT:
+	.ascii " SYSCALL (PREEMPTED)\0"
+
+	/*
+	 * Trap decoding for stack unwinder
+	 * Tuples are (start addr, end addr, string)
+	 * If return address lies on [start addr, end addr],
+	 * unwinder displays 'string'
+	 */
+
+	.align 4
+.global microblaze_trap_handlers
+microblaze_trap_handlers:
+	/* Exact matches come first */
+	.word ret_from_trap; .word ret_from_trap   ; .word type_SYSCALL
+	.word ret_from_irq ; .word ret_from_irq    ; .word type_IRQ
+	/* Fuzzy matches go here */
+	.word ret_from_irq ; .word no_intr_resched ; .word type_IRQ_PREEMPT
+	.word ret_from_trap; .word TRAP_return     ; .word type_SYSCALL_PREEMPT
+	/* End of table */
+	.word 0               ; .word 0               ; .word 0
