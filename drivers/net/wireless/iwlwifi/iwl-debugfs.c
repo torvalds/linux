@@ -1214,7 +1214,7 @@ static ssize_t iwl_dbgfs_chain_noise_read(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_dbgfs_tx_power_read(struct file *file,
+static ssize_t iwl_dbgfs_chain_tx_power_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
@@ -1565,7 +1565,7 @@ DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_general_stats);
 DEBUGFS_READ_FILE_OPS(sensitivity);
 DEBUGFS_READ_FILE_OPS(chain_noise);
-DEBUGFS_READ_FILE_OPS(tx_power);
+DEBUGFS_READ_FILE_OPS(chain_tx_power);
 DEBUGFS_READ_FILE_OPS(power_save_status);
 DEBUGFS_WRITE_FILE_OPS(clear_ucode_statistics);
 DEBUGFS_WRITE_FILE_OPS(clear_traffic_statistics);
@@ -1624,7 +1624,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(traffic_log, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rx_queue, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_queue, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(tx_power, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(chain_tx_power, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(power_save_status, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(clear_traffic_statistics, dir_debug, S_IWUSR);
