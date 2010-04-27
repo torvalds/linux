@@ -1617,7 +1617,6 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			rx_buf = &fp->rx_buf_ring[bd_cons];
 			skb = rx_buf->skb;
 			prefetch(skb);
-			prefetch((u8 *)skb + 256);
 			len = le16_to_cpu(cqe->fast_path_cqe.pkt_len);
 			pad = cqe->fast_path_cqe.placement_offset;
 
@@ -1668,7 +1667,6 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 					dma_unmap_addr(rx_buf, mapping),
 						   pad + RX_COPY_THRESH,
 						   DMA_FROM_DEVICE);
-			prefetch(skb);
 			prefetch(((char *)(skb)) + 128);
 
 			/* is this an error packet? */
