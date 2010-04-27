@@ -1190,6 +1190,15 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 		itr_reg |= (itr_reg << 16);
 	} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
 		/*
+		 * 82599 can support a value of zero, so allow it for
+		 * max interrupt rate, but there is an errata where it can
+		 * not be zero with RSC
+		 */
+		if (itr_reg == 8 &&
+		    !(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))
+			itr_reg = 0;
+
+		/*
 		 * set the WDIS bit to not clear the timer bits and cause an
 		 * immediate assertion of the interrupt
 		 */

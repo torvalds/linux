@@ -2079,6 +2079,27 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+/*
+ * this function must be called before setting the new value of
+ * rx_itr_setting
+ */
+static void ixgbe_reenable_rsc(struct ixgbe_adapter *adapter,
+                               struct ethtool_coalesce *ec)
+{
+	/* check the old value and enable RSC if necessary */
+	if ((adapter->rx_itr_setting == 0) &&
+	    (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE)) {
+		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
+		adapter->netdev->features |= NETIF_F_LRO;
+		DPRINTK(PROBE, INFO, "rx-usecs set to %d, re-enabling RSC\n",
+		        ec->rx_coalesce_usecs);
+		if (netif_running(adapter->netdev))
+			ixgbe_reinit_locked(adapter);
+		else
+			ixgbe_reset(adapter);
+	}
+}
+
 static int ixgbe_set_coalesce(struct net_device *netdev,
                               struct ethtool_coalesce *ec)
 {
@@ -2095,10 +2116,19 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		adapter->tx_ring[0]->work_limit = ec->tx_max_coalesced_frames_irq;
 
 	if (ec->rx_coalesce_usecs > 1) {
+		u32 max_int;
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
+			max_int = IXGBE_MAX_RSC_INT_RATE;
+		else
+			max_int = IXGBE_MAX_INT_RATE;
+
 		/* check the limits */
-		if ((1000000/ec->rx_coalesce_usecs > IXGBE_MAX_INT_RATE) ||
+		if ((1000000/ec->rx_coalesce_usecs > max_int) ||
 		    (1000000/ec->rx_coalesce_usecs < IXGBE_MIN_INT_RATE))
 			return -EINVAL;
+
+		/* check the old value and enable RSC if necessary */
+		ixgbe_reenable_rsc(adapter, ec);
 
 		/* store the value in ints/second */
 		adapter->rx_eitr_param = 1000000/ec->rx_coalesce_usecs;
@@ -2108,6 +2138,9 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		/* clear the lower bit as its used for dynamic state */
 		adapter->rx_itr_setting &= ~1;
 	} else if (ec->rx_coalesce_usecs == 1) {
+		/* check the old value and enable RSC if necessary */
+		ixgbe_reenable_rsc(adapter, ec);
+
 		/* 1 means dynamic mode */
 		adapter->rx_eitr_param = 20000;
 		adapter->rx_itr_setting = 1;
@@ -2116,14 +2149,34 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		 * any other value means disable eitr, which is best
 		 * served by setting the interrupt rate very high
 		 */
-		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
-			adapter->rx_eitr_param = IXGBE_MAX_RSC_INT_RATE;
-		else
-			adapter->rx_eitr_param = IXGBE_MAX_INT_RATE;
+		adapter->rx_eitr_param = IXGBE_MAX_INT_RATE;
 		adapter->rx_itr_setting = 0;
+
+		/*
+		 * if hardware RSC is enabled, disable it when
+		 * setting low latency mode, to avoid errata, assuming
+		 * that when the user set low latency mode they want
+		 * it at the cost of anything else
+		 */
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
+			adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
+			netdev->features &= ~NETIF_F_LRO;
+			DPRINTK(PROBE, INFO,
+			        "rx-usecs set to 0, disabling RSC\n");
+
+			if (netif_running(netdev))
+				ixgbe_reinit_locked(adapter);
+			else
+				ixgbe_reset(adapter);
+			return 0;
+		}
 	}
 
 	if (ec->tx_coalesce_usecs > 1) {
+		/*
+		 * don't have to worry about max_int as above because
+		 * tx vectors don't do hardware RSC (an rx function)
+		 */
 		/* check the limits */
 		if ((1000000/ec->tx_coalesce_usecs > IXGBE_MAX_INT_RATE) ||
 		    (1000000/ec->tx_coalesce_usecs < IXGBE_MIN_INT_RATE))
@@ -2178,10 +2231,26 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 	ethtool_op_set_flags(netdev, data);
 
 	/* if state changes we need to update adapter->flags and reset */
-	if ((!!(data & ETH_FLAG_LRO)) != 
-	    (!!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) {
-		adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
-		need_reset = true;
+	if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE) {
+		/*
+		 * cast both to bool and verify if they are set the same
+		 * but only enable RSC if itr is non-zero, as
+		 * itr=0 and RSC are mutually exclusive
+		 */
+		if (((!!(data & ETH_FLAG_LRO)) !=
+		     (!!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) &&
+		    adapter->rx_itr_setting) {
+			adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
+			switch (adapter->hw.mac.type) {
+			case ixgbe_mac_82599EB:
+				need_reset = true;
+				break;
+			default:
+				break;
+			}
+		} else if (!adapter->rx_itr_setting) {
+			netdev->features &= ~ETH_FLAG_LRO;
+		}
 	}
 
 	/*
