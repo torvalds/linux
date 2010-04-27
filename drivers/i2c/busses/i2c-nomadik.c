@@ -914,6 +914,7 @@ static int __devinit nmk_i2c_probe(struct platform_device *pdev)
 
 static int __devexit nmk_i2c_remove(struct platform_device *pdev)
 {
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct nmk_i2c_dev *dev = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&dev->adap);
@@ -924,6 +925,8 @@ static int __devexit nmk_i2c_remove(struct platform_device *pdev)
 	i2c_clr_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
 	free_irq(dev->irq, dev);
 	iounmap(dev->virtbase);
+	if (res)
+		release_mem_region(res->start, resource_size(res));
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
 	platform_set_drvdata(pdev, NULL);
