@@ -78,14 +78,10 @@ static int s3c2412_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 
 	switch (clk_id) {
 	case S3C2412_CLKSRC_PCLK:
-		s3c2412_i2s.master = 1;
-		iismod &= ~S3C2412_IISMOD_MASTER_MASK;
-		iismod |= S3C2412_IISMOD_MASTER_INTERNAL;
+		iismod &= ~S3C2412_IISMOD_IMS_SYSMUX;
 		break;
 	case S3C2412_CLKSRC_I2SCLK:
-		s3c2412_i2s.master = 0;
-		iismod &= ~S3C2412_IISMOD_MASTER_MASK;
-		iismod |= S3C2412_IISMOD_MASTER_EXTERNAL;
+		iismod |= S3C2412_IISMOD_IMS_SYSMUX;
 		break;
 	default:
 		return -EINVAL;
