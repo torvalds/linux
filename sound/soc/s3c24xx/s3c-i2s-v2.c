@@ -342,6 +342,52 @@ static int s3c_i2sv2_hw_params(struct snd_pcm_substream *substream,
 
 	writel(iismod, i2s->regs + S3C2412_IISMOD);
 	pr_debug("%s: w: IISMOD: %x\n", __func__, iismod);
+
+	return 0;
+}
+
+static int s3c_i2sv2_set_sysclk(struct snd_soc_dai *cpu_dai,
+				  int clk_id, unsigned int freq, int dir)
+{
+	struct s3c_i2sv2_info *i2s = to_info(cpu_dai);
+	u32 iismod = readl(i2s->regs + S3C2412_IISMOD);
+
+	pr_debug("Entered %s\n", __func__);
+	pr_debug("%s r: IISMOD: %x\n", __func__, iismod);
+
+	switch (clk_id) {
+	case S3C_I2SV2_CLKSRC_PCLK:
+		iismod &= ~S3C2412_IISMOD_IMS_SYSMUX;
+		break;
+
+	case S3C_I2SV2_CLKSRC_AUDIOBUS:
+		iismod |= S3C2412_IISMOD_IMS_SYSMUX;
+		break;
+
+	case S3C_I2SV2_CLKSRC_CDCLK:
+		/* Error if controller doesn't have the CDCLKCON bit */
+		if (!(i2s->feature & S3C_FEATURE_CDCLKCON))
+			return -EINVAL;
+
+		switch (dir) {
+		case SND_SOC_CLOCK_IN:
+			iismod |= S3C64XX_IISMOD_CDCLKCON;
+			break;
+		case SND_SOC_CLOCK_OUT:
+			iismod &= ~S3C64XX_IISMOD_CDCLKCON;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	writel(iismod, i2s->regs + S3C2412_IISMOD);
+	pr_debug("%s w: IISMOD: %x\n", __func__, iismod);
+
 	return 0;
 }
 
@@ -714,6 +760,7 @@ int s3c_i2sv2_register_dai(struct snd_soc_dai *dai)
 		ops->hw_params = s3c_i2sv2_hw_params;
 	ops->set_fmt = s3c2412_i2s_set_fmt;
 	ops->set_clkdiv = s3c2412_i2s_set_clkdiv;
+	ops->set_sysclk = s3c_i2sv2_set_sysclk;
 
 	/* Allow overriding by (for example) IISv4 */
 	if (!ops->delay)
