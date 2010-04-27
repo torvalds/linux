@@ -60,7 +60,7 @@ MA 02111-1307 USA
 #endif
 
 /* Configuration structure */
-struct dt3155_config_s {
+struct dt3155_config {
 	u32 acq_mode;
 	u32 cols, rows;
 	u32 continuous;
@@ -116,7 +116,7 @@ struct dt3155_status {
 	u32 mem_addr;	/* Buffer start addr for this card */
 	u32 mem_size;	/* This is the amount of mem available  */
 	u32 irq;		/* this card's irq */
-	struct dt3155_config_s config;		/* configuration struct */
+	struct dt3155_config config;		/* configuration struct */
 	struct dt3155_fbuffer_s fbuffer;	/* frame buffer state struct */
 	u32 state;		/* this card's state */
 	u32 device_installed;	/* Flag if installed. 1=installed */
@@ -134,7 +134,7 @@ extern struct dt3155_status dt3155_status[MAXBOARDS];
 
 #define DT3155_IOC_MAGIC	'!'
 
-#define DT3155_SET_CONFIG	_IOW(DT3155_IOC_MAGIC, 1, struct dt3155_config_s)
+#define DT3155_SET_CONFIG	_IOW(DT3155_IOC_MAGIC, 1, struct dt3155_config)
 #define DT3155_GET_CONFIG	_IOR(DT3155_IOC_MAGIC, 2, struct dt3155_status)
 #define DT3155_STOP		_IO(DT3155_IOC_MAGIC, 3)
 #define DT3155_START		_IO(DT3155_IOC_MAGIC, 4)

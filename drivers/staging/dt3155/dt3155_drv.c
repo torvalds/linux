@@ -546,7 +546,7 @@ static int dt3155_ioctl(struct inode *inode,
 	  return -EBUSY;
 
 	{
-	  struct dt3155_config_s tmp;
+	  struct dt3155_config tmp;
 	  if (copy_from_user((void *)&tmp, (void *) arg, sizeof(tmp)))
 	      return -EFAULT;
 	  /* check for valid settings */
