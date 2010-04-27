@@ -52,3 +52,13 @@ EXPORT_SYMBOL_GPL(_ebss);
 extern void _mcount(void);
 EXPORT_SYMBOL(_mcount);
 #endif
+
+/*
+ * Assembly functions that may be used (directly or indirectly) by modules
+ */
+EXPORT_SYMBOL(__copy_tofrom_user);
+
+#ifdef CONFIG_OPT_LIB_ASM
+EXPORT_SYMBOL(memcpy);
+EXPORT_SYMBOL(memmove);
+#endif
