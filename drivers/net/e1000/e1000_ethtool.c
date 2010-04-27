@@ -346,7 +346,7 @@ static int e1000_set_tso(struct net_device *netdev, u32 data)
 
 	netdev->features &= ~NETIF_F_TSO6;
 
-	DPRINTK(PROBE, INFO, "TSO is %s\n", data ? "Enabled" : "Disabled");
+	e_info("TSO is %s\n", data ? "Enabled" : "Disabled");
 	adapter->tso_force = true;
 	return 0;
 }
@@ -714,9 +714,9 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, u64 *data, int reg,
 		writel(write & test[i], address);
 		read = readl(address);
 		if (read != (write & test[i] & mask)) {
-			DPRINTK(DRV, ERR, "pattern test reg %04X failed: "
-				"got 0x%08X expected 0x%08X\n",
-				reg, read, (write & test[i] & mask));
+			e_info("pattern test reg %04X failed: "
+			       "got 0x%08X expected 0x%08X\n",
+			       reg, read, (write & test[i] & mask));
 			*data = reg;
 			return true;
 		}
@@ -734,9 +734,9 @@ static bool reg_set_and_check(struct e1000_adapter *adapter, u64 *data, int reg,
 	writel(write & mask, address);
 	read = readl(address);
 	if ((read & mask) != (write & mask)) {
-		DPRINTK(DRV, ERR, "set/check reg %04X test failed: "
-			"got 0x%08X expected 0x%08X\n",
-			reg, (read & mask), (write & mask));
+		e_err("set/check reg %04X test failed: "
+		      "got 0x%08X expected 0x%08X\n",
+		      reg, (read & mask), (write & mask));
 		*data = reg;
 		return true;
 	}
@@ -779,8 +779,8 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	ew32(STATUS, toggle);
 	after = er32(STATUS) & toggle;
 	if (value != after) {
-		DPRINTK(DRV, ERR, "failed STATUS register test got: "
-		        "0x%08X expected: 0x%08X\n", after, value);
+		e_err("failed STATUS register test got: "
+		      "0x%08X expected: 0x%08X\n", after, value);
 		*data = 1;
 		return 1;
 	}
@@ -894,8 +894,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 		*data = 1;
 		return -1;
 	}
-	DPRINTK(HW, INFO, "testing %s interrupt\n",
-	        (shared_int ? "shared" : "unshared"));
+	e_info("testing %s interrupt\n", (shared_int ? "shared" : "unshared"));
 
 	/* Disable all the interrupts */
 	ew32(IMC, 0xFFFFFFFF);
@@ -1564,7 +1563,7 @@ static void e1000_diag_test(struct net_device *netdev,
 		u8 forced_speed_duplex = hw->forced_speed_duplex;
 		u8 autoneg = hw->autoneg;
 
-		DPRINTK(HW, INFO, "offline testing starting\n");
+		e_info("offline testing starting\n");
 
 		/* Link test performed before hardware reset so autoneg doesn't
 		 * interfere with test result */
@@ -1604,7 +1603,7 @@ static void e1000_diag_test(struct net_device *netdev,
 		if (if_running)
 			dev_open(netdev);
 	} else {
-		DPRINTK(HW, INFO, "online testing starting\n");
+		e_info("online testing starting\n");
 		/* Online tests */
 		if (e1000_link_test(adapter, &data[4]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -1697,7 +1696,7 @@ static void e1000_get_wol(struct net_device *netdev,
 		wol->supported &= ~WAKE_UCAST;
 
 		if (adapter->wol & E1000_WUFC_EX)
-			DPRINTK(DRV, ERR, "Interface does not support "
+			e_err("Interface does not support "
 		        "directed (unicast) frame wake-up packets\n");
 		break;
 	default:
@@ -1731,8 +1730,8 @@ static int e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	switch (hw->device_id) {
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
 		if (wol->wolopts & WAKE_UCAST) {
-			DPRINTK(DRV, ERR, "Interface does not support "
-		        "directed (unicast) frame wake-up packets\n");
+			e_err("Interface does not support "
+			      "directed (unicast) frame wake-up packets\n");
 			return -EOPNOTSUPP;
 		}
 		break;
