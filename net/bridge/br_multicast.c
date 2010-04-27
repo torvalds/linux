@@ -1045,7 +1045,7 @@ static void br_multicast_add_router(struct net_bridge *br,
 	struct net_bridge_port *p;
 	struct hlist_node *n, *last = NULL;
 
-	hlist_for_each_entry(p, n, &br->router_list, rlist) {
+	hlist_for_each_entry_rcu(p, n, &br->router_list, rlist) {
 		if ((unsigned long) port >= (unsigned long) p) {
 			hlist_add_before_rcu(n, &port->rlist);
 			return;
