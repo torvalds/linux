@@ -25,6 +25,11 @@
 
 #include "iopgtable.h"
 
+#define for_each_iotlb_cr(obj, n, __i, cr)				\
+	for (__i = 0;							\
+	     (__i < (n)) && (cr = __iotlb_read_cr((obj), __i), true);	\
+	     __i++)
+
 /* accommodate the difference between omap1 and omap2/3 */
 static const struct iommu_functions *arch_iommu;
 
@@ -211,6 +216,20 @@ static inline ssize_t iotlb_dump_cr(struct iommu *obj, struct cr_regs *cr,
 	return arch_iommu->dump_cr(obj, cr, buf);
 }
 
+/* only used in iotlb iteration for-loop */
+static struct cr_regs __iotlb_read_cr(struct iommu *obj, int n)
+{
+	struct cr_regs cr;
+	struct iotlb_lock l;
+
+	iotlb_lock_get(obj, &l);
+	l.vict = n;
+	iotlb_lock_set(obj, &l);
+	iotlb_read_cr(obj, &cr);
+
+	return cr;
+}
+
 /**
  * load_iotlb_entry - Set an iommu tlb entry
  * @obj:	target iommu
@@ -218,7 +237,6 @@ static inline ssize_t iotlb_dump_cr(struct iommu *obj, struct cr_regs *cr,
  **/
 int load_iotlb_entry(struct iommu *obj, struct iotlb_entry *e)
 {
-	int i;
 	int err = 0;
 	struct iotlb_lock l;
 	struct cr_regs *cr;
@@ -235,21 +253,20 @@ int load_iotlb_entry(struct iommu *obj, struct iotlb_entry *e)
 		goto out;
 	}
 	if (!e->prsvd) {
-		for (i = l.base; i < obj->nr_tlb_entries; i++) {
-			struct cr_regs tmp;
+		int i;
+		struct cr_regs tmp;
 
-			iotlb_lock_get(obj, &l);
-			l.vict = i;
-			iotlb_lock_set(obj, &l);
-			iotlb_read_cr(obj, &tmp);
+		for_each_iotlb_cr(obj, obj->nr_tlb_entries, i, tmp)
 			if (!iotlb_cr_valid(&tmp))
 				break;
-		}
+
 		if (i == obj->nr_tlb_entries) {
 			dev_dbg(obj->dev, "%s: full: no entry\n", __func__);
 			err = -EBUSY;
 			goto out;
 		}
+
+		iotlb_lock_get(obj, &l);
 	} else {
 		l.vict = l.base;
 		iotlb_lock_set(obj, &l);
@@ -285,20 +302,15 @@ EXPORT_SYMBOL_GPL(load_iotlb_entry);
  **/
 void flush_iotlb_page(struct iommu *obj, u32 da)
 {
-	struct iotlb_lock l;
 	int i;
+	struct cr_regs cr;
 
 	clk_enable(obj->clk);
 
-	for (i = 0; i < obj->nr_tlb_entries; i++) {
-		struct cr_regs cr;
+	for_each_iotlb_cr(obj, obj->nr_tlb_entries, i, cr) {
 		u32 start;
 		size_t bytes;
 
-		iotlb_lock_get(obj, &l);
-		l.vict = i;
-		iotlb_lock_set(obj, &l);
-		iotlb_read_cr(obj, &cr);
 		if (!iotlb_cr_valid(&cr))
 			continue;
 
@@ -308,7 +320,6 @@ void flush_iotlb_page(struct iommu *obj, u32 da)
 		if ((start <= da) && (da < start + bytes)) {
 			dev_dbg(obj->dev, "%s: %08x<=%08x(%x)\n",
 				__func__, start, da, bytes);
-			iotlb_load_cr(obj, &cr);
 			iommu_write_reg(obj, 1, MMU_FLUSH_ENTRY);
 		}
 	}
@@ -379,26 +390,19 @@ EXPORT_SYMBOL_GPL(iommu_dump_ctx);
 static int __dump_tlb_entries(struct iommu *obj, struct cr_regs *crs, int num)
 {
 	int i;
-	struct iotlb_lock saved, l;
+	struct iotlb_lock saved;
+	struct cr_regs tmp;
 	struct cr_regs *p = crs;
 
 	clk_enable(obj->clk);
-
 	iotlb_lock_get(obj, &saved);
-	memcpy(&l, &saved, sizeof(saved));
 
-	for (i = 0; i < num; i++) {
-		struct cr_regs tmp;
-
-		iotlb_lock_get(obj, &l);
-		l.vict = i;
-		iotlb_lock_set(obj, &l);
-		iotlb_read_cr(obj, &tmp);
+	for_each_iotlb_cr(obj, num, i, tmp) {
 		if (!iotlb_cr_valid(&tmp))
 			continue;
-
 		*p++ = tmp;
 	}
+
 	iotlb_lock_set(obj, &saved);
 	clk_disable(obj->clk);
 
