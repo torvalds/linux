@@ -217,16 +217,12 @@ static struct clocksource clocksource_microblaze = {
 	.rating		= 300,
 	.read		= microblaze_read,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 8, /* I can shift it */
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static int __init microblaze_clocksource_init(void)
 {
-	clocksource_microblaze.mult =
-			clocksource_hz2mult(timer_clock_freq,
-						clocksource_microblaze.shift);
-	if (clocksource_register(&clocksource_microblaze))
+	if (clocksource_register_hz(&clocksource_microblaze, timer_clock_freq))
 		panic("failed to register clocksource");
 
 	/* stop timer1 */
