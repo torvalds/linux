@@ -260,6 +260,7 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 128,
+	.ucode_tracing = true,
 };
 
 struct iwl_cfg iwl1000_bg_cfg = {
@@ -289,6 +290,7 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 128,
+	.ucode_tracing = true,
 };
 
 MODULE_FIRMWARE(IWL1000_MODULE_FIRMWARE(IWL1000_UCODE_API_MAX));

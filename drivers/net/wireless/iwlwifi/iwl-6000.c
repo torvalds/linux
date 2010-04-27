@@ -442,6 +442,7 @@ struct iwl_cfg iwl6000g2a_2agn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.ucode_tracing = true,
 };
 
 /*
@@ -479,6 +480,7 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 1024,
+	.ucode_tracing = true,
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
@@ -511,6 +513,7 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 1024,
+	.ucode_tracing = true,
 };
 
 struct iwl_cfg iwl6000i_2bg_cfg = {
@@ -543,6 +546,7 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 1024,
+	.ucode_tracing = true,
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
@@ -577,6 +581,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.chain_noise_scale = 1500,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 1024,
+	.ucode_tracing = true,
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
@@ -609,6 +614,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.chain_noise_scale = 1500,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 1024,
+	.ucode_tracing = true,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
@@ -643,6 +649,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 1024,
+	.ucode_tracing = true,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));
