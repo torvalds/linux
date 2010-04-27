@@ -1458,8 +1458,8 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 			struct ixgbe_tx_buffer *buf =
 					&(tx_ring->tx_buffer_info[i]);
 			if (buf->dma)
-				pci_unmap_single(pdev, buf->dma, buf->length,
-				                 PCI_DMA_TODEVICE);
+				dma_unmap_single(&pdev->dev, buf->dma,
+						 buf->length, DMA_TO_DEVICE);
 			if (buf->skb)
 				dev_kfree_skb(buf->skb);
 		}
@@ -1470,22 +1470,22 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 			struct ixgbe_rx_buffer *buf =
 					&(rx_ring->rx_buffer_info[i]);
 			if (buf->dma)
-				pci_unmap_single(pdev, buf->dma,
+				dma_unmap_single(&pdev->dev, buf->dma,
 						 IXGBE_RXBUFFER_2048,
-						 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 			if (buf->skb)
 				dev_kfree_skb(buf->skb);
 		}
 	}
 
 	if (tx_ring->desc) {
-		pci_free_consistent(pdev, tx_ring->size, tx_ring->desc,
-		                    tx_ring->dma);
+		dma_free_coherent(&pdev->dev, tx_ring->size, tx_ring->desc,
+				  tx_ring->dma);
 		tx_ring->desc = NULL;
 	}
 	if (rx_ring->desc) {
-		pci_free_consistent(pdev, rx_ring->size, rx_ring->desc,
-		                    rx_ring->dma);
+		dma_free_coherent(&pdev->dev, rx_ring->size, rx_ring->desc,
+				  rx_ring->dma);
 		rx_ring->desc = NULL;
 	}
 
@@ -1520,8 +1520,9 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 
 	tx_ring->size = tx_ring->count * sizeof(union ixgbe_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
-	if (!(tx_ring->desc = pci_alloc_consistent(pdev, tx_ring->size,
-						   &tx_ring->dma))) {
+	tx_ring->desc = dma_alloc_coherent(&pdev->dev, tx_ring->size,
+					   &tx_ring->dma, GFP_KERNEL);
+	if (!(tx_ring->desc)) {
 		ret_val = 2;
 		goto err_nomem;
 	}
@@ -1563,8 +1564,8 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 		tx_ring->tx_buffer_info[i].skb = skb;
 		tx_ring->tx_buffer_info[i].length = skb->len;
 		tx_ring->tx_buffer_info[i].dma =
-			pci_map_single(pdev, skb->data, skb->len,
-			               PCI_DMA_TODEVICE);
+			dma_map_single(&pdev->dev, skb->data, skb->len,
+				       DMA_TO_DEVICE);
 		desc->read.buffer_addr =
 		                    cpu_to_le64(tx_ring->tx_buffer_info[i].dma);
 		desc->read.cmd_type_len = cpu_to_le32(skb->len);
@@ -1593,8 +1594,9 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 
 	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
-	if (!(rx_ring->desc = pci_alloc_consistent(pdev, rx_ring->size,
-						   &rx_ring->dma))) {
+	rx_ring->desc = dma_alloc_coherent(&pdev->dev, rx_ring->size,
+					   &rx_ring->dma, GFP_KERNEL);
+	if (!(rx_ring->desc)) {
 		ret_val = 5;
 		goto err_nomem;
 	}
@@ -1661,8 +1663,8 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 		skb_reserve(skb, NET_IP_ALIGN);
 		rx_ring->rx_buffer_info[i].skb = skb;
 		rx_ring->rx_buffer_info[i].dma =
-			pci_map_single(pdev, skb->data, IXGBE_RXBUFFER_2048,
-			               PCI_DMA_FROMDEVICE);
+			dma_map_single(&pdev->dev, skb->data,
+				       IXGBE_RXBUFFER_2048, DMA_FROM_DEVICE);
 		rx_desc->read.pkt_addr =
 				cpu_to_le64(rx_ring->rx_buffer_info[i].dma);
 		memset(skb->data, 0x00, skb->len);
@@ -1775,10 +1777,10 @@ static int ixgbe_run_loopback_test(struct ixgbe_adapter *adapter)
 			ixgbe_create_lbtest_frame(
 					tx_ring->tx_buffer_info[k].skb,
 					1024);
-			pci_dma_sync_single_for_device(pdev,
+			dma_sync_single_for_device(&pdev->dev,
 				tx_ring->tx_buffer_info[k].dma,
 				tx_ring->tx_buffer_info[k].length,
-				PCI_DMA_TODEVICE);
+				DMA_TO_DEVICE);
 			if (unlikely(++k == tx_ring->count))
 				k = 0;
 		}
@@ -1789,10 +1791,10 @@ static int ixgbe_run_loopback_test(struct ixgbe_adapter *adapter)
 		good_cnt = 0;
 		do {
 			/* receive the sent packets */
-			pci_dma_sync_single_for_cpu(pdev,
+			dma_sync_single_for_cpu(&pdev->dev,
 					rx_ring->rx_buffer_info[l].dma,
 					IXGBE_RXBUFFER_2048,
-					PCI_DMA_FROMDEVICE);
+					DMA_FROM_DEVICE);
 			ret_val = ixgbe_check_lbtest_frame(
 					rx_ring->rx_buffer_info[l].skb, 1024);
 			if (!ret_val)
