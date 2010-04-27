@@ -39,6 +39,8 @@
 #define IXGBE_82599_MC_TBL_SIZE   128
 #define IXGBE_82599_VFT_TBL_SIZE  128
 
+void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
+void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
 void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
 s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
                                           ixgbe_link_speed speed,
@@ -69,8 +71,14 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 	if (hw->phy.multispeed_fiber) {
 		/* Set up dual speed SFP+ support */
 		mac->ops.setup_link = &ixgbe_setup_mac_link_multispeed_fiber;
+		mac->ops.disable_tx_laser =
+		                       &ixgbe_disable_tx_laser_multispeed_fiber;
+		mac->ops.enable_tx_laser =
+		                        &ixgbe_enable_tx_laser_multispeed_fiber;
 		mac->ops.flap_tx_laser = &ixgbe_flap_tx_laser_multispeed_fiber;
 	} else {
+		mac->ops.disable_tx_laser = NULL;
+		mac->ops.enable_tx_laser = NULL;
 		mac->ops.flap_tx_laser = NULL;
 		if ((mac->ops.get_media_type(hw) ==
 		     ixgbe_media_type_backplane) &&
@@ -415,6 +423,44 @@ s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 	return status;
 }
 
+ /**
+  *  ixgbe_disable_tx_laser_multispeed_fiber - Disable Tx laser
+  *  @hw: pointer to hardware structure
+  *
+  *  The base drivers may require better control over SFP+ module
+  *  PHY states.  This includes selectively shutting down the Tx
+  *  laser on the PHY, effectively halting physical link.
+  **/
+void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+{
+	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
+
+	/* Disable tx laser; allow 100us to go dark per spec */
+	esdp_reg |= IXGBE_ESDP_SDP3;
+	IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+	IXGBE_WRITE_FLUSH(hw);
+	udelay(100);
+}
+
+/**
+ *  ixgbe_enable_tx_laser_multispeed_fiber - Enable Tx laser
+ *  @hw: pointer to hardware structure
+ *
+ *  The base drivers may require better control over SFP+ module
+ *  PHY states.  This includes selectively turning on the Tx
+ *  laser on the PHY, effectively starting physical link.
+ **/
+void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+{
+	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
+
+	/* Enable tx laser; allow 100ms to light up */
+	esdp_reg &= ~IXGBE_ESDP_SDP3;
+	IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+	IXGBE_WRITE_FLUSH(hw);
+	msleep(100);
+}
+
 /**
  *  ixgbe_flap_tx_laser_multispeed_fiber - Flap Tx laser
  *  @hw: pointer to hardware structure
@@ -429,23 +475,11 @@ s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
  **/
 void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 {
-	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
-
 	hw_dbg(hw, "ixgbe_flap_tx_laser_multispeed_fiber\n");
 
 	if (hw->mac.autotry_restart) {
-		/* Disable tx laser; allow 100us to go dark per spec */
-		esdp_reg |= IXGBE_ESDP_SDP3;
-		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
-		IXGBE_WRITE_FLUSH(hw);
-		udelay(100);
-
-		/* Enable tx laser; allow 100ms to light up */
-		esdp_reg &= ~IXGBE_ESDP_SDP3;
-		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
-		IXGBE_WRITE_FLUSH(hw);
-		msleep(100);
-
+		ixgbe_disable_tx_laser_multispeed_fiber(hw);
+		ixgbe_enable_tx_laser_multispeed_fiber(hw);
 		hw->mac.autotry_restart = false;
 	}
 }
