@@ -516,6 +516,18 @@ static snd_pcm_sframes_t s3c2412_i2s_delay(struct snd_pcm_substream *substream,
 	return delay;
 }
 
+struct clk *s3c_i2sv2_get_clock(struct snd_soc_dai *cpu_dai)
+{
+	struct s3c_i2sv2_info *i2s = to_info(cpu_dai);
+	u32 iismod = readl(i2s->regs + S3C2412_IISMOD);
+
+	if (iismod & S3C2412_IISMOD_IMS_SYSMUX)
+		return i2s->iis_cclk;
+	else
+		return i2s->iis_pclk;
+}
+EXPORT_SYMBOL_GPL(s3c_i2sv2_get_clock);
+
 /* default table of all avaialable root fs divisors */
 static unsigned int iis_fs_tab[] = { 256, 512, 384, 768 };
 

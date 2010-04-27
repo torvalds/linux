@@ -60,6 +60,8 @@ struct s3c_i2sv2_info {
 	u32		 suspend_iispsr;
 };
 
+extern struct clk *s3c_i2sv2_get_clock(struct snd_soc_dai *cpu_dai);
+
 struct s3c_i2sv2_rate_calc {
 	unsigned int	clk_div;	/* for prescaler */
 	unsigned int	fs_div;		/* for root frame clock */

@@ -91,19 +91,6 @@ static int s3c2412_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-
-struct clk *s3c2412_get_iisclk(void)
-{
-	struct s3c_i2sv2_info *i2s = &s3c2412_i2s;
-	u32 iismod = readl(i2s->regs + S3C2412_IISMOD);
-
-	if (iismod & S3C2412_IISMOD_IMS_SYSMUX)
-		return i2s->iis_cclk;
-	else
-		return i2s->iis_pclk;
-}
-EXPORT_SYMBOL_GPL(s3c2412_get_iisclk);
-
 static inline struct s3c_i2sv2_info *to_info(struct snd_soc_dai *cpu_dai)
 {
 	return cpu_dai->private_data;

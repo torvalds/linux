@@ -70,7 +70,7 @@ static int jive_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	s3c_i2sv2_iis_calc_rate(&div, NULL, params_rate(params),
-				s3c2412_get_iisclk());
+				s3c_i2sv2_get_clock(cpu_dai));
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
