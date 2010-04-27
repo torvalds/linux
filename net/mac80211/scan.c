@@ -410,7 +410,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 
 	if (local->ops->hw_scan) {
 		WARN_ON(!ieee80211_prep_hw_scan(local));
-		rc = drv_hw_scan(local, local->hw_scan_req);
+		rc = drv_hw_scan(local, sdata, local->hw_scan_req);
 	} else
 		rc = ieee80211_start_sw_scan(local);
 
@@ -654,7 +654,7 @@ void ieee80211_scan_work(struct work_struct *work)
 	}
 
 	if (local->hw_scan_req) {
-		int rc = drv_hw_scan(local, local->hw_scan_req);
+		int rc = drv_hw_scan(local, sdata, local->hw_scan_req);
 		mutex_unlock(&local->scan_mtx);
 		if (rc)
 			ieee80211_scan_completed(&local->hw, true);

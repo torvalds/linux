@@ -973,6 +973,7 @@ static void hw_scan_done(struct work_struct *work)
 }
 
 static int mac80211_hwsim_hw_scan(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
 				  struct cfg80211_scan_request *req)
 {
 	struct hw_scan_done *hsd = kzalloc(sizeof(*hsd), GFP_KERNEL);

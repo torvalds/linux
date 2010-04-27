@@ -1523,6 +1523,7 @@ out:
 }
 
 static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
 			     struct cfg80211_scan_request *req)
 {
 	struct wl1271 *wl = hw->priv;

@@ -1889,6 +1889,7 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 }
 
 static int at76_hw_scan(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
 			struct cfg80211_scan_request *req)
 {
 	struct at76_priv *priv = hw->priv;

@@ -312,7 +312,8 @@ static int iwl_scan_initiate(struct iwl_priv *priv)
 }
 
 int iwl_mac_hw_scan(struct ieee80211_hw *hw,
-		     struct cfg80211_scan_request *req)
+		    struct ieee80211_vif *vif,
+		    struct cfg80211_scan_request *req)
 {
 	struct iwl_priv *priv = hw->priv;
 	int ret;
