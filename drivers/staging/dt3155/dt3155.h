@@ -68,11 +68,11 @@ struct dt3155_config_s {
 
 
 /* hold data for each frame */
-typedef struct {
+struct frame_info {
 	u32 addr;		/* address of the buffer with the frame */
 	u32 tag;		/* unique number for the frame */
 	struct timeval time;	/* time that capture took place */
-} frame_info_t;
+};
 
 /*
  * Structure for interrupt and buffer handling.
@@ -81,7 +81,7 @@ typedef struct {
 struct dt3155_fbuffer_s {
 	int    nbuffers;
 
-	frame_info_t frame_info[BOARD_MAX_BUFFS];
+	struct frame_info frame_info[BOARD_MAX_BUFFS];
 
 	int empty_buffers[BOARD_MAX_BUFFS];	/* indexes empty frames */
 	int empty_len;				/* Number of empty buffers */
@@ -155,7 +155,7 @@ typedef struct dt3155_read_s {
 	u32 frame_seq;
 	u32 state;
 
-	frame_info_t frame_info;
+	struct frame_info frame_info;
 } dt3155_read_t;
 
 #endif /* _DT3155_inc */

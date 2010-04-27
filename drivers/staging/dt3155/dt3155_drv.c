@@ -757,7 +757,7 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
   int		minor = MINOR(filep->f_dentry->d_inode->i_rdev);
   u32		offset;
   int		frame_index;
-  frame_info_t	*frame_info_p;
+  struct frame_info	*frame_info;
 
   /* TODO: this should check the error flag and */
   /*   return an error on hardware failures */
@@ -807,10 +807,10 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
 	}
     }
 
-  frame_info_p = &dt3155_status[minor].fbuffer.frame_info[frame_index];
+  frame_info = &dt3155_status[minor].fbuffer.frame_info[frame_index];
 
   /* make this an offset */
-  offset = frame_info_p->addr - dt3155_status[minor].mem_addr;
+  offset = frame_info->addr - dt3155_status[minor].mem_addr;
 
   put_user(offset, (unsigned int *) buf);
   buf += sizeof(u32);
@@ -818,7 +818,7 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
   buf += sizeof(u32);
   put_user(dt3155_status[minor].state, (unsigned int *) buf);
   buf += sizeof(u32);
-  if (copy_to_user(buf, frame_info_p, sizeof(frame_info_t)))
+  if (copy_to_user(buf, frame_info, sizeof(*frame_info)))
       return -EFAULT;
 
   return sizeof(dt3155_read_t);
