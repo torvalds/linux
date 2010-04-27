@@ -1129,7 +1129,7 @@ static int sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 	if (pci_dma_mapping_error(pdev, re->data_addr))
 		goto mapping_error;
 
-	pci_unmap_len_set(re, data_size, size);
+	dma_unmap_len_set(re, data_size, size);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -1151,7 +1151,7 @@ map_page_error:
 			       PCI_DMA_FROMDEVICE);
 	}
 
-	pci_unmap_single(pdev, re->data_addr, pci_unmap_len(re, data_size),
+	pci_unmap_single(pdev, re->data_addr, dma_unmap_len(re, data_size),
 			 PCI_DMA_FROMDEVICE);
 
 mapping_error:
@@ -1166,7 +1166,7 @@ static void sky2_rx_unmap_skb(struct pci_dev *pdev, struct rx_ring_info *re)
 	struct sk_buff *skb = re->skb;
 	int i;
 
-	pci_unmap_single(pdev, re->data_addr, pci_unmap_len(re, data_size),
+	pci_unmap_single(pdev, re->data_addr, dma_unmap_len(re, data_size),
 			 PCI_DMA_FROMDEVICE);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
@@ -1695,12 +1695,12 @@ static unsigned tx_le_req(const struct sk_buff *skb)
 static void sky2_tx_unmap(struct pci_dev *pdev, struct tx_ring_info *re)
 {
 	if (re->flags & TX_MAP_SINGLE)
-		pci_unmap_single(pdev, pci_unmap_addr(re, mapaddr),
-				 pci_unmap_len(re, maplen),
+		pci_unmap_single(pdev, dma_unmap_addr(re, mapaddr),
+				 dma_unmap_len(re, maplen),
 				 PCI_DMA_TODEVICE);
 	else if (re->flags & TX_MAP_PAGE)
-		pci_unmap_page(pdev, pci_unmap_addr(re, mapaddr),
-			       pci_unmap_len(re, maplen),
+		pci_unmap_page(pdev, dma_unmap_addr(re, mapaddr),
+			       dma_unmap_len(re, maplen),
 			       PCI_DMA_TODEVICE);
 	re->flags = 0;
 }
@@ -1811,8 +1811,8 @@ static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
 
 	re = sky2->tx_ring + slot;
 	re->flags = TX_MAP_SINGLE;
-	pci_unmap_addr_set(re, mapaddr, mapping);
-	pci_unmap_len_set(re, maplen, len);
+	dma_unmap_addr_set(re, mapaddr, mapping);
+	dma_unmap_len_set(re, maplen, len);
 
 	le = get_tx_le(sky2, &slot);
 	le->addr = cpu_to_le32(lower_32_bits(mapping));
@@ -1840,8 +1840,8 @@ static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
 
 		re = sky2->tx_ring + slot;
 		re->flags = TX_MAP_PAGE;
-		pci_unmap_addr_set(re, mapaddr, mapping);
-		pci_unmap_len_set(re, maplen, frag->size);
+		dma_unmap_addr_set(re, mapaddr, mapping);
+		dma_unmap_len_set(re, maplen, frag->size);
 
 		le = get_tx_le(sky2, &slot);
 		le->addr = cpu_to_le32(lower_32_bits(mapping));
