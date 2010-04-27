@@ -81,6 +81,7 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 		PGSR(bank) &= ~mask;
 		is_out = 1;
 		break;
+	case MFP_LPM_INPUT:
 	case MFP_LPM_DEFAULT:
 		break;
 	default:
