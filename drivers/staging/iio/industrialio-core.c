@@ -537,7 +537,7 @@ static void iio_device_unregister_sysfs(struct iio_dev *dev_info)
 	sysfs_remove_group(&dev_info->dev.kobj, dev_info->attrs);
 }
 
-/* This function return negative value if fails. */
+/* Return a negative errno on failure */
 int iio_get_new_idr_val(struct idr *this_idr)
 {
 	int ret;
