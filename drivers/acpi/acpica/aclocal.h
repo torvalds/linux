@@ -213,12 +213,12 @@ struct acpi_namespace_node {
 #define ANOBJ_IS_BIT_OFFSET             0x40	/* i_aSL only: Reference is a bit offset */
 #define ANOBJ_IS_REFERENCED             0x80	/* i_aSL only: Object was referenced */
 
-/* One internal RSDT for table management */
+/* Internal ACPI table management - master table list */
 
-struct acpi_internal_rsdt {
-	struct acpi_table_desc *tables;
-	u32 count;
-	u32 size;
+struct acpi_table_list {
+	struct acpi_table_desc *tables;	/* Table descriptor array */
+	u32 current_table_count;	/* Tables currently in the array */
+	u32 max_table_count;	/* Max tables array will hold */
 	u8 flags;
 };
 

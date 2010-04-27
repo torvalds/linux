@@ -158,7 +158,7 @@ acpi_status acpi_tb_initialize_facs(void)
 u8 acpi_tb_tables_loaded(void)
 {
 
-	if (acpi_gbl_root_table_list.count >= 3) {
+	if (acpi_gbl_root_table_list.current_table_count >= 3) {
 		return (TRUE);
 	}
 
@@ -707,14 +707,14 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 	 */
 	table_entry =
 	    ACPI_CAST_PTR(u8, table) + sizeof(struct acpi_table_header);
-	acpi_gbl_root_table_list.count = 2;
+	acpi_gbl_root_table_list.current_table_count = 2;
 
 	/*
 	 * Initialize the root table array from the RSDT/XSDT
 	 */
 	for (i = 0; i < table_count; i++) {
-		if (acpi_gbl_root_table_list.count >=
-		    acpi_gbl_root_table_list.size) {
+		if (acpi_gbl_root_table_list.current_table_count >=
+		    acpi_gbl_root_table_list.max_table_count) {
 
 			/* There is no more room in the root table array, attempt resize */
 
@@ -724,19 +724,20 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 					      "Truncating %u table entries!",
 					      (unsigned) (table_count -
 					       (acpi_gbl_root_table_list.
-					       count - 2))));
+							  current_table_count -
+							  2))));
 				break;
 			}
 		}
 
 		/* Get the table physical address (32-bit for RSDT, 64-bit for XSDT) */
 
-		acpi_gbl_root_table_list.tables[acpi_gbl_root_table_list.count].
-		    address =
+		acpi_gbl_root_table_list.tables[acpi_gbl_root_table_list.
+						current_table_count].address =
 		    acpi_tb_get_root_table_entry(table_entry, table_entry_size);
 
 		table_entry += table_entry_size;
-		acpi_gbl_root_table_list.count++;
+		acpi_gbl_root_table_list.current_table_count++;
 	}
 
 	/*
@@ -749,7 +750,7 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 	 * Complete the initialization of the root table array by examining
 	 * the header of each table
 	 */
-	for (i = 2; i < acpi_gbl_root_table_list.count; i++) {
+	for (i = 2; i < acpi_gbl_root_table_list.current_table_count; i++) {
 		acpi_tb_install_table(acpi_gbl_root_table_list.tables[i].
 				      address, NULL, i);
 

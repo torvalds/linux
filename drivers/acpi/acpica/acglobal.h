@@ -158,11 +158,10 @@ ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
  ****************************************************************************/
 
 /*
- * acpi_gbl_root_table_list is the master list of ACPI tables found in the
- * RSDT/XSDT.
- *
+ * acpi_gbl_root_table_list is the master list of ACPI tables that were
+ * found in the RSDT/XSDT.
  */
-ACPI_EXTERN struct acpi_internal_rsdt acpi_gbl_root_table_list;
+ACPI_EXTERN struct acpi_table_list acpi_gbl_root_table_list;
 ACPI_EXTERN struct acpi_table_facs *acpi_gbl_FACS;
 
 /* These addresses are calculated from the FADT Event Block addresses */
