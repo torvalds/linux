@@ -41,11 +41,13 @@ typedef u32 ixgbe_link_speed;
 #define IXGBE_LINK_SPEED_1GB_FULL       0x0020
 #define IXGBE_LINK_SPEED_10GB_FULL      0x0080
 
-#define IXGBE_CTRL_RST          0x04000000 /* Reset (SW) */
-#define IXGBE_RXDCTL_ENABLE     0x02000000 /* Enable specific Rx Queue */
-#define IXGBE_TXDCTL_ENABLE     0x02000000 /* Enable specific Tx Queue */
-#define IXGBE_LINKS_UP          0x40000000
-#define IXGBE_LINKS_SPEED       0x20000000
+#define IXGBE_CTRL_RST              0x04000000 /* Reset (SW) */
+#define IXGBE_RXDCTL_ENABLE         0x02000000 /* Enable specific Rx Queue */
+#define IXGBE_TXDCTL_ENABLE         0x02000000 /* Enable specific Tx Queue */
+#define IXGBE_LINKS_UP              0x40000000
+#define IXGBE_LINKS_SPEED_82599     0x30000000
+#define IXGBE_LINKS_SPEED_10G_82599 0x30000000
+#define IXGBE_LINKS_SPEED_1G_82599  0x20000000
 
 /* Number of Transmit and Receive Descriptors must be a multiple of 8 */
 #define IXGBE_REQ_TX_DESCRIPTOR_MULTIPLE  8

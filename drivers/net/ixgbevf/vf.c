@@ -359,7 +359,8 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 	else
 		*link_up = false;
 
-	if (links_reg & IXGBE_LINKS_SPEED)
+	if ((links_reg & IXGBE_LINKS_SPEED_82599) ==
+	    IXGBE_LINKS_SPEED_10G_82599)
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
 	else
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
