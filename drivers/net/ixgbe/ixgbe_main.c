@@ -175,6 +175,345 @@ static inline void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
 }
 
+struct ixgbe_reg_info {
+	u32 ofs;
+	char *name;
+};
+
+static const struct ixgbe_reg_info ixgbe_reg_info_tbl[] = {
+
+	/* General Registers */
+	{IXGBE_CTRL, "CTRL"},
+	{IXGBE_STATUS, "STATUS"},
+	{IXGBE_CTRL_EXT, "CTRL_EXT"},
+
+	/* Interrupt Registers */
+	{IXGBE_EICR, "EICR"},
+
+	/* RX Registers */
+	{IXGBE_SRRCTL(0), "SRRCTL"},
+	{IXGBE_DCA_RXCTRL(0), "DRXCTL"},
+	{IXGBE_RDLEN(0), "RDLEN"},
+	{IXGBE_RDH(0), "RDH"},
+	{IXGBE_RDT(0), "RDT"},
+	{IXGBE_RXDCTL(0), "RXDCTL"},
+	{IXGBE_RDBAL(0), "RDBAL"},
+	{IXGBE_RDBAH(0), "RDBAH"},
+
+	/* TX Registers */
+	{IXGBE_TDBAL(0), "TDBAL"},
+	{IXGBE_TDBAH(0), "TDBAH"},
+	{IXGBE_TDLEN(0), "TDLEN"},
+	{IXGBE_TDH(0), "TDH"},
+	{IXGBE_TDT(0), "TDT"},
+	{IXGBE_TXDCTL(0), "TXDCTL"},
+
+	/* List Terminator */
+	{}
+};
+
+
+/*
+ * ixgbe_regdump - register printout routine
+ */
+static void ixgbe_regdump(struct ixgbe_hw *hw, struct ixgbe_reg_info *reginfo)
+{
+	int i = 0, j = 0;
+	char rname[16];
+	u32 regs[64];
+
+	switch (reginfo->ofs) {
+	case IXGBE_SRRCTL(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_SRRCTL(i));
+		break;
+	case IXGBE_DCA_RXCTRL(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
+		break;
+	case IXGBE_RDLEN(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_RDLEN(i));
+		break;
+	case IXGBE_RDH(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_RDH(i));
+		break;
+	case IXGBE_RDT(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_RDT(i));
+		break;
+	case IXGBE_RXDCTL(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_RXDCTL(i));
+		break;
+	case IXGBE_RDBAL(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_RDBAL(i));
+		break;
+	case IXGBE_RDBAH(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_RDBAH(i));
+		break;
+	case IXGBE_TDBAL(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_TDBAL(i));
+		break;
+	case IXGBE_TDBAH(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_TDBAH(i));
+		break;
+	case IXGBE_TDLEN(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_TDLEN(i));
+		break;
+	case IXGBE_TDH(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_TDH(i));
+		break;
+	case IXGBE_TDT(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_TDT(i));
+		break;
+	case IXGBE_TXDCTL(0):
+		for (i = 0; i < 64; i++)
+			regs[i] = IXGBE_READ_REG(hw, IXGBE_TXDCTL(i));
+		break;
+	default:
+		printk(KERN_INFO "%-15s %08x\n", reginfo->name,
+			IXGBE_READ_REG(hw, reginfo->ofs));
+		return;
+	}
+
+	for (i = 0; i < 8; i++) {
+		snprintf(rname, 16, "%s[%d-%d]", reginfo->name, i*8, i*8+7);
+		printk(KERN_ERR "%-15s ", rname);
+		for (j = 0; j < 8; j++)
+			printk(KERN_CONT "%08x ", regs[i*8+j]);
+		printk(KERN_CONT "\n");
+	}
+
+}
+
+/*
+ * ixgbe_dump - Print registers, tx-rings and rx-rings
+ */
+static void ixgbe_dump(struct ixgbe_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_reg_info *reginfo;
+	int n = 0;
+	struct ixgbe_ring *tx_ring;
+	struct ixgbe_tx_buffer *tx_buffer_info;
+	union ixgbe_adv_tx_desc *tx_desc;
+	struct my_u0 { u64 a; u64 b; } *u0;
+	struct ixgbe_ring *rx_ring;
+	union ixgbe_adv_rx_desc *rx_desc;
+	struct ixgbe_rx_buffer *rx_buffer_info;
+	u32 staterr;
+	int i = 0;
+
+	if (!netif_msg_hw(adapter))
+		return;
+
+	/* Print netdevice Info */
+	if (netdev) {
+		dev_info(&adapter->pdev->dev, "Net device Info\n");
+		printk(KERN_INFO "Device Name     state            "
+			"trans_start      last_rx\n");
+		printk(KERN_INFO "%-15s %016lX %016lX %016lX\n",
+		netdev->name,
+		netdev->state,
+		netdev->trans_start,
+		netdev->last_rx);
+	}
+
+	/* Print Registers */
+	dev_info(&adapter->pdev->dev, "Register Dump\n");
+	printk(KERN_INFO " Register Name   Value\n");
+	for (reginfo = (struct ixgbe_reg_info *)ixgbe_reg_info_tbl;
+	     reginfo->name; reginfo++) {
+		ixgbe_regdump(hw, reginfo);
+	}
+
+	/* Print TX Ring Summary */
+	if (!netdev || !netif_running(netdev))
+		goto exit;
+
+	dev_info(&adapter->pdev->dev, "TX Rings Summary\n");
+	printk(KERN_INFO "Queue [NTU] [NTC] [bi(ntc)->dma  ] "
+		"leng ntw timestamp\n");
+	for (n = 0; n < adapter->num_tx_queues; n++) {
+		tx_ring = adapter->tx_ring[n];
+		tx_buffer_info =
+			&tx_ring->tx_buffer_info[tx_ring->next_to_clean];
+		printk(KERN_INFO " %5d %5X %5X %016llX %04X %3X %016llX\n",
+			   n, tx_ring->next_to_use, tx_ring->next_to_clean,
+			   (u64)tx_buffer_info->dma,
+			   tx_buffer_info->length,
+			   tx_buffer_info->next_to_watch,
+			   (u64)tx_buffer_info->time_stamp);
+	}
+
+	/* Print TX Rings */
+	if (!netif_msg_tx_done(adapter))
+		goto rx_ring_summary;
+
+	dev_info(&adapter->pdev->dev, "TX Rings Dump\n");
+
+	/* Transmit Descriptor Formats
+	 *
+	 * Advanced Transmit Descriptor
+	 *   +--------------------------------------------------------------+
+	 * 0 |         Buffer Address [63:0]                                |
+	 *   +--------------------------------------------------------------+
+	 * 8 |  PAYLEN  | PORTS  | IDX | STA | DCMD  |DTYP |  RSV |  DTALEN |
+	 *   +--------------------------------------------------------------+
+	 *   63       46 45    40 39 36 35 32 31   24 23 20 19              0
+	 */
+
+	for (n = 0; n < adapter->num_tx_queues; n++) {
+		tx_ring = adapter->tx_ring[n];
+		printk(KERN_INFO "------------------------------------\n");
+		printk(KERN_INFO "TX QUEUE INDEX = %d\n", tx_ring->queue_index);
+		printk(KERN_INFO "------------------------------------\n");
+		printk(KERN_INFO "T [desc]     [address 63:0  ] "
+			"[PlPOIdStDDt Ln] [bi->dma       ] "
+			"leng  ntw timestamp        bi->skb\n");
+
+		for (i = 0; tx_ring->desc && (i < tx_ring->count); i++) {
+			tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
+			tx_buffer_info = &tx_ring->tx_buffer_info[i];
+			u0 = (struct my_u0 *)tx_desc;
+			printk(KERN_INFO "T [0x%03X]    %016llX %016llX %016llX"
+				" %04X  %3X %016llX %p", i,
+				le64_to_cpu(u0->a),
+				le64_to_cpu(u0->b),
+				(u64)tx_buffer_info->dma,
+				tx_buffer_info->length,
+				tx_buffer_info->next_to_watch,
+				(u64)tx_buffer_info->time_stamp,
+				tx_buffer_info->skb);
+			if (i == tx_ring->next_to_use &&
+				i == tx_ring->next_to_clean)
+				printk(KERN_CONT " NTC/U\n");
+			else if (i == tx_ring->next_to_use)
+				printk(KERN_CONT " NTU\n");
+			else if (i == tx_ring->next_to_clean)
+				printk(KERN_CONT " NTC\n");
+			else
+				printk(KERN_CONT "\n");
+
+			if (netif_msg_pktdata(adapter) &&
+				tx_buffer_info->dma != 0)
+				print_hex_dump(KERN_INFO, "",
+					DUMP_PREFIX_ADDRESS, 16, 1,
+					phys_to_virt(tx_buffer_info->dma),
+					tx_buffer_info->length, true);
+		}
+	}
+
+	/* Print RX Rings Summary */
+rx_ring_summary:
+	dev_info(&adapter->pdev->dev, "RX Rings Summary\n");
+	printk(KERN_INFO "Queue [NTU] [NTC]\n");
+	for (n = 0; n < adapter->num_rx_queues; n++) {
+		rx_ring = adapter->rx_ring[n];
+		printk(KERN_INFO "%5d %5X %5X\n", n,
+			   rx_ring->next_to_use, rx_ring->next_to_clean);
+	}
+
+	/* Print RX Rings */
+	if (!netif_msg_rx_status(adapter))
+		goto exit;
+
+	dev_info(&adapter->pdev->dev, "RX Rings Dump\n");
+
+	/* Advanced Receive Descriptor (Read) Format
+	 *    63                                           1        0
+	 *    +-----------------------------------------------------+
+	 *  0 |       Packet Buffer Address [63:1]           |A0/NSE|
+	 *    +----------------------------------------------+------+
+	 *  8 |       Header Buffer Address [63:1]           |  DD  |
+	 *    +-----------------------------------------------------+
+	 *
+	 *
+	 * Advanced Receive Descriptor (Write-Back) Format
+	 *
+	 *   63       48 47    32 31  30      21 20 16 15   4 3     0
+	 *   +------------------------------------------------------+
+	 * 0 | Packet     IP     |SPH| HDR_LEN   | RSV|Packet|  RSS |
+	 *   | Checksum   Ident  |   |           |    | Type | Type |
+	 *   +------------------------------------------------------+
+	 * 8 | VLAN Tag | Length | Extended Error | Extended Status |
+	 *   +------------------------------------------------------+
+	 *   63       48 47    32 31            20 19               0
+	 */
+	for (n = 0; n < adapter->num_rx_queues; n++) {
+		rx_ring = adapter->rx_ring[n];
+		printk(KERN_INFO "------------------------------------\n");
+		printk(KERN_INFO "RX QUEUE INDEX = %d\n", rx_ring->queue_index);
+		printk(KERN_INFO "------------------------------------\n");
+		printk(KERN_INFO "R  [desc]      [ PktBuf     A0] "
+			"[  HeadBuf   DD] [bi->dma       ] [bi->skb] "
+			"<-- Adv Rx Read format\n");
+		printk(KERN_INFO "RWB[desc]      [PcsmIpSHl PtRs] "
+			"[vl er S cks ln] ---------------- [bi->skb] "
+			"<-- Adv Rx Write-Back format\n");
+
+		for (i = 0; i < rx_ring->count; i++) {
+			rx_buffer_info = &rx_ring->rx_buffer_info[i];
+			rx_desc = IXGBE_RX_DESC_ADV(*rx_ring, i);
+			u0 = (struct my_u0 *)rx_desc;
+			staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
+			if (staterr & IXGBE_RXD_STAT_DD) {
+				/* Descriptor Done */
+				printk(KERN_INFO "RWB[0x%03X]     %016llX "
+					"%016llX ---------------- %p", i,
+					le64_to_cpu(u0->a),
+					le64_to_cpu(u0->b),
+					rx_buffer_info->skb);
+			} else {
+				printk(KERN_INFO "R  [0x%03X]     %016llX "
+					"%016llX %016llX %p", i,
+					le64_to_cpu(u0->a),
+					le64_to_cpu(u0->b),
+					(u64)rx_buffer_info->dma,
+					rx_buffer_info->skb);
+
+				if (netif_msg_pktdata(adapter)) {
+					print_hex_dump(KERN_INFO, "",
+					   DUMP_PREFIX_ADDRESS, 16, 1,
+					   phys_to_virt(rx_buffer_info->dma),
+					   rx_ring->rx_buf_len, true);
+
+					if (rx_ring->rx_buf_len
+						< IXGBE_RXBUFFER_2048)
+						print_hex_dump(KERN_INFO, "",
+						  DUMP_PREFIX_ADDRESS, 16, 1,
+						  phys_to_virt(
+						    rx_buffer_info->page_dma +
+						    rx_buffer_info->page_offset
+						  ),
+						  PAGE_SIZE/2, true);
+				}
+			}
+
+			if (i == rx_ring->next_to_use)
+				printk(KERN_CONT " NTU\n");
+			else if (i == rx_ring->next_to_clean)
+				printk(KERN_CONT " NTC\n");
+			else
+				printk(KERN_CONT "\n");
+
+		}
+	}
+
+exit:
+	return;
+}
+
 static void ixgbe_release_hw_control(struct ixgbe_adapter *adapter)
 {
 	u32 ctrl_ext;
@@ -3404,6 +3743,8 @@ static void ixgbe_reset_task(struct work_struct *work)
 
 	adapter->tx_timeout_count++;
 
+	ixgbe_dump(adapter);
+	netdev_err(adapter->netdev, "Reset adapter\n");
 	ixgbe_reinit_locked(adapter);
 }
 
