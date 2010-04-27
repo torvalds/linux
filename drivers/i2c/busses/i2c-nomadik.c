@@ -704,7 +704,8 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 	case I2C_IT_MTD:
 	case I2C_IT_MTDWS:
 		if (dev->cli.operation == I2C_READ) {
-			while (!readl(dev->virtbase + I2C_RISR) & I2C_IT_RXFE) {
+			while (!(readl(dev->virtbase + I2C_RISR)
+				 & I2C_IT_RXFE)) {
 				if (dev->cli.count == 0)
 					break;
 				*dev->cli.buffer =
