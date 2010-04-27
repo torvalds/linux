@@ -220,6 +220,7 @@ static struct clk xin24m = {
 	.name		= "xin24m",
 	.rate		= 24000000,
 	.flags		= RATE_FIXED,
+	.gate_idx	= -1,
 };
 
 static struct clk clk12m = {
@@ -227,12 +228,14 @@ static struct clk clk12m = {
 	.rate		= 12000000,
 	.parent		= &xin24m,
 	.flags		= RATE_FIXED,
+	.gate_idx	= -1,
 };
 
 static struct clk extclk = {
 	.name		= "extclk",
 	.rate		= 27000000,
 	.flags		= RATE_FIXED,
+	.gate_idx	= -1,
 };
 
 static unsigned long pll_clk_recalc(struct clk *clk)
@@ -252,6 +255,7 @@ static struct clk NAME##_pll_clk = { \
 	.parent		= &xin24m, \
 	.pll_idx	= IDX, \
 	.recalc		= pll_clk_recalc, \
+	.gate_idx	= -1, \
 }
 
 PLL_CLK(arm, 0);
@@ -263,6 +267,7 @@ static struct clk arm_clk = {
 	.parent		= &arm_pll_clk,
 	.recalc		= clksel_recalc,
 //	.set_rate	= arm_clk_set_rate,
+	.gate_idx	= -1,
 	.clksel_reg	= CLKSEL2_REG,
 	.clksel_mask	= 0xF,
 	.clksel_maxdiv	= 16,
@@ -272,6 +277,7 @@ static struct clk arm_hclk = {
 	.name		= "arm_hclk",
 	.parent		= &arm_clk,
 	.recalc		= clksel_recalc,
+	.gate_idx	= -1,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 0x3,
 	.clksel_maxdiv	= 4,
@@ -280,8 +286,9 @@ static struct clk arm_hclk = {
 static struct clk clk48m = {
 	.name		= "clk48m",
 	.parent		= &arm_clk,
-	.recalc		= clksel_recalc,
 	.flags		= RATE_FIXED,
+	.recalc		= clksel_recalc,
+	.gate_idx	= -1,
 	.clksel_reg	= CLKSEL2_REG,
 	.clksel_mask	= 0xF << 4,
 	.clksel_shift	= 4,
@@ -290,8 +297,10 @@ static struct clk clk48m = {
 static struct clk arm_pclk = {
 	.name		= "arm_pclk",
 	.parent		= &arm_hclk,
+	.flags		= ENABLE_ON_INIT,
 	.recalc		= clksel_recalc_shift,
 	.set_rate	= clksel_set_rate_shift,
+	.gate_idx	= -1,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 0x3 << 2,
 	.clksel_shift	= 2,
@@ -317,6 +326,7 @@ static struct clk demod_clk = {
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
 	.init		= demod_clk_init,
+	.gate_idx	= -1,
 	.clksel_reg	= CLKSEL1_REG,
 	.clksel_mask	= 0xFF << 16,
 	.clksel_shift	= 16,
@@ -328,6 +338,7 @@ static struct clk codec_clk = {
 	.parent		= &codec_pll_clk,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
+	.gate_idx	= -1,
 	.clksel_reg	= CLKSEL1_REG,
 	.clksel_mask	= 0x1F << 3,
 	.clksel_shift	= 3,
@@ -339,6 +350,7 @@ static struct clk lcdc_divider_clk = {
 	.parent		= &arm_pll_clk,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
+	.gate_idx	= -1,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 0xFF << 8,
 	.clksel_shift	= 8,
@@ -1055,94 +1067,105 @@ void __init rk2818_clock_init(void)
 	clk_enable_init_clocks();
 }
 
-#if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
-/*
- *	debugfs support to trace clock tree hierarchy and attributes
- */
-static struct dentry *clk_debugfs_root;
+#ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
-static int clk_debugfs_register_one(struct clk *c)
+static void dump_clock(struct seq_file *s, struct clk *clk, int deep)
 {
-	int err;
-	struct dentry *d, *child;
-	struct clk *pa = c->parent;
-	char s[255];
-	char *p = s;
+	struct clk* ck;
+	int i;
+	unsigned long rate = clk->rate;
 
-	p += sprintf(p, "%s", c->name);
-	d = debugfs_create_dir(s, pa ? pa->dent : clk_debugfs_root);
-	if (!d)
-		return -ENOMEM;
-	c->dent = d;
+	for (i = 0; i < deep; i++)
+		seq_printf(s, "    ");
 
-	d = debugfs_create_u8("usecount", S_IRUGO, c->dent, (u8 *)&c->usecount);
-	if (!d) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	d = debugfs_create_u32("rate", S_IRUGO, c->dent, (u32 *)&c->rate);
-	if (!d) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	d = debugfs_create_x32("flags", S_IRUGO, c->dent, (u32 *)&c->flags);
-	if (!d) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	return 0;
+	seq_printf(s, "%-9s ", clk->name);
 
-err_out:
-	d = c->dent;
-	list_for_each_entry(child, &d->d_subdirs, d_u.d_child)
-		debugfs_remove(child);
-	debugfs_remove(c->dent);
-	return err;
+	if (clk->gate_idx < SCU_IPID_GATE_MAX) {
+		u32 *reg;
+		int idx = clk->gate_idx;
+		u32 v;
+
+		reg = &scu_register_base->scu_clkgate0_config;
+		reg += (idx >> 5);
+		idx &= 0x1F;
+
+		v = readl(reg) & (1 << idx);
+		
+		seq_printf(s, "%s ", v ? "off" : "on ");
+	} else
+		seq_printf(s, "%s ", clk->usecount ? "on " : "off");
+
+	if (rate >= 1000000) {
+		if (rate % 1000000)
+			seq_printf(s, "%ld.%06ld MHz", rate / 1000000, rate % 1000000);
+		else
+			seq_printf(s, "%ld MHz", rate / 1000000);
+	} else if (rate >= 1000) {
+		if (rate % 1000)
+			seq_printf(s, "%ld.%03ld KHz", rate / 1000, rate % 1000);
+		else
+			seq_printf(s, "%ld KHz", rate / 1000);
+	} else {
+		seq_printf(s, "%ld Hz", rate);
+	}
+
+	seq_printf(s, " usecount = %d", clk->usecount);
+
+	seq_printf(s, " parent = %s\n", clk->parent ? clk->parent->name : "NULL");
+
+	list_for_each_entry(ck, &clocks, node) {
+		if (ck->parent == clk)
+			dump_clock(s, ck, deep + 1);
+	}
 }
 
-static int clk_debugfs_register(struct clk *c)
+static int proc_clk_show(struct seq_file *s, void *v)
 {
-	int err;
-	struct clk *pa = c->parent;
+	struct clk* clk;
 
-	if (pa && !pa->dent) {
-		err = clk_debugfs_register(pa);
-		if (err)
-			return err;
+	mutex_lock(&clocks_mutex);
+	list_for_each_entry(clk, &clocks, node) {
+		if (!clk->parent)
+			dump_clock(s, clk, 0);
 	}
+	mutex_unlock(&clocks_mutex);
 
-	if (!c->dent) {
-		err = clk_debugfs_register_one(c);
-		if (err)
-			return err;
-	}
+	seq_printf(s, "\nRegisters:\n");
+	seq_printf(s, "SCU_APLL_CON     : 0x%08x\n", readl(&scu_register_base->scu_pll_config[0]));
+	seq_printf(s, "SCU_DPLL_CON     : 0x%08x\n", readl(&scu_register_base->scu_pll_config[1]));
+	seq_printf(s, "SCU_CPLL_CON     : 0x%08x\n", readl(&scu_register_base->scu_pll_config[2]));
+	seq_printf(s, "SCU_MODE_CON     : 0x%08x\n", readl(&scu_register_base->scu_mode_config));
+	seq_printf(s, "SCU_PMU_CON      : 0x%08x\n", readl(&scu_register_base->scu_pmu_config));
+	seq_printf(s, "SCU_CLKSEL0_CON  : 0x%08x\n", readl(&scu_register_base->scu_clksel0_config));
+	seq_printf(s, "SCU_CLKSEL1_CON  : 0x%08x\n", readl(&scu_register_base->scu_clksel1_config));
+	seq_printf(s, "SCU_CLKGATE0_CON : 0x%08x\n", readl(&scu_register_base->scu_clkgate0_config));
+	seq_printf(s, "SCU_CLKGATE1_CON : 0x%08x\n", readl(&scu_register_base->scu_clkgate1_config));
+	seq_printf(s, "SCU_CLKGATE2_CON : 0x%08x\n", readl(&scu_register_base->scu_clkgate2_config));
+	seq_printf(s, "SCU_CLKSEL2_CON  : 0x%08x\n", readl(&scu_register_base->scu_clksel2_config));
+
 	return 0;
 }
 
-static int __init clk_debugfs_init(void)
+static int proc_clk_open(struct inode *inode, struct file *file)
 {
-	struct clk *c;
-	struct dentry *d;
-	int err;
-
-	d = debugfs_create_dir("clock", NULL);
-	if (!d)
-		return -ENOMEM;
-	clk_debugfs_root = d;
-
-	list_for_each_entry(c, &clocks, node) {
-		err = clk_debugfs_register(c);
-		if (err)
-			goto err_out;
-	}
-	return 0;
-err_out:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-	debugfs_remove_recursive(clk_debugfs_root);
-#endif
-	return err;
+	return single_open(file, proc_clk_show, NULL);
 }
-late_initcall(clk_debugfs_init);
 
-#endif /* defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS) */
+static const struct file_operations proc_clk_fops = {
+	.open		= proc_clk_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init clk_proc_init(void)
+{
+	proc_create("clocks", 0, NULL, &proc_clk_fops);
+	return 0;
+
+}
+late_initcall(clk_proc_init);
+#endif /* CONFIG_PROC_FS */
 
