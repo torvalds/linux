@@ -18,7 +18,6 @@
 
 #include <sound/soc.h>
 
-#include <plat/regs-s3c2412-iis.h>
 #include <mach/gpio-bank-d.h>
 #include <mach/gpio-bank-e.h>
 #include <plat/gpio-cfg.h>
@@ -27,6 +26,7 @@
 #include <mach/dma.h>
 
 #include "s3c-dma.h"
+#include "regs-i2s-v2.h"
 #include "s3c64xx-i2s.h"
 
 /* The value should be set to maximum of the total number

@@ -24,10 +24,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include <plat/regs-s3c2412-iis.h>
-
 #include <mach/dma.h>
 
+#include "regs-i2s-v2.h"
 #include "s3c-i2s-v2.h"
 #include "s3c-dma.h"
 
