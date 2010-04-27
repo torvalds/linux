@@ -181,10 +181,10 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 
 		buffer_info->skb = skb;
 map_skb:
-		buffer_info->dma = pci_map_single(pdev, skb->data,
+		buffer_info->dma = dma_map_single(&pdev->dev, skb->data,
 						  adapter->rx_buffer_len,
-						  PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(pdev, buffer_info->dma)) {
+						  DMA_FROM_DEVICE);
+		if (dma_mapping_error(&pdev->dev, buffer_info->dma)) {
 			dev_err(&pdev->dev, "RX DMA map failed\n");
 			adapter->rx_dma_failed++;
 			break;
@@ -250,11 +250,12 @@ static void e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 					adapter->alloc_rx_buff_failed++;
 					goto no_buffers;
 				}
-				ps_page->dma = pci_map_page(pdev,
-						   ps_page->page,
-						   0, PAGE_SIZE,
-						   PCI_DMA_FROMDEVICE);
-				if (pci_dma_mapping_error(pdev, ps_page->dma)) {
+				ps_page->dma = dma_map_page(&pdev->dev,
+							    ps_page->page,
+							    0, PAGE_SIZE,
+							    DMA_FROM_DEVICE);
+				if (dma_mapping_error(&pdev->dev,
+						      ps_page->dma)) {
 					dev_err(&adapter->pdev->dev,
 					  "RX DMA page map failed\n");
 					adapter->rx_dma_failed++;
@@ -279,10 +280,10 @@ static void e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 		}
 
 		buffer_info->skb = skb;
-		buffer_info->dma = pci_map_single(pdev, skb->data,
+		buffer_info->dma = dma_map_single(&pdev->dev, skb->data,
 						  adapter->rx_ps_bsize0,
-						  PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(pdev, buffer_info->dma)) {
+						  DMA_FROM_DEVICE);
+		if (dma_mapping_error(&pdev->dev, buffer_info->dma)) {
 			dev_err(&pdev->dev, "RX DMA map failed\n");
 			adapter->rx_dma_failed++;
 			/* cleanup skb */
@@ -369,10 +370,10 @@ check_page:
 		}
 
 		if (!buffer_info->dma)
-			buffer_info->dma = pci_map_page(pdev,
+			buffer_info->dma = dma_map_page(&pdev->dev,
 			                                buffer_info->page, 0,
 			                                PAGE_SIZE,
-			                                PCI_DMA_FROMDEVICE);
+							DMA_FROM_DEVICE);
 
 		rx_desc = E1000_RX_DESC(*rx_ring, i);
 		rx_desc->buffer_addr = cpu_to_le64(buffer_info->dma);
@@ -446,10 +447,10 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		cleaned = 1;
 		cleaned_count++;
-		pci_unmap_single(pdev,
+		dma_unmap_single(&pdev->dev,
 				 buffer_info->dma,
 				 adapter->rx_buffer_len,
-				 PCI_DMA_FROMDEVICE);
+				 DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
 
 		length = le16_to_cpu(rx_desc->length);
@@ -550,12 +551,11 @@ static void e1000_put_txbuf(struct e1000_adapter *adapter,
 {
 	if (buffer_info->dma) {
 		if (buffer_info->mapped_as_page)
-			pci_unmap_page(adapter->pdev, buffer_info->dma,
-				       buffer_info->length, PCI_DMA_TODEVICE);
+			dma_unmap_page(&adapter->pdev->dev, buffer_info->dma,
+				       buffer_info->length, DMA_TO_DEVICE);
 		else
-			pci_unmap_single(adapter->pdev,	buffer_info->dma,
-					 buffer_info->length,
-					 PCI_DMA_TODEVICE);
+			dma_unmap_single(&adapter->pdev->dev, buffer_info->dma,
+					 buffer_info->length, DMA_TO_DEVICE);
 		buffer_info->dma = 0;
 	}
 	if (buffer_info->skb) {
@@ -756,9 +756,9 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 
 		cleaned = 1;
 		cleaned_count++;
-		pci_unmap_single(pdev, buffer_info->dma,
+		dma_unmap_single(&pdev->dev, buffer_info->dma,
 				 adapter->rx_ps_bsize0,
-				 PCI_DMA_FROMDEVICE);
+				 DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
 
 		/* see !EOP comment in other rx routine */
@@ -814,13 +814,13 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			 * kmap_atomic, so we can't hold the mapping
 			 * very long
 			 */
-			pci_dma_sync_single_for_cpu(pdev, ps_page->dma,
-				PAGE_SIZE, PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_cpu(&pdev->dev, ps_page->dma,
+						PAGE_SIZE, DMA_FROM_DEVICE);
 			vaddr = kmap_atomic(ps_page->page, KM_SKB_DATA_SOFTIRQ);
 			memcpy(skb_tail_pointer(skb), vaddr, l1);
 			kunmap_atomic(vaddr, KM_SKB_DATA_SOFTIRQ);
-			pci_dma_sync_single_for_device(pdev, ps_page->dma,
-				PAGE_SIZE, PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_device(&pdev->dev, ps_page->dma,
+						   PAGE_SIZE, DMA_FROM_DEVICE);
 
 			/* remove the CRC */
 			if (!(adapter->flags2 & FLAG2_CRC_STRIPPING))
@@ -837,8 +837,8 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 				break;
 
 			ps_page = &buffer_info->ps_pages[j];
-			pci_unmap_page(pdev, ps_page->dma, PAGE_SIZE,
-				       PCI_DMA_FROMDEVICE);
+			dma_unmap_page(&pdev->dev, ps_page->dma, PAGE_SIZE,
+				       DMA_FROM_DEVICE);
 			ps_page->dma = 0;
 			skb_fill_page_desc(skb, j, ps_page->page, 0, length);
 			ps_page->page = NULL;
@@ -956,8 +956,8 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 
 		cleaned = true;
 		cleaned_count++;
-		pci_unmap_page(pdev, buffer_info->dma, PAGE_SIZE,
-		               PCI_DMA_FROMDEVICE);
+		dma_unmap_page(&pdev->dev, buffer_info->dma, PAGE_SIZE,
+			       DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
 
 		length = le16_to_cpu(rx_desc->length);
@@ -1093,17 +1093,17 @@ static void e1000_clean_rx_ring(struct e1000_adapter *adapter)
 		buffer_info = &rx_ring->buffer_info[i];
 		if (buffer_info->dma) {
 			if (adapter->clean_rx == e1000_clean_rx_irq)
-				pci_unmap_single(pdev, buffer_info->dma,
+				dma_unmap_single(&pdev->dev, buffer_info->dma,
 						 adapter->rx_buffer_len,
-						 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 			else if (adapter->clean_rx == e1000_clean_jumbo_rx_irq)
-				pci_unmap_page(pdev, buffer_info->dma,
+				dma_unmap_page(&pdev->dev, buffer_info->dma,
 				               PAGE_SIZE,
-				               PCI_DMA_FROMDEVICE);
+					       DMA_FROM_DEVICE);
 			else if (adapter->clean_rx == e1000_clean_rx_irq_ps)
-				pci_unmap_single(pdev, buffer_info->dma,
+				dma_unmap_single(&pdev->dev, buffer_info->dma,
 						 adapter->rx_ps_bsize0,
-						 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
 		}
 
@@ -1121,8 +1121,8 @@ static void e1000_clean_rx_ring(struct e1000_adapter *adapter)
 			ps_page = &buffer_info->ps_pages[j];
 			if (!ps_page->page)
 				break;
-			pci_unmap_page(pdev, ps_page->dma, PAGE_SIZE,
-				       PCI_DMA_FROMDEVICE);
+			dma_unmap_page(&pdev->dev, ps_page->dma, PAGE_SIZE,
+				       DMA_FROM_DEVICE);
 			ps_page->dma = 0;
 			put_page(ps_page->page);
 			ps_page->page = NULL;
@@ -3917,10 +3917,11 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 		buffer_info->length = size;
 		buffer_info->time_stamp = jiffies;
 		buffer_info->next_to_watch = i;
-		buffer_info->dma = pci_map_single(pdev,	skb->data + offset,
-						  size,	PCI_DMA_TODEVICE);
+		buffer_info->dma = dma_map_single(&pdev->dev,
+						  skb->data + offset,
+						  size,	DMA_TO_DEVICE);
 		buffer_info->mapped_as_page = false;
-		if (pci_dma_mapping_error(pdev, buffer_info->dma))
+		if (dma_mapping_error(&pdev->dev, buffer_info->dma))
 			goto dma_error;
 
 		len -= size;
@@ -3952,11 +3953,11 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 			buffer_info->length = size;
 			buffer_info->time_stamp = jiffies;
 			buffer_info->next_to_watch = i;
-			buffer_info->dma = pci_map_page(pdev, frag->page,
+			buffer_info->dma = dma_map_page(&pdev->dev, frag->page,
 							offset, size,
-							PCI_DMA_TODEVICE);
+							DMA_TO_DEVICE);
 			buffer_info->mapped_as_page = true;
-			if (pci_dma_mapping_error(pdev, buffer_info->dma))
+			if (dma_mapping_error(&pdev->dev, buffer_info->dma))
 				goto dma_error;
 
 			len -= size;
@@ -5050,16 +5051,16 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		return err;
 
 	pci_using_dac = 0;
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 		if (!err)
 			pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = pci_set_consistent_dma_mask(pdev,
-							  DMA_BIT_MASK(32));
+			err = dma_set_coherent_mask(&pdev->dev,
+						    DMA_BIT_MASK(32));
 			if (err) {
 				dev_err(&pdev->dev, "No usable DMA "
 					"configuration, aborting\n");

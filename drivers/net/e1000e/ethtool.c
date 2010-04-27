@@ -1069,10 +1069,10 @@ static void e1000_free_desc_rings(struct e1000_adapter *adapter)
 	if (tx_ring->desc && tx_ring->buffer_info) {
 		for (i = 0; i < tx_ring->count; i++) {
 			if (tx_ring->buffer_info[i].dma)
-				pci_unmap_single(pdev,
+				dma_unmap_single(&pdev->dev,
 					tx_ring->buffer_info[i].dma,
 					tx_ring->buffer_info[i].length,
-					PCI_DMA_TODEVICE);
+					DMA_TO_DEVICE);
 			if (tx_ring->buffer_info[i].skb)
 				dev_kfree_skb(tx_ring->buffer_info[i].skb);
 		}
@@ -1081,9 +1081,9 @@ static void e1000_free_desc_rings(struct e1000_adapter *adapter)
 	if (rx_ring->desc && rx_ring->buffer_info) {
 		for (i = 0; i < rx_ring->count; i++) {
 			if (rx_ring->buffer_info[i].dma)
-				pci_unmap_single(pdev,
+				dma_unmap_single(&pdev->dev,
 					rx_ring->buffer_info[i].dma,
-					2048, PCI_DMA_FROMDEVICE);
+					2048, DMA_FROM_DEVICE);
 			if (rx_ring->buffer_info[i].skb)
 				dev_kfree_skb(rx_ring->buffer_info[i].skb);
 		}
@@ -1163,9 +1163,10 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		tx_ring->buffer_info[i].skb = skb;
 		tx_ring->buffer_info[i].length = skb->len;
 		tx_ring->buffer_info[i].dma =
-			pci_map_single(pdev, skb->data, skb->len,
-				       PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(pdev, tx_ring->buffer_info[i].dma)) {
+			dma_map_single(&pdev->dev, skb->data, skb->len,
+				       DMA_TO_DEVICE);
+		if (dma_mapping_error(&pdev->dev,
+				      tx_ring->buffer_info[i].dma)) {
 			ret_val = 4;
 			goto err_nomem;
 		}
@@ -1226,9 +1227,10 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		skb_reserve(skb, NET_IP_ALIGN);
 		rx_ring->buffer_info[i].skb = skb;
 		rx_ring->buffer_info[i].dma =
-			pci_map_single(pdev, skb->data, 2048,
-				       PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(pdev, rx_ring->buffer_info[i].dma)) {
+			dma_map_single(&pdev->dev, skb->data, 2048,
+				       DMA_FROM_DEVICE);
+		if (dma_mapping_error(&pdev->dev,
+				      rx_ring->buffer_info[i].dma)) {
 			ret_val = 8;
 			goto err_nomem;
 		}
@@ -1556,10 +1558,10 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 		for (i = 0; i < 64; i++) { /* send the packets */
 			e1000_create_lbtest_frame(tx_ring->buffer_info[k].skb,
 						  1024);
-			pci_dma_sync_single_for_device(pdev,
+			dma_sync_single_for_device(&pdev->dev,
 					tx_ring->buffer_info[k].dma,
 					tx_ring->buffer_info[k].length,
-					PCI_DMA_TODEVICE);
+					DMA_TO_DEVICE);
 			k++;
 			if (k == tx_ring->count)
 				k = 0;
@@ -1569,9 +1571,9 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 		time = jiffies; /* set the start time for the receive */
 		good_cnt = 0;
 		do { /* receive the sent packets */
-			pci_dma_sync_single_for_cpu(pdev,
+			dma_sync_single_for_cpu(&pdev->dev,
 					rx_ring->buffer_info[l].dma, 2048,
-					PCI_DMA_FROMDEVICE);
+					DMA_FROM_DEVICE);
 
 			ret_val = e1000_check_lbtest_frame(
 					rx_ring->buffer_info[l].skb, 1024);
