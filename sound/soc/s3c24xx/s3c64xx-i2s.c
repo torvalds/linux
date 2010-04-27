@@ -62,11 +62,11 @@ static int s3c64xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 
 	switch (clk_id) {
 	case S3C64XX_CLKSRC_PCLK:
-		iismod &= ~S3C64XX_IISMOD_IMS_SYSMUX;
+		iismod &= ~S3C2412_IISMOD_IMS_SYSMUX;
 		break;
 
 	case S3C64XX_CLKSRC_MUX:
-		iismod |= S3C64XX_IISMOD_IMS_SYSMUX;
+		iismod |= S3C2412_IISMOD_IMS_SYSMUX;
 		break;
 
 	case S3C64XX_CLKSRC_CDCLK:
