@@ -289,7 +289,7 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 			               PCI_DMA_FROMDEVICE);
 			buffer_info->page_dma = 0;
 
-			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags++,
+			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
 			                   buffer_info->page,
 			                   buffer_info->page_offset,
 			                   length);
