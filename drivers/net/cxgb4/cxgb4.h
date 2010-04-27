@@ -53,7 +53,7 @@
 
 enum {
 	MAX_NPORTS = 4,     /* max # of ports */
-	SERNUM_LEN = 16,    /* Serial # length */
+	SERNUM_LEN = 24,    /* Serial # length */
 	EC_LEN     = 16,    /* E/C length */
 	ID_LEN     = 16,    /* ID length */
 };
