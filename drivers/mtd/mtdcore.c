@@ -659,20 +659,55 @@ done:
 /*====================================================================*/
 /* Init code */
 
+static int __init mtd_bdi_init(struct backing_dev_info *bdi, const char *name)
+{
+	int ret;
+
+	ret = bdi_init(bdi);
+	if (!ret)
+		ret = bdi_register(bdi, NULL, name);
+
+	if (ret)
+		bdi_destroy(bdi);
+
+	return ret;
+}
+
 static int __init init_mtd(void)
 {
 	int ret;
-	ret = class_register(&mtd_class);
 
-	if (ret) {
-		pr_err("Error registering mtd class: %d\n", ret);
-		return ret;
-	}
+	ret = class_register(&mtd_class);
+	if (ret)
+		goto err_reg;
+
+	ret = mtd_bdi_init(&mtd_bdi_unmappable, "mtd-unmap");
+	if (ret)
+		goto err_bdi1;
+
+	ret = mtd_bdi_init(&mtd_bdi_ro_mappable, "mtd-romap");
+	if (ret)
+		goto err_bdi2;
+
+	ret = mtd_bdi_init(&mtd_bdi_rw_mappable, "mtd-rwmap");
+	if (ret)
+		goto err_bdi3;
+
 #ifdef CONFIG_PROC_FS
 	if ((proc_mtd = create_proc_entry( "mtd", 0, NULL )))
 		proc_mtd->read_proc = mtd_read_proc;
 #endif /* CONFIG_PROC_FS */
 	return 0;
+
+err_bdi3:
+	bdi_destroy(&mtd_bdi_ro_mappable);
+err_bdi2:
+	bdi_destroy(&mtd_bdi_unmappable);
+err_bdi1:
+	class_unregister(&mtd_class);
+err_reg:
+	pr_err("Error registering mtd class or bdi: %d\n", ret);
+	return ret;
 }
 
 static void __exit cleanup_mtd(void)
@@ -682,6 +717,9 @@ static void __exit cleanup_mtd(void)
 		remove_proc_entry( "mtd", NULL);
 #endif /* CONFIG_PROC_FS */
 	class_unregister(&mtd_class);
+	bdi_destroy(&mtd_bdi_unmappable);
+	bdi_destroy(&mtd_bdi_ro_mappable);
+	bdi_destroy(&mtd_bdi_rw_mappable);
 }
 
 module_init(init_mtd);
