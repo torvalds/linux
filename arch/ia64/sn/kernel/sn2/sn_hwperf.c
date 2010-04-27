@@ -30,7 +30,6 @@
 #include <linux/miscdevice.h>
 #include <linux/utsname.h>
 #include <linux/cpumask.h>
-#include <linux/smp_lock.h>
 #include <linux/nodemask.h>
 #include <linux/smp.h>
 #include <linux/mutex.h>
@@ -682,8 +681,7 @@ static int sn_hwperf_map_err(int hwperf_err)
 /*
  * ioctl for "sn_hwperf" misc device
  */
-static int
-sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, unsigned long arg)
+static long sn_hwperf_ioctl(struct file *fp, u32 op, unsigned long arg)
 {
 	struct sn_hwperf_ioctl_args a;
 	struct cpuinfo_ia64 *cdata;
@@ -698,8 +696,6 @@ sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, unsigned long arg)
 	int v0;
 	int i;
 	int j;
-
-	unlock_kernel();
 
 	/* only user requests are allowed here */
 	if ((op & SN_HWPERF_OP_MASK) < 10) {
@@ -859,12 +855,11 @@ sn_hwperf_ioctl(struct inode *in, struct file *fp, u32 op, unsigned long arg)
 error:
 	vfree(p);
 
-	lock_kernel();
 	return r;
 }
 
 static const struct file_operations sn_hwperf_fops = {
-	.ioctl = sn_hwperf_ioctl,
+	.unlocked_ioctl = sn_hwperf_ioctl,
 };
 
 static struct miscdevice sn_hwperf_dev = {
