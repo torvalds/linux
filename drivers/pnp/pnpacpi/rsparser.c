@@ -274,26 +274,6 @@ static void pnpacpi_parse_allocated_busresource(struct pnp_dev *dev,
 	pnp_add_bus_resource(dev, start, end);
 }
 
-static u64 addr_space_length(struct pnp_dev *dev, u64 min, u64 max, u64 len)
-{
-	u64 max_len;
-
-	max_len = max - min + 1;
-	if (len <= max_len)
-		return len;
-
-	/*
-	 * Per 6.4.3.5, _LEN cannot exceed _MAX - _MIN + 1, but some BIOSes
-	 * don't do this correctly, e.g.,
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=15480
-	 */
-	dev_info(&dev->dev,
-	         "resource length %#llx doesn't fit in %#llx-%#llx, trimming\n",
-		 (unsigned long long) len, (unsigned long long) min,
-		 (unsigned long long) max);
-	return max_len;
-}
-
 static void pnpacpi_parse_allocated_address_space(struct pnp_dev *dev,
 						  struct acpi_resource *res)
 {
@@ -309,7 +289,8 @@ static void pnpacpi_parse_allocated_address_space(struct pnp_dev *dev,
 		return;
 	}
 
-	len = addr_space_length(dev, p->minimum, p->maximum, p->address_length);
+	/* Windows apparently computes length rather than using _LEN */
+	len = p->maximum - p->minimum + 1;
 	window = (p->producer_consumer == ACPI_PRODUCER) ? 1 : 0;
 
 	if (p->resource_type == ACPI_MEMORY_RANGE)
@@ -330,7 +311,8 @@ static void pnpacpi_parse_allocated_ext_address_space(struct pnp_dev *dev,
 	int window;
 	u64 len;
 
-	len = addr_space_length(dev, p->minimum, p->maximum, p->address_length);
+	/* Windows apparently computes length rather than using _LEN */
+	len = p->maximum - p->minimum + 1;
 	window = (p->producer_consumer == ACPI_PRODUCER) ? 1 : 0;
 
 	if (p->resource_type == ACPI_MEMORY_RANGE)
