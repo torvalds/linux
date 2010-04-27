@@ -110,7 +110,7 @@ struct dt3155_fbuffer_s {
 #define DT3155_ACQ		2
 
 /* There is one status structure for each card. */
-typedef struct dt3155_status_s {
+struct dt3155_status {
 	int fixed_mode;		/* if 1, we are in fixed frame mode */
 	u32 reg_addr;	/* Register address for a single card */
 	u32 mem_addr;	/* Buffer start addr for this card */
@@ -120,10 +120,10 @@ typedef struct dt3155_status_s {
 	struct dt3155_fbuffer_s fbuffer;	/* frame buffer state struct */
 	u32 state;		/* this card's state */
 	u32 device_installed;	/* Flag if installed. 1=installed */
-} dt3155_status_t;
+};
 
 /* Reference to global status structure */
-extern struct dt3155_status_s dt3155_status[MAXBOARDS];
+extern struct dt3155_status dt3155_status[MAXBOARDS];
 
 #define DT3155_STATE_IDLE	0x00
 #define DT3155_STATE_FRAME	0x01
@@ -135,7 +135,7 @@ extern struct dt3155_status_s dt3155_status[MAXBOARDS];
 #define DT3155_IOC_MAGIC	'!'
 
 #define DT3155_SET_CONFIG	_IOW(DT3155_IOC_MAGIC, 1, struct dt3155_config_s)
-#define DT3155_GET_CONFIG	_IOR(DT3155_IOC_MAGIC, 2, struct dt3155_status_s)
+#define DT3155_GET_CONFIG	_IOR(DT3155_IOC_MAGIC, 2, struct dt3155_status)
 #define DT3155_STOP		_IO(DT3155_IOC_MAGIC, 3)
 #define DT3155_START		_IO(DT3155_IOC_MAGIC, 4)
 #define DT3155_FLUSH		_IO(DT3155_IOC_MAGIC, 5)

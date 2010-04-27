@@ -112,7 +112,7 @@ int dt3155_major = 0;
 /* Global structures and variables */
 
 /* Status of each device */
-struct dt3155_status_s dt3155_status[MAXBOARDS];
+struct dt3155_status dt3155_status[MAXBOARDS];
 
 /* kernel logical address of the board */
 u8 *dt3155_lbase[MAXBOARDS] = { NULL
@@ -566,7 +566,7 @@ static int dt3155_ioctl(struct inode *inode,
     case DT3155_GET_CONFIG:
       {
 	if (copy_to_user((void *) arg, (void *) &dt3155_status[minor],
-		     sizeof(dt3155_status_t)))
+		     sizeof(struct dt3155_status)))
 	    return -EFAULT;
 	return 0;
       }
@@ -587,7 +587,7 @@ static int dt3155_ioctl(struct inode *inode,
 
 	quick_stop(minor);
 	if (copy_to_user((void *) arg, (void *) &dt3155_status[minor],
-		     sizeof(dt3155_status_t)))
+		     sizeof(struct dt3155_status)))
 	    return -EFAULT;
 	return 0;
       }
@@ -611,7 +611,7 @@ static int dt3155_ioctl(struct inode *inode,
 
 	dt3155_init_isr(minor);
 	if (copy_to_user((void *) arg, (void *) &dt3155_status[minor],
-		      sizeof(dt3155_status_t)))
+		      sizeof(struct dt3155_status)))
 	    return -EFAULT;
 	return 0;
       }
