@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/regulator/consumer.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -49,11 +50,18 @@
 
 #include "tlv320aic3x.h"
 
-#define AIC3X_VERSION "0.2"
+#define AIC3X_NUM_SUPPLIES	4
+static const char *aic3x_supply_names[AIC3X_NUM_SUPPLIES] = {
+	"IOVDD",	/* I/O Voltage */
+	"DVDD",		/* Digital Core Voltage */
+	"AVDD",		/* Analog DAC Voltage */
+	"DRVDD",	/* ADC Analog and Output Driver Voltage */
+};
 
 /* codec private data */
 struct aic3x_priv {
 	struct snd_soc_codec codec;
+	struct regulator_bulk_data supplies[AIC3X_NUM_SUPPLIES];
 	unsigned int sysclk;
 	int master;
 };
@@ -999,7 +1007,8 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		/* all power is driven by DAPM system */
+		break;
+	case SND_SOC_BIAS_PREPARE:
 		if (aic3x->master) {
 			/* enable pll */
 			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
@@ -1007,48 +1016,9 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 				    reg | PLL_ENABLE);
 		}
 		break;
-	case SND_SOC_BIAS_PREPARE:
-		break;
 	case SND_SOC_BIAS_STANDBY:
-		/*
-		 * all power is driven by DAPM system,
-		 * so output power is safe if bypass was set
-		 */
-		if (aic3x->master) {
-			/* disable pll */
-			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
-			aic3x_write(codec, AIC3X_PLL_PROGA_REG,
-				    reg & ~PLL_ENABLE);
-		}
-		break;
+		/* fall through and disable pll */
 	case SND_SOC_BIAS_OFF:
-		/* force all power off */
-		reg = aic3x_read_reg_cache(codec, LINE1L_2_LADC_CTRL);
-		aic3x_write(codec, LINE1L_2_LADC_CTRL, reg & ~LADC_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, LINE1R_2_RADC_CTRL);
-		aic3x_write(codec, LINE1R_2_RADC_CTRL, reg & ~RADC_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, DAC_PWR);
-		aic3x_write(codec, DAC_PWR, reg & ~(LDAC_PWR_ON | RDAC_PWR_ON));
-
-		reg = aic3x_read_reg_cache(codec, HPLOUT_CTRL);
-		aic3x_write(codec, HPLOUT_CTRL, reg & ~HPLOUT_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, HPROUT_CTRL);
-		aic3x_write(codec, HPROUT_CTRL, reg & ~HPROUT_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, HPLCOM_CTRL);
-		aic3x_write(codec, HPLCOM_CTRL, reg & ~HPLCOM_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, HPRCOM_CTRL);
-		aic3x_write(codec, HPRCOM_CTRL, reg & ~HPRCOM_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, MONOLOPM_CTRL);
-		aic3x_write(codec, MONOLOPM_CTRL, reg & ~MONOLOPM_PWR_ON);
-
-		reg = aic3x_read_reg_cache(codec, LLOPM_CTRL);
-		aic3x_write(codec, LLOPM_CTRL, reg & ~LLOPM_PWR_ON);
-		reg = aic3x_read_reg_cache(codec, RLOPM_CTRL);
-		aic3x_write(codec, RLOPM_CTRL, reg & ~RLOPM_PWR_ON);
-
 		if (aic3x->master) {
 			/* disable pll */
 			reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
@@ -1308,6 +1278,9 @@ static int aic3x_unregister(struct aic3x_priv *aic3x)
 	snd_soc_unregister_dai(&aic3x_dai);
 	snd_soc_unregister_codec(&aic3x->codec);
 
+	regulator_bulk_disable(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+
 	kfree(aic3x);
 	aic3x_codec = NULL;
 
@@ -1329,6 +1302,7 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 {
 	struct snd_soc_codec *codec;
 	struct aic3x_priv *aic3x;
+	int ret, i;
 
 	aic3x = kzalloc(sizeof(struct aic3x_priv), GFP_KERNEL);
 	if (aic3x == NULL) {
@@ -1344,7 +1318,30 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, aic3x);
 
+	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++)
+		aic3x->supplies[i].supply = aic3x_supply_names[i];
+
+	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(aic3x->supplies),
+				 aic3x->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
+		goto err_get;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(aic3x->supplies),
+				    aic3x->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
+		goto err_enable;
+	}
+
 	return aic3x_register(codec);
+
+err_enable:
+	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
+err_get:
+	kfree(aic3x);
+	return ret;
 }
 
 static int aic3x_i2c_remove(struct i2c_client *client)
