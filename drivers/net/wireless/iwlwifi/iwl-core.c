@@ -1857,8 +1857,7 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
-	if (changes & BSS_CHANGED_BEACON &&
-	    priv->iw_mode == NL80211_IFTYPE_AP) {
+	if (changes & BSS_CHANGED_BEACON && vif->type == NL80211_IFTYPE_AP) {
 		dev_kfree_skb(priv->ibss_beacon);
 		priv->ibss_beacon = ieee80211_beacon_get(hw, vif);
 	}
@@ -1884,8 +1883,7 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		}
 
 		/* mac80211 only sets assoc when in STATION mode */
-		if (priv->iw_mode == NL80211_IFTYPE_ADHOC ||
-		    bss_conf->assoc) {
+		if (vif->type == NL80211_IFTYPE_ADHOC || bss_conf->assoc) {
 			memcpy(priv->staging_rxon.bssid_addr,
 			       bss_conf->bssid, ETH_ALEN);
 
@@ -1903,7 +1901,7 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 	 * mac80211 decides to do both changes at once because
 	 * it will invoke post_associate.
 	 */
-	if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
+	if (vif->type == NL80211_IFTYPE_ADHOC &&
 	    changes & BSS_CHANGED_BEACON) {
 		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
 
