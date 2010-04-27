@@ -24,6 +24,10 @@
 			printk(KERN_DEBUG format, ##arg);	\
 	} while (0)
 
+static bool force_elantech;
+module_param_named(force_elantech, force_elantech, bool, 0644);
+MODULE_PARM_DESC(force_elantech, "Force the Elantech PS/2 protocol extension to be used, 1 = enabled, 0 = disabled (default).");
+
 /*
  * Send a Synaptics style sliced query command
  */
@@ -595,8 +599,12 @@ int elantech_detect(struct psmouse *psmouse, bool set_properties)
 		 param[0], param[1], param[2]);
 
 	if (param[0] == 0 || param[1] != 0) {
-		pr_debug("elantech.c: Probably not a real Elantech touchpad. Aborting.\n");
-		return -1;
+		if (!force_elantech) {
+			pr_debug("elantech.c: Probably not a real Elantech touchpad. Aborting.\n");
+			return -1;
+		}
+
+		pr_debug("elantech.c: Probably not a real Elantech touchpad. Enabling anyway due to force_elantech.\n");
 	}
 
 	if (set_properties) {
