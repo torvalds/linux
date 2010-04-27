@@ -182,18 +182,18 @@ acpi_status acpi_ex_system_do_stall(u32 how_long)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ex_system_do_suspend
+ * FUNCTION:    acpi_ex_system_do_sleep
  *
- * PARAMETERS:  how_long        - The amount of time to suspend,
+ * PARAMETERS:  how_long        - The amount of time to sleep,
  *                                in milliseconds
  *
  * RETURN:      None
  *
- * DESCRIPTION: Suspend running thread for specified amount of time.
+ * DESCRIPTION: Sleep the running thread for specified amount of time.
  *
  ******************************************************************************/
 
-acpi_status acpi_ex_system_do_suspend(u64 how_long)
+acpi_status acpi_ex_system_do_sleep(u64 how_long)
 {
 	ACPI_FUNCTION_ENTRY();
 

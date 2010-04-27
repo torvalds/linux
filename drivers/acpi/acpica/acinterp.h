@@ -281,7 +281,7 @@ acpi_status
 acpi_ex_system_do_notify_op(union acpi_operand_object *value,
 			    union acpi_operand_object *obj_desc);
 
-acpi_status acpi_ex_system_do_suspend(u64 time);
+acpi_status acpi_ex_system_do_sleep(u64 time);
 
 acpi_status acpi_ex_system_do_stall(u32 time);
 

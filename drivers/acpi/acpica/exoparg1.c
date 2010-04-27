@@ -173,7 +173,7 @@ acpi_status acpi_ex_opcode_1A_0T_0R(struct acpi_walk_state *walk_state)
 
 	case AML_SLEEP_OP:	/*  Sleep (msec_time) */
 
-		status = acpi_ex_system_do_suspend(operand[0]->integer.value);
+		status = acpi_ex_system_do_sleep(operand[0]->integer.value);
 		break;
 
 	case AML_STALL_OP:	/*  Stall (usec_time) */
