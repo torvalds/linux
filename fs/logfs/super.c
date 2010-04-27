@@ -413,7 +413,7 @@ static int __logfs_read_sb(struct super_block *sb)
 
 	page = find_super_block(sb);
 	if (!page)
-		return -EIO;
+		return -EINVAL;
 
 	ds = page_address(page);
 	super->s_size = be64_to_cpu(ds->ds_filesystem_size);
