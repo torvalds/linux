@@ -25,6 +25,7 @@
 #include "dlmglue.h"
 #include "uptodate.h"
 #include "super.h"
+#include "buffer_head_io.h"
 #include "quota.h"
 
 static struct workqueue_struct *ocfs2_quota_wq = NULL;
@@ -134,6 +135,19 @@ int ocfs2_read_quota_block(struct inode *inode, u64 v_block,
 	if (!rc && !*bh)
 		*bh = tmp;
 
+	return rc;
+}
+
+int ocfs2_read_quota_phys_block(struct inode *inode, u64 p_block,
+				struct buffer_head **bhp)
+{
+	int rc;
+
+	*bhp = NULL;
+	rc = ocfs2_read_blocks(INODE_CACHE(inode), p_block, 1, bhp, 0,
+			       ocfs2_validate_quota_block);
+	if (rc)
+		mlog_errno(rc);
 	return rc;
 }
 

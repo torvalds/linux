@@ -862,18 +862,17 @@ static int ocfs2_local_write_dquot(struct dquot *dquot)
 {
 	struct super_block *sb = dquot->dq_sb;
 	struct ocfs2_dquot *od = OCFS2_DQUOT(dquot);
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
+	struct inode *lqinode = sb_dqopt(sb)->files[dquot->dq_type];
 	int status;
 
-	status = ocfs2_read_quota_block(sb_dqopt(sb)->files[dquot->dq_type],
-				    ol_dqblk_file_block(sb, od->dq_local_off),
-				    &bh);
+	status = ocfs2_read_quota_phys_block(lqinode, od->dq_local_phys_blk,
+					     &bh);
 	if (status) {
 		mlog_errno(status);
 		goto out;
 	}
-	status = ocfs2_modify_bh(sb_dqopt(sb)->files[dquot->dq_type], bh,
-				 olq_set_dquot, od);
+	status = ocfs2_modify_bh(lqinode, bh, olq_set_dquot, od);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
@@ -1197,17 +1196,27 @@ static int ocfs2_create_local_dquot(struct dquot *dquot)
 	struct ocfs2_dquot *od = OCFS2_DQUOT(dquot);
 	int offset;
 	int status;
+	u64 pcount;
 
+	down_write(&OCFS2_I(lqinode)->ip_alloc_sem);
 	chunk = ocfs2_find_free_entry(sb, type, &offset);
 	if (!chunk) {
 		chunk = ocfs2_extend_local_quota_file(sb, type, &offset);
-		if (IS_ERR(chunk))
-			return PTR_ERR(chunk);
+		if (IS_ERR(chunk)) {
+			status = PTR_ERR(chunk);
+			goto out;
+		}
 	} else if (IS_ERR(chunk)) {
-		return PTR_ERR(chunk);
+		status = PTR_ERR(chunk);
+		goto out;
 	}
 	od->dq_local_off = ol_dqblk_off(sb, chunk->qc_num, offset);
 	od->dq_chunk = chunk;
+	status = ocfs2_extent_map_get_blocks(lqinode,
+				     ol_dqblk_block(sb, chunk->qc_num, offset),
+				     &od->dq_local_phys_blk,
+				     &pcount,
+				     NULL);
 
 	/* Initialize dquot structure on disk */
 	status = ocfs2_local_write_dquot(dquot);
@@ -1224,6 +1233,7 @@ static int ocfs2_create_local_dquot(struct dquot *dquot)
 		goto out;
 	}
 out:
+	up_write(&OCFS2_I(lqinode)->ip_alloc_sem);
 	return status;
 }
 

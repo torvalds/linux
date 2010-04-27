@@ -23,6 +23,7 @@
 struct ocfs2_dquot {
 	struct dquot dq_dquot;	/* Generic VFS dquot */
 	loff_t dq_local_off;	/* Offset in the local quota file */
+	u64 dq_local_phys_blk;	/* Physical block carrying quota structure */
 	struct ocfs2_quota_chunk *dq_chunk;	/* Chunk dquot is in */
 	unsigned int dq_use_count;	/* Number of nodes having reference to this entry in global quota file */
 	s64 dq_origspace;	/* Last globally synced space usage */
@@ -104,6 +105,8 @@ int ocfs2_lock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex);
 void ocfs2_unlock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex);
 int ocfs2_read_quota_block(struct inode *inode, u64 v_block,
 			   struct buffer_head **bh);
+int ocfs2_read_quota_phys_block(struct inode *inode, u64 p_block,
+				struct buffer_head **bh);
 
 extern const struct dquot_operations ocfs2_quota_operations;
 extern struct quota_format_type ocfs2_quota_format;
