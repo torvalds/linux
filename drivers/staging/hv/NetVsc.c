@@ -1288,28 +1288,33 @@ static void NetVscOnReceiveCompletion(void *Context)
 
 void NetVscOnChannelCallback(void *Context)
 {
-	const int netPacketSize = 2048;
 	int ret;
 	struct hv_device *device = Context;
 	struct netvsc_device *netDevice;
 	u32 bytesRecvd;
 	u64 requestId;
-	unsigned char packet[netPacketSize];
+	unsigned char *packet;
 	struct vmpacket_descriptor *desc;
-	unsigned char *buffer = packet;
-	int bufferlen = netPacketSize;
+	unsigned char *buffer;
+	int bufferlen = NETVSC_PACKET_SIZE;
 
 
 	DPRINT_ENTER(NETVSC);
 
 	ASSERT(device);
 
+	packet = kzalloc(NETVSC_PACKET_SIZE * sizeof(unsigned char),
+			 GFP_KERNEL);
+	if (!packet)
+		return;
+	buffer = packet;
+
 	netDevice = GetInboundNetDevice(device);
 	if (!netDevice) {
 		DPRINT_ERR(NETVSC, "net device (%p) shutting down..."
 			   "ignoring inbound packets", netDevice);
 		DPRINT_EXIT(NETVSC);
-		return;
+		goto out;
 	}
 
 	do {
@@ -1341,17 +1346,17 @@ void NetVscOnChannelCallback(void *Context)
 				}
 
 				/* reset */
-				if (bufferlen > netPacketSize) {
+				if (bufferlen > NETVSC_PACKET_SIZE) {
 					kfree(buffer);
 					buffer = packet;
-					bufferlen = netPacketSize;
+					bufferlen = NETVSC_PACKET_SIZE;
 				}
 			} else {
 				/* reset */
-				if (bufferlen > netPacketSize) {
+				if (bufferlen > NETVSC_PACKET_SIZE) {
 					kfree(buffer);
 					buffer = packet;
-					bufferlen = netPacketSize;
+					bufferlen = NETVSC_PACKET_SIZE;
 				}
 
 				break;
@@ -1375,5 +1380,7 @@ void NetVscOnChannelCallback(void *Context)
 
 	PutNetDevice(device);
 	DPRINT_EXIT(NETVSC);
+out:
+	kfree(buffer);
 	return;
 }

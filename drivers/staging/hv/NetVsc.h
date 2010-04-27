@@ -289,6 +289,7 @@ struct nvsp_message {
 /* Preallocated receive packets */
 #define NETVSC_RECEIVE_PACKETLIST_COUNT		256
 
+#define NETVSC_PACKET_SIZE                      2048
 
 /* Per netvsc channel-specific */
 struct netvsc_device {
