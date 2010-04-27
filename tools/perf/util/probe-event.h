@@ -115,8 +115,8 @@ extern void clear_kprobe_trace_event(struct kprobe_trace_event *tev);
 extern int parse_line_range_desc(const char *cmd, struct line_range *lr);
 
 
-extern int add_perf_probe_events(struct perf_probe_event *pevs, int ntevs,
-				 bool force_add);
+extern int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
+				 bool force_add, int max_probe_points);
 extern int del_perf_probe_events(struct strlist *dellist);
 extern int show_perf_probe_events(void);
 extern int show_line_range(struct line_range *lr);

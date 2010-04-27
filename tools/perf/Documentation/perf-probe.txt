@@ -62,6 +62,9 @@ OPTIONS
 	Dry run. With this option, --add and --del doesn't execute actual
 	adding and removal operations.
 
+--max-probes::
+	Set the maximum number of probe points for an event. Default is 128.
+
 PROBE SYNTAX
 ------------
 Probe points are defined by following syntax.

@@ -626,8 +626,9 @@ static int convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 	Dwarf_Attribute fb_attr;
 	size_t nops;
 
-	if (pf->ntevs == MAX_PROBES) {
-		pr_warning("Too many( > %d) probe point found.\n", MAX_PROBES);
+	if (pf->ntevs == pf->max_tevs) {
+		pr_warning("Too many( > %d) probe point found.\n",
+			   pf->max_tevs);
 		return -ERANGE;
 	}
 	tev = &pf->tevs[pf->ntevs++];
@@ -871,6 +872,8 @@ static int probe_point_inline_cb(Dwarf_Die *in_die, void *data)
 			 (uintmax_t)pf->addr);
 
 		param->retval = convert_probe_point(in_die, pf);
+		if (param->retval < 0)
+			return DWARF_CB_ABORT;
 	}
 
 	return DWARF_CB_OK;
@@ -930,9 +933,9 @@ static int find_probe_point_by_func(struct probe_finder *pf)
 
 /* Find kprobe_trace_events specified by perf_probe_event from debuginfo */
 int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
-			     struct kprobe_trace_event **tevs)
+			     struct kprobe_trace_event **tevs, int max_tevs)
 {
-	struct probe_finder pf = {.pev = pev};
+	struct probe_finder pf = {.pev = pev, .max_tevs = max_tevs};
 	struct perf_probe_point *pp = &pev->point;
 	Dwarf_Off off, noff;
 	size_t cuhl;
@@ -940,7 +943,7 @@ int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
 	Dwarf *dbg;
 	int ret = 0;
 
-	pf.tevs = zalloc(sizeof(struct kprobe_trace_event) * MAX_PROBES);
+	pf.tevs = zalloc(sizeof(struct kprobe_trace_event) * max_tevs);
 	if (pf.tevs == NULL)
 		return -ENOMEM;
 	*tevs = pf.tevs;
@@ -1106,6 +1109,8 @@ static int line_range_funcdecl_cb(Dwarf_Die *sp_die, void *data)
 		return DWARF_CB_OK;
 
 	param->retval = line_range_add_line(src, lineno, lf->lr);
+	if (param->retval < 0)
+		return DWARF_CB_ABORT;
 	return DWARF_CB_OK;
 }
 
