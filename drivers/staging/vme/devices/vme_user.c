@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
+#include <linux/smp_lock.h>
 #include <linux/types.h>
 
 #include <asm/io.h>
@@ -130,8 +131,7 @@ static int vme_user_release(struct inode *, struct file *);
 static ssize_t vme_user_read(struct file *, char *, size_t, loff_t *);
 static ssize_t vme_user_write(struct file *, const char *, size_t, loff_t *);
 static loff_t vme_user_llseek(struct file *, loff_t, int);
-static int vme_user_ioctl(struct inode *, struct file *, unsigned int,
-	unsigned long);
+static long vme_user_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 
 static int __init vme_user_probe(struct device *, int, int);
 static int __exit vme_user_remove(struct device *, int, int);
@@ -142,7 +142,7 @@ static struct file_operations vme_user_fops = {
         .read = vme_user_read,
         .write = vme_user_write,
         .llseek = vme_user_llseek,
-        .ioctl = vme_user_ioctl,
+        .unlocked_ioctl = vme_user_unlocked_ioctl,
 };
 
 
@@ -553,6 +553,18 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 	}
 
 	return -EINVAL;
+}
+
+static long
+vme_user_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = vme_user_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
 }
 
 

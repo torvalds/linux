@@ -16,6 +16,7 @@
 ***************************************************************************/
 
 #include <linux/version.h>
+#include <linux/smp_lock.h>
 #include <linux/slab.h>
 
 #include "crystalhd_lnx.h"
@@ -261,12 +262,12 @@ static int chd_dec_api_cmd(struct crystalhd_adp *adp, unsigned long ua,
 }
 
 /* API interfaces */
-static int chd_dec_ioctl(struct inode *in, struct file *fd,
-			 unsigned int cmd, unsigned long ua)
+static long chd_dec_ioctl(struct file *fd, unsigned int cmd, unsigned long ua)
 {
 	struct crystalhd_adp *adp = chd_get_adp();
 	crystalhd_cmd_proc cproc;
 	struct crystalhd_user *uc;
+	int ret;
 
 	if (!adp || !fd) {
 		BCMLOG_ERR("Invalid adp\n");
@@ -279,13 +280,17 @@ static int chd_dec_ioctl(struct inode *in, struct file *fd,
 		return -ENODATA;
 	}
 
+	lock_kernel();
 	cproc = crystalhd_get_cmd_proc(&adp->cmds, cmd, uc);
 	if (!cproc) {
 		BCMLOG_ERR("Unhandled command: %d\n", cmd);
+		unlock_kernel();
 		return -EINVAL;
 	}
 
-	return chd_dec_api_cmd(adp, ua, uc->uid, cmd, cproc);
+	ret = chd_dec_api_cmd(adp, ua, uc->uid, cmd, cproc);
+	unlock_kernel();
+	return ret;
 }
 
 static int chd_dec_open(struct inode *in, struct file *fd)
@@ -345,7 +350,7 @@ static int chd_dec_close(struct inode *in, struct file *fd)
 
 static const struct file_operations chd_dec_fops = {
 	.owner   = THIS_MODULE,
-	.ioctl   = chd_dec_ioctl,
+	.unlocked_ioctl = chd_dec_ioctl,
 	.open    = chd_dec_open,
 	.release = chd_dec_close,
 };

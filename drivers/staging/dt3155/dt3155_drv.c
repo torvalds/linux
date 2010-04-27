@@ -63,6 +63,7 @@ extern void printques(int);
 #include <linux/types.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -835,6 +836,17 @@ static unsigned int dt3155_poll (struct file * filp, poll_table *wait)
   return 0;
 }
 
+static long
+dt3155_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = dt3155_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
 
 /*****************************************************
  * file operations supported by DT3155 driver
@@ -842,12 +854,12 @@ static unsigned int dt3155_poll (struct file * filp, poll_table *wait)
  *  register_chrdev
  *****************************************************/
 static struct file_operations dt3155_fops = {
-  read:		dt3155_read,
-  ioctl:		dt3155_ioctl,
-  mmap:		dt3155_mmap,
-  poll:           dt3155_poll,
-  open:		dt3155_open,
-  release:	dt3155_close
+	.read		= dt3155_read,
+	.unlocked_ioctl	= dt3155_unlocked_ioctl,
+	.mmap		= dt3155_mmap,
+	.poll		= dt3155_poll,
+	.open		= dt3155_open,
+	.release	= dt3155_close
 };
 
 
