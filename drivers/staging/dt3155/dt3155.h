@@ -38,9 +38,6 @@ MA 02111-1307 USA
 #include <linux/time.h>		/* struct timeval */
 
 
-#define TRUE  1
-#define FALSE 0
-
 /* Uncomment this for 50Hz CCIR */
 #define CCIR 1
 
@@ -55,11 +52,11 @@ MA 02111-1307 USA
 #ifdef CCIR
 #define DT3155_MAX_ROWS	576
 #define DT3155_MAX_COLS	768
-#define FORMAT50HZ	TRUE
+#define FORMAT50HZ	1
 #else
 #define DT3155_MAX_ROWS	480
 #define DT3155_MAX_COLS	640
-#define FORMAT50HZ	FALSE
+#define FORMAT50HZ	0
 #endif
 
 /* Configuration structure */
