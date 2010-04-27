@@ -232,9 +232,7 @@ static void rk2818_rx_chars(struct uart_port *port)
 		} 
 		uart_insert_char(port, 0, 0, ch, flag);
 	}
-	spin_unlock(&port->lock);
 	tty_flip_buffer_push(port->state->port.tty);
-	spin_lock(&port->lock);
 	
 }
 

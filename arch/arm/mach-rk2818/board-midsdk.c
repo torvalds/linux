@@ -102,7 +102,6 @@ static void __init machine_rk2818_init_irq(void)
 
 static void __init machine_rk2818_board_init(void)
 {
-	printk("%s [%d]\n",__FUNCTION__,__LINE__);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
@@ -110,7 +109,6 @@ static void __init machine_rk2818_mapio(void)
 {
 	iotable_init(rk2818_io_desc, ARRAY_SIZE(rk2818_io_desc));
 	rk2818_clock_init();
-	printk("%s [%d]\n",__FUNCTION__,__LINE__);
 	rk2818_iomux_init();	
 }
 
