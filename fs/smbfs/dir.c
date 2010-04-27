@@ -39,7 +39,7 @@ const struct file_operations smb_dir_operations =
 {
 	.read		= generic_read_dir,
 	.readdir	= smb_readdir,
-	.ioctl		= smb_ioctl,
+	.unlocked_ioctl	= smb_ioctl,
 	.open		= smb_dir_open,
 };
 

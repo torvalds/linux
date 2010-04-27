@@ -67,7 +67,7 @@ extern const struct address_space_operations smb_file_aops;
 extern const struct file_operations smb_file_operations;
 extern const struct inode_operations smb_file_inode_operations;
 /* ioctl.c */
-extern int smb_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
+extern long smb_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 /* smbiod.c */
 extern void smbiod_wake_up(void);
 extern int smbiod_register_server(struct smb_sb_info *server);
