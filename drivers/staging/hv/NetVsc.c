@@ -1286,7 +1286,7 @@ static void NetVscOnReceiveCompletion(void *Context)
 	DPRINT_EXIT(NETVSC);
 }
 
-void NetVscOnChannelCallback(void *Context)
+static void NetVscOnChannelCallback(void *Context)
 {
 	int ret;
 	struct hv_device *device = Context;
