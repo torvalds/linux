@@ -112,7 +112,7 @@ static struct clock_event_device comparator = {
 
 void read_persistent_clock(struct timespec *ts)
 {
-	ts->tv.sec = mktime(2007, 1, 1, 0, 0, 0);
+	ts->tv_sec = mktime(2007, 1, 1, 0, 0, 0);
 	ts->tv_nsec = 0;
 }
 
