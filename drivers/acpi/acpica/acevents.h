@@ -110,6 +110,8 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 			 u32 interrupt_number,
 			 struct acpi_gpe_block_info **return_gpe_block);
 
+void acpi_ev_update_gpes(acpi_owner_id table_owner_id);
+
 acpi_status
 acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 			     struct acpi_gpe_block_info *gpe_block);

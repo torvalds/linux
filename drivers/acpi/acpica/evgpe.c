@@ -265,7 +265,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 
 	ACPI_FUNCTION_ENTRY();
 
-	/* A NULL gpe_block means use the FADT-defined GPE block(s) */
+	/* A NULL gpe_device means use the FADT-defined GPE block(s) */
 
 	if (!gpe_device) {
 

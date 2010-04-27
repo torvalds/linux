@@ -470,6 +470,10 @@ struct acpi_gpe_xrupt_info {
 struct acpi_gpe_walk_info {
 	struct acpi_namespace_node *gpe_device;
 	struct acpi_gpe_block_info *gpe_block;
+	u16 count;
+	acpi_owner_id owner_id;
+	u8 enable_this_gpe;
+	u8 execute_by_owner_id;
 };
 
 struct acpi_gpe_device_info {
