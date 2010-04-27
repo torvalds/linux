@@ -4,6 +4,7 @@
 #include <linux/types.h>
 
 #define XT_FUNCTION_MAXNAMELEN 30
+#define XT_EXTENSION_MAXNAMELEN 29
 #define XT_TABLE_MAXNAMELEN 32
 
 struct xt_entry_match {
@@ -12,8 +13,7 @@ struct xt_entry_match {
 			__u16 match_size;
 
 			/* Used by userspace */
-			char name[XT_FUNCTION_MAXNAMELEN-1];
-
+			char name[XT_EXTENSION_MAXNAMELEN];
 			__u8 revision;
 		} user;
 		struct {
@@ -36,8 +36,7 @@ struct xt_entry_target {
 			__u16 target_size;
 
 			/* Used by userspace */
-			char name[XT_FUNCTION_MAXNAMELEN-1];
-
+			char name[XT_EXTENSION_MAXNAMELEN];
 			__u8 revision;
 		} user;
 		struct {
@@ -70,8 +69,7 @@ struct xt_standard_target {
 /* The argument to IPT_SO_GET_REVISION_*.  Returns highest revision
  * kernel supports, if >= revision. */
 struct xt_get_revision {
-	char name[XT_FUNCTION_MAXNAMELEN-1];
-
+	char name[XT_EXTENSION_MAXNAMELEN];
 	__u8 revision;
 };
 
@@ -291,7 +289,7 @@ struct xt_tgdtor_param {
 struct xt_match {
 	struct list_head list;
 
-	const char name[XT_FUNCTION_MAXNAMELEN-1];
+	const char name[XT_EXTENSION_MAXNAMELEN];
 	u_int8_t revision;
 
 	/* Return true or false: return FALSE and set *hotdrop = 1 to
@@ -330,7 +328,7 @@ struct xt_match {
 struct xt_target {
 	struct list_head list;
 
-	const char name[XT_FUNCTION_MAXNAMELEN-1];
+	const char name[XT_EXTENSION_MAXNAMELEN];
 	u_int8_t revision;
 
 	/* Returns verdict. Argument order changed since 2.6.9, as this
