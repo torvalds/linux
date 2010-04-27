@@ -37,5 +37,6 @@ struct clk;
 	 SNDRV_PCM_FMTBIT_S24_LE)
 
 extern struct snd_soc_dai s3c64xx_i2s_dai[];
+extern struct snd_soc_dai s3c64xx_i2s_v4_dai;
 
 #endif /* __SND_SOC_S3C24XX_S3C64XX_I2S_H */
