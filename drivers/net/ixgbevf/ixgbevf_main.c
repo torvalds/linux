@@ -139,15 +139,15 @@ static void ixgbevf_unmap_and_free_tx_resource(struct ixgbevf_adapter *adapter,
 {
 	if (tx_buffer_info->dma) {
 		if (tx_buffer_info->mapped_as_page)
-			pci_unmap_page(adapter->pdev,
+			dma_unmap_page(&adapter->pdev->dev,
 				       tx_buffer_info->dma,
 				       tx_buffer_info->length,
-				       PCI_DMA_TODEVICE);
+				       DMA_TO_DEVICE);
 		else
-			pci_unmap_single(adapter->pdev,
+			dma_unmap_single(&adapter->pdev->dev,
 					 tx_buffer_info->dma,
 					 tx_buffer_info->length,
-					 PCI_DMA_TODEVICE);
+					 DMA_TO_DEVICE);
 		tx_buffer_info->dma = 0;
 	}
 	if (tx_buffer_info->skb) {
@@ -416,10 +416,10 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
 				bi->page_offset ^= (PAGE_SIZE / 2);
 			}
 
-			bi->page_dma = pci_map_page(pdev, bi->page,
+			bi->page_dma = dma_map_page(&pdev->dev, bi->page,
 						    bi->page_offset,
 						    (PAGE_SIZE / 2),
-						    PCI_DMA_FROMDEVICE);
+						    DMA_FROM_DEVICE);
 		}
 
 		skb = bi->skb;
@@ -442,9 +442,9 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
 			bi->skb = skb;
 		}
 		if (!bi->dma) {
-			bi->dma = pci_map_single(pdev, skb->data,
+			bi->dma = dma_map_single(&pdev->dev, skb->data,
 						 rx_ring->rx_buf_len,
-						 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
 		 * each write-back erases this info. */
@@ -536,16 +536,16 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		rx_buffer_info->skb = NULL;
 
 		if (rx_buffer_info->dma) {
-			pci_unmap_single(pdev, rx_buffer_info->dma,
+			dma_unmap_single(&pdev->dev, rx_buffer_info->dma,
 					 rx_ring->rx_buf_len,
-					 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 			rx_buffer_info->dma = 0;
 			skb_put(skb, len);
 		}
 
 		if (upper_len) {
-			pci_unmap_page(pdev, rx_buffer_info->page_dma,
-				       PAGE_SIZE / 2, PCI_DMA_FROMDEVICE);
+			dma_unmap_page(&pdev->dev, rx_buffer_info->page_dma,
+				       PAGE_SIZE / 2, DMA_FROM_DEVICE);
 			rx_buffer_info->page_dma = 0;
 			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
 					   rx_buffer_info->page,
@@ -1721,9 +1721,9 @@ static void ixgbevf_clean_rx_ring(struct ixgbevf_adapter *adapter,
 
 		rx_buffer_info = &rx_ring->rx_buffer_info[i];
 		if (rx_buffer_info->dma) {
-			pci_unmap_single(pdev, rx_buffer_info->dma,
+			dma_unmap_single(&pdev->dev, rx_buffer_info->dma,
 					 rx_ring->rx_buf_len,
-					 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 			rx_buffer_info->dma = 0;
 		}
 		if (rx_buffer_info->skb) {
@@ -1737,8 +1737,8 @@ static void ixgbevf_clean_rx_ring(struct ixgbevf_adapter *adapter,
 		}
 		if (!rx_buffer_info->page)
 			continue;
-		pci_unmap_page(pdev, rx_buffer_info->page_dma, PAGE_SIZE / 2,
-			       PCI_DMA_FROMDEVICE);
+		dma_unmap_page(&pdev->dev, rx_buffer_info->page_dma,
+			       PAGE_SIZE / 2, DMA_FROM_DEVICE);
 		rx_buffer_info->page_dma = 0;
 		put_page(rx_buffer_info->page);
 		rx_buffer_info->page = NULL;
@@ -2445,7 +2445,8 @@ void ixgbevf_free_tx_resources(struct ixgbevf_adapter *adapter,
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
 
-	pci_free_consistent(pdev, tx_ring->size, tx_ring->desc, tx_ring->dma);
+	dma_free_coherent(&pdev->dev, tx_ring->size, tx_ring->desc,
+			  tx_ring->dma);
 
 	tx_ring->desc = NULL;
 }
@@ -2490,8 +2491,8 @@ int ixgbevf_setup_tx_resources(struct ixgbevf_adapter *adapter,
 	tx_ring->size = tx_ring->count * sizeof(union ixgbe_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 
-	tx_ring->desc = pci_alloc_consistent(pdev, tx_ring->size,
-					     &tx_ring->dma);
+	tx_ring->desc = dma_alloc_coherent(&pdev->dev, tx_ring->size,
+					   &tx_ring->dma, GFP_KERNEL);
 	if (!tx_ring->desc)
 		goto err;
 
@@ -2561,8 +2562,8 @@ int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *adapter,
 	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
 
-	rx_ring->desc = pci_alloc_consistent(pdev, rx_ring->size,
-					     &rx_ring->dma);
+	rx_ring->desc = dma_alloc_coherent(&pdev->dev, rx_ring->size,
+					   &rx_ring->dma, GFP_KERNEL);
 
 	if (!rx_ring->desc) {
 		hw_dbg(&adapter->hw,
@@ -2623,7 +2624,8 @@ void ixgbevf_free_rx_resources(struct ixgbevf_adapter *adapter,
 	vfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
 
-	pci_free_consistent(pdev, rx_ring->size, rx_ring->desc, rx_ring->dma);
+	dma_free_coherent(&pdev->dev, rx_ring->size, rx_ring->desc,
+			  rx_ring->dma);
 
 	rx_ring->desc = NULL;
 }
@@ -2935,10 +2937,10 @@ static int ixgbevf_tx_map(struct ixgbevf_adapter *adapter,
 
 		tx_buffer_info->length = size;
 		tx_buffer_info->mapped_as_page = false;
-		tx_buffer_info->dma = pci_map_single(adapter->pdev,
+		tx_buffer_info->dma = dma_map_single(&adapter->pdev->dev,
 						     skb->data + offset,
-						     size, PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(pdev, tx_buffer_info->dma))
+						     size, DMA_TO_DEVICE);
+		if (dma_mapping_error(&pdev->dev, tx_buffer_info->dma))
 			goto dma_error;
 		tx_buffer_info->time_stamp = jiffies;
 		tx_buffer_info->next_to_watch = i;
@@ -2964,13 +2966,13 @@ static int ixgbevf_tx_map(struct ixgbevf_adapter *adapter,
 			size = min(len, (unsigned int)IXGBE_MAX_DATA_PER_TXD);
 
 			tx_buffer_info->length = size;
-			tx_buffer_info->dma = pci_map_page(adapter->pdev,
+			tx_buffer_info->dma = dma_map_page(&adapter->pdev->dev,
 							   frag->page,
 							   offset,
 							   size,
-							   PCI_DMA_TODEVICE);
+							   DMA_TO_DEVICE);
 			tx_buffer_info->mapped_as_page = true;
-			if (pci_dma_mapping_error(pdev, tx_buffer_info->dma))
+			if (dma_mapping_error(&pdev->dev, tx_buffer_info->dma))
 				goto dma_error;
 			tx_buffer_info->time_stamp = jiffies;
 			tx_buffer_info->next_to_watch = i;
@@ -3311,14 +3313,14 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) &&
-	    !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
+	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)) &&
+	    !dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
 		pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = pci_set_consistent_dma_mask(pdev,
-							  DMA_BIT_MASK(32));
+			err = dma_set_coherent_mask(&pdev->dev,
+						    DMA_BIT_MASK(32));
 			if (err) {
 				dev_err(&pdev->dev, "No usable DMA "
 					"configuration, aborting\n");
