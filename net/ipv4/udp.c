@@ -1217,7 +1217,7 @@ int udp_disconnect(struct sock *sk, int flags)
 	sk->sk_state = TCP_CLOSE;
 	inet->inet_daddr = 0;
 	inet->inet_dport = 0;
-	inet_rps_save_rxhash(sk, 0);
+	sock_rps_save_rxhash(sk, 0);
 	sk->sk_bound_dev_if = 0;
 	if (!(sk->sk_userlocks & SOCK_BINDADDR_LOCK))
 		inet_reset_saddr(sk);
@@ -1262,7 +1262,7 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	int rc;
 
 	if (inet_sk(sk)->inet_daddr)
-		inet_rps_save_rxhash(sk, skb->rxhash);
+		sock_rps_save_rxhash(sk, skb->rxhash);
 
 	rc = sock_queue_rcv_skb(sk, skb);
 	if (rc < 0) {

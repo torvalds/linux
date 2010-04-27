@@ -198,6 +198,7 @@ struct sock_common {
   *	@sk_rcvlowat: %SO_RCVLOWAT setting
   *	@sk_rcvtimeo: %SO_RCVTIMEO setting
   *	@sk_sndtimeo: %SO_SNDTIMEO setting
+  *	@sk_rxhash: flow hash received from netif layer
   *	@sk_filter: socket filtering instructions
   *	@sk_protinfo: private area, net family specific, when not using slab
   *	@sk_timer: sock cleanup timer
@@ -279,6 +280,9 @@ struct sock {
 	int			sk_gso_type;
 	unsigned int		sk_gso_max_size;
 	int			sk_rcvlowat;
+#ifdef CONFIG_RPS
+	__u32			sk_rxhash;
+#endif
 	unsigned long 		sk_flags;
 	unsigned long	        sk_lingertime;
 	struct sk_buff_head	sk_error_queue;
@@ -618,6 +622,40 @@ static inline __must_check int sk_add_backlog(struct sock *sk, struct sk_buff *s
 static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	return sk->sk_backlog_rcv(sk, skb);
+}
+
+static inline void sock_rps_record_flow(const struct sock *sk)
+{
+#ifdef CONFIG_RPS
+	struct rps_sock_flow_table *sock_flow_table;
+
+	rcu_read_lock();
+	sock_flow_table = rcu_dereference(rps_sock_flow_table);
+	rps_record_sock_flow(sock_flow_table, sk->sk_rxhash);
+	rcu_read_unlock();
+#endif
+}
+
+static inline void sock_rps_reset_flow(const struct sock *sk)
+{
+#ifdef CONFIG_RPS
+	struct rps_sock_flow_table *sock_flow_table;
+
+	rcu_read_lock();
+	sock_flow_table = rcu_dereference(rps_sock_flow_table);
+	rps_reset_sock_flow(sock_flow_table, sk->sk_rxhash);
+	rcu_read_unlock();
+#endif
+}
+
+static inline void sock_rps_save_rxhash(struct sock *sk, u32 rxhash)
+{
+#ifdef CONFIG_RPS
+	if (unlikely(sk->sk_rxhash != rxhash)) {
+		sock_rps_reset_flow(sk);
+		sk->sk_rxhash = rxhash;
+	}
+#endif
 }
 
 #define sk_wait_event(__sk, __timeo, __condition)			\

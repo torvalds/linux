@@ -419,7 +419,7 @@ int inet_release(struct socket *sock)
 	if (sk) {
 		long timeout;
 
-		inet_rps_reset_flow(sk);
+		sock_rps_reset_flow(sk);
 
 		/* Applications forget to leave groups before exiting */
 		ip_mc_drop_socket(sk);
@@ -722,7 +722,7 @@ int inet_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 {
 	struct sock *sk = sock->sk;
 
-	inet_rps_record_flow(sk);
+	sock_rps_record_flow(sk);
 
 	/* We may need to bind the socket. */
 	if (!inet_sk(sk)->inet_num && inet_autobind(sk))
@@ -737,7 +737,7 @@ static ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset,
 {
 	struct sock *sk = sock->sk;
 
-	inet_rps_record_flow(sk);
+	sock_rps_record_flow(sk);
 
 	/* We may need to bind the socket. */
 	if (!inet_sk(sk)->inet_num && inet_autobind(sk))
@@ -755,7 +755,7 @@ int inet_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	int addr_len = 0;
 	int err;
 
-	inet_rps_record_flow(sk);
+	sock_rps_record_flow(sk);
 
 	err = sk->sk_prot->recvmsg(iocb, sk, msg, size, flags & MSG_DONTWAIT,
 				   flags & ~MSG_DONTWAIT, &addr_len);

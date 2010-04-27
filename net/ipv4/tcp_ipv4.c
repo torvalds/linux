@@ -1672,7 +1672,7 @@ process:
 
 	skb->dev = NULL;
 
-	inet_rps_save_rxhash(sk, skb->rxhash);
+	sock_rps_save_rxhash(sk, skb->rxhash);
 
 	bh_lock_sock_nested(sk);
 	ret = 0;
