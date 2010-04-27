@@ -980,9 +980,10 @@ static void e1000_free_desc_rings(struct e1000_adapter *adapter)
 	if (txdr->desc && txdr->buffer_info) {
 		for (i = 0; i < txdr->count; i++) {
 			if (txdr->buffer_info[i].dma)
-				pci_unmap_single(pdev, txdr->buffer_info[i].dma,
+				dma_unmap_single(&pdev->dev,
+						 txdr->buffer_info[i].dma,
 						 txdr->buffer_info[i].length,
-						 PCI_DMA_TODEVICE);
+						 DMA_TO_DEVICE);
 			if (txdr->buffer_info[i].skb)
 				dev_kfree_skb(txdr->buffer_info[i].skb);
 		}
@@ -991,20 +992,23 @@ static void e1000_free_desc_rings(struct e1000_adapter *adapter)
 	if (rxdr->desc && rxdr->buffer_info) {
 		for (i = 0; i < rxdr->count; i++) {
 			if (rxdr->buffer_info[i].dma)
-				pci_unmap_single(pdev, rxdr->buffer_info[i].dma,
+				dma_unmap_single(&pdev->dev,
+						 rxdr->buffer_info[i].dma,
 						 rxdr->buffer_info[i].length,
-						 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 			if (rxdr->buffer_info[i].skb)
 				dev_kfree_skb(rxdr->buffer_info[i].skb);
 		}
 	}
 
 	if (txdr->desc) {
-		pci_free_consistent(pdev, txdr->size, txdr->desc, txdr->dma);
+		dma_free_coherent(&pdev->dev, txdr->size, txdr->desc,
+				  txdr->dma);
 		txdr->desc = NULL;
 	}
 	if (rxdr->desc) {
-		pci_free_consistent(pdev, rxdr->size, rxdr->desc, rxdr->dma);
+		dma_free_coherent(&pdev->dev, rxdr->size, rxdr->desc,
+				  rxdr->dma);
 		rxdr->desc = NULL;
 	}
 
@@ -1039,7 +1043,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 
 	txdr->size = txdr->count * sizeof(struct e1000_tx_desc);
 	txdr->size = ALIGN(txdr->size, 4096);
-	txdr->desc = pci_alloc_consistent(pdev, txdr->size, &txdr->dma);
+	txdr->desc = dma_alloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
+					GFP_KERNEL);
 	if (!txdr->desc) {
 		ret_val = 2;
 		goto err_nomem;
@@ -1070,8 +1075,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		txdr->buffer_info[i].skb = skb;
 		txdr->buffer_info[i].length = skb->len;
 		txdr->buffer_info[i].dma =
-			pci_map_single(pdev, skb->data, skb->len,
-				       PCI_DMA_TODEVICE);
+			dma_map_single(&pdev->dev, skb->data, skb->len,
+				       DMA_TO_DEVICE);
 		tx_desc->buffer_addr = cpu_to_le64(txdr->buffer_info[i].dma);
 		tx_desc->lower.data = cpu_to_le32(skb->len);
 		tx_desc->lower.data |= cpu_to_le32(E1000_TXD_CMD_EOP |
@@ -1093,7 +1098,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	}
 
 	rxdr->size = rxdr->count * sizeof(struct e1000_rx_desc);
-	rxdr->desc = pci_alloc_consistent(pdev, rxdr->size, &rxdr->dma);
+	rxdr->desc = dma_alloc_coherent(&pdev->dev, rxdr->size, &rxdr->dma,
+					GFP_KERNEL);
 	if (!rxdr->desc) {
 		ret_val = 5;
 		goto err_nomem;
@@ -1126,8 +1132,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		rxdr->buffer_info[i].skb = skb;
 		rxdr->buffer_info[i].length = E1000_RXBUFFER_2048;
 		rxdr->buffer_info[i].dma =
-			pci_map_single(pdev, skb->data, E1000_RXBUFFER_2048,
-				       PCI_DMA_FROMDEVICE);
+			dma_map_single(&pdev->dev, skb->data,
+				       E1000_RXBUFFER_2048, DMA_FROM_DEVICE);
 		rx_desc->buffer_addr = cpu_to_le64(rxdr->buffer_info[i].dma);
 		memset(skb->data, 0x00, skb->len);
 	}
@@ -1444,10 +1450,10 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 		for (i = 0; i < 64; i++) { /* send the packets */
 			e1000_create_lbtest_frame(txdr->buffer_info[i].skb,
 					1024);
-			pci_dma_sync_single_for_device(pdev,
-					txdr->buffer_info[k].dma,
-				    	txdr->buffer_info[k].length,
-				    	PCI_DMA_TODEVICE);
+			dma_sync_single_for_device(&pdev->dev,
+						   txdr->buffer_info[k].dma,
+						   txdr->buffer_info[k].length,
+						   DMA_TO_DEVICE);
 			if (unlikely(++k == txdr->count)) k = 0;
 		}
 		ew32(TDT, k);
@@ -1455,10 +1461,10 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 		time = jiffies; /* set the start time for the receive */
 		good_cnt = 0;
 		do { /* receive the sent packets */
-			pci_dma_sync_single_for_cpu(pdev,
-					rxdr->buffer_info[l].dma,
-				    	rxdr->buffer_info[l].length,
-				    	PCI_DMA_FROMDEVICE);
+			dma_sync_single_for_cpu(&pdev->dev,
+						rxdr->buffer_info[l].dma,
+						rxdr->buffer_info[l].length,
+						DMA_FROM_DEVICE);
 
 			ret_val = e1000_check_lbtest_frame(
 					rxdr->buffer_info[l].skb,
