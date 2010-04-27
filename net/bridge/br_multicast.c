@@ -28,6 +28,7 @@
 #include <net/ipv6.h>
 #include <net/mld.h>
 #include <net/addrconf.h>
+#include <net/ip6_checksum.h>
 #endif
 
 #include "br_private.h"
