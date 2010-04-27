@@ -1007,11 +1007,11 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		result = acpi_video_init_brightness(device);
 		if (result)
 			return;
-		name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
+		name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
 		if (!name)
 			return;
+		count++;
 
-		sprintf(name, "acpi_video%d", count++);
 		memset(&props, 0, sizeof(struct backlight_properties));
 		props.max_brightness = device->brightness->count - 3;
 		device->backlight = backlight_device_register(name, NULL, device,
@@ -1067,10 +1067,10 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		if (device->cap._DCS && device->cap._DSS) {
 			static int count;
 			char *name;
-			name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
+			name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
 			if (!name)
 				return;
-			sprintf(name, "acpi_video%d", count++);
+			count++;
 			device->output_dev = video_output_register(name,
 					NULL, device, &acpi_output_properties);
 			kfree(name);
