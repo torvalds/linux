@@ -761,7 +761,7 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
 
   /* TODO: this should check the error flag and */
   /*   return an error on hardware failures */
-  if (count != sizeof(dt3155_read_t))
+  if (count != sizeof(struct dt3155_read))
     {
       printk("DT3155 ERROR (NJC): count is not right\n");
       return -EINVAL;
@@ -821,7 +821,7 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
   if (copy_to_user(buf, frame_info, sizeof(*frame_info)))
       return -EFAULT;
 
-  return sizeof(dt3155_read_t);
+  return sizeof(struct dt3155_read);
 }
 
 static unsigned int dt3155_poll (struct file * filp, poll_table *wait)

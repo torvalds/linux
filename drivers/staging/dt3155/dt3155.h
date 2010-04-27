@@ -150,12 +150,12 @@ extern struct dt3155_status dt3155_status[MAXBOARDS];
 #define DT_ERR_MASK		0xff0000/* not used but it might be one day */
 
 /* User code will probably want to declare one of these for each card */
-typedef struct dt3155_read_s {
+struct dt3155_read {
 	u32 offset;
 	u32 frame_seq;
 	u32 state;
 
 	struct frame_info frame_info;
-} dt3155_read_t;
+};
 
 #endif /* _DT3155_inc */
