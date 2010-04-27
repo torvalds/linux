@@ -186,7 +186,7 @@ struct igb_q_vector {
 struct igb_ring {
 	struct igb_q_vector *q_vector; /* backlink to q_vector */
 	struct net_device *netdev;     /* back pointer to net_device */
-	struct pci_dev *pdev;          /* pci device for dma mapping */
+	struct device *dev;            /* device pointer for dma mapping */
 	dma_addr_t dma;                /* phys address of the ring */
 	void *desc;                    /* descriptor ring memory */
 	unsigned int size;             /* length of desc. ring in bytes */
