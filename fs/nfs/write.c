@@ -1472,6 +1472,7 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
 
 	BUG_ON(!PageLocked(page));
 	for (;;) {
+		wait_on_page_writeback(page);
 		req = nfs_page_find_request(page);
 		if (req == NULL)
 			break;
@@ -1506,30 +1507,18 @@ int nfs_wb_page(struct inode *inode, struct page *page)
 		.range_start = range_start,
 		.range_end = range_end,
 	};
-	struct nfs_page *req;
-	int need_commit;
 	int ret;
 
 	while(PagePrivate(page)) {
+		wait_on_page_writeback(page);
 		if (clear_page_dirty_for_io(page)) {
 			ret = nfs_writepage_locked(page, &wbc);
 			if (ret < 0)
 				goto out_error;
 		}
-		req = nfs_find_and_lock_request(page);
-		if (!req)
-			break;
-		if (IS_ERR(req)) {
-			ret = PTR_ERR(req);
+		ret = sync_inode(inode, &wbc);
+		if (ret < 0)
 			goto out_error;
-		}
-		need_commit = test_bit(PG_CLEAN, &req->wb_flags);
-		nfs_clear_page_tag_locked(req);
-		if (need_commit) {
-			ret = nfs_commit_inode(inode, FLUSH_SYNC);
-			if (ret < 0)
-				goto out_error;
-		}
 	}
 	return 0;
 out_error:
