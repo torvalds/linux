@@ -319,6 +319,7 @@ struct iwl_cfg {
 	u32 monitor_recover_period;
 	bool temperature_kelvin;
 	u32 max_event_log_size;
+	const bool tx_power_by_driver;
 	u8 scan_antennas[IEEE80211_NUM_BANDS];
 };
 

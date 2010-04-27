@@ -1714,6 +1714,11 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl_priv *priv)
 	int ref_temp;
 	int temperature = priv->temperature;
 
+	if (priv->disable_tx_power_cal ||
+	    test_bit(STATUS_SCANNING, &priv->status)) {
+		/* do not perform tx power calibration */
+		return 0;
+	}
 	/* set up new Tx power info for each and every channel, 2.4 and 5.x */
 	for (i = 0; i < priv->channel_count; i++) {
 		ch_info = &priv->channel_info[i];
@@ -2842,6 +2847,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.tx_power_by_driver = true,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2862,6 +2868,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.tx_power_by_driver = true,
 };
 
 DEFINE_PCI_DEVICE_TABLE(iwl3945_hw_card_ids) = {

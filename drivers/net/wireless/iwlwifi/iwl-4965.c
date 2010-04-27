@@ -2262,6 +2262,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.temperature_kelvin = true,
 	.max_event_log_size = 512,
+	.tx_power_by_driver = true,
 
 	/*
 	 * Force use of chains B and C for scan RX on 5 GHz band
