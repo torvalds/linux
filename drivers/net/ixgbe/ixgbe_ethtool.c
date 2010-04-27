@@ -2083,7 +2083,7 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
  * this function must be called before setting the new value of
  * rx_itr_setting
  */
-static void ixgbe_reenable_rsc(struct ixgbe_adapter *adapter,
+static bool ixgbe_reenable_rsc(struct ixgbe_adapter *adapter,
                                struct ethtool_coalesce *ec)
 {
 	/* check the old value and enable RSC if necessary */
@@ -2093,11 +2093,9 @@ static void ixgbe_reenable_rsc(struct ixgbe_adapter *adapter,
 		adapter->netdev->features |= NETIF_F_LRO;
 		DPRINTK(PROBE, INFO, "rx-usecs set to %d, re-enabling RSC\n",
 		        ec->rx_coalesce_usecs);
-		if (netif_running(adapter->netdev))
-			ixgbe_reinit_locked(adapter);
-		else
-			ixgbe_reset(adapter);
+		return true;
 	}
+	return false;
 }
 
 static int ixgbe_set_coalesce(struct net_device *netdev,
@@ -2106,6 +2104,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_q_vector *q_vector;
 	int i;
+	bool need_reset = false;
 
 	/* don't accept tx specific changes if we've got mixed RxTx vectors */
 	if (adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count
@@ -2128,7 +2127,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 			return -EINVAL;
 
 		/* check the old value and enable RSC if necessary */
-		ixgbe_reenable_rsc(adapter, ec);
+		need_reset = ixgbe_reenable_rsc(adapter, ec);
 
 		/* store the value in ints/second */
 		adapter->rx_eitr_param = 1000000/ec->rx_coalesce_usecs;
@@ -2139,7 +2138,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		adapter->rx_itr_setting &= ~1;
 	} else if (ec->rx_coalesce_usecs == 1) {
 		/* check the old value and enable RSC if necessary */
-		ixgbe_reenable_rsc(adapter, ec);
+		need_reset = ixgbe_reenable_rsc(adapter, ec);
 
 		/* 1 means dynamic mode */
 		adapter->rx_eitr_param = 20000;
@@ -2164,11 +2163,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 			DPRINTK(PROBE, INFO,
 			        "rx-usecs set to 0, disabling RSC\n");
 
-			if (netif_running(netdev))
-				ixgbe_reinit_locked(adapter);
-			else
-				ixgbe_reset(adapter);
-			return 0;
+			need_reset = true;
 		}
 	}
 
@@ -2218,6 +2213,18 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		q_vector = adapter->q_vector[0];
 		q_vector->eitr = adapter->rx_eitr_param;
 		ixgbe_write_eitr(q_vector);
+	}
+
+	/*
+	 * do reset here at the end to make sure EITR==0 case is handled
+	 * correctly w.r.t stopping tx, and changing TXDCTL.WTHRESH settings
+	 * also locks in RSC enable/disable which requires reset
+	 */
+	if (need_reset) {
+		if (netif_running(netdev))
+			ixgbe_reinit_locked(adapter);
+		else
+			ixgbe_reset(adapter);
 	}
 
 	return 0;

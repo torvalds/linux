@@ -2945,8 +2945,13 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		j = adapter->tx_ring[i]->reg_idx;
 		txdctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(j));
-		/* enable WTHRESH=8 descriptors, to encourage burst writeback */
-		txdctl |= (8 << 16);
+		if (adapter->rx_itr_setting == 0) {
+			/* cannot set wthresh when itr==0 */
+			txdctl &= ~0x007F0000;
+		} else {
+			/* enable WTHRESH=8 descriptors, to encourage burst writeback */
+			txdctl |= (8 << 16);
+		}
 		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(j), txdctl);
 	}
 
