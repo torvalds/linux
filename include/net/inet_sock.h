@@ -248,7 +248,7 @@ static inline void inet_rps_reset_flow(const struct sock *sk)
 #endif
 }
 
-static inline void inet_rps_save_rxhash(const struct sock *sk, u32 rxhash)
+static inline void inet_rps_save_rxhash(struct sock *sk, u32 rxhash)
 {
 #ifdef CONFIG_RPS
 	if (unlikely(inet_sk(sk)->rxhash != rxhash)) {
