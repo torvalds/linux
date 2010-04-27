@@ -332,7 +332,6 @@ static int sbmac_mii_write(struct mii_bus *bus, int phyaddr, int regidx,
  ********************************************************************* */
 
 static char sbmac_string[] = "sb1250-mac";
-static char sbmac_pretty[] = "SB1250 MAC";
 
 static char sbmac_mdio_string[] = "sb1250-mac-mdio";
 
@@ -2670,114 +2669,6 @@ static int __exit sbmac_remove(struct platform_device *pldev)
 	return 0;
 }
 
-
-static struct platform_device **sbmac_pldev;
-static int sbmac_max_units;
-
-static int __init sbmac_platform_probe_one(int idx)
-{
-	struct platform_device *pldev;
-	struct {
-		struct resource r;
-		char name[strlen(sbmac_pretty) + 4];
-	} *res;
-	int err;
-
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
-	if (!res) {
-		printk(KERN_ERR "%s.%d: unable to allocate memory\n",
-		       sbmac_string, idx);
-		err = -ENOMEM;
-		goto out_err;
-	}
-
-	/*
-	 * This is the base address of the MAC.
-	 */
-	snprintf(res->name, sizeof(res->name), "%s %d", sbmac_pretty, idx);
-	res->r.name = res->name;
-	res->r.flags = IORESOURCE_MEM;
-	res->r.start = A_MAC_CHANNEL_BASE(idx);
-	res->r.end = A_MAC_CHANNEL_BASE(idx + 1) - 1;
-
-	pldev = platform_device_register_simple(sbmac_string, idx, &res->r, 1);
-	if (IS_ERR(pldev)) {
-		printk(KERN_ERR "%s.%d: unable to register platform device\n",
-		       sbmac_string, idx);
-		err = PTR_ERR(pldev);
-		goto out_kfree;
-	}
-
-	if (!pldev->dev.driver) {
-		err = 0;		/* No hardware at this address. */
-		goto out_unregister;
-	}
-
-	sbmac_pldev[idx] = pldev;
-	return 0;
-
-out_unregister:
-	platform_device_unregister(pldev);
-
-out_kfree:
-	kfree(res);
-
-out_err:
-	return err;
-}
-
-static void __init sbmac_platform_probe(void)
-{
-	int i;
-
-	/* Set the number of available units based on the SOC type.  */
-	switch (soc_type) {
-	case K_SYS_SOC_TYPE_BCM1250:
-	case K_SYS_SOC_TYPE_BCM1250_ALT:
-		sbmac_max_units = 3;
-		break;
-	case K_SYS_SOC_TYPE_BCM1120:
-	case K_SYS_SOC_TYPE_BCM1125:
-	case K_SYS_SOC_TYPE_BCM1125H:
-	case K_SYS_SOC_TYPE_BCM1250_ALT2:	/* Hybrid */
-		sbmac_max_units = 2;
-		break;
-	case K_SYS_SOC_TYPE_BCM1x55:
-	case K_SYS_SOC_TYPE_BCM1x80:
-		sbmac_max_units = 4;
-		break;
-	default:
-		return;				/* none */
-	}
-
-	sbmac_pldev = kcalloc(sbmac_max_units, sizeof(*sbmac_pldev),
-			      GFP_KERNEL);
-	if (!sbmac_pldev) {
-		printk(KERN_ERR "%s: unable to allocate memory\n",
-		       sbmac_string);
-		return;
-	}
-
-	/*
-	 * Walk through the Ethernet controllers and find
-	 * those who have their MAC addresses set.
-	 */
-	for (i = 0; i < sbmac_max_units; i++)
-		if (sbmac_platform_probe_one(i))
-			break;
-}
-
-
-static void __exit sbmac_platform_cleanup(void)
-{
-	int i;
-
-	for (i = 0; i < sbmac_max_units; i++)
-		platform_device_unregister(sbmac_pldev[i]);
-	kfree(sbmac_pldev);
-}
-
-
 static struct platform_driver sbmac_driver = {
 	.probe = sbmac_probe,
 	.remove = __exit_p(sbmac_remove),
@@ -2788,20 +2679,11 @@ static struct platform_driver sbmac_driver = {
 
 static int __init sbmac_init_module(void)
 {
-	int err;
-
-	err = platform_driver_register(&sbmac_driver);
-	if (err)
-		return err;
-
-	sbmac_platform_probe();
-
-	return err;
+	return platform_driver_register(&sbmac_driver);
 }
 
 static void __exit sbmac_cleanup_module(void)
 {
-	sbmac_platform_cleanup();
 	platform_driver_unregister(&sbmac_driver);
 }
 
