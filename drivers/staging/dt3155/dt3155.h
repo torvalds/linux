@@ -34,15 +34,8 @@ MA 02111-1307 USA
 #ifndef _DT3155_INC
 #define _DT3155_INC
 
-#ifdef __KERNEL__
 #include <linux/types.h>
 #include <linux/time.h>		/* struct timeval */
-#else
-#include <sys/ioctl.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <unistd.h>
-#endif
 
 
 #define TRUE  1
