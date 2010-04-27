@@ -94,8 +94,11 @@ void ath9k_htc_ps_restore(struct ath9k_htc_priv *priv)
 	if (--priv->ps_usecount != 0)
 		goto unlock;
 
-	if (priv->ps_enabled)
+	if (priv->ps_idle)
+		ath9k_hw_setpower(priv->ah, ATH9K_PM_FULL_SLEEP);
+	else if (priv->ps_enabled)
 		ath9k_hw_setpower(priv->ah, ATH9K_PM_NETWORK_SLEEP);
+
 unlock:
 	mutex_unlock(&priv->htc_pm_lock);
 }
@@ -1096,7 +1099,7 @@ fail_tx:
 	return 0;
 }
 
-static int ath9k_htc_start(struct ieee80211_hw *hw)
+static int ath9k_htc_radio_enable(struct ieee80211_hw *hw)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
@@ -1112,8 +1115,6 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 		  "Starting driver with initial channel: %d MHz\n",
 		  curchan->center_freq);
 
-	mutex_lock(&priv->mutex);
-
 	/* setup initial channel */
 	init_channel = ath9k_cmn_get_curchannel(hw, ah);
 
@@ -1126,7 +1127,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset hardware; reset status %d "
 			  "(freq %u MHz)\n", ret, curchan->center_freq);
-		goto mutex_unlock;
+		return ret;
 	}
 
 	ath_update_txpow(priv);
@@ -1134,16 +1135,8 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	mode = ath9k_htc_get_curmode(priv, init_channel);
 	htc_mode = cpu_to_be16(mode);
 	WMI_CMD_BUF(WMI_SET_MODE_CMDID, &htc_mode);
-	if (ret)
-		goto mutex_unlock;
-
 	WMI_CMD(WMI_ATH_INIT_CMDID);
-	if (ret)
-		goto mutex_unlock;
-
 	WMI_CMD(WMI_START_RECV_CMDID);
-	if (ret)
-		goto mutex_unlock;
 
 	ath9k_host_rx_init(priv);
 
@@ -1156,12 +1149,22 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 
 	ieee80211_wake_queues(hw);
 
-mutex_unlock:
-	mutex_unlock(&priv->mutex);
 	return ret;
 }
 
-static void ath9k_htc_stop(struct ieee80211_hw *hw)
+static int ath9k_htc_start(struct ieee80211_hw *hw)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+	int ret = 0;
+
+	mutex_lock(&priv->mutex);
+	ret = ath9k_htc_radio_enable(hw);
+	mutex_unlock(&priv->mutex);
+
+	return ret;
+}
+
+static void ath9k_htc_radio_disable(struct ieee80211_hw *hw)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
@@ -1169,11 +1172,8 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	int ret = 0;
 	u8 cmd_rsp;
 
-	mutex_lock(&priv->mutex);
-
 	if (priv->op_flags & OP_INVALID) {
 		ath_print(common, ATH_DBG_ANY, "Device not present\n");
-		mutex_unlock(&priv->mutex);
 		return;
 	}
 
@@ -1208,10 +1208,19 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	}
 
 	priv->op_flags |= OP_INVALID;
-	mutex_unlock(&priv->mutex);
 
 	ath_print(common, ATH_DBG_CONFIG, "Driver halt\n");
 }
+
+static void ath9k_htc_stop(struct ieee80211_hw *hw)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+
+	mutex_lock(&priv->mutex);
+	ath9k_htc_radio_disable(hw);
+	mutex_unlock(&priv->mutex);
+}
+
 
 static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
@@ -1326,6 +1335,23 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&priv->mutex);
 
+	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+		bool enable_radio = false;
+		bool idle = !!(conf->flags & IEEE80211_CONF_IDLE);
+
+		if (!idle && priv->ps_idle)
+			enable_radio = true;
+
+		priv->ps_idle = idle;
+
+		if (enable_radio) {
+			ath9k_htc_setpower(priv, ATH9K_PM_AWAKE);
+			ath9k_htc_radio_enable(hw);
+			ath_print(common, ATH_DBG_CONFIG,
+				  "not-idle: enabling radio\n");
+		}
+	}
+
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos = curchan->hw_value;
@@ -1368,6 +1394,13 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 					  "HW opmode set to Monitor mode\n");
 		}
 	}
+
+	if (priv->ps_idle) {
+		ath_print(common, ATH_DBG_CONFIG,
+			  "idle: disabling radio\n");
+		ath9k_htc_radio_disable(hw);
+	}
+
 
 	mutex_unlock(&priv->mutex);
 

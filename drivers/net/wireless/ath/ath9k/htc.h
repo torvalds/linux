@@ -379,6 +379,7 @@ struct ath9k_htc_priv {
 	struct mutex htc_pm_lock;
 	unsigned long ps_usecount;
 	bool ps_enabled;
+	bool ps_idle;
 
 	struct ath_led radio_led;
 	struct ath_led assoc_led;
