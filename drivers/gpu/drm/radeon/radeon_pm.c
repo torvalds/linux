@@ -61,6 +61,8 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 	if (!static_switch)
 		radeon_get_power_state(rdev, rdev->pm.planned_action);
 
+	mutex_lock(&rdev->ddev->struct_mutex);
+	mutex_lock(&rdev->vram_mutex);
 	mutex_lock(&rdev->cp.mutex);
 
 	/* wait for GPU idle */
@@ -72,8 +74,6 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 		msecs_to_jiffies(RADEON_WAIT_IDLE_TIMEOUT));
 	rdev->irq.gui_idle = false;
 	radeon_irq_set(rdev);
-
-	mutex_lock(&rdev->vram_mutex);
 
 	radeon_unmap_vram_bos(rdev);
 
@@ -97,8 +97,6 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 		}
 	}
 
-	mutex_unlock(&rdev->vram_mutex);
-	
 	/* update display watermarks based on new power state */
 	radeon_update_bandwidth_info(rdev);
 	if (rdev->pm.active_crtc_count)
@@ -107,6 +105,8 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 	rdev->pm.planned_action = PM_ACTION_NONE;
 
 	mutex_unlock(&rdev->cp.mutex);
+	mutex_unlock(&rdev->vram_mutex);
+	mutex_unlock(&rdev->ddev->struct_mutex);
 }
 
 static ssize_t radeon_get_power_state_static(struct device *dev,
@@ -134,7 +134,6 @@ static ssize_t radeon_set_power_state_static(struct device *dev,
 		return count;
 	}
 
-	mutex_lock(&rdev->ddev->struct_mutex);
 	mutex_lock(&rdev->pm.mutex);
 	if ((ps >= 0) && (ps < rdev->pm.num_power_states) &&
 	    (cm >= 0) && (cm < rdev->pm.power_state[ps].num_clock_modes)) {
@@ -152,7 +151,6 @@ static ssize_t radeon_set_power_state_static(struct device *dev,
 	} else
 		DRM_ERROR("Invalid power state: %d.%d\n\n", ps, cm);
 	mutex_unlock(&rdev->pm.mutex);
-	mutex_unlock(&rdev->ddev->struct_mutex);
 
 	return count;
 }
@@ -189,13 +187,11 @@ static ssize_t radeon_set_dynpm(struct device *dev,
 	} else if (tmp == 1) {
 		if (rdev->pm.num_power_states > 1) {
 			/* enable dynpm */
-			mutex_lock(&rdev->ddev->struct_mutex);
 			mutex_lock(&rdev->pm.mutex);
 			rdev->pm.state = PM_STATE_PAUSED;
 			rdev->pm.planned_action = PM_ACTION_DEFAULT;
 			radeon_get_power_state(rdev, rdev->pm.planned_action);
 			mutex_unlock(&rdev->pm.mutex);
-			mutex_unlock(&rdev->ddev->struct_mutex);
 			/* update power mode info */
 			radeon_pm_compute_clocks(rdev);
 			DRM_INFO("radeon: dynamic power management enabled\n");
@@ -318,11 +314,9 @@ void radeon_pm_fini(struct radeon_device *rdev)
 		   (rdev->pm.current_clock_mode_index != 0)) {
 		rdev->pm.requested_power_state_index = rdev->pm.default_power_state_index;
 		rdev->pm.requested_clock_mode_index = 0;
-		mutex_lock(&rdev->ddev->struct_mutex);
 		mutex_lock(&rdev->pm.mutex);
 		radeon_pm_set_clocks(rdev, true);
 		mutex_unlock(&rdev->pm.mutex);
-		mutex_unlock(&rdev->ddev->struct_mutex);
 	}
 
 	device_remove_file(rdev->dev, &dev_attr_power_state);
@@ -341,7 +335,6 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 	if (rdev->pm.state == PM_STATE_DISABLED)
 		return;
 
-	mutex_lock(&rdev->ddev->struct_mutex);
 	mutex_lock(&rdev->pm.mutex);
 
 	rdev->pm.active_crtcs = 0;
@@ -392,7 +385,6 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 	}
 
 	mutex_unlock(&rdev->pm.mutex);
-	mutex_unlock(&rdev->ddev->struct_mutex);
 }
 
 bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish)
@@ -468,7 +460,6 @@ static void radeon_pm_idle_work_handler(struct work_struct *work)
 				pm.idle_work.work);
 
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
-	mutex_lock(&rdev->ddev->struct_mutex);
 	mutex_lock(&rdev->pm.mutex);
 	if (rdev->pm.state == PM_STATE_ACTIVE) {
 		unsigned long irq_flags;
@@ -513,7 +504,6 @@ static void radeon_pm_idle_work_handler(struct work_struct *work)
 		}
 	}
 	mutex_unlock(&rdev->pm.mutex);
-	mutex_unlock(&rdev->ddev->struct_mutex);
 	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 
 	queue_delayed_work(rdev->wq, &rdev->pm.idle_work,
