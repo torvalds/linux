@@ -1042,21 +1042,21 @@ static int br_ip6_multicast_mld2_report(struct net_bridge *br,
 static void br_multicast_add_router(struct net_bridge *br,
 				    struct net_bridge_port *port)
 {
-	struct hlist_node *p;
-	struct hlist_node **h;
+	struct net_bridge_port *p;
+	struct hlist_node *n, *last = NULL;
 
-	for (h = &br->router_list.first;
-	     (p = *h) &&
-	     (unsigned long)container_of(p, struct net_bridge_port, rlist) >
-	     (unsigned long)port;
-	     h = &p->next)
-		;
+	hlist_for_each_entry(p, n, &br->router_list, rlist) {
+		if ((unsigned long) port >= (unsigned long) p) {
+			hlist_add_before_rcu(n, &port->rlist);
+			return;
+		}
+		last = n;
+	}
 
-	port->rlist.pprev = h;
-	port->rlist.next = p;
-	rcu_assign_pointer(*h, &port->rlist);
-	if (p)
-		p->pprev = &port->rlist.next;
+	if (last)
+		hlist_add_after_rcu(last, &port->rlist);
+	else
+		hlist_add_head_rcu(&port->rlist, &br->router_list);
 }
 
 static void br_multicast_mark_router(struct net_bridge *br,
