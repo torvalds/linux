@@ -489,6 +489,9 @@ static void mxcmci_datawork(struct work_struct *work)
 	struct mxcmci_host *host = container_of(work, struct mxcmci_host,
 						  datawork);
 	int datastat = mxcmci_transfer_data(host);
+
+	writel(STATUS_READ_OP_DONE | STATUS_WRITE_OP_DONE,
+		host->base + MMC_REG_STATUS);
 	mxcmci_finish_data(host, datastat);
 
 	if (host->req->stop) {
@@ -553,13 +556,21 @@ static irqreturn_t mxcmci_irq(int irq, void *devid)
 	u32 stat;
 
 	stat = readl(host->base + MMC_REG_STATUS);
-	writel(stat & ~STATUS_SDIO_INT_ACTIVE, host->base + MMC_REG_STATUS);
+	writel(stat & ~(STATUS_SDIO_INT_ACTIVE | STATUS_DATA_TRANS_DONE |
+			STATUS_WRITE_OP_DONE), host->base + MMC_REG_STATUS);
 
 	dev_dbg(mmc_dev(host->mmc), "%s: 0x%08x\n", __func__, stat);
 
 	spin_lock_irqsave(&host->lock, flags);
 	sdio_irq = (stat & STATUS_SDIO_INT_ACTIVE) && host->use_sdio;
 	spin_unlock_irqrestore(&host->lock, flags);
+
+#ifdef HAS_DMA
+	if (mxcmci_use_dma(host) &&
+	    (stat & (STATUS_READ_OP_DONE | STATUS_WRITE_OP_DONE)))
+		writel(STATUS_READ_OP_DONE | STATUS_WRITE_OP_DONE,
+			host->base + MMC_REG_STATUS);
+#endif
 
 	if (sdio_irq) {
 		writel(STATUS_SDIO_INT_ACTIVE, host->base + MMC_REG_STATUS);
