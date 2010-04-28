@@ -3743,23 +3743,26 @@ static int nv_napi_poll(struct napi_struct *napi, int budget)
 	u8 __iomem *base = get_hwbase(dev);
 	unsigned long flags;
 	int retcode;
-	int tx_work, rx_work;
+	int rx_count, tx_work=0, rx_work=0;
 
-	if (!nv_optimized(np)) {
-		spin_lock_irqsave(&np->lock, flags);
-		tx_work = nv_tx_done(dev, np->tx_ring_size);
-		spin_unlock_irqrestore(&np->lock, flags);
+	do {
+		if (!nv_optimized(np)) {
+			spin_lock_irqsave(&np->lock, flags);
+			tx_work += nv_tx_done(dev, np->tx_ring_size);
+			spin_unlock_irqrestore(&np->lock, flags);
 
-		rx_work = nv_rx_process(dev, budget);
-		retcode = nv_alloc_rx(dev);
-	} else {
-		spin_lock_irqsave(&np->lock, flags);
-		tx_work = nv_tx_done_optimized(dev, np->tx_ring_size);
-		spin_unlock_irqrestore(&np->lock, flags);
+			rx_count = nv_rx_process(dev, budget);
+			retcode = nv_alloc_rx(dev);
+		} else {
+			spin_lock_irqsave(&np->lock, flags);
+			tx_work += nv_tx_done_optimized(dev, np->tx_ring_size);
+			spin_unlock_irqrestore(&np->lock, flags);
 
-		rx_work = nv_rx_process_optimized(dev, budget);
-		retcode = nv_alloc_rx_optimized(dev);
-	}
+			rx_count = nv_rx_process_optimized(dev, budget);
+			retcode = nv_alloc_rx_optimized(dev);
+		}
+	} while (retcode == 0 &&
+		 rx_count > 0 && (rx_work += rx_count) < budget);
 
 	if (retcode) {
 		spin_lock_irqsave(&np->lock, flags);
