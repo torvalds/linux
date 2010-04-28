@@ -1552,6 +1552,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	u32 inst_size, data_size, init_size, init_data_size, boot_size;
 	int err;
 	u16 eeprom_ver;
+	char buildstr[25];
 
 	if (!ucode_raw) {
 		IWL_ERR(priv, "request for firmware file '%s' failed.\n",
@@ -1599,22 +1600,26 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 			  "from http://www.intellinuxwireless.org.\n",
 			  api_max, api_ver);
 
-	IWL_INFO(priv, "loaded firmware version %u.%u.%u.%u\n",
-	       IWL_UCODE_MAJOR(priv->ucode_ver),
-	       IWL_UCODE_MINOR(priv->ucode_ver),
-	       IWL_UCODE_API(priv->ucode_ver),
-	       IWL_UCODE_SERIAL(priv->ucode_ver));
+	if (build)
+		sprintf(buildstr, " build %u", build);
+	else
+		buildstr[0] = '\0';
 
-	snprintf(priv->hw->wiphy->fw_version,
-		 sizeof(priv->hw->wiphy->fw_version),
-		 "%u.%u.%u.%u",
+	IWL_INFO(priv, "loaded firmware version %u.%u.%u.%u%s\n",
 		 IWL_UCODE_MAJOR(priv->ucode_ver),
 		 IWL_UCODE_MINOR(priv->ucode_ver),
 		 IWL_UCODE_API(priv->ucode_ver),
-		 IWL_UCODE_SERIAL(priv->ucode_ver));
+		 IWL_UCODE_SERIAL(priv->ucode_ver),
+		 buildstr);
 
-	if (build)
-		IWL_DEBUG_INFO(priv, "Build %u\n", build);
+	snprintf(priv->hw->wiphy->fw_version,
+		 sizeof(priv->hw->wiphy->fw_version),
+		 "%u.%u.%u.%u%s",
+		 IWL_UCODE_MAJOR(priv->ucode_ver),
+		 IWL_UCODE_MINOR(priv->ucode_ver),
+		 IWL_UCODE_API(priv->ucode_ver),
+		 IWL_UCODE_SERIAL(priv->ucode_ver),
+		 buildstr);
 
 	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
 	IWL_DEBUG_INFO(priv, "NVM Type: %s, version: 0x%x\n",
