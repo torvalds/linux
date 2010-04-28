@@ -2799,8 +2799,8 @@ special_insn:
 			goto done;
 		break;
 	case 0x90: /* nop / xchg r8,rax */
-		if (!(c->rex_prefix & 1)) { /* nop */
-			c->dst.type = OP_NONE;
+		if (c->dst.ptr == (unsigned long *)&c->regs[VCPU_REGS_RAX]) {
+			c->dst.type = OP_NONE;  /* nop */
 			break;
 		}
 	case 0x91 ... 0x97: /* xchg reg,rax */
