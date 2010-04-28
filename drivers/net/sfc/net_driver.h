@@ -926,8 +926,8 @@ struct efx_nic_type {
 
 /* Iterate over all used channels */
 #define efx_for_each_channel(_channel, _efx)				\
-	for (_channel = &_efx->channel[0];				\
-	     _channel < &_efx->channel[EFX_MAX_CHANNELS];		\
+	for (_channel = &((_efx)->channel[0]);				\
+	     _channel < &((_efx)->channel[EFX_MAX_CHANNELS]);		\
 	     _channel++)						\
 		if (!_channel->used_flags)				\
 			continue;					\
@@ -935,31 +935,31 @@ struct efx_nic_type {
 
 /* Iterate over all used TX queues */
 #define efx_for_each_tx_queue(_tx_queue, _efx)				\
-	for (_tx_queue = &_efx->tx_queue[0];				\
-	     _tx_queue < &_efx->tx_queue[EFX_TX_QUEUE_COUNT];		\
+	for (_tx_queue = &((_efx)->tx_queue[0]);			\
+	     _tx_queue < &((_efx)->tx_queue[EFX_TX_QUEUE_COUNT]);	\
 	     _tx_queue++)
 
 /* Iterate over all TX queues belonging to a channel */
 #define efx_for_each_channel_tx_queue(_tx_queue, _channel)		\
-	for (_tx_queue = &_channel->efx->tx_queue[0];			\
-	     _tx_queue < &_channel->efx->tx_queue[EFX_TX_QUEUE_COUNT];	\
+	for (_tx_queue = &((_channel)->efx->tx_queue[0]);		\
+	     _tx_queue < &((_channel)->efx->tx_queue[EFX_TX_QUEUE_COUNT]); \
 	     _tx_queue++)						\
-		if (_tx_queue->channel != _channel)			\
+		if (_tx_queue->channel != (_channel))			\
 			continue;					\
 		else
 
 /* Iterate over all used RX queues */
 #define efx_for_each_rx_queue(_rx_queue, _efx)				\
-	for (_rx_queue = &_efx->rx_queue[0];				\
-	     _rx_queue < &_efx->rx_queue[_efx->n_rx_queues];		\
+	for (_rx_queue = &((_efx)->rx_queue[0]);			\
+	     _rx_queue < &((_efx)->rx_queue[(_efx)->n_rx_queues]);	\
 	     _rx_queue++)
 
 /* Iterate over all RX queues belonging to a channel */
 #define efx_for_each_channel_rx_queue(_rx_queue, _channel)		\
-	for (_rx_queue = &_channel->efx->rx_queue[_channel->channel];	\
+	for (_rx_queue = &((_channel)->efx->rx_queue[(_channel)->channel]); \
 	     _rx_queue;							\
 	     _rx_queue = NULL)						\
-		if (_rx_queue->channel != _channel)			\
+		if (_rx_queue->channel != (_channel))			\
 			continue;					\
 		else
 
