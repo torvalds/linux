@@ -431,6 +431,7 @@ static const struct driver_info mbm_info = {
 	.bind = 	cdc_bind,
 	.unbind =	usbnet_cdc_unbind,
 	.status =	cdc_status,
+	.manage_power =	cdc_manage_power,
 };
 
 /*-------------------------------------------------------------------------*/
