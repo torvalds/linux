@@ -1635,7 +1635,6 @@ static int onenand_verify_oob(struct mtd_info *mtd, const u_char *buf, loff_t to
 static int onenand_verify(struct mtd_info *mtd, const u_char *buf, loff_t addr, size_t len)
 {
 	struct onenand_chip *this = mtd->priv;
-	void __iomem *dataram;
 	int ret = 0;
 	int thislen, column;
 
@@ -1655,10 +1654,9 @@ static int onenand_verify(struct mtd_info *mtd, const u_char *buf, loff_t addr, 
 
 		onenand_update_bufferram(mtd, addr, 1);
 
-		dataram = this->base + ONENAND_DATARAM;
-		dataram += onenand_bufferram_offset(mtd, ONENAND_DATARAM);
+		this->read_bufferram(mtd, ONENAND_DATARAM, this->verify_buf, 0, mtd->writesize);
 
-		if (memcmp(buf, dataram + column, thislen))
+		if (memcmp(buf, this->verify_buf, thislen))
 			return -EBADMSG;
 
 		len -= thislen;
