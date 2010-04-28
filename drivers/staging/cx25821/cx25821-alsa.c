@@ -718,7 +718,8 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 		goto error;
 	}
 
-	if ((err == snd_cx25821_pcm(chip, 0, "cx25821 Digital")) < 0) {
+	err = snd_cx25821_pcm(chip, 0, "cx25821 Digital");
+	if (err < 0) {
 		printk(KERN_INFO
 		       "DEBUG ERROR: cannot create snd_cx25821_pcm %s\n",
 		       __func__);
