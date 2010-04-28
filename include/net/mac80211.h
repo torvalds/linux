@@ -145,6 +145,7 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_BEACON_ENABLED: Beaconing should be
  *	enabled/disabled (beaconing modes)
  * @BSS_CHANGED_CQM: Connection quality monitor config changed
+ * @BSS_CHANGED_IBSS: IBSS join status changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -158,6 +159,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_BEACON		= 1<<8,
 	BSS_CHANGED_BEACON_ENABLED	= 1<<9,
 	BSS_CHANGED_CQM			= 1<<10,
+	BSS_CHANGED_IBSS		= 1<<11,
 };
 
 /**
@@ -167,6 +169,8 @@ enum ieee80211_bss_change {
  * to that BSS) that can change during the lifetime of the BSS.
  *
  * @assoc: association status
+ * @ibss_joined: indicates whether this station is part of an IBSS
+ *	or not
  * @aid: association ID number, valid only when @assoc is true
  * @use_cts_prot: use CTS protection
  * @use_short_preamble: use 802.11b short preamble;
@@ -194,7 +198,7 @@ enum ieee80211_bss_change {
 struct ieee80211_bss_conf {
 	const u8 *bssid;
 	/* association related data */
-	bool assoc;
+	bool assoc, ibss_joined;
 	u16 aid;
 	/* erp related data */
 	bool use_cts_prot;
