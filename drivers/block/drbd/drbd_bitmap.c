@@ -519,7 +519,7 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 	obits  = b->bm_bits;
 
 	growing = bits > obits;
-	if (opages)
+	if (opages && growing && set_new_bits)
 		bm_set_surplus(b);
 
 	b->bm_pages = npages;
@@ -532,9 +532,6 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 		if (set_new_bits) {
 			bm_memset(b, owords, 0xff, words-owords);
 			b->bm_set += bits - obits;
-			__bm_change_bits_to(mdev, obits,
-					    ALIGN(obits, BITS_PER_LONG),
-					    1, KM_IRQ1);
 		} else
 			bm_memset(b, owords, 0x00, words-owords);
 
