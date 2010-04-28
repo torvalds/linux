@@ -47,8 +47,38 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 static int tm6000_i2c_send_regs(struct tm6000_core *dev, unsigned char addr,
 				__u8 reg, char *buf, int len)
 {
-	return tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		REQ_16_SET_GET_I2C_WR1_RDN, addr | reg << 8, 0, buf, len);
+	int rc;
+	unsigned int tsleep;
+	unsigned int i2c_packet_limit = 16;
+
+	if (dev->dev_type == TM6010)
+		i2c_packet_limit = 64;
+
+	if (!buf)
+		return -1;
+
+	if (len < 1 || len > i2c_packet_limit) {
+		printk(KERN_ERR "Incorrect length of i2c packet = %d, limit set to %d\n",
+			len, i2c_packet_limit);
+		return -1;
+	}
+
+	/* capture mutex */
+	rc = tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR |
+		USB_RECIP_DEVICE, REQ_16_SET_GET_I2C_WR1_RDN,
+		addr | reg << 8, 0, buf, len);
+
+	if (rc < 0) {
+		/* release mutex */
+		return rc;
+	}
+
+	/* Calculate delay time, 14000us for 64 bytes */
+	tsleep = ((len * 200) + 200 + 1000) / 1000;
+	msleep(tsleep);
+
+	/* release mutex */
+	return rc;
 }
 
 /* Generic read - doesn't work fine with 16bit registers */
@@ -57,7 +87,21 @@ static int tm6000_i2c_recv_regs(struct tm6000_core *dev, unsigned char addr,
 {
 	int rc;
 	u8 b[2];
+	unsigned int i2c_packet_limit = 16;
 
+	if (dev->dev_type == TM6010)
+		i2c_packet_limit = 64;
+
+	if (!buf)
+		return -1;
+
+	if (len < 1 || len > i2c_packet_limit) {
+		printk(KERN_ERR "Incorrect length of i2c packet = %d, limit set to %d\n",
+			len, i2c_packet_limit);
+		return -1;
+	}
+
+	/* capture mutex */
 	if ((dev->caps.has_zl10353) && (dev->demod_addr << 1 == addr) && (reg % 2 == 0)) {
 		/*
 		 * Workaround an I2C bug when reading from zl10353
@@ -74,6 +118,7 @@ static int tm6000_i2c_recv_regs(struct tm6000_core *dev, unsigned char addr,
 			REQ_16_SET_GET_I2C_WR1_RDN, addr | reg << 8, 0, buf, len);
 	}
 
+	/* release mutex */
 	return rc;
 }
 
@@ -84,8 +129,36 @@ static int tm6000_i2c_recv_regs(struct tm6000_core *dev, unsigned char addr,
 static int tm6000_i2c_recv_regs16(struct tm6000_core *dev, unsigned char addr,
 				  __u16 reg, char *buf, int len)
 {
-	return tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		REQ_14_SET_GET_I2C_WR2_RDN, addr, reg, buf, len);
+	int rc;
+	unsigned char ureg;
+
+	if (!buf || len != 2)
+		return -1;
+
+	/* capture mutex */
+	if (dev->dev_type == TM6010) {
+		ureg = reg & 0xFF;
+		rc = tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR |
+			USB_RECIP_DEVICE, REQ_16_SET_GET_I2C_WR1_RDN,
+			addr | (reg & 0xFF00), 0, &ureg, 1);
+
+		if (rc < 0) {
+			/* release mutex */
+			return rc;
+		}
+
+		msleep(1400 / 1000);
+		rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR |
+			USB_RECIP_DEVICE, REQ_35_AFTEK_TUNER_READ,
+			reg, 0, buf, len);
+	} else {
+		rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR |
+			USB_RECIP_DEVICE, REQ_14_SET_GET_I2C_WR2_RDN,
+			addr, reg, buf, len);
+	}
+
+	/* release mutex */
+	return rc;
 }
 
 static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
