@@ -1,0 +1,25 @@
+# arch/arm/mach-s3c2416/Kconfig
+#
+# Copyright 2009 Yauhen Kharuzhy <jekhor@gmail.com>
+#
+# Licensed under GPLv2
+
+config CPU_S3C2416
+	bool
+	depends on ARCH_S3C2410
+	select CPU_ARM926T
+	select S3C2416_DMA if S3C2410_DMA
+	select CPU_LLSERIAL_S3C2440
+	help
+	  Support for the S3C2416 SoC from the S3C24XX line
+
+config S3C2416_DMA
+	bool
+	depends on CPU_S3C2416
+	help
+	  Internal config node for S3C2416 DMA support
+
+menu "S3C2416 Machines"
+
+
+endmenu
