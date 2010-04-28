@@ -932,20 +932,26 @@ int efx_mcdi_nvram_test_all(struct efx_nic *efx)
 
 	rc = efx_mcdi_nvram_types(efx, &nvram_types);
 	if (rc)
-		return rc;
+		goto fail1;
 
 	type = 0;
 	while (nvram_types != 0) {
 		if (nvram_types & 1) {
 			rc = efx_mcdi_nvram_test(efx, type);
 			if (rc)
-				return rc;
+				goto fail2;
 		}
 		type++;
 		nvram_types >>= 1;
 	}
 
 	return 0;
+
+fail2:
+	EFX_ERR(efx, "%s: failed type=%u\n", __func__, type);
+fail1:
+	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
 }
 
 static int efx_mcdi_read_assertion(struct efx_nic *efx)
