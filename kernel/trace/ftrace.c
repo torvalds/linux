@@ -666,6 +666,10 @@ static void profile_graph_return(struct ftrace_graph_ret *trace)
 	if (!stat->hash || !ftrace_profile_enabled)
 		goto out;
 
+	/* If the calltime was zero'd ignore it */
+	if (!trace->calltime)
+		goto out;
+
 	calltime = trace->rettime - trace->calltime;
 
 	if (!(trace_flags & TRACE_ITER_GRAPH_TIME)) {
@@ -3357,11 +3361,11 @@ void unregister_ftrace_graph(void)
 		goto out;
 
 	ftrace_graph_active--;
-	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = ftrace_graph_entry_stub;
 	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
 	unregister_pm_notifier(&ftrace_suspend_notifier);
+	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch);
 
  out:
 	mutex_unlock(&ftrace_lock);
