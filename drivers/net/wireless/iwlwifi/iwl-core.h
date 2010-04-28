@@ -441,6 +441,8 @@ bool iwl_good_plcp_health(struct iwl_priv *priv,
 				 struct iwl_rx_packet *pkt);
 bool iwl_good_ack_health(struct iwl_priv *priv,
 				 struct iwl_rx_packet *pkt);
+void iwl_recover_from_statistics(struct iwl_priv *priv,
+				struct iwl_rx_packet *pkt);
 void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb);
 void iwl_reply_statistics(struct iwl_priv *priv,

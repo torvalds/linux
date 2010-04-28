@@ -397,7 +397,7 @@ bool iwl_good_plcp_health(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_good_plcp_health);
 
-static void iwl_recover_from_statistics(struct iwl_priv *priv,
+void iwl_recover_from_statistics(struct iwl_priv *priv,
 				struct iwl_rx_packet *pkt)
 {
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
@@ -428,6 +428,7 @@ static void iwl_recover_from_statistics(struct iwl_priv *priv,
 		}
 	}
 }
+EXPORT_SYMBOL(iwl_recover_from_statistics);
 
 void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb)
