@@ -1287,7 +1287,8 @@ irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx)
 		error ? "disabling bus mastering" : "no recognised error");
 
 	/* If this is a memory parity error dump which blocks are offending */
-	mem_perr = EFX_OWORD_FIELD(fatal_intr, FRF_AZ_MEM_PERR_INT_KER);
+	mem_perr = (EFX_OWORD_FIELD(fatal_intr, FRF_AZ_MEM_PERR_INT_KER) ||
+		    EFX_OWORD_FIELD(fatal_intr, FRF_AZ_SRM_PERR_INT_KER));
 	if (mem_perr) {
 		efx_oword_t reg;
 		efx_reado(efx, &reg, FR_AZ_MEM_STAT);
