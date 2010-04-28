@@ -2063,8 +2063,8 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	ops->set_cached_descriptor(&ss, VCPU_SREG_SS, ctxt->vcpu);
 	ops->set_segment_selector(ss_sel, VCPU_SREG_SS, ctxt->vcpu);
 
-	c->eip = ctxt->vcpu->arch.regs[VCPU_REGS_RDX];
-	c->regs[VCPU_REGS_RSP] = ctxt->vcpu->arch.regs[VCPU_REGS_RCX];
+	c->eip = c->regs[VCPU_REGS_RDX];
+	c->regs[VCPU_REGS_RSP] = c->regs[VCPU_REGS_RCX];
 
 	return X86EMUL_CONTINUE;
 }
