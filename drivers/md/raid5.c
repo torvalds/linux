@@ -1527,7 +1527,7 @@ static void raid5_end_read_request(struct bio * bi, int error)
 
 		clear_bit(R5_UPTODATE, &sh->dev[i].flags);
 		atomic_inc(&rdev->read_errors);
-		if (conf->mddev->degraded)
+		if (conf->mddev->degraded >= conf->max_degraded)
 			printk_rl(KERN_WARNING
 				  "raid5:%s: read error not correctable "
 				  "(sector %llu on %s).\n",
