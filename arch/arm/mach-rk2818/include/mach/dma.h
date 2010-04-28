@@ -198,7 +198,7 @@ struct rk2818_dma {
 	u32 residue;     /* residue block of current dma transfer */
 };
 
-#define test_dma
+//#define test_dma
 
 /*devicd id list*/
 #define RK28_DMA_SD_MMC        0

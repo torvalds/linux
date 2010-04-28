@@ -562,7 +562,7 @@ static irqreturn_t rk28_dma_irq_handler(int irq, void *dev_id)
             rk28dma = &rk2818_dma[i];
             
             if ((!rk28dma->dma_t.sg) && (rk28_dma_next(i))) {
-                printk(KERN_WARNING "dma_irq: don't finish  for channel %d\n", i);
+                //printk(KERN_WARNING "dma_irq: don't finish  for channel %d\n", i);
                 continue;
             }  
             /* already complete transfer */
