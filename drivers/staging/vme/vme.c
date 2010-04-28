@@ -36,7 +36,7 @@
 
 /* Bitmask and mutex to keep track of bridge numbers */
 static unsigned int vme_bus_numbers;
-DEFINE_MUTEX(vme_bus_num_mtx);
+static DEFINE_MUTEX(vme_bus_num_mtx);
 
 static void __exit vme_exit(void);
 static int __init vme_init(void);
