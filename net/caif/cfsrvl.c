@@ -158,6 +158,13 @@ void cfsrvl_init(struct cfsrvl *service,
 	service->layer.ctrlcmd = cfservl_ctrlcmd;
 	service->layer.modemcmd = cfservl_modemcmd;
 	service->dev_info = *dev_info;
+	kref_init(&service->ref);
+}
+
+void cfsrvl_release(struct kref *kref)
+{
+	struct cfsrvl *service = container_of(kref, struct cfsrvl, ref);
+	kfree(service);
 }
 
 bool cfsrvl_ready(struct cfsrvl *service, int *err)

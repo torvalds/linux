@@ -62,6 +62,7 @@ int cfmuxl_set_uplayer(struct cflayer *layr, struct cflayer *up, u8 linkid)
 {
 	struct cfmuxl *muxl = container_obj(layr);
 	spin_lock(&muxl->receive_lock);
+	cfsrvl_get(up);
 	list_add(&up->node, &muxl->srvl_list);
 	spin_unlock(&muxl->receive_lock);
 	return 0;
@@ -172,8 +173,11 @@ struct cflayer *cfmuxl_remove_uplayer(struct cflayer *layr, u8 id)
 	struct cfmuxl *muxl = container_obj(layr);
 	spin_lock(&muxl->receive_lock);
 	up = get_up(muxl, id);
+	if (up == NULL)
+		return NULL;
 	memset(muxl->up_cache, 0, sizeof(muxl->up_cache));
 	list_del(&up->node);
+	cfsrvl_put(up);
 	spin_unlock(&muxl->receive_lock);
 	return up;
 }
@@ -203,8 +207,9 @@ static int cfmuxl_receive(struct cflayer *layr, struct cfpkt *pkt)
 		 */
 		return /* CFGLU_EPROT; */ 0;
 	}
-
+	cfsrvl_get(up);
 	ret = up->receive(up, pkt);
+	cfsrvl_put(up);
 	return ret;
 }
 

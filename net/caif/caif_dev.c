@@ -346,6 +346,12 @@ int caif_disconnect_client(struct cflayer *adap_layer)
 }
 EXPORT_SYMBOL(caif_disconnect_client);
 
+void caif_release_client(struct cflayer *adap_layer)
+{
+       cfcnfg_release_adap_layer(adap_layer);
+}
+EXPORT_SYMBOL(caif_release_client);
+
 /* Per-namespace Caif devices handling */
 static int caif_init_net(struct net *net)
 {

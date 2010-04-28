@@ -97,6 +97,13 @@ int cfcnfg_disconn_adapt_layer(struct cfcnfg *cnfg,
 			struct cflayer *adap_layer);
 
 /**
+ * cfcnfg_release_adap_layer - Used by client to release the adaptation layer.
+ *
+ * @adap_layer: Adaptation layer.
+ */
+void cfcnfg_release_adap_layer(struct cflayer *adap_layer);
+
+/**
  * cfcnfg_add_adaptation_layer - Add an adaptation layer to the CAIF stack.
  *
  * The adaptation Layer is where the interface to application or higher-level

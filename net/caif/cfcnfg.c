@@ -247,6 +247,13 @@ end:
 }
 EXPORT_SYMBOL(cfcnfg_disconn_adapt_layer);
 
+void cfcnfg_release_adap_layer(struct cflayer *adap_layer)
+{
+	if (adap_layer->dn)
+		cfsrvl_put(adap_layer->dn);
+}
+EXPORT_SYMBOL(cfcnfg_release_adap_layer);
+
 static void cfcnfg_linkdestroy_rsp(struct cflayer *layer, u8 channel_id,
 				  struct cflayer *client_layer)
 {
