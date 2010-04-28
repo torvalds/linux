@@ -25,6 +25,7 @@ void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen);
 int qla4xxx_get_dhcp_ip_address(struct scsi_qla_host * ha);
 int qla4xxx_relogin_device(struct scsi_qla_host * ha,
 			   struct ddb_entry * ddb_entry);
+int qla4xxx_abort_task(struct scsi_qla_host *ha, struct srb *srb);
 int qla4xxx_reset_lun(struct scsi_qla_host * ha, struct ddb_entry * ddb_entry,
 		      int lun);
 int qla4xxx_reset_target(struct scsi_qla_host * ha,
@@ -65,7 +66,7 @@ void qla4xxx_interrupt_service_routine(struct scsi_qla_host * ha,
 int qla4xxx_init_rings(struct scsi_qla_host * ha);
 struct srb * qla4xxx_del_from_active_array(struct scsi_qla_host *ha,
 					uint32_t index);
-void qla4xxx_srb_compl(struct scsi_qla_host *ha, struct srb *srb);
+void qla4xxx_srb_compl(struct kref *ref);
 int qla4xxx_reinitialize_ddb_list(struct scsi_qla_host * ha);
 int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		uint32_t state, uint32_t conn_error);

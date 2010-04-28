@@ -172,7 +172,7 @@ struct srb {
 
 	struct scsi_cmnd *cmd;	/* (4) SCSI command block */
 	dma_addr_t dma_handle;	/* (4) for unmap of single transfers */
-	atomic_t ref_count;	/* reference count for this srb */
+	struct kref srb_ref;	/* reference count for this srb */
 	uint32_t fw_ddb_index;
 	uint8_t err_id;		/* error id */
 #define SRB_ERR_PORT	   1	/* Request failed because "port down" */

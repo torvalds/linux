@@ -215,6 +215,7 @@ union external_hw_config_reg {
 /*  Mailbox command definitions */
 #define MBOX_CMD_ABOUT_FW			0x0009
 #define MBOX_CMD_PING				0x000B
+#define MBOX_CMD_ABORT_TASK			0x0015
 #define MBOX_CMD_LUN_RESET			0x0016
 #define MBOX_CMD_TARGET_WARM_RESET		0x0017
 #define MBOX_CMD_GET_MANAGEMENT_DATA		0x001E

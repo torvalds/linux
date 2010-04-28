@@ -74,6 +74,7 @@ static enum blk_eh_timer_return qla4xxx_eh_cmd_timed_out(struct scsi_cmnd *sc);
  */
 static int qla4xxx_queuecommand(struct scsi_cmnd *cmd,
 				void (*done) (struct scsi_cmnd *));
+static int qla4xxx_eh_abort(struct scsi_cmnd *cmd);
 static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_eh_target_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd);
@@ -88,6 +89,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.proc_name		= DRIVER_NAME,
 	.queuecommand		= qla4xxx_queuecommand,
 
+	.eh_abort_handler	= qla4xxx_eh_abort,
 	.eh_device_reset_handler = qla4xxx_eh_device_reset,
 	.eh_target_reset_handler = qla4xxx_eh_target_reset,
 	.eh_host_reset_handler	= qla4xxx_eh_host_reset,
@@ -384,7 +386,7 @@ static struct srb* qla4xxx_get_new_srb(struct scsi_qla_host *ha,
 	if (!srb)
 		return srb;
 
-	atomic_set(&srb->ref_count, 1);
+	kref_init(&srb->srb_ref);
 	srb->ha = ha;
 	srb->ddb = ddb_entry;
 	srb->cmd = cmd;
@@ -406,9 +408,11 @@ static void qla4xxx_srb_free_dma(struct scsi_qla_host *ha, struct srb *srb)
 	CMD_SP(cmd) = NULL;
 }
 
-void qla4xxx_srb_compl(struct scsi_qla_host *ha, struct srb *srb)
+void qla4xxx_srb_compl(struct kref *ref)
 {
+	struct srb *srb = container_of(ref, struct srb, srb_ref);
 	struct scsi_cmnd *cmd = srb->cmd;
+	struct scsi_qla_host *ha = srb->ha;
 
 	qla4xxx_srb_free_dma(ha, srb);
 
@@ -887,7 +891,7 @@ static void qla4xxx_flush_active_srbs(struct scsi_qla_host *ha)
 		srb = qla4xxx_del_from_active_array(ha, i);
 		if (srb != NULL) {
 			srb->cmd->result = DID_RESET << 16;
-			qla4xxx_srb_compl(ha, srb);
+			kref_put(&srb->srb_ref, qla4xxx_srb_compl);
 		}
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -1501,7 +1505,7 @@ struct srb * qla4xxx_del_from_active_array(struct scsi_qla_host *ha, uint32_t in
 
 /**
  * qla4xxx_eh_wait_on_command - waits for command to be returned by firmware
- * @ha: actual ha whose done queue will contain the comd returned by firmware.
+ * @ha: Pointer to host adapter structure.
  * @cmd: Scsi Command to wait on.
  *
  * This routine waits for the command to be returned by the Firmware
@@ -1582,6 +1586,62 @@ static int qla4xxx_eh_wait_for_commands(struct scsi_qla_host *ha,
 		}
 	}
 	return status;
+}
+
+/**
+ * qla4xxx_eh_abort - callback for abort task.
+ * @cmd: Pointer to Linux's SCSI command structure
+ *
+ * This routine is called by the Linux OS to abort the specified
+ * command.
+ **/
+static int qla4xxx_eh_abort(struct scsi_cmnd *cmd)
+{
+	struct scsi_qla_host *ha = to_qla_host(cmd->device->host);
+	unsigned int id = cmd->device->id;
+	unsigned int lun = cmd->device->lun;
+	unsigned long serial = cmd->serial_number;
+	struct srb *srb = NULL;
+	int ret = SUCCESS;
+	int wait = 0;
+
+	dev_info(&ha->pdev->dev,
+	    "scsi%ld:%d:%d: Abort command issued cmd=%p, pid=%ld\n",
+	    ha->host_no, id, lun, cmd, serial);
+
+	srb = (struct srb *) CMD_SP(cmd);
+
+	if (!srb)
+		return SUCCESS;
+
+	kref_get(&srb->srb_ref);
+
+	if (qla4xxx_abort_task(ha, srb) != QLA_SUCCESS) {
+		DEBUG3(printk("scsi%ld:%d:%d: Abort_task mbx failed.\n",
+		    ha->host_no, id, lun));
+		ret = FAILED;
+	} else {
+		DEBUG3(printk("scsi%ld:%d:%d: Abort_task mbx success.\n",
+		    ha->host_no, id, lun));
+		wait = 1;
+	}
+
+	kref_put(&srb->srb_ref, qla4xxx_srb_compl);
+
+	/* Wait for command to complete */
+	if (wait) {
+		if (!qla4xxx_eh_wait_on_command(ha, cmd)) {
+			DEBUG2(printk("scsi%ld:%d:%d: Abort handler timed out\n",
+			    ha->host_no, id, lun));
+			ret = FAILED;
+		}
+	}
+
+	dev_info(&ha->pdev->dev,
+	    "scsi%ld:%d:%d: Abort command - %s\n",
+	    ha->host_no, id, lun, (ret == SUCCESS) ? "succeded" : "failed");
+
+	return ret;
 }
 
 /**

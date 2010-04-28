@@ -97,7 +97,7 @@ qla4xxx_status_cont_entry(struct scsi_qla_host *ha,
 
 	/* Place command on done queue. */
 	if (srb->req_sense_len == 0) {
-		qla4xxx_srb_compl(ha, srb);
+		kref_put(&srb->srb_ref, qla4xxx_srb_compl);
 		ha->status_srb = NULL;
 	}
 }
@@ -329,7 +329,7 @@ status_entry_exit:
 	/* complete the request, if not waiting for status_continuation pkt */
 	srb->cc_stat = sts_entry->completionStatus;
 	if (ha->status_srb == NULL)
-		qla4xxx_srb_compl(ha, srb);
+		kref_put(&srb->srb_ref, qla4xxx_srb_compl);
 }
 
 /**
@@ -393,7 +393,7 @@ static void qla4xxx_process_response_queue(struct scsi_qla_host * ha)
 			/* ETRY normally by sending it back with
 			 * DID_BUS_BUSY */
 			srb->cmd->result = DID_BUS_BUSY << 16;
-			qla4xxx_srb_compl(ha, srb);
+			kref_put(&srb->srb_ref, qla4xxx_srb_compl);
 			break;
 
 		case ET_CONTINUE:

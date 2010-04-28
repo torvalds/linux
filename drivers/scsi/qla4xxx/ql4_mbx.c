@@ -762,6 +762,59 @@ exit_get_event_log:
 }
 
 /**
+ * qla4xxx_abort_task - issues Abort Task
+ * @ha: Pointer to host adapter structure.
+ * @srb: Pointer to srb entry
+ *
+ * This routine performs a LUN RESET on the specified target/lun.
+ * The caller must ensure that the ddb_entry and lun_entry pointers
+ * are valid before calling this routine.
+ **/
+int qla4xxx_abort_task(struct scsi_qla_host *ha, struct srb *srb)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	struct scsi_cmnd *cmd = srb->cmd;
+	int status = QLA_SUCCESS;
+	unsigned long flags = 0;
+	uint32_t index;
+
+	/*
+	 * Send abort task command to ISP, so that the ISP will return
+	 * request with ABORT status
+	 */
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	index = (unsigned long)(unsigned char *)cmd->host_scribble;
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	/* Firmware already posted completion on response queue */
+	if (index == MAX_SRBS)
+		return status;
+
+	mbox_cmd[0] = MBOX_CMD_ABORT_TASK;
+	mbox_cmd[1] = srb->fw_ddb_index;
+	mbox_cmd[2] = index;
+	/* Immediate Command Enable */
+	mbox_cmd[5] = 0x01;
+
+	qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 5, &mbox_cmd[0],
+	    &mbox_sts[0]);
+	if (mbox_sts[0] != MBOX_STS_COMMAND_COMPLETE) {
+		status = QLA_ERROR;
+
+		DEBUG2(printk(KERN_WARNING "scsi%ld:%d:%d: abort task FAILED: "
+		    "mbx0=%04X, mb1=%04X, mb2=%04X, mb3=%04X, mb4=%04X\n",
+		    ha->host_no, cmd->device->id, cmd->device->lun, mbox_sts[0],
+		    mbox_sts[1], mbox_sts[2], mbox_sts[3], mbox_sts[4]));
+	}
+
+	return status;
+}
+
+/**
  * qla4xxx_reset_lun - issues LUN Reset
  * @ha: Pointer to host adapter structure.
  * @db_entry: Pointer to device database entry
