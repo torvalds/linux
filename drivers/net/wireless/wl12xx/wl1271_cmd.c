@@ -36,7 +36,7 @@
 #include "wl1271_cmd.h"
 #include "wl1271_event.h"
 
-#define WL1271_CMD_POLL_COUNT       5
+#define WL1271_CMD_FAST_POLL_COUNT       50
 
 /*
  * send command to firmware
@@ -76,11 +76,11 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 			goto out;
 		}
 
-		udelay(10);
 		poll_count++;
-		if (poll_count == WL1271_CMD_POLL_COUNT)
-			wl1271_info("cmd polling took over %d cycles",
-				    poll_count);
+		if (poll_count < WL1271_CMD_FAST_POLL_COUNT)
+			udelay(10);
+		else
+			msleep(1);
 
 		intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 	}
