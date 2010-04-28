@@ -3763,6 +3763,12 @@ static int onenand_probe(struct mtd_info *mtd)
 	/* Restore system configuration 1 */
 	this->write_word(syscfg, this->base + ONENAND_REG_SYS_CFG1);
 
+	/* Workaround */
+	if (syscfg & ONENAND_SYS_CFG1_SYNC_WRITE) {
+		bram_maf_id = this->read_word(this->base + ONENAND_REG_MANUFACTURER_ID);
+		bram_dev_id = this->read_word(this->base + ONENAND_REG_DEVICE_ID);
+	}
+
 	/* Check manufacturer ID */
 	if (onenand_check_maf(bram_maf_id))
 		return -ENXIO;
@@ -3781,6 +3787,9 @@ static int onenand_probe(struct mtd_info *mtd)
 	onenand_print_device_info(dev_id, ver_id);
 	this->device_id = dev_id;
 	this->version_id = ver_id;
+
+	/* Check OneNAND features */
+	onenand_check_features(mtd);
 
 	density = onenand_get_density(dev_id);
 	if (FLEXONENAND(this)) {
@@ -3832,9 +3841,6 @@ static int onenand_probe(struct mtd_info *mtd)
 		flexonenand_get_size(mtd);
 	else
 		mtd->size = this->chipsize;
-
-	/* Check OneNAND features */
-	onenand_check_features(mtd);
 
 	/*
 	 * We emulate the 4KiB page and 256KiB erase block size
