@@ -186,6 +186,7 @@ struct decode_cache {
 	unsigned long modrm_val;
 	struct fetch_cache fetch;
 	struct read_cache io_read;
+	struct read_cache mem_read;
 };
 
 struct x86_emulate_ctxt {

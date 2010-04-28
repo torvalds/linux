@@ -1263,6 +1263,33 @@ done:
 	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
 }
 
+static int read_emulated(struct x86_emulate_ctxt *ctxt,
+			 struct x86_emulate_ops *ops,
+			 unsigned long addr, void *dest, unsigned size)
+{
+	int rc;
+	struct read_cache *mc = &ctxt->decode.mem_read;
+
+	while (size) {
+		int n = min(size, 8u);
+		size -= n;
+		if (mc->pos < mc->end)
+			goto read_cached;
+
+		rc = ops->read_emulated(addr, mc->data + mc->end, n, ctxt->vcpu);
+		if (rc != X86EMUL_CONTINUE)
+			return rc;
+		mc->end += n;
+
+	read_cached:
+		memcpy(dest, mc->data + mc->pos, n);
+		mc->pos += n;
+		dest += n;
+		addr += n;
+	}
+	return X86EMUL_CONTINUE;
+}
+
 static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 			   struct x86_emulate_ops *ops,
 			   unsigned int size, unsigned short port,
@@ -1504,9 +1531,9 @@ static int emulate_pop(struct x86_emulate_ctxt *ctxt,
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
 
-	rc = ops->read_emulated(register_address(c, ss_base(ctxt),
-						 c->regs[VCPU_REGS_RSP]),
-				dest, len, ctxt->vcpu);
+	rc = read_emulated(ctxt, ops, register_address(c, ss_base(ctxt),
+						       c->regs[VCPU_REGS_RSP]),
+			   dest, len);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
@@ -2475,6 +2502,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	int saved_dst_type = c->dst.type;
 
 	ctxt->interruptibility = 0;
+	ctxt->decode.mem_read.pos = 0;
 
 	/* Shadow copy of register state. Committed on successful emulation.
 	 * NOTE: we can copy them from vcpu as x86_decode_insn() doesn't
@@ -2529,20 +2557,16 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	}
 
 	if (c->src.type == OP_MEM) {
-		rc = ops->read_emulated((unsigned long)c->src.ptr,
-					&c->src.val,
-					c->src.bytes,
-					ctxt->vcpu);
+		rc = read_emulated(ctxt, ops, (unsigned long)c->src.ptr,
+					&c->src.val, c->src.bytes);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		c->src.orig_val = c->src.val;
 	}
 
 	if (c->src2.type == OP_MEM) {
-		rc = ops->read_emulated((unsigned long)c->src2.ptr,
-					&c->src2.val,
-					c->src2.bytes,
-					ctxt->vcpu);
+		rc = read_emulated(ctxt, ops, (unsigned long)c->src2.ptr,
+					&c->src2.val, c->src2.bytes);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 	}
@@ -2553,8 +2577,8 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	if ((c->dst.type == OP_MEM) && !(c->d & Mov)) {
 		/* optimisation - avoid slow emulated read if Mov */
-		rc = ops->read_emulated((unsigned long)c->dst.ptr, &c->dst.val,
-					c->dst.bytes, ctxt->vcpu);
+		rc = read_emulated(ctxt, ops, (unsigned long)c->dst.ptr,
+				   &c->dst.val, c->dst.bytes);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 	}
@@ -2981,7 +3005,11 @@ writeback:
 		    (rc->end != 0 && rc->end == rc->pos))
 			ctxt->restart = false;
 	}
-
+	/*
+	 * reset read cache here in case string instruction is restared
+	 * without decoding
+	 */
+	ctxt->decode.mem_read.end = 0;
 	/* Commit shadow register state. */
 	memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(ctxt->vcpu, c->eip);
