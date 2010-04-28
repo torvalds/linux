@@ -26,7 +26,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
-#include "radeon_fixed.h"
+#include <drm/drm_fixed.h>
 #include "radeon.h"
 #include "atom.h"
 #include "atom-bits.h"

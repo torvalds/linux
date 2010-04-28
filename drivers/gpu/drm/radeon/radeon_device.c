@@ -299,24 +299,24 @@ void radeon_update_bandwidth_info(struct radeon_device *rdev)
 		sclk = radeon_get_engine_clock(rdev);
 		mclk = rdev->clock.default_mclk;
 
-		a.full = rfixed_const(100);
-		rdev->pm.sclk.full = rfixed_const(sclk);
-		rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
-		rdev->pm.mclk.full = rfixed_const(mclk);
-		rdev->pm.mclk.full = rfixed_div(rdev->pm.mclk, a);
+		a.full = dfixed_const(100);
+		rdev->pm.sclk.full = dfixed_const(sclk);
+		rdev->pm.sclk.full = dfixed_div(rdev->pm.sclk, a);
+		rdev->pm.mclk.full = dfixed_const(mclk);
+		rdev->pm.mclk.full = dfixed_div(rdev->pm.mclk, a);
 
-		a.full = rfixed_const(16);
+		a.full = dfixed_const(16);
 		/* core_bandwidth = sclk(Mhz) * 16 */
-		rdev->pm.core_bandwidth.full = rfixed_div(rdev->pm.sclk, a);
+		rdev->pm.core_bandwidth.full = dfixed_div(rdev->pm.sclk, a);
 	} else {
 		sclk = radeon_get_engine_clock(rdev);
 		mclk = radeon_get_memory_clock(rdev);
 
-		a.full = rfixed_const(100);
-		rdev->pm.sclk.full = rfixed_const(sclk);
-		rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
-		rdev->pm.mclk.full = rfixed_const(mclk);
-		rdev->pm.mclk.full = rfixed_div(rdev->pm.mclk, a);
+		a.full = dfixed_const(100);
+		rdev->pm.sclk.full = dfixed_const(sclk);
+		rdev->pm.sclk.full = dfixed_div(rdev->pm.sclk, a);
+		rdev->pm.mclk.full = dfixed_const(mclk);
+		rdev->pm.mclk.full = dfixed_div(rdev->pm.mclk, a);
 	}
 }
 

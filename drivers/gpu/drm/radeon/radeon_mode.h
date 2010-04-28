@@ -34,10 +34,10 @@
 #include <drm_mode.h>
 #include <drm_edid.h>
 #include <drm_dp_helper.h>
+#include <drm_fixed.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
-#include "radeon_fixed.h"
 
 struct radeon_bo;
 struct radeon_device;

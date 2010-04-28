@@ -2686,53 +2686,53 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 	fixed20_12 peak_disp_bw, mem_bw, pix_clk, pix_clk2, temp_ff, crit_point_ff;
 	uint32_t temp, data, mem_trcd, mem_trp, mem_tras;
 	fixed20_12 memtcas_ff[8] = {
-		fixed_init(1),
-		fixed_init(2),
-		fixed_init(3),
-		fixed_init(0),
-		fixed_init_half(1),
-		fixed_init_half(2),
-		fixed_init(0),
+		dfixed_init(1),
+		dfixed_init(2),
+		dfixed_init(3),
+		dfixed_init(0),
+		dfixed_init_half(1),
+		dfixed_init_half(2),
+		dfixed_init(0),
 	};
 	fixed20_12 memtcas_rs480_ff[8] = {
-		fixed_init(0),
-		fixed_init(1),
-		fixed_init(2),
-		fixed_init(3),
-		fixed_init(0),
-		fixed_init_half(1),
-		fixed_init_half(2),
-		fixed_init_half(3),
+		dfixed_init(0),
+		dfixed_init(1),
+		dfixed_init(2),
+		dfixed_init(3),
+		dfixed_init(0),
+		dfixed_init_half(1),
+		dfixed_init_half(2),
+		dfixed_init_half(3),
 	};
 	fixed20_12 memtcas2_ff[8] = {
-		fixed_init(0),
-		fixed_init(1),
-		fixed_init(2),
-		fixed_init(3),
-		fixed_init(4),
-		fixed_init(5),
-		fixed_init(6),
-		fixed_init(7),
+		dfixed_init(0),
+		dfixed_init(1),
+		dfixed_init(2),
+		dfixed_init(3),
+		dfixed_init(4),
+		dfixed_init(5),
+		dfixed_init(6),
+		dfixed_init(7),
 	};
 	fixed20_12 memtrbs[8] = {
-		fixed_init(1),
-		fixed_init_half(1),
-		fixed_init(2),
-		fixed_init_half(2),
-		fixed_init(3),
-		fixed_init_half(3),
-		fixed_init(4),
-		fixed_init_half(4)
+		dfixed_init(1),
+		dfixed_init_half(1),
+		dfixed_init(2),
+		dfixed_init_half(2),
+		dfixed_init(3),
+		dfixed_init_half(3),
+		dfixed_init(4),
+		dfixed_init_half(4)
 	};
 	fixed20_12 memtrbs_r4xx[8] = {
-		fixed_init(4),
-		fixed_init(5),
-		fixed_init(6),
-		fixed_init(7),
-		fixed_init(8),
-		fixed_init(9),
-		fixed_init(10),
-		fixed_init(11)
+		dfixed_init(4),
+		dfixed_init(5),
+		dfixed_init(6),
+		dfixed_init(7),
+		dfixed_init(8),
+		dfixed_init(9),
+		dfixed_init(10),
+		dfixed_init(11)
 	};
 	fixed20_12 min_mem_eff;
 	fixed20_12 mc_latency_sclk, mc_latency_mclk, k1;
@@ -2763,7 +2763,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 		}
 	}
 
-	min_mem_eff.full = rfixed_const_8(0);
+	min_mem_eff.full = dfixed_const_8(0);
 	/* get modes */
 	if ((rdev->disp_priority == 2) && ASIC_IS_R300(rdev)) {
 		uint32_t mc_init_misc_lat_timer = RREG32(R300_MC_INIT_MISC_LAT_TIMER);
@@ -2784,28 +2784,28 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 	mclk_ff = rdev->pm.mclk;
 
 	temp = (rdev->mc.vram_width / 8) * (rdev->mc.vram_is_ddr ? 2 : 1);
-	temp_ff.full = rfixed_const(temp);
-	mem_bw.full = rfixed_mul(mclk_ff, temp_ff);
+	temp_ff.full = dfixed_const(temp);
+	mem_bw.full = dfixed_mul(mclk_ff, temp_ff);
 
 	pix_clk.full = 0;
 	pix_clk2.full = 0;
 	peak_disp_bw.full = 0;
 	if (mode1) {
-		temp_ff.full = rfixed_const(1000);
-		pix_clk.full = rfixed_const(mode1->clock); /* convert to fixed point */
-		pix_clk.full = rfixed_div(pix_clk, temp_ff);
-		temp_ff.full = rfixed_const(pixel_bytes1);
-		peak_disp_bw.full += rfixed_mul(pix_clk, temp_ff);
+		temp_ff.full = dfixed_const(1000);
+		pix_clk.full = dfixed_const(mode1->clock); /* convert to fixed point */
+		pix_clk.full = dfixed_div(pix_clk, temp_ff);
+		temp_ff.full = dfixed_const(pixel_bytes1);
+		peak_disp_bw.full += dfixed_mul(pix_clk, temp_ff);
 	}
 	if (mode2) {
-		temp_ff.full = rfixed_const(1000);
-		pix_clk2.full = rfixed_const(mode2->clock); /* convert to fixed point */
-		pix_clk2.full = rfixed_div(pix_clk2, temp_ff);
-		temp_ff.full = rfixed_const(pixel_bytes2);
-		peak_disp_bw.full += rfixed_mul(pix_clk2, temp_ff);
+		temp_ff.full = dfixed_const(1000);
+		pix_clk2.full = dfixed_const(mode2->clock); /* convert to fixed point */
+		pix_clk2.full = dfixed_div(pix_clk2, temp_ff);
+		temp_ff.full = dfixed_const(pixel_bytes2);
+		peak_disp_bw.full += dfixed_mul(pix_clk2, temp_ff);
 	}
 
-	mem_bw.full = rfixed_mul(mem_bw, min_mem_eff);
+	mem_bw.full = dfixed_mul(mem_bw, min_mem_eff);
 	if (peak_disp_bw.full >= mem_bw.full) {
 		DRM_ERROR("You may not have enough display bandwidth for current mode\n"
 			  "If you have flickering problem, try to lower resolution, refresh rate, or color depth\n");
@@ -2847,9 +2847,9 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 		mem_tras = ((temp >> 12) & 0xf) + 4;
 	}
 	/* convert to FF */
-	trcd_ff.full = rfixed_const(mem_trcd);
-	trp_ff.full = rfixed_const(mem_trp);
-	tras_ff.full = rfixed_const(mem_tras);
+	trcd_ff.full = dfixed_const(mem_trcd);
+	trp_ff.full = dfixed_const(mem_trp);
+	tras_ff.full = dfixed_const(mem_tras);
 
 	/* Get values from the MEM_SDRAM_MODE_REG register...converting its */
 	temp = RREG32(RADEON_MEM_SDRAM_MODE_REG);
@@ -2867,7 +2867,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 		/* extra cas latency stored in bits 23-25 0-4 clocks */
 		data = (temp >> 23) & 0x7;
 		if (data < 5)
-			tcas_ff.full += rfixed_const(data);
+			tcas_ff.full += dfixed_const(data);
 	}
 
 	if (ASIC_IS_R300(rdev) && !(rdev->flags & RADEON_IS_IGP)) {
@@ -2904,72 +2904,72 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 
 	if (rdev->flags & RADEON_IS_AGP) {
 		fixed20_12 agpmode_ff;
-		agpmode_ff.full = rfixed_const(radeon_agpmode);
-		temp_ff.full = rfixed_const_666(16);
-		sclk_eff_ff.full -= rfixed_mul(agpmode_ff, temp_ff);
+		agpmode_ff.full = dfixed_const(radeon_agpmode);
+		temp_ff.full = dfixed_const_666(16);
+		sclk_eff_ff.full -= dfixed_mul(agpmode_ff, temp_ff);
 	}
 	/* TODO PCIE lanes may affect this - agpmode == 16?? */
 
 	if (ASIC_IS_R300(rdev)) {
-		sclk_delay_ff.full = rfixed_const(250);
+		sclk_delay_ff.full = dfixed_const(250);
 	} else {
 		if ((rdev->family == CHIP_RV100) ||
 		    rdev->flags & RADEON_IS_IGP) {
 			if (rdev->mc.vram_is_ddr)
-				sclk_delay_ff.full = rfixed_const(41);
+				sclk_delay_ff.full = dfixed_const(41);
 			else
-				sclk_delay_ff.full = rfixed_const(33);
+				sclk_delay_ff.full = dfixed_const(33);
 		} else {
 			if (rdev->mc.vram_width == 128)
-				sclk_delay_ff.full = rfixed_const(57);
+				sclk_delay_ff.full = dfixed_const(57);
 			else
-				sclk_delay_ff.full = rfixed_const(41);
+				sclk_delay_ff.full = dfixed_const(41);
 		}
 	}
 
-	mc_latency_sclk.full = rfixed_div(sclk_delay_ff, sclk_eff_ff);
+	mc_latency_sclk.full = dfixed_div(sclk_delay_ff, sclk_eff_ff);
 
 	if (rdev->mc.vram_is_ddr) {
 		if (rdev->mc.vram_width == 32) {
-			k1.full = rfixed_const(40);
+			k1.full = dfixed_const(40);
 			c  = 3;
 		} else {
-			k1.full = rfixed_const(20);
+			k1.full = dfixed_const(20);
 			c  = 1;
 		}
 	} else {
-		k1.full = rfixed_const(40);
+		k1.full = dfixed_const(40);
 		c  = 3;
 	}
 
-	temp_ff.full = rfixed_const(2);
-	mc_latency_mclk.full = rfixed_mul(trcd_ff, temp_ff);
-	temp_ff.full = rfixed_const(c);
-	mc_latency_mclk.full += rfixed_mul(tcas_ff, temp_ff);
-	temp_ff.full = rfixed_const(4);
-	mc_latency_mclk.full += rfixed_mul(tras_ff, temp_ff);
-	mc_latency_mclk.full += rfixed_mul(trp_ff, temp_ff);
+	temp_ff.full = dfixed_const(2);
+	mc_latency_mclk.full = dfixed_mul(trcd_ff, temp_ff);
+	temp_ff.full = dfixed_const(c);
+	mc_latency_mclk.full += dfixed_mul(tcas_ff, temp_ff);
+	temp_ff.full = dfixed_const(4);
+	mc_latency_mclk.full += dfixed_mul(tras_ff, temp_ff);
+	mc_latency_mclk.full += dfixed_mul(trp_ff, temp_ff);
 	mc_latency_mclk.full += k1.full;
 
-	mc_latency_mclk.full = rfixed_div(mc_latency_mclk, mclk_ff);
-	mc_latency_mclk.full += rfixed_div(temp_ff, sclk_eff_ff);
+	mc_latency_mclk.full = dfixed_div(mc_latency_mclk, mclk_ff);
+	mc_latency_mclk.full += dfixed_div(temp_ff, sclk_eff_ff);
 
 	/*
 	  HW cursor time assuming worst case of full size colour cursor.
 	*/
-	temp_ff.full = rfixed_const((2 * (cur_size - (rdev->mc.vram_is_ddr + 1))));
+	temp_ff.full = dfixed_const((2 * (cur_size - (rdev->mc.vram_is_ddr + 1))));
 	temp_ff.full += trcd_ff.full;
 	if (temp_ff.full < tras_ff.full)
 		temp_ff.full = tras_ff.full;
-	cur_latency_mclk.full = rfixed_div(temp_ff, mclk_ff);
+	cur_latency_mclk.full = dfixed_div(temp_ff, mclk_ff);
 
-	temp_ff.full = rfixed_const(cur_size);
-	cur_latency_sclk.full = rfixed_div(temp_ff, sclk_eff_ff);
+	temp_ff.full = dfixed_const(cur_size);
+	cur_latency_sclk.full = dfixed_div(temp_ff, sclk_eff_ff);
 	/*
 	  Find the total latency for the display data.
 	*/
-	disp_latency_overhead.full = rfixed_const(8);
-	disp_latency_overhead.full = rfixed_div(disp_latency_overhead, sclk_ff);
+	disp_latency_overhead.full = dfixed_const(8);
+	disp_latency_overhead.full = dfixed_div(disp_latency_overhead, sclk_ff);
 	mc_latency_mclk.full += disp_latency_overhead.full + cur_latency_mclk.full;
 	mc_latency_sclk.full += disp_latency_overhead.full + cur_latency_sclk.full;
 
@@ -2997,16 +2997,16 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 		/*
 		  Find the drain rate of the display buffer.
 		*/
-		temp_ff.full = rfixed_const((16/pixel_bytes1));
-		disp_drain_rate.full = rfixed_div(pix_clk, temp_ff);
+		temp_ff.full = dfixed_const((16/pixel_bytes1));
+		disp_drain_rate.full = dfixed_div(pix_clk, temp_ff);
 
 		/*
 		  Find the critical point of the display buffer.
 		*/
-		crit_point_ff.full = rfixed_mul(disp_drain_rate, disp_latency);
-		crit_point_ff.full += rfixed_const_half(0);
+		crit_point_ff.full = dfixed_mul(disp_drain_rate, disp_latency);
+		crit_point_ff.full += dfixed_const_half(0);
 
-		critical_point = rfixed_trunc(crit_point_ff);
+		critical_point = dfixed_trunc(crit_point_ff);
 
 		if (rdev->disp_priority == 2) {
 			critical_point = 0;
@@ -3077,8 +3077,8 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 		/*
 		  Find the drain rate of the display buffer.
 		*/
-		temp_ff.full = rfixed_const((16/pixel_bytes2));
-		disp_drain_rate2.full = rfixed_div(pix_clk2, temp_ff);
+		temp_ff.full = dfixed_const((16/pixel_bytes2));
+		disp_drain_rate2.full = dfixed_div(pix_clk2, temp_ff);
 
 		grph2_cntl = RREG32(RADEON_GRPH2_BUFFER_CNTL);
 		grph2_cntl &= ~(RADEON_GRPH_STOP_REQ_MASK);
@@ -3099,8 +3099,8 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 			critical_point2 = 0;
 		else {
 			temp = (rdev->mc.vram_width * rdev->mc.vram_is_ddr + 1)/128;
-			temp_ff.full = rfixed_const(temp);
-			temp_ff.full = rfixed_mul(mclk_ff, temp_ff);
+			temp_ff.full = dfixed_const(temp);
+			temp_ff.full = dfixed_mul(mclk_ff, temp_ff);
 			if (sclk_ff.full < temp_ff.full)
 				temp_ff.full = sclk_ff.full;
 
@@ -3108,15 +3108,15 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 
 			if (mode1) {
 				temp_ff.full = read_return_rate.full - disp_drain_rate.full;
-				time_disp1_drop_priority.full = rfixed_div(crit_point_ff, temp_ff);
+				time_disp1_drop_priority.full = dfixed_div(crit_point_ff, temp_ff);
 			} else {
 				time_disp1_drop_priority.full = 0;
 			}
 			crit_point_ff.full = disp_latency.full + time_disp1_drop_priority.full + disp_latency.full;
-			crit_point_ff.full = rfixed_mul(crit_point_ff, disp_drain_rate2);
-			crit_point_ff.full += rfixed_const_half(0);
+			crit_point_ff.full = dfixed_mul(crit_point_ff, disp_drain_rate2);
+			crit_point_ff.full += dfixed_const_half(0);
 
-			critical_point2 = rfixed_trunc(crit_point_ff);
+			critical_point2 = dfixed_trunc(crit_point_ff);
 
 			if (rdev->disp_priority == 2) {
 				critical_point2 = 0;

@@ -795,20 +795,20 @@ void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
 		return;
 	}
 
-	if (crtc->vsc.full > rfixed_const(2))
-		wm->num_line_pair.full = rfixed_const(2);
+	if (crtc->vsc.full > dfixed_const(2))
+		wm->num_line_pair.full = dfixed_const(2);
 	else
-		wm->num_line_pair.full = rfixed_const(1);
+		wm->num_line_pair.full = dfixed_const(1);
 
-	b.full = rfixed_const(mode->crtc_hdisplay);
-	c.full = rfixed_const(256);
-	a.full = rfixed_div(b, c);
-	request_fifo_depth.full = rfixed_mul(a, wm->num_line_pair);
-	request_fifo_depth.full = rfixed_ceil(request_fifo_depth);
-	if (a.full < rfixed_const(4)) {
+	b.full = dfixed_const(mode->crtc_hdisplay);
+	c.full = dfixed_const(256);
+	a.full = dfixed_div(b, c);
+	request_fifo_depth.full = dfixed_mul(a, wm->num_line_pair);
+	request_fifo_depth.full = dfixed_ceil(request_fifo_depth);
+	if (a.full < dfixed_const(4)) {
 		wm->lb_request_fifo_depth = 4;
 	} else {
-		wm->lb_request_fifo_depth = rfixed_trunc(request_fifo_depth);
+		wm->lb_request_fifo_depth = dfixed_trunc(request_fifo_depth);
 	}
 
 	/* Determine consumption rate
@@ -817,23 +817,23 @@ void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 *  vsc = vertical scaling ratio, defined as source/destination
 	 *  hsc = horizontal scaling ration, defined as source/destination
 	 */
-	a.full = rfixed_const(mode->clock);
-	b.full = rfixed_const(1000);
-	a.full = rfixed_div(a, b);
-	pclk.full = rfixed_div(b, a);
+	a.full = dfixed_const(mode->clock);
+	b.full = dfixed_const(1000);
+	a.full = dfixed_div(a, b);
+	pclk.full = dfixed_div(b, a);
 	if (crtc->rmx_type != RMX_OFF) {
-		b.full = rfixed_const(2);
+		b.full = dfixed_const(2);
 		if (crtc->vsc.full > b.full)
 			b.full = crtc->vsc.full;
-		b.full = rfixed_mul(b, crtc->hsc);
-		c.full = rfixed_const(2);
-		b.full = rfixed_div(b, c);
-		consumption_time.full = rfixed_div(pclk, b);
+		b.full = dfixed_mul(b, crtc->hsc);
+		c.full = dfixed_const(2);
+		b.full = dfixed_div(b, c);
+		consumption_time.full = dfixed_div(pclk, b);
 	} else {
 		consumption_time.full = pclk.full;
 	}
-	a.full = rfixed_const(1);
-	wm->consumption_rate.full = rfixed_div(a, consumption_time);
+	a.full = dfixed_const(1);
+	wm->consumption_rate.full = dfixed_div(a, consumption_time);
 
 
 	/* Determine line time
@@ -841,27 +841,27 @@ void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 *  LineTime = total number of horizontal pixels
 	 *  pclk = pixel clock period(ns)
 	 */
-	a.full = rfixed_const(crtc->base.mode.crtc_htotal);
-	line_time.full = rfixed_mul(a, pclk);
+	a.full = dfixed_const(crtc->base.mode.crtc_htotal);
+	line_time.full = dfixed_mul(a, pclk);
 
 	/* Determine active time
 	 *  ActiveTime = time of active region of display within one line,
 	 *  hactive = total number of horizontal active pixels
 	 *  htotal = total number of horizontal pixels
 	 */
-	a.full = rfixed_const(crtc->base.mode.crtc_htotal);
-	b.full = rfixed_const(crtc->base.mode.crtc_hdisplay);
-	wm->active_time.full = rfixed_mul(line_time, b);
-	wm->active_time.full = rfixed_div(wm->active_time, a);
+	a.full = dfixed_const(crtc->base.mode.crtc_htotal);
+	b.full = dfixed_const(crtc->base.mode.crtc_hdisplay);
+	wm->active_time.full = dfixed_mul(line_time, b);
+	wm->active_time.full = dfixed_div(wm->active_time, a);
 
 	/* Determine chunk time
 	 * ChunkTime = the time it takes the DCP to send one chunk of data
 	 * to the LB which consists of pipeline delay and inter chunk gap
 	 * sclk = system clock(Mhz)
 	 */
-	a.full = rfixed_const(600 * 1000);
-	chunk_time.full = rfixed_div(a, rdev->pm.sclk);
-	read_delay_latency.full = rfixed_const(1000);
+	a.full = dfixed_const(600 * 1000);
+	chunk_time.full = dfixed_div(a, rdev->pm.sclk);
+	read_delay_latency.full = dfixed_const(1000);
 
 	/* Determine the worst case latency
 	 * NumLinePair = Number of line pairs to request(1=2 lines, 2=4 lines)
@@ -871,9 +871,9 @@ void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 * ChunkTime = time it takes the DCP to send one chunk of data to the LB
 	 *             which consists of pipeline delay and inter chunk gap
 	 */
-	if (rfixed_trunc(wm->num_line_pair) > 1) {
-		a.full = rfixed_const(3);
-		wm->worst_case_latency.full = rfixed_mul(a, chunk_time);
+	if (dfixed_trunc(wm->num_line_pair) > 1) {
+		a.full = dfixed_const(3);
+		wm->worst_case_latency.full = dfixed_mul(a, chunk_time);
 		wm->worst_case_latency.full += read_delay_latency.full;
 	} else {
 		wm->worst_case_latency.full = chunk_time.full + read_delay_latency.full;
@@ -889,34 +889,34 @@ void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 *              of data to the LB which consists of
 	 *  pipeline delay and inter chunk gap
 	 */
-	if ((2+wm->lb_request_fifo_depth) >= rfixed_trunc(request_fifo_depth)) {
+	if ((2+wm->lb_request_fifo_depth) >= dfixed_trunc(request_fifo_depth)) {
 		tolerable_latency.full = line_time.full;
 	} else {
-		tolerable_latency.full = rfixed_const(wm->lb_request_fifo_depth - 2);
+		tolerable_latency.full = dfixed_const(wm->lb_request_fifo_depth - 2);
 		tolerable_latency.full = request_fifo_depth.full - tolerable_latency.full;
-		tolerable_latency.full = rfixed_mul(tolerable_latency, chunk_time);
+		tolerable_latency.full = dfixed_mul(tolerable_latency, chunk_time);
 		tolerable_latency.full = line_time.full - tolerable_latency.full;
 	}
 	/* We assume worst case 32bits (4 bytes) */
-	wm->dbpp.full = rfixed_const(2 * 16);
+	wm->dbpp.full = dfixed_const(2 * 16);
 
 	/* Determine the maximum priority mark
 	 *  width = viewport width in pixels
 	 */
-	a.full = rfixed_const(16);
-	wm->priority_mark_max.full = rfixed_const(crtc->base.mode.crtc_hdisplay);
-	wm->priority_mark_max.full = rfixed_div(wm->priority_mark_max, a);
-	wm->priority_mark_max.full = rfixed_ceil(wm->priority_mark_max);
+	a.full = dfixed_const(16);
+	wm->priority_mark_max.full = dfixed_const(crtc->base.mode.crtc_hdisplay);
+	wm->priority_mark_max.full = dfixed_div(wm->priority_mark_max, a);
+	wm->priority_mark_max.full = dfixed_ceil(wm->priority_mark_max);
 
 	/* Determine estimated width */
 	estimated_width.full = tolerable_latency.full - wm->worst_case_latency.full;
-	estimated_width.full = rfixed_div(estimated_width, consumption_time);
-	if (rfixed_trunc(estimated_width) > crtc->base.mode.crtc_hdisplay) {
+	estimated_width.full = dfixed_div(estimated_width, consumption_time);
+	if (dfixed_trunc(estimated_width) > crtc->base.mode.crtc_hdisplay) {
 		wm->priority_mark.full = wm->priority_mark_max.full;
 	} else {
-		a.full = rfixed_const(16);
-		wm->priority_mark.full = rfixed_div(estimated_width, a);
-		wm->priority_mark.full = rfixed_ceil(wm->priority_mark);
+		a.full = dfixed_const(16);
+		wm->priority_mark.full = dfixed_div(estimated_width, a);
+		wm->priority_mark.full = dfixed_ceil(wm->priority_mark);
 		wm->priority_mark.full = wm->priority_mark_max.full - wm->priority_mark.full;
 	}
 }
@@ -945,58 +945,58 @@ void rv515_bandwidth_avivo_update(struct radeon_device *rdev)
 	WREG32(LB_MAX_REQ_OUTSTANDING, tmp);
 
 	if (mode0 && mode1) {
-		if (rfixed_trunc(wm0.dbpp) > 64)
-			a.full = rfixed_div(wm0.dbpp, wm0.num_line_pair);
+		if (dfixed_trunc(wm0.dbpp) > 64)
+			a.full = dfixed_div(wm0.dbpp, wm0.num_line_pair);
 		else
 			a.full = wm0.num_line_pair.full;
-		if (rfixed_trunc(wm1.dbpp) > 64)
-			b.full = rfixed_div(wm1.dbpp, wm1.num_line_pair);
+		if (dfixed_trunc(wm1.dbpp) > 64)
+			b.full = dfixed_div(wm1.dbpp, wm1.num_line_pair);
 		else
 			b.full = wm1.num_line_pair.full;
 		a.full += b.full;
-		fill_rate.full = rfixed_div(wm0.sclk, a);
+		fill_rate.full = dfixed_div(wm0.sclk, a);
 		if (wm0.consumption_rate.full > fill_rate.full) {
 			b.full = wm0.consumption_rate.full - fill_rate.full;
-			b.full = rfixed_mul(b, wm0.active_time);
-			a.full = rfixed_const(16);
-			b.full = rfixed_div(b, a);
-			a.full = rfixed_mul(wm0.worst_case_latency,
+			b.full = dfixed_mul(b, wm0.active_time);
+			a.full = dfixed_const(16);
+			b.full = dfixed_div(b, a);
+			a.full = dfixed_mul(wm0.worst_case_latency,
 						wm0.consumption_rate);
 			priority_mark02.full = a.full + b.full;
 		} else {
-			a.full = rfixed_mul(wm0.worst_case_latency,
+			a.full = dfixed_mul(wm0.worst_case_latency,
 						wm0.consumption_rate);
-			b.full = rfixed_const(16 * 1000);
-			priority_mark02.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark02.full = dfixed_div(a, b);
 		}
 		if (wm1.consumption_rate.full > fill_rate.full) {
 			b.full = wm1.consumption_rate.full - fill_rate.full;
-			b.full = rfixed_mul(b, wm1.active_time);
-			a.full = rfixed_const(16);
-			b.full = rfixed_div(b, a);
-			a.full = rfixed_mul(wm1.worst_case_latency,
+			b.full = dfixed_mul(b, wm1.active_time);
+			a.full = dfixed_const(16);
+			b.full = dfixed_div(b, a);
+			a.full = dfixed_mul(wm1.worst_case_latency,
 						wm1.consumption_rate);
 			priority_mark12.full = a.full + b.full;
 		} else {
-			a.full = rfixed_mul(wm1.worst_case_latency,
+			a.full = dfixed_mul(wm1.worst_case_latency,
 						wm1.consumption_rate);
-			b.full = rfixed_const(16 * 1000);
-			priority_mark12.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
 		}
 		if (wm0.priority_mark.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark.full;
-		if (rfixed_trunc(priority_mark02) < 0)
+		if (dfixed_trunc(priority_mark02) < 0)
 			priority_mark02.full = 0;
 		if (wm0.priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark_max.full;
 		if (wm1.priority_mark.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark.full;
-		if (rfixed_trunc(priority_mark12) < 0)
+		if (dfixed_trunc(priority_mark12) < 0)
 			priority_mark12.full = 0;
 		if (wm1.priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark_max.full;
-		d1mode_priority_a_cnt = rfixed_trunc(priority_mark02);
-		d2mode_priority_a_cnt = rfixed_trunc(priority_mark12);
+		d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
+		d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
 		if (rdev->disp_priority == 2) {
 			d1mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
 			d2mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
@@ -1006,32 +1006,32 @@ void rv515_bandwidth_avivo_update(struct radeon_device *rdev)
 		WREG32(D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
 		WREG32(D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 	} else if (mode0) {
-		if (rfixed_trunc(wm0.dbpp) > 64)
-			a.full = rfixed_div(wm0.dbpp, wm0.num_line_pair);
+		if (dfixed_trunc(wm0.dbpp) > 64)
+			a.full = dfixed_div(wm0.dbpp, wm0.num_line_pair);
 		else
 			a.full = wm0.num_line_pair.full;
-		fill_rate.full = rfixed_div(wm0.sclk, a);
+		fill_rate.full = dfixed_div(wm0.sclk, a);
 		if (wm0.consumption_rate.full > fill_rate.full) {
 			b.full = wm0.consumption_rate.full - fill_rate.full;
-			b.full = rfixed_mul(b, wm0.active_time);
-			a.full = rfixed_const(16);
-			b.full = rfixed_div(b, a);
-			a.full = rfixed_mul(wm0.worst_case_latency,
+			b.full = dfixed_mul(b, wm0.active_time);
+			a.full = dfixed_const(16);
+			b.full = dfixed_div(b, a);
+			a.full = dfixed_mul(wm0.worst_case_latency,
 						wm0.consumption_rate);
 			priority_mark02.full = a.full + b.full;
 		} else {
-			a.full = rfixed_mul(wm0.worst_case_latency,
+			a.full = dfixed_mul(wm0.worst_case_latency,
 						wm0.consumption_rate);
-			b.full = rfixed_const(16);
-			priority_mark02.full = rfixed_div(a, b);
+			b.full = dfixed_const(16);
+			priority_mark02.full = dfixed_div(a, b);
 		}
 		if (wm0.priority_mark.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark.full;
-		if (rfixed_trunc(priority_mark02) < 0)
+		if (dfixed_trunc(priority_mark02) < 0)
 			priority_mark02.full = 0;
 		if (wm0.priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark_max.full;
-		d1mode_priority_a_cnt = rfixed_trunc(priority_mark02);
+		d1mode_priority_a_cnt = dfixed_trunc(priority_mark02);
 		if (rdev->disp_priority == 2)
 			d1mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
 		WREG32(D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
@@ -1039,32 +1039,32 @@ void rv515_bandwidth_avivo_update(struct radeon_device *rdev)
 		WREG32(D2MODE_PRIORITY_A_CNT, MODE_PRIORITY_OFF);
 		WREG32(D2MODE_PRIORITY_B_CNT, MODE_PRIORITY_OFF);
 	} else {
-		if (rfixed_trunc(wm1.dbpp) > 64)
-			a.full = rfixed_div(wm1.dbpp, wm1.num_line_pair);
+		if (dfixed_trunc(wm1.dbpp) > 64)
+			a.full = dfixed_div(wm1.dbpp, wm1.num_line_pair);
 		else
 			a.full = wm1.num_line_pair.full;
-		fill_rate.full = rfixed_div(wm1.sclk, a);
+		fill_rate.full = dfixed_div(wm1.sclk, a);
 		if (wm1.consumption_rate.full > fill_rate.full) {
 			b.full = wm1.consumption_rate.full - fill_rate.full;
-			b.full = rfixed_mul(b, wm1.active_time);
-			a.full = rfixed_const(16);
-			b.full = rfixed_div(b, a);
-			a.full = rfixed_mul(wm1.worst_case_latency,
+			b.full = dfixed_mul(b, wm1.active_time);
+			a.full = dfixed_const(16);
+			b.full = dfixed_div(b, a);
+			a.full = dfixed_mul(wm1.worst_case_latency,
 						wm1.consumption_rate);
 			priority_mark12.full = a.full + b.full;
 		} else {
-			a.full = rfixed_mul(wm1.worst_case_latency,
+			a.full = dfixed_mul(wm1.worst_case_latency,
 						wm1.consumption_rate);
-			b.full = rfixed_const(16 * 1000);
-			priority_mark12.full = rfixed_div(a, b);
+			b.full = dfixed_const(16 * 1000);
+			priority_mark12.full = dfixed_div(a, b);
 		}
 		if (wm1.priority_mark.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark.full;
-		if (rfixed_trunc(priority_mark12) < 0)
+		if (dfixed_trunc(priority_mark12) < 0)
 			priority_mark12.full = 0;
 		if (wm1.priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark_max.full;
-		d2mode_priority_a_cnt = rfixed_trunc(priority_mark12);
+		d2mode_priority_a_cnt = dfixed_trunc(priority_mark12);
 		if (rdev->disp_priority == 2)
 			d2mode_priority_a_cnt |= MODE_PRIORITY_ALWAYS_ON;
 		WREG32(D1MODE_PRIORITY_A_CNT, MODE_PRIORITY_OFF);

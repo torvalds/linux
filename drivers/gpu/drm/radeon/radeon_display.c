@@ -633,37 +633,37 @@ calc_fb_div(struct radeon_pll *pll,
 
 	vco_freq = freq * post_div;
 	/* feedback_divider = vco_freq * ref_div / pll->reference_freq; */
-	a.full = rfixed_const(pll->reference_freq);
-	feedback_divider.full = rfixed_const(vco_freq);
-	feedback_divider.full = rfixed_div(feedback_divider, a);
-	a.full = rfixed_const(ref_div);
-	feedback_divider.full = rfixed_mul(feedback_divider, a);
+	a.full = dfixed_const(pll->reference_freq);
+	feedback_divider.full = dfixed_const(vco_freq);
+	feedback_divider.full = dfixed_div(feedback_divider, a);
+	a.full = dfixed_const(ref_div);
+	feedback_divider.full = dfixed_mul(feedback_divider, a);
 
 	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV) {
 		/* feedback_divider = floor((feedback_divider * 10.0) + 0.5) * 0.1; */
-		a.full = rfixed_const(10);
-		feedback_divider.full = rfixed_mul(feedback_divider, a);
-		feedback_divider.full += rfixed_const_half(0);
-		feedback_divider.full = rfixed_floor(feedback_divider);
-		feedback_divider.full = rfixed_div(feedback_divider, a);
+		a.full = dfixed_const(10);
+		feedback_divider.full = dfixed_mul(feedback_divider, a);
+		feedback_divider.full += dfixed_const_half(0);
+		feedback_divider.full = dfixed_floor(feedback_divider);
+		feedback_divider.full = dfixed_div(feedback_divider, a);
 
 		/* *fb_div = floor(feedback_divider); */
-		a.full = rfixed_floor(feedback_divider);
-		*fb_div = rfixed_trunc(a);
+		a.full = dfixed_floor(feedback_divider);
+		*fb_div = dfixed_trunc(a);
 		/* *fb_div_frac = fmod(feedback_divider, 1.0) * 10.0; */
-		a.full = rfixed_const(10);
-		b.full = rfixed_mul(feedback_divider, a);
+		a.full = dfixed_const(10);
+		b.full = dfixed_mul(feedback_divider, a);
 
-		feedback_divider.full = rfixed_floor(feedback_divider);
-		feedback_divider.full = rfixed_mul(feedback_divider, a);
+		feedback_divider.full = dfixed_floor(feedback_divider);
+		feedback_divider.full = dfixed_mul(feedback_divider, a);
 		feedback_divider.full = b.full - feedback_divider.full;
-		*fb_div_frac = rfixed_trunc(feedback_divider);
+		*fb_div_frac = dfixed_trunc(feedback_divider);
 	} else {
 		/* *fb_div = floor(feedback_divider + 0.5); */
-		feedback_divider.full += rfixed_const_half(0);
-		feedback_divider.full = rfixed_floor(feedback_divider);
+		feedback_divider.full += dfixed_const_half(0);
+		feedback_divider.full = dfixed_floor(feedback_divider);
 
-		*fb_div = rfixed_trunc(feedback_divider);
+		*fb_div = dfixed_trunc(feedback_divider);
 		*fb_div_frac = 0;
 	}
 
@@ -693,10 +693,10 @@ calc_fb_ref_div(struct radeon_pll *pll,
 		pll_out_max = pll->pll_out_max;
 	}
 
-	ffreq.full = rfixed_const(freq);
+	ffreq.full = dfixed_const(freq);
 	/* max_error = ffreq * 0.0025; */
-	a.full = rfixed_const(400);
-	max_error.full = rfixed_div(ffreq, a);
+	a.full = dfixed_const(400);
+	max_error.full = dfixed_div(ffreq, a);
 
 	for ((*ref_div) = pll->min_ref_div; (*ref_div) < pll->max_ref_div; ++(*ref_div)) {
 		if (calc_fb_div(pll, freq, post_div, (*ref_div), fb_div, fb_div_frac)) {
@@ -707,9 +707,9 @@ calc_fb_ref_div(struct radeon_pll *pll,
 				continue;
 
 			/* pll_out = vco / post_div; */
-			a.full = rfixed_const(post_div);
-			pll_out.full = rfixed_const(vco);
-			pll_out.full = rfixed_div(pll_out, a);
+			a.full = dfixed_const(post_div);
+			pll_out.full = dfixed_const(vco);
+			pll_out.full = dfixed_div(pll_out, a);
 
 			if (pll_out.full >= ffreq.full) {
 				error.full = pll_out.full - ffreq.full;
@@ -1099,15 +1099,15 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 	}
 	if (radeon_crtc->rmx_type != RMX_OFF) {
 		fixed20_12 a, b;
-		a.full = rfixed_const(crtc->mode.vdisplay);
-		b.full = rfixed_const(radeon_crtc->native_mode.hdisplay);
-		radeon_crtc->vsc.full = rfixed_div(a, b);
-		a.full = rfixed_const(crtc->mode.hdisplay);
-		b.full = rfixed_const(radeon_crtc->native_mode.vdisplay);
-		radeon_crtc->hsc.full = rfixed_div(a, b);
+		a.full = dfixed_const(crtc->mode.vdisplay);
+		b.full = dfixed_const(radeon_crtc->native_mode.hdisplay);
+		radeon_crtc->vsc.full = dfixed_div(a, b);
+		a.full = dfixed_const(crtc->mode.hdisplay);
+		b.full = dfixed_const(radeon_crtc->native_mode.vdisplay);
+		radeon_crtc->hsc.full = dfixed_div(a, b);
 	} else {
-		radeon_crtc->vsc.full = rfixed_const(1);
-		radeon_crtc->hsc.full = rfixed_const(1);
+		radeon_crtc->vsc.full = dfixed_const(1);
+		radeon_crtc->hsc.full = dfixed_const(1);
 	}
 	return true;
 }
