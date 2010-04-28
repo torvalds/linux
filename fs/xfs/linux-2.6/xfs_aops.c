@@ -103,8 +103,9 @@ xfs_count_page_state(
 
 STATIC struct block_device *
 xfs_find_bdev_for_inode(
-	struct xfs_inode	*ip)
+	struct inode		*inode)
 {
+	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 
 	if (XFS_IS_REALTIME_INODE(ip))
@@ -554,19 +555,19 @@ xfs_add_to_ioend(
 
 STATIC void
 xfs_map_buffer(
+	struct inode		*inode,
 	struct buffer_head	*bh,
 	xfs_iomap_t		*mp,
-	xfs_off_t		offset,
-	uint			block_bits)
+	xfs_off_t		offset)
 {
 	sector_t		bn;
 
 	ASSERT(mp->iomap_bn != IOMAP_DADDR_NULL);
 
-	bn = (mp->iomap_bn >> (block_bits - BBSHIFT)) +
-	      ((offset - mp->iomap_offset) >> block_bits);
+	bn = (mp->iomap_bn >> (inode->i_blkbits - BBSHIFT)) +
+	      ((offset - mp->iomap_offset) >> inode->i_blkbits);
 
-	ASSERT(bn || (mp->iomap_flags & IOMAP_REALTIME));
+	ASSERT(bn || XFS_IS_REALTIME_INODE(XFS_I(inode)));
 
 	bh->b_blocknr = bn;
 	set_buffer_mapped(bh);
@@ -574,17 +575,17 @@ xfs_map_buffer(
 
 STATIC void
 xfs_map_at_offset(
+	struct inode		*inode,
 	struct buffer_head	*bh,
-	loff_t			offset,
-	int			block_bits,
-	xfs_iomap_t		*iomapp)
+	xfs_iomap_t		*iomapp,
+	xfs_off_t		offset)
 {
 	ASSERT(!(iomapp->iomap_flags & IOMAP_HOLE));
 	ASSERT(!(iomapp->iomap_flags & IOMAP_DELAY));
 
 	lock_buffer(bh);
-	xfs_map_buffer(bh, iomapp, offset, block_bits);
-	bh->b_bdev = iomapp->iomap_target->bt_bdev;
+	xfs_map_buffer(inode, bh, iomapp, offset);
+	bh->b_bdev = xfs_find_bdev_for_inode(inode);
 	set_buffer_mapped(bh);
 	clear_buffer_delay(bh);
 	clear_buffer_unwritten(bh);
@@ -750,7 +751,6 @@ xfs_convert_page(
 	xfs_off_t		end_offset;
 	unsigned long		p_offset;
 	unsigned int		type;
-	int			bbits = inode->i_blkbits;
 	int			len, page_dirty;
 	int			count = 0, done = 0, uptodate = 1;
  	xfs_off_t		offset = page_offset(page);
@@ -814,7 +814,7 @@ xfs_convert_page(
 			ASSERT(!(mp->iomap_flags & IOMAP_HOLE));
 			ASSERT(!(mp->iomap_flags & IOMAP_DELAY));
 
-			xfs_map_at_offset(bh, offset, bbits, mp);
+			xfs_map_at_offset(inode, bh, mp, offset);
 			if (startio) {
 				xfs_add_to_ioend(inode, bh, offset,
 						type, ioendp, done);
@@ -1174,8 +1174,7 @@ xfs_page_state_convert(
 				iomap_valid = xfs_iomap_valid(&iomap, offset);
 			}
 			if (iomap_valid) {
-				xfs_map_at_offset(bh, offset,
-						inode->i_blkbits, &iomap);
+				xfs_map_at_offset(inode, bh, &iomap, offset);
 				if (startio) {
 					xfs_add_to_ioend(inode, bh, offset,
 							type, &ioend,
@@ -1473,10 +1472,8 @@ __xfs_get_blocks(
 		 * For unwritten extents do not report a disk address on
 		 * the read case (treat as if we're reading into a hole).
 		 */
-		if (create || !(iomap.iomap_flags & IOMAP_UNWRITTEN)) {
-			xfs_map_buffer(bh_result, &iomap, offset,
-				       inode->i_blkbits);
-		}
+		if (create || !(iomap.iomap_flags & IOMAP_UNWRITTEN))
+			xfs_map_buffer(inode, bh_result, &iomap, offset);
 		if (create && (iomap.iomap_flags & IOMAP_UNWRITTEN)) {
 			if (direct)
 				bh_result->b_private = inode;
@@ -1488,7 +1485,7 @@ __xfs_get_blocks(
 	 * If this is a realtime file, data may be on a different device.
 	 * to that pointed to from the buffer_head b_bdev currently.
 	 */
-	bh_result->b_bdev = iomap.iomap_target->bt_bdev;
+	bh_result->b_bdev = xfs_find_bdev_for_inode(inode);
 
 	/*
 	 * If we previously allocated a block out beyond eof and we are now
@@ -1612,7 +1609,7 @@ xfs_vm_direct_IO(
 	struct block_device *bdev;
 	ssize_t		ret;
 
-	bdev = xfs_find_bdev_for_inode(XFS_I(inode));
+	bdev = xfs_find_bdev_for_inode(inode);
 
 	iocb->private = xfs_alloc_ioend(inode, rw == WRITE ?
 					IOMAP_UNWRITTEN : IOMAP_READ);

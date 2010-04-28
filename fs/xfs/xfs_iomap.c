@@ -72,12 +72,6 @@ xfs_imap_to_bmap(
 	iomapp->iomap_bsize = XFS_FSB_TO_B(mp, imap->br_blockcount);
 	iomapp->iomap_flags = flags;
 
-	if (XFS_IS_REALTIME_INODE(ip)) {
-		iomapp->iomap_flags |= IOMAP_REALTIME;
-		iomapp->iomap_target = mp->m_rtdev_targp;
-	} else {
-		iomapp->iomap_target = mp->m_ddev_targp;
-	}
 	start_block = imap->br_startblock;
 	if (start_block == HOLESTARTBLOCK) {
 		iomapp->iomap_bn = IOMAP_DADDR_NULL;
