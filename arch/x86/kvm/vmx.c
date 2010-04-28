@@ -678,6 +678,17 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 	guest_efer |= host_efer & ignore_bits;
 	vmx->guest_msrs[efer_offset].data = guest_efer;
 	vmx->guest_msrs[efer_offset].mask = ~ignore_bits;
+
+	clear_atomic_switch_msr(vmx, MSR_EFER);
+	/* On ept, can't emulate nx, and must switch nx atomically */
+	if (enable_ept && ((vmx->vcpu.arch.efer ^ host_efer) & EFER_NX)) {
+		guest_efer = vmx->vcpu.arch.efer;
+		if (!(guest_efer & EFER_LMA))
+			guest_efer &= ~EFER_LME;
+		add_atomic_switch_msr(vmx, MSR_EFER, guest_efer, host_efer);
+		return false;
+	}
+
 	return true;
 }
 
@@ -1734,6 +1745,7 @@ static void exit_lmode(struct kvm_vcpu *vcpu)
 	vmcs_write32(VM_ENTRY_CONTROLS,
 		     vmcs_read32(VM_ENTRY_CONTROLS)
 		     & ~VM_ENTRY_IA32E_MODE);
+	vmx_set_efer(vcpu, vcpu->arch.efer);
 }
 
 #endif
