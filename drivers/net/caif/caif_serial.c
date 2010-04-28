@@ -197,7 +197,8 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 
 	/* Get a suitable caif packet and copy in data. */
 	skb = netdev_alloc_skb(ser->dev, count+1);
-	BUG_ON(skb == NULL);
+	if (skb == NULL)
+		return;
 	p = skb_put(skb, count);
 	memcpy(p, data, count);
 
@@ -315,6 +316,8 @@ static int ldisc_open(struct tty_struct *tty)
 	/* No write no play */
 	if (tty->ops->write == NULL)
 		return -EOPNOTSUPP;
+	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_TTY_CONFIG))
+		return -EPERM;
 
 	sprintf(name, "cf%s", tty->name);
 	dev = alloc_netdev(sizeof(*ser), name, caifdev_setup);
