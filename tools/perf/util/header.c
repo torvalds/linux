@@ -229,10 +229,9 @@ static int dsos__write_buildid_table(struct perf_header *header, int fd)
 	int err = 0;
 	u16 kmisc, umisc;
 
-	for (nd = rb_first(&session->kerninfo_root); nd; nd = rb_next(nd)) {
-		struct kernel_info *pos = rb_entry(nd, struct kernel_info,
-				rb_node);
-		if (is_host_kernel(pos)) {
+	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		if (machine__is_host(pos)) {
 			kmisc = PERF_RECORD_MISC_KERNEL;
 			umisc = PERF_RECORD_MISC_USER;
 		} else {
@@ -240,11 +239,11 @@ static int dsos__write_buildid_table(struct perf_header *header, int fd)
 			umisc = PERF_RECORD_MISC_GUEST_USER;
 		}
 
-		err = __dsos__write_buildid_table(&pos->dsos__kernel, pos->pid,
-				kmisc, fd);
+		err = __dsos__write_buildid_table(&pos->kernel_dsos, pos->pid,
+						  kmisc, fd);
 		if (err == 0)
-			err = __dsos__write_buildid_table(&pos->dsos__user,
-				pos->pid, umisc, fd);
+			err = __dsos__write_buildid_table(&pos->user_dsos,
+							  pos->pid, umisc, fd);
 		if (err)
 			break;
 	}
@@ -378,11 +377,10 @@ static int dsos__cache_build_ids(struct perf_header *self)
 	if (mkdir(debugdir, 0755) != 0 && errno != EEXIST)
 		return -1;
 
-	for (nd = rb_first(&session->kerninfo_root); nd; nd = rb_next(nd)) {
-		struct kernel_info *pos = rb_entry(nd, struct kernel_info,
-				rb_node);
-		ret |= __dsos__cache_build_ids(&pos->dsos__kernel, debugdir);
-		ret |= __dsos__cache_build_ids(&pos->dsos__user, debugdir);
+	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		ret |= __dsos__cache_build_ids(&pos->kernel_dsos, debugdir);
+		ret |= __dsos__cache_build_ids(&pos->user_dsos, debugdir);
 	}
 	return ret ? -1 : 0;
 }
@@ -394,11 +392,10 @@ static bool dsos__read_build_ids(struct perf_header *self, bool with_hits)
 			struct perf_session, header);
 	struct rb_node *nd;
 
-	for (nd = rb_first(&session->kerninfo_root); nd; nd = rb_next(nd)) {
-		struct kernel_info *pos = rb_entry(nd, struct kernel_info,
-				rb_node);
-		ret |= __dsos__read_build_ids(&pos->dsos__kernel, with_hits);
-		ret |= __dsos__read_build_ids(&pos->dsos__user, with_hits);
+	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		ret |= __dsos__read_build_ids(&pos->kernel_dsos, with_hits);
+		ret |= __dsos__read_build_ids(&pos->user_dsos, with_hits);
 	}
 
 	return ret;
@@ -685,13 +682,13 @@ static int __event_process_build_id(struct build_id_event *bev,
 {
 	int err = -1;
 	struct list_head *head;
-	struct kernel_info *kerninfo;
+	struct machine *machine;
 	u16 misc;
 	struct dso *dso;
 	enum dso_kernel_type dso_type;
 
-	kerninfo = kerninfo__findnew(&session->kerninfo_root, bev->pid);
-	if (!kerninfo)
+	machine = perf_session__findnew_machine(session, bev->pid);
+	if (!machine)
 		goto out;
 
 	misc = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
@@ -699,16 +696,16 @@ static int __event_process_build_id(struct build_id_event *bev,
 	switch (misc) {
 	case PERF_RECORD_MISC_KERNEL:
 		dso_type = DSO_TYPE_KERNEL;
-		head = &kerninfo->dsos__kernel;
+		head = &machine->kernel_dsos;
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
 		dso_type = DSO_TYPE_GUEST_KERNEL;
-		head = &kerninfo->dsos__kernel;
+		head = &machine->kernel_dsos;
 		break;
 	case PERF_RECORD_MISC_USER:
 	case PERF_RECORD_MISC_GUEST_USER:
 		dso_type = DSO_TYPE_USER;
-		head = &kerninfo->dsos__user;
+		head = &machine->user_dsos;
 		break;
 	default:
 		goto out;
@@ -1113,8 +1110,7 @@ int event__process_tracing_data(event_t *self,
 }
 
 int event__synthesize_build_id(struct dso *pos, u16 misc,
-			       event__handler_t process,
-			       struct kernel_info *kerninfo,
+			       event__handler_t process, struct machine *machine,
 			       struct perf_session *session)
 {
 	event_t ev;
@@ -1131,7 +1127,7 @@ int event__synthesize_build_id(struct dso *pos, u16 misc,
 	memcpy(&ev.build_id.build_id, pos->build_id, sizeof(pos->build_id));
 	ev.build_id.header.type = PERF_RECORD_HEADER_BUILD_ID;
 	ev.build_id.header.misc = misc;
-	ev.build_id.pid = kerninfo->pid;
+	ev.build_id.pid = machine->pid;
 	ev.build_id.header.size = sizeof(ev.build_id) + len;
 	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
 
@@ -1142,7 +1138,7 @@ int event__synthesize_build_id(struct dso *pos, u16 misc,
 
 static int __event_synthesize_build_ids(struct list_head *head, u16 misc,
 					event__handler_t process,
-					struct kernel_info *kerninfo,
+					struct machine *machine,
 					struct perf_session *session)
 {
 	struct dso *pos;
@@ -1153,7 +1149,7 @@ static int __event_synthesize_build_ids(struct list_head *head, u16 misc,
 			continue;
 
 		err = event__synthesize_build_id(pos, misc, process,
-					kerninfo, session);
+						 machine, session);
 		if (err < 0)
 			return err;
 	}
@@ -1166,15 +1162,15 @@ int event__synthesize_build_ids(event__handler_t process,
 {
 	int err = 0;
 	u16 kmisc, umisc;
-	struct kernel_info *pos;
+	struct machine *pos;
 	struct rb_node *nd;
 
 	if (!dsos__read_build_ids(&session->header, true))
 		return 0;
 
-	for (nd = rb_first(&session->kerninfo_root); nd; nd = rb_next(nd)) {
-		pos = rb_entry(nd, struct kernel_info, rb_node);
-		if (is_host_kernel(pos)) {
+	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+		pos = rb_entry(nd, struct machine, rb_node);
+		if (machine__is_host(pos)) {
 			kmisc = PERF_RECORD_MISC_KERNEL;
 			umisc = PERF_RECORD_MISC_USER;
 		} else {
@@ -1182,11 +1178,11 @@ int event__synthesize_build_ids(event__handler_t process,
 			umisc = PERF_RECORD_MISC_GUEST_USER;
 		}
 
-		err = __event_synthesize_build_ids(&pos->dsos__kernel,
-				kmisc, process, pos, session);
+		err = __event_synthesize_build_ids(&pos->kernel_dsos, kmisc,
+						   process, pos, session);
 		if (err == 0)
-			err = __event_synthesize_build_ids(&pos->dsos__user,
-					umisc, process, pos, session);
+			err = __event_synthesize_build_ids(&pos->user_dsos, umisc,
+							   process, pos, session);
 		if (err)
 			break;
 	}

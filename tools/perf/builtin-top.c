@@ -854,7 +854,7 @@ static void handle_keypress(struct perf_session *session, int c)
 		case 'Q':
 			printf("exiting.\n");
 			if (dump_symtab)
-				dsos__fprintf(&session->kerninfo_root, stderr);
+				dsos__fprintf(&session->machines, stderr);
 			exit(0);
 		case 's':
 			prompt_symbol(&sym_filter_entry, "Enter details symbol");
@@ -982,7 +982,7 @@ static void event__process_sample(const event_t *self,
 	u64 ip = self->ip.ip;
 	struct sym_entry *syme;
 	struct addr_location al;
-	struct kernel_info *kerninfo;
+	struct machine *machine;
 	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	++samples;
@@ -992,18 +992,17 @@ static void event__process_sample(const event_t *self,
 		++us_samples;
 		if (hide_user_symbols)
 			return;
-		kerninfo = kerninfo__findhost(&session->kerninfo_root);
+		machine = perf_session__find_host_machine(session);
 		break;
 	case PERF_RECORD_MISC_KERNEL:
 		++kernel_samples;
 		if (hide_kernel_symbols)
 			return;
-		kerninfo = kerninfo__findhost(&session->kerninfo_root);
+		machine = perf_session__find_host_machine(session);
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
 		++guest_kernel_samples;
-		kerninfo = kerninfo__find(&session->kerninfo_root,
-					  self->ip.pid);
+		machine = perf_session__find_machine(session, self->ip.pid);
 		break;
 	case PERF_RECORD_MISC_GUEST_USER:
 		++guest_us_samples;
@@ -1016,7 +1015,7 @@ static void event__process_sample(const event_t *self,
 		return;
 	}
 
-	if (!kerninfo && perf_guest) {
+	if (!machine && perf_guest) {
 		pr_err("Can't find guest [%d]'s kernel information\n",
 			self->ip.pid);
 		return;
@@ -1041,7 +1040,7 @@ static void event__process_sample(const event_t *self,
 		 * --hide-kernel-symbols, even if the user specifies an
 		 * invalid --vmlinux ;-)
 		 */
-		if (al.map == kerninfo->vmlinux_maps[MAP__FUNCTION] &&
+		if (al.map == machine->vmlinux_maps[MAP__FUNCTION] &&
 		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
 			pr_err("The %s file can't be used\n",
 			       symbol_conf.vmlinux_name);

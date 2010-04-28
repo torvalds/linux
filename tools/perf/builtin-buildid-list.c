@@ -46,7 +46,7 @@ static int __cmd_buildid_list(void)
 	if (with_hits)
 		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
 
-	dsos__fprintf_buildid(&session->kerninfo_root, stdout, with_hits);
+	dsos__fprintf_buildid(&session->machines, stdout, with_hits);
 
 	perf_session__delete(session);
 	return err;

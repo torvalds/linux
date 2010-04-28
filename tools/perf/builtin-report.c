@@ -313,7 +313,7 @@ static int __cmd_report(void)
 		perf_session__fprintf(session, stdout);
 
 	if (verbose > 2)
-		dsos__fprintf(&session->kerninfo_root, stdout);
+		dsos__fprintf(&session->machines, stdout);
 
 	next = rb_first(&session->stats_by_id);
 	while (next) {

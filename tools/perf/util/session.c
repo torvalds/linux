@@ -70,7 +70,7 @@ void perf_session__update_sample_type(struct perf_session *self)
 int perf_session__create_kernel_maps(struct perf_session *self)
 {
 	int ret;
-	struct rb_root *root = &self->kerninfo_root;
+	struct rb_root *root = &self->machines;
 
 	ret = map_groups__create_kernel_maps(root, HOST_KERNEL_ID);
 	if (ret >= 0)
@@ -97,7 +97,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->cwd = NULL;
 	self->cwdlen = 0;
 	self->unknown_events = 0;
-	self->kerninfo_root = RB_ROOT;
+	self->machines = RB_ROOT;
 	self->ordered_samples.flush_limit = ULLONG_MAX;
 	INIT_LIST_HEAD(&self->ordered_samples.samples_head);
 
