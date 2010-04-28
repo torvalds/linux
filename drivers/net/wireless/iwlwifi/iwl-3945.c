@@ -884,7 +884,8 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 		       tx_cmd->supp_rates[1], tx_cmd->supp_rates[0]);
 }
 
-u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
+static u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id,
+			   u16 tx_rate, u8 flags)
 {
 	unsigned long flags_spin;
 	struct iwl_station_entry *station;
@@ -2395,6 +2396,32 @@ static u16 iwl3945_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 	return (u16)sizeof(struct iwl3945_addsta_cmd);
 }
 
+static int iwl3945_manage_ibss_station(struct iwl_priv *priv,
+				       struct ieee80211_vif *vif, bool add)
+{
+	int ret;
+
+	/*
+	 * NB: this assumes that the station it gets will be
+	 *     IWL_STA_ID, which will happen but isn't obvious.
+	 */
+
+	if (add) {
+		ret = iwl_add_local_station(priv, vif->bss_conf.bssid, false);
+		if (ret)
+			return ret;
+
+		iwl3945_sync_sta(priv, IWL_STA_ID,
+				 (priv->band == IEEE80211_BAND_5GHZ) ?
+				 IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP,
+				 CMD_ASYNC);
+		iwl3945_rate_scale_init(priv->hw, IWL_STA_ID);
+
+		return 0;
+	}
+
+	return iwl_remove_station(priv, vif->bss_conf.bssid);
+}
 
 /**
  * iwl3945_init_hw_rate_table - Initialize the hardware rate fallback table
@@ -2802,6 +2829,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.post_associate = iwl3945_post_associate,
 	.isr = iwl_isr_legacy,
 	.config_ap = iwl3945_config_ap,
+	.manage_ibss_station = iwl3945_manage_ibss_station,
 	.add_bcast_station = iwl3945_add_bcast_station,
 
 	.debugfs_ops = {

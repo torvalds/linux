@@ -1960,6 +1960,15 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			iwl_set_no_assoc(priv);
 	}
 
+	if (changes & BSS_CHANGED_IBSS) {
+		ret = priv->cfg->ops->lib->manage_ibss_station(priv, vif,
+							bss_conf->ibss_joined);
+		if (ret)
+			IWL_ERR(priv, "failed to %s IBSS station %pM\n",
+				bss_conf->ibss_joined ? "add" : "remove",
+				bss_conf->bssid);
+	}
+
 	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");

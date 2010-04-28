@@ -38,6 +38,7 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
+#include "iwl-sta.h"
 
 static inline u32 iwlagn_get_scd_ssn(struct iwl5000_tx_resp *tx_resp)
 {
@@ -1512,4 +1513,12 @@ void iwlagn_request_scan(struct iwl_priv *priv)
 	clear_bit(STATUS_SCANNING, &priv->status);
 	/* inform mac80211 scan aborted */
 	queue_work(priv->workqueue, &priv->scan_completed);
+}
+
+int iwlagn_manage_ibss_station(struct iwl_priv *priv,
+			       struct ieee80211_vif *vif, bool add)
+{
+	if (add)
+		return iwl_add_local_station(priv, vif->bss_conf.bssid, true);
+	return iwl_remove_station(priv, vif->bss_conf.bssid);
 }

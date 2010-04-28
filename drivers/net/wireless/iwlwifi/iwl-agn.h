@@ -174,4 +174,8 @@ static inline bool iwl_is_tx_success(u32 status)
 /* scan */
 void iwlagn_request_scan(struct iwl_priv *priv);
 
+/* station mgmt */
+int iwlagn_manage_ibss_station(struct iwl_priv *priv,
+			       struct ieee80211_vif *vif, bool add);
+
 #endif /* __iwl_agn_h__ */

@@ -211,13 +211,6 @@ extern int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 				       char **buf, bool display);
 extern void iwl3945_dump_nic_error_log(struct iwl_priv *priv);
 
-/*
- * Currently used by iwl-3945-rs... look at restructuring so that it doesn't
- * call this... todo... fix that.
-*/
-extern u8 iwl3945_sync_station(struct iwl_priv *priv, int sta_id,
-			   u16 tx_rate, u8 flags);
-
 /******************************************************************************
  *
  * Functions implemented in iwl-[34]*.c which are forward declared here
@@ -288,8 +281,6 @@ extern __le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv);
 extern int iwl3945_init_hw_rate_table(struct iwl_priv *priv);
 extern void iwl3945_reg_txpower_periodic(struct iwl_priv *priv);
 extern int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv);
-extern u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id,
-		 u16 tx_rate, u8 flags);
 
 extern const struct iwl_channel_info *iwl3945_get_channel_info(
 	const struct iwl_priv *priv, enum ieee80211_band band, u16 channel);

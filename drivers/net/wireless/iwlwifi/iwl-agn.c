@@ -2606,17 +2606,11 @@ void iwl_post_associate(struct iwl_priv *priv)
 	switch (priv->iw_mode) {
 	case NL80211_IFTYPE_STATION:
 		break;
-
 	case NL80211_IFTYPE_ADHOC:
-
 		/* assume default assoc id */
 		priv->assoc_id = 1;
-
-		iwl_add_local_station(priv, priv->bssid, true);
 		iwl_send_beacon_cmd(priv);
-
 		break;
-
 	default:
 		IWL_ERR(priv, "%s Should not be called in %d mode\n",
 			  __func__, priv->iw_mode);

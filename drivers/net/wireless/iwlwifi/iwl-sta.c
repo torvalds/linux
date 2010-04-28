@@ -596,7 +596,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 /**
  * iwl_remove_station - Remove driver's knowledge of station.
  */
-static int iwl_remove_station(struct iwl_priv *priv, const u8 *addr)
+int iwl_remove_station(struct iwl_priv *priv, const u8 *addr)
 {
 	int sta_id = IWL_INVALID_STATION;
 	int i, ret = -EINVAL;
@@ -647,6 +647,10 @@ static int iwl_remove_station(struct iwl_priv *priv, const u8 *addr)
 		goto out;
 	}
 
+	if (priv->stations[sta_id].used & IWL_STA_LOCAL) {
+		kfree(priv->stations[sta_id].lq);
+		priv->stations[sta_id].lq = NULL;
+	}
 
 	priv->stations[sta_id].used &= ~IWL_STA_DRIVER_ACTIVE;
 
@@ -663,6 +667,7 @@ out:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(iwl_remove_station);
 
 /**
  * iwl_clear_ucode_stations() - clear entire station table driver and/or ucode
