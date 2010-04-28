@@ -596,7 +596,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 /**
  * iwl_remove_station - Remove driver's knowledge of station.
  */
-static int iwl_remove_station(struct iwl_priv *priv, struct ieee80211_sta *sta)
+static int iwl_remove_station(struct iwl_priv *priv, const u8 *addr)
 {
 	int sta_id = IWL_INVALID_STATION;
 	int i, ret = -EINVAL;
@@ -607,7 +607,7 @@ static int iwl_remove_station(struct iwl_priv *priv, struct ieee80211_sta *sta)
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_INFO(priv,
 			"Unable to remove station %pM, device not ready.\n",
-			sta->addr);
+			addr);
 		/*
 		 * It is typical for stations to be removed when we are
 		 * going down. Return success since device will be down
@@ -624,7 +624,7 @@ static int iwl_remove_station(struct iwl_priv *priv, struct ieee80211_sta *sta)
 		for (i = IWL_STA_ID; i < priv->hw_params.max_stations; i++)
 			if (priv->stations[i].used &&
 			    !compare_ether_addr(priv->stations[i].sta.sta.addr,
-						sta->addr)) {
+						addr)) {
 				sta_id = i;
 				break;
 			}
@@ -633,17 +633,17 @@ static int iwl_remove_station(struct iwl_priv *priv, struct ieee80211_sta *sta)
 		goto out;
 
 	IWL_DEBUG_ASSOC(priv, "Removing STA from driver:%d  %pM\n",
-		sta_id, sta->addr);
+		sta_id, addr);
 
 	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
 		IWL_DEBUG_INFO(priv, "Removing %pM but non DRIVER active\n",
-				sta->addr);
+				addr);
 		goto out;
 	}
 
 	if (!(priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE)) {
 		IWL_DEBUG_INFO(priv, "Removing %pM but non UCODE active\n",
-				sta->addr);
+				addr);
 		goto out;
 	}
 
@@ -1450,7 +1450,7 @@ int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = hw->priv;
 	IWL_DEBUG_INFO(priv, "received request to remove station %pM\n",
 			sta->addr);
-	ret = iwl_remove_station(priv, sta);
+	ret = iwl_remove_station(priv, sta->addr);
 	if (ret)
 		IWL_ERR(priv, "Error removing station %pM\n",
 			sta->addr);
