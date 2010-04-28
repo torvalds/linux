@@ -189,6 +189,78 @@ static int qla4xxx_init_local_data(struct scsi_qla_host *ha)
 	return qla4xxx_get_firmware_status(ha);
 }
 
+static uint8_t
+qla4xxx_wait_for_ip_config(struct scsi_qla_host *ha)
+{
+	uint8_t ipv4_wait = 0;
+	uint8_t ipv6_wait = 0;
+	int8_t ip_address[IPv6_ADDR_LEN] = {0} ;
+
+	/* If both IPv4 & IPv6 are enabled, possibly only one
+	 * IP address may be acquired, so check to see if we
+	 * need to wait for another */
+	if (is_ipv4_enabled(ha) && is_ipv6_enabled(ha)) {
+		if (((ha->addl_fw_state & FW_ADDSTATE_DHCPv4_ENABLED) != 0) &&
+		    ((ha->addl_fw_state &
+				    FW_ADDSTATE_DHCPv4_LEASE_ACQUIRED) == 0)) {
+			ipv4_wait = 1;
+		}
+		if (((ha->ipv6_addl_options &
+			    IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE) != 0) &&
+		    ((ha->ipv6_link_local_state == IP_ADDRSTATE_ACQUIRING) ||
+		     (ha->ipv6_addr0_state == IP_ADDRSTATE_ACQUIRING) ||
+		     (ha->ipv6_addr1_state == IP_ADDRSTATE_ACQUIRING))) {
+
+			ipv6_wait = 1;
+
+			if ((ha->ipv6_link_local_state ==
+						     IP_ADDRSTATE_PREFERRED) ||
+			    (ha->ipv6_addr0_state == IP_ADDRSTATE_PREFERRED) ||
+			    (ha->ipv6_addr1_state == IP_ADDRSTATE_PREFERRED)) {
+				DEBUG2(printk(KERN_INFO "scsi%ld: %s: "
+					      "Preferred IP configured."
+					      " Don't wait!\n", ha->host_no,
+					      __func__));
+				ipv6_wait = 0;
+			}
+			if (memcmp(&ha->ipv6_default_router_addr, ip_address,
+				IPv6_ADDR_LEN) == 0) {
+				DEBUG2(printk(KERN_INFO "scsi%ld: %s: "
+					      "No Router configured. "
+					      "Don't wait!\n", ha->host_no,
+					      __func__));
+				ipv6_wait = 0;
+			}
+			if ((ha->ipv6_default_router_state ==
+						IPV6_RTRSTATE_MANUAL) &&
+			    (ha->ipv6_link_local_state ==
+						IP_ADDRSTATE_TENTATIVE) &&
+			    (memcmp(&ha->ipv6_link_local_addr,
+				    &ha->ipv6_default_router_addr, 4) == 0)) {
+				DEBUG2(printk("scsi%ld: %s: LinkLocal Router & "
+					"IP configured. Don't wait!\n",
+					ha->host_no, __func__));
+				ipv6_wait = 0;
+			}
+		}
+		if (ipv4_wait || ipv6_wait) {
+			DEBUG2(printk("scsi%ld: %s: Wait for additional "
+				      "IP(s) \"", ha->host_no, __func__));
+			if (ipv4_wait)
+				DEBUG2(printk("IPv4 "));
+			if (ha->ipv6_link_local_state == IP_ADDRSTATE_ACQUIRING)
+				DEBUG2(printk("IPv6LinkLocal "));
+			if (ha->ipv6_addr0_state == IP_ADDRSTATE_ACQUIRING)
+				DEBUG2(printk("IPv6Addr0 "));
+			if (ha->ipv6_addr1_state == IP_ADDRSTATE_ACQUIRING)
+				DEBUG2(printk("IPv6Addr1 "));
+			DEBUG2(printk("\"\n"));
+		}
+	}
+
+	return ipv4_wait|ipv6_wait;
+}
+
 static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 {
 	uint32_t timeout_count;
@@ -226,38 +298,80 @@ static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 			continue;
 		}
 
-		if (ha->firmware_state == FW_STATE_READY) {
-			DEBUG2(dev_info(&ha->pdev->dev, "Firmware Ready..\n"));
-			/* The firmware is ready to process SCSI commands. */
-			DEBUG2(dev_info(&ha->pdev->dev,
-					  "scsi%ld: %s: MEDIA TYPE - %s\n",
-					  ha->host_no,
-					  __func__, (ha->addl_fw_state &
-						     FW_ADDSTATE_OPTICAL_MEDIA)
-					  != 0 ? "OPTICAL" : "COPPER"));
-			DEBUG2(dev_info(&ha->pdev->dev,
-					  "scsi%ld: %s: DHCP STATE Enabled "
-					  "%s\n",
-					  ha->host_no, __func__,
-					  (ha->addl_fw_state &
-					   FW_ADDSTATE_DHCP_ENABLED) != 0 ?
-					  "YES" : "NO"));
-			DEBUG2(dev_info(&ha->pdev->dev,
-					  "scsi%ld: %s: LINK %s\n",
-					  ha->host_no, __func__,
-					  (ha->addl_fw_state &
-					   FW_ADDSTATE_LINK_UP) != 0 ?
-					  "UP" : "DOWN"));
-			DEBUG2(dev_info(&ha->pdev->dev,
-					  "scsi%ld: %s: iSNS Service "
-					  "Started %s\n",
-					  ha->host_no, __func__,
-					  (ha->addl_fw_state &
-					   FW_ADDSTATE_ISNS_SVC_ENABLED) != 0 ?
-					  "YES" : "NO"));
+		if (ha->firmware_state & FW_STATE_WAIT_AUTOCONNECT) {
+			DEBUG2(printk(KERN_INFO "scsi%ld: %s: fwstate:"
+				      "AUTOCONNECT in progress\n",
+				      ha->host_no, __func__));
+		}
 
-			ready = 1;
-			break;
+		if (ha->firmware_state & FW_STATE_CONFIGURING_IP) {
+			DEBUG2(printk(KERN_INFO "scsi%ld: %s: fwstate:"
+				      " CONFIGURING IP\n",
+				      ha->host_no, __func__));
+			/*
+			 * Check for link state after 15 secs and if link is
+			 * still DOWN then, cable is unplugged. Ignore "DHCP
+			 * in Progress/CONFIGURING IP" bit to check if firmware
+			 * is in ready state or not after 15 secs.
+			 * This is applicable for both 2.x & 3.x firmware
+			 */
+			if (timeout_count <= (ADAPTER_INIT_TOV - 15)) {
+				if (ha->addl_fw_state & FW_ADDSTATE_LINK_UP) {
+					DEBUG2(printk(KERN_INFO "scsi%ld: %s:"
+						  " LINK UP (Cable plugged)\n",
+						  ha->host_no, __func__));
+				} else if (ha->firmware_state &
+					  (FW_STATE_CONFIGURING_IP |
+							     FW_STATE_READY)) {
+					DEBUG2(printk(KERN_INFO "scsi%ld: %s: "
+						"LINK DOWN (Cable unplugged)\n",
+						ha->host_no, __func__));
+					ha->firmware_state = FW_STATE_READY;
+				}
+			}
+		}
+
+		if (ha->firmware_state == FW_STATE_READY) {
+			/* If DHCP IP Addr is available, retrieve it now. */
+			if (test_and_clear_bit(DPC_GET_DHCP_IP_ADDR,
+								&ha->dpc_flags))
+				qla4xxx_get_dhcp_ip_address(ha);
+
+			if (!qla4xxx_wait_for_ip_config(ha) ||
+							timeout_count == 1) {
+				DEBUG2(dev_info(&ha->pdev->dev,
+						"Firmware Ready..\n"));
+				/* The firmware is ready to process SCSI
+				   commands. */
+				DEBUG2(dev_info(&ha->pdev->dev,
+					"scsi%ld: %s: MEDIA TYPE"
+					" - %s\n", ha->host_no,
+					__func__, (ha->addl_fw_state &
+					FW_ADDSTATE_OPTICAL_MEDIA)
+					!= 0 ? "OPTICAL" : "COPPER"));
+				DEBUG2(dev_info(&ha->pdev->dev,
+					"scsi%ld: %s: DHCPv4 STATE"
+					" Enabled %s\n", ha->host_no,
+					 __func__, (ha->addl_fw_state &
+					 FW_ADDSTATE_DHCPv4_ENABLED) != 0 ?
+					"YES" : "NO"));
+				DEBUG2(dev_info(&ha->pdev->dev,
+					"scsi%ld: %s: LINK %s\n",
+					ha->host_no, __func__,
+					(ha->addl_fw_state &
+					 FW_ADDSTATE_LINK_UP) != 0 ?
+					"UP" : "DOWN"));
+				DEBUG2(dev_info(&ha->pdev->dev,
+					"scsi%ld: %s: iSNS Service "
+					"Started %s\n",
+					ha->host_no, __func__,
+					(ha->addl_fw_state &
+					 FW_ADDSTATE_ISNS_SVC_ENABLED) != 0 ?
+					"YES" : "NO"));
+
+				ready = 1;
+				break;
+			}
 		}
 		DEBUG2(printk("scsi%ld: %s: waiting on fw, state=%x:%x - "
 			      "seconds expired= %d\n", ha->host_no, __func__,
@@ -272,15 +386,19 @@ static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 		msleep(1000);
 	}			/* end of for */
 
-	if (timeout_count == 0)
+	if (timeout_count <= 0)
 		DEBUG2(printk("scsi%ld: %s: FW Initialization timed out!\n",
 			      ha->host_no, __func__));
 
-	if (ha->firmware_state & FW_STATE_DHCP_IN_PROGRESS)  {
-		DEBUG2(printk("scsi%ld: %s: FW is reporting its waiting to"
-			      " grab an IP address from DHCP server\n",
-			      ha->host_no, __func__));
+	if (ha->firmware_state & FW_STATE_CONFIGURING_IP) {
+		DEBUG2(printk("scsi%ld: %s: FW initialized, but is reporting "
+			      "it's waiting to configure an IP address\n",
+			       ha->host_no, __func__));
 		ready = 1;
+	} else if (ha->firmware_state & FW_STATE_WAIT_AUTOCONNECT) {
+		DEBUG2(printk("scsi%ld: %s: FW initialized, but "
+			      "auto-discovery still in process\n",
+			       ha->host_no, __func__));
 	}
 
 	return ready;
@@ -419,6 +537,7 @@ static int qla4xxx_update_ddb_entry(struct scsi_qla_host *ha,
 	}
 
 	status = QLA_SUCCESS;
+	ddb_entry->options = le16_to_cpu(fw_ddb_entry->options);
 	ddb_entry->target_session_id = le16_to_cpu(fw_ddb_entry->tsid);
 	ddb_entry->task_mgmt_timeout =
 		le16_to_cpu(fw_ddb_entry->def_timeout);
@@ -442,11 +561,30 @@ static int qla4xxx_update_ddb_entry(struct scsi_qla_host *ha,
 	memcpy(&ddb_entry->ip_addr[0], &fw_ddb_entry->ip_addr[0],
 	       min(sizeof(ddb_entry->ip_addr), sizeof(fw_ddb_entry->ip_addr)));
 
-	DEBUG2(printk("scsi%ld: %s: ddb[%d] - State= %x status= %d.\n",
-		      ha->host_no, __func__, fw_ddb_index,
-		      ddb_entry->fw_ddb_device_state, status));
+	ddb_entry->iscsi_max_burst_len = fw_ddb_entry->iscsi_max_burst_len;
+	ddb_entry->iscsi_max_outsnd_r2t = fw_ddb_entry->iscsi_max_outsnd_r2t;
+	ddb_entry->iscsi_first_burst_len = fw_ddb_entry->iscsi_first_burst_len;
+	ddb_entry->iscsi_max_rcv_data_seg_len =
+				fw_ddb_entry->iscsi_max_rcv_data_seg_len;
+	ddb_entry->iscsi_max_snd_data_seg_len =
+				fw_ddb_entry->iscsi_max_snd_data_seg_len;
 
- exit_update_ddb:
+	if (ddb_entry->options & DDB_OPT_IPV6_DEVICE) {
+		memcpy(&ddb_entry->remote_ipv6_addr,
+			fw_ddb_entry->ip_addr,
+			min(sizeof(ddb_entry->remote_ipv6_addr),
+			sizeof(fw_ddb_entry->ip_addr)));
+		memcpy(&ddb_entry->link_local_ipv6_addr,
+			fw_ddb_entry->link_local_ipv6_addr,
+			min(sizeof(ddb_entry->link_local_ipv6_addr),
+			sizeof(fw_ddb_entry->link_local_ipv6_addr)));
+	}
+
+	DEBUG2(printk("scsi%ld: %s: ddb[%d] - State= %x status= %d.\n",
+			ha->host_no, __func__, fw_ddb_index,
+			ddb_entry->fw_ddb_device_state, status));
+
+exit_update_ddb:
 	if (fw_ddb_entry)
 		dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 				  fw_ddb_entry, fw_ddb_entry_dma);
@@ -1166,7 +1304,7 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha,
 	 * the ddb_list and wait for DHCP lease acquired aen to come in
 	 * followed by 0x8014 aen" to trigger the tgt discovery process.
 	 */
-	if (ha->firmware_state & FW_STATE_DHCP_IN_PROGRESS)
+	if (ha->firmware_state & FW_STATE_CONFIGURING_IP)
 		goto exit_init_online;
 
 	/* Skip device discovery if ip and subnet is zero */
