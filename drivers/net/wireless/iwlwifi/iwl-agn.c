@@ -1534,6 +1534,91 @@ static int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 				       iwl_ucode_callback);
 }
 
+struct iwlagn_firmware_pieces {
+	const void *inst, *data, *init, *init_data, *boot;
+	size_t inst_size, data_size, init_size, init_data_size, boot_size;
+
+	u32 build;
+};
+
+static int iwlagn_load_legacy_firmware(struct iwl_priv *priv,
+				       const struct firmware *ucode_raw,
+				       struct iwlagn_firmware_pieces *pieces)
+{
+	struct iwl_ucode_header *ucode = (void *)ucode_raw->data;
+	u32 api_ver, hdr_size;
+	const u8 *src;
+
+	priv->ucode_ver = le32_to_cpu(ucode->ver);
+	api_ver = IWL_UCODE_API(priv->ucode_ver);
+
+	switch (api_ver) {
+	default:
+		/*
+		 * 4965 doesn't revision the firmware file format
+		 * along with the API version, it always uses v1
+		 * file format.
+		 */
+		if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) !=
+				CSR_HW_REV_TYPE_4965) {
+			hdr_size = 28;
+			if (ucode_raw->size < hdr_size) {
+				IWL_ERR(priv, "File size too small!\n");
+				return -EINVAL;
+			}
+			pieces->build = le32_to_cpu(ucode->u.v2.build);
+			pieces->inst_size = le32_to_cpu(ucode->u.v2.inst_size);
+			pieces->data_size = le32_to_cpu(ucode->u.v2.data_size);
+			pieces->init_size = le32_to_cpu(ucode->u.v2.init_size);
+			pieces->init_data_size = le32_to_cpu(ucode->u.v2.init_data_size);
+			pieces->boot_size = le32_to_cpu(ucode->u.v2.boot_size);
+			src = ucode->u.v2.data;
+			break;
+		}
+		/* fall through for 4965 */
+	case 0:
+	case 1:
+	case 2:
+		hdr_size = 24;
+		if (ucode_raw->size < hdr_size) {
+			IWL_ERR(priv, "File size too small!\n");
+			return -EINVAL;
+		}
+		pieces->build = 0;
+		pieces->inst_size = le32_to_cpu(ucode->u.v1.inst_size);
+		pieces->data_size = le32_to_cpu(ucode->u.v1.data_size);
+		pieces->init_size = le32_to_cpu(ucode->u.v1.init_size);
+		pieces->init_data_size = le32_to_cpu(ucode->u.v1.init_data_size);
+		pieces->boot_size = le32_to_cpu(ucode->u.v1.boot_size);
+		src = ucode->u.v1.data;
+		break;
+	}
+
+	/* Verify size of file vs. image size info in file's header */
+	if (ucode_raw->size != hdr_size + pieces->inst_size +
+				pieces->data_size + pieces->init_size +
+				pieces->init_data_size + pieces->boot_size) {
+
+		IWL_ERR(priv,
+			"uCode file size %d does not match expected size\n",
+			(int)ucode_raw->size);
+		return -EINVAL;
+	}
+
+	pieces->inst = src;
+	src += pieces->inst_size;
+	pieces->data = src;
+	src += pieces->data_size;
+	pieces->init = src;
+	src += pieces->init_size;
+	pieces->init_data = src;
+	src += pieces->init_data_size;
+	pieces->boot = src;
+	src += pieces->boot_size;
+
+	return 0;
+}
+
 /**
  * iwl_ucode_callback - callback when firmware was loaded
  *
@@ -1544,14 +1629,15 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 {
 	struct iwl_priv *priv = context;
 	struct iwl_ucode_header *ucode;
+	int err;
+	struct iwlagn_firmware_pieces pieces;
 	const unsigned int api_max = priv->cfg->ucode_api_max;
 	const unsigned int api_min = priv->cfg->ucode_api_min;
-	u8 *src;
-	size_t len;
-	u32 api_ver, build;
-	u32 inst_size, data_size, init_size, init_data_size, boot_size;
-	int err, hdr_size;
+	u32 api_ver;
 	char buildstr[25];
+	u32 build;
+
+	memset(&pieces, 0, sizeof(pieces));
 
 	if (!ucode_raw) {
 		IWL_ERR(priv, "request for firmware file '%s' failed.\n",
@@ -1571,54 +1657,22 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* Data from ucode file:  header followed by uCode images */
 	ucode = (struct iwl_ucode_header *)ucode_raw->data;
 
-	priv->ucode_ver = le32_to_cpu(ucode->ver);
+	if (ucode->ver)
+		err = iwlagn_load_legacy_firmware(priv, ucode_raw, &pieces);
+	else
+		err = -EINVAL;
+
+	if (err)
+		goto try_again;
+
 	api_ver = IWL_UCODE_API(priv->ucode_ver);
+	build = pieces.build;
 
-	switch (api_ver) {
-	default:
-		/*
-		 * 4965 doesn't revision the firmware file format
-		 * along with the API version, it always uses v1
-		 * file format.
-		 */
-		if (priv->cfg != &iwl4965_agn_cfg) {
-			hdr_size = 28;
-			if (ucode_raw->size < hdr_size) {
-				IWL_ERR(priv, "File size too small!\n");
-				goto try_again;
-			}
-			build = ucode->u.v2.build;
-			inst_size = ucode->u.v2.inst_size;
-			data_size = ucode->u.v2.data_size;
-			init_size = ucode->u.v2.init_size;
-			init_data_size = ucode->u.v2.init_data_size;
-			boot_size = ucode->u.v2.boot_size;
-			src = ucode->u.v2.data;
-			break;
-		}
-		/* fall through for 4965 */
-	case 0:
-	case 1:
-	case 2:
-		hdr_size = 24;
-		if (ucode_raw->size < hdr_size) {
-			IWL_ERR(priv, "File size too small!\n");
-			goto try_again;
-		}
-		build = 0;
-		inst_size = ucode->u.v1.inst_size;
-		data_size = ucode->u.v1.data_size;
-		init_size = ucode->u.v1.init_size;
-		init_data_size = ucode->u.v1.init_data_size;
-		boot_size = ucode->u.v1.boot_size;
-		src = ucode->u.v1.data;
-		break;
-	}
-
-	/* api_ver should match the api version forming part of the
+	/*
+	 * api_ver should match the api version forming part of the
 	 * firmware filename ... but we don't check for that and only rely
-	 * on the API version read from firmware header from here on forward */
-
+	 * on the API version read from firmware header from here on forward
+	 */
 	if (api_ver < api_min || api_ver > api_max) {
 		IWL_ERR(priv, "Driver unable to support your firmware API. "
 			  "Driver supports v%u, firmware is v%u.\n",
@@ -1653,75 +1707,69 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		 IWL_UCODE_SERIAL(priv->ucode_ver),
 		 buildstr);
 
-	IWL_DEBUG_INFO(priv, "f/w package hdr ucode version raw = 0x%x\n",
-		       priv->ucode_ver);
-	IWL_DEBUG_INFO(priv, "f/w package hdr runtime inst size = %u\n",
-		       inst_size);
-	IWL_DEBUG_INFO(priv, "f/w package hdr runtime data size = %u\n",
-		       data_size);
-	IWL_DEBUG_INFO(priv, "f/w package hdr init inst size = %u\n",
-		       init_size);
-	IWL_DEBUG_INFO(priv, "f/w package hdr init data size = %u\n",
-		       init_data_size);
-	IWL_DEBUG_INFO(priv, "f/w package hdr boot inst size = %u\n",
-		       boot_size);
-
 	/*
 	 * For any of the failures below (before allocating pci memory)
 	 * we will try to load a version with a smaller API -- maybe the
 	 * user just got a corrupted version of the latest API.
 	 */
 
-	/* Verify size of file vs. image size info in file's header */
-	if (ucode_raw->size != hdr_size + inst_size + data_size + init_size +
-				init_data_size + boot_size) {
-
-		IWL_DEBUG_INFO(priv,
-			"uCode file size %d does not match expected size\n",
-			(int)ucode_raw->size);
-		goto try_again;
-	}
+	IWL_DEBUG_INFO(priv, "f/w package hdr ucode version raw = 0x%x\n",
+		       priv->ucode_ver);
+	IWL_DEBUG_INFO(priv, "f/w package hdr runtime inst size = %Zd\n",
+		       pieces.inst_size);
+	IWL_DEBUG_INFO(priv, "f/w package hdr runtime data size = %Zd\n",
+		       pieces.data_size);
+	IWL_DEBUG_INFO(priv, "f/w package hdr init inst size = %Zd\n",
+		       pieces.init_size);
+	IWL_DEBUG_INFO(priv, "f/w package hdr init data size = %Zd\n",
+		       pieces.init_data_size);
+	IWL_DEBUG_INFO(priv, "f/w package hdr boot inst size = %Zd\n",
+		       pieces.boot_size);
 
 	/* Verify that uCode images will fit in card's SRAM */
-	if (inst_size > priv->hw_params.max_inst_size) {
-		IWL_DEBUG_INFO(priv, "uCode instr len %d too large to fit in\n",
-			       inst_size);
+	if (pieces.inst_size > priv->hw_params.max_inst_size) {
+		IWL_ERR(priv, "uCode instr len %Zd too large to fit in\n",
+			pieces.inst_size);
 		goto try_again;
 	}
 
-	if (data_size > priv->hw_params.max_data_size) {
-		IWL_DEBUG_INFO(priv, "uCode data len %d too large to fit in\n",
-				data_size);
+	if (pieces.data_size > priv->hw_params.max_data_size) {
+		IWL_ERR(priv, "uCode data len %Zd too large to fit in\n",
+			pieces.data_size);
 		goto try_again;
 	}
-	if (init_size > priv->hw_params.max_inst_size) {
-		IWL_INFO(priv, "uCode init instr len %d too large to fit in\n",
-			init_size);
+
+	if (pieces.init_size > priv->hw_params.max_inst_size) {
+		IWL_ERR(priv, "uCode init instr len %Zd too large to fit in\n",
+			pieces.init_size);
 		goto try_again;
 	}
-	if (init_data_size > priv->hw_params.max_data_size) {
-		IWL_INFO(priv, "uCode init data len %d too large to fit in\n",
-		      init_data_size);
+
+	if (pieces.init_data_size > priv->hw_params.max_data_size) {
+		IWL_ERR(priv, "uCode init data len %Zd too large to fit in\n",
+			pieces.init_data_size);
 		goto try_again;
 	}
-	if (boot_size > priv->hw_params.max_bsm_size) {
-		IWL_INFO(priv, "uCode boot instr len %d too large to fit in\n",
-			boot_size);
+
+	if (pieces.boot_size > priv->hw_params.max_bsm_size) {
+		IWL_ERR(priv, "uCode boot instr len %Zd too large to fit in\n",
+			pieces.boot_size);
 		goto try_again;
 	}
+
 
 	/* Allocate ucode buffers for card's bus-master loading ... */
 
 	/* Runtime instructions and 2 copies of data:
 	 * 1) unmodified from disk
 	 * 2) backup cache for save/restore during power-downs */
-	priv->ucode_code.len = inst_size;
+	priv->ucode_code.len = pieces.inst_size;
 	iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_code);
 
-	priv->ucode_data.len = data_size;
+	priv->ucode_data.len = pieces.data_size;
 	iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_data);
 
-	priv->ucode_data_backup.len = data_size;
+	priv->ucode_data_backup.len = pieces.data_size;
 	iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_data_backup);
 
 	if (!priv->ucode_code.v_addr || !priv->ucode_data.v_addr ||
@@ -1729,11 +1777,11 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		goto err_pci_alloc;
 
 	/* Initialization instructions and data */
-	if (init_size && init_data_size) {
-		priv->ucode_init.len = init_size;
+	if (pieces.init_size && pieces.init_data_size) {
+		priv->ucode_init.len = pieces.init_size;
 		iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init);
 
-		priv->ucode_init_data.len = init_data_size;
+		priv->ucode_init_data.len = pieces.init_data_size;
 		iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init_data);
 
 		if (!priv->ucode_init.v_addr || !priv->ucode_init_data.v_addr)
@@ -1741,8 +1789,8 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	}
 
 	/* Bootstrap (instructions only, no data) */
-	if (boot_size) {
-		priv->ucode_boot.len = boot_size;
+	if (pieces.boot_size) {
+		priv->ucode_boot.len = pieces.boot_size;
 		iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_boot);
 
 		if (!priv->ucode_boot.v_addr)
@@ -1752,44 +1800,41 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* Copy images into buffers for card's bus-master reads ... */
 
 	/* Runtime instructions (first block of data in file) */
-	len = inst_size;
-	IWL_DEBUG_INFO(priv, "Copying (but not loading) uCode instr len %Zd\n", len);
-	memcpy(priv->ucode_code.v_addr, src, len);
-	src += len;
+	IWL_DEBUG_INFO(priv, "Copying (but not loading) uCode instr len %Zd\n",
+			pieces.inst_size);
+	memcpy(priv->ucode_code.v_addr, pieces.inst, pieces.inst_size);
 
 	IWL_DEBUG_INFO(priv, "uCode instr buf vaddr = 0x%p, paddr = 0x%08x\n",
 		priv->ucode_code.v_addr, (u32)priv->ucode_code.p_addr);
 
-	/* Runtime data (2nd block)
-	 * NOTE:  Copy into backup buffer will be done in iwl_up()  */
-	len = data_size;
-	IWL_DEBUG_INFO(priv, "Copying (but not loading) uCode data len %Zd\n", len);
-	memcpy(priv->ucode_data.v_addr, src, len);
-	memcpy(priv->ucode_data_backup.v_addr, src, len);
-	src += len;
+	/*
+	 * Runtime data
+	 * NOTE:  Copy into backup buffer will be done in iwl_up()
+	 */
+	IWL_DEBUG_INFO(priv, "Copying (but not loading) uCode data len %Zd\n",
+			pieces.data_size);
+	memcpy(priv->ucode_data.v_addr, pieces.data, pieces.data_size);
+	memcpy(priv->ucode_data_backup.v_addr, pieces.data, pieces.data_size);
 
-	/* Initialization instructions (3rd block) */
-	if (init_size) {
-		len = init_size;
+	/* Initialization instructions */
+	if (pieces.init_size) {
 		IWL_DEBUG_INFO(priv, "Copying (but not loading) init instr len %Zd\n",
-				len);
-		memcpy(priv->ucode_init.v_addr, src, len);
-		src += len;
+				pieces.init_size);
+		memcpy(priv->ucode_init.v_addr, pieces.init, pieces.init_size);
 	}
 
-	/* Initialization data (4th block) */
-	if (init_data_size) {
-		len = init_data_size;
+	/* Initialization data */
+	if (pieces.init_data_size) {
 		IWL_DEBUG_INFO(priv, "Copying (but not loading) init data len %Zd\n",
-			       len);
-		memcpy(priv->ucode_init_data.v_addr, src, len);
-		src += len;
+			       pieces.init_data_size);
+		memcpy(priv->ucode_init_data.v_addr, pieces.init_data,
+		       pieces.init_data_size);
 	}
 
-	/* Bootstrap instructions (5th block) */
-	len = boot_size;
-	IWL_DEBUG_INFO(priv, "Copying (but not loading) boot instr len %Zd\n", len);
-	memcpy(priv->ucode_boot.v_addr, src, len);
+	/* Bootstrap instructions */
+	IWL_DEBUG_INFO(priv, "Copying (but not loading) boot instr len %Zd\n",
+			pieces.boot_size);
+	memcpy(priv->ucode_boot.v_addr, pieces.boot, pieces.boot_size);
 
 	/**************************************************
 	 * This is still part of probe() in a sense...
