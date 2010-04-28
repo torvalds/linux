@@ -161,7 +161,7 @@ int __cpu_disable(void)
 	return 0;
 }
 #else /* ... !CONFIG_HOTPLUG_CPU */
-int native_cpu_disable(void)
+int native_cpu_disable(unsigned int cpu)
 {
 	return -ENOSYS;
 }
