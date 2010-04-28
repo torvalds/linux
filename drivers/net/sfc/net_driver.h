@@ -672,6 +672,7 @@ union efx_multicast_hash {
  *	This register is written with the SMP processor ID whenever an
  *	interrupt is handled.  It is used by efx_nic_test_interrupt()
  *	to verify that an interrupt has occurred.
+ * @irq_zero_count: Number of legacy IRQs seen with queue flags == 0
  * @fatal_irq_level: IRQ level (bit number) used for serious errors
  * @spi_flash: SPI flash device
  *	This field will be %NULL if no flash device is present (or for Siena).
@@ -756,7 +757,7 @@ struct efx_nic {
 
 	struct efx_buffer irq_status;
 	volatile signed int last_irq_cpu;
-	unsigned long irq_zero_count;
+	unsigned irq_zero_count;
 	unsigned fatal_irq_level;
 
 	struct efx_spi_device *spi_flash;
