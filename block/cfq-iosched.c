@@ -1094,7 +1094,7 @@ static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd, int create)
 
 static inline struct cfq_group *cfq_ref_get_cfqg(struct cfq_group *cfqg)
 {
-	return NULL;
+	return cfqg;
 }
 
 static inline void
