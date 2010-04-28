@@ -3924,22 +3924,6 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 
 restart:
 	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
-	shadow_mask = vcpu->arch.emulate_ctxt.interruptibility;
-
-	if (r == 0)
-		kvm_x86_ops->set_interrupt_shadow(vcpu, shadow_mask);
-
-	if (vcpu->arch.pio.count) {
-		if (!vcpu->arch.pio.in)
-			vcpu->arch.pio.count = 0;
-		return EMULATE_DO_MMIO;
-	}
-
-	if (vcpu->mmio_needed) {
-		if (vcpu->mmio_is_write)
-			vcpu->mmio_needed = 0;
-		return EMULATE_DO_MMIO;
-	}
 
 	if (r) { /* emulation failed */
 		/*
@@ -3953,6 +3937,21 @@ restart:
 		trace_kvm_emulate_insn_failed(vcpu);
 		kvm_report_emulation_failure(vcpu, "mmio");
 		return EMULATE_FAIL;
+	}
+
+	shadow_mask = vcpu->arch.emulate_ctxt.interruptibility;
+	kvm_x86_ops->set_interrupt_shadow(vcpu, shadow_mask);
+
+	if (vcpu->arch.pio.count) {
+		if (!vcpu->arch.pio.in)
+			vcpu->arch.pio.count = 0;
+		return EMULATE_DO_MMIO;
+	}
+
+	if (vcpu->mmio_needed) {
+		if (vcpu->mmio_is_write)
+			vcpu->mmio_needed = 0;
+		return EMULATE_DO_MMIO;
 	}
 
 	if (vcpu->arch.exception.pending)
