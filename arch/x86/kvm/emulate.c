@@ -3151,9 +3151,14 @@ twobyte_insn:
 			goto done;
 		}
 
-		ops->set_dr(c->modrm_reg,c->regs[c->modrm_rm] &
-			    ((ctxt->mode == X86EMUL_MODE_PROT64) ? ~0ULL : ~0U),
-			ctxt->vcpu);
+		if (ops->set_dr(c->modrm_reg, c->regs[c->modrm_rm] &
+				((ctxt->mode == X86EMUL_MODE_PROT64) ?
+				 ~0ULL : ~0U), ctxt->vcpu) < 0) {
+			/* #UD condition is already handled by the code above */
+			kvm_inject_gp(ctxt->vcpu, 0);
+			goto done;
+		}
+
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x30:

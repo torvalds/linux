@@ -573,7 +573,7 @@ unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_get_cr8);
 
-int kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
+static int __kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 {
 	switch (dr) {
 	case 0 ... 3:
@@ -582,29 +582,21 @@ int kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 			vcpu->arch.eff_db[dr] = val;
 		break;
 	case 4:
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
-			kvm_queue_exception(vcpu, UD_VECTOR);
-			return 1;
-		}
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
+			return 1; /* #UD */
 		/* fall through */
 	case 6:
-		if (val & 0xffffffff00000000ULL) {
-			kvm_inject_gp(vcpu, 0);
-			return 1;
-		}
+		if (val & 0xffffffff00000000ULL)
+			return -1; /* #GP */
 		vcpu->arch.dr6 = (val & DR6_VOLATILE) | DR6_FIXED_1;
 		break;
 	case 5:
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
-			kvm_queue_exception(vcpu, UD_VECTOR);
-			return 1;
-		}
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
+			return 1; /* #UD */
 		/* fall through */
 	default: /* 7 */
-		if (val & 0xffffffff00000000ULL) {
-			kvm_inject_gp(vcpu, 0);
-			return 1;
-		}
+		if (val & 0xffffffff00000000ULL)
+			return -1; /* #GP */
 		vcpu->arch.dr7 = (val & DR7_VOLATILE) | DR7_FIXED_1;
 		if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)) {
 			kvm_x86_ops->set_dr7(vcpu, vcpu->arch.dr7);
@@ -615,34 +607,52 @@ int kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 
 	return 0;
 }
+
+int kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
+{
+	int res;
+
+	res = __kvm_set_dr(vcpu, dr, val);
+	if (res > 0)
+		kvm_queue_exception(vcpu, UD_VECTOR);
+	else if (res < 0)
+		kvm_inject_gp(vcpu, 0);
+
+	return res;
+}
 EXPORT_SYMBOL_GPL(kvm_set_dr);
 
-int kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
+static int _kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
 {
 	switch (dr) {
 	case 0 ... 3:
 		*val = vcpu->arch.db[dr];
 		break;
 	case 4:
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
-			kvm_queue_exception(vcpu, UD_VECTOR);
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
 			return 1;
-		}
 		/* fall through */
 	case 6:
 		*val = vcpu->arch.dr6;
 		break;
 	case 5:
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
-			kvm_queue_exception(vcpu, UD_VECTOR);
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
 			return 1;
-		}
 		/* fall through */
 	default: /* 7 */
 		*val = vcpu->arch.dr7;
 		break;
 	}
 
+	return 0;
+}
+
+int kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
+{
+	if (_kvm_get_dr(vcpu, dr, val)) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
+		return 1;
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_get_dr);
@@ -3619,12 +3629,13 @@ int emulate_clts(struct kvm_vcpu *vcpu)
 
 int emulator_get_dr(int dr, unsigned long *dest, struct kvm_vcpu *vcpu)
 {
-	return kvm_get_dr(vcpu, dr, dest);
+	return _kvm_get_dr(vcpu, dr, dest);
 }
 
 int emulator_set_dr(int dr, unsigned long value, struct kvm_vcpu *vcpu)
 {
-	return kvm_set_dr(vcpu, dr, value);
+
+	return __kvm_set_dr(vcpu, dr, value);
 }
 
 void kvm_report_emulation_failure(struct kvm_vcpu *vcpu, const char *context)
