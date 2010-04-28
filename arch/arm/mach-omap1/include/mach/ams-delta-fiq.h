@@ -69,4 +69,11 @@
 
 #define FIQ_CIRC_BUFF		30      /*Start of circular buffer */
 
+#ifndef __ASSEMBLER__
+extern unsigned int fiq_buffer[];
+extern unsigned char qwerty_fiqin_start, qwerty_fiqin_end;
+
+extern void __init ams_delta_init_fiq(void);
+#endif
+
 #endif
