@@ -3361,21 +3361,6 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 	sctp_chunk_free(asconf);
 	asoc->addip_last_asconf = NULL;
 
-	/* Send the next asconf chunk from the addip chunk queue. */
-	if (!list_empty(&asoc->addip_chunk_list)) {
-		struct list_head *entry = asoc->addip_chunk_list.next;
-		asconf = list_entry(entry, struct sctp_chunk, list);
-
-		list_del_init(entry);
-
-		/* Hold the chunk until an ASCONF_ACK is received. */
-		sctp_chunk_hold(asconf);
-		if (sctp_primitive_ASCONF(asoc, asconf))
-			sctp_chunk_free(asconf);
-		else
-			asoc->addip_last_asconf = asconf;
-	}
-
 	return retval;
 }
 
