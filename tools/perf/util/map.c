@@ -629,14 +629,14 @@ void machines__process(struct rb_root *self, machine__process_t process, void *d
 	}
 }
 
-char *machine__mmap_name(struct machine *self, char *buff)
+char *machine__mmap_name(struct machine *self, char *bf, size_t size)
 {
 	if (machine__is_host(self))
-		sprintf(buff, "[%s]", "kernel.kallsyms");
+		snprintf(bf, size, "[%s]", "kernel.kallsyms");
 	else if (machine__is_default_guest(self))
-		sprintf(buff, "[%s]", "guest.kernel.kallsyms");
+		snprintf(bf, size, "[%s]", "guest.kernel.kallsyms");
 	else
-		sprintf(buff, "[%s.%d]", "guest.kernel.kallsyms", self->pid);
+		snprintf(bf, size, "[%s.%d]", "guest.kernel.kallsyms", self->pid);
 
-	return buff;
+	return bf;
 }

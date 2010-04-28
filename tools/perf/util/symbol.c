@@ -1856,7 +1856,7 @@ static int dso__load_guest_kernel_sym(struct dso *self, struct map *map,
 out_try_fixup:
 	if (err > 0) {
 		if (kallsyms_filename != NULL) {
-			machine__mmap_name(machine, path);
+			machine__mmap_name(machine, path, sizeof(path));
 			dso__set_long_name(self, strdup(path));
 		}
 		map__fixup_start(map);
@@ -1961,8 +1961,8 @@ struct dso *dso__new_kernel(const char *name)
 static struct dso *dso__new_guest_kernel(struct machine *machine,
 					const char *name)
 {
-	char buff[PATH_MAX];
-	struct dso *self = dso__new(name ?: machine__mmap_name(machine, buff));
+	char bf[PATH_MAX];
+	struct dso *self = dso__new(name ?: machine__mmap_name(machine, bf, sizeof(bf)));
 
 	if (self != NULL) {
 		dso__set_short_name(self, "[guest.kernel]");

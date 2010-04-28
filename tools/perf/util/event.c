@@ -288,7 +288,7 @@ int event__synthesize_kernel_mmap(event__handler_t process,
 	 */
 	struct process_symbol_args args = { .name = symbol_name, };
 
-	mmap_name = machine__mmap_name(machine, name_buff);
+	mmap_name = machine__mmap_name(machine, name_buff, sizeof(name_buff));
 	if (machine__is_host(machine)) {
 		/*
 		 * kernel uses PERF_RECORD_MISC_USER for user space maps,
@@ -399,7 +399,7 @@ static int event__process_kernel_mmap(event_t *self,
 		goto out_problem;
 	}
 
-	machine__mmap_name(machine, kmmap_prefix);
+	machine__mmap_name(machine, kmmap_prefix, sizeof(kmmap_prefix));
 	if (machine__is_host(machine))
 		kernel_type = DSO_TYPE_KERNEL;
 	else

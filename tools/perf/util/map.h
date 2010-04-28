@@ -133,7 +133,7 @@ struct machine *machines__add(struct rb_root *self, pid_t pid,
 struct machine *machines__find_host(struct rb_root *self);
 struct machine *machines__find(struct rb_root *self, pid_t pid);
 struct machine *machines__findnew(struct rb_root *self, pid_t pid);
-char *machine__mmap_name(struct machine *self, char *buff);
+char *machine__mmap_name(struct machine *self, char *bf, size_t size);
 
 /*
  * Default guest kernel is defined by parameter --guestkallsyms
