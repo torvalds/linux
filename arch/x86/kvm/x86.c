@@ -3838,12 +3838,26 @@ static void cache_all_regs(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs_dirty = ~0;
 }
 
+static void toggle_interruptibility(struct kvm_vcpu *vcpu, u32 mask)
+{
+	u32 int_shadow = kvm_x86_ops->get_interrupt_shadow(vcpu, mask);
+	/*
+	 * an sti; sti; sequence only disable interrupts for the first
+	 * instruction. So, if the last instruction, be it emulated or
+	 * not, left the system with the INT_STI flag enabled, it
+	 * means that the last instruction is an sti. We should not
+	 * leave the flag on in this case. The same goes for mov ss
+	 */
+	if (!(int_shadow & mask))
+		kvm_x86_ops->set_interrupt_shadow(vcpu, mask);
+}
+
 int emulate_instruction(struct kvm_vcpu *vcpu,
 			unsigned long cr2,
 			u16 error_code,
 			int emulation_type)
 {
-	int r, shadow_mask;
+	int r;
 	struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
 
 	kvm_clear_exception_queue(vcpu);
@@ -3871,6 +3885,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 			? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
 		memset(c, 0, sizeof(struct decode_cache));
 		memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
+		vcpu->arch.emulate_ctxt.interruptibility = 0;
 
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
 		trace_kvm_emulate_insn_start(vcpu);
@@ -3938,8 +3953,7 @@ restart:
 		return EMULATE_FAIL;
 	}
 
-	shadow_mask = vcpu->arch.emulate_ctxt.interruptibility;
-	kvm_x86_ops->set_interrupt_shadow(vcpu, shadow_mask);
+	toggle_interruptibility(vcpu, vcpu->arch.emulate_ctxt.interruptibility);
 	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);

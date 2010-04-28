@@ -1843,20 +1843,6 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 	return X86EMUL_CONTINUE;
 }
 
-static void toggle_interruptibility(struct x86_emulate_ctxt *ctxt, u32 mask)
-{
-	u32 int_shadow = kvm_x86_ops->get_interrupt_shadow(ctxt->vcpu, mask);
-	/*
-	 * an sti; sti; sequence only disable interrupts for the first
-	 * instruction. So, if the last instruction, be it emulated or
-	 * not, left the system with the INT_STI flag enabled, it
-	 * means that the last instruction is an sti. We should not
-	 * leave the flag on in this case. The same goes for mov ss
-	 */
-	if (!(int_shadow & mask))
-		ctxt->interruptibility = mask;
-}
-
 static inline void
 setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 			struct x86_emulate_ops *ops, struct desc_struct *cs,
@@ -2516,7 +2502,6 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	int rc = X86EMUL_CONTINUE;
 	int saved_dst_type = c->dst.type;
 
-	ctxt->interruptibility = 0;
 	ctxt->decode.mem_read.pos = 0;
 
 	if (ctxt->mode == X86EMUL_MODE_PROT64 && (c->d & No64)) {
@@ -2789,7 +2774,7 @@ special_insn:
 		}
 
 		if (c->modrm_reg == VCPU_SREG_SS)
-			toggle_interruptibility(ctxt, KVM_X86_SHADOW_INT_MOV_SS);
+			ctxt->interruptibility = KVM_X86_SHADOW_INT_MOV_SS;
 
 		rc = load_segment_descriptor(ctxt, ops, sel, c->modrm_reg);
 
@@ -2958,7 +2943,7 @@ special_insn:
 		if (emulator_bad_iopl(ctxt, ops))
 			kvm_inject_gp(ctxt->vcpu, 0);
 		else {
-			toggle_interruptibility(ctxt, KVM_X86_SHADOW_INT_STI);
+			ctxt->interruptibility = KVM_X86_SHADOW_INT_STI;
 			ctxt->eflags |= X86_EFLAGS_IF;
 			c->dst.type = OP_NONE;	/* Disable writeback. */
 		}
