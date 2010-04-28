@@ -1551,7 +1551,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	u32 api_ver, build;
 	u32 inst_size, data_size, init_size, init_data_size, boot_size;
 	int err, hdr_size;
-	u16 eeprom_ver;
 	char buildstr[25];
 
 	if (!ucode_raw) {
@@ -1653,11 +1652,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		 IWL_UCODE_API(priv->ucode_ver),
 		 IWL_UCODE_SERIAL(priv->ucode_ver),
 		 buildstr);
-
-	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
-	IWL_DEBUG_INFO(priv, "NVM Type: %s, version: 0x%x\n",
-		       (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
-		       ? "OTP" : "EEPROM", eeprom_ver);
 
 	IWL_DEBUG_INFO(priv, "f/w package hdr ucode version raw = 0x%x\n",
 		       priv->ucode_ver);
