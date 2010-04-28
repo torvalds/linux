@@ -1512,9 +1512,11 @@ __xfs_get_blocks(
 	}
 
 	if (direct || size > (1 << inode->i_blkbits)) {
-		ASSERT(iomap.iomap_bsize - iomap.iomap_delta > 0);
+		xfs_off_t iomap_delta = offset - iomap.iomap_offset;
+
+		ASSERT(iomap.iomap_bsize - iomap_delta > 0);
 		offset = min_t(xfs_off_t,
-				iomap.iomap_bsize - iomap.iomap_delta, size);
+				iomap.iomap_bsize - iomap_delta, size);
 		bh_result->b_size = (ssize_t)min_t(xfs_off_t, LONG_MAX, offset);
 	}
 

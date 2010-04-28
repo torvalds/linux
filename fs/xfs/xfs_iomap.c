@@ -68,7 +68,6 @@ xfs_imap_to_bmap(
 	xfs_fsblock_t	start_block;
 
 	iomapp->iomap_offset = XFS_FSB_TO_B(mp, imap->br_startoff);
-	iomapp->iomap_delta = offset - iomapp->iomap_offset;
 	iomapp->iomap_bsize = XFS_FSB_TO_B(mp, imap->br_blockcount);
 	iomapp->iomap_flags = flags;
 
