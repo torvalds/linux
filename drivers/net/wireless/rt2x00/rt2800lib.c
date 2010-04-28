@@ -75,6 +75,23 @@ MODULE_LICENSE("GPL");
 	rt2800_regbusy_read((__dev), H2M_MAILBOX_CSR, \
 			    H2M_MAILBOX_CSR_OWNER, (__reg))
 
+static inline bool rt2800_is_305x_soc(struct rt2x00_dev *rt2x00dev)
+{
+	/* check for rt2872 on SoC */
+	if (!rt2x00_is_soc(rt2x00dev) ||
+	    !rt2x00_rt(rt2x00dev, RT2872))
+		return false;
+
+	/* we know for sure that these rf chipsets are used on rt305x boards */
+	if (rt2x00_rf(rt2x00dev, RF3020) ||
+	    rt2x00_rf(rt2x00dev, RF3021) ||
+	    rt2x00_rf(rt2x00dev, RF3022))
+		return true;
+
+	NOTICE(rt2x00dev, "Unknown RF chipset on rt305x\n");
+	return false;
+}
+
 static void rt2800_bbp_write(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int word, const u8 value)
 {
@@ -1555,6 +1572,9 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 		     rt2800_wait_bbp_ready(rt2x00dev)))
 		return -EACCES;
 
+	if (rt2800_is_305x_soc(rt2x00dev))
+		rt2800_bbp_write(rt2x00dev, 31, 0x08);
+
 	rt2800_bbp_write(rt2x00dev, 65, 0x2c);
 	rt2800_bbp_write(rt2x00dev, 66, 0x38);
 
@@ -1575,6 +1595,9 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 		rt2800_bbp_write(rt2x00dev, 79, 0x13);
 		rt2800_bbp_write(rt2x00dev, 80, 0x05);
 		rt2800_bbp_write(rt2x00dev, 81, 0x33);
+	} else if (rt2800_is_305x_soc(rt2x00dev)) {
+		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
+		rt2800_bbp_write(rt2x00dev, 80, 0x08);
 	} else {
 		rt2800_bbp_write(rt2x00dev, 81, 0x37);
 	}
@@ -1595,12 +1618,16 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00_rt_rev_gte(rt2x00dev, RT3070, REV_RT3070F) ||
 	    rt2x00_rt_rev_gte(rt2x00dev, RT3071, REV_RT3071E) ||
 	    rt2x00_rt_rev_gte(rt2x00dev, RT3090, REV_RT3090E) ||
-	    rt2x00_rt_rev_gte(rt2x00dev, RT3390, REV_RT3390E))
+	    rt2x00_rt_rev_gte(rt2x00dev, RT3390, REV_RT3390E) ||
+	    rt2800_is_305x_soc(rt2x00dev))
 		rt2800_bbp_write(rt2x00dev, 103, 0xc0);
 	else
 		rt2800_bbp_write(rt2x00dev, 103, 0x00);
 
-	rt2800_bbp_write(rt2x00dev, 105, 0x05);
+	if (rt2800_is_305x_soc(rt2x00dev))
+		rt2800_bbp_write(rt2x00dev, 105, 0x01);
+	else
+		rt2800_bbp_write(rt2x00dev, 105, 0x05);
 	rt2800_bbp_write(rt2x00dev, 106, 0x35);
 
 	if (rt2x00_rt(rt2x00dev, RT3071) ||
@@ -1617,11 +1644,6 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 		rt2800_bbp_write(rt2x00dev, 138, value);
 	}
 
-	if (rt2x00_rt(rt2x00dev, RT2872)) {
-		rt2800_bbp_write(rt2x00dev, 31, 0x08);
-		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
-		rt2800_bbp_write(rt2x00dev, 80, 0x08);
-	}
 
 	for (i = 0; i < EEPROM_BBP_SIZE; i++) {
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_BBP_START + i, &eeprom);
@@ -1708,7 +1730,7 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	    !rt2x00_rt(rt2x00dev, RT3071) &&
 	    !rt2x00_rt(rt2x00dev, RT3090) &&
 	    !rt2x00_rt(rt2x00dev, RT3390) &&
-	    !(rt2x00_is_soc(rt2x00dev) && rt2x00_rt(rt2x00dev, RT2872)))
+	    !rt2800_is_305x_soc(rt2x00dev))
 		return 0;
 
 	/*
@@ -1776,7 +1798,7 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 29, 0x8f);
 		rt2800_rfcsr_write(rt2x00dev, 30, 0x20);
 		rt2800_rfcsr_write(rt2x00dev, 31, 0x0f);
-	} else if (rt2x00_rt(rt2x00dev, RT2872)) {
+	} else if (rt2800_is_305x_soc(rt2x00dev)) {
 		rt2800_rfcsr_write(rt2x00dev, 0, 0x50);
 		rt2800_rfcsr_write(rt2x00dev, 1, 0x01);
 		rt2800_rfcsr_write(rt2x00dev, 2, 0xf7);
@@ -1807,6 +1829,9 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 27, 0x23);
 		rt2800_rfcsr_write(rt2x00dev, 28, 0x13);
 		rt2800_rfcsr_write(rt2x00dev, 29, 0x83);
+		rt2800_rfcsr_write(rt2x00dev, 30, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 31, 0x00);
+		return 0;
 	}
 
 	if (rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070F)) {
