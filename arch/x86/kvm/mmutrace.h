@@ -92,15 +92,15 @@ TRACE_EVENT(
 	TP_printk("pte %llx level %u", __entry->pte, __entry->level)
 );
 
-/* We set a pte accessed bit */
-TRACE_EVENT(
-	kvm_mmu_set_accessed_bit,
+DECLARE_EVENT_CLASS(kvm_mmu_set_bit_class,
+
 	TP_PROTO(unsigned long table_gfn, unsigned index, unsigned size),
+
 	TP_ARGS(table_gfn, index, size),
 
 	TP_STRUCT__entry(
 		__field(__u64, gpa)
-		),
+	),
 
 	TP_fast_assign(
 		__entry->gpa = ((u64)table_gfn << PAGE_SHIFT)
@@ -110,22 +110,20 @@ TRACE_EVENT(
 	TP_printk("gpa %llx", __entry->gpa)
 );
 
-/* We set a pte dirty bit */
-TRACE_EVENT(
-	kvm_mmu_set_dirty_bit,
+/* We set a pte accessed bit */
+DEFINE_EVENT(kvm_mmu_set_bit_class, kvm_mmu_set_accessed_bit,
+
 	TP_PROTO(unsigned long table_gfn, unsigned index, unsigned size),
-	TP_ARGS(table_gfn, index, size),
 
-	TP_STRUCT__entry(
-		__field(__u64, gpa)
-		),
+	TP_ARGS(table_gfn, index, size)
+);
 
-	TP_fast_assign(
-		__entry->gpa = ((u64)table_gfn << PAGE_SHIFT)
-				+ index * size;
-		),
+/* We set a pte dirty bit */
+DEFINE_EVENT(kvm_mmu_set_bit_class, kvm_mmu_set_dirty_bit,
 
-	TP_printk("gpa %llx", __entry->gpa)
+	TP_PROTO(unsigned long table_gfn, unsigned index, unsigned size),
+
+	TP_ARGS(table_gfn, index, size)
 );
 
 TRACE_EVENT(
@@ -164,54 +162,39 @@ TRACE_EVENT(
 		  __entry->created ? "new" : "existing")
 );
 
-TRACE_EVENT(
-	kvm_mmu_sync_page,
+DECLARE_EVENT_CLASS(kvm_mmu_page_class,
+
 	TP_PROTO(struct kvm_mmu_page *sp),
 	TP_ARGS(sp),
 
 	TP_STRUCT__entry(
 		KVM_MMU_PAGE_FIELDS
-		),
+	),
 
 	TP_fast_assign(
 		KVM_MMU_PAGE_ASSIGN(sp)
-		),
+	),
 
 	TP_printk("%s", KVM_MMU_PAGE_PRINTK())
 );
 
-TRACE_EVENT(
-	kvm_mmu_unsync_page,
+DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_sync_page,
 	TP_PROTO(struct kvm_mmu_page *sp),
-	TP_ARGS(sp),
 
-	TP_STRUCT__entry(
-		KVM_MMU_PAGE_FIELDS
-		),
-
-	TP_fast_assign(
-		KVM_MMU_PAGE_ASSIGN(sp)
-		),
-
-	TP_printk("%s", KVM_MMU_PAGE_PRINTK())
+	TP_ARGS(sp)
 );
 
-TRACE_EVENT(
-	kvm_mmu_zap_page,
+DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_unsync_page,
 	TP_PROTO(struct kvm_mmu_page *sp),
-	TP_ARGS(sp),
 
-	TP_STRUCT__entry(
-		KVM_MMU_PAGE_FIELDS
-		),
-
-	TP_fast_assign(
-		KVM_MMU_PAGE_ASSIGN(sp)
-		),
-
-	TP_printk("%s", KVM_MMU_PAGE_PRINTK())
+	TP_ARGS(sp)
 );
 
+DEFINE_EVENT(kvm_mmu_page_class, kvm_mmu_zap_page,
+	TP_PROTO(struct kvm_mmu_page *sp),
+
+	TP_ARGS(sp)
+);
 #endif /* _TRACE_KVMMMU_H */
 
 #undef TRACE_INCLUDE_PATH
