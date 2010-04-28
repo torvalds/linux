@@ -1563,6 +1563,8 @@ void efx_nic_init_common(struct efx_nic *efx)
 			     FRF_AZ_ILL_ADR_INT_KER_EN, 1,
 			     FRF_AZ_RBUF_OWN_INT_KER_EN, 1,
 			     FRF_AZ_TBUF_OWN_INT_KER_EN, 1);
+	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0)
+		EFX_SET_OWORD_FIELD(temp, FRF_CZ_SRAM_PERR_INT_P_KER_EN, 1);
 	EFX_INVERT_OWORD(temp);
 	efx_writeo(efx, &temp, FR_AZ_FATAL_INTR_KER);
 
