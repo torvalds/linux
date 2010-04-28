@@ -591,10 +591,6 @@ void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int kvm_emulate_halt(struct kvm_vcpu *vcpu);
 int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address);
 int emulate_clts(struct kvm_vcpu *vcpu);
-int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr,
-		    unsigned long *dest);
-int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr,
-		    unsigned long value);
 
 void kvm_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector, int seg);

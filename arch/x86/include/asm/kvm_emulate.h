@@ -137,6 +137,8 @@ struct x86_emulate_ops {
 	void (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
 	int (*cpl)(struct kvm_vcpu *vcpu);
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
+	int (*get_dr)(int dr, unsigned long *dest, struct kvm_vcpu *vcpu);
+	int (*set_dr)(int dr, unsigned long value, struct kvm_vcpu *vcpu);
 };
 
 /* Type, address-of, and value of an instruction's operand. */

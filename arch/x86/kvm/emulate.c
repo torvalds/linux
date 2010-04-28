@@ -3132,7 +3132,7 @@ twobyte_insn:
 			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
 			goto done;
 		}
-		emulator_get_dr(ctxt, c->modrm_reg, &c->regs[c->modrm_rm]);
+		ops->get_dr(c->modrm_reg, &c->regs[c->modrm_rm], ctxt->vcpu);
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x22: /* mov reg, cr */
@@ -3145,7 +3145,10 @@ twobyte_insn:
 			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
 			goto done;
 		}
-		emulator_set_dr(ctxt, c->modrm_reg, c->regs[c->modrm_rm]);
+
+		ops->set_dr(c->modrm_reg,c->regs[c->modrm_rm] &
+			    ((ctxt->mode == X86EMUL_MODE_PROT64) ? ~0ULL : ~0U),
+			ctxt->vcpu);
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x30:

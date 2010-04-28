@@ -3620,16 +3620,14 @@ int emulate_clts(struct kvm_vcpu *vcpu)
 	return X86EMUL_CONTINUE;
 }
 
-int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long *dest)
+int emulator_get_dr(int dr, unsigned long *dest, struct kvm_vcpu *vcpu)
 {
-	return kvm_get_dr(ctxt->vcpu, dr, dest);
+	return kvm_get_dr(vcpu, dr, dest);
 }
 
-int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long value)
+int emulator_set_dr(int dr, unsigned long value, struct kvm_vcpu *vcpu)
 {
-	unsigned long mask = (ctxt->mode == X86EMUL_MODE_PROT64) ? ~0ULL : ~0U;
-
-	return kvm_set_dr(ctxt->vcpu, dr, value & mask);
+	return kvm_set_dr(vcpu, dr, value);
 }
 
 void kvm_report_emulation_failure(struct kvm_vcpu *vcpu, const char *context)
@@ -3811,6 +3809,8 @@ static struct x86_emulate_ops emulate_ops = {
 	.set_cr              = emulator_set_cr,
 	.cpl                 = emulator_get_cpl,
 	.set_rflags          = emulator_set_rflags,
+	.get_dr              = emulator_get_dr,
+	.set_dr              = emulator_set_dr,
 };
 
 static void cache_all_regs(struct kvm_vcpu *vcpu)
