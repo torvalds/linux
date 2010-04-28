@@ -3275,7 +3275,7 @@ static int kvm_read_guest_virt_helper(gva_t addr, void *val, unsigned int bytes,
 		}
 		ret = kvm_read_guest(vcpu->kvm, gpa, data, toread);
 		if (ret < 0) {
-			r = X86EMUL_UNHANDLEABLE;
+			r = X86EMUL_IO_NEEDED;
 			goto out;
 		}
 
@@ -3331,7 +3331,7 @@ static int kvm_write_guest_virt_system(gva_t addr, void *val,
 		}
 		ret = kvm_write_guest(vcpu->kvm, gpa, data, towrite);
 		if (ret < 0) {
-			r = X86EMUL_UNHANDLEABLE;
+			r = X86EMUL_IO_NEEDED;
 			goto out;
 		}
 
@@ -3391,7 +3391,7 @@ mmio:
 	vcpu->run->mmio.len = vcpu->mmio_size = bytes;
 	vcpu->run->mmio.is_write = vcpu->mmio_is_write = 0;
 
-	return X86EMUL_UNHANDLEABLE;
+	return X86EMUL_IO_NEEDED;
 }
 
 int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
@@ -3863,8 +3863,6 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	 */
 	cache_all_regs(vcpu);
 
-	vcpu->mmio_is_write = 0;
-
 	if (!(emulation_type & EMULTYPE_NO_DECODE)) {
 		int cs_db, cs_l;
 		kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
@@ -3938,24 +3936,26 @@ restart:
 		return EMULATE_DO_MMIO;
 	}
 
-	if (r) {
+	if (vcpu->mmio_needed) {
+		if (vcpu->mmio_is_write)
+			vcpu->mmio_needed = 0;
+		return EMULATE_DO_MMIO;
+	}
+
+	if (r) { /* emulation failed */
+		/*
+		 * if emulation was due to access to shadowed page table
+		 * and it failed try to unshadow page and re-entetr the
+		 * guest to let CPU execute the instruction.
+		 */
 		if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
-			goto done;
-		if (!vcpu->mmio_needed) {
-			++vcpu->stat.insn_emulation_fail;
-			trace_kvm_emulate_insn_failed(vcpu);
-			kvm_report_emulation_failure(vcpu, "mmio");
-			return EMULATE_FAIL;
-		}
-		return EMULATE_DO_MMIO;
+			return EMULATE_DONE;
+
+		trace_kvm_emulate_insn_failed(vcpu);
+		kvm_report_emulation_failure(vcpu, "mmio");
+		return EMULATE_FAIL;
 	}
 
-	if (vcpu->mmio_is_write) {
-		vcpu->mmio_needed = 0;
-		return EMULATE_DO_MMIO;
-	}
-
-done:
 	if (vcpu->arch.exception.pending)
 		vcpu->arch.emulate_ctxt.restart = false;
 

@@ -53,6 +53,7 @@ struct x86_emulate_ctxt;
 #define X86EMUL_PROPAGATE_FAULT 2 /* propagate a generated fault to guest */
 #define X86EMUL_RETRY_INSTR     3 /* retry the instruction for some reason */
 #define X86EMUL_CMPXCHG_FAILED  4 /* cmpxchg did not see expected value */
+#define X86EMUL_IO_NEEDED       5 /* IO is needed to complete emulation */
 
 struct x86_emulate_ops {
 	/*
