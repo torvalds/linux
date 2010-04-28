@@ -389,7 +389,7 @@ static struct srb* qla4xxx_get_new_srb(struct scsi_qla_host *ha,
 	srb->ddb = ddb_entry;
 	srb->cmd = cmd;
 	srb->flags = 0;
-	cmd->SCp.ptr = (void *)srb;
+	CMD_SP(cmd) = (void *)srb;
 	cmd->scsi_done = done;
 
 	return srb;
@@ -403,7 +403,7 @@ static void qla4xxx_srb_free_dma(struct scsi_qla_host *ha, struct srb *srb)
 		scsi_dma_unmap(cmd);
 		srb->flags &= ~SRB_DMA_VALID;
 	}
-	cmd->SCp.ptr = NULL;
+	CMD_SP(cmd) = NULL;
 }
 
 void qla4xxx_srb_compl(struct scsi_qla_host *ha, struct srb *srb)
@@ -891,7 +891,6 @@ static void qla4xxx_flush_active_srbs(struct scsi_qla_host *ha)
 		}
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
 }
 
 /**
@@ -1479,12 +1478,14 @@ static void qla4xxx_slave_destroy(struct scsi_device *sdev)
 struct srb * qla4xxx_del_from_active_array(struct scsi_qla_host *ha, uint32_t index)
 {
 	struct srb *srb = NULL;
-	struct scsi_cmnd *cmd;
+	struct scsi_cmnd *cmd = NULL;
 
-	if (!(cmd = scsi_host_find_tag(ha->host, index)))
+	cmd = scsi_host_find_tag(ha->host, index);
+	if (!cmd)
 		return srb;
 
-	if (!(srb = (struct srb *)cmd->host_scribble))
+	srb = (struct srb *)CMD_SP(cmd);
+	if (!srb)
 		return srb;
 
 	/* update counters */
@@ -1492,7 +1493,8 @@ struct srb * qla4xxx_del_from_active_array(struct scsi_qla_host *ha, uint32_t in
 		ha->req_q_count += srb->iocb_cnt;
 		ha->iocb_cnt -= srb->iocb_cnt;
 		if (srb->cmd)
-			srb->cmd->host_scribble = NULL;
+			srb->cmd->host_scribble =
+				(unsigned char *)(unsigned long) MAX_SRBS;
 	}
 	return srb;
 }
@@ -1514,7 +1516,7 @@ static int qla4xxx_eh_wait_on_command(struct scsi_qla_host *ha,
 
 	do {
 		/* Checking to see if its returned to OS */
-		rp = (struct srb *) cmd->SCp.ptr;
+		rp = (struct srb *) CMD_SP(cmd);
 		if (rp == NULL) {
 			done++;
 			break;

@@ -148,6 +148,8 @@
 
 #define MAX_RESET_HA_RETRIES		2
 
+#define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
+
 /*
  * SCSI Request Block structure	 (srb)	that is placed
  * on cmd->SCp location of every I/O	 [We have 22 bytes available]
