@@ -9,8 +9,6 @@
 #define DRV_NAME "libertas_tf"
 #endif
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/spinlock.h>
 
 #ifdef CONFIG_LIBERTAS_THINFIRM_DEBUG

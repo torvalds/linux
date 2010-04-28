@@ -7,9 +7,10 @@
  *  the Free Software Foundation; either version 2 of the License, or (at
  *  your option) any later version.
  */
-#include "deb_defs.h"
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <linux/etherdevice.h>
 #include "libertas_tf.h"
-#include "linux/etherdevice.h"
 
 #define DRIVER_RELEASE_VERSION "004.p0"
 /* thinfirm version: 5.132.X.pX */
