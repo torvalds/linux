@@ -162,9 +162,8 @@ int dso__load_vmlinux_path(struct dso *self, struct map *map,
 			   symbol_filter_t filter);
 int dso__load_kallsyms(struct dso *self, const char *filename, struct map *map,
 		       symbol_filter_t filter);
-void dsos__fprintf(struct rb_root *kerninfo_root, FILE *fp);
-size_t dsos__fprintf_buildid(struct rb_root *kerninfo_root,
-		FILE *fp, bool with_hits);
+size_t machines__fprintf_dsos(struct rb_root *self, FILE *fp);
+size_t machines__fprintf_dsos_buildid(struct rb_root *self, FILE *fp, bool with_hits);
 
 size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
 size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp);

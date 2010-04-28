@@ -127,4 +127,17 @@ void perf_session__process_machines(struct perf_session *self,
 {
 	return machines__process(&self->machines, process, self);
 }
+
+static inline
+size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp)
+{
+	return machines__fprintf_dsos(&self->machines, fp);
+}
+
+static inline
+size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,
+					  bool with_hits)
+{
+	return machines__fprintf_dsos_buildid(&self->machines, fp, with_hits);
+}
 #endif /* __PERF_SESSION_H */

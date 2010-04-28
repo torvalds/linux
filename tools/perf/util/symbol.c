@@ -1889,26 +1889,32 @@ struct dso *__dsos__findnew(struct list_head *head, const char *name)
 	return dso;
 }
 
-static void __dsos__fprintf(struct list_head *head, FILE *fp)
+static size_t __dsos__fprintf(struct list_head *head, FILE *fp)
 {
 	struct dso *pos;
+	size_t ret = 0;
 
 	list_for_each_entry(pos, head, node) {
 		int i;
 		for (i = 0; i < MAP__NR_TYPES; ++i)
-			dso__fprintf(pos, i, fp);
+			ret += dso__fprintf(pos, i, fp);
 	}
+
+	return ret;
 }
 
-void dsos__fprintf(struct rb_root *machines, FILE *fp)
+size_t machines__fprintf_dsos(struct rb_root *self, FILE *fp)
 {
 	struct rb_node *nd;
+	size_t ret = 0;
 
-	for (nd = rb_first(machines); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(self); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		__dsos__fprintf(&pos->kernel_dsos, fp);
-		__dsos__fprintf(&pos->user_dsos, fp);
+		ret += __dsos__fprintf(&pos->kernel_dsos, fp);
+		ret += __dsos__fprintf(&pos->user_dsos, fp);
 	}
+
+	return ret;
 }
 
 static size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
@@ -1926,12 +1932,12 @@ static size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
 	return ret;
 }
 
-size_t dsos__fprintf_buildid(struct rb_root *machines, FILE *fp, bool with_hits)
+size_t machines__fprintf_dsos_buildid(struct rb_root *self, FILE *fp, bool with_hits)
 {
 	struct rb_node *nd;
 	size_t ret = 0;
 
-	for (nd = rb_first(machines); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(self); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret += __dsos__fprintf_buildid(&pos->kernel_dsos, fp, with_hits);
 		ret += __dsos__fprintf_buildid(&pos->user_dsos, fp, with_hits);

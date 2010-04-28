@@ -854,7 +854,7 @@ static void handle_keypress(struct perf_session *session, int c)
 		case 'Q':
 			printf("exiting.\n");
 			if (dump_symtab)
-				dsos__fprintf(&session->machines, stderr);
+				perf_session__fprintf_dsos(session, stderr);
 			exit(0);
 		case 's':
 			prompt_symbol(&sym_filter_entry, "Enter details symbol");

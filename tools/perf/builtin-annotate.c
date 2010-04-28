@@ -571,7 +571,7 @@ static int __cmd_annotate(void)
 		perf_session__fprintf(session, stdout);
 
 	if (verbose > 2)
-		dsos__fprintf(&session->machines, stdout);
+		perf_session__fprintf_dsos(session, stdout);
 
 	perf_session__collapse_resort(&session->hists);
 	perf_session__output_resort(&session->hists, session->event_total[0]);
