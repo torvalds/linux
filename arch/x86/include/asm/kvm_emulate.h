@@ -51,8 +51,9 @@ struct x86_emulate_ctxt;
 #define X86EMUL_UNHANDLEABLE    1
 /* Terminate emulation but return success to the caller. */
 #define X86EMUL_PROPAGATE_FAULT 2 /* propagate a generated fault to guest */
-#define X86EMUL_RETRY_INSTR     2 /* retry the instruction for some reason */
-#define X86EMUL_CMPXCHG_FAILED  2 /* cmpxchg did not see expected value */
+#define X86EMUL_RETRY_INSTR     3 /* retry the instruction for some reason */
+#define X86EMUL_CMPXCHG_FAILED  4 /* cmpxchg did not see expected value */
+
 struct x86_emulate_ops {
 	/*
 	 * read_std: Read bytes of standard (non-emulated/special) memory.
