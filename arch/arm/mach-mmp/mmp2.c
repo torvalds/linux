@@ -22,6 +22,7 @@
 #include <mach/regs-apmu.h>
 #include <mach/cputype.h>
 #include <mach/irqs.h>
+#include <mach/dma.h>
 #include <mach/mfp.h>
 #include <mach/gpio.h>
 #include <mach/devices.h>
@@ -149,6 +150,7 @@ static int __init mmp2_init(void)
 #endif
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(mmp2_addr_map);
+		pxa_init_dma(IRQ_MMP2_DMA_RIQ, 16);
 		clkdev_add_table(ARRAY_AND_SIZE(mmp2_clkregs));
 	}
 
