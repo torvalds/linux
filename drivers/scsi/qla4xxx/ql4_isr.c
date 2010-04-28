@@ -498,15 +498,22 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			break;
 
 		case MBOX_ASTS_LINK_UP:
-			DEBUG2(printk("scsi%ld: AEN %04x Adapter LINK UP\n",
-				      ha->host_no, mbox_status));
 			set_bit(AF_LINK_UP, &ha->flags);
+			if (test_bit(AF_INIT_DONE, &ha->flags))
+				set_bit(DPC_LINK_CHANGED, &ha->dpc_flags);
+
+			DEBUG2(printk(KERN_INFO "scsi%ld: AEN %04x Adapter"
+					" LINK UP\n", ha->host_no,
+					mbox_status));
 			break;
 
 		case MBOX_ASTS_LINK_DOWN:
-			DEBUG2(printk("scsi%ld: AEN %04x Adapter LINK DOWN\n",
-				      ha->host_no, mbox_status));
 			clear_bit(AF_LINK_UP, &ha->flags);
+			set_bit(DPC_LINK_CHANGED, &ha->dpc_flags);
+
+			DEBUG2(printk(KERN_INFO "scsi%ld: AEN %04x Adapter"
+					" LINK DOWN\n", ha->host_no,
+					mbox_status));
 			break;
 
 		case MBOX_ASTS_HEARTBEAT:

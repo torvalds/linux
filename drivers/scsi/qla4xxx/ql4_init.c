@@ -1279,6 +1279,7 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha,
 	int status = QLA_ERROR;
 	int8_t ip_address[IP_ADDR_LEN] = {0} ;
 
+	clear_bit(AF_ONLINE, &ha->flags);
 	ha->eeprom_cmd_data = 0;
 
 	qla4x00_pci_config(ha);
@@ -1456,10 +1457,15 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha,
 		 * the device came back.
 		 */
 	} else {
-		/* Device went away, try to relogin. */
-		/* Mark device missing */
-		if (atomic_read(&ddb_entry->state) == DDB_STATE_ONLINE)
+		/* Device went away, mark device missing */
+		if (atomic_read(&ddb_entry->state) == DDB_STATE_ONLINE) {
+			DEBUG2(dev_info(&ha->pdev->dev, "%s mark missing "
+					"ddb_entry 0x%p sess 0x%p conn 0x%p\n",
+					__func__, ddb_entry,
+					ddb_entry->sess, ddb_entry->conn));
 			qla4xxx_mark_device_missing(ha, ddb_entry);
+		}
+
 		/*
 		 * Relogin if device state changed to a not active state.
 		 * However, do not relogin if this aen is a result of an IOCTL

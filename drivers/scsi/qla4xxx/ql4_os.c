@@ -685,6 +685,7 @@ static void qla4xxx_timer(struct scsi_qla_host *ha)
 	     test_bit(DPC_RESET_HA_DESTROY_DDB_LIST, &ha->dpc_flags) ||
 	     test_bit(DPC_RESET_HA_INTR, &ha->dpc_flags) ||
 	     test_bit(DPC_GET_DHCP_IP_ADDR, &ha->dpc_flags) ||
+	     test_bit(DPC_LINK_CHANGED, &ha->dpc_flags) ||
 	     test_bit(DPC_AEN, &ha->dpc_flags)) &&
 	     ha->dpc_thread) {
 		DEBUG2(printk("scsi%ld: %s: scheduling dpc routine"
@@ -1068,6 +1069,54 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 	/* ---- Get DHCP IP Address? --- */
 	if (test_and_clear_bit(DPC_GET_DHCP_IP_ADDR, &ha->dpc_flags))
 		qla4xxx_get_dhcp_ip_address(ha);
+
+	/* ---- link change? --- */
+	if (test_and_clear_bit(DPC_LINK_CHANGED, &ha->dpc_flags)) {
+		if (!test_bit(AF_LINK_UP, &ha->flags)) {
+			/* ---- link down? --- */
+			list_for_each_entry_safe(ddb_entry, dtemp,
+						 &ha->ddb_list, list) {
+				if (atomic_read(&ddb_entry->state) ==
+						DDB_STATE_ONLINE)
+					qla4xxx_mark_device_missing(ha,
+							ddb_entry);
+			}
+		} else {
+			/* ---- link up? --- *
+			 * F/W will auto login to all devices ONLY ONCE after
+			 * link up during driver initialization and runtime
+			 * fatal error recovery.  Therefore, the driver must
+			 * manually relogin to devices when recovering from
+			 * connection failures, logouts, expired KATO, etc. */
+
+			list_for_each_entry_safe(ddb_entry, dtemp,
+							&ha->ddb_list, list) {
+				if ((atomic_read(&ddb_entry->state) ==
+						 DDB_STATE_MISSING) ||
+				    (atomic_read(&ddb_entry->state) ==
+						 DDB_STATE_DEAD)) {
+					if (ddb_entry->fw_ddb_device_state ==
+					    DDB_DS_SESSION_ACTIVE) {
+						atomic_set(&ddb_entry->state,
+							   DDB_STATE_ONLINE);
+						dev_info(&ha->pdev->dev,
+						    "scsi%ld: %s: ddb[%d]"
+						    " os[%d] marked"
+						    " ONLINE\n",
+						    ha->host_no, __func__,
+						    ddb_entry->fw_ddb_index,
+						    ddb_entry->os_target_id);
+
+						iscsi_unblock_session(
+						    ddb_entry->sess);
+					} else
+						qla4xxx_relogin_device(
+						    ha, ddb_entry);
+				}
+
+			}
+		}
+	}
 
 	/* ---- relogin device? --- */
 	if (adapter_up(ha) &&
