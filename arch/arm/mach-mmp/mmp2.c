@@ -101,7 +101,7 @@ static int __init mmp2_init(void)
 	if (cpu_is_mmp2()) {
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(mmp2_addr_map);
-		clks_register(ARRAY_AND_SIZE(mmp2_clkregs));
+		clkdev_add_table(ARRAY_AND_SIZE(mmp2_clkregs));
 	}
 
 	return 0;
