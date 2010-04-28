@@ -338,7 +338,6 @@ enum igb_boards {
 extern char igb_driver_name[];
 extern char igb_driver_version[];
 
-extern char *igb_get_hw_dev_name(struct e1000_hw *hw);
 extern int igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);
