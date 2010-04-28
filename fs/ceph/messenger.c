@@ -1546,7 +1546,6 @@ static int try_write(struct ceph_connection *con)
 	dout("try_write start %p state %lu nref %d\n", con, con->state,
 	     atomic_read(&con->nref));
 
-	mutex_lock(&con->mutex);
 more:
 	dout("try_write out_kvec_bytes %d\n", con->out_kvec_bytes);
 
@@ -1639,7 +1638,6 @@ do_next:
 done:
 	ret = 0;
 out:
-	mutex_unlock(&con->mutex);
 	dout("try_write done on %p\n", con);
 	return ret;
 }
@@ -1651,7 +1649,6 @@ out:
  */
 static int try_read(struct ceph_connection *con)
 {
-	struct ceph_messenger *msgr;
 	int ret = -1;
 
 	if (!con->sock)
@@ -1661,9 +1658,6 @@ static int try_read(struct ceph_connection *con)
 		return 0;
 
 	dout("try_read start on %p\n", con);
-	msgr = con->msgr;
-
-	mutex_lock(&con->mutex);
 
 more:
 	dout("try_read tag %d in_base_pos %d\n", (int)con->in_tag,
@@ -1758,7 +1752,6 @@ more:
 done:
 	ret = 0;
 out:
-	mutex_unlock(&con->mutex);
 	dout("try_read done on %p\n", con);
 	return ret;
 
@@ -1830,6 +1823,8 @@ more:
 	dout("con_work %p start, clearing QUEUED\n", con);
 	clear_bit(QUEUED, &con->state);
 
+	mutex_lock(&con->mutex);
+
 	if (test_bit(CLOSED, &con->state)) { /* e.g. if we are replaced */
 		dout("con_work CLOSED\n");
 		con_close_socket(con);
@@ -1844,11 +1839,16 @@ more:
 	if (test_and_clear_bit(SOCK_CLOSED, &con->state) ||
 	    try_read(con) < 0 ||
 	    try_write(con) < 0) {
+		mutex_unlock(&con->mutex);
 		backoff = 1;
 		ceph_fault(con);     /* error/fault path */
+		goto done_unlocked;
 	}
 
 done:
+	mutex_unlock(&con->mutex);
+
+done_unlocked:
 	clear_bit(BUSY, &con->state);
 	dout("con->state=%lu\n", con->state);
 	if (test_bit(QUEUED, &con->state)) {
