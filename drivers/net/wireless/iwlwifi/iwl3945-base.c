@@ -3293,7 +3293,7 @@ void iwl3945_config_ap(struct iwl_priv *priv)
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwlcore_commit_rxon(priv);
-		iwl_add_local_station(priv, iwl_bcast_addr, false);
+		iwl3945_add_bcast_station(priv);
 	}
 	iwl3945_send_beacon_cmd(priv);
 
