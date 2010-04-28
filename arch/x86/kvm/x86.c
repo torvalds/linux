@@ -3844,7 +3844,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 			int emulation_type)
 {
 	int r, shadow_mask;
-	struct decode_cache *c;
+	struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
 
 	kvm_clear_exception_queue(vcpu);
 	vcpu->arch.mmio_fault_cr2 = cr2;
@@ -3869,13 +3869,14 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 			? X86EMUL_MODE_VM86 : cs_l
 			? X86EMUL_MODE_PROT64 :	cs_db
 			? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
+		memset(c, 0, sizeof(struct decode_cache));
+		memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
 
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
 		trace_kvm_emulate_insn_start(vcpu);
 
 		/* Only allow emulation of specific instructions on #UD
 		 * (namely VMMCALL, sysenter, sysexit, syscall)*/
-		c = &vcpu->arch.emulate_ctxt.decode;
 		if (emulation_type & EMULTYPE_TRAP_UD) {
 			if (!c->twobyte)
 				return EMULATE_FAIL;
@@ -3916,6 +3917,10 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 		return EMULATE_DONE;
 	}
 
+	/* this is needed for vmware backdor interface to work since it
+	   changes registers values  during IO operation */
+	memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
+
 restart:
 	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
 
@@ -3936,6 +3941,7 @@ restart:
 	shadow_mask = vcpu->arch.emulate_ctxt.interruptibility;
 	kvm_x86_ops->set_interrupt_shadow(vcpu, shadow_mask);
 	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
 
 	if (vcpu->arch.pio.count) {
@@ -4919,6 +4925,7 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 		    bool has_error_code, u32 error_code)
 {
+	struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
 	int cs_db, cs_l, ret;
 	cache_all_regs(vcpu);
 
@@ -4933,6 +4940,8 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 		? X86EMUL_MODE_VM86 : cs_l
 		? X86EMUL_MODE_PROT64 :	cs_db
 		? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
+	memset(c, 0, sizeof(struct decode_cache));
+	memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
 
 	ret = emulator_task_switch(&vcpu->arch.emulate_ctxt, &emulate_ops,
 				   tss_selector, reason, has_error_code,
@@ -4941,6 +4950,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 	if (ret)
 		return EMULATE_FAIL;
 
+	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
 	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
 	return EMULATE_DONE;

@@ -941,12 +941,9 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	/* we cannot decode insn before we complete previous rep insn */
 	WARN_ON(ctxt->restart);
 
-	/* Shadow copy of register state. Committed on successful emulation. */
-	memset(c, 0, sizeof(struct decode_cache));
 	c->eip = ctxt->eip;
 	c->fetch.start = c->fetch.end = c->eip;
 	ctxt->cs_base = seg_base(ctxt, ops, VCPU_SREG_CS);
-	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
 
 	switch (mode) {
 	case X86EMUL_MODE_REAL:
@@ -2486,16 +2483,13 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
 
-	memset(c, 0, sizeof(struct decode_cache));
 	c->eip = ctxt->eip;
-	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
 	c->dst.type = OP_NONE;
 
 	rc = emulator_do_task_switch(ctxt, ops, tss_selector, reason,
 				     has_error_code, error_code);
 
 	if (rc == X86EMUL_CONTINUE) {
-		memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
 		rc = writeback(ctxt, ops);
 		if (rc == X86EMUL_CONTINUE)
 			ctxt->eip = c->eip;
@@ -2524,13 +2518,6 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	ctxt->interruptibility = 0;
 	ctxt->decode.mem_read.pos = 0;
-
-	/* Shadow copy of register state. Committed on successful emulation.
-	 * NOTE: we can copy them from vcpu as x86_decode_insn() doesn't
-	 * modify them.
-	 */
-
-	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
 
 	if (ctxt->mode == X86EMUL_MODE_PROT64 && (c->d & No64)) {
 		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
@@ -3031,8 +3018,6 @@ writeback:
 	 * without decoding
 	 */
 	ctxt->decode.mem_read.end = 0;
-	/* Commit shadow register state. */
-	memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
 	ctxt->eip = c->eip;
 
 done:
