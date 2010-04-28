@@ -1068,6 +1068,9 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
+	IWL_ERR(priv, "Loaded firmware version: %s\n",
+		priv->hw->wiphy->fw_version);
+
 	priv->cfg->ops->lib->dump_nic_error_log(priv);
 	if (priv->cfg->ops->lib->dump_csr)
 		priv->cfg->ops->lib->dump_csr(priv);
