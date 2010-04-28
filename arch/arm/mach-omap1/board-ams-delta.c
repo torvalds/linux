@@ -263,8 +263,18 @@ static struct platform_device ams_delta_modem_device = {
 
 static int __init ams_delta_modem_init(void)
 {
+	int err;
+
 	omap_cfg_reg(M14_1510_GPIO2);
-	ams_delta_modem_ports[0].irq = gpio_to_irq(2);
+	ams_delta_modem_ports[0].irq =
+			gpio_to_irq(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
+
+	err = gpio_request(AMS_DELTA_GPIO_PIN_MODEM_IRQ, "modem");
+	if (err) {
+		pr_err("Couldn't request gpio pin for modem\n");
+		return err;
+	}
+	gpio_direction_input(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
 
 	ams_delta_latch2_write(
 		AMS_DELTA_LATCH2_MODEM_NRESET | AMS_DELTA_LATCH2_MODEM_CODEC,
