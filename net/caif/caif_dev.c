@@ -247,10 +247,10 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 
 		switch (caifdev->link_select) {
 		case CAIF_LINK_HIGH_BANDW:
-			pref = CFPHYPREF_LOW_LAT;
+			pref = CFPHYPREF_HIGH_BW;
 			break;
 		case CAIF_LINK_LOW_LATENCY:
-			pref = CFPHYPREF_HIGH_BW;
+			pref = CFPHYPREF_LOW_LAT;
 			break;
 		default:
 			pref = CFPHYPREF_HIGH_BW;
