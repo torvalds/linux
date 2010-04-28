@@ -152,7 +152,7 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	if (!saved_program)
 		goto out;
 	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		entry = kmalloc(sizeof(*entry), GFP_NOFS);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list, list) {
 		if (ptr->is_not != is_not ||
@@ -372,7 +372,7 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	if (!saved_domainname)
 		goto out;
 	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		entry = kmalloc(sizeof(*entry), GFP_NOFS);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, list) {
 		if (ptr->is_not != is_not ||
@@ -564,7 +564,7 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	if (!saved_original_name || !saved_aliased_name)
 		goto out;
 	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		entry = kmalloc(sizeof(*entry), GFP_NOFS);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
 		if (ptr->original_name != saved_original_name ||
@@ -664,7 +664,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	saved_domainname = tomoyo_get_name(domainname);
 	if (!saved_domainname)
 		return NULL;
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_NOFS);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		if (domain->is_deleted ||
@@ -704,7 +704,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	 * This function assumes that the size of buffer returned by
 	 * tomoyo_realpath() = TOMOYO_MAX_PATHNAME_LEN.
 	 */
-	struct tomoyo_page_buffer *tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	struct tomoyo_page_buffer *tmp = kzalloc(sizeof(*tmp), GFP_NOFS);
 	struct tomoyo_domain_info *old_domain = tomoyo_domain();
 	struct tomoyo_domain_info *domain = NULL;
 	const char *old_domain_name = old_domain->domainname->name;

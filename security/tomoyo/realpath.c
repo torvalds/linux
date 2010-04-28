@@ -138,7 +138,7 @@ int tomoyo_realpath_from_path2(struct path *path, char *newname,
  */
 char *tomoyo_realpath_from_path(struct path *path)
 {
-	char *buf = kzalloc(sizeof(struct tomoyo_page_buffer), GFP_KERNEL);
+	char *buf = kzalloc(sizeof(struct tomoyo_page_buffer), GFP_NOFS);
 
 	BUILD_BUG_ON(sizeof(struct tomoyo_page_buffer)
 		     <= TOMOYO_MAX_PATHNAME_LEN - 1);
@@ -269,7 +269,7 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 		atomic_inc(&ptr->users);
 		goto out;
 	}
-	ptr = kzalloc(sizeof(*ptr) + len, GFP_KERNEL);
+	ptr = kzalloc(sizeof(*ptr) + len, GFP_NOFS);
 	allocated_len = ptr ? ksize(ptr) : 0;
 	if (!ptr || (tomoyo_quota_for_policy &&
 		     atomic_read(&tomoyo_policy_memory_size) + allocated_len

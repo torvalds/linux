@@ -99,7 +99,7 @@ static struct tomoyo_path_info *tomoyo_get_path(struct path *path)
 {
 	int error;
 	struct tomoyo_path_info_with_data *buf = kzalloc(sizeof(*buf),
-							 GFP_KERNEL);
+							 GFP_NOFS);
 
 	if (!buf)
 		return NULL;
@@ -174,7 +174,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	if (!saved_filename)
 		return -ENOMEM;
 	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		entry = kmalloc(sizeof(*entry), GFP_NOFS);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list, list) {
 		if (ptr->filename != saved_filename)
@@ -321,7 +321,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	if (!saved_pattern->is_patterned)
 		goto out;
 	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		entry = kmalloc(sizeof(*entry), GFP_NOFS);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, list) {
 		if (saved_pattern != ptr->pattern)
@@ -474,7 +474,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	if (!saved_pattern)
 		return error;
 	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		entry = kmalloc(sizeof(*entry), GFP_NOFS);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, list) {
 		if (ptr->pattern != saved_pattern)
@@ -820,7 +820,7 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
 	if (!saved_filename)
 		return -ENOMEM;
 	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		entry = kmalloc(sizeof(*entry), GFP_NOFS);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		struct tomoyo_path_acl *acl =
@@ -906,7 +906,7 @@ static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
 	if (!saved_filename1 || !saved_filename2)
 		goto out;
 	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		entry = kmalloc(sizeof(*entry), GFP_NOFS);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		struct tomoyo_path2_acl *acl =
