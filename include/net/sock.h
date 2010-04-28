@@ -1635,7 +1635,24 @@ sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
 		sk->sk_stamp = kt;
 }
 
-extern void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk, struct sk_buff *skb);
+extern void __sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
+				     struct sk_buff *skb);
+
+static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
+					  struct sk_buff *skb)
+{
+#define FLAGS_TS_OR_DROPS ((1UL << SOCK_RXQ_OVFL)			| \
+			   (1UL << SOCK_RCVTSTAMP)			| \
+			   (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE)	| \
+			   (1UL << SOCK_TIMESTAMPING_SOFTWARE)		| \
+			   (1UL << SOCK_TIMESTAMPING_RAW_HARDWARE) 	| \
+			   (1UL << SOCK_TIMESTAMPING_SYS_HARDWARE))
+
+	if (sk->sk_flags & FLAGS_TS_OR_DROPS)
+		__sock_recv_ts_and_drops(msg, sk, skb);
+	else
+		sk->sk_stamp = skb->tstamp;
+}
 
 /**
  * sock_tx_timestamp - checks whether the outgoing packet is to be time stamped

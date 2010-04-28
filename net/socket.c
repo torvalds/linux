@@ -655,13 +655,13 @@ inline void sock_recv_drops(struct msghdr *msg, struct sock *sk, struct sk_buff 
 			sizeof(__u32), &skb->dropcount);
 }
 
-void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
+void __sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 	struct sk_buff *skb)
 {
 	sock_recv_timestamp(msg, sk, skb);
 	sock_recv_drops(msg, sk, skb);
 }
-EXPORT_SYMBOL_GPL(sock_recv_ts_and_drops);
+EXPORT_SYMBOL_GPL(__sock_recv_ts_and_drops);
 
 static inline int __sock_recvmsg_nosec(struct kiocb *iocb, struct socket *sock,
 				       struct msghdr *msg, size_t size, int flags)
