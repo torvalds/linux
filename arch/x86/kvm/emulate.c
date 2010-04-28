@@ -2804,8 +2804,8 @@ special_insn:
 			break;
 		}
 	case 0x91 ... 0x97: /* xchg reg,rax */
-		c->src.type = c->dst.type = OP_REG;
-		c->src.bytes = c->dst.bytes = c->op_bytes;
+		c->src.type = OP_REG;
+		c->src.bytes = c->op_bytes;
 		c->src.ptr = (unsigned long *) &c->regs[VCPU_REGS_RAX];
 		c->src.val = *(c->src.ptr);
 		goto xchg;
