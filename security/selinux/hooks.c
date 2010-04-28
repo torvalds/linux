@@ -2999,13 +2999,15 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 	return file_has_perm(cred, file, av);
 }
 
+static int default_noexec;
+
 static int file_map_prot_check(struct file *file, unsigned long prot, int shared)
 {
 	const struct cred *cred = current_cred();
 	int rc = 0;
 
-#ifndef CONFIG_PPC32
-	if ((prot & PROT_EXEC) && (!file || (!shared && (prot & PROT_WRITE)))) {
+	if (default_noexec &&
+	    (prot & PROT_EXEC) && (!file || (!shared && (prot & PROT_WRITE)))) {
 		/*
 		 * We are making executable an anonymous mapping or a
 		 * private file mapping that will also be writable.
@@ -3015,7 +3017,6 @@ static int file_map_prot_check(struct file *file, unsigned long prot, int shared
 		if (rc)
 			goto error;
 	}
-#endif
 
 	if (file) {
 		/* read access is always possible with a mapping */
@@ -3076,8 +3077,8 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 	if (selinux_checkreqprot)
 		prot = reqprot;
 
-#ifndef CONFIG_PPC32
-	if ((prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
+	if (default_noexec &&
+	    (prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
 		int rc = 0;
 		if (vma->vm_start >= vma->vm_mm->start_brk &&
 		    vma->vm_end <= vma->vm_mm->brk) {
@@ -3099,7 +3100,6 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 		if (rc)
 			return rc;
 	}
-#endif
 
 	return file_map_prot_check(vma->vm_file, prot, vma->vm_flags&VM_SHARED);
 }
@@ -5661,6 +5661,8 @@ static __init int selinux_init(void)
 
 	/* Set the security state for the initial task. */
 	cred_init_security();
+
+	default_noexec = !(VM_DATA_DEFAULT_FLAGS & VM_EXEC);
 
 	sel_inode_cache = kmem_cache_create("selinux_inode_security",
 					    sizeof(struct inode_security_struct),
