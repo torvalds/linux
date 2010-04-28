@@ -48,7 +48,7 @@ efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_cfg *cfg)
 		goto fail;
 
 	if (outlen < MC_CMD_GET_PHY_CFG_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -111,7 +111,7 @@ static int efx_mcdi_loopback_modes(struct efx_nic *efx, u64 *loopback_modes)
 		goto fail;
 
 	if (outlen < MC_CMD_GET_LOOPBACK_MODES_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -587,7 +587,7 @@ static int efx_mcdi_phy_test_alive(struct efx_nic *efx)
 		return rc;
 
 	if (outlen < MC_CMD_GET_PHY_STATE_OUT_LEN)
-		return -EMSGSIZE;
+		return -EIO;
 	if (MCDI_DWORD(outbuf, GET_PHY_STATE_STATE) != MC_CMD_PHY_STATE_OK)
 		return -EINVAL;
 
