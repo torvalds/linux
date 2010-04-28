@@ -702,6 +702,16 @@ They can be both cleared however, then the buffer is in "dequeued"
 state, in the application domain to say so.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_ERROR</constant></entry>
+	    <entry>0x0040</entry>
+	    <entry>When this flag is set, the buffer has been dequeued
+	    successfully, although the data might have been corrupted.
+	    This is recoverable, streaming may continue as normal and
+	    the buffer may be reused normally.
+	    Drivers set this flag when the <constant>VIDIOC_DQBUF</constant>
+	    ioctl is called.</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_KEYFRAME</constant></entry>
 	    <entry>0x0008</entry>
 	  <entry>Drivers set or clear this flag when calling the
