@@ -120,6 +120,7 @@ static struct usb_device_id rtl8192_usb_id_tbl[] = {
 	{USB_DEVICE(0x050d, 0x805E)},
 	/* Sitecom */
 	{USB_DEVICE(0x0df6, 0x0031)},
+	{USB_DEVICE(0x0df6, 0x004b)},	/* WL-349 */
 	/* EnGenius */
 	{USB_DEVICE(0x1740, 0x9201)},
 	/* Dlink */
