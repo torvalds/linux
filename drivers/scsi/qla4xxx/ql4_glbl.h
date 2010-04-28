@@ -67,11 +67,12 @@ struct srb * qla4xxx_del_from_active_array(struct scsi_qla_host *ha,
 					uint32_t index);
 void qla4xxx_srb_compl(struct scsi_qla_host *ha, struct srb *srb);
 int qla4xxx_reinitialize_ddb_list(struct scsi_qla_host * ha);
-int qla4xxx_process_ddb_changed(struct scsi_qla_host * ha,
-				uint32_t fw_ddb_index, uint32_t state);
+int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
+		uint32_t state, uint32_t conn_error);
 void qla4xxx_dump_buffer(void *b, uint32_t size);
 int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
 	struct ddb_entry *ddb_entry, int lun, uint16_t mrkr_mod);
+int qla4_is_relogin_allowed(struct scsi_qla_host *ha, uint32_t conn_err);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdiscoverywait;
