@@ -568,10 +568,12 @@ xfs_map_buffer(
 	sector_t		bn;
 	struct xfs_mount	*m = XFS_I(inode)->i_mount;
 	xfs_off_t		iomap_offset = XFS_FSB_TO_B(m, mp->iomap_offset);
+	xfs_daddr_t		iomap_bn = xfs_fsb_to_db(XFS_I(inode), mp->iomap_bn);
 
-	ASSERT(mp->iomap_bn != IOMAP_DADDR_NULL);
+	ASSERT(mp->iomap_bn != HOLESTARTBLOCK);
+	ASSERT(mp->iomap_bn != DELAYSTARTBLOCK);
 
-	bn = (mp->iomap_bn >> (inode->i_blkbits - BBSHIFT)) +
+	bn = (iomap_bn >> (inode->i_blkbits - BBSHIFT)) +
 	      ((offset - iomap_offset) >> inode->i_blkbits);
 
 	ASSERT(bn || XFS_IS_REALTIME_INODE(XFS_I(inode)));
@@ -587,8 +589,8 @@ xfs_map_at_offset(
 	xfs_iomap_t		*iomapp,
 	xfs_off_t		offset)
 {
-	ASSERT(!(iomapp->iomap_flags & IOMAP_HOLE));
-	ASSERT(!(iomapp->iomap_flags & IOMAP_DELAY));
+	ASSERT(iomapp->iomap_bn != HOLESTARTBLOCK);
+	ASSERT(iomapp->iomap_bn != DELAYSTARTBLOCK);
 
 	lock_buffer(bh);
 	xfs_map_buffer(inode, bh, iomapp, offset);
@@ -818,8 +820,8 @@ xfs_convert_page(
 				continue;
 			}
 
-			ASSERT(!(mp->iomap_flags & IOMAP_HOLE));
-			ASSERT(!(mp->iomap_flags & IOMAP_DELAY));
+			ASSERT(mp->iomap_bn != HOLESTARTBLOCK);
+			ASSERT(mp->iomap_bn != DELAYSTARTBLOCK);
 
 			xfs_map_at_offset(inode, bh, mp, offset);
 			if (startio) {
@@ -1478,7 +1480,8 @@ __xfs_get_blocks(
 	if (niomap == 0)
 		return 0;
 
-	if (iomap.iomap_bn != IOMAP_DADDR_NULL) {
+	if (iomap.iomap_bn != HOLESTARTBLOCK &&
+	    iomap.iomap_bn != DELAYSTARTBLOCK) {
 		/*
 		 * For unwritten extents do not report a disk address on
 		 * the read case (treat as if we're reading into a hole).
@@ -1513,7 +1516,7 @@ __xfs_get_blocks(
 	     (iomap.iomap_flags & (IOMAP_NEW|IOMAP_UNWRITTEN))))
 		set_buffer_new(bh_result);
 
-	if (iomap.iomap_flags & IOMAP_DELAY) {
+	if (iomap.iomap_bn == DELAYSTARTBLOCK) {
 		BUG_ON(direct);
 		if (create) {
 			set_buffer_uptodate(bh_result);

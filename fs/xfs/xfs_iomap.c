@@ -64,24 +64,15 @@ xfs_imap_to_bmap(
 	int		imaps,			/* Number of imap entries */
 	int		flags)
 {
-	xfs_fsblock_t	start_block;
-
 	iomapp->iomap_offset = imap->br_startoff;
 	iomapp->iomap_bsize = imap->br_blockcount;
 	iomapp->iomap_flags = flags;
+	iomapp->iomap_bn = imap->br_startblock;
 
-	start_block = imap->br_startblock;
-	if (start_block == HOLESTARTBLOCK) {
-		iomapp->iomap_bn = IOMAP_DADDR_NULL;
-		iomapp->iomap_flags |= IOMAP_HOLE;
-	} else if (start_block == DELAYSTARTBLOCK) {
-		iomapp->iomap_bn = IOMAP_DADDR_NULL;
-		iomapp->iomap_flags |= IOMAP_DELAY;
-	} else {
-		iomapp->iomap_bn = xfs_fsb_to_db(ip, start_block);
-		if (ISUNWRITTEN(imap))
-			iomapp->iomap_flags |= IOMAP_UNWRITTEN;
-	}
+	if (imap->br_startblock != HOLESTARTBLOCK &&
+	    imap->br_startblock != DELAYSTARTBLOCK &&
+	    ISUNWRITTEN(imap))
+		iomapp->iomap_flags |= IOMAP_UNWRITTEN;
 }
 
 int

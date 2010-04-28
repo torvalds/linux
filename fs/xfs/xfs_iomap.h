@@ -18,12 +18,8 @@
 #ifndef __XFS_IOMAP_H__
 #define __XFS_IOMAP_H__
 
-#define IOMAP_DADDR_NULL ((xfs_daddr_t) (-1LL))
-
-
 typedef enum {				/* iomap_flags values */
 	IOMAP_READ =		0,	/* mapping for a read */
-	IOMAP_HOLE =		0x02,	/* mapping covers a hole  */
 	IOMAP_DELAY =		0x04,	/* mapping covers delalloc region  */
 	IOMAP_UNWRITTEN =	0x20,	/* mapping covers allocated */
 					/* but uninitialized file data  */
