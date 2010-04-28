@@ -225,17 +225,17 @@ static void efx_fini_channels(struct efx_nic *efx);
  * never be concurrently called more than once on the same channel,
  * though different channels may be being processed concurrently.
  */
-static int efx_process_channel(struct efx_channel *channel, int rx_quota)
+static int efx_process_channel(struct efx_channel *channel, int budget)
 {
 	struct efx_nic *efx = channel->efx;
-	int rx_packets;
+	int spent;
 
 	if (unlikely(efx->reset_pending != RESET_TYPE_NONE ||
 		     !channel->enabled))
 		return 0;
 
-	rx_packets = efx_nic_process_eventq(channel, rx_quota);
-	if (rx_packets == 0)
+	spent = efx_nic_process_eventq(channel, budget);
+	if (spent == 0)
 		return 0;
 
 	/* Deliver last RX packet. */
@@ -249,7 +249,7 @@ static int efx_process_channel(struct efx_channel *channel, int rx_quota)
 
 	efx_fast_push_rx_descriptors(&efx->rx_queue[channel->channel]);
 
-	return rx_packets;
+	return spent;
 }
 
 /* Mark channel as finished processing
@@ -278,14 +278,14 @@ static int efx_poll(struct napi_struct *napi, int budget)
 {
 	struct efx_channel *channel =
 		container_of(napi, struct efx_channel, napi_str);
-	int rx_packets;
+	int spent;
 
 	EFX_TRACE(channel->efx, "channel %d NAPI poll executing on CPU %d\n",
 		  channel->channel, raw_smp_processor_id());
 
-	rx_packets = efx_process_channel(channel, budget);
+	spent = efx_process_channel(channel, budget);
 
-	if (rx_packets < budget) {
+	if (spent < budget) {
 		struct efx_nic *efx = channel->efx;
 
 		if (channel->used_flags & EFX_USED_BY_RX &&
@@ -318,7 +318,7 @@ static int efx_poll(struct napi_struct *napi, int budget)
 		efx_channel_processed(channel);
 	}
 
-	return rx_packets;
+	return spent;
 }
 
 /* Process the eventq of the specified channel immediately on this CPU

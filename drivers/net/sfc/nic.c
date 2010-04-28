@@ -654,22 +654,23 @@ void efx_generate_event(struct efx_channel *channel, efx_qword_t *event)
  * The NIC batches TX completion events; the message we receive is of
  * the form "complete all TX events up to this index".
  */
-static void
+static int
 efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 {
 	unsigned int tx_ev_desc_ptr;
 	unsigned int tx_ev_q_label;
 	struct efx_tx_queue *tx_queue;
 	struct efx_nic *efx = channel->efx;
+	int tx_packets = 0;
 
 	if (likely(EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_COMP))) {
 		/* Transmit completion */
 		tx_ev_desc_ptr = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_DESC_PTR);
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
 		tx_queue = &efx->tx_queue[tx_ev_q_label];
-		channel->irq_mod_score +=
-			(tx_ev_desc_ptr - tx_queue->read_count) &
-			EFX_TXQ_MASK;
+		tx_packets = ((tx_ev_desc_ptr - tx_queue->read_count) &
+			      EFX_TXQ_MASK);
+		channel->irq_mod_score += tx_packets;
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
@@ -689,6 +690,8 @@ efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 			EFX_QWORD_FMT"\n", channel->channel,
 			EFX_QWORD_VAL(*event));
 	}
+
+	return tx_packets;
 }
 
 /* Detect errors included in the rx_evt_pkt_ok bit. */
@@ -947,16 +950,17 @@ efx_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 	}
 }
 
-int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota)
+int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 {
 	unsigned int read_ptr;
 	efx_qword_t event, *p_event;
 	int ev_code;
-	int rx_packets = 0;
+	int tx_packets = 0;
+	int spent = 0;
 
 	read_ptr = channel->eventq_read_ptr;
 
-	do {
+	for (;;) {
 		p_event = efx_event(channel, read_ptr);
 		event = *p_event;
 
@@ -970,15 +974,23 @@ int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota)
 		/* Clear this event by marking it all ones */
 		EFX_SET_QWORD(*p_event);
 
+		/* Increment read pointer */
+		read_ptr = (read_ptr + 1) & EFX_EVQ_MASK;
+
 		ev_code = EFX_QWORD_FIELD(event, FSF_AZ_EV_CODE);
 
 		switch (ev_code) {
 		case FSE_AZ_EV_CODE_RX_EV:
 			efx_handle_rx_event(channel, &event);
-			++rx_packets;
+			if (++spent == budget)
+				goto out;
 			break;
 		case FSE_AZ_EV_CODE_TX_EV:
-			efx_handle_tx_event(channel, &event);
+			tx_packets += efx_handle_tx_event(channel, &event);
+			if (tx_packets >= EFX_TXQ_SIZE) {
+				spent = budget;
+				goto out;
+			}
 			break;
 		case FSE_AZ_EV_CODE_DRV_GEN_EV:
 			channel->eventq_magic = EFX_QWORD_FIELD(
@@ -1001,14 +1013,11 @@ int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota)
 				" (data " EFX_QWORD_FMT ")\n", channel->channel,
 				ev_code, EFX_QWORD_VAL(event));
 		}
+	}
 
-		/* Increment read pointer */
-		read_ptr = (read_ptr + 1) & EFX_EVQ_MASK;
-
-	} while (rx_packets < rx_quota);
-
+out:
 	channel->eventq_read_ptr = read_ptr;
-	return rx_packets;
+	return spent;
 }
 
 
