@@ -364,6 +364,8 @@ static ssize_t taal_num_errors_show(struct device *dev,
 	u8 errors;
 	int r;
 
+	mutex_lock(&td->lock);
+
 	if (td->enabled) {
 		dsi_bus_lock();
 		r = taal_dcs_read_1(DCS_READ_NUM_ERRORS, &errors);
@@ -371,6 +373,8 @@ static ssize_t taal_num_errors_show(struct device *dev,
 	} else {
 		r = -ENODEV;
 	}
+
+	mutex_unlock(&td->lock);
 
 	if (r)
 		return r;
@@ -386,6 +390,8 @@ static ssize_t taal_hw_revision_show(struct device *dev,
 	u8 id1, id2, id3;
 	int r;
 
+	mutex_lock(&td->lock);
+
 	if (td->enabled) {
 		dsi_bus_lock();
 		r = taal_get_id(&id1, &id2, &id3);
@@ -393,6 +399,8 @@ static ssize_t taal_hw_revision_show(struct device *dev,
 	} else {
 		r = -ENODEV;
 	}
+
+	mutex_unlock(&td->lock);
 
 	if (r)
 		return r;
@@ -443,6 +451,8 @@ static ssize_t store_cabc_mode(struct device *dev,
 	if (i == ARRAY_SIZE(cabc_modes))
 		return -EINVAL;
 
+	mutex_lock(&td->lock);
+
 	if (td->enabled) {
 		dsi_bus_lock();
 		if (!td->cabc_broken)
@@ -451,6 +461,8 @@ static ssize_t store_cabc_mode(struct device *dev,
 	}
 
 	td->cabc_mode = i;
+
+	mutex_unlock(&td->lock);
 
 	return count;
 }
