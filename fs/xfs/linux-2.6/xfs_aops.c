@@ -1536,16 +1536,23 @@ __xfs_get_blocks(
 		}
 	}
 
+	/*
+	 * If this is O_DIRECT or the mpage code calling tell them how large
+	 * the mapping is, so that we can avoid repeated get_blocks calls.
+	 */
 	if (direct || size > (1 << inode->i_blkbits)) {
-		struct xfs_mount	*mp = XFS_I(inode)->i_mount;
-		xfs_off_t		iomap_offset = XFS_FSB_TO_B(mp, imap.br_startoff);
-		xfs_off_t		iomap_delta = offset - iomap_offset;
-		xfs_off_t		iomap_bsize = XFS_FSB_TO_B(mp, imap.br_blockcount);
+		xfs_off_t		mapping_size;
 
-		ASSERT(iomap_bsize - iomap_delta > 0);
-		offset = min_t(xfs_off_t,
-				iomap_bsize - iomap_delta, size);
-		bh_result->b_size = (ssize_t)min_t(xfs_off_t, LONG_MAX, offset);
+		mapping_size = imap.br_startoff + imap.br_blockcount - iblock;
+		mapping_size <<= inode->i_blkbits;
+
+		ASSERT(mapping_size > 0);
+		if (mapping_size > size)
+			mapping_size = size;
+		if (mapping_size > LONG_MAX)
+			mapping_size = LONG_MAX;
+
+		bh_result->b_size = mapping_size;
 	}
 
 	return 0;
