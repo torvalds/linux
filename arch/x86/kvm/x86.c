@@ -414,57 +414,49 @@ out:
 	return changed;
 }
 
-void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
+static int __kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	cr0 |= X86_CR0_ET;
 
 #ifdef CONFIG_X86_64
-	if (cr0 & 0xffffffff00000000UL) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if (cr0 & 0xffffffff00000000UL)
+		return 1;
 #endif
 
 	cr0 &= ~CR0_RESERVED_BITS;
 
-	if ((cr0 & X86_CR0_NW) && !(cr0 & X86_CR0_CD)) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if ((cr0 & X86_CR0_NW) && !(cr0 & X86_CR0_CD))
+		return 1;
 
-	if ((cr0 & X86_CR0_PG) && !(cr0 & X86_CR0_PE)) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if ((cr0 & X86_CR0_PG) && !(cr0 & X86_CR0_PE))
+		return 1;
 
 	if (!is_paging(vcpu) && (cr0 & X86_CR0_PG)) {
 #ifdef CONFIG_X86_64
 		if ((vcpu->arch.efer & EFER_LME)) {
 			int cs_db, cs_l;
 
-			if (!is_pae(vcpu)) {
-				kvm_inject_gp(vcpu, 0);
-				return;
-			}
+			if (!is_pae(vcpu))
+				return 1;
 			kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
-			if (cs_l) {
-				kvm_inject_gp(vcpu, 0);
-				return;
-
-			}
+			if (cs_l)
+				return 1;
 		} else
 #endif
-		if (is_pae(vcpu) && !load_pdptrs(vcpu, vcpu->arch.cr3)) {
-			kvm_inject_gp(vcpu, 0);
-			return;
-		}
-
+		if (is_pae(vcpu) && !load_pdptrs(vcpu, vcpu->arch.cr3))
+			return 1;
 	}
 
 	kvm_x86_ops->set_cr0(vcpu, cr0);
 
 	kvm_mmu_reset_context(vcpu);
-	return;
+	return 0;
+}
+
+void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
+{
+	if (__kvm_set_cr0(vcpu, cr0))
+		kvm_inject_gp(vcpu, 0);
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr0);
 
@@ -474,61 +466,56 @@ void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 }
 EXPORT_SYMBOL_GPL(kvm_lmsw);
 
-void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
+int __kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	unsigned long old_cr4 = kvm_read_cr4(vcpu);
 	unsigned long pdptr_bits = X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE;
 
-	if (cr4 & CR4_RESERVED_BITS) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if (cr4 & CR4_RESERVED_BITS)
+		return 1;
 
 	if (is_long_mode(vcpu)) {
-		if (!(cr4 & X86_CR4_PAE)) {
-			kvm_inject_gp(vcpu, 0);
-			return;
-		}
+		if (!(cr4 & X86_CR4_PAE))
+			return 1;
 	} else if (is_paging(vcpu) && (cr4 & X86_CR4_PAE)
 		   && ((cr4 ^ old_cr4) & pdptr_bits)
-		   && !load_pdptrs(vcpu, vcpu->arch.cr3)) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+		   && !load_pdptrs(vcpu, vcpu->arch.cr3))
+		return 1;
 
-	if (cr4 & X86_CR4_VMXE) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if (cr4 & X86_CR4_VMXE)
+		return 1;
+
 	kvm_x86_ops->set_cr4(vcpu, cr4);
 	vcpu->arch.cr4 = cr4;
 	kvm_mmu_reset_context(vcpu);
+
+	return 0;
+}
+
+void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
+{
+	if (__kvm_set_cr4(vcpu, cr4))
+		kvm_inject_gp(vcpu, 0);
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr4);
 
-void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+static int __kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	if (cr3 == vcpu->arch.cr3 && !pdptrs_changed(vcpu)) {
 		kvm_mmu_sync_roots(vcpu);
 		kvm_mmu_flush_tlb(vcpu);
-		return;
+		return 0;
 	}
 
 	if (is_long_mode(vcpu)) {
-		if (cr3 & CR3_L_MODE_RESERVED_BITS) {
-			kvm_inject_gp(vcpu, 0);
-			return;
-		}
+		if (cr3 & CR3_L_MODE_RESERVED_BITS)
+			return 1;
 	} else {
 		if (is_pae(vcpu)) {
-			if (cr3 & CR3_PAE_RESERVED_BITS) {
-				kvm_inject_gp(vcpu, 0);
-				return;
-			}
-			if (is_paging(vcpu) && !load_pdptrs(vcpu, cr3)) {
-				kvm_inject_gp(vcpu, 0);
-				return;
-			}
+			if (cr3 & CR3_PAE_RESERVED_BITS)
+				return 1;
+			if (is_paging(vcpu) && !load_pdptrs(vcpu, cr3))
+				return 1;
 		}
 		/*
 		 * We don't check reserved bits in nonpae mode, because
@@ -546,24 +533,34 @@ void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	 * to debug) behavior on the guest side.
 	 */
 	if (unlikely(!gfn_to_memslot(vcpu->kvm, cr3 >> PAGE_SHIFT)))
+		return 1;
+	vcpu->arch.cr3 = cr3;
+	vcpu->arch.mmu.new_cr3(vcpu);
+	return 0;
+}
+
+void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+{
+	if (__kvm_set_cr3(vcpu, cr3))
 		kvm_inject_gp(vcpu, 0);
-	else {
-		vcpu->arch.cr3 = cr3;
-		vcpu->arch.mmu.new_cr3(vcpu);
-	}
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr3);
 
-void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
+int __kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
 {
-	if (cr8 & CR8_RESERVED_BITS) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if (cr8 & CR8_RESERVED_BITS)
+		return 1;
 	if (irqchip_in_kernel(vcpu->kvm))
 		kvm_lapic_set_tpr(vcpu, cr8);
 	else
 		vcpu->arch.cr8 = cr8;
+	return 0;
+}
+
+void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
+{
+	if (__kvm_set_cr8(vcpu, cr8))
+		kvm_inject_gp(vcpu, 0);
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr8);
 
@@ -3681,27 +3678,32 @@ static unsigned long emulator_get_cr(int cr, struct kvm_vcpu *vcpu)
 	return value;
 }
 
-static void emulator_set_cr(int cr, unsigned long val, struct kvm_vcpu *vcpu)
+static int emulator_set_cr(int cr, unsigned long val, struct kvm_vcpu *vcpu)
 {
+	int res = 0;
+
 	switch (cr) {
 	case 0:
-		kvm_set_cr0(vcpu, mk_cr_64(kvm_read_cr0(vcpu), val));
+		res = __kvm_set_cr0(vcpu, mk_cr_64(kvm_read_cr0(vcpu), val));
 		break;
 	case 2:
 		vcpu->arch.cr2 = val;
 		break;
 	case 3:
-		kvm_set_cr3(vcpu, val);
+		res = __kvm_set_cr3(vcpu, val);
 		break;
 	case 4:
-		kvm_set_cr4(vcpu, mk_cr_64(kvm_read_cr4(vcpu), val));
+		res = __kvm_set_cr4(vcpu, mk_cr_64(kvm_read_cr4(vcpu), val));
 		break;
 	case 8:
-		kvm_set_cr8(vcpu, val & 0xfUL);
+		res = __kvm_set_cr8(vcpu, val & 0xfUL);
 		break;
 	default:
 		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __func__, cr);
+		res = -1;
 	}
+
+	return res;
 }
 
 static int emulator_get_cpl(struct kvm_vcpu *vcpu)

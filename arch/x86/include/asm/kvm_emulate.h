@@ -135,7 +135,7 @@ struct x86_emulate_ops {
 	unsigned long (*get_cached_segment_base)(int seg, struct kvm_vcpu *vcpu);
 	void (*get_gdt)(struct desc_ptr *dt, struct kvm_vcpu *vcpu);
 	ulong (*get_cr)(int cr, struct kvm_vcpu *vcpu);
-	void (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
+	int (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
 	int (*cpl)(struct kvm_vcpu *vcpu);
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
 	int (*get_dr)(int dr, unsigned long *dest, struct kvm_vcpu *vcpu);

@@ -2272,7 +2272,10 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	struct decode_cache *c = &ctxt->decode;
 	int ret;
 
-	ops->set_cr(3, tss->cr3, ctxt->vcpu);
+	if (ops->set_cr(3, tss->cr3, ctxt->vcpu)) {
+		kvm_inject_gp(ctxt->vcpu, 0);
+		return X86EMUL_PROPAGATE_FAULT;
+	}
 	c->eip = tss->eip;
 	ctxt->eflags = tss->eflags | 2;
 	c->regs[VCPU_REGS_RAX] = tss->eax;
@@ -3135,7 +3138,10 @@ twobyte_insn:
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x22: /* mov reg, cr */
-		ops->set_cr(c->modrm_reg, c->modrm_val, ctxt->vcpu);
+		if (ops->set_cr(c->modrm_reg, c->modrm_val, ctxt->vcpu)) {
+			kvm_inject_gp(ctxt->vcpu, 0);
+			goto done;
+		}
 		c->dst.type = OP_NONE;
 		break;
 	case 0x23: /* mov from reg to dr */
