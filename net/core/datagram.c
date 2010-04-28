@@ -229,9 +229,13 @@ EXPORT_SYMBOL(skb_free_datagram);
 
 void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb)
 {
-	lock_sock(sk);
-	skb_free_datagram(sk, skb);
-	release_sock(sk);
+	lock_sock_bh(sk);
+	skb_orphan(skb);
+	sk_mem_reclaim_partial(sk);
+	unlock_sock_bh(sk);
+
+	/* skb is now orphaned, might be freed outside of locked section */
+	consume_skb(skb);
 }
 EXPORT_SYMBOL(skb_free_datagram_locked);
 

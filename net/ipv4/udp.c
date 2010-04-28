@@ -1062,10 +1062,10 @@ static unsigned int first_packet_length(struct sock *sk)
 	spin_unlock_bh(&rcvq->lock);
 
 	if (!skb_queue_empty(&list_kill)) {
-		lock_sock(sk);
+		lock_sock_bh(sk);
 		__skb_queue_purge(&list_kill);
 		sk_mem_reclaim_partial(sk);
-		release_sock(sk);
+		unlock_sock_bh(sk);
 	}
 	return res;
 }
@@ -1196,10 +1196,10 @@ out:
 	return err;
 
 csum_copy_err:
-	lock_sock(sk);
+	lock_sock_bh(sk);
 	if (!skb_kill_datagram(sk, skb, flags))
 		UDP_INC_STATS_USER(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
-	release_sock(sk);
+	unlock_sock_bh(sk);
 
 	if (noblock)
 		return -EAGAIN;
@@ -1624,9 +1624,9 @@ int udp_rcv(struct sk_buff *skb)
 
 void udp_destroy_sock(struct sock *sk)
 {
-	lock_sock(sk);
+	lock_sock_bh(sk);
 	udp_flush_pending_frames(sk);
-	release_sock(sk);
+	unlock_sock_bh(sk);
 }
 
 /*

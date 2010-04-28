@@ -424,7 +424,7 @@ out:
 	return err;
 
 csum_copy_err:
-	lock_sock(sk);
+	lock_sock_bh(sk);
 	if (!skb_kill_datagram(sk, skb, flags)) {
 		if (is_udp4)
 			UDP_INC_STATS_USER(sock_net(sk),
@@ -433,7 +433,7 @@ csum_copy_err:
 			UDP6_INC_STATS_USER(sock_net(sk),
 					UDP_MIB_INERRORS, is_udplite);
 	}
-	release_sock(sk);
+	unlock_sock_bh(sk);
 
 	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;
