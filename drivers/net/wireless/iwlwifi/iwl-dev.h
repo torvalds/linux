@@ -541,7 +541,6 @@ struct iwl_ucode_header {
 		} v2;
 	} u;
 };
-#define UCODE_HEADER_SIZE(ver) ((ver) == 1 ? 24 : 28)
 
 struct iwl4965_ibss_seq {
 	u8 mac[ETH_ALEN];

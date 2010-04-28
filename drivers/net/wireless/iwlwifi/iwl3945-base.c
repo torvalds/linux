@@ -2117,7 +2117,7 @@ static u32 iwl3945_ucode_get_##item(const struct iwl_ucode_header *ucode)\
 
 static u32 iwl3945_ucode_get_header_size(u32 api_ver)
 {
-	return UCODE_HEADER_SIZE(1);
+	return 24;
 }
 
 static u8 *iwl3945_ucode_get_data(const struct iwl_ucode_header *ucode)

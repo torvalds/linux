@@ -1550,7 +1550,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	size_t len;
 	u32 api_ver, build;
 	u32 inst_size, data_size, init_size, init_data_size, boot_size;
-	int err;
+	int err, hdr_size;
 	u16 eeprom_ver;
 	char buildstr[25];
 
@@ -1563,8 +1563,8 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	IWL_DEBUG_INFO(priv, "Loaded firmware file '%s' (%zd bytes).\n",
 		       priv->firmware_name, ucode_raw->size);
 
-	/* Make sure that we got at least the v1 header! */
-	if (ucode_raw->size < priv->cfg->ops->ucode->get_header_size(1)) {
+	/* Make sure that we got at least the API version number */
+	if (ucode_raw->size < 4) {
 		IWL_ERR(priv, "File size way too small!\n");
 		goto try_again;
 	}
@@ -1574,14 +1574,47 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	priv->ucode_ver = le32_to_cpu(ucode->ver);
 	api_ver = IWL_UCODE_API(priv->ucode_ver);
-	build = priv->cfg->ops->ucode->get_build(ucode, api_ver);
-	inst_size = priv->cfg->ops->ucode->get_inst_size(ucode, api_ver);
-	data_size = priv->cfg->ops->ucode->get_data_size(ucode, api_ver);
-	init_size = priv->cfg->ops->ucode->get_init_size(ucode, api_ver);
-	init_data_size =
-		priv->cfg->ops->ucode->get_init_data_size(ucode, api_ver);
-	boot_size = priv->cfg->ops->ucode->get_boot_size(ucode, api_ver);
-	src = priv->cfg->ops->ucode->get_data(ucode, api_ver);
+
+	switch (api_ver) {
+	default:
+		/*
+		 * 4965 doesn't revision the firmware file format
+		 * along with the API version, it always uses v1
+		 * file format.
+		 */
+		if (priv->cfg != &iwl4965_agn_cfg) {
+			hdr_size = 28;
+			if (ucode_raw->size < hdr_size) {
+				IWL_ERR(priv, "File size too small!\n");
+				goto try_again;
+			}
+			build = ucode->u.v2.build;
+			inst_size = ucode->u.v2.inst_size;
+			data_size = ucode->u.v2.data_size;
+			init_size = ucode->u.v2.init_size;
+			init_data_size = ucode->u.v2.init_data_size;
+			boot_size = ucode->u.v2.boot_size;
+			src = ucode->u.v2.data;
+			break;
+		}
+		/* fall through for 4965 */
+	case 0:
+	case 1:
+	case 2:
+		hdr_size = 24;
+		if (ucode_raw->size < hdr_size) {
+			IWL_ERR(priv, "File size too small!\n");
+			goto try_again;
+		}
+		build = 0;
+		inst_size = ucode->u.v1.inst_size;
+		data_size = ucode->u.v1.data_size;
+		init_size = ucode->u.v1.init_size;
+		init_data_size = ucode->u.v1.init_data_size;
+		boot_size = ucode->u.v1.boot_size;
+		src = ucode->u.v1.data;
+		break;
+	}
 
 	/* api_ver should match the api version forming part of the
 	 * firmware filename ... but we don't check for that and only rely
@@ -1646,10 +1679,8 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 */
 
 	/* Verify size of file vs. image size info in file's header */
-	if (ucode_raw->size !=
-		priv->cfg->ops->ucode->get_header_size(api_ver) +
-		inst_size + data_size + init_size +
-		init_data_size + boot_size) {
+	if (ucode_raw->size != hdr_size + inst_size + data_size + init_size +
+				init_data_size + boot_size) {
 
 		IWL_DEBUG_INFO(priv,
 			"uCode file size %d does not match expected size\n",
