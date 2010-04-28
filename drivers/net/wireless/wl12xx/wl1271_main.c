@@ -1311,7 +1311,6 @@ static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw,
 	struct wl1271_filter_params *fp;
 	struct netdev_hw_addr *ha;
 	struct wl1271 *wl = hw->priv;
-	int i;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		return 0;
