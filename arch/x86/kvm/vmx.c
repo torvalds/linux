@@ -98,6 +98,8 @@ module_param(ple_gap, int, S_IRUGO);
 static int ple_window = KVM_VMX_DEFAULT_PLE_WINDOW;
 module_param(ple_window, int, S_IRUGO);
 
+#define NR_AUTOLOAD_MSRS 1
+
 struct vmcs {
 	u32 revision_id;
 	u32 abort;
@@ -125,6 +127,11 @@ struct vcpu_vmx {
 	u64 		      msr_guest_kernel_gs_base;
 #endif
 	struct vmcs          *vmcs;
+	struct msr_autoload {
+		unsigned nr;
+		struct vmx_msr_entry guest[NR_AUTOLOAD_MSRS];
+		struct vmx_msr_entry host[NR_AUTOLOAD_MSRS];
+	} msr_autoload;
 	struct {
 		int           loaded;
 		u16           fs_sel, gs_sel, ldt_sel;
@@ -593,6 +600,46 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 	if (vcpu->fpu_active)
 		eb &= ~(1u << NM_VECTOR);
 	vmcs_write32(EXCEPTION_BITMAP, eb);
+}
+
+static void clear_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr)
+{
+	unsigned i;
+	struct msr_autoload *m = &vmx->msr_autoload;
+
+	for (i = 0; i < m->nr; ++i)
+		if (m->guest[i].index == msr)
+			break;
+
+	if (i == m->nr)
+		return;
+	--m->nr;
+	m->guest[i] = m->guest[m->nr];
+	m->host[i] = m->host[m->nr];
+	vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, m->nr);
+	vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, m->nr);
+}
+
+static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
+				  u64 guest_val, u64 host_val)
+{
+	unsigned i;
+	struct msr_autoload *m = &vmx->msr_autoload;
+
+	for (i = 0; i < m->nr; ++i)
+		if (m->guest[i].index == msr)
+			break;
+
+	if (i == m->nr) {
+		++m->nr;
+		vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, m->nr);
+		vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, m->nr);
+	}
+
+	m->guest[i].index = msr;
+	m->guest[i].value = guest_val;
+	m->host[i].index = msr;
+	m->host[i].value = host_val;
 }
 
 static void reload_tss(void)
@@ -2470,7 +2517,9 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_writel(HOST_RIP, kvm_vmx_return); /* 22.2.5 */
 	vmcs_write32(VM_EXIT_MSR_STORE_COUNT, 0);
 	vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, 0);
+	vmcs_write64(VM_EXIT_MSR_LOAD_ADDR, __pa(vmx->msr_autoload.host));
 	vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, 0);
+	vmcs_write64(VM_ENTRY_MSR_LOAD_ADDR, __pa(vmx->msr_autoload.guest));
 
 	rdmsr(MSR_IA32_SYSENTER_CS, host_sysenter_cs, junk);
 	vmcs_write32(HOST_IA32_SYSENTER_CS, host_sysenter_cs);
