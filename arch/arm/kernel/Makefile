@@ -15,9 +15,9 @@ CFLAGS_REMOVE_return_address.o = -pg
 
 obj-y		:= compat.o elf.o entry-armv.o entry-common.o irq.o \
 		   process.o ptrace.o return_address.o setup.o signal.o \
-		   sys_arm.o stacktrace.o time.o traps.o
+		   sys_arm.o stacktrace.o time.o traps.o dma.o
 
-obj-$(CONFIG_ISA_DMA_API)	+= dma.o
+#obj-$(CONFIG_ISA_DMA_API)	+= dma.o
 obj-$(CONFIG_ARCH_ACORN)	+= ecard.o 
 obj-$(CONFIG_FIQ)		+= fiq.o
 obj-$(CONFIG_MODULES)		+= armksyms.o module.o

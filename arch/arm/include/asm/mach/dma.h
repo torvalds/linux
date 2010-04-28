@@ -16,12 +16,14 @@ typedef struct dma_struct dma_t;
 
 struct dma_ops {
 	int	(*request)(unsigned int, dma_t *);		/* optional */
-	void	(*free)(unsigned int, dma_t *);			/* optional */
-	void	(*enable)(unsigned int, dma_t *);		/* mandatory */
-	void 	(*disable)(unsigned int, dma_t *);		/* mandatory */
+	int	(*free)(unsigned int, dma_t *);			/* optional */
+	int	(*enable)(unsigned int, dma_t *);		/* mandatory */
+	int	(*disable)(unsigned int, dma_t *);		/* mandatory */
+#if 0	
 	int	(*residue)(unsigned int, dma_t *);		/* optional */
 	int	(*setspeed)(unsigned int, dma_t *, int);	/* optional */
 	const char *type;
+#endif
 };
 
 struct dma_struct {
@@ -40,15 +42,14 @@ struct dma_struct {
 	unsigned int	lock;		/* Device is allocated		*/
 	const char	*device_id;	/* Device name			*/
 
+    int (*irqHandle)(int irq, void *dev_id);    /*irq callback*/
+    void *data;
+    
 	const struct dma_ops *d_ops;
 };
 
 /*
  * isa_dma_add - add an ISA-style DMA channel
  */
-extern int isa_dma_add(unsigned int, dma_t *dma);
+extern int dma_add(unsigned int, dma_t *dma);
 
-/*
- * Add the ISA DMA controller.  Always takes channels 0-7.
- */
-extern void isa_init_dma(void);

@@ -34,7 +34,7 @@ static inline dma_t *dma_channel(unsigned int chan)
 	return dma_chan[chan];
 }
 
-int __init isa_dma_add(unsigned int chan, dma_t *dma)
+int __init dma_add(unsigned int chan, dma_t *dma)
 {
 	if (!dma->d_ops)
 		return -EINVAL;
@@ -90,32 +90,54 @@ EXPORT_SYMBOL(request_dma);
  *
  * On certain platforms, we have to free interrupt as well...
  */
-void free_dma(unsigned int chan)
+int free_dma(unsigned int chan)
 {
 	dma_t *dma = dma_channel(chan);
-
+	int ret;
+	
 	if (!dma)
 		goto bad_dma;
 
 	if (dma->active) {
 		printk(KERN_ERR "dma%d: freeing active DMA\n", chan);
-		dma->d_ops->disable(chan, dma);
+		ret = dma->d_ops->disable(chan, dma);
 		dma->active = 0;
+		if (ret) 
+            goto free_dma;
 	}
 
 	if (xchg(&dma->lock, 0) != 0) {
 		if (dma->d_ops->free)
-			dma->d_ops->free(chan, dma);
-		return;
+			ret = dma->d_ops->free(chan, dma);
+		return ret ;
 	}
-
+	
+free_dma:
 	printk(KERN_ERR "dma%d: trying to free free DMA\n", chan);
-	return;
+	return -ENODEV;
 
 bad_dma:
 	printk(KERN_ERR "dma: trying to free DMA%d\n", chan);
+	return -EINVAL;
 }
 EXPORT_SYMBOL(free_dma);
+
+/* Set DMA irq handler
+ *
+ * Copy irq handler to the structure
+ */
+ void set_dma_handler (unsigned int chan, void (*irq_handler) (int, void *), void *data)
+{
+	dma_t *dma = dma_channel(chan);
+
+	if (dma->active)
+		printk(KERN_ERR "dma%d: altering DMA irq handler while "
+		       "DMA active\n", chan);
+
+	dma->irqHandle = irq_handler;
+	dma->data = data;
+}
+EXPORT_SYMBOL(set_dma_handler);
 
 /* Set DMA Scatter-Gather list
  */
@@ -186,43 +208,51 @@ EXPORT_SYMBOL(set_dma_mode);
 
 /* Enable DMA channel
  */
-void enable_dma (unsigned int chan)
+int enable_dma (unsigned int chan)
 {
 	dma_t *dma = dma_channel(chan);
-
+	int ret;
+	
 	if (!dma->lock)
 		goto free_dma;
 
 	if (dma->active == 0) {
 		dma->active = 1;
-		dma->d_ops->enable(chan, dma);
+		ret = dma->d_ops->enable(chan, dma);
+		return ret;
 	}
-	return;
+	
+	return -EBUSY;
 
 free_dma:
 	printk(KERN_ERR "dma%d: trying to enable free DMA\n", chan);
 	BUG();
+	return -ENODEV;
 }
 EXPORT_SYMBOL(enable_dma);
 
 /* Disable DMA channel
  */
-void disable_dma (unsigned int chan)
+int disable_dma (unsigned int chan)
 {
 	dma_t *dma = dma_channel(chan);
+	int ret;
 
 	if (!dma->lock)
 		goto free_dma;
 
 	if (dma->active == 1) {
 		dma->active = 0;
-		dma->d_ops->disable(chan, dma);
+		ret = dma->d_ops->disable(chan, dma);
+		return ret;
 	}
-	return;
+	
+	return -EBUSY;
 
 free_dma:
 	printk(KERN_ERR "dma%d: trying to disable free DMA\n", chan);
 	BUG();
+	return -ENODEV;
 }
 EXPORT_SYMBOL(disable_dma);
 
@@ -235,7 +265,7 @@ int dma_channel_active(unsigned int chan)
 	return dma->active;
 }
 EXPORT_SYMBOL(dma_channel_active);
-
+#if 0
 void set_dma_page(unsigned int chan, char pagenr)
 {
 	printk(KERN_ERR "dma%d: trying to set_dma_page\n", chan);
@@ -264,3 +294,4 @@ int get_dma_residue(unsigned int chan)
 	return ret;
 }
 EXPORT_SYMBOL(get_dma_residue);
+#endif
