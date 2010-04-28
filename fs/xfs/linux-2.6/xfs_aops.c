@@ -320,11 +320,16 @@ xfs_map_blocks(
 
 STATIC int
 xfs_iomap_valid(
+	struct inode		*inode,
 	xfs_iomap_t		*iomapp,
 	loff_t			offset)
 {
-	return offset >= iomapp->iomap_offset &&
-		offset < iomapp->iomap_offset + iomapp->iomap_bsize;
+	struct xfs_mount	*mp = XFS_I(inode)->i_mount;
+	xfs_off_t		iomap_offset = XFS_FSB_TO_B(mp, iomapp->iomap_offset);
+	xfs_off_t		iomap_bsize = XFS_FSB_TO_B(mp, iomapp->iomap_bsize);
+
+	return offset >= iomap_offset &&
+		offset < iomap_offset + iomap_bsize;
 }
 
 /*
@@ -561,11 +566,13 @@ xfs_map_buffer(
 	xfs_off_t		offset)
 {
 	sector_t		bn;
+	struct xfs_mount	*m = XFS_I(inode)->i_mount;
+	xfs_off_t		iomap_offset = XFS_FSB_TO_B(m, mp->iomap_offset);
 
 	ASSERT(mp->iomap_bn != IOMAP_DADDR_NULL);
 
 	bn = (mp->iomap_bn >> (inode->i_blkbits - BBSHIFT)) +
-	      ((offset - mp->iomap_offset) >> inode->i_blkbits);
+	      ((offset - iomap_offset) >> inode->i_blkbits);
 
 	ASSERT(bn || XFS_IS_REALTIME_INODE(XFS_I(inode)));
 
@@ -806,7 +813,7 @@ xfs_convert_page(
 			else
 				type = IOMAP_DELAY;
 
-			if (!xfs_iomap_valid(mp, offset)) {
+			if (!xfs_iomap_valid(inode, mp, offset)) {
 				done = 1;
 				continue;
 			}
@@ -1116,7 +1123,7 @@ xfs_page_state_convert(
 		}
 
 		if (iomap_valid)
-			iomap_valid = xfs_iomap_valid(&iomap, offset);
+			iomap_valid = xfs_iomap_valid(inode, &iomap, offset);
 
 		/*
 		 * First case, map an unwritten extent and prepare for
@@ -1171,7 +1178,7 @@ xfs_page_state_convert(
 						&iomap, flags);
 				if (err)
 					goto error;
-				iomap_valid = xfs_iomap_valid(&iomap, offset);
+				iomap_valid = xfs_iomap_valid(inode, &iomap, offset);
 			}
 			if (iomap_valid) {
 				xfs_map_at_offset(inode, bh, &iomap, offset);
@@ -1201,7 +1208,7 @@ xfs_page_state_convert(
 						&iomap, flags);
 				if (err)
 					goto error;
-				iomap_valid = xfs_iomap_valid(&iomap, offset);
+				iomap_valid = xfs_iomap_valid(inode, &iomap, offset);
 			}
 
 			/*
@@ -1241,7 +1248,11 @@ xfs_page_state_convert(
 		xfs_start_page_writeback(page, 1, count);
 
 	if (ioend && iomap_valid) {
-		offset = (iomap.iomap_offset + iomap.iomap_bsize - 1) >>
+		struct xfs_mount	*m = XFS_I(inode)->i_mount;
+		xfs_off_t		iomap_offset = XFS_FSB_TO_B(m, iomap.iomap_offset);
+		xfs_off_t		iomap_bsize = XFS_FSB_TO_B(m, iomap.iomap_bsize);
+
+		offset = (iomap_offset + iomap_bsize - 1) >>
 					PAGE_CACHE_SHIFT;
 		tlast = min_t(pgoff_t, offset, last_index);
 		xfs_cluster_write(inode, page->index + 1, &iomap, &ioend,
@@ -1512,11 +1523,14 @@ __xfs_get_blocks(
 	}
 
 	if (direct || size > (1 << inode->i_blkbits)) {
-		xfs_off_t iomap_delta = offset - iomap.iomap_offset;
+		struct xfs_mount	*mp = XFS_I(inode)->i_mount;
+		xfs_off_t		iomap_offset = XFS_FSB_TO_B(mp, iomap.iomap_offset);
+		xfs_off_t		iomap_delta = offset - iomap_offset;
+		xfs_off_t		iomap_bsize = XFS_FSB_TO_B(mp, iomap.iomap_bsize);
 
-		ASSERT(iomap.iomap_bsize - iomap_delta > 0);
+		ASSERT(iomap_bsize - iomap_delta > 0);
 		offset = min_t(xfs_off_t,
-				iomap.iomap_bsize - iomap_delta, size);
+				iomap_bsize - iomap_delta, size);
 		bh_result->b_size = (ssize_t)min_t(xfs_off_t, LONG_MAX, offset);
 	}
 

@@ -64,11 +64,10 @@ xfs_imap_to_bmap(
 	int		imaps,			/* Number of imap entries */
 	int		flags)
 {
-	xfs_mount_t	*mp = ip->i_mount;
 	xfs_fsblock_t	start_block;
 
-	iomapp->iomap_offset = XFS_FSB_TO_B(mp, imap->br_startoff);
-	iomapp->iomap_bsize = XFS_FSB_TO_B(mp, imap->br_blockcount);
+	iomapp->iomap_offset = imap->br_startoff;
+	iomapp->iomap_bsize = imap->br_blockcount;
 	iomapp->iomap_flags = flags;
 
 	start_block = imap->br_startblock;
