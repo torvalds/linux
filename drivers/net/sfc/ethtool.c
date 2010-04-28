@@ -304,7 +304,7 @@ static int efx_fill_loopback_test(struct efx_nic *efx,
 {
 	struct efx_tx_queue *tx_queue;
 
-	efx_for_each_tx_queue(tx_queue, efx) {
+	efx_for_each_channel_tx_queue(tx_queue, &efx->channel[0]) {
 		efx_fill_test(test_index++, strings, data,
 			      &lb_tests->tx_sent[tx_queue->queue],
 			      EFX_TX_QUEUE_NAME(tx_queue),
