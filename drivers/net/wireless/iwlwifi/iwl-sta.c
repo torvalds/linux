@@ -408,7 +408,7 @@ int iwl_add_station_common(struct iwl_priv *priv, const u8 *addr,
 EXPORT_SYMBOL(iwl_add_station_common);
 
 static struct iwl_link_quality_cmd *iwl_sta_init_lq(struct iwl_priv *priv,
-						    const u8 *addr, bool is_ap)
+						    u8 sta_id)
 {
 	int i, r;
 	struct iwl_link_quality_cmd *link_cmd;
@@ -422,9 +422,7 @@ static struct iwl_link_quality_cmd *iwl_sta_init_lq(struct iwl_priv *priv,
 	}
 	/* Set up the rate scaling to start at selected rate, fall back
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
-	if (is_ap)
-		r = IWL_RATE_54M_INDEX;
-	else if (priv->band == IEEE80211_BAND_5GHZ)
+	if (priv->band == IEEE80211_BAND_5GHZ)
 		r = IWL_RATE_6M_INDEX;
 	else
 		r = IWL_RATE_1M_INDEX;
@@ -459,8 +457,7 @@ static struct iwl_link_quality_cmd *iwl_sta_init_lq(struct iwl_priv *priv,
 	link_cmd->agg_params.agg_time_limit =
 		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
 
-	/* Update the rate scaling for control frame Tx to AP */
-	link_cmd->sta_id = is_ap ? IWL_AP_ID : priv->hw_params.bcast_sta_id;
+	link_cmd->sta_id = sta_id;
 
 	ret = iwl_send_lq_cmd(priv, link_cmd, CMD_SYNC, true);
 	if (ret)
@@ -496,7 +493,7 @@ int iwl_add_local_station(struct iwl_priv *priv, const u8 *addr, bool init_rs)
 
 	if (init_rs) {
 		/* Set up default rate scaling table in device's station table */
-		link_cmd = iwl_sta_init_lq(priv, addr, false);
+		link_cmd = iwl_sta_init_lq(priv, sta_id);
 		if (!link_cmd) {
 			IWL_ERR(priv, "Unable to initialize rate scaling for station %pM.\n",
 				addr);
