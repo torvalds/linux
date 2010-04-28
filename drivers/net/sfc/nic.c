@@ -418,7 +418,7 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 			      FRF_BZ_TX_NON_IP_DROP_DIS, 1);
 
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
-		int csum = tx_queue->queue == EFX_TX_QUEUE_OFFLOAD_CSUM;
+		int csum = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
 		EFX_SET_OWORD_FIELD(tx_desc_ptr, FRF_BZ_TX_IP_CHKSM_DIS, !csum);
 		EFX_SET_OWORD_FIELD(tx_desc_ptr, FRF_BZ_TX_TCP_CHKSM_DIS,
 				    !csum);
@@ -431,10 +431,10 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 		efx_oword_t reg;
 
 		/* Only 128 bits in this register */
-		BUILD_BUG_ON(EFX_TX_QUEUE_COUNT >= 128);
+		BUILD_BUG_ON(EFX_MAX_TX_QUEUES > 128);
 
 		efx_reado(efx, &reg, FR_AA_TX_CHKSM_CFG);
-		if (tx_queue->queue == EFX_TX_QUEUE_OFFLOAD_CSUM)
+		if (tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD)
 			clear_bit_le(tx_queue->queue, (void *)&reg);
 		else
 			set_bit_le(tx_queue->queue, (void *)&reg);
@@ -1132,7 +1132,7 @@ static void efx_poll_flush_events(struct efx_nic *efx)
 		    ev_sub_code == FSE_AZ_TX_DESCQ_FLS_DONE_EV) {
 			ev_queue = EFX_QWORD_FIELD(*event,
 						   FSF_AZ_DRIVER_EV_SUBDATA);
-			if (ev_queue < EFX_TX_QUEUE_COUNT) {
+			if (ev_queue < EFX_TXQ_TYPES * efx->n_tx_channels) {
 				tx_queue = efx->tx_queue + ev_queue;
 				tx_queue->flushed = FLUSH_DONE;
 			}
@@ -1142,7 +1142,7 @@ static void efx_poll_flush_events(struct efx_nic *efx)
 				*event, FSF_AZ_DRIVER_EV_RX_DESCQ_ID);
 			ev_failed = EFX_QWORD_FIELD(
 				*event, FSF_AZ_DRIVER_EV_RX_FLUSH_FAIL);
-			if (ev_queue < efx->n_rx_queues) {
+			if (ev_queue < efx->n_rx_channels) {
 				rx_queue = efx->rx_queue + ev_queue;
 				rx_queue->flushed =
 					ev_failed ? FLUSH_FAILED : FLUSH_DONE;
@@ -1441,7 +1441,7 @@ static void efx_setup_rss_indir_table(struct efx_nic *efx)
 	     offset < FR_BZ_RX_INDIRECTION_TBL + 0x800;
 	     offset += 0x10) {
 		EFX_POPULATE_DWORD_1(dword, FRF_BZ_IT_QUEUE,
-				     i % efx->n_rx_queues);
+				     i % efx->n_rx_channels);
 		efx_writed(efx, &dword, offset);
 		i++;
 	}
