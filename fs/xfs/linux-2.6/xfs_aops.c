@@ -310,23 +310,24 @@ xfs_map_blocks(
 	struct inode		*inode,
 	loff_t			offset,
 	ssize_t			count,
-	xfs_iomap_t		*mapp,
+	struct xfs_bmbt_irec	*imap,
 	int			flags)
 {
 	int			nmaps = 1;
+	int			new = 0;
 
-	return -xfs_iomap(XFS_I(inode), offset, count, flags, mapp, &nmaps);
+	return -xfs_iomap(XFS_I(inode), offset, count, flags, imap, &nmaps, &new);
 }
 
 STATIC int
 xfs_iomap_valid(
 	struct inode		*inode,
-	xfs_iomap_t		*iomapp,
+	struct xfs_bmbt_irec	*imap,
 	loff_t			offset)
 {
 	struct xfs_mount	*mp = XFS_I(inode)->i_mount;
-	xfs_off_t		iomap_offset = XFS_FSB_TO_B(mp, iomapp->iomap_offset);
-	xfs_off_t		iomap_bsize = XFS_FSB_TO_B(mp, iomapp->iomap_bsize);
+	xfs_off_t		iomap_offset = XFS_FSB_TO_B(mp, imap->br_startoff);
+	xfs_off_t		iomap_bsize = XFS_FSB_TO_B(mp, imap->br_blockcount);
 
 	return offset >= iomap_offset &&
 		offset < iomap_offset + iomap_bsize;
@@ -562,16 +563,16 @@ STATIC void
 xfs_map_buffer(
 	struct inode		*inode,
 	struct buffer_head	*bh,
-	xfs_iomap_t		*mp,
+	struct xfs_bmbt_irec	*imap,
 	xfs_off_t		offset)
 {
 	sector_t		bn;
 	struct xfs_mount	*m = XFS_I(inode)->i_mount;
-	xfs_off_t		iomap_offset = XFS_FSB_TO_B(m, mp->iomap_offset);
-	xfs_daddr_t		iomap_bn = xfs_fsb_to_db(XFS_I(inode), mp->iomap_bn);
+	xfs_off_t		iomap_offset = XFS_FSB_TO_B(m, imap->br_startoff);
+	xfs_daddr_t		iomap_bn = xfs_fsb_to_db(XFS_I(inode), imap->br_startblock);
 
-	ASSERT(mp->iomap_bn != HOLESTARTBLOCK);
-	ASSERT(mp->iomap_bn != DELAYSTARTBLOCK);
+	ASSERT(imap->br_startblock != HOLESTARTBLOCK);
+	ASSERT(imap->br_startblock != DELAYSTARTBLOCK);
 
 	bn = (iomap_bn >> (inode->i_blkbits - BBSHIFT)) +
 	      ((offset - iomap_offset) >> inode->i_blkbits);
@@ -586,14 +587,14 @@ STATIC void
 xfs_map_at_offset(
 	struct inode		*inode,
 	struct buffer_head	*bh,
-	xfs_iomap_t		*iomapp,
+	struct xfs_bmbt_irec	*imap,
 	xfs_off_t		offset)
 {
-	ASSERT(iomapp->iomap_bn != HOLESTARTBLOCK);
-	ASSERT(iomapp->iomap_bn != DELAYSTARTBLOCK);
+	ASSERT(imap->br_startblock != HOLESTARTBLOCK);
+	ASSERT(imap->br_startblock != DELAYSTARTBLOCK);
 
 	lock_buffer(bh);
-	xfs_map_buffer(inode, bh, iomapp, offset);
+	xfs_map_buffer(inode, bh, imap, offset);
 	bh->b_bdev = xfs_find_bdev_for_inode(inode);
 	set_buffer_mapped(bh);
 	clear_buffer_delay(bh);
@@ -750,7 +751,7 @@ xfs_convert_page(
 	struct inode		*inode,
 	struct page		*page,
 	loff_t			tindex,
-	xfs_iomap_t		*mp,
+	struct xfs_bmbt_irec	*imap,
 	xfs_ioend_t		**ioendp,
 	struct writeback_control *wbc,
 	int			startio,
@@ -815,15 +816,15 @@ xfs_convert_page(
 			else
 				type = IOMAP_DELAY;
 
-			if (!xfs_iomap_valid(inode, mp, offset)) {
+			if (!xfs_iomap_valid(inode, imap, offset)) {
 				done = 1;
 				continue;
 			}
 
-			ASSERT(mp->iomap_bn != HOLESTARTBLOCK);
-			ASSERT(mp->iomap_bn != DELAYSTARTBLOCK);
+			ASSERT(imap->br_startblock != HOLESTARTBLOCK);
+			ASSERT(imap->br_startblock != DELAYSTARTBLOCK);
 
-			xfs_map_at_offset(inode, bh, mp, offset);
+			xfs_map_at_offset(inode, bh, imap, offset);
 			if (startio) {
 				xfs_add_to_ioend(inode, bh, offset,
 						type, ioendp, done);
@@ -875,7 +876,7 @@ STATIC void
 xfs_cluster_write(
 	struct inode		*inode,
 	pgoff_t			tindex,
-	xfs_iomap_t		*iomapp,
+	struct xfs_bmbt_irec	*imap,
 	xfs_ioend_t		**ioendp,
 	struct writeback_control *wbc,
 	int			startio,
@@ -894,7 +895,7 @@ xfs_cluster_write(
 
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			done = xfs_convert_page(inode, pvec.pages[i], tindex++,
-					iomapp, ioendp, wbc, startio, all_bh);
+					imap, ioendp, wbc, startio, all_bh);
 			if (done)
 				break;
 		}
@@ -1051,7 +1052,7 @@ xfs_page_state_convert(
 	int		unmapped) /* also implies page uptodate */
 {
 	struct buffer_head	*bh, *head;
-	xfs_iomap_t		iomap;
+	struct xfs_bmbt_irec	imap;
 	xfs_ioend_t		*ioend = NULL, *iohead = NULL;
 	loff_t			offset;
 	unsigned long           p_offset = 0;
@@ -1125,7 +1126,7 @@ xfs_page_state_convert(
 		}
 
 		if (iomap_valid)
-			iomap_valid = xfs_iomap_valid(inode, &iomap, offset);
+			iomap_valid = xfs_iomap_valid(inode, &imap, offset);
 
 		/*
 		 * First case, map an unwritten extent and prepare for
@@ -1177,13 +1178,13 @@ xfs_page_state_convert(
 				}
 
 				err = xfs_map_blocks(inode, offset, size,
-						&iomap, flags);
+						&imap, flags);
 				if (err)
 					goto error;
-				iomap_valid = xfs_iomap_valid(inode, &iomap, offset);
+				iomap_valid = xfs_iomap_valid(inode, &imap, offset);
 			}
 			if (iomap_valid) {
-				xfs_map_at_offset(inode, bh, &iomap, offset);
+				xfs_map_at_offset(inode, bh, &imap, offset);
 				if (startio) {
 					xfs_add_to_ioend(inode, bh, offset,
 							type, &ioend,
@@ -1207,10 +1208,10 @@ xfs_page_state_convert(
 				size = xfs_probe_cluster(inode, page, bh,
 								head, 1);
 				err = xfs_map_blocks(inode, offset, size,
-						&iomap, flags);
+						&imap, flags);
 				if (err)
 					goto error;
-				iomap_valid = xfs_iomap_valid(inode, &iomap, offset);
+				iomap_valid = xfs_iomap_valid(inode, &imap, offset);
 			}
 
 			/*
@@ -1251,13 +1252,13 @@ xfs_page_state_convert(
 
 	if (ioend && iomap_valid) {
 		struct xfs_mount	*m = XFS_I(inode)->i_mount;
-		xfs_off_t		iomap_offset = XFS_FSB_TO_B(m, iomap.iomap_offset);
-		xfs_off_t		iomap_bsize = XFS_FSB_TO_B(m, iomap.iomap_bsize);
+		xfs_off_t		iomap_offset = XFS_FSB_TO_B(m, imap.br_startoff);
+		xfs_off_t		iomap_bsize = XFS_FSB_TO_B(m, imap.br_blockcount);
 
 		offset = (iomap_offset + iomap_bsize - 1) >>
 					PAGE_CACHE_SHIFT;
 		tlast = min_t(pgoff_t, offset, last_index);
-		xfs_cluster_write(inode, page->index + 1, &iomap, &ioend,
+		xfs_cluster_write(inode, page->index + 1, &imap, &ioend,
 					wbc, startio, all_bh, tlast);
 	}
 
@@ -1460,10 +1461,11 @@ __xfs_get_blocks(
 	int			direct,
 	bmapi_flags_t		flags)
 {
-	xfs_iomap_t		iomap;
+	struct xfs_bmbt_irec	imap;
 	xfs_off_t		offset;
 	ssize_t			size;
-	int			niomap = 1;
+	int			nimap = 1;
+	int			new = 0;
 	int			error;
 
 	offset = (xfs_off_t)iblock << inode->i_blkbits;
@@ -1474,21 +1476,21 @@ __xfs_get_blocks(
 		return 0;
 
 	error = xfs_iomap(XFS_I(inode), offset, size,
-			     create ? flags : BMAPI_READ, &iomap, &niomap);
+			     create ? flags : BMAPI_READ, &imap, &nimap, &new);
 	if (error)
 		return -error;
-	if (niomap == 0)
+	if (nimap == 0)
 		return 0;
 
-	if (iomap.iomap_bn != HOLESTARTBLOCK &&
-	    iomap.iomap_bn != DELAYSTARTBLOCK) {
+	if (imap.br_startblock != HOLESTARTBLOCK &&
+	    imap.br_startblock != DELAYSTARTBLOCK) {
 		/*
 		 * For unwritten extents do not report a disk address on
 		 * the read case (treat as if we're reading into a hole).
 		 */
-		if (create || !(iomap.iomap_flags & IOMAP_UNWRITTEN))
-			xfs_map_buffer(inode, bh_result, &iomap, offset);
-		if (create && (iomap.iomap_flags & IOMAP_UNWRITTEN)) {
+		if (create || !ISUNWRITTEN(&imap))
+			xfs_map_buffer(inode, bh_result, &imap, offset);
+		if (create && ISUNWRITTEN(&imap)) {
 			if (direct)
 				bh_result->b_private = inode;
 			set_buffer_unwritten(bh_result);
@@ -1513,10 +1515,10 @@ __xfs_get_blocks(
 	if (create &&
 	    ((!buffer_mapped(bh_result) && !buffer_uptodate(bh_result)) ||
 	     (offset >= i_size_read(inode)) ||
-	     (iomap.iomap_flags & (IOMAP_NEW|IOMAP_UNWRITTEN))))
+	     (new || ISUNWRITTEN(&imap))))
 		set_buffer_new(bh_result);
 
-	if (iomap.iomap_bn == DELAYSTARTBLOCK) {
+	if (imap.br_startblock == DELAYSTARTBLOCK) {
 		BUG_ON(direct);
 		if (create) {
 			set_buffer_uptodate(bh_result);
@@ -1527,9 +1529,9 @@ __xfs_get_blocks(
 
 	if (direct || size > (1 << inode->i_blkbits)) {
 		struct xfs_mount	*mp = XFS_I(inode)->i_mount;
-		xfs_off_t		iomap_offset = XFS_FSB_TO_B(mp, iomap.iomap_offset);
+		xfs_off_t		iomap_offset = XFS_FSB_TO_B(mp, imap.br_startoff);
 		xfs_off_t		iomap_delta = offset - iomap_offset;
-		xfs_off_t		iomap_bsize = XFS_FSB_TO_B(mp, iomap.iomap_bsize);
+		xfs_off_t		iomap_bsize = XFS_FSB_TO_B(mp, imap.br_blockcount);
 
 		ASSERT(iomap_bsize - iomap_delta > 0);
 		offset = min_t(xfs_off_t,
