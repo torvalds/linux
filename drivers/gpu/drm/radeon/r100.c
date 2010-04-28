@@ -188,9 +188,13 @@ void r100_set_power_state(struct radeon_device *rdev, bool static_switch)
 #endif
 			radeon_pm_finish(rdev);
 		} else {
+			radeon_sync_with_vblank(rdev);
+
+			if (!radeon_pm_in_vbl(rdev))
+				return;
+
 			/* set engine clock */
 			if (sclk != rdev->pm.current_sclk) {
-				radeon_sync_with_vblank(rdev);
 				radeon_pm_debug_check_in_vbl(rdev, false);
 				radeon_set_engine_clock(rdev, sclk);
 				radeon_pm_debug_check_in_vbl(rdev, true);
@@ -198,10 +202,8 @@ void r100_set_power_state(struct radeon_device *rdev, bool static_switch)
 				DRM_INFO("Setting: e: %d\n", sclk);
 			}
 
-#if 0
 			/* set memory clock */
 			if (rdev->asic->set_memory_clock && (mclk != rdev->pm.current_mclk)) {
-				radeon_sync_with_vblank(rdev);
 				radeon_pm_debug_check_in_vbl(rdev, false);
 				radeon_pm_prepare(rdev);
 				radeon_set_memory_clock(rdev, mclk);
@@ -210,7 +212,6 @@ void r100_set_power_state(struct radeon_device *rdev, bool static_switch)
 				rdev->pm.current_mclk = mclk;
 				DRM_INFO("Setting: m: %d\n", mclk);
 			}
-#endif
 		}
 
 		rdev->pm.current_power_state_index = rdev->pm.requested_power_state_index;
