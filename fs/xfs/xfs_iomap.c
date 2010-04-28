@@ -55,6 +55,13 @@
 #define XFS_STRAT_WRITE_IMAPS	2
 #define XFS_WRITE_IMAPS		XFS_BMAP_MAX_NMAP
 
+STATIC int xfs_iomap_write_direct(struct xfs_inode *, xfs_off_t, size_t,
+				  int, struct xfs_bmbt_irec *, int *);
+STATIC int xfs_iomap_write_delay(struct xfs_inode *, xfs_off_t, size_t, int,
+				 struct xfs_bmbt_irec *, int *);
+STATIC int xfs_iomap_write_allocate(struct xfs_inode *, xfs_off_t, size_t,
+				struct xfs_bmbt_irec *, int *);
+
 int
 xfs_iomap(
 	struct xfs_inode	*ip,
@@ -133,7 +140,7 @@ xfs_iomap(
 
 		if (flags & (BMAPI_DIRECT|BMAPI_MMAP)) {
 			error = xfs_iomap_write_direct(ip, offset, count, flags,
-						       imap, nimaps, *nimaps);
+						       imap, nimaps);
 		} else {
 			error = xfs_iomap_write_delay(ip, offset, count, flags,
 						      imap, nimaps);
@@ -234,15 +241,14 @@ xfs_cmn_err_fsblock_zero(
 	return EFSCORRUPTED;
 }
 
-int
+STATIC int
 xfs_iomap_write_direct(
 	xfs_inode_t	*ip,
 	xfs_off_t	offset,
 	size_t		count,
 	int		flags,
 	xfs_bmbt_irec_t *ret_imap,
-	int		*nmaps,
-	int		found)
+	int		*nmaps)
 {
 	xfs_mount_t	*mp = ip->i_mount;
 	xfs_fileoff_t	offset_fsb;
@@ -279,7 +285,7 @@ xfs_iomap_write_direct(
 		if (error)
 			goto error_out;
 	} else {
-		if (found && (ret_imap->br_startblock == HOLESTARTBLOCK))
+		if (*nmaps && (ret_imap->br_startblock == HOLESTARTBLOCK))
 			last_fsb = MIN(last_fsb, (xfs_fileoff_t)
 					ret_imap->br_blockcount +
 					ret_imap->br_startoff);
@@ -434,7 +440,7 @@ xfs_iomap_eof_want_preallocate(
 	return 0;
 }
 
-int
+STATIC int
 xfs_iomap_write_delay(
 	xfs_inode_t	*ip,
 	xfs_off_t	offset,
@@ -537,7 +543,7 @@ retry:
  * We no longer bother to look at the incoming map - all we have to
  * guarantee is that whatever we allocate fills the required range.
  */
-int
+STATIC int
 xfs_iomap_write_allocate(
 	xfs_inode_t	*ip,
 	xfs_off_t	offset,
