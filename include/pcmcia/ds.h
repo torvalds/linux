@@ -26,6 +26,7 @@
 #ifdef __KERNEL__
 #include <linux/device.h>
 #include <pcmcia/ss.h>
+#include <asm/atomic.h>
 
 /*
  * PCMCIA device drivers (16-bit cards only; 32-bit cards require CardBus
@@ -94,10 +95,8 @@ struct pcmcia_device {
 	config_req_t		conf;
 	window_handle_t		win;
 
-	/* Is the device suspended, or in the process of
-	 * being removed? */
+	/* Is the device suspended? */
 	u16			suspended:1;
-	u16			_removed:1;
 
 	/* Flags whether io, irq, win configurations were
 	 * requested, and whether the configuration is "locked" */
@@ -115,7 +114,7 @@ struct pcmcia_device {
 	u16			has_card_id:1;
 	u16			has_func_id:1;
 
-	u16			reserved:3;
+	u16			reserved:4;
 
 	u8			func_id;
 	u16			manf_id;
