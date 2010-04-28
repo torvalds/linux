@@ -2097,17 +2097,6 @@ static bool emulator_io_permited(struct x86_emulate_ctxt *ctxt,
 	return true;
 }
 
-static u32 get_cached_descriptor_base(struct x86_emulate_ctxt *ctxt,
-				      struct x86_emulate_ops *ops,
-				      int seg)
-{
-	struct desc_struct desc;
-	if (ops->get_cached_descriptor(&desc, seg, ctxt->vcpu))
-		return get_desc_base(&desc);
-	else
-		return ~0;
-}
-
 static void save_state_to_tss16(struct x86_emulate_ctxt *ctxt,
 				struct x86_emulate_ops *ops,
 				struct tss_segment_16 *tss)
@@ -2383,7 +2372,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	int ret;
 	u16 old_tss_sel = ops->get_segment_selector(VCPU_SREG_TR, ctxt->vcpu);
 	ulong old_tss_base =
-		get_cached_descriptor_base(ctxt, ops, VCPU_SREG_TR);
+		ops->get_cached_segment_base(VCPU_SREG_TR, ctxt->vcpu);
 	u32 desc_limit;
 
 	/* FIXME: old_tss_base == ~0 ? */
