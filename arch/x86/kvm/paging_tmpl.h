@@ -478,8 +478,13 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 		    ((level == PT_DIRECTORY_LEVEL && is_large_pte(*sptep))) ||
 		    ((level == PT_PDPE_LEVEL && is_large_pte(*sptep)))) {
 			struct kvm_mmu_page *sp = page_header(__pa(sptep));
+			int offset, shift;
 
-			pte_gpa = (sp->gfn << PAGE_SHIFT);
+			shift = PAGE_SHIFT -
+				  (PT_LEVEL_BITS - PT64_LEVEL_BITS) * level;
+			offset = sp->role.quadrant << shift;
+
+			pte_gpa = (sp->gfn << PAGE_SHIFT) + offset;
 			pte_gpa += (sptep - sp->spt) * sizeof(pt_element_t);
 
 			if (is_shadow_present_pte(*sptep)) {
