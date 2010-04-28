@@ -370,7 +370,6 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 		struct alloc_stat *data = rb_entry(next, struct alloc_stat,
 						   node);
 		struct symbol *sym = NULL;
-		struct map_groups *kmaps = &machine->kmaps;
 		struct map *map;
 		char buf[BUFSIZ];
 		u64 addr;
@@ -378,8 +377,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = map_groups__find_function(kmaps, addr,
-								&map, NULL);
+				sym = machine__find_function(machine, addr, &map, NULL);
 		} else
 			addr = data->ptr;
 

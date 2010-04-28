@@ -69,12 +69,11 @@ void perf_session__update_sample_type(struct perf_session *self)
 
 int perf_session__create_kernel_maps(struct perf_session *self)
 {
-	int ret;
-	struct rb_root *root = &self->machines;
+	struct rb_root *machines = &self->machines;
+	int ret = machines__create_kernel_maps(machines, HOST_KERNEL_ID);
 
-	ret = map_groups__create_kernel_maps(root, HOST_KERNEL_ID);
 	if (ret >= 0)
-		ret = map_groups__create_guest_kernel_maps(root);
+		ret = machines__create_guest_kernel_maps(machines);
 	return ret;
 }
 

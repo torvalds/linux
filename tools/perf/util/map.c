@@ -513,6 +513,19 @@ struct map *maps__find(struct rb_root *maps, u64 ip)
 	return NULL;
 }
 
+int machine__init(struct machine *self, const char *root_dir, pid_t pid)
+{
+	map_groups__init(&self->kmaps);
+	RB_CLEAR_NODE(&self->rb_node);
+	INIT_LIST_HEAD(&self->user_dsos);
+	INIT_LIST_HEAD(&self->kernel_dsos);
+
+	self->kmaps.machine = self;
+	self->pid	    = pid;
+	self->root_dir      = strdup(root_dir);
+	return self->root_dir == NULL ? -ENOMEM : 0;
+}
+
 struct machine *machines__add(struct rb_root *self, pid_t pid,
 			      const char *root_dir)
 {
@@ -523,13 +536,10 @@ struct machine *machines__add(struct rb_root *self, pid_t pid,
 	if (!machine)
 		return NULL;
 
-	machine->pid = pid;
-	map_groups__init(&machine->kmaps);
-	machine->root_dir = strdup(root_dir);
-	RB_CLEAR_NODE(&machine->rb_node);
-	INIT_LIST_HEAD(&machine->user_dsos);
-	INIT_LIST_HEAD(&machine->kernel_dsos);
-	machine->kmaps.machine = machine;
+	if (machine__init(machine, root_dir, pid) != 0) {
+		free(machine);
+		return NULL;
+	}
 
 	while (*p != NULL) {
 		parent = *p;

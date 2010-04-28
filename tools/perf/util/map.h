@@ -134,6 +134,7 @@ struct machine *machines__find_host(struct rb_root *self);
 struct machine *machines__find(struct rb_root *self, pid_t pid);
 struct machine *machines__findnew(struct rb_root *self, pid_t pid);
 char *machine__mmap_name(struct machine *self, char *bf, size_t size);
+int machine__init(struct machine *self, const char *root_dir, pid_t pid);
 
 /*
  * Default guest kernel is defined by parameter --guestkallsyms
@@ -172,11 +173,11 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *self,
 					       struct map **mapp,
 					       symbol_filter_t filter);
 
-static inline
-struct symbol *map_groups__find_function(struct map_groups *self, u64 addr,
-					 struct map **mapp, symbol_filter_t filter)
+static inline struct symbol *machine__find_function(struct machine *self,
+						    u64 addr, struct map **mapp,
+						    symbol_filter_t filter)
 {
-	return map_groups__find_symbol(self, MAP__FUNCTION, addr, mapp, filter);
+	return map_groups__find_symbol(&self->kmaps, MAP__FUNCTION, addr, mapp, filter);
 }
 
 static inline
@@ -192,8 +193,7 @@ int map_groups__fixup_overlappings(struct map_groups *self, struct map *map,
 
 struct map *map_groups__find_by_name(struct map_groups *self,
 				     enum map_type type, const char *name);
-struct map *map_groups__new_module(struct map_groups *self, u64 start,
-				   const char *filename, struct machine *machine);
+struct map *machine__new_module(struct machine *self, u64 start, const char *filename);
 
 void map_groups__flush(struct map_groups *self);
 

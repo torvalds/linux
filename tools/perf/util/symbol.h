@@ -199,11 +199,9 @@ int kallsyms__parse(const char *filename, void *arg,
 		    int (*process_symbol)(void *arg, const char *name,
 					  char type, u64 start));
 
-int __map_groups__create_kernel_maps(struct map_groups *self,
-			struct map *vmlinux_maps[MAP__NR_TYPES],
-			struct dso *kernel);
-int map_groups__create_kernel_maps(struct rb_root *kerninfo_root, pid_t pid);
-int map_groups__create_guest_kernel_maps(struct rb_root *kerninfo_root);
+int __machine__create_kernel_maps(struct machine *self, struct dso *kernel);
+int machines__create_kernel_maps(struct rb_root *self, pid_t pid);
+int machines__create_guest_kernel_maps(struct rb_root *self);
 
 int symbol__init(void);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);

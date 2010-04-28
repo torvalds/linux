@@ -429,9 +429,8 @@ static int event__process_kernel_mmap(event_t *self,
 		} else
 			strcpy(short_module_name, self->mmap.filename);
 
-		map = map_groups__new_module(&machine->kmaps,
-					     self->mmap.start,
-					     self->mmap.filename, machine);
+		map = machine__new_module(machine, self->mmap.start,
+					  self->mmap.filename);
 		if (map == NULL)
 			goto out_problem;
 
@@ -454,9 +453,7 @@ static int event__process_kernel_mmap(event_t *self,
 			goto out_problem;
 
 		kernel->kernel = kernel_type;
-		if (__map_groups__create_kernel_maps(&machine->kmaps,
-						     machine->vmlinux_maps,
-						     kernel) < 0)
+		if (__machine__create_kernel_maps(machine, kernel) < 0)
 			goto out_problem;
 
 		event_set_kernel_mmap_len(machine->vmlinux_maps, self);
