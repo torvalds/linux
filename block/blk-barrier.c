@@ -293,19 +293,22 @@ static void bio_end_empty_barrier(struct bio *bio, int err)
 /**
  * blkdev_issue_flush - queue a flush
  * @bdev:	blockdev to issue flush for
+ * @gfp_mask:	memory allocation flags (for bio_alloc)
  * @error_sector:	error sector
+ * @flags:	BLKDEV_IFL_* flags to control behaviour
  *
  * Description:
  *    Issue a flush for the block device in question. Caller can supply
  *    room for storing the error offset in case of a flush error, if they
  *    wish to.
  */
-int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
+int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
+		sector_t *error_sector, unsigned long flags)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q;
 	struct bio *bio;
-	int ret;
+	int ret = 0;
 
 	if (bdev->bd_disk == NULL)
 		return -ENXIO;
@@ -314,7 +317,7 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 	if (!q)
 		return -ENXIO;
 
-	bio = bio_alloc(GFP_KERNEL, 0);
+	bio = bio_alloc(gfp_mask, 0);
 	bio->bi_end_io = bio_end_empty_barrier;
 	bio->bi_private = &wait;
 	bio->bi_bdev = bdev;
@@ -330,7 +333,6 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 	if (error_sector)
 		*error_sector = bio->bi_sector;
 
-	ret = 0;
 	if (bio_flagged(bio, BIO_EOPNOTSUPP))
 		ret = -EOPNOTSUPP;
 	else if (!bio_flagged(bio, BIO_UPTODATE))
@@ -362,17 +364,17 @@ static void blkdev_discard_end_io(struct bio *bio, int err)
  * @sector:	start sector
  * @nr_sects:	number of sectors to discard
  * @gfp_mask:	memory allocation flags (for bio_alloc)
- * @flags:	DISCARD_FL_* flags to control behaviour
+ * @flags:	BLKDEV_IFL_* flags to control behaviour
  *
  * Description:
  *    Issue a discard request for the sectors in question.
  */
 int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, int flags)
+		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q = bdev_get_queue(bdev);
-	int type = flags & DISCARD_FL_BARRIER ?
+	int type = flags & BLKDEV_IFL_BARRIER ?
 		DISCARD_BARRIER : DISCARD_NOBARRIER;
 	struct bio *bio;
 	struct page *page;
@@ -395,7 +397,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		bio->bi_sector = sector;
 		bio->bi_end_io = blkdev_discard_end_io;
 		bio->bi_bdev = bdev;
-		if (flags & DISCARD_FL_WAIT)
+		if (flags & BLKDEV_IFL_WAIT)
 			bio->bi_private = &wait;
 
 		/*
@@ -426,7 +428,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		bio_get(bio);
 		submit_bio(type, bio);
 
-		if (flags & DISCARD_FL_WAIT)
+		if (flags & BLKDEV_IFL_WAIT)
 			wait_for_completion(&wait);
 
 		if (bio_flagged(bio, BIO_EOPNOTSUPP))

@@ -1589,7 +1589,7 @@ static void btrfs_issue_discard(struct block_device *bdev,
 				u64 start, u64 len)
 {
 	blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_KERNEL,
-			     DISCARD_FL_BARRIER);
+			BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
 }
 
 static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,

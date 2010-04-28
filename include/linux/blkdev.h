@@ -998,12 +998,16 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 		return NULL;
 	return bqt->tag_index[tag];
 }
-
-extern int blkdev_issue_flush(struct block_device *, sector_t *);
-#define DISCARD_FL_WAIT		0x01	/* wait for completion */
-#define DISCARD_FL_BARRIER	0x02	/* issue DISCARD_BARRIER request */
-extern int blkdev_issue_discard(struct block_device *, sector_t sector,
-		sector_t nr_sects, gfp_t, int flags);
+enum{
+	BLKDEV_WAIT,	/* wait for completion */
+	BLKDEV_BARRIER,	/*issue request with barrier */
+};
+#define BLKDEV_IFL_WAIT		(1 << BLKDEV_WAIT)
+#define BLKDEV_IFL_BARRIER	(1 << BLKDEV_BARRIER)
+extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *,
+			unsigned long);
+extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags);
 
 static inline int sb_issue_discard(struct super_block *sb,
 				   sector_t block, sector_t nr_blocks)
@@ -1011,7 +1015,7 @@ static inline int sb_issue_discard(struct super_block *sb,
 	block <<= (sb->s_blocksize_bits - 9);
 	nr_blocks <<= (sb->s_blocksize_bits - 9);
 	return blkdev_issue_discard(sb->s_bdev, block, nr_blocks, GFP_KERNEL,
-				    DISCARD_FL_BARRIER);
+				   BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
 }
 
 extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);

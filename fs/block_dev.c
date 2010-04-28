@@ -413,7 +413,8 @@ int blkdev_fsync(struct file *filp, struct dentry *dentry, int datasync)
 	if (error)
 		return error;
 	
-	error = blkdev_issue_flush(bdev, NULL);
+	error = blkdev_issue_flush(bdev, GFP_KERNEL, NULL,
+				(BLKDEV_IFL_WAIT));
 	if (error == -EOPNOTSUPP)
 		error = 0;
 	return error;

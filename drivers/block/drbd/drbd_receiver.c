@@ -945,7 +945,8 @@ static enum finish_epoch drbd_flush_after_epoch(struct drbd_conf *mdev, struct d
 	int rv;
 
 	if (mdev->write_ordering >= WO_bdev_flush && get_ldev(mdev)) {
-		rv = blkdev_issue_flush(mdev->ldev->backing_bdev, NULL);
+		rv = blkdev_issue_flush(mdev->ldev->backing_bdev, GFP_KERNEL,
+					NULL, BLKDEV_IFL_WAIT);
 		if (rv) {
 			dev_err(DEV, "local disk flush failed with status %d\n", rv);
 			/* would rather check on EOPNOTSUPP, but that is not reliable.
