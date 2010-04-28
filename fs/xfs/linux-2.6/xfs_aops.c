@@ -1065,7 +1065,7 @@ xfs_page_state_convert(
 	unsigned long           p_offset = 0;
 	unsigned int		type;
 	__uint64_t              end_offset;
-	pgoff_t                 end_index, last_index, tlast;
+	pgoff_t                 end_index, last_index;
 	ssize_t			size, len;
 	int			flags, err, imap_valid = 0, uptodate = 1;
 	int			page_dirty, count = 0;
@@ -1260,15 +1260,22 @@ xfs_page_state_convert(
 		xfs_start_page_writeback(page, 1, count);
 
 	if (ioend && imap_valid) {
-		struct xfs_mount	*m = XFS_I(inode)->i_mount;
-		xfs_off_t		iomap_offset = XFS_FSB_TO_B(m, imap.br_startoff);
-		xfs_off_t		iomap_bsize = XFS_FSB_TO_B(m, imap.br_blockcount);
+		xfs_off_t		end_index;
 
-		offset = (iomap_offset + iomap_bsize - 1) >>
-					PAGE_CACHE_SHIFT;
-		tlast = min_t(pgoff_t, offset, last_index);
+		end_index = imap.br_startoff + imap.br_blockcount;
+
+		/* to bytes */
+		end_index <<= inode->i_blkbits;
+
+		/* to pages */
+		end_index = (end_index - 1) >> PAGE_CACHE_SHIFT;
+
+		/* check against file size */
+		if (end_index > last_index)
+			end_index = last_index;
+
 		xfs_cluster_write(inode, page->index + 1, &imap, &ioend,
-					wbc, startio, all_bh, tlast);
+					wbc, startio, all_bh, end_index);
 	}
 
 	if (iohead)
