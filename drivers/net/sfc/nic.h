@@ -135,12 +135,14 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
  * @fw_build: Firmware build number
  * @mcdi: Management-Controller-to-Driver Interface
  * @wol_filter_id: Wake-on-LAN packet filter id
+ * @ipv6_rss_key: Toeplitz hash key for IPv6 RSS
  */
 struct siena_nic_data {
 	u64 fw_version;
 	u32 fw_build;
 	struct efx_mcdi_iface mcdi;
 	int wol_filter_id;
+	u8 ipv6_rss_key[40];
 };
 
 extern void siena_print_fwver(struct efx_nic *efx, char *buf, size_t len);
