@@ -1264,7 +1264,7 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if (inet_sk(sk)->inet_daddr)
 		sock_rps_save_rxhash(sk, skb->rxhash);
 
-	rc = sock_queue_rcv_skb(sk, skb);
+	rc = ip_queue_rcv_skb(sk, skb);
 	if (rc < 0) {
 		int is_udplite = IS_UDPLITE(sk);
 
