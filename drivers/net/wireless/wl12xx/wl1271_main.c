@@ -1707,6 +1707,10 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ret < 0)
 				goto out_sleep;
 
+			ret = wl1271_build_qos_null_data(wl);
+			if (ret < 0)
+				goto out_sleep;
+
 			/* filter out all packets not from this BSSID */
 			wl1271_configure_filters(wl, 0);
 
