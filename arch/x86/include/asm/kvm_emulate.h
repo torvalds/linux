@@ -94,6 +94,7 @@ struct x86_emulate_ops {
 	int (*read_emulated)(unsigned long addr,
 			     void *val,
 			     unsigned int bytes,
+			     unsigned int *error,
 			     struct kvm_vcpu *vcpu);
 
 	/*
@@ -106,6 +107,7 @@ struct x86_emulate_ops {
 	int (*write_emulated)(unsigned long addr,
 			      const void *val,
 			      unsigned int bytes,
+			      unsigned int *error,
 			      struct kvm_vcpu *vcpu);
 
 	/*
@@ -120,6 +122,7 @@ struct x86_emulate_ops {
 				const void *old,
 				const void *new,
 				unsigned int bytes,
+				unsigned int *error,
 				struct kvm_vcpu *vcpu);
 
 	int (*pio_in_emulated)(int size, unsigned short port, void *val,

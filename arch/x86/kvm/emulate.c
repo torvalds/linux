@@ -1277,6 +1277,7 @@ static int read_emulated(struct x86_emulate_ctxt *ctxt,
 {
 	int rc;
 	struct read_cache *mc = &ctxt->decode.mem_read;
+	u32 err;
 
 	while (size) {
 		int n = min(size, 8u);
@@ -1284,7 +1285,10 @@ static int read_emulated(struct x86_emulate_ctxt *ctxt,
 		if (mc->pos < mc->end)
 			goto read_cached;
 
-		rc = ops->read_emulated(addr, mc->data + mc->end, n, ctxt->vcpu);
+		rc = ops->read_emulated(addr, mc->data + mc->end, n, &err,
+					ctxt->vcpu);
+		if (rc == X86EMUL_PROPAGATE_FAULT)
+			kvm_inject_page_fault(ctxt->vcpu, addr, err);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		mc->end += n;
@@ -1789,6 +1793,7 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 {
 	int rc;
 	struct decode_cache *c = &ctxt->decode;
+	u32 err;
 
 	switch (c->dst.type) {
 	case OP_REG:
@@ -1817,13 +1822,18 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 					&c->dst.orig_val,
 					&c->dst.val,
 					c->dst.bytes,
+					&err,
 					ctxt->vcpu);
 		else
 			rc = ops->write_emulated(
 					(unsigned long)c->dst.ptr,
 					&c->dst.val,
 					c->dst.bytes,
+					&err,
 					ctxt->vcpu);
+		if (rc == X86EMUL_PROPAGATE_FAULT)
+			kvm_inject_page_fault(ctxt->vcpu,
+					      (unsigned long)c->dst.ptr, err);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		break;
