@@ -142,7 +142,6 @@ struct x86_emulate_ops {
 	ulong (*get_cr)(int cr, struct kvm_vcpu *vcpu);
 	int (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
 	int (*cpl)(struct kvm_vcpu *vcpu);
-	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
 	int (*get_dr)(int dr, unsigned long *dest, struct kvm_vcpu *vcpu);
 	int (*set_dr)(int dr, unsigned long value, struct kvm_vcpu *vcpu);
 	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
