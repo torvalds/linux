@@ -3852,6 +3852,17 @@ static void toggle_interruptibility(struct kvm_vcpu *vcpu, u32 mask)
 		kvm_x86_ops->set_interrupt_shadow(vcpu, mask);
 }
 
+static void inject_emulated_exception(struct kvm_vcpu *vcpu)
+{
+	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+	if (ctxt->exception == PF_VECTOR)
+		kvm_inject_page_fault(vcpu, ctxt->cr2, ctxt->error_code);
+	else if (ctxt->error_code_valid)
+		kvm_queue_exception_e(vcpu, ctxt->exception, ctxt->error_code);
+	else
+		kvm_queue_exception(vcpu, ctxt->exception);
+}
+
 int emulate_instruction(struct kvm_vcpu *vcpu,
 			unsigned long cr2,
 			u16 error_code,
@@ -3886,6 +3897,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 		memset(c, 0, sizeof(struct decode_cache));
 		memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
 		vcpu->arch.emulate_ctxt.interruptibility = 0;
+		vcpu->arch.emulate_ctxt.exception = -1;
 
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
 		trace_kvm_emulate_insn_start(vcpu);
@@ -3958,6 +3970,11 @@ restart:
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
 
+	if (vcpu->arch.emulate_ctxt.exception >= 0) {
+		inject_emulated_exception(vcpu);
+		return EMULATE_DONE;
+	}
+
 	if (vcpu->arch.pio.count) {
 		if (!vcpu->arch.pio.in)
 			vcpu->arch.pio.count = 0;
@@ -3969,9 +3986,6 @@ restart:
 			vcpu->mmio_needed = 0;
 		return EMULATE_DO_MMIO;
 	}
-
-	if (vcpu->arch.exception.pending)
-		vcpu->arch.emulate_ctxt.restart = false;
 
 	if (vcpu->arch.emulate_ctxt.restart)
 		goto restart;

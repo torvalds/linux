@@ -653,6 +653,37 @@ static unsigned long ss_base(struct x86_emulate_ctxt *ctxt,
 	return seg_base(ctxt, ops, VCPU_SREG_SS);
 }
 
+static void emulate_exception(struct x86_emulate_ctxt *ctxt, int vec,
+				      u32 error, bool valid)
+{
+	ctxt->exception = vec;
+	ctxt->error_code = error;
+	ctxt->error_code_valid = valid;
+	ctxt->restart = false;
+}
+
+static void emulate_gp(struct x86_emulate_ctxt *ctxt, int err)
+{
+	emulate_exception(ctxt, GP_VECTOR, err, true);
+}
+
+static void emulate_pf(struct x86_emulate_ctxt *ctxt, unsigned long addr,
+		       int err)
+{
+	ctxt->cr2 = addr;
+	emulate_exception(ctxt, PF_VECTOR, err, true);
+}
+
+static void emulate_ud(struct x86_emulate_ctxt *ctxt)
+{
+	emulate_exception(ctxt, UD_VECTOR, 0, false);
+}
+
+static void emulate_ts(struct x86_emulate_ctxt *ctxt, int err)
+{
+	emulate_exception(ctxt, TS_VECTOR, err, true);
+}
+
 static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
 			      struct x86_emulate_ops *ops,
 			      unsigned long eip, u8 *dest)
@@ -1285,7 +1316,7 @@ static int read_emulated(struct x86_emulate_ctxt *ctxt,
 		rc = ops->read_emulated(addr, mc->data + mc->end, n, &err,
 					ctxt->vcpu);
 		if (rc == X86EMUL_PROPAGATE_FAULT)
-			kvm_inject_page_fault(ctxt->vcpu, addr, err);
+			emulate_pf(ctxt, addr, err);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		mc->end += n;
@@ -1366,13 +1397,13 @@ static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	get_descriptor_table_ptr(ctxt, ops, selector, &dt);
 
 	if (dt.size < index * 8 + 7) {
-		kvm_inject_gp(ctxt->vcpu, selector & 0xfffc);
+		emulate_gp(ctxt, selector & 0xfffc);
 		return X86EMUL_PROPAGATE_FAULT;
 	}
 	addr = dt.address + index * 8;
 	ret = ops->read_std(addr, desc, sizeof *desc, ctxt->vcpu,  &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT)
-		kvm_inject_page_fault(ctxt->vcpu, addr, err);
+		emulate_pf(ctxt, addr, err);
 
        return ret;
 }
@@ -1391,14 +1422,14 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	get_descriptor_table_ptr(ctxt, ops, selector, &dt);
 
 	if (dt.size < index * 8 + 7) {
-		kvm_inject_gp(ctxt->vcpu, selector & 0xfffc);
+		emulate_gp(ctxt, selector & 0xfffc);
 		return X86EMUL_PROPAGATE_FAULT;
 	}
 
 	addr = dt.address + index * 8;
 	ret = ops->write_std(addr, desc, sizeof *desc, ctxt->vcpu, &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT)
-		kvm_inject_page_fault(ctxt->vcpu, addr, err);
+		emulate_pf(ctxt, addr, err);
 
 	return ret;
 }
@@ -1517,7 +1548,7 @@ load:
 	ops->set_cached_descriptor(&seg_desc, seg, ctxt->vcpu);
 	return X86EMUL_CONTINUE;
 exception:
-	kvm_queue_exception_e(ctxt->vcpu, err_vec, err_code);
+	emulate_exception(ctxt, err_vec, err_code, true);
 	return X86EMUL_PROPAGATE_FAULT;
 }
 
@@ -1578,7 +1609,7 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 		break;
 	case X86EMUL_MODE_VM86:
 		if (iopl < 3) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			return X86EMUL_PROPAGATE_FAULT;
 		}
 		change_mask |= EFLG_IF;
@@ -1829,7 +1860,7 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 					&err,
 					ctxt->vcpu);
 		if (rc == X86EMUL_PROPAGATE_FAULT)
-			kvm_inject_page_fault(ctxt->vcpu,
+			emulate_pf(ctxt,
 					      (unsigned long)c->dst.ptr, err);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
@@ -1883,7 +1914,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	/* syscall is not available in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL ||
 	    ctxt->mode == X86EMUL_MODE_VM86) {
-		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+		emulate_ud(ctxt);
 		return X86EMUL_PROPAGATE_FAULT;
 	}
 
@@ -1937,7 +1968,7 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	/* inject #GP if in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL) {
-		kvm_inject_gp(ctxt->vcpu, 0);
+		emulate_gp(ctxt, 0);
 		return X86EMUL_PROPAGATE_FAULT;
 	}
 
@@ -1945,7 +1976,7 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	* Therefore, we inject an #UD.
 	*/
 	if (ctxt->mode == X86EMUL_MODE_PROT64) {
-		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+		emulate_ud(ctxt);
 		return X86EMUL_PROPAGATE_FAULT;
 	}
 
@@ -1955,13 +1986,13 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	switch (ctxt->mode) {
 	case X86EMUL_MODE_PROT32:
 		if ((msr_data & 0xfffc) == 0x0) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			return X86EMUL_PROPAGATE_FAULT;
 		}
 		break;
 	case X86EMUL_MODE_PROT64:
 		if (msr_data == 0x0) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			return X86EMUL_PROPAGATE_FAULT;
 		}
 		break;
@@ -2004,7 +2035,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	/* inject #GP if in real mode or Virtual 8086 mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL ||
 	    ctxt->mode == X86EMUL_MODE_VM86) {
-		kvm_inject_gp(ctxt->vcpu, 0);
+		emulate_gp(ctxt, 0);
 		return X86EMUL_PROPAGATE_FAULT;
 	}
 
@@ -2022,7 +2053,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	case X86EMUL_MODE_PROT32:
 		cs_sel = (u16)(msr_data + 16);
 		if ((msr_data & 0xfffc) == 0x0) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			return X86EMUL_PROPAGATE_FAULT;
 		}
 		ss_sel = (u16)(msr_data + 24);
@@ -2030,7 +2061,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	case X86EMUL_MODE_PROT64:
 		cs_sel = (u16)(msr_data + 32);
 		if (msr_data == 0x0) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			return X86EMUL_PROPAGATE_FAULT;
 		}
 		ss_sel = cs_sel + 8;
@@ -2192,7 +2223,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 			    &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		kvm_inject_page_fault(ctxt->vcpu, old_tss_base, err);
+		emulate_pf(ctxt, old_tss_base, err);
 		return ret;
 	}
 
@@ -2202,7 +2233,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 			     &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		kvm_inject_page_fault(ctxt->vcpu, old_tss_base, err);
+		emulate_pf(ctxt, old_tss_base, err);
 		return ret;
 	}
 
@@ -2210,7 +2241,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 			    &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		kvm_inject_page_fault(ctxt->vcpu, new_tss_base, err);
+		emulate_pf(ctxt, new_tss_base, err);
 		return ret;
 	}
 
@@ -2223,7 +2254,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 				     ctxt->vcpu, &err);
 		if (ret == X86EMUL_PROPAGATE_FAULT) {
 			/* FIXME: need to provide precise fault address */
-			kvm_inject_page_fault(ctxt->vcpu, new_tss_base, err);
+			emulate_pf(ctxt, new_tss_base, err);
 			return ret;
 		}
 	}
@@ -2266,7 +2297,7 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	int ret;
 
 	if (ops->set_cr(3, tss->cr3, ctxt->vcpu)) {
-		kvm_inject_gp(ctxt->vcpu, 0);
+		emulate_gp(ctxt, 0);
 		return X86EMUL_PROPAGATE_FAULT;
 	}
 	c->eip = tss->eip;
@@ -2334,7 +2365,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 			    &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		kvm_inject_page_fault(ctxt->vcpu, old_tss_base, err);
+		emulate_pf(ctxt, old_tss_base, err);
 		return ret;
 	}
 
@@ -2344,7 +2375,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 			     &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		kvm_inject_page_fault(ctxt->vcpu, old_tss_base, err);
+		emulate_pf(ctxt, old_tss_base, err);
 		return ret;
 	}
 
@@ -2352,7 +2383,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 			    &err);
 	if (ret == X86EMUL_PROPAGATE_FAULT) {
 		/* FIXME: need to provide precise fault address */
-		kvm_inject_page_fault(ctxt->vcpu, new_tss_base, err);
+		emulate_pf(ctxt, new_tss_base, err);
 		return ret;
 	}
 
@@ -2365,7 +2396,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 				     ctxt->vcpu, &err);
 		if (ret == X86EMUL_PROPAGATE_FAULT) {
 			/* FIXME: need to provide precise fault address */
-			kvm_inject_page_fault(ctxt->vcpu, new_tss_base, err);
+			emulate_pf(ctxt, new_tss_base, err);
 			return ret;
 		}
 	}
@@ -2399,7 +2430,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	if (reason != TASK_SWITCH_IRET) {
 		if ((tss_selector & 3) > next_tss_desc.dpl ||
 		    ops->cpl(ctxt->vcpu) > next_tss_desc.dpl) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			return X86EMUL_PROPAGATE_FAULT;
 		}
 	}
@@ -2408,8 +2439,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	if (!next_tss_desc.p ||
 	    ((desc_limit < 0x67 && (next_tss_desc.type & 8)) ||
 	     desc_limit < 0x2b)) {
-		kvm_queue_exception_e(ctxt->vcpu, TS_VECTOR,
-				      tss_selector & 0xfffc);
+		emulate_ts(ctxt, tss_selector & 0xfffc);
 		return X86EMUL_PROPAGATE_FAULT;
 	}
 
@@ -2505,19 +2535,19 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	ctxt->decode.mem_read.pos = 0;
 
 	if (ctxt->mode == X86EMUL_MODE_PROT64 && (c->d & No64)) {
-		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+		emulate_ud(ctxt);
 		goto done;
 	}
 
 	/* LOCK prefix is allowed only with some instructions */
 	if (c->lock_prefix && (!(c->d & Lock) || c->dst.type != OP_MEM)) {
-		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+		emulate_ud(ctxt);
 		goto done;
 	}
 
 	/* Privileged instruction can be executed only in CPL=0 */
 	if ((c->d & Priv) && ops->cpl(ctxt->vcpu)) {
-		kvm_inject_gp(ctxt->vcpu, 0);
+		emulate_gp(ctxt, 0);
 		goto done;
 	}
 
@@ -2679,7 +2709,7 @@ special_insn:
 		c->dst.bytes = min(c->dst.bytes, 4u);
 		if (!emulator_io_permited(ctxt, ops, c->regs[VCPU_REGS_RDX],
 					  c->dst.bytes)) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			goto done;
 		}
 		if (!pio_in_emulated(ctxt, ops, c->dst.bytes,
@@ -2691,7 +2721,7 @@ special_insn:
 		c->src.bytes = min(c->src.bytes, 4u);
 		if (!emulator_io_permited(ctxt, ops, c->regs[VCPU_REGS_RDX],
 					  c->src.bytes)) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			goto done;
 		}
 		ops->pio_out_emulated(c->src.bytes, c->regs[VCPU_REGS_RDX],
@@ -2754,7 +2784,7 @@ special_insn:
 		goto mov;
 	case 0x8c:  /* mov r/m, sreg */
 		if (c->modrm_reg > VCPU_SREG_GS) {
-			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			emulate_ud(ctxt);
 			goto done;
 		}
 		c->dst.val = ops->get_segment_selector(c->modrm_reg, ctxt->vcpu);
@@ -2769,7 +2799,7 @@ special_insn:
 
 		if (c->modrm_reg == VCPU_SREG_CS ||
 		    c->modrm_reg > VCPU_SREG_GS) {
-			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			emulate_ud(ctxt);
 			goto done;
 		}
 
@@ -2895,7 +2925,7 @@ special_insn:
 	do_io_in:
 		c->dst.bytes = min(c->dst.bytes, 4u);
 		if (!emulator_io_permited(ctxt, ops, c->src.val, c->dst.bytes)) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			goto done;
 		}
 		if (!pio_in_emulated(ctxt, ops, c->dst.bytes, c->src.val,
@@ -2908,7 +2938,7 @@ special_insn:
 	do_io_out:
 		c->dst.bytes = min(c->dst.bytes, 4u);
 		if (!emulator_io_permited(ctxt, ops, c->src.val, c->dst.bytes)) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			goto done;
 		}
 		ops->pio_out_emulated(c->dst.bytes, c->src.val, &c->dst.val, 1,
@@ -2933,7 +2963,7 @@ special_insn:
 		break;
 	case 0xfa: /* cli */
 		if (emulator_bad_iopl(ctxt, ops))
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 		else {
 			ctxt->eflags &= ~X86_EFLAGS_IF;
 			c->dst.type = OP_NONE;	/* Disable writeback. */
@@ -2941,7 +2971,7 @@ special_insn:
 		break;
 	case 0xfb: /* sti */
 		if (emulator_bad_iopl(ctxt, ops))
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 		else {
 			ctxt->interruptibility = KVM_X86_SHADOW_INT_STI;
 			ctxt->eflags |= X86_EFLAGS_IF;
@@ -3069,7 +3099,7 @@ twobyte_insn:
 			c->dst.type = OP_NONE;
 			break;
 		case 5: /* not defined */
-			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			emulate_ud(ctxt);
 			goto done;
 		case 7: /* invlpg*/
 			emulate_invlpg(ctxt->vcpu, c->modrm_ea);
@@ -3102,7 +3132,7 @@ twobyte_insn:
 		case 1:
 		case 5 ... 7:
 		case 9 ... 15:
-			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			emulate_ud(ctxt);
 			goto done;
 		}
 		c->regs[c->modrm_rm] = ops->get_cr(c->modrm_reg, ctxt->vcpu);
@@ -3111,7 +3141,7 @@ twobyte_insn:
 	case 0x21: /* mov from dr to reg */
 		if ((ops->get_cr(4, ctxt->vcpu) & X86_CR4_DE) &&
 		    (c->modrm_reg == 4 || c->modrm_reg == 5)) {
-			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			emulate_ud(ctxt);
 			goto done;
 		}
 		ops->get_dr(c->modrm_reg, &c->regs[c->modrm_rm], ctxt->vcpu);
@@ -3119,7 +3149,7 @@ twobyte_insn:
 		break;
 	case 0x22: /* mov reg, cr */
 		if (ops->set_cr(c->modrm_reg, c->modrm_val, ctxt->vcpu)) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			goto done;
 		}
 		c->dst.type = OP_NONE;
@@ -3127,7 +3157,7 @@ twobyte_insn:
 	case 0x23: /* mov from reg to dr */
 		if ((ops->get_cr(4, ctxt->vcpu) & X86_CR4_DE) &&
 		    (c->modrm_reg == 4 || c->modrm_reg == 5)) {
-			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			emulate_ud(ctxt);
 			goto done;
 		}
 
@@ -3135,7 +3165,7 @@ twobyte_insn:
 				((ctxt->mode == X86EMUL_MODE_PROT64) ?
 				 ~0ULL : ~0U), ctxt->vcpu) < 0) {
 			/* #UD condition is already handled by the code above */
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			goto done;
 		}
 
@@ -3146,7 +3176,7 @@ twobyte_insn:
 		msr_data = (u32)c->regs[VCPU_REGS_RAX]
 			| ((u64)c->regs[VCPU_REGS_RDX] << 32);
 		if (ops->set_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], msr_data)) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			goto done;
 		}
 		rc = X86EMUL_CONTINUE;
@@ -3155,7 +3185,7 @@ twobyte_insn:
 	case 0x32:
 		/* rdmsr */
 		if (ops->get_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], &msr_data)) {
-			kvm_inject_gp(ctxt->vcpu, 0);
+			emulate_gp(ctxt, 0);
 			goto done;
 		} else {
 			c->regs[VCPU_REGS_RAX] = (u32)msr_data;
