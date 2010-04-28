@@ -999,7 +999,7 @@ int imon_ir_change_protocol(void *priv, u64 ir_type)
 	unsigned char ir_proto_packet[] = {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86 };
 
-	if (!(ir_type & ictx->props->allowed_protos))
+	if (ir_type && !(ir_type & ictx->props->allowed_protos))
 		dev_warn(dev, "Looks like you're trying to use an IR protocol "
 			 "this device does not support\n");
 
@@ -1014,12 +1014,11 @@ int imon_ir_change_protocol(void *priv, u64 ir_type)
 		break;
 	case IR_TYPE_UNKNOWN:
 	case IR_TYPE_OTHER:
-		dev_dbg(dev, "Configuring IR receiver for iMON protocol");
-		if (pad_stabilize) {
-			printk(KERN_CONT "\n");
+		dev_dbg(dev, "Configuring IR receiver for iMON protocol\n");
+		if (pad_stabilize)
 			pad_mouse = true;
-		} else {
-			printk(KERN_CONT " (without PAD stabilization)\n");
+		else {
+			dev_dbg(dev, "PAD stabilize functionality disabled\n");
 			pad_mouse = false;
 		}
 		/* ir_proto_packet[0] = 0x00; // already the default */
@@ -1027,12 +1026,11 @@ int imon_ir_change_protocol(void *priv, u64 ir_type)
 		break;
 	default:
 		dev_warn(dev, "Unsupported IR protocol specified, overriding "
-			 "to iMON IR protocol");
-		if (pad_stabilize) {
-			printk(KERN_CONT "\n");
+			 "to iMON IR protocol\n");
+		if (pad_stabilize)
 			pad_mouse = true;
-		} else {
-			printk(KERN_CONT " (without PAD stabilization)\n");
+		else {
+			dev_dbg(dev, "PAD stabilize functionality disabled\n");
 			pad_mouse = false;
 		}
 		/* ir_proto_packet[0] = 0x00; // already the default */
