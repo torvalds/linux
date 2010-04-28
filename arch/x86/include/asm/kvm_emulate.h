@@ -143,7 +143,11 @@ struct x86_emulate_ops {
 struct operand {
 	enum { OP_REG, OP_MEM, OP_IMM, OP_NONE } type;
 	unsigned int bytes;
-	unsigned long val, orig_val, *ptr;
+	unsigned long orig_val, *ptr;
+	union {
+		unsigned long val;
+		char valptr[sizeof(unsigned long) + 2];
+	};
 };
 
 struct fetch_cache {

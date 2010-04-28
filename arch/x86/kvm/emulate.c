@@ -67,6 +67,8 @@
 #define SrcImmUByte (8<<4)      /* 8-bit unsigned immediate operand. */
 #define SrcImmU     (9<<4)      /* Immediate operand, unsigned */
 #define SrcSI       (0xa<<4)	/* Source is in the DS:RSI */
+#define SrcImmFAddr (0xb<<4)	/* Source is immediate far address */
+#define SrcMemFAddr (0xc<<4)	/* Source is far address in memory */
 #define SrcMask     (0xf<<4)
 /* Generic ModRM decode. */
 #define ModRM       (1<<8)
@@ -88,10 +90,6 @@
 #define Src2CL      (1<<29)
 #define Src2ImmByte (2<<29)
 #define Src2One     (3<<29)
-#define Src2Imm16   (4<<29)
-#define Src2Mem16   (5<<29) /* Used for Ep encoding. First argument has to be
-			       in memory and second argument is located
-			       immediately after the first one in memory. */
 #define Src2Mask    (7<<29)
 
 enum {
@@ -175,7 +173,7 @@ static u32 opcode_table[256] = {
 	/* 0x90 - 0x97 */
 	DstReg, DstReg, DstReg, DstReg,	DstReg, DstReg, DstReg, DstReg,
 	/* 0x98 - 0x9F */
-	0, 0, SrcImm | Src2Imm16 | No64, 0,
+	0, 0, SrcImmFAddr | No64, 0,
 	ImplicitOps | Stack, ImplicitOps | Stack, 0, 0,
 	/* 0xA0 - 0xA7 */
 	ByteOp | DstReg | SrcMem | Mov | MemAbs, DstReg | SrcMem | Mov | MemAbs,
@@ -215,7 +213,7 @@ static u32 opcode_table[256] = {
 	ByteOp | SrcImmUByte | DstAcc, SrcImmUByte | DstAcc,
 	/* 0xE8 - 0xEF */
 	SrcImm | Stack, SrcImm | ImplicitOps,
-	SrcImmU | Src2Imm16 | No64, SrcImmByte | ImplicitOps,
+	SrcImmFAddr | No64, SrcImmByte | ImplicitOps,
 	SrcNone | ByteOp | DstAcc, SrcNone | DstAcc,
 	SrcNone | ByteOp | DstAcc, SrcNone | DstAcc,
 	/* 0xF0 - 0xF7 */
@@ -350,7 +348,7 @@ static u32 group_table[] = {
 	[Group5*8] =
 	DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM,
 	SrcMem | ModRM | Stack, 0,
-	SrcMem | ModRM | Stack, SrcMem | ModRM | Src2Mem16 | ImplicitOps,
+	SrcMem | ModRM | Stack, SrcMemFAddr | ModRM | ImplicitOps,
 	SrcMem | ModRM | Stack, 0,
 	[Group7*8] =
 	0, 0, ModRM | SrcMem | Priv, ModRM | SrcMem | Priv,
@@ -574,6 +572,13 @@ static u32 group2_table[] = {
 		goto done;						\
 	(_eip) += (_size);						\
 	(_type)_x;							\
+})
+
+#define insn_fetch_arr(_arr, _size, _eip)                                \
+({	rc = do_insn_fetch(ctxt, ops, (_eip), _arr, (_size));		\
+	if (rc != X86EMUL_CONTINUE)					\
+		goto done;						\
+	(_eip) += (_size);						\
 })
 
 static inline unsigned long ad_mask(struct decode_cache *c)
@@ -1160,6 +1165,17 @@ done_prefixes:
 					 c->regs[VCPU_REGS_RSI]);
 		c->src.val = 0;
 		break;
+	case SrcImmFAddr:
+		c->src.type = OP_IMM;
+		c->src.ptr = (unsigned long *)c->eip;
+		c->src.bytes = c->op_bytes + 2;
+		insn_fetch_arr(c->src.valptr, c->src.bytes, c->eip);
+		break;
+	case SrcMemFAddr:
+		c->src.type = OP_MEM;
+		c->src.ptr = (unsigned long *)c->modrm_ea;
+		c->src.bytes = c->op_bytes + 2;
+		break;
 	}
 
 	/*
@@ -1179,21 +1195,9 @@ done_prefixes:
 		c->src2.bytes = 1;
 		c->src2.val = insn_fetch(u8, 1, c->eip);
 		break;
-	case Src2Imm16:
-		c->src2.type = OP_IMM;
-		c->src2.ptr = (unsigned long *)c->eip;
-		c->src2.bytes = 2;
-		c->src2.val = insn_fetch(u16, 2, c->eip);
-		break;
 	case Src2One:
 		c->src2.bytes = 1;
 		c->src2.val = 1;
-		break;
-	case Src2Mem16:
-		c->src2.type = OP_MEM;
-		c->src2.bytes = 2;
-		c->src2.ptr = (unsigned long *)(c->modrm_ea + c->src.bytes);
-		c->src2.val = 0;
 		break;
 	}
 
@@ -2558,7 +2562,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	if (c->src.type == OP_MEM) {
 		rc = read_emulated(ctxt, ops, (unsigned long)c->src.ptr,
-					&c->src.val, c->src.bytes);
+					c->src.valptr, c->src.bytes);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		c->src.orig_val = c->src.val;
@@ -2884,14 +2888,18 @@ special_insn:
 	}
 	case 0xe9: /* jmp rel */
 		goto jmp;
-	case 0xea: /* jmp far */
+	case 0xea: { /* jmp far */
+		unsigned short sel;
 	jump_far:
-		if (load_segment_descriptor(ctxt, ops, c->src2.val,
-					    VCPU_SREG_CS))
+		memcpy(&sel, c->src.valptr + c->op_bytes, 2);
+
+		if (load_segment_descriptor(ctxt, ops, sel, VCPU_SREG_CS))
 			goto done;
 
-		c->eip = c->src.val;
+		c->eip = 0;
+		memcpy(&c->eip, c->src.valptr, c->op_bytes);
 		break;
+	}
 	case 0xeb:
 	      jmp:		/* jmp rel short */
 		jmp_rel(c, c->src.val);
