@@ -401,7 +401,7 @@ enum {
 };
 
 struct conf_sg_settings {
-	__le32 params[CONF_SG_PARAMS_MAX];
+	u32 params[CONF_SG_PARAMS_MAX];
 	u8 state;
 };
 
