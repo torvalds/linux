@@ -1051,7 +1051,9 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		 * about to occur.
 		 */
 		if (obj_priv->fence_reg != I915_FENCE_REG_NONE) {
-			list_move_tail(&obj_priv->fence_list,
+			struct drm_i915_fence_reg *reg =
+				&dev_priv->fence_regs[obj_priv->fence_reg];
+			list_move_tail(&reg->lru_list,
 				       &dev_priv->mm.fence_list);
 		}
 
@@ -1577,9 +1579,12 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 			i915_gem_object_move_to_active(obj, seqno);
 
 			/* update the fence lru list */
-			if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
-				list_move_tail(&obj_priv->fence_list,
+			if (obj_priv->fence_reg != I915_FENCE_REG_NONE) {
+				struct drm_i915_fence_reg *reg =
+					&dev_priv->fence_regs[obj_priv->fence_reg];
+				list_move_tail(&reg->lru_list,
 						&dev_priv->mm.fence_list);
+			}
 
 			trace_i915_gem_object_change_domain(obj,
 							    obj->read_domains,
@@ -2485,9 +2490,10 @@ static int i915_find_fence_reg(struct drm_device *dev)
 
 	/* None available, try to steal one or wait for a user to finish */
 	i = I915_FENCE_REG_NONE;
-	list_for_each_entry(obj_priv, &dev_priv->mm.fence_list,
-			    fence_list) {
-		obj = &obj_priv->base;
+	list_for_each_entry(reg, &dev_priv->mm.fence_list,
+			    lru_list) {
+		obj = reg->obj;
+		obj_priv = to_intel_bo(obj);
 
 		if (obj_priv->pin_count)
 			continue;
@@ -2536,7 +2542,8 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 
 	/* Just update our place in the LRU if our fence is getting used. */
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE) {
-		list_move_tail(&obj_priv->fence_list, &dev_priv->mm.fence_list);
+		reg = &dev_priv->fence_regs[obj_priv->fence_reg];
+		list_move_tail(&reg->lru_list, &dev_priv->mm.fence_list);
 		return 0;
 	}
 
@@ -2566,7 +2573,7 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 
 	obj_priv->fence_reg = ret;
 	reg = &dev_priv->fence_regs[obj_priv->fence_reg];
-	list_add_tail(&obj_priv->fence_list, &dev_priv->mm.fence_list);
+	list_add_tail(&reg->lru_list, &dev_priv->mm.fence_list);
 
 	reg->obj = obj;
 
@@ -2598,6 +2605,8 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+	struct drm_i915_fence_reg *reg =
+		&dev_priv->fence_regs[obj_priv->fence_reg];
 
 	if (IS_GEN6(dev)) {
 		I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 +
@@ -2616,9 +2625,9 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 		I915_WRITE(fence_reg, 0);
 	}
 
-	dev_priv->fence_regs[obj_priv->fence_reg].obj = NULL;
+	reg->obj = NULL;
 	obj_priv->fence_reg = I915_FENCE_REG_NONE;
-	list_del_init(&obj_priv->fence_list);
+	list_del_init(&reg->lru_list);
 }
 
 /**
@@ -4489,12 +4498,10 @@ struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 
 	obj->agp_type = AGP_USER_MEMORY;
-
 	obj->base.driver_private = NULL;
 	obj->fence_reg = I915_FENCE_REG_NONE;
 	INIT_LIST_HEAD(&obj->list);
 	INIT_LIST_HEAD(&obj->gpu_write_list);
-	INIT_LIST_HEAD(&obj->fence_list);
 	obj->madv = I915_MADV_WILLNEED;
 
 	trace_i915_gem_object_create(&obj->base);
@@ -4965,6 +4972,8 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
 	INIT_LIST_HEAD(&dev_priv->mm.request_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
+	for (i = 0; i < 16; i++)
+		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
 			  i915_gem_retire_work_handler);
 	dev_priv->mm.next_gem_seqno = 1;

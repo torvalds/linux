@@ -128,6 +128,7 @@ struct drm_i915_master_private {
 
 struct drm_i915_fence_reg {
 	struct drm_gem_object *obj;
+	struct list_head lru_list;
 };
 
 struct sdvo_device_mapping {
@@ -664,9 +665,6 @@ struct drm_i915_gem_object {
 	struct list_head list;
 	/** This object's place on GPU write list */
 	struct list_head gpu_write_list;
-
-	/** This object's place on the fenced object LRU */
-	struct list_head fence_list;
 
 	/**
 	 * This is set if the object is on the active or flushing lists
