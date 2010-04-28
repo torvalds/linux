@@ -1408,7 +1408,7 @@ EXPORT_SYMBOL(vme_unregister_driver);
 
 /* - Bus Registration ------------------------------------------------------ */
 
-int vme_calc_slot(struct device *dev)
+static int vme_calc_slot(struct device *dev)
 {
 	struct vme_bridge *bridge;
 	int num;
