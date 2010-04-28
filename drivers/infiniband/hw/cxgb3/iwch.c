@@ -47,8 +47,6 @@ MODULE_DESCRIPTION("Chelsio T3 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
-cxgb3_cpl_handler_func t3c_handlers[NUM_CPL_CMDS];
-
 static void open_rnic_dev(struct t3cdev *);
 static void close_rnic_dev(struct t3cdev *);
 static void iwch_event_handler(struct t3cdev *, u32, u32);
