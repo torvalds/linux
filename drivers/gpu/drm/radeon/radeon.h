@@ -175,6 +175,7 @@ void radeon_pm_fini(struct radeon_device *rdev);
 void radeon_pm_compute_clocks(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
+bool radeon_pm_in_vbl(struct radeon_device *rdev);
 bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish);
 void radeon_sync_with_vblank(struct radeon_device *rdev);
 

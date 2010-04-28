@@ -289,7 +289,33 @@ void r600_set_power_state(struct radeon_device *rdev, bool static_switch)
 			}
 
 		} else {
+			u32 position;
+			u32 vbl;
+
 			radeon_sync_with_vblank(rdev);
+
+			if (!radeon_pm_in_vbl(rdev))
+				return;
+
+			if (rdev->pm.active_crtcs & (1 << 0)) {
+				vbl = RREG32(AVIVO_D1CRTC_V_BLANK_START_END);
+				position = RREG32(AVIVO_D1CRTC_STATUS_POSITION);
+				position &= 0xfff;
+				vbl &= 0xfff;
+
+				if (position < vbl && position > 1)
+					return;
+			}
+
+			if (rdev->pm.active_crtcs & (1 << 1)) {
+				vbl = RREG32(AVIVO_D2CRTC_V_BLANK_START_END);
+				position = RREG32(AVIVO_D2CRTC_STATUS_POSITION);
+				position &= 0xfff;
+				vbl &= 0xfff;
+
+				if (position < vbl && position > 1)
+					return;
+			}
 
 			if (sclk != rdev->pm.current_sclk) {
 				radeon_pm_debug_check_in_vbl(rdev, false);

@@ -387,7 +387,7 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 	mutex_unlock(&rdev->pm.mutex);
 }
 
-bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish)
+bool radeon_pm_in_vbl(struct radeon_device *rdev)
 {
 	u32 stat_crtc = 0;
 	bool in_vbl = true;
@@ -446,6 +446,15 @@ bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish)
 				in_vbl = false;
 		}
 	}
+
+	return in_vbl;
+}
+
+bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish)
+{
+	u32 stat_crtc = 0;
+	bool in_vbl = radeon_pm_in_vbl(rdev);
+
 	if (in_vbl == false)
 		DRM_INFO("not in vbl for pm change %08x at %s\n", stat_crtc,
 			 finish ? "exit" : "entry");
