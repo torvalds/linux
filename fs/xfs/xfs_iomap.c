@@ -55,49 +55,41 @@
 #define XFS_STRAT_WRITE_IMAPS	2
 #define XFS_WRITE_IMAPS		XFS_BMAP_MAX_NMAP
 
-STATIC int
+STATIC void
 xfs_imap_to_bmap(
 	xfs_inode_t	*ip,
 	xfs_off_t	offset,
 	xfs_bmbt_irec_t *imap,
 	xfs_iomap_t	*iomapp,
 	int		imaps,			/* Number of imap entries */
-	int		iomaps,			/* Number of iomap entries */
 	int		flags)
 {
 	xfs_mount_t	*mp = ip->i_mount;
-	int		pbm;
 	xfs_fsblock_t	start_block;
 
+	iomapp->iomap_offset = XFS_FSB_TO_B(mp, imap->br_startoff);
+	iomapp->iomap_delta = offset - iomapp->iomap_offset;
+	iomapp->iomap_bsize = XFS_FSB_TO_B(mp, imap->br_blockcount);
+	iomapp->iomap_flags = flags;
 
-	for (pbm = 0; imaps && pbm < iomaps; imaps--, iomapp++, imap++, pbm++) {
-		iomapp->iomap_offset = XFS_FSB_TO_B(mp, imap->br_startoff);
-		iomapp->iomap_delta = offset - iomapp->iomap_offset;
-		iomapp->iomap_bsize = XFS_FSB_TO_B(mp, imap->br_blockcount);
-		iomapp->iomap_flags = flags;
-
-		if (XFS_IS_REALTIME_INODE(ip)) {
-			iomapp->iomap_flags |= IOMAP_REALTIME;
-			iomapp->iomap_target = mp->m_rtdev_targp;
-		} else {
-			iomapp->iomap_target = mp->m_ddev_targp;
-		}
-		start_block = imap->br_startblock;
-		if (start_block == HOLESTARTBLOCK) {
-			iomapp->iomap_bn = IOMAP_DADDR_NULL;
-			iomapp->iomap_flags |= IOMAP_HOLE;
-		} else if (start_block == DELAYSTARTBLOCK) {
-			iomapp->iomap_bn = IOMAP_DADDR_NULL;
-			iomapp->iomap_flags |= IOMAP_DELAY;
-		} else {
-			iomapp->iomap_bn = xfs_fsb_to_db(ip, start_block);
-			if (ISUNWRITTEN(imap))
-				iomapp->iomap_flags |= IOMAP_UNWRITTEN;
-		}
-
-		offset += iomapp->iomap_bsize - iomapp->iomap_delta;
+	if (XFS_IS_REALTIME_INODE(ip)) {
+		iomapp->iomap_flags |= IOMAP_REALTIME;
+		iomapp->iomap_target = mp->m_rtdev_targp;
+	} else {
+		iomapp->iomap_target = mp->m_ddev_targp;
 	}
-	return pbm;	/* Return the number filled */
+	start_block = imap->br_startblock;
+	if (start_block == HOLESTARTBLOCK) {
+		iomapp->iomap_bn = IOMAP_DADDR_NULL;
+		iomapp->iomap_flags |= IOMAP_HOLE;
+	} else if (start_block == DELAYSTARTBLOCK) {
+		iomapp->iomap_bn = IOMAP_DADDR_NULL;
+		iomapp->iomap_flags |= IOMAP_DELAY;
+	} else {
+		iomapp->iomap_bn = xfs_fsb_to_db(ip, start_block);
+		if (ISUNWRITTEN(imap))
+			iomapp->iomap_flags |= IOMAP_UNWRITTEN;
+	}
 }
 
 int
@@ -119,6 +111,7 @@ xfs_iomap(
 	int		iomap_flags = 0;
 
 	ASSERT((ip->i_d.di_mode & S_IFMT) == S_IFREG);
+	ASSERT(niomaps && *niomaps == 1);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -203,12 +196,11 @@ xfs_iomap(
 		break;
 	}
 
-	if (nimaps) {
-		*niomaps = xfs_imap_to_bmap(ip, offset, &imap,
-					    iomapp, nimaps, *niomaps, iomap_flags);
-	} else if (niomaps) {
-		*niomaps = 0;
-	}
+	ASSERT(nimaps <= 1);
+
+	if (nimaps)
+		xfs_imap_to_bmap(ip, offset, &imap, iomapp, nimaps, iomap_flags);
+	*niomaps = nimaps;
 
 out:
 	if (lockmode)
