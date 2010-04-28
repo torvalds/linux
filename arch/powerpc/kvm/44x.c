@@ -147,7 +147,7 @@ static int __init kvmppc_44x_init(void)
 	if (r)
 		return r;
 
-	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_44x), THIS_MODULE);
+	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_44x), 0, THIS_MODULE);
 }
 
 static void __exit kvmppc_44x_exit(void)

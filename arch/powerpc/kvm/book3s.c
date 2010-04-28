@@ -1385,7 +1385,8 @@ int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 static int kvmppc_book3s_init(void)
 {
-	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_book3s), THIS_MODULE);
+	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_book3s), 0,
+			THIS_MODULE);
 }
 
 static void kvmppc_book3s_exit(void)
