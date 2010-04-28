@@ -2496,8 +2496,9 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 
 	if (rc == X86EMUL_CONTINUE) {
 		memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
-		kvm_rip_write(ctxt->vcpu, c->eip);
 		rc = writeback(ctxt, ops);
+		if (rc == X86EMUL_CONTINUE)
+			ctxt->eip = c->eip;
 	}
 
 	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
@@ -2554,7 +2555,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 		if (address_mask(c, c->regs[VCPU_REGS_RCX]) == 0) {
 		string_done:
 			ctxt->restart = false;
-			kvm_rip_write(ctxt->vcpu, c->eip);
+			ctxt->eip = c->eip;
 			goto done;
 		}
 		/* The second termination condition only applies for REPE
@@ -3032,7 +3033,7 @@ writeback:
 	ctxt->decode.mem_read.end = 0;
 	/* Commit shadow register state. */
 	memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
-	kvm_rip_write(ctxt->vcpu, c->eip);
+	ctxt->eip = c->eip;
 	ops->set_rflags(ctxt->vcpu, ctxt->eflags);
 
 done:

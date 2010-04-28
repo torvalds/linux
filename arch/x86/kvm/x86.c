@@ -3941,6 +3941,7 @@ restart:
 
 	shadow_mask = vcpu->arch.emulate_ctxt.interruptibility;
 	kvm_x86_ops->set_interrupt_shadow(vcpu, shadow_mask);
+	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
 
 	if (vcpu->arch.pio.count) {
 		if (!vcpu->arch.pio.in)
@@ -4945,6 +4946,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 	if (ret)
 		return EMULATE_FAIL;
 
+	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
 	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
 	return EMULATE_DONE;
 }
