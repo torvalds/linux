@@ -18,14 +18,6 @@
 #ifndef __XFS_IOMAP_H__
 #define __XFS_IOMAP_H__
 
-typedef enum {				/* iomap_flags values */
-	IOMAP_READ =		0,	/* mapping for a read */
-	IOMAP_DELAY =		0x04,	/* mapping covers delalloc region  */
-	IOMAP_UNWRITTEN =	0x20,	/* mapping covers allocated */
-					/* but uninitialized file data  */
-	IOMAP_NEW =		0x40	/* just allocate */
-} iomap_flags_t;
-
 typedef enum {
 	/* base extent manipulation calls */
 	BMAPI_READ = (1 << 0),		/* read extents */
