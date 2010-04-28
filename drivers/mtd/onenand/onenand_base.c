@@ -3932,6 +3932,13 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 				__func__);
 			return -ENOMEM;
 		}
+#ifdef CONFIG_MTD_ONENAND_VERIFY_WRITE
+		this->verify_buf = kzalloc(mtd->writesize, GFP_KERNEL);
+		if (!this->verify_buf) {
+			kfree(this->page_buf);
+			return -ENOMEM;
+		}
+#endif
 		this->options |= ONENAND_PAGEBUF_ALLOC;
 	}
 	if (!this->oob_buf) {
@@ -4059,8 +4066,12 @@ void onenand_release(struct mtd_info *mtd)
 		kfree(this->bbm);
 	}
 	/* Buffers allocated by onenand_scan */
-	if (this->options & ONENAND_PAGEBUF_ALLOC)
+	if (this->options & ONENAND_PAGEBUF_ALLOC) {
 		kfree(this->page_buf);
+#ifdef CONFIG_MTD_ONENAND_VERIFY_WRITE
+		kfree(this->verify_buf);
+#endif
+	}
 	if (this->options & ONENAND_OOBBUF_ALLOC)
 		kfree(this->oob_buf);
 	kfree(mtd->eraseregions);
