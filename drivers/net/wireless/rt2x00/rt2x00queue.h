@@ -183,7 +183,6 @@ enum rxdone_entry_desc_flags {
  * @timestamp: RX Timestamp
  * @signal: Signal of the received frame.
  * @rssi: RSSI of the received frame.
- * @noise: Measured noise during frame reception.
  * @size: Data size of the received frame.
  * @flags: MAC80211 receive flags (See &enum mac80211_rx_flags).
  * @dev_flags: Ralink receive flags (See &enum rxdone_entry_desc_flags).
@@ -197,7 +196,6 @@ struct rxdone_entry_desc {
 	u64 timestamp;
 	int signal;
 	int rssi;
-	int noise;
 	int size;
 	int flags;
 	int dev_flags;

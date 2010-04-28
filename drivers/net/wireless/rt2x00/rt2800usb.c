@@ -645,10 +645,6 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	    (rt2x00_get_field32(rxwi2, RXWI_W2_RSSI0) +
 	     rt2x00_get_field32(rxwi2, RXWI_W2_RSSI1)) / 2;
 
-	rxdesc->noise =
-	    (rt2x00_get_field32(rxwi3, RXWI_W3_SNR0) +
-	     rt2x00_get_field32(rxwi3, RXWI_W3_SNR1)) / 2;
-
 	rxdesc->size = rt2x00_get_field32(rxwi0, RXWI_W0_MPDU_TOTAL_BYTE_COUNT);
 
 	/*
