@@ -3465,7 +3465,6 @@ int emulator_write_emulated(unsigned long addr,
 	}
 	return emulator_write_emulated_onepage(addr, val, bytes, vcpu);
 }
-EXPORT_SYMBOL_GPL(emulator_write_emulated);
 
 #define CMPXCHG_TYPE(t, ptr, old, new) \
 	(cmpxchg((t *)(ptr), *(t *)(old), *(t *)(new)) == *(t *)(old))
