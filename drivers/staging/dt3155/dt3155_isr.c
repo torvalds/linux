@@ -77,7 +77,7 @@ struct dt3155_fbuffer *dt3155_fbuffer[MAXBOARDS] = {NULL
  * are_empty_buffers
  * m is minor # of device
  ***************************/
-inline bool are_empty_buffers(int m)
+bool are_empty_buffers(int m)
 {
   return dt3155_fbuffer[m]->empty_len;
 }
@@ -92,7 +92,7 @@ inline bool are_empty_buffers(int m)
  * given by dt3155_fbuffer[m]->empty_buffers[0].
  * empty_buffers should never fill up, though this is not checked.
  **************************/
-inline void push_empty(int index, int m)
+void push_empty(int index, int m)
 {
   dt3155_fbuffer[m]->empty_buffers[dt3155_fbuffer[m]->empty_len] = index;
   dt3155_fbuffer[m]->empty_len++;
@@ -102,7 +102,7 @@ inline void push_empty(int index, int m)
  * pop_empty(m)
  * m is minor # of device
  **************************/
-inline int pop_empty(int m)
+int pop_empty(int m)
 {
   dt3155_fbuffer[m]->empty_len--;
   return dt3155_fbuffer[m]->empty_buffers[dt3155_fbuffer[m]->empty_len];
@@ -112,7 +112,7 @@ inline int pop_empty(int m)
  * is_ready_buf_empty(m)
  * m is minor # of device
  *************************/
-inline bool is_ready_buf_empty(int m)
+bool is_ready_buf_empty(int m)
 {
   return ((dt3155_fbuffer[m]->ready_len) == 0);
 }
@@ -124,7 +124,7 @@ inline bool is_ready_buf_empty(int m)
  * buffers, since it corresponds to nbuffers ready buffers!!
  * 7/31/02: total rewrite. --NJC
  *************************/
-inline bool is_ready_buf_full(int m)
+bool is_ready_buf_full(int m)
 {
   return dt3155_fbuffer[m]->ready_len == dt3155_fbuffer[m]->nbuffers;
 }
@@ -134,7 +134,7 @@ inline bool is_ready_buf_full(int m)
  * m is minor # of device
  *
  *****************************************************/
-inline void push_ready(int m, int index)
+void push_ready(int m, int index)
 {
   int head = dt3155_fbuffer[m]->ready_head;
 
@@ -151,7 +151,7 @@ inline void push_ready(int m, int index)
  *
  * Simply comptutes the tail given the head and the length.
  *****************************************************/
-static inline int get_tail(int m)
+static int get_tail(int m)
 {
   return (dt3155_fbuffer[m]->ready_head -
 	   dt3155_fbuffer[m]->ready_len +
@@ -168,7 +168,7 @@ static inline int get_tail(int m)
  * This assumes that there is a ready buffer ready... should
  * be checked (e.g. with is_ready_buf_empty()  prior to call.
  *****************************************************/
-inline int pop_ready(int m)
+int pop_ready(int m)
 {
   int tail;
   tail = get_tail(m);
@@ -181,7 +181,7 @@ inline int pop_ready(int m)
  * printques
  * m is minor # of device
  *****************************************************/
-inline void printques(int m)
+void printques(int m)
 {
   int head = dt3155_fbuffer[m]->ready_head;
   int tail;
@@ -410,7 +410,7 @@ u32 dt3155_setup_buffers(u32 *allocatorAddr)
  *
  * m is minor number of device
  *****************************************************/
-static inline void internal_release_locked_buffer(int m)
+static void internal_release_locked_buffer(int m)
 {
   /* Pointer into global structure for handling buffers */
     if (dt3155_fbuffer[m]->locked_buf >= 0) {
@@ -427,7 +427,7 @@ static inline void internal_release_locked_buffer(int m)
  * The user function of the above.
  *
  *****************************************************/
-inline void dt3155_release_locked_buffer(int m)
+void dt3155_release_locked_buffer(int m)
 {
 	unsigned long int flags;
 	local_save_flags(flags);
@@ -442,7 +442,7 @@ inline void dt3155_release_locked_buffer(int m)
  * m is minor # of device
  *
  *****************************************************/
-inline int dt3155_flush(int m)
+int dt3155_flush(int m)
 {
   int index;
   unsigned long int flags;
@@ -479,7 +479,7 @@ inline int dt3155_flush(int m)
  * If the user has a buffer locked it will unlock
  * that buffer before returning the new one.
  *****************************************************/
-inline int dt3155_get_ready_buffer(int m)
+int dt3155_get_ready_buffer(int m)
 {
   int frame_index;
   unsigned long int flags;

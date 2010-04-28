@@ -168,7 +168,7 @@ static void quick_stop (int minor)
  * - Assumes irq's are disabled, via SA_INTERRUPT flag
  * being set in request_irq() call from init_module()
  *****************************************************/
-static inline void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
+static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
 {
   int    minor = -1;
   int    index;
