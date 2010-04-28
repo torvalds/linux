@@ -187,6 +187,8 @@ ifeq ($(ARCH),x86_64)
         ARCH := x86
 endif
 
+$(shell sh -c 'mkdir -p $(OUTPUT)arch/$(ARCH)/util/' 2> /dev/null)
+
 # CFLAGS and LDFLAGS are for the users to override from the command line.
 
 #
