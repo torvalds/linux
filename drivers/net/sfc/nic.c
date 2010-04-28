@@ -1229,15 +1229,9 @@ static inline void efx_nic_interrupts(struct efx_nic *efx,
 				      bool enabled, bool force)
 {
 	efx_oword_t int_en_reg_ker;
-	unsigned int level = 0;
-
-	if (EFX_WORKAROUND_17213(efx) && !EFX_INT_MODE_USE_MSI(efx))
-		/* Set the level always even if we're generating a test
-		 * interrupt, because our legacy interrupt handler is safe */
-		level = 0x1f;
 
 	EFX_POPULATE_OWORD_3(int_en_reg_ker,
-			     FRF_AZ_KER_INT_LEVE_SEL, level,
+			     FRF_AZ_KER_INT_LEVE_SEL, efx->fatal_irq_level,
 			     FRF_AZ_KER_INT_KER, force,
 			     FRF_AZ_DRV_INT_EN_KER, enabled);
 	efx_writeo(efx, &int_en_reg_ker, FR_AZ_INT_EN_KER);
@@ -1291,8 +1285,6 @@ irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx)
 		EFX_OWORD_FMT ": %s\n", EFX_OWORD_VAL(*int_ker),
 		EFX_OWORD_VAL(fatal_intr),
 		error ? "disabling bus mastering" : "no recognised error");
-	if (error == 0)
-		goto out;
 
 	/* If this is a memory parity error dump which blocks are offending */
 	mem_perr = EFX_OWORD_FIELD(fatal_intr, FRF_AZ_MEM_PERR_INT_KER);
@@ -1324,7 +1316,7 @@ irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx)
 			"NIC will be disabled\n");
 		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
 	}
-out:
+
 	return IRQ_HANDLED;
 }
 
@@ -1346,9 +1338,11 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	queues = EFX_EXTRACT_DWORD(reg, 0, 31);
 
 	/* Check to see if we have a serious error condition */
-	syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
-	if (unlikely(syserr))
-		return efx_nic_fatal_interrupt(efx);
+	if (queues & (1U << efx->fatal_irq_level)) {
+		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
+		if (unlikely(syserr))
+			return efx_nic_fatal_interrupt(efx);
+	}
 
 	if (queues != 0) {
 		if (EFX_WORKAROUND_15783(efx))
@@ -1413,9 +1407,11 @@ static irqreturn_t efx_msi_interrupt(int irq, void *dev_id)
 		  irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
 
 	/* Check to see if we have a serious error condition */
-	syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
-	if (unlikely(syserr))
-		return efx_nic_fatal_interrupt(efx);
+	if (channel->channel == efx->fatal_irq_level) {
+		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
+		if (unlikely(syserr))
+			return efx_nic_fatal_interrupt(efx);
+	}
 
 	/* Schedule processing of the channel */
 	efx_schedule_channel(channel);
@@ -1552,6 +1548,13 @@ void efx_nic_init_common(struct efx_nic *efx)
 			     EFX_INT_MODE_USE_MSI(efx),
 			     FRF_AZ_INT_ADR_KER, efx->irq_status.dma_addr);
 	efx_writeo(efx, &temp, FR_AZ_INT_ADR_KER);
+
+	if (EFX_WORKAROUND_17213(efx) && !EFX_INT_MODE_USE_MSI(efx))
+		/* Use an interrupt level unused by event queues */
+		efx->fatal_irq_level = 0x1f;
+	else
+		/* Use a valid MSI-X vector */
+		efx->fatal_irq_level = 0;
 
 	/* Enable all the genuinely fatal interrupts.  (They are still
 	 * masked by the overall interrupt mask, controlled by
