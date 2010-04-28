@@ -104,6 +104,10 @@
 #define MAX_EMULATION_MAC_ADDRS         16
 #define VMDQ_P(p)   ((p) + adapter->num_vfs)
 
+#define IXGBE_SUBDEV_ID_82598AF_MEZZ		0x0049
+#define IXGBE_SUBDEV_ID_82598AF_MENLO_Q_MEZZ	0x004a
+#define IXGBE_SUBDEV_ID_82598AF_MENLO_E_MEZZ	0x004b
+
 struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
 	u16 vf_mc_hashes[IXGBE_MAX_VF_MC_ENTRIES];
