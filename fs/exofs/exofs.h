@@ -35,6 +35,7 @@
 
 #include <linux/fs.h>
 #include <linux/time.h>
+#include <linux/backing-dev.h>
 #include "common.h"
 
 /* FIXME: Remove once pnfs hits mainline
@@ -92,6 +93,7 @@ struct exofs_sb_info {
 	struct exofs_layout	layout;		/* Default files layout,
 						 * contains the variable osd_dev
 						 * array. Keep last */
+	struct backing_dev_info bdi;
 	struct osd_dev	*_min_one_dev[1];	/* Place holder for one dev   */
 };
 

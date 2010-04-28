@@ -103,6 +103,12 @@ cifs_read_super(struct super_block *sb, void *data,
 	if (cifs_sb == NULL)
 		return -ENOMEM;
 
+	rc = bdi_setup_and_register(&cifs_sb->bdi, "cifs", BDI_CAP_MAP_COPY);
+	if (rc) {
+		kfree(cifs_sb);
+		return rc;
+	}
+
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	/* copy mount params to sb for use in submounts */
 	/* BB: should we move this after the mount so we
@@ -115,6 +121,7 @@ cifs_read_super(struct super_block *sb, void *data,
 		int len = strlen(data);
 		cifs_sb->mountdata = kzalloc(len + 1, GFP_KERNEL);
 		if (cifs_sb->mountdata == NULL) {
+			bdi_destroy(&cifs_sb->bdi);
 			kfree(sb->s_fs_info);
 			sb->s_fs_info = NULL;
 			return -ENOMEM;
@@ -135,6 +142,7 @@ cifs_read_super(struct super_block *sb, void *data,
 
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
+	sb->s_bdi = &cifs_sb->bdi;
 /*	if (cifs_sb->tcon->ses->server->maxBuf > MAX_CIFS_HDR_SIZE + 512)
 	    sb->s_blocksize =
 		cifs_sb->tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE; */
@@ -183,6 +191,7 @@ out_mount_failed:
 		}
 #endif
 		unload_nls(cifs_sb->local_nls);
+		bdi_destroy(&cifs_sb->bdi);
 		kfree(cifs_sb);
 	}
 	return rc;
@@ -214,6 +223,7 @@ cifs_put_super(struct super_block *sb)
 #endif
 
 	unload_nls(cifs_sb->local_nls);
+	bdi_destroy(&cifs_sb->bdi);
 	kfree(cifs_sb);
 
 	unlock_kernel();
