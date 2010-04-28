@@ -1046,7 +1046,7 @@ static void qla4x00_pci_config(struct scsi_qla_host *ha)
 static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 {
 	int status = QLA_ERROR;
-	uint32_t max_wait_time;
+	unsigned long max_wait_time;
 	unsigned long flags;
 	uint32_t mbox_status;
 
@@ -1078,7 +1078,10 @@ static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	/* Wait for firmware to come UP. */
-	max_wait_time = FIRMWARE_UP_TOV * 4;
+	DEBUG2(printk(KERN_INFO "scsi%ld: %s: Wait up to %d seconds for "
+		      "boot firmware to complete...\n",
+		      ha->host_no, __func__, FIRMWARE_UP_TOV));
+	max_wait_time = jiffies + (FIRMWARE_UP_TOV * HZ);
 	do {
 		uint32_t ctrl_status;
 
@@ -1092,16 +1095,15 @@ static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 		if (mbox_status == MBOX_STS_COMMAND_COMPLETE)
 			break;
 
-		DEBUG2(printk("scsi%ld: %s: Waiting for boot firmware to "
-			      "complete... ctrl_sts=0x%x, remaining=%d\n",
-			      ha->host_no, __func__, ctrl_status,
-			      max_wait_time));
+		DEBUG2(printk(KERN_INFO "scsi%ld: %s: Waiting for boot "
+			      "firmware to complete... ctrl_sts=0x%x\n",
+			      ha->host_no, __func__, ctrl_status));
 
-		msleep(250);
-	} while ((max_wait_time--));
+		msleep_interruptible(250);
+	} while (!time_after_eq(jiffies, max_wait_time));
 
 	if (mbox_status == MBOX_STS_COMMAND_COMPLETE) {
-		DEBUG(printk("scsi%ld: %s: Firmware has started\n",
+		DEBUG(printk(KERN_INFO "scsi%ld: %s: Firmware has started\n",
 			     ha->host_no, __func__));
 
 		spin_lock_irqsave(&ha->hardware_lock, flags);
