@@ -332,7 +332,7 @@ config HID_TOPSEED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
-	Say Y if you have a TopSeed Cyberlink remote control.
+	Say Y if you have a TopSeed Cyberlink or BTC Emprex remote control.
 
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support" if EMBEDDED
