@@ -51,12 +51,12 @@ struct cfcnfg {
 	struct cfcnfg_phyinfo phy_layers[MAX_PHY_LAYERS];
 };
 
-static void cncfg_linkup_rsp(struct cflayer *layer, u8 linkid,
+static void cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id,
 			     enum cfctrl_srv serv, u8 phyid,
 			     struct cflayer *adapt_layer);
-static void cncfg_linkdestroy_rsp(struct cflayer *layer, u8 linkid,
+static void cfcnfg_linkdestroy_rsp(struct cflayer *layer, u8 channel_id,
 				  struct cflayer *client_layer);
-static void cncfg_reject_rsp(struct cflayer *layer, u8 linkid,
+static void cfcnfg_reject_rsp(struct cflayer *layer, u8 channel_id,
 			     struct cflayer *adapt_layer);
 static void cfctrl_resp_func(void);
 static void cfctrl_enum_resp(void);
@@ -82,13 +82,13 @@ struct cfcnfg *cfcnfg_create(void)
 	resp = cfctrl_get_respfuncs(this->ctrl);
 	resp->enum_rsp = cfctrl_enum_resp;
 	resp->linkerror_ind = cfctrl_resp_func;
-	resp->linkdestroy_rsp = cncfg_linkdestroy_rsp;
+	resp->linkdestroy_rsp = cfcnfg_linkdestroy_rsp;
 	resp->sleep_rsp = cfctrl_resp_func;
 	resp->wake_rsp = cfctrl_resp_func;
 	resp->restart_rsp = cfctrl_resp_func;
 	resp->radioset_rsp = cfctrl_resp_func;
-	resp->linksetup_rsp = cncfg_linkup_rsp;
-	resp->reject_rsp = cncfg_reject_rsp;
+	resp->linksetup_rsp = cfcnfg_linkup_rsp;
+	resp->reject_rsp = cfcnfg_reject_rsp;
 
 	this->last_phyid = 1;
 
@@ -191,8 +191,7 @@ int cfcnfg_get_named(struct cfcnfg *cnfg, char *name)
  *	 4) Link-Error - (no response)
  *	      Not handled, but this should be a CAIF PROTOCOL ERROR
  */
-
-int cfcnfg_del_adapt_layer(struct cfcnfg *cnfg, struct cflayer *adap_layer)
+int cfcnfg_disconn_adapt_layer(struct cfcnfg *cnfg, struct cflayer *adap_layer)
 {
 	u8 channel_id = 0;
 	int ret = 0;
@@ -246,9 +245,9 @@ end:
 	return ret;
 
 }
-EXPORT_SYMBOL(cfcnfg_del_adapt_layer);
+EXPORT_SYMBOL(cfcnfg_disconn_adapt_layer);
 
-static void cncfg_linkdestroy_rsp(struct cflayer *layer, u8 linkid,
+static void cfcnfg_linkdestroy_rsp(struct cflayer *layer, u8 channel_id,
 				  struct cflayer *client_layer)
 {
 	struct cfcnfg *cnfg = container_obj(layer);
@@ -258,20 +257,20 @@ static void cncfg_linkdestroy_rsp(struct cflayer *layer, u8 linkid,
 	 * 1) Remove service from the MUX layer. The MUX must
 	 *    guarante that no more payload sent "upwards" (receive)
 	 */
-	servl = cfmuxl_remove_uplayer(cnfg->mux, linkid);
+	servl = cfmuxl_remove_uplayer(cnfg->mux, channel_id);
 
 	if (servl == NULL) {
 		pr_err("CAIF: %s(): PROTOCOL ERROR "
-		       "- Error removing service_layer Linkid(%d)",
-			__func__, linkid);
+		       "- Error removing service_layer Channel_Id(%d)",
+			__func__, channel_id);
 		return;
 	}
-	caif_assert(linkid == servl->id);
+	caif_assert(channel_id == servl->id);
 
 	if (servl != client_layer && servl->up != client_layer) {
 		pr_err("CAIF: %s(): Error removing service_layer "
-		       "Linkid(%d) %p %p",
-			__func__, linkid, (void *) servl,
+		       "Channel_Id(%d) %p %p",
+			__func__, channel_id, (void *) servl,
 			(void *) client_layer);
 		return;
 	}
@@ -345,7 +344,7 @@ cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
 }
 EXPORT_SYMBOL(cfcnfg_add_adaptation_layer);
 
-static void cncfg_reject_rsp(struct cflayer *layer, u8 linkid,
+static void cfcnfg_reject_rsp(struct cflayer *layer, u8 channel_id,
 			     struct cflayer *adapt_layer)
 {
 	if (adapt_layer != NULL && adapt_layer->ctrlcmd != NULL)
@@ -354,7 +353,7 @@ static void cncfg_reject_rsp(struct cflayer *layer, u8 linkid,
 }
 
 static void
-cncfg_linkup_rsp(struct cflayer *layer, u8 linkid, enum cfctrl_srv serv,
+cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 		 u8 phyid, struct cflayer *adapt_layer)
 {
 	struct cfcnfg *cnfg = container_obj(layer);
@@ -383,26 +382,26 @@ cncfg_linkup_rsp(struct cflayer *layer, u8 linkid, enum cfctrl_srv serv,
 					     _CAIF_MODEMCMD_PHYIF_USEFULL);
 
 	}
-	adapt_layer->id = linkid;
+	adapt_layer->id = channel_id;
 
 	switch (serv) {
 	case CFCTRL_SRV_VEI:
-		servicel = cfvei_create(linkid, &phyinfo->dev_info);
+		servicel = cfvei_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_DATAGRAM:
-		servicel = cfdgml_create(linkid, &phyinfo->dev_info);
+		servicel = cfdgml_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_RFM:
-		servicel = cfrfml_create(linkid, &phyinfo->dev_info);
+		servicel = cfrfml_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_UTIL:
-		servicel = cfutill_create(linkid, &phyinfo->dev_info);
+		servicel = cfutill_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_VIDEO:
-		servicel = cfvidl_create(linkid, &phyinfo->dev_info);
+		servicel = cfvidl_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_DBG:
-		servicel = cfdbgl_create(linkid, &phyinfo->dev_info);
+		servicel = cfdbgl_create(channel_id, &phyinfo->dev_info);
 		break;
 	default:
 		pr_err("CAIF: %s(): Protocol error. "
@@ -415,7 +414,7 @@ cncfg_linkup_rsp(struct cflayer *layer, u8 linkid, enum cfctrl_srv serv,
 		return;
 	}
 	layer_set_dn(servicel, cnfg->mux);
-	cfmuxl_set_uplayer(cnfg->mux, servicel, linkid);
+	cfmuxl_set_uplayer(cnfg->mux, servicel, channel_id);
 	layer_set_up(servicel, adapt_layer);
 	layer_set_dn(adapt_layer, servicel);
 	servicel->ctrlcmd(servicel, CAIF_CTRLCMD_INIT_RSP, 0);

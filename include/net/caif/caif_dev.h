@@ -23,17 +23,19 @@ struct caif_param {
 };
 
 /**
- * caif_connect_request - Request data for CAIF channel setup.
+ * struct caif_connect_request - Request data for CAIF channel setup.
+ * @protocol:		Type of CAIF protocol to use (at, datagram etc)
  * @sockaddr:		Socket address to connect.
  * @priority:		Priority of the connection.
  * @link_selector:	Link selector (high bandwidth or low latency)
  * @link_name:		Name of the CAIF Link Layer to use.
+ * @param:		Connect Request parameters (CAIF_SO_REQ_PARAM).
  *
  * This struct is used when connecting a CAIF channel.
  * It contains all CAIF channel configuration options.
  */
 struct caif_connect_request {
-	int protocol;
+	enum caif_protocol_type protocol;
 	struct sockaddr_caif sockaddr;
 	enum caif_channel_priority priority;
 	enum caif_link_selector link_selector;

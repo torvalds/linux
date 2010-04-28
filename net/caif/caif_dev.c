@@ -330,20 +330,19 @@ int caif_connect_client(struct caif_connect_request *conn_req,
 			   struct cflayer *client_layer)
 {
 	struct cfctrl_link_param param;
-	if (connect_req_to_link_param(get_caif_conf(), conn_req, &param) == 0)
-		/* Hook up the adaptation layer. */
-		return cfcnfg_add_adaptation_layer(get_caif_conf(),
+	int ret;
+	ret = connect_req_to_link_param(get_caif_conf(), conn_req, &param);
+	if (ret)
+		return ret;
+	/* Hook up the adaptation layer. */
+	return cfcnfg_add_adaptation_layer(get_caif_conf(),
 						&param, client_layer);
-
-	return -EINVAL;
-
-	caif_assert(0);
 }
 EXPORT_SYMBOL(caif_connect_client);
 
 int caif_disconnect_client(struct cflayer *adap_layer)
 {
-	return cfcnfg_del_adapt_layer(get_caif_conf(), adap_layer);
+       return cfcnfg_disconn_adapt_layer(get_caif_conf(), adap_layer);
 }
 EXPORT_SYMBOL(caif_disconnect_client);
 
