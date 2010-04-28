@@ -1875,7 +1875,7 @@ setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 }
 
 static int
-emulate_syscall(struct x86_emulate_ctxt *ctxt)
+emulate_syscall(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
 	struct kvm_segment cs, ss;
@@ -1890,7 +1890,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt)
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
 
-	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_STAR, &msr_data);
+	ops->get_msr(ctxt->vcpu, MSR_STAR, &msr_data);
 	msr_data >>= 32;
 	cs.selector = (u16)(msr_data & 0xfffc);
 	ss.selector = (u16)(msr_data + 8);
@@ -1907,17 +1907,17 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt)
 #ifdef CONFIG_X86_64
 		c->regs[VCPU_REGS_R11] = ctxt->eflags & ~EFLG_RF;
 
-		kvm_x86_ops->get_msr(ctxt->vcpu,
-			ctxt->mode == X86EMUL_MODE_PROT64 ?
-			MSR_LSTAR : MSR_CSTAR, &msr_data);
+		ops->get_msr(ctxt->vcpu,
+			     ctxt->mode == X86EMUL_MODE_PROT64 ?
+			     MSR_LSTAR : MSR_CSTAR, &msr_data);
 		c->eip = msr_data;
 
-		kvm_x86_ops->get_msr(ctxt->vcpu, MSR_SYSCALL_MASK, &msr_data);
+		ops->get_msr(ctxt->vcpu, MSR_SYSCALL_MASK, &msr_data);
 		ctxt->eflags &= ~(msr_data | EFLG_RF);
 #endif
 	} else {
 		/* legacy mode */
-		kvm_x86_ops->get_msr(ctxt->vcpu, MSR_STAR, &msr_data);
+		ops->get_msr(ctxt->vcpu, MSR_STAR, &msr_data);
 		c->eip = (u32)msr_data;
 
 		ctxt->eflags &= ~(EFLG_VM | EFLG_IF | EFLG_RF);
@@ -1927,7 +1927,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt)
 }
 
 static int
-emulate_sysenter(struct x86_emulate_ctxt *ctxt)
+emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
 	struct kvm_segment cs, ss;
@@ -1949,7 +1949,7 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt)
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
 
-	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_CS, &msr_data);
+	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_CS, &msr_data);
 	switch (ctxt->mode) {
 	case X86EMUL_MODE_PROT32:
 		if ((msr_data & 0xfffc) == 0x0) {
@@ -1979,17 +1979,17 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt)
 	kvm_x86_ops->set_segment(ctxt->vcpu, &cs, VCPU_SREG_CS);
 	kvm_x86_ops->set_segment(ctxt->vcpu, &ss, VCPU_SREG_SS);
 
-	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_EIP, &msr_data);
+	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_EIP, &msr_data);
 	c->eip = msr_data;
 
-	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_ESP, &msr_data);
+	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_ESP, &msr_data);
 	c->regs[VCPU_REGS_RSP] = msr_data;
 
 	return X86EMUL_CONTINUE;
 }
 
 static int
-emulate_sysexit(struct x86_emulate_ctxt *ctxt)
+emulate_sysexit(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
 	struct kvm_segment cs, ss;
@@ -2012,7 +2012,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 
 	cs.dpl = 3;
 	ss.dpl = 3;
-	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_CS, &msr_data);
+	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_CS, &msr_data);
 	switch (usermode) {
 	case X86EMUL_MODE_PROT32:
 		cs.selector = (u16)(msr_data + 16);
@@ -3099,7 +3099,7 @@ twobyte_insn:
 		}
 		break;
 	case 0x05: 		/* syscall */
-		rc = emulate_syscall(ctxt);
+		rc = emulate_syscall(ctxt, ops);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		else
@@ -3155,7 +3155,7 @@ twobyte_insn:
 		/* wrmsr */
 		msr_data = (u32)c->regs[VCPU_REGS_RAX]
 			| ((u64)c->regs[VCPU_REGS_RDX] << 32);
-		if (kvm_set_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], msr_data)) {
+		if (ops->set_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], msr_data)) {
 			kvm_inject_gp(ctxt->vcpu, 0);
 			goto done;
 		}
@@ -3164,7 +3164,7 @@ twobyte_insn:
 		break;
 	case 0x32:
 		/* rdmsr */
-		if (kvm_get_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], &msr_data)) {
+		if (ops->get_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], &msr_data)) {
 			kvm_inject_gp(ctxt->vcpu, 0);
 			goto done;
 		} else {
@@ -3175,14 +3175,14 @@ twobyte_insn:
 		c->dst.type = OP_NONE;
 		break;
 	case 0x34:		/* sysenter */
-		rc = emulate_sysenter(ctxt);
+		rc = emulate_sysenter(ctxt, ops);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		else
 			goto writeback;
 		break;
 	case 0x35:		/* sysexit */
-		rc = emulate_sysexit(ctxt);
+		rc = emulate_sysexit(ctxt, ops);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		else

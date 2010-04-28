@@ -3811,6 +3811,8 @@ static struct x86_emulate_ops emulate_ops = {
 	.set_rflags          = emulator_set_rflags,
 	.get_dr              = emulator_get_dr,
 	.set_dr              = emulator_set_dr,
+	.set_msr             = kvm_set_msr,
+	.get_msr             = kvm_get_msr,
 };
 
 static void cache_all_regs(struct kvm_vcpu *vcpu)
