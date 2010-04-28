@@ -52,8 +52,9 @@ struct ocfs2_mem_dqinfo {
 	struct ocfs2_lock_res dqi_gqlock;	/* Lock protecting quota information structure */
 	struct buffer_head *dqi_gqi_bh;	/* Buffer head with global quota file inode - set only if inode lock is obtained */
 	int dqi_gqi_count;		/* Number of holders of dqi_gqi_bh */
+	u64 dqi_giblk;			/* Number of block with global information header */
 	struct buffer_head *dqi_lqi_bh;	/* Buffer head with local quota file inode */
-	struct buffer_head *dqi_ibh;	/* Buffer with information header */
+	struct buffer_head *dqi_libh;	/* Buffer with local information header */
 	struct qtree_mem_dqinfo dqi_gi;	/* Info about global file */
 	struct delayed_work dqi_sync_work;	/* Work for syncing dquots */
 	struct ocfs2_quota_recovery *dqi_rec;	/* Pointer to recovery

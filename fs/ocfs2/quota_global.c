@@ -325,6 +325,7 @@ int ocfs2_global_read_info(struct super_block *sb, int type)
 	struct ocfs2_global_disk_dqinfo dinfo;
 	struct mem_dqinfo *info = sb_dqinfo(sb, type);
 	struct ocfs2_mem_dqinfo *oinfo = info->dqi_priv;
+	u64 pcount;
 	int status;
 
 	mlog_entry_void();
@@ -351,9 +352,19 @@ int ocfs2_global_read_info(struct super_block *sb, int type)
 		mlog_errno(status);
 		goto out_err;
 	}
+
+	status = ocfs2_extent_map_get_blocks(gqinode, 0, &oinfo->dqi_giblk,
+					     &pcount, NULL);
+	if (status < 0)
+		goto out_unlock;
+
+	status = ocfs2_qinfo_lock(oinfo, 0);
+	if (status < 0)
+		goto out_unlock;
 	status = sb->s_op->quota_read(sb, type, (char *)&dinfo,
 				      sizeof(struct ocfs2_global_disk_dqinfo),
 				      OCFS2_GLOBAL_INFO_OFF);
+	ocfs2_qinfo_unlock(oinfo, 0);
 	ocfs2_unlock_global_qf(oinfo, 0);
 	if (status != sizeof(struct ocfs2_global_disk_dqinfo)) {
 		mlog(ML_ERROR, "Cannot read global quota info (%d).\n",
@@ -380,6 +391,10 @@ int ocfs2_global_read_info(struct super_block *sb, int type)
 out_err:
 	mlog_exit(status);
 	return status;
+out_unlock:
+	ocfs2_unlock_global_qf(oinfo, 0);
+	mlog_errno(status);
+	goto out_err;
 }
 
 /* Write information to global quota file. Expects exlusive lock on quota

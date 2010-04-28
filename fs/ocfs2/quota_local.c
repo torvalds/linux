@@ -671,7 +671,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	INIT_LIST_HEAD(&oinfo->dqi_chunk);
 	oinfo->dqi_rec = NULL;
 	oinfo->dqi_lqi_bh = NULL;
-	oinfo->dqi_ibh = NULL;
+	oinfo->dqi_libh = NULL;
 
 	status = ocfs2_global_read_info(sb, type);
 	if (status < 0)
@@ -697,7 +697,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	info->dqi_flags = le32_to_cpu(ldinfo->dqi_flags);
 	oinfo->dqi_chunks = le32_to_cpu(ldinfo->dqi_chunks);
 	oinfo->dqi_blocks = le32_to_cpu(ldinfo->dqi_blocks);
-	oinfo->dqi_ibh = bh;
+	oinfo->dqi_libh = bh;
 
 	/* We crashed when using local quota file? */
 	if (!(info->dqi_flags & OLQF_CLEAN)) {
@@ -759,7 +759,7 @@ static int ocfs2_local_write_info(struct super_block *sb, int type)
 {
 	struct mem_dqinfo *info = sb_dqinfo(sb, type);
 	struct buffer_head *bh = ((struct ocfs2_mem_dqinfo *)info->dqi_priv)
-						->dqi_ibh;
+						->dqi_libh;
 	int status;
 
 	status = ocfs2_modify_bh(sb_dqopt(sb)->files[type], bh, olq_update_info,
@@ -820,7 +820,7 @@ static int ocfs2_local_free_info(struct super_block *sb, int type)
 	/* Mark local file as clean */
 	info->dqi_flags |= OLQF_CLEAN;
 	status = ocfs2_modify_bh(sb_dqopt(sb)->files[type],
-				 oinfo->dqi_ibh,
+				 oinfo->dqi_libh,
 				 olq_update_info,
 				 info);
 	if (status < 0) {
@@ -830,7 +830,7 @@ static int ocfs2_local_free_info(struct super_block *sb, int type)
 
 out:
 	ocfs2_inode_unlock(sb_dqopt(sb)->files[type], 1);
-	brelse(oinfo->dqi_ibh);
+	brelse(oinfo->dqi_libh);
 	brelse(oinfo->dqi_lqi_bh);
 	kfree(oinfo);
 	return 0;
