@@ -412,9 +412,11 @@ static void iwl_recover_from_statistics(struct iwl_priv *priv,
 				 */
 				IWL_ERR(priv, "low ack count detected, "
 					"restart firmware\n");
-				iwl_force_reset(priv, IWL_FW_RESET);
+				if (!iwl_force_reset(priv, IWL_FW_RESET))
+					return;
 			}
-		} else if (priv->cfg->ops->lib->check_plcp_health) {
+		}
+		if (priv->cfg->ops->lib->check_plcp_health) {
 			if (!priv->cfg->ops->lib->check_plcp_health(
 			    priv, pkt)) {
 				/*
