@@ -155,15 +155,10 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 	if (cur_cpu_spec->cpu_features & MMU_FTR_BIG_PHYS)
 		TLBCAM[index].MAS7 = (u64)phys >> 32;
 
-#ifndef CONFIG_KGDB /* want user access for breakpoints */
 	if (flags & _PAGE_USER) {
 	   TLBCAM[index].MAS3 |= MAS3_UX | MAS3_UR;
 	   TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_UW : 0);
 	}
-#else
-	TLBCAM[index].MAS3 |= MAS3_UX | MAS3_UR;
-	TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_UW : 0);
-#endif
 
 	tlbcam_addrs[index].start = virt;
 	tlbcam_addrs[index].limit = virt + size - 1;
