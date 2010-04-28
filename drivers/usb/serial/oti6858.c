@@ -295,7 +295,7 @@ static void setup_line(struct work_struct *work)
 	}
 }
 
-void send_data(struct work_struct *work)
+static void send_data(struct work_struct *work)
 {
 	struct oti6858_private *priv = container_of(work,
 			struct oti6858_private, delayed_write_work.work);
