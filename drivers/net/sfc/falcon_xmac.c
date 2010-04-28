@@ -26,7 +26,7 @@
  *************************************************************************/
 
 /* Configure the XAUI driver that is an output from Falcon */
-static void falcon_setup_xaui(struct efx_nic *efx)
+void falcon_setup_xaui(struct efx_nic *efx)
 {
 	efx_oword_t sdctl, txdrv;
 

@@ -203,6 +203,7 @@ extern void falcon_irq_ack_a1(struct efx_nic *efx);
 extern int efx_nic_flush_queues(struct efx_nic *efx);
 extern void falcon_start_nic_stats(struct efx_nic *efx);
 extern void falcon_stop_nic_stats(struct efx_nic *efx);
+extern void falcon_setup_xaui(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
 extern void efx_nic_init_common(struct efx_nic *efx);
 

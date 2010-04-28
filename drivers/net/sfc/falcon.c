@@ -507,6 +507,9 @@ static void falcon_reset_macs(struct efx_nic *efx)
 	/* Ensure the correct MAC is selected before statistics
 	 * are re-enabled by the caller */
 	efx_writeo(efx, &mac_ctrl, FR_AB_MAC_CTRL);
+
+	/* This can run even when the GMAC is selected */
+	falcon_setup_xaui(efx);
 }
 
 void falcon_drain_tx_fifo(struct efx_nic *efx)
