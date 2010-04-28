@@ -15,6 +15,8 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
+#include <asm/hardware/cache-tauros2.h>
+
 #include <mach/addr-map.h>
 #include <mach/regs-apbc.h>
 #include <mach/regs-apmu.h>
@@ -99,6 +101,9 @@ static struct clk_lookup mmp2_clkregs[] = {
 static int __init mmp2_init(void)
 {
 	if (cpu_is_mmp2()) {
+#ifdef CONFIG_CACHE_TAUROS2
+		tauros2_init();
+#endif
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(mmp2_addr_map);
 		clkdev_add_table(ARRAY_AND_SIZE(mmp2_clkregs));
