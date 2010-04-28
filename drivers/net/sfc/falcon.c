@@ -1320,7 +1320,9 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 
 	EFX_LOG(efx, "PHY is %d phy_id %d\n", efx->phy_type, efx->mdio.prtad);
 
-	falcon_probe_board(efx, board_rev);
+	rc = falcon_probe_board(efx, board_rev);
+	if (rc)
+		goto fail2;
 
 	kfree(nvconfig);
 	return 0;
