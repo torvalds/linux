@@ -3386,9 +3386,10 @@ mmio:
 	trace_kvm_mmio(KVM_TRACE_MMIO_READ_UNSATISFIED, bytes, gpa, 0);
 
 	vcpu->mmio_needed = 1;
-	vcpu->mmio_phys_addr = gpa;
-	vcpu->mmio_size = bytes;
-	vcpu->mmio_is_write = 0;
+	vcpu->run->exit_reason = KVM_EXIT_MMIO;
+	vcpu->run->mmio.phys_addr = vcpu->mmio_phys_addr = gpa;
+	vcpu->run->mmio.len = vcpu->mmio_size = bytes;
+	vcpu->run->mmio.is_write = vcpu->mmio_is_write = 0;
 
 	return X86EMUL_UNHANDLEABLE;
 }
@@ -3436,10 +3437,11 @@ mmio:
 		return X86EMUL_CONTINUE;
 
 	vcpu->mmio_needed = 1;
-	vcpu->mmio_phys_addr = gpa;
-	vcpu->mmio_size = bytes;
-	vcpu->mmio_is_write = 1;
-	memcpy(vcpu->mmio_data, val, bytes);
+	vcpu->run->exit_reason = KVM_EXIT_MMIO;
+	vcpu->run->mmio.phys_addr = vcpu->mmio_phys_addr = gpa;
+	vcpu->run->mmio.len = vcpu->mmio_size = bytes;
+	vcpu->run->mmio.is_write = vcpu->mmio_is_write = 1;
+	memcpy(vcpu->run->mmio.data, val, bytes);
 
 	return X86EMUL_CONTINUE;
 }
@@ -3850,7 +3852,6 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 {
 	int r, shadow_mask;
 	struct decode_cache *c;
-	struct kvm_run *run = vcpu->run;
 
 	kvm_clear_exception_queue(vcpu);
 	vcpu->arch.mmio_fault_cr2 = cr2;
@@ -3935,14 +3936,6 @@ restart:
 		if (!vcpu->arch.pio.in)
 			vcpu->arch.pio.count = 0;
 		return EMULATE_DO_MMIO;
-	}
-
-	if (r || vcpu->mmio_is_write) {
-		run->exit_reason = KVM_EXIT_MMIO;
-		run->mmio.phys_addr = vcpu->mmio_phys_addr;
-		memcpy(run->mmio.data, vcpu->mmio_data, 8);
-		run->mmio.len = vcpu->mmio_size;
-		run->mmio.is_write = vcpu->mmio_is_write;
 	}
 
 	if (r) {
