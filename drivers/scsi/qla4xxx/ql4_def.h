@@ -330,8 +330,7 @@ struct scsi_qla_host {
 #define MIN_IOBASE_LEN		0x100
 
 	uint16_t req_q_count;
-	uint8_t marker_needed;
-	uint8_t rsvd1;
+	uint8_t rsvd1[2];
 
 	unsigned long host_no;
 
