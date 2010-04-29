@@ -30,11 +30,61 @@
 #include <mach/board.h>
 #include <mach/rk2818_iomap.h>
 #include <mach/iomux.h>
+#include <mach/gpio.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
 #include "devices.h"
+
+
+/* --------------------------------------------------------------------
+ *  声明了rk2818_gpioBank数组，并定义了GPIO寄存器组ID和寄存器基地址。
+ * -------------------------------------------------------------------- */
+
+static struct rk2818_gpio_bank rk2818_gpioBank[] = {
+		{
+		.id		= AT2818_ID_PIOA,
+		.offset		= RK2818_GPIO0_BASE,
+		.clock		= NULL,
+	}, 
+		{
+		.id		= AT2818_ID_PIOB,
+		.offset		= RK2818_GPIO0_BASE,
+		.clock		= NULL,
+	}, 
+		{
+		.id		= AT2818_ID_PIOC,
+		.offset		= RK2818_GPIO0_BASE,
+		.clock		= NULL,
+	}, 
+		{
+		.id		= AT2818_ID_PIOD,
+		.offset		= RK2818_GPIO0_BASE,
+		.clock		= NULL,
+	},
+		{
+		.id		= AT2818_ID_PIOE,
+		.offset		= RK2818_GPIO1_BASE,
+		.clock		= NULL,
+	},
+		{
+		.id		= AT2818_ID_PIOF,
+		.offset		= RK2818_GPIO1_BASE,
+		.clock		= NULL,
+	},
+		{
+		.id		= AT2818_ID_PIOG,
+		.offset		= RK2818_GPIO1_BASE,
+		.clock		= NULL,
+	},
+		{
+		.id		= AT2818_ID_PIOH,
+		.offset		= RK2818_GPIO1_BASE,
+		.clock		= NULL,
+	}
+};
+
 //IO映射方式描述 ，每个为一段线性连续映射
 static struct map_desc rk2818_io_desc[] __initdata = {
 
@@ -98,11 +148,14 @@ extern struct sys_timer rk2818_timer;
 static void __init machine_rk2818_init_irq(void)
 {
 	rk2818_init_irq();
+	rk2818_gpio_init(rk2818_gpioBank, 8);
+	rk2818_gpio_irq_setup();
 }
 
 static void __init machine_rk2818_board_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+
 }
 
 static void __init machine_rk2818_mapio(void)
