@@ -64,17 +64,19 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 	mutex_lock(&rdev->ddev->struct_mutex);
 	mutex_lock(&rdev->vram_mutex);
 	mutex_lock(&rdev->cp.mutex);
-#if 0
-	/* wait for GPU idle */
-	rdev->pm.gui_idle = false;
-	rdev->irq.gui_idle = true;
-	radeon_irq_set(rdev);
-	wait_event_interruptible_timeout(
-		rdev->irq.idle_queue, rdev->pm.gui_idle,
-		msecs_to_jiffies(RADEON_WAIT_IDLE_TIMEOUT));
-	rdev->irq.gui_idle = false;
-	radeon_irq_set(rdev);
-#endif
+
+	/* gui idle int has issues on older chips it seems */
+	if (rdev->family >= CHIP_R600) {
+		/* wait for GPU idle */
+		rdev->pm.gui_idle = false;
+		rdev->irq.gui_idle = true;
+		radeon_irq_set(rdev);
+		wait_event_interruptible_timeout(
+			rdev->irq.idle_queue, rdev->pm.gui_idle,
+			msecs_to_jiffies(RADEON_WAIT_IDLE_TIMEOUT));
+		rdev->irq.gui_idle = false;
+		radeon_irq_set(rdev);
+	}
 	radeon_unmap_vram_bos(rdev);
 
 	if (!static_switch) {
