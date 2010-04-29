@@ -3481,6 +3481,23 @@ static int b43legacy_op_beacon_set_tim(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static int b43legacy_op_get_survey(struct ieee80211_hw *hw, int idx,
+				   struct survey_info *survey)
+{
+	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
+	struct b43legacy_wldev *dev = wl->current_dev;
+	struct ieee80211_conf *conf = &hw->conf;
+
+	if (idx != 0)
+		return -ENOENT;
+
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = dev->stats.link_noise;
+
+	return 0;
+}
+
 static const struct ieee80211_ops b43legacy_hw_ops = {
 	.tx			= b43legacy_op_tx,
 	.conf_tx		= b43legacy_op_conf_tx,
@@ -3493,6 +3510,7 @@ static const struct ieee80211_ops b43legacy_hw_ops = {
 	.start			= b43legacy_op_start,
 	.stop			= b43legacy_op_stop,
 	.set_tim		= b43legacy_op_beacon_set_tim,
+	.get_survey		= b43legacy_op_get_survey,
 	.rfkill_poll		= b43legacy_rfkill_poll,
 };
 
