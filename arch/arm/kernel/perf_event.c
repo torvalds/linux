@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
+#include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 
@@ -26,7 +27,7 @@
 #include <asm/pmu.h>
 #include <asm/stacktrace.h>
 
-static const struct pmu_irqs *pmu_irqs;
+static struct platform_device *pmu_device;
 
 /*
  * Hardware lock to serialize accesses to PMU registers. Needed for the
@@ -314,38 +315,44 @@ validate_group(struct perf_event *event)
 static int
 armpmu_reserve_hardware(void)
 {
-	int i;
-	int err;
+	int i, err = -ENODEV, irq;
 
-	pmu_irqs = reserve_pmu();
-	if (IS_ERR(pmu_irqs)) {
+	pmu_device = reserve_pmu(ARM_PMU_DEVICE_CPU);
+	if (IS_ERR(pmu_device)) {
 		pr_warning("unable to reserve pmu\n");
-		return PTR_ERR(pmu_irqs);
+		return PTR_ERR(pmu_device);
 	}
 
-	init_pmu();
+	init_pmu(ARM_PMU_DEVICE_CPU);
 
-	if (pmu_irqs->num_irqs < 1) {
+	if (pmu_device->num_resources < 1) {
 		pr_err("no irqs for PMUs defined\n");
 		return -ENODEV;
 	}
 
-	for (i = 0; i < pmu_irqs->num_irqs; ++i) {
-		err = request_irq(pmu_irqs->irqs[i], armpmu->handle_irq,
+	for (i = 0; i < pmu_device->num_resources; ++i) {
+		irq = platform_get_irq(pmu_device, i);
+		if (irq < 0)
+			continue;
+
+		err = request_irq(irq, armpmu->handle_irq,
 				  IRQF_DISABLED | IRQF_NOBALANCING,
 				  "armpmu", NULL);
 		if (err) {
-			pr_warning("unable to request IRQ%d for ARM "
-				   "perf counters\n", pmu_irqs->irqs[i]);
+			pr_warning("unable to request IRQ%d for ARM perf "
+				"counters\n", irq);
 			break;
 		}
 	}
 
 	if (err) {
-		for (i = i - 1; i >= 0; --i)
-			free_irq(pmu_irqs->irqs[i], NULL);
-		release_pmu(pmu_irqs);
-		pmu_irqs = NULL;
+		for (i = i - 1; i >= 0; --i) {
+			irq = platform_get_irq(pmu_device, i);
+			if (irq >= 0)
+				free_irq(irq, NULL);
+		}
+		release_pmu(pmu_device);
+		pmu_device = NULL;
 	}
 
 	return err;
@@ -354,14 +361,17 @@ armpmu_reserve_hardware(void)
 static void
 armpmu_release_hardware(void)
 {
-	int i;
+	int i, irq;
 
-	for (i = pmu_irqs->num_irqs - 1; i >= 0; --i)
-		free_irq(pmu_irqs->irqs[i], NULL);
+	for (i = pmu_device->num_resources - 1; i >= 0; --i) {
+		irq = platform_get_irq(pmu_device, i);
+		if (irq >= 0)
+			free_irq(irq, NULL);
+	}
 	armpmu->stop();
 
-	release_pmu(pmu_irqs);
-	pmu_irqs = NULL;
+	release_pmu(pmu_device);
+	pmu_device = NULL;
 }
 
 static atomic_t active_events = ATOMIC_INIT(0);
