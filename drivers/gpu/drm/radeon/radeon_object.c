@@ -168,13 +168,15 @@ void radeon_bo_kunmap(struct radeon_bo *bo)
 void radeon_bo_unref(struct radeon_bo **bo)
 {
 	struct ttm_buffer_object *tbo;
+	struct radeon_device *rdev;
 
 	if ((*bo) == NULL)
 		return;
+	rdev = (*bo)->rdev;
 	tbo = &((*bo)->tbo);
-	mutex_lock(&(*bo)->rdev->vram_mutex);
+	mutex_lock(&rdev->vram_mutex);
 	ttm_bo_unref(&tbo);
-	mutex_unlock(&(*bo)->rdev->vram_mutex);
+	mutex_unlock(&rdev->vram_mutex);
 	if (tbo == NULL)
 		*bo = NULL;
 }
