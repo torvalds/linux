@@ -358,17 +358,15 @@ static struct parallel_data *padata_alloc_pd(struct padata_instance *pinst,
 	if (!alloc_cpumask_var(&pd->cpumask, GFP_KERNEL))
 		goto err_free_queue;
 
-	for_each_possible_cpu(cpu) {
+	cpumask_and(pd->cpumask, cpumask, cpu_active_mask);
+
+	for_each_cpu(cpu, pd->cpumask) {
 		queue = per_cpu_ptr(pd->queue, cpu);
 
 		queue->pd = pd;
 
-		if (cpumask_test_cpu(cpu, cpumask)
-		    && cpumask_test_cpu(cpu, cpu_active_mask)) {
-			queue->cpu_index = cpu_index;
-			cpu_index++;
-		} else
-			queue->cpu_index = -1;
+		queue->cpu_index = cpu_index;
+		cpu_index++;
 
 		INIT_LIST_HEAD(&queue->reorder.list);
 		INIT_LIST_HEAD(&queue->parallel.list);
@@ -381,8 +379,6 @@ static struct parallel_data *padata_alloc_pd(struct padata_instance *pinst,
 		INIT_WORK(&queue->swork, padata_serial_worker);
 		atomic_set(&queue->num_obj, 0);
 	}
-
-	cpumask_and(pd->cpumask, cpumask, cpu_active_mask);
 
 	num_cpus = cpumask_weight(pd->cpumask);
 	pd->max_seq_nr = (MAX_SEQ_NR / num_cpus) * num_cpus - 1;
