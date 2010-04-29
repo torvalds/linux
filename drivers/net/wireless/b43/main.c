@@ -4570,6 +4570,23 @@ static void b43_op_sw_scan_complete_notifier(struct ieee80211_hw *hw)
 	mutex_unlock(&wl->mutex);
 }
 
+static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
+			     struct survey_info *survey)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+	struct b43_wldev *dev = wl->current_dev;
+	struct ieee80211_conf *conf = &hw->conf;
+
+	if (idx != 0)
+		return -ENOENT;
+
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = dev->stats.link_noise;
+
+	return 0;
+}
+
 static const struct ieee80211_ops b43_hw_ops = {
 	.tx			= b43_op_tx,
 	.conf_tx		= b43_op_conf_tx,
@@ -4589,6 +4606,7 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.sta_notify		= b43_op_sta_notify,
 	.sw_scan_start		= b43_op_sw_scan_start_notifier,
 	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
+	.get_survey		= b43_op_get_survey,
 	.rfkill_poll		= b43_rfkill_poll,
 };
 
