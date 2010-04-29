@@ -1740,10 +1740,11 @@ int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 EXPORT_SYMBOL(iwl_mac_conf_tx);
 
 static void iwl_ht_conf(struct iwl_priv *priv,
-			struct ieee80211_bss_conf *bss_conf)
+			struct ieee80211_vif *vif)
 {
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
 	struct ieee80211_sta *sta;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
 	IWL_DEBUG_MAC80211(priv, "enter:\n");
 
@@ -1757,10 +1758,10 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 
 	ht_conf->single_chain_sufficient = false;
 
-	switch (priv->iw_mode) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		rcu_read_lock();
-		sta = ieee80211_find_sta(priv->vif, priv->bssid);
+		sta = ieee80211_find_sta(vif, bss_conf->bssid);
 		if (sta) {
 			struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 			int maxstreams;
@@ -1911,7 +1912,7 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & BSS_CHANGED_HT) {
-		iwl_ht_conf(priv, bss_conf);
+		iwl_ht_conf(priv, vif);
 
 		if (priv->cfg->ops->hcmd->set_rxon_chain)
 			priv->cfg->ops->hcmd->set_rxon_chain(priv);
