@@ -1,0 +1,1 @@
+obj-$(CONFIG_ADIS16255) +údis16255.o

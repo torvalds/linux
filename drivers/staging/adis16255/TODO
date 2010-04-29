@@ -1,0 +1,8 @@
+* sample rate changeable or at least readable from sysfs
+* reset gyroscope
+* encapsulate adis_init and adis_turn_off
+* AD_CHK deletion
+* chip selftest in adis_init
+* reduce kernel messages to reasonable amount
+
+Contact: Matthias Brugger <mensch0815@gmail.com>
