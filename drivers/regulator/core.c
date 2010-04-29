@@ -1013,7 +1013,6 @@ static void unset_regulator_supplies(struct regulator_dev *rdev)
 			list_del(&node->list);
 			kfree(node->dev_name);
 			kfree(node);
-			return;
 		}
 	}
 }
