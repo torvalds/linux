@@ -1858,6 +1858,21 @@ UNUSUAL_DEV(  0x1652, 0x6600, 0x0201, 0x0201,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Hans de Goede <hdegoede@redhat.com>
+ * These Appotech controllers are found in Picture Frames, they provide a
+ * (buggy) emulation of a cdrom drive which contains the windows software
+ * Uploading of pictures happens over the corresponding /dev/sg device. */
+UNUSUAL_DEV( 0x1908, 0x1315, 0x0000, 0x0000,
+		"BUILDWIN",
+		"Photo Frame",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_BAD_SENSE ),
+UNUSUAL_DEV( 0x1908, 0x1320, 0x0000, 0x0000,
+		"BUILDWIN",
+		"Photo Frame",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_BAD_SENSE ),
+
 UNUSUAL_DEV( 0x2116, 0x0320, 0x0001, 0x0001,
 		"ST",
 		"2A",
