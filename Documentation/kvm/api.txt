@@ -892,6 +892,24 @@ arguments.
 This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
 irqchip, the multiprocessing state must be maintained by userspace.
 
+4.39 KVM_SET_IDENTITY_MAP_ADDR
+
+Capability: KVM_CAP_SET_IDENTITY_MAP_ADDR
+Architectures: x86
+Type: vm ioctl
+Parameters: unsigned long identity (in)
+Returns: 0 on success, -1 on error
+
+This ioctl defines the physical address of a one-page region in the guest
+physical address space.  The region must be within the first 4GB of the
+guest physical address space and must not conflict with any memory slot
+or any mmio address.  The guest may malfunction if it accesses this memory
+region.
+
+This ioctl is required on Intel-based hosts.  This is needed on Intel hardware
+because of a quirk in the virtualization implementation (see the internals
+documentation when it pops into existence).
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by
