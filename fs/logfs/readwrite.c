@@ -1861,7 +1861,7 @@ int logfs_truncate(struct inode *inode, u64 target)
 			size = target;
 
 		logfs_get_wblocks(sb, NULL, 1);
-		err = __logfs_truncate(inode, target);
+		err = __logfs_truncate(inode, size);
 		if (!err)
 			err = __logfs_write_inode(inode, 0);
 		logfs_put_wblocks(sb, NULL, 1);
