@@ -3223,7 +3223,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	bool is_ap = priv->iw_mode == NL80211_IFTYPE_STATION;
+	bool is_ap = vif->type == NL80211_IFTYPE_STATION;
 	int ret;
 	u8 sta_id;
 
