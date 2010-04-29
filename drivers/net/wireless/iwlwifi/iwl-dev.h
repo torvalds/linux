@@ -1211,7 +1211,6 @@ struct iwl_priv {
 
 	/* context information */
 	u8 bssid[ETH_ALEN];
-	u16 rts_threshold;
 	u8 mac_addr[ETH_ALEN];
 
 	/*station table variables */
