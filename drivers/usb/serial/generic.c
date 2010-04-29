@@ -20,6 +20,7 @@
 #include <linux/usb/serial.h>
 #include <linux/uaccess.h>
 #include <linux/kfifo.h>
+#include <linux/serial.h>
 
 static int debug;
 
@@ -41,7 +42,7 @@ static struct usb_device_id generic_device_ids[2]; /* Initially all zeroes. */
 
 /* we want to look at all devices, as the vendor/product id can change
  * depending on the command line argument */
-static struct usb_device_id generic_serial_ids[] = {
+static const struct usb_device_id generic_serial_ids[] = {
 	{.driver_info = 42},
 	{}
 };
@@ -129,7 +130,7 @@ int usb_serial_generic_open(struct tty_struct *tty, struct usb_serial_port *port
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	/* if we have a bulk endpoint, start reading from it */
-	if (serial->num_bulk_in) {
+	if (port->bulk_in_size) {
 		/* Start reading from the device */
 		usb_fill_bulk_urb(port->read_urb, serial->dev,
 				   usb_rcvbulkpipe(serial->dev,
@@ -158,10 +159,10 @@ static void generic_cleanup(struct usb_serial_port *port)
 	dbg("%s - port %d", __func__, port->number);
 
 	if (serial->dev) {
-		/* shutdown any bulk reads that might be going on */
-		if (serial->num_bulk_out)
+		/* shutdown any bulk transfers that might be going on */
+		if (port->bulk_out_size)
 			usb_kill_urb(port->write_urb);
-		if (serial->num_bulk_in)
+		if (port->bulk_in_size)
 			usb_kill_urb(port->read_urb);
 	}
 }
@@ -194,7 +195,7 @@ static int usb_serial_multi_urb_write(struct tty_struct *tty,
 		if (port->urbs_in_flight >
 		    port->serial->type->max_in_flight_urbs) {
 			spin_unlock_irqrestore(&port->lock, flags);
-			dbg("%s - write limit hit\n", __func__);
+			dbg("%s - write limit hit", __func__);
 			return bwrite;
 		}
 		port->tx_bytes_flight += towrite;
@@ -332,14 +333,14 @@ int usb_serial_generic_write(struct tty_struct *tty,
 
 	dbg("%s - port %d", __func__, port->number);
 
+	/* only do something if we have a bulk out endpoint */
+	if (!port->bulk_out_size)
+		return -ENODEV;
+
 	if (count == 0) {
 		dbg("%s - write request of 0 bytes", __func__);
 		return 0;
 	}
-
-	/* only do something if we have a bulk out endpoint */
-	if (!serial->num_bulk_out)
-		return 0;
 
 	if (serial->type->max_in_flight_urbs)
 		return usb_serial_multi_urb_write(tty, port,
@@ -363,14 +364,19 @@ int usb_serial_generic_write_room(struct tty_struct *tty)
 	int room = 0;
 
 	dbg("%s - port %d", __func__, port->number);
+
+	if (!port->bulk_out_size)
+		return 0;
+
 	spin_lock_irqsave(&port->lock, flags);
 	if (serial->type->max_in_flight_urbs) {
 		if (port->urbs_in_flight < serial->type->max_in_flight_urbs)
 			room = port->bulk_out_size *
 				(serial->type->max_in_flight_urbs -
 				 port->urbs_in_flight);
-	} else if (serial->num_bulk_out)
+	} else {
 		room = kfifo_avail(&port->write_fifo);
+	}
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, room);
@@ -381,17 +387,20 @@ int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
-	int chars = 0;
 	unsigned long flags;
+	int chars;
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (serial->type->max_in_flight_urbs) {
-		spin_lock_irqsave(&port->lock, flags);
+	if (!port->bulk_out_size)
+		return 0;
+
+	spin_lock_irqsave(&port->lock, flags);
+	if (serial->type->max_in_flight_urbs)
 		chars = port->tx_bytes_flight;
-		spin_unlock_irqrestore(&port->lock, flags);
-	} else if (serial->num_bulk_out)
+	else
 		chars = kfifo_len(&port->write_fifo);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, chars);
 	return chars;
@@ -414,11 +423,13 @@ void usb_serial_generic_resubmit_read_urb(struct usb_serial_port *port,
 			   ((serial->type->read_bulk_callback) ?
 			     serial->type->read_bulk_callback :
 			     usb_serial_generic_read_bulk_callback), port);
+
 	result = usb_submit_urb(urb, mem_flags);
-	if (result)
+	if (result && result != -EPERM) {
 		dev_err(&port->dev,
 			"%s - failed resubmitting read urb, error %d\n",
 							__func__, result);
+	}
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_resubmit_read_urb);
 
@@ -489,28 +500,25 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 	dbg("%s - port %d", __func__, port->number);
 
 	if (port->serial->type->max_in_flight_urbs) {
+		kfree(urb->transfer_buffer);
+
 		spin_lock_irqsave(&port->lock, flags);
 		--port->urbs_in_flight;
 		port->tx_bytes_flight -= urb->transfer_buffer_length;
 		if (port->urbs_in_flight < 0)
 			port->urbs_in_flight = 0;
 		spin_unlock_irqrestore(&port->lock, flags);
-
-		if (status) {
-			dbg("%s - nonzero multi-urb write bulk status "
-				"received: %d", __func__, status);
-			return;
-		}
 	} else {
 		port->write_urb_busy = 0;
 
-		if (status) {
-			dbg("%s - nonzero multi-urb write bulk status "
-				"received: %d", __func__, status);
+		if (status)
 			kfifo_reset_out(&port->write_fifo);
-		} else
+		else
 			usb_serial_generic_write_start(port);
 	}
+
+	if (status)
+		dbg("%s - non-zero urb status: %d", __func__, status);
 
 	usb_serial_port_softint(port);
 }
@@ -583,7 +591,7 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
-		if (!port->port.count)
+		if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags))
 			continue;
 
 		if (port->read_urb) {

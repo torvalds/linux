@@ -12,7 +12,7 @@
  */
 #include <mach/ixp23xx.h>
 
-		.macro	addruart,rx
+		.macro	addruart, rx, tmp
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1				@ mmu enabled?
 		ldreq	\rx, =IXP23XX_PERIPHERAL_PHYS 	@ physical

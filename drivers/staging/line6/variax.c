@@ -11,6 +11,8 @@
 
 #include "driver.h"
 
+#include <linux/slab.h>
+
 #include "audio.h"
 #include "control.h"
 #include "variax.h"
@@ -254,7 +256,7 @@ static ssize_t variax_set_active(struct device *dev,
 	if (ret)
 		return ret;
 
-	variax->buffer_activate[VARIAX_OFFSET_ACTIVATE] = value ? 1: 0;
+	variax->buffer_activate[VARIAX_OFFSET_ACTIVATE] = value ? 1 : 0;
 	line6_send_raw_message_async(&variax->line6, variax->buffer_activate,
 				     sizeof(variax_activate));
 	return count;

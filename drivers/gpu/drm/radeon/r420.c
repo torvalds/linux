@@ -26,34 +26,20 @@
  *          Jerome Glisse
  */
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "atom.h"
+#include "r100d.h"
 #include "r420d.h"
+#include "r420_reg_safe.h"
 
-int r420_mc_init(struct radeon_device *rdev)
+static void r420_set_reg_safe(struct radeon_device *rdev)
 {
-	int r;
-
-	/* Setup GPU memory space */
-	rdev->mc.vram_location = 0xFFFFFFFFUL;
-	rdev->mc.gtt_location = 0xFFFFFFFFUL;
-	if (rdev->flags & RADEON_IS_AGP) {
-		r = radeon_agp_init(rdev);
-		if (r) {
-			printk(KERN_WARNING "[drm] Disabling AGP\n");
-			rdev->flags &= ~RADEON_IS_AGP;
-			rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-		} else {
-			rdev->mc.gtt_location = rdev->mc.agp_base;
-		}
-	}
-	r = radeon_mc_setup(rdev);
-	if (r) {
-		return r;
-	}
-	return 0;
+	rdev->config.r300.reg_safe_bm = r420_reg_safe_bm;
+	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(r420_reg_safe_bm);
 }
 
 void r420_pipes_init(struct radeon_device *rdev)
@@ -63,7 +49,8 @@ void r420_pipes_init(struct radeon_device *rdev)
 	unsigned num_pipes;
 
 	/* GA_ENHANCE workaround TCL deadlock issue */
-	WREG32(0x4274, (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3));
+	WREG32(R300_GA_ENHANCE, R300_GA_DEADLOCK_CNTL | R300_GA_FASTSYNC_CNTL |
+	       (1 << 2) | (1 << 3));
 	/* add idle wait as per freedesktop.org bug 24041 */
 	if (r100_gui_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait GUI idle while "
@@ -72,6 +59,12 @@ void r420_pipes_init(struct radeon_device *rdev)
 	/* get max number of pipes */
 	gb_pipe_select = RREG32(0x402C);
 	num_pipes = ((gb_pipe_select >> 12) & 3) + 1;
+
+	/* SE chips have 1 pipe */
+	if ((rdev->pdev->device == 0x5e4c) ||
+	    (rdev->pdev->device == 0x5e4f))
+		num_pipes = 1;
+
 	rdev->num_gb_pipes = num_pipes;
 	tmp = 0;
 	switch (num_pipes) {
@@ -91,17 +84,17 @@ void r420_pipes_init(struct radeon_device *rdev)
 		tmp = (7 << 1);
 		break;
 	}
-	WREG32(0x42C8, (1 << num_pipes) - 1);
+	WREG32(R500_SU_REG_DEST, (1 << num_pipes) - 1);
 	/* Sub pixel 1/12 so we can have 4K rendering according to doc */
-	tmp |= (1 << 4) | (1 << 0);
-	WREG32(0x4018, tmp);
+	tmp |= R300_TILE_SIZE_16 | R300_ENABLE_TILING;
+	WREG32(R300_GB_TILE_CONFIG, tmp);
 	if (r100_gui_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait GUI idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
 
-	tmp = RREG32(0x170C);
-	WREG32(0x170C, tmp | (1 << 31));
+	tmp = RREG32(R300_DST_PIPE_CONFIG);
+	WREG32(R300_DST_PIPE_CONFIG, tmp | R300_PIPE_AUTO_CONFIG);
 
 	WREG32(R300_RB2D_DSTCACHE_MODE,
 	       RREG32(R300_RB2D_DSTCACHE_MODE) |
@@ -165,6 +158,34 @@ static void r420_clock_resume(struct radeon_device *rdev)
 	WREG32_PLL(R_00000D_SCLK_CNTL, sclk_cntl);
 }
 
+static void r420_cp_errata_init(struct radeon_device *rdev)
+{
+	/* RV410 and R420 can lock up if CP DMA to host memory happens
+	 * while the 2D engine is busy.
+	 *
+	 * The proper workaround is to queue a RESYNC at the beginning
+	 * of the CP init, apparently.
+	 */
+	radeon_scratch_get(rdev, &rdev->config.r300.resync_scratch);
+	radeon_ring_lock(rdev, 8);
+	radeon_ring_write(rdev, PACKET0(R300_CP_RESYNC_ADDR, 1));
+	radeon_ring_write(rdev, rdev->config.r300.resync_scratch);
+	radeon_ring_write(rdev, 0xDEADBEEF);
+	radeon_ring_unlock_commit(rdev);
+}
+
+static void r420_cp_errata_fini(struct radeon_device *rdev)
+{
+	/* Catch the RESYNC we dispatched all the way back,
+	 * at the very beginning of the CP init.
+	 */
+	radeon_ring_lock(rdev, 8);
+	radeon_ring_write(rdev, PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(rdev, R300_RB3D_DC_FINISH);
+	radeon_ring_unlock_commit(rdev);
+	radeon_scratch_free(rdev, rdev->config.r300.resync_scratch);
+}
+
 static int r420_startup(struct radeon_device *rdev)
 {
 	int r;
@@ -190,12 +211,14 @@ static int r420_startup(struct radeon_device *rdev)
 	r420_pipes_init(rdev);
 	/* Enable IRQ */
 	r100_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
 		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
 		return r;
 	}
+	r420_cp_errata_init(rdev);
 	r = r100_wb_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failled initializing WB (%d).\n", r);
@@ -238,6 +261,7 @@ int r420_resume(struct radeon_device *rdev)
 
 int r420_suspend(struct radeon_device *rdev)
 {
+	r420_cp_errata_fini(rdev);
 	r100_cp_disable(rdev);
 	r100_wb_disable(rdev);
 	r100_irq_disable(rdev);
@@ -250,6 +274,7 @@ int r420_suspend(struct radeon_device *rdev)
 
 void r420_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
@@ -311,13 +336,15 @@ int r420_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
 	radeon_pm_init(rdev);
-	/* Get vram informations */
-	r300_vram_info(rdev);
-	/* Initialize memory controller (also test AGP) */
-	r = r420_mc_init(rdev);
-	if (r) {
-		return r;
+	/* initialize AGP */
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r) {
+			radeon_agp_disable(rdev);
+		}
 	}
+	/* initialize memory controller */
+	r300_mc_init(rdev);
 	r420_debugfs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
@@ -346,22 +373,21 @@ int r420_init(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
-	r300_set_reg_safe(rdev);
+	r420_set_reg_safe(rdev);
 	rdev->accel_working = true;
 	r = r420_startup(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
-		r420_suspend(rdev);
 		r100_cp_fini(rdev);
 		r100_wb_fini(rdev);
 		r100_ib_fini(rdev);
+		radeon_irq_kms_fini(rdev);
 		if (rdev->flags & RADEON_IS_PCIE)
 			rv370_pcie_gart_fini(rdev);
 		if (rdev->flags & RADEON_IS_PCI)
 			r100_pci_gart_fini(rdev);
 		radeon_agp_fini(rdev);
-		radeon_irq_kms_fini(rdev);
 		rdev->accel_working = false;
 	}
 	return 0;

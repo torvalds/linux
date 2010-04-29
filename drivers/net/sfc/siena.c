@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
@@ -106,15 +107,10 @@ static int siena_probe_port(struct efx_nic *efx)
 	efx->mdio.mdio_read = siena_mdio_read;
 	efx->mdio.mdio_write = siena_mdio_write;
 
-	/* Fill out MDIO structure and loopback modes */
+	/* Fill out MDIO structure, loopback modes, and initial link state */
 	rc = efx->phy_op->probe(efx);
 	if (rc != 0)
 		return rc;
-
-	/* Initial assumption */
-	efx->link_state.speed = 10000;
-	efx->link_state.fd = true;
-	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 
 	/* Allocate buffer for stats */
 	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
@@ -133,12 +129,13 @@ static int siena_probe_port(struct efx_nic *efx)
 
 void siena_remove_port(struct efx_nic *efx)
 {
+	efx->phy_op->remove(efx);
 	efx_nic_free_buffer(efx, &efx->stats_buffer);
 }
 
 static const struct efx_nic_register_test siena_register_tests[] = {
 	{ FR_AZ_ADR_REGION,
-	  EFX_OWORD32(0x0001FFFF, 0x0001FFFF, 0x0001FFFF, 0x0001FFFF) },
+	  EFX_OWORD32(0x0003FFFF, 0x0003FFFF, 0x0003FFFF, 0x0003FFFF) },
 	{ FR_CZ_USR_EV_CFG,
 	  EFX_OWORD32(0x000103FF, 0x00000000, 0x00000000, 0x00000000) },
 	{ FR_AZ_RX_CFG,
@@ -180,6 +177,12 @@ static int siena_test_registers(struct efx_nic *efx)
 
 static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
 {
+	int rc;
+
+	/* Recover from a failed assertion pre-reset */
+	rc = efx_mcdi_handle_assertion(efx);
+	if (rc)
+		return rc;
 
 	if (method == RESET_TYPE_WORLD)
 		return efx_mcdi_reset_mc(efx);
@@ -453,8 +456,17 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 
 static void siena_update_nic_stats(struct efx_nic *efx)
 {
-	while (siena_try_update_nic_stats(efx) == -EAGAIN)
-		cpu_relax();
+	int retry;
+
+	/* If we're unlucky enough to read statistics wduring the DMA, wait
+	 * up to 10ms for it to finish (typically takes <500us) */
+	for (retry = 0; retry < 100; ++retry) {
+		if (siena_try_update_nic_stats(efx) == 0)
+			return;
+		udelay(100);
+	}
+
+	/* Use the old values instead */
 }
 
 static void siena_start_nic_stats(struct efx_nic *efx)
@@ -581,6 +593,7 @@ struct efx_nic_type siena_a0_nic_type = {
 	.set_wol = siena_set_wol,
 	.resume_wol = siena_init_wol,
 	.test_registers = siena_test_registers,
+	.test_nvram = efx_mcdi_nvram_test_all,
 	.default_mac_ops = &efx_mcdi_mac_operations,
 
 	.revision = EFX_REV_SIENA_A0,

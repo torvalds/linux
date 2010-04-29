@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/acpi.h>
+#include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
@@ -492,8 +493,7 @@ wmi_notify_handler handler, void *data)
 	if (!guid || !handler)
 		return AE_BAD_PARAMETER;
 
-	find_guid(guid, &block);
-	if (!block)
+	if (!find_guid(guid, &block))
 		return AE_NOT_EXIST;
 
 	if (block->handler)
@@ -521,8 +521,7 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 	if (!guid)
 		return AE_BAD_PARAMETER;
 
-	find_guid(guid, &block);
-	if (!block)
+	if (!find_guid(guid, &block))
 		return AE_NOT_EXIST;
 
 	if (!block->handler)
@@ -716,6 +715,22 @@ static int wmi_class_init(void)
 	return ret;
 }
 
+static bool guid_already_parsed(const char *guid_string)
+{
+	struct guid_block *gblock;
+	struct wmi_block *wblock;
+	struct list_head *p;
+
+	list_for_each(p, &wmi_blocks.list) {
+		wblock = list_entry(p, struct wmi_block, list);
+		gblock = &wblock->gblock;
+
+		if (strncmp(gblock->guid, guid_string, 16) == 0)
+			return true;
+	}
+	return false;
+}
+
 /*
  * Parse the _WDG method for the GUID data blocks
  */
@@ -725,6 +740,7 @@ static __init acpi_status parse_wdg(acpi_handle handle)
 	union acpi_object *obj;
 	struct guid_block *gblock;
 	struct wmi_block *wblock;
+	char guid_string[37];
 	acpi_status status;
 	u32 i, total;
 
@@ -747,6 +763,19 @@ static __init acpi_status parse_wdg(acpi_handle handle)
 	memcpy(gblock, obj->buffer.pointer, obj->buffer.length);
 
 	for (i = 0; i < total; i++) {
+		/*
+		  Some WMI devices, like those for nVidia hooks, have a
+		  duplicate GUID. It's not clear what we should do in this
+		  case yet, so for now, we'll just ignore the duplicate.
+		  Anyone who wants to add support for that device can come
+		  up with a better workaround for the mess then.
+		*/
+		if (guid_already_parsed(gblock[i].guid) == true) {
+			wmi_gtoa(gblock[i].guid, guid_string);
+			printk(KERN_INFO PREFIX "Skipping duplicate GUID %s\n",
+				guid_string);
+			continue;
+		}
 		wblock = kzalloc(sizeof(struct wmi_block), GFP_KERNEL);
 		if (!wblock)
 			return AE_NO_MEMORY;
@@ -768,7 +797,7 @@ static __init acpi_status parse_wdg(acpi_handle handle)
  */
 static acpi_status
 acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
-		      u32 bits, acpi_integer * value,
+		      u32 bits, u64 *value,
 		      void *handler_context, void *region_context)
 {
 	int result = 0, i = 0;
@@ -785,7 +814,7 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 
 	if (function == ACPI_READ) {
 		result = ec_read(address, &temp);
-		(*value) |= ((acpi_integer)temp) << i;
+		(*value) |= ((u64)temp) << i;
 	} else {
 		temp = 0xff & ((*value) >> i);
 		result = ec_write(address, temp);

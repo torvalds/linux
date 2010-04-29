@@ -1580,7 +1580,7 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 		// check if any partner replys
 		if (best->is_individual) {
 			pr_warning("%s: Warning: No 802.3ad response from the link partner for any adapters in the bond\n",
-				   best->slave->dev->master->name);
+				   best->slave ? best->slave->dev->master->name : "NULL");
 		}
 
 		best->is_active = 1;

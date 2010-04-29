@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/miscdevice.h>
 #include <linux/pm.h>
@@ -285,18 +286,22 @@ int agp_add_bridge(struct agp_bridge_data *bridge)
 {
 	int error;
 
-	if (agp_off)
-		return -ENODEV;
+	if (agp_off) {
+		error = -ENODEV;
+		goto err_put_bridge;
+	}
 
 	if (!bridge->dev) {
 		printk (KERN_DEBUG PFX "Erk, registering with no pci_dev!\n");
-		return -EINVAL;
+		error = -EINVAL;
+		goto err_put_bridge;
 	}
 
 	/* Grab reference on the chipset driver. */
 	if (!try_module_get(bridge->driver->owner)) {
 		dev_info(&bridge->dev->dev, "can't lock chipset driver\n");
-		return -EINVAL;
+		error = -EINVAL;
+		goto err_put_bridge;
 	}
 
 	error = agp_backend_initialize(bridge);
@@ -326,6 +331,7 @@ frontend_err:
 	agp_backend_cleanup(bridge);
 err_out:
 	module_put(bridge->driver->owner);
+err_put_bridge:
 	agp_put_bridge(bridge);
 	return error;
 }

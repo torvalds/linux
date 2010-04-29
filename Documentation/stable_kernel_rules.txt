@@ -18,16 +18,15 @@ Rules on what kind of patches are accepted, and which ones are not, into the
  - It cannot contain any "trivial" fixes in it (spelling changes,
    whitespace cleanups, etc).
  - It must follow the Documentation/SubmittingPatches rules.
- - It or an equivalent fix must already exist in Linus' tree.  Quote the
-   respective commit ID in Linus' tree in your patch submission to -stable.
+ - It or an equivalent fix must already exist in Linus' tree (upstream).
 
 
 Procedure for submitting patches to the -stable tree:
 
  - Send the patch, after verifying that it follows the above rules, to
-   stable@kernel.org.
- - To have the patch automatically included in the stable tree, add the
-   the tag
+   stable@kernel.org.  You must note the upstream commit ID in the changelog
+   of your submission.
+ - To have the patch automatically included in the stable tree, add the tag
      Cc: stable@kernel.org
    in the sign-off area. Once the patch is merged it will be applied to
    the stable tree without anything else needing to be done by the author

@@ -138,12 +138,12 @@
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -580,7 +580,7 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 	}
 
 #ifdef CONFIG_SH_HICOSH4
-	/* truely reset the chip */
+	/* truly reset the chip */
 	writeword(ioaddr, ADD_PORT, 0x0114);
 	writeword(ioaddr, DATA_PORT, 0x0040);
 #endif
@@ -1325,8 +1325,7 @@ net_open(struct net_device *dev)
 		write_irq(dev, lp->chip_type, dev->irq);
 		ret = request_irq(dev->irq, net_interrupt, 0, dev->name, dev);
 		if (ret) {
-			if (net_debug)
-				printk(KERN_DEBUG "cs89x0: request_irq(%d) failed\n", dev->irq);
+			printk(KERN_ERR "cs89x0: request_irq(%d) failed\n", dev->irq);
 			goto bad_out;
 		}
 	}
@@ -1786,7 +1785,7 @@ static void set_multicast_list(struct net_device *dev)
 	{
 		lp->rx_mode = RX_ALL_ACCEPT;
 	}
-	else if((dev->flags&IFF_ALLMULTI)||dev->mc_list)
+	else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev))
 	{
 		/* The multicast-accept list is initialized to accept-all, and we
 		   rely on higher-level filtering for now. */

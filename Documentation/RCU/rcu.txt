@@ -75,6 +75,8 @@ o	I hear that RCU is patented?  What is with that?
 	search for the string "Patent" in RTFP.txt to find them.
 	Of these, one was allowed to lapse by the assignee, and the
 	others have been contributed to the Linux kernel under GPL.
+	There are now also LGPL implementations of user-level RCU
+	available (http://lttng.org/?q=node/18).
 
 o	I hear that RCU needs work in order to support realtime kernels?
 
@@ -91,48 +93,4 @@ o	Where can I find more information on RCU?
 
 o	What are all these files in this directory?
 
-
-	NMI-RCU.txt
-
-		Describes how to use RCU to implement dynamic
-		NMI handlers, which can be revectored on the fly,
-		without rebooting.
-
-	RTFP.txt
-
-		List of RCU-related publications and web sites.
-
-	UP.txt
-
-		Discussion of RCU usage in UP kernels.
-
-	arrayRCU.txt
-
-		Describes how to use RCU to protect arrays, with
-		resizeable arrays whose elements reference other
-		data structures being of the most interest.
-
-	checklist.txt
-
-		Lists things to check for when inspecting code that
-		uses RCU.
-
-	listRCU.txt
-
-		Describes how to use RCU to protect linked lists.
-		This is the simplest and most common use of RCU
-		in the Linux kernel.
-
-	rcu.txt
-
-		You are reading it!
-
-	rcuref.txt
-
-		Describes how to combine use of reference counts
-		with RCU.
-
-	whatisRCU.txt
-
-		Overview of how the RCU implementation works.  Along
-		the way, presents a conceptual view of RCU.
+	See 00-INDEX for the list.

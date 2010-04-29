@@ -11,6 +11,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/moduleparam.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -76,6 +77,8 @@ static unsigned long ai_word;
 static unsigned long ai_dword;
 static unsigned long ai_multi;
 static int ai_usermode;
+
+core_param(alignment, ai_usermode, int, 0600);
 
 #define UM_WARN		(1 << 0)
 #define UM_FIXUP	(1 << 1)
@@ -898,11 +901,7 @@ static int __init alignment_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *res;
 
-	res = proc_mkdir("cpu", NULL);
-	if (!res)
-		return -ENOMEM;
-
-	res = create_proc_entry("alignment", S_IWUSR | S_IRUGO, res);
+	res = create_proc_entry("cpu/alignment", S_IWUSR | S_IRUGO, NULL);
 	if (!res)
 		return -ENOMEM;
 

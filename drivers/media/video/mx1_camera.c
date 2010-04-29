@@ -29,6 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/version.h>
 #include <linux/videodev2.h>
@@ -718,7 +719,7 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!res || !irq) {
+	if (!res || (int)irq <= 0) {
 		err = -ENODEV;
 		goto exit;
 	}

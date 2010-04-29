@@ -3,18 +3,20 @@
  *
  * Interface to Linux SCSI midlayer.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <scsi/fc/fc_fcp.h>
 #include <asm/atomic.h>
 #include "zfcp_ext.h"
 #include "zfcp_dbf.h"
 #include "zfcp_fc.h"
+#include "zfcp_reqlist.h"
 
 static unsigned int default_depth = 32;
 module_param_named(queue_depth, default_depth, uint, 0600);
@@ -43,7 +45,7 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 	unit->device = NULL;
-	put_device(&unit->sysfs_device);
+	put_device(&unit->dev);
 }
 
 static int zfcp_scsi_slave_configure(struct scsi_device *sdp)
@@ -59,10 +61,9 @@ static void zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
 {
 	struct zfcp_adapter *adapter =
 		(struct zfcp_adapter *) scpnt->device->host->hostdata[0];
+
 	set_host_byte(scpnt, result);
-	if ((scpnt->device != NULL) && (scpnt->device->host != NULL))
-		zfcp_dbf_scsi_result("fail", 4, adapter->dbf, scpnt, NULL);
-	/* return directly */
+	zfcp_dbf_scsi_fail_send(adapter->dbf, scpnt);
 	scpnt->scsi_done(scpnt);
 }
 
@@ -86,18 +87,10 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 	adapter = (struct zfcp_adapter *) scpnt->device->host->hostdata[0];
 	unit = scpnt->device->hostdata;
 
-	BUG_ON(!adapter || (adapter != unit->port->adapter));
-	BUG_ON(!scpnt->scsi_done);
-
-	if (unlikely(!unit)) {
-		zfcp_scsi_command_fail(scpnt, DID_NO_CONNECT);
-		return 0;
-	}
-
 	scsi_result = fc_remote_port_chkready(rport);
 	if (unlikely(scsi_result)) {
 		scpnt->result = scsi_result;
-		zfcp_dbf_scsi_result("fail", 4, adapter->dbf, scpnt, NULL);
+		zfcp_dbf_scsi_fail_send(adapter->dbf, scpnt);
 		scpnt->scsi_done(scpnt);
 		return 0;
 	}
@@ -189,9 +182,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	/* avoid race condition between late normal completion and abort */
 	write_lock_irqsave(&adapter->abort_lock, flags);
 
-	spin_lock(&adapter->req_list_lock);
-	old_req = zfcp_reqlist_find(adapter, old_reqid);
-	spin_unlock(&adapter->req_list_lock);
+	old_req = zfcp_reqlist_find(adapter->req_list, old_reqid);
 	if (!old_req) {
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
 		zfcp_dbf_scsi_abort("lte1", adapter->dbf, scpnt, NULL,
@@ -521,7 +512,7 @@ static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 
 	if (port) {
 		zfcp_erp_port_reopen(port, 0, "sctrpi1", NULL);
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 	}
 }
 
@@ -563,23 +554,23 @@ static void zfcp_scsi_rport_block(struct zfcp_port *port)
 
 void zfcp_scsi_schedule_rport_register(struct zfcp_port *port)
 {
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 	port->rport_task = RPORT_ADD;
 
 	if (!queue_work(port->adapter->work_queue, &port->rport_work))
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 }
 
 void zfcp_scsi_schedule_rport_block(struct zfcp_port *port)
 {
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 	port->rport_task = RPORT_DEL;
 
 	if (port->rport && queue_work(port->adapter->work_queue,
 				      &port->rport_work))
 		return;
 
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 }
 
 void zfcp_scsi_schedule_rports_block(struct zfcp_adapter *adapter)
@@ -608,7 +599,7 @@ void zfcp_scsi_rport_work(struct work_struct *work)
 		}
 	}
 
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 }
 
 
@@ -626,7 +617,7 @@ void zfcp_scsi_scan(struct work_struct *work)
 				 scsilun_to_int((struct scsi_lun *)
 						&unit->fcp_lun), 0);
 
-	put_device(&unit->sysfs_device);
+	put_device(&unit->dev);
 }
 
 struct fc_function_template zfcp_transport_functions = {
@@ -652,6 +643,7 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_host_port_state = 1,
 	.show_host_active_fc4s = 1,
 	.bsg_request = zfcp_fc_exec_bsg_job,
+	.bsg_timeout = zfcp_fc_timeout_bsg_job,
 	/* no functions registered for following dynamic attributes but
 	   directly set by LLDD */
 	.show_host_port_type = 1,

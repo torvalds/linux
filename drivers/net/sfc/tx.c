@@ -13,6 +13,7 @@
 #include <linux/ip.h>
 #include <linux/in.h>
 #include <linux/ipv6.h>
+#include <linux/slab.h>
 #include <net/ipv6.h>
 #include <linux/if_ether.h>
 #include <linux/highmem.h>
@@ -821,8 +822,6 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 					   EFX_TXQ_MASK];
 		efx_tsoh_free(tx_queue, buffer);
 		EFX_BUG_ON_PARANOID(buffer->skb);
-		buffer->len = 0;
-		buffer->continuation = true;
 		if (buffer->unmap_len) {
 			unmap_addr = (buffer->dma_addr + buffer->len -
 				      buffer->unmap_len);
@@ -836,6 +835,8 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 					       PCI_DMA_TODEVICE);
 			buffer->unmap_len = 0;
 		}
+		buffer->len = 0;
+		buffer->continuation = true;
 	}
 }
 

@@ -118,7 +118,9 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 			 * clear the TS_RESTORE_SIGMASK flag.
 			 */
 			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-			tracehook_signal_handler(signr, &info, &ka, regs, 0);
+
+			tracehook_signal_handler(signr, &info, &ka, regs,
+					test_thread_flag(TIF_SINGLESTEP));
 			return 1;
 		}
 	}
@@ -295,7 +297,7 @@ restore_sigcontext_fpu(struct pt_regs *regs, struct sigcontext __user *sc)
 		regs->sr |= SR_FD;
 	}
 
-	err |= __copy_from_user(&current->thread.fpu.hard, &sc->sc_fpregs[0],
+	err |= __copy_from_user(&current->thread.xstate->hardfpu, &sc->sc_fpregs[0],
 				(sizeof(long long) * 32) + (sizeof(int) * 1));
 
 	return err;
@@ -320,7 +322,7 @@ setup_sigcontext_fpu(struct pt_regs *regs, struct sigcontext __user *sc)
 		regs->sr |= SR_FD;
 	}
 
-	err |= __copy_to_user(&sc->sc_fpregs[0], &current->thread.fpu.hard,
+	err |= __copy_to_user(&sc->sc_fpregs[0], &current->thread.xstate->hardfpu,
 			      (sizeof(long long) * 32) + (sizeof(int) * 1));
 	clear_used_math();
 

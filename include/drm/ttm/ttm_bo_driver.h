@@ -115,7 +115,6 @@ struct ttm_backend {
 	struct ttm_backend_func *func;
 };
 
-#define TTM_PAGE_FLAG_VMALLOC         (1 << 0)
 #define TTM_PAGE_FLAG_USER            (1 << 1)
 #define TTM_PAGE_FLAG_USER_DIRTY      (1 << 2)
 #define TTM_PAGE_FLAG_WRITE           (1 << 3)
@@ -353,6 +352,11 @@ struct ttm_bo_driver {
 	/* notify the driver we are taking a fault on this BO
 	 * and have reserved it */
 	void (*fault_reserve_notify)(struct ttm_buffer_object *bo);
+
+	/**
+	 * notify the driver that we're about to swap out this bo
+	 */
+	void (*swap_notify) (struct ttm_buffer_object *bo);
 };
 
 /**
@@ -903,7 +907,7 @@ extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
  * Utility function that returns the pgprot_t that should be used for
  * setting up a PTE with the caching model indicated by @c_state.
  */
-extern pgprot_t ttm_io_prot(enum ttm_caching_state c_state, pgprot_t tmp);
+extern pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
 #if (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define TTM_HAS_AGP

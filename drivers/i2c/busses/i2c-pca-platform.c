@@ -84,7 +84,7 @@ static int i2c_pca_pf_waitforcompletion(void *pd)
 	unsigned long timeout;
 
 	if (i2c->irq) {
-		ret = wait_event_interruptible_timeout(i2c->wait,
+		ret = wait_event_timeout(i2c->wait,
 			i2c->algo_data.read_byte(i2c, I2C_PCA_CON)
 			& I2C_PCA_CON_SI, i2c->adap.timeout);
 	} else {
@@ -122,7 +122,7 @@ static irqreturn_t i2c_pca_pf_handler(int this_irq, void *dev_id)
 	if ((i2c->algo_data.read_byte(i2c, I2C_PCA_CON) & I2C_PCA_CON_SI) == 0)
 		return IRQ_NONE;
 
-	wake_up_interruptible(&i2c->wait);
+	wake_up(&i2c->wait);
 
 	return IRQ_HANDLED;
 }

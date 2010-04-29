@@ -72,6 +72,7 @@ unsigned __muldiv64u(unsigned val, unsigned mult, unsigned div)
 					 * MDR = MDR:val%div */
 	    : "=r"(result)
 	    : "0"(val), "ir"(mult), "r"(div)
+	    : "cc"
 	    );
 
 	return result;
@@ -92,6 +93,7 @@ signed __muldiv64s(signed val, signed mult, signed div)
 					 * MDR = MDR:val%div */
 	    : "=r"(result)
 	    : "0"(val), "ir"(mult), "r"(div)
+	    : "cc"
 	    );
 
 	return result;

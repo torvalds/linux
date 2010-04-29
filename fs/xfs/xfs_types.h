@@ -151,8 +151,8 @@ typedef enum {
 } xfs_btnum_t;
 
 struct xfs_name {
-	const char	*name;
-	int		len;
+	const unsigned char	*name;
+	int			len;
 };
 
 #endif	/* __XFS_TYPES_H__ */

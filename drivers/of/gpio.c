@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 #include <linux/of_gpio.h>
 #include <asm/prom.h>
 
@@ -36,7 +37,7 @@ int of_get_gpio_flags(struct device_node *np, int index,
 	struct of_gpio_chip *of_gc = NULL;
 	int size;
 	const void *gpio_spec;
-	const u32 *gpio_cells;
+	const __be32 *gpio_cells;
 
 	ret = of_parse_phandles_with_args(np, "gpios", "#gpio-cells", index,
 					  &gc, &gpio_spec);
@@ -55,7 +56,7 @@ int of_get_gpio_flags(struct device_node *np, int index,
 
 	gpio_cells = of_get_property(gc, "#gpio-cells", &size);
 	if (!gpio_cells || size != sizeof(*gpio_cells) ||
-			*gpio_cells != of_gc->gpio_cells) {
+			be32_to_cpup(gpio_cells) != of_gc->gpio_cells) {
 		pr_debug("%s: wrong #gpio-cells for %s\n",
 			 np->full_name, gc->full_name);
 		ret = -EINVAL;
@@ -127,7 +128,8 @@ EXPORT_SYMBOL(of_gpio_count);
 int of_gpio_simple_xlate(struct of_gpio_chip *of_gc, struct device_node *np,
 			 const void *gpio_spec, enum of_gpio_flags *flags)
 {
-	const u32 *gpio = gpio_spec;
+	const __be32 *gpio = gpio_spec;
+	const u32 n = be32_to_cpup(gpio);
 
 	/*
 	 * We're discouraging gpio_cells < 2, since that way you'll have to
@@ -140,13 +142,13 @@ int of_gpio_simple_xlate(struct of_gpio_chip *of_gc, struct device_node *np,
 		return -EINVAL;
 	}
 
-	if (*gpio > of_gc->gc.ngpio)
+	if (n > of_gc->gc.ngpio)
 		return -EINVAL;
 
 	if (flags)
-		*flags = gpio[1];
+		*flags = be32_to_cpu(gpio[1]);
 
-	return *gpio;
+	return n;
 }
 EXPORT_SYMBOL(of_gpio_simple_xlate);
 

@@ -426,6 +426,10 @@ struct dvb_frontend* tda10021_attach(const struct tda1002x_config* config,
 	id = tda10021_readreg(state, 0x1a);
 	if ((id & 0xf0) != 0x70) goto error;
 
+	/* Don't claim TDA10023 */
+	if (id == 0x7d)
+		goto error;
+
 	printk("TDA10021: i2c-addr = 0x%02x, id = 0x%02x\n",
 	       state->config->demod_address, id);
 

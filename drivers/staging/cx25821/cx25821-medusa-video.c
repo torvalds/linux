@@ -795,10 +795,8 @@ int medusa_video_init(struct cx25821_dev *dev)
 	value &= 0xFFFFFFDF;
 	ret_val = cx25821_i2c_write(&dev->i2c_bus[0], MON_A_CTRL, value);
 
-	if (ret_val < 0) {
-		mutex_unlock(&dev->lock);
+	if (ret_val < 0)
 		return -EINVAL;
-	}
 
 	mutex_unlock(&dev->lock);
 
@@ -860,10 +858,8 @@ int medusa_video_init(struct cx25821_dev *dev)
 
 	ret_val = medusa_set_videostandard(dev);
 
-	if (ret_val < 0) {
-		mutex_unlock(&dev->lock);
+	if (ret_val < 0)
 		return -EINVAL;
-	}
 
 	return 1;
 }

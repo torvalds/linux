@@ -574,6 +574,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	srf->flags = req->flags;
 	srf->format = req->format;
+	srf->scanout = req->scanout;
 	memcpy(srf->mip_levels, req->mip_levels, sizeof(srf->mip_levels));
 	srf->num_sizes = 0;
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i)
@@ -599,6 +600,26 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0))
 		goto out_err1;
 
+	if (srf->scanout &&
+	    srf->num_sizes == 1 &&
+	    srf->sizes[0].width == 64 &&
+	    srf->sizes[0].height == 64 &&
+	    srf->format == SVGA3D_A8R8G8B8) {
+
+		srf->snooper.image = kmalloc(64 * 64 * 4, GFP_KERNEL);
+		/* clear the image */
+		if (srf->snooper.image) {
+			memset(srf->snooper.image, 0x00, 64 * 64 * 4);
+		} else {
+			DRM_ERROR("Failed to allocate cursor_image\n");
+			ret = -ENOMEM;
+			goto out_err1;
+		}
+	} else {
+		srf->snooper.image = NULL;
+	}
+	srf->snooper.crtc = NULL;
+
 	user_srf->base.shareable = false;
 	user_srf->base.tfile = NULL;
 
@@ -621,24 +642,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		vmw_resource_unreference(&res);
 		return ret;
 	}
-
-	if (srf->flags & (1 << 9) &&
-	    srf->num_sizes == 1 &&
-	    srf->sizes[0].width == 64 &&
-	    srf->sizes[0].height == 64 &&
-	    srf->format == SVGA3D_A8R8G8B8) {
-
-		srf->snooper.image = kmalloc(64 * 64 * 4, GFP_KERNEL);
-		/* clear the image */
-		if (srf->snooper.image)
-			memset(srf->snooper.image, 0x00, 64 * 64 * 4);
-		else
-			DRM_ERROR("Failed to allocate cursor_image\n");
-
-	} else {
-		srf->snooper.image = NULL;
-	}
-	srf->snooper.crtc = NULL;
 
 	rep->sid = user_srf->base.hash.key;
 	if (rep->sid == SVGA3D_INVALID_ID)
@@ -754,20 +757,29 @@ static size_t vmw_dmabuf_acc_size(struct ttm_bo_global *glob,
 	return bo_user_size + page_array_size;
 }
 
-void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo)
+void vmw_dmabuf_gmr_unbind(struct ttm_buffer_object *bo)
 {
 	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
 	struct ttm_bo_global *glob = bo->glob;
 	struct vmw_private *dev_priv =
 		container_of(bo->bdev, struct vmw_private, bdev);
 
-	ttm_mem_global_free(glob->mem_glob, bo->acc_size);
 	if (vmw_bo->gmr_bound) {
 		vmw_gmr_unbind(dev_priv, vmw_bo->gmr_id);
 		spin_lock(&glob->lru_lock);
 		ida_remove(&dev_priv->gmr_ida, vmw_bo->gmr_id);
 		spin_unlock(&glob->lru_lock);
+		vmw_bo->gmr_bound = false;
 	}
+}
+
+void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo)
+{
+	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
+	struct ttm_bo_global *glob = bo->glob;
+
+	vmw_dmabuf_gmr_unbind(bo);
+	ttm_mem_global_free(glob->mem_glob, bo->acc_size);
 	kfree(vmw_bo);
 }
 
@@ -813,18 +825,10 @@ int vmw_dmabuf_init(struct vmw_private *dev_priv,
 static void vmw_user_dmabuf_destroy(struct ttm_buffer_object *bo)
 {
 	struct vmw_user_dma_buffer *vmw_user_bo = vmw_user_dma_buffer(bo);
-	struct vmw_dma_buffer *vmw_bo = &vmw_user_bo->dma;
 	struct ttm_bo_global *glob = bo->glob;
-	struct vmw_private *dev_priv =
-		container_of(bo->bdev, struct vmw_private, bdev);
 
+	vmw_dmabuf_gmr_unbind(bo);
 	ttm_mem_global_free(glob->mem_glob, bo->acc_size);
-	if (vmw_bo->gmr_bound) {
-		vmw_gmr_unbind(dev_priv, vmw_bo->gmr_id);
-		spin_lock(&glob->lru_lock);
-		ida_remove(&dev_priv->gmr_ida, vmw_bo->gmr_id);
-		spin_unlock(&glob->lru_lock);
-	}
 	kfree(vmw_user_bo);
 }
 
@@ -868,7 +872,7 @@ int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 	}
 
 	ret = vmw_dmabuf_init(dev_priv, &vmw_user_bo->dma, req->size,
-			      &vmw_vram_placement, true,
+			      &vmw_vram_sys_placement, true,
 			      &vmw_user_dmabuf_destroy);
 	if (unlikely(ret != 0))
 		return ret;

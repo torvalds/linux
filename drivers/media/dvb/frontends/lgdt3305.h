@@ -54,13 +54,13 @@ struct lgdt3305_config {
 	u16 usref_qam256; /* default: 0x2a80 */
 
 	/* disable i2c repeater - 0:repeater enabled 1:repeater disabled */
-	int deny_i2c_rptr:1;
+	unsigned int deny_i2c_rptr:1;
 
 	/* spectral inversion - 0:disabled 1:enabled */
-	int spectral_inversion:1;
+	unsigned int spectral_inversion:1;
 
 	/* use RF AGC loop - 0:disabled 1:enabled */
-	int rf_agc_loop:1;
+	unsigned int rf_agc_loop:1;
 
 	enum lgdt3305_mpeg_mode mpeg_mode;
 	enum lgdt3305_tp_clock_edge tpclk_edge;

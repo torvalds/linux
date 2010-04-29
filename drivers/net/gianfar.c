@@ -143,7 +143,6 @@ void gfar_start(struct net_device *dev);
 static void gfar_clear_exact_match(struct net_device *dev);
 static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr);
 static int gfar_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-u16 gfar_select_queue(struct net_device *dev, struct sk_buff *skb);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Gianfar Ethernet Driver");
@@ -455,7 +454,6 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_set_multicast_list = gfar_set_multi,
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
-	.ndo_select_queue = gfar_select_queue,
 	.ndo_get_stats = gfar_get_stats,
 	.ndo_vlan_rx_register = gfar_vlan_rx_register,
 	.ndo_set_mac_address = eth_mac_addr,
@@ -506,10 +504,6 @@ static inline int gfar_uses_fcb(struct gfar_private *priv)
 	return priv->vlgrp || priv->rx_csum_enable;
 }
 
-u16 gfar_select_queue(struct net_device *dev, struct sk_buff *skb)
-{
-	return skb_get_queue_mapping(skb);
-}
 static void free_tx_pointers(struct gfar_private *priv)
 {
 	int i = 0;
@@ -555,12 +549,8 @@ static int gfar_parse_group(struct device_node *np,
 		struct gfar_private *priv, const char *model)
 {
 	u32 *queue_mask;
-	u64 addr, size;
 
-	addr = of_translate_address(np,
-			of_get_address(np, 0, &size, NULL));
-	priv->gfargrp[priv->num_grps].regs = ioremap(addr, size);
-
+	priv->gfargrp[priv->num_grps].regs = of_iomap(np, 0);
 	if (!priv->gfargrp[priv->num_grps].regs)
 		return -ENOMEM;
 
@@ -682,7 +672,7 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 		priv->rx_queue[i] = NULL;
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
-		priv->tx_queue[i] =  (struct gfar_priv_tx_q *)kmalloc(
+		priv->tx_queue[i] =  (struct gfar_priv_tx_q *)kzalloc(
 				sizeof (struct gfar_priv_tx_q), GFP_KERNEL);
 		if (!priv->tx_queue[i]) {
 			err = -ENOMEM;
@@ -695,7 +685,7 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
-		priv->rx_queue[i] = (struct gfar_priv_rx_q *)kmalloc(
+		priv->rx_queue[i] = (struct gfar_priv_rx_q *)kzalloc(
 					sizeof (struct gfar_priv_rx_q), GFP_KERNEL);
 		if (!priv->rx_queue[i]) {
 			err = -ENOMEM;
@@ -1004,7 +994,7 @@ static int gfar_probe(struct of_device *ofdev,
 	}
 
 	/* Need to reverse the bit maps as  bit_map's MSB is q0
-	 * but, for_each_bit parses from right to left, which
+	 * but, for_each_set_bit parses from right to left, which
 	 * basically reverses the queue numbers */
 	for (i = 0; i< priv->num_grps; i++) {
 		priv->gfargrp[i].tx_bit_map = reverse_bitmap(
@@ -1017,7 +1007,7 @@ static int gfar_probe(struct of_device *ofdev,
 	 * also assign queues to groups */
 	for (grp_idx = 0; grp_idx < priv->num_grps; grp_idx++) {
 		priv->gfargrp[grp_idx].num_rx_queues = 0x0;
-		for_each_bit(i, &priv->gfargrp[grp_idx].rx_bit_map,
+		for_each_set_bit(i, &priv->gfargrp[grp_idx].rx_bit_map,
 				priv->num_rx_queues) {
 			priv->gfargrp[grp_idx].num_rx_queues++;
 			priv->rx_queue[i]->grp = &priv->gfargrp[grp_idx];
@@ -1025,7 +1015,7 @@ static int gfar_probe(struct of_device *ofdev,
 			rqueue = rqueue | ((RQUEUE_EN0 | RQUEUE_EX0) >> i);
 		}
 		priv->gfargrp[grp_idx].num_tx_queues = 0x0;
-		for_each_bit (i, &priv->gfargrp[grp_idx].tx_bit_map,
+		for_each_set_bit(i, &priv->gfargrp[grp_idx].tx_bit_map,
 				priv->num_tx_queues) {
 			priv->gfargrp[grp_idx].num_tx_queues++;
 			priv->tx_queue[i]->grp = &priv->gfargrp[grp_idx];
@@ -1126,10 +1116,10 @@ static int gfar_probe(struct of_device *ofdev,
 	/* provided which set of benchmarks. */
 	printk(KERN_INFO "%s: Running with NAPI enabled\n", dev->name);
 	for (i = 0; i < priv->num_rx_queues; i++)
-		printk(KERN_INFO "%s: :RX BD ring size for Q[%d]: %d\n",
+		printk(KERN_INFO "%s: RX BD ring size for Q[%d]: %d\n",
 			dev->name, i, priv->rx_queue[i]->rx_ring_size);
 	for(i = 0; i < priv->num_tx_queues; i++)
-		 printk(KERN_INFO "%s:TX BD ring size for Q[%d]: %d\n",
+		 printk(KERN_INFO "%s: TX BD ring size for Q[%d]: %d\n",
 			dev->name, i, priv->tx_queue[i]->tx_ring_size);
 
 	return 0;
@@ -1521,9 +1511,9 @@ static void gfar_halt_nodisable(struct net_device *dev)
 		tempval |= (DMACTRL_GRS | DMACTRL_GTS);
 		gfar_write(&regs->dmactrl, tempval);
 
-		while (!(gfar_read(&regs->ievent) &
-			 (IEVENT_GRSC | IEVENT_GTSC)))
-			cpu_relax();
+		spin_event_timeout(((gfar_read(&regs->ievent) &
+			 (IEVENT_GRSC | IEVENT_GTSC)) ==
+			 (IEVENT_GRSC | IEVENT_GTSC)), -1, 0);
 	}
 }
 
@@ -1644,13 +1634,13 @@ static void free_skb_resources(struct gfar_private *priv)
 	/* Go through all the buffer descriptors and free their data buffers */
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		tx_queue = priv->tx_queue[i];
-		if(!tx_queue->tx_skbuff)
+		if(tx_queue->tx_skbuff)
 			free_skb_tx_queue(tx_queue);
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
 		rx_queue = priv->rx_queue[i];
-		if(!rx_queue->rx_skbuff)
+		if(rx_queue->rx_skbuff)
 			free_skb_rx_queue(rx_queue);
 	}
 
@@ -1715,7 +1705,7 @@ void gfar_configure_coalescing(struct gfar_private *priv,
 
 	if (priv->mode == MQ_MG_MODE) {
 		baddr = &regs->txic0;
-		for_each_bit (i, &tx_mask, priv->num_tx_queues) {
+		for_each_set_bit(i, &tx_mask, priv->num_tx_queues) {
 			if (likely(priv->tx_queue[i]->txcoalescing)) {
 				gfar_write(baddr + i, 0);
 				gfar_write(baddr + i, priv->tx_queue[i]->txic);
@@ -1723,7 +1713,7 @@ void gfar_configure_coalescing(struct gfar_private *priv,
 		}
 
 		baddr = &regs->rxic0;
-		for_each_bit (i, &rx_mask, priv->num_rx_queues) {
+		for_each_set_bit(i, &rx_mask, priv->num_rx_queues) {
 			if (likely(priv->rx_queue[i]->rxcoalescing)) {
 				gfar_write(baddr + i, 0);
 				gfar_write(baddr + i, priv->rx_queue[i]->rxic);
@@ -2027,7 +2017,6 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* setup the TxBD length and buffer pointer for the first BD */
-	tx_queue->tx_skbuff[tx_queue->skb_curtx] = skb;
 	txbdp_start->bufPtr = dma_map_single(&priv->ofdev->dev, skb->data,
 			skb_headlen(skb), DMA_TO_DEVICE);
 
@@ -2058,6 +2047,10 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	eieio();
 
 	txbdp_start->lstatus = lstatus;
+
+	eieio(); /* force lstatus write before tx_skbuff */
+
+	tx_queue->tx_skbuff[tx_queue->skb_curtx] = skb;
 
 	/* Update the current skb pointer to the next entry we will use
 	 * (wrapping if necessary) */
@@ -2396,6 +2389,7 @@ struct sk_buff * gfar_new_skb(struct net_device *dev)
 	 * as many bytes as needed to align the data properly
 	 */
 	skb_reserve(skb, alignamount);
+	GFAR_CB(skb)->alignamount = alignamount;
 
 	return skb;
 }
@@ -2470,10 +2464,11 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	fcb = (struct rxfcb *)skb->data;
 
 	/* Remove the FCB from the skb */
-	skb_set_queue_mapping(skb, fcb->rq);
 	/* Remove the padded bytes, if there are any */
-	if (amount_pull)
+	if (amount_pull) {
+		skb_record_rx_queue(skb, fcb->rq);
 		skb_pull(skb, amount_pull);
+	}
 
 	if (priv->rx_csum_enable)
 		gfar_rx_checksum(skb, fcb);
@@ -2535,13 +2530,13 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 				newskb = skb;
 			else if (skb) {
 				/*
-				 * We need to reset ->data to what it
+				 * We need to un-reserve() the skb to what it
 				 * was before gfar_new_skb() re-aligned
 				 * it to an RXBUF_ALIGNMENT boundary
 				 * before we put the skb back on the
 				 * recycle list.
 				 */
-				skb->data = skb->head + NET_SKB_PAD;
+				skb_reserve(skb, -GFAR_CB(skb)->alignamount);
 				__skb_queue_head(&priv->rx_recycle, skb);
 			}
 		} else {
@@ -2554,7 +2549,7 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 				/* Remove the FCS from the packet length */
 				skb_put(skb, pkt_len);
 				rx_queue->stats.rx_bytes += pkt_len;
-
+				skb_record_rx_queue(skb, rx_queue->qindex);
 				gfar_process_frame(dev, skb, amount_pull);
 
 			} else {
@@ -2612,7 +2607,7 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 		budget_per_queue = left_over_budget/num_queues;
 		left_over_budget = 0;
 
-		for_each_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
+		for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
 			if (test_bit(i, &serviced_queues))
 				continue;
 			rx_queue = priv->rx_queue[i];
@@ -2868,11 +2863,11 @@ static void gfar_set_multi(struct net_device *dev)
 			em_num = 0;
 		}
 
-		if (dev->mc_count == 0)
+		if (netdev_mc_empty(dev))
 			return;
 
 		/* Parse the list, and set the appropriate bits */
-		for(mc_ptr = dev->mc_list; mc_ptr; mc_ptr = mc_ptr->next) {
+		netdev_for_each_mc_addr(mc_ptr, dev) {
 			if (idx < em_num) {
 				gfar_set_mac_for_addr(dev, idx,
 						mc_ptr->dmi_addr);

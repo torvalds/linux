@@ -26,6 +26,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/acpi.h>
 #include <linux/backlight.h>
+#include <linux/slab.h>
 
 MODULE_AUTHOR("Thomas Renninger <trenn@suse.de>");
 MODULE_DESCRIPTION("MSI laptop WMI hotkeys driver");
@@ -138,7 +139,7 @@ static int bl_set_status(struct backlight_device *bd)
 	return msi_wmi_set_block(0, backlight_map[bright]);
 }
 
-static struct backlight_ops msi_backlight_ops = {
+static const struct backlight_ops msi_backlight_ops = {
 	.get_brightness	= bl_get,
 	.update_status	= bl_set_status,
 };
@@ -149,8 +150,13 @@ static void msi_wmi_notify(u32 value, void *context)
 	static struct key_entry *key;
 	union acpi_object *obj;
 	ktime_t cur;
+	acpi_status status;
 
-	wmi_get_event_data(value, &response);
+	status = wmi_get_event_data(value, &response);
+	if (status != AE_OK) {
+		printk(KERN_INFO DRV_PFX "bad event status 0x%x\n", status);
+		return;
+	}
 
 	obj = (union acpi_object *)response.pointer;
 
@@ -236,7 +242,7 @@ static int __init msi_wmi_init(void)
 	}
 	err = wmi_install_notify_handler(MSIWMI_EVENT_GUID,
 			msi_wmi_notify, NULL);
-	if (err)
+	if (ACPI_FAILURE(err))
 		return -EINVAL;
 
 	err = msi_wmi_input_setup();
@@ -244,12 +250,17 @@ static int __init msi_wmi_init(void)
 		goto err_uninstall_notifier;
 
 	if (!acpi_video_backlight_support()) {
-		backlight = backlight_device_register(DRV_NAME,
-				NULL, NULL, &msi_backlight_ops);
-		if (IS_ERR(backlight))
+		struct backlight_properties props;
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
+		backlight = backlight_device_register(DRV_NAME, NULL, NULL,
+						      &msi_backlight_ops,
+						      &props);
+		if (IS_ERR(backlight)) {
+			err = PTR_ERR(backlight);
 			goto err_free_input;
+		}
 
-		backlight->props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
 		err = bl_get(NULL);
 		if (err < 0)
 			goto err_free_backlight;

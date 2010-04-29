@@ -85,6 +85,7 @@
 #include <linux/cpumask.h>
 #include <linux/kdebug.h>
 #include <linux/cpu.h>
+#include <linux/gfp.h>
 
 #include <asm/delay.h>
 #include <asm/machvec.h>
@@ -1225,9 +1226,12 @@ static void mca_insert_tr(u64 iord)
 	unsigned long psr;
 	int cpu = smp_processor_id();
 
+	if (!ia64_idtrs[cpu])
+		return;
+
 	psr = ia64_clear_ic();
 	for (i = IA64_TR_ALLOC_BASE; i < IA64_TR_ALLOC_MAX; i++) {
-		p = &__per_cpu_idtrs[cpu][iord-1][i];
+		p = ia64_idtrs[cpu] + (iord - 1) * IA64_TR_ALLOC_MAX;
 		if (p->pte & 0x1) {
 			old_rr = ia64_get_rr(p->ifa);
 			if (old_rr != p->rr) {

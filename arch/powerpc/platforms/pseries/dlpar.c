@@ -16,6 +16,7 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
+#include <linux/slab.h>
 #include "offline_states.h"
 
 #include <asm/prom.h>
@@ -236,7 +237,9 @@ static struct device_node *derive_parent(const char *path)
 
 int dlpar_attach_node(struct device_node *dn)
 {
+#ifdef CONFIG_PROC_DEVICETREE
 	struct proc_dir_entry *ent;
+#endif
 	int rc;
 
 	of_node_set_flag(dn, OF_DYNAMIC);
@@ -267,10 +270,10 @@ int dlpar_attach_node(struct device_node *dn)
 
 int dlpar_detach_node(struct device_node *dn)
 {
+#ifdef CONFIG_PROC_DEVICETREE
 	struct device_node *parent = dn->parent;
 	struct property *prop = dn->properties;
 
-#ifdef CONFIG_PROC_DEVICETREE
 	while (prop) {
 		remove_proc_entry(prop->name, dn->pde);
 		prop = prop->next;
@@ -343,20 +346,6 @@ int dlpar_release_drc(u32 drc_index)
 }
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-
-static DEFINE_MUTEX(pseries_cpu_hotplug_mutex);
-
-void cpu_hotplug_driver_lock(void)
-__acquires(pseries_cpu_hotplug_mutex)
-{
-	mutex_lock(&pseries_cpu_hotplug_mutex);
-}
-
-void cpu_hotplug_driver_unlock(void)
-__releases(pseries_cpu_hotplug_mutex)
-{
-	mutex_unlock(&pseries_cpu_hotplug_mutex);
-}
 
 static int dlpar_online_cpu(struct device_node *dn)
 {

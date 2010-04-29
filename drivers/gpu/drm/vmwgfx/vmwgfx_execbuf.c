@@ -182,25 +182,19 @@ static int vmw_cmd_present_check(struct vmw_private *dev_priv,
 	return vmw_cmd_sid_check(dev_priv, sw_context, &cmd->body.sid);
 }
 
-static int vmw_cmd_dma(struct vmw_private *dev_priv,
-		       struct vmw_sw_context *sw_context,
-		       SVGA3dCmdHeader *header)
+static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
+				   struct vmw_sw_context *sw_context,
+				   SVGAGuestPtr *ptr,
+				   struct vmw_dma_buffer **vmw_bo_p)
 {
-	uint32_t handle;
 	struct vmw_dma_buffer *vmw_bo = NULL;
 	struct ttm_buffer_object *bo;
-	struct vmw_surface *srf = NULL;
-	struct vmw_dma_cmd {
-		SVGA3dCmdHeader header;
-		SVGA3dCmdSurfaceDMA dma;
-	} *cmd;
+	uint32_t handle = ptr->gmrId;
 	struct vmw_relocation *reloc;
-	int ret;
 	uint32_t cur_validate_node;
 	struct ttm_validate_buffer *val_buf;
+	int ret;
 
-	cmd = container_of(header, struct vmw_dma_cmd, header);
-	handle = cmd->dma.guest.ptr.gmrId;
 	ret = vmw_user_dmabuf_lookup(sw_context->tfile, handle, &vmw_bo);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not find or use GMR region.\n");
@@ -209,14 +203,14 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 	bo = &vmw_bo->base;
 
 	if (unlikely(sw_context->cur_reloc >= VMWGFX_MAX_RELOCATIONS)) {
-		DRM_ERROR("Max number of DMA commands per submission"
+		DRM_ERROR("Max number relocations per submission"
 			  " exceeded\n");
 		ret = -EINVAL;
 		goto out_no_reloc;
 	}
 
 	reloc = &sw_context->relocs[sw_context->cur_reloc++];
-	reloc->location = &cmd->dma.guest.ptr;
+	reloc->location = ptr;
 
 	cur_validate_node = vmw_dmabuf_validate_node(bo, sw_context->cur_val_buf);
 	if (unlikely(cur_validate_node >= VMWGFX_MAX_GMRS)) {
@@ -234,7 +228,89 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 		list_add_tail(&val_buf->head, &sw_context->validate_nodes);
 		++sw_context->cur_val_buf;
 	}
+	*vmw_bo_p = vmw_bo;
+	return 0;
 
+out_no_reloc:
+	vmw_dmabuf_unreference(&vmw_bo);
+	vmw_bo_p = NULL;
+	return ret;
+}
+
+static int vmw_cmd_end_query(struct vmw_private *dev_priv,
+			     struct vmw_sw_context *sw_context,
+			     SVGA3dCmdHeader *header)
+{
+	struct vmw_dma_buffer *vmw_bo;
+	struct vmw_query_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdEndQuery q;
+	} *cmd;
+	int ret;
+
+	cmd = container_of(header, struct vmw_query_cmd, header);
+	ret = vmw_cmd_cid_check(dev_priv, sw_context, header);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = vmw_translate_guest_ptr(dev_priv, sw_context,
+				      &cmd->q.guestResult,
+				      &vmw_bo);
+	if (unlikely(ret != 0))
+		return ret;
+
+	vmw_dmabuf_unreference(&vmw_bo);
+	return 0;
+}
+
+static int vmw_cmd_wait_query(struct vmw_private *dev_priv,
+			      struct vmw_sw_context *sw_context,
+			      SVGA3dCmdHeader *header)
+{
+	struct vmw_dma_buffer *vmw_bo;
+	struct vmw_query_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdWaitForQuery q;
+	} *cmd;
+	int ret;
+
+	cmd = container_of(header, struct vmw_query_cmd, header);
+	ret = vmw_cmd_cid_check(dev_priv, sw_context, header);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = vmw_translate_guest_ptr(dev_priv, sw_context,
+				      &cmd->q.guestResult,
+				      &vmw_bo);
+	if (unlikely(ret != 0))
+		return ret;
+
+	vmw_dmabuf_unreference(&vmw_bo);
+	return 0;
+}
+
+
+static int vmw_cmd_dma(struct vmw_private *dev_priv,
+		       struct vmw_sw_context *sw_context,
+		       SVGA3dCmdHeader *header)
+{
+	struct vmw_dma_buffer *vmw_bo = NULL;
+	struct ttm_buffer_object *bo;
+	struct vmw_surface *srf = NULL;
+	struct vmw_dma_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdSurfaceDMA dma;
+	} *cmd;
+	int ret;
+
+	cmd = container_of(header, struct vmw_dma_cmd, header);
+	ret = vmw_translate_guest_ptr(dev_priv, sw_context,
+				      &cmd->dma.guest.ptr,
+				      &vmw_bo);
+	if (unlikely(ret != 0))
+		return ret;
+
+	bo = &vmw_bo->base;
 	ret = vmw_user_surface_lookup_handle(dev_priv, sw_context->tfile,
 					     cmd->dma.host.sid, &srf);
 	if (ret) {
@@ -379,8 +455,8 @@ static vmw_cmd_func vmw_cmd_funcs[SVGA_3D_CMD_MAX] = {
 	VMW_CMD_DEF(SVGA_3D_CMD_DRAW_PRIMITIVES, &vmw_cmd_draw),
 	VMW_CMD_DEF(SVGA_3D_CMD_SETSCISSORRECT, &vmw_cmd_cid_check),
 	VMW_CMD_DEF(SVGA_3D_CMD_BEGIN_QUERY, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_END_QUERY, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_WAIT_FOR_QUERY, &vmw_cmd_cid_check),
+	VMW_CMD_DEF(SVGA_3D_CMD_END_QUERY, &vmw_cmd_end_query),
+	VMW_CMD_DEF(SVGA_3D_CMD_WAIT_FOR_QUERY, &vmw_cmd_wait_query),
 	VMW_CMD_DEF(SVGA_3D_CMD_PRESENT_READBACK, &vmw_cmd_ok),
 	VMW_CMD_DEF(SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN,
 		    &vmw_cmd_blt_surf_screen_check)
@@ -490,10 +566,29 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	if (vmw_dmabuf_gmr(bo) != SVGA_GMR_NULL)
 		return 0;
 
+	/**
+	 * Put BO in VRAM, only if there is space.
+	 */
+
+	ret = ttm_bo_validate(bo, &vmw_vram_sys_placement, true, false);
+	if (unlikely(ret == -ERESTARTSYS))
+		return ret;
+
+	/**
+	 * Otherwise, set it up as GMR.
+	 */
+
+	if (vmw_dmabuf_gmr(bo) != SVGA_GMR_NULL)
+		return 0;
+
 	ret = vmw_gmr_bind(dev_priv, bo);
 	if (likely(ret == 0 || ret == -ERESTARTSYS))
 		return ret;
 
+	/**
+	 * If that failed, try VRAM again, this time evicting
+	 * previous contents.
+	 */
 
 	ret = ttm_bo_validate(bo, &vmw_vram_placement, true, false);
 	return ret;

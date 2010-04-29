@@ -100,7 +100,7 @@ static inline int dib8000_set_tune_state(struct dvb_frontend *fe, enum frontend_
 static inline enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-    return CT_SHUTDOWN,
+	return CT_SHUTDOWN;
 }
 static inline void dib8000_pwm_agc_reset(struct dvb_frontend *fe)
 {

@@ -40,7 +40,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
@@ -123,9 +122,7 @@ static void ariadne_reset(struct net_device *dev);
 static irqreturn_t ariadne_interrupt(int irq, void *data);
 static int ariadne_close(struct net_device *dev);
 static struct net_device_stats *ariadne_get_stats(struct net_device *dev);
-#ifdef HAVE_MULTICAST
 static void set_multicast_list(struct net_device *dev);
-#endif
 
 
 static void memcpyw(volatile u_short *dest, u_short *src, int len)
@@ -821,7 +818,7 @@ static void set_multicast_list(struct net_device *dev)
 	lance->RDP = PROM;		/* Set promiscuous mode */
     } else {
 	short multicast_table[4];
-	int num_addrs = dev->mc_count;
+	int num_addrs = netdev_mc_count(dev);
 	int i;
 	/* We don't use the multicast table, but rely on upper-layer filtering. */
 	memset(multicast_table, (num_addrs == 0) ? 0 : -1,

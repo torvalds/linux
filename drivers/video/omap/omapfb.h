@@ -203,6 +203,8 @@ struct omapfb_device {
 
 	struct omapfb_mem_desc		mem_desc;
 	struct fb_info			*fb_info[OMAPFB_PLANE_NUM];
+
+	struct platform_device	*dssdev;	/* dummy dev for clocks */
 };
 
 #ifdef CONFIG_ARCH_OMAP1

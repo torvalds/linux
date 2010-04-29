@@ -119,6 +119,14 @@ struct cb_recallanyargs {
 };
 
 extern unsigned nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy);
+
+struct cb_recallslotargs {
+	struct sockaddr	*crsa_addr;
+	uint32_t	crsa_target_max_slots;
+};
+extern unsigned nfs4_callback_recallslot(struct cb_recallslotargs *args,
+					  void *dummy);
+
 #endif /* CONFIG_NFS_V4_1 */
 
 extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res);

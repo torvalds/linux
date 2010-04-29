@@ -86,3 +86,12 @@ void reiserfs_check_lock_depth(struct super_block *sb, char *caller)
 		reiserfs_panic(sb, "%s called without kernel lock held %d",
 			       caller);
 }
+
+#ifdef CONFIG_REISERFS_CHECK
+void reiserfs_lock_check_recursive(struct super_block *sb)
+{
+	struct reiserfs_sb_info *sb_i = REISERFS_SB(sb);
+
+	WARN_ONCE((sb_i->lock_depth > 0), "Unwanted recursive reiserfs lock!\n");
+}
+#endif

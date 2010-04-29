@@ -24,6 +24,7 @@
 #include <linux/moduleparam.h>
 #include <linux/err.h>
 #include <linux/mtd/mtd.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 
 #define PRINT_PREF KERN_INFO "mtd_speedtest: "
@@ -301,6 +302,10 @@ static int scan_for_bad_eraseblocks(void)
 	}
 	memset(bbt, 0 , ebcnt);
 
+	/* NOR flash does not implement block_isbad */
+	if (mtd->block_isbad == NULL)
+		goto out;
+
 	printk(PRINT_PREF "scanning for bad eraseblocks\n");
 	for (i = 0; i < ebcnt; ++i) {
 		bbt[i] = is_block_bad(i) ? 1 : 0;
@@ -309,6 +314,7 @@ static int scan_for_bad_eraseblocks(void)
 		cond_resched();
 	}
 	printk(PRINT_PREF "scanned %d eraseblocks, %d are bad\n", i, bad);
+out:
 	goodebcnt = ebcnt - bad;
 	return 0;
 }
@@ -340,7 +346,7 @@ static int __init mtd_speedtest_init(void)
 	tmp = mtd->size;
 	do_div(tmp, mtd->erasesize);
 	ebcnt = tmp;
-	pgcnt = mtd->erasesize / mtd->writesize;
+	pgcnt = mtd->erasesize / pgsize;
 
 	printk(PRINT_PREF "MTD device size %llu, eraseblock size %u, "
 	       "page size %u, count of eraseblocks %u, pages per "

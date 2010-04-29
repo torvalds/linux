@@ -34,6 +34,7 @@
 #include <plat/control.h>
 #include <plat/mux.h>
 #include <plat/fpga.h>
+#include <plat/serial.h>
 
 #include <plat/clock.h>
 
@@ -42,9 +43,6 @@
 #endif
 
 #define NO_LENGTH_CHECK 0xffffffff
-
-unsigned char omap_bootloader_tag[512];
-int omap_bootloader_tag_len;
 
 struct omap_board_config_kernel *omap_board_config;
 int omap_board_config_size;
@@ -99,10 +97,17 @@ EXPORT_SYMBOL(omap_get_var_config);
 
 #include <linux/clocksource.h>
 
+/*
+ * offset_32k holds the init time counter value. It is then subtracted
+ * from every counter read to achieve a counter that counts time from the
+ * kernel boot (needed for sched_clock()).
+ */
+static u32 offset_32k __read_mostly;
+
 #ifdef CONFIG_ARCH_OMAP16XX
 static cycle_t omap16xx_32k_read(struct clocksource *cs)
 {
-	return omap_readl(OMAP16XX_TIMER_32K_SYNCHRONIZED);
+	return omap_readl(OMAP16XX_TIMER_32K_SYNCHRONIZED) - offset_32k;
 }
 #else
 #define omap16xx_32k_read	NULL
@@ -111,7 +116,7 @@ static cycle_t omap16xx_32k_read(struct clocksource *cs)
 #ifdef CONFIG_ARCH_OMAP2420
 static cycle_t omap2420_32k_read(struct clocksource *cs)
 {
-	return omap_readl(OMAP2420_32KSYNCT_BASE + 0x10);
+	return omap_readl(OMAP2420_32KSYNCT_BASE + 0x10) - offset_32k;
 }
 #else
 #define omap2420_32k_read	NULL
@@ -120,16 +125,16 @@ static cycle_t omap2420_32k_read(struct clocksource *cs)
 #ifdef CONFIG_ARCH_OMAP2430
 static cycle_t omap2430_32k_read(struct clocksource *cs)
 {
-	return omap_readl(OMAP2430_32KSYNCT_BASE + 0x10);
+	return omap_readl(OMAP2430_32KSYNCT_BASE + 0x10) - offset_32k;
 }
 #else
 #define omap2430_32k_read	NULL
 #endif
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 static cycle_t omap34xx_32k_read(struct clocksource *cs)
 {
-	return omap_readl(OMAP3430_32KSYNCT_BASE + 0x10);
+	return omap_readl(OMAP3430_32KSYNCT_BASE + 0x10) - offset_32k;
 }
 #else
 #define omap34xx_32k_read	NULL
@@ -138,7 +143,7 @@ static cycle_t omap34xx_32k_read(struct clocksource *cs)
 #ifdef CONFIG_ARCH_OMAP4
 static cycle_t omap44xx_32k_read(struct clocksource *cs)
 {
-	return omap_readl(OMAP4430_32KSYNCT_BASE + 0x10);
+	return omap_readl(OMAP4430_32KSYNCT_BASE + 0x10) - offset_32k;
 }
 #else
 #define omap44xx_32k_read	NULL
@@ -172,6 +177,32 @@ unsigned long long sched_clock(void)
 				  clocksource_32k.mult, clocksource_32k.shift);
 }
 
+/**
+ * read_persistent_clock -  Return time from a persistent clock.
+ *
+ * Reads the time from a source which isn't disabled during PM, the
+ * 32k sync timer.  Convert the cycles elapsed since last read into
+ * nsecs and adds to a monotonically increasing timespec.
+ */
+static struct timespec persistent_ts;
+static cycles_t cycles, last_cycles;
+void read_persistent_clock(struct timespec *ts)
+{
+	unsigned long long nsecs;
+	cycles_t delta;
+	struct timespec *tsp = &persistent_ts;
+
+	last_cycles = cycles;
+	cycles = clocksource_32k.read(&clocksource_32k);
+	delta = cycles - last_cycles;
+
+	nsecs = clocksource_cyc2ns(delta,
+				   clocksource_32k.mult, clocksource_32k.shift);
+
+	timespec_add_ns(tsp, nsecs);
+	*ts = *tsp;
+}
+
 static int __init omap_init_clocksource_32k(void)
 {
 	static char err[] __initdata = KERN_ERR
@@ -200,6 +231,8 @@ static int __init omap_init_clocksource_32k(void)
 		clocksource_32k.mult = clocksource_hz2mult(32768,
 					    clocksource_32k.shift);
 
+		offset_32k = clocksource_32k.read(&clocksource_32k);
+
 		if (clocksource_register(&clocksource_32k))
 			printk(err, clocksource_32k.name);
 	}
@@ -219,6 +252,7 @@ static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 	omap2_set_globals_sdrc(omap2_globals);
 	omap2_set_globals_control(omap2_globals);
 	omap2_set_globals_prcm(omap2_globals);
+	omap2_set_globals_uart(omap2_globals);
 }
 
 #endif
@@ -228,11 +262,14 @@ static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 static struct omap_globals omap242x_globals = {
 	.class	= OMAP242X_CLASS,
 	.tap	= OMAP2_L4_IO_ADDRESS(0x48014000),
-	.sdrc	= OMAP2_L3_IO_ADDRESS(OMAP2420_SDRC_BASE),
-	.sms	= OMAP2_L3_IO_ADDRESS(OMAP2420_SMS_BASE),
-	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP2420_CTRL_BASE),
-	.prm	= OMAP2_L4_IO_ADDRESS(OMAP2420_PRM_BASE),
-	.cm	= OMAP2_L4_IO_ADDRESS(OMAP2420_CM_BASE),
+	.sdrc	= OMAP2420_SDRC_BASE,
+	.sms	= OMAP2420_SMS_BASE,
+	.ctrl	= OMAP2420_CTRL_BASE,
+	.prm	= OMAP2420_PRM_BASE,
+	.cm	= OMAP2420_CM_BASE,
+	.uart1_phys	= OMAP2_UART1_BASE,
+	.uart2_phys	= OMAP2_UART2_BASE,
+	.uart3_phys	= OMAP2_UART3_BASE,
 };
 
 void __init omap2_set_globals_242x(void)
@@ -246,11 +283,14 @@ void __init omap2_set_globals_242x(void)
 static struct omap_globals omap243x_globals = {
 	.class	= OMAP243X_CLASS,
 	.tap	= OMAP2_L4_IO_ADDRESS(0x4900a000),
-	.sdrc	= OMAP2_L3_IO_ADDRESS(OMAP243X_SDRC_BASE),
-	.sms	= OMAP2_L3_IO_ADDRESS(OMAP243X_SMS_BASE),
-	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP243X_CTRL_BASE),
-	.prm	= OMAP2_L4_IO_ADDRESS(OMAP2430_PRM_BASE),
-	.cm	= OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE),
+	.sdrc	= OMAP243X_SDRC_BASE,
+	.sms	= OMAP243X_SMS_BASE,
+	.ctrl	= OMAP243X_CTRL_BASE,
+	.prm	= OMAP2430_PRM_BASE,
+	.cm	= OMAP2430_CM_BASE,
+	.uart1_phys	= OMAP2_UART1_BASE,
+	.uart2_phys	= OMAP2_UART2_BASE,
+	.uart3_phys	= OMAP2_UART3_BASE,
 };
 
 void __init omap2_set_globals_243x(void)
@@ -259,21 +299,31 @@ void __init omap2_set_globals_243x(void)
 }
 #endif
 
-#if defined(CONFIG_ARCH_OMAP3430)
+#if defined(CONFIG_ARCH_OMAP3)
 
-static struct omap_globals omap343x_globals = {
+static struct omap_globals omap3_globals = {
 	.class	= OMAP343X_CLASS,
 	.tap	= OMAP2_L4_IO_ADDRESS(0x4830A000),
-	.sdrc	= OMAP2_L3_IO_ADDRESS(OMAP343X_SDRC_BASE),
-	.sms	= OMAP2_L3_IO_ADDRESS(OMAP343X_SMS_BASE),
-	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP343X_CTRL_BASE),
-	.prm	= OMAP2_L4_IO_ADDRESS(OMAP3430_PRM_BASE),
-	.cm	= OMAP2_L4_IO_ADDRESS(OMAP3430_CM_BASE),
+	.sdrc	= OMAP343X_SDRC_BASE,
+	.sms	= OMAP343X_SMS_BASE,
+	.ctrl	= OMAP343X_CTRL_BASE,
+	.prm	= OMAP3430_PRM_BASE,
+	.cm	= OMAP3430_CM_BASE,
+	.uart1_phys	= OMAP3_UART1_BASE,
+	.uart2_phys	= OMAP3_UART2_BASE,
+	.uart3_phys	= OMAP3_UART3_BASE,
 };
 
 void __init omap2_set_globals_343x(void)
 {
-	__omap2_set_globals(&omap343x_globals);
+	__omap2_set_globals(&omap3_globals);
+}
+
+void __init omap2_set_globals_36xx(void)
+{
+	omap3_globals.uart4_phys = OMAP3_UART4_BASE;
+
+	__omap2_set_globals(&omap3_globals);
 }
 #endif
 
@@ -281,10 +331,14 @@ void __init omap2_set_globals_343x(void)
 static struct omap_globals omap4_globals = {
 	.class	= OMAP443X_CLASS,
 	.tap	= OMAP2_L4_IO_ADDRESS(OMAP443X_SCM_BASE),
-	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP443X_CTRL_BASE),
-	.prm	= OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE),
-	.cm	= OMAP2_L4_IO_ADDRESS(OMAP4430_CM_BASE),
-	.cm2	= OMAP2_L4_IO_ADDRESS(OMAP4430_CM2_BASE),
+	.ctrl	= OMAP443X_CTRL_BASE,
+	.prm	= OMAP4430_PRM_BASE,
+	.cm	= OMAP4430_CM_BASE,
+	.cm2	= OMAP4430_CM2_BASE,
+	.uart1_phys	= OMAP4_UART1_BASE,
+	.uart2_phys	= OMAP4_UART2_BASE,
+	.uart3_phys	= OMAP4_UART3_BASE,
+	.uart4_phys	= OMAP4_UART4_BASE,
 };
 
 void __init omap2_set_globals_443x(void)
@@ -292,6 +346,7 @@ void __init omap2_set_globals_443x(void)
 	omap2_set_globals_tap(&omap4_globals);
 	omap2_set_globals_control(&omap4_globals);
 	omap2_set_globals_prcm(&omap4_globals);
+	omap2_set_globals_uart(&omap4_globals);
 }
 #endif
 

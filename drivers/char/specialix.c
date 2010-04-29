@@ -94,6 +94,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/uaccess.h>
+#include <linux/gfp.h>
 
 #include "specialix_io8.h"
 #include "cd1865.h"
@@ -645,8 +646,6 @@ static void sx_receive(struct specialix_board *bp)
 	count = sx_in(bp, CD186x_RDCR);
 	dprintk(SX_DEBUG_RX, "port: %p: count: %d\n", port, count);
 	port->hits[count > 8 ? 9 : count]++;
-
-	tty_buffer_request_room(tty, count);
 
 	while (count--)
 		tty_insert_flip_char(tty, sx_in(bp, CD186x_RDR), TTY_NORMAL);

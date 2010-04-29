@@ -103,6 +103,12 @@ cifs_read_super(struct super_block *sb, void *data,
 	if (cifs_sb == NULL)
 		return -ENOMEM;
 
+	rc = bdi_setup_and_register(&cifs_sb->bdi, "cifs", BDI_CAP_MAP_COPY);
+	if (rc) {
+		kfree(cifs_sb);
+		return rc;
+	}
+
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	/* copy mount params to sb for use in submounts */
 	/* BB: should we move this after the mount so we
@@ -115,6 +121,7 @@ cifs_read_super(struct super_block *sb, void *data,
 		int len = strlen(data);
 		cifs_sb->mountdata = kzalloc(len + 1, GFP_KERNEL);
 		if (cifs_sb->mountdata == NULL) {
+			bdi_destroy(&cifs_sb->bdi);
 			kfree(sb->s_fs_info);
 			sb->s_fs_info = NULL;
 			return -ENOMEM;
@@ -135,6 +142,7 @@ cifs_read_super(struct super_block *sb, void *data,
 
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
+	sb->s_bdi = &cifs_sb->bdi;
 /*	if (cifs_sb->tcon->ses->server->maxBuf > MAX_CIFS_HDR_SIZE + 512)
 	    sb->s_blocksize =
 		cifs_sb->tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE; */
@@ -183,6 +191,7 @@ out_mount_failed:
 		}
 #endif
 		unload_nls(cifs_sb->local_nls);
+		bdi_destroy(&cifs_sb->bdi);
 		kfree(cifs_sb);
 	}
 	return rc;
@@ -214,6 +223,7 @@ cifs_put_super(struct super_block *sb)
 #endif
 
 	unload_nls(cifs_sb->local_nls);
+	bdi_destroy(&cifs_sb->bdi);
 	kfree(cifs_sb);
 
 	unlock_kernel();
@@ -312,6 +322,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->clientCanCacheRead = false;
 	cifs_inode->clientCanCacheAll = false;
 	cifs_inode->delete_pending = false;
+	cifs_inode->invalid_mapping = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 	cifs_inode->server_eof = 0;
 
@@ -638,7 +649,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		   setting the revalidate time to zero */
 		CIFS_I(file->f_path.dentry->d_inode)->time = 0;
 
-		retval = cifs_revalidate(file->f_path.dentry);
+		retval = cifs_revalidate_file(file);
 		if (retval < 0)
 			return (loff_t)retval;
 	}
@@ -758,7 +769,7 @@ const struct file_operations cifs_file_ops = {
 };
 
 const struct file_operations cifs_file_direct_ops = {
-	/* no mmap, no aio, no readv -
+	/* no aio, no readv -
 	   BB reevaluate whether they can be done with directio, no cache */
 	.read = cifs_user_read,
 	.write = cifs_user_write,
@@ -767,6 +778,7 @@ const struct file_operations cifs_file_direct_ops = {
 	.lock = cifs_lock,
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
+	.mmap = cifs_file_mmap,
 	.splice_read = generic_file_splice_read,
 #ifdef CONFIG_CIFS_POSIX
 	.unlocked_ioctl  = cifs_ioctl,
@@ -806,6 +818,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.release = cifs_close,
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
+	.mmap = cifs_file_mmap,
 	.splice_read = generic_file_splice_read,
 #ifdef CONFIG_CIFS_POSIX
 	.unlocked_ioctl  = cifs_ioctl,

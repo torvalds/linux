@@ -28,45 +28,17 @@
 
 #include "nouveau_drv.h"
 
-static struct vm_operations_struct nouveau_ttm_vm_ops;
-static const struct vm_operations_struct *ttm_vm_ops;
-
-static int
-nouveau_ttm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	struct ttm_buffer_object *bo = vma->vm_private_data;
-	int ret;
-
-	if (unlikely(bo == NULL))
-		return VM_FAULT_NOPAGE;
-
-	ret = ttm_vm_ops->fault(vma, vmf);
-	return ret;
-}
-
 int
 nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_nouveau_private *dev_priv =
 		file_priv->minor->dev->dev_private;
-	int ret;
 
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
 		return drm_mmap(filp, vma);
 
-	ret = ttm_bo_mmap(filp, vma, &dev_priv->ttm.bdev);
-	if (unlikely(ret != 0))
-		return ret;
-
-	if (unlikely(ttm_vm_ops == NULL)) {
-		ttm_vm_ops = vma->vm_ops;
-		nouveau_ttm_vm_ops = *ttm_vm_ops;
-		nouveau_ttm_vm_ops.fault = &nouveau_ttm_fault;
-	}
-
-	vma->vm_ops = &nouveau_ttm_vm_ops;
-	return 0;
+	return ttm_bo_mmap(filp, vma, &dev_priv->ttm.bdev);
 }
 
 static int

@@ -30,6 +30,7 @@
  */
 
 #define DEBUG
+#include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/serio.h>
 #include <linux/libps2.h>
@@ -67,10 +68,6 @@ static int post_interrupt_delay = 1000;
 module_param(post_interrupt_delay, int, 0644);
 MODULE_PARM_DESC(post_interrupt_delay,
 	"delay (ms) before recal after recal interrupt detected");
-
-static int autorecal = 1;
-module_param(autorecal, int, 0644);
-MODULE_PARM_DESC(autorecal, "enable recalibration in the driver");
 
 /*
  * When the touchpad gets ultra-sensitive, one can keep their finger 1/2"
@@ -427,7 +424,6 @@ static void hgpk_recalib_work(struct work_struct *work)
 
 static int hgpk_register(struct psmouse *psmouse)
 {
-	struct input_dev *dev = psmouse->dev;
 	int err;
 
 	/* register handlers */

@@ -27,12 +27,10 @@ config SND_S3C64XX_SOC_I2S
 config SND_S3C_SOC_PCM
 	tristate
 
-config SND_S3C2443_SOC_AC97
+config SND_S3C_SOC_AC97
 	tristate
-	select S3C2410_DMA
-	select AC97_BUS
 	select SND_SOC_AC97_BUS
-	
+
 config SND_S3C24XX_SOC_NEO1973_WM8753
 	tristate "SoC I2S Audio support for NEO1973 - WM8753"
 	depends on SND_S3C24XX_SOC && MACH_NEO1973_GTA01
@@ -71,8 +69,10 @@ config SND_S3C64XX_SOC_WM8580
 config SND_S3C24XX_SOC_SMDK2443_WM9710
 	tristate "SoC AC97 Audio support for SMDK2443 - WM9710"
 	depends on SND_S3C24XX_SOC && MACH_SMDK2443
-	select SND_S3C2443_SOC_AC97
+	select S3C2410_DMA
+	select AC97_BUS
 	select SND_SOC_AC97_CODEC
+	select SND_S3C_SOC_AC97
 	help
 	  Say Y if you want to add support for SoC audio on smdk2443
 	  with the WM9710.
@@ -80,8 +80,10 @@ config SND_S3C24XX_SOC_SMDK2443_WM9710
 config SND_S3C24XX_SOC_LN2440SBC_ALC650
 	tristate "SoC AC97 Audio support for LN2440SBC - ALC650"
 	depends on SND_S3C24XX_SOC && ARCH_S3C2410
-	select SND_S3C2443_SOC_AC97
+	select S3C2410_DMA
+	select AC97_BUS
 	select SND_SOC_AC97_CODEC
+	select SND_S3C_SOC_AC97
 	help
 	  Say Y if you want to add support for SoC audio on ln2440sbc
 	  with the ALC650.
@@ -111,3 +113,11 @@ config SND_S3C24XX_SOC_SIMTEC_HERMES
 	select SND_S3C24XX_SOC_I2S
 	select SND_SOC_TLV320AIC3X
 	select SND_S3C24XX_SOC_SIMTEC
+
+config SND_SOC_SMDK_WM9713
+	tristate "SoC AC97 Audio support for SMDK with WM9713"
+	depends on SND_S3C24XX_SOC && MACH_SMDK6410
+	select SND_SOC_WM9713
+	select SND_S3C_SOC_AC97
+	help
+	  Sat Y if you want to add support for SoC audio on the SMDK.

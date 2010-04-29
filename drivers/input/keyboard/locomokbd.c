@@ -192,11 +192,18 @@ static void locomokbd_scankeyboard(struct locomokbd *locomokbd)
 static irqreturn_t locomokbd_interrupt(int irq, void *dev_id)
 {
 	struct locomokbd *locomokbd = dev_id;
+	u16 r;
+
+	r = locomo_readl(locomokbd->base + LOCOMO_KIC);
+	if ((r & 0x0001) == 0)
+		return IRQ_HANDLED;
+
+	locomo_writel(r & ~0x0100, locomokbd->base + LOCOMO_KIC); /* Ack */
+
 	/** wait chattering delay **/
 	udelay(100);
 
 	locomokbd_scankeyboard(locomokbd);
-
 	return IRQ_HANDLED;
 }
 
@@ -208,6 +215,25 @@ static void locomokbd_timer_callback(unsigned long data)
 	struct locomokbd *locomokbd = (struct locomokbd *) data;
 
 	locomokbd_scankeyboard(locomokbd);
+}
+
+static int locomokbd_open(struct input_dev *dev)
+{
+	struct locomokbd *locomokbd = input_get_drvdata(dev);
+	u16 r;
+	
+	r = locomo_readl(locomokbd->base + LOCOMO_KIC) | 0x0010;
+	locomo_writel(r, locomokbd->base + LOCOMO_KIC);
+	return 0;
+}
+
+static void locomokbd_close(struct input_dev *dev)
+{
+	struct locomokbd *locomokbd = input_get_drvdata(dev);
+	u16 r;
+	
+	r = locomo_readl(locomokbd->base + LOCOMO_KIC) & ~0x0010;
+	locomo_writel(r, locomokbd->base + LOCOMO_KIC);
 }
 
 static int __devinit locomokbd_probe(struct locomo_dev *dev)
@@ -253,6 +279,8 @@ static int __devinit locomokbd_probe(struct locomo_dev *dev)
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
+	input_dev->open = locomokbd_open;
+	input_dev->close = locomokbd_close;
 	input_dev->dev.parent = &dev->dev;
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP) |
@@ -260,6 +288,8 @@ static int __devinit locomokbd_probe(struct locomo_dev *dev)
 	input_dev->keycode = locomokbd->keycode;
 	input_dev->keycodesize = sizeof(locomokbd_keycode[0]);
 	input_dev->keycodemax = ARRAY_SIZE(locomokbd_keycode);
+
+	input_set_drvdata(input_dev, locomokbd);
 
 	memcpy(locomokbd->keycode, locomokbd_keycode, sizeof(locomokbd->keycode));
 	for (i = 0; i < LOCOMOKBD_NUMKEYS; i++)

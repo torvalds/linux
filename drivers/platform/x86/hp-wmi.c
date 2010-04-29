@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/input.h>
 #include <acpi/acpi_drivers.h>
@@ -57,7 +58,7 @@ enum hp_wmi_radio {
 	HPWMI_WWAN = 2,
 };
 
-static int __init hp_wmi_bios_setup(struct platform_device *device);
+static int __devinit hp_wmi_bios_setup(struct platform_device *device);
 static int __exit hp_wmi_bios_remove(struct platform_device *device);
 static int hp_wmi_resume_handler(struct device *device);
 
@@ -89,6 +90,7 @@ static struct key_entry hp_wmi_keymap[] = {
 	{KE_KEY, 0x20e6, KEY_PROG1},
 	{KE_KEY, 0x2142, KEY_MEDIA},
 	{KE_KEY, 0x213b, KEY_INFO},
+	{KE_KEY, 0x2169, KEY_DIRECTION},
 	{KE_KEY, 0x231b, KEY_HELP},
 	{KE_END, 0}
 };
@@ -277,7 +279,7 @@ static DEVICE_ATTR(als, S_IRUGO | S_IWUSR, show_als, set_als);
 static DEVICE_ATTR(dock, S_IRUGO, show_dock, NULL);
 static DEVICE_ATTR(tablet, S_IRUGO, show_tablet, NULL);
 
-static struct key_entry *hp_wmi_get_entry_by_scancode(int code)
+static struct key_entry *hp_wmi_get_entry_by_scancode(unsigned int code)
 {
 	struct key_entry *key;
 
@@ -288,7 +290,7 @@ static struct key_entry *hp_wmi_get_entry_by_scancode(int code)
 	return NULL;
 }
 
-static struct key_entry *hp_wmi_get_entry_by_keycode(int keycode)
+static struct key_entry *hp_wmi_get_entry_by_keycode(unsigned int keycode)
 {
 	struct key_entry *key;
 
@@ -299,7 +301,8 @@ static struct key_entry *hp_wmi_get_entry_by_keycode(int keycode)
 	return NULL;
 }
 
-static int hp_wmi_getkeycode(struct input_dev *dev, int scancode, int *keycode)
+static int hp_wmi_getkeycode(struct input_dev *dev,
+			     unsigned int scancode, unsigned int *keycode)
 {
 	struct key_entry *key = hp_wmi_get_entry_by_scancode(scancode);
 
@@ -311,13 +314,11 @@ static int hp_wmi_getkeycode(struct input_dev *dev, int scancode, int *keycode)
 	return -EINVAL;
 }
 
-static int hp_wmi_setkeycode(struct input_dev *dev, int scancode, int keycode)
+static int hp_wmi_setkeycode(struct input_dev *dev,
+			     unsigned int scancode, unsigned int keycode)
 {
 	struct key_entry *key;
-	int old_keycode;
-
-	if (keycode < 0 || keycode > KEY_MAX)
-		return -EINVAL;
+	unsigned int old_keycode;
 
 	key = hp_wmi_get_entry_by_scancode(scancode);
 	if (key && key->type == KE_KEY) {
@@ -338,8 +339,13 @@ static void hp_wmi_notify(u32 value, void *context)
 	static struct key_entry *key;
 	union acpi_object *obj;
 	int eventcode;
+	acpi_status status;
 
-	wmi_get_event_data(value, &response);
+	status = wmi_get_event_data(value, &response);
+	if (status != AE_OK) {
+		printk(KERN_INFO "hp-wmi: bad event status 0x%x\n", status);
+		return;
+	}
 
 	obj = (union acpi_object *)response.pointer;
 
@@ -388,8 +394,6 @@ static void hp_wmi_notify(u32 value, void *context)
 	} else
 		printk(KERN_INFO "HP WMI: Unknown key pressed - %x\n",
 			eventcode);
-
-	kfree(obj);
 }
 
 static int __init hp_wmi_input_setup(void)
@@ -443,7 +447,7 @@ static void cleanup_sysfs(struct platform_device *device)
 	device_remove_file(&device->dev, &dev_attr_tablet);
 }
 
-static int __init hp_wmi_bios_setup(struct platform_device *device)
+static int __devinit hp_wmi_bios_setup(struct platform_device *device)
 {
 	int err;
 	int wireless = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, 0);
@@ -581,7 +585,7 @@ static int __init hp_wmi_init(void)
 	if (wmi_has_guid(HPWMI_EVENT_GUID)) {
 		err = wmi_install_notify_handler(HPWMI_EVENT_GUID,
 						 hp_wmi_notify, NULL);
-		if (!err)
+		if (ACPI_SUCCESS(err))
 			hp_wmi_input_setup();
 	}
 

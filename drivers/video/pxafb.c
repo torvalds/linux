@@ -1221,9 +1221,9 @@ static void setup_smart_timing(struct pxafb_info *fbi,
 static int pxafb_smart_thread(void *arg)
 {
 	struct pxafb_info *fbi = arg;
-	struct pxafb_mach_info *inf;
+	struct pxafb_mach_info *inf = fbi->dev->platform_data;
 
-	if (!fbi || !fbi->dev->platform_data->smart_update) {
+	if (!inf->smart_update) {
 		pr_err("%s: not properly initialized, thread terminated\n",
 				__func__);
 		return -EINVAL;

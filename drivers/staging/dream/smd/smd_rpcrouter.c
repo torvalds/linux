@@ -33,12 +33,11 @@
 #include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
-
-#include <asm/byteorder.h>
 
 #include <mach/msm_smd.h>
 #include "smd_rpcrouter.h"

@@ -34,6 +34,7 @@
 #include <linux/namei.h>
 #include <linux/idr.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -60,7 +61,7 @@ static int unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
 	res = mode & 0777;
 	if (S_ISDIR(mode))
 		res |= P9_DMDIR;
-	if (v9fs_extended(v9ses)) {
+	if (v9fs_proto_dotu(v9ses)) {
 		if (S_ISLNK(mode))
 			res |= P9_DMSYMLINK;
 		if (v9ses->nodev == 0) {
@@ -102,21 +103,21 @@ static int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
 
 	if ((mode & P9_DMDIR) == P9_DMDIR)
 		res |= S_IFDIR;
-	else if ((mode & P9_DMSYMLINK) && (v9fs_extended(v9ses)))
+	else if ((mode & P9_DMSYMLINK) && (v9fs_proto_dotu(v9ses)))
 		res |= S_IFLNK;
-	else if ((mode & P9_DMSOCKET) && (v9fs_extended(v9ses))
+	else if ((mode & P9_DMSOCKET) && (v9fs_proto_dotu(v9ses))
 		 && (v9ses->nodev == 0))
 		res |= S_IFSOCK;
-	else if ((mode & P9_DMNAMEDPIPE) && (v9fs_extended(v9ses))
+	else if ((mode & P9_DMNAMEDPIPE) && (v9fs_proto_dotu(v9ses))
 		 && (v9ses->nodev == 0))
 		res |= S_IFIFO;
-	else if ((mode & P9_DMDEVICE) && (v9fs_extended(v9ses))
+	else if ((mode & P9_DMDEVICE) && (v9fs_proto_dotu(v9ses))
 		 && (v9ses->nodev == 0))
 		res |= S_IFBLK;
 	else
 		res |= S_IFREG;
 
-	if (v9fs_extended(v9ses)) {
+	if (v9fs_proto_dotu(v9ses)) {
 		if ((mode & P9_DMSETUID) == P9_DMSETUID)
 			res |= S_ISUID;
 
@@ -176,7 +177,7 @@ int v9fs_uflags2omode(int uflags, int extended)
  *
  */
 
-static void
+void
 v9fs_blank_wstat(struct p9_wstat *wstat)
 {
 	wstat->type = ~0;
@@ -265,7 +266,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 	case S_IFBLK:
 	case S_IFCHR:
 	case S_IFSOCK:
-		if (!v9fs_extended(v9ses)) {
+		if (!v9fs_proto_dotu(v9ses)) {
 			P9_DPRINTK(P9_DEBUG_ERROR,
 				   "special files without extended mode\n");
 			err = -EINVAL;
@@ -278,7 +279,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		inode->i_fop = &v9fs_file_operations;
 		break;
 	case S_IFLNK:
-		if (!v9fs_extended(v9ses)) {
+		if (!v9fs_proto_dotu(v9ses)) {
 			P9_DPRINTK(P9_DEBUG_ERROR,
 				   "extended modes used w/o 9P2000.u\n");
 			err = -EINVAL;
@@ -288,7 +289,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		break;
 	case S_IFDIR:
 		inc_nlink(inode);
-		if (v9fs_extended(v9ses))
+		if (v9fs_proto_dotu(v9ses))
 			inode->i_op = &v9fs_dir_inode_operations_ext;
 		else
 			inode->i_op = &v9fs_dir_inode_operations;
@@ -431,6 +432,7 @@ error:
 
 static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 {
+	int retval;
 	struct inode *file_inode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *v9fid;
@@ -444,7 +446,10 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 	if (IS_ERR(v9fid))
 		return PTR_ERR(v9fid);
 
-	return p9_client_remove(v9fid);
+	retval = p9_client_remove(v9fid);
+	if (!retval)
+		drop_nlink(file_inode);
+	return retval;
 }
 
 static int
@@ -575,7 +580,8 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 		flags = O_RDWR;
 
 	fid = v9fs_create(v9ses, dir, dentry, NULL, perm,
-				v9fs_uflags2omode(flags, v9fs_extended(v9ses)));
+				v9fs_uflags2omode(flags,
+						v9fs_proto_dotu(v9ses)));
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
 		fid = NULL;
@@ -654,6 +660,9 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	P9_DPRINTK(P9_DEBUG_VFS, "dir: %p dentry: (%s) %p nameidata: %p\n",
 		dir, dentry->d_name.name, dentry, nameidata);
+
+	if (dentry->d_name.len > NAME_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
 
 	sb = dir->i_sb;
 	v9ses = v9fs_inode2v9ses(dir);
@@ -858,7 +867,7 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (iattr->ia_valid & ATTR_SIZE)
 		wstat.length = iattr->ia_size;
 
-	if (v9fs_extended(v9ses)) {
+	if (v9fs_proto_dotu(v9ses)) {
 		if (iattr->ia_valid & ATTR_UID)
 			wstat.n_uid = iattr->ia_uid;
 
@@ -886,6 +895,8 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	struct super_block *sb)
 {
 	char ext[32];
+	char tag_name[14];
+	unsigned int i_nlink;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 
 	inode->i_nlink = 1;
@@ -897,11 +908,26 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	inode->i_uid = v9ses->dfltuid;
 	inode->i_gid = v9ses->dfltgid;
 
-	if (v9fs_extended(v9ses)) {
+	if (v9fs_proto_dotu(v9ses)) {
 		inode->i_uid = stat->n_uid;
 		inode->i_gid = stat->n_gid;
 	}
-
+	if ((S_ISREG(inode->i_mode)) || (S_ISDIR(inode->i_mode))) {
+		if (v9fs_proto_dotu(v9ses) && (stat->extension[0] != '\0')) {
+			/*
+			 * Hadlink support got added later to
+			 * to the .u extension. So there can be
+			 * server out there that doesn't support
+			 * this even with .u extension. So check
+			 * for non NULL stat->extension
+			 */
+			strncpy(ext, stat->extension, sizeof(ext));
+			/* HARDLINKCOUNT %u */
+			sscanf(ext, "%13s %u", tag_name, &i_nlink);
+			if (!strncmp(tag_name, "HARDLINKCOUNT", 13))
+				inode->i_nlink = i_nlink;
+		}
+	}
 	inode->i_mode = p9mode2unixmode(v9ses, stat->mode);
 	if ((S_ISBLK(inode->i_mode)) || (S_ISCHR(inode->i_mode))) {
 		char type = 0;
@@ -976,7 +1002,7 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);
 
-	if (!v9fs_extended(v9ses))
+	if (!v9fs_proto_dotu(v9ses))
 		return -EBADF;
 
 	st = p9_client_stat(fid);
@@ -997,44 +1023,6 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 	retval = strnlen(buffer, buflen);
 done:
 	kfree(st);
-	return retval;
-}
-
-/**
- * v9fs_vfs_readlink - read a symlink's location
- * @dentry: dentry for symlink
- * @buffer: buffer to load symlink location into
- * @buflen: length of buffer
- *
- */
-
-static int v9fs_vfs_readlink(struct dentry *dentry, char __user * buffer,
-			     int buflen)
-{
-	int retval;
-	int ret;
-	char *link = __getname();
-
-	if (unlikely(!link))
-		return -ENOMEM;
-
-	if (buflen > PATH_MAX)
-		buflen = PATH_MAX;
-
-	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_name.name,
-									dentry);
-
-	retval = v9fs_readlink(dentry, link, buflen);
-
-	if (retval > 0) {
-		if ((ret = copy_to_user(buffer, link, retval)) != 0) {
-			P9_DPRINTK(P9_DEBUG_ERROR,
-					"problem copying to user: %d\n", ret);
-			retval = ret;
-		}
-	}
-
-	__putname(link);
 	return retval;
 }
 
@@ -1104,7 +1092,7 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 	struct p9_fid *fid;
 
 	v9ses = v9fs_inode2v9ses(dir);
-	if (!v9fs_extended(v9ses)) {
+	if (!v9fs_proto_dotu(v9ses)) {
 		P9_DPRINTK(P9_DEBUG_ERROR, "not extended\n");
 		return -EPERM;
 	}
@@ -1230,7 +1218,6 @@ static const struct inode_operations v9fs_dir_inode_operations_ext = {
 	.rmdir = v9fs_vfs_rmdir,
 	.mknod = v9fs_vfs_mknod,
 	.rename = v9fs_vfs_rename,
-	.readlink = v9fs_vfs_readlink,
 	.getattr = v9fs_vfs_getattr,
 	.setattr = v9fs_vfs_setattr,
 };
@@ -1253,7 +1240,7 @@ static const struct inode_operations v9fs_file_inode_operations = {
 };
 
 static const struct inode_operations v9fs_symlink_inode_operations = {
-	.readlink = v9fs_vfs_readlink,
+	.readlink = generic_readlink,
 	.follow_link = v9fs_vfs_follow_link,
 	.put_link = v9fs_vfs_put_link,
 	.getattr = v9fs_vfs_getattr,

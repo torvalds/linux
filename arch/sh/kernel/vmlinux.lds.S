@@ -3,7 +3,7 @@
  * Written by Niibe Yutaka and Paul Mundt
  */
 #ifdef CONFIG_SUPERH64
-#define LOAD_OFFSET	CONFIG_PAGE_OFFSET
+#define LOAD_OFFSET	PAGE_OFFSET
 OUTPUT_ARCH(sh:sh5)
 #else
 #define LOAD_OFFSET	0
@@ -14,17 +14,16 @@ OUTPUT_ARCH(sh)
 #include <asm/cache.h>
 #include <asm/vmlinux.lds.h>
 
+#ifdef CONFIG_PMB
+ #define MEMORY_OFFSET	0
+#else
+ #define MEMORY_OFFSET	__MEMORY_START
+#endif
+
 ENTRY(_start)
 SECTIONS
 {
-#ifdef CONFIG_PMB_FIXED
-	. = CONFIG_PAGE_OFFSET + (CONFIG_MEMORY_START & 0x1fffffff) +
-	    CONFIG_ZERO_PAGE_OFFSET;
-#elif defined(CONFIG_32BIT)
-	. = CONFIG_PAGE_OFFSET + CONFIG_ZERO_PAGE_OFFSET;
-#else
-	. = CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
-#endif
+	. = PAGE_OFFSET + MEMORY_OFFSET + CONFIG_ZERO_PAGE_OFFSET;
 
 	_text = .;		/* Text and read-only data */
 
@@ -35,12 +34,7 @@ SECTIONS
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		HEAD_TEXT
 		TEXT_TEXT
-
-#ifdef CONFIG_SUPERH64
-		*(.text64)
-		*(.text..SHmedia32)
-#endif
-
+		EXTRA_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
@@ -51,24 +45,12 @@ SECTIONS
 	} = 0x0009
 
 	EXCEPTION_TABLE(16)
-
 	NOTES
+
+	_sdata = .;
 	RO_DATA(PAGE_SIZE)
-
-	/*
-	 * Code which must be executed uncached and the associated data
-	 */
-	. = ALIGN(PAGE_SIZE);
-	.uncached : AT(ADDR(.uncached) - LOAD_OFFSET) {
-		__uncached_start = .;
-		*(.uncached.text)
-		*(.uncached.data)
-		__uncached_end = .;
-	}
-
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
-
-	_edata = .;			/* End of data section */
+	_edata = .;
 
 	DWARF_EH_FRAME
 

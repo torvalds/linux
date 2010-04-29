@@ -661,8 +661,10 @@ static int parser_auth(struct table *t, const char *filename)
 	fseek(file, 0, SEEK_SET);
 
 	/* get header */
-	if (fgets(buf, 1024, file) == NULL)
+	if (fgets(buf, 1024, file) == NULL) {
+		fclose(file);
 		return -1;
+	}
 
 	/* first line will contain the last register
 	 * and gpu name */

@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/preempt.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
@@ -1328,7 +1329,7 @@ static struct platform_driver wistron_driver = {
 	.driver		= {
 		.name	= "wistron-bios",
 		.owner	= THIS_MODULE,
-#if CONFIG_PM
+#ifdef CONFIG_PM
 		.pm	= &wistron_pm_ops,
 #endif
 	},

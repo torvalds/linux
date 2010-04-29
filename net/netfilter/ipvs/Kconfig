@@ -68,6 +68,10 @@ config	IP_VS_TAB_BITS
 	  each hash entry uses 8 bytes, so you can estimate how much memory is
 	  needed for your box.
 
+	  You can overwrite this number setting conn_tab_bits module parameter
+	  or by appending ip_vs.conn_tab_bits=? to the kernel command line
+	  if IP VS was compiled built-in.
+
 comment "IPVS transport protocol load balancing support"
 
 config	IP_VS_PROTO_TCP
@@ -100,6 +104,13 @@ config	IP_VS_PROTO_AH
 	  This option enables support for load balancing AH (Authentication
 	  Header) transport protocol. Say Y if unsure.
 
+config  IP_VS_PROTO_SCTP
+	bool "SCTP load balancing support"
+	select LIBCRC32C
+	---help---
+	  This option enables support for load balancing SCTP transport
+	  protocol. Say Y if unsure.
+
 comment "IPVS scheduler"
 
 config	IP_VS_RR
@@ -112,7 +123,8 @@ config	IP_VS_RR
 	  module, choose M here. If unsure, say N.
  
 config	IP_VS_WRR
-        tristate "weighted round-robin scheduling" 
+	tristate "weighted round-robin scheduling"
+	select GCD
 	---help---
 	  The weighted robin-robin scheduling algorithm directs network
 	  connections to different real servers based on server weights

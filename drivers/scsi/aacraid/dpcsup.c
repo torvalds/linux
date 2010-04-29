@@ -57,9 +57,9 @@ unsigned int aac_response_normal(struct aac_queue * q)
 	struct hw_fib * hwfib;
 	struct fib * fib;
 	int consumed = 0;
-	unsigned long flags;
+	unsigned long flags, mflags;
 
-	spin_lock_irqsave(q->lock, flags);	
+	spin_lock_irqsave(q->lock, flags);
 	/*
 	 *	Keep pulling response QEs off the response queue and waking
 	 *	up the waiters until there are no more QEs. We then return
@@ -125,12 +125,21 @@ unsigned int aac_response_normal(struct aac_queue * q)
 		} else {
 			unsigned long flagv;
 			spin_lock_irqsave(&fib->event_lock, flagv);
-			if (!fib->done)
+			if (!fib->done) {
 				fib->done = 1;
-			up(&fib->event_wait);
+				up(&fib->event_wait);
+			}
 			spin_unlock_irqrestore(&fib->event_lock, flagv);
+
+			spin_lock_irqsave(&dev->manage_lock, mflags);
+			dev->management_fib_count--;
+			spin_unlock_irqrestore(&dev->manage_lock, mflags);
+
 			FIB_COUNTER_INCREMENT(aac_config.NormalRecved);
 			if (fib->done == 2) {
+				spin_lock_irqsave(&fib->event_lock, flagv);
+				fib->done = 0;
+				spin_unlock_irqrestore(&fib->event_lock, flagv);
 				aac_fib_complete(fib);
 				aac_fib_free(fib);
 			}
@@ -232,6 +241,7 @@ unsigned int aac_command_normal(struct aac_queue *q)
 
 unsigned int aac_intr_normal(struct aac_dev * dev, u32 index)
 {
+	unsigned long mflags;
 	dprintk((KERN_INFO "aac_intr_normal(%p,%x)\n", dev, index));
 	if ((index & 0x00000002L)) {
 		struct hw_fib * hw_fib;
@@ -320,11 +330,25 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 index)
 			unsigned long flagv;
 	  		dprintk((KERN_INFO "event_wait up\n"));
 			spin_lock_irqsave(&fib->event_lock, flagv);
-			if (!fib->done)
+			if (!fib->done) {
 				fib->done = 1;
-			up(&fib->event_wait);
+				up(&fib->event_wait);
+			}
 			spin_unlock_irqrestore(&fib->event_lock, flagv);
+
+			spin_lock_irqsave(&dev->manage_lock, mflags);
+			dev->management_fib_count--;
+			spin_unlock_irqrestore(&dev->manage_lock, mflags);
+
 			FIB_COUNTER_INCREMENT(aac_config.NormalRecved);
+			if (fib->done == 2) {
+				spin_lock_irqsave(&fib->event_lock, flagv);
+				fib->done = 0;
+				spin_unlock_irqrestore(&fib->event_lock, flagv);
+				aac_fib_complete(fib);
+				aac_fib_free(fib);
+			}
+
 		}
 		return 0;
 	}

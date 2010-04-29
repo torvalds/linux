@@ -95,7 +95,7 @@ card*/pcm*/xrun_debug
 	It takes an integer value, can be changed by writing to this
 	file, such as
 
-		 # cat 5 > /proc/asound/card0/pcm0p/xrun_debug
+		 # echo 5 > /proc/asound/card0/pcm0p/xrun_debug
 
 	The value consists of the following bit flags:
 	  bit 0 = Enable XRUN/jiffies debug messages

@@ -135,7 +135,7 @@ struct pin_config {
 	const unsigned int 	mux_reg;
 	unsigned char		debug;
 
-#if	defined(CONFIG_ARCH_OMAP1) || defined(CONFIG_ARCH_OMAP24XX)
+#if	defined(CONFIG_ARCH_OMAP1) || defined(CONFIG_ARCH_OMAP2)
 	const unsigned char mask_offset;
 	const unsigned char mask;
 
@@ -183,6 +183,14 @@ enum omap7xx_index {
 	/* I2C */
 	I2C_7XX_SCL,
 	I2C_7XX_SDA,
+
+	/* SPI */
+	SPI_7XX_1,
+	SPI_7XX_2,
+	SPI_7XX_3,
+	SPI_7XX_4,
+	SPI_7XX_5,
+	SPI_7XX_6,
 };
 
 enum omap1xxx_index {

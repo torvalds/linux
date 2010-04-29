@@ -49,6 +49,17 @@
   #define SH4_PCIINT_MWPD	  0x00000002	/* Master Write PERR Detect */
   #define SH4_PCIINT_MRPD	  0x00000001	/* Master Read PERR Detect */
 #define SH4_PCIINTM		0x118		/* PCI Interrupt Mask */
+  #define SH4_PCIINTM_TTADIM	  BIT(14)	/* Target-target abort interrupt */
+  #define SH4_PCIINTM_TMTOIM	  BIT(9)	/* Target retry timeout */
+  #define SH4_PCIINTM_MDEIM	  BIT(8)	/* Master function disable error */
+  #define SH4_PCIINTM_APEDIM	  BIT(7)	/* Address parity error detection */
+  #define SH4_PCIINTM_SDIM	  BIT(6)	/* SERR detection */
+  #define SH4_PCIINTM_DPEITWM	  BIT(5)	/* Data parity error for target write */
+  #define SH4_PCIINTM_PEDITRM	  BIT(4)	/* PERR detection for target read */
+  #define SH4_PCIINTM_TADIMM	  BIT(3)	/* Target abort for master */
+  #define SH4_PCIINTM_MADIMM	  BIT(2)	/* Master abort for master */
+  #define SH4_PCIINTM_MWPDIM	  BIT(1)	/* Master write data parity error */
+  #define SH4_PCIINTM_MRDPEIM	  BIT(0)	/* Master read data parity error */
 #define SH4_PCIALR		0x11C		/* Error Address Register */
 #define SH4_PCICLR		0x120		/* Error Command/Data */
   #define SH4_PCICLR_MPIO	  0x80000000
@@ -61,7 +72,7 @@
 #define SH4_PCIAINT		0x130		/* Arbiter Interrupt Register */
   #define SH4_PCIAINT_MBKN	  0x00002000	/* Master Broken Interrupt */
   #define SH4_PCIAINT_TBTO	  0x00001000	/* Target Bus Time Out */
-  #define SH4_PCIAINT_MBTO	  0x00001000	/* Master Bus Time Out */
+  #define SH4_PCIAINT_MBTO	  0x00000800	/* Master Bus Time Out */
   #define SH4_PCIAINT_TABT	  0x00000008	/* Target Abort */
   #define SH4_PCIAINT_MABT	  0x00000004	/* Master Abort */
   #define SH4_PCIAINT_RDPE	  0x00000002	/* Read Data Parity Error */
@@ -151,7 +162,6 @@
 
 /* arch/sh/kernel/drivers/pci/ops-sh4.c */
 extern struct pci_ops sh4_pci_ops;
-int sh4_pci_check_direct(struct pci_channel *chan);
 int pci_fixup_pcic(struct pci_channel *chan);
 
 struct sh4_pci_address_space {
@@ -167,13 +177,13 @@ struct sh4_pci_address_map {
 static inline void pci_write_reg(struct pci_channel *chan,
 				 unsigned long val, unsigned long reg)
 {
-	ctrl_outl(val, chan->reg_base + reg);
+	__raw_writel(val, chan->reg_base + reg);
 }
 
 static inline unsigned long pci_read_reg(struct pci_channel *chan,
 					 unsigned long reg)
 {
-	return ctrl_inl(chan->reg_base + reg);
+	return __raw_readl(chan->reg_base + reg);
 }
 
 #endif /* __PCI_SH4_H */

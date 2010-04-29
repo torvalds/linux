@@ -145,8 +145,8 @@ show_sampling_rate_max: THIS INTERFACE IS DEPRECATED, DON'T USE IT.
 up_threshold: defines what the average CPU usage between the samplings
 of 'sampling_rate' needs to be for the kernel to make a decision on
 whether it should increase the frequency.  For example when it is set
-to its default value of '80' it means that between the checking
-intervals the CPU needs to be on average more than 80% in use to then
+to its default value of '95' it means that between the checking
+intervals the CPU needs to be on average more than 95% in use to then
 decide that the CPU frequency needs to be increased.  
 
 ignore_nice_load: this parameter takes a value of '0' or '1'. When

@@ -27,6 +27,7 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 
 #include <linux/configfs.h>
 #include "configfs_internal.h"
@@ -121,8 +122,10 @@ static int get_target(const char *symname, struct path *path,
 				ret = -ENOENT;
 				path_put(path);
 			}
-		} else
+		} else {
 			ret = -EPERM;
+			path_put(path);
+		}
 	}
 
 	return ret;

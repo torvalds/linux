@@ -107,7 +107,7 @@ static int __net_init frame_filter_net_init(struct net *net)
 
 static void __net_exit frame_filter_net_exit(struct net *net)
 {
-	ebt_unregister_table(net->xt.frame_filter);
+	ebt_unregister_table(net, net->xt.frame_filter);
 }
 
 static struct pernet_operations frame_filter_net_ops = {

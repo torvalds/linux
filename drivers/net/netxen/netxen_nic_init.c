@@ -19,12 +19,13 @@
  * MA  02111-1307, USA.
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.
+ * in the file called "COPYING".
  *
  */
 
 #include <linux/netdevice.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
 
@@ -184,6 +185,8 @@ skip_rds:
 
 	tx_ring = adapter->tx_ring;
 	vfree(tx_ring->cmd_buf_arr);
+	kfree(tx_ring);
+	adapter->tx_ring = NULL;
 }
 
 int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
@@ -759,7 +762,7 @@ nx_get_bios_version(struct netxen_adapter *adapter)
 	if (adapter->fw_type == NX_UNIFIED_ROMIMAGE) {
 		bios_ver = cpu_to_le32(*((u32 *) (&fw->data[prd_off])
 						+ NX_UNI_BIOS_VERSION_OFF));
-		return (bios_ver << 24) + ((bios_ver >> 8) & 0xff00) +
+		return (bios_ver << 16) + ((bios_ver >> 8) & 0xff00) +
 							(bios_ver >> 24);
 	} else
 		return cpu_to_le32(*(u32 *)&fw->data[NX_BIOS_VERSION_OFFSET]);
@@ -778,11 +781,14 @@ netxen_need_fw_reset(struct netxen_adapter *adapter)
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
 		return 1;
 
+	if (adapter->need_fw_reset)
+		return 1;
+
 	/* last attempt had failed */
 	if (NXRD32(adapter, CRB_CMDPEG_STATE) == PHAN_INITIALIZE_FAILED)
 		return 1;
 
-	old_count = count = NXRD32(adapter, NETXEN_PEG_ALIVE_COUNTER);
+	old_count = NXRD32(adapter, NETXEN_PEG_ALIVE_COUNTER);
 
 	for (i = 0; i < 10; i++) {
 

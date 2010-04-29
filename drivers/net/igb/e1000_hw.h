@@ -41,6 +41,7 @@ struct e1000_hw;
 #define E1000_DEV_ID_82576_FIBER              0x10E6
 #define E1000_DEV_ID_82576_SERDES             0x10E7
 #define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
+#define E1000_DEV_ID_82576_QUAD_COPPER_ET2    0x1526
 #define E1000_DEV_ID_82576_NS                 0x150A
 #define E1000_DEV_ID_82576_NS_SERDES          0x1518
 #define E1000_DEV_ID_82576_SERDES_QUAD        0x150D
@@ -339,19 +340,12 @@ struct e1000_mac_info {
 
 	enum e1000_mac_type type;
 
-	u32 collision_delta;
 	u32 ledctl_default;
 	u32 ledctl_mode1;
 	u32 ledctl_mode2;
 	u32 mc_filter_type;
-	u32 tx_packet_delta;
 	u32 txcw;
 
-	u16 current_ifs_val;
-	u16 ifs_max_val;
-	u16 ifs_min_val;
-	u16 ifs_ratio;
-	u16 ifs_step_size;
 	u16 mta_reg_count;
 	u16 uta_reg_count;
 

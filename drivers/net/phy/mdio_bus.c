@@ -264,6 +264,8 @@ static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 		(phydev->phy_id & phydrv->phy_id_mask));
 }
 
+#ifdef CONFIG_PM
+
 static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 {
 	struct device_driver *drv = phydev->dev.driver;
@@ -295,34 +297,88 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	return true;
 }
 
-/* Suspend and resume.  Copied from platform_suspend and
- * platform_resume
- */
-static int mdio_bus_suspend(struct device * dev, pm_message_t state)
+static int mdio_bus_suspend(struct device *dev)
 {
 	struct phy_driver *phydrv = to_phy_driver(dev->driver);
 	struct phy_device *phydev = to_phy_device(dev);
 
+	/*
+	 * We must stop the state machine manually, otherwise it stops out of
+	 * control, possibly with the phydev->lock held. Upon resume, netdev
+	 * may call phy routines that try to grab the same lock, and that may
+	 * lead to a deadlock.
+	 */
+	if (phydev->attached_dev)
+		phy_stop_machine(phydev);
+
 	if (!mdio_bus_phy_may_suspend(phydev))
 		return 0;
+
 	return phydrv->suspend(phydev);
 }
 
-static int mdio_bus_resume(struct device * dev)
+static int mdio_bus_resume(struct device *dev)
 {
 	struct phy_driver *phydrv = to_phy_driver(dev->driver);
 	struct phy_device *phydev = to_phy_device(dev);
+	int ret;
 
 	if (!mdio_bus_phy_may_suspend(phydev))
-		return 0;
-	return phydrv->resume(phydev);
+		goto no_resume;
+
+	ret = phydrv->resume(phydev);
+	if (ret < 0)
+		return ret;
+
+no_resume:
+	if (phydev->attached_dev)
+		phy_start_machine(phydev, NULL);
+
+	return 0;
 }
+
+static int mdio_bus_restore(struct device *dev)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+	struct net_device *netdev = phydev->attached_dev;
+	int ret;
+
+	if (!netdev)
+		return 0;
+
+	ret = phy_init_hw(phydev);
+	if (ret < 0)
+		return ret;
+
+	/* The PHY needs to renegotiate. */
+	phydev->link = 0;
+	phydev->state = PHY_UP;
+
+	phy_start_machine(phydev, NULL);
+
+	return 0;
+}
+
+static struct dev_pm_ops mdio_bus_pm_ops = {
+	.suspend = mdio_bus_suspend,
+	.resume = mdio_bus_resume,
+	.freeze = mdio_bus_suspend,
+	.thaw = mdio_bus_resume,
+	.restore = mdio_bus_restore,
+};
+
+#define MDIO_BUS_PM_OPS (&mdio_bus_pm_ops)
+
+#else
+
+#define MDIO_BUS_PM_OPS NULL
+
+#endif /* CONFIG_PM */
 
 struct bus_type mdio_bus_type = {
 	.name		= "mdio_bus",
 	.match		= mdio_bus_match,
-	.suspend	= mdio_bus_suspend,
-	.resume		= mdio_bus_resume,
+	.pm		= MDIO_BUS_PM_OPS,
 };
 EXPORT_SYMBOL(mdio_bus_type);
 

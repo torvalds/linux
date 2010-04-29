@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "hid-ids.h"
 
@@ -142,6 +143,7 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 		wdata->butstate = rw;
 		input_report_key(input, BTN_0, rw & 0x02);
 		input_report_key(input, BTN_1, rw & 0x01);
+		input_report_key(input, BTN_TOOL_FINGER, 0xf0);
 		input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
 		input_sync(input);
 	}
@@ -155,7 +157,9 @@ static int wacom_probe(struct hid_device *hdev,
 	struct hid_input *hidinput;
 	struct input_dev *input;
 	struct wacom_data *wdata;
+	char rep_data[2];
 	int ret;
+	int limit;
 
 	wdata = kzalloc(sizeof(*wdata), GFP_KERNEL);
 	if (wdata == NULL) {
@@ -165,6 +169,7 @@ static int wacom_probe(struct hid_device *hdev,
 
 	hid_set_drvdata(hdev, wdata);
 
+	/* Parse the HID report now */
 	ret = hid_parse(hdev);
 	if (ret) {
 		dev_err(&hdev->dev, "parse failed\n");
@@ -176,6 +181,31 @@ static int wacom_probe(struct hid_device *hdev,
 		dev_err(&hdev->dev, "hw start failed\n");
 		goto err_free;
 	}
+
+	/*
+	 * Note that if the raw queries fail, it's not a hard failure and it
+	 * is safe to continue
+	 */
+
+	/* Set Wacom mode2 */
+	rep_data[0] = 0x03; rep_data[1] = 0x00;
+	limit = 3;
+	do {
+		ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
+				HID_FEATURE_REPORT);
+	} while (ret < 0 && limit-- > 0);
+	if (ret < 0)
+		dev_warn(&hdev->dev, "failed to poke device #1, %d\n", ret);
+
+	/* 0x06 - high reporting speed, 0x05 - low speed */
+	rep_data[0] = 0x06; rep_data[1] = 0x00;
+	limit = 3;
+	do {
+		ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
+				HID_FEATURE_REPORT);
+	} while (ret < 0 && limit-- > 0);
+	if (ret < 0)
+		dev_warn(&hdev->dev, "failed to poke device #2, %d\n", ret);
 
 	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
 	input = hidinput->input;
@@ -196,6 +226,9 @@ static int wacom_probe(struct hid_device *hdev,
 	/* Pad */
 	input->evbit[0] |= BIT(EV_MSC);
 	input->mscbit[0] |= BIT(MSC_SERIAL);
+	set_bit(BTN_0, input->keybit);
+	set_bit(BTN_1, input->keybit);
+	set_bit(BTN_TOOL_FINGER, input->keybit);
 
 	/* Distance, rubber and mouse */
 	input->absbit[0] |= BIT(ABS_DISTANCE);

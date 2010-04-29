@@ -26,8 +26,10 @@
  *          Jerome Glisse
  */
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <drm/drmP.h>
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "rs400d.h"
 
 /* This files gather functions specifics to : rs400,rs480 */
@@ -113,6 +115,7 @@ int rs400_gart_enable(struct radeon_device *rdev)
 	uint32_t size_reg;
 	uint32_t tmp;
 
+	radeon_gart_restore(rdev);
 	tmp = RREG32_MC(RS690_AIC_CTRL_SCRATCH);
 	tmp |= RS690_DIS_OUT_OF_PCI_GART_ACCESS;
 	WREG32_MC(RS690_AIC_CTRL_SCRATCH, tmp);
@@ -150,9 +153,8 @@ int rs400_gart_enable(struct radeon_device *rdev)
 		WREG32(RADEON_AGP_BASE, 0xFFFFFFFF);
 		WREG32(RS480_AGP_BASE_2, 0);
 	}
-	tmp = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
-	tmp = REG_SET(RS690_MC_AGP_TOP, tmp >> 16);
-	tmp |= REG_SET(RS690_MC_AGP_START, rdev->mc.gtt_location >> 16);
+	tmp = REG_SET(RS690_MC_AGP_TOP, rdev->mc.gtt_end >> 16);
+	tmp |= REG_SET(RS690_MC_AGP_START, rdev->mc.gtt_start >> 16);
 	if ((rdev->family == CHIP_RS690) || (rdev->family == CHIP_RS740)) {
 		WREG32_MC(RS690_MCCFG_AGP_LOCATION, tmp);
 		tmp = RREG32(RADEON_BUS_CNTL) & ~RS600_BUS_MASTER_DIS;
@@ -202,9 +204,9 @@ void rs400_gart_disable(struct radeon_device *rdev)
 
 void rs400_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rs400_gart_disable(rdev);
 	radeon_gart_table_ram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
@@ -223,26 +225,48 @@ int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	return 0;
 }
 
+int rs400_mc_wait_for_idle(struct radeon_device *rdev)
+{
+	unsigned i;
+	uint32_t tmp;
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		/* read MC_STATUS */
+		tmp = RREG32(0x0150);
+		if (tmp & (1 << 2)) {
+			return 0;
+		}
+		DRM_UDELAY(1);
+	}
+	return -1;
+}
+
 void rs400_gpu_init(struct radeon_device *rdev)
 {
 	/* FIXME: HDP same place on rs400 ? */
 	r100_hdp_reset(rdev);
 	/* FIXME: is this correct ? */
 	r420_pipes_init(rdev);
-	if (r300_mc_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait MC idle while "
-		       "programming pipes. Bad things might happen.\n");
+	if (rs400_mc_wait_for_idle(rdev)) {
+		printk(KERN_WARNING "rs400: Failed to wait MC idle while "
+		       "programming pipes. Bad things might happen. %08x\n", RREG32(0x150));
 	}
 }
 
-void rs400_vram_info(struct radeon_device *rdev)
+void rs400_mc_init(struct radeon_device *rdev)
 {
+	u64 base;
+
 	rs400_gart_adjust_size(rdev);
+	rdev->mc.igp_sideport_enabled = radeon_combios_sideport_present(rdev);
 	/* DDR for all card after R300 & IGP */
 	rdev->mc.vram_is_ddr = true;
 	rdev->mc.vram_width = 128;
-
 	r100_vram_init_sizes(rdev);
+	base = (RREG32(RADEON_NB_TOM) & 0xffff) << 16;
+	radeon_vram_location(rdev, &rdev->mc, base);
+	radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 uint32_t rs400_mc_rreg(struct radeon_device *rdev, uint32_t reg)
@@ -346,21 +370,6 @@ static int rs400_debugfs_pcie_gart_info_init(struct radeon_device *rdev)
 #endif
 }
 
-static int rs400_mc_init(struct radeon_device *rdev)
-{
-	int r;
-	u32 tmp;
-
-	/* Setup GPU memory space */
-	tmp = RREG32(R_00015C_NB_TOM);
-	rdev->mc.vram_location = G_00015C_MC_FB_START(tmp) << 16;
-	rdev->mc.gtt_location = 0xFFFFFFFFUL;
-	r = radeon_mc_setup(rdev);
-	if (r)
-		return r;
-	return 0;
-}
-
 void rs400_mc_program(struct radeon_device *rdev)
 {
 	struct r100_mc_save save;
@@ -369,8 +378,8 @@ void rs400_mc_program(struct radeon_device *rdev)
 	r100_mc_stop(rdev, &save);
 
 	/* Wait for mc idle */
-	if (r300_mc_wait_for_idle(rdev))
-		dev_warn(rdev->dev, "Wait MC idle timeout before updating MC.\n");
+	if (rs400_mc_wait_for_idle(rdev))
+		dev_warn(rdev->dev, "rs400: Wait MC idle timeout before updating MC.\n");
 	WREG32(R_000148_MC_FB_LOCATION,
 		S_000148_MC_FB_START(rdev->mc.vram_start >> 16) |
 		S_000148_MC_FB_TOP(rdev->mc.vram_end >> 16));
@@ -381,6 +390,8 @@ void rs400_mc_program(struct radeon_device *rdev)
 static int rs400_startup(struct radeon_device *rdev)
 {
 	int r;
+
+	r100_set_common_regs(rdev);
 
 	rs400_mc_program(rdev);
 	/* Resume clock */
@@ -395,6 +406,7 @@ static int rs400_startup(struct radeon_device *rdev)
 		return r;
 	/* Enable IRQ */
 	r100_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
@@ -446,7 +458,7 @@ int rs400_suspend(struct radeon_device *rdev)
 
 void rs400_fini(struct radeon_device *rdev)
 {
-	rs400_suspend(rdev);
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
@@ -499,12 +511,8 @@ int rs400_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
 	radeon_pm_init(rdev);
-	/* Get vram informations */
-	rs400_vram_info(rdev);
-	/* Initialize memory controller (also test AGP) */
-	r = rs400_mc_init(rdev);
-	if (r)
-		return r;
+	/* initialize memory controller */
+	rs400_mc_init(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)
@@ -525,7 +533,6 @@ int rs400_init(struct radeon_device *rdev)
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
-		rs400_suspend(rdev);
 		r100_cp_fini(rdev);
 		r100_wb_fini(rdev);
 		r100_ib_fini(rdev);

@@ -193,6 +193,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t25 = AverMedia M104 (not yet working)\n"
 		 "\t\t\t26 = Buffalo PC-MV5L/PCI\n"
 		 "\t\t\t27 = AVerMedia UltraTV 1500 MCE\n"
+		 "\t\t\t28 = Sony VAIO Giga Pocket (ENX Kikyou)\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: BGH, DK, I, M, N, Nc, 60");

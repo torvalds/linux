@@ -122,7 +122,7 @@ ENTRY(_interrupt)
 
 ret_from_intr:
 	lwi	r11, r1, PT_MODE
-	bneid	r11, 3f
+	bneid	r11, no_intr_resched
 
 	lwi	r6, r31, TS_THREAD_INFO	/* get thread info */
 	lwi	r19, r6, TI_FLAGS	/* get flags in thread info */
@@ -133,16 +133,18 @@ ret_from_intr:
 	bralid	r15, schedule
 	nop
 1:	andi	r11, r19, _TIF_SIGPENDING
-	beqid	r11, no_intr_reshed
+	beqid	r11, no_intr_resched
 	addk	r5, r1, r0
 	addk	r7, r0, r0
 	bralid	r15, do_signal
 	addk	r6, r0, r0
 
-no_intr_reshed:
+no_intr_resched:
+	/* Disable interrupts, we are now committed to the state restore */
+	disable_irq
+
 	/* save mode indicator */
 	lwi	r11, r1, PT_MODE
-3:
 	swi	r11, r0, PER_CPU(KM)
 
 	/* save r31 */

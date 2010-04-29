@@ -42,6 +42,9 @@
  *	be in the queues
  * @WLAN_STA_PSPOLL: Station sent PS-poll while driver was keeping
  *	station in power-save mode, reply when the driver unblocks.
+ * @WLAN_STA_DISASSOC: Disassociation in progress.
+ *	This is used to reject TX BA session requests when disassociation
+ *	is in progress.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
@@ -57,6 +60,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_SUSPEND	= 1<<11,
 	WLAN_STA_PS_DRIVER	= 1<<12,
 	WLAN_STA_PSPOLL		= 1<<13,
+	WLAN_STA_DISASSOC       = 1<<14,
 };
 
 #define STA_TID_NUM 16
@@ -162,11 +166,6 @@ struct sta_ampdu_mlme {
 };
 
 
-/* see __sta_info_unlink */
-#define STA_INFO_PIN_STAT_NORMAL	0
-#define STA_INFO_PIN_STAT_PINNED	1
-#define STA_INFO_PIN_STAT_DESTROY	2
-
 /**
  * struct sta_info - STA information
  *
@@ -187,7 +186,6 @@ struct sta_ampdu_mlme {
  * @flaglock: spinlock for flags accesses
  * @drv_unblock_wk: used for driver PS unblocking
  * @listen_interval: listen interval of this station, when we're acting as AP
- * @pin_status: used internally for pinning a STA struct into memory
  * @flags: STA flags, see &enum ieee80211_sta_info_flags
  * @ps_tx_buf: buffer of frames to transmit to this station
  *	when it leaves power saving state
@@ -226,6 +224,7 @@ struct sta_ampdu_mlme {
  * @debugfs: debug filesystem info
  * @sta: station information we share with the driver
  * @dead: set to true when sta is unlinked
+ * @uploaded: set to true when sta is uploaded to the driver
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -245,11 +244,7 @@ struct sta_info {
 
 	bool dead;
 
-	/*
-	 * for use by the internal lifetime management,
-	 * see __sta_info_unlink
-	 */
-	u8 pin_status;
+	bool uploaded;
 
 	/*
 	 * frequently updated, locked with own spinlock (flaglock),
@@ -403,9 +398,37 @@ static inline u32 get_sta_flags(struct sta_info *sta)
 #define STA_INFO_CLEANUP_INTERVAL (10 * HZ)
 
 /*
- * Get a STA info, must have be under RCU read lock.
+ * Get a STA info, must be under RCU read lock.
  */
-struct sta_info *sta_info_get(struct ieee80211_local *local, const u8 *addr);
+struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
+			      const u8 *addr);
+
+struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
+				  const u8 *addr);
+
+static inline
+void for_each_sta_info_type_check(struct ieee80211_local *local,
+				  const u8 *addr,
+				  struct sta_info *sta,
+				  struct sta_info *nxt)
+{
+}
+
+#define for_each_sta_info(local, _addr, sta, nxt) 			\
+	for (	/* initialise loop */					\
+		sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
+		nxt = sta ? rcu_dereference(sta->hnext) : NULL;		\
+		/* typecheck */						\
+		for_each_sta_info_type_check(local, (_addr), sta, nxt),	\
+		/* continue condition */				\
+		sta;							\
+		/* advance loop */					\
+		sta = nxt,						\
+		nxt = sta ? rcu_dereference(sta->hnext) : NULL		\
+	     )								\
+	/* compare address and run code only if it matches */		\
+	if (memcmp(sta->sta.addr, (_addr), ETH_ALEN) == 0)
+
 /*
  * Get STA info by index, BROKEN!
  */
@@ -421,18 +444,19 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
  * Insert STA info into hash table/list, returns zero or a
  * -EEXIST if (if the same MAC address is already present).
  *
- * Calling this without RCU protection makes the caller
- * relinquish its reference to @sta.
+ * Calling the non-rcu version makes the caller relinquish,
+ * the _rcu version calls read_lock_rcu() and must be called
+ * without it held.
  */
 int sta_info_insert(struct sta_info *sta);
-/*
- * Unlink a STA info from the hash table/list.
- * This can NULL the STA pointer if somebody else
- * has already unlinked it.
- */
-void sta_info_unlink(struct sta_info **sta);
+int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU);
+int sta_info_insert_atomic(struct sta_info *sta);
 
-void sta_info_destroy(struct sta_info *sta);
+int sta_info_destroy_addr(struct ieee80211_sub_if_data *sdata,
+			  const u8 *addr);
+int sta_info_destroy_addr_bss(struct ieee80211_sub_if_data *sdata,
+			      const u8 *addr);
+
 void sta_info_set_tim_bit(struct sta_info *sta);
 void sta_info_clear_tim_bit(struct sta_info *sta);
 

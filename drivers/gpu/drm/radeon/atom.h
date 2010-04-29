@@ -91,6 +91,7 @@
 #define ATOM_WS_AND_MASK	0x45
 #define ATOM_WS_FB_WINDOW	0x46
 #define ATOM_WS_ATTRIBUTES	0x47
+#define ATOM_WS_REGPTR  	0x48
 
 #define ATOM_IIO_NOP		0
 #define ATOM_IIO_START		1
@@ -139,11 +140,13 @@ struct atom_context {
 extern int atom_debug;
 
 struct atom_context *atom_parse(struct card_info *, void *);
-void atom_execute_table(struct atom_context *, int, uint32_t *);
+int atom_execute_table(struct atom_context *, int, uint32_t *);
 int atom_asic_init(struct atom_context *);
 void atom_destroy(struct atom_context *);
-void atom_parse_data_header(struct atom_context *ctx, int index, uint16_t *size, uint8_t *frev, uint8_t *crev, uint16_t *data_start);
-void atom_parse_cmd_header(struct atom_context *ctx, int index, uint8_t *frev, uint8_t *crev);
+bool atom_parse_data_header(struct atom_context *ctx, int index, uint16_t *size,
+			    uint8_t *frev, uint8_t *crev, uint16_t *data_start);
+bool atom_parse_cmd_header(struct atom_context *ctx, int index,
+			   uint8_t *frev, uint8_t *crev);
 int atom_allocate_fb_scratch(struct atom_context *ctx);
 #include "atom-types.h"
 #include "atombios.h"

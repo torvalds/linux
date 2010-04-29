@@ -86,7 +86,7 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 						&p->validated);
 		}
 	}
-	return radeon_bo_list_validate(&p->validated, p->ib->fence);
+	return radeon_bo_list_validate(&p->validated);
 }
 
 int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
@@ -189,17 +189,14 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 {
 	unsigned i;
 
-	if (error) {
-		radeon_bo_list_unvalidate(&parser->validated,
-						parser->ib->fence);
-	} else {
-		radeon_bo_list_unreserve(&parser->validated);
+	if (!error && parser->ib) {
+		radeon_bo_list_fence(&parser->validated, parser->ib->fence);
 	}
-	for (i = 0; i < parser->nrelocs; i++) {
-		if (parser->relocs[i].gobj) {
-			mutex_lock(&parser->rdev->ddev->struct_mutex);
-			drm_gem_object_unreference(parser->relocs[i].gobj);
-			mutex_unlock(&parser->rdev->ddev->struct_mutex);
+	radeon_bo_list_unreserve(&parser->validated);
+	if (parser->relocs != NULL) {
+		for (i = 0; i < parser->nrelocs; i++) {
+			if (parser->relocs[i].gobj)
+				drm_gem_object_unreference_unlocked(parser->relocs[i].gobj);
 		}
 	}
 	kfree(parser->track);
@@ -231,6 +228,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));
 	parser.filp = filp;
 	parser.rdev = rdev;
+	parser.dev = rdev->dev;
 	r = radeon_cs_parser_init(&parser, data);
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");
@@ -247,7 +245,8 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	}
 	r = radeon_cs_parser_relocs(&parser);
 	if (r) {
-		DRM_ERROR("Failed to parse relocation !\n");
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to parse relocation %d!\n", r);
 		radeon_cs_parser_fini(&parser, r);
 		mutex_unlock(&rdev->cs_mutex);
 		return r;

@@ -285,8 +285,8 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		}
 
 		if (r == SS_NO_UP_TO_DATE_DISK && force &&
-		    (mdev->state.disk == D_INCONSISTENT ||
-		     mdev->state.disk == D_OUTDATED)) {
+		    (mdev->state.disk < D_UP_TO_DATE &&
+		     mdev->state.disk >= D_INCONSISTENT)) {
 			mask.disk = D_MASK;
 			val.disk  = D_UP_TO_DATE;
 			forced = 1;
@@ -407,7 +407,7 @@ static int drbd_nl_primary(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	}
 
 	reply->ret_code =
-		drbd_set_role(mdev, R_PRIMARY, primary_args.overwrite_peer);
+		drbd_set_role(mdev, R_PRIMARY, primary_args.primary_force);
 
 	return 0;
 }
@@ -510,7 +510,7 @@ void drbd_resume_io(struct drbd_conf *mdev)
  * Returns 0 on success, negative return values indicate errors.
  * You should call drbd_md_sync() after calling this function.
  */
-enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *mdev) __must_hold(local)
+enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *mdev, int force) __must_hold(local)
 {
 	sector_t prev_first_sect, prev_size; /* previous meta location */
 	sector_t la_size;
@@ -541,7 +541,7 @@ enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *mdev) __must_ho
 	/* TODO: should only be some assert here, not (re)init... */
 	drbd_md_set_sector_offsets(mdev, mdev->ldev);
 
-	size = drbd_new_dev_size(mdev, mdev->ldev);
+	size = drbd_new_dev_size(mdev, mdev->ldev, force);
 
 	if (drbd_get_capacity(mdev->this_bdev) != size ||
 	    drbd_bm_capacity(mdev) != size) {
@@ -596,7 +596,7 @@ out:
 }
 
 sector_t
-drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
+drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev, int assume_peer_has_space)
 {
 	sector_t p_size = mdev->p_size;   /* partner's disk size. */
 	sector_t la_size = bdev->md.la_size_sect; /* last agreed size. */
@@ -605,6 +605,11 @@ drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	sector_t size = 0;
 
 	m_size = drbd_get_max_capacity(bdev);
+
+	if (mdev->state.conn < C_CONNECTED && assume_peer_has_space) {
+		dev_warn(DEV, "Resize while not connected was forced by the user!\n");
+		p_size = m_size;
+	}
 
 	if (p_size && m_size) {
 		size = min_t(sector_t, p_size, m_size);
@@ -704,9 +709,8 @@ void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_seg_s) __mu
 
 	max_seg_s = min(queue_max_sectors(b) * queue_logical_block_size(b), max_seg_s);
 
-	blk_queue_max_sectors(q, max_seg_s >> 9);
-	blk_queue_max_phys_segments(q, max_segments ? max_segments : MAX_PHYS_SEGMENTS);
-	blk_queue_max_hw_segments(q, max_segments ? max_segments : MAX_HW_SEGMENTS);
+	blk_queue_max_hw_sectors(q, max_seg_s >> 9);
+	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
 	blk_queue_max_segment_size(q, max_seg_s);
 	blk_queue_logical_block_size(q, 512);
 	blk_queue_segment_boundary(q, PAGE_SIZE-1);
@@ -937,6 +941,25 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 
 	drbd_md_set_sector_offsets(mdev, nbc);
 
+	/* allocate a second IO page if logical_block_size != 512 */
+	logical_block_size = bdev_logical_block_size(nbc->md_bdev);
+	if (logical_block_size == 0)
+		logical_block_size = MD_SECTOR_SIZE;
+
+	if (logical_block_size != MD_SECTOR_SIZE) {
+		if (!mdev->md_io_tmpp) {
+			struct page *page = alloc_page(GFP_NOIO);
+			if (!page)
+				goto force_diskless_dec;
+
+			dev_warn(DEV, "Meta data's bdev logical_block_size = %d != %d\n",
+			     logical_block_size, MD_SECTOR_SIZE);
+			dev_warn(DEV, "Workaround engaged (has performance impact).\n");
+
+			mdev->md_io_tmpp = page;
+		}
+	}
+
 	if (!mdev->bitmap) {
 		if (drbd_bm_init(mdev)) {
 			retcode = ERR_NOMEM;
@@ -965,7 +988,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 
 	/* Prevent shrinking of consistent devices ! */
 	if (drbd_md_test_flag(nbc, MDF_CONSISTENT) &&
-	   drbd_new_dev_size(mdev, nbc) < nbc->md.la_size_sect) {
+	    drbd_new_dev_size(mdev, nbc, 0) < nbc->md.la_size_sect) {
 		dev_warn(DEV, "refusing to truncate a consistent device\n");
 		retcode = ERR_DISK_TO_SMALL;
 		goto force_diskless_dec;
@@ -974,25 +997,6 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	if (!drbd_al_read_log(mdev, nbc)) {
 		retcode = ERR_IO_MD_DISK;
 		goto force_diskless_dec;
-	}
-
-	/* allocate a second IO page if logical_block_size != 512 */
-	logical_block_size = bdev_logical_block_size(nbc->md_bdev);
-	if (logical_block_size == 0)
-		logical_block_size = MD_SECTOR_SIZE;
-
-	if (logical_block_size != MD_SECTOR_SIZE) {
-		if (!mdev->md_io_tmpp) {
-			struct page *page = alloc_page(GFP_NOIO);
-			if (!page)
-				goto force_diskless_dec;
-
-			dev_warn(DEV, "Meta data's bdev logical_block_size = %d != %d\n",
-			     logical_block_size, MD_SECTOR_SIZE);
-			dev_warn(DEV, "Workaround engaged (has performance impact).\n");
-
-			mdev->md_io_tmpp = page;
-		}
 	}
 
 	/* Reset the "barriers don't work" bits here, then force meta data to
@@ -1052,7 +1056,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	    !drbd_md_test_flag(mdev->ldev, MDF_CONNECTED_IND))
 		set_bit(USE_DEGR_WFC_T, &mdev->flags);
 
-	dd = drbd_determin_dev_size(mdev);
+	dd = drbd_determin_dev_size(mdev, 0);
 	if (dd == dev_size_error) {
 		retcode = ERR_NOMEM_BITMAP;
 		goto force_diskless_dec;
@@ -1271,7 +1275,7 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			goto fail;
 		}
 
-		if (crypto_tfm_alg_type(crypto_hash_tfm(tfm)) != CRYPTO_ALG_TYPE_SHASH) {
+		if (!drbd_crypto_is_hash(crypto_hash_tfm(tfm))) {
 			retcode = ERR_AUTH_ALG_ND;
 			goto fail;
 		}
@@ -1504,7 +1508,7 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	}
 
 	mdev->ldev->dc.disk_size = (sector_t)rs.resize_size;
-	dd = drbd_determin_dev_size(mdev);
+	dd = drbd_determin_dev_size(mdev, rs.resize_force);
 	drbd_md_sync(mdev);
 	put_ldev(mdev);
 	if (dd == dev_size_error) {

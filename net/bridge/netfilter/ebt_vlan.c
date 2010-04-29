@@ -163,7 +163,7 @@ static struct xt_match ebt_vlan_mt_reg __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_vlan_mt,
 	.checkentry	= ebt_vlan_mt_check,
-	.matchsize	= XT_ALIGN(sizeof(struct ebt_vlan_info)),
+	.matchsize	= sizeof(struct ebt_vlan_info),
 	.me		= THIS_MODULE,
 };
 

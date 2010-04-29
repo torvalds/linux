@@ -4,6 +4,7 @@
   * IOCTL handlers as well as command preperation and response routines
   *  for sending scan commands to the firmware.
   */
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
@@ -567,11 +568,8 @@ int lbs_scan_networks(struct lbs_private *priv, int full_scan)
 	chan_count = lbs_scan_create_channel_list(priv, chan_list);
 
 	netif_stop_queue(priv->dev);
-	netif_carrier_off(priv->dev);
-	if (priv->mesh_dev) {
+	if (priv->mesh_dev)
 		netif_stop_queue(priv->mesh_dev);
-		netif_carrier_off(priv->mesh_dev);
-	}
 
 	/* Prepare to continue an interrupted scan */
 	lbs_deb_scan("chan_count %d, scan_channel %d\n",
@@ -635,16 +633,13 @@ out2:
 	priv->scan_channel = 0;
 
 out:
-	if (priv->connect_status == LBS_CONNECTED) {
-		netif_carrier_on(priv->dev);
-		if (!priv->tx_pending_len)
-			netif_wake_queue(priv->dev);
-	}
-	if (priv->mesh_dev && (priv->mesh_connect_status == LBS_CONNECTED)) {
-		netif_carrier_on(priv->mesh_dev);
-		if (!priv->tx_pending_len)
-			netif_wake_queue(priv->mesh_dev);
-	}
+	if (priv->connect_status == LBS_CONNECTED && !priv->tx_pending_len)
+		netif_wake_queue(priv->dev);
+
+	if (priv->mesh_dev && lbs_mesh_connected(priv) &&
+	    !priv->tx_pending_len)
+		netif_wake_queue(priv->mesh_dev);
+
 	kfree(chan_list);
 
 	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);

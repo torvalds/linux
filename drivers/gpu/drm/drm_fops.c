@@ -36,6 +36,7 @@
 
 #include "drmP.h"
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 
 static int drm_open_helper(struct inode *inode, struct file *filp,
@@ -140,14 +141,16 @@ int drm_open(struct inode *inode, struct file *filp)
 		spin_unlock(&dev->count_lock);
 	}
 out:
-	mutex_lock(&dev->struct_mutex);
-	if (minor->type == DRM_MINOR_LEGACY) {
-		BUG_ON((dev->dev_mapping != NULL) &&
-			(dev->dev_mapping != inode->i_mapping));
-		if (dev->dev_mapping == NULL)
-			dev->dev_mapping = inode->i_mapping;
+	if (!retcode) {
+		mutex_lock(&dev->struct_mutex);
+		if (minor->type == DRM_MINOR_LEGACY) {
+			if (dev->dev_mapping == NULL)
+				dev->dev_mapping = inode->i_mapping;
+			else if (dev->dev_mapping != inode->i_mapping)
+				retcode = -ENODEV;
+		}
+		mutex_unlock(&dev->struct_mutex);
 	}
-	mutex_unlock(&dev->struct_mutex);
 
 	return retcode;
 }

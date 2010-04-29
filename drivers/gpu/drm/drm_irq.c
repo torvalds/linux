@@ -36,6 +36,7 @@
 #include "drmP.h"
 
 #include <linux/interrupt.h>	/* For task queue support */
+#include <linux/slab.h>
 
 #include <linux/vgaarb.h>
 /**
@@ -115,6 +116,7 @@ void drm_vblank_cleanup(struct drm_device *dev)
 
 	dev->num_crtcs = 0;
 }
+EXPORT_SYMBOL(drm_vblank_cleanup);
 
 int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 {
@@ -163,7 +165,6 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	}
 
 	dev->vblank_disable_allowed = 0;
-
 	return 0;
 
 err:
@@ -475,6 +476,7 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	dev->driver->disable_vblank(dev, crtc);
 	DRM_WAKEUP(&dev->vbl_queue[crtc]);
 	dev->vblank_enabled[crtc] = 0;
 	dev->last_vblank[crtc] = dev->driver->get_vblank_counter(dev, crtc);
@@ -493,6 +495,9 @@ EXPORT_SYMBOL(drm_vblank_off);
  */
 void drm_vblank_pre_modeset(struct drm_device *dev, int crtc)
 {
+	/* vblank is not initialized (IRQ not installed ?) */
+	if (!dev->num_crtcs)
+		return;
 	/*
 	 * To avoid all the problems that might happen if interrupts
 	 * were enabled/disabled around or between these calls, we just

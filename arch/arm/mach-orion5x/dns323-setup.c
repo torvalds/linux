@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
@@ -32,7 +33,9 @@
 
 #define DNS323_GPIO_LED_RIGHT_AMBER	1
 #define DNS323_GPIO_LED_LEFT_AMBER	2
-#define DNS323_GPIO_LED_POWER		5
+#define DNS323_GPIO_SYSTEM_UP		3
+#define DNS323_GPIO_LED_POWER1		4
+#define DNS323_GPIO_LED_POWER2		5
 #define DNS323_GPIO_OVERTEMP		6
 #define DNS323_GPIO_RTC			7
 #define DNS323_GPIO_POWER_OFF		8
@@ -235,11 +238,31 @@ error_fail:
  * GPIO LEDs (simple - doesn't use hardware blinking support)
  */
 
+#define ORION_BLINK_HALF_PERIOD 100 /* ms */
+
+static int dns323_gpio_blink_set(unsigned gpio,
+	unsigned long *delay_on, unsigned long *delay_off)
+{
+	static int value = 0;
+
+	if (!*delay_on && !*delay_off)
+		*delay_on = *delay_off = ORION_BLINK_HALF_PERIOD;
+
+	if (ORION_BLINK_HALF_PERIOD == *delay_on
+	    && ORION_BLINK_HALF_PERIOD == *delay_off) {
+		value = !value;
+		orion_gpio_set_blink(gpio, value);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static struct gpio_led dns323_leds[] = {
 	{
 		.name = "power:blue",
-		.gpio = DNS323_GPIO_LED_POWER,
-		.active_low = 1,
+		.gpio = DNS323_GPIO_LED_POWER2,
+		.default_trigger = "timer",
 	}, {
 		.name = "right:amber",
 		.gpio = DNS323_GPIO_LED_RIGHT_AMBER,
@@ -254,6 +277,7 @@ static struct gpio_led dns323_leds[] = {
 static struct gpio_led_platform_data dns323_led_data = {
 	.num_leds	= ARRAY_SIZE(dns323_leds),
 	.leds		= dns323_leds,
+	.gpio_blink_set = dns323_gpio_blink_set,
 };
 
 static struct platform_device dns323_gpio_leds = {
@@ -334,7 +358,7 @@ static struct orion5x_mpp_mode dns323_mv88f5182_mpp_modes[] __initdata = {
 	{  0, MPP_UNUSED },
 	{  1, MPP_GPIO },		/* right amber LED (sata ch0) */
 	{  2, MPP_GPIO },		/* left amber LED (sata ch1) */
-	{  3, MPP_UNUSED },
+	{  3, MPP_GPIO },		/* system up flag */
 	{  4, MPP_GPIO },		/* power button LED */
 	{  5, MPP_GPIO },		/* power button LED */
 	{  6, MPP_GPIO },		/* GMT G751-2f overtemp */
@@ -372,11 +396,21 @@ static struct i2c_board_info __initdata dns323_i2c_devices[] = {
 	},
 };
 
-/* DNS-323 specific power off method */
-static void dns323_power_off(void)
+/* DNS-323 rev. A specific power off method */
+static void dns323a_power_off(void)
 {
 	pr_info("%s: triggering power-off...\n", __func__);
 	gpio_set_value(DNS323_GPIO_POWER_OFF, 1);
+}
+
+/* DNS-323 rev B specific power off method */
+static void dns323b_power_off(void)
+{
+	pr_info("%s: triggering power-off...\n", __func__);
+	/* Pin has to be changed to 1 and back to 0 to do actual power off. */
+	gpio_set_value(DNS323_GPIO_POWER_OFF, 1);
+	mdelay(100);
+	gpio_set_value(DNS323_GPIO_POWER_OFF, 0);
 }
 
 static void __init dns323_init(void)
@@ -399,6 +433,14 @@ static void __init dns323_init(void)
 	 */
 	orion5x_setup_dev_boot_win(DNS323_NOR_BOOT_BASE, DNS323_NOR_BOOT_SIZE);
 	platform_device_register(&dns323_nor_flash);
+
+	/* The 5181 power LED is active low and requires
+	 * DNS323_GPIO_LED_POWER1 to also be low.
+	 */
+	if (dns323_dev_id() == MV88F5181_DEV_ID) {
+		dns323_leds[0].active_low = 1;
+		gpio_direction_output(DNS323_GPIO_LED_POWER1, 0);
+	}
 
 	platform_device_register(&dns323_gpio_leds);
 
@@ -424,11 +466,20 @@ static void __init dns323_init(void)
 	if (dns323_dev_id() == MV88F5182_DEV_ID)
 		orion5x_sata_init(&dns323_sata_data);
 
-	/* register dns323 specific power-off method */
+	/* The 5182 has flag to indicate the system is up. Without this flag
+	 * set, power LED will flash and cannot be controlled via leds-gpio.
+	 */
+	if (dns323_dev_id() == MV88F5182_DEV_ID)
+		gpio_set_value(DNS323_GPIO_SYSTEM_UP, 1);
+
+	/* Register dns323 specific power-off method */
 	if (gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0 ||
 	    gpio_direction_output(DNS323_GPIO_POWER_OFF, 0) != 0)
 		pr_err("DNS323: failed to setup power-off GPIO\n");
-	pm_power_off = dns323_power_off;
+	if (dns323_dev_id() == MV88F5182_DEV_ID)
+		pm_power_off = dns323b_power_off;
+	else
+		pm_power_off = dns323a_power_off;
 }
 
 /* Warning: D-Link uses a wrong mach-type (=526) in their bootloader */

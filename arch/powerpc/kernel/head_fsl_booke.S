@@ -214,11 +214,11 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	bl	1f		/* Find our address */
 1:	mflr	r9
 	rlwimi	r7,r9,0,20,31
-	addi	r7,r7,24
+	addi	r7,r7,(2f - 1b)
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r6
 	rfi
-
+2:
 /* 4. Clear out PIDs & Search info */
 	li	r6,0
 	mtspr   SPRN_MAS6,r6
@@ -747,9 +747,6 @@ finish_tlb_load:
 #else
 	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
 #endif
-#ifdef CONFIG_SMP
-	ori	r12, r12, MAS2_M
-#endif
 	mtspr	SPRN_MAS2, r12
 
 #ifdef CONFIG_PTE_64BIT
@@ -887,13 +884,17 @@ KernelSPE:
 	lwz	r3,_MSR(r1)
 	oris	r3,r3,MSR_SPE@h
 	stw	r3,_MSR(r1)	/* enable use of SPE after return */
+#ifdef CONFIG_PRINTK
 	lis	r3,87f@h
 	ori	r3,r3,87f@l
 	mr	r4,r2		/* current */
 	lwz	r5,_NIP(r1)
 	bl	printk
+#endif
 	b	ret_from_except
+#ifdef CONFIG_PRINTK
 87:	.string	"SPE used in kernel  (task=%p, pc=%x)  \n"
+#endif
 	.align	4,0
 
 #endif /* CONFIG_SPE */

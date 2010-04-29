@@ -155,6 +155,7 @@ int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
 		if (err)
 			return err;
 		vol->updating = 0;
+		return 0;
 	}
 
 	vol->upd_buf = vmalloc(ubi->leb_size);

@@ -252,7 +252,7 @@ gss_import_sec_context(const void *input_token, size_t bufsize,
 		       struct gss_ctx		**ctx_id)
 {
 	if (!(*ctx_id = kzalloc(sizeof(**ctx_id), GFP_KERNEL)))
-		return GSS_S_FAILURE;
+		return -ENOMEM;
 	(*ctx_id)->mech_type = gss_mech_get(mech);
 
 	return mech->gm_ops

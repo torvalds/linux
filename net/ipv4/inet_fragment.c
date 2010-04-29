@@ -19,6 +19,7 @@
 #include <linux/random.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 
 #include <net/inet_frag.h>
 

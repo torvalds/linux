@@ -20,6 +20,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include "osd.h"
 #include "logging.h"
@@ -84,10 +85,6 @@ static int RndisFilterOnDeviceAdd(struct hv_device *Device,
 static int RndisFilterOnDeviceRemove(struct hv_device *Device);
 
 static void RndisFilterOnCleanup(struct hv_driver *Driver);
-
-static int RndisFilterOnOpen(struct hv_device *Device);
-
-static int RndisFilterOnClose(struct hv_device *Device);
 
 static int RndisFilterOnSend(struct hv_device *Device,
 			     struct hv_netvsc_packet *Packet);
@@ -654,8 +651,6 @@ int RndisFilterInit(struct netvsc_driver *Driver)
 	Driver->Base.OnDeviceRemove = RndisFilterOnDeviceRemove;
 	Driver->Base.OnCleanup = RndisFilterOnCleanup;
 	Driver->OnSend = RndisFilterOnSend;
-	Driver->OnOpen = RndisFilterOnOpen;
-	Driver->OnClose = RndisFilterOnClose;
 	/* Driver->QueryLinkStatus = RndisFilterQueryDeviceLinkStatus; */
 	Driver->OnReceiveCallback = RndisFilterOnReceive;
 
@@ -888,7 +883,7 @@ static void RndisFilterOnCleanup(struct hv_driver *Driver)
 	DPRINT_EXIT(NETVSC);
 }
 
-static int RndisFilterOnOpen(struct hv_device *Device)
+int RndisFilterOnOpen(struct hv_device *Device)
 {
 	int ret;
 	struct netvsc_device *netDevice = Device->Extension;
@@ -903,7 +898,7 @@ static int RndisFilterOnOpen(struct hv_device *Device)
 	return ret;
 }
 
-static int RndisFilterOnClose(struct hv_device *Device)
+int RndisFilterOnClose(struct hv_device *Device)
 {
 	int ret;
 	struct netvsc_device *netDevice = Device->Extension;

@@ -30,7 +30,7 @@
 #include "sb.h"
 
 /**
- * struct nilfs_recovery_info - Recovery infomation
+ * struct nilfs_recovery_info - Recovery information
  * @ri_need_recovery: Recovery status
  * @ri_super_root: Block number of the last super root
  * @ri_ri_cno: Number of the last checkpoint
@@ -71,7 +71,7 @@ struct nilfs_recovery_info {
  */
 struct nilfs_cstage {
 	int			scnt;
-	unsigned 		flags;
+	unsigned		flags;
 	struct nilfs_inode_info *dirty_file_ptr;
 	struct nilfs_inode_info *gc_inode_ptr;
 };
@@ -116,6 +116,7 @@ struct nilfs_segsum_pointer {
  * @sc_wait_daemon: Daemon wait queue
  * @sc_wait_task: Start/end wait queue to control segctord task
  * @sc_seq_request: Request counter
+ * @sc_seq_accept: Accepted request count
  * @sc_seq_done: Completion counter
  * @sc_sync: Request of explicit sync operation
  * @sc_interval: Timeout value of background construction
@@ -169,6 +170,7 @@ struct nilfs_sc_info {
 	wait_queue_head_t	sc_wait_task;
 
 	__u32			sc_seq_request;
+	__u32			sc_seq_accepted;
 	__u32			sc_seq_done;
 
 	int			sc_sync;

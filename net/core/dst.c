@@ -12,11 +12,13 @@
 #include <linux/workqueue.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <net/net_namespace.h>
+#include <linux/sched.h>
 
 #include <net/dst.h>
 
@@ -79,6 +81,7 @@ loop:
 	while ((dst = next) != NULL) {
 		next = dst->next;
 		prefetch(&next->next);
+		cond_resched();
 		if (likely(atomic_read(&dst->__refcnt))) {
 			last->next = dst;
 			last = dst;

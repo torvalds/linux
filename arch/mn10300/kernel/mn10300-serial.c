@@ -380,7 +380,8 @@ static int mask_test_and_clear(volatile u8 *ptr, u8 mask)
 	u32 epsw;
 	asm volatile("	bclr	%1,(%2)		\n"
 		     "	mov	epsw,%0		\n"
-		     : "=d"(epsw) : "d"(mask), "a"(ptr));
+		     : "=d"(epsw) : "d"(mask), "a"(ptr)
+		     : "cc", "memory");
 	return !(epsw & EPSW_FLAG_Z);
 }
 

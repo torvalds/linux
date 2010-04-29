@@ -8,6 +8,7 @@
  * This file is released under the GPLv2.
  */
 
+#include <linux/lockdep.h>
 #include <linux/fs.h>
 
 struct sysfs_open_dirent;
@@ -50,6 +51,9 @@ struct sysfs_inode_attrs {
 struct sysfs_dirent {
 	atomic_t		s_count;
 	atomic_t		s_active;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
+#endif
 	struct sysfs_dirent	*s_parent;
 	struct sysfs_dirent	*s_sibling;
 	const char		*s_name;
@@ -62,8 +66,8 @@ struct sysfs_dirent {
 	};
 
 	unsigned int		s_flags;
+	unsigned short		s_mode;
 	ino_t			s_ino;
-	umode_t			s_mode;
 	struct sysfs_inode_attrs *s_iattr;
 };
 
@@ -75,6 +79,7 @@ struct sysfs_dirent {
 #define SYSFS_KOBJ_BIN_ATTR		0x0004
 #define SYSFS_KOBJ_LINK			0x0008
 #define SYSFS_COPY_NAME			(SYSFS_DIR | SYSFS_KOBJ_LINK)
+#define SYSFS_ACTIVE_REF		(SYSFS_KOBJ_ATTR | SYSFS_KOBJ_BIN_ATTR)
 
 #define SYSFS_FLAG_MASK			~SYSFS_TYPE_MASK
 #define SYSFS_FLAG_REMOVED		0x0200
@@ -83,6 +88,20 @@ static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 {
 	return sd->s_flags & SYSFS_TYPE_MASK;
 }
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#define sysfs_dirent_init_lockdep(sd)				\
+do {								\
+	struct attribute *attr = sd->s_attr.attr;		\
+	struct lock_class_key *key = attr->key;			\
+	if (!key)						\
+		key = &attr->skey;				\
+								\
+	lockdep_init_map(&sd->dep_map, "s_active", key, 0);	\
+} while(0)
+#else
+#define sysfs_dirent_init_lockdep(sd) do {} while(0)
+#endif
 
 /*
  * Context structure to be used while adding/removing nodes.
@@ -96,7 +115,6 @@ struct sysfs_addrm_cxt {
  * mount.c
  */
 extern struct sysfs_dirent sysfs_root;
-extern struct super_block *sysfs_sb;
 extern struct kmem_cache *sysfs_dir_cachep;
 
 /*
@@ -109,8 +127,8 @@ extern const struct file_operations sysfs_dir_operations;
 extern const struct inode_operations sysfs_dir_inode_operations;
 
 struct dentry *sysfs_get_dentry(struct sysfs_dirent *sd);
-struct sysfs_dirent *sysfs_get_active_two(struct sysfs_dirent *sd);
-void sysfs_put_active_two(struct sysfs_dirent *sd);
+struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd);
+void sysfs_put_active(struct sysfs_dirent *sd);
 void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
 		       struct sysfs_dirent *parent_sd);
 int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd);
@@ -153,7 +171,7 @@ static inline void __sysfs_put(struct sysfs_dirent *sd)
 /*
  * inode.c
  */
-struct inode *sysfs_get_inode(struct sysfs_dirent *sd);
+struct inode *sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd);
 void sysfs_delete_inode(struct inode *inode);
 int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr *iattr);
 int sysfs_permission(struct inode *inode, int mask);

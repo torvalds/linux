@@ -806,7 +806,7 @@ static int find_psb_table(struct powernow_k8_data *data)
 static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data,
 		unsigned int index)
 {
-	acpi_integer control;
+	u64 control;
 
 	if (!data->acpi_data.state_count || (cpu_family == CPU_HW_PSTATE))
 		return;
@@ -824,7 +824,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 {
 	struct cpufreq_frequency_table *powernow_table;
 	int ret_val = -ENODEV;
-	acpi_integer control, status;
+	u64 control, status;
 
 	if (acpi_processor_register_performance(&data->acpi_data, data->cpu)) {
 		dprintk("register performance failed: bad ACPI data\n");
@@ -948,7 +948,7 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 		u32 fid;
 		u32 vid;
 		u32 freq, index;
-		acpi_integer status, control;
+		u64 status, control;
 
 		if (data->exttype) {
 			status =  data->acpi_data.states[i].status;
@@ -1356,6 +1356,7 @@ static int __devexit powernowk8_cpu_exit(struct cpufreq_policy *pol)
 
 	kfree(data->powernow_table);
 	kfree(data);
+	per_cpu(powernow_data, pol->cpu) = NULL;
 
 	return 0;
 }
@@ -1375,7 +1376,7 @@ static unsigned int powernowk8_get(unsigned int cpu)
 	int err;
 
 	if (!data)
-		return -EINVAL;
+		return 0;
 
 	smp_call_function_single(cpu, query_values_on_cpu, &err, true);
 	if (err)

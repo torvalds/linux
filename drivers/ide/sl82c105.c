@@ -63,12 +63,13 @@ static unsigned int get_pio_timings(ide_drive_t *drive, u8 pio)
 /*
  * Configure the chipset for PIO mode.
  */
-static void sl82c105_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void sl82c105_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	struct pci_dev *dev	= to_pci_dev(drive->hwif->dev);
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	unsigned long timings	= (unsigned long)ide_get_drivedata(drive);
 	int reg			= 0x44 + drive->dn * 4;
 	u16 drv_ctrl;
+	const u8 pio		= drive->pio_mode - XFER_PIO_0;
 
 	drv_ctrl = get_pio_timings(drive, pio);
 
@@ -91,11 +92,12 @@ static void sl82c105_set_pio_mode(ide_drive_t *drive, const u8 pio)
 /*
  * Configure the chipset for DMA mode.
  */
-static void sl82c105_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void sl82c105_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	static u16 mwdma_timings[] = {0x0707, 0x0201, 0x0200};
 	unsigned long timings = (unsigned long)ide_get_drivedata(drive);
 	u16 drv_ctrl;
+	const u8 speed = drive->dma_mode;
 
 	drv_ctrl = mwdma_timings[speed - XFER_MW_DMA_0];
 

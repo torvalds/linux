@@ -34,15 +34,20 @@ nouveau_notifier_init_channel(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct nouveau_bo *ntfy = NULL;
+	uint32_t flags;
 	int ret;
 
-	ret = nouveau_gem_new(dev, NULL, PAGE_SIZE, 0, nouveau_vram_notify ?
-			      TTM_PL_FLAG_VRAM : TTM_PL_FLAG_TT,
+	if (nouveau_vram_notify)
+		flags = TTM_PL_FLAG_VRAM;
+	else
+		flags = TTM_PL_FLAG_TT;
+
+	ret = nouveau_gem_new(dev, NULL, PAGE_SIZE, 0, flags,
 			      0, 0x0000, false, true, &ntfy);
 	if (ret)
 		return ret;
 
-	ret = nouveau_bo_pin(ntfy, TTM_PL_FLAG_VRAM);
+	ret = nouveau_bo_pin(ntfy, flags);
 	if (ret)
 		goto out_err;
 
@@ -56,11 +61,8 @@ nouveau_notifier_init_channel(struct nouveau_channel *chan)
 
 	chan->notifier_bo = ntfy;
 out_err:
-	if (ret) {
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(ntfy->gem);
-		mutex_unlock(&dev->struct_mutex);
-	}
+	if (ret)
+		drm_gem_object_unreference_unlocked(ntfy->gem);
 
 	return ret;
 }
@@ -76,8 +78,8 @@ nouveau_notifier_takedown_channel(struct nouveau_channel *chan)
 	nouveau_bo_unmap(chan->notifier_bo);
 	mutex_lock(&dev->struct_mutex);
 	nouveau_bo_unpin(chan->notifier_bo);
-	drm_gem_object_unreference(chan->notifier_bo->gem);
 	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(chan->notifier_bo->gem);
 	nouveau_mem_takedown(&chan->notifier_heap);
 }
 
@@ -128,6 +130,8 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 			target = NV_DMA_TARGET_PCI;
 		} else {
 			target = NV_DMA_TARGET_AGP;
+			if (dev_priv->card_type >= NV_50)
+				offset += dev_priv->vm_gart_base;
 		}
 	} else {
 		NV_ERROR(dev, "Bad DMA target, mem_type %d!\n",

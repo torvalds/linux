@@ -27,7 +27,7 @@
  */
 static void release_pcie_device(struct device *dev)
 {
-	kfree(to_pcie_device(dev));			
+	kfree(to_pcie_device(dev));
 }
 
 /**
@@ -186,16 +186,24 @@ static int pcie_port_enable_msix(struct pci_dev *dev, int *vectors, int mask)
  */
 static int init_service_irqs(struct pci_dev *dev, int *irqs, int mask)
 {
-	int i, irq;
+	int i, irq = -1;
+
+	/* We have to use INTx if MSI cannot be used for PCIe PME. */
+	if ((mask & PCIE_PORT_SERVICE_PME) && pcie_pme_no_msi()) {
+		if (dev->pin)
+			irq = dev->irq;
+		goto no_msi;
+	}
 
 	/* Try to use MSI-X if supported */
 	if (!pcie_port_enable_msix(dev, irqs, mask))
 		return 0;
+
 	/* We're not going to use MSI-X, so try MSI and fall back to INTx */
-	irq = -1;
 	if (!pci_enable_msi(dev) || dev->pin)
 		irq = dev->irq;
 
+ no_msi:
 	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++)
 		irqs[i] = irq;
 	irqs[PCIE_PORT_SERVICE_VC_SHIFT] = -1;
@@ -277,6 +285,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 		     pci_name(pdev),
 		     get_descriptor_id(pdev->pcie_type, service));
 	device->parent = &pdev->dev;
+	device_enable_async_suspend(device);
 
 	retval = device_register(device);
 	if (retval)
@@ -346,12 +355,11 @@ static int suspend_iter(struct device *dev, void *data)
 {
 	struct pcie_port_service_driver *service_driver;
 
- 	if ((dev->bus == &pcie_port_bus_type) &&
- 	    (dev->driver)) {
- 		service_driver = to_service_driver(dev->driver);
- 		if (service_driver->suspend)
- 			service_driver->suspend(to_pcie_device(dev));
-  	}
+	if ((dev->bus == &pcie_port_bus_type) && dev->driver) {
+		service_driver = to_service_driver(dev->driver);
+		if (service_driver->suspend)
+			service_driver->suspend(to_pcie_device(dev));
+	}
 	return 0;
 }
 
@@ -494,6 +502,7 @@ int pcie_port_service_register(struct pcie_port_service_driver *new)
 
 	return driver_register(&new->driver);
 }
+EXPORT_SYMBOL(pcie_port_service_register);
 
 /**
  * pcie_port_service_unregister - unregister PCI Express port service driver
@@ -503,6 +512,4 @@ void pcie_port_service_unregister(struct pcie_port_service_driver *drv)
 {
 	driver_unregister(&drv->driver);
 }
-
-EXPORT_SYMBOL(pcie_port_service_register);
 EXPORT_SYMBOL(pcie_port_service_unregister);

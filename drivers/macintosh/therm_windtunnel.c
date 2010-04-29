@@ -34,7 +34,6 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/i2c.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/of_platform.h>
@@ -457,7 +456,7 @@ therm_of_remove( struct of_device *dev )
 	return 0;
 }
 
-static struct of_device_id therm_of_match[] = {{
+static const struct of_device_id therm_of_match[] = {{
 	.name		= "fan",
 	.compatible	= "adm1030"
     }, {}
@@ -490,7 +489,7 @@ g4fan_init( void )
 	info = of_get_property(np, "thermal-info", NULL);
 	of_node_put(np);
 
-	if( !info || !machine_is_compatible("PowerMac3,6") )
+	if( !info || !of_machine_is_compatible("PowerMac3,6") )
 		return -ENODEV;
 
 	if( info->id != 3 ) {

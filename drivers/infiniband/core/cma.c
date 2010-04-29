@@ -40,6 +40,7 @@
 #include <linux/random.h>
 #include <linux/idr.h>
 #include <linux/inetdevice.h>
+#include <linux/slab.h>
 
 #include <net/tcp.h>
 #include <net/ipv6.h>
@@ -1683,6 +1684,7 @@ int rdma_set_ib_paths(struct rdma_cm_id *id,
 	}
 
 	memcpy(id->route.path_rec, path_rec, sizeof *path_rec * num_paths);
+	id->route.num_paths = num_paths;
 	return 0;
 err:
 	cma_comp_exch(id_priv, CMA_ROUTE_RESOLVED, CMA_ADDR_RESOLVED);
@@ -2083,7 +2085,7 @@ static int cma_get_port(struct rdma_id_private *id_priv)
 static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
 			       struct sockaddr *addr)
 {
-#if defined(CONFIG_IPv6) || defined(CONFIG_IPV6_MODULE)
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	struct sockaddr_in6 *sin6;
 
 	if (addr->sa_family != AF_INET6)
@@ -2115,9 +2117,7 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 	if (ret)
 		goto err1;
 
-	if (cma_loopback_addr(addr)) {
-		ret = cma_bind_loopback(id_priv);
-	} else if (!cma_zero_addr(addr)) {
+	if (!cma_any_addr(addr)) {
 		ret = rdma_translate_ip(addr, &id->route.addr.dev_addr);
 		if (ret)
 			goto err1;

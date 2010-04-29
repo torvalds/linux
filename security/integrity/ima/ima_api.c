@@ -13,6 +13,7 @@
  *	and store_template.
  */
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "ima.h"
 static const char *IMA_TEMPLATE_NAME = "ima";
@@ -95,12 +96,12 @@ err_out:
  * ima_must_measure - measure decision based on policy.
  * @inode: pointer to inode to measure
  * @mask: contains the permission mask (MAY_READ, MAY_WRITE, MAY_EXECUTE)
- * @function: calling function (PATH_CHECK, BPRM_CHECK, FILE_MMAP)
+ * @function: calling function (FILE_CHECK, BPRM_CHECK, FILE_MMAP)
  *
  * The policy is defined in terms of keypairs:
  * 		subj=, obj=, type=, func=, mask=, fsmagic=
  *	subj,obj, and type: are LSM specific.
- * 	func: PATH_CHECK | BPRM_CHECK | FILE_MMAP
+ * 	func: FILE_CHECK | BPRM_CHECK | FILE_MMAP
  * 	mask: contains the permission mask
  *	fsmagic: hex value
  *

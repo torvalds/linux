@@ -38,6 +38,7 @@
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -660,7 +661,7 @@ static int smu_platform_probe(struct of_device* dev,
 	return 0;
 }
 
-static struct of_device_id smu_platform_match[] =
+static const struct of_device_id smu_platform_match[] =
 {
 	{
 		.type		= "smu",

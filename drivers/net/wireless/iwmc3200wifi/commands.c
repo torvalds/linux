@@ -41,6 +41,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include "iwm.h"
 #include "bus.h"
@@ -972,6 +973,10 @@ int iwm_send_pmkid_update(struct iwm_priv *iwm,
 	int ret;
 
 	memset(&update, 0, sizeof(struct iwm_umac_pmkid_update));
+
+	update.hdr.oid = UMAC_WIFI_IF_CMD_PMKID_UPDATE;
+	update.hdr.buf_size = cpu_to_le16(sizeof(struct iwm_umac_pmkid_update) -
+					  sizeof(struct iwm_umac_wifi_if));
 
 	update.command = cpu_to_le32(command);
 	if (pmksa->bssid)

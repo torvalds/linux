@@ -53,7 +53,6 @@ static char version[] = "atarilance.c: v1.3 04/04/96 "
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
@@ -663,7 +662,7 @@ static int lance_open( struct net_device *dev )
 	while (--i > 0)
 		if (DREG & CSR0_IDON)
 			break;
-	if (i < 0 || (DREG & CSR0_ERR)) {
+	if (i <= 0 || (DREG & CSR0_ERR)) {
 		DPRINTK( 2, ( "lance_open(): opening %s failed, i=%d, csr0=%04x\n",
 					  dev->name, i, DREG ));
 		DREG = CSR0_STOP;
@@ -1097,7 +1096,7 @@ static void set_multicast_list( struct net_device *dev )
 		REGA( CSR15 ) = 0x8000; /* Set promiscuous mode */
 	} else {
 		short multicast_table[4];
-		int num_addrs = dev->mc_count;
+		int num_addrs = netdev_mc_count(dev);
 		int i;
 		/* We don't use the multicast table, but rely on upper-layer
 		 * filtering. */

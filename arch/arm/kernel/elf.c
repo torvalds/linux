@@ -78,15 +78,6 @@ int arm_elf_read_implies_exec(const struct elf32_hdr *x, int executable_stack)
 		return 1;
 	if (cpu_architecture() < CPU_ARCH_ARMv6)
 		return 1;
-#if !defined(CONFIG_AEABI) || defined(CONFIG_OABI_COMPAT)
-	/*
-	 * If we have support for OABI programs, we can never allow NX
-	 * support - our signal syscall restart mechanism relies upon
-	 * being able to execute code placed on the user stack.
-	 */
-	return 1;
-#else
 	return 0;
-#endif
 }
 EXPORT_SYMBOL(arm_elf_read_implies_exec);

@@ -5,10 +5,13 @@
  * (or a CPU, or a PID) into the perf.data output file - for
  * later analysis via perf report.
  */
+#define _FILE_OFFSET_BITS 64
+
 #include "builtin.h"
 
 #include "perf.h"
 
+#include "util/build-id.h"
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
@@ -19,6 +22,7 @@
 #include "util/debug.h"
 #include "util/session.h"
 #include "util/symbol.h"
+#include "util/cpumap.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -62,6 +66,7 @@ static int			nr_poll				=      0;
 static int			nr_cpu				=      0;
 
 static int			file_new			=      1;
+static off_t			post_processing_offset;
 
 static struct perf_session	*session;
 
@@ -111,22 +116,10 @@ static void write_output(void *buf, size_t size)
 	}
 }
 
-static void write_event(event_t *buf, size_t size)
-{
-	/*
-	* Add it to the list of DSOs, so that when we finish this
-	 * record session we can pick the available build-ids.
-	 */
-	if (buf->header.type == PERF_RECORD_MMAP)
-		dsos__findnew(buf->mmap.filename);
-
-	write_output(buf, size);
-}
-
 static int process_synthesized_event(event_t *event,
 				     struct perf_session *self __used)
 {
-	write_event(event, event->header.size);
+	write_output(event, event->header.size);
 	return 0;
 }
 
@@ -178,14 +171,14 @@ static void mmap_read(struct mmap_data *md)
 		size = md->mask + 1 - (old & md->mask);
 		old += size;
 
-		write_event(buf, size);
+		write_output(buf, size);
 	}
 
 	buf = &data[old & md->mask];
 	size = head - old;
 	old += size;
 
-	write_event(buf, size);
+	write_output(buf, size);
 
 	md->prev = old;
 	mmap_write_tail(md, old);
@@ -251,6 +244,9 @@ static void create_counter(int counter, int cpu, pid_t pid)
 				  PERF_FORMAT_ID;
 
 	attr->sample_type	|= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+
+	if (nr_counters > 1)
+		attr->sample_type |= PERF_SAMPLE_ID;
 
 	if (freq) {
 		attr->sample_type	|= PERF_SAMPLE_PERIOD;
@@ -395,14 +391,28 @@ static void open_counters(int cpu, pid_t pid)
 	nr_cpu++;
 }
 
+static int process_buildids(void)
+{
+	u64 size = lseek(output, 0, SEEK_CUR);
+
+	if (size == 0)
+		return 0;
+
+	session->fd = output;
+	return __perf_session__process_events(session, post_processing_offset,
+					      size - post_processing_offset,
+					      size, &build_id__mark_dso_hit_ops);
+}
+
 static void atexit_header(void)
 {
 	session->header.data_size += bytes_written;
 
+	process_buildids();
 	perf_header__write(&session->header, output, true);
 }
 
-static int __cmd_record(int argc __used, const char **argv)
+static int __cmd_record(int argc, const char **argv)
 {
 	int i, counter;
 	struct stat st;
@@ -411,18 +421,16 @@ static int __cmd_record(int argc __used, const char **argv)
 	int err;
 	unsigned long waking = 0;
 	int child_ready_pipe[2], go_pipe[2];
+	const bool forks = target_pid == -1 && argc > 0;
 	char buf;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
-	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-	assert(nr_cpus <= MAX_NR_CPUS);
-	assert(nr_cpus >= 0);
 
 	atexit(sig_atexit);
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 
-	if (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0) {
+	if (forks && (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0)) {
 		perror("failed to create pipes");
 		exit(-1);
 	}
@@ -483,7 +491,7 @@ static int __cmd_record(int argc __used, const char **argv)
 
 	atexit(atexit_header);
 
-	if (target_pid == -1) {
+	if (forks) {
 		pid = fork();
 		if (pid < 0) {
 			perror("failed to fork");
@@ -540,8 +548,9 @@ static int __cmd_record(int argc __used, const char **argv)
 	if ((!system_wide && !inherit) || profile_cpu != -1) {
 		open_counters(profile_cpu, target_pid);
 	} else {
+		nr_cpus = read_cpu_map();
 		for (i = 0; i < nr_cpus; i++)
-			open_counters(i, target_pid);
+			open_counters(cpumap[i], target_pid);
 	}
 
 	if (file_new) {
@@ -550,8 +559,23 @@ static int __cmd_record(int argc __used, const char **argv)
 			return err;
 	}
 
-	if (!system_wide)
-		event__synthesize_thread(pid, process_synthesized_event,
+	post_processing_offset = lseek(output, 0, SEEK_CUR);
+
+	err = event__synthesize_kernel_mmap(process_synthesized_event,
+					    session, "_text");
+	if (err < 0) {
+		pr_err("Couldn't record kernel reference relocation symbol.\n");
+		return err;
+	}
+
+	err = event__synthesize_modules(process_synthesized_event, session);
+	if (err < 0) {
+		pr_err("Couldn't record kernel reference relocation symbol.\n");
+		return err;
+	}
+
+	if (!system_wide && profile_cpu == -1)
+		event__synthesize_thread(target_pid, process_synthesized_event,
 					 session);
 	else
 		event__synthesize_threads(process_synthesized_event, session);
@@ -569,7 +593,8 @@ static int __cmd_record(int argc __used, const char **argv)
 	/*
 	 * Let the child rip
 	 */
-	close(go_pipe[1]);
+	if (forks)
+		close(go_pipe[1]);
 
 	for (;;) {
 		int hits = samples;
@@ -667,7 +692,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && target_pid == -1 && (!system_wide || profile_cpu == -1))
+	if (!argc && target_pid == -1 && !system_wide && profile_cpu == -1)
 		usage_with_options(record_usage, options);
 
 	symbol__init();

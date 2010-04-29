@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/pcieport_if.h>
+#include <linux/slab.h>
 
 #include "aerdrv.h"
 #include "../../pci.h"
@@ -155,7 +156,7 @@ static struct aer_rpc *aer_alloc_rpc(struct pcie_device *dev)
 	mutex_init(&rpc->rpc_mutex);
 	init_waitqueue_head(&rpc->wait_release);
 
-	/* Use PCIE bus function to store rpc into PCIE device */
+	/* Use PCIe bus function to store rpc into PCIe device */
 	set_service_data(dev, rpc);
 
 	return rpc;
@@ -243,11 +244,17 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 
 	/* Assert Secondary Bus Reset */
 	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &p2p_ctrl);
-	p2p_ctrl |= PCI_CB_BRIDGE_CTL_CB_RESET;
+	p2p_ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
 
+	/*
+	 * we should send hot reset message for 2ms to allow it time to
+	 * propogate to all downstream ports
+	 */
+	msleep(2);
+
 	/* De-assert Secondary Bus Reset */
-	p2p_ctrl &= ~PCI_CB_BRIDGE_CTL_CB_RESET;
+	p2p_ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
 
 	/*

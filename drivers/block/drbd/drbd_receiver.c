@@ -28,7 +28,6 @@
 #include <asm/uaccess.h>
 #include <net/sock.h>
 
-#include <linux/version.h>
 #include <linux/drbd.h>
 #include <linux/fs.h>
 #include <linux/file.h>
@@ -879,9 +878,13 @@ retry:
 
 	if (mdev->cram_hmac_tfm) {
 		/* drbd_request_state(mdev, NS(conn, WFAuth)); */
-		if (!drbd_do_auth(mdev)) {
+		switch (drbd_do_auth(mdev)) {
+		case -1:
 			dev_err(DEV, "Authentication of peer failed\n");
 			return -1;
+		case 0:
+			dev_err(DEV, "Authentication of peer failed, trying again.\n");
+			return 0;
 		}
 	}
 
@@ -896,7 +899,8 @@ retry:
 
 	drbd_thread_start(&mdev->asender);
 
-	drbd_send_protocol(mdev);
+	if (!drbd_send_protocol(mdev))
+		return -1;
 	drbd_send_sync_param(mdev, &mdev->sync_conf);
 	drbd_send_sizes(mdev, 0);
 	drbd_send_uuids(mdev);
@@ -1202,10 +1206,11 @@ static int receive_Barrier(struct drbd_conf *mdev, struct p_header *h)
 
 	case WO_bdev_flush:
 	case WO_drain_io:
-		D_ASSERT(rv == FE_STILL_LIVE);
-		set_bit(DE_BARRIER_IN_NEXT_EPOCH_ISSUED, &mdev->current_epoch->flags);
-		drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
-		rv = drbd_flush_after_epoch(mdev, mdev->current_epoch);
+		if (rv == FE_STILL_LIVE) {
+			set_bit(DE_BARRIER_IN_NEXT_EPOCH_ISSUED, &mdev->current_epoch->flags);
+			drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
+			rv = drbd_flush_after_epoch(mdev, mdev->current_epoch);
+		}
 		if (rv == FE_RECYCLED)
 			return TRUE;
 
@@ -1220,7 +1225,7 @@ static int receive_Barrier(struct drbd_conf *mdev, struct p_header *h)
 	epoch = kmalloc(sizeof(struct drbd_epoch), GFP_NOIO);
 	if (!epoch) {
 		dev_warn(DEV, "Allocation of an epoch failed, slowing down\n");
-		issue_flush = !test_and_set_bit(DE_BARRIER_IN_NEXT_EPOCH_ISSUED, &epoch->flags);
+		issue_flush = !test_and_set_bit(DE_BARRIER_IN_NEXT_EPOCH_ISSUED, &mdev->current_epoch->flags);
 		drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
 		if (issue_flush) {
 			rv = drbd_flush_after_epoch(mdev, mdev->current_epoch);
@@ -2509,6 +2514,10 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 	}
 
 	if (hg == -100) {
+		/* FIXME this log message is not correct if we end up here
+		 * after an attempted attach on a diskless node.
+		 * We just refuse to attach -- well, we drop the "connection"
+		 * to that disk, in a way... */
 		dev_alert(DEV, "Split-Brain detected, dropping connection!\n");
 		drbd_khelper(mdev, "split-brain");
 		return C_MASK;
@@ -2532,6 +2541,16 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 			dev_warn(DEV, "Becoming SyncTarget, violating the stable-data"
 			     "assumption\n");
 		}
+	}
+
+	if (mdev->net_conf->dry_run || test_bit(CONN_DRY_RUN, &mdev->flags)) {
+		if (hg == 0)
+			dev_info(DEV, "dry-run connect: No resync, would become Connected immediately.\n");
+		else
+			dev_info(DEV, "dry-run connect: Would become %s, doing a %s resync.",
+				 drbd_conn_str(hg > 0 ? C_SYNC_SOURCE : C_SYNC_TARGET),
+				 abs(hg) >= 2 ? "full" : "bit-map based");
+		return C_MASK;
 	}
 
 	if (abs(hg) >= 2) {
@@ -2581,7 +2600,7 @@ static int receive_protocol(struct drbd_conf *mdev, struct p_header *h)
 	struct p_protocol *p = (struct p_protocol *)h;
 	int header_size, data_size;
 	int p_proto, p_after_sb_0p, p_after_sb_1p, p_after_sb_2p;
-	int p_want_lose, p_two_primaries;
+	int p_want_lose, p_two_primaries, cf;
 	char p_integrity_alg[SHARED_SECRET_MAX] = "";
 
 	header_size = sizeof(*p) - sizeof(*h);
@@ -2594,8 +2613,14 @@ static int receive_protocol(struct drbd_conf *mdev, struct p_header *h)
 	p_after_sb_0p	= be32_to_cpu(p->after_sb_0p);
 	p_after_sb_1p	= be32_to_cpu(p->after_sb_1p);
 	p_after_sb_2p	= be32_to_cpu(p->after_sb_2p);
-	p_want_lose	= be32_to_cpu(p->want_lose);
 	p_two_primaries = be32_to_cpu(p->two_primaries);
+	cf		= be32_to_cpu(p->conn_flags);
+	p_want_lose = cf & CF_WANT_LOSE;
+
+	clear_bit(CONN_DRY_RUN, &mdev->flags);
+
+	if (cf & CF_DRY_RUN)
+		set_bit(CONN_DRY_RUN, &mdev->flags);
 
 	if (p_proto != mdev->net_conf->wire_protocol) {
 		dev_err(DEV, "incompatible communication protocols\n");
@@ -2866,7 +2891,7 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 
 		/* Never shrink a device with usable data during connect.
 		   But allow online shrinking if we are connected. */
-		if (drbd_new_dev_size(mdev, mdev->ldev) <
+		if (drbd_new_dev_size(mdev, mdev->ldev, 0) <
 		   drbd_get_capacity(mdev->this_bdev) &&
 		   mdev->state.disk >= D_OUTDATED &&
 		   mdev->state.conn < C_CONNECTED) {
@@ -2881,7 +2906,7 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 #undef min_not_zero
 
 	if (get_ldev(mdev)) {
-		dd = drbd_determin_dev_size(mdev);
+	  dd = drbd_determin_dev_size(mdev, 0);
 		put_ldev(mdev);
 		if (dd == dev_size_error)
 			return FALSE;
@@ -3114,13 +3139,16 @@ static int receive_state(struct drbd_conf *mdev, struct p_header *h)
 
 		put_ldev(mdev);
 		if (nconn == C_MASK) {
+			nconn = C_CONNECTED;
 			if (mdev->state.disk == D_NEGOTIATING) {
 				drbd_force_state(mdev, NS(disk, D_DISKLESS));
-				nconn = C_CONNECTED;
 			} else if (peer_state.disk == D_NEGOTIATING) {
 				dev_err(DEV, "Disk attach process on the peer node was aborted.\n");
 				peer_state.disk = D_DISKLESS;
+				real_peer_disk = D_DISKLESS;
 			} else {
+				if (test_and_clear_bit(CONN_DRY_RUN, &mdev->flags))
+					return FALSE;
 				D_ASSERT(oconn == C_WF_REPORT_PARAMS);
 				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
 				return FALSE;
@@ -3590,10 +3618,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	/* asender does not clean up anything. it must not interfere, either */
 	drbd_thread_stop(&mdev->asender);
-
-	mutex_lock(&mdev->data.mutex);
 	drbd_free_sock(mdev);
-	mutex_unlock(&mdev->data.mutex);
 
 	spin_lock_irq(&mdev->req_lock);
 	_drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
@@ -3831,10 +3856,17 @@ static int drbd_do_auth(struct drbd_conf *mdev)
 {
 	dev_err(DEV, "This kernel was build without CONFIG_CRYPTO_HMAC.\n");
 	dev_err(DEV, "You need to disable 'cram-hmac-alg' in drbd.conf.\n");
-	return 0;
+	return -1;
 }
 #else
 #define CHALLENGE_LEN 64
+
+/* Return value:
+	1 - auth succeeded,
+	0 - failed, try again (network error),
+	-1 - auth failed, don't try again.
+*/
+
 static int drbd_do_auth(struct drbd_conf *mdev)
 {
 	char my_challenge[CHALLENGE_LEN];  /* 64 Bytes... */
@@ -3855,7 +3887,7 @@ static int drbd_do_auth(struct drbd_conf *mdev)
 				(u8 *)mdev->net_conf->shared_secret, key_len);
 	if (rv) {
 		dev_err(DEV, "crypto_hash_setkey() failed with %d\n", rv);
-		rv = 0;
+		rv = -1;
 		goto fail;
 	}
 
@@ -3878,14 +3910,14 @@ static int drbd_do_auth(struct drbd_conf *mdev)
 
 	if (p.length > CHALLENGE_LEN*2) {
 		dev_err(DEV, "expected AuthChallenge payload too big.\n");
-		rv = 0;
+		rv = -1;
 		goto fail;
 	}
 
 	peers_ch = kmalloc(p.length, GFP_NOIO);
 	if (peers_ch == NULL) {
 		dev_err(DEV, "kmalloc of peers_ch failed\n");
-		rv = 0;
+		rv = -1;
 		goto fail;
 	}
 
@@ -3901,7 +3933,7 @@ static int drbd_do_auth(struct drbd_conf *mdev)
 	response = kmalloc(resp_size, GFP_NOIO);
 	if (response == NULL) {
 		dev_err(DEV, "kmalloc of response failed\n");
-		rv = 0;
+		rv = -1;
 		goto fail;
 	}
 
@@ -3911,7 +3943,7 @@ static int drbd_do_auth(struct drbd_conf *mdev)
 	rv = crypto_hash_digest(&desc, &sg, sg.length, response);
 	if (rv) {
 		dev_err(DEV, "crypto_hash_digest() failed with %d\n", rv);
-		rv = 0;
+		rv = -1;
 		goto fail;
 	}
 
@@ -3945,9 +3977,9 @@ static int drbd_do_auth(struct drbd_conf *mdev)
 	}
 
 	right_response = kmalloc(resp_size, GFP_NOIO);
-	if (response == NULL) {
+	if (right_response == NULL) {
 		dev_err(DEV, "kmalloc of right_response failed\n");
-		rv = 0;
+		rv = -1;
 		goto fail;
 	}
 
@@ -3956,7 +3988,7 @@ static int drbd_do_auth(struct drbd_conf *mdev)
 	rv = crypto_hash_digest(&desc, &sg, sg.length, right_response);
 	if (rv) {
 		dev_err(DEV, "crypto_hash_digest() failed with %d\n", rv);
-		rv = 0;
+		rv = -1;
 		goto fail;
 	}
 
@@ -3965,6 +3997,8 @@ static int drbd_do_auth(struct drbd_conf *mdev)
 	if (rv)
 		dev_info(DEV, "Peer authenticated using %d bytes of '%s' HMAC\n",
 		     resp_size, mdev->net_conf->cram_hmac_alg);
+	else
+		rv = -1;
 
  fail:
 	kfree(peers_ch);
@@ -4041,6 +4075,8 @@ static int got_PingAck(struct drbd_conf *mdev, struct p_header *h)
 {
 	/* restore idle timeout */
 	mdev->meta.socket->sk->sk_rcvtimeo = mdev->net_conf->ping_int*HZ;
+	if (!test_and_set_bit(GOT_PING_ACK, &mdev->flags))
+		wake_up(&mdev->misc_wait);
 
 	return TRUE;
 }

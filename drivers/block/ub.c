@@ -27,6 +27,7 @@
 #include <linux/blkdev.h>
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <scsi/scsi.h>
 
 #define DRV_NAME "ub"
@@ -393,7 +394,7 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum);
 #define ub_usb_ids  usb_storage_usb_ids
 #else
 
-static struct usb_device_id ub_usb_ids[] = {
+static const struct usb_device_id ub_usb_ids[] = {
 	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, US_SC_SCSI, US_PR_BULK) },
 	{ }
 };
@@ -2320,10 +2321,9 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	disk->queue = q;
 
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
-	blk_queue_max_hw_segments(q, UB_MAX_REQ_SG);
-	blk_queue_max_phys_segments(q, UB_MAX_REQ_SG);
+	blk_queue_max_segments(q, UB_MAX_REQ_SG);
 	blk_queue_segment_boundary(q, 0xffffffff);	/* Dubious. */
-	blk_queue_max_sectors(q, UB_MAX_SECTORS);
+	blk_queue_max_hw_sectors(q, UB_MAX_SECTORS);
 	blk_queue_logical_block_size(q, lun->capacity.bsize);
 
 	lun->disk = disk;

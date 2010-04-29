@@ -333,10 +333,10 @@ static void __qdio_allocate_fill_qdr(struct qdio_irq *irq_ptr,
 	irq_ptr->qdr->qdf0[i + nr].slsba =
 		(unsigned long)&irq_ptr_qs[i]->slsb.val[0];
 
-	irq_ptr->qdr->qdf0[i + nr].akey = PAGE_DEFAULT_KEY;
-	irq_ptr->qdr->qdf0[i + nr].bkey = PAGE_DEFAULT_KEY;
-	irq_ptr->qdr->qdf0[i + nr].ckey = PAGE_DEFAULT_KEY;
-	irq_ptr->qdr->qdf0[i + nr].dkey = PAGE_DEFAULT_KEY;
+	irq_ptr->qdr->qdf0[i + nr].akey = PAGE_DEFAULT_KEY >> 4;
+	irq_ptr->qdr->qdf0[i + nr].bkey = PAGE_DEFAULT_KEY >> 4;
+	irq_ptr->qdr->qdf0[i + nr].ckey = PAGE_DEFAULT_KEY >> 4;
+	irq_ptr->qdr->qdf0[i + nr].dkey = PAGE_DEFAULT_KEY >> 4;
 }
 
 static void setup_qdr(struct qdio_irq *irq_ptr,
@@ -350,7 +350,7 @@ static void setup_qdr(struct qdio_irq *irq_ptr,
 	irq_ptr->qdr->iqdsz = sizeof(struct qdesfmt0) / 4; /* size in words */
 	irq_ptr->qdr->oqdsz = sizeof(struct qdesfmt0) / 4;
 	irq_ptr->qdr->qiba = (unsigned long)&irq_ptr->qib;
-	irq_ptr->qdr->qkey = PAGE_DEFAULT_KEY;
+	irq_ptr->qdr->qkey = PAGE_DEFAULT_KEY >> 4;
 
 	for (i = 0; i < qdio_init->no_input_qs; i++)
 		__qdio_allocate_fill_qdr(irq_ptr, irq_ptr->input_qs, i, 0);
@@ -382,7 +382,15 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	struct qdio_irq *irq_ptr = init_data->cdev->private->qdio_data;
 	int rc;
 
-	memset(irq_ptr, 0, ((char *)&irq_ptr->qdr) - ((char *)irq_ptr));
+	memset(&irq_ptr->qib, 0, sizeof(irq_ptr->qib));
+	memset(&irq_ptr->siga_flag, 0, sizeof(irq_ptr->siga_flag));
+	memset(&irq_ptr->ccw, 0, sizeof(irq_ptr->ccw));
+	memset(&irq_ptr->ssqd_desc, 0, sizeof(irq_ptr->ssqd_desc));
+	memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
+
+	irq_ptr->debugfs_dev = irq_ptr->debugfs_perf = NULL;
+	irq_ptr->sch_token = irq_ptr->state = irq_ptr->perf_stat_enabled = 0;
+
 	/* wipes qib.ac, required by ar7063 */
 	memset(irq_ptr->qdr, 0, sizeof(struct qdr));
 

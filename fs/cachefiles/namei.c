@@ -19,6 +19,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/security.h>
+#include <linux/slab.h>
 #include "internal.h"
 
 #define CACHEFILES_KEYBUF_SIZE 512
@@ -348,7 +349,17 @@ int cachefiles_delete_object(struct cachefiles_cache *cache,
 	dir = dget_parent(object->dentry);
 
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
-	ret = cachefiles_bury_object(cache, dir, object->dentry);
+
+	/* we need to check that our parent is _still_ our parent - it may have
+	 * been renamed */
+	if (dir == object->dentry->d_parent) {
+		ret = cachefiles_bury_object(cache, dir, object->dentry);
+	} else {
+		/* it got moved, presumably by cachefilesd culling it, so it's
+		 * no longer in the key path and we can ignore it */
+		mutex_unlock(&dir->d_inode->i_mutex);
+		ret = 0;
+	}
 
 	dput(dir);
 	_leave(" = %d", ret);

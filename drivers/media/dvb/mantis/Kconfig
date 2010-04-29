@@ -1,0 +1,32 @@
+config MANTIS_CORE
+	tristate "Mantis/Hopper PCI bridge based devices"
+	depends on PCI && I2C && INPUT
+
+	help
+	  Support for PCI cards based on the Mantis and Hopper PCi bridge.
+
+	  Say Y if you own such a device and want to use it.
+
+config DVB_MANTIS
+	tristate "MANTIS based cards"
+	depends on MANTIS_CORE && DVB_CORE && PCI && I2C
+	select DVB_MB86A16
+	select DVB_ZL10353
+	select DVB_STV0299
+	select DVB_PLL
+	help
+	  Support for PCI cards based on the Mantis PCI bridge.
+	  Say Y when you have a Mantis based DVB card and want to use it.
+
+	  If unsure say N.
+
+config DVB_HOPPER
+	tristate "HOPPER based cards"
+	depends on MANTIS_CORE && DVB_CORE && PCI && I2C
+	select DVB_ZL10353
+	select DVB_PLL
+	help
+	  Support for PCI cards based on the Hopper  PCI bridge.
+	  Say Y when you have a Hopper based DVB card and want to use it.
+
+	  If unsure say N

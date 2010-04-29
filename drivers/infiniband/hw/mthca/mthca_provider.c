@@ -39,6 +39,7 @@
 #include <rdma/ib_user_verbs.h>
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 
 #include "mthca_dev.h"

@@ -25,6 +25,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <plat/clock.h>
 #include <plat/board.h>
@@ -54,8 +55,6 @@ int omap2_pm_debug;
 	regs[reg_count++].val = \
 			 __raw_readl(OMAP2_L4_IO_ADDRESS(0x480fe000 + (off)))
 
-static int __init pm_dbg_init(void);
-
 void omap2_pm_dump(int mode, int resume, unsigned int us)
 {
 	struct reg {
@@ -69,9 +68,9 @@ void omap2_pm_dump(int mode, int resume, unsigned int us)
 #if 0
 		/* MPU */
 		DUMP_PRM_MOD_REG(OCP_MOD, OMAP2_PRM_IRQENABLE_MPU_OFFSET);
-		DUMP_CM_MOD_REG(MPU_MOD, CM_CLKSTCTRL);
-		DUMP_PRM_MOD_REG(MPU_MOD, PM_PWSTCTRL);
-		DUMP_PRM_MOD_REG(MPU_MOD, PM_PWSTST);
+		DUMP_CM_MOD_REG(MPU_MOD, OMAP2_CM_CLKSTCTRL);
+		DUMP_PRM_MOD_REG(MPU_MOD, OMAP2_PM_PWSTCTRL);
+		DUMP_PRM_MOD_REG(MPU_MOD, OMAP2_PM_PWSTST);
 		DUMP_PRM_MOD_REG(MPU_MOD, PM_WKDEP);
 #endif
 #if 0
@@ -95,7 +94,7 @@ void omap2_pm_dump(int mode, int resume, unsigned int us)
 		DUMP_CM_MOD_REG(WKUP_MOD, CM_ICLKEN);
 		DUMP_CM_MOD_REG(PLL_MOD, CM_CLKEN);
 		DUMP_CM_MOD_REG(PLL_MOD, CM_AUTOIDLE);
-		DUMP_PRM_MOD_REG(CORE_MOD, PM_PWSTST);
+		DUMP_PRM_MOD_REG(CORE_MOD, OMAP2_PM_PWSTST);
 #endif
 #if 0
 		/* DSP */
@@ -105,11 +104,11 @@ void omap2_pm_dump(int mode, int resume, unsigned int us)
 			DUMP_CM_MOD_REG(OMAP24XX_DSP_MOD, CM_IDLEST);
 			DUMP_CM_MOD_REG(OMAP24XX_DSP_MOD, CM_AUTOIDLE);
 			DUMP_CM_MOD_REG(OMAP24XX_DSP_MOD, CM_CLKSEL);
-			DUMP_CM_MOD_REG(OMAP24XX_DSP_MOD, CM_CLKSTCTRL);
-			DUMP_PRM_MOD_REG(OMAP24XX_DSP_MOD, RM_RSTCTRL);
-			DUMP_PRM_MOD_REG(OMAP24XX_DSP_MOD, RM_RSTST);
-			DUMP_PRM_MOD_REG(OMAP24XX_DSP_MOD, PM_PWSTCTRL);
-			DUMP_PRM_MOD_REG(OMAP24XX_DSP_MOD, PM_PWSTST);
+			DUMP_CM_MOD_REG(OMAP24XX_DSP_MOD, OMAP2_CM_CLKSTCTRL);
+			DUMP_PRM_MOD_REG(OMAP24XX_DSP_MOD, OMAP2_RM_RSTCTRL);
+			DUMP_PRM_MOD_REG(OMAP24XX_DSP_MOD, OMAP2_RM_RSTST);
+			DUMP_PRM_MOD_REG(OMAP24XX_DSP_MOD, OMAP2_PM_PWSTCTRL);
+			DUMP_PRM_MOD_REG(OMAP24XX_DSP_MOD, OMAP2_PM_PWSTST);
 		}
 #endif
 	} else {
@@ -166,6 +165,8 @@ static void pm_dbg_regset_store(u32 *ptr);
 struct dentry *pm_dbg_dir;
 
 static int pm_dbg_init_done;
+
+static int __init pm_dbg_init(void);
 
 enum {
 	DEBUG_FILE_COUNTERS = 0,
@@ -385,6 +386,11 @@ static int pwrdm_dbg_show_counter(struct powerdomain *pwrdm, void *user)
 		seq_printf(s, ",%s:%d", pwrdm_state_names[i],
 			pwrdm->state_counter[i]);
 
+	seq_printf(s, ",RET-LOGIC-OFF:%d", pwrdm->ret_logic_off_counter);
+	for (i = 0; i < pwrdm->banks; i++)
+		seq_printf(s, ",RET-MEMBANK%d-OFF:%d", i + 1,
+				pwrdm->ret_mem_off_counter[i]);
+
 	seq_printf(s, "\n");
 
 	return 0;
@@ -488,9 +494,11 @@ int pm_dbg_regset_init(int reg_set)
 
 static int pwrdm_suspend_get(void *data, u64 *val)
 {
-	*val = omap3_pm_get_suspend_state((struct powerdomain *)data);
+	int ret;
+	ret = omap3_pm_get_suspend_state((struct powerdomain *)data);
+	*val = ret;
 
-	if (*val >= 0)
+	if (ret >= 0)
 		return 0;
 	return *val;
 }
@@ -575,7 +583,7 @@ static int __init pm_dbg_init(void)
 	(void) debugfs_create_file("time", S_IRUGO,
 		d, (void *)DEBUG_FILE_TIMERS, &debug_fops);
 
-	pwrdm_for_each_nolock(pwrdms_setup, (void *)d);
+	pwrdm_for_each(pwrdms_setup, (void *)d);
 
 	pm_dbg_dir = debugfs_create_dir("registers", d);
 	if (IS_ERR(pm_dbg_dir))
@@ -604,6 +612,4 @@ static int __init pm_dbg_init(void)
 }
 arch_initcall(pm_dbg_init);
 
-#else
-void pm_dbg_update_time(struct powerdomain *pwrdm, int prev) {}
 #endif

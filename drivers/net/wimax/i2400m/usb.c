@@ -66,6 +66,7 @@
 #include "i2400m-usb.h"
 #include <linux/wimax/i2400m.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 
 #define D_SUBMODULE usb
@@ -246,7 +247,7 @@ error_kzalloc:
  *
  * The device will be fully reset internally, but won't be
  * disconnected from the USB bus (so no reenumeration will
- * happen). Firmware upload will be neccessary.
+ * happen). Firmware upload will be necessary.
  *
  * The device will send a reboot barker in the notification endpoint
  * that will trigger the driver to reinitialize the state
@@ -257,7 +258,7 @@ error_kzalloc:
  *
  * The device will be fully reset internally, disconnected from the
  * USB bus an a reenumeration will happen. Firmware upload will be
- * neccessary. Thus, we don't do any locking or struct
+ * necessary. Thus, we don't do any locking or struct
  * reinitialization, as we are going to be fully disconnected and
  * reenumerated.
  *
@@ -478,7 +479,16 @@ int i2400mu_probe(struct usb_interface *iface,
 	i2400m->bus_bm_wait_for_ack = i2400mu_bus_bm_wait_for_ack;
 	i2400m->bus_bm_mac_addr_impaired = 0;
 
-	if (id->idProduct == USB_DEVICE_ID_I6050) {
+	switch (id->idProduct) {
+	case USB_DEVICE_ID_I6050:
+	case USB_DEVICE_ID_I6050_2:
+		i2400mu->i6050 = 1;
+		break;
+	default:
+		break;
+	}
+
+	if (i2400mu->i6050) {
 		i2400m->bus_fw_names = i2400mu_bus_fw_names_6050;
 		i2400mu->endpoint_cfg.bulk_out = 0;
 		i2400mu->endpoint_cfg.notification = 3;
@@ -719,6 +729,7 @@ int i2400mu_post_reset(struct usb_interface *iface)
 static
 struct usb_device_id i2400mu_id_table[] = {
 	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050) },
+	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050_2) },
 	{ USB_DEVICE(0x8086, 0x0181) },
 	{ USB_DEVICE(0x8086, 0x1403) },
 	{ USB_DEVICE(0x8086, 0x1405) },

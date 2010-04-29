@@ -31,6 +31,7 @@
 #include <linux/smsc911x.h>
 #include <linux/ata_platform.h>
 #include <linux/amba/mmci.h>
+#include <linux/gfp.h>
 
 #include <asm/clkdev.h>
 #include <asm/system.h>
@@ -346,10 +347,7 @@ static struct clk_lookup lookups[] = {
 
 static int __init clk_init(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 	return 0;
 }
 arch_initcall(clk_init);

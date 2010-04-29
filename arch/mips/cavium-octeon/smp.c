@@ -279,14 +279,6 @@ static void octeon_cpu_die(unsigned int cpu)
 	uint32_t avail_coremask;
 	struct cvmx_bootmem_named_block_desc *block_desc;
 
-#ifdef CONFIG_CAVIUM_OCTEON_WATCHDOG
-	/* Disable the watchdog */
-	cvmx_ciu_wdogx_t ciu_wdog;
-	ciu_wdog.u64 = cvmx_read_csr(CVMX_CIU_WDOGX(cpu));
-	ciu_wdog.s.mode = 0;
-	cvmx_write_csr(CVMX_CIU_WDOGX(cpu), ciu_wdog.u64);
-#endif
-
 	while (per_cpu(cpu_state, cpu) != CPU_DEAD)
 		cpu_relax();
 
@@ -327,7 +319,7 @@ static void octeon_cpu_die(unsigned int cpu)
 				   avail_coremask);
 	}
 
-	pr_info("Reset core %d. Available Coremask = %x \n", coreid,
+	pr_info("Reset core %d. Available Coremask = %x\n", coreid,
 		avail_coremask);
 	cvmx_write_csr(CVMX_CIU_PP_RST, 1 << coreid);
 	cvmx_write_csr(CVMX_CIU_PP_RST, 0);

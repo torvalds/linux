@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -282,7 +282,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object **operand = &walk_state->operands[0];
 	union acpi_operand_object *return_desc = NULL;
-	acpi_integer index;
+	u64 index;
 	acpi_status status = AE_OK;
 	acpi_size length;
 
@@ -584,7 +584,7 @@ acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state)
 	 * Default is FALSE (zero)
 	 */
 	if (logical_result) {
-		return_desc->integer.value = ACPI_INTEGER_MAX;
+		return_desc->integer.value = ACPI_UINT64_MAX;
 	}
 
       cleanup:

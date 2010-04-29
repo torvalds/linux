@@ -16,6 +16,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/perf_event.h>
 #include <linux/interrupt.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
@@ -30,6 +31,8 @@
 #include <asm/lsu.h>
 #include <asm/sections.h>
 #include <asm/mmu_context.h>
+
+int show_unhandled_signals = 1;
 
 static inline __kprobes int notify_page_fault(struct pt_regs *regs)
 {
@@ -127,22 +130,48 @@ outret:
 	return insn;
 }
 
+static inline void
+show_signal_msg(struct pt_regs *regs, int sig, int code,
+		unsigned long address, struct task_struct *tsk)
+{
+	if (!unhandled_signal(tsk, sig))
+		return;
+
+	if (!printk_ratelimit())
+		return;
+
+	printk("%s%s[%d]: segfault at %lx ip %p (rpc %p) sp %p error %x",
+	       task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
+	       tsk->comm, task_pid_nr(tsk), address,
+	       (void *)regs->tpc, (void *)regs->u_regs[UREG_I7],
+	       (void *)regs->u_regs[UREG_FP], code);
+
+	print_vma_addr(KERN_CONT " in ", regs->tpc);
+
+	printk(KERN_CONT "\n");
+}
+
 extern unsigned long compute_effective_address(struct pt_regs *, unsigned int, unsigned int);
 
 static void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 			     unsigned int insn, int fault_code)
 {
+	unsigned long addr;
 	siginfo_t info;
 
 	info.si_code = code;
 	info.si_signo = sig;
 	info.si_errno = 0;
 	if (fault_code & FAULT_CODE_ITLB)
-		info.si_addr = (void __user *) regs->tpc;
+		addr = regs->tpc;
 	else
-		info.si_addr = (void __user *)
-			compute_effective_address(regs, insn, 0);
+		addr = compute_effective_address(regs, insn, 0);
+	info.si_addr = (void __user *) addr;
 	info.si_trapno = 0;
+
+	if (unlikely(show_unhandled_signals))
+		show_signal_msg(regs, sig, code, addr, current);
+
 	force_sig_info(sig, &info, current);
 }
 
@@ -296,6 +325,8 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 	if (in_atomic() || !mm)
 		goto intr_or_no_mm;
 
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if ((regs->tstate & TSTATE_PRIV) &&
 		    !search_exception_tables(regs->tpc)) {
@@ -400,11 +431,15 @@ good_area:
 			goto do_sigbus;
 		BUG();
 	}
-	if (fault & VM_FAULT_MAJOR)
+	if (fault & VM_FAULT_MAJOR) {
 		current->maj_flt++;
-	else
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+			      regs, address);
+	} else {
 		current->min_flt++;
-
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+			      regs, address);
+	}
 	up_read(&mm->mmap_sem);
 
 	mm_rss = get_mm_rss(mm);

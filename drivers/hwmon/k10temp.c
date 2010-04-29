@@ -33,6 +33,16 @@ static bool force;
 module_param(force, bool, 0444);
 MODULE_PARM_DESC(force, "force loading on processors with erratum 319");
 
+/* CPUID function 0x80000001, ebx */
+#define CPUID_PKGTYPE_MASK	0xf0000000
+#define CPUID_PKGTYPE_F		0x00000000
+#define CPUID_PKGTYPE_AM2R2_AM3	0x10000000
+
+/* DRAM controller (PCI function 2) */
+#define REG_DCT0_CONFIG_HIGH		0x094
+#define  DDR3_MODE			0x00000100
+
+/* miscellaneous (PCI function 3) */
 #define REG_HARDWARE_THERMAL_CONTROL	0x64
 #define  HTC_ENABLE			0x00000001
 
@@ -85,13 +95,28 @@ static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, show_temp_crit, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO, show_temp_crit, NULL, 1);
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 
-static bool __devinit has_erratum_319(void)
+static bool __devinit has_erratum_319(struct pci_dev *pdev)
 {
+	u32 pkg_type, reg_dram_cfg;
+
+	if (boot_cpu_data.x86 != 0x10)
+		return false;
+
 	/*
-	 * Erratum 319: The thermal sensor of older Family 10h processors
-	 *              (B steppings) may be unreliable.
+	 * Erratum 319: The thermal sensor of Socket F/AM2+ processors
+	 *              may be unreliable.
 	 */
-	return boot_cpu_data.x86 == 0x10 && boot_cpu_data.x86_model <= 2;
+	pkg_type = cpuid_ebx(0x80000001) & CPUID_PKGTYPE_MASK;
+	if (pkg_type == CPUID_PKGTYPE_F)
+		return true;
+	if (pkg_type != CPUID_PKGTYPE_AM2R2_AM3)
+		return false;
+
+	/* Differentiate between AM2+ (bad) and AM3 (good) */
+	pci_bus_read_config_dword(pdev->bus,
+				  PCI_DEVFN(PCI_SLOT(pdev->devfn), 2),
+				  REG_DCT0_CONFIG_HIGH, &reg_dram_cfg);
+	return !(reg_dram_cfg & DDR3_MODE);
 }
 
 static int __devinit k10temp_probe(struct pci_dev *pdev,
@@ -99,9 +124,10 @@ static int __devinit k10temp_probe(struct pci_dev *pdev,
 {
 	struct device *hwmon_dev;
 	u32 reg_caps, reg_htc;
+	int unreliable = has_erratum_319(pdev);
 	int err;
 
-	if (has_erratum_319() && !force) {
+	if (unreliable && !force) {
 		dev_err(&pdev->dev,
 			"unreliable CPU thermal sensor; monitoring disabled\n");
 		err = -ENODEV;
@@ -139,7 +165,7 @@ static int __devinit k10temp_probe(struct pci_dev *pdev,
 	}
 	dev_set_drvdata(&pdev->dev, hwmon_dev);
 
-	if (has_erratum_319() && force)
+	if (unreliable && force)
 		dev_warn(&pdev->dev,
 			 "unreliable CPU thermal sensor; check erratum 319\n");
 	return 0;
@@ -169,7 +195,7 @@ static void __devexit k10temp_remove(struct pci_dev *pdev)
 	dev_set_drvdata(&pdev->dev, NULL);
 }
 
-static struct pci_device_id k10temp_id_table[] = {
+static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_10H_NB_MISC) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_11H_NB_MISC) },
 	{}

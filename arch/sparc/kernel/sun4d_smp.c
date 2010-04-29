@@ -194,7 +194,7 @@ int __cpuinit smp4d_boot_one_cpu(int i)
 			smp_penguin_ctable.reg_size = 0;
 
 			/* whirrr, whirrr, whirrrrrrrrr... */
-			SMP_PRINTK(("Starting CPU %d at %p \n", i, entry));
+			SMP_PRINTK(("Starting CPU %d at %p\n", i, entry));
 			local_flush_cache_all();
 			prom_startcpu(cpu_node,
 				      &smp_penguin_ctable, 0, (char *)entry);

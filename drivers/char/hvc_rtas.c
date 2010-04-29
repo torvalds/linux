@@ -71,7 +71,7 @@ static int hvc_rtas_read_console(uint32_t vtermno, char *buf, int count)
 	return i;
 }
 
-static struct hv_ops hvc_rtas_get_put_ops = {
+static const struct hv_ops hvc_rtas_get_put_ops = {
 	.get_chars = hvc_rtas_read_console,
 	.put_chars = hvc_rtas_write_console,
 };

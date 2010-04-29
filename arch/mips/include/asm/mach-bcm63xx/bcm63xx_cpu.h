@@ -85,6 +85,7 @@ enum bcm63xx_regs_set {
 	RSET_TIMER,
 	RSET_WDT,
 	RSET_UART0,
+	RSET_UART1,
 	RSET_GPIO,
 	RSET_SPI,
 	RSET_UDC0,
@@ -123,6 +124,7 @@ enum bcm63xx_regs_set {
 #define BCM_6338_TIMER_BASE		(0xfffe0200)
 #define BCM_6338_WDT_BASE		(0xfffe021c)
 #define BCM_6338_UART0_BASE		(0xfffe0300)
+#define BCM_6338_UART1_BASE		(0xdeadbeef)
 #define BCM_6338_GPIO_BASE		(0xfffe0400)
 #define BCM_6338_SPI_BASE		(0xfffe0c00)
 #define BCM_6338_UDC0_BASE		(0xdeadbeef)
@@ -153,6 +155,7 @@ enum bcm63xx_regs_set {
 #define BCM_6345_TIMER_BASE		(0xfffe0200)
 #define BCM_6345_WDT_BASE		(0xfffe021c)
 #define BCM_6345_UART0_BASE		(0xfffe0300)
+#define BCM_6345_UART1_BASE		(0xdeadbeef)
 #define BCM_6345_GPIO_BASE		(0xfffe0400)
 #define BCM_6345_SPI_BASE		(0xdeadbeef)
 #define BCM_6345_UDC0_BASE		(0xdeadbeef)
@@ -182,6 +185,7 @@ enum bcm63xx_regs_set {
 #define BCM_6348_TIMER_BASE		(0xfffe0200)
 #define BCM_6348_WDT_BASE		(0xfffe021c)
 #define BCM_6348_UART0_BASE		(0xfffe0300)
+#define BCM_6348_UART1_BASE		(0xdeadbeef)
 #define BCM_6348_GPIO_BASE		(0xfffe0400)
 #define BCM_6348_SPI_BASE		(0xfffe0c00)
 #define BCM_6348_UDC0_BASE		(0xfffe1000)
@@ -208,6 +212,7 @@ enum bcm63xx_regs_set {
 #define BCM_6358_TIMER_BASE		(0xfffe0040)
 #define BCM_6358_WDT_BASE		(0xfffe005c)
 #define BCM_6358_UART0_BASE		(0xfffe0100)
+#define BCM_6358_UART1_BASE		(0xfffe0120)
 #define BCM_6358_GPIO_BASE		(0xfffe0080)
 #define BCM_6358_SPI_BASE		(0xdeadbeef)
 #define BCM_6358_UDC0_BASE		(0xfffe0800)
@@ -246,6 +251,8 @@ static inline unsigned long bcm63xx_regset_address(enum bcm63xx_regs_set set)
 		return BCM_6338_WDT_BASE;
 	case RSET_UART0:
 		return BCM_6338_UART0_BASE;
+	case RSET_UART1:
+		return BCM_6338_UART1_BASE;
 	case RSET_GPIO:
 		return BCM_6338_GPIO_BASE;
 	case RSET_SPI:
@@ -292,6 +299,8 @@ static inline unsigned long bcm63xx_regset_address(enum bcm63xx_regs_set set)
 		return BCM_6345_WDT_BASE;
 	case RSET_UART0:
 		return BCM_6345_UART0_BASE;
+	case RSET_UART1:
+		return BCM_6345_UART1_BASE;
 	case RSET_GPIO:
 		return BCM_6345_GPIO_BASE;
 	case RSET_SPI:
@@ -338,6 +347,8 @@ static inline unsigned long bcm63xx_regset_address(enum bcm63xx_regs_set set)
 		return BCM_6348_WDT_BASE;
 	case RSET_UART0:
 		return BCM_6348_UART0_BASE;
+	case RSET_UART1:
+		return BCM_6348_UART1_BASE;
 	case RSET_GPIO:
 		return BCM_6348_GPIO_BASE;
 	case RSET_SPI:
@@ -384,6 +395,8 @@ static inline unsigned long bcm63xx_regset_address(enum bcm63xx_regs_set set)
 		return BCM_6358_WDT_BASE;
 	case RSET_UART0:
 		return BCM_6358_UART0_BASE;
+	case RSET_UART1:
+		return BCM_6358_UART1_BASE;
 	case RSET_GPIO:
 		return BCM_6358_GPIO_BASE;
 	case RSET_SPI:
@@ -429,6 +442,7 @@ static inline unsigned long bcm63xx_regset_address(enum bcm63xx_regs_set set)
 enum bcm63xx_irq {
 	IRQ_TIMER = 0,
 	IRQ_UART0,
+	IRQ_UART1,
 	IRQ_DSL,
 	IRQ_ENET0,
 	IRQ_ENET1,
@@ -510,6 +524,7 @@ enum bcm63xx_irq {
  */
 #define BCM_6358_TIMER_IRQ		(IRQ_INTERNAL_BASE + 0)
 #define BCM_6358_UART0_IRQ		(IRQ_INTERNAL_BASE + 2)
+#define BCM_6358_UART1_IRQ		(IRQ_INTERNAL_BASE + 3)
 #define BCM_6358_OHCI0_IRQ		(IRQ_INTERNAL_BASE + 5)
 #define BCM_6358_ENET1_IRQ		(IRQ_INTERNAL_BASE + 6)
 #define BCM_6358_ENET0_IRQ		(IRQ_INTERNAL_BASE + 8)

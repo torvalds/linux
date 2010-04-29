@@ -65,7 +65,6 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const char *cause, int result, int info);
 
 /* Internal IMA function definitions */
-void ima_iintcache_init(void);
 int ima_init(void);
 void ima_cleanup(void);
 int ima_fs_init(void);
@@ -131,7 +130,7 @@ void iint_free(struct kref *kref);
 void iint_rcu_free(struct rcu_head *rcu);
 
 /* IMA policy related functions */
-enum ima_hooks { PATH_CHECK = 1, FILE_MMAP, BPRM_CHECK };
+enum ima_hooks { FILE_CHECK = 1, FILE_MMAP, BPRM_CHECK };
 
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask);
 void ima_init_policy(void);

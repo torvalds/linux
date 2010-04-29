@@ -66,7 +66,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address");
 module_param_array(rear_switch, bool, NULL, 0444);
 MODULE_PARM_DESC(rear_switch, "Enable shared rear/line-in switch");
 
-static struct pci_device_id snd_ymfpci_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_ymfpci_ids) = {
 	{ PCI_VDEVICE(YAMAHA, 0x0004), 0, },   /* YMF724 */
 	{ PCI_VDEVICE(YAMAHA, 0x000d), 0, },   /* YMF724F */
 	{ PCI_VDEVICE(YAMAHA, 0x000a), 0, },   /* YMF740 */

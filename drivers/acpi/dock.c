@@ -24,6 +24,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/notifier.h>
@@ -605,7 +606,7 @@ register_hotplug_dock_device(acpi_handle handle, struct acpi_dock_ops *ops,
 	list_for_each_entry(dock_station, &dock_stations, sibling) {
 		/*
 		 * An ATA bay can be in a dock and itself can be ejected
-		 * seperately, so there are two 'dock stations' which need the
+		 * separately, so there are two 'dock stations' which need the
 		 * ops
 		 */
 		dd = find_dock_dependent_device(dock_station, handle);
@@ -935,6 +936,7 @@ static int dock_add(acpi_handle handle)
 	struct platform_device *dd;
 
 	id = dock_station_count;
+	memset(&ds, 0, sizeof(ds));
 	dd = platform_device_register_data(NULL, "dock", id, &ds, sizeof(ds));
 	if (IS_ERR(dd))
 		return PTR_ERR(dd);
@@ -1024,13 +1026,10 @@ static int dock_remove(struct dock_station *ds)
 static acpi_status
 find_dock(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
-	acpi_status status = AE_OK;
-
 	if (is_dock(handle))
-		if (dock_add(handle) >= 0)
-			status = AE_CTRL_TERMINATE;
+		dock_add(handle);
 
-	return status;
+	return AE_OK;
 }
 
 static acpi_status

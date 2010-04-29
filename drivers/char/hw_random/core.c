@@ -158,10 +158,11 @@ static ssize_t rng_dev_read(struct file *filp, char __user *buf,
 			goto out;
 		}
 	}
-out_unlock:
-	mutex_unlock(&rng_mutex);
 out:
 	return ret ? : err;
+out_unlock:
+	mutex_unlock(&rng_mutex);
+	goto out;
 }
 
 

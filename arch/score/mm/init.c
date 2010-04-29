@@ -26,6 +26,7 @@
 #include <linux/errno.h>
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
@@ -59,7 +60,7 @@ static unsigned long setup_zero_page(void)
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-static int __init page_is_ram(unsigned long pagenr)
+int page_is_ram(unsigned long pagenr)
 {
 	if (pagenr >= min_low_pfn && pagenr < max_low_pfn)
 		return 1;
@@ -106,7 +107,7 @@ void __init mem_init(void)
 			ram << (PAGE_SHIFT-10), codesize >> 10,
 			reservedpages << (PAGE_SHIFT-10), datasize >> 10,
 			initsize >> 10,
-			(unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
+			totalhigh_pages << (PAGE_SHIFT-10));
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 

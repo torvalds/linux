@@ -28,6 +28,7 @@
 #include <linux/writeback.h>
 #include <linux/statfs.h>
 #include <linux/compat.h>
+#include <linux/slab.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -123,7 +124,8 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		    root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
 
 	end_of_last_block = start_pos + num_bytes - 1;
-	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block);
+	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
+					NULL);
 	if (err)
 		return err;
 
@@ -506,7 +508,8 @@ next_slot:
 }
 
 static int extent_mergeable(struct extent_buffer *leaf, int slot,
-			    u64 objectid, u64 bytenr, u64 *start, u64 *end)
+			    u64 objectid, u64 bytenr, u64 orig_offset,
+			    u64 *start, u64 *end)
 {
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
@@ -522,6 +525,7 @@ static int extent_mergeable(struct extent_buffer *leaf, int slot,
 	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 	if (btrfs_file_extent_type(leaf, fi) != BTRFS_FILE_EXTENT_REG ||
 	    btrfs_file_extent_disk_bytenr(leaf, fi) != bytenr ||
+	    btrfs_file_extent_offset(leaf, fi) != key.offset - orig_offset ||
 	    btrfs_file_extent_compression(leaf, fi) ||
 	    btrfs_file_extent_encryption(leaf, fi) ||
 	    btrfs_file_extent_other_encoding(leaf, fi))
@@ -561,6 +565,7 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	u64 split;
 	int del_nr = 0;
 	int del_slot = 0;
+	int recow;
 	int ret;
 
 	btrfs_drop_extent_cache(inode, start, end - 1, 0);
@@ -568,6 +573,7 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 again:
+	recow = 0;
 	split = start;
 	key.objectid = inode->i_ino;
 	key.type = BTRFS_EXTENT_DATA_KEY;
@@ -591,12 +597,60 @@ again:
 	bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
 	num_bytes = btrfs_file_extent_disk_num_bytes(leaf, fi);
 	orig_offset = key.offset - btrfs_file_extent_offset(leaf, fi);
+	memcpy(&new_key, &key, sizeof(new_key));
+
+	if (start == key.offset && end < extent_end) {
+		other_start = 0;
+		other_end = start;
+		if (extent_mergeable(leaf, path->slots[0] - 1,
+				     inode->i_ino, bytenr, orig_offset,
+				     &other_start, &other_end)) {
+			new_key.offset = end;
+			btrfs_set_item_key_safe(trans, root, path, &new_key);
+			fi = btrfs_item_ptr(leaf, path->slots[0],
+					    struct btrfs_file_extent_item);
+			btrfs_set_file_extent_num_bytes(leaf, fi,
+							extent_end - end);
+			btrfs_set_file_extent_offset(leaf, fi,
+						     end - orig_offset);
+			fi = btrfs_item_ptr(leaf, path->slots[0] - 1,
+					    struct btrfs_file_extent_item);
+			btrfs_set_file_extent_num_bytes(leaf, fi,
+							end - other_start);
+			btrfs_mark_buffer_dirty(leaf);
+			goto out;
+		}
+	}
+
+	if (start > key.offset && end == extent_end) {
+		other_start = end;
+		other_end = 0;
+		if (extent_mergeable(leaf, path->slots[0] + 1,
+				     inode->i_ino, bytenr, orig_offset,
+				     &other_start, &other_end)) {
+			fi = btrfs_item_ptr(leaf, path->slots[0],
+					    struct btrfs_file_extent_item);
+			btrfs_set_file_extent_num_bytes(leaf, fi,
+							start - key.offset);
+			path->slots[0]++;
+			new_key.offset = start;
+			btrfs_set_item_key_safe(trans, root, path, &new_key);
+
+			fi = btrfs_item_ptr(leaf, path->slots[0],
+					    struct btrfs_file_extent_item);
+			btrfs_set_file_extent_num_bytes(leaf, fi,
+							other_end - start);
+			btrfs_set_file_extent_offset(leaf, fi,
+						     start - orig_offset);
+			btrfs_mark_buffer_dirty(leaf);
+			goto out;
+		}
+	}
 
 	while (start > key.offset || end < extent_end) {
 		if (key.offset == start)
 			split = end;
 
-		memcpy(&new_key, &key, sizeof(new_key));
 		new_key.offset = split;
 		ret = btrfs_duplicate_item(trans, root, path, &new_key);
 		if (ret == -EAGAIN) {
@@ -631,15 +685,18 @@ again:
 			path->slots[0]--;
 			extent_end = end;
 		}
+		recow = 1;
 	}
-
-	fi = btrfs_item_ptr(leaf, path->slots[0],
-			    struct btrfs_file_extent_item);
 
 	other_start = end;
 	other_end = 0;
-	if (extent_mergeable(leaf, path->slots[0] + 1, inode->i_ino,
-			     bytenr, &other_start, &other_end)) {
+	if (extent_mergeable(leaf, path->slots[0] + 1,
+			     inode->i_ino, bytenr, orig_offset,
+			     &other_start, &other_end)) {
+		if (recow) {
+			btrfs_release_path(root, path);
+			goto again;
+		}
 		extent_end = other_end;
 		del_slot = path->slots[0] + 1;
 		del_nr++;
@@ -650,8 +707,13 @@ again:
 	}
 	other_start = 0;
 	other_end = start;
-	if (extent_mergeable(leaf, path->slots[0] - 1, inode->i_ino,
-			     bytenr, &other_start, &other_end)) {
+	if (extent_mergeable(leaf, path->slots[0] - 1,
+			     inode->i_ino, bytenr, orig_offset,
+			     &other_start, &other_end)) {
+		if (recow) {
+			btrfs_release_path(root, path);
+			goto again;
+		}
 		key.offset = other_start;
 		del_slot = path->slots[0];
 		del_nr++;
@@ -661,21 +723,23 @@ again:
 		BUG_ON(ret);
 	}
 	if (del_nr == 0) {
+		fi = btrfs_item_ptr(leaf, path->slots[0],
+			   struct btrfs_file_extent_item);
 		btrfs_set_file_extent_type(leaf, fi,
 					   BTRFS_FILE_EXTENT_REG);
 		btrfs_mark_buffer_dirty(leaf);
-		goto out;
+	} else {
+		fi = btrfs_item_ptr(leaf, del_slot - 1,
+			   struct btrfs_file_extent_item);
+		btrfs_set_file_extent_type(leaf, fi,
+					   BTRFS_FILE_EXTENT_REG);
+		btrfs_set_file_extent_num_bytes(leaf, fi,
+						extent_end - key.offset);
+		btrfs_mark_buffer_dirty(leaf);
+
+		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
+		BUG_ON(ret);
 	}
-
-	fi = btrfs_item_ptr(leaf, del_slot - 1,
-			    struct btrfs_file_extent_item);
-	btrfs_set_file_extent_type(leaf, fi, BTRFS_FILE_EXTENT_REG);
-	btrfs_set_file_extent_num_bytes(leaf, fi,
-					extent_end - key.offset);
-	btrfs_mark_buffer_dirty(leaf);
-
-	ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
-	BUG_ON(ret);
 out:
 	btrfs_free_path(path);
 	return 0;
@@ -691,6 +755,7 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 			 loff_t pos, unsigned long first_index,
 			 unsigned long last_index, size_t write_bytes)
 {
+	struct extent_state *cached_state = NULL;
 	int i;
 	unsigned long index = pos >> PAGE_CACHE_SHIFT;
 	struct inode *inode = fdentry(file)->d_inode;
@@ -719,16 +784,18 @@ again:
 	}
 	if (start_pos < inode->i_size) {
 		struct btrfs_ordered_extent *ordered;
-		lock_extent(&BTRFS_I(inode)->io_tree,
-			    start_pos, last_pos - 1, GFP_NOFS);
+		lock_extent_bits(&BTRFS_I(inode)->io_tree,
+				 start_pos, last_pos - 1, 0, &cached_state,
+				 GFP_NOFS);
 		ordered = btrfs_lookup_first_ordered_extent(inode,
 							    last_pos - 1);
 		if (ordered &&
 		    ordered->file_offset + ordered->len > start_pos &&
 		    ordered->file_offset < last_pos) {
 			btrfs_put_ordered_extent(ordered);
-			unlock_extent(&BTRFS_I(inode)->io_tree,
-				      start_pos, last_pos - 1, GFP_NOFS);
+			unlock_extent_cached(&BTRFS_I(inode)->io_tree,
+					     start_pos, last_pos - 1,
+					     &cached_state, GFP_NOFS);
 			for (i = 0; i < num_pages; i++) {
 				unlock_page(pages[i]);
 				page_cache_release(pages[i]);
@@ -740,12 +807,13 @@ again:
 		if (ordered)
 			btrfs_put_ordered_extent(ordered);
 
-		clear_extent_bits(&BTRFS_I(inode)->io_tree, start_pos,
+		clear_extent_bit(&BTRFS_I(inode)->io_tree, start_pos,
 				  last_pos - 1, EXTENT_DIRTY | EXTENT_DELALLOC |
-				  EXTENT_DO_ACCOUNTING,
+				  EXTENT_DO_ACCOUNTING, 0, 0, &cached_state,
 				  GFP_NOFS);
-		unlock_extent(&BTRFS_I(inode)->io_tree,
-			      start_pos, last_pos - 1, GFP_NOFS);
+		unlock_extent_cached(&BTRFS_I(inode)->io_tree,
+				     start_pos, last_pos - 1, &cached_state,
+				     GFP_NOFS);
 	}
 	for (i = 0; i < num_pages; i++) {
 		clear_page_dirty_for_io(pages[i]);
@@ -1073,7 +1141,7 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	}
 	mutex_lock(&dentry->d_inode->i_mutex);
 out:
-	return ret > 0 ? EIO : ret;
+	return ret > 0 ? -EIO : ret;
 }
 
 static const struct vm_operations_struct btrfs_file_vm_ops = {

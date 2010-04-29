@@ -55,6 +55,7 @@
 #include <linux/mm.h>
 #include <linux/cdev.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #if defined(__alpha__) || defined(__powerpc__)
 #include <asm/pgtable.h>	/* For pte_wrprotect */
 #endif
@@ -801,6 +802,7 @@ struct drm_driver {
 	 */
 	int (*gem_init_object) (struct drm_gem_object *obj);
 	void (*gem_free_object) (struct drm_gem_object *obj);
+	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
 
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);
@@ -1408,7 +1410,7 @@ extern int drm_ati_pcigart_cleanup(struct drm_device *dev,
 				   struct drm_ati_pcigart_info * gart_info);
 
 extern drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
-				       size_t align, dma_addr_t maxaddr);
+				       size_t align);
 extern void __drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 
@@ -1427,6 +1429,7 @@ extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 int drm_gem_init(struct drm_device *dev);
 void drm_gem_destroy(struct drm_device *dev);
 void drm_gem_object_free(struct kref *kref);
+void drm_gem_object_free_unlocked(struct kref *kref);
 struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
 					    size_t size);
 void drm_gem_object_handle_free(struct kref *kref);
@@ -1443,10 +1446,15 @@ drm_gem_object_reference(struct drm_gem_object *obj)
 static inline void
 drm_gem_object_unreference(struct drm_gem_object *obj)
 {
-	if (obj == NULL)
-		return;
+	if (obj != NULL)
+		kref_put(&obj->refcount, drm_gem_object_free);
+}
 
-	kref_put(&obj->refcount, drm_gem_object_free);
+static inline void
+drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
+{
+	if (obj != NULL)
+		kref_put(&obj->refcount, drm_gem_object_free_unlocked);
 }
 
 int drm_gem_handle_create(struct drm_file *file_priv,
@@ -1473,6 +1481,21 @@ drm_gem_object_handle_unreference(struct drm_gem_object *obj)
 	 */
 	kref_put(&obj->handlecount, drm_gem_object_handle_free);
 	drm_gem_object_unreference(obj);
+}
+
+static inline void
+drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
+{
+	if (obj == NULL)
+		return;
+
+	/*
+	* Must bump handle count first as this may be the last
+	* ref, in which case the object would disappear before we
+	* checked for a name
+	*/
+	kref_put(&obj->handlecount, drm_gem_object_handle_free);
+	drm_gem_object_unreference_unlocked(obj);
 }
 
 struct drm_gem_object *drm_gem_object_lookup(struct drm_device *dev,
@@ -1523,39 +1546,7 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 {
 }
 
-
-static __inline__ void *drm_calloc_large(size_t nmemb, size_t size)
-{
-	if (size != 0 && nmemb > ULONG_MAX / size)
-		return NULL;
-
-	if (size * nmemb <= PAGE_SIZE)
-	    return kcalloc(nmemb, size, GFP_KERNEL);
-
-	return __vmalloc(size * nmemb,
-			 GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
-}
-
-/* Modeled after cairo's malloc_ab, it's like calloc but without the zeroing. */
-static __inline__ void *drm_malloc_ab(size_t nmemb, size_t size)
-{
-	if (size != 0 && nmemb > ULONG_MAX / size)
-		return NULL;
-
-	if (size * nmemb <= PAGE_SIZE)
-	    return kmalloc(nmemb * size, GFP_KERNEL);
-
-	return __vmalloc(size * nmemb,
-			 GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL);
-}
-
-static __inline void drm_free_large(void *ptr)
-{
-	if (!is_vmalloc_addr(ptr))
-		return kfree(ptr);
-
-	vfree(ptr);
-}
+#include "drm_mem_util.h"
 /*@}*/
 
 #endif				/* __KERNEL__ */

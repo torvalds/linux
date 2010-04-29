@@ -20,10 +20,12 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <linux/ctype.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/usb.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/ppp_defs.h>
@@ -38,7 +40,7 @@
 #define GIG_COMPAT  {0, 4, 0, 0}
 
 #define MAX_REC_PARAMS 10	/* Max. number of params in response string */
-#define MAX_RESP_SIZE 512	/* Max. size of a response string */
+#define MAX_RESP_SIZE 511	/* Max. size of a response string */
 
 #define MAX_EVENTS 64		/* size of event queue */
 
@@ -78,9 +80,10 @@ enum debuglevel {
 	DEBUG_STREAM	  = 0x00040, /* application data stream I/O events */
 	DEBUG_STREAM_DUMP = 0x00080, /* application data stream content */
 	DEBUG_LLDATA	  = 0x00100, /* sent/received LL data */
+	DEBUG_EVENT	  = 0x00200, /* event processing */
 	DEBUG_DRIVER	  = 0x00400, /* driver structure */
 	DEBUG_HDLC	  = 0x00800, /* M10x HDLC processing */
-	DEBUG_WRITE	  = 0x01000, /* M105 data write */
+	DEBUG_CHANNEL	  = 0x01000, /* channel allocation/deallocation */
 	DEBUG_TRANSCMD	  = 0x02000, /* AT-COMMANDS+RESPONSES */
 	DEBUG_MCMD	  = 0x04000, /* COMMANDS THAT ARE SENT VERY OFTEN */
 	DEBUG_INIT	  = 0x08000, /* (de)allocation+initialization of data
@@ -498,7 +501,7 @@ struct cardstate {
 	spinlock_t ev_lock;
 
 	/* current modem response */
-	unsigned char respdata[MAX_RESP_SIZE];
+	unsigned char respdata[MAX_RESP_SIZE+1];
 	unsigned cbytes;
 
 	/* private data of hardware drivers */
@@ -674,8 +677,10 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size);
  */
 
 /* Called from common.c for setting up/shutting down with the ISDN subsystem */
-int gigaset_isdn_register(struct cardstate *cs, const char *isdnid);
-void gigaset_isdn_unregister(struct cardstate *cs);
+void gigaset_isdn_regdrv(void);
+void gigaset_isdn_unregdrv(void);
+int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid);
+void gigaset_isdn_unregdev(struct cardstate *cs);
 
 /* Called from hardware module to indicate completion of an skb */
 void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb);
@@ -785,8 +790,6 @@ static inline void gigaset_schedule_event(struct cardstate *cs)
 static inline void gigaset_bchannel_down(struct bc_state *bcs)
 {
 	gigaset_add_event(bcs->cs, &bcs->at_state, EV_BC_CLOSED, NULL, 0, NULL);
-
-	gig_dbg(DEBUG_CMD, "scheduling BC_CLOSED");
 	gigaset_schedule_event(bcs->cs);
 }
 
@@ -795,8 +798,6 @@ static inline void gigaset_bchannel_down(struct bc_state *bcs)
 static inline void gigaset_bchannel_up(struct bc_state *bcs)
 {
 	gigaset_add_event(bcs->cs, &bcs->at_state, EV_BC_OPEN, NULL, 0, NULL);
-
-	gig_dbg(DEBUG_CMD, "scheduling BC_OPEN");
 	gigaset_schedule_event(bcs->cs);
 }
 

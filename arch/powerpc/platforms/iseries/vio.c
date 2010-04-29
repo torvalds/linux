@@ -22,7 +22,7 @@
  */
 #include <linux/of.h>
 #include <linux/init.h>
-#include <linux/gfp.h>
+#include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/proc_fs.h>
 #include <linux/module.h>
@@ -473,6 +473,8 @@ static void __init get_viotape_info(struct device_node *vio_root)
 	size_t len = sizeof(*unitinfo) * HVMAXARCHITECTEDVIRTUALTAPES;
 	struct vio_waitevent we;
 	int ret;
+
+	init_completion(&we.com);
 
 	ret = viopath_open(viopath_hostLp, viomajorsubtype_tape, 2);
 	if (ret) {

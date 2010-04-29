@@ -547,7 +547,7 @@ sys32_setdomainname_wrapper:
 	.globl	sys32_newuname_wrapper
 sys32_newuname_wrapper:
 	llgtr	%r2,%r2			# struct new_utsname *
-	jg	sys_s390_newuname	# branch to system call
+	jg	sys_newuname		# branch to system call
 
 	.globl	compat_sys_adjtimex_wrapper
 compat_sys_adjtimex_wrapper:
@@ -1853,12 +1853,3 @@ sys32_execve_wrapper:
 	llgtr	%r3,%r3			# compat_uptr_t *
 	llgtr	%r4,%r4			# compat_uptr_t *
 	jg	sys32_execve		# branch to system call
-
-	.globl	compat_sys_recvmmsg_wrapper
-compat_sys_recvmmsg_wrapper:
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct compat_mmsghdr *
-	llgfr	%r4,%r4			# unsigned int
-	llgfr	%r5,%r5			# unsigned int
-	llgtr	%r6,%r6			# struct compat_timespec *
-	jg	compat_sys_recvmmsg

@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/sysctl.h>
@@ -123,7 +122,7 @@ static void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 		dlm_lock_put(lock);
 		/* free up the reserved bast that we are cancelling.
 		 * guaranteed that this will not be the last reserved
-		 * ast because *both* an ast and a bast were reserved 
+		 * ast because *both* an ast and a bast were reserved
 		 * to get to this point.  the res->spinlock will not be
 		 * taken here */
 		dlm_lockres_release_ast(dlm, res);

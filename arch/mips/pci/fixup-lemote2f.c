@@ -131,7 +131,7 @@ static void __init loongson_cs5536_ehci_fixup(struct pci_dev *pdev)
 
 	/* Serial short detect enable */
 	_rdmsr(USB_MSR_REG(USB_CONFIG), &hi, &lo);
-	_wrmsr(USB_MSR_REG(USB_CONFIG), (1 << 1) | (1 << 2) | (1 << 3), lo);
+	_wrmsr(USB_MSR_REG(USB_CONFIG), (1 << 1) | (1 << 3), lo);
 
 	/* setting the USB2.0 micro frame length */
 	pci_write_config_dword(pdev, PCI_EHCI_FLADJ_REG, 0x2000);

@@ -37,6 +37,7 @@
 
 #include <linux/module.h>
 #include <linux/stat.h>
+#include <linux/slab.h>
 #include <linux/ioctl.h>
 #include <linux/capability.h>
 #include <linux/uaccess.h>
@@ -853,7 +854,6 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		req.name[req.name_len] = '\0';
 		err = verify_mkvol_req(ubi, &req);
 		if (err)
 			break;

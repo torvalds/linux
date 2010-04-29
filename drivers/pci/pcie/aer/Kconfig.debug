@@ -3,14 +3,14 @@
 #
 
 config PCIEAER_INJECT
-	tristate "PCIE AER error injector support"
+	tristate "PCIe AER error injector support"
 	depends on PCIEAER
 	default n
 	help
 	  This enables PCI Express Root Port Advanced Error Reporting
 	  (AER) software error injector.
 
-	  Debuging PCIE AER code is quite difficult because it is hard
+	  Debugging PCIe AER code is quite difficult because it is hard
 	  to trigger various real hardware errors. Software based
 	  error injection can fake almost all kinds of errors with the
 	  help of a user space helper tool aer-inject, which can be

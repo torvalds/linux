@@ -28,7 +28,7 @@
 #include <linux/log2.h>
 #include <linux/uaccess.h>
 
-static void _kfifo_init(struct kfifo *fifo, unsigned char *buffer,
+static void _kfifo_init(struct kfifo *fifo, void *buffer,
 		unsigned int size)
 {
 	fifo->buffer = buffer;
@@ -41,10 +41,10 @@ static void _kfifo_init(struct kfifo *fifo, unsigned char *buffer,
  * kfifo_init - initialize a FIFO using a preallocated buffer
  * @fifo: the fifo to assign the buffer
  * @buffer: the preallocated buffer to be used.
- * @size: the size of the internal buffer, this have to be a power of 2.
+ * @size: the size of the internal buffer, this has to be a power of 2.
  *
  */
-void kfifo_init(struct kfifo *fifo, unsigned char *buffer, unsigned int size)
+void kfifo_init(struct kfifo *fifo, void *buffer, unsigned int size)
 {
 	/* size must be a power of 2 */
 	BUG_ON(!is_power_of_2(size));
@@ -80,7 +80,7 @@ int kfifo_alloc(struct kfifo *fifo, unsigned int size, gfp_t gfp_mask)
 
 	buffer = kmalloc(size, gfp_mask);
 	if (!buffer) {
-		_kfifo_init(fifo, 0, 0);
+		_kfifo_init(fifo, NULL, 0);
 		return -ENOMEM;
 	}
 
@@ -97,6 +97,7 @@ EXPORT_SYMBOL(kfifo_alloc);
 void kfifo_free(struct kfifo *fifo)
 {
 	kfree(fifo->buffer);
+	_kfifo_init(fifo, NULL, 0);
 }
 EXPORT_SYMBOL(kfifo_free);
 
@@ -159,8 +160,9 @@ static inline void __kfifo_out_data(struct kfifo *fifo,
 	memcpy(to + l, fifo->buffer, len - l);
 }
 
-static inline unsigned int __kfifo_from_user_data(struct kfifo *fifo,
-	 const void __user *from, unsigned int len, unsigned int off)
+static inline int __kfifo_from_user_data(struct kfifo *fifo,
+	 const void __user *from, unsigned int len, unsigned int off,
+	 unsigned *lenout)
 {
 	unsigned int l;
 	int ret;
@@ -177,16 +179,20 @@ static inline unsigned int __kfifo_from_user_data(struct kfifo *fifo,
 	/* first put the data starting from fifo->in to buffer end */
 	l = min(len, fifo->size - off);
 	ret = copy_from_user(fifo->buffer + off, from, l);
-
-	if (unlikely(ret))
-		return ret + len - l;
+	if (unlikely(ret)) {
+		*lenout = ret;
+		return -EFAULT;
+	}
+	*lenout = l;
 
 	/* then put the rest (if any) at the beginning of the buffer */
-	return copy_from_user(fifo->buffer, from + l, len - l);
+	ret = copy_from_user(fifo->buffer, from + l, len - l);
+	*lenout += ret ? ret : len - l;
+	return ret ? -EFAULT : 0;
 }
 
-static inline unsigned int __kfifo_to_user_data(struct kfifo *fifo,
-		void __user *to, unsigned int len, unsigned int off)
+static inline int __kfifo_to_user_data(struct kfifo *fifo,
+		void __user *to, unsigned int len, unsigned int off, unsigned *lenout)
 {
 	unsigned int l;
 	int ret;
@@ -203,12 +209,21 @@ static inline unsigned int __kfifo_to_user_data(struct kfifo *fifo,
 	/* first get the data from fifo->out until the end of the buffer */
 	l = min(len, fifo->size - off);
 	ret = copy_to_user(to, fifo->buffer + off, l);
-
-	if (unlikely(ret))
-		return ret + len - l;
+	*lenout = l;
+	if (unlikely(ret)) {
+		*lenout -= ret;
+		return -EFAULT;
+	}
 
 	/* then get the rest (if any) from the beginning of the buffer */
-	return copy_to_user(to + l, fifo->buffer, len - l);
+	len -= l;
+	ret = copy_to_user(to + l, fifo->buffer, len);
+	if (unlikely(ret)) {
+		*lenout += len - ret;
+		return -EFAULT;
+	}
+	*lenout += len;
+	return 0;
 }
 
 unsigned int __kfifo_in_n(struct kfifo *fifo,
@@ -235,7 +250,7 @@ EXPORT_SYMBOL(__kfifo_in_n);
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these functions.
  */
-unsigned int kfifo_in(struct kfifo *fifo, const unsigned char *from,
+unsigned int kfifo_in(struct kfifo *fifo, const void *from,
 				unsigned int len)
 {
 	len = min(kfifo_avail(fifo), len);
@@ -277,7 +292,7 @@ EXPORT_SYMBOL(__kfifo_out_n);
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these functions.
  */
-unsigned int kfifo_out(struct kfifo *fifo, unsigned char *to, unsigned int len)
+unsigned int kfifo_out(struct kfifo *fifo, void *to, unsigned int len)
 {
 	len = min(kfifo_len(fifo), len);
 
@@ -287,6 +302,27 @@ unsigned int kfifo_out(struct kfifo *fifo, unsigned char *to, unsigned int len)
 	return len;
 }
 EXPORT_SYMBOL(kfifo_out);
+
+/**
+ * kfifo_out_peek - copy some data from the FIFO, but do not remove it
+ * @fifo: the fifo to be used.
+ * @to: where the data must be copied.
+ * @len: the size of the destination buffer.
+ * @offset: offset into the fifo
+ *
+ * This function copies at most @len bytes at @offset from the FIFO
+ * into the @to buffer and returns the number of copied bytes.
+ * The data is not removed from the FIFO.
+ */
+unsigned int kfifo_out_peek(struct kfifo *fifo, void *to, unsigned int len,
+			    unsigned offset)
+{
+	len = min(kfifo_len(fifo), len + offset);
+
+	__kfifo_out_data(fifo, to, len, offset);
+	return len;
+}
+EXPORT_SYMBOL(kfifo_out_peek);
 
 unsigned int __kfifo_out_generic(struct kfifo *fifo,
 	void *to, unsigned int len, unsigned int recsize,
@@ -299,10 +335,13 @@ EXPORT_SYMBOL(__kfifo_out_generic);
 unsigned int __kfifo_from_user_n(struct kfifo *fifo,
 	const void __user *from, unsigned int len, unsigned int recsize)
 {
+	unsigned total;
+
 	if (kfifo_avail(fifo) < len + recsize)
 		return len + 1;
 
-	return __kfifo_from_user_data(fifo, from, len, recsize);
+	__kfifo_from_user_data(fifo, from, len, recsize, &total);
+	return total;
 }
 EXPORT_SYMBOL(__kfifo_from_user_n);
 
@@ -311,20 +350,24 @@ EXPORT_SYMBOL(__kfifo_from_user_n);
  * @fifo: the fifo to be used.
  * @from: pointer to the data to be added.
  * @len: the length of the data to be added.
+ * @total: the actual returned data length.
  *
  * This function copies at most @len bytes from the @from into the
- * FIFO depending and returns the number of copied bytes.
+ * FIFO depending and returns -EFAULT/0.
  *
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these functions.
  */
-unsigned int kfifo_from_user(struct kfifo *fifo,
-	const void __user *from, unsigned int len)
+int kfifo_from_user(struct kfifo *fifo,
+        const void __user *from, unsigned int len, unsigned *total)
 {
+	int ret;
 	len = min(kfifo_avail(fifo), len);
-	len -= __kfifo_from_user_data(fifo, from, len, 0);
+	ret = __kfifo_from_user_data(fifo, from, len, 0, total);
+	if (ret)
+		return ret;
 	__kfifo_add_in(fifo, len);
-	return len;
+	return 0;
 }
 EXPORT_SYMBOL(kfifo_from_user);
 
@@ -339,17 +382,17 @@ unsigned int __kfifo_to_user_n(struct kfifo *fifo,
 	void __user *to, unsigned int len, unsigned int reclen,
 	unsigned int recsize)
 {
-	unsigned int ret;
+	unsigned int ret, total;
 
 	if (kfifo_len(fifo) < reclen + recsize)
 		return len;
 
-	ret = __kfifo_to_user_data(fifo, to, reclen, recsize);
+	ret = __kfifo_to_user_data(fifo, to, reclen, recsize, &total);
 
 	if (likely(ret == 0))
 		__kfifo_add_out(fifo, reclen + recsize);
 
-	return ret;
+	return total;
 }
 EXPORT_SYMBOL(__kfifo_to_user_n);
 
@@ -358,20 +401,22 @@ EXPORT_SYMBOL(__kfifo_to_user_n);
  * @fifo: the fifo to be used.
  * @to: where the data must be copied.
  * @len: the size of the destination buffer.
+ * @lenout: pointer to output variable with copied data
  *
  * This function copies at most @len bytes from the FIFO into the
- * @to buffer and returns the number of copied bytes.
+ * @to buffer and 0 or -EFAULT.
  *
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these functions.
  */
-unsigned int kfifo_to_user(struct kfifo *fifo,
-	void __user *to, unsigned int len)
+int kfifo_to_user(struct kfifo *fifo,
+	void __user *to, unsigned int len, unsigned *lenout)
 {
+	int ret;
 	len = min(kfifo_len(fifo), len);
-	len -= __kfifo_to_user_data(fifo, to, len, 0);
-	__kfifo_add_out(fifo, len);
-	return len;
+	ret = __kfifo_to_user_data(fifo, to, len, 0, lenout);
+	__kfifo_add_out(fifo, *lenout);
+	return ret;
 }
 EXPORT_SYMBOL(kfifo_to_user);
 

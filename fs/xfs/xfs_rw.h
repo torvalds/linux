@@ -39,10 +39,6 @@ xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb)
 /*
  * Prototypes for functions in xfs_rw.c.
  */
-extern int xfs_write_clear_setuid(struct xfs_inode *ip);
-extern int xfs_bwrite(struct xfs_mount *mp, struct xfs_buf *bp);
-extern int xfs_bioerror(struct xfs_buf *bp);
-extern int xfs_bioerror_relse(struct xfs_buf *bp);
 extern int xfs_read_buf(struct xfs_mount *mp, xfs_buftarg_t *btp,
 			xfs_daddr_t blkno, int len, uint flags,
 			struct xfs_buf **bpp);

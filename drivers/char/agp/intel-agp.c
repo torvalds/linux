@@ -4,11 +4,16 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
 #include <linux/agp_backend.h>
+#include <asm/smp.h>
 #include "agp.h"
+
+int intel_agp_enabled;
+EXPORT_SYMBOL(intel_agp_enabled);
 
 /*
  * If we have Intel graphics, we're not going to have anything other than
@@ -64,6 +69,10 @@
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB	    0x0062
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB    0x006a
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG	    0x0046
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB  0x0100
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_IG  0x0102
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB  0x0104
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_IG  0x0106
 
 /* cover 915 and 945 variants */
 #define IS_I915 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_E7221_HB || \
@@ -89,6 +98,9 @@
 #define IS_PINEVIEW (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_HB)
 
+#define IS_SNB (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB)
+
 #define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_EAGLELAKE_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
@@ -98,7 +110,8 @@
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB)
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB || \
+		IS_SNB)
 
 extern int agp_memory_reserved;
 
@@ -146,6 +159,29 @@ extern int agp_memory_reserved;
 #define INTEL_I7505_ERRSTS	0x42
 #define INTEL_I7505_AGPCTRL	0x70
 #define INTEL_I7505_MCHCFG	0x50
+
+#define SNB_GMCH_CTRL	0x50
+#define SNB_GMCH_GMS_STOLEN_MASK	0xF8
+#define SNB_GMCH_GMS_STOLEN_32M		(1 << 3)
+#define SNB_GMCH_GMS_STOLEN_64M		(2 << 3)
+#define SNB_GMCH_GMS_STOLEN_96M		(3 << 3)
+#define SNB_GMCH_GMS_STOLEN_128M	(4 << 3)
+#define SNB_GMCH_GMS_STOLEN_160M	(5 << 3)
+#define SNB_GMCH_GMS_STOLEN_192M	(6 << 3)
+#define SNB_GMCH_GMS_STOLEN_224M	(7 << 3)
+#define SNB_GMCH_GMS_STOLEN_256M	(8 << 3)
+#define SNB_GMCH_GMS_STOLEN_288M	(9 << 3)
+#define SNB_GMCH_GMS_STOLEN_320M	(0xa << 3)
+#define SNB_GMCH_GMS_STOLEN_352M	(0xb << 3)
+#define SNB_GMCH_GMS_STOLEN_384M	(0xc << 3)
+#define SNB_GMCH_GMS_STOLEN_416M	(0xd << 3)
+#define SNB_GMCH_GMS_STOLEN_448M	(0xe << 3)
+#define SNB_GMCH_GMS_STOLEN_480M	(0xf << 3)
+#define SNB_GMCH_GMS_STOLEN_512M	(0x10 << 3)
+#define SNB_GTT_SIZE_0M			(0 << 8)
+#define SNB_GTT_SIZE_1M			(1 << 8)
+#define SNB_GTT_SIZE_2M			(2 << 8)
+#define SNB_GTT_SIZE_MASK		(3 << 8)
 
 static const struct aper_size_info_fixed intel_i810_sizes[] =
 {
@@ -269,7 +305,7 @@ static void intel_agp_insert_sg_entries(struct agp_memory *mem,
 			j++;
 		}
 	} else {
-		/* sg may merge pages, but we have to seperate
+		/* sg may merge pages, but we have to separate
 		 * per-page addr for GTT */
 		unsigned int len, m;
 
@@ -293,6 +329,13 @@ static void intel_agp_insert_sg_entries(struct agp_memory *mem,
 					off_t pg_start, int mask_type)
 {
 	int i, j;
+	u32 cache_bits = 0;
+
+	if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB ||
+	    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB)
+	{
+		cache_bits = I830_PTE_SYSTEM_CACHED;
+	}
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
@@ -613,7 +656,7 @@ static struct aper_size_info_fixed intel_i830_sizes[] =
 static void intel_i830_init_gtt_entries(void)
 {
 	u16 gmch_ctrl;
-	int gtt_entries;
+	int gtt_entries = 0;
 	u8 rdct;
 	int local = 0;
 	static const int ddt[4] = { 0, 16, 32, 64 };
@@ -703,6 +746,63 @@ static void intel_i830_init_gtt_entries(void)
 			break;
 		default:
 			gtt_entries = 0;
+			break;
+		}
+	} else if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB ||
+		   agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB) {
+		/*
+		 * SandyBridge has new memory control reg at 0x50.w
+		 */
+		u16 snb_gmch_ctl;
+		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+		switch (snb_gmch_ctl & SNB_GMCH_GMS_STOLEN_MASK) {
+		case SNB_GMCH_GMS_STOLEN_32M:
+			gtt_entries = MB(32) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_64M:
+			gtt_entries = MB(64) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_96M:
+			gtt_entries = MB(96) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_128M:
+			gtt_entries = MB(128) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_160M:
+			gtt_entries = MB(160) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_192M:
+			gtt_entries = MB(192) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_224M:
+			gtt_entries = MB(224) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_256M:
+			gtt_entries = MB(256) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_288M:
+			gtt_entries = MB(288) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_320M:
+			gtt_entries = MB(320) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_352M:
+			gtt_entries = MB(352) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_384M:
+			gtt_entries = MB(384) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_416M:
+			gtt_entries = MB(416) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_448M:
+			gtt_entries = MB(448) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_480M:
+			gtt_entries = MB(480) - KB(size);
+			break;
+		case SNB_GMCH_GMS_STOLEN_512M:
+			gtt_entries = MB(512) - KB(size);
 			break;
 		}
 	} else {
@@ -815,12 +915,6 @@ static void intel_i830_setup_flush(void)
 		intel_i830_fini_flush();
 }
 
-static void
-do_wbinvd(void *null)
-{
-	wbinvd();
-}
-
 /* The chipset_flush interface needs to get data that has already been
  * flushed out of the CPU all the way out to main memory, because the GPU
  * doesn't snoop those buffers.
@@ -837,12 +931,10 @@ static void intel_i830_chipset_flush(struct agp_bridge_data *bridge)
 
 	memset(pg, 0, 1024);
 
-	if (cpu_has_clflush) {
+	if (cpu_has_clflush)
 		clflush_cache_range(pg, 1024);
-	} else {
-		if (on_each_cpu(do_wbinvd, NULL, 1) != 0)
-			printk(KERN_ERR "Timed out waiting for cache flush.\n");
-	}
+	else if (wbinvd_on_all_cpus() != 0)
+		printk(KERN_ERR "Timed out waiting for cache flush.\n");
 }
 
 /* The intel i830 automatically initializes the agp aperture during POST.
@@ -1115,6 +1207,9 @@ static void intel_i9xx_setup_flush(void)
 	if (intel_private.ifp_resource.start)
 		return;
 
+	if (IS_SNB)
+		return;
+
 	/* setup a resource for this object */
 	intel_private.ifp_resource.name = "Intel Flush Page";
 	intel_private.ifp_resource.flags = IORESOURCE_MEM;
@@ -1353,6 +1448,8 @@ static unsigned long intel_i965_mask_memory(struct agp_bridge_data *bridge,
 
 static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 {
+	u16 snb_gmch_ctl;
+
 	switch (agp_bridge->dev->device) {
 	case PCI_DEVICE_ID_INTEL_GM45_HB:
 	case PCI_DEVICE_ID_INTEL_EAGLELAKE_HB:
@@ -1365,6 +1462,25 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 	case PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB:
 	case PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB:
 		*gtt_offset = *gtt_size = MB(2);
+		break;
+	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB:
+	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB:
+		*gtt_offset = MB(2);
+
+		pci_read_config_word(intel_private.pcidev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+		switch (snb_gmch_ctl & SNB_GTT_SIZE_MASK) {
+		default:
+		case SNB_GTT_SIZE_0M:
+			printk(KERN_ERR "Bad GTT size mask: 0x%04x.\n", snb_gmch_ctl);
+			*gtt_size = MB(0);
+			break;
+		case SNB_GTT_SIZE_1M:
+			*gtt_size = MB(1);
+			break;
+		case SNB_GTT_SIZE_2M:
+			*gtt_size = MB(2);
+			break;
+		}
 		break;
 	default:
 		*gtt_offset = *gtt_size = KB(512);
@@ -1701,8 +1817,6 @@ static int intel_845_configure(void)
 	pci_write_config_byte(agp_bridge->dev, INTEL_I845_AGPM, temp2 | (1 << 1));
 	/* clear any possible error conditions */
 	pci_write_config_word(agp_bridge->dev, INTEL_I845_ERRSTS, 0x001c);
-
-	intel_i830_setup_flush();
 	return 0;
 }
 
@@ -2072,7 +2186,6 @@ static const struct agp_bridge_driver intel_845_driver = {
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
-	.chipset_flush		= intel_i830_chipset_flush,
 };
 
 static const struct agp_bridge_driver intel_850_driver = {
@@ -2345,9 +2458,9 @@ static const struct intel_driver_description {
 		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_Q33_HB, PCI_DEVICE_ID_INTEL_Q33_IG, 0, "Q33",
 		NULL, &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB, PCI_DEVICE_ID_INTEL_PINEVIEW_M_IG, 0, "Pineview",
+	{ PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB, PCI_DEVICE_ID_INTEL_PINEVIEW_M_IG, 0, "GMA3150",
 		NULL, &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_PINEVIEW_HB, PCI_DEVICE_ID_INTEL_PINEVIEW_IG, 0, "Pineview",
+	{ PCI_DEVICE_ID_INTEL_PINEVIEW_HB, PCI_DEVICE_ID_INTEL_PINEVIEW_IG, 0, "GMA3150",
 		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_GM45_HB, PCI_DEVICE_ID_INTEL_GM45_IG, 0,
 	    "GM45", NULL, &intel_i965_driver },
@@ -2362,13 +2475,17 @@ static const struct intel_driver_description {
 	{ PCI_DEVICE_ID_INTEL_G41_HB, PCI_DEVICE_ID_INTEL_G41_IG, 0,
 	    "G41", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_D_IG, 0,
-	    "Ironlake/D", NULL, &intel_i965_driver },
+	    "HD Graphics", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG, 0,
-	    "Ironlake/M", NULL, &intel_i965_driver },
+	    "HD Graphics", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG, 0,
-	    "Ironlake/MA", NULL, &intel_i965_driver },
+	    "HD Graphics", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG, 0,
-	    "Ironlake/MC2", NULL, &intel_i965_driver },
+	    "HD Graphics", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_IG, 0,
+	    "Sandybridge", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_IG, 0,
+	    "Sandybridge", NULL, &intel_i965_driver },
 	{ 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -2378,7 +2495,7 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr = 0;
 	struct resource *r;
-	int i;
+	int i, err;
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 
@@ -2460,13 +2577,20 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 				&bridge->mode);
 	}
 
-	if (bridge->driver->mask_memory == intel_i965_mask_memory)
+	if (bridge->driver->mask_memory == intel_i965_mask_memory) {
 		if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(36)))
 			dev_err(&intel_private.pcidev->dev,
 				"set gfx device dma mask 36bit failed!\n");
+		else
+			pci_set_consistent_dma_mask(intel_private.pcidev,
+						    DMA_BIT_MASK(36));
+	}
 
 	pci_set_drvdata(pdev, bridge);
-	return agp_add_bridge(bridge);
+	err = agp_add_bridge(bridge);
+	if (!err)
+		intel_agp_enabled = 1;
+	return err;
 }
 
 static void __devexit agp_intel_remove(struct pci_dev *pdev)
@@ -2571,6 +2695,8 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB),
+	ID(PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB),
+	ID(PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB),
 	{ }
 };
 

@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <linux/xfrm.h>
 
 #include <net/addrconf.h>
@@ -1189,16 +1190,16 @@ static struct inet_protosw dccp_v6_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
-static int dccp_v6_init_net(struct net *net)
+static int __net_init dccp_v6_init_net(struct net *net)
 {
-	int err;
+	if (dccp_hashinfo.bhash == NULL)
+		return -ESOCKTNOSUPPORT;
 
-	err = inet_ctl_sock_create(&net->dccp.v6_ctl_sk, PF_INET6,
-				   SOCK_DCCP, IPPROTO_DCCP, net);
-	return err;
+	return inet_ctl_sock_create(&net->dccp.v6_ctl_sk, PF_INET6,
+				    SOCK_DCCP, IPPROTO_DCCP, net);
 }
 
-static void dccp_v6_exit_net(struct net *net)
+static void __net_exit dccp_v6_exit_net(struct net *net)
 {
 	inet_ctl_sock_destroy(net->dccp.v6_ctl_sk);
 }

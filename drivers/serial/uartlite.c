@@ -19,7 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <asm/io.h>
-#if defined(CONFIG_OF)
+#if defined(CONFIG_OF) && (defined(CONFIG_PPC32) || defined(CONFIG_MICROBLAZE))
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
@@ -394,7 +394,7 @@ static void ulite_console_write(struct console *co, const char *s,
 		spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static int __init ulite_console_setup(struct console *co, char *options)
+static int __devinit ulite_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
 	int baud = 9600;
@@ -581,7 +581,7 @@ static struct platform_driver ulite_platform_driver = {
 /* ---------------------------------------------------------------------
  * OF bus bindings
  */
-#if defined(CONFIG_OF)
+#if defined(CONFIG_OF) && (defined(CONFIG_PPC32) || defined(CONFIG_MICROBLAZE))
 static int __devinit
 ulite_of_probe(struct of_device *op, const struct of_device_id *match)
 {
@@ -631,11 +631,11 @@ static inline void __exit ulite_of_unregister(void)
 {
 	of_unregister_platform_driver(&ulite_of_driver);
 }
-#else /* CONFIG_OF */
-/* CONFIG_OF not enabled; do nothing helpers */
+#else /* CONFIG_OF && (CONFIG_PPC32 || CONFIG_MICROBLAZE) */
+/* Appropriate config not enabled; do nothing helpers */
 static inline int __init ulite_of_register(void) { return 0; }
 static inline void __exit ulite_of_unregister(void) { }
-#endif /* CONFIG_OF */
+#endif /* CONFIG_OF && (CONFIG_PPC32 || CONFIG_MICROBLAZE) */
 
 /* ---------------------------------------------------------------------
  * Module setup/teardown

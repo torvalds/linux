@@ -67,9 +67,10 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < rdev->num_crtc; i++)
 		rdev->irq.crtc_vblank_int[i] = false;
-	}
+	for (i = 0; i < 6; i++)
+		rdev->irq.hpd[i] = false;
 	radeon_irq_set(rdev);
 	/* Clear bits */
 	radeon_irq_process(rdev);
@@ -95,50 +96,51 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 	}
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < rdev->num_crtc; i++)
 		rdev->irq.crtc_vblank_int[i] = false;
-	}
+	for (i = 0; i < 6; i++)
+		rdev->irq.hpd[i] = false;
 	radeon_irq_set(rdev);
 }
 
 int radeon_irq_kms_init(struct radeon_device *rdev)
 {
 	int r = 0;
-	int num_crtc = 2;
 
-	if (rdev->flags & RADEON_SINGLE_CRTC)
-		num_crtc = 1;
 	spin_lock_init(&rdev->irq.sw_lock);
-	r = drm_vblank_init(rdev->ddev, num_crtc);
+	r = drm_vblank_init(rdev->ddev, rdev->num_crtc);
 	if (r) {
 		return r;
 	}
 	/* enable msi */
 	rdev->msi_enabled = 0;
-	/* MSIs don't seem to work on my rs780;
-	 * not sure about rs880 or other rs780s.
-	 * Needs more investigation.
+	/* MSIs don't seem to work reliably on all IGP
+	 * chips.  Disable MSI on them for now.
 	 */
 	if ((rdev->family >= CHIP_RV380) &&
-	    (rdev->family != CHIP_RS780) &&
-	    (rdev->family != CHIP_RS880)) {
+	    (!(rdev->flags & RADEON_IS_IGP))) {
 		int ret = pci_enable_msi(rdev->pdev);
 		if (!ret) {
 			rdev->msi_enabled = 1;
 			DRM_INFO("radeon: using MSI.\n");
 		}
 	}
-	drm_irq_install(rdev->ddev);
 	rdev->irq.installed = true;
+	r = drm_irq_install(rdev->ddev);
+	if (r) {
+		rdev->irq.installed = false;
+		return r;
+	}
 	DRM_INFO("radeon: irq initialized.\n");
 	return 0;
 }
 
 void radeon_irq_kms_fini(struct radeon_device *rdev)
 {
+	drm_vblank_cleanup(rdev->ddev);
 	if (rdev->irq.installed) {
-		rdev->irq.installed = false;
 		drm_irq_uninstall(rdev->ddev);
+		rdev->irq.installed = false;
 		if (rdev->msi_enabled)
 			pci_disable_msi(rdev->pdev);
 	}

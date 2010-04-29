@@ -25,6 +25,7 @@
 #include <linux/mfd/tmio.h>
 #include <linux/mfd/tc6393xb.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #define SCR_REVID	0x08		/* b Revision ID	*/
 #define SCR_ISR		0x50		/* b Interrupt Status	*/
@@ -136,10 +137,6 @@ static int tc6393xb_nand_enable(struct platform_device *nand)
 	return 0;
 }
 
-static struct tmio_mmc_data tc6393xb_mmc_data = {
-	.hclk = 24000000,
-};
-
 static struct resource __devinitdata tc6393xb_nand_resources[] = {
 	{
 		.start	= 0x1000,
@@ -162,11 +159,6 @@ static struct resource __devinitdata tc6393xb_mmc_resources[] = {
 	{
 		.start	= 0x800,
 		.end	= 0x9ff,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= 0x200,
-		.end	= 0x2ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -346,6 +338,50 @@ int tc6393xb_lcd_mode(struct platform_device *fb,
 }
 EXPORT_SYMBOL(tc6393xb_lcd_mode);
 
+static int tc6393xb_mmc_enable(struct platform_device *mmc)
+{
+	struct platform_device *dev = to_platform_device(mmc->dev.parent);
+	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
+
+	tmio_core_mmc_enable(tc6393xb->scr + 0x200, 0,
+		tc6393xb_mmc_resources[0].start & 0xfffe);
+
+	return 0;
+}
+
+static int tc6393xb_mmc_resume(struct platform_device *mmc)
+{
+	struct platform_device *dev = to_platform_device(mmc->dev.parent);
+	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
+
+	tmio_core_mmc_resume(tc6393xb->scr + 0x200, 0,
+		tc6393xb_mmc_resources[0].start & 0xfffe);
+
+	return 0;
+}
+
+static void tc6393xb_mmc_pwr(struct platform_device *mmc, int state)
+{
+	struct platform_device *dev = to_platform_device(mmc->dev.parent);
+	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
+
+	tmio_core_mmc_pwr(tc6393xb->scr + 0x200, 0, state);
+}
+
+static void tc6393xb_mmc_clk_div(struct platform_device *mmc, int state)
+{
+	struct platform_device *dev = to_platform_device(mmc->dev.parent);
+	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
+
+	tmio_core_mmc_clk_div(tc6393xb->scr + 0x200, 0, state);
+}
+
+static struct tmio_mmc_data tc6393xb_mmc_data = {
+	.hclk = 24000000,
+	.set_pwr = tc6393xb_mmc_pwr,
+	.set_clk_div = tc6393xb_mmc_clk_div,
+};
+
 static struct mfd_cell __devinitdata tc6393xb_cells[] = {
 	[TC6393XB_CELL_NAND] = {
 		.name = "tmio-nand",
@@ -355,6 +391,8 @@ static struct mfd_cell __devinitdata tc6393xb_cells[] = {
 	},
 	[TC6393XB_CELL_MMC] = {
 		.name = "tmio-mmc",
+		.enable = tc6393xb_mmc_enable,
+		.resume = tc6393xb_mmc_resume,
 		.driver_data = &tc6393xb_mmc_data,
 		.num_resources = ARRAY_SIZE(tc6393xb_mmc_resources),
 		.resources = tc6393xb_mmc_resources,
@@ -610,7 +648,7 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 	if (ret)
 		goto err_request_scr;
 
-	tc6393xb->scr = ioremap(rscr->start, rscr->end - rscr->start + 1);
+	tc6393xb->scr = ioremap(rscr->start, resource_size(rscr));
 	if (!tc6393xb->scr) {
 		ret = -ENOMEM;
 		goto err_ioremap;
@@ -836,3 +874,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Ian Molton, Dmitry Baryshkov and Dirk Opfer");
 MODULE_DESCRIPTION("tc6393xb Toshiba Mobile IO Controller");
 MODULE_ALIAS("platform:tc6393xb");
+

@@ -441,6 +441,7 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
 	int err;
+	struct aaci *aaci = substream->private_data;
 
 	aaci_pcm_hw_free(substream);
 	if (aacirun->pcm_open) {
@@ -560,7 +561,6 @@ static int aaci_pcm_open(struct snd_pcm_substream *substream)
 static int aaci_pcm_playback_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
-	struct aaci *aaci = substream->private_data;
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
 	unsigned int channels = params_channels(params);
 	int ret;
@@ -659,7 +659,6 @@ static struct snd_pcm_ops aaci_playback_ops = {
 static int aaci_pcm_capture_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
-	struct aaci *aaci = substream->private_data;
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
 	int ret;
 
@@ -864,7 +863,6 @@ static int __devinit aaci_probe_ac97(struct aaci *aaci)
 	struct snd_ac97 *ac97;
 	int ret;
 
-	writel(0, aaci->base + AC97_POWERDOWN);
 	/*
 	 * Assert AACIRESET for 2us
 	 */
@@ -1048,7 +1046,11 @@ static int __devinit aaci_probe(struct amba_device *dev, struct amba_id *id)
 
 	writel(0x1fff, aaci->base + AACI_INTCLR);
 	writel(aaci->maincr, aaci->base + AACI_MAINCR);
-
+	/*
+	 * Fix: ac97 read back fail errors by reading
+	 * from any arbitrary aaci register.
+	 */
+	readl(aaci->base + AACI_CSCH1);
 	ret = aaci_probe_ac97(aaci);
 	if (ret)
 		goto out;

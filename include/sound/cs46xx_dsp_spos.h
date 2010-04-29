@@ -118,9 +118,11 @@ struct dsp_scb_descriptor {
 
 	struct snd_info_entry *proc_info;
 	int ref_count;
-	spinlock_t lock;
 
-	int deleted;
+	u16 volume[2];
+	unsigned int deleted :1;
+	unsigned int updated :1;
+	unsigned int volume_set :1;
 };
 
 struct dsp_task_descriptor {

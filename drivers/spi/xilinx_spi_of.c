@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
@@ -99,7 +100,7 @@ static int __exit xilinx_spi_of_remove(struct of_device *op)
 	return xilinx_spi_remove(op);
 }
 
-static struct of_device_id xilinx_spi_of_match[] = {
+static const struct of_device_id xilinx_spi_of_match[] = {
 	{ .compatible = "xlnx,xps-spi-2.00.a", },
 	{ .compatible = "xlnx,xps-spi-2.00.b", },
 	{}

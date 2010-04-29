@@ -57,12 +57,20 @@ void gigaset_isdn_stop(struct cardstate *cs)
 {
 }
 
-int gigaset_isdn_register(struct cardstate *cs, const char *isdnid)
+int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 {
-	pr_info("no ISDN subsystem interface\n");
 	return 1;
 }
 
-void gigaset_isdn_unregister(struct cardstate *cs)
+void gigaset_isdn_unregdev(struct cardstate *cs)
+{
+}
+
+void gigaset_isdn_regdrv(void)
+{
+	pr_info("no ISDN subsystem interface\n");
+}
+
+void gigaset_isdn_unregdrv(void)
 {
 }

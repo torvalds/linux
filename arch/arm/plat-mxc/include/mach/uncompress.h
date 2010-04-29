@@ -1,8 +1,6 @@
 /*
  *  arch/arm/plat-mxc/include/mach/uncompress.h
  *
- *
- *
  *  Copyright (C) 1999 ARM Limited
  *  Copyright (C) Shane Nay (shane@minirl.com)
  *
@@ -25,7 +23,6 @@
 
 #define __MXC_BOOT_UNCOMPRESS
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
 static unsigned long uart_base;
@@ -60,13 +57,16 @@ static void putc(int ch)
 	UART(TXR) = ch;
 }
 
-#define flush() do { } while (0)
+static inline void flush(void)
+{
+}
 
 #define MX1_UART1_BASE_ADDR	0x00206000
 #define MX25_UART1_BASE_ADDR	0x43f90000
 #define MX2X_UART1_BASE_ADDR	0x1000a000
 #define MX3X_UART1_BASE_ADDR	0x43F90000
 #define MX3X_UART2_BASE_ADDR	0x43F94000
+#define MX51_UART1_BASE_ADDR	0x73fbc000
 
 static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 {
@@ -101,6 +101,9 @@ static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 		break;
 	case MACH_TYPE_MAGX_ZN5:
 		uart_base = MX3X_UART2_BASE_ADDR;
+		break;
+	case MACH_TYPE_MX51_BABBAGE:
+		uart_base = MX51_UART1_BASE_ADDR;
 		break;
 	default:
 		break;

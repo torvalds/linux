@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -185,7 +184,7 @@ EXPORT_SYMBOL(of_find_device_by_node);
 static int of_dev_phandle_match(struct device *dev, void *data)
 {
 	phandle *ph = data;
-	return to_of_device(dev)->node->linux_phandle == *ph;
+	return to_of_device(dev)->node->phandle == *ph;
 }
 
 struct of_device *of_find_device_by_phandle(phandle ph)

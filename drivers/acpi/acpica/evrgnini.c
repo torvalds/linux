@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -168,7 +168,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 				void *handler_context, void **region_context)
 {
 	acpi_status status = AE_OK;
-	acpi_integer pci_value;
+	u64 pci_value;
 	struct acpi_pci_id *pci_id = *region_context;
 	union acpi_operand_object *handler_obj;
 	struct acpi_namespace_node *parent_node;

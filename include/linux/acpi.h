@@ -80,7 +80,7 @@ char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
 void __acpi_unmap_table(char *map, unsigned long size);
 int early_acpi_boot_init(void);
 int acpi_boot_init (void);
-int acpi_boot_table_init (void);
+void acpi_boot_table_init (void);
 int acpi_mps_check (void);
 int acpi_numa_init (void);
 
@@ -251,6 +251,7 @@ int acpi_check_mem_region(resource_size_t start, resource_size_t n,
 void __init acpi_no_s4_hw_signature(void);
 void __init acpi_old_suspend_ordering(void);
 void __init acpi_s4_no_nvs(void);
+void __init acpi_set_sci_en_on_resume(void);
 #endif /* CONFIG_PM_SLEEP */
 
 struct acpi_osc_context {
@@ -320,9 +321,9 @@ static inline int acpi_boot_init(void)
 	return 0;
 }
 
-static inline int acpi_boot_table_init(void)
+static inline void acpi_boot_table_init(void)
 {
-	return 0;
+	return;
 }
 
 static inline int acpi_mps_check(void)
