@@ -961,7 +961,8 @@ static int iwlagn_txq_ctx_activate_free(struct iwl_priv *priv)
 	return -1;
 }
 
-int iwlagn_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
+int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
+			const u8 *ra, u16 tid, u16 *ssn)
 {
 	int sta_id;
 	int tx_fifo;
@@ -1011,7 +1012,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 	if (tid_data->tfds_in_queue == 0) {
 		IWL_DEBUG_HT(priv, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
-		ieee80211_start_tx_ba_cb_irqsafe(priv->vif, ra, tid);
+		ieee80211_start_tx_ba_cb_irqsafe(vif, ra, tid);
 	} else {
 		IWL_DEBUG_HT(priv, "HW queue is NOT empty: %d packets in HW queue\n",
 			     tid_data->tfds_in_queue);
@@ -1020,7 +1021,8 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 	return ret;
 }
 
-int iwlagn_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
+int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
+		       const u8 *ra, u16 tid)
 {
 	int tx_fifo_id, txq_id, sta_id, ssn = -1;
 	struct iwl_tid_data *tid_data;
@@ -1046,7 +1048,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 	if (priv->stations[sta_id].tid[tid].agg.state ==
 				IWL_EMPTYING_HW_QUEUE_ADDBA) {
 		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
-		ieee80211_stop_tx_ba_cb_irqsafe(priv->vif, ra, tid);
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, ra, tid);
 		priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
 		return 0;
 	}
@@ -1083,7 +1085,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 						   tx_fifo_id);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	ieee80211_stop_tx_ba_cb_irqsafe(priv->vif, ra, tid);
+	ieee80211_stop_tx_ba_cb_irqsafe(vif, ra, tid);
 
 	return 0;
 }
