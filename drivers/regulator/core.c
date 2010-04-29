@@ -944,8 +944,13 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
 		has_dev = 0;
 
 	list_for_each_entry(node, &regulator_map_list, list) {
-		if (consumer_dev_name != node->dev_name)
+		if (node->dev_name && consumer_dev_name) {
+			if (strcmp(node->dev_name, consumer_dev_name) != 0)
+				continue;
+		} else if (node->dev_name || consumer_dev_name) {
 			continue;
+		}
+
 		if (strcmp(node->supply, supply) != 0)
 			continue;
 
