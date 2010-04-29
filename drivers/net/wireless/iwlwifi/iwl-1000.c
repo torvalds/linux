@@ -212,7 +212,6 @@ static struct iwl_lib_ops iwl1000_lib = {
 		.temperature = iwlagn_temperature,
 		.set_ct_kill = iwl1000_set_ct_threshold,
 	 },
-	.add_bcast_station = iwl_add_bcast_station,
 	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,

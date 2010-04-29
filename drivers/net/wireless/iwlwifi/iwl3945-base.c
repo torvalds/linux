@@ -2583,7 +2583,8 @@ static void __iwl3945_down(struct iwl_priv *priv)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	/* Station information will now be cleared in device */
-	iwl_clear_ucode_stations(priv, true);
+	iwl_clear_ucode_stations(priv);
+	iwl_dealloc_bcast_station(priv);
 
 	/* Unblock any waiting calls */
 	wake_up_interruptible_all(&priv->wait_command_queue);
@@ -2663,6 +2664,10 @@ static void iwl3945_down(struct iwl_priv *priv)
 static int __iwl3945_up(struct iwl_priv *priv)
 {
 	int rc, i;
+
+	rc = iwl_alloc_bcast_station(priv, false);
+	if (rc)
+		return rc;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
@@ -3302,7 +3307,6 @@ void iwl3945_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwlcore_commit_rxon(priv);
-		iwl3945_add_bcast_station(priv);
 	}
 	iwl3945_send_beacon_cmd(priv);
 

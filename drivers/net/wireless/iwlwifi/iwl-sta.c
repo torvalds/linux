@@ -656,63 +656,27 @@ out:
 EXPORT_SYMBOL_GPL(iwl_remove_station);
 
 /**
- * iwl_clear_ucode_stations() - clear entire station table driver and/or ucode
- * @priv:
- * @force: If set then the uCode station table needs to be cleared here. If
- *         not set then the uCode station table has already been cleared,
- *         for example after sending it a RXON command without ASSOC bit
- *         set, and we just need to change driver state here.
+ * iwl_clear_ucode_stations - clear ucode station table bits
+ *
+ * This function clears all the bits in the driver indicating
+ * which stations are active in the ucode. Call when something
+ * other than explicit station management would cause this in
+ * the ucode, e.g. unassociated RXON.
  */
-void iwl_clear_ucode_stations(struct iwl_priv *priv, bool force)
+void iwl_clear_ucode_stations(struct iwl_priv *priv)
 {
 	int i;
 	unsigned long flags_spin;
 	bool cleared = false;
 
-	IWL_DEBUG_INFO(priv, "Clearing ucode stations in driver%s\n",
-			force ? " and ucode" : "");
-
-	if (force) {
-		if (!iwl_is_ready(priv)) {
-			/*
-			 * If device is not ready at this point the station
-			 * table is likely already empty (uCode not ready
-			 * to receive station requests) or will soon be
-			 * due to interface going down.
-			 */
-			IWL_DEBUG_INFO(priv, "Unable to remove stations from device - device not ready\n");
-		} else {
-			iwl_send_cmd_pdu_async(priv, REPLY_REMOVE_ALL_STA, 0, NULL, NULL);
-		}
-	}
+	IWL_DEBUG_INFO(priv, "Clearing ucode stations in driver\n");
 
 	spin_lock_irqsave(&priv->sta_lock, flags_spin);
-	if (force) {
-		IWL_DEBUG_INFO(priv, "Clearing all station information in driver\n");
-		/*
-		 * The station entry contains a link to the LQ command. For
-		 * all stations managed by mac80211 this memory will be
-		 * managed by it also. For local stations (broadcast and
-		 * bssid station when in adhoc mode) we need to maintain
-		 * this lq command separately. This memory is created when
-		 * these stations are added.
-		 */
-		for (i = 0; i < priv->hw_params.max_stations; i++) {
-			if (priv->stations[i].used & IWL_STA_LOCAL) {
-				kfree(priv->stations[i].lq);
-				priv->stations[i].lq = NULL;
-			}
-		}
-		priv->num_stations = 0;
-		memset(priv->stations, 0, sizeof(priv->stations));
-		cleared = true;
-	} else {
-		for (i = 0; i < priv->hw_params.max_stations; i++) {
-			if (priv->stations[i].used & IWL_STA_UCODE_ACTIVE) {
-				IWL_DEBUG_INFO(priv, "Clearing ucode active for station %d\n", i);
-				priv->stations[i].used &= ~IWL_STA_UCODE_ACTIVE;
-				cleared = true;
-			}
+	for (i = 0; i < priv->hw_params.max_stations; i++) {
+		if (priv->stations[i].used & IWL_STA_UCODE_ACTIVE) {
+			IWL_DEBUG_INFO(priv, "Clearing ucode active for station %d\n", i);
+			priv->stations[i].used &= ~IWL_STA_UCODE_ACTIVE;
+			cleared = true;
 		}
 	}
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
@@ -1251,34 +1215,67 @@ int iwl_send_lq_cmd(struct iwl_priv *priv,
 EXPORT_SYMBOL(iwl_send_lq_cmd);
 
 /**
- * iwl_add_bcast_station - add broadcast station into station table.
+ * iwl_alloc_bcast_station - add broadcast station into driver's station table.
+ *
+ * This adds the broadcast station into the driver's station table
+ * and marks it driver active, so that it will be restored to the
+ * device at the next best time.
  */
-int iwl_add_bcast_station(struct iwl_priv *priv)
+int iwl_alloc_bcast_station(struct iwl_priv *priv, bool init_lq)
 {
-	IWL_DEBUG_INFO(priv, "Adding broadcast station to station table\n");
-	return iwl_add_local_station(priv, iwl_bcast_addr, true);
-}
-EXPORT_SYMBOL(iwl_add_bcast_station);
+	struct iwl_link_quality_cmd *link_cmd;
+	unsigned long flags;
+	u8 sta_id;
 
-/**
- * iwl3945_add_bcast_station - add broadcast station into station table.
- */
-int iwl3945_add_bcast_station(struct iwl_priv *priv)
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	sta_id = iwl_prep_station(priv, iwl_bcast_addr, false, NULL);
+	if (sta_id == IWL_INVALID_STATION) {
+		IWL_ERR(priv, "Unable to prepare broadcast station\n");
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+		return -EINVAL;
+	}
+
+	priv->stations[sta_id].used |= IWL_STA_DRIVER_ACTIVE;
+	priv->stations[sta_id].used |= IWL_STA_BCAST;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	if (init_lq) {
+		link_cmd = iwl_sta_alloc_lq(priv, sta_id);
+		if (!link_cmd) {
+			IWL_ERR(priv,
+				"Unable to initialize rate scaling for bcast station.\n");
+			return -ENOMEM;
+		}
+
+		spin_lock_irqsave(&priv->sta_lock, flags);
+		priv->stations[sta_id].lq = link_cmd;
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iwl_alloc_bcast_station);
+
+void iwl_dealloc_bcast_station(struct iwl_priv *priv)
 {
-	int ret;
+	unsigned long flags;
+	int i;
 
-	IWL_DEBUG_INFO(priv, "Adding broadcast station to station table\n");
-	ret = iwl_add_local_station(priv, iwl_bcast_addr, false);
-	/*
-	 * It is assumed that when station is added more initialization
-	 * needs to be done, but for 3945 it is not the case and we can
-	 * just release station table access right here.
-	 */
-	priv->stations[priv->hw_params.bcast_sta_id].used &= ~IWL_STA_UCODE_INPROGRESS;
-	return ret;
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	for (i = 0; i < priv->hw_params.max_stations; i++) {
+		if (!(priv->stations[i].used & IWL_STA_BCAST))
+			continue;
 
+		priv->stations[i].used &= ~IWL_STA_UCODE_ACTIVE;
+		priv->num_stations--;
+		BUG_ON(priv->num_stations < 0);
+		kfree(priv->stations[i].lq);
+		priv->stations[i].lq = NULL;
+	}
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
-EXPORT_SYMBOL(iwl3945_add_bcast_station);
+EXPORT_SYMBOL_GPL(iwl_dealloc_bcast_station);
 
 /**
  * iwl_get_sta_id - Find station's index within station table

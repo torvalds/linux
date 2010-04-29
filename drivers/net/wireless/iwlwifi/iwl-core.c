@@ -2042,11 +2042,6 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	if (err)
 		goto out_err;
 
-	/* Add the broadcast address so we can send broadcast frames */
-	err = priv->cfg->ops->lib->add_bcast_station(priv);
-	if (err)
-		goto out_err;
-
 	goto out;
 
  out_err:
@@ -2068,8 +2063,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
 	mutex_lock(&priv->mutex);
-
-	iwl_clear_ucode_stations(priv, true);
 
 	if (iwl_is_ready_rf(priv)) {
 		iwl_scan_cancel_timeout(priv, 100);

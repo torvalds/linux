@@ -191,7 +191,6 @@ struct iwl_lib_ops {
 	/* temperature */
 	struct iwl_temp_ops temp_ops;
 	/* station management */
-	int (*add_bcast_station)(struct iwl_priv *priv);
 	int (*manage_ibss_station)(struct iwl_priv *priv,
 				   struct ieee80211_vif *vif, bool add);
 	/* recover from tx queue stall */

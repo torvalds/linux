@@ -1992,7 +1992,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 				  "configuration (%d).\n", rc);
 			return rc;
 		}
-		iwl_clear_ucode_stations(priv, false);
+		iwl_clear_ucode_stations(priv);
 		iwl_restore_stations(priv);
 	}
 
@@ -2025,7 +2025,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
 
 	if (!new_assoc) {
-		iwl_clear_ucode_stations(priv, false);
+		iwl_clear_ucode_stations(priv);
 		iwl_restore_stations(priv);
 	}
 
@@ -2853,7 +2853,6 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.isr = iwl_isr_legacy,
 	.config_ap = iwl3945_config_ap,
 	.manage_ibss_station = iwl3945_manage_ibss_station,
-	.add_bcast_station = iwl3945_add_bcast_station,
 	.check_plcp_health = iwl3945_good_plcp_health,
 
 	.debugfs_ops = {
