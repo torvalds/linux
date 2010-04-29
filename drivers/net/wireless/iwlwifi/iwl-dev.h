@@ -1210,7 +1210,7 @@ struct iwl_priv {
 #endif
 
 	/* context information */
-	u8 bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN]; /* used only on 3945 but filled by core */
 	u8 mac_addr[ETH_ALEN];
 
 	/*station table variables */
