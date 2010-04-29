@@ -582,7 +582,7 @@ static struct resource imx_wdt_resources[] = {
 };
 
 struct platform_device imx_wdt_device0 = {
-	.name           = "imx-wdt",
+	.name           = "imx2-wdt",
 	.id             = 0,
 	.num_resources  = ARRAY_SIZE(imx_wdt_resources),
 	.resource       = imx_wdt_resources,
