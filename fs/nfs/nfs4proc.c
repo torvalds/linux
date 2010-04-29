@@ -5218,9 +5218,12 @@ static int nfs41_proc_reclaim_complete(struct nfs_client *clp)
 	msg.rpc_resp = &calldata->res;
 	task_setup_data.callback_data = calldata;
 	task = rpc_run_task(&task_setup_data);
-	if (IS_ERR(task))
+	if (IS_ERR(task)) {
 		status = PTR_ERR(task);
+		goto out;
+	}
 	rpc_put_task(task);
+	return 0;
 out:
 	dprintk("<-- %s status=%d\n", __func__, status);
 	return status;

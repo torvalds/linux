@@ -209,6 +209,7 @@ struct nfs_inode {
 #define NFS_INO_FLUSHING	(4)		/* inode is flushing out data */
 #define NFS_INO_FSCACHE		(5)		/* inode can be cached by FS-Cache */
 #define NFS_INO_FSCACHE_LOCK	(6)		/* FS-Cache cookie management lock */
+#define NFS_INO_COMMIT		(7)		/* inode is committing unstable writes */
 
 static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {

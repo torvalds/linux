@@ -1052,7 +1052,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	struct inode *dir;
 	int openflags, ret = 0;
 
-	if (!is_atomic_open(nd))
+	if (!is_atomic_open(nd) || d_mountpoint(dentry))
 		goto no_open;
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
