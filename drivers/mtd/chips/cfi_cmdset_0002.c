@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/reboot.h>
 #include <linux/mtd/compatmac.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/mtd.h>
@@ -56,6 +57,7 @@ static int cfi_amdstd_erase_varsize(struct mtd_info *, struct erase_info *);
 static void cfi_amdstd_sync (struct mtd_info *);
 static int cfi_amdstd_suspend (struct mtd_info *);
 static void cfi_amdstd_resume (struct mtd_info *);
+static int cfi_amdstd_reboot(struct notifier_block *, unsigned long, void *);
 static int cfi_amdstd_secsi_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 
 static void cfi_amdstd_destroy(struct mtd_info *);
@@ -351,6 +353,8 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	mtd->name    = map->name;
 	mtd->writesize = 1;
 
+	mtd->reboot_notifier.notifier_call = cfi_amdstd_reboot;
+
 	if (cfi->cfi_mode==CFI_MODE_CFI){
 		unsigned char bootloc;
 		/*
@@ -487,6 +491,7 @@ static struct mtd_info *cfi_amdstd_setup(struct mtd_info *mtd)
 #endif
 
 	__module_get(THIS_MODULE);
+	register_reboot_notifier(&mtd->reboot_notifier);
 	return mtd;
 
  setup_err:
@@ -627,6 +632,10 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 		chip->oldstate = chip->state;
 		chip->state = FL_READY;
 		return 0;
+
+	case FL_SHUTDOWN:
+		/* The machine is rebooting */
+		return -EIO;
 
 	case FL_POINT:
 		/* Only if there's no operation suspended... */
@@ -1918,11 +1927,58 @@ static void cfi_amdstd_resume(struct mtd_info *mtd)
 	}
 }
 
+
+/*
+ * Ensure that the flash device is put back into read array mode before
+ * unloading the driver or rebooting.  On some systems, rebooting while
+ * the flash is in query/program/erase mode will prevent the CPU from
+ * fetching the bootloader code, requiring a hard reset or power cycle.
+ */
+static int cfi_amdstd_reset(struct mtd_info *mtd)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	int i, ret;
+	struct flchip *chip;
+
+	for (i = 0; i < cfi->numchips; i++) {
+
+		chip = &cfi->chips[i];
+
+		mutex_lock(&chip->mutex);
+
+		ret = get_chip(map, chip, chip->start, FL_SHUTDOWN);
+		if (!ret) {
+			map_write(map, CMD(0xF0), chip->start);
+			chip->state = FL_SHUTDOWN;
+			put_chip(map, chip, chip->start);
+		}
+
+		mutex_unlock(&chip->mutex);
+	}
+
+	return 0;
+}
+
+
+static int cfi_amdstd_reboot(struct notifier_block *nb, unsigned long val,
+			       void *v)
+{
+	struct mtd_info *mtd;
+
+	mtd = container_of(nb, struct mtd_info, reboot_notifier);
+	cfi_amdstd_reset(mtd);
+	return NOTIFY_DONE;
+}
+
+
 static void cfi_amdstd_destroy(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
 
+	cfi_amdstd_reset(mtd);
+	unregister_reboot_notifier(&mtd->reboot_notifier);
 	kfree(cfi->cmdset_priv);
 	kfree(cfi->cfiq);
 	kfree(cfi);
