@@ -390,7 +390,7 @@ static int memrar_init_rar_resources(char const *devname)
 			(unsigned long) low,
 			(unsigned long) high);
 
-		pr_info("%s: BRAR[%d] size = %u KiB\n",
+		pr_info("%s: BRAR[%d] size = %zu KiB\n",
 			devname,
 			z,
 			rar->allocator->capacity / 1024);
