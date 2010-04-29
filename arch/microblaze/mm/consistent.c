@@ -229,7 +229,7 @@ void consistent_sync(void *vaddr, size_t size, int direction)
 	case PCI_DMA_NONE:
 		BUG();
 	case PCI_DMA_FROMDEVICE:	/* invalidate only */
-		flush_dcache_range(start, end);
+		invalidate_dcache_range(start, end);
 		break;
 	case PCI_DMA_TODEVICE:		/* writeback only */
 		flush_dcache_range(start, end);
