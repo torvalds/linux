@@ -910,6 +910,18 @@ This ioctl is required on Intel-based hosts.  This is needed on Intel hardware
 because of a quirk in the virtualization implementation (see the internals
 documentation when it pops into existence).
 
+4.40 KVM_SET_BOOT_CPU_ID
+
+Capability: KVM_CAP_SET_BOOT_CPU_ID
+Architectures: x86, ia64
+Type: vm ioctl
+Parameters: unsigned long vcpu_id
+Returns: 0 on success, -1 on error
+
+Define which vcpu is the Bootstrap Processor (BSP).  Values are the same
+as the vcpu id in KVM_CREATE_VCPU.  If this ioctl is not called, the default
+is vcpu 0.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by
