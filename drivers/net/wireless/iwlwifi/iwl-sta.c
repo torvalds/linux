@@ -407,13 +407,12 @@ int iwl_add_station_common(struct iwl_priv *priv, const u8 *addr,
 }
 EXPORT_SYMBOL(iwl_add_station_common);
 
-static struct iwl_link_quality_cmd *iwl_sta_init_lq(struct iwl_priv *priv,
-						    u8 sta_id)
+static struct iwl_link_quality_cmd *iwl_sta_alloc_lq(struct iwl_priv *priv,
+						     u8 sta_id)
 {
 	int i, r;
 	struct iwl_link_quality_cmd *link_cmd;
 	u32 rate_flags;
-	int ret = 0;
 
 	link_cmd = kzalloc(sizeof(struct iwl_link_quality_cmd), GFP_KERNEL);
 	if (!link_cmd) {
@@ -459,10 +458,6 @@ static struct iwl_link_quality_cmd *iwl_sta_init_lq(struct iwl_priv *priv,
 
 	link_cmd->sta_id = sta_id;
 
-	ret = iwl_send_lq_cmd(priv, link_cmd, CMD_SYNC, true);
-	if (ret)
-		IWL_ERR(priv, "Link quality command failed (%d)\n", ret);
-
 	return link_cmd;
 }
 
@@ -493,12 +488,17 @@ int iwl_add_local_station(struct iwl_priv *priv, const u8 *addr, bool init_rs)
 
 	if (init_rs) {
 		/* Set up default rate scaling table in device's station table */
-		link_cmd = iwl_sta_init_lq(priv, sta_id);
+		link_cmd = iwl_sta_alloc_lq(priv, sta_id);
 		if (!link_cmd) {
 			IWL_ERR(priv, "Unable to initialize rate scaling for station %pM.\n",
 				addr);
 			return -ENOMEM;
 		}
+
+		ret = iwl_send_lq_cmd(priv, link_cmd, CMD_SYNC, true);
+		if (ret)
+			IWL_ERR(priv, "Link quality command failed (%d)\n", ret);
+
 		spin_lock_irqsave(&priv->sta_lock, flags);
 		priv->stations[sta_id].lq = link_cmd;
 		spin_unlock_irqrestore(&priv->sta_lock, flags);
