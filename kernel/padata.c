@@ -28,7 +28,7 @@
 #include <linux/rcupdate.h>
 
 #define MAX_SEQ_NR INT_MAX - NR_CPUS
-#define MAX_OBJ_NUM 10000 * NR_CPUS
+#define MAX_OBJ_NUM 1000
 
 static int padata_index_to_cpu(struct parallel_data *pd, int cpu_index)
 {
