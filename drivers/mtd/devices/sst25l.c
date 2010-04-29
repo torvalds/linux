@@ -410,17 +410,6 @@ static int __init sst25l_probe(struct spi_device *spi)
 	      flash->mtd.erasesize, flash->mtd.erasesize / 1024,
 	      flash->mtd.numeraseregions);
 
-	if (flash->mtd.numeraseregions)
-		for (i = 0; i < flash->mtd.numeraseregions; i++)
-			DEBUG(MTD_DEBUG_LEVEL2,
-			      "mtd.eraseregions[%d] = { .offset = 0x%llx, "
-			      ".erasesize = 0x%.8x (%uKiB), "
-			      ".numblocks = %d }\n",
-			      i, (long long)flash->mtd.eraseregions[i].offset,
-			      flash->mtd.eraseregions[i].erasesize,
-			      flash->mtd.eraseregions[i].erasesize / 1024,
-			      flash->mtd.eraseregions[i].numblocks);
-
 	if (mtd_has_partitions()) {
 		struct mtd_partition *parts = NULL;
 		int nr_parts = 0;
