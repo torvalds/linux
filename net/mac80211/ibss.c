@@ -91,6 +91,12 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	if (memcmp(ifibss->bssid, bssid, ETH_ALEN))
 		sta_info_flush(sdata->local, sdata);
 
+	/* if merging, indicate to driver that we leave the old IBSS */
+	if (sdata->vif.bss_conf.ibss_joined) {
+		sdata->vif.bss_conf.ibss_joined = false;
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IBSS);
+	}
+
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
 
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
