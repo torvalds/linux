@@ -1741,6 +1741,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	/* We have our copies now, allow OS release its copies */
 	release_firmware(ucode_raw);
+	complete(&priv->firmware_loading_complete);
 	return;
 
  try_again:
@@ -1754,6 +1755,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	IWL_ERR(priv, "failed to allocate pci memory\n");
 	iwl_dealloc_ucode_pci(priv);
  out_unbind:
+	complete(&priv->firmware_loading_complete);
 	device_release_driver(&priv->pci_dev->dev);
 	release_firmware(ucode_raw);
 }
@@ -3671,6 +3673,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	iwl_power_initialize(priv);
 	iwl_tt_initialize(priv);
 
+	init_completion(&priv->firmware_loading_complete);
+
 	err = iwl_request_firmware(priv, true);
 	if (err)
 		goto out_remove_sysfs;
@@ -3710,6 +3714,8 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 
 	if (!priv)
 		return;
+
+	wait_for_completion(&priv->firmware_loading_complete);
 
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
 

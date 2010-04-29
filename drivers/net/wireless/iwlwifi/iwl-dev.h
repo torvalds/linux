@@ -1304,6 +1304,8 @@ struct iwl_priv {
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;
 
+	struct completion firmware_loading_complete;
+
 	/*For 3945 only*/
 	struct delayed_work thermal_periodic;
 	struct delayed_work rfkill_poll;
