@@ -570,6 +570,7 @@ void padata_stop(struct padata_instance *pinst)
 }
 EXPORT_SYMBOL(padata_stop);
 
+#ifdef CONFIG_HOTPLUG_CPU
 static int padata_cpu_callback(struct notifier_block *nfb,
 			       unsigned long action, void *hcpu)
 {
@@ -621,6 +622,7 @@ static int padata_cpu_callback(struct notifier_block *nfb,
 
 	return NOTIFY_OK;
 }
+#endif
 
 /*
  * padata_alloc - allocate and initialize a padata instance
@@ -631,7 +633,6 @@ static int padata_cpu_callback(struct notifier_block *nfb,
 struct padata_instance *padata_alloc(const struct cpumask *cpumask,
 				     struct workqueue_struct *wq)
 {
-	int err;
 	struct padata_instance *pinst;
 	struct parallel_data *pd;
 
@@ -654,18 +655,16 @@ struct padata_instance *padata_alloc(const struct cpumask *cpumask,
 
 	pinst->flags = 0;
 
+#ifdef CONFIG_HOTPLUG_CPU
 	pinst->cpu_notifier.notifier_call = padata_cpu_callback;
 	pinst->cpu_notifier.priority = 0;
-	err = register_hotcpu_notifier(&pinst->cpu_notifier);
-	if (err)
-		goto err_free_cpumask;
+	register_hotcpu_notifier(&pinst->cpu_notifier);
+#endif
 
 	mutex_init(&pinst->lock);
 
 	return pinst;
 
-err_free_cpumask:
-	free_cpumask_var(pinst->cpumask);
 err_free_pd:
 	padata_free_pd(pd);
 err_free_inst:
@@ -689,7 +688,9 @@ void padata_free(struct padata_instance *pinst)
 	while (atomic_read(&pinst->pd->refcnt) != 0)
 		yield();
 
+#ifdef CONFIG_HOTPLUG_CPU
 	unregister_hotcpu_notifier(&pinst->cpu_notifier);
+#endif
 	padata_free_pd(pinst->pd);
 	free_cpumask_var(pinst->cpumask);
 	kfree(pinst);
