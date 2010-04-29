@@ -1504,16 +1504,17 @@ intel_analog_is_connected(struct drm_device *dev)
 }
 
 enum drm_connector_status
-intel_sdvo_hdmi_sink_detect(struct drm_connector *connector, u16 response)
+intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_sdvo_priv *sdvo_priv = intel_encoder->dev_priv;
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct intel_sdvo_connector *sdvo_connector = intel_connector->dev_priv;
 	enum drm_connector_status status = connector_status_connected;
 	struct edid *edid = NULL;
 
-	edid = drm_get_edid(connector,
-			    intel_encoder->ddc_bus);
+	edid = drm_get_edid(connector, intel_encoder->ddc_bus);
 
 	/* This is only applied to SDVO cards with multiple outputs */
 	if (edid == NULL && intel_sdvo_multifunc_encoder(intel_encoder)) {
@@ -1526,8 +1527,7 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector, u16 response)
 		 */
 		while(temp_ddc > 1) {
 			sdvo_priv->ddc_bus = temp_ddc;
-			edid = drm_get_edid(connector,
-				intel_encoder->ddc_bus);
+			edid = drm_get_edid(connector, intel_encoder->ddc_bus);
 			if (edid) {
 				/*
 				 * When we can get the EDID, maybe it is the
@@ -1544,28 +1544,25 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector, u16 response)
 	/* when there is no edid and no monitor is connected with VGA
 	 * port, try to use the CRT ddc to read the EDID for DVI-connector
 	 */
-	if (edid == NULL &&
-	    sdvo_priv->analog_ddc_bus &&
+	if (edid == NULL && sdvo_priv->analog_ddc_bus &&
 	    !intel_analog_is_connected(connector->dev))
-		edid = drm_get_edid(connector,
-				    sdvo_priv->analog_ddc_bus);
+		edid = drm_get_edid(connector, sdvo_priv->analog_ddc_bus);
+
 	if (edid != NULL) {
-		/* Don't report the output as connected if it's a DVI-I
-		 * connector with a non-digital EDID coming out.
-		 */
-		if (response & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1)) {
-			if (edid->input & DRM_EDID_INPUT_DIGITAL)
-				sdvo_priv->is_hdmi =
-					drm_detect_hdmi_monitor(edid);
-			else
-				status = connector_status_disconnected;
-		}
+		bool is_digital = !!(edid->input & DRM_EDID_INPUT_DIGITAL);
+		bool need_digital = !!(sdvo_connector->output_flag & SDVO_TMDS_MASK);
 
-		kfree(edid);
+		/* DDC bus is shared, match EDID to connector type */
+		if (is_digital && need_digital)
+			sdvo_priv->is_hdmi = drm_detect_hdmi_monitor(edid);
+		else if (is_digital != need_digital)
+			status = connector_status_disconnected;
+
 		connector->display_info.raw_edid = NULL;
-
-	} else if (response & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
+	} else
 		status = connector_status_disconnected;
+	
+	kfree(edid);
 
 	return status;
 }
@@ -1601,8 +1598,8 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 
 	if ((sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;
-	else if (response & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
-		ret = intel_sdvo_hdmi_sink_detect(connector, response);
+	else if (response & SDVO_TMDS_MASK)
+		ret = intel_sdvo_hdmi_sink_detect(connector);
 	else
 		ret = connector_status_connected;
 
