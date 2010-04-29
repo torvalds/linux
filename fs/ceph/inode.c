@@ -619,6 +619,7 @@ static int fill_inode(struct inode *inode,
 			memcpy(ci->i_xattrs.blob->vec.iov_base,
 			       iinfo->xattr_data, iinfo->xattr_len);
 		ci->i_xattrs.version = le64_to_cpu(info->xattr_version);
+		xattr_blob = NULL;
 	}
 
 	inode->i_mapping->a_ops = &ceph_aops;
