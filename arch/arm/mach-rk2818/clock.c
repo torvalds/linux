@@ -117,6 +117,80 @@ static struct rockchip_scu_reg_hw
 #define CLKSEL1_REG	(u32 __iomem *)(RK2818_SCU_BASE + 0x18)
 #define CLKSEL2_REG	(u32 __iomem *)(RK2818_SCU_BASE + 0x34)
 
+/* SCU PLL CON */
+#define PLL_TEST	(0x01u<<25)
+#define PLL_SAT		(0x01u<<24)
+#define PLL_FAST	(0x01u<<23)
+#define PLL_PD		(0x01u<<22)
+#define PLL_CLKR(i)	(((i)&0x3f)<<16)
+#define PLL_CLKF(i)	(((i)&0x0fff)<<4)
+#define PLL_CLKOD(i)	(((i)&0x07)<<1)
+#define PLL_BYPASS	(0X01)
+
+/* SCU MODE CON */
+#define SCU_CPUMODE_MASK	(0x03u << 2)
+#define SCU_CPUMODE_SLOW	(0x00u << 2)
+#define SCU_CPUMODE_NORMAL	(0x01u << 2)
+#define SCU_CPUMODE_DSLOW	(0x02u << 2)
+
+#define SCU_DSPMODE_MASK	0x03u
+#define SCU_DSPMODE_SLOW	0x00u
+#define SCU_DSPMODE_NORMAL	0x01u
+#define SCU_DSPMODE_DSLOW	0x02u
+
+/* SCU CLK SEL0 CON */
+#define CLK_DDR_REG		CLKSEL0_REG
+#define CLK_DDR_SRC_MASK	(3 << 28)
+#define CLK_DDR_CODPLL		(0 << 28)
+#define CLK_DDR_ARMPLL		(1 << 28)
+#define CLK_DDR_DSPPLL		(2 << 28)
+
+#define CLK_SENSOR_REG		CLKSEL0_REG
+#define CLK_SENSOR_SRC_MASK	(3 << 23)
+#define CLK_SENSOR_24M		(0 << 23)
+#define CLK_SENSOR_27M		(1 << 23)
+#define CLK_SENSOR_48M		(2 << 23)
+
+#define CLK_USBPHY_REG		CLKSEL0_REG
+#define CLK_USBPHY_SRC_MASK	(3 << 18)
+#define CLK_USBPHY_24M		(0 << 18)
+#define CLK_USBPHY_12M		(1 << 18)
+#define CLK_USBPHY_48M		(2 << 18)
+
+#define CLK_LCDC_REG		CLKSEL0_REG
+#define CLK_LCDC_DIV_SRC_MASK	(3 << 16)
+#define CLK_LCDC_ARMPLL		(0 << 16)
+#define CLK_LCDC_DSPPLL		(1 << 16)
+#define CLK_LCDC_CODPLL		(2 << 16)
+#define CLK_LCDC_SRC_MASK	(1 << 7)
+#define CLK_LCDC_DIVOUT		(0 << 7)
+#define CLK_LCDC_27M		(1 << 7)
+
+/* SCU CLKSEL1 CON */
+#define CLK_UART_REG		CLKSEL1_REG
+#define CLK_UART_SRC_MASK	(1 << 31)
+#define CLK_UART_24M		(0 << 31)
+#define CLK_UART_48M		(1 << 31)
+
+#define CLK_DEMOD_REG		CLKSEL1_REG
+#define CLK_DEMOD_SRC_MASK	(1 << 26)
+#define CLK_DEMOD_DIVOUT	(0 << 26)
+#define CLK_DEMOD_27M		(1 << 26)
+#define CLK_DEMOD_DIV_SRC_MASK	(3 << 24)
+#define CLK_DEMOD_CODPLL	(0 << 24)
+#define CLK_DEMOD_ARMPLL	(1 << 24)
+#define CLK_DEMOD_DSPPLL	(2 << 24)
+
+#define CLK_CODEC_REG		CLKSEL1_REG
+#define CLK_CODEC_SRC_MASK	(1 << 2)
+#define CLK_CODEC_CPLLCLK	(0 << 2)
+#define CLK_CODEC_12M		(1 << 2)
+
+#define CLK_CPLL_MASK		0x03u
+#define CLK_CPLL_SLOW		0x00u
+#define CLK_CPLL_NORMAL		0x01u
+#define CLK_CPLL_DSLOW		0x02u
+
 /* Clock flags */
 /* bit 0 is free */
 #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
@@ -135,7 +209,8 @@ struct clk {
 	unsigned long		(*recalc)(struct clk *);
 	int			(*set_rate)(struct clk *, unsigned long);
 	long			(*round_rate)(struct clk *, unsigned long);
-	void			(*init)(struct clk *);	/* set clk's parent field from the hardware */
+	struct clk*		(*get_parent)(struct clk *);	/* get clk's parent from the hardware */
+	int			(*set_parent)(struct clk *, struct clk *);
 	s16			usecount;
 	u8			gate_idx;
 	u8			pll_idx;
@@ -238,16 +313,8 @@ static struct clk extclk = {
 	.gate_idx	= -1,
 };
 
-static unsigned long pll_clk_recalc(struct clk *clk)
-{
-	u32 v = readl(&scu_register_base->scu_pll_config[clk->pll_idx]);
-	u32 OD = ((v >> 1) & 0x7) + 1;
-	u32 NF = ((v >> 4) & 0xfff) + 1;
-	u32 NR = ((v >> 16) & 0x3f) + 1;
-	unsigned long rate = clk->parent->rate / NR * NF / OD;
-	pr_debug("clock: %s new clock rate is %ld NR %d NF %d OD %d\n", clk->name, rate, NR, NF, OD);
-	return rate;
-}
+static unsigned long pll_clk_recalc(struct clk *clk);
+static int pll_clk_set_rate(struct clk *clk, unsigned long rate);
 
 #define PLL_CLK(NAME,IDX) \
 static struct clk NAME##_pll_clk = { \
@@ -255,12 +322,119 @@ static struct clk NAME##_pll_clk = { \
 	.parent		= &xin24m, \
 	.pll_idx	= IDX, \
 	.recalc		= pll_clk_recalc, \
+	.set_rate	= pll_clk_set_rate, \
 	.gate_idx	= -1, \
 }
 
 PLL_CLK(arm, 0);
 PLL_CLK(dsp, 1);
 PLL_CLK(codec, 2);
+
+static unsigned long pll_clk_recalc(struct clk *clk)
+{
+	u32 mask, normal, *reg;
+	unsigned long rate;
+
+	if (clk == &arm_pll_clk) {
+		mask = SCU_CPUMODE_MASK;
+		normal = SCU_CPUMODE_NORMAL;
+		reg = &scu_register_base->scu_mode_config;
+	} else if (clk == &dsp_pll_clk) {
+		mask = SCU_DSPMODE_MASK;
+		normal = SCU_DSPMODE_NORMAL;
+		reg = &scu_register_base->scu_mode_config;
+	} else if (clk == &codec_pll_clk) {
+		mask = CLK_CPLL_MASK;
+		normal = CLK_CPLL_NORMAL;
+		reg = &scu_register_base->scu_clksel1_config;
+	} else {
+		return 0;
+	}
+
+	if ((readl(reg) & mask) == normal) {
+		u32 v = readl(&scu_register_base->scu_pll_config[clk->pll_idx]);
+		u32 OD = ((v >> 1) & 0x7) + 1;
+		u32 NF = ((v >> 4) & 0xfff) + 1;
+		u32 NR = ((v >> 16) & 0x3f) + 1;
+		rate = clk->parent->rate / NR * NF / OD;
+		pr_debug("clock: %s new clock rate is %ld NR %d NF %d OD %d\n", clk->name, rate, NR, NF, OD);
+	} else {
+		rate = clk->parent->rate;
+		pr_debug("clock: %s new clock rate is %ld (slow mode)\n", clk->name, rate);
+	}
+
+	return rate;
+}
+
+static void pll_clk_slow_mode(struct clk *clk, int enter)
+{
+	u32 mask, value, *reg;
+
+	pr_debug("clock: %s %s slow mode\n", clk->name, enter ? "enter" : "exit");
+	if (clk == &arm_pll_clk) {
+		mask = SCU_CPUMODE_MASK;
+		value = enter ? SCU_CPUMODE_SLOW : SCU_CPUMODE_NORMAL;
+		reg = &scu_register_base->scu_mode_config;
+	} else if (clk == &dsp_pll_clk) {
+		mask = SCU_DSPMODE_MASK;
+		value = enter ? SCU_DSPMODE_SLOW : SCU_DSPMODE_NORMAL;
+		reg = &scu_register_base->scu_mode_config;
+	} else if (clk == &codec_pll_clk) {
+		mask = CLK_CPLL_MASK;
+		value = enter ? CLK_CPLL_SLOW : CLK_CPLL_NORMAL;
+		reg = &scu_register_base->scu_clksel1_config;
+	} else {
+		return;
+	}
+
+	writel((readl(reg) & ~mask) | value, reg);
+}
+
+static int pll_clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 *reg = &scu_register_base->scu_pll_config[clk->pll_idx];
+	u32 v = readl(reg);
+
+	if (rate <= 24000000 ) {
+		pll_clk_slow_mode(clk, 1);
+		v |= PLL_PD;    /* pll power down */
+		writel(v, reg);
+		pr_debug("clock: %s power down", clk->name);
+	} else {
+		int clkf, clkod, unit;
+
+		unit = rate / 1000000;
+		clkf = unit;
+		clkod = 1;
+		while (clkf < 200) { /* 160 <= Fref/NR * NF <= 800 , 200 set to the midia point */
+			clkf += unit;
+			clkod += 1;
+		} 
+		if (clkod > 8) { /* clkod max 8 , 8*24=192 > 160 , safe */
+			clkod = 9;
+			clkf = clkod * unit;
+		}
+		pll_clk_slow_mode(clk, 1);
+		v &= ~PLL_PD;
+		writel(v, reg);
+
+		/* XXX:delay for pll state , for 0.3ms , clkf will lock clkf*/
+		v = PLL_SAT|PLL_FAST|(PLL_CLKR(24-1))|(PLL_CLKF(clkf-1))|(PLL_CLKOD(clkod - 1));
+		writel(v, reg);
+
+		/* arm run at 24m */ //FIXME
+		unit = 5600;  /* 24m,0.3ms , 24*300*/
+		while (unit-- > 0) {
+			v = readl(RK2818_REGFILE_BASE); //CPU_APB_REG0
+			if (v & (0x80u << clk->pll_idx) )
+				break;
+		}
+		pll_clk_slow_mode(clk, 0);
+		pr_debug("clock: set %s to %ld MHZ, clkf=%d, clkod=%d, delay count=%d\n", clk->name, rate/1000000, clkf, clkod, unit);
+	}
+
+	return 0;
+}
 
 static struct clk arm_clk = {
 	.name		= "arm",
@@ -307,30 +481,73 @@ static struct clk arm_pclk = {
 	.clksel_maxdiv	= 4,
 };
 
-static void demod_clk_init(struct clk *clk)
+static struct clk* demod_divider_clk_get_parent(struct clk *clk)
 {
-	struct clk *parent = clk->parent;
-	u32 r = readl(CLKSEL1_REG);
-	if (r & (1 << 26)) {
-		parent = &xin24m;
-	} else {
-		r >>= 24;
-		parent = (r == 0) ? &codec_pll_clk : (r == 1) ? &arm_pll_clk : (r == 2) ? &dsp_pll_clk : parent;
-	}
-	clk_reparent(clk, parent);
+	u32 r = readl(CLK_DEMOD_REG) & CLK_DEMOD_DIV_SRC_MASK;
+	return (r == CLK_DEMOD_CODPLL) ? &codec_pll_clk : (r == CLK_DEMOD_ARMPLL) ? &arm_pll_clk : (r == CLK_DEMOD_DSPPLL) ? &dsp_pll_clk : clk->parent;
 }
 
-static struct clk demod_clk = {
-	.name		= "demod",
+static int demod_divider_clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 r = readl(CLK_DEMOD_REG) & ~CLK_DEMOD_DIV_SRC_MASK;
+
+	if (parent == &codec_pll_clk) {
+		r |= CLK_DEMOD_CODPLL;
+	} else if (parent == &arm_pll_clk) {
+		r |= CLK_DEMOD_ARMPLL;
+	} else if (parent == &dsp_pll_clk) {
+		r |= CLK_DEMOD_DSPPLL;
+	} else {
+		return -EINVAL;
+	}
+	writel(r, CLK_DEMOD_REG);
+
+	return 0;
+}
+
+static struct clk demod_divider_clk = {
+	.name		= "demod_divider",
 	.parent		= &codec_pll_clk,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
-	.init		= demod_clk_init,
+	.get_parent	= demod_divider_clk_get_parent,
+	.set_parent	= demod_divider_clk_set_parent,
 	.gate_idx	= -1,
 	.clksel_reg	= CLKSEL1_REG,
 	.clksel_mask	= 0xFF << 16,
 	.clksel_shift	= 16,
 	.clksel_maxdiv	= 128,
+};
+
+static struct clk* demod_clk_get_parent(struct clk *clk)
+{
+	u32 r = readl(CLK_DEMOD_REG) & CLK_DEMOD_SRC_MASK;
+	return (r == CLK_DEMOD_DIVOUT) ? &demod_divider_clk : &extclk;
+}
+
+static int demod_clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 r = readl(CLK_DEMOD_REG) & ~CLK_DEMOD_SRC_MASK;
+
+	if (parent == &extclk) {
+		r |= CLK_DEMOD_27M;
+	} else if (parent == &demod_divider_clk) {
+		r |= CLK_DEMOD_DIVOUT;
+	} else {
+		return -EINVAL;
+	}
+	writel(r, CLK_DEMOD_REG);
+
+	return 0;
+}
+
+static struct clk demod_clk = {
+	.name		= "demod",
+	.parent		= &demod_divider_clk,
+	.recalc		= followparent_recalc,
+	.get_parent	= demod_clk_get_parent,
+	.set_parent	= demod_clk_set_parent,
+	.gate_idx	= -1,
 };
 
 static struct clk codec_clk = {
@@ -345,11 +562,37 @@ static struct clk codec_clk = {
 	.clksel_maxdiv	= 32,
 };
 
+static struct clk* lcdc_divider_clk_get_parent(struct clk *clk)
+{
+	u32 r = readl(CLK_LCDC_REG) & CLK_LCDC_DIV_SRC_MASK;
+	return (r == CLK_LCDC_ARMPLL) ? &arm_pll_clk : (r == CLK_LCDC_DSPPLL) ? &dsp_pll_clk : (r == CLK_LCDC_CODPLL) ? &codec_pll_clk : clk->parent;
+}
+
+static int lcdc_divider_clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 r = readl(CLK_LCDC_REG) & ~CLK_LCDC_DIV_SRC_MASK;
+
+	if (parent == &arm_pll_clk) {
+		r |= CLK_LCDC_ARMPLL;
+	} else if (parent == &dsp_pll_clk) {
+		r |= CLK_LCDC_DSPPLL;
+	} else if (parent == &codec_pll_clk) {
+		r |= CLK_LCDC_CODPLL;
+	} else {
+		return -EINVAL;
+	}
+	writel(r, CLK_LCDC_REG);
+
+	return 0;
+}
+
 static struct clk lcdc_divider_clk = {
 	.name		= "lcdc_divider",
 	.parent		= &arm_pll_clk,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
+	.get_parent	= lcdc_divider_clk_get_parent,
+	.set_parent	= lcdc_divider_clk_set_parent,
 	.gate_idx	= -1,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 0xFF << 8,
@@ -357,39 +600,120 @@ static struct clk lcdc_divider_clk = {
 	.clksel_maxdiv	= 128,
 };
 
-static void otgphy_clk_init(struct clk *clk)
+static struct clk* otgphy_clk_get_parent(struct clk *clk)
 {
-	u32 r = (readl(CLKSEL0_REG) >> 18) & 3;
-	struct clk *parent = (r == 0) ? &xin24m : (r == 1) ? &clk12m : (r == 2) ? &clk48m : clk->parent;
-	clk_reparent(clk, parent);
+	u32 r = readl(CLK_USBPHY_REG) & CLK_USBPHY_SRC_MASK;
+	return (r == CLK_USBPHY_24M) ? &xin24m : (r == CLK_USBPHY_12M) ? &clk12m : (r == CLK_USBPHY_48M) ? &clk48m : clk->parent;
 }
 
-static void lcdc_clk_init(struct clk *clk)
+static int otgphy_clk_set_parent(struct clk *clk, struct clk *parent)
 {
-	u32 r = readl(CLKSEL0_REG) & (1 << 7);
-	struct clk *parent = r ? &extclk : &lcdc_divider_clk;
-	clk_reparent(clk, parent);
+	u32 r = readl(CLK_USBPHY_REG) & ~CLK_USBPHY_SRC_MASK;
+
+	if (parent == &xin24m) {
+		r |= CLK_USBPHY_24M;
+	} else if (parent == &clk12m) {
+		r |= CLK_USBPHY_12M;
+	} else if (parent == &clk48m) {
+		r |= CLK_USBPHY_48M;
+	} else {
+		return -EINVAL;
+	}
+	writel(r, CLK_USBPHY_REG);
+
+	return 0;
 }
 
-static void vip_clk_init(struct clk *clk)
+static struct clk* lcdc_clk_get_parent(struct clk *clk)
 {
-	u32 r = (readl(CLKSEL0_REG) >> 23) & 3;
-	struct clk *parent = (r == 0) ? &xin24m : (r == 1) ? &extclk : (r == 2) ? &clk48m : clk->parent;
-	clk_reparent(clk, parent);
+	u32 r = readl(CLK_LCDC_REG) & CLK_LCDC_SRC_MASK;
+	return (r == CLK_LCDC_DIVOUT) ? &lcdc_divider_clk : &extclk;
 }
 
-static void ddr_clk_init(struct clk *clk)
+static int lcdc_clk_set_parent(struct clk *clk, struct clk *parent)
 {
-	u32 r = (readl(CLKSEL0_REG) >> 28) & 3;
-	struct clk *parent = (r == 0) ? &codec_pll_clk : (r == 1) ? &arm_pll_clk : (r == 2) ? &dsp_pll_clk : clk->parent;
-	clk_reparent(clk, parent);
+	u32 r = readl(CLK_LCDC_REG) & ~CLK_LCDC_SRC_MASK;
+
+	if (parent == &lcdc_divider_clk) {
+		r |= CLK_LCDC_DIVOUT;
+	} else if (parent == &extclk) {
+		r |= CLK_LCDC_27M;
+	} else {
+		return -EINVAL;
+	}
+	writel(r, CLK_LCDC_REG);
+
+	return 0;
 }
 
-static void i2s_clk_init(struct clk *clk)
+static struct clk* vip_clk_get_parent(struct clk *clk)
 {
-	u32 r = readl(CLKSEL1_REG) & (1 << 2);
-	struct clk *parent = r ? &clk12m : &codec_clk;
-	clk_reparent(clk, parent);
+	u32 r = readl(CLK_SENSOR_REG) & CLK_SENSOR_SRC_MASK;
+	return (r == CLK_SENSOR_24M) ? &xin24m : (r == CLK_SENSOR_27M) ? &extclk : (r == CLK_SENSOR_48M) ? &clk48m : clk->parent;
+}
+
+static int vip_clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 r = readl(CLK_SENSOR_REG) & ~CLK_SENSOR_SRC_MASK;
+
+	if (parent == &xin24m) {
+		r |= CLK_SENSOR_24M;
+	} else if (parent == &extclk) {
+		r |= CLK_SENSOR_27M;
+	} else if (parent == &clk48m) {
+		r |= CLK_SENSOR_48M;
+	} else {
+		return -EINVAL;
+	}
+	writel(r, CLK_SENSOR_REG);
+
+	return 0;
+}
+
+static struct clk* ddr_clk_get_parent(struct clk *clk)
+{
+	u32 r = readl(CLK_DDR_REG) & CLK_DDR_SRC_MASK;
+	return (r == CLK_DDR_CODPLL) ? &codec_pll_clk : (r == CLK_DDR_ARMPLL) ? &arm_pll_clk : (r == CLK_DDR_DSPPLL) ? &dsp_pll_clk : clk->parent;
+}
+
+static int ddr_clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 r = readl(CLK_DDR_REG) & ~CLK_DDR_SRC_MASK;
+
+	if (parent == &codec_pll_clk) {
+		r |= CLK_DDR_CODPLL;
+	} else if (parent == &arm_pll_clk) {
+		r |= CLK_DDR_ARMPLL;
+	} else if (parent == &dsp_pll_clk) {
+		r |= CLK_DDR_DSPPLL;
+	} else {
+		return -EINVAL;
+	}
+	writel(r, CLK_DDR_REG);
+
+	return 0;
+}
+
+static struct clk* i2s_clk_get_parent(struct clk *clk)
+{
+	u32 r = readl(CLK_CODEC_REG) & CLK_CODEC_SRC_MASK;
+	return (r == CLK_CODEC_CPLLCLK) ? &codec_clk : &clk12m;
+}
+
+static int i2s_clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 r = readl(CLK_CODEC_REG) & ~CLK_CODEC_SRC_MASK;
+
+	if (parent == &codec_clk) {
+		r |= CLK_CODEC_CPLLCLK;
+	} else if (parent == &clk12m) {
+		r |= CLK_CODEC_12M;
+	} else {
+		return -EINVAL;
+	}
+	writel(r, CLK_CODEC_REG);
+
+	return 0;
 }
 
 static int gate_mode(struct clk *clk, int on)
@@ -416,19 +740,26 @@ static int gate_mode(struct clk *clk, int on)
 	return 0;
 }
 
-/**
- * uart_clk_init_ - set a uart clk's parent field from the hardware
- * @clk: clock struct ptr to use
- *
- * Given a pointer to a source-selectable struct clk, read the hardware
- * register and determine what its parent is currently set to.  Update the
- * clk->parent field with the appropriate clk ptr.
- */
-static void uart_clk_init(struct clk *clk)
+static struct clk* uart_clk_get_parent(struct clk *clk)
 {
-	u32 r = readl(&scu_register_base->scu_clksel1_config) >> 31;
-	struct clk *parent = r ? &clk48m : &xin24m;
-	clk_reparent(clk, parent);
+	u32 r = readl(CLK_UART_REG) & CLK_UART_SRC_MASK;
+	return (r == CLK_UART_24M) ? &xin24m : &clk48m;
+}
+
+static int uart_clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 r = readl(CLK_UART_REG) & ~CLK_UART_SRC_MASK;
+
+	if (parent == &xin24m) {
+		r |= CLK_UART_24M;
+	} else if (parent == &clk48m) {
+		r |= CLK_UART_48M;
+	} else {
+		return -EINVAL;
+	}
+	writel(r, CLK_UART_REG);
+
+	return 0;
 }
 
 #define UART_CLK(n) \
@@ -437,7 +768,8 @@ static struct clk uart##n##_clk = { \
 	.parent		= &xin24m, \
 	.mode		= gate_mode, \
 	.recalc		= followparent_recalc, \
-	.init		= uart_clk_init, \
+	.get_parent	= uart_clk_get_parent, \
+	.set_parent	= uart_clk_set_parent, \
 	.gate_idx	= SCU_IPID_UART##n, \
 }
 
@@ -462,7 +794,8 @@ static struct clk otgphy_clk = {
 	.parent		= &xin24m,
 	.mode		= gate_mode,
 	.recalc		= followparent_recalc,
-	.init		= otgphy_clk_init,
+	.get_parent	= otgphy_clk_get_parent,
+	.set_parent	= otgphy_clk_set_parent,
 	.gate_idx	= SCU_IPID_OTGPHY,
 };
 GATE_CLK(nandc, arm_hclk, NANDC);
@@ -473,7 +806,8 @@ static struct clk lcdc_clk = {
 	.parent		= &lcdc_divider_clk,
 	.mode		= gate_mode,
 	.recalc		= followparent_recalc,
-	.init		= lcdc_clk_init,
+	.get_parent	= lcdc_clk_get_parent,
+	.set_parent	= lcdc_clk_set_parent,
 	.gate_idx	= SCU_IPID_LCDC,
 };
 static struct clk vip_clk = {
@@ -481,7 +815,8 @@ static struct clk vip_clk = {
 	.parent		= &xin24m,
 	.mode		= gate_mode,
 	.recalc		= followparent_recalc,
-	.init		= vip_clk_init,
+	.get_parent	= vip_clk_get_parent,
+	.set_parent	= vip_clk_set_parent,
 	.gate_idx	= SCU_IPID_VIP,
 };
 static struct clk i2s_clk = {
@@ -489,7 +824,8 @@ static struct clk i2s_clk = {
 	.parent		= &clk12m,
 	.mode		= gate_mode,
 	.recalc		= followparent_recalc,
-	.init		= i2s_clk_init,
+	.get_parent	= i2s_clk_get_parent,
+	.set_parent	= i2s_clk_set_parent,
 	.gate_idx	= SCU_IPID_I2S,
 };
 static struct clk sdmmc0_clk = {
@@ -571,7 +907,8 @@ static struct clk ddr_clk = {
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_shift,
 	.set_rate	= clksel_set_rate_shift,
-	.init		= ddr_clk_init,
+	.get_parent	= ddr_clk_get_parent,
+	.set_parent	= ddr_clk_set_parent,
 	.gate_idx	= SCU_IPID_DDR,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 0x3 << 30,
@@ -624,6 +961,7 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "arm_hclk", &arm_hclk),
 	CLK(NULL, "clk48m", &clk48m),
 	CLK(NULL, "arm_pclk", &arm_pclk),
+	CLK1(demod_divider),
 	CLK1(demod),
 	CLK1(codec),
 	CLK1(lcdc_divider),
@@ -855,11 +1193,6 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 }
 EXPORT_SYMBOL(clk_set_rate);
 
-static int __clk_set_parent(struct clk *clk, struct clk *new_parent)
-{
-	return -EINVAL;	// FIXME
-}
-
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	unsigned long flags;
@@ -868,10 +1201,14 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
 		return ret;
 
+	if (clk->set_parent == NULL)
+		return ret;
+
 	spin_lock_irqsave(&clockfw_lock, flags);
 	if (clk->usecount == 0) {
-		ret = __clk_set_parent(clk, parent);
+		ret = clk->set_parent(clk, parent);
 		if (ret == 0) {
+			clk_reparent(clk, parent);
 			if (clk->recalc)
 				clk->rate = clk->recalc(clk);
 			propagate_rate(clk);
@@ -900,9 +1237,6 @@ static void clk_reparent(struct clk *child, struct clk *parent)
 	if (parent)
 		list_add(&child->sibling, &parent->children);
 	child->parent = parent;
-
-	/* now do the debugfs renaming to reattach the child
-	   to the proper parent */
 }
 
 /* Propagate rate to children */
@@ -961,14 +1295,17 @@ static int clk_register(struct clk *clk)
 		return 0;
 
 	mutex_lock(&clocks_mutex);
+
+	if (clk->get_parent)
+		clk->parent = clk->get_parent(clk);
+
 	if (clk->parent)
 		list_add(&clk->sibling, &clk->parent->children);
 	else
 		list_add(&clk->sibling, &root_clks);
 
 	list_add(&clk->node, &clocks);
-	if (clk->init)
-		clk->init(clk);
+
 	mutex_unlock(&clocks_mutex);
 
 	return 0;
@@ -983,18 +1320,6 @@ static void clk_enable_init_clocks(void)
 			clk_enable(clkp);
 	}
 }
-
-#ifdef CONFIG_CPU_FREQ
-void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&clockfw_lock, flags);
-	__clk_init_cpufreq_table(table);
-	spin_unlock_irqrestore(&clockfw_lock, flags);
-}
-EXPORT_SYMBOL(clk_init_cpufreq_table);
-#endif
 
 static unsigned int __initdata armclk;
 
