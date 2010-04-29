@@ -1953,6 +1953,16 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 	return 0;
 }
 
+static int iwl_get_ra_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
+{
+	if (priv->iw_mode == NL80211_IFTYPE_STATION) {
+		return IWL_AP_ID;
+	} else {
+		u8 *da = ieee80211_get_DA(hdr);
+		return iwl_find_station(priv, da);
+	}
+}
+
 /**
  * iwl4965_rx_reply_tx - Handle standard (non-aggregation) Tx response
  */

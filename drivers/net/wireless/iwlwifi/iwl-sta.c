@@ -80,17 +80,6 @@ u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 }
 EXPORT_SYMBOL(iwl_find_station);
 
-int iwl_get_ra_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
-{
-	if (priv->iw_mode == NL80211_IFTYPE_STATION) {
-		return IWL_AP_ID;
-	} else {
-		u8 *da = ieee80211_get_DA(hdr);
-		return iwl_find_station(priv, da);
-	}
-}
-EXPORT_SYMBOL(iwl_get_ra_sta_id);
-
 /* priv->sta_lock must be held */
 static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 {
