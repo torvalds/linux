@@ -2668,7 +2668,6 @@ struct iwl_ssid_ie {
 #define IWL_GOOD_CRC_TH_NEVER		cpu_to_le16(0xffff)
 #define IWL_MAX_SCAN_SIZE 1024
 #define IWL_MAX_CMD_SIZE 4096
-#define IWL_MAX_PROBE_REQUEST		200
 
 /*
  * REPLY_SCAN_CMD = 0x80 (command)

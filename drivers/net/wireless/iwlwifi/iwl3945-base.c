@@ -3875,6 +3875,8 @@ err:
 	return ret;
 }
 
+#define IWL3945_MAX_PROBE_REQUEST	200
+
 static int iwl3945_setup_mac(struct iwl_priv *priv)
 {
 	int ret;
@@ -3900,7 +3902,7 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX_3945;
 	/* we create the 802.11 header and a zero-length SSID element */
-	hw->wiphy->max_scan_ie_len = IWL_MAX_PROBE_REQUEST - 24 - 2;
+	hw->wiphy->max_scan_ie_len = IWL3945_MAX_PROBE_REQUEST - 24 - 2;
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
