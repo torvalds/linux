@@ -709,6 +709,7 @@ config ARCH_RK2818
 	select COMMON_CLKDEV
         select GENERIC_TIME
         select GENERIC_CLOCKEVENTS
+        select ARCH_REQUIRE_GPIOLIB
 	help
           Support for Rockchip RK2818 soc.
 

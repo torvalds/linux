@@ -42,7 +42,11 @@
 #define IRQ_REG_PLEVEL               0xd8//IRQ System Priority Level Register
 
 
-#define NR_IRQS         (48)
+/*定义RK2818的最大中断数目。NR_AIC_IRQS表示RK2818的中断寄存器支持的最大中断数目，
+CONFIG_RK28_GPIO_IRQ表示RK2818的GPIO复用的最大中断数目，CONFIG_EXTEND_GPIO_IRQ表示RK2818的
+扩展IO复用的最大中断数目。*/
+#define NR_AIC_IRQS 	48
+#define	NR_IRQS		(NR_AIC_IRQS + CONFIG_RK28_GPIO_IRQ + CONFIG_EXTEND_GPIO_IRQ)                                   
                                    
                                    
 /*irq number*/                                   
