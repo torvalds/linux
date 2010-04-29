@@ -75,7 +75,7 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 	unsigned long end = offset + size;
 
 	if (__uncached_access(file, offset)) {
-		if (((uca_start && offset) >= uca_start) &&
+		if (uca_start && (offset >= uca_start) &&
 		    (end <= uca_end))
 			return __pgprot((pgprot_val(vma_prot) &
 					 ~_CACHE_MASK) |
