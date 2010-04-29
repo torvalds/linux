@@ -317,10 +317,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 	update_chains = priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE ||
 			priv->chain_noise_data.state == IWL_CHAIN_NOISE_ALIVE;
 
-	if (priv->vif)
-		dtimper = priv->hw->conf.ps_dtim_period;
-	else
-		dtimper = 1;
+	dtimper = priv->hw->conf.ps_dtim_period ?: 1;
 
 	if (priv->cfg->broken_powersave)
 		iwl_power_sleep_cam_cmd(priv, &cmd);
