@@ -1983,23 +1983,23 @@ void dso__read_running_kernel_build_id(struct dso *self, struct machine *machine
 		self->has_build_id = true;
 }
 
-static struct dso *dsos__create_kernel(struct machine *machine)
+static struct dso *machine__create_kernel(struct machine *self)
 {
 	const char *vmlinux_name = NULL;
 	struct dso *kernel;
 
-	if (machine__is_host(machine)) {
+	if (machine__is_host(self)) {
 		vmlinux_name = symbol_conf.vmlinux_name;
 		kernel = dso__new_kernel(vmlinux_name);
 	} else {
-		if (machine__is_default_guest(machine))
+		if (machine__is_default_guest(self))
 			vmlinux_name = symbol_conf.default_guest_vmlinux_name;
-		kernel = dso__new_guest_kernel(machine, vmlinux_name);
+		kernel = dso__new_guest_kernel(self, vmlinux_name);
 	}
 
 	if (kernel != NULL) {
-		dso__read_running_kernel_build_id(kernel, machine);
-		dsos__add(&machine->kernel_dsos, kernel);
+		dso__read_running_kernel_build_id(kernel, self);
+		dsos__add(&self->kernel_dsos, kernel);
 	}
 	return kernel;
 }
@@ -2023,6 +2023,23 @@ int __machine__create_kernel_maps(struct machine *self, struct dso *kernel)
 		map_groups__insert(&self->kmaps, self->vmlinux_maps[type]);
 	}
 
+	return 0;
+}
+
+int machine__create_kernel_maps(struct machine *self)
+{
+	struct dso *kernel = machine__create_kernel(self);
+
+	if (kernel == NULL ||
+	    __machine__create_kernel_maps(self, kernel) < 0)
+		return -1;
+
+	if (symbol_conf.use_modules && machine__create_modules(self) < 0)
+		pr_debug("Problems creating module maps, continuing anyway...\n");
+	/*
+	 * Now that we have all the maps created, just set the ->end of them:
+	 */
+	map_groups__fixup_end(&self->kmaps);
 	return 0;
 }
 
@@ -2144,25 +2161,12 @@ out_free_comm_list:
 
 int machines__create_kernel_maps(struct rb_root *self, pid_t pid)
 {
-	struct dso *kernel;
 	struct machine *machine = machines__findnew(self, pid);
 
 	if (machine == NULL)
 		return -1;
-	kernel = dsos__create_kernel(machine);
-	if (kernel == NULL)
-		return -1;
 
-	if (__machine__create_kernel_maps(machine, kernel) < 0)
-		return -1;
-
-	if (symbol_conf.use_modules && machine__create_modules(machine) < 0)
-		pr_debug("Problems creating module maps, continuing anyway...\n");
-	/*
-	 * Now that we have all the maps created, just set the ->end of them:
-	 */
-	map_groups__fixup_end(&machine->kmaps);
-	return 0;
+	return machine__create_kernel_maps(machine);
 }
 
 static int hex(char ch)
@@ -2244,6 +2248,39 @@ int machines__create_guest_kernel_maps(struct rb_root *self)
 		}
 failure:
 		free(namelist);
+	}
+
+	return ret;
+}
+
+int machine__load_kallsyms(struct machine *self, const char *filename,
+			   enum map_type type, symbol_filter_t filter)
+{
+	struct map *map = self->vmlinux_maps[type];
+	int ret = dso__load_kallsyms(map->dso, filename, map, filter);
+
+	if (ret > 0) {
+		dso__set_loaded(map->dso, type);
+		/*
+		 * Since /proc/kallsyms will have multiple sessions for the
+		 * kernel, with modules between them, fixup the end of all
+		 * sections.
+		 */
+		__map_groups__fixup_end(&self->kmaps, type);
+	}
+
+	return ret;
+}
+
+int machine__load_vmlinux_path(struct machine *self, enum map_type type,
+			       symbol_filter_t filter)
+{
+	struct map *map = self->vmlinux_maps[type];
+	int ret = dso__load_vmlinux_path(map->dso, map, filter);
+
+	if (ret > 0) {
+		dso__set_loaded(map->dso, type);
+		map__reloc_vmlinux(map);
 	}
 
 	return ret;

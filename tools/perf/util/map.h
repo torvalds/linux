@@ -30,6 +30,7 @@ struct map {
 	u64			start;
 	u64			end;
 	enum map_type		type;
+	u32			priv;
 	u64			pgoff;
 
 	/* ip -> dso rip */
@@ -65,6 +66,12 @@ struct machine {
 	struct map_groups kmaps;
 	struct map	  *vmlinux_maps[MAP__NR_TYPES];
 };
+
+static inline
+struct map *machine__kernel_map(struct machine *self, enum map_type type)
+{
+	return self->vmlinux_maps[type];
+}
 
 static inline struct kmap *map__kmap(struct map *self)
 {
@@ -173,11 +180,21 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *self,
 					       struct map **mapp,
 					       symbol_filter_t filter);
 
-static inline struct symbol *machine__find_function(struct machine *self,
-						    u64 addr, struct map **mapp,
-						    symbol_filter_t filter)
+static inline
+struct symbol *machine__find_kernel_symbol(struct machine *self,
+					   enum map_type type, u64 addr,
+					   struct map **mapp,
+					   symbol_filter_t filter)
 {
-	return map_groups__find_symbol(&self->kmaps, MAP__FUNCTION, addr, mapp, filter);
+	return map_groups__find_symbol(&self->kmaps, type, addr, mapp, filter);
+}
+
+static inline
+struct symbol *machine__find_kernel_function(struct machine *self, u64 addr,
+					     struct map **mapp,
+					     symbol_filter_t filter)
+{
+	return machine__find_kernel_symbol(self, MAP__FUNCTION, addr, mapp, filter);
 }
 
 static inline

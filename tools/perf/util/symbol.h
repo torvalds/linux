@@ -162,6 +162,11 @@ int dso__load_vmlinux_path(struct dso *self, struct map *map,
 			   symbol_filter_t filter);
 int dso__load_kallsyms(struct dso *self, const char *filename, struct map *map,
 		       symbol_filter_t filter);
+int machine__load_kallsyms(struct machine *self, const char *filename,
+			   enum map_type type, symbol_filter_t filter);
+int machine__load_vmlinux_path(struct machine *self, enum map_type type,
+			       symbol_filter_t filter);
+
 size_t machines__fprintf_dsos(struct rb_root *self, FILE *fp);
 size_t machines__fprintf_dsos_buildid(struct rb_root *self, FILE *fp, bool with_hits);
 
@@ -199,6 +204,8 @@ int kallsyms__parse(const char *filename, void *arg,
 					  char type, u64 start));
 
 int __machine__create_kernel_maps(struct machine *self, struct dso *kernel);
+int machine__create_kernel_maps(struct machine *self);
+
 int machines__create_kernel_maps(struct rb_root *self, pid_t pid);
 int machines__create_guest_kernel_maps(struct rb_root *self);
 

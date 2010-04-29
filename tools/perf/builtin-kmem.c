@@ -377,7 +377,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = machine__find_function(machine, addr, &map, NULL);
+				sym = machine__find_kernel_function(machine, addr, &map, NULL);
 		} else
 			addr = data->ptr;
 
