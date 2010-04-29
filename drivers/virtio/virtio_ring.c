@@ -110,13 +110,14 @@ struct vring_virtqueue
 static int vring_add_indirect(struct vring_virtqueue *vq,
 			      struct scatterlist sg[],
 			      unsigned int out,
-			      unsigned int in)
+			      unsigned int in,
+			      gfp_t gfp)
 {
 	struct vring_desc *desc;
 	unsigned head;
 	int i;
 
-	desc = kmalloc((out + in) * sizeof(struct vring_desc), GFP_ATOMIC);
+	desc = kmalloc((out + in) * sizeof(struct vring_desc), gfp);
 	if (!desc)
 		return vq->vring.num;
 
@@ -155,11 +156,12 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
 	return head;
 }
 
-int virtqueue_add_buf(struct virtqueue *_vq,
-		  struct scatterlist sg[],
-		  unsigned int out,
-		  unsigned int in,
-		  void *data)
+int virtqueue_add_buf_gfp(struct virtqueue *_vq,
+			  struct scatterlist sg[],
+			  unsigned int out,
+			  unsigned int in,
+			  void *data,
+			  gfp_t gfp)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	unsigned int i, avail, head, uninitialized_var(prev);
@@ -171,7 +173,7 @@ int virtqueue_add_buf(struct virtqueue *_vq,
 	/* If the host supports indirect descriptor tables, and we have multiple
 	 * buffers, then go indirect. FIXME: tune this threshold */
 	if (vq->indirect && (out + in) > 1 && vq->num_free) {
-		head = vring_add_indirect(vq, sg, out, in);
+		head = vring_add_indirect(vq, sg, out, in, gfp);
 		if (head != vq->vring.num)
 			goto add_head;
 	}
@@ -232,7 +234,7 @@ add_head:
 		return vq->num_free ? vq->vring.num : 0;
 	return vq->num_free;
 }
-EXPORT_SYMBOL_GPL(virtqueue_add_buf);
+EXPORT_SYMBOL_GPL(virtqueue_add_buf_gfp);
 
 void virtqueue_kick(struct virtqueue *_vq)
 {

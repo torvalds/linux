@@ -7,6 +7,7 @@
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
+#include <linux/gfp.h>
 
 /**
  * virtqueue - a queue to register buffers for sending or receiving.
@@ -32,6 +33,7 @@ struct virtqueue {
  *	out_num: the number of sg readable by other side
  *	in_num: the number of sg which are writable (after readable ones)
  *	data: the token identifying the buffer.
+ *	gfp: how to do memory allocations (if necessary).
  *      Returns remaining capacity of queue (sg segments) or a negative error.
  * virtqueue_kick: update after add_buf
  *	vq: the struct virtqueue
@@ -60,11 +62,21 @@ struct virtqueue {
  * All operations can be called in any context.
  */
 
-int virtqueue_add_buf(struct virtqueue *vq,
-		      struct scatterlist sg[],
-		      unsigned int out_num,
-		      unsigned int in_num,
-		      void *data);
+int virtqueue_add_buf_gfp(struct virtqueue *vq,
+			  struct scatterlist sg[],
+			  unsigned int out_num,
+			  unsigned int in_num,
+			  void *data,
+			  gfp_t gfp);
+
+static inline int virtqueue_add_buf(struct virtqueue *vq,
+				    struct scatterlist sg[],
+				    unsigned int out_num,
+				    unsigned int in_num,
+				    void *data)
+{
+	return virtqueue_add_buf_gfp(vq, sg, out_num, in_num, data, GFP_ATOMIC);
+}
 
 void virtqueue_kick(struct virtqueue *vq);
 
