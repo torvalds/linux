@@ -110,54 +110,6 @@ static int ceph_syncfs(struct super_block *sb, int wait)
 	return 0;
 }
 
-
-/**
- * ceph_show_options - Show mount options in /proc/mounts
- * @m: seq_file to write to
- * @mnt: mount descriptor
- */
-static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
-{
-	struct ceph_client *client = ceph_sb_to_client(mnt->mnt_sb);
-	struct ceph_mount_args *args = client->mount_args;
-
-	if (args->flags & CEPH_OPT_FSID)
-		seq_printf(m, ",fsidmajor=%llu,fsidminor%llu",
-			   le64_to_cpu(*(__le64 *)&args->fsid.fsid[0]),
-			   le64_to_cpu(*(__le64 *)&args->fsid.fsid[8]));
-	if (args->flags & CEPH_OPT_NOSHARE)
-		seq_puts(m, ",noshare");
-	if (args->flags & CEPH_OPT_DIRSTAT)
-		seq_puts(m, ",dirstat");
-	if ((args->flags & CEPH_OPT_RBYTES) == 0)
-		seq_puts(m, ",norbytes");
-	if (args->flags & CEPH_OPT_NOCRC)
-		seq_puts(m, ",nocrc");
-	if (args->flags & CEPH_OPT_NOASYNCREADDIR)
-		seq_puts(m, ",noasyncreaddir");
-	if (strcmp(args->snapdir_name, CEPH_SNAPDIRNAME_DEFAULT))
-		seq_printf(m, ",snapdirname=%s", args->snapdir_name);
-	if (args->name)
-		seq_printf(m, ",name=%s", args->name);
-	if (args->secret)
-		seq_puts(m, ",secret=<hidden>");
-	return 0;
-}
-
-/*
- * caches
- */
-struct kmem_cache *ceph_inode_cachep;
-struct kmem_cache *ceph_cap_cachep;
-struct kmem_cache *ceph_dentry_cachep;
-struct kmem_cache *ceph_file_cachep;
-
-static void ceph_inode_init_once(void *foo)
-{
-	struct ceph_inode_info *ci = foo;
-	inode_init_once(&ci->vfs_inode);
-}
-
 static int default_congestion_kb(void)
 {
 	int congestion_kb;
@@ -185,6 +137,80 @@ static int default_congestion_kb(void)
 		congestion_kb = 256*1024;
 
 	return congestion_kb;
+}
+
+/**
+ * ceph_show_options - Show mount options in /proc/mounts
+ * @m: seq_file to write to
+ * @mnt: mount descriptor
+ */
+static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
+{
+	struct ceph_client *client = ceph_sb_to_client(mnt->mnt_sb);
+	struct ceph_mount_args *args = client->mount_args;
+
+	if (args->flags & CEPH_OPT_FSID)
+		seq_printf(m, ",fsidmajor=%llu,fsidminor%llu",
+			   le64_to_cpu(*(__le64 *)&args->fsid.fsid[0]),
+			   le64_to_cpu(*(__le64 *)&args->fsid.fsid[8]));
+	if (args->flags & CEPH_OPT_NOSHARE)
+		seq_puts(m, ",noshare");
+	if (args->flags & CEPH_OPT_DIRSTAT)
+		seq_puts(m, ",dirstat");
+	if ((args->flags & CEPH_OPT_RBYTES) == 0)
+		seq_puts(m, ",norbytes");
+	if (args->flags & CEPH_OPT_NOCRC)
+		seq_puts(m, ",nocrc");
+	if (args->flags & CEPH_OPT_NOASYNCREADDIR)
+		seq_puts(m, ",noasyncreaddir");
+
+	if (args->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
+		seq_printf(m, ",mount_timeout=%d", args->mount_timeout);
+	if (args->osd_idle_ttl != CEPH_OSD_IDLE_TTL_DEFAULT)
+		seq_printf(m, ",osd_idle_ttl=%d", args->osd_idle_ttl);
+	if (args->osd_timeout != CEPH_OSD_TIMEOUT_DEFAULT)
+		seq_printf(m, ",osdtimeout=%d", args->osd_timeout);
+	if (args->osd_keepalive_timeout != CEPH_OSD_KEEPALIVE_DEFAULT)
+		seq_printf(m, ",osdkeepalivetimeout=%d",
+			 args->osd_keepalive_timeout);
+	if (args->wsize)
+		seq_printf(m, ",wsize=%d", args->wsize);
+	if (args->rsize != CEPH_MOUNT_RSIZE_DEFAULT)
+		seq_printf(m, ",rsize=%d", args->rsize);
+	if (args->congestion_kb != default_congestion_kb())
+		seq_printf(m, ",write_congestion_kb=%d", args->congestion_kb);
+	if (args->caps_wanted_delay_min != CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT)
+		seq_printf(m, ",caps_wanted_delay_min=%d",
+			 args->caps_wanted_delay_min);
+	if (args->caps_wanted_delay_max != CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT)
+		seq_printf(m, ",caps_wanted_delay_max=%d",
+			   args->caps_wanted_delay_max);
+	if (args->cap_release_safety != CEPH_CAP_RELEASE_SAFETY_DEFAULT)
+		seq_printf(m, ",cap_release_safety=%d",
+			   args->cap_release_safety);
+	if (args->max_readdir != CEPH_MAX_READDIR_DEFAULT)
+		seq_printf(m, ",readdir_max_entries=%d", args->max_readdir);
+	if (strcmp(args->snapdir_name, CEPH_SNAPDIRNAME_DEFAULT))
+		seq_printf(m, ",snapdirname=%s", args->snapdir_name);
+	if (args->name)
+		seq_printf(m, ",name=%s", args->name);
+	if (args->secret)
+		seq_puts(m, ",secret=<hidden>");
+	return 0;
+}
+
+/*
+ * caches
+ */
+struct kmem_cache *ceph_inode_cachep;
+struct kmem_cache *ceph_cap_cachep;
+struct kmem_cache *ceph_dentry_cachep;
+struct kmem_cache *ceph_file_cachep;
+
+static void ceph_inode_init_once(void *foo)
+{
+	struct ceph_inode_info *ci = foo;
+	inode_init_once(&ci->vfs_inode);
 }
 
 static int __init init_caches(void)
@@ -305,6 +331,7 @@ enum {
 	Opt_osd_idle_ttl,
 	Opt_caps_wanted_delay_min,
 	Opt_caps_wanted_delay_max,
+	Opt_cap_release_safety,
 	Opt_readdir_max_entries,
 	Opt_congestion_kb,
 	Opt_last_int,
@@ -336,6 +363,7 @@ static match_table_t arg_tokens = {
 	{Opt_osd_idle_ttl, "osd_idle_ttl=%d"},
 	{Opt_caps_wanted_delay_min, "caps_wanted_delay_min=%d"},
 	{Opt_caps_wanted_delay_max, "caps_wanted_delay_max=%d"},
+	{Opt_cap_release_safety, "cap_release_safety=%d"},
 	{Opt_readdir_max_entries, "readdir_max_entries=%d"},
 	{Opt_congestion_kb, "write_congestion_kb=%d"},
 	/* int args above */
@@ -385,8 +413,8 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 	args->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
 	args->rsize = CEPH_MOUNT_RSIZE_DEFAULT;
 	args->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
-	args->cap_release_safety = CEPH_CAPS_PER_RELEASE * 4;
-	args->max_readdir = 1024;
+	args->cap_release_safety = CEPH_CAP_RELEASE_SAFETY_DEFAULT;
+	args->max_readdir = CEPH_MAX_READDIR_DEFAULT;
 	args->congestion_kb = default_congestion_kb();
 
 	/* ip1[:port1][,ip2[:port2]...]:/subdir/in/fs */

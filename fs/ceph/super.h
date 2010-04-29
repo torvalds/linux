@@ -52,24 +52,24 @@
 
 struct ceph_mount_args {
 	int sb_flags;
-	int num_mon;
-	struct ceph_entity_addr *mon_addr;
 	int flags;
-	int mount_timeout;
-	int osd_idle_ttl;
-	int caps_wanted_delay_min, caps_wanted_delay_max;
 	struct ceph_fsid fsid;
 	struct ceph_entity_addr my_addr;
-	int wsize;
-	int rsize;            /* max readahead */
-	int max_readdir;      /* max readdir size */
-	int congestion_kb;      /* max readdir size */
+	int num_mon;
+	struct ceph_entity_addr *mon_addr;
+	int mount_timeout;
+	int osd_idle_ttl;
 	int osd_timeout;
 	int osd_keepalive_timeout;
+	int wsize;
+	int rsize;            /* max readahead */
+	int congestion_kb;    /* max writeback in flight */
+	int caps_wanted_delay_min, caps_wanted_delay_max;
+	int cap_release_safety;
+	int max_readdir;      /* max readdir size */
 	char *snapdir_name;   /* default ".snap" */
 	char *name;
 	char *secret;
-	int cap_release_safety;
 };
 
 /*
@@ -80,13 +80,13 @@ struct ceph_mount_args {
 #define CEPH_OSD_KEEPALIVE_DEFAULT  5
 #define CEPH_OSD_IDLE_TTL_DEFAULT    60
 #define CEPH_MOUNT_RSIZE_DEFAULT    (512*1024) /* readahead */
+#define CEPH_MAX_READDIR_DEFAULT    1024
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
 
 #define CEPH_SNAPDIRNAME_DEFAULT ".snap"
 #define CEPH_AUTH_NAME_DEFAULT   "guest"
-
 /*
  * Delay telling the MDS we no longer want caps, in case we reopen
  * the file.  Delay a minimum amount of time, even if we send a cap
@@ -96,6 +96,7 @@ struct ceph_mount_args {
 #define CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT      5  /* cap release delay */
 #define CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT     60  /* cap release delay */
 
+#define CEPH_CAP_RELEASE_SAFETY_DEFAULT        (CEPH_CAPS_PER_RELEASE * 4)
 
 /* mount state */
 enum {
