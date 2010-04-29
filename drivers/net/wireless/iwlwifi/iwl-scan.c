@@ -264,7 +264,8 @@ inline u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 EXPORT_SYMBOL(iwl_get_active_dwell_time);
 
 u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
-			       enum ieee80211_band band)
+			       enum ieee80211_band band,
+			       struct ieee80211_vif *vif)
 {
 	u16 passive = (band == IEEE80211_BAND_2GHZ) ?
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_24 :
@@ -274,7 +275,7 @@ u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 		/* If we're associated, we clamp the maximum passive
 		 * dwell time to be 98% of the beacon interval (minus
 		 * 2 * channel tune time) */
-		passive = priv->beacon_int;
+		passive = vif ? vif->bss_conf.beacon_int : 0;
 		if ((passive > IWL_PASSIVE_DWELL_BASE) || !passive)
 			passive = IWL_PASSIVE_DWELL_BASE;
 		passive = (passive * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
@@ -294,7 +295,7 @@ void iwl_init_scan_params(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_init_scan_params);
 
-static int iwl_scan_initiate(struct iwl_priv *priv)
+static int iwl_scan_initiate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	WARN_ON(!mutex_is_locked(&priv->mutex));
 
@@ -306,7 +307,7 @@ static int iwl_scan_initiate(struct iwl_priv *priv)
 	if (WARN_ON(!priv->cfg->ops->utils->request_scan))
 		return -EOPNOTSUPP;
 
-	priv->cfg->ops->utils->request_scan(priv);
+	priv->cfg->ops->utils->request_scan(priv, vif);
 
 	return 0;
 }
@@ -347,7 +348,7 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 	priv->scan_band = req->channels[0]->band;
 	priv->scan_request = req;
 
-	ret = iwl_scan_initiate(priv);
+	ret = iwl_scan_initiate(priv, vif);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
@@ -398,7 +399,7 @@ void iwl_bg_start_internal_scan(struct work_struct *work)
 	if (WARN_ON(!priv->cfg->ops->utils->request_scan))
 		goto unlock;
 
-	priv->cfg->ops->utils->request_scan(priv);
+	priv->cfg->ops->utils->request_scan(priv, NULL);
  unlock:
 	mutex_unlock(&priv->mutex);
 }

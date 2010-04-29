@@ -106,7 +106,7 @@ struct iwl_hcmd_utils_ops {
 			__le32 *tx_flags);
 	int  (*calc_rssi)(struct iwl_priv *priv,
 			  struct iwl_rx_phy_res *rx_resp);
-	void (*request_scan)(struct iwl_priv *priv);
+	void (*request_scan)(struct iwl_priv *priv, struct ieee80211_vif *vif);
 };
 
 struct iwl_apm_ops {
@@ -180,8 +180,9 @@ struct iwl_lib_ops {
 	/* power */
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
-	void (*post_associate) (struct iwl_priv *priv);
-	void (*config_ap) (struct iwl_priv *priv);
+	void (*post_associate)(struct iwl_priv *priv,
+			       struct ieee80211_vif *vif);
+	void (*config_ap)(struct iwl_priv *priv, struct ieee80211_vif *vif);
 	irqreturn_t (*isr) (int irq, void *data);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
@@ -334,8 +335,8 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf);
 u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_sta_ht_cap *sta_ht_inf);
-void iwl_set_flags_for_band(struct iwl_priv *priv, enum ieee80211_band band);
-void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode);
+void iwl_connection_init_rx_config(struct iwl_priv *priv,
+				   struct ieee80211_vif *vif);
 int iwl_set_decrypted_flag(struct iwl_priv *priv,
 			   struct ieee80211_hdr *hdr,
 			   u32 decrypt_res,
@@ -345,7 +346,7 @@ void iwl_configure_filter(struct ieee80211_hw *hw,
 			  unsigned int changed_flags,
 			  unsigned int *total_flags, u64 multicast);
 int iwl_set_hw_params(struct iwl_priv *priv);
-void iwl_post_associate(struct iwl_priv *priv);
+void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif);
 void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,
@@ -357,7 +358,7 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif);
 int iwl_mac_config(struct ieee80211_hw *hw, u32 changed);
-void iwl_config_ap(struct iwl_priv *priv);
+void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif);
 void iwl_mac_reset_tsf(struct ieee80211_hw *hw);
 int iwl_alloc_txq_mem(struct iwl_priv *priv);
 void iwl_free_txq_mem(struct iwl_priv *priv);
@@ -520,7 +521,8 @@ u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 			      enum ieee80211_band band,
 			      u8 n_probes);
 u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
-			       enum ieee80211_band band);
+			       enum ieee80211_band band,
+			       struct ieee80211_vif *vif);
 void iwl_bg_scan_check(struct work_struct *data);
 void iwl_bg_abort_scan(struct work_struct *work);
 void iwl_bg_scan_completed(struct work_struct *work);
@@ -684,7 +686,7 @@ extern int iwl_send_lq_cmd(struct iwl_priv *priv,
 void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
-void iwl_setup_rxon_timing(struct iwl_priv *priv);
+void iwl_setup_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif);
 static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)
 {
 	return priv->cfg->ops->hcmd->rxon_assoc(priv);
@@ -693,9 +695,10 @@ static inline int iwlcore_commit_rxon(struct iwl_priv *priv)
 {
 	return priv->cfg->ops->hcmd->commit_rxon(priv);
 }
-static inline void iwlcore_config_ap(struct iwl_priv *priv)
+static inline void iwlcore_config_ap(struct iwl_priv *priv,
+				     struct ieee80211_vif *vif)
 {
-	priv->cfg->ops->lib->config_ap(priv);
+	priv->cfg->ops->lib->config_ap(priv, vif);
 }
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 			struct iwl_priv *priv, enum ieee80211_band band)

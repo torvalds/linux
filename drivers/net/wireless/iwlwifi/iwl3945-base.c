@@ -1847,7 +1847,8 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 					 enum ieee80211_band band,
 				     u8 is_active, u8 n_probes,
-				     struct iwl3945_scan_channel *scan_ch)
+				     struct iwl3945_scan_channel *scan_ch,
+				     struct ieee80211_vif *vif)
 {
 	struct ieee80211_channel *chan;
 	const struct ieee80211_supported_band *sband;
@@ -1861,7 +1862,7 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 		return 0;
 
 	active_dwell = iwl_get_active_dwell_time(priv, band, n_probes);
-	passive_dwell = iwl_get_passive_dwell_time(priv, band);
+	passive_dwell = iwl_get_passive_dwell_time(priv, band, vif);
 
 	if (passive_dwell <= active_dwell)
 		passive_dwell = active_dwell + 1;
@@ -2543,7 +2544,7 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
 		/* Initialize our rx_config data */
-		iwl_connection_init_rx_config(priv, priv->iw_mode);
+		iwl_connection_init_rx_config(priv, NULL);
 	}
 
 	/* Configure Bluetooth device coexistence support */
@@ -2811,7 +2812,7 @@ static void iwl3945_rfkill_poll(struct work_struct *data)
 
 }
 
-void iwl3945_request_scan(struct iwl_priv *priv)
+void iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
@@ -2892,7 +2893,7 @@ void iwl3945_request_scan(struct iwl_priv *priv)
 		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
 
 		spin_lock_irqsave(&priv->lock, flags);
-		interval = priv->beacon_int;
+		interval = vif ? vif->bss_conf.beacon_int : 0;
 		spin_unlock_irqrestore(&priv->lock, flags);
 
 		scan->suspend_time = 0;
@@ -2987,7 +2988,7 @@ void iwl3945_request_scan(struct iwl_priv *priv)
 
 	scan->channel_count =
 		iwl3945_get_channels_for_scan(priv, band, is_active, n_probes,
-			(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
+			(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)], vif);
 
 	if (scan->channel_count == 0) {
 		IWL_DEBUG_SCAN(priv, "channel count %d\n", scan->channel_count);
@@ -3060,24 +3061,23 @@ static void iwl3945_bg_rx_replenish(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
-void iwl3945_post_associate(struct iwl_priv *priv)
+void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	int rc = 0;
 	struct ieee80211_conf *conf = NULL;
 
-	if (priv->iw_mode == NL80211_IFTYPE_AP) {
+	if (!vif || !priv->is_open)
+		return;
+
+	if (vif->type == NL80211_IFTYPE_AP) {
 		IWL_ERR(priv, "%s Should not be called in AP mode\n", __func__);
 		return;
 	}
 
-
 	IWL_DEBUG_ASSOC(priv, "Associated as %d to: %pM\n",
-			priv->assoc_id, priv->active_rxon.bssid_addr);
+			vif->bss_conf.aid, priv->active_rxon.bssid_addr);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	if (!priv->vif || !priv->is_open)
 		return;
 
 	iwl_scan_cancel_timeout(priv, 200);
@@ -3088,7 +3088,7 @@ void iwl3945_post_associate(struct iwl_priv *priv)
 	iwlcore_commit_rxon(priv);
 
 	memset(&priv->rxon_timing, 0, sizeof(struct iwl_rxon_time_cmd));
-	iwl_setup_rxon_timing(priv);
+	iwl_setup_rxon_timing(priv, vif);
 	rc = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
 			      sizeof(priv->rxon_timing), &priv->rxon_timing);
 	if (rc)
@@ -3097,40 +3097,38 @@ void iwl3945_post_associate(struct iwl_priv *priv)
 
 	priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 
-	priv->staging_rxon.assoc_id = cpu_to_le16(priv->assoc_id);
+	priv->staging_rxon.assoc_id = cpu_to_le16(vif->bss_conf.aid);
 
 	IWL_DEBUG_ASSOC(priv, "assoc id %d beacon interval %d\n",
-			priv->assoc_id, priv->beacon_int);
+			vif->bss_conf.aid, vif->bss_conf.beacon_int);
 
-	if (priv->assoc_capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
+	if (vif->bss_conf.assoc_capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		priv->staging_rxon.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 	else
 		priv->staging_rxon.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 
 	if (priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) {
-		if (priv->assoc_capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
+		if (vif->bss_conf.assoc_capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
 			priv->staging_rxon.flags |= RXON_FLG_SHORT_SLOT_MSK;
 		else
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
-		if (priv->iw_mode == NL80211_IFTYPE_ADHOC)
+		if (vif->type == NL80211_IFTYPE_ADHOC)
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
-
 	}
 
 	iwlcore_commit_rxon(priv);
 
-	switch (priv->iw_mode) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		iwl3945_rate_scale_init(priv->hw, IWL_AP_ID);
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		priv->assoc_id = 1;
 		iwl3945_send_beacon_cmd(priv);
 		break;
 	default:
-		 IWL_ERR(priv, "%s Should not be called in %d mode\n",
-			   __func__, priv->iw_mode);
+		IWL_ERR(priv, "%s Should not be called in %d mode\n",
+			__func__, vif->type);
 		break;
 	}
 }
@@ -3254,7 +3252,7 @@ static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 }
 
-void iwl3945_config_ap(struct iwl_priv *priv)
+void iwl3945_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	int rc = 0;
 
@@ -3270,7 +3268,7 @@ void iwl3945_config_ap(struct iwl_priv *priv)
 
 		/* RXON Timing */
 		memset(&priv->rxon_timing, 0, sizeof(struct iwl_rxon_time_cmd));
-		iwl_setup_rxon_timing(priv);
+		iwl_setup_rxon_timing(priv, vif);
 		rc = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
 				      sizeof(priv->rxon_timing),
 				      &priv->rxon_timing);
@@ -3278,9 +3276,10 @@ void iwl3945_config_ap(struct iwl_priv *priv)
 			IWL_WARN(priv, "REPLY_RXON_TIMING failed - "
 					"Attempting to continue.\n");
 
-		/* FIXME: what should be the assoc_id for AP? */
-		priv->staging_rxon.assoc_id = cpu_to_le16(priv->assoc_id);
-		if (priv->assoc_capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
+		priv->staging_rxon.assoc_id = 0;
+
+		if (vif->bss_conf.assoc_capability &
+					WLAN_CAPABILITY_SHORT_PREAMBLE)
 			priv->staging_rxon.flags |=
 				RXON_FLG_SHORT_PREAMBLE_MSK;
 		else
@@ -3288,15 +3287,15 @@ void iwl3945_config_ap(struct iwl_priv *priv)
 				~RXON_FLG_SHORT_PREAMBLE_MSK;
 
 		if (priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) {
-			if (priv->assoc_capability &
-				WLAN_CAPABILITY_SHORT_SLOT_TIME)
+			if (vif->bss_conf.assoc_capability &
+					WLAN_CAPABILITY_SHORT_SLOT_TIME)
 				priv->staging_rxon.flags |=
 					RXON_FLG_SHORT_SLOT_MSK;
 			else
 				priv->staging_rxon.flags &=
 					~RXON_FLG_SHORT_SLOT_MSK;
 
-			if (priv->iw_mode == NL80211_IFTYPE_ADHOC)
+			if (vif->type == NL80211_IFTYPE_ADHOC)
 				priv->staging_rxon.flags &=
 					~RXON_FLG_SHORT_SLOT_MSK;
 		}

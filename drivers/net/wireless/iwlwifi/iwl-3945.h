@@ -261,8 +261,10 @@ void iwl3945_reply_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb);
 extern void iwl3945_disable_events(struct iwl_priv *priv);
 extern int iwl4965_get_temperature(const struct iwl_priv *priv);
-extern void iwl3945_post_associate(struct iwl_priv *priv);
-extern void iwl3945_config_ap(struct iwl_priv *priv);
+extern void iwl3945_post_associate(struct iwl_priv *priv,
+				   struct ieee80211_vif *vif);
+extern void iwl3945_config_ap(struct iwl_priv *priv,
+			      struct ieee80211_vif *vif);
 
 /**
  * iwl3945_hw_find_station - Find station id for a given BSSID
@@ -288,7 +290,7 @@ extern const struct iwl_channel_info *iwl3945_get_channel_info(
 extern int iwl3945_rs_next_rate(struct iwl_priv *priv, int rate);
 
 /* scanning */
-void iwl3945_request_scan(struct iwl_priv *priv);
+void iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
 
 /* Requires full declaration of iwl_priv before including */
 #include "iwl-io.h"

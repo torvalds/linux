@@ -480,7 +480,7 @@ static u16 iwl_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
 	return new_val;
 }
 
-void iwl_setup_rxon_timing(struct iwl_priv *priv)
+void iwl_setup_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	u64 tsf;
 	s32 interval_tm, rem;
@@ -494,14 +494,13 @@ void iwl_setup_rxon_timing(struct iwl_priv *priv)
 	priv->rxon_timing.timestamp = cpu_to_le64(priv->timestamp);
 	priv->rxon_timing.listen_interval = cpu_to_le16(conf->listen_interval);
 
-	if (priv->iw_mode == NL80211_IFTYPE_STATION) {
-		beacon_int = priv->beacon_int;
-		priv->rxon_timing.atim_window = 0;
-	} else {
-		beacon_int = priv->vif->bss_conf.beacon_int;
+	beacon_int = vif->bss_conf.beacon_int;
 
+	if (vif->type == NL80211_IFTYPE_ADHOC) {
 		/* TODO: we need to get atim_window from upper stack
 		 * for now we set to 0 */
+		priv->rxon_timing.atim_window = 0;
+	} else {
 		priv->rxon_timing.atim_window = 0;
 	}
 
@@ -894,8 +893,9 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch)
 }
 EXPORT_SYMBOL(iwl_set_rxon_channel);
 
-void iwl_set_flags_for_band(struct iwl_priv *priv,
-			    enum ieee80211_band band)
+static void iwl_set_flags_for_band(struct iwl_priv *priv,
+				   enum ieee80211_band band,
+				   struct ieee80211_vif *vif)
 {
 	if (band == IEEE80211_BAND_5GHZ) {
 		priv->staging_rxon.flags &=
@@ -904,12 +904,12 @@ void iwl_set_flags_for_band(struct iwl_priv *priv,
 		priv->staging_rxon.flags |= RXON_FLG_SHORT_SLOT_MSK;
 	} else {
 		/* Copied from iwl_post_associate() */
-		if (priv->assoc_capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
+		if (vif && vif->bss_conf.assoc_capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
 			priv->staging_rxon.flags |= RXON_FLG_SHORT_SLOT_MSK;
 		else
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
-		if (priv->iw_mode == NL80211_IFTYPE_ADHOC)
+		if (vif && vif->type == NL80211_IFTYPE_ADHOC)
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
 		priv->staging_rxon.flags |= RXON_FLG_BAND_24G_MSK;
@@ -921,13 +921,18 @@ void iwl_set_flags_for_band(struct iwl_priv *priv,
 /*
  * initialize rxon structure with default values from eeprom
  */
-void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode)
+void iwl_connection_init_rx_config(struct iwl_priv *priv,
+				   struct ieee80211_vif *vif)
 {
 	const struct iwl_channel_info *ch_info;
+	enum nl80211_iftype type = NL80211_IFTYPE_STATION;
+
+	if (vif)
+		type = vif->type;
 
 	memset(&priv->staging_rxon, 0, sizeof(priv->staging_rxon));
 
-	switch (mode) {
+	switch (type) {
 	case NL80211_IFTYPE_AP:
 		priv->staging_rxon.dev_type = RXON_DEV_TYPE_AP;
 		break;
@@ -945,7 +950,7 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode)
 		break;
 
 	default:
-		IWL_ERR(priv, "Unsupported interface type %d\n", mode);
+		IWL_ERR(priv, "Unsupported interface type %d\n", type);
 		break;
 	}
 
@@ -967,7 +972,7 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode)
 	priv->staging_rxon.channel = cpu_to_le16(ch_info->channel);
 	priv->band = ch_info->band;
 
-	iwl_set_flags_for_band(priv, priv->band);
+	iwl_set_flags_for_band(priv, priv->band, vif);
 
 	priv->staging_rxon.ofdm_basic_rates =
 	    (IWL_OFDM_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
@@ -1793,7 +1798,6 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 
 static inline void iwl_set_no_assoc(struct iwl_priv *priv)
 {
-	priv->assoc_id = 0;
 	iwl_led_disassociate(priv);
 	/*
 	 * inform the ucode that there is no longer an
@@ -1827,7 +1831,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & BSS_CHANGED_BEACON_INT) {
-		priv->beacon_int = bss_conf->beacon_int;
 		/* TODO: in AP mode, do something to make this take effect */
 	}
 
@@ -1917,20 +1920,17 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 	if (changes & BSS_CHANGED_ASSOC) {
 		IWL_DEBUG_MAC80211(priv, "ASSOC %d\n", bss_conf->assoc);
 		if (bss_conf->assoc) {
-			priv->assoc_id = bss_conf->aid;
-			priv->beacon_int = bss_conf->beacon_int;
 			priv->timestamp = bss_conf->timestamp;
-			priv->assoc_capability = bss_conf->assoc_capability;
 
 			iwl_led_associate(priv);
 
 			if (!iwl_is_rfkill(priv))
-				priv->cfg->ops->lib->post_associate(priv);
+				priv->cfg->ops->lib->post_associate(priv, vif);
 		} else
 			iwl_set_no_assoc(priv);
 	}
 
-	if (changes && iwl_is_associated(priv) && priv->assoc_id) {
+	if (changes && iwl_is_associated(priv) && bss_conf->aid) {
 		IWL_DEBUG_MAC80211(priv, "Changes (%#x) while associated\n",
 				   changes);
 		ret = iwl_send_rxon_assoc(priv);
@@ -1947,7 +1947,7 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			memcpy(priv->staging_rxon.bssid_addr,
 			       bss_conf->bssid, ETH_ALEN);
 			memcpy(priv->bssid, bss_conf->bssid, ETH_ALEN);
-			iwlcore_config_ap(priv);
+			iwlcore_config_ap(priv, vif);
 		} else
 			iwl_set_no_assoc(priv);
 	}
@@ -1987,14 +1987,13 @@ int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	priv->ibss_beacon = skb;
 
-	priv->assoc_id = 0;
 	timestamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;
 	priv->timestamp = le64_to_cpu(timestamp);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	priv->cfg->ops->lib->post_associate(priv);
+	priv->cfg->ops->lib->post_associate(priv, priv->vif);
 
 	return 0;
 }
@@ -2002,7 +2001,7 @@ EXPORT_SYMBOL(iwl_mac_beacon_update);
 
 static int iwl_set_mode(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
-	iwl_connection_init_rx_config(priv, vif->type);
+	iwl_connection_init_rx_config(priv, vif);
 
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
 		priv->cfg->ops->hcmd->set_rxon_chain(priv);
@@ -2176,7 +2175,7 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		iwl_set_rxon_channel(priv, conf->channel);
 		iwl_set_rxon_ht(priv, ht_conf);
 
-		iwl_set_flags_for_band(priv, conf->channel->band);
+		iwl_set_flags_for_band(priv, conf->channel->band, priv->vif);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		if (iwl_is_associated(priv) &&
 		    (le16_to_cpu(priv->active_rxon.channel) != ch) &&
@@ -2259,8 +2258,6 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->assoc_id = 0;
-	priv->assoc_capability = 0;
 
 	/* new association get rid of ibss beacon skb */
 	if (priv->ibss_beacon)
@@ -2268,7 +2265,6 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 
 	priv->ibss_beacon = NULL;
 
-	priv->beacon_int = priv->vif->bss_conf.beacon_int;
 	priv->timestamp = 0;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
