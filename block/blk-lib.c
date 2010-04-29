@@ -124,6 +124,7 @@ struct bio_batch
 static void bio_batch_end_io(struct bio *bio, int err)
 {
 	struct bio_batch *bb = bio->bi_private;
+
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			set_bit(BIO_EOPNOTSUPP, &bb->flags);
@@ -186,8 +187,8 @@ submit:
 		if (flags & BLKDEV_IFL_WAIT)
 			bio->bi_private = &bb;
 
-		while(nr_sects != 0) {
-			sz = min(PAGE_SIZE >> 9 , nr_sects);
+		while (nr_sects != 0) {
+			sz = min((sector_t) PAGE_SIZE >> 9 , nr_sects);
 			if (sz == 0)
 				/* bio has maximum size possible */
 				break;
