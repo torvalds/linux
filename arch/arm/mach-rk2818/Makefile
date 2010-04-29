@@ -1,4 +1,4 @@
-obj-y += io.o idle.o irq.o timer.o iomux.o
+obj-y += io.o idle.o irq.o timer.o iomux.o gpio.o
 obj-y += devices.o
 obj-y += proc_comm.o
 obj-y += vreg.o
