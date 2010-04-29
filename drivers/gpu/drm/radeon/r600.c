@@ -256,7 +256,6 @@ void r600_set_power_state(struct radeon_device *rdev, bool static_switch)
 		return;
 
 	if (radeon_gui_idle(rdev)) {
-
 		sclk = rdev->pm.power_state[rdev->pm.requested_power_state_index].
 			clock_info[rdev->pm.requested_clock_mode_index].sclk;
 		if (sclk > rdev->clock.default_sclk)
@@ -271,52 +270,27 @@ void r600_set_power_state(struct radeon_device *rdev, bool static_switch)
 		radeon_pm_misc(rdev);
 
 		if (static_switch) {
-
+			radeon_pm_prepare(rdev);
 			/* set engine clock */
 			if (sclk != rdev->pm.current_sclk) {
 				radeon_set_engine_clock(rdev, sclk);
 				rdev->pm.current_sclk = sclk;
 				DRM_INFO("Setting: e: %d\n", sclk);
 			}
-
 			/* set memory clock */
 			if (rdev->asic->set_memory_clock && (mclk != rdev->pm.current_mclk)) {
-				radeon_pm_prepare(rdev);
 				radeon_set_memory_clock(rdev, mclk);
-				radeon_pm_finish(rdev);
 				rdev->pm.current_mclk = mclk;
 				DRM_INFO("Setting: m: %d\n", mclk);
 			}
-
+			radeon_pm_finish(rdev);
 		} else {
-			u32 position;
-			u32 vbl;
-
 			radeon_sync_with_vblank(rdev);
 
 			if (!radeon_pm_in_vbl(rdev))
 				return;
 
-			if (rdev->pm.active_crtcs & (1 << 0)) {
-				vbl = RREG32(AVIVO_D1CRTC_V_BLANK_START_END);
-				position = RREG32(AVIVO_D1CRTC_STATUS_POSITION);
-				position &= 0xfff;
-				vbl &= 0xfff;
-
-				if (position < vbl && position > 1)
-					return;
-			}
-
-			if (rdev->pm.active_crtcs & (1 << 1)) {
-				vbl = RREG32(AVIVO_D2CRTC_V_BLANK_START_END);
-				position = RREG32(AVIVO_D2CRTC_STATUS_POSITION);
-				position &= 0xfff;
-				vbl &= 0xfff;
-
-				if (position < vbl && position > 1)
-					return;
-			}
-
+			radeon_pm_prepare(rdev);
 			if (sclk != rdev->pm.current_sclk) {
 				radeon_pm_debug_check_in_vbl(rdev, false);
 				radeon_set_engine_clock(rdev, sclk);
@@ -328,13 +302,12 @@ void r600_set_power_state(struct radeon_device *rdev, bool static_switch)
 			/* set memory clock */
 			if (rdev->asic->set_memory_clock && (mclk != rdev->pm.current_mclk)) {
 				radeon_pm_debug_check_in_vbl(rdev, false);
-				radeon_pm_prepare(rdev);
 				radeon_set_memory_clock(rdev, mclk);
-				radeon_pm_finish(rdev);
 				radeon_pm_debug_check_in_vbl(rdev, true);
 				rdev->pm.current_mclk = mclk;
 				DRM_INFO("Setting: m: %d\n", mclk);
 			}
+			radeon_pm_finish(rdev);
 		}
 
 		rdev->pm.current_power_state_index = rdev->pm.requested_power_state_index;

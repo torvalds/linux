@@ -64,7 +64,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 	mutex_lock(&rdev->ddev->struct_mutex);
 	mutex_lock(&rdev->vram_mutex);
 	mutex_lock(&rdev->cp.mutex);
-
+#if 0
 	/* wait for GPU idle */
 	rdev->pm.gui_idle = false;
 	rdev->irq.gui_idle = true;
@@ -74,7 +74,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 		msecs_to_jiffies(RADEON_WAIT_IDLE_TIMEOUT));
 	rdev->irq.gui_idle = false;
 	radeon_irq_set(rdev);
-
+#endif
 	radeon_unmap_vram_bos(rdev);
 
 	if (!static_switch) {
@@ -85,7 +85,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 			}
 		}
 	}
-	
+
 	radeon_set_power_state(rdev, static_switch);
 
 	if (!static_switch) {
@@ -389,51 +389,57 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 
 bool radeon_pm_in_vbl(struct radeon_device *rdev)
 {
-	u32 stat_crtc = 0;
+	u32 stat_crtc = 0, vbl = 0, position = 0;
 	bool in_vbl = true;
 
 	if (ASIC_IS_DCE4(rdev)) {
 		if (rdev->pm.active_crtcs & (1 << 0)) {
-			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC0_REGISTER_OFFSET);
-			if (!(stat_crtc & 1))
-				in_vbl = false;
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC0_REGISTER_OFFSET) & 0xfff;
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC0_REGISTER_OFFSET) & 0xfff;
 		}
 		if (rdev->pm.active_crtcs & (1 << 1)) {
-			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC1_REGISTER_OFFSET);
-			if (!(stat_crtc & 1))
-				in_vbl = false;
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC1_REGISTER_OFFSET) & 0xfff;
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC1_REGISTER_OFFSET) & 0xfff;
 		}
 		if (rdev->pm.active_crtcs & (1 << 2)) {
-			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC2_REGISTER_OFFSET);
-			if (!(stat_crtc & 1))
-				in_vbl = false;
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC2_REGISTER_OFFSET) & 0xfff;
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC2_REGISTER_OFFSET) & 0xfff;
 		}
 		if (rdev->pm.active_crtcs & (1 << 3)) {
-			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC3_REGISTER_OFFSET);
-			if (!(stat_crtc & 1))
-				in_vbl = false;
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC3_REGISTER_OFFSET) & 0xfff;
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC3_REGISTER_OFFSET) & 0xfff;
 		}
 		if (rdev->pm.active_crtcs & (1 << 4)) {
-			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC4_REGISTER_OFFSET);
-			if (!(stat_crtc & 1))
-				in_vbl = false;
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC4_REGISTER_OFFSET) & 0xfff;
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC4_REGISTER_OFFSET) & 0xfff;
 		}
 		if (rdev->pm.active_crtcs & (1 << 5)) {
-			stat_crtc = RREG32(EVERGREEN_CRTC_STATUS + EVERGREEN_CRTC5_REGISTER_OFFSET);
-			if (!(stat_crtc & 1))
-				in_vbl = false;
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC5_REGISTER_OFFSET) & 0xfff;
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC5_REGISTER_OFFSET) & 0xfff;
 		}
 	} else if (ASIC_IS_AVIVO(rdev)) {
 		if (rdev->pm.active_crtcs & (1 << 0)) {
-			stat_crtc = RREG32(D1CRTC_STATUS);
-			if (!(stat_crtc & 1))
-				in_vbl = false;
+			vbl = RREG32(AVIVO_D1CRTC_V_BLANK_START_END) & 0xfff;
+			position = RREG32(AVIVO_D1CRTC_STATUS_POSITION) & 0xfff;
 		}
 		if (rdev->pm.active_crtcs & (1 << 1)) {
-			stat_crtc = RREG32(D2CRTC_STATUS);
-			if (!(stat_crtc & 1))
-				in_vbl = false;
+			vbl = RREG32(AVIVO_D2CRTC_V_BLANK_START_END) & 0xfff;
+			position = RREG32(AVIVO_D2CRTC_STATUS_POSITION) & 0xfff;
 		}
+		if (position < vbl && position > 1)
+			in_vbl = false;
 	} else {
 		if (rdev->pm.active_crtcs & (1 << 0)) {
 			stat_crtc = RREG32(RADEON_CRTC_STATUS);
@@ -446,6 +452,9 @@ bool radeon_pm_in_vbl(struct radeon_device *rdev)
 				in_vbl = false;
 		}
 	}
+
+	if (position < vbl && position > 1)
+		in_vbl = false;
 
 	return in_vbl;
 }
