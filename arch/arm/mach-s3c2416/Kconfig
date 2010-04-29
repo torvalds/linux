@@ -27,6 +27,7 @@ config MACH_SMDK2416
 	bool "SMDK2416"
 	select CPU_S3C2416
 	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
 	help
 	  Say Y here if you are using an SMDK2416
 
