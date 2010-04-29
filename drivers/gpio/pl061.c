@@ -189,7 +189,7 @@ static int pl061_irq_type(unsigned irq, unsigned trigger)
 		gpioibe &= ~(1 << offset);
 		if (trigger & IRQ_TYPE_EDGE_RISING)
 			gpioiev |= 1 << offset;
-		else
+		else if (trigger & IRQ_TYPE_EDGE_FALLING)
 			gpioiev &= ~(1 << offset);
 	}
 	writeb(gpioibe, chip->base + GPIOIBE);
