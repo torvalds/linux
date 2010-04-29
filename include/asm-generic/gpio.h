@@ -89,14 +89,17 @@ struct gpio_chip {
 						unsigned offset, int value);
 	void			(*set)(struct gpio_chip *chip,
 						unsigned offset, int value);
+    
+   	int        	      (*pull_updown)(struct gpio_chip *chip,
+					unsigned offset, unsigned value);     
 
 	int			(*to_irq)(struct gpio_chip *chip,
 						unsigned offset);
 
 	void			(*dbg_show)(struct seq_file *s,
 						struct gpio_chip *chip);
-	int			base;
-	u16			ngpio;
+	int			base;// GPIOX_Y（其中，X=0/1;Y=A/B/C/D）的第一个PIN的逻辑位置
+	u16			ngpio;//GPIOX_Y（其中，X=0/1;Y=A/B/C/D）的PIN总数
 	char			**names;
 	unsigned		can_sleep:1;
 	unsigned		exported:1;
@@ -119,7 +122,7 @@ extern void gpio_free(unsigned gpio);
 
 extern int gpio_direction_input(unsigned gpio);
 extern int gpio_direction_output(unsigned gpio, int value);
-
+extern int gpio_pull_updown(unsigned gpio, unsigned value);
 extern int gpio_get_value_cansleep(unsigned gpio);
 extern void gpio_set_value_cansleep(unsigned gpio, int value);
 
