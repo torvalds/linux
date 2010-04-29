@@ -443,8 +443,6 @@ int padata_set_cpumask(struct padata_instance *pinst,
 	struct parallel_data *pd;
 	int err = 0;
 
-	might_sleep();
-
 	mutex_lock(&pinst->lock);
 
 	pd = padata_alloc_pd(pinst, cpumask);
@@ -489,8 +487,6 @@ int padata_add_cpu(struct padata_instance *pinst, int cpu)
 {
 	int err;
 
-	might_sleep();
-
 	mutex_lock(&pinst->lock);
 
 	cpumask_set_cpu(cpu, pinst->cpumask);
@@ -527,8 +523,6 @@ int padata_remove_cpu(struct padata_instance *pinst, int cpu)
 {
 	int err;
 
-	might_sleep();
-
 	mutex_lock(&pinst->lock);
 
 	cpumask_clear_cpu(cpu, pinst->cpumask);
@@ -547,8 +541,6 @@ EXPORT_SYMBOL(padata_remove_cpu);
  */
 void padata_start(struct padata_instance *pinst)
 {
-	might_sleep();
-
 	mutex_lock(&pinst->lock);
 	pinst->flags |= PADATA_INIT;
 	mutex_unlock(&pinst->lock);
@@ -562,8 +554,6 @@ EXPORT_SYMBOL(padata_start);
  */
 void padata_stop(struct padata_instance *pinst)
 {
-	might_sleep();
-
 	mutex_lock(&pinst->lock);
 	pinst->flags &= ~PADATA_INIT;
 	mutex_unlock(&pinst->lock);
