@@ -12,6 +12,11 @@
 #ifndef __ARM_PMU_H__
 #define __ARM_PMU_H__
 
+enum arm_pmu_type {
+	ARM_PMU_DEVICE_CPU	= 0,
+	ARM_NUM_PMU_DEVICES,
+};
+
 #ifdef CONFIG_CPU_HAS_PMU
 
 struct pmu_irqs {
