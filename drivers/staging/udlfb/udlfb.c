@@ -1508,8 +1508,8 @@ static void dlfb_free_urb_list(struct dlfb_data *dev)
 		urb = unode->urb;
 
 		/* Free each separately allocated piece */
-		usb_buffer_free(urb->dev, dev->urbs.size,
-			urb->transfer_buffer, urb->transfer_dma);
+		usb_free_coherent(urb->dev, dev->urbs.size,
+				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
 		kfree(node);
 	}
@@ -1543,8 +1543,8 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
 		}
 		unode->urb = urb;
 
-		buf = usb_buffer_alloc(dev->udev, MAX_TRANSFER, GFP_KERNEL,
-					&urb->transfer_dma);
+		buf = usb_alloc_coherent(dev->udev, MAX_TRANSFER, GFP_KERNEL,
+					 &urb->transfer_dma);
 		if (!buf) {
 			kfree(unode);
 			usb_free_urb(urb);
