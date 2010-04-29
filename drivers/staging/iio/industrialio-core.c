@@ -809,7 +809,7 @@ int iio_device_register(struct iio_dev *dev_info)
 	ret = iio_device_register_eventset(dev_info);
 	if (ret) {
 		dev_err(dev_info->dev.parent,
-			"Failed to register event set \n");
+			"Failed to register event set\n");
 		goto error_free_sysfs;
 	}
 	if (dev_info->modes & INDIO_RING_TRIGGERED)

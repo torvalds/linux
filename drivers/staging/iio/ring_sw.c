@@ -126,8 +126,7 @@ int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 		spin_lock(&ring->buf.shared_ev_pointer.lock);
 
 		ret = iio_push_or_escallate_ring_event(&ring->buf,
-						       IIO_EVENT_CODE_RING_100_FULL,
-						       timestamp);
+			       IIO_EVENT_CODE_RING_100_FULL, timestamp);
 		spin_unlock(&ring->buf.shared_ev_pointer.lock);
 		if (ret)
 			goto error_ret;
