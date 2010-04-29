@@ -484,60 +484,29 @@ static int __devexit pm8607_regulator_remove(struct platform_device *pdev)
 {
 	struct pm8607_regulator_info *info = platform_get_drvdata(pdev);
 
+	platform_set_drvdata(pdev, NULL);
 	regulator_unregister(info->regulator);
 	return 0;
 }
 
-#define PM8607_REGULATOR_DRIVER(_name)				\
-{								\
-	.driver		= {					\
-		.name	= "88pm8607-" #_name,			\
-		.owner	= THIS_MODULE,				\
-	},							\
-	.probe		= pm8607_regulator_probe,		\
-	.remove		= __devexit_p(pm8607_regulator_remove),	\
-}
-
-static struct platform_driver pm8607_regulator_driver[] = {
-	PM8607_REGULATOR_DRIVER(buck1),
-	PM8607_REGULATOR_DRIVER(buck2),
-	PM8607_REGULATOR_DRIVER(buck3),
-	PM8607_REGULATOR_DRIVER(ldo1),
-	PM8607_REGULATOR_DRIVER(ldo2),
-	PM8607_REGULATOR_DRIVER(ldo3),
-	PM8607_REGULATOR_DRIVER(ldo4),
-	PM8607_REGULATOR_DRIVER(ldo5),
-	PM8607_REGULATOR_DRIVER(ldo6),
-	PM8607_REGULATOR_DRIVER(ldo7),
-	PM8607_REGULATOR_DRIVER(ldo8),
-	PM8607_REGULATOR_DRIVER(ldo9),
-	PM8607_REGULATOR_DRIVER(ldo10),
-	PM8607_REGULATOR_DRIVER(ldo12),
-	PM8607_REGULATOR_DRIVER(ldo14),
+static struct platform_driver pm8607_regulator_driver = {
+	.driver		= {
+		.name	= "88pm860x-regulator",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= pm8607_regulator_probe,
+	.remove		= __devexit_p(pm8607_regulator_remove),
 };
 
 static int __init pm8607_regulator_init(void)
 {
-	int i, count, ret;
-
-	count = ARRAY_SIZE(pm8607_regulator_driver);
-	for (i = 0; i < count; i++) {
-		ret = platform_driver_register(&pm8607_regulator_driver[i]);
-		if (ret != 0)
-			pr_err("Failed to register regulator driver: %d\n",
-				ret);
-	}
-	return 0;
+	return platform_driver_register(&pm8607_regulator_driver);
 }
 subsys_initcall(pm8607_regulator_init);
 
 static void __exit pm8607_regulator_exit(void)
 {
-	int i, count;
-
-	count = ARRAY_SIZE(pm8607_regulator_driver);
-	for (i = 0; i < count; i++)
-		platform_driver_unregister(&pm8607_regulator_driver[i]);
+	platform_driver_unregister(&pm8607_regulator_driver);
 }
 module_exit(pm8607_regulator_exit);
 
