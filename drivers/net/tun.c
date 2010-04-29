@@ -109,7 +109,7 @@ struct tun_struct {
 
 	struct tap_filter       txflt;
 	struct socket		socket;
-
+	struct socket_wq	wq;
 #ifdef TUN_DEBUG
 	int debug;
 #endif
@@ -323,7 +323,7 @@ static void tun_net_uninit(struct net_device *dev)
 	/* Inform the methods they need to stop using the dev.
 	 */
 	if (tfile) {
-		wake_up_all(&tun->socket.wait);
+		wake_up_all(&tun->wq.wait);
 		if (atomic_dec_and_test(&tfile->count))
 			__tun_detach(tun);
 	}
@@ -398,7 +398,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Notify and wake up reader process */
 	if (tun->flags & TUN_FASYNC)
 		kill_fasync(&tun->fasync, SIGIO, POLL_IN);
-	wake_up_interruptible_poll(&tun->socket.wait, POLLIN |
+	wake_up_interruptible_poll(&tun->wq.wait, POLLIN |
 				   POLLRDNORM | POLLRDBAND);
 	return NETDEV_TX_OK;
 
@@ -498,7 +498,7 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 
 	DBG(KERN_INFO "%s: tun_chr_poll\n", tun->dev->name);
 
-	poll_wait(file, &tun->socket.wait, wait);
+	poll_wait(file, &tun->wq.wait, wait);
 
 	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
@@ -773,7 +773,7 @@ static ssize_t tun_do_read(struct tun_struct *tun,
 
 	DBG(KERN_INFO "%s: tun_chr_read\n", tun->dev->name);
 
-	add_wait_queue(&tun->socket.wait, &wait);
+	add_wait_queue(&tun->wq.wait, &wait);
 	while (len) {
 		current->state = TASK_INTERRUPTIBLE;
 
@@ -804,7 +804,7 @@ static ssize_t tun_do_read(struct tun_struct *tun,
 	}
 
 	current->state = TASK_RUNNING;
-	remove_wait_queue(&tun->socket.wait, &wait);
+	remove_wait_queue(&tun->wq.wait, &wait);
 
 	return ret;
 }
@@ -861,6 +861,7 @@ static struct rtnl_link_ops tun_link_ops __read_mostly = {
 static void tun_sock_write_space(struct sock *sk)
 {
 	struct tun_struct *tun;
+	wait_queue_head_t *wqueue;
 
 	if (!sock_writeable(sk))
 		return;
@@ -868,8 +869,9 @@ static void tun_sock_write_space(struct sock *sk)
 	if (!test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags))
 		return;
 
-	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
-		wake_up_interruptible_sync_poll(sk_sleep(sk), POLLOUT |
+	wqueue = sk_sleep(sk);
+	if (wqueue && waitqueue_active(wqueue))
+		wake_up_interruptible_sync_poll(wqueue, POLLOUT |
 						POLLWRNORM | POLLWRBAND);
 
 	tun = tun_sk(sk)->tun;
@@ -1039,7 +1041,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		if (!sk)
 			goto err_free_dev;
 
-		init_waitqueue_head(&tun->socket.wait);
+		tun->socket.wq = &tun->wq;
+		init_waitqueue_head(&tun->wq.wait);
 		tun->socket.ops = &tun_socket_ops;
 		sock_init_data(&tun->socket, sk);
 		sk->sk_write_space = tun_sock_write_space;

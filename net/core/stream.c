@@ -28,15 +28,19 @@
 void sk_stream_write_space(struct sock *sk)
 {
 	struct socket *sock = sk->sk_socket;
+	struct socket_wq *wq;
 
 	if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk) && sock) {
 		clear_bit(SOCK_NOSPACE, &sock->flags);
 
-		if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
-			wake_up_interruptible_poll(sk_sleep(sk), POLLOUT |
+		rcu_read_lock();
+		wq = rcu_dereference(sk->sk_wq);
+		if (wq_has_sleeper(wq))
+			wake_up_interruptible_poll(&wq->wait, POLLOUT |
 						POLLWRNORM | POLLWRBAND);
-		if (sock->fasync_list && !(sk->sk_shutdown & SEND_SHUTDOWN))
+		if (wq && wq->fasync_list && !(sk->sk_shutdown & SEND_SHUTDOWN))
 			sock_wake_async(sock, SOCK_WAKE_SPACE, POLL_OUT);
+		rcu_read_unlock();
 	}
 }
 

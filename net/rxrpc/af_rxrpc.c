@@ -62,13 +62,15 @@ static inline int rxrpc_writable(struct sock *sk)
 static void rxrpc_write_space(struct sock *sk)
 {
 	_enter("%p", sk);
-	read_lock(&sk->sk_callback_lock);
+	rcu_read_lock();
 	if (rxrpc_writable(sk)) {
-		if (sk_has_sleeper(sk))
-			wake_up_interruptible(sk_sleep(sk));
+		struct socket_wq *wq = rcu_dereference(sk->sk_wq);
+
+		if (wq_has_sleeper(wq))
+			wake_up_interruptible(&wq->wait);
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
-	read_unlock(&sk->sk_callback_lock);
+	rcu_read_unlock();
 }
 
 /*

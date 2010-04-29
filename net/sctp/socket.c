@@ -6065,7 +6065,7 @@ static void __sctp_write_space(struct sctp_association *asoc)
 			 * here by modeling from the current TCP/UDP code.
 			 * We have not tested with it yet.
 			 */
-			if (sock->fasync_list &&
+			if (sock->wq->fasync_list &&
 			    !(sk->sk_shutdown & SEND_SHUTDOWN))
 				sock_wake_async(sock,
 						SOCK_WAKE_SPACE, POLL_OUT);

@@ -252,9 +252,14 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	ei = kmem_cache_alloc(sock_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	init_waitqueue_head(&ei->socket.wait);
+	ei->socket.wq = kmalloc(sizeof(struct socket_wq), GFP_KERNEL);
+	if (!ei->socket.wq) {
+		kmem_cache_free(sock_inode_cachep, ei);
+		return NULL;
+	}
+	init_waitqueue_head(&ei->socket.wq->wait);
+	ei->socket.wq->fasync_list = NULL;
 
-	ei->socket.fasync_list = NULL;
 	ei->socket.state = SS_UNCONNECTED;
 	ei->socket.flags = 0;
 	ei->socket.ops = NULL;
@@ -264,10 +269,21 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+
+static void wq_free_rcu(struct rcu_head *head)
+{
+	struct socket_wq *wq = container_of(head, struct socket_wq, rcu);
+
+	kfree(wq);
+}
+
 static void sock_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(sock_inode_cachep,
-			container_of(inode, struct socket_alloc, vfs_inode));
+	struct socket_alloc *ei;
+
+	ei = container_of(inode, struct socket_alloc, vfs_inode);
+	call_rcu(&ei->socket.wq->rcu, wq_free_rcu);
+	kmem_cache_free(sock_inode_cachep, ei);
 }
 
 static void init_once(void *foo)
@@ -513,7 +529,7 @@ void sock_release(struct socket *sock)
 		module_put(owner);
 	}
 
-	if (sock->fasync_list)
+	if (sock->wq->fasync_list)
 		printk(KERN_ERR "sock_release: fasync list not empty!\n");
 
 	percpu_sub(sockets_in_use, 1);
@@ -1080,9 +1096,9 @@ static int sock_fasync(int fd, struct file *filp, int on)
 
 	lock_sock(sk);
 
-	fasync_helper(fd, filp, on, &sock->fasync_list);
+	fasync_helper(fd, filp, on, &sock->wq->fasync_list);
 
-	if (!sock->fasync_list)
+	if (!sock->wq->fasync_list)
 		sock_reset_flag(sk, SOCK_FASYNC);
 	else
 		sock_set_flag(sk, SOCK_FASYNC);
@@ -1091,12 +1107,20 @@ static int sock_fasync(int fd, struct file *filp, int on)
 	return 0;
 }
 
-/* This function may be called only under socket lock or callback_lock */
+/* This function may be called only under socket lock or callback_lock or rcu_lock */
 
 int sock_wake_async(struct socket *sock, int how, int band)
 {
-	if (!sock || !sock->fasync_list)
+	struct socket_wq *wq;
+
+	if (!sock)
 		return -1;
+	rcu_read_lock();
+	wq = rcu_dereference(sock->wq);
+	if (!wq || !wq->fasync_list) {
+		rcu_read_unlock();
+		return -1;
+	}
 	switch (how) {
 	case SOCK_WAKE_WAITD:
 		if (test_bit(SOCK_ASYNC_WAITDATA, &sock->flags))
@@ -1108,11 +1132,12 @@ int sock_wake_async(struct socket *sock, int how, int band)
 		/* fall through */
 	case SOCK_WAKE_IO:
 call_kill:
-		kill_fasync(&sock->fasync_list, SIGIO, band);
+		kill_fasync(&wq->fasync_list, SIGIO, band);
 		break;
 	case SOCK_WAKE_URG:
-		kill_fasync(&sock->fasync_list, SIGURG, band);
+		kill_fasync(&wq->fasync_list, SIGURG, band);
 	}
+	rcu_read_unlock();
 	return 0;
 }
 

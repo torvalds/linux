@@ -195,15 +195,17 @@ EXPORT_SYMBOL_GPL(dccp_sync_mss);
 
 void dccp_write_space(struct sock *sk)
 {
-	read_lock(&sk->sk_callback_lock);
+	struct socket_wq *wq;
 
-	if (sk_has_sleeper(sk))
-		wake_up_interruptible(sk_sleep(sk));
+	rcu_read_lock();
+	wq = rcu_dereference(sk->sk_wq);
+	if (wq_has_sleeper(wq))
+		wake_up_interruptible(&wq->wait);
 	/* Should agree with poll, otherwise some programs break */
 	if (sock_writeable(sk))
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 
-	read_unlock(&sk->sk_callback_lock);
+	rcu_read_unlock();
 }
 
 /**

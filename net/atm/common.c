@@ -90,10 +90,13 @@ static void vcc_sock_destruct(struct sock *sk)
 
 static void vcc_def_wakeup(struct sock *sk)
 {
-	read_lock(&sk->sk_callback_lock);
-	if (sk_has_sleeper(sk))
-		wake_up(sk_sleep(sk));
-	read_unlock(&sk->sk_callback_lock);
+	struct socket_wq *wq;
+
+	rcu_read_lock();
+	wq = rcu_dereference(sk->sk_wq);
+	if (wq_has_sleeper(wq))
+		wake_up(&wq->wait);
+	rcu_read_unlock();
 }
 
 static inline int vcc_writable(struct sock *sk)
@@ -106,16 +109,19 @@ static inline int vcc_writable(struct sock *sk)
 
 static void vcc_write_space(struct sock *sk)
 {
-	read_lock(&sk->sk_callback_lock);
+	struct socket_wq *wq;
+
+	rcu_read_lock();
 
 	if (vcc_writable(sk)) {
-		if (sk_has_sleeper(sk))
-			wake_up_interruptible(sk_sleep(sk));
+		wq = rcu_dereference(sk->sk_wq);
+		if (wq_has_sleeper(wq))
+			wake_up_interruptible(&wq->wait);
 
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 
-	read_unlock(&sk->sk_callback_lock);
+	rcu_read_unlock();
 }
 
 static struct proto vcc_proto = {

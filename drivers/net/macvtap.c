@@ -37,6 +37,7 @@
 struct macvtap_queue {
 	struct sock sk;
 	struct socket sock;
+	struct socket_wq wq;
 	struct macvlan_dev *vlan;
 	struct file *file;
 	unsigned int flags;
@@ -242,12 +243,15 @@ static struct rtnl_link_ops macvtap_link_ops __read_mostly = {
 
 static void macvtap_sock_write_space(struct sock *sk)
 {
+	wait_queue_head_t *wqueue;
+
 	if (!sock_writeable(sk) ||
 	    !test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags))
 		return;
 
-	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
-		wake_up_interruptible_poll(sk_sleep(sk), POLLOUT | POLLWRNORM | POLLWRBAND);
+	wqueue = sk_sleep(sk);
+	if (wqueue && waitqueue_active(wqueue))
+		wake_up_interruptible_poll(wqueue, POLLOUT | POLLWRNORM | POLLWRBAND);
 }
 
 static int macvtap_open(struct inode *inode, struct file *file)
@@ -272,7 +276,8 @@ static int macvtap_open(struct inode *inode, struct file *file)
 	if (!q)
 		goto out;
 
-	init_waitqueue_head(&q->sock.wait);
+	q->sock.wq = &q->wq;
+	init_waitqueue_head(&q->wq.wait);
 	q->sock.type = SOCK_RAW;
 	q->sock.state = SS_CONNECTED;
 	q->sock.file = file;
@@ -308,7 +313,7 @@ static unsigned int macvtap_poll(struct file *file, poll_table * wait)
 		goto out;
 
 	mask = 0;
-	poll_wait(file, &q->sock.wait, wait);
+	poll_wait(file, &q->wq.wait, wait);
 
 	if (!skb_queue_empty(&q->sk.sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
