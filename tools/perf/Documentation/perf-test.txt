@@ -1,0 +1,22 @@
+perf-test(1)
+============
+
+NAME
+----
+perf-test - Runs sanity tests.
+
+SYNOPSIS
+--------
+[verse]
+'perf test <options>'
+
+DESCRIPTION
+-----------
+This command does assorted sanity tests, initially thru linked routines but
+also will look for a directory with more tests in the form of scripts.
+
+OPTIONS
+-------
+-v::
+--verbose::
+	Be more verbose.
