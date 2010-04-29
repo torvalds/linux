@@ -214,6 +214,9 @@ static struct pad_desc pcm043_pads[] = {
 	MX35_PAD_STXD4__AUDMUX_AUD4_TXD,
 	MX35_PAD_SRXD4__AUDMUX_AUD4_RXD,
 	MX35_PAD_SCK4__AUDMUX_AUD4_TXC,
+	/* CAN2 */
+	MX35_PAD_TX5_RX0__CAN2_TXCAN,
+	MX35_PAD_TX4_RX1__CAN2_RXCAN,
 };
 
 #define AC97_GPIO_TXFS	(1 * 32 + 31)
@@ -385,6 +388,7 @@ static void __init mxc_board_init(void)
 	if (!otg_mode_host)
 		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
 
+	imx35_add_flexcan1(NULL);
 }
 
 static void __init pcm043_timer_init(void)
