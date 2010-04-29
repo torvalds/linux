@@ -50,7 +50,7 @@
 
 
 
-u32 int_priority[NR_IRQS]={
+u32 int_priority[NR_AIC_IRQS]={
     /*   priority      name     number    */
             0,     //IRQ_DWDMA,   0  -- low
             0,     //IRQ_UHI,     1  -- USB Host Interface                     
@@ -144,7 +144,7 @@ static struct irq_chip rk2818_irq_chip = {
 /*
  * Initialize the AIC interrupt controller.
  */
-void __init rk2818_init_irq(u32 priority[NR_IRQS])
+void __init rk2818_init_irq(u32 priority[NR_AIC_IRQS])
 {
 	u32 i;
 	
@@ -158,7 +158,7 @@ void __init rk2818_init_irq(u32 priority[NR_IRQS])
 	write_irq_reg(FIQ_REG_INTMASK, 0x03); //mask fiq interrupt
 	write_irq_reg(IRQ_REG_PLEVEL, 0);
 
-	for (i = 0; i < NR_IRQS; i++) {
+	for (i = 0; i < NR_AIC_IRQS; i++) {
 		set_irq_chip(i, &rk2818_irq_chip);
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);//no probe and auto enable		
