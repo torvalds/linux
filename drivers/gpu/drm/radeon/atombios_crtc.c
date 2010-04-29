@@ -521,6 +521,10 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
 				if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1)
 					adjusted_clock = mode->clock * 2;
+				if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
+					pll->algo = PLL_ALGO_LEGACY;
+					pll->flags |= RADEON_PLL_PREFER_CLOSEST_LOWER;
+				}
 			} else {
 				if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
 					pll->flags |= RADEON_PLL_NO_ODD_POST_DIV;

@@ -2105,7 +2105,8 @@ static void zfcp_fsf_req_trace(struct zfcp_fsf_req *req, struct scsi_cmnd *scsi)
 	blktrc.inb_usage = req->qdio_req.qdio_inb_usage;
 	blktrc.outb_usage = req->qdio_req.qdio_outb_usage;
 
-	if (req->adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA) {
+	if (req->adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA &&
+	    !(req->status & ZFCP_STATUS_FSFREQ_ERROR)) {
 		blktrc.flags |= ZFCP_BLK_LAT_VALID;
 		blktrc.channel_lat = lat_in->channel_lat * ticks;
 		blktrc.fabric_lat = lat_in->fabric_lat * ticks;
@@ -2157,9 +2158,8 @@ static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 	fcp_rsp = (struct fcp_resp_with_ext *) &req->qtcb->bottom.io.fcp_rsp;
 	zfcp_fc_eval_fcp_rsp(fcp_rsp, scpnt);
 
-	zfcp_fsf_req_trace(req, scpnt);
-
 skip_fsfstatus:
+	zfcp_fsf_req_trace(req, scpnt);
 	zfcp_dbf_scsi_result(req->adapter->dbf, scpnt, req);
 
 	scpnt->host_scribble = NULL;

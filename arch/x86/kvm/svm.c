@@ -706,28 +706,27 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_svm;
 
-	page = alloc_page(GFP_KERNEL);
-	if (!page) {
-		err = -ENOMEM;
-		goto uninit;
-	}
-
 	err = -ENOMEM;
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		goto uninit;
+
 	msrpm_pages = alloc_pages(GFP_KERNEL, MSRPM_ALLOC_ORDER);
 	if (!msrpm_pages)
-		goto uninit;
+		goto free_page1;
 
 	nested_msrpm_pages = alloc_pages(GFP_KERNEL, MSRPM_ALLOC_ORDER);
 	if (!nested_msrpm_pages)
-		goto uninit;
-
-	svm->msrpm = page_address(msrpm_pages);
-	svm_vcpu_init_msrpm(svm->msrpm);
+		goto free_page2;
 
 	hsave_page = alloc_page(GFP_KERNEL);
 	if (!hsave_page)
-		goto uninit;
+		goto free_page3;
+
 	svm->nested.hsave = page_address(hsave_page);
+
+	svm->msrpm = page_address(msrpm_pages);
+	svm_vcpu_init_msrpm(svm->msrpm);
 
 	svm->nested.msrpm = page_address(nested_msrpm_pages);
 
@@ -744,6 +743,12 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	return &svm->vcpu;
 
+free_page3:
+	__free_pages(nested_msrpm_pages, MSRPM_ALLOC_ORDER);
+free_page2:
+	__free_pages(msrpm_pages, MSRPM_ALLOC_ORDER);
+free_page1:
+	__free_page(page);
 uninit:
 	kvm_vcpu_uninit(&svm->vcpu);
 free_svm:

@@ -59,6 +59,12 @@ void r420_pipes_init(struct radeon_device *rdev)
 	/* get max number of pipes */
 	gb_pipe_select = RREG32(0x402C);
 	num_pipes = ((gb_pipe_select >> 12) & 3) + 1;
+
+	/* SE chips have 1 pipe */
+	if ((rdev->pdev->device == 0x5e4c) ||
+	    (rdev->pdev->device == 0x5e4f))
+		num_pipes = 1;
+
 	rdev->num_gb_pipes = num_pipes;
 	tmp = 0;
 	switch (num_pipes) {

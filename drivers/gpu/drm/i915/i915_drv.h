@@ -195,6 +195,7 @@ struct intel_overlay;
 struct intel_device_info {
 	u8 is_mobile : 1;
 	u8 is_i8xx : 1;
+	u8 is_i85x : 1;
 	u8 is_i915g : 1;
 	u8 is_i9xx : 1;
 	u8 is_i945gm : 1;
@@ -235,11 +236,14 @@ typedef struct drm_i915_private {
 
 	drm_dma_handle_t *status_page_dmah;
 	void *hw_status_page;
+	void *seqno_page;
 	dma_addr_t dma_status_page;
 	uint32_t counter;
 	unsigned int status_gfx_addr;
+	unsigned int seqno_gfx_addr;
 	drm_local_map_t hws_map;
 	struct drm_gem_object *hws_obj;
+	struct drm_gem_object *seqno_obj;
 	struct drm_gem_object *pwrctx;
 
 	struct resource mch_res;
@@ -611,6 +615,8 @@ typedef struct drm_i915_private {
 	/* Reclocking support */
 	bool render_reclock_avail;
 	bool lvds_downclock_avail;
+	/* indicate whether the LVDS EDID is OK */
+	bool lvds_edid_good;
 	/* indicates the reduced downclock for LVDS*/
 	int lvds_downclock;
 	struct work_struct idle_work;
@@ -628,6 +634,9 @@ typedef struct drm_i915_private {
 	u8 max_delay;
 
 	enum no_fbc_reason no_fbc_reason;
+
+	struct drm_mm_node *compressed_fb;
+	struct drm_mm_node *compressed_llb;
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */
@@ -730,6 +739,8 @@ struct drm_i915_gem_object {
 	 */
 	atomic_t pending_flip;
 };
+
+#define to_intel_bo(x) ((struct drm_i915_gem_object *) (x)->driver_private)
 
 /**
  * Request queue structure.
@@ -1066,7 +1077,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define IS_I830(dev)		((dev)->pci_device == 0x3577)
 #define IS_845G(dev)		((dev)->pci_device == 0x2562)
-#define IS_I85X(dev)		((dev)->pci_device == 0x3582)
+#define IS_I85X(dev)		(INTEL_INFO(dev)->is_i85x)
 #define IS_I865G(dev)		((dev)->pci_device == 0x2572)
 #define IS_GEN2(dev)		(INTEL_INFO(dev)->is_i8xx)
 #define IS_I915G(dev)		(INTEL_INFO(dev)->is_i915g)
@@ -1131,6 +1142,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define HAS_PCH_SPLIT(dev) (IS_IRONLAKE(dev) ||	\
 			    IS_GEN6(dev))
+#define HAS_PIPE_CONTROL(dev) (IS_IRONLAKE(dev) || IS_GEN6(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

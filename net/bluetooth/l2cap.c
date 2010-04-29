@@ -1626,7 +1626,10 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	/* Connectionless channel */
 	if (sk->sk_type == SOCK_DGRAM) {
 		skb = l2cap_create_connless_pdu(sk, msg, len);
-		err = l2cap_do_send(sk, skb);
+		if (IS_ERR(skb))
+			err = PTR_ERR(skb);
+		else
+			err = l2cap_do_send(sk, skb);
 		goto done;
 	}
 

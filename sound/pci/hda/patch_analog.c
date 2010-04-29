@@ -519,14 +519,6 @@ static int ad198x_suspend(struct hda_codec *codec, pm_message_t state)
 	ad198x_power_eapd(codec);
 	return 0;
 }
-
-static int ad198x_resume(struct hda_codec *codec)
-{
-	ad198x_init(codec);
-	snd_hda_codec_resume_amp(codec);
-	snd_hda_codec_resume_cache(codec);
-	return 0;
-}
 #endif
 
 static struct hda_codec_ops ad198x_patch_ops = {
@@ -539,7 +531,6 @@ static struct hda_codec_ops ad198x_patch_ops = {
 #endif
 #ifdef SND_HDA_NEEDS_RESUME
 	.suspend = ad198x_suspend,
-	.resume = ad198x_resume,
 #endif
 	.reboot_notify = ad198x_shutup,
 };

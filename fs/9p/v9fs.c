@@ -238,6 +238,13 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	rc = bdi_setup_and_register(&v9ses->bdi, "9p", BDI_CAP_MAP_COPY);
+	if (rc) {
+		__putname(v9ses->aname);
+		__putname(v9ses->uname);
+		return ERR_PTR(rc);
+	}
+
 	spin_lock(&v9fs_sessionlist_lock);
 	list_add(&v9ses->slist, &v9fs_sessionlist);
 	spin_unlock(&v9fs_sessionlist_lock);
@@ -301,6 +308,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	return fid;
 
 error:
+	bdi_destroy(&v9ses->bdi);
 	return ERR_PTR(retval);
 }
 
@@ -325,6 +333,8 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 #endif
 	__putname(v9ses->uname);
 	__putname(v9ses->aname);
+
+	bdi_destroy(&v9ses->bdi);
 
 	spin_lock(&v9fs_sessionlist_lock);
 	list_del(&v9ses->slist);

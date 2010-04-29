@@ -398,6 +398,8 @@ struct cred *prepare_usermodehelper_creds(void)
 
 error:
 	put_cred(new);
+	return NULL;
+
 free_tgcred:
 #ifdef CONFIG_KEYS
 	kfree(tgcred);
@@ -790,8 +792,6 @@ EXPORT_SYMBOL(set_create_files_as);
 bool creds_are_invalid(const struct cred *cred)
 {
 	if (cred->magic != CRED_MAGIC)
-		return true;
-	if (atomic_read(&cred->usage) < atomic_read(&cred->subscribers))
 		return true;
 #ifdef CONFIG_SECURITY_SELINUX
 	if (selinux_is_enabled()) {

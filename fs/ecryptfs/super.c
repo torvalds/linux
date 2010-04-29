@@ -86,7 +86,6 @@ static void ecryptfs_destroy_inode(struct inode *inode)
 		if (lower_dentry->d_inode) {
 			fput(inode_info->lower_file);
 			inode_info->lower_file = NULL;
-			d_drop(lower_dentry);
 		}
 	}
 	ecryptfs_destroy_crypt_stat(&inode_info->crypt_stat);
@@ -123,6 +122,7 @@ static void ecryptfs_put_super(struct super_block *sb)
 	lock_kernel();
 
 	ecryptfs_destroy_mount_crypt_stat(&sb_info->mount_crypt_stat);
+	bdi_destroy(&sb_info->bdi);
 	kmem_cache_free(ecryptfs_sb_info_cache, sb_info);
 	ecryptfs_set_superblock_private(sb, NULL);
 

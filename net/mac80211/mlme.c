@@ -168,6 +168,8 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	ht_changed = conf_is_ht(&local->hw.conf) != enable_ht ||
 		     channel_type != local->hw.conf.channel_type;
 
+	if (local->tmp_channel)
+		local->tmp_channel_type = channel_type;
 	local->oper_channel_type = channel_type;
 
 	if (ht_changed) {

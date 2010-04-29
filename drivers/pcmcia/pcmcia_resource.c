@@ -755,12 +755,12 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	else
 		printk(KERN_WARNING "pcmcia: Driver needs updating to support IRQ sharing.\n");
 
-#ifdef CONFIG_PCMCIA_PROBE
-
-	if (s->irq.AssignedIRQ != 0) {
-		/* If the interrupt is already assigned, it must be the same */
+	/* If the interrupt is already assigned, it must be the same */
+	if (s->irq.AssignedIRQ != 0)
 		irq = s->irq.AssignedIRQ;
-	} else {
+
+#ifdef CONFIG_PCMCIA_PROBE
+	if (!irq) {
 		int try;
 		u32 mask = s->irq_mask;
 		void *data = p_dev; /* something unique to this device */

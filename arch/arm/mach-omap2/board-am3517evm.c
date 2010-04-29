@@ -294,9 +294,9 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 static void __init am3517_evm_init(void)
 {
-	am3517_evm_i2c_init();
-
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+
+	am3517_evm_i2c_init();
 	platform_add_devices(am3517_evm_devices,
 				ARRAY_SIZE(am3517_evm_devices));
 

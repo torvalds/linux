@@ -133,8 +133,8 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 				goto out_enomem_free_avc;
 			allocated = anon_vma;
 		}
-		spin_lock(&anon_vma->lock);
 
+		spin_lock(&anon_vma->lock);
 		/* page_table_lock to protect against threads */
 		spin_lock(&mm->page_table_lock);
 		if (likely(!vma->anon_vma)) {
@@ -144,14 +144,15 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 			list_add(&avc->same_vma, &vma->anon_vma_chain);
 			list_add(&avc->same_anon_vma, &anon_vma->head);
 			allocated = NULL;
+			avc = NULL;
 		}
 		spin_unlock(&mm->page_table_lock);
-
 		spin_unlock(&anon_vma->lock);
-		if (unlikely(allocated)) {
+
+		if (unlikely(allocated))
 			anon_vma_free(allocated);
+		if (unlikely(avc))
 			anon_vma_chain_free(avc);
-		}
 	}
 	return 0;
 
@@ -730,23 +731,28 @@ void page_move_anon_rmap(struct page *page,
  * @page:	the page to add the mapping to
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
+ * @exclusive:	the page is exclusively owned by the current process
  */
 static void __page_set_anon_rmap(struct page *page,
-	struct vm_area_struct *vma, unsigned long address)
+	struct vm_area_struct *vma, unsigned long address, int exclusive)
 {
-	struct anon_vma_chain *avc;
-	struct anon_vma *anon_vma;
+	struct anon_vma *anon_vma = vma->anon_vma;
 
-	BUG_ON(!vma->anon_vma);
+	BUG_ON(!anon_vma);
 
 	/*
-	 * We must use the _oldest_ possible anon_vma for the page mapping!
+	 * If the page isn't exclusively mapped into this vma,
+	 * we must use the _oldest_ possible anon_vma for the
+	 * page mapping!
 	 *
-	 * So take the last AVC chain entry in the vma, which is the deepest
-	 * ancestor, and use the anon_vma from that.
+	 * So take the last AVC chain entry in the vma, which is
+	 * the deepest ancestor, and use the anon_vma from that.
 	 */
-	avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
-	anon_vma = avc->anon_vma;
+	if (!exclusive) {
+		struct anon_vma_chain *avc;
+		avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
+		anon_vma = avc->anon_vma;
+	}
 
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	page->mapping = (struct address_space *) anon_vma;
@@ -802,7 +808,7 @@ void page_add_anon_rmap(struct page *page,
 	VM_BUG_ON(!PageLocked(page));
 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	if (first)
-		__page_set_anon_rmap(page, vma, address);
+		__page_set_anon_rmap(page, vma, address, 0);
 	else
 		__page_check_anon_rmap(page, vma, address);
 }
@@ -824,7 +830,7 @@ void page_add_new_anon_rmap(struct page *page,
 	SetPageSwapBacked(page);
 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
 	__inc_zone_page_state(page, NR_ANON_PAGES);
-	__page_set_anon_rmap(page, vma, address);
+	__page_set_anon_rmap(page, vma, address, 1);
 	if (page_evictable(page, vma))
 		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
 	else
