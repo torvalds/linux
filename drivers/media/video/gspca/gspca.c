@@ -199,7 +199,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 	void *buffer = NULL;
 	int ret = -EINVAL;
 
-	buffer_len = ep->wMaxPacketSize;
+	buffer_len = le16_to_cpu(ep->wMaxPacketSize);
 	interval = ep->bInterval;
 	PDEBUG(D_PROBE, "found int in endpoint: 0x%x, "
 		"buffer_len=%u, interval=%u",
@@ -213,7 +213,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 		goto error;
 	}
 
-	buffer = usb_buffer_alloc(dev, ep->wMaxPacketSize,
+	buffer = usb_buffer_alloc(dev, buffer_len,
 				GFP_KERNEL, &urb->transfer_dma);
 	if (!buffer) {
 		ret = -ENOMEM;
