@@ -48,12 +48,11 @@ int rs600_mc_wait_for_idle(struct radeon_device *rdev);
 
 void rs600_pm_misc(struct radeon_device *rdev)
 {
-#if 0
 	int requested_index = rdev->pm.requested_power_state_index;
 	struct radeon_power_state *ps = &rdev->pm.power_state[requested_index];
 	struct radeon_voltage *voltage = &ps->clock_info[0].voltage;
 	u32 tmp, dyn_pwrmgt_sclk_length, dyn_sclk_vol_cntl;
-	u32 hdp_dyn_cntl, mc_host_dyn_cntl;
+	u32 hdp_dyn_cntl, /*mc_host_dyn_cntl,*/ dyn_backbias_cntl;
 
 	if ((voltage->type == VOLTAGE_GPIO) && (voltage->gpio.valid)) {
 		if (ps->misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) {
@@ -112,13 +111,21 @@ void rs600_pm_misc(struct radeon_device *rdev)
 	else
 		hdp_dyn_cntl |= HDP_FORCEON;
 	WREG32_PLL(HDP_DYN_CNTL, hdp_dyn_cntl);
-
+#if 0
+	/* mc_host_dyn seems to cause hangs from time to time */
 	mc_host_dyn_cntl = RREG32_PLL(MC_HOST_DYN_CNTL);
 	if (ps->misc & ATOM_PM_MISCINFO_DYNAMIC_MC_HOST_BLOCK_EN)
 		mc_host_dyn_cntl &= ~MC_HOST_FORCEON;
 	else
 		mc_host_dyn_cntl |= MC_HOST_FORCEON;
 	WREG32_PLL(MC_HOST_DYN_CNTL, mc_host_dyn_cntl);
+#endif
+	dyn_backbias_cntl = RREG32_PLL(DYN_BACKBIAS_CNTL);
+	if (ps->misc & ATOM_PM_MISCINFO2_DYNAMIC_BACK_BIAS_EN)
+		dyn_backbias_cntl |= IO_CG_BACKBIAS_EN;
+	else
+		dyn_backbias_cntl &= ~IO_CG_BACKBIAS_EN;
+	WREG32_PLL(DYN_BACKBIAS_CNTL, dyn_backbias_cntl);
 
 	/* set pcie lanes */
 	if ((rdev->flags & RADEON_IS_PCIE) &&
@@ -130,7 +137,6 @@ void rs600_pm_misc(struct radeon_device *rdev)
 				      ps->pcie_lanes);
 		DRM_INFO("Setting: p: %d\n", ps->pcie_lanes);
 	}
-#endif
 }
 
 void rs600_pm_prepare(struct radeon_device *rdev)

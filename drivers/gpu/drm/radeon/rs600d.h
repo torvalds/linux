@@ -655,6 +655,8 @@
 #define   HDP_FORCEON                                  (1 << 0)
 #define MC_HOST_DYN_CNTL                               0x1e
 #define   MC_HOST_FORCEON                              (1 << 0)
+#define DYN_BACKBIAS_CNTL                              0x29
+#define   IO_CG_BACKBIAS_EN                            (1 << 0)
 
 /* mmreg */
 #define DOUT_POWER_MANAGEMENT_CNTL                     0x7ee0
