@@ -76,7 +76,7 @@ void mite_init(void)
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 	     pcidev != NULL;
 	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		if (pcidev->vendor == PCI_VENDOR_ID_NATINST) {
+		if (pcidev->vendor == PCI_VENDOR_ID_NI) {
 			unsigned i;
 
 			mite = kzalloc(sizeof(*mite), GFP_KERNEL);
