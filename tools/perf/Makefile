@@ -187,6 +187,8 @@ ifeq ($(ARCH),x86_64)
         ARCH := x86
 endif
 
+$(shell sh -c 'mkdir -p $(OUTPUT)arch/$(ARCH)/util/' 2> /dev/null)
+
 # CFLAGS and LDFLAGS are for the users to override from the command line.
 
 #
@@ -488,6 +490,7 @@ BUILTIN_OBJS += $(OUTPUT)builtin-probe.o
 BUILTIN_OBJS += $(OUTPUT)builtin-kmem.o
 BUILTIN_OBJS += $(OUTPUT)builtin-lock.o
 BUILTIN_OBJS += $(OUTPUT)builtin-kvm.o
+BUILTIN_OBJS += $(OUTPUT)builtin-test.o
 
 PERFLIBS = $(LIB_FILE)
 

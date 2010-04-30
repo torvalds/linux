@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include "types.h"
 
 enum map_type {
@@ -19,7 +20,7 @@ extern const char *map_type__name[MAP__NR_TYPES];
 struct dso;
 struct ref_reloc_sym;
 struct map_groups;
-struct kernel_info;
+struct machine;
 
 struct map {
 	union {
@@ -29,6 +30,7 @@ struct map {
 	u64			start;
 	u64			end;
 	enum map_type		type;
+	u32			priv;
 	u64			pgoff;
 
 	/* ip -> dso rip */
@@ -46,24 +48,30 @@ struct kmap {
 };
 
 struct map_groups {
-	struct rb_root		maps[MAP__NR_TYPES];
-	struct list_head	removed_maps[MAP__NR_TYPES];
-	struct kernel_info	*this_kerninfo;
+	struct rb_root	 maps[MAP__NR_TYPES];
+	struct list_head removed_maps[MAP__NR_TYPES];
+	struct machine	 *machine;
 };
 
-/* Native host kernel uses -1 as pid index in kernel_info */
+/* Native host kernel uses -1 as pid index in machine */
 #define	HOST_KERNEL_ID			(-1)
 #define	DEFAULT_GUEST_KERNEL_ID		(0)
 
-struct kernel_info {
-	struct rb_node rb_node;
-	pid_t pid;
-	char *root_dir;
-	struct list_head dsos__user;
-	struct list_head dsos__kernel;
+struct machine {
+	struct rb_node	  rb_node;
+	pid_t		  pid;
+	char		  *root_dir;
+	struct list_head  user_dsos;
+	struct list_head  kernel_dsos;
 	struct map_groups kmaps;
-	struct map *vmlinux_maps[MAP__NR_TYPES];
+	struct map	  *vmlinux_maps[MAP__NR_TYPES];
 };
+
+static inline
+struct map *machine__kernel_map(struct machine *self, enum map_type type)
+{
+	return self->vmlinux_maps[type];
+}
 
 static inline struct kmap *map__kmap(struct map *self)
 {
@@ -124,35 +132,30 @@ int map_groups__clone(struct map_groups *self,
 size_t map_groups__fprintf(struct map_groups *self, int verbose, FILE *fp);
 size_t map_groups__fprintf_maps(struct map_groups *self, int verbose, FILE *fp);
 
-struct kernel_info *add_new_kernel_info(struct rb_root *kerninfo_root,
-			pid_t pid, const char *root_dir);
-struct kernel_info *kerninfo__find(struct rb_root *kerninfo_root, pid_t pid);
-struct kernel_info *kerninfo__findnew(struct rb_root *kerninfo_root, pid_t pid);
-struct kernel_info *kerninfo__findhost(struct rb_root *kerninfo_root);
-char *kern_mmap_name(struct kernel_info *kerninfo, char *buff);
+typedef void (*machine__process_t)(struct machine *self, void *data);
+
+void machines__process(struct rb_root *self, machine__process_t process, void *data);
+struct machine *machines__add(struct rb_root *self, pid_t pid,
+			      const char *root_dir);
+struct machine *machines__find_host(struct rb_root *self);
+struct machine *machines__find(struct rb_root *self, pid_t pid);
+struct machine *machines__findnew(struct rb_root *self, pid_t pid);
+char *machine__mmap_name(struct machine *self, char *bf, size_t size);
+int machine__init(struct machine *self, const char *root_dir, pid_t pid);
 
 /*
  * Default guest kernel is defined by parameter --guestkallsyms
  * and --guestmodules
  */
-static inline int is_default_guest(struct kernel_info *kerninfo)
+static inline bool machine__is_default_guest(struct machine *self)
 {
-	if (!kerninfo)
-		return 0;
-	return kerninfo->pid == DEFAULT_GUEST_KERNEL_ID;
+	return self ? self->pid == DEFAULT_GUEST_KERNEL_ID : false;
 }
 
-static inline int is_host_kernel(struct kernel_info *kerninfo)
+static inline bool machine__is_host(struct machine *self)
 {
-	if (!kerninfo)
-		return 0;
-	return kerninfo->pid == HOST_KERNEL_ID;
+	return self ? self->pid == HOST_KERNEL_ID : false;
 }
-
-typedef void (*process_kernel_info)(struct kernel_info *kerninfo, void *data);
-void kerninfo__process_allkernels(struct rb_root *kerninfo_root,
-				  process_kernel_info process,
-				  void *data);
 
 static inline void map_groups__insert(struct map_groups *self, struct map *map)
 {
@@ -178,10 +181,20 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *self,
 					       symbol_filter_t filter);
 
 static inline
-struct symbol *map_groups__find_function(struct map_groups *self, u64 addr,
-					 struct map **mapp, symbol_filter_t filter)
+struct symbol *machine__find_kernel_symbol(struct machine *self,
+					   enum map_type type, u64 addr,
+					   struct map **mapp,
+					   symbol_filter_t filter)
 {
-	return map_groups__find_symbol(self, MAP__FUNCTION, addr, mapp, filter);
+	return map_groups__find_symbol(&self->kmaps, type, addr, mapp, filter);
+}
+
+static inline
+struct symbol *machine__find_kernel_function(struct machine *self, u64 addr,
+					     struct map **mapp,
+					     symbol_filter_t filter)
+{
+	return machine__find_kernel_symbol(self, MAP__FUNCTION, addr, mapp, filter);
 }
 
 static inline
@@ -197,10 +210,7 @@ int map_groups__fixup_overlappings(struct map_groups *self, struct map *map,
 
 struct map *map_groups__find_by_name(struct map_groups *self,
 				     enum map_type type, const char *name);
-struct map *map_groups__new_module(struct map_groups *self,
-				    u64 start,
-				    const char *filename,
-				    struct kernel_info *kerninfo);
+struct map *machine__new_module(struct machine *self, u64 start, const char *filename);
 
 void map_groups__flush(struct map_groups *self);
 

@@ -352,7 +352,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 			   int n_lines, int is_caller)
 {
 	struct rb_node *next;
-	struct kernel_info *kerninfo;
+	struct machine *machine;
 
 	printf("%.102s\n", graph_dotted_line);
 	printf(" %-34s |",  is_caller ? "Callsite": "Alloc Ptr");
@@ -361,8 +361,8 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 
 	next = rb_first(root);
 
-	kerninfo = kerninfo__findhost(&session->kerninfo_root);
-	if (!kerninfo) {
+	machine = perf_session__find_host_machine(session);
+	if (!machine) {
 		pr_err("__print_result: couldn't find kernel information\n");
 		return;
 	}
@@ -370,7 +370,6 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 		struct alloc_stat *data = rb_entry(next, struct alloc_stat,
 						   node);
 		struct symbol *sym = NULL;
-		struct map_groups *kmaps = &kerninfo->kmaps;
 		struct map *map;
 		char buf[BUFSIZ];
 		u64 addr;
@@ -378,8 +377,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = map_groups__find_function(kmaps, addr,
-								&map, NULL);
+				sym = machine__find_kernel_function(machine, addr, &map, NULL);
 		} else
 			addr = data->ptr;
 

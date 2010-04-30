@@ -245,7 +245,7 @@ void map_groups__init(struct map_groups *self)
 		self->maps[i] = RB_ROOT;
 		INIT_LIST_HEAD(&self->removed_maps[i]);
 	}
-	 self->this_kerninfo = NULL;
+	self->machine = NULL;
 }
 
 void map_groups__flush(struct map_groups *self)
@@ -513,133 +513,140 @@ struct map *maps__find(struct rb_root *maps, u64 ip)
 	return NULL;
 }
 
-struct kernel_info *add_new_kernel_info(struct rb_root *kerninfo_root,
-			pid_t pid, const char *root_dir)
+int machine__init(struct machine *self, const char *root_dir, pid_t pid)
 {
-	struct rb_node **p = &kerninfo_root->rb_node;
-	struct rb_node *parent = NULL;
-	struct kernel_info *kerninfo, *pos;
+	map_groups__init(&self->kmaps);
+	RB_CLEAR_NODE(&self->rb_node);
+	INIT_LIST_HEAD(&self->user_dsos);
+	INIT_LIST_HEAD(&self->kernel_dsos);
 
-	kerninfo = malloc(sizeof(struct kernel_info));
-	if (!kerninfo)
+	self->kmaps.machine = self;
+	self->pid	    = pid;
+	self->root_dir      = strdup(root_dir);
+	return self->root_dir == NULL ? -ENOMEM : 0;
+}
+
+struct machine *machines__add(struct rb_root *self, pid_t pid,
+			      const char *root_dir)
+{
+	struct rb_node **p = &self->rb_node;
+	struct rb_node *parent = NULL;
+	struct machine *pos, *machine = malloc(sizeof(*machine));
+
+	if (!machine)
 		return NULL;
 
-	kerninfo->pid = pid;
-	map_groups__init(&kerninfo->kmaps);
-	kerninfo->root_dir = strdup(root_dir);
-	RB_CLEAR_NODE(&kerninfo->rb_node);
-	INIT_LIST_HEAD(&kerninfo->dsos__user);
-	INIT_LIST_HEAD(&kerninfo->dsos__kernel);
-	kerninfo->kmaps.this_kerninfo = kerninfo;
+	if (machine__init(machine, root_dir, pid) != 0) {
+		free(machine);
+		return NULL;
+	}
 
 	while (*p != NULL) {
 		parent = *p;
-		pos = rb_entry(parent, struct kernel_info, rb_node);
+		pos = rb_entry(parent, struct machine, rb_node);
 		if (pid < pos->pid)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
 	}
 
-	rb_link_node(&kerninfo->rb_node, parent, p);
-	rb_insert_color(&kerninfo->rb_node, kerninfo_root);
+	rb_link_node(&machine->rb_node, parent, p);
+	rb_insert_color(&machine->rb_node, self);
 
-	return kerninfo;
+	return machine;
 }
 
-struct kernel_info *kerninfo__find(struct rb_root *kerninfo_root, pid_t pid)
+struct machine *machines__find(struct rb_root *self, pid_t pid)
 {
-	struct rb_node **p = &kerninfo_root->rb_node;
+	struct rb_node **p = &self->rb_node;
 	struct rb_node *parent = NULL;
-	struct kernel_info *kerninfo;
-	struct kernel_info *default_kerninfo = NULL;
+	struct machine *machine;
+	struct machine *default_machine = NULL;
 
 	while (*p != NULL) {
 		parent = *p;
-		kerninfo = rb_entry(parent, struct kernel_info, rb_node);
-		if (pid < kerninfo->pid)
+		machine = rb_entry(parent, struct machine, rb_node);
+		if (pid < machine->pid)
 			p = &(*p)->rb_left;
-		else if (pid > kerninfo->pid)
+		else if (pid > machine->pid)
 			p = &(*p)->rb_right;
 		else
-			return kerninfo;
-		if (!kerninfo->pid)
-			default_kerninfo = kerninfo;
+			return machine;
+		if (!machine->pid)
+			default_machine = machine;
 	}
 
-	return default_kerninfo;
+	return default_machine;
 }
 
-struct kernel_info *kerninfo__findhost(struct rb_root *kerninfo_root)
+/*
+ * FIXME: Why repeatedly search for this?
+ */
+struct machine *machines__find_host(struct rb_root *self)
 {
-	struct rb_node **p = &kerninfo_root->rb_node;
+	struct rb_node **p = &self->rb_node;
 	struct rb_node *parent = NULL;
-	struct kernel_info *kerninfo;
+	struct machine *machine;
 	pid_t pid = HOST_KERNEL_ID;
 
 	while (*p != NULL) {
 		parent = *p;
-		kerninfo = rb_entry(parent, struct kernel_info, rb_node);
-		if (pid < kerninfo->pid)
+		machine = rb_entry(parent, struct machine, rb_node);
+		if (pid < machine->pid)
 			p = &(*p)->rb_left;
-		else if (pid > kerninfo->pid)
+		else if (pid > machine->pid)
 			p = &(*p)->rb_right;
 		else
-			return kerninfo;
+			return machine;
 	}
 
 	return NULL;
 }
 
-struct kernel_info *kerninfo__findnew(struct rb_root *kerninfo_root, pid_t pid)
+struct machine *machines__findnew(struct rb_root *self, pid_t pid)
 {
 	char path[PATH_MAX];
 	const char *root_dir;
-	int ret;
-	struct kernel_info *kerninfo = kerninfo__find(kerninfo_root, pid);
+	struct machine *machine = machines__find(self, pid);
 
-	if (!kerninfo || kerninfo->pid != pid) {
+	if (!machine || machine->pid != pid) {
 		if (pid == HOST_KERNEL_ID || pid == DEFAULT_GUEST_KERNEL_ID)
 			root_dir = "";
 		else {
 			if (!symbol_conf.guestmount)
 				goto out;
 			sprintf(path, "%s/%d", symbol_conf.guestmount, pid);
-			ret = access(path, R_OK);
-			if (ret) {
+			if (access(path, R_OK)) {
 				pr_err("Can't access file %s\n", path);
 				goto out;
 			}
 			root_dir = path;
 		}
-		kerninfo = add_new_kernel_info(kerninfo_root, pid, root_dir);
+		machine = machines__add(self, pid, root_dir);
 	}
 
 out:
-	return kerninfo;
+	return machine;
 }
 
-void kerninfo__process_allkernels(struct rb_root *kerninfo_root,
-		process_kernel_info process,
-		void *data)
+void machines__process(struct rb_root *self, machine__process_t process, void *data)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(kerninfo_root); nd; nd = rb_next(nd)) {
-		struct kernel_info *pos = rb_entry(nd, struct kernel_info,
-							rb_node);
+	for (nd = rb_first(self); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		process(pos, data);
 	}
 }
 
-char *kern_mmap_name(struct kernel_info *kerninfo, char *buff)
+char *machine__mmap_name(struct machine *self, char *bf, size_t size)
 {
-	if (is_host_kernel(kerninfo))
-		sprintf(buff, "[%s]", "kernel.kallsyms");
-	else if (is_default_guest(kerninfo))
-		sprintf(buff, "[%s]", "guest.kernel.kallsyms");
+	if (machine__is_host(self))
+		snprintf(bf, size, "[%s]", "kernel.kallsyms");
+	else if (machine__is_default_guest(self))
+		snprintf(bf, size, "[%s]", "guest.kernel.kallsyms");
 	else
-		sprintf(buff, "[%s.%d]", "guest.kernel.kallsyms", kerninfo->pid);
+		snprintf(bf, size, "[%s.%d]", "guest.kernel.kallsyms", self->pid);
 
-	return buff;
+	return bf;
 }

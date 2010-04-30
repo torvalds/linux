@@ -162,9 +162,13 @@ int dso__load_vmlinux_path(struct dso *self, struct map *map,
 			   symbol_filter_t filter);
 int dso__load_kallsyms(struct dso *self, const char *filename, struct map *map,
 		       symbol_filter_t filter);
-void dsos__fprintf(struct rb_root *kerninfo_root, FILE *fp);
-size_t dsos__fprintf_buildid(struct rb_root *kerninfo_root,
-		FILE *fp, bool with_hits);
+int machine__load_kallsyms(struct machine *self, const char *filename,
+			   enum map_type type, symbol_filter_t filter);
+int machine__load_vmlinux_path(struct machine *self, enum map_type type,
+			       symbol_filter_t filter);
+
+size_t machines__fprintf_dsos(struct rb_root *self, FILE *fp);
+size_t machines__fprintf_dsos_buildid(struct rb_root *self, FILE *fp, bool with_hits);
 
 size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
 size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp);
@@ -186,8 +190,7 @@ enum dso_origin {
 char dso__symtab_origin(const struct dso *self);
 void dso__set_long_name(struct dso *self, char *name);
 void dso__set_build_id(struct dso *self, void *build_id);
-void dso__read_running_kernel_build_id(struct dso *self,
-		struct kernel_info *kerninfo);
+void dso__read_running_kernel_build_id(struct dso *self, struct machine *machine);
 struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
 struct symbol *dso__find_symbol_by_name(struct dso *self, enum map_type type,
 					const char *name);
@@ -200,11 +203,11 @@ int kallsyms__parse(const char *filename, void *arg,
 		    int (*process_symbol)(void *arg, const char *name,
 					  char type, u64 start));
 
-int __map_groups__create_kernel_maps(struct map_groups *self,
-			struct map *vmlinux_maps[MAP__NR_TYPES],
-			struct dso *kernel);
-int map_groups__create_kernel_maps(struct rb_root *kerninfo_root, pid_t pid);
-int map_groups__create_guest_kernel_maps(struct rb_root *kerninfo_root);
+int __machine__create_kernel_maps(struct machine *self, struct dso *kernel);
+int machine__create_kernel_maps(struct machine *self);
+
+int machines__create_kernel_maps(struct rb_root *self, pid_t pid);
+int machines__create_guest_kernel_maps(struct rb_root *self);
 
 int symbol__init(void);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
