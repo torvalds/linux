@@ -11,6 +11,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
@@ -90,6 +91,54 @@ struct platform_device mxc_fec_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(mxc_fec_resources),
 	.resource = mxc_fec_resources,
+};
+
+static u64 usb_dma_mask = DMA_BIT_MASK(32);
+
+static struct resource usbotg_resources[] = {
+	{
+		.start = MX51_OTG_BASE_ADDR,
+		.end = MX51_OTG_BASE_ADDR + 0x1ff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MX51_MXC_INT_USB_OTG,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_usbdr_host_device = {
+	.name = "mxc-ehci",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(usbotg_resources),
+	.resource = usbotg_resources,
+	.dev = {
+		.dma_mask = &usb_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};
+
+static struct resource usbh1_resources[] = {
+	{
+		.start = MX51_OTG_BASE_ADDR + 0x200,
+		.end = MX51_OTG_BASE_ADDR + 0x200 + 0x1ff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MX51_MXC_INT_USB_H1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_usbh1_device = {
+	.name = "mxc-ehci",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(usbh1_resources),
+	.resource = usbh1_resources,
+	.dev = {
+		.dma_mask = &usb_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
 };
 
 static struct mxc_gpio_port mxc_gpio_ports[] = {
