@@ -1316,8 +1316,7 @@ static int map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 	 * or uses the provided scatter gather list for bulk.
 	 */
 
-	if (usb_endpoint_xfer_control(&urb->ep->desc)
-	    && !(urb->transfer_flags & URB_NO_SETUP_DMA_MAP)) {
+	if (usb_endpoint_xfer_control(&urb->ep->desc)) {
 		if (hcd->self.uses_dma) {
 			urb->setup_dma = dma_map_single(
 					hcd->self.controller,
