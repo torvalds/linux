@@ -1029,6 +1029,9 @@ static void blkfront_closing(struct blkfront_info *info)
 	blk_cleanup_queue(info->rq);
 	info->rq = NULL;
 
+	put_disk(info->gd);
+	info->gd = NULL;
+
  out:
 	if (info->xbdev)
 		xenbus_frontend_closed(info->xbdev);
