@@ -100,28 +100,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.open = iwl_dbgfs_open_file_generic,                            \
 };
 
-int iwl_dbgfs_statistics_flag(struct iwl_priv *priv, char *buf, int bufsz)
-{
-	int p = 0;
-
-	p += scnprintf(buf + p, bufsz - p, "Statistics Flag(0x%X):\n",
-		       le32_to_cpu(priv->_agn.statistics.flag));
-	if (le32_to_cpu(priv->_agn.statistics.flag) &
-			UCODE_STATISTICS_CLEAR_MSK)
-		p += scnprintf(buf + p, bufsz - p,
-			       "\tStatistics have been cleared\n");
-	p += scnprintf(buf + p, bufsz - p, "\tOperational Frequency: %s\n",
-		       (le32_to_cpu(priv->_agn.statistics.flag) &
-			UCODE_STATISTICS_FREQUENCY_MSK)
-			? "2.4 GHz" : "5.2 GHz");
-	p += scnprintf(buf + p, bufsz - p, "\tTGj Narrow Band: %s\n",
-		       (le32_to_cpu(priv->_agn.statistics.flag) &
-			UCODE_STATISTICS_NARROW_BAND_MSK)
-			? "enabled" : "disabled");
-	return p;
-}
-EXPORT_SYMBOL(iwl_dbgfs_statistics_flag);
-
 static ssize_t iwl_dbgfs_tx_statistics_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
