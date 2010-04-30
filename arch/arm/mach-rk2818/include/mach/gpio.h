@@ -83,14 +83,14 @@ struct rk2818_gpio_bank {
 #define 	GPIO_EXT_PORTD 		0x5c
 #define 	GPIO_LS_SYNC 			0x60
 
-#define AT2818_ID_PIOA	0
-#define AT2818_ID_PIOB	1
-#define AT2818_ID_PIOC	2
-#define AT2818_ID_PIOD	3
-#define AT2818_ID_PIOE	4
-#define AT2818_ID_PIOF	5
-#define AT2818_ID_PIOG	6
-#define AT2818_ID_PIOH	7
+#define RK2818_ID_PIOA	0
+#define RK2818_ID_PIOB	1
+#define RK2818_ID_PIOC	2
+#define RK2818_ID_PIOD	3
+#define RK2818_ID_PIOE	4
+#define RK2818_ID_PIOF	5
+#define RK2818_ID_PIOG	6
+#define RK2818_ID_PIOH	7
 /* these pin numbers double as IRQ numbers, like RK2818xxx_ID_* values */
 
 #define	RK2818_PIN_PA0		(PIN_BASE + 0*NUM_GROUP + 0)

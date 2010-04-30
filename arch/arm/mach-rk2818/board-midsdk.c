@@ -44,42 +44,42 @@
 
 static struct rk2818_gpio_bank rk2818_gpioBank[] = {
 		{
-		.id		= AT2818_ID_PIOA,
+		.id		= RK2818_ID_PIOA,
 		.offset		= RK2818_GPIO0_BASE,
 		.clock		= NULL,
 	}, 
 		{
-		.id		= AT2818_ID_PIOB,
+		.id		= RK2818_ID_PIOB,
 		.offset		= RK2818_GPIO0_BASE,
 		.clock		= NULL,
 	}, 
 		{
-		.id		= AT2818_ID_PIOC,
+		.id		= RK2818_ID_PIOC,
 		.offset		= RK2818_GPIO0_BASE,
 		.clock		= NULL,
 	}, 
 		{
-		.id		= AT2818_ID_PIOD,
+		.id		= RK2818_ID_PIOD,
 		.offset		= RK2818_GPIO0_BASE,
 		.clock		= NULL,
 	},
 		{
-		.id		= AT2818_ID_PIOE,
+		.id		= RK2818_ID_PIOE,
 		.offset		= RK2818_GPIO1_BASE,
 		.clock		= NULL,
 	},
 		{
-		.id		= AT2818_ID_PIOF,
+		.id		= RK2818_ID_PIOF,
 		.offset		= RK2818_GPIO1_BASE,
 		.clock		= NULL,
 	},
 		{
-		.id		= AT2818_ID_PIOG,
+		.id		= RK2818_ID_PIOG,
 		.offset		= RK2818_GPIO1_BASE,
 		.clock		= NULL,
 	},
 		{
-		.id		= AT2818_ID_PIOH,
+		.id		= RK2818_ID_PIOH,
 		.offset		= RK2818_GPIO1_BASE,
 		.clock		= NULL,
 	}

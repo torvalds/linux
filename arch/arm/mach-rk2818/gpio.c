@@ -518,23 +518,23 @@ static int GPIOPullUpDown(struct gpio_chip *chip, unsigned int offset, eGPIOPull
 	}
 	mask1 = 0x03<<(2*offset+temp);
 	mask2 = GPIOPullUpDown <<(2*offset+temp);
-	if(rk2818_gpio->bank->id==AT2818_ID_PIOA || rk2818_gpio->bank->id==AT2818_ID_PIOB)
+	if(rk2818_gpio->bank->id==RK2818_ID_PIOA || rk2818_gpio->bank->id==RK2818_ID_PIOB)
 	{
 		
 		rk2818_gpio_bitOp(pAPBRegBase,GPIO0_AB_PU_CON,mask1,0);
 		rk2818_gpio_bitOp(pAPBRegBase,GPIO0_AB_PU_CON,mask2,1);
 	}
-	else if(rk2818_gpio->bank->id==AT2818_ID_PIOC || rk2818_gpio->bank->id==AT2818_ID_PIOD)
+	else if(rk2818_gpio->bank->id==RK2818_ID_PIOC || rk2818_gpio->bank->id==RK2818_ID_PIOD)
 	{
 		rk2818_gpio_bitOp(pAPBRegBase,GPIO0_CD_PU_CON,mask1,0);
 		rk2818_gpio_bitOp(pAPBRegBase,GPIO0_CD_PU_CON,mask2,1);
 	}
-	else if(rk2818_gpio->bank->id==AT2818_ID_PIOE || rk2818_gpio->bank->id==AT2818_ID_PIOF)
+	else if(rk2818_gpio->bank->id==RK2818_ID_PIOE || rk2818_gpio->bank->id==RK2818_ID_PIOF)
 	{
 		rk2818_gpio_bitOp(pAPBRegBase,GPIO1_AB_PU_CON,mask1,0);
 		rk2818_gpio_bitOp(pAPBRegBase,GPIO1_AB_PU_CON,mask2,1);
 	}
-	else if(rk2818_gpio->bank->id==AT2818_ID_PIOG|| rk2818_gpio->bank->id==AT2818_ID_PIOH)
+	else if(rk2818_gpio->bank->id==RK2818_ID_PIOG|| rk2818_gpio->bank->id==RK2818_ID_PIOH)
 	{
 		rk2818_gpio_bitOp(pAPBRegBase,GPIO1_CD_PU_CON,mask1,0);
 		rk2818_gpio_bitOp(pAPBRegBase,GPIO1_CD_PU_CON,mask2,1);
@@ -935,12 +935,12 @@ void __init rk2818_gpio_irq_setup(void)
 			set_irq_handler(pin+j, handle_simple_irq);
 			set_irq_flags(pin+j, IRQF_VALID);
 		}
-		if(this->bank->id == AT2818_ID_PIOA)
+		if(this->bank->id == RK2818_ID_PIOA)
 		{	
 			irq = IRQ_NR_GPIO0;
 			
 		}
-		else if(this->bank->id == AT2818_ID_PIOE)
+		else if(this->bank->id == RK2818_ID_PIOE)
 		{
 			irq = IRQ_NR_GPIO1;
 		}
@@ -1078,11 +1078,11 @@ static int rk2818_gpiolib_to_irq(struct gpio_chip *chip,
     {
     	 return -1;
     }
-    if(rk2818_gpio->bank->id==AT2818_ID_PIOA)
+    if(rk2818_gpio->bank->id==RK2818_ID_PIOA)
     {
         return offset + NR_AIC_IRQS;
     }
-    else if(rk2818_gpio->bank->id==AT2818_ID_PIOE)
+    else if(rk2818_gpio->bank->id==RK2818_ID_PIOE)
     {
         return offset + NR_AIC_IRQS + NUM_GROUP;
     }
