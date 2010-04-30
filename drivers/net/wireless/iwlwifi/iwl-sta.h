@@ -63,7 +63,7 @@ void iwl_dealloc_bcast_station(struct iwl_priv *priv);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags);
-int iwl_add_local_station(struct iwl_priv *priv, const u8 *addr, bool init_rs,
+int iwl_add_bssid_station(struct iwl_priv *priv, const u8 *addr, bool init_rs,
 			  u8 *sta_id_r);
 int iwl_add_station_common(struct iwl_priv *priv, const u8 *addr,
 				  bool is_ap,

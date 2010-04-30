@@ -417,14 +417,11 @@ static struct iwl_link_quality_cmd *iwl_sta_alloc_lq(struct iwl_priv *priv,
 }
 
 /*
- * iwl_add_local_station - Add stations not requested by mac80211
- *
- * This will be either the broadcast station or the bssid station needed by
- * ad-hoc.
+ * iwl_add_bssid_station - Add the special IBSS BSSID station
  *
  * Function sleeps.
  */
-int iwl_add_local_station(struct iwl_priv *priv, const u8 *addr, bool init_rs,
+int iwl_add_bssid_station(struct iwl_priv *priv, const u8 *addr, bool init_rs,
 			  u8 *sta_id_r)
 {
 	int ret;
@@ -468,7 +465,7 @@ int iwl_add_local_station(struct iwl_priv *priv, const u8 *addr, bool init_rs,
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_add_local_station);
+EXPORT_SYMBOL(iwl_add_bssid_station);
 
 /**
  * iwl_sta_ucode_deactivate - deactivate ucode status for a station

@@ -2465,7 +2465,7 @@ static int iwl3945_manage_ibss_station(struct iwl_priv *priv,
 	int ret;
 
 	if (add) {
-		ret = iwl_add_local_station(priv, vif->bss_conf.bssid, false,
+		ret = iwl_add_bssid_station(priv, vif->bss_conf.bssid, false,
 					    &vif_priv->ibss_bssid_sta_id);
 		if (ret)
 			return ret;
