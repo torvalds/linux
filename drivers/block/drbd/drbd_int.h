@@ -209,8 +209,11 @@ enum drbd_packets {
 	P_RS_IS_IN_SYNC	      = 0x22, /* meta socket */
 	P_SYNC_PARAM89	      = 0x23, /* data socket, protocol version 89 replacement for P_SYNC_PARAM */
 	P_COMPRESSED_BITMAP   = 0x24, /* compressed or otherwise encoded bitmap transfer */
+	/* P_CKPT_FENCE_REQ      = 0x25, * currently reserved for protocol D */
+	/* P_CKPT_DISABLE_REQ    = 0x26, * currently reserved for protocol D */
+	P_DELAY_PROBE         = 0x27, /* is used on BOTH sockets */
 
-	P_MAX_CMD	      = 0x25,
+	P_MAX_CMD	      = 0x28,
 	P_MAY_IGNORE	      = 0x100, /* Flag to test if (cmd > P_MAY_IGNORE) ... */
 	P_MAX_OPT_CMD	      = 0x101,
 
@@ -539,6 +542,18 @@ struct p_compressed_bm {
 
 	u8 code[0];
 } __packed;
+
+struct p_delay_probe {
+	struct p_header head;
+	u32	seq_num; /* sequence number to match the two probe packets */
+	u32	offset;	 /* usecs the probe got sent after the reference time point */
+} __packed;
+
+struct delay_probe {
+	struct list_head list;
+	int seq_num;
+	struct timeval time;
+};
 
 /* DCBP: Drbd Compressed Bitmap Packet ... */
 static inline enum drbd_bitmap_code
@@ -1028,6 +1043,9 @@ struct drbd_conf {
 	u64 ed_uuid; /* UUID of the exposed data */
 	struct mutex state_mutex;
 	char congestion_reason;  /* Why we where congested... */
+	struct list_head delay_probes; /* protected by peer_seq_lock */
+	int data_delay;   /* Delay of packets on the data-sock behind meta-sock */
+	atomic_t delay_seq; /* To generate sequence numbers of delay probes */
 };
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)

@@ -3501,6 +3501,92 @@ static int receive_UnplugRemote(struct drbd_conf *mdev, struct p_header *h)
 	return TRUE;
 }
 
+static void timeval_sub_us(struct timeval* tv, unsigned int us)
+{
+	tv->tv_sec -= us / 1000000;
+	us = us % 1000000;
+	if (tv->tv_usec > us) {
+		tv->tv_usec += 1000000;
+		tv->tv_sec--;
+	}
+	tv->tv_usec -= us;
+}
+
+static void got_delay_probe(struct drbd_conf *mdev, int from, struct p_delay_probe *p)
+{
+	struct delay_probe *dp;
+	struct list_head *le;
+	struct timeval now;
+	int seq_num;
+	int offset;
+	int data_delay;
+
+	seq_num = be32_to_cpu(p->seq_num);
+	offset  = be32_to_cpu(p->offset);
+
+	spin_lock(&mdev->peer_seq_lock);
+	if (!list_empty(&mdev->delay_probes)) {
+		if (from == USE_DATA_SOCKET)
+			le = mdev->delay_probes.next;
+		else
+			le = mdev->delay_probes.prev;
+
+		dp = list_entry(le, struct delay_probe, list);
+
+		if (dp->seq_num == seq_num) {
+			list_del(le);
+			spin_unlock(&mdev->peer_seq_lock);
+			do_gettimeofday(&now);
+			timeval_sub_us(&now, offset);
+			data_delay =
+				now.tv_usec - dp->time.tv_usec +
+				(now.tv_sec - dp->time.tv_sec) * 1000000;
+
+			if (data_delay > 0)
+				mdev->data_delay = data_delay;
+
+			kfree(dp);
+			return;
+		}
+
+		if (dp->seq_num > seq_num) {
+			spin_unlock(&mdev->peer_seq_lock);
+			dev_warn(DEV, "Previous allocation failure of struct delay_probe?\n");
+			return; /* Do not alloca a struct delay_probe.... */
+		}
+	}
+	spin_unlock(&mdev->peer_seq_lock);
+
+	dp = kmalloc(sizeof(struct delay_probe), GFP_NOIO);
+	if (!dp) {
+		dev_warn(DEV, "Failed to allocate a struct delay_probe, do not worry.\n");
+		return;
+	}
+
+	dp->seq_num = seq_num;
+	do_gettimeofday(&dp->time);
+	timeval_sub_us(&dp->time, offset);
+
+	spin_lock(&mdev->peer_seq_lock);
+	if (from == USE_DATA_SOCKET)
+		list_add(&dp->list, &mdev->delay_probes);
+	else
+		list_add_tail(&dp->list, &mdev->delay_probes);
+	spin_unlock(&mdev->peer_seq_lock);
+}
+
+static int receive_delay_probe(struct drbd_conf *mdev, struct p_header *h)
+{
+	struct p_delay_probe *p = (struct p_delay_probe *)h;
+
+	ERR_IF(h->length != (sizeof(*p)-sizeof(*h))) return FALSE;
+	if (drbd_recv(mdev, h->payload, h->length) != h->length)
+		return FALSE;
+
+	got_delay_probe(mdev, USE_DATA_SOCKET, p);
+	return TRUE;
+}
+
 typedef int (*drbd_cmd_handler_f)(struct drbd_conf *, struct p_header *);
 
 static drbd_cmd_handler_f drbd_default_handler[] = {
@@ -3524,6 +3610,7 @@ static drbd_cmd_handler_f drbd_default_handler[] = {
 	[P_OV_REQUEST]      = receive_DataRequest,
 	[P_OV_REPLY]        = receive_DataRequest,
 	[P_CSUM_RS_REQUEST]    = receive_DataRequest,
+	[P_DELAY_PROBE]     = receive_delay_probe,
 	/* anything missing from this table is in
 	 * the asender_tbl, see get_asender_cmd */
 	[P_MAX_CMD]	    = NULL,
@@ -4300,6 +4387,14 @@ static int got_OVResult(struct drbd_conf *mdev, struct p_header *h)
 	return TRUE;
 }
 
+static int got_delay_probe_m(struct drbd_conf *mdev, struct p_header *h)
+{
+	struct p_delay_probe *p = (struct p_delay_probe *)h;
+
+	got_delay_probe(mdev, USE_META_SOCKET, p);
+	return TRUE;
+}
+
 struct asender_cmd {
 	size_t pkt_size;
 	int (*process)(struct drbd_conf *mdev, struct p_header *h);
@@ -4324,6 +4419,7 @@ static struct asender_cmd *get_asender_cmd(int cmd)
 	[P_BARRIER_ACK]	    = { sizeof(struct p_barrier_ack), got_BarrierAck },
 	[P_STATE_CHG_REPLY] = { sizeof(struct p_req_state_reply), got_RqSReply },
 	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), got_IsInSync },
+	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe), got_delay_probe_m },
 	[P_MAX_CMD]	    = { 0, NULL },
 	};
 	if (cmd > P_MAX_CMD || asender_tbl[cmd].process == NULL)
