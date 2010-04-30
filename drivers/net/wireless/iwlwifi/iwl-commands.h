@@ -2621,7 +2621,9 @@ struct iwl_ssid_ie {
 #define PROBE_OPTION_MAX_3945		4
 #define PROBE_OPTION_MAX		20
 #define TX_CMD_LIFE_TIME_INFINITE	cpu_to_le32(0xFFFFFFFF)
-#define IWL_GOOD_CRC_TH			cpu_to_le16(1)
+#define IWL_GOOD_CRC_TH_DISABLED	0
+#define IWL_GOOD_CRC_TH_DEFAULT		cpu_to_le16(1)
+#define IWL_GOOD_CRC_TH_NEVER		cpu_to_le16(0xffff)
 #define IWL_MAX_SCAN_SIZE 1024
 #define IWL_MAX_CMD_SIZE 4096
 #define IWL_MAX_PROBE_REQUEST		200
