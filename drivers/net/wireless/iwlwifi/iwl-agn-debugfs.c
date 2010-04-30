@@ -709,6 +709,22 @@ ssize_t iwl_ucode_tx_stats_read(struct file *file,
 			 delta_tx->agg.rx_ba_rsp_cnt,
 			 max_tx->agg.rx_ba_rsp_cnt);
 
+	if (tx->tx_power.ant_a || tx->tx_power.ant_b || tx->tx_power.ant_c) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+			"tx power: (1/2 dB step)\n");
+		if ((priv->cfg->valid_tx_ant & ANT_A) && tx->tx_power.ant_a)
+			pos += scnprintf(buf + pos, bufsz - pos,
+					"\tantenna A: 0x%X\n",
+					tx->tx_power.ant_a);
+		if ((priv->cfg->valid_tx_ant & ANT_B) && tx->tx_power.ant_b)
+			pos += scnprintf(buf + pos, bufsz - pos,
+					"\tantenna B: 0x%X\n",
+					tx->tx_power.ant_b);
+		if ((priv->cfg->valid_tx_ant & ANT_C) && tx->tx_power.ant_c)
+			pos += scnprintf(buf + pos, bufsz - pos,
+					"\tantenna C: 0x%X\n",
+					tx->tx_power.ant_c);
+	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
 	return ret;

@@ -3127,6 +3127,11 @@ struct statistics_tx {
 	__le32 cts_timeout_collision;
 	__le32 ack_or_ba_timeout_collision;
 	struct statistics_tx_non_phy_agg agg;
+	/*
+	 * "tx_power" are optional parameters provided by uCode,
+	 * 6000 series is the only device provide the information,
+	 * Those are reserved fields for all the other devices
+	 */
 	struct statistics_tx_power tx_power;
 	__le32 reserved1;
 } __attribute__ ((packed));
