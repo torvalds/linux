@@ -72,16 +72,19 @@ static int add_to_list(struct ubi_scan_info *si, int pnum, int ec,
 {
 	struct ubi_scan_leb *seb;
 
-	if (list == &si->free)
+	if (list == &si->free) {
 		dbg_bld("add to free: PEB %d, EC %d", pnum, ec);
-	else if (list == &si->erase)
+		si->free_peb_count += 1;
+	} else if (list == &si->erase) {
 		dbg_bld("add to erase: PEB %d, EC %d", pnum, ec);
-	else if (list == &si->corr) {
+		si->erase_peb_count += 1;
+	} else if (list == &si->corr) {
 		dbg_bld("add to corrupted: PEB %d, EC %d", pnum, ec);
-		si->corr_count += 1;
-	} else if (list == &si->alien)
+		si->corr_peb_count += 1;
+	} else if (list == &si->alien) {
 		dbg_bld("add to alien: PEB %d, EC %d", pnum, ec);
-	else
+		si->alien_peb_count += 1;
+	} else
 		BUG();
 
 	seb = kmalloc(sizeof(struct ubi_scan_leb), GFP_KERNEL);
@@ -517,6 +520,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 	sv->leb_count += 1;
 	rb_link_node(&seb->u.rb, parent, p);
 	rb_insert_color(&seb->u.rb, &sv->root);
+	si->used_peb_count += 1;
 	return 0;
 }
 
@@ -751,7 +755,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		 * corrupted. Set %bitflips flag in order to make this PEB be
 		 * moved and EC be re-created.
 		 */
-		ec_corr = 1;
+		ec_corr = err;
 		ec = UBI_SCAN_UNKNOWN_EC;
 		bitflips = 1;
 	}
@@ -816,6 +820,9 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 	else if (err == UBI_IO_BAD_HDR_READ || err == UBI_IO_BAD_HDR ||
 		 (err == UBI_IO_PEB_FREE && ec_corr)) {
 		/* VID header is corrupted */
+		if (err == UBI_IO_BAD_HDR_READ ||
+		    ec_corr == UBI_IO_BAD_HDR_READ)
+			si->read_err_count += 1;
 		err = add_to_list(si, pnum, ec, &si->corr);
 		if (err)
 			return err;
@@ -855,7 +862,6 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			err = add_to_list(si, pnum, ec, &si->alien);
 			if (err)
 				return err;
-			si->alien_peb_count += 1;
 			return 0;
 
 		case UBI_COMPAT_REJECT:
@@ -943,8 +949,9 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	 * unclean reboots. However, many of them may indicate some problems
 	 * with the flash HW or driver. Print a warning in this case.
 	 */
-	if (si->corr_count >= 8 || si->corr_count >= ubi->peb_count / 4) {
-		ubi_warn("%d PEBs are corrupted", si->corr_count);
+	if (si->corr_peb_count >= 8 ||
+	    si->corr_peb_count >= ubi->peb_count / 4) {
+		ubi_warn("%d PEBs are corrupted", si->corr_peb_count);
 		printk(KERN_WARNING "corrupted PEBs are:");
 		list_for_each_entry(seb, &si->corr, u.list)
 			printk(KERN_CONT " %d", seb->pnum);
