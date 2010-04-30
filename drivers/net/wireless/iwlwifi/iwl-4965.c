@@ -1953,6 +1953,50 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 	return 0;
 }
 
+static u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
+{
+	int i;
+	int start = 0;
+	int ret = IWL_INVALID_STATION;
+	unsigned long flags;
+
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) ||
+	    (priv->iw_mode == NL80211_IFTYPE_AP))
+		start = IWL_STA_ID;
+
+	if (is_broadcast_ether_addr(addr))
+		return priv->hw_params.bcast_sta_id;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	for (i = start; i < priv->hw_params.max_stations; i++)
+		if (priv->stations[i].used &&
+		    (!compare_ether_addr(priv->stations[i].sta.sta.addr,
+					 addr))) {
+			ret = i;
+			goto out;
+		}
+
+	IWL_DEBUG_ASSOC_LIMIT(priv, "can not find STA %pM total %d\n",
+			      addr, priv->num_stations);
+
+ out:
+	/*
+	 * It may be possible that more commands interacting with stations
+	 * arrive before we completed processing the adding of
+	 * station
+	 */
+	if (ret != IWL_INVALID_STATION &&
+	    (!(priv->stations[ret].used & IWL_STA_UCODE_ACTIVE) ||
+	     ((priv->stations[ret].used & IWL_STA_UCODE_ACTIVE) &&
+	      (priv->stations[ret].used & IWL_STA_UCODE_INPROGRESS)))) {
+		IWL_ERR(priv, "Requested station info for sta %d before ready.\n",
+			ret);
+		ret = IWL_INVALID_STATION;
+	}
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	return ret;
+}
+
 static int iwl_get_ra_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 {
 	if (priv->iw_mode == NL80211_IFTYPE_STATION) {
