@@ -268,10 +268,10 @@ xfs_sb_validate_fsb_count(
 
 #if XFS_BIG_BLKNOS     /* Limited by ULONG_MAX of page cache index */
 	if (nblocks >> (PAGE_CACHE_SHIFT - sbp->sb_blocklog) > ULONG_MAX)
-		return E2BIG;
+		return EFBIG;
 #else                  /* Limited by UINT_MAX of sectors */
 	if (nblocks << (sbp->sb_blocklog - BBSHIFT) > UINT_MAX)
-		return E2BIG;
+		return EFBIG;
 #endif
 	return 0;
 }
@@ -393,7 +393,7 @@ xfs_mount_validate_sb(
 	    xfs_sb_validate_fsb_count(sbp, sbp->sb_rblocks)) {
 		xfs_fs_mount_cmn_err(flags,
 			"file system too large to be mounted on this system.");
-		return XFS_ERROR(E2BIG);
+		return XFS_ERROR(EFBIG);
 	}
 
 	if (unlikely(sbp->sb_inprogress)) {
@@ -1009,7 +1009,7 @@ xfs_check_sizes(xfs_mount_t *mp)
 	d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
 	if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_dblocks) {
 		cmn_err(CE_WARN, "XFS: size check 1 failed");
-		return XFS_ERROR(E2BIG);
+		return XFS_ERROR(EFBIG);
 	}
 	error = xfs_read_buf(mp, mp->m_ddev_targp,
 			     d - XFS_FSS_TO_BB(mp, 1),
@@ -1019,7 +1019,7 @@ xfs_check_sizes(xfs_mount_t *mp)
 	} else {
 		cmn_err(CE_WARN, "XFS: size check 2 failed");
 		if (error == ENOSPC)
-			error = XFS_ERROR(E2BIG);
+			error = XFS_ERROR(EFBIG);
 		return error;
 	}
 
@@ -1027,7 +1027,7 @@ xfs_check_sizes(xfs_mount_t *mp)
 		d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_logblocks);
 		if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_logblocks) {
 			cmn_err(CE_WARN, "XFS: size check 3 failed");
-			return XFS_ERROR(E2BIG);
+			return XFS_ERROR(EFBIG);
 		}
 		error = xfs_read_buf(mp, mp->m_logdev_targp,
 				     d - XFS_FSB_TO_BB(mp, 1),
@@ -1037,7 +1037,7 @@ xfs_check_sizes(xfs_mount_t *mp)
 		} else {
 			cmn_err(CE_WARN, "XFS: size check 3 failed");
 			if (error == ENOSPC)
-				error = XFS_ERROR(E2BIG);
+				error = XFS_ERROR(EFBIG);
 			return error;
 		}
 	}
