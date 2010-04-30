@@ -76,6 +76,14 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 			msecs_to_jiffies(RADEON_WAIT_IDLE_TIMEOUT));
 		rdev->irq.gui_idle = false;
 		radeon_irq_set(rdev);
+	} else {
+		struct radeon_fence *fence;
+		radeon_ring_alloc(rdev, 64);
+		radeon_fence_create(rdev, &fence);
+		radeon_fence_emit(rdev, fence);
+		radeon_ring_commit(rdev);
+		radeon_fence_wait(fence, false);
+		radeon_fence_unref(&fence);
 	}
 	radeon_unmap_vram_bos(rdev);
 
