@@ -1220,13 +1220,6 @@ struct iwl_priv {
 	struct iwl_power_mgr power_data;
 	struct iwl_tt_mgmt thermal_throttle;
 
-	struct iwl_notif_statistics statistics;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl_notif_statistics accum_statistics;
-	struct iwl_notif_statistics delta_statistics;
-	struct iwl_notif_statistics max_delta;
-#endif
-
 	/* context information */
 	u8 bssid[ETH_ALEN]; /* used only on 3945 but filled by core */
 	u8 mac_addr[ETH_ALEN];
@@ -1315,6 +1308,13 @@ struct iwl_priv {
 			bool last_phy_res_valid;
 
 			struct completion firmware_loading_complete;
+
+			struct iwl_notif_statistics statistics;
+#ifdef CONFIG_IWLWIFI_DEBUG
+			struct iwl_notif_statistics accum_statistics;
+			struct iwl_notif_statistics delta_statistics;
+			struct iwl_notif_statistics max_delta;
+#endif
 		} _agn;
 #endif
 	};
