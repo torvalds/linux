@@ -242,7 +242,10 @@ struct nfs4_client {
 	unsigned long		cl_cb_flags;
 	struct rpc_clnt		*cl_cb_client;
 	u32			cl_cb_ident;
-	atomic_t		cl_cb_set;
+#define NFSD4_CB_UP		0
+#define NFSD4_CB_UNKNOWN	1
+#define NFSD4_CB_DOWN		2
+	int			cl_cb_state;
 	struct nfsd4_callback	cl_cb_null;
 	struct nfsd4_session	*cl_cb_session;
 

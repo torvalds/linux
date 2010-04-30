@@ -1071,7 +1071,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 
 	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
 	atomic_set(&clp->cl_refcount, 0);
-	atomic_set(&clp->cl_cb_set, 0);
+	clp->cl_cb_state = NFSD4_CB_UNKNOWN;
 	INIT_LIST_HEAD(&clp->cl_idhash);
 	INIT_LIST_HEAD(&clp->cl_strhash);
 	INIT_LIST_HEAD(&clp->cl_openowners);
@@ -2003,7 +2003,6 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		if (!same_creds(&conf->cl_cred, &unconf->cl_cred))
 			status = nfserr_clid_inuse;
 		else {
-			atomic_set(&conf->cl_cb_set, 0);
 			nfsd4_change_callback(conf, &unconf->cl_cb_conn);
 			nfsd4_probe_callback(conf);
 			expire_client(unconf);
@@ -2633,7 +2632,8 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 {
 	struct nfs4_delegation *dp;
 	struct nfs4_stateowner *sop = stp->st_stateowner;
-	int cb_up = atomic_read(&sop->so_client->cl_cb_set);
+	/* XXX: or unknown and nfsv4.1: */
+	int cb_up = (sop->so_client->cl_cb_state == NFSD4_CB_UP);
 	struct file_lock *fl;
 	int status, flag = 0;
 
@@ -2823,7 +2823,7 @@ nfsd4_renew(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	renew_client(clp);
 	status = nfserr_cb_path_down;
 	if (!list_empty(&clp->cl_delegations)
-			&& !atomic_read(&clp->cl_cb_set))
+			&& clp->cl_cb_state != NFSD4_CB_UP)
 		goto out;
 	status = nfs_ok;
 out:

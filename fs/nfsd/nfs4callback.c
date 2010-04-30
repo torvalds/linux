@@ -470,8 +470,6 @@ static int max_cb_time(void)
 	return max(nfsd4_lease/10, (time_t)1) * HZ;
 }
 
-/* Reference counting, callback cleanup, etc., all look racy as heck.
- * And why is cl_cb_set an atomic? */
 
 static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn, struct nfsd4_session *ses)
 {
@@ -526,14 +524,20 @@ static void warn_no_callback_path(struct nfs4_client *clp, int reason)
 		(int)clp->cl_name.len, clp->cl_name.data, reason);
 }
 
+static void nfsd4_mark_cb_down(struct nfs4_client *clp, int reason)
+{
+	clp->cl_cb_state = NFSD4_CB_DOWN;
+	warn_no_callback_path(clp, reason);
+}
+
 static void nfsd4_cb_probe_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_client *clp = container_of(calldata, struct nfs4_client, cl_cb_null);
 
 	if (task->tk_status)
-		warn_no_callback_path(clp, task->tk_status);
+		nfsd4_mark_cb_down(clp, task->tk_status);
 	else
-		atomic_set(&clp->cl_cb_set, 1);
+		clp->cl_cb_state = NFSD4_CB_UP;
 }
 
 static const struct rpc_call_ops nfsd4_cb_probe_ops = {
@@ -579,14 +583,15 @@ static void do_probe_callback(struct nfs4_client *clp)
  */
 void nfsd4_probe_callback(struct nfs4_client *clp)
 {
+	/* XXX: atomicity?  Also, should we be using cl_cb_flags? */
+	clp->cl_cb_state = NFSD4_CB_UNKNOWN;
 	set_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_cb_flags);
 	do_probe_callback(clp);
 }
 
 void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 {
-	BUG_ON(atomic_read(&clp->cl_cb_set));
-
+	clp->cl_cb_state = NFSD4_CB_UNKNOWN;
 	spin_lock(&clp->cl_lock);
 	memcpy(&clp->cl_cb_conn, conn, sizeof(struct nfs4_cb_conn));
 	spin_unlock(&clp->cl_lock);
@@ -693,8 +698,7 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 		break;
 	default:
 		/* Network partition? */
-		atomic_set(&clp->cl_cb_set, 0);
-		warn_no_callback_path(clp, task->tk_status);
+		nfsd4_mark_cb_down(clp, task->tk_status);
 		if (current_rpc_client != task->tk_client) {
 			/* queue a callback on the new connection: */
 			atomic_inc(&dp->dl_count);
@@ -707,10 +711,8 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 		task->tk_status = 0;
 		rpc_restart_call_prepare(task);
 		return;
-	} else {
-		atomic_set(&clp->cl_cb_set, 0);
-		warn_no_callback_path(clp, task->tk_status);
-	}
+	} else
+		nfsd4_mark_cb_down(clp, task->tk_status);
 }
 
 static void nfsd4_cb_recall_release(void *calldata)
