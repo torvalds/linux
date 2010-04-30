@@ -96,12 +96,6 @@ struct blkfront_info
 	unsigned long shadow_free;
 	int feature_barrier;
 	int is_ready;
-
-	/**
-	 * The number of people holding this device open.  We won't allow a
-	 * hot-unplug unless this is 0.
-	 */
-	int users;
 };
 
 static DEFINE_SPINLOCK(blkif_io_lock);
@@ -977,7 +971,7 @@ blkfront_closing(struct blkfront_info *info)
 
 	mutex_lock(&bdev->bd_mutex);
 
-	if (info->users) {
+	if (bdev->bd_openers) {
 		xenbus_dev_error(xbdev, -EBUSY,
 				 "Device in use; refusing to close");
 		xenbus_switch_state(xbdev, XenbusStateClosing);
@@ -1126,7 +1120,7 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 	mutex_lock(&bdev->bd_mutex);
 	info = disk->private_data;
 
-	if (info && !info->users) {
+	if (info && !bdev->bd_openers) {
 		xlvbd_release_gendisk(info);
 		disk->private_data = NULL;
 		kfree(info);
