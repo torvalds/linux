@@ -1021,13 +1021,13 @@ static void blkfront_closing(struct blkfront_info *info)
 	/* Flush gnttab callback work. Must be done with no locks held. */
 	flush_scheduled_work();
 
-	blk_cleanup_queue(info->rq);
-	info->rq = NULL;
-
 	minor = info->gd->first_minor;
 	nr_minors = info->gd->minors;
 	del_gendisk(info->gd);
 	xlbd_release_minors(minor, nr_minors);
+
+	blk_cleanup_queue(info->rq);
+	info->rq = NULL;
 
  out:
 	if (info->xbdev)
