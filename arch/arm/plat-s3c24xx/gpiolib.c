@@ -21,6 +21,8 @@
 #include <linux/gpio.h>
 
 #include <plat/gpio-core.h>
+#include <plat/gpio-cfg.h>
+#include <plat/gpio-cfg-helpers.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <plat/pm.h>
@@ -77,10 +79,19 @@ static int s3c24xx_gpiolib_bankg_toirq(struct gpio_chip *chip, unsigned offset)
 	return IRQ_EINT8 + offset;
 }
 
+static struct s3c_gpio_cfg s3c24xx_gpiocfg_banka = {
+	.set_config	= s3c_gpio_setcfg_s3c24xx_a,
+};
+
+struct s3c_gpio_cfg s3c24xx_gpiocfg_default = {
+	.set_config	= s3c_gpio_setcfg_s3c24xx,
+};
+
 struct s3c_gpio_chip s3c24xx_gpios[] = {
 	[0] = {
 		.base	= S3C2410_GPACON,
 		.pm	= __gpio_pm(&s3c_gpio_pm_1bit),
+		.config	= &s3c24xx_gpiocfg_banka,
 		.chip	= {
 			.base			= S3C2410_GPA(0),
 			.owner			= THIS_MODULE,
@@ -168,8 +179,12 @@ static __init int s3c24xx_gpiolib_init(void)
 	struct s3c_gpio_chip *chip = s3c24xx_gpios;
 	int gpn;
 
-	for (gpn = 0; gpn < ARRAY_SIZE(s3c24xx_gpios); gpn++, chip++)
+	for (gpn = 0; gpn < ARRAY_SIZE(s3c24xx_gpios); gpn++, chip++) {
+		if (!chip->config)
+			chip->config = &s3c24xx_gpiocfg_default;
+
 		s3c_gpiolib_add(chip);
+	}
 
 	return 0;
 }

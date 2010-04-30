@@ -61,8 +61,8 @@ int s3c_gpio_setpull(unsigned int pin, s3c_gpio_pull_t pull)
 EXPORT_SYMBOL(s3c_gpio_setpull);
 
 #ifdef CONFIG_S3C_GPIO_CFG_S3C24XX
-int s3c_gpio_setcfg_s3c24xx_banka(struct s3c_gpio_chip *chip,
-				  unsigned int off, unsigned int cfg)
+int s3c_gpio_setcfg_s3c24xx_a(struct s3c_gpio_chip *chip,
+			      unsigned int off, unsigned int cfg)
 {
 	void __iomem *reg = chip->base;
 	unsigned int shift = off;
