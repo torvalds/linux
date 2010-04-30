@@ -199,8 +199,8 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	writel(pdata->portsc, hcd->regs + PORTSC_OFFSET);
 	mdelay(10);
 
-	/* setup USBCONTROL. */
-	ret = mxc_set_usbcontrol(pdev->id, pdata->flags);
+	/* setup specific usb hw */
+	ret = mxc_initialize_usb_hw(pdev->id, pdata->flags);
 	if (ret < 0)
 		goto err_init;
 
