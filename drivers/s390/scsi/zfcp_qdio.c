@@ -246,6 +246,46 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 	return bytes;
 }
 
+static int zfcp_qdio_sbal_check(struct zfcp_qdio *qdio)
+{
+	struct zfcp_qdio_queue *req_q = &qdio->req_q;
+
+	spin_lock_bh(&qdio->req_q_lock);
+	if (atomic_read(&req_q->count))
+		return 1;
+	spin_unlock_bh(&qdio->req_q_lock);
+	return 0;
+}
+
+/**
+ * zfcp_qdio_sbal_get - get free sbal in request queue, wait if necessary
+ * @qdio: pointer to struct zfcp_qdio
+ *
+ * The req_q_lock must be held by the caller of this function, and
+ * this function may only be called from process context; it will
+ * sleep when waiting for a free sbal.
+ *
+ * Returns: 0 on success, -EIO if there is no free sbal after waiting.
+ */
+int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
+{
+	long ret;
+
+	spin_unlock_bh(&qdio->req_q_lock);
+	ret = wait_event_interruptible_timeout(qdio->req_q_wq,
+			       zfcp_qdio_sbal_check(qdio), 5 * HZ);
+	if (ret > 0)
+		return 0;
+	if (!ret) {
+		atomic_inc(&qdio->req_q_full);
+		/* assume hanging outbound queue, try queue recovery */
+		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdsbg_1", NULL);
+	}
+
+	spin_lock_bh(&qdio->req_q_lock);
+	return -EIO;
+}
+
 /**
  * zfcp_qdio_send - set PCI flag in first SBALE and send req to QDIO
  * @qdio: pointer to struct zfcp_qdio

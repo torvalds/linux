@@ -640,37 +640,6 @@ static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
 	}
 }
 
-static int zfcp_fsf_sbal_check(struct zfcp_qdio *qdio)
-{
-	struct zfcp_qdio_queue *req_q = &qdio->req_q;
-
-	spin_lock_bh(&qdio->req_q_lock);
-	if (atomic_read(&req_q->count))
-		return 1;
-	spin_unlock_bh(&qdio->req_q_lock);
-	return 0;
-}
-
-static int zfcp_fsf_req_sbal_get(struct zfcp_qdio *qdio)
-{
-	struct zfcp_adapter *adapter = qdio->adapter;
-	long ret;
-
-	spin_unlock_bh(&qdio->req_q_lock);
-	ret = wait_event_interruptible_timeout(qdio->req_q_wq,
-			       zfcp_fsf_sbal_check(qdio), 5 * HZ);
-	if (ret > 0)
-		return 0;
-	if (!ret) {
-		atomic_inc(&qdio->req_q_full);
-		/* assume hanging outbound queue, try queue recovery */
-		zfcp_erp_adapter_reopen(adapter, 0, "fsrsg_1", NULL);
-	}
-
-	spin_lock_bh(&qdio->req_q_lock);
-	return -EIO;
-}
-
 static struct zfcp_fsf_req *zfcp_fsf_alloc(mempool_t *pool)
 {
 	struct zfcp_fsf_req *req;
@@ -798,7 +767,7 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 	int retval = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_UNSOLICITED_STATUS, 0,
@@ -898,7 +867,7 @@ struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
 	struct zfcp_qdio *qdio = unit->port->adapter->qdio;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_ABORT_FCP_CMND,
 				  SBAL_FLAGS0_TYPE_READ,
@@ -1068,7 +1037,7 @@ int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *wka_port,
 	int ret = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_SEND_GENERIC,
@@ -1165,7 +1134,7 @@ int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,
 	int ret = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_SEND_ELS,
@@ -1208,7 +1177,7 @@ int zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 	int retval = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_CONFIG_DATA,
@@ -1250,7 +1219,7 @@ int zfcp_fsf_exchange_config_data_sync(struct zfcp_qdio *qdio,
 	int retval = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out_unlock;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_CONFIG_DATA,
@@ -1302,7 +1271,7 @@ int zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 		return -EOPNOTSUPP;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_PORT_DATA,
@@ -1348,7 +1317,7 @@ int zfcp_fsf_exchange_port_data_sync(struct zfcp_qdio *qdio,
 		return -EOPNOTSUPP;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out_unlock;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_EXCHANGE_PORT_DATA,
@@ -1462,7 +1431,7 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 	int retval = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_OPEN_PORT_WITH_DID,
@@ -1530,7 +1499,7 @@ int zfcp_fsf_close_port(struct zfcp_erp_action *erp_action)
 	int retval = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_PORT,
@@ -1605,7 +1574,7 @@ int zfcp_fsf_open_wka_port(struct zfcp_fc_wka_port *wka_port)
 	int retval = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_OPEN_PORT_WITH_DID,
@@ -1658,7 +1627,7 @@ int zfcp_fsf_close_wka_port(struct zfcp_fc_wka_port *wka_port)
 	int retval = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_PORT,
@@ -1750,7 +1719,7 @@ int zfcp_fsf_close_physical_port(struct zfcp_erp_action *erp_action)
 	int retval = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_PHYSICAL_PORT,
@@ -1921,7 +1890,7 @@ int zfcp_fsf_open_unit(struct zfcp_erp_action *erp_action)
 	int retval = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_OPEN_LUN,
@@ -2005,7 +1974,7 @@ int zfcp_fsf_close_unit(struct zfcp_erp_action *erp_action)
 	int retval = -EIO;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_CLOSE_LUN,
@@ -2340,7 +2309,7 @@ struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_unit *unit, u8 tm_flags)
 		return NULL;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_FCP_CMND,
@@ -2410,7 +2379,7 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	}
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (zfcp_fsf_req_sbal_get(qdio))
+	if (zfcp_qdio_sbal_get(qdio))
 		goto out;
 
 	req = zfcp_fsf_req_create(qdio, fsf_cfdc->command, direction, NULL);
