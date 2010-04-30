@@ -962,7 +962,7 @@ static int iwlagn_txq_ctx_activate_free(struct iwl_priv *priv)
 }
 
 int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
-			const u8 *ra, u16 tid, u16 *ssn)
+			struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	int sta_id;
 	int tx_fifo;
@@ -976,9 +976,9 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return tx_fifo;
 
 	IWL_WARN(priv, "%s on ra = %pM tid = %d\n",
-			__func__, ra, tid);
+			__func__, sta->addr, tid);
 
-	sta_id = iwl_find_station(priv, ra);
+	sta_id = iwl_sta_id(sta);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_ERR(priv, "Start AGG on invalid station\n");
 		return -ENXIO;
@@ -1012,7 +1012,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	if (tid_data->tfds_in_queue == 0) {
 		IWL_DEBUG_HT(priv, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
-		ieee80211_start_tx_ba_cb_irqsafe(vif, ra, tid);
+		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 	} else {
 		IWL_DEBUG_HT(priv, "HW queue is NOT empty: %d packets in HW queue\n",
 			     tid_data->tfds_in_queue);
@@ -1022,23 +1022,18 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 }
 
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
-		       const u8 *ra, u16 tid)
+		       struct ieee80211_sta *sta, u16 tid)
 {
 	int tx_fifo_id, txq_id, sta_id, ssn = -1;
 	struct iwl_tid_data *tid_data;
 	int write_ptr, read_ptr;
 	unsigned long flags;
 
-	if (!ra) {
-		IWL_ERR(priv, "ra = NULL\n");
-		return -EINVAL;
-	}
-
 	tx_fifo_id = get_fifo_from_tid(tid);
 	if (unlikely(tx_fifo_id < 0))
 		return tx_fifo_id;
 
-	sta_id = iwl_find_station(priv, ra);
+	sta_id = iwl_sta_id(sta);
 
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_ERR(priv, "Invalid station for AGG tid %d\n", tid);
@@ -1048,7 +1043,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	if (priv->stations[sta_id].tid[tid].agg.state ==
 				IWL_EMPTYING_HW_QUEUE_ADDBA) {
 		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
-		ieee80211_stop_tx_ba_cb_irqsafe(vif, ra, tid);
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
 		return 0;
 	}
@@ -1085,7 +1080,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 						   tx_fifo_id);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	ieee80211_stop_tx_ba_cb_irqsafe(vif, ra, tid);
+	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 
 	return 0;
 }

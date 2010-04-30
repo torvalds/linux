@@ -1324,13 +1324,13 @@ void iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid)
 }
 EXPORT_SYMBOL(iwl_sta_tx_modify_enable_tid);
 
-int iwl_sta_rx_agg_start(struct iwl_priv *priv,
-			 const u8 *addr, int tid, u16 ssn)
+int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
+			 int tid, u16 ssn)
 {
 	unsigned long flags;
 	int sta_id;
 
-	sta_id = iwl_find_station(priv, addr);
+	sta_id = iwl_sta_id(sta);
 	if (sta_id == IWL_INVALID_STATION)
 		return -ENXIO;
 
@@ -1343,16 +1343,17 @@ int iwl_sta_rx_agg_start(struct iwl_priv *priv,
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	return iwl_send_add_sta(priv, &priv->stations[sta_id].sta,
-					CMD_ASYNC);
+				CMD_ASYNC);
 }
 EXPORT_SYMBOL(iwl_sta_rx_agg_start);
 
-int iwl_sta_rx_agg_stop(struct iwl_priv *priv, const u8 *addr, int tid)
+int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
+			int tid)
 {
 	unsigned long flags;
 	int sta_id;
 
-	sta_id = iwl_find_station(priv, addr);
+	sta_id = iwl_sta_id(sta);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_ERR(priv, "Invalid station for AGG tid %d\n", tid);
 		return -ENXIO;

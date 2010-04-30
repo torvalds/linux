@@ -80,9 +80,10 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 int iwl_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 void iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
-int iwl_sta_rx_agg_start(struct iwl_priv *priv,
-			 const u8 *addr, int tid, u16 ssn);
-int iwl_sta_rx_agg_stop(struct iwl_priv *priv, const u8 *addr, int tid);
+int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
+			 int tid, u16 ssn);
+int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
+			int tid);
 void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id);
 void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
 
