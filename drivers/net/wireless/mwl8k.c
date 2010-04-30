@@ -3981,8 +3981,8 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	hw->queues = MWL8K_TX_QUEUES;
 
-	/* Set rssi and noise values to dBm */
-	hw->flags |= IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_NOISE_DBM;
+	/* Set rssi values to dBm */
+	hw->flags |= IEEE80211_HW_SIGNAL_DBM;
 	hw->vif_data_size = sizeof(struct mwl8k_vif);
 	hw->sta_data_size = sizeof(struct mwl8k_sta);
 

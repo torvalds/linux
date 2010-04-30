@@ -560,7 +560,6 @@ enum mac80211_rx_flags {
  * @signal: signal strength when receiving this frame, either in dBm, in dB or
  *	unspecified depending on the hardware capabilities flags
  *	@IEEE80211_HW_SIGNAL_*
- * @noise: noise when receiving this frame, in dBm (DEPRECATED).
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT rates are use (RX_FLAG_HT)
@@ -571,7 +570,6 @@ struct ieee80211_rx_status {
 	enum ieee80211_band band;
 	int freq;
 	int signal;
-	int noise __deprecated;
 	int antenna;
 	int rate_idx;
 	int flag;
@@ -934,10 +932,6 @@ enum ieee80211_tkip_key_type {
  *	one milliwatt. This is the preferred method since it is standardized
  *	between different devices. @max_signal does not need to be set.
  *
- * @IEEE80211_HW_NOISE_DBM:
- *	Hardware can provide noise (radio interference) values in units dBm,
- *      decibel difference from one milliwatt.
- *
  * @IEEE80211_HW_SPECTRUM_MGMT:
  * 	Hardware supports spectrum management defined in 802.11h
  * 	Measurement, Channel Switch, Quieting, TPC
@@ -1001,7 +995,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE	= 1<<4,
 	IEEE80211_HW_SIGNAL_UNSPEC			= 1<<5,
 	IEEE80211_HW_SIGNAL_DBM				= 1<<6,
-	IEEE80211_HW_NOISE_DBM				= 1<<7,
+	/* use this hole */
 	IEEE80211_HW_SPECTRUM_MGMT			= 1<<8,
 	IEEE80211_HW_AMPDU_AGGREGATION			= 1<<9,
 	IEEE80211_HW_SUPPORTS_PS			= 1<<10,

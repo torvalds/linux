@@ -80,8 +80,6 @@ ieee80211_rx_radiotap_len(struct ieee80211_local *local,
 		len += 8;
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		len += 1;
-	if (local->hw.flags & IEEE80211_HW_NOISE_DBM)
-		len += 1;
 
 	if (len & 1) /* padding for RX_FLAGS if necessary */
 		len++;

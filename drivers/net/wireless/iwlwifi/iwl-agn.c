@@ -2653,7 +2653,6 @@ static int iwl_mac_setup_register(struct iwl_priv *priv)
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_NOISE_DBM |
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_SPECTRUM_MGMT;
 
