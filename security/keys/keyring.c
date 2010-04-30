@@ -660,20 +660,6 @@ cycle_detected:
 
 } /* end keyring_detect_cycle() */
 
-/*****************************************************************************/
-/*
- * dispose of a keyring list after the RCU grace period
- */
-static void keyring_link_rcu_disposal(struct rcu_head *rcu)
-{
-	struct keyring_list *klist =
-		container_of(rcu, struct keyring_list, rcu);
-
-	kfree(klist);
-
-} /* end keyring_link_rcu_disposal() */
-
-/*****************************************************************************/
 /*
  * dispose of a keyring list after the RCU grace period, freeing the unlinked
  * key
@@ -683,56 +669,51 @@ static void keyring_unlink_rcu_disposal(struct rcu_head *rcu)
 	struct keyring_list *klist =
 		container_of(rcu, struct keyring_list, rcu);
 
-	key_put(klist->keys[klist->delkey]);
+	if (klist->delkey != USHORT_MAX)
+		key_put(klist->keys[klist->delkey]);
 	kfree(klist);
+}
 
-} /* end keyring_unlink_rcu_disposal() */
-
-/*****************************************************************************/
 /*
- * link a key into to a keyring
- * - must be called with the keyring's semaphore write-locked
- * - discard already extant link to matching key if there is one
+ * preallocate memory so that a key can be linked into to a keyring
  */
-int __key_link(struct key *keyring, struct key *key)
+int __key_link_begin(struct key *keyring, const struct key_type *type,
+		     const char *description,
+		     struct keyring_list **_prealloc)
+	__acquires(&keyring->sem)
 {
 	struct keyring_list *klist, *nklist;
 	unsigned max;
 	size_t size;
 	int loop, ret;
 
+	kenter("%d,%s,%s,", key_serial(keyring), type->name, description);
+
+	if (keyring->type != &key_type_keyring)
+		return -ENOTDIR;
+
+	down_write(&keyring->sem);
+
 	ret = -EKEYREVOKED;
 	if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
-		goto error;
+		goto error_krsem;
 
-	ret = -ENOTDIR;
-	if (keyring->type != &key_type_keyring)
-		goto error;
-
-	/* do some special keyring->keyring link checks */
-	if (key->type == &key_type_keyring) {
-		/* serialise link/link calls to prevent parallel calls causing
-		 * a cycle when applied to two keyring in opposite orders */
+	/* serialise link/link calls to prevent parallel calls causing a cycle
+	 * when linking two keyring in opposite orders */
+	if (type == &key_type_keyring)
 		down_write(&keyring_serialise_link_sem);
 
-		/* check that we aren't going to create a cycle adding one
-		 * keyring to another */
-		ret = keyring_detect_cycle(keyring, key);
-		if (ret < 0)
-			goto error2;
-	}
+	klist = rcu_dereference_locked_keyring(keyring);
 
 	/* see if there's a matching key we can displace */
-	klist = rcu_dereference_locked_keyring(keyring);
 	if (klist && klist->nkeys > 0) {
-		struct key_type *type = key->type;
-
 		for (loop = klist->nkeys - 1; loop >= 0; loop--) {
 			if (klist->keys[loop]->type == type &&
 			    strcmp(klist->keys[loop]->description,
-				   key->description) == 0
+				   description) == 0
 			    ) {
-				/* found a match - replace with new key */
+				/* found a match - we'll replace this one with
+				 * the new key */
 				size = sizeof(struct key *) * klist->maxkeys;
 				size += sizeof(*klist);
 				BUG_ON(size > PAGE_SIZE);
@@ -740,22 +721,10 @@ int __key_link(struct key *keyring, struct key *key)
 				ret = -ENOMEM;
 				nklist = kmemdup(klist, size, GFP_KERNEL);
 				if (!nklist)
-					goto error2;
+					goto error_sem;
 
-				/* replace matched key */
-				atomic_inc(&key->usage);
-				nklist->keys[loop] = key;
-
-				rcu_assign_pointer(
-					keyring->payload.subscriptions,
-					nklist);
-
-				/* dispose of the old keyring list and the
-				 * displaced key */
-				klist->delkey = loop;
-				call_rcu(&klist->rcu,
-					 keyring_unlink_rcu_disposal);
-
+				/* note replacement slot */
+				klist->delkey = nklist->delkey = loop;
 				goto done;
 			}
 		}
@@ -765,16 +734,11 @@ int __key_link(struct key *keyring, struct key *key)
 	ret = key_payload_reserve(keyring,
 				  keyring->datalen + KEYQUOTA_LINK_BYTES);
 	if (ret < 0)
-		goto error2;
+		goto error_sem;
 
 	if (klist && klist->nkeys < klist->maxkeys) {
-		/* there's sufficient slack space to add directly */
-		atomic_inc(&key->usage);
-
-		klist->keys[klist->nkeys] = key;
-		smp_wmb();
-		klist->nkeys++;
-		smp_wmb();
+		/* there's sufficient slack space to append directly */
+		nklist = NULL;
 	} else {
 		/* grow the key list */
 		max = 4;
@@ -782,71 +746,155 @@ int __key_link(struct key *keyring, struct key *key)
 			max += klist->maxkeys;
 
 		ret = -ENFILE;
-		if (max > 65535)
-			goto error3;
+		if (max > USHORT_MAX - 1)
+			goto error_quota;
 		size = sizeof(*klist) + sizeof(struct key *) * max;
 		if (size > PAGE_SIZE)
-			goto error3;
+			goto error_quota;
 
 		ret = -ENOMEM;
 		nklist = kmalloc(size, GFP_KERNEL);
 		if (!nklist)
-			goto error3;
-		nklist->maxkeys = max;
-		nklist->nkeys = 0;
+			goto error_quota;
 
+		nklist->maxkeys = max;
 		if (klist) {
-			nklist->nkeys = klist->nkeys;
-			memcpy(nklist->keys,
-			       klist->keys,
+			memcpy(nklist->keys, klist->keys,
 			       sizeof(struct key *) * klist->nkeys);
+			nklist->delkey = klist->nkeys;
+			nklist->nkeys = klist->nkeys + 1;
+			klist->delkey = USHORT_MAX;
+		} else {
+			nklist->nkeys = 1;
+			nklist->delkey = 0;
 		}
 
 		/* add the key into the new space */
-		atomic_inc(&key->usage);
-		nklist->keys[nklist->nkeys++] = key;
-
-		rcu_assign_pointer(keyring->payload.subscriptions, nklist);
-
-		/* dispose of the old keyring list */
-		if (klist)
-			call_rcu(&klist->rcu, keyring_link_rcu_disposal);
+		nklist->keys[nklist->delkey] = NULL;
 	}
 
 done:
-	ret = 0;
-error2:
-	if (key->type == &key_type_keyring)
-		up_write(&keyring_serialise_link_sem);
-error:
-	return ret;
+	*_prealloc = nklist;
+	kleave(" = 0");
+	return 0;
 
-error3:
+error_quota:
 	/* undo the quota changes */
 	key_payload_reserve(keyring,
 			    keyring->datalen - KEYQUOTA_LINK_BYTES);
-	goto error2;
+error_sem:
+	if (type == &key_type_keyring)
+		up_write(&keyring_serialise_link_sem);
+error_krsem:
+	up_write(&keyring->sem);
+	kleave(" = %d", ret);
+	return ret;
+}
 
-} /* end __key_link() */
+/*
+ * check already instantiated keys aren't going to be a problem
+ * - the caller must have called __key_link_begin()
+ * - don't need to call this for keys that were created since __key_link_begin()
+ *   was called
+ */
+int __key_link_check_live_key(struct key *keyring, struct key *key)
+{
+	if (key->type == &key_type_keyring)
+		/* check that we aren't going to create a cycle by linking one
+		 * keyring to another */
+		return keyring_detect_cycle(keyring, key);
+	return 0;
+}
 
-/*****************************************************************************/
+/*
+ * link a key into to a keyring
+ * - must be called with __key_link_begin() having being called
+ * - discard already extant link to matching key if there is one
+ */
+void __key_link(struct key *keyring, struct key *key,
+		struct keyring_list **_prealloc)
+{
+	struct keyring_list *klist, *nklist;
+
+	nklist = *_prealloc;
+	*_prealloc = NULL;
+
+	kenter("%d,%d,%p", keyring->serial, key->serial, nklist);
+
+	klist = rcu_dereference_protected(keyring->payload.subscriptions,
+					  rwsem_is_locked(&keyring->sem));
+
+	atomic_inc(&key->usage);
+
+	/* there's a matching key we can displace or an empty slot in a newly
+	 * allocated list we can fill */
+	if (nklist) {
+		kdebug("replace %hu/%hu/%hu",
+		       nklist->delkey, nklist->nkeys, nklist->maxkeys);
+
+		nklist->keys[nklist->delkey] = key;
+
+		rcu_assign_pointer(keyring->payload.subscriptions, nklist);
+
+		/* dispose of the old keyring list and, if there was one, the
+		 * displaced key */
+		if (klist) {
+			kdebug("dispose %hu/%hu/%hu",
+			       klist->delkey, klist->nkeys, klist->maxkeys);
+			call_rcu(&klist->rcu, keyring_unlink_rcu_disposal);
+		}
+	} else {
+		/* there's sufficient slack space to append directly */
+		klist->keys[klist->nkeys] = key;
+		smp_wmb();
+		klist->nkeys++;
+	}
+}
+
+/*
+ * finish linking a key into to a keyring
+ * - must be called with __key_link_begin() having being called
+ */
+void __key_link_end(struct key *keyring, struct key_type *type,
+		    struct keyring_list *prealloc)
+	__releases(&keyring->sem)
+{
+	BUG_ON(type == NULL);
+	BUG_ON(type->name == NULL);
+	kenter("%d,%s,%p", keyring->serial, type->name, prealloc);
+
+	if (type == &key_type_keyring)
+		up_write(&keyring_serialise_link_sem);
+
+	if (prealloc) {
+		kfree(prealloc);
+		key_payload_reserve(keyring,
+				    keyring->datalen - KEYQUOTA_LINK_BYTES);
+	}
+	up_write(&keyring->sem);
+}
+
 /*
  * link a key to a keyring
  */
 int key_link(struct key *keyring, struct key *key)
 {
+	struct keyring_list *prealloc;
 	int ret;
 
 	key_check(keyring);
 	key_check(key);
 
-	down_write(&keyring->sem);
-	ret = __key_link(keyring, key);
-	up_write(&keyring->sem);
+	ret = __key_link_begin(keyring, key->type, key->description, &prealloc);
+	if (ret == 0) {
+		ret = __key_link_check_live_key(keyring, key);
+		if (ret == 0)
+			__key_link(keyring, key, &prealloc);
+		__key_link_end(keyring, key->type, prealloc);
+	}
 
 	return ret;
-
-} /* end key_link() */
+}
 
 EXPORT_SYMBOL(key_link);
 
