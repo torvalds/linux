@@ -284,10 +284,12 @@ static u8 iwl_prep_station(struct iwl_priv *priv, const u8 *addr,
 	station->sta.sta.sta_id = sta_id;
 	station->sta.station_flags = 0;
 
-	/* BCAST station and IBSS stations do not work in HT mode */
-	if (sta_id != priv->hw_params.bcast_sta_id &&
-	    priv->iw_mode != NL80211_IFTYPE_ADHOC)
-		iwl_set_ht_add_station(priv, sta_id, ht_info);
+	/*
+	 * OK to call unconditionally, since local stations (IBSS BSSID
+	 * STA and broadcast STA) pass in a NULL ht_info, and mac80211
+	 * doesn't allow HT IBSS.
+	 */
+	iwl_set_ht_add_station(priv, sta_id, ht_info);
 
 	/* 3945 only */
 	rate = (priv->band == IEEE80211_BAND_5GHZ) ?
