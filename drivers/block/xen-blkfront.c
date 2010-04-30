@@ -79,6 +79,7 @@ static const struct block_device_operations xlvbd_block_fops;
  */
 struct blkfront_info
 {
+	struct mutex mutex;
 	struct xenbus_device *xbdev;
 	struct gendisk *gd;
 	int vdevice;
@@ -804,7 +805,6 @@ again:
 	return err;
 }
 
-
 /**
  * Entry point to this code when a new device is created.  Allocate the basic
  * structures and the ring buffer for communication with the backend, and
@@ -836,6 +836,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 		return -ENOMEM;
 	}
 
+	mutex_init(&info->mutex);
 	info->xbdev = dev;
 	info->vdevice = vdevice;
 	info->connected = BLKIF_STATE_DISCONNECTED;
@@ -951,6 +952,43 @@ static int blkfront_resume(struct xenbus_device *dev)
 	return err;
 }
 
+static void
+blkfront_closing(struct blkfront_info *info)
+{
+	struct xenbus_device *xbdev = info->xbdev;
+	struct block_device *bdev = NULL;
+
+	mutex_lock(&info->mutex);
+
+	if (xbdev->state == XenbusStateClosing) {
+		mutex_unlock(&info->mutex);
+		return;
+	}
+
+	if (info->gd)
+		bdev = bdget_disk(info->gd, 0);
+
+	mutex_unlock(&info->mutex);
+
+	if (!bdev) {
+		xenbus_frontend_closed(xbdev);
+		return;
+	}
+
+	mutex_lock(&bdev->bd_mutex);
+
+	if (info->users) {
+		xenbus_dev_error(xbdev, -EBUSY,
+				 "Device in use; refusing to close");
+		xenbus_switch_state(xbdev, XenbusStateClosing);
+	} else {
+		xlvbd_release_gendisk(info);
+		xenbus_frontend_closed(xbdev);
+	}
+
+	mutex_unlock(&bdev->bd_mutex);
+	bdput(bdev);
+}
 
 /*
  * Invoked when the backend is finally 'ready' (and has told produced
@@ -1034,7 +1072,6 @@ static void blkback_changed(struct xenbus_device *dev,
 			    enum xenbus_state backend_state)
 {
 	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
-	struct block_device *bd;
 
 	dev_dbg(&dev->dev, "blkfront:blkback_changed to state %d.\n", backend_state);
 
@@ -1051,25 +1088,7 @@ static void blkback_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateClosing:
-		if (info->gd == NULL) {
-			xenbus_frontend_closed(dev);
-			break;
-		}
-		bd = bdget_disk(info->gd, 0);
-		if (bd == NULL)
-			xenbus_dev_fatal(dev, -ENODEV, "bdget failed");
-
-		mutex_lock(&bd->bd_mutex);
-		if (info->users > 0)
-			xenbus_dev_error(dev, -EBUSY,
-					 "Device in use; refusing to close");
-		else {
-			xlvbd_release_gendisk(info);
-			xenbus_frontend_closed(info->xbdev);
-		}
-
-		mutex_unlock(&bd->bd_mutex);
-		bdput(bd);
+		blkfront_closing(info);
 		break;
 	}
 }
