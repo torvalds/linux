@@ -1889,7 +1889,7 @@ static struct kmem_cache *get_slab(size_t size)
 	BUG_ON(i >= JBD2_MAX_SLABS);
 	if (unlikely(i < 0))
 		i = 0;
-	BUG_ON(jbd2_slab[i] == 0);
+	BUG_ON(jbd2_slab[i] == NULL);
 	return jbd2_slab[i];
 }
 
