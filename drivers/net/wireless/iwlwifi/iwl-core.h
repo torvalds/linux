@@ -247,6 +247,18 @@ struct iwl_mod_params {
  * @support_wimax_coexist: support wimax/wifi co-exist
  * @plcp_delta_threshold: plcp error rate threshold used to trigger
  *	radio tuning when there is a high receiving plcp error rate
+ * @chain_noise_scale: default chain noise scale used for gain computation
+ * @monitor_recover_period: default timer used to check stuck queues
+ * @temperature_kelvin: temperature report by uCode in kelvin
+ * @max_event_log_size: size of event log buffer size for ucode event logging
+ * @tx_power_by_driver: tx power calibration performed by driver
+ *	instead of uCode
+ * @ucode_tracing: support ucode continuous tracing
+ * @sensitivity_calib_by_driver: driver has the capability to perform
+ *	sensitivity calibration operation
+ * @chain_noise_calib_by_driver: driver has the capability to perform
+ *	chain noise calibration operation
+ * @scan_antennas: available antenna for scan operation
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
