@@ -1093,18 +1093,47 @@ static void blkback_changed(struct xenbus_device *dev,
 	}
 }
 
-static int blkfront_remove(struct xenbus_device *dev)
+static int blkfront_remove(struct xenbus_device *xbdev)
 {
-	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
+	struct blkfront_info *info = dev_get_drvdata(&xbdev->dev);
+	struct block_device *bdev = NULL;
+	struct gendisk *disk;
 
-	dev_dbg(&dev->dev, "blkfront_remove: %s removed\n", dev->nodename);
+	dev_dbg(&xbdev->dev, "%s removed", xbdev->nodename);
 
 	blkif_free(info, 0);
 
-	if(info->users == 0)
+	mutex_lock(&info->mutex);
+
+	disk = info->gd;
+	if (disk)
+		bdev = bdget_disk(disk, 0);
+
+	info->xbdev = NULL;
+	mutex_unlock(&info->mutex);
+
+	if (!bdev) {
 		kfree(info);
-	else
-		info->xbdev = NULL;
+		return 0;
+	}
+
+	/*
+	 * The xbdev was removed before we reached the Closed
+	 * state. See if it's safe to remove the disk. If the bdev
+	 * isn't closed yet, we let release take care of it.
+	 */
+
+	mutex_lock(&bdev->bd_mutex);
+	info = disk->private_data;
+
+	if (info && !info->users) {
+		xlvbd_release_gendisk(info);
+		disk->private_data = NULL;
+		kfree(info);
+	}
+
+	mutex_unlock(&bdev->bd_mutex);
+	bdput(bdev);
 
 	return 0;
 }
