@@ -137,6 +137,8 @@ source "drivers/staging/sm7xx/Kconfig"
 
 source "drivers/staging/dt3155/Kconfig"
 
+source "drivers/staging/dt3155v4l/Kconfig"
+
 source "drivers/staging/crystalhd/Kconfig"
 
 source "drivers/staging/cxt1e1/Kconfig"
