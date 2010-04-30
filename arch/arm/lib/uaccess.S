@@ -279,10 +279,10 @@ USER(		strgtbt	r3, [r0], #1)			@ May fault
 		b	.Lc2u_finished
 ENDPROC(__copy_to_user)
 
-		.section .fixup,"ax"
+		.pushsection .fixup,"ax"
 		.align	0
 9001:		ldmfd	sp!, {r0, r4 - r7, pc}
-		.previous
+		.popsection
 
 /* Prototype: unsigned long __copy_from_user(void *to,const void *from,unsigned long n);
  * Purpose  : copy a block from user memory to kernel memory
@@ -545,7 +545,7 @@ USER(		ldrgtbt	r3, [r1], #1)			@ May fault
 		b	.Lcfu_finished
 ENDPROC(__copy_from_user)
 
-		.section .fixup,"ax"
+		.pushsection .fixup,"ax"
 		.align	0
 		/*
 		 * We took an exception.  r0 contains a pointer to
@@ -559,5 +559,5 @@ ENDPROC(__copy_from_user)
 		blne	__memzero
 		mov	r0, r4
 		ldmfd	sp!, {r4 - r7, pc}
-		.previous
+		.popsection
 
