@@ -6,12 +6,10 @@
  * drivers.
  */
 
-#ifndef __LINUX_HUB_H
-#define __LINUX_HUB_H
+#ifndef __LINUX_CH11_H
+#define __LINUX_CH11_H
 
-#include <linux/list.h>
-#include <linux/workqueue.h>
-#include <linux/compiler.h>	/* likely()/unlikely() */
+#include <linux/types.h>	/* __u8 etc */
 
 /*
  * Hub request types
@@ -166,4 +164,4 @@ enum hub_led_mode {
 #define HUB_TTTT_24_BITS	0x40
 #define HUB_TTTT_32_BITS	0x60
 
-#endif /* __LINUX_HUB_H */
+#endif /* __LINUX_CH11_H */
