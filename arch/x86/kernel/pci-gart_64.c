@@ -29,6 +29,7 @@
 #include <linux/iommu-helper.h>
 #include <linux/sysdev.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 #include <asm/atomic.h>
 #include <asm/mtrr.h>
 #include <asm/pgtable.h>
@@ -564,6 +565,9 @@ static void enable_gart_translations(void)
 
 		enable_gart_translation(dev, __pa(agp_gatt_table));
 	}
+
+	/* Flush the GART-TLB to remove stale entries */
+	k8_flush_garts();
 }
 
 /*

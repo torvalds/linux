@@ -25,6 +25,7 @@
 #include <linux/writeback.h>
 #include <linux/crc32.h>
 #include <linux/backing-dev.h>
+#include <linux/slab.h>
 #include "page.h"
 #include "segbuf.h"
 

@@ -18,6 +18,7 @@
 #include <linux/ethtool.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/gfp.h>
 
 #define DRV_MODULE_NAME		"w90p910-emc"
 #define DRV_MODULE_VERSION	"0.1"

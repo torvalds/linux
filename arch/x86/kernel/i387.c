@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/regset.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <asm/sigcontext.h>
 #include <asm/processor.h>

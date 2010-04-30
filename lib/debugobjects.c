@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 #include <linux/hash.h>
 
 #define ODEBUG_HASH_BITS	14

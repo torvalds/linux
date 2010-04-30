@@ -39,6 +39,7 @@
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
 #include <linux/inet_lro.h>
+#include <linux/slab.h>
 
 #include "nes.h"
 

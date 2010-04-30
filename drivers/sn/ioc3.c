@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/ioc3.h>
 #include <linux/rwsem.h>
+#include <linux/slab.h>
 
 #define IOC3_PCI_SIZE 0x100000
 

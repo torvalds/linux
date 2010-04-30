@@ -1,6 +1,7 @@
 #include "ceph_debug.h"
 
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>

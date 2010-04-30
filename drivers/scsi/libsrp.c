@@ -19,6 +19,7 @@
  * 02110-1301 USA
  */
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/kfifo.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>

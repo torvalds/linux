@@ -13,6 +13,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/slab.h>
 #include <linux/phy.h>
 #include <linux/spinlock.h>
 

@@ -33,6 +33,7 @@
 #include <linux/miscdevice.h>
 #include <linux/smp_lock.h>
 #include <linux/compat.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 

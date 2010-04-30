@@ -13,6 +13,7 @@
 #include <linux/clockchips.h>
 #include <linux/kernel_stat.h>
 #include <linux/math64.h>
+#include <linux/gfp.h>
 
 #include <asm/pvclock.h>
 #include <asm/xen/hypervisor.h>

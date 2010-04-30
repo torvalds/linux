@@ -13,6 +13,7 @@
  *	and store_template.
  */
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "ima.h"
 static const char *IMA_TEMPLATE_NAME = "ima";

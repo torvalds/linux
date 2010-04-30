@@ -39,6 +39,7 @@
 #include <linux/blkdev.h>
 #include <linux/mca.h>
 #include <linux/mca-legacy.h>
+#include <linux/slab.h>
 
 #include <asm/dma.h>
 #include <asm/system.h>

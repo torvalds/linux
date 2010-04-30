@@ -14,6 +14,8 @@
 #define get_bp(bp) asm("movq %%rbp, %0" : "=r" (bp) :)
 #endif
 
+#include <linux/uaccess.h>
+
 extern void
 show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		unsigned long *stack, unsigned long bp, char *log_lvl);
@@ -30,6 +32,11 @@ struct stack_frame {
 	unsigned long return_address;
 };
 
+struct stack_frame_ia32 {
+    u32 next_frame;
+    u32 return_address;
+};
+
 static inline unsigned long rewind_frame_pointer(int n)
 {
 	struct stack_frame *frame;
@@ -37,8 +44,10 @@ static inline unsigned long rewind_frame_pointer(int n)
 	get_bp(frame);
 
 #ifdef CONFIG_FRAME_POINTER
-	while (n--)
-		frame = frame->next_frame;
+	while (n--) {
+		if (probe_kernel_address(&frame->next_frame, frame))
+			break;
+	}
 #endif
 
 	return (unsigned long)frame;

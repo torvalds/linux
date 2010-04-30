@@ -21,6 +21,7 @@
  */
 
 #include <linux/buffer_head.h>
+#include <linux/slab.h>
 
 #include "dir.h"
 #include "aops.h"

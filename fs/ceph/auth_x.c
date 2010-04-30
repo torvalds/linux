@@ -4,6 +4,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 
 #include "auth_x.h"
 #include "auth_x_protocol.h"

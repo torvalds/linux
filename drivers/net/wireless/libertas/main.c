@@ -13,6 +13,7 @@
 #include <linux/kfifo.h>
 #include <linux/stddef.h>
 #include <linux/ieee80211.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
 

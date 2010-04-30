@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <linux/xfrm.h>
 
 #include <net/addrconf.h>

@@ -13,6 +13,7 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 #include <linux/in6.h>
+#include <linux/slab.h>
 #include <net/addrconf.h>
 #include <linux/if_addrlabel.h>
 #include <linux/netlink.h>

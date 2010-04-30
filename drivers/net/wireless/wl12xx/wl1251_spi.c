@@ -23,6 +23,7 @@
 
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/wl12xx.h>

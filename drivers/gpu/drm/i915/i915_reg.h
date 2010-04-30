@@ -230,6 +230,16 @@
 #define   ASYNC_FLIP                (1<<22)
 #define   DISPLAY_PLANE_A           (0<<20)
 #define   DISPLAY_PLANE_B           (1<<20)
+#define GFX_OP_PIPE_CONTROL	((0x3<<29)|(0x3<<27)|(0x2<<24)|2)
+#define   PIPE_CONTROL_QW_WRITE	(1<<14)
+#define   PIPE_CONTROL_DEPTH_STALL (1<<13)
+#define   PIPE_CONTROL_WC_FLUSH	(1<<12)
+#define   PIPE_CONTROL_IS_FLUSH	(1<<11) /* MBZ on Ironlake */
+#define   PIPE_CONTROL_TC_FLUSH (1<<10) /* GM45+ only */
+#define   PIPE_CONTROL_ISP_DIS	(1<<9)
+#define   PIPE_CONTROL_NOTIFY	(1<<8)
+#define   PIPE_CONTROL_GLOBAL_GTT (1<<2) /* in addr dword */
+#define   PIPE_CONTROL_STALL_EN	(1<<1) /* in addr word, Ironlake+ only */
 
 /*
  * Fence registers
@@ -241,7 +251,7 @@
 #define   I830_FENCE_SIZE_BITS(size)	((ffs((size) >> 19) - 1) << 8)
 #define   I830_FENCE_PITCH_SHIFT	4
 #define   I830_FENCE_REG_VALID		(1<<0)
-#define   I915_FENCE_MAX_PITCH_VAL	0x10
+#define   I915_FENCE_MAX_PITCH_VAL	4
 #define   I830_FENCE_MAX_PITCH_VAL	6
 #define   I830_FENCE_MAX_SIZE_VAL	(1<<8)
 
@@ -2285,6 +2295,7 @@
 #define DEIER   0x4400c
 
 /* GT interrupt */
+#define GT_PIPE_NOTIFY		(1 << 4)
 #define GT_SYNC_STATUS          (1 << 2)
 #define GT_USER_INTERRUPT       (1 << 0)
 

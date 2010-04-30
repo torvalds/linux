@@ -12,6 +12,7 @@
 #include <linux/nl80211.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
 #include "wext-compat.h"

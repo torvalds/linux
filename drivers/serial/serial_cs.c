@@ -105,6 +105,10 @@ struct serial_cfg_mem {
  * manfid 0x0160, 0x0104
  * This card appears to have a 14.7456MHz clock.
  */
+/* Generic Modem: MD55x (GPRS/EDGE) have
+ * Elan VPU16551 UART with 14.7456MHz oscillator
+ * manfid 0x015D, 0x4C45
+ */
 static void quirk_setup_brainboxes_0104(struct pcmcia_device *link, struct uart_port *port)
 {
 	port->uartclk = 14745600;
@@ -193,6 +197,11 @@ static const struct serial_quirk quirks[] = {
 	{
 		.manfid	= 0x0160,
 		.prodid	= 0x0104,
+		.multi	= -1,
+		.setup	= quirk_setup_brainboxes_0104,
+	}, {
+		.manfid	= 0x015D,
+		.prodid	= 0x4C45,
 		.multi	= -1,
 		.setup	= quirk_setup_brainboxes_0104,
 	}, {

@@ -16,6 +16,7 @@
 #include <linux/idr.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "memstick"
 

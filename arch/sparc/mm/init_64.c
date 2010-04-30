@@ -13,7 +13,6 @@
 #include <linux/bootmem.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
-#include <linux/slab.h>
 #include <linux/initrd.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
@@ -26,6 +25,7 @@
 #include <linux/percpu.h>
 #include <linux/lmb.h>
 #include <linux/mmzone.h>
+#include <linux/gfp.h>
 
 #include <asm/head.h>
 #include <asm/system.h>
@@ -2117,7 +2117,7 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 			       "node=%d entry=%lu/%lu\n", start, block, nr,
 			       node,
 			       addr >> VMEMMAP_CHUNK_SHIFT,
-			       VMEMMAP_SIZE >> VMEMMAP_CHUNK_SHIFT);
+			       VMEMMAP_SIZE);
 		}
 	}
 	return 0;
