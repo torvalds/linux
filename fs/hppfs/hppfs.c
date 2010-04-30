@@ -718,7 +718,7 @@ static int hppfs_fill_super(struct super_block *sb, void *d, int silent)
 	struct vfsmount *proc_mnt;
 	int err = -ENOENT;
 
-	proc_mnt = do_kern_mount("proc", 0, "proc", NULL);
+	proc_mnt = mntget(current->nsproxy->pid_ns->proc_mnt);
 	if (IS_ERR(proc_mnt))
 		goto out;
 

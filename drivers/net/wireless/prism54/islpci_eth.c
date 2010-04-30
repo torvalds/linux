@@ -17,6 +17,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/gfp.h>
 
 #include <linux/pci.h>
 #include <linux/delay.h>

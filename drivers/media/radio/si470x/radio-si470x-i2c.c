@@ -31,6 +31,7 @@
 
 /* kernel includes */
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 

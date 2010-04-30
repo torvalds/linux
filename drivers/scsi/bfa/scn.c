@@ -90,7 +90,7 @@ bfa_fcs_port_scn_sm_offline(struct bfa_fcs_port_scn_s *scn,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(scn->port->fcs, event);
 	}
 }
 
@@ -109,7 +109,7 @@ bfa_fcs_port_scn_sm_sending_scr(struct bfa_fcs_port_scn_s *scn,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(scn->port->fcs, event);
 	}
 }
 
@@ -137,7 +137,7 @@ bfa_fcs_port_scn_sm_scr(struct bfa_fcs_port_scn_s *scn,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(scn->port->fcs, event);
 	}
 }
 
@@ -157,7 +157,7 @@ bfa_fcs_port_scn_sm_scr_retry(struct bfa_fcs_port_scn_s *scn,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(scn->port->fcs, event);
 	}
 }
 
@@ -171,7 +171,7 @@ bfa_fcs_port_scn_sm_online(struct bfa_fcs_port_scn_s *scn,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(scn->port->fcs, event);
 	}
 }
 

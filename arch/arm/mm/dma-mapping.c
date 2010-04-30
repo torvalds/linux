@@ -11,7 +11,7 @@
  */
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/init.h>
@@ -464,6 +464,11 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 				vaddr += offset;
 				op(vaddr, len, dir);
 				kunmap_high(page);
+			} else if (cache_is_vipt()) {
+				pte_t saved_pte;
+				vaddr = kmap_high_l1_vipt(page, &saved_pte);
+				op(vaddr + offset, len, dir);
+				kunmap_high_l1_vipt(page, saved_pte);
 			}
 		} else {
 			vaddr = page_address(page) + offset;

@@ -422,15 +422,6 @@ config MTD_H720X
 	  This enables access to the flash chips on the Hynix evaluation boards.
 	  If you have such a board, say 'Y'.
 
-config MTD_OMAP_NOR
-	tristate "TI OMAP board mappings"
-	depends on MTD_CFI && ARCH_OMAP
-	help
-	  This enables access to the NOR flash chips on TI OMAP-based
-	  boards defining flash platform devices and flash platform data.
-	  These boards include the Innovator, H2, H3, OSK, Perseus2, and
-	  more.  If you have such a board, say 'Y'.
-
 # This needs CFI or JEDEC, depending on the cards found.
 config MTD_PCI
 	tristate "PCI MTD driver"

@@ -90,37 +90,7 @@ void wl1271_spi_raw_write(struct wl1271 *wl, int addr, void *buf,
 void wl1271_spi_raw_read(struct wl1271 *wl, int addr, void *buf,
 		     size_t len, bool fixed);
 
-/* Translated target IO */
-void wl1271_spi_read(struct wl1271 *wl, int addr, void *buf, size_t len,
-		     bool fixed);
-void wl1271_spi_write(struct wl1271 *wl, int addr, void *buf, size_t len,
-		      bool fixed);
-u32 wl1271_spi_read32(struct wl1271 *wl, int addr);
-void wl1271_spi_write32(struct wl1271 *wl, int addr, u32 val);
-
-/* Top Register IO */
-void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val);
-u16 wl1271_top_reg_read(struct wl1271 *wl, int addr);
-
 /* INIT and RESET words */
 void wl1271_spi_reset(struct wl1271 *wl);
 void wl1271_spi_init(struct wl1271 *wl);
-int wl1271_set_partition(struct wl1271 *wl,
-			 struct wl1271_partition_set *p);
-
-static inline u32 wl1271_raw_read32(struct wl1271 *wl, int addr)
-{
-	wl1271_spi_raw_read(wl, addr, &wl->buffer_32,
-			    sizeof(wl->buffer_32), false);
-
-	return wl->buffer_32;
-}
-
-static inline void wl1271_raw_write32(struct wl1271 *wl, int addr, u32 val)
-{
-	wl->buffer_32 = val;
-	wl1271_spi_raw_write(wl, addr, &wl->buffer_32,
-			     sizeof(wl->buffer_32), false);
-}
-
 #endif /* __WL1271_SPI_H__ */

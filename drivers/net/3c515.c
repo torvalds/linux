@@ -65,7 +65,6 @@ static int max_interrupt_work = 20;
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
@@ -1536,7 +1535,7 @@ static void set_rx_mode(struct net_device *dev)
 			pr_debug("%s: Setting promiscuous mode.\n",
 			       dev->name);
 		new_mode = SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm;
-	} else if ((dev->mc_list) || (dev->flags & IFF_ALLMULTI)) {
+	} else if (!netdev_mc_empty(dev) || dev->flags & IFF_ALLMULTI) {
 		new_mode = SetRxFilter | RxStation | RxMulticast | RxBroadcast;
 	} else
 		new_mode = SetRxFilter | RxStation | RxBroadcast;

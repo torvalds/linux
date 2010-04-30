@@ -11,9 +11,6 @@ void Mds_SendComplete(  struct wbsoft_priv *adapter,  PT02_DESCRIPTOR pT02 );
 void Mds_MpduProcess(  struct wbsoft_priv *adapter,  struct wb35_descriptor *pRxDes );
 extern void DataDmp(u8 *pdata, u32 len, u32 offset);
 
-// For Asynchronous indicating. The routine collocates with USB.
-void Mds_MsduProcess(  struct wbsoft_priv *adapter,  PRXLAYER1 pRxLayer1,  u8 SlotIndex);
-
 // For data frame sending 20060802
 u16 MDS_GetPacketSize(  struct wbsoft_priv *adapter );
 void MDS_GetNextPacket(  struct wbsoft_priv *adapter,  struct wb35_descriptor *pDes );

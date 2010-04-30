@@ -55,7 +55,7 @@ futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 		__futex_atomic_op("or %1,%0,%4;", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ANDN:
-		__futex_atomic_op("and %1,%0,%4;", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("andn %1,%0,%4;", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_XOR:
 		__futex_atomic_op("xor %1,%0,%4;", ret, oldval, uaddr, oparg);

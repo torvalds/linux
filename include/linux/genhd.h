@@ -101,7 +101,7 @@ struct hd_struct {
 	unsigned long stamp;
 	int in_flight[2];
 #ifdef	CONFIG_SMP
-	struct disk_stats *dkstats;
+	struct disk_stats __percpu *dkstats;
 #else
 	struct disk_stats dkstats;
 #endif
@@ -109,7 +109,7 @@ struct hd_struct {
 };
 
 #define GENHD_FL_REMOVABLE			1
-#define GENHD_FL_DRIVERFS			2
+/* 2 is unused */
 #define GENHD_FL_MEDIA_CHANGE_NOTIFY		4
 #define GENHD_FL_CD				8
 #define GENHD_FL_UP				16

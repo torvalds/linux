@@ -219,7 +219,7 @@ static ssize_t ar7_wdt_write(struct file *file, const char *data,
 static long ar7_wdt_ioctl(struct file *file,
 					unsigned int cmd, unsigned long arg)
 {
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.identity = LONGNAME,
 		.firmware_version = 1,
 		.options = (WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING |

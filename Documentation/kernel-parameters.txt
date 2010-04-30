@@ -54,6 +54,7 @@ parameter is applicable:
 	IMA     Integrity measurement architecture is enabled.
 	IOSCHED	More than one I/O scheduler is enabled.
 	IP_PNP	IP DHCP, BOOTP, or RARP is enabled.
+	IPV6	IPv6 support is enabled.
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
@@ -199,10 +200,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			acpi_display_output=video
 			See above.
 
-	acpi_early_pdc_eval	[HW,ACPI] Evaluate processor _PDC methods
-				early. Needed on some platforms to properly
-				initialize the EC.
-
 	acpi_irq_balance [HW,ACPI]
 			ACPI will balance active IRQs
 			default in APIC mode
@@ -323,11 +320,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	amd_iommu=	[HW,X86-84]
 			Pass parameters to the AMD IOMMU driver in the system.
 			Possible values are:
-			isolate - enable device isolation (each device, as far
-			          as possible, will get its own protection
-			          domain) [default]
-			share - put every device behind one IOMMU into the
-				same protection domain
 			fullflush - enable flushing of IO/TLB entries when
 				    they are unmapped. Otherwise they are
 				    flushed before they will be reused, which
@@ -355,6 +347,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: { quiet (default) | verbose | debug }
 			Change the amount of debugging information output
 			when initialising the APIC and IO-APIC components.
+
+	autoconf=	[IPV6]
+			See Documentation/networking/ipv6.txt.
 
 	show_lapic=	[APIC,X86] Advanced Programmable Interrupt Controller
 			Limit apic dumping. The parameter defines the maximal
@@ -637,6 +632,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	digiepca=	[HW,SERIAL]
 			See drivers/char/README.epca and
 			Documentation/serial/digiepca.txt.
+
+	disable=	[IPV6]
+			See Documentation/networking/ipv6.txt.
+
+	disable_ipv6=	[IPV6]
+			See Documentation/networking/ipv6.txt.
 
 	disable_mtrr_cleanup [X86]
 			The kernel tries to adjust MTRR layout from continuous
@@ -1193,7 +1194,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	libata.force=	[LIBATA] Force configurations.  The format is comma
 			separated list of "[ID:]VAL" where ID is
-			PORT[:DEVICE].  PORT and DEVICE are decimal numbers
+			PORT[.DEVICE].  PORT and DEVICE are decimal numbers
 			matching port, link or device.  Basically, it matches
 			the ATA ID string printed on console by libata.  If
 			the whole ID part is omitted, the last PORT and DEVICE
@@ -1783,6 +1784,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	nptcg=		[IA64] Override max number of concurrent global TLB
 			purges which is reported from either PAL_VM_SUMMARY or
 			SAL PALO.
+
+	nr_cpus=	[SMP] Maximum number of processors that	an SMP kernel
+			could support.  nr_cpus=n : n >= 1 limits the kernel to
+			supporting 'n' processors. Later in runtime you can not
+			use hotplug cpu feature to put more cpu back to online.
+			just like you compile the kernel NR_CPUS=n
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
@@ -2817,6 +2824,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
 			default x2apic cluster mode on platforms
 			supporting x2apic.
+
+	x86_mrst_timer= [X86-32,APBT]
+			Choose timer option for x86 Moorestown MID platform.
+			Two valid options are apbt timer only and lapic timer
+			plus one apbt timer for broadcast timer.
+			x86_mrst_timer=apbt_only | lapic_and_apbt
 
 	xd=		[HW,XT] Original XT pre-IDE (RLL encoded) disks.
 	xd_geo=		See header of drivers/block/xd.c.

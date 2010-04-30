@@ -33,7 +33,7 @@ struct srcu_struct_array {
 
 struct srcu_struct {
 	int completed;
-	struct srcu_struct_array *per_cpu_ref;
+	struct srcu_struct_array __percpu *per_cpu_ref;
 	struct mutex mutex;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map dep_map;

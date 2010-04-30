@@ -20,6 +20,7 @@
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-i2c-drv.h>
@@ -667,7 +668,7 @@ static int s2250_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id s2250_id[] = {
+static const struct i2c_device_id s2250_id[] = {
 	{ "s2250", 0 },
 	{ }
 };

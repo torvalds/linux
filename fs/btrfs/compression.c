@@ -31,7 +31,7 @@
 #include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/bit_spinlock.h>
-#include <linux/pagevec.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -445,7 +445,6 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 	unsigned long nr_pages = 0;
 	struct extent_map *em;
 	struct address_space *mapping = inode->i_mapping;
-	struct pagevec pvec;
 	struct extent_map_tree *em_tree;
 	struct extent_io_tree *tree;
 	u64 end;
@@ -461,7 +460,6 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 
 	end_index = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
 
-	pagevec_init(&pvec, 0);
 	while (last_offset < compressed_end) {
 		page_index = last_offset >> PAGE_CACHE_SHIFT;
 
@@ -478,25 +476,16 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 			goto next;
 		}
 
-		page = alloc_page(mapping_gfp_mask(mapping) | GFP_NOFS);
+		page = __page_cache_alloc(mapping_gfp_mask(mapping) &
+								~__GFP_FS);
 		if (!page)
 			break;
 
-		page->index = page_index;
-		/*
-		 * what we want to do here is call add_to_page_cache_lru,
-		 * but that isn't exported, so we reproduce it here
-		 */
-		if (add_to_page_cache(page, mapping,
-				      page->index, GFP_NOFS)) {
+		if (add_to_page_cache_lru(page, mapping, page_index,
+								GFP_NOFS)) {
 			page_cache_release(page);
 			goto next;
 		}
-
-		/* open coding of lru_cache_add, also not exported */
-		page_cache_get(page);
-		if (!pagevec_add(&pvec, page))
-			__pagevec_lru_add_file(&pvec);
 
 		end = last_offset + PAGE_CACHE_SIZE - 1;
 		/*
@@ -551,8 +540,6 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 next:
 		last_offset += PAGE_CACHE_SIZE;
 	}
-	if (pagevec_count(&pvec))
-		__pagevec_lru_add_file(&pvec);
 	return 0;
 }
 

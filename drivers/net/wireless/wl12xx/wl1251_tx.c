@@ -167,8 +167,7 @@ static int wl1251_tx_fill_hdr(struct wl1251 *wl, struct sk_buff *skb,
 	tx_hdr->expiry_time = cpu_to_le32(1 << 16);
 	tx_hdr->id = id;
 
-	/* FIXME: how to get the correct queue id? */
-	tx_hdr->xmit_queue = 0;
+	tx_hdr->xmit_queue = wl1251_tx_get_queue(skb_get_queue_mapping(skb));
 
 	wl1251_tx_control(tx_hdr, control, fc);
 	wl1251_tx_frag_block_num(tx_hdr);
@@ -220,6 +219,7 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 			/* align the buffer on a 4-byte boundary */
 			skb_reserve(skb, offset);
 			memmove(skb->data, src, skb->len);
+			tx_hdr = (struct tx_double_buffer_desc *) skb->data;
 		} else {
 			wl1251_info("No handler, fixme!");
 			return -EINVAL;
@@ -237,8 +237,9 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 
 	wl1251_mem_write(wl, addr, skb->data, len);
 
-	wl1251_debug(DEBUG_TX, "tx id %u skb 0x%p payload %u rate 0x%x",
-		     tx_hdr->id, skb, tx_hdr->length, tx_hdr->rate);
+	wl1251_debug(DEBUG_TX, "tx id %u skb 0x%p payload %u rate 0x%x "
+		     "queue %d", tx_hdr->id, skb, tx_hdr->length,
+		     tx_hdr->rate, tx_hdr->xmit_queue);
 
 	return 0;
 }

@@ -44,20 +44,6 @@ xfs_quota_type(int type)
 }
 
 STATIC int
-xfs_fs_quota_sync(
-	struct super_block	*sb,
-	int			type)
-{
-	struct xfs_mount	*mp = XFS_M(sb);
-
-	if (sb->s_flags & MS_RDONLY)
-		return -EROFS;
-	if (!XFS_IS_QUOTA_RUNNING(mp))
-		return -ENOSYS;
-	return -xfs_sync_data(mp, 0);
-}
-
-STATIC int
 xfs_fs_get_xstate(
 	struct super_block	*sb,
 	struct fs_quota_stat	*fqs)
@@ -82,8 +68,6 @@ xfs_fs_set_xstate(
 		return -EROFS;
 	if (op != Q_XQUOTARM && !XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	if (uflags & XFS_QUOTA_UDQ_ACCT)
 		flags |= XFS_UQUOTA_ACCT;
@@ -144,14 +128,11 @@ xfs_fs_set_xquota(
 		return -ENOSYS;
 	if (!XFS_IS_QUOTA_ON(mp))
 		return -ESRCH;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	return -xfs_qm_scall_setqlim(mp, id, xfs_quota_type(type), fdq);
 }
 
 const struct quotactl_ops xfs_quotactl_operations = {
-	.quota_sync		= xfs_fs_quota_sync,
 	.get_xstate		= xfs_fs_get_xstate,
 	.set_xstate		= xfs_fs_set_xstate,
 	.get_xquota		= xfs_fs_get_xquota,

@@ -45,8 +45,8 @@ static uint32_t nv42_tv_sample_load(struct drm_encoder *encoder)
 
 #define RGB_TEST_DATA(r, g, b) (r << 0 | g << 10 | b << 20)
 	testval = RGB_TEST_DATA(0x82, 0xeb, 0x82);
-	if (dev_priv->vbios->tvdactestval)
-		testval = dev_priv->vbios->tvdactestval;
+	if (dev_priv->vbios.tvdactestval)
+		testval = dev_priv->vbios.tvdactestval;
 
 	dacclk = NVReadRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset);
 	head = (dacclk & 0x100) >> 8;
@@ -367,7 +367,7 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 			     !enc->crtc &&
 			     nv04_dfp_get_bound_head(dev, dcb) == head) {
 				nv04_dfp_bind_head(dev, dcb, head ^ 1,
-						dev_priv->VBIOS.fp.dual_link);
+						dev_priv->vbios.fp.dual_link);
 			}
 		}
 

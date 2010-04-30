@@ -44,21 +44,29 @@ Example:
 			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
 			cell-index = <0>;
 			reg = <0 0x80>;
+			interrupt-parent = <&ipic>;
+			interrupts = <71 8>;
 		};
 		dma-channel@80 {
 			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
 			cell-index = <1>;
 			reg = <0x80 0x80>;
+			interrupt-parent = <&ipic>;
+			interrupts = <71 8>;
 		};
 		dma-channel@100 {
 			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
 			cell-index = <2>;
 			reg = <0x100 0x80>;
+			interrupt-parent = <&ipic>;
+			interrupts = <71 8>;
 		};
 		dma-channel@180 {
 			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
 			cell-index = <3>;
 			reg = <0x180 0x80>;
+			interrupt-parent = <&ipic>;
+			interrupts = <71 8>;
 		};
 	};
 

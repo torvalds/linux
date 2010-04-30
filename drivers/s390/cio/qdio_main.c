@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <asm/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>
@@ -588,10 +589,11 @@ static void qdio_kick_handler(struct qdio_q *q)
 	if (q->is_input_q) {
 		qperf_inc(q, inbound_handler);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "kih s:%02x c:%02x", start, count);
-	} else
+	} else {
 		qperf_inc(q, outbound_handler);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "koh: s:%02x c:%02x",
 			      start, count);
+	}
 
 	q->handler(q->irq_ptr->cdev, q->qdio_error, q->nr, start, count,
 		   q->irq_ptr->int_parm);

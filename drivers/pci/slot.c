@@ -6,6 +6,7 @@
  */
 
 #include <linux/kobject.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/err.h>
 #include "pci.h"
@@ -29,7 +30,7 @@ static ssize_t pci_slot_attr_store(struct kobject *kobj,
 	return attribute->store ? attribute->store(slot, buf, len) : -EIO;
 }
 
-static struct sysfs_ops pci_slot_sysfs_ops = {
+static const struct sysfs_ops pci_slot_sysfs_ops = {
 	.show = pci_slot_attr_show,
 	.store = pci_slot_attr_store,
 };

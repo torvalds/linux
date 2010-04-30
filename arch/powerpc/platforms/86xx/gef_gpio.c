@@ -1,9 +1,9 @@
 /*
- * Driver for GE Fanuc's FPGA based GPIO pins
+ * Driver for GE FPGA based GPIO
  *
- * Author: Martyn Welch <martyn.welch@gefanuc.com>
+ * Author: Martyn Welch <martyn.welch@ge.com>
  *
- * 2008 (c) GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+ * 2008 (c) GE Intelligent Platforms Embedded Systems, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -26,6 +26,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #define GEF_GPIO_DIRECT		0x00
 #define GEF_GPIO_IN		0x04
@@ -164,6 +165,6 @@ static int __init gef_gpio_init(void)
 };
 arch_initcall(gef_gpio_init);
 
-MODULE_DESCRIPTION("GE Fanuc I/O FPGA GPIO driver");
-MODULE_AUTHOR("Martyn Welch <martyn.welch@gefanuc.com");
+MODULE_DESCRIPTION("GE I/O FPGA GPIO driver");
+MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com");
 MODULE_LICENSE("GPL");

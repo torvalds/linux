@@ -36,6 +36,7 @@
 #include <linux/cpu.h>
 #include <linux/timex.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
 #include <asm/asm-offsets.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>
@@ -292,9 +293,9 @@ static void __init smp_get_save_area(unsigned int cpu, unsigned int phy_cpu)
 	zfcpdump_save_areas[cpu] = kmalloc(sizeof(struct save_area), GFP_KERNEL);
 	while (raw_sigp(phy_cpu, sigp_stop_and_store_status) == sigp_busy)
 		cpu_relax();
-	memcpy(zfcpdump_save_areas[cpu],
-	       (void *)(unsigned long) store_prefix() + SAVE_AREA_BASE,
-	       sizeof(struct save_area));
+	memcpy_real(zfcpdump_save_areas[cpu],
+		    (void *)(unsigned long) store_prefix() + SAVE_AREA_BASE,
+		    sizeof(struct save_area));
 }
 
 struct save_area *zfcpdump_save_areas[NR_CPUS + 1];
@@ -1020,7 +1021,9 @@ out:
 	return rc;
 }
 
-static ssize_t __ref rescan_store(struct sysdev_class *class, const char *buf,
+static ssize_t __ref rescan_store(struct sysdev_class *class,
+				  struct sysdev_class_attribute *attr,
+				  const char *buf,
 				  size_t count)
 {
 	int rc;
@@ -1031,7 +1034,9 @@ static ssize_t __ref rescan_store(struct sysdev_class *class, const char *buf,
 static SYSDEV_CLASS_ATTR(rescan, 0200, NULL, rescan_store);
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static ssize_t dispatching_show(struct sysdev_class *class, char *buf)
+static ssize_t dispatching_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	ssize_t count;
 
@@ -1041,7 +1046,9 @@ static ssize_t dispatching_show(struct sysdev_class *class, char *buf)
 	return count;
 }
 
-static ssize_t dispatching_store(struct sysdev_class *dev, const char *buf,
+static ssize_t dispatching_store(struct sysdev_class *dev,
+				 struct sysdev_class_attribute *attr,
+				 const char *buf,
 				 size_t count)
 {
 	int val, rc;

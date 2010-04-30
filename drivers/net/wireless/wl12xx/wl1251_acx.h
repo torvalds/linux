@@ -1166,6 +1166,87 @@ struct wl1251_acx_wr_tbtt_and_dtim {
 	u8  padding;
 } __attribute__ ((packed));
 
+struct wl1251_acx_ac_cfg {
+	struct acx_header header;
+
+	/*
+	 * Access Category - The TX queue's access category
+	 * (refer to AccessCategory_enum)
+	 */
+	u8 ac;
+
+	/*
+	 * The contention window minimum size (in slots) for
+	 * the access class.
+	 */
+	u8 cw_min;
+
+	/*
+	 * The contention window maximum size (in slots) for
+	 * the access class.
+	 */
+	u16 cw_max;
+
+	/* The AIF value (in slots) for the access class. */
+	u8 aifsn;
+
+	u8 reserved;
+
+	/* The TX Op Limit (in microseconds) for the access class. */
+	u16 txop_limit;
+} __attribute__ ((packed));
+
+
+enum wl1251_acx_channel_type {
+	CHANNEL_TYPE_DCF	= 0,
+	CHANNEL_TYPE_EDCF	= 1,
+	CHANNEL_TYPE_HCCA	= 2,
+};
+
+enum wl1251_acx_ps_scheme {
+	/* regular ps: simple sending of packets */
+	WL1251_ACX_PS_SCHEME_LEGACY	= 0,
+
+	/* sending a packet triggers a unscheduled apsd downstream */
+	WL1251_ACX_PS_SCHEME_UPSD_TRIGGER	= 1,
+
+	/* a pspoll packet will be sent before every data packet */
+	WL1251_ACX_PS_SCHEME_LEGACY_PSPOLL	= 2,
+
+	/* scheduled apsd mode */
+	WL1251_ACX_PS_SCHEME_SAPSD		= 3,
+};
+
+enum wl1251_acx_ack_policy {
+	WL1251_ACX_ACK_POLICY_LEGACY	= 0,
+	WL1251_ACX_ACK_POLICY_NO_ACK	= 1,
+	WL1251_ACX_ACK_POLICY_BLOCK	= 2,
+};
+
+struct wl1251_acx_tid_cfg {
+	struct acx_header header;
+
+	/* tx queue id number (0-7) */
+	u8 queue;
+
+	/* channel access type for the queue, enum wl1251_acx_channel_type */
+	u8 type;
+
+	/* EDCA: ac index (0-3), HCCA: traffic stream id (8-15) */
+	u8 tsid;
+
+	/* ps scheme of the specified queue, enum wl1251_acx_ps_scheme */
+	u8 ps_scheme;
+
+	/* the tx queue ack policy, enum wl1251_acx_ack_policy */
+	u8 ack_policy;
+
+	u8 padding[3];
+
+	/* not supported */
+	u32 apsdconf[2];
+} __attribute__ ((packed));
+
 /*************************************************************************
 
     Host Interrupt Register (WiLink -> Host)
@@ -1322,5 +1403,11 @@ int wl1251_acx_tsf_info(struct wl1251 *wl, u64 *mactime);
 int wl1251_acx_rate_policies(struct wl1251 *wl);
 int wl1251_acx_mem_cfg(struct wl1251 *wl);
 int wl1251_acx_wr_tbtt_and_dtim(struct wl1251 *wl, u16 tbtt, u8 dtim);
+int wl1251_acx_ac_cfg(struct wl1251 *wl, u8 ac, u8 cw_min, u16 cw_max,
+		      u8 aifs, u16 txop);
+int wl1251_acx_tid_cfg(struct wl1251 *wl, u8 queue,
+		       enum wl1251_acx_channel_type type,
+		       u8 tsid, enum wl1251_acx_ps_scheme ps_scheme,
+		       enum wl1251_acx_ack_policy ack_policy);
 
 #endif /* __WL1251_ACX_H__ */

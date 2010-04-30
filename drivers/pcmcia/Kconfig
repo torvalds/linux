@@ -51,17 +51,23 @@ config PCMCIA_LOAD_CIS
 
 config PCMCIA_IOCTL
 	bool "PCMCIA control ioctl (obsolete)"
-	depends on PCMCIA
+	depends on PCMCIA && ARM && !SMP && !PREEMPT
 	default y
 	help
 	  If you say Y here, the deprecated ioctl interface to the PCMCIA
-	  subsystem will be built. It is needed by cardmgr and cardctl
-	  (pcmcia-cs) to function properly.
+	  subsystem will be built. It is needed by the deprecated pcmcia-cs
+	  tools (cardmgr, cardctl) to function properly.
 
 	  You should use the new pcmciautils package instead (see
 	  <file:Documentation/Changes> for location and details).
 
-	  If unsure, say Y.
+	  This config option will most likely be removed from kernel 2.6.35,
+	  the associated code from kernel 2.6.36.
+
+	  As the PCMCIA ioctl is not locking safe, it depends on !SMP and
+	  !PREEMPT.
+
+	  If unsure, say N.
 
 config CARDBUS
 	bool "32-bit CardBus support"

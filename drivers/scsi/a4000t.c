@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>
 #include <scsi/scsi_host.h>

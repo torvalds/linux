@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
@@ -575,19 +576,16 @@ static void mpc52xx_fec_set_multicast_list(struct net_device *dev)
 			out_be32(&fec->gaddr2, 0xffffffff);
 		} else {
 			u32 crc;
-			int i;
 			struct dev_mc_list *dmi;
 			u32 gaddr1 = 0x00000000;
 			u32 gaddr2 = 0x00000000;
 
-			dmi = dev->mc_list;
-			for (i=0; i<dev->mc_count; i++) {
+			netdev_for_each_mc_addr(dmi, dev) {
 				crc = ether_crc_le(6, dmi->dmi_addr) >> 26;
 				if (crc >= 32)
 					gaddr1 |= 1 << (crc-32);
 				else
 					gaddr2 |= 1 << crc;
-				dmi = dmi->next;
 			}
 			out_be32(&fec->gaddr1, gaddr1);
 			out_be32(&fec->gaddr2, gaddr2);

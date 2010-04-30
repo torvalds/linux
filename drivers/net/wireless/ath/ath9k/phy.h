@@ -384,6 +384,9 @@ bool ath9k_hw_set_rf_regs(struct ath_hw *ah,
 
 #define AR_PHY_HEAVY_CLIP_ENABLE         0x99E0
 
+#define AR_PHY_HEAVY_CLIP_FACTOR_RIFS    0x99EC
+#define AR_PHY_RIFS_INIT_DELAY         0x03ff0000
+
 #define AR_PHY_M_SLEEP      0x99f0
 #define AR_PHY_REFCLKDLY    0x99f4
 #define AR_PHY_REFCLKPD     0x99f8

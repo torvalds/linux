@@ -15,6 +15,7 @@
 #include <linux/security.h>
 #include <linux/magic.h>
 #include <linux/parser.h>
+#include <linux/slab.h>
 
 #include "ima.h"
 

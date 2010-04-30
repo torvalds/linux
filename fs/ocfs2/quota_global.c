@@ -3,6 +3,7 @@
  */
 #include <linux/spinlock.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/quota.h>
 #include <linux/quotaops.h>
 #include <linux/dqblk_qtree.h>
@@ -851,13 +852,6 @@ static void ocfs2_destroy_dquot(struct dquot *dquot)
 }
 
 const struct dquot_operations ocfs2_quota_operations = {
-	.initialize	= dquot_initialize,
-	.drop		= dquot_drop,
-	.alloc_space	= dquot_alloc_space,
-	.alloc_inode	= dquot_alloc_inode,
-	.free_space	= dquot_free_space,
-	.free_inode	= dquot_free_inode,
-	.transfer	= dquot_transfer,
 	.write_dquot	= ocfs2_write_dquot,
 	.acquire_dquot	= ocfs2_acquire_dquot,
 	.release_dquot	= ocfs2_release_dquot,

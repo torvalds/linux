@@ -2550,22 +2550,134 @@ xfs_bmap_rtalloc(
 }
 
 STATIC int
+xfs_bmap_btalloc_nullfb(
+	struct xfs_bmalloca	*ap,
+	struct xfs_alloc_arg	*args,
+	xfs_extlen_t		*blen)
+{
+	struct xfs_mount	*mp = ap->ip->i_mount;
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		ag, startag;
+	int			notinit = 0;
+	int			error;
+
+	if (ap->userdata && xfs_inode_is_filestream(ap->ip))
+		args->type = XFS_ALLOCTYPE_NEAR_BNO;
+	else
+		args->type = XFS_ALLOCTYPE_START_BNO;
+	args->total = ap->total;
+
+	/*
+	 * Search for an allocation group with a single extent large enough
+	 * for the request.  If one isn't found, then adjust the minimum
+	 * allocation size to the largest space found.
+	 */
+	startag = ag = XFS_FSB_TO_AGNO(mp, args->fsbno);
+	if (startag == NULLAGNUMBER)
+		startag = ag = 0;
+
+	pag = xfs_perag_get(mp, ag);
+	while (*blen < ap->alen) {
+		if (!pag->pagf_init) {
+			error = xfs_alloc_pagf_init(mp, args->tp, ag,
+						    XFS_ALLOC_FLAG_TRYLOCK);
+			if (error) {
+				xfs_perag_put(pag);
+				return error;
+			}
+		}
+
+		/*
+		 * See xfs_alloc_fix_freelist...
+		 */
+		if (pag->pagf_init) {
+			xfs_extlen_t	longest;
+			longest = xfs_alloc_longest_free_extent(mp, pag);
+			if (*blen < longest)
+				*blen = longest;
+		} else
+			notinit = 1;
+
+		if (xfs_inode_is_filestream(ap->ip)) {
+			if (*blen >= ap->alen)
+				break;
+
+			if (ap->userdata) {
+				/*
+				 * If startag is an invalid AG, we've
+				 * come here once before and
+				 * xfs_filestream_new_ag picked the
+				 * best currently available.
+				 *
+				 * Don't continue looping, since we
+				 * could loop forever.
+				 */
+				if (startag == NULLAGNUMBER)
+					break;
+
+				error = xfs_filestream_new_ag(ap, &ag);
+				xfs_perag_put(pag);
+				if (error)
+					return error;
+
+				/* loop again to set 'blen'*/
+				startag = NULLAGNUMBER;
+				pag = xfs_perag_get(mp, ag);
+				continue;
+			}
+		}
+		if (++ag == mp->m_sb.sb_agcount)
+			ag = 0;
+		if (ag == startag)
+			break;
+		xfs_perag_put(pag);
+		pag = xfs_perag_get(mp, ag);
+	}
+	xfs_perag_put(pag);
+
+	/*
+	 * Since the above loop did a BUF_TRYLOCK, it is
+	 * possible that there is space for this request.
+	 */
+	if (notinit || *blen < ap->minlen)
+		args->minlen = ap->minlen;
+	/*
+	 * If the best seen length is less than the request
+	 * length, use the best as the minimum.
+	 */
+	else if (*blen < ap->alen)
+		args->minlen = *blen;
+	/*
+	 * Otherwise we've seen an extent as big as alen,
+	 * use that as the minimum.
+	 */
+	else
+		args->minlen = ap->alen;
+
+	/*
+	 * set the failure fallback case to look in the selected
+	 * AG as the stream may have moved.
+	 */
+	if (xfs_inode_is_filestream(ap->ip))
+		ap->rval = args->fsbno = XFS_AGB_TO_FSB(mp, ag, 0);
+
+	return 0;
+}
+
+STATIC int
 xfs_bmap_btalloc(
 	xfs_bmalloca_t	*ap)		/* bmap alloc argument struct */
 {
 	xfs_mount_t	*mp;		/* mount point structure */
 	xfs_alloctype_t	atype = 0;	/* type for allocation routines */
 	xfs_extlen_t	align;		/* minimum allocation alignment */
-	xfs_agnumber_t	ag;
 	xfs_agnumber_t	fb_agno;	/* ag number of ap->firstblock */
-	xfs_agnumber_t	startag;
+	xfs_agnumber_t	ag;
 	xfs_alloc_arg_t	args;
 	xfs_extlen_t	blen;
 	xfs_extlen_t	nextminlen = 0;
-	xfs_perag_t	*pag;
 	int		nullfb;		/* true if ap->firstblock isn't set */
 	int		isaligned;
-	int		notinit;
 	int		tryagain;
 	int		error;
 
@@ -2612,103 +2724,9 @@ xfs_bmap_btalloc(
 	args.firstblock = ap->firstblock;
 	blen = 0;
 	if (nullfb) {
-		if (ap->userdata && xfs_inode_is_filestream(ap->ip))
-			args.type = XFS_ALLOCTYPE_NEAR_BNO;
-		else
-			args.type = XFS_ALLOCTYPE_START_BNO;
-		args.total = ap->total;
-
-		/*
-		 * Search for an allocation group with a single extent
-		 * large enough for the request.
-		 *
-		 * If one isn't found, then adjust the minimum allocation
-		 * size to the largest space found.
-		 */
-		startag = ag = XFS_FSB_TO_AGNO(mp, args.fsbno);
-		if (startag == NULLAGNUMBER)
-			startag = ag = 0;
-		notinit = 0;
-		pag = xfs_perag_get(mp, ag);
-		while (blen < ap->alen) {
-			if (!pag->pagf_init &&
-			    (error = xfs_alloc_pagf_init(mp, args.tp,
-				    ag, XFS_ALLOC_FLAG_TRYLOCK))) {
-				xfs_perag_put(pag);
-				return error;
-			}
-			/*
-			 * See xfs_alloc_fix_freelist...
-			 */
-			if (pag->pagf_init) {
-				xfs_extlen_t	longest;
-				longest = xfs_alloc_longest_free_extent(mp, pag);
-				if (blen < longest)
-					blen = longest;
-			} else
-				notinit = 1;
-
-			if (xfs_inode_is_filestream(ap->ip)) {
-				if (blen >= ap->alen)
-					break;
-
-				if (ap->userdata) {
-					/*
-					 * If startag is an invalid AG, we've
-					 * come here once before and
-					 * xfs_filestream_new_ag picked the
-					 * best currently available.
-					 *
-					 * Don't continue looping, since we
-					 * could loop forever.
-					 */
-					if (startag == NULLAGNUMBER)
-						break;
-
-					error = xfs_filestream_new_ag(ap, &ag);
-					xfs_perag_put(pag);
-					if (error)
-						return error;
-
-					/* loop again to set 'blen'*/
-					startag = NULLAGNUMBER;
-					pag = xfs_perag_get(mp, ag);
-					continue;
-				}
-			}
-			if (++ag == mp->m_sb.sb_agcount)
-				ag = 0;
-			if (ag == startag)
-				break;
-			xfs_perag_put(pag);
-			pag = xfs_perag_get(mp, ag);
-		}
-		xfs_perag_put(pag);
-		/*
-		 * Since the above loop did a BUF_TRYLOCK, it is
-		 * possible that there is space for this request.
-		 */
-		if (notinit || blen < ap->minlen)
-			args.minlen = ap->minlen;
-		/*
-		 * If the best seen length is less than the request
-		 * length, use the best as the minimum.
-		 */
-		else if (blen < ap->alen)
-			args.minlen = blen;
-		/*
-		 * Otherwise we've seen an extent as big as alen,
-		 * use that as the minimum.
-		 */
-		else
-			args.minlen = ap->alen;
-
-		/*
-		 * set the failure fallback case to look in the selected
-		 * AG as the stream may have moved.
-		 */
-		if (xfs_inode_is_filestream(ap->ip))
-			ap->rval = args.fsbno = XFS_AGB_TO_FSB(mp, ag, 0);
+		error = xfs_bmap_btalloc_nullfb(ap, &args, &blen);
+		if (error)
+			return error;
 	} else if (ap->low) {
 		if (xfs_inode_is_filestream(ap->ip))
 			args.type = XFS_ALLOCTYPE_FIRST_AG;

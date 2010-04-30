@@ -938,7 +938,7 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 
 /*
  * pmcraid_ioctl_header - definition of header structure that preceeds all the
- * buffers given as ioctl arguements.
+ * buffers given as ioctl arguments.
  *
  * .signature           : always ASCII string, "PMCRAID"
  * .reserved            : not used

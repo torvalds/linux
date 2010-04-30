@@ -18,6 +18,7 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <asm/debug.h>
 #include <asm/uaccess.h>
@@ -742,6 +743,7 @@ dasd_ro_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
+	struct dasd_device *device;
 	int val;
 	char *endp;
 
@@ -758,12 +760,14 @@ dasd_ro_store(struct device *dev, struct device_attribute *attr,
 		devmap->features |= DASD_FEATURE_READONLY;
 	else
 		devmap->features &= ~DASD_FEATURE_READONLY;
-	if (devmap->device)
-		devmap->device->features = devmap->features;
-	if (devmap->device && devmap->device->block
-	    && devmap->device->block->gdp)
-		set_disk_ro(devmap->device->block->gdp, val);
+	device = devmap->device;
+	if (device) {
+		device->features = devmap->features;
+		val = val || test_bit(DASD_FLAG_DEVICE_RO, &device->flags);
+	}
 	spin_unlock(&dasd_devmap_lock);
+	if (device && device->block && device->block->gdp)
+		set_disk_ro(device->block->gdp, val);
 	return count;
 }
 

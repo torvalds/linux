@@ -96,18 +96,6 @@ menuconfig MAC80211_DEBUG_MENU
 	---help---
 	  This option collects various mac80211 debug settings.
 
-config MAC80211_DEBUG_PACKET_ALIGNMENT
-	bool "Enable packet alignment debugging"
-	depends on MAC80211_DEBUG_MENU
-	---help---
-	  This option is recommended for driver authors and strongly
-	  discouraged for everybody else, it will trigger a warning
-	  when a driver hands mac80211 a buffer that is aligned in
-	  a way that will cause problems with the IP stack on some
-	  architectures.
-
-	  Say N unless you're writing a mac80211 based driver.
-
 config MAC80211_NOINLINE
 	bool "Do not inline TX/RX handlers"
 	depends on MAC80211_DEBUG_MENU

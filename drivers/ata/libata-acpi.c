@@ -15,6 +15,7 @@
 #include <linux/acpi.h>
 #include <linux/libata.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <scsi/scsi_device.h>
 #include "libata.h"
 

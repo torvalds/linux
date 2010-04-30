@@ -177,16 +177,26 @@ xfs_swap_extents_check_format(
 	    XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) > tip->i_df.if_ext_max)
 		return EINVAL;
 
-	/* Check root block of temp in btree form to max in target */
+	/*
+	 * If we are in a btree format, check that the temp root block will fit
+	 * in the target and that it has enough extents to be in btree format
+	 * in the target.
+	 *
+	 * Note that we have to be careful to allow btree->extent conversions
+	 * (a common defrag case) which will occur when the temp inode is in
+	 * extent format...
+	 */
 	if (tip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
-	    XFS_IFORK_BOFF(ip) &&
-	    tip->i_df.if_broot_bytes > XFS_IFORK_BOFF(ip))
+	    ((XFS_IFORK_BOFF(ip) &&
+	      tip->i_df.if_broot_bytes > XFS_IFORK_BOFF(ip)) ||
+	     XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) <= ip->i_df.if_ext_max))
 		return EINVAL;
 
-	/* Check root block of target in btree form to max in temp */
+	/* Reciprocal target->temp btree format checks */
 	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
-	    XFS_IFORK_BOFF(tip) &&
-	    ip->i_df.if_broot_bytes > XFS_IFORK_BOFF(tip))
+	    ((XFS_IFORK_BOFF(tip) &&
+	      ip->i_df.if_broot_bytes > XFS_IFORK_BOFF(tip)) ||
+	     XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) <= tip->i_df.if_ext_max))
 		return EINVAL;
 
 	return 0;

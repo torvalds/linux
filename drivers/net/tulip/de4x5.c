@@ -450,7 +450,6 @@
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/eisa.h>
 #include <linux/delay.h>
@@ -467,6 +466,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -1951,9 +1951,9 @@ static void
 SetMulticastFilter(struct net_device *dev)
 {
     struct de4x5_private *lp = netdev_priv(dev);
-    struct dev_mc_list *dmi=dev->mc_list;
+    struct dev_mc_list *dmi;
     u_long iobase = dev->base_addr;
-    int i, j, bit, byte;
+    int i, bit, byte;
     u16 hashcode;
     u32 omr, crc;
     char *pa;
@@ -1963,12 +1963,11 @@ SetMulticastFilter(struct net_device *dev)
     omr &= ~(OMR_PR | OMR_PM);
     pa = build_setup_frame(dev, ALL);        /* Build the basic frame */
 
-    if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 14)) {
+    if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 14)) {
 	omr |= OMR_PM;                       /* Pass all multicasts */
     } else if (lp->setup_f == HASH_PERF) {   /* Hash Filtering */
-	for (i=0;i<dev->mc_count;i++) {      /* for each address in the list */
-	    addrs=dmi->dmi_addr;
-	    dmi=dmi->next;
+	netdev_for_each_mc_addr(dmi, dev) {
+	    addrs = dmi->dmi_addr;
 	    if ((*addrs & 0x01) == 1) {      /* multicast address? */
 		crc = ether_crc_le(ETH_ALEN, addrs);
 		hashcode = crc & HASH_BITS;  /* hashcode is 9 LSb of CRC */
@@ -1984,9 +1983,8 @@ SetMulticastFilter(struct net_device *dev)
 	    }
 	}
     } else {                                 /* Perfect filtering */
-	for (j=0; j<dev->mc_count; j++) {
-	    addrs=dmi->dmi_addr;
-	    dmi=dmi->next;
+	netdev_for_each_mc_addr(dmi, dev) {
+	    addrs = dmi->dmi_addr;
 	    for (i=0; i<ETH_ALEN; i++) {
 		*(pa + (i&1)) = *addrs++;
 		if (i & 0x01) pa += 4;

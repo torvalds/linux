@@ -88,6 +88,7 @@
  */
 
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include <scsi/fc/fc_gs.h>

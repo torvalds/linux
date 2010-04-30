@@ -34,7 +34,7 @@ This is the PCMCIA-specific support split off from the
 das08 driver.
 
 Options (for pcm-das08):
-        NONE
+	NONE
 
 Command support does not exist, but could be added for this board.
 */
@@ -43,6 +43,7 @@ Command support does not exist, but could be added for this board.
 
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "das08.h"
 
@@ -52,7 +53,7 @@ Command support does not exist, but could be added for this board.
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
-static struct pcmcia_device *cur_dev = NULL;
+static struct pcmcia_device *cur_dev;
 
 #define thisboard ((const struct das08_board_struct *)dev->board_ptr)
 

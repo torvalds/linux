@@ -105,6 +105,10 @@ struct serial_cfg_mem {
  * manfid 0x0160, 0x0104
  * This card appears to have a 14.7456MHz clock.
  */
+/* Generic Modem: MD55x (GPRS/EDGE) have
+ * Elan VPU16551 UART with 14.7456MHz oscillator
+ * manfid 0x015D, 0x4C45
+ */
 static void quirk_setup_brainboxes_0104(struct pcmcia_device *link, struct uart_port *port)
 {
 	port->uartclk = 14745600;
@@ -193,6 +197,11 @@ static const struct serial_quirk quirks[] = {
 	{
 		.manfid	= 0x0160,
 		.prodid	= 0x0104,
+		.multi	= -1,
+		.setup	= quirk_setup_brainboxes_0104,
+	}, {
+		.manfid	= 0x015D,
+		.prodid	= 0x4C45,
 		.multi	= -1,
 		.setup	= quirk_setup_brainboxes_0104,
 	}, {
@@ -745,6 +754,7 @@ static struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_PFC_DEVICE_PROD_ID13(1, "Xircom", "REM10", 0x2e3ee845, 0x76df1d29),
 	PCMCIA_PFC_DEVICE_PROD_ID13(1, "Xircom", "XEM5600", 0x2e3ee845, 0xf1403719),
 	PCMCIA_PFC_DEVICE_PROD_ID12(1, "AnyCom", "Fast Ethernet + 56K COMBO", 0x578ba6e7, 0xb0ac62c4),
+	PCMCIA_PFC_DEVICE_PROD_ID12(1, "ATKK", "LM33-PCM-T", 0xba9eb7e2, 0x077c174e),
 	PCMCIA_PFC_DEVICE_PROD_ID12(1, "D-Link", "DME336T", 0x1a424a1c, 0xb23897ff),
 	PCMCIA_PFC_DEVICE_PROD_ID12(1, "Gateway 2000", "XJEM3336", 0xdd9989be, 0x662c394c),
 	PCMCIA_PFC_DEVICE_PROD_ID12(1, "Grey Cell", "GCS3000", 0x2a151fac, 0x48b932ae),

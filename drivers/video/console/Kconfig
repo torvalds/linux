@@ -37,6 +37,7 @@ config VGACON_SOFT_SCROLLBACK
 config VGACON_SOFT_SCROLLBACK_SIZE
        int "Scrollback Buffer Size (in KB)"
        depends on VGACON_SOFT_SCROLLBACK
+       range 1 1024
        default "64"
        help
          Enter the amount of System RAM to allocate for the scrollback

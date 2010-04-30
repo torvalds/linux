@@ -144,7 +144,7 @@ static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
 /*
  *  SMP locking strategy:
  *    hash table is protected with spinlock unix_table_lock
- *    each socket state is protected by separate rwlock.
+ *    each socket state is protected by separate spin lock.
  */
 
 static inline unsigned unix_hash_fold(__wsum n)
@@ -2224,7 +2224,7 @@ static const struct net_proto_family unix_family_ops = {
 };
 
 
-static int unix_net_init(struct net *net)
+static int __net_init unix_net_init(struct net *net)
 {
 	int error = -ENOMEM;
 
@@ -2243,7 +2243,7 @@ out:
 	return error;
 }
 
-static void unix_net_exit(struct net *net)
+static void __net_exit unix_net_exit(struct net *net)
 {
 	unix_sysctl_unregister(net);
 	proc_net_remove(net, "unix");

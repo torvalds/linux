@@ -34,6 +34,7 @@
 #include <linux/highmem.h>
 #include <linux/mmc/host.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>

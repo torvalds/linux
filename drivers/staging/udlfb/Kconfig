@@ -1,8 +1,14 @@
 config FB_UDL
 	tristate "Displaylink USB Framebuffer support"
 	depends on FB && USB
+	select FB_MODE_HELPERS
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	select FB_DEFERRED_IO
 	---help---
-	  This is an experimental driver for DisplayLink USB devices
-	  that provides a framebuffer device.  A normal framebuffer can
-	  be used with this driver, or xorg can be run on the device
-	  using it.
+	  This is a kernel framebuffer driver for DisplayLink USB devices.
+	  Supports fbdev clients like xf86-video-fbdev, kdrive, fbi, and
+	  mplayer -vo fbdev. Supports all USB 2.0 era DisplayLink devices.
+	  To compile as a module, choose M here: the module name is udlfb.

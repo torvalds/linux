@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 
 /* Registers */
 #define MCS5000_TS_STATUS		0x00
