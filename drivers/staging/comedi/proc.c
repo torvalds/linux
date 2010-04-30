@@ -33,9 +33,6 @@
 #include <linux/proc_fs.h>
 /* #include <linux/string.h> */
 
-int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
-			int *eof, void *data);
-
 extern struct comedi_driver *comedi_drivers;
 
 int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
@@ -49,7 +46,8 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	l += sprintf(buf + l,
 		     "comedi version " COMEDI_RELEASE "\n"
 		     "format string: %s\n",
-		     "\"%2d: %-20s %-20s %4d\",i,driver_name,board_name,n_subdevices");
+		     "\"%2d: %-20s %-20s %4d\", i, "
+		     "driver_name, board_name, n_subdevices");
 
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
 		struct comedi_device_file_info *dev_file_info =
