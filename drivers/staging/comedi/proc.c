@@ -30,10 +30,9 @@
 
 #define __NO_VERSION__
 #include "comedidev.h"
+#include "comedi_fops.h"
 #include <linux/proc_fs.h>
 /* #include <linux/string.h> */
-
-extern struct comedi_driver *comedi_drivers;
 
 int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 			int *eof, void *data)
