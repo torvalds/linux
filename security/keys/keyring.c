@@ -20,6 +20,11 @@
 #include <asm/uaccess.h>
 #include "internal.h"
 
+#define rcu_dereference_locked_keyring(keyring)				\
+	(rcu_dereference_protected(					\
+		(keyring)->payload.subscriptions,			\
+		rwsem_is_locked((struct rw_semaphore *)&(keyring)->sem)))
+
 /*
  * when plumbing the depths of the key tree, this sets a hard limit set on how
  * deep we're willing to go
@@ -201,8 +206,7 @@ static long keyring_read(const struct key *keyring,
 	int loop, ret;
 
 	ret = 0;
-	klist = keyring->payload.subscriptions;
-
+	klist = rcu_dereference_locked_keyring(keyring);
 	if (klist) {
 		/* calculate how much data we could return */
 		qty = klist->nkeys * sizeof(key_serial_t);
@@ -720,8 +724,7 @@ int __key_link(struct key *keyring, struct key *key)
 	}
 
 	/* see if there's a matching key we can displace */
-	klist = keyring->payload.subscriptions;
-
+	klist = rcu_dereference_locked_keyring(keyring);
 	if (klist && klist->nkeys > 0) {
 		struct key_type *type = key->type;
 
@@ -764,8 +767,6 @@ int __key_link(struct key *keyring, struct key *key)
 				  keyring->datalen + KEYQUOTA_LINK_BYTES);
 	if (ret < 0)
 		goto error2;
-
-	klist = keyring->payload.subscriptions;
 
 	if (klist && klist->nkeys < klist->maxkeys) {
 		/* there's sufficient slack space to add directly */
@@ -868,7 +869,7 @@ int key_unlink(struct key *keyring, struct key *key)
 
 	down_write(&keyring->sem);
 
-	klist = keyring->payload.subscriptions;
+	klist = rcu_dereference_locked_keyring(keyring);
 	if (klist) {
 		/* search the keyring for the key */
 		for (loop = 0; loop < klist->nkeys; loop++)
@@ -959,7 +960,7 @@ int keyring_clear(struct key *keyring)
 		/* detach the pointer block with the locks held */
 		down_write(&keyring->sem);
 
-		klist = keyring->payload.subscriptions;
+		klist = rcu_dereference_locked_keyring(keyring);
 		if (klist) {
 			/* adjust the quota */
 			key_payload_reserve(keyring,
@@ -991,7 +992,9 @@ EXPORT_SYMBOL(keyring_clear);
  */
 static void keyring_revoke(struct key *keyring)
 {
-	struct keyring_list *klist = keyring->payload.subscriptions;
+	struct keyring_list *klist;
+
+	klist = rcu_dereference_locked_keyring(keyring);
 
 	/* adjust the quota */
 	key_payload_reserve(keyring, 0);
@@ -1025,7 +1028,7 @@ void keyring_gc(struct key *keyring, time_t limit)
 
 	down_write(&keyring->sem);
 
-	klist = keyring->payload.subscriptions;
+	klist = rcu_dereference_locked_keyring(keyring);
 	if (!klist)
 		goto no_klist;
 
