@@ -205,6 +205,7 @@ struct zfcp_adapter {
 	struct work_struct	scan_work;
 	struct service_level	service_level;
 	struct workqueue_struct	*work_queue;
+	struct device_dma_parameters dma_parms;
 };
 
 struct zfcp_port {

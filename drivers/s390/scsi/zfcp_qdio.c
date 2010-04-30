@@ -206,35 +206,6 @@ static void zfcp_qdio_undo_sbals(struct zfcp_qdio *qdio,
 	zfcp_qdio_zero_sbals(sbal, first, count);
 }
 
-static int zfcp_qdio_fill_sbals(struct zfcp_qdio *qdio,
-				struct zfcp_qdio_req *q_req,
-				unsigned int sbtype, void *start_addr,
-				unsigned int total_length)
-{
-	struct qdio_buffer_element *sbale;
-	unsigned long remaining, length;
-	void *addr;
-
-	/* split segment up */
-	for (addr = start_addr, remaining = total_length; remaining > 0;
-	     addr += length, remaining -= length) {
-		sbale = zfcp_qdio_sbale_next(qdio, q_req, sbtype);
-		if (!sbale) {
-			atomic_inc(&qdio->req_q_full);
-			zfcp_qdio_undo_sbals(qdio, q_req);
-			return -EINVAL;
-		}
-
-		/* new piece must not exceed next page boundary */
-		length = min(remaining,
-			     (PAGE_SIZE - ((unsigned long)addr &
-					   (PAGE_SIZE - 1))));
-		sbale->addr = addr;
-		sbale->length = length;
-	}
-	return 0;
-}
-
 /**
  * zfcp_qdio_sbals_from_sg - fill SBALs from scatter-gather list
  * @fsf_req: request to be processed
@@ -248,7 +219,7 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 			    int max_sbals)
 {
 	struct qdio_buffer_element *sbale;
-	int retval, bytes = 0;
+	int bytes = 0;
 
 	/* figure out last allowed SBAL */
 	zfcp_qdio_sbal_limit(qdio, q_req, max_sbals);
@@ -258,10 +229,16 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 	sbale->flags |= sbtype;
 
 	for (; sg; sg = sg_next(sg)) {
-		retval = zfcp_qdio_fill_sbals(qdio, q_req, sbtype,
-					      sg_virt(sg), sg->length);
-		if (retval < 0)
-			return retval;
+		sbale = zfcp_qdio_sbale_next(qdio, q_req, sbtype);
+		if (!sbale) {
+			atomic_inc(&qdio->req_q_full);
+			zfcp_qdio_undo_sbals(qdio, q_req);
+			return -EINVAL;
+		}
+
+		sbale->addr = sg_virt(sg);
+		sbale->length = sg->length;
+
 		bytes += sg->length;
 	}
 

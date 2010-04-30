@@ -11,6 +11,8 @@
 
 #include <asm/qdio.h>
 
+#define ZFCP_QDIO_SBALE_LEN	PAGE_SIZE
+
 /**
  * struct zfcp_qdio_queue - qdio queue buffer, zfcp index and free count
  * @sbal: qdio buffers

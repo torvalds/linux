@@ -682,6 +682,7 @@ struct zfcp_data zfcp_data = {
 		.use_clustering		 = 1,
 		.sdev_attrs		 = zfcp_sysfs_sdev_attrs,
 		.max_sectors		 = (ZFCP_MAX_SBALES_PER_REQ * 8),
+		.dma_boundary		 = ZFCP_QDIO_SBALE_LEN - 1,
 		.shost_attrs		 = zfcp_sysfs_shost_attrs,
 	},
 };
