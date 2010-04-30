@@ -5880,7 +5880,7 @@ M:	Laurent Pinchart <laurent.pinchart@skynet.be>
 L:	linux-uvc-devel@lists.berlios.de (subscribers-only)
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
-W:	http://linux-uvc.berlios.de
+W:	http://www.ideasonboard.org/uvc/
 S:	Maintained
 F:	drivers/media/video/uvc/
 
