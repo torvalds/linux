@@ -13,7 +13,7 @@ config ARM
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
 	select GENERIC_ATOMIC64 if (!CPU_32v6K)
-	select HAVE_OPROFILE
+	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
 	select HAVE_ARCH_KGDB
 	select HAVE_KPROBES if (!XIP_KERNEL)
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
@@ -180,28 +180,6 @@ config ARM_L1_CACHE_SHIFT_6
 	bool
 	help
 	  Setting ARM L1 cache line size to 64 Bytes.
-
-if OPROFILE
-
-config OPROFILE_ARMV6
-	def_bool y
-	depends on CPU_V6 && !SMP
-	select OPROFILE_ARM11_CORE
-
-config OPROFILE_MPCORE
-	def_bool y
-	depends on CPU_V6 && SMP
-	select OPROFILE_ARM11_CORE
-
-config OPROFILE_ARM11_CORE
-	bool
-
-config OPROFILE_ARMV7
-	def_bool y
-	depends on CPU_V7 && !SMP
-	bool
-
-endif
 
 config VECTORS_BASE
 	hex
@@ -1334,7 +1312,7 @@ config HIGHPTE
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS && CPU_HAS_PMU && (CPU_V6 || CPU_V7)
+	depends on PERF_EVENTS && CPU_HAS_PMU
 	default y
 	help
 	  Enable hardware performance counter support for perf events. If
