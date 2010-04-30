@@ -137,8 +137,10 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 	static inline int unregister_trace_##name(void (*probe)(proto))	\
 	{								\
 		return tracepoint_probe_unregister(#name, (void *)probe);\
+	}								\
+	static inline void check_trace_callback_type_##name(void (*cb)(proto)) \
+	{								\
 	}
-
 
 #define DEFINE_TRACE_FN(name, reg, unreg)				\
 	static const char __tpstrtab_##name[]				\
@@ -168,6 +170,9 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 	static inline int unregister_trace_##name(void (*probe)(proto))	\
 	{								\
 		return -ENOSYS;						\
+	}								\
+	static inline void check_trace_callback_type_##name(void (*cb)(proto)) \
+	{								\
 	}
 
 #define DEFINE_TRACE_FN(name, reg, unreg)
