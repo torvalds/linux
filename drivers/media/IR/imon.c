@@ -146,7 +146,6 @@ struct imon_context {
 };
 
 #define TOUCH_TIMEOUT	(HZ/30)
-#define MCE_TIMEOUT_MS	200
 
 /* vfd character device file operations */
 static const struct file_operations vfd_fops = {
@@ -1392,6 +1391,8 @@ static int imon_parse_press_type(struct imon_context *ictx,
 				 unsigned char *buf, u8 ktype)
 {
 	int press_type = 0;
+	int rep_delay = ictx->idev->rep[REP_DELAY];
+	int rep_period = ictx->idev->rep[REP_PERIOD];
 
 	/* key release of 0x02XXXXXX key */
 	if (ictx->kc == KEY_RESERVED && buf[0] == 0x02 && buf[3] == 0x00)
@@ -1416,12 +1417,12 @@ static int imon_parse_press_type(struct imon_context *ictx,
 			ictx->mce_toggle_bit = buf[2];
 			press_type = 1;
 			mod_timer(&ictx->itimer,
-				  jiffies + msecs_to_jiffies(MCE_TIMEOUT_MS));
+				  jiffies + msecs_to_jiffies(rep_delay));
 		/* repeat */
 		} else {
 			press_type = 2;
 			mod_timer(&ictx->itimer,
-				  jiffies + msecs_to_jiffies(MCE_TIMEOUT_MS));
+				  jiffies + msecs_to_jiffies(rep_period));
 		}
 
 	/* incoherent or irrelevant data */
@@ -1539,7 +1540,7 @@ static void imon_incoming_packet(struct imon_context *ictx,
 		do_gettimeofday(&t);
 		msec = tv2int(&t, &prev_time);
 		prev_time = t;
-		if (msec < 200)
+		if (msec < idev->rep[REP_DELAY])
 			return;
 	}
 
@@ -1684,7 +1685,7 @@ static struct input_dev *imon_init_idev(struct imon_context *ictx)
 	strlcat(ictx->phys_idev, "/input0", sizeof(ictx->phys_idev));
 	idev->phys = ictx->phys_idev;
 
-	idev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
+	idev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP) | BIT_MASK(EV_REL);
 
 	idev->keybit[BIT_WORD(BTN_MOUSE)] =
 		BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_RIGHT);
