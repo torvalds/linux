@@ -478,7 +478,7 @@ struct musb_context_registers {
 	u16 frame;
 	u8 index, testmode;
 
-	u8 devctl, misc;
+	u8 devctl, busctl, misc;
 
 	struct musb_csr_regs index_regs[MUSB_C_NUM_EPS];
 };
