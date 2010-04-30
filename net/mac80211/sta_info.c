@@ -855,8 +855,12 @@ struct ieee80211_sta *ieee80211_find_sta_by_hw(struct ieee80211_hw *hw,
 	struct sta_info *sta, *nxt;
 
 	/* Just return a random station ... first in list ... */
-	for_each_sta_info(hw_to_local(hw), addr, sta, nxt)
+	for_each_sta_info(hw_to_local(hw), addr, sta, nxt) {
+		if (!sta->uploaded)
+			return NULL;
 		return &sta->sta;
+	}
+
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(ieee80211_find_sta_by_hw);
@@ -864,14 +868,19 @@ EXPORT_SYMBOL_GPL(ieee80211_find_sta_by_hw);
 struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
 					 const u8 *addr)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct sta_info *sta;
 
 	if (!vif)
 		return NULL;
 
-	sdata = vif_to_sdata(vif);
+	sta = sta_info_get_bss(vif_to_sdata(vif), addr);
+	if (!sta)
+		return NULL;
 
-	return ieee80211_find_sta_by_hw(&sdata->local->hw, addr);
+	if (!sta->uploaded)
+		return NULL;
+
+	return &sta->sta;
 }
 EXPORT_SYMBOL(ieee80211_find_sta);
 
