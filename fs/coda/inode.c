@@ -167,6 +167,10 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 		return -EBUSY;
 	}
 
+	error = bdi_setup_and_register(&vc->bdi, "coda", BDI_CAP_MAP_COPY);
+	if (error)
+		goto bdi_err;
+
 	vc->vc_sb = sb;
 
 	sb->s_fs_info = vc;
@@ -175,6 +179,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = 12;
 	sb->s_magic = CODA_SUPER_MAGIC;
 	sb->s_op = &coda_super_operations;
+	sb->s_bdi = &vc->bdi;
 
 	/* get root fid from Venus: this needs the root inode */
 	error = venus_rootfid(sb, &fid);
@@ -200,6 +205,8 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
         return 0;
 
  error:
+	bdi_destroy(&vc->bdi);
+ bdi_err:
 	if (root)
 		iput(root);
 	if (vc)
@@ -210,6 +217,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 
 static void coda_put_super(struct super_block *sb)
 {
+	bdi_destroy(&coda_vcp(sb)->bdi);
 	coda_vcp(sb)->vc_sb = NULL;
 	sb->s_fs_info = NULL;
 

@@ -798,7 +798,7 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_MPUIO:
 		reg += OMAP_MPUIO_GPIO_INT_EDGE;
 		l = __raw_readl(reg);
-		if (trigger & IRQ_TYPE_EDGE_BOTH)
+		if ((trigger & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH)
 			bank->toggle_mask |= 1 << gpio;
 		if (trigger & IRQ_TYPE_EDGE_RISING)
 			l |= 1 << gpio;
@@ -812,7 +812,7 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_GPIO_1510:
 		reg += OMAP1510_GPIO_INT_CONTROL;
 		l = __raw_readl(reg);
-		if (trigger & IRQ_TYPE_EDGE_BOTH)
+		if ((trigger & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH)
 			bank->toggle_mask |= 1 << gpio;
 		if (trigger & IRQ_TYPE_EDGE_RISING)
 			l |= 1 << gpio;
@@ -846,7 +846,7 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_GPIO_7XX:
 		reg += OMAP7XX_GPIO_INT_CONTROL;
 		l = __raw_readl(reg);
-		if (trigger & IRQ_TYPE_EDGE_BOTH)
+		if ((trigger & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH)
 			bank->toggle_mask |= 1 << gpio;
 		if (trigger & IRQ_TYPE_EDGE_RISING)
 			l |= 1 << gpio;

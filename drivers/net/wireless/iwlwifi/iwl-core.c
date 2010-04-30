@@ -3358,7 +3358,6 @@ static void iwl_force_rf_reset(struct iwl_priv *priv)
 	 */
 	IWL_DEBUG_INFO(priv, "perform radio reset.\n");
 	iwl_internal_short_hw_scan(priv);
-	return;
 }
 
 

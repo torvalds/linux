@@ -109,7 +109,7 @@ static int max8925_is_enabled(struct regulator_dev *rdev)
 	struct max8925_regulator_info *info = rdev_get_drvdata(rdev);
 	int ret;
 
-	ret = max8925_reg_read(info->i2c, info->vol_reg);
+	ret = max8925_reg_read(info->i2c, info->enable_reg);
 	if (ret < 0)
 		return ret;
 

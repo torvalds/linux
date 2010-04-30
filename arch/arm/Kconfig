@@ -253,6 +253,7 @@ config ARCH_REALVIEW
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select GPIO_PL061 if GPIOLIB
 	help
 	  This enables support for ARM Ltd RealView boards.
 

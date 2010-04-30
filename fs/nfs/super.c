@@ -2187,6 +2187,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	if (data->version == 4) {
 		error = nfs4_try_mount(flags, dev_name, data, mnt);
 		kfree(data->client_address);
+		kfree(data->nfs_server.export_path);
 		goto out;
 	}
 #endif	/* CONFIG_NFS_V4 */
@@ -2657,7 +2658,7 @@ static void nfs_fix_devname(const struct path *path, struct vfsmount *mnt)
 	devname = nfs_path(path->mnt->mnt_devname,
 			path->mnt->mnt_root, path->dentry,
 			page, PAGE_SIZE);
-	if (devname == NULL)
+	if (IS_ERR(devname))
 		goto out_freepage;
 	tmp = kstrdup(devname, GFP_KERNEL);
 	if (tmp == NULL)

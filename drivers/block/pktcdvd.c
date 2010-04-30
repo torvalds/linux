@@ -48,6 +48,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/compat.h>
 #include <linux/kthread.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
@@ -2984,7 +2985,7 @@ static void pkt_get_status(struct pkt_ctrl_command *ctrl_cmd)
 	mutex_unlock(&ctl_mutex);
 }
 
-static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long pkt_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	struct pkt_ctrl_command ctrl_cmd;
@@ -3021,10 +3022,20 @@ static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cm
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+static long pkt_ctl_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	return pkt_ctl_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
 
 static const struct file_operations pkt_ctl_fops = {
-	.ioctl	 = pkt_ctl_ioctl,
-	.owner	 = THIS_MODULE,
+	.open		= nonseekable_open,
+	.unlocked_ioctl	= pkt_ctl_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= pkt_ctl_compat_ioctl,
+#endif
+	.owner		= THIS_MODULE,
 };
 
 static struct miscdevice pkt_misc = {

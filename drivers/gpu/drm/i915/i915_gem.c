@@ -1793,7 +1793,7 @@ i915_get_gem_seqno(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (IS_I965G(dev))
+	if (HAS_PIPE_CONTROL(dev))
 		return ((volatile u32 *)(dev_priv->seqno_page))[0];
 	else
 		return READ_HWSP(dev_priv, I915_GEM_HWS_INDEX);

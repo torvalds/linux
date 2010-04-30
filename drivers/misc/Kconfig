@@ -311,6 +311,22 @@ config TI_DAC7512
 	  This driver can also be built as a module. If so, the module
 	  will be calles ti_dac7512.
 
+config VMWARE_BALLOON
+	tristate "VMware Balloon Driver"
+	depends on X86
+	help
+	  This is VMware physical memory management driver which acts
+	  like a "balloon" that can be inflated to reclaim physical pages
+	  by reserving them in the guest and invalidating them in the
+	  monitor, freeing up the underlying machine pages so they can
+	  be allocated to other guests. The balloon can also be deflated
+	  to allow the guest to use more physical memory.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vmware_balloon.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
