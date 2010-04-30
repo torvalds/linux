@@ -2938,7 +2938,8 @@ void iwl3945_request_scan(struct iwl_priv *priv)
 		 * is marked passive, we can do active scanning if we
 		 * detect transmissions.
 		 */
-		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH : 0;
+		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
+						IWL_GOOD_CRC_TH_DISABLED;
 		band = IEEE80211_BAND_5GHZ;
 		break;
 	default:
