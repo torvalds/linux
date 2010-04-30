@@ -88,10 +88,10 @@ omap_uart_lsr:	.word	0
 		b	98f
 44:		mov	\rx, #UART_OFFSET(OMAP4_UART4_BASE)
 		b	98f
-95:		mov	\rx, #ZOOM_UART_BASE
+95:		ldr	\rx, =ZOOM_UART_BASE
 		ldr	\tmp, =omap_uart_phys
 		str	\rx, [\tmp, #0]
-		mov	\rx, #ZOOM_UART_VIRT
+		ldr	\rx, =ZOOM_UART_VIRT
 		ldr	\tmp, =omap_uart_virt
 		str	\rx, [\tmp, #0]
 		mov	\rx, #(UART_LSR << ZOOM_PORT_SHIFT)

@@ -53,7 +53,7 @@
 
 /* External port on Zoom2/3 */
 #define ZOOM_UART_BASE		0x10000000
-#define ZOOM_UART_VIRT		0xfb000000
+#define ZOOM_UART_VIRT		0xfa400000
 
 #define OMAP_PORT_SHIFT		2
 #define OMAP7XX_PORT_SHIFT	0

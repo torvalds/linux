@@ -166,6 +166,15 @@ static struct map_desc omap34xx_io_desc[] __initdata = {
 		.length		= L4_EMU_34XX_SIZE,
 		.type		= MT_DEVICE
 	},
+#if defined(CONFIG_DEBUG_LL) &&							\
+	(defined(CONFIG_MACH_OMAP_ZOOM2) || defined(CONFIG_MACH_OMAP_ZOOM3))
+	{
+		.virtual	= ZOOM_UART_VIRT,
+		.pfn		= __phys_to_pfn(ZOOM_UART_BASE),
+		.length		= SZ_1M,
+		.type		= MT_DEVICE
+	},
+#endif
 };
 #endif
 #ifdef	CONFIG_ARCH_OMAP4
