@@ -91,6 +91,7 @@ struct tlv320dac33_priv {
 	struct work_struct work;
 	struct snd_soc_codec codec;
 	struct regulator_bulk_data supplies[DAC33_NUM_SUPPLIES];
+	struct snd_pcm_substream *substream;
 	int power_gpio;
 	int chip_power;
 	int irq;
@@ -718,6 +719,31 @@ static void dac33_oscwait(struct snd_soc_codec *codec)
 	if ((reg & 0x03) != DAC33_OSCSTATUS_NORMAL)
 		dev_err(codec->dev,
 			"internal oscillator calibration failed\n");
+}
+
+static int dac33_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
+
+	/* Stream started, save the substream pointer */
+	dac33->substream = substream;
+
+	return 0;
+}
+
+static void dac33_shutdown(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
+
+	dac33->substream = NULL;
 }
 
 static int dac33_hw_params(struct snd_pcm_substream *substream,
@@ -1367,6 +1393,8 @@ EXPORT_SYMBOL_GPL(soc_codec_dev_tlv320dac33);
 #define DAC33_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
 
 static struct snd_soc_dai_ops dac33_dai_ops = {
+	.startup	= dac33_startup,
+	.shutdown	= dac33_shutdown,
 	.hw_params	= dac33_hw_params,
 	.prepare	= dac33_pcm_prepare,
 	.trigger	= dac33_pcm_trigger,
