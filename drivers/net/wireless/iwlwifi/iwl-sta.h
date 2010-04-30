@@ -84,4 +84,12 @@ int iwl_sta_rx_agg_start(struct iwl_priv *priv,
 int iwl_sta_rx_agg_stop(struct iwl_priv *priv, const u8 *addr, int tid);
 void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id);
 void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
+
+static inline int iwl_sta_id(struct ieee80211_sta *sta)
+{
+	if (WARN_ON(!sta))
+		return IWL_INVALID_STATION;
+
+	return ((struct iwl_station_priv_common *)sta->drv_priv)->sta_id;
+}
 #endif /* __iwl_sta_h__ */
