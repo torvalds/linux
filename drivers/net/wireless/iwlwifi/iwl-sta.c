@@ -462,25 +462,32 @@ static struct iwl_link_quality_cmd *iwl_sta_alloc_lq(struct iwl_priv *priv,
 }
 
 /*
- * iwl_add_local_stations - Add stations not requested by mac80211
+ * iwl_add_local_station - Add stations not requested by mac80211
  *
  * This will be either the broadcast station or the bssid station needed by
  * ad-hoc.
  *
  * Function sleeps.
  */
-int iwl_add_local_station(struct iwl_priv *priv, const u8 *addr, bool init_rs)
+int iwl_add_local_station(struct iwl_priv *priv, const u8 *addr, bool init_rs,
+			  u8 *sta_id_r)
 {
 	int ret;
 	u8 sta_id;
 	struct iwl_link_quality_cmd *link_cmd;
 	unsigned long flags;
 
+	if (*sta_id_r)
+		*sta_id_r = IWL_INVALID_STATION;
+
 	ret = iwl_add_station_common(priv, addr, 0, NULL, &sta_id);
 	if (ret) {
 		IWL_ERR(priv, "Unable to add station %pM\n", addr);
 		return ret;
 	}
+
+	if (sta_id_r)
+		*sta_id_r = sta_id;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	priv->stations[sta_id].used |= IWL_STA_LOCAL;
@@ -582,13 +589,11 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 /**
  * iwl_remove_station - Remove driver's knowledge of station.
  */
-int iwl_remove_station(struct iwl_priv *priv, const u8 *addr)
+int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
+		       const u8 *addr)
 {
-	int sta_id = IWL_INVALID_STATION;
-	int i, ret = -EINVAL;
-	unsigned long flags;
-	bool is_ap = priv->iw_mode == NL80211_IFTYPE_STATION;
 	struct iwl_station_entry *station;
+	unsigned long flags;
 
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_INFO(priv,
@@ -602,35 +607,24 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 *addr)
 		return 0;
 	}
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
-
-	if (is_ap)
-		sta_id = IWL_AP_ID;
-	else
-		for (i = IWL_STA_ID; i < priv->hw_params.max_stations; i++)
-			if (priv->stations[i].used &&
-			    !compare_ether_addr(priv->stations[i].sta.sta.addr,
-						addr)) {
-				sta_id = i;
-				break;
-			}
-
-	if (unlikely(sta_id == IWL_INVALID_STATION))
-		goto out;
-
 	IWL_DEBUG_ASSOC(priv, "Removing STA from driver:%d  %pM\n",
-		sta_id, addr);
+			sta_id, addr);
+
+	if (WARN_ON(sta_id == IWL_INVALID_STATION))
+		return -EINVAL;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
 
 	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
 		IWL_DEBUG_INFO(priv, "Removing %pM but non DRIVER active\n",
 				addr);
-		goto out;
+		goto out_err;
 	}
 
 	if (!(priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE)) {
 		IWL_DEBUG_INFO(priv, "Removing %pM but non UCODE active\n",
 				addr);
-		goto out;
+		goto out_err;
 	}
 
 	if (priv->stations[sta_id].used & IWL_STA_LOCAL) {
@@ -647,11 +641,10 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 *addr)
 	station = &priv->stations[sta_id];
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	ret = iwl_send_remove_station(priv, station);
-	return ret;
-out:
+	return iwl_send_remove_station(priv, station);
+out_err:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
-	return ret;
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(iwl_remove_station);
 
@@ -1467,14 +1460,16 @@ void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt)
 EXPORT_SYMBOL(iwl_sta_modify_sleep_tx_count);
 
 int iwl_mac_sta_remove(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif,
-			       struct ieee80211_sta *sta)
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta)
 {
-	int ret;
 	struct iwl_priv *priv = hw->priv;
+	struct iwl_station_priv_common *sta_common = (void *)sta->drv_priv;
+	int ret;
+
 	IWL_DEBUG_INFO(priv, "received request to remove station %pM\n",
 			sta->addr);
-	ret = iwl_remove_station(priv, sta->addr);
+	ret = iwl_remove_station(priv, sta_common->sta_id, sta->addr);
 	if (ret)
 		IWL_ERR(priv, "Error removing station %pM\n",
 			sta->addr);

@@ -1520,7 +1520,11 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 			       struct ieee80211_vif *vif, bool add)
 {
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+
 	if (add)
-		return iwl_add_local_station(priv, vif->bss_conf.bssid, true);
-	return iwl_remove_station(priv, vif->bss_conf.bssid);
+		return iwl_add_local_station(priv, vif->bss_conf.bssid, true,
+					     &vif_priv->ibss_bssid_sta_id);
+	return iwl_remove_station(priv, vif_priv->ibss_bssid_sta_id,
+				  vif->bss_conf.bssid);
 }

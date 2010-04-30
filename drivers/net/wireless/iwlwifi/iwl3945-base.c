@@ -3378,9 +3378,12 @@ static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
 			       struct ieee80211_sta *sta)
 {
 	struct iwl_priv *priv = hw->priv;
+	struct iwl3945_sta_priv *sta_priv = (void *)sta->drv_priv;
 	int ret;
-	bool is_ap = priv->iw_mode == NL80211_IFTYPE_STATION;
+	bool is_ap = vif->type == NL80211_IFTYPE_STATION;
 	u8 sta_id;
+
+	sta_priv->common.sta_id = IWL_INVALID_STATION;
 
 	IWL_DEBUG_INFO(priv, "received request to add station %pM\n",
 			sta->addr);
@@ -3394,16 +3397,14 @@ static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
 		return ret;
 	}
 
+	sta_priv->common.sta_id = sta_id;
+
 	/* Initialize rate scaling */
 	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",
 		       sta->addr);
 	iwl3945_rs_rate_init(priv, sta, sta_id);
 
 	return 0;
-
-
-
-	return ret;
 }
 /*****************************************************************************
  *
@@ -3887,6 +3888,7 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 
 	hw->rate_control_algorithm = "iwl-3945-rs";
 	hw->sta_data_size = sizeof(struct iwl3945_sta_priv);
+	hw->vif_data_size = sizeof(struct iwl_vif_priv);
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |

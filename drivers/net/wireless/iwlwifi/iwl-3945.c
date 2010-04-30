@@ -2461,28 +2461,26 @@ static u16 iwl3945_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 static int iwl3945_manage_ibss_station(struct iwl_priv *priv,
 				       struct ieee80211_vif *vif, bool add)
 {
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	int ret;
 
-	/*
-	 * NB: this assumes that the station it gets will be
-	 *     IWL_STA_ID, which will happen but isn't obvious.
-	 */
-
 	if (add) {
-		ret = iwl_add_local_station(priv, vif->bss_conf.bssid, false);
+		ret = iwl_add_local_station(priv, vif->bss_conf.bssid, false,
+					    &vif_priv->ibss_bssid_sta_id);
 		if (ret)
 			return ret;
 
-		iwl3945_sync_sta(priv, IWL_STA_ID,
+		iwl3945_sync_sta(priv, vif_priv->ibss_bssid_sta_id,
 				 (priv->band == IEEE80211_BAND_5GHZ) ?
 				 IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP,
 				 CMD_ASYNC);
-		iwl3945_rate_scale_init(priv->hw, IWL_STA_ID);
+		iwl3945_rate_scale_init(priv->hw, vif_priv->ibss_bssid_sta_id);
 
 		return 0;
 	}
 
-	return iwl_remove_station(priv, vif->bss_conf.bssid);
+	return iwl_remove_station(priv, vif_priv->ibss_bssid_sta_id,
+				  vif->bss_conf.bssid);
 }
 
 /**

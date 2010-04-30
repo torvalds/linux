@@ -497,18 +497,36 @@ struct iwl_station_entry {
 	struct iwl_link_quality_cmd *lq;
 };
 
+struct iwl_station_priv_common {
+	u8 sta_id;
+};
+
 /*
  * iwl_station_priv: Driver's private station information
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is places in that
  * space.
+ *
+ * The common struct MUST be first because it is shared between
+ * 3945 and agn!
  */
 struct iwl_station_priv {
+	struct iwl_station_priv_common common;
 	struct iwl_lq_sta lq_sta;
 	atomic_t pending_frames;
 	bool client;
 	bool asleep;
+};
+
+/**
+ * struct iwl_vif_priv - driver's private per-interface information
+ *
+ * When mac80211 allocates a virtual interface, it can allocate
+ * space for us to put data into.
+ */
+struct iwl_vif_priv {
+	u8 ibss_bssid_sta_id;
 };
 
 /* one for each uCode image (inst/data, boot/init/runtime) */

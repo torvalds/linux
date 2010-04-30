@@ -68,12 +68,14 @@ int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags);
-int iwl_add_local_station(struct iwl_priv *priv, const u8 *addr, bool init_rs);
+int iwl_add_local_station(struct iwl_priv *priv, const u8 *addr, bool init_rs,
+			  u8 *sta_id_r);
 int iwl_add_station_common(struct iwl_priv *priv, const u8 *addr,
 				  bool is_ap,
 				  struct ieee80211_sta_ht_cap *ht_info,
 				  u8 *sta_id_r);
-int iwl_remove_station(struct iwl_priv *priv, const u8 *addr);
+int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
+		       const u8 *addr);
 int iwl_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 void iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);

@@ -106,7 +106,12 @@ struct iwl3945_rs_sta {
 };
 
 
+/*
+ * The common struct MUST be first because it is shared between
+ * 3945 and agn!
+ */
 struct iwl3945_sta_priv {
+	struct iwl_station_priv_common common;
 	struct iwl3945_rs_sta rs_sta;
 };
 
