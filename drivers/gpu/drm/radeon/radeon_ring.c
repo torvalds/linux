@@ -258,31 +258,41 @@ void radeon_ring_free_size(struct radeon_device *rdev)
 	}
 }
 
-int radeon_ring_lock(struct radeon_device *rdev, unsigned ndw)
+int radeon_ring_alloc(struct radeon_device *rdev, unsigned ndw)
 {
 	int r;
 
 	/* Align requested size with padding so unlock_commit can
 	 * pad safely */
 	ndw = (ndw + rdev->cp.align_mask) & ~rdev->cp.align_mask;
-	mutex_lock(&rdev->cp.mutex);
 	while (ndw > (rdev->cp.ring_free_dw - 1)) {
 		radeon_ring_free_size(rdev);
 		if (ndw < rdev->cp.ring_free_dw) {
 			break;
 		}
 		r = radeon_fence_wait_next(rdev);
-		if (r) {
-			mutex_unlock(&rdev->cp.mutex);
+		if (r)
 			return r;
-		}
 	}
 	rdev->cp.count_dw = ndw;
 	rdev->cp.wptr_old = rdev->cp.wptr;
 	return 0;
 }
 
-void radeon_ring_unlock_commit(struct radeon_device *rdev)
+int radeon_ring_lock(struct radeon_device *rdev, unsigned ndw)
+{
+	int r;
+
+	mutex_lock(&rdev->cp.mutex);
+	r = radeon_ring_alloc(rdev, ndw);
+	if (r) {
+		mutex_unlock(&rdev->cp.mutex);
+		return r;
+	}
+	return 0;
+}
+
+void radeon_ring_commit(struct radeon_device *rdev)
 {
 	unsigned count_dw_pad;
 	unsigned i;
@@ -295,6 +305,11 @@ void radeon_ring_unlock_commit(struct radeon_device *rdev)
 	}
 	DRM_MEMORYBARRIER();
 	radeon_cp_commit(rdev);
+}
+
+void radeon_ring_unlock_commit(struct radeon_device *rdev)
+{
+	radeon_ring_commit(rdev);
 	mutex_unlock(&rdev->cp.mutex);
 }
 

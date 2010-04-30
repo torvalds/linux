@@ -471,7 +471,9 @@ int radeon_ib_test(struct radeon_device *rdev);
 extern void radeon_ib_bogus_add(struct radeon_device *rdev, struct radeon_ib *ib);
 /* Ring access between begin & end cannot sleep */
 void radeon_ring_free_size(struct radeon_device *rdev);
+int radeon_ring_alloc(struct radeon_device *rdev, unsigned ndw);
 int radeon_ring_lock(struct radeon_device *rdev, unsigned ndw);
+void radeon_ring_commit(struct radeon_device *rdev);
 void radeon_ring_unlock_commit(struct radeon_device *rdev);
 void radeon_ring_unlock_undo(struct radeon_device *rdev);
 int radeon_ring_test(struct radeon_device *rdev);
