@@ -220,7 +220,6 @@ void r100_set_power_state(struct radeon_device *rdev, bool static_switch)
 
 void r100_pm_misc(struct radeon_device *rdev)
 {
-#if 0
 	int requested_index = rdev->pm.requested_power_state_index;
 	struct radeon_power_state *ps = &rdev->pm.power_state[requested_index];
 	struct radeon_voltage *voltage = &ps->clock_info[0].voltage;
@@ -308,7 +307,6 @@ void r100_pm_misc(struct radeon_device *rdev)
 				      ps->pcie_lanes);
 		DRM_INFO("Setting: p: %d\n", ps->pcie_lanes);
 	}
-#endif
 }
 
 void r100_pm_prepare(struct radeon_device *rdev)
