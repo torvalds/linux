@@ -1476,13 +1476,7 @@ static int xhci_check_streams_endpoint(struct xhci_hcd *xhci,
 	ret = xhci_check_args(xhci_to_hcd(xhci), udev, ep, 1, __func__);
 	if (ret <= 0)
 		return -EINVAL;
-	if (!ep->ss_ep_comp) {
-		xhci_warn(xhci, "WARN: No SuperSpeed Endpoint Companion"
-				" descriptor for ep 0x%x\n",
-				ep->desc.bEndpointAddress);
-		return -EINVAL;
-	}
-	if (ep->ss_ep_comp->desc.bmAttributes == 0) {
+	if (ep->ss_ep_comp.bmAttributes == 0) {
 		xhci_warn(xhci, "WARN: SuperSpeed Endpoint Companion"
 				" descriptor for ep 0x%x does not support streams\n",
 				ep->desc.bEndpointAddress);
@@ -1540,7 +1534,6 @@ static int xhci_calculate_streams_and_bitmask(struct xhci_hcd *xhci,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		unsigned int *num_streams, u32 *changed_ep_bitmask)
 {
-	struct usb_host_ss_ep_comp *ss_ep_comp;
 	unsigned int max_streams;
 	unsigned int endpoint_flag;
 	int i;
@@ -1552,8 +1545,8 @@ static int xhci_calculate_streams_and_bitmask(struct xhci_hcd *xhci,
 		if (ret < 0)
 			return ret;
 
-		ss_ep_comp = eps[i]->ss_ep_comp;
-		max_streams = USB_SS_MAX_STREAMS(ss_ep_comp->desc.bmAttributes);
+		max_streams = USB_SS_MAX_STREAMS(
+				eps[i]->ss_ep_comp.bmAttributes);
 		if (max_streams < (*num_streams - 1)) {
 			xhci_dbg(xhci, "Ep 0x%x only supports %u stream IDs.\n",
 					eps[i]->desc.bEndpointAddress,

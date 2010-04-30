@@ -1010,9 +1010,9 @@ static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
 static inline u32 xhci_get_endpoint_mult(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
-	if (udev->speed != USB_SPEED_SUPER || !ep->ss_ep_comp)
+	if (udev->speed != USB_SPEED_SUPER)
 		return 0;
-	return ep->ss_ep_comp->desc.bmAttributes;
+	return ep->ss_ep_comp.bmAttributes;
 }
 
 static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
@@ -1061,13 +1061,8 @@ static inline u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
 			usb_endpoint_xfer_bulk(&ep->desc))
 		return 0;
 
-	if (udev->speed == USB_SPEED_SUPER) {
-		if (ep->ss_ep_comp)
-			return ep->ss_ep_comp->desc.wBytesPerInterval;
-		xhci_warn(xhci, "WARN no SS endpoint companion descriptor.\n");
-		/* Assume no bursts, no multiple opportunities to send. */
-		return ep->desc.wMaxPacketSize;
-	}
+	if (udev->speed == USB_SPEED_SUPER)
+		return ep->ss_ep_comp.wBytesPerInterval;
 
 	max_packet = ep->desc.wMaxPacketSize & 0x3ff;
 	max_burst = (ep->desc.wMaxPacketSize & 0x1800) >> 11;
@@ -1131,12 +1126,9 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		max_packet = ep->desc.wMaxPacketSize;
 		ep_ctx->ep_info2 |= MAX_PACKET(max_packet);
 		/* dig out max burst from ep companion desc */
-		if (!ep->ss_ep_comp) {
-			xhci_warn(xhci, "WARN no SS endpoint companion descriptor.\n");
-			max_packet = 0;
-		} else {
-			max_packet = ep->ss_ep_comp->desc.bMaxBurst;
-		}
+		max_packet = ep->ss_ep_comp.bMaxBurst;
+		if (!max_packet)
+			xhci_warn(xhci, "WARN no SS endpoint bMaxBurst\n");
 		ep_ctx->ep_info2 |= MAX_BURST(max_packet);
 		break;
 	case USB_SPEED_HIGH:
