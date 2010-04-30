@@ -16,6 +16,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -68,8 +69,18 @@ struct cpu_hw_events {
 };
 DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 
+/* PMU names. */
+static const char *arm_pmu_names[] = {
+	[ARM_PERF_PMU_ID_XSCALE1] = "xscale1",
+	[ARM_PERF_PMU_ID_XSCALE2] = "xscale2",
+	[ARM_PERF_PMU_ID_V6]	  = "v6",
+	[ARM_PERF_PMU_ID_V6MP]	  = "v6mpcore",
+	[ARM_PERF_PMU_ID_CA8]	  = "ARMv7 Cortex-A8",
+	[ARM_PERF_PMU_ID_CA9]	  = "ARMv7 Cortex-A9",
+};
+
 struct arm_pmu {
-	char		*name;
+	enum arm_perf_pmu_ids id;
 	irqreturn_t	(*handle_irq)(int irq_num, void *dev);
 	void		(*enable)(struct hw_perf_event *evt, int idx);
 	void		(*disable)(struct hw_perf_event *evt, int idx);
@@ -87,6 +98,18 @@ struct arm_pmu {
 
 /* Set at runtime when we know what CPU type we are. */
 static const struct arm_pmu *armpmu;
+
+enum arm_perf_pmu_ids
+armpmu_get_pmu_id(void)
+{
+	int id = -ENODEV;
+
+	if (armpmu != NULL)
+		id = armpmu->id;
+
+	return id;
+}
+EXPORT_SYMBOL_GPL(armpmu_get_pmu_id);
 
 #define HW_OP_UNSUPPORTED		0xFFFF
 
@@ -1154,7 +1177,7 @@ armv6mpcore_pmu_disable_event(struct hw_perf_event *hwc,
 }
 
 static const struct arm_pmu armv6pmu = {
-	.name			= "v6",
+	.id			= ARM_PERF_PMU_ID_V6,
 	.handle_irq		= armv6pmu_handle_irq,
 	.enable			= armv6pmu_enable_event,
 	.disable		= armv6pmu_disable_event,
@@ -1177,7 +1200,7 @@ static const struct arm_pmu armv6pmu = {
  * reset the period and enable the interrupt reporting.
  */
 static const struct arm_pmu armv6mpcore_pmu = {
-	.name			= "v6mpcore",
+	.id			= ARM_PERF_PMU_ID_V6MP,
 	.handle_irq		= armv6pmu_handle_irq,
 	.enable			= armv6pmu_enable_event,
 	.disable		= armv6mpcore_pmu_disable_event,
@@ -1206,10 +1229,6 @@ static const struct arm_pmu armv6mpcore_pmu = {
  * All counters can be enabled/disabled and IRQ masked separately. The cycle
  *  counter and all 4 performance counters together can be reset separately.
  */
-
-#define ARMV7_PMU_CORTEX_A8_NAME		"ARMv7 Cortex-A8"
-
-#define ARMV7_PMU_CORTEX_A9_NAME		"ARMv7 Cortex-A9"
 
 /* Common ARMv7 event types */
 enum armv7_perf_types {
@@ -2115,7 +2134,7 @@ init_hw_perf_events(void)
 			perf_max_events = armv6mpcore_pmu.num_events;
 			break;
 		case 0xC080:	/* Cortex-A8 */
-			armv7pmu.name = ARMV7_PMU_CORTEX_A8_NAME;
+			armv7pmu.id = ARM_PERF_PMU_ID_CA8;
 			memcpy(armpmu_perf_cache_map, armv7_a8_perf_cache_map,
 				sizeof(armv7_a8_perf_cache_map));
 			armv7pmu.event_map = armv7_a8_pmu_event_map;
@@ -2127,7 +2146,7 @@ init_hw_perf_events(void)
 			perf_max_events = armv7pmu.num_events;
 			break;
 		case 0xC090:	/* Cortex-A9 */
-			armv7pmu.name = ARMV7_PMU_CORTEX_A9_NAME;
+			armv7pmu.id = ARM_PERF_PMU_ID_CA9;
 			memcpy(armpmu_perf_cache_map, armv7_a9_perf_cache_map,
 				sizeof(armv7_a9_perf_cache_map));
 			armv7pmu.event_map = armv7_a9_pmu_event_map;
@@ -2146,7 +2165,7 @@ init_hw_perf_events(void)
 
 	if (armpmu)
 		pr_info("enabled with %s PMU driver, %d counters available\n",
-			armpmu->name, armpmu->num_events);
+			arm_pmu_names[armpmu->id], armpmu->num_events);
 
 	return 0;
 }
