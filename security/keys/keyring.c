@@ -705,13 +705,14 @@ int __key_link(struct key *keyring, struct key *key)
 	if (keyring->type != &key_type_keyring)
 		goto error;
 
-	/* serialise link/link calls to prevent parallel calls causing a
-	 * cycle when applied to two keyring in opposite orders */
-	down_write(&keyring_serialise_link_sem);
-
-	/* check that we aren't going to create a cycle adding one keyring to
-	 * another */
+	/* do some special keyring->keyring link checks */
 	if (key->type == &key_type_keyring) {
+		/* serialise link/link calls to prevent parallel calls causing
+		 * a cycle when applied to two keyring in opposite orders */
+		down_write(&keyring_serialise_link_sem);
+
+		/* check that we aren't going to create a cycle adding one
+		 * keyring to another */
 		ret = keyring_detect_cycle(keyring, key);
 		if (ret < 0)
 			goto error2;
@@ -814,7 +815,8 @@ int __key_link(struct key *keyring, struct key *key)
 done:
 	ret = 0;
 error2:
-	up_write(&keyring_serialise_link_sem);
+	if (key->type == &key_type_keyring)
+		up_write(&keyring_serialise_link_sem);
 error:
 	return ret;
 
