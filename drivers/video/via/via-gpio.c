@@ -246,7 +246,6 @@ static int viafb_gpio_remove(struct platform_device *platdev)
 	unsigned long flags;
 	int ret = 0, i;
 
-	spin_lock_irqsave(&gpio_config.vdev->reg_lock, flags);
 	/*
 	 * Get unregistered.
 	 */
@@ -254,16 +253,16 @@ static int viafb_gpio_remove(struct platform_device *platdev)
 		ret = gpiochip_remove(&gpio_config.gpio_chip);
 		if (ret) { /* Somebody still using it? */
 			printk(KERN_ERR "Viafb: GPIO remove failed\n");
-			goto out;
+			return ret;
 		}
 	}
 	/*
 	 * Disable the ports.
 	 */
+	spin_lock_irqsave(&gpio_config.vdev->reg_lock, flags);
 	for (i = 0; i < gpio_config.gpio_chip.ngpio; i += 2)
 		viafb_gpio_disable(gpio_config.active_gpios[i]);
 	gpio_config.gpio_chip.ngpio = 0;
-out:
 	spin_unlock_irqrestore(&gpio_config.vdev->reg_lock, flags);
 	return ret;
 }
