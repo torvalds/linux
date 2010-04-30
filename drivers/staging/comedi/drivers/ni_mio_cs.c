@@ -262,11 +262,6 @@ static void cs_detach(struct pcmcia_device *);
 
 static struct pcmcia_device *cur_dev = NULL;
 static const dev_info_t dev_info = "ni_mio_cs";
-static dev_node_t dev_node = {
-	"ni_mio_cs",
-	COMEDI_MAJOR, 0,
-	NULL
-};
 
 static int cs_attach(struct pcmcia_device *link)
 {
@@ -291,8 +286,7 @@ static void cs_detach(struct pcmcia_device *link)
 {
 	DPRINTK("cs_detach(link=%p)\n", link);
 
-	if (link->dev_node)
-		cs_release(link);
+	cs_release(link);
 }
 
 static int mio_cs_suspend(struct pcmcia_device *link)
@@ -347,8 +341,6 @@ static void mio_cs_config(struct pcmcia_device *link)
 		dev_info(&link->dev, "no IRQ available\n");
 
 	ret = pcmcia_request_configuration(link, &link->conf);
-
-	link->dev_node = &dev_node;
 }
 
 static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
