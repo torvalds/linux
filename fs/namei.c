@@ -2176,8 +2176,10 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 		error = security_inode_rmdir(dir, dentry);
 		if (!error) {
 			error = dir->i_op->rmdir(dir, dentry);
-			if (!error)
+			if (!error) {
 				dentry->d_inode->i_flags |= S_DEAD;
+				dont_mount(dentry);
+			}
 		}
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
@@ -2261,7 +2263,7 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 		if (!error) {
 			error = dir->i_op->unlink(dir, dentry);
 			if (!error)
-				dentry->d_inode->i_flags |= S_DEAD;
+				dont_mount(dentry);
 		}
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
@@ -2572,17 +2574,20 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 		return error;
 
 	target = new_dentry->d_inode;
-	if (target) {
+	if (target)
 		mutex_lock(&target->i_mutex);
-		dentry_unhash(new_dentry);
-	}
 	if (d_mountpoint(old_dentry)||d_mountpoint(new_dentry))
 		error = -EBUSY;
-	else 
+	else {
+		if (target)
+			dentry_unhash(new_dentry);
 		error = old_dir->i_op->rename(old_dir, old_dentry, new_dir, new_dentry);
+	}
 	if (target) {
-		if (!error)
+		if (!error) {
 			target->i_flags |= S_DEAD;
+			dont_mount(new_dentry);
+		}
 		mutex_unlock(&target->i_mutex);
 		if (d_unhashed(new_dentry))
 			d_rehash(new_dentry);
@@ -2614,7 +2619,7 @@ static int vfs_rename_other(struct inode *old_dir, struct dentry *old_dentry,
 		error = old_dir->i_op->rename(old_dir, old_dentry, new_dir, new_dentry);
 	if (!error) {
 		if (target)
-			target->i_flags |= S_DEAD;
+			dont_mount(new_dentry);
 		if (!(old_dir->i_sb->s_type->fs_flags & FS_RENAME_DOES_D_MOVE))
 			d_move(old_dentry, new_dentry);
 	}
