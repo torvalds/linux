@@ -505,7 +505,7 @@ int i2400mu_probe(struct usb_interface *iface,
 	iface->needs_remote_wakeup = 1;		/* autosuspend (15s delay) */
 	device_init_wakeup(dev, 1);
 	usb_dev->autosuspend_delay = 15 * HZ;
-	usb_dev->autosuspend_disabled = 0;
+	usb_enable_autosuspend(usb_dev);
 #endif
 
 	result = i2400m_setup(i2400m, I2400M_BRI_MAC_REINIT);
