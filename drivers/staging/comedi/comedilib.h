@@ -164,10 +164,10 @@ int comedi_get_subdevice_type(unsigned int minor, unsigned int subdevice);
 int comedi_find_subdevice_by_type(unsigned int minor, int type,
 				  unsigned int subd);
 int comedi_get_n_channels(unsigned int minor, unsigned int subdevice);
-unsigned int comedi_get_maxdata(unsigned int minor, unsigned int subdevice, unsigned
-				int chan);
-int comedi_get_n_ranges(unsigned int minor, unsigned int subdevice, unsigned int
-			chan);
+unsigned int comedi_get_maxdata(unsigned int minor, unsigned int subdevice,
+				unsigned int chan);
+int comedi_get_n_ranges(unsigned int minor, unsigned int subdevice,
+			unsigned int chan);
 int comedi_do_insn(unsigned int minor, struct comedi_insn *insn);
 int comedi_poll(unsigned int minor, unsigned int subdev);
 
