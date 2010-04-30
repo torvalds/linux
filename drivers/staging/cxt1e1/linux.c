@@ -1192,7 +1192,7 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
                 hi->devname, irq1);
         unregister_netdev (ndev);
         free_irq (irq0, ndev);
-        OS_kfree (ndev->priv);
+        OS_kfree (netdev_priv(ndev));
         OS_kfree (ndev);
         error_flag = EIO;
         return 0;
