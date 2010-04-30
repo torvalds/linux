@@ -366,7 +366,7 @@ struct fsf_qtcb_bottom_config {
 	u32 adapter_type;
 	u8 res0;
 	u8 peer_d_id[3];
-	u8 res1[2];
+	u16 status_read_buf_num;
 	u16 timer_interval;
 	u8 res2[9];
 	u8 s_id[3];

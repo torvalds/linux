@@ -164,6 +164,7 @@ struct zfcp_adapter {
 						      stack abort/command
 						      completion races */
 	atomic_t		stat_miss;	   /* # missing status reads*/
+	unsigned int		stat_read_buf_num;
 	struct work_struct	stat_work;
 	atomic_t		status;	           /* status of this adapter */
 	struct list_head	erp_ready_head;	   /* error recovery for this
