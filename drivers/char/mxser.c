@@ -1011,6 +1011,7 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	if (!info->ioaddr)
 		return -ENODEV;
 
+	tty->driver_data = info;
 	return tty_port_open(&info->port, tty, filp);
 }
 
@@ -1074,7 +1075,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	struct mxser_port *info = tty->driver_data;
 	struct tty_port *port = &info->port;
 
-	if (tty->index == MXSER_PORTS)
+	if (tty->index == MXSER_PORTS || info == NULL)
 		return;
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
