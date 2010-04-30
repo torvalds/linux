@@ -96,9 +96,7 @@ Configuration Options:
 #define MAX_CHANS 256
 
 #define MODULE_NAME "comedi_bond"
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
 #ifndef STR
 #  define STR1(x) #x
 #  define STR(x) STR1(x)
