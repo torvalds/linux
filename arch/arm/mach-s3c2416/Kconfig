@@ -4,6 +4,9 @@
 #
 # Licensed under GPLv2
 
+# note, this also supports the S3C2450 which is so similar it has the same
+# ID code as the S3C2416.
+
 config CPU_S3C2416
 	bool
 	depends on ARCH_S3C2410

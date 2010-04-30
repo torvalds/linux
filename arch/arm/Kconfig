@@ -647,7 +647,7 @@ config ARCH_SA1100
 	  Support for StrongARM 11x0 based boards.
 
 config ARCH_S3C2410
-	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443"
+	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443, S3C2450"
 	select GENERIC_GPIO
 	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
@@ -655,6 +655,10 @@ config ARCH_S3C2410
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
 	  the Samsung SMDK2410 development board (and derivatives).
+
+	  Note, the S3C2416 and the S3C2450 are so close that they even share
+	  the same SoC ID code. This means that there is no seperate machine
+	  directory (no arch/arm/mach-s3c2450) as the S3C2416 was first.
 
 config ARCH_S3C64XX
 	bool "Samsung S3C64XX"

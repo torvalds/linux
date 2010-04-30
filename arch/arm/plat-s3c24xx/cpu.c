@@ -58,7 +58,7 @@
 static const char name_s3c2400[]  = "S3C2400";
 static const char name_s3c2410[]  = "S3C2410";
 static const char name_s3c2412[]  = "S3C2412";
-static const char name_s3c2416[]  = "S3C2416";
+static const char name_s3c2416[]  = "S3C2416/S3C2450";
 static const char name_s3c2440[]  = "S3C2440";
 static const char name_s3c2442[]  = "S3C2442";
 static const char name_s3c2442b[]  = "S3C2442B";
