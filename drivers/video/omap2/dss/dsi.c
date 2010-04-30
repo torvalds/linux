@@ -1743,42 +1743,52 @@ static void dsi_vc_initial_config(int channel)
 	dsi.vc[channel].mode = DSI_VC_MODE_L4;
 }
 
-static void dsi_vc_config_l4(int channel)
+static int dsi_vc_config_l4(int channel)
 {
 	if (dsi.vc[channel].mode == DSI_VC_MODE_L4)
-		return;
+		return 0;
 
 	DSSDBGF("%d", channel);
 
 	dsi_vc_enable(channel, 0);
 
-	if (REG_GET(DSI_VC_CTRL(channel), 15, 15)) /* VC_BUSY */
+	/* VC_BUSY */
+	if (wait_for_bit_change(DSI_VC_CTRL(channel), 15, 0) != 0) {
 		DSSERR("vc(%d) busy when trying to config for L4\n", channel);
+		return -EIO;
+	}
 
 	REG_FLD_MOD(DSI_VC_CTRL(channel), 0, 1, 1); /* SOURCE, 0 = L4 */
 
 	dsi_vc_enable(channel, 1);
 
 	dsi.vc[channel].mode = DSI_VC_MODE_L4;
+
+	return 0;
 }
 
-static void dsi_vc_config_vp(int channel)
+static int dsi_vc_config_vp(int channel)
 {
 	if (dsi.vc[channel].mode == DSI_VC_MODE_VP)
-		return;
+		return 0;
 
 	DSSDBGF("%d", channel);
 
 	dsi_vc_enable(channel, 0);
 
-	if (REG_GET(DSI_VC_CTRL(channel), 15, 15)) /* VC_BUSY */
+	/* VC_BUSY */
+	if (wait_for_bit_change(DSI_VC_CTRL(channel), 15, 0) != 0) {
 		DSSERR("vc(%d) busy when trying to config for VP\n", channel);
+		return -EIO;
+	}
 
 	REG_FLD_MOD(DSI_VC_CTRL(channel), 1, 1, 1); /* SOURCE, 1 = video port */
 
 	dsi_vc_enable(channel, 1);
 
 	dsi.vc[channel].mode = DSI_VC_MODE_VP;
+
+	return 0;
 }
 
 
