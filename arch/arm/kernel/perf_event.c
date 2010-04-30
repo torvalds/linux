@@ -111,6 +111,18 @@ armpmu_get_pmu_id(void)
 }
 EXPORT_SYMBOL_GPL(armpmu_get_pmu_id);
 
+int
+armpmu_get_max_events(void)
+{
+	int max_events = 0;
+
+	if (armpmu != NULL)
+		max_events = armpmu->num_events;
+
+	return max_events;
+}
+EXPORT_SYMBOL_GPL(armpmu_get_max_events);
+
 #define HW_OP_UNSUPPORTED		0xFFFF
 
 #define C(_x) \
