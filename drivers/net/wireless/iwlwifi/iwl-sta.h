@@ -60,7 +60,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 			   struct ieee80211_key_conf *key, u8 sta_id);
 void iwl_update_tkip_key(struct iwl_priv *priv,
 			struct ieee80211_key_conf *keyconf,
-			const u8 *addr, u32 iv32, u16 *phase1key);
+			struct ieee80211_sta *sta, u32 iv32, u16 *phase1key);
 
 void iwl_restore_stations(struct iwl_priv *priv);
 void iwl_clear_ucode_stations(struct iwl_priv *priv);

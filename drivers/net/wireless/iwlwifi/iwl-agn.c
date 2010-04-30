@@ -3057,8 +3057,7 @@ static void iwl_mac_update_tkip_key(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = hw->priv;
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	iwl_update_tkip_key(priv, keyconf,
-			    sta ? sta->addr : iwl_bcast_addr,
+	iwl_update_tkip_key(priv, keyconf, sta,
 			    iv32, phase1key);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
