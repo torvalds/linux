@@ -302,6 +302,7 @@ static int construct_alloc_key(struct key_type *type,
 	const struct cred *cred = current_cred();
 	struct key *key;
 	key_ref_t key_ref;
+	int ret;
 
 	kenter("%s,%s,,,", type->name, description);
 
@@ -337,14 +338,23 @@ static int construct_alloc_key(struct key_type *type,
 	kleave(" = 0 [%d]", key_serial(key));
 	return 0;
 
+	/* the key is now present - we tell the caller that we found it by
+	 * returning -EINPROGRESS  */
 key_already_present:
 	mutex_unlock(&key_construction_mutex);
+	ret = 0;
 	if (dest_keyring) {
-		__key_link(dest_keyring, key_ref_to_ptr(key_ref));
+		ret = __key_link(dest_keyring, key_ref_to_ptr(key_ref));
 		up_write(&dest_keyring->sem);
 	}
 	mutex_unlock(&user->cons_lock);
 	key_put(key);
+	if (ret < 0) {
+		key_ref_put(key_ref);
+		*_key = NULL;
+		kleave(" = %d [link]", ret);
+		return ret;
+	}
 	*_key = key = key_ref_to_ptr(key_ref);
 	kleave(" = -EINPROGRESS [%d]", key_serial(key));
 	return -EINPROGRESS;
@@ -390,6 +400,10 @@ static struct key *construct_key_and_link(struct key_type *type,
 			kdebug("cons failed");
 			goto construction_failed;
 		}
+	} else if (ret == -EINPROGRESS) {
+		ret = 0;
+	} else {
+		key = ERR_PTR(ret);
 	}
 
 	key_put(dest_keyring);
@@ -422,6 +436,7 @@ struct key *request_key_and_link(struct key_type *type,
 	const struct cred *cred = current_cred();
 	struct key *key;
 	key_ref_t key_ref;
+	int ret;
 
 	kenter("%s,%s,%p,%zu,%p,%p,%lx",
 	       type->name, description, callout_info, callout_len, aux,
@@ -435,8 +450,13 @@ struct key *request_key_and_link(struct key_type *type,
 		key = key_ref_to_ptr(key_ref);
 		if (dest_keyring) {
 			construct_get_dest_keyring(&dest_keyring);
-			key_link(dest_keyring, key);
+			ret = key_link(dest_keyring, key);
 			key_put(dest_keyring);
+			if (ret < 0) {
+				key_put(key);
+				key = ERR_PTR(ret);
+				goto error;
+			}
 		}
 	} else if (PTR_ERR(key_ref) != -EAGAIN) {
 		key = ERR_CAST(key_ref);
