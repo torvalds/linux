@@ -363,6 +363,9 @@ static int __init sa1110_clk_init(void)
 	struct sdram_params *sdram;
 	const char *name = sdram_name;
 
+	if (!cpu_is_sa1110())
+		return -ENODEV;
+
 	if (!name[0]) {
 		if (machine_is_assabet())
 			name = "TC59SM716-CL3";
