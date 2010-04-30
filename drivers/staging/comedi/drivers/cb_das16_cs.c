@@ -671,7 +671,6 @@ static dev_info_t dev_info = "cb_das16_cs";
 
 struct local_info_t {
 	struct pcmcia_device *link;
-	dev_node_t node;
 	int stop;
 	struct bus_operations *bus;
 };
@@ -716,10 +715,8 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "das16cs_pcmcia_detach\n");
 
-	if (link->dev_node) {
-		((struct local_info_t *)link->priv)->stop = 1;
-		das16cs_pcmcia_release(link);
-	}
+	((struct local_info_t *)link->priv)->stop = 1;
+	das16cs_pcmcia_release(link);
 	/* This points to the parent struct local_info_t struct */
 	if (link->priv)
 		kfree(link->priv);
@@ -764,7 +761,6 @@ static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static void das16cs_pcmcia_config(struct pcmcia_device *link)
 {
-	struct local_info_t *dev = link->priv;
 	int ret;
 
 	dev_dbg(&link->dev, "das16cs_pcmcia_config\n");
@@ -787,17 +783,8 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/*
-	   At this point, the dev_node_t structure(s) need to be
-	   initialized and arranged in a linked list at link->dev.
-	 */
-	sprintf(dev->node.dev_name, "cb_das16_cs");
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
 	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x",
-	       dev->node.dev_name, link->conf.ConfigIndex);
+	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u", link->irq);
 	if (link->io.NumPorts1)
