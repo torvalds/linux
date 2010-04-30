@@ -307,7 +307,7 @@ extern unsigned long _loongson_addrwincfg_base;
  */
 #define LOONGSON_ADDRWIN_CFG(s, d, w, src, dst, size) do {\
 	s##_WIN##w##_BASE = (src); \
-	s##_WIN##w##_MMAP = (src) | ADDRWIN_MAP_DST_##d; \
+	s##_WIN##w##_MMAP = (dst) | ADDRWIN_MAP_DST_##d; \
 	s##_WIN##w##_MASK = ~(size-1); \
 } while (0)
 

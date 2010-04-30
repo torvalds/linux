@@ -75,7 +75,7 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 	unsigned long end = offset + size;
 
 	if (__uncached_access(file, offset)) {
-		if (((uca_start && offset) >= uca_start) &&
+		if (uca_start && (offset >= uca_start) &&
 		    (end <= uca_end))
 			return __pgprot((pgprot_val(vma_prot) &
 					 ~_CACHE_MASK) |
@@ -96,7 +96,7 @@ static int __init find_vga_mem_init(void)
 		return 0;
 
 	for_each_pci_dev(dev) {
-		if ((dev->class >> 8) == PCI_CLASS_DISPLAY_VGA) {
+		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
 			for (idx = 0; idx < PCI_NUM_RESOURCES; idx++) {
 				r = &dev->resource[idx];
 				if (!r->start && r->end)

@@ -145,15 +145,14 @@ void __init plat_mem_setup(void)
 
 #ifdef CONFIG_VT
 	screen_info = (struct screen_info) {
-		0, 0,           /* orig-x, orig-y */
-		0,              /* unused */
-		52,             /* orig_video_page */
-		3,              /* orig_video_mode */
-		80,             /* orig_video_cols */
-		4626, 3, 9,     /* unused, ega_bx, unused */
-		25,             /* orig_video_lines */
-		0x22,           /* orig_video_isVGA */
-		16              /* orig_video_points */
+		.orig_video_page	= 52,
+		.orig_video_mode	= 3,
+		.orig_video_cols	= 80,
+		.flags			= 12,
+		.orig_video_ega_bx	= 3,
+		.orig_video_lines	= 25,
+		.orig_video_isVGA	= 0x22,
+		.orig_video_points	= 16,
        };
        /* XXXKW for CFE, get lines/cols from environment */
 #endif
