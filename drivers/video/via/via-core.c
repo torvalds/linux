@@ -453,26 +453,40 @@ static int viafb_get_fb_size_from_pci(int chip_type)
  */
 static int __devinit via_pci_setup_mmio(struct viafb_dev *vdev)
 {
+	int ret;
 	/*
-	 * Hook up to the device registers.
+	 * Hook up to the device registers.  Note that we soldier
+	 * on if it fails; the framebuffer can operate (without
+	 * acceleration) without this region.
 	 */
 	vdev->engine_start = pci_resource_start(vdev->pdev, 1);
 	vdev->engine_len = pci_resource_len(vdev->pdev, 1);
-	/* If this fails, others will notice later */
 	vdev->engine_mmio = ioremap_nocache(vdev->engine_start,
 			vdev->engine_len);
-
+	if (vdev->engine_mmio == NULL)
+		dev_err(&vdev->pdev->dev,
+				"Unable to map engine MMIO; operation will be "
+				"slow and crippled.\n");
 	/*
-	 * Likewise with I/O memory.
+	 * Map in framebuffer memory.  For now, failure here is
+	 * fatal.  Unfortunately, in the absence of significant
+	 * vmalloc space, failure here is also entirely plausible.
+	 * Eventually we want to move away from mapping this
+	 * entire region.
 	 */
 	vdev->fbmem_start = pci_resource_start(vdev->pdev, 0);
-	vdev->fbmem_len = viafb_get_fb_size_from_pci(vdev->chip_type);
-	if (vdev->fbmem_len < 0)
-		return vdev->fbmem_len;
+	ret = vdev->fbmem_len = viafb_get_fb_size_from_pci(vdev->chip_type);
+	if (ret < 0)
+		goto out_unmap;
 	vdev->fbmem = ioremap_nocache(vdev->fbmem_start, vdev->fbmem_len);
-	if (vdev->fbmem == NULL)
-		return -ENOMEM;
+	if (vdev->fbmem == NULL) {
+		ret = -ENOMEM;
+		goto out_unmap;
+	}
 	return 0;
+out_unmap:
+	iounmap(vdev->engine_mmio);
+	return ret;
 }
 
 static void __devexit via_pci_teardown_mmio(struct viafb_dev *vdev)
@@ -572,12 +586,11 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	viafb_int_init();
 	via_setup_subdevs(&global_dev);
 	/*
-	 * Set up the framebuffer.
+	 * Set up the framebuffer device
 	 */
 	ret = via_fb_pci_probe(&global_dev);
 	if (ret)
 		goto out_subdevs;
-
 	return 0;
 
 out_subdevs:
