@@ -184,8 +184,6 @@ struct usb_interface {
 	struct work_struct reset_ws;	/* for resets in atomic context */
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
-#define	interface_to_usbdev(intf) \
-	container_of(intf->dev.parent, struct usb_device, dev)
 
 static inline void *usb_get_intfdata(struct usb_interface *intf)
 {
@@ -492,6 +490,11 @@ struct usb_device {
 	int slot_id;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
+
+static inline struct usb_device *interface_to_usbdev(struct usb_interface *intf)
+{
+	return to_usb_device(intf->dev.parent);
+}
 
 extern struct usb_device *usb_get_dev(struct usb_device *dev);
 extern void usb_put_dev(struct usb_device *dev);
