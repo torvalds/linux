@@ -57,7 +57,7 @@
 	static int __init x ## _init_module(void)			\
 		{return comedi_driver_register(&(x)); }			\
 	static void __exit x ## _cleanup_module(void)			\
-		{comedi_driver_unregister(&(x)); } 			\
+		{comedi_driver_unregister(&(x)); }			\
 	module_init(x ## _init_module);					\
 	module_exit(x ## _cleanup_module);
 
@@ -132,7 +132,7 @@ struct comedi_subdevice {
 	struct comedi_device *device;
 	int type;
 	int n_chan;
-	volatile int subdev_flags;
+	int subdev_flags;
 	int len_chanlist;	/* maximum length of channel/gain list */
 
 	void *private;
@@ -402,7 +402,7 @@ int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
 #define RANGE(a, b)		{(a)*1e6, (b)*1e6, 0}
 #define RANGE_ext(a, b)		{(a)*1e6, (b)*1e6, RF_EXTERNAL}
 #define RANGE_mA(a, b)		{(a)*1e6, (b)*1e6, UNIT_mA}
-#define RANGE_unitless(a, b)	{(a)*1e6, (b)*1e6, 0}	/* XXX */
+#define RANGE_unitless(a, b)	{(a)*1e6, (b)*1e6, 0}
 #define BIP_RANGE(a)		{-(a)*1e6, (a)*1e6, 0}
 #define UNI_RANGE(a)		{0, (a)*1e6, 0}
 
