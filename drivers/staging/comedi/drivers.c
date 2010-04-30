@@ -38,7 +38,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include "comedidev.h"
-#include "wrapper.h"
 #include <linux/highmem.h>	/* for SuSE brokenness */
 #include <linux/vmalloc.h>
 #include <linux/cdev.h>
@@ -442,9 +441,7 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 		unsigned i;
 		for (i = 0; i < async->n_buf_pages; ++i) {
 			if (async->buf_page_list[i].virt_addr) {
-				mem_map_unreserve(virt_to_page
-						  (async->buf_page_list[i].
-						   virt_addr));
+				clear_bit(PG_reserved, &(virt_to_page(async->buf_page_list[i].virt_addr)->flags));
 				if (s->async_dma_dir != DMA_NONE) {
 					dma_free_coherent(dev->hw_dev,
 							  PAGE_SIZE,
@@ -497,12 +494,9 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 				if (async->buf_page_list[i].virt_addr == NULL)
 					break;
 
-				mem_map_reserve(virt_to_page
-						(async->buf_page_list[i].
-						 virt_addr));
-				pages[i] =
-				    virt_to_page(async->
-						 buf_page_list[i].virt_addr);
+				set_bit(PG_reserved,
+					&(virt_to_page(async->buf_page_list[i].virt_addr)->flags));
+				pages[i] = virt_to_page(async->buf_page_list[i].virt_addr);
 			}
 		}
 		if (i == n_pages) {
@@ -519,9 +513,7 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 					    NULL) {
 						break;
 					}
-					mem_map_unreserve(virt_to_page
-							  (async->buf_page_list
-							   [i].virt_addr));
+					clear_bit(PG_reserved, &(virt_to_page(async->buf_page_list[i].virt_addr)->flags));
 					if (s->async_dma_dir != DMA_NONE) {
 						dma_free_coherent(dev->hw_dev,
 								  PAGE_SIZE,
