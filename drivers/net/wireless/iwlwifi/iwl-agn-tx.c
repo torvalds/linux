@@ -567,10 +567,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find index into station table for destination station */
-	if (!info->control.sta)
-		sta_id = priv->hw_params.bcast_sta_id;
-	else
-		sta_id = iwl_sta_id(info->control.sta);
+	sta_id = iwl_sta_id_or_broadcast(priv, info->control.sta);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 			       hdr->addr1);

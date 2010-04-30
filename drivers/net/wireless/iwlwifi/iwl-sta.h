@@ -107,4 +107,33 @@ static inline int iwl_sta_id(struct ieee80211_sta *sta)
 
 	return ((struct iwl_station_priv_common *)sta->drv_priv)->sta_id;
 }
+
+/**
+ * iwl_sta_id_or_broadcast - return sta_id or broadcast sta
+ * @priv: iwl priv
+ * @sta: mac80211 station
+ *
+ * In certain circumstances mac80211 passes a station pointer
+ * that may be %NULL, for example during TX or key setup. In
+ * that case, we need to use the broadcast station, so this
+ * inline wraps that pattern.
+ */
+static inline int iwl_sta_id_or_broadcast(struct iwl_priv *priv,
+					  struct ieee80211_sta *sta)
+{
+	int sta_id;
+
+	if (!sta)
+		return priv->hw_params.bcast_sta_id;
+
+	sta_id = iwl_sta_id(sta);
+
+	/*
+	 * mac80211 should not be passing a partially
+	 * initialised station!
+	 */
+	WARN_ON(sta_id == IWL_INVALID_STATION);
+
+	return sta_id;
+}
 #endif /* __iwl_sta_h__ */
