@@ -508,11 +508,11 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	hdr_len = ieee80211_hdrlen(fc);
 
-	/* Find (or create) index into station table for destination station */
-	if (info->flags & IEEE80211_TX_CTL_INJECTED)
+	/* Find index into station table for destination station */
+	if (!info->control.sta)
 		sta_id = priv->hw_params.bcast_sta_id;
 	else
-		sta_id = iwl_get_sta_id(priv, hdr);
+		sta_id = iwl_sta_id(info->control.sta);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 			       hdr->addr1);
@@ -3321,7 +3321,6 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			       struct ieee80211_key_conf *key)
 {
 	struct iwl_priv *priv = hw->priv;
-	const u8 *addr;
 	int ret = 0;
 	u8 sta_id = IWL_INVALID_STATION;
 	u8 static_key;
@@ -3333,15 +3332,19 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		return -EOPNOTSUPP;
 	}
 
-	addr = sta ? sta->addr : iwl_bcast_addr;
 	static_key = !iwl_is_associated(priv);
 
 	if (!static_key) {
-		sta_id = iwl_find_station(priv, addr);
-		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_MAC80211(priv, "leave - %pM not in station map.\n",
-					    addr);
-			return -EINVAL;
+		if (!sta) {
+			sta_id = priv->hw_params.bcast_sta_id;
+		} else {
+			sta_id = iwl_sta_id(sta);
+			if (sta_id == IWL_INVALID_STATION) {
+				IWL_DEBUG_MAC80211(priv,
+						   "leave - %pM not in station map.\n",
+						   sta->addr);
+				return -EINVAL;
+			}
 		}
 	}
 

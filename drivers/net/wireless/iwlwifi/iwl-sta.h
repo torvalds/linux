@@ -29,6 +29,8 @@
 #ifndef __iwl_sta_h__
 #define __iwl_sta_h__
 
+#include "iwl-dev.h"
+
 #define HW_KEY_DYNAMIC 0
 #define HW_KEY_DEFAULT 1
 
@@ -65,7 +67,6 @@ void iwl_clear_ucode_stations(struct iwl_priv *priv);
 int iwl_alloc_bcast_station(struct iwl_priv *priv, bool init_lq);
 void iwl_dealloc_bcast_station(struct iwl_priv *priv);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
-int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags);
 int iwl_add_local_station(struct iwl_priv *priv, const u8 *addr, bool init_rs,

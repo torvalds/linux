@@ -1307,62 +1307,6 @@ void iwl_dealloc_bcast_station(struct iwl_priv *priv)
 EXPORT_SYMBOL_GPL(iwl_dealloc_bcast_station);
 
 /**
- * iwl_get_sta_id - Find station's index within station table
- *
- * If new IBSS station, create new entry in station table
- */
-int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
-{
-	int sta_id;
-	__le16 fc = hdr->frame_control;
-
-	/* If this frame is broadcast or management, use broadcast station id */
-	if (!ieee80211_is_data(fc) ||  is_multicast_ether_addr(hdr->addr1))
-		return priv->hw_params.bcast_sta_id;
-
-	switch (priv->iw_mode) {
-
-	/* If we are a client station in a BSS network, use the special
-	 * AP station entry (that's the only station we communicate with) */
-	case NL80211_IFTYPE_STATION:
-		/*
-		 * If addition of station not complete yet, which means
-		 * that rate scaling has not been initialized, then return
-		 * the broadcast station.
-		 */
-		if (!(priv->stations[IWL_AP_ID].used & IWL_STA_UCODE_ACTIVE))
-			return priv->hw_params.bcast_sta_id;
-		return IWL_AP_ID;
-
-	/* If we are an AP, then find the station, or use BCAST */
-	case NL80211_IFTYPE_AP:
-		sta_id = iwl_find_station(priv, hdr->addr1);
-		if (sta_id != IWL_INVALID_STATION)
-			return sta_id;
-		return priv->hw_params.bcast_sta_id;
-
-	/* If this frame is going out to an IBSS network, find the station,
-	 * or create a new station table entry */
-	case NL80211_IFTYPE_ADHOC:
-		sta_id = iwl_find_station(priv, hdr->addr1);
-		if (sta_id != IWL_INVALID_STATION)
-			return sta_id;
-
-		IWL_DEBUG_DROP(priv, "Station %pM not in station map. "
-			       "Defaulting to broadcast...\n",
-			       hdr->addr1);
-		iwl_print_hex_dump(priv, IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
-		return priv->hw_params.bcast_sta_id;
-
-	default:
-		IWL_WARN(priv, "Unknown mode of operation: %d\n",
-			priv->iw_mode);
-		return priv->hw_params.bcast_sta_id;
-	}
-}
-EXPORT_SYMBOL(iwl_get_sta_id);
-
-/**
  * iwl_sta_tx_modify_enable_tid - Enable Tx for this TID in station table
  */
 void iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid)
