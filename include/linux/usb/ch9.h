@@ -191,6 +191,8 @@ struct usb_ctrlrequest {
 #define USB_DT_WIRE_ADAPTER		0x21
 #define USB_DT_RPIPE			0x22
 #define USB_DT_CS_RADIO_CONTROL		0x23
+/* From the T10 UAS specification */
+#define USB_DT_PIPE_USAGE		0x24
 /* From the USB 3.0 spec */
 #define	USB_DT_SS_ENDPOINT_COMP		0x30
 
