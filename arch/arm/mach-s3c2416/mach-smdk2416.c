@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mtd/partitions.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -110,6 +111,7 @@ static struct s3c2410_uartcfg smdk2416_uartcfgs[] __initdata = {
 
 static struct platform_device *smdk2416_devices[] __initdata = {
 	&s3c_device_wdt,
+	&s3c_device_ohci,
 	&s3c_device_i2c0,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
@@ -127,6 +129,9 @@ static void __init smdk2416_map_io(void)
 static void __init smdk2416_machine_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
+
+	gpio_request(S3C2410_GPB(4), "USBHost Power");
+	gpio_direction_output(S3C2410_GPB(4), 1);
 
 	platform_add_devices(smdk2416_devices, ARRAY_SIZE(smdk2416_devices));
 	smdk_machine_init();
