@@ -1552,6 +1552,14 @@ static inline unsigned int __create_pipe(struct usb_device *dev,
 #define usb_rcvintpipe(dev,endpoint)	\
 	((PIPE_INTERRUPT << 30) | __create_pipe(dev, endpoint) | USB_DIR_IN)
 
+static inline struct usb_host_endpoint *
+usb_pipe_endpoint(struct usb_device *dev, unsigned int pipe)
+{
+	struct usb_host_endpoint **eps;
+	eps = usb_pipein(pipe) ? dev->ep_in : dev->ep_out;
+	return eps[usb_pipeendpoint(pipe)];
+}
+
 /*-------------------------------------------------------------------------*/
 
 static inline __u16
