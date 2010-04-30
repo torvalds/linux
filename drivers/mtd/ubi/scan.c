@@ -760,8 +760,6 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		bitflips = 1;
 	}
 
-	si->is_empty = 0;
-
 	if (!ec_corr) {
 		int image_seq;
 
@@ -892,6 +890,85 @@ adjust_mean_ec:
 }
 
 /**
+ * check_what_we_have - check what PEB were found by scanning.
+ * @ubi: UBI device description object
+ * @si: scanning information
+ *
+ * This is a helper function which takes a look what PEBs were found by
+ * scanning, and decides whether the flash is empty and should be formatted and
+ * whether there are too many corrupted PEBs and we should not attach this
+ * MTD device. Returns zero if we should proceed with attaching the MTD device,
+ * and %-EINVAL if we should not.
+ */
+static int check_what_we_have(const struct ubi_device *ubi,
+			      struct ubi_scan_info *si)
+{
+	struct ubi_scan_leb *seb;
+	int max_corr;
+
+	max_corr = ubi->peb_count - si->bad_peb_count - si->alien_peb_count;
+	max_corr = max_corr / 20 ?: 8;
+
+	/*
+	 * Few corrupted PEBs are not a problem and may be just a result of
+	 * unclean reboots. However, many of them may indicate some problems
+	 * with the flash HW or driver.
+	 */
+	if (si->corr_peb_count >= 8) {
+		ubi_warn("%d PEBs are corrupted", si->corr_peb_count);
+		printk(KERN_WARNING "corrupted PEBs are:");
+		list_for_each_entry(seb, &si->corr, u.list)
+			printk(KERN_CONT " %d", seb->pnum);
+		printk(KERN_CONT "\n");
+
+		/*
+		 * If too many PEBs are corrupted, we refuse attaching,
+		 * otherwise, only print a warning.
+		 */
+		if (si->corr_peb_count >= max_corr) {
+			ubi_err("too many corrupted PEBs, refusing this device");
+			return -EINVAL;
+		}
+	}
+
+	if (si->free_peb_count + si->used_peb_count +
+	    si->alien_peb_count == 0) {
+		/* No UBI-formatted eraseblocks were found */
+		if (si->corr_peb_count == si->read_err_count &&
+		    si->corr_peb_count < 8) {
+			/* No or just few corrupted PEBs, and all of them had a
+			 * read error. We assume that those are bad PEBs, which
+			 * were just not marked as bad so far.
+			 *
+			 * This piece of code basically tries to distinguish
+			 * between the following 2 situations:
+			 *
+			 * 1. Flash is empty, but there are few bad PEBs, which
+			 *    are not marked as bad so far, and which were read
+			 *    with error. We want to go ahead and format this
+			 *    flash. While formating, the faulty PEBs will
+			 *    probably be marked as bad.
+			 *
+			 * 2. Flash probably contains non-UBI data and we do
+			 * not want to format it and destroy possibly needed
+			 * data (e.g., consider the case when the bootloader
+			 * MTD partition was accidentally fed to UBI).
+			 */
+			si->is_empty = 1;
+			ubi_msg("empty MTD device detected");
+		} else {
+			ubi_err("MTD device possibly contains non-UBI data, "
+				"refusing it");
+			return -EINVAL;
+		}
+	}
+
+	if (si->corr_peb_count >= 0)
+		ubi_msg("corrupted PEBs will be formatted");
+	return 0;
+}
+
+/**
  * ubi_scan - scan an MTD device.
  * @ubi: UBI device description object
  *
@@ -915,7 +992,6 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	INIT_LIST_HEAD(&si->erase);
 	INIT_LIST_HEAD(&si->alien);
 	si->volumes = RB_ROOT;
-	si->is_empty = 1;
 
 	err = -ENOMEM;
 	ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
@@ -941,22 +1017,9 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	if (si->ec_count)
 		si->mean_ec = div_u64(si->ec_sum, si->ec_count);
 
-	if (si->is_empty)
-		ubi_msg("empty MTD device detected");
-
-	/*
-	 * Few corrupted PEBs are not a problem and may be just a result of
-	 * unclean reboots. However, many of them may indicate some problems
-	 * with the flash HW or driver. Print a warning in this case.
-	 */
-	if (si->corr_peb_count >= 8 ||
-	    si->corr_peb_count >= ubi->peb_count / 4) {
-		ubi_warn("%d PEBs are corrupted", si->corr_peb_count);
-		printk(KERN_WARNING "corrupted PEBs are:");
-		list_for_each_entry(seb, &si->corr, u.list)
-			printk(KERN_CONT " %d", seb->pnum);
-		printk(KERN_CONT "\n");
-	}
+	err = check_what_we_have(ubi, si);
+	if (err)
+		goto out_vidh;
 
 	/*
 	 * In case of unknown erase counter we use the mean erase counter
