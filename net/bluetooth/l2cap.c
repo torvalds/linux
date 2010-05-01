@@ -1242,6 +1242,37 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *l
 	return 0;
 }
 
+static int __l2cap_wait_ack(struct sock *sk)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	int err = 0;
+	int timeo = HZ/5;
+
+	add_wait_queue(sk->sk_sleep, &wait);
+	while ((l2cap_pi(sk)->unacked_frames > 0 && l2cap_pi(sk)->conn)) {
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		if (!timeo)
+			timeo = HZ/5;
+
+		if (signal_pending(current)) {
+			err = sock_intr_errno(timeo);
+			break;
+		}
+
+		release_sock(sk);
+		timeo = schedule_timeout(timeo);
+		lock_sock(sk);
+
+		err = sock_error(sk);
+		if (err)
+			break;
+	}
+	set_current_state(TASK_RUNNING);
+	remove_wait_queue(sk->sk_sleep, &wait);
+	return err;
+}
+
 static void l2cap_monitor_timeout(unsigned long arg)
 {
 	struct sock *sk = (void *) arg;
@@ -2059,6 +2090,9 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 
 	lock_sock(sk);
 	if (!sk->sk_shutdown) {
+		if (l2cap_pi(sk)->mode == L2CAP_MODE_ERTM)
+			err = __l2cap_wait_ack(sk);
+
 		sk->sk_shutdown = SHUTDOWN_MASK;
 		l2cap_sock_clear_timer(sk);
 		__l2cap_sock_close(sk, 0);
