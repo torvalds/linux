@@ -446,13 +446,6 @@ static void atexit_header(void)
 
 		process_buildids();
 		perf_header__write(&session->header, output, true);
-	} else {
-		int err;
-
-		err = event__synthesize_build_ids(process_synthesized_event,
-						  session);
-		if (err < 0)
-			pr_err("Couldn't synthesize build ids.\n");
 	}
 }
 

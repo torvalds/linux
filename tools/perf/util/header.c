@@ -1136,67 +1136,6 @@ int event__synthesize_build_id(struct dso *pos, u16 misc,
 	return err;
 }
 
-static int __event_synthesize_build_ids(struct list_head *head, u16 misc,
-					event__handler_t process,
-					struct machine *machine,
-					struct perf_session *session)
-{
-	struct dso *pos;
-
-	dsos__for_each_with_build_id(pos, head) {
-		int err;
-		if (!pos->hit)
-			continue;
-
-		err = event__synthesize_build_id(pos, misc, process,
-						 machine, session);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
-int event__synthesize_build_ids(event__handler_t process,
-				struct perf_session *session)
-{
-	int err = 0;
-	u16 kmisc, umisc;
-	struct machine *pos;
-	struct rb_node *nd;
-
-	if (!dsos__read_build_ids(&session->header, true))
-		return 0;
-
-	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
-		pos = rb_entry(nd, struct machine, rb_node);
-		if (machine__is_host(pos)) {
-			kmisc = PERF_RECORD_MISC_KERNEL;
-			umisc = PERF_RECORD_MISC_USER;
-		} else {
-			kmisc = PERF_RECORD_MISC_GUEST_KERNEL;
-			umisc = PERF_RECORD_MISC_GUEST_USER;
-		}
-
-		err = __event_synthesize_build_ids(&pos->kernel_dsos, kmisc,
-						   process, pos, session);
-		if (err == 0)
-			err = __event_synthesize_build_ids(&pos->user_dsos, umisc,
-							   process, pos, session);
-		if (err)
-			break;
-	}
-
-	if (err < 0) {
-		pr_debug("failed to synthesize build ids\n");
-		return err;
-	}
-
-	dsos__cache_build_ids(&session->header);
-
-	return 0;
-}
-
 int event__process_build_id(event_t *self,
 			    struct perf_session *session)
 {

@@ -122,8 +122,6 @@ int event__synthesize_build_id(struct dso *pos, u16 misc,
 			       event__handler_t process,
 			       struct machine *machine,
 			       struct perf_session *session);
-int event__synthesize_build_ids(event__handler_t process,
-				struct perf_session *session);
 int event__process_build_id(event_t *self, struct perf_session *session);
 
 #endif /* __PERF_HEADER_H */
