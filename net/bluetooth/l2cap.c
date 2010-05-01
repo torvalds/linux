@@ -1448,6 +1448,22 @@ static int l2cap_send_ack(struct l2cap_pinfo *pi)
 	return 0;
 }
 
+static int l2cap_send_srejtail(struct sock *sk)
+{
+	struct srej_list *tail;
+	u16 control;
+
+	control = L2CAP_SUPER_SELECT_REJECT;
+	control |= L2CAP_CTRL_FINAL;
+
+	tail = list_entry(SREJ_LIST(sk)->prev, struct srej_list, list);
+	control |= tail->tx_seq << L2CAP_CTRL_REQSEQ_SHIFT;
+
+	l2cap_send_sframe(l2cap_pi(sk), control);
+
+	return 0;
+}
+
 static inline int l2cap_skbuff_fromiovec(struct sock *sk, struct msghdr *msg, int len, int count, struct sk_buff *skb)
 {
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
@@ -3582,11 +3598,19 @@ static inline void l2cap_data_channel_rnrframe(struct sock *sk, u16 rx_control)
 	pi->expected_ack_seq = tx_seq;
 	l2cap_drop_acked_frames(sk);
 
-	del_timer(&pi->retrans_timer);
-	if (rx_control & L2CAP_CTRL_POLL) {
-		u16 control = L2CAP_CTRL_FINAL;
-		l2cap_send_rr_or_rnr(pi, control);
+	if (!(pi->conn_state & L2CAP_CONN_SREJ_SENT)) {
+		del_timer(&pi->retrans_timer);
+		if (rx_control & L2CAP_CTRL_POLL) {
+			u16 control = L2CAP_CTRL_FINAL;
+			l2cap_send_rr_or_rnr(pi, control);
+		}
+		return;
 	}
+
+	if (rx_control & L2CAP_CTRL_POLL)
+		l2cap_send_srejtail(sk);
+	else
+		l2cap_send_sframe(pi, L2CAP_SUPER_RCV_READY);
 }
 
 static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, struct sk_buff *skb)
