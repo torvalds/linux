@@ -797,7 +797,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	stats->rx_dropped++;
 }
 
-static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
+void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
@@ -918,6 +918,7 @@ update_stats:
 out:
 	kfree(desc);
 }
+EXPORT_SYMBOL(__orinoco_ev_rx);
 
 static void orinoco_rx(struct net_device *dev,
 		       struct hermes_rx_descriptor *desc,
@@ -1359,7 +1360,7 @@ static void orinoco_process_scan_results(struct work_struct *work)
 	spin_unlock_irqrestore(&priv->scan_lock, flags);
 }
 
-static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
+void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 	u16 infofid;
@@ -1577,6 +1578,7 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 
 	return;
 }
+EXPORT_SYMBOL(__orinoco_ev_info);
 
 static void __orinoco_ev_infdrop(struct net_device *dev, hermes_t *hw)
 {

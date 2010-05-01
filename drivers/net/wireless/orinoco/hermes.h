@@ -407,6 +407,7 @@ typedef struct hermes {
 #define HERMES_32BIT_REGSPACING	1
 	u16 inten; /* Which interrupts should be enabled? */
 	const struct hermes_ops *ops;
+	void *priv;
 } hermes_t;
 
 /* Register access convenience macros */
