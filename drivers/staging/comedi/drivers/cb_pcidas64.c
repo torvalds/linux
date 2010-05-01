@@ -107,6 +107,8 @@ TODO:
 #define PRESCALED_TIMER_BASE	10000	/*  100kHz 'prescaled' clock for slow aquisition, maybe I'll support this someday */
 #define DMA_BUFFER_SIZE 0x1000
 
+#define PCI_VENDOR_ID_COMPUTERBOARDS	0x1307
+
 /* maximum value that can be loaded into board's 24-bit counters*/
 static const int max_counter_value = 0xffffff;
 
