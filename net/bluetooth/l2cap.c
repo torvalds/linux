@@ -1400,7 +1400,7 @@ static int l2cap_ertm_send(struct sock *sk)
 		return 0;
 
 	while ((skb = sk->sk_send_head) && (!l2cap_tx_window_full(sk)) &&
-	       !(pi->conn_state & L2CAP_CONN_REMOTE_BUSY)) {
+			!(pi->conn_state & L2CAP_CONN_REMOTE_BUSY)) {
 
 		if (pi->remote_max_tx &&
 				bt_cb(skb)->retries == pi->remote_max_tx) {
@@ -1490,9 +1490,8 @@ static inline int l2cap_skbuff_fromiovec(struct sock *sk, struct msghdr *msg, in
 	struct sk_buff **frag;
 	int err, sent = 0;
 
-	if (memcpy_fromiovec(skb_put(skb, count), msg->msg_iov, count)) {
+	if (memcpy_fromiovec(skb_put(skb, count), msg->msg_iov, count))
 		return -EFAULT;
-	}
 
 	sent += count;
 	len  -= count;
@@ -3347,7 +3346,7 @@ static void l2cap_add_to_srej_queue(struct sock *sk, struct sk_buff *skb, u8 tx_
 		if (skb_queue_is_last(SREJ_QUEUE(sk), next_skb))
 			break;
 
-	} while((next_skb = skb_queue_next(SREJ_QUEUE(sk), next_skb)));
+	} while ((next_skb = skb_queue_next(SREJ_QUEUE(sk), next_skb)));
 
 	__skb_queue_tail(SREJ_QUEUE(sk), skb);
 }
@@ -3446,7 +3445,7 @@ static void l2cap_check_srej_gap(struct sock *sk, u8 tx_seq)
 	struct sk_buff *skb;
 	u16 control;
 
-	while((skb = skb_peek(SREJ_QUEUE(sk)))) {
+	while ((skb = skb_peek(SREJ_QUEUE(sk)))) {
 		if (bt_cb(skb)->tx_seq != tx_seq)
 			break;
 
@@ -3465,7 +3464,7 @@ static void l2cap_resend_srejframe(struct sock *sk, u8 tx_seq)
 	struct srej_list *l, *tmp;
 	u16 control;
 
-	list_for_each_entry_safe(l,tmp, SREJ_LIST(sk), list) {
+	list_for_each_entry_safe(l, tmp, SREJ_LIST(sk), list) {
 		if (l->tx_seq == tx_seq) {
 			list_del(&l->list);
 			kfree(l);
