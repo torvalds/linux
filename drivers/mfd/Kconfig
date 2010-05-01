@@ -374,9 +374,19 @@ config PCF50633_GPIO
 	 Say yes here if you want to include support GPIO for pins on
 	 the PCF50633 chip.
 
+config ABX500_CORE
+	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
+	default y if ARCH_U300
+	help
+	  Say yes here if you have the ABX500 Mixed Signal IC family
+	  chips. This core driver expose register access functions.
+	  Functionality specific drivers using these functions can
+	  remain unchanged when IC changes. Binding of the functions to
+	  actual register access is done by the IC core driver.
+
 config AB3100_CORE
 	bool "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
-	depends on I2C=y
+	depends on I2C=y && ABX500_CORE
 	default y if ARCH_U300
 	help
 	  Select this to enable the AB3100 Mixed Signal IC core
