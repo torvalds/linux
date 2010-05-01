@@ -1500,6 +1500,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	strcpy(t->name, "Tuner");
+	t->type = V4L2_TUNER_ANALOG_TV;
 
 	mutex_lock(&dev->lock);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
