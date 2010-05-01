@@ -3772,7 +3772,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 	struct sock *sk;
 	struct l2cap_pinfo *pi;
 	u16 control, len;
-	u8 tx_seq;
+	u8 tx_seq, req_seq, next_tx_seq_offset, req_seq_offset;
 
 	sk = l2cap_get_chan_by_scid(&conn->chan_list, cid);
 	if (!sk) {
@@ -3822,6 +3822,22 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 
 		if (l2cap_check_fcs(pi, skb))
 			goto drop;
+
+		req_seq = __get_reqseq(control);
+		req_seq_offset = (req_seq - pi->expected_ack_seq) % 64;
+		if (req_seq_offset < 0)
+			req_seq_offset += 64;
+
+		next_tx_seq_offset =
+			(pi->next_tx_seq - pi->expected_ack_seq) % 64;
+		if (next_tx_seq_offset < 0)
+			next_tx_seq_offset += 64;
+
+		/* check for invalid req-seq */
+		if (req_seq_offset > next_tx_seq_offset) {
+			l2cap_send_disconn_req(pi->conn, sk);
+			goto drop;
+		}
 
 		if (__is_iframe(control)) {
 			if (len < 4)
