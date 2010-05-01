@@ -308,7 +308,7 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 	/* If it is data, queue it up, otherwise, send it
 	 * immediately.
 	 */
-	if (SCTP_CID_DATA == chunk->chunk_hdr->type) {
+	if (sctp_chunk_is_data(chunk)) {
 		/* Is it OK to queue data chunks?  */
 		/* From 9. Termination of Association
 		 *
