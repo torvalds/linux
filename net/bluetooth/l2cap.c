@@ -1368,7 +1368,7 @@ static int l2cap_streaming_send(struct sock *sk)
 	return 0;
 }
 
-static void l2cap_retransmit_frame(struct sock *sk, u8 tx_seq)
+static void l2cap_retransmit_one_frame(struct sock *sk, u8 tx_seq)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	struct sk_buff *skb, *tx_skb;
@@ -1467,10 +1467,29 @@ static int l2cap_ertm_send(struct sock *sk)
 	return nsent;
 }
 
+static int l2cap_retransmit_frames(struct sock *sk)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	int ret;
+
+	spin_lock_bh(&pi->send_lock);
+
+	if (!skb_queue_empty(TX_QUEUE(sk)))
+		sk->sk_send_head = TX_QUEUE(sk)->next;
+
+	pi->next_tx_seq = pi->expected_ack_seq;
+	ret = l2cap_ertm_send(sk);
+
+	spin_unlock_bh(&pi->send_lock);
+
+	return ret;
+}
+
 static void l2cap_send_ack(struct l2cap_pinfo *pi)
 {
 	struct sock *sk = (struct sock *)pi;
 	u16 control = 0;
+	int nframes;
 
 	control |= pi->buffer_seq << L2CAP_CTRL_REQSEQ_SHIFT;
 
@@ -1479,10 +1498,17 @@ static void l2cap_send_ack(struct l2cap_pinfo *pi)
 		pi->conn_state |= L2CAP_CONN_RNR_SENT;
 		l2cap_send_sframe(pi, control);
 		return;
-	} else if (l2cap_ertm_send(sk) == 0) {
-		control |= L2CAP_SUPER_RCV_READY;
-		l2cap_send_sframe(pi, control);
 	}
+
+	spin_lock_bh(&pi->send_lock);
+	nframes = l2cap_ertm_send(sk);
+	spin_unlock_bh(&pi->send_lock);
+
+	if (nframes > 0)
+		return;
+
+	control |= L2CAP_SUPER_RCV_READY;
+	l2cap_send_sframe(pi, control);
 }
 
 static void l2cap_send_srejtail(struct sock *sk)
@@ -1673,8 +1699,10 @@ static inline int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, siz
 		size += buflen;
 	}
 	skb_queue_splice_tail(&sar_queue, TX_QUEUE(sk));
+	spin_lock_bh(&pi->send_lock);
 	if (sk->sk_send_head == NULL)
 		sk->sk_send_head = sar_queue.next;
+	spin_unlock_bh(&pi->send_lock);
 
 	return size;
 }
@@ -1745,8 +1773,15 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 				goto done;
 			}
 			__skb_queue_tail(TX_QUEUE(sk), skb);
+
+			if (pi->mode == L2CAP_MODE_ERTM)
+				spin_lock_bh(&pi->send_lock);
+
 			if (sk->sk_send_head == NULL)
 				sk->sk_send_head = skb;
+
+			if (pi->mode == L2CAP_MODE_ERTM)
+				spin_unlock_bh(&pi->send_lock);
 		} else {
 		/* Segment SDU into multiples PDUs */
 			err = l2cap_sar_segment_sdu(sk, msg, len);
@@ -1754,10 +1789,13 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 				goto done;
 		}
 
-		if (pi->mode == L2CAP_MODE_STREAMING)
+		if (pi->mode == L2CAP_MODE_STREAMING) {
 			err = l2cap_streaming_send(sk);
-		else
+		} else {
+			spin_lock_bh(&pi->send_lock);
 			err = l2cap_ertm_send(sk);
+			spin_unlock_bh(&pi->send_lock);
+		}
 
 		if (err >= 0)
 			err = len;
@@ -2321,6 +2359,7 @@ static inline void l2cap_ertm_init(struct sock *sk)
 
 	__skb_queue_head_init(SREJ_QUEUE(sk));
 	__skb_queue_head_init(BUSY_QUEUE(sk));
+	spin_lock_init(&l2cap_pi(sk)->send_lock);
 
 	INIT_WORK(&l2cap_pi(sk)->busy_work, l2cap_busy_work);
 }
@@ -3340,7 +3379,9 @@ static inline void l2cap_send_i_or_rr_or_rnr(struct sock *sk)
 	if (pi->conn_state & L2CAP_CONN_REMOTE_BUSY && pi->unacked_frames > 0)
 		__mod_retrans_timer();
 
+	spin_lock_bh(&pi->send_lock);
 	l2cap_ertm_send(sk);
+	spin_unlock_bh(&pi->send_lock);
 
 	if (!(pi->conn_state & L2CAP_CONN_LOCAL_BUSY) &&
 			pi->frames_sent == 0) {
@@ -3857,12 +3898,8 @@ expected:
 	if (rx_control & L2CAP_CTRL_FINAL) {
 		if (pi->conn_state & L2CAP_CONN_REJ_ACT)
 			pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
-		else {
-			if (!skb_queue_empty(TX_QUEUE(sk)))
-				sk->sk_send_head = TX_QUEUE(sk)->next;
-			pi->next_tx_seq = pi->expected_ack_seq;
-			l2cap_ertm_send(sk);
-		}
+		else
+			l2cap_retransmit_frames(sk);
 	}
 
 	err = l2cap_push_rx_skb(sk, skb, rx_control);
@@ -3907,12 +3944,8 @@ static inline void l2cap_data_channel_rrframe(struct sock *sk, u16 rx_control)
 
 		if (pi->conn_state & L2CAP_CONN_REJ_ACT)
 			pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
-		else {
-			if (!skb_queue_empty(TX_QUEUE(sk)))
-				sk->sk_send_head = TX_QUEUE(sk)->next;
-			pi->next_tx_seq = pi->expected_ack_seq;
-			l2cap_ertm_send(sk);
-		}
+		else
+			l2cap_retransmit_frames(sk);
 
 	} else {
 		if ((pi->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
@@ -3920,10 +3953,13 @@ static inline void l2cap_data_channel_rrframe(struct sock *sk, u16 rx_control)
 			__mod_retrans_timer();
 
 		pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
-		if (pi->conn_state & L2CAP_CONN_SREJ_SENT)
+		if (pi->conn_state & L2CAP_CONN_SREJ_SENT) {
 			l2cap_send_ack(pi);
-		else
+		} else {
+			spin_lock_bh(&pi->send_lock);
 			l2cap_ertm_send(sk);
+			spin_unlock_bh(&pi->send_lock);
+		}
 	}
 }
 
@@ -3940,17 +3976,10 @@ static inline void l2cap_data_channel_rejframe(struct sock *sk, u16 rx_control)
 	if (rx_control & L2CAP_CTRL_FINAL) {
 		if (pi->conn_state & L2CAP_CONN_REJ_ACT)
 			pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
-		else {
-			if (!skb_queue_empty(TX_QUEUE(sk)))
-				sk->sk_send_head = TX_QUEUE(sk)->next;
-			pi->next_tx_seq = pi->expected_ack_seq;
-			l2cap_ertm_send(sk);
-		}
+		else
+			l2cap_retransmit_frames(sk);
 	} else {
-		if (!skb_queue_empty(TX_QUEUE(sk)))
-			sk->sk_send_head = TX_QUEUE(sk)->next;
-		pi->next_tx_seq = pi->expected_ack_seq;
-		l2cap_ertm_send(sk);
+		l2cap_retransmit_frames(sk);
 
 		if (pi->conn_state & L2CAP_CONN_WAIT_F)
 			pi->conn_state |= L2CAP_CONN_REJ_ACT;
@@ -3966,8 +3995,12 @@ static inline void l2cap_data_channel_srejframe(struct sock *sk, u16 rx_control)
 	if (rx_control & L2CAP_CTRL_POLL) {
 		pi->expected_ack_seq = tx_seq;
 		l2cap_drop_acked_frames(sk);
-		l2cap_retransmit_frame(sk, tx_seq);
+		l2cap_retransmit_one_frame(sk, tx_seq);
+
+		spin_lock_bh(&pi->send_lock);
 		l2cap_ertm_send(sk);
+		spin_unlock_bh(&pi->send_lock);
+
 		if (pi->conn_state & L2CAP_CONN_WAIT_F) {
 			pi->srej_save_reqseq = tx_seq;
 			pi->conn_state |= L2CAP_CONN_SREJ_ACT;
@@ -3977,9 +4010,9 @@ static inline void l2cap_data_channel_srejframe(struct sock *sk, u16 rx_control)
 				pi->srej_save_reqseq == tx_seq)
 			pi->conn_state &= ~L2CAP_CONN_SREJ_ACT;
 		else
-			l2cap_retransmit_frame(sk, tx_seq);
+			l2cap_retransmit_one_frame(sk, tx_seq);
 	} else {
-		l2cap_retransmit_frame(sk, tx_seq);
+		l2cap_retransmit_one_frame(sk, tx_seq);
 		if (pi->conn_state & L2CAP_CONN_WAIT_F) {
 			pi->srej_save_reqseq = tx_seq;
 			pi->conn_state |= L2CAP_CONN_SREJ_ACT;

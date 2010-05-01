@@ -353,6 +353,7 @@ struct l2cap_pinfo {
 
 	__le16		sport;
 
+	spinlock_t		send_lock;
 	struct timer_list	retrans_timer;
 	struct timer_list	monitor_timer;
 	struct timer_list	ack_timer;
