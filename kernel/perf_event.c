@@ -4609,7 +4609,7 @@ err_fput_free_put_context:
 
 err_free_put_context:
 	if (err < 0)
-		kfree(event);
+		free_event(event);
 
 err_put_context:
 	if (err < 0)
