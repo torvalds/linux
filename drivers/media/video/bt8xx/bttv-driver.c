@@ -1987,11 +1987,6 @@ static int bttv_g_frequency(struct file *file, void *priv,
 {
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
-	int err;
-
-	err = v4l2_prio_check(&btv->prio, &fh->prio);
-	if (0 != err)
-		return err;
 
 	f->type = btv->radio_user ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	f->frequency = btv->freq;
