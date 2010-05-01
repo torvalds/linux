@@ -785,7 +785,6 @@ static int tvp7002_query_dv_preset(struct v4l2_subdev *sd,
 						struct v4l2_dv_preset *qpreset)
 {
 	const struct tvp7002_preset_definition *presets = tvp7002_presets;
-	struct v4l2_dv_enum_preset e_preset;
 	struct tvp7002 *device;
 	u8 progressive;
 	u32 lpfr;
@@ -828,20 +827,18 @@ static int tvp7002_query_dv_preset(struct v4l2_subdev *sd,
 		}
 
 	if (index == NUM_PRESETS) {
-		v4l2_err(sd, "querystd error, lpf = %x, cpl = %x\n",
+		v4l2_dbg(1, debug, sd, "detection failed: lpf = %x, cpl = %x\n",
 								lpfr, cpln);
-		return -EINVAL;
+		/* Could not detect a signal, so return the 'invalid' preset */
+		qpreset->preset = V4L2_DV_INVALID;
+		return 0;
 	}
-
-	if (v4l_fill_dv_preset_info(presets->preset, &e_preset))
-		return -EINVAL;
 
 	/* Set values in found preset */
 	qpreset->preset = presets->preset;
 
 	/* Update lines per frame and clocks per line info */
-	v4l2_dbg(1, debug, sd, "Current preset: %d %d",
-					e_preset.width, e_preset.height);
+	v4l2_dbg(1, debug, sd, "detected preset: %d\n", presets->preset);
 	return 0;
 }
 
