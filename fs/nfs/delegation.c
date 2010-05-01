@@ -129,21 +129,35 @@ again:
  */
 void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res)
 {
-	struct nfs_delegation *delegation = NFS_I(inode)->delegation;
-	struct rpc_cred *oldcred;
+	struct nfs_delegation *delegation;
+	struct rpc_cred *oldcred = NULL;
 
-	if (delegation == NULL)
-		return;
-	memcpy(delegation->stateid.data, res->delegation.data,
-			sizeof(delegation->stateid.data));
-	delegation->type = res->delegation_type;
-	delegation->maxsize = res->maxsize;
-	oldcred = delegation->cred;
-	delegation->cred = get_rpccred(cred);
-	clear_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags);
-	NFS_I(inode)->delegation_state = delegation->type;
-	smp_wmb();
-	put_rpccred(oldcred);
+	rcu_read_lock();
+	delegation = rcu_dereference(NFS_I(inode)->delegation);
+	if (delegation != NULL) {
+		spin_lock(&delegation->lock);
+		if (delegation->inode != NULL) {
+			memcpy(delegation->stateid.data, res->delegation.data,
+			       sizeof(delegation->stateid.data));
+			delegation->type = res->delegation_type;
+			delegation->maxsize = res->maxsize;
+			oldcred = delegation->cred;
+			delegation->cred = get_rpccred(cred);
+			clear_bit(NFS_DELEGATION_NEED_RECLAIM,
+				  &delegation->flags);
+			NFS_I(inode)->delegation_state = delegation->type;
+			spin_unlock(&delegation->lock);
+			put_rpccred(oldcred);
+			rcu_read_unlock();
+		} else {
+			/* We appear to have raced with a delegation return. */
+			spin_unlock(&delegation->lock);
+			rcu_read_unlock();
+			nfs_inode_set_delegation(inode, cred, res);
+		}
+	} else {
+		rcu_read_unlock();
+	}
 }
 
 static int nfs_do_return_delegation(struct inode *inode, struct nfs_delegation *delegation, int issync)
