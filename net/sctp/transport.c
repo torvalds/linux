@@ -195,7 +195,7 @@ static void sctp_transport_destroy(struct sctp_transport *transport)
 /* Start T3_rtx timer if it is not already running and update the heartbeat
  * timer.  This routine is called every time a DATA chunk is sent.
  */
-void sctp_transport_reset_timers(struct sctp_transport *transport, int force)
+void sctp_transport_reset_timers(struct sctp_transport *transport)
 {
 	/* RFC 2960 6.3.2 Retransmission Timer Rules
 	 *
@@ -205,7 +205,7 @@ void sctp_transport_reset_timers(struct sctp_transport *transport, int force)
 	 * address.
 	 */
 
-	if (force || !timer_pending(&transport->T3_rtx_timer))
+	if (!timer_pending(&transport->T3_rtx_timer))
 		if (!mod_timer(&transport->T3_rtx_timer,
 			       jiffies + transport->rto))
 			sctp_transport_hold(transport);

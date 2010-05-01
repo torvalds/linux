@@ -659,14 +659,6 @@ redo:
 			if (chunk->fast_retransmit == SCTP_NEED_FRTX)
 				chunk->fast_retransmit = SCTP_DONT_FRTX;
 
-			/* Force start T3-rtx timer when fast retransmitting
-			 * the earliest outstanding TSN
-			 */
-			if (!timer && fast_rtx &&
-			    ntohl(chunk->subh.data_hdr->tsn) ==
-					     asoc->ctsn_ack_point + 1)
-				timer = 2;
-
 			q->empty = 0;
 			break;
 		}
@@ -871,7 +863,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 				 * sender MUST assure that at least one T3-rtx
 				 * timer is running.
 				 */
-				sctp_transport_reset_timers(transport, 0);
+				sctp_transport_reset_timers(transport);
 			}
 			break;
 
@@ -924,8 +916,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 						    rtx_timeout, &start_timer);
 
 			if (start_timer)
-				sctp_transport_reset_timers(transport,
-							    start_timer-1);
+				sctp_transport_reset_timers(transport);
 
 			/* This can happen on COOKIE-ECHO resend.  Only
 			 * one chunk can get bundled with a COOKIE-ECHO.
@@ -1058,7 +1049,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			list_add_tail(&chunk->transmitted_list,
 				      &transport->transmitted);
 
-			sctp_transport_reset_timers(transport, 0);
+			sctp_transport_reset_timers(transport);
 
 			q->empty = 0;
 
