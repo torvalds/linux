@@ -30,6 +30,12 @@ const struct comedi_lrange range_bipolar2_5 = { 1, {BIP_RANGE(2.5)} };
 const struct comedi_lrange range_unipolar10 = { 1, {UNI_RANGE(10)} };
 const struct comedi_lrange range_unipolar5 = { 1, {UNI_RANGE(5)} };
 const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none} } };
+EXPORT_SYMBOL(range_bipolar10);
+EXPORT_SYMBOL(range_bipolar5);
+EXPORT_SYMBOL(range_bipolar2_5);
+EXPORT_SYMBOL(range_unipolar10);
+EXPORT_SYMBOL(range_unipolar5);
+EXPORT_SYMBOL(range_unknown);
 
 /*
 	COMEDI_RANGEINFO

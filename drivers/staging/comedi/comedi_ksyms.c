@@ -26,12 +26,6 @@
 #include "comedidev.h"
 
 /* for drivers */
-EXPORT_SYMBOL(range_bipolar10);
-EXPORT_SYMBOL(range_bipolar5);
-EXPORT_SYMBOL(range_bipolar2_5);
-EXPORT_SYMBOL(range_unipolar10);
-EXPORT_SYMBOL(range_unipolar5);
-EXPORT_SYMBOL(range_unknown);
 EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
 EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
 EXPORT_SYMBOL_GPL(comedi_usb_auto_config);
