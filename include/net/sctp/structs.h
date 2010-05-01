@@ -877,7 +877,33 @@ struct sctp_transport {
 
 	/* Reference counting. */
 	atomic_t refcnt;
-	int	 dead;
+	int	 dead:1,
+		/* RTO-Pending : A flag used to track if one of the DATA
+		 *		chunks sent to this address is currently being
+		 *		used to compute a RTT. If this flag is 0,
+		 *		the next DATA chunk sent to this destination
+		 *		should be used to compute a RTT and this flag
+		 *		should be set. Every time the RTT
+		 *		calculation completes (i.e. the DATA chunk
+		 *		is SACK'd) clear this flag.
+		 */
+		 rto_pending:1,
+
+		/*
+		 * hb_sent : a flag that signals that we have a pending
+		 * heartbeat.
+		 */
+		hb_sent:1,
+
+		/* Flag to track the current fast recovery state */
+		fast_recovery:1,
+
+		/* Is the Path MTU update pending on this tranport */
+		pmtu_pending:1,
+
+		/* Is this structure kfree()able? */
+		malloced:1;
+
 
 	/* This is the peer's IP address and port. */
 	union sctp_addr ipaddr;
@@ -906,22 +932,6 @@ struct sctp_transport {
 
 	/* SRTT	       : The current smoothed round trip time.	*/
 	__u32 srtt;
-
-	/* RTO-Pending : A flag used to track if one of the DATA
-	 *		chunks sent to this address is currently being
-	 *		used to compute a RTT. If this flag is 0,
-	 *		the next DATA chunk sent to this destination
-	 *		should be used to compute a RTT and this flag
-	 *		should be set. Every time the RTT
-	 *		calculation completes (i.e. the DATA chunk
-	 *		is SACK'd) clear this flag.
-	 * hb_sent : a flag that signals that we have a pending heartbeat.
-	 */
-	__u8 rto_pending;
-	__u8 hb_sent;
-
-	/* Flag to track the current fast recovery state */
-	__u8 fast_recovery;
 
 	/*
 	 * These are the congestion stats.
@@ -975,9 +985,6 @@ struct sctp_transport {
 	 */
 	__u16 pathmaxrxt;
 
-	/* is the Path MTU update pending on this tranport */
-	__u8 pmtu_pending;
-
 	/* PMTU	      : The current known path MTU.  */
 	__u32 pathmtu;
 
@@ -1020,8 +1027,6 @@ struct sctp_transport {
 
 	/* This is the list of transports that have chunks to send.  */
 	struct list_head send_ready;
-
-	int malloced; /* Is this structure kfree()able? */
 
 	/* State information saved for SFR_CACC algorithm. The key
 	 * idea in SFR_CACC is to maintain state at the sender on a
