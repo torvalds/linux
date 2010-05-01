@@ -16,6 +16,8 @@ endchoice
 config ARCH_MSM_ARM11
 	bool
 
+config  MSM_VIC
+	bool
 
 comment "MSM Board Type"
 	depends on ARCH_MSM

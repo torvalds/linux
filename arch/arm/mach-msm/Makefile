@@ -1,8 +1,14 @@
-obj-y += io.o idle.o irq.o timer.o dma.o
 obj-y += proc_comm.o
+obj-y += io.o idle.o timer.o dma.o
 obj-y += vreg.o
 obj-y += acpuclock-arm11.o
 obj-y += clock.o clock-pcom.o
+
+ifdef CONFIG_MSM_VIC
+obj-y += irq-vic.o
+else
+obj-y += irq.o
+endif
 
 obj-$(CONFIG_MSM_SMD) += smd.o smd_debug.o
 obj-$(CONFIG_MSM_SMD) += last_radio_log.o
