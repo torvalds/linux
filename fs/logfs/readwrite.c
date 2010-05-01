@@ -892,6 +892,8 @@ u64 logfs_seek_hole(struct inode *inode, u64 bix)
 		return bix;
 	else if (li->li_data[INDIRECT_INDEX] & LOGFS_FULLY_POPULATED)
 		bix = maxbix(li->li_height);
+	else if (bix >= maxbix(li->li_height))
+		return bix;
 	else {
 		bix = seek_holedata_loop(inode, bix, 0);
 		if (bix < maxbix(li->li_height))
