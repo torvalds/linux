@@ -62,7 +62,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				   struct list_head *transmitted_queue,
 				   struct sctp_transport *transport,
 				   struct sctp_sackhdr *sack,
-				   __u32 highest_new_tsn);
+				   __u32 *highest_new_tsn);
 
 static void sctp_mark_missing(struct sctp_outq *q,
 			      struct list_head *transmitted_queue,
@@ -1109,32 +1109,6 @@ static void sctp_sack_update_unack_data(struct sctp_association *assoc,
 	assoc->unack_data = unack_data;
 }
 
-/* Return the highest new tsn that is acknowledged by the given SACK chunk. */
-static __u32 sctp_highest_new_tsn(struct sctp_sackhdr *sack,
-				  struct sctp_association *asoc)
-{
-	struct sctp_transport *transport;
-	struct sctp_chunk *chunk;
-	__u32 highest_new_tsn, tsn;
-	struct list_head *transport_list = &asoc->peer.transport_addr_list;
-
-	highest_new_tsn = ntohl(sack->cum_tsn_ack);
-
-	list_for_each_entry(transport, transport_list, transports) {
-		list_for_each_entry(chunk, &transport->transmitted,
-				transmitted_list) {
-			tsn = ntohl(chunk->subh.data_hdr->tsn);
-
-			if (!chunk->tsn_gap_acked &&
-			    TSN_lt(highest_new_tsn, tsn) &&
-			    sctp_acked(sack, tsn))
-				highest_new_tsn = tsn;
-		}
-	}
-
-	return highest_new_tsn;
-}
-
 /* This is where we REALLY process a SACK.
  *
  * Process the SACK against the outqueue.  Mostly, this just frees
@@ -1203,18 +1177,15 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	if (gap_ack_blocks)
 		highest_tsn += ntohs(frags[gap_ack_blocks - 1].gab.end);
 
-	if (TSN_lt(asoc->highest_sacked, highest_tsn)) {
-		highest_new_tsn = highest_tsn;
+	if (TSN_lt(asoc->highest_sacked, highest_tsn))
 		asoc->highest_sacked = highest_tsn;
-	} else {
-		highest_new_tsn = sctp_highest_new_tsn(sack, asoc);
-	}
 
+	highest_new_tsn = sack_ctsn;
 
 	/* Run through the retransmit queue.  Credit bytes received
 	 * and free those chunks that we can.
 	 */
-	sctp_check_transmitted(q, &q->retransmit, NULL, sack, highest_new_tsn);
+	sctp_check_transmitted(q, &q->retransmit, NULL, sack, &highest_new_tsn);
 
 	/* Run through the transmitted queue.
 	 * Credit bytes received and free those chunks which we can.
@@ -1223,7 +1194,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	 */
 	list_for_each_entry(transport, transport_list, transports) {
 		sctp_check_transmitted(q, &transport->transmitted,
-				       transport, sack, highest_new_tsn);
+				       transport, sack, &highest_new_tsn);
 		/*
 		 * SFR-CACC algorithm:
 		 * C) Let count_of_newacks be the number of
@@ -1331,7 +1302,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				   struct list_head *transmitted_queue,
 				   struct sctp_transport *transport,
 				   struct sctp_sackhdr *sack,
-				   __u32 highest_new_tsn_in_sack)
+				   __u32 *highest_new_tsn_in_sack)
 {
 	struct list_head *lchunk;
 	struct sctp_chunk *tchunk;
@@ -1419,6 +1390,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			 */
 			if (!tchunk->tsn_gap_acked) {
 				tchunk->tsn_gap_acked = 1;
+				*highest_new_tsn_in_sack = tsn;
 				bytes_acked += sctp_data_size(tchunk);
 				if (!tchunk->transport)
 					migrate_bytes += sctp_data_size(tchunk);
