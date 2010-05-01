@@ -869,7 +869,7 @@ static int vpif_release(struct file *filep)
 	mutex_unlock(&common->lock);
 
 	/* Close the priority */
-	v4l2_prio_close(&ch->prio, &fh->prio);
+	v4l2_prio_close(&ch->prio, fh->prio);
 
 	if (fh->initialized)
 		ch->initialized = 0;
@@ -1444,7 +1444,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 		}
 	}
 
-	ret = v4l2_prio_check(&ch->prio, &fh->prio);
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
 	if (0 != ret)
 		return ret;
 
@@ -1554,7 +1554,7 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 		}
 	}
 
-	ret = v4l2_prio_check(&ch->prio, &fh->prio);
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
 	if (0 != ret)
 		return ret;
 
@@ -1710,7 +1710,7 @@ static int vpif_s_fmt_vid_cap(struct file *file, void *priv,
 		}
 	}
 
-	ret = v4l2_prio_check(&ch->prio, &fh->prio);
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
 	if (0 != ret)
 		return ret;
 

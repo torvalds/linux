@@ -203,7 +203,7 @@ static int video_release(struct file *file)
 
 	videobuf_mmap_free(&fh->vidq);
 
-	v4l2_prio_close(&dev->prio, &fh->prio);
+	v4l2_prio_close(&dev->prio, fh->prio);
 
 	file->private_data = NULL;
 	kfree(fh);
@@ -258,7 +258,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	int err;
 
 	if (fh) {
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -350,7 +350,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 	if (fh) {
 		dev = fh->dev;
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}

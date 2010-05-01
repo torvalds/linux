@@ -277,7 +277,7 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	int ret;
 	int w, h;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -306,7 +306,7 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -341,7 +341,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	int ret;
 	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -549,7 +549,7 @@ static int cx18_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -601,7 +601,7 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -647,7 +647,7 @@ int cx18_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -675,7 +675,7 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 
@@ -715,7 +715,7 @@ static int cx18_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	struct cx18 *cx = id->cx;
 	int ret;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 

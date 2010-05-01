@@ -88,10 +88,9 @@ MODULE_LICENSE("GPL");
 			      val == V4L2_PRIORITY_INTERACTIVE  || \
 			      val == V4L2_PRIORITY_RECORD)
 
-int v4l2_prio_init(struct v4l2_prio_state *global)
+void v4l2_prio_init(struct v4l2_prio_state *global)
 {
-	memset(global,0,sizeof(*global));
-	return 0;
+	memset(global, 0, sizeof(*global));
 }
 EXPORT_SYMBOL(v4l2_prio_init);
 
@@ -111,17 +110,16 @@ int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
 }
 EXPORT_SYMBOL(v4l2_prio_change);
 
-int v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local)
+void v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local)
 {
-	return v4l2_prio_change(global,local,V4L2_PRIORITY_DEFAULT);
+	v4l2_prio_change(global, local, V4L2_PRIORITY_DEFAULT);
 }
 EXPORT_SYMBOL(v4l2_prio_open);
 
-int v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority *local)
+void v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority local)
 {
-	if (V4L2_PRIO_VALID(*local))
-		atomic_dec(&global->prios[*local]);
-	return 0;
+	if (V4L2_PRIO_VALID(local))
+		atomic_dec(&global->prios[local]);
 }
 EXPORT_SYMBOL(v4l2_prio_close);
 
@@ -137,11 +135,9 @@ enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global)
 }
 EXPORT_SYMBOL(v4l2_prio_max);
 
-int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority *local)
+int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority local)
 {
-	if (*local < v4l2_prio_max(global))
-		return -EBUSY;
-	return 0;
+	return (local < v4l2_prio_max(global)) ? -EBUSY : 0;
 }
 EXPORT_SYMBOL(v4l2_prio_check);
 

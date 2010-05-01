@@ -853,7 +853,7 @@ int ivtv_v4l2_close(struct file *filp)
 
 	IVTV_DEBUG_FILE("close %s\n", s->name);
 
-	v4l2_prio_close(&itv->prio, &id->prio);
+	v4l2_prio_close(&itv->prio, id->prio);
 	v4l2_fh_del(fh);
 	v4l2_fh_exit(fh);
 

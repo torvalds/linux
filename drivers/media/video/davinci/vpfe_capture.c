@@ -736,7 +736,7 @@ static int vpfe_release(struct file *file)
 	/* Decrement device usrs counter */
 	vpfe_dev->usrs--;
 	/* Close the priority */
-	v4l2_prio_close(&vpfe_dev->prio, &fh->prio);
+	v4l2_prio_close(&vpfe_dev->prio, fh->prio);
 	/* If this is the last file handle */
 	if (!vpfe_dev->usrs) {
 		vpfe_dev->initialized = 0;

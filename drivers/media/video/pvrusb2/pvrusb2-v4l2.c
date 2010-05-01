@@ -183,7 +183,7 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_S_INPUT:
 	case VIDIOC_S_TUNER:
 	case VIDIOC_S_FREQUENCY:
-		ret = v4l2_prio_check(&vp->prio, &fh->prio);
+		ret = v4l2_prio_check(&vp->prio, fh->prio);
 		if (ret)
 			return ret;
 	}
@@ -972,7 +972,7 @@ static int pvr2_v4l2_release(struct file *file)
 		fhp->rhp = NULL;
 	}
 
-	v4l2_prio_close(&vp->prio, &fhp->prio);
+	v4l2_prio_close(&vp->prio, fhp->prio);
 	file->private_data = NULL;
 
 	if (fhp->vnext) {
@@ -1093,7 +1093,7 @@ static int pvr2_v4l2_open(struct file *file)
 
 	fhp->file = file;
 	file->private_data = fhp;
-	v4l2_prio_open(&vp->prio,&fhp->prio);
+	v4l2_prio_open(&vp->prio, &fhp->prio);
 
 	fhp->fw_mode_flag = pvr2_hdw_cpufw_get_enabled(hdw);
 

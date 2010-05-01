@@ -671,7 +671,7 @@ static int vpif_release(struct file *filep)
 		ch->initialized = 0;
 
 	/* Close the priority */
-	v4l2_prio_close(&ch->prio, &fh->prio);
+	v4l2_prio_close(&ch->prio, fh->prio);
 	filep->private_data = NULL;
 	fh->initialized = 0;
 	kfree(fh);
@@ -753,7 +753,7 @@ static int vpif_s_fmt_vid_out(struct file *file, void *priv,
 		}
 
 		/* Check for the priority */
-		ret = v4l2_prio_check(&ch->prio, &fh->prio);
+		ret = v4l2_prio_check(&ch->prio, fh->prio);
 		if (0 != ret)
 			return ret;
 		fh->initialized = 1;

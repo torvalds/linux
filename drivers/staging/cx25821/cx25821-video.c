@@ -846,7 +846,7 @@ int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id * tvnorms)
 	dprintk(1, "%s()\n", __func__);
 
 	if (fh) {
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -916,7 +916,7 @@ int cx25821_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	dprintk(1, "%s(%d)\n", __func__, i);
 
 	if (fh) {
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -967,8 +967,7 @@ int cx25821_vidioc_s_frequency(struct file *file, void *priv, struct v4l2_freque
 	int err;
 
 	if (fh) {
-		dev = fh->dev;
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -1032,7 +1031,7 @@ int cx25821_vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	int err;
 
 	if (fh) {
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -1240,7 +1239,7 @@ int cx25821_vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 	int err;
 
 	if (fh) {
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
