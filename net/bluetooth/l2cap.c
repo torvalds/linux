@@ -3494,7 +3494,9 @@ expected:
 static inline void l2cap_data_channel_rrframe(struct sock *sk, u16 rx_control)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
-	u8 tx_seq = __get_reqseq(rx_control);
+
+	pi->expected_ack_seq = __get_reqseq(rx_control);
+	l2cap_drop_acked_frames(sk);
 
 	if (rx_control & L2CAP_CTRL_POLL) {
 		l2cap_send_i_or_rr_or_rnr(sk);
@@ -3502,8 +3504,6 @@ static inline void l2cap_data_channel_rrframe(struct sock *sk, u16 rx_control)
 
 	} else if (rx_control & L2CAP_CTRL_FINAL) {
 		pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
-		pi->expected_ack_seq = tx_seq;
-		l2cap_drop_acked_frames(sk);
 
 		if (pi->conn_state & L2CAP_CONN_REJ_ACT)
 			pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
@@ -3514,9 +3514,6 @@ static inline void l2cap_data_channel_rrframe(struct sock *sk, u16 rx_control)
 		}
 
 	} else {
-		pi->expected_ack_seq = tx_seq;
-		l2cap_drop_acked_frames(sk);
-
 		if ((pi->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
 				(pi->unacked_frames > 0))
 			__mod_retrans_timer();
