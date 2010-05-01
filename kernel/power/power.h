@@ -97,23 +97,11 @@ extern int hibernate_preallocate_memory(void);
  */
 
 struct snapshot_handle {
-	loff_t		offset;	/* number of the last byte ready for reading
-				 * or writing in the sequence
-				 */
 	unsigned int	cur;	/* number of the block of PAGE_SIZE bytes the
 				 * next operation will refer to (ie. current)
 				 */
-	unsigned int	cur_offset;	/* offset with respect to the current
-					 * block (for the next operation)
-					 */
-	unsigned int	prev;	/* number of the block of PAGE_SIZE bytes that
-				 * was the current one previously
-				 */
 	void		*buffer;	/* address of the block to read from
 					 * or write to
-					 */
-	unsigned int	buf_offset;	/* location to read from or write to,
-					 * given as a displacement from 'buffer'
 					 */
 	int		sync_read;	/* Set to one to notify the caller of
 					 * snapshot_write_next() that it may
@@ -125,12 +113,12 @@ struct snapshot_handle {
  * snapshot_read_next()/snapshot_write_next() is allowed to
  * read/write data after the function returns
  */
-#define data_of(handle)	((handle).buffer + (handle).buf_offset)
+#define data_of(handle)	((handle).buffer)
 
 extern unsigned int snapshot_additional_pages(struct zone *zone);
 extern unsigned long snapshot_get_image_size(void);
-extern int snapshot_read_next(struct snapshot_handle *handle, size_t count);
-extern int snapshot_write_next(struct snapshot_handle *handle, size_t count);
+extern int snapshot_read_next(struct snapshot_handle *handle);
+extern int snapshot_write_next(struct snapshot_handle *handle);
 extern void snapshot_write_finalize(struct snapshot_handle *handle);
 extern int snapshot_image_loaded(struct snapshot_handle *handle);
 

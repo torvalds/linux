@@ -431,7 +431,7 @@ static int save_image(struct swap_map_handle *handle,
 	bio = NULL;
 	do_gettimeofday(&start);
 	while (1) {
-		ret = snapshot_read_next(snapshot, PAGE_SIZE);
+		ret = snapshot_read_next(snapshot);
 		if (ret <= 0)
 			break;
 		ret = swap_write_page(handle, data_of(*snapshot), &bio);
@@ -492,7 +492,7 @@ int swsusp_write(unsigned int flags)
 		return error;
 	}
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
-	error = snapshot_read_next(&snapshot, PAGE_SIZE);
+	error = snapshot_read_next(&snapshot);
 	if (error < PAGE_SIZE) {
 		if (error >= 0)
 			error = -EFAULT;
@@ -615,7 +615,7 @@ static int load_image(struct swap_map_handle *handle,
 	bio = NULL;
 	do_gettimeofday(&start);
 	for ( ; ; ) {
-		error = snapshot_write_next(snapshot, PAGE_SIZE);
+		error = snapshot_write_next(snapshot);
 		if (error <= 0)
 			break;
 		error = swap_read_page(handle, data_of(*snapshot), &bio);
@@ -660,7 +660,7 @@ int swsusp_read(unsigned int *flags_p)
 	*flags_p = swsusp_header->flags;
 
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
-	error = snapshot_write_next(&snapshot, PAGE_SIZE);
+	error = snapshot_write_next(&snapshot);
 	if (error < PAGE_SIZE)
 		return error < 0 ? error : -EFAULT;
 	header = (struct swsusp_info *)data_of(snapshot);
