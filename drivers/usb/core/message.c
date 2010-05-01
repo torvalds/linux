@@ -413,7 +413,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 					sg->length;
 			}
 		}
-		io->urbs[0]->sg = io;
+		io->urbs[0]->sg = sg;
 		io->urbs[0]->num_sgs = io->entries;
 		io->entries = 1;
 	} else {
@@ -454,7 +454,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 			}
 			io->urbs[i]->transfer_buffer_length = len;
 
-			io->urbs[i]->sg = (struct usb_sg_request *) sg;
+			io->urbs[i]->sg = sg;
 		}
 		io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 	}

@@ -1195,7 +1195,7 @@ struct urb {
 	unsigned int transfer_flags;	/* (in) URB_SHORT_NOT_OK | ...*/
 	void *transfer_buffer;		/* (in) associated data buffer */
 	dma_addr_t transfer_dma;	/* (in) dma addr for transfer_buffer */
-	struct usb_sg_request *sg;	/* (in) scatter gather buffer list */
+	struct scatterlist *sg;		/* (in) scatter gather buffer list */
 	int num_sgs;			/* (in) number of entries in the sg list */
 	u32 transfer_buffer_length;	/* (in) data buffer length */
 	u32 actual_length;		/* (return) actual transfer length */

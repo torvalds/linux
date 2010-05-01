@@ -1788,7 +1788,7 @@ static unsigned int count_sg_trbs_needed(struct xhci_hcd *xhci, struct urb *urb)
 
 	xhci_dbg(xhci, "count sg list trbs: \n");
 	num_trbs = 0;
-	for_each_sg(urb->sg->sg, sg, num_sgs, i) {
+	for_each_sg(urb->sg, sg, num_sgs, i) {
 		unsigned int previous_total_trbs = num_trbs;
 		unsigned int len = sg_dma_len(sg);
 
@@ -1951,7 +1951,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 *    the amount of memory allocated for this scatter-gather list.
 	 * 3. TRBs buffers can't cross 64KB boundaries.
 	 */
-	sg = urb->sg->sg;
+	sg = urb->sg;
 	addr = (u64) sg_dma_address(sg);
 	this_sg_len = sg_dma_len(sg);
 	trb_buff_len = TRB_MAX_BUFF_SIZE -

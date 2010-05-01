@@ -422,7 +422,7 @@ static unsigned int mon_bin_get_data(const struct mon_reader_bin *rp,
 		}
 
 		/* Copy up to the first non-addressable segment */
-		for_each_sg(urb->sg->sg, sg, urb->num_sgs, i) {
+		for_each_sg(urb->sg, sg, urb->num_sgs, i) {
 			if (length == 0 || PageHighMem(sg_page(sg)))
 				break;
 			this_len = min_t(unsigned int, sg->length, length);

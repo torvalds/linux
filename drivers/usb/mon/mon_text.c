@@ -159,7 +159,7 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 		if (src == NULL)
 			return 'Z';	/* '0' would be not as pretty. */
 	} else {
-		struct scatterlist *sg = urb->sg->sg;
+		struct scatterlist *sg = urb->sg;
 
 		if (PageHighMem(sg_page(sg)))
 			return 'D';
