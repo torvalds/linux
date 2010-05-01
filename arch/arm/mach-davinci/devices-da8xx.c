@@ -326,7 +326,7 @@ static struct resource da8xx_watchdog_resources[] = {
 	},
 };
 
-struct platform_device davinci_wdt_device = {
+struct platform_device da8xx_wdt_device = {
 	.name		= "watchdog",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(da8xx_watchdog_resources),
@@ -335,7 +335,7 @@ struct platform_device davinci_wdt_device = {
 
 int __init da8xx_register_watchdog(void)
 {
-	return platform_device_register(&davinci_wdt_device);
+	return platform_device_register(&da8xx_wdt_device);
 }
 
 static struct resource da8xx_emac_resources[] = {

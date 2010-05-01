@@ -70,6 +70,8 @@ struct davinci_soc_info {
 	struct emac_platform_data	*emac_pdata;
 	dma_addr_t			sram_dma;
 	unsigned			sram_len;
+	struct platform_device		*reset_device;
+	void				(*reset)(struct platform_device *);
 };
 
 extern struct davinci_soc_info davinci_soc_info;

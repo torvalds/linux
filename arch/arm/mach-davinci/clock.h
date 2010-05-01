@@ -120,6 +120,7 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 				unsigned int mult, unsigned int postdiv);
 
 extern struct platform_device davinci_wdt_device;
+extern void davinci_watchdog_reset(struct platform_device *);
 
 #endif
 

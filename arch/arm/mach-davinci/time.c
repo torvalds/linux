@@ -399,12 +399,15 @@ struct sys_timer davinci_timer = {
 
 
 /* reset board using watchdog timer */
-void davinci_watchdog_reset(void)
+void davinci_watchdog_reset(struct platform_device *pdev)
 {
 	u32 tgcr, wdtcr;
-	struct platform_device *pdev = &davinci_wdt_device;
-	void __iomem *base = IO_ADDRESS(pdev->resource[0].start);
+	void __iomem *base;
 	struct clk *wd_clk;
+
+	base = ioremap(pdev->resource[0].start, SZ_4K);
+	if (WARN_ON(!base))
+		return;
 
 	wd_clk = clk_get(&pdev->dev, NULL);
 	if (WARN_ON(IS_ERR(wd_clk)))
