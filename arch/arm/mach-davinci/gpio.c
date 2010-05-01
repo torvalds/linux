@@ -71,11 +71,7 @@ static int __init davinci_gpio_irq_setup(void);
 
 /*--------------------------------------------------------------------------*/
 
-/*
- * board setup code *MUST* set PINMUX0 and PINMUX1 as
- * needed, and enable the GPIO clock.
- */
-
+/* board setup code *MUST* setup pinmux and enable the GPIO clock. */
 static inline int __davinci_direction(struct gpio_chip *chip,
 			unsigned offset, bool out, int value)
 {

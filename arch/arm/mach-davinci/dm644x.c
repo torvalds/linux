@@ -350,9 +350,6 @@ static struct platform_device dm644x_emac_device = {
        .resource	= dm644x_emac_resources,
 };
 
-#define PINMUX0		0x00
-#define PINMUX1		0x04
-
 /*
  * Device specific mux setup
  *

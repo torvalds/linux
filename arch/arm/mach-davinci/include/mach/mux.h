@@ -1174,6 +1174,8 @@ enum davinci_tnetv107x_index {
 	TNETV107X_TDM0_RX,
 };
 
+#define PINMUX(x)		(4 * (x))
+
 #ifdef CONFIG_DAVINCI_MUX
 /* setup pin muxing */
 extern int davinci_cfg_reg(unsigned long reg_cfg);

@@ -450,11 +450,6 @@ void __init dm355_init_spi0(unsigned chipselect_mask,
 
 /*----------------------------------------------------------------------*/
 
-#define PINMUX0		0x00
-#define PINMUX1		0x04
-#define PINMUX2		0x08
-#define PINMUX3		0x0c
-#define PINMUX4		0x10
 #define INTMUX		0x18
 #define EVTMUX		0x1c
 
