@@ -2495,7 +2495,6 @@ done:
 			break;
 
 		case L2CAP_MODE_STREAMING:
-			pi->remote_tx_win = rfc.txwin_size;
 			pi->max_pdu_size = rfc.max_pdu_size;
 
 			pi->conf_state |= L2CAP_CONF_MODE_DONE;
