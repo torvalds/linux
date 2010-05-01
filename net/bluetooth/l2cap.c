@@ -55,7 +55,11 @@
 
 #define VERSION "2.14"
 
+#ifdef CONFIG_BT_L2CAP_EXT_FEATURES
+static int enable_ertm = 1;
+#else
 static int enable_ertm = 0;
+#endif
 static int max_transmit = L2CAP_DEFAULT_MAX_TX;
 static int tx_window = L2CAP_DEFAULT_TX_WINDOW;
 
