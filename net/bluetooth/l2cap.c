@@ -1611,11 +1611,6 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	if (msg->msg_flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
-	/* Check outgoing MTU */
-	if (sk->sk_type == SOCK_SEQPACKET && pi->mode == L2CAP_MODE_BASIC &&
-	    len > pi->omtu)
-		return -EINVAL;
-
 	lock_sock(sk);
 
 	if (sk->sk_state != BT_CONNECTED) {
@@ -1635,6 +1630,12 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 
 	switch (pi->mode) {
 	case L2CAP_MODE_BASIC:
+		/* Check outgoing MTU */
+		if (len > pi->omtu) {
+			err = -EINVAL;
+			goto done;
+		}
+
 		/* Create a basic PDU */
 		skb = l2cap_create_basic_pdu(sk, msg, len);
 		if (IS_ERR(skb)) {
