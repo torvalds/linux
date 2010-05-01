@@ -39,6 +39,13 @@ static const struct file_operations sta_ ##name## _ops = {		\
 	.open = mac80211_open_file_generic,				\
 }
 
+#define STA_OPS_RW(name)						\
+static const struct file_operations sta_ ##name## _ops = {		\
+	.read = sta_##name##_read,					\
+	.write = sta_##name##_write,					\
+	.open = mac80211_open_file_generic,				\
+}
+
 #define STA_FILE(name, field, format)					\
 		STA_READ_##format(name, field)				\
 		STA_OPS(name)
@@ -156,7 +163,63 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 }
-STA_OPS(agg_status);
+
+static ssize_t sta_agg_status_write(struct file *file, const char __user *userbuf,
+				    size_t count, loff_t *ppos)
+{
+	char _buf[12], *buf = _buf;
+	struct sta_info *sta = file->private_data;
+	bool start, tx;
+	unsigned long tid;
+	int ret;
+
+	if (count > sizeof(_buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	buf[sizeof(_buf) - 1] = '\0';
+
+	if (strncmp(buf, "tx ", 3) == 0) {
+		buf += 3;
+		tx = true;
+	} else if (strncmp(buf, "rx ", 3) == 0) {
+		buf += 3;
+		tx = false;
+	} else
+		return -EINVAL;
+
+	if (strncmp(buf, "start ", 6) == 0) {
+		buf += 6;
+		start = true;
+		if (!tx)
+			return -EINVAL;
+	} else if (strncmp(buf, "stop ", 5) == 0) {
+		buf += 5;
+		start = false;
+	} else
+		return -EINVAL;
+
+	tid = simple_strtoul(buf, NULL, 0);
+
+	if (tid >= STA_TID_NUM)
+		return -EINVAL;
+
+	if (tx) {
+		if (start)
+			ret = ieee80211_start_tx_ba_session(&sta->sta, tid);
+		else
+			ret = ieee80211_stop_tx_ba_session(&sta->sta, tid,
+							   WLAN_BACK_RECIPIENT);
+	} else {
+		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT, 3);
+		ret = 0;
+	}
+
+	return ret ?: count;
+}
+STA_OPS_RW(agg_status);
 
 static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 				size_t count, loff_t *ppos)
