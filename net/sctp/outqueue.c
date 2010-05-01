@@ -1154,6 +1154,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	struct sctp_transport *primary = asoc->peer.primary_path;
 	int count_of_newacks = 0;
 	int gap_ack_blocks;
+	u8 accum_moved = 0;
 
 	/* Grab the association's destination address list. */
 	transport_list = &asoc->peer.transport_addr_list;
@@ -1232,15 +1233,21 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 			count_of_newacks ++;
 	}
 
+	/* Move the Cumulative TSN Ack Point if appropriate.  */
+	if (TSN_lt(asoc->ctsn_ack_point, sack_ctsn)) {
+		asoc->ctsn_ack_point = sack_ctsn;
+		accum_moved = 1;
+	}
+
 	if (gap_ack_blocks) {
+
+		if (asoc->fast_recovery && accum_moved)
+			highest_new_tsn = highest_tsn;
+
 		list_for_each_entry(transport, transport_list, transports)
 			sctp_mark_missing(q, &transport->transmitted, transport,
 					  highest_new_tsn, count_of_newacks);
 	}
-
-	/* Move the Cumulative TSN Ack Point if appropriate.  */
-	if (TSN_lt(asoc->ctsn_ack_point, sack_ctsn))
-		asoc->ctsn_ack_point = sack_ctsn;
 
 	/* Update unack_data field in the assoc. */
 	sctp_sack_update_unack_data(asoc, sack);
@@ -1685,7 +1692,8 @@ static void sctp_mark_missing(struct sctp_outq *q,
 	struct sctp_chunk *chunk;
 	__u32 tsn;
 	char do_fast_retransmit = 0;
-	struct sctp_transport *primary = q->asoc->peer.primary_path;
+	struct sctp_association *asoc = q->asoc;
+	struct sctp_transport *primary = asoc->peer.primary_path;
 
 	list_for_each_entry(chunk, transmitted_queue, transmitted_list) {
 
