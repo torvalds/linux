@@ -881,20 +881,24 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name)
 	return comedi_auto_config(&pcidev->dev, board_name,
 				  options, ARRAY_SIZE(options));
 }
+EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
 
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
 {
 	comedi_auto_unconfig(&pcidev->dev);
 }
+EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
 
 int comedi_usb_auto_config(struct usb_device *usbdev, const char *board_name)
 {
 	BUG_ON(usbdev == NULL);
 	return comedi_auto_config(&usbdev->dev, board_name, NULL, 0);
 }
+EXPORT_SYMBOL_GPL(comedi_usb_auto_config);
 
 void comedi_usb_auto_unconfig(struct usb_device *usbdev)
 {
 	BUG_ON(usbdev == NULL);
 	comedi_auto_unconfig(&usbdev->dev);
 }
+EXPORT_SYMBOL_GPL(comedi_usb_auto_unconfig);
