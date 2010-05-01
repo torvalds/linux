@@ -3475,120 +3475,146 @@ expected:
 	return 0;
 }
 
-static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, struct sk_buff *skb)
+static inline void l2cap_data_channel_rrframe(struct sock *sk, u16 rx_control)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	u8 tx_seq = __get_reqseq(rx_control);
 
+	if (rx_control & L2CAP_CTRL_POLL) {
+		l2cap_send_i_or_rr_or_rnr(sk);
+		pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
+
+	} else if (rx_control & L2CAP_CTRL_FINAL) {
+		pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
+		pi->expected_ack_seq = tx_seq;
+		l2cap_drop_acked_frames(sk);
+
+		if (pi->conn_state & L2CAP_CONN_REJ_ACT)
+			pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
+		else {
+			sk->sk_send_head = TX_QUEUE(sk)->next;
+			pi->next_tx_seq = pi->expected_ack_seq;
+			l2cap_ertm_send(sk);
+		}
+
+	} else {
+		pi->expected_ack_seq = tx_seq;
+		l2cap_drop_acked_frames(sk);
+
+		if ((pi->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
+				(pi->unacked_frames > 0))
+			__mod_retrans_timer();
+
+		pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
+		if (pi->conn_state & L2CAP_CONN_SREJ_SENT)
+			l2cap_send_ack(pi);
+		else
+			l2cap_ertm_send(sk);
+	}
+}
+
+static inline void l2cap_data_channel_rejframe(struct sock *sk, u16 rx_control)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	u8 tx_seq = __get_reqseq(rx_control);
+
+	pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
+
+	pi->expected_ack_seq = __get_reqseq(rx_control);
+	l2cap_drop_acked_frames(sk);
+
+	if (rx_control & L2CAP_CTRL_FINAL) {
+		if (pi->conn_state & L2CAP_CONN_REJ_ACT)
+			pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
+		else {
+			sk->sk_send_head = TX_QUEUE(sk)->next;
+			pi->next_tx_seq = pi->expected_ack_seq;
+			l2cap_ertm_send(sk);
+		}
+	} else {
+		sk->sk_send_head = TX_QUEUE(sk)->next;
+		pi->next_tx_seq = pi->expected_ack_seq;
+		l2cap_ertm_send(sk);
+
+		if (pi->conn_state & L2CAP_CONN_WAIT_F) {
+			pi->srej_save_reqseq = tx_seq;
+			pi->conn_state |= L2CAP_CONN_REJ_ACT;
+		}
+	}
+}
+static inline void l2cap_data_channel_srejframe(struct sock *sk, u16 rx_control)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	u8 tx_seq = __get_reqseq(rx_control);
+
+	pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
+
+	if (rx_control & L2CAP_CTRL_POLL) {
+		pi->expected_ack_seq = tx_seq;
+		l2cap_drop_acked_frames(sk);
+		l2cap_retransmit_frame(sk, tx_seq);
+		l2cap_ertm_send(sk);
+		if (pi->conn_state & L2CAP_CONN_WAIT_F) {
+			pi->srej_save_reqseq = tx_seq;
+			pi->conn_state |= L2CAP_CONN_SREJ_ACT;
+		}
+	} else if (rx_control & L2CAP_CTRL_FINAL) {
+		if ((pi->conn_state & L2CAP_CONN_SREJ_ACT) &&
+				pi->srej_save_reqseq == tx_seq)
+			pi->conn_state &= ~L2CAP_CONN_SREJ_ACT;
+		else
+			l2cap_retransmit_frame(sk, tx_seq);
+	} else {
+		l2cap_retransmit_frame(sk, tx_seq);
+		if (pi->conn_state & L2CAP_CONN_WAIT_F) {
+			pi->srej_save_reqseq = tx_seq;
+			pi->conn_state |= L2CAP_CONN_SREJ_ACT;
+		}
+	}
+}
+
+static inline void l2cap_data_channel_rnrframe(struct sock *sk, u16 rx_control)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	u8 tx_seq = __get_reqseq(rx_control);
+
+	pi->conn_state |= L2CAP_CONN_REMOTE_BUSY;
+	pi->expected_ack_seq = tx_seq;
+	l2cap_drop_acked_frames(sk);
+
+	del_timer(&pi->retrans_timer);
+	if (rx_control & L2CAP_CTRL_POLL) {
+		u16 control = L2CAP_CTRL_FINAL;
+		l2cap_send_rr_or_rnr(pi, control);
+	}
+}
+
+static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, struct sk_buff *skb)
+{
 	BT_DBG("sk %p rx_control 0x%4.4x len %d", sk, rx_control, skb->len);
 
 	if (L2CAP_CTRL_FINAL & rx_control) {
-		del_timer(&pi->monitor_timer);
-		if (pi->unacked_frames > 0)
+		del_timer(&l2cap_pi(sk)->monitor_timer);
+		if (l2cap_pi(sk)->unacked_frames > 0)
 			__mod_retrans_timer();
-		pi->conn_state &= ~L2CAP_CONN_WAIT_F;
+		l2cap_pi(sk)->conn_state &= ~L2CAP_CONN_WAIT_F;
 	}
 
 	switch (rx_control & L2CAP_CTRL_SUPERVISE) {
 	case L2CAP_SUPER_RCV_READY:
-		if (rx_control & L2CAP_CTRL_POLL) {
-			l2cap_send_i_or_rr_or_rnr(sk);
-			pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
-
-		} else if (rx_control & L2CAP_CTRL_FINAL) {
-			pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
-			pi->expected_ack_seq = tx_seq;
-			l2cap_drop_acked_frames(sk);
-
-			if (pi->conn_state & L2CAP_CONN_REJ_ACT)
-				pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
-			else {
-				sk->sk_send_head = TX_QUEUE(sk)->next;
-				pi->next_tx_seq = pi->expected_ack_seq;
-				l2cap_ertm_send(sk);
-			}
-
-		} else {
-			pi->expected_ack_seq = tx_seq;
-			l2cap_drop_acked_frames(sk);
-
-			if ((pi->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
-			    (pi->unacked_frames > 0))
-				__mod_retrans_timer();
-
-			pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
-			if (pi->conn_state & L2CAP_CONN_SREJ_SENT)
-				l2cap_send_ack(pi);
-			else
-				l2cap_ertm_send(sk);
-		}
+		l2cap_data_channel_rrframe(sk, rx_control);
 		break;
 
 	case L2CAP_SUPER_REJECT:
-		pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
-
-		pi->expected_ack_seq = __get_reqseq(rx_control);
-		l2cap_drop_acked_frames(sk);
-
-		if (rx_control & L2CAP_CTRL_FINAL) {
-			if (pi->conn_state & L2CAP_CONN_REJ_ACT)
-				pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
-			else {
-				sk->sk_send_head = TX_QUEUE(sk)->next;
-				pi->next_tx_seq = pi->expected_ack_seq;
-				l2cap_ertm_send(sk);
-			}
-		} else {
-			sk->sk_send_head = TX_QUEUE(sk)->next;
-			pi->next_tx_seq = pi->expected_ack_seq;
-			l2cap_ertm_send(sk);
-
-			if (pi->conn_state & L2CAP_CONN_WAIT_F) {
-				pi->srej_save_reqseq = tx_seq;
-				pi->conn_state |= L2CAP_CONN_REJ_ACT;
-			}
-		}
-
+		l2cap_data_channel_rejframe(sk, rx_control);
 		break;
 
 	case L2CAP_SUPER_SELECT_REJECT:
-		pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
-
-		if (rx_control & L2CAP_CTRL_POLL) {
-			pi->expected_ack_seq = tx_seq;
-			l2cap_drop_acked_frames(sk);
-			l2cap_retransmit_frame(sk, tx_seq);
-			l2cap_ertm_send(sk);
-			if (pi->conn_state & L2CAP_CONN_WAIT_F) {
-				pi->srej_save_reqseq = tx_seq;
-				pi->conn_state |= L2CAP_CONN_SREJ_ACT;
-			}
-		} else if (rx_control & L2CAP_CTRL_FINAL) {
-			if ((pi->conn_state & L2CAP_CONN_SREJ_ACT) &&
-					pi->srej_save_reqseq == tx_seq)
-				pi->conn_state &= ~L2CAP_CONN_SREJ_ACT;
-			else
-				l2cap_retransmit_frame(sk, tx_seq);
-		}
-		else {
-			l2cap_retransmit_frame(sk, tx_seq);
-			if (pi->conn_state & L2CAP_CONN_WAIT_F) {
-				pi->srej_save_reqseq = tx_seq;
-				pi->conn_state |= L2CAP_CONN_SREJ_ACT;
-			}
-		}
+		l2cap_data_channel_srejframe(sk, rx_control);
 		break;
 
 	case L2CAP_SUPER_RCV_NOT_READY:
-		pi->conn_state |= L2CAP_CONN_REMOTE_BUSY;
-		pi->expected_ack_seq = tx_seq;
-		l2cap_drop_acked_frames(sk);
-
-		del_timer(&pi->retrans_timer);
-		if (rx_control & L2CAP_CTRL_POLL) {
-			u16 control = L2CAP_CTRL_FINAL;
-			l2cap_send_rr_or_rnr(pi, control);
-		}
+		l2cap_data_channel_rnrframe(sk, rx_control);
 		break;
 	}
 
