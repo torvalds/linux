@@ -1262,7 +1262,8 @@ static void l2cap_drop_acked_frames(struct sock *sk)
 {
 	struct sk_buff *skb;
 
-	while ((skb = skb_peek(TX_QUEUE(sk)))) {
+	while ((skb = skb_peek(TX_QUEUE(sk))) &&
+			l2cap_pi(sk)->unacked_frames) {
 		if (bt_cb(skb)->tx_seq == l2cap_pi(sk)->expected_ack_seq)
 			break;
 
