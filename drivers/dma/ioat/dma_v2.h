@@ -22,6 +22,7 @@
 #define IOATDMA_V2_H
 
 #include <linux/dmaengine.h>
+#include <linux/circ_buf.h>
 #include "dma.h"
 #include "hw.h"
 
@@ -71,31 +72,26 @@ static inline struct ioat2_dma_chan *to_ioat2_chan(struct dma_chan *c)
 	return container_of(chan, struct ioat2_dma_chan, base);
 }
 
-static inline u16 ioat2_ring_mask(struct ioat2_dma_chan *ioat)
+static inline u16 ioat2_ring_size(struct ioat2_dma_chan *ioat)
 {
-	return (1 << ioat->alloc_order) - 1;
+	return 1 << ioat->alloc_order;
 }
 
 /* count of descriptors in flight with the engine */
 static inline u16 ioat2_ring_active(struct ioat2_dma_chan *ioat)
 {
-	return (ioat->head - ioat->tail) & ioat2_ring_mask(ioat);
+	return CIRC_CNT(ioat->head, ioat->tail, ioat2_ring_size(ioat));
 }
 
 /* count of descriptors pending submission to hardware */
 static inline u16 ioat2_ring_pending(struct ioat2_dma_chan *ioat)
 {
-	return (ioat->head - ioat->issued) & ioat2_ring_mask(ioat);
+	return CIRC_CNT(ioat->head, ioat->issued, ioat2_ring_size(ioat));
 }
 
 static inline u16 ioat2_ring_space(struct ioat2_dma_chan *ioat)
 {
-	u16 num_descs = ioat2_ring_mask(ioat) + 1;
-	u16 active = ioat2_ring_active(ioat);
-
-	BUG_ON(active > num_descs);
-
-	return num_descs - active;
+	return ioat2_ring_size(ioat) - ioat2_ring_active(ioat);
 }
 
 /* assumes caller already checked space */
@@ -151,7 +147,7 @@ struct ioat_ring_ent {
 static inline struct ioat_ring_ent *
 ioat2_get_ring_ent(struct ioat2_dma_chan *ioat, u16 idx)
 {
-	return ioat->ring[idx & ioat2_ring_mask(ioat)];
+	return ioat->ring[idx & (ioat2_ring_size(ioat) - 1)];
 }
 
 static inline void ioat2_set_chainaddr(struct ioat2_dma_chan *ioat, u64 addr)
