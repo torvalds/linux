@@ -3277,15 +3277,19 @@ static int l2cap_sar_reassembly_sdu(struct sock *sk, struct sk_buff *skb, u16 co
 		pi->conn_state &= ~L2CAP_CONN_SAR_SDU;
 		pi->partial_sdu_len += skb->len;
 
+		if (pi->partial_sdu_len > pi->imtu)
+			goto drop;
+
 		if (pi->partial_sdu_len == pi->sdu_len) {
 			_skb = skb_clone(pi->sdu, GFP_ATOMIC);
 			err = sock_queue_rcv_skb(sk, _skb);
 			if (err < 0)
 				kfree_skb(_skb);
 		}
-		kfree_skb(pi->sdu);
 		err = 0;
 
+drop:
+		kfree_skb(pi->sdu);
 		break;
 	}
 
