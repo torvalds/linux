@@ -1324,7 +1324,8 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 		}
 	}
 
-	asoc->peer.retran_path = t;
+	if (t)
+		asoc->peer.retran_path = t;
 
 	SCTP_DEBUG_PRINTK_IPADDR("sctp_assoc_update_retran_path:association"
 				 " %p addr: ",
