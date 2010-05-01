@@ -208,9 +208,10 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 /**
  *	swsusp_swap_check - check if the resume device is a swap device
  *	and get its index (if so)
+ *
+ *	This is called before saving image
  */
-
-static int swsusp_swap_check(void) /* This is called before saving image */
+static int swsusp_swap_check(void)
 {
 	int res;
 
@@ -269,17 +270,33 @@ static void release_swap_writer(struct swap_map_handle *handle)
 
 static int get_swap_writer(struct swap_map_handle *handle)
 {
+	int ret;
+
+	ret = swsusp_swap_check();
+	if (ret) {
+		if (ret != -ENOSPC)
+			printk(KERN_ERR "PM: Cannot find swap device, try "
+					"swapon -a.\n");
+		return ret;
+	}
 	handle->cur = (struct swap_map_page *)get_zeroed_page(GFP_KERNEL);
-	if (!handle->cur)
-		return -ENOMEM;
+	if (!handle->cur) {
+		ret = -ENOMEM;
+		goto err_close;
+	}
 	handle->cur_swap = alloc_swapdev_block(root_swap);
 	if (!handle->cur_swap) {
-		release_swap_writer(handle);
-		return -ENOSPC;
+		ret = -ENOSPC;
+		goto err_rel;
 	}
 	handle->k = 0;
 	handle->first_sector = handle->cur_swap;
 	return 0;
+err_rel:
+	release_swap_writer(handle);
+err_close:
+	swsusp_close(FMODE_WRITE);
+	return ret;
 }
 
 static int swap_write_page(struct swap_map_handle *handle, void *buf,
@@ -320,6 +337,24 @@ static int flush_swap_writer(struct swap_map_handle *handle)
 		return write_page(handle->cur, handle->cur_swap, NULL);
 	else
 		return -EINVAL;
+}
+
+static int swap_writer_finish(struct swap_map_handle *handle,
+		unsigned int flags, int error)
+{
+	if (!error) {
+		flush_swap_writer(handle);
+		printk(KERN_INFO "PM: S");
+		error = mark_swapfiles(handle, flags);
+		printk("|\n");
+	}
+
+	if (error)
+		free_all_swap_pages(root_swap);
+	release_swap_writer(handle);
+	swsusp_close(FMODE_WRITE);
+
+	return error;
 }
 
 /**
@@ -399,13 +434,19 @@ int swsusp_write(unsigned int flags)
 	struct swap_map_handle handle;
 	struct snapshot_handle snapshot;
 	struct swsusp_info *header;
+	unsigned long pages;
 	int error;
 
-	error = swsusp_swap_check();
+	pages = snapshot_get_image_size();
+	error = get_swap_writer(&handle);
 	if (error) {
-		printk(KERN_ERR "PM: Cannot find swap device, try "
-				"swapon -a.\n");
+		printk(KERN_ERR "PM: Cannot get swap writer\n");
 		return error;
+	}
+	if (!enough_swap(pages)) {
+		printk(KERN_ERR "PM: Not enough free swap\n");
+		error = -ENOSPC;
+		goto out_finish;
 	}
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
 	error = snapshot_read_next(&snapshot);
@@ -413,34 +454,14 @@ int swsusp_write(unsigned int flags)
 		if (error >= 0)
 			error = -EFAULT;
 
-		goto out;
+		goto out_finish;
 	}
 	header = (struct swsusp_info *)data_of(snapshot);
-	if (!enough_swap(header->pages)) {
-		printk(KERN_ERR "PM: Not enough free swap\n");
-		error = -ENOSPC;
-		goto out;
-	}
-	error = get_swap_writer(&handle);
-	if (!error) {
-		error = swap_write_page(&handle, header, NULL);
-		if (!error)
-			error = save_image(&handle, &snapshot,
-					header->pages - 1);
-
-		if (!error) {
-			flush_swap_writer(&handle);
-			printk(KERN_INFO "PM: S");
-			error = mark_swapfiles(&handle, flags);
-			printk("|\n");
-		}
-	}
-	if (error)
-		free_all_swap_pages(root_swap);
-
-	release_swap_writer(&handle);
- out:
-	swsusp_close(FMODE_WRITE);
+	error = swap_write_page(&handle, header, NULL);
+	if (!error)
+		error = save_image(&handle, &snapshot, pages - 1);
+out_finish:
+	error = swap_writer_finish(&handle, flags, error);
 	return error;
 }
 
@@ -456,18 +477,21 @@ static void release_swap_reader(struct swap_map_handle *handle)
 	handle->cur = NULL;
 }
 
-static int get_swap_reader(struct swap_map_handle *handle, sector_t start)
+static int get_swap_reader(struct swap_map_handle *handle,
+		unsigned int *flags_p)
 {
 	int error;
 
-	if (!start)
+	*flags_p = swsusp_header->flags;
+
+	if (!swsusp_header->image) /* how can this happen? */
 		return -EINVAL;
 
 	handle->cur = (struct swap_map_page *)get_zeroed_page(__GFP_WAIT | __GFP_HIGH);
 	if (!handle->cur)
 		return -ENOMEM;
 
-	error = hib_bio_read_page(start, handle->cur, NULL);
+	error = hib_bio_read_page(swsusp_header->image, handle->cur, NULL);
 	if (error) {
 		release_swap_reader(handle);
 		return error;
@@ -500,6 +524,13 @@ static int swap_read_page(struct swap_map_handle *handle, void *buf,
 			error = hib_bio_read_page(offset, handle->cur, NULL);
 	}
 	return error;
+}
+
+static int swap_reader_finish(struct swap_map_handle *handle)
+{
+	release_swap_reader(handle);
+
+	return 0;
 }
 
 /**
@@ -571,20 +602,20 @@ int swsusp_read(unsigned int *flags_p)
 	struct snapshot_handle snapshot;
 	struct swsusp_info *header;
 
-	*flags_p = swsusp_header->flags;
-
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
 	error = snapshot_write_next(&snapshot);
 	if (error < PAGE_SIZE)
 		return error < 0 ? error : -EFAULT;
 	header = (struct swsusp_info *)data_of(snapshot);
-	error = get_swap_reader(&handle, swsusp_header->image);
+	error = get_swap_reader(&handle, flags_p);
+	if (error)
+		goto end;
 	if (!error)
 		error = swap_read_page(&handle, header, NULL);
 	if (!error)
 		error = load_image(&handle, &snapshot, header->pages - 1);
-	release_swap_reader(&handle);
-
+	swap_reader_finish(&handle);
+end:
 	if (!error)
 		pr_debug("PM: Image successfully loaded\n");
 	else
