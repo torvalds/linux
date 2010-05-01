@@ -224,7 +224,7 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct sock *sk, struct so
 
 	l2cap_pi(sk)->conn = conn;
 
-	if (sk->sk_type == SOCK_SEQPACKET) {
+	if (sk->sk_type == SOCK_SEQPACKET || sk->sk_type == SOCK_STREAM) {
 		/* Alloc CID for connection-oriented socket */
 		l2cap_pi(sk)->scid = l2cap_alloc_cid(l);
 	} else if (sk->sk_type == SOCK_DGRAM) {
@@ -452,7 +452,8 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 	for (sk = l->head; sk; sk = l2cap_pi(sk)->next_c) {
 		bh_lock_sock(sk);
 
-		if (sk->sk_type != SOCK_SEQPACKET) {
+		if (sk->sk_type != SOCK_SEQPACKET &&
+				sk->sk_type != SOCK_STREAM) {
 			bh_unlock_sock(sk);
 			continue;
 		}
@@ -512,7 +513,8 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 	for (sk = l->head; sk; sk = l2cap_pi(sk)->next_c) {
 		bh_lock_sock(sk);
 
-		if (sk->sk_type != SOCK_SEQPACKET) {
+		if (sk->sk_type != SOCK_SEQPACKET &&
+				sk->sk_type != SOCK_STREAM) {
 			l2cap_sock_clear_timer(sk);
 			sk->sk_state = BT_CONNECTED;
 			sk->sk_state_change(sk);
@@ -721,7 +723,8 @@ static void __l2cap_sock_close(struct sock *sk, int reason)
 
 	case BT_CONNECTED:
 	case BT_CONFIG:
-		if (sk->sk_type == SOCK_SEQPACKET) {
+		if (sk->sk_type == SOCK_SEQPACKET ||
+				sk->sk_type == SOCK_STREAM) {
 			struct l2cap_conn *conn = l2cap_pi(sk)->conn;
 
 			sk->sk_state = BT_DISCONN;
@@ -732,7 +735,8 @@ static void __l2cap_sock_close(struct sock *sk, int reason)
 		break;
 
 	case BT_CONNECT2:
-		if (sk->sk_type == SOCK_SEQPACKET) {
+		if (sk->sk_type == SOCK_SEQPACKET ||
+				sk->sk_type == SOCK_STREAM) {
 			struct l2cap_conn *conn = l2cap_pi(sk)->conn;
 			struct l2cap_conn_rsp rsp;
 			__u16 result;
@@ -795,7 +799,10 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 	} else {
 		pi->imtu = L2CAP_DEFAULT_MTU;
 		pi->omtu = 0;
-		pi->mode = L2CAP_MODE_BASIC;
+		if (enable_ertm && sk->sk_type == SOCK_STREAM)
+			pi->mode = L2CAP_MODE_ERTM;
+		else
+			pi->mode = L2CAP_MODE_BASIC;
 		pi->max_tx = max_transmit;
 		pi->fcs  = L2CAP_FCS_CRC16;
 		pi->tx_win = tx_window;
@@ -852,7 +859,7 @@ static int l2cap_sock_create(struct net *net, struct socket *sock, int protocol,
 
 	sock->state = SS_UNCONNECTED;
 
-	if (sock->type != SOCK_SEQPACKET &&
+	if (sock->type != SOCK_SEQPACKET && sock->type != SOCK_STREAM &&
 			sock->type != SOCK_DGRAM && sock->type != SOCK_RAW)
 		return -ESOCKTNOSUPPORT;
 
@@ -1000,7 +1007,8 @@ static int l2cap_do_connect(struct sock *sk)
 	l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
 
 	if (hcon->state == BT_CONNECTED) {
-		if (sk->sk_type != SOCK_SEQPACKET) {
+		if (sk->sk_type != SOCK_SEQPACKET &&
+				sk->sk_type != SOCK_STREAM) {
 			l2cap_sock_clear_timer(sk);
 			sk->sk_state = BT_CONNECTED;
 		} else
@@ -1034,7 +1042,8 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 
 	lock_sock(sk);
 
-	if (sk->sk_type == SOCK_SEQPACKET && !la.l2_psm) {
+	if ((sk->sk_type == SOCK_SEQPACKET || sk->sk_type == SOCK_STREAM)
+			&& !la.l2_psm) {
 		err = -EINVAL;
 		goto done;
 	}
@@ -1098,7 +1107,8 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 
 	lock_sock(sk);
 
-	if (sk->sk_state != BT_BOUND || sock->type != SOCK_SEQPACKET) {
+	if ((sock->type != SOCK_SEQPACKET && sock->type != SOCK_STREAM)
+			|| sk->sk_state != BT_BOUND) {
 		err = -EBADFD;
 		goto done;
 	}
@@ -1857,7 +1867,8 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 
 	switch (optname) {
 	case BT_SECURITY:
-		if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_RAW) {
+		if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_STREAM
+				&& sk->sk_type != SOCK_RAW) {
 			err = -EINVAL;
 			break;
 		}
@@ -2007,7 +2018,8 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 
 	switch (optname) {
 	case BT_SECURITY:
-		if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_RAW) {
+		if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_STREAM
+				&& sk->sk_type != SOCK_RAW) {
 			err = -EINVAL;
 			break;
 		}
@@ -2314,7 +2326,7 @@ static int l2cap_build_conf_req(struct sock *sk, void *data)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	struct l2cap_conf_req *req = data;
-	struct l2cap_conf_rfc rfc = { .mode = L2CAP_MODE_BASIC };
+	struct l2cap_conf_rfc rfc = { .mode = pi->mode };
 	void *ptr = req->data;
 
 	BT_DBG("sk %p", sk);
@@ -3997,7 +4009,7 @@ static int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
 
 static inline void l2cap_check_encryption(struct sock *sk, u8 encrypt)
 {
-	if (sk->sk_type != SOCK_SEQPACKET)
+	if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_STREAM)
 		return;
 
 	if (encrypt == 0x00) {
