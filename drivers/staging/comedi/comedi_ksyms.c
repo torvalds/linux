@@ -26,8 +26,6 @@
 #include "comedidev.h"
 
 /* for drivers */
-EXPORT_SYMBOL(comedi_driver_register);
-EXPORT_SYMBOL(comedi_driver_unregister);
 EXPORT_SYMBOL(comedi_error);
 EXPORT_SYMBOL(comedi_event);
 EXPORT_SYMBOL(comedi_get_subdevice_runflags);
@@ -51,14 +49,3 @@ EXPORT_SYMBOL_GPL(comedi_usb_auto_unconfig);
 /* for kcomedilib */
 EXPORT_SYMBOL(check_chanlist);
 EXPORT_SYMBOL_GPL(comedi_get_device_file_info);
-
-EXPORT_SYMBOL(comedi_buf_put);
-EXPORT_SYMBOL(comedi_buf_get);
-EXPORT_SYMBOL(comedi_buf_read_n_available);
-EXPORT_SYMBOL(comedi_buf_write_free);
-EXPORT_SYMBOL(comedi_buf_write_alloc);
-EXPORT_SYMBOL(comedi_buf_read_free);
-EXPORT_SYMBOL(comedi_buf_read_alloc);
-EXPORT_SYMBOL(comedi_buf_memcpy_to);
-EXPORT_SYMBOL(comedi_buf_memcpy_from);
-EXPORT_SYMBOL(comedi_reset_async_buf);
