@@ -3338,6 +3338,11 @@ static int l2cap_sar_reassembly_sdu(struct sock *sk, struct sk_buff *skb, u16 co
 		pi->sdu_len = get_unaligned_le16(skb->data);
 		skb_pull(skb, 2);
 
+		if (pi->sdu_len > pi->imtu) {
+			err = -EMSGSIZE;
+			break;
+		}
+
 		pi->sdu = bt_skb_alloc(pi->sdu_len, GFP_ATOMIC);
 		if (!pi->sdu) {
 			err = -ENOMEM;
