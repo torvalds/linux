@@ -701,7 +701,7 @@ static void ezusb_req_ctx_wait(struct ezusb_priv *upriv,
 	case EZUSB_CTX_REQ_SUBMITTED:
 	case EZUSB_CTX_REQ_COMPLETE:
 	case EZUSB_CTX_RESP_RECEIVED:
-		if (in_atomic()) {
+		if (in_softirq()) {
 			/* If we get called from a timer, timeout timers don't
 			 * get the chance to run themselves. So we make sure
 			 * that we don't sleep for ever */
