@@ -190,11 +190,20 @@ extern void free_orinocodev(struct orinoco_private *priv);
 extern int orinoco_init(struct orinoco_private *priv);
 extern int orinoco_if_add(struct orinoco_private *priv,
 			  unsigned long base_addr,
-			  unsigned int irq);
+			  unsigned int irq,
+			  const struct net_device_ops *ops);
 extern void orinoco_if_del(struct orinoco_private *priv);
 extern int orinoco_up(struct orinoco_private *priv);
 extern void orinoco_down(struct orinoco_private *priv);
 extern irqreturn_t orinoco_interrupt(int irq, void *dev_id);
+
+/* Common ndo functions exported for reuse by orinoco_usb */
+int orinoco_open(struct net_device *dev);
+int orinoco_stop(struct net_device *dev);
+struct net_device_stats *orinoco_get_stats(struct net_device *dev);
+void orinoco_set_multicast_list(struct net_device *dev);
+int orinoco_change_mtu(struct net_device *dev, int new_mtu);
+void orinoco_tx_timeout(struct net_device *dev);
 
 /********************************************************************/
 /* Locking and synchronization functions                            */

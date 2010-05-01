@@ -210,7 +210,7 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	}
 
 	/* Register an interface with the stack */
-	if (orinoco_if_add(priv, phys_addr, card->irq) != 0) {
+	if (orinoco_if_add(priv, phys_addr, card->irq, NULL) != 0) {
 		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
 		goto failed;
 	}

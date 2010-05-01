@@ -253,7 +253,7 @@ void set_port_type(struct orinoco_private *priv)
 /* Device methods                                                   */
 /********************************************************************/
 
-static int orinoco_open(struct net_device *dev)
+int orinoco_open(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 	unsigned long flags;
@@ -271,8 +271,9 @@ static int orinoco_open(struct net_device *dev)
 
 	return err;
 }
+EXPORT_SYMBOL(orinoco_open);
 
-static int orinoco_stop(struct net_device *dev)
+int orinoco_stop(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 	int err = 0;
@@ -290,15 +291,17 @@ static int orinoco_stop(struct net_device *dev)
 
 	return err;
 }
+EXPORT_SYMBOL(orinoco_stop);
 
-static struct net_device_stats *orinoco_get_stats(struct net_device *dev)
+struct net_device_stats *orinoco_get_stats(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 
 	return &priv->stats;
 }
+EXPORT_SYMBOL(orinoco_get_stats);
 
-static void orinoco_set_multicast_list(struct net_device *dev)
+void orinoco_set_multicast_list(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 	unsigned long flags;
@@ -312,8 +315,9 @@ static void orinoco_set_multicast_list(struct net_device *dev)
 	__orinoco_set_multicast_list(dev);
 	orinoco_unlock(priv, &flags);
 }
+EXPORT_SYMBOL(orinoco_set_multicast_list);
 
-static int orinoco_change_mtu(struct net_device *dev, int new_mtu)
+int orinoco_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 
@@ -329,6 +333,7 @@ static int orinoco_change_mtu(struct net_device *dev, int new_mtu)
 
 	return 0;
 }
+EXPORT_SYMBOL(orinoco_change_mtu);
 
 /********************************************************************/
 /* Tx path                                                          */
@@ -614,7 +619,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 	netif_wake_queue(dev);
 }
 
-static void orinoco_tx_timeout(struct net_device *dev)
+void orinoco_tx_timeout(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
@@ -629,6 +634,7 @@ static void orinoco_tx_timeout(struct net_device *dev)
 
 	schedule_work(&priv->reset_work);
 }
+EXPORT_SYMBOL(orinoco_tx_timeout);
 
 /********************************************************************/
 /* Rx path (data frames)                                            */
@@ -2192,7 +2198,8 @@ EXPORT_SYMBOL(alloc_orinocodev);
  */
 int orinoco_if_add(struct orinoco_private *priv,
 		   unsigned long base_addr,
-		   unsigned int irq)
+		   unsigned int irq,
+		   const struct net_device_ops *ops)
 {
 	struct wiphy *wiphy = priv_to_wiphy(priv);
 	struct wireless_dev *wdev;
@@ -2211,12 +2218,17 @@ int orinoco_if_add(struct orinoco_private *priv,
 
 	/* Setup / override net_device fields */
 	dev->ieee80211_ptr = wdev;
-	dev->netdev_ops = &orinoco_netdev_ops;
 	dev->watchdog_timeo = HZ; /* 1 second timeout */
 	dev->wireless_handlers = &orinoco_handler_def;
 #ifdef WIRELESS_SPY
 	dev->wireless_data = &priv->wireless_data;
 #endif
+	/* Default to standard ops if not set */
+	if (ops)
+		dev->netdev_ops = ops;
+	else
+		dev->netdev_ops = &orinoco_netdev_ops;
+
 	/* we use the default eth_mac_addr for setting the MAC addr */
 
 	/* Reserve space in skb for the SNAP header */
