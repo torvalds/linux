@@ -349,6 +349,7 @@ spectrum_cs_config(struct pcmcia_device *link)
 		goto failed;
 
 	hermes_struct_init(hw, mem, HERMES_16BIT_REGSPACING);
+	hw->eeprom_pda = true;
 
 	/*
 	 * This actually configures the PCMCIA socket -- setting up

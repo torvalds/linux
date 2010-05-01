@@ -121,7 +121,7 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	dev_dbg(dev, "Attempting to download firmware %s\n", firmware);
 
 	/* Read current plug data */
-	err = hermes_read_pda(hw, pda, fw->pda_addr, fw->pda_size, 0);
+	err = hw->ops->read_pda(hw, pda, fw->pda_addr, fw->pda_size);
 	dev_dbg(dev, "Read PDA returned %d\n", err);
 	if (err)
 		goto free;
@@ -148,7 +148,7 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	}
 
 	/* Enable aux port to allow programming */
-	err = hermesi_program_init(hw, le32_to_cpu(hdr->entry_point));
+	err = hw->ops->program_init(hw, le32_to_cpu(hdr->entry_point));
 	dev_dbg(dev, "Program init returned %d\n", err);
 	if (err != 0)
 		goto abort;
@@ -176,7 +176,7 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 		goto abort;
 
 	/* Tell card we've finished */
-	err = hermesi_program_end(hw);
+	err = hw->ops->program_end(hw);
 	dev_dbg(dev, "Program end returned %d\n", err);
 	if (err != 0)
 		goto abort;
@@ -223,7 +223,7 @@ symbol_dl_image(struct orinoco_private *priv, const struct fw_info *fw,
 		if (!pda)
 			return -ENOMEM;
 
-		ret = hermes_read_pda(hw, pda, fw->pda_addr, fw->pda_size, 1);
+		ret = hw->ops->read_pda(hw, pda, fw->pda_addr, fw->pda_size);
 		if (ret)
 			goto free;
 	}

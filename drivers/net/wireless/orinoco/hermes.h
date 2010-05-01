@@ -393,6 +393,12 @@ struct hermes_ops {
 			 u16 id, u16 offset);
 	int (*bap_pwrite)(struct hermes *hw, int bap, const void *buf,
 			  int len, u16 id, u16 offset);
+	int (*read_pda)(struct hermes *hw, __le16 *pda,
+			u32 pda_addr, u16 pda_len);
+	int (*program_init)(struct hermes *hw, u32 entry_point);
+	int (*program_end)(struct hermes *hw);
+	int (*program)(struct hermes *hw, const char *buf,
+		       u32 addr, u32 len);
 	void (*lock_irqsave)(spinlock_t *lock, unsigned long *flags);
 	void (*unlock_irqrestore)(spinlock_t *lock, unsigned long *flags);
 	void (*lock_irq)(spinlock_t *lock);
@@ -406,6 +412,7 @@ typedef struct hermes {
 #define HERMES_16BIT_REGSPACING	0
 #define HERMES_32BIT_REGSPACING	1
 	u16 inten; /* Which interrupts should be enabled? */
+	bool eeprom_pda;
 	const struct hermes_ops *ops;
 	void *priv;
 } hermes_t;

@@ -184,6 +184,11 @@ MODULE_FIRMWARE("orinoco_ezusb_fw");
 #define EZUSB_RID_RX			0x0701
 #define EZUSB_RID_INIT1			0x0702
 #define EZUSB_RID_ACK			0x0710
+#define EZUSB_RID_READ_PDA		0x0800
+#define EZUSB_RID_PROG_INIT		0x0852
+#define EZUSB_RID_PROG_SET_ADDR		0x0853
+#define EZUSB_RID_PROG_BYTES		0x0854
+#define EZUSB_RID_PROG_END		0x0855
 #define EZUSB_RID_DOCMD			0x0860
 
 /* Recognize info frames */
@@ -197,6 +202,8 @@ MODULE_FIRMWARE("orinoco_ezusb_fw");
 #define DEF_TIMEOUT			(3*HZ)
 
 #define BULK_BUF_SIZE			2048
+
+#define MAX_DL_SIZE (BULK_BUF_SIZE - sizeof(struct ezusb_packet))
 
 #define FW_BUF_SIZE			64
 #define FW_VAR_OFFSET_PTR		0x359
@@ -1077,6 +1084,115 @@ static int ezusb_bap_pread(struct hermes *hw, int bap,
 	return 0;
 }
 
+static int ezusb_read_pda(struct hermes *hw, __le16 *pda,
+			  u32 pda_addr, u16 pda_len)
+{
+	struct ezusb_priv *upriv = hw->priv;
+	struct request_context *ctx;
+	__le16 data[] = {
+		cpu_to_le16(pda_addr & 0xffff),
+		cpu_to_le16(pda_len - 4)
+	};
+	ctx = ezusb_alloc_ctx(upriv, EZUSB_RID_READ_PDA, EZUSB_RID_READ_PDA);
+	if (!ctx)
+		return -ENOMEM;
+
+	/* wl_lkm does not include PDA size in the PDA area.
+	 * We will pad the information into pda, so other routines
+	 * don't have to be modified */
+	pda[0] = cpu_to_le16(pda_len - 2);
+	/* Includes CFG_PROD_DATA but not itself */
+	pda[1] = cpu_to_le16(0x0800); /* CFG_PROD_DATA */
+
+	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
+				EZUSB_FRAME_CONTROL, &pda[2], pda_len - 4,
+				NULL);
+}
+
+static int ezusb_program_init(struct hermes *hw, u32 entry_point)
+{
+	struct ezusb_priv *upriv = hw->priv;
+	struct request_context *ctx;
+	__le32 data = cpu_to_le32(entry_point);
+
+	ctx = ezusb_alloc_ctx(upriv, EZUSB_RID_PROG_INIT, EZUSB_RID_ACK);
+	if (!ctx)
+		return -ENOMEM;
+
+	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
+				EZUSB_FRAME_CONTROL, NULL, 0, NULL);
+}
+
+static int ezusb_program_end(struct hermes *hw)
+{
+	struct ezusb_priv *upriv = hw->priv;
+	struct request_context *ctx;
+
+	ctx = ezusb_alloc_ctx(upriv, EZUSB_RID_PROG_END, EZUSB_RID_ACK);
+	if (!ctx)
+		return -ENOMEM;
+
+	return ezusb_access_ltv(upriv, ctx, 0, NULL,
+				EZUSB_FRAME_CONTROL, NULL, 0, NULL);
+}
+
+static int ezusb_program_bytes(struct hermes *hw, const char *buf,
+			       u32 addr, u32 len)
+{
+	struct ezusb_priv *upriv = hw->priv;
+	struct request_context *ctx;
+	__le32 data = cpu_to_le32(addr);
+	int err;
+
+	ctx = ezusb_alloc_ctx(upriv, EZUSB_RID_PROG_SET_ADDR, EZUSB_RID_ACK);
+	if (!ctx)
+		return -ENOMEM;
+
+	err = ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
+			       EZUSB_FRAME_CONTROL, NULL, 0, NULL);
+	if (err)
+		return err;
+
+	ctx = ezusb_alloc_ctx(upriv, EZUSB_RID_PROG_BYTES, EZUSB_RID_ACK);
+	if (!ctx)
+		return -ENOMEM;
+
+	return ezusb_access_ltv(upriv, ctx, len, buf,
+				EZUSB_FRAME_CONTROL, NULL, 0, NULL);
+}
+
+static int ezusb_program(struct hermes *hw, const char *buf,
+			 u32 addr, u32 len)
+{
+	u32 ch_addr;
+	u32 ch_len;
+	int err = 0;
+
+	/* We can only send 2048 bytes out of the bulk xmit at a time,
+	 * so we have to split any programming into chunks of <2048
+	 * bytes. */
+
+	ch_len = (len < MAX_DL_SIZE) ? len : MAX_DL_SIZE;
+	ch_addr = addr;
+
+	while (ch_addr < (addr + len)) {
+		pr_debug("Programming subblock of length %d "
+			 "to address 0x%08x. Data @ %p\n",
+			 ch_len, ch_addr, &buf[ch_addr - addr]);
+
+		err = ezusb_program_bytes(hw, &buf[ch_addr - addr],
+					  ch_addr, ch_len);
+		if (err)
+			break;
+
+		ch_addr += ch_len;
+		ch_len = ((addr + len - ch_addr) < MAX_DL_SIZE) ?
+			(addr + len - ch_addr) : MAX_DL_SIZE;
+	}
+
+	return err;
+}
+
 static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
@@ -1440,6 +1556,10 @@ static const struct hermes_ops ezusb_ops = {
 	.read_ltv = ezusb_read_ltv,
 	.write_ltv = ezusb_write_ltv,
 	.bap_pread = ezusb_bap_pread,
+	.read_pda = ezusb_read_pda,
+	.program_init = ezusb_program_init,
+	.program_end = ezusb_program_end,
+	.program = ezusb_program,
 	.lock_irqsave = ezusb_lock_irqsave,
 	.unlock_irqrestore = ezusb_unlock_irqrestore,
 	.lock_irq = ezusb_lock_irq,
