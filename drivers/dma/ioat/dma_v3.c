@@ -1175,7 +1175,7 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	if (cap & IOAT_CAP_XOR) {
 		is_raid_device = true;
 		dma->max_xor = 8;
-		dma->xor_align = 2;
+		dma->xor_align = 6;
 
 		dma_cap_set(DMA_XOR, dma->cap_mask);
 		dma->device_prep_dma_xor = ioat3_prep_xor;
@@ -1186,7 +1186,7 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	if (cap & IOAT_CAP_PQ) {
 		is_raid_device = true;
 		dma_set_maxpq(dma, 8, 0);
-		dma->pq_align = 2;
+		dma->pq_align = 6;
 
 		dma_cap_set(DMA_PQ, dma->cap_mask);
 		dma->device_prep_dma_pq = ioat3_prep_pq;
@@ -1196,7 +1196,7 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 
 		if (!(cap & IOAT_CAP_XOR)) {
 			dma->max_xor = 8;
-			dma->xor_align = 2;
+			dma->xor_align = 6;
 
 			dma_cap_set(DMA_XOR, dma->cap_mask);
 			dma->device_prep_dma_xor = ioat3_prep_pqxor;
