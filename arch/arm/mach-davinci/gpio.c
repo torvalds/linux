@@ -28,6 +28,9 @@ struct davinci_gpio {
 	int			irq_base;
 };
 
+#define chip2controller(chip)	\
+	container_of(chip, struct davinci_gpio, chip)
+
 static struct davinci_gpio chips[DIV_ROUND_UP(DAVINCI_N_GPIO, 32)];
 
 /* create a non-inlined version */
@@ -54,19 +57,37 @@ static int __init davinci_gpio_irq_setup(void);
  * needed, and enable the GPIO clock.
  */
 
-static int davinci_direction_in(struct gpio_chip *chip, unsigned offset)
+static inline int __davinci_direction(struct gpio_chip *chip,
+			unsigned offset, bool out, int value)
 {
-	struct davinci_gpio *d = container_of(chip, struct davinci_gpio, chip);
+	struct davinci_gpio *d = chip2controller(chip);
 	struct gpio_controller __iomem *g = d->regs;
 	u32 temp;
+	u32 mask = 1 << offset;
 
 	spin_lock(&gpio_lock);
 	temp = __raw_readl(&g->dir);
-	temp |= (1 << offset);
+	if (out) {
+		temp &= ~mask;
+		__raw_writel(mask, value ? &g->set_data : &g->clr_data);
+	} else {
+		temp |= mask;
+	}
 	__raw_writel(temp, &g->dir);
 	spin_unlock(&gpio_lock);
 
 	return 0;
+}
+
+static int davinci_direction_in(struct gpio_chip *chip, unsigned offset)
+{
+	return __davinci_direction(chip, offset, false, 0);
+}
+
+static int
+davinci_direction_out(struct gpio_chip *chip, unsigned offset, int value)
+{
+	return __davinci_direction(chip, offset, true, value);
 }
 
 /*
@@ -78,27 +99,10 @@ static int davinci_direction_in(struct gpio_chip *chip, unsigned offset)
  */
 static int davinci_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct davinci_gpio *d = container_of(chip, struct davinci_gpio, chip);
+	struct davinci_gpio *d = chip2controller(chip);
 	struct gpio_controller __iomem *g = d->regs;
 
 	return (1 << offset) & __raw_readl(&g->in_data);
-}
-
-static int
-davinci_direction_out(struct gpio_chip *chip, unsigned offset, int value)
-{
-	struct davinci_gpio *d = container_of(chip, struct davinci_gpio, chip);
-	struct gpio_controller __iomem *g = d->regs;
-	u32 temp;
-	u32 mask = 1 << offset;
-
-	spin_lock(&gpio_lock);
-	temp = __raw_readl(&g->dir);
-	temp &= ~mask;
-	__raw_writel(mask, value ? &g->set_data : &g->clr_data);
-	__raw_writel(temp, &g->dir);
-	spin_unlock(&gpio_lock);
-	return 0;
 }
 
 /*
@@ -107,7 +111,7 @@ davinci_direction_out(struct gpio_chip *chip, unsigned offset, int value)
 static void
 davinci_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct davinci_gpio *d = container_of(chip, struct davinci_gpio, chip);
+	struct davinci_gpio *d = chip2controller(chip);
 	struct gpio_controller __iomem *g = d->regs;
 
 	__raw_writel((1 << offset), value ? &g->set_data : &g->clr_data);
@@ -262,7 +266,7 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 
 static int gpio_to_irq_banked(struct gpio_chip *chip, unsigned offset)
 {
-	struct davinci_gpio *d = container_of(chip, struct davinci_gpio, chip);
+	struct davinci_gpio *d = chip2controller(chip);
 
 	if (d->irq_base >= 0)
 		return d->irq_base + offset;
