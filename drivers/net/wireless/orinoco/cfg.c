@@ -189,7 +189,7 @@ static int orinoco_set_channel(struct wiphy *wiphy,
 	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
 		/* Fast channel change - no commit if successful */
 		hermes_t *hw = &priv->hw;
-		err = hermes_docmd_wait(hw, HERMES_CMD_TEST |
+		err = hw->ops->cmd_wait(hw, HERMES_CMD_TEST |
 					    HERMES_TEST_SET_CHANNEL,
 					channel, NULL);
 	}

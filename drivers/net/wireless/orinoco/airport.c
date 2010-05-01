@@ -195,7 +195,7 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	ssleep(1);
 
 	/* Reset it before we get the interrupt */
-	hermes_init(hw);
+	hw->ops->init(hw);
 
 	if (request_irq(card->irq, orinoco_interrupt, 0, DRIVER_NAME, priv)) {
 		printk(KERN_ERR PFX "Couldn't get IRQ %d\n", card->irq);

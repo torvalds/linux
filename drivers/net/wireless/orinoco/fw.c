@@ -259,7 +259,7 @@ symbol_dl_image(struct orinoco_private *priv, const struct fw_info *fw,
 	}
 
 	/* Reset hermes chip and make sure it responds */
-	ret = hermes_init(hw);
+	ret = hw->ops->init(hw);
 
 	/* hermes_reset() should return 0 with the secondary firmware */
 	if (secondary && ret != 0)

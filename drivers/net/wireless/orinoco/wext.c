@@ -457,7 +457,7 @@ static int orinoco_ioctl_setfreq(struct net_device *dev,
 	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
 		/* Fast channel change - no commit if successful */
 		hermes_t *hw = &priv->hw;
-		err = hermes_docmd_wait(hw, HERMES_CMD_TEST |
+		err = hw->ops->cmd_wait(hw, HERMES_CMD_TEST |
 					    HERMES_TEST_SET_CHANNEL,
 					chan, NULL);
 	}
@@ -1272,8 +1272,8 @@ static int orinoco_ioctl_getrid(struct net_device *dev,
 	if (orinoco_lock(priv, &flags) != 0)
 		return -EBUSY;
 
-	err = hermes_read_ltv(hw, USER_BAP, rid, MAX_RID_LEN, &length,
-			      extra);
+	err = hw->ops->read_ltv(hw, USER_BAP, rid, MAX_RID_LEN, &length,
+				extra);
 	if (err)
 		goto out;
 

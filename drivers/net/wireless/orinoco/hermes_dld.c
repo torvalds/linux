@@ -293,7 +293,7 @@ int hermes_read_pda(hermes_t *hw,
 		/* PDA of spectrum symbol is in eeprom */
 
 		/* Issue command to read EEPROM */
-		ret = hermes_docmd_wait(hw, HERMES_CMD_READMIF, 0, NULL);
+		ret = hw->ops->cmd_wait(hw, HERMES_CMD_READMIF, 0, NULL);
 		if (ret)
 			return ret;
 	} else {
@@ -408,16 +408,16 @@ int hermesi_program_init(hermes_t *hw, u32 offset)
 	/* Acknowledge any outstanding command */
 	hermes_write_regn(hw, EVACK, 0xFFFF);
 
-	/* Using doicmd_wait rather than docmd_wait */
-	err = hermes_doicmd_wait(hw,
-				 0x0100 | HERMES_CMD_INIT,
-				 0, 0, 0, NULL);
+	/* Using init_cmd_wait rather than cmd_wait */
+	err = hw->ops->init_cmd_wait(hw,
+				     0x0100 | HERMES_CMD_INIT,
+				     0, 0, 0, NULL);
 	if (err)
 		return err;
 
-	err = hermes_doicmd_wait(hw,
-				 0x0000 | HERMES_CMD_INIT,
-				 0, 0, 0, NULL);
+	err = hw->ops->init_cmd_wait(hw,
+				     0x0000 | HERMES_CMD_INIT,
+				     0, 0, 0, NULL);
 	if (err)
 		return err;
 
@@ -428,12 +428,12 @@ int hermesi_program_init(hermes_t *hw, u32 offset)
 		return err;
 
 	pr_debug(PFX "Enabling volatile, EP 0x%08x\n", offset);
-	err = hermes_doicmd_wait(hw,
-				 HERMES_PROGRAM_ENABLE_VOLATILE,
-				 offset & 0xFFFFu,
-				 offset >> 16,
-				 0,
-				 NULL);
+	err = hw->ops->init_cmd_wait(hw,
+				     HERMES_PROGRAM_ENABLE_VOLATILE,
+				     offset & 0xFFFFu,
+				     offset >> 16,
+				     0,
+				     NULL);
 	pr_debug(PFX "PROGRAM_ENABLE returned %d\n", err);
 
 	return err;
@@ -451,7 +451,7 @@ int hermesi_program_end(hermes_t *hw)
 	int rc = 0;
 	int err;
 
-	rc = hermes_docmd_wait(hw, HERMES_PROGRAM_DISABLE, 0, &resp);
+	rc = hw->ops->cmd_wait(hw, HERMES_PROGRAM_DISABLE, 0, &resp);
 
 	pr_debug(PFX "PROGRAM_DISABLE returned %d, "
 		 "r0 0x%04x, r1 0x%04x, r2 0x%04x\n",
@@ -468,8 +468,8 @@ int hermesi_program_end(hermes_t *hw)
 	hermes_write_regn(hw, EVACK, 0xFFFF);
 
 	/* Reinitialise, ignoring return */
-	(void) hermes_doicmd_wait(hw, 0x0000 | HERMES_CMD_INIT,
-				  0, 0, 0, NULL);
+	(void) hw->ops->init_cmd_wait(hw, 0x0000 | HERMES_CMD_INIT,
+				      0, 0, 0, NULL);
 
 	return rc ? rc : err;
 }

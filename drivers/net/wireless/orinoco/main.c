@@ -399,8 +399,8 @@ static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		memset(&desc, 0, sizeof(desc));
 
 		*txcntl = cpu_to_le16(tx_control);
-		err = hermes_bap_pwrite(hw, USER_BAP, &desc, sizeof(desc),
-					txfid, 0);
+		err = hw->ops->bap_pwrite(hw, USER_BAP, &desc, sizeof(desc),
+					  txfid, 0);
 		if (err) {
 			if (net_ratelimit())
 				printk(KERN_ERR "%s: Error %d writing Tx "
@@ -413,8 +413,8 @@ static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		memset(&desc, 0, sizeof(desc));
 
 		desc.tx_control = cpu_to_le16(tx_control);
-		err = hermes_bap_pwrite(hw, USER_BAP, &desc, sizeof(desc),
-					txfid, 0);
+		err = hw->ops->bap_pwrite(hw, USER_BAP, &desc, sizeof(desc),
+					  txfid, 0);
 		if (err) {
 			if (net_ratelimit())
 				printk(KERN_ERR "%s: Error %d writing Tx "
@@ -457,8 +457,8 @@ static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy(eh, &hdr, sizeof(hdr));
 	}
 
-	err = hermes_bap_pwrite(hw, USER_BAP, skb->data, skb->len,
-				txfid, HERMES_802_3_OFFSET);
+	err = hw->ops->bap_pwrite(hw, USER_BAP, skb->data, skb->len,
+				  txfid, HERMES_802_3_OFFSET);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d writing packet to BAP\n",
 		       dev->name, err);
@@ -489,8 +489,8 @@ static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 			    skb->data + ETH_HLEN, skb->len - ETH_HLEN, mic);
 
 		/* Write the MIC */
-		err = hermes_bap_pwrite(hw, USER_BAP, &mic_buf[0], len,
-					txfid, HERMES_802_3_OFFSET + offset);
+		err = hw->ops->bap_pwrite(hw, USER_BAP, &mic_buf[0], len,
+					  txfid, HERMES_802_3_OFFSET + offset);
 		if (err) {
 			printk(KERN_ERR "%s: Error %d writing MIC to BAP\n",
 			       dev->name, err);
@@ -501,7 +501,7 @@ static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Finally, we actually initiate the send */
 	netif_stop_queue(dev);
 
-	err = hermes_docmd_wait(hw, HERMES_CMD_TX | HERMES_CMD_RECL,
+	err = hw->ops->cmd_wait(hw, HERMES_CMD_TX | HERMES_CMD_RECL,
 				txfid, NULL);
 	if (err) {
 		netif_start_queue(dev);
@@ -571,9 +571,9 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 		return; /* Nothing's really happened */
 
 	/* Read part of the frame header - we need status and addr1 */
-	err = hermes_bap_pread(hw, IRQ_BAP, &hdr,
-			       sizeof(struct hermes_txexc_data),
-			       fid, 0);
+	err = hw->ops->bap_pread(hw, IRQ_BAP, &hdr,
+				 sizeof(struct hermes_txexc_data),
+				 fid, 0);
 
 	hermes_write_regn(hw, TXCOMPLFID, DUMMY_FID);
 	stats->tx_errors++;
@@ -763,9 +763,9 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 
 	/* If any, copy the data from the card to the skb */
 	if (datalen > 0) {
-		err = hermes_bap_pread(hw, IRQ_BAP, skb_put(skb, datalen),
-				       ALIGN(datalen, 2), rxfid,
-				       HERMES_802_2_OFFSET);
+		err = hw->ops->bap_pread(hw, IRQ_BAP, skb_put(skb, datalen),
+					 ALIGN(datalen, 2), rxfid,
+					 HERMES_802_2_OFFSET);
 		if (err) {
 			printk(KERN_ERR "%s: error %d reading monitor frame\n",
 			       dev->name, err);
@@ -813,8 +813,8 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 
 	rxfid = hermes_read_regn(hw, RXFID);
 
-	err = hermes_bap_pread(hw, IRQ_BAP, desc, sizeof(*desc),
-			       rxfid, 0);
+	err = hw->ops->bap_pread(hw, IRQ_BAP, desc, sizeof(*desc),
+				 rxfid, 0);
 	if (err) {
 		printk(KERN_ERR "%s: error %d reading Rx descriptor. "
 		       "Frame dropped.\n", dev->name, err);
@@ -881,9 +881,9 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 	   nothing is removed.  2 is for aligning the IP header.  */
 	skb_reserve(skb, ETH_HLEN + 2);
 
-	err = hermes_bap_pread(hw, IRQ_BAP, skb_put(skb, length),
-			       ALIGN(length, 2), rxfid,
-			       HERMES_802_2_OFFSET);
+	err = hw->ops->bap_pread(hw, IRQ_BAP, skb_put(skb, length),
+				 ALIGN(length, 2), rxfid,
+				 HERMES_802_2_OFFSET);
 	if (err) {
 		printk(KERN_ERR "%s: error %d reading frame. "
 		       "Frame dropped.\n", dev->name, err);
@@ -1144,9 +1144,9 @@ static void orinoco_join_ap(struct work_struct *work)
 		goto out;
 
 	/* Read scan results from the firmware */
-	err = hermes_read_ltv(hw, USER_BAP,
-			      HERMES_RID_SCANRESULTSTABLE,
-			      MAX_SCAN_LEN, &len, buf);
+	err = hw->ops->read_ltv(hw, USER_BAP,
+				HERMES_RID_SCANRESULTSTABLE,
+				MAX_SCAN_LEN, &len, buf);
 	if (err) {
 		printk(KERN_ERR "%s: Cannot read scan results\n",
 		       dev->name);
@@ -1193,8 +1193,8 @@ static void orinoco_send_bssid_wevent(struct orinoco_private *priv)
 	union iwreq_data wrqu;
 	int err;
 
-	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CURRENTBSSID,
-			      ETH_ALEN, NULL, wrqu.ap_addr.sa_data);
+	err = hw->ops->read_ltv(hw, USER_BAP, HERMES_RID_CURRENTBSSID,
+				ETH_ALEN, NULL, wrqu.ap_addr.sa_data);
 	if (err != 0)
 		return;
 
@@ -1216,8 +1216,8 @@ static void orinoco_send_assocreqie_wevent(struct orinoco_private *priv)
 	if (!priv->has_wpa)
 		return;
 
-	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CURRENT_ASSOC_REQ_INFO,
-			      sizeof(buf), NULL, &buf);
+	err = hw->ops->read_ltv(hw, USER_BAP, HERMES_RID_CURRENT_ASSOC_REQ_INFO,
+				sizeof(buf), NULL, &buf);
 	if (err != 0)
 		return;
 
@@ -1246,8 +1246,9 @@ static void orinoco_send_assocrespie_wevent(struct orinoco_private *priv)
 	if (!priv->has_wpa)
 		return;
 
-	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CURRENT_ASSOC_RESP_INFO,
-			      sizeof(buf), NULL, &buf);
+	err = hw->ops->read_ltv(hw, USER_BAP,
+				HERMES_RID_CURRENT_ASSOC_RESP_INFO,
+				sizeof(buf), NULL, &buf);
 	if (err != 0)
 		return;
 
@@ -1370,8 +1371,8 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 	infofid = hermes_read_regn(hw, INFOFID);
 
 	/* Read the info frame header - don't try too hard */
-	err = hermes_bap_pread(hw, IRQ_BAP, &info, sizeof(info),
-			       infofid, 0);
+	err = hw->ops->bap_pread(hw, IRQ_BAP, &info, sizeof(info),
+				 infofid, 0);
 	if (err) {
 		printk(KERN_ERR "%s: error %d reading info frame. "
 		       "Frame dropped.\n", dev->name, err);
@@ -1392,8 +1393,8 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 			len = sizeof(tallies);
 		}
 
-		err = hermes_bap_pread(hw, IRQ_BAP, &tallies, len,
-				       infofid, sizeof(info));
+		err = hw->ops->bap_pread(hw, IRQ_BAP, &tallies, len,
+					 infofid, sizeof(info));
 		if (err)
 			break;
 
@@ -1428,8 +1429,8 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 			break;
 		}
 
-		err = hermes_bap_pread(hw, IRQ_BAP, &linkstatus, len,
-				       infofid, sizeof(info));
+		err = hw->ops->bap_pread(hw, IRQ_BAP, &linkstatus, len,
+					 infofid, sizeof(info));
 		if (err)
 			break;
 		newstatus = le16_to_cpu(linkstatus.linkstatus);
@@ -1493,8 +1494,8 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 		}
 
 		/* Read scan data */
-		err = hermes_bap_pread(hw, IRQ_BAP, (void *) buf, len,
-				       infofid, sizeof(info));
+		err = hw->ops->bap_pread(hw, IRQ_BAP, (void *) buf, len,
+					 infofid, sizeof(info));
 		if (err) {
 			kfree(buf);
 			qabort_scan(priv);
@@ -1546,8 +1547,8 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 			break;
 
 		/* Read scan data */
-		err = hermes_bap_pread(hw, IRQ_BAP, (void *) bss, len,
-				       infofid, sizeof(info));
+		err = hw->ops->bap_pread(hw, IRQ_BAP, (void *) bss, len,
+					 infofid, sizeof(info));
 		if (err)
 			kfree(bss);
 		else
@@ -1646,7 +1647,7 @@ static int orinoco_reinit_firmware(struct orinoco_private *priv)
 	struct hermes *hw = &priv->hw;
 	int err;
 
-	err = hermes_init(hw);
+	err = hw->ops->init(hw);
 	if (priv->do_fw_download && !err) {
 		err = orinoco_download(priv);
 		if (err)
@@ -1983,7 +1984,7 @@ int orinoco_init(struct orinoco_private *priv)
 	priv->nicbuf_size = IEEE80211_MAX_FRAME_LEN + ETH_HLEN;
 
 	/* Initialize the firmware */
-	err = hermes_init(hw);
+	err = hw->ops->init(hw);
 	if (err != 0) {
 		dev_err(dev, "Failed to initialize firmware (err = %d)\n",
 			err);
