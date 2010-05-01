@@ -3446,14 +3446,14 @@ drop:
 static void l2cap_check_srej_gap(struct sock *sk, u8 tx_seq)
 {
 	struct sk_buff *skb;
-	u16 control = 0;
+	u16 control;
 
 	while((skb = skb_peek(SREJ_QUEUE(sk)))) {
 		if (bt_cb(skb)->tx_seq != tx_seq)
 			break;
 
 		skb = skb_dequeue(SREJ_QUEUE(sk));
-		control |= bt_cb(skb)->sar << L2CAP_CTRL_SAR_SHIFT;
+		control = bt_cb(skb)->sar << L2CAP_CTRL_SAR_SHIFT;
 		l2cap_sar_reassembly_sdu(sk, skb, control);
 		l2cap_pi(sk)->buffer_seq_srej =
 			(l2cap_pi(sk)->buffer_seq_srej + 1) % 64;
