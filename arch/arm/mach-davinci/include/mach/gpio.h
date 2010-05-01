@@ -45,7 +45,7 @@
 /* Convert GPIO signal to GPIO pin number */
 #define GPIO_TO_PIN(bank, gpio)	(16 * (bank) + (gpio))
 
-struct gpio_controller {
+struct davinci_gpio_regs {
 	u32	dir;
 	u32	out_data;
 	u32	set_data;
@@ -58,6 +58,12 @@ struct gpio_controller {
 	u32	intstat;
 };
 
+struct davinci_gpio_controller {
+	struct davinci_gpio_regs __iomem *regs;
+	struct gpio_chip	chip;
+	int			irq_base;
+};
+
 /* The __gpio_to_controller() and __gpio_mask() functions inline to constants
  * with constant parameters; or in outlined code they execute at runtime.
  *
@@ -67,7 +73,7 @@ struct gpio_controller {
  *
  * These are NOT part of the cross-platform GPIO interface
  */
-static inline struct gpio_controller __iomem *
+static inline struct davinci_gpio_regs __iomem *
 __gpio_to_controller(unsigned gpio)
 {
 	void __iomem *ptr;
@@ -102,7 +108,7 @@ static inline u32 __gpio_mask(unsigned gpio)
 static inline void gpio_set_value(unsigned gpio, int value)
 {
 	if (__builtin_constant_p(value) && gpio < DAVINCI_N_GPIO) {
-		struct gpio_controller	__iomem *g;
+		struct davinci_gpio_regs	__iomem *g;
 		u32			mask;
 
 		g = __gpio_to_controller(gpio);
@@ -128,7 +134,7 @@ static inline void gpio_set_value(unsigned gpio, int value)
  */
 static inline int gpio_get_value(unsigned gpio)
 {
-	struct gpio_controller	__iomem *g;
+	struct davinci_gpio_regs	__iomem *g;
 
 	if (!__builtin_constant_p(gpio) || gpio >= DAVINCI_N_GPIO)
 		return __gpio_get_value(gpio);
