@@ -1636,16 +1636,15 @@ static inline int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, siz
 	__skb_queue_tail(&sar_queue, skb);
 	len -= pi->remote_mps;
 	size += pi->remote_mps;
-	control = 0;
 
 	while (len > 0) {
 		size_t buflen;
 
 		if (len > pi->remote_mps) {
-			control |= L2CAP_SDU_CONTINUE;
+			control = L2CAP_SDU_CONTINUE;
 			buflen = pi->remote_mps;
 		} else {
-			control |= L2CAP_SDU_END;
+			control = L2CAP_SDU_END;
 			buflen = len;
 		}
 
@@ -1658,7 +1657,6 @@ static inline int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, siz
 		__skb_queue_tail(&sar_queue, skb);
 		len -= buflen;
 		size += buflen;
-		control = 0;
 	}
 	skb_queue_splice_tail(&sar_queue, TX_QUEUE(sk));
 	if (sk->sk_send_head == NULL)
