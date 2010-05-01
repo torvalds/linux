@@ -1331,43 +1331,44 @@ static int l2cap_streaming_send(struct sock *sk)
 	return 0;
 }
 
-static int l2cap_retransmit_frame(struct sock *sk, u8 tx_seq)
+static void l2cap_retransmit_frame(struct sock *sk, u8 tx_seq)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	struct sk_buff *skb, *tx_skb;
 	u16 control, fcs;
 
 	skb = skb_peek(TX_QUEUE(sk));
+	if (!skb)
+		return;
+
 	do {
-		if (bt_cb(skb)->tx_seq != tx_seq) {
-			if (skb_queue_is_last(TX_QUEUE(sk), skb))
-				break;
-			skb = skb_queue_next(TX_QUEUE(sk), skb);
-			continue;
-		}
-
-		if (pi->remote_max_tx &&
-				bt_cb(skb)->retries == pi->remote_max_tx) {
-			l2cap_send_disconn_req(pi->conn, sk);
+		if (bt_cb(skb)->tx_seq == tx_seq)
 			break;
-		}
 
-		tx_skb = skb_clone(skb, GFP_ATOMIC);
-		bt_cb(skb)->retries++;
-		control = get_unaligned_le16(tx_skb->data + L2CAP_HDR_SIZE);
-		control |= (pi->buffer_seq << L2CAP_CTRL_REQSEQ_SHIFT)
-				| (tx_seq << L2CAP_CTRL_TXSEQ_SHIFT);
-		put_unaligned_le16(control, tx_skb->data + L2CAP_HDR_SIZE);
+		if (skb_queue_is_last(TX_QUEUE(sk), skb))
+			return;
 
-		if (pi->fcs == L2CAP_FCS_CRC16) {
-			fcs = crc16(0, (u8 *)tx_skb->data, tx_skb->len - 2);
-			put_unaligned_le16(fcs, tx_skb->data + tx_skb->len - 2);
-		}
+	} while ((skb = skb_queue_next(TX_QUEUE(sk), skb)));
 
-		l2cap_do_send(sk, tx_skb);
-		break;
-	} while(1);
-	return 0;
+	if (pi->remote_max_tx &&
+			bt_cb(skb)->retries == pi->remote_max_tx) {
+		l2cap_send_disconn_req(pi->conn, sk);
+		return;
+	}
+
+	tx_skb = skb_clone(skb, GFP_ATOMIC);
+	bt_cb(skb)->retries++;
+	control = get_unaligned_le16(tx_skb->data + L2CAP_HDR_SIZE);
+	control |= (pi->buffer_seq << L2CAP_CTRL_REQSEQ_SHIFT)
+			| (tx_seq << L2CAP_CTRL_TXSEQ_SHIFT);
+	put_unaligned_le16(control, tx_skb->data + L2CAP_HDR_SIZE);
+
+	if (pi->fcs == L2CAP_FCS_CRC16) {
+		fcs = crc16(0, (u8 *)tx_skb->data, tx_skb->len - 2);
+		put_unaligned_le16(fcs, tx_skb->data + tx_skb->len - 2);
+	}
+
+	l2cap_do_send(sk, tx_skb);
 }
 
 static int l2cap_ertm_send(struct sock *sk)
