@@ -3364,6 +3364,13 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 
 	BT_DBG("sk %p rx_control 0x%4.4x len %d", sk, rx_control, skb->len);
 
+	if (L2CAP_CTRL_FINAL & rx_control) {
+		del_timer(&pi->monitor_timer);
+		if (pi->unacked_frames > 0)
+			__mod_retrans_timer();
+		pi->conn_state &= ~L2CAP_CONN_WAIT_F;
+	}
+
 	pi->expected_ack_seq = req_seq;
 	l2cap_drop_acked_frames(sk);
 
@@ -3453,6 +3460,13 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 
 	BT_DBG("sk %p rx_control 0x%4.4x len %d", sk, rx_control, skb->len);
 
+	if (L2CAP_CTRL_FINAL & rx_control) {
+		del_timer(&pi->monitor_timer);
+		if (pi->unacked_frames > 0)
+			__mod_retrans_timer();
+		pi->conn_state &= ~L2CAP_CONN_WAIT_F;
+	}
+
 	switch (rx_control & L2CAP_CTRL_SUPERVISE) {
 	case L2CAP_SUPER_RCV_READY:
 		if (rx_control & L2CAP_CTRL_POLL) {
@@ -3472,14 +3486,6 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 				l2cap_ertm_send(sk);
 			}
 
-			if (!(pi->conn_state & L2CAP_CONN_WAIT_F))
-				break;
-
-			pi->conn_state &= ~L2CAP_CONN_WAIT_F;
-			del_timer(&pi->monitor_timer);
-
-			if (pi->unacked_frames > 0)
-				__mod_retrans_timer();
 		} else {
 			pi->expected_ack_seq = tx_seq;
 			l2cap_drop_acked_frames(sk);
