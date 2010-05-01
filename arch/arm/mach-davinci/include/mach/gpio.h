@@ -14,6 +14,8 @@
 #define	__DAVINCI_GPIO_H
 
 #include <linux/io.h>
+#include <linux/spinlock.h>
+
 #include <asm-generic/gpio.h>
 
 #include <mach/irqs.h>
@@ -52,6 +54,7 @@ enum davinci_gpio_type {
 struct davinci_gpio_controller {
 	struct gpio_chip	chip;
 	int			irq_base;
+	spinlock_t		lock;
 	void __iomem		*regs;
 	void __iomem		*set_data;
 	void __iomem		*clr_data;

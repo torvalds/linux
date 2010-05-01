@@ -33,8 +33,6 @@ struct davinci_gpio_regs {
 	u32	intstat;
 };
 
-static DEFINE_SPINLOCK(gpio_lock);
-
 #define chip2controller(chip)	\
 	container_of(chip, struct davinci_gpio_controller, chip)
 
@@ -83,10 +81,11 @@ static inline int __davinci_direction(struct gpio_chip *chip,
 {
 	struct davinci_gpio_controller *d = chip2controller(chip);
 	struct davinci_gpio_regs __iomem *g = d->regs;
+	unsigned long flags;
 	u32 temp;
 	u32 mask = 1 << offset;
 
-	spin_lock(&gpio_lock);
+	spin_lock_irqsave(&d->lock, flags);
 	temp = __raw_readl(&g->dir);
 	if (out) {
 		temp &= ~mask;
@@ -95,7 +94,7 @@ static inline int __davinci_direction(struct gpio_chip *chip,
 		temp |= mask;
 	}
 	__raw_writel(temp, &g->dir);
-	spin_unlock(&gpio_lock);
+	spin_unlock_irqrestore(&d->lock, flags);
 
 	return 0;
 }
@@ -174,6 +173,8 @@ static int __init davinci_gpio_setup(void)
 		chips[i].chip.ngpio = ngpio - base;
 		if (chips[i].chip.ngpio > 32)
 			chips[i].chip.ngpio = 32;
+
+		spin_lock_init(&chips[i].lock);
 
 		regs = gpio2regs(base);
 		chips[i].regs = regs;
