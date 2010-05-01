@@ -895,9 +895,6 @@ struct sctp_transport {
 		 */
 		hb_sent:1,
 
-		/* Flag to track the current fast recovery state */
-		fast_recovery:1,
-
 		/* Is the Path MTU update pending on this tranport */
 		pmtu_pending:1,
 
@@ -951,9 +948,6 @@ struct sctp_transport {
 	__u32 flight_size;
 
 	__u32 burst_limited;	/* Holds old cwnd when max.burst is applied */
-
-	/* TSN marking the fast recovery exit point */
-	__u32 fast_recovery_exit;
 
 	/* Destination */
 	struct dst_entry *dst;
@@ -1722,6 +1716,12 @@ struct sctp_association {
 
 	/* Highest TSN that is acknowledged by incoming SACKs. */
 	__u32 highest_sacked;
+
+	/* TSN marking the fast recovery exit point */
+	__u32 fast_recovery_exit;
+
+	/* Flag to track the current fast recovery state */
+	__u8 fast_recovery;
 
 	/* The number of unacknowledged data chunks.  Reported through
 	 * the SCTP_STATUS sockopt.

@@ -378,15 +378,16 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 			       __u32 sack_ctsn, __u32 bytes_acked)
 {
+	struct sctp_association *asoc = transport->asoc;
 	__u32 cwnd, ssthresh, flight_size, pba, pmtu;
 
 	cwnd = transport->cwnd;
 	flight_size = transport->flight_size;
 
 	/* See if we need to exit Fast Recovery first */
-	if (transport->fast_recovery &&
-	    TSN_lte(transport->fast_recovery_exit, sack_ctsn))
-		transport->fast_recovery = 0;
+	if (asoc->fast_recovery &&
+	    TSN_lte(asoc->fast_recovery_exit, sack_ctsn))
+		asoc->fast_recovery = 0;
 
 	/* The appropriate cwnd increase algorithm is performed if, and only
 	 * if the cumulative TSN whould advanced and the congestion window is
@@ -415,7 +416,7 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 		 *    2) the destination's path MTU.  This upper bound protects
 		 *    against the ACK-Splitting attack outlined in [SAVAGE99].
 		 */
-		if (transport->fast_recovery)
+		if (asoc->fast_recovery)
 			return;
 
 		if (bytes_acked > pmtu)
@@ -466,6 +467,8 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 			       sctp_lower_cwnd_t reason)
 {
+	struct sctp_association *asoc = transport->asoc;
+
 	switch (reason) {
 	case SCTP_LOWER_CWND_T3_RTX:
 		/* RFC 2960 Section 7.2.3, sctpimpguide
@@ -476,11 +479,11 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 *      partial_bytes_acked = 0
 		 */
 		transport->ssthresh = max(transport->cwnd/2,
-					  4*transport->asoc->pathmtu);
-		transport->cwnd = transport->asoc->pathmtu;
+					  4*asoc->pathmtu);
+		transport->cwnd = asoc->pathmtu;
 
-		/* T3-rtx also clears fast recovery on the transport */
-		transport->fast_recovery = 0;
+		/* T3-rtx also clears fast recovery */
+		asoc->fast_recovery = 0;
 		break;
 
 	case SCTP_LOWER_CWND_FAST_RTX:
@@ -496,15 +499,15 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 *      cwnd = ssthresh
 		 *      partial_bytes_acked = 0
 		 */
-		if (transport->fast_recovery)
+		if (asoc->fast_recovery)
 			return;
 
 		/* Mark Fast recovery */
-		transport->fast_recovery = 1;
-		transport->fast_recovery_exit = transport->asoc->next_tsn - 1;
+		asoc->fast_recovery = 1;
+		asoc->fast_recovery_exit = asoc->next_tsn - 1;
 
 		transport->ssthresh = max(transport->cwnd/2,
-					  4*transport->asoc->pathmtu);
+					  4*asoc->pathmtu);
 		transport->cwnd = transport->ssthresh;
 		break;
 
@@ -524,7 +527,7 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		if (time_after(jiffies, transport->last_time_ecne_reduced +
 					transport->rtt)) {
 			transport->ssthresh = max(transport->cwnd/2,
-						  4*transport->asoc->pathmtu);
+						  4*asoc->pathmtu);
 			transport->cwnd = transport->ssthresh;
 			transport->last_time_ecne_reduced = jiffies;
 		}
@@ -540,7 +543,7 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 * interval.
 		 */
 		transport->cwnd = max(transport->cwnd/2,
-					 4*transport->asoc->pathmtu);
+					 4*asoc->pathmtu);
 		break;
 	}
 
@@ -625,7 +628,6 @@ void sctp_transport_reset(struct sctp_transport *t)
 	t->error_count = 0;
 	t->rto_pending = 0;
 	t->hb_sent = 0;
-	t->fast_recovery = 0;
 
 	/* Initialize the state information for SFR-CACC */
 	t->cacc.changeover_active = 0;
