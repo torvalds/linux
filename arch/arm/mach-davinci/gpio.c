@@ -20,6 +20,19 @@
 
 #include <asm/mach/irq.h>
 
+struct davinci_gpio_regs {
+	u32	dir;
+	u32	out_data;
+	u32	set_data;
+	u32	clr_data;
+	u32	in_data;
+	u32	set_rising;
+	u32	clr_rising;
+	u32	set_falling;
+	u32	clr_falling;
+	u32	intstat;
+};
+
 static DEFINE_SPINLOCK(gpio_lock);
 
 #define chip2controller(chip)	\
@@ -27,10 +40,24 @@ static DEFINE_SPINLOCK(gpio_lock);
 
 static struct davinci_gpio_controller chips[DIV_ROUND_UP(DAVINCI_N_GPIO, 32)];
 
-/* create a non-inlined version */
 static struct davinci_gpio_regs __iomem __init *gpio2regs(unsigned gpio)
 {
-	return __gpio_to_controller(gpio);
+	void __iomem *ptr;
+	void __iomem *base = davinci_soc_info.gpio_base;
+
+	if (gpio < 32 * 1)
+		ptr = base + 0x10;
+	else if (gpio < 32 * 2)
+		ptr = base + 0x38;
+	else if (gpio < 32 * 3)
+		ptr = base + 0x60;
+	else if (gpio < 32 * 4)
+		ptr = base + 0x88;
+	else if (gpio < 32 * 5)
+		ptr = base + 0xb0;
+	else
+		ptr = NULL;
+	return ptr;
 }
 
 static inline struct davinci_gpio_regs __iomem *irq2regs(int irq)
@@ -116,6 +143,7 @@ static int __init davinci_gpio_setup(void)
 	int i, base;
 	unsigned ngpio;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
+	struct davinci_gpio_regs *regs;
 
 	/*
 	 * The gpio banks conceptually expose a segmented bitmap,
@@ -144,10 +172,17 @@ static int __init davinci_gpio_setup(void)
 		if (chips[i].chip.ngpio > 32)
 			chips[i].chip.ngpio = 32;
 
-		chips[i].regs = gpio2regs(base);
+		regs = gpio2regs(base);
+		chips[i].regs = regs;
+		chips[i].set_data = &regs->set_data;
+		chips[i].clr_data = &regs->clr_data;
+		chips[i].in_data = &regs->in_data;
 
 		gpiochip_add(&chips[i].chip);
 	}
+
+	soc_info->gpio_ctlrs = chips;
+	soc_info->gpio_ctlrs_num = DIV_ROUND_UP(ngpio, 32);
 
 	davinci_gpio_irq_setup();
 	return 0;

@@ -37,6 +37,8 @@ struct davinci_timer_info {
 	unsigned int			clocksource_id;
 };
 
+struct davinci_gpio_controller;
+
 /* SoC specific init support */
 struct davinci_soc_info {
 	struct map_desc			*io_desc;
@@ -61,6 +63,8 @@ struct davinci_soc_info {
 	unsigned			gpio_num;
 	unsigned			gpio_irq;
 	unsigned			gpio_unbanked;
+	struct davinci_gpio_controller	*gpio_ctlrs;
+	int				gpio_ctlrs_num;
 	struct platform_device		*serial_dev;
 	struct emac_platform_data	*emac_pdata;
 	dma_addr_t			sram_dma;
