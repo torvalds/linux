@@ -41,17 +41,11 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID
-RXvWorkItem(
-    PVOID Context
-    );
+void RXvWorkItem(void *Context);
 
-VOID
-RXvMngWorkItem(
-    PVOID Context
-    );
+void RXvMngWorkItem(void *Context);
 
-VOID
+void
 RXvFreeRCB(
      PRCB pRCB,
      BOOL bReAllocSkb

@@ -246,7 +246,7 @@ BSSpAddrIsInBSSList(
      PWLAN_IE_SSID pSSID
     );
 
-VOID
+void
 BSSvClearBSSList(
      HANDLE hDeviceContext,
      BOOL bKeepCurrBSSID
@@ -304,13 +304,13 @@ BSSbIsSTAInNodeDB(
     OUT PUINT puNodeIndex
     );
 
-VOID
+void
 BSSvCreateOneNode(
      HANDLE hDeviceContext,
     OUT PUINT puNodeIndex
     );
 
-VOID
+void
 BSSvUpdateAPNode(
      HANDLE hDeviceContext,
      PWORD pwCapInfo,
@@ -319,13 +319,13 @@ BSSvUpdateAPNode(
     );
 
 
-VOID
+void
 BSSvSecondCallBack(
      HANDLE hDeviceContext
     );
 
 
-VOID
+void
 BSSvUpdateNodeTxCounter(
      HANDLE      hDeviceContext,
      PSStatCounter    pStatistic,
@@ -333,25 +333,25 @@ BSSvUpdateNodeTxCounter(
      BYTE             byPktNO
     );
 
-VOID
+void
 BSSvRemoveOneNode(
      HANDLE hDeviceContext,
      UINT uNodeIndex
     );
 
-VOID
+void
 BSSvAddMulticastNode(
      HANDLE hDeviceContext
     );
 
 
-VOID
+void
 BSSvClearNodeDBTable(
      HANDLE hDeviceContext,
      UINT uStartIndex
     );
 
-VOID
+void
 BSSvClearAnyBSSJoinRecord(
      HANDLE hDeviceContext
     );

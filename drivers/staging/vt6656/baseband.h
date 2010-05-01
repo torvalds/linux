@@ -104,7 +104,7 @@ BBuGetFrameTime(
      WORD wRate
     );
 
-VOID
+void
 BBvCaculateParameter (
       PSDevice pDevice,
       UINT cbFrameLength,
@@ -117,28 +117,28 @@ BBvCaculateParameter (
 
 // timer for antenna diversity
 
-VOID
+void
 TimerSQ3CallBack (
       HANDLE      hDeviceContext
     );
 
-VOID
+void
 TimerSQ3Tmax3CallBack (
       HANDLE      hDeviceContext
     );
 
-VOID BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);
-void BBvLoopbackOn (PSDevice pDevice);
-void BBvLoopbackOff (PSDevice pDevice);
-void BBvSoftwareReset (PSDevice pDevice);
+void BBvAntennaDiversity(PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);
+void BBvLoopbackOn(PSDevice pDevice);
+void BBvLoopbackOff(PSDevice pDevice);
+void BBvSoftwareReset(PSDevice pDevice);
 
 void BBvSetShortSlotTime(PSDevice pDevice);
-VOID BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData);
+void BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData);
 void BBvSetAntennaMode(PSDevice pDevice, BYTE byAntennaMode);
 BOOL BBbVT3184Init (PSDevice pDevice);
-VOID BBvSetDeepSleep (PSDevice pDevice);
-VOID BBvExitDeepSleep (PSDevice pDevice);
-VOID BBvUpdatePreEDThreshold(
+void BBvSetDeepSleep(PSDevice pDevice);
+void BBvExitDeepSleep(PSDevice pDevice);
+void BBvUpdatePreEDThreshold(
        PSDevice    pDevice,
        BOOL        bScanning
      );

@@ -437,7 +437,7 @@ CHvChannelGetList (
 }
 
 
-VOID CHvInitChannelTable (PVOID pDeviceHandler)
+void CHvInitChannelTable(void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     BOOL        bMultiBand = FALSE;

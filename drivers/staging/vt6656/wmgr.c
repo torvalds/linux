@@ -113,7 +113,7 @@ s_MgrMakeAssocRequest(
     );
 
 static
-VOID
+void
 s_vMgrRxAssocRequest(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -135,7 +135,7 @@ s_MgrMakeReAssocRequest(
     );
 
 static
-VOID
+void
 s_vMgrRxAssocResponse(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -144,7 +144,7 @@ s_vMgrRxAssocResponse(
     );
 
 static
-VOID
+void
 s_vMgrRxDisassociation(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -153,7 +153,7 @@ s_vMgrRxDisassociation(
 
 // Authentication/deauthen functions
 static
-VOID
+void
 s_vMgrRxAuthenSequence_1(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -161,7 +161,7 @@ s_vMgrRxAuthenSequence_1(
     );
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_2(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -169,7 +169,7 @@ s_vMgrRxAuthenSequence_2(
     );
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_3(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -177,7 +177,7 @@ s_vMgrRxAuthenSequence_3(
     );
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_4(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -185,7 +185,7 @@ s_vMgrRxAuthenSequence_4(
     );
 
 static
-VOID
+void
 s_vMgrRxAuthentication(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -193,7 +193,7 @@ s_vMgrRxAuthentication(
     );
 
 static
-VOID
+void
 s_vMgrRxDeauthentication(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -203,7 +203,7 @@ s_vMgrRxDeauthentication(
 // Scan functions
 // probe request/response functions
 static
-VOID
+void
 s_vMgrRxProbeRequest(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -211,7 +211,7 @@ s_vMgrRxProbeRequest(
     );
 
 static
-VOID
+void
 s_vMgrRxProbeResponse(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -220,7 +220,7 @@ s_vMgrRxProbeResponse(
 
 // beacon functions
 static
-VOID
+void
 s_vMgrRxBeacon(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -229,7 +229,7 @@ s_vMgrRxBeacon(
     );
 
 static
-VOID
+void
 s_vMgrFormatTIM(
      PSMgmtObject pMgmt,
      PWLAN_IE_TIM pTIM
@@ -299,7 +299,7 @@ s_MgrMakeProbeResponse(
 
 // received status
 static
-VOID
+void
 s_vMgrLogStatus(
      PSMgmtObject pMgmt,
      WORD wStatus
@@ -307,7 +307,7 @@ s_vMgrLogStatus(
 
 
 static
-VOID
+void
 s_vMgrSynchBSS (
      PSDevice      pDevice,
      UINT          uBSSMode,
@@ -324,7 +324,7 @@ s_bCipherMatch (
     OUT PBYTE                           pbyCCSGK
     );
 
- static VOID  Encyption_Rebuild(
+ static void  Encyption_Rebuild(
      PSDevice pDevice,
      PKnownBSS pCurr
  );
@@ -347,7 +347,7 @@ s_bCipherMatch (
  *
 -*/
 
-VOID
+void
 vMgrObjectInit(
       HANDLE hDeviceContext
     )
@@ -415,7 +415,7 @@ vMgrObjectInit(
 -*/
 
 
-VOID
+void
 vMgrAssocBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject pMgmt,
@@ -491,7 +491,7 @@ vMgrAssocBeginSta(
  *
 -*/
 
-VOID
+void
 vMgrReAssocBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject pMgmt,
@@ -570,7 +570,7 @@ vMgrReAssocBeginSta(
  *
 -*/
 
-VOID
+void
 vMgrDisassocBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject pMgmt,
@@ -633,7 +633,7 @@ vMgrDisassocBeginSta(
 -*/
 
 static
-VOID
+void
 s_vMgrRxAssocRequest(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -691,7 +691,7 @@ s_vMgrRxAssocRequest(
         }
 
 
-        RATEvParseMaxRate((PVOID)pDevice,
+	RATEvParseMaxRate((void *)pDevice,
                            (PWLAN_IE_SUPP_RATES)abyCurrSuppRates,
                            (PWLAN_IE_SUPP_RATES)abyCurrExtSuppRates,
                            FALSE, // do not change our basic rate
@@ -789,7 +789,7 @@ s_vMgrRxAssocRequest(
 -*/
 
 static
-VOID
+void
 s_vMgrRxReAssocRequest(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -844,7 +844,7 @@ s_vMgrRxReAssocRequest(
         }
 
 
-        RATEvParseMaxRate((PVOID)pDevice,
+	RATEvParseMaxRate((void *)pDevice,
                           (PWLAN_IE_SUPP_RATES)abyCurrSuppRates,
                           (PWLAN_IE_SUPP_RATES)abyCurrExtSuppRates,
                            FALSE, // do not change our basic rate
@@ -936,7 +936,7 @@ s_vMgrRxReAssocRequest(
 -*/
 
 static
-VOID
+void
 s_vMgrRxAssocResponse(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -1102,7 +1102,7 @@ if(pMgmt->eCurrState == WMAC_STATE_ASSOC)
  *
 -*/
 
-VOID
+void
 vMgrAuthenBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject  pMgmt,
@@ -1160,7 +1160,7 @@ vMgrAuthenBeginSta(
  *
 -*/
 
-VOID
+void
 vMgrDeAuthenBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject  pMgmt,
@@ -1217,7 +1217,7 @@ vMgrDeAuthenBeginSta(
 -*/
 
 static
-VOID
+void
 s_vMgrRxAuthentication(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -1275,7 +1275,7 @@ s_vMgrRxAuthentication(
 
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_1(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -1381,7 +1381,7 @@ s_vMgrRxAuthenSequence_1(
 -*/
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_2(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -1483,7 +1483,7 @@ s_vMgrRxAuthenSequence_2(
 -*/
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_3(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -1571,7 +1571,7 @@ reply:
  *
 -*/
 static
-VOID
+void
 s_vMgrRxAuthenSequence_4(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -1610,7 +1610,7 @@ s_vMgrRxAuthenSequence_4(
 -*/
 
 static
-VOID
+void
 s_vMgrRxDisassociation(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -1700,7 +1700,7 @@ s_vMgrRxDisassociation(
 -*/
 
 static
-VOID
+void
 s_vMgrRxDeauthentication(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -1826,7 +1826,7 @@ ChannelExceedZoneType(
 -*/
 
 static
-VOID
+void
 s_vMgrRxBeacon(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -2089,7 +2089,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
             pMgmt->abyCurrExtSuppRates[1] = RATEuSetIE((PWLAN_IE_SUPP_RATES)pBSSList->abyExtSuppRates,
                                                     (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates,
                                                     uRateLen);
-            RATEvParseMaxRate( (PVOID)pDevice,
+	    RATEvParseMaxRate((void *)pDevice,
                                (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                                (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates,
                                TRUE,
@@ -2227,7 +2227,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 pMgmt->abyCurrSuppRates[1] = RATEuSetIE((PWLAN_IE_SUPP_RATES)sFrame.pSuppRates,
                                                         (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                                                         WLAN_RATES_MAXLEN_11B);
-                RATEvParseMaxRate( (PVOID)pDevice,
+		RATEvParseMaxRate((void *)pDevice,
                                    (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                                    NULL,
                                    TRUE,
@@ -2248,7 +2248,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 pMgmt->abyCurrSuppRates[1] = RATEuSetIE((PWLAN_IE_SUPP_RATES)sFrame.pSuppRates,
                                                         (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                                                         WLAN_RATES_MAXLEN_11B);
-                RATEvParseMaxRate( (PVOID)pDevice,
+		RATEvParseMaxRate((void *)pDevice,
                                    (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                                    NULL,
                                    TRUE,
@@ -2355,7 +2355,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
  *    CMD_STATUS
  *
 -*/
-VOID
+void
 vMgrCreateOwnIBSS(
       HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
@@ -2466,7 +2466,8 @@ vMgrCreateOwnIBSS(
 
     // set basic rate
 
-    RATEvParseMaxRate((PVOID)pDevice, (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
+    RATEvParseMaxRate((void *)pDevice,
+		      (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                       (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates, TRUE,
                       &wMaxBasicRate, &wMaxSuppRate, &wSuppRate,
                       &byTopCCKBasicRate, &byTopOFDMBasicRate);
@@ -2629,7 +2630,7 @@ vMgrCreateOwnIBSS(
  *
 -*/
 
-VOID
+void
 vMgrJoinBSSBegin(
       HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
@@ -2760,7 +2761,7 @@ vMgrJoinBSSBegin(
                 }
             }
 
-            RATEvParseMaxRate((PVOID)pDevice, pItemRates, pItemExtRates, TRUE,
+	    RATEvParseMaxRate((void *)pDevice, pItemRates, pItemExtRates, TRUE,
                               &wMaxBasicRate, &wMaxSuppRate, &wSuppRate,
                               &byTopCCKBasicRate, &byTopOFDMBasicRate);
             vUpdateIFS(pDevice);
@@ -2899,7 +2900,8 @@ vMgrJoinBSSBegin(
                                                     (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                                                     WLAN_RATES_MAXLEN_11B);
             // set basic rate
-            RATEvParseMaxRate((PVOID)pDevice, (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
+	    RATEvParseMaxRate((void *)pDevice,
+			      (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                               NULL, TRUE, &wMaxBasicRate, &wMaxSuppRate, &wSuppRate,
                               &byTopCCKBasicRate, &byTopOFDMBasicRate);
             vUpdateIFS(pDevice);
@@ -2960,7 +2962,7 @@ vMgrJoinBSSBegin(
  *
 -*/
 static
-VOID
+void
 s_vMgrSynchBSS (
      PSDevice      pDevice,
      UINT          uBSSMode,
@@ -3004,7 +3006,7 @@ s_vMgrSynchBSS (
     pDevice->byPreambleType = 0;
     pDevice->wBasicRate = 0;
     // Set Basic Rate
-    CARDbAddBasicRate((PVOID)pDevice, RATE_1M);
+    CARDbAddBasicRate((void *)pDevice, RATE_1M);
 
     // calculate TSF offset
     // TSF Offset = Received Timestamp TSF - Marked Local's TSF
@@ -3122,7 +3124,7 @@ s_vMgrSynchBSS (
 
 //mike add: fix NetworkManager 0.7.0 hidden ssid mode in WPA encryption
 //                   ,need reset eAuthenMode and eEncryptionStatus
- static VOID  Encyption_Rebuild(
+ static void  Encyption_Rebuild(
      PSDevice pDevice,
      PKnownBSS pCurr
  )
@@ -3174,12 +3176,12 @@ s_vMgrSynchBSS (
  *
  *
  * Return Value:
- *    VOID
+ *    void
  *
 -*/
 
 static
-VOID
+void
 s_vMgrFormatTIM(
      PSMgmtObject pMgmt,
      PWLAN_IE_TIM pTIM
@@ -4224,7 +4226,7 @@ s_MgrMakeReAssocResponse(
 -*/
 
 static
-VOID
+void
 s_vMgrRxProbeResponse(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -4354,7 +4356,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
 
 
 static
-VOID
+void
 s_vMgrRxProbeRequest(
      PSDevice pDevice,
      PSMgmtObject pMgmt,
@@ -4450,7 +4452,7 @@ s_vMgrRxProbeRequest(
 -*/
 
 
-VOID
+void
 vMgrRxManagePacket(
       HANDLE hDeviceContext,
      PSMgmtObject pMgmt,
@@ -4658,7 +4660,7 @@ bMgrPrepareBeaconToSend(
  *
 -*/
 static
-VOID
+void
 s_vMgrLogStatus(
      PSMgmtObject pMgmt,
      WORD  wStatus
@@ -4791,7 +4793,7 @@ bAdd_PMKID_Candidate (
  * Return Value: none.
  *
 -*/
-VOID
+void
 vFlush_PMKID_Candidate (
      HANDLE hDeviceContext
     )

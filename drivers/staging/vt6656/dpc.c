@@ -77,7 +77,7 @@ const BYTE acbyRxRate[MAX_RATE] =
 static BYTE s_byGetRateIdx(BYTE byRate);
 
 static
-VOID
+void
 s_vGetDASA(
       PBYTE pbyRxBufferAddr,
     OUT PUINT pcbHeaderSize,
@@ -85,7 +85,7 @@ s_vGetDASA(
     );
 
 static
-VOID
+void
 s_vProcessRxMACHeader (
       PSDevice pDevice,
       PBYTE pbyRxBufferAddr,
@@ -160,7 +160,7 @@ static BOOL s_bHostWepRxEncryption(
  *
 -*/
 static
-VOID
+void
 s_vProcessRxMACHeader (
       PSDevice pDevice,
       PBYTE pbyRxBufferAddr,
@@ -259,7 +259,7 @@ static BYTE s_byGetRateIdx(BYTE byRate)
 
 
 static
-VOID
+void
 s_vGetDASA (
       PBYTE pbyRxBufferAddr,
     OUT PUINT pcbHeaderSize,
@@ -1513,10 +1513,7 @@ static BOOL s_bAPModeRxData (
 
 
 
-VOID
-RXvWorkItem(
-    PVOID Context
-    )
+void RXvWorkItem(void *Context)
 {
     PSDevice pDevice = (PSDevice) Context;
     NTSTATUS        ntStatus;
@@ -1539,7 +1536,7 @@ RXvWorkItem(
 }
 
 
-VOID
+void
 RXvFreeRCB(
      PRCB pRCB,
      BOOL bReAllocSkb
@@ -1579,10 +1576,7 @@ RXvFreeRCB(
 }
 
 
-VOID
-RXvMngWorkItem(
-    PVOID Context
-    )
+void RXvMngWorkItem(void *Context)
 {
     PSDevice pDevice = (PSDevice) Context;
     PRCB            pRCB=NULL;

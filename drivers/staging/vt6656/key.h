@@ -66,7 +66,7 @@ typedef struct tagSKeyItem
     BYTE        byCipherSuite;
     BYTE        byReserved0;
     DWORD       dwKeyIndex;
-    PVOID       pvKeyTable;
+    void *pvKeyTable;
 } SKeyItem, *PSKeyItem; //64
 
 typedef struct tagSKeyTable
@@ -97,7 +97,7 @@ typedef struct tagSKeyManagement
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID KeyvInitTable(PVOID pDeviceHandler, PSKeyManagement pTable);
+void KeyvInitTable(void *pDeviceHandler, PSKeyManagement pTable);
 
 BOOL KeybGetKey(
       PSKeyManagement pTable,
@@ -107,7 +107,7 @@ BOOL KeybGetKey(
     );
 
 BOOL KeybSetKey(
-    PVOID           pDeviceHandler,
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     PBYTE           pbyBSSID,
     DWORD           dwKeyIndex,
@@ -118,26 +118,26 @@ BOOL KeybSetKey(
     );
 
 BOOL KeybRemoveKey(
-    PVOID           pDeviceHandler,
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     PBYTE           pbyBSSID,
     DWORD           dwKeyIndex
     );
 
-BOOL KeybRemoveAllKey (
-    PVOID           pDeviceHandler,
+BOOL KeybRemoveAllKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     PBYTE           pbyBSSID
     );
 
-VOID KeyvRemoveWEPKey(
-    PVOID           pDeviceHandler,
+void KeyvRemoveWEPKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     DWORD           dwKeyIndex
     );
 
-VOID KeyvRemoveAllWEPKey(
-    PVOID           pDeviceHandler,
+void KeyvRemoveAllWEPKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable
     );
 
@@ -153,8 +153,8 @@ BOOL KeybCheckPairewiseKey(
     OUT PSKeyItem       *pKey
     );
 
-BOOL KeybSetDefaultKey (
-    PVOID           pDeviceHandler,
+BOOL KeybSetDefaultKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
     ULONG           uKeyLength,
@@ -163,8 +163,8 @@ BOOL KeybSetDefaultKey (
     BYTE            byKeyDecMode
     );
 
-BOOL KeybSetAllGroupKey (
-    PVOID           pDeviceHandler,
+BOOL KeybSetAllGroupKey(
+    void *pDeviceHandler,
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
     ULONG           uKeyLength,

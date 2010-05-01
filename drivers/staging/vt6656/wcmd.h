@@ -116,7 +116,7 @@ typedef enum tagCMD_STATE {
 
 
 /*---------------------  Export Functions  --------------------------*/
-VOID
+void
 vResetCommandTimer(
      HANDLE      hDeviceContext
     );
@@ -128,20 +128,20 @@ bScheduleCommand(
      PBYTE       pbyItem0
     );
 
-VOID
+void
 vRunCommand(
       HANDLE      hDeviceContext
     );
 /*
-VOID
+void
 WCMDvCommandThread(
-    PVOID Context
+    void * Context
     );
 */
 
 //2007-0115-09<Add>by MikeLiu
 #ifdef TxInSleep
-VOID
+void
 BSSvSecondTxData(
       HANDLE      hDeviceContext
     );

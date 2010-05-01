@@ -748,112 +748,112 @@ typedef struct tagWLAN_FR_DEAUTHEN {
 } WLAN_FR_DEAUTHEN, *PWLAN_FR_DEAUTHEN;
 
 /*---------------------  Export Functions  --------------------------*/
-VOID
+void
 vMgrEncodeBeacon(
       PWLAN_FR_BEACON  pFrame
      );
 
-VOID
+void
 vMgrDecodeBeacon(
       PWLAN_FR_BEACON  pFrame
     );
 
-VOID
+void
 vMgrEncodeIBSSATIM(
       PWLAN_FR_IBSSATIM   pFrame
     );
 
-VOID
+void
 vMgrDecodeIBSSATIM(
       PWLAN_FR_IBSSATIM   pFrame
     );
 
-VOID
+void
 vMgrEncodeDisassociation(
       PWLAN_FR_DISASSOC  pFrame
     );
 
-VOID
+void
 vMgrDecodeDisassociation(
       PWLAN_FR_DISASSOC  pFrame
     );
 
-VOID
+void
 vMgrEncodeAssocRequest(
       PWLAN_FR_ASSOCREQ  pFrame
     );
 
-VOID
+void
 vMgrDecodeAssocRequest(
       PWLAN_FR_ASSOCREQ  pFrame
     );
 
-VOID
+void
 vMgrEncodeAssocResponse(
       PWLAN_FR_ASSOCRESP  pFrame
     );
 
-VOID
+void
 vMgrDecodeAssocResponse(
      PWLAN_FR_ASSOCRESP  pFrame
     );
 
-VOID
+void
 vMgrEncodeReassocRequest(
       PWLAN_FR_REASSOCREQ  pFrame
     );
 
-VOID
+void
 vMgrDecodeReassocRequest(
       PWLAN_FR_REASSOCREQ  pFrame
     );
 
-VOID
+void
 vMgrEncodeProbeRequest(
      PWLAN_FR_PROBEREQ  pFrame
     );
 
-VOID
+void
 vMgrDecodeProbeRequest(
      PWLAN_FR_PROBEREQ  pFrame
     );
 
-VOID
+void
 vMgrEncodeProbeResponse(
      PWLAN_FR_PROBERESP  pFrame
     );
 
-VOID
+void
 vMgrDecodeProbeResponse(
      PWLAN_FR_PROBERESP  pFrame
     );
 
-VOID
+void
 vMgrEncodeAuthen(
       PWLAN_FR_AUTHEN  pFrame
     );
 
-VOID
+void
 vMgrDecodeAuthen(
       PWLAN_FR_AUTHEN  pFrame
     );
 
-VOID
+void
 vMgrEncodeDeauthen(
       PWLAN_FR_DEAUTHEN  pFrame
     );
 
-VOID
+void
 vMgrDecodeDeauthen(
       PWLAN_FR_DEAUTHEN  pFrame
     );
 
-VOID
+void
 vMgrEncodeReassocResponse(
       PWLAN_FR_REASSOCRESP  pFrame
     );
 
-VOID
+void
 vMgrDecodeReassocResponse(
       PWLAN_FR_REASSOCRESP  pFrame
     );

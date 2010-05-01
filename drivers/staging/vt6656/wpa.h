@@ -58,12 +58,12 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID
+void
 WPA_ClearRSN(
      PKnownBSS        pBSSList
     );
 
-VOID
+void
 WPA_ParseRSN(
      PKnownBSS        pBSSList,
      PWLAN_IE_RSN_EXT pRSN

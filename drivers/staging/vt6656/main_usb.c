@@ -331,8 +331,8 @@ device_set_options(PSDevice pDevice) {
 }
 
 
-static VOID device_init_diversity_timer(PSDevice pDevice) {
-
+static void device_init_diversity_timer(PSDevice pDevice)
+{
     init_timer(&pDevice->TimerSQ3Tmax1);
     pDevice->TimerSQ3Tmax1.data = (ULONG)pDevice;
     pDevice->TimerSQ3Tmax1.function = (TimerFunction)TimerSQ3CallBack;
@@ -791,7 +791,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
     spin_lock_init(&pDevice->lock);
 
     pDevice->tx_80211 = device_dma0_tx_80211;
-    pDevice->sMgmtObj.pAdapter = (PVOID)pDevice;
+    pDevice->sMgmtObj.pAdapter = (void *)pDevice;
 
     netdev->netdev_ops         = &device_netdev_ops;
 
@@ -843,7 +843,8 @@ err_nomem:
 }
 
 
-static VOID device_free_tx_bufs(PSDevice pDevice) {
+static void device_free_tx_bufs(PSDevice pDevice)
+{
     PUSB_SEND_CONTEXT pTxContext;
     int ii;
 
@@ -862,7 +863,8 @@ static VOID device_free_tx_bufs(PSDevice pDevice) {
 }
 
 
-static VOID device_free_rx_bufs(PSDevice pDevice) {
+static void device_free_rx_bufs(PSDevice pDevice)
+{
     PRCB pRCB;
     int ii;
 
@@ -894,8 +896,8 @@ static void usb_device_reset(PSDevice pDevice)
 	return ;
 }
 
-static VOID device_free_int_bufs(PSDevice pDevice) {
-
+static void device_free_int_bufs(PSDevice pDevice)
+{
     if (pDevice->intBuf.pDataBuf != NULL)
         kfree(pDevice->intBuf.pDataBuf);
     return;
@@ -917,7 +919,7 @@ static BOOL device_alloc_bufs(PSDevice pDevice) {
             goto free_tx;
         }
         pDevice->apTD[ii] = pTxContext;
-        pTxContext->pDevice = (PVOID) pDevice;
+	pTxContext->pDevice = (void *) pDevice;
         //allocate URBs
         pTxContext->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
         if (pTxContext->pUrb == NULL) {
@@ -946,7 +948,7 @@ static BOOL device_alloc_bufs(PSDevice pDevice) {
     for (ii = 0; ii < pDevice->cbRD; ii++) {
 
         pDevice->apRCB[ii] = pRCB;
-        pRCB->pDevice = (PVOID) pDevice;
+	pRCB->pDevice = (void *) pDevice;
         //allocate URBs
         pRCB->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
 

@@ -67,10 +67,7 @@ SINTData, *PSINTData;
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID
-INTvWorkItem(
-    PVOID Context
-    );
+void INTvWorkItem(void *Context);
 
 NTSTATUS
 INTnsProcessData(

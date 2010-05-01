@@ -71,7 +71,7 @@ const BYTE abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
  * Return Value: none.
  *
 -*/
-VOID
+void
 WPA2_ClearRSN (
      PKnownBSS        pBSSNode
     )
@@ -106,7 +106,7 @@ WPA2_ClearRSN (
  * Return Value: none.
  *
 -*/
-VOID
+void
 WPA2vParseRSN (
      PKnownBSS        pBSSNode,
      PWLAN_IE_RSN     pRSN
@@ -261,8 +261,7 @@ WPA2vParseRSN (
  *
 -*/
 UINT
-WPA2uSetIEs(
-     PVOID pMgmtHandle,
+WPA2uSetIEs(void *pMgmtHandle,
     OUT PWLAN_IE_RSN pRSNIEs
     )
 {

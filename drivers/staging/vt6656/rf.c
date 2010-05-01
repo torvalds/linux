@@ -954,7 +954,7 @@ BOOL        bResult = TRUE;
  * Return Value: none
  *
 -*/
-VOID
+void
 RFvRSSITodBm (
       PSDevice pDevice,
       BYTE     byCurrRSSI,
@@ -984,7 +984,7 @@ RFvRSSITodBm (
 
 
 
-VOID
+void
 RFbRFTableDownload (
       PSDevice pDevice
     )

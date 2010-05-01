@@ -40,7 +40,7 @@ typedef struct {
     BYTE abystate[256];
 } RC4Ext, *PRC4Ext;
 
-VOID rc4_init(PRC4Ext pRC4, PBYTE pbyKey, UINT cbKey_len);
+void rc4_init(PRC4Ext pRC4, PBYTE pbyKey, UINT cbKey_len);
 UINT rc4_byte(PRC4Ext pRC4);
 void rc4_encrypt(PRC4Ext pRC4, PBYTE pbyDest, PBYTE pbySrc, UINT cbData_len);
 

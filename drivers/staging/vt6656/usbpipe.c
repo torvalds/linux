@@ -71,34 +71,34 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
 static
-VOID
+void
 s_nsInterruptUsbIoCompleteRead(
      struct urb *urb
     );
 
 
 static
-VOID
+void
 s_nsBulkInUsbIoCompleteRead(
      struct urb *urb
     );
 
 
 static
-VOID
+void
 s_nsBulkOutIoCompleteWrite(
      struct urb *urb
     );
 
 
 static
-VOID
+void
 s_nsControlInUsbIoCompleteRead(
      struct urb *urb
     );
 
 static
-VOID
+void
 s_nsControlInUsbIoCompleteWrite(
      struct urb *urb
     );
@@ -142,7 +142,7 @@ PIPEnsControlOutAsyn(
                             0x40, // RequestType
                             wValue,
                             wIndex,
-                            (PVOID) pbyBuffer,
+			    (void *) pbyBuffer,
                             wLength,
                             HZ
                           );
@@ -279,7 +279,7 @@ PIPEnsControlIn(
 }
 
 static
-VOID
+void
 s_nsControlInUsbIoCompleteWrite(
      struct urb *urb
     )
@@ -320,7 +320,7 @@ s_nsControlInUsbIoCompleteWrite(
  *
  */
 static
-VOID
+void
 s_nsControlInUsbIoCompleteRead(
      struct urb *urb
     )
@@ -385,7 +385,7 @@ PIPEnsInterruptRead(
 	usb_fill_int_urb(pDevice->pInterruptURB,
 	                 pDevice->usb,
 	                 usb_rcvintpipe(pDevice->usb, 1),
-	                 (PVOID) pDevice->intBuf.pDataBuf,
+			 (void *) pDevice->intBuf.pDataBuf,
 	                 MAX_INTERRUPT_SIZE,
 	                 s_nsInterruptUsbIoCompleteRead,
 	                 pDevice,
@@ -396,7 +396,7 @@ PIPEnsInterruptRead(
 	usb_fill_int_urb(pDevice->pInterruptURB,
 	                 pDevice->usb,
 	                 usb_rcvintpipe(pDevice->usb, 1),
-	                 (PVOID) pDevice->intBuf.pDataBuf,
+			 (void *) pDevice->intBuf.pDataBuf,
 	                 MAX_INTERRUPT_SIZE,
 	                 s_nsInterruptUsbIoCompleteRead,
 	                 pDevice,
@@ -409,7 +409,7 @@ PIPEnsInterruptRead(
 usb_fill_bulk_urb(pDevice->pInterruptURB,
 		pDevice->usb,
 		usb_rcvbulkpipe(pDevice->usb, 1),
-		(PVOID) pDevice->intBuf.pDataBuf,
+		(void *) pDevice->intBuf.pDataBuf,
 		MAX_INTERRUPT_SIZE,
 		s_nsInterruptUsbIoCompleteRead,
 		pDevice);
@@ -441,7 +441,7 @@ usb_fill_bulk_urb(pDevice->pInterruptURB,
  *
  */
 static
-VOID
+void
 s_nsInterruptUsbIoCompleteRead(
      struct urb *urb
     )
@@ -506,7 +506,7 @@ s_nsInterruptUsbIoCompleteRead(
        usb_fill_bulk_urb(pDevice->pInterruptURB,
 		      pDevice->usb,
 		      usb_rcvbulkpipe(pDevice->usb, 1),
-		     (PVOID) pDevice->intBuf.pDataBuf,
+		     (void *) pDevice->intBuf.pDataBuf,
 		     MAX_INTERRUPT_SIZE,
 		     s_nsInterruptUsbIoCompleteRead,
 		     pDevice);
@@ -572,7 +572,7 @@ PIPEnsBulkInUsbRead(
 	usb_fill_bulk_urb(pUrb,
 		pDevice->usb,
 		usb_rcvbulkpipe(pDevice->usb, 2),
-		(PVOID) (pRCB->skb->data),
+		(void *) (pRCB->skb->data),
 		MAX_TOTAL_SIZE_WITH_ALL_HEADERS,
 		s_nsBulkInUsbIoCompleteRead,
 		pRCB);
@@ -606,7 +606,7 @@ PIPEnsBulkInUsbRead(
  *
  */
 static
-VOID
+void
 s_nsBulkInUsbIoCompleteRead(
      struct urb *urb
     )
@@ -718,8 +718,8 @@ PIPEnsSendBulkOut(
         usb_fill_bulk_urb(
         	    pUrb,
         		pDevice->usb,
-        		usb_sndbulkpipe(pDevice->usb, 3),
-        		(PVOID) &(pContext->Data[0]),
+		    usb_sndbulkpipe(pDevice->usb, 3),
+		    (void *) &(pContext->Data[0]),
         		pContext->uBufLen,
         		s_nsBulkOutIoCompleteWrite,
         		pContext);
@@ -766,7 +766,7 @@ PIPEnsSendBulkOut(
  *
  */
 static
-VOID
+void
 s_nsBulkOutIoCompleteWrite(
      struct urb *urb
     )

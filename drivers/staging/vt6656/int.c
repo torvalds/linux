@@ -79,8 +79,7 @@ static int msglevel = MSG_LEVEL_INFO;
  *  if we've gotten no data
  *
 -*/
-VOID
-INTvWorkItem(PVOID Context)
+void INTvWorkItem(void *Context)
 {
 	PSDevice pDevice = (PSDevice) Context;
 	NTSTATUS ntStatus;

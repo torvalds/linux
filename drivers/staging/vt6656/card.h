@@ -63,27 +63,29 @@ typedef enum _CARD_OP_MODE {
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL CARDbSetMediaChannel(PVOID pDeviceHandler, UINT uConnectionChannel);
-void CARDvSetRSPINF(PVOID pDeviceHandler, BYTE byBBType);
-void vUpdateIFS(PVOID pDeviceHandler);
-void CARDvUpdateBasicTopRate(PVOID pDeviceHandler);
-BOOL CARDbAddBasicRate(PVOID pDeviceHandler, WORD wRateIdx);
-BOOL CARDbIsOFDMinBasicRate(PVOID pDeviceHandler);
-void CARDvAdjustTSF(PVOID pDeviceHandler, BYTE byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF);
-BOOL CARDbGetCurrentTSF (PVOID pDeviceHandler, PQWORD pqwCurrTSF);
-BOOL CARDbClearCurrentTSF(PVOID pDeviceHandler);
-void CARDvSetFirstNextTBTT(PVOID pDeviceHandler, WORD wBeaconInterval);
-void CARDvUpdateNextTBTT(PVOID pDeviceHandler, QWORD qwTSF, WORD wBeaconInterval);
+BOOL CARDbSetMediaChannel(void *pDeviceHandler, UINT uConnectionChannel);
+void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType);
+void vUpdateIFS(void *pDeviceHandler);
+void CARDvUpdateBasicTopRate(void *pDeviceHandler);
+BOOL CARDbAddBasicRate(void *pDeviceHandler, WORD wRateIdx);
+BOOL CARDbIsOFDMinBasicRate(void *pDeviceHandler);
+void CARDvAdjustTSF(void *pDeviceHandler, BYTE byRxRate,
+		    QWORD qwBSSTimestamp, QWORD qwLocalTSF);
+BOOL CARDbGetCurrentTSF(void *pDeviceHandler, PQWORD pqwCurrTSF);
+BOOL CARDbClearCurrentTSF(void *pDeviceHandler);
+void CARDvSetFirstNextTBTT(void *pDeviceHandler, WORD wBeaconInterval);
+void CARDvUpdateNextTBTT(void *pDeviceHandler, QWORD qwTSF,
+			 WORD wBeaconInterval);
 QWORD CARDqGetNextTBTT(QWORD qwTSF, WORD wBeaconInterval);
 QWORD CARDqGetTSFOffset(BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2);
-BOOL CARDbRadioPowerOff(PVOID pDeviceHandler);
-BOOL CARDbRadioPowerOn(PVOID pDeviceHandler);
-BYTE CARDbyGetPktType(PVOID pDeviceHandler);
-void CARDvSetBSSMode(PVOID pDeviceHandler);
+BOOL CARDbRadioPowerOff(void *pDeviceHandler);
+BOOL CARDbRadioPowerOn(void *pDeviceHandler);
+BYTE CARDbyGetPktType(void *pDeviceHandler);
+void CARDvSetBSSMode(void *pDeviceHandler);
 
 BOOL
 CARDbChannelSwitch (
-     PVOID            pDeviceHandler,
+     void *pDeviceHandler,
      BYTE             byMode,
      BYTE             byNewChannel,
      BYTE             byCount

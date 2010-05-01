@@ -113,7 +113,7 @@ const WORD wFB_Opt1[2][5] = {
 /*---------------------  Static Functions  --------------------------*/
 
 static
-VOID
+void
 s_vSaveTxPktInfo(
      PSDevice pDevice,
      BYTE byPktNum,
@@ -123,22 +123,22 @@ s_vSaveTxPktInfo(
 );
 
 static
-PVOID
+void *
 s_vGetFreeContext(
     PSDevice pDevice
     );
 
 
 static
-VOID
+void
 s_vGenerateTxParameter(
      PSDevice         pDevice,
      BYTE             byPktType,
      WORD             wCurrentRate,
-     PVOID            pTxBufHead,
-     PVOID            pvRrvTime,
-     PVOID            pvRTS,
-     PVOID            pvCTS,
+     void *pTxBufHead,
+     void *pvRrvTime,
+     void *pvRTS,
+     void *pvCTS,
      UINT             cbFrameSize,
      BOOL             bNeedACK,
      UINT             uDMAIdx,
@@ -152,7 +152,7 @@ s_uFillDataHead (
      PSDevice pDevice,
      BYTE     byPktType,
      WORD     wCurrentRate,
-     PVOID    pTxDataHead,
+     void *pTxDataHead,
      UINT     cbFrameLength,
      UINT     uDMAIdx,
      BOOL     bNeedAck,
@@ -166,7 +166,7 @@ s_uFillDataHead (
 
 
 static
-VOID
+void
 s_vGenerateMACHeader (
      PSDevice         pDevice,
      PBYTE            pbyBufferAddr,
@@ -179,7 +179,7 @@ s_vGenerateMACHeader (
     );
 
 static
-VOID
+void
 s_vFillTxKey(
       PSDevice   pDevice,
       PBYTE      pbyBuf,
@@ -191,7 +191,7 @@ s_vFillTxKey(
     );
 
 static
-VOID
+void
 s_vSWencryption (
       PSDevice         pDevice,
       PSKeyItem        pTransmitKey,
@@ -221,12 +221,12 @@ s_uGetRTSCTSRsvTime (
     );
 
 static
-VOID
+void
 s_vFillCTSHead (
      PSDevice pDevice,
      UINT     uDMAIdx,
      BYTE     byPktType,
-     PVOID    pvCTS,
+     void *pvCTS,
      UINT     cbFrameLength,
      BOOL     bNeedAck,
      BOOL     bDisCRC,
@@ -235,11 +235,11 @@ s_vFillCTSHead (
     );
 
 static
-VOID
+void
 s_vFillRTSHead(
      PSDevice         pDevice,
      BYTE             byPktType,
-     PVOID            pvRTS,
+     void *pvRTS,
      UINT             cbFrameLength,
      BOOL             bNeedAck,
      BOOL             bDisCRC,
@@ -280,7 +280,7 @@ s_uGetRTSCTSDuration (
 /*---------------------  Export Variables  --------------------------*/
 
 static
-PVOID
+void *
 s_vGetFreeContext(
     PSDevice pDevice
     )
@@ -302,12 +302,12 @@ s_vGetFreeContext(
     if ( ii == pDevice->cbTD ) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No Free Tx Context\n");
     }
-    return ((PVOID) pReturnContext);
+    return (void *) pReturnContext;
 }
 
 
 static
-VOID
+void
 s_vSaveTxPktInfo(PSDevice pDevice, BYTE byPktNum, PBYTE pbyDestAddr, WORD wPktLength, WORD wFIFOCtl)
 {
     PSStatCounter           pStatistic=&(pDevice->scStatistic);
@@ -331,7 +331,7 @@ s_vSaveTxPktInfo(PSDevice pDevice, BYTE byPktNum, PBYTE pbyDestAddr, WORD wPktLe
 
 
 static
-VOID
+void
 s_vFillTxKey (
       PSDevice   pDevice,
       PBYTE      pbyBuf,
@@ -448,7 +448,7 @@ s_vFillTxKey (
 
 
 static
-VOID
+void
 s_vSWencryption (
       PSDevice            pDevice,
       PSKeyItem           pTransmitKey,
@@ -841,7 +841,7 @@ s_uFillDataHead (
      PSDevice pDevice,
      BYTE     byPktType,
      WORD     wCurrentRate,
-     PVOID    pTxDataHead,
+     void *pTxDataHead,
      UINT     cbFrameLength,
      UINT     uDMAIdx,
      BOOL     bNeedAck,
@@ -981,11 +981,11 @@ s_uFillDataHead (
 
 
 static
-VOID
+void
 s_vFillRTSHead (
      PSDevice         pDevice,
      BYTE             byPktType,
-     PVOID            pvRTS,
+     void *pvRTS,
      UINT             cbFrameLength,
      BOOL             bNeedAck,
      BOOL             bDisCRC,
@@ -1209,12 +1209,12 @@ s_vFillRTSHead (
 }
 
 static
-VOID
+void
 s_vFillCTSHead (
      PSDevice pDevice,
      UINT     uDMAIdx,
      BYTE     byPktType,
-     PVOID    pvCTS,
+     void *pvCTS,
      UINT     cbFrameLength,
      BOOL     bNeedAck,
      BOOL     bDisCRC,
@@ -1309,15 +1309,15 @@ s_vFillCTSHead (
 -*/
 // UINT            cbFrameSize,//Hdr+Payload+FCS
 static
-VOID
+void
 s_vGenerateTxParameter (
      PSDevice         pDevice,
      BYTE             byPktType,
      WORD             wCurrentRate,
-     PVOID            pTxBufHead,
-     PVOID            pvRrvTime,
-     PVOID            pvRTS,
-     PVOID            pvCTS,
+     void *pTxBufHead,
+     void *pvRrvTime,
+     void *pvRTS,
+     void *pvCTS,
      UINT             cbFrameSize,
      BOOL             bNeedACK,
      UINT             uDMAIdx,
@@ -1455,11 +1455,11 @@ s_bPacketToWirelessUsb(
     BYTE                abySNAP_Bridgetunnel[6] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
     UINT                uDuration;
     UINT                cbHeaderLength= 0,uPadding = 0;
-    PVOID               pvRrvTime;
+    void *pvRrvTime;
     PSMICHDRHead        pMICHDR;
-    PVOID               pvRTS;
-    PVOID               pvCTS;
-    PVOID               pvTxDataHd;
+    void *pvRTS;
+    void *pvCTS;
+    void *pvTxDataHd;
     BYTE                byFBOption = AUTO_FB_NONE,byFragType;
     WORD                wTxBufSize;
     DWORD               dwMICKey0,dwMICKey1,dwMIC_Priority,dwCRC;
@@ -1694,7 +1694,8 @@ s_bPacketToWirelessUsb(
 
 
     //Fill FIFO,RrvTime,RTS,and CTS
-    s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate, (PVOID)pbyTxBufferAddr, pvRrvTime, pvRTS, pvCTS,
+    s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
+			   (void *)pbyTxBufferAddr, pvRrvTime, pvRTS, pvCTS,
                                cbFrameSize, bNeedACK, uDMAIdx, psEthHeader);
     //Fill DataHead
     uDuration = s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd, cbFrameSize, uDMAIdx, bNeedACK,
@@ -1856,7 +1857,7 @@ s_bPacketToWirelessUsb(
  *
 -*/
 
-VOID
+void
 s_vGenerateMACHeader (
      PSDevice         pDevice,
      PBYTE            pbyBufferAddr,
@@ -1964,9 +1965,9 @@ CMD_STATUS csMgmt_xmit(
 {
     BYTE            byPktType;
     PBYTE           pbyTxBufferAddr;
-    PVOID           pvRTS;
+    void *pvRTS;
     PSCTS           pCTS;
-    PVOID           pvTxDataHd;
+    void *pvTxDataHd;
     UINT            uDuration;
     UINT            cbReqCount;
     PS802_11Header  pMACHeader;
@@ -1984,8 +1985,8 @@ CMD_STATUS csMgmt_xmit(
     WORD            wTxBufSize;
     UINT            cbMacHdLen;
     SEthernetHeader sEthHeader;
-    PVOID           pvRrvTime;
-    PVOID           pMICHDR;
+    void *pvRrvTime;
+    void *pMICHDR;
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
     WORD            wCurrentRate = RATE_1M;
     PTX_BUFFER          pTX_Buffer;
@@ -2137,7 +2138,8 @@ CMD_STATUS csMgmt_xmit(
         cbHeaderSize = wTxBufSize + sizeof(SRrvTime_ab) + sizeof(STxDataHead_ab);
     }
 
-    memset((PVOID)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderSize - wTxBufSize));
+    memset((void *)(pbyTxBufferAddr + wTxBufSize), 0,
+	   (cbHeaderSize - wTxBufSize));
 
     memcpy(&(sEthHeader.abyDstAddr[0]),
 	   &(pPacket->p80211Header->sA3.abyAddr1[0]),
@@ -2342,15 +2344,15 @@ csBeacon_xmit(
 
 
 
-VOID
+void
 vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
 
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
     BYTE            byPktType;
     PBYTE           pbyTxBufferAddr;
-    PVOID           pvRTS;
-    PVOID           pvCTS;
-    PVOID           pvTxDataHd;
+    void *pvRTS;
+    void *pvCTS;
+    void *pvTxDataHd;
     UINT            uDuration;
     UINT            cbReqCount;
     PS802_11Header  pMACHeader;
@@ -2374,8 +2376,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
     WORD            wTxBufSize;
     UINT            cbMacHdLen;
     SEthernetHeader sEthHeader;
-    PVOID           pvRrvTime;
-    PVOID           pMICHDR;
+    void *pvRrvTime;
+    void *pMICHDR;
     WORD            wCurrentRate = RATE_1M;
     PUWLAN_80211HDR  p80211Header;
     UINT             uNodeIndex = 0;
@@ -2574,7 +2576,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
         pvTxDataHd = (PSTxDataHead_ab) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab) + cbMICHDR);
         cbHeaderSize = wTxBufSize + sizeof(SRrvTime_ab) + cbMICHDR + sizeof(STxDataHead_ab);
     }
-    memset((PVOID)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderSize - wTxBufSize));
+    memset((void *)(pbyTxBufferAddr + wTxBufSize), 0,
+	   (cbHeaderSize - wTxBufSize));
     memcpy(&(sEthHeader.abyDstAddr[0]),
 	   &(p80211Header->sA3.abyAddr1[0]),
 	   ETH_ALEN);

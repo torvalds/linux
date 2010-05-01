@@ -43,7 +43,7 @@
 int private_ioctl(PSDevice pDevice, struct ifreq *rq);
 
 /*
-VOID vConfigWEPKey (
+void vConfigWEPKey (
      PSDevice pDevice,
      DWORD    dwKeyIndex,
      PBYTE    pbyKey,

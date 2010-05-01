@@ -69,9 +69,9 @@
 
 
 
-VOID
+void
 RATEvParseMaxRate(
-     PVOID pDeviceHandler,
+     void *pDeviceHandler,
      PWLAN_IE_SUPP_RATES pItemRates,
      PWLAN_IE_SUPP_RATES pItemExtRates,
      BOOL bUpdateBasicRate,
@@ -82,9 +82,9 @@ RATEvParseMaxRate(
     OUT PBYTE pbyTopOFDMRate
     );
 
-VOID
+void
 RATEvTxRateFallBack(
-     PVOID pDeviceHandler,
+     void *pDeviceHandler,
      PKnownNodeDB psNodeDBTable
     );
 

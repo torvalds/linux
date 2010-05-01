@@ -682,7 +682,7 @@ bPacketToWirelessUsb(
     OUT UINT             *pcbTotalLen
     );
 
-VOID vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb);
+void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb);
 NTSTATUS nsDMA_tx_packet(PSDevice  pDevice, UINT uDMAIdx, struct sk_buff *skb);
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);

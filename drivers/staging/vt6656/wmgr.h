@@ -246,8 +246,7 @@ typedef struct tagSRxMgmtPacket {
 
 typedef struct tagSMgmtObject
 {
-
-    PVOID                   pAdapter;
+	void *pAdapter;
     // MAC address
     BYTE                    abyMACAddr[WLAN_ADDR_LEN];
 
@@ -421,14 +420,14 @@ vMgrAssocBeginSta(
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrReAssocBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject pMgmt,
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrDisassocBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject pMgmt,
@@ -437,26 +436,26 @@ vMgrDisassocBeginSta(
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrAuthenBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject pMgmt,
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrCreateOwnIBSS(
       HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrJoinBSSBegin(
       HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrRxManagePacket(
       HANDLE hDeviceContext,
       PSMgmtObject pMgmt,
@@ -464,14 +463,14 @@ vMgrRxManagePacket(
     );
 
 /*
-VOID
+void
 vMgrScanBegin(
       HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
     );
 */
 
-VOID
+void
 vMgrDeAuthenBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject  pMgmt,
@@ -494,7 +493,7 @@ bAdd_PMKID_Candidate (
      PSRSNCapObject psRSNCapObj
     );
 
-VOID
+void
 vFlush_PMKID_Candidate (
      HANDLE hDeviceContext
     );

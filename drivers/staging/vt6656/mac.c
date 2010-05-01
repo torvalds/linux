@@ -110,7 +110,7 @@ void MACvSetMultiAddrByHash (PSDevice pDevice, BYTE byHashIdx)
  * Return Value: none
  *
  */
-VOID MACvWriteMultiAddr (PSDevice pDevice, UINT uByteIdx, BYTE byData)
+void MACvWriteMultiAddr(PSDevice pDevice, UINT uByteIdx, BYTE byData)
 {
     BYTE            byData1;
 

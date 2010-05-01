@@ -69,7 +69,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 
 static
-VOID
+void
 s_vProbeChannel(
      PSDevice pDevice
     );
@@ -210,7 +210,7 @@ vAdHocBeaconRestart(PSDevice pDevice)
 -*/
 
 static
-VOID
+void
 s_vProbeChannel(
      PSDevice pDevice
     )
@@ -325,7 +325,7 @@ s_MgrMakeProbeRequest(
 
 
 
-VOID
+void
 vCommandTimerWait(
      HANDLE    hDeviceContext,
      UINT MSecond
@@ -345,7 +345,7 @@ vCommandTimerWait(
 
 
 
-VOID
+void
 vRunCommand(
       HANDLE      hDeviceContext
     )
@@ -1287,7 +1287,7 @@ BOOL s_bClearBSSID_SCAN (
 
 
 //mike add:reset command timer
-VOID
+void
 vResetCommandTimer(
      HANDLE      hDeviceContext
     )
@@ -1311,7 +1311,7 @@ vResetCommandTimer(
 
 //2007-0115-08<Add>by MikeLiu
 #ifdef TxInSleep
-VOID
+void
 BSSvSecondTxData(
       HANDLE      hDeviceContext
     )

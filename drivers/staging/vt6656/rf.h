@@ -76,14 +76,14 @@ BOOL RFbRawSetPower(
       UINT      uRATE
     );
 
-VOID
+void
 RFvRSSITodBm (
       PSDevice pDevice,
       BYTE     byCurrRSSI,
     long *    pldBm
     );
 
-VOID
+void
 RFbRFTableDownload (
       PSDevice pDevice
     );

@@ -209,9 +209,9 @@ typedef enum _CONTEXT_TYPE {
 // RCB (Receive Control Block)
 typedef struct _RCB
 {
-    PVOID                   Next;
+    void *Next;
     LONG                    Ref;
-    PVOID                   pDevice;
+    void *pDevice;
     struct urb              *pUrb;
     SRxMgmtPacket           sMngPacket;
     struct sk_buff*         skb;
@@ -222,13 +222,13 @@ typedef struct _RCB
 
 // used to track bulk out irps
 typedef struct _USB_SEND_CONTEXT {
-    PVOID           pDevice;
+    void *pDevice;
     struct sk_buff *pPacket;
     struct urb      *pUrb;
     UINT            uBufLen;
     CONTEXT_TYPE    Type;
     SEthernetHeader sEthHeader;
-    PVOID           Next;
+    void *Next;
     BOOL            bBoolInUse;
     UCHAR           Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
 } USB_SEND_CONTEXT, *PUSB_SEND_CONTEXT;

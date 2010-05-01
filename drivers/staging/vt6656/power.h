@@ -55,18 +55,18 @@ PSbConsiderPowerDown(
      BOOL bCheckCountToWakeUp
     );
 
-VOID
+void
 PSvDisablePowerSaving(
      HANDLE hDeviceContext
     );
 
-VOID
+void
 PSvEnablePowerSaving(
      HANDLE hDeviceContext,
      WORD wListenInterval
     );
 
-VOID
+void
 PSvSendPSPOLL(
      HANDLE hDeviceContext
     );

@@ -58,12 +58,12 @@ typedef struct tagSPMKIDCache {
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID
+void
 WPA2_ClearRSN (
      PKnownBSS        pBSSNode
     );
 
-VOID
+void
 WPA2vParseRSN (
      PKnownBSS        pBSSNode,
      PWLAN_IE_RSN     pRSN
@@ -71,7 +71,7 @@ WPA2vParseRSN (
 
 UINT
 WPA2uSetIEs(
-     PVOID pMgmtHandle,
+	void *pMgmtHandle,
     OUT PWLAN_IE_RSN pRSNIEs
     );
 
