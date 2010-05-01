@@ -3533,7 +3533,7 @@ static inline void l2cap_data_channel_rejframe(struct sock *sk, u16 rx_control)
 
 	pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
 
-	pi->expected_ack_seq = __get_reqseq(rx_control);
+	pi->expected_ack_seq = tx_seq;
 	l2cap_drop_acked_frames(sk);
 
 	if (rx_control & L2CAP_CTRL_FINAL) {
