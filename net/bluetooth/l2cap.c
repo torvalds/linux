@@ -3611,7 +3611,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		if (pi->expected_tx_seq == tx_seq)
 			pi->expected_tx_seq = (pi->expected_tx_seq + 1) % 64;
 		else
-			pi->expected_tx_seq = tx_seq + 1;
+			pi->expected_tx_seq = (tx_seq + 1) % 64;
 
 		l2cap_sar_reassembly_sdu(sk, skb, control);
 
