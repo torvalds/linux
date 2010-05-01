@@ -218,7 +218,7 @@ order they appear in the channel list.
 #define DIO200_DRIVER_NAME	"amplc_dio200"
 
 /* PCI IDs */
-/* #define PCI_VENDOR_ID_AMPLICON 0x14dc */
+#define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_AMPLICON_PCI272 0x000a
 #define PCI_DEVICE_ID_AMPLICON_PCI215 0x000b
 #define PCI_DEVICE_ID_INVALID 0xffff
