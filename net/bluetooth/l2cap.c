@@ -357,6 +357,11 @@ static inline int l2cap_send_sframe(struct l2cap_pinfo *pi, u16 control)
 		pi->conn_state &= ~L2CAP_CONN_SEND_FBIT;
 	}
 
+	if (pi->conn_state & L2CAP_CONN_SEND_PBIT) {
+		control |= L2CAP_CTRL_POLL;
+		pi->conn_state &= ~L2CAP_CONN_SEND_PBIT;
+	}
+
 	skb = bt_skb_alloc(count, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
@@ -3364,10 +3369,6 @@ static void l2cap_send_srejframe(struct sock *sk, u8 tx_seq)
 	while (tx_seq != pi->expected_tx_seq) {
 		control = L2CAP_SUPER_SELECT_REJECT;
 		control |= pi->expected_tx_seq << L2CAP_CTRL_REQSEQ_SHIFT;
-		if (pi->conn_state & L2CAP_CONN_SEND_PBIT) {
-			control |= L2CAP_CTRL_POLL;
-			pi->conn_state &= ~L2CAP_CONN_SEND_PBIT;
-		}
 		l2cap_send_sframe(pi, control);
 
 		new = kzalloc(sizeof(struct srej_list), GFP_ATOMIC);
