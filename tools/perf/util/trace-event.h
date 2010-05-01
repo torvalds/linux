@@ -163,7 +163,7 @@ struct record *trace_read_data(int cpu);
 
 void parse_set_info(int nr_cpus, int long_sz);
 
-ssize_t trace_report(int fd);
+ssize_t trace_report(int fd, bool repipe);
 
 void *malloc_or_die(unsigned int size);
 

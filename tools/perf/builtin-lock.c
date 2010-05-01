@@ -818,7 +818,7 @@ static struct perf_event_ops eops = {
 
 static int read_events(void)
 {
-	session = perf_session__new(input_name, O_RDONLY, 0);
+	session = perf_session__new(input_name, O_RDONLY, 0, false);
 	if (!session)
 		die("Initializing perf session failed\n");
 

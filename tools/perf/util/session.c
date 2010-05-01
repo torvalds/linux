@@ -77,7 +77,7 @@ int perf_session__create_kernel_maps(struct perf_session *self)
 	return ret;
 }
 
-struct perf_session *perf_session__new(const char *filename, int mode, bool force)
+struct perf_session *perf_session__new(const char *filename, int mode, bool force, bool repipe)
 {
 	size_t len = filename ? strlen(filename) + 1 : 0;
 	struct perf_session *self = zalloc(sizeof(*self) + len);
@@ -97,6 +97,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->cwdlen = 0;
 	self->unknown_events = 0;
 	self->machines = RB_ROOT;
+	self->repipe = repipe;
 	self->ordered_samples.flush_limit = ULLONG_MAX;
 	INIT_LIST_HEAD(&self->ordered_samples.samples_head);
 

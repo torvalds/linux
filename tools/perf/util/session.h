@@ -34,6 +34,7 @@ struct perf_session {
 	u64			sample_type;
 	int			fd;
 	bool			fd_pipe;
+	bool			repipe;
 	int			cwdlen;
 	char			*cwd;
 	struct ordered_samples	ordered_samples;
@@ -59,7 +60,7 @@ struct perf_event_ops {
 	bool	ordered_samples;
 };
 
-struct perf_session *perf_session__new(const char *filename, int mode, bool force);
+struct perf_session *perf_session__new(const char *filename, int mode, bool force, bool repipe);
 void perf_session__delete(struct perf_session *self);
 
 void perf_event_header__bswap(struct perf_event_header *self);
