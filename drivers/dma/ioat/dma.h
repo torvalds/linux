@@ -96,6 +96,7 @@ struct ioat_chan_common {
 	#define IOAT_COMPLETION_ACK 1
 	#define IOAT_RESET_PENDING 2
 	#define IOAT_KOBJ_INIT_FAIL 3
+	#define IOAT_RESHAPE_PENDING 4
 	struct timer_list timer;
 	#define COMPLETION_TIMEOUT msecs_to_jiffies(100)
 	#define IDLE_TIMEOUT msecs_to_jiffies(2000)

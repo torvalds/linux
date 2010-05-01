@@ -50,8 +50,9 @@ extern int ioat_ring_alloc_order;
  * @tail: cleanup index
  * @dmacount: identical to 'head' except for occasionally resetting to zero
  * @alloc_order: log2 of the number of allocated descriptors
+ * @produce: number of descriptors to produce at submit time
  * @ring: software ring buffer implementation of hardware ring
- * @ring_lock: protects ring attributes
+ * @prep_lock: serializes descriptor preparation (producers)
  */
 struct ioat2_dma_chan {
 	struct ioat_chan_common base;
@@ -61,8 +62,9 @@ struct ioat2_dma_chan {
 	u16 tail;
 	u16 dmacount;
 	u16 alloc_order;
+	u16 produce;
 	struct ioat_ring_ent **ring;
-	spinlock_t ring_lock;
+	spinlock_t prep_lock;
 };
 
 static inline struct ioat2_dma_chan *to_ioat2_chan(struct dma_chan *c)
@@ -92,13 +94,6 @@ static inline u16 ioat2_ring_pending(struct ioat2_dma_chan *ioat)
 static inline u16 ioat2_ring_space(struct ioat2_dma_chan *ioat)
 {
 	return ioat2_ring_size(ioat) - ioat2_ring_active(ioat);
-}
-
-/* assumes caller already checked space */
-static inline u16 ioat2_desc_alloc(struct ioat2_dma_chan *ioat, u16 len)
-{
-	ioat->head += len;
-	return ioat->head - len;
 }
 
 static inline u16 ioat2_xferlen_to_descs(struct ioat2_dma_chan *ioat, size_t len)
@@ -164,7 +159,7 @@ int __devinit ioat2_dma_probe(struct ioatdma_device *dev, int dca);
 int __devinit ioat3_dma_probe(struct ioatdma_device *dev, int dca);
 struct dca_provider * __devinit ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 struct dca_provider * __devinit ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
-int ioat2_alloc_and_lock(u16 *idx, struct ioat2_dma_chan *ioat, int num_descs);
+int ioat2_check_space_lock(struct ioat2_dma_chan *ioat, int num_descs);
 int ioat2_enumerate_channels(struct ioatdma_device *device);
 struct dma_async_tx_descriptor *
 ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
