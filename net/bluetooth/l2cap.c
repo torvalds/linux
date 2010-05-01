@@ -3302,7 +3302,7 @@ static inline void l2cap_send_i_or_rr_or_rnr(struct sock *sk)
 	}
 }
 
-static void l2cap_add_to_srej_queue(struct sock *sk, struct sk_buff *skb, u8 tx_seq, u8 sar)
+static int l2cap_add_to_srej_queue(struct sock *sk, struct sk_buff *skb, u8 tx_seq, u8 sar)
 {
 	struct sk_buff *next_skb;
 
@@ -3312,13 +3312,16 @@ static void l2cap_add_to_srej_queue(struct sock *sk, struct sk_buff *skb, u8 tx_
 	next_skb = skb_peek(SREJ_QUEUE(sk));
 	if (!next_skb) {
 		__skb_queue_tail(SREJ_QUEUE(sk), skb);
-		return;
+		return 0;
 	}
 
 	do {
+		if (bt_cb(next_skb)->tx_seq == tx_seq)
+			return -EINVAL;
+
 		if (bt_cb(next_skb)->tx_seq > tx_seq) {
 			__skb_queue_before(SREJ_QUEUE(sk), next_skb, skb);
-			return;
+			return 0;
 		}
 
 		if (skb_queue_is_last(SREJ_QUEUE(sk), next_skb))
@@ -3327,6 +3330,8 @@ static void l2cap_add_to_srej_queue(struct sock *sk, struct sk_buff *skb, u8 tx_
 	} while ((next_skb = skb_queue_next(SREJ_QUEUE(sk), next_skb)));
 
 	__skb_queue_tail(SREJ_QUEUE(sk), skb);
+
+	return 0;
 }
 
 static int l2cap_ertm_reassembly_sdu(struct sock *sk, struct sk_buff *skb, u16 control)
@@ -3579,6 +3584,7 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 	u8 tx_seq = __get_txseq(rx_control);
 	u8 req_seq = __get_reqseq(rx_control);
 	u8 sar = rx_control >> L2CAP_CTRL_SAR_SHIFT;
+	u8 tx_seq_offset, expected_tx_seq_offset;
 	int num_to_ack = (pi->tx_win/6) + 1;
 	int err = 0;
 
@@ -3597,6 +3603,16 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 
 	if (tx_seq == pi->expected_tx_seq)
 		goto expected;
+
+	tx_seq_offset = (tx_seq - pi->buffer_seq) % 64;
+	if (tx_seq_offset < 0)
+		tx_seq_offset += 64;
+
+	/* invalid tx_seq */
+	if (tx_seq_offset >= pi->tx_win) {
+		l2cap_send_disconn_req(pi->conn, sk);
+		goto drop;
+	}
 
 	if (pi->conn_state & L2CAP_CONN_SREJ_SENT) {
 		struct srej_list *first;
@@ -3617,7 +3633,10 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 			}
 		} else {
 			struct srej_list *l;
-			l2cap_add_to_srej_queue(sk, skb, tx_seq, sar);
+
+			/* duplicated tx_seq */
+			if (l2cap_add_to_srej_queue(sk, skb, tx_seq, sar) < 0)
+				goto drop;
 
 			list_for_each_entry(l, SREJ_LIST(sk), list) {
 				if (l->tx_seq == tx_seq) {
@@ -3628,6 +3647,15 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 			l2cap_send_srejframe(sk, tx_seq);
 		}
 	} else {
+		expected_tx_seq_offset =
+			(pi->expected_tx_seq - pi->buffer_seq) % 64;
+		if (expected_tx_seq_offset < 0)
+			expected_tx_seq_offset += 64;
+
+		/* duplicated tx_seq */
+		if (tx_seq_offset < expected_tx_seq_offset)
+			goto drop;
+
 		pi->conn_state |= L2CAP_CONN_SREJ_SENT;
 
 		INIT_LIST_HEAD(SREJ_LIST(sk));
@@ -3675,6 +3703,10 @@ expected:
 	if (pi->num_acked == num_to_ack - 1)
 		l2cap_send_ack(pi);
 
+	return 0;
+
+drop:
+	kfree_skb(skb);
 	return 0;
 }
 
