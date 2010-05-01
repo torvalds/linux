@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
-#include <linux/mfd/ab3100.h>
+#include <linux/mfd/abx500.h>
 
 /* LDO registers and some handy masking definitions for AB3100 */
 #define AB3100_LDO_A		0x40

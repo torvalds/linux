@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/ab3100.h>
+#include <linux/mfd/abx500.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 

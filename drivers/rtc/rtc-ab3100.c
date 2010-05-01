@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
-#include <linux/mfd/ab3100.h>
+#include <linux/mfd/abx500.h>
 
 /* Clock rate in Hz */
 #define AB3100_RTC_CLOCK_RATE	32768
