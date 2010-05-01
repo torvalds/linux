@@ -13,6 +13,8 @@
 
 #include <linux/serial_reg.h>
 
+#include <asm/memory.h>
+
 #include <plat/serial.h>
 
 		.pushsection .data
@@ -37,23 +39,12 @@ omap_uart_virt:	.word	0x0
 		cmp	\rx, #0			@ is port configured?
 		bne	99f			@ already configured
 
-		/* Check 7XX UART1 scratchpad register for uart to use */
+		/* Check the debug UART configuration set in uncompress.h */
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
-		moveq	\rx, #0xff000000	@ physical base address
-		movne	\rx, #0xfe000000	@ virtual base
-		orr	\rx, \rx, #0x00fb0000	@ OMAP1UART1
-		ldrb	\rx, [\rx, #(UART_SCR << OMAP7XX_PORT_SHIFT)]
-		cmp	\rx, #0			@ anything in 7XX scratchpad?
-		bne	10f			@ found 7XX uart
-
-		/* Check 15xx/16xx UART1 scratchpad register for uart to use */
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		moveq	\rx, #0xff000000	@ physical base address
-		movne	\rx, #0xfe000000	@ virtual base
-		orr	\rx, \rx, #0x00fb0000	@ OMAP1UART1
-		ldrb	\rx, [\rx, #(UART_SCR << OMAP_PORT_SHIFT)]
+		ldreq	\rx, =OMAP_UART_INFO
+		ldrne	\rx, =__phys_to_virt(OMAP_UART_INFO)
+		ldr	\rx, [\rx, #0]
 
 		/* Select the UART to use based on the UART1 scratchpad value */
 10:		cmp	\rx, #0			@ no port configured?

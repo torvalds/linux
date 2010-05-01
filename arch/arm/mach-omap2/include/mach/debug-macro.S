@@ -13,6 +13,8 @@
 
 #include <linux/serial_reg.h>
 
+#include <asm/memory.h>
+
 #include <plat/serial.h>
 
 #define UART_OFFSET(addr)	((addr) & 0x00ffffff)
@@ -40,13 +42,12 @@ omap_uart_lsr:	.word	0
 		cmp	\rx, #0			@ is port configured?
 		bne	99f			@ already configured
 
-		/* Check UART1 scratchpad register for uart to use */
+		/* Check the debug UART configuration set in uncompress.h */
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
-		moveq	\rx, #0x48000000	@ physical base address
-		movne	\rx, #0xfa000000	@ virtual base
-		orr	\rx, \rx, #0x0006a000	@ uart1 on omap2/3/4
-		ldrb	\rx, [\rx, #(UART_SCR << OMAP_PORT_SHIFT)] @ scratchpad
+		ldreq	\rx, =OMAP_UART_INFO
+		ldrne	\rx, =__phys_to_virt(OMAP_UART_INFO)
+		ldr	\rx, [\rx, #0]
 
 		/* Select the UART to use based on the UART1 scratchpad value */
 		cmp	\rx, #0			@ no port configured?
