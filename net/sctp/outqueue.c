@@ -598,11 +598,23 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 		if (fast_rtx && !chunk->fast_retransmit)
 			continue;
 
+redo:
 		/* Attempt to append this chunk to the packet. */
 		status = sctp_packet_append_chunk(pkt, chunk);
 
 		switch (status) {
 		case SCTP_XMIT_PMTU_FULL:
+			if (!pkt->has_data && !pkt->has_cookie_echo) {
+				/* If this packet did not contain DATA then
+				 * retransmission did not happen, so do it
+				 * again.  We'll ignore the error here since
+				 * control chunks are already freed so there
+				 * is nothing we can do.
+				 */
+				sctp_packet_transmit(pkt);
+				goto redo;
+			}
+
 			/* Send this packet.  */
 			error = sctp_packet_transmit(pkt);
 
