@@ -491,7 +491,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 			BT_ERR("Can't allocate mem for new packet");
 			ll->rx_state = HCILL_W4_PACKET_TYPE;
 			ll->rx_count = 0;
-			return 0;
+			return -ENOMEM;
 		}
 
 		ll->rx_skb->dev = (void *) hu->hdev;
