@@ -27,6 +27,7 @@
 #include <mach/da8xx.h>
 #include <mach/cpufreq.h>
 #include <mach/pm.h>
+#include <mach/gpio.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -1084,6 +1085,7 @@ static struct davinci_soc_info davinci_soc_info_da850 = {
 	.intc_irq_prios		= da850_default_priorities,
 	.intc_irq_num		= DA850_N_CP_INTC_IRQ,
 	.timer_info		= &da850_timer_info,
+	.gpio_type		= GPIO_TYPE_DAVINCI,
 	.gpio_base		= IO_ADDRESS(DA8XX_GPIO_BASE),
 	.gpio_num		= 144,
 	.gpio_irq		= IRQ_DA8XX_GPIO0,

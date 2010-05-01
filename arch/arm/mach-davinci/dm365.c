@@ -1064,6 +1064,7 @@ static struct davinci_soc_info davinci_soc_info_dm365 = {
 	.intc_irq_prios		= dm365_default_priorities,
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm365_timer_info,
+	.gpio_type		= GPIO_TYPE_DAVINCI,
 	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
 	.gpio_num		= 104,
 	.gpio_irq		= IRQ_DM365_GPIO0,

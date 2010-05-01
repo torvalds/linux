@@ -21,6 +21,10 @@
 
 #define DAVINCI_GPIO_BASE 0x01C67000
 
+enum davinci_gpio_type {
+	GPIO_TYPE_DAVINCI = 0,
+};
+
 /*
  * basic gpio routines
  *

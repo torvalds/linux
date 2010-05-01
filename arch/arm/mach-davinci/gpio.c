@@ -145,6 +145,9 @@ static int __init davinci_gpio_setup(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	struct davinci_gpio_regs *regs;
 
+	if (soc_info->gpio_type != GPIO_TYPE_DAVINCI)
+		return 0;
+
 	/*
 	 * The gpio banks conceptually expose a segmented bitmap,
 	 * and "ngpio" is one more than the largest zero-based

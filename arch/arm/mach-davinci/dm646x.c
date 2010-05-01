@@ -832,6 +832,7 @@ static struct davinci_soc_info davinci_soc_info_dm646x = {
 	.intc_irq_prios		= dm646x_default_priorities,
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm646x_timer_info,
+	.gpio_type		= GPIO_TYPE_DAVINCI,
 	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
 	.gpio_num		= 43, /* Only 33 usable */
 	.gpio_irq		= IRQ_DM646X_GPIOBNK0,
