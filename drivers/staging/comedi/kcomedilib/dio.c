@@ -25,6 +25,7 @@
 #include "../comedilib.h"
 
 #include <linux/string.h>
+#include <linux/module.h>
 
 int comedi_dio_config(void *dev, unsigned int subdev, unsigned int chan,
 		      unsigned int io)
@@ -40,6 +41,7 @@ int comedi_dio_config(void *dev, unsigned int subdev, unsigned int chan,
 
 	return comedi_do_insn(dev, &insn);
 }
+EXPORT_SYMBOL(comedi_dio_config);
 
 int comedi_dio_read(void *dev, unsigned int subdev, unsigned int chan,
 		    unsigned int *val)
@@ -93,3 +95,4 @@ int comedi_dio_bitfield(void *dev, unsigned int subdev, unsigned int mask,
 
 	return ret;
 }
+EXPORT_SYMBOL(comedi_dio_bitfield);

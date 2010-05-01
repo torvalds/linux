@@ -81,6 +81,7 @@ int comedi_find_subdevice_by_type(void *d, int type, unsigned int subd)
 	}
 	return -1;
 }
+EXPORT_SYMBOL(comedi_find_subdevice_by_type);
 
 int comedi_get_n_channels(void *d, unsigned int subdevice)
 {
@@ -89,6 +90,7 @@ int comedi_get_n_channels(void *d, unsigned int subdevice)
 
 	return s->n_chan;
 }
+EXPORT_SYMBOL(comedi_get_n_channels);
 
 int comedi_get_len_chanlist(void *d, unsigned int subdevice)
 {
@@ -117,11 +119,10 @@ int comedi_get_rangetype(void *d, unsigned int subdevice, unsigned int chan)
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	int ret;
 
-	if (s->range_table_list) {
+	if (s->range_table_list)
 		ret = s->range_table_list[chan]->length;
-	} else {
+	else
 		ret = s->range_table->length;
-	}
 
 	ret = ret | (dev->minor << 28) | (subdevice << 24) | (chan << 16);
 
@@ -135,11 +136,10 @@ int comedi_get_n_ranges(void *d, unsigned int subdevice, unsigned int chan)
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	int ret;
 
-	if (s->range_table_list) {
+	if (s->range_table_list)
 		ret = s->range_table_list[chan]->length;
-	} else {
+	else
 		ret = s->range_table->length;
-	}
 
 	return ret;
 }
@@ -154,11 +154,11 @@ int comedi_get_krange(void *d, unsigned int subdevice, unsigned int chan,
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
 	const struct comedi_lrange *lr;
 
-	if (s->range_table_list) {
+	if (s->range_table_list)
 		lr = s->range_table_list[chan];
-	} else {
+	else
 		lr = s->range_table;
-	}
+
 	if (range >= lr->length)
 		return -EINVAL;
 

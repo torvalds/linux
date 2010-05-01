@@ -31,7 +31,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include "../comedi.h"
 #include "../comedilib.h"
@@ -68,6 +68,7 @@ void *comedi_open(const char *filename)
 
 	return (void *)dev;
 }
+EXPORT_SYMBOL(comedi_open);
 
 void *comedi_open_old(unsigned int minor)
 {
@@ -96,6 +97,7 @@ int comedi_close(void *d)
 
 	return 0;
 }
+EXPORT_SYMBOL(comedi_close);
 
 int comedi_loglevel(int newlevel)
 {
@@ -104,7 +106,7 @@ int comedi_loglevel(int newlevel)
 
 void comedi_perror(const char *message)
 {
-	printk("%s: unknown error\n", message);
+	printk(KERN_ERR "%s: unknown error\n", message);
 }
 
 char *comedi_strerror(int err)
