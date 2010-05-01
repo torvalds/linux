@@ -35,6 +35,7 @@
 #define L2CAP_DEFAULT_RETRANS_TO	1000    /* 1 second */
 #define L2CAP_DEFAULT_MONITOR_TO	12000   /* 12 seconds */
 #define L2CAP_DEFAULT_MAX_PDU_SIZE	672
+#define L2CAP_DEFAULT_ACK_TO		200
 
 #define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
 #define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
@@ -348,6 +349,7 @@ struct l2cap_pinfo {
 
 	struct timer_list	retrans_timer;
 	struct timer_list	monitor_timer;
+	struct timer_list	ack_timer;
 	struct sk_buff_head	tx_queue;
 	struct sk_buff_head	srej_queue;
 	struct srej_list	srej_l;
@@ -382,6 +384,8 @@ struct l2cap_pinfo {
 		jiffies +  msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));
 #define __mod_monitor_timer() mod_timer(&l2cap_pi(sk)->monitor_timer, \
 		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_MONITOR_TO));
+#define __mod_ack_timer() mod_timer(&l2cap_pi(sk)->ack_timer, \
+		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_ACK_TO));
 
 static inline int l2cap_tx_window_full(struct sock *sk)
 {

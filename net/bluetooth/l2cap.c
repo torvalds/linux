@@ -2235,6 +2235,15 @@ static void l2cap_add_conf_opt(void **ptr, u8 type, u8 len, unsigned long val)
 	*ptr += L2CAP_CONF_OPT_SIZE + len;
 }
 
+static void l2cap_ack_timeout(unsigned long arg)
+{
+	struct sock *sk = (void *) arg;
+
+	bh_lock_sock(sk);
+	l2cap_send_ack(l2cap_pi(sk));
+	bh_unlock_sock(sk);
+}
+
 static inline void l2cap_ertm_init(struct sock *sk)
 {
 	l2cap_pi(sk)->expected_ack_seq = 0;
@@ -2247,6 +2256,8 @@ static inline void l2cap_ertm_init(struct sock *sk)
 			l2cap_retrans_timeout, (unsigned long) sk);
 	setup_timer(&l2cap_pi(sk)->monitor_timer,
 			l2cap_monitor_timeout, (unsigned long) sk);
+	setup_timer(&l2cap_pi(sk)->ack_timer,
+			l2cap_ack_timeout, (unsigned long) sk);
 
 	__skb_queue_head_init(SREJ_QUEUE(sk));
 }
@@ -2975,6 +2986,7 @@ static inline int l2cap_disconnect_req(struct l2cap_conn *conn, struct l2cap_cmd
 		skb_queue_purge(SREJ_QUEUE(sk));
 		del_timer(&l2cap_pi(sk)->retrans_timer);
 		del_timer(&l2cap_pi(sk)->monitor_timer);
+		del_timer(&l2cap_pi(sk)->ack_timer);
 	}
 
 	l2cap_chan_del(sk, ECONNRESET);
@@ -3005,6 +3017,7 @@ static inline int l2cap_disconnect_rsp(struct l2cap_conn *conn, struct l2cap_cmd
 		skb_queue_purge(SREJ_QUEUE(sk));
 		del_timer(&l2cap_pi(sk)->retrans_timer);
 		del_timer(&l2cap_pi(sk)->monitor_timer);
+		del_timer(&l2cap_pi(sk)->ack_timer);
 	}
 
 	l2cap_chan_del(sk, 0);
@@ -3483,6 +3496,8 @@ expected:
 	err = l2cap_sar_reassembly_sdu(sk, skb, rx_control);
 	if (err < 0)
 		return err;
+
+	__mod_ack_timer();
 
 	pi->num_to_ack = (pi->num_to_ack + 1) % L2CAP_DEFAULT_NUM_TO_ACK;
 	if (pi->num_to_ack == L2CAP_DEFAULT_NUM_TO_ACK - 1)
