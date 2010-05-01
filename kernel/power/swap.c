@@ -29,6 +29,40 @@
 
 #define SWSUSP_SIG	"S1SUSPEND"
 
+/*
+ *	The swap map is a data structure used for keeping track of each page
+ *	written to a swap partition.  It consists of many swap_map_page
+ *	structures that contain each an array of MAP_PAGE_SIZE swap entries.
+ *	These structures are stored on the swap and linked together with the
+ *	help of the .next_swap member.
+ *
+ *	The swap map is created during suspend.  The swap map pages are
+ *	allocated and populated one at a time, so we only need one memory
+ *	page to set up the entire structure.
+ *
+ *	During resume we also only need to use one swap_map_page structure
+ *	at a time.
+ */
+
+#define MAP_PAGE_ENTRIES	(PAGE_SIZE / sizeof(sector_t) - 1)
+
+struct swap_map_page {
+	sector_t entries[MAP_PAGE_ENTRIES];
+	sector_t next_swap;
+};
+
+/**
+ *	The swap_map_handle structure is used for handling swap in
+ *	a file-alike way
+ */
+
+struct swap_map_handle {
+	struct swap_map_page *cur;
+	sector_t cur_swap;
+	sector_t first_sector;
+	unsigned int k;
+};
+
 struct swsusp_header {
 	char reserved[PAGE_SIZE - 20 - sizeof(sector_t) - sizeof(int)];
 	sector_t image;
@@ -151,7 +185,7 @@ struct block_device *hib_resume_bdev;
  * Saving part
  */
 
-static int mark_swapfiles(sector_t start, unsigned int flags)
+static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 {
 	int error;
 
@@ -160,7 +194,7 @@ static int mark_swapfiles(sector_t start, unsigned int flags)
 	    !memcmp("SWAPSPACE2",swsusp_header->sig, 10)) {
 		memcpy(swsusp_header->orig_sig,swsusp_header->sig, 10);
 		memcpy(swsusp_header->sig,SWSUSP_SIG, 10);
-		swsusp_header->image = start;
+		swsusp_header->image = handle->first_sector;
 		swsusp_header->flags = flags;
 		error = hib_bio_write_page(swsusp_resume_block,
 					swsusp_header, NULL);
@@ -226,39 +260,6 @@ static int write_page(void *buf, sector_t offset, struct bio **bio_chain)
 	return hib_bio_write_page(offset, src, bio_chain);
 }
 
-/*
- *	The swap map is a data structure used for keeping track of each page
- *	written to a swap partition.  It consists of many swap_map_page
- *	structures that contain each an array of MAP_PAGE_SIZE swap entries.
- *	These structures are stored on the swap and linked together with the
- *	help of the .next_swap member.
- *
- *	The swap map is created during suspend.  The swap map pages are
- *	allocated and populated one at a time, so we only need one memory
- *	page to set up the entire structure.
- *
- *	During resume we also only need to use one swap_map_page structure
- *	at a time.
- */
-
-#define MAP_PAGE_ENTRIES	(PAGE_SIZE / sizeof(sector_t) - 1)
-
-struct swap_map_page {
-	sector_t entries[MAP_PAGE_ENTRIES];
-	sector_t next_swap;
-};
-
-/**
- *	The swap_map_handle structure is used for handling swap in
- *	a file-alike way
- */
-
-struct swap_map_handle {
-	struct swap_map_page *cur;
-	sector_t cur_swap;
-	unsigned int k;
-};
-
 static void release_swap_writer(struct swap_map_handle *handle)
 {
 	if (handle->cur)
@@ -277,6 +278,7 @@ static int get_swap_writer(struct swap_map_handle *handle)
 		return -ENOSPC;
 	}
 	handle->k = 0;
+	handle->first_sector = handle->cur_swap;
 	return 0;
 }
 
@@ -421,8 +423,6 @@ int swsusp_write(unsigned int flags)
 	}
 	error = get_swap_writer(&handle);
 	if (!error) {
-		sector_t start = handle.cur_swap;
-
 		error = swap_write_page(&handle, header, NULL);
 		if (!error)
 			error = save_image(&handle, &snapshot,
@@ -431,7 +431,7 @@ int swsusp_write(unsigned int flags)
 		if (!error) {
 			flush_swap_writer(&handle);
 			printk(KERN_INFO "PM: S");
-			error = mark_swapfiles(start, flags);
+			error = mark_swapfiles(&handle, flags);
 			printk("|\n");
 		}
 	}
