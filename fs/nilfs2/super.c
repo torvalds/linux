@@ -242,8 +242,8 @@ int nilfs_commit_super(struct nilfs_sb_info *sbi, int dupsb)
 	int err;
 
 	/* nilfs->sem must be locked by the caller. */
-	if (sbp[0]->s_magic != NILFS_SUPER_MAGIC) {
-		if (sbp[1] && sbp[1]->s_magic == NILFS_SUPER_MAGIC)
+	if (sbp[0]->s_magic != cpu_to_le16(NILFS_SUPER_MAGIC)) {
+		if (sbp[1] && sbp[1]->s_magic == cpu_to_le16(NILFS_SUPER_MAGIC))
 			nilfs_swap_super_block(nilfs);
 		else {
 			printk(KERN_CRIT "NILFS: superblock broke on dev %s\n",
