@@ -1606,21 +1606,21 @@ static inline int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, siz
 
 	__skb_queue_head_init(&sar_queue);
 	control = L2CAP_SDU_START;
-	skb = l2cap_create_iframe_pdu(sk, msg, pi->max_pdu_size, control, len);
+	skb = l2cap_create_iframe_pdu(sk, msg, pi->remote_mps, control, len);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
 	__skb_queue_tail(&sar_queue, skb);
-	len -= pi->max_pdu_size;
-	size +=pi->max_pdu_size;
+	len -= pi->remote_mps;
+	size += pi->remote_mps;
 	control = 0;
 
 	while (len > 0) {
 		size_t buflen;
 
-		if (len > pi->max_pdu_size) {
+		if (len > pi->remote_mps) {
 			control |= L2CAP_SDU_CONTINUE;
-			buflen = pi->max_pdu_size;
+			buflen = pi->remote_mps;
 		} else {
 			control |= L2CAP_SDU_END;
 			buflen = len;
@@ -1701,7 +1701,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	case L2CAP_MODE_ERTM:
 	case L2CAP_MODE_STREAMING:
 		/* Entire SDU fits into one PDU */
-		if (len <= pi->max_pdu_size) {
+		if (len <= pi->remote_mps) {
 			control = L2CAP_SDU_UNSEGMENTED;
 			skb = l2cap_create_iframe_pdu(sk, msg, len, control, 0);
 			if (IS_ERR(skb)) {
@@ -2330,7 +2330,7 @@ done:
 		rfc.monitor_timeout = 0;
 		rfc.max_pdu_size    = cpu_to_le16(L2CAP_DEFAULT_MAX_PDU_SIZE);
 		if (L2CAP_DEFAULT_MAX_PDU_SIZE > pi->conn->mtu - 10)
-			rfc.max_pdu_size = pi->conn->mtu - 10;
+			rfc.max_pdu_size = cpu_to_le16(pi->conn->mtu - 10);
 
 		l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
 					sizeof(rfc), (unsigned long) &rfc);
@@ -2353,7 +2353,7 @@ done:
 		rfc.monitor_timeout = 0;
 		rfc.max_pdu_size    = cpu_to_le16(L2CAP_DEFAULT_MAX_PDU_SIZE);
 		if (L2CAP_DEFAULT_MAX_PDU_SIZE > pi->conn->mtu - 10)
-			rfc.max_pdu_size = pi->conn->mtu - 10;
+			rfc.max_pdu_size = cpu_to_le16(pi->conn->mtu - 10);
 
 		l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
 					sizeof(rfc), (unsigned long) &rfc);
@@ -2482,7 +2482,10 @@ done:
 		case L2CAP_MODE_ERTM:
 			pi->remote_tx_win = rfc.txwin_size;
 			pi->remote_max_tx = rfc.max_transmit;
-			pi->max_pdu_size = rfc.max_pdu_size;
+			if (rfc.max_pdu_size > pi->conn->mtu - 10)
+				rfc.max_pdu_size = le16_to_cpu(pi->conn->mtu - 10);
+
+			pi->remote_mps = le16_to_cpu(rfc.max_pdu_size);
 
 			rfc.retrans_timeout = L2CAP_DEFAULT_RETRANS_TO;
 			rfc.monitor_timeout = L2CAP_DEFAULT_MONITOR_TO;
@@ -2495,7 +2498,10 @@ done:
 			break;
 
 		case L2CAP_MODE_STREAMING:
-			pi->max_pdu_size = rfc.max_pdu_size;
+			if (rfc.max_pdu_size > pi->conn->mtu - 10)
+				rfc.max_pdu_size = le16_to_cpu(pi->conn->mtu - 10);
+
+			pi->remote_mps = le16_to_cpu(rfc.max_pdu_size);
 
 			pi->conf_state |= L2CAP_CONF_MODE_DONE;
 
@@ -2574,11 +2580,10 @@ static int l2cap_parse_conf_rsp(struct sock *sk, void *rsp, int len, void *data,
 			pi->remote_tx_win   = rfc.txwin_size;
 			pi->retrans_timeout = rfc.retrans_timeout;
 			pi->monitor_timeout = rfc.monitor_timeout;
-			pi->max_pdu_size    = le16_to_cpu(rfc.max_pdu_size);
+			pi->mps    = le16_to_cpu(rfc.max_pdu_size);
 			break;
 		case L2CAP_MODE_STREAMING:
-			pi->max_pdu_size    = le16_to_cpu(rfc.max_pdu_size);
-			break;
+			pi->mps    = le16_to_cpu(rfc.max_pdu_size);
 		}
 	}
 
@@ -3753,7 +3758,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		 * Receiver will miss it and start proper recovery
 		 * procedures and ask retransmission.
 		 */
-		if (len > L2CAP_DEFAULT_MAX_PDU_SIZE)
+		if (len > pi->mps)
 			goto drop;
 
 		if (l2cap_check_fcs(pi, skb))
@@ -3784,8 +3789,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		if (pi->fcs == L2CAP_FCS_CRC16)
 			len -= 2;
 
-		if (len > L2CAP_DEFAULT_MAX_PDU_SIZE || len < 4
-				|| __is_sframe(control))
+		if (len > pi->mps || len < 4 || __is_sframe(control))
 			goto drop;
 
 		if (l2cap_check_fcs(pi, skb))

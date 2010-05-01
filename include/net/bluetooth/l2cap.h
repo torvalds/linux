@@ -343,7 +343,8 @@ struct l2cap_pinfo {
 	__u8		remote_max_tx;
 	__u16		retrans_timeout;
 	__u16		monitor_timeout;
-	__u16		max_pdu_size;
+	__u16		remote_mps;
+	__u16		mps;
 
 	__le16		sport;
 
