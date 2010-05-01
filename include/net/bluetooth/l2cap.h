@@ -56,6 +56,7 @@ struct l2cap_options {
 	__u16 flush_to;
 	__u8  mode;
 	__u8  fcs;
+	__u16 txwin_size;
 };
 
 #define L2CAP_CONNINFO	0x02
@@ -339,6 +340,7 @@ struct l2cap_pinfo {
 
 	__u8		ident;
 
+	__u8		tx_win;
 	__u8		remote_tx_win;
 	__u8		remote_max_tx;
 	__u16		retrans_timeout;
