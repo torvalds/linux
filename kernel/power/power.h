@@ -142,6 +142,15 @@ extern int swsusp_read(unsigned int *flags_p);
 extern int swsusp_write(unsigned int flags);
 extern void swsusp_close(fmode_t);
 
+/* kernel/power/block_io.c */
+extern struct block_device *hib_resume_bdev;
+
+extern int hib_bio_read_page(pgoff_t page_off, void *addr,
+		struct bio **bio_chain);
+extern int hib_bio_write_page(pgoff_t page_off, void *addr,
+		struct bio **bio_chain);
+extern int hib_wait_on_bio_chain(struct bio **bio_chain);
+
 struct timeval;
 /* kernel/power/swsusp.c */
 extern void swsusp_show_speed(struct timeval *, struct timeval *,
