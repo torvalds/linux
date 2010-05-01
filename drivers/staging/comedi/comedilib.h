@@ -24,8 +24,6 @@
 #ifndef _LINUX_COMEDILIB_H
 #define _LINUX_COMEDILIB_H
 
-#include "comedi.h"
-
 /* these functions may not be called at real-time priority */
 
 void *comedi_open(const char *path);

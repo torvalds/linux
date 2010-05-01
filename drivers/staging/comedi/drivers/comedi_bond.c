@@ -87,6 +87,7 @@ Configuration Options:
  * options that are used with comedi_config.
  */
 
+#include "../comedi.h"
 #include "../comedilib.h"
 #include "../comedidev.h"
 #include <linux/string.h>
