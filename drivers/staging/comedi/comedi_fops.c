@@ -57,6 +57,7 @@ MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_COMEDI_DEBUG
 int comedi_debug;
+EXPORT_SYMBOL(comedi_debug);
 module_param(comedi_debug, int, 0644);
 #endif
 
@@ -1975,6 +1976,7 @@ void comedi_error(const struct comedi_device *dev, const char *s)
 	printk(KERN_ERR "comedi%d: %s: %s\n", dev->minor,
 	       dev->driver->driver_name, s);
 }
+EXPORT_SYMBOL(comedi_error);
 
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
@@ -2017,6 +2019,7 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	s->async->events = 0;
 }
+EXPORT_SYMBOL(comedi_event);
 
 void comedi_set_subdevice_runflags(struct comedi_subdevice *s, unsigned mask,
 				   unsigned bits)
@@ -2028,6 +2031,7 @@ void comedi_set_subdevice_runflags(struct comedi_subdevice *s, unsigned mask,
 	s->runflags |= (bits & mask);
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 }
+EXPORT_SYMBOL(comedi_set_subdevice_runflags);
 
 unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
 {
@@ -2039,6 +2043,7 @@ unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 	return runflags;
 }
+EXPORT_SYMBOL(comedi_get_subdevice_runflags);
 
 static int is_device_busy(struct comedi_device *dev)
 {
@@ -2152,6 +2157,7 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	}
 	return i;
 }
+EXPORT_SYMBOL_GPL(comedi_alloc_board_minor);
 
 void comedi_free_board_minor(unsigned minor)
 {
@@ -2177,6 +2183,7 @@ void comedi_free_board_minor(unsigned minor)
 		kfree(info);
 	}
 }
+EXPORT_SYMBOL_GPL(comedi_free_board_minor);
 
 int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 				 struct comedi_subdevice *s)
@@ -2286,6 +2293,7 @@ struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor)
 	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
 	return info;
 }
+EXPORT_SYMBOL_GPL(comedi_get_device_file_info);
 
 static int resize_async_buffer(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
