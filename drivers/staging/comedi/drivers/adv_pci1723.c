@@ -52,7 +52,7 @@ TODO:
 
 #include "comedi_pci.h"
 
-#define ADVANTECH_VENDOR        0x13fe	/* Advantech PCI vendor ID */
+#define PCI_VENDOR_ID_ADVANTECH		0x13fe	/* Advantech PCI vendor ID */
 
 /* hardware types of the cards */
 #define TYPE_PCI1723 0
@@ -139,7 +139,7 @@ struct pci1723_board {
 static const struct pci1723_board boardtypes[] = {
 	{
 	 .name = "pci1723",
-	 .vendor_id = ADVANTECH_VENDOR,
+	 .vendor_id = PCI_VENDOR_ID_ADVANTECH,
 	 .device_id = 0x1723,
 	 .iorange = IORANGE_1723,
 	 .cardtype = TYPE_PCI1723,

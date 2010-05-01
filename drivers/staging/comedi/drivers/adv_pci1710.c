@@ -63,6 +63,8 @@ Configuration options:
 #define DPRINTK(fmt, args...)
 #endif
 
+#define PCI_VENDOR_ID_ADVANTECH		0x13fe
+
 /* hardware types of the cards */
 #define TYPE_PCI171X	0
 #define TYPE_PCI1713	2
