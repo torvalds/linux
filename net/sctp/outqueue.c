@@ -854,6 +854,12 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			if (status  != SCTP_XMIT_OK) {
 				/* put the chunk back */
 				list_add(&chunk->list, &q->control_chunk_list);
+			} else if (chunk->chunk_hdr->type == SCTP_CID_FWD_TSN) {
+				/* PR-SCTP C5) If a FORWARD TSN is sent, the
+				 * sender MUST assure that at least one T3-rtx
+				 * timer is running.
+				 */
+				sctp_transport_reset_timers(transport, 0);
 			}
 			break;
 
