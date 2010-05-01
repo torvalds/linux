@@ -937,9 +937,6 @@ static int tvp5150_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 static int tvp5150_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
 	switch (fmt->type) {
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return tvp5150_s_raw_fmt(sd, &fmt->fmt.vbi);
-
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
 		return tvp5150_s_sliced_fmt(sd, &fmt->fmt.sliced);
 

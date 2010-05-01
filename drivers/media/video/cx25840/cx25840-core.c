@@ -1079,12 +1079,6 @@ static int cx25840_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		cx25840_write(client, 0x41e, 0x8 | filter);
 		break;
 
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_s_sliced_fmt(sd, &fmt->fmt.sliced);
-
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx25840_s_raw_fmt(sd, &fmt->fmt.vbi);
-
 	default:
 		return -EINVAL;
 	}

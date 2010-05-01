@@ -1098,12 +1098,6 @@ static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		cx18_av_write(cx, 0x41e, 0x8 | filter);
 		break;
 
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx18_av_s_sliced_fmt(sd, &fmt->fmt.sliced);
-
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx18_av_s_raw_fmt(sd, &fmt->fmt.vbi);
-
 	default:
 		return -EINVAL;
 	}

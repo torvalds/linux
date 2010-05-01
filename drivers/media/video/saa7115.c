@@ -1138,10 +1138,6 @@ static int saa711x_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 
 static int saa711x_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
-	if (fmt->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
-		return saa711x_s_sliced_fmt(sd, &fmt->fmt.sliced);
-	if (fmt->type == V4L2_BUF_TYPE_VBI_CAPTURE)
-		return saa711x_s_raw_fmt(sd, &fmt->fmt.vbi);
 	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
