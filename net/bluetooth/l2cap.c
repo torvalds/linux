@@ -330,19 +330,19 @@ static inline u8 l2cap_get_ident(struct l2cap_conn *conn)
 	return id;
 }
 
-static inline int l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data)
+static inline void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data)
 {
 	struct sk_buff *skb = l2cap_build_cmd(conn, code, ident, len, data);
 
 	BT_DBG("code 0x%2.2x", code);
 
 	if (!skb)
-		return -ENOMEM;
+		return;
 
-	return hci_send_acl(conn->hcon, skb, 0);
+	hci_send_acl(conn->hcon, skb, 0);
 }
 
-static inline int l2cap_send_sframe(struct l2cap_pinfo *pi, u16 control)
+static inline void l2cap_send_sframe(struct l2cap_pinfo *pi, u16 control)
 {
 	struct sk_buff *skb;
 	struct l2cap_hdr *lh;
@@ -369,7 +369,7 @@ static inline int l2cap_send_sframe(struct l2cap_pinfo *pi, u16 control)
 
 	skb = bt_skb_alloc(count, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return;
 
 	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
 	lh->len = cpu_to_le16(hlen - L2CAP_HDR_SIZE);
@@ -381,10 +381,10 @@ static inline int l2cap_send_sframe(struct l2cap_pinfo *pi, u16 control)
 		put_unaligned_le16(fcs, skb_put(skb, 2));
 	}
 
-	return hci_send_acl(pi->conn->hcon, skb, 0);
+	hci_send_acl(pi->conn->hcon, skb, 0);
 }
 
-static inline int l2cap_send_rr_or_rnr(struct l2cap_pinfo *pi, u16 control)
+static inline void l2cap_send_rr_or_rnr(struct l2cap_pinfo *pi, u16 control)
 {
 	if (pi->conn_state & L2CAP_CONN_LOCAL_BUSY)
 		control |= L2CAP_SUPER_RCV_NOT_READY;
@@ -393,7 +393,7 @@ static inline int l2cap_send_rr_or_rnr(struct l2cap_pinfo *pi, u16 control)
 
 	control |= pi->buffer_seq << L2CAP_CTRL_REQSEQ_SHIFT;
 
-	return l2cap_send_sframe(pi, control);
+	l2cap_send_sframe(pi, control);
 }
 
 static void l2cap_do_start(struct sock *sk)
@@ -1289,18 +1289,13 @@ static void l2cap_drop_acked_frames(struct sock *sk)
 	return;
 }
 
-static inline int l2cap_do_send(struct sock *sk, struct sk_buff *skb)
+static inline void l2cap_do_send(struct sock *sk, struct sk_buff *skb)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
-	int err;
 
 	BT_DBG("sk %p, skb %p len %d", sk, skb, skb->len);
 
-	err = hci_send_acl(pi->conn->hcon, skb, 0);
-	if (err < 0)
-		kfree_skb(skb);
-
-	return err;
+	hci_send_acl(pi->conn->hcon, skb, 0);
 }
 
 static int l2cap_streaming_send(struct sock *sk)
@@ -1308,7 +1303,6 @@ static int l2cap_streaming_send(struct sock *sk)
 	struct sk_buff *skb, *tx_skb;
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	u16 control, fcs;
-	int err;
 
 	while ((skb = sk->sk_send_head)) {
 		tx_skb = skb_clone(skb, GFP_ATOMIC);
@@ -1322,11 +1316,7 @@ static int l2cap_streaming_send(struct sock *sk)
 			put_unaligned_le16(fcs, tx_skb->data + tx_skb->len - 2);
 		}
 
-		err = l2cap_do_send(sk, tx_skb);
-		if (err < 0) {
-			l2cap_send_disconn_req(pi->conn, sk);
-			return err;
-		}
+		l2cap_do_send(sk, tx_skb);
 
 		pi->next_tx_seq = (pi->next_tx_seq + 1) % 64;
 
@@ -1346,7 +1336,6 @@ static int l2cap_retransmit_frame(struct sock *sk, u8 tx_seq)
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	struct sk_buff *skb, *tx_skb;
 	u16 control, fcs;
-	int err;
 
 	skb = skb_peek(TX_QUEUE(sk));
 	do {
@@ -1375,11 +1364,7 @@ static int l2cap_retransmit_frame(struct sock *sk, u8 tx_seq)
 			put_unaligned_le16(fcs, tx_skb->data + tx_skb->len - 2);
 		}
 
-		err = l2cap_do_send(sk, tx_skb);
-		if (err < 0) {
-			l2cap_send_disconn_req(pi->conn, sk);
-			return err;
-		}
+		l2cap_do_send(sk, tx_skb);
 		break;
 	} while(1);
 	return 0;
@@ -1390,7 +1375,7 @@ static int l2cap_ertm_send(struct sock *sk)
 	struct sk_buff *skb, *tx_skb;
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	u16 control, fcs;
-	int err, nsent = 0;
+	int nsent = 0;
 
 	if (pi->conn_state & L2CAP_CONN_WAIT_F)
 		return 0;
@@ -1423,11 +1408,8 @@ static int l2cap_ertm_send(struct sock *sk)
 			put_unaligned_le16(fcs, skb->data + tx_skb->len - 2);
 		}
 
-		err = l2cap_do_send(sk, tx_skb);
-		if (err < 0) {
-			l2cap_send_disconn_req(pi->conn, sk);
-			return err;
-		}
+		l2cap_do_send(sk, tx_skb);
+
 		__mod_retrans_timer();
 
 		bt_cb(skb)->tx_seq = pi->next_tx_seq;
@@ -1447,7 +1429,7 @@ static int l2cap_ertm_send(struct sock *sk)
 	return nsent;
 }
 
-static int l2cap_send_ack(struct l2cap_pinfo *pi)
+static void l2cap_send_ack(struct l2cap_pinfo *pi)
 {
 	struct sock *sk = (struct sock *)pi;
 	u16 control = 0;
@@ -1456,15 +1438,15 @@ static int l2cap_send_ack(struct l2cap_pinfo *pi)
 
 	if (pi->conn_state & L2CAP_CONN_LOCAL_BUSY) {
 		control |= L2CAP_SUPER_RCV_NOT_READY;
-		return l2cap_send_sframe(pi, control);
+		l2cap_send_sframe(pi, control);
+		return;
 	} else if (l2cap_ertm_send(sk) == 0) {
 		control |= L2CAP_SUPER_RCV_READY;
-		return l2cap_send_sframe(pi, control);
+		l2cap_send_sframe(pi, control);
 	}
-	return 0;
 }
 
-static int l2cap_send_srejtail(struct sock *sk)
+static void l2cap_send_srejtail(struct sock *sk)
 {
 	struct srej_list *tail;
 	u16 control;
@@ -1476,8 +1458,6 @@ static int l2cap_send_srejtail(struct sock *sk)
 	control |= tail->tx_seq << L2CAP_CTRL_REQSEQ_SHIFT;
 
 	l2cap_send_sframe(l2cap_pi(sk), control);
-
-	return 0;
 }
 
 static inline int l2cap_skbuff_fromiovec(struct sock *sk, struct msghdr *msg, int len, int count, struct sk_buff *skb)
@@ -1687,10 +1667,12 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	/* Connectionless channel */
 	if (sk->sk_type == SOCK_DGRAM) {
 		skb = l2cap_create_connless_pdu(sk, msg, len);
-		if (IS_ERR(skb))
+		if (IS_ERR(skb)) {
 			err = PTR_ERR(skb);
-		else
-			err = l2cap_do_send(sk, skb);
+		} else {
+			l2cap_do_send(sk, skb);
+			err = len;
+		}
 		goto done;
 	}
 
@@ -1709,9 +1691,8 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 			goto done;
 		}
 
-		err = l2cap_do_send(sk, skb);
-		if (!err)
-			err = len;
+		l2cap_do_send(sk, skb);
+		err = len;
 		break;
 
 	case L2CAP_MODE_ERTM:
