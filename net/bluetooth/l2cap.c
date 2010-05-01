@@ -3542,7 +3542,9 @@ expected:
 	pi->expected_tx_seq = (pi->expected_tx_seq + 1) % 64;
 
 	if (pi->conn_state & L2CAP_CONN_SREJ_SENT) {
-		l2cap_add_to_srej_queue(sk, skb, tx_seq, sar);
+		bt_cb(skb)->tx_seq = tx_seq;
+		bt_cb(skb)->sar = sar;
+		__skb_queue_tail(SREJ_QUEUE(sk), skb);
 		return 0;
 	}
 
