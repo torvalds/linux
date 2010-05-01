@@ -2602,6 +2602,42 @@ static int l2cap_build_conf_rsp(struct sock *sk, void *data, u16 result, u16 fla
 	return ptr - data;
 }
 
+static void l2cap_conf_rfc_get(struct sock *sk, void *rsp, int len)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	int type, olen;
+	unsigned long val;
+	struct l2cap_conf_rfc rfc;
+
+	BT_DBG("sk %p, rsp %p, len %d", sk, rsp, len);
+
+	if ((pi->mode != L2CAP_MODE_ERTM) && (pi->mode != L2CAP_MODE_STREAMING))
+		return;
+
+	while (len >= L2CAP_CONF_OPT_SIZE) {
+		len -= l2cap_get_conf_opt(&rsp, &type, &olen, &val);
+
+		switch (type) {
+		case L2CAP_CONF_RFC:
+			if (olen == sizeof(rfc))
+				memcpy(&rfc, (void *)val, olen);
+			goto done;
+		}
+	}
+
+done:
+	switch (rfc.mode) {
+	case L2CAP_MODE_ERTM:
+		pi->remote_tx_win   = rfc.txwin_size;
+		pi->retrans_timeout = rfc.retrans_timeout;
+		pi->monitor_timeout = rfc.monitor_timeout;
+		pi->mps    = le16_to_cpu(rfc.max_pdu_size);
+		break;
+	case L2CAP_MODE_STREAMING:
+		pi->mps    = le16_to_cpu(rfc.max_pdu_size);
+	}
+}
+
 static inline int l2cap_command_rej(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd, u8 *data)
 {
 	struct l2cap_cmd_rej *rej = (struct l2cap_cmd_rej *) data;
@@ -2881,6 +2917,7 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	struct l2cap_conf_rsp *rsp = (struct l2cap_conf_rsp *)data;
 	u16 scid, flags, result;
 	struct sock *sk;
+	int len = cmd->len - sizeof(*rsp);
 
 	scid   = __le16_to_cpu(rsp->scid);
 	flags  = __le16_to_cpu(rsp->flags);
@@ -2895,11 +2932,11 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 	switch (result) {
 	case L2CAP_CONF_SUCCESS:
+		l2cap_conf_rfc_get(sk, rsp->data, len);
 		break;
 
 	case L2CAP_CONF_UNACCEPT:
 		if (l2cap_pi(sk)->num_conf_rsp <= L2CAP_CONF_MAX_CONF_RSP) {
-			int len = cmd->len - sizeof(*rsp);
 			char req[64];
 
 			if (len > sizeof(req) - sizeof(struct l2cap_conf_req)) {
