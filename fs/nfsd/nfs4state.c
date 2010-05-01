@@ -1352,6 +1352,13 @@ static bool nfsd4_last_compound_op(struct svc_rqst *rqstp)
 	return argp->opcnt == resp->opcnt;
 }
 
+static bool nfsd4_compound_in_session(struct nfsd4_session *session, struct nfs4_sessionid *sid)
+{
+	if (!session)
+		return 0;
+	return !memcmp(sid, &session->se_sessionid, sizeof(*sid));
+}
+
 __be32
 nfsd4_destroy_session(struct svc_rqst *r,
 		      struct nfsd4_compound_state *cstate,
@@ -1367,8 +1374,7 @@ nfsd4_destroy_session(struct svc_rqst *r,
 	 * - Do we need to clear any callback info from previous session?
 	 */
 
-	if (!memcmp(&sessionid->sessionid, &cstate->session->se_sessionid,
-					sizeof(struct nfs4_sessionid))) {
+	if (nfsd4_compound_in_session(cstate->session, &sessionid->sessionid)) {
 		if (!nfsd4_last_compound_op(r))
 			return nfserr_not_only_op;
 	}
