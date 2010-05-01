@@ -1568,6 +1568,9 @@ static struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk, struct msghdr *m
 
 	BT_DBG("sk %p len %d", sk, (int)len);
 
+	if (!conn)
+		return ERR_PTR(-ENOTCONN);
+
 	if (sdulen)
 		hlen += 2;
 
