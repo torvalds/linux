@@ -30,6 +30,3 @@ EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
 EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
 EXPORT_SYMBOL_GPL(comedi_usb_auto_config);
 EXPORT_SYMBOL_GPL(comedi_usb_auto_unconfig);
-
-/* for kcomedilib */
-EXPORT_SYMBOL(check_chanlist);

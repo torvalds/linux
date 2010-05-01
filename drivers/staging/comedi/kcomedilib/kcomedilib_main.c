@@ -251,7 +251,7 @@ int comedi_do_insn(void *d, struct comedi_insn *insn)
 
 		/* XXX check lock */
 
-		ret = check_chanlist(s, 1, &insn->chanspec);
+		ret = comedi_check_chanlist(s, 1, &insn->chanspec);
 		if (ret < 0) {
 			printk("bad chanspec\n");
 			ret = -EINVAL;

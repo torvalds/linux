@@ -839,7 +839,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 			goto out;
 		}
 
-		ret = check_chanlist(s, 1, &insn->chanspec);
+		ret = comedi_check_chanlist(s, 1, &insn->chanspec);
 		if (ret < 0) {
 			ret = -EINVAL;
 			DPRINTK("bad chanspec\n");
@@ -1052,7 +1052,7 @@ static int do_cmd_ioctl(struct comedi_device *dev, void *arg, void *file)
 	}
 
 	/* make sure each element in channel/gain list is valid */
-	ret = check_chanlist(s, async->cmd.chanlist_len, async->cmd.chanlist);
+	ret = comedi_check_chanlist(s, async->cmd.chanlist_len, async->cmd.chanlist);
 	if (ret < 0) {
 		DPRINTK("bad chanlist\n");
 		goto cleanup;
@@ -1174,7 +1174,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev, void *arg, void *file)
 		}
 
 		/* make sure each element in channel/gain list is valid */
-		ret = check_chanlist(s, user_cmd.chanlist_len, chanlist);
+		ret = comedi_check_chanlist(s, user_cmd.chanlist_len, chanlist);
 		if (ret < 0) {
 			DPRINTK("bad chanlist\n");
 			goto cleanup;

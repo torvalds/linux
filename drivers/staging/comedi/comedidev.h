@@ -382,7 +382,7 @@ enum subdevice_runflags {
  */
 
 int do_rangeinfo_ioctl(struct comedi_device *dev, struct comedi_rangeinfo *arg);
-int check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist);
+int comedi_check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist);
 void comedi_set_subdevice_runflags(struct comedi_subdevice *s, unsigned mask,
 				   unsigned bits);
 unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s);

@@ -126,7 +126,8 @@ static int aref_invalid(struct comedi_subdevice *s, unsigned int chanspec)
    This function checks each element in a channel/gain list to make
    make sure it is valid.
 */
-int check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist)
+int comedi_check_chanlist(struct comedi_subdevice *s, int n,
+			  unsigned int *chanlist)
 {
 	int i;
 	int chan;
@@ -160,3 +161,4 @@ int check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(comedi_check_chanlist);
