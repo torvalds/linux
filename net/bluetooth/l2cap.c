@@ -2254,7 +2254,7 @@ static inline void l2cap_ertm_init(struct sock *sk)
 	l2cap_pi(sk)->expected_ack_seq = 0;
 	l2cap_pi(sk)->unacked_frames = 0;
 	l2cap_pi(sk)->buffer_seq = 0;
-	l2cap_pi(sk)->num_to_ack = 0;
+	l2cap_pi(sk)->num_acked = 0;
 	l2cap_pi(sk)->frames_sent = 0;
 
 	setup_timer(&l2cap_pi(sk)->retrans_timer,
@@ -3466,6 +3466,7 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 	u8 tx_seq = __get_txseq(rx_control);
 	u8 req_seq = __get_reqseq(rx_control);
 	u8 sar = rx_control >> L2CAP_CTRL_SAR_SHIFT;
+	int num_to_ack = (pi->tx_win/6) + 1;
 	int err = 0;
 
 	BT_DBG("sk %p rx_control 0x%4.4x len %d", sk, rx_control, skb->len);
@@ -3553,8 +3554,8 @@ expected:
 
 	__mod_ack_timer();
 
-	pi->num_to_ack = (pi->num_to_ack + 1) % L2CAP_DEFAULT_NUM_TO_ACK;
-	if (pi->num_to_ack == L2CAP_DEFAULT_NUM_TO_ACK - 1)
+	pi->num_acked = (pi->num_acked + 1) % num_to_ack;
+	if (pi->num_acked == num_to_ack - 1)
 		l2cap_send_ack(pi);
 
 	return 0;
