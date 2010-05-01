@@ -143,4 +143,4 @@ void BBvUpdatePreEDThreshold(
        BOOL        bScanning
      );
 
-#endif // __BASEBAND_H__
+#endif /* __BASEBAND_H__ */

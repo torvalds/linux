@@ -51,7 +51,4 @@ void vConfigWEPKey (
     );
 */
 
-#endif // __IOCTL_H__
-
-
-
+#endif /* __IOCTL_H__ */

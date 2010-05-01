@@ -688,7 +688,4 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 BOOL bRelayPacketSend(PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeIndex);
 
-#endif // __RXTX_H__
-
-
-
+#endif /* __RXTX_H__ */

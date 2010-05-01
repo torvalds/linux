@@ -93,7 +93,4 @@ PIPEnsSendBulkOut(
       PUSB_SEND_CONTEXT pContext
     );
 
-#endif // __USBPIPE_H__
-
-
-
+#endif /* __USBPIPE_H__ */

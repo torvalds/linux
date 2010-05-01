@@ -91,7 +91,4 @@ CARDbChannelSwitch (
      BYTE             byCount
     );
 
-#endif // __CARD_H__
-
-
-
+#endif /* __CARD_H__ */

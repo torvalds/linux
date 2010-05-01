@@ -56,5 +56,4 @@ FIRMWAREbCheckVersion(
      PSDevice pDevice
     );
 
-
-#endif // __FIRMWARE_H__
+#endif /* __FIRMWARE_H__ */

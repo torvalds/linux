@@ -147,4 +147,4 @@ BSSvSecondTxData(
     );
 #endif
 
-#endif //__WCMD_H__
+#endif /* __WCMD_H__ */

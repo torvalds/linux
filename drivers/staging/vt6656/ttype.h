@@ -149,4 +149,4 @@ typedef void *HANDLE;
 typedef void *HANDLE;
 #endif
 
-#endif // __TTYPE_H__
+#endif /* __TTYPE_H__ */

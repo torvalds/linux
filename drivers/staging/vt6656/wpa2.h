@@ -75,4 +75,4 @@ WPA2uSetIEs(
     OUT PWLAN_IE_RSN pRSNIEs
     );
 
-#endif // __WPA2_H__
+#endif /* __WPA2_H__ */

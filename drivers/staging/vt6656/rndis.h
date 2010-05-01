@@ -158,5 +158,4 @@ typedef struct _CMD_CHANGE_BBTYPE
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-#endif // _RNDIS_H_
+#endif /* _RNDIS_H_ */

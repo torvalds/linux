@@ -77,7 +77,4 @@ void ControlvMaskByte(
      BYTE byData
     );
 
-#endif // __RCV_H__
-
-
-
+#endif /* __CONTROL_H__ */

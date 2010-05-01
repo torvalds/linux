@@ -470,6 +470,4 @@ struct viawget_hostapd_param {
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-
-#endif //__IOCMD_H__
+#endif /* __IOCMD_H__ */

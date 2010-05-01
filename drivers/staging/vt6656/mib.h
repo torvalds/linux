@@ -417,7 +417,4 @@ STAvUpdateUSBCounter(
     NTSTATUS        ntStatus
     );
 
-#endif // __MIB_H__
-
-
-
+#endif /* __MIB_H__ */

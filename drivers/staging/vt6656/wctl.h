@@ -102,7 +102,4 @@ BOOL WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, UINT cbFra
 UINT WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader);
 UINT WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader);
 
-#endif // __WCTL_H__
-
-
-
+#endif /* __WCTL_H__ */

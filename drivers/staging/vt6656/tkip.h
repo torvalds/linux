@@ -54,7 +54,4 @@ void TKIPvMixKey(
     PBYTE   pbyRC4Key
     );
 
-#endif // __TKIP_H__
-
-
-
+#endif /* __TKIP_H__ */

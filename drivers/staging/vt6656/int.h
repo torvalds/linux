@@ -74,7 +74,4 @@ INTnsProcessData(
       PSDevice pDevice
     );
 
-#endif // __INT_H__
-
-
-
+#endif /* __INT_H__ */

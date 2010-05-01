@@ -436,8 +436,4 @@ SKeyEntry;
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-
-
-#endif // __DESC_H__
-
+#endif /* __DESC_H__ */

@@ -356,4 +356,4 @@ BSSvClearAnyBSSJoinRecord(
      HANDLE hDeviceContext
     );
 
-#endif //__BSSDB_H__
+#endif /* __BSSDB_H__ */

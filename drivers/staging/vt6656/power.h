@@ -81,4 +81,4 @@ PSbIsNextTBTTWakeUp(
      HANDLE hDeviceContext
     );
 
-#endif //__POWER_H__
+#endif /* __POWER_H__ */

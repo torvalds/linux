@@ -173,5 +173,4 @@ BOOL KeybSetAllGroupKey(
     BYTE            byKeyDecMode
     );
 
-#endif // __KEY_H__
-
+#endif /* __KEY_H__ */

@@ -58,7 +58,4 @@ RXbBulkInProcessData(
      ULONG            BytesToIndicate
     );
 
-#endif // __RXTX_H__
-
-
-
+#endif /* __RXTX_H__ */

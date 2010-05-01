@@ -94,7 +94,4 @@ BOOL s_bVT3226D0_11bLoCurrentAdjust(
       BOOL        b11bMode
     );
 
-#endif // __RF_H__
-
-
-
+#endif /* __RF_H__ */

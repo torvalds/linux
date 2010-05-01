@@ -230,7 +230,4 @@ BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr);
 //BYTE ETHbyGetHashIndexByCrc(PBYTE pbyMultiAddr);
 BOOL ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, UINT cbFrameLength);
 
-#endif // __TETHER_H__
-
-
-
+#endif /* __TETHER_H__ */

@@ -498,4 +498,4 @@ vFlush_PMKID_Candidate (
      HANDLE hDeviceContext
     );
 
-#endif // __WMGR_H__
+#endif /* __WMGR_H__ */
