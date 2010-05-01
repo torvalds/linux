@@ -3470,11 +3470,11 @@ static int l2cap_ertm_reassembly_sdu(struct sock *sk, struct sk_buff *skb, u16 c
 		if (!pi->sdu)
 			goto disconnect;
 
-		memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
-
 		pi->partial_sdu_len += skb->len;
 		if (pi->partial_sdu_len > pi->sdu_len)
 			goto drop;
+
+		memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
 
 		break;
 
@@ -3486,8 +3486,6 @@ static int l2cap_ertm_reassembly_sdu(struct sock *sk, struct sk_buff *skb, u16 c
 			goto disconnect;
 
 		if (!(pi->conn_state & L2CAP_CONN_SAR_RETRY)) {
-			memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
-
 			pi->partial_sdu_len += skb->len;
 
 			if (pi->partial_sdu_len > pi->imtu)
@@ -3495,6 +3493,8 @@ static int l2cap_ertm_reassembly_sdu(struct sock *sk, struct sk_buff *skb, u16 c
 
 			if (pi->partial_sdu_len != pi->sdu_len)
 				goto drop;
+
+			memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
 		}
 
 		_skb = skb_clone(pi->sdu, GFP_ATOMIC);
