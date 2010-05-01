@@ -529,6 +529,28 @@ static int hermes_write_ltv(hermes_t *hw, int bap, u16 rid,
 	return err;
 }
 
+static void hermes_lock_irqsave(spinlock_t *lock,
+				unsigned long *flags) __acquires(lock)
+{
+	spin_lock_irqsave(lock, *flags);
+}
+
+static void hermes_unlock_irqrestore(spinlock_t *lock,
+				     unsigned long *flags) __releases(lock)
+{
+	spin_unlock_irqrestore(lock, *flags);
+}
+
+static void hermes_lock_irq(spinlock_t *lock) __acquires(lock)
+{
+	spin_lock_irq(lock);
+}
+
+static void hermes_unlock_irq(spinlock_t *lock) __releases(lock)
+{
+	spin_unlock_irq(lock);
+}
+
 /* Hermes operations for local buses */
 static const struct hermes_ops hermes_ops_local = {
 	.init = hermes_init,
@@ -538,5 +560,9 @@ static const struct hermes_ops hermes_ops_local = {
 	.read_ltv = hermes_read_ltv,
 	.write_ltv = hermes_write_ltv,
 	.bap_pread = hermes_bap_pread,
-	.bap_pwrite = hermes_bap_pwrite
+	.bap_pwrite = hermes_bap_pwrite,
+	.lock_irqsave = hermes_lock_irqsave,
+	.unlock_irqrestore = hermes_unlock_irqrestore,
+	.lock_irq = hermes_lock_irq,
+	.unlock_irq = hermes_unlock_irq,
 };

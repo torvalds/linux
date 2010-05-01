@@ -393,6 +393,10 @@ struct hermes_ops {
 			 u16 id, u16 offset);
 	int (*bap_pwrite)(struct hermes *hw, int bap, const void *buf,
 			  int len, u16 id, u16 offset);
+	void (*lock_irqsave)(spinlock_t *lock, unsigned long *flags);
+	void (*unlock_irqrestore)(spinlock_t *lock, unsigned long *flags);
+	void (*lock_irq)(spinlock_t *lock);
+	void (*unlock_irq)(spinlock_t *lock);
 };
 
 /* Basic control structure */

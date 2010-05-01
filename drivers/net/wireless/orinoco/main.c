@@ -281,13 +281,13 @@ int orinoco_stop(struct net_device *dev)
 	/* We mustn't use orinoco_lock() here, because we need to be
 	   able to close the interface even if hw_unavailable is set
 	   (e.g. as we're released after a PC Card removal) */
-	spin_lock_irq(&priv->lock);
+	orinoco_lock_irq(priv);
 
 	priv->open = 0;
 
 	err = __orinoco_down(priv);
 
-	spin_unlock_irq(&priv->lock);
+	orinoco_unlock_irq(priv);
 
 	return err;
 }
@@ -1741,7 +1741,7 @@ void orinoco_reset(struct work_struct *work)
 	}
 
 	/* This has to be called from user context */
-	spin_lock_irq(&priv->lock);
+	orinoco_lock_irq(priv);
 
 	priv->hw_unavailable--;
 
@@ -1756,7 +1756,7 @@ void orinoco_reset(struct work_struct *work)
 			dev->trans_start = jiffies;
 	}
 
-	spin_unlock_irq(&priv->lock);
+	orinoco_unlock_irq(priv);
 
 	return;
  disable:
@@ -2073,9 +2073,9 @@ int orinoco_init(struct orinoco_private *priv)
 
 	/* Make the hardware available, as long as it hasn't been
 	 * removed elsewhere (e.g. by PCMCIA hot unplug) */
-	spin_lock_irq(&priv->lock);
+	orinoco_lock_irq(priv);
 	priv->hw_unavailable--;
-	spin_unlock_irq(&priv->lock);
+	orinoco_unlock_irq(priv);
 
 	dev_dbg(dev, "Ready\n");
 
@@ -2317,7 +2317,7 @@ int orinoco_up(struct orinoco_private *priv)
 	unsigned long flags;
 	int err;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	priv->hw.ops->lock_irqsave(&priv->lock, &flags);
 
 	err = orinoco_reinit_firmware(priv);
 	if (err) {
@@ -2337,7 +2337,7 @@ int orinoco_up(struct orinoco_private *priv)
 	}
 
 exit:
-	spin_unlock_irqrestore(&priv->lock, flags);
+	priv->hw.ops->unlock_irqrestore(&priv->lock, &flags);
 
 	return 0;
 }
@@ -2349,7 +2349,7 @@ void orinoco_down(struct orinoco_private *priv)
 	unsigned long flags;
 	int err;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	priv->hw.ops->lock_irqsave(&priv->lock, &flags);
 	err = __orinoco_down(priv);
 	if (err)
 		printk(KERN_WARNING "%s: Error %d downing interface\n",
@@ -2357,7 +2357,7 @@ void orinoco_down(struct orinoco_private *priv)
 
 	netif_device_detach(dev);
 	priv->hw_unavailable++;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	priv->hw.ops->unlock_irqrestore(&priv->lock, &flags);
 }
 EXPORT_SYMBOL(orinoco_down);
 

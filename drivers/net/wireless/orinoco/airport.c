@@ -77,9 +77,9 @@ airport_resume(struct macio_dev *mdev)
 
 	enable_irq(card->irq);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	priv->hw.ops->lock_irqsave(&priv->lock, &flags);
 	err = orinoco_up(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	priv->hw.ops->unlock_irqrestore(&priv->lock, &flags);
 
 	return err;
 }

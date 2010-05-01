@@ -212,11 +212,11 @@ void orinoco_tx_timeout(struct net_device *dev);
 static inline int orinoco_lock(struct orinoco_private *priv,
 			       unsigned long *flags)
 {
-	spin_lock_irqsave(&priv->lock, *flags);
+	priv->hw.ops->lock_irqsave(&priv->lock, flags);
 	if (priv->hw_unavailable) {
 		DEBUG(1, "orinoco_lock() called with hw_unavailable (dev=%p)\n",
 		       priv->ndev);
-		spin_unlock_irqrestore(&priv->lock, *flags);
+		priv->hw.ops->unlock_irqrestore(&priv->lock, flags);
 		return -EBUSY;
 	}
 	return 0;
@@ -225,7 +225,17 @@ static inline int orinoco_lock(struct orinoco_private *priv,
 static inline void orinoco_unlock(struct orinoco_private *priv,
 				  unsigned long *flags)
 {
-	spin_unlock_irqrestore(&priv->lock, *flags);
+	priv->hw.ops->unlock_irqrestore(&priv->lock, flags);
+}
+
+static inline void orinoco_lock_irq(struct orinoco_private *priv)
+{
+	priv->hw.ops->lock_irq(&priv->lock);
+}
+
+static inline void orinoco_unlock_irq(struct orinoco_private *priv)
+{
+	priv->hw.ops->unlock_irq(&priv->lock);
 }
 
 /*** Navigate from net_device to orinoco_private ***/

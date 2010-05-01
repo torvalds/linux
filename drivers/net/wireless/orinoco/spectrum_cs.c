@@ -405,9 +405,9 @@ spectrum_cs_release(struct pcmcia_device *link)
 
 	/* We're committed to taking the device away now, so mark the
 	 * hardware as unavailable */
-	spin_lock_irqsave(&priv->lock, flags);
+	priv->hw.ops->lock_irqsave(&priv->lock, &flags);
 	priv->hw_unavailable++;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	priv->hw.ops->unlock_irqrestore(&priv->lock, &flags);
 
 	pcmcia_disable_device(link);
 	if (priv->hw.iobase)
