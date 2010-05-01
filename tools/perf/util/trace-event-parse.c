@@ -691,11 +691,6 @@ static int __read_expected(enum event_type expect, const char *str,
 	return ret;
 }
 
-static int read_expected_warn(enum event_type expect, const char *str, bool warn)
-{
-	return __read_expected(expect, str, 1, warn);
-}
-
 static int read_expected(enum event_type expect, const char *str)
 {
 	return __read_expected(expect, str, 1, true);
@@ -3102,90 +3097,6 @@ static void print_args(struct print_arg *args)
 		printf("\n");
 		print_args(args->next);
 	}
-}
-
-static void parse_header_field(const char *field,
-			       int *offset, int *size, bool warn)
-{
-	char *token;
-	int type;
-
-	if (read_expected(EVENT_ITEM, "field") < 0)
-		return;
-	if (read_expected(EVENT_OP, ":") < 0)
-		return;
-
-	/* type */
-	if (read_expect_type(EVENT_ITEM, &token) < 0)
-		goto fail;
-	free_token(token);
-
-	if (read_expected_warn(EVENT_ITEM, field, warn) < 0)
-		return;
-	if (read_expected(EVENT_OP, ";") < 0)
-		return;
-	if (read_expected(EVENT_ITEM, "offset") < 0)
-		return;
-	if (read_expected(EVENT_OP, ":") < 0)
-		return;
-	if (read_expect_type(EVENT_ITEM, &token) < 0)
-		goto fail;
-	*offset = atoi(token);
-	free_token(token);
-	if (read_expected(EVENT_OP, ";") < 0)
-		return;
-	if (read_expected(EVENT_ITEM, "size") < 0)
-		return;
-	if (read_expected(EVENT_OP, ":") < 0)
-		return;
-	if (read_expect_type(EVENT_ITEM, &token) < 0)
-		goto fail;
-	*size = atoi(token);
-	free_token(token);
-	if (read_expected(EVENT_OP, ";") < 0)
-		return;
-	type = read_token(&token);
-	if (type != EVENT_NEWLINE) {
-		/* newer versions of the kernel have a "signed" type */
-		if (type != EVENT_ITEM)
-			goto fail;
-
-		if (strcmp(token, "signed") != 0)
-			goto fail;
-
-		free_token(token);
-
-		if (read_expected(EVENT_OP, ":") < 0)
-			return;
-
-		if (read_expect_type(EVENT_ITEM, &token))
-			goto fail;
-
-		free_token(token);
-		if (read_expected(EVENT_OP, ";") < 0)
-			return;
-
-		if (read_expect_type(EVENT_NEWLINE, &token))
-			goto fail;
-	}
- fail:
-	free_token(token);
-}
-
-int parse_header_page(char *buf, unsigned long size)
-{
-	init_input_buf(buf, size);
-
-	parse_header_field("timestamp", &header_page_ts_offset,
-			   &header_page_ts_size, true);
-	parse_header_field("commit", &header_page_size_offset,
-			   &header_page_size_size, true);
-	parse_header_field("overwrite", &header_page_overwrite_offset,
-			   &header_page_overwrite_size, false);
-	parse_header_field("data", &header_page_data_offset,
-			   &header_page_data_size, true);
-
-	return 0;
 }
 
 int parse_ftrace_file(char *buf, unsigned long size)
