@@ -326,7 +326,7 @@ static void logfs_set_ino_generation(struct super_block *sb,
 	u64 ino;
 
 	mutex_lock(&super->s_journal_mutex);
-	ino = logfs_seek_hole(super->s_master_inode, super->s_last_ino);
+	ino = logfs_seek_hole(super->s_master_inode, super->s_last_ino + 1);
 	super->s_last_ino = ino;
 	super->s_inos_till_wrap--;
 	if (super->s_inos_till_wrap < 0) {
