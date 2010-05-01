@@ -643,17 +643,15 @@ struct sctp_pf {
 struct sctp_datamsg {
 	/* Chunks waiting to be submitted to lower layer. */
 	struct list_head chunks;
-	/* Chunks that have been transmitted. */
-	size_t msg_size;
 	/* Reference counting. */
 	atomic_t refcnt;
 	/* When is this message no longer interesting to the peer? */
 	unsigned long expires_at;
 	/* Did the messenge fail to send? */
 	int send_error;
-	char send_failed;
-	/* Control whether chunks from this message can be abandoned. */
-	char can_abandon;
+	u8 send_failed:1,
+	   can_abandon:1,   /* can chunks from this message can be abandoned. */
+	   can_delay;	    /* should this message be Nagle delayed */
 };
 
 struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *,

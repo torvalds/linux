@@ -674,7 +674,7 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 		 * Don't delay large message writes that may have been
 		 * fragmeneted into small peices.
 		 */
-		if ((len < max) && (chunk->msg->msg_size < max)) {
+		if ((len < max) && chunk->msg->can_delay) {
 			retval = SCTP_XMIT_NAGLE_DELAY;
 			goto finish;
 		}
