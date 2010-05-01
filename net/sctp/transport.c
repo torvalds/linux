@@ -64,9 +64,6 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	/* Copy in the address.  */
 	peer->ipaddr = *addr;
 	peer->af_specific = sctp_get_af_specific(addr->sa.sa_family);
-	peer->asoc = NULL;
-
-	peer->dst = NULL;
 	memset(&peer->saddr, 0, sizeof(union sctp_addr));
 
 	/* From 6.3.1 RTO Calculation:
@@ -76,33 +73,20 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	 * parameter 'RTO.Initial'.
 	 */
 	peer->rto = msecs_to_jiffies(sctp_rto_initial);
-	peer->rtt = 0;
-	peer->rttvar = 0;
-	peer->srtt = 0;
-	peer->rto_pending = 0;
-	peer->hb_sent = 0;
-	peer->fast_recovery = 0;
 
 	peer->last_time_heard = jiffies;
 	peer->last_time_ecne_reduced = jiffies;
 
-	peer->init_sent_count = 0;
-
 	peer->param_flags = SPP_HB_DISABLE |
 			    SPP_PMTUD_ENABLE |
 			    SPP_SACKDELAY_ENABLE;
-	peer->hbinterval  = 0;
 
 	/* Initialize the default path max_retrans.  */
 	peer->pathmaxrxt  = sctp_max_retrans_path;
-	peer->error_count = 0;
 
 	INIT_LIST_HEAD(&peer->transmitted);
 	INIT_LIST_HEAD(&peer->send_ready);
 	INIT_LIST_HEAD(&peer->transports);
-
-	peer->T3_rtx_timer.expires = 0;
-	peer->hb_timer.expires = 0;
 
 	setup_timer(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event,
 			(unsigned long)peer);
@@ -113,15 +97,6 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));
 
 	atomic_set(&peer->refcnt, 1);
-	peer->dead = 0;
-
-	peer->malloced = 0;
-
-	/* Initialize the state information for SFR-CACC */
-	peer->cacc.changeover_active = 0;
-	peer->cacc.cycling_changeover = 0;
-	peer->cacc.next_tsn_at_change = 0;
-	peer->cacc.cacc_saw_newack = 0;
 
 	return peer;
 }

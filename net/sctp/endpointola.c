@@ -70,8 +70,6 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	struct sctp_shared_key *null_key;
 	int err;
 
-	memset(ep, 0, sizeof(struct sctp_endpoint));
-
 	ep->digest = kzalloc(SCTP_SIGNATURE_SIZE, gfp);
 	if (!ep->digest)
 		return NULL;

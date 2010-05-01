@@ -87,9 +87,6 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	/* Retrieve the SCTP per socket area.  */
 	sp = sctp_sk((struct sock *)sk);
 
-	/* Init all variables to a known value.  */
-	memset(asoc, 0, sizeof(struct sctp_association));
-
 	/* Discarding const is appropriate here.  */
 	asoc->ep = (struct sctp_endpoint *)ep;
 	sctp_endpoint_hold(asoc->ep);
