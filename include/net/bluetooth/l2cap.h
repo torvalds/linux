@@ -35,6 +35,7 @@
 #define L2CAP_DEFAULT_MONITOR_TO	12000   /* 12 seconds */
 #define L2CAP_DEFAULT_MAX_PDU_SIZE	672
 #define L2CAP_DEFAULT_ACK_TO		200
+#define L2CAP_LOCAL_BUSY_TRIES		12
 
 #define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
 #define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
@@ -294,6 +295,7 @@ struct l2cap_conn {
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
 #define TX_QUEUE(sk) (&l2cap_pi(sk)->tx_queue)
 #define SREJ_QUEUE(sk) (&l2cap_pi(sk)->srej_queue)
+#define BUSY_QUEUE(sk) (&l2cap_pi(sk)->busy_queue)
 #define SREJ_LIST(sk) (&l2cap_pi(sk)->srej_l.list)
 
 struct srej_list {
@@ -356,6 +358,8 @@ struct l2cap_pinfo {
 	struct timer_list	ack_timer;
 	struct sk_buff_head	tx_queue;
 	struct sk_buff_head	srej_queue;
+	struct sk_buff_head	busy_queue;
+	struct work_struct	busy_work;
 	struct srej_list	srej_l;
 	struct l2cap_conn	*conn;
 	struct sock		*next_c;
@@ -383,6 +387,8 @@ struct l2cap_pinfo {
 #define L2CAP_CONN_LOCAL_BUSY      0x0040
 #define L2CAP_CONN_REJ_ACT         0x0080
 #define L2CAP_CONN_SEND_FBIT       0x0100
+#define L2CAP_CONN_RNR_SENT        0x0200
+#define L2CAP_CONN_SAR_RETRY       0x0400
 
 #define __mod_retrans_timer() mod_timer(&l2cap_pi(sk)->retrans_timer, \
 		jiffies +  msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));
