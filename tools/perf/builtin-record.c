@@ -494,6 +494,29 @@ static void event__synthesize_guest_os(struct machine *machine, void *data)
 		       " relocation symbol.\n", machine->pid);
 }
 
+static struct perf_event_header finished_round_event = {
+	.size = sizeof(struct perf_event_header),
+	.type = PERF_RECORD_FINISHED_ROUND,
+};
+
+static void mmap_read_all(void)
+{
+	int i, counter, thread;
+
+	for (i = 0; i < nr_cpu; i++) {
+		for (counter = 0; counter < nr_counters; counter++) {
+			for (thread = 0; thread < thread_num; thread++) {
+				if (mmap_array[i][counter][thread].base)
+					mmap_read(&mmap_array[i][counter][thread]);
+			}
+
+		}
+	}
+
+	if (perf_header__has_feat(&session->header, HEADER_TRACE_INFO))
+		write_output(&finished_round_event, sizeof(finished_round_event));
+}
+
 static int __cmd_record(int argc, const char **argv)
 {
 	int i, counter;
@@ -726,16 +749,7 @@ static int __cmd_record(int argc, const char **argv)
 		int hits = samples;
 		int thread;
 
-		for (i = 0; i < nr_cpu; i++) {
-			for (counter = 0; counter < nr_counters; counter++) {
-				for (thread = 0;
-					thread < thread_num; thread++) {
-					if (mmap_array[i][counter][thread].base)
-						mmap_read(&mmap_array[i][counter][thread]);
-				}
-
-			}
-		}
+		mmap_read_all();
 
 		if (hits == samples) {
 			if (done)
