@@ -359,9 +359,9 @@ static struct platform_device vpac270_gpio_vbus = {
 static void vpac270_udc_command(int cmd)
 {
 	if (cmd == PXA2XX_UDC_CMD_CONNECT)
-		UP2OCR |= UP2OCR_HXOE | UP2OCR_DPPUE | UP2OCR_DPPUBE;
+		UP2OCR = UP2OCR_HXOE | UP2OCR_DPPUE;
 	else if (cmd == PXA2XX_UDC_CMD_DISCONNECT)
-		UP2OCR &= ~(UP2OCR_HXOE | UP2OCR_DPPUE | UP2OCR_DPPUBE);
+		UP2OCR = UP2OCR_HXOE;
 }
 
 static struct pxa2xx_udc_mach_info vpac270_udc_info __initdata = {
