@@ -1649,8 +1649,6 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 	usbvision_configure_video(usbvision);
 	mutex_unlock(&usbvision->lock);
 
-
-	usb_set_intfdata (intf, usbvision);
 	usbvision_create_sysfs(usbvision->vdev);
 
 	PDEBUG(DBG_PROBE, "success");
@@ -1668,7 +1666,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
  */
 static void __devexit usbvision_disconnect(struct usb_interface *intf)
 {
-	struct usb_usbvision *usbvision = usb_get_intfdata(intf);
+	struct usb_usbvision *usbvision = to_usbvision(usb_get_intfdata(intf));
 
 	PDEBUG(DBG_PROBE, "");
 
@@ -1677,7 +1675,6 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 			"%s: usb_get_intfdata() failed\n", __func__);
 		return;
 	}
-	usb_set_intfdata (intf, NULL);
 
 	mutex_lock(&usbvision->lock);
 

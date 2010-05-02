@@ -462,6 +462,11 @@ struct usb_usbvision {
 	int ComprBlockTypes[4];
 };
 
+static inline struct usb_usbvision *to_usbvision(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct usb_usbvision, v4l2_dev);
+}
+
 #define call_all(usbvision, o, f, args...) \
 	v4l2_device_call_all(&usbvision->v4l2_dev, 0, o, f, ##args)
 
