@@ -77,7 +77,7 @@ int __init davinci_serial_init(struct davinci_uart_config *info)
 	 * Make sure the serial ports are muxed on at this point.
 	 * You have to mux them off in device drivers later on if not needed.
 	 */
-	for (i = 0; i < DAVINCI_MAX_NR_UARTS; i++, p++) {
+	for (i = 0; p->flags; i++, p++) {
 		if (!(info->enabled_uarts & (1 << i)))
 			continue;
 
