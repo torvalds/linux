@@ -591,7 +591,7 @@ check_entry(const struct ipt_entry *e, const char *name)
 	const struct ipt_entry_target *t;
 
 	if (!ip_checkentry(&e->ip)) {
-		duprintf("ip check failed %p %s.\n", e, name);
+		duprintf("ip check failed %p %s.\n", e, par->match->name);
 		return -EINVAL;
 	}
 
@@ -618,7 +618,7 @@ check_match(struct ipt_entry_match *m, struct xt_mtchk_param *par)
 	ret = xt_check_match(par, m->u.match_size - sizeof(*m),
 	      ip->proto, ip->invflags & IPT_INV_PROTO);
 	if (ret < 0) {
-		duprintf("check failed for `%s'.\n", par.match->name);
+		duprintf("check failed for `%s'.\n", par->match->name);
 		return ret;
 	}
 	return 0;
