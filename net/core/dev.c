@@ -2205,8 +2205,6 @@ int netdev_max_backlog __read_mostly = 1000;
 int netdev_budget __read_mostly = 300;
 int weight_p __read_mostly = 64;            /* old backlog weight */
 
-DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
-
 #ifdef CONFIG_RPS
 
 /* One global table that all flow-based protocols share. */
@@ -2366,7 +2364,7 @@ static void rps_trigger_softirq(void *data)
 	struct softnet_data *sd = data;
 
 	__napi_schedule(&sd->backlog);
-	__get_cpu_var(netdev_rx_stat).received_rps++;
+	sd->received_rps++;
 }
 
 #endif /* CONFIG_RPS */
@@ -2405,7 +2403,6 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
 	sd = &per_cpu(softnet_data, cpu);
 
 	local_irq_save(flags);
-	__get_cpu_var(netdev_rx_stat).total++;
 
 	rps_lock(sd);
 	if (skb_queue_len(&sd->input_pkt_queue) <= netdev_max_backlog) {
@@ -2429,9 +2426,9 @@ enqueue:
 		goto enqueue;
 	}
 
+	sd->dropped++;
 	rps_unlock(sd);
 
-	__get_cpu_var(netdev_rx_stat).dropped++;
 	local_irq_restore(flags);
 
 	kfree_skb(skb);
@@ -2806,7 +2803,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 			skb->dev = master;
 	}
 
-	__get_cpu_var(netdev_rx_stat).total++;
+	__get_cpu_var(softnet_data).processed++;
 
 	skb_reset_network_header(skb);
 	skb_reset_transport_header(skb);
@@ -3490,7 +3487,7 @@ out:
 	return;
 
 softnet_break:
-	__get_cpu_var(netdev_rx_stat).time_squeeze++;
+	sd->time_squeeze++;
 	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 	goto out;
 }
@@ -3691,17 +3688,17 @@ static int dev_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct netif_rx_stats *softnet_get_online(loff_t *pos)
+static struct softnet_data *softnet_get_online(loff_t *pos)
 {
-	struct netif_rx_stats *rc = NULL;
+	struct softnet_data *sd = NULL;
 
 	while (*pos < nr_cpu_ids)
 		if (cpu_online(*pos)) {
-			rc = &per_cpu(netdev_rx_stat, *pos);
+			sd = &per_cpu(softnet_data, *pos);
 			break;
 		} else
 			++*pos;
-	return rc;
+	return sd;
 }
 
 static void *softnet_seq_start(struct seq_file *seq, loff_t *pos)
@@ -3721,12 +3718,12 @@ static void softnet_seq_stop(struct seq_file *seq, void *v)
 
 static int softnet_seq_show(struct seq_file *seq, void *v)
 {
-	struct netif_rx_stats *s = v;
+	struct softnet_data *sd = v;
 
 	seq_printf(seq, "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
-		   s->total, s->dropped, s->time_squeeze, 0,
+		   sd->processed, sd->dropped, sd->time_squeeze, 0,
 		   0, 0, 0, 0, /* was fastroute */
-		   s->cpu_collision, s->received_rps);
+		   sd->cpu_collision, sd->received_rps);
 	return 0;
 }
 
@@ -5869,6 +5866,7 @@ static int __init net_dev_init(void)
 	for_each_possible_cpu(i) {
 		struct softnet_data *sd = &per_cpu(softnet_data, i);
 
+		memset(sd, 0, sizeof(*sd));
 		skb_queue_head_init(&sd->input_pkt_queue);
 		skb_queue_head_init(&sd->process_queue);
 		sd->completion_queue = NULL;

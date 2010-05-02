@@ -218,16 +218,6 @@ struct neighbour;
 struct neigh_parms;
 struct sk_buff;
 
-struct netif_rx_stats {
-	unsigned total;
-	unsigned dropped;
-	unsigned time_squeeze;
-	unsigned cpu_collision;
-	unsigned received_rps;
-};
-
-DECLARE_PER_CPU(struct netif_rx_stats, netdev_rx_stat);
-
 struct netdev_hw_addr {
 	struct list_head	list;
 	unsigned char		addr[MAX_ADDR_LEN];
@@ -1390,6 +1380,12 @@ struct softnet_data {
 	struct sk_buff		*completion_queue;
 	struct sk_buff_head	process_queue;
 
+	/* stats */
+	unsigned		processed;
+	unsigned		time_squeeze;
+	unsigned		cpu_collision;
+	unsigned		received_rps;
+
 #ifdef CONFIG_RPS
 	struct softnet_data	*rps_ipi_list;
 
@@ -1399,6 +1395,7 @@ struct softnet_data {
 	unsigned int		cpu;
 	unsigned int		input_queue_head;
 #endif
+	unsigned		dropped;
 	struct sk_buff_head	input_pkt_queue;
 	struct napi_struct	backlog;
 };
