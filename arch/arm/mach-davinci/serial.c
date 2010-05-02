@@ -35,14 +35,20 @@ static inline unsigned int serial_read_reg(struct plat_serial8250_port *up,
 					   int offset)
 {
 	offset <<= up->regshift;
-	return (unsigned int)__raw_readl(IO_ADDRESS(up->mapbase) + offset);
+
+	WARN_ONCE(!up->membase, "unmapped read: uart[%d]\n", offset);
+
+	return (unsigned int)__raw_readl(up->membase + offset);
 }
 
 static inline void serial_write_reg(struct plat_serial8250_port *p, int offset,
 				    int value)
 {
 	offset <<= p->regshift;
-	__raw_writel(value, IO_ADDRESS(p->mapbase) + offset);
+
+	WARN_ONCE(!p->membase, "unmapped write: uart[%d]\n", offset);
+
+	__raw_writel(value, p->membase + offset);
 }
 
 static void __init davinci_serial_reset(struct plat_serial8250_port *p)
@@ -83,14 +89,26 @@ int __init davinci_serial_init(struct davinci_uart_config *info)
 
 		sprintf(name, "uart%d", i);
 		uart_clk = clk_get(dev, name);
-		if (IS_ERR(uart_clk))
+		if (IS_ERR(uart_clk)) {
 			printk(KERN_ERR "%s:%d: failed to get UART%d clock\n",
 					__func__, __LINE__, i);
-		else {
-			clk_enable(uart_clk);
-			p->uartclk = clk_get_rate(uart_clk);
-			davinci_serial_reset(p);
+			continue;
 		}
+
+		clk_enable(uart_clk);
+		p->uartclk = clk_get_rate(uart_clk);
+
+		if (!p->membase && p->mapbase) {
+			p->membase = ioremap(p->mapbase, SZ_4K);
+
+			if (p->membase)
+				p->flags &= ~UPF_IOREMAP;
+			else
+				pr_err("uart regs ioremap failed\n");
+		}
+
+		if (p->membase)
+			davinci_serial_reset(p);
 	}
 
 	return platform_device_register(soc_info->serial_dev);
