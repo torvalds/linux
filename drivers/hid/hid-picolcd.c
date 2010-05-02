@@ -763,7 +763,7 @@ static inline int picolcd_init_framebuffer(struct picolcd_data *data)
 {
 	return 0;
 }
-static void picolcd_exit_framebuffer(struct picolcd_data *data)
+static inline void picolcd_exit_framebuffer(struct picolcd_data *data)
 {
 }
 #define picolcd_fbinfo(d) NULL
@@ -852,6 +852,18 @@ static inline int picolcd_resume_backlight(struct picolcd_data *data)
 	return picolcd_set_brightness(data->backlight);
 }
 
+#ifdef CONFIG_PM
+static void picolcd_suspend_backlight(struct picolcd_data *data)
+{
+	int bl_power = data->lcd_power;
+	if (!data->backlight)
+		return;
+
+	data->backlight->props.power = FB_BLANK_POWERDOWN;
+	picolcd_set_brightness(data->backlight);
+	data->lcd_power = data->backlight->props.power = bl_power;
+}
+#endif /* CONFIG_PM */
 #else
 static inline int picolcd_init_backlight(struct picolcd_data *data,
 		struct hid_report *report)
@@ -864,6 +876,9 @@ static inline void picolcd_exit_backlight(struct picolcd_data *data)
 static inline int picolcd_resume_backlight(struct picolcd_data *data)
 {
 	return 0;
+}
+static inline void picolcd_suspend_backlight(struct picolcd_data *data)
+{
 }
 #endif /* CONFIG_HID_PICOLCD_BACKLIGHT */
 
@@ -1098,7 +1113,7 @@ static inline int picolcd_init_leds(struct picolcd_data *data,
 {
 	return 0;
 }
-static void picolcd_exit_leds(struct picolcd_data *data)
+static inline void picolcd_exit_leds(struct picolcd_data *data)
 {
 }
 static inline int picolcd_leds_set(struct picolcd_data *data)
@@ -2214,9 +2229,18 @@ static void picolcd_exit_devfs(struct picolcd_data *data)
 	mutex_destroy(&data->mutex_flash);
 }
 #else
-#define picolcd_debug_raw_event(data, hdev, report, raw_data, size)
-#define picolcd_init_devfs(data, eeprom_r, eeprom_w, flash_r, flash_w, reset)
-static void picolcd_exit_devfs(struct picolcd_data *data)
+static inline void picolcd_debug_raw_event(struct picolcd_data *data,
+		struct hid_device *hdev, struct hid_report *report,
+		u8 *raw_data, int size)
+{
+}
+static inline void picolcd_init_devfs(struct picolcd_data *data,
+		struct hid_report *eeprom_r, struct hid_report *eeprom_w,
+		struct hid_report *flash_r, struct hid_report *flash_w,
+		struct hid_report *reset)
+{
+}
+static inline void picolcd_exit_devfs(struct picolcd_data *data)
 {
 }
 #endif /* CONFIG_DEBUG_FS */
@@ -2258,6 +2282,46 @@ static int picolcd_raw_event(struct hid_device *hdev,
 	picolcd_debug_raw_event(data, hdev, report, raw_data, size);
 	return 1;
 }
+
+#ifdef CONFIG_PM
+static int picolcd_suspend(struct hid_device *hdev, pm_message_t message)
+{
+	if (message.event & PM_EVENT_AUTO)
+		return 0;
+
+	picolcd_suspend_backlight(hid_get_drvdata(hdev));
+	dbg_hid(PICOLCD_NAME " device ready for suspend\n");
+	return 0;
+}
+
+static int picolcd_resume(struct hid_device *hdev)
+{
+	int ret;
+	ret = picolcd_resume_backlight(hid_get_drvdata(hdev));
+	if (ret)
+		dbg_hid(PICOLCD_NAME " restoring backlight failed: %d\n", ret);
+	return 0;
+}
+
+static int picolcd_reset_resume(struct hid_device *hdev)
+{
+	int ret;
+	ret = picolcd_reset(hdev);
+	if (ret)
+		dbg_hid(PICOLCD_NAME " resetting our device failed: %d\n", ret);
+	ret = picolcd_fb_reset(hid_get_drvdata(hdev), 0);
+	if (ret)
+		dbg_hid(PICOLCD_NAME " restoring framebuffer content failed: %d\n", ret);
+	ret = picolcd_resume_lcd(hid_get_drvdata(hdev));
+	if (ret)
+		dbg_hid(PICOLCD_NAME " restoring lcd failed: %d\n", ret);
+	ret = picolcd_resume_backlight(hid_get_drvdata(hdev));
+	if (ret)
+		dbg_hid(PICOLCD_NAME " restoring backlight failed: %d\n", ret);
+	picolcd_leds_set(hid_get_drvdata(hdev));
+	return 0;
+}
+#endif
 
 /* initialize keypad input device */
 static int picolcd_init_keys(struct picolcd_data *data,
@@ -2544,6 +2608,11 @@ static struct hid_driver picolcd_driver = {
 	.probe =         picolcd_probe,
 	.remove =        picolcd_remove,
 	.raw_event =     picolcd_raw_event,
+#ifdef CONFIG_PM
+	.suspend =       picolcd_suspend,
+	.resume =        picolcd_resume,
+	.reset_resume =  picolcd_reset_resume,
+#endif
 };
 
 static int __init picolcd_init(void)
