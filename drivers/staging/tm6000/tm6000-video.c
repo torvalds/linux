@@ -360,13 +360,13 @@ static int copy_streams(u8 *data, u8 *out_p, unsigned long len,
 					dev->isoc_ctl.tmp_buf_len--;
 				}
 				if (dev->isoc_ctl.tmp_buf_len) {
-					memcpy (&header,p,
+					memcpy(&header, p,
 						dev->isoc_ctl.tmp_buf_len);
-					memcpy (((u8 *)header)+
-						dev->isoc_ctl.tmp_buf,
+					memcpy((u8 *)&header +
+						dev->isoc_ctl.tmp_buf_len,
 						ptr,
-						4-dev->isoc_ctl.tmp_buf_len);
-					ptr+=4-dev->isoc_ctl.tmp_buf_len;
+						4 - dev->isoc_ctl.tmp_buf_len);
+					ptr += 4 - dev->isoc_ctl.tmp_buf_len;
 					goto HEADER;
 				}
 			}
