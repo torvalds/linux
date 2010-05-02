@@ -397,6 +397,8 @@ HEADER:
 					jiffies);
 			return rc;
 		}
+		if (!*buf)
+			return 0;
 	}
 
 	return 0;
@@ -530,7 +532,7 @@ static inline int tm6000_isoc_copy(struct urb *urb)
 				}
 			}
 			copied += len;
-			if (copied>=size)
+			if (copied >= size || !buf)
 				break;
 //		}
 	}
