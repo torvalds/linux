@@ -67,46 +67,44 @@ static int event__repipe_tracing_data(event_t *self,
 	return err;
 }
 
-static int read_buildid(struct map *self, struct perf_session *session)
+static int dso__read_build_id(struct dso *self)
 {
-	const char *name = self->dso->long_name;
-	int err;
+	if (self->has_build_id)
+		return 0;
 
-	if (filename__read_build_id(self->dso->long_name, self->dso->build_id,
-				    sizeof(self->dso->build_id)) > 0) {
-		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
-
-		self->dso->has_build_id = true;
-
-		build_id__sprintf(self->dso->build_id,
-				  sizeof(self->dso->build_id),
-				  sbuild_id);
-		pr_debug("build id found for %s: %s\n", self->dso->long_name,
-			 sbuild_id);
+	if (filename__read_build_id(self->long_name, self->build_id,
+				    sizeof(self->build_id)) > 0) {
+		self->has_build_id = true;
+		return 0;
 	}
 
-	if (self->dso->has_build_id) {
-		u16 misc = PERF_RECORD_MISC_USER;
-		struct machine *machine;
+	return -1;
+}
 
-		misc = self->dso->kernel ? PERF_RECORD_MISC_KERNEL : misc;
+static int dso__inject_build_id(struct dso *self, struct perf_session *session)
+{
+	u16 misc = PERF_RECORD_MISC_USER;
+	struct machine *machine;
+	int err;
 
-		machine = perf_session__find_host_machine(session);
-		if (!machine) {
-			pr_err("Can't find machine for session\n");
-			return -1;
-		}
+	if (dso__read_build_id(self) < 0) {
+		pr_debug("no build_id found for %s\n", self->long_name);
+		return -1;
+	}
 
-		err = event__synthesize_build_id(self->dso, misc,
-						 event__repipe, machine,
-						 session);
-		if (err) {
-			pr_err("Can't synthesize build_id event for %s\n",
-			       name);
-			return -1;
-		}
-	} else {
-		pr_debug("no build_id found for %s\n", name);
+	machine = perf_session__find_host_machine(session);
+	if (machine == NULL) {
+		pr_err("Can't find machine for session\n");
+		return -1;
+	}
+
+	if (self->kernel)
+		misc = PERF_RECORD_MISC_KERNEL;
+
+	err = event__synthesize_build_id(self, misc, event__repipe,
+					 machine, session);
+	if (err) {
+		pr_err("Can't synthesize build_id event for %s\n", self->long_name);
 		return -1;
 	}
 
@@ -118,7 +116,6 @@ static int event__inject_buildid(event_t *event, struct perf_session *session)
 	struct addr_location al;
 	struct thread *thread;
 	u8 cpumode;
-	int err = 0;
 
 	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
@@ -126,7 +123,6 @@ static int event__inject_buildid(event_t *event, struct perf_session *session)
 	if (thread == NULL) {
 		pr_err("problem processing %d event, skipping it.\n",
 		       event->header.type);
-		err = -1;
 		goto repipe;
 	}
 
@@ -136,9 +132,13 @@ static int event__inject_buildid(event_t *event, struct perf_session *session)
 	if (al.map != NULL) {
 		if (!al.map->dso->hit) {
 			al.map->dso->hit = 1;
-			if (map__load(al.map, NULL) >= 0)
-				read_buildid(al.map, session);
-			else
+			if (map__load(al.map, NULL) >= 0) {
+				dso__inject_build_id(al.map->dso, session);
+				/*
+				 * If this fails, too bad, let the other side
+				 * account this as unresolved.
+				 */
+			} else
 				pr_warning("no symbols found in %s, maybe "
 					   "install a debug package?\n",
 					   al.map->dso->long_name);
@@ -147,7 +147,7 @@ static int event__inject_buildid(event_t *event, struct perf_session *session)
 
 repipe:
 	event__repipe(event, session);
-	return err;
+	return 0;
 }
 
 struct perf_event_ops inject_ops = {
