@@ -1850,6 +1850,7 @@ static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 	case VIDIOC_S_AUDOUT:
 	case VIDIOC_S_EXT_CTRLS:
 	case VIDIOC_S_FBUF:
+	case VIDIOC_S_PRIORITY:
 	case VIDIOC_OVERLAY:
 		ret = v4l2_prio_check(&itv->prio, id->prio);
 		if (ret)
