@@ -5610,10 +5610,17 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 }
 
 
-static void *raid5_takeover_raid0(mddev_t *mddev)
+static void *raid45_takeover_raid0(mddev_t *mddev, int level)
 {
+	struct raid0_private_data *raid0_priv = mddev->private;
 
-	mddev->new_level = 5;
+	/* for raid0 takeover only one zone is supported */
+	if (raid0_priv->nr_strip_zones > 1) {
+		printk(KERN_ERR "md: cannot takeover raid0 with more than one zone.\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	mddev->new_level = level;
 	mddev->new_layout = ALGORITHM_PARITY_N;
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->raid_disks += 1;
@@ -5749,22 +5756,13 @@ static int raid6_check_reshape(mddev_t *mddev)
 static void *raid5_takeover(mddev_t *mddev)
 {
 	/* raid5 can take over:
-	 *  raid0 - if all devices are the same - make it a raid4 layout
+	 *  raid0 - if there is only one strip zone - make it a raid4 layout
 	 *  raid1 - if there are two drives.  We need to know the chunk size
 	 *  raid4 - trivial - just use a raid4 layout.
 	 *  raid6 - Providing it is a *_6 layout
 	 */
-	if (mddev->level == 0) {
-		/* for raid0 takeover only one zone is supported */
-		struct raid0_private_data *raid0_priv
-			= mddev->private;
-		if (raid0_priv->nr_strip_zones > 1) {
-			printk(KERN_ERR "md: cannot takeover raid 0 with more than one zone.\n");
-			return ERR_PTR(-EINVAL);
-		}
-		return raid5_takeover_raid0(mddev);
-	}
-
+	if (mddev->level == 0)
+		return raid45_takeover_raid0(mddev, 5);
 	if (mddev->level == 1)
 		return raid5_takeover_raid1(mddev);
 	if (mddev->level == 4) {
@@ -5780,8 +5778,12 @@ static void *raid5_takeover(mddev_t *mddev)
 
 static void *raid4_takeover(mddev_t *mddev)
 {
-	/* raid4 can take over raid5 if layout is right.
+	/* raid4 can take over:
+	 *  raid0 - if there is only one strip zone
+	 *  raid5 - if layout is right
 	 */
+	if (mddev->level == 0)
+		return raid45_takeover_raid0(mddev, 4);
 	if (mddev->level == 5 &&
 	    mddev->layout == ALGORITHM_PARITY_N) {
 		mddev->new_layout = 0;
