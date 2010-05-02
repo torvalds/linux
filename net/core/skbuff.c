@@ -1051,7 +1051,7 @@ EXPORT_SYMBOL(skb_push);
  */
 unsigned char *skb_pull(struct sk_buff *skb, unsigned int len)
 {
-	return unlikely(len > skb->len) ? NULL : __skb_pull(skb, len);
+	return skb_pull_inline(skb, len);
 }
 EXPORT_SYMBOL(skb_pull);
 
