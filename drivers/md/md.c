@@ -2934,9 +2934,10 @@ level_show(mddev_t *mddev, char *page)
 static ssize_t
 level_store(mddev_t *mddev, const char *buf, size_t len)
 {
-	char level[16];
+	char clevel[16];
 	ssize_t rv = len;
 	struct mdk_personality *pers;
+	long level;
 	void *priv;
 	mdk_rdev_t *rdev;
 
@@ -2969,19 +2970,22 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	}
 
 	/* Now find the new personality */
-	if (len == 0 || len >= sizeof(level))
+	if (len == 0 || len >= sizeof(clevel))
 		return -EINVAL;
-	strncpy(level, buf, len);
-	if (level[len-1] == '\n')
+	strncpy(clevel, buf, len);
+	if (clevel[len-1] == '\n')
 		len--;
-	level[len] = 0;
+	clevel[len] = 0;
+	if (strict_strtol(clevel, 10, &level))
+		level = LEVEL_NONE;
 
-	request_module("md-%s", level);
+	if (request_module("md-%s", clevel) != 0)
+		request_module("md-level-%s", clevel);
 	spin_lock(&pers_lock);
-	pers = find_pers(LEVEL_NONE, level);
+	pers = find_pers(level, clevel);
 	if (!pers || !try_module_get(pers->owner)) {
 		spin_unlock(&pers_lock);
-		printk(KERN_WARNING "md: personality %s not loaded\n", level);
+		printk(KERN_WARNING "md: personality %s not loaded\n", clevel);
 		return -EINVAL;
 	}
 	spin_unlock(&pers_lock);
@@ -2994,7 +2998,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	if (!pers->takeover) {
 		module_put(pers->owner);
 		printk(KERN_WARNING "md: %s: %s does not support personality takeover\n",
-		       mdname(mddev), level);
+		       mdname(mddev), clevel);
 		return -EINVAL;
 	}
 
@@ -3010,7 +3014,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 		mddev->delta_disks = 0;
 		module_put(pers->owner);
 		printk(KERN_WARNING "md: %s: %s would not accept array\n",
-		       mdname(mddev), level);
+		       mdname(mddev), clevel);
 		return PTR_ERR(priv);
 	}
 
