@@ -45,6 +45,7 @@ int v4l2_event_init(struct v4l2_fh *fh)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(v4l2_event_init);
 
 int v4l2_event_alloc(struct v4l2_fh *fh, unsigned int n)
 {
@@ -144,6 +145,7 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(v4l2_event_dequeue);
 
 /* Caller must hold fh->event->lock! */
 static struct v4l2_subscribed_event *v4l2_event_subscribed(
