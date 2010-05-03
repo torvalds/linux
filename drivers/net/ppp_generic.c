@@ -405,6 +405,7 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 	DECLARE_WAITQUEUE(wait, current);
 	ssize_t ret;
 	struct sk_buff *skb = NULL;
+	struct iovec iov;
 
 	ret = count;
 
@@ -448,7 +449,9 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 	if (skb->len > count)
 		goto outf;
 	ret = -EFAULT;
-	if (copy_to_user(buf, skb->data, skb->len))
+	iov.iov_base = buf;
+	iov.iov_len = count;
+	if (skb_copy_datagram_iovec(skb, 0, &iov, skb->len))
 		goto outf;
 	ret = skb->len;
 
