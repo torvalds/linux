@@ -12,6 +12,8 @@
  *   GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/netdevice.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
@@ -230,7 +232,7 @@ c4_hdw_init (struct pci_dev * pdev, int found)
     /* our MUSYCC chip supports two functions, 0 & 1 */
     if ((fun = PCI_FUNC (pdev->devfn)) > 1)
     {
-        printk (KERN_WARNING "%s: unexpected devfun: 0x%x\n", THIS_MODULE->name, pdev->devfn);
+        pr_warning("unexpected devfun: 0x%x\n", pdev->devfn);
         return 0;
     }
     if (pdev->bus)                  /* obtain bus number */
@@ -259,8 +261,7 @@ c4_hdw_init (struct pci_dev * pdev, int found)
     if (i == MAX_BOARDS)            /* no match in above loop means MAX
                                      * exceeded */
     {
-        printk (KERN_WARNING "%s: exceeded number of allowed devices (>%d)?\n",
-                THIS_MODULE->name, MAX_BOARDS);
+        pr_warning("exceeded number of allowed devices (>%d)?\n", MAX_BOARDS);
         return 0;
     }
     if (pdev->bus)
@@ -319,7 +320,7 @@ c4hw_attach_all (void)
     }
     if (!found)
     {
-        printk (KERN_WARNING "%s: No boards found.\n", THIS_MODULE->name);
+        pr_warning("No boards found\n");
         return ENODEV;
     }
     /* sanity check for consistant hardware found */
@@ -327,7 +328,8 @@ c4hw_attach_all (void)
     {
         if (hi->pci_slot != 0xff && (!hi->addr[0] || !hi->addr[1]))
         {
-            printk (KERN_WARNING "%s: something very wrong with pci_get_device.\n", hi->devname);
+            pr_warning("%s: something very wrong with pci_get_device\n",
+                       hi->devname);
             return EIO;
         }
     }
@@ -340,22 +342,22 @@ c4hw_attach_all (void)
         {
             if (request_mem_region (hi->addr[j], hi->len[j], hi->devname) == 0)
             {
-                printk (KERN_WARNING "%s: memory in use, addr=0x%lx, len=0x%lx ?\n",
-                        hi->devname, hi->addr[j], hi->len[j]);
+                pr_warning("%s: memory in use, addr=0x%lx, len=0x%lx ?\n",
+                           hi->devname, hi->addr[j], hi->len[j]);
                 cleanup_ioremap ();
                 return ENOMEM;
             }
             hi->addr_mapped[j] = (unsigned long) ioremap (hi->addr[j], hi->len[j]);
             if (!hi->addr_mapped[j])
             {
-                printk (KERN_WARNING "%s: ioremap fails, addr=0x%lx, len=0x%lx ?\n",
-                        hi->devname, hi->addr[j], hi->len[j]);
+                pr_warning("%s: ioremap fails, addr=0x%lx, len=0x%lx ?\n",
+                           hi->devname, hi->addr[j], hi->len[j]);
                 cleanup_ioremap ();
                 return ENOMEM;
             }
 #ifdef SBE_MAP_DEBUG
-            printk (KERN_WARNING "%s: io remapped from phys %x to virt %x\n",
-                    hi->devname, (u_int32_t) hi->addr[j], (u_int32_t) hi->addr_mapped[j]);
+            pr_warning("%s: io remapped from phys %x to virt %x\n",
+                       hi->devname, (u_int32_t) hi->addr[j], (u_int32_t) hi->addr_mapped[j]);
 #endif
         }
     }
@@ -371,8 +373,8 @@ c4hw_attach_all (void)
             pci_enable_device (hi->pdev[1]))
         {
             drvr_state = SBE_DRVR_DOWN;
-            printk (KERN_WARNING "%s: failed to enable card %d slot %d\n",
-                    hi->devname, i, hi->pci_slot);
+            pr_warning("%s: failed to enable card %d slot %d\n",
+                       hi->devname, i, hi->pci_slot);
             cleanup_devs ();
             cleanup_ioremap ();
             return EIO;

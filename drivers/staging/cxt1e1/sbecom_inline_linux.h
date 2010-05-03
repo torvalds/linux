@@ -164,7 +164,7 @@ OS_mem_token_alloc (size_t size)
     skb = dev_alloc_skb (size);
     if (!skb)
     {
-        //printk (KERN_WARNING "no mem in OS_mem_token_alloc !");
+        //pr_warning("no mem in OS_mem_token_alloc !\n");
         return 0;
     }
     return skb;

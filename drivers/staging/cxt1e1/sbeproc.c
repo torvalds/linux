@@ -11,6 +11,8 @@
  *   GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -318,16 +320,14 @@ sbecom_proc_brd_init (ci_t * ci)
     ci->dir_dev = proc_mkdir(dir, NULL);
     if (!ci->dir_dev)
     {
-        printk (KERN_ERR "%s: Unable to create directory /proc/driver/%s\n",
-                THIS_MODULE->name, ci->devname);
+        pr_err("Unable to create directory /proc/driver/%s\n", ci->devname);
         goto fail;
     }
     e = create_proc_read_entry ("info", S_IFREG | S_IRUGO,
                                 ci->dir_dev, sbecom_proc_get_sbe_info, ci);
     if (!e)
     {
-        printk (KERN_ERR "%s: Unable to create entry /proc/driver/%s/info\n",
-                THIS_MODULE->name, ci->devname);
+        pr_err("Unable to create entry /proc/driver/%s/info\n", ci->devname);
         goto fail;
     }
     return 0;

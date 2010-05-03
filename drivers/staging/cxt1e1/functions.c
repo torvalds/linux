@@ -11,6 +11,8 @@
  *   GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
@@ -117,7 +119,7 @@ watchdog_func (unsigned long arg)
     if (drvr_state != SBE_DRVR_AVAILABLE)
     {
         if (log_level >= LOG_MONITOR)
-            printk (KERN_WARNING "watchdog_func: drvr not available (%x)\n", drvr_state);
+            pr_warning("%s: drvr not available (%x)\n", __func__, drvr_state);
         return;
     }
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)

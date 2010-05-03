@@ -12,6 +12,8 @@
  *   GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/hdlc.h>
@@ -563,13 +565,13 @@ create_chan (struct net_device * ndev, ci_t * ci,
         priv = OS_kmalloc (sizeof (struct c4_priv));
         if (!priv)
         {
-            printk (KERN_WARNING "%s: no memory for net_device !\n", ci->devname);
+            pr_warning("%s: no memory for net_device !\n", ci->devname);
             return 0;
         }
         dev = alloc_hdlcdev (priv);
         if (!dev)
         {
-            printk (KERN_WARNING "%s: no memory for hdlc_device !\n", ci->devname);
+            pr_warning("%s: no memory for hdlc_device !\n", ci->devname);
             OS_kfree (priv);
             return 0;
         }
@@ -1111,7 +1113,7 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
     ndev = alloc_netdev(sizeof(ci_t), SBE_IFACETMPL, c4_setup);
     if (!ndev)
     {
-        printk (KERN_WARNING "%s: no memory for struct net_device !\n", hi->devname);
+        pr_warning("%s: no memory for struct net_device !\n", hi->devname);
         error_flag = ENOMEM;
         return 0;
     }
@@ -1177,8 +1179,7 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
 #endif
                      ndev->name, ndev))
     {
-        printk (KERN_WARNING "%s: MUSYCC could not get irq: %d\n",
-                ndev->name, irq0);
+        pr_warning("%s: MUSYCC could not get irq: %d\n", ndev->name, irq0);
         unregister_netdev (ndev);
         OS_kfree (netdev_priv(ndev));
         OS_kfree (ndev);
@@ -1188,8 +1189,7 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
 #ifdef CONFIG_SBE_PMCC4_NCOMM
     if (request_irq (irq1, &c4_ebus_interrupt, IRQF_SHARED, ndev->name, ndev))
     {
-        printk (KERN_WARNING "%s: EBUS could not get irq: %d\n",
-                hi->devname, irq1);
+        pr_warning("%s: EBUS could not get irq: %d\n", hi->devname, irq1);
         unregister_netdev (ndev);
         free_irq (irq0, ndev);
         OS_kfree (netdev_priv(ndev));
@@ -1263,33 +1263,33 @@ c4_mod_init (void)
 {
     int         rtn;
 
-    printk (KERN_WARNING "%s: %s\n", THIS_MODULE->name, pmcc4_OSSI_release);
+    pr_warning("%s\n", pmcc4_OSSI_release);
     if ((rtn = c4hw_attach_all ()))
         return -rtn;                /* installation failure - see system log */
 
     /* housekeeping notifications */
     if (log_level != log_level_default)
-        printk (KERN_INFO "%s NOTE: driver parameter <log_level> changed from default %d to %d.\n",
-                THIS_MODULE->name, log_level_default, log_level);
+        pr_info("NOTE: driver parameter <log_level> changed from default %d to %d.\n",
+                log_level_default, log_level);
     if (max_mru != max_mru_default)
-        printk (KERN_INFO "%s NOTE: driver parameter <max_mru> changed from default %d to %d.\n",
-                THIS_MODULE->name, max_mru_default, max_mru);
+        pr_info("NOTE: driver parameter <max_mru> changed from default %d to %d.\n",
+                max_mru_default, max_mru);
     if (max_mtu != max_mtu_default)
-        printk (KERN_INFO "%s NOTE: driver parameter <max_mtu> changed from default %d to %d.\n",
-                THIS_MODULE->name, max_mtu_default, max_mtu);
+        pr_info("NOTE: driver parameter <max_mtu> changed from default %d to %d.\n",
+                max_mtu_default, max_mtu);
     if (max_rxdesc_used != max_rxdesc_default)
     {
         if (max_rxdesc_used > 2000)
             max_rxdesc_used = 2000; /* out-of-bounds reset */
-        printk (KERN_INFO "%s NOTE: driver parameter <max_rxdesc_used> changed from default %d to %d.\n",
-                THIS_MODULE->name, max_rxdesc_default, max_rxdesc_used);
+        pr_info("NOTE: driver parameter <max_rxdesc_used> changed from default %d to %d.\n",
+                max_rxdesc_default, max_rxdesc_used);
     }
     if (max_txdesc_used != max_txdesc_default)
     {
         if (max_txdesc_used > 1000)
             max_txdesc_used = 1000; /* out-of-bounds reset */
-        printk (KERN_INFO "%s NOTE: driver parameter <max_txdesc_used> changed from default %d to %d.\n",
-                THIS_MODULE->name, max_txdesc_default, max_txdesc_used);
+        pr_info("NOTE: driver parameter <max_txdesc_used> changed from default %d to %d.\n",
+                max_txdesc_default, max_txdesc_used);
     }
     return 0;                       /* installation success */
 }
@@ -1331,7 +1331,7 @@ c4_mod_remove (void)
     cleanup_devs ();
     c4_cleanup ();
     cleanup_ioremap ();
-    printk (KERN_INFO "SBE %s - driver removed.\n", THIS_MODULE->name);
+    pr_info("SBE - driver removed.\n");
 }
 
 module_init (c4_mod_init);

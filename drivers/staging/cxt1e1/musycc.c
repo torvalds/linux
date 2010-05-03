@@ -71,6 +71,7 @@ unsigned int max_bh = 0;
 char        SBEid_pmcc4_musyccc[] =
 "@(#)musycc.c - $Revision: 2.1 $      (c) Copyright 2004-2006 SBE, Inc.";
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/types.h>
 #include "pmcc4_sysdep.h"
@@ -681,8 +682,8 @@ rewrite:
     }
     if (rcnt > MUSYCC_SR_RETRY_CNT)
     {
-        printk (KERN_WARNING "%s: failed service request (#%d)= %x, group %d.\n",
-                pi->up->devname, MUSYCC_SR_RETRY_CNT, req, pi->portnum);
+        pr_warning("%s: failed service request (#%d)= %x, group %d.\n",
+                   pi->up->devname, MUSYCC_SR_RETRY_CNT, req, pi->portnum);
         SD_SEM_GIVE (&pi->sr_sem_busy); /* allow any next request */
         return;
     }
@@ -959,14 +960,14 @@ musycc_init (ci_t * ci)
 
     if (max_mru > 0xffe)
     {
-        printk (KERN_WARNING "%s: Maximum allowed MRU exceeded, resetting %d to %d.\n",
-                THIS_MODULE->name, max_mru, 0xffe);
+        pr_warning("Maximum allowed MRU exceeded, resetting %d to %d.\n",
+                   max_mru, 0xffe);
         max_mru = 0xffe;
     }
     if (max_mtu > 0xffe)
     {
-        printk (KERN_WARNING "%s: Maximum allowed MTU exceeded, resetting %d to %d.\n",
-                THIS_MODULE->name, max_mtu, 0xffe);
+        pr_warning("Maximum allowed MTU exceeded, resetting %d to %d.\n",
+                   max_mtu, 0xffe);
         max_mtu = 0xffe;
     }
 #ifdef SBE_WAN256T3_ENABLE

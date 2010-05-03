@@ -83,6 +83,7 @@
 char        OSSIid_pmcc4_drvc[] =
 "@(#)pmcc4_drv.c - $Revision: 3.1 $   (c) Copyright 2002-2007 One Stop Systems, Inc.";
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #if defined (__FreeBSD__) || defined (__NetBSD__)
 #include <sys/param.h>
@@ -207,8 +208,8 @@ c4_new (void *hi)
     ci_t       *ci;
 
 #ifdef SBE_MAP_DEBUG
-    printk (KERN_WARNING "%s: c4_new() entered, ci needs %u.\n",
-            THIS_MODULE->name, (unsigned int) sizeof (ci_t));
+    pr_warning("c4_new() entered, ci needs %u.\n",
+               (unsigned int) sizeof (ci_t));
 #endif
 
     ci = (ci_t *) OS_kmalloc (sizeof (ci_t));
@@ -220,8 +221,8 @@ c4_new (void *hi)
         c4_list = ci;
         ci->brdno = ci->next ? ci->next->brdno + 1 : 0;
     } else
-        printk (KERN_WARNING "%s: failed CI malloc, size %u.\n",
-                THIS_MODULE->name, (unsigned int) sizeof (ci_t));
+        pr_warning("failed CI malloc, size %u.\n",
+                   (unsigned int) sizeof (ci_t));
 
     if (CI == 0)
         CI = ci;                    /* DEBUG, only board 0 usage */
@@ -805,7 +806,8 @@ c4_init (ci_t * ci, u_char *func0, u_char *func1)
             break;
         default:
             ci->max_port = 0;
-            printk (KERN_WARNING "%s: illegal port configuration (%x)\n", ci->devname, pmsk);
+            pr_warning("%s: illegal port configuration (%x)\n",
+                       ci->devname, pmsk);
             return SBE_DRVR_FAIL;
         }
 #ifdef SBE_MAP_DEBUG
@@ -847,8 +849,8 @@ c4_init (ci_t * ci, u_char *func0, u_char *func1)
                 ch->p.mode_56k = 0; /* default is 64kbps mode */
             } else
             {
-                printk (KERN_WARNING "%s: failed mch_t malloc, port %d channel %d size %u.\n",
-                        THIS_MODULE->name, portnum, j, (unsigned int) sizeof (mch_t));
+                pr_warning("failed mch_t malloc, port %d channel %d size %u.\n",
+                           portnum, j, (unsigned int) sizeof (mch_t));
                 break;
             }
         }
