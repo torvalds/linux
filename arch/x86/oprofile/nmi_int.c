@@ -471,7 +471,6 @@ static int nmi_create_files(struct super_block *sb, struct dentry *root)
 	return 0;
 }
 
-#ifdef CONFIG_SMP
 static int oprofile_cpu_notifier(struct notifier_block *b, unsigned long action,
 				 void *data)
 {
@@ -491,7 +490,6 @@ static int oprofile_cpu_notifier(struct notifier_block *b, unsigned long action,
 static struct notifier_block oprofile_cpu_nb = {
 	.notifier_call = oprofile_cpu_notifier
 };
-#endif
 
 #ifdef CONFIG_PM
 
@@ -701,9 +699,8 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		return -ENODEV;
 	}
 
-#ifdef CONFIG_SMP
 	register_cpu_notifier(&oprofile_cpu_nb);
-#endif
+
 	/* default values, can be overwritten by model */
 	ops->create_files	= nmi_create_files;
 	ops->setup		= nmi_setup;
@@ -732,9 +729,7 @@ void op_nmi_exit(void)
 {
 	if (using_nmi) {
 		exit_sysfs();
-#ifdef CONFIG_SMP
 		unregister_cpu_notifier(&oprofile_cpu_nb);
-#endif
 	}
 	if (model->exit)
 		model->exit();
