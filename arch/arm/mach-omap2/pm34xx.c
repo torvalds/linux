@@ -1096,14 +1096,6 @@ static int __init omap3_pm_init(void)
 	omap3_idle_init();
 
 	clkdm_add_wkdep(neon_clkdm, mpu_clkdm);
-	/*
-	 * REVISIT: This wkdep is only necessary when GPIO2-6 are enabled for
-	 * IO-pad wakeup.  Otherwise it will unnecessarily waste power
-	 * waking up PER with every CORE wakeup - see
-	 * http://marc.info/?l=linux-omap&m=121852150710062&w=2
-	*/
-	clkdm_add_wkdep(per_clkdm, core_clkdm);
-
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP) {
 		omap3_secure_ram_storage =
 			kmalloc(0x803F, GFP_KERNEL);
