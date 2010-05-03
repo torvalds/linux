@@ -27,7 +27,7 @@ extern void nmdk_timer_init(void);
 extern void __init amba_add_devices(struct amba_device *devs[], int num);
 
 struct sys_timer;
-extern struct sys_timer u8500_timer;
+extern struct sys_timer ux500_timer;
 
 #define __IO_DEV_DESC(x, sz)	{		\
 	.virtual	= IO_ADDRESS(x),	\

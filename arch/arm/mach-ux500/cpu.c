@@ -13,7 +13,9 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
+#include <asm/localtimer.h>
 
+#include <plat/mtu.h>
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
@@ -76,3 +78,22 @@ static int ux500_l2x0_init(void)
 }
 early_initcall(ux500_l2x0_init);
 #endif
+
+static void __init ux500_timer_init(void)
+{
+#ifdef CONFIG_LOCAL_TIMERS
+	/* Setup the local timer base */
+	twd_base = __io_address(UX500_TWD_BASE);
+#endif
+	/* Setup the MTU base */
+	if (cpu_is_u8500ed())
+		mtu_base = __io_address(U8500_MTU0_BASE_ED);
+	else
+		mtu_base = __io_address(UX500_MTU0_BASE);
+
+	nmdk_timer_init();
+}
+
+struct sys_timer ux500_timer = {
+	.init	= ux500_timer_init,
+};

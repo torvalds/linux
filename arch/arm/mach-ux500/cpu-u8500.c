@@ -17,9 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <asm/localtimer.h>
 #include <asm/mach/map.h>
-#include <plat/mtu.h>
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
@@ -78,22 +76,3 @@ void __init u8500_init_devices(void)
 
 	return ;
 }
-
-static void __init u8500_timer_init(void)
-{
-#ifdef CONFIG_LOCAL_TIMERS
-	/* Setup the local timer base */
-	twd_base = __io_address(U8500_TWD_BASE);
-#endif
-	/* Setup the MTU base */
-	if (cpu_is_u8500ed())
-		mtu_base = __io_address(U8500_MTU0_BASE_ED);
-	else
-		mtu_base = __io_address(U8500_MTU0_BASE);
-
-	nmdk_timer_init();
-}
-
-struct sys_timer u8500_timer = {
-	.init	= u8500_timer_init,
-};

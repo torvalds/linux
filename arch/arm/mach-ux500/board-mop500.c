@@ -145,6 +145,6 @@ MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
-	.timer		= &u8500_timer,
+	.timer		= &ux500_timer,
 	.init_machine	= u8500_init_machine,
 MACHINE_END
