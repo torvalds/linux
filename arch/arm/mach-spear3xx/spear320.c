@@ -15,6 +15,7 @@
 #include <asm/irq.h>
 #include <mach/generic.h>
 #include <mach/spear.h>
+#include <plat/shirq.h>
 
 /* pad multiplexing support */
 /* muxing registers */
@@ -385,11 +386,160 @@ struct pmx_driver pmx_driver = {
 
 /* Add spear320 specific devices here */
 
+/* spear3xx shared irq */
+struct shirq_dev_config shirq_ras1_config[] = {
+	{
+		.virq = VIRQ_EMI,
+		.status_mask = EMI_IRQ_MASK,
+		.clear_mask = EMI_IRQ_MASK,
+	}, {
+		.virq = VIRQ_CLCD,
+		.status_mask = CLCD_IRQ_MASK,
+		.clear_mask = CLCD_IRQ_MASK,
+	}, {
+		.virq = VIRQ_SPP,
+		.status_mask = SPP_IRQ_MASK,
+		.clear_mask = SPP_IRQ_MASK,
+	},
+};
+
+struct spear_shirq shirq_ras1 = {
+	.irq = IRQ_GEN_RAS_1,
+	.dev_config = shirq_ras1_config,
+	.dev_count = ARRAY_SIZE(shirq_ras1_config),
+	.regs = {
+		.enb_reg = -1,
+		.status_reg = INT_STS_MASK_REG,
+		.status_reg_mask = SHIRQ_RAS1_MASK,
+		.clear_reg = INT_CLR_MASK_REG,
+		.reset_to_clear = 1,
+	},
+};
+
+struct shirq_dev_config shirq_ras3_config[] = {
+	{
+		.virq = VIRQ_PLGPIO,
+		.enb_mask = GPIO_IRQ_MASK,
+		.status_mask = GPIO_IRQ_MASK,
+		.clear_mask = GPIO_IRQ_MASK,
+	}, {
+		.virq = VIRQ_I2S_PLAY,
+		.enb_mask = I2S_PLAY_IRQ_MASK,
+		.status_mask = I2S_PLAY_IRQ_MASK,
+		.clear_mask = I2S_PLAY_IRQ_MASK,
+	}, {
+		.virq = VIRQ_I2S_REC,
+		.enb_mask = I2S_REC_IRQ_MASK,
+		.status_mask = I2S_REC_IRQ_MASK,
+		.clear_mask = I2S_REC_IRQ_MASK,
+	},
+};
+
+struct spear_shirq shirq_ras3 = {
+	.irq = IRQ_GEN_RAS_3,
+	.dev_config = shirq_ras3_config,
+	.dev_count = ARRAY_SIZE(shirq_ras3_config),
+	.regs = {
+		.enb_reg = INT_ENB_MASK_REG,
+		.reset_to_enb = 1,
+		.status_reg = INT_STS_MASK_REG,
+		.status_reg_mask = SHIRQ_RAS3_MASK,
+		.clear_reg = INT_CLR_MASK_REG,
+		.reset_to_clear = 1,
+	},
+};
+
+struct shirq_dev_config shirq_intrcomm_ras_config[] = {
+	{
+		.virq = VIRQ_CANU,
+		.status_mask = CAN_U_IRQ_MASK,
+		.clear_mask = CAN_U_IRQ_MASK,
+	}, {
+		.virq = VIRQ_CANL,
+		.status_mask = CAN_L_IRQ_MASK,
+		.clear_mask = CAN_L_IRQ_MASK,
+	}, {
+		.virq = VIRQ_UART1,
+		.status_mask = UART1_IRQ_MASK,
+		.clear_mask = UART1_IRQ_MASK,
+	}, {
+		.virq = VIRQ_UART2,
+		.status_mask = UART2_IRQ_MASK,
+		.clear_mask = UART2_IRQ_MASK,
+	}, {
+		.virq = VIRQ_SSP1,
+		.status_mask = SSP1_IRQ_MASK,
+		.clear_mask = SSP1_IRQ_MASK,
+	}, {
+		.virq = VIRQ_SSP2,
+		.status_mask = SSP2_IRQ_MASK,
+		.clear_mask = SSP2_IRQ_MASK,
+	}, {
+		.virq = VIRQ_SMII0,
+		.status_mask = SMII0_IRQ_MASK,
+		.clear_mask = SMII0_IRQ_MASK,
+	}, {
+		.virq = VIRQ_MII1_SMII1,
+		.status_mask = MII1_SMII1_IRQ_MASK,
+		.clear_mask = MII1_SMII1_IRQ_MASK,
+	}, {
+		.virq = VIRQ_WAKEUP_SMII0,
+		.status_mask = WAKEUP_SMII0_IRQ_MASK,
+		.clear_mask = WAKEUP_SMII0_IRQ_MASK,
+	}, {
+		.virq = VIRQ_WAKEUP_MII1_SMII1,
+		.status_mask = WAKEUP_MII1_SMII1_IRQ_MASK,
+		.clear_mask = WAKEUP_MII1_SMII1_IRQ_MASK,
+	}, {
+		.virq = VIRQ_I2C,
+		.status_mask = I2C1_IRQ_MASK,
+		.clear_mask = I2C1_IRQ_MASK,
+	},
+};
+
+struct spear_shirq shirq_intrcomm_ras = {
+	.irq = IRQ_INTRCOMM_RAS_ARM,
+	.dev_config = shirq_intrcomm_ras_config,
+	.dev_count = ARRAY_SIZE(shirq_intrcomm_ras_config),
+	.regs = {
+		.enb_reg = -1,
+		.status_reg = INT_STS_MASK_REG,
+		.status_reg_mask = SHIRQ_INTRCOMM_RAS_MASK,
+		.clear_reg = INT_CLR_MASK_REG,
+		.reset_to_clear = 1,
+	},
+};
+
 /* spear320 routines */
 void __init spear320_init(void)
 {
+	void __iomem *base;
+	int ret = 0;
+
 	/* call spear3xx family common init function */
 	spear3xx_init();
+
+	/* shared irq registeration */
+	base = ioremap(SPEAR320_SOC_CONFIG_BASE, SPEAR320_SOC_CONFIG_SIZE);
+	if (base) {
+		/* shirq 1 */
+		shirq_ras1.regs.base = base;
+		ret = spear_shirq_register(&shirq_ras1);
+		if (ret)
+			printk(KERN_ERR "Error registering Shared IRQ 1\n");
+
+		/* shirq 3 */
+		shirq_ras3.regs.base = base;
+		ret = spear_shirq_register(&shirq_ras3);
+		if (ret)
+			printk(KERN_ERR "Error registering Shared IRQ 3\n");
+
+		/* shirq 4 */
+		shirq_intrcomm_ras.regs.base = base;
+		ret = spear_shirq_register(&shirq_intrcomm_ras);
+		if (ret)
+			printk(KERN_ERR "Error registering Shared IRQ 4\n");
+	}
 }
 
 void spear320_pmx_init(void)

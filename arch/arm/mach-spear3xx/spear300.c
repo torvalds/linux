@@ -17,6 +17,7 @@
 #include <asm/irq.h>
 #include <mach/generic.h>
 #include <mach/spear.h>
+#include <plat/shirq.h>
 
 /* pad multiplexing support */
 /* muxing registers */
@@ -386,14 +387,78 @@ struct amba_device gpio1_device = {
 		.end = SPEAR300_GPIO_BASE + SPEAR300_GPIO_SIZE - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {IRQ_GEN_RAS_1, NO_IRQ},
+	.irq = {VIRQ_GPIO1, NO_IRQ},
+};
+
+/* spear3xx shared irq */
+struct shirq_dev_config shirq_ras1_config[] = {
+	{
+		.virq = VIRQ_IT_PERS_S,
+		.enb_mask = IT_PERS_S_IRQ_MASK,
+		.status_mask = IT_PERS_S_IRQ_MASK,
+	}, {
+		.virq = VIRQ_IT_CHANGE_S,
+		.enb_mask = IT_CHANGE_S_IRQ_MASK,
+		.status_mask = IT_CHANGE_S_IRQ_MASK,
+	}, {
+		.virq = VIRQ_I2S,
+		.enb_mask = I2S_IRQ_MASK,
+		.status_mask = I2S_IRQ_MASK,
+	}, {
+		.virq = VIRQ_TDM,
+		.enb_mask = TDM_IRQ_MASK,
+		.status_mask = TDM_IRQ_MASK,
+	}, {
+		.virq = VIRQ_CAMERA_L,
+		.enb_mask = CAMERA_L_IRQ_MASK,
+		.status_mask = CAMERA_L_IRQ_MASK,
+	}, {
+		.virq = VIRQ_CAMERA_F,
+		.enb_mask = CAMERA_F_IRQ_MASK,
+		.status_mask = CAMERA_F_IRQ_MASK,
+	}, {
+		.virq = VIRQ_CAMERA_V,
+		.enb_mask = CAMERA_V_IRQ_MASK,
+		.status_mask = CAMERA_V_IRQ_MASK,
+	}, {
+		.virq = VIRQ_KEYBOARD,
+		.enb_mask = KEYBOARD_IRQ_MASK,
+		.status_mask = KEYBOARD_IRQ_MASK,
+	}, {
+		.virq = VIRQ_GPIO1,
+		.enb_mask = GPIO1_IRQ_MASK,
+		.status_mask = GPIO1_IRQ_MASK,
+	},
+};
+
+struct spear_shirq shirq_ras1 = {
+	.irq = IRQ_GEN_RAS_1,
+	.dev_config = shirq_ras1_config,
+	.dev_count = ARRAY_SIZE(shirq_ras1_config),
+	.regs = {
+		.enb_reg = INT_ENB_MASK_REG,
+		.status_reg = INT_STS_MASK_REG,
+		.status_reg_mask = SHIRQ_RAS1_MASK,
+		.clear_reg = -1,
+	},
 };
 
 /* spear300 routines */
 void __init spear300_init(void)
 {
+	int ret = 0;
+
 	/* call spear3xx family common init function */
 	spear3xx_init();
+
+	/* shared irq registeration */
+	shirq_ras1.regs.base =
+		ioremap(SPEAR300_TELECOM_BASE, SPEAR300_TELECOM_REG_SIZE);
+	if (shirq_ras1.regs.base) {
+		ret = spear_shirq_register(&shirq_ras1);
+		if (ret)
+			printk(KERN_ERR "Error registering Shared IRQ\n");
+	}
 }
 
 void spear300_pmx_init(void)

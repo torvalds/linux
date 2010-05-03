@@ -15,6 +15,7 @@
 #include <asm/irq.h>
 #include <mach/generic.h>
 #include <mach/spear.h>
+#include <plat/shirq.h>
 
 /* pad multiplexing support */
 /* muxing registers */
@@ -140,11 +141,158 @@ struct pmx_driver pmx_driver = {
 
 /* Add spear310 specific devices here */
 
+/* spear3xx shared irq */
+struct shirq_dev_config shirq_ras1_config[] = {
+	{
+		.virq = VIRQ_SMII0,
+		.status_mask = SMII0_IRQ_MASK,
+	}, {
+		.virq = VIRQ_SMII1,
+		.status_mask = SMII1_IRQ_MASK,
+	}, {
+		.virq = VIRQ_SMII2,
+		.status_mask = SMII2_IRQ_MASK,
+	}, {
+		.virq = VIRQ_SMII3,
+		.status_mask = SMII3_IRQ_MASK,
+	}, {
+		.virq = VIRQ_WAKEUP_SMII0,
+		.status_mask = WAKEUP_SMII0_IRQ_MASK,
+	}, {
+		.virq = VIRQ_WAKEUP_SMII1,
+		.status_mask = WAKEUP_SMII1_IRQ_MASK,
+	}, {
+		.virq = VIRQ_WAKEUP_SMII2,
+		.status_mask = WAKEUP_SMII2_IRQ_MASK,
+	}, {
+		.virq = VIRQ_WAKEUP_SMII3,
+		.status_mask = WAKEUP_SMII3_IRQ_MASK,
+	},
+};
+
+struct spear_shirq shirq_ras1 = {
+	.irq = IRQ_GEN_RAS_1,
+	.dev_config = shirq_ras1_config,
+	.dev_count = ARRAY_SIZE(shirq_ras1_config),
+	.regs = {
+		.enb_reg = -1,
+		.status_reg = INT_STS_MASK_REG,
+		.status_reg_mask = SHIRQ_RAS1_MASK,
+		.clear_reg = -1,
+	},
+};
+
+struct shirq_dev_config shirq_ras2_config[] = {
+	{
+		.virq = VIRQ_UART1,
+		.status_mask = UART1_IRQ_MASK,
+	}, {
+		.virq = VIRQ_UART2,
+		.status_mask = UART2_IRQ_MASK,
+	}, {
+		.virq = VIRQ_UART3,
+		.status_mask = UART3_IRQ_MASK,
+	}, {
+		.virq = VIRQ_UART4,
+		.status_mask = UART4_IRQ_MASK,
+	}, {
+		.virq = VIRQ_UART5,
+		.status_mask = UART5_IRQ_MASK,
+	},
+};
+
+struct spear_shirq shirq_ras2 = {
+	.irq = IRQ_GEN_RAS_2,
+	.dev_config = shirq_ras2_config,
+	.dev_count = ARRAY_SIZE(shirq_ras2_config),
+	.regs = {
+		.enb_reg = -1,
+		.status_reg = INT_STS_MASK_REG,
+		.status_reg_mask = SHIRQ_RAS2_MASK,
+		.clear_reg = -1,
+	},
+};
+
+struct shirq_dev_config shirq_ras3_config[] = {
+	{
+		.virq = VIRQ_EMI,
+		.status_mask = EMI_IRQ_MASK,
+	},
+};
+
+struct spear_shirq shirq_ras3 = {
+	.irq = IRQ_GEN_RAS_3,
+	.dev_config = shirq_ras3_config,
+	.dev_count = ARRAY_SIZE(shirq_ras3_config),
+	.regs = {
+		.enb_reg = -1,
+		.status_reg = INT_STS_MASK_REG,
+		.status_reg_mask = SHIRQ_RAS3_MASK,
+		.clear_reg = -1,
+	},
+};
+
+struct shirq_dev_config shirq_intrcomm_ras_config[] = {
+	{
+		.virq = VIRQ_TDM_HDLC,
+		.status_mask = TDM_HDLC_IRQ_MASK,
+	}, {
+		.virq = VIRQ_RS485_0,
+		.status_mask = RS485_0_IRQ_MASK,
+	}, {
+		.virq = VIRQ_RS485_1,
+		.status_mask = RS485_1_IRQ_MASK,
+	},
+};
+
+struct spear_shirq shirq_intrcomm_ras = {
+	.irq = IRQ_INTRCOMM_RAS_ARM,
+	.dev_config = shirq_intrcomm_ras_config,
+	.dev_count = ARRAY_SIZE(shirq_intrcomm_ras_config),
+	.regs = {
+		.enb_reg = -1,
+		.status_reg = INT_STS_MASK_REG,
+		.status_reg_mask = SHIRQ_INTRCOMM_RAS_MASK,
+		.clear_reg = -1,
+	},
+};
+
 /* spear310 routines */
 void __init spear310_init(void)
 {
+	void __iomem *base;
+	int ret = 0;
+
 	/* call spear3xx family common init function */
 	spear3xx_init();
+
+	/* shared irq registeration */
+	base = ioremap(SPEAR310_SOC_CONFIG_BASE, SPEAR310_SOC_CONFIG_SIZE);
+	if (base) {
+		/* shirq 1 */
+		shirq_ras1.regs.base = base;
+		ret = spear_shirq_register(&shirq_ras1);
+		if (ret)
+			printk(KERN_ERR "Error registering Shared IRQ 1\n");
+
+		/* shirq 2 */
+		shirq_ras2.regs.base = base;
+		ret = spear_shirq_register(&shirq_ras2);
+		if (ret)
+			printk(KERN_ERR "Error registering Shared IRQ 2\n");
+
+		/* shirq 3 */
+		shirq_ras3.regs.base = base;
+		ret = spear_shirq_register(&shirq_ras3);
+		if (ret)
+			printk(KERN_ERR "Error registering Shared IRQ 3\n");
+
+		/* shirq 4 */
+		shirq_intrcomm_ras.regs.base = base;
+		ret = spear_shirq_register(&shirq_intrcomm_ras);
+		if (ret)
+			printk(KERN_ERR "Error registering Shared IRQ 4\n");
+	}
 }
 
 void spear310_pmx_init(void)
