@@ -4314,9 +4314,6 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	int err = 0;
 	int vector, v_budget;
 
-	if (!(adapter->flags & IXGBE_FLAG_MSIX_CAPABLE))
-		goto try_msi;
-
 	/*
 	 * It's easy to be greedy for MSI-X vectors, but it really
 	 * doesn't do us much good if we have a lot more vectors
@@ -4348,7 +4345,7 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 		if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
 			goto out;
 	}
-try_msi:
+
 	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 	adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
 	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
@@ -4629,18 +4626,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->ring_feature[RING_F_RSS].indices = rss;
 	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 	adapter->ring_feature[RING_F_DCB].indices = IXGBE_MAX_DCB_INDICES;
-	adapter->flags |= IXGBE_FLAG_MSIX_CAPABLE;
-	if (adapter->hw.device_id == IXGBE_DEV_ID_82598AF_DUAL_PORT) {
-		switch (adapter->hw.subsystem_device_id) {
-		case IXGBE_SUBDEV_ID_82598AF_MEZZ:
-		case IXGBE_SUBDEV_ID_82598AF_MENLO_Q_MEZZ:
-		case IXGBE_SUBDEV_ID_82598AF_MENLO_E_MEZZ:
-			adapter->flags &= ~IXGBE_FLAG_MSIX_CAPABLE;
-			break;
-		default:
-			break;
-		}
-	}
 	if (hw->mac.type == ixgbe_mac_82598EB) {
 		if (hw->device_id == IXGBE_DEV_ID_82598AT)
 			adapter->flags |= IXGBE_FLAG_FAN_FAIL_CAPABLE;
