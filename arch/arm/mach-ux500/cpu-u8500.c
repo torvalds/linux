@@ -23,36 +23,6 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 
-#define GPIO_RESOURCE(block)						\
-	{								\
-		.start	= U8500_GPIOBANK##block##_BASE,			\
-		.end	= U8500_GPIOBANK##block##_BASE + 127,		\
-		.flags	= IORESOURCE_MEM,				\
-	},								\
-	{								\
-		.start	= IRQ_GPIO##block,				\
-		.end	= IRQ_GPIO##block,				\
-		.flags	= IORESOURCE_IRQ,				\
-	}
-
-#define GPIO_DEVICE(block)						\
-	{								\
-		.name 		= "gpio",				\
-		.id		= block,				\
-		.num_resources 	= 2,					\
-		.resource	= &u8500_gpio_resources[block * 2],	\
-		.dev = {						\
-			.platform_data = &u8500_gpio_data[block],	\
-		},							\
-	}
-
-#define GPIO_DATA(_name, first)						\
-	{								\
-		.name 		= _name,				\
-		.first_gpio 	= first,				\
-		.first_irq 	= NOMADIK_GPIO_TO_IRQ(first),		\
-	}
-
 static struct nmk_gpio_platform_data u8500_gpio_data[] = {
 	GPIO_DATA("GPIO-0-31", 0),
 	GPIO_DATA("GPIO-32-63", 32), /* 37..63 not routed to pin */
