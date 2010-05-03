@@ -206,3 +206,66 @@ error:
 	return ret;
 }
 
+int comedi_dio_config(void *dev, unsigned int subdev, unsigned int chan,
+		      unsigned int io)
+{
+	struct comedi_insn insn;
+
+	memset(&insn, 0, sizeof(insn));
+	insn.insn = INSN_CONFIG;
+	insn.n = 1;
+	insn.data = &io;
+	insn.subdev = subdev;
+	insn.chanspec = CR_PACK(chan, 0, 0);
+
+	return comedi_do_insn(dev, &insn);
+}
+EXPORT_SYMBOL(comedi_dio_config);
+
+int comedi_dio_bitfield(void *dev, unsigned int subdev, unsigned int mask,
+			unsigned int *bits)
+{
+	struct comedi_insn insn;
+	unsigned int data[2];
+	int ret;
+
+	memset(&insn, 0, sizeof(insn));
+	insn.insn = INSN_BITS;
+	insn.n = 2;
+	insn.data = data;
+	insn.subdev = subdev;
+
+	data[0] = mask;
+	data[1] = *bits;
+
+	ret = comedi_do_insn(dev, &insn);
+
+	*bits = data[1];
+
+	return ret;
+}
+EXPORT_SYMBOL(comedi_dio_bitfield);
+
+int comedi_find_subdevice_by_type(void *d, int type, unsigned int subd)
+{
+	struct comedi_device *dev = (struct comedi_device *)d;
+
+	if (subd > dev->n_subdevices)
+		return -ENODEV;
+
+	for (; subd < dev->n_subdevices; subd++) {
+		if (dev->subdevices[subd].type == type)
+			return subd;
+	}
+	return -1;
+}
+EXPORT_SYMBOL(comedi_find_subdevice_by_type);
+
+int comedi_get_n_channels(void *d, unsigned int subdevice)
+{
+	struct comedi_device *dev = (struct comedi_device *)d;
+	struct comedi_subdevice *s = dev->subdevices + subdevice;
+
+	return s->n_chan;
+}
+EXPORT_SYMBOL(comedi_get_n_channels);

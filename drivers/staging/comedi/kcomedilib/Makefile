@@ -1,6 +1,3 @@
 obj-$(CONFIG_COMEDI)	+= kcomedilib.o
 
-kcomedilib-objs :=				\
-			dio.o			\
-			kcomedilib_main.o	\
-			get.o
+kcomedilib-objs := kcomedilib_main.o
