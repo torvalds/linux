@@ -3310,9 +3310,9 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 		if (cs->status != nfserr_replay_cache) {
 			nfsd4_store_cache_entry(resp);
 			dprintk("%s: SET SLOT STATE TO AVAILABLE\n", __func__);
-			resp->cstate.slot->sl_inuse = false;
+			cs->slot->sl_inuse = false;
 		}
-		nfsd4_put_session(resp->cstate.session);
+		nfsd4_put_session(cs->session);
 	}
 	return 1;
 }
