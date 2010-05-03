@@ -285,7 +285,8 @@ static void raid10_end_read_request(struct bio *bio, int error)
 		 */
 		char b[BDEVNAME_SIZE];
 		if (printk_ratelimit())
-			printk(KERN_ERR "raid10: %s: rescheduling sector %llu\n",
+			printk(KERN_ERR "md/raid10:%s: %s: rescheduling sector %llu\n",
+			       mdname(conf->mddev),
 			       bdevname(conf->mirrors[dev].rdev->bdev,b), (unsigned long long)r10_bio->sector);
 		reschedule_retry(r10_bio);
 	}
@@ -831,8 +832,8 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		bio_pair_release(bp);
 		return 0;
 	bad_map:
-		printk("raid10_make_request bug: can't convert block across chunks"
-		       " or bigger than %dk %llu %d\n", chunk_sects/2,
+		printk("md/raid10:%s: make_request bug: can't convert block across chunks"
+		       " or bigger than %dk %llu %d\n", mdname(mddev), chunk_sects/2,
 		       (unsigned long long)bio->bi_sector, bio->bi_size >> 10);
 
 		bio_io_error(bio);
@@ -1031,9 +1032,10 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	}
 	set_bit(Faulty, &rdev->flags);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
-	printk(KERN_ALERT "raid10: Disk failure on %s, disabling device.\n"
-		"raid10: Operation continuing on %d devices.\n",
-		bdevname(rdev->bdev,b), conf->raid_disks - mddev->degraded);
+	printk(KERN_ALERT "md/raid10:%s: Disk failure on %s, disabling device.\n"
+	       KERN_ALERT "md/raid10:%s: Operation continuing on %d devices.\n",
+	       mdname(mddev), bdevname(rdev->bdev, b),
+	       mdname(mddev), conf->raid_disks - mddev->degraded);
 }
 
 static void print_conf(conf_t *conf)
@@ -1041,19 +1043,19 @@ static void print_conf(conf_t *conf)
 	int i;
 	mirror_info_t *tmp;
 
-	printk("RAID10 conf printout:\n");
+	printk(KERN_DEBUG "RAID10 conf printout:\n");
 	if (!conf) {
-		printk("(!conf)\n");
+		printk(KERN_DEBUG "(!conf)\n");
 		return;
 	}
-	printk(" --- wd:%d rd:%d\n", conf->raid_disks - conf->mddev->degraded,
+	printk(KERN_DEBUG " --- wd:%d rd:%d\n", conf->raid_disks - conf->mddev->degraded,
 		conf->raid_disks);
 
 	for (i = 0; i < conf->raid_disks; i++) {
 		char b[BDEVNAME_SIZE];
 		tmp = conf->mirrors + i;
 		if (tmp->rdev)
-			printk(" disk %d, wo:%d, o:%d, dev:%s\n",
+			printk(KERN_DEBUG " disk %d, wo:%d, o:%d, dev:%s\n",
 				i, !test_bit(In_sync, &tmp->rdev->flags),
 			        !test_bit(Faulty, &tmp->rdev->flags),
 				bdevname(tmp->rdev->bdev,b));
@@ -1502,13 +1504,14 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 		if (cur_read_error_count > max_read_errors) {
 			rcu_read_unlock();
 			printk(KERN_NOTICE
-			       "raid10: %s: Raid device exceeded "
+			       "md/raid10:%s: %s: Raid device exceeded "
 			       "read_error threshold "
 			       "[cur %d:max %d]\n",
+			       mdname(mddev),
 			       b, cur_read_error_count, max_read_errors);
 			printk(KERN_NOTICE
-			       "raid10: %s: Failing raid "
-			       "device\n", b);
+			       "md/raid10:%s: %s: Failing raid "
+			       "device\n", mdname(mddev), b);
 			md_error(mddev, conf->mirrors[d].rdev);
 			return;
 		}
@@ -1578,15 +1581,16 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 				    == 0) {
 					/* Well, this device is dead */
 					printk(KERN_NOTICE
-					       "raid10:%s: read correction "
+					       "md/raid10:%s: read correction "
 					       "write failed"
 					       " (%d sectors at %llu on %s)\n",
 					       mdname(mddev), s,
 					       (unsigned long long)(sect+
 					       rdev->data_offset),
 					       bdevname(rdev->bdev, b));
-					printk(KERN_NOTICE "raid10:%s: failing "
+					printk(KERN_NOTICE "md/raid10:%s: %s: failing "
 					       "drive\n",
+					       mdname(mddev),
 					       bdevname(rdev->bdev, b));
 					md_error(mddev, rdev);
 				}
@@ -1614,20 +1618,21 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 						 READ) == 0) {
 					/* Well, this device is dead */
 					printk(KERN_NOTICE
-					       "raid10:%s: unable to read back "
+					       "md/raid10:%s: unable to read back "
 					       "corrected sectors"
 					       " (%d sectors at %llu on %s)\n",
 					       mdname(mddev), s,
 					       (unsigned long long)(sect+
 						    rdev->data_offset),
 					       bdevname(rdev->bdev, b));
-					printk(KERN_NOTICE "raid10:%s: failing drive\n",
+					printk(KERN_NOTICE "md/raid10:%s: %s: failing drive\n",
+					       mdname(mddev),
 					       bdevname(rdev->bdev, b));
 
 					md_error(mddev, rdev);
 				} else {
 					printk(KERN_INFO
-					       "raid10:%s: read error corrected"
+					       "md/raid10:%s: read error corrected"
 					       " (%d sectors at %llu on %s)\n",
 					       mdname(mddev), s,
 					       (unsigned long long)(sect+
@@ -1702,8 +1707,9 @@ static void raid10d(mddev_t *mddev)
 				mddev->ro ? IO_BLOCKED : NULL;
 			mirror = read_balance(conf, r10_bio);
 			if (mirror == -1) {
-				printk(KERN_ALERT "raid10: %s: unrecoverable I/O"
+				printk(KERN_ALERT "md/raid10:%s: %s: unrecoverable I/O"
 				       " read error for block %llu\n",
+				       mdname(mddev),
 				       bdevname(bio->bi_bdev,b),
 				       (unsigned long long)r10_bio->sector);
 				raid_end_bio_io(r10_bio);
@@ -1713,8 +1719,9 @@ static void raid10d(mddev_t *mddev)
 				bio_put(bio);
 				rdev = conf->mirrors[mirror].rdev;
 				if (printk_ratelimit())
-					printk(KERN_ERR "raid10: %s: redirecting sector %llu to"
+					printk(KERN_ERR "md/raid10:%s: %s: redirecting sector %llu to"
 					       " another mirror\n",
+					       mdname(mddev),
 					       bdevname(rdev->bdev,b),
 					       (unsigned long long)r10_bio->sector);
 				bio = bio_clone(r10_bio->master_bio, GFP_NOIO);
@@ -1972,7 +1979,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 					r10_bio = rb2;
 					if (!test_and_set_bit(MD_RECOVERY_INTR,
 							      &mddev->recovery))
-						printk(KERN_INFO "raid10: %s: insufficient working devices for recovery.\n",
+						printk(KERN_INFO "md/raid10:%s: insufficient "
+						       "working devices for recovery.\n",
 						       mdname(mddev));
 					break;
 				}
@@ -2154,8 +2162,9 @@ static conf_t *setup_conf(mddev_t *mddev)
 
 	if (mddev->chunk_sectors < (PAGE_SIZE >> 9) ||
 	    !is_power_of_2(mddev->chunk_sectors)) {
-		printk(KERN_ERR "md/raid10: chunk size must be "
-		       "at least PAGE_SIZE(%ld) and be a power of 2.\n", PAGE_SIZE);
+		printk(KERN_ERR "md/raid10:%s: chunk size must be "
+		       "at least PAGE_SIZE(%ld) and be a power of 2.\n",
+		       mdname(mddev), PAGE_SIZE);
 		goto out;
 	}
 
@@ -2165,7 +2174,7 @@ static conf_t *setup_conf(mddev_t *mddev)
 
 	if ((nc*fc) <2 || (nc*fc) > mddev->raid_disks ||
 	    (mddev->layout >> 17)) {
-		printk(KERN_ERR "raid10: %s: unsupported raid10 layout: 0x%8x\n",
+		printk(KERN_ERR "md/raid10:%s: unsupported raid10 layout: 0x%8x\n",
 		       mdname(mddev), mddev->layout);
 		goto out;
 	}
@@ -2236,7 +2245,7 @@ static conf_t *setup_conf(mddev_t *mddev)
 	return conf;
 
  out:
-	printk(KERN_ERR "raid10: couldn't allocate memory for %s\n",
+	printk(KERN_ERR "md/raid10:%s: couldn't allocate memory.\n",
 	       mdname(mddev));
 	if (conf) {
 		if (conf->r10bio_pool)
@@ -2314,7 +2323,7 @@ static int run(mddev_t *mddev)
 	}
 	/* need to check that every block has at least one working mirror */
 	if (!enough(conf)) {
-		printk(KERN_ERR "raid10: not enough operational mirrors for %s\n",
+		printk(KERN_ERR "md/raid10:%s: not enough operational mirrors.\n",
 		       mdname(mddev));
 		goto out_free_conf;
 	}
@@ -2334,11 +2343,11 @@ static int run(mddev_t *mddev)
 	}
 
 	if (mddev->recovery_cp != MaxSector)
-		printk(KERN_NOTICE "raid10: %s is not clean"
+		printk(KERN_NOTICE "md/raid10:%s: not clean"
 		       " -- starting background reconstruction\n",
 		       mdname(mddev));
 	printk(KERN_INFO
-		"raid10: raid set %s active with %d out of %d devices\n",
+		"md/raid10:%s: active with %d out of %d devices\n",
 		mdname(mddev), conf->raid_disks - mddev->degraded,
 		conf->raid_disks);
 	/*
@@ -2420,7 +2429,8 @@ static void *raid10_takeover_raid0(mddev_t *mddev)
 	conf_t *conf;
 
 	if (mddev->degraded > 0) {
-		printk(KERN_ERR "error: degraded raid0!\n");
+		printk(KERN_ERR "md/raid10:%s: Error: degraded raid0!\n",
+		       mdname(mddev));
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -2458,7 +2468,9 @@ static void *raid10_takeover(mddev_t *mddev)
 		/* for raid0 takeover only one zone is supported */
 		raid0_priv = mddev->private;
 		if (raid0_priv->nr_strip_zones > 1) {
-			printk(KERN_ERR "md: cannot takeover raid 0 with more than one zone.\n");
+			printk(KERN_ERR "md/raid10:%s: cannot takeover raid 0"
+			       " with more than one zone.\n",
+			       mdname(mddev));
 			return ERR_PTR(-EINVAL);
 		}
 		return raid10_takeover_raid0(mddev);
