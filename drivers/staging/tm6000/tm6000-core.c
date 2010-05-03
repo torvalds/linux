@@ -156,10 +156,13 @@ int tm6000_get_reg32 (struct tm6000_core *dev, u8 req, u16 value, u16 index)
 void tm6000_set_fourcc_format(struct tm6000_core *dev)
 {
 	if (dev->dev_type == TM6010) {
+		int val;
+
+		val = tm6000_get_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0) & 0xfc;
 		if (dev->fourcc == V4L2_PIX_FMT_UYVY)
-			tm6000_set_reg(dev, TM6010_REQ07_RC1_TRESHOLD, 0xd0);
+			tm6000_set_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
 		else
-			tm6000_set_reg(dev, TM6010_REQ07_RC1_TRESHOLD, 0x90);
+			tm6000_set_reg(dev, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val | 1);
 	} else {
 		if (dev->fourcc == V4L2_PIX_FMT_UYVY)
 			tm6000_set_reg(dev, TM6010_REQ07_RC1_TRESHOLD, 0xd0);
