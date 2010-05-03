@@ -16,6 +16,7 @@
 #include <linux/io.h>
 
 #include <asm/clkdev.h>
+#include <asm/div64.h>
 
 #include <mach/hardware.h>
 #include <mach/common.h>
