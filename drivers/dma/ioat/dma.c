@@ -27,6 +27,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
@@ -71,7 +72,7 @@ static irqreturn_t ioat_dma_do_interrupt(int irq, void *data)
 	}
 
 	attnstatus = readl(instance->reg_base + IOAT_ATTNSTATUS_OFFSET);
-	for_each_bit(bit, &attnstatus, BITS_PER_LONG) {
+	for_each_set_bit(bit, &attnstatus, BITS_PER_LONG) {
 		chan = ioat_chan_by_index(instance, bit);
 		tasklet_schedule(&chan->cleanup_task);
 	}
@@ -1138,7 +1139,7 @@ ioat_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 	return entry->show(&chan->common, page);
 }
 
-struct sysfs_ops ioat_sysfs_ops = {
+const struct sysfs_ops ioat_sysfs_ops = {
 	.show	= ioat_attr_show,
 };
 

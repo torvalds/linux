@@ -445,7 +445,7 @@ int main(int argc, const char **argv)
 
 	/*
 	 * We use PATH to find perf commands, but we prepend some higher
-	 * precidence paths: the "--exec-path" option, the PERF_EXEC_PATH
+	 * precedence paths: the "--exec-path" option, the PERF_EXEC_PATH
 	 * environment, and the $(perfexecdir) from the Makefile at build
 	 * time.
 	 */

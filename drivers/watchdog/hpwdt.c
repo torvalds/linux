@@ -39,7 +39,6 @@
 #include <linux/efi.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
-#include <linux/slab.h>
 #include <asm/desc.h>
 #include <asm/cacheflush.h>
 
@@ -443,7 +442,7 @@ static void hpwdt_ping(void)
 static int hpwdt_change_timer(int new_margin)
 {
 	/* Arbitrary, can't find the card's limits */
-	if (new_margin < 30 || new_margin > 600) {
+	if (new_margin < 5 || new_margin > 600) {
 		printk(KERN_WARNING
 			"hpwdt: New value passed in is invalid: %d seconds.\n",
 			new_margin);
@@ -554,7 +553,7 @@ static ssize_t hpwdt_write(struct file *file, const char __user *data,
 	return len;
 }
 
-static struct watchdog_info ident = {
+static const struct watchdog_info ident = {
 	.options = WDIOF_SETTIMEOUT |
 		   WDIOF_KEEPALIVEPING |
 		   WDIOF_MAGICCLOSE,

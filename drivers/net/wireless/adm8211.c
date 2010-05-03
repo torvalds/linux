@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/if.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
 #include <linux/delay.h>

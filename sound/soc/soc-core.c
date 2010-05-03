@@ -28,6 +28,7 @@
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <sound/ac97_codec.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -427,24 +428,24 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	if (!runtime->hw.rates) {
 		printk(KERN_ERR "asoc: %s <-> %s No matching rates\n",
 			codec_dai->name, cpu_dai->name);
-		goto machine_err;
+		goto config_err;
 	}
 	if (!runtime->hw.formats) {
 		printk(KERN_ERR "asoc: %s <-> %s No matching formats\n",
 			codec_dai->name, cpu_dai->name);
-		goto machine_err;
+		goto config_err;
 	}
 	if (!runtime->hw.channels_min || !runtime->hw.channels_max) {
 		printk(KERN_ERR "asoc: %s <-> %s No matching channels\n",
 			codec_dai->name, cpu_dai->name);
-		goto machine_err;
+		goto config_err;
 	}
 
 	/* Symmetry only applies if we've already got an active stream. */
 	if (cpu_dai->active || codec_dai->active) {
 		ret = soc_pcm_apply_symmetry(substream);
 		if (ret != 0)
-			goto machine_err;
+			goto config_err;
 	}
 
 	pr_debug("asoc: %s <-> %s info:\n", codec_dai->name, cpu_dai->name);
@@ -464,9 +465,13 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	mutex_unlock(&pcm_mutex);
 	return 0;
 
-machine_err:
+config_err:
 	if (machine->ops && machine->ops->shutdown)
 		machine->ops->shutdown(substream);
+
+machine_err:
+	if (codec_dai->ops->shutdown)
+		codec_dai->ops->shutdown(substream, codec_dai);
 
 codec_dai_err:
 	if (platform->pcm_ops->close)
@@ -1544,7 +1549,8 @@ int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid)
 			mutex_unlock(&codec->mutex);
 			return ret;
 		}
-		if (card->dai_link[i].codec_dai->ac97_control) {
+		/* Check for codec->ac97 to handle the ac97.c fun */
+		if (card->dai_link[i].codec_dai->ac97_control && codec->ac97) {
 			snd_ac97_dev_add_pdata(codec->ac97,
 				card->dai_link[i].cpu_dai->ac97_pdata);
 		}

@@ -115,7 +115,6 @@ static struct plat_serial8250_port serial_platform_data2[] = {
 	}
 };
 
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 static struct plat_serial8250_port serial_platform_data3[] = {
 	{
 		.irq		= 70,
@@ -128,23 +127,12 @@ static struct plat_serial8250_port serial_platform_data3[] = {
 	}
 };
 
-static inline void omap2_set_globals_uart4(struct omap_globals *omap2_globals)
-{
-	serial_platform_data3[0].mapbase = omap2_globals->uart4_phys;
-}
-#else
-static inline void omap2_set_globals_uart4(struct omap_globals *omap2_globals)
-{
-}
-#endif
-
 void __init omap2_set_globals_uart(struct omap_globals *omap2_globals)
 {
 	serial_platform_data0[0].mapbase = omap2_globals->uart1_phys;
 	serial_platform_data1[0].mapbase = omap2_globals->uart2_phys;
 	serial_platform_data2[0].mapbase = omap2_globals->uart3_phys;
-	if (cpu_is_omap3630() || cpu_is_omap44xx())
-		omap2_set_globals_uart4(omap2_globals);
+	serial_platform_data3[0].mapbase = omap2_globals->uart4_phys;
 }
 
 static inline unsigned int __serial_read_reg(struct uart_port *up,
@@ -550,7 +538,7 @@ static ssize_t sleep_timeout_store(struct device *dev,
 	unsigned int value;
 
 	if (sscanf(buf, "%u", &value) != 1) {
-		printk(KERN_ERR "sleep_timeout_store: Invalid value\n");
+		dev_err(dev, "sleep_timeout_store: Invalid value\n");
 		return -EINVAL;
 	}
 
@@ -644,8 +632,13 @@ static void serial_out_override(struct uart_port *up, int offset, int value)
 }
 void __init omap_serial_early_init(void)
 {
-	int i;
+	int i, nr_ports;
 	char name[16];
+
+	if (!(cpu_is_omap3630() || cpu_is_omap4430()))
+		nr_ports = 3;
+	else
+		nr_ports = ARRAY_SIZE(omap_uart);
 
 	/*
 	 * Make sure the serial ports are muxed on at this point.
@@ -653,33 +646,39 @@ void __init omap_serial_early_init(void)
 	 * if not needed.
 	 */
 
-	for (i = 0; i < ARRAY_SIZE(omap_uart); i++) {
+	for (i = 0; i < nr_ports; i++) {
 		struct omap_uart_state *uart = &omap_uart[i];
 		struct platform_device *pdev = &uart->pdev;
 		struct device *dev = &pdev->dev;
 		struct plat_serial8250_port *p = dev->platform_data;
 
+		/* Don't map zero-based physical address */
+		if (p->mapbase == 0) {
+			dev_warn(dev, "no physical address for uart#%d,"
+				 " so skipping early_init...\n", i);
+			continue;
+		}
 		/*
 		 * Module 4KB + L4 interconnect 4KB
 		 * Static mapping, never released
 		 */
 		p->membase = ioremap(p->mapbase, SZ_8K);
 		if (!p->membase) {
-			printk(KERN_ERR "ioremap failed for uart%i\n", i + 1);
+			dev_err(dev, "ioremap failed for uart%i\n", i + 1);
 			continue;
 		}
 
-		sprintf(name, "uart%d_ick", i+1);
+		sprintf(name, "uart%d_ick", i + 1);
 		uart->ick = clk_get(NULL, name);
 		if (IS_ERR(uart->ick)) {
-			printk(KERN_ERR "Could not get uart%d_ick\n", i+1);
+			dev_err(dev, "Could not get uart%d_ick\n", i + 1);
 			uart->ick = NULL;
 		}
 
 		sprintf(name, "uart%d_fck", i+1);
 		uart->fck = clk_get(NULL, name);
 		if (IS_ERR(uart->fck)) {
-			printk(KERN_ERR "Could not get uart%d_fck\n", i+1);
+			dev_err(dev, "Could not get uart%d_fck\n", i + 1);
 			uart->fck = NULL;
 		}
 
@@ -721,6 +720,13 @@ void __init omap_serial_init_port(int port)
 	uart = &omap_uart[port];
 	pdev = &uart->pdev;
 	dev = &pdev->dev;
+
+	/* Don't proceed if there's no clocks available */
+	if (unlikely(!uart->ick || !uart->fck)) {
+		WARN(1, "%s: can't init uart%d, no clocks available\n",
+		     kobject_name(&dev->kobj), port);
+		return;
+	}
 
 	omap_uart_enable_clocks(uart);
 

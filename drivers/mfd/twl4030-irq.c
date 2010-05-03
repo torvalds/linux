@@ -31,6 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 #include <linux/i2c/twl.h>
 

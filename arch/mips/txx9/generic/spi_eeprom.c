@@ -10,6 +10,7 @@
  * Support for TX4938 in 2.6 - Manish Lachwani (mlachwani@mvista.com)
  */
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>

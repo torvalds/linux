@@ -20,6 +20,7 @@
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/topology.h>
+#include <linux/gfp.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "mdio_10g.h"
@@ -1860,6 +1861,7 @@ out:
 	}
 
 	if (disabled) {
+		dev_close(efx->net_dev);
 		EFX_ERR(efx, "has been disabled\n");
 		efx->state = STATE_DISABLED;
 	} else {
@@ -1883,8 +1885,7 @@ static void efx_reset_work(struct work_struct *data)
 	}
 
 	rtnl_lock();
-	if (efx_reset(efx, efx->reset_pending))
-		dev_close(efx->net_dev);
+	(void)efx_reset(efx, efx->reset_pending);
 	rtnl_unlock();
 }
 

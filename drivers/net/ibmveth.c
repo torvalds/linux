@@ -49,6 +49,7 @@
 #include <linux/proc_fs.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <asm/hvcall.h>
 #include <asm/atomic.h>
@@ -1577,7 +1578,7 @@ static struct attribute * veth_pool_attrs[] = {
 	NULL,
 };
 
-static struct sysfs_ops veth_pool_ops = {
+static const struct sysfs_ops veth_pool_ops = {
 	.show   = veth_pool_show,
 	.store  = veth_pool_store,
 };

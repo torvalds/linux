@@ -25,7 +25,6 @@
 
 #include <linux/fs.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
@@ -665,7 +664,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 	}
 
 	ocfs2_remove_from_cache(INODE_CACHE(inode), di_bh);
-	vfs_dq_free_inode(inode);
+	dquot_free_inode(inode);
 
 	status = ocfs2_free_dinode(handle, inode_alloc_inode,
 				   inode_alloc_bh, di);
@@ -891,6 +890,21 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 	/* Do some basic inode verification... */
 	di = (struct ocfs2_dinode *) di_bh->b_data;
 	if (!(di->i_flags & cpu_to_le32(OCFS2_ORPHANED_FL))) {
+		/*
+		 * Inodes in the orphan dir must have ORPHANED_FL.  The only
+		 * inodes that come back out of the orphan dir are reflink
+		 * targets. A reflink target may be moved out of the orphan
+		 * dir between the time we scan the directory and the time we
+		 * process it. This would lead to HAS_REFCOUNT_FL being set but
+		 * ORPHANED_FL not.
+		 */
+		if (di->i_dyn_features & cpu_to_le16(OCFS2_HAS_REFCOUNT_FL)) {
+			mlog(0, "Reflinked inode %llu is no longer orphaned.  "
+			     "it shouldn't be deleted\n",
+			     (unsigned long long)oi->ip_blkno);
+			goto bail;
+		}
+
 		/* for lack of a better error? */
 		status = -EEXIST;
 		mlog(ML_ERROR,
@@ -970,6 +984,8 @@ void ocfs2_delete_inode(struct inode *inode)
 		mlog(0, "Skipping delete of bad inode\n");
 		goto bail;
 	}
+
+	dquot_initialize(inode);
 
 	if (!ocfs2_inode_is_valid_to_delete(inode)) {
 		/* It's probably not necessary to truncate_inode_pages
@@ -1086,6 +1102,8 @@ void ocfs2_clear_inode(struct inode *inode)
 
 	mlog_bug_on_msg(OCFS2_SB(inode->i_sb) == NULL,
 			"Inode=%lu\n", inode->i_ino);
+
+	dquot_drop(inode);
 
 	/* To preven remote deletes we hold open lock before, now it
 	 * is time to unlock PR and EX open locks. */

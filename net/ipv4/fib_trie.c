@@ -71,6 +71,7 @@
 #include <linux/netlink.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -208,7 +209,9 @@ static inline struct node *tnode_get_child_rcu(struct tnode *tn, unsigned int i)
 {
 	struct node *ret = tnode_get_child(tn, i);
 
-	return rcu_dereference(ret);
+	return rcu_dereference_check(ret,
+				     rcu_read_lock_held() ||
+				     lockdep_rtnl_is_held());
 }
 
 static inline int tnode_child_length(const struct tnode *tn)
@@ -961,7 +964,9 @@ fib_find_node(struct trie *t, u32 key)
 	struct node *n;
 
 	pos = 0;
-	n = rcu_dereference(t->trie);
+	n = rcu_dereference_check(t->trie,
+				  rcu_read_lock_held() ||
+				  lockdep_rtnl_is_held());
 
 	while (n != NULL &&  NODE_TYPE(n) == T_TNODE) {
 		tn = (struct tnode *) n;

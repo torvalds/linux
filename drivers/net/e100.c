@@ -166,6 +166,7 @@
 #include <linux/ethtool.h>
 #include <linux/string.h>
 #include <linux/firmware.h>
+#include <linux/rtnetlink.h>
 #include <asm/unaligned.h>
 
 
@@ -2265,8 +2266,13 @@ static void e100_tx_timeout_task(struct work_struct *work)
 
 	DPRINTK(TX_ERR, DEBUG, "scb.status=0x%02X\n",
 		ioread8(&nic->csr->scb.status));
-	e100_down(netdev_priv(netdev));
-	e100_up(netdev_priv(netdev));
+
+	rtnl_lock();
+	if (netif_running(netdev)) {
+		e100_down(netdev_priv(netdev));
+		e100_up(netdev_priv(netdev));
+	}
+	rtnl_unlock();
 }
 
 static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
@@ -2858,7 +2864,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	}
 	nic->cbs_pool = pci_pool_create(netdev->name,
 			   nic->pdev,
-			   nic->params.cbs.count * sizeof(struct cb),
+			   nic->params.cbs.max * sizeof(struct cb),
 			   sizeof(u32),
 			   0);
 	DPRINTK(PROBE, INFO, "addr 0x%llx, irq %d, MAC addr %pM\n",

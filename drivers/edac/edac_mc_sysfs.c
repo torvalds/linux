@@ -10,6 +10,7 @@
  */
 
 #include <linux/ctype.h>
+#include <linux/slab.h>
 #include <linux/bug.h>
 
 #include "edac_core.h"
@@ -245,7 +246,7 @@ static ssize_t csrowdev_store(struct kobject *kobj, struct attribute *attr,
 	return -EIO;
 }
 
-static struct sysfs_ops csrowfs_ops = {
+static const struct sysfs_ops csrowfs_ops = {
 	.show = csrowdev_show,
 	.store = csrowdev_store
 };
@@ -575,7 +576,7 @@ static ssize_t mcidev_store(struct kobject *kobj, struct attribute *attr,
 }
 
 /* Intermediate show/store table */
-static struct sysfs_ops mci_ops = {
+static const struct sysfs_ops mci_ops = {
 	.show = mcidev_show,
 	.store = mcidev_store
 };

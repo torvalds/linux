@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/smp_lock.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 

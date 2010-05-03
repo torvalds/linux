@@ -44,6 +44,7 @@
 #include <linux/ieee80211.h>
 #include <linux/if_arp.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 
 #include "iwm.h"
@@ -1116,7 +1117,7 @@ static int iwm_ntf_stop_resume_tx(struct iwm_priv *iwm, u8 *buf,
 		return -EINVAL;
 	}
 
-	for_each_bit(bit, (unsigned long *)&tid_msk, IWM_UMAC_TID_NR) {
+	for_each_set_bit(bit, (unsigned long *)&tid_msk, IWM_UMAC_TID_NR) {
 		tid_info = &sta_info->tid_info[bit];
 
 		mutex_lock(&tid_info->mutex);

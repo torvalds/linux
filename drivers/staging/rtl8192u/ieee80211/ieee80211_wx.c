@@ -32,6 +32,7 @@
 #include <linux/wireless.h>
 #include <linux/version.h>
 #include <linux/kmod.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 
 #include "ieee80211.h"
@@ -289,10 +290,10 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		else
 			IEEE80211_DEBUG_SCAN(
 				"Not showing network '%s ("
-				MAC_FMT ")' due to age (%lums).\n",
+				"%pM)' due to age (%lums).\n",
 				escape_essid(network->ssid,
 					     network->ssid_len),
-				MAC_ARG(network->bssid),
+				network->bssid,
 				(jiffies - network->last_scanned) / (HZ / 100));
 	}
 
@@ -718,7 +719,7 @@ int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
 	} else
 		idx = ieee->tx_keyidx;
 
-	if (!ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY &&
+	if (!(ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) &&
 	    ext->alg != IW_ENCODE_ALG_WEP)
 		if (idx != 0 || ieee->iw_mode != IW_MODE_INFRA)
 			return -EINVAL;

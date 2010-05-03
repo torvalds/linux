@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/sysdev.h>
 #include <linux/sysctl.h>
 #include <linux/percpu.h>
@@ -177,7 +178,7 @@ int __init check_nmi_watchdog(void)
 error:
 	if (nmi_watchdog == NMI_IO_APIC) {
 		if (!timer_through_8259)
-			disable_8259A_irq(0);
+			legacy_pic->chip->mask(0);
 		on_each_cpu(__acpi_nmi_disable, NULL, 1);
 	}
 

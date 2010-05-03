@@ -49,6 +49,7 @@
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/rfkill.h>
+#include <linux/slab.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 
@@ -78,15 +79,15 @@ static uint wapf = 1;
 module_param(wapf, uint, 0644);
 MODULE_PARM_DESC(wapf, "WAPF value");
 
-static uint wlan_status = 1;
-static uint bluetooth_status = 1;
+static int wlan_status = 1;
+static int bluetooth_status = 1;
 
-module_param(wlan_status, uint, 0644);
+module_param(wlan_status, int, 0644);
 MODULE_PARM_DESC(wlan_status, "Set the wireless status on boot "
 		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
 		 "default is 1");
 
-module_param(bluetooth_status, uint, 0644);
+module_param(bluetooth_status, int, 0644);
 MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
 		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
 		 "default is 1");
@@ -139,7 +140,7 @@ MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
 
 /* Backlight */
 static acpi_handle lcd_switch_handle;
-static const char *lcd_switch_paths[] = {
+static char *lcd_switch_paths[] = {
   "\\_SB.PCI0.SBRG.EC0._Q10",	/* All new models */
   "\\_SB.PCI0.ISA.EC0._Q10",	/* A1x */
   "\\_SB.PCI0.PX40.ECD0._Q10",	/* L3C */
@@ -153,7 +154,7 @@ static const char *lcd_switch_paths[] = {
 #define METHOD_SWITCH_DISPLAY	"SDSP"
 
 static acpi_handle display_get_handle;
-static const char *display_get_paths[] = {
+static char *display_get_paths[] = {
   /* A6B, A6K A6R A7D F3JM L4R M6R A3G M6A M6V VX-1 V6J V6V W3Z */
   "\\_SB.PCI0.P0P1.VGA.GETD",
   /* A3E A4K, A4D A4L A6J A7J A8J Z71V M9V S5A M5A z33A W1Jc W2V G1 */
@@ -639,12 +640,16 @@ static int asus_backlight_init(struct asus_laptop *asus)
 {
 	struct backlight_device *bd;
 	struct device *dev = &asus->platform_device->dev;
+	struct backlight_properties props;
 
 	if (!acpi_check_handle(asus->handle, METHOD_BRIGHTNESS_GET, NULL) &&
 	    !acpi_check_handle(asus->handle, METHOD_BRIGHTNESS_SET, NULL) &&
 	    lcd_switch_handle) {
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.max_brightness = 15;
+
 		bd = backlight_device_register(ASUS_LAPTOP_FILE, dev,
-					       asus, &asusbl_ops);
+					       asus, &asusbl_ops, &props);
 		if (IS_ERR(bd)) {
 			pr_err("Could not register asus backlight device\n");
 			asus->backlight_device = NULL;
@@ -653,7 +658,6 @@ static int asus_backlight_init(struct asus_laptop *asus)
 
 		asus->backlight_device = bd;
 
-		bd->props.max_brightness = 15;
 		bd->props.power = FB_BLANK_UNBLANK;
 		bd->props.brightness = asus_read_brightness(bd);
 		backlight_update_status(bd);

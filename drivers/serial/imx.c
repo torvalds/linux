@@ -46,6 +46,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/rational.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -440,7 +441,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 
 		temp = readl(sport->port.membase + USR2);
 		if (temp & USR2_BRCD) {
-			writel(temp | USR2_BRCD, sport->port.membase + USR2);
+			writel(USR2_BRCD, sport->port.membase + USR2);
 			if (uart_handle_break(&sport->port))
 				continue;
 		}

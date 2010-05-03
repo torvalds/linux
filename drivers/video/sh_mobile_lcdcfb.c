@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/atomic.h>
 
@@ -943,7 +944,7 @@ static const struct dev_pm_ops sh_mobile_lcdc_dev_pm_ops = {
 
 static int sh_mobile_lcdc_remove(struct platform_device *pdev);
 
-static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
+static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 {
 	struct fb_info *info;
 	struct sh_mobile_lcdc_priv *priv;

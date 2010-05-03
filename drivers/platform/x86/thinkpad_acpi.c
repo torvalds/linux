@@ -58,6 +58,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <linux/nvram.h>
 #include <linux/proc_fs.h>
@@ -1668,7 +1669,7 @@ static void tpacpi_remove_driver_attributes(struct device_driver *drv)
  * Table of recommended minimum BIOS versions
  *
  * Reasons for listing:
- *    1. Stable BIOS, listed because the unknown ammount of
+ *    1. Stable BIOS, listed because the unknown amount of
  *       bugs and bad ACPI behaviour on older versions
  *
  *    2. BIOS or EC fw with known bugs that trigger on Linux
@@ -6170,6 +6171,7 @@ static const struct tpacpi_quirk brightness_quirk_table[] __initconst = {
 
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
+	struct backlight_properties props;
 	int b;
 	unsigned long quirks;
 
@@ -6259,9 +6261,12 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 		printk(TPACPI_INFO
 		       "detected a 16-level brightness capable ThinkPad\n");
 
-	ibm_backlight_device = backlight_device_register(
-					TPACPI_BACKLIGHT_DEV_NAME, NULL, NULL,
-					&ibm_backlight_data);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = (tp_features.bright_16levels) ? 15 : 7;
+	ibm_backlight_device = backlight_device_register(TPACPI_BACKLIGHT_DEV_NAME,
+							 NULL, NULL,
+							 &ibm_backlight_data,
+							 &props);
 	if (IS_ERR(ibm_backlight_device)) {
 		int rc = PTR_ERR(ibm_backlight_device);
 		ibm_backlight_device = NULL;
@@ -6280,8 +6285,6 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			"or not on your ThinkPad\n", TPACPI_MAIL);
 	}
 
-	ibm_backlight_device->props.max_brightness =
-				(tp_features.bright_16levels)? 15 : 7;
 	ibm_backlight_device->props.brightness = b & TP_EC_BACKLIGHT_LVLMSK;
 	backlight_update_status(ibm_backlight_device);
 
@@ -7108,7 +7111,7 @@ static struct ibm_struct volume_driver_data = {
  *
  * 	Fan speed changes of any sort (including those caused by the
  * 	disengaged mode) are usually done slowly by the firmware as the
- * 	maximum ammount of fan duty cycle change per second seems to be
+ * 	maximum amount of fan duty cycle change per second seems to be
  * 	limited.
  *
  * 	Reading is not available if GFAN exists.

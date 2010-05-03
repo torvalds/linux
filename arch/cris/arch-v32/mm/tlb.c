@@ -189,7 +189,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		spin_unlock(&mmu_context_lock);
 
 		/*
-		 * Remember the pgd for the fault handlers. Keep a seperate
+		 * Remember the pgd for the fault handlers. Keep a separate
 		 * copy of it because current and active_mm might be invalid
 		 * at points where * there's still a need to derefer the pgd.
 		 */

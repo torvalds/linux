@@ -393,7 +393,7 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 	    event == SNDRV_TIMER_EVENT_CONTINUE)
 		resolution = snd_timer_resolution(ti);
 	if (ti->ccallback)
-		ti->ccallback(ti, SNDRV_TIMER_EVENT_START, &tstamp, resolution);
+		ti->ccallback(ti, event, &tstamp, resolution);
 	if (ti->flags & SNDRV_TIMER_IFLG_SLAVE)
 		return;
 	timer = ti->timer;

@@ -29,6 +29,7 @@
 #include <linux/i2o.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include "core.h"
 
 #define OSM_NAME	"i2o"
@@ -539,7 +540,7 @@ static int i2o_iop_reset(struct i2o_controller *c)
 		 * which is indeterminate. We need to wait until the IOP has
 		 * rebooted before we can let the system talk to it. We read
 		 * the inbound Free_List until a message is available. If we
-		 * can't read one in the given ammount of time, we assume the
+		 * can't read one in the given amount of time, we assume the
 		 * IOP could not reboot properly.
 		 */
 		osm_debug("%s: Reset in progress, waiting for reboot...\n",

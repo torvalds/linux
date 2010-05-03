@@ -32,6 +32,7 @@
 #include <linux/device.h>
 #include <linux/proc_fs.h>
 #include <linux/acpi.h>
+#include <linux/slab.h>
 #ifdef CONFIG_X86
 #include <asm/mpspec.h>
 #endif
@@ -190,16 +191,16 @@ int acpi_bus_get_power(acpi_handle handle, int *state)
 		 * Get the device's power state either directly (via _PSC) or
 		 * indirectly (via power resources).
 		 */
-		if (device->power.flags.explicit_get) {
+		if (device->power.flags.power_resources) {
+			result = acpi_power_get_inferred_state(device);
+			if (result)
+				return result;
+		} else if (device->power.flags.explicit_get) {
 			status = acpi_evaluate_integer(device->handle, "_PSC",
 						       NULL, &psc);
 			if (ACPI_FAILURE(status))
 				return -ENODEV;
 			device->power.state = (int)psc;
-		} else if (device->power.flags.power_resources) {
-			result = acpi_power_get_inferred_state(device);
-			if (result)
-				return result;
 		}
 
 		*state = device->power.state;

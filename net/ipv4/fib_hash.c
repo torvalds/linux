@@ -32,6 +32,7 @@
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 
 #include <net/net_namespace.h>
 #include <net/ip.h>

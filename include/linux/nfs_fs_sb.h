@@ -176,6 +176,7 @@ struct nfs_server {
 #define NFS_CAP_ATIME		(1U << 11)
 #define NFS_CAP_CTIME		(1U << 12)
 #define NFS_CAP_MTIME		(1U << 13)
+#define NFS_CAP_POSIX_LOCK	(1U << 14)
 
 
 /* maximum number of slots to use */
@@ -193,6 +194,8 @@ struct nfs4_slot_table {
 	int		max_slots;		/* # slots in table */
 	int		highest_used_slotid;	/* sent to server on each SEQ.
 						 * op for dynamic resizing */
+	int		target_max_slots;	/* Set by CB_RECALL_SLOT as
+						 * the new max_slots */
 };
 
 static inline int slot_idx(struct nfs4_slot_table *tbl, struct nfs4_slot *sp)

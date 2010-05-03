@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 
@@ -118,6 +119,7 @@ qlcnic_update_cmd_producer(struct qlcnic_adapter *adapter,
 	if (qlcnic_tx_avail(tx_ring) <= TX_STOP_THRESH) {
 		netif_stop_queue(adapter->netdev);
 		smp_mb();
+		adapter->stats.xmit_off++;
 	}
 }
 
@@ -1385,6 +1387,7 @@ qlcnic_tso_check(struct net_device *netdev,
 	int copied, offset, copy_len, hdr_len = 0, tso = 0, vlan_oob = 0;
 	struct cmd_desc_type0 *hwdesc;
 	struct vlan_ethhdr *vh;
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 
 	if (protocol == cpu_to_be16(ETH_P_8021Q)) {
 
@@ -1494,6 +1497,7 @@ qlcnic_tso_check(struct net_device *netdev,
 
 	tx_ring->producer = producer;
 	barrier();
+	adapter->stats.lso_frames++;
 }
 
 static int
@@ -1573,6 +1577,7 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	if (unlikely(no_of_desc + 2 > qlcnic_tx_avail(tx_ring))) {
 		netif_stop_queue(netdev);
+		adapter->stats.xmit_off++;
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1880,6 +1885,7 @@ static int qlcnic_process_cmd_ring(struct qlcnic_adapter *adapter)
 			if (qlcnic_tx_avail(tx_ring) > TX_STOP_THRESH) {
 				netif_wake_queue(netdev);
 				adapter->tx_timeo_cnt = 0;
+				adapter->stats.xmit_on++;
 			}
 			__netif_tx_unlock(tx_ring->txq);
 		}

@@ -2,7 +2,7 @@
  * Shared interrupt handling code for IPR and INTC2 types of IRQs.
  *
  * Copyright (C) 2007, 2008 Magnus Damm
- * Copyright (C) 2009 Paul Mundt
+ * Copyright (C) 2009, 2010 Paul Mundt
  *
  * Based on intc2.c and ipr.c
  *
@@ -20,12 +20,14 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/sh_intc.h>
 #include <linux/sysdev.h>
 #include <linux/list.h>
 #include <linux/topology.h>
 #include <linux/bitmap.h>
+#include <linux/cpumask.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -234,6 +236,10 @@ static inline void _intc_enable(unsigned int irq, unsigned long handle)
 	unsigned int cpu;
 
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_E(handle)); cpu++) {
+#ifdef CONFIG_SMP
+		if (!cpumask_test_cpu(cpu, irq_to_desc(irq)->affinity))
+			continue;
+#endif
 		addr = INTC_REG(d, _INTC_ADDR_E(handle), cpu);
 		intc_enable_fns[_INTC_MODE(handle)](addr, handle, intc_reg_fns\
 						    [_INTC_FN(handle)], irq);
@@ -253,6 +259,10 @@ static void intc_disable(unsigned int irq)
 	unsigned int cpu;
 
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_D(handle)); cpu++) {
+#ifdef CONFIG_SMP
+		if (!cpumask_test_cpu(cpu, irq_to_desc(irq)->affinity))
+			continue;
+#endif
 		addr = INTC_REG(d, _INTC_ADDR_D(handle), cpu);
 		intc_disable_fns[_INTC_MODE(handle)](addr, handle,intc_reg_fns\
 						     [_INTC_FN(handle)], irq);
@@ -300,6 +310,23 @@ static int intc_set_wake(unsigned int irq, unsigned int on)
 {
 	return 0; /* allow wakeup, but setup hardware in intc_suspend() */
 }
+
+#ifdef CONFIG_SMP
+/*
+ * This is held with the irq desc lock held, so we don't require any
+ * additional locking here at the intc desc level. The affinity mask is
+ * later tested in the enable/disable paths.
+ */
+static int intc_set_affinity(unsigned int irq, const struct cpumask *cpumask)
+{
+	if (!cpumask_intersects(cpumask, cpu_online_mask))
+		return -1;
+
+	cpumask_copy(irq_to_desc(irq)->affinity, cpumask);
+
+	return 0;
+}
+#endif
 
 static void intc_mask_ack(unsigned int irq)
 {
@@ -762,6 +789,10 @@ static void __init intc_register_irq(struct intc_desc *desc,
 
 	if (desc->hw.ack_regs)
 		ack_handle[irq] = intc_ack_data(desc, d, enum_id);
+
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, IRQF_VALID); /* Enable IRQ on ARM systems */
+#endif
 }
 
 static unsigned int __init save_reg(struct intc_desc_int *d,
@@ -843,6 +874,9 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->chip.shutdown = intc_disable;
 	d->chip.set_type = intc_set_sense;
 	d->chip.set_wake = intc_set_wake;
+#ifdef CONFIG_SMP
+	d->chip.set_affinity = intc_set_affinity;
+#endif
 
 	if (hw->ack_regs) {
 		for (i = 0; i < hw->nr_ack_regs; i++)
@@ -1024,8 +1058,12 @@ unsigned int create_irq_nr(unsigned int irq_want, int node)
 out_unlock:
 	spin_unlock_irqrestore(&vector_lock, flags);
 
-	if (irq > 0)
+	if (irq > 0) {
 		dynamic_irq_init(irq);
+#ifdef CONFIG_ARM
+		set_irq_flags(irq, IRQF_VALID); /* Enable IRQ on ARM systems */
+#endif
+	}
 
 	return irq;
 }

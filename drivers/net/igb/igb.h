@@ -267,7 +267,6 @@ struct igb_adapter {
 
 	/* TX */
 	struct igb_ring *tx_ring[16];
-	unsigned long tx_queue_len;
 	u32 tx_timeout_count;
 
 	/* RX */

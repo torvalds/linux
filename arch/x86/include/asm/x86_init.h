@@ -99,6 +99,20 @@ struct x86_init_iommu {
 };
 
 /**
+ * struct x86_init_pci - platform specific pci init functions
+ * @arch_init:			platform specific pci arch init call
+ * @init:			platform specific pci subsystem init
+ * @init_irq:			platform specific pci irq init
+ * @fixup_irqs:			platform specific pci irq fixup
+ */
+struct x86_init_pci {
+	int (*arch_init)(void);
+	int (*init)(void);
+	void (*init_irq)(void);
+	void (*fixup_irqs)(void);
+};
+
+/**
  * struct x86_init_ops - functions for platform specific setup
  *
  */
@@ -110,6 +124,7 @@ struct x86_init_ops {
 	struct x86_init_paging		paging;
 	struct x86_init_timers		timers;
 	struct x86_init_iommu		iommu;
+	struct x86_init_pci		pci;
 };
 
 /**

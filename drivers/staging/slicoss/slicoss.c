@@ -101,7 +101,7 @@ static struct net_device_stats *slic_get_stats(struct net_device *dev);
 static int slic_entry_open(struct net_device *dev);
 static int slic_entry_halt(struct net_device *dev);
 static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static int slic_xmit_start(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t slic_xmit_start(struct sk_buff *skb, struct net_device *dev);
 static void slic_xmit_fail(struct adapter *adapter, struct sk_buff *skb,
 			   void *cmd, u32 skbtype, u32 status);
 static void slic_config_pci(struct pci_dev *pcidev);
@@ -194,14 +194,10 @@ MODULE_PARM_DESC(dynamic_intagg, "Dynamic Interrupt Aggregation Setting");
 module_param(intagg_delay, int, 0);
 MODULE_PARM_DESC(intagg_delay, "uSec Interrupt Aggregation Delay");
 
-static struct pci_device_id slic_pci_tbl[] __devinitdata = {
-	{PCI_VENDOR_ID_ALACRITECH,
-	 SLIC_1GB_DEVICE_ID,
-	 PCI_ANY_ID, PCI_ANY_ID,},
-	{PCI_VENDOR_ID_ALACRITECH,
-	 SLIC_2GB_DEVICE_ID,
-	 PCI_ANY_ID, PCI_ANY_ID,},
-	{0,}
+static DEFINE_PCI_DEVICE_TABLE(slic_pci_tbl) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ALACRITECH, SLIC_1GB_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ALACRITECH, SLIC_2GB_DEVICE_ID) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, slic_pci_tbl);
@@ -292,7 +288,7 @@ static void slic_init_adapter(struct net_device *netdev,
 {
 	ushort index;
 	struct slic_handle *pslic_handle;
-	struct adapter *adapter = (struct adapter *)netdev_priv(netdev);
+	struct adapter *adapter = netdev_priv(netdev);
 
 /*	adapter->pcidev = pcidev;*/
 	adapter->vendid = pci_tbl_entry->vendor;
@@ -370,6 +366,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 	ulong mmio_start = 0;
 	ulong mmio_len = 0;
 	struct sliccard *card = NULL;
+	int pci_using_dac = 0;
 
 	slic_global.dynamic_intagg = dynamic_intagg;
 
@@ -383,16 +380,26 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 		printk(KERN_DEBUG "%s\n", slic_proc_version);
 	}
 
-	err = pci_set_dma_mask(pcidev, DMA_BIT_MASK(64));
-	if (err) {
-		err = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
-		if (err)
+	if (!pci_set_dma_mask(pcidev, DMA_BIT_MASK(64))) {
+		pci_using_dac = 1;
+		if (pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64))) {
+			dev_err(&pcidev->dev, "unable to obtain 64-bit DMA for "
+					"consistent allocations\n");
 			goto err_out_disable_pci;
+		}
+	} else if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(32))) {
+		pci_using_dac = 0;
+		pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(32));
+	} else {
+		dev_err(&pcidev->dev, "no usable DMA configuration\n");
+		goto err_out_disable_pci;
 	}
 
 	err = pci_request_regions(pcidev, DRV_NAME);
-	if (err)
+	if (err) {
+		dev_err(&pcidev->dev, "can't obtain PCI resources\n");
 		goto err_out_disable_pci;
+	}
 
 	pci_set_master(pcidev);
 
@@ -408,6 +415,8 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pcidev = pcidev;
+	if (pci_using_dac)
+		netdev->features |= NETIF_F_HIGHDMA;
 
 	mmio_start = pci_resource_start(pcidev, 0);
 	mmio_len = pci_resource_len(pcidev, 0);
@@ -484,7 +493,7 @@ err_out_disable_pci:
 
 static int slic_entry_open(struct net_device *dev)
 {
-	struct adapter *adapter = (struct adapter *) netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct sliccard *card = adapter->card;
 	u32 locked = 0;
 	int status;
@@ -534,7 +543,7 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	struct net_device *dev = pci_get_drvdata(pcidev);
 	u32 mmio_start = 0;
 	uint mmio_len = 0;
-	struct adapter *adapter = (struct adapter *) netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct sliccard *card;
 	struct mcast_address *mcaddr, *mlist;
 
@@ -581,7 +590,7 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 
 static int slic_entry_halt(struct net_device *dev)
 {
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct sliccard *card = adapter->card;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 
@@ -624,7 +633,7 @@ static int slic_entry_halt(struct net_device *dev)
 
 static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct ethtool_cmd edata;
 	struct ethtool_cmd ecmd;
 	u32 data[7];
@@ -649,8 +658,7 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 			if (copy_from_user(data, rq->ifr_data, 28)) {
 				PRINT_ERROR
-				    ("slic: copy_from_user FAILED getting \
-				     initial simba param\n");
+				    ("slic: copy_from_user FAILED getting initial simba param\n");
 				return -EFAULT;
 			}
 
@@ -665,8 +673,7 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 				   (tracemon_request ==
 				    SLIC_DUMP_IN_PROGRESS)) {
 				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested but \
-				     already in progress... ignore\n");
+				    ("ATK Diagnostic Trace Dump Requested but already in progress... ignore\n");
 			} else {
 				PRINT_ERROR
 				    ("ATK Diagnostic Trace Dump Requested\n");
@@ -784,10 +791,10 @@ static void slic_xmit_build_request(struct adapter *adapter,
 
 #define NORMAL_ETHFRAME     0
 
-static int slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sliccard *card;
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct slic_hostcmd *hcmd = NULL;
 	u32 status = 0;
 	u32 skbtype = NORMAL_ETHFRAME;
@@ -1071,7 +1078,7 @@ static void slic_xmit_complete(struct adapter *adapter)
 static irqreturn_t slic_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	u32 isr;
 
 	if ((adapter->pshmem) && (adapter->pshmem->isr)) {
@@ -1229,22 +1236,21 @@ static void slic_init_cleanup(struct adapter *adapter)
 
 static struct net_device_stats *slic_get_stats(struct net_device *dev)
 {
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
-	struct net_device_stats *stats;
+	struct adapter *adapter = netdev_priv(dev);
 
 	ASSERT(adapter);
-	stats = &adapter->stats;
-	stats->collisions = adapter->slic_stats.iface.xmit_collisions;
-	stats->rx_errors = adapter->slic_stats.iface.rcv_errors;
-	stats->tx_errors = adapter->slic_stats.iface.xmt_errors;
-	stats->rx_missed_errors = adapter->slic_stats.iface.rcv_discards;
-	stats->tx_heartbeat_errors = 0;
-	stats->tx_aborted_errors = 0;
-	stats->tx_window_errors = 0;
-	stats->tx_fifo_errors = 0;
-	stats->rx_frame_errors = 0;
-	stats->rx_length_errors = 0;
-	return &adapter->stats;
+	dev->stats.collisions = adapter->slic_stats.iface.xmit_collisions;
+	dev->stats.rx_errors = adapter->slic_stats.iface.rcv_errors;
+	dev->stats.tx_errors = adapter->slic_stats.iface.xmt_errors;
+	dev->stats.rx_missed_errors = adapter->slic_stats.iface.rcv_discards;
+	dev->stats.tx_heartbeat_errors = 0;
+	dev->stats.tx_aborted_errors = 0;
+	dev->stats.tx_window_errors = 0;
+	dev->stats.tx_fifo_errors = 0;
+	dev->stats.rx_frame_errors = 0;
+	dev->stats.rx_length_errors = 0;
+
+	return &dev->stats;
 }
 
 /*
@@ -1254,13 +1260,11 @@ static struct net_device_stats *slic_get_stats(struct net_device *dev)
 static int slic_mcast_add_list(struct adapter *adapter, char *address)
 {
 	struct mcast_address *mcaddr, *mlist;
-	bool equaladdr;
 
 	/* Check to see if it already exists */
 	mlist = adapter->mcastaddrs;
 	while (mlist) {
-		ETHER_EQ_ADDR(mlist->address, address, equaladdr);
-		if (equaladdr)
+		if (!compare_ether_addr(mlist->address, address))
 			return STATUS_SUCCESS;
 		mlist = mlist->next;
 	}
@@ -1360,7 +1364,7 @@ static void slic_mcast_set_bit(struct adapter *adapter, char *address)
 
 static void slic_mcast_set_list(struct net_device *dev)
 {
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	int status = STATUS_SUCCESS;
 	char *addresses;
 	struct dev_mc_list *mc_list;
@@ -1852,6 +1856,9 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 	return 0;
 }
 
+MODULE_FIRMWARE("slicoss/oasisrcvucode.sys");
+MODULE_FIRMWARE("slicoss/gbrcvucode.sys");
+
 static int slic_card_download(struct adapter *adapter)
 {
 	const struct firmware *fw;
@@ -1962,6 +1969,9 @@ static int slic_card_download(struct adapter *adapter)
 
 	return STATUS_SUCCESS;
 }
+
+MODULE_FIRMWARE("slicoss/oasisdownload.sys");
+MODULE_FIRMWARE("slicoss/gbdownload.sys");
 
 static void slic_adapter_set_hwaddr(struct adapter *adapter)
 {
@@ -2466,7 +2476,6 @@ static bool slic_mac_filter(struct adapter *adapter,
 	u32 opts = adapter->macopts;
 	u32 *dhost4 = (u32 *)&ether_frame->ether_dhost[0];
 	u16 *dhost2 = (u16 *)&ether_frame->ether_dhost[4];
-	bool equaladdr;
 
 	if (opts & MAC_PROMISC)
 		return true;
@@ -2490,10 +2499,8 @@ static bool slic_mac_filter(struct adapter *adapter,
 			struct mcast_address *mcaddr = adapter->mcastaddrs;
 
 			while (mcaddr) {
-				ETHER_EQ_ADDR(mcaddr->address,
-					      ether_frame->ether_dhost,
-					      equaladdr);
-				if (equaladdr) {
+				if (!compare_ether_addr(mcaddr->address,
+							ether_frame->ether_dhost)) {
 					adapter->rcv_multicasts++;
 					adapter->stats.multicast++;
 					return true;
@@ -2515,13 +2522,16 @@ static bool slic_mac_filter(struct adapter *adapter,
 
 static int slic_mac_set_address(struct net_device *dev, void *ptr)
 {
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct sockaddr *addr = ptr;
 
 	if (netif_running(dev))
 		return -EBUSY;
 	if (!adapter)
 		return -EBUSY;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	memcpy(adapter->currmacaddr, addr->sa_data, dev->addr_len);
@@ -3960,10 +3970,8 @@ static void slic_debug_adapter_create(struct adapter *adapter)
 
 static void slic_debug_adapter_destroy(struct adapter *adapter)
 {
-	if (adapter->debugfs_entry) {
-		debugfs_remove(adapter->debugfs_entry);
-		adapter->debugfs_entry = NULL;
-	}
+	debugfs_remove(adapter->debugfs_entry);
+	adapter->debugfs_entry = NULL;
 }
 
 static void slic_debug_card_create(struct sliccard *card)

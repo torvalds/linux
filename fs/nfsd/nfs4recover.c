@@ -32,6 +32,7 @@
 */
 
 #include <linux/file.h>
+#include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/crypto.h>
 #include <linux/sched.h>
@@ -119,9 +120,7 @@ out_no_tfm:
 static void
 nfsd4_sync_rec_dir(void)
 {
-	mutex_lock(&rec_dir.dentry->d_inode->i_mutex);
-	nfsd_sync_dir(rec_dir.dentry);
-	mutex_unlock(&rec_dir.dentry->d_inode->i_mutex);
+	vfs_fsync(NULL, rec_dir.dentry, 0);
 }
 
 int

@@ -3,6 +3,7 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 struct audit_tree;
 struct audit_chunk;

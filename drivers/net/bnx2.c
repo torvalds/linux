@@ -58,8 +58,8 @@
 #include "bnx2_fw.h"
 
 #define DRV_MODULE_NAME		"bnx2"
-#define DRV_MODULE_VERSION	"2.0.8"
-#define DRV_MODULE_RELDATE	"Feb 15, 2010"
+#define DRV_MODULE_VERSION	"2.0.9"
+#define DRV_MODULE_RELDATE	"April 27, 2010"
 #define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-5.0.0.j6.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-5.0.0.j3.fw"
 #define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-5.0.0.j9.fw"
@@ -245,6 +245,8 @@ static const struct flash_spec flash_5709 = {
 };
 
 MODULE_DEVICE_TABLE(pci, bnx2_pci_tbl);
+
+static void bnx2_init_napi(struct bnx2 *bp);
 
 static inline u32 bnx2_tx_avail(struct bnx2 *bp, struct bnx2_tx_ring_info *txr)
 {
@@ -649,9 +651,10 @@ bnx2_napi_enable(struct bnx2 *bp)
 }
 
 static void
-bnx2_netif_stop(struct bnx2 *bp)
+bnx2_netif_stop(struct bnx2 *bp, bool stop_cnic)
 {
-	bnx2_cnic_stop(bp);
+	if (stop_cnic)
+		bnx2_cnic_stop(bp);
 	if (netif_running(bp->dev)) {
 		int i;
 
@@ -669,14 +672,15 @@ bnx2_netif_stop(struct bnx2 *bp)
 }
 
 static void
-bnx2_netif_start(struct bnx2 *bp)
+bnx2_netif_start(struct bnx2 *bp, bool start_cnic)
 {
 	if (atomic_dec_and_test(&bp->intr_sem)) {
 		if (netif_running(bp->dev)) {
 			netif_tx_wake_all_queues(bp->dev);
 			bnx2_napi_enable(bp);
 			bnx2_enable_int(bp);
-			bnx2_cnic_start(bp);
+			if (start_cnic)
+				bnx2_cnic_start(bp);
 		}
 	}
 }
@@ -4757,8 +4761,12 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 		rc = bnx2_alloc_bad_rbuf(bp);
 	}
 
-	if (bp->flags & BNX2_FLAG_USING_MSIX)
+	if (bp->flags & BNX2_FLAG_USING_MSIX) {
 		bnx2_setup_msix_tbl(bp);
+		/* Prevent MSIX table reads and write from timing out */
+		REG_WR(bp, BNX2_MISC_ECO_HW_CTL,
+			BNX2_MISC_ECO_HW_CTL_LARGE_GRC_TMOUT_EN);
+	}
 
 	return rc;
 }
@@ -6197,6 +6205,7 @@ bnx2_open(struct net_device *dev)
 	bnx2_disable_int(bp);
 
 	bnx2_setup_int_mode(bp, disable_msi);
+	bnx2_init_napi(bp);
 	bnx2_napi_enable(bp);
 	rc = bnx2_alloc_mem(bp);
 	if (rc)
@@ -6270,12 +6279,12 @@ bnx2_reset_task(struct work_struct *work)
 		return;
 	}
 
-	bnx2_netif_stop(bp);
+	bnx2_netif_stop(bp, true);
 
 	bnx2_init_nic(bp, 1);
 
 	atomic_set(&bp->intr_sem, 1);
-	bnx2_netif_start(bp);
+	bnx2_netif_start(bp, true);
 	rtnl_unlock();
 }
 
@@ -6317,7 +6326,7 @@ bnx2_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	if (netif_running(dev))
-		bnx2_netif_stop(bp);
+		bnx2_netif_stop(bp, false);
 
 	bp->vlgrp = vlgrp;
 
@@ -6328,7 +6337,7 @@ bnx2_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp)
 	if (bp->flags & BNX2_FLAG_CAN_KEEP_VLAN)
 		bnx2_fw_sync(bp, BNX2_DRV_MSG_CODE_KEEP_VLAN_UPDATE, 0, 1);
 
-	bnx2_netif_start(bp);
+	bnx2_netif_start(bp, false);
 }
 #endif
 
@@ -7048,9 +7057,9 @@ bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 	bp->stats_ticks &= BNX2_HC_STATS_TICKS_HC_STAT_TICKS;
 
 	if (netif_running(bp->dev)) {
-		bnx2_netif_stop(bp);
+		bnx2_netif_stop(bp, true);
 		bnx2_init_nic(bp, 0);
-		bnx2_netif_start(bp);
+		bnx2_netif_start(bp, true);
 	}
 
 	return 0;
@@ -7080,7 +7089,7 @@ bnx2_change_ring_size(struct bnx2 *bp, u32 rx, u32 tx)
 		/* Reset will erase chipset stats; save them */
 		bnx2_save_stats(bp);
 
-		bnx2_netif_stop(bp);
+		bnx2_netif_stop(bp, true);
 		bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_RESET);
 		bnx2_free_skbs(bp);
 		bnx2_free_mem(bp);
@@ -7108,7 +7117,7 @@ bnx2_change_ring_size(struct bnx2 *bp, u32 rx, u32 tx)
 			bnx2_setup_cnic_irq_info(bp);
 		mutex_unlock(&bp->cnic_lock);
 #endif
-		bnx2_netif_start(bp);
+		bnx2_netif_start(bp, true);
 	}
 	return 0;
 }
@@ -7361,7 +7370,7 @@ bnx2_self_test(struct net_device *dev, struct ethtool_test *etest, u64 *buf)
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
 		int i;
 
-		bnx2_netif_stop(bp);
+		bnx2_netif_stop(bp, true);
 		bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_DIAG);
 		bnx2_free_skbs(bp);
 
@@ -7380,7 +7389,7 @@ bnx2_self_test(struct net_device *dev, struct ethtool_test *etest, u64 *buf)
 			bnx2_shutdown_chip(bp);
 		else {
 			bnx2_init_nic(bp, 1);
-			bnx2_netif_start(bp);
+			bnx2_netif_start(bp, true);
 		}
 
 		/* wait for link up */
@@ -7643,9 +7652,11 @@ poll_bnx2(struct net_device *dev)
 	int i;
 
 	for (i = 0; i < bp->irq_nvecs; i++) {
-		disable_irq(bp->irq_tbl[i].vector);
-		bnx2_interrupt(bp->irq_tbl[i].vector, &bp->bnx2_napi[i]);
-		enable_irq(bp->irq_tbl[i].vector);
+		struct bnx2_irq *irq = &bp->irq_tbl[i];
+
+		disable_irq(irq->vector);
+		irq->handler(irq->vector, &bp->bnx2_napi[i]);
+		enable_irq(irq->vector);
 	}
 }
 #endif
@@ -8207,7 +8218,7 @@ bnx2_init_napi(struct bnx2 *bp)
 {
 	int i;
 
-	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++) {
+	for (i = 0; i < bp->irq_nvecs; i++) {
 		struct bnx2_napi *bnapi = &bp->bnx2_napi[i];
 		int (*poll)(struct napi_struct *, int);
 
@@ -8276,7 +8287,6 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->ethtool_ops = &bnx2_ethtool_ops;
 
 	bp = netdev_priv(dev);
-	bnx2_init_napi(bp);
 
 	pci_set_drvdata(pdev, dev);
 
@@ -8373,7 +8383,7 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 		return 0;
 
 	flush_scheduled_work();
-	bnx2_netif_stop(bp);
+	bnx2_netif_stop(bp, true);
 	netif_device_detach(dev);
 	del_timer_sync(&bp->timer);
 	bnx2_shutdown_chip(bp);
@@ -8395,7 +8405,7 @@ bnx2_resume(struct pci_dev *pdev)
 	bnx2_set_power_state(bp, PCI_D0);
 	netif_device_attach(dev);
 	bnx2_init_nic(bp, 1);
-	bnx2_netif_start(bp);
+	bnx2_netif_start(bp, true);
 	return 0;
 }
 
@@ -8422,7 +8432,7 @@ static pci_ers_result_t bnx2_io_error_detected(struct pci_dev *pdev,
 	}
 
 	if (netif_running(dev)) {
-		bnx2_netif_stop(bp);
+		bnx2_netif_stop(bp, true);
 		del_timer_sync(&bp->timer);
 		bnx2_reset_nic(bp, BNX2_DRV_MSG_CODE_RESET);
 	}
@@ -8479,7 +8489,7 @@ static void bnx2_io_resume(struct pci_dev *pdev)
 
 	rtnl_lock();
 	if (netif_running(dev))
-		bnx2_netif_start(bp);
+		bnx2_netif_start(bp, true);
 
 	netif_device_attach(dev);
 	rtnl_unlock();

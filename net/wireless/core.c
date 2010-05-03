@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/nl80211.h>
 #include <linux/debugfs.h>
 #include <linux/notifier.h>

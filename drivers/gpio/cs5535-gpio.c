@@ -154,7 +154,7 @@ static int chip_gpio_request(struct gpio_chip *c, unsigned offset)
 
 static int chip_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	return cs5535_gpio_isset(offset, GPIO_OUTPUT_VAL);
+	return cs5535_gpio_isset(offset, GPIO_READ_BACK);
 }
 
 static void chip_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
@@ -172,6 +172,7 @@ static int chip_direction_input(struct gpio_chip *c, unsigned offset)
 
 	spin_lock_irqsave(&chip->lock, flags);
 	__cs5535_gpio_set(chip, offset, GPIO_INPUT_ENABLE);
+	__cs5535_gpio_clear(chip, offset, GPIO_OUTPUT_ENABLE);
 	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
@@ -184,6 +185,7 @@ static int chip_direction_output(struct gpio_chip *c, unsigned offset, int val)
 
 	spin_lock_irqsave(&chip->lock, flags);
 
+	__cs5535_gpio_set(chip, offset, GPIO_INPUT_ENABLE);
 	__cs5535_gpio_set(chip, offset, GPIO_OUTPUT_ENABLE);
 	if (val)
 		__cs5535_gpio_set(chip, offset, GPIO_OUTPUT_VAL);

@@ -25,6 +25,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
@@ -596,8 +597,6 @@ static void iwmct_remove(struct sdio_func *func)
 {
 	struct iwmct_work_struct *read_req;
 	struct iwmct_priv *priv = sdio_get_drvdata(func);
-
-	priv = sdio_get_drvdata(func);
 
 	LOG_INFO(priv, INIT, "enter\n");
 

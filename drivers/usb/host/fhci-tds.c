@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/usb.h>

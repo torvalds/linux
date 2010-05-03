@@ -35,6 +35,7 @@
 
 #include <linux/fs.h>
 #include <linux/time.h>
+#include <linux/backing-dev.h>
 #include "common.h"
 
 /* FIXME: Remove once pnfs hits mainline
@@ -84,6 +85,7 @@ struct exofs_sb_info {
 	u32		s_next_generation;	/* next gen # to use          */
 	atomic_t	s_curr_pending;		/* number of pending commands */
 	uint8_t		s_cred[OSD_CAP_LEN];	/* credential for the fscb    */
+	struct 		backing_dev_info bdi;	/* register our bdi with VFS  */
 
 	struct pnfs_osd_data_map data_map;	/* Default raid to use
 						 * FIXME: Needed ?
@@ -261,7 +263,7 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
 		struct page **pagep, void **fsdata);
 extern struct inode *exofs_iget(struct super_block *, unsigned long);
 struct inode *exofs_new_inode(struct inode *, int);
-extern int exofs_write_inode(struct inode *, int);
+extern int exofs_write_inode(struct inode *, struct writeback_control *wbc);
 extern void exofs_delete_inode(struct inode *);
 
 /* dir.c:                */

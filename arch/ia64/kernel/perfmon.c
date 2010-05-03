@@ -41,6 +41,7 @@
 #include <linux/rcupdate.h>
 #include <linux/completion.h>
 #include <linux/tracehook.h>
+#include <linux/slab.h>
 
 #include <asm/errno.h>
 #include <asm/intrinsics.h>
@@ -2315,6 +2316,7 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 		DPRINT(("Cannot allocate vma\n"));
 		goto error_kmem;
 	}
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
 
 	/*
 	 * partially initialize the vma for the sampling buffer

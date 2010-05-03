@@ -31,6 +31,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/delay.h>
 #include <linux/mount.h>
+#include <linux/slab.h>
 #include <asm/div64.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -219,8 +220,8 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 		cFYI(1, ("inode unchanged on server"));
 	} else {
 		if (file->f_path.dentry->d_inode->i_mapping) {
-		/* BB no need to lock inode until after invalidate
-		   since namei code should already have it locked? */
+			/* BB no need to lock inode until after invalidate
+			since namei code should already have it locked? */
 			rc = filemap_write_and_wait(file->f_path.dentry->d_inode->i_mapping);
 			if (rc != 0)
 				CIFS_I(file->f_path.dentry->d_inode)->write_behind_rc = rc;
@@ -838,8 +839,32 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 
 		} else {
 			/* if rc == ERR_SHARING_VIOLATION ? */
-			rc = 0;	/* do not change lock type to unlock
-				   since range in use */
+			rc = 0;
+
+			if (lockType & LOCKING_ANDX_SHARED_LOCK) {
+				pfLock->fl_type = F_WRLCK;
+			} else {
+				rc = CIFSSMBLock(xid, tcon, netfid, length,
+					pfLock->fl_start, 0, 1,
+					lockType | LOCKING_ANDX_SHARED_LOCK,
+					0 /* wait flag */);
+				if (rc == 0) {
+					rc = CIFSSMBLock(xid, tcon, netfid,
+						length, pfLock->fl_start, 1, 0,
+						lockType |
+						LOCKING_ANDX_SHARED_LOCK,
+						0 /* wait flag */);
+					pfLock->fl_type = F_RDLCK;
+					if (rc != 0)
+						cERROR(1, ("Error unlocking "
+						"previously locked range %d "
+						"during test of lock", rc));
+					rc = 0;
+				} else {
+					pfLock->fl_type = F_WRLCK;
+					rc = 0;
+				}
+			}
 		}
 
 		FreeXid(xid);
@@ -1890,11 +1915,10 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 
 int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	int rc, xid;
 
 	xid = GetXid();
-	rc = cifs_revalidate(dentry);
+	rc = cifs_revalidate_file(file);
 	if (rc) {
 		cFYI(1, ("Validation prior to mmap failed, error=%d", rc));
 		FreeXid(xid);

@@ -116,14 +116,15 @@ static int xfrm6_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 	return 0;
 }
 
-static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
+static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
+			  struct flowi *fl)
 {
 	struct rt6_info *rt = (struct rt6_info*)xdst->route;
 
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);
 
-	xdst->u.rt6.rt6i_idev = in6_dev_get(rt->u.dst.dev);
+	xdst->u.rt6.rt6i_idev = in6_dev_get(dev);
 	if (!xdst->u.rt6.rt6i_idev)
 		return -ENODEV;
 

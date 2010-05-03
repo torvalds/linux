@@ -40,6 +40,7 @@
 #include <linux/inetdevice.h>
 #include <linux/delay.h>
 #include <linux/completion.h>
+#include <linux/slab.h>
 
 #include <net/dst.h>
 

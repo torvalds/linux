@@ -24,7 +24,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
-#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -35,6 +34,7 @@
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 
@@ -231,6 +231,8 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
+#define PCI_DEVICE_ID_TI_TSB12LV22	0x8009
+
 #define QUIRK_CYCLE_TIMER		1
 #define QUIRK_RESET_PACKET		2
 #define QUIRK_BE_HEADERS		4
@@ -239,6 +241,8 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 static const struct {
 	unsigned short vendor, device, flags;
 } ohci_quirks[] = {
+	{PCI_VENDOR_ID_TI,	PCI_DEVICE_ID_TI_TSB12LV22, QUIRK_CYCLE_TIMER |
+							    QUIRK_RESET_PACKET},
 	{PCI_VENDOR_ID_TI,	PCI_ANY_ID,	QUIRK_RESET_PACKET},
 	{PCI_VENDOR_ID_AL,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
 	{PCI_VENDOR_ID_NEC,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
@@ -1154,7 +1158,7 @@ static void handle_local_lock(struct fw_ohci *ohci,
 			      struct fw_packet *packet, u32 csr)
 {
 	struct fw_packet response;
-	int tcode, length, ext_tcode, sel;
+	int tcode, length, ext_tcode, sel, try;
 	__be32 *payload, lock_old;
 	u32 lock_arg, lock_data;
 
@@ -1181,21 +1185,26 @@ static void handle_local_lock(struct fw_ohci *ohci,
 	reg_write(ohci, OHCI1394_CSRCompareData, lock_arg);
 	reg_write(ohci, OHCI1394_CSRControl, sel);
 
-	if (reg_read(ohci, OHCI1394_CSRControl) & 0x80000000)
-		lock_old = cpu_to_be32(reg_read(ohci, OHCI1394_CSRData));
-	else
-		fw_notify("swap not done yet\n");
+	for (try = 0; try < 20; try++)
+		if (reg_read(ohci, OHCI1394_CSRControl) & 0x80000000) {
+			lock_old = cpu_to_be32(reg_read(ohci,
+							OHCI1394_CSRData));
+			fw_fill_response(&response, packet->header,
+					 RCODE_COMPLETE,
+					 &lock_old, sizeof(lock_old));
+			goto out;
+		}
 
-	fw_fill_response(&response, packet->header,
-			 RCODE_COMPLETE, &lock_old, sizeof(lock_old));
+	fw_error("swap not done (CSR lock timeout)\n");
+	fw_fill_response(&response, packet->header, RCODE_BUSY, NULL, 0);
+
  out:
 	fw_core_handle_response(&ohci->card, &response);
 }
 
 static void handle_local_request(struct context *ctx, struct fw_packet *packet)
 {
-	u64 offset;
-	u32 csr;
+	u64 offset, csr;
 
 	if (ctx == &ctx->ohci->at_request_ctx) {
 		packet->ack = ACK_PENDING;

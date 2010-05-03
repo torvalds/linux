@@ -121,6 +121,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 
 #ifdef GDTH_RTC
 #include <linux/mc146818rtc.h>

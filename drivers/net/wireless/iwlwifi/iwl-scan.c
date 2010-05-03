@@ -25,6 +25,7 @@
  *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
@@ -469,6 +470,8 @@ EXPORT_SYMBOL(iwl_init_scan_params);
 
 static int iwl_scan_initiate(struct iwl_priv *priv)
 {
+	WARN_ON(!mutex_is_locked(&priv->mutex));
+
 	IWL_DEBUG_INFO(priv, "Starting scan...\n");
 	set_bit(STATUS_SCANNING, &priv->status);
 	priv->is_internal_short_scan = false;
@@ -546,24 +549,31 @@ EXPORT_SYMBOL(iwl_mac_hw_scan);
  * internal short scan, this function should only been called while associated.
  * It will reset and tune the radio to prevent possible RF related problem
  */
-int iwl_internal_short_hw_scan(struct iwl_priv *priv)
+void iwl_internal_short_hw_scan(struct iwl_priv *priv)
 {
-	int ret = 0;
+	queue_work(priv->workqueue, &priv->start_internal_scan);
+}
+
+static void iwl_bg_start_internal_scan(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+		container_of(work, struct iwl_priv, start_internal_scan);
+
+	mutex_lock(&priv->mutex);
 
 	if (!iwl_is_ready_rf(priv)) {
-		ret = -EIO;
 		IWL_DEBUG_SCAN(priv, "not ready or exit pending\n");
-		goto out;
+		goto unlock;
 	}
+
 	if (test_bit(STATUS_SCANNING, &priv->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
-		ret = -EAGAIN;
-		goto out;
+		goto unlock;
 	}
+
 	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan request while abort pending\n");
-		ret = -EAGAIN;
-		goto out;
+		goto unlock;
 	}
 
 	priv->scan_bands = 0;
@@ -576,9 +586,8 @@ int iwl_internal_short_hw_scan(struct iwl_priv *priv)
 	set_bit(STATUS_SCANNING, &priv->status);
 	priv->is_internal_short_scan = true;
 	queue_work(priv->workqueue, &priv->request_scan);
-
-out:
-	return ret;
+ unlock:
+	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL(iwl_internal_short_hw_scan);
 
@@ -638,20 +647,9 @@ u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 	if (left < 0)
 		return 0;
 	*pos++ = WLAN_EID_SSID;
-	if (!priv->is_internal_short_scan &&
-	    priv->scan_request->n_ssids) {
-		struct cfg80211_ssid *ssid =
-			priv->scan_request->ssids;
+	*pos++ = 0;
 
-		/* Broadcast if ssid_len is 0 */
-		*pos++ = ssid->ssid_len;
-		memcpy(pos, ssid->ssid, ssid->ssid_len);
-		pos += ssid->ssid_len;
-		len += 2 + ssid->ssid_len;
-	} else {
-		*pos++ = 0;
-		len += 2;
-	}
+	len += 2;
 
 	if (WARN_ON(left < ie_len))
 		return len;
@@ -780,26 +778,20 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	if (priv->is_internal_short_scan) {
 		IWL_DEBUG_SCAN(priv, "Start internal passive scan.\n");
 	} else if (priv->scan_request->n_ssids) {
+		int i, p = 0;
 		IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
-		/*
-		 * The first SSID to scan is stuffed into the probe request
-		 * template and the remaining ones are handled through the
-		 * direct_scan array.
-		 */
-		if (priv->scan_request->n_ssids > 1) {
-			int i, p = 0;
-			for (i = 1; i < priv->scan_request->n_ssids; i++) {
-				if (!priv->scan_request->ssids[i].ssid_len)
-					continue;
-				scan->direct_scan[p].id = WLAN_EID_SSID;
-				scan->direct_scan[p].len =
-					priv->scan_request->ssids[i].ssid_len;
-				memcpy(scan->direct_scan[p].ssid,
-				       priv->scan_request->ssids[i].ssid,
-				       priv->scan_request->ssids[i].ssid_len);
-				n_probes++;
-				p++;
-			}
+		for (i = 0; i < priv->scan_request->n_ssids; i++) {
+			/* always does wildcard anyway */
+			if (!priv->scan_request->ssids[i].ssid_len)
+				continue;
+			scan->direct_scan[p].id = WLAN_EID_SSID;
+			scan->direct_scan[p].len =
+				priv->scan_request->ssids[i].ssid_len;
+			memcpy(scan->direct_scan[p].ssid,
+			       priv->scan_request->ssids[i].ssid,
+			       priv->scan_request->ssids[i].ssid_len);
+			n_probes++;
+			p++;
 		}
 		is_active = true;
 	} else
@@ -981,6 +973,7 @@ void iwl_setup_scan_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
 	INIT_WORK(&priv->request_scan, iwl_bg_request_scan);
 	INIT_WORK(&priv->abort_scan, iwl_bg_abort_scan);
+	INIT_WORK(&priv->start_internal_scan, iwl_bg_start_internal_scan);
 	INIT_DELAYED_WORK(&priv->scan_check, iwl_bg_scan_check);
 }
 EXPORT_SYMBOL(iwl_setup_scan_deferred_work);

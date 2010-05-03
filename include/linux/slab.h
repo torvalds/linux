@@ -70,6 +70,11 @@
 #else
 # define SLAB_NOTRACK		0x00000000UL
 #endif
+#ifdef CONFIG_FAILSLAB
+# define SLAB_FAILSLAB		0x02000000UL	/* Fault injection mark */
+#else
+# define SLAB_FAILSLAB		0x00000000UL
+#endif
 
 /* The following flags affect the page allocator grouping pages by mobility */
 #define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
@@ -101,6 +106,7 @@ int kmem_cache_shrink(struct kmem_cache *);
 void kmem_cache_free(struct kmem_cache *, void *);
 unsigned int kmem_cache_size(struct kmem_cache *);
 const char *kmem_cache_name(struct kmem_cache *);
+int kern_ptr_validate(const void *ptr, unsigned long size);
 int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
 
 /*

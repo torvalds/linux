@@ -8,10 +8,8 @@
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
-#include <linux/quotaops.h>
 #include <linux/fsnotify.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/namei.h>
 #include <linux/backing-dev.h>
@@ -21,6 +19,7 @@
 #include <linux/mount.h>
 #include <linux/vfs.h>
 #include <linux/fcntl.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/fs.h>
 #include <linux/personality.h>
@@ -278,10 +277,8 @@ static long do_sys_truncate(const char __user *pathname, loff_t length)
 	error = locks_verify_truncate(inode, NULL, length);
 	if (!error)
 		error = security_path_truncate(&path, length, 0);
-	if (!error) {
-		vfs_dq_init(inode);
+	if (!error)
 		error = do_truncate(path.dentry, length, 0, NULL);
-	}
 
 put_write_and_out:
 	put_write_access(inode);

@@ -38,7 +38,6 @@
 #include <linux/param.h>
 #include <linux/time.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/in.h>
@@ -1578,6 +1577,14 @@ static void encode_create_session(struct xdr_stream *xdr,
 	char machine_name[NFS4_MAX_MACHINE_NAME_LEN];
 	uint32_t len;
 	struct nfs_client *clp = args->client;
+	u32 max_resp_sz_cached;
+
+	/*
+	 * Assumes OPEN is the biggest non-idempotent compound.
+	 * 2 is the verifier.
+	 */
+	max_resp_sz_cached = (NFS4_dec_open_sz + RPC_REPHDRSIZE +
+			      RPC_MAX_AUTH_SIZE + 2) * XDR_UNIT;
 
 	len = scnprintf(machine_name, sizeof(machine_name), "%s",
 			clp->cl_ipaddr);
@@ -1592,7 +1599,7 @@ static void encode_create_session(struct xdr_stream *xdr,
 	*p++ = cpu_to_be32(args->fc_attrs.headerpadsz);	/* header padding size */
 	*p++ = cpu_to_be32(args->fc_attrs.max_rqst_sz);	/* max req size */
 	*p++ = cpu_to_be32(args->fc_attrs.max_resp_sz);	/* max resp size */
-	*p++ = cpu_to_be32(args->fc_attrs.max_resp_sz_cached);	/* Max resp sz cached */
+	*p++ = cpu_to_be32(max_resp_sz_cached);		/* Max resp sz cached */
 	*p++ = cpu_to_be32(args->fc_attrs.max_ops);	/* max operations */
 	*p++ = cpu_to_be32(args->fc_attrs.max_reqs);	/* max requests */
 	*p++ = cpu_to_be32(0);				/* rdmachannel_attrs */
@@ -5544,6 +5551,8 @@ static int nfs4_xdr_dec_delegreturn(struct rpc_rqst *rqstp, __be32 *p, struct nf
 	if (status != 0)
 		goto out;
 	status = decode_delegreturn(&xdr);
+	if (status != 0)
+		goto out;
 	decode_getfattr(&xdr, res->fattr, res->server,
 			!RPC_IS_ASYNC(rqstp->rq_task));
 out:

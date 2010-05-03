@@ -33,6 +33,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>

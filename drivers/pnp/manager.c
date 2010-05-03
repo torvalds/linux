@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pnp.h>
-#include <linux/slab.h>
 #include <linux/bitmap.h>
 #include <linux/mutex.h>
 #include "base.h"

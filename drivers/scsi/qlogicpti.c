@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/blkdev.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
@@ -738,7 +738,7 @@ static int __devinit qpti_register_irq(struct qlogicpti *qpti)
 	 * sanely maintain.
 	 */
 	if (request_irq(qpti->irq, qpti_intr,
-			IRQF_SHARED, "Qlogic/PTI", qpti))
+			IRQF_SHARED, "QlogicPTI", qpti))
 		goto fail;
 
 	printk("qlogicpti%d: IRQ %d ", qpti->qpti_id, qpti->irq);

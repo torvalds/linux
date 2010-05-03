@@ -289,8 +289,6 @@ static void zfScanMgrEventSetFreqCompleteCb(zdev_t* dev)
 
 static void zfScanMgrEventScanCompleteCb(zdev_t* dev)
 {
-    zmw_get_wlan_dev(dev);
-
     if ((zfStaIsConnected(dev)) && (!zfPowerSavingMgrIsSleeping(dev)))
     {
         zfSendNullData(dev, 0);
