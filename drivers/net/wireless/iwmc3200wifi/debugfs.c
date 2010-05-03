@@ -47,12 +47,11 @@ static struct {
 
 #define add_dbg_module(dbg, name, id, initlevel) 	\
 do {							\
-	struct dentry *d;				\
 	dbg.dbg_module[id] = (initlevel);		\
-	d = debugfs_create_x8(name, 0600, dbg.dbgdir,	\
-			     &(dbg.dbg_module[id]));	\
-	if (!IS_ERR(d))					\
-		dbg.dbg_module_dentries[id] = d;        \
+	dbg.dbg_module_dentries[id] =			\
+		debugfs_create_x8(name, 0600,		\
+				dbg.dbgdir,		\
+				&(dbg.dbg_module[id]));	\
 } while (0)
 
 static int iwm_debugfs_u32_read(void *data, u64 *val)
@@ -422,37 +421,19 @@ static const struct file_operations iwm_debugfs_fw_err_fops = {
 	.read =		iwm_debugfs_fw_err_read,
 };
 
-int iwm_debugfs_init(struct iwm_priv *iwm)
+void iwm_debugfs_init(struct iwm_priv *iwm)
 {
-	int i, result;
-	char devdir[16];
+	int i;
 
 	iwm->dbg.rootdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	result = PTR_ERR(iwm->dbg.rootdir);
-	if (!result || IS_ERR(iwm->dbg.rootdir)) {
-		if (result == -ENODEV) {
-			IWM_ERR(iwm, "DebugFS (CONFIG_DEBUG_FS) not "
-				"enabled in kernel config\n");
-			result = 0;	/* No debugfs support */
-		}
-		IWM_ERR(iwm, "Couldn't create rootdir: %d\n", result);
-		goto error;
-	}
-
-	snprintf(devdir, sizeof(devdir), "%s", wiphy_name(iwm_to_wiphy(iwm)));
-
-	iwm->dbg.devdir = debugfs_create_dir(devdir, iwm->dbg.rootdir);
+	iwm->dbg.devdir = debugfs_create_dir(wiphy_name(iwm_to_wiphy(iwm)),
+					     iwm->dbg.rootdir);
 	iwm->dbg.dbgdir = debugfs_create_dir("debug", iwm->dbg.devdir);
 	iwm->dbg.rxdir = debugfs_create_dir("rx", iwm->dbg.devdir);
 	iwm->dbg.txdir = debugfs_create_dir("tx", iwm->dbg.devdir);
 	iwm->dbg.busdir = debugfs_create_dir("bus", iwm->dbg.devdir);
-	if (iwm->bus_ops->debugfs_init) {
-		result = iwm->bus_ops->debugfs_init(iwm, iwm->dbg.busdir);
-		if (result < 0) {
-			IWM_ERR(iwm, "Couldn't create bus entry: %d\n", result);
-			goto error;
-		}
-	}
+	if (iwm->bus_ops->debugfs_init)
+		iwm->bus_ops->debugfs_init(iwm, iwm->dbg.busdir);
 
 	iwm->dbg.dbg_level = IWM_DL_NONE;
 	iwm->dbg.dbg_level_dentry =
@@ -471,23 +452,15 @@ int iwm_debugfs_init(struct iwm_priv *iwm)
 	iwm->dbg.txq_dentry = debugfs_create_file("queues", 0200,
 						  iwm->dbg.txdir, iwm,
 						  &iwm_debugfs_txq_fops);
-
 	iwm->dbg.tx_credit_dentry = debugfs_create_file("credits", 0200,
 						   iwm->dbg.txdir, iwm,
 						   &iwm_debugfs_tx_credit_fops);
-
 	iwm->dbg.rx_ticket_dentry = debugfs_create_file("tickets", 0200,
 						  iwm->dbg.rxdir, iwm,
 						  &iwm_debugfs_rx_ticket_fops);
-
 	iwm->dbg.fw_err_dentry = debugfs_create_file("last_fw_err", 0200,
 						     iwm->dbg.dbgdir, iwm,
 						     &iwm_debugfs_fw_err_fops);
-
-	return 0;
-
- error:
-	return result;
 }
 
 void iwm_debugfs_exit(struct iwm_priv *iwm)
