@@ -13,6 +13,7 @@
 #define _XTENSA_COPROCESSOR_H
 
 #include <linux/stringify.h>
+#include <variant/core.h>
 #include <variant/tie.h>
 #include <asm/types.h>
 
