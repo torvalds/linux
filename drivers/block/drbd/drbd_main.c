@@ -2188,6 +2188,39 @@ int drbd_send_ov_request(struct drbd_conf *mdev, sector_t sector, int size)
 	return ok;
 }
 
+static int drbd_send_delay_probe(struct drbd_conf *mdev, struct drbd_socket *ds)
+{
+	struct p_delay_probe dp;
+	int offset, ok = 0;
+	struct timeval now;
+
+	mutex_lock(&ds->mutex);
+	if (likely(ds->socket)) {
+		do_gettimeofday(&now);
+		offset = now.tv_usec - mdev->dps_time.tv_usec +
+			 (now.tv_sec - mdev->dps_time.tv_sec) * 1000000;
+		dp.seq_num  = cpu_to_be32(atomic_read(&mdev->delay_seq));
+		dp.offset   = cpu_to_be32(offset);
+
+		ok = _drbd_send_cmd(mdev, ds->socket, P_DELAY_PROBE,
+				    (struct p_header *)&dp, sizeof(dp), 0);
+	}
+	mutex_unlock(&ds->mutex);
+
+	return ok;
+}
+
+static int drbd_send_dalay_probes(struct drbd_conf *mdev)
+{
+	int ok;
+	atomic_inc(&mdev->delay_seq);
+	do_gettimeofday(&mdev->dps_time);
+	ok = drbd_send_delay_probe(mdev, &mdev->meta);
+	ok = ok && drbd_send_delay_probe(mdev, &mdev->data);
+
+	return ok;
+}
+
 /* called on sndtimeo
  * returns FALSE if we should retry,
  * TRUE if we think connection is dead

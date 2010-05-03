@@ -1046,6 +1046,7 @@ struct drbd_conf {
 	struct list_head delay_probes; /* protected by peer_seq_lock */
 	int data_delay;   /* Delay of packets on the data-sock behind meta-sock */
 	atomic_t delay_seq; /* To generate sequence numbers of delay probes */
+	struct timeval dps_time; /* delay-probes-start-time */
 };
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
