@@ -321,7 +321,7 @@
 	struct comedi_insn {
 		unsigned int insn;
 		unsigned int n;
-		unsigned int *data;
+		unsigned int __user *data;
 		unsigned int subdev;
 		unsigned int chanspec;
 		unsigned int unused[3];
@@ -329,7 +329,7 @@
 
 	struct comedi_insnlist {
 		unsigned int n_insns;
-		struct comedi_insn *insns;
+		struct comedi_insn __user *insns;
 	};
 
 	struct comedi_cmd {
@@ -351,7 +351,7 @@
 		unsigned int stop_src;
 		unsigned int stop_arg;
 
-		unsigned int *chanlist;	/* channel/range list */
+		unsigned int __user *chanlist;	/* channel/range list */
 		unsigned int chanlist_len;
 
 		short *data;	/* data list, size depends on subd flags */
@@ -360,9 +360,9 @@
 
 	struct comedi_chaninfo {
 		unsigned int subdev;
-		unsigned int *maxdata_list;
-		unsigned int *flaglist;
-		unsigned int *rangelist;
+		unsigned int __user *maxdata_list;
+		unsigned int __user *flaglist;
+		unsigned int __user *rangelist;
 		unsigned int unused[4];
 	};
 
