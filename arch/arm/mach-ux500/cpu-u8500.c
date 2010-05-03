@@ -124,10 +124,10 @@ static struct map_desc u8500_io_desc[] __initdata = {
 	__IO_DEV_DESC(U8500_CLKRST3_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_CLKRST5_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_CLKRST6_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_GPIO0_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO1_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO2_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO3_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_GPIO5_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_L2CC_BASE, SZ_4K),
 };
 
@@ -137,7 +137,7 @@ static struct map_desc u8500ed_io_desc[] __initdata = {
 };
 
 static struct map_desc u8500v1_io_desc[] __initdata = {
-	__IO_DEV_DESC(U8500_MTU0_BASE_V1, SZ_4K),
+	__IO_DEV_DESC(U8500_MTU0_BASE, SZ_4K),
 };
 
 void __init u8500_map_io(void)
@@ -177,7 +177,7 @@ static void __init u8500_timer_init(void)
 	if (cpu_is_u8500ed())
 		mtu_base = __io_address(U8500_MTU0_BASE_ED);
 	else
-		mtu_base = __io_address(U8500_MTU0_BASE_V1);
+		mtu_base = __io_address(U8500_MTU0_BASE);
 
 	nmdk_timer_init();
 }
