@@ -4604,13 +4604,15 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (vcpu->fpu_active)
 		kvm_load_guest_fpu(vcpu);
 
+	atomic_set(&vcpu->guest_mode, 1);
+	smp_wmb();
+
 	local_irq_disable();
 
-	clear_bit(KVM_REQ_KICK, &vcpu->requests);
-	smp_mb__after_clear_bit();
-
-	if (vcpu->requests || need_resched() || signal_pending(current)) {
-		set_bit(KVM_REQ_KICK, &vcpu->requests);
+	if (!atomic_read(&vcpu->guest_mode) || vcpu->requests
+	    || need_resched() || signal_pending(current)) {
+		atomic_set(&vcpu->guest_mode, 0);
+		smp_wmb();
 		local_irq_enable();
 		preempt_enable();
 		r = 1;
@@ -4655,7 +4657,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (hw_breakpoint_active())
 		hw_breakpoint_restore();
 
-	set_bit(KVM_REQ_KICK, &vcpu->requests);
+	atomic_set(&vcpu->guest_mode, 0);
+	smp_wmb();
 	local_irq_enable();
 
 	++vcpu->stat.exits;
@@ -5580,7 +5583,7 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 
 	me = get_cpu();
 	if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
-		if (!test_and_set_bit(KVM_REQ_KICK, &vcpu->requests))
+		if (atomic_xchg(&vcpu->guest_mode, 0))
 			smp_send_reschedule(cpu);
 	put_cpu();
 }

@@ -81,6 +81,7 @@ struct kvm_vcpu {
 	int vcpu_id;
 	struct mutex mutex;
 	int   cpu;
+	atomic_t guest_mode;
 	struct kvm_run *run;
 	unsigned long requests;
 	unsigned long guest_debug;
