@@ -24,6 +24,7 @@
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
+#include <mach/devices.h>
 
 #define __MEM_4K_RESOURCE(x) \
 	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
@@ -89,22 +90,6 @@ static struct pl022_ssp_controller ssp0_platform_data = {
 	 * 224 are connected as chip selects
 	 */
 	.num_chipselect = 5,
-};
-
-static struct amba_device pl022_device = {
-	.dev = {
-		.coherent_dma_mask = ~0,
-		.init_name = "ssp0",
-		.platform_data = &ssp0_platform_data,
-	},
-	.res = {
-		.start = U8500_SSP0_BASE,
-		.end   = U8500_SSP0_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {IRQ_SSP0, NO_IRQ },
-	/* ST-Ericsson modified id */
-	.periphid = SSP_PER_ID,
 };
 
 #define U8500_I2C_RESOURCES(id, size)		\
@@ -175,7 +160,7 @@ static struct amba_device *amba_devs[] __initdata = {
 	&uart0_device,
 	&uart1_device,
 	&uart2_device,
-	&pl022_device,
+	&u8500_ssp0_device,
 };
 
 /* add any platform devices here - TODO */
@@ -189,6 +174,8 @@ static struct platform_device *platform_devs[] __initdata = {
 static void __init u8500_init_machine(void)
 {
 	int i;
+
+	u8500_ssp0_device.dev.platform_data = &ssp0_platform_data;
 
 	/* Register the active AMBA devices on this board */
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)

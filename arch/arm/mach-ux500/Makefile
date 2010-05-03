@@ -3,6 +3,6 @@
 #
 
 obj-y				:= clock.o cpu.o devices.o
-obj-$(CONFIG_ARCH_U8500)	+= cpu-u8500.o
+obj-$(CONFIG_ARCH_U8500)	+= cpu-u8500.o devices-db8500.o
 obj-$(CONFIG_MACH_U8500_MOP)	+= board-mop500.o
 obj-$(CONFIG_SMP)		+= platsmp.o headsmp.o localtimer.o
