@@ -509,7 +509,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 	u64 bytes = 0;
 	struct ceph_client *client = ceph_inode_to_client(inode);
 	long writeback_stat;
-	unsigned issued = __ceph_caps_issued(ci, NULL);
+	unsigned issued = ceph_caps_issued(ci);
 
 	/* parse reply */
 	replyhead = msg->front.iov_base;
