@@ -146,6 +146,17 @@ extern s3c_gpio_pull_t s3c_gpio_getpull_updown(struct s3c_gpio_chip *chip,
 					       unsigned int off);
 
 /**
+ * s3c_gpio_getpull_1up() - Get configuration for choice of up or none
+ * @chip: The gpio chip that the GPIO pin belongs to
+ * @off: The offset to the pin to get the configuration of.
+ *
+ * This helper function reads the state of the pull-up resistor for the
+ * given GPIO in the same case as s3c_gpio_setpull_1up.
+*/
+extern s3c_gpio_pull_t s3c_gpio_getpull_1up(struct s3c_gpio_chip *chip,
+					    unsigned int off);
+
+/**
  * s3c_gpio_setpull_s3c2443() - Pull configuration for s3c2443.
  * @chip: The gpio chip that is being configured.
  * @off: The offset for the GPIO being configured.

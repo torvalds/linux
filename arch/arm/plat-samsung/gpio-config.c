@@ -164,3 +164,35 @@ s3c_gpio_pull_t s3c_gpio_getpull_updown(struct s3c_gpio_chip *chip,
 	return (__force s3c_gpio_pull_t)pup;
 }
 #endif
+
+#ifdef CONFIG_S3C_GPIO_PULL_UP
+int s3c_gpio_setpull_1up(struct s3c_gpio_chip *chip,
+			 unsigned int off, s3c_gpio_pull_t pull)
+{
+	void __iomem *reg = chip->base + 0x08;
+	u32 pup = __raw_readl(reg);
+
+	pup = __raw_readl(reg);
+
+	if (pup == S3C_GPIO_PULL_UP)
+		pup &= ~(1 << off);
+	else if (pup == S3C_GPIO_PULL_NONE)
+		pup |= (1 << off);
+	else
+		return -EINVAL;
+
+	__raw_writel(pup, reg);
+	return 0;
+}
+
+s3c_gpio_pull_t s3c_gpio_getpull_1up(struct s3c_gpio_chip *chip,
+				     unsigned int off)
+{
+	void __iomem *reg = chip->base + 0x08;
+	u32 pup = __raw_readl(reg);
+
+	pup &= (1 << off);
+	return pup ? S3C_GPIO_PULL_NONE : S3C_GPIO_PULL_UP;
+}
+#endif /* CONFIG_S3C_GPIO_PULL_UP */
+
