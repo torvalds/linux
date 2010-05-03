@@ -747,12 +747,8 @@ struct drbd_epoch_entry {
 	struct hlist_node colision;
 	sector_t sector;
 	unsigned int size;
-	struct drbd_epoch *epoch;
-
-	/* up to here, the struct layout is identical to drbd_request;
-	 * we might be able to use that to our advantage...  */
-
 	unsigned int flags;
+	struct drbd_epoch *epoch;
 	u64    block_id;
 };
 
