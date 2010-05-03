@@ -98,7 +98,6 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->unknown_events = 0;
 	self->machines = RB_ROOT;
 	self->repipe = repipe;
-	self->ordered_samples.flush_limit = ULLONG_MAX;
 	INIT_LIST_HEAD(&self->ordered_samples.samples_head);
 
 	if (mode == O_RDONLY) {
@@ -194,6 +193,18 @@ static int process_event_stub(event_t *event __used,
 	return 0;
 }
 
+static int process_finished_round_stub(event_t *event __used,
+				       struct perf_session *session __used,
+				       struct perf_event_ops *ops __used)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
+static int process_finished_round(event_t *event,
+				  struct perf_session *session,
+				  struct perf_event_ops *ops);
+
 static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 {
 	if (handler->sample == NULL)
@@ -222,6 +233,12 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 		handler->tracing_data = process_event_stub;
 	if (handler->build_id == NULL)
 		handler->build_id = process_event_stub;
+	if (handler->finished_round == NULL) {
+		if (handler->ordered_samples)
+			handler->finished_round = process_finished_round;
+		else
+			handler->finished_round = process_finished_round_stub;
+	}
 }
 
 static const char *event__name[] = {
@@ -359,16 +376,14 @@ struct sample_queue {
 	struct list_head	list;
 };
 
-#define FLUSH_PERIOD	(2 * NSEC_PER_SEC)
-
 static void flush_sample_queue(struct perf_session *s,
 			       struct perf_event_ops *ops)
 {
 	struct list_head *head = &s->ordered_samples.samples_head;
-	u64 limit = s->ordered_samples.flush_limit;
+	u64 limit = s->ordered_samples.next_flush;
 	struct sample_queue *tmp, *iter;
 
-	if (!ops->ordered_samples)
+	if (!ops->ordered_samples || !limit)
 		return;
 
 	list_for_each_entry_safe(iter, tmp, head, list) {
@@ -385,6 +400,55 @@ static void flush_sample_queue(struct perf_session *s,
 		free(iter->event);
 		free(iter);
 	}
+}
+
+/*
+ * When perf record finishes a pass on every buffers, it records this pseudo
+ * event.
+ * We record the max timestamp t found in the pass n.
+ * Assuming these timestamps are monotonic across cpus, we know that if
+ * a buffer still has events with timestamps below t, they will be all
+ * available and then read in the pass n + 1.
+ * Hence when we start to read the pass n + 2, we can safely flush every
+ * events with timestamps below t.
+ *
+ *    ============ PASS n =================
+ *       CPU 0         |   CPU 1
+ *                     |
+ *    cnt1 timestamps  |   cnt2 timestamps
+ *          1          |         2
+ *          2          |         3
+ *          -          |         4  <--- max recorded
+ *
+ *    ============ PASS n + 1 ==============
+ *       CPU 0         |   CPU 1
+ *                     |
+ *    cnt1 timestamps  |   cnt2 timestamps
+ *          3          |         5
+ *          4          |         6
+ *          5          |         7 <---- max recorded
+ *
+ *      Flush every events below timestamp 4
+ *
+ *    ============ PASS n + 2 ==============
+ *       CPU 0         |   CPU 1
+ *                     |
+ *    cnt1 timestamps  |   cnt2 timestamps
+ *          6          |         8
+ *          7          |         9
+ *          -          |         10
+ *
+ *      Flush every events below timestamp 7
+ *      etc...
+ */
+static int process_finished_round(event_t *event __used,
+				  struct perf_session *session,
+				  struct perf_event_ops *ops)
+{
+	flush_sample_queue(session, ops);
+	session->ordered_samples.next_flush = session->ordered_samples.max_timestamp;
+
+	return 0;
 }
 
 static void __queue_sample_end(struct sample_queue *new, struct list_head *head)
@@ -455,16 +519,11 @@ static void __queue_sample_event(struct sample_queue *new,
 }
 
 static int queue_sample_event(event_t *event, struct sample_data *data,
-			      struct perf_session *s,
-			      struct perf_event_ops *ops)
+			      struct perf_session *s)
 {
 	u64 timestamp = data->time;
 	struct sample_queue *new;
-	u64 flush_limit;
 
-
-	if (s->ordered_samples.flush_limit == ULLONG_MAX)
-		s->ordered_samples.flush_limit = timestamp + FLUSH_PERIOD;
 
 	if (timestamp < s->ordered_samples.last_flush) {
 		printf("Warning: Timestamp below last timeslice flush\n");
@@ -488,23 +547,8 @@ static int queue_sample_event(event_t *event, struct sample_data *data,
 	__queue_sample_event(new, s);
 	s->ordered_samples.last_inserted = new;
 
-	/*
-	 * We want to have a slice of events covering 2 * FLUSH_PERIOD
-	 * If FLUSH_PERIOD is big enough, it ensures every events that occured
-	 * in the first half of the timeslice have all been buffered and there
-	 * are none remaining (we need that because of the weakly ordered
-	 * event recording we have). Then once we reach the 2 * FLUSH_PERIOD
-	 * timeslice, we flush the first half to be gentle with the memory
-	 * (the second half can still get new events in the middle, so wait
-	 * another period to flush it)
-	 */
-	flush_limit = s->ordered_samples.flush_limit;
-
-	if (new->timestamp > flush_limit &&
-		new->timestamp - flush_limit > FLUSH_PERIOD) {
-		s->ordered_samples.flush_limit += FLUSH_PERIOD;
-		flush_sample_queue(s, ops);
-	}
+	if (new->timestamp > s->ordered_samples.max_timestamp)
+		s->ordered_samples.max_timestamp = new->timestamp;
 
 	return 0;
 }
@@ -520,7 +564,7 @@ static int perf_session__process_sample(event_t *event, struct perf_session *s,
 	bzero(&data, sizeof(struct sample_data));
 	event__parse_sample(event, s->sample_type, &data);
 
-	queue_sample_event(event, &data, s, ops);
+	queue_sample_event(event, &data, s);
 
 	return 0;
 }
@@ -572,6 +616,8 @@ static int perf_session__process_event(struct perf_session *self,
 		return ops->tracing_data(event, self);
 	case PERF_RECORD_HEADER_BUILD_ID:
 		return ops->build_id(event, self);
+	case PERF_RECORD_FINISHED_ROUND:
+		return ops->finished_round(event, self, ops);
 	default:
 		self->unknown_events++;
 		return -1;
@@ -786,7 +832,7 @@ more:
 done:
 	err = 0;
 	/* do the final flush for ordered samples */
-	self->ordered_samples.flush_limit = ULLONG_MAX;
+	self->ordered_samples.next_flush = ULLONG_MAX;
 	flush_sample_queue(self, ops);
 out_err:
 	ui_progress__delete(progress);

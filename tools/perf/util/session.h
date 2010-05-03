@@ -14,7 +14,8 @@ struct thread;
 
 struct ordered_samples {
 	u64			last_flush;
-	u64			flush_limit;
+	u64			next_flush;
+	u64			max_timestamp;
 	struct list_head	samples_head;
 	struct sample_queue	*last_inserted;
 };
@@ -41,23 +42,28 @@ struct perf_session {
 	char filename[0];
 };
 
+struct perf_event_ops;
+
 typedef int (*event_op)(event_t *self, struct perf_session *session);
+typedef int (*event_op2)(event_t *self, struct perf_session *session,
+			 struct perf_event_ops *ops);
 
 struct perf_event_ops {
-	event_op sample,
-		 mmap,
-		 comm,
-		 fork,
-		 exit,
-		 lost,
-		 read,
-		 throttle,
-		 unthrottle,
-		 attr,
-		 event_type,
-		 tracing_data,
-		 build_id;
-	bool	ordered_samples;
+	event_op	sample,
+			mmap,
+			comm,
+			fork,
+			exit,
+			lost,
+			read,
+			throttle,
+			unthrottle,
+			attr,
+			event_type,
+			tracing_data,
+			build_id;
+	event_op2	finished_round;
+	bool		ordered_samples;
 };
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force, bool repipe);
