@@ -812,6 +812,8 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 		wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
 	}
 #endif
+	if (current_thread_info()->status & TS_USEDFPU)
+		clts();
 }
 
 static void vmx_load_host_state(struct vcpu_vmx *vmx)
@@ -2507,7 +2509,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MATCH, !!bypass_guest_pf);
 	vmcs_write32(CR3_TARGET_COUNT, 0);           /* 22.2.1 */
 
-	vmcs_writel(HOST_CR0, read_cr0());  /* 22.2.3 */
+	vmcs_writel(HOST_CR0, read_cr0() | X86_CR0_TS);  /* 22.2.3 */
 	vmcs_writel(HOST_CR4, read_cr4());  /* 22.2.3, 22.2.5 */
 	vmcs_writel(HOST_CR3, read_cr3());  /* 22.2.3  FIXME: shadow tables */
 
@@ -3858,11 +3860,6 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	 * case. */
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
 		vmx_set_interrupt_shadow(vcpu, 0);
-
-	/*
-	 * Loading guest fpu may have cleared host cr0.ts
-	 */
-	vmcs_writel(HOST_CR0, read_cr0());
 
 	asm(
 		/* Store host registers */
