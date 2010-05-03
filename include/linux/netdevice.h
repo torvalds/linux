@@ -878,7 +878,7 @@ struct net_device {
 	unsigned char		operstate; /* RFC2863 operstate */
 	unsigned char		link_mode; /* mapping policy to operstate */
 
-	unsigned		mtu;	/* interface MTU value		*/
+	unsigned int		mtu;	/* interface MTU value		*/
 	unsigned short		type;	/* interface hardware type	*/
 	unsigned short		hard_header_len;	/* hardware hdr length	*/
 
@@ -1381,10 +1381,10 @@ struct softnet_data {
 	struct sk_buff_head	process_queue;
 
 	/* stats */
-	unsigned		processed;
-	unsigned		time_squeeze;
-	unsigned		cpu_collision;
-	unsigned		received_rps;
+	unsigned int		processed;
+	unsigned int		time_squeeze;
+	unsigned int		cpu_collision;
+	unsigned int		received_rps;
 
 #ifdef CONFIG_RPS
 	struct softnet_data	*rps_ipi_list;
