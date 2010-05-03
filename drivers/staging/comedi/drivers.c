@@ -172,7 +172,8 @@ attached:
 	}
 
 	if (!dev->board_name) {
-		printk(KERN_WARNING "BUG: dev->board_name=<%p>\n", dev->board_name);
+		printk(KERN_WARNING "BUG: dev->board_name=<%p>\n",
+		       dev->board_name);
 		dev->board_name = "BUG";
 	}
 	smp_wmb();
@@ -374,8 +375,9 @@ static int insn_rw_emulate_bits(struct comedi_device *dev,
 	if (insn->insn == INSN_WRITE) {
 		if (!(s->subdev_flags & SDF_WRITABLE))
 			return -EINVAL;
-		new_data[0] = 1 << (chan - base_bitfield_channel);	/* mask */
-		new_data[1] = data[0] ? (1 << (chan - base_bitfield_channel)) : 0;	/* bits */
+		new_data[0] = 1 << (chan - base_bitfield_channel); /* mask */
+		new_data[1] = data[0] ? (1 << (chan - base_bitfield_channel))
+			      : 0; /* bits */
 	}
 
 	ret = s->insn_bits(dev, s, &new_insn, new_data);
