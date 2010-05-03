@@ -34,6 +34,8 @@
 #include <linux/kvm_host.h>
 #include "trace.h"
 
+static void pic_irq_request(struct kvm *kvm, int level);
+
 static void pic_lock(struct kvm_pic *s)
 	__acquires(&s->lock)
 {
@@ -175,9 +177,9 @@ static void pic_update_irq(struct kvm_pic *s)
 	}
 	irq = pic_get_irq(&s->pics[0]);
 	if (irq >= 0)
-		s->irq_request(s->irq_request_opaque, 1);
+		pic_irq_request(s->kvm, 1);
 	else
-		s->irq_request(s->irq_request_opaque, 0);
+		pic_irq_request(s->kvm, 0);
 }
 
 void kvm_pic_update_irq(struct kvm_pic *s)
@@ -262,8 +264,7 @@ int kvm_pic_read_irq(struct kvm *kvm)
 void kvm_pic_reset(struct kvm_kpic_state *s)
 {
 	int irq;
-	struct kvm *kvm = s->pics_state->irq_request_opaque;
-	struct kvm_vcpu *vcpu0 = kvm->bsp_vcpu;
+	struct kvm_vcpu *vcpu0 = s->pics_state->kvm->bsp_vcpu;
 	u8 irr = s->irr, isr = s->imr;
 
 	s->last_irr = 0;
@@ -302,8 +303,7 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 			/*
 			 * deassert a pending interrupt
 			 */
-			s->pics_state->irq_request(s->pics_state->
-						   irq_request_opaque, 0);
+			pic_irq_request(s->pics_state->kvm, 0);
 			s->init_state = 1;
 			s->init4 = val & 1;
 			if (val & 0x02)
@@ -519,9 +519,8 @@ static int picdev_read(struct kvm_io_device *this,
 /*
  * callback when PIC0 irq status changed
  */
-static void pic_irq_request(void *opaque, int level)
+static void pic_irq_request(struct kvm *kvm, int level)
 {
-	struct kvm *kvm = opaque;
 	struct kvm_vcpu *vcpu = kvm->bsp_vcpu;
 	struct kvm_pic *s = pic_irqchip(kvm);
 	int irq = pic_get_irq(&s->pics[0]);
@@ -550,8 +549,6 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	s->kvm = kvm;
 	s->pics[0].elcr_mask = 0xf8;
 	s->pics[1].elcr_mask = 0xde;
-	s->irq_request = pic_irq_request;
-	s->irq_request_opaque = kvm;
 	s->pics[0].pics_state = s;
 	s->pics[1].pics_state = s;
 
