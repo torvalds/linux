@@ -83,17 +83,17 @@ show_two (hdw_info_t * hi, int brdno)
               (sn[5] & 0x0000ff),
              (u_int8_t) hi->revid[0]);
 
-    printk ("%s\n", banner);
+    pr_info("%s\n", banner);
 
     pdev = hi->pdev[0];
-    printk ("%s: %s at v/p=%lx/%lx (%02x:%02x.%x) irq %d\n",
+    pr_info("%s: %s at v/p=%lx/%lx (%02x:%02x.%x) irq %d\n",
             hi->devname, "MUSYCC",
             (unsigned long) hi->addr_mapped[0], hi->addr[0],
             hi->pci_busno, (u_int8_t) PCI_SLOT (pdev->devfn),
             (u_int8_t) PCI_FUNC (pdev->devfn), pdev->irq);
 
     pdev = hi->pdev[1];
-    printk ("%s: %s at v/p=%lx/%lx (%02x:%02x.%x) irq %d\n",
+    pr_info("%s: %s at v/p=%lx/%lx (%02x:%02x.%x) irq %d\n",
             hi->devname, "EBUS  ",
             (unsigned long) hi->addr_mapped[1], hi->addr[1],
             hi->pci_busno, (u_int8_t) PCI_SLOT (pdev->devfn),
@@ -116,22 +116,22 @@ hdw_sn_get (hdw_info_t * hi, int brdno)
     {
         unsigned char *ucp = (unsigned char *) &hi->mfg_info.data;
 
-        printk ("eeprom[00]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
+        pr_info("eeprom[00]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
                 *(ucp + 0), *(ucp + 1), *(ucp + 2), *(ucp + 3), *(ucp + 4), *(ucp + 5), *(ucp + 6), *(ucp + 7));
-        printk ("eeprom[08]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
+        pr_info("eeprom[08]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
                 *(ucp + 8), *(ucp + 9), *(ucp + 10), *(ucp + 11), *(ucp + 12), *(ucp + 13), *(ucp + 14), *(ucp + 15));
-        printk ("eeprom[16]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
+        pr_info("eeprom[16]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
                 *(ucp + 16), *(ucp + 17), *(ucp + 18), *(ucp + 19), *(ucp + 20), *(ucp + 21), *(ucp + 22), *(ucp + 23));
-        printk ("eeprom[24]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
+        pr_info("eeprom[24]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
                 *(ucp + 24), *(ucp + 25), *(ucp + 26), *(ucp + 27), *(ucp + 28), *(ucp + 29), *(ucp + 30), *(ucp + 31));
-        printk ("eeprom[32]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
+        pr_info("eeprom[32]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
                 *(ucp + 32), *(ucp + 33), *(ucp + 34), *(ucp + 35), *(ucp + 36), *(ucp + 37), *(ucp + 38), *(ucp + 39));
-        printk ("eeprom[40]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
+        pr_info("eeprom[40]:  %02x %02x %02x %02x  %02x %02x %02x %02x\n",
                 *(ucp + 40), *(ucp + 41), *(ucp + 42), *(ucp + 43), *(ucp + 44), *(ucp + 45), *(ucp + 46), *(ucp + 47));
     }
 #endif
 #if 0
-    printk ("sn: %x %x %x %x %x %x\n",
+    pr_info("sn: %x %x %x %x %x %x\n",
             hi->mfg_info.Serial[0],
             hi->mfg_info.Serial[1],
             hi->mfg_info.Serial[2],
@@ -144,7 +144,7 @@ hdw_sn_get (hdw_info_t * hi, int brdno)
     {
         /* bad crc, data is suspect */
         if (log_level >= LOG_WARN)
-            printk ("%s: EEPROM cksum error\n", hi->devname);
+            pr_info("%s: EEPROM cksum error\n", hi->devname);
         hi->mfg_info_sts = EEPROM_CRCERR;
     } else
         hi->mfg_info_sts = EEPROM_OK;

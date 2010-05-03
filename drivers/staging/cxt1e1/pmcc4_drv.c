@@ -172,10 +172,10 @@ sbecom_set_loglevel (int d)
     {
         if (log_level != d)
         {
-            printk ("%s: log level changed from %d to %d\n", THIS_MODULE->name, log_level, d);
+            pr_info("log level changed from %d to %d\n", log_level, d);
             log_level = d;          /* set new */
         } else
-            printk ("%s: log level is %d\n", THIS_MODULE->name, log_level);
+            pr_info("log level is %d\n", log_level);
     }
 }
 
@@ -292,19 +292,18 @@ checkPorts (ci_t * ci)
             if (!(((copyVal >> 3) & sbeLinkDown) ^ (value & sbeLinkDown)))
             {
                 if (value & sbeLinkDown)
-                    printk (KERN_WARN "%s: Port %d momentarily recovered.\n",
-                            ci->devname, portnum);
+                    pr_warning("%s: Port %d momentarily recovered.\n",
+                               ci->devname, portnum);
                 else
-                    printk (KERN_WARN
-                            "%s: Warning: Port %d link was briefly down.\n",
-                            ci->devname, portnum);
+                    pr_warning("%s: Warning: Port %d link was briefly down.\n",
+                               ci->devname, portnum);
             } else if (value & sbeLinkDown)
-                printk (KERN_WARN "%s: Warning: Port %d link is down.\n",
-                        ci->devname, portnum);
+                pr_warning("%s: Warning: Port %d link is down.\n",
+                           ci->devname, portnum);
             else
             {
-                printk (KERN_WARN "%s: Port %d link has recovered.\n",
-                        ci->devname, portnum);
+                pr_warning("%s: Port %d link has recovered.\n",
+                           ci->devname, portnum);
                 copyVal |= 0x20;    /* record link transition to up */
             }
             copyVal |= 0x10;        /* change (link) --> update LEDs  */
@@ -331,35 +330,30 @@ checkPorts (ci_t * ci)
                 if (value & 0x1f)
                 {                   /* if errors (crc or smf only) */
                     if (value & 0x10)
-                        printk (KERN_WARN
-                           "%s: E1 Port %d Codeword Sa4 change detected.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d Codeword Sa4 change detected.\n",
+                                   ci->devname, portnum);
                     if (value & 0x08)
-                        printk (KERN_WARN
-                           "%s: E1 Port %d Codeword Sa5 change detected.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d Codeword Sa5 change detected.\n",
+                                   ci->devname, portnum);
                     if (value & 0x04)
-                        printk (KERN_WARN
-                           "%s: E1 Port %d Codeword Sa6 change detected.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d Codeword Sa6 change detected.\n",
+                                   ci->devname, portnum);
                     if (value & 0x02)
-                        printk (KERN_WARN
-                           "%s: E1 Port %d Codeword Sa7 change detected.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d Codeword Sa7 change detected.\n",
+                                   ci->devname, portnum);
                     if (value & 0x01)
-                        printk (KERN_WARN
-                           "%s: E1 Port %d Codeword Sa8 change detected.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d Codeword Sa8 change detected.\n",
+                                   ci->devname, portnum);
                 }
                 value = pci_read_32 ((u_int32_t *) &comet->e1_frmr_mists);      /* crc & smf */
                 if (value & 0x3)
                 {                   /* if errors (crc or smf only) */
                     if (value & sbeE1CRC)
-                        printk (KERN_WARN "%s: E1 Port %d CRC-4 error(s) detected.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d CRC-4 error(s) detected.\n",
+                                   ci->devname, portnum);
                     if (value & sbeE1errSMF)    /* error in sub-multiframe */
-                        printk (KERN_WARN "%s: E1 Port %d received errored SMF.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d received errored SMF.\n",
+                                   ci->devname, portnum);
                 }
                 value = pci_read_32 ((u_int32_t *) &comet->e1_frmr_masts) & 0xcc; /* alarms */
                 /*
@@ -383,43 +377,43 @@ checkPorts (ci_t * ci)
                     if ((copyVal & sbeRedAlm) && !(value & sbeRedAlm))
                     {
                         copyVal &= ~sbeRedAlm;
-                        printk (KERN_WARN "%s: E1 Port %d LOF alarm ended.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d LOF alarm ended.\n",
+                                   ci->devname, portnum);
                     } else if (!(copyVal & sbeRedAlm) && (value & sbeRedAlm))
                     {
                         copyVal |= sbeRedAlm;
-                        printk (KERN_WARN "%s: E1 Warning: Port %d LOF alarm.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Warning: Port %d LOF alarm.\n",
+                                   ci->devname, portnum);
                     } else if ((copyVal & sbeYelAlm) && !(value & sbeYelAlm))
                     {
                         copyVal &= ~sbeYelAlm;
-                        printk (KERN_WARN "%s: E1 Port %d RAI alarm ended.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d RAI alarm ended.\n",
+                                   ci->devname, portnum);
                     } else if (!(copyVal & sbeYelAlm) && (value & sbeYelAlm))
                     {
                         copyVal |= sbeYelAlm;
-                        printk (KERN_WARN "%s: E1 Warning: Port %d RAI alarm.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Warning: Port %d RAI alarm.\n",
+                                   ci->devname, portnum);
                     } else if ((copyVal & sbeE1RMAI) && !(value & sbeE1RMAI))
                     {
                         copyVal &= ~sbeE1RMAI;
-                        printk (KERN_WARN "%s: E1 Port %d RMAI alarm ended.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d RMAI alarm ended.\n",
+                                   ci->devname, portnum);
                     } else if (!(copyVal & sbeE1RMAI) && (value & sbeE1RMAI))
                     {
                         copyVal |= sbeE1RMAI;
-                        printk (KERN_WARN "%s: E1 Warning: Port %d RMAI alarm.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Warning: Port %d RMAI alarm.\n",
+                                   ci->devname, portnum);
                     } else if ((copyVal & sbeAISAlm) && !(value & sbeAISAlm))
                     {
                         copyVal &= ~sbeAISAlm;
-                        printk (KERN_WARN "%s: E1 Port %d AIS alarm ended.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Port %d AIS alarm ended.\n",
+                                   ci->devname, portnum);
                     } else if (!(copyVal & sbeAISAlm) && (value & sbeAISAlm))
                     {
                         copyVal |= sbeAISAlm;
-                        printk (KERN_WARN "%s: E1 Warning: Port %d AIS alarm.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: E1 Warning: Port %d AIS alarm.\n",
+                                   ci->devname, portnum);
                     }
                 }
                 /* end of E1 alarm code */
@@ -433,33 +427,33 @@ checkPorts (ci_t * ci)
                     if ((copyVal & sbeRedAlm) && !(value & sbeRedAlm))
                     {
                         copyVal &= ~sbeRedAlm;
-                        printk (KERN_WARN "%s: Port %d red alarm ended.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: Port %d red alarm ended.\n",
+                                   ci->devname, portnum);
                     } else if (!(copyVal & sbeRedAlm) && (value & sbeRedAlm))
                     {
                         copyVal |= sbeRedAlm;
-                        printk (KERN_WARN "%s: Warning: Port %d red alarm.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: Warning: Port %d red alarm.\n",
+                                   ci->devname, portnum);
                     } else if ((copyVal & sbeYelAlm) && !(value & sbeYelAlm))
                     {
                         copyVal &= ~sbeYelAlm;
-                        printk (KERN_WARN "%s: Port %d yellow (RAI) alarm ended.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: Port %d yellow (RAI) alarm ended.\n",
+                                   ci->devname, portnum);
                     } else if (!(copyVal & sbeYelAlm) && (value & sbeYelAlm))
                     {
                         copyVal |= sbeYelAlm;
-                        printk (KERN_WARN "%s: Warning: Port %d yellow (RAI) alarm.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: Warning: Port %d yellow (RAI) alarm.\n",
+                                   ci->devname, portnum);
                     } else if ((copyVal & sbeAISAlm) && !(value & sbeAISAlm))
                     {
                         copyVal &= ~sbeAISAlm;
-                        printk (KERN_WARN "%s: Port %d blue (AIS) alarm ended.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: Port %d blue (AIS) alarm ended.\n",
+                                   ci->devname, portnum);
                     } else if (!(copyVal & sbeAISAlm) && (value & sbeAISAlm))
                     {
                         copyVal |= sbeAISAlm;
-                        printk (KERN_WARN "%s: Warning: Port %d blue (AIS) alarm.\n",
-                                ci->devname, portnum);
+                        pr_warning("%s: Warning: Port %d blue (AIS) alarm.\n",
+                                   ci->devname, portnum);
                     }
                 }
             }                       /* end T1 mode alarm checks */
@@ -523,8 +517,8 @@ checkPorts (ci_t * ci)
                                                                  * loopbk mode */
             if (log_level >= LOG_DEBUG)
                 if (value != 0x3f)
-                    printk (KERN_WARN "%s: BOC value = %x on Port %d\n",
-                            ci->devname, value, portnum);
+                    pr_warning("%s: BOC value = %x on Port %d\n",
+                               ci->devname, value, portnum);
             /* end ESF loopback code */
         }
     }
@@ -546,7 +540,7 @@ c4_watchdog (ci_t * ci)
     if (drvr_state != SBE_DRVR_AVAILABLE)
     {
         if (log_level >= LOG_MONITOR)
-            printk ("%s: drvr not available (%x)\n", THIS_MODULE->name, drvr_state);
+            pr_info("drvr not available (%x)\n", drvr_state);
         return;
     }
 #if 0
@@ -579,7 +573,7 @@ c4_watchdog (ci_t * ci)
 #else
                     if (log_level >= LOG_MONITOR)
 #endif
-                        printk ("%s: watchdog reviving Port %d Channel %d [%d] sts %x/%x, start_TX %x free %x start_RX %x\n",
+                        pr_info("%s: watchdog reviving Port %d Channel %d [%d] sts %x/%x, start_TX %x free %x start_RX %x\n",
                          ci->devname, ch->channum, port, gchan, ch->channum,
                                 ch->p.status, ch->status,
                             ch->ch_start_tx, ch->txd_free, ch->ch_start_rx);
@@ -595,7 +589,8 @@ c4_watchdog (ci_t * ci)
                     {
                         ch->ch_start_rx = 0;    /* we are restarting RX... */
 #ifdef RLD_TRANS_DEBUG
-                        printk ("++ c4_watchdog() CHAN RX ACTIVATE: chan %d\n", ch->channum);
+                        pr_info("++ c4_watchdog() CHAN RX ACTIVATE: chan %d\n",
+                                ch->channum);
 #endif
 #ifdef RLD_RXACT_DEBUG
                         {
@@ -606,7 +601,7 @@ c4_watchdog (ci_t * ci)
                             {
                                 hereb4--;
                                 md = &ch->mdr[ch->rxix_irq_srv];
-                                printk ("++ c4_watchdog[%d] CHAN RX ACTIVATE: rxix_irq_srv %d, md %p sts %x, rxpkt %lu\n",
+                                pr_info("++ c4_watchdog[%d] CHAN RX ACTIVATE: rxix_irq_srv %d, md %p sts %x, rxpkt %lu\n",
                                         ch->channum, ch->rxix_irq_srv, md, le32_to_cpu (md->status), ch->s.rx_packets);
                                 musycc_dump_rxbuffer_ring (ch, 1);      /* RLD DEBUG */
                             }
@@ -636,8 +631,9 @@ c4_watchdog (ci_t * ci)
                         md = ch->txd_irq_srv;
                         if (!md)
                         {
-                            printk ("-- c4_watchdog[%d]: WARNING, starting NULL md\n", ch->channum);
-                            printk ("--   chan %d txd_irq_srv %p sts %x usr_add %p sts %x, txpkt %lu\n",
+                            pr_info("-- c4_watchdog[%d]: WARNING, starting NULL md\n",
+                                    ch->channum);
+                            pr_info("--   chan %d txd_irq_srv %p sts %x usr_add %p sts %x, txpkt %lu\n",
                                     ch->channum, ch->txd_irq_srv, le32_to_cpu ((struct mdesc *) (ch->txd_irq_srv)->status),
                                     ch->txd_usr_add, le32_to_cpu ((struct mdesc *) (ch->txd_usr_add)->status),
                                     ch->s.tx_packets);
@@ -647,7 +643,8 @@ c4_watchdog (ci_t * ci)
                         } else if (md->data && ((le32_to_cpu (md->status)) & MUSYCC_TX_OWNED))
                         {
 #ifdef RLD_TRANS_DEBUG
-                            printk ("++ c4_watchdog[%d] CHAN TX ACTIVATE: start_tx %x\n", ch->channum, ch->ch_start_tx);
+                            pr_info("++ c4_watchdog[%d] CHAN TX ACTIVATE: start_tx %x\n",
+                                    ch->channum, ch->ch_start_tx);
 #endif
                             ch->ch_start_tx = 0;        /* we are restarting
                                                          * TX... */
@@ -661,7 +658,8 @@ c4_watchdog (ci_t * ci)
 #else
                             if (log_level >= LOG_MONITOR)
 #endif
-                                printk ("++ SACK[P%d/C%d] ack'd, continuing...\n", ch->up->portnum, ch->channum);
+                                pr_info("++ SACK[P%d/C%d] ack'd, continuing...\n",
+                                        ch->up->portnum, ch->channum);
                         }
                     }
                 }
@@ -784,7 +782,7 @@ c4_init (ci_t * ci, u_char *func0, u_char *func1)
             pi->p.portnum = portnum;
             pi->openchans = 0;
 #ifdef SBE_MAP_DEBUG
-            printk ("Comet-%d: addr = %p\n", portnum, pi->cometbase);
+            pr_info("Comet-%d: addr = %p\n", portnum, pi->cometbase);
 #endif
         }
         pmsk = c4_get_portcfg (ci);
@@ -811,7 +809,8 @@ c4_init (ci_t * ci, u_char *func0, u_char *func1)
             return SBE_DRVR_FAIL;
         }
 #ifdef SBE_MAP_DEBUG
-        printk (">> %s: c4_get_build - pmsk %x max_port %x\n", ci->devname, pmsk, ci->max_port);
+        pr_info(">> %s: c4_get_build - pmsk %x max_port %x\n",
+                ci->devname, pmsk, ci->max_port);
 #endif
     }
 
@@ -934,19 +933,20 @@ c4_loop_port (ci_t * ci, int portnum, u_int8_t cmd)
 
         pci_write_32 ((u_int32_t *) &comet->mdiag, cmd);
         if (log_level >= LOG_WARN)
-            printk ("%s: loopback mode changed to %2x from %2x on Port %d\n",
+            pr_info("%s: loopback mode changed to %2x from %2x on Port %d\n",
                     ci->devname, cmd, loopValue, portnum);
         loopValue = pci_read_32 ((u_int32_t *) &comet->mdiag) & COMET_MDIAG_LBMASK;
         if (loopValue != cmd)
         {
             if (log_level >= LOG_ERROR)
-                printk ("%s: write to loop register failed, unknown state for Port %d\n",
+                pr_info("%s: write to loop register failed, unknown state for Port %d\n",
                         ci->devname, portnum);
         }
     } else
     {
         if (log_level >= LOG_WARN)
-            printk ("%s: loopback already in that mode (%2x)\n", ci->devname, loopValue);
+            pr_info("%s: loopback already in that mode (%2x)\n",
+                    ci->devname, loopValue);
     }
     return 0;
 }
@@ -980,7 +980,7 @@ c4_frame_rw (ci_t * ci, struct sbecom_port_param * pp)
     {                               /* control says this is a register
                                      * _write_ */
         if (pp->portStatus == data)
-            printk ("%s: Port %d already that value!  Writing again anyhow.\n",
+            pr_info("%s: Port %d already that value!  Writing again anyhow.\n",
                     ci->devname, pp->portnum);
         pp->portP = (u_int8_t) data;
         pci_write_32 ((u_int32_t *) comet + pp->port_mode,
@@ -1080,11 +1080,11 @@ c4_musycc_rw (ci_t * ci, struct c4_musycc_param * mcp)
     if (ramread)
     {
         data = *dpr;
-        //printk ("c4_musycc_rw: RAM addr %p  read data %x (portno %x offset %x RAM ramread %x)\n", dpr, data, portnum, offset, ramread); /* RLD DEBUG */
+        //pr_info("c4_musycc_rw: RAM addr %p  read data %x (portno %x offset %x RAM ramread %x)\n", dpr, data, portnum, offset, ramread); /* RLD DEBUG */
     } else
     {
         data = pci_read_32 ((u_int32_t *) dph);
-        //printk ("c4_musycc_rw: REG addr %p  read data %x (portno %x offset %x RAM ramread %x)\n", dph, data, portnum, offset, ramread); /* RLD DEBUG */
+        //pr_info("c4_musycc_rw: REG addr %p  read data %x (portno %x offset %x RAM ramread %x)\n", dph, data, portnum, offset, ramread); /* RLD DEBUG */
     }
 
 
@@ -1092,7 +1092,7 @@ c4_musycc_rw (ci_t * ci, struct c4_musycc_param * mcp)
     {                               /* control says this is a register
                                      * _write_ */
         if (mcp->value == data)
-            printk ("%s: musycc grp%d already that value! writing again anyhow.\n",
+            pr_info("%s: musycc grp%d already that value! writing again anyhow.\n",
                     ci->devname, (mcp->RWportnum & 0x7));
         /* write register RAM */
         if (ramread)
@@ -1137,7 +1137,7 @@ c4_set_port (ci_t * ci, int portnum)
     e1mode = IS_FRAME_ANY_E1 (pp->port_mode);
     if (log_level >= LOG_MONITOR2)
     {
-        printk ("%s: c4_set_port[%d]:  entered, e1mode = %x, openchans %d.\n",
+        pr_info("%s: c4_set_port[%d]:  entered, e1mode = %x, openchans %d.\n",
                 ci->devname,
                 portnum, e1mode, pi->openchans);
     }
@@ -1421,13 +1421,12 @@ c4_fifo_alloc (mpi_t * pi, int chan, int *len)
     if (max != *len)
     {
         if (log_level >= LOG_WARN)
-            printk (
-                  "%s: wanted to allocate %d fifo space, but got only %d\n",
+            pr_info("%s: wanted to allocate %d fifo space, but got only %d\n",
                     pi->up->devname, *len, max);
         *len = max;
     }
     if (log_level >= LOG_DEBUG)
-        printk ("%s: allocated %d fifo at %d for channel %d/%d\n",
+        pr_info("%s: allocated %d fifo at %d for channel %d/%d\n",
                 pi->up->devname, max, start, chan, pi->p.portnum);
     for (i = maxstart; i < (maxstart + max); i++)
         pi->fifomap[i] = chan;
@@ -1440,7 +1439,7 @@ c4_fifo_free (mpi_t * pi, int chan)
     int         i;
 
     if (log_level >= LOG_DEBUG)
-        printk ("%s: deallocated fifo for channel %d/%d\n",
+        pr_info("%s: deallocated fifo for channel %d/%d\n",
                 pi->up->devname, chan, pi->p.portnum);
     for (i = 0; i < 32; i++)
         if (pi->fifomap[i] == chan)
@@ -1465,7 +1464,8 @@ c4_chan_up (ci_t * ci, int channum)
     if (ch->state == UP)
     {
         if (log_level >= LOG_MONITOR)
-            printk ("%s: channel already UP, graceful early exit\n", ci->devname);
+            pr_info("%s: channel already UP, graceful early exit\n",
+                    ci->devname);
         return 0;
     }
     pi = ch->up;
@@ -1478,9 +1478,10 @@ c4_chan_up (ci_t * ci, int channum)
         {
             if (1 || log_level >= LOG_WARN)
             {
-                printk ("%s: c4_chan_up[%d] EINVAL (attempt to cfg in-use or unavailable TimeSlot[%d])\n",
+                pr_info("%s: c4_chan_up[%d] EINVAL (attempt to cfg in-use or unavailable TimeSlot[%d])\n",
                         ci->devname, channum, i);
-                printk ("+ ask4 %x, currently %x\n", ch->p.bitmask[i], pi->tsm[i]);
+                pr_info("+ ask4 %x, currently %x\n",
+                        ch->p.bitmask[i], pi->tsm[i]);
             }
             return EINVAL;
         }
@@ -1493,7 +1494,8 @@ c4_chan_up (ci_t * ci, int channum)
     if (!nbuf)
     {
         /* if( log_level >= LOG_WARN)  */
-        printk ("%s: c4_chan_up[%d] ENOBUFS (no TimeSlots assigned)\n", ci->devname, channum);
+        pr_info("%s: c4_chan_up[%d] ENOBUFS (no TimeSlots assigned)\n",
+                ci->devname, channum);
         return ENOBUFS;             /* this should not happen */
     }
     addr = c4_fifo_alloc (pi, gchan, &nbuf);
@@ -1561,7 +1563,7 @@ c4_chan_up (ci_t * ci, int channum)
 #if 0
     /* DEBUG INFO */
     if (log_level >= LOG_MONITOR)
-        printk ("%s: mode %x rxnum %d (rxused %d def %d) txnum %d (txused %d def %d)\n",
+        pr_info("%s: mode %x rxnum %d (rxused %d def %d) txnum %d (txused %d def %d)\n",
                 ci->devname, ch->p.chan_mode,
                 rxnum, max_rxdesc_used, max_rxdesc_default,
                 txnum, max_txdesc_used, max_txdesc_default);
@@ -1592,7 +1594,8 @@ c4_chan_up (ci_t * ci, int channum)
         if (!(m = OS_mem_token_alloc (max_mru)))
         {
             if (log_level >= LOG_MONITOR)
-                printk ("%s: c4_chan_up[%d] - token alloc failure, size = %d.\n", ci->devname, channum, max_mru);
+                pr_info("%s: c4_chan_up[%d] - token alloc failure, size = %d.\n",
+                        ci->devname, channum, max_mru);
             goto errfree;
         }
         md->mem_token = m;
@@ -1638,7 +1641,7 @@ c4_chan_up (ci_t * ci, int channum)
     if (ch->p.status & RX_ENABLED)
     {
 #ifdef RLD_TRANS_DEBUG
-        printk ("++ c4_chan_up() CHAN RX ACTIVATE: chan %d\n", ch->channum);
+        pr_info("++ c4_chan_up() CHAN RX ACTIVATE: chan %d\n", ch->channum);
 #endif
         ch->ch_start_rx = 0;        /* we are restarting RX... */
         musycc_serv_req (pi, SR_CHANNEL_ACTIVATE | SR_RX_DIRECTION | gchan);
@@ -1646,7 +1649,7 @@ c4_chan_up (ci_t * ci, int channum)
     if (ch->p.status & TX_ENABLED)
     {
 #ifdef RLD_TRANS_DEBUG
-        printk ("++ c4_chan_up() CHAN TX ACTIVATE: chan %d <delayed>\n", ch->channum);
+        pr_info("++ c4_chan_up() CHAN TX ACTIVATE: chan %d <delayed>\n", ch->channum);
 #endif
         ch->ch_start_tx = CH_START_TX_1ST;      /* we are delaying start
                                                  * until receipt from user of

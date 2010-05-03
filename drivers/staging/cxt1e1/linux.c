@@ -195,7 +195,8 @@ c4_wk_chan_restart (mch_t * ch)
     mpi_t      *pi = ch->up;
 
 #ifdef RLD_RESTART_DEBUG
-    printk (">> c4_wk_chan_restart: queueing Port %d Chan %d, mch_t @ %p\n", pi->portnum, ch->channum, ch);
+    pr_info(">> %s: queueing Port %d Chan %d, mch_t @ %p\n",
+            __func__, pi->portnum, ch->channum, ch);
 #endif
 
     /* create new entry w/in workqueue for this channel and let'er rip */
@@ -236,7 +237,8 @@ c4_wq_port_init (mpi_t * pi)
     sprintf (np, "%s%d", pi->up->devname, pi->portnum); /* IE pmcc4-01) */
 
 #ifdef RLD_RESTART_DEBUG
-    printk (">> c4_wq_port_init: creating workqueue <%s> for Port %d.\n", name, pi->portnum); /* RLD DEBUG */
+    pr_info(">> %s: creating workqueue <%s> for Port %d.\n",
+            __func__, name, pi->portnum); /* RLD DEBUG */
 #endif
     if (!(pi->wq_port = create_singlethread_workqueue (name)))
         return ENOMEM;
@@ -284,7 +286,7 @@ c4_ebus_interrupt (int irq, void *dev_instance)
 static int
 void_open (struct net_device * ndev)
 {
-    printk ("%s: trying to open master device !\n", ndev->name);
+    pr_info("%s: trying to open master device !\n", ndev->name);
     return -1;
 }
 
@@ -317,7 +319,7 @@ chan_open (struct net_device * ndev)
     hdlc->proto = IF_PROTO_HDLC;
     if ((ret = hdlc_open (hdlc)))
     {
-        printk ("%s: hdlc_open failure, err %d.\n", THIS_MODULE->name, ret);
+        pr_info("hdlc_open failure, err %d.\n", ret);
         return ret;
     }
     if ((ret = c4_chan_up (DEV_TO_PRIV (hdlc)->ci, DEV_TO_PRIV (hdlc)->channum)))
@@ -340,7 +342,7 @@ chan_open (struct net_device * ndev)
 
     if ((ret = hdlc_open (ndev)))
     {
-        printk ("%s: hdlc_open failure, err %d.\n", THIS_MODULE->name, ret);
+        pr_info("hdlc_open failure, err %d.\n", ret);
         return ret;
     }
     if ((ret = c4_chan_up (priv->ci, priv->channum)))
@@ -629,7 +631,7 @@ create_chan (struct net_device * ndev, ci_t * ci,
     if (ret)
     {
         if (log_level >= LOG_WARN)
-            printk ("%s: create_chan[%d] registration error = %d.\n",
+            pr_info("%s: create_chan[%d] registration error = %d.\n",
                     ci->devname, cp->channum, ret);
         free_netdev (dev);          /* cleanup */
         return 0;                   /* failed to register */
@@ -1018,7 +1020,7 @@ c4_ioctl (struct net_device * ndev, struct ifreq * ifr, int cmd)
 #endif
 
 #if 0
-    printk ("c4_ioctl: iocmd %x, dir %x type %x nr %x iolen %d.\n", iocmd,
+    pr_info("c4_ioctl: iocmd %x, dir %x type %x nr %x iolen %d.\n", iocmd,
             _IOC_DIR (iocmd), _IOC_TYPE (iocmd), _IOC_NR (iocmd),
             _IOC_SIZE (iocmd));
 #endif
@@ -1031,23 +1033,23 @@ c4_ioctl (struct net_device * ndev, struct ifreq * ifr, int cmd)
     switch (iocmd)
     {
     case SBE_IOC_PORT_GET:
-        //printk (">> SBE_IOC_PORT_GET Ioctl...\n");
+        //pr_info(">> SBE_IOC_PORT_GET Ioctl...\n");
         ret = do_get_port (ndev, data);
         break;
     case SBE_IOC_PORT_SET:
-        //printk (">> SBE_IOC_PORT_SET Ioctl...\n");
+        //pr_info(">> SBE_IOC_PORT_SET Ioctl...\n");
         ret = do_set_port (ndev, data);
         break;
     case SBE_IOC_CHAN_GET:
-        //printk (">> SBE_IOC_CHAN_GET Ioctl...\n");
+        //pr_info(">> SBE_IOC_CHAN_GET Ioctl...\n");
         ret = do_get_chan (ndev, data);
         break;
     case SBE_IOC_CHAN_SET:
-        //printk (">> SBE_IOC_CHAN_SET Ioctl...\n");
+        //pr_info(">> SBE_IOC_CHAN_SET Ioctl...\n");
         ret = do_set_chan (ndev, data);
         break;
     case C4_DEL_CHAN:
-        //printk (">> C4_DEL_CHAN Ioctl...\n");
+        //pr_info(">> C4_DEL_CHAN Ioctl...\n");
         ret = do_del_chan (ndev, data);
         break;
     case SBE_IOC_CHAN_NEW:
@@ -1084,7 +1086,7 @@ c4_ioctl (struct net_device * ndev, struct ifreq * ifr, int cmd)
                 return -EFAULT;
         break;
     default:
-        //printk (">> c4_ioctl: EINVAL - unknown iocmd <%x>\n", iocmd);
+        //pr_info(">> c4_ioctl: EINVAL - unknown iocmd <%x>\n", iocmd);
         ret = -EINVAL;
         break;
     }

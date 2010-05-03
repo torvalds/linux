@@ -66,7 +66,7 @@ sbecom_proc_get_sbe_info (char *buffer, char **start, off_t offset,
     }
 #if 0
     /** RLD DEBUG **/
-    printk (">> sbecom_proc_get_sbe_info: entered, offset %d. length %d.\n",
+    pr_info(">> sbecom_proc_get_sbe_info: entered, offset %d. length %d.\n",
             (int) offset, (int) length);
 #endif
 
@@ -90,7 +90,7 @@ sbecom_proc_get_sbe_info (char *buffer, char **start, off_t offset,
 
 #if 0
     /** RLD DEBUG **/
-    printk (">> sbecom_get_brdinfo: returned, first_if %p <%s> last_if %p <%s>\n",
+    pr_info(">> sbecom_get_brdinfo: returned, first_if %p <%s> last_if %p <%s>\n",
             (char *) &bip->first_iname, (char *) &bip->first_iname,
             (char *) &bip->last_iname, (char *) &bip->last_iname);
 #endif
@@ -293,7 +293,7 @@ sbecom_proc_get_sbe_info (char *buffer, char **start, off_t offset,
 #endif
 
 #if 0
-    printk (">> proc_fs: returned len = %d., start %p\n", len, start);  /* RLD DEBUG */
+    pr_info(">> proc_fs: returned len = %d., start %p\n", len, start);  /* RLD DEBUG */
 #endif
 
 /***

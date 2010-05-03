@@ -11,6 +11,8 @@
  *   GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <asm/io.h>
 #include <linux/hdlc.h>
 #include "pmcc4_sysdep.h"
@@ -291,12 +293,12 @@ init_comet (void *ci, comet_t * comet, u_int32_t port_mode, int clockmaster,
         if ((moreParams & CFG_CLK_PORT_MASK) == CFG_CLK_PORT_INTERNAL)
         {
             if (log_level >= LOG_SBEBUG12)
-                printk (">> init_comet: clockmaster internal clock\n");
+                pr_info(">> %s: clockmaster internal clock\n", __func__);
             pci_write_32 ((u_int32_t *) &comet->tx_time, 0x0d); /* internal oscillator */
         } else                      /* external clock source */
         {
             if (log_level >= LOG_SBEBUG12)
-                printk (">> init_comet: clockmaster external clock\n");
+                pr_info(">> %s: clockmaster external clock\n", __func__);
             pci_write_32 ((u_int32_t *) &comet->tx_time, 0x09); /* loop timing
                                                                  * (external) */
         }
@@ -311,7 +313,7 @@ init_comet (void *ci, comet_t * comet, u_int32_t port_mode, int clockmaster,
         pci_write_32 ((u_int32_t *) &comet->brif_fpcfg, 0x20);  /* Slave Mode i.e.
                                                                  * FPMODE=1 (@0x20) */
         if (log_level >= LOG_SBEBUG12)
-            printk (">> init_comet: clockslave internal clock\n");
+            pr_info(">> %s: clockslave internal clock\n", __func__);
         pci_write_32 ((u_int32_t *) &comet->tx_time, 0x0d);     /* oscillator timing */
     }
 

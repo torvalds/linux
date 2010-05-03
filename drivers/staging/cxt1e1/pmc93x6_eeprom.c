@@ -21,6 +21,8 @@
  *   GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include "pmcc4_sysdep.h"
 #include "sbecom_inline_linux.h"
@@ -448,7 +450,7 @@ pmcCalcCrc_T01 (void *bufp)
             (u_int32_t *) &crc);
 
 #ifdef EEPROM_TYPE_DEBUG
-    printk ("sbeCrc: crc 1 calculated as %08x\n", crc); /* RLD DEBUG */
+    pr_info("sbeCrc: crc 1 calculated as %08x\n", crc); /* RLD DEBUG */
 #endif
     return ~crc;
 }
@@ -474,7 +476,7 @@ pmcCalcCrc_T02 (void *bufp)
             (u_int32_t *) &crc);
 
 #ifdef EEPROM_TYPE_DEBUG
-    printk ("sbeCrc: crc 2 calculated as %08x\n", crc); /* RLD DEBUG */
+    pr_info("sbeCrc: crc 2 calculated as %08x\n", crc); /* RLD DEBUG */
 #endif
     return crc;
 }
@@ -520,7 +522,7 @@ pmc_init_seeprom (u_int32_t addr, u_int32_t serialNum)
 
 #ifdef DEBUG
     for (i = 0; i < sizeof (FLD_TYPE2); ++i)
-        printk ("[%02X] = %02X\n", i, buffer.bytes[i] & 0xFF);
+        pr_info("[%02X] = %02X\n", i, buffer.bytes[i] & 0xFF);
 #endif
 
     /* Write structure to serial EEPROM */
@@ -538,7 +540,7 @@ pmc_verify_cksum (void *bufp)
     /* Retrieve contents of CRC field */
     crc1 = pmcGetBuffValue (&buf1->Crc32[0], sizeof (buf1->Crc32));
 #ifdef EEPROM_TYPE_DEBUG
-    printk ("EEPROM: chksum 1 reads   as %08x\n", crc1);        /* RLD DEBUG */
+    pr_info("EEPROM: chksum 1 reads   as %08x\n", crc1);        /* RLD DEBUG */
 #endif
     if ((buf1->type == PROM_FORMAT_TYPE1) &&
         (pmcCalcCrc_T01 ((void *) buf1) == crc1))
@@ -546,7 +548,7 @@ pmc_verify_cksum (void *bufp)
 
     crc2 = pmcGetBuffValue (&buf2->Crc32[0], sizeof (buf2->Crc32));
 #ifdef EEPROM_TYPE_DEBUG
-    printk ("EEPROM: chksum 2 reads   as %08x\n", crc2);        /* RLD DEBUG */
+    pr_info("EEPROM: chksum 2 reads   as %08x\n", crc2);        /* RLD DEBUG */
 #endif
     if ((buf2->type == PROM_FORMAT_TYPE2) &&
         (pmcCalcCrc_T02 ((void *) buf2) == crc2))
