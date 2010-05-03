@@ -663,7 +663,7 @@ static int rt2800pci_write_tx_data(struct queue_entry* entry,
 			   test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags) ?
 			   txdesc->key_idx : 0xff);
 	rt2x00_set_field32(&word, TXWI_W1_MPDU_TOTAL_BYTE_COUNT,
-			   skb->len - txdesc->l2pad);
+			   txdesc->length);
 	rt2x00_set_field32(&word, TXWI_W1_PACKETID,
 			   skbdesc->entry->queue->qid + 1);
 	rt2x00_desc_write(txwi, 1, word);

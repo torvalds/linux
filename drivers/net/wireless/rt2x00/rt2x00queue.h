@@ -285,8 +285,8 @@ enum txentry_desc_flags {
  *
  * @flags: Descriptor flags (See &enum queue_entry_flags).
  * @queue: Queue identification (See &enum data_queue_qid).
+ * @length: Length of the entire frame.
  * @header_length: Length of 802.11 header.
- * @l2pad: Amount of padding to align 802.11 payload to 4-byte boundrary.
  * @length_high: PLCP length high word.
  * @length_low: PLCP length low word.
  * @signal: PLCP signal.
@@ -311,8 +311,8 @@ struct txentry_desc {
 
 	enum data_queue_qid queue;
 
+	u16 length;
 	u16 header_length;
-	u16 l2pad;
 
 	u16 length_high;
 	u16 length_low;
