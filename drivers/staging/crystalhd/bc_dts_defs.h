@@ -238,7 +238,7 @@ typedef struct _BC_PIB_EXT_VC1 {
 /*------------------------------------------------------*
  *    Picture Information Block				*
  *------------------------------------------------------*/
-#if defined(_WIN32) || defined(_WIN64) || defined(__LINUX_USER__)
+#if defined(__LINUX_USER__)
 /* Values for 'pulldown' field.  '0' means no pulldown information
  * was present for this picture. */
 enum {
@@ -358,7 +358,7 @@ enum {
 
 #define VDEC_FLAG_PICTURE_META_DATA_PRESENT	(0x40000)
 
-#endif /* _WIN32 || _WIN64 */
+#endif /* __LINUX_USER__ */
 
 enum _BC_OUTPUT_FORMAT {
 	MODE420				= 0x0,
