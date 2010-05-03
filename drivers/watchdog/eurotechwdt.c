@@ -68,7 +68,6 @@ static spinlock_t eurwdt_lock;
 
 /*
  * You must set these - there is no sane way to probe for this board.
- * You can use eurwdt=x,y to set these now.
  */
 
 static int io = 0x3f0;
