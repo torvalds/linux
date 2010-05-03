@@ -2181,7 +2181,6 @@ void comedi_free_board_minor(unsigned minor)
 		kfree(info);
 	}
 }
-EXPORT_SYMBOL_GPL(comedi_free_board_minor);
 
 int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 				 struct comedi_subdevice *s)
