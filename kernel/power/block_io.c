@@ -37,8 +37,8 @@ static int submit(int rw, struct block_device *bdev, sector_t sector,
 	bio->bi_end_io = end_swap_bio_read;
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
-		printk(KERN_ERR "PM: Adding page to bio failed at %ld\n",
-			sector);
+		printk(KERN_ERR "PM: Adding page to bio failed at %llu\n",
+			(unsigned long long)sector);
 		bio_put(bio);
 		return -EFAULT;
 	}
