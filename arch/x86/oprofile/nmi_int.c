@@ -504,6 +504,7 @@ static int nmi_setup(void)
 		goto fail;
 
 	get_online_cpus();
+	register_cpu_notifier(&oprofile_cpu_nb);
 	on_each_cpu(nmi_cpu_setup, NULL, 1);
 	nmi_enabled = 1;
 	put_online_cpus();
@@ -519,6 +520,7 @@ static void nmi_shutdown(void)
 	struct op_msrs *msrs;
 
 	get_online_cpus();
+	unregister_cpu_notifier(&oprofile_cpu_nb);
 	on_each_cpu(nmi_cpu_shutdown, NULL, 1);
 	nmi_enabled = 0;
 	ctr_running = 0;
@@ -739,12 +741,6 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		return -ENODEV;
 	}
 
-	get_online_cpus();
-	register_cpu_notifier(&oprofile_cpu_nb);
-	nmi_enabled = 0;
-	ctr_running = 0;
-	put_online_cpus();
-
 	/* default values, can be overwritten by model */
 	ops->create_files	= nmi_create_files;
 	ops->setup		= nmi_setup;
@@ -771,14 +767,8 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 
 void op_nmi_exit(void)
 {
-	if (using_nmi) {
+	if (using_nmi)
 		exit_sysfs();
-		get_online_cpus();
-		unregister_cpu_notifier(&oprofile_cpu_nb);
-		nmi_enabled = 0;
-		ctr_running = 0;
-		put_online_cpus();
-	}
 	if (model->exit)
 		model->exit();
 }
