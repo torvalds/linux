@@ -244,7 +244,6 @@ extern int header_page_data_size;
 
 extern bool latency_format;
 
-int parse_header_page(char *buf, unsigned long size);
 int trace_parse_common_type(void *data);
 int trace_parse_common_pid(void *data);
 int parse_common_pc(void *data);

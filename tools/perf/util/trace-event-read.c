@@ -53,6 +53,12 @@ static unsigned long	page_size;
 static ssize_t calc_data_size;
 static bool repipe;
 
+/* If it fails, the next read will report it */
+static void skip(int size)
+{
+	lseek(input_fd, size, SEEK_CUR);
+}
+
 static int do_read(int fd, void *buf, int size)
 {
 	int rsize = size;
@@ -184,7 +190,6 @@ static void read_ftrace_printk(void)
 static void read_header_files(void)
 {
 	unsigned long long size;
-	char *header_page;
 	char *header_event;
 	char buf[BUFSIZ];
 
@@ -194,10 +199,7 @@ static void read_header_files(void)
 		die("did not read header page");
 
 	size = read8();
-	header_page = malloc_or_die(size);
-	read_or_die(header_page, size);
-	parse_header_page(header_page, size);
-	free(header_page);
+	skip(size);
 
 	/*
 	 * The size field in the page is of type long,

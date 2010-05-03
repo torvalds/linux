@@ -85,7 +85,7 @@ static int set_single_step(struct task_struct *tsk, unsigned long addr)
 
 	bp = thread->ptrace_bps[0];
 	if (!bp) {
-		hw_breakpoint_init(&attr);
+		ptrace_breakpoint_init(&attr);
 
 		attr.bp_addr = addr;
 		attr.bp_len = HW_BREAKPOINT_LEN_2;

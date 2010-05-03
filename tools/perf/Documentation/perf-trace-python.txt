@@ -93,7 +93,7 @@ don't care how it exited, so we'll use 'perf record' to record only
 the sys_enter events:
 
 ----
-# perf record -c 1 -f -a -M -R -e raw_syscalls:sys_enter
+# perf record -a -e raw_syscalls:sys_enter
 
 ^C[ perf record: Woken up 1 times to write data ]
 [ perf record: Captured and wrote 56.545 MB perf.data (~2470503 samples) ]
@@ -359,7 +359,7 @@ your script:
 # cat kernel-source/tools/perf/scripts/python/bin/syscall-counts-record
 
 #!/bin/bash
-perf record -c 1 -f -a -M -R -e raw_syscalls:sys_enter
+perf record -a -e raw_syscalls:sys_enter
 ----
 
 The 'report' script is also a shell script with the same base name as
@@ -449,12 +449,10 @@ available as calls back into the perf executable (see below).
 As an example, the following perf record command can be used to record
 all sched_wakeup events in the system:
 
- # perf record -c 1 -f -a -M -R -e sched:sched_wakeup
+ # perf record -a -e sched:sched_wakeup
 
 Traces meant to be processed using a script should be recorded with
-the above options: -c 1 says to sample every event, -a to enable
-system-wide collection, -M to multiplex the output, and -R to collect
-raw samples.
+the above option: -a to enable system-wide collection.
 
 The format file for the sched_wakep event defines the following fields
 (see /sys/kernel/debug/tracing/events/sched/sched_wakeup/format):
