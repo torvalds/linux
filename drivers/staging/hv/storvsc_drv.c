@@ -386,9 +386,9 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	struct scsi_sense_hdr sense_hdr;
 
 	ASSERT(request == &cmd_request->request);
+	ASSERT(scmnd);
 	ASSERT((unsigned long)scmnd->host_scribble ==
 		(unsigned long)cmd_request);
-	ASSERT(scmnd);
 	ASSERT(scmnd->scsi_done);
 
 	DPRINT_ENTER(STORVSC_DRV);
