@@ -775,11 +775,10 @@ M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
 
 ARM/Marvell Loki/Kirkwood/MV78xx0/Orion SOC support
-M:	Lennert Buytenhek <buytenh@marvell.com>
-M:	Nicolas Pitre <nico@marvell.com>
+M:	Lennert Buytenhek <kernel@wantstofly.org>
+M:	Nicolas Pitre <nico@fluxnic.net>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://git.marvell.com/orion
-S:	Maintained
+S:	Odd Fixes
 F:	arch/arm/mach-loki/
 F:	arch/arm/mach-kirkwood/
 F:	arch/arm/mach-mv78xx0/
@@ -3624,7 +3623,8 @@ F:	drivers/net/wireless/mwl8k.c
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
-S:	Maintained
+S:	Odd Fixes
+F: drivers/mmc/host/mvsdio.*
 
 MARVELL YUKON / SYSKONNECT DRIVER
 M:	Mirko Lindner <mlindner@syskonnect.de>
@@ -5121,7 +5121,7 @@ F:	mm/sl?b.c
 
 SMC91x ETHERNET DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/net/smc91x.*
 
 SMSC47B397 HARDWARE MONITOR DRIVER
