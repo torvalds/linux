@@ -297,6 +297,15 @@ config ARCH_CLPS711X
 	help
 	  Support for Cirrus Logic 711x/721x based boards.
 
+config ARCH_CNS3XXX
+	bool "Cavium Networks CNS3XXX family"
+	select CPU_V6
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select ARM_GIC
+	help
+	  Support for Cavium Networks CNS3XXX platform.
+
 config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
 	select CPU_FA526
@@ -817,6 +826,8 @@ source "arch/arm/mach-at91/Kconfig"
 source "arch/arm/mach-bcmring/Kconfig"
 
 source "arch/arm/mach-clps711x/Kconfig"
+
+source "arch/arm/mach-cns3xxx/Kconfig"
 
 source "arch/arm/mach-davinci/Kconfig"
 

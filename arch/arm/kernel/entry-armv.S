@@ -676,10 +676,10 @@ do_fpe:
  *  lr  = unrecognised FP instruction return address
  */
 
-	.data
+	.pushsection .data
 ENTRY(fp_enter)
 	.word	no_fp
-	.text
+	.popsection
 
 ENTRY(no_fp)
 	mov	pc, lr
