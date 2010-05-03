@@ -351,9 +351,6 @@ void cleanup_polling(void);
 void start_polling(struct comedi_device *);
 void stop_polling(struct comedi_device *);
 
-int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
-		     unsigned long new_size);
-
 #ifdef CONFIG_PROC_FS
 void comedi_proc_init(void);
 void comedi_proc_cleanup(void);

@@ -54,15 +54,8 @@ static int insn_rw_emulate_bits(struct comedi_device *dev,
 static void *comedi_recognize(struct comedi_driver *driv, const char *name);
 static void comedi_report_boards(struct comedi_driver *driv);
 static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s);
-int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
-		     unsigned long new_size);
 
 struct comedi_driver *comedi_drivers;
-
-int comedi_modprobe(int minor)
-{
-	return -EINVAL;
-}
 
 static void cleanup_device(struct comedi_device *dev)
 {
@@ -84,7 +77,7 @@ static void cleanup_device(struct comedi_device *dev)
 	}
 	kfree(dev->private);
 	dev->private = NULL;
-	dev->driver = 0;
+	dev->driver = NULL;
 	dev->board_name = NULL;
 	dev->board_ptr = NULL;
 	dev->iobase = 0;
@@ -309,7 +302,7 @@ static int postconfig(struct comedi_device *dev)
 
 /* generic recognize function for drivers
  * that register their supported board names */
-void *comedi_recognize(struct comedi_driver *driv, const char *name)
+static void *comedi_recognize(struct comedi_driver *driv, const char *name)
 {
 	unsigned i;
 	const char *const *name_ptr = driv->board_name;
@@ -324,7 +317,7 @@ void *comedi_recognize(struct comedi_driver *driv, const char *name)
 	return NULL;
 }
 
-void comedi_report_boards(struct comedi_driver *driv)
+static void comedi_report_boards(struct comedi_driver *driv)
 {
 	unsigned int i;
 	const char *const *name_ptr;
@@ -548,8 +541,8 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 
 /* munging is applied to data by core as it passes between user
  * and kernel space */
-unsigned int comedi_buf_munge(struct comedi_async *async,
-			      unsigned int num_bytes)
+static unsigned int comedi_buf_munge(struct comedi_async *async,
+				     unsigned int num_bytes)
 {
 	struct comedi_subdevice *s = async->subdevice;
 	unsigned int count = 0;
@@ -812,8 +805,9 @@ void comedi_reset_async_buf(struct comedi_async *async)
 	async->events = 0;
 }
 
-int comedi_auto_config(struct device *hardware_device, const char *board_name,
-		       const int *options, unsigned num_options)
+static int comedi_auto_config(struct device *hardware_device,
+			      const char *board_name, const int *options,
+			      unsigned num_options)
 {
 	struct comedi_devconfig it;
 	int minor;
@@ -858,7 +852,7 @@ cleanup:
 	return retval;
 }
 
-void comedi_auto_unconfig(struct device *hardware_device)
+static void comedi_auto_unconfig(struct device *hardware_device)
 {
 	unsigned *minor = (unsigned *)dev_get_drvdata(hardware_device);
 	if (minor == NULL)
