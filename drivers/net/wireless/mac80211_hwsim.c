@@ -1020,7 +1020,7 @@ static void mac80211_hwsim_sw_scan_complete(struct ieee80211_hw *hw)
 	mutex_lock(&hwsim->mutex);
 
 	printk(KERN_DEBUG "hwsim sw_scan_complete\n");
-	hwsim->scanning = true;
+	hwsim->scanning = false;
 
 	mutex_unlock(&hwsim->mutex);
 }
