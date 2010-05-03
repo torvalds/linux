@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 #define CAFE_NAND_CTRL1		0x00

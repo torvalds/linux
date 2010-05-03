@@ -19,7 +19,6 @@
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -34,6 +33,7 @@
 #include <linux/platform_device.h>
 #include <linux/phy.h>
 #include <linux/of_device.h>
+#include <linux/gfp.h>
 
 #include <asm/immap_cpm2.h>
 #include <asm/mpc8260.h>

@@ -19,7 +19,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/jiffies.h>
 #include <linux/spinlock.h>
-#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 #include <asm/types.h>

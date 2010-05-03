@@ -522,8 +522,8 @@ int nv50_display_create(struct drm_device *dev)
 	}
 
 	for (i = 0 ; i < dcb->connector.entries; i++) {
-		if (i != 0 && dcb->connector.entry[i].index ==
-			      dcb->connector.entry[i - 1].index)
+		if (i != 0 && dcb->connector.entry[i].index2 ==
+			      dcb->connector.entry[i - 1].index2)
 			continue;
 		nouveau_connector_create(dev, &dcb->connector.entry[i]);
 	}

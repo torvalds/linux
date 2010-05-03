@@ -2532,8 +2532,6 @@ static int alc_build_controls(struct hda_codec *codec)
 			return err;
 	}
 
-	alc_free_kctls(codec); /* no longer needed */
-
 	/* assign Capture Source enums to NID */
 	kctl = snd_hda_find_mixer_ctl(codec, "Capture Source");
 	if (!kctl)
@@ -2602,6 +2600,9 @@ static int alc_build_controls(struct hda_codec *codec)
 			}
 		}
 	}
+
+	alc_free_kctls(codec); /* no longer needed */
+
 	return 0;
 }
 
@@ -10042,8 +10043,11 @@ static void alc882_auto_set_output_and_unmute(struct hda_codec *codec,
 	alc_set_pin_output(codec, nid, pin_type);
 	if (spec->multiout.dac_nids[dac_idx] == 0x25)
 		idx = 4;
-	else
+	else {
+		if (spec->multiout.num_dacs >= dac_idx)
+			return;
 		idx = spec->multiout.dac_nids[dac_idx] - 2;
+	}
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, idx);
 
 }

@@ -763,8 +763,18 @@ static inline unsigned int ocfs2_megabytes_to_clusters(struct super_block *sb,
 	return megs << (20 - OCFS2_SB(sb)->s_clustersize_bits);
 }
 
-#define ocfs2_set_bit ext2_set_bit
-#define ocfs2_clear_bit ext2_clear_bit
+static inline void _ocfs2_set_bit(unsigned int bit, unsigned long *bitmap)
+{
+	ext2_set_bit(bit, bitmap);
+}
+#define ocfs2_set_bit(bit, addr) _ocfs2_set_bit((bit), (unsigned long *)(addr))
+
+static inline void _ocfs2_clear_bit(unsigned int bit, unsigned long *bitmap)
+{
+	ext2_clear_bit(bit, bitmap);
+}
+#define ocfs2_clear_bit(bit, addr) _ocfs2_clear_bit((bit), (unsigned long *)(addr))
+
 #define ocfs2_test_bit ext2_test_bit
 #define ocfs2_find_next_zero_bit ext2_find_next_zero_bit
 #define ocfs2_find_next_bit ext2_find_next_bit

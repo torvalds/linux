@@ -41,6 +41,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include "iwm.h"
 #include "bus.h"

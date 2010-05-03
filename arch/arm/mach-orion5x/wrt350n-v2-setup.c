@@ -77,7 +77,7 @@ static struct gpio_keys_button wrt350n_v2_buttons[] = {
 		.desc		= "Reset Button",
 		.active_low	= 1,
 	}, {
-		.code		= KEY_WLAN,
+		.code		= KEY_WPS_BUTTON,
 		.gpio		= 2,
 		.desc		= "WPS Button",
 		.active_low	= 1,

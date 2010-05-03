@@ -18,6 +18,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>

@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/slab.h>
 
 struct matrix_keypad {
 	const struct matrix_keypad_platform_data *pdata;

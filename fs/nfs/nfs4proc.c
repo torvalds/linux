@@ -39,6 +39,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/nfs.h>
 #include <linux/nfs4.h>

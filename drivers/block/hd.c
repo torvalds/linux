@@ -34,7 +34,6 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/genhd.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/init.h>

@@ -14,6 +14,7 @@
 #include <linux/jhash.h>
 #include <linux/bitops.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>

@@ -40,6 +40,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/slab.h>
 #include <rdma/ib_umem.h>
 
 #include "ehca_iverbs.h"

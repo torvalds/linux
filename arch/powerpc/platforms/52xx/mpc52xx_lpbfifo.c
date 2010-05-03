@@ -481,6 +481,8 @@ mpc52xx_lpbfifo_probe(struct of_device *op, const struct of_device_id *match)
 	if (rc)
 		goto err_bcom_rx_irq;
 
+	lpbfifo.dma_irqs_enabled = 1;
+
 	/* Request the Bestcomm transmit (memory --> fifo) task and IRQ */
 	lpbfifo.bcom_tx_task =
 		bcom_gen_bd_tx_init(2, res.start + LPBFIFO_REG_FIFO_DATA,

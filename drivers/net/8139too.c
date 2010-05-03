@@ -110,6 +110,7 @@
 #include <linux/crc32.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/gfp.h>
 #include <asm/irq.h>
 
 #define RTL8139_DRIVER_NAME   DRV_NAME " Fast Ethernet driver " DRV_VERSION

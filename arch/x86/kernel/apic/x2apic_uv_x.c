@@ -17,6 +17,7 @@
 #include <linux/ctype.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/io.h>

@@ -17,6 +17,7 @@
 #include <linux/nfs_fs_sb.h>
 #include <linux/in6.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include "internal.h"
 #include "iostat.h"

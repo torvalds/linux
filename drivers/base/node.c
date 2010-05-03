@@ -15,6 +15,7 @@
 #include <linux/cpu.h>
 #include <linux/device.h>
 #include <linux/swap.h>
+#include <linux/gfp.h>
 
 static struct sysdev_class_attribute *node_state_attrs[];
 
@@ -165,8 +166,11 @@ static ssize_t node_read_distance(struct sys_device * dev,
 	int len = 0;
 	int i;
 
-	/* buf currently PAGE_SIZE, need ~4 chars per node */
-	BUILD_BUG_ON(MAX_NUMNODES*4 > PAGE_SIZE/2);
+	/*
+	 * buf is currently PAGE_SIZE in length and each node needs 4 chars
+	 * at the most (distance + space or newline).
+	 */
+	BUILD_BUG_ON(MAX_NUMNODES * 4 > PAGE_SIZE);
 
 	for_each_online_node(i)
 		len += sprintf(buf + len, "%s%d", i ? " " : "", node_distance(nid, i));

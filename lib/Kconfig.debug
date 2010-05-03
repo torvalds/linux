@@ -103,7 +103,8 @@ config HEADERS_CHECK
 
 config DEBUG_SECTION_MISMATCH
 	bool "Enable full Section mismatch analysis"
-	depends on UNDEFINED
+	depends on UNDEFINED || (BLACKFIN)
+	default y
 	# This option is on purpose disabled for now.
 	# It will be enabled when we are down to a reasonable number
 	# of section mismatch warnings (< 10 for an allyesconfig build)

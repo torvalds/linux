@@ -99,7 +99,6 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/mca-legacy.h>

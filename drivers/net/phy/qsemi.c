@@ -17,7 +17,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/delay.h>

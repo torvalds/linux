@@ -17,6 +17,7 @@
  */
 #include <linux/sched.h>
 #include <linux/bio.h>
+#include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/random.h>
@@ -2198,9 +2199,9 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		min_stripes = 2;
 	}
 	if (type & (BTRFS_BLOCK_GROUP_RAID1)) {
-		num_stripes = min_t(u64, 2, fs_devices->rw_devices);
-		if (num_stripes < 2)
+		if (fs_devices->rw_devices < 2)
 			return -ENOSPC;
+		num_stripes = 2;
 		min_stripes = 2;
 	}
 	if (type & (BTRFS_BLOCK_GROUP_RAID10)) {
@@ -2244,8 +2245,10 @@ again:
 		do_div(calc_size, stripe_len);
 		calc_size *= stripe_len;
 	}
+
 	/* we don't want tiny stripes */
-	calc_size = max_t(u64, min_stripe_size, calc_size);
+	if (!looped)
+		calc_size = max_t(u64, min_stripe_size, calc_size);
 
 	do_div(calc_size, stripe_len);
 	calc_size *= stripe_len;
@@ -3389,6 +3392,8 @@ int btrfs_read_chunk_tree(struct btrfs_root *root)
 	key.type = 0;
 again:
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto error;
 	while (1) {
 		leaf = path->nodes[0];
 		slot = path->slots[0];

@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/jhash.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/nfnetlink_log.h>

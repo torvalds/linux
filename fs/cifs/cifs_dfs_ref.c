@@ -15,6 +15,7 @@
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 #include <linux/vfs.h>
 #include <linux/fs.h>
 #include "cifsglob.h"

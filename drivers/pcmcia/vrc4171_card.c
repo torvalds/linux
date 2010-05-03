@@ -705,24 +705,11 @@ static int __devinit vrc4171_card_setup(char *options)
 
 __setup("vrc4171_card=", vrc4171_card_setup);
 
-static int vrc4171_card_suspend(struct platform_device *dev,
-				     pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&dev->dev);
-}
-
-static int vrc4171_card_resume(struct platform_device *dev)
-{
-	return pcmcia_socket_dev_resume(&dev->dev);
-}
-
 static struct platform_driver vrc4171_card_driver = {
 	.driver = {
 		.name		= vrc4171_card_name,
 		.owner		= THIS_MODULE,
 	},
-	.suspend	= vrc4171_card_suspend,
-	.resume		= vrc4171_card_resume,
 };
 
 static int __devinit vrc4171_card_init(void)

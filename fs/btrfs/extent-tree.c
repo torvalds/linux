@@ -22,6 +22,7 @@
 #include <linux/sort.h>
 #include <linux/rcupdate.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "hash.h"
 #include "ctree.h"
@@ -2676,6 +2677,8 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 
 	INIT_LIST_HEAD(&found->block_groups);
 	init_rwsem(&found->groups_sem);
+	init_waitqueue_head(&found->flush_wait);
+	init_waitqueue_head(&found->allocate_wait);
 	spin_lock_init(&found->lock);
 	found->flags = flags;
 	found->total_bytes = total_bytes;
@@ -2846,7 +2849,7 @@ int btrfs_unreserve_metadata_for_delalloc(struct btrfs_root *root,
 	}
 	spin_unlock(&BTRFS_I(inode)->accounting_lock);
 
-	BTRFS_I(inode)->reserved_extents--;
+	BTRFS_I(inode)->reserved_extents -= num_items;
 	BUG_ON(BTRFS_I(inode)->reserved_extents < 0);
 
 	if (meta_sinfo->bytes_delalloc < num_bytes) {
@@ -2944,12 +2947,10 @@ static void flush_delalloc(struct btrfs_root *root,
 
 	spin_lock(&info->lock);
 
-	if (!info->flushing) {
+	if (!info->flushing)
 		info->flushing = 1;
-		init_waitqueue_head(&info->flush_wait);
-	} else {
+	else
 		wait = true;
-	}
 
 	spin_unlock(&info->lock);
 
@@ -3011,7 +3012,6 @@ static int maybe_allocate_chunk(struct btrfs_root *root,
 	if (!info->allocating_chunk) {
 		info->force_alloc = 1;
 		info->allocating_chunk = 1;
-		init_waitqueue_head(&info->allocate_wait);
 	} else {
 		wait = true;
 	}
@@ -3111,7 +3111,7 @@ again:
 		return -ENOSPC;
 	}
 
-	BTRFS_I(inode)->reserved_extents++;
+	BTRFS_I(inode)->reserved_extents += num_items;
 	check_force_delalloc(meta_sinfo);
 	spin_unlock(&meta_sinfo->lock);
 
@@ -4170,6 +4170,10 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	ins->offset = 0;
 
 	space_info = __find_space_info(root->fs_info, data);
+	if (!space_info) {
+		printk(KERN_ERR "No space info for %d\n", data);
+		return -ENOSPC;
+	}
 
 	if (orig_root->ref_cows || empty_size)
 		allowed_chunk_alloc = 1;
@@ -5205,6 +5209,8 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	next = btrfs_find_tree_block(root, bytenr, blocksize);
 	if (!next) {
 		next = btrfs_find_create_tree_block(root, bytenr, blocksize);
+		if (!next)
+			return -ENOMEM;
 		reada = 1;
 	}
 	btrfs_tree_lock(next);
@@ -5417,7 +5423,8 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 		if (ret > 0) {
 			path->slots[level]++;
 			continue;
-		}
+		} else if (ret < 0)
+			return ret;
 		level = wc->level;
 	}
 	return 0;
@@ -7369,7 +7376,6 @@ static int find_first_block_group(struct btrfs_root *root,
 		}
 		path->slots[0]++;
 	}
-	ret = -ENOENT;
 out:
 	return ret;
 }

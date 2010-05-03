@@ -27,6 +27,7 @@
  */
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "atom.h"
 #include "rs690d.h"
 
@@ -57,42 +58,57 @@ static void rs690_gpu_init(struct radeon_device *rdev)
 	}
 }
 
+union igp_info {
+	struct _ATOM_INTEGRATED_SYSTEM_INFO info;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V2 info_v2;
+};
+
 void rs690_pm_info(struct radeon_device *rdev)
 {
 	int index = GetIndexIntoMasterTable(DATA, IntegratedSystemInfo);
-	struct _ATOM_INTEGRATED_SYSTEM_INFO *info;
-	struct _ATOM_INTEGRATED_SYSTEM_INFO_V2 *info_v2;
-	void *ptr;
+	union igp_info *info;
 	uint16_t data_offset;
 	uint8_t frev, crev;
 	fixed20_12 tmp;
 
-	atom_parse_data_header(rdev->mode_info.atom_context, index, NULL,
-			       &frev, &crev, &data_offset);
-	ptr = rdev->mode_info.atom_context->bios + data_offset;
-	info = (struct _ATOM_INTEGRATED_SYSTEM_INFO *)ptr;
-	info_v2 = (struct _ATOM_INTEGRATED_SYSTEM_INFO_V2 *)ptr;
-	/* Get various system informations from bios */
-	switch (crev) {
-	case 1:
-		tmp.full = rfixed_const(100);
-		rdev->pm.igp_sideport_mclk.full = rfixed_const(info->ulBootUpMemoryClock);
-		rdev->pm.igp_sideport_mclk.full = rfixed_div(rdev->pm.igp_sideport_mclk, tmp);
-		rdev->pm.igp_system_mclk.full = rfixed_const(le16_to_cpu(info->usK8MemoryClock));
-		rdev->pm.igp_ht_link_clk.full = rfixed_const(le16_to_cpu(info->usFSBClock));
-		rdev->pm.igp_ht_link_width.full = rfixed_const(info->ucHTLinkWidth);
-		break;
-	case 2:
-		tmp.full = rfixed_const(100);
-		rdev->pm.igp_sideport_mclk.full = rfixed_const(info_v2->ulBootUpSidePortClock);
-		rdev->pm.igp_sideport_mclk.full = rfixed_div(rdev->pm.igp_sideport_mclk, tmp);
-		rdev->pm.igp_system_mclk.full = rfixed_const(info_v2->ulBootUpUMAClock);
-		rdev->pm.igp_system_mclk.full = rfixed_div(rdev->pm.igp_system_mclk, tmp);
-		rdev->pm.igp_ht_link_clk.full = rfixed_const(info_v2->ulHTLinkFreq);
-		rdev->pm.igp_ht_link_clk.full = rfixed_div(rdev->pm.igp_ht_link_clk, tmp);
-		rdev->pm.igp_ht_link_width.full = rfixed_const(le16_to_cpu(info_v2->usMinHTLinkWidth));
-		break;
-	default:
+	if (atom_parse_data_header(rdev->mode_info.atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
+		info = (union igp_info *)(rdev->mode_info.atom_context->bios + data_offset);
+
+		/* Get various system informations from bios */
+		switch (crev) {
+		case 1:
+			tmp.full = rfixed_const(100);
+			rdev->pm.igp_sideport_mclk.full = rfixed_const(info->info.ulBootUpMemoryClock);
+			rdev->pm.igp_sideport_mclk.full = rfixed_div(rdev->pm.igp_sideport_mclk, tmp);
+			rdev->pm.igp_system_mclk.full = rfixed_const(le16_to_cpu(info->info.usK8MemoryClock));
+			rdev->pm.igp_ht_link_clk.full = rfixed_const(le16_to_cpu(info->info.usFSBClock));
+			rdev->pm.igp_ht_link_width.full = rfixed_const(info->info.ucHTLinkWidth);
+			break;
+		case 2:
+			tmp.full = rfixed_const(100);
+			rdev->pm.igp_sideport_mclk.full = rfixed_const(info->info_v2.ulBootUpSidePortClock);
+			rdev->pm.igp_sideport_mclk.full = rfixed_div(rdev->pm.igp_sideport_mclk, tmp);
+			rdev->pm.igp_system_mclk.full = rfixed_const(info->info_v2.ulBootUpUMAClock);
+			rdev->pm.igp_system_mclk.full = rfixed_div(rdev->pm.igp_system_mclk, tmp);
+			rdev->pm.igp_ht_link_clk.full = rfixed_const(info->info_v2.ulHTLinkFreq);
+			rdev->pm.igp_ht_link_clk.full = rfixed_div(rdev->pm.igp_ht_link_clk, tmp);
+			rdev->pm.igp_ht_link_width.full = rfixed_const(le16_to_cpu(info->info_v2.usMinHTLinkWidth));
+			break;
+		default:
+			tmp.full = rfixed_const(100);
+			/* We assume the slower possible clock ie worst case */
+			/* DDR 333Mhz */
+			rdev->pm.igp_sideport_mclk.full = rfixed_const(333);
+			/* FIXME: system clock ? */
+			rdev->pm.igp_system_mclk.full = rfixed_const(100);
+			rdev->pm.igp_system_mclk.full = rfixed_div(rdev->pm.igp_system_mclk, tmp);
+			rdev->pm.igp_ht_link_clk.full = rfixed_const(200);
+			rdev->pm.igp_ht_link_width.full = rfixed_const(8);
+			DRM_ERROR("No integrated system info for your GPU, using safe default\n");
+			break;
+		}
+	} else {
 		tmp.full = rfixed_const(100);
 		/* We assume the slower possible clock ie worst case */
 		/* DDR 333Mhz */
@@ -103,7 +119,6 @@ void rs690_pm_info(struct radeon_device *rdev)
 		rdev->pm.igp_ht_link_clk.full = rfixed_const(200);
 		rdev->pm.igp_ht_link_width.full = rfixed_const(8);
 		DRM_ERROR("No integrated system info for your GPU, using safe default\n");
-		break;
 	}
 	/* Compute various bandwidth */
 	/* k8_bandwidth = (memory_clk / 2) * 2 * 8 * 0.5 = memory_clk * 4  */
@@ -131,7 +146,6 @@ void rs690_pm_info(struct radeon_device *rdev)
 
 void rs690_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 	u64 base;
 
 	rs400_gart_adjust_size(rdev);
@@ -145,18 +159,10 @@ void rs690_mc_init(struct radeon_device *rdev)
 	base = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
 	base = G_000100_MC_FB_START(base) << 16;
 	rs690_pm_info(rdev);
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
-	a.full = rfixed_const(16);
-	/* core_bandwidth = sclk(Mhz) * 16 */
-	rdev->pm.core_bandwidth.full = rfixed_div(rdev->pm.sclk, a);
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	radeon_vram_location(rdev, &rdev->mc, base);
 	radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 void rs690_line_buffer_adjust(struct radeon_device *rdev,
@@ -394,9 +400,11 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 	struct drm_display_mode *mode1 = NULL;
 	struct rs690_watermark wm0;
 	struct rs690_watermark wm1;
-	u32 tmp;
+	u32 tmp, d1mode_priority_a_cnt, d2mode_priority_a_cnt;
 	fixed20_12 priority_mark02, priority_mark12, fill_rate;
 	fixed20_12 a, b;
+
+	radeon_update_display_priority(rdev);
 
 	if (rdev->mode_info.crtcs[0]->base.enabled)
 		mode0 = &rdev->mode_info.crtcs[0]->base.mode;
@@ -407,7 +415,8 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 	 * modes if the user specifies HIGH for displaypriority
 	 * option.
 	 */
-	if (rdev->disp_priority == 2) {
+	if ((rdev->disp_priority == 2) &&
+	    ((rdev->family == CHIP_RS690) || (rdev->family == CHIP_RS740))) {
 		tmp = RREG32_MC(R_000104_MC_INIT_MISC_LAT_TIMER);
 		tmp &= C_000104_MC_DISP0R_INIT_LAT;
 		tmp &= C_000104_MC_DISP1R_INIT_LAT;
@@ -482,10 +491,16 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 			priority_mark12.full = 0;
 		if (wm1.priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark_max.full;
-		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark02));
-		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark02));
-		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark12));
-		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark12));
+		d1mode_priority_a_cnt = rfixed_trunc(priority_mark02);
+		d2mode_priority_a_cnt = rfixed_trunc(priority_mark12);
+		if (rdev->disp_priority == 2) {
+			d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
+			d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
+		}
+		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
+		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
+		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
+		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 	} else if (mode0) {
 		if (rfixed_trunc(wm0.dbpp) > 64)
 			a.full = rfixed_mul(wm0.dbpp, wm0.num_line_pair);
@@ -512,8 +527,11 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 			priority_mark02.full = 0;
 		if (wm0.priority_mark_max.full > priority_mark02.full)
 			priority_mark02.full = wm0.priority_mark_max.full;
-		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark02));
-		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark02));
+		d1mode_priority_a_cnt = rfixed_trunc(priority_mark02);
+		if (rdev->disp_priority == 2)
+			d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
+		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
+		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
 		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT,
 			S_006D48_D2MODE_PRIORITY_A_OFF(1));
 		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT,
@@ -544,12 +562,15 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 			priority_mark12.full = 0;
 		if (wm1.priority_mark_max.full > priority_mark12.full)
 			priority_mark12.full = wm1.priority_mark_max.full;
+		d2mode_priority_a_cnt = rfixed_trunc(priority_mark12);
+		if (rdev->disp_priority == 2)
+			d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
 		WREG32(R_006548_D1MODE_PRIORITY_A_CNT,
 			S_006548_D1MODE_PRIORITY_A_OFF(1));
 		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT,
 			S_00654C_D1MODE_PRIORITY_B_OFF(1));
-		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, rfixed_trunc(priority_mark12));
-		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, rfixed_trunc(priority_mark12));
+		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
+		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
 	}
 }
 
@@ -657,6 +678,7 @@ int rs690_suspend(struct radeon_device *rdev)
 
 void rs690_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);

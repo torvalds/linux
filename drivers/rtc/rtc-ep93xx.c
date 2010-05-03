@@ -13,6 +13,7 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 
 #define EP93XX_RTC_DATA			0x000
 #define EP93XX_RTC_MATCH		0x004

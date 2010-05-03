@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/stddef.h>

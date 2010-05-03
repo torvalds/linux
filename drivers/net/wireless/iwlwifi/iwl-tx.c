@@ -29,6 +29,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
@@ -124,7 +125,7 @@ void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 	if (priv->stations[sta_id].tid[tid].tfds_in_queue >= freed)
 		priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 	else {
-		IWL_ERR(priv, "free more than tfds_in_queue (%u:%d)\n",
+		IWL_DEBUG_TX(priv, "free more than tfds_in_queue (%u:%d)\n",
 			priv->stations[sta_id].tid[tid].tfds_in_queue,
 			freed);
 		priv->stations[sta_id].tid[tid].tfds_in_queue = 0;

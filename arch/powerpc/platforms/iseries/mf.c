@@ -33,6 +33,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
+#include <linux/slab.h>
 
 #include <asm/time.h>
 #include <asm/uaccess.h>

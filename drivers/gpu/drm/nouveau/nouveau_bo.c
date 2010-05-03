@@ -34,6 +34,7 @@
 #include "nouveau_dma.h"
 
 #include <linux/log2.h>
+#include <linux/slab.h>
 
 static void
 nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
@@ -439,8 +440,7 @@ nouveau_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_TT |
-					 TTM_PL_FLAG_SYSTEM);
+		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_TT);
 		break;
 	default:
 		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_SYSTEM);

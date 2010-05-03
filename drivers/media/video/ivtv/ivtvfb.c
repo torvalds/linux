@@ -42,6 +42,7 @@
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/ivtvfb.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>

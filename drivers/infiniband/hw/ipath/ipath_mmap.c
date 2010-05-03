@@ -32,6 +32,7 @@
 
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <asm/pgtable.h>

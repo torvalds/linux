@@ -53,6 +53,7 @@
 #include <linux/ip.h>
 #include <linux/in.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 
 #include "cpl5_cmd.h"
 #include "sge.h"

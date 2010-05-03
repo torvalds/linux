@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 
 #include "u_ether.h"
 
