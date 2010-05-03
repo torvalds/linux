@@ -24,9 +24,6 @@
 
 #define NTRIG_DUPLICATE_USAGES	0x001
 
-#define nt_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, max, \
-					EV_KEY, (c))
-
 struct ntrig_data {
 	/* Incoming raw values for a single contact */
 	__u16 x, y, w, h;
@@ -257,29 +254,10 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			nd->reading_mt = 0;
 
 			if (nd->first_contact_touch) {
-				switch (value) {
-				case 0:	/* for single touch devices */
-				case 1:
-					input_report_key(input,
-							BTN_TOOL_DOUBLETAP, 1);
-					break;
-				case 2:
-					input_report_key(input,
-							BTN_TOOL_TRIPLETAP, 1);
-					break;
-				case 3:
-				default:
-					input_report_key(input,
-							BTN_TOOL_QUADTAP, 1);
-				}
+				input_report_key(input, BTN_TOOL_DOUBLETAP, 1);
 				input_report_key(input, BTN_TOUCH, 1);
 			} else {
-				input_report_key(input,
-						BTN_TOOL_DOUBLETAP, 0);
-				input_report_key(input,
-						BTN_TOOL_TRIPLETAP, 0);
-				input_report_key(input,
-						BTN_TOOL_QUADTAP, 0);
+				input_report_key(input, BTN_TOOL_DOUBLETAP, 0);
 				input_report_key(input, BTN_TOUCH, 0);
 			}
 			break;
@@ -345,13 +323,7 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			__clear_bit(BTN_TOOL_PEN, input->keybit);
 			__clear_bit(BTN_TOOL_FINGER, input->keybit);
 			__clear_bit(BTN_0, input->keybit);
-			/*
-			 * A little something special to enable
-			 * two and three finger taps.
-			 */
 			__set_bit(BTN_TOOL_DOUBLETAP, input->keybit);
-			__set_bit(BTN_TOOL_TRIPLETAP, input->keybit);
-			__set_bit(BTN_TOOL_QUADTAP, input->keybit);
 			/*
 			 * The physical touchscreen (single touch)
 			 * input has a value for physical, whereas
