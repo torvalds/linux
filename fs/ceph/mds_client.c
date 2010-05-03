@@ -2748,6 +2748,9 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 {
 	u64 want_tid, want_flush;
 
+	if (mdsc->client->mount_state == CEPH_MOUNT_SHUTDOWN)
+		return;
+
 	dout("sync\n");
 	mutex_lock(&mdsc->mutex);
 	want_tid = mdsc->last_tid;
