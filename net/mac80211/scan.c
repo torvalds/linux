@@ -728,10 +728,12 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 }
 
 int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
-				    const u8 *ssid, u8 ssid_len)
+				    const u8 *ssid, u8 ssid_len,
+				    struct ieee80211_channel *chan)
 {
 	struct ieee80211_local *local = sdata->local;
 	int ret = -EBUSY;
+	enum nl80211_band band;
 
 	mutex_lock(&local->scan_mtx);
 
@@ -739,6 +741,30 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->scan_req)
 		goto unlock;
 
+	/* fill internal scan request */
+	if (!chan) {
+		int i, nchan = 0;
+
+		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+			if (!local->hw.wiphy->bands[band])
+				continue;
+			for (i = 0;
+			     i < local->hw.wiphy->bands[band]->n_channels;
+			     i++) {
+				local->int_scan_req->channels[nchan] =
+				    &local->hw.wiphy->bands[band]->channels[i];
+				nchan++;
+			}
+		}
+
+		local->int_scan_req->n_channels = nchan;
+	} else {
+		local->int_scan_req->channels[0] = chan;
+		local->int_scan_req->n_channels = 1;
+	}
+
+	local->int_scan_req->ssids = &local->scan_ssid;
+	local->int_scan_req->n_ssids = 1;
 	memcpy(local->int_scan_req->ssids[0].ssid, ssid, IEEE80211_MAX_SSID_LEN);
 	local->int_scan_req->ssids[0].ssid_len = ssid_len;
 
