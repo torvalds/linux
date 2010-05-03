@@ -587,7 +587,7 @@ static void tm6000_uninit_isoc(struct tm6000_core *dev)
 			usb_kill_urb(urb);
 			usb_unlink_urb(urb);
 			if (dev->isoc_ctl.transfer_buffer[i]) {
-				usb_buffer_free(dev->udev,
+				usb_free_coherent(dev->udev,
 						urb->transfer_buffer_length,
 						dev->isoc_ctl.transfer_buffer[i],
 						urb->transfer_dma);
@@ -674,7 +674,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 		}
 		dev->isoc_ctl.urb[i] = urb;
 
-		dev->isoc_ctl.transfer_buffer[i] = usb_buffer_alloc(dev->udev,
+		dev->isoc_ctl.transfer_buffer[i] = usb_alloc_coherent(dev->udev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
 			tm6000_err ("unable to allocate %i bytes for transfer"
