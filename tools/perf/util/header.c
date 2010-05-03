@@ -436,7 +436,6 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 		trace_sec->size = lseek(fd, 0, SEEK_CUR) - trace_sec->offset;
 	}
 
-
 	if (perf_header__has_feat(self, HEADER_BUILD_ID)) {
 		struct perf_file_section *buildid_sec;
 
