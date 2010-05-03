@@ -268,6 +268,11 @@ static inline int br_is_root_bridge(const struct net_bridge *br)
 	return !memcmp(&br->bridge_id, &br->designated_root, 8);
 }
 
+static inline struct net_bridge_port *br_port(const struct net_device *dev)
+{
+	return rcu_dereference(dev->br_port);
+}
+
 /* br_device.c */
 extern void br_dev_setup(struct net_device *dev);
 extern netdev_tx_t br_dev_xmit(struct sk_buff *skb,

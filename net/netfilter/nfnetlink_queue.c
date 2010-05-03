@@ -297,7 +297,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 				     htonl(indev->ifindex));
 			/* this is the bridge group "brX" */
 			NLA_PUT_BE32(skb, NFQA_IFINDEX_INDEV,
-				     htonl(indev->br_port->br->dev->ifindex));
+				     htonl(br_port(indev)->br->dev->ifindex));
 		} else {
 			/* Case 2: indev is bridge group, we need to look for
 			 * physical device (when called from ipv4) */
@@ -322,7 +322,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 				     htonl(outdev->ifindex));
 			/* this is the bridge group "brX" */
 			NLA_PUT_BE32(skb, NFQA_IFINDEX_OUTDEV,
-				     htonl(outdev->br_port->br->dev->ifindex));
+				     htonl(br_port(outdev)->br->dev->ifindex));
 		} else {
 			/* Case 2: outdev is bridge group, we need to look for
 			 * physical output device (when called from ipv4) */

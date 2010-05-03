@@ -101,6 +101,9 @@ struct __fdb_entry {
 
 #include <linux/netdevice.h>
 
+/* br_handle_frame_hook() needs the following forward declaration. */
+struct net_bridge_port;
+
 extern void brioctl_set(int (*ioctl_hook)(struct net *, unsigned int, void __user *));
 extern struct sk_buff *(*br_handle_frame_hook)(struct net_bridge_port *p,
 					       struct sk_buff *skb);

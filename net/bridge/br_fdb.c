@@ -246,7 +246,7 @@ int br_fdb_test_addr(struct net_device *dev, unsigned char *addr)
 		return 0;
 
 	rcu_read_lock();
-	fdb = __br_fdb_get(dev->br_port->br, addr);
+	fdb = __br_fdb_get(br_port(dev)->br, addr);
 	ret = fdb && fdb->dst->dev != dev &&
 		fdb->dst->state == BR_STATE_FORWARDING;
 	rcu_read_unlock();

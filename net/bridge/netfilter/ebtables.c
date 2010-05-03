@@ -141,10 +141,10 @@ ebt_basic_match(const struct ebt_entry *e, const struct ethhdr *h,
 	if (FWINV2(ebt_dev_check(e->out, out), EBT_IOUT))
 		return 1;
 	if ((!in || !in->br_port) ? 0 : FWINV2(ebt_dev_check(
-	   e->logical_in, in->br_port->br->dev), EBT_ILOGICALIN))
+	   e->logical_in, br_port(in)->br->dev), EBT_ILOGICALIN))
 		return 1;
 	if ((!out || !out->br_port) ? 0 : FWINV2(ebt_dev_check(
-	   e->logical_out, out->br_port->br->dev), EBT_ILOGICALOUT))
+	   e->logical_out, br_port(out)->br->dev), EBT_ILOGICALOUT))
 		return 1;
 
 	if (e->bitmask & EBT_SOURCEMAC) {
