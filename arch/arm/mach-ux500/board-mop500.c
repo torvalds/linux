@@ -70,27 +70,8 @@ static struct pl022_ssp_controller ssp0_platform_data = {
 	.num_chipselect = 5,
 };
 
-#define U8500_I2C_RESOURCES(id, size)		\
-static struct resource u8500_i2c_resources_##id[] = {	\
-	[0] = {					\
-		.start	= U8500_I2C##id##_BASE,	\
-		.end	= U8500_I2C##id##_BASE + size - 1, \
-		.flags	= IORESOURCE_MEM,	\
-	},					\
-	[1] = {					\
-		.start	= IRQ_I2C##id,		\
-		.end	= IRQ_I2C##id,		\
-		.flags	= IORESOURCE_IRQ	\
-	}					\
-}
-
-U8500_I2C_RESOURCES(0, SZ_4K);
-U8500_I2C_RESOURCES(1, SZ_4K);
-U8500_I2C_RESOURCES(2, SZ_4K);
-U8500_I2C_RESOURCES(3, SZ_4K);
-
 #define U8500_I2C_CONTROLLER(id, _slsu, _tft, _rft, clk, _sm) \
-static struct nmk_i2c_controller u8500_i2c_##id = { \
+static struct nmk_i2c_controller u8500_i2c##id##_data = { \
 	/*				\
 	 * slave data setup time, which is	\
 	 * 250 ns,100ns,10ns which is 14,6,2	\
@@ -118,22 +99,6 @@ U8500_I2C_CONTROLLER(1, 0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 U8500_I2C_CONTROLLER(2,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 U8500_I2C_CONTROLLER(3,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 
-#define U8500_I2C_PDEVICE(cid)		\
-static struct platform_device i2c_controller##cid = { \
-	.name = "nmk-i2c",		\
-	.id	 = cid,			\
-	.num_resources = 2,		\
-	.resource = u8500_i2c_resources_##cid,	\
-	.dev = {			\
-		.platform_data = &u8500_i2c_##cid \
-	}				\
-}
-
-U8500_I2C_PDEVICE(0);
-U8500_I2C_PDEVICE(1);
-U8500_I2C_PDEVICE(2);
-U8500_I2C_PDEVICE(3);
-
 static struct amba_device *amba_devs[] __initdata = {
 	&ux500_uart0_device,
 	&ux500_uart1_device,
@@ -143,15 +108,20 @@ static struct amba_device *amba_devs[] __initdata = {
 
 /* add any platform devices here - TODO */
 static struct platform_device *platform_devs[] __initdata = {
-	&i2c_controller0,
-	&i2c_controller1,
-	&i2c_controller2,
-	&i2c_controller3,
+	&u8500_i2c0_device,
+	&ux500_i2c1_device,
+	&ux500_i2c2_device,
+	&ux500_i2c3_device,
 };
 
 static void __init u8500_init_machine(void)
 {
 	int i;
+
+	u8500_i2c0_device.dev.platform_data = &u8500_i2c0_data;
+	ux500_i2c1_device.dev.platform_data = &u8500_i2c1_data;
+	ux500_i2c2_device.dev.platform_data = &u8500_i2c2_data;
+	ux500_i2c3_device.dev.platform_data = &u8500_i2c3_data;
 
 	u8500_ssp0_device.dev.platform_data = &ssp0_platform_data;
 

@@ -47,6 +47,36 @@ struct amba_device ux500_uart2_device = {
 	.irq = {IRQ_UART2, NO_IRQ},
 };
 
+#define UX500_I2C_RESOURCES(id, size)				\
+static struct resource ux500_i2c##id##_resources[] = {		\
+	[0] = {							\
+		.start	= UX500_I2C##id##_BASE,			\
+		.end	= UX500_I2C##id##_BASE + size - 1,	\
+		.flags	= IORESOURCE_MEM,			\
+	},							\
+	[1] = {							\
+		.start	= IRQ_I2C##id,				\
+		.end	= IRQ_I2C##id,				\
+		.flags	= IORESOURCE_IRQ			\
+	}							\
+}
+
+UX500_I2C_RESOURCES(1, SZ_4K);
+UX500_I2C_RESOURCES(2, SZ_4K);
+UX500_I2C_RESOURCES(3, SZ_4K);
+
+#define UX500_I2C_PDEVICE(cid)					\
+struct platform_device ux500_i2c##cid##_device = {		\
+	.name		= "nmk-i2c",				\
+	.id		= cid,					\
+	.num_resources	= 2,					\
+	.resource	= ux500_i2c##cid##_resources,		\
+}
+
+UX500_I2C_PDEVICE(1);
+UX500_I2C_PDEVICE(2);
+UX500_I2C_PDEVICE(3);
+
 void __init amba_add_devices(struct amba_device *devs[], int num)
 {
 	int i;
