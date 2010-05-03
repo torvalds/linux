@@ -27,4 +27,11 @@ config MACH_U8500_MOP
 	  on early drop silicon version of 8500.
 endmenu
 
+config UX500_DEBUG_UART
+	int "Ux500 UART to use for low-level debug"
+	default 2
+	help
+	  Choose the UART on which kernel low-level debug messages should be
+	  output.
+
 endif
