@@ -43,36 +43,6 @@ int comedi_dio_config(void *dev, unsigned int subdev, unsigned int chan,
 }
 EXPORT_SYMBOL(comedi_dio_config);
 
-int comedi_dio_read(void *dev, unsigned int subdev, unsigned int chan,
-		    unsigned int *val)
-{
-	struct comedi_insn insn;
-
-	memset(&insn, 0, sizeof(insn));
-	insn.insn = INSN_READ;
-	insn.n = 1;
-	insn.data = val;
-	insn.subdev = subdev;
-	insn.chanspec = CR_PACK(chan, 0, 0);
-
-	return comedi_do_insn(dev, &insn);
-}
-
-int comedi_dio_write(void *dev, unsigned int subdev, unsigned int chan,
-		     unsigned int val)
-{
-	struct comedi_insn insn;
-
-	memset(&insn, 0, sizeof(insn));
-	insn.insn = INSN_WRITE;
-	insn.n = 1;
-	insn.data = &val;
-	insn.subdev = subdev;
-	insn.chanspec = CR_PACK(chan, 0, 0);
-
-	return comedi_do_insn(dev, &insn);
-}
-
 int comedi_dio_bitfield(void *dev, unsigned int subdev, unsigned int mask,
 			unsigned int *bits)
 {
