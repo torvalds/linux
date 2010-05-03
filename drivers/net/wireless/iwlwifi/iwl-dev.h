@@ -433,7 +433,7 @@ struct iwl_ht_agg {
 
 
 struct iwl_tid_data {
-	u16 seq_number;
+	u16 seq_number; /* agn only */
 	u16 tfds_in_queue;
 	struct iwl_ht_agg agg;
 };

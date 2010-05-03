@@ -473,10 +473,8 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	u8 unicast;
 	u8 sta_id;
 	u8 tid = 0;
-	u16 seq_number = 0;
 	__le16 fc;
 	u8 wait_write_ptr = 0;
-	u8 *qc = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -519,16 +517,10 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	IWL_DEBUG_RATE(priv, "station Id %d\n", sta_id);
 
 	if (ieee80211_is_data_qos(fc)) {
-		qc = ieee80211_get_qos_ctl(hdr);
+		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 		if (unlikely(tid >= MAX_TID_COUNT))
 			goto drop;
-		seq_number = priv->stations[sta_id].tid[tid].seq_number &
-				IEEE80211_SCTL_SEQ;
-		hdr->seq_ctrl = cpu_to_le16(seq_number) |
-			(hdr->seq_ctrl &
-				cpu_to_le16(IEEE80211_SCTL_FRAG));
-		seq_number += 0x10;
 	}
 
 	/* Descriptor for chosen Tx queue */
@@ -587,8 +579,6 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		txq->need_update = 1;
-		if (qc)
-			priv->stations[sta_id].tid[tid].seq_number = seq_number;
 	} else {
 		wait_write_ptr = 1;
 		txq->need_update = 0;
