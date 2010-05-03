@@ -62,12 +62,16 @@ static int profile_exceptions_notify(struct notifier_block *self,
 {
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
-	int cpu = smp_processor_id();
 
 	switch (val) {
 	case DIE_NMI:
 	case DIE_NMI_IPI:
-		model->check_ctrs(args->regs, &per_cpu(cpu_msrs, cpu));
+		if (ctr_running)
+			model->check_ctrs(args->regs, &__get_cpu_var(cpu_msrs));
+		else if (!nmi_enabled)
+			break;
+		else
+			model->stop(&__get_cpu_var(cpu_msrs));
 		ret = NOTIFY_STOP;
 		break;
 	default:
@@ -392,6 +396,9 @@ static int nmi_setup(void)
 		mux_clone(cpu);
 	}
 
+	nmi_enabled = 0;
+	ctr_running = 0;
+	barrier();
 	err = register_die_notifier(&profile_exceptions_nb);
 	if (err)
 		goto fail;
@@ -451,6 +458,7 @@ static void nmi_shutdown(void)
 	nmi_enabled = 0;
 	ctr_running = 0;
 	put_online_cpus();
+	barrier();
 	unregister_die_notifier(&profile_exceptions_nb);
 	msrs = &get_cpu_var(cpu_msrs);
 	model->shutdown(msrs);
