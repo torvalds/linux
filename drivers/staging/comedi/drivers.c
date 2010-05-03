@@ -811,7 +811,6 @@ void comedi_reset_async_buf(struct comedi_async *async)
 
 	async->events = 0;
 }
-EXPORT_SYMBOL(comedi_reset_async_buf);
 
 int comedi_auto_config(struct device *hardware_device, const char *board_name,
 		       const int *options, unsigned num_options)

@@ -495,8 +495,6 @@ static inline unsigned comedi_buf_read_n_allocated(struct comedi_async *async)
 	return async->buf_read_alloc_count - async->buf_read_count;
 }
 
-void comedi_reset_async_buf(struct comedi_async *async);
-
 static inline void *comedi_aux_data(int options[], int n)
 {
 	unsigned long address;
