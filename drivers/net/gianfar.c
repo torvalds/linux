@@ -1567,9 +1567,9 @@ static void gfar_halt_nodisable(struct net_device *dev)
 		tempval |= (DMACTRL_GRS | DMACTRL_GTS);
 		gfar_write(&regs->dmactrl, tempval);
 
-		while (!(gfar_read(&regs->ievent) &
-			 (IEVENT_GRSC | IEVENT_GTSC)))
-			cpu_relax();
+		spin_event_timeout(((gfar_read(&regs->ievent) &
+			 (IEVENT_GRSC | IEVENT_GTSC)) ==
+			 (IEVENT_GRSC | IEVENT_GTSC)), -1, 0);
 	}
 }
 

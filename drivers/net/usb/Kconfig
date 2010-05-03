@@ -397,4 +397,13 @@ config USB_IPHETH
 
 	  For more information: http://giagio.com/wiki/moin.cgi/iPhoneEthernetDriver
 
+config USB_SIERRA_NET
+	tristate "USB-to-WWAN Driver for Sierra Wireless modems"
+	depends on USB_USBNET
+	help
+	  Choose this option if you have a Sierra Wireless USB-to-WWAN device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sierra_net.
+
 endmenu

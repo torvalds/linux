@@ -1804,22 +1804,29 @@ static void media_check(u_long arg)
     SMC_SELECT_BANK(1);
     media |= (inw(ioaddr + CONFIG) & CFG_AUI_SELECT) ? 2 : 1;
 
+    SMC_SELECT_BANK(saved_bank);
+    spin_unlock_irqrestore(&smc->lock, flags);
+
     /* Check for pending interrupt with watchdog flag set: with
        this, we can limp along even if the interrupt is blocked */
     if (smc->watchdog++ && ((i>>8) & i)) {
 	if (!smc->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+	local_irq_save(flags);
 	smc_interrupt(dev->irq, dev);
+	local_irq_restore(flags);
 	smc->fast_poll = HZ;
     }
     if (smc->fast_poll) {
 	smc->fast_poll--;
 	smc->media.expires = jiffies + HZ/100;
 	add_timer(&smc->media);
-	SMC_SELECT_BANK(saved_bank);
-	spin_unlock_irqrestore(&smc->lock, flags);
 	return;
     }
+
+    spin_lock_irqsave(&smc->lock, flags);
+
+    saved_bank = inw(ioaddr + BANK_SELECT);
 
     if (smc->cfg & CFG_MII_SELECT) {
 	if (smc->mii_if.phy_id < 0)
@@ -1978,15 +1985,16 @@ static int smc_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	unsigned int ioaddr = dev->base_addr;
 	u16 saved_bank = inw(ioaddr + BANK_SELECT);
 	int ret;
+	unsigned long flags;
 
-	spin_lock_irq(&smc->lock);
+	spin_lock_irqsave(&smc->lock, flags);
 	SMC_SELECT_BANK(3);
 	if (smc->cfg & CFG_MII_SELECT)
 		ret = mii_ethtool_gset(&smc->mii_if, ecmd);
 	else
 		ret = smc_netdev_get_ecmd(dev, ecmd);
 	SMC_SELECT_BANK(saved_bank);
-	spin_unlock_irq(&smc->lock);
+	spin_unlock_irqrestore(&smc->lock, flags);
 	return ret;
 }
 
@@ -1996,15 +2004,16 @@ static int smc_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	unsigned int ioaddr = dev->base_addr;
 	u16 saved_bank = inw(ioaddr + BANK_SELECT);
 	int ret;
+	unsigned long flags;
 
-	spin_lock_irq(&smc->lock);
+	spin_lock_irqsave(&smc->lock, flags);
 	SMC_SELECT_BANK(3);
 	if (smc->cfg & CFG_MII_SELECT)
 		ret = mii_ethtool_sset(&smc->mii_if, ecmd);
 	else
 		ret = smc_netdev_set_ecmd(dev, ecmd);
 	SMC_SELECT_BANK(saved_bank);
-	spin_unlock_irq(&smc->lock);
+	spin_unlock_irqrestore(&smc->lock, flags);
 	return ret;
 }
 
@@ -2014,12 +2023,13 @@ static u32 smc_get_link(struct net_device *dev)
 	unsigned int ioaddr = dev->base_addr;
 	u16 saved_bank = inw(ioaddr + BANK_SELECT);
 	u32 ret;
+	unsigned long flags;
 
-	spin_lock_irq(&smc->lock);
+	spin_lock_irqsave(&smc->lock, flags);
 	SMC_SELECT_BANK(3);
 	ret = smc_link_ok(dev);
 	SMC_SELECT_BANK(saved_bank);
-	spin_unlock_irq(&smc->lock);
+	spin_unlock_irqrestore(&smc->lock, flags);
 	return ret;
 }
 
@@ -2056,16 +2066,17 @@ static int smc_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 	int rc = 0;
 	u16 saved_bank;
 	unsigned int ioaddr = dev->base_addr;
+	unsigned long flags;
 
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	spin_lock_irq(&smc->lock);
+	spin_lock_irqsave(&smc->lock, flags);
 	saved_bank = inw(ioaddr + BANK_SELECT);
 	SMC_SELECT_BANK(3);
 	rc = generic_mii_ioctl(&smc->mii_if, mii, cmd, NULL);
 	SMC_SELECT_BANK(saved_bank);
-	spin_unlock_irq(&smc->lock);
+	spin_unlock_irqrestore(&smc->lock, flags);
 	return rc;
 }
 
