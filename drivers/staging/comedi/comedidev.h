@@ -522,7 +522,6 @@ static inline void *comedi_aux_data(int options[], int n)
 	return (void *)address;
 }
 
-int comedi_alloc_board_minor(struct device *hardware_device);
 void comedi_free_board_minor(unsigned minor);
 int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 				 struct comedi_subdevice *s);

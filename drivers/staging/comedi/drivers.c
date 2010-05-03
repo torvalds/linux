@@ -37,14 +37,15 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include "comedidev.h"
 #include <linux/highmem.h>	/* for SuSE brokenness */
 #include <linux/vmalloc.h>
 #include <linux/cdev.h>
 #include <linux/dma-mapping.h>
-
 #include <linux/io.h>
 #include <asm/system.h>
+
+#include "comedidev.h"
+#include "internal.h"
 
 static int postconfig(struct comedi_device *dev);
 static int insn_rw_emulate_bits(struct comedi_device *dev,

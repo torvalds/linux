@@ -49,7 +49,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-/* #include "kvmem.h" */
+#include "internal.h"
 
 MODULE_AUTHOR("http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi core module");
@@ -2156,7 +2156,6 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	}
 	return i;
 }
-EXPORT_SYMBOL_GPL(comedi_alloc_board_minor);
 
 void comedi_free_board_minor(unsigned minor)
 {
