@@ -100,8 +100,8 @@ config MD_RAID1
 	  If unsure, say Y.
 
 config MD_RAID10
-	tristate "RAID-10 (mirrored striping) mode (EXPERIMENTAL)"
-	depends on BLK_DEV_MD && EXPERIMENTAL
+	tristate "RAID-10 (mirrored striping) mode"
+	depends on BLK_DEV_MD
 	---help---
 	  RAID-10 provides a combination of striping (RAID-0) and
 	  mirroring (RAID-1) with easier configuration and more flexible
