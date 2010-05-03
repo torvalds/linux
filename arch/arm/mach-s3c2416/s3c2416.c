@@ -50,6 +50,8 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 
+#include <plat/iic-core.h>
+
 static struct map_desc s3c2416_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
 	IODESC_ENT(CLKPWR),
@@ -79,6 +81,10 @@ int __init s3c2416_init(void)
 	/* change WDT IRQ number */
 	s3c_device_wdt.resource[1].start = IRQ_S3C2443_WDT;
 	s3c_device_wdt.resource[1].end   = IRQ_S3C2443_WDT;
+
+	/* the i2c devices are directly compatible with s3c2440 */
+	s3c_i2c0_setname("s3c2440-i2c");
+	s3c_i2c1_setname("s3c2440-i2c");
 
 	return sysdev_register(&s3c2416_sysdev);
 }
