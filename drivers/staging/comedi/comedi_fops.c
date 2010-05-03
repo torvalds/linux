@@ -954,6 +954,17 @@ error:
 	return ret;
 }
 
+static void comedi_set_subdevice_runflags(struct comedi_subdevice *s,
+					  unsigned mask, unsigned bits)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&s->spin_lock, flags);
+	s->runflags &= ~mask;
+	s->runflags |= (bits & mask);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+}
+
 /*
 	COMEDI_CMD
 	command ioctl
@@ -2020,18 +2031,6 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	s->async->events = 0;
 }
 EXPORT_SYMBOL(comedi_event);
-
-void comedi_set_subdevice_runflags(struct comedi_subdevice *s, unsigned mask,
-				   unsigned bits)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&s->spin_lock, flags);
-	s->runflags &= ~mask;
-	s->runflags |= (bits & mask);
-	spin_unlock_irqrestore(&s->spin_lock, flags);
-}
-EXPORT_SYMBOL(comedi_set_subdevice_runflags);
 
 unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
 {
