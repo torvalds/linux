@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/gpiolib.c
  *
- * Copyright (c) 2008 Simtec Electronics
+ * Copyright (c) 2008-2010 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -172,7 +172,46 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 			.ngpio			= 11,
 		},
 	},
+		/* GPIOS for the S3C2443 and later devices. */
+	{
+		.base	= S3C2440_GPJCON,
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
+		.chip	= {
+			.base			= S3C2410_GPJ(0),
+			.owner			= THIS_MODULE,
+			.label			= "GPIOJ",
+			.ngpio			= 16,
+		},
+	}, {
+		.base	= S3C2443_GPKCON,
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
+		.chip	= {
+			.base			= S3C2410_GPK(0),
+			.owner			= THIS_MODULE,
+			.label			= "GPIOK",
+			.ngpio			= 16,
+		},
+	}, {
+		.base	= S3C2443_GPLCON,
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
+		.chip	= {
+			.base			= S3C2410_GPL(0),
+			.owner			= THIS_MODULE,
+			.label			= "GPIOL",
+			.ngpio			= 15,
+		},
+	}, {
+		.base	= S3C2443_GPMCON,
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
+		.chip	= {
+			.base			= S3C2410_GPM(0),
+			.owner			= THIS_MODULE,
+			.label			= "GPIOM",
+			.ngpio			= 2,
+		},
+	},
 };
+
 
 static __init int s3c24xx_gpiolib_init(void)
 {
