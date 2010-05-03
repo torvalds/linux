@@ -106,6 +106,8 @@ void __init u8500_map_io(void)
  */
 void __init u8500_init_devices(void)
 {
+	ux500_init_devices();
+
 	/* Register the platform devices */
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
