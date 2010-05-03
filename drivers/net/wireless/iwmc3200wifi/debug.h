@@ -116,10 +116,7 @@ struct iwm_debugfs {
 void iwm_debugfs_init(struct iwm_priv *iwm);
 void iwm_debugfs_exit(struct iwm_priv *iwm);
 #else
-static inline void iwm_debugfs_init(struct iwm_priv *iwm)
-{
-	return 0;
-}
+static inline void iwm_debugfs_init(struct iwm_priv *iwm) {}
 static inline void iwm_debugfs_exit(struct iwm_priv *iwm) {}
 #endif
 
