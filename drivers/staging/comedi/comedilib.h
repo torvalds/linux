@@ -33,7 +33,4 @@ int comedi_dio_bitfield(void *dev, unsigned int subdev, unsigned int mask,
 int comedi_find_subdevice_by_type(void *dev, int type, unsigned int subd);
 int comedi_get_n_channels(void *dev, unsigned int subdevice);
 
-/* internal to kcomedilb */
-int comedi_do_insn(void *dev, struct comedi_insn *insn);
-
 #endif

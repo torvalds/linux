@@ -84,7 +84,7 @@ EXPORT_SYMBOL(comedi_close);
  *	COMEDI_INSN
  *	perform an instruction
  */
-int comedi_do_insn(void *d, struct comedi_insn *insn)
+static int comedi_do_insn(void *d, struct comedi_insn *insn)
 {
 	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s;
