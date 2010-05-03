@@ -176,24 +176,56 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 	/* Set initial sensitivity parameters */
 	/* Set initial calibration set */
 	priv->hw_params.sens = &iwl6000_sensitivity;
-	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
-	case CSR_HW_REV_TYPE_6x50:
-		priv->hw_params.calib_init_cfg =
-			BIT(IWL_CALIB_XTAL)		|
-			BIT(IWL_CALIB_DC)		|
-			BIT(IWL_CALIB_LO)		|
-			BIT(IWL_CALIB_TX_IQ) 		|
-			BIT(IWL_CALIB_BASE_BAND);
+	priv->hw_params.calib_init_cfg =
+		BIT(IWL_CALIB_XTAL)		|
+		BIT(IWL_CALIB_LO)		|
+		BIT(IWL_CALIB_TX_IQ)		|
+		BIT(IWL_CALIB_BASE_BAND);
 
-		break;
-	default:
-		priv->hw_params.calib_init_cfg =
-			BIT(IWL_CALIB_XTAL)		|
-			BIT(IWL_CALIB_LO)		|
-			BIT(IWL_CALIB_TX_IQ) 		|
-			BIT(IWL_CALIB_BASE_BAND);
-		break;
-	}
+	return 0;
+}
+
+static int iwl6050_hw_set_hw_params(struct iwl_priv *priv)
+{
+	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
+	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
+		priv->cfg->num_of_queues =
+			priv->cfg->mod_params->num_of_queues;
+
+	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
+	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
+	priv->hw_params.scd_bc_tbls_size =
+			priv->cfg->num_of_queues *
+			sizeof(struct iwlagn_scd_bc_tbl);
+	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
+	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
+	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
+
+	priv->hw_params.max_data_size = IWL60_RTC_DATA_SIZE;
+	priv->hw_params.max_inst_size = IWL60_RTC_INST_SIZE;
+
+	priv->hw_params.max_bsm_size = 0;
+	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
+					BIT(IEEE80211_BAND_5GHZ);
+	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
+
+	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
+	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
+	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
+	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
+
+	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
+		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
+
+	/* Set initial sensitivity parameters */
+	/* Set initial calibration set */
+	priv->hw_params.sens = &iwl6000_sensitivity;
+	priv->hw_params.calib_init_cfg =
+		BIT(IWL_CALIB_XTAL)		|
+		BIT(IWL_CALIB_DC)		|
+		BIT(IWL_CALIB_LO)		|
+		BIT(IWL_CALIB_TX_IQ)		|
+		BIT(IWL_CALIB_BASE_BAND);
 
 	return 0;
 }
@@ -304,7 +336,7 @@ static const struct iwl_ops iwl6000_ops = {
 };
 
 static struct iwl_lib_ops iwl6050_lib = {
-	.set_hw_params = iwl6000_hw_set_hw_params,
+	.set_hw_params = iwl6050_hw_set_hw_params,
 	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
 	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
 	.txq_set_sched = iwlagn_txq_set_sched,
@@ -468,7 +500,6 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.pa_type = IWL_PA_INTERNAL,
 	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
 	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
@@ -501,7 +532,6 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.pa_type = IWL_PA_INTERNAL,
 	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
 	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
@@ -568,7 +598,6 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.pa_type = IWL_PA_SYSTEM,
 	.max_ll_items = OTP_MAX_LL_ITEMS_6x50,
 	.shadow_ram_support = true,
-	.ht_greenfield_support = true,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,

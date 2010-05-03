@@ -1053,10 +1053,8 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 					size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = file->private_data;
-	if (priv->cfg->ops->lib->debugfs_ops.rx_stats_read)
-		return priv->cfg->ops->lib->debugfs_ops.rx_stats_read(file,
-						user_buf, count, ppos);
-	return 0;
+	return priv->cfg->ops->lib->debugfs_ops.rx_stats_read(file,
+			user_buf, count, ppos);
 }
 
 static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
@@ -1064,10 +1062,8 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 					size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = file->private_data;
-	if (priv->cfg->ops->lib->debugfs_ops.tx_stats_read)
-		return priv->cfg->ops->lib->debugfs_ops.tx_stats_read(file,
-						user_buf, count, ppos);
-	return 0;
+	return priv->cfg->ops->lib->debugfs_ops.tx_stats_read(file,
+			user_buf, count, ppos);
 }
 
 static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
@@ -1075,10 +1071,8 @@ static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
 					size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = file->private_data;
-	if (priv->cfg->ops->lib->debugfs_ops.general_stats_read)
-		return priv->cfg->ops->lib->debugfs_ops.general_stats_read(file,
-						user_buf, count, ppos);
-	return 0;
+	return priv->cfg->ops->lib->debugfs_ops.general_stats_read(file,
+			user_buf, count, ppos);
 }
 
 static ssize_t iwl_dbgfs_sensitivity_read(struct file *file,
