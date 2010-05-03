@@ -21,8 +21,9 @@
 
 */
 
-#include "comedidev.h"
 #include <linux/uaccess.h>
+#include "comedidev.h"
+#include "internal.h"
 
 const struct comedi_lrange range_bipolar10 = { 1, {BIP_RANGE(10)} };
 EXPORT_SYMBOL(range_bipolar10);
@@ -50,7 +51,8 @@ EXPORT_SYMBOL(range_unknown);
 	writes:
 		n struct comedi_krange structures to rangeinfo->range_ptr
 */
-int do_rangeinfo_ioctl(struct comedi_device *dev, struct comedi_rangeinfo *arg)
+int do_rangeinfo_ioctl(struct comedi_device *dev,
+		       struct comedi_rangeinfo __user *arg)
 {
 	struct comedi_rangeinfo it;
 	int subd, chan;

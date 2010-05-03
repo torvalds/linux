@@ -368,7 +368,7 @@
 
 	struct comedi_rangeinfo {
 		unsigned int range_type;
-		void *range_ptr;
+		void __user *range_ptr;
 	};
 
 	struct comedi_krange {
