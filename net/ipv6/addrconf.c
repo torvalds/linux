@@ -1346,7 +1346,7 @@ struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, const struct in6_addr *add
 	struct hlist_node *node;
 
 	rcu_read_lock_bh();
-	hlist_for_each_entry_rcu(ifp, node, &inet6_addr_lst[hash], addr_lst) {
+	hlist_for_each_entry_rcu_bh(ifp, node, &inet6_addr_lst[hash], addr_lst) {
 		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
 		if (ipv6_addr_equal(&ifp->addr, addr)) {
@@ -2959,7 +2959,7 @@ static struct inet6_ifaddr *if6_get_first(struct seq_file *seq)
 
 	for (state->bucket = 0; state->bucket < IN6_ADDR_HSIZE; ++state->bucket) {
 		struct hlist_node *n;
-		hlist_for_each_entry_rcu(ifa, n, &inet6_addr_lst[state->bucket],
+		hlist_for_each_entry_rcu_bh(ifa, n, &inet6_addr_lst[state->bucket],
 					 addr_lst)
 			if (net_eq(dev_net(ifa->idev->dev), net))
 				return ifa;
@@ -2974,12 +2974,12 @@ static struct inet6_ifaddr *if6_get_next(struct seq_file *seq,
 	struct net *net = seq_file_net(seq);
 	struct hlist_node *n = &ifa->addr_lst;
 
-	hlist_for_each_entry_continue_rcu(ifa, n, addr_lst)
+	hlist_for_each_entry_continue_rcu_bh(ifa, n, addr_lst)
 		if (net_eq(dev_net(ifa->idev->dev), net))
 			return ifa;
 
 	while (++state->bucket < IN6_ADDR_HSIZE) {
-		hlist_for_each_entry(ifa, n,
+		hlist_for_each_entry_rcu_bh(ifa, n,
 				     &inet6_addr_lst[state->bucket], addr_lst) {
 			if (net_eq(dev_net(ifa->idev->dev), net))
 				return ifa;
@@ -3000,7 +3000,7 @@ static struct inet6_ifaddr *if6_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *if6_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(rcu)
+	__acquires(rcu_bh)
 {
 	rcu_read_lock_bh();
 	return if6_get_idx(seq, *pos);
@@ -3016,7 +3016,7 @@ static void *if6_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void if6_seq_stop(struct seq_file *seq, void *v)
-	__releases(rcu)
+	__releases(rcu_bh)
 {
 	rcu_read_unlock_bh();
 }
@@ -3093,7 +3093,7 @@ int ipv6_chk_home_addr(struct net *net, struct in6_addr *addr)
 	unsigned int hash = ipv6_addr_hash(addr);
 
 	rcu_read_lock_bh();
-	hlist_for_each_entry_rcu(ifp, n, &inet6_addr_lst[hash], addr_lst) {
+	hlist_for_each_entry_rcu_bh(ifp, n, &inet6_addr_lst[hash], addr_lst) {
 		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
 		if (ipv6_addr_equal(&ifp->addr, addr) &&
@@ -3127,7 +3127,7 @@ static void addrconf_verify(unsigned long foo)
 
 	for (i = 0; i < IN6_ADDR_HSIZE; i++) {
 restart:
-		hlist_for_each_entry_rcu(ifp, node,
+		hlist_for_each_entry_rcu_bh(ifp, node,
 					 &inet6_addr_lst[i], addr_lst) {
 			unsigned long age;
 
