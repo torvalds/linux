@@ -41,7 +41,7 @@ MODULE_AUTHOR("David Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi kernel library");
 MODULE_LICENSE("GPL");
 
-void *comedi_open(const char *filename)
+struct comedi_device *comedi_open(const char *filename)
 {
 	struct comedi_device_file_info *dev_file_info;
 	struct comedi_device *dev;
@@ -66,11 +66,11 @@ void *comedi_open(const char *filename)
 	if (!try_module_get(dev->driver->module))
 		return NULL;
 
-	return (void *)dev;
+	return dev;
 }
 EXPORT_SYMBOL(comedi_open);
 
-int comedi_close(void *d)
+int comedi_close(struct comedi_device *d)
 {
 	struct comedi_device *dev = (struct comedi_device *)d;
 
@@ -132,8 +132,8 @@ error:
 	return ret;
 }
 
-int comedi_dio_config(void *dev, unsigned int subdev, unsigned int chan,
-		      unsigned int io)
+int comedi_dio_config(struct comedi_device *dev, unsigned int subdev,
+		      unsigned int chan, unsigned int io)
 {
 	struct comedi_insn insn;
 
@@ -148,8 +148,8 @@ int comedi_dio_config(void *dev, unsigned int subdev, unsigned int chan,
 }
 EXPORT_SYMBOL(comedi_dio_config);
 
-int comedi_dio_bitfield(void *dev, unsigned int subdev, unsigned int mask,
-			unsigned int *bits)
+int comedi_dio_bitfield(struct comedi_device *dev, unsigned int subdev,
+			unsigned int mask, unsigned int *bits)
 {
 	struct comedi_insn insn;
 	unsigned int data[2];
@@ -172,10 +172,9 @@ int comedi_dio_bitfield(void *dev, unsigned int subdev, unsigned int mask,
 }
 EXPORT_SYMBOL(comedi_dio_bitfield);
 
-int comedi_find_subdevice_by_type(void *d, int type, unsigned int subd)
+int comedi_find_subdevice_by_type(struct comedi_device *dev, int type,
+				  unsigned int subd)
 {
-	struct comedi_device *dev = (struct comedi_device *)d;
-
 	if (subd > dev->n_subdevices)
 		return -ENODEV;
 
@@ -187,9 +186,8 @@ int comedi_find_subdevice_by_type(void *d, int type, unsigned int subd)
 }
 EXPORT_SYMBOL(comedi_find_subdevice_by_type);
 
-int comedi_get_n_channels(void *d, unsigned int subdevice)
+int comedi_get_n_channels(struct comedi_device *dev, unsigned int subdevice)
 {
-	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s = dev->subdevices + subdevice;
 
 	return s->n_chan;
