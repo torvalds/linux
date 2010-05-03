@@ -152,7 +152,7 @@ static struct v4l2_subscribed_event *v4l2_event_subscribed(
 	struct v4l2_events *events = fh->events;
 	struct v4l2_subscribed_event *sev;
 
-	WARN_ON(!spin_is_locked(&fh->vdev->fh_lock));
+	assert_spin_locked(&fh->vdev->fh_lock);
 
 	list_for_each_entry(sev, &events->subscribed, list) {
 		if (sev->type == type)
