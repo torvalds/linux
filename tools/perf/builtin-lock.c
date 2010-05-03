@@ -720,15 +720,15 @@ static void print_result(void)
 	char cut_name[20];
 	int bad, total;
 
-	printf("%20s ", "Name");
-	printf("%10s ", "acquired");
-	printf("%10s ", "contended");
+	pr_info("%20s ", "Name");
+	pr_info("%10s ", "acquired");
+	pr_info("%10s ", "contended");
 
-	printf("%15s ", "total wait (ns)");
-	printf("%15s ", "max wait (ns)");
-	printf("%15s ", "min wait (ns)");
+	pr_info("%15s ", "total wait (ns)");
+	pr_info("%15s ", "max wait (ns)");
+	pr_info("%15s ", "min wait (ns)");
 
-	printf("\n\n");
+	pr_info("\n\n");
 
 	bad = total = 0;
 	while ((st = pop_from_result())) {
@@ -741,7 +741,7 @@ static void print_result(void)
 
 		if (strlen(st->name) < 16) {
 			/* output raw name */
-			printf("%20s ", st->name);
+			pr_info("%20s ", st->name);
 		} else {
 			strncpy(cut_name, st->name, 16);
 			cut_name[16] = '.';
@@ -749,17 +749,17 @@ static void print_result(void)
 			cut_name[18] = '.';
 			cut_name[19] = '\0';
 			/* cut off name for saving output style */
-			printf("%20s ", cut_name);
+			pr_info("%20s ", cut_name);
 		}
 
-		printf("%10u ", st->nr_acquired);
-		printf("%10u ", st->nr_contended);
+		pr_info("%10u ", st->nr_acquired);
+		pr_info("%10u ", st->nr_contended);
 
-		printf("%15llu ", st->wait_time_total);
-		printf("%15llu ", st->wait_time_max);
-		printf("%15llu ", st->wait_time_min == ULLONG_MAX ?
+		pr_info("%15llu ", st->wait_time_total);
+		pr_info("%15llu ", st->wait_time_max);
+		pr_info("%15llu ", st->wait_time_min == ULLONG_MAX ?
 		       0 : st->wait_time_min);
-		printf("\n");
+		pr_info("\n");
 	}
 
 	{
@@ -768,14 +768,34 @@ static void print_result(void)
 		const char *name[4] =
 			{ "acquire", "acquired", "contended", "release" };
 
-		printf("\n=== output for debug===\n\n");
-		printf("bad:%d, total:%d\n", bad, total);
-		printf("bad rate:%f\n", (double)(bad / total));
+		pr_debug("\n=== output for debug===\n\n");
+		pr_debug("bad:%d, total:%d\n", bad, total);
+		pr_debug("bad rate:%f\n", (double)(bad / total));
 
-		printf("histogram of events caused bad sequence\n");
+		pr_debug("histogram of events caused bad sequence\n");
 		for (i = 0; i < 4; i++)
-			printf(" %10s: %d\n", name[i], bad_hist[i]);
+			pr_debug(" %10s: %d\n", name[i], bad_hist[i]);
 	}
+}
+
+static int			info_threads;
+static int			info_map;
+
+static void dump_threads(void)
+{
+	struct thread_stat *st;
+	struct rb_node *node;
+	struct thread *t;
+
+	pr_info("%10s: comm\n", "Thread ID");
+
+	node = rb_first(&thread_stats);
+	while (node) {
+		st = container_of(node, struct thread_stat, rb);
+		t = perf_session__findnew(session, st->tid);
+		pr_info("%10d: %s\n", st->tid, t->comm);
+		node = rb_next(node);
+	};
 }
 
 static void dump_map(void)
@@ -783,11 +803,22 @@ static void dump_map(void)
 	unsigned int i;
 	struct lock_stat *st;
 
+	pr_info("Address of instance: name of class\n");
 	for (i = 0; i < LOCKHASH_SIZE; i++) {
 		list_for_each_entry(st, &lockhash_table[i], hash_entry) {
-			printf("%p: %s\n", st->addr, st->name);
+			pr_info(" %p: %s\n", st->addr, st->name);
 		}
 	}
+}
+
+static void dump_info(void)
+{
+	if (info_threads)
+		dump_threads();
+	else if (info_map)
+		dump_map();
+	else
+		die("Unknown type of information\n");
 }
 
 static int process_sample_event(event_t *self, struct perf_session *s)
@@ -855,6 +886,19 @@ static const struct option report_options[] = {
 	OPT_STRING('k', "key", &sort_key, "acquired",
 		    "key for sorting"),
 	/* TODO: type */
+	OPT_END()
+};
+
+static const char * const info_usage[] = {
+	"perf lock info [<options>]",
+	NULL
+};
+
+static const struct option info_options[] = {
+	OPT_BOOLEAN('t', "threads", &info_threads,
+		    "dump thread list in perf.data"),
+	OPT_BOOLEAN('m', "map", &info_map,
+		    "map of lock instances (name:address table)"),
 	OPT_END()
 };
 
@@ -929,12 +973,18 @@ int cmd_lock(int argc, const char **argv, const char *prefix __used)
 	} else if (!strcmp(argv[0], "trace")) {
 		/* Aliased to 'perf trace' */
 		return cmd_trace(argc, argv, prefix);
-	} else if (!strcmp(argv[0], "map")) {
+	} else if (!strcmp(argv[0], "info")) {
+		if (argc) {
+			argc = parse_options(argc, argv,
+					     info_options, info_usage, 0);
+			if (argc)
+				usage_with_options(info_usage, info_options);
+		}
 		/* recycling report_lock_ops */
 		trace_handler = &report_lock_ops;
 		setup_pager();
 		read_events();
-		dump_map();
+		dump_info();
 	} else {
 		usage_with_options(lock_usage, lock_options);
 	}
