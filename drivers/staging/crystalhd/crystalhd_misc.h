@@ -34,7 +34,6 @@
 #include <linux/string.h>
 #include <linux/ioctl.h>
 #include <linux/dma-mapping.h>
-#include <linux/version.h>
 #include <linux/sched.h>
 #include <asm/system.h>
 #include "bc_dts_glob_lnx.h"
