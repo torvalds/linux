@@ -502,6 +502,10 @@ static int __init clk_init(void)
 	if (cpu_is_u8500ed()) {
 		clk_prcmu_ops.enable = clk_prcmu_ed_enable;
 		clk_prcmu_ops.disable = clk_prcmu_ed_disable;
+	} else if (cpu_is_u5500()) {
+		/* Clock tree for U5500 not implemented yet */
+		clk_prcc_ops.enable = clk_prcc_ops.disable = NULL;
+		clk_prcmu_ops.enable = clk_prcmu_ops.disable = NULL;
 	}
 
 	clkdev_add_table(u8500_common_clks, ARRAY_SIZE(u8500_common_clks));

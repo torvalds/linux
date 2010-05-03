@@ -114,6 +114,15 @@ static inline bool cpu_is_u8500v1(void)
 	return cpu_is_u8500() && (read_cpuid_id() & 15) == 1;
 }
 
+static inline bool cpu_is_u5500(void)
+{
+#ifdef CONFIG_UX500_SOC_DB5500
+	return 1;
+#else
+	return 0;
+#endif
+}
+
 #endif
 
 #endif				/* __MACH_HARDWARE_H */
