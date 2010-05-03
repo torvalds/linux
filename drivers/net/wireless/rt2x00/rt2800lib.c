@@ -40,9 +40,6 @@
 #if defined(CONFIG_RT2X00_LIB_USB) || defined(CONFIG_RT2X00_LIB_USB_MODULE)
 #include "rt2x00usb.h"
 #endif
-#if defined(CONFIG_RT2X00_LIB_PCI) || defined(CONFIG_RT2X00_LIB_PCI_MODULE)
-#include "rt2x00pci.h"
-#endif
 #include "rt2800lib.h"
 #include "rt2800.h"
 #include "rt2800usb.h"
