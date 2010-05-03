@@ -176,10 +176,7 @@ static void pic_update_irq(struct kvm_pic *s)
 		pic_set_irq1(&s->pics[0], 2, 0);
 	}
 	irq = pic_get_irq(&s->pics[0]);
-	if (irq >= 0)
-		pic_irq_request(s->kvm, 1);
-	else
-		pic_irq_request(s->kvm, 0);
+	pic_irq_request(s->kvm, irq >= 0);
 }
 
 void kvm_pic_update_irq(struct kvm_pic *s)
