@@ -153,15 +153,6 @@ void unix_notinflight(struct file *fp)
 	}
 }
 
-static inline struct sk_buff *sock_queue_head(struct sock *sk)
-{
-	return (struct sk_buff *)&sk->sk_receive_queue;
-}
-
-#define receive_queue_for_each_skb(sk, next, skb) \
-	for (skb = sock_queue_head(sk)->next, next = skb->next; \
-	     skb != sock_queue_head(sk); skb = next, next = skb->next)
-
 static void scan_inflight(struct sock *x, void (*func)(struct unix_sock *),
 			  struct sk_buff_head *hitlist)
 {
@@ -169,7 +160,7 @@ static void scan_inflight(struct sock *x, void (*func)(struct unix_sock *),
 	struct sk_buff *next;
 
 	spin_lock(&x->sk_receive_queue.lock);
-	receive_queue_for_each_skb(x, next, skb) {
+	skb_queue_walk_safe(&x->sk_receive_queue, skb, next) {
 		/*
 		 *	Do we have file descriptors ?
 		 */
@@ -225,7 +216,7 @@ static void scan_children(struct sock *x, void (*func)(struct unix_sock *),
 		 * and perform a scan on them as well.
 		 */
 		spin_lock(&x->sk_receive_queue.lock);
-		receive_queue_for_each_skb(x, next, skb) {
+		skb_queue_walk_safe(&x->sk_receive_queue, skb, next) {
 			u = unix_sk(skb->sk);
 
 			/*
