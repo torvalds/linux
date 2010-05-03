@@ -55,7 +55,7 @@
 static DEFINE_PER_CPU(unsigned int, nr_cpu_bp_pinned[TYPE_MAX]);
 
 /* Number of pinned task breakpoints in a cpu */
-static DEFINE_PER_CPU(unsigned int, *nr_task_bp_pinned[TYPE_MAX]);
+static DEFINE_PER_CPU(unsigned int *, nr_task_bp_pinned[TYPE_MAX]);
 
 /* Number of non-pinned cpu/task breakpoints in a cpu */
 static DEFINE_PER_CPU(unsigned int, nr_bp_flexible[TYPE_MAX]);
