@@ -14,6 +14,9 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 
+#define __MEM_4K_RESOURCE(x) \
+	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
+
 struct amba_device ux500_pl031_device = {
 	.dev = {
 		.init_name = "pl031",
@@ -24,6 +27,24 @@ struct amba_device ux500_pl031_device = {
 		.flags	= IORESOURCE_MEM,
 	},
 	.irq = {IRQ_RTC_RTT, NO_IRQ},
+};
+
+struct amba_device ux500_uart0_device = {
+	.dev = { .init_name = "uart0" },
+	__MEM_4K_RESOURCE(UX500_UART0_BASE),
+	.irq = {IRQ_UART0, NO_IRQ},
+};
+
+struct amba_device ux500_uart1_device = {
+	.dev = { .init_name = "uart1" },
+	__MEM_4K_RESOURCE(UX500_UART1_BASE),
+	.irq = {IRQ_UART1, NO_IRQ},
+};
+
+struct amba_device ux500_uart2_device = {
+	.dev = { .init_name = "uart2" },
+	__MEM_4K_RESOURCE(UX500_UART2_BASE),
+	.irq = {IRQ_UART2, NO_IRQ},
 };
 
 void __init amba_add_devices(struct amba_device *devs[], int num)

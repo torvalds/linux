@@ -12,5 +12,8 @@ struct amba_device;
 
 extern struct amba_device ux500_pl031_device;
 extern struct amba_device u8500_ssp0_device;
+extern struct amba_device ux500_uart0_device;
+extern struct amba_device ux500_uart1_device;
+extern struct amba_device ux500_uart2_device;
 
 #endif

@@ -26,28 +26,6 @@
 #include <mach/setup.h>
 #include <mach/devices.h>
 
-#define __MEM_4K_RESOURCE(x) \
-	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
-
-/* These are active devices on this board */
-static struct amba_device uart0_device = {
-	.dev = { .init_name = "uart0" },
-	__MEM_4K_RESOURCE(U8500_UART0_BASE),
-	.irq = {IRQ_UART0, NO_IRQ},
-};
-
-static struct amba_device uart1_device = {
-	.dev = { .init_name = "uart1" },
-	__MEM_4K_RESOURCE(U8500_UART1_BASE),
-	.irq = {IRQ_UART1, NO_IRQ},
-};
-
-static struct amba_device uart2_device = {
-	.dev = { .init_name = "uart2" },
-	__MEM_4K_RESOURCE(U8500_UART2_BASE),
-	.irq = {IRQ_UART2, NO_IRQ},
-};
-
 static void ab4500_spi_cs_control(u32 command)
 {
 	/* set the FRM signal, which is CS  - TODO */
@@ -157,9 +135,9 @@ U8500_I2C_PDEVICE(2);
 U8500_I2C_PDEVICE(3);
 
 static struct amba_device *amba_devs[] __initdata = {
-	&uart0_device,
-	&uart1_device,
-	&uart2_device,
+	&ux500_uart0_device,
+	&ux500_uart1_device,
+	&ux500_uart2_device,
 	&u8500_ssp0_device,
 };
 
