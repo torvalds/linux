@@ -15,6 +15,7 @@
 #include <linux/seq_file.h>
 #include <linux/i2c.h>
 #include <linux/mii.h>
+#include <linux/slab.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
@@ -909,6 +910,8 @@ static int falcon_probe_port(struct efx_nic *efx)
 		efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 	else
 		efx->wanted_fc = EFX_FC_RX;
+	if (efx->mdio.mmds & MDIO_DEVS_AN)
+		efx->wanted_fc |= EFX_FC_AUTO;
 
 	/* Allocate buffer for stats */
 	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
@@ -1006,7 +1009,7 @@ static int falcon_test_nvram(struct efx_nic *efx)
 
 static const struct efx_nic_register_test falcon_b0_register_tests[] = {
 	{ FR_AZ_ADR_REGION,
-	  EFX_OWORD32(0x0001FFFF, 0x0001FFFF, 0x0001FFFF, 0x0001FFFF) },
+	  EFX_OWORD32(0x0003FFFF, 0x0003FFFF, 0x0003FFFF, 0x0003FFFF) },
 	{ FR_AZ_RX_CFG,
 	  EFX_OWORD32(0xFFFFFFFE, 0x00017FFF, 0x00000000, 0x00000000) },
 	{ FR_AZ_TX_CFG,
@@ -1317,7 +1320,9 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 
 	EFX_LOG(efx, "PHY is %d phy_id %d\n", efx->phy_type, efx->mdio.prtad);
 
-	falcon_probe_board(efx, board_rev);
+	rc = falcon_probe_board(efx, board_rev);
+	if (rc)
+		goto fail2;
 
 	kfree(nvconfig);
 	return 0;
@@ -1728,7 +1733,7 @@ static int falcon_set_wol(struct efx_nic *efx, u32 type)
 
 /**************************************************************************
  *
- * Revision-dependent attributes used by efx.c
+ * Revision-dependent attributes used by efx.c and nic.c
  *
  **************************************************************************
  */

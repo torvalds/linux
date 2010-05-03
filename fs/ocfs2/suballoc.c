@@ -51,7 +51,7 @@
 #define ALLOC_NEW_GROUP			0x1
 #define ALLOC_GROUPS_FROM_GLOBAL	0x2
 
-#define OCFS2_MAX_INODES_TO_STEAL	1024
+#define OCFS2_MAX_TO_STEAL		1024
 
 static inline void ocfs2_debug_bg(struct ocfs2_group_desc *bg);
 static inline void ocfs2_debug_suballoc_inode(struct ocfs2_dinode *fe);
@@ -95,13 +95,6 @@ static inline int ocfs2_block_group_set_bits(handle_t *handle,
 					     struct buffer_head *group_bh,
 					     unsigned int bit_off,
 					     unsigned int num_bits);
-static inline int ocfs2_block_group_clear_bits(handle_t *handle,
-					       struct inode *alloc_inode,
-					       struct ocfs2_group_desc *bg,
-					       struct buffer_head *group_bh,
-					       unsigned int bit_off,
-					       unsigned int num_bits);
-
 static int ocfs2_relink_block_group(handle_t *handle,
 				    struct inode *alloc_inode,
 				    struct buffer_head *fe_bh,
@@ -152,7 +145,7 @@ static u32 ocfs2_bits_per_group(struct ocfs2_chain_list *cl)
 
 #define do_error(fmt, ...)						\
 	do{								\
-		if (clean_error)					\
+		if (resize)					\
 			mlog(ML_ERROR, fmt "\n", ##__VA_ARGS__);	\
 		else							\
 			ocfs2_error(sb, fmt, ##__VA_ARGS__);		\
@@ -160,7 +153,7 @@ static u32 ocfs2_bits_per_group(struct ocfs2_chain_list *cl)
 
 static int ocfs2_validate_gd_self(struct super_block *sb,
 				  struct buffer_head *bh,
-				  int clean_error)
+				  int resize)
 {
 	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
 
@@ -211,7 +204,7 @@ static int ocfs2_validate_gd_self(struct super_block *sb,
 static int ocfs2_validate_gd_parent(struct super_block *sb,
 				    struct ocfs2_dinode *di,
 				    struct buffer_head *bh,
-				    int clean_error)
+				    int resize)
 {
 	unsigned int max_bits;
 	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
@@ -233,8 +226,11 @@ static int ocfs2_validate_gd_parent(struct super_block *sb,
 		return -EINVAL;
 	}
 
-	if (le16_to_cpu(gd->bg_chain) >=
-	    le16_to_cpu(di->id2.i_chain.cl_next_free_rec)) {
+	/* In resize, we may meet the case bg_chain == cl_next_free_rec. */
+	if ((le16_to_cpu(gd->bg_chain) >
+	     le16_to_cpu(di->id2.i_chain.cl_next_free_rec)) ||
+	    ((le16_to_cpu(gd->bg_chain) ==
+	     le16_to_cpu(di->id2.i_chain.cl_next_free_rec)) && !resize)) {
 		do_error("Group descriptor #%llu has bad chain %u",
 			 (unsigned long long)bh->b_blocknr,
 			 le16_to_cpu(gd->bg_chain));
@@ -637,12 +633,113 @@ bail:
 	return status;
 }
 
+static void ocfs2_init_inode_steal_slot(struct ocfs2_super *osb)
+{
+	spin_lock(&osb->osb_lock);
+	osb->s_inode_steal_slot = OCFS2_INVALID_SLOT;
+	spin_unlock(&osb->osb_lock);
+	atomic_set(&osb->s_num_inodes_stolen, 0);
+}
+
+static void ocfs2_init_meta_steal_slot(struct ocfs2_super *osb)
+{
+	spin_lock(&osb->osb_lock);
+	osb->s_meta_steal_slot = OCFS2_INVALID_SLOT;
+	spin_unlock(&osb->osb_lock);
+	atomic_set(&osb->s_num_meta_stolen, 0);
+}
+
+void ocfs2_init_steal_slots(struct ocfs2_super *osb)
+{
+	ocfs2_init_inode_steal_slot(osb);
+	ocfs2_init_meta_steal_slot(osb);
+}
+
+static void __ocfs2_set_steal_slot(struct ocfs2_super *osb, int slot, int type)
+{
+	spin_lock(&osb->osb_lock);
+	if (type == INODE_ALLOC_SYSTEM_INODE)
+		osb->s_inode_steal_slot = slot;
+	else if (type == EXTENT_ALLOC_SYSTEM_INODE)
+		osb->s_meta_steal_slot = slot;
+	spin_unlock(&osb->osb_lock);
+}
+
+static int __ocfs2_get_steal_slot(struct ocfs2_super *osb, int type)
+{
+	int slot = OCFS2_INVALID_SLOT;
+
+	spin_lock(&osb->osb_lock);
+	if (type == INODE_ALLOC_SYSTEM_INODE)
+		slot = osb->s_inode_steal_slot;
+	else if (type == EXTENT_ALLOC_SYSTEM_INODE)
+		slot = osb->s_meta_steal_slot;
+	spin_unlock(&osb->osb_lock);
+
+	return slot;
+}
+
+static int ocfs2_get_inode_steal_slot(struct ocfs2_super *osb)
+{
+	return __ocfs2_get_steal_slot(osb, INODE_ALLOC_SYSTEM_INODE);
+}
+
+static int ocfs2_get_meta_steal_slot(struct ocfs2_super *osb)
+{
+	return __ocfs2_get_steal_slot(osb, EXTENT_ALLOC_SYSTEM_INODE);
+}
+
+static int ocfs2_steal_resource(struct ocfs2_super *osb,
+				struct ocfs2_alloc_context *ac,
+				int type)
+{
+	int i, status = -ENOSPC;
+	int slot = __ocfs2_get_steal_slot(osb, type);
+
+	/* Start to steal resource from the first slot after ours. */
+	if (slot == OCFS2_INVALID_SLOT)
+		slot = osb->slot_num + 1;
+
+	for (i = 0; i < osb->max_slots; i++, slot++) {
+		if (slot == osb->max_slots)
+			slot = 0;
+
+		if (slot == osb->slot_num)
+			continue;
+
+		status = ocfs2_reserve_suballoc_bits(osb, ac,
+						     type,
+						     (u32)slot, NULL,
+						     NOT_ALLOC_NEW_GROUP);
+		if (status >= 0) {
+			__ocfs2_set_steal_slot(osb, slot, type);
+			break;
+		}
+
+		ocfs2_free_ac_resource(ac);
+	}
+
+	return status;
+}
+
+static int ocfs2_steal_inode(struct ocfs2_super *osb,
+			     struct ocfs2_alloc_context *ac)
+{
+	return ocfs2_steal_resource(osb, ac, INODE_ALLOC_SYSTEM_INODE);
+}
+
+static int ocfs2_steal_meta(struct ocfs2_super *osb,
+			    struct ocfs2_alloc_context *ac)
+{
+	return ocfs2_steal_resource(osb, ac, EXTENT_ALLOC_SYSTEM_INODE);
+}
+
 int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
 				      int blocks,
 				      struct ocfs2_alloc_context **ac)
 {
 	int status;
-	u32 slot;
+	int slot = ocfs2_get_meta_steal_slot(osb);
 
 	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
 	if (!(*ac)) {
@@ -653,12 +750,34 @@ int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
 
 	(*ac)->ac_bits_wanted = blocks;
 	(*ac)->ac_which = OCFS2_AC_USE_META;
-	slot = osb->slot_num;
 	(*ac)->ac_group_search = ocfs2_block_group_search;
 
+	if (slot != OCFS2_INVALID_SLOT &&
+		atomic_read(&osb->s_num_meta_stolen) < OCFS2_MAX_TO_STEAL)
+		goto extent_steal;
+
+	atomic_set(&osb->s_num_meta_stolen, 0);
 	status = ocfs2_reserve_suballoc_bits(osb, (*ac),
 					     EXTENT_ALLOC_SYSTEM_INODE,
-					     slot, NULL, ALLOC_NEW_GROUP);
+					     (u32)osb->slot_num, NULL,
+					     ALLOC_NEW_GROUP);
+
+
+	if (status >= 0) {
+		status = 0;
+		if (slot != OCFS2_INVALID_SLOT)
+			ocfs2_init_meta_steal_slot(osb);
+		goto bail;
+	} else if (status < 0 && status != -ENOSPC) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	ocfs2_free_ac_resource(*ac);
+
+extent_steal:
+	status = ocfs2_steal_meta(osb, *ac);
+	atomic_inc(&osb->s_num_meta_stolen);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -685,43 +804,11 @@ int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
 					ac);
 }
 
-static int ocfs2_steal_inode_from_other_nodes(struct ocfs2_super *osb,
-					      struct ocfs2_alloc_context *ac)
-{
-	int i, status = -ENOSPC;
-	s16 slot = ocfs2_get_inode_steal_slot(osb);
-
-	/* Start to steal inodes from the first slot after ours. */
-	if (slot == OCFS2_INVALID_SLOT)
-		slot = osb->slot_num + 1;
-
-	for (i = 0; i < osb->max_slots; i++, slot++) {
-		if (slot == osb->max_slots)
-			slot = 0;
-
-		if (slot == osb->slot_num)
-			continue;
-
-		status = ocfs2_reserve_suballoc_bits(osb, ac,
-						     INODE_ALLOC_SYSTEM_INODE,
-						     slot, NULL,
-						     NOT_ALLOC_NEW_GROUP);
-		if (status >= 0) {
-			ocfs2_set_inode_steal_slot(osb, slot);
-			break;
-		}
-
-		ocfs2_free_ac_resource(ac);
-	}
-
-	return status;
-}
-
 int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 			    struct ocfs2_alloc_context **ac)
 {
 	int status;
-	s16 slot = ocfs2_get_inode_steal_slot(osb);
+	int slot = ocfs2_get_inode_steal_slot(osb);
 	u64 alloc_group;
 
 	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
@@ -754,14 +841,14 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 	 * need to check our slots to see whether there is some space for us.
 	 */
 	if (slot != OCFS2_INVALID_SLOT &&
-	    atomic_read(&osb->s_num_inodes_stolen) < OCFS2_MAX_INODES_TO_STEAL)
+	    atomic_read(&osb->s_num_inodes_stolen) < OCFS2_MAX_TO_STEAL)
 		goto inode_steal;
 
 	atomic_set(&osb->s_num_inodes_stolen, 0);
 	alloc_group = osb->osb_inode_alloc_group;
 	status = ocfs2_reserve_suballoc_bits(osb, *ac,
 					     INODE_ALLOC_SYSTEM_INODE,
-					     osb->slot_num,
+					     (u32)osb->slot_num,
 					     &alloc_group,
 					     ALLOC_NEW_GROUP |
 					     ALLOC_GROUPS_FROM_GLOBAL);
@@ -789,7 +876,7 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 	ocfs2_free_ac_resource(*ac);
 
 inode_steal:
-	status = ocfs2_steal_inode_from_other_nodes(osb, *ac);
+	status = ocfs2_steal_inode(osb, *ac);
 	atomic_inc(&osb->s_num_inodes_stolen);
 	if (status < 0) {
 		if (status != -ENOSPC)
@@ -1884,18 +1971,18 @@ int ocfs2_claim_clusters(struct ocfs2_super *osb,
 				      bits_wanted, cluster_start, num_clusters);
 }
 
-static inline int ocfs2_block_group_clear_bits(handle_t *handle,
-					       struct inode *alloc_inode,
-					       struct ocfs2_group_desc *bg,
-					       struct buffer_head *group_bh,
-					       unsigned int bit_off,
-					       unsigned int num_bits)
+static int ocfs2_block_group_clear_bits(handle_t *handle,
+					struct inode *alloc_inode,
+					struct ocfs2_group_desc *bg,
+					struct buffer_head *group_bh,
+					unsigned int bit_off,
+					unsigned int num_bits,
+					void (*undo_fn)(unsigned int bit,
+							unsigned long *bmap))
 {
 	int status;
 	unsigned int tmp;
-	int journal_type = OCFS2_JOURNAL_ACCESS_WRITE;
 	struct ocfs2_group_desc *undo_bg = NULL;
-	int cluster_bitmap = 0;
 
 	mlog_entry_void();
 
@@ -1905,20 +1992,18 @@ static inline int ocfs2_block_group_clear_bits(handle_t *handle,
 
 	mlog(0, "off = %u, num = %u\n", bit_off, num_bits);
 
-	if (ocfs2_is_cluster_bitmap(alloc_inode))
-		journal_type = OCFS2_JOURNAL_ACCESS_UNDO;
-
+	BUG_ON(undo_fn && !ocfs2_is_cluster_bitmap(alloc_inode));
 	status = ocfs2_journal_access_gd(handle, INODE_CACHE(alloc_inode),
-					 group_bh, journal_type);
+					 group_bh,
+					 undo_fn ?
+					 OCFS2_JOURNAL_ACCESS_UNDO :
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
 
-	if (ocfs2_is_cluster_bitmap(alloc_inode))
-		cluster_bitmap = 1;
-
-	if (cluster_bitmap) {
+	if (undo_fn) {
 		jbd_lock_bh_state(group_bh);
 		undo_bg = (struct ocfs2_group_desc *)
 					bh2jh(group_bh)->b_committed_data;
@@ -1929,13 +2014,13 @@ static inline int ocfs2_block_group_clear_bits(handle_t *handle,
 	while(tmp--) {
 		ocfs2_clear_bit((bit_off + tmp),
 				(unsigned long *) bg->bg_bitmap);
-		if (cluster_bitmap)
-			ocfs2_set_bit(bit_off + tmp,
-				      (unsigned long *) undo_bg->bg_bitmap);
+		if (undo_fn)
+			undo_fn(bit_off + tmp,
+				(unsigned long *) undo_bg->bg_bitmap);
 	}
 	le16_add_cpu(&bg->bg_free_bits_count, num_bits);
 
-	if (cluster_bitmap)
+	if (undo_fn)
 		jbd_unlock_bh_state(group_bh);
 
 	status = ocfs2_journal_dirty(handle, group_bh);
@@ -1948,12 +2033,14 @@ bail:
 /*
  * expects the suballoc inode to already be locked.
  */
-int ocfs2_free_suballoc_bits(handle_t *handle,
-			     struct inode *alloc_inode,
-			     struct buffer_head *alloc_bh,
-			     unsigned int start_bit,
-			     u64 bg_blkno,
-			     unsigned int count)
+static int _ocfs2_free_suballoc_bits(handle_t *handle,
+				     struct inode *alloc_inode,
+				     struct buffer_head *alloc_bh,
+				     unsigned int start_bit,
+				     u64 bg_blkno,
+				     unsigned int count,
+				     void (*undo_fn)(unsigned int bit,
+						     unsigned long *bitmap))
 {
 	int status = 0;
 	u32 tmp_used;
@@ -1988,7 +2075,7 @@ int ocfs2_free_suballoc_bits(handle_t *handle,
 
 	status = ocfs2_block_group_clear_bits(handle, alloc_inode,
 					      group, group_bh,
-					      start_bit, count);
+					      start_bit, count, undo_fn);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -2019,6 +2106,17 @@ bail:
 	return status;
 }
 
+int ocfs2_free_suballoc_bits(handle_t *handle,
+			     struct inode *alloc_inode,
+			     struct buffer_head *alloc_bh,
+			     unsigned int start_bit,
+			     u64 bg_blkno,
+			     unsigned int count)
+{
+	return _ocfs2_free_suballoc_bits(handle, alloc_inode, alloc_bh,
+					 start_bit, bg_blkno, count, NULL);
+}
+
 int ocfs2_free_dinode(handle_t *handle,
 		      struct inode *inode_alloc_inode,
 		      struct buffer_head *inode_alloc_bh,
@@ -2032,11 +2130,13 @@ int ocfs2_free_dinode(handle_t *handle,
 					inode_alloc_bh, bit, bg_blkno, 1);
 }
 
-int ocfs2_free_clusters(handle_t *handle,
-		       struct inode *bitmap_inode,
-		       struct buffer_head *bitmap_bh,
-		       u64 start_blk,
-		       unsigned int num_clusters)
+static int _ocfs2_free_clusters(handle_t *handle,
+				struct inode *bitmap_inode,
+				struct buffer_head *bitmap_bh,
+				u64 start_blk,
+				unsigned int num_clusters,
+				void (*undo_fn)(unsigned int bit,
+						unsigned long *bitmap))
 {
 	int status;
 	u16 bg_start_bit;
@@ -2063,9 +2163,9 @@ int ocfs2_free_clusters(handle_t *handle,
 	mlog(0, "bg_blkno = %llu, bg_start_bit = %u\n",
 	     (unsigned long long)bg_blkno, bg_start_bit);
 
-	status = ocfs2_free_suballoc_bits(handle, bitmap_inode, bitmap_bh,
-					  bg_start_bit, bg_blkno,
-					  num_clusters);
+	status = _ocfs2_free_suballoc_bits(handle, bitmap_inode, bitmap_bh,
+					   bg_start_bit, bg_blkno,
+					   num_clusters, undo_fn);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
@@ -2077,6 +2177,32 @@ int ocfs2_free_clusters(handle_t *handle,
 out:
 	mlog_exit(status);
 	return status;
+}
+
+int ocfs2_free_clusters(handle_t *handle,
+			struct inode *bitmap_inode,
+			struct buffer_head *bitmap_bh,
+			u64 start_blk,
+			unsigned int num_clusters)
+{
+	return _ocfs2_free_clusters(handle, bitmap_inode, bitmap_bh,
+				    start_blk, num_clusters,
+				    _ocfs2_set_bit);
+}
+
+/*
+ * Give never-used clusters back to the global bitmap.  We don't need
+ * to protect these bits in the undo buffer.
+ */
+int ocfs2_release_clusters(handle_t *handle,
+			   struct inode *bitmap_inode,
+			   struct buffer_head *bitmap_bh,
+			   u64 start_blk,
+			   unsigned int num_clusters)
+{
+	return _ocfs2_free_clusters(handle, bitmap_inode, bitmap_bh,
+				    start_blk, num_clusters,
+				    _ocfs2_clear_bit);
 }
 
 static inline void ocfs2_debug_bg(struct ocfs2_group_desc *bg)

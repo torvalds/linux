@@ -44,6 +44,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 /*
  * This macro is used to define some register default values.

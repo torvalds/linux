@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/writeback.h>
@@ -13,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
+#include <linux/backing-dev.h>
 #include "internal.h"
 
 #define VALID_FLAGS (SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE| \
@@ -31,17 +33,17 @@ static int __sync_filesystem(struct super_block *sb, int wait)
 	 * This should be safe, as we require bdi backing to actually
 	 * write out data in the first place
 	 */
-	if (!sb->s_bdi)
+	if (!sb->s_bdi || sb->s_bdi == &noop_backing_dev_info)
 		return 0;
 
-	/* Avoid doing twice syncing and cache pruning for quota sync */
-	if (!wait) {
-		writeout_quota_sb(sb, -1);
-		writeback_inodes_sb(sb);
-	} else {
-		sync_quota_sb(sb, -1);
+	if (sb->s_qcop && sb->s_qcop->quota_sync)
+		sb->s_qcop->quota_sync(sb, -1, wait);
+
+	if (wait)
 		sync_inodes_sb(sb);
-	}
+	else
+		writeback_inodes_sb(sb);
+
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, wait);
 	return __sync_blockdev(sb->s_bdev, wait);

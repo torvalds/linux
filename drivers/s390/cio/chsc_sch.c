@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -123,7 +124,7 @@ static int chsc_subchannel_prepare(struct subchannel *sch)
 	 * since we don't have a way to clear the subchannel and
 	 * cannot disable it with a request running.
 	 */
-	cc = stsch(sch->schid, &schib);
+	cc = stsch_err(sch->schid, &schib);
 	if (!cc && scsw_stctl(&schib.scsw))
 		return -EAGAIN;
 	return 0;

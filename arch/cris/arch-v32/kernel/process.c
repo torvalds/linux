@@ -9,9 +9,9 @@
  */
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/fs.h>
-#include <linux/slab.h>
 #include <hwregs/reg_rdwr.h>
 #include <hwregs/reg_map.h>
 #include <hwregs/timer_defs.h>

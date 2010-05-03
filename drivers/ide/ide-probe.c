@@ -695,14 +695,8 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	if (irqd)
 		disable_irq(hwif->irq);
 
-	rc = ide_port_wait_ready(hwif);
-	if (rc == -ENODEV) {
-		printk(KERN_INFO "%s: no devices on the port\n", hwif->name);
-		goto out;
-	} else if (rc == -EBUSY)
-		printk(KERN_ERR "%s: not ready before the probe\n", hwif->name);
-	else
-		rc = -ENODEV;
+	if (ide_port_wait_ready(hwif) == -EBUSY)
+		printk(KERN_DEBUG "%s: Wait for ready failed before probe !\n", hwif->name);
 
 	/*
 	 * Second drive should only exist if first drive was found,
@@ -713,7 +707,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			rc = 0;
 	}
-out:
+
 	/*
 	 * Use cached IRQ number. It might be (and is...) changed by probe
 	 * code above
@@ -1041,6 +1035,8 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 			drive->dev_flags |= IDE_DFLAG_UNMASK;
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
 			drive->dev_flags |= IDE_DFLAG_NO_UNMASK;
+
+		drive->pio_mode = XFER_PIO_0;
 
 		if (port_ops && port_ops->init_dev)
 			port_ops->init_dev(drive);

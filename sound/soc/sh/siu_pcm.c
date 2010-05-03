@@ -24,7 +24,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 
 #include <sound/control.h>
 #include <sound/core.h>
@@ -32,7 +31,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc-dai.h>
 
-#include <asm/dma-sh.h>
+#include <asm/dmaengine.h>
 #include <asm/siu.h>
 
 #include "siu.h"

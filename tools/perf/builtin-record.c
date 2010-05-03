@@ -22,6 +22,7 @@
 #include "util/debug.h"
 #include "util/session.h"
 #include "util/symbol.h"
+#include "util/cpumap.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -244,6 +245,9 @@ static void create_counter(int counter, int cpu, pid_t pid)
 
 	attr->sample_type	|= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
+	if (nr_counters > 1)
+		attr->sample_type |= PERF_SAMPLE_ID;
+
 	if (freq) {
 		attr->sample_type	|= PERF_SAMPLE_PERIOD;
 		attr->freq		= 1;
@@ -391,6 +395,9 @@ static int process_buildids(void)
 {
 	u64 size = lseek(output, 0, SEEK_CUR);
 
+	if (size == 0)
+		return 0;
+
 	session->fd = output;
 	return __perf_session__process_events(session, post_processing_offset,
 					      size - post_processing_offset,
@@ -418,9 +425,6 @@ static int __cmd_record(int argc, const char **argv)
 	char buf;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
-	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-	assert(nr_cpus <= MAX_NR_CPUS);
-	assert(nr_cpus >= 0);
 
 	atexit(sig_atexit);
 	signal(SIGCHLD, sig_handler);
@@ -544,8 +548,9 @@ static int __cmd_record(int argc, const char **argv)
 	if ((!system_wide && !inherit) || profile_cpu != -1) {
 		open_counters(profile_cpu, target_pid);
 	} else {
+		nr_cpus = read_cpu_map();
 		for (i = 0; i < nr_cpus; i++)
-			open_counters(i, target_pid);
+			open_counters(cpumap[i], target_pid);
 	}
 
 	if (file_new) {

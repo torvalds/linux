@@ -326,7 +326,7 @@ static struct attribute *sq_sysfs_attrs[] = {
 	NULL,
 };
 
-static struct sysfs_ops sq_sysfs_ops = {
+static const struct sysfs_ops sq_sysfs_ops = {
 	.show	= sq_sysfs_show,
 	.store	= sq_sysfs_store,
 };

@@ -165,7 +165,7 @@ static struct platform_device at2440evb_device_eth = {
 	},
 };
 
-static struct s3c24xx_mci_pdata at2440evb_mci_pdata = {
+static struct s3c24xx_mci_pdata at2440evb_mci_pdata __initdata = {
 	.gpio_detect	= S3C2410_GPG(10),
 };
 
@@ -203,7 +203,7 @@ static struct s3c2410fb_mach_info at2440evb_fb_info __initdata = {
 };
 
 static struct platform_device *at2440evb_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_wdt,
 	&s3c_device_adc,
 	&s3c_device_i2c0,
@@ -216,8 +216,6 @@ static struct platform_device *at2440evb_devices[] __initdata = {
 
 static void __init at2440evb_map_io(void)
 {
-	s3c_device_sdi.dev.platform_data = &at2440evb_mci_pdata;
-
 	s3c24xx_init_io(at2440evb_iodesc, ARRAY_SIZE(at2440evb_iodesc));
 	s3c24xx_init_clocks(16934400);
 	s3c24xx_init_uarts(at2440evb_uartcfgs, ARRAY_SIZE(at2440evb_uartcfgs));
@@ -226,6 +224,7 @@ static void __init at2440evb_map_io(void)
 static void __init at2440evb_init(void)
 {
 	s3c24xx_fb_set_platdata(&at2440evb_fb_info);
+	s3c24xx_mci_set_platdata(&at2440evb_mci_pdata);
 	s3c_nand_set_platdata(&at2440evb_nand_info);
 	s3c_i2c0_set_platdata(NULL);
 

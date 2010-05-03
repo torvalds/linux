@@ -61,7 +61,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 	P9_DPRINTK(P9_DEBUG_VFS, "inode: %p file: %p \n", inode, file);
 	v9ses = v9fs_inode2v9ses(inode);
-	omode = v9fs_uflags2omode(file->f_flags, v9fs_extended(v9ses));
+	omode = v9fs_uflags2omode(file->f_flags, v9fs_proto_dotu(v9ses));
 	fid = file->private_data;
 	if (!fid) {
 		fid = v9fs_fid_clone(file->f_path.dentry);
@@ -77,7 +77,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 			i_size_write(inode, 0);
 			inode->i_blocks = 0;
 		}
-		if ((file->f_flags & O_APPEND) && (!v9fs_extended(v9ses)))
+		if ((file->f_flags & O_APPEND) && (!v9fs_proto_dotu(v9ses)))
 			generic_file_llseek(file, 0, SEEK_END);
 	}
 
@@ -114,7 +114,7 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 	P9_DPRINTK(P9_DEBUG_VFS, "filp: %p lock: %p\n", filp, fl);
 
 	/* No mandatory locks */
-	if (__mandatory_lock(inode))
+	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
 		return -ENOLCK;
 
 	if ((IS_SETLK(cmd) || IS_SETLKW(cmd)) && fl->fl_type != F_UNLCK) {
@@ -215,7 +215,7 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	struct p9_fid *fid;
 	struct p9_client *clnt;
 	struct inode *inode = filp->f_path.dentry->d_inode;
-	int origin = *offset;
+	loff_t origin = *offset;
 	unsigned long pg_start, pg_end;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "data %p count %d offset %x\n", data,

@@ -9,6 +9,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 
 #include <asm/acpi.h>
 #include <asm/segment.h>
@@ -70,12 +71,6 @@ struct pci_ops pci_root_ops = {
 	.read = pci_read,
 	.write = pci_write,
 };
-
-/*
- * legacy, numa, and acpi all want to call pcibios_scan_root
- * from their initcalls. This flag prevents that.
- */
-int pcibios_scanned;
 
 /*
  * This interrupt-safe spinlock protects all accesses to PCI

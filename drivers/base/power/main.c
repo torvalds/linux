@@ -35,8 +35,8 @@
  * because children are guaranteed to be discovered after parents, and
  * are inserted at the back of the list on discovery.
  *
- * Since device_pm_add() may be called with a device semaphore held,
- * we must never try to acquire a device semaphore while holding
+ * Since device_pm_add() may be called with a device lock held,
+ * we must never try to acquire a device lock while holding
  * dpm_list_mutex.
  */
 
@@ -439,8 +439,23 @@ static int device_resume_noirq(struct device *dev, pm_message_t state)
 	if (dev->bus && dev->bus->pm) {
 		pm_dev_dbg(dev, state, "EARLY ");
 		error = pm_noirq_op(dev, dev->bus->pm, state);
+		if (error)
+			goto End;
 	}
 
+	if (dev->type && dev->type->pm) {
+		pm_dev_dbg(dev, state, "EARLY type ");
+		error = pm_noirq_op(dev, dev->type->pm, state);
+		if (error)
+			goto End;
+	}
+
+	if (dev->class && dev->class->pm) {
+		pm_dev_dbg(dev, state, "EARLY class ");
+		error = pm_noirq_op(dev, dev->class->pm, state);
+	}
+
+End:
 	TRACE_RESUME(error);
 	return error;
 }
@@ -508,7 +523,7 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	TRACE_RESUME(0);
 
 	dpm_wait(dev->parent, async);
-	down(&dev->sem);
+	device_lock(dev);
 
 	dev->power.status = DPM_RESUMING;
 
@@ -543,7 +558,7 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 		}
 	}
  End:
-	up(&dev->sem);
+	device_unlock(dev);
 	complete_all(&dev->power.completion);
 
 	TRACE_RESUME(error);
@@ -629,7 +644,7 @@ static void dpm_resume(pm_message_t state)
  */
 static void device_complete(struct device *dev, pm_message_t state)
 {
-	down(&dev->sem);
+	device_lock(dev);
 
 	if (dev->class && dev->class->pm && dev->class->pm->complete) {
 		pm_dev_dbg(dev, state, "completing class ");
@@ -646,7 +661,7 @@ static void device_complete(struct device *dev, pm_message_t state)
 		dev->bus->pm->complete(dev);
 	}
 
-	up(&dev->sem);
+	device_unlock(dev);
 }
 
 /**
@@ -735,10 +750,26 @@ static int device_suspend_noirq(struct device *dev, pm_message_t state)
 {
 	int error = 0;
 
+	if (dev->class && dev->class->pm) {
+		pm_dev_dbg(dev, state, "LATE class ");
+		error = pm_noirq_op(dev, dev->class->pm, state);
+		if (error)
+			goto End;
+	}
+
+	if (dev->type && dev->type->pm) {
+		pm_dev_dbg(dev, state, "LATE type ");
+		error = pm_noirq_op(dev, dev->type->pm, state);
+		if (error)
+			goto End;
+	}
+
 	if (dev->bus && dev->bus->pm) {
 		pm_dev_dbg(dev, state, "LATE ");
 		error = pm_noirq_op(dev, dev->bus->pm, state);
 	}
+
+End:
 	return error;
 }
 
@@ -809,7 +840,7 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	int error = 0;
 
 	dpm_wait_for_children(dev, async);
-	down(&dev->sem);
+	device_lock(dev);
 
 	if (async_error)
 		goto End;
@@ -849,7 +880,7 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 		dev->power.status = DPM_OFF;
 
  End:
-	up(&dev->sem);
+	device_unlock(dev);
 	complete_all(&dev->power.completion);
 
 	return error;
@@ -938,7 +969,7 @@ static int device_prepare(struct device *dev, pm_message_t state)
 {
 	int error = 0;
 
-	down(&dev->sem);
+	device_lock(dev);
 
 	if (dev->bus && dev->bus->pm && dev->bus->pm->prepare) {
 		pm_dev_dbg(dev, state, "preparing ");
@@ -962,7 +993,7 @@ static int device_prepare(struct device *dev, pm_message_t state)
 		suspend_report_result(dev->class->pm->prepare, error);
 	}
  End:
-	up(&dev->sem);
+	device_unlock(dev);
 
 	return error;
 }

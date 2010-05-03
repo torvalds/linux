@@ -12,3 +12,6 @@ config HAVE_KVM_EVENTFD
 
 config KVM_APIC_ARCHITECTURE
        bool
+
+config KVM_MMIO
+       bool

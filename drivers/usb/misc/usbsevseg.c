@@ -27,7 +27,7 @@
 #define MAXLEN		6
 
 /* table of devices that work with this driver */
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(VENDOR_ID, PRODUCT_ID) },
 	{ },
 };
@@ -49,6 +49,7 @@ struct usb_sevsegdev {
 	u16 textlength;
 
 	u8 shadow_power; /* for PM */
+	u8 has_interface_pm;
 };
 
 /* sysfs_streq can't replace this completely
@@ -68,11 +69,15 @@ static void update_display_powered(struct usb_sevsegdev *mydev)
 {
 	int rc;
 
-	if (!mydev->shadow_power && mydev->powered) {
+	if (mydev->powered && !mydev->has_interface_pm) {
 		rc = usb_autopm_get_interface(mydev->intf);
 		if (rc < 0)
 			return;
+		mydev->has_interface_pm = 1;
 	}
+
+	if (mydev->shadow_power != 1)
+		return;
 
 	rc = usb_control_msg(mydev->udev,
 			usb_sndctrlpipe(mydev->udev, 0),
@@ -86,8 +91,10 @@ static void update_display_powered(struct usb_sevsegdev *mydev)
 	if (rc < 0)
 		dev_dbg(&mydev->udev->dev, "power retval = %d\n", rc);
 
-	if (mydev->shadow_power && !mydev->powered)
+	if (!mydev->powered && mydev->has_interface_pm) {
 		usb_autopm_put_interface(mydev->intf);
+		mydev->has_interface_pm = 0;
+	}
 }
 
 static void update_display_mode(struct usb_sevsegdev *mydev)
@@ -350,6 +357,10 @@ static int sevseg_probe(struct usb_interface *interface,
 	mydev->udev = usb_get_dev(udev);
 	mydev->intf = interface;
 	usb_set_intfdata(interface, mydev);
+
+	/* PM */
+	mydev->shadow_power = 1; /* currently active */
+	mydev->has_interface_pm = 0; /* have not issued autopm_get */
 
 	/*set defaults */
 	mydev->textmode = 0x02; /* ascii mode */

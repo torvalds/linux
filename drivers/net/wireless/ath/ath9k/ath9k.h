@@ -267,6 +267,7 @@ void ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		       u16 tid, u16 *ssn);
 void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
+void ath9k_enable_ps(struct ath_softc *sc);
 
 /********/
 /* VIFs */
@@ -341,6 +342,12 @@ int ath_beaconq_config(struct ath_softc *sc);
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
+void ath_ani_calibrate(unsigned long data);
+
+/**********/
+/* BTCOEX */
+/**********/
+
 /* Defines the BT AR_BT_COEX_WGHT used */
 enum ath_stomp_type {
 	ATH_BTCOEX_NO_STOMP,
@@ -358,8 +365,13 @@ struct ath_btcoex {
 	int bt_stomp_type; /* Types of BT stomping */
 	u32 btcoex_no_stomp; /* in usec */
 	u32 btcoex_period; /* in usec */
+	u32 btscan_no_stomp; /* in usec */
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 };
+
+int ath_init_btcoex_timer(struct ath_softc *sc);
+void ath9k_btcoex_timer_resume(struct ath_softc *sc);
+void ath9k_btcoex_timer_pause(struct ath_softc *sc);
 
 /********************/
 /*   LED Control    */
@@ -385,6 +397,9 @@ struct ath_led {
 	bool registered;
 };
 
+void ath_init_leds(struct ath_softc *sc);
+void ath_deinit_leds(struct ath_softc *sc);
+
 /********************/
 /* Main driver core */
 /********************/
@@ -403,26 +418,29 @@ struct ath_led {
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
 #define ATH_RATE_DUMMY_MARKER   0
 
-#define SC_OP_INVALID           BIT(0)
-#define SC_OP_BEACONS           BIT(1)
-#define SC_OP_RXAGGR            BIT(2)
-#define SC_OP_TXAGGR            BIT(3)
-#define SC_OP_FULL_RESET        BIT(4)
-#define SC_OP_PREAMBLE_SHORT    BIT(5)
-#define SC_OP_PROTECT_ENABLE    BIT(6)
-#define SC_OP_RXFLUSH           BIT(7)
-#define SC_OP_LED_ASSOCIATED    BIT(8)
-#define SC_OP_WAIT_FOR_BEACON   BIT(12)
-#define SC_OP_LED_ON            BIT(13)
-#define SC_OP_SCANNING          BIT(14)
-#define SC_OP_TSF_RESET         BIT(15)
-#define SC_OP_WAIT_FOR_CAB      BIT(16)
-#define SC_OP_WAIT_FOR_PSPOLL_DATA BIT(17)
-#define SC_OP_WAIT_FOR_TX_ACK   BIT(18)
-#define SC_OP_BEACON_SYNC       BIT(19)
-#define SC_OP_BT_PRIORITY_DETECTED BIT(21)
-#define SC_OP_NULLFUNC_COMPLETED BIT(22)
-#define SC_OP_PS_ENABLED	BIT(23)
+#define SC_OP_INVALID                BIT(0)
+#define SC_OP_BEACONS                BIT(1)
+#define SC_OP_RXAGGR                 BIT(2)
+#define SC_OP_TXAGGR                 BIT(3)
+#define SC_OP_FULL_RESET             BIT(4)
+#define SC_OP_PREAMBLE_SHORT         BIT(5)
+#define SC_OP_PROTECT_ENABLE         BIT(6)
+#define SC_OP_RXFLUSH                BIT(7)
+#define SC_OP_LED_ASSOCIATED         BIT(8)
+#define SC_OP_LED_ON                 BIT(9)
+#define SC_OP_SCANNING               BIT(10)
+#define SC_OP_TSF_RESET              BIT(11)
+#define SC_OP_BT_PRIORITY_DETECTED   BIT(12)
+#define SC_OP_BT_SCAN		     BIT(13)
+
+/* Powersave flags */
+#define PS_WAIT_FOR_BEACON        BIT(0)
+#define PS_WAIT_FOR_CAB           BIT(1)
+#define PS_WAIT_FOR_PSPOLL_DATA   BIT(2)
+#define PS_WAIT_FOR_TX_ACK        BIT(3)
+#define PS_BEACON_SYNC            BIT(4)
+#define PS_NULLFUNC_COMPLETED     BIT(5)
+#define PS_ENABLED                BIT(6)
 
 struct ath_wiphy;
 struct ath_rate_table;
@@ -453,16 +471,17 @@ struct ath_softc {
 	int irq;
 	spinlock_t sc_resetlock;
 	spinlock_t sc_serial_rw;
-	spinlock_t ani_lock;
 	spinlock_t sc_pm_lock;
 	struct mutex mutex;
 
 	u32 intrstatus;
 	u32 sc_flags; /* SC_OP_* */
+	u16 ps_flags; /* PS_* */
 	u16 curtxpow;
 	u8 nbcnvifs;
 	u16 nvifs;
 	bool ps_enabled;
+	bool ps_idle;
 	unsigned long ps_usecount;
 	enum ath9k_int imask;
 
@@ -509,6 +528,7 @@ struct ath_wiphy {
 	int chan_is_ht;
 };
 
+void ath9k_tasklet(unsigned long data);
 int ath_reset(struct ath_softc *sc, bool retry_tx);
 int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
@@ -519,21 +539,16 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 	common->bus_ops->read_cachesize(common, csz);
 }
 
-static inline void ath_bus_cleanup(struct ath_common *common)
-{
-	common->bus_ops->cleanup(common);
-}
-
 extern struct ieee80211_ops ath9k_ops;
+extern int modparam_nohwcrypt;
 
 irqreturn_t ath_isr(int irq, void *dev);
-void ath_cleanup(struct ath_softc *sc);
-int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
+int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 		    const struct ath_bus_ops *bus_ops);
-void ath_detach(struct ath_softc *sc);
+void ath9k_deinit_device(struct ath_softc *sc);
 const char *ath_mac_bb_name(u32 mac_bb_version);
 const char *ath_rf_name(u16 rf_version);
-void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw);
+void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw);
 void ath9k_update_ichannel(struct ath_softc *sc, struct ieee80211_hw *hw,
 			   struct ath9k_channel *ichan);
 void ath_update_chainmask(struct ath_softc *sc, int is_ht);
@@ -542,6 +557,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw);
 void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw);
+bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode);
 
 #ifdef CONFIG_PCI
 int ath_pci_init(void);
@@ -583,4 +599,8 @@ void ath_mac80211_stop_queue(struct ath_softc *sc, u16 skb_queue);
 void ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue);
 
 int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
+
+void ath_start_rfkill_poll(struct ath_softc *sc);
+extern void ath9k_rfkill_poll_state(struct ieee80211_hw *hw);
+
 #endif /* ATH9K_H */

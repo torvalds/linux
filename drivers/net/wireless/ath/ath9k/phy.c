@@ -39,6 +39,8 @@
  * AR9287 - 11n single-band 1x1 MIMO for USB
  */
 
+#include <linux/slab.h>
+
 #include "hw.h"
 
 /**

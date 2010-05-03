@@ -19,7 +19,6 @@
 
 #include <linux/module.h>
 #include <linux/mdio-bitbang.h>
-#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 

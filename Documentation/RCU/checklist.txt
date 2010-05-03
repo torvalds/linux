@@ -260,7 +260,8 @@ over a rather long period of time, but improvements are always welcome!
 	The reason that it is permissible to use RCU list-traversal
 	primitives when the update-side lock is held is that doing so
 	can be quite helpful in reducing code bloat when common code is
-	shared between readers and updaters.
+	shared between readers and updaters.  Additional primitives
+	are provided for this case, as discussed in lockdep.txt.
 
 10.	Conversely, if you are in an RCU read-side critical section,
 	and you don't hold the appropriate update-side lock, you -must-
@@ -344,8 +345,8 @@ over a rather long period of time, but improvements are always welcome!
 	requiring SRCU's read-side deadlock immunity or low read-side
 	realtime latency.
 
-	Note that, rcu_assign_pointer() and rcu_dereference() relate to
-	SRCU just as they do to other forms of RCU.
+	Note that, rcu_assign_pointer() relates to SRCU just as they do
+	to other forms of RCU.
 
 15.	The whole point of call_rcu(), synchronize_rcu(), and friends
 	is to wait until all pre-existing readers have finished before

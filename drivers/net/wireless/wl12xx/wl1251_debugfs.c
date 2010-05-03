@@ -24,6 +24,7 @@
 #include "wl1251_debugfs.h"
 
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 
 #include "wl1251.h"
 #include "wl1251_acx.h"
@@ -237,6 +238,27 @@ static const struct file_operations tx_queue_len_ops = {
 	.open = wl1251_open_file_generic,
 };
 
+static ssize_t tx_queue_status_read(struct file *file, char __user *userbuf,
+				    size_t count, loff_t *ppos)
+{
+	struct wl1251 *wl = file->private_data;
+	char buf[3], status;
+	int len;
+
+	if (wl->tx_queue_stopped)
+		status = 's';
+	else
+		status = 'r';
+
+	len = scnprintf(buf, sizeof(buf), "%c\n", status);
+	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+}
+
+static const struct file_operations tx_queue_status_ops = {
+	.read = tx_queue_status_read,
+	.open = wl1251_open_file_generic,
+};
+
 static void wl1251_debugfs_delete_files(struct wl1251 *wl)
 {
 	DEBUGFS_FWSTATS_DEL(tx, internal_desc_overflow);
@@ -331,6 +353,7 @@ static void wl1251_debugfs_delete_files(struct wl1251 *wl)
 	DEBUGFS_FWSTATS_DEL(rxpipe, tx_xfr_host_int_trig_rx_data);
 
 	DEBUGFS_DEL(tx_queue_len);
+	DEBUGFS_DEL(tx_queue_status);
 	DEBUGFS_DEL(retry_count);
 	DEBUGFS_DEL(excessive_retries);
 }
@@ -431,6 +454,7 @@ static int wl1251_debugfs_add_files(struct wl1251 *wl)
 	DEBUGFS_FWSTATS_ADD(rxpipe, tx_xfr_host_int_trig_rx_data);
 
 	DEBUGFS_ADD(tx_queue_len, wl->debugfs.rootdir);
+	DEBUGFS_ADD(tx_queue_status, wl->debugfs.rootdir);
 	DEBUGFS_ADD(retry_count, wl->debugfs.rootdir);
 	DEBUGFS_ADD(excessive_retries, wl->debugfs.rootdir);
 
@@ -443,7 +467,8 @@ out:
 
 void wl1251_debugfs_reset(struct wl1251 *wl)
 {
-	memset(wl->stats.fw_stats, 0, sizeof(*wl->stats.fw_stats));
+	if (wl->stats.fw_stats != NULL)
+		memset(wl->stats.fw_stats, 0, sizeof(*wl->stats.fw_stats));
 	wl->stats.retry_count = 0;
 	wl->stats.excessive_retries = 0;
 }

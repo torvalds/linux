@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include "ath9k.h"
 
 struct ath9k_vif_iter_data {
@@ -152,7 +154,7 @@ int ath9k_wiphy_add(struct ath_softc *sc)
 
 	SET_IEEE80211_PERM_ADDR(hw, addr);
 
-	ath_set_hw_capab(sc, hw);
+	ath9k_set_hw_capab(sc, hw);
 
 	error = ieee80211_register_hw(hw);
 

@@ -181,7 +181,7 @@ config SPI_OMAP_UWIRE
 
 config SPI_OMAP24XX
 	tristate "McSPI driver for OMAP24xx/OMAP34xx"
-	depends on ARCH_OMAP24XX || ARCH_OMAP34XX
+	depends on ARCH_OMAP2 || ARCH_OMAP3
 	help
 	  SPI master controller for OMAP24xx/OMAP34xx Multichannel SPI
 	  (McSPI) modules.

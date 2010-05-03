@@ -121,18 +121,10 @@ static int ide_probe(struct pcmcia_device *link)
 static void ide_detach(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    ide_hwif_t *hwif = info->host->ports[0];
-    unsigned long data_addr, ctl_addr;
 
     dev_dbg(&link->dev, "ide_detach(0x%p)\n", link);
 
-    data_addr = hwif->io_ports.data_addr;
-    ctl_addr  = hwif->io_ports.ctl_addr;
-
     ide_release(link);
-
-    release_region(ctl_addr, 1);
-    release_region(data_addr, 8);
 
     kfree(info);
 } /* ide_detach */
@@ -354,12 +346,19 @@ static void ide_release(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "ide_release(0x%p)\n", link);
 
-    if (info->ndev)
-	/* FIXME: if this fails we need to queue the cleanup somehow
-	   -- need to investigate the required PCMCIA magic */
-	ide_host_remove(host);
+    if (info->ndev) {
+	ide_hwif_t *hwif = host->ports[0];
+	unsigned long data_addr, ctl_addr;
 
-    info->ndev = 0;
+	data_addr = hwif->io_ports.data_addr;
+	ctl_addr = hwif->io_ports.ctl_addr;
+
+	ide_host_remove(host);
+	info->ndev = 0;
+
+	release_region(ctl_addr, 1);
+	release_region(data_addr, 8);
+    }
 
     pcmcia_disable_device(link);
 } /* ide_release */
@@ -410,6 +409,8 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Hyperstone", "Model1", 0x3d5b9ef5, 0xca6ab420),
 	PCMCIA_DEVICE_PROD_ID12("IBM", "microdrive", 0xb569a6e5, 0xa6d76178),
 	PCMCIA_DEVICE_PROD_ID12("IBM", "IBM17JSSFP20", 0xb569a6e5, 0xf2508753),
+	PCMCIA_DEVICE_PROD_ID12("KINGSTON", "CF CARD 1GB", 0x2e6d1829, 0x3e520e17),
+	PCMCIA_DEVICE_PROD_ID12("KINGSTON", "CF CARD 4GB", 0x2e6d1829, 0x531e7d10),
 	PCMCIA_DEVICE_PROD_ID12("KINGSTON", "CF8GB", 0x2e6d1829, 0xacbe682e),
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "CBIDE2      ", 0x547e66dc, 0x8671043b),
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "PCIDE", 0x547e66dc, 0x5c5ab149),
@@ -430,6 +431,8 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS1GCF80", 0x709b1bf1, 0x2a54d4b1),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS2GCF120", 0x709b1bf1, 0x969aa4f2),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS4GCF120", 0x709b1bf1, 0xf54a91c8),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS4GCF133", 0x709b1bf1, 0x9351e59d),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS8GCF133", 0x709b1bf1, 0xb2f89b47),
 	PCMCIA_DEVICE_PROD_ID12("WIT", "IDE16", 0x244e5994, 0x3e232852),
 	PCMCIA_DEVICE_PROD_ID12("WEIDA", "TWTTI", 0xcc7cf69c, 0x212bb918),
 	PCMCIA_DEVICE_PROD_ID1("STI Flash", 0xe4a13209),

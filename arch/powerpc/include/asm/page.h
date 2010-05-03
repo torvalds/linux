@@ -108,8 +108,21 @@ extern phys_addr_t kernstart_addr;
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
-#define __va(x) ((void *)((unsigned long)(x) + PAGE_OFFSET - MEMORY_START))
+/*
+ * On Book-E parts we need __va to parse the device tree and we can't
+ * determine MEMORY_START until then.  However we can determine PHYSICAL_START
+ * from information at hand (program counter, TLB lookup).
+ *
+ * On non-Book-E PPC64 PAGE_OFFSET and MEMORY_START are constants so use
+ * the other definitions for __va & __pa.
+ */
+#ifdef CONFIG_BOOKE
+#define __va(x) ((void *)(unsigned long)((phys_addr_t)(x) - PHYSICAL_START + KERNELBASE))
+#define __pa(x) ((unsigned long)(x) + PHYSICAL_START - KERNELBASE)
+#else
+#define __va(x) ((void *)(unsigned long)((phys_addr_t)(x) + PAGE_OFFSET - MEMORY_START))
 #define __pa(x) ((unsigned long)(x) - PAGE_OFFSET + MEMORY_START)
+#endif
 
 /*
  * Unfortunately the PLT is in the BSS in the PPC32 ELF ABI,

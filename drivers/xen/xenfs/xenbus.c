@@ -51,6 +51,7 @@
 #include <linux/init.h>
 #include <linux/namei.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 
 #include "xenfs.h"
 #include "../xenbus/xenbus_comms.h"

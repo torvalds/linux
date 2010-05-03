@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,6 +60,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
+#include <linux/slab.h>
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"
@@ -414,7 +415,6 @@ static int iwl_sens_auto_corr_ofdm(struct iwl_priv *priv,
 /* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
 static int iwl_sensitivity_write(struct iwl_priv *priv)
 {
-	int ret = 0;
 	struct iwl_sensitivity_cmd cmd ;
 	struct iwl_sensitivity_data *data = NULL;
 	struct iwl_host_cmd cmd_out = {
@@ -477,11 +477,7 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.table[0]),
 	       sizeof(u16)*HD_TABLE_SIZE);
 
-	ret = iwl_send_cmd(priv, &cmd_out);
-	if (ret)
-		IWL_ERR(priv, "SENSITIVITY_CMD failed\n");
-
-	return ret;
+	return iwl_send_cmd(priv, &cmd_out);
 }
 
 void iwl_init_sensitivity(struct iwl_priv *priv)
@@ -811,6 +807,18 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 			     i, rssi_delta, data->disconn_array[i]);
 		}
 	}
+
+	/*
+	 * The above algorithm sometimes fails when the ucode
+	 * reports 0 for all chains. It's not clear why that
+	 * happens to start with, but it is then causing trouble
+	 * because this can make us enable more chains than the
+	 * hardware really has.
+	 *
+	 * To be safe, simply mask out any chains that we know
+	 * are not on the device.
+	 */
+	active_chains &= priv->hw_params.valid_rx_ant;
 
 	num_tx_chains = 0;
 	for (i = 0; i < NUM_RX_CHAINS; i++) {

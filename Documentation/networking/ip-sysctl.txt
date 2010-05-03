@@ -487,6 +487,30 @@ tcp_dma_copybreak - INTEGER
 	and CONFIG_NET_DMA is enabled.
 	Default: 4096
 
+tcp_thin_linear_timeouts - BOOLEAN
+	Enable dynamic triggering of linear timeouts for thin streams.
+	If set, a check is performed upon retransmission by timeout to
+	determine if the stream is thin (less than 4 packets in flight).
+	As long as the stream is found to be thin, up to 6 linear
+	timeouts may be performed before exponential backoff mode is
+	initiated. This improves retransmission latency for
+	non-aggressive thin streams, often found to be time-dependent.
+	For more information on thin streams, see
+	Documentation/networking/tcp-thin.txt
+	Default: 0
+
+tcp_thin_dupack - BOOLEAN
+	Enable dynamic triggering of retransmissions after one dupACK
+	for thin streams. If set, a check is performed upon reception
+	of a dupACK to determine if the stream is thin (less than 4
+	packets in flight). As long as the stream is found to be thin,
+	data is retransmitted on the first received dupACK. This
+	improves retransmission latency for non-aggressive thin
+	streams, often found to be time-dependent.
+	For more information on thin streams, see
+	Documentation/networking/tcp-thin.txt
+	Default: 0
+
 UDP variables:
 
 udp_mem - vector of 3 INTEGERs: min, pressure, max
@@ -692,6 +716,25 @@ proxy_arp - BOOLEAN
 	conf/{all,interface}/proxy_arp is set to TRUE,
 	it will be disabled otherwise
 
+proxy_arp_pvlan - BOOLEAN
+	Private VLAN proxy arp.
+	Basically allow proxy arp replies back to the same interface
+	(from which the ARP request/solicitation was received).
+
+	This is done to support (ethernet) switch features, like RFC
+	3069, where the individual ports are NOT allowed to
+	communicate with each other, but they are allowed to talk to
+	the upstream router.  As described in RFC 3069, it is possible
+	to allow these hosts to communicate through the upstream
+	router by proxy_arp'ing. Don't need to be used together with
+	proxy_arp.
+
+	This technology is known by different names:
+	  In RFC 3069 it is called VLAN Aggregation.
+	  Cisco and Allied Telesyn call it Private VLAN.
+	  Hewlett-Packard call it Source-Port filtering or port-isolation.
+	  Ericsson call it MAC-Forced Forwarding (RFC Draft).
+
 shared_media - BOOLEAN
 	Send(router) or accept(host) RFC1620 shared media redirects.
 	Overrides ip_secure_redirects.
@@ -833,9 +876,18 @@ arp_notify - BOOLEAN
 	    or hardware address changes.
 
 arp_accept - BOOLEAN
-	Define behavior when gratuitous arp replies are received:
-	0 - drop gratuitous arp frames
-	1 - accept gratuitous arp frames
+	Define behavior for gratuitous ARP frames who's IP is not
+	already present in the ARP table:
+	0 - don't create new entries in the ARP table
+	1 - create new entries in the ARP table
+
+	Both replies and requests type gratuitous arp will trigger the
+	ARP table to be updated, if this setting is on.
+
+	If the ARP table already contains the IP address of the
+	gratuitous arp frame, the arp table will be updated regardless
+	if this setting is on or off.
+
 
 app_solicit - INTEGER
 	The maximum number of probes to send to the user space ARP daemon

@@ -535,23 +535,23 @@ xfs_inode_item_format(
 
 /*
  * This is called to pin the inode associated with the inode log
- * item in memory so it cannot be written out.  Do this by calling
- * xfs_ipin() to bump the pin count in the inode while holding the
- * inode pin lock.
+ * item in memory so it cannot be written out.
  */
 STATIC void
 xfs_inode_item_pin(
 	xfs_inode_log_item_t	*iip)
 {
 	ASSERT(xfs_isilocked(iip->ili_inode, XFS_ILOCK_EXCL));
-	xfs_ipin(iip->ili_inode);
+
+	atomic_inc(&iip->ili_inode->i_pincount);
 }
 
 
 /*
  * This is called to unpin the inode associated with the inode log
  * item which was previously pinned with a call to xfs_inode_item_pin().
- * Just call xfs_iunpin() on the inode to do this.
+ *
+ * Also wake up anyone in xfs_iunpin_wait() if the count goes to 0.
  */
 /* ARGSUSED */
 STATIC void
@@ -559,7 +559,11 @@ xfs_inode_item_unpin(
 	xfs_inode_log_item_t	*iip,
 	int			stale)
 {
-	xfs_iunpin(iip->ili_inode);
+	struct xfs_inode	*ip = iip->ili_inode;
+
+	ASSERT(atomic_read(&ip->i_pincount) > 0);
+	if (atomic_dec_and_test(&ip->i_pincount))
+		wake_up(&ip->i_ipin_wait);
 }
 
 /* ARGSUSED */
@@ -568,7 +572,7 @@ xfs_inode_item_unpin_remove(
 	xfs_inode_log_item_t	*iip,
 	xfs_trans_t		*tp)
 {
-	xfs_iunpin(iip->ili_inode);
+	xfs_inode_item_unpin(iip, 0);
 }
 
 /*

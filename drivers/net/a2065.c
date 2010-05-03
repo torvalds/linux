@@ -46,7 +46,6 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
@@ -603,9 +602,8 @@ static void lance_load_multicast (struct net_device *dev)
 	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_init_block *ib = lp->init_block;
 	volatile u16 *mcast_table = (u16 *)&ib->filter;
-	struct dev_mc_list *dmi=dev->mc_list;
+	struct dev_mc_list *dmi;
 	char *addrs;
-	int i;
 	u32 crc;
 
 	/* set all multicast bits */
@@ -619,9 +617,8 @@ static void lance_load_multicast (struct net_device *dev)
 	ib->filter [1] = 0;
 
 	/* Add addresses */
-	for (i = 0; i < dev->mc_count; i++){
+	netdev_for_each_mc_addr(dmi, dev) {
 		addrs = dmi->dmi_addr;
-		dmi   = dmi->next;
 
 		/* multicast address? */
 		if (!(*addrs & 1))

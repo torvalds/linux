@@ -61,6 +61,13 @@ struct ethtool_drvinfo {
 				/* For PCI devices, use pci_name(pci_dev). */
 	char	reserved1[32];
 	char	reserved2[12];
+				/*
+				 * Some struct members below are filled in
+				 * using ops->get_sset_count().  Obtaining
+				 * this info from ethtool_drvinfo is now
+				 * deprecated; Use ETHTOOL_GSSET_INFO
+				 * instead.
+				 */
 	__u32	n_priv_flags;	/* number of flags valid in ETHTOOL_GPFLAGS */
 	__u32	n_stats;	/* number of u64's from ETHTOOL_GSTATS */
 	__u32	testinfo_len;
@@ -242,6 +249,7 @@ enum ethtool_stringset {
 	ETH_SS_TEST		= 0,
 	ETH_SS_STATS,
 	ETH_SS_PRIV_FLAGS,
+	ETH_SS_NTUPLE_FILTERS,
 };
 
 /* for passing string sets for data tagging */
@@ -250,6 +258,17 @@ struct ethtool_gstrings {
 	__u32	string_set;	/* string set id e.c. ETH_SS_TEST, etc*/
 	__u32	len;		/* number of strings in the string set */
 	__u8	data[0];
+};
+
+struct ethtool_sset_info {
+	__u32	cmd;		/* ETHTOOL_GSSET_INFO */
+	__u32	reserved;
+	__u64	sset_mask;	/* input: each bit selects an sset to query */
+				/* output: each bit a returned sset */
+	__u32	data[0];	/* ETH_SS_xxx count, in order, based on bits
+				   in sset_mask.  One bit implies one
+				   __u32, two bits implies two
+				   __u32's, etc. */
 };
 
 enum ethtool_test_flags {
@@ -290,6 +309,7 @@ struct ethtool_perm_addr {
  */
 enum ethtool_flags {
 	ETH_FLAG_LRO		= (1 << 15),	/* LRO is enabled */
+	ETH_FLAG_NTUPLE		= (1 << 27),	/* N-tuple filters enabled */
 };
 
 /* The following structures are for supporting RX network flow
@@ -363,6 +383,35 @@ struct ethtool_rxnfc {
 	__u32				rule_locs[0];
 };
 
+struct ethtool_rx_ntuple_flow_spec {
+	__u32		 flow_type;
+	union {
+		struct ethtool_tcpip4_spec		tcp_ip4_spec;
+		struct ethtool_tcpip4_spec		udp_ip4_spec;
+		struct ethtool_tcpip4_spec		sctp_ip4_spec;
+		struct ethtool_ah_espip4_spec		ah_ip4_spec;
+		struct ethtool_ah_espip4_spec		esp_ip4_spec;
+		struct ethtool_rawip4_spec		raw_ip4_spec;
+		struct ethtool_ether_spec		ether_spec;
+		struct ethtool_usrip4_spec		usr_ip4_spec;
+		__u8					hdata[64];
+	} h_u, m_u; /* entry, mask */
+
+	__u16	        vlan_tag;
+	__u16	        vlan_tag_mask;
+	__u64		data;      /* user-defined flow spec data */
+	__u64		data_mask; /* user-defined flow spec mask */
+
+	/* signed to distinguish between queue and actions (DROP) */
+	__s32		action;
+#define ETHTOOL_RXNTUPLE_ACTION_DROP -1
+};
+
+struct ethtool_rx_ntuple {
+	__u32					cmd;
+	struct ethtool_rx_ntuple_flow_spec	fs;
+};
+
 #define ETHTOOL_FLASH_MAX_FILENAME	128
 enum ethtool_flash_op_type {
 	ETHTOOL_FLASH_ALL_REGIONS	= 0,
@@ -376,6 +425,20 @@ struct ethtool_flash {
 };
 
 #ifdef __KERNEL__
+
+#include <linux/rculist.h>
+
+struct ethtool_rx_ntuple_flow_spec_container {
+	struct ethtool_rx_ntuple_flow_spec fs;
+	struct list_head list;
+};
+
+struct ethtool_rx_ntuple_list {
+#define ETHTOOL_MAX_NTUPLE_LIST_ENTRY 1024
+#define ETHTOOL_MAX_NTUPLE_STRING_PER_ENTRY 14
+	struct list_head	list;
+	unsigned int		count;
+};
 
 struct net_device;
 
@@ -394,6 +457,7 @@ u32 ethtool_op_get_ufo(struct net_device *dev);
 int ethtool_op_set_ufo(struct net_device *dev, u32 data);
 u32 ethtool_op_get_flags(struct net_device *dev);
 int ethtool_op_set_flags(struct net_device *dev, u32 data);
+void ethtool_ntuple_flush(struct net_device *dev);
 
 /**
  * &ethtool_ops - Alter and report network device settings
@@ -500,6 +564,8 @@ struct ethtool_ops {
 	int	(*set_rxnfc)(struct net_device *, struct ethtool_rxnfc *);
 	int     (*flash_device)(struct net_device *, struct ethtool_flash *);
 	int	(*reset)(struct net_device *, u32 *);
+	int	(*set_rx_ntuple)(struct net_device *, struct ethtool_rx_ntuple *);
+	int	(*get_rx_ntuple)(struct net_device *, u32 stringset, void *);
 };
 #endif /* __KERNEL__ */
 
@@ -558,6 +624,9 @@ struct ethtool_ops {
 #define	ETHTOOL_SRXCLSRLINS	0x00000032 /* Insert RX classification rule */
 #define	ETHTOOL_FLASHDEV	0x00000033 /* Flash firmware to device */
 #define	ETHTOOL_RESET		0x00000034 /* Reset hardware */
+#define	ETHTOOL_SRXNTUPLE	0x00000035 /* Add an n-tuple filter to device */
+#define	ETHTOOL_GRXNTUPLE	0x00000036 /* Get n-tuple filters from device */
+#define	ETHTOOL_GSSET_INFO	0x00000037 /* Get string set info */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET

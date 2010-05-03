@@ -34,6 +34,7 @@
 #include <linux/capability.h>
 #include <linux/sched.h>
 #include <linux/lockdep.h>
+#include <linux/slab.h>
 
 #include <linux/configfs.h>
 #include "configfs_internal.h"

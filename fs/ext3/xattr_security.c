@@ -4,6 +4,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <linux/ext3_jbd.h>

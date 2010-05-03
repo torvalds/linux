@@ -25,6 +25,7 @@
 #include <linux/posix-timers.h>
 #include <linux/times.h>
 #include <linux/ptrace.h>
+#include <linux/gfp.h>
 
 #include <asm/uaccess.h>
 

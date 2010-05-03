@@ -40,6 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/i2o.h>
+#include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
@@ -111,10 +112,7 @@ static int print_serial_number(struct seq_file *seq, u8 * serialno, int max_len)
 		break;
 
 	case I2O_SNFORMAT_LAN48_MAC:	/* LAN-48 MAC Address */
-		seq_printf(seq,
-			   "LAN-48 MAC address @ %02X:%02X:%02X:%02X:%02X:%02X",
-			   serialno[2], serialno[3],
-			   serialno[4], serialno[5], serialno[6], serialno[7]);
+		seq_printf(seq, "LAN-48 MAC address @ %pM", &serialno[2]);
 		break;
 
 	case I2O_SNFORMAT_WAN:	/* WAN MAC Address */
@@ -126,10 +124,8 @@ static int print_serial_number(struct seq_file *seq, u8 * serialno, int max_len)
 	case I2O_SNFORMAT_LAN64_MAC:	/* LAN-64 MAC Address */
 		/* FIXME: Figure out what a LAN-64 address really looks like?? */
 		seq_printf(seq,
-			   "LAN-64 MAC address @ [?:%02X:%02X:?] %02X:%02X:%02X:%02X:%02X:%02X",
-			   serialno[8], serialno[9],
-			   serialno[2], serialno[3],
-			   serialno[4], serialno[5], serialno[6], serialno[7]);
+			   "LAN-64 MAC address @ [?:%02X:%02X:?] %pM",
+			   serialno[8], serialno[9], &serialno[2]);
 		break;
 
 	case I2O_SNFORMAT_DDM:	/* I2O DDM */

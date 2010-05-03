@@ -75,7 +75,7 @@ enum {
 	DEVICE_VMK8061
 };
 
-static struct usb_device_id vmk80xx_id_table[] = {
+static const struct usb_device_id vmk80xx_id_table[] = {
 	{USB_DEVICE(0x10cf, 0x5500), .driver_info = DEVICE_VMK8055},
 	{USB_DEVICE(0x10cf, 0x5501), .driver_info = DEVICE_VMK8055},
 	{USB_DEVICE(0x10cf, 0x5502), .driver_info = DEVICE_VMK8055},

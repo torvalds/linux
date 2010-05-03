@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>
@@ -561,7 +562,7 @@ end:
 }
 
 int acpi_processor_preregister_performance(
-		struct acpi_processor_performance *performance)
+		struct acpi_processor_performance __percpu *performance)
 {
 	int count, count_target;
 	int retval = 0;

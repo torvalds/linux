@@ -76,65 +76,6 @@ DECLARE_RWSEM(pcmcia_socket_list_rwsem);
 EXPORT_SYMBOL(pcmcia_socket_list_rwsem);
 
 
-/*
- * Low-level PCMCIA socket drivers need to register with the PCCard
- * core using pcmcia_register_socket.
- *
- * socket drivers are expected to use the following callbacks in their
- * .drv struct:
- *  - pcmcia_socket_dev_suspend
- *  - pcmcia_socket_dev_resume
- * These functions check for the appropriate struct pcmcia_soket arrays,
- * and pass them to the low-level functions pcmcia_{suspend,resume}_socket
- */
-static int socket_early_resume(struct pcmcia_socket *skt);
-static int socket_late_resume(struct pcmcia_socket *skt);
-static int socket_resume(struct pcmcia_socket *skt);
-static int socket_suspend(struct pcmcia_socket *skt);
-
-static void pcmcia_socket_dev_run(struct device *dev,
-				  int (*cb)(struct pcmcia_socket *))
-{
-	struct pcmcia_socket *socket;
-
-	down_read(&pcmcia_socket_list_rwsem);
-	list_for_each_entry(socket, &pcmcia_socket_list, socket_list) {
-		if (socket->dev.parent != dev)
-			continue;
-		mutex_lock(&socket->skt_mutex);
-		cb(socket);
-		mutex_unlock(&socket->skt_mutex);
-	}
-	up_read(&pcmcia_socket_list_rwsem);
-}
-
-int pcmcia_socket_dev_suspend(struct device *dev)
-{
-	pcmcia_socket_dev_run(dev, socket_suspend);
-	return 0;
-}
-EXPORT_SYMBOL(pcmcia_socket_dev_suspend);
-
-void pcmcia_socket_dev_early_resume(struct device *dev)
-{
-	pcmcia_socket_dev_run(dev, socket_early_resume);
-}
-EXPORT_SYMBOL(pcmcia_socket_dev_early_resume);
-
-void pcmcia_socket_dev_late_resume(struct device *dev)
-{
-	pcmcia_socket_dev_run(dev, socket_late_resume);
-}
-EXPORT_SYMBOL(pcmcia_socket_dev_late_resume);
-
-int pcmcia_socket_dev_resume(struct device *dev)
-{
-	pcmcia_socket_dev_run(dev, socket_resume);
-	return 0;
-}
-EXPORT_SYMBOL(pcmcia_socket_dev_resume);
-
-
 struct pcmcia_socket *pcmcia_get_socket(struct pcmcia_socket *skt)
 {
 	struct device *dev = get_device(&skt->dev);
@@ -578,12 +519,18 @@ static int socket_early_resume(struct pcmcia_socket *skt)
 
 static int socket_late_resume(struct pcmcia_socket *skt)
 {
+	int ret;
+
 	mutex_lock(&skt->ops_mutex);
 	skt->state &= ~SOCKET_SUSPEND;
 	mutex_unlock(&skt->ops_mutex);
 
-	if (!(skt->state & SOCKET_PRESENT))
-		return socket_insert(skt);
+	if (!(skt->state & SOCKET_PRESENT)) {
+		ret = socket_insert(skt);
+		if (ret == -ENODEV)
+			ret = 0;
+		return ret;
+	}
 
 	if (skt->resume_status) {
 		socket_shutdown(skt);
@@ -919,11 +866,66 @@ static void pcmcia_release_socket_class(struct class *data)
 }
 
 
+#ifdef CONFIG_PM
+
+static int __pcmcia_pm_op(struct device *dev,
+			  int (*callback) (struct pcmcia_socket *skt))
+{
+	struct pcmcia_socket *s = container_of(dev, struct pcmcia_socket, dev);
+	int ret;
+
+	mutex_lock(&s->skt_mutex);
+	ret = callback(s);
+	mutex_unlock(&s->skt_mutex);
+
+	return ret;
+}
+
+static int pcmcia_socket_dev_suspend_noirq(struct device *dev)
+{
+	return __pcmcia_pm_op(dev, socket_suspend);
+}
+
+static int pcmcia_socket_dev_resume_noirq(struct device *dev)
+{
+	return __pcmcia_pm_op(dev, socket_early_resume);
+}
+
+static int pcmcia_socket_dev_resume(struct device *dev)
+{
+	return __pcmcia_pm_op(dev, socket_late_resume);
+}
+
+static const struct dev_pm_ops pcmcia_socket_pm_ops = {
+	/* dev_resume may be called with IRQs enabled */
+	SET_SYSTEM_SLEEP_PM_OPS(NULL,
+				pcmcia_socket_dev_resume)
+
+	/* late suspend must be called with IRQs disabled */
+	.suspend_noirq = pcmcia_socket_dev_suspend_noirq,
+	.freeze_noirq = pcmcia_socket_dev_suspend_noirq,
+	.poweroff_noirq = pcmcia_socket_dev_suspend_noirq,
+
+	/* early resume must be called with IRQs disabled */
+	.resume_noirq = pcmcia_socket_dev_resume_noirq,
+	.thaw_noirq = pcmcia_socket_dev_resume_noirq,
+	.restore_noirq = pcmcia_socket_dev_resume_noirq,
+};
+
+#define PCMCIA_SOCKET_CLASS_PM_OPS (&pcmcia_socket_pm_ops)
+
+#else /* CONFIG_PM */
+
+#define PCMCIA_SOCKET_CLASS_PM_OPS NULL
+
+#endif /* CONFIG_PM */
+
 struct class pcmcia_socket_class = {
 	.name = "pcmcia_socket",
 	.dev_uevent = pcmcia_socket_uevent,
 	.dev_release = pcmcia_release_socket,
 	.class_release = pcmcia_release_socket_class,
+	.pm = PCMCIA_SOCKET_CLASS_PM_OPS,
 };
 EXPORT_SYMBOL(pcmcia_socket_class);
 

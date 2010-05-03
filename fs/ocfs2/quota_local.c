@@ -3,6 +3,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/quota.h>
 #include <linux/quotaops.h>
 #include <linux/module.h>
@@ -457,7 +458,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 			break;
 		}
 		dchunk = (struct ocfs2_local_disk_chunk *)hbh->b_data;
-		for_each_bit(bit, rchunk->rc_bitmap, ol_chunk_entries(sb)) {
+		for_each_set_bit(bit, rchunk->rc_bitmap, ol_chunk_entries(sb)) {
 			qbh = NULL;
 			status = ocfs2_read_quota_block(lqinode,
 						ol_dqblk_block(sb, chunk, bit),

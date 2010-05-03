@@ -18,6 +18,8 @@
 #ifndef _CIFS_FS_SB_H
 #define _CIFS_FS_SB_H
 
+#include <linux/backing-dev.h>
+
 #define CIFS_MOUNT_NO_PERM      1 /* do not do client vfs_perm check */
 #define CIFS_MOUNT_SET_UID      2 /* set current's euid in create etc. */
 #define CIFS_MOUNT_SERVER_INUM  4 /* inode numbers from uniqueid from server  */
@@ -50,5 +52,6 @@ struct cifs_sb_info {
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	char   *mountdata; /* mount options received at mount time */
 #endif
+	struct backing_dev_info bdi;
 };
 #endif				/* _CIFS_FS_SB_H */

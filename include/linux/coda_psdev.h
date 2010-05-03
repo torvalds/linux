@@ -7,6 +7,8 @@
 #define MAX_CODADEVS  5	   /* how many do we allow */
 
 #ifdef __KERNEL__
+#include <linux/backing-dev.h>
+
 struct kstatfs;
 
 /* communication pending/processing queues */
@@ -17,6 +19,7 @@ struct venus_comm {
 	struct list_head    vc_processing;
 	int                 vc_inuse;
 	struct super_block *vc_sb;
+	struct backing_dev_info bdi;
 };
 
 

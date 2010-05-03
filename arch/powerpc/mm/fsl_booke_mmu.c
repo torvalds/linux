@@ -116,7 +116,7 @@ void loadcam_entry(int idx)
 	mtspr(SPRN_MAS2, TLBCAM[idx].MAS2);
 	mtspr(SPRN_MAS3, TLBCAM[idx].MAS3);
 
-	if (cur_cpu_spec->cpu_features & MMU_FTR_BIG_PHYS)
+	if (mmu_has_feature(MMU_FTR_BIG_PHYS))
 		mtspr(SPRN_MAS7, TLBCAM[idx].MAS7);
 
 	asm volatile("isync;tlbwe;isync" : : : "memory");
@@ -152,18 +152,13 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 
 	TLBCAM[index].MAS3 = (phys & MAS3_RPN) | MAS3_SX | MAS3_SR;
 	TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_SW : 0);
-	if (cur_cpu_spec->cpu_features & MMU_FTR_BIG_PHYS)
+	if (mmu_has_feature(MMU_FTR_BIG_PHYS))
 		TLBCAM[index].MAS7 = (u64)phys >> 32;
 
-#ifndef CONFIG_KGDB /* want user access for breakpoints */
 	if (flags & _PAGE_USER) {
 	   TLBCAM[index].MAS3 |= MAS3_UX | MAS3_UR;
 	   TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_UW : 0);
 	}
-#else
-	TLBCAM[index].MAS3 |= MAS3_UX | MAS3_UR;
-	TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_UW : 0);
-#endif
 
 	tlbcam_addrs[index].start = virt;
 	tlbcam_addrs[index].limit = virt + size - 1;

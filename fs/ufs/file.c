@@ -24,6 +24,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/quotaops.h>
 
 #include "ufs_fs.h"
 #include "ufs.h"
@@ -40,7 +41,7 @@ const struct file_operations ufs_file_operations = {
 	.write		= do_sync_write,
 	.aio_write	= generic_file_aio_write,
 	.mmap		= generic_file_mmap,
-	.open           = generic_file_open,
+	.open           = dquot_file_open,
 	.fsync		= simple_fsync,
 	.splice_read	= generic_file_splice_read,
 };

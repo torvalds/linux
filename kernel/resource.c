@@ -219,6 +219,23 @@ void release_child_resources(struct resource *r)
 }
 
 /**
+ * request_resource_conflict - request and reserve an I/O or memory resource
+ * @root: root resource descriptor
+ * @new: resource descriptor desired by caller
+ *
+ * Returns 0 for success, conflict resource on error.
+ */
+struct resource *request_resource_conflict(struct resource *root, struct resource *new)
+{
+	struct resource *conflict;
+
+	write_lock(&resource_lock);
+	conflict = __request_resource(root, new);
+	write_unlock(&resource_lock);
+	return conflict;
+}
+
+/**
  * request_resource - request and reserve an I/O or memory resource
  * @root: root resource descriptor
  * @new: resource descriptor desired by caller
@@ -229,9 +246,7 @@ int request_resource(struct resource *root, struct resource *new)
 {
 	struct resource *conflict;
 
-	write_lock(&resource_lock);
-	conflict = __request_resource(root, new);
-	write_unlock(&resource_lock);
+	conflict = request_resource_conflict(root, new);
 	return conflict ? -EBUSY : 0;
 }
 
@@ -304,7 +319,7 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 		void *arg, int (*func)(unsigned long, unsigned long, void *))
 {
 	struct resource res;
-	unsigned long pfn, len;
+	unsigned long pfn, end_pfn;
 	u64 orig_end;
 	int ret = -1;
 
@@ -314,9 +329,10 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 	orig_end = res.end;
 	while ((res.start < res.end) &&
 		(find_next_system_ram(&res, "System RAM") >= 0)) {
-		pfn = (unsigned long)(res.start >> PAGE_SHIFT);
-		len = (unsigned long)((res.end + 1 - res.start) >> PAGE_SHIFT);
-		ret = (*func)(pfn, len, arg);
+		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		end_pfn = (res.end + 1) >> PAGE_SHIFT;
+		if (end_pfn > pfn)
+			ret = (*func)(pfn, end_pfn - pfn, arg);
 		if (ret)
 			break;
 		res.start = res.end + 1;
@@ -473,25 +489,40 @@ static struct resource * __insert_resource(struct resource *parent, struct resou
 }
 
 /**
- * insert_resource - Inserts a resource in the resource tree
+ * insert_resource_conflict - Inserts resource in the resource tree
  * @parent: parent of the new resource
  * @new: new resource to insert
  *
- * Returns 0 on success, -EBUSY if the resource can't be inserted.
+ * Returns 0 on success, conflict resource if the resource can't be inserted.
  *
- * This function is equivalent to request_resource when no conflict
+ * This function is equivalent to request_resource_conflict when no conflict
  * happens. If a conflict happens, and the conflicting resources
  * entirely fit within the range of the new resource, then the new
  * resource is inserted and the conflicting resources become children of
  * the new resource.
  */
-int insert_resource(struct resource *parent, struct resource *new)
+struct resource *insert_resource_conflict(struct resource *parent, struct resource *new)
 {
 	struct resource *conflict;
 
 	write_lock(&resource_lock);
 	conflict = __insert_resource(parent, new);
 	write_unlock(&resource_lock);
+	return conflict;
+}
+
+/**
+ * insert_resource - Inserts a resource in the resource tree
+ * @parent: parent of the new resource
+ * @new: new resource to insert
+ *
+ * Returns 0 on success, -EBUSY if the resource can't be inserted.
+ */
+int insert_resource(struct resource *parent, struct resource *new)
+{
+	struct resource *conflict;
+
+	conflict = insert_resource_conflict(parent, new);
 	return conflict ? -EBUSY : 0;
 }
 

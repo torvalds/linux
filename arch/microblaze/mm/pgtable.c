@@ -103,7 +103,7 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 		area = get_vm_area(size, VM_IOREMAP);
 		if (area == NULL)
 			return NULL;
-		v = VMALLOC_VMADDR(area->addr);
+		v = (unsigned long) area->addr;
 	} else {
 		v = (ioremap_bot -= size);
 	}
@@ -154,7 +154,7 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 		err = 0;
 		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT,
 				__pgprot(flags)));
-		if (mem_init_done)
+		if (unlikely(mem_init_done))
 			flush_HPTE(0, va, pmd_val(*pd));
 			/* flush_HPTE(0, va, pg); */
 	}

@@ -21,6 +21,7 @@
  */
 
 #include <linux/buffer_head.h>
+#include <linux/slab.h>
 
 #include "dir.h"
 #include "aops.h"
@@ -1545,7 +1546,7 @@ static int ntfs_dir_fsync(struct file *filp, struct dentry *dentry,
  		write_inode_now(bmp_vi, !datasync);
 		iput(bmp_vi);
 	}
-	ret = ntfs_write_inode(vi, 1);
+	ret = __ntfs_write_inode(vi, 1);
 	write_inode_now(vi, !datasync);
 	err = sync_blockdev(vi->i_sb->s_bdev);
 	if (unlikely(err && !ret))

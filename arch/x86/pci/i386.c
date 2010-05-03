@@ -72,6 +72,9 @@ pcibios_align_resource(void *data, const struct resource *res,
 			return start;
 		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
+	} else if (res->flags & IORESOURCE_MEM) {
+		if (start < BIOS_END)
+			start = BIOS_END;
 	}
 	return start;
 }
@@ -127,9 +130,6 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 					continue;
 				if (!r->start ||
 				    pci_claim_resource(dev, idx) < 0) {
-					dev_info(&dev->dev,
-						 "can't reserve window %pR\n",
-						 r);
 					/*
 					 * Something is wrong with the region.
 					 * Invalidate the resource to prevent
@@ -181,8 +181,6 @@ static void __init pcibios_allocate_resources(int pass)
 					"BAR %d: reserving %pr (d=%d, p=%d)\n",
 					idx, r, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
-					dev_info(&dev->dev,
-						 "can't reserve %pR\n", r);
 					/* We'll assign a new address later */
 					r->end -= r->start;
 					r->start = 0;
@@ -254,10 +252,6 @@ void __init pcibios_resource_survey(void)
  * give a chance for motherboard reserve resources
  */
 fs_initcall(pcibios_assign_resources);
-
-void __weak x86_pci_root_bus_res_quirks(struct pci_bus *b)
-{
-}
 
 /*
  *  If we set up a device for bus mastering, we need to check the latency

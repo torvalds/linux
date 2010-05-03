@@ -9,6 +9,7 @@
  * express or implied.
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/of_device.h>

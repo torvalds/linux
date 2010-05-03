@@ -329,6 +329,9 @@ static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_
 	}
 
 	if (mask & HCI_CMSG_TSTAMP) {
+#ifdef CONFIG_COMPAT
+		struct compat_timeval ctv;
+#endif
 		struct timeval tv;
 		void *data;
 		int len;
@@ -339,7 +342,6 @@ static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_
 		len = sizeof(tv);
 #ifdef CONFIG_COMPAT
 		if (msg->msg_flags & MSG_CMSG_COMPAT) {
-			struct compat_timeval ctv;
 			ctv.tv_sec = tv.tv_sec;
 			ctv.tv_usec = tv.tv_usec;
 			data = &ctv;

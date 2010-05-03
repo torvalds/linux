@@ -31,6 +31,7 @@
 #include <linux/mii.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #define	DRV_NAME	"ks8851_mll"
 
@@ -1193,10 +1194,11 @@ static void ks_set_rx_mode(struct net_device *netdev)
 	else
 		ks_set_promis(ks, false);
 
-	if ((netdev->flags & IFF_MULTICAST) && netdev->mc_count) {
-		if (netdev->mc_count <= MAX_MCAST_LST) {
+	if ((netdev->flags & IFF_MULTICAST) && netdev_mc_count(netdev)) {
+		if (netdev_mc_count(netdev) <= MAX_MCAST_LST) {
 			int i = 0;
-			for (ptr = netdev->mc_list; ptr; ptr = ptr->next) {
+
+			netdev_for_each_mc_addr(ptr, netdev) {
 				if (!(*ptr->dmi_addr & 1))
 					continue;
 				if (i >= MAX_MCAST_LST)

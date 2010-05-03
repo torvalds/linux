@@ -40,6 +40,7 @@
 #include <linux/firmware.h>
 #include <linux/ctype.h>
 #include <linux/swab.h>
+#include <linux/slab.h>
 
 #define VERSION "0.07"
 #define PTAG "solos-pci"

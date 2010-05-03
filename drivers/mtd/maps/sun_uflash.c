@@ -15,6 +15,7 @@
 #include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/slab.h>
 #include <asm/prom.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>

@@ -31,6 +31,7 @@
 #include <linux/input.h>
 #include <linux/leds.h>
 #include <linux/i2c/lm8323.h>
+#include <linux/slab.h>
 
 /* Commands to send to the chip. */
 #define LM8323_CMD_READ_ID		0x80 /* Read chip ID. */
