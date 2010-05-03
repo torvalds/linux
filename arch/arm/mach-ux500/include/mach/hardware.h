@@ -147,14 +147,23 @@
 
 #include <asm/cputype.h>
 
+static inline bool cpu_is_u8500(void)
+{
+#ifdef CONFIG_UX500_SOC_DB8500
+	return 1;
+#else
+	return 0;
+#endif
+}
+
 static inline bool cpu_is_u8500ed(void)
 {
-	return (read_cpuid_id() & 15) == 0;
+	return cpu_is_u8500() && (read_cpuid_id() & 15) == 0;
 }
 
 static inline bool cpu_is_u8500v1(void)
 {
-	return (read_cpuid_id() & 15) == 1;
+	return cpu_is_u8500() && (read_cpuid_id() & 15) == 1;
 }
 
 #endif
