@@ -120,7 +120,7 @@ void r600_get_power_state(struct radeon_device *rdev,
 			} else {
 				if (rdev->pm.active_crtc_count > 1) {
 					for (i = 0; i < rdev->pm.num_power_states; i++) {
-						if (rdev->pm.power_state[i].flags & RADEON_PM_SINGLE_DISPLAY_ONLY)
+						if (rdev->pm.power_state[i].flags & RADEON_PM_STATE_SINGLE_DISPLAY_ONLY)
 							continue;
 						else if (i >= rdev->pm.current_power_state_index) {
 							rdev->pm.requested_power_state_index =
@@ -136,6 +136,13 @@ void r600_get_power_state(struct radeon_device *rdev,
 						rdev->pm.current_power_state_index - 1;
 			}
 			rdev->pm.requested_clock_mode_index = 0;
+			/* don't use the power state if crtcs are active and no display flag is set */
+			if ((rdev->pm.active_crtc_count > 0) &&
+			    (rdev->pm.power_state[rdev->pm.requested_power_state_index].
+			     clock_info[rdev->pm.requested_clock_mode_index].flags &
+			     RADEON_PM_MODE_NO_DISPLAY)) {
+				rdev->pm.requested_power_state_index++;
+			}
 			break;
 		case PM_ACTION_UPCLOCK:
 			if (rdev->pm.current_power_state_index == (rdev->pm.num_power_states - 1)) {
@@ -144,7 +151,7 @@ void r600_get_power_state(struct radeon_device *rdev,
 			} else {
 				if (rdev->pm.active_crtc_count > 1) {
 					for (i = (rdev->pm.num_power_states - 1); i >= 0; i--) {
-						if (rdev->pm.power_state[i].flags & RADEON_PM_SINGLE_DISPLAY_ONLY)
+						if (rdev->pm.power_state[i].flags & RADEON_PM_STATE_SINGLE_DISPLAY_ONLY)
 							continue;
 						else if (i <= rdev->pm.current_power_state_index) {
 							rdev->pm.requested_power_state_index =
@@ -179,7 +186,7 @@ void r600_get_power_state(struct radeon_device *rdev,
 			rdev->pm.requested_power_state_index = -1;
 			/* start at 1 as we don't want the default mode */
 			for (i = 1; i < rdev->pm.num_power_states; i++) {
-				if (rdev->pm.power_state[i].flags & RADEON_PM_SINGLE_DISPLAY_ONLY)
+				if (rdev->pm.power_state[i].flags & RADEON_PM_STATE_SINGLE_DISPLAY_ONLY)
 					continue;
 				else if ((rdev->pm.power_state[i].type == POWER_STATE_TYPE_PERFORMANCE) ||
 					 (rdev->pm.power_state[i].type == POWER_STATE_TYPE_BATTERY)) {
@@ -209,6 +216,13 @@ void r600_get_power_state(struct radeon_device *rdev,
 			} else {
 				rdev->pm.requested_clock_mode_index = 0;
 				rdev->pm.can_downclock = false;
+			}
+			/* don't use the power state if crtcs are active and no display flag is set */
+			if ((rdev->pm.active_crtc_count > 0) &&
+			    (rdev->pm.power_state[rdev->pm.requested_power_state_index].
+			     clock_info[rdev->pm.requested_clock_mode_index].flags &
+			     RADEON_PM_MODE_NO_DISPLAY)) {
+				rdev->pm.requested_clock_mode_index++;
 			}
 			break;
 		case PM_ACTION_UPCLOCK:

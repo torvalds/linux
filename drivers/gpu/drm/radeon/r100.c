@@ -87,7 +87,7 @@ void r100_get_power_state(struct radeon_device *rdev,
 		} else {
 			if (rdev->pm.active_crtc_count > 1) {
 				for (i = 0; i < rdev->pm.num_power_states; i++) {
-					if (rdev->pm.power_state[i].flags & RADEON_PM_SINGLE_DISPLAY_ONLY)
+					if (rdev->pm.power_state[i].flags & RADEON_PM_STATE_SINGLE_DISPLAY_ONLY)
 						continue;
 					else if (i >= rdev->pm.current_power_state_index) {
 						rdev->pm.requested_power_state_index = rdev->pm.current_power_state_index;
@@ -101,6 +101,12 @@ void r100_get_power_state(struct radeon_device *rdev,
 				rdev->pm.requested_power_state_index =
 					rdev->pm.current_power_state_index - 1;
 		}
+		/* don't use the power state if crtcs are active and no display flag is set */
+		if ((rdev->pm.active_crtc_count > 0) &&
+		    (rdev->pm.power_state[rdev->pm.requested_power_state_index].clock_info[0].flags &
+		     RADEON_PM_MODE_NO_DISPLAY)) {
+			rdev->pm.requested_power_state_index++;
+		}
 		break;
 	case PM_ACTION_UPCLOCK:
 		if (rdev->pm.current_power_state_index == (rdev->pm.num_power_states - 1)) {
@@ -109,7 +115,7 @@ void r100_get_power_state(struct radeon_device *rdev,
 		} else {
 			if (rdev->pm.active_crtc_count > 1) {
 				for (i = (rdev->pm.num_power_states - 1); i >= 0; i--) {
-					if (rdev->pm.power_state[i].flags & RADEON_PM_SINGLE_DISPLAY_ONLY)
+					if (rdev->pm.power_state[i].flags & RADEON_PM_STATE_SINGLE_DISPLAY_ONLY)
 						continue;
 					else if (i <= rdev->pm.current_power_state_index) {
 						rdev->pm.requested_power_state_index = rdev->pm.current_power_state_index;
@@ -215,7 +221,7 @@ void r100_set_power_state(struct radeon_device *rdev, bool static_switch)
 		rdev->pm.current_power_state_index = rdev->pm.requested_power_state_index;
 		rdev->pm.current_clock_mode_index = rdev->pm.requested_clock_mode_index;
 	} else
-		DRM_INFO("GUI not idle!!!\n");
+		DRM_INFO("pm: GUI not idle!!!\n");
 }
 
 void r100_pm_misc(struct radeon_device *rdev)

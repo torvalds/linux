@@ -658,6 +658,9 @@ struct radeon_voltage {
 	u32 voltage;
 };
 
+/* clock mode flags */
+#define RADEON_PM_MODE_NO_DISPLAY          (1 << 0)
+
 struct radeon_pm_clock_info {
 	/* memory clock */
 	u32 mclk;
@@ -665,12 +668,12 @@ struct radeon_pm_clock_info {
 	u32 sclk;
 	/* voltage info */
 	struct radeon_voltage voltage;
-	/* standardized clock flags - not sure we'll need these */
+	/* standardized clock flags */
 	u32 flags;
 };
 
 /* state flags */
-#define RADEON_PM_SINGLE_DISPLAY_ONLY (1 << 0)
+#define RADEON_PM_STATE_SINGLE_DISPLAY_ONLY (1 << 0)
 
 struct radeon_power_state {
 	enum radeon_pm_state_type type;

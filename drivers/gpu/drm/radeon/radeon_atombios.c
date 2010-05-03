@@ -1549,7 +1549,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].clock_info[0].voltage.vddc_id =
 							power_info->info.asPowerPlayInfo[i].ucVoltageDropIndex;
 					}
-					rdev->pm.power_state[state_index].flags = RADEON_PM_SINGLE_DISPLAY_ONLY;
+					rdev->pm.power_state[state_index].flags = RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 					rdev->pm.power_state[state_index].misc = misc;
 					/* order matters! */
 					if (misc & ATOM_PM_MISCINFO_POWER_SAVING_MODE)
@@ -1568,7 +1568,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_PERFORMANCE;
 						rdev->pm.power_state[state_index].flags &=
-							~RADEON_PM_SINGLE_DISPLAY_ONLY;
+							~RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 					}
 					if (misc & ATOM_PM_MISCINFO_DRIVER_DEFAULT_MODE) {
 						rdev->pm.power_state[state_index].type =
@@ -1577,7 +1577,10 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].default_clock_mode =
 							&rdev->pm.power_state[state_index].clock_info[0];
 						rdev->pm.power_state[state_index].flags &=
-							~RADEON_PM_SINGLE_DISPLAY_ONLY;
+							~RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
+					} else if (state_index == 0) {
+						rdev->pm.power_state[state_index].clock_info[0].flags |=
+							RADEON_PM_MODE_NO_DISPLAY;
 					}
 					state_index++;
 					break;
@@ -1613,7 +1616,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].clock_info[0].voltage.vddc_id =
 							power_info->info_2.asPowerPlayInfo[i].ucVoltageDropIndex;
 					}
-					rdev->pm.power_state[state_index].flags = RADEON_PM_SINGLE_DISPLAY_ONLY;
+					rdev->pm.power_state[state_index].flags = RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 					rdev->pm.power_state[state_index].misc = misc;
 					rdev->pm.power_state[state_index].misc2 = misc2;
 					/* order matters! */
@@ -1633,14 +1636,14 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_PERFORMANCE;
 						rdev->pm.power_state[state_index].flags &=
-							~RADEON_PM_SINGLE_DISPLAY_ONLY;
+							~RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 					}
 					if (misc2 & ATOM_PM_MISCINFO2_SYSTEM_AC_LITE_MODE)
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_BALANCED;
 					if (misc2 & ATOM_PM_MISCINFO2_MULTI_DISPLAY_SUPPORT)
 						rdev->pm.power_state[state_index].flags &=
-							~RADEON_PM_SINGLE_DISPLAY_ONLY;
+							~RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 					if (misc & ATOM_PM_MISCINFO_DRIVER_DEFAULT_MODE) {
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_DEFAULT;
@@ -1648,7 +1651,10 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].default_clock_mode =
 							&rdev->pm.power_state[state_index].clock_info[0];
 						rdev->pm.power_state[state_index].flags &=
-							~RADEON_PM_SINGLE_DISPLAY_ONLY;
+							~RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
+					} else if (state_index == 0) {
+						rdev->pm.power_state[state_index].clock_info[0].flags |=
+							RADEON_PM_MODE_NO_DISPLAY;
 					}
 					state_index++;
 					break;
@@ -1690,7 +1696,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 							power_info->info_3.asPowerPlayInfo[i].ucVDDCI_VoltageDropIndex;
 						}
 					}
-					rdev->pm.power_state[state_index].flags = RADEON_PM_SINGLE_DISPLAY_ONLY;
+					rdev->pm.power_state[state_index].flags = RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 					rdev->pm.power_state[state_index].misc = misc;
 					rdev->pm.power_state[state_index].misc2 = misc2;
 					/* order matters! */
@@ -1710,7 +1716,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_PERFORMANCE;
 						rdev->pm.power_state[state_index].flags &=
-							~RADEON_PM_SINGLE_DISPLAY_ONLY;
+							~RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 					}
 					if (misc2 & ATOM_PM_MISCINFO2_SYSTEM_AC_LITE_MODE)
 						rdev->pm.power_state[state_index].type =
@@ -1721,6 +1727,9 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.default_power_state_index = state_index;
 						rdev->pm.power_state[state_index].default_clock_mode =
 							&rdev->pm.power_state[state_index].clock_info[0];
+					} else if (state_index == 0) {
+						rdev->pm.power_state[state_index].clock_info[0].flags |=
+							RADEON_PM_MODE_NO_DISPLAY;
 					}
 					state_index++;
 					break;
@@ -1734,7 +1743,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 				rdev->pm.power_state[state_index - 1].default_clock_mode =
 					&rdev->pm.power_state[state_index - 1].clock_info[0];
 				rdev->pm.power_state[state_index].flags &=
-					~RADEON_PM_SINGLE_DISPLAY_ONLY;
+					~RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 				rdev->pm.power_state[state_index].misc = 0;
 				rdev->pm.power_state[state_index].misc2 = 0;
 			}
@@ -1881,7 +1890,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					rdev->pm.power_state[state_index].flags = 0;
 					if (misc & ATOM_PPLIB_SINGLE_DISPLAY_ONLY)
 						rdev->pm.power_state[state_index].flags |=
-							RADEON_PM_SINGLE_DISPLAY_ONLY;
+							RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 					if (misc2 & ATOM_PPLIB_CLASSIFICATION_BOOT) {
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_DEFAULT;
@@ -1891,6 +1900,12 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					}
 					state_index++;
 				}
+			}
+			/* if multiple clock modes, mark the lowest as no display */
+			for (i = 0; i < state_index; i++) {
+				if (rdev->pm.power_state[i].num_clock_modes > 1)
+					rdev->pm.power_state[i].clock_info[0].flags |=
+						RADEON_PM_MODE_NO_DISPLAY;
 			}
 			/* first mode is usually default */
 			if (rdev->pm.default_power_state_index == -1) {

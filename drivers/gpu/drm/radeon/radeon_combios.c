@@ -2437,7 +2437,7 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 			if (rev > 6)
 				rdev->pm.power_state[state_index].pcie_lanes =
 					RBIOS8(offset + 0x5 + 0x10);
-			rdev->pm.power_state[state_index].flags = RADEON_PM_SINGLE_DISPLAY_ONLY;
+			rdev->pm.power_state[state_index].flags = RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 			state_index++;
 		} else {
 			/* XXX figure out some good default low power mode for mobility cards w/out power tables */

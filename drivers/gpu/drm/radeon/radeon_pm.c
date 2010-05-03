@@ -58,7 +58,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev, int static_switch)
 {
 	int i;
 
-	if (!static_switch)
+	if (rdev->pm.state != PM_STATE_DISABLED)
 		radeon_get_power_state(rdev, rdev->pm.planned_action);
 
 	mutex_lock(&rdev->ddev->struct_mutex);
@@ -147,8 +147,11 @@ static ssize_t radeon_set_power_state_static(struct device *dev,
 	mutex_lock(&rdev->pm.mutex);
 	if ((ps >= 0) && (ps < rdev->pm.num_power_states) &&
 	    (cm >= 0) && (cm < rdev->pm.power_state[ps].num_clock_modes)) {
-		if ((rdev->pm.active_crtc_count > 1) &&
-		    (rdev->pm.power_state[ps].flags & RADEON_PM_SINGLE_DISPLAY_ONLY)) {
+		if ((rdev->pm.active_crtc_count > 0) &&
+		    (rdev->pm.power_state[ps].clock_info[cm].flags & RADEON_PM_MODE_NO_DISPLAY)) {
+			DRM_ERROR("Invalid power state for display: %d.%d\n", ps, cm);
+		} else if ((rdev->pm.active_crtc_count > 1) &&
+			   (rdev->pm.power_state[ps].flags & RADEON_PM_STATE_SINGLE_DISPLAY_ONLY)) {
 			DRM_ERROR("Invalid power state for multi-head: %d.%d\n", ps, cm);
 		} else {
 			/* disable dynpm */
@@ -248,7 +251,7 @@ static void radeon_print_power_mode_info(struct radeon_device *rdev)
 			 is_default ? "(default)" : "");
 		if ((rdev->flags & RADEON_IS_PCIE) && !(rdev->flags & RADEON_IS_IGP))
 			DRM_INFO("\t%d PCIE Lanes\n", rdev->pm.power_state[i].pcie_lanes);
-		if (rdev->pm.power_state[i].flags & RADEON_PM_SINGLE_DISPLAY_ONLY)
+		if (rdev->pm.power_state[i].flags & RADEON_PM_STATE_SINGLE_DISPLAY_ONLY)
 			DRM_INFO("\tSingle display only\n");
 		DRM_INFO("\t%d Clock Mode(s)\n", rdev->pm.power_state[i].num_clock_modes);
 		for (j = 0; j < rdev->pm.power_state[i].num_clock_modes; j++) {
@@ -261,6 +264,8 @@ static void radeon_print_power_mode_info(struct radeon_device *rdev)
 					 j,
 					 rdev->pm.power_state[i].clock_info[j].sclk * 10,
 					 rdev->pm.power_state[i].clock_info[j].mclk * 10);
+			if (rdev->pm.power_state[i].clock_info[j].flags & RADEON_PM_MODE_NO_DISPLAY)
+				DRM_INFO("\t\tNo display only\n");
 		}
 	}
 }
@@ -318,7 +323,7 @@ void radeon_pm_fini(struct radeon_device *rdev)
 		/* reset default clocks */
 		rdev->pm.state = PM_STATE_DISABLED;
 		rdev->pm.planned_action = PM_ACTION_DEFAULT;
-		radeon_pm_set_clocks(rdev, false);
+		radeon_pm_set_clocks(rdev, true);
 	} else if ((rdev->pm.current_power_state_index !=
 		    rdev->pm.default_power_state_index) ||
 		   (rdev->pm.current_clock_mode_index != 0)) {
@@ -342,9 +347,6 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 	struct drm_crtc *crtc;
 	struct radeon_crtc *radeon_crtc;
 
-	if (rdev->pm.state == PM_STATE_DISABLED)
-		return;
-
 	mutex_lock(&rdev->pm.mutex);
 
 	rdev->pm.active_crtcs = 0;
@@ -358,13 +360,22 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 		}
 	}
 
+	if (rdev->pm.state == PM_STATE_DISABLED) {
+		mutex_unlock(&rdev->pm.mutex);
+		return;
+	}
+
+	/* Note, radeon_pm_set_clocks is called with static_switch set
+	 * to true since we always want to statically set the clocks,
+	 * not wait for vbl.
+	 */
 	if (rdev->pm.active_crtc_count > 1) {
 		if (rdev->pm.state == PM_STATE_ACTIVE) {
 			cancel_delayed_work(&rdev->pm.idle_work);
 
 			rdev->pm.state = PM_STATE_PAUSED;
-			rdev->pm.planned_action = PM_ACTION_UPCLOCK;
-			radeon_pm_set_clocks(rdev, false);
+			rdev->pm.planned_action = PM_ACTION_DEFAULT;
+			radeon_pm_set_clocks(rdev, true);
 
 			DRM_DEBUG("radeon: dynamic power management deactivated\n");
 		}
@@ -374,7 +385,7 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 		if (rdev->pm.state == PM_STATE_MINIMUM) {
 			rdev->pm.state = PM_STATE_ACTIVE;
 			rdev->pm.planned_action = PM_ACTION_UPCLOCK;
-			radeon_pm_set_clocks(rdev, false);
+			radeon_pm_set_clocks(rdev, true);
 
 			queue_delayed_work(rdev->wq, &rdev->pm.idle_work,
 				msecs_to_jiffies(RADEON_IDLE_LOOP_MS));
@@ -390,7 +401,7 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 
 			rdev->pm.state = PM_STATE_MINIMUM;
 			rdev->pm.planned_action = PM_ACTION_MINIMUM;
-			radeon_pm_set_clocks(rdev, false);
+			radeon_pm_set_clocks(rdev, true);
 		}
 	}
 
@@ -526,6 +537,9 @@ static void radeon_pm_idle_work_handler(struct work_struct *work)
 			}
 		}
 
+		/* Note, radeon_pm_set_clocks is called with static_switch set
+		 * to false since we want to wait for vbl to avoid flicker.
+		 */
 		if (rdev->pm.planned_action != PM_ACTION_NONE &&
 		    jiffies > rdev->pm.action_timeout) {
 			radeon_pm_set_clocks(rdev, false);
