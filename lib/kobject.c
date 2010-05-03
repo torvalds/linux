@@ -948,6 +948,17 @@ const void *kobj_ns_initial(enum kobj_ns_type type)
 	return ns;
 }
 
+/*
+ * kobj_ns_exit - invalidate a namespace tag
+ *
+ * @type: the namespace type (i.e. KOBJ_NS_TYPE_NET)
+ * @ns: the actual namespace being invalidated
+ *
+ * This is called when a tag is no longer valid.  For instance,
+ * when a network namespace exits, it uses this helper to
+ * make sure no sb's sysfs_info points to the now-invalidated
+ * netns.
+ */
 void kobj_ns_exit(enum kobj_ns_type type, const void *ns)
 {
 	sysfs_exit_ns(type, ns);

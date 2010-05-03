@@ -58,7 +58,7 @@ struct sysfs_dirent {
 	struct sysfs_dirent	*s_sibling;
 	const char		*s_name;
 
-	const void		*s_ns;
+	const void		*s_ns; /* namespace tag */
 	union {
 		struct sysfs_elem_dir		s_dir;
 		struct sysfs_elem_symlink	s_symlink;
@@ -82,6 +82,7 @@ struct sysfs_dirent {
 #define SYSFS_COPY_NAME			(SYSFS_DIR | SYSFS_KOBJ_LINK)
 #define SYSFS_ACTIVE_REF		(SYSFS_KOBJ_ATTR | SYSFS_KOBJ_BIN_ATTR)
 
+/* identify any namespace tag on sysfs_dirents */
 #define SYSFS_NS_TYPE_MASK		0xff00
 #define SYSFS_NS_TYPE_SHIFT		8
 
@@ -93,6 +94,10 @@ static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 	return sd->s_flags & SYSFS_TYPE_MASK;
 }
 
+/*
+ * Return any namespace tags on this dirent.
+ * enum kobj_ns_type is defined in linux/kobject.h
+ */
 static inline enum kobj_ns_type sysfs_ns_type(struct sysfs_dirent *sd)
 {
 	return (sd->s_flags & SYSFS_NS_TYPE_MASK) >> SYSFS_NS_TYPE_SHIFT;
@@ -122,6 +127,12 @@ struct sysfs_addrm_cxt {
 
 /*
  * mount.c
+ */
+
+/*
+ * Each sb is associated with a set of namespace tags (i.e.
+ * the network namespace of the task which mounted this sysfs
+ * instance).
  */
 struct sysfs_super_info {
 	const void *ns[KOBJ_NS_TYPES];

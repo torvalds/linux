@@ -136,12 +136,23 @@ struct kobj_attribute {
 
 extern const struct sysfs_ops kobj_sysfs_ops;
 
+/*
+ * Namespace types which are used to tag kobjects and sysfs entries.
+ * Network namespace will likely be the first.
+ */
 enum kobj_ns_type {
 	KOBJ_NS_TYPE_NONE = 0,
 	KOBJ_NS_TYPES
 };
 
 struct sock;
+
+/*
+ * Callbacks so sysfs can determine namespaces
+ *   @current_ns: return calling task's namespace
+ *   @netlink_ns: return namespace to which a sock belongs (right?)
+ *   @initial_ns: return the initial namespace (i.e. init_net_ns)
+ */
 struct kobj_ns_type_operations {
 	enum kobj_ns_type type;
 	const void *(*current_ns)(void);

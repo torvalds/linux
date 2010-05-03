@@ -614,6 +614,14 @@ int sysfs_create_subdir(struct kobject *kobj, const char *name,
 			  KOBJ_NS_TYPE_NONE, NULL, name, p_sd);
 }
 
+/**
+ *	sysfs_read_ns_type: return associated ns_type
+ *	@kobj: the kobject being queried
+ *
+ *	Each kobject can be tagged with exactly one namespace type
+ *	(i.e. network or user).  Return the ns_type associated with
+ *	this object if any
+ */
 static enum kobj_ns_type sysfs_read_ns_type(struct kobject *kobj)
 {
 	const struct kobj_ns_type_operations *ops;
