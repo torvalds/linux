@@ -221,7 +221,7 @@ MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
 	.io_pg_offst	= (IO_ADDRESS(U8500_UART2_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x100,
 	.map_io		= u8500_map_io,
-	.init_irq	= u8500_init_irq,
+	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
 	.timer		= &u8500_timer,
 	.init_machine	= u8500_init_machine,

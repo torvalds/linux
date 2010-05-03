@@ -14,13 +14,22 @@
 #include <asm/mach/time.h>
 #include <linux/init.h>
 
-extern void u8500_map_io(void);
+extern void __init ux500_map_io(void);
+extern void __init u8500_map_io(void);
+
 extern void u8500_init_devices(void);
-extern void u8500_init_irq(void);
+extern void __init ux500_init_irq(void);
 /* We re-use nomadik_timer for this platform */
 extern void nmdk_timer_init(void);
 
 struct sys_timer;
 extern struct sys_timer u8500_timer;
+
+#define __IO_DEV_DESC(x, sz)	{		\
+	.virtual	= IO_ADDRESS(x),	\
+	.pfn		= __phys_to_pfn(x),	\
+	.length		= sz,			\
+	.type		= MT_DEVICE,		\
+}
 
 #endif /*  __ASM_ARCH_SETUP_H */

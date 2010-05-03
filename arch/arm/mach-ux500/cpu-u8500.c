@@ -18,9 +18,7 @@
 #include <linux/io.h>
 
 #include <asm/localtimer.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
-#include <asm/hardware/cache-l2x0.h>
 #include <plat/mtu.h>
 #include <mach/hardware.h>
 #include <mach/setup.h>
@@ -103,32 +101,13 @@ static struct platform_device *platform_devs[] __initdata = {
 	&u8500_gpio_devs[8],
 };
 
-#define __IO_DEV_DESC(x, sz)	{		\
-	.virtual	= IO_ADDRESS(x),	\
-	.pfn		= __phys_to_pfn(x),	\
-	.length		= sz,			\
-	.type		= MT_DEVICE,		\
-}
-
 /* minimum static i/o mapping required to boot U8500 platforms */
 static struct map_desc u8500_io_desc[] __initdata = {
-	__IO_DEV_DESC(U8500_UART2_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_GIC_CPU_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_GIC_DIST_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_TWD_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_SCU_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_BACKUPRAM0_BASE, SZ_8K),
 	__IO_DEV_DESC(U8500_PRCMU_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_CLKRST1_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_CLKRST2_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_CLKRST3_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_CLKRST5_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_CLKRST6_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO0_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO1_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO2_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO3_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_L2CC_BASE, SZ_4K),
 };
 
 static struct map_desc u8500ed_io_desc[] __initdata = {
@@ -142,18 +121,14 @@ static struct map_desc u8500v1_io_desc[] __initdata = {
 
 void __init u8500_map_io(void)
 {
+	ux500_map_io();
+
 	iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
 
 	if (cpu_is_u8500ed())
 		iotable_init(u8500ed_io_desc, ARRAY_SIZE(u8500ed_io_desc));
 	else
 		iotable_init(u8500v1_io_desc, ARRAY_SIZE(u8500v1_io_desc));
-}
-
-void __init u8500_init_irq(void)
-{
-	gic_dist_init(0, __io_address(U8500_GIC_DIST_BASE), 29);
-	gic_cpu_init(0, __io_address(U8500_GIC_CPU_BASE));
 }
 
 /*
@@ -185,18 +160,3 @@ static void __init u8500_timer_init(void)
 struct sys_timer u8500_timer = {
 	.init	= u8500_timer_init,
 };
-
-#ifdef CONFIG_CACHE_L2X0
-static int u8500_l2x0_init(void)
-{
-	void __iomem *l2x0_base;
-
-	l2x0_base = __io_address(U8500_L2CC_BASE);
-
-	/* 64KB way size, 8 way associativity, force WA */
-	l2x0_init(l2x0_base, 0x3e060000, 0xc0000fff);
-
-	return 0;
-}
-early_initcall(u8500_l2x0_init);
-#endif
