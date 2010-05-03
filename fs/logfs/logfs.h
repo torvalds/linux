@@ -598,19 +598,19 @@ void freeseg(struct super_block *sb, u32 segno);
 int logfs_init_areas(struct super_block *sb);
 void logfs_cleanup_areas(struct super_block *sb);
 int logfs_open_area(struct logfs_area *area, size_t bytes);
-void __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
+int __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
 		int use_filler);
 
-static inline void logfs_buf_write(struct logfs_area *area, u64 ofs,
+static inline int logfs_buf_write(struct logfs_area *area, u64 ofs,
 		void *buf, size_t len)
 {
-	__logfs_buf_write(area, ofs, buf, len, 0);
+	return __logfs_buf_write(area, ofs, buf, len, 0);
 }
 
-static inline void logfs_buf_recover(struct logfs_area *area, u64 ofs,
+static inline int logfs_buf_recover(struct logfs_area *area, u64 ofs,
 		void *buf, size_t len)
 {
-	__logfs_buf_write(area, ofs, buf, len, 1);
+	return __logfs_buf_write(area, ofs, buf, len, 1);
 }
 
 /* super.c */
