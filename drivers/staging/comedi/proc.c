@@ -32,10 +32,11 @@
 #include "comedidev.h"
 #include "comedi_fops.h"
 #include <linux/proc_fs.h>
-/* #include <linux/string.h> */
+#include <linux/string.h>
 
-int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
-			int *eof, void *data)
+#ifdef CONFIG_PROC_FS
+static int comedi_read(char *buf, char **start, off_t offset, int len,
+		       int *eof, void *data)
 {
 	int i;
 	int devices_q = 0;
@@ -82,18 +83,17 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	return l;
 }
 
-#ifdef CONFIG_PROC_FS
 void comedi_proc_init(void)
 {
 	struct proc_dir_entry *comedi_proc;
 
-	comedi_proc = create_proc_entry("comedi", S_IFREG | S_IRUGO, 0);
+	comedi_proc = create_proc_entry("comedi", S_IFREG | S_IRUGO, NULL);
 	if (comedi_proc)
-		comedi_proc->read_proc = comedi_read_procmem;
+		comedi_proc->read_proc = comedi_read;
 }
 
 void comedi_proc_cleanup(void)
 {
-	remove_proc_entry("comedi", 0);
+	remove_proc_entry("comedi", NULL);
 }
 #endif
