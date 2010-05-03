@@ -376,17 +376,16 @@ int blkiocg_del_blkio_group(struct blkio_group *blkg)
 
 	rcu_read_lock();
 	css = css_lookup(&blkio_subsys, blkg->blkcg_id);
-	if (!css)
-		goto out;
-
-	blkcg = container_of(css, struct blkio_cgroup, css);
-	spin_lock_irqsave(&blkcg->lock, flags);
-	if (!hlist_unhashed(&blkg->blkcg_node)) {
-		__blkiocg_del_blkio_group(blkg);
-		ret = 0;
+	if (css) {
+		blkcg = container_of(css, struct blkio_cgroup, css);
+		spin_lock_irqsave(&blkcg->lock, flags);
+		if (!hlist_unhashed(&blkg->blkcg_node)) {
+			__blkiocg_del_blkio_group(blkg);
+			ret = 0;
+		}
+		spin_unlock_irqrestore(&blkcg->lock, flags);
 	}
-	spin_unlock_irqrestore(&blkcg->lock, flags);
-out:
+
 	rcu_read_unlock();
 	return ret;
 }
@@ -815,17 +814,15 @@ static int blkiocg_weight_device_read(struct cgroup *cgrp, struct cftype *cft,
 	seq_printf(m, "dev\tweight\n");
 
 	blkcg = cgroup_to_blkio_cgroup(cgrp);
-	if (list_empty(&blkcg->policy_list))
-		goto out;
-
-	spin_lock_irq(&blkcg->lock);
-	list_for_each_entry(pn, &blkcg->policy_list, node) {
-		seq_printf(m, "%u:%u\t%u\n", MAJOR(pn->dev),
-			   MINOR(pn->dev), pn->weight);
+	if (!list_empty(&blkcg->policy_list)) {
+		spin_lock_irq(&blkcg->lock);
+		list_for_each_entry(pn, &blkcg->policy_list, node) {
+			seq_printf(m, "%u:%u\t%u\n", MAJOR(pn->dev),
+				   MINOR(pn->dev), pn->weight);
+		}
+		spin_unlock_irq(&blkcg->lock);
 	}
-	spin_unlock_irq(&blkcg->lock);
 
-out:
 	return 0;
 }
 
@@ -917,40 +914,39 @@ static void blkiocg_destroy(struct cgroup_subsys *subsys, struct cgroup *cgroup)
 	struct blkio_policy_node *pn, *pntmp;
 
 	rcu_read_lock();
-remove_entry:
-	spin_lock_irqsave(&blkcg->lock, flags);
+	do {
+		spin_lock_irqsave(&blkcg->lock, flags);
 
-	if (hlist_empty(&blkcg->blkg_list)) {
+		if (hlist_empty(&blkcg->blkg_list)) {
+			spin_unlock_irqrestore(&blkcg->lock, flags);
+			break;
+		}
+
+		blkg = hlist_entry(blkcg->blkg_list.first, struct blkio_group,
+					blkcg_node);
+		key = rcu_dereference(blkg->key);
+		__blkiocg_del_blkio_group(blkg);
+
 		spin_unlock_irqrestore(&blkcg->lock, flags);
-		goto done;
-	}
 
-	blkg = hlist_entry(blkcg->blkg_list.first, struct blkio_group,
-				blkcg_node);
-	key = rcu_dereference(blkg->key);
-	__blkiocg_del_blkio_group(blkg);
+		/*
+		 * This blkio_group is being unlinked as associated cgroup is
+		 * going away. Let all the IO controlling policies know about
+		 * this event. Currently this is static call to one io
+		 * controlling policy. Once we have more policies in place, we
+		 * need some dynamic registration of callback function.
+		 */
+		spin_lock(&blkio_list_lock);
+		list_for_each_entry(blkiop, &blkio_list, list)
+			blkiop->ops.blkio_unlink_group_fn(key, blkg);
+		spin_unlock(&blkio_list_lock);
+	} while (1);
 
-	spin_unlock_irqrestore(&blkcg->lock, flags);
-
-	/*
-	 * This blkio_group is being unlinked as associated cgroup is going
-	 * away. Let all the IO controlling policies know about this event.
-	 *
-	 * Currently this is static call to one io controlling policy. Once
-	 * we have more policies in place, we need some dynamic registration
-	 * of callback function.
-	 */
-	spin_lock(&blkio_list_lock);
-	list_for_each_entry(blkiop, &blkio_list, list)
-		blkiop->ops.blkio_unlink_group_fn(key, blkg);
-	spin_unlock(&blkio_list_lock);
-	goto remove_entry;
-
-done:
 	list_for_each_entry_safe(pn, pntmp, &blkcg->policy_list, node) {
 		blkio_policy_delete_node(pn);
 		kfree(pn);
 	}
+
 	free_css_id(&blkio_subsys, &blkcg->css);
 	rcu_read_unlock();
 	if (blkcg != &blkio_root_cgroup)
