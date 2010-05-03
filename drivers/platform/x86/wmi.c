@@ -880,6 +880,7 @@ static void acpi_wmi_notify(struct acpi_device *device, u32 event)
 	struct guid_block *block;
 	struct wmi_block *wblock;
 	struct list_head *p;
+	char guid_string[37];
 
 	list_for_each(p, &wmi_blocks.list) {
 		wblock = list_entry(p, struct wmi_block, list);
@@ -889,6 +890,11 @@ static void acpi_wmi_notify(struct acpi_device *device, u32 event)
 			(block->notify_id == event)) {
 			if (wblock->handler)
 				wblock->handler(event, wblock->handler_data);
+			if (debug_event) {
+				wmi_gtoa(wblock->gblock.guid, guid_string);
+				printk(KERN_INFO PREFIX "DEBUG Event GUID:"
+				       " %s\n", guid_string);
+			}
 
 			acpi_bus_generate_netlink_event(
 				device->pnp.device_class, dev_name(&device->dev),
