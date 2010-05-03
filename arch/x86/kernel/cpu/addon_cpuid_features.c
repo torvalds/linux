@@ -30,13 +30,14 @@ void __cpuinit init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 	const struct cpuid_bit *cb;
 
 	static const struct cpuid_bit __cpuinitconst cpuid_bits[] = {
-		{ X86_FEATURE_IDA,   CR_EAX, 1, 0x00000006 },
-		{ X86_FEATURE_ARAT,  CR_EAX, 2, 0x00000006 },
-		{ X86_FEATURE_CPB,   CR_EDX, 9, 0x80000007 },
-		{ X86_FEATURE_NPT,   CR_EDX, 0, 0x8000000a },
-		{ X86_FEATURE_LBRV,  CR_EDX, 1, 0x8000000a },
-		{ X86_FEATURE_SVML,  CR_EDX, 2, 0x8000000a },
-		{ X86_FEATURE_NRIPS, CR_EDX, 3, 0x8000000a },
+		{ X86_FEATURE_IDA,   		CR_EAX, 1, 0x00000006 },
+		{ X86_FEATURE_ARAT,  		CR_EAX, 2, 0x00000006 },
+		{ X86_FEATURE_APERFMPERF,	CR_ECX, 0, 0x00000006 },
+		{ X86_FEATURE_CPB,   		CR_EDX, 9, 0x80000007 },
+		{ X86_FEATURE_NPT,   		CR_EDX, 0, 0x8000000a },
+		{ X86_FEATURE_LBRV,  		CR_EDX, 1, 0x8000000a },
+		{ X86_FEATURE_SVML,  		CR_EDX, 2, 0x8000000a },
+		{ X86_FEATURE_NRIPS, 		CR_EDX, 3, 0x8000000a },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -53,14 +54,6 @@ void __cpuinit init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 
 		if (regs[cb->reg] & (1 << cb->bit))
 			set_cpu_cap(c, cb->feature);
-	}
-
-	/*
-	 * common AMD/Intel features
-	 */
-	if (c->cpuid_level >= 6) {
-		if (cpuid_ecx(6) & 0x1)
-			set_cpu_cap(c, X86_FEATURE_APERFMPERF);
 	}
 }
 
