@@ -3899,33 +3899,32 @@ static inline int igb_tx_map_adv(struct igb_ring *tx_ring, struct sk_buff *skb,
 {
 	struct igb_buffer *buffer_info;
 	struct device *dev = tx_ring->dev;
-	unsigned int len = skb_headlen(skb);
+	unsigned int hlen = skb_headlen(skb);
 	unsigned int count = 0, i;
 	unsigned int f;
+	u16 gso_segs = skb_shinfo(skb)->gso_segs ?: 1;
 
 	i = tx_ring->next_to_use;
 
 	buffer_info = &tx_ring->buffer_info[i];
-	BUG_ON(len >= IGB_MAX_DATA_PER_TXD);
-	buffer_info->length = len;
+	BUG_ON(hlen >= IGB_MAX_DATA_PER_TXD);
+	buffer_info->length = hlen;
 	/* set time_stamp *before* dma to help avoid a possible race */
 	buffer_info->time_stamp = jiffies;
 	buffer_info->next_to_watch = i;
-	buffer_info->dma = dma_map_single(dev, skb->data, len,
+	buffer_info->dma = dma_map_single(dev, skb->data, hlen,
 					  DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, buffer_info->dma))
 		goto dma_error;
 
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
-		struct skb_frag_struct *frag;
+		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[f];
+		unsigned int len = frag->size;
 
 		count++;
 		i++;
 		if (i == tx_ring->count)
 			i = 0;
-
-		frag = &skb_shinfo(skb)->frags[f];
-		len = frag->size;
 
 		buffer_info = &tx_ring->buffer_info[i];
 		BUG_ON(len >= IGB_MAX_DATA_PER_TXD);
@@ -3944,7 +3943,10 @@ static inline int igb_tx_map_adv(struct igb_ring *tx_ring, struct sk_buff *skb,
 	}
 
 	tx_ring->buffer_info[i].skb = skb;
-	tx_ring->buffer_info[i].gso_segs = skb_shinfo(skb)->gso_segs ?: 1;
+	tx_ring->buffer_info[i].shtx = skb_shinfo(skb)->tx_flags;
+	/* multiply data chunks by size of headers */
+	tx_ring->buffer_info[i].bytecount = ((gso_segs - 1) * hlen) + skb->len;
+	tx_ring->buffer_info[i].gso_segs = gso_segs;
 	tx_ring->buffer_info[first].next_to_watch = i;
 
 	return ++count;
@@ -5288,22 +5290,21 @@ static void igb_systim_to_hwtstamp(struct igb_adapter *adapter,
 /**
  * igb_tx_hwtstamp - utility function which checks for TX time stamp
  * @q_vector: pointer to q_vector containing needed info
- * @skb: packet that was just sent
+ * @buffer: pointer to igb_buffer structure
  *
  * If we were asked to do hardware stamping and such a time stamp is
  * available, then it must have been for this skb here because we only
  * allow only one such packet into the queue.
  */
-static void igb_tx_hwtstamp(struct igb_q_vector *q_vector, struct sk_buff *skb)
+static void igb_tx_hwtstamp(struct igb_q_vector *q_vector, struct igb_buffer *buffer_info)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
-	union skb_shared_tx *shtx = skb_tx(skb);
 	struct e1000_hw *hw = &adapter->hw;
 	struct skb_shared_hwtstamps shhwtstamps;
 	u64 regval;
 
 	/* if skb does not support hw timestamp or TX stamp not valid exit */
-	if (likely(!shtx->hardware) ||
+	if (likely(!buffer_info->shtx.hardware) ||
 	    !(rd32(E1000_TSYNCTXCTL) & E1000_TSYNCTXCTL_VALID))
 		return;
 
@@ -5311,7 +5312,7 @@ static void igb_tx_hwtstamp(struct igb_q_vector *q_vector, struct sk_buff *skb)
 	regval |= (u64)rd32(E1000_TXSTMPH) << 32;
 
 	igb_systim_to_hwtstamp(adapter, &shhwtstamps, regval);
-	skb_tstamp_tx(skb, &shhwtstamps);
+	skb_tstamp_tx(buffer_info->skb, &shhwtstamps);
 }
 
 /**
@@ -5326,7 +5327,6 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 	struct net_device *netdev = tx_ring->netdev;
 	struct e1000_hw *hw = &adapter->hw;
 	struct igb_buffer *buffer_info;
-	struct sk_buff *skb;
 	union e1000_adv_tx_desc *tx_desc, *eop_desc;
 	unsigned int total_bytes = 0, total_packets = 0;
 	unsigned int i, eop, count = 0;
@@ -5342,19 +5342,12 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 			tx_desc = E1000_TX_DESC_ADV(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
 			cleaned = (i == eop);
-			skb = buffer_info->skb;
 
-			if (skb) {
-				unsigned int segs, bytecount;
+			if (buffer_info->skb) {
+				total_bytes += buffer_info->bytecount;
 				/* gso_segs is currently only valid for tcp */
-				segs = buffer_info->gso_segs;
-				/* multiply data chunks by size of headers */
-				bytecount = ((segs - 1) * skb_headlen(skb)) +
-					    skb->len;
-				total_packets += segs;
-				total_bytes += bytecount;
-
-				igb_tx_hwtstamp(q_vector, skb);
+				total_packets += buffer_info->gso_segs;
+				igb_tx_hwtstamp(q_vector, buffer_info);
 			}
 
 			igb_unmap_and_free_tx_resource(tx_ring, buffer_info);
