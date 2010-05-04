@@ -212,7 +212,7 @@ struct pcilst_struct {
 };
 
 /* ptr to root list of all amcc devices */
-struct pcilst_struct *amcc_devices;
+static struct pcilst_struct *amcc_devices;
 
 static const int i_ADDIDATADeviceID[] = { 0x15B8, 0x10E8 };
 
