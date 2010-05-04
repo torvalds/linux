@@ -20,7 +20,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -75,18 +74,6 @@ void s3c2410_gpio_pullup(unsigned int pin, unsigned int to)
 
 EXPORT_SYMBOL(s3c2410_gpio_pullup);
 
-int s3c2410_gpio_getpull(unsigned int pin)
-{
-	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long offs = S3C2410_GPIO_OFFSET(pin);
-
-	if (pin < S3C2410_GPIO_BANKB)
-		return -EINVAL;
-
-	return (__raw_readl(base + 0x08) & (1L << offs)) ? 1 : 0;
-}
-
-EXPORT_SYMBOL(s3c2410_gpio_getpull);
 
 void s3c2410_gpio_setpin(unsigned int pin, unsigned int to)
 {
