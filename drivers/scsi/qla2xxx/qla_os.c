@@ -3697,7 +3697,6 @@ qla2xxx_pci_slot_reset(struct pci_dev *pdev)
 		ret =  PCI_ERS_RESULT_RECOVERED;
 	clear_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags);
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	DEBUG17(qla_printk(KERN_WARNING, ha,
 	    "slot_reset-return:ret=%x\n", ret));
@@ -3720,6 +3719,8 @@ qla2xxx_pci_resume(struct pci_dev *pdev)
 		    "the device failed to resume I/O "
 		    "from slot/link_reset");
 	}
+
+	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	ha->flags.eeh_busy = 0;
 }
