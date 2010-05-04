@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/reboot.h>
-#include <linux/version.h>
 
 #include "logging.h"
 #include "osd.h"
@@ -38,7 +37,7 @@
 #include "utils.h"
 
 
-void shutdown_onchannelcallback(void *context)
+static void shutdown_onchannelcallback(void *context)
 {
 	struct vmbus_channel *channel = context;
 	u8 *buf;
