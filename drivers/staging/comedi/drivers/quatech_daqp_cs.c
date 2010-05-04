@@ -244,8 +244,7 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
  * comedi kernel module, and signal various comedi callback routines,
  * which run pretty quick.
  */
-
-static void daqp_interrupt(int irq, void *dev_id)
+static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 {
 	struct local_info_t *local = (struct local_info_t *)dev_id;
 	struct comedi_device *dev;
@@ -256,32 +255,32 @@ static void daqp_interrupt(int irq, void *dev_id)
 	if (local == NULL) {
 		printk(KERN_WARNING
 		       "daqp_interrupt(): irq %d for unknown device.\n", irq);
-		return;
+		return IRQ_NONE;
 	}
 
 	dev = local->dev;
 	if (dev == NULL) {
 		printk(KERN_WARNING "daqp_interrupt(): NULL comedi_device.\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	if (!dev->attached) {
 		printk(KERN_WARNING
 		       "daqp_interrupt(): struct comedi_device not yet attached.\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	s = local->s;
 	if (s == NULL) {
 		printk(KERN_WARNING
 		       "daqp_interrupt(): NULL comedi_subdevice.\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	if ((struct local_info_t *)s->private != local) {
 		printk(KERN_WARNING
 		       "daqp_interrupt(): invalid comedi_subdevice.\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	switch (local->interrupt_mode) {
@@ -340,6 +339,7 @@ static void daqp_interrupt(int irq, void *dev_id)
 
 		comedi_event(dev, s);
 	}
+	return IRQ_HANDLED;
 }
 
 /* One-shot analog data acquisition routine */
@@ -580,7 +580,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct local_info_t *local = (struct local_info_t *)s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int counter = 100;
+	int counter;
 	int scanlist_start_on_every_entry;
 	int threshold;
 
@@ -613,14 +613,14 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		int counter = daqp_ns_to_timer(&cmd->convert_arg,
+		counter = daqp_ns_to_timer(&cmd->convert_arg,
 					       cmd->flags & TRIG_ROUND_MASK);
 		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
 		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
 		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH);
 		scanlist_start_on_every_entry = 1;
 	} else {
-		int counter = daqp_ns_to_timer(&cmd->scan_begin_arg,
+		counter = daqp_ns_to_timer(&cmd->scan_begin_arg,
 					       cmd->flags & TRIG_ROUND_MASK);
 		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
 		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
@@ -755,7 +755,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* Reset any pending interrupts (my card has a tendancy to require
 	 * require multiple reads on the status register to achieve this)
 	 */
-
+	counter = 100;
 	while (--counter
 	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
 	if (!counter) {
@@ -1244,7 +1244,7 @@ static struct pcmcia_device_id daqp_cs_id_table[] = {
 
 MODULE_DEVICE_TABLE(pcmcia, daqp_cs_id_table);
 
-struct pcmcia_driver daqp_cs_driver = {
+static struct pcmcia_driver daqp_cs_driver = {
 	.probe = daqp_cs_attach,
 	.remove = daqp_cs_detach,
 	.suspend = daqp_cs_suspend,
