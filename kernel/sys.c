@@ -1271,6 +1271,39 @@ SYSCALL_DEFINE2(old_getrlimit, unsigned int, resource,
 
 #endif
 
+static inline bool rlim64_is_infinity(__u64 rlim64)
+{
+#if BITS_PER_LONG < 64
+	return rlim64 >= ULONG_MAX;
+#else
+	return rlim64 == RLIM64_INFINITY;
+#endif
+}
+
+static void rlim_to_rlim64(const struct rlimit *rlim, struct rlimit64 *rlim64)
+{
+	if (rlim->rlim_cur == RLIM_INFINITY)
+		rlim64->rlim_cur = RLIM64_INFINITY;
+	else
+		rlim64->rlim_cur = rlim->rlim_cur;
+	if (rlim->rlim_max == RLIM_INFINITY)
+		rlim64->rlim_max = RLIM64_INFINITY;
+	else
+		rlim64->rlim_max = rlim->rlim_max;
+}
+
+static void rlim64_to_rlim(const struct rlimit64 *rlim64, struct rlimit *rlim)
+{
+	if (rlim64_is_infinity(rlim64->rlim_cur))
+		rlim->rlim_cur = RLIM_INFINITY;
+	else
+		rlim->rlim_cur = (unsigned long)rlim64->rlim_cur;
+	if (rlim64_is_infinity(rlim64->rlim_max))
+		rlim->rlim_max = RLIM_INFINITY;
+	else
+		rlim->rlim_max = (unsigned long)rlim64->rlim_max;
+}
+
 /* make sure you are allowed to change @tsk limits before calling this */
 int do_prlimit(struct task_struct *tsk, unsigned int resource,
 		struct rlimit *new_rlim, struct rlimit *old_rlim)
@@ -1334,6 +1367,67 @@ int do_prlimit(struct task_struct *tsk, unsigned int resource,
 out:
 	read_unlock(&tasklist_lock);
 	return retval;
+}
+
+/* rcu lock must be held */
+static int check_prlimit_permission(struct task_struct *task)
+{
+	const struct cred *cred = current_cred(), *tcred;
+
+	tcred = __task_cred(task);
+	if ((cred->uid != tcred->euid ||
+	     cred->uid != tcred->suid ||
+	     cred->uid != tcred->uid  ||
+	     cred->gid != tcred->egid ||
+	     cred->gid != tcred->sgid ||
+	     cred->gid != tcred->gid) &&
+	     !capable(CAP_SYS_RESOURCE)) {
+		return -EPERM;
+	}
+
+	return 0;
+}
+
+SYSCALL_DEFINE4(prlimit64, pid_t, pid, unsigned int, resource,
+		const struct rlimit64 __user *, new_rlim,
+		struct rlimit64 __user *, old_rlim)
+{
+	struct rlimit64 old64, new64;
+	struct rlimit old, new;
+	struct task_struct *tsk;
+	int ret;
+
+	if (new_rlim) {
+		if (copy_from_user(&new64, new_rlim, sizeof(new64)))
+			return -EFAULT;
+		rlim64_to_rlim(&new64, &new);
+	}
+
+	rcu_read_lock();
+	tsk = pid ? find_task_by_vpid(pid) : current;
+	if (!tsk) {
+		rcu_read_unlock();
+		return -ESRCH;
+	}
+	ret = check_prlimit_permission(tsk);
+	if (ret) {
+		rcu_read_unlock();
+		return ret;
+	}
+	get_task_struct(tsk);
+	rcu_read_unlock();
+
+	ret = do_prlimit(tsk, resource, new_rlim ? &new : NULL,
+			old_rlim ? &old : NULL);
+
+	if (!ret && old_rlim) {
+		rlim_to_rlim64(&old, &old64);
+		if (copy_to_user(old_rlim, &old64, sizeof(old64)))
+			ret = -EFAULT;
+	}
+
+	put_task_struct(tsk);
+	return ret;
 }
 
 SYSCALL_DEFINE2(setrlimit, unsigned int, resource, struct rlimit __user *, rlim)
