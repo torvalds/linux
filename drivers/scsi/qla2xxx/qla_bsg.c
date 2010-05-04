@@ -317,6 +317,9 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	els->type =
 		(bsg_job->request->msgcode == FC_BSG_RPT_ELS ?
 		SRB_ELS_CMD_RPT : SRB_ELS_CMD_HST);
+	els->name =
+		(bsg_job->request->msgcode == FC_BSG_RPT_ELS ?
+		"bsg_els_rpt" : "bsg_els_hst");
 	els->u.bsg_job = bsg_job;
 
 	DEBUG2(qla_printk(KERN_INFO, ha,
@@ -450,6 +453,7 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 
 	ct = sp->ctx;
 	ct->type = SRB_CT_CMD;
+	ct->name = "bsg_ct";
 	ct->u.bsg_job = bsg_job;
 
 	DEBUG2(qla_printk(KERN_INFO, ha,

@@ -223,6 +223,26 @@ struct srb_iocb {
 #define SRB_LOGIN_SKIP_PRLI	BIT_2
 			uint16_t data[2];
 		} logio;
+		struct {
+			/*
+			 * Values for flags field below are as
+			 * defined in tsk_mgmt_entry struct
+			 * for control_flags field in qla_fw.h.
+			 */
+			uint32_t flags;
+			uint32_t lun;
+			uint32_t data;
+		} tmf;
+		struct {
+			/*
+			 * values for modif field below are as
+			 * defined in mrk_entry_24xx struct
+			 * for the modifier field in qla_fw.h.
+			 */
+			uint8_t modif;
+			uint16_t lun;
+			uint32_t data;
+		} marker;
 	} u;
 
 	struct timer_list timer;
@@ -239,6 +259,8 @@ struct srb_iocb {
 #define SRB_ELS_CMD_HST 4
 #define SRB_CT_CMD	5
 #define SRB_ADISC_CMD	6
+#define SRB_TM_CMD	7
+#define SRB_MARKER_CMD	8
 
 struct srb_ctx {
 	uint16_t type;

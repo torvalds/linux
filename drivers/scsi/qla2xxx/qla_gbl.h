@@ -58,12 +58,18 @@ extern int qla2x00_async_login(struct scsi_qla_host *, fc_port_t *,
 extern int qla2x00_async_logout(struct scsi_qla_host *, fc_port_t *);
 extern int qla2x00_async_adisc(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
+extern int qla2x00_async_tm_cmd(fc_port_t *, uint32_t, uint32_t, uint32_t);
+extern int qla2x00_async_marker(fc_port_t *, uint16_t, uint8_t);
 extern void qla2x00_async_login_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern void qla2x00_async_logout_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern void qla2x00_async_adisc_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
+extern void qla2x00_async_tm_cmd_done(struct scsi_qla_host *, fc_port_t *,
+	struct srb_iocb *);
+extern void qla2x00_async_marker_done(struct scsi_qla_host *, fc_port_t *,
+	struct srb_iocb *);
 
 extern fc_port_t *
 qla2x00_alloc_fcport(scsi_qla_host_t *, gfp_t );
@@ -87,6 +93,7 @@ extern int ql2xetsenable;
 extern int ql2xshiftctondsd;
 extern int ql2xdbwr;
 extern int ql2xdontresethba;
+extern int ql2xasynctmfenable;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);

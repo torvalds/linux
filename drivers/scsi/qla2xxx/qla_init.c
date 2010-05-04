@@ -125,7 +125,7 @@ done:
 #define ELS_TMO_2_RATOV(ha) ((ha)->r_a_tov / 10 * 2)
 
 static void
-qla2x00_async_logio_timeout(srb_t *sp)
+qla2x00_async_iocb_timeout(srb_t *sp)
 {
 	fc_port_t *fcport = sp->fcport;
 	struct srb_ctx *ctx = sp->ctx;
@@ -170,7 +170,7 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 	ctx->type = SRB_LOGIN_CMD;
 	ctx->name = "login";
 	lio = ctx->u.iocb_cmd;
-	lio->timeout = qla2x00_async_logio_timeout;
+	lio->timeout = qla2x00_async_iocb_timeout;
 	lio->done = qla2x00_async_login_ctx_done;
 	lio->u.logio.flags |= SRB_LOGIN_COND_PLOGI;
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
@@ -222,7 +222,7 @@ qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 	ctx->type = SRB_LOGOUT_CMD;
 	ctx->name = "logout";
 	lio = ctx->u.iocb_cmd;
-	lio->timeout = qla2x00_async_logio_timeout;
+	lio->timeout = qla2x00_async_iocb_timeout;
 	lio->done = qla2x00_async_logout_ctx_done;
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS)
@@ -271,7 +271,7 @@ qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
 	ctx->type = SRB_ADISC_CMD;
 	ctx->name = "adisc";
 	lio = ctx->u.iocb_cmd;
-	lio->timeout = qla2x00_async_logio_timeout;
+	lio->timeout = qla2x00_async_iocb_timeout;
 	lio->done = qla2x00_async_adisc_ctx_done;
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 		lio->u.logio.flags |= SRB_LOGIN_RETRIED;
@@ -288,6 +288,112 @@ qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
 
 done_free_sp:
 	lio->free(sp);
+done:
+	return rval;
+}
+
+static void
+qla2x00_async_tm_cmd_ctx_done(srb_t *sp)
+{
+	struct srb_ctx *ctx = sp->ctx;
+	struct srb_iocb *iocb = (struct srb_iocb *)ctx->u.iocb_cmd;
+
+	qla2x00_async_tm_cmd_done(sp->fcport->vha, sp->fcport, iocb);
+	iocb->free(sp);
+}
+
+int
+qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t flags, uint32_t lun,
+	uint32_t tag)
+{
+	struct scsi_qla_host *vha = fcport->vha;
+	struct qla_hw_data *ha = vha->hw;
+	srb_t *sp;
+	struct srb_ctx *ctx;
+	struct srb_iocb *tcf;
+	int rval;
+
+	rval = QLA_FUNCTION_FAILED;
+	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_ctx),
+	    ELS_TMO_2_RATOV(ha) + 2);
+	if (!sp)
+		goto done;
+
+	ctx = sp->ctx;
+	ctx->type = SRB_TM_CMD;
+	ctx->name = "tmf";
+	tcf = ctx->u.iocb_cmd;
+	tcf->u.tmf.flags = flags;
+	tcf->u.tmf.lun = lun;
+	tcf->u.tmf.data = tag;
+	tcf->timeout = qla2x00_async_iocb_timeout;
+	tcf->done = qla2x00_async_tm_cmd_ctx_done;
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS)
+		goto done_free_sp;
+
+	DEBUG2(printk(KERN_DEBUG
+	    "scsi(%ld:%x): Async-tmf - loop-id=%x portid=%02x%02x%02x.\n",
+	    fcport->vha->host_no, sp->handle, fcport->loop_id,
+	    fcport->d_id.b.domain, fcport->d_id.b.area, fcport->d_id.b.al_pa));
+
+	return rval;
+
+done_free_sp:
+	tcf->free(sp);
+done:
+	return rval;
+}
+
+static void
+qla2x00_async_marker_ctx_done(srb_t *sp)
+{
+	struct srb_ctx *ctx = sp->ctx;
+	struct srb_iocb *iocb = (struct srb_iocb *)ctx->u.iocb_cmd;
+
+	qla2x00_async_marker_done(sp->fcport->vha, sp->fcport, iocb);
+	iocb->free(sp);
+}
+
+int
+qla2x00_async_marker(fc_port_t *fcport, uint16_t lun, uint8_t modif)
+{
+	struct scsi_qla_host *vha = fcport->vha;
+	srb_t *sp;
+	struct srb_ctx *ctx;
+	struct srb_iocb *mrk;
+	int rval;
+
+	rval = QLA_FUNCTION_FAILED;
+	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_ctx), 0);
+	if (!sp)
+		goto done;
+
+	ctx = sp->ctx;
+	ctx->type = SRB_MARKER_CMD;
+	ctx->name = "marker";
+	mrk = ctx->u.iocb_cmd;
+	mrk->u.marker.lun = lun;
+	mrk->u.marker.modif = modif;
+	mrk->timeout = qla2x00_async_iocb_timeout;
+	mrk->done = qla2x00_async_marker_ctx_done;
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS)
+		goto done_free_sp;
+
+	DEBUG2(printk(KERN_DEBUG
+	    "scsi(%ld:%x): Async-marker - loop-id=%x "
+	    "portid=%02x%02x%02x.\n",
+	    fcport->vha->host_no, sp->handle, fcport->loop_id,
+	    fcport->d_id.b.domain, fcport->d_id.b.area,
+	    fcport->d_id.b.al_pa));
+
+	return rval;
+
+done_free_sp:
+	mrk->free(sp);
 done:
 	return rval;
 }
@@ -356,6 +462,48 @@ qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 	else
 		qla2x00_mark_device_lost(vha, fcport, 1, 0);
+
+	return;
+}
+
+void
+qla2x00_async_tm_cmd_done(struct scsi_qla_host *vha, fc_port_t *fcport,
+    struct srb_iocb *iocb)
+{
+	int rval;
+	uint32_t flags;
+	uint16_t lun;
+
+	flags = iocb->u.tmf.flags;
+	lun = (uint16_t)iocb->u.tmf.lun;
+
+	/* Issue Marker IOCB */
+	rval = qla2x00_async_marker(fcport, lun,
+		flags == TCF_LUN_RESET ? MK_SYNC_ID_LUN : MK_SYNC_ID);
+
+	if ((rval != QLA_SUCCESS) || iocb->u.tmf.data) {
+		DEBUG2_3_11(printk(KERN_WARNING
+			"%s(%ld): TM IOCB failed (%x).\n",
+			__func__, vha->host_no, rval));
+	}
+
+	return;
+}
+
+void
+qla2x00_async_marker_done(struct scsi_qla_host *vha, fc_port_t *fcport,
+    struct srb_iocb *iocb)
+{
+	/*
+	 * Currently we dont have any specific post response processing
+	 * for this IOCB. We'll just return success or failed
+	 * depending on whether the IOCB command succeeded or failed.
+	 */
+	if (iocb->u.tmf.data) {
+		DEBUG2_3_11(printk(KERN_WARNING
+		    "%s(%ld): Marker IOCB failed (%x).\n",
+		    __func__, vha->host_no, iocb->u.tmf.data));
+	}
 
 	return;
 }

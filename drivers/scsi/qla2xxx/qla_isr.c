@@ -1161,6 +1161,99 @@ logio_done:
 	lio->done(sp);
 }
 
+static void
+qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
+    struct tsk_mgmt_entry *tsk)
+{
+	const char func[] = "TMF-IOCB";
+	const char *type;
+	fc_port_t *fcport;
+	srb_t *sp;
+	struct srb_iocb *iocb;
+	struct srb_ctx *ctx;
+	struct sts_entry_24xx *sts = (struct sts_entry_24xx *)tsk;
+	int error = 1;
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, tsk);
+	if (!sp)
+		return;
+
+	ctx = sp->ctx;
+	iocb = ctx->u.iocb_cmd;
+	type = ctx->name;
+	fcport = sp->fcport;
+
+	if (sts->entry_status) {
+		DEBUG2(printk(KERN_WARNING
+		    "scsi(%ld:%x): Async-%s error - entry-status(%x).\n",
+		    fcport->vha->host_no, sp->handle, type,
+		    sts->entry_status));
+	} else if (sts->comp_status != __constant_cpu_to_le16(CS_COMPLETE)) {
+		DEBUG2(printk(KERN_WARNING
+		    "scsi(%ld:%x): Async-%s error - completion status(%x).\n",
+		    fcport->vha->host_no, sp->handle, type,
+		    sts->comp_status));
+	} else if (!(le16_to_cpu(sts->scsi_status) &
+	    SS_RESPONSE_INFO_LEN_VALID)) {
+		DEBUG2(printk(KERN_WARNING
+		    "scsi(%ld:%x): Async-%s error - no response info(%x).\n",
+		    fcport->vha->host_no, sp->handle, type,
+		    sts->scsi_status));
+	} else if (le32_to_cpu(sts->rsp_data_len) < 4) {
+		DEBUG2(printk(KERN_WARNING
+		    "scsi(%ld:%x): Async-%s error - not enough response(%d).\n",
+		    fcport->vha->host_no, sp->handle, type,
+		    sts->rsp_data_len));
+	} else if (sts->data[3]) {
+		DEBUG2(printk(KERN_WARNING
+		    "scsi(%ld:%x): Async-%s error - response(%x).\n",
+		    fcport->vha->host_no, sp->handle, type,
+		    sts->data[3]));
+	} else {
+		error = 0;
+	}
+
+	if (error) {
+		iocb->u.tmf.data = error;
+		DEBUG2(qla2x00_dump_buffer((uint8_t *)sts, sizeof(*sts)));
+	}
+
+	iocb->done(sp);
+}
+
+static void
+qla24xx_marker_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
+    struct mrk_entry_24xx *mrk)
+{
+	const char func[] = "MRK-IOCB";
+	const char *type;
+	fc_port_t *fcport;
+	srb_t *sp;
+	struct srb_iocb *iocb;
+	struct srb_ctx *ctx;
+	struct sts_entry_24xx *sts = (struct sts_entry_24xx *)mrk;
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, mrk);
+	if (!sp)
+		return;
+
+	ctx = sp->ctx;
+	iocb = ctx->u.iocb_cmd;
+	type = ctx->name;
+	fcport = sp->fcport;
+
+	if (sts->entry_status) {
+		iocb->u.marker.data = 1;
+		DEBUG2(printk(KERN_WARNING
+		    "scsi(%ld:%x): Async-%s error entry - entry-status=%x.\n",
+		    fcport->vha->host_no, sp->handle, type,
+		    sts->entry_status));
+		DEBUG2(qla2x00_dump_buffer((uint8_t *)mrk, sizeof(*sts)));
+	}
+
+	iocb->done(sp);
+}
+
 /**
  * qla2x00_process_response_queue() - Process response queue entries.
  * @ha: SCSI driver HA context
@@ -1225,6 +1318,7 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 		case MBX_IOCB_TYPE:
 			qla2x00_mbx_iocb_entry(vha, rsp->req,
 			    (struct mbx_entry *)pkt);
+			break;
 		default:
 			/* Type Not Supported. */
 			DEBUG4(printk(KERN_WARNING
@@ -1750,6 +1844,14 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 		case LOGINOUT_PORT_IOCB_TYPE:
 			qla24xx_logio_entry(vha, rsp->req,
 			    (struct logio_entry_24xx *)pkt);
+			break;
+		case TSK_MGMT_IOCB_TYPE:
+			qla24xx_tm_iocb_entry(vha, rsp->req,
+			    (struct tsk_mgmt_entry *)pkt);
+			break;
+		case MARKER_TYPE:
+			qla24xx_marker_iocb_entry(vha, rsp->req,
+			    (struct mrk_entry_24xx *)pkt);
 			break;
                 case CT_IOCB_TYPE:
 			qla24xx_els_ct_entry(vha, rsp->req, pkt, CT_IOCB_TYPE);

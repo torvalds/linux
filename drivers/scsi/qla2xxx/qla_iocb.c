@@ -1086,6 +1086,64 @@ qla2x00_adisc_iocb(srb_t *sp, struct mbx_entry *mbx)
 }
 
 static void
+qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
+{
+	uint32_t flags;
+	unsigned int lun;
+	struct fc_port *fcport = sp->fcport;
+	scsi_qla_host_t *vha = fcport->vha;
+	struct qla_hw_data *ha = vha->hw;
+	struct srb_ctx *ctx = sp->ctx;
+	struct srb_iocb *iocb = ctx->u.iocb_cmd;
+	struct req_que *req = vha->req;
+
+	flags = iocb->u.tmf.flags;
+	lun = iocb->u.tmf.lun;
+
+	tsk->entry_type = TSK_MGMT_IOCB_TYPE;
+	tsk->entry_count = 1;
+	tsk->handle = MAKE_HANDLE(req->id, tsk->handle);
+	tsk->nport_handle = cpu_to_le16(fcport->loop_id);
+	tsk->timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
+	tsk->control_flags = cpu_to_le32(flags);
+	tsk->port_id[0] = fcport->d_id.b.al_pa;
+	tsk->port_id[1] = fcport->d_id.b.area;
+	tsk->port_id[2] = fcport->d_id.b.domain;
+	tsk->vp_index = fcport->vp_idx;
+
+	if (flags == TCF_LUN_RESET) {
+		int_to_scsilun(lun, &tsk->lun);
+		host_to_fcp_swap((uint8_t *)&tsk->lun,
+			sizeof(tsk->lun));
+	}
+}
+
+static void
+qla24xx_marker_iocb(srb_t *sp, struct mrk_entry_24xx *mrk)
+{
+	uint16_t lun;
+	uint8_t modif;
+	struct fc_port *fcport = sp->fcport;
+	scsi_qla_host_t *vha = fcport->vha;
+	struct srb_ctx *ctx = sp->ctx;
+	struct srb_iocb *iocb = ctx->u.iocb_cmd;
+	struct req_que *req = vha->req;
+
+	lun = iocb->u.marker.lun;
+	modif = iocb->u.marker.modif;
+	mrk->entry_type = MARKER_TYPE;
+	mrk->modifier = modif;
+	if (modif !=  MK_SYNC_ALL) {
+		mrk->nport_handle = cpu_to_le16(fcport->loop_id);
+		mrk->lun[1] = LSB(lun);
+		mrk->lun[2] = MSB(lun);
+		host_to_fcp_swap(mrk->lun, sizeof(mrk->lun));
+		mrk->vp_index = vha->vp_idx;
+		mrk->handle = MAKE_HANDLE(req->id, mrk->handle);
+	}
+}
+
+static void
 qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 {
 	struct fc_bsg_job *bsg_job = ((struct srb_ctx *)sp->ctx)->u.bsg_job;
@@ -1238,6 +1296,12 @@ qla2x00_start_sp(srb_t *sp)
 		IS_FWI2_CAPABLE(ha) ?
 		    qla24xx_adisc_iocb(sp, pkt) :
 		    qla2x00_adisc_iocb(sp, pkt);
+		break;
+	case SRB_TM_CMD:
+		qla24xx_tm_iocb(sp, pkt);
+		break;
+	case SRB_MARKER_CMD:
+		qla24xx_marker_iocb(sp, pkt);
 		break;
 	default:
 		break;
