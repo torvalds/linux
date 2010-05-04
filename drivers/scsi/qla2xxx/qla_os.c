@@ -2639,9 +2639,19 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 
 	INIT_LIST_HEAD(&ha->gbl_dsd_list);
 
+	/* Get consistent memory allocated for Async Port-Database. */
+	if (!IS_FWI2_CAPABLE(ha)) {
+		ha->async_pd = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
+			&ha->async_pd_dma);
+		if (!ha->async_pd)
+			goto fail_async_pd;
+	}
+
 	INIT_LIST_HEAD(&ha->vp_list);
 	return 1;
 
+fail_async_pd:
+	dma_pool_free(ha->s_dma_pool, ha->ex_init_cb, ha->ex_init_cb_dma);
 fail_ex_init_cb:
 	kfree(ha->npiv_info);
 fail_npiv_info:
@@ -2757,6 +2767,9 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 		dma_pool_free(ha->s_dma_pool,
 			ha->ex_init_cb, ha->ex_init_cb_dma);
 
+	if (ha->async_pd)
+		dma_pool_free(ha->s_dma_pool, ha->async_pd, ha->async_pd_dma);
+
 	if (ha->s_dma_pool)
 		dma_pool_destroy(ha->s_dma_pool);
 
@@ -2809,6 +2822,8 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	ha->init_cb_dma = 0;
 	ha->ex_init_cb = NULL;
 	ha->ex_init_cb_dma = 0;
+	ha->async_pd = NULL;
+	ha->async_pd_dma = 0;
 
 	ha->s_dma_pool = NULL;
 	ha->dl_dma_pool = NULL;
@@ -2935,6 +2950,8 @@ qla2x00_post_async_work(login, QLA_EVT_ASYNC_LOGIN);
 qla2x00_post_async_work(login_done, QLA_EVT_ASYNC_LOGIN_DONE);
 qla2x00_post_async_work(logout, QLA_EVT_ASYNC_LOGOUT);
 qla2x00_post_async_work(logout_done, QLA_EVT_ASYNC_LOGOUT_DONE);
+qla2x00_post_async_work(adisc, QLA_EVT_ASYNC_ADISC);
+qla2x00_post_async_work(adisc_done, QLA_EVT_ASYNC_ADISC_DONE);
 
 int
 qla2x00_post_uevent_work(struct scsi_qla_host *vha, u32 code)
@@ -3004,6 +3021,14 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			qla2x00_async_logout_done(vha, e->u.logio.fcport,
 			    e->u.logio.data);
 			break;
+		case QLA_EVT_ASYNC_ADISC:
+			qla2x00_async_adisc(vha, e->u.logio.fcport,
+			    e->u.logio.data);
+			break;
+		case QLA_EVT_ASYNC_ADISC_DONE:
+			qla2x00_async_adisc_done(vha, e->u.logio.fcport,
+			    e->u.logio.data);
+			break;
 		case QLA_EVT_UEVENT:
 			qla2x00_uevent_emit(vha, e->u.uevent.code);
 			break;
@@ -3029,9 +3054,8 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 	 * If the port is not ONLINE then try to login
 	 * to it if we haven't run out of retries.
 	 */
-		if (atomic_read(&fcport->state) !=
-			FCS_ONLINE && fcport->login_retry) {
-
+		if (atomic_read(&fcport->state) != FCS_ONLINE &&
+		    fcport->login_retry && !(fcport->flags & FCF_ASYNC_SENT)) {
 			fcport->login_retry--;
 			if (fcport->flags & FCF_FABRIC_DEVICE) {
 				if (fcport->flags & FCF_FCP2_DEVICE)
@@ -3042,6 +3066,7 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 							fcport->d_id.b.al_pa);
 
 				if (IS_ALOGIO_CAPABLE(ha)) {
+					fcport->flags |= FCF_ASYNC_SENT;
 					data[0] = 0;
 					data[1] = QLA_LOGIO_LOGIN_RETRIED;
 					status = qla2x00_post_async_login_work(

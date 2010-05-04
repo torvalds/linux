@@ -899,6 +899,7 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	srb_t *sp;
 	struct srb_logio *lio;
 	uint16_t *data;
+	uint16_t status;
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, mbx);
 	if (!sp)
@@ -910,7 +911,9 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	fcport = sp->fcport;
 	data = lio->data;
 
-	data[0] = data[1] = 0;
+	data[0] = MBS_COMMAND_ERROR;
+	data[1] = lio->flags & SRB_LOGIN_RETRIED ?
+	    QLA_LOGIO_LOGIN_RETRIED : 0;
 	if (mbx->entry_status) {
 		DEBUG2(printk(KERN_WARNING
 		    "scsi(%ld:%x): Async-%s error entry - entry-status=%x "
@@ -921,26 +924,27 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		    le16_to_cpu(mbx->status_flags)));
 		DEBUG2(qla2x00_dump_buffer((uint8_t *)mbx, sizeof(*mbx)));
 
-		data[0] = MBS_COMMAND_ERROR;
-		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
-		    QLA_LOGIO_LOGIN_RETRIED: 0;
 		goto logio_done;
 	}
 
-	if (!mbx->status && le16_to_cpu(mbx->mb0) == MBS_COMMAND_COMPLETE) {
+	status = le16_to_cpu(mbx->status);
+	if (status == 0x30 && lio->ctx.type == SRB_LOGIN_CMD &&
+	    le16_to_cpu(mbx->mb0) == MBS_COMMAND_COMPLETE)
+		status = 0;
+	if (!status && le16_to_cpu(mbx->mb0) == MBS_COMMAND_COMPLETE) {
 		DEBUG2(printk(KERN_DEBUG
 		    "scsi(%ld:%x): Async-%s complete - mbx1=%x.\n",
 		    fcport->vha->host_no, sp->handle, type,
 		    le16_to_cpu(mbx->mb1)));
 
 		data[0] = MBS_COMMAND_COMPLETE;
-		if (lio->ctx.type == SRB_LOGIN_CMD)
+		if (lio->ctx.type == SRB_LOGIN_CMD) {
 			fcport->port_type = FCT_TARGET;
 			if (le16_to_cpu(mbx->mb1) & BIT_0)
 				fcport->port_type = FCT_INITIATOR;
 			if (le16_to_cpu(mbx->mb1) & BIT_1)
 				fcport->flags |= FCF_FCP2_DEVICE;
-
+		}
 		goto logio_done;
 	}
 
@@ -953,15 +957,13 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		break;
 	default:
 		data[0] = MBS_COMMAND_ERROR;
-		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
-		    QLA_LOGIO_LOGIN_RETRIED: 0;
 		break;
 	}
 
 	DEBUG2(printk(KERN_WARNING
 	    "scsi(%ld:%x): Async-%s failed - status=%x mb0=%x mb1=%x mb2=%x "
 	    "mb6=%x mb7=%x.\n",
-	    fcport->vha->host_no, sp->handle, type, le16_to_cpu(mbx->status),
+	    fcport->vha->host_no, sp->handle, type, status,
 	    le16_to_cpu(mbx->mb0), le16_to_cpu(mbx->mb1),
 	    le16_to_cpu(mbx->mb2), le16_to_cpu(mbx->mb6),
 	    le16_to_cpu(mbx->mb7)));
@@ -1086,7 +1088,9 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	fcport = sp->fcport;
 	data = lio->data;
 
-	data[0] = data[1] = 0;
+	data[0] = MBS_COMMAND_ERROR;
+	data[1] = lio->flags & SRB_LOGIN_RETRIED ?
+		QLA_LOGIO_LOGIN_RETRIED : 0;
 	if (logio->entry_status) {
 		DEBUG2(printk(KERN_WARNING
 		    "scsi(%ld:%x): Async-%s error entry - entry-status=%x.\n",
@@ -1094,9 +1098,6 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		    logio->entry_status));
 		DEBUG2(qla2x00_dump_buffer((uint8_t *)logio, sizeof(*logio)));
 
-		data[0] = MBS_COMMAND_ERROR;
-		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
-		    QLA_LOGIO_LOGIN_RETRIED: 0;
 		goto logio_done;
 	}
 
@@ -1107,7 +1108,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		    le32_to_cpu(logio->io_parameter[0])));
 
 		data[0] = MBS_COMMAND_COMPLETE;
-		if (lio->ctx.type == SRB_LOGOUT_CMD)
+		if (lio->ctx.type != SRB_LOGIN_CMD)
 			goto logio_done;
 
 		iop[0] = le32_to_cpu(logio->io_parameter[0]);
@@ -1144,8 +1145,6 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		/* Fall through. */
 	default:
 		data[0] = MBS_COMMAND_ERROR;
-		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
-		    QLA_LOGIO_LOGIN_RETRIED: 0;
 		break;
 	}
 

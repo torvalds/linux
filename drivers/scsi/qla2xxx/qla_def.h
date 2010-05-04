@@ -219,6 +219,7 @@ typedef struct srb {
 #define SRB_ELS_CMD_RPT 3
 #define SRB_ELS_CMD_HST 4
 #define SRB_CT_CMD 5
+#define SRB_ADISC_CMD	6
 
 struct srb_ctx {
 	uint16_t type;
@@ -1623,6 +1624,7 @@ typedef struct fc_port {
 #define FCF_FABRIC_DEVICE	BIT_0
 #define FCF_LOGIN_NEEDED	BIT_1
 #define FCF_FCP2_DEVICE		BIT_2
+#define FCF_ASYNC_SENT		BIT_3
 
 /* No loop ID flag. */
 #define FC_NO_LOOP_ID		0x1000
@@ -2156,6 +2158,8 @@ enum qla_work_type {
 	QLA_EVT_ASYNC_LOGIN_DONE,
 	QLA_EVT_ASYNC_LOGOUT,
 	QLA_EVT_ASYNC_LOGOUT_DONE,
+	QLA_EVT_ASYNC_ADISC,
+	QLA_EVT_ASYNC_ADISC_DONE,
 	QLA_EVT_UEVENT,
 };
 
@@ -2513,6 +2517,9 @@ struct qla_hw_data {
 	int		init_cb_size;
 	dma_addr_t	ex_init_cb_dma;
 	struct ex_init_cb_81xx *ex_init_cb;
+
+	void		*async_pd;
+	dma_addr_t	async_pd_dma;
 
 	/* These are used by mailbox operations. */
 	volatile uint16_t mailbox_out[MAILBOX_REGISTER_COUNT];

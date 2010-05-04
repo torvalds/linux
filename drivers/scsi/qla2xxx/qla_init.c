@@ -119,6 +119,7 @@ qla2x00_async_logio_timeout(srb_t *sp)
 	    "scsi(%ld:%x): Async-%s timeout.\n",
 	    fcport->vha->host_no, sp->handle, lio->ctx.name));
 
+	fcport->flags &= ~FCF_ASYNC_SENT;
 	if (lio->ctx.type == SRB_LOGIN_CMD)
 		qla2x00_post_async_logout_work(fcport->vha, fcport, NULL);
 }
@@ -220,6 +221,56 @@ done:
 	return rval;
 }
 
+static void
+qla2x00_async_adisc_ctx_done(srb_t *sp)
+{
+	struct srb_logio *lio = sp->ctx;
+
+	qla2x00_post_async_adisc_done_work(sp->fcport->vha, sp->fcport,
+	    lio->data);
+	lio->ctx.free(sp);
+}
+
+int
+qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
+    uint16_t *data)
+{
+	struct qla_hw_data *ha = vha->hw;
+	srb_t *sp;
+	struct srb_logio *lio;
+	int rval;
+
+	rval = QLA_FUNCTION_FAILED;
+	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_logio),
+	    ELS_TMO_2_RATOV(ha) + 2);
+	if (!sp)
+		goto done;
+
+	lio = sp->ctx;
+	lio->ctx.type = SRB_ADISC_CMD;
+	lio->ctx.name = "adisc";
+	lio->ctx.timeout = qla2x00_async_logio_timeout;
+	lio->ctx.done = qla2x00_async_adisc_ctx_done;
+	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
+		lio->flags |= SRB_LOGIN_RETRIED;
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS)
+		goto done_free_sp;
+
+	DEBUG2(printk(KERN_DEBUG
+	    "scsi(%ld:%x): Async-adisc - loop-id=%x portid=%02x%02x%02x.\n",
+	    fcport->vha->host_no, sp->handle, fcport->loop_id,
+	    fcport->d_id.b.domain, fcport->d_id.b.area, fcport->d_id.b.al_pa));
+
+	return rval;
+
+done_free_sp:
+	del_timer_sync(&lio->ctx.timer);
+	lio->ctx.free(sp);
+done:
+	return rval;
+}
+
 int
 qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
@@ -229,15 +280,14 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 	switch (data[0]) {
 	case MBS_COMMAND_COMPLETE:
 		if (fcport->flags & FCF_FCP2_DEVICE) {
-			rval = qla2x00_get_port_database(vha, fcport, BIT_1);
-			if (rval != QLA_SUCCESS) {
-				qla2x00_mark_device_lost(vha, fcport, 1, 0);
-				break;
-			}
+			fcport->flags |= FCF_ASYNC_SENT;
+			qla2x00_post_async_adisc_work(vha, fcport, data);
+			break;
 		}
 		qla2x00_update_fcport(vha, fcport);
 		break;
 	case MBS_COMMAND_ERROR:
+		fcport->flags &= ~FCF_ASYNC_SENT;
 		if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 		else
@@ -251,6 +301,7 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 		fcport->loop_id++;
 		rval = qla2x00_find_new_loop_id(vha, fcport);
 		if (rval != QLA_SUCCESS) {
+			fcport->flags &= ~FCF_ASYNC_SENT;
 			qla2x00_mark_device_lost(vha, fcport, 1, 0);
 			break;
 		}
@@ -265,6 +316,26 @@ qla2x00_async_logout_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
 	qla2x00_mark_device_lost(vha, fcport, 1, 0);
+	return QLA_SUCCESS;
+}
+
+int
+qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
+    uint16_t *data)
+{
+	if (data[0] == MBS_COMMAND_COMPLETE) {
+		qla2x00_update_fcport(vha, fcport);
+
+		return QLA_SUCCESS;
+	}
+
+	/* Retry login. */
+	fcport->flags &= ~FCF_ASYNC_SENT;
+	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
+		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+	else
+		qla2x00_mark_device_lost(vha, fcport, 1, 0);
+
 	return QLA_SUCCESS;
 }
 
@@ -2062,6 +2133,7 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	if (IS_QLA23XX(ha)) {
 		nv->firmware_options[0] |= BIT_2;
 		nv->firmware_options[0] &= ~BIT_3;
+		nv->firmware_options[0] &= ~BIT_6;
 		nv->add_firmware_options[1] |= BIT_5 | BIT_4;
 
 		if (IS_QLA2300(ha)) {
@@ -2680,7 +2752,7 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	    PORT_RETRY_TIME;
 	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
 	    PORT_RETRY_TIME);
-	fcport->flags &= ~FCF_LOGIN_NEEDED;
+	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
 
 	qla2x00_iidma_fcport(vha, fcport);
 
@@ -3326,11 +3398,15 @@ qla2x00_fabric_dev_login(scsi_qla_host_t *vha, fc_port_t *fcport,
 	retry = 0;
 
 	if (IS_ALOGIO_CAPABLE(ha)) {
+		if (fcport->flags & FCF_ASYNC_SENT)
+			return rval;
+		fcport->flags |= FCF_ASYNC_SENT;
 		rval = qla2x00_post_async_login_work(vha, fcport, NULL);
 		if (!rval)
 			return rval;
 	}
 
+	fcport->flags &= ~FCF_ASYNC_SENT;
 	rval = qla2x00_fabric_login(vha, fcport, next_loopid);
 	if (rval == QLA_SUCCESS) {
 		/* Send an ADISC to FCP2 devices.*/

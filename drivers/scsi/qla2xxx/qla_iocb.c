@@ -1054,6 +1054,36 @@ qla2x00_logout_iocb(srb_t *sp, struct mbx_entry *mbx)
 }
 
 static void
+qla24xx_adisc_iocb(srb_t *sp, struct logio_entry_24xx *logio)
+{
+	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->control_flags = cpu_to_le16(LCF_COMMAND_ADISC);
+	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	logio->vp_index = sp->fcport->vp_idx;
+}
+
+static void
+qla2x00_adisc_iocb(srb_t *sp, struct mbx_entry *mbx)
+{
+	struct qla_hw_data *ha = sp->fcport->vha->hw;
+
+	mbx->entry_type = MBX_IOCB_TYPE;
+	SET_TARGET_ID(ha, mbx->loop_id, sp->fcport->loop_id);
+	mbx->mb0 = cpu_to_le16(MBC_GET_PORT_DATABASE);
+	if (HAS_EXTENDED_IDS(ha)) {
+		mbx->mb1 = cpu_to_le16(sp->fcport->loop_id);
+		mbx->mb10 = cpu_to_le16(BIT_0);
+	} else {
+		mbx->mb1 = cpu_to_le16((sp->fcport->loop_id << 8) | BIT_0);
+	}
+	mbx->mb2 = cpu_to_le16(MSW(ha->async_pd_dma));
+	mbx->mb3 = cpu_to_le16(LSW(ha->async_pd_dma));
+	mbx->mb6 = cpu_to_le16(MSW(MSD(ha->async_pd_dma)));
+	mbx->mb7 = cpu_to_le16(LSW(MSD(ha->async_pd_dma)));
+	mbx->mb9 = cpu_to_le16(sp->fcport->vp_idx);
+}
+
+static void
 qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 {
 	struct fc_bsg_job *bsg_job = ((struct srb_bsg*)sp->ctx)->bsg_job;
@@ -1185,12 +1215,12 @@ qla2x00_start_sp(srb_t *sp)
 	switch (ctx->type) {
 	case SRB_LOGIN_CMD:
 		IS_FWI2_CAPABLE(ha) ?
-		    qla24xx_login_iocb(sp, pkt):
+		    qla24xx_login_iocb(sp, pkt) :
 		    qla2x00_login_iocb(sp, pkt);
 		break;
 	case SRB_LOGOUT_CMD:
 		IS_FWI2_CAPABLE(ha) ?
-		    qla24xx_logout_iocb(sp, pkt):
+		    qla24xx_logout_iocb(sp, pkt) :
 		    qla2x00_logout_iocb(sp, pkt);
 		break;
 	case SRB_ELS_CMD_RPT:
@@ -1199,6 +1229,11 @@ qla2x00_start_sp(srb_t *sp)
 		break;
 	case SRB_CT_CMD:
 		qla24xx_ct_iocb(sp, pkt);
+		break;
+	case SRB_ADISC_CMD:
+		IS_FWI2_CAPABLE(ha) ?
+		    qla24xx_adisc_iocb(sp, pkt) :
+		    qla2x00_adisc_iocb(sp, pkt);
 		break;
 	default:
 		break;
