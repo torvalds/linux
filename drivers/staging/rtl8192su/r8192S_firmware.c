@@ -107,9 +107,9 @@ cmdsend_downloadcode_fail:
 }
 
 
-RT_STATUS FirmwareEnableCPU(struct net_device *dev)
+bool FirmwareEnableCPU(struct net_device *dev)
 {
-	RT_STATUS rtStatus = RT_STATUS_SUCCESS;
+	bool rtStatus = true;
 	u8 tmpU1b, CPUStatus = 0;
 	u16 tmpU2b;
 	u32 iCheckTime = 200;
@@ -129,8 +129,8 @@ RT_STATUS FirmwareEnableCPU(struct net_device *dev)
 		udelay(100);
 	} while (iCheckTime--);
 	if (!(CPUStatus & IMEM_RDY)) {
-		RT_TRACE(COMP_ERR, "(%s): failed to enable CPU\n", __func__);
-		rtStatus = RT_STATUS_FAILURE;
+		RT_TRACE(COMP_ERR, "%s(): failed to enable CPU", __func__);
+		rtStatus = false;
 	}
 	return rtStatus;
 }
@@ -165,106 +165,87 @@ FirmwareGetNextStatus(FIRMWARE_8192S_STATUS FWCurrentStatus)
 	return	NextFWStatus;
 }
 
-bool
-FirmwareCheckReady(struct net_device *dev,	u8 LoadFWStatus)
+bool FirmwareCheckReady(struct net_device *dev, u8 LoadFWStatus)
 {
-	struct r8192_priv 	*priv = ieee80211_priv(dev);
-	RT_STATUS	rtStatus = RT_STATUS_SUCCESS;
-	rt_firmware	*pFirmware = priv->pFirmware;
-	int			PollingCnt = 1000;
-	//u8	 	tmpU1b, CPUStatus = 0;
-	u8	 	CPUStatus = 0;
-	u32		tmpU4b;
-	//bool		bOrgIMREnable;
-
-	RT_TRACE(COMP_FIRMWARE, "--->FirmwareCheckReady(): LoadStaus(%d),", LoadFWStatus);
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	bool rtStatus = true;
+	rt_firmware *pFirmware = priv->pFirmware;
+	int PollingCnt = 1000;
+	u8 CPUStatus = 0;
+	u32 tmpU4b;
 
 	pFirmware->FWStatus = (FIRMWARE_8192S_STATUS)LoadFWStatus;
-	if( LoadFWStatus == FW_STATUS_LOAD_IMEM)
-	{
-		do
-		{//Polling IMEM code done.
+	switch (LoadFWStatus) {
+	case FW_STATUS_LOAD_IMEM:
+		do { /* Polling IMEM code done. */
 			CPUStatus = read_nic_byte(dev, TCR);
 			if(CPUStatus& IMEM_CODE_DONE)
 				break;
-
 			udelay(5);
-		}while(PollingCnt--);
-		if(!(CPUStatus & IMEM_CHK_RPT) || PollingCnt <= 0)
-		{
+		} while (PollingCnt--);
+		if (!(CPUStatus & IMEM_CHK_RPT) || PollingCnt <= 0) {
 			RT_TRACE(COMP_ERR, "FW_STATUS_LOAD_IMEM FAIL CPU, Status=%x\r\n", CPUStatus);
-			return false;
+			goto FirmwareCheckReadyFail;
 		}
-	}
-	else if( LoadFWStatus == FW_STATUS_LOAD_EMEM)
-	{//Check Put Code OK and Turn On CPU
-		do
-		{//Polling EMEM code done.
+		break;
+	case FW_STATUS_LOAD_EMEM: /* Check Put Code OK and Turn On CPU */
+		do { /* Polling EMEM code done. */
 			CPUStatus = read_nic_byte(dev, TCR);
 			if(CPUStatus& EMEM_CODE_DONE)
 				break;
-
 			udelay(5);
-		}while(PollingCnt--);
-		if(!(CPUStatus & EMEM_CHK_RPT))
-		{
+		} while (PollingCnt--);
+		if (!(CPUStatus & EMEM_CHK_RPT)) {
 			RT_TRACE(COMP_ERR, "FW_STATUS_LOAD_EMEM FAIL CPU, Status=%x\r\n", CPUStatus);
-			return false;
+			goto FirmwareCheckReadyFail;
 		}
-
-		// Turn On CPU
-		rtStatus = FirmwareEnableCPU(dev);
-		if(rtStatus != RT_STATUS_SUCCESS)
-		{
-			RT_TRACE(COMP_ERR, "Enable CPU fail ! \n" );
-			return false;
+		/* Turn On CPU */
+		if (FirmwareEnableCPU(dev) != true) {
+			RT_TRACE(COMP_ERR, "%s(): failed to enable CPU",
+								__func__);
+			goto FirmwareCheckReadyFail;
 		}
-	}
-	else if( LoadFWStatus == FW_STATUS_LOAD_DMEM)
-	{
-		do
-		{//Polling DMEM code done
+		break;
+	case FW_STATUS_LOAD_DMEM:
+		do { /* Polling DMEM code done */
 			CPUStatus = read_nic_byte(dev, TCR);
 			if(CPUStatus& DMEM_CODE_DONE)
 				break;
 
 			udelay(5);
-		}while(PollingCnt--);
+		} while (PollingCnt--);
 
-		if(!(CPUStatus & DMEM_CODE_DONE))
-		{
+		if (!(CPUStatus & DMEM_CODE_DONE)) {
 			RT_TRACE(COMP_ERR, "Polling  DMEM code done fail ! CPUStatus(%#x)\n", CPUStatus);
-			return false;
+			goto FirmwareCheckReadyFail;
 		}
 
-		RT_TRACE(COMP_FIRMWARE, "DMEM code download success, CPUStatus(%#x)\n", CPUStatus);
+		RT_TRACE(COMP_FIRMWARE, "%s(): DMEM code download success, "
+					"CPUStatus(%#x)",
+					__func__, CPUStatus);
 
-//              PollingCnt = 100; // Set polling cycle to 10ms.
-              PollingCnt = 10000; // Set polling cycle to 10ms.
+		PollingCnt = 10000; /* Set polling cycle to 10ms. */
 
-		do
-		{//Polling Load Firmware ready
+		do { /* Polling Load Firmware ready */
 			CPUStatus = read_nic_byte(dev, TCR);
 			if(CPUStatus & FWRDY)
 				break;
-
 			udelay(100);
-		}while(PollingCnt--);
+		} while (PollingCnt--);
 
-		RT_TRACE(COMP_FIRMWARE, "Polling Load Firmware ready, CPUStatus(%x)\n", CPUStatus);
+		RT_TRACE(COMP_FIRMWARE, "%s(): polling load firmware ready, "
+					"CPUStatus(%x)",
+					__func__, CPUStatus);
 
-		//if(!(CPUStatus & LOAD_FW_READY))
-		//if((CPUStatus & LOAD_FW_READY) != 0xff)
-		if((CPUStatus & LOAD_FW_READY) != LOAD_FW_READY)
-		{
-			RT_TRACE(COMP_ERR, "Polling Load Firmware ready fail ! CPUStatus(%x)\n", CPUStatus);
-			return false;
+		if ((CPUStatus & LOAD_FW_READY) != LOAD_FW_READY) {
+			RT_TRACE(COMP_ERR, "Polling Load Firmware ready failed "
+						"CPUStatus(%x)\n", CPUStatus);
+			goto FirmwareCheckReadyFail;
 		}
-
-	       //
-              // <Roger_Notes> USB interface will update reserved followings parameters later!!
-              // 2008.08.28.
-              //
+		/*
+		 * USB interface will update
+		 * reserved followings parameters later
+		 */
 
 	       //
               // <Roger_Notes> If right here, we can set TCR/RCR to desired value
@@ -277,16 +258,23 @@ FirmwareCheckReady(struct net_device *dev,	u8 LoadFWStatus)
 		write_nic_dword(dev, RCR,
 			(tmpU4b|RCR_APPFCS|RCR_APP_ICV|RCR_APP_MIC));
 
-		RT_TRACE(COMP_FIRMWARE, "FirmwareCheckReady(): Current RCR settings(%#x)\n", tmpU4b);
-
-
+		RT_TRACE(COMP_FIRMWARE, "%s(): Current RCR settings(%#x)",
+							__func__, tmpU4b);
 		// Set to normal mode.
 		write_nic_byte(dev, LBKMD_SEL, LBK_NORMAL);
-
+		break;
+	default:
+		break;
 	}
+	RT_TRACE(COMP_FIRMWARE, "%s(): LoadFWStatus(%d), success",
+							__func__, LoadFWStatus);
+	return rtStatus;
 
-	RT_TRACE(COMP_FIRMWARE, "<---FirmwareCheckReady(): LoadFWStatus(%d), rtStatus(%x)\n", LoadFWStatus, rtStatus);
-	return (rtStatus == RT_STATUS_SUCCESS) ? true:false;
+FirmwareCheckReadyFail:
+	rtStatus = false;
+	RT_TRACE(COMP_FIRMWARE, "%s(): LoadFWStatus(%d), failed",
+							__func__, LoadFWStatus);
+	return rtStatus;
 }
 
 //
