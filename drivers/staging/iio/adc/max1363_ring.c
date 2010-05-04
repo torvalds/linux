@@ -255,5 +255,5 @@ void max1363_uninitialize_ring(struct iio_ring_buffer *ring)
 
 int max1363_initialize_ring(struct iio_ring_buffer *ring)
 {
-	return iio_ring_buffer_register(ring);
+	return iio_ring_buffer_register(ring, 0);
 };

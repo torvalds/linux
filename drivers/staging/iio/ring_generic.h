@@ -259,7 +259,7 @@ static inline void iio_put_ring_buffer(struct iio_ring_buffer *ring)
 	container_of(d, struct iio_ring_buffer, dev)
 #define access_dev_to_iio_ring_buffer(d)			\
 	container_of(d, struct iio_ring_buffer, access_dev)
-int iio_ring_buffer_register(struct iio_ring_buffer *ring);
+int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id);
 void iio_ring_buffer_unregister(struct iio_ring_buffer *ring);
 
 ssize_t iio_read_ring_length(struct device *dev,
