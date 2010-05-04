@@ -25,11 +25,32 @@
 #define NTRIG_DUPLICATE_USAGES	0x001
 
 static unsigned int min_width;
+module_param(min_width, uint, 0644);
+MODULE_PARM_DESC(min_width, "Minimum touch contact width to accept.");
+
 static unsigned int min_height;
+module_param(min_height, uint, 0644);
+MODULE_PARM_DESC(min_height, "Minimum touch contact height to accept.");
+
 static unsigned int activate_slack = 1;
+module_param(activate_slack, uint, 0644);
+MODULE_PARM_DESC(activate_slack, "Number of touch frames to ignore at "
+		 "the start of touch input.");
+
 static unsigned int deactivate_slack = 4;
+module_param(deactivate_slack, uint, 0644);
+MODULE_PARM_DESC(deactivate_slack, "Number of empty frames to ignore before "
+		 "deactivating touch.");
+
 static unsigned int activation_width = 64;
+module_param(activation_width, uint, 0644);
+MODULE_PARM_DESC(activation_width, "Width threshold to immediately start "
+		 "processing touch events.");
+
 static unsigned int activation_height = 32;
+module_param(activation_height, uint, 0644);
+MODULE_PARM_DESC(activation_height, "Height threshold to immediately start "
+		 "processing touch events.");
 
 struct ntrig_data {
 	/* Incoming raw values for a single contact */
