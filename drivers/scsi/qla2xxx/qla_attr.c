@@ -987,7 +987,8 @@ qla2x00_link_state_show(struct device *dev, struct device_attribute *attr,
 	int len = 0;
 
 	if (atomic_read(&vha->loop_state) == LOOP_DOWN ||
-	    atomic_read(&vha->loop_state) == LOOP_DEAD)
+	    atomic_read(&vha->loop_state) == LOOP_DEAD ||
+	    vha->device_flags & DFLG_NO_CABLE)
 		len = snprintf(buf, PAGE_SIZE, "Link Down\n");
 	else if (atomic_read(&vha->loop_state) != LOOP_READY ||
 	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
