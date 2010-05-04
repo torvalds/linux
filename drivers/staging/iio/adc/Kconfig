@@ -12,7 +12,9 @@ config MAX1363
 	  Say yes here to build support for many MAXIM i2c analog to digital
 	  convertors (ADC). (max1361, max1362, max1363, max1364, max1136,
 	  max1136, max1137, max1138, max1139, max1236, max1237, max11238,
-	  max1239) Provides direct access via sysfs.
+	  max1239, max11606, max11607, max11608, max11609, max11610,
+	  max11611, max11612, max11613, max11614, max11615, max11616,
+	  max11617) Provides direct access via sysfs.
 
 config MAX1363_RING_BUFFER
 	bool "MAXIM max1363: use ring buffer"
