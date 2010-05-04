@@ -804,50 +804,6 @@ out_unlock:
 }
 
 /*
- * splice a dentry to an inode.
- * caller must hold directory i_mutex for this to be safe.
- *
- * we will only rehash the resulting dentry if @prehash is
- * true; @prehash will be set to false (for the benefit of
- * the caller) if we fail.
- */
-static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
-				    bool *prehash)
-{
-	struct dentry *realdn;
-
-	/* dn must be unhashed */
-	if (!d_unhashed(dn))
-		d_drop(dn);
-	realdn = d_materialise_unique(dn, in);
-	if (IS_ERR(realdn)) {
-		pr_err("splice_dentry error %p inode %p ino %llx.%llx\n",
-		       dn, in, ceph_vinop(in));
-		if (prehash)
-			*prehash = false; /* don't rehash on error */
-		dn = realdn; /* note realdn contains the error */
-		goto out;
-	} else if (realdn) {
-		dout("dn %p (%d) spliced with %p (%d) "
-		     "inode %p ino %llx.%llx\n",
-		     dn, atomic_read(&dn->d_count),
-		     realdn, atomic_read(&realdn->d_count),
-		     realdn->d_inode, ceph_vinop(realdn->d_inode));
-		dput(dn);
-		dn = realdn;
-	} else {
-		BUG_ON(!ceph_dentry(dn));
-
-		dout("dn %p attached to %p ino %llx.%llx\n",
-		     dn, dn->d_inode, ceph_vinop(dn->d_inode));
-	}
-	if ((!prehash || *prehash) && d_unhashed(dn))
-		d_rehash(dn);
-out:
-	return dn;
-}
-
-/*
  * Set dentry's directory position based on the current dir's max, and
  * order it in d_subdirs, so that dcache_readdir behaves.
  */
@@ -876,6 +832,52 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 	     dn->d_u.d_child.prev, dn->d_u.d_child.next);
 	spin_unlock(&dn->d_lock);
 	spin_unlock(&dcache_lock);
+}
+
+/*
+ * splice a dentry to an inode.
+ * caller must hold directory i_mutex for this to be safe.
+ *
+ * we will only rehash the resulting dentry if @prehash is
+ * true; @prehash will be set to false (for the benefit of
+ * the caller) if we fail.
+ */
+static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
+				    bool *prehash)
+{
+	struct dentry *realdn;
+
+	BUG_ON(dn->d_inode);
+
+	/* dn must be unhashed */
+	if (!d_unhashed(dn))
+		d_drop(dn);
+	realdn = d_materialise_unique(dn, in);
+	if (IS_ERR(realdn)) {
+		pr_err("splice_dentry error %p inode %p ino %llx.%llx\n",
+		       dn, in, ceph_vinop(in));
+		if (prehash)
+			*prehash = false; /* don't rehash on error */
+		dn = realdn; /* note realdn contains the error */
+		goto out;
+	} else if (realdn) {
+		dout("dn %p (%d) spliced with %p (%d) "
+		     "inode %p ino %llx.%llx\n",
+		     dn, atomic_read(&dn->d_count),
+		     realdn, atomic_read(&realdn->d_count),
+		     realdn->d_inode, ceph_vinop(realdn->d_inode));
+		dput(dn);
+		dn = realdn;
+	} else {
+		BUG_ON(!ceph_dentry(dn));
+		dout("dn %p attached to %p ino %llx.%llx\n",
+		     dn, dn->d_inode, ceph_vinop(dn->d_inode));
+	}
+	if ((!prehash || *prehash) && d_unhashed(dn))
+		d_rehash(dn);
+	ceph_set_dentry_offset(dn);
+out:
+	return dn;
 }
 
 /*
@@ -1030,6 +1032,9 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			ceph_invalidate_dentry_lease(dn);
 
 			/* take overwritten dentry's readdir offset */
+			dout("dn %p gets %p offset %lld (old offset %lld)\n",
+			     req->r_old_dentry, dn, ceph_dentry(dn)->offset,
+			     ceph_dentry(req->r_old_dentry)->offset);
 			ceph_dentry(req->r_old_dentry)->offset =
 				ceph_dentry(dn)->offset;
 
@@ -1074,7 +1079,6 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 				goto done;
 			}
 			req->r_dentry = dn;  /* may have spliced */
-			ceph_set_dentry_offset(dn);
 			igrab(in);
 		} else if (ceph_ino(in) == vino.ino &&
 			   ceph_snap(in) == vino.snap) {
@@ -1117,7 +1121,6 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			err = PTR_ERR(dn);
 			goto done;
 		}
-		ceph_set_dentry_offset(dn);
 		req->r_dentry = dn;  /* may have spliced */
 		igrab(in);
 		rinfo->head->is_dentry = 1;  /* fool notrace handlers */

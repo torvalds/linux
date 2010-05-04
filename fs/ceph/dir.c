@@ -128,7 +128,8 @@ more:
 	dentry = list_entry(p, struct dentry, d_u.d_child);
 	di = ceph_dentry(dentry);
 	while (1) {
-		dout(" p %p/%p d_subdirs %p/%p\n", p->prev, p->next,
+		dout(" p %p/%p %s d_subdirs %p/%p\n", p->prev, p->next,
+		     d_unhashed(dentry) ? "!hashed" : "hashed",
 		     parent->d_subdirs.prev, parent->d_subdirs.next);
 		if (p == &parent->d_subdirs) {
 			fi->at_end = 1;
@@ -571,7 +572,6 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 		    !is_root_ceph_dentry(dir, dentry) &&
 		    (ci->i_ceph_flags & CEPH_I_COMPLETE) &&
 		    (__ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1))) {
-			di->offset = ci->i_max_offset++;
 			spin_unlock(&dir->i_lock);
 			dout(" dir %p complete, -ENOENT\n", dir);
 			d_add(dentry, NULL);
@@ -984,8 +984,9 @@ static int ceph_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *dir = dentry->d_parent->d_inode;
 
-	dout("d_revalidate %p '%.*s' inode %p\n", dentry,
-	     dentry->d_name.len, dentry->d_name.name, dentry->d_inode);
+	dout("d_revalidate %p '%.*s' inode %p offset %lld\n", dentry,
+	     dentry->d_name.len, dentry->d_name.name, dentry->d_inode,
+	     ceph_dentry(dentry)->offset);
 
 	/* always trust cached snapped dentries, snapdir dentry */
 	if (ceph_snap(dir) != CEPH_NOSNAP) {
@@ -1177,8 +1178,8 @@ void ceph_dentry_lru_touch(struct dentry *dn)
 	struct ceph_dentry_info *di = ceph_dentry(dn);
 	struct ceph_mds_client *mdsc;
 
-	dout("dentry_lru_touch %p %p '%.*s'\n", di, dn,
-	     dn->d_name.len, dn->d_name.name);
+	dout("dentry_lru_touch %p %p '%.*s' (offset %lld)\n", di, dn,
+	     dn->d_name.len, dn->d_name.name, di->offset);
 	if (di) {
 		mdsc = &ceph_sb_to_client(dn->d_sb)->mdsc;
 		spin_lock(&mdsc->dentry_lru_lock);
