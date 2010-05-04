@@ -22,6 +22,8 @@
 #include <linux/highmem.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/if_ether.h>
+
 #include "osd.h"
 #include "logging.h"
 #include "NetVscApi.h"
@@ -50,7 +52,7 @@ struct rndis_device {
 	spinlock_t request_lock;
 	struct list_head RequestList;
 
-	unsigned char HwMacAddr[HW_MACADDR_LEN];
+	unsigned char HwMacAddr[ETH_ALEN];
 };
 
 struct rndis_request {
@@ -538,7 +540,7 @@ Cleanup:
 
 static int RndisFilterQueryDeviceMac(struct rndis_device *Device)
 {
-	u32 size = HW_MACADDR_LEN;
+	u32 size = ETH_ALEN;
 
 	return RndisFilterQueryDevice(Device,
 				      RNDIS_OID_802_3_PERMANENT_ADDRESS,
@@ -833,16 +835,10 @@ static int RndisFilterOnDeviceAdd(struct hv_device *Device,
 		 */
 	}
 
-	DPRINT_INFO(NETVSC, "Device 0x%p mac addr %02x%02x%02x%02x%02x%02x",
-		    rndisDevice,
-		    rndisDevice->HwMacAddr[0],
-		    rndisDevice->HwMacAddr[1],
-		    rndisDevice->HwMacAddr[2],
-		    rndisDevice->HwMacAddr[3],
-		    rndisDevice->HwMacAddr[4],
-		    rndisDevice->HwMacAddr[5]);
+	DPRINT_INFO(NETVSC, "Device 0x%p mac addr %pM",
+		    rndisDevice, rndisDevice->HwMacAddr);
 
-	memcpy(deviceInfo->MacAddr, rndisDevice->HwMacAddr, HW_MACADDR_LEN);
+	memcpy(deviceInfo->MacAddr, rndisDevice->HwMacAddr, ETH_ALEN);
 
 	RndisFilterQueryDeviceLinkStatus(rndisDevice);
 

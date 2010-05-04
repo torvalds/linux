@@ -27,9 +27,6 @@
 
 #include "VmbusApi.h"
 
-/* Defines */
-#define HW_MACADDR_LEN			6
-
 /* Fwd declaration */
 struct hv_netvsc_packet;
 
@@ -91,9 +88,6 @@ struct netvsc_driver {
 
 	u32 RingBufferSize;
 	u32 RequestExtSize;
-
-	/* Additional num  of page buffers to allocate */
-	u32 AdditionalRequestPageBufferCount;
 
 	/*
 	 * This is set by the caller to allow us to callback when we
