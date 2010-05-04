@@ -111,14 +111,13 @@ static void netvsc_xmit_completion(void *context)
 	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
 	struct sk_buff *skb = (struct sk_buff *)
 		(unsigned long)packet->Completion.Send.SendCompletionTid;
-	struct net_device *net;
 
 	DPRINT_ENTER(NETVSC_DRV);
 
 	kfree(packet);
 
 	if (skb) {
-		net = skb->dev;
+		struct net_device *net = skb->dev;
 		dev_kfree_skb_any(skb);
 
 		if (netif_queue_stopped(net)) {
@@ -291,7 +290,6 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 {
 	struct vm_device *device_ctx = to_vm_device(device_obj);
 	struct net_device *net = dev_get_drvdata(&device_ctx->device);
-	struct net_device_context *net_device_ctx;
 	struct sk_buff *skb;
 	void *data;
 	int i;
@@ -304,8 +302,6 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 				"not initialized yet");
 		return 0;
 	}
-
-	net_device_ctx = netdev_priv(net);
 
 	/* Allocate a skb - TODO direct I/O to pages? */
 	skb = netdev_alloc_skb_ip_align(net, packet->TotalDataBufferLength);
@@ -585,6 +581,7 @@ static void __exit netvsc_exit(void)
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
+MODULE_DESCRIPTION("Microsoft Hyper-V network driver");
 module_param(netvsc_ringbuffer_size, int, S_IRUGO);
 
 module_init(netvsc_init);
