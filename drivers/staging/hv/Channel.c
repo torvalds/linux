@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include "osd.h"
 #include "logging.h"
 #include "VmbusPrivate.h"
@@ -666,8 +667,19 @@ void VmbusChannelClose(struct vmbus_channel *Channel)
 	DPRINT_EXIT(VMBUS);
 }
 
-/*
- * VmbusChannelSendPacket - Send the specified buffer on the given channel
+/**
+ * VmbusChannelSendPacket() - Send the specified buffer on the given channel
+ * @Channel: Pointer to vmbus_channel structure.
+ * @Buffer: Pointer to the buffer you want to receive the data into.
+ * @BufferLen: Maximum size of what the the buffer will hold
+ * @RequestId: Identifier of the request
+ * @vmbus_packet_type: Type of packet that is being send e.g. negotiate, time
+ * packet etc.
+ *
+ * Sends data in @Buffer directly to hyper-v via the vmbus
+ * This will send the data unparsed to hyper-v.
+ *
+ * Mainly used by Hyper-V drivers.
  */
 int VmbusChannelSendPacket(struct vmbus_channel *Channel, const void *Buffer,
 			   u32 BufferLen, u64 RequestId,
@@ -711,6 +723,7 @@ int VmbusChannelSendPacket(struct vmbus_channel *Channel, const void *Buffer,
 
 	return ret;
 }
+EXPORT_SYMBOL(VmbusChannelSendPacket);
 
 /*
  * VmbusChannelSendPacketPageBuffer - Send a range of single-page buffer
@@ -848,10 +861,20 @@ int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *Channel,
 	return ret;
 }
 
-/*
- * VmbusChannelRecvPacket - Retrieve the user packet on the specified channel
+
+/**
+ * VmbusChannelRecvPacket() - Retrieve the user packet on the specified channel
+ * @Channel: Pointer to vmbus_channel structure.
+ * @Buffer: Pointer to the buffer you want to receive the data into.
+ * @BufferLen: Maximum size of what the the buffer will hold
+ * @BufferActualLen: The actual size of the data after it was received
+ * @RequestId: Identifier of the request
+ *
+ * Receives directly from the hyper-v vmbus and puts the data it received
+ * into Buffer. This will receive the data unparsed from hyper-v.
+ *
+ * Mainly used by Hyper-V drivers.
  */
-/* TODO: Do we ever receive a gpa direct packet other than the ones we send ? */
 int VmbusChannelRecvPacket(struct vmbus_channel *Channel, void *Buffer,
 			   u32 BufferLen, u32 *BufferActualLen, u64 *RequestId)
 {
@@ -913,6 +936,7 @@ int VmbusChannelRecvPacket(struct vmbus_channel *Channel, void *Buffer,
 
 	return 0;
 }
+EXPORT_SYMBOL(VmbusChannelRecvPacket);
 
 /*
  * VmbusChannelRecvPacketRaw - Retrieve the raw packet on the specified channel

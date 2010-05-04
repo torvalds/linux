@@ -22,6 +22,7 @@
  */
 
 #ifndef _VMBUSPACKETFORMAT_H_
+#define _VMBUSPACKETFORMAT_H_
 
 struct vmpacket_descriptor {
 	u16 Type;

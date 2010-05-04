@@ -22,18 +22,22 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/module.h>
 #include "osd.h"
 #include "logging.h"
 #include "VmbusPrivate.h"
+#include "utils.h"
 
 struct vmbus_channel_message_table_entry {
 	enum vmbus_channel_message_type messageType;
 	void (*messageHandler)(struct vmbus_channel_message_header *msg);
 };
 
-#define MAX_NUM_DEVICE_CLASSES_SUPPORTED 4
+#define MAX_MSG_TYPES                    1
+#define MAX_NUM_DEVICE_CLASSES_SUPPORTED 5
+
 static const struct hv_guid
-		gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
+	gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
 	/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
 	/* Storage - SCSI */
 	{
@@ -69,7 +73,126 @@ static const struct hv_guid
 			0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5
 		}
 	},
+	/* 0E0B6031-5213-4934-818B-38D90CED39DB */
+	/* Shutdown */
+	{
+		.data = {
+			0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
+			0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB
+		}
+	},
 };
+
+
+/**
+ * prep_negotiate_resp() - Create default response for Hyper-V Negotiate message
+ * @icmsghdrp: Pointer to msg header structure
+ * @icmsg_negotiate: Pointer to negotiate message structure
+ * @buf: Raw buffer channel data
+ *
+ * @icmsghdrp is of type &struct icmsg_hdr.
+ * @negop is of type &struct icmsg_negotiate.
+ * Set up and fill in default negotiate response message. This response can
+ * come from both the vmbus driver and the hv_utils driver. The current api
+ * will respond properly to both Windows 2008 and Windows 2008-R2 operating
+ * systems.
+ *
+ * Mainly used by Hyper-V drivers.
+ */
+void prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
+			     struct icmsg_negotiate *negop,
+			     u8 *buf)
+{
+	if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
+		icmsghdrp->icmsgsize = 0x10;
+
+		negop = (struct icmsg_negotiate *)&buf[
+			sizeof(struct vmbuspipe_hdr) +
+			sizeof(struct icmsg_hdr)];
+
+		if (negop->icframe_vercnt == 2 &&
+		   negop->icversion_data[1].major == 3) {
+			negop->icversion_data[0].major = 3;
+			negop->icversion_data[0].minor = 0;
+			negop->icversion_data[1].major = 3;
+			negop->icversion_data[1].minor = 0;
+		} else {
+			negop->icversion_data[0].major = 1;
+			negop->icversion_data[0].minor = 0;
+			negop->icversion_data[1].major = 1;
+			negop->icversion_data[1].minor = 0;
+		}
+
+		negop->icframe_vercnt = 1;
+		negop->icmsg_vercnt = 1;
+	}
+}
+EXPORT_SYMBOL(prep_negotiate_resp);
+
+/**
+ * chn_cb_negotiate() - Default handler for non IDE/SCSI/NETWORK
+ * Hyper-V requests
+ * @context: Pointer to argument structure.
+ *
+ * Set up the default handler for non device driver specific requests
+ * from Hyper-V. This stub responds to the default negotiate messages
+ * that come in for every non IDE/SCSI/Network request.
+ * This behavior is normally overwritten in the hv_utils driver. That
+ * driver handles requests like gracefull shutdown, heartbeats etc.
+ *
+ * Mainly used by Hyper-V drivers.
+ */
+void chn_cb_negotiate(void *context)
+{
+	struct vmbus_channel *channel = context;
+	u8 *buf;
+	u32 buflen, recvlen;
+	u64 requestid;
+
+	struct icmsg_hdr *icmsghdrp;
+	struct icmsg_negotiate *negop = NULL;
+
+	buflen = PAGE_SIZE;
+	buf = kmalloc(buflen, GFP_ATOMIC);
+
+	VmbusChannelRecvPacket(channel, buf, buflen, &recvlen, &requestid);
+
+	if (recvlen > 0) {
+		icmsghdrp = (struct icmsg_hdr *)&buf[
+			sizeof(struct vmbuspipe_hdr)];
+
+		prep_negotiate_resp(icmsghdrp, negop, buf);
+
+		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
+			| ICMSGHDRFLAG_RESPONSE;
+
+		VmbusChannelSendPacket(channel, buf,
+				       recvlen, requestid,
+				       VmbusPacketTypeDataInBand, 0);
+	}
+
+	kfree(buf);
+}
+EXPORT_SYMBOL(chn_cb_negotiate);
+
+/*
+ * Function table used for message responses for non IDE/SCSI/Network type
+ * messages. (Such as KVP/Shutdown etc)
+ */
+struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
+	/* 0E0B6031-5213-4934-818B-38D90CED39DB */
+	/* Shutdown */
+	{
+		.msg_type = HV_SHUTDOWN_MSG,
+		.data = {
+			0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
+			0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB
+		},
+		.callback = chn_cb_negotiate,
+		.log_msg = "Shutdown channel functionality initialized"
+	},
+};
+EXPORT_SYMBOL(hv_cb_utils);
 
 /*
  * AllocVmbusChannel - Allocate and initialize a vmbus channel object
@@ -132,7 +255,8 @@ void FreeVmbusChannel(struct vmbus_channel *Channel)
 }
 
 /*
- * VmbusChannelProcessOffer - Process the offer by creating a channel/device associated with this offer
+ * VmbusChannelProcessOffer - Process the offer by creating a channel/device
+ * associated with this offer
  */
 static void VmbusChannelProcessOffer(void *context)
 {
@@ -140,6 +264,7 @@ static void VmbusChannelProcessOffer(void *context)
 	struct vmbus_channel *channel;
 	bool fNew = true;
 	int ret;
+	int cnt;
 	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
@@ -209,6 +334,23 @@ static void VmbusChannelProcessOffer(void *context)
 		 * can cleanup properly
 		 */
 		newChannel->State = CHANNEL_OPEN_STATE;
+		cnt = 0;
+
+		while (cnt != MAX_MSG_TYPES) {
+			if (memcmp(&newChannel->OfferMsg.Offer.InterfaceType,
+				   &hv_cb_utils[cnt].data,
+				   sizeof(struct hv_guid)) == 0) {
+				DPRINT_INFO(VMBUS, "%s",
+					    hv_cb_utils[cnt].log_msg);
+
+				if (VmbusChannelOpen(newChannel, 2 * PAGE_SIZE,
+						    2 * PAGE_SIZE, NULL, 0,
+						    hv_cb_utils[cnt].callback,
+						    newChannel) == 0)
+					hv_cb_utils[cnt].channel = newChannel;
+			}
+			cnt++;
+		}
 	}
 	DPRINT_EXIT(VMBUS);
 }

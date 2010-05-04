@@ -29,4 +29,10 @@ config HYPERV_NET
 	help
 	  Select this option to enable the Hyper-V virtual network driver.
 
+config HYPERV_UTILS
+	tristate "Microsoft Hyper-V Utilities driver"
+	default HYPERV
+	help
+	  Select this option to enable the Hyper-V Utilities.
+
 endif
