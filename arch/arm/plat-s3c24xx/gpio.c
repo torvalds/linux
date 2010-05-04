@@ -34,54 +34,6 @@
 
 #include <mach/regs-gpio.h>
 
-void s3c2410_gpio_cfgpin(unsigned int pin, unsigned int function)
-{
-	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long mask;
-	unsigned long con;
-	unsigned long flags;
-
-	if (pin < S3C2410_GPIO_BANKB) {
-		mask = 1 << S3C2410_GPIO_OFFSET(pin);
-	} else {
-		mask = 3 << S3C2410_GPIO_OFFSET(pin)*2;
-	}
-
-	switch (function) {
-	case S3C2410_GPIO_LEAVE:
-		mask = 0;
-		function = 0;
-		break;
-
-	case S3C2410_GPIO_INPUT:
-	case S3C2410_GPIO_OUTPUT:
-	case S3C2410_GPIO_SFN2:
-	case S3C2410_GPIO_SFN3:
-		if (pin < S3C2410_GPIO_BANKB) {
-			function -= 1;
-			function &= 1;
-			function <<= S3C2410_GPIO_OFFSET(pin);
-		} else {
-			function &= 3;
-			function <<= S3C2410_GPIO_OFFSET(pin)*2;
-		}
-	}
-
-	/* modify the specified register wwith IRQs off */
-
-	local_irq_save(flags);
-
-	con  = __raw_readl(base + 0x00);
-	con &= ~mask;
-	con |= function;
-
-	__raw_writel(con, base + 0x00);
-
-	local_irq_restore(flags);
-}
-
-EXPORT_SYMBOL(s3c2410_gpio_cfgpin);
-
 unsigned int s3c2410_gpio_getcfg(unsigned int pin)
 {
 	void __iomem *base = S3C24XX_GPIO_BASE(pin);
