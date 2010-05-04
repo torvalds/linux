@@ -58,11 +58,11 @@ extern int qla2x00_async_login(struct scsi_qla_host *, fc_port_t *,
 extern int qla2x00_async_logout(struct scsi_qla_host *, fc_port_t *);
 extern int qla2x00_async_adisc(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
-extern int qla2x00_async_login_done(struct scsi_qla_host *, fc_port_t *,
+extern void qla2x00_async_login_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
-extern int qla2x00_async_logout_done(struct scsi_qla_host *, fc_port_t *,
+extern void qla2x00_async_logout_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
-extern int qla2x00_async_adisc_done(struct scsi_qla_host *, fc_port_t *,
+extern void qla2x00_async_adisc_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 
 extern fc_port_t *

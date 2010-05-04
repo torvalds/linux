@@ -214,16 +214,16 @@ typedef struct srb {
 /*
  * SRB extensions.
  */
-#define SRB_LOGIN_CMD	1
-#define SRB_LOGOUT_CMD	2
-#define SRB_ELS_CMD_RPT 3
-#define SRB_ELS_CMD_HST 4
-#define SRB_CT_CMD 5
-#define SRB_ADISC_CMD	6
-
-struct srb_ctx {
-	uint16_t type;
-	char *name;
+struct srb_iocb {
+	union {
+		struct {
+			uint16_t flags;
+#define SRB_LOGIN_RETRIED	BIT_0
+#define SRB_LOGIN_COND_PLOGI	BIT_1
+#define SRB_LOGIN_SKIP_PRLI	BIT_2
+			uint16_t data[2];
+		} logio;
+	} u;
 
 	struct timer_list timer;
 
@@ -232,23 +232,21 @@ struct srb_ctx {
 	void (*timeout)(srb_t *);
 };
 
-struct srb_logio {
-	struct srb_ctx ctx;
+/* Values for srb_ctx type */
+#define SRB_LOGIN_CMD	1
+#define SRB_LOGOUT_CMD	2
+#define SRB_ELS_CMD_RPT 3
+#define SRB_ELS_CMD_HST 4
+#define SRB_CT_CMD	5
+#define SRB_ADISC_CMD	6
 
-#define SRB_LOGIN_RETRIED	BIT_0
-#define SRB_LOGIN_COND_PLOGI	BIT_1
-#define SRB_LOGIN_SKIP_PRLI	BIT_2
-	uint16_t flags;
-	uint16_t data[2];
-};
-
-struct srb_bsg_ctx {
+struct srb_ctx {
 	uint16_t type;
-};
-
-struct srb_bsg {
-	struct srb_bsg_ctx ctx;
-	struct fc_bsg_job *bsg_job;
+	char *name;
+	union {
+		struct srb_iocb *iocb_cmd;
+		struct fc_bsg_job *bsg_job;
+	} u;
 };
 
 struct msg_echo_lb {

@@ -983,13 +983,14 @@ qla2x00_start_iocbs(srb_t *sp)
 static void
 qla24xx_login_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 {
-	struct srb_logio *lio = sp->ctx;
+	struct srb_ctx *ctx = sp->ctx;
+	struct srb_iocb *lio = ctx->u.iocb_cmd;
 
 	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	logio->control_flags = cpu_to_le16(LCF_COMMAND_PLOGI);
-	if (lio->flags & SRB_LOGIN_COND_PLOGI)
+	if (lio->u.logio.flags & SRB_LOGIN_COND_PLOGI)
 		logio->control_flags |= cpu_to_le16(LCF_COND_PLOGI);
-	if (lio->flags & SRB_LOGIN_SKIP_PRLI)
+	if (lio->u.logio.flags & SRB_LOGIN_SKIP_PRLI)
 		logio->control_flags |= cpu_to_le16(LCF_SKIP_PRLI);
 	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
@@ -1002,14 +1003,15 @@ static void
 qla2x00_login_iocb(srb_t *sp, struct mbx_entry *mbx)
 {
 	struct qla_hw_data *ha = sp->fcport->vha->hw;
-	struct srb_logio *lio = sp->ctx;
+	struct srb_ctx *ctx = sp->ctx;
+	struct srb_iocb *lio = ctx->u.iocb_cmd;
 	uint16_t opts;
 
 	mbx->entry_type = MBX_IOCB_TYPE;;
 	SET_TARGET_ID(ha, mbx->loop_id, sp->fcport->loop_id);
 	mbx->mb0 = cpu_to_le16(MBC_LOGIN_FABRIC_PORT);
-	opts = lio->flags & SRB_LOGIN_COND_PLOGI ? BIT_0: 0;
-	opts |= lio->flags & SRB_LOGIN_SKIP_PRLI ? BIT_1: 0;
+	opts = lio->u.logio.flags & SRB_LOGIN_COND_PLOGI ? BIT_0 : 0;
+	opts |= lio->u.logio.flags & SRB_LOGIN_SKIP_PRLI ? BIT_1 : 0;
 	if (HAS_EXTENDED_IDS(ha)) {
 		mbx->mb1 = cpu_to_le16(sp->fcport->loop_id);
 		mbx->mb10 = cpu_to_le16(opts);
@@ -1086,7 +1088,7 @@ qla2x00_adisc_iocb(srb_t *sp, struct mbx_entry *mbx)
 static void
 qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 {
-	struct fc_bsg_job *bsg_job = ((struct srb_bsg*)sp->ctx)->bsg_job;
+	struct fc_bsg_job *bsg_job = ((struct srb_ctx *)sp->ctx)->u.bsg_job;
 
         els_iocb->entry_type = ELS_IOCB_TYPE;
         els_iocb->entry_count = 1;
@@ -1099,8 +1101,10 @@ qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
         els_iocb->sof_type = EST_SOFI3;
         els_iocb->rx_dsd_count = __constant_cpu_to_le16(bsg_job->reply_payload.sg_cnt);
 
-        els_iocb->opcode =(((struct srb_bsg*)sp->ctx)->ctx.type == SRB_ELS_CMD_RPT) ?
-	    bsg_job->request->rqst_data.r_els.els_code : bsg_job->request->rqst_data.h_els.command_code;
+	els_iocb->opcode =
+	    (((struct srb_ctx *)sp->ctx)->type == SRB_ELS_CMD_RPT) ?
+	    bsg_job->request->rqst_data.r_els.els_code :
+	    bsg_job->request->rqst_data.h_els.command_code;
         els_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
         els_iocb->port_id[1] = sp->fcport->d_id.b.area;
         els_iocb->port_id[2] = sp->fcport->d_id.b.domain;
@@ -1134,7 +1138,7 @@ qla24xx_ct_iocb(srb_t *sp, struct ct_entry_24xx *ct_iocb)
 	int index;
 	uint16_t tot_dsds;
         scsi_qla_host_t *vha = sp->fcport->vha;
-	struct fc_bsg_job *bsg_job = ((struct srb_bsg*)sp->ctx)->bsg_job;
+	struct fc_bsg_job *bsg_job = ((struct srb_ctx *)sp->ctx)->u.bsg_job;
 	int loop_iterartion = 0;
 	int cont_iocb_prsnt = 0;
 	int entry_count = 1;

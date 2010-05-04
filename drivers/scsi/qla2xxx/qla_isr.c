@@ -897,7 +897,8 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	const char *type;
 	fc_port_t *fcport;
 	srb_t *sp;
-	struct srb_logio *lio;
+	struct srb_iocb *lio;
+	struct srb_ctx *ctx;
 	uint16_t *data;
 	uint16_t status;
 
@@ -905,14 +906,14 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	if (!sp)
 		return;
 
-	lio = sp->ctx;
-	del_timer(&lio->ctx.timer);
-	type = lio->ctx.name;
+	ctx = sp->ctx;
+	lio = ctx->u.iocb_cmd;
+	type = ctx->name;
 	fcport = sp->fcport;
-	data = lio->data;
+	data = lio->u.logio.data;
 
 	data[0] = MBS_COMMAND_ERROR;
-	data[1] = lio->flags & SRB_LOGIN_RETRIED ?
+	data[1] = lio->u.logio.flags & SRB_LOGIN_RETRIED ?
 	    QLA_LOGIO_LOGIN_RETRIED : 0;
 	if (mbx->entry_status) {
 		DEBUG2(printk(KERN_WARNING
@@ -928,7 +929,7 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	}
 
 	status = le16_to_cpu(mbx->status);
-	if (status == 0x30 && lio->ctx.type == SRB_LOGIN_CMD &&
+	if (status == 0x30 && ctx->type == SRB_LOGIN_CMD &&
 	    le16_to_cpu(mbx->mb0) == MBS_COMMAND_COMPLETE)
 		status = 0;
 	if (!status && le16_to_cpu(mbx->mb0) == MBS_COMMAND_COMPLETE) {
@@ -938,7 +939,7 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		    le16_to_cpu(mbx->mb1)));
 
 		data[0] = MBS_COMMAND_COMPLETE;
-		if (lio->ctx.type == SRB_LOGIN_CMD) {
+		if (ctx->type == SRB_LOGIN_CMD) {
 			fcport->port_type = FCT_TARGET;
 			if (le16_to_cpu(mbx->mb1) & BIT_0)
 				fcport->port_type = FCT_INITIATOR;
@@ -969,7 +970,7 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	    le16_to_cpu(mbx->mb7)));
 
 logio_done:
-	lio->ctx.done(sp);
+	lio->done(sp);
 }
 
 static void
@@ -980,7 +981,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	const char *type;
 	struct qla_hw_data *ha = vha->hw;
 	srb_t *sp;
-	struct srb_bsg *sp_bsg;
+	struct srb_ctx *sp_bsg;
 	struct fc_bsg_job *bsg_job;
 	uint16_t comp_status;
 	uint32_t fw_status[3];
@@ -989,11 +990,11 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
 	if (!sp)
 		return;
-	sp_bsg = (struct srb_bsg*)sp->ctx;
-	bsg_job = sp_bsg->bsg_job;
+	sp_bsg = sp->ctx;
+	bsg_job = sp_bsg->u.bsg_job;
 
 	type = NULL;
-	switch (sp_bsg->ctx.type) {
+	switch (sp_bsg->type) {
 	case SRB_ELS_CMD_RPT:
 	case SRB_ELS_CMD_HST:
 		type = "els";
@@ -1004,7 +1005,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	default:
 		qla_printk(KERN_WARNING, ha,
 		    "%s: Unrecognized SRB: (%p) type=%d.\n", func, sp,
-		    sp_bsg->ctx.type);
+		    sp_bsg->type);
 		return;
 	}
 
@@ -1058,8 +1059,8 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	dma_unmap_sg(&ha->pdev->dev,
 	    bsg_job->reply_payload.sg_list,
 	    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
-	if ((sp_bsg->ctx.type == SRB_ELS_CMD_HST) ||
-	    (sp_bsg->ctx.type == SRB_CT_CMD))
+	if ((sp_bsg->type == SRB_ELS_CMD_HST) ||
+	    (sp_bsg->type == SRB_CT_CMD))
 		kfree(sp->fcport);
 	kfree(sp->ctx);
 	mempool_free(sp, ha->srb_mempool);
@@ -1074,7 +1075,8 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	const char *type;
 	fc_port_t *fcport;
 	srb_t *sp;
-	struct srb_logio *lio;
+	struct srb_iocb *lio;
+	struct srb_ctx *ctx;
 	uint16_t *data;
 	uint32_t iop[2];
 
@@ -1082,14 +1084,14 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	if (!sp)
 		return;
 
-	lio = sp->ctx;
-	del_timer(&lio->ctx.timer);
-	type = lio->ctx.name;
+	ctx = sp->ctx;
+	lio = ctx->u.iocb_cmd;
+	type = ctx->name;
 	fcport = sp->fcport;
-	data = lio->data;
+	data = lio->u.logio.data;
 
 	data[0] = MBS_COMMAND_ERROR;
-	data[1] = lio->flags & SRB_LOGIN_RETRIED ?
+	data[1] = lio->u.logio.flags & SRB_LOGIN_RETRIED ?
 		QLA_LOGIO_LOGIN_RETRIED : 0;
 	if (logio->entry_status) {
 		DEBUG2(printk(KERN_WARNING
@@ -1108,7 +1110,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		    le32_to_cpu(logio->io_parameter[0])));
 
 		data[0] = MBS_COMMAND_COMPLETE;
-		if (lio->ctx.type != SRB_LOGIN_CMD)
+		if (ctx->type != SRB_LOGIN_CMD)
 			goto logio_done;
 
 		iop[0] = le32_to_cpu(logio->io_parameter[0]);
@@ -1156,7 +1158,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	    le32_to_cpu(logio->io_parameter[1])));
 
 logio_done:
-	lio->ctx.done(sp);
+	lio->done(sp);
 }
 
 /**

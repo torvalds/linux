@@ -16,7 +16,7 @@ qla2x00_get_ctx_bsg_sp(scsi_qla_host_t *vha, fc_port_t *fcport, size_t size)
 {
 	srb_t *sp;
 	struct qla_hw_data *ha = vha->hw;
-	struct srb_bsg_ctx *ctx;
+	struct srb_ctx *ctx;
 
 	sp = mempool_alloc(ha->srb_mempool, GFP_KERNEL);
 	if (!sp)
@@ -208,7 +208,7 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	int req_sg_cnt, rsp_sg_cnt;
 	int rval =  (DRIVER_ERROR << 16);
 	uint16_t nextlid = 0;
-	struct srb_bsg *els;
+	struct srb_ctx *els;
 
 	/*  Multiple SG's are not supported for ELS requests */
 	if (bsg_job->request_payload.sg_cnt > 1 ||
@@ -307,17 +307,17 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	}
 
 	/* Alloc SRB structure */
-	sp = qla2x00_get_ctx_bsg_sp(vha, fcport, sizeof(struct srb_bsg));
+	sp = qla2x00_get_ctx_bsg_sp(vha, fcport, sizeof(struct srb_ctx));
 	if (!sp) {
 		rval = -ENOMEM;
 		goto done_unmap_sg;
 	}
 
 	els = sp->ctx;
-	els->ctx.type =
+	els->type =
 		(bsg_job->request->msgcode == FC_BSG_RPT_ELS ?
 		SRB_ELS_CMD_RPT : SRB_ELS_CMD_HST);
-	els->bsg_job = bsg_job;
+	els->u.bsg_job = bsg_job;
 
 	DEBUG2(qla_printk(KERN_INFO, ha,
 		"scsi(%ld:%x): bsg rqst type: %s els type: %x - loop-id=%x "
@@ -361,7 +361,7 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	uint16_t loop_id;
 	struct fc_port *fcport;
 	char  *type = "FC_BSG_HST_CT";
-	struct srb_bsg *ct;
+	struct srb_ctx *ct;
 
 	/* pass through is supported only for ISP 4Gb or higher */
 	if (!IS_FWI2_CAPABLE(ha)) {
@@ -442,15 +442,15 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	fcport->loop_id = loop_id;
 
 	/* Alloc SRB structure */
-	sp = qla2x00_get_ctx_bsg_sp(vha, fcport, sizeof(struct srb_bsg));
+	sp = qla2x00_get_ctx_bsg_sp(vha, fcport, sizeof(struct srb_ctx));
 	if (!sp) {
 		rval = -ENOMEM;
 		goto done_free_fcport;
 	}
 
 	ct = sp->ctx;
-	ct->ctx.type = SRB_CT_CMD;
-	ct->bsg_job = bsg_job;
+	ct->type = SRB_CT_CMD;
+	ct->u.bsg_job = bsg_job;
 
 	DEBUG2(qla_printk(KERN_INFO, ha,
 		"scsi(%ld:%x): bsg rqst type: %s els type: %x - loop-id=%x "
@@ -1155,7 +1155,7 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 	int cnt, que;
 	unsigned long flags;
 	struct req_que *req;
-	struct srb_bsg *sp_bsg;
+	struct srb_ctx *sp_bsg;
 
 	/* find the bsg job from the active list of commands */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1167,11 +1167,11 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
 			sp = req->outstanding_cmds[cnt];
 			if (sp) {
-				sp_bsg = (struct srb_bsg *)sp->ctx;
+				sp_bsg = sp->ctx;
 
-				if (((sp_bsg->ctx.type == SRB_CT_CMD) ||
-					(sp_bsg->ctx.type == SRB_ELS_CMD_HST))
-					&& (sp_bsg->bsg_job == bsg_job)) {
+				if (((sp_bsg->type == SRB_CT_CMD) ||
+					(sp_bsg->type == SRB_ELS_CMD_HST))
+					&& (sp_bsg->u.bsg_job == bsg_job)) {
 					if (ha->isp_ops->abort_command(sp)) {
 						DEBUG2(qla_printk(KERN_INFO, ha,
 						    "scsi(%ld): mbx "

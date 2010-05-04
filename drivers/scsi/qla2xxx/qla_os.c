@@ -1191,24 +1191,19 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 					ctx = sp->ctx;
 					if (ctx->type == SRB_LOGIN_CMD ||
 					    ctx->type == SRB_LOGOUT_CMD) {
-						del_timer_sync(&ctx->timer);
-						ctx->free(sp);
+						ctx->u.iocb_cmd->free(sp);
 					} else {
-						struct srb_bsg *sp_bsg =
-						    (struct srb_bsg *)sp->ctx;
 						struct fc_bsg_job *bsg_job =
-						    sp_bsg->bsg_job;
-
+						    ctx->u.bsg_job;
 						if (bsg_job->request->msgcode
 						    == FC_BSG_HST_CT)
 							kfree(sp->fcport);
 						bsg_job->req->errors = 0;
 						bsg_job->reply->result = res;
-						bsg_job->job_done(
-						    sp_bsg->bsg_job);
+						bsg_job->job_done(bsg_job);
 						kfree(sp->ctx);
 						mempool_free(sp,
-						    ha->srb_mempool);
+							ha->srb_mempool);
 					}
 				}
 			}

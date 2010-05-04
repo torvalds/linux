@@ -48,6 +48,7 @@ qla2x00_ctx_sp_timeout(unsigned long __data)
 {
 	srb_t *sp = (srb_t *)__data;
 	struct srb_ctx *ctx;
+	struct srb_iocb *iocb;
 	fc_port_t *fcport = sp->fcport;
 	struct qla_hw_data *ha = fcport->vha->hw;
 	struct req_que *req;
@@ -57,17 +58,21 @@ qla2x00_ctx_sp_timeout(unsigned long __data)
 	req = ha->req_q_map[0];
 	req->outstanding_cmds[sp->handle] = NULL;
 	ctx = sp->ctx;
-	ctx->timeout(sp);
+	iocb = ctx->u.iocb_cmd;
+	iocb->timeout(sp);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	ctx->free(sp);
+	iocb->free(sp);
 }
 
 void
 qla2x00_ctx_sp_free(srb_t *sp)
 {
 	struct srb_ctx *ctx = sp->ctx;
+	struct srb_iocb *iocb = ctx->u.iocb_cmd;
 
+	del_timer_sync(&iocb->timer);
+	kfree(iocb);
 	kfree(ctx);
 	mempool_free(sp, sp->fcport->vha->hw->srb_mempool);
 }
@@ -79,6 +84,7 @@ qla2x00_get_ctx_sp(scsi_qla_host_t *vha, fc_port_t *fcport, size_t size,
 	srb_t *sp;
 	struct qla_hw_data *ha = vha->hw;
 	struct srb_ctx *ctx;
+	struct srb_iocb *iocb;
 
 	sp = mempool_alloc(ha->srb_mempool, GFP_KERNEL);
 	if (!sp)
@@ -86,21 +92,30 @@ qla2x00_get_ctx_sp(scsi_qla_host_t *vha, fc_port_t *fcport, size_t size,
 	ctx = kzalloc(size, GFP_KERNEL);
 	if (!ctx) {
 		mempool_free(sp, ha->srb_mempool);
+		sp = NULL;
+		goto done;
+	}
+	iocb = kzalloc(sizeof(struct srb_iocb), GFP_KERNEL);
+	if (!iocb) {
+		mempool_free(sp, ha->srb_mempool);
+		sp = NULL;
+		kfree(ctx);
 		goto done;
 	}
 
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
 	sp->ctx = ctx;
-	ctx->free = qla2x00_ctx_sp_free;
+	ctx->u.iocb_cmd = iocb;
+	iocb->free = qla2x00_ctx_sp_free;
 
-	init_timer(&ctx->timer);
+	init_timer(&iocb->timer);
 	if (!tmo)
 		goto done;
-	ctx->timer.expires = jiffies + tmo * HZ;
-	ctx->timer.data = (unsigned long)sp;
-	ctx->timer.function = qla2x00_ctx_sp_timeout;
-	add_timer(&ctx->timer);
+	iocb->timer.expires = jiffies + tmo * HZ;
+	iocb->timer.data = (unsigned long)sp;
+	iocb->timer.function = qla2x00_ctx_sp_timeout;
+	add_timer(&iocb->timer);
 done:
 	return sp;
 }
@@ -113,25 +128,26 @@ static void
 qla2x00_async_logio_timeout(srb_t *sp)
 {
 	fc_port_t *fcport = sp->fcport;
-	struct srb_logio *lio = sp->ctx;
+	struct srb_ctx *ctx = sp->ctx;
 
 	DEBUG2(printk(KERN_WARNING
 	    "scsi(%ld:%x): Async-%s timeout.\n",
-	    fcport->vha->host_no, sp->handle, lio->ctx.name));
+	    fcport->vha->host_no, sp->handle, ctx->name));
 
 	fcport->flags &= ~FCF_ASYNC_SENT;
-	if (lio->ctx.type == SRB_LOGIN_CMD)
+	if (ctx->type == SRB_LOGIN_CMD)
 		qla2x00_post_async_logout_work(fcport->vha, fcport, NULL);
 }
 
 static void
 qla2x00_async_login_ctx_done(srb_t *sp)
 {
-	struct srb_logio *lio = sp->ctx;
+	struct srb_ctx *ctx = sp->ctx;
+	struct srb_iocb *lio = ctx->u.iocb_cmd;
 
 	qla2x00_post_async_login_done_work(sp->fcport->vha, sp->fcport,
-	    lio->data);
-	lio->ctx.free(sp);
+		lio->u.logio.data);
+	lio->free(sp);
 }
 
 int
@@ -140,23 +156,25 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 {
 	struct qla_hw_data *ha = vha->hw;
 	srb_t *sp;
-	struct srb_logio *lio;
+	struct srb_ctx *ctx;
+	struct srb_iocb *lio;
 	int rval;
 
 	rval = QLA_FUNCTION_FAILED;
-	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_logio),
+	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_ctx),
 	    ELS_TMO_2_RATOV(ha) + 2);
 	if (!sp)
 		goto done;
 
-	lio = sp->ctx;
-	lio->ctx.type = SRB_LOGIN_CMD;
-	lio->ctx.name = "login";
-	lio->ctx.timeout = qla2x00_async_logio_timeout;
-	lio->ctx.done = qla2x00_async_login_ctx_done;
-	lio->flags |= SRB_LOGIN_COND_PLOGI;
+	ctx = sp->ctx;
+	ctx->type = SRB_LOGIN_CMD;
+	ctx->name = "login";
+	lio = ctx->u.iocb_cmd;
+	lio->timeout = qla2x00_async_logio_timeout;
+	lio->done = qla2x00_async_login_ctx_done;
+	lio->u.logio.flags |= SRB_LOGIN_COND_PLOGI;
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
-		lio->flags |= SRB_LOGIN_RETRIED;
+		lio->u.logio.flags |= SRB_LOGIN_RETRIED;
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS)
 		goto done_free_sp;
@@ -169,8 +187,7 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 	return rval;
 
 done_free_sp:
-	del_timer_sync(&lio->ctx.timer);
-	lio->ctx.free(sp);
+	lio->free(sp);
 done:
 	return rval;
 }
@@ -178,11 +195,12 @@ done:
 static void
 qla2x00_async_logout_ctx_done(srb_t *sp)
 {
-	struct srb_logio *lio = sp->ctx;
+	struct srb_ctx *ctx = sp->ctx;
+	struct srb_iocb *lio = ctx->u.iocb_cmd;
 
 	qla2x00_post_async_logout_done_work(sp->fcport->vha, sp->fcport,
-	    lio->data);
-	lio->ctx.free(sp);
+	    lio->u.logio.data);
+	lio->free(sp);
 }
 
 int
@@ -190,20 +208,22 @@ qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
 	struct qla_hw_data *ha = vha->hw;
 	srb_t *sp;
-	struct srb_logio *lio;
+	struct srb_ctx *ctx;
+	struct srb_iocb *lio;
 	int rval;
 
 	rval = QLA_FUNCTION_FAILED;
-	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_logio),
+	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_ctx),
 	    ELS_TMO_2_RATOV(ha) + 2);
 	if (!sp)
 		goto done;
 
-	lio = sp->ctx;
-	lio->ctx.type = SRB_LOGOUT_CMD;
-	lio->ctx.name = "logout";
-	lio->ctx.timeout = qla2x00_async_logio_timeout;
-	lio->ctx.done = qla2x00_async_logout_ctx_done;
+	ctx = sp->ctx;
+	ctx->type = SRB_LOGOUT_CMD;
+	ctx->name = "logout";
+	lio = ctx->u.iocb_cmd;
+	lio->timeout = qla2x00_async_logio_timeout;
+	lio->done = qla2x00_async_logout_ctx_done;
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS)
 		goto done_free_sp;
@@ -215,8 +235,7 @@ qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	del_timer_sync(&lio->ctx.timer);
-	lio->ctx.free(sp);
+	lio->free(sp);
 done:
 	return rval;
 }
@@ -224,11 +243,12 @@ done:
 static void
 qla2x00_async_adisc_ctx_done(srb_t *sp)
 {
-	struct srb_logio *lio = sp->ctx;
+	struct srb_ctx *ctx = sp->ctx;
+	struct srb_iocb *lio = ctx->u.iocb_cmd;
 
 	qla2x00_post_async_adisc_done_work(sp->fcport->vha, sp->fcport,
-	    lio->data);
-	lio->ctx.free(sp);
+	    lio->u.logio.data);
+	lio->free(sp);
 }
 
 int
@@ -237,22 +257,24 @@ qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
 {
 	struct qla_hw_data *ha = vha->hw;
 	srb_t *sp;
-	struct srb_logio *lio;
+	struct srb_ctx *ctx;
+	struct srb_iocb *lio;
 	int rval;
 
 	rval = QLA_FUNCTION_FAILED;
-	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_logio),
+	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_ctx),
 	    ELS_TMO_2_RATOV(ha) + 2);
 	if (!sp)
 		goto done;
 
-	lio = sp->ctx;
-	lio->ctx.type = SRB_ADISC_CMD;
-	lio->ctx.name = "adisc";
-	lio->ctx.timeout = qla2x00_async_logio_timeout;
-	lio->ctx.done = qla2x00_async_adisc_ctx_done;
+	ctx = sp->ctx;
+	ctx->type = SRB_ADISC_CMD;
+	ctx->name = "adisc";
+	lio = ctx->u.iocb_cmd;
+	lio->timeout = qla2x00_async_logio_timeout;
+	lio->done = qla2x00_async_adisc_ctx_done;
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
-		lio->flags |= SRB_LOGIN_RETRIED;
+		lio->u.logio.flags |= SRB_LOGIN_RETRIED;
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS)
 		goto done_free_sp;
@@ -265,13 +287,12 @@ qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
 	return rval;
 
 done_free_sp:
-	del_timer_sync(&lio->ctx.timer);
-	lio->ctx.free(sp);
+	lio->free(sp);
 done:
 	return rval;
 }
 
-int
+void
 qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
@@ -308,25 +329,25 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 		qla2x00_post_async_login_work(vha, fcport, NULL);
 		break;
 	}
-	return QLA_SUCCESS;
+	return;
 }
 
-int
+void
 qla2x00_async_logout_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
 	qla2x00_mark_device_lost(vha, fcport, 1, 0);
-	return QLA_SUCCESS;
+	return;
 }
 
-int
+void
 qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
 	if (data[0] == MBS_COMMAND_COMPLETE) {
 		qla2x00_update_fcport(vha, fcport);
 
-		return QLA_SUCCESS;
+		return;
 	}
 
 	/* Retry login. */
@@ -336,7 +357,7 @@ qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 	else
 		qla2x00_mark_device_lost(vha, fcport, 1, 0);
 
-	return QLA_SUCCESS;
+	return;
 }
 
 /****************************************************************************/
