@@ -1418,10 +1418,18 @@ static int gfs2_quota_get_xstate(struct super_block *sb,
 
 	memset(fqs, 0, sizeof(struct fs_quota_stat));
 	fqs->qs_version = FS_QSTAT_VERSION;
-	if (sdp->sd_args.ar_quota == GFS2_QUOTA_ON)
-		fqs->qs_flags = (XFS_QUOTA_UDQ_ENFD | XFS_QUOTA_GDQ_ENFD);
-	else if (sdp->sd_args.ar_quota == GFS2_QUOTA_ACCOUNT)
-		fqs->qs_flags = (XFS_QUOTA_UDQ_ACCT | XFS_QUOTA_GDQ_ACCT);
+
+	switch (sdp->sd_args.ar_quota) {
+	case GFS2_QUOTA_ON:
+		fqs->qs_flags |= (XFS_QUOTA_UDQ_ENFD | XFS_QUOTA_GDQ_ENFD);
+		/*FALLTHRU*/
+	case GFS2_QUOTA_ACCOUNT:
+		fqs->qs_flags |= (XFS_QUOTA_UDQ_ACCT | XFS_QUOTA_GDQ_ACCT);
+		break;
+	case GFS2_QUOTA_OFF:
+		break;
+	}
+
 	if (sdp->sd_quota_inode) {
 		fqs->qs_uquota.qfs_ino = GFS2_I(sdp->sd_quota_inode)->i_no_addr;
 		fqs->qs_uquota.qfs_nblks = sdp->sd_quota_inode->i_blocks;
