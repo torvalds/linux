@@ -36,6 +36,8 @@ static inline void kvm_rip_write(struct kvm_vcpu *vcpu, unsigned long val)
 
 static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
 {
+	might_sleep();  /* on svm */
+
 	if (!test_bit(VCPU_EXREG_PDPTR,
 		      (unsigned long *)&vcpu->arch.regs_avail))
 		kvm_x86_ops->cache_reg(vcpu, VCPU_EXREG_PDPTR);
