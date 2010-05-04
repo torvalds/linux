@@ -701,10 +701,7 @@ static int az6027_ci_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int o
 	} else
 		ret = 0;
 
-	if (b[0] == 0) {
-		ret = 0;
-
-	} else if (b[0] == 1) {
+	if (!ret && b[0] == 1) {
 		ret = DVB_CA_EN50221_POLL_CAM_PRESENT |
 		      DVB_CA_EN50221_POLL_CAM_READY;
 	}
