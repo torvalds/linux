@@ -1296,7 +1296,6 @@ static int rtl8192_rx_initiate(struct net_device*dev)
                         kfree_skb(skb);
                         break;
                 }
-//		printk("nomal packet IN request!\n");
                 usb_fill_bulk_urb(entry, priv->udev,
                                   usb_rcvbulkpipe(priv->udev, 3), skb_tail_pointer(skb),
                                   RX_URB_SIZE, rtl8192_rx_isr, skb);
@@ -1310,7 +1309,6 @@ static int rtl8192_rx_initiate(struct net_device*dev)
 
 	/* command packet rx procedure */
         while (skb_queue_len(&priv->rx_queue) < MAX_RX_URB + 3) {
-//		printk("command packet IN request!\n");
                 skb = __dev_alloc_skb(RX_URB_SIZE ,GFP_KERNEL);
                 if (!skb)
                         break;

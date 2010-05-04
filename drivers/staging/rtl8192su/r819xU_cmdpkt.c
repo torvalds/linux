@@ -26,6 +26,12 @@ bool SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	 * (It is shared by CmdQ, MgntQ, and USB coalesce DataQ)
 	 */
 	skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + DataLen + 4);
+	if (skb == NULL) {
+		RT_TRACE(COMP_ERR, "(%s): unable to alloc skb buffer\n",
+								__func__);
+		rtStatus = false;
+		return rtStatus;
+	}
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	tcb_desc->queue_index = TXCMD_QUEUE;
