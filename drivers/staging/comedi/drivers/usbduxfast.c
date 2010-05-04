@@ -525,7 +525,7 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 	return 0;
 }
 
-int usbduxfastsub_submit_InURBs(struct usbduxfastsub_s *udfs)
+static int usbduxfastsub_submit_InURBs(struct usbduxfastsub_s *udfs)
 {
 	int ret;
 
