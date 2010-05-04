@@ -31,7 +31,7 @@
 
 char e1000_driver_name[] = "e1000";
 static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
-#define DRV_VERSION "7.3.21-k5-NAPI"
+#define DRV_VERSION "7.3.21-k6-NAPI"
 const char e1000_driver_version[] = DRV_VERSION;
 static const char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -2384,6 +2384,22 @@ link_up:
 			/* return immediately since reset is imminent */
 			return;
 		}
+	}
+
+	/* Simple mode for Interrupt Throttle Rate (ITR) */
+	if (hw->mac_type >= e1000_82540 && adapter->itr_setting == 4) {
+		/*
+		 * Symmetric Tx/Rx gets a reduced ITR=2000;
+		 * Total asymmetrical Tx or Rx gets ITR=8000;
+		 * everyone else is between 2000-8000.
+		 */
+		u32 goc = (adapter->gotcl + adapter->gorcl) / 10000;
+		u32 dif = (adapter->gotcl > adapter->gorcl ?
+			    adapter->gotcl - adapter->gorcl :
+			    adapter->gorcl - adapter->gotcl) / 10000;
+		u32 itr = goc > 0 ? (dif * 6000 / goc + 2000) : 8000;
+
+		ew32(ITR, 1000000000 / (itr * 256));
 	}
 
 	/* Cause software interrupt to ensure rx ring is cleaned */

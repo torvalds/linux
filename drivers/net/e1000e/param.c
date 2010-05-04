@@ -351,6 +351,11 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 				adapter->itr_setting = adapter->itr;
 				adapter->itr = 20000;
 				break;
+			case 4:
+				e_info("%s set to simplified (2000-8000 ints) "
+				       "mode\n", opt.name);
+				adapter->itr_setting = 4;
+				break;
 			default:
 				/*
 				 * Save the setting, because the dynamic bits
