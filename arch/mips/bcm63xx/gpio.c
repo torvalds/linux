@@ -91,7 +91,7 @@ static int bcm63xx_gpio_set_direction(struct gpio_chip *chip,
 
 	spin_lock_irqsave(&bcm63xx_gpio_lock, flags);
 	tmp = bcm_gpio_readl(reg);
-	if (dir == GPIO_DIR_IN)
+	if (dir == BCM63XX_GPIO_DIR_IN)
 		tmp &= ~mask;
 	else
 		tmp |= mask;
@@ -103,14 +103,14 @@ static int bcm63xx_gpio_set_direction(struct gpio_chip *chip,
 
 static int bcm63xx_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
-	return bcm63xx_gpio_set_direction(chip, gpio, GPIO_DIR_IN);
+	return bcm63xx_gpio_set_direction(chip, gpio, BCM63XX_GPIO_DIR_IN);
 }
 
 static int bcm63xx_gpio_direction_output(struct gpio_chip *chip,
 					 unsigned gpio, int value)
 {
 	bcm63xx_gpio_set(chip, gpio, value);
-	return bcm63xx_gpio_set_direction(chip, gpio, GPIO_DIR_OUT);
+	return bcm63xx_gpio_set_direction(chip, gpio, BCM63XX_GPIO_DIR_OUT);
 }
 
 
