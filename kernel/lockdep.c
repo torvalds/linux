@@ -2303,7 +2303,7 @@ void trace_hardirqs_on_caller(unsigned long ip)
 		 * so this is racy by nature but loosing one hit
 		 * in a stat is not a big deal.
 		 */
-		this_cpu_inc(lockdep_stats.redundant_hardirqs_on);
+		__debug_atomic_inc(redundant_hardirqs_on);
 		return;
 	}
 	/* we'll do an OFF -> ON transition: */
