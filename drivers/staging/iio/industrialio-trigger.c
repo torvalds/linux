@@ -169,7 +169,7 @@ struct iio_trigger *iio_trigger_find_by_name(const char *name, size_t len)
 	mutex_unlock(&iio_trigger_list_lock);
 
 	return found ? trig : NULL;
-};
+}
 EXPORT_SYMBOL(iio_trigger_find_by_name);
 
 void iio_trigger_poll(struct iio_trigger *trig)
