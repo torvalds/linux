@@ -1331,7 +1331,7 @@ static const struct amd_flash_info jedec_table[] = {
 		}
 	}, {
 		.mfr_id		= CFI_MFR_SST,
- 		.dev_id 	= SST29EE020,
+		.dev_id		= SST29EE020,
 		.name		= "SST 29EE020",
 		.devtypes	= CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x5555_0x2AAA,
@@ -1341,9 +1341,9 @@ static const struct amd_flash_info jedec_table[] = {
 		.regions = {ERASEINFO(0x01000,64),
 		}
 	}, {
- 		.mfr_id		= CFI_MFR_SST,
+		.mfr_id		= CFI_MFR_SST,
 		.dev_id		= SST29LE020,
- 		.name		= "SST 29LE020",
+		.name		= "SST 29LE020",
 		.devtypes	= CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x5555_0x2AAA,
 		.dev_size	= SIZE_256KiB,
@@ -1951,7 +1951,7 @@ static int cfi_jedec_setup(struct cfi_private *p_cfi, int index)
 	p_cfi->addr_unlock1 = unlock_addrs[uaddr].addr1 / p_cfi->device_type;
 	p_cfi->addr_unlock2 = unlock_addrs[uaddr].addr2 / p_cfi->device_type;
 
-	return 1; 	/* ok */
+	return 1;	/* ok */
 }
 
 
