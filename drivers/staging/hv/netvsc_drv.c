@@ -52,7 +52,11 @@ struct netvsc_driver_context {
 	struct netvsc_driver drv_obj;
 };
 
-static int netvsc_ringbuffer_size = NETVSC_DEVICE_RING_BUFFER_SIZE;
+/* Need at least MAX_SKB_FRAGS (18) + 1
+   to handle worst case fragmented packet */
+static int ring_size = roundup_pow_of_two(2*MAX_SKB_FRAGS+1);
+module_param(ring_size, int, S_IRUGO);
+MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
 
 /* The one and only one */
 static struct netvsc_driver_context g_netvsc_drv;
@@ -536,7 +540,7 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 
 	vmbus_get_interface(&net_drv_obj->Base.VmbusChannelInterface);
 
-	net_drv_obj->RingBufferSize = netvsc_ringbuffer_size;
+	net_drv_obj->RingBufferSize = ring_size * PAGE_SIZE;
 	net_drv_obj->OnReceiveCallback = netvsc_recv_callback;
 	net_drv_obj->OnLinkStatusChanged = netvsc_linkstatus_callback;
 
@@ -582,7 +586,6 @@ static void __exit netvsc_exit(void)
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
 MODULE_DESCRIPTION("Microsoft Hyper-V network driver");
-module_param(netvsc_ringbuffer_size, int, S_IRUGO);
 
 module_init(netvsc_init);
 module_exit(netvsc_exit);

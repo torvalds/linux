@@ -28,7 +28,6 @@
 #include "VmbusApi.h"
 
 /* Defines */
-#define NETVSC_DEVICE_RING_BUFFER_SIZE	(64*PAGE_SIZE)
 #define HW_MACADDR_LEN			6
 
 /* Fwd declaration */
