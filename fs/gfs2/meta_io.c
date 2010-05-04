@@ -313,6 +313,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 	struct gfs2_bufdata *bd = bh->b_private;
 
 	if (test_clear_buffer_pinned(bh)) {
+		atomic_dec(&sdp->sd_log_pinned);
 		list_del_init(&bd->bd_le.le_list);
 		if (meta) {
 			gfs2_assert_warn(sdp, sdp->sd_log_num_buf);

@@ -469,8 +469,6 @@ static ssize_t name##_store(struct gfs2_sbd *sdp, const char *buf, size_t len)\
 }                                                                             \
 TUNE_ATTR_2(name, name##_store)
 
-TUNE_ATTR(incore_log_blocks, 0);
-TUNE_ATTR(log_flush_secs, 0);
 TUNE_ATTR(quota_warn_period, 0);
 TUNE_ATTR(quota_quantum, 0);
 TUNE_ATTR(max_readahead, 0);
@@ -482,8 +480,6 @@ TUNE_ATTR(statfs_quantum, 1);
 TUNE_ATTR_3(quota_scale, quota_scale_show, quota_scale_store);
 
 static struct attribute *tune_attrs[] = {
-	&tune_attr_incore_log_blocks.attr,
-	&tune_attr_log_flush_secs.attr,
 	&tune_attr_quota_warn_period.attr,
 	&tune_attr_quota_quantum.attr,
 	&tune_attr_max_readahead.attr,
