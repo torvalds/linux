@@ -626,8 +626,10 @@ static void dso__calc_col_width(struct dso *self)
 	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
 	    (!symbol_conf.dso_list ||
 	     strlist__has_entry(symbol_conf.dso_list, self->name))) {
-		unsigned int slen = strlen(self->name);
-		if (slen > dsos__col_width)
+		u16 slen = self->short_name_len;
+		if (verbose)
+			slen = self->long_name_len;
+		if (dsos__col_width < slen)
 			dsos__col_width = slen;
 	}
 
