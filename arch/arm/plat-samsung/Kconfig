@@ -206,6 +206,12 @@ config S3C64XX_DEV_SPI
 	  Compile in platform device definitions for S3C64XX's type
 	  SPI controllers.
 
+config S3C64XX_DEV_TS
+	bool
+	help
+	    Common in platform device definitions for S3C64XX touchscreen
+	    device
+
 # DMA
 
 config S3C_DMA

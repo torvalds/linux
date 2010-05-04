@@ -58,3 +58,4 @@ obj-$(CONFIG_MACH_HMT)		+= mach-hmt.o
 obj-y				+= dev-uart.o
 obj-y				+= dev-audio.o
 obj-$(CONFIG_S3C64XX_DEV_SPI)	+= dev-spi.o
+obj-$(CONFIG_S3C64XX_DEV_TS)	+= dev-ts.o
