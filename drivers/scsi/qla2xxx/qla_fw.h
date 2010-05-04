@@ -400,6 +400,7 @@ struct cmd_type_6 {
 	struct scsi_lun lun;		/* FCP LUN (BE). */
 
 	uint16_t control_flags;		/* Control flags. */
+#define CF_DIF_SEG_DESCR_ENABLE		BIT_3
 #define CF_DATA_SEG_DESCR_ENABLE	BIT_2
 #define CF_READ_DATA			BIT_1
 #define CF_WRITE_DATA			BIT_0
@@ -466,6 +467,43 @@ struct cmd_type_7 {
 	uint32_t dseg_0_len;		/* Data segment 0 length. */
 };
 
+#define COMMAND_TYPE_CRC_2	0x6A	/* Command Type CRC_2 (Type 6)
+					 * (T10-DIF) */
+struct cmd_type_crc_2 {
+	uint8_t entry_type;		/* Entry type. */
+	uint8_t entry_count;		/* Entry count. */
+	uint8_t sys_define;		/* System defined. */
+	uint8_t entry_status;		/* Entry Status. */
+
+	uint32_t handle;		/* System handle. */
+
+	uint16_t nport_handle;		/* N_PORT handle. */
+	uint16_t timeout;		/* Command timeout. */
+
+	uint16_t dseg_count;		/* Data segment count. */
+
+	uint16_t fcp_rsp_dseg_len;	/* FCP_RSP DSD length. */
+
+	struct scsi_lun lun;		/* FCP LUN (BE). */
+
+	uint16_t control_flags;		/* Control flags. */
+
+	uint16_t fcp_cmnd_dseg_len;		/* Data segment length. */
+	uint32_t fcp_cmnd_dseg_address[2];	/* Data segment address. */
+
+	uint32_t fcp_rsp_dseg_address[2];	/* Data segment address. */
+
+	uint32_t byte_count;		/* Total byte count. */
+
+	uint8_t port_id[3];		/* PortID of destination port. */
+	uint8_t vp_index;
+
+	uint32_t crc_context_address[2];	/* Data segment address. */
+	uint16_t crc_context_len;		/* Data segment length. */
+	uint16_t reserved_1;			/* MUST be set to 0. */
+};
+
+
 /*
  * ISP queue - status entry structure definition.
  */
@@ -496,9 +534,16 @@ struct sts_entry_24xx {
 
 	uint32_t sense_len;		/* FCP SENSE length. */
 	uint32_t rsp_data_len;		/* FCP response data length. */
-
 	uint8_t data[28];		/* FCP response/sense information. */
+	/*
+	 * If DIF Error is set in comp_status, these additional fields are
+	 * defined:
+	 * &data[10] : uint8_t report_runt_bg[2];	- computed guard
+	 * &data[12] : uint8_t actual_dif[8];		- DIF Data recieved
+	 * &data[20] : uint8_t expected_dif[8];		- DIF Data computed
+	*/
 };
+
 
 /*
  * Status entry completion status

@@ -189,6 +189,16 @@
 struct req_que;
 
 /*
+ * (sd.h is not exported, hence local inclusion)
+ * Data Integrity Field tuple.
+ */
+struct sd_dif_tuple {
+	__be16 guard_tag;	/* Checksum */
+	__be16 app_tag;		/* Opaque storage */
+	__be32 ref_tag;		/* Target LBA or indirect LBA */
+};
+
+/*
  * SCSI Request Block
  */
 typedef struct srb {
@@ -208,8 +218,14 @@ typedef struct srb {
 /*
  * SRB flag definitions
  */
-#define SRB_DMA_VALID		BIT_0	/* Command sent to ISP */
-#define SRB_FCP_CMND_DMA_VALID	BIT_12  /* FCP command in IOCB */
+#define SRB_DMA_VALID			BIT_0	/* Command sent to ISP */
+#define SRB_FCP_CMND_DMA_VALID		BIT_12	/* DIF: DSD List valid */
+#define SRB_CRC_CTX_DMA_VALID		BIT_2	/* DIF: context DMA valid */
+#define SRB_CRC_PROT_DMA_VALID		BIT_4	/* DIF: prot DMA valid */
+#define SRB_CRC_CTX_DSD_VALID		BIT_5	/* DIF: dsd_list valid */
+
+/* To identify if a srb is of T10-CRC type. @sp => srb_t pointer */
+#define IS_PROT_IO(sp)	(sp->flags & SRB_CRC_CTX_DSD_VALID)
 
 /*
  * SRB extensions.
@@ -1330,6 +1346,66 @@ typedef struct {
 	uint32_t dseg_4_length;		/* Data segment 4 length. */
 } cont_a64_entry_t;
 
+#define PO_MODE_DIF_INSERT	0
+#define PO_MODE_DIF_REMOVE	BIT_0
+#define PO_MODE_DIF_PASS	BIT_1
+#define PO_MODE_DIF_REPLACE	(BIT_0 + BIT_1)
+#define PO_ENABLE_DIF_BUNDLING	BIT_8
+#define PO_ENABLE_INCR_GUARD_SEED	BIT_3
+#define PO_DISABLE_INCR_REF_TAG	BIT_5
+#define PO_DISABLE_GUARD_CHECK	BIT_4
+/*
+ * ISP queue - 64-Bit addressing, continuation crc entry structure definition.
+ */
+struct crc_context {
+	uint32_t handle;		/* System handle. */
+	uint32_t ref_tag;
+	uint16_t app_tag;
+	uint8_t ref_tag_mask[4];	/* Validation/Replacement Mask*/
+	uint8_t app_tag_mask[2];	/* Validation/Replacement Mask*/
+	uint16_t guard_seed;		/* Initial Guard Seed */
+	uint16_t prot_opts;		/* Requested Data Protection Mode */
+	uint16_t blk_size;		/* Data size in bytes */
+	uint16_t runt_blk_guard;	/* Guard value for runt block (tape
+					 * only) */
+	uint32_t byte_count;		/* Total byte count/ total data
+					 * transfer count */
+	union {
+		struct {
+			uint32_t	reserved_1;
+			uint16_t	reserved_2;
+			uint16_t	reserved_3;
+			uint32_t	reserved_4;
+			uint32_t	data_address[2];
+			uint32_t	data_length;
+			uint32_t	reserved_5[2];
+			uint32_t	reserved_6;
+		} nobundling;
+		struct {
+			uint32_t	dif_byte_count;	/* Total DIF byte
+							 * count */
+			uint16_t	reserved_1;
+			uint16_t	dseg_count;	/* Data segment count */
+			uint32_t	reserved_2;
+			uint32_t	data_address[2];
+			uint32_t	data_length;
+			uint32_t	dif_address[2];
+			uint32_t	dif_length;	/* Data segment 0
+							 * length */
+		} bundling;
+	} u;
+
+	struct fcp_cmnd	fcp_cmnd;
+	dma_addr_t	crc_ctx_dma;
+	/* List of DMA context transfers */
+	struct list_head dsd_list;
+
+	/* This structure should not exceed 512 bytes */
+};
+
+#define CRC_CONTEXT_LEN_FW	(offsetof(struct crc_context, fcp_cmnd.lun))
+#define CRC_CONTEXT_FCPCMND_OFF	(offsetof(struct crc_context, fcp_cmnd.lun))
+
 /*
  * ISP queue - status entry structure definition.
  */
@@ -1390,6 +1466,7 @@ typedef struct {
 #define CS_ABORTED		0x5	/* System aborted command. */
 #define CS_TIMEOUT		0x6	/* Timeout error. */
 #define CS_DATA_OVERRUN		0x7	/* Data overrun. */
+#define CS_DIF_ERROR		0xC	/* DIF error detected  */
 
 #define CS_DATA_UNDERRUN	0x15	/* Data Underrun. */
 #define CS_QUEUE_FULL		0x1C	/* Queue Full. */
@@ -2732,6 +2809,7 @@ typedef struct scsi_qla_host {
 
 		uint32_t	management_server_logged_in :1;
 		uint32_t	process_response_queue	:1;
+		uint32_t	difdix_supported:1;
 	} flags;
 
 	atomic_t	loop_state;
@@ -2882,6 +2960,8 @@ typedef struct scsi_qla_host {
 
 #define OPTROM_BURST_SIZE	0x1000
 #define OPTROM_BURST_DWORDS	(OPTROM_BURST_SIZE / 4)
+
+#define	QLA_DSDS_PER_IOCB	37
 
 #include "qla_gbl.h"
 #include "qla_dbg.h"

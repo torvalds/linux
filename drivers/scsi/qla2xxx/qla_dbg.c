@@ -1663,4 +1663,62 @@ qla2x00_dump_buffer(uint8_t * b, uint32_t size)
 		printk("\n");
 }
 
+void
+qla2x00_dump_buffer_zipped(uint8_t *b, uint32_t size)
+{
+	uint32_t cnt;
+	uint8_t c;
+	uint8_t  last16[16], cur16[16];
+	uint32_t lc = 0, num_same16 = 0, j;
 
+	printk(KERN_DEBUG " 0   1   2   3   4   5   6   7   8   9  "
+	    "Ah  Bh  Ch  Dh  Eh  Fh\n");
+	printk(KERN_DEBUG "----------------------------------------"
+	    "----------------------\n");
+
+	for (cnt = 0; cnt < size;) {
+		c = *b++;
+
+		cur16[lc++] = c;
+
+		cnt++;
+		if (cnt % 16)
+			continue;
+
+		/* We have 16 now */
+		lc = 0;
+		if (num_same16 == 0) {
+			memcpy(last16, cur16, 16);
+			num_same16++;
+			continue;
+		}
+		if (memcmp(cur16, last16, 16) == 0) {
+			num_same16++;
+			continue;
+		}
+		for (j = 0; j < 16; j++)
+			printk(KERN_DEBUG "%02x  ", (uint32_t)last16[j]);
+		printk(KERN_DEBUG "\n");
+
+		if (num_same16 > 1)
+			printk(KERN_DEBUG "> prev pattern repeats (%u)"
+			    "more times\n", num_same16-1);
+		memcpy(last16, cur16, 16);
+		num_same16 = 1;
+	}
+
+	if (num_same16) {
+		for (j = 0; j < 16; j++)
+			printk(KERN_DEBUG "%02x  ", (uint32_t)last16[j]);
+		printk(KERN_DEBUG "\n");
+
+		if (num_same16 > 1)
+			printk(KERN_DEBUG "> prev pattern repeats (%u)"
+			    "more times\n", num_same16-1);
+	}
+	if (lc) {
+		for (j = 0; j < lc; j++)
+			printk(KERN_DEBUG "%02x  ", (uint32_t)cur16[j]);
+		printk(KERN_DEBUG "\n");
+	}
+}

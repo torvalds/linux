@@ -94,6 +94,8 @@ extern int ql2xshiftctondsd;
 extern int ql2xdbwr;
 extern int ql2xdontresethba;
 extern int ql2xasynctmfenable;
+extern int ql2xenabledif;
+extern int ql2xenablehba_err_chk;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -179,6 +181,7 @@ extern int qla2x00_start_sp(srb_t *);
 extern void qla2x00_ctx_sp_free(srb_t *);
 extern uint16_t qla24xx_calc_iocbs(uint16_t);
 extern void qla24xx_build_scsi_iocbs(srb_t *, struct cmd_type_7 *, uint16_t);
+extern int qla24xx_dif_start_scsi(srb_t *);
 
 
 /*
@@ -423,6 +426,7 @@ extern void qla25xx_fw_dump(scsi_qla_host_t *, int);
 extern void qla81xx_fw_dump(scsi_qla_host_t *, int);
 extern void qla2x00_dump_regs(scsi_qla_host_t *);
 extern void qla2x00_dump_buffer(uint8_t *, uint32_t);
+extern void qla2x00_dump_buffer_zipped(uint8_t *, uint32_t);
 
 /*
  * Global Function Prototypes in qla_gs.c source file.

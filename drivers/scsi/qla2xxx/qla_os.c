@@ -92,6 +92,19 @@ module_param(ql2xmaxqdepth, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xmaxqdepth,
 		"Maximum queue depth to report for target devices.");
 
+/* Do not change the value of this after module load */
+int ql2xenabledif = 1;
+module_param(ql2xenabledif, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xenabledif,
+		" Enable T10-CRC-DIF "
+		" Default is 0 - No DIF Support. 1 - Enable it");
+
+int ql2xenablehba_err_chk;
+module_param(ql2xenablehba_err_chk, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xenablehba_err_chk,
+		" Enable T10-CRC-DIF Error isolation by HBA"
+		" Default is 0 - Error isolation disabled, 1 - Enable it");
+
 int ql2xiidmaenable=1;
 module_param(ql2xiidmaenable, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xiidmaenable,
@@ -537,6 +550,14 @@ qla2xxx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	if (fcport->drport)
 		goto qc24_target_busy;
 
+	if (!vha->flags.difdix_supported &&
+		scsi_get_prot_op(cmd) != SCSI_PROT_NORMAL) {
+			DEBUG2(qla_printk(KERN_ERR, ha,
+			    "DIF Cap Not Reg, fail DIF capable cmd's:%x\n",
+			    cmd->cmnd[0]));
+			cmd->result = DID_NO_CONNECT << 16;
+			goto qc24_fail_command;
+	}
 	if (atomic_read(&fcport->state) != FCS_ONLINE) {
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD ||
 		    atomic_read(&base_vha->loop_state) == LOOP_DEAD) {
@@ -776,7 +797,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 
 		if (sp == NULL)
 			continue;
-		if ((sp->ctx) && !(sp->flags & SRB_FCP_CMND_DMA_VALID))
+		if ((sp->ctx) && !(sp->flags & SRB_FCP_CMND_DMA_VALID) &&
+		    !IS_PROT_IO(sp))
 			continue;
 		if (sp->cmd != cmd)
 			continue;
@@ -842,7 +864,7 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *vha, unsigned int t,
 		sp = req->outstanding_cmds[cnt];
 		if (!sp)
 			continue;
-		if (sp->ctx)
+		if ((sp->ctx) && !IS_PROT_IO(sp))
 			continue;
 		if (vha->vp_idx != sp->fcport->vha->vp_idx)
 			continue;
@@ -1189,7 +1211,8 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 			if (sp) {
 				req->outstanding_cmds[cnt] = NULL;
 				if (!sp->ctx ||
-				(sp->flags & SRB_FCP_CMND_DMA_VALID)) {
+					(sp->flags & SRB_FCP_CMND_DMA_VALID) ||
+					IS_PROT_IO(sp)) {
 					sp->cmd->result = res;
 					qla2x00_sp_compl(ha, sp);
 				} else {
@@ -1553,7 +1576,7 @@ static struct isp_operations qla25xx_isp_ops = {
 	.read_optrom		= qla25xx_read_optrom_data,
 	.write_optrom		= qla24xx_write_optrom_data,
 	.get_flash_version	= qla24xx_get_flash_version,
-	.start_scsi		= qla24xx_start_scsi,
+	.start_scsi		= qla24xx_dif_start_scsi,
 	.abort_isp		= qla2x00_abort_isp,
 };
 
@@ -2185,6 +2208,22 @@ skip_dpc:
 	DEBUG2(printk("DEBUG: detect hba %ld at address = %p\n",
 	    base_vha->host_no, ha));
 
+	if (IS_QLA25XX(ha) && ql2xenabledif) {
+		if (ha->fw_attributes & BIT_4) {
+			base_vha->flags.difdix_supported = 1;
+			DEBUG18(qla_printk(KERN_INFO, ha,
+			    "Registering for DIF/DIX type 1 and 3"
+			    " protection.\n"));
+			scsi_host_set_prot(host,
+			    SHOST_DIF_TYPE1_PROTECTION
+			    | SHOST_DIF_TYPE3_PROTECTION
+			    | SHOST_DIX_TYPE1_PROTECTION
+			    | SHOST_DIX_TYPE3_PROTECTION);
+			scsi_host_set_guard(host, SHOST_DIX_GUARD_CRC);
+		} else
+			base_vha->flags.difdix_supported = 0;
+	}
+
 	ha->isp_ops->enable_intrs(ha);
 
 	ret = scsi_add_host(host, &pdev->dev);
@@ -2546,7 +2585,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	if (!ha->s_dma_pool)
 		goto fail_free_nvram;
 
-	if (IS_QLA82XX(ha)) {
+	if (IS_QLA82XX(ha) || ql2xenabledif) {
 		ha->dl_dma_pool = dma_pool_create(name, &ha->pdev->dev,
 			DSD_LIST_DMA_POOL_SIZE, 8, 0);
 		if (!ha->dl_dma_pool) {
@@ -2678,12 +2717,12 @@ fail_free_ms_iocb:
 	ha->ms_iocb = NULL;
 	ha->ms_iocb_dma = 0;
 fail_dma_pool:
-	if (IS_QLA82XX(ha)) {
+	if (IS_QLA82XX(ha) || ql2xenabledif) {
 		dma_pool_destroy(ha->fcp_cmnd_dma_pool);
 		ha->fcp_cmnd_dma_pool = NULL;
 	}
 fail_dl_dma_pool:
-	if (IS_QLA82XX(ha)) {
+	if (IS_QLA82XX(ha) || ql2xenabledif) {
 		dma_pool_destroy(ha->dl_dma_pool);
 		ha->dl_dma_pool = NULL;
 	}
@@ -3346,11 +3385,31 @@ static void
 qla2x00_sp_free_dma(srb_t *sp)
 {
 	struct scsi_cmnd *cmd = sp->cmd;
+	struct qla_hw_data *ha = sp->fcport->vha->hw;
 
 	if (sp->flags & SRB_DMA_VALID) {
 		scsi_dma_unmap(cmd);
 		sp->flags &= ~SRB_DMA_VALID;
 	}
+
+	if (sp->flags & SRB_CRC_PROT_DMA_VALID) {
+		dma_unmap_sg(&ha->pdev->dev, scsi_prot_sglist(cmd),
+		    scsi_prot_sg_count(cmd), cmd->sc_data_direction);
+		sp->flags &= ~SRB_CRC_PROT_DMA_VALID;
+	}
+
+	if (sp->flags & SRB_CRC_CTX_DSD_VALID) {
+		/* List assured to be having elements */
+		qla2x00_clean_dsd_pool(ha, sp);
+		sp->flags &= ~SRB_CRC_CTX_DSD_VALID;
+	}
+
+	if (sp->flags & SRB_CRC_CTX_DMA_VALID) {
+		dma_pool_free(ha->dl_dma_pool, sp->ctx,
+		    ((struct crc_context *)sp->ctx)->crc_ctx_dma);
+		sp->flags &= ~SRB_CRC_CTX_DMA_VALID;
+	}
+
 	CMD_SP(cmd) = NULL;
 }
 
@@ -3464,7 +3523,7 @@ qla2x00_timer(scsi_qla_host_t *vha)
 					sp = req->outstanding_cmds[index];
 					if (!sp)
 						continue;
-					if (sp->ctx)
+					if (sp->ctx && !IS_PROT_IO(sp))
 						continue;
 					sfcp = sp->fcport;
 					if (!(sfcp->flags & FCF_FCP2_DEVICE))

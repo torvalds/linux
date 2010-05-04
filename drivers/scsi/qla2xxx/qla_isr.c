@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_bsg_fc.h>
+#include <scsi/scsi_eh.h>
 
 static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
 static void qla2x00_process_completed_request(struct scsi_qla_host *,
@@ -1364,6 +1365,78 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t sense_len,
 		DEBUG5(qla2x00_dump_buffer(cp->sense_buffer, sense_len));
 }
 
+struct scsi_dif_tuple {
+	__be16 guard;       /* Checksum */
+	__be16 app_tag;         /* APPL identifer */
+	__be32 ref_tag;         /* Target LBA or indirect LBA */
+};
+
+/*
+ * Checks the guard or meta-data for the type of error
+ * detected by the HBA. In case of errors, we set the
+ * ASC/ASCQ fields in the sense buffer with ILLEGAL_REQUEST
+ * to indicate to the kernel that the HBA detected error.
+ */
+static inline void
+qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
+{
+	struct scsi_cmnd *cmd = sp->cmd;
+	struct scsi_dif_tuple	*ep =
+			(struct scsi_dif_tuple *)&sts24->data[20];
+	struct scsi_dif_tuple	*ap =
+			(struct scsi_dif_tuple *)&sts24->data[12];
+	uint32_t	e_ref_tag, a_ref_tag;
+	uint16_t	e_app_tag, a_app_tag;
+	uint16_t	e_guard, a_guard;
+
+	e_ref_tag = be32_to_cpu(ep->ref_tag);
+	a_ref_tag = be32_to_cpu(ap->ref_tag);
+	e_app_tag = be16_to_cpu(ep->app_tag);
+	a_app_tag = be16_to_cpu(ap->app_tag);
+	e_guard = be16_to_cpu(ep->guard);
+	a_guard = be16_to_cpu(ap->guard);
+
+	DEBUG18(printk(KERN_DEBUG
+	    "%s(): iocb(s) %p Returned STATUS\n", __func__, sts24));
+
+	DEBUG18(printk(KERN_ERR "DIF ERROR in cmd 0x%x lba 0x%llx act ref"
+	    " tag=0x%x, exp ref_tag=0x%x, act app tag=0x%x, exp app"
+	    " tag=0x%x, act guard=0x%x, exp guard=0x%x\n",
+	    cmd->cmnd[0], (u64)scsi_get_lba(cmd), a_ref_tag, e_ref_tag,
+	    a_app_tag, e_app_tag, a_guard, e_guard));
+
+
+	/* check guard */
+	if (e_guard != a_guard) {
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+		    0x10, 0x1);
+		set_driver_byte(cmd, DRIVER_SENSE);
+		set_host_byte(cmd, DID_ABORT);
+		cmd->result |= SAM_STAT_CHECK_CONDITION << 1;
+		return;
+	}
+
+	/* check appl tag */
+	if (e_app_tag != a_app_tag) {
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+		    0x10, 0x2);
+		set_driver_byte(cmd, DRIVER_SENSE);
+		set_host_byte(cmd, DID_ABORT);
+		cmd->result |= SAM_STAT_CHECK_CONDITION << 1;
+		return;
+	}
+
+	/* check ref tag */
+	if (e_ref_tag != a_ref_tag) {
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+		    0x10, 0x3);
+		set_driver_byte(cmd, DRIVER_SENSE);
+		set_host_byte(cmd, DID_ABORT);
+		cmd->result |= SAM_STAT_CHECK_CONDITION << 1;
+		return;
+	}
+}
+
 /**
  * qla2x00_status_entry() - Process a Status IOCB entry.
  * @ha: SCSI driver HA context
@@ -1629,6 +1702,10 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	case CS_RESET:
 	case CS_ABORTED:
 		cp->result = DID_RESET << 16;
+		break;
+
+	case CS_DIF_ERROR:
+		qla2x00_handle_dif_error(sp, sts24);
 		break;
 	default:
 		cp->result = DID_ERROR << 16;
