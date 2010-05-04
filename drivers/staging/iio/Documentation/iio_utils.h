@@ -47,7 +47,7 @@ inline char *find_ring_subelement(const char *directory, const char *subelement)
 
 char *find_type_by_name(const char *name, const char *type)
 {
-	const char *iio_dir = "/sys/class/iio/";
+	const char *iio_dir = "/sys/bus/iio/devices/";
 	const struct dirent *ent;
 	int cnt, pos, pos2;
 
@@ -109,6 +109,35 @@ int write_sysfs_int(char *filename, char *basedir, int val)
 		return -1;
 	fprintf(sysfsfp, "%d", val);
 	fclose(sysfsfp);
+	return 0;
+}
+
+int write_sysfs_int_and_verify(char *filename, char *basedir, int val)
+{
+	int ret;
+	FILE  *sysfsfp;
+	char temp[100];
+	int test;
+
+	sprintf(temp, "%s%s", basedir, filename);
+	sysfsfp = fopen(temp, "w");
+	if (sysfsfp == NULL)
+		return -1;
+	fprintf(sysfsfp, "%d", val);
+	fclose(sysfsfp);
+
+	sysfsfp = fopen(temp, "r");
+	if (sysfsfp == NULL)
+		return -1;
+	fscanf(sysfsfp, "%d", &test);
+	if (test != val) {
+		printf("Possible failure in int write %d to %s%s\n",
+		       val,
+		       basedir,
+		       filename);
+		return -1;
+	}
+
 	return 0;
 }
 
