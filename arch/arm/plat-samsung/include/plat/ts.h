@@ -1,4 +1,4 @@
-/* linux/include/asm/arch-s3c2410/ts.h
+/* arch/arm/plat-samsung/include/plat/ts.h
  *
  * Copyright (c) 2005 Arnaud Patard <arnaud.patard@rtp-net.org>
  *

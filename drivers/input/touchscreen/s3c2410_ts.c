@@ -37,9 +37,9 @@
 
 #include <plat/adc.h>
 #include <plat/regs-adc.h>
+#include <plat/ts.h>
 
 #include <mach/regs-gpio.h>
-#include <mach/ts.h>
 
 #define TSC_SLEEP  (S3C2410_ADCTSC_PULL_UP_DISABLE | S3C2410_ADCTSC_XY_PST(0))
 
