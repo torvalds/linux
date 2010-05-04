@@ -214,14 +214,21 @@ typedef struct srb {
 /*
  * SRB extensions.
  */
-struct srb_ctx {
 #define SRB_LOGIN_CMD	1
 #define SRB_LOGOUT_CMD	2
+#define SRB_ELS_CMD_RPT 3
+#define SRB_ELS_CMD_HST 4
+#define SRB_CT_CMD 5
+
+struct srb_ctx {
 	uint16_t type;
+	char *name;
+
 	struct timer_list timer;
 
-	void (*free)(srb_t *sp);
-	void (*timeout)(srb_t *sp);
+	void (*done)(srb_t *);
+	void (*free)(srb_t *);
+	void (*timeout)(srb_t *);
 };
 
 struct srb_logio {
@@ -231,12 +238,10 @@ struct srb_logio {
 #define SRB_LOGIN_COND_PLOGI	BIT_1
 #define SRB_LOGIN_SKIP_PRLI	BIT_2
 	uint16_t flags;
+	uint16_t data[2];
 };
 
 struct srb_bsg_ctx {
-#define SRB_ELS_CMD_RPT 3
-#define SRB_ELS_CMD_HST 4
-#define SRB_CT_CMD 5
 	uint16_t type;
 };
 

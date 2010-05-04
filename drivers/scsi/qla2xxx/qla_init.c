@@ -117,11 +117,20 @@ qla2x00_async_logio_timeout(srb_t *sp)
 
 	DEBUG2(printk(KERN_WARNING
 	    "scsi(%ld:%x): Async-%s timeout.\n",
-	    fcport->vha->host_no, sp->handle,
-	    lio->ctx.type == SRB_LOGIN_CMD ? "login": "logout"));
+	    fcport->vha->host_no, sp->handle, lio->ctx.name));
 
 	if (lio->ctx.type == SRB_LOGIN_CMD)
 		qla2x00_post_async_logout_work(fcport->vha, fcport, NULL);
+}
+
+static void
+qla2x00_async_login_ctx_done(srb_t *sp)
+{
+	struct srb_logio *lio = sp->ctx;
+
+	qla2x00_post_async_login_done_work(sp->fcport->vha, sp->fcport,
+	    lio->data);
+	lio->ctx.free(sp);
 }
 
 int
@@ -141,7 +150,9 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 
 	lio = sp->ctx;
 	lio->ctx.type = SRB_LOGIN_CMD;
+	lio->ctx.name = "login";
 	lio->ctx.timeout = qla2x00_async_logio_timeout;
+	lio->ctx.done = qla2x00_async_login_ctx_done;
 	lio->flags |= SRB_LOGIN_COND_PLOGI;
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 		lio->flags |= SRB_LOGIN_RETRIED;
@@ -163,6 +174,16 @@ done:
 	return rval;
 }
 
+static void
+qla2x00_async_logout_ctx_done(srb_t *sp)
+{
+	struct srb_logio *lio = sp->ctx;
+
+	qla2x00_post_async_logout_done_work(sp->fcport->vha, sp->fcport,
+	    lio->data);
+	lio->ctx.free(sp);
+}
+
 int
 qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
@@ -179,7 +200,9 @@ qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 
 	lio = sp->ctx;
 	lio->ctx.type = SRB_LOGOUT_CMD;
+	lio->ctx.name = "logout";
 	lio->ctx.timeout = qla2x00_async_logio_timeout;
+	lio->ctx.done = qla2x00_async_logout_ctx_done;
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS)
 		goto done_free_sp;
@@ -202,17 +225,17 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
 	int rval;
-	uint8_t opts = 0;
 
 	switch (data[0]) {
 	case MBS_COMMAND_COMPLETE:
-		if (fcport->flags & FCF_FCP2_DEVICE)
-			opts |= BIT_1;
-		rval = qla2x00_get_port_database(vha, fcport, opts);
-		if (rval != QLA_SUCCESS)
-			qla2x00_mark_device_lost(vha, fcport, 1, 0);
-		else
-			qla2x00_update_fcport(vha, fcport);
+		if (fcport->flags & FCF_FCP2_DEVICE) {
+			rval = qla2x00_get_port_database(vha, fcport, BIT_1);
+			if (rval != QLA_SUCCESS) {
+				qla2x00_mark_device_lost(vha, fcport, 1, 0);
+				break;
+			}
+		}
+		qla2x00_update_fcport(vha, fcport);
 		break;
 	case MBS_COMMAND_ERROR:
 		if (data[1] & QLA_LOGIO_LOGIN_RETRIED)

@@ -895,34 +895,20 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 {
 	const char func[] = "MBX-IOCB";
 	const char *type;
-	struct qla_hw_data *ha = vha->hw;
 	fc_port_t *fcport;
 	srb_t *sp;
 	struct srb_logio *lio;
-	uint16_t data[2];
+	uint16_t *data;
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, mbx);
 	if (!sp)
 		return;
 
-	type = NULL;
 	lio = sp->ctx;
-	switch (lio->ctx.type) {
-	case SRB_LOGIN_CMD:
-		type = "login";
-		break;
-	case SRB_LOGOUT_CMD:
-		type = "logout";
-		break;
-	default:
-		qla_printk(KERN_WARNING, ha,
-		    "%s: Unrecognized SRB: (%p) type=%d.\n", func, sp,
-		    lio->ctx.type);
-		return;
-	}
-
 	del_timer(&lio->ctx.timer);
+	type = lio->ctx.name;
 	fcport = sp->fcport;
+	data = lio->data;
 
 	data[0] = data[1] = 0;
 	if (mbx->entry_status) {
@@ -938,7 +924,7 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		data[0] = MBS_COMMAND_ERROR;
 		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
 		    QLA_LOGIO_LOGIN_RETRIED: 0;
-		goto done_post_logio_done_work;
+		goto logio_done;
 	}
 
 	if (!mbx->status && le16_to_cpu(mbx->mb0) == MBS_COMMAND_COMPLETE) {
@@ -948,10 +934,14 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		    le16_to_cpu(mbx->mb1)));
 
 		data[0] = MBS_COMMAND_COMPLETE;
-		if (lio->ctx.type == SRB_LOGIN_CMD && le16_to_cpu(mbx->mb1) & BIT_1)
-			fcport->flags |= FCF_FCP2_DEVICE;
+		if (lio->ctx.type == SRB_LOGIN_CMD)
+			fcport->port_type = FCT_TARGET;
+			if (le16_to_cpu(mbx->mb1) & BIT_0)
+				fcport->port_type = FCT_INITIATOR;
+			if (le16_to_cpu(mbx->mb1) & BIT_1)
+				fcport->flags |= FCF_FCP2_DEVICE;
 
-		goto done_post_logio_done_work;
+		goto logio_done;
 	}
 
 	data[0] = le16_to_cpu(mbx->mb0);
@@ -976,12 +966,8 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	    le16_to_cpu(mbx->mb2), le16_to_cpu(mbx->mb6),
 	    le16_to_cpu(mbx->mb7)));
 
-done_post_logio_done_work:
-	lio->ctx.type == SRB_LOGIN_CMD ?
-	    qla2x00_post_async_login_done_work(fcport->vha, fcport, data):
-	    qla2x00_post_async_logout_done_work(fcport->vha, fcport, data);
-
-	lio->ctx.free(sp);
+logio_done:
+	lio->ctx.done(sp);
 }
 
 static void
@@ -1084,35 +1070,21 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 {
 	const char func[] = "LOGIO-IOCB";
 	const char *type;
-	struct qla_hw_data *ha = vha->hw;
 	fc_port_t *fcport;
 	srb_t *sp;
 	struct srb_logio *lio;
-	uint16_t data[2];
+	uint16_t *data;
 	uint32_t iop[2];
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, logio);
 	if (!sp)
 		return;
 
-	type = NULL;
 	lio = sp->ctx;
-	switch (lio->ctx.type) {
-	case SRB_LOGIN_CMD:
-		type = "login";
-		break;
-	case SRB_LOGOUT_CMD:
-		type = "logout";
-		break;
-	default:
-		qla_printk(KERN_WARNING, ha,
-		    "%s: Unrecognized SRB: (%p) type=%d.\n", func, sp,
-		    lio->ctx.type);
-		return;
-	}
-
 	del_timer(&lio->ctx.timer);
+	type = lio->ctx.name;
 	fcport = sp->fcport;
+	data = lio->data;
 
 	data[0] = data[1] = 0;
 	if (logio->entry_status) {
@@ -1125,7 +1097,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		data[0] = MBS_COMMAND_ERROR;
 		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
 		    QLA_LOGIO_LOGIN_RETRIED: 0;
-		goto done_post_logio_done_work;
+		goto logio_done;
 	}
 
 	if (le16_to_cpu(logio->comp_status) == CS_COMPLETE) {
@@ -1136,7 +1108,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 		data[0] = MBS_COMMAND_COMPLETE;
 		if (lio->ctx.type == SRB_LOGOUT_CMD)
-			goto done_post_logio_done_work;
+			goto logio_done;
 
 		iop[0] = le32_to_cpu(logio->io_parameter[0]);
 		if (iop[0] & BIT_4) {
@@ -1151,7 +1123,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		if (logio->io_parameter[9] || logio->io_parameter[10])
 			fcport->supported_classes |= FC_COS_CLASS3;
 
-		goto done_post_logio_done_work;
+		goto logio_done;
 	}
 
 	iop[0] = le32_to_cpu(logio->io_parameter[0]);
@@ -1184,12 +1156,8 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	    le32_to_cpu(logio->io_parameter[0]),
 	    le32_to_cpu(logio->io_parameter[1])));
 
-done_post_logio_done_work:
-	lio->ctx.type == SRB_LOGIN_CMD ?
-	    qla2x00_post_async_login_done_work(fcport->vha, fcport, data):
-	    qla2x00_post_async_logout_done_work(fcport->vha, fcport, data);
-
-	lio->ctx.free(sp);
+logio_done:
+	lio->ctx.done(sp);
 }
 
 /**
