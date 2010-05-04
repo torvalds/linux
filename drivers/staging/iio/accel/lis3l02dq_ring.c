@@ -75,16 +75,16 @@ error_ret:
 	return ret;
 
 }
-static IIO_SCAN_EL_C(accel_x, LIS3L02DQ_SCAN_ACC_X, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_x, 0, IIO_SIGNED(16),
 		     LIS3L02DQ_REG_OUT_X_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_C(accel_y, LIS3L02DQ_SCAN_ACC_Y, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_y, 1, IIO_SIGNED(16),
 		     LIS3L02DQ_REG_OUT_Y_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_C(accel_z, LIS3L02DQ_SCAN_ACC_Z, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_z, 2, IIO_SIGNED(16),
 		     LIS3L02DQ_REG_OUT_Z_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_TIMESTAMP;
+static IIO_SCAN_EL_TIMESTAMP(3);
 
 static struct attribute *lis3l02dq_scan_el_attrs[] = {
 	&iio_scan_el_accel_x.dev_attr.attr,
