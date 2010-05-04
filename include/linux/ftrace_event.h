@@ -131,12 +131,12 @@ struct ftrace_event_call {
 	void			*mod;
 	void			*data;
 
-	int			profile_count;
-	int			(*profile_enable)(struct ftrace_event_call *);
-	void			(*profile_disable)(struct ftrace_event_call *);
+	int			perf_refcount;
+	int			(*perf_event_enable)(struct ftrace_event_call *);
+	void			(*perf_event_disable)(struct ftrace_event_call *);
 };
 
-#define FTRACE_MAX_PROFILE_SIZE	2048
+#define PERF_MAX_TRACE_SIZE	2048
 
 #define MAX_FILTER_PRED		32
 #define MAX_FILTER_STR_VAL	256	/* Should handle KSYM_SYMBOL_LEN */
@@ -187,22 +187,25 @@ do {									\
 
 #ifdef CONFIG_PERF_EVENTS
 struct perf_event;
-extern int ftrace_profile_enable(int event_id);
-extern void ftrace_profile_disable(int event_id);
+
+DECLARE_PER_CPU(struct pt_regs, perf_trace_regs);
+
+extern int perf_trace_enable(int event_id);
+extern void perf_trace_disable(int event_id);
 extern int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 				     char *filter_str);
 extern void ftrace_profile_free_filter(struct perf_event *event);
 extern void *
-ftrace_perf_buf_prepare(int size, unsigned short type, int *rctxp,
+perf_trace_buf_prepare(int size, unsigned short type, int *rctxp,
 			 unsigned long *irq_flags);
 
 static inline void
-ftrace_perf_buf_submit(void *raw_data, int size, int rctx, u64 addr,
-		       u64 count, unsigned long irq_flags)
+perf_trace_buf_submit(void *raw_data, int size, int rctx, u64 addr,
+		       u64 count, unsigned long irq_flags, struct pt_regs *regs)
 {
 	struct trace_entry *entry = raw_data;
 
-	perf_tp_event(entry->type, addr, count, raw_data, size);
+	perf_tp_event(entry->type, addr, count, raw_data, size, regs);
 	perf_swevent_put_recursion_context(rctx);
 	local_irq_restore(irq_flags);
 }

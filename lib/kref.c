@@ -13,6 +13,7 @@
 
 #include <linux/kref.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 /**
  * kref_set - initialize object and set refcount to requested number.

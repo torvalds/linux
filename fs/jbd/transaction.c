@@ -1398,7 +1398,7 @@ int journal_stop(handle_t *handle)
 	 * the case where our storage is so fast that it is more optimal to go
 	 * ahead and force a flush and wait for the transaction to be committed
 	 * than it is to wait for an arbitrary amount of time for new writers to
-	 * join the transaction.  We acheive this by measuring how long it takes
+	 * join the transaction.  We achieve this by measuring how long it takes
 	 * to commit a transaction, and compare it with how long this
 	 * transaction has been running, and if run time < commit time then we
 	 * sleep for the delta and commit.  This greatly helps super fast disks

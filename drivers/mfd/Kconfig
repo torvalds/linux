@@ -11,7 +11,7 @@ config MFD_CORE
 
 config MFD_88PM860X
 	bool "Support Marvell 88PM8606/88PM8607"
-	depends on I2C=y
+	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
 	  This supports for Marvell 88PM8606/88PM8607 Power Management IC.
@@ -205,7 +205,7 @@ config PMIC_ADP5520
 
 config MFD_MAX8925
 	bool "Maxim Semiconductor MAX8925 PMIC Support"
-	depends on I2C=y
+	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
 	  Say yes here to support for Maxim Semiconductor MAX8925. This is
@@ -226,7 +226,7 @@ config MFD_WM8400
 config MFD_WM831X
 	bool "Support Wolfson Microelectronics WM831x/2x PMICs"
 	select MFD_CORE
-	depends on I2C=y
+	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs.
 	  This driver provides common support for accessing the device,
@@ -235,6 +235,7 @@ config MFD_WM831X
 
 config MFD_WM8350
 	bool
+	depends on GENERIC_HARDIRQS
 
 config MFD_WM8350_CONFIG_MODE_0
 	bool
@@ -287,7 +288,7 @@ config MFD_WM8352_CONFIG_MODE_3
 config MFD_WM8350_I2C
 	bool "Support Wolfson Microelectronics WM8350 with I2C"
 	select MFD_WM8350
-	depends on I2C=y
+	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  The WM8350 is an integrated audio and power management
 	  subsystem with watchdog and RTC functionality for embedded

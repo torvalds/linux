@@ -16,6 +16,7 @@
  */
 #include <linux/module.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include "ima.h"
 

@@ -23,6 +23,7 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/smp.h>
 #include <linux/cpumask.h>

@@ -22,6 +22,7 @@
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -30,7 +31,7 @@
 
 #include <plat/regs-usb-hsotg-phy.h>
 #include <plat/regs-usb-hsotg.h>
-#include <plat/regs-sys.h>
+#include <mach/regs-sys.h>
 #include <plat/udc-hs.h>
 
 #define DMA_ADDR_INVALID (~((dma_addr_t)0))

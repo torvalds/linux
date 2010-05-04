@@ -64,6 +64,7 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/tty_flip.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -1989,7 +1990,7 @@ void mvme167_serial_console_setup(int cflag)
 	/*
 	 * Attempt to set up all channels to something reasonable, and
 	 * bang out a INIT_CHAN command.  We should then be able to limit
-	 * the ammount of fiddling we have to do in normal running.
+	 * the amount of fiddling we have to do in normal running.
 	 */
 
 	for (ch = 3; ch >= 0; ch--) {

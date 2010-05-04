@@ -516,8 +516,7 @@ struct gru_blade_state {
 
 /* Scan all active GRUs in a GRU bitmap */
 #define for_each_gru_in_bitmap(gid, map)				\
-	for ((gid) = find_first_bit((map), GRU_MAX_GRUS); (gid) < GRU_MAX_GRUS;\
-		(gid)++, (gid) = find_next_bit((map), GRU_MAX_GRUS, (gid)))
+	for_each_set_bit((gid), (map), GRU_MAX_GRUS)
 
 /* Scan all active GRUs on a specific blade */
 #define for_each_gru_on_blade(gru, nid, i)				\
@@ -536,23 +535,17 @@ struct gru_blade_state {
 
 /* Scan each CBR whose bit is set in a TFM (or copy of) */
 #define for_each_cbr_in_tfm(i, map)					\
-	for ((i) = find_first_bit(map, GRU_NUM_CBE);			\
-			(i) < GRU_NUM_CBE;				\
-			(i)++, (i) = find_next_bit(map, GRU_NUM_CBE, i))
+	for_each_set_bit((i), (map), GRU_NUM_CBE)
 
 /* Scan each CBR in a CBR bitmap. Note: multiple CBRs in an allocation unit */
 #define for_each_cbr_in_allocation_map(i, map, k)			\
-	for ((k) = find_first_bit(map, GRU_CBR_AU); (k) < GRU_CBR_AU;	\
-			(k) = find_next_bit(map, GRU_CBR_AU, (k) + 1)) 	\
+	for_each_set_bit((k), (map), GRU_CBR_AU)			\
 		for ((i) = (k)*GRU_CBR_AU_SIZE;				\
 				(i) < ((k) + 1) * GRU_CBR_AU_SIZE; (i)++)
 
 /* Scan each DSR in a DSR bitmap. Note: multiple DSRs in an allocation unit */
 #define for_each_dsr_in_allocation_map(i, map, k)			\
-	for ((k) = find_first_bit((const unsigned long *)map, GRU_DSR_AU);\
-			(k) < GRU_DSR_AU;				\
-			(k) = find_next_bit((const unsigned long *)map,	\
-					  GRU_DSR_AU, (k) + 1))		\
+	for_each_set_bit((k), (const unsigned long *)(map), GRU_DSR_AU)	\
 		for ((i) = (k) * GRU_DSR_AU_CL;				\
 				(i) < ((k) + 1) * GRU_DSR_AU_CL; (i)++)
 

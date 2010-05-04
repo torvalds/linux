@@ -421,8 +421,8 @@
 /* Bit definitions related to the DBCR2. */
 #define DBCR2_DAC1US	0xC0000000	/* Data Addr Cmp 1 Sup/User   */
 #define DBCR2_DAC1ER	0x30000000	/* Data Addr Cmp 1 Eff/Real */
-#define DBCR2_DAC2US	0x00000000	/* Data Addr Cmp 2 Sup/User   */
-#define DBCR2_DAC2ER	0x00000000	/* Data Addr Cmp 2 Eff/Real */
+#define DBCR2_DAC2US	0x0C000000	/* Data Addr Cmp 2 Sup/User   */
+#define DBCR2_DAC2ER	0x03000000	/* Data Addr Cmp 2 Eff/Real */
 #define DBCR2_DAC12M	0x00800000	/* DAC 1-2 range enable */
 #define DBCR2_DAC12MM	0x00400000	/* DAC 1-2 Mask mode*/
 #define DBCR2_DAC12MX	0x00C00000	/* DAC 1-2 range eXclusive */

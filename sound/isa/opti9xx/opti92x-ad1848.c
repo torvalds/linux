@@ -27,7 +27,6 @@
 #include <linux/err.h>
 #include <linux/isa.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/pnp.h>
 #include <linux/moduleparam.h>
 #include <asm/io.h>
@@ -217,8 +216,9 @@ static int __devinit snd_opti9xx_init(struct snd_opti9xx *chip,
 	if (isapnp && chip->mc_base)
 		/* PnP resource gives the least 10 bits */
 		chip->mc_base |= 0xc00;
+	else
 #endif	/* CONFIG_PNP */
-	else {
+	{
 		chip->mc_base = 0xf8c;
 		chip->mc_base_size = opti9xx_mc_size[hardware];
 	}

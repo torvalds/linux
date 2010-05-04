@@ -19,6 +19,7 @@
 #include <linux/notifier.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 #include "internal.h"

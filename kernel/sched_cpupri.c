@@ -27,6 +27,7 @@
  *  of the License.
  */
 
+#include <linux/gfp.h>
 #include "sched_cpupri.h"
 
 /* Convert between a 140 based task->prio, and our 102 based cpupri */
@@ -56,7 +57,7 @@ static int convert_prio(int prio)
  * @lowest_mask: A mask to fill in with selected CPUs (or NULL)
  *
  * Note: This function returns the recommended CPUs as calculated during the
- * current invokation.  By the time the call returns, the CPUs may have in
+ * current invocation.  By the time the call returns, the CPUs may have in
  * fact changed priorities any number of times.  While not ideal, it is not
  * an issue of correctness since the normal rebalancer logic will correct
  * any discrepancies created by racing against the uncertainty of the current

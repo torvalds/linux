@@ -507,7 +507,7 @@ static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 		 * MXC NANDFC can only perform full page+spare or
 		 * spare-only read/write.  When the upper layers
 		 * layers perform a read/write buf operation,
-		 * we will used the saved column adress to index into
+		 * we will used the saved column address to index into
 		 * the full page.
 		 */
 		send_addr(host, 0, page_addr == -1);

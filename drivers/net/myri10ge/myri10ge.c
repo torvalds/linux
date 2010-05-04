@@ -64,6 +64,7 @@
 #include <linux/moduleparam.h>
 #include <linux/io.h>
 #include <linux/log2.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 #include <net/ip.h>
 #include <net/tcp.h>
@@ -1689,7 +1690,7 @@ myri10ge_set_pauseparam(struct net_device *netdev,
 	if (pause->tx_pause != mgp->pause)
 		return myri10ge_change_pause(mgp, pause->tx_pause);
 	if (pause->rx_pause != mgp->pause)
-		return myri10ge_change_pause(mgp, pause->tx_pause);
+		return myri10ge_change_pause(mgp, pause->rx_pause);
 	if (pause->autoneg != 0)
 		return -EINVAL;
 	return 0;
@@ -3687,7 +3688,6 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 	if (status != 0) {
 		dev_err(&mgp->pdev->dev, "failed reset\n");
 		goto abort_with_fw;
-		return;
 	}
 
 	mgp->max_intr_slots = cmd.data0 / sizeof(struct mcp_slot);

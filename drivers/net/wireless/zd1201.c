@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>

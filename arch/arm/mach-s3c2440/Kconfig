@@ -15,14 +15,67 @@ config CPU_S3C2440
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
 
+config CPU_S3C2442
+	bool
+	depends on ARCH_S3C2410
+	select CPU_ARM920T
+	select S3C2410_CLOCK
+	select S3C2410_GPIO
+	select S3C2410_PM if PM
+	select CPU_S3C244X
+	select CPU_LLSERIAL_S3C2440
+	help
+	  Support for S3C2442 Samsung Mobile CPU based systems.
+
+config CPU_S3C244X
+	bool
+	depends on ARCH_S3C2410 && (CPU_S3C2440 || CPU_S3C2442)
+	help
+	  Support for S3C2440 and S3C2442 Samsung Mobile CPU based systems.
+
+
+
+config S3C2440_CPUFREQ
+	bool "S3C2440/S3C2442 CPU Frequency scaling support"
+	depends on CPU_FREQ_S3C24XX && (CPU_S3C2440 || CPU_S3C2442)
+	select S3C2410_CPUFREQ_UTILS
+	default y
+	help
+	  CPU Frequency scaling support for S3C2440 and S3C2442 SoC CPUs.
+
+config S3C2440_XTAL_12000000
+	bool
+	help
+	  Indicate that the build needs to support 12MHz system
+	  crystal.
+
+config S3C2440_XTAL_16934400
+	bool
+	help
+	  Indicate that the build needs to support 16.9344MHz system
+	  crystal.
+
+config S3C2440_PLL_12000000
+	bool
+	depends on S3C2440_CPUFREQ && S3C2440_XTAL_12000000
+	default y if CPU_FREQ_S3C24XX_PLL
+	help
+	  PLL tables for S3C2440 or S3C2442 CPUs with 12MHz crystals.
+
+config S3C2440_PLL_16934400
+	bool
+	depends on S3C2440_CPUFREQ && S3C2440_XTAL_16934400
+	default y if CPU_FREQ_S3C24XX_PLL
+	help
+	  PLL tables for S3C2440 or S3C2442 CPUs with 16.934MHz crystals.
+
 config S3C2440_DMA
 	bool
 	depends on ARCH_S3C2410 && CPU_S3C24405B
 	help
 	  Support for S3C2440 specific DMA code5A
 
-
-menu "S3C2440 Machines"
+menu "S3C2440 and S3C2442 Machines"
 
 config MACH_ANUBIS
 	bool "Simtec Electronics ANUBIS"
@@ -36,6 +89,18 @@ config MACH_ANUBIS
 	help
 	  Say Y here if you are using the Simtec Electronics ANUBIS
 	  development system
+
+config MACH_NEO1973_GTA02
+	bool "Openmoko GTA02 / Freerunner phone"
+	select CPU_S3C2442
+	select MFD_PCF50633
+	select PCF50633_GPIO
+	select I2C
+	select POWER_SUPPLY
+	select MACH_NEO1973
+	select S3C2410_PWM
+	help
+	   Say Y here if you are using the Openmoko GTA02 / Freerunner GSM Phone
 
 config MACH_OSIRIS
 	bool "Simtec IM2440D20 (OSIRIS) module"
@@ -94,10 +159,13 @@ config MACH_NEXCODER_2440
 
 config SMDK2440_CPU2440
 	bool "SMDK2440 with S3C2440 CPU module"
-	depends on ARCH_S3C2440
 	default y if ARCH_S3C2440
 	select S3C2440_XTAL_16934400
 	select CPU_S3C2440
+
+config SMDK2440_CPU2442
+	bool "SMDM2440 with S3C2442 CPU module"
+	select CPU_S3C2442
 
 config MACH_AT2440EVB
 	bool "Avantech AT2440EVB development board"

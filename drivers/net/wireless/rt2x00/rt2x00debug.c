@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 
 #include "rt2x00.h"
@@ -109,7 +110,7 @@ struct rt2x00debug_intf {
 
 	/*
 	 * HW crypto statistics.
-	 * All statistics are stored seperately per cipher type.
+	 * All statistics are stored separately per cipher type.
 	 */
 	struct rt2x00debug_crypto crypto_stats[CIPHER_MAX];
 

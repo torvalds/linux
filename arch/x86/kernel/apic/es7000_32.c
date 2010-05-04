@@ -42,6 +42,7 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <linux/nmi.h>
 #include <linux/smp.h>
 #include <linux/io.h>

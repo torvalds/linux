@@ -74,6 +74,7 @@
 #include <linux/netdevice.h>
 #include <linux/string.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/slab.h>
 #include <net/snmp.h>
 #include <net/ip.h>
 #include <net/route.h>

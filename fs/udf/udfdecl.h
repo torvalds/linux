@@ -76,6 +76,7 @@ extern const struct inode_operations udf_dir_inode_operations;
 extern const struct file_operations udf_dir_operations;
 extern const struct inode_operations udf_file_inode_operations;
 extern const struct file_operations udf_file_operations;
+extern const struct inode_operations udf_symlink_inode_operations;
 extern const struct address_space_operations udf_aops;
 extern const struct address_space_operations udf_adinicb_aops;
 extern const struct address_space_operations udf_symlink_aops;
@@ -131,7 +132,7 @@ extern int udf_write_fi(struct inode *inode, struct fileIdentDesc *,
 /* file.c */
 extern int udf_ioctl(struct inode *, struct file *, unsigned int,
 		     unsigned long);
-
+extern int udf_setattr(struct dentry *dentry, struct iattr *iattr);
 /* inode.c */
 extern struct inode *udf_iget(struct super_block *, struct kernel_lb_addr *);
 extern int udf_sync_inode(struct inode *);

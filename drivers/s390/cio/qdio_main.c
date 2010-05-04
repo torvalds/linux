@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <asm/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>

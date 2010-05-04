@@ -460,6 +460,150 @@ process_raw_event(void *data, int cpu,
 		process_lock_release_event(data, event, cpu, timestamp, thread);
 }
 
+struct raw_event_queue {
+	u64			timestamp;
+	int			cpu;
+	void			*data;
+	struct thread		*thread;
+	struct list_head	list;
+};
+
+static LIST_HEAD(raw_event_head);
+
+#define FLUSH_PERIOD	(5 * NSEC_PER_SEC)
+
+static u64 flush_limit = ULLONG_MAX;
+static u64 last_flush = 0;
+struct raw_event_queue *last_inserted;
+
+static void flush_raw_event_queue(u64 limit)
+{
+	struct raw_event_queue *tmp, *iter;
+
+	list_for_each_entry_safe(iter, tmp, &raw_event_head, list) {
+		if (iter->timestamp > limit)
+			return;
+
+		if (iter == last_inserted)
+			last_inserted = NULL;
+
+		process_raw_event(iter->data, iter->cpu, iter->timestamp,
+				  iter->thread);
+
+		last_flush = iter->timestamp;
+		list_del(&iter->list);
+		free(iter->data);
+		free(iter);
+	}
+}
+
+static void __queue_raw_event_end(struct raw_event_queue *new)
+{
+	struct raw_event_queue *iter;
+
+	list_for_each_entry_reverse(iter, &raw_event_head, list) {
+		if (iter->timestamp < new->timestamp) {
+			list_add(&new->list, &iter->list);
+			return;
+		}
+	}
+
+	list_add(&new->list, &raw_event_head);
+}
+
+static void __queue_raw_event_before(struct raw_event_queue *new,
+				     struct raw_event_queue *iter)
+{
+	list_for_each_entry_continue_reverse(iter, &raw_event_head, list) {
+		if (iter->timestamp < new->timestamp) {
+			list_add(&new->list, &iter->list);
+			return;
+		}
+	}
+
+	list_add(&new->list, &raw_event_head);
+}
+
+static void __queue_raw_event_after(struct raw_event_queue *new,
+				     struct raw_event_queue *iter)
+{
+	list_for_each_entry_continue(iter, &raw_event_head, list) {
+		if (iter->timestamp > new->timestamp) {
+			list_add_tail(&new->list, &iter->list);
+			return;
+		}
+	}
+	list_add_tail(&new->list, &raw_event_head);
+}
+
+/* The queue is ordered by time */
+static void __queue_raw_event(struct raw_event_queue *new)
+{
+	if (!last_inserted) {
+		__queue_raw_event_end(new);
+		return;
+	}
+
+	/*
+	 * Most of the time the current event has a timestamp
+	 * very close to the last event inserted, unless we just switched
+	 * to another event buffer. Having a sorting based on a list and
+	 * on the last inserted event that is close to the current one is
+	 * probably more efficient than an rbtree based sorting.
+	 */
+	if (last_inserted->timestamp >= new->timestamp)
+		__queue_raw_event_before(new, last_inserted);
+	else
+		__queue_raw_event_after(new, last_inserted);
+}
+
+static void queue_raw_event(void *data, int raw_size, int cpu,
+			    u64 timestamp, struct thread *thread)
+{
+	struct raw_event_queue *new;
+
+	if (flush_limit == ULLONG_MAX)
+		flush_limit = timestamp + FLUSH_PERIOD;
+
+	if (timestamp < last_flush) {
+		printf("Warning: Timestamp below last timeslice flush\n");
+		return;
+	}
+
+	new = malloc(sizeof(*new));
+	if (!new)
+		die("Not enough memory\n");
+
+	new->timestamp = timestamp;
+	new->cpu = cpu;
+	new->thread = thread;
+
+	new->data = malloc(raw_size);
+	if (!new->data)
+		die("Not enough memory\n");
+
+	memcpy(new->data, data, raw_size);
+
+	__queue_raw_event(new);
+	last_inserted = new;
+
+	/*
+	 * We want to have a slice of events covering 2 * FLUSH_PERIOD
+	 * If FLUSH_PERIOD is big enough, it ensures every events that occured
+	 * in the first half of the timeslice have all been buffered and there
+	 * are none remaining (we need that because of the weakly ordered
+	 * event recording we have). Then once we reach the 2 * FLUSH_PERIOD
+	 * timeslice, we flush the first half to be gentle with the memory
+	 * (the second half can still get new events in the middle, so wait
+	 * another period to flush it)
+	 */
+	if (new->timestamp > flush_limit &&
+		new->timestamp - flush_limit > FLUSH_PERIOD) {
+		flush_limit += FLUSH_PERIOD;
+		flush_raw_event_queue(flush_limit);
+	}
+}
+
 static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct thread *thread;
@@ -480,7 +624,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	if (profile_cpu != -1 && profile_cpu != (int) data.cpu)
 		return 0;
 
-	process_raw_event(data.raw_data, data.cpu, data.time, thread);
+	queue_raw_event(data.raw_data, data.raw_size, data.cpu, data.time, thread);
 
 	return 0;
 }
@@ -576,6 +720,7 @@ static void __cmd_report(void)
 	setup_pager();
 	select_key();
 	read_events();
+	flush_raw_event_queue(ULLONG_MAX);
 	sort_result();
 	print_result();
 }
@@ -608,7 +753,6 @@ static const char *record_args[] = {
 	"record",
 	"-a",
 	"-R",
-	"-M",
 	"-f",
 	"-m", "1024",
 	"-c", "1",

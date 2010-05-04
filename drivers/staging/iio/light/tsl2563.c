@@ -34,6 +34,7 @@
 #include <linux/pm.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include "../iio.h"
 #include "tsl2563.h"

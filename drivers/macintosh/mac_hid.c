@@ -13,6 +13,7 @@
 #include <linux/sysctl.h>
 #include <linux/input.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 MODULE_LICENSE("GPL");
 

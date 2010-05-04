@@ -31,7 +31,6 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <asm/io.h>
 
 #include "../comedi.h"

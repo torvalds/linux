@@ -206,11 +206,19 @@ struct net_bridge
 
 struct br_input_skb_cb {
 	struct net_device *brdev;
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	int igmp;
 	int mrouters_only;
+#endif
 };
 
 #define BR_INPUT_SKB_CB(__skb)	((struct br_input_skb_cb *)(__skb)->cb)
+
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+# define BR_INPUT_SKB_CB_MROUTERS_ONLY(__skb)	(BR_INPUT_SKB_CB(__skb)->mrouters_only)
+#else
+# define BR_INPUT_SKB_CB_MROUTERS_ONLY(__skb)	(0)
+#endif
 
 extern struct notifier_block br_device_notifier;
 extern const u8 br_group_address[ETH_ALEN];
@@ -252,7 +260,7 @@ extern void br_deliver(const struct net_bridge_port *to,
 		struct sk_buff *skb);
 extern int br_dev_queue_push_xmit(struct sk_buff *skb);
 extern void br_forward(const struct net_bridge_port *to,
-		struct sk_buff *skb);
+		struct sk_buff *skb, struct sk_buff *skb0);
 extern int br_forward_finish(struct sk_buff *skb);
 extern void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb);
 extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,

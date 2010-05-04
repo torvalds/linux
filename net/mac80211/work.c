@@ -19,6 +19,7 @@
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 #include <asm/unaligned.h>
 

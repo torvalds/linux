@@ -21,6 +21,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 

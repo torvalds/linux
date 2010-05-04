@@ -6,7 +6,6 @@
 #include <linux/swap.h>
 #include <linux/smp.h>
 #include <linux/highmem.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>

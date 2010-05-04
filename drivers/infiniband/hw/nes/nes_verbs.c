@@ -35,6 +35,7 @@
 #include <linux/moduleparam.h>
 #include <linux/random.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 
 #include <rdma/ib_verbs.h>
@@ -1323,6 +1324,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			nesqp->nesqp_context->aeq_token_low =  cpu_to_le32((u32)((unsigned long)(nesqp)));
 			nesqp->nesqp_context->aeq_token_high =  cpu_to_le32((u32)(upper_32_bits((unsigned long)(nesqp))));
 			nesqp->nesqp_context->ird_ord_sizes = cpu_to_le32(NES_QPCONTEXT_ORDIRD_ALSMM |
+					NES_QPCONTEXT_ORDIRD_AAH |
 					((((u32)nesadapter->max_irrq_wr) <<
 					NES_QPCONTEXT_ORDIRD_IRDSIZE_SHIFT) & NES_QPCONTEXT_ORDIRD_IRDSIZE_MASK));
 			if (disable_mpa_crc) {
@@ -2819,11 +2821,10 @@ static int nes_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->cap.max_send_wr = nesqp->hwqp.sq_size;
 	attr->cap.max_recv_wr = nesqp->hwqp.rq_size;
 	attr->cap.max_recv_sge = 1;
-	if (nes_drv_opt & NES_DRV_OPT_NO_INLINE_DATA) {
-		init_attr->cap.max_inline_data = 0;
-	} else {
-		init_attr->cap.max_inline_data = 64;
-	}
+	if (nes_drv_opt & NES_DRV_OPT_NO_INLINE_DATA)
+		attr->cap.max_inline_data = 0;
+	else
+		attr->cap.max_inline_data = 64;
 
 	init_attr->event_handler = nesqp->ibqp.event_handler;
 	init_attr->qp_context = nesqp->ibqp.qp_context;

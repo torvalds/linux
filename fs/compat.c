@@ -49,6 +49,7 @@
 #include <linux/mm.h>
 #include <linux/eventpoll.h>
 #include <linux/fs_struct.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -1793,6 +1794,24 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 	ret = poll_select_copy_remaining(&end_time, tvp, 1, ret);
 
 	return ret;
+}
+
+struct compat_sel_arg_struct {
+	compat_ulong_t n;
+	compat_uptr_t inp;
+	compat_uptr_t outp;
+	compat_uptr_t exp;
+	compat_uptr_t tvp;
+};
+
+asmlinkage long compat_sys_old_select(struct compat_sel_arg_struct __user *arg)
+{
+	struct compat_sel_arg_struct a;
+
+	if (copy_from_user(&a, arg, sizeof(a)))
+		return -EFAULT;
+	return compat_sys_select(a.n, compat_ptr(a.inp), compat_ptr(a.outp),
+				 compat_ptr(a.exp), compat_ptr(a.tvp));
 }
 
 #ifdef HAVE_SET_RESTORE_SIGMASK

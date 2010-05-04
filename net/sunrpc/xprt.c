@@ -46,6 +46,7 @@
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/metrics.h>
+#include <linux/sunrpc/bc_xprt.h>
 
 #include "sunrpc.h"
 
@@ -1032,21 +1033,16 @@ void xprt_release(struct rpc_task *task)
 	if (req->rq_release_snd_buf)
 		req->rq_release_snd_buf(req);
 
-	/*
-	 * Early exit if this is a backchannel preallocated request.
-	 * There is no need to have it added to the RPC slot list.
-	 */
-	if (is_bc_request)
-		return;
-
-	memset(req, 0, sizeof(*req));	/* mark unused */
-
 	dprintk("RPC: %5u release request %p\n", task->tk_pid, req);
+	if (likely(!is_bc_request)) {
+		memset(req, 0, sizeof(*req));	/* mark unused */
 
-	spin_lock(&xprt->reserve_lock);
-	list_add(&req->rq_list, &xprt->free);
-	rpc_wake_up_next(&xprt->backlog);
-	spin_unlock(&xprt->reserve_lock);
+		spin_lock(&xprt->reserve_lock);
+		list_add(&req->rq_list, &xprt->free);
+		rpc_wake_up_next(&xprt->backlog);
+		spin_unlock(&xprt->reserve_lock);
+	} else
+		xprt_free_bc_request(req);
 }
 
 /**

@@ -12,6 +12,7 @@
  */
 
 #include <linux/kvm.h>
+#include <linux/gfp.h>
 #include <linux/errno.h>
 #include <asm/current.h>
 #include <asm/debug.h>

@@ -43,6 +43,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 #include <linux/cciss_ioctl.h>
 #include <linux/string.h>
 #include <linux/bitmap.h>
@@ -52,7 +53,7 @@
 #include "hpsa.h"
 
 /* HPSA_DRIVER_VERSION must be 3 byte values (0-255) separated by '.' */
-#define HPSA_DRIVER_VERSION "2.0.1-3"
+#define HPSA_DRIVER_VERSION "2.0.2-1"
 #define DRIVER_NAME "HP HPSA Driver (v " HPSA_DRIVER_VERSION ")"
 
 /* How long to wait (in milliseconds) for board to go into simple mode */
@@ -134,6 +135,8 @@ static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
 static void hpsa_scan_start(struct Scsi_Host *);
 static int hpsa_scan_finished(struct Scsi_Host *sh,
 	unsigned long elapsed_time);
+static int hpsa_change_queue_depth(struct scsi_device *sdev,
+	int qdepth, int reason);
 
 static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd);
 static int hpsa_slave_alloc(struct scsi_device *sdev);
@@ -182,8 +185,8 @@ static struct scsi_host_template hpsa_driver_template = {
 	.queuecommand		= hpsa_scsi_queue_command,
 	.scan_start		= hpsa_scan_start,
 	.scan_finished		= hpsa_scan_finished,
+	.change_queue_depth	= hpsa_change_queue_depth,
 	.this_id		= -1,
-	.sg_tablesize		= MAXSGENTRIES,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler = hpsa_eh_device_reset_handler,
 	.ioctl			= hpsa_ioctl,
@@ -208,133 +211,6 @@ static inline struct ctlr_info *shost_to_hba(struct Scsi_Host *sh)
 	return (struct ctlr_info *) *priv;
 }
 
-static struct task_struct *hpsa_scan_thread;
-static DEFINE_MUTEX(hpsa_scan_mutex);
-static LIST_HEAD(hpsa_scan_q);
-static int hpsa_scan_func(void *data);
-
-/**
- * add_to_scan_list() - add controller to rescan queue
- * @h:		      Pointer to the controller.
- *
- * Adds the controller to the rescan queue if not already on the queue.
- *
- * returns 1 if added to the queue, 0 if skipped (could be on the
- * queue already, or the controller could be initializing or shutting
- * down).
- **/
-static int add_to_scan_list(struct ctlr_info *h)
-{
-	struct ctlr_info *test_h;
-	int found = 0;
-	int ret = 0;
-
-	if (h->busy_initializing)
-		return 0;
-
-	/*
-	 * If we don't get the lock, it means the driver is unloading
-	 * and there's no point in scheduling a new scan.
-	 */
-	if (!mutex_trylock(&h->busy_shutting_down))
-		return 0;
-
-	mutex_lock(&hpsa_scan_mutex);
-	list_for_each_entry(test_h, &hpsa_scan_q, scan_list) {
-		if (test_h == h) {
-			found = 1;
-			break;
-		}
-	}
-	if (!found && !h->busy_scanning) {
-		INIT_COMPLETION(h->scan_wait);
-		list_add_tail(&h->scan_list, &hpsa_scan_q);
-		ret = 1;
-	}
-	mutex_unlock(&hpsa_scan_mutex);
-	mutex_unlock(&h->busy_shutting_down);
-
-	return ret;
-}
-
-/**
- * remove_from_scan_list() - remove controller from rescan queue
- * @h:			   Pointer to the controller.
- *
- * Removes the controller from the rescan queue if present. Blocks if
- * the controller is currently conducting a rescan.  The controller
- * can be in one of three states:
- * 1. Doesn't need a scan
- * 2. On the scan list, but not scanning yet (we remove it)
- * 3. Busy scanning (and not on the list). In this case we want to wait for
- *    the scan to complete to make sure the scanning thread for this
- *    controller is completely idle.
- **/
-static void remove_from_scan_list(struct ctlr_info *h)
-{
-	struct ctlr_info *test_h, *tmp_h;
-
-	mutex_lock(&hpsa_scan_mutex);
-	list_for_each_entry_safe(test_h, tmp_h, &hpsa_scan_q, scan_list) {
-		if (test_h == h) { /* state 2. */
-			list_del(&h->scan_list);
-			complete_all(&h->scan_wait);
-			mutex_unlock(&hpsa_scan_mutex);
-			return;
-		}
-	}
-	if (h->busy_scanning) { /* state 3. */
-		mutex_unlock(&hpsa_scan_mutex);
-		wait_for_completion(&h->scan_wait);
-	} else { /* state 1, nothing to do. */
-		mutex_unlock(&hpsa_scan_mutex);
-	}
-}
-
-/* hpsa_scan_func() - kernel thread used to rescan controllers
- * @data:	 Ignored.
- *
- * A kernel thread used scan for drive topology changes on
- * controllers. The thread processes only one controller at a time
- * using a queue.  Controllers are added to the queue using
- * add_to_scan_list() and removed from the queue either after done
- * processing or using remove_from_scan_list().
- *
- * returns 0.
- **/
-static int hpsa_scan_func(__attribute__((unused)) void *data)
-{
-	struct ctlr_info *h;
-	int host_no;
-
-	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule();
-		if (kthread_should_stop())
-			break;
-
-		while (1) {
-			mutex_lock(&hpsa_scan_mutex);
-			if (list_empty(&hpsa_scan_q)) {
-				mutex_unlock(&hpsa_scan_mutex);
-				break;
-			}
-			h = list_entry(hpsa_scan_q.next, struct ctlr_info,
-					scan_list);
-			list_del(&h->scan_list);
-			h->busy_scanning = 1;
-			mutex_unlock(&hpsa_scan_mutex);
-			host_no = h->scsi_host ?  h->scsi_host->host_no : -1;
-			hpsa_scan_start(h->scsi_host);
-			complete_all(&h->scan_wait);
-			mutex_lock(&hpsa_scan_mutex);
-			h->busy_scanning = 0;
-			mutex_unlock(&hpsa_scan_mutex);
-		}
-	}
-	return 0;
-}
-
 static int check_for_unit_attention(struct ctlr_info *h,
 	struct CommandList *c)
 {
@@ -352,21 +228,8 @@ static int check_for_unit_attention(struct ctlr_info *h,
 		break;
 	case REPORT_LUNS_CHANGED:
 		dev_warn(&h->pdev->dev, "hpsa%d: report LUN data "
-			"changed\n", h->ctlr);
+			"changed, action required\n", h->ctlr);
 	/*
-	 * Here, we could call add_to_scan_list and wake up the scan thread,
-	 * except that it's quite likely that we will get more than one
-	 * REPORT_LUNS_CHANGED condition in quick succession, which means
-	 * that those which occur after the first one will likely happen
-	 * *during* the hpsa_scan_thread's rescan.  And the rescan code is not
-	 * robust enough to restart in the middle, undoing what it has already
-	 * done, and it's not clear that it's even possible to do this, since
-	 * part of what it does is notify the SCSI mid layer, which starts
-	 * doing it's own i/o to read partition tables and so on, and the
-	 * driver doesn't have visibility to know what might need undoing.
-	 * In any event, if possible, it is horribly complicated to get right
-	 * so we just don't do it for now.
-	 *
 	 * Note: this REPORT_LUNS_CHANGED condition only occurs on the MSA2012.
 	 */
 		break;
@@ -393,10 +256,7 @@ static ssize_t host_store_rescan(struct device *dev,
 	struct ctlr_info *h;
 	struct Scsi_Host *shost = class_to_shost(dev);
 	h = shost_to_hba(shost);
-	if (add_to_scan_list(h)) {
-		wake_up_process(hpsa_scan_thread);
-		wait_for_completion_interruptible(&h->scan_wait);
-	}
+	hpsa_scan_start(h->scsi_host);
 	return count;
 }
 
@@ -983,6 +843,76 @@ static void hpsa_scsi_setup(struct ctlr_info *h)
 	spin_lock_init(&h->devlock);
 }
 
+static void hpsa_free_sg_chain_blocks(struct ctlr_info *h)
+{
+	int i;
+
+	if (!h->cmd_sg_list)
+		return;
+	for (i = 0; i < h->nr_cmds; i++) {
+		kfree(h->cmd_sg_list[i]);
+		h->cmd_sg_list[i] = NULL;
+	}
+	kfree(h->cmd_sg_list);
+	h->cmd_sg_list = NULL;
+}
+
+static int hpsa_allocate_sg_chain_blocks(struct ctlr_info *h)
+{
+	int i;
+
+	if (h->chainsize <= 0)
+		return 0;
+
+	h->cmd_sg_list = kzalloc(sizeof(*h->cmd_sg_list) * h->nr_cmds,
+				GFP_KERNEL);
+	if (!h->cmd_sg_list)
+		return -ENOMEM;
+	for (i = 0; i < h->nr_cmds; i++) {
+		h->cmd_sg_list[i] = kmalloc(sizeof(*h->cmd_sg_list[i]) *
+						h->chainsize, GFP_KERNEL);
+		if (!h->cmd_sg_list[i])
+			goto clean;
+	}
+	return 0;
+
+clean:
+	hpsa_free_sg_chain_blocks(h);
+	return -ENOMEM;
+}
+
+static void hpsa_map_sg_chain_block(struct ctlr_info *h,
+	struct CommandList *c)
+{
+	struct SGDescriptor *chain_sg, *chain_block;
+	u64 temp64;
+
+	chain_sg = &c->SG[h->max_cmd_sg_entries - 1];
+	chain_block = h->cmd_sg_list[c->cmdindex];
+	chain_sg->Ext = HPSA_SG_CHAIN;
+	chain_sg->Len = sizeof(*chain_sg) *
+		(c->Header.SGTotal - h->max_cmd_sg_entries);
+	temp64 = pci_map_single(h->pdev, chain_block, chain_sg->Len,
+				PCI_DMA_TODEVICE);
+	chain_sg->Addr.lower = (u32) (temp64 & 0x0FFFFFFFFULL);
+	chain_sg->Addr.upper = (u32) ((temp64 >> 32) & 0x0FFFFFFFFULL);
+}
+
+static void hpsa_unmap_sg_chain_block(struct ctlr_info *h,
+	struct CommandList *c)
+{
+	struct SGDescriptor *chain_sg;
+	union u64bit temp64;
+
+	if (c->Header.SGTotal <= h->max_cmd_sg_entries)
+		return;
+
+	chain_sg = &c->SG[h->max_cmd_sg_entries - 1];
+	temp64.val32.lower = chain_sg->Addr.lower;
+	temp64.val32.upper = chain_sg->Addr.upper;
+	pci_unmap_single(h->pdev, temp64.val, chain_sg->Len, PCI_DMA_TODEVICE);
+}
+
 static void complete_scsi_command(struct CommandList *cp,
 	int timeout, u32 tag)
 {
@@ -999,10 +929,12 @@ static void complete_scsi_command(struct CommandList *cp,
 	h = cp->h;
 
 	scsi_dma_unmap(cmd); /* undo the DMA mappings */
+	if (cp->Header.SGTotal > h->max_cmd_sg_entries)
+		hpsa_unmap_sg_chain_block(h, cp);
 
 	cmd->result = (DID_OK << 16); 		/* host byte */
 	cmd->result |= (COMMAND_COMPLETE << 8);	/* msg byte */
-	cmd->result |= (ei->ScsiStatus << 1);
+	cmd->result |= ei->ScsiStatus;
 
 	/* copy the sense data whether we need to or not. */
 	memcpy(cmd->sense_buffer, ei->SenseInfo,
@@ -1203,6 +1135,7 @@ static int hpsa_scsi_detect(struct ctlr_info *h)
 	sh->max_id = HPSA_MAX_LUN;
 	sh->can_queue = h->nr_cmds;
 	sh->cmd_per_lun = h->nr_cmds;
+	sh->sg_tablesize = h->maxsgentries;
 	h->scsi_host = sh;
 	sh->hostdata[0] = (unsigned long) h;
 	sh->irq = h->intr[PERF_MODE_INT];
@@ -1382,7 +1315,7 @@ static int hpsa_send_reset(struct ctlr_info *h, unsigned char *scsi3addr)
 
 	if (c == NULL) {			/* trouble... */
 		dev_warn(&h->pdev->dev, "cmd_special_alloc returned NULL!\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	fill_cmd(c, HPSA_DEVICE_RESET_MSG, h, NULL, 0, 0, scsi3addr, TYPE_MSG);
@@ -1904,16 +1837,17 @@ out:
  * dma mapping  and fills in the scatter gather entries of the
  * hpsa command, cp.
  */
-static int hpsa_scatter_gather(struct pci_dev *pdev,
+static int hpsa_scatter_gather(struct ctlr_info *h,
 		struct CommandList *cp,
 		struct scsi_cmnd *cmd)
 {
 	unsigned int len;
 	struct scatterlist *sg;
 	u64 addr64;
-	int use_sg, i;
+	int use_sg, i, sg_index, chained;
+	struct SGDescriptor *curr_sg;
 
-	BUG_ON(scsi_sg_count(cmd) > MAXSGENTRIES);
+	BUG_ON(scsi_sg_count(cmd) > h->maxsgentries);
 
 	use_sg = scsi_dma_map(cmd);
 	if (use_sg < 0)
@@ -1922,15 +1856,33 @@ static int hpsa_scatter_gather(struct pci_dev *pdev,
 	if (!use_sg)
 		goto sglist_finished;
 
+	curr_sg = cp->SG;
+	chained = 0;
+	sg_index = 0;
 	scsi_for_each_sg(cmd, sg, use_sg, i) {
+		if (i == h->max_cmd_sg_entries - 1 &&
+			use_sg > h->max_cmd_sg_entries) {
+			chained = 1;
+			curr_sg = h->cmd_sg_list[cp->cmdindex];
+			sg_index = 0;
+		}
 		addr64 = (u64) sg_dma_address(sg);
 		len  = sg_dma_len(sg);
-		cp->SG[i].Addr.lower =
-			(u32) (addr64 & (u64) 0x00000000FFFFFFFF);
-		cp->SG[i].Addr.upper =
-			(u32) ((addr64 >> 32) & (u64) 0x00000000FFFFFFFF);
-		cp->SG[i].Len = len;
-		cp->SG[i].Ext = 0;  /* we are not chaining */
+		curr_sg->Addr.lower = (u32) (addr64 & 0x0FFFFFFFFULL);
+		curr_sg->Addr.upper = (u32) ((addr64 >> 32) & 0x0FFFFFFFFULL);
+		curr_sg->Len = len;
+		curr_sg->Ext = 0;  /* we are not chaining */
+		curr_sg++;
+	}
+
+	if (use_sg + chained > h->maxSG)
+		h->maxSG = use_sg + chained;
+
+	if (chained) {
+		cp->Header.SGList = h->max_cmd_sg_entries;
+		cp->Header.SGTotal = (u16) (use_sg + 1);
+		hpsa_map_sg_chain_block(h, cp);
+		return 0;
 	}
 
 sglist_finished:
@@ -2026,7 +1978,7 @@ static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
 		break;
 	}
 
-	if (hpsa_scatter_gather(h->pdev, c, cmd) < 0) { /* Fill SG list */
+	if (hpsa_scatter_gather(h, c, cmd) < 0) { /* Fill SG list */
 		cmd_free(h, c);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
@@ -2075,6 +2027,23 @@ static int hpsa_scan_finished(struct Scsi_Host *sh,
 	finished = h->scan_finished;
 	spin_unlock_irqrestore(&h->scan_lock, flags);
 	return finished;
+}
+
+static int hpsa_change_queue_depth(struct scsi_device *sdev,
+	int qdepth, int reason)
+{
+	struct ctlr_info *h = sdev_to_hba(sdev);
+
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -ENOTSUPP;
+
+	if (qdepth < 1)
+		qdepth = 1;
+	else
+		if (qdepth > h->nr_cmds)
+			qdepth = h->nr_cmds;
+	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	return sdev->queue_depth;
 }
 
 static void hpsa_unregister_scsi(struct ctlr_info *h)
@@ -2961,7 +2930,7 @@ static irqreturn_t do_hpsa_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* Send a message CDB to the firmwart. */
+/* Send a message CDB to the firmware. */
 static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 						unsigned char type)
 {
@@ -3296,7 +3265,7 @@ default_int_mode:
 	h->intr[PERF_MODE_INT] = pdev->irq;
 }
 
-static int hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
+static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 {
 	ushort subsystem_vendor_id, subsystem_device_id, command;
 	u32 board_id, scratchpad = 0;
@@ -3405,6 +3374,23 @@ static int hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 
 	h->board_id = board_id;
 	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+	h->maxsgentries = readl(&(h->cfgtable->MaxScatterGatherElements));
+
+	/*
+	 * Limit in-command s/g elements to 32 save dma'able memory.
+	 * Howvever spec says if 0, use 31
+	 */
+
+	h->max_cmd_sg_entries = 31;
+	if (h->maxsgentries > 512) {
+		h->max_cmd_sg_entries = 32;
+		h->chainsize = h->maxsgentries - h->max_cmd_sg_entries + 1;
+		h->maxsgentries--; /* save one for chain pointer */
+	} else {
+		h->maxsgentries = 31; /* default to traditional values */
+		h->chainsize = 0;
+	}
+
 	h->product_name = products[prod_index].product_name;
 	h->access = *(products[prod_index].access);
 	/* Allow room for some ioctls */
@@ -3532,8 +3518,6 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	h->busy_initializing = 1;
 	INIT_HLIST_HEAD(&h->cmpQ);
 	INIT_HLIST_HEAD(&h->reqQ);
-	mutex_init(&h->busy_shutting_down);
-	init_completion(&h->scan_wait);
 	rc = hpsa_pci_init(h, pdev);
 	if (rc != 0)
 		goto clean1;
@@ -3587,6 +3571,8 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 		rc = -ENOMEM;
 		goto clean4;
 	}
+	if (hpsa_allocate_sg_chain_blocks(h))
+		goto clean4;
 	spin_lock_init(&h->lock);
 	spin_lock_init(&h->scan_lock);
 	init_waitqueue_head(&h->scan_wait_queue);
@@ -3609,6 +3595,7 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	return 1;
 
 clean4:
+	hpsa_free_sg_chain_blocks(h);
 	kfree(h->cmd_pool_bits);
 	if (h->cmd_pool)
 		pci_free_consistent(h->pdev,
@@ -3681,11 +3668,10 @@ static void __devexit hpsa_remove_one(struct pci_dev *pdev)
 		return;
 	}
 	h = pci_get_drvdata(pdev);
-	mutex_lock(&h->busy_shutting_down);
-	remove_from_scan_list(h);
 	hpsa_unregister_scsi(h);	/* unhook from SCSI subsystem */
 	hpsa_shutdown(pdev);
 	iounmap(h->vaddr);
+	hpsa_free_sg_chain_blocks(h);
 	pci_free_consistent(h->pdev,
 		h->nr_cmds * sizeof(struct CommandList),
 		h->cmd_pool, h->cmd_pool_dhandle);
@@ -3703,7 +3689,6 @@ static void __devexit hpsa_remove_one(struct pci_dev *pdev)
 	 */
 	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);
-	mutex_unlock(&h->busy_shutting_down);
 	kfree(h);
 }
 
@@ -3857,23 +3842,12 @@ clean_up:
  */
 static int __init hpsa_init(void)
 {
-	int err;
-	/* Start the scan thread */
-	hpsa_scan_thread = kthread_run(hpsa_scan_func, NULL, "hpsa_scan");
-	if (IS_ERR(hpsa_scan_thread)) {
-		err = PTR_ERR(hpsa_scan_thread);
-		return -ENODEV;
-	}
-	err = pci_register_driver(&hpsa_pci_driver);
-	if (err)
-		kthread_stop(hpsa_scan_thread);
-	return err;
+	return pci_register_driver(&hpsa_pci_driver);
 }
 
 static void __exit hpsa_cleanup(void)
 {
 	pci_unregister_driver(&hpsa_pci_driver);
-	kthread_stop(hpsa_scan_thread);
 }
 
 module_init(hpsa_init);

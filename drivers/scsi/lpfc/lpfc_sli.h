@@ -62,6 +62,7 @@ struct lpfc_iocbq {
 #define LPFC_DELAY_MEM_FREE	0x20    /* Defer free'ing of FC data */
 #define LPFC_EXCHANGE_BUSY	0x40    /* SLI4 hba reported XB in response */
 #define LPFC_USE_FCPWQIDX	0x80    /* Submit to specified FCPWQ index */
+#define DSS_SECURITY_OP		0x100	/* security IO */
 
 #define LPFC_FIP_ELS_ID_MASK	0xc000	/* ELS_ID range 0-3, non-shifted mask */
 #define LPFC_FIP_ELS_ID_SHIFT	14

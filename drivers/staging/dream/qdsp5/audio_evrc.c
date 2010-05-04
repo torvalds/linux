@@ -27,6 +27,7 @@
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 #include <asm/atomic.h>
 #include <asm/ioctls.h>

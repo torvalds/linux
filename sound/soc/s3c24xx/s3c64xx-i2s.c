@@ -22,8 +22,8 @@
 #include <sound/soc.h>
 
 #include <plat/regs-s3c2412-iis.h>
-#include <plat/gpio-bank-d.h>
-#include <plat/gpio-bank-e.h>
+#include <mach/gpio-bank-d.h>
+#include <mach/gpio-bank-e.h>
 #include <plat/gpio-cfg.h>
 
 #include <mach/map.h>

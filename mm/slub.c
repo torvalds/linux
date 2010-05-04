@@ -2386,6 +2386,9 @@ int kmem_ptr_validate(struct kmem_cache *s, const void *object)
 {
 	struct page *page;
 
+	if (!kern_ptr_validate(object, s->size))
+		return 0;
+
 	page = get_object_page(object);
 
 	if (!page || s != page->slab)
@@ -2960,7 +2963,7 @@ static void slab_mem_offline_callback(void *arg)
 			/*
 			 * if n->nr_slabs > 0, slabs still exist on the node
 			 * that is going down. We were unable to free them,
-			 * and offline_pages() function shoudn't call this
+			 * and offline_pages() function shouldn't call this
 			 * callback. So, we must fail.
 			 */
 			BUG_ON(slabs_node(s, offline_node));

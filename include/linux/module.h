@@ -175,6 +175,7 @@ struct notifier_block;
 
 #ifdef CONFIG_MODULES
 
+extern int modules_disabled; /* for sysctl */
 /* Get/put a kernel symbol (calls must be symmetric) */
 void *__symbol_get(const char *symbol);
 void *__symbol_get_gpl(const char *symbol);
@@ -329,8 +330,11 @@ struct module
 	struct module_notes_attrs *notes_attrs;
 #endif
 
+#ifdef CONFIG_SMP
 	/* Per-cpu data. */
-	void *percpu;
+	void __percpu *percpu;
+	unsigned int percpu_size;
+#endif
 
 	/* The command line arguments (may be mangled).  People like
 	   keeping pointers to this stuff */
@@ -364,7 +368,8 @@ struct module
 	void (*exit)(void);
 
 	struct module_ref {
-		int count;
+		unsigned int incs;
+		unsigned int decs;
 	} __percpu *refptr;
 #endif
 
@@ -391,6 +396,7 @@ static inline int module_is_live(struct module *mod)
 struct module *__module_text_address(unsigned long addr);
 struct module *__module_address(unsigned long addr);
 bool is_module_address(unsigned long addr);
+bool is_module_percpu_address(unsigned long addr);
 bool is_module_text_address(unsigned long addr);
 
 static inline int within_module_core(unsigned long addr, struct module *mod)
@@ -458,9 +464,9 @@ static inline void __module_get(struct module *module)
 {
 	if (module) {
 		preempt_disable();
-		__this_cpu_inc(module->refptr->count);
+		__this_cpu_inc(module->refptr->incs);
 		trace_module_get(module, _THIS_IP_,
-				 __this_cpu_read(module->refptr->count));
+				 __this_cpu_read(module->refptr->incs));
 		preempt_enable();
 	}
 }
@@ -473,11 +479,10 @@ static inline int try_module_get(struct module *module)
 		preempt_disable();
 
 		if (likely(module_is_live(module))) {
-			__this_cpu_inc(module->refptr->count);
+			__this_cpu_inc(module->refptr->incs);
 			trace_module_get(module, _THIS_IP_,
-				__this_cpu_read(module->refptr->count));
-		}
-		else
+				__this_cpu_read(module->refptr->incs));
+		} else
 			ret = 0;
 
 		preempt_enable();
@@ -558,6 +563,11 @@ static inline struct module *__module_text_address(unsigned long addr)
 }
 
 static inline bool is_module_address(unsigned long addr)
+{
+	return false;
+}
+
+static inline bool is_module_percpu_address(unsigned long addr)
 {
 	return false;
 }

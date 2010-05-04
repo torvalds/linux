@@ -387,6 +387,10 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
+	/* Orphan the skb - required as we might hang on to it
+	 * for indefinite time. */
+	skb_orphan(skb);
+
 	/* Enqueue packet */
 	skb_queue_tail(&tun->socket.sk->sk_receive_queue, skb);
 	dev->trans_start = jiffies;
@@ -1437,7 +1441,7 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 
 		__tun_detach(tun);
 
-		/* If desireable, unregister the netdevice. */
+		/* If desirable, unregister the netdevice. */
 		if (!(tun->flags & TUN_PERSIST)) {
 			rtnl_lock();
 			if (dev->reg_state == NETREG_REGISTERED)

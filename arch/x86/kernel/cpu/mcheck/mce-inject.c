@@ -22,6 +22,7 @@
 #include <linux/kdebug.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include <asm/mce.h>
 #include <asm/apic.h>
 

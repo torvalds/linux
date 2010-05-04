@@ -10,6 +10,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <net/mac80211.h>

@@ -79,6 +79,7 @@
 #include <linux/tcp.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <net/tcp.h>
 
 #include <asm/system.h>
@@ -923,8 +924,8 @@ static int init_shared_mem(struct s2io_nic *nic)
 	tmp_v_addr = mac_control->stats_mem;
 	mac_control->stats_info = (struct stat_block *)tmp_v_addr;
 	memset(tmp_v_addr, 0, size);
-	DBG_PRINT(INIT_DBG, "%s: Ring Mem PHY: 0x%llx\n", dev->name,
-		  (unsigned long long)tmp_p_addr);
+	DBG_PRINT(INIT_DBG, "%s: Ring Mem PHY: 0x%llx\n",
+		dev_name(&nic->pdev->dev), (unsigned long long)tmp_p_addr);
 	mac_control->stats_info->sw_stat.mem_allocated += mem_allocated;
 	return SUCCESS;
 }
@@ -3480,7 +3481,7 @@ static void s2io_reset(struct s2io_nic *sp)
 	struct swStat *swstats;
 
 	DBG_PRINT(INIT_DBG, "%s: Resetting XFrame card %s\n",
-		  __func__, sp->dev->name);
+		  __func__, pci_name(sp->pdev));
 
 	/* Back up  the PCI-X CMD reg, dont want to lose MMRBC, OST settings */
 	pci_read_config_word(sp->pdev, PCIX_COMMAND_REGISTER, &(pci_cmd));
@@ -5819,10 +5820,8 @@ static void s2io_vpd_read(struct s2io_nic *nic)
 		}
 	}
 
-	if ((!fail) && (vpd_data[1] < VPD_STRING_LEN)) {
-		memset(nic->product_name, 0, vpd_data[1]);
+	if ((!fail) && (vpd_data[1] < VPD_STRING_LEN))
 		memcpy(nic->product_name, &vpd_data[3], vpd_data[1]);
-	}
 	kfree(vpd_data);
 	swstats->mem_freed += 256;
 }

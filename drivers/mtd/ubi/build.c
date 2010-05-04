@@ -44,6 +44,7 @@
 #include <linux/kthread.h>
 #include <linux/reboot.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include "ubi.h"
 
 /* Maximum length of the 'mtd=' parameter */

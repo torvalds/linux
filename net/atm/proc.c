@@ -22,6 +22,7 @@
 #include <linux/netdevice.h>
 #include <linux/atmclip.h>
 #include <linux/init.h> /* for __init */
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/atmclip.h>
 #include <linux/uaccess.h>

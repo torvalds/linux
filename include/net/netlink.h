@@ -945,7 +945,11 @@ static inline u64 nla_get_u64(const struct nlattr *nla)
  */
 static inline __be64 nla_get_be64(const struct nlattr *nla)
 {
-	return *(__be64 *) nla_data(nla);
+	__be64 tmp;
+
+	nla_memcpy(&tmp, nla, sizeof(tmp));
+
+	return tmp;
 }
 
 /**

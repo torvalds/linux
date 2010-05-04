@@ -21,7 +21,6 @@
 #include <linux/ptrace.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
@@ -270,33 +269,6 @@ int dma_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
 		__func__, dma_addr, size);
 	return (dev->bus == &pci_bus_type) &&
 		((dma_addr + size - PHYS_OFFSET) >= SZ_64M);
-}
-
-/*
- * We override these so we properly do dmabounce otherwise drivers
- * are able to set the dma_mask to 0xffffffff and we can no longer
- * trap bounces. :(
- *
- * We just return true on everyhing except for < 64MB in which case
- * we will fail miseralby and die since we can't handle that case.
- */
-int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	dev_dbg(&dev->dev, "%s: %llx\n", __func__, mask);
-	if (mask >= PHYS_OFFSET + SZ_64M - 1)
-		return 0;
-
-	return -EIO;
-}
-
-int
-pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	dev_dbg(&dev->dev, "%s: %llx\n", __func__, mask);
-	if (mask >= PHYS_OFFSET + SZ_64M - 1)
-		return 0;
-
-	return -EIO;
 }
 
 int __init it8152_pci_setup(int nr, struct pci_sys_data *sys)

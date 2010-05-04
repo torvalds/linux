@@ -22,6 +22,7 @@
 #include <linux/audit.h>
 #include <asm/uaccess.h>
 #include <linux/ktime.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 

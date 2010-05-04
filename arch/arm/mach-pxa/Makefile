@@ -48,6 +48,7 @@ obj-$(CONFIG_MACH_ARMCORE)	+= cm-x2xx-pci.o
 endif
 obj-$(CONFIG_MACH_EM_X270)	+= em-x270.o
 obj-$(CONFIG_MACH_CM_X300)      += cm-x300.o
+obj-$(CONFIG_MACH_CAPC7117)     += capc7117.o mxm8x10.o
 obj-$(CONFIG_ARCH_GUMSTIX)	+= gumstix.o
 obj-$(CONFIG_GUMSTIX_AM200EPD)	+= am200epd.o
 obj-$(CONFIG_GUMSTIX_AM300EPD)	+= am300epd.o
@@ -82,6 +83,7 @@ obj-$(CONFIG_PXA_SHARP_Cxx00)	+= spitz.o sharpsl_pm.o spitz_pm.o
 obj-$(CONFIG_CORGI_SSP_DEPRECATED)	+= corgi_ssp.o corgi_lcd.o
 obj-$(CONFIG_MACH_POODLE)	+= poodle.o
 obj-$(CONFIG_MACH_TOSA)		+= tosa.o
+obj-$(CONFIG_MACH_ICONTROL)     += icontrol.o mxm8x10.o
 obj-$(CONFIG_ARCH_PXA_ESERIES)	+= eseries.o
 obj-$(CONFIG_MACH_E330)		+= e330.o
 obj-$(CONFIG_MACH_E350)		+= e350.o
@@ -89,6 +91,9 @@ obj-$(CONFIG_MACH_E740)		+= e740.o
 obj-$(CONFIG_MACH_E750)		+= e750.o
 obj-$(CONFIG_MACH_E400)		+= e400.o
 obj-$(CONFIG_MACH_E800)		+= e800.o
+obj-$(CONFIG_MACH_RAUMFELD_RC)		+= raumfeld.o
+obj-$(CONFIG_MACH_RAUMFELD_CONNECTOR)	+= raumfeld.o
+obj-$(CONFIG_MACH_RAUMFELD_SPEAKER)	+= raumfeld.o
 
 # Support for blinky lights
 led-y := leds.o

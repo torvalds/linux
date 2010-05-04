@@ -16,6 +16,10 @@
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
+#ifndef __ASSEMBLY__
+extern int mem_init_done;
+#endif
+
 #ifndef CONFIG_MMU
 
 #define pgd_present(pgd)	(1) /* pages are always present on non MMU */
@@ -51,6 +55,8 @@ static inline int pte_file(pte_t pte) { return 0; }
 
 #define arch_enter_lazy_cpu_mode()	do {} while (0)
 
+#define pgprot_noncached_wc(prot)	prot
+
 #else /* CONFIG_MMU */
 
 #include <asm-generic/4level-fixup.h>
@@ -68,7 +74,6 @@ static inline int pte_file(pte_t pte) { return 0; }
 
 extern unsigned long va_to_phys(unsigned long address);
 extern pte_t *va_to_pte(unsigned long address);
-extern unsigned long ioremap_bot, ioremap_base;
 
 /*
  * The following only work if pte_present() is true.
@@ -85,9 +90,23 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 #define VMALLOC_START	(CONFIG_KERNEL_START + \
 				max(32 * 1024 * 1024UL, memory_size))
 #define VMALLOC_END	ioremap_bot
-#define VMALLOC_VMADDR(x) ((unsigned long)(x))
 
 #endif /* __ASSEMBLY__ */
+
+/*
+ * Macro to mark a page protection value as "uncacheable".
+ */
+
+#define _PAGE_CACHE_CTL	(_PAGE_GUARDED | _PAGE_NO_CACHE | \
+							_PAGE_WRITETHRU)
+
+#define pgprot_noncached(prot) \
+			(__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+					_PAGE_NO_CACHE | _PAGE_GUARDED))
+
+#define pgprot_noncached_wc(prot) \
+			 (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+							_PAGE_NO_CACHE))
 
 /*
  * The MicroBlaze MMU is identical to the PPC-40x MMU, and uses a hash
@@ -397,7 +416,7 @@ static inline unsigned long pte_update(pte_t *p, unsigned long clr,
 	mts     rmsr, %2\n\
 	nop"
 	: "=&r" (old), "=&r" (tmp), "=&r" (msr), "=m" (*p)
-	: "r" ((unsigned long)(p+1) - 4), "r" (clr), "r" (set), "m" (*p)
+	: "r" ((unsigned long)(p + 1) - 4), "r" (clr), "r" (set), "m" (*p)
 	: "cc");
 
 	return old;
@@ -566,18 +585,11 @@ void mapin_ram(void);
 int map_page(unsigned long va, phys_addr_t pa, int flags);
 
 extern int mem_init_done;
-extern unsigned long ioremap_base;
-extern unsigned long ioremap_bot;
 
 asmlinkage void __init mmu_init(void);
 
 void __init *early_get_page(void);
 
-void *consistent_alloc(int gfp, size_t size, dma_addr_t *dma_handle);
-void consistent_free(void *vaddr);
-void consistent_sync(void *vaddr, size_t size, int direction);
-void consistent_sync_page(struct page *page, unsigned long offset,
-	size_t size, int direction);
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 
@@ -585,6 +597,14 @@ void consistent_sync_page(struct page *page, unsigned long offset,
 
 #ifndef __ASSEMBLY__
 #include <asm-generic/pgtable.h>
+
+extern unsigned long ioremap_bot, ioremap_base;
+
+void *consistent_alloc(int gfp, size_t size, dma_addr_t *dma_handle);
+void consistent_free(void *vaddr);
+void consistent_sync(void *vaddr, size_t size, int direction);
+void consistent_sync_page(struct page *page, unsigned long offset,
+	size_t size, int direction);
 
 void setup_memory(void);
 #endif /* __ASSEMBLY__ */

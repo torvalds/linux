@@ -47,6 +47,7 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/rcupdate.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>

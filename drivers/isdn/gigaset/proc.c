@@ -14,7 +14,6 @@
  */
 
 #include "gigaset.h"
-#include <linux/ctype.h>
 
 static ssize_t show_cidmode(struct device *dev,
 			    struct device_attribute *attr, char *buf)

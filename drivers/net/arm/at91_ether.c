@@ -27,6 +27,7 @@
 #include <linux/ethtool.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>

@@ -12,6 +12,7 @@
 
 #include <linux/ctype.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "edac_core.h"
 #include "edac_module.h"

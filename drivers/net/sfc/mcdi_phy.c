@@ -11,6 +11,7 @@
  * Driver for PHY related operations via MCDI.
  */
 
+#include <linux/slab.h>
 #include "efx.h"
 #include "phy.h"
 #include "mcdi.h"

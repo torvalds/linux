@@ -95,6 +95,9 @@ config PM
 config STACKTRACE_SUPPORT
 	def_bool y
 
+config NEED_DMA_MAP_STATE
+	def_bool y
+
 config ISA_DMA_API
 	bool
 

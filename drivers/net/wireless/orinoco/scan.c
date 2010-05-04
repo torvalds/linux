@@ -3,6 +3,7 @@
  * See copyright notice in main.c
  */
 
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ieee80211.h>

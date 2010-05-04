@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/socket.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <linux/if_ether.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>

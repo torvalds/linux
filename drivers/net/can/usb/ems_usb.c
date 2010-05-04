@@ -876,9 +876,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 	return NETDEV_TX_OK;
 
 nomem:
-	if (skb)
-		dev_kfree_skb(skb);
-
+	dev_kfree_skb(skb);
 	stats->tx_dropped++;
 
 	return NETDEV_TX_OK;
@@ -1008,7 +1006,7 @@ static int ems_usb_probe(struct usb_interface *intf,
 
 	netdev = alloc_candev(sizeof(struct ems_usb), MAX_TX_URBS);
 	if (!netdev) {
-		dev_err(netdev->dev.parent, "Couldn't alloc candev\n");
+		dev_err(&intf->dev, "ems_usb: Couldn't alloc candev\n");
 		return -ENOMEM;
 	}
 
@@ -1038,20 +1036,20 @@ static int ems_usb_probe(struct usb_interface *intf,
 
 	dev->intr_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->intr_urb) {
-		dev_err(netdev->dev.parent, "Couldn't alloc intr URB\n");
+		dev_err(&intf->dev, "Couldn't alloc intr URB\n");
 		goto cleanup_candev;
 	}
 
 	dev->intr_in_buffer = kzalloc(INTR_IN_BUFFER_SIZE, GFP_KERNEL);
 	if (!dev->intr_in_buffer) {
-		dev_err(netdev->dev.parent, "Couldn't alloc Intr buffer\n");
+		dev_err(&intf->dev, "Couldn't alloc Intr buffer\n");
 		goto cleanup_intr_urb;
 	}
 
 	dev->tx_msg_buffer = kzalloc(CPC_HEADER_SIZE +
 				     sizeof(struct ems_cpc_msg), GFP_KERNEL);
 	if (!dev->tx_msg_buffer) {
-		dev_err(netdev->dev.parent, "Couldn't alloc Tx buffer\n");
+		dev_err(&intf->dev, "Couldn't alloc Tx buffer\n");
 		goto cleanup_intr_in_buffer;
 	}
 

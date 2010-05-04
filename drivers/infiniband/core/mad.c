@@ -34,6 +34,7 @@
  *
  */
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <rdma/ib_cache.h>
 
 #include "mad_priv.h"
@@ -2952,6 +2953,9 @@ error:
 static void ib_mad_remove_device(struct ib_device *device)
 {
 	int i, num_ports, cur_port;
+
+	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+		return;
 
 	if (device->node_type == RDMA_NODE_IB_SWITCH) {
 		num_ports = 1;

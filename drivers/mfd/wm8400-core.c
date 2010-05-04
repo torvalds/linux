@@ -18,6 +18,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/wm8400-private.h>
 #include <linux/mfd/wm8400-audio.h>
+#include <linux/slab.h>
 
 static struct {
 	u16  readable;    /* Mask of readable bits */

@@ -15,6 +15,7 @@
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 #include <linux/vfs.h>
 #include <linux/fs.h>
 #include "cifsglob.h"
@@ -54,7 +55,7 @@ void cifs_dfs_release_automount_timer(void)
  * Extracts sharename form full UNC.
  * i.e. strips from UNC trailing path that is not part of share
  * name and fixup missing '\' in the begining of DFS node refferal
- * if neccessary.
+ * if necessary.
  * Returns pointer to share name on success or ERR_PTR on error.
  * Caller is responsible for freeing returned string.
  */

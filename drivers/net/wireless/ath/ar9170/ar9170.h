@@ -166,6 +166,7 @@ struct ar9170 {
 	struct ath_common common;
 	struct mutex mutex;
 	enum ar9170_device_state state;
+	bool registered;
 	unsigned long bad_hw_nagger;
 
 	int (*open)(struct ar9170 *);

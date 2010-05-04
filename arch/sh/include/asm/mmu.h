@@ -66,6 +66,13 @@ int pmb_unmap(void __iomem *addr);
 
 #else
 
+static inline int
+pmb_bolt_mapping(unsigned long virt, phys_addr_t phys,
+		 unsigned long size, pgprot_t prot)
+{
+	return -EINVAL;
+}
+
 static inline void __iomem *
 pmb_remap_caller(phys_addr_t phys, unsigned long size,
 		 pgprot_t prot, void *caller)

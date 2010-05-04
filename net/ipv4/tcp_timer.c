@@ -19,6 +19,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <net/tcp.h>
 
 int sysctl_tcp_syn_retries __read_mostly = TCP_SYN_RETRIES;
@@ -134,7 +135,7 @@ static void tcp_mtu_probing(struct inet_connection_sock *icsk, struct sock *sk)
 }
 
 /* This function calculates a "timeout" which is equivalent to the timeout of a
- * TCP connection after "boundary" unsucessful, exponentially backed-off
+ * TCP connection after "boundary" unsuccessful, exponentially backed-off
  * retransmissions with an initial RTO of TCP_RTO_MIN.
  */
 static bool retransmits_timed_out(struct sock *sk,

@@ -237,7 +237,7 @@ static void __init _omap2_map_common_io(void)
 }
 
 #ifdef CONFIG_ARCH_OMAP2420
-void __init omap242x_map_common_io()
+void __init omap242x_map_common_io(void)
 {
 	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
 	iotable_init(omap242x_io_desc, ARRAY_SIZE(omap242x_io_desc));
@@ -246,7 +246,7 @@ void __init omap242x_map_common_io()
 #endif
 
 #ifdef CONFIG_ARCH_OMAP2430
-void __init omap243x_map_common_io()
+void __init omap243x_map_common_io(void)
 {
 	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
 	iotable_init(omap243x_io_desc, ARRAY_SIZE(omap243x_io_desc));
@@ -255,7 +255,7 @@ void __init omap243x_map_common_io()
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
-void __init omap34xx_map_common_io()
+void __init omap34xx_map_common_io(void)
 {
 	iotable_init(omap34xx_io_desc, ARRAY_SIZE(omap34xx_io_desc));
 	_omap2_map_common_io();
@@ -263,7 +263,7 @@ void __init omap34xx_map_common_io()
 #endif
 
 #ifdef CONFIG_ARCH_OMAP4
-void __init omap44xx_map_common_io()
+void __init omap44xx_map_common_io(void)
 {
 	iotable_init(omap44xx_io_desc, ARRAY_SIZE(omap44xx_io_desc));
 	_omap2_map_common_io();
@@ -309,7 +309,6 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 {
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_autodeps);
-#ifndef CONFIG_ARCH_OMAP4 /* FIXME: Remove this once the clkdev is ready */
 	if (cpu_is_omap242x())
 		omap2420_hwmod_init();
 	else if (cpu_is_omap243x())
@@ -319,7 +318,6 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 	omap2_mux_init();
 	/* The OPP tables have to be registered before a clk init */
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
-#endif
 
 	if (cpu_is_omap2420())
 		omap2420_clk_init();
@@ -333,11 +331,12 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 		pr_err("Could not init clock framework - unknown CPU\n");
 
 	omap_serial_early_init();
-#ifndef CONFIG_ARCH_OMAP4
-	omap_hwmod_late_init();
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())   /* FIXME: OMAP4 */
+		omap_hwmod_late_init();
 	omap_pm_if_init();
-	omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
-	_omap2_init_reprogram_sdrc();
-#endif
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
+		_omap2_init_reprogram_sdrc();
+	}
 	gpmc_init();
 }

@@ -26,6 +26,7 @@
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "smsc9420.h"
 
@@ -1347,7 +1348,7 @@ static int smsc9420_open(struct net_device *dev)
 
 	netif_carrier_off(dev);
 
-	/* disable, mask and acknowlege all interrupts */
+	/* disable, mask and acknowledge all interrupts */
 	spin_lock_irqsave(&pd->int_lock, flags);
 	int_cfg = smsc9420_reg_read(pd, INT_CFG) & (~INT_CFG_IRQ_EN_);
 	smsc9420_reg_write(pd, INT_CFG, int_cfg);

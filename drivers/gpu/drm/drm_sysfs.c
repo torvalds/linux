@@ -14,6 +14,7 @@
 
 #include <linux/device.h>
 #include <linux/kdev_t.h>
+#include <linux/gfp.h>
 #include <linux/err.h>
 
 #include "drm_sysfs.h"

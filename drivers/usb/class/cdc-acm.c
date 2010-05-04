@@ -1441,7 +1441,7 @@ static int acm_resume(struct usb_interface *intf)
 			wb = acm->delayed_wb;
 			acm->delayed_wb = NULL;
 			spin_unlock_irq(&acm->write_lock);
-			acm_start_wb(acm, acm->delayed_wb);
+			acm_start_wb(acm, wb);
 		} else {
 			spin_unlock_irq(&acm->write_lock);
 		}

@@ -39,7 +39,6 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -348,16 +347,6 @@ static int __init get_tcic_id(void)
     return id;
 }
 
-static int tcic_drv_pcmcia_suspend(struct platform_device *dev,
-				     pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&dev->dev);
-}
-
-static int tcic_drv_pcmcia_resume(struct platform_device *dev)
-{
-	return pcmcia_socket_dev_resume(&dev->dev);
-}
 /*====================================================================*/
 
 static struct platform_driver tcic_driver = {
@@ -365,8 +354,6 @@ static struct platform_driver tcic_driver = {
 		.name = "tcic-pcmcia",
 		.owner		= THIS_MODULE,
 	},
-	.suspend 	= tcic_drv_pcmcia_suspend,
-	.resume 	= tcic_drv_pcmcia_resume,
 };
 
 static struct platform_device tcic_device = {

@@ -40,6 +40,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/netfilter.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>

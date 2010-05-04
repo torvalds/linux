@@ -30,6 +30,7 @@
 #include <linux/serial_reg.h>
 #include <linux/delay.h>	/* For udelay */
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "jsm.h"
 

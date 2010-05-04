@@ -32,13 +32,13 @@
 /** enum p9_proto_versions - 9P protocol versions
  * @p9_proto_legacy: 9P Legacy mode, pre-9P2000.u
  * @p9_proto_2000u: 9P2000.u extension
- * @p9_proto_2010L: 9P2010.L extension
+ * @p9_proto_2000L: 9P2000.L extension
  */
 
 enum p9_proto_versions{
 	p9_proto_legacy = 0,
 	p9_proto_2000u = 1,
-	p9_proto_2010L = 2,
+	p9_proto_2000L = 2,
 };
 
 
@@ -54,6 +54,7 @@ enum p9_proto_versions{
 
 enum p9_trans_status {
 	Connected,
+	BeginDisconnect,
 	Disconnected,
 	Hung,
 };
@@ -198,6 +199,7 @@ int p9_client_version(struct p9_client *);
 struct p9_client *p9_client_create(const char *dev_name, char *options);
 void p9_client_destroy(struct p9_client *clnt);
 void p9_client_disconnect(struct p9_client *clnt);
+void p9_client_begin_disconnect(struct p9_client *clnt);
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 					char *uname, u32 n_uname, char *aname);
 struct p9_fid *p9_client_auth(struct p9_client *clnt, char *uname,

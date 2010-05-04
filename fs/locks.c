@@ -1455,7 +1455,7 @@ EXPORT_SYMBOL(generic_setlease);
  *	leases held by processes on this node.
  *
  *	There is also no break_lease method; filesystems that
- *	handle their own leases shoud break leases themselves from the
+ *	handle their own leases should break leases themselves from the
  *	filesystem's open, create, and (on truncate) setattr methods.
  *
  *	Warning: the only current setlease methods exist only to disable

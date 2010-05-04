@@ -512,7 +512,7 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 /*
  * The FX2 chip does not give us a zero length read at end of frame.
  * It does, however, give a short read at the end of a frame, if
- * neccessary, rather than run two frames together.
+ * necessary, rather than run two frames together.
  *
  * By choosing the right bulk transfer size, we are guaranteed to always
  * get a short read for the last read of each frame.  Frame sizes are

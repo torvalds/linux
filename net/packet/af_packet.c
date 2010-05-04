@@ -60,6 +60,7 @@
 #include <linux/wireless.h>
 #include <linux/kernel.h>
 #include <linux/kmod.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -1688,6 +1689,8 @@ static int packet_dev_mc(struct net_device *dev, struct packet_mclist *i,
 {
 	switch (i->type) {
 	case PACKET_MR_MULTICAST:
+		if (i->alen != dev->addr_len)
+			return -EINVAL;
 		if (what > 0)
 			return dev_mc_add(dev, i->addr, i->alen, 0);
 		else
@@ -1700,6 +1703,8 @@ static int packet_dev_mc(struct net_device *dev, struct packet_mclist *i,
 		return dev_set_allmulti(dev, what);
 		break;
 	case PACKET_MR_UNICAST:
+		if (i->alen != dev->addr_len)
+			return -EINVAL;
 		if (what > 0)
 			return dev_unicast_add(dev, i->addr);
 		else
@@ -1734,7 +1739,7 @@ static int packet_mc_add(struct sock *sk, struct packet_mreq_max *mreq)
 		goto done;
 
 	err = -EINVAL;
-	if (mreq->mr_alen != dev->addr_len)
+	if (mreq->mr_alen > dev->addr_len)
 		goto done;
 
 	err = -ENOBUFS;
@@ -2164,8 +2169,6 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 	case SIOCGIFDSTADDR:
 	case SIOCSIFDSTADDR:
 	case SIOCSIFFLAGS:
-		if (!net_eq(sock_net(sk), &init_net))
-			return -ENOIOCTLCMD;
 		return inet_dgram_ops.ioctl(sock, cmd, arg);
 #endif
 

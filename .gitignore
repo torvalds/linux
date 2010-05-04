@@ -34,14 +34,18 @@ modules.builtin
 #
 # Top-level generic files
 #
-tags
-TAGS
-linux
-vmlinux
-vmlinuz
-System.map
-Module.markers
-Module.symvers
+/tags
+/TAGS
+/linux
+/vmlinux
+/vmlinuz
+/System.map
+/Module.markers
+/Module.symvers
+
+#
+# git files that we don't want to ignore even it they are dot-files
+#
 !.gitignore
 !.mailmap
 

@@ -154,7 +154,7 @@ static struct elevator_type *elevator_get(const char *name)
 
 		spin_unlock(&elv_list_lock);
 
-		sprintf(elv, "%s-iosched", name);
+		snprintf(elv, sizeof(elv), "%s-iosched", name);
 
 		request_module("%s", elv);
 		spin_lock(&elv_list_lock);

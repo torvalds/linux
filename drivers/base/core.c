@@ -1345,6 +1345,8 @@ static void root_device_release(struct device *dev)
  * 'module' symlink which points to the @owner directory
  * in sysfs.
  *
+ * Returns &struct device pointer on success, or ERR_PTR() on error.
+ *
  * Note: You probably want to use root_device_register().
  */
 struct device *__root_device_register(const char *name, struct module *owner)
@@ -1432,6 +1434,8 @@ static void device_create_release(struct device *dev)
  * Any further sysfs files that might be required can be created using this
  * pointer.
  *
+ * Returns &struct device pointer on success, or ERR_PTR() on error.
+ *
  * Note: the struct class passed to this function must have previously
  * been created with a call to class_create().
  */
@@ -1491,6 +1495,8 @@ EXPORT_SYMBOL_GPL(device_create_vargs);
  * The pointer to the struct device will be returned from the call.
  * Any further sysfs files that might be required can be created using this
  * pointer.
+ *
+ * Returns &struct device pointer on success, or ERR_PTR() on error.
  *
  * Note: the struct class passed to this function must have previously
  * been created with a call to class_create().

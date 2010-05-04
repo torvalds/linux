@@ -102,6 +102,8 @@
 	.else
 	ldmdb	sp, {r0 - lr}^			@ get calling r0 - lr
 	.endif
+	mov	r0, r0				@ ARMv5T and earlier require a nop
+						@ after ldm {}^
 	add	sp, sp, #S_FRAME_SIZE - S_PC
 	movs	pc, lr				@ return & move spsr_svc into cpsr
 	.endm

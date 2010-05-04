@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/zorro.h>
+#include <linux/slab.h>
 
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>

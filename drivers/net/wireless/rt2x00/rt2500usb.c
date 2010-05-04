@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #include "rt2x00.h"
@@ -368,7 +369,7 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 
 		/*
 		 * The encryption key doesn't fit within the CSR cache,
-		 * this means we should allocate it seperately and use
+		 * this means we should allocate it separately and use
 		 * rt2x00usb_vendor_request() to send the key to the hardware.
 		 */
 		reg = KEY_ENTRY(key->hw_key_idx);
@@ -382,7 +383,7 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * The driver does not support the IV/EIV generation
 		 * in hardware. However it demands the data to be provided
-		 * both seperately as well as inside the frame.
+		 * both separately as well as inside the frame.
 		 * We already provided the CONFIG_CRYPTO_COPY_IV to rt2x00lib
 		 * to ensure rt2x00lib will not strip the data from the
 		 * frame after the copy, now we must tell mac80211
@@ -1641,6 +1642,11 @@ static int rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	struct channel_info *info;
 	char *tx_power;
 	unsigned int i;
+
+	/*
+	 * Disable powersaving as default.
+	 */
+	rt2x00dev->hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	/*
 	 * Initialize all hw fields.

@@ -1,5 +1,6 @@
 #include "ieee80211.h"
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include "rtl819x_TS.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)

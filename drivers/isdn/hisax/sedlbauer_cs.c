@@ -76,7 +76,7 @@ module_param(protocol, int, 0);
    event handler. 
 */
 
-static int sedlbauer_config(struct pcmcia_device *link);
+static int sedlbauer_config(struct pcmcia_device *link) __devinit ;
 static void sedlbauer_release(struct pcmcia_device *link);
 
 /*
@@ -85,7 +85,7 @@ static void sedlbauer_release(struct pcmcia_device *link);
    needed to manage one actual PCMCIA card.
 */
 
-static void sedlbauer_detach(struct pcmcia_device *p_dev);
+static void sedlbauer_detach(struct pcmcia_device *p_dev) __devexit;
 
 /*
    You'll also need to prototype all the functions that will actually
@@ -129,7 +129,7 @@ typedef struct local_info_t {
     
 ======================================================================*/
 
-static int sedlbauer_probe(struct pcmcia_device *link)
+static int __devinit sedlbauer_probe(struct pcmcia_device *link)
 {
     local_info_t *local;
 
@@ -177,7 +177,7 @@ static int sedlbauer_probe(struct pcmcia_device *link)
 
 ======================================================================*/
 
-static void sedlbauer_detach(struct pcmcia_device *link)
+static void __devexit sedlbauer_detach(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "sedlbauer_detach(0x%p)\n", link);
 
@@ -283,7 +283,7 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 
 
 
-static int sedlbauer_config(struct pcmcia_device *link)
+static int __devinit sedlbauer_config(struct pcmcia_device *link)
 {
     local_info_t *dev = link->priv;
     win_req_t *req;
@@ -441,7 +441,7 @@ static struct pcmcia_driver sedlbauer_driver = {
 		.name	= "sedlbauer_cs",
 	},
 	.probe		= sedlbauer_probe,
-	.remove		= sedlbauer_detach,
+	.remove		= __devexit_p(sedlbauer_detach),
 	.id_table	= sedlbauer_ids,
 	.suspend	= sedlbauer_suspend,
 	.resume		= sedlbauer_resume,

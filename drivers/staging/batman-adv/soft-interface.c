@@ -26,6 +26,7 @@
 #include "translation-table.h"
 #include "types.h"
 #include "hash.h"
+#include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 

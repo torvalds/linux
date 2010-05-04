@@ -50,7 +50,7 @@ u64 native_sched_clock(void)
 	 *   unstable. We do this because unlike Time Of Day,
 	 *   the scheduler clock tolerates small errors and it's
 	 *   very important for it to be as fast as the platform
-	 *   can achive it. )
+	 *   can achieve it. )
 	 */
 	if (unlikely(tsc_disabled)) {
 		/* No locking but a rare wrong value is not a big deal: */

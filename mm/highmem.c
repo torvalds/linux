@@ -220,7 +220,7 @@ EXPORT_SYMBOL(kmap_high);
  * @page: &struct page to pin
  *
  * Returns the page's current virtual memory address, or NULL if no mapping
- * exists.  When and only when a non null address is returned then a
+ * exists.  If and only if a non null address is returned then a
  * matching call to kunmap_high() is necessary.
  *
  * This can be called from any context.

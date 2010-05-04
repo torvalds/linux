@@ -123,8 +123,6 @@ extern void show_regs(struct pt_regs *);
 struct task_struct;
 
 #define arch_has_single_step()	(1)
-extern void user_enable_single_step(struct task_struct *);
-extern void user_disable_single_step(struct task_struct *);
 
 struct perf_event;
 struct perf_sample_data;

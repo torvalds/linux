@@ -407,7 +407,7 @@ static irqreturn_t ks8851_irq(int irq, void *pw)
  * @buff: The buffer address
  * @len: The length of the data to read
  *
- * Issue an RXQ FIFO read command and read the @len ammount of data from
+ * Issue an RXQ FIFO read command and read the @len amount of data from
  * the FIFO into the buffer specified by @buff.
  */
 static void ks8851_rdfifo(struct ks8851_net *ks, u8 *buff, unsigned len)
@@ -722,12 +722,14 @@ static void ks8851_tx_work(struct work_struct *work)
 		txb = skb_dequeue(&ks->txq);
 		last = skb_queue_empty(&ks->txq);
 
-		ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr | RXQCR_SDA);
-		ks8851_wrpkt(ks, txb, last);
-		ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
-		ks8851_wrreg16(ks, KS_TXQCR, TXQCR_METFE);
+		if (txb != NULL) {
+			ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr | RXQCR_SDA);
+			ks8851_wrpkt(ks, txb, last);
+			ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
+			ks8851_wrreg16(ks, KS_TXQCR, TXQCR_METFE);
 
-		ks8851_done_tx(ks, txb);
+			ks8851_done_tx(ks, txb);
+		}
 	}
 
 	mutex_unlock(&ks->lock);
@@ -976,7 +978,6 @@ static void ks8851_set_rx_mode(struct net_device *dev)
 			crc >>= (32 - 6);  /* get top six bits */
 
 			rxctrl.mchash[crc >> 4] |= (1 << (crc & 0xf));
-			mcptr = mcptr->next;
 		}
 
 		rxctrl.rxcr1 = RXCR1_RXME | RXCR1_RXPAFMA;

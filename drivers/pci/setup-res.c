@@ -93,8 +93,7 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 int pci_claim_resource(struct pci_dev *dev, int resource)
 {
 	struct resource *res = &dev->resource[resource];
-	struct resource *root;
-	int err;
+	struct resource *root, *conflict;
 
 	root = pci_find_parent_resource(dev, res);
 	if (!root) {
@@ -103,12 +102,15 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 		return -EINVAL;
 	}
 
-	err = request_resource(root, res);
-	if (err)
+	conflict = request_resource_conflict(root, res);
+	if (conflict) {
 		dev_err(&dev->dev,
-			"address space collision: %pR already in use\n", res);
+			"address space collision: %pR conflicts with %s %pR\n",
+			res, conflict->name, conflict);
+		return -EBUSY;
+	}
 
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(pci_claim_resource);
 

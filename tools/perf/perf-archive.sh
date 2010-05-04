@@ -9,8 +9,9 @@ fi
 
 DEBUGDIR=~/.debug/
 BUILDIDS=$(mktemp /tmp/perf-archive-buildids.XXXXXX)
+NOBUILDID=0000000000000000000000000000000000000000
 
-perf buildid-list -i $PERF_DATA --with-hits > $BUILDIDS
+perf buildid-list -i $PERF_DATA --with-hits | grep -v "^$NOBUILDID " > $BUILDIDS
 if [ ! -s $BUILDIDS ] ; then
 	echo "perf archive: no build-ids found"
 	rm -f $BUILDIDS

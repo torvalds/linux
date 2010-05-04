@@ -68,22 +68,25 @@ static const struct {
 #define map_key_clear(c)	hid_map_usage_clear(hidinput, usage, &bit, \
 		&max, EV_KEY, (c))
 
-static inline int match_scancode(int code, int scancode)
+static inline int match_scancode(unsigned int code, unsigned int scancode)
 {
 	if (scancode == 0)
 		return 1;
-	return ((code & (HID_USAGE_PAGE | HID_USAGE)) == scancode);
+
+	return (code & (HID_USAGE_PAGE | HID_USAGE)) == scancode;
 }
 
-static inline int match_keycode(int code, int keycode)
+static inline int match_keycode(unsigned int code, unsigned int keycode)
 {
 	if (keycode == 0)
 		return 1;
-	return (code == keycode);
+
+	return code == keycode;
 }
 
 static struct hid_usage *hidinput_find_key(struct hid_device *hid,
-		int scancode, int keycode)
+					   unsigned int scancode,
+					   unsigned int keycode)
 {
 	int i, j, k;
 	struct hid_report *report;
@@ -105,8 +108,8 @@ static struct hid_usage *hidinput_find_key(struct hid_device *hid,
 	return NULL;
 }
 
-static int hidinput_getkeycode(struct input_dev *dev, int scancode,
-				int *keycode)
+static int hidinput_getkeycode(struct input_dev *dev,
+			       unsigned int scancode, unsigned int *keycode)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct hid_usage *usage;
@@ -119,15 +122,12 @@ static int hidinput_getkeycode(struct input_dev *dev, int scancode,
 	return -EINVAL;
 }
 
-static int hidinput_setkeycode(struct input_dev *dev, int scancode,
-				int keycode)
+static int hidinput_setkeycode(struct input_dev *dev,
+			       unsigned int scancode, unsigned int keycode)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct hid_usage *usage;
 	int old_keycode;
-
-	if (keycode < 0 || keycode > KEY_MAX)
-		return -EINVAL;
 
 	usage = hidinput_find_key(hid, scancode, 0);
 	if (usage) {

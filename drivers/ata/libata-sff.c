@@ -33,6 +33,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/pci.h>
 #include <linux/libata.h>
 #include <linux/highmem.h>
@@ -1667,6 +1668,7 @@ unsigned int ata_sff_host_intr(struct ata_port *ap,
 {
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	u8 status, host_stat = 0;
+	bool bmdma_stopped = false;
 
 	VPRINTK("ata%u: protocol %d task_state %d\n",
 		ap->print_id, qc->tf.protocol, ap->hsm_task_state);
@@ -1699,6 +1701,7 @@ unsigned int ata_sff_host_intr(struct ata_port *ap,
 
 			/* before we do anything else, clear DMA-Start bit */
 			ap->ops->bmdma_stop(qc);
+			bmdma_stopped = true;
 
 			if (unlikely(host_stat & ATA_DMA_ERR)) {
 				/* error when transfering data to/from memory */
@@ -1716,8 +1719,14 @@ unsigned int ata_sff_host_intr(struct ata_port *ap,
 
 	/* check main status, clearing INTRQ if needed */
 	status = ata_sff_irq_status(ap);
-	if (status & ATA_BUSY)
-		goto idle_irq;
+	if (status & ATA_BUSY) {
+		if (bmdma_stopped) {
+			/* BMDMA engine is already stopped, we're screwed */
+			qc->err_mask |= AC_ERR_HSM;
+			ap->hsm_task_state = HSM_ST_ERR;
+		} else
+			goto idle_irq;
+	}
 
 	/* ack bmdma irq events */
 	ap->ops->sff_irq_clear(ap);
@@ -1762,13 +1771,16 @@ EXPORT_SYMBOL_GPL(ata_sff_host_intr);
 irqreturn_t ata_sff_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
+	bool retried = false;
 	unsigned int i;
-	unsigned int handled = 0, polling = 0;
+	unsigned int handled, idle, polling;
 	unsigned long flags;
 
 	/* TODO: make _irqsave conditional on x86 PCI IDE legacy mode */
 	spin_lock_irqsave(&host->lock, flags);
 
+retry:
+	handled = idle = polling = 0;
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 		struct ata_queued_cmd *qc;
@@ -1782,7 +1794,8 @@ irqreturn_t ata_sff_interrupt(int irq, void *dev_instance)
 				handled |= ata_sff_host_intr(ap, qc);
 			else
 				polling |= 1 << i;
-		}
+		} else
+			idle |= 1 << i;
 	}
 
 	/*
@@ -1790,7 +1803,9 @@ irqreturn_t ata_sff_interrupt(int irq, void *dev_instance)
 	 * asserting IRQ line, nobody cared will ensue.  Check IRQ
 	 * pending status if available and clear spurious IRQ.
 	 */
-	if (!handled) {
+	if (!handled && !retried) {
+		bool retry = false;
+
 		for (i = 0; i < host->n_ports; i++) {
 			struct ata_port *ap = host->ports[i];
 
@@ -1801,12 +1816,23 @@ irqreturn_t ata_sff_interrupt(int irq, void *dev_instance)
 			    !ap->ops->sff_irq_check(ap))
 				continue;
 
-			if (printk_ratelimit())
-				ata_port_printk(ap, KERN_INFO,
-						"clearing spurious IRQ\n");
+			if (idle & (1 << i)) {
+				ap->ops->sff_check_status(ap);
+				ap->ops->sff_irq_clear(ap);
+			} else {
+				/* clear INTRQ and check if BUSY cleared */
+				if (!(ap->ops->sff_check_status(ap) & ATA_BUSY))
+					retry |= true;
+				/*
+				 * With command in flight, we can't do
+				 * sff_irq_clear() w/o racing with completion.
+				 */
+			}
+		}
 
-			ap->ops->sff_check_status(ap);
-			ap->ops->sff_irq_clear(ap);
+		if (retry) {
+			retried = true;
+			goto retry;
 		}
 	}
 
@@ -2287,7 +2313,7 @@ EXPORT_SYMBOL_GPL(ata_sff_postreset);
  *	@qc: command
  *
  *	Drain the FIFO and device of any stuck data following a command
- *	failing to complete. In some cases this is neccessary before a
+ *	failing to complete. In some cases this is necessary before a
  *	reset will recover the device.
  *
  */

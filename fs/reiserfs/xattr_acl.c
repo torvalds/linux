@@ -5,6 +5,7 @@
 #include <linux/errno.h>
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
+#include <linux/slab.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/reiserfs_xattr.h>
 #include <linux/reiserfs_acl.h>

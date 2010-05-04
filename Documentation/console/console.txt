@@ -74,7 +74,7 @@ driver takes over the consoles vacated by the driver. Binding, on the other
 hand, will bind the driver to the consoles that are currently occupied by a
 system driver.
 
-NOTE1: Binding and binding must be selected in Kconfig. It's under:
+NOTE1: Binding and unbinding must be selected in Kconfig. It's under:
 
 Device Drivers -> Character devices -> Support for binding and unbinding
 console drivers

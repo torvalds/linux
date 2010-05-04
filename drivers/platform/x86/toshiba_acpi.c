@@ -47,6 +47,7 @@
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 
@@ -745,7 +746,7 @@ static struct backlight_ops toshiba_backlight_data = {
         .update_status  = set_lcd_status,
 };
 
-static struct key_entry *toshiba_acpi_get_entry_by_scancode(int code)
+static struct key_entry *toshiba_acpi_get_entry_by_scancode(unsigned int code)
 {
 	struct key_entry *key;
 
@@ -756,7 +757,7 @@ static struct key_entry *toshiba_acpi_get_entry_by_scancode(int code)
 	return NULL;
 }
 
-static struct key_entry *toshiba_acpi_get_entry_by_keycode(int code)
+static struct key_entry *toshiba_acpi_get_entry_by_keycode(unsigned int code)
 {
 	struct key_entry *key;
 
@@ -767,8 +768,8 @@ static struct key_entry *toshiba_acpi_get_entry_by_keycode(int code)
 	return NULL;
 }
 
-static int toshiba_acpi_getkeycode(struct input_dev *dev, int scancode,
-				   int *keycode)
+static int toshiba_acpi_getkeycode(struct input_dev *dev,
+				   unsigned int scancode, unsigned int *keycode)
 {
 	struct key_entry *key = toshiba_acpi_get_entry_by_scancode(scancode);
 
@@ -780,14 +781,11 @@ static int toshiba_acpi_getkeycode(struct input_dev *dev, int scancode,
 	return -EINVAL;
 }
 
-static int toshiba_acpi_setkeycode(struct input_dev *dev, int scancode,
-				   int keycode)
+static int toshiba_acpi_setkeycode(struct input_dev *dev,
+				   unsigned int scancode, unsigned int keycode)
 {
 	struct key_entry *key;
-	int old_keycode;
-
-	if (keycode < 0 || keycode > KEY_MAX)
-		return -EINVAL;
+	unsigned int old_keycode;
 
 	key = toshiba_acpi_get_entry_by_scancode(scancode);
 	if (key && key->type == KE_KEY) {
@@ -927,6 +925,7 @@ static int __init toshiba_acpi_init(void)
 	u32 hci_result;
 	bool bt_present;
 	int ret = 0;
+	struct backlight_properties props;
 
 	if (acpi_disabled)
 		return -ENODEV;
@@ -977,10 +976,12 @@ static int __init toshiba_acpi_init(void)
 		}
 	}
 
+	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
 	toshiba_backlight_device = backlight_device_register("toshiba",
-						&toshiba_acpi.p_dev->dev,
-						NULL,
-						&toshiba_backlight_data);
+							     &toshiba_acpi.p_dev->dev,
+							     NULL,
+							     &toshiba_backlight_data,
+							     &props);
         if (IS_ERR(toshiba_backlight_device)) {
 		ret = PTR_ERR(toshiba_backlight_device);
 
@@ -989,7 +990,6 @@ static int __init toshiba_acpi_init(void)
 		toshiba_acpi_exit();
 		return ret;
 	}
-        toshiba_backlight_device->props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
 
 	/* Register rfkill switch for Bluetooth */
 	if (hci_get_bt_present(&bt_present) == HCI_SUCCESS && bt_present) {

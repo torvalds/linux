@@ -5,6 +5,7 @@
 
 #include <linux/module.h>
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
 #include <linux/mutex.h>

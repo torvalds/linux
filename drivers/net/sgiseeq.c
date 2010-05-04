@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -592,8 +593,10 @@ static int sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Setup... */
 	len = skb->len;
 	if (len < ETH_ZLEN) {
-		if (skb_padto(skb, ETH_ZLEN))
+		if (skb_padto(skb, ETH_ZLEN)) {
+			spin_unlock_irqrestore(&sp->tx_lock, flags);
 			return NETDEV_TX_OK;
+		}
 		len = ETH_ZLEN;
 	}
 

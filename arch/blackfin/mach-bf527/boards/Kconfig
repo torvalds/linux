@@ -9,6 +9,11 @@ config BFIN527_EZKIT
 	help
 	  BF527-EZKIT-LITE board support.
 
+config BFIN527_EZKIT_V2
+	bool "BF527-EZKIT-V2"
+	help
+	  BF527-EZKIT-LITE V2.1+ board support.
+
 config BFIN527_BLUETECHNIX_CM
 	bool "Bluetechnix CM-BF527"
 	help

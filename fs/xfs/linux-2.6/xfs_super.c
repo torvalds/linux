@@ -61,6 +61,7 @@
 
 #include <linux/namei.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/mempool.h>
 #include <linux/writeback.h>
@@ -1208,6 +1209,7 @@ xfs_fs_put_super(
 
 	xfs_unmountfs(mp);
 	xfs_freesb(mp);
+	xfs_inode_shrinker_unregister(mp);
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
 	xfs_dmops_put(mp);
@@ -1621,6 +1623,8 @@ xfs_fs_fill_super(
 	if (error)
 		goto fail_vnrele;
 
+	xfs_inode_shrinker_register(mp);
+
 	kfree(mtpt);
 	return 0;
 
@@ -1866,6 +1870,7 @@ init_xfs_fs(void)
 		goto out_cleanup_procfs;
 
 	vfs_initquota();
+	xfs_inode_shrinker_init();
 
 	error = register_filesystem(&xfs_fs_type);
 	if (error)
@@ -1893,6 +1898,7 @@ exit_xfs_fs(void)
 {
 	vfs_exitquota();
 	unregister_filesystem(&xfs_fs_type);
+	xfs_inode_shrinker_destroy();
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
 	xfs_buf_terminate();

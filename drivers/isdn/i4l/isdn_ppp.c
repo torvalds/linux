@@ -12,6 +12,7 @@
 #include <linux/isdn.h>
 #include <linux/poll.h>
 #include <linux/ppp-comp.h>
+#include <linux/slab.h>
 #ifdef CONFIG_IPPP_FILTER
 #include <linux/filter.h>
 #endif

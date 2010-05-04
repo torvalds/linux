@@ -10,6 +10,7 @@
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
+#include <linux/slab.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");

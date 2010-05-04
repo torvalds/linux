@@ -370,27 +370,33 @@ EXPORT_SYMBOL_GPL(find_module);
 
 #ifdef CONFIG_SMP
 
-static void *percpu_modalloc(unsigned long size, unsigned long align,
-			     const char *name)
+static inline void __percpu *mod_percpu(struct module *mod)
 {
-	void *ptr;
+	return mod->percpu;
+}
 
+static int percpu_modalloc(struct module *mod,
+			   unsigned long size, unsigned long align)
+{
 	if (align > PAGE_SIZE) {
 		printk(KERN_WARNING "%s: per-cpu alignment %li > %li\n",
-		       name, align, PAGE_SIZE);
+		       mod->name, align, PAGE_SIZE);
 		align = PAGE_SIZE;
 	}
 
-	ptr = __alloc_reserved_percpu(size, align);
-	if (!ptr)
+	mod->percpu = __alloc_reserved_percpu(size, align);
+	if (!mod->percpu) {
 		printk(KERN_WARNING
 		       "Could not allocate %lu bytes percpu data\n", size);
-	return ptr;
+		return -ENOMEM;
+	}
+	mod->percpu_size = size;
+	return 0;
 }
 
-static void percpu_modfree(void *freeme)
+static void percpu_modfree(struct module *mod)
 {
-	free_percpu(freeme);
+	free_percpu(mod->percpu);
 }
 
 static unsigned int find_pcpusec(Elf_Ehdr *hdr,
@@ -400,24 +406,62 @@ static unsigned int find_pcpusec(Elf_Ehdr *hdr,
 	return find_sec(hdr, sechdrs, secstrings, ".data.percpu");
 }
 
-static void percpu_modcopy(void *pcpudest, const void *from, unsigned long size)
+static void percpu_modcopy(struct module *mod,
+			   const void *from, unsigned long size)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		memcpy(pcpudest + per_cpu_offset(cpu), from, size);
+		memcpy(per_cpu_ptr(mod->percpu, cpu), from, size);
+}
+
+/**
+ * is_module_percpu_address - test whether address is from module static percpu
+ * @addr: address to test
+ *
+ * Test whether @addr belongs to module static percpu area.
+ *
+ * RETURNS:
+ * %true if @addr is from module static percpu area
+ */
+bool is_module_percpu_address(unsigned long addr)
+{
+	struct module *mod;
+	unsigned int cpu;
+
+	preempt_disable();
+
+	list_for_each_entry_rcu(mod, &modules, list) {
+		if (!mod->percpu_size)
+			continue;
+		for_each_possible_cpu(cpu) {
+			void *start = per_cpu_ptr(mod->percpu, cpu);
+
+			if ((void *)addr >= start &&
+			    (void *)addr < start + mod->percpu_size) {
+				preempt_enable();
+				return true;
+			}
+		}
+	}
+
+	preempt_enable();
+	return false;
 }
 
 #else /* ... !CONFIG_SMP */
 
-static inline void *percpu_modalloc(unsigned long size, unsigned long align,
-				    const char *name)
+static inline void __percpu *mod_percpu(struct module *mod)
 {
 	return NULL;
 }
-static inline void percpu_modfree(void *pcpuptr)
+static inline int percpu_modalloc(struct module *mod,
+				  unsigned long size, unsigned long align)
 {
-	BUG();
+	return -ENOMEM;
+}
+static inline void percpu_modfree(struct module *mod)
+{
 }
 static inline unsigned int find_pcpusec(Elf_Ehdr *hdr,
 					Elf_Shdr *sechdrs,
@@ -425,11 +469,15 @@ static inline unsigned int find_pcpusec(Elf_Ehdr *hdr,
 {
 	return 0;
 }
-static inline void percpu_modcopy(void *pcpudst, const void *src,
-				  unsigned long size)
+static inline void percpu_modcopy(struct module *mod,
+				  const void *from, unsigned long size)
 {
 	/* pcpusec should be 0, and size of that section should be 0. */
 	BUG_ON(size != 0);
+}
+bool is_module_percpu_address(unsigned long addr)
+{
+	return false;
 }
 
 #endif /* CONFIG_SMP */
@@ -473,11 +521,13 @@ static void module_unload_init(struct module *mod)
 	int cpu;
 
 	INIT_LIST_HEAD(&mod->modules_which_use_me);
-	for_each_possible_cpu(cpu)
-		per_cpu_ptr(mod->refptr, cpu)->count = 0;
+	for_each_possible_cpu(cpu) {
+		per_cpu_ptr(mod->refptr, cpu)->incs = 0;
+		per_cpu_ptr(mod->refptr, cpu)->decs = 0;
+	}
 
 	/* Hold reference count during initialization. */
-	__this_cpu_write(mod->refptr->count, 1);
+	__this_cpu_write(mod->refptr->incs, 1);
 	/* Backwards compatibility macros put refcount during init. */
 	mod->waiter = current;
 }
@@ -616,12 +666,28 @@ static int try_stop_module(struct module *mod, int flags, int *forced)
 
 unsigned int module_refcount(struct module *mod)
 {
-	unsigned int total = 0;
+	unsigned int incs = 0, decs = 0;
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		total += per_cpu_ptr(mod->refptr, cpu)->count;
-	return total;
+		decs += per_cpu_ptr(mod->refptr, cpu)->decs;
+	/*
+	 * ensure the incs are added up after the decs.
+	 * module_put ensures incs are visible before decs with smp_wmb.
+	 *
+	 * This 2-count scheme avoids the situation where the refcount
+	 * for CPU0 is read, then CPU0 increments the module refcount,
+	 * then CPU1 drops that refcount, then the refcount for CPU1 is
+	 * read. We would record a decrement but not its corresponding
+	 * increment so we would see a low count (disaster).
+	 *
+	 * Rare situation? But module_refcount can be preempted, and we
+	 * might be tallying up 4096+ CPUs. So it is not impossible.
+	 */
+	smp_rmb();
+	for_each_possible_cpu(cpu)
+		incs += per_cpu_ptr(mod->refptr, cpu)->incs;
+	return incs - decs;
 }
 EXPORT_SYMBOL(module_refcount);
 
@@ -798,10 +864,11 @@ void module_put(struct module *module)
 {
 	if (module) {
 		preempt_disable();
-		__this_cpu_dec(module->refptr->count);
+		smp_wmb(); /* see comment in module_refcount */
+		__this_cpu_inc(module->refptr->decs);
 
 		trace_module_put(module, _RET_IP_,
-				 __this_cpu_read(module->refptr->count));
+				 __this_cpu_read(module->refptr->decs));
 		/* Maybe they're waiting for us to drop reference? */
 		if (unlikely(!module_is_live(module)))
 			wake_up_process(module->waiter);
@@ -1400,8 +1467,7 @@ static void free_module(struct module *mod)
 	/* This may be NULL, but that's OK */
 	module_free(mod, mod->module_init);
 	kfree(mod->args);
-	if (mod->percpu)
-		percpu_modfree(mod->percpu);
+	percpu_modfree(mod);
 #if defined(CONFIG_MODULE_UNLOAD)
 	if (mod->refptr)
 		free_percpu(mod->refptr);
@@ -1520,7 +1586,7 @@ static int simplify_symbols(Elf_Shdr *sechdrs,
 		default:
 			/* Divert to percpu allocation if a percpu var. */
 			if (sym[i].st_shndx == pcpuindex)
-				secbase = (unsigned long)mod->percpu;
+				secbase = (unsigned long)mod_percpu(mod);
 			else
 				secbase = sechdrs[sym[i].st_shndx].sh_addr;
 			sym[i].st_value += secbase;
@@ -1954,7 +2020,7 @@ static noinline struct module *load_module(void __user *umod,
 	unsigned int modindex, versindex, infoindex, pcpuindex;
 	struct module *mod;
 	long err = 0;
-	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
+	void *ptr = NULL; /* Stops spurious gcc warning */
 	unsigned long symoffs, stroffs, *strmap;
 
 	mm_segment_t old_fs;
@@ -2094,15 +2160,11 @@ static noinline struct module *load_module(void __user *umod,
 
 	if (pcpuindex) {
 		/* We have a special allocation for this section. */
-		percpu = percpu_modalloc(sechdrs[pcpuindex].sh_size,
-					 sechdrs[pcpuindex].sh_addralign,
-					 mod->name);
-		if (!percpu) {
-			err = -ENOMEM;
+		err = percpu_modalloc(mod, sechdrs[pcpuindex].sh_size,
+				      sechdrs[pcpuindex].sh_addralign);
+		if (err)
 			goto free_mod;
-		}
 		sechdrs[pcpuindex].sh_flags &= ~(unsigned long)SHF_ALLOC;
-		mod->percpu = percpu;
 	}
 
 	/* Determine total sizes, and put offsets in sh_entsize.  For now
@@ -2317,7 +2379,7 @@ static noinline struct module *load_module(void __user *umod,
 	sort_extable(mod->extable, mod->extable + mod->num_exentries);
 
 	/* Finally, copy percpu area over. */
-	percpu_modcopy(mod->percpu, (void *)sechdrs[pcpuindex].sh_addr,
+	percpu_modcopy(mod, (void *)sechdrs[pcpuindex].sh_addr,
 		       sechdrs[pcpuindex].sh_size);
 
 	add_kallsyms(mod, sechdrs, hdr->e_shnum, symindex, strindex,
@@ -2409,8 +2471,7 @@ static noinline struct module *load_module(void __user *umod,
 	module_free(mod, mod->module_core);
 	/* mod will be freed with core. Don't access it beyond this line! */
  free_percpu:
-	if (percpu)
-		percpu_modfree(percpu);
+	percpu_modfree(mod);
  free_mod:
 	kfree(args);
 	kfree(strmap);

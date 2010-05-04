@@ -32,6 +32,7 @@
 #include <linux/random.h>
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include "ecryptfs_kernel.h"
 
 /**

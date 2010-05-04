@@ -35,6 +35,8 @@
  * SOFTWARE.
  *
  */
+#include <linux/gfp.h>
+
 #include "c2.h"
 #include "c2_vq.h"
 #include "c2_status.h"

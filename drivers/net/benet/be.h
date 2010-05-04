@@ -29,6 +29,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 
 #include "be_hw.h"
 
@@ -289,11 +290,6 @@ struct be_adapter {
 extern const struct ethtool_ops be_ethtool_ops;
 
 #define drvr_stats(adapter)		(&adapter->stats.drvr_stats)
-
-static inline unsigned int be_pci_func(struct be_adapter *adapter)
-{
-	return PCI_FUNC(adapter->pdev->devfn);
-}
 
 #define BE_SET_NETDEV_OPS(netdev, ops)	(netdev->netdev_ops = ops)
 

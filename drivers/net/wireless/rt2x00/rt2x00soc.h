@@ -26,8 +26,6 @@
 #ifndef RT2X00SOC_H
 #define RT2X00SOC_H
 
-#define KSEG1ADDR(__ptr) __ptr
-
 /*
  * SoC driver handlers.
  */

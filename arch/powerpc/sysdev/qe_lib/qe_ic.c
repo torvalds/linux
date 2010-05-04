@@ -33,7 +33,7 @@
 
 #include "qe_ic.h"
 
-static DEFINE_SPINLOCK(qe_ic_lock);
+static DEFINE_RAW_SPINLOCK(qe_ic_lock);
 
 static struct qe_ic_info qe_ic_info[] = {
 	[1] = {
@@ -201,13 +201,13 @@ static void qe_ic_unmask_irq(unsigned int virq)
 	unsigned long flags;
 	u32 temp;
 
-	spin_lock_irqsave(&qe_ic_lock, flags);
+	raw_spin_lock_irqsave(&qe_ic_lock, flags);
 
 	temp = qe_ic_read(qe_ic->regs, qe_ic_info[src].mask_reg);
 	qe_ic_write(qe_ic->regs, qe_ic_info[src].mask_reg,
 		    temp | qe_ic_info[src].mask);
 
-	spin_unlock_irqrestore(&qe_ic_lock, flags);
+	raw_spin_unlock_irqrestore(&qe_ic_lock, flags);
 }
 
 static void qe_ic_mask_irq(unsigned int virq)
@@ -217,7 +217,7 @@ static void qe_ic_mask_irq(unsigned int virq)
 	unsigned long flags;
 	u32 temp;
 
-	spin_lock_irqsave(&qe_ic_lock, flags);
+	raw_spin_lock_irqsave(&qe_ic_lock, flags);
 
 	temp = qe_ic_read(qe_ic->regs, qe_ic_info[src].mask_reg);
 	qe_ic_write(qe_ic->regs, qe_ic_info[src].mask_reg,
@@ -233,7 +233,7 @@ static void qe_ic_mask_irq(unsigned int virq)
 	 */
 	mb();
 
-	spin_unlock_irqrestore(&qe_ic_lock, flags);
+	raw_spin_unlock_irqrestore(&qe_ic_lock, flags);
 }
 
 static struct irq_chip qe_ic_irq_chip = {

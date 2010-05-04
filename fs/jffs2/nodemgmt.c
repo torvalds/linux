@@ -10,7 +10,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/compiler.h>
 #include <linux/sched.h> /* For cond_resched() */

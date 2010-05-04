@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/ip.h>
@@ -1071,11 +1072,9 @@ static int qeth_l2_recover(void *ptr)
 		dev_info(&card->gdev->dev,
 			"Device successfully recovered!\n");
 	else {
-		if (card->dev) {
-			rtnl_lock();
-			dev_close(card->dev);
-			rtnl_unlock();
-		}
+		rtnl_lock();
+		dev_close(card->dev);
+		rtnl_unlock();
 		dev_warn(&card->gdev->dev, "The qeth device driver "
 			"failed to recover an error on the device\n");
 	}
@@ -1129,11 +1128,9 @@ static int qeth_l2_pm_resume(struct ccwgroup_device *gdev)
 	if (card->state == CARD_STATE_RECOVER) {
 		rc = __qeth_l2_set_online(card->gdev, 1);
 		if (rc) {
-			if (card->dev) {
-				rtnl_lock();
-				dev_close(card->dev);
-				rtnl_unlock();
-			}
+			rtnl_lock();
+			dev_close(card->dev);
+			rtnl_unlock();
 		}
 	} else
 		rc = __qeth_l2_set_online(card->gdev, 0);

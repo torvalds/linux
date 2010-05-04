@@ -7,6 +7,7 @@
  */
 #include "logfs.h"
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 /*
  * Wear leveling needs to kick in when the difference between low erase
@@ -457,6 +458,14 @@ static void __logfs_gc_pass(struct super_block *sb, int target)
 	struct logfs_super *super = logfs_super(sb);
 	struct logfs_block *block;
 	int round, progress, last_progress = 0;
+
+	/*
+	 * Doing too many changes to the segfile at once would result
+	 * in a large number of aliases.  Write the journal before
+	 * things get out of hand.
+	 */
+	if (super->s_shadow_tree.no_shadowed_segments >= MAX_OBJ_ALIASES)
+		logfs_write_anchor(sb);
 
 	if (no_free_segments(sb) >= target &&
 			super->s_no_object_aliases < MAX_OBJ_ALIASES)

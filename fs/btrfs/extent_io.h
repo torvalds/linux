@@ -163,6 +163,8 @@ int lock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
 int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		     int bits, struct extent_state **cached, gfp_t mask);
 int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
+int unlock_extent_cached(struct extent_io_tree *tree, u64 start, u64 end,
+			 struct extent_state **cached, gfp_t mask);
 int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 		    gfp_t mask);
 int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
@@ -196,7 +198,7 @@ int clear_extent_ordered(struct extent_io_tree *tree, u64 start, u64 end,
 int clear_extent_ordered_metadata(struct extent_io_tree *tree, u64 start,
 				  u64 end, gfp_t mask);
 int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
-		     gfp_t mask);
+			struct extent_state **cached_state, gfp_t mask);
 int set_extent_ordered(struct extent_io_tree *tree, u64 start, u64 end,
 		     gfp_t mask);
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
@@ -281,9 +283,11 @@ int test_extent_buffer_dirty(struct extent_io_tree *tree,
 int set_extent_buffer_uptodate(struct extent_io_tree *tree,
 			       struct extent_buffer *eb);
 int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
-				struct extent_buffer *eb);
+				struct extent_buffer *eb,
+				struct extent_state **cached_state);
 int extent_buffer_uptodate(struct extent_io_tree *tree,
-			   struct extent_buffer *eb);
+			   struct extent_buffer *eb,
+			   struct extent_state *cached_state);
 int map_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long min_len, char **token, char **map,
 		      unsigned long *map_start,

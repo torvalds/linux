@@ -71,7 +71,6 @@ struct probe_finder {
 
 	/* For variable searching */
 	Dwarf_Op		*fb_ops;	/* Frame base attribute */
-	Dwarf_Addr		cu_base;	/* Current CU base address */
 	const char		*var;		/* Current variable name */
 	char			*buf;		/* Current output buffer */
 	int			len;		/* Length of output buffer */

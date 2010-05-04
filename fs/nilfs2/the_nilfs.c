@@ -386,7 +386,7 @@ static int nilfs_store_disk_layout(struct the_nilfs *nilfs,
 
 	nilfs->ns_blocks_per_segment = le32_to_cpu(sbp->s_blocks_per_segment);
 	if (nilfs->ns_blocks_per_segment < NILFS_SEG_MIN_BLOCKS) {
-		printk(KERN_ERR "NILFS: too short segment. \n");
+		printk(KERN_ERR "NILFS: too short segment.\n");
 		return -EINVAL;
 	}
 

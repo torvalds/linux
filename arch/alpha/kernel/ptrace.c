@@ -11,7 +11,6 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
-#include <linux/slab.h>
 #include <linux/security.h>
 #include <linux/signal.h>
 
@@ -249,6 +248,17 @@ ptrace_cancel_bpt(struct task_struct * child)
 	return (nsaved != 0);
 }
 
+void user_enable_single_step(struct task_struct *child)
+{
+	/* Mark single stepping.  */
+	task_thread_info(child)->bpt_nsaved = -1;
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	ptrace_cancel_bpt(child);
+}
+
 /*
  * Called by kernel/ptrace.c when detaching..
  *
@@ -256,7 +266,7 @@ ptrace_cancel_bpt(struct task_struct * child)
  */
 void ptrace_disable(struct task_struct *child)
 { 
-	ptrace_cancel_bpt(child);
+	user_disable_single_step(child);
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
@@ -295,52 +305,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		DBG(DBG_MEM, ("poke $%ld<-%#lx\n", addr, data));
 		ret = put_reg(child, addr, data);
 		break;
-
-	case PTRACE_SYSCALL:
-		/* continue and stop at next (return from) syscall */
-	case PTRACE_CONT:    /* restart after signal. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
-		/* make sure single-step breakpoint is gone. */
-		ptrace_cancel_bpt(child);
-		wake_up_process(child);
-		ret = 0;
-		break;
-
-	/*
-	 * Make the child exit.  Best I can do is send it a sigkill.
-	 * perhaps it should be put in the status that it wants to
-	 * exit.
-	 */
-	case PTRACE_KILL:
-		ret = 0;
-		if (child->exit_state == EXIT_ZOMBIE)
-			break;
-		child->exit_code = SIGKILL;
-		/* make sure single-step breakpoint is gone. */
-		ptrace_cancel_bpt(child);
-		wake_up_process(child);
-		break;
-
-	case PTRACE_SINGLESTEP:  /* execute single instruction. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		/* Mark single stepping.  */
-		task_thread_info(child)->bpt_nsaved = -1;
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
-		wake_up_process(child);
-		/* give it a chance to run. */
-		ret = 0;
-		break;
-
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;

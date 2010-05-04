@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/atm_eni.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/atomic.h>

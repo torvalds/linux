@@ -20,7 +20,6 @@
 #include <linux/fs.h>
 #include <linux/jbd.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
 #endif
 
 /*

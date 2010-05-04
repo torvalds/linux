@@ -31,6 +31,7 @@
  */
 #include <linux/module.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>

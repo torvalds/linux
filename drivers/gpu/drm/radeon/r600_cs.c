@@ -45,6 +45,7 @@ struct r600_cs_track {
 	u32			nbanks;
 	u32			npipes;
 	/* value we track */
+	u32			sq_config;
 	u32			nsamples;
 	u32			cb_color_base_last[8];
 	struct radeon_bo	*cb_color_bo[8];
@@ -141,6 +142,8 @@ static void r600_cs_track_init(struct r600_cs_track *track)
 {
 	int i;
 
+	/* assume DX9 mode */
+	track->sq_config = DX9_CONSTS;
 	for (i = 0; i < 8; i++) {
 		track->cb_color_base_last[i] = 0;
 		track->cb_color_size[i] = 0;
@@ -715,6 +718,9 @@ static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx
 		tmp =radeon_get_ib_value(p, idx);
 		ib[idx] = 0;
 		break;
+	case SQ_CONFIG:
+		track->sq_config = radeon_get_ib_value(p, idx);
+		break;
 	case R_028800_DB_DEPTH_CONTROL:
 		track->db_depth_control = radeon_get_ib_value(p, idx);
 		break;
@@ -869,6 +875,54 @@ static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx
 	case SQ_PGM_START_VS:
 	case SQ_PGM_START_GS:
 	case SQ_PGM_START_PS:
+	case SQ_ALU_CONST_CACHE_GS_0:
+	case SQ_ALU_CONST_CACHE_GS_1:
+	case SQ_ALU_CONST_CACHE_GS_2:
+	case SQ_ALU_CONST_CACHE_GS_3:
+	case SQ_ALU_CONST_CACHE_GS_4:
+	case SQ_ALU_CONST_CACHE_GS_5:
+	case SQ_ALU_CONST_CACHE_GS_6:
+	case SQ_ALU_CONST_CACHE_GS_7:
+	case SQ_ALU_CONST_CACHE_GS_8:
+	case SQ_ALU_CONST_CACHE_GS_9:
+	case SQ_ALU_CONST_CACHE_GS_10:
+	case SQ_ALU_CONST_CACHE_GS_11:
+	case SQ_ALU_CONST_CACHE_GS_12:
+	case SQ_ALU_CONST_CACHE_GS_13:
+	case SQ_ALU_CONST_CACHE_GS_14:
+	case SQ_ALU_CONST_CACHE_GS_15:
+	case SQ_ALU_CONST_CACHE_PS_0:
+	case SQ_ALU_CONST_CACHE_PS_1:
+	case SQ_ALU_CONST_CACHE_PS_2:
+	case SQ_ALU_CONST_CACHE_PS_3:
+	case SQ_ALU_CONST_CACHE_PS_4:
+	case SQ_ALU_CONST_CACHE_PS_5:
+	case SQ_ALU_CONST_CACHE_PS_6:
+	case SQ_ALU_CONST_CACHE_PS_7:
+	case SQ_ALU_CONST_CACHE_PS_8:
+	case SQ_ALU_CONST_CACHE_PS_9:
+	case SQ_ALU_CONST_CACHE_PS_10:
+	case SQ_ALU_CONST_CACHE_PS_11:
+	case SQ_ALU_CONST_CACHE_PS_12:
+	case SQ_ALU_CONST_CACHE_PS_13:
+	case SQ_ALU_CONST_CACHE_PS_14:
+	case SQ_ALU_CONST_CACHE_PS_15:
+	case SQ_ALU_CONST_CACHE_VS_0:
+	case SQ_ALU_CONST_CACHE_VS_1:
+	case SQ_ALU_CONST_CACHE_VS_2:
+	case SQ_ALU_CONST_CACHE_VS_3:
+	case SQ_ALU_CONST_CACHE_VS_4:
+	case SQ_ALU_CONST_CACHE_VS_5:
+	case SQ_ALU_CONST_CACHE_VS_6:
+	case SQ_ALU_CONST_CACHE_VS_7:
+	case SQ_ALU_CONST_CACHE_VS_8:
+	case SQ_ALU_CONST_CACHE_VS_9:
+	case SQ_ALU_CONST_CACHE_VS_10:
+	case SQ_ALU_CONST_CACHE_VS_11:
+	case SQ_ALU_CONST_CACHE_VS_12:
+	case SQ_ALU_CONST_CACHE_VS_13:
+	case SQ_ALU_CONST_CACHE_VS_14:
+	case SQ_ALU_CONST_CACHE_VS_15:
 		r = r600_cs_packet_next_reloc(p, &reloc);
 		if (r) {
 			dev_warn(p->dev, "bad SET_CONTEXT_REG "
@@ -1226,13 +1280,15 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	case PACKET3_SET_ALU_CONST:
-		start_reg = (idx_value << 2) + PACKET3_SET_ALU_CONST_OFFSET;
-		end_reg = 4 * pkt->count + start_reg - 4;
-		if ((start_reg < PACKET3_SET_ALU_CONST_OFFSET) ||
-		    (start_reg >= PACKET3_SET_ALU_CONST_END) ||
-		    (end_reg >= PACKET3_SET_ALU_CONST_END)) {
-			DRM_ERROR("bad SET_ALU_CONST\n");
-			return -EINVAL;
+		if (track->sq_config & DX9_CONSTS) {
+			start_reg = (idx_value << 2) + PACKET3_SET_ALU_CONST_OFFSET;
+			end_reg = 4 * pkt->count + start_reg - 4;
+			if ((start_reg < PACKET3_SET_ALU_CONST_OFFSET) ||
+			    (start_reg >= PACKET3_SET_ALU_CONST_END) ||
+			    (end_reg >= PACKET3_SET_ALU_CONST_END)) {
+				DRM_ERROR("bad SET_ALU_CONST\n");
+				return -EINVAL;
+			}
 		}
 		break;
 	case PACKET3_SET_BOOL_CONST:

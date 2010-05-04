@@ -452,6 +452,8 @@ enum perf_callchain_context {
 #include <linux/fs.h>
 #include <linux/pid_namespace.h>
 #include <linux/workqueue.h>
+#include <linux/ftrace.h>
+#include <linux/cpu.h>
 #include <asm/atomic.h>
 
 #define PERF_MAX_STACK_DEPTH		255
@@ -487,9 +489,8 @@ struct hw_perf_event {
 			struct hrtimer	hrtimer;
 		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-		union { /* breakpoint */
-			struct arch_hw_breakpoint	info;
-		};
+		/* breakpoint */
+		struct arch_hw_breakpoint	info;
 #endif
 	};
 	atomic64_t			prev_count;
@@ -802,6 +803,13 @@ struct perf_sample_data {
 	struct perf_raw_record		*raw;
 };
 
+static inline
+void perf_sample_data_init(struct perf_sample_data *data, u64 addr)
+{
+	data->addr = addr;
+	data->raw  = NULL;
+}
+
 extern void perf_output_sample(struct perf_output_handle *handle,
 			       struct perf_event_header *header,
 			       struct perf_sample_data *data,
@@ -834,11 +842,56 @@ extern atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
 extern void __perf_sw_event(u32, u64, int, struct pt_regs *, u64);
 
+extern void
+perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int skip);
+
+/*
+ * Take a snapshot of the regs. Skip ip and frame pointer to
+ * the nth caller. We only need a few of the regs:
+ * - ip for PERF_SAMPLE_IP
+ * - cs for user_mode() tests
+ * - bp for callchains
+ * - eflags, for future purposes, just in case
+ */
+static inline void perf_fetch_caller_regs(struct pt_regs *regs, int skip)
+{
+	unsigned long ip;
+
+	memset(regs, 0, sizeof(*regs));
+
+	switch (skip) {
+	case 1 :
+		ip = CALLER_ADDR0;
+		break;
+	case 2 :
+		ip = CALLER_ADDR1;
+		break;
+	case 3 :
+		ip = CALLER_ADDR2;
+		break;
+	case 4:
+		ip = CALLER_ADDR3;
+		break;
+	/* No need to support further for now */
+	default:
+		ip = 0;
+	}
+
+	return perf_arch_fetch_caller_regs(regs, ip, skip);
+}
+
 static inline void
 perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
 {
-	if (atomic_read(&perf_swevent_enabled[event_id]))
+	if (atomic_read(&perf_swevent_enabled[event_id])) {
+		struct pt_regs hot_regs;
+
+		if (!regs) {
+			perf_fetch_caller_regs(&hot_regs, 1);
+			regs = &hot_regs;
+		}
 		__perf_sw_event(event_id, nr, nmi, regs, addr);
+	}
 }
 
 extern void __perf_event_mmap(struct vm_area_struct *vma);
@@ -858,8 +911,24 @@ extern int sysctl_perf_event_paranoid;
 extern int sysctl_perf_event_mlock;
 extern int sysctl_perf_event_sample_rate;
 
+static inline bool perf_paranoid_tracepoint_raw(void)
+{
+	return sysctl_perf_event_paranoid > -1;
+}
+
+static inline bool perf_paranoid_cpu(void)
+{
+	return sysctl_perf_event_paranoid > 0;
+}
+
+static inline bool perf_paranoid_kernel(void)
+{
+	return sysctl_perf_event_paranoid > 1;
+}
+
 extern void perf_event_init(void);
-extern void perf_tp_event(int event_id, u64 addr, u64 count, void *record, int entry_size);
+extern void perf_tp_event(int event_id, u64 addr, u64 count, void *record,
+			  int entry_size, struct pt_regs *regs);
 extern void perf_bp_event(struct perf_event *event, void *data);
 
 #ifndef perf_misc_flags
@@ -914,6 +983,22 @@ static inline void perf_event_disable(struct perf_event *event)		{ }
 
 #define perf_output_put(handle, x) \
 	perf_output_copy((handle), &(x), sizeof(x))
+
+/*
+ * This has to have a higher priority than migration_notifier in sched.c.
+ */
+#define perf_cpu_notifier(fn)					\
+do {								\
+	static struct notifier_block fn##_nb __cpuinitdata =	\
+		{ .notifier_call = fn, .priority = 20 };	\
+	fn(&fn##_nb, (unsigned long)CPU_UP_PREPARE,		\
+		(void *)(unsigned long)smp_processor_id());	\
+	fn(&fn##_nb, (unsigned long)CPU_STARTING,		\
+		(void *)(unsigned long)smp_processor_id());	\
+	fn(&fn##_nb, (unsigned long)CPU_ONLINE,			\
+		(void *)(unsigned long)smp_processor_id());	\
+	register_cpu_notifier(&fn##_nb);			\
+} while (0)
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_PERF_EVENT_H */
