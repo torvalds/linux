@@ -1101,9 +1101,9 @@ struct pcidas64_private {
 	resource_size_t main_phys_iobase;
 	resource_size_t dio_counter_phys_iobase;
 	/*  base addresses (ioremapped) */
-	void *plx9080_iobase;
-	void *main_iobase;
-	void *dio_counter_iobase;
+	void __iomem *plx9080_iobase;
+	void __iomem *main_iobase;
+	void __iomem *dio_counter_iobase;
 	/*  local address (used by dma controller) */
 	uint32_t local0_iobase;
 	uint32_t local1_iobase;
@@ -1183,8 +1183,8 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 static irqreturn_t handle_interrupt(int irq, void *d);
 static int ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static int ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-static int dio_callback(int dir, int port, int data, unsigned long arg);
-static int dio_callback_4020(int dir, int port, int data, unsigned long arg);
+static int dio_callback(int dir, int port, int data, void __iomem *base);
+static int dio_callback_4020(int dir, int port, int data, void __iomem *base);
 static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data);
 static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -1316,7 +1316,7 @@ static inline int ao_cmd_is_supported(const struct pcidas64_board *board)
 static void init_plx9080(struct comedi_device *dev)
 {
 	uint32_t bits;
-	void *plx_iobase = priv(dev)->plx9080_iobase;
+	void __iomem *plx_iobase = priv(dev)->plx9080_iobase;
 
 	priv(dev)->plx_control_bits =
 	    readl(priv(dev)->plx9080_iobase + PLX_CONTROL_REG);
@@ -1406,7 +1406,7 @@ static void init_plx9080(struct comedi_device *dev)
 static int setup_subdevices(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
-	void *dio_8255_iobase;
+	void __iomem *dio_8255_iobase;
 	int i;
 
 	if (alloc_subdevices(dev, 10) < 0)
@@ -1432,7 +1432,6 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->do_cmdtest = ai_cmdtest;
 	s->cancel = ai_cancel;
 	if (board(dev)->layout == LAYOUT_4020) {
-		unsigned int i;
 		uint8_t data;
 		/*  set adc to read from inputs (not internal calibration sources) */
 		priv(dev)->i2c_cal_range_bits = adc_src_4020_bits(4);
@@ -1614,7 +1613,7 @@ static void init_stc_registers(struct comedi_device *dev)
 	disable_ai_pacing(dev);
 };
 
-int alloc_and_init_dma_members(struct comedi_device *dev)
+static int alloc_and_init_dma_members(struct comedi_device *dev)
 {
 	int i;
 
@@ -1877,12 +1876,12 @@ static int detach(struct comedi_device *dev)
 		if (priv(dev)->hw_dev) {
 			if (priv(dev)->plx9080_iobase) {
 				disable_plx_interrupts(dev);
-				iounmap((void *)priv(dev)->plx9080_iobase);
+				iounmap(priv(dev)->plx9080_iobase);
 			}
 			if (priv(dev)->main_iobase)
-				iounmap((void *)priv(dev)->main_iobase);
+				iounmap(priv(dev)->main_iobase);
 			if (priv(dev)->dio_counter_iobase)
-				iounmap((void *)priv(dev)->dio_counter_iobase);
+				iounmap(priv(dev)->dio_counter_iobase);
 			/*  free pci dma buffers */
 			for (i = 0; i < ai_dma_ring_count(board(dev)); i++) {
 				if (priv(dev)->ai_buffer[i])
@@ -2978,7 +2977,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	uint32_t next_transfer_addr;
 	int j;
 	int num_samples = 0;
-	void *pci_addr_reg;
+	void __iomem *pci_addr_reg;
 
 	if (channel)
 		pci_addr_reg =
@@ -3018,8 +3017,9 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	 * unused buffer) */
 }
 
-void handle_ai_interrupt(struct comedi_device *dev, unsigned short status,
-			 unsigned int plx_status)
+static void handle_ai_interrupt(struct comedi_device *dev,
+				unsigned short status,
+				unsigned int plx_status)
 {
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
@@ -3229,7 +3229,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-void abort_dma(struct comedi_device *dev, unsigned int channel)
+static void abort_dma(struct comedi_device *dev, unsigned int channel)
 {
 	unsigned long flags;
 
@@ -3424,7 +3424,7 @@ static void load_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	unsigned int num_bytes;
 	unsigned int next_transfer_addr;
-	void *pci_addr_reg =
+	void __iomem *pci_addr_reg =
 	    priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
 	unsigned int buffer_index;
 
@@ -3658,24 +3658,24 @@ static int ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int dio_callback(int dir, int port, int data, unsigned long iobase)
+static int dio_callback(int dir, int port, int data, void __iomem *iobase)
 {
 	if (dir) {
-		writeb(data, (void *)(iobase + port));
+		writeb(data, iobase + port);
 		DEBUG_PRINT("wrote 0x%x to port %i\n", data, port);
 		return 0;
 	} else {
-		return readb((void *)(iobase + port));
+		return readb(iobase + port);
 	}
 }
 
-static int dio_callback_4020(int dir, int port, int data, unsigned long iobase)
+static int dio_callback_4020(int dir, int port, int data, void __iomem *iobase)
 {
 	if (dir) {
-		writew(data, (void *)(iobase + 2 * port));
+		writew(data, iobase + 2 * port);
 		return 0;
 	} else {
-		return readw((void *)(iobase + 2 * port));
+		return readw(iobase + 2 * port);
 	}
 }
 
@@ -3862,7 +3862,7 @@ static uint16_t read_eeprom(struct comedi_device *dev, uint8_t address)
 	static const int read_command = 0x6;
 	unsigned int bitstream = (read_command << 8) | address;
 	unsigned int bit;
-	void *const plx_control_addr =
+	void __iomem * const plx_control_addr =
 	    priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
 	uint16_t value;
 	static const int value_length = 16;
@@ -4185,7 +4185,8 @@ static const int i2c_low_udelay = 10;
 static void i2c_set_sda(struct comedi_device *dev, int state)
 {
 	static const int data_bit = CTL_EE_W;
-	void *plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
+	void __iomem *plx_control_addr = priv(dev)->plx9080_iobase +
+					 PLX_CONTROL_REG;
 
 	if (state) {
 		/*  set data line high */
@@ -4204,7 +4205,8 @@ static void i2c_set_sda(struct comedi_device *dev, int state)
 static void i2c_set_scl(struct comedi_device *dev, int state)
 {
 	static const int clock_bit = CTL_USERO;
-	void *plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
+	void __iomem *plx_control_addr = priv(dev)->plx9080_iobase +
+					 PLX_CONTROL_REG;
 
 	if (state) {
 		/*  set clock line high */
