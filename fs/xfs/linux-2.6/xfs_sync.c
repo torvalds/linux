@@ -94,7 +94,8 @@ xfs_inode_ag_walk(
 					   struct xfs_perag *pag, int flags),
 	int			flags,
 	int			tag,
-	int			exclusive)
+	int			exclusive,
+	int			*nr_to_scan)
 {
 	struct xfs_perag	*pag = &mp->m_perag[ag];
 	uint32_t		first_index;
@@ -134,7 +135,7 @@ restart:
 		if (error == EFSCORRUPTED)
 			break;
 
-	} while (1);
+	} while ((*nr_to_scan)--);
 
 	if (skipped) {
 		delay(1);
@@ -152,23 +153,30 @@ xfs_inode_ag_iterator(
 					   struct xfs_perag *pag, int flags),
 	int			flags,
 	int			tag,
-	int			exclusive)
+	int			exclusive,
+	int			*nr_to_scan)
 {
 	int			error = 0;
 	int			last_error = 0;
 	xfs_agnumber_t		ag;
+	int			nr;
 
+	nr = nr_to_scan ? *nr_to_scan : INT_MAX;
 	for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
 		if (!mp->m_perag[ag].pag_ici_init)
 			continue;
 		error = xfs_inode_ag_walk(mp, ag, execute, flags, tag,
-						exclusive);
+						exclusive, &nr);
 		if (error) {
 			last_error = error;
 			if (error == EFSCORRUPTED)
 				break;
 		}
+		if (nr <= 0)
+			break;
 	}
+	if (nr_to_scan)
+		*nr_to_scan = nr;
 	return XFS_ERROR(last_error);
 }
 
@@ -288,7 +296,7 @@ xfs_sync_data(
 	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT)) == 0);
 
 	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags,
-				      XFS_ICI_NO_TAG, 0);
+				      XFS_ICI_NO_TAG, 0, NULL);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -310,7 +318,7 @@ xfs_sync_attr(
 	ASSERT((flags & ~SYNC_WAIT) == 0);
 
 	return xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags,
-				     XFS_ICI_NO_TAG, 0);
+				     XFS_ICI_NO_TAG, 0, NULL);
 }
 
 STATIC int
@@ -678,6 +686,7 @@ __xfs_inode_set_reclaim_tag(
 	radix_tree_tag_set(&pag->pag_ici_root,
 			   XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino),
 			   XFS_ICI_RECLAIM_TAG);
+	pag->pag_ici_reclaimable++;
 }
 
 /*
@@ -709,6 +718,7 @@ __xfs_inode_clear_reclaim_tag(
 {
 	radix_tree_tag_clear(&pag->pag_ici_root,
 			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
+	pag->pag_ici_reclaimable--;
 }
 
 STATIC int
@@ -769,5 +779,88 @@ xfs_reclaim_inodes(
 	int		mode)
 {
 	return xfs_inode_ag_iterator(mp, xfs_reclaim_inode, mode,
-					XFS_ICI_RECLAIM_TAG, 1);
+					XFS_ICI_RECLAIM_TAG, 1, NULL);
+}
+
+/*
+ * Shrinker infrastructure.
+ *
+ * This is all far more complex than it needs to be. It adds a global list of
+ * mounts because the shrinkers can only call a global context. We need to make
+ * the shrinkers pass a context to avoid the need for global state.
+ */
+static LIST_HEAD(xfs_mount_list);
+static struct rw_semaphore xfs_mount_list_lock;
+
+static int
+xfs_reclaim_inode_shrink(
+	int		nr_to_scan,
+	gfp_t		gfp_mask)
+{
+	struct xfs_mount *mp;
+	xfs_agnumber_t	ag;
+	int		reclaimable = 0;
+
+	if (nr_to_scan) {
+		if (!(gfp_mask & __GFP_FS))
+			return -1;
+
+		down_read(&xfs_mount_list_lock);
+		list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
+			xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
+					XFS_ICI_RECLAIM_TAG, 1, &nr_to_scan);
+			if (nr_to_scan <= 0)
+				break;
+		}
+		up_read(&xfs_mount_list_lock);
+	}
+
+	down_read(&xfs_mount_list_lock);
+	list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
+		for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
+
+			if (!mp->m_perag[ag].pag_ici_init)
+				continue;
+			reclaimable += mp->m_perag[ag].pag_ici_reclaimable;
+		}
+	}
+	up_read(&xfs_mount_list_lock);
+	return reclaimable;
+}
+
+static struct shrinker xfs_inode_shrinker = {
+	.shrink = xfs_reclaim_inode_shrink,
+	.seeks = DEFAULT_SEEKS,
+};
+
+void __init
+xfs_inode_shrinker_init(void)
+{
+	init_rwsem(&xfs_mount_list_lock);
+	register_shrinker(&xfs_inode_shrinker);
+}
+
+void
+xfs_inode_shrinker_destroy(void)
+{
+	ASSERT(list_empty(&xfs_mount_list));
+	unregister_shrinker(&xfs_inode_shrinker);
+}
+
+void
+xfs_inode_shrinker_register(
+	struct xfs_mount	*mp)
+{
+	down_write(&xfs_mount_list_lock);
+	list_add_tail(&mp->m_mplist, &xfs_mount_list);
+	up_write(&xfs_mount_list_lock);
+}
+
+void
+xfs_inode_shrinker_unregister(
+	struct xfs_mount	*mp)
+{
+	down_write(&xfs_mount_list_lock);
+	list_del(&mp->m_mplist);
+	up_write(&xfs_mount_list_lock);
 }
