@@ -713,6 +713,7 @@ int event__parse_sample(event_t *event, u64 type, struct sample_data *data)
 		array++;
 	}
 
+	data->id = -1ULL;
 	if (type & PERF_SAMPLE_ID) {
 		data->id = *array;
 		array++;

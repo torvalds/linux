@@ -436,7 +436,6 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 		trace_sec->size = lseek(fd, 0, SEEK_CUR) - trace_sec->offset;
 	}
 
-
 	if (perf_header__has_feat(self, HEADER_BUILD_ID)) {
 		struct perf_file_section *buildid_sec;
 
@@ -922,6 +921,14 @@ struct perf_event_attr *
 perf_header__find_attr(u64 id, struct perf_header *header)
 {
 	int i;
+
+	/*
+	 * We set id to -1 if the data file doesn't contain sample
+	 * ids. Check for this and avoid walking through the entire
+	 * list of ids which may be large.
+	 */
+	if (id == -1ULL)
+		return NULL;
 
 	for (i = 0; i < header->attrs; i++) {
 		struct perf_header_attr *attr = header->attr[i];

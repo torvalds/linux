@@ -204,7 +204,7 @@ static const char * const report_usage[] = {
 };
 
 static const struct option options[] = {
-	OPT_BOOLEAN('b', "inject build-ids", &inject_build_ids,
+	OPT_BOOLEAN('b', "build-ids", &inject_build_ids,
 		    "Inject build-ids into the output stream"),
 	OPT_INCR('v', "verbose", &verbose,
 		 "be more verbose (show build ids, etc)"),

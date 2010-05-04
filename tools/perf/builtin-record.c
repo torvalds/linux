@@ -560,11 +560,12 @@ static int __cmd_record(int argc, const char **argv)
 			return err;
 	}
 
-	if (raw_samples) {
+	if (raw_samples && have_tracepoints(attrs, nr_counters)) {
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 	} else {
 		for (i = 0; i < nr_counters; i++) {
-			if (attrs[i].sample_type & PERF_SAMPLE_RAW) {
+			if (attrs[i].sample_type & PERF_SAMPLE_RAW &&
+				attrs[i].type == PERF_TYPE_TRACEPOINT) {
 				perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 				break;
 			}
@@ -662,19 +663,25 @@ static int __cmd_record(int argc, const char **argv)
 			return err;
 		}
 
-		err = event__synthesize_tracing_data(output, attrs,
-						     nr_counters,
-						     process_synthesized_event,
-						     session);
-		/*
-		 * FIXME err <= 0 here actually means that there were no tracepoints
-		 * so its not really an error, just that we don't need to synthesize
-		 * anything.
-		 * We really have to return this more properly and also propagate
-		 * errors that now are calling die()
-		 */
-		if (err > 0)
+		if (have_tracepoints(attrs, nr_counters)) {
+			/*
+			 * FIXME err <= 0 here actually means that
+			 * there were no tracepoints so its not really
+			 * an error, just that we don't need to
+			 * synthesize anything.  We really have to
+			 * return this more properly and also
+			 * propagate errors that now are calling die()
+			 */
+			err = event__synthesize_tracing_data(output, attrs,
+							     nr_counters,
+							     process_synthesized_event,
+							     session);
+			if (err <= 0) {
+				pr_err("Couldn't record tracing data.\n");
+				return err;
+			}
 			advance_output(err);
+		}
 	}
 
 	machine = perf_session__find_host_machine(session);
