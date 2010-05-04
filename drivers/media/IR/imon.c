@@ -1671,7 +1671,7 @@ static struct input_dev *imon_init_idev(struct imon_context *ictx)
 	}
 
 	ir = kzalloc(sizeof(struct ir_input_dev), GFP_KERNEL);
-	if (!props) {
+	if (!ir) {
 		dev_err(ictx->dev, "remote ir input dev allocation failed\n");
 		goto ir_dev_alloc_failed;
 	}
