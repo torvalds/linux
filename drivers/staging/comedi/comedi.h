@@ -354,7 +354,7 @@
 		unsigned int __user *chanlist;	/* channel/range list */
 		unsigned int chanlist_len;
 
-		short *data;	/* data list, size depends on subd flags */
+		short __user *data;	/* data list, size depends on subd flags */
 		unsigned int data_len;
 	};
 
