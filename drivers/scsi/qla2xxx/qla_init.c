@@ -3150,7 +3150,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 	sw_info_t	*swl;
 	int		swl_idx;
 	int		first_dev, last_dev;
-	port_id_t	wrap, nxt_d_id;
+	port_id_t	wrap = {}, nxt_d_id;
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *vp, *base_vha = pci_get_drvdata(ha->pdev);
 	struct scsi_qla_host *tvp;
@@ -3453,7 +3453,7 @@ qla2x00_device_resync(scsi_qla_host_t *vha)
 	uint32_t rscn_entry;
 	uint8_t rscn_out_iter;
 	uint8_t format;
-	port_id_t d_id;
+	port_id_t d_id = {};
 
 	rval = QLA_RSCNS_HANDLED;
 
