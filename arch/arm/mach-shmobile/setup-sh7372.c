@@ -26,9 +26,11 @@
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_dma.h>
 #include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
 #include <mach/hardware.h>
+#include <mach/sh7372.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
@@ -227,6 +229,224 @@ static struct platform_device iic1_device = {
 	.resource       = iic1_resources,
 };
 
+/* DMA */
+/* Transmit sizes and respective CHCR register values */
+enum {
+	XMIT_SZ_8BIT		= 0,
+	XMIT_SZ_16BIT		= 1,
+	XMIT_SZ_32BIT		= 2,
+	XMIT_SZ_64BIT		= 7,
+	XMIT_SZ_128BIT		= 3,
+	XMIT_SZ_256BIT		= 4,
+	XMIT_SZ_512BIT		= 5,
+};
+
+/* log2(size / 8) - used to calculate number of transfers */
+#define TS_SHIFT {			\
+	[XMIT_SZ_8BIT]		= 0,	\
+	[XMIT_SZ_16BIT]		= 1,	\
+	[XMIT_SZ_32BIT]		= 2,	\
+	[XMIT_SZ_64BIT]		= 3,	\
+	[XMIT_SZ_128BIT]	= 4,	\
+	[XMIT_SZ_256BIT]	= 5,	\
+	[XMIT_SZ_512BIT]	= 6,	\
+}
+
+#define TS_INDEX2VAL(i) ((((i) & 3) << 3) | \
+			 (((i) & 0xc) << (20 - 2)))
+
+static const struct sh_dmae_slave_config sh7372_dmae_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_SDHI0_TX,
+		.addr		= 0xe6850030,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xc1,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SDHI0_RX,
+		.addr		= 0xe6850030,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xc2,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SDHI1_TX,
+		.addr		= 0xe6860030,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xc9,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SDHI1_RX,
+		.addr		= 0xe6860030,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xca,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SDHI2_TX,
+		.addr		= 0xe6870030,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xcd,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SDHI2_RX,
+		.addr		= 0xe6870030,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xce,
+	},
+};
+
+static const struct sh_dmae_channel sh7372_dmae_channels[] = {
+	{
+		.offset = 0,
+		.dmars = 0,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x10,
+		.dmars = 0,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x20,
+		.dmars = 4,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x30,
+		.dmars = 4,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x50,
+		.dmars = 8,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x60,
+		.dmars = 8,
+		.dmars_bit = 8,
+	}
+};
+
+static const unsigned int ts_shift[] = TS_SHIFT;
+
+static struct sh_dmae_pdata dma_platform_data = {
+	.slave		= sh7372_dmae_slaves,
+	.slave_num	= ARRAY_SIZE(sh7372_dmae_slaves),
+	.channel	= sh7372_dmae_channels,
+	.channel_num	= ARRAY_SIZE(sh7372_dmae_channels),
+	.ts_low_shift	= 3,
+	.ts_low_mask	= 0x18,
+	.ts_high_shift	= (20 - 2),	/* 2 bits for shifted low TS */
+	.ts_high_mask	= 0x00300000,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_DME,
+};
+
+/* Resource order important! */
+static struct resource sh7372_dmae0_resources[] = {
+	{
+		/* Channel registers and DMAOR */
+		.start	= 0xfe008020,
+		.end	= 0xfe00808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMARSx */
+		.start	= 0xfe009000,
+		.end	= 0xfe00900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMA error IRQ */
+		.start	= 246,
+		.end	= 246,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 0-5 */
+		.start	= 240,
+		.end	= 245,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+/* Resource order important! */
+static struct resource sh7372_dmae1_resources[] = {
+	{
+		/* Channel registers and DMAOR */
+		.start	= 0xfe018020,
+		.end	= 0xfe01808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMARSx */
+		.start	= 0xfe019000,
+		.end	= 0xfe01900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMA error IRQ */
+		.start	= 254,
+		.end	= 254,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 0-5 */
+		.start	= 248,
+		.end	= 253,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+/* Resource order important! */
+static struct resource sh7372_dmae2_resources[] = {
+	{
+		/* Channel registers and DMAOR */
+		.start	= 0xfe028020,
+		.end	= 0xfe02808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMARSx */
+		.start	= 0xfe029000,
+		.end	= 0xfe02900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMA error IRQ */
+		.start	= 262,
+		.end	= 262,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 0-5 */
+		.start	= 256,
+		.end	= 261,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dma0_device = {
+	.name		= "sh-dma-engine",
+	.id		= 0,
+	.resource	= sh7372_dmae0_resources,
+	.num_resources	= ARRAY_SIZE(sh7372_dmae0_resources),
+	.dev		= {
+		.platform_data	= &dma_platform_data,
+	},
+};
+
+static struct platform_device dma1_device = {
+	.name		= "sh-dma-engine",
+	.id		= 1,
+	.resource	= sh7372_dmae1_resources,
+	.num_resources	= ARRAY_SIZE(sh7372_dmae1_resources),
+	.dev		= {
+		.platform_data	= &dma_platform_data,
+	},
+};
+
+static struct platform_device dma2_device = {
+	.name		= "sh-dma-engine",
+	.id		= 2,
+	.resource	= sh7372_dmae2_resources,
+	.num_resources	= ARRAY_SIZE(sh7372_dmae2_resources),
+	.dev		= {
+		.platform_data	= &dma_platform_data,
+	},
+};
+
 static struct platform_device *sh7372_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -238,6 +458,9 @@ static struct platform_device *sh7372_early_devices[] __initdata = {
 	&cmt10_device,
 	&iic0_device,
 	&iic1_device,
+	&dma0_device,
+	&dma1_device,
+	&dma2_device,
 };
 
 void __init sh7372_add_standard_devices(void)

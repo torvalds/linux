@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/mfd/sh_mobile_sdhi.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -231,6 +232,11 @@ static struct platform_device keysc_device = {
 };
 
 /* SDHI0 */
+static struct sh_mobile_sdhi_info sdhi0_info = {
+	.dma_slave_tx = SHDMA_SLAVE_SDHI0_TX,
+	.dma_slave_rx = SHDMA_SLAVE_SDHI0_RX,
+};
+
 static struct resource sdhi0_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
@@ -249,6 +255,9 @@ static struct platform_device sdhi0_device = {
 	.num_resources  = ARRAY_SIZE(sdhi0_resources),
 	.resource       = sdhi0_resources,
 	.id             = 0,
+	.dev	= {
+		.platform_data	= &sdhi0_info,
+	},
 };
 
 /* USB1 */
