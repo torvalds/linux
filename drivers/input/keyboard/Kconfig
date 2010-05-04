@@ -143,19 +143,6 @@ config KEYBOARD_BFIN
 	  To compile this driver as a module, choose M here: the
 	  module will be called bf54x-keys.
 
-config KEYBOARD_CORGI
-	tristate "Corgi keyboard (deprecated)"
-	depends on PXA_SHARPSL
-	help
-	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C7xx
-	  series of PDAs.
-
-	  This driver is now deprecated, use generic GPIO based matrix
-	  keyboard driver instead.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called corgikbd.
-
 config KEYBOARD_LKKBD
 	tristate "DECstation/VAXstation LK201/LK401 keyboard"
 	select SERIO
@@ -339,19 +326,6 @@ config KEYBOARD_PXA930_ROTARY
 	  To compile this driver as a module, choose M here: the
 	  module will be called pxa930_rotary.
 
-config KEYBOARD_SPITZ
-	tristate "Spitz keyboard (deprecated)"
-	depends on PXA_SHARPSL
-	help
-	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C1000,
-	  SL-C3000 and Sl-C3100 series of PDAs.
-
-	  This driver is now deprecated, use generic GPIO based matrix
-	  keyboard driver instead.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called spitzkbd.
-
 config KEYBOARD_STOWAWAY
 	tristate "Stowaway keyboard"
 	select SERIO
@@ -413,28 +387,6 @@ config KEYBOARD_TWL4030
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called twl4030_keypad.
-
-config KEYBOARD_TOSA
-	tristate "Tosa keyboard (deprecated)"
-	depends on MACH_TOSA
-	help
-	  Say Y here to enable the keyboard on the Sharp Zaurus SL-6000x (Tosa)
-
-	  This driver is now deprecated, use generic GPIO based matrix
-	  keyboard driver instead.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tosakbd.
-
-config KEYBOARD_TOSA_USE_EXT_KEYCODES
-	bool "Tosa keyboard: use extended keycodes"
-	depends on KEYBOARD_TOSA
-	help
-	  Say Y here to enable the tosa keyboard driver to generate extended
-	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
-	  by either console keyboard driver or by Kdrive keybd driver.
-
-	  Say Y only if you know, what you are doing!
 
 config KEYBOARD_XTKBD
 	tristate "XT keyboard"
