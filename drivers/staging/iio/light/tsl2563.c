@@ -598,12 +598,24 @@ static DEVICE_ATTR(calib0, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(calib1, S_IRUGO | S_IWUSR,
 		   tsl2563_calib1_show, tsl2563_calib1_store);
 
+static ssize_t tsl2563_show_name(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct tsl2563_chip *chip = indio_dev->dev_data;
+	return sprintf(buf, "%s\n", chip->client->name);
+}
+
+DEVICE_ATTR(name, S_IRUGO, tsl2563_show_name, NULL);
+
 static struct attribute *tsl2563_attributes[] = {
 	&dev_attr_adc0.attr,
 	&dev_attr_adc1.attr,
 	&dev_attr_illuminance0_input.attr,
 	&dev_attr_calib0.attr,
 	&dev_attr_calib1.attr,
+	&dev_attr_name.attr,
 	NULL
 };
 
