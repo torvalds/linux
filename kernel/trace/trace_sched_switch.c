@@ -50,8 +50,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 }
 
 static void
-probe_sched_switch(struct rq *__rq, struct task_struct *prev,
-			struct task_struct *next)
+probe_sched_switch(struct task_struct *prev, struct task_struct *next)
 {
 	struct trace_array_cpu *data;
 	unsigned long flags;
@@ -109,7 +108,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 }
 
 static void
-probe_sched_wakeup(struct rq *__rq, struct task_struct *wakee, int success)
+probe_sched_wakeup(struct task_struct *wakee, int success)
 {
 	struct trace_array_cpu *data;
 	unsigned long flags;
