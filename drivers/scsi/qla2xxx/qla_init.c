@@ -5296,39 +5296,6 @@ qla82xx_restart_isp(scsi_qla_host_t *vha)
 				    "(%d).\n", rval);
 			}
 		}
-	} else {	/* failed the ISP abort */
-		vha->flags.online = 1;
-		if (test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
-			if (ha->isp_abort_cnt == 0) {
-				qla_printk(KERN_WARNING, ha,
-				    "ISP error recovery failed - "
-				    "board disabled\n");
-				/*
-				 * The next call disables the board
-				 * completely.
-				 */
-				ha->isp_ops->reset_adapter(vha);
-				vha->flags.online = 0;
-				clear_bit(ISP_ABORT_RETRY,
-					&vha->dpc_flags);
-				status = 0;
-			} else { /* schedule another ISP abort */
-				ha->isp_abort_cnt--;
-				qla_printk(KERN_INFO, ha,
-					"qla%ld: ISP abort - "
-					"retry remaining %d\n",
-					vha->host_no, ha->isp_abort_cnt);
-				status = 1;
-			}
-		} else {
-			ha->isp_abort_cnt = MAX_RETRIES_OF_ISP_ABORT;
-			qla_printk(KERN_INFO, ha,
-				"(%ld): ISP error recovery "
-				"- retrying (%d) more times\n",
-				vha->host_no, ha->isp_abort_cnt);
-			set_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
-			status = 1;
-		}
 	}
 
 	if (!status) {

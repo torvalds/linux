@@ -2764,8 +2764,6 @@ struct qla_hw_data {
 	unsigned long	nx_pcibase;		/* Base I/O address */
 	uint8_t		*nxdb_rd_ptr;		/* Doorbell read pointer */
 	unsigned long	nxdb_wr_ptr;		/* Door bell write pointer */
-	unsigned long	first_page_group_start;
-	unsigned long	first_page_group_end;
 
 	uint32_t	crb_win;
 	uint32_t	curr_window;
