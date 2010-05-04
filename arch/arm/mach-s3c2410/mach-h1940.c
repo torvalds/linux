@@ -207,7 +207,7 @@ static int h1940_backlight_init(struct device *dev)
 {
 	gpio_request(S3C2410_GPB(0), "Backlight");
 
-	s3c2410_gpio_setpin(S3C2410_GPB(0), 0);
+	gpio_direction_output(S3C2410_GPB(0), 0);
 	s3c2410_gpio_pullup(S3C2410_GPB(0), 0);
 	s3c2410_gpio_cfgpin(S3C2410_GPB(0), S3C2410_GPB0_TOUT0);
 
@@ -216,7 +216,7 @@ static int h1940_backlight_init(struct device *dev)
 
 static void h1940_backlight_exit(struct device *dev)
 {
-	s3c2410_gpio_cfgpin(S3C2410_GPB(0), 1/*S3C2410_GPB0_OUTP*/);
+	gpio_direction_output(S3C2410_GPB(0), 1);
 }
 
 static struct platform_pwm_backlight_data backlight_data = {
@@ -245,18 +245,18 @@ static void h1940_lcd_power_set(struct plat_lcd_data *pd,
 
 	if (!power) {
 		/* set to 3ec */
-		s3c2410_gpio_setpin(S3C2410_GPC(0), 0);
+		gpio_direction_output(S3C2410_GPC(0), 0);
 		/* wait for 3ac */
 		do {
-			value = s3c2410_gpio_getpin(S3C2410_GPC(6));
+			value = gpio_get_value(S3C2410_GPC(6));
 		} while (value);
 		/* set to 38c */
-		s3c2410_gpio_setpin(S3C2410_GPC(5), 0);
+		gpio_direction_output(S3C2410_GPC(5), 0);
 	} else {
 		/* Set to 3ac */
-		s3c2410_gpio_setpin(S3C2410_GPC(5), 1);
+		gpio_direction_output(S3C2410_GPC(5), 1);
 		/* Set to 3ad */
-		s3c2410_gpio_setpin(S3C2410_GPC(0), 1);
+		gpio_direction_output(S3C2410_GPC(0), 1);
 	}
 }
 
@@ -332,6 +332,7 @@ static void __init h1940_init(void)
 	gpio_request(S3C2410_GPC(5), "LCD power");
 	gpio_request(S3C2410_GPC(6), "LCD power");
 
+	gpio_direction_input(S3C2410_GPC(6));
 
 	platform_add_devices(h1940_devices, ARRAY_SIZE(h1940_devices));
 }
