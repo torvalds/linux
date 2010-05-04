@@ -160,12 +160,9 @@ void propagate_rate(struct clk *tclk)
 
 static void __clk_disable(struct clk *clk)
 {
-	if (clk->usecount == 0) {
-		printk(KERN_ERR "Trying disable clock %s with 0 usecount\n",
-		       clk->name);
-		WARN_ON(1);
+	if (WARN(!clk->usecount, "Trying to disable clock %s with 0 usecount\n",
+		 clk->name))
 		return;
-	}
 
 	if (!(--clk->usecount)) {
 		if (likely(clk->ops && clk->ops->disable))
