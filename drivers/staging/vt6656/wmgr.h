@@ -417,14 +417,14 @@ void
 vMgrAssocBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject pMgmt,
-    OUT PCMD_STATUS pStatus
+     PCMD_STATUS pStatus
     );
 
 void
 vMgrReAssocBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject pMgmt,
-    OUT PCMD_STATUS pStatus
+     PCMD_STATUS pStatus
     );
 
 void
@@ -433,26 +433,26 @@ vMgrDisassocBeginSta(
       PSMgmtObject pMgmt,
       PBYTE  abyDestAddress,
       WORD    wReason,
-    OUT PCMD_STATUS pStatus
+     PCMD_STATUS pStatus
     );
 
 void
 vMgrAuthenBeginSta(
       HANDLE hDeviceContext,
       PSMgmtObject pMgmt,
-    OUT PCMD_STATUS pStatus
+     PCMD_STATUS pStatus
     );
 
 void
 vMgrCreateOwnIBSS(
       HANDLE hDeviceContext,
-    OUT PCMD_STATUS pStatus
+     PCMD_STATUS pStatus
     );
 
 void
 vMgrJoinBSSBegin(
       HANDLE hDeviceContext,
-    OUT PCMD_STATUS pStatus
+     PCMD_STATUS pStatus
     );
 
 void
@@ -466,7 +466,7 @@ vMgrRxManagePacket(
 void
 vMgrScanBegin(
       HANDLE hDeviceContext,
-    OUT PCMD_STATUS pStatus
+     PCMD_STATUS pStatus
     );
 */
 
@@ -476,7 +476,7 @@ vMgrDeAuthenBeginSta(
       PSMgmtObject  pMgmt,
       PBYTE   abyDestAddress,
       WORD    wReason,
-    OUT PCMD_STATUS pStatus
+     PCMD_STATUS pStatus
     );
 
 BOOL

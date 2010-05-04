@@ -301,13 +301,13 @@ BOOL
 BSSbIsSTAInNodeDB(
      HANDLE hDeviceContext,
      PBYTE abyDstAddr,
-    OUT PUINT puNodeIndex
+     PUINT puNodeIndex
     );
 
 void
 BSSvCreateOneNode(
      HANDLE hDeviceContext,
-    OUT PUINT puNodeIndex
+     PUINT puNodeIndex
     );
 
 void

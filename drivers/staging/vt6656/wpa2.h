@@ -72,7 +72,7 @@ WPA2vParseRSN (
 UINT
 WPA2uSetIEs(
 	void *pMgmtHandle,
-    OUT PWLAN_IE_RSN pRSNIEs
+     PWLAN_IE_RSN pRSNIEs
     );
 
 #endif /* __WPA2_H__ */

@@ -70,7 +70,7 @@ PIPEnsControlIn(
      WORD         wValue,
      WORD         wIndex,
      WORD         wLength,
-     OUT  PBYTE   pbyBuffer
+       PBYTE   pbyBuffer
     );
 
 

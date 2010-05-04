@@ -99,12 +99,8 @@ typedef struct tagSKeyManagement
 
 void KeyvInitTable(void *pDeviceHandler, PSKeyManagement pTable);
 
-BOOL KeybGetKey(
-      PSKeyManagement pTable,
-      PBYTE           pbyBSSID,
-      DWORD           dwKeyIndex,
-    OUT PSKeyItem       *pKey
-    );
+BOOL KeybGetKey(PSKeyManagement pTable, PBYTE pbyBSSID, DWORD dwKeyIndex,
+		PSKeyItem *pKey);
 
 BOOL KeybSetKey(
     void *pDeviceHandler,
@@ -141,17 +137,10 @@ void KeyvRemoveAllWEPKey(
     PSKeyManagement pTable
     );
 
-BOOL KeybGetTransmitKey(
-      PSKeyManagement pTable,
-      PBYTE           pbyBSSID,
-      DWORD           dwKeyType,
-    OUT PSKeyItem       *pKey
-    );
+BOOL KeybGetTransmitKey(PSKeyManagement pTable,	PBYTE pbyBSSID,	DWORD dwKeyType,
+			PSKeyItem *pKey);
 
-BOOL KeybCheckPairewiseKey(
-      PSKeyManagement pTable,
-    OUT PSKeyItem       *pKey
-    );
+BOOL KeybCheckPairewiseKey(PSKeyManagement pTable, PSKeyItem *pKey);
 
 BOOL KeybSetDefaultKey(
     void *pDeviceHandler,

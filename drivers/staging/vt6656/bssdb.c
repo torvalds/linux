@@ -772,7 +772,7 @@ BOOL
 BSSbIsSTAInNodeDB(
      HANDLE hDeviceContext,
      PBYTE abyDstAddr,
-    OUT PUINT puNodeIndex
+     PUINT puNodeIndex
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -807,7 +807,7 @@ BSSbIsSTAInNodeDB(
 void
 BSSvCreateOneNode(
      HANDLE hDeviceContext,
-    OUT PUINT puNodeIndex
+     PUINT puNodeIndex
     )
 {
 

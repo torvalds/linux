@@ -187,7 +187,7 @@ s_vFillTxKey(
       PSKeyItem  pTransmitKey,
       PBYTE      pbyHdrBuf,
       WORD       wPayloadLen,
-    OUT PBYTE      pMICHDR
+     PBYTE      pMICHDR
     );
 
 static
@@ -339,7 +339,7 @@ s_vFillTxKey (
       PSKeyItem  pTransmitKey,
       PBYTE      pbyHdrBuf,
       WORD       wPayloadLen,
-    OUT PBYTE      pMICHDR
+     PBYTE      pMICHDR
     )
 {
     PDWORD          pdwIV = (PDWORD) pbyIVHead;
@@ -1439,8 +1439,8 @@ s_bPacketToWirelessUsb(
       PSKeyItem        pTransmitKey,
       UINT             uNodeIndex,
       WORD             wCurrentRate,
-    OUT UINT             *pcbHeaderLen,
-    OUT UINT             *pcbTotalLen
+     UINT             *pcbHeaderLen,
+     UINT             *pcbTotalLen
     )
 {
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);

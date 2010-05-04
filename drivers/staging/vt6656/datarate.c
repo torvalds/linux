@@ -193,11 +193,11 @@ void RATEvParseMaxRate(
      PWLAN_IE_SUPP_RATES pItemRates,
      PWLAN_IE_SUPP_RATES pItemExtRates,
      BOOL bUpdateBasicRate,
-    OUT PWORD pwMaxBasicRate,
-    OUT PWORD pwMaxSuppRate,
-    OUT PWORD pwSuppRate,
-    OUT PBYTE pbyTopCCKRate,
-    OUT PBYTE pbyTopOFDMRate
+     PWORD pwMaxBasicRate,
+     PWORD pwMaxSuppRate,
+     PWORD pwSuppRate,
+     PBYTE pbyTopCCKRate,
+     PBYTE pbyTopOFDMRate
     )
 {
 PSDevice  pDevice = (PSDevice) pDeviceHandler;

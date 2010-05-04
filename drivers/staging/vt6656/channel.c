@@ -426,7 +426,7 @@ exit:
 BOOL
 CHvChannelGetList (
       UINT       uCountryCodeIdx,
-    OUT PBYTE      pbyChannelTable
+     PBYTE      pbyChannelTable
     )
 {
     if (uCountryCodeIdx >= CCODE_MAX) {

@@ -80,8 +80,8 @@ static
 void
 s_vGetDASA(
       PBYTE pbyRxBufferAddr,
-    OUT PUINT pcbHeaderSize,
-    OUT PSEthernetHeader psEthHeader
+     PUINT pcbHeaderSize,
+     PSEthernetHeader psEthHeader
     );
 
 static
@@ -92,7 +92,7 @@ s_vProcessRxMACHeader (
       UINT cbPacketSize,
       BOOL bIsWEP,
       BOOL bExtIV,
-    OUT PUINT pcbHeadSize
+     PUINT pcbHeadSize
     );
 
 static BOOL s_bAPModeRxCtl(
@@ -118,11 +118,11 @@ static BOOL s_bHandleRxEncryption(
      PBYTE        pbyFrame,
      UINT         FrameSize,
      PBYTE        pbyRsr,
-    OUT PBYTE       pbyNewRsr,
-    OUT PSKeyItem   *pKeyOut,
+     PBYTE       pbyNewRsr,
+     PSKeyItem   * pKeyOut,
     int *       pbExtIV,
-    OUT PWORD       pwRxTSC15_0,
-    OUT PDWORD      pdwRxTSC47_16
+     PWORD       pwRxTSC15_0,
+     PDWORD      pdwRxTSC47_16
     );
 
 static BOOL s_bHostWepRxEncryption(
@@ -133,10 +133,10 @@ static BOOL s_bHostWepRxEncryption(
      PBYTE        pbyRsr,
      BOOL         bOnFly,
      PSKeyItem    pKey,
-    OUT PBYTE       pbyNewRsr,
+     PBYTE       pbyNewRsr,
     int *       pbExtIV,
-    OUT PWORD       pwRxTSC15_0,
-    OUT PDWORD      pdwRxTSC47_16
+     PWORD       pwRxTSC15_0,
+     PDWORD      pdwRxTSC47_16
 
     );
 
@@ -167,7 +167,7 @@ s_vProcessRxMACHeader (
       UINT cbPacketSize,
       BOOL bIsWEP,
       BOOL bExtIV,
-    OUT PUINT pcbHeadSize
+     PUINT pcbHeadSize
     )
 {
     PBYTE           pbyRxBuffer;
@@ -262,8 +262,8 @@ static
 void
 s_vGetDASA (
       PBYTE pbyRxBufferAddr,
-    OUT PUINT pcbHeaderSize,
-    OUT PSEthernetHeader psEthHeader
+     PUINT pcbHeaderSize,
+     PSEthernetHeader psEthHeader
     )
 {
 	UINT            cbHeaderSize = 0;
@@ -1147,11 +1147,11 @@ static BOOL s_bHandleRxEncryption (
      PBYTE        pbyFrame,
      UINT         FrameSize,
      PBYTE        pbyRsr,
-    OUT PBYTE       pbyNewRsr,
-    OUT PSKeyItem   *pKeyOut,
+     PBYTE       pbyNewRsr,
+     PSKeyItem   * pKeyOut,
     int *       pbExtIV,
-    OUT PWORD       pwRxTSC15_0,
-    OUT PDWORD      pdwRxTSC47_16
+     PWORD       pwRxTSC15_0,
+     PDWORD      pdwRxTSC47_16
     )
 {
     UINT            PayloadLen = FrameSize;
@@ -1295,10 +1295,10 @@ static BOOL s_bHostWepRxEncryption (
      PBYTE        pbyRsr,
      BOOL         bOnFly,
      PSKeyItem    pKey,
-    OUT PBYTE       pbyNewRsr,
+     PBYTE       pbyNewRsr,
     int *       pbExtIV,
-    OUT PWORD       pwRxTSC15_0,
-    OUT PDWORD      pdwRxTSC47_16
+     PWORD       pwRxTSC15_0,
+     PDWORD      pdwRxTSC47_16
     )
 {
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);

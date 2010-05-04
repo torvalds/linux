@@ -51,7 +51,7 @@ BYTE    CHbyGetChannelMapping(BYTE byChannelNumber);
 BOOL
 CHvChannelGetList (
       UINT       uCountryCodeIdx,
-    OUT PBYTE      pbyChannelTable
+     PBYTE      pbyChannelTable
     );
 
 #endif  /* _REGULATE_H_ */

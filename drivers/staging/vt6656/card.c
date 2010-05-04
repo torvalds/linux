@@ -224,8 +224,8 @@ void
 CARDvCaculateOFDMRParameter (
       WORD wRate,
       BYTE byBBType,
-    OUT PBYTE pbyTxRate,
-    OUT PBYTE pbyRsvTime
+     PBYTE pbyTxRate,
+     PBYTE pbyRsvTime
     )
 {
     switch (wRate) {

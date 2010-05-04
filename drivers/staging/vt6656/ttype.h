@@ -33,10 +33,6 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-#ifndef OUT
-#define OUT
-#endif
-
 //2007-0115-05<Add>by MikeLiu
 #ifndef TxInSleep
 #define TxInSleep

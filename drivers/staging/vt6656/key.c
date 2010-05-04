@@ -164,12 +164,8 @@ void KeyvInitTable(void *pDeviceHandler, PSKeyManagement pTable)
  * Return Value: TRUE if found otherwise FALSE
  *
  */
-BOOL KeybGetKey (
-      PSKeyManagement pTable,
-      PBYTE           pbyBSSID,
-      DWORD           dwKeyIndex,
-    OUT PSKeyItem       *pKey
-    )
+BOOL KeybGetKey(PSKeyManagement pTable, PBYTE pbyBSSID, DWORD dwKeyIndex,
+		PSKeyItem *pKey)
 {
     int i;
 
@@ -563,12 +559,8 @@ void KeyvRemoveAllWEPKey(
  * Return Value: TRUE if found otherwise FALSE
  *
  */
-BOOL KeybGetTransmitKey (
-      PSKeyManagement pTable,
-      PBYTE           pbyBSSID,
-      DWORD           dwKeyType,
-    OUT PSKeyItem       *pKey
-    )
+BOOL KeybGetTransmitKey(PSKeyManagement pTable, PBYTE pbyBSSID, DWORD dwKeyType,
+			PSKeyItem *pKey)
 {
     int i, ii;
 
@@ -643,10 +635,7 @@ BOOL KeybGetTransmitKey (
  * Return Value: TRUE if found otherwise FALSE
  *
  */
-BOOL KeybCheckPairewiseKey (
-      PSKeyManagement pTable,
-    OUT PSKeyItem       *pKey
-    )
+BOOL KeybCheckPairewiseKey(PSKeyManagement pTable, PSKeyItem *pKey)
 {
     int i;
 
