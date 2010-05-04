@@ -394,6 +394,7 @@ struct logfs_super {
 	int	 s_lock_count;
 	mempool_t *s_block_pool;		/* struct logfs_block pool */
 	mempool_t *s_shadow_pool;		/* struct logfs_shadow pool */
+	struct list_head s_writeback_list;	/* writeback pages */
 	/*
 	 * Space accounting:
 	 * - s_used_bytes specifies space used to store valid data objects.

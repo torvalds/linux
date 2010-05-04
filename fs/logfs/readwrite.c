@@ -1095,17 +1095,25 @@ static int logfs_reserve_bytes(struct inode *inode, int bytes)
 int get_page_reserve(struct inode *inode, struct page *page)
 {
 	struct logfs_super *super = logfs_super(inode->i_sb);
+	struct logfs_block *block = logfs_block(page);
 	int ret;
 
-	if (logfs_block(page) && logfs_block(page)->reserved_bytes)
+	if (block && block->reserved_bytes)
 		return 0;
 
 	logfs_get_wblocks(inode->i_sb, page, WF_LOCK);
-	ret = logfs_reserve_bytes(inode, 6 * LOGFS_MAX_OBJECTSIZE);
+	while ((ret = logfs_reserve_bytes(inode, 6 * LOGFS_MAX_OBJECTSIZE)) &&
+			!list_empty(&super->s_writeback_list)) {
+		block = list_entry(super->s_writeback_list.next,
+				struct logfs_block, alias_list);
+		block->ops->write_block(block);
+	}
 	if (!ret) {
 		alloc_data_block(inode, page);
-		logfs_block(page)->reserved_bytes += 6 * LOGFS_MAX_OBJECTSIZE;
+		block = logfs_block(page);
+		block->reserved_bytes += 6 * LOGFS_MAX_OBJECTSIZE;
 		super->s_dirty_pages += 6 * LOGFS_MAX_OBJECTSIZE;
+		list_move_tail(&block->alias_list, &super->s_writeback_list);
 	}
 	logfs_put_wblocks(inode->i_sb, page, WF_LOCK);
 	return ret;
@@ -2251,6 +2259,7 @@ int logfs_init_rw(struct super_block *sb)
 	int min_fill = 3 * super->s_no_blocks;
 
 	INIT_LIST_HEAD(&super->s_object_alias);
+	INIT_LIST_HEAD(&super->s_writeback_list);
 	mutex_init(&super->s_write_mutex);
 	super->s_block_pool = mempool_create_kmalloc_pool(min_fill,
 			sizeof(struct logfs_block));
