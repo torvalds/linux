@@ -192,8 +192,7 @@ error_ret:
 
 }
 
-static const u8 read_all_tx_array[] =
-{
+static const u8 read_all_tx_array[] = {
 	LIS3L02DQ_READ_REG(LIS3L02DQ_REG_OUT_X_L_ADDR), 0,
 	LIS3L02DQ_READ_REG(LIS3L02DQ_REG_OUT_X_H_ADDR), 0,
 	LIS3L02DQ_READ_REG(LIS3L02DQ_REG_OUT_Y_L_ADDR), 0,
@@ -358,10 +357,10 @@ static int lis3l02dq_data_rdy_ring_predisable(struct iio_dev *indio_dev)
 
 
 /* Caller responsible for locking as necessary. */
-static int __lis3l02dq_write_data_ready_config(struct device *dev,
-					       struct
-					       iio_event_handler_list *list,
-					       bool state)
+static int
+__lis3l02dq_write_data_ready_config(struct device *dev,
+				    struct iio_event_handler_list *list,
+				    bool state)
 {
 	int ret;
 	u8 valold;

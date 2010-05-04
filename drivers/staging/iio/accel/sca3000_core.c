@@ -277,7 +277,7 @@ static int sca3000_check_status(struct device *dev)
 	if (ret < 0)
 		goto error_ret;
 	if (rx[1] & SCA3000_EEPROM_CS_ERROR)
-		dev_err(dev, "eeprom error \n");
+		dev_err(dev, "eeprom error\n");
 	if (rx[1] & SCA3000_SPI_FRAME_ERROR)
 		dev_err(dev, "Previous SPI Frame was corrupt\n");
 	kfree(rx);
@@ -394,7 +394,7 @@ sca3000_show_available_measurement_modes(struct device *dev,
 		break;
 	}
 	/* always supported */
-	len += sprintf(buf + len, " 3 - motion detection \n");
+	len += sprintf(buf + len, " 3 - motion detection\n");
 
 	return len;
 }
