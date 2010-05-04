@@ -1202,14 +1202,24 @@ static int i2c_detect_address(struct i2c_client *temp_client, int kind,
 
 	/* Make sure there is something at this address, unless forced */
 	if (kind < 0) {
-		if (i2c_smbus_xfer(adapter, addr, 0, 0, 0,
-				   I2C_SMBUS_QUICK, NULL) < 0)
-			return 0;
+		if (addr == 0x73 && (adapter->class & I2C_CLASS_HWMON)) {
+			/* Special probe for FSC hwmon chips */
+			union i2c_smbus_data dummy;
 
-		/* prevent 24RF08 corruption */
-		if ((addr & ~0x0f) == 0x50)
-			i2c_smbus_xfer(adapter, addr, 0, 0, 0,
-				       I2C_SMBUS_QUICK, NULL);
+			if (i2c_smbus_xfer(adapter, addr, 0, I2C_SMBUS_READ, 0,
+					   I2C_SMBUS_BYTE_DATA, &dummy) < 0)
+				return 0;
+		} else {
+			if (i2c_smbus_xfer(adapter, addr, 0, I2C_SMBUS_WRITE, 0,
+					   I2C_SMBUS_QUICK, NULL) < 0)
+				return 0;
+
+			/* Prevent 24RF08 corruption */
+			if ((addr & ~0x0f) == 0x50)
+				i2c_smbus_xfer(adapter, addr, 0,
+					       I2C_SMBUS_WRITE, 0,
+					       I2C_SMBUS_QUICK, NULL);
+		}
 	}
 
 	/* Finally call the custom detection function */
