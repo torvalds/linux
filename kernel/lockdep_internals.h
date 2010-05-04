@@ -144,12 +144,12 @@ DECLARE_PER_CPU(struct lockdep_stats, lockdep_stats);
 
 #define debug_atomic_inc(ptr)			{		\
 	WARN_ON_ONCE(!irqs_disabled());				\
-	this_cpu_inc(lockdep_stats.ptr);			\
+	__this_cpu_inc(lockdep_stats.ptr);			\
 }
 
 #define debug_atomic_dec(ptr)			{		\
 	WARN_ON_ONCE(!irqs_disabled());				\
-	this_cpu_dec(lockdep_stats.ptr);			\
+	__this_cpu_dec(lockdep_stats.ptr);			\
 }
 
 #define debug_atomic_read(ptr)		({				\
