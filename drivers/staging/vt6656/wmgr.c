@@ -958,12 +958,12 @@ s_vMgrRxAssocResponse(
         sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
         // decode the frame
         vMgrDecodeAssocResponse(&sFrame);
-        if ((sFrame.pwCapInfo == 0) ||
-            (sFrame.pwStatus == 0) ||
-            (sFrame.pwAid == 0) ||
-            (sFrame.pSuppRates == 0)){
-            DBG_PORT80(0xCC);
-            return;
+	if ((sFrame.pwCapInfo == NULL)
+	    || (sFrame.pwStatus == NULL)
+	    || (sFrame.pwAid == NULL)
+	    || (sFrame.pSuppRates == NULL)) {
+		DBG_PORT80(0xCC);
+		return;
         };
 
         pMgmt->sAssocInfo.AssocInfo.ResponseFixedIEs.Capabilities = *(sFrame.pwCapInfo);
@@ -1871,14 +1871,14 @@ s_vMgrRxBeacon(
     // decode the beacon frame
     vMgrDecodeBeacon(&sFrame);
 
-    if ((sFrame.pwBeaconInterval == 0) ||
-        (sFrame.pwCapInfo == 0) ||
-        (sFrame.pSSID == 0) ||
-        (sFrame.pSuppRates == 0) ) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rx beacon frame error\n");
-        return;
-    };
+    if ((sFrame.pwBeaconInterval == NULL)
+	|| (sFrame.pwCapInfo == NULL)
+	|| (sFrame.pSSID == NULL)
+	|| (sFrame.pSuppRates == NULL)) {
 
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rx beacon frame error\n");
+	return;
+    };
 
     if( byCurrChannel > CB_MAX_CHANNEL_24G )
     {
@@ -2152,9 +2152,9 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
         if (bTSFLargeDiff)
             bUpdateTSF = TRUE;
 
-        if ((pDevice->bEnablePSMode == TRUE) &&(sFrame.pTIM != 0)) {
+	if ((pDevice->bEnablePSMode == TRUE) && (sFrame.pTIM)) {
 
-            // deal with DTIM, analysis TIM
+		/* deal with DTIM, analysis TIM */
             pMgmt->bMulticastTIM = WLAN_MGMT_IS_MULTICAST_TIM(sFrame.pTIM->byBitMapCtl) ? TRUE : FALSE ;
             pMgmt->byDTIMCount = sFrame.pTIM->byDTIMCount;
             pMgmt->byDTIMPeriod = sFrame.pTIM->byDTIMPeriod;
@@ -4246,14 +4246,16 @@ s_vMgrRxProbeResponse(
     sFrame.pBuf = (PBYTE)pRxPacket->p80211Header;
     vMgrDecodeProbeResponse(&sFrame);
 
-    if ((sFrame.pqwTimestamp == 0) ||
-        (sFrame.pwBeaconInterval == 0) ||
-        (sFrame.pwCapInfo == 0) ||
-        (sFrame.pSSID == 0) ||
-        (sFrame.pSuppRates == 0)) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe resp:Fail addr:[%p] \n", pRxPacket->p80211Header);
-        DBG_PORT80(0xCC);
-        return;
+    if ((sFrame.pqwTimestamp == NULL)
+	|| (sFrame.pwBeaconInterval == NULL)
+	|| (sFrame.pwCapInfo == NULL)
+	|| (sFrame.pSSID == NULL)
+	|| (sFrame.pSuppRates == NULL)) {
+
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe resp:Fail addr:[%p]\n",
+		pRxPacket->p80211Header);
+	DBG_PORT80(0xCC);
+	return;
     };
 
     if(sFrame.pSSID->len == 0)
@@ -4263,22 +4265,23 @@ s_vMgrRxProbeResponse(
     //{{ RobertYu:20050201, 11a  byCurrChannel != sFrame.pDSParms->byCurrChannel mapping
     if( byCurrChannel > CB_MAX_CHANNEL_24G )
     {
-        if (sFrame.pDSParms != 0) {
-            if (byCurrChannel == RFaby11aChannelIndex[sFrame.pDSParms->byCurrChannel-1])
-                bChannelHit = TRUE;
-            byCurrChannel = RFaby11aChannelIndex[sFrame.pDSParms->byCurrChannel-1];
+	if (sFrame.pDSParms) {
+		if (byCurrChannel ==
+		    RFaby11aChannelIndex[sFrame.pDSParms->byCurrChannel-1])
+			bChannelHit = TRUE;
+		byCurrChannel =
+			RFaby11aChannelIndex[sFrame.pDSParms->byCurrChannel-1];
         } else {
-            bChannelHit = TRUE;
+		bChannelHit = TRUE;
         }
-
     } else {
-        if (sFrame.pDSParms != 0) {
-            if (byCurrChannel == sFrame.pDSParms->byCurrChannel)
-                bChannelHit = TRUE;
-            byCurrChannel = sFrame.pDSParms->byCurrChannel;
-        } else {
-            bChannelHit = TRUE;
-        }
+	if (sFrame.pDSParms) {
+		if (byCurrChannel == sFrame.pDSParms->byCurrChannel)
+			bChannelHit = TRUE;
+		byCurrChannel = sFrame.pDSParms->byCurrChannel;
+	} else {
+		bChannelHit = TRUE;
+	}
     }
     //RobertYu:20050201
 
@@ -4286,7 +4289,7 @@ s_vMgrRxProbeResponse(
 if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
       return;
 
-    if (sFrame.pERP != NULL) {
+    if (sFrame.pERP) {
         sERP.byERP = sFrame.pERP->byContext;
         sERP.bERPExist = TRUE;
     } else {
