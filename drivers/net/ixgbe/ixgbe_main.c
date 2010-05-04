@@ -2722,7 +2722,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), (1 << vf_shift));
 		IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), (1 << vf_shift));
 		IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
-		ixgbe_set_vmolr(hw, adapter->num_vfs);
+		ixgbe_set_vmolr(hw, adapter->num_vfs, true);
 	}
 
 	/* Program MRQC for the distribution of queues */
