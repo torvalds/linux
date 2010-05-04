@@ -24,6 +24,13 @@
 
 #define NTRIG_DUPLICATE_USAGES	0x001
 
+static unsigned int min_width;
+static unsigned int min_height;
+static unsigned int activate_slack = 1;
+static unsigned int deactivate_slack = 4;
+static unsigned int activation_width = 64;
+static unsigned int activation_height = 32;
+
 struct ntrig_data {
 	/* Incoming raw values for a single contact */
 	__u16 x, y, w, h;
@@ -37,6 +44,28 @@ struct ntrig_data {
 
 	__u8 mt_footer[4];
 	__u8 mt_foot_count;
+
+	/* The current activation state. */
+	__s8 act_state;
+
+	/* Empty frames to ignore before recognizing the end of activity */
+	__s8 deactivate_slack;
+
+	/* Frames to ignore before acknowledging the start of activity */
+	__s8 activate_slack;
+
+	/* Minimum size contact to accept */
+	__u16 min_width;
+	__u16 min_height;
+
+	/* Threshold to override activation slack */
+	__u16 activation_width;
+	__u16 activation_height;
+
+	__u16 sensor_logical_width;
+	__u16 sensor_logical_height;
+	__u16 sensor_physical_width;
+	__u16 sensor_physical_height;
 };
 
 /*
@@ -49,6 +78,8 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
+	struct ntrig_data *nd = hid_get_drvdata(hdev);
+
 	/* No special mappings needed for the pen and single touch */
 	if (field->physical)
 		return 0;
@@ -62,6 +93,21 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			input_set_abs_params(hi->input, ABS_X,
 					field->logical_minimum,
 					field->logical_maximum, 0, 0);
+
+			if (!nd->sensor_logical_width) {
+				nd->sensor_logical_width =
+					field->logical_maximum -
+					field->logical_minimum;
+				nd->sensor_physical_width =
+					field->physical_maximum -
+					field->physical_minimum;
+				nd->activation_width = activation_width *
+					nd->sensor_logical_width /
+					nd->sensor_physical_width;
+				nd->min_width = min_width *
+					nd->sensor_logical_width /
+					nd->sensor_physical_width;
+			}
 			return 1;
 		case HID_GD_Y:
 			hid_map_usage(hi, usage, bit, max,
@@ -69,6 +115,21 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			input_set_abs_params(hi->input, ABS_Y,
 					field->logical_minimum,
 					field->logical_maximum, 0, 0);
+
+			if (!nd->sensor_logical_height) {
+				nd->sensor_logical_height =
+					field->logical_maximum -
+					field->logical_minimum;
+				nd->sensor_physical_height =
+					field->physical_maximum -
+					field->physical_minimum;
+				nd->activation_height = activation_height *
+					nd->sensor_logical_height /
+					nd->sensor_physical_height;
+				nd->min_height = min_height *
+					nd->sensor_logical_height /
+					nd->sensor_physical_height;
+			}
 			return 1;
 		}
 		return 0;
@@ -201,19 +262,67 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			if (nd->mt_foot_count != 4)
 				break;
 
-			/* Pen activity signal, trigger end of touch. */
+			/* Pen activity signal. */
 			if (nd->mt_footer[2]) {
+				/*
+				 * When the pen deactivates touch, we see a
+				 * bogus frame with ContactCount > 0.
+				 * We can
+				 * save a bit of work by ensuring act_state < 0
+				 * even if deactivation slack is turned off.
+				 */
+				nd->act_state = deactivate_slack - 1;
 				nd->confidence = 0;
 				break;
 			}
 
-			/* If the contact was invalid */
-			if (!(nd->confidence && nd->mt_footer[0])
-					|| nd->w <= 250
-					|| nd->h <= 190) {
-				nd->confidence = 0;
+			/*
+			 * The first footer value indicates the presence of a
+			 * finger.
+			 */
+			if (nd->mt_footer[0]) {
+				/*
+				 * We do not want to process contacts under
+				 * the size threshold, but do not want to
+				 * ignore them for activation state
+				 */
+				if (nd->w < nd->min_width ||
+				    nd->h < nd->min_height)
+					nd->confidence = 0;
+			} else
 				break;
+
+			if (nd->act_state > 0) {
+				/*
+				 * Contact meets the activation size threshold
+				 */
+				if (nd->w >= nd->activation_width &&
+				    nd->h >= nd->activation_height) {
+					if (nd->id)
+						/*
+						 * first contact, activate now
+						 */
+						nd->act_state = 0;
+					else {
+						/*
+						 * avoid corrupting this frame
+						 * but ensure next frame will
+						 * be active
+						 */
+						nd->act_state = 1;
+						break;
+					}
+				} else
+					/*
+					 * Defer adjusting the activation state
+					 * until the end of the frame.
+					 */
+					break;
 			}
+
+			/* Discarding this contact */
+			if (!nd->confidence)
+				break;
 
 			/* emit a normal (X, Y) for the first point only */
 			if (nd->id == 0) {
@@ -227,8 +336,15 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 				input_event(input, EV_ABS, ABS_X, nd->x);
 				input_event(input, EV_ABS, ABS_Y, nd->y);
 			}
+
+			/* Emit MT events */
 			input_event(input, EV_ABS, ABS_MT_POSITION_X, nd->x);
 			input_event(input, EV_ABS, ABS_MT_POSITION_Y, nd->y);
+
+			/*
+			 * Translate from height and width to size
+			 * and orientation.
+			 */
 			if (nd->w > nd->h) {
 				input_event(input, EV_ABS,
 						ABS_MT_ORIENTATION, 1);
@@ -248,12 +364,88 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			break;
 
 		case HID_DG_CONTACTCOUNT: /* End of a multitouch group */
-			if (!nd->reading_mt)
+			if (!nd->reading_mt) /* Just to be sure */
 				break;
 
 			nd->reading_mt = 0;
 
-			if (nd->first_contact_touch) {
+
+			/*
+			 * Activation state machine logic:
+			 *
+			 * Fundamental states:
+			 *	state >  0: Inactive
+			 *	state <= 0: Active
+			 *	state <  -deactivate_slack:
+			 *		 Pen termination of touch
+			 *
+			 * Specific values of interest
+			 *	state == activate_slack
+			 *		 no valid input since the last reset
+			 *
+			 *	state == 0
+			 *		 general operational state
+			 *
+			 *	state == -deactivate_slack
+			 *		 read sufficient empty frames to accept
+			 *		 the end of input and reset
+			 */
+
+			if (nd->act_state > 0) { /* Currently inactive */
+				if (value)
+					/*
+					 * Consider each live contact as
+					 * evidence of intentional activity.
+					 */
+					nd->act_state = (nd->act_state > value)
+							? nd->act_state - value
+							: 0;
+				else
+					/*
+					 * Empty frame before we hit the
+					 * activity threshold, reset.
+					 */
+					nd->act_state = nd->activate_slack;
+
+				/*
+				 * Entered this block inactive and no
+				 * coordinates sent this frame, so hold off
+				 * on button state.
+				 */
+				break;
+			} else { /* Currently active */
+				if (value && nd->act_state >=
+					     nd->deactivate_slack)
+					/*
+					 * Live point: clear accumulated
+					 * deactivation count.
+					 */
+					nd->act_state = 0;
+				else if (nd->act_state <= nd->deactivate_slack)
+					/*
+					 * We've consumed the deactivation
+					 * slack, time to deactivate and reset.
+					 */
+					nd->act_state =
+						nd->activate_slack;
+				else { /* Move towards deactivation */
+					nd->act_state--;
+					break;
+				}
+			}
+
+			if (nd->first_contact_touch && nd->act_state <= 0) {
+				/*
+				 * Check to see if we're ready to start
+				 * emitting touch events.
+				 *
+				 * Note: activation slack will decrease over
+				 * the course of the frame, and it will be
+				 * inconsistent from the start to the end of
+				 * the frame.  However if the frame starts
+				 * with slack, first_contact_touch will still
+				 * be 0 and we will not get to this point.
+				 */
 				input_report_key(input, BTN_TOOL_DOUBLETAP, 1);
 				input_report_key(input, BTN_TOUCH, 1);
 			} else {
@@ -263,7 +455,7 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			break;
 
 		default:
-			/* fallback to the generic hidinput handling */
+			/* fall-back to the generic hidinput handling */
 			return 0;
 		}
 	}
@@ -293,6 +485,16 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	nd->reading_mt = 0;
+	nd->min_width = 0;
+	nd->min_height = 0;
+	nd->activate_slack = activate_slack;
+	nd->act_state = activate_slack;
+	nd->deactivate_slack = -deactivate_slack;
+	nd->sensor_logical_width = 0;
+	nd->sensor_logical_height = 0;
+	nd->sensor_physical_width = 0;
+	nd->sensor_physical_height = 0;
+
 	hid_set_drvdata(hdev, nd);
 
 	ret = hid_parse(hdev);
