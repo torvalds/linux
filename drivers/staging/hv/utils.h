@@ -87,7 +87,6 @@ struct hyperv_service_callback {
 
 extern void prep_negotiate_resp(struct icmsg_hdr *,
 				struct icmsg_negotiate *, u8 *);
-extern void shutdown_linux_system(void);
 extern void chn_cb_negotiate(void *);
 extern struct hyperv_service_callback hv_cb_utils[];
 

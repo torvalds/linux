@@ -10,4 +10,4 @@ hv_vmbus-objs := vmbus_drv.o osd.o \
 hv_storvsc-objs := storvsc_drv.o StorVsc.o
 hv_blkvsc-objs := blkvsc_drv.o BlkVsc.o
 hv_netvsc-objs := netvsc_drv.o NetVsc.o RndisFilter.o
-hv_utils-objs := hyperv_utils.o ext_utils.o
+hv_utils-objs := hyperv_utils.o

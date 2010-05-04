@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
+#include <linux/reboot.h>
 #include <linux/version.h>
 
 #include "logging.h"
@@ -103,7 +104,7 @@ void shutdown_onchannelcallback(void *context)
 	DPRINT_EXIT(VMBUS);
 
 	if (execute_shutdown == true)
-		shutdown_linux_system();
+		orderly_poweroff(false);
 }
 
 static int __init init_hyperv_utils(void)
