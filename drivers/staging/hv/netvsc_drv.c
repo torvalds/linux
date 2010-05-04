@@ -144,27 +144,21 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		(struct netvsc_driver_context *)driver_ctx;
 	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
 	struct hv_netvsc_packet *packet;
-	int i;
 	int ret;
-	int num_frags;
+	unsigned int i, num_pages;
 	int retries = 0;
 
 	DPRINT_ENTER(NETVSC_DRV);
 
-	/* Support only 1 chain of frags */
-	ASSERT(skb_shinfo(skb)->frag_list == NULL);
-	ASSERT(skb->dev == net);
-
 	DPRINT_DBG(NETVSC_DRV, "xmit packet - len %d data_len %d",
 		   skb->len, skb->data_len);
 
-	/* Add 1 for skb->data and any additional ones requested */
-	num_frags = skb_shinfo(skb)->nr_frags + 1 +
-		    net_drv_obj->AdditionalRequestPageBufferCount;
+	/* Add 1 for skb->data and additional one for RNDIS */
+	num_pages = skb_shinfo(skb)->nr_frags + 1 + 1;
 
 	/* Allocate a netvsc packet based on # of frags. */
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
-			 (num_frags * sizeof(struct hv_page_buffer)) +
+			 (num_pages * sizeof(struct hv_page_buffer)) +
 			 net_drv_obj->RequestExtSize, GFP_ATOMIC);
 	if (!packet) {
 		DPRINT_ERR(NETVSC_DRV, "unable to allocate hv_netvsc_packet");
@@ -173,36 +167,30 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	packet->Extension = (void *)(unsigned long)packet +
 				sizeof(struct hv_netvsc_packet) +
-				    (num_frags * sizeof(struct hv_page_buffer));
+				    (num_pages * sizeof(struct hv_page_buffer));
 
 	/* Setup the rndis header */
-	packet->PageBufferCount = num_frags;
+	packet->PageBufferCount = num_pages;
 
 	/* TODO: Flush all write buffers/ memory fence ??? */
 	/* wmb(); */
 
 	/* Initialize it from the skb */
-	ASSERT(skb->data);
 	packet->TotalDataBufferLength	= skb->len;
 
-	/*
-	 * Start filling in the page buffers starting at
-	 * AdditionalRequestPageBufferCount offset
-	 */
-	packet->PageBuffers[net_drv_obj->AdditionalRequestPageBufferCount].Pfn = virt_to_phys(skb->data) >> PAGE_SHIFT;
-	packet->PageBuffers[net_drv_obj->AdditionalRequestPageBufferCount].Offset = (unsigned long)skb->data & (PAGE_SIZE - 1);
-	packet->PageBuffers[net_drv_obj->AdditionalRequestPageBufferCount].Length = skb->len - skb->data_len;
+	/* Start filling in the page buffers starting after RNDIS buffer. */
+	packet->PageBuffers[1].Pfn = virt_to_phys(skb->data) >> PAGE_SHIFT;
+	packet->PageBuffers[1].Offset
+		= (unsigned long)skb->data & (PAGE_SIZE - 1);
+	packet->PageBuffers[1].Length = skb_headlen(skb);
 
-	ASSERT((skb->len - skb->data_len) <= PAGE_SIZE);
+	/* Additional fragments are after SKB data */
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
 
-	for (i = net_drv_obj->AdditionalRequestPageBufferCount + 1;
-	     i < num_frags; i++) {
-		packet->PageBuffers[i].Pfn =
-			page_to_pfn(skb_shinfo(skb)->frags[i-(net_drv_obj->AdditionalRequestPageBufferCount+1)].page);
-		packet->PageBuffers[i].Offset =
-			skb_shinfo(skb)->frags[i-(net_drv_obj->AdditionalRequestPageBufferCount+1)].page_offset;
-		packet->PageBuffers[i].Length =
-			skb_shinfo(skb)->frags[i-(net_drv_obj->AdditionalRequestPageBufferCount+1)].size;
+		packet->PageBuffers[i+2].Pfn = page_to_pfn(f->page);
+		packet->PageBuffers[i+2].Offset = f->page_offset;
+		packet->PageBuffers[i+2].Length = f->size;
 	}
 
 	/* Set the completion routine */
@@ -422,6 +410,9 @@ static int netvsc_probe(struct device *device)
 	memcpy(net->dev_addr, device_info.MacAddr, ETH_ALEN);
 
 	net->netdev_ops = &device_ops;
+
+	/* TODO: Add GSO and Checksum offload */
+	net->features = NETIF_F_SG;
 
 	SET_NETDEV_DEV(net, device);
 

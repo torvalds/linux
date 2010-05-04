@@ -624,7 +624,6 @@ int RndisFilterInit(struct netvsc_driver *Driver)
 		   sizeof(struct rndis_filter_packet));
 
 	Driver->RequestExtSize = sizeof(struct rndis_filter_packet);
-	Driver->AdditionalRequestPageBufferCount = 1; /* For rndis header */
 
 	/* Driver->Context = rndisDriver; */
 
