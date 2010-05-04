@@ -179,6 +179,22 @@ config KEYBOARD_GPIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio_keys.
 
+config KEYBOARD_TCA6416
+	tristate "TCA6416 Keypad Support"
+	depends on I2C
+	help
+	  This driver implements basic keypad functionality
+	  for keys connected through TCA6416 IO expander
+
+	  Say Y here if your device has keys connected to
+	  TCA6416 IO expander. Your board-specific setup logic
+	  must also provide pin-mask details(of which TCA6416 pins
+	  are used for keypad).
+
+	  If enabled the complete TCA6416 device will be managed through
+	  this driver.
+
+
 config KEYBOARD_MATRIX
 	tristate "GPIO driven matrix keypad support"
 	depends on GENERIC_GPIO
