@@ -937,7 +937,8 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp, divisor1 = 0, divisor2 = 0;
+	int tmp;
+	unsigned int divisor1 = 0, divisor2 = 0;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...)\n");
 #ifdef PCI171X_EXTDEBUG
