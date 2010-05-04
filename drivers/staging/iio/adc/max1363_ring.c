@@ -17,6 +17,7 @@
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/i2c.h>
+#include <linux/bitops.h>
 
 #include "../iio.h"
 #include "../ring_generic.h"
@@ -26,32 +27,36 @@
 
 #include "max1363.h"
 
-ssize_t max1363_scan_from_ring(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+/* Todo: test this */
+int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct max1363_state *info = dev_info->dev_data;
-	int i, ret, len = 0;
-	char *ring_data;
+	unsigned long numvals;
+	int count = 0, ret;
+	u8 *ring_data;
+	if (!(st->current_mode->modemask & mask)) {
+		ret = -EBUSY;
+		goto error_ret;
+	}
+	numvals = hweight_long(st->current_mode->modemask);
 
-	ring_data = kmalloc(info->current_mode->numvals*2, GFP_KERNEL);
+	ring_data = kmalloc(numvals*2, GFP_KERNEL);
 	if (ring_data == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	ret = dev_info->ring->access.read_last(dev_info->ring, ring_data);
+	ret = st->indio_dev->ring->access.read_last(st->indio_dev->ring,
+						ring_data);
 	if (ret)
 		goto error_free_ring_data;
-	len += sprintf(buf+len, "ring ");
-	for (i = 0; i < info->current_mode->numvals; i++)
-		len += sprintf(buf + len, "%d ",
-			       ((int)(ring_data[i*2 + 0] & 0x0F) << 8)
-			       + ((int)(ring_data[i*2 + 1])));
-	len += sprintf(buf + len, "\n");
-	kfree(ring_data);
-
-	return len;
+	/* Need a count of channels prior to this one */
+	mask >>= 1;
+	while (mask) {
+		if (mask && st->current_mode->modemask)
+			count++;
+		mask >>= 1;
+	}
+	return ((int)(ring_data[count*2 + 0] & 0x0F) << 8)
+		+ (int)(ring_data[count*2 + 1]);
 
 error_free_ring_data:
 	kfree(ring_data);
@@ -70,9 +75,22 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct max1363_state *st = indio_dev->dev_data;
 	size_t d_size;
+	unsigned long numvals;
 
+	/*
+	 * Need to figure out the current mode based upon the requested
+	 * scan mask in iio_dev
+	 */
+	st->current_mode = max1363_match_mode(st->indio_dev->scan_mask,
+					st->chip_info);
+	if (!st->current_mode)
+		return -EINVAL;
+
+	max1363_set_scan_mode(st);
+
+	numvals = hweight_long(st->current_mode->modemask);
 	if (indio_dev->ring->access.set_bpd) {
-		d_size = st->current_mode->numvals*2 + sizeof(s64);
+		d_size = numvals*2 + sizeof(s64);
 		if (d_size % 8)
 			d_size += 8 - (d_size % 8);
 		indio_dev->ring->access.set_bpd(indio_dev->ring, d_size);
@@ -145,9 +163,10 @@ static void max1363_poll_bh_to_ring(struct work_struct *work_s)
 	__u8 *rxbuf;
 	int b_sent;
 	size_t d_size;
+	unsigned long numvals = hweight_long(st->current_mode->modemask);
 
 	/* Ensure the timestamp is 8 byte aligned */
-	d_size = st->current_mode->numvals*2 + sizeof(s64);
+	d_size = numvals*2 + sizeof(s64);
 	if (d_size % sizeof(s64))
 		d_size += sizeof(s64) - (d_size % sizeof(s64));
 
@@ -159,16 +178,14 @@ static void max1363_poll_bh_to_ring(struct work_struct *work_s)
 	 * might as well have this test in here in the meantime as it does
 	 * no harm.
 	 */
-	if (st->current_mode->numvals == 0)
+	if (numvals == 0)
 		return;
 
 	rxbuf = kmalloc(d_size,	GFP_KERNEL);
 	if (rxbuf == NULL)
 		return;
 
-	b_sent = i2c_master_recv(st->client,
-				 rxbuf,
-				 st->current_mode->numvals*2);
+	b_sent = i2c_master_recv(st->client, rxbuf, numvals*2);
 	if (b_sent < 0)
 		goto done;
 
