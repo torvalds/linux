@@ -110,6 +110,7 @@ config ARCH_BAST
 	select MACH_BAST_IDE
 	select S3C24XX_DCLK
 	select ISA
+	select S3C_DEV_HWMON
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
 	help

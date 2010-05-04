@@ -37,5 +37,15 @@ struct s3c_hwmon_pdata {
 	struct s3c_hwmon_chcfg	*in[8];
 };
 
+/**
+ * s3c_hwmon_set_platdata - Set platform data for S3C HWMON device
+ * @pd: Platform data to register to device.
+ *
+ * Register the given platform data for use with the S3C HWMON device.
+ * The call will copy the platform data, so the board definitions can
+ * make the structure itself __initdata.
+ */
+extern void __init s3c_hwmon_set_platdata(struct s3c_hwmon_pdata *pd);
+
 #endif /* __ASM_ARCH_ADC_HWMON_H */
 
