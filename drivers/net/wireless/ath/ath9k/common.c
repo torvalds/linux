@@ -57,13 +57,19 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	 * rs_more indicates chained descriptors which can be used
 	 * to link buffers together for a sort of scatter-gather
 	 * operation.
-	 *
+	 * reject the frame, we don't support scatter-gather yet and
+	 * the frame is probably corrupt anyway
+	 */
+	if (rx_stats->rs_more)
+		return false;
+
+	/*
 	 * The rx_stats->rs_status will not be set until the end of the
 	 * chained descriptors so it can be ignored if rs_more is set. The
 	 * rs_more will be false at the last element of the chained
 	 * descriptors.
 	 */
-	if (!rx_stats->rs_more && rx_stats->rs_status != 0) {
+	if (rx_stats->rs_status != 0) {
 		if (rx_stats->rs_status & ATH9K_RXERR_CRC)
 			rxs->flag |= RX_FLAG_FAILED_FCS_CRC;
 		if (rx_stats->rs_status & ATH9K_RXERR_PHY)
