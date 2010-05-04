@@ -200,6 +200,12 @@ extern irqreturn_t orinoco_interrupt(int irq, void *dev_id);
 extern void __orinoco_ev_info(struct net_device *dev, hermes_t *hw);
 extern void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw);
 
+int orinoco_process_xmit_skb(struct sk_buff *skb,
+			     struct net_device *dev,
+			     struct orinoco_private *priv,
+			     int *tx_control,
+			     u8 *mic);
+
 /* Common ndo functions exported for reuse by orinoco_usb */
 int orinoco_open(struct net_device *dev);
 int orinoco_stop(struct net_device *dev);
