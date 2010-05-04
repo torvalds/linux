@@ -53,6 +53,7 @@ struct tpa6130a2_data {
 	struct regulator_bulk_data supplies[TPA6130A2_NUM_SUPPLIES];
 	int power_gpio;
 	unsigned char power_state;
+	enum tpa_model id;
 };
 
 static int tpa6130a2_i2c_read(int reg)
@@ -263,6 +264,20 @@ static const struct snd_kcontrol_new tpa6130a2_controls[] = {
 		       tpa6130_tlv),
 };
 
+static const unsigned int tpa6140_tlv[] = {
+	TLV_DB_RANGE_HEAD(3),
+	0, 8, TLV_DB_SCALE_ITEM(-5900, 400, 0),
+	9, 16, TLV_DB_SCALE_ITEM(-2500, 200, 0),
+	17, 31, TLV_DB_SCALE_ITEM(-1000, 100, 0),
+};
+
+static const struct snd_kcontrol_new tpa6140a2_controls[] = {
+	SOC_SINGLE_EXT_TLV("TPA6140A2 Headphone Playback Volume",
+		       TPA6130A2_REG_VOL_MUTE, 1, 0x1f, 0,
+		       tpa6130a2_get_reg, tpa6130a2_set_reg,
+		       tpa6140_tlv),
+};
+
 /*
  * Enable or disable channel (left or right)
  * The bit number for mute and amplifier are the same per channel:
@@ -368,13 +383,22 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 {
+	struct	tpa6130a2_data *data;
+
+	BUG_ON(tpa6130a2_client == NULL);
+	data = i2c_get_clientdata(tpa6130a2_client);
+
 	snd_soc_dapm_new_controls(codec, tpa6130a2_dapm_widgets,
 				ARRAY_SIZE(tpa6130a2_dapm_widgets));
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	return snd_soc_add_controls(codec, tpa6130a2_controls,
-				ARRAY_SIZE(tpa6130a2_controls));
+	if (data->id == TPA6140A2)
+		return snd_soc_add_controls(codec, tpa6140a2_controls,
+						ARRAY_SIZE(tpa6140a2_controls));
+	else
+		return snd_soc_add_controls(codec, tpa6130a2_controls,
+						ARRAY_SIZE(tpa6130a2_controls));
 
 }
 EXPORT_SYMBOL_GPL(tpa6130a2_add_controls);
@@ -407,6 +431,7 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 
 	pdata = client->dev.platform_data;
 	data->power_gpio = pdata->power_gpio;
+	data->id = pdata->id;
 
 	mutex_init(&data->mutex);
 
@@ -425,7 +450,7 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 		gpio_direction_output(data->power_gpio, 0);
 	}
 
-	switch (pdata->id) {
+	switch (data->id) {
 	case TPA6130A2:
 		for (i = 0; i < ARRAY_SIZE(data->supplies); i++)
 			data->supplies[i].supply = tpa6130a2_supply_names[i];
