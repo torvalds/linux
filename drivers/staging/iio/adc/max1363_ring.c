@@ -55,8 +55,11 @@ int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 			count++;
 		mask >>= 1;
 	}
-	return ((int)(ring_data[count*2 + 0] & 0x0F) << 8)
-		+ (int)(ring_data[count*2 + 1]);
+	if (st->chip_info->bits != 8)
+		return ((int)(ring_data[count*2 + 0] & 0x0F) << 8)
+			+ (int)(ring_data[count*2 + 1]);
+	else
+		return ring_data[count];
 
 error_free_ring_data:
 	kfree(ring_data);
@@ -90,7 +93,10 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 
 	numvals = hweight_long(st->current_mode->modemask);
 	if (indio_dev->ring->access.set_bpd) {
-		d_size = numvals*2 + sizeof(s64);
+		if (st->chip_info->bits != 8)
+			d_size = numvals*2 + sizeof(s64);
+		else
+			d_size = numvals + sizeof(s64);
 		if (d_size % 8)
 			d_size += 8 - (d_size % 8);
 		indio_dev->ring->access.set_bpd(indio_dev->ring, d_size);
@@ -166,7 +172,10 @@ static void max1363_poll_bh_to_ring(struct work_struct *work_s)
 	unsigned long numvals = hweight_long(st->current_mode->modemask);
 
 	/* Ensure the timestamp is 8 byte aligned */
-	d_size = numvals*2 + sizeof(s64);
+	if (st->chip_info->bits != 8)
+		d_size = numvals*2 + sizeof(s64);
+	else
+		d_size = numvals + sizeof(s64);
 	if (d_size % sizeof(s64))
 		d_size += sizeof(s64) - (d_size % sizeof(s64));
 
@@ -184,8 +193,10 @@ static void max1363_poll_bh_to_ring(struct work_struct *work_s)
 	rxbuf = kmalloc(d_size,	GFP_KERNEL);
 	if (rxbuf == NULL)
 		return;
-
-	b_sent = i2c_master_recv(st->client, rxbuf, numvals*2);
+	if (st->chip_info->bits != 8)
+		b_sent = i2c_master_recv(st->client, rxbuf, numvals*2);
+	else
+		b_sent = i2c_master_recv(st->client, rxbuf, numvals);
 	if (b_sent < 0)
 		goto done;
 

@@ -226,13 +226,24 @@ static ssize_t max1363_read_single_channel(struct device *dev,
 			if (ret)
 				goto error_ret;
 		}
-		/* Get reading */
-		data = i2c_master_recv(client, rxbuf, 2);
-		if (data < 0) {
-			ret = data;
-			goto error_ret;
+		if (st->chip_info->bits != 8) {
+			/* Get reading */
+			data = i2c_master_recv(client, rxbuf, 2);
+			if (data < 0) {
+				ret = data;
+				goto error_ret;
+			}
+
+			data = (s32)(rxbuf[1]) | ((s32)(rxbuf[0] & 0x0F)) << 8;
+		} else {
+			/* Get reading */
+			data = i2c_master_recv(client, rxbuf, 1);
+			if (data < 0) {
+				ret = data;
+				goto error_ret;
+			}
+			data = rxbuf[0];
 		}
-		data = (s32)(rxbuf[1]) | ((s32)(rxbuf[0] & 0x0F)) << 8;
 	}
 	/* Pretty print the result */
 	len = sprintf(buf, "%u\n", data);
@@ -508,6 +519,10 @@ enum { max1361,
        max1362,
        max1363,
        max1364,
+       max1036,
+       max1037,
+       max1038,
+       max1039,
        max1136,
        max1137,
        max1138,
@@ -516,6 +531,12 @@ enum { max1361,
        max1237,
        max1238,
        max1239,
+       max11600,
+       max11601,
+       max11602,
+       max11603,
+       max11604,
+       max11605,
        max11606,
        max11607,
        max11608,
@@ -576,6 +597,46 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.default_mode = s0to3,
 		.dev_attrs = &max1363_dev_attr_group,
 		.scan_attrs = &max1363_scan_el_group,
+	}, {
+		.name = "max1036",
+		.num_inputs = 4,
+		.bits = 8,
+		.int_vref_mv = 4096,
+		.mode_list = max1236_mode_list,
+		.num_modes = ARRAY_SIZE(max1236_mode_list),
+		.default_mode = s0to3,
+		.dev_attrs = &max1363_dev_attr_group,
+		.scan_attrs = &max1363_scan_el_group,
+	}, {
+		.name = "max1037",
+		.num_inputs = 4,
+		.bits = 8,
+		.int_vref_mv = 2048,
+		.mode_list = max1236_mode_list,
+		.num_modes = ARRAY_SIZE(max1236_mode_list),
+		.default_mode = s0to3,
+		.dev_attrs = &max1363_dev_attr_group,
+		.scan_attrs = &max1363_scan_el_group,
+	}, {
+		.name = "max1038",
+		.num_inputs = 12,
+		.bits = 8,
+		.int_vref_mv = 4096,
+		.mode_list = max1238_mode_list,
+		.num_modes = ARRAY_SIZE(max1238_mode_list),
+		.default_mode = s0to11,
+		.dev_attrs = &max1238_dev_attr_group,
+		.scan_attrs = &max1238_scan_el_group,
+	}, {
+		.name = "max1039",
+		.num_inputs = 12,
+		.bits = 8,
+		.int_vref_mv = 2048,
+		.mode_list = max1238_mode_list,
+		.num_modes = ARRAY_SIZE(max1238_mode_list),
+		.default_mode = s0to11,
+		.dev_attrs = &max1238_dev_attr_group,
+		.scan_attrs = &max1238_scan_el_group,
 	}, {
 		.name = "max1136",
 		.num_inputs = 4,
@@ -650,6 +711,66 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 		.name = "max1239",
 		.num_inputs = 12,
 		.bits = 12,
+		.int_vref_mv = 2048,
+		.mode_list = max1238_mode_list,
+		.num_modes = ARRAY_SIZE(max1238_mode_list),
+		.default_mode = s0to11,
+		.dev_attrs = &max1238_dev_attr_group,
+		.scan_attrs = &max1238_scan_el_group,
+	}, {
+		.name = "max11600",
+		.num_inputs = 4,
+		.bits = 8,
+		.int_vref_mv = 4096,
+		.mode_list = max11607_mode_list,
+		.num_modes = ARRAY_SIZE(max11607_mode_list),
+		.default_mode = s0to3,
+		.dev_attrs = &max1363_dev_attr_group,
+		.scan_attrs = &max1363_scan_el_group,
+	}, {
+		.name = "max11601",
+		.num_inputs = 4,
+		.bits = 8,
+		.int_vref_mv = 2048,
+		.mode_list = max11607_mode_list,
+		.num_modes = ARRAY_SIZE(max11607_mode_list),
+		.default_mode = s0to3,
+		.dev_attrs = &max1363_dev_attr_group,
+		.scan_attrs = &max1363_scan_el_group,
+	}, {
+		.name = "max11602",
+		.num_inputs = 8,
+		.bits = 8,
+		.int_vref_mv = 4096,
+		.mode_list = max11608_mode_list,
+		.num_modes = ARRAY_SIZE(max11608_mode_list),
+		.default_mode = s0to7,
+		.dev_attrs = &max11608_dev_attr_group,
+		.scan_attrs = &max11608_scan_el_group,
+	}, {
+		.name = "max11603",
+		.num_inputs = 8,
+		.bits = 8,
+		.int_vref_mv = 2048,
+		.mode_list = max11608_mode_list,
+		.num_modes = ARRAY_SIZE(max11608_mode_list),
+		.default_mode = s0to7,
+		.dev_attrs = &max11608_dev_attr_group,
+		.scan_attrs = &max11608_scan_el_group,
+	}, {
+		.name = "max11604",
+		.num_inputs = 12,
+		.bits = 8,
+		.int_vref_mv = 4098,
+		.mode_list = max1238_mode_list,
+		.num_modes = ARRAY_SIZE(max1238_mode_list),
+		.default_mode = s0to11,
+		.dev_attrs = &max1238_dev_attr_group,
+		.scan_attrs = &max1238_scan_el_group,
+	}, {
+		.name = "max11605",
+		.num_inputs = 12,
+		.bits = 8,
 		.int_vref_mv = 2048,
 		.mode_list = max1238_mode_list,
 		.num_modes = ARRAY_SIZE(max1238_mode_list),
@@ -920,6 +1041,10 @@ static const struct i2c_device_id max1363_id[] = {
 	{ "max1362", max1362 },
 	{ "max1363", max1363 },
 	{ "max1364", max1364 },
+	{ "max1036", max1036 },
+	{ "max1037", max1037 },
+	{ "max1038", max1038 },
+	{ "max1039", max1039 },
 	{ "max1136", max1136 },
 	{ "max1137", max1137 },
 	{ "max1138", max1138 },
@@ -928,6 +1053,12 @@ static const struct i2c_device_id max1363_id[] = {
 	{ "max1237", max1237 },
 	{ "max1238", max1238 },
 	{ "max1239", max1239 },
+	{ "max11600", max11600 },
+	{ "max11601", max11601 },
+	{ "max11602", max11602 },
+	{ "max11603", max11603 },
+	{ "max11604", max11604 },
+	{ "max11605", max11605 },
 	{ "max11606", max11606 },
 	{ "max11607", max11607 },
 	{ "max11608", max11608 },
