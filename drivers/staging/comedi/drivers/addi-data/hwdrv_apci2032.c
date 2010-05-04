@@ -53,7 +53,7 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 */
 
 #include "hwdrv_apci2032.h"
-unsigned int ui_InterruptData, ui_Type;
+static unsigned int ui_InterruptData, ui_Type;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_ConfigDigitalOutput                     |
