@@ -646,7 +646,7 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 
 	err = tsl2563_detect(chip);
 	if (err) {
-		dev_err(&client->dev, "device not found, error %d \n", -err);
+		dev_err(&client->dev, "device not found, error %d\n", -err);
 		goto fail1;
 	}
 
