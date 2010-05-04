@@ -91,7 +91,7 @@ static void s3c_pm_check_resume_pin(unsigned int pin, unsigned int irqoffs)
 {
 	unsigned long irqstate;
 	unsigned long pinstate;
-	int irq = s3c2410_gpio_getirq(pin);
+	int irq = gpio_to_irq(pin);
 
 	if (irqoffs < 4)
 		irqstate = s3c_irqwake_intmask & (1L<<irqoffs);

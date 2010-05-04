@@ -120,22 +120,3 @@ unsigned int s3c2410_modify_misccr(unsigned int clear, unsigned int change)
 }
 
 EXPORT_SYMBOL(s3c2410_modify_misccr);
-
-int s3c2410_gpio_getirq(unsigned int pin)
-{
-	if (pin < S3C2410_GPF(0) || pin > S3C2410_GPG(15))
-		return -EINVAL;	/* not valid interrupts */
-
-	if (pin < S3C2410_GPG(0) && pin > S3C2410_GPF(7))
-		return -EINVAL;	/* not valid pin */
-
-	if (pin < S3C2410_GPF(4))
-		return (pin - S3C2410_GPF(0)) + IRQ_EINT0;
-
-	if (pin < S3C2410_GPG(0))
-		return (pin - S3C2410_GPF(4)) + IRQ_EINT4;
-
-	return (pin - S3C2410_GPG(0)) + IRQ_EINT8;
-}
-
-EXPORT_SYMBOL(s3c2410_gpio_getirq);
