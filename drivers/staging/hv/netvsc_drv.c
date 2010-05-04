@@ -326,6 +326,21 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 	return 0;
 }
 
+static void netvsc_get_drvinfo(struct net_device *net,
+			       struct ethtool_drvinfo *info)
+{
+	strcpy(info->driver, "hv_netvsc");
+	strcpy(info->version, HV_DRV_VERSION);
+	strcpy(info->fw_version, "N/A");
+}
+
+static const struct ethtool_ops ethtool_ops = {
+	.get_drvinfo	= netvsc_get_drvinfo,
+	.get_sg		= ethtool_op_get_sg,
+	.set_sg		= ethtool_op_set_sg,
+	.get_link	= ethtool_op_get_link,
+};
+
 static const struct net_device_ops device_ops = {
 	.ndo_open =			netvsc_open,
 	.ndo_stop =			netvsc_close,
@@ -396,6 +411,7 @@ static int netvsc_probe(struct device *device)
 	/* TODO: Add GSO and Checksum offload */
 	net->features = NETIF_F_SG;
 
+	SET_ETHTOOL_OPS(net, &ethtool_ops);
 	SET_NETDEV_DEV(net, device);
 
 	ret = register_netdev(net);
