@@ -120,8 +120,8 @@ COMEDI_INITCLEANUP(driver_8255);
 
 static void do_config(struct comedi_device *dev, struct comedi_subdevice *s);
 
-void subdev_8255_interrupt(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
+static void subdev_8255_interrupt(struct comedi_device *dev,
+				  struct comedi_subdevice *s)
 {
 	short d;
 
@@ -319,9 +319,10 @@ static int subdev_8255_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
-		     int (*cb) (int, int, int, unsigned long),
-		     unsigned long arg)
+static int subdev_8255_init(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    int (*cb) (int, int, int, unsigned long),
+			    unsigned long arg)
 {
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -349,9 +350,10 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL(subdev_8255_init);
 
-int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int (*cb) (int, int, int, unsigned long),
-			 unsigned long arg)
+static int subdev_8255_init_irq(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				int (*cb) (int, int, int, unsigned long),
+				unsigned long arg)
 {
 	int ret;
 
@@ -369,7 +371,8 @@ int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL(subdev_8255_init_irq);
 
-void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
+static void subdev_8255_cleanup(struct comedi_device *dev,
+				struct comedi_subdevice *s)
 {
 	if (s->private) {
 		/* this test does nothing, so comment it out
