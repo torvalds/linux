@@ -100,6 +100,39 @@ void __init msm_map_qsd8x50_io(void)
 }
 #endif /* CONFIG_ARCH_QSD8X50 */
 
+#ifdef CONFIG_ARCH_MSM7X30
+static struct map_desc msm7x30_io_desc[] __initdata = {
+	MSM_DEVICE(VIC),
+	MSM_DEVICE(CSR),
+	MSM_DEVICE(TMR),
+	MSM_DEVICE(DMOV),
+	MSM_DEVICE(GPIO1),
+	MSM_DEVICE(GPIO2),
+	MSM_DEVICE(CLK_CTL),
+	MSM_DEVICE(CLK_CTL_SH2),
+	MSM_DEVICE(AD5),
+	MSM_DEVICE(MDC),
+	MSM_DEVICE(ACC),
+	MSM_DEVICE(SAW),
+	MSM_DEVICE(GCC),
+	MSM_DEVICE(TCSR),
+#ifdef CONFIG_MSM_DEBUG_UART
+	MSM_DEVICE(DEBUG_UART),
+#endif
+	{
+		.virtual =  (unsigned long) MSM_SHARED_RAM_BASE,
+		.pfn = __phys_to_pfn(MSM_SHARED_RAM_PHYS),
+		.length =   MSM_SHARED_RAM_SIZE,
+		.type =     MT_DEVICE,
+	},
+};
+
+void __init msm_map_msm7x30_io(void)
+{
+	iotable_init(msm7x30_io_desc, ARRAY_SIZE(msm7x30_io_desc));
+}
+#endif /* CONFIG_ARCH_MSM7X30 */
+
 void __iomem *
 __msm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 {
