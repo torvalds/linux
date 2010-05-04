@@ -358,8 +358,8 @@ struct pci9111_private_data {
 
 	int ao_readback;	/*  Last written analog output data */
 
-	int timer_divisor_1;	/*  Divisor values for the 8254 timer pacer */
-	int timer_divisor_2;
+	unsigned int timer_divisor_1;	/*  Divisor values for the 8254 timer pacer */
+	unsigned int timer_divisor_2;
 
 	int is_valid;		/*  Is device valid */
 
@@ -1269,9 +1269,6 @@ found:
 
 	/*  TODO: Warn about non-tested boards. */
 
-	switch (board->device_id) {
-	};
-
 	/*  Read local configuration register base address [PCI_BASE_ADDRESS #1]. */
 
 	lcr_io_base = pci_resource_start(pci_device, 1);
@@ -1381,7 +1378,7 @@ static int pci9111_detach(struct comedi_device *dev)
 {
 	/*  Reset device */
 
-	if (dev->private != 0) {
+	if (dev->private != NULL) {
 		if (dev_private->is_valid)
 			pci9111_reset(dev);
 
@@ -1391,7 +1388,7 @@ static int pci9111_detach(struct comedi_device *dev)
 	if (dev->irq != 0)
 		free_irq(dev->irq, dev);
 
-	if (dev_private != 0 && dev_private->pci_device != 0) {
+	if (dev_private != NULL && dev_private->pci_device != NULL) {
 		if (dev->iobase)
 			comedi_pci_disable(dev_private->pci_device);
 		pci_dev_put(dev_private->pci_device);
