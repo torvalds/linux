@@ -222,6 +222,7 @@ struct tm6000_fh {
 /* In tm6000-cards.c */
 
 int tm6000_tuner_callback (void *ptr, int component, int command, int arg);
+int tm6000_xc5000_callback (void *ptr, int component, int command, int arg);
 int tm6000_cards_setup(struct tm6000_core *dev);
 
 /* In tm6000-core.c */
