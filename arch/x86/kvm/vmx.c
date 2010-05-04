@@ -2826,9 +2826,7 @@ static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu)
 {
 	if (!cpu_has_virtual_nmis())
 		return to_vmx(vcpu)->soft_vnmi_blocked;
-	else
-		return !!(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) &
-			  GUEST_INTR_STATE_NMI);
+	return vmcs_read32(GUEST_INTERRUPTIBILITY_INFO)	& GUEST_INTR_STATE_NMI;
 }
 
 static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
