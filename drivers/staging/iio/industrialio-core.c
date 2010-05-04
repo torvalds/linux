@@ -660,8 +660,9 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 			dev_info->event_interfaces[i].id = ret;
 
 		snprintf(dev_info->event_interfaces[i]._name, 20,
-			 "event_line%d",
-			dev_info->event_interfaces[i].id);
+			 "%s:event%d",
+			 dev_name(&dev_info->dev),
+			 dev_info->event_interfaces[i].id);
 
 		ret = iio_setup_ev_int(&dev_info->event_interfaces[i],
 				       (const char *)(dev_info

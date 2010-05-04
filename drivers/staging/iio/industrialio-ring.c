@@ -164,8 +164,9 @@ __iio_request_ring_buffer_event_chrdev(struct iio_ring_buffer *buf,
 	else
 		buf->ev_int.id = ret;
 
-	snprintf(buf->ev_int._name, 20,
-		 "ring_event_line%d",
+	snprintf(buf->ev_int._name, sizeof(buf->ev_int._name),
+		 "%s:event%d",
+		 dev_name(&buf->dev),
 		 buf->ev_int.id);
 	ret = iio_setup_ev_int(&(buf->ev_int),
 			       buf->ev_int._name,
@@ -226,7 +227,9 @@ __iio_request_ring_buffer_access_chrdev(struct iio_ring_buffer *buf,
 		goto error_device_put;
 	else
 		buf->access_id = ret;
-	dev_set_name(&buf->access_dev, "ring_access%d", buf->access_id);
+	dev_set_name(&buf->access_dev, "%s:access%d",
+		     dev_name(&buf->dev),
+		     buf->access_id);
 	ret = device_add(&buf->access_dev);
 	if (ret < 0) {
 		printk(KERN_ERR "failed to add the ring access dev\n");
@@ -280,7 +283,9 @@ int iio_ring_buffer_register(struct iio_ring_buffer *ring)
 	else
 		ring->id = ret;
 
-	dev_set_name(&ring->dev, "ring_buffer%d", ring->id);
+	dev_set_name(&ring->dev, "%s:buffer%d",
+		     dev_name(ring->dev.parent),
+		     ring->id);
 	ret = device_add(&ring->dev);
 	if (ret)
 		goto error_free_id;
