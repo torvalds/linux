@@ -725,7 +725,7 @@ static void ocfs2_signal_wipe_completion(struct ocfs2_super *osb,
 static int ocfs2_wipe_inode(struct inode *inode,
 			    struct buffer_head *di_bh)
 {
-	int status, orphaned_slot;
+	int status, orphaned_slot = -1;
 	struct inode *orphan_dir_inode = NULL;
 	struct buffer_head *orphan_dir_bh = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
