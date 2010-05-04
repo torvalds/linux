@@ -1873,10 +1873,9 @@ PHY_GetTxPowerLevel8192S(
 	if(priv->bTXPowerDataReadFromEEPORM == FALSE)
 		return;
 
-	//
-	// Read predefined TX power index in EEPROM
-	//
-//	if(priv->epromtype == EPROM_93c46)
+	/*
+	 * Read predefined TX power index in EEPROM
+	 */
 	{
 		//
 		// Mainly we use RF-A Tx Power to write the Tx Power registers, but the RF-B Tx

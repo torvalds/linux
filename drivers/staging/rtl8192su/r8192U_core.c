@@ -3309,18 +3309,6 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 	     (unsigned long)priv);
 }
 
-static void rtl8192_get_eeprom_size(struct net_device* dev)
-{
-	u16 curCR = 0;
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	RT_TRACE(COMP_EPROM, "===========>%s()\n", __FUNCTION__);
-	curCR = read_nic_word_E(dev,EPROM_CMD);
-	RT_TRACE(COMP_EPROM, "read from Reg EPROM_CMD(%x):%x\n", EPROM_CMD, curCR);
-	//whether need I consider BIT5?
-	priv->epromtype = (curCR & Cmd9346CR_9356SEL) ? EPROM_93c56 : EPROM_93c46;
-	RT_TRACE(COMP_EPROM, "<===========%s(), epromtype:%d\n", __FUNCTION__, priv->epromtype);
-}
-
 //used to swap endian. as ntohl & htonl are not neccessary to swap endian, so use this instead.
 static inline u16 endian_swap(u16* data)
 {
@@ -3523,46 +3511,40 @@ void rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(struct net_device *dev)
 	RT_TRACE(COMP_INIT, "<==== ConfigAdapterInfo8192SForAutoLoadFail\n");
 }
 
-//
-//	Description:
-//		Read HW adapter information by E-Fuse or EEPROM according CR9346 reported.
-//
-//	Assumption:
-//		1. CR9346 regiser has verified.
-//		2. PASSIVE_LEVEL (USB interface)
-//
-//	Created by Roger, 2008.10.21.
-//
-void rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
+/*
+ *	Description:
+ *		Read HW adapter information by E-Fuse
+ *		or EEPROM according CR9346 reported.
+ *
+ *	Assumption:
+ *		1. CR9346 regiser has verified.
+ *		2. PASSIVE_LEVEL (USB interface)
+ */
+void rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16 i;
 	u8 tmpU1b, tempval;
 	u16 EEPROMId;
 	u8 hwinfo[HWSET_MAX_SIZE_92S];
-	u8 rf_path, index;	// For EEPROM/EFUSE After V0.6_1117
+	u8 rf_path, index; /* For EEPROM/EFUSE After V0.6_1117 */
 	struct eeprom_93cx6 eeprom;
 	u16 eeprom_val;
 
 	eeprom.data = dev;
 	eeprom.register_read = rtl819x_eeprom_register_read;
 	eeprom.register_write = rtl819x_eeprom_register_write;
-	if (priv->epromtype == EPROM_93c46)
-		eeprom.width = PCI_EEPROM_WIDTH_93C46;
-	else
-		eeprom.width = PCI_EEPROM_WIDTH_93C56;
-
-	RT_TRACE(COMP_INIT, "====> ReadAdapterInfo8192SUsb\n");
+	eeprom.width = PCI_EEPROM_WIDTH_93C46;
 
 	/*
-	 * The following operation are prevent Efuse leakage by turn on 2.5V..
+	 * The following operation are prevent Efuse leakage by turn on 2.5V.
 	 */
 	tmpU1b = read_nic_byte(dev, EFUSE_TEST+3);
 	write_nic_byte(dev, EFUSE_TEST+3, tmpU1b|0x80);
 	mdelay(10);
 	write_nic_byte(dev, EFUSE_TEST+3, (tmpU1b&(~BIT7)));
 
-	// Retrieve Chip version.
+	/* Retrieve Chip version. */
 	priv->card_8192_version = (VERSION_8192S)((read_nic_dword(dev, PMC_FSM)>>16)&0xF);
 	RT_TRACE(COMP_INIT, "Chip Version ID: 0x%2x\n", priv->card_8192_version);
 
@@ -3582,102 +3564,58 @@ void rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 		break;
 	}
 
-	//if (IS_BOOT_FROM_EEPROM(Adapter))
-	if(priv->EepromOrEfuse)
-	{	// Read frin EEPROM
-		write_nic_byte(dev, SYS_ISO_CTRL+1, 0xE8); // Isolation signals from Loader
-		//PlatformStallExecution(10000);
+	if (priv->EepromOrEfuse) { /* Read from EEPROM */
+		/* Isolation signals from Loader */
+		write_nic_byte(dev, SYS_ISO_CTRL+1, 0xE8);
 		mdelay(10);
-		write_nic_byte(dev, PMC_FSM, 0x02); // Enable Loader Data Keep
-		// Read all Content from EEPROM or EFUSE.
-		for(i = 0; i < HWSET_MAX_SIZE_92S; i += 2)
-		{
+		/* Enable Loader Data Keep */
+		write_nic_byte(dev, PMC_FSM, 0x02);
+		/* Read all Content from EEPROM or EFUSE. */
+		for (i = 0; i < HWSET_MAX_SIZE_92S; i += 2) {
 			eeprom_93cx6_read(&eeprom, (u16) (i>>1), &eeprom_val);
 			*((u16 *)(&hwinfo[i])) = eeprom_val;
 		}
-	}
-	else if (!(priv->EepromOrEfuse))
-	{	// Read from EFUSE
-
-		//
-		// <Roger_Notes> We set Isolation signals from Loader and reset EEPROM after system resuming
-		// from suspend mode.
-		// 2008.10.21.
-		//
-		//PlatformEFIOWrite1Byte(Adapter, SYS_ISO_CTRL+1, 0xE8); // Isolation signals from Loader
-		//PlatformStallExecution(10000);
-		//PlatformEFIOWrite1Byte(Adapter, SYS_FUNC_EN+1, 0x40);
-		//PlatformEFIOWrite1Byte(Adapter, SYS_FUNC_EN+1, 0x50);
-
-		//tmpU1b = PlatformEFIORead1Byte(Adapter, EFUSE_TEST+3);
-		//PlatformEFIOWrite1Byte(Adapter, EFUSE_TEST+3, (tmpU1b | 0x80));
-		//PlatformEFIOWrite1Byte(Adapter, EFUSE_TEST+3, 0x72);
-		//PlatformEFIOWrite1Byte(Adapter, EFUSE_CLK, 0x03);
-
-		// Read EFUSE real map to shadow.
+	} else if (!(priv->EepromOrEfuse)) { /* Read from EFUSE */
+		/* Read EFUSE real map to shadow. */
 		EFUSE_ShadowMapUpdate(dev);
 		memcpy(hwinfo, &priv->EfuseMap[EFUSE_INIT_MAP][0], HWSET_MAX_SIZE_92S);
-	}
-	else
-	{
-		RT_TRACE(COMP_INIT, "ReadAdapterInfo8192SUsb(): Invalid boot type!!\n");
+	} else {
+		RT_TRACE(COMP_INIT, "%s(): Invalid boot type", __func__);
 	}
 
-	//YJ,test,090106
-	//dump_buf(hwinfo,HWSET_MAX_SIZE_92S);
-	//
-	// <Roger_Notes> The following are EFUSE/EEPROM independent operations!!
-	//
-	//RT_PRINT_DATA(COMP_EFUSE, DBG_LOUD, ("MAP: \n"), hwinfo, HWSET_MAX_SIZE_92S);
-
-	//
-	// <Roger_Notes> Event though CR9346 regiser can verify whether Autoload is success or not, but we still
-	// double check ID codes for 92S here(e.g., due to HW GPIO polling fail issue).
-	// 2008.10.21.
-	//
+	/*
+	 * Even though CR9346 regiser can verify whether Autoload
+	 * is success or not, but we still double check ID codes for 92S here
+	 * (e.g., due to HW GPIO polling fail issue)
+	 */
 	EEPROMId = *((u16 *)&hwinfo[0]);
-
-	if( EEPROMId != RTL8190_EEPROM_ID )
-	{
+	if (EEPROMId != RTL8190_EEPROM_ID) {
 		RT_TRACE(COMP_INIT, "ID(%#x) is invalid!!\n", EEPROMId);
 		priv->bTXPowerDataReadFromEEPORM = FALSE;
 		priv->AutoloadFailFlag=TRUE;
-	}
-	else
-	{
+	} else {
 		priv->AutoloadFailFlag=FALSE;
 		priv->bTXPowerDataReadFromEEPORM = TRUE;
 	}
-       // Read IC Version && Channel Plan
-	if(!priv->AutoloadFailFlag)
-	{
-        	// VID, PID
+	/* Read IC Version && Channel Plan */
+	if (!priv->AutoloadFailFlag) {
+        	/* VID, PID */
 	    	priv->eeprom_vid = *(u16 *)&hwinfo[EEPROM_VID];
 		priv->eeprom_pid = *(u16 *)&hwinfo[EEPROM_PID];
 		priv->bIgnoreDiffRateTxPowerOffset = false;	//cosa for test
 
 
-		// EEPROM Version ID, Channel plan
+		/* EEPROM Version ID, Channel plan */
 		priv->EEPROMVersion = *(u8 *)&hwinfo[EEPROM_Version];
 		priv->eeprom_ChannelPlan = *(u8 *)&hwinfo[EEPROM_ChannelPlan];
 
-		// Customer ID, 0x00 and 0xff are reserved for Realtek.
+		/* Customer ID, 0x00 and 0xff are reserved for Realtek. */
 		priv->eeprom_CustomerID = *(u8 *)&hwinfo[EEPROM_CustomID];
 		priv->eeprom_SubCustomerID = *(u8 *)&hwinfo[EEPROM_SubCustomID];
-	}
-	else
-	{
-		//priv->eeprom_vid = 0;
-		//priv->eeprom_pid = 0;
-		//priv->EEPROMVersion = 0;
-		//priv->eeprom_ChannelPlan = 0;
-		//priv->eeprom_CustomerID = 0;
-		//priv->eeprom_SubCustomerID = 0;
-
+	} else {
 		rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(dev);
 		return;
 	}
-
 
 	RT_TRACE(COMP_INIT, "EEPROM Id = 0x%4x\n", EEPROMId);
 	RT_TRACE(COMP_INIT, "EEPROM VID = 0x%4x\n", priv->eeprom_vid);
@@ -3688,17 +3626,12 @@ void rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 	RT_TRACE(COMP_INIT, "EEPROM ChannelPlan = 0x%4x\n", priv->eeprom_ChannelPlan);
 	RT_TRACE(COMP_INIT, "bIgnoreDiffRateTxPowerOffset = %d\n", priv->bIgnoreDiffRateTxPowerOffset);
 
-
-	// Read USB optional function.
-	if(!priv->AutoloadFailFlag)
-	{
+	/* Read USB optional function. */
+	if (!priv->AutoloadFailFlag) {
 		priv->EEPROMUsbOption = *(u8 *)&hwinfo[EEPROM_USB_OPTIONAL];
-	}
-	else
-	{
+	} else {
 		priv->EEPROMUsbOption = EEPROM_USB_Default_OPTIONAL_FUNC;
 	}
-
 
 	priv->EEPROMUsbEndPointNumber = rtl8192SU_UsbOptionToEndPointNumber((priv->EEPROMUsbOption&EEPROM_EP_NUMBER)>>3);
 
@@ -4138,7 +4071,6 @@ short rtl8192_init(struct net_device *dev)
 	rtl8192_init_priv_variable(dev);
 	rtl8192_init_priv_lock(priv);
 	rtl8192_init_priv_task(dev);
-	rtl8192_get_eeprom_size(dev);
 	priv->ops->rtl819x_read_eeprom_info(dev);
 	rtl8192_get_channel_map(dev);
 	init_hal_dm(dev);
