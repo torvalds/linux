@@ -377,7 +377,7 @@ void iio_deallocate_chrdev(struct iio_handler *handler);
 #define IIO_UNSIGNED(a) (a)
 
 extern dev_t iio_devt;
-extern struct class iio_class;
+extern struct bus_type iio_bus_type;
 
 /**
  * iio_put_device() - reference counted deallocation of struct device
