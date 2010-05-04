@@ -43,6 +43,7 @@
 struct net_device_context {
 	/* point back to our device context */
 	struct vm_device *device_ctx;
+	unsigned long avail;
 };
 
 struct netvsc_driver_context {
@@ -52,8 +53,10 @@ struct netvsc_driver_context {
 	struct netvsc_driver drv_obj;
 };
 
-/* Need at least MAX_SKB_FRAGS (18) + 1
-   to handle worst case fragmented packet */
+#define PACKET_PAGES_LOWATER  8
+/* Need this many pages to handle worst case fragmented packet */
+#define PACKET_PAGES_HIWATER  (MAX_SKB_FRAGS + 2)
+
 static int ring_size = roundup_pow_of_two(2*MAX_SKB_FRAGS+1);
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
@@ -122,14 +125,13 @@ static void netvsc_xmit_completion(void *context)
 
 	if (skb) {
 		struct net_device *net = skb->dev;
+		struct net_device_context *net_device_ctx = netdev_priv(net);
+		unsigned int num_pages = skb_shinfo(skb)->nr_frags + 2;
+
 		dev_kfree_skb_any(skb);
 
-		if (netif_queue_stopped(net)) {
-			DPRINT_INFO(NETVSC_DRV, "net device (%p) waking up...",
-				    net);
-
-			netif_wake_queue(net);
-		}
+		if ((net_device_ctx->avail += num_pages) >= PACKET_PAGES_HIWATER)
+ 			netif_wake_queue(net);
 	}
 
 	DPRINT_EXIT(NETVSC_DRV);
@@ -146,7 +148,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	struct hv_netvsc_packet *packet;
 	int ret;
 	unsigned int i, num_pages;
-	int retries = 0;
 
 	DPRINT_ENTER(NETVSC_DRV);
 
@@ -155,14 +156,20 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	/* Add 1 for skb->data and additional one for RNDIS */
 	num_pages = skb_shinfo(skb)->nr_frags + 1 + 1;
+	if (num_pages > net_device_ctx->avail)
+		return NETDEV_TX_BUSY;
 
 	/* Allocate a netvsc packet based on # of frags. */
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
 			 (num_pages * sizeof(struct hv_page_buffer)) +
 			 net_drv_obj->RequestExtSize, GFP_ATOMIC);
 	if (!packet) {
+		/* out of memory, silently drop packet */
 		DPRINT_ERR(NETVSC_DRV, "unable to allocate hv_netvsc_packet");
-		return -1;
+
+		dev_kfree_skb(skb);
+		net->stats.tx_dropped++;
+		return NETDEV_TX_OK;
 	}
 
 	packet->Extension = (void *)(unsigned long)packet +
@@ -198,52 +205,26 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet->Completion.Send.SendCompletionContext = packet;
 	packet->Completion.Send.SendCompletionTid = (unsigned long)skb;
 
-retry_send:
 	ret = net_drv_obj->OnSend(&net_device_ctx->device_ctx->device_obj,
 				  packet);
-
 	if (ret == 0) {
-		ret = NETDEV_TX_OK;
 		net->stats.tx_bytes += skb->len;
 		net->stats.tx_packets++;
+
+		DPRINT_DBG(NETVSC_DRV, "# of xmits %lu total size %lu",
+			   net->stats.tx_packets,
+			   net->stats.tx_bytes);
+
+		if ((net_device_ctx->avail -= num_pages) < PACKET_PAGES_LOWATER)
+			netif_stop_queue(net);
 	} else {
-		retries++;
-		if (retries < 4) {
-			DPRINT_ERR(NETVSC_DRV, "unable to send..."
-					"retrying %d...", retries);
-			udelay(100);
-			goto retry_send;
-		}
-
-		/* no more room or we are shutting down */
-		DPRINT_ERR(NETVSC_DRV, "unable to send (%d)..."
-			   "marking net device (%p) busy", ret, net);
-		DPRINT_INFO(NETVSC_DRV, "net device (%p) stopping", net);
-
-		ret = NETDEV_TX_BUSY;
+		/* we are shutting down or bus overloaded, just drop packet */
 		net->stats.tx_dropped++;
-
-		netif_stop_queue(net);
-
-		/*
-		 * Null it since the caller will free it instead of the
-		 * completion routine
-		 */
-		packet->Completion.Send.SendCompletionTid = 0;
-
-		/*
-		 * Release the resources since we will not get any send
-		 * completion
-		 */
-		netvsc_xmit_completion((void *)packet);
+		netvsc_xmit_completion(packet);
 	}
 
-	DPRINT_DBG(NETVSC_DRV, "# of xmits %lu total size %lu",
-		   net->stats.tx_packets,
-		   net->stats.tx_bytes);
-
 	DPRINT_EXIT(NETVSC_DRV);
-	return ret;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -382,6 +363,7 @@ static int netvsc_probe(struct device *device)
 
 	net_device_ctx = netdev_priv(net);
 	net_device_ctx->device_ctx = device_ctx;
+	net_device_ctx->avail = ring_size;
 	dev_set_drvdata(device, net);
 
 	/* Notify the netvsc driver of the new device */
