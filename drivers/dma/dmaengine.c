@@ -514,7 +514,6 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 				break;
 			if (--device->privatecnt == 0)
 				dma_cap_clear(DMA_PRIVATE, device->cap_mask);
-			chan->private = NULL;
 			chan = NULL;
 		}
 	}
@@ -536,7 +535,6 @@ void dma_release_channel(struct dma_chan *chan)
 	/* drop PRIVATE cap enabled by __dma_request_channel() */
 	if (--chan->device->privatecnt == 0)
 		dma_cap_clear(DMA_PRIVATE, chan->device->cap_mask);
-	chan->private = NULL;
 	mutex_unlock(&dma_list_mutex);
 }
 EXPORT_SYMBOL_GPL(dma_release_channel);
