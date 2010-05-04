@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/string.h>
+#include <linux/bug.h>
 
 #include <linux/mtd/compatmac.h>
 
