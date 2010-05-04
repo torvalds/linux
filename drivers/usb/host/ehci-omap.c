@@ -659,6 +659,9 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		goto err_add_hcd;
 	}
 
+	/* root ports should always stay powered */
+	ehci_port_power(omap->ehci, 1);
+
 	return 0;
 
 err_add_hcd:
