@@ -117,8 +117,10 @@ static int i2c_device_probe(struct device *dev)
 	dev_dbg(dev, "probe\n");
 
 	status = driver->probe(client, i2c_match_id(driver->id_table, client));
-	if (status)
+	if (status) {
 		client->driver = NULL;
+		i2c_set_clientdata(client, NULL);
+	}
 	return status;
 }
 
@@ -139,8 +141,10 @@ static int i2c_device_remove(struct device *dev)
 		dev->driver = NULL;
 		status = 0;
 	}
-	if (status == 0)
+	if (status == 0) {
 		client->driver = NULL;
+		i2c_set_clientdata(client, NULL);
+	}
 	return status;
 }
 
