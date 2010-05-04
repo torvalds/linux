@@ -974,7 +974,7 @@ static void imon_touch_display_timeout(unsigned long data)
 {
 	struct imon_context *ictx = (struct imon_context *)data;
 
-	if (!ictx->display_type == IMON_DISPLAY_TYPE_VGA)
+	if (ictx->display_type != IMON_DISPLAY_TYPE_VGA)
 		return;
 
 	input_report_abs(ictx->touch, ABS_X, ictx->touch_x);
