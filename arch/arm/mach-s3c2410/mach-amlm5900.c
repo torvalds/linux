@@ -56,6 +56,7 @@
 #include <plat/iic.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/gpio-cfg.h>
 
 #ifdef CONFIG_MTD_PARTITIONS
 
@@ -225,7 +226,7 @@ static void amlm5900_init_pm(void)
 	} else {
 		enable_irq_wake(IRQ_EINT9);
 		/* configure the suspend/resume status pin */
-		s3c2410_gpio_cfgpin(S3C2410_GPF(2), S3C2410_GPIO_OUTPUT);
+		s3c_gpio_cfgpin(S3C2410_GPF(2), S3C2410_GPIO_OUTPUT);
 		s3c2410_gpio_pullup(S3C2410_GPF(2), 0);
 	}
 }

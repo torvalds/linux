@@ -50,6 +50,7 @@
 #include <plat/udc.h>
 #include <plat/iic.h>
 
+#include <plat/gpio-cfg.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
@@ -209,7 +210,7 @@ static int h1940_backlight_init(struct device *dev)
 
 	gpio_direction_output(S3C2410_GPB(0), 0);
 	s3c2410_gpio_pullup(S3C2410_GPB(0), 0);
-	s3c2410_gpio_cfgpin(S3C2410_GPB(0), S3C2410_GPB0_TOUT0);
+	s3c_gpio_cfgpin(S3C2410_GPB(0), S3C2410_GPB0_TOUT0);
 
 	return 0;
 }

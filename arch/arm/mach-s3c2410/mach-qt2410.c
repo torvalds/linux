@@ -58,6 +58,7 @@
 #include <plat/iic.h>
 
 #include <plat/common-smdk.h>
+#include <plat/gpio-cfg.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
@@ -347,7 +348,7 @@ static void __init qt2410_machine_init(void)
 	}
 	s3c24xx_fb_set_platdata(&qt2410_fb_info);
 
-	s3c2410_gpio_cfgpin(S3C2410_GPB(0), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPB(0), S3C2410_GPIO_OUTPUT);
 	s3c2410_gpio_setpin(S3C2410_GPB(0), 1);
 
 	s3c24xx_udc_set_platdata(&qt2410_udc_cfg);

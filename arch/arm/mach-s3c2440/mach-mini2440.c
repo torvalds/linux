@@ -53,6 +53,7 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
+#include <plat/gpio-cfg.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
@@ -632,24 +633,24 @@ static void __init mini2440_init(void)
 	mini2440_parse_features(&features, mini2440_features_str);
 
 	/* turn LCD on */
-	s3c2410_gpio_cfgpin(S3C2410_GPC(0), S3C2410_GPC0_LEND);
+	s3c_gpio_cfgpin(S3C2410_GPC(0), S3C2410_GPC0_LEND);
 
 	/* Turn the backlight early on */
 	s3c2410_gpio_setpin(S3C2410_GPG(4), 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPG(4), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPG(4), S3C2410_GPIO_OUTPUT);
 
 	/* remove pullup on optional PWM backlight -- unused on 3.5 and 7"s */
 	s3c2410_gpio_pullup(S3C2410_GPB(1), 0);
 	s3c2410_gpio_setpin(S3C2410_GPB(1), 0);
-	s3c2410_gpio_cfgpin(S3C2410_GPB(1), S3C2410_GPIO_INPUT);
+	s3c_gpio_cfgpin(S3C2410_GPB(1), S3C2410_GPIO_INPUT);
 
 	/* Make sure the D+ pullup pin is output */
-	s3c2410_gpio_cfgpin(S3C2410_GPC(5), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPC(5), S3C2410_GPIO_OUTPUT);
 
 	/* mark the key as input, without pullups (there is one on the board) */
 	for (i = 0; i < ARRAY_SIZE(mini2440_buttons); i++) {
 		s3c2410_gpio_pullup(mini2440_buttons[i].gpio, 0);
-		s3c2410_gpio_cfgpin(mini2440_buttons[i].gpio,
+		s3c_gpio_cfgpin(mini2440_buttons[i].gpio,
 					S3C2410_GPIO_INPUT);
 	}
 	if (features.lcd_index != -1) {

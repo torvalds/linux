@@ -61,6 +61,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
+#include <plat/gpio-cfg.h>
 #include <plat/audio-simtec.h>
 
 #include "usb-simtec.h"
@@ -222,7 +223,7 @@ static int bast_pm_suspend(struct sys_device *sd, pm_message_t state)
 
 static int bast_pm_resume(struct sys_device *sd)
 {
-	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPA21_nRSTOUT);
+	s3c_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPA21_nRSTOUT);
 	return 0;
 }
 

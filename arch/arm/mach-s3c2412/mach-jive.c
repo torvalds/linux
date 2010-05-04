@@ -48,6 +48,7 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
+#include <plat/gpio-cfg.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
@@ -530,7 +531,7 @@ static void jive_power_off(void)
 	printk(KERN_INFO "powering system down...\n");
 
 	s3c2410_gpio_setpin(S3C2410_GPC(5), 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPC(5), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPC(5), S3C2410_GPIO_OUTPUT);
 }
 
 static void __init jive_machine_init(void)
@@ -642,10 +643,10 @@ static void __init jive_machine_init(void)
 	gpio_direction_output(S3C2410_GPB(7), 1);
 
 	s3c2410_gpio_setpin(S3C2410_GPB(6), 0);
-	s3c2410_gpio_cfgpin(S3C2410_GPB(6), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPB(6), S3C2410_GPIO_OUTPUT);
 
 	s3c2410_gpio_setpin(S3C2410_GPG(8), 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPG(8), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPG(8), S3C2410_GPIO_OUTPUT);
 
 	/* initialise the WM8750 spi */
 
