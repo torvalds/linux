@@ -1776,7 +1776,6 @@ static struct input_dev *imon_init_touch(struct imon_context *ictx)
 
 touch_register_failed:
 	input_free_device(ictx->touch);
-	mutex_unlock(&ictx->lock);
 
 touch_alloc_failed:
 	return NULL;
