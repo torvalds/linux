@@ -58,7 +58,7 @@ EXPORT_SYMBOL(iio_push_or_escallate_ring_event);
  * This function relies on all ring buffer implementations having an
  * iio_ring_buffer as their first element.
  **/
-int iio_ring_open(struct inode *inode, struct file *filp)
+static int iio_ring_open(struct inode *inode, struct file *filp)
 {
 	struct iio_handler *hand
 		= container_of(inode->i_cdev, struct iio_handler, chrdev);
@@ -77,7 +77,7 @@ int iio_ring_open(struct inode *inode, struct file *filp)
  * This function relies on all ring buffer implementations having an
  * iio_ring_buffer as their first element.
  **/
-int iio_ring_release(struct inode *inode, struct file *filp)
+static int iio_ring_release(struct inode *inode, struct file *filp)
 {
 	struct cdev *cd = inode->i_cdev;
 	struct iio_handler *hand = iio_cdev_to_handler(cd);
@@ -96,10 +96,8 @@ int iio_ring_release(struct inode *inode, struct file *filp)
  * This function relies on all ring buffer implementations having an
  * iio_ring _bufer as their first element.
  **/
-ssize_t iio_ring_rip_outer(struct file *filp,
-			   char *buf,
-			   size_t count,
-			   loff_t *f_ps)
+static ssize_t iio_ring_rip_outer(struct file *filp, char __user *buf,
+				  size_t count, loff_t *f_ps)
 {
 	struct iio_ring_buffer *rb = filp->private_data;
 	int ret, dead_offset, copied;
@@ -251,7 +249,7 @@ void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 	ring->indio_dev = dev_info;
 	ring->ev_int.private = ring;
 	ring->access_handler.private = ring;
-	ring->shared_ev_pointer.ev_p = 0;
+	ring->shared_ev_pointer.ev_p = NULL;
 	spin_lock_init(&ring->shared_ev_pointer.lock);
 }
 EXPORT_SYMBOL(iio_ring_buffer_init);
