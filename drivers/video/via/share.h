@@ -43,14 +43,9 @@
 /* Video Memory Size */
 #define VIDEO_MEMORY_SIZE_16M    0x1000000
 
-/* standard VGA IO port
-*/
-#define VIAStatus   0x3DA
-#define VIACR       0x3D4
-#define VIASR       0x3C4
-#define VIAGR       0x3CE
-#define VIAAR       0x3C0
-
+/*
+ * Lengths of the VPIT structure arrays.
+ */
 #define StdCR       0x19
 #define StdSR       0x04
 #define StdGR       0x09

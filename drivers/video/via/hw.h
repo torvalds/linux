@@ -24,7 +24,6 @@
 
 #include "viamode.h"
 #include "global.h"
-#include "via_io.h"
 #include "via_modesetting.h"
 
 #define viafb_read_reg(p, i)			via_read_reg(p, i)

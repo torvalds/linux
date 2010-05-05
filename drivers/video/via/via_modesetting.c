@@ -25,7 +25,7 @@
 
 #include <linux/kernel.h>
 #include "via_modesetting.h"
-#include "via_io.h"
+#include "via-core.h"
 #include "share.h"
 #include "debug.h"
 

@@ -19,6 +19,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include "via-core.h"
 #include "global.h"
 struct res_map_refresh res_map_refresh_tbl[] = {
 /*hres, vres, vclock, vmode_refresh*/
