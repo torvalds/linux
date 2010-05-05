@@ -363,8 +363,8 @@ struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 	u8 default_regs[] = {0x07, 0x11, 0xdc, 0x85, 0x17, 0x01, 0xe6, 0x1e};
 
 	stv6110x = kzalloc(sizeof (struct stv6110x_state), GFP_KERNEL);
-	if (stv6110x == NULL)
-		goto error;
+	if (!stv6110x)
+		return NULL;
 
 	stv6110x->i2c		= i2c;
 	stv6110x->config	= config;
@@ -392,12 +392,8 @@ struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 	fe->tuner_priv		= stv6110x;
 	fe->ops.tuner_ops	= stv6110x_ops;
 
-	printk("%s: Attaching STV6110x \n", __func__);
+	printk(KERN_INFO "%s: Attaching STV6110x\n", __func__);
 	return stv6110x->devctl;
-
-error:
-	kfree(stv6110x);
-	return NULL;
 }
 EXPORT_SYMBOL(stv6110x_attach);
 
