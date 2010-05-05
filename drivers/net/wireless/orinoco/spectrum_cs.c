@@ -349,6 +349,7 @@ spectrum_cs_config(struct pcmcia_device *link)
 		goto failed;
 
 	hermes_struct_init(hw, mem, HERMES_16BIT_REGSPACING);
+	hw->eeprom_pda = true;
 
 	/*
 	 * This actually configures the PCMCIA socket -- setting up
@@ -374,7 +375,7 @@ spectrum_cs_config(struct pcmcia_device *link)
 
 	/* Register an interface with the stack */
 	if (orinoco_if_add(priv, link->io.BasePort1,
-			   link->irq.AssignedIRQ) != 0) {
+			   link->irq.AssignedIRQ, NULL) != 0) {
 		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
 		goto failed;
 	}
@@ -405,9 +406,9 @@ spectrum_cs_release(struct pcmcia_device *link)
 
 	/* We're committed to taking the device away now, so mark the
 	 * hardware as unavailable */
-	spin_lock_irqsave(&priv->lock, flags);
+	priv->hw.ops->lock_irqsave(&priv->lock, &flags);
 	priv->hw_unavailable++;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	priv->hw.ops->unlock_irqrestore(&priv->lock, &flags);
 
 	pcmcia_disable_device(link);
 	if (priv->hw.iobase)

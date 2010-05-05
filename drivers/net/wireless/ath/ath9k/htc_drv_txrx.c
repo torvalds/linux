@@ -244,16 +244,25 @@ void ath9k_htc_txep(void *drv_priv, struct sk_buff *skb,
 		    enum htc_endpoint_id ep_id, bool txok)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) drv_priv;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ieee80211_tx_info *tx_info;
 
 	if (!skb)
 		return;
 
-	if (ep_id == priv->mgmt_ep)
+	if (ep_id == priv->mgmt_ep) {
 		skb_pull(skb, sizeof(struct tx_mgmt_hdr));
-	else
-		/* TODO: Check for cab/uapsd/data */
+	} else if ((ep_id == priv->data_bk_ep) ||
+		   (ep_id == priv->data_be_ep) ||
+		   (ep_id == priv->data_vi_ep) ||
+		   (ep_id == priv->data_vo_ep)) {
 		skb_pull(skb, sizeof(struct tx_frame_hdr));
+	} else {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unsupported TX EPID: %d\n", ep_id);
+		dev_kfree_skb_any(skb);
+		return;
+	}
 
 	tx_info = IEEE80211_SKB_CB(skb);
 
@@ -439,9 +448,31 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	struct ieee80211_hw *hw = priv->hw;
 	struct sk_buff *skb = rxbuf->skb;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath_htc_rx_status *rxstatus;
 	int hdrlen, padpos, padsize;
 	int last_rssi = ATH_RSSI_DUMMY_MARKER;
 	__le16 fc;
+
+	if (skb->len <= HTC_RX_FRAME_HEADER_SIZE) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Corrupted RX frame, dropping\n");
+		goto rx_next;
+	}
+
+	rxstatus = (struct ath_htc_rx_status *)skb->data;
+
+	if (be16_to_cpu(rxstatus->rs_datalen) -
+	    (skb->len - HTC_RX_FRAME_HEADER_SIZE) != 0) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Corrupted RX data len, dropping "
+			  "(dlen: %d, skblen: %d)\n",
+			  rxstatus->rs_datalen, skb->len);
+		goto rx_next;
+	}
+
+	/* Get the RX status information */
+	memcpy(&rxbuf->rxstatus, rxstatus, HTC_RX_FRAME_HEADER_SIZE);
+	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
@@ -607,8 +638,6 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_rxbuf *rxbuf = NULL, *tmp_buf = NULL;
-	struct ath_htc_rx_status *rxstatus;
-	u32 len = 0;
 
 	spin_lock(&priv->rx.rxbuflock);
 	list_for_each_entry(tmp_buf, &priv->rx.rxbuf, list) {
@@ -625,27 +654,7 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 		goto err;
 	}
 
-	len = skb->len;
-	if (len <= HTC_RX_FRAME_HEADER_SIZE) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Corrupted RX frame, dropping\n");
-		goto err;
-	}
-
-	rxstatus = (struct ath_htc_rx_status *)skb->data;
-
-	if (be16_to_cpu(rxstatus->rs_datalen) -
-	    (len - HTC_RX_FRAME_HEADER_SIZE) != 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Corrupted RX data len, dropping "
-			  "(epid: %d, dlen: %d, skblen: %d)\n",
-			  ep_id, rxstatus->rs_datalen, len);
-		goto err;
-	}
-
 	spin_lock(&priv->rx.rxbuflock);
-	memcpy(&rxbuf->rxstatus, rxstatus, HTC_RX_FRAME_HEADER_SIZE);
-	skb_pull(skb, HTC_RX_FRAME_HEADER_SIZE);
 	rxbuf->skb = skb;
 	rxbuf->in_process = true;
 	spin_unlock(&priv->rx.rxbuflock);

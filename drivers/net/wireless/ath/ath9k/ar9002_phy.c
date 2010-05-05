@@ -455,16 +455,12 @@ static u32 ar9002_hw_compute_pll_control(struct ath_hw *ah,
 		pll |= SM(0x2, AR_RTC_9160_PLL_CLKSEL);
 
 	if (chan && IS_CHAN_5GHZ(chan)) {
-		pll |= SM(0x28, AR_RTC_9160_PLL_DIV);
-
-
-		if (AR_SREV_9280_20(ah)) {
-			if (((chan->channel % 20) == 0)
-			    || ((chan->channel % 10) == 0))
-				pll = 0x2850;
-			else
-				pll = 0x142c;
-		}
+		if (IS_CHAN_A_FAST_CLOCK(ah, chan))
+			pll = 0x142c;
+		else if (AR_SREV_9280_20(ah))
+			pll = 0x2850;
+		else
+			pll |= SM(0x28, AR_RTC_9160_PLL_DIV);
 	} else {
 		pll |= SM(0x2c, AR_RTC_9160_PLL_DIV);
 	}

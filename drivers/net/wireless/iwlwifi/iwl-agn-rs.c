@@ -868,14 +868,14 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		rs_get_tbl_info_from_mcs(tx_rate, priv->band, &tbl_type,
 				&rs_index);
 		rs_collect_tx_data(curr_tbl, rs_index,
-				   info->status.ampdu_ack_len,
-				   info->status.ampdu_ack_map);
+				   info->status.ampdu_len,
+				   info->status.ampdu_ack_len);
 
 		/* Update success/fail counts if not searching for new mode */
 		if (lq_sta->stay_in_tbl) {
-			lq_sta->total_success += info->status.ampdu_ack_map;
-			lq_sta->total_failed += (info->status.ampdu_ack_len -
-					info->status.ampdu_ack_map);
+			lq_sta->total_success += info->status.ampdu_ack_len;
+			lq_sta->total_failed += (info->status.ampdu_len -
+					info->status.ampdu_ack_len);
 		}
 	} else {
 	/*
@@ -2078,10 +2078,12 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	}
 	/* Else we have enough samples; calculate estimate of
 	 * actual average throughput */
-
-	/* Sanity-check TPT calculations */
-	BUG_ON(window->average_tpt != ((window->success_ratio *
-			tbl->expected_tpt[index] + 64) / 128));
+	if (window->average_tpt != ((window->success_ratio *
+			tbl->expected_tpt[index] + 64) / 128)) {
+		IWL_ERR(priv, "expected_tpt should have been calculated by now\n");
+		window->average_tpt = ((window->success_ratio *
+					tbl->expected_tpt[index] + 64) / 128);
+	}
 
 	/* If we are searching for better modulation mode, check success. */
 	if (lq_sta->search_better_tbl &&

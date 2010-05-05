@@ -13,6 +13,8 @@
 #include <linux/kthread.h>
 #include <net/mac80211.h>
 
+#include "deb_defs.h"
+
 #ifndef DRV_NAME
 #define DRV_NAME "libertas_tf"
 #endif

@@ -755,7 +755,8 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	}
 
 	/* Do Tx IQ Calibration */
-	ar9003_hw_tx_iq_cal(ah);
+	if (ah->config.tx_iq_calibration)
+		ar9003_hw_tx_iq_cal(ah);
 
 	/* Revert chainmasks to their original values before NF cal */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);

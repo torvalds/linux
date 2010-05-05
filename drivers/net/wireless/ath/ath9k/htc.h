@@ -329,6 +329,7 @@ struct htc_beacon_config {
 #define OP_ASSOCIATED     BIT(8)
 #define OP_ENABLE_BEACON  BIT(9)
 #define OP_LED_DEINIT     BIT(10)
+#define OP_UNPLUGGED      BIT(11)
 
 struct ath9k_htc_priv {
 	struct device *dev;
@@ -378,6 +379,7 @@ struct ath9k_htc_priv {
 	struct mutex htc_pm_lock;
 	unsigned long ps_usecount;
 	bool ps_enabled;
+	bool ps_idle;
 
 	struct ath_led radio_led;
 	struct ath_led assoc_led;

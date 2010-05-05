@@ -663,7 +663,7 @@ static int rt2800pci_write_tx_data(struct queue_entry* entry,
 			   test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags) ?
 			   txdesc->key_idx : 0xff);
 	rt2x00_set_field32(&word, TXWI_W1_MPDU_TOTAL_BYTE_COUNT,
-			   skb->len - txdesc->l2pad);
+			   txdesc->length);
 	rt2x00_set_field32(&word, TXWI_W1_PACKETID,
 			   skbdesc->entry->queue->qid + 1);
 	rt2x00_desc_write(txwi, 1, word);
@@ -894,10 +894,6 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	rxdesc->rssi =
 	    (rt2x00_get_field32(rxwi2, RXWI_W2_RSSI0) +
 	     rt2x00_get_field32(rxwi2, RXWI_W2_RSSI1)) / 2;
-
-	rxdesc->noise =
-	    (rt2x00_get_field32(rxwi3, RXWI_W3_SNR0) +
-	     rt2x00_get_field32(rxwi3, RXWI_W3_SNR1)) / 2;
 
 	rxdesc->size = rt2x00_get_field32(rxwi0, RXWI_W0_MPDU_TOTAL_BYTE_COUNT);
 

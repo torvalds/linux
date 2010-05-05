@@ -2654,7 +2654,6 @@ static int iwl_mac_setup_register(struct iwl_priv *priv)
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_NOISE_DBM |
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_SPECTRUM_MGMT;
 
@@ -2999,18 +2998,6 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 		return -EINVAL;
 		break;
 	}
-	return 0;
-}
-
-static int iwl_mac_get_stats(struct ieee80211_hw *hw,
-			     struct ieee80211_low_level_stats *stats)
-{
-	struct iwl_priv *priv = hw->priv;
-
-	priv = hw->priv;
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
 	return 0;
 }
 
@@ -3391,7 +3378,6 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.configure_filter = iwl_configure_filter,
 	.set_key = iwl_mac_set_key,
 	.update_tkip_key = iwl_mac_update_tkip_key,
-	.get_stats = iwl_mac_get_stats,
 	.conf_tx = iwl_mac_conf_tx,
 	.reset_tsf = iwl_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,

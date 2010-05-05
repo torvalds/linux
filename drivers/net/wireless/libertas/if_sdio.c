@@ -324,7 +324,9 @@ static int if_sdio_wait_status(struct if_sdio_card *card, const u8 condition)
 	timeout = jiffies + HZ;
 	while (1) {
 		status = sdio_readb(card->func, IF_SDIO_STATUS, &ret);
-		if (ret || (status & condition))
+		if (ret)
+			return ret;
+		if ((status & condition) == condition)
 			break;
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;

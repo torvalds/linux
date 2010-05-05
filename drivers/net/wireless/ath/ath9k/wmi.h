@@ -126,14 +126,14 @@ void ath9k_wmi_tasklet(unsigned long data);
 	do {								\
 		ret = ath9k_wmi_cmd(priv->wmi, _wmi_cmd, NULL, 0,	\
 				    (u8 *) &cmd_rsp,			\
-				    sizeof(cmd_rsp), HZ);		\
+				    sizeof(cmd_rsp), HZ*2);		\
 	} while (0)
 
 #define WMI_CMD_BUF(_wmi_cmd, _buf)					\
 	do {								\
 		ret = ath9k_wmi_cmd(priv->wmi, _wmi_cmd,		\
 				    (u8 *) _buf, sizeof(*_buf),		\
-				    &cmd_rsp, sizeof(cmd_rsp), HZ);	\
+				    &cmd_rsp, sizeof(cmd_rsp), HZ*2);	\
 	} while (0)
 
 #endif /* WMI_H */
