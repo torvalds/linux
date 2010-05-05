@@ -808,9 +808,6 @@ static int netdev_uevent(struct device *d, struct kobj_uevent_env *env)
 	struct net_device *dev = to_net_dev(d);
 	int retval;
 
-	if (!net_eq(dev_net(dev), &init_net))
-		return 0;
-
 	/* pass interface to uevent. */
 	retval = add_uevent_var(env, "INTERFACE=%s", dev->name);
 	if (retval)
@@ -869,9 +866,6 @@ void netdev_unregister_kobject(struct net_device * net)
 
 	kobject_get(&dev->kobj);
 
-	if (!net_eq(dev_net(net), &init_net))
-		return;
-
 #ifdef CONFIG_RPS
 	rx_queue_remove_kobjects(net);
 #endif
@@ -886,6 +880,7 @@ int netdev_register_kobject(struct net_device *net)
 	const struct attribute_group **groups = net->sysfs_groups;
 	int error = 0;
 
+	device_initialize(dev);
 	dev->class = &net_class;
 	dev->platform_data = net;
 	dev->groups = groups;
@@ -907,9 +902,6 @@ int netdev_register_kobject(struct net_device *net)
 #endif
 #endif
 #endif /* CONFIG_SYSFS */
-
-	if (!net_eq(dev_net(net), &init_net))
-		return 0;
 
 	error = device_add(dev);
 	if (error)
@@ -938,12 +930,6 @@ void netdev_class_remove_file(struct class_attribute *class_attr)
 
 EXPORT_SYMBOL(netdev_class_create_file);
 EXPORT_SYMBOL(netdev_class_remove_file);
-
-void netdev_initialize_kobject(struct net_device *net)
-{
-	struct device *device = &(net->dev);
-	device_initialize(device);
-}
 
 int netdev_kobject_init(void)
 {
