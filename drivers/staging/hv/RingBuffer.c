@@ -490,7 +490,8 @@ int RingBufferRead(RING_BUFFER_INFO *InRingInfo, void *Buffer,
 	u64 prevIndices = 0;
 	unsigned long flags;
 
-	ASSERT(BufferLen > 0);
+	if (BufferLen <= 0)
+		return -EINVAL;
 
 	spin_lock_irqsave(&InRingInfo->ring_lock, flags);
 
