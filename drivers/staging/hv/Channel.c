@@ -192,7 +192,9 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 	/* Allocate the ring buffer */
 	out = osd_PageAlloc((SendRingBufferSize + RecvRingBufferSize)
 			     >> PAGE_SHIFT);
-	ASSERT(out);
+	if (!out)
+		return -ENOMEM;
+
 	ASSERT(((unsigned long)out & (PAGE_SIZE-1)) == 0);
 
 	in = (void *)((unsigned long)out + SendRingBufferSize);
