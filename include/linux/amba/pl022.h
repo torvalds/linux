@@ -71,6 +71,7 @@ struct ssp_clock_params {
 
 /**
  * enum ssp_rx_endian - endianess of Rx FIFO Data
+ * this feature is only available in ST versionf of PL022
  */
 enum ssp_rx_endian {
 	SSP_RX_MSB,
@@ -181,7 +182,8 @@ enum ssp_microwire_wait_state {
 };
 
 /**
- * enum Microwire - whether Full/Half Duplex
+ * enum Microwire - whether Full/Half Duplex, only available
+ * in the ST Micro variant.
  * @SSP_MICROWIRE_CHANNEL_FULL_DUPLEX: SSPTXD becomes bi-directional,
  *     SSPRXD not used
  * @SSP_MICROWIRE_CHANNEL_HALF_DUPLEX: SSPTXD is an output, SSPRXD is
