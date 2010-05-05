@@ -1580,6 +1580,8 @@ static inline u16 auth_parse(struct sk_buff *skb, u8** challenge, int *chlen)
 		if(*(t++) == MFIE_TYPE_CHALLENGE){
 			*chlen = *(t++);
 			*challenge = (u8*)kmalloc(*chlen, GFP_ATOMIC);
+			if (!*challenge)
+				return -ENOMEM;
 			memcpy(*challenge, t, *chlen);
 		}
 	}
