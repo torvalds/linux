@@ -200,26 +200,57 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 	/* Set initial sensitivity parameters */
 	/* Set initial calibration set */
-	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
-	case CSR_HW_REV_TYPE_5150:
-		priv->hw_params.sens = &iwl5150_sensitivity;
-		priv->hw_params.calib_init_cfg =
-			BIT(IWL_CALIB_DC)		|
-			BIT(IWL_CALIB_LO)		|
-			BIT(IWL_CALIB_TX_IQ) 		|
-			BIT(IWL_CALIB_BASE_BAND);
+	priv->hw_params.sens = &iwl5000_sensitivity;
+	priv->hw_params.calib_init_cfg =
+		BIT(IWL_CALIB_XTAL)		|
+		BIT(IWL_CALIB_LO)		|
+		BIT(IWL_CALIB_TX_IQ)		|
+		BIT(IWL_CALIB_TX_IQ_PERD)	|
+		BIT(IWL_CALIB_BASE_BAND);
 
-		break;
-	default:
-		priv->hw_params.sens = &iwl5000_sensitivity;
-		priv->hw_params.calib_init_cfg =
-			BIT(IWL_CALIB_XTAL)		|
-			BIT(IWL_CALIB_LO)		|
-			BIT(IWL_CALIB_TX_IQ) 		|
-			BIT(IWL_CALIB_TX_IQ_PERD)	|
-			BIT(IWL_CALIB_BASE_BAND);
-		break;
-	}
+	return 0;
+}
+
+static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
+{
+	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
+	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
+		priv->cfg->num_of_queues =
+			priv->cfg->mod_params->num_of_queues;
+
+	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
+	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
+	priv->hw_params.scd_bc_tbls_size =
+			priv->cfg->num_of_queues *
+			sizeof(struct iwlagn_scd_bc_tbl);
+	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
+	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
+	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
+
+	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
+	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
+
+	priv->hw_params.max_bsm_size = 0;
+	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
+					BIT(IEEE80211_BAND_5GHZ);
+	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
+
+	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
+	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
+	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
+	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
+
+	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
+		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
+
+	/* Set initial sensitivity parameters */
+	/* Set initial calibration set */
+	priv->hw_params.sens = &iwl5150_sensitivity;
+	priv->hw_params.calib_init_cfg =
+		BIT(IWL_CALIB_DC)		|
+		BIT(IWL_CALIB_LO)		|
+		BIT(IWL_CALIB_TX_IQ)		|
+		BIT(IWL_CALIB_BASE_BAND);
 
 	return 0;
 }
@@ -332,7 +363,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 };
 
 static struct iwl_lib_ops iwl5150_lib = {
-	.set_hw_params = iwl5000_hw_set_hw_params,
+	.set_hw_params = iwl5150_hw_set_hw_params,
 	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
 	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
 	.txq_set_sched = iwlagn_txq_set_sched,

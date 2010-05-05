@@ -276,6 +276,9 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	int time_left, ret = 0;
 	unsigned long flags;
 
+	if (wmi->drv_priv->op_flags & OP_UNPLUGGED)
+		return 0;
+
 	if (!wmi)
 		return -EINVAL;
 
@@ -302,13 +305,13 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	wmi->cmd_rsp_buf = rsp_buf;
 	wmi->cmd_rsp_len = rsp_len;
 
-	ret = ath9k_wmi_cmd_issue(wmi, skb, cmd_id, cmd_len);
-	if (ret)
-		goto out;
-
 	spin_lock_irqsave(&wmi->wmi_lock, flags);
 	wmi->last_cmd_id = cmd_id;
 	spin_unlock_irqrestore(&wmi->wmi_lock, flags);
+
+	ret = ath9k_wmi_cmd_issue(wmi, skb, cmd_id, cmd_len);
+	if (ret)
+		goto out;
 
 	time_left = wait_for_completion_timeout(&wmi->cmd_wait, timeout);
 	if (!time_left) {

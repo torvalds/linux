@@ -709,6 +709,9 @@ enum nl80211_commands {
  *	NL80211_CMD_AUTHENTICATE, NL80211_CMD_DEAUTHENTICATE,
  *	NL80211_CMD_DISASSOCIATE.
  *
+ * @NL80211_ATTR_AP_ISOLATE: (AP mode) Do not forward traffic between stations
+ *	connected to this BSS.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -863,6 +866,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_CQM,
 
 	NL80211_ATTR_LOCAL_STATE_CHANGE,
+
+	NL80211_ATTR_AP_ISOLATE,
 
 	/* add attributes here, update the policy in nl80211.c */
 

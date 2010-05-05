@@ -26,6 +26,7 @@
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
 #define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
+#define ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM 44
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type);
 
@@ -91,7 +92,11 @@ static u32 ath9k_hw_mac_clks(struct ath_hw *ah, u32 usecs)
 		return usecs *ATH9K_CLOCK_RATE_CCK;
 	if (conf->channel->band == IEEE80211_BAND_2GHZ)
 		return usecs *ATH9K_CLOCK_RATE_2GHZ_OFDM;
-	return usecs *ATH9K_CLOCK_RATE_5GHZ_OFDM;
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK)
+		return usecs * ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM;
+	else
+		return usecs * ATH9K_CLOCK_RATE_5GHZ_OFDM;
 }
 
 static u32 ath9k_hw_mac_to_clks(struct ath_hw *ah, u32 usecs)
@@ -385,6 +390,12 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 		ah->config.ht_enable = 0;
 
 	ah->config.rx_intr_mitigation = true;
+
+	/*
+	 * Tx IQ Calibration (ah->config.tx_iq_calibration) is only
+	 * used by AR9003, but it is showing reliability issues.
+	 * It will take a while to fix so this is currently disabled.
+	 */
 
 	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
@@ -819,9 +830,6 @@ void ath9k_hw_deinit(struct ath_hw *ah)
 	if (common->state < ATH_HW_INITIALIZED)
 		goto free_hw;
 
-	if (!AR_SREV_9100(ah))
-		ath9k_hw_ani_disable(ah);
-
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 
 free_hw:
@@ -1221,8 +1229,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	    (chan->channel != ah->curchan->channel) &&
 	    ((chan->channelFlags & CHANNEL_ALL) ==
 	     (ah->curchan->channelFlags & CHANNEL_ALL)) &&
-	     !(AR_SREV_9280(ah) || IS_CHAN_A_5MHZ_SPACED(chan) ||
-	     IS_CHAN_A_5MHZ_SPACED(ah->curchan))) {
+	    !AR_SREV_9280(ah)) {
 
 		if (ath9k_hw_channel_change(ah, chan)) {
 			ath9k_hw_loadnf(ah, ah->curchan);
@@ -2186,7 +2193,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
-		pCap->hw_caps |= ATH9K_HW_CAP_EDMA | ATH9K_HW_CAP_LDPC;
+		pCap->hw_caps |= ATH9K_HW_CAP_EDMA | ATH9K_HW_CAP_LDPC |
+				 ATH9K_HW_CAP_FASTCLOCK;
 		pCap->rx_hp_qdepth = ATH9K_HW_RX_HP_QDEPTH;
 		pCap->rx_lp_qdepth = ATH9K_HW_RX_LP_QDEPTH;
 		pCap->rx_status_len = sizeof(struct ar9003_rxs);
@@ -2194,6 +2202,11 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->txs_len = sizeof(struct ar9003_txs);
 	} else {
 		pCap->tx_desc_len = sizeof(struct ath_desc);
+		if (AR_SREV_9280_20(ah) &&
+		    ((ah->eep_ops->get_eeprom(ah, EEP_MINOR_REV) <=
+		      AR5416_EEP_MINOR_VER_16) ||
+		     ah->eep_ops->get_eeprom(ah, EEP_FSTCLK_5G)))
+			pCap->hw_caps |= ATH9K_HW_CAP_FASTCLOCK;
 	}
 
 	if (AR_SREV_9300_20_OR_LATER(ah))

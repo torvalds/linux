@@ -1202,6 +1202,11 @@ struct iwl_priv {
 			struct delayed_work rfkill_poll;
 
 			struct iwl3945_notif_statistics statistics;
+#ifdef CONFIG_IWLWIFI_DEBUG
+			struct iwl3945_notif_statistics accum_statistics;
+			struct iwl3945_notif_statistics delta_statistics;
+			struct iwl3945_notif_statistics max_delta;
+#endif
 
 			u32 sta_supp_rates;
 			int last_rx_rssi;	/* From Rx packet statistics */

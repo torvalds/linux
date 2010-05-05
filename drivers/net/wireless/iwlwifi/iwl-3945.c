@@ -50,6 +50,7 @@
 #include "iwl-helpers.h"
 #include "iwl-led.h"
 #include "iwl-3945-led.h"
+#include "iwl-3945-debugfs.h"
 
 #define IWL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \
 	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,   \
@@ -293,7 +294,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl_priv *priv,
  * iwl3945_rx_reply_tx - Handle Tx response
  */
 static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
-			    struct iwl_rx_mem_buffer *rxb)
+				struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -351,17 +352,80 @@ static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
  *  RX handler implementations
  *
  *****************************************************************************/
+#ifdef CONFIG_IWLWIFI_DEBUG
+/*
+ *  based on the assumption of all statistics counter are in DWORD
+ *  FIXME: This function is for debugging, do not deal with
+ *  the case of counters roll-over.
+ */
+static void iwl3945_accumulative_statistics(struct iwl_priv *priv,
+					    __le32 *stats)
+{
+	int i;
+	__le32 *prev_stats;
+	u32 *accum_stats;
+	u32 *delta, *max_delta;
+
+	prev_stats = (__le32 *)&priv->_3945.statistics;
+	accum_stats = (u32 *)&priv->_3945.accum_statistics;
+	delta = (u32 *)&priv->_3945.delta_statistics;
+	max_delta = (u32 *)&priv->_3945.max_delta;
+
+	for (i = sizeof(__le32); i < sizeof(struct iwl3945_notif_statistics);
+	     i += sizeof(__le32), stats++, prev_stats++, delta++,
+	     max_delta++, accum_stats++) {
+		if (le32_to_cpu(*stats) > le32_to_cpu(*prev_stats)) {
+			*delta = (le32_to_cpu(*stats) -
+				le32_to_cpu(*prev_stats));
+			*accum_stats += *delta;
+			if (*delta > *max_delta)
+				*max_delta = *delta;
+		}
+	}
+
+	/* reset accumulative statistics for "no-counter" type statistics */
+	priv->_3945.accum_statistics.general.temperature =
+		priv->_3945.statistics.general.temperature;
+	priv->_3945.accum_statistics.general.ttl_timestamp =
+		priv->_3945.statistics.general.ttl_timestamp;
+}
+#endif
 
 void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 		struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+
 	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(struct iwl3945_notif_statistics),
 		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
+#ifdef CONFIG_IWLWIFI_DEBUG
+	iwl3945_accumulative_statistics(priv, (__le32 *)&pkt->u.raw);
+#endif
 
 	memcpy(&priv->_3945.statistics, pkt->u.raw, sizeof(priv->_3945.statistics));
 }
+
+void iwl3945_reply_statistics(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	__le32 *flag = (__le32 *)&pkt->u.raw;
+
+	if (le32_to_cpu(*flag) & UCODE_STATISTICS_CLEAR_MSK) {
+#ifdef CONFIG_IWLWIFI_DEBUG
+		memset(&priv->_3945.accum_statistics, 0,
+			sizeof(struct iwl3945_notif_statistics));
+		memset(&priv->_3945.delta_statistics, 0,
+			sizeof(struct iwl3945_notif_statistics));
+		memset(&priv->_3945.max_delta, 0,
+			sizeof(struct iwl3945_notif_statistics));
+#endif
+		IWL_DEBUG_RX(priv, "Statistics have been cleared\n");
+	}
+	iwl3945_hw_rx_statistics(priv, rxb);
+}
+
 
 /******************************************************************************
  *
@@ -2736,6 +2800,12 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.isr = iwl_isr_legacy,
 	.config_ap = iwl3945_config_ap,
 	.add_bcast_station = iwl3945_add_bcast_station,
+
+	.debugfs_ops = {
+		.rx_stats_read = iwl3945_ucode_rx_stats_read,
+		.tx_stats_read = iwl3945_ucode_tx_stats_read,
+		.general_stats_read = iwl3945_ucode_general_stats_read,
+	},
 };
 
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {

@@ -927,7 +927,6 @@ static void ar9170_rx_phy_status(struct ar9170 *ar,
 
 	/* TODO: we could do something with phy_errors */
 	status->signal = ar->noise[0] + phy->rssi_combined;
-	status->noise = ar->noise[0];
 }
 
 static struct sk_buff *ar9170_rx_copy_data(u8 *buf, int len)
@@ -2548,8 +2547,7 @@ void *ar9170_alloc(size_t priv_size)
 					 BIT(NL80211_IFTYPE_ADHOC);
 	ar->hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS |
 			 IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-			 IEEE80211_HW_SIGNAL_DBM |
-			 IEEE80211_HW_NOISE_DBM;
+			 IEEE80211_HW_SIGNAL_DBM;
 
 	if (modparam_ht) {
 		ar->hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;

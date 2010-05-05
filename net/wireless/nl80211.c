@@ -152,6 +152,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_PS_STATE] = { .type = NLA_U32 },
 	[NL80211_ATTR_CQM] = { .type = NLA_NESTED, },
 	[NL80211_ATTR_LOCAL_STATE_CHANGE] = { .type = NLA_FLAG },
+	[NL80211_ATTR_AP_ISOLATE] = { .type = NLA_U8 },
 };
 
 /* policy for the attributes */
@@ -2442,6 +2443,7 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 	params.use_cts_prot = -1;
 	params.use_short_preamble = -1;
 	params.use_short_slot_time = -1;
+	params.ap_isolate = -1;
 
 	if (info->attrs[NL80211_ATTR_BSS_CTS_PROT])
 		params.use_cts_prot =
@@ -2458,6 +2460,8 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 		params.basic_rates_len =
 			nla_len(info->attrs[NL80211_ATTR_BSS_BASIC_RATES]);
 	}
+	if (info->attrs[NL80211_ATTR_AP_ISOLATE])
+		params.ap_isolate = !!nla_get_u8(info->attrs[NL80211_ATTR_AP_ISOLATE]);
 
 	rtnl_lock();
 

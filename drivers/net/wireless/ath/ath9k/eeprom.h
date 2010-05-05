@@ -300,7 +300,8 @@ struct base_eep_header {
 	u32 binBuildNumber;
 	u8 deviceType;
 	u8 pwdclkind;
-	u8 futureBase_1[2];
+	u8 fastClk5g;
+	u8 divChain;
 	u8 rxGainType;
 	u8 dacHiPwrMode_5G;
 	u8 openLoopPwrCntl;

@@ -107,7 +107,7 @@
 /*
  * INT_SOURCE_CSR: Interrupt source register.
  * Write one to clear corresponding bit.
- * TX_FIFO_STATUS: FIFO Statistics is full, sw should read 0x171c
+ * TX_FIFO_STATUS: FIFO Statistics is full, sw should read TX_STA_FIFO
  */
 #define INT_SOURCE_CSR			0x0200
 #define INT_SOURCE_CSR_RXDELAYINT	FIELD32(0x00000001)
@@ -845,7 +845,7 @@
  * TX_BAND_CFG: 0x1 use upper 20MHz, 0x0 use lower 20MHz
  */
 #define TX_BAND_CFG			0x132c
-#define TX_BAND_CFG_HT40_PLUS		FIELD32(0x00000001)
+#define TX_BAND_CFG_HT40_MINUS		FIELD32(0x00000001)
 #define TX_BAND_CFG_A			FIELD32(0x00000002)
 #define TX_BAND_CFG_BG			FIELD32(0x00000004)
 
@@ -1519,7 +1519,7 @@ struct mac_iveiv_entry {
  * BBP 3: RX Antenna
  */
 #define BBP3_RX_ANTENNA			FIELD8(0x18)
-#define BBP3_HT40_PLUS			FIELD8(0x20)
+#define BBP3_HT40_MINUS			FIELD8(0x20)
 
 /*
  * BBP 4: Bandwidth
@@ -1564,6 +1564,11 @@ struct mac_iveiv_entry {
  * RFCSR 12:
  */
 #define RFCSR12_TX_POWER		FIELD8(0x1f)
+
+/*
+ * RFCSR 13:
+ */
+#define RFCSR13_TX_POWER		FIELD8(0x1f)
 
 /*
  * RFCSR 15:

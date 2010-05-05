@@ -375,16 +375,7 @@ static u32 ar9003_hw_compute_pll_control(struct ath_hw *ah,
 	else if (chan && IS_CHAN_QUARTER_RATE(chan))
 		pll |= SM(0x2, AR_RTC_9300_PLL_CLKSEL);
 
-	if (chan && IS_CHAN_5GHZ(chan)) {
-		pll |= SM(0x28, AR_RTC_9300_PLL_DIV);
-
-		/*
-		 * When doing fast clock, set PLL to 0x142c
-		 */
-		if (IS_CHAN_A_5MHZ_SPACED(chan))
-			pll = 0x142c;
-	} else
-		pll |= SM(0x2c, AR_RTC_9300_PLL_DIV);
+	pll |= SM(0x2c, AR_RTC_9300_PLL_DIV);
 
 	return pll;
 }
@@ -592,7 +583,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	 * For 5GHz channels requiring Fast Clock, apply
 	 * different modal values.
 	 */
-	if (IS_CHAN_A_5MHZ_SPACED(chan))
+	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		REG_WRITE_ARRAY(&ah->iniModesAdditional,
 				modesIndex, regWrites);
 
@@ -622,7 +613,7 @@ static void ar9003_hw_set_rfmode(struct ath_hw *ah,
 	rfMode |= (IS_CHAN_B(chan) || IS_CHAN_G(chan))
 		? AR_PHY_MODE_DYNAMIC : AR_PHY_MODE_OFDM;
 
-	if (IS_CHAN_A_5MHZ_SPACED(chan))
+	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		rfMode |= (AR_PHY_MODE_DYNAMIC | AR_PHY_MODE_DYN_CCK_DISABLE);
 
 	REG_WRITE(ah, AR_PHY_MODE, rfMode);
@@ -1102,6 +1093,7 @@ static void ar9003_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		ath_print(common, ATH_DBG_ANY, "Timeout while waiting for nf "
 			  "to load: AR_PHY_AGC_CONTROL=0x%x\n",
 			  REG_READ(ah, AR_PHY_AGC_CONTROL));
+		return;
 	}
 
 	/*

@@ -198,6 +198,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_EDMA			= BIT(17),
 	ATH9K_HW_CAP_RAC_SUPPORTED		= BIT(18),
 	ATH9K_HW_CAP_LDPC			= BIT(19),
+	ATH9K_HW_CAP_FASTCLOCK			= BIT(20),
 };
 
 enum ath9k_capability_type {
@@ -261,6 +262,7 @@ struct ath9k_ops_config {
 #define AR_BASE_FREQ_5GHZ   	4900
 #define AR_SPUR_FEEQ_BOUND_HT40 19
 #define AR_SPUR_FEEQ_BOUND_HT20 10
+	bool tx_iq_calibration; /* Only available for >= AR9003 */
 	int spurmode;
 	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
 	u8 max_txtrig_level;
@@ -367,10 +369,9 @@ struct ath9k_channel {
 #define IS_CHAN_2GHZ(_c) (((_c)->channelFlags & CHANNEL_2GHZ) != 0)
 #define IS_CHAN_HALF_RATE(_c) (((_c)->channelFlags & CHANNEL_HALF) != 0)
 #define IS_CHAN_QUARTER_RATE(_c) (((_c)->channelFlags & CHANNEL_QUARTER) != 0)
-#define IS_CHAN_A_5MHZ_SPACED(_c)			\
+#define IS_CHAN_A_FAST_CLOCK(_ah, _c)			\
 	((((_c)->channelFlags & CHANNEL_5GHZ) != 0) &&	\
-	 (((_c)->channel % 20) != 0) &&			\
-	 (((_c)->channel % 10) != 0))
+	 ((_ah)->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK))
 
 /* These macros check chanmode and not channelFlags */
 #define IS_CHAN_B(_c) ((_c)->chanmode == CHANNEL_B)
@@ -718,6 +719,7 @@ struct ath_hw {
 	u32 *addac5416_21;
 	u32 *bank6Temp;
 
+	u8 txpower_limit;
 	int16_t txpower_indexoffset;
 	int coverage_class;
 	u32 beacon_interval;

@@ -171,6 +171,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct net_device *prev_dev = NULL;
 	struct sta_info *sta, *tmp;
 	int retry_count = -1, i;
+	int rates_idx = -1;
 	bool send_to_cooked;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
@@ -178,6 +179,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (i >= hw->max_rates) {
 			info->status.rates[i].idx = -1;
 			info->status.rates[i].count = 0;
+		} else if (info->status.rates[i].idx >= 0) {
+			rates_idx = i;
 		}
 
 		retry_count += info->status.rates[i].count;
@@ -205,6 +208,10 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			rcu_read_unlock();
 			return;
 		}
+
+		if ((local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL) &&
+		    (rates_idx != -1))
+			sta->last_tx_rate = info->status.rates[rates_idx];
 
 		if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
 		    (ieee80211_is_data_qos(fc))) {

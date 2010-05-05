@@ -274,6 +274,8 @@ static u32 ath9k_hw_def_get_eeprom(struct ath_hw *ah,
 		return pBase->txMask;
 	case EEP_RX_MASK:
 		return pBase->rxMask;
+	case EEP_FSTCLK_5G:
+		return pBase->fastClk5g;
 	case EEP_RXGAIN_TYPE:
 		return pBase->rxGainType;
 	case EEP_TXGAIN_TYPE:

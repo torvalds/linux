@@ -41,9 +41,6 @@
 #if defined(CONFIG_RT2X00_LIB_USB) || defined(CONFIG_RT2X00_LIB_USB_MODULE)
 #include "rt2x00usb.h"
 #endif
-#if defined(CONFIG_RT2X00_LIB_PCI) || defined(CONFIG_RT2X00_LIB_PCI_MODULE)
-#include "rt2x00pci.h"
-#endif
 #include "rt2800lib.h"
 #include "rt2800.h"
 #include "rt2800usb.h"
@@ -75,6 +72,23 @@ MODULE_LICENSE("GPL");
 #define WAIT_FOR_MCU(__dev, __reg) \
 	rt2800_regbusy_read((__dev), H2M_MAILBOX_CSR, \
 			    H2M_MAILBOX_CSR_OWNER, (__reg))
+
+static inline bool rt2800_is_305x_soc(struct rt2x00_dev *rt2x00dev)
+{
+	/* check for rt2872 on SoC */
+	if (!rt2x00_is_soc(rt2x00dev) ||
+	    !rt2x00_rt(rt2x00dev, RT2872))
+		return false;
+
+	/* we know for sure that these rf chipsets are used on rt305x boards */
+	if (rt2x00_rf(rt2x00dev, RF3020) ||
+	    rt2x00_rf(rt2x00dev, RF3021) ||
+	    rt2x00_rf(rt2x00dev, RF3022))
+		return true;
+
+	NOTICE(rt2x00dev, "Unknown RF chipset on rt305x\n");
+	return false;
+}
 
 static void rt2800_bbp_write(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int word, const u8 value)
@@ -794,6 +808,11 @@ static void rt2800_config_channel_rf3xxx(struct rt2x00_dev *rt2x00dev,
 			  TXPOWER_G_TO_DEV(info->tx_power1));
 	rt2800_rfcsr_write(rt2x00dev, 12, rfcsr);
 
+	rt2800_rfcsr_read(rt2x00dev, 13, &rfcsr);
+	rt2x00_set_field8(&rfcsr, RFCSR13_TX_POWER,
+			  TXPOWER_G_TO_DEV(info->tx_power2));
+	rt2800_rfcsr_write(rt2x00dev, 13, rfcsr);
+
 	rt2800_rfcsr_read(rt2x00dev, 23, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR23_FREQ_OFFSET, rt2x00dev->freq_offset);
 	rt2800_rfcsr_write(rt2x00dev, 23, rfcsr);
@@ -849,7 +868,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	}
 
 	rt2800_register_read(rt2x00dev, TX_BAND_CFG, &reg);
-	rt2x00_set_field32(&reg, TX_BAND_CFG_HT40_PLUS, conf_is_ht40_plus(conf));
+	rt2x00_set_field32(&reg, TX_BAND_CFG_HT40_MINUS, conf_is_ht40_minus(conf));
 	rt2x00_set_field32(&reg, TX_BAND_CFG_A, rf->channel > 14);
 	rt2x00_set_field32(&reg, TX_BAND_CFG_BG, rf->channel <= 14);
 	rt2800_register_write(rt2x00dev, TX_BAND_CFG, reg);
@@ -882,7 +901,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	rt2800_bbp_write(rt2x00dev, 4, bbp);
 
 	rt2800_bbp_read(rt2x00dev, 3, &bbp);
-	rt2x00_set_field8(&bbp, BBP3_HT40_PLUS, conf_is_ht40_plus(conf));
+	rt2x00_set_field8(&bbp, BBP3_HT40_MINUS, conf_is_ht40_minus(conf));
 	rt2800_bbp_write(rt2x00dev, 3, bbp);
 
 	if (rt2x00_rt_rev(rt2x00dev, RT2860, REV_RT2860C)) {
@@ -1551,6 +1570,9 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 		     rt2800_wait_bbp_ready(rt2x00dev)))
 		return -EACCES;
 
+	if (rt2800_is_305x_soc(rt2x00dev))
+		rt2800_bbp_write(rt2x00dev, 31, 0x08);
+
 	rt2800_bbp_write(rt2x00dev, 65, 0x2c);
 	rt2800_bbp_write(rt2x00dev, 66, 0x38);
 
@@ -1571,6 +1593,9 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 		rt2800_bbp_write(rt2x00dev, 79, 0x13);
 		rt2800_bbp_write(rt2x00dev, 80, 0x05);
 		rt2800_bbp_write(rt2x00dev, 81, 0x33);
+	} else if (rt2800_is_305x_soc(rt2x00dev)) {
+		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
+		rt2800_bbp_write(rt2x00dev, 80, 0x08);
 	} else {
 		rt2800_bbp_write(rt2x00dev, 81, 0x37);
 	}
@@ -1591,12 +1616,16 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00_rt_rev_gte(rt2x00dev, RT3070, REV_RT3070F) ||
 	    rt2x00_rt_rev_gte(rt2x00dev, RT3071, REV_RT3071E) ||
 	    rt2x00_rt_rev_gte(rt2x00dev, RT3090, REV_RT3090E) ||
-	    rt2x00_rt_rev_gte(rt2x00dev, RT3390, REV_RT3390E))
+	    rt2x00_rt_rev_gte(rt2x00dev, RT3390, REV_RT3390E) ||
+	    rt2800_is_305x_soc(rt2x00dev))
 		rt2800_bbp_write(rt2x00dev, 103, 0xc0);
 	else
 		rt2800_bbp_write(rt2x00dev, 103, 0x00);
 
-	rt2800_bbp_write(rt2x00dev, 105, 0x05);
+	if (rt2800_is_305x_soc(rt2x00dev))
+		rt2800_bbp_write(rt2x00dev, 105, 0x01);
+	else
+		rt2800_bbp_write(rt2x00dev, 105, 0x05);
 	rt2800_bbp_write(rt2x00dev, 106, 0x35);
 
 	if (rt2x00_rt(rt2x00dev, RT3071) ||
@@ -1613,11 +1642,6 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 		rt2800_bbp_write(rt2x00dev, 138, value);
 	}
 
-	if (rt2x00_rt(rt2x00dev, RT2872)) {
-		rt2800_bbp_write(rt2x00dev, 31, 0x08);
-		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
-		rt2800_bbp_write(rt2x00dev, 80, 0x08);
-	}
 
 	for (i = 0; i < EEPROM_BBP_SIZE; i++) {
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_BBP_START + i, &eeprom);
@@ -1703,7 +1727,8 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	if (!rt2x00_rt(rt2x00dev, RT3070) &&
 	    !rt2x00_rt(rt2x00dev, RT3071) &&
 	    !rt2x00_rt(rt2x00dev, RT3090) &&
-	    !rt2x00_rt(rt2x00dev, RT3390))
+	    !rt2x00_rt(rt2x00dev, RT3390) &&
+	    !rt2800_is_305x_soc(rt2x00dev))
 		return 0;
 
 	/*
@@ -1771,6 +1796,40 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 29, 0x8f);
 		rt2800_rfcsr_write(rt2x00dev, 30, 0x20);
 		rt2800_rfcsr_write(rt2x00dev, 31, 0x0f);
+	} else if (rt2800_is_305x_soc(rt2x00dev)) {
+		rt2800_rfcsr_write(rt2x00dev, 0, 0x50);
+		rt2800_rfcsr_write(rt2x00dev, 1, 0x01);
+		rt2800_rfcsr_write(rt2x00dev, 2, 0xf7);
+		rt2800_rfcsr_write(rt2x00dev, 3, 0x75);
+		rt2800_rfcsr_write(rt2x00dev, 4, 0x40);
+		rt2800_rfcsr_write(rt2x00dev, 5, 0x03);
+		rt2800_rfcsr_write(rt2x00dev, 6, 0x02);
+		rt2800_rfcsr_write(rt2x00dev, 7, 0x50);
+		rt2800_rfcsr_write(rt2x00dev, 8, 0x39);
+		rt2800_rfcsr_write(rt2x00dev, 9, 0x0f);
+		rt2800_rfcsr_write(rt2x00dev, 10, 0x60);
+		rt2800_rfcsr_write(rt2x00dev, 11, 0x21);
+		rt2800_rfcsr_write(rt2x00dev, 12, 0x75);
+		rt2800_rfcsr_write(rt2x00dev, 13, 0x75);
+		rt2800_rfcsr_write(rt2x00dev, 14, 0x90);
+		rt2800_rfcsr_write(rt2x00dev, 15, 0x58);
+		rt2800_rfcsr_write(rt2x00dev, 16, 0xb3);
+		rt2800_rfcsr_write(rt2x00dev, 17, 0x92);
+		rt2800_rfcsr_write(rt2x00dev, 18, 0x2c);
+		rt2800_rfcsr_write(rt2x00dev, 19, 0x02);
+		rt2800_rfcsr_write(rt2x00dev, 20, 0xba);
+		rt2800_rfcsr_write(rt2x00dev, 21, 0xdb);
+		rt2800_rfcsr_write(rt2x00dev, 22, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 23, 0x31);
+		rt2800_rfcsr_write(rt2x00dev, 24, 0x08);
+		rt2800_rfcsr_write(rt2x00dev, 25, 0x01);
+		rt2800_rfcsr_write(rt2x00dev, 26, 0x25);
+		rt2800_rfcsr_write(rt2x00dev, 27, 0x23);
+		rt2800_rfcsr_write(rt2x00dev, 28, 0x13);
+		rt2800_rfcsr_write(rt2x00dev, 29, 0x83);
+		rt2800_rfcsr_write(rt2x00dev, 30, 0x00);
+		rt2800_rfcsr_write(rt2x00dev, 31, 0x00);
+		return 0;
 	}
 
 	if (rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070F)) {
@@ -1986,7 +2045,6 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		EEPROM(rt2x00dev, "Antenna: 0x%04x\n", word);
 	} else if (rt2x00_rt(rt2x00dev, RT2860) ||
 		   rt2x00_rt(rt2x00dev, RT2870) ||
-		   rt2x00_rt(rt2x00dev, RT2872) ||
 		   rt2x00_rt(rt2x00dev, RT2872)) {
 		/*
 		 * There is a max of 2 RX streams for RT28x0 series
@@ -2318,8 +2376,11 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	else
 		spec->ht.ht_supported = false;
 
+	/*
+	 * Don't set IEEE80211_HT_CAP_SUP_WIDTH_20_40 for now as it causes
+	 * reception problems with HT40 capable 11n APs
+	 */
 	spec->ht.cap =
-	    IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 	    IEEE80211_HT_CAP_GRN_FLD |
 	    IEEE80211_HT_CAP_SGI_20 |
 	    IEEE80211_HT_CAP_SGI_40 |
