@@ -696,15 +696,18 @@ more:
 	p = &event;
 	p += sizeof(struct perf_event_header);
 
-	err = do_read(self->fd, p, size - sizeof(struct perf_event_header));
-	if (err <= 0) {
-		if (err == 0) {
-			pr_err("unexpected end of event stream\n");
-			goto done;
-		}
+	if (size - sizeof(struct perf_event_header)) {
+		err = do_read(self->fd, p,
+			      size - sizeof(struct perf_event_header));
+		if (err <= 0) {
+			if (err == 0) {
+				pr_err("unexpected end of event stream\n");
+				goto done;
+			}
 
-		pr_err("failed to read event data\n");
-		goto out_err;
+			pr_err("failed to read event data\n");
+			goto out_err;
+		}
 	}
 
 	if (size == 0 ||
