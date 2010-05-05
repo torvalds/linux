@@ -119,7 +119,7 @@ static int __init smartbot_cam_init(void)
 #define POWER_EN IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1)
 #define DSPIC_RST_B IOMUX_TO_GPIO(MX31_PIN_DSR_DCE1)
 #define TRSLAT_RST_B IOMUX_TO_GPIO(MX31_PIN_RI_DCE1)
-#define SEL3 IOMUX_TO_GPIO(MX31_PIN_DCD_DCE1)
+#define TRSLAT_SRC_CHOICE IOMUX_TO_GPIO(MX31_PIN_DCD_DCE1)
 
 static void smartbot_resets_init(void)
 {
@@ -138,9 +138,9 @@ static void smartbot_resets_init(void)
 		gpio_export(TRSLAT_RST_B, false);
 	}
 
-	if (!gpio_request(SEL3, "sel3")) {
-		gpio_direction_input(SEL3);
-		gpio_export(SEL3, true);
+	if (!gpio_request(TRSLAT_SRC_CHOICE, "translator-src-choice")) {
+		gpio_direction_output(TRSLAT_SRC_CHOICE, 0);
+		gpio_export(TRSLAT_SRC_CHOICE, false);
 	}
 }
 /*
