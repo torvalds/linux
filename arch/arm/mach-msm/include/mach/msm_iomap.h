@@ -43,7 +43,9 @@
 #define IOMEM(x)	((void __force __iomem *)(x))
 #endif
 
-#if defined(CONFIG_ARCH_QSD8X50)
+#if defined(CONFIG_ARCH_MSM7X30)
+#include "msm_iomap-7x30.h"
+#elif defined(CONFIG_ARCH_QSD8X50)
 #include "msm_iomap-8x50.h"
 #else
 #include "msm_iomap-7x00.h"
