@@ -113,7 +113,7 @@ int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem,
 
 	*virtual = NULL;
 	ret = ttm_mem_io_reserve(bdev, mem);
-	if (ret)
+	if (ret || !mem->bus.is_iomem)
 		return ret;
 
 	if (mem->bus.addr) {
