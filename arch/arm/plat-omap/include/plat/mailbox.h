@@ -5,8 +5,8 @@
 
 #include <linux/wait.h>
 #include <linux/workqueue.h>
-#include <linux/blkdev.h>
 #include <linux/interrupt.h>
+#include <linux/kfifo.h>
 
 typedef u32 mbox_msg_t;
 struct omap_mbox;
@@ -42,7 +42,7 @@ struct omap_mbox_ops {
 
 struct omap_mbox_queue {
 	spinlock_t		lock;
-	struct request_queue	*queue;
+	struct kfifo		fifo;
 	struct work_struct	work;
 	struct tasklet_struct	tasklet;
 	int	(*callback)(void *);
