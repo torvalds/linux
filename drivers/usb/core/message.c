@@ -371,79 +371,64 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	spin_lock_init(&io->lock);
 	io->dev = dev;
 	io->pipe = pipe;
-	io->sg = sg;
-	io->nents = nents;
-	io->entries = nents;
+
+	if (dev->bus->sg_tablesize > 0) {
+		use_sg = true;
+		io->entries = 1;
+	} else {
+		use_sg = false;
+		io->entries = nents;
+	}
 
 	/* initialize all the urbs we'll use */
-	if (dev->bus->sg_tablesize > 0) {
-		io->urbs = kmalloc(sizeof *io->urbs, mem_flags);
-		use_sg = true;
-	} else {
-		io->urbs = kmalloc(io->entries * sizeof *io->urbs, mem_flags);
-		use_sg = false;
-	}
+	io->urbs = kmalloc(io->entries * sizeof *io->urbs, mem_flags);
 	if (!io->urbs)
 		goto nomem;
 
-	urb_flags = 0;
+	urb_flags = URB_NO_INTERRUPT;
 	if (usb_pipein(pipe))
 		urb_flags |= URB_SHORT_NOT_OK;
 
-	if (use_sg) {
-		io->urbs[0] = usb_alloc_urb(0, mem_flags);
-		if (!io->urbs[0]) {
-			io->entries = 0;
+	for_each_sg(sg, sg, io->entries, i) {
+		struct urb *urb;
+		unsigned len;
+
+		urb = usb_alloc_urb(0, mem_flags);
+		if (!urb) {
+			io->entries = i;
 			goto nomem;
 		}
+		io->urbs[i] = urb;
 
-		io->urbs[0]->dev = NULL;
-		io->urbs[0]->pipe = pipe;
-		io->urbs[0]->interval = period;
-		io->urbs[0]->transfer_flags = urb_flags;
+		urb->dev = NULL;
+		urb->pipe = pipe;
+		urb->interval = period;
+		urb->transfer_flags = urb_flags;
+		urb->complete = sg_complete;
+		urb->context = io;
+		urb->sg = sg;
 
-		io->urbs[0]->complete = sg_complete;
-		io->urbs[0]->context = io;
+		if (use_sg) {
+			/* There is no single transfer buffer */
+			urb->transfer_buffer = NULL;
+			urb->num_sgs = nents;
 
-		/* A length of zero means transfer the whole sg list */
-		io->urbs[0]->transfer_buffer_length = length;
-		if (length == 0) {
-			for_each_sg(sg, sg, io->entries, i) {
-				io->urbs[0]->transfer_buffer_length +=
-					sg->length;
+			/* A length of zero means transfer the whole sg list */
+			len = length;
+			if (len == 0) {
+				for_each_sg(sg, sg, nents, i)
+					len += sg->length;
 			}
-		}
-		io->urbs[0]->sg = sg;
-		io->urbs[0]->num_sgs = io->entries;
-		io->entries = 1;
-	} else {
-		urb_flags |= URB_NO_INTERRUPT;
-		for_each_sg(sg, sg, io->entries, i) {
-			unsigned len;
-
-			io->urbs[i] = usb_alloc_urb(0, mem_flags);
-			if (!io->urbs[i]) {
-				io->entries = i;
-				goto nomem;
-			}
-
-			io->urbs[i]->dev = NULL;
-			io->urbs[i]->pipe = pipe;
-			io->urbs[i]->interval = period;
-			io->urbs[i]->transfer_flags = urb_flags;
-
-			io->urbs[i]->complete = sg_complete;
-			io->urbs[i]->context = io;
-
+		} else {
 			/*
 			 * Some systems can't use DMA; they use PIO instead.
 			 * For their sakes, transfer_buffer is set whenever
 			 * possible.
 			 */
 			if (!PageHighMem(sg_page(sg)))
-				io->urbs[i]->transfer_buffer = sg_virt(sg);
+				urb->transfer_buffer = sg_virt(sg);
 			else
-				io->urbs[i]->transfer_buffer = NULL;
+				urb->transfer_buffer = NULL;
 
 			len = sg->length;
 			if (length) {
@@ -452,12 +437,10 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 				if (length == 0)
 					io->entries = i + 1;
 			}
-			io->urbs[i]->transfer_buffer_length = len;
-
-			io->urbs[i]->sg = sg;
 		}
-		io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
+		urb->transfer_buffer_length = len;
 	}
+	io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 
 	/* transaction state */
 	io->count = io->entries;
