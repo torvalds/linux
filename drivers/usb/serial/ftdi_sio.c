@@ -781,7 +781,7 @@ static void ftdi_close(struct usb_serial_port *port);
 static void ftdi_dtr_rts(struct usb_serial_port *port, int on);
 static void ftdi_process_read_urb(struct urb *urb);
 static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
-		void **dest, size_t size, const void *buf, size_t count);
+						void *dest, size_t size);
 static void ftdi_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  ftdi_tiocmget(struct tty_struct *tty, struct file *file);
@@ -808,8 +808,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.id_table =		id_table_combined,
 	.num_ports =		1,
 	.bulk_in_size =		512,
-	/* Must modify prepare_write_buffer if multi_urb_write is changed. */
-	.multi_urb_write =	1,
+	.bulk_out_size =	256,
 	.probe =		ftdi_sio_probe,
 	.port_probe =		ftdi_sio_port_probe,
 	.port_remove =		ftdi_sio_port_remove,
@@ -1531,15 +1530,6 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 		quirk->port_probe(priv);
 
 	priv->port = port;
-
-	/* Free port's existing write urb and transfer buffer. */
-	if (port->write_urb) {
-		usb_free_urb(port->write_urb);
-		port->write_urb = NULL;
-	}
-	kfree(port->bulk_out_buffer);
-	port->bulk_out_buffer = NULL;
-
 	usb_set_serial_port_data(port, priv);
 
 	ftdi_determine_type(port);
@@ -1734,8 +1724,7 @@ static void ftdi_close(struct usb_serial_port *port)
 
 	dbg("%s", __func__);
 
-	/* shutdown our bulk read */
-	usb_kill_urb(port->read_urb);
+	usb_serial_generic_close(port);
 	kref_put(&priv->kref, ftdi_sio_priv_release);
 }
 
@@ -1747,39 +1736,33 @@ static void ftdi_close(struct usb_serial_port *port)
  * The new devices do not require this byte
  */
 static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
-		void **dest, size_t size, const void *src, size_t count)
+						void *dest, size_t size)
 {
 	struct ftdi_private *priv;
-	unsigned char *buffer;
-	int len;
+	int count;
+	unsigned long flags;
 
 	priv = usb_get_serial_port_data(port);
 
-	len = count;
-	if (priv->chip_type == SIO && count != 0)
-		len += ((count - 1) / (priv->max_packet_size - 1)) + 1;
-
-	buffer = kmalloc(len, GFP_ATOMIC);
-	if (!buffer) {
-		dev_err(&port->dev, "%s - could not allocate buffer\n",
-				__func__);
-		return -ENOMEM;
-	}
-
 	if (priv->chip_type == SIO) {
-		int i, msg_len;
+		unsigned char *buffer = dest;
+		int i, len, c;
 
-		for (i = 0; i < len; i += priv->max_packet_size) {
-			msg_len = min_t(int, len - i, priv->max_packet_size) - 1;
-			buffer[i] = (msg_len << 2) + 1;
-			memcpy(&buffer[i + 1], src, msg_len);
-			src += msg_len;
+		count = 0;
+		spin_lock_irqsave(&port->lock, flags);
+		for (i = 0; i < size - 1; i += priv->max_packet_size) {
+			len = min_t(int, size - i, priv->max_packet_size) - 1;
+			buffer[i] = (len << 2) + 1;
+			c = kfifo_out(&port->write_fifo, &buffer[i + 1], len);
+			if (!c)
+				break;
+			count += c + 1;
 		}
+		spin_unlock_irqrestore(&port->lock, flags);
 	} else {
-		memcpy(buffer, src, count);
+		count = kfifo_out_locked(&port->write_fifo, dest, size,
+								&port->lock);
 	}
-
-	*dest = buffer;
 
 	return count;
 }

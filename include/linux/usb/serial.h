@@ -67,7 +67,6 @@ enum port_dev_state {
  * @write_urbs: pointers to the bulk out urbs for this port
  * @write_urbs_free: status bitmap the for bulk out urbs
  * @tx_bytes: number of bytes currently in host stack queues
- * @tx_urbs: number of urbs currently in host stack queues
  * @bulk_out_endpointAddress: endpoint address for the bulk out pipe for this
  *	port.
  * @flags: usb serial port flags
@@ -112,7 +111,6 @@ struct usb_serial_port {
 	__u8			bulk_out_endpointAddress;
 
 	int			tx_bytes;
-	int			tx_urbs;
 
 	unsigned long		flags;
 	wait_queue_head_t	write_wait;
@@ -238,8 +236,6 @@ struct usb_serial_driver {
 	struct usb_driver	*usb_driver;
 	struct usb_dynids	dynids;
 
-	unsigned char		multi_urb_write:1;
-
 	size_t			bulk_in_size;
 	size_t			bulk_out_size;
 
@@ -291,7 +287,7 @@ struct usb_serial_driver {
 	void (*process_read_urb)(struct urb *urb);
 	/* Called by the generic write implementation */
 	int (*prepare_write_buffer)(struct usb_serial_port *port,
-		void **dest, size_t size, const void *src, size_t count);
+						void *dest, size_t size);
 };
 #define to_usb_serial_driver(d) \
 	container_of(d, struct usb_serial_driver, driver)
@@ -345,7 +341,7 @@ extern int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 						 gfp_t mem_flags);
 extern void usb_serial_generic_process_read_urb(struct urb *urb);
 extern int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
-		void **dest, size_t size, const void *src, size_t count);
+						void *dest, size_t size);
 extern int usb_serial_handle_sysrq_char(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					unsigned int ch);

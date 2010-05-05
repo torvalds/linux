@@ -84,9 +84,10 @@ static const struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 static int aircable_prepare_write_buffer(struct usb_serial_port *port,
-		void **dest, size_t size, const void *src, size_t count)
+						void *dest, size_t size)
 {
-	unsigned char *buf = *dest;
+	int count;
+	unsigned char *buf = dest;
 
 	count = kfifo_out_locked(&port->write_fifo, buf + HCI_HEADER_LENGTH,
 					size - HCI_HEADER_LENGTH, &port->lock);
@@ -185,8 +186,6 @@ static struct usb_serial_driver aircable_device = {
 	.id_table = 		id_table,
 	.num_ports =		1,
 	.bulk_out_size =	HCI_COMPLETE_FRAME,
-	/* Must modify prepare_write_buffer if multi_urb_write is changed. */
-	.multi_urb_write =	0,
 	.probe =		aircable_probe,
 	.process_read_urb =	aircable_process_read_urb,
 	.prepare_write_buffer =	aircable_prepare_write_buffer,

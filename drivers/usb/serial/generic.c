@@ -26,8 +26,6 @@
 
 static int debug;
 
-#define MAX_TX_URBS		40
-
 #ifdef CONFIG_USB_SERIAL_GENERIC
 
 static int generic_probe(struct usb_interface *interface,
@@ -172,90 +170,9 @@ void usb_serial_generic_close(struct usb_serial_port *port)
 EXPORT_SYMBOL_GPL(usb_serial_generic_close);
 
 int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
-		void **dest, size_t size, const void *src, size_t count)
+						void *dest, size_t size)
 {
-	if (!*dest) {
-		size = count;
-		*dest = kmalloc(count, GFP_ATOMIC);
-		if (!*dest) {
-			dev_err(&port->dev, "%s - could not allocate buffer\n",
-					__func__);
-			return -ENOMEM;
-		}
-	}
-	if (src) {
-		count = size;
-		memcpy(*dest, src, size);
-	} else {
-		count = kfifo_out_locked(&port->write_fifo, *dest, size,
-								&port->lock);
-	}
-	return count;
-}
-EXPORT_SYMBOL_GPL(usb_serial_generic_prepare_write_buffer);
-
-static int usb_serial_multi_urb_write(struct tty_struct *tty,
-	struct usb_serial_port *port, const unsigned char *buf, int count)
-{
-	unsigned long flags;
-	struct urb *urb;
-	void *buffer;
-	int status;
-
-	spin_lock_irqsave(&port->lock, flags);
-	if (port->tx_urbs == MAX_TX_URBS) {
-		spin_unlock_irqrestore(&port->lock, flags);
-		dbg("%s - write limit hit", __func__);
-		return 0;
-	}
-	port->tx_urbs++;
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		dev_err(&port->dev, "%s - no free urbs available\n", __func__);
-		status = -ENOMEM;
-		goto err_urb;
-	}
-
-	buffer = NULL;
-	count = min_t(int, count, PAGE_SIZE);
-	count = port->serial->type->prepare_write_buffer(port, &buffer, 0,
-								buf, count);
-	if (count < 0) {
-		status = count;
-		goto err_buf;
-	}
-	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
-	usb_fill_bulk_urb(urb, port->serial->dev,
-			usb_sndbulkpipe(port->serial->dev,
-					port->bulk_out_endpointAddress),
-			buffer, count,
-			port->serial->type->write_bulk_callback, port);
-
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status) {
-		dev_err(&port->dev, "%s - error submitting urb: %d\n",
-				__func__, status);
-		goto err;
-	}
-	spin_lock_irqsave(&port->lock, flags);
-	port->tx_bytes += urb->transfer_buffer_length;
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	usb_free_urb(urb);
-
-	return count;
-err:
-	kfree(buffer);
-err_buf:
-	usb_free_urb(urb);
-err_urb:
-	spin_lock_irqsave(&port->lock, flags);
-	port->tx_urbs--;
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	return status;
+	return kfifo_out_locked(&port->write_fifo, dest, size, &port->lock);
 }
 
 /**
@@ -286,8 +203,8 @@ retry:
 
 	urb = port->write_urbs[i];
 	count = port->serial->type->prepare_write_buffer(port,
-						&urb->transfer_buffer,
-						port->bulk_out_size, NULL, 0);
+						urb->transfer_buffer,
+						port->bulk_out_size);
 	urb->transfer_buffer_length = count;
 	usb_serial_debug_data(debug, &port->dev, __func__, count,
 						urb->transfer_buffer);
@@ -328,7 +245,6 @@ retry:
 int usb_serial_generic_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
-	struct usb_serial *serial = port->serial;
 	int result;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -340,23 +256,18 @@ int usb_serial_generic_write(struct tty_struct *tty,
 	if (!count)
 		return 0;
 
-	if (serial->type->multi_urb_write)
-		return usb_serial_multi_urb_write(tty, port, buf, count);
-
 	count = kfifo_in_locked(&port->write_fifo, buf, count, &port->lock);
 	result = usb_serial_generic_write_start(port);
+	if (result)
+		return result;
 
-	if (result >= 0)
-		result = count;
-
-	return result;
+	return count;
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_write);
 
 int usb_serial_generic_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct usb_serial *serial = port->serial;
 	unsigned long flags;
 	int room;
 
@@ -366,10 +277,7 @@ int usb_serial_generic_write_room(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (serial->type->multi_urb_write)
-		room = (MAX_TX_URBS - port->tx_urbs) * PAGE_SIZE;
-	else
-		room = kfifo_avail(&port->write_fifo);
+	room = kfifo_avail(&port->write_fifo);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, room);
@@ -379,7 +287,6 @@ int usb_serial_generic_write_room(struct tty_struct *tty)
 int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct usb_serial *serial = port->serial;
 	unsigned long flags;
 	int chars;
 
@@ -389,10 +296,7 @@ int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (serial->type->multi_urb_write)
-		chars = port->tx_bytes;
-	else
-		chars = kfifo_len(&port->write_fifo) + port->tx_bytes;
+	chars = kfifo_len(&port->write_fifo) + port->tx_bytes;
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, chars);
@@ -479,34 +383,24 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (port->serial->type->multi_urb_write) {
-		kfree(urb->transfer_buffer);
+	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
+		if (port->write_urbs[i] == urb)
+			break;
+
+	spin_lock_irqsave(&port->lock, flags);
+	port->tx_bytes -= urb->transfer_buffer_length;
+	set_bit(i, &port->write_urbs_free);
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	if (status) {
+		dbg("%s - non-zero urb status: %d", __func__, status);
 
 		spin_lock_irqsave(&port->lock, flags);
-		port->tx_bytes -= urb->transfer_buffer_length;
-		port->tx_urbs--;
+		kfifo_reset_out(&port->write_fifo);
 		spin_unlock_irqrestore(&port->lock, flags);
 	} else {
-		for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
-			if (port->write_urbs[i] == urb)
-				break;
-
-		spin_lock_irqsave(&port->lock, flags);
-		port->tx_bytes -= urb->transfer_buffer_length;
-		set_bit(i, &port->write_urbs_free);
-		spin_unlock_irqrestore(&port->lock, flags);
-
-		if (status) {
-			spin_lock_irqsave(&port->lock, flags);
-			kfifo_reset_out(&port->write_fifo);
-			spin_unlock_irqrestore(&port->lock, flags);
-		} else {
-			usb_serial_generic_write_start(port);
-		}
+		usb_serial_generic_write_start(port);
 	}
-
-	if (status)
-		dbg("%s - non-zero urb status: %d", __func__, status);
 
 	usb_serial_port_softint(port);
 }
