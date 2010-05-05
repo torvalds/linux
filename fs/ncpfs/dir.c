@@ -51,7 +51,7 @@ const struct file_operations ncp_dir_operations =
 {
 	.read		= generic_read_dir,
 	.readdir	= ncp_readdir,
-	.ioctl		= ncp_ioctl,
+	.unlocked_ioctl	= ncp_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ncp_compat_ioctl,
 #endif
