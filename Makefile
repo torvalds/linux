@@ -943,7 +943,7 @@ endif
 ifdef CONFIG_LOCALVERSION_AUTO
 	localver-extra = $(scm-identifier)
 else
-	ifneq ($scm-identifier,)
+	ifneq ($(scm-identifier),)
 		ifeq ($(LOCALVERSION),)
 			localver-extra = +
 		endif
