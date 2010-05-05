@@ -35,6 +35,9 @@ enum port_dev_state {
 	PORT_UNREGISTERING,
 };
 
+/* USB serial flags */
+#define USB_SERIAL_WRITE_BUSY	0
+
 /**
  * usb_serial_port: structure for the specific ports of a device.
  * @serial: pointer back to the struct usb_serial owner of this port.
@@ -60,10 +63,14 @@ enum port_dev_state {
  * @write_urb: pointer to the bulk out struct urb for this port.
  * @write_fifo: kfifo used to buffer outgoing data
  * @write_urb_busy: port`s writing status
+ * @bulk_out_buffers: pointers to the bulk out buffers for this port
+ * @write_urbs: pointers to the bulk out urbs for this port
+ * @write_urbs_free: status bitmap the for bulk out urbs
  * @tx_bytes: number of bytes currently in host stack queues
  * @tx_urbs: number of urbs currently in host stack queues
  * @bulk_out_endpointAddress: endpoint address for the bulk out pipe for this
  *	port.
+ * @flags: usb serial port flags
  * @write_wait: a wait_queue_head_t used by the port.
  * @work: work queue entry for the line discipline waking up.
  * @throttled: nonzero if the read urb is inactive to throttle the device
@@ -98,11 +105,16 @@ struct usb_serial_port {
 	struct urb		*write_urb;
 	struct kfifo		write_fifo;
 	int			write_urb_busy;
+
+	unsigned char		*bulk_out_buffers[2];
+	struct urb		*write_urbs[2];
+	unsigned long		write_urbs_free;
 	__u8			bulk_out_endpointAddress;
 
 	int			tx_bytes;
 	int			tx_urbs;
 
+	unsigned long		flags;
 	wait_queue_head_t	write_wait;
 	struct work_struct	work;
 	char			throttled;

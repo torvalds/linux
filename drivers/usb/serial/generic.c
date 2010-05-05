@@ -1,6 +1,7 @@
 /*
  * USB Serial Converter Generic functions
  *
+ * Copyright (C) 2010 Johan Hovold (jhovold@gmail.com)
  * Copyright (C) 1999 - 2002 Greg Kroah-Hartman (greg@kroah.com)
  *
  *	This program is free software; you can redistribute it and/or
@@ -143,6 +144,7 @@ static void generic_cleanup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	unsigned long flags;
+	int i;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -150,6 +152,8 @@ static void generic_cleanup(struct usb_serial_port *port)
 		/* shutdown any bulk transfers that might be going on */
 		if (port->bulk_out_size) {
 			usb_kill_urb(port->write_urb);
+			for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
+				usb_kill_urb(port->write_urbs[i]);
 
 			spin_lock_irqsave(&port->lock, flags);
 			kfifo_reset_out(&port->write_fifo);
@@ -258,46 +262,56 @@ err_urb:
  * usb_serial_generic_write_start - kick off an URB write
  * @port:	Pointer to the &struct usb_serial_port data
  *
- * Returns the number of bytes queued on success. This will be zero if there
- * was nothing to send. Otherwise, it returns a negative errno value
+ * Returns zero on success, or a negative errno value
  */
 static int usb_serial_generic_write_start(struct usb_serial_port *port)
 {
-	int result;
-	int count;
+	struct urb *urb;
+	int count, result;
 	unsigned long flags;
+	int i;
 
+	if (test_and_set_bit_lock(USB_SERIAL_WRITE_BUSY, &port->flags))
+		return 0;
+retry:
 	spin_lock_irqsave(&port->lock, flags);
-	if (port->write_urb_busy || !kfifo_len(&port->write_fifo)) {
+	if (!port->write_urbs_free || !kfifo_len(&port->write_fifo)) {
+		clear_bit_unlock(USB_SERIAL_WRITE_BUSY, &port->flags);
 		spin_unlock_irqrestore(&port->lock, flags);
 		return 0;
 	}
-	port->write_urb_busy = 1;
+	i = (int)find_first_bit(&port->write_urbs_free,
+						ARRAY_SIZE(port->write_urbs));
 	spin_unlock_irqrestore(&port->lock, flags);
 
+	urb = port->write_urbs[i];
 	count = port->serial->type->prepare_write_buffer(port,
-					&port->write_urb->transfer_buffer,
-					port->bulk_out_size, NULL, 0);
-	usb_serial_debug_data(debug, &port->dev, __func__,
-				count, port->write_urb->transfer_buffer);
-	port->write_urb->transfer_buffer_length = count;
-
-	/* send the data out the bulk port */
-	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
+						&urb->transfer_buffer,
+						port->bulk_out_size, NULL, 0);
+	urb->transfer_buffer_length = count;
+	usb_serial_debug_data(debug, &port->dev, __func__, count,
+						urb->transfer_buffer);
+	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result) {
 		dev_err(&port->dev, "%s - error submitting urb: %d\n",
 						__func__, result);
-		/* don't have to grab the lock here, as we will
-		   retry if != 0 */
-		port->write_urb_busy = 0;
+		clear_bit_unlock(USB_SERIAL_WRITE_BUSY, &port->flags);
 		return result;
 	}
+	clear_bit(i, &port->write_urbs_free);
 
 	spin_lock_irqsave(&port->lock, flags);
 	port->tx_bytes += count;
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	return count;
+	/* Try sending off another urb, unless in irq context (in which case
+	 * there will be no free urb). */
+	if (!in_irq())
+		goto retry;
+
+	clear_bit_unlock(USB_SERIAL_WRITE_BUSY, &port->flags);
+
+	return 0;
 }
 
 /**
@@ -461,6 +475,7 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 	unsigned long flags;
 	struct usb_serial_port *port = urb->context;
 	int status = urb->status;
+	int i;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -472,9 +487,13 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 		port->tx_urbs--;
 		spin_unlock_irqrestore(&port->lock, flags);
 	} else {
+		for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
+			if (port->write_urbs[i] == urb)
+				break;
+
 		spin_lock_irqsave(&port->lock, flags);
 		port->tx_bytes -= urb->transfer_buffer_length;
-		port->write_urb_busy = 0;
+		set_bit(i, &port->write_urbs_free);
 		spin_unlock_irqrestore(&port->lock, flags);
 
 		if (status) {
@@ -576,7 +595,7 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 				c++;
 		}
 
-		if (port->write_urb) {
+		if (port->bulk_out_size) {
 			r = usb_serial_generic_write_start(port);
 			if (r < 0)
 				c++;
