@@ -52,7 +52,7 @@ static void via_i2c_setscl(void *data, int state)
 		val |= 0x80;
 		break;
 	default:
-		DEBUG_MSG("viafb_i2c: specify wrong i2c type.\n");
+		printk(KERN_ERR "viafb_i2c: specify wrong i2c type.\n");
 	}
 	via_write_reg(adap_data->io_port, adap_data->ioport_index, val);
 	spin_unlock_irqrestore(&i2c_vdev->reg_lock, flags);
@@ -104,7 +104,7 @@ static void via_i2c_setsda(void *data, int state)
 		val |= 0x40;
 		break;
 	default:
-		DEBUG_MSG("viafb_i2c: specify wrong i2c type.\n");
+		printk(KERN_ERR "viafb_i2c: specify wrong i2c type.\n");
 	}
 	via_write_reg(adap_data->io_port, adap_data->ioport_index, val);
 	spin_unlock_irqrestore(&i2c_vdev->reg_lock, flags);
@@ -175,8 +175,6 @@ static int create_i2c_bus(struct i2c_adapter *adapter,
 			  struct via_port_cfg *adap_cfg,
 			  struct pci_dev *pdev)
 {
-	DEBUG_MSG(KERN_DEBUG "viafb: creating bus adap=0x%p, algo_bit_data=0x%p, adap_cfg=0x%p\n", adapter, algo, adap_cfg);
-
 	algo->setsda = via_i2c_setsda;
 	algo->setscl = via_i2c_setscl;
 	algo->getsda = via_i2c_getsda;
