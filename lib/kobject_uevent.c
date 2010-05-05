@@ -19,7 +19,7 @@
 #include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-
+#include <linux/user_namespace.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
@@ -94,6 +94,21 @@ static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 		ns = kobj->ktype->namespace(kobj);
 		sock_ns = ops->netlink_ns(dsk);
 		return sock_ns != ns;
+	}
+
+	return 0;
+}
+
+static int kobj_usermode_filter(struct kobject *kobj)
+{
+	const struct kobj_ns_type_operations *ops;
+
+	ops = kobj_ns_ops(kobj);
+	if (ops) {
+		const void *init_ns, *ns;
+		ns = kobj->ktype->namespace(kobj);
+		init_ns = ops->initial_ns();
+		return ns != init_ns;
 	}
 
 	return 0;
@@ -274,7 +289,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 #endif
 
 	/* call uevent_helper, usually only enabled during early boot */
-	if (uevent_helper[0]) {
+	if (uevent_helper[0] && !kobj_usermode_filter(kobj)) {
 		char *argv [3];
 
 		argv [0] = uevent_helper;
