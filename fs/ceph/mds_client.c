@@ -1143,10 +1143,8 @@ static void send_cap_releases(struct ceph_mds_client *mdsc,
 	struct ceph_msg *msg;
 
 	dout("send_cap_releases mds%d\n", session->s_mds);
-	while (1) {
-		spin_lock(&session->s_cap_lock);
-		if (list_empty(&session->s_cap_releases_done))
-			break;
+	spin_lock(&session->s_cap_lock);
+	while (!list_empty(&session->s_cap_releases_done)) {
 		msg = list_first_entry(&session->s_cap_releases_done,
 				 struct ceph_msg, list_head);
 		list_del_init(&msg->list_head);
@@ -1154,6 +1152,7 @@ static void send_cap_releases(struct ceph_mds_client *mdsc,
 		msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 		dout("send_cap_releases mds%d %p\n", session->s_mds, msg);
 		ceph_con_send(&session->s_con, msg);
+		spin_lock(&session->s_cap_lock);
 	}
 	spin_unlock(&session->s_cap_lock);
 }
