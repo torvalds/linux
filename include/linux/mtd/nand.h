@@ -53,7 +53,7 @@ extern int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
  * is supported now. If you add a chip with bigger oobsize/page
  * adjust this accordingly.
  */
-#define NAND_MAX_OOBSIZE	128
+#define NAND_MAX_OOBSIZE	256
 #define NAND_MAX_PAGESIZE	4096
 
 /*
