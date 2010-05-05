@@ -793,7 +793,8 @@ int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *Channel,
 
 	DPRINT_ENTER(VMBUS);
 
-	ASSERT(PageCount <= MAX_PAGE_BUFFER_COUNT);
+	if (PageCount > MAX_PAGE_BUFFER_COUNT)
+		return -EINVAL;
 
 	DumpVmbusChannel(Channel);
 
@@ -864,8 +865,8 @@ int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *Channel,
 	DPRINT_DBG(VMBUS, "data buffer - offset %u len %u pfn count %u",
 		   MultiPageBuffer->Offset, MultiPageBuffer->Length, PfnCount);
 
-	ASSERT(PfnCount > 0);
-	ASSERT(PfnCount <= MAX_MULTIPAGE_BUFFER_COUNT);
+	if ((PfnCount < 0) || (PfnCount > MAX_MULTIPAGE_BUFFER_COUNT))
+		return -EINVAL;
 
 	/*
 	 * Adjust the size down since VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER is
