@@ -936,7 +936,7 @@ void print_events(void)
 
 	printf("\n");
 	printf("  %-42s [%s]\n",
-		"rNNN", event_type_descriptors[PERF_TYPE_RAW]);
+		"rNNN (NNN=<UMASK VALUE><EVENT NUM>)", event_type_descriptors[PERF_TYPE_RAW]);
 	printf("\n");
 
 	printf("  %-42s [%s]\n",

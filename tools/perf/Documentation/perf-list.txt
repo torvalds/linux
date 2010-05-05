@@ -15,6 +15,24 @@ DESCRIPTION
 This command displays the symbolic event types which can be selected in the
 various perf commands with the -e option.
 
+RAW HARDWARE EVENT DESCRIPTOR
+-----------------------------
+Even when an event is not available in a symbolic form within perf right now,
+it can be encoded as <UMASK VALUE><EVENT NUM>, for instance, if the Intel docs
+describe an event as:
+
+  Event  Umask  Event Mask
+  Num.   Value  Mnemonic    Description                        Comment
+
+  A8H      01H  LSD.UOPS    Counts the number of micro-ops     Use cmask=1 and
+                            delivered by loop stream detector  invert to count
+                                                               cycles
+
+raw encoding of 0x1A8 can be used:
+
+ perf stat -e r1a8 -a sleep 1
+ perf record -e r1a8 ...
+
 OPTIONS
 -------
 None
