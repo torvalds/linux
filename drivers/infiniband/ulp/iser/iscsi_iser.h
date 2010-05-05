@@ -232,6 +232,7 @@ struct iser_device {
 	struct ib_cq	             *tx_cq;
 	struct ib_mr	             *mr;
 	struct tasklet_struct	     cq_tasklet;
+	struct ib_event_handler      event_handler;
 	struct list_head             ig_list; /* entry in ig devices list */
 	int                          refcount;
 };
