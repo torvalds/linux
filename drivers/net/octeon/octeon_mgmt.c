@@ -955,6 +955,7 @@ static int octeon_mgmt_xmit(struct sk_buff *skb, struct net_device *netdev)
 	int port = p->port;
 	union mgmt_port_ring_entry re;
 	unsigned long flags;
+	int rv = NETDEV_TX_BUSY;
 
 	re.d64 = 0;
 	re.s.len = skb->len;
@@ -964,15 +965,18 @@ static int octeon_mgmt_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	spin_lock_irqsave(&p->tx_list.lock, flags);
 
+	if (unlikely(p->tx_current_fill >= ring_max_fill(OCTEON_MGMT_TX_RING_SIZE) - 1)) {
+		spin_unlock_irqrestore(&p->tx_list.lock, flags);
+		netif_stop_queue(netdev);
+		spin_lock_irqsave(&p->tx_list.lock, flags);
+	}
+
 	if (unlikely(p->tx_current_fill >=
 		     ring_max_fill(OCTEON_MGMT_TX_RING_SIZE))) {
 		spin_unlock_irqrestore(&p->tx_list.lock, flags);
-
 		dma_unmap_single(p->dev, re.s.addr, re.s.len,
 				 DMA_TO_DEVICE);
-
-		netif_stop_queue(netdev);
-		return NETDEV_TX_BUSY;
+		goto out;
 	}
 
 	__skb_queue_tail(&p->tx_list, skb);
@@ -995,8 +999,10 @@ static int octeon_mgmt_xmit(struct sk_buff *skb, struct net_device *netdev)
 	cvmx_write_csr(CVMX_MIXX_ORING2(port), 1);
 
 	netdev->trans_start = jiffies;
+	rv = NETDEV_TX_OK;
+out:
 	octeon_mgmt_update_tx_stats(netdev);
-	return NETDEV_TX_OK;
+	return rv;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
