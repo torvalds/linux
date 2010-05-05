@@ -2726,6 +2726,99 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_NPF]				= pf_interception,
 };
 
+void dump_vmcb(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct vmcb_control_area *control = &svm->vmcb->control;
+	struct vmcb_save_area *save = &svm->vmcb->save;
+
+	pr_err("VMCB Control Area:\n");
+	pr_err("cr_read:            %04x\n", control->intercept_cr_read);
+	pr_err("cr_write:           %04x\n", control->intercept_cr_write);
+	pr_err("dr_read:            %04x\n", control->intercept_dr_read);
+	pr_err("dr_write:           %04x\n", control->intercept_dr_write);
+	pr_err("exceptions:         %08x\n", control->intercept_exceptions);
+	pr_err("intercepts:         %016llx\n", control->intercept);
+	pr_err("pause filter count: %d\n", control->pause_filter_count);
+	pr_err("iopm_base_pa:       %016llx\n", control->iopm_base_pa);
+	pr_err("msrpm_base_pa:      %016llx\n", control->msrpm_base_pa);
+	pr_err("tsc_offset:         %016llx\n", control->tsc_offset);
+	pr_err("asid:               %d\n", control->asid);
+	pr_err("tlb_ctl:            %d\n", control->tlb_ctl);
+	pr_err("int_ctl:            %08x\n", control->int_ctl);
+	pr_err("int_vector:         %08x\n", control->int_vector);
+	pr_err("int_state:          %08x\n", control->int_state);
+	pr_err("exit_code:          %08x\n", control->exit_code);
+	pr_err("exit_info1:         %016llx\n", control->exit_info_1);
+	pr_err("exit_info2:         %016llx\n", control->exit_info_2);
+	pr_err("exit_int_info:      %08x\n", control->exit_int_info);
+	pr_err("exit_int_info_err:  %08x\n", control->exit_int_info_err);
+	pr_err("nested_ctl:         %lld\n", control->nested_ctl);
+	pr_err("nested_cr3:         %016llx\n", control->nested_cr3);
+	pr_err("event_inj:          %08x\n", control->event_inj);
+	pr_err("event_inj_err:      %08x\n", control->event_inj_err);
+	pr_err("lbr_ctl:            %lld\n", control->lbr_ctl);
+	pr_err("next_rip:           %016llx\n", control->next_rip);
+	pr_err("VMCB State Save Area:\n");
+	pr_err("es:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->es.selector, save->es.attrib,
+		save->es.limit, save->es.base);
+	pr_err("cs:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->cs.selector, save->cs.attrib,
+		save->cs.limit, save->cs.base);
+	pr_err("ss:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->ss.selector, save->ss.attrib,
+		save->ss.limit, save->ss.base);
+	pr_err("ds:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->ds.selector, save->ds.attrib,
+		save->ds.limit, save->ds.base);
+	pr_err("fs:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->fs.selector, save->fs.attrib,
+		save->fs.limit, save->fs.base);
+	pr_err("gs:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->gs.selector, save->gs.attrib,
+		save->gs.limit, save->gs.base);
+	pr_err("gdtr: s: %04x a: %04x l: %08x b: %016llx\n",
+		save->gdtr.selector, save->gdtr.attrib,
+		save->gdtr.limit, save->gdtr.base);
+	pr_err("ldtr: s: %04x a: %04x l: %08x b: %016llx\n",
+		save->ldtr.selector, save->ldtr.attrib,
+		save->ldtr.limit, save->ldtr.base);
+	pr_err("idtr: s: %04x a: %04x l: %08x b: %016llx\n",
+		save->idtr.selector, save->idtr.attrib,
+		save->idtr.limit, save->idtr.base);
+	pr_err("tr:   s: %04x a: %04x l: %08x b: %016llx\n",
+		save->tr.selector, save->tr.attrib,
+		save->tr.limit, save->tr.base);
+	pr_err("cpl:            %d                efer:         %016llx\n",
+		save->cpl, save->efer);
+	pr_err("cr0:            %016llx cr2:          %016llx\n",
+		save->cr0, save->cr2);
+	pr_err("cr3:            %016llx cr4:          %016llx\n",
+		save->cr3, save->cr4);
+	pr_err("dr6:            %016llx dr7:          %016llx\n",
+		save->dr6, save->dr7);
+	pr_err("rip:            %016llx rflags:       %016llx\n",
+		save->rip, save->rflags);
+	pr_err("rsp:            %016llx rax:          %016llx\n",
+		save->rsp, save->rax);
+	pr_err("star:           %016llx lstar:        %016llx\n",
+		save->star, save->lstar);
+	pr_err("cstar:          %016llx sfmask:       %016llx\n",
+		save->cstar, save->sfmask);
+	pr_err("kernel_gs_base: %016llx sysenter_cs:  %016llx\n",
+		save->kernel_gs_base, save->sysenter_cs);
+	pr_err("sysenter_esp:   %016llx sysenter_eip: %016llx\n",
+		save->sysenter_esp, save->sysenter_eip);
+	pr_err("gpat:           %016llx dbgctl:       %016llx\n",
+		save->g_pat, save->dbgctl);
+	pr_err("br_from:        %016llx br_to:        %016llx\n",
+		save->br_from, save->br_to);
+	pr_err("excp_from:      %016llx excp_to:      %016llx\n",
+		save->last_excp_from, save->last_excp_to);
+
+}
+
 static int handle_exit(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2770,6 +2863,8 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		kvm_run->fail_entry.hardware_entry_failure_reason
 			= svm->vmcb->control.exit_code;
+		pr_err("KVM: FAILED VMRUN WITH VMCB:\n");
+		dump_vmcb(vcpu);
 		return 0;
 	}
 
