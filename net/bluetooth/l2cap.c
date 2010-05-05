@@ -3503,7 +3503,8 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 
 	BT_DBG("sk %p rx_control 0x%4.4x len %d", sk, rx_control, skb->len);
 
-	if (L2CAP_CTRL_FINAL & rx_control) {
+	if (L2CAP_CTRL_FINAL & rx_control &&
+			l2cap_pi(sk)->conn_state & L2CAP_CONN_WAIT_F) {
 		del_timer(&pi->monitor_timer);
 		if (pi->unacked_frames > 0)
 			__mod_retrans_timer();
@@ -3727,7 +3728,8 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 {
 	BT_DBG("sk %p rx_control 0x%4.4x len %d", sk, rx_control, skb->len);
 
-	if (L2CAP_CTRL_FINAL & rx_control) {
+	if (L2CAP_CTRL_FINAL & rx_control &&
+			l2cap_pi(sk)->conn_state & L2CAP_CONN_WAIT_F) {
 		del_timer(&l2cap_pi(sk)->monitor_timer);
 		if (l2cap_pi(sk)->unacked_frames > 0)
 			__mod_retrans_timer();
