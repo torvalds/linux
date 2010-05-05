@@ -207,7 +207,7 @@ static const u8 read_all_tx_array[] = {
  * @rx_array:	(dma capable) recieve array, must be at least
  *		4*number of channels
  **/
-int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
+static int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
 {
 	struct spi_transfer *xfers;
 	struct spi_message msg;
@@ -587,7 +587,6 @@ void lis3l02dq_uninitialize_ring(struct iio_ring_buffer *ring)
 {
 	iio_ring_buffer_unregister(ring);
 }
-
 
 int lis3l02dq_set_ring_length(struct iio_dev *indio_dev, int length)
 {

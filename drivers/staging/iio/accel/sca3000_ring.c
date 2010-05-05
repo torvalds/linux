@@ -186,9 +186,9 @@ static ssize_t sca3000_store_ring_bpse(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_SCAN_EL_C(accel_x, 0, 0, 0, 0);
-static IIO_SCAN_EL_C(accel_y, 1, 0, 0, 0);
-static IIO_SCAN_EL_C(accel_z, 2, 0, 0, 0);
+static IIO_SCAN_EL_C(accel_x, 0, 0, 0, NULL);
+static IIO_SCAN_EL_C(accel_y, 1, 0, 0, NULL);
+static IIO_SCAN_EL_C(accel_z, 2, 0, 0, NULL);
 static IIO_CONST_ATTR(accel_precision_available, "8 11");
 static IIO_DEVICE_ATTR(accel_precision,
 		       S_IRUGO | S_IWUSR,
@@ -244,7 +244,7 @@ static struct iio_ring_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
 
 	ring = kzalloc(sizeof *ring, GFP_KERNEL);
 	if (!ring)
-		return 0;
+		return NULL;
 	ring->private = indio_dev;
 	buf = &ring->buf;
 	iio_ring_buffer_init(buf, indio_dev);
