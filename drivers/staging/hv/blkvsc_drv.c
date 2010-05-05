@@ -1213,7 +1213,10 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 					(!comp_req->request.Status ? 0 : -EIO),
 					comp_req->sector_count *
 					blkdev->sector_size);
-				ASSERT(ret != 0);
+
+				/* FIXME: shouldn't this do more than return? */
+				if (ret)
+					goto out;
 			}
 
 			kmem_cache_free(blkdev->request_pool, comp_req);
@@ -1245,6 +1248,7 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 		kmem_cache_free(blkdev->request_pool, pend_req);
 	}
 
+out:
 	return ret;
 }
 
