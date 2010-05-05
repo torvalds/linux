@@ -279,17 +279,6 @@ int videobuf_dma_map(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
 }
 EXPORT_SYMBOL_GPL(videobuf_dma_map);
 
-int videobuf_dma_sync(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
-{
-	MAGIC_CHECK(dma->magic, MAGIC_DMABUF);
-	BUG_ON(!dma->sglen);
-
-	dma_sync_sg_for_cpu(q->dev, dma->sglist, dma->nr_pages, dma->direction);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(videobuf_dma_sync);
-
 int videobuf_dma_unmap(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
 {
 	MAGIC_CHECK(dma->magic, MAGIC_DMABUF);
@@ -542,10 +531,15 @@ static int __videobuf_sync(struct videobuf_queue *q,
 			   struct videobuf_buffer *buf)
 {
 	struct videobuf_dma_sg_memory *mem = buf->priv;
-	BUG_ON(!mem);
-	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
+	BUG_ON(!mem || !mem->dma.sglen);
 
-	return videobuf_dma_sync(q, &mem->dma);
+	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
+	MAGIC_CHECK(mem->dma.magic, MAGIC_DMABUF);
+
+	dma_sync_sg_for_cpu(q->dev, mem->dma.sglist,
+			    mem->dma.nr_pages, mem->dma.direction);
+
+	return 0;
 }
 
 static int __videobuf_mmap_mapper(struct videobuf_queue *q,

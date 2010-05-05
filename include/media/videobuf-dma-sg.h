@@ -97,7 +97,6 @@ int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
 int videobuf_dma_free(struct videobuf_dmabuf *dma);
 
 int videobuf_dma_map(struct videobuf_queue *q, struct videobuf_dmabuf *dma);
-int videobuf_dma_sync(struct videobuf_queue *q, struct videobuf_dmabuf *dma);
 int videobuf_dma_unmap(struct videobuf_queue *q, struct videobuf_dmabuf *dma);
 struct videobuf_dmabuf *videobuf_to_dma(struct videobuf_buffer *buf);
 
