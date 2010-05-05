@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
@@ -47,6 +48,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <sound/tlv320aic3x.h>
 
 #include "tlv320aic3x.h"
 
@@ -64,6 +66,7 @@ struct aic3x_priv {
 	struct regulator_bulk_data supplies[AIC3X_NUM_SUPPLIES];
 	unsigned int sysclk;
 	int master;
+	int gpio_reset;
 };
 
 /*
@@ -1278,6 +1281,10 @@ static int aic3x_unregister(struct aic3x_priv *aic3x)
 	snd_soc_unregister_dai(&aic3x_dai);
 	snd_soc_unregister_codec(&aic3x->codec);
 
+	if (aic3x->gpio_reset >= 0) {
+		gpio_set_value(aic3x->gpio_reset, 0);
+		gpio_free(aic3x->gpio_reset);
+	}
 	regulator_bulk_disable(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
 	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
 
@@ -1302,6 +1309,7 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 {
 	struct snd_soc_codec *codec;
 	struct aic3x_priv *aic3x;
+	struct aic3x_pdata *pdata = i2c->dev.platform_data;
 	int ret, i;
 
 	aic3x = kzalloc(sizeof(struct aic3x_priv), GFP_KERNEL);
@@ -1317,6 +1325,15 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	codec->hw_write = (hw_write_t) i2c_master_send;
 
 	i2c_set_clientdata(i2c, aic3x);
+
+	aic3x->gpio_reset = -1;
+	if (pdata && pdata->gpio_reset >= 0) {
+		ret = gpio_request(pdata->gpio_reset, "tlv320aic3x reset");
+		if (ret != 0)
+			goto err_gpio;
+		aic3x->gpio_reset = pdata->gpio_reset;
+		gpio_direction_output(aic3x->gpio_reset, 0);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++)
 		aic3x->supplies[i].supply = aic3x_supply_names[i];
@@ -1335,11 +1352,19 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 		goto err_enable;
 	}
 
+	if (aic3x->gpio_reset >= 0) {
+		udelay(1);
+		gpio_set_value(aic3x->gpio_reset, 1);
+	}
+
 	return aic3x_register(codec);
 
 err_enable:
 	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
 err_get:
+	if (aic3x->gpio_reset >= 0)
+		gpio_free(aic3x->gpio_reset);
+err_gpio:
 	kfree(aic3x);
 	return ret;
 }
