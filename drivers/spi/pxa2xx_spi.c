@@ -1465,7 +1465,7 @@ static int __init pxa2xx_spi_probe(struct platform_device *pdev)
 
 	platform_info = dev->platform_data;
 
-	ssp = ssp_request(pdev->id, pdev->name);
+	ssp = pxa_ssp_request(pdev->id, pdev->name);
 	if (ssp == NULL) {
 		dev_err(&pdev->dev, "failed to request SSP%d\n", pdev->id);
 		return -ENODEV;
@@ -1475,7 +1475,7 @@ static int __init pxa2xx_spi_probe(struct platform_device *pdev)
 	master = spi_alloc_master(dev, sizeof(struct driver_data) + 16);
 	if (!master) {
 		dev_err(&pdev->dev, "cannot alloc spi_master\n");
-		ssp_free(ssp);
+		pxa_ssp_free(ssp);
 		return -ENOMEM;
 	}
 	drv_data = spi_master_get_devdata(master);
@@ -1604,7 +1604,7 @@ out_error_irq_alloc:
 
 out_error_master_alloc:
 	spi_master_put(master);
-	ssp_free(ssp);
+	pxa_ssp_free(ssp);
 	return status;
 }
 
@@ -1648,7 +1648,7 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 	free_irq(ssp->irq, drv_data);
 
 	/* Release SSP */
-	ssp_free(ssp);
+	pxa_ssp_free(ssp);
 
 	/* Disconnect from the SPI framework */
 	spi_unregister_master(drv_data->master);

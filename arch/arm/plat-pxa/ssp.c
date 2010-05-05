@@ -37,7 +37,7 @@
 static DEFINE_MUTEX(ssp_lock);
 static LIST_HEAD(ssp_list);
 
-struct ssp_device *ssp_request(int port, const char *label)
+struct ssp_device *pxa_ssp_request(int port, const char *label)
 {
 	struct ssp_device *ssp = NULL;
 
@@ -58,9 +58,9 @@ struct ssp_device *ssp_request(int port, const char *label)
 
 	return ssp;
 }
-EXPORT_SYMBOL(ssp_request);
+EXPORT_SYMBOL(pxa_ssp_request);
 
-void ssp_free(struct ssp_device *ssp)
+void pxa_ssp_free(struct ssp_device *ssp)
 {
 	mutex_lock(&ssp_lock);
 	if (ssp->use_count) {
@@ -70,9 +70,9 @@ void ssp_free(struct ssp_device *ssp)
 		dev_err(&ssp->pdev->dev, "device already free\n");
 	mutex_unlock(&ssp_lock);
 }
-EXPORT_SYMBOL(ssp_free);
+EXPORT_SYMBOL(pxa_ssp_free);
 
-static int __devinit ssp_probe(struct platform_device *pdev)
+static int __devinit pxa_ssp_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct resource *res;
@@ -164,7 +164,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit ssp_remove(struct platform_device *pdev)
+static int __devexit pxa_ssp_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct ssp_device *ssp;
@@ -196,9 +196,9 @@ static const struct platform_device_id ssp_id_table[] = {
 	{ },
 };
 
-static struct platform_driver ssp_driver = {
-	.probe		= ssp_probe,
-	.remove		= __devexit_p(ssp_remove),
+static struct platform_driver pxa_ssp_driver = {
+	.probe		= pxa_ssp_probe,
+	.remove		= __devexit_p(pxa_ssp_remove),
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "pxa2xx-ssp",
@@ -208,12 +208,12 @@ static struct platform_driver ssp_driver = {
 
 static int __init pxa_ssp_init(void)
 {
-	return platform_driver_register(&ssp_driver);
+	return platform_driver_register(&pxa_ssp_driver);
 }
 
 static void __exit pxa_ssp_exit(void)
 {
-	platform_driver_unregister(&ssp_driver);
+	platform_driver_unregister(&pxa_ssp_driver);
 }
 
 arch_initcall(pxa_ssp_init);

@@ -159,28 +159,28 @@ struct ssp_device {
 };
 
 /**
- * ssp_write_reg - Write to a SSP register
+ * pxa_ssp_write_reg - Write to a SSP register
  *
  * @dev: SSP device to access
  * @reg: Register to write to
  * @val: Value to be written.
  */
-static inline void ssp_write_reg(struct ssp_device *dev, u32 reg, u32 val)
+static inline void pxa_ssp_write_reg(struct ssp_device *dev, u32 reg, u32 val)
 {
 	__raw_writel(val, dev->mmio_base + reg);
 }
 
 /**
- * ssp_read_reg - Read from a SSP register
+ * pxa_ssp_read_reg - Read from a SSP register
  *
  * @dev: SSP device to access
  * @reg: Register to read from
  */
-static inline u32 ssp_read_reg(struct ssp_device *dev, u32 reg)
+static inline u32 pxa_ssp_read_reg(struct ssp_device *dev, u32 reg)
 {
 	return __raw_readl(dev->mmio_base + reg);
 }
 
-struct ssp_device *ssp_request(int port, const char *label);
-void ssp_free(struct ssp_device *);
+struct ssp_device *pxa_ssp_request(int port, const char *label);
+void pxa_ssp_free(struct ssp_device *);
 #endif /* __ASM_ARCH_SSP_H */
