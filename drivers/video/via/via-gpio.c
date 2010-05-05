@@ -8,8 +8,8 @@
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
-#include "via-core.h"
-#include "via-gpio.h"
+#include <linux/via-core.h>
+#include <linux/via-gpio.h>
 
 /*
  * The ports we know about.  Note that the port-25 gpios are not

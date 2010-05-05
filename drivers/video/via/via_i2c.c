@@ -23,8 +23,8 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
-#include "via-core.h"
-#include "via_i2c.h"
+#include <linux/via-core.h>
+#include <linux/via_i2c.h>
 
 /*
  * There can only be one set of these, so there's no point in having

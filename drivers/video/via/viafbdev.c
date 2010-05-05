@@ -22,9 +22,9 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/stat.h>
-#define _MASTER_FILE
+#include <linux/via-core.h>
 
-#include "via-core.h"
+#define _MASTER_FILE
 #include "global.h"
 
 static char *viafb_name = "Via";

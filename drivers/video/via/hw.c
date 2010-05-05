@@ -18,7 +18,8 @@
  * Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-#include "via-core.h"
+
+#include <linux/via-core.h>
 #include "global.h"
 
 static struct pll_map pll_value[] = {
