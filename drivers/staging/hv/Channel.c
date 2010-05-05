@@ -183,8 +183,8 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 	DPRINT_ENTER(VMBUS);
 
 	/* Aligned to page size */
-	ASSERT(!(SendRingBufferSize & (PAGE_SIZE - 1)));
-	ASSERT(!(RecvRingBufferSize & (PAGE_SIZE - 1)));
+	/* ASSERT(!(SendRingBufferSize & (PAGE_SIZE - 1))); */
+	/* ASSERT(!(RecvRingBufferSize & (PAGE_SIZE - 1))); */
 
 	NewChannel->OnChannelCallback = OnChannelCallback;
 	NewChannel->ChannelCallbackContext = Context;
@@ -195,7 +195,7 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 	if (!out)
 		return -ENOMEM;
 
-	ASSERT(((unsigned long)out & (PAGE_SIZE-1)) == 0);
+	/* ASSERT(((unsigned long)out & (PAGE_SIZE-1)) == 0); */
 
 	in = (void *)((unsigned long)out + SendRingBufferSize);
 
@@ -373,7 +373,7 @@ static int VmbusChannelCreateGpadlHeader(void *Kbuffer, u32 Size,
 	int pfnSum, pfnCount, pfnLeft, pfnCurr, pfnSize;
 
 	/* ASSERT((kbuffer & (PAGE_SIZE-1)) == 0); */
-	ASSERT((Size & (PAGE_SIZE-1)) == 0);
+	/* ASSERT((Size & (PAGE_SIZE-1)) == 0); */
 
 	pageCount = Size >> PAGE_SHIFT;
 	pfn = virt_to_phys(Kbuffer) >> PAGE_SHIFT;
@@ -601,7 +601,7 @@ int VmbusChannelTeardownGpadl(struct vmbus_channel *Channel, u32 GpadlHandle)
 
 	DPRINT_ENTER(VMBUS);
 
-	ASSERT(GpadlHandle != 0);
+	/* ASSERT(GpadlHandle != 0); */
 
 	info = kmalloc(sizeof(*info) +
 		       sizeof(struct vmbus_channel_gpadl_teardown), GFP_KERNEL);
@@ -746,7 +746,7 @@ int VmbusChannelSendPacket(struct vmbus_channel *Channel, const void *Buffer,
 
 	DumpVmbusChannel(Channel);
 
-	ASSERT((packetLenAligned - packetLen) < sizeof(u64));
+	/* ASSERT((packetLenAligned - packetLen) < sizeof(u64)); */
 
 	/* Setup the descriptor */
 	desc.Type = Type; /* VmbusPacketTypeDataInBand; */
@@ -808,7 +808,7 @@ int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *Channel,
 	packetLen = descSize + BufferLen;
 	packetLenAligned = ALIGN_UP(packetLen, sizeof(u64));
 
-	ASSERT((packetLenAligned - packetLen) < sizeof(u64));
+	/* ASSERT((packetLenAligned - packetLen) < sizeof(u64)); */
 
 	/* Setup the descriptor */
 	desc.Type = VmbusPacketTypeDataUsingGpaDirect;
@@ -878,7 +878,7 @@ int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *Channel,
 	packetLen = descSize + BufferLen;
 	packetLenAligned = ALIGN_UP(packetLen, sizeof(u64));
 
-	ASSERT((packetLenAligned - packetLen) < sizeof(u64));
+	/* ASSERT((packetLenAligned - packetLen) < sizeof(u64)); */
 
 	/* Setup the descriptor */
 	desc.Type = VmbusPacketTypeDataUsingGpaDirect;
@@ -1056,7 +1056,7 @@ int VmbusChannelRecvPacketRaw(struct vmbus_channel *Channel, void *Buffer,
 void VmbusChannelOnChannelEvent(struct vmbus_channel *Channel)
 {
 	DumpVmbusChannel(Channel);
-	ASSERT(Channel->OnChannelCallback);
+	/* ASSERT(Channel->OnChannelCallback); */
 
 	Channel->OnChannelCallback(Channel->ChannelCallbackContext);
 
