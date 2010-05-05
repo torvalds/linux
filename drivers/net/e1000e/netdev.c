@@ -5440,6 +5440,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
+	netdev->irq = pdev->irq;
+
 	pci_set_drvdata(pdev, netdev);
 	adapter = netdev_priv(netdev);
 	hw = &adapter->hw;
