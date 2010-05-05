@@ -753,9 +753,15 @@ int VmbusChannelRequestOffers(void)
 	msgInfo = kmalloc(sizeof(*msgInfo) +
 			  sizeof(struct vmbus_channel_message_header),
 			  GFP_KERNEL);
-	ASSERT(msgInfo != NULL);
+	if (!msgInfo)
+		return -ENOMEM;
 
 	msgInfo->WaitEvent = osd_WaitEventCreate();
+	if (!msgInfo->WaitEvent) {
+		kfree(msgInfo);
+		return -ENOMEM;
+	}
+
 	msg = (struct vmbus_channel_message_header *)msgInfo->Msg;
 
 	msg->MessageType = ChannelMessageRequestOffers;
