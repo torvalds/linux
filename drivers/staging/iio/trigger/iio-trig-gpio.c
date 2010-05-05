@@ -25,8 +25,8 @@
 #include "../iio.h"
 #include "../trigger.h"
 
-LIST_HEAD(iio_gpio_trigger_list);
-DEFINE_MUTEX(iio_gpio_trigger_list_lock);
+static LIST_HEAD(iio_gpio_trigger_list);
+static DEFINE_MUTEX(iio_gpio_trigger_list_lock);
 
 struct iio_gpio_trigger_info {
 	struct mutex in_use;
