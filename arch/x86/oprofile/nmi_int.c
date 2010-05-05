@@ -397,6 +397,8 @@ static void nmi_cpu_shutdown(void *dummy)
 	apic_write(APIC_LVTPC, per_cpu(saved_lvtpc, cpu));
 	apic_write(APIC_LVTERR, v);
 	nmi_cpu_restore_registers(msrs);
+	if (model->cpu_down)
+		model->cpu_down();
 }
 
 static void nmi_cpu_up(void *dummy)
@@ -769,6 +771,4 @@ void op_nmi_exit(void)
 {
 	if (using_nmi)
 		exit_sysfs();
-	if (model->exit)
-		model->exit();
 }
