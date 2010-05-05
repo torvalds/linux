@@ -1166,23 +1166,34 @@ static int ieee80211_set_channel(struct wiphy *wiphy,
 				 enum nl80211_channel_type channel_type)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata = NULL;
+
+	if (netdev)
+		sdata = IEEE80211_DEV_TO_SUB_IF(netdev);
 
 	switch (ieee80211_get_channel_mode(local, NULL)) {
 	case CHAN_MODE_HOPPING:
 		return -EBUSY;
 	case CHAN_MODE_FIXED:
-		if (local->oper_channel == chan &&
-		    local->oper_channel_type == channel_type)
+		if (local->oper_channel != chan)
+			return -EBUSY;
+		if (!sdata && local->_oper_channel_type == channel_type)
 			return 0;
-		return -EBUSY;
+		break;
 	case CHAN_MODE_UNDEFINED:
 		break;
 	}
 
 	local->oper_channel = chan;
-	local->oper_channel_type = channel_type;
 
-	return ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	if (!ieee80211_set_channel_type(local, sdata, channel_type))
+		return -EBUSY;
+
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	if (sdata && sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_HT);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1406,7 +1417,7 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 	 * association, there's no need to send an action frame.
 	 */
 	if (!sdata->u.mgd.associated ||
-	    sdata->local->oper_channel_type == NL80211_CHAN_NO_HT) {
+	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT) {
 		mutex_lock(&sdata->local->iflist_mtx);
 		ieee80211_recalc_smps(sdata->local, sdata);
 		mutex_unlock(&sdata->local->iflist_mtx);

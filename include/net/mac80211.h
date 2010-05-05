@@ -191,6 +191,9 @@ enum ieee80211_bss_change {
  *	the current band.
  * @bssid: The BSSID for this BSS
  * @enable_beacon: whether beaconing should be enabled or not
+ * @channel_type: Channel type for this BSS -- the hardware might be
+ *	configured for HT40+ while this BSS only uses no-HT, for
+ *	example.
  * @ht_operation_mode: HT operation mode (like in &struct ieee80211_ht_info).
  *	This field is only valid when the channel type is one of the HT types.
  * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
@@ -215,6 +218,7 @@ struct ieee80211_bss_conf {
 	u16 ht_operation_mode;
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
+	enum nl80211_channel_type channel_type;
 };
 
 /**
