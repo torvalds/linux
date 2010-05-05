@@ -346,8 +346,6 @@ static void iser_conn_release(struct iser_conn *ib_conn)
 	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
 	if (device != NULL)
 		iser_device_try_release(device);
-	if (ib_conn->iser_conn)
-		ib_conn->iser_conn->ib_conn = NULL;
 	iscsi_destroy_endpoint(ib_conn->ep);
 }
 
