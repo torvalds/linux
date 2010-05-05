@@ -274,6 +274,16 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->ops.write_phy_reg_locked = e1000_write_phy_reg_hv_locked;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
+	/*
+	 * Reset the PHY before any acccess to it.  Doing so, ensures that
+	 * the PHY is in a known good state before we read/write PHY registers.
+	 * The generic reset is sufficient here, because we haven't determined
+	 * the PHY type yet.
+	 */
+	ret_val = e1000e_phy_hw_reset_generic(hw);
+	if (ret_val)
+		goto out;
+
 	phy->id = e1000_phy_unknown;
 	e1000e_get_phy_id(hw);
 	phy->type = e1000e_get_phy_type_from_id(phy->id);
@@ -287,6 +297,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		phy->ops.commit_phy = e1000e_phy_sw_reset;
 	}
 
+ out:
 	return ret_val;
 }
 
