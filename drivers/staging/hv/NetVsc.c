@@ -92,7 +92,7 @@ static struct netvsc_device *AllocNetDevice(struct hv_device *Device)
 
 static void FreeNetDevice(struct netvsc_device *Device)
 {
-	ASSERT(atomic_read(&Device->RefCount) == 0);
+	WARN_ON(atomic_read(&Device->RefCount) == 0);
 	Device->Device->Extension = NULL;
 	kfree(Device);
 }
