@@ -258,7 +258,11 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 						  PAGE_SHIFT;
 	openMsg->ServerContextAreaGpadlHandle = 0; /* TODO */
 
-	ASSERT(UserDataLen <= MAX_USER_DEFINED_BYTES);
+	if (UserDataLen > MAX_USER_DEFINED_BYTES) {
+		err = -EINVAL;
+		goto errorout;
+	}
+
 	if (UserDataLen)
 		memcpy(openMsg->UserData, UserData, UserDataLen);
 
