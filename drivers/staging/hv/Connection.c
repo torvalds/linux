@@ -93,7 +93,7 @@ int VmbusConnect(void)
 			  sizeof(struct vmbus_channel_initiate_contact),
 			  GFP_KERNEL);
 	if (msgInfo == NULL) {
-		ret = -1;
+		ret = -ENOMEM;
 		goto Cleanup;
 	}
 
@@ -195,6 +195,8 @@ int VmbusDisconnect(void)
 		return -1;
 
 	msg = kzalloc(sizeof(struct vmbus_channel_message_header), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
 
 	msg->MessageType = ChannelMessageUnload;
 
