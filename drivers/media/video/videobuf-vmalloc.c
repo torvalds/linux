@@ -229,12 +229,6 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 	return 0;
 }
 
-static int __videobuf_sync(struct videobuf_queue *q,
-			   struct videobuf_buffer *buf)
-{
-	return 0;
-}
-
 static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 				  struct videobuf_buffer *buf,
 				  struct vm_area_struct *vma)
@@ -301,7 +295,6 @@ static struct videobuf_qtype_ops qops = {
 
 	.alloc        = __videobuf_alloc,
 	.iolock       = __videobuf_iolock,
-	.sync         = __videobuf_sync,
 	.mmap_mapper  = __videobuf_mmap_mapper,
 	.vaddr        = videobuf_to_vmalloc,
 };
