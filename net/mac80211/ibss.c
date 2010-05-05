@@ -907,6 +907,12 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	sdata->u.ibss.channel = params->channel;
 	sdata->u.ibss.fixed_channel = params->channel_fixed;
 
+	/* fix ourselves to that channel now already */
+	if (params->channel_fixed) {
+		sdata->local->oper_channel = params->channel;
+		sdata->local->oper_channel_type = NL80211_CHAN_NO_HT;
+	}
+
 	if (params->ie) {
 		sdata->u.ibss.ie = kmemdup(params->ie, params->ie_len,
 					   GFP_KERNEL);
