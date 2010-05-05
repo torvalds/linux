@@ -475,12 +475,11 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 	unsigned int multicast_mode = 1; /* 1 - Reject all multicast.  */
 	struct octeon_mgmt_cam_state cam_state;
 	struct netdev_hw_addr *ha;
-	struct list_head *pos;
 	int available_cam_entries;
 
 	memset(&cam_state, 0, sizeof(cam_state));
 
-	if ((netdev->flags & IFF_PROMISC) || netdev->dev_addrs.count > 7) {
+	if ((netdev->flags & IFF_PROMISC) || netdev->uc.count > 7) {
 		cam_mode = 0;
 		available_cam_entries = 8;
 	} else {
@@ -488,13 +487,13 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 		 * One CAM entry for the primary address, leaves seven
 		 * for the secondary addresses.
 		 */
-		available_cam_entries = 7 - netdev->dev_addrs.count;
+		available_cam_entries = 7 - netdev->uc.count;
 	}
 
 	if (netdev->flags & IFF_MULTICAST) {
 		if (cam_mode == 0 || (netdev->flags & IFF_ALLMULTI) ||
 		    netdev_mc_count(netdev) > available_cam_entries)
-			multicast_mode = 2; /* 1 - Accept all multicast.  */
+			multicast_mode = 2; /* 2 - Accept all multicast.  */
 		else
 			multicast_mode = 0; /* 0 - Use CAM.  */
 	}
@@ -502,12 +501,8 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 	if (cam_mode == 1) {
 		/* Add primary address. */
 		octeon_mgmt_cam_state_add(&cam_state, netdev->dev_addr);
-		list_for_each(pos, &netdev->dev_addrs.list) {
-			struct netdev_hw_addr *hw_addr;
-			hw_addr = list_entry(pos, struct netdev_hw_addr, list);
-			octeon_mgmt_cam_state_add(&cam_state, hw_addr->addr);
-			list = list->next;
-		}
+		netdev_for_each_uc_addr(ha, netdev)
+			octeon_mgmt_cam_state_add(&cam_state, ha->addr);
 	}
 	if (multicast_mode == 0) {
 		netdev_for_each_mc_addr(ha, netdev)
