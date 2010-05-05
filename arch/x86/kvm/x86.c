@@ -277,7 +277,7 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		vcpu->arch.exception.has_error_code = has_error;
 		vcpu->arch.exception.nr = nr;
 		vcpu->arch.exception.error_code = error_code;
-		vcpu->arch.exception.reinject = true;
+		vcpu->arch.exception.reinject = reinject;
 		return;
 	}
 
