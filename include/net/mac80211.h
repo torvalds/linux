@@ -160,6 +160,8 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_BEACON_ENABLED	= 1<<9,
 	BSS_CHANGED_CQM			= 1<<10,
 	BSS_CHANGED_IBSS		= 1<<11,
+
+	/* when adding here, make sure to change ieee80211_reconfig */
 };
 
 /**
