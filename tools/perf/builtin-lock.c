@@ -387,7 +387,15 @@ static struct lock_seq_stat *get_seq(struct thread_stat *ts, void *addr)
 	return seq;
 }
 
-static int bad_hist[4];
+enum broken_state {
+	BROKEN_ACQUIRE,
+	BROKEN_ACQUIRED,
+	BROKEN_CONTENDED,
+	BROKEN_RELEASE,
+	BROKEN_MAX,
+};
+
+static int bad_hist[BROKEN_MAX];
 
 static void
 report_lock_acquire_event(struct trace_acquire_event *acquire_event,
@@ -437,7 +445,7 @@ report_lock_acquire_event(struct trace_acquire_event *acquire_event,
 broken:
 		/* broken lock sequence, discard it */
 		ls->discard = 1;
-		bad_hist[0]++;
+		bad_hist[BROKEN_ACQUIRE]++;
 		list_del(&seq->list);
 		free(seq);
 		goto end;
@@ -481,7 +489,6 @@ report_lock_acquired_event(struct trace_acquired_event *acquired_event,
 	case SEQ_STATE_CONTENDED:
 		contended_term = timestamp - seq->prev_event_time;
 		ls->wait_time_total += contended_term;
-
 		if (contended_term < ls->wait_time_min)
 			ls->wait_time_min = contended_term;
 		else if (ls->wait_time_max < contended_term)
@@ -492,7 +499,7 @@ report_lock_acquired_event(struct trace_acquired_event *acquired_event,
 	case SEQ_STATE_READ_ACQUIRED:
 		/* broken lock sequence, discard it */
 		ls->discard = 1;
-		bad_hist[1]++;
+		bad_hist[BROKEN_ACQUIRED]++;
 		list_del(&seq->list);
 		free(seq);
 		goto end;
@@ -540,7 +547,7 @@ report_lock_contended_event(struct trace_contended_event *contended_event,
 	case SEQ_STATE_CONTENDED:
 		/* broken lock sequence, discard it */
 		ls->discard = 1;
-		bad_hist[2]++;
+		bad_hist[BROKEN_CONTENDED]++;
 		list_del(&seq->list);
 		free(seq);
 		goto end;
@@ -594,7 +601,7 @@ report_lock_release_event(struct trace_release_event *release_event,
 	case SEQ_STATE_RELEASED:
 		/* broken lock sequence, discard it */
 		ls->discard = 1;
-		bad_hist[3]++;
+		bad_hist[BROKEN_RELEASE]++;
 		goto free_seq;
 		break;
 	default:
@@ -713,6 +720,21 @@ process_raw_event(void *data, int cpu, u64 timestamp, struct thread *thread)
 		process_lock_release_event(data, event, cpu, timestamp, thread);
 }
 
+static void print_bad_events(int bad, int total)
+{
+	/* Output for debug, this have to be removed */
+	int i;
+	const char *name[4] =
+		{ "acquire", "acquired", "contended", "release" };
+
+	pr_info("\n=== output for debug===\n\n");
+	pr_info("bad:%d, total:%d\n", bad, total);
+	pr_info("bad rate:%f\n", (double)(bad / total));
+	pr_info("histogram of events caused bad sequence\n");
+	for (i = 0; i < BROKEN_MAX; i++)
+		pr_info(" %10s: %d\n", name[i], bad_hist[i]);
+}
+
 /* TODO: various way to print, coloring, nano or milli sec */
 static void print_result(void)
 {
@@ -762,20 +784,7 @@ static void print_result(void)
 		pr_info("\n");
 	}
 
-	{
-		/* Output for debug, this have to be removed */
-		int i;
-		const char *name[4] =
-			{ "acquire", "acquired", "contended", "release" };
-
-		pr_debug("\n=== output for debug===\n\n");
-		pr_debug("bad:%d, total:%d\n", bad, total);
-		pr_debug("bad rate:%f\n", (double)(bad / total));
-
-		pr_debug("histogram of events caused bad sequence\n");
-		for (i = 0; i < 4; i++)
-			pr_debug(" %10s: %d\n", name[i], bad_hist[i]);
-	}
+	print_bad_events(bad, total);
 }
 
 static int			info_threads;
