@@ -38,14 +38,12 @@ static int irq_affinity_hint_proc_show(struct seq_file *m, void *v)
 	unsigned long flags;
 	cpumask_var_t mask;
 
-	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&mask, GFP_KERNEL))
 		return -ENOMEM;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	if (desc->affinity_hint)
 		cpumask_copy(mask, desc->affinity_hint);
-	else
-		cpumask_setall(mask);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	seq_cpumask(m, mask);
