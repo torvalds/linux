@@ -3564,14 +3564,15 @@ static int nv_napi_poll(struct napi_struct *napi, int budget)
 			tx_work += nv_tx_done(dev, np->tx_ring_size);
 			spin_unlock_irqrestore(&np->lock, flags);
 
-			rx_count = nv_rx_process(dev, budget);
+			rx_count = nv_rx_process(dev, budget - rx_work);
 			retcode = nv_alloc_rx(dev);
 		} else {
 			spin_lock_irqsave(&np->lock, flags);
 			tx_work += nv_tx_done_optimized(dev, np->tx_ring_size);
 			spin_unlock_irqrestore(&np->lock, flags);
 
-			rx_count = nv_rx_process_optimized(dev, budget);
+			rx_count = nv_rx_process_optimized(dev,
+			    budget - rx_work);
 			retcode = nv_alloc_rx_optimized(dev);
 		}
 	} while (retcode == 0 &&
