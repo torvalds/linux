@@ -224,8 +224,7 @@ int logfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	struct super_block *sb = dentry->d_inode->i_sb;
 	struct logfs_super *super = logfs_super(sb);
 
-	/* FIXME: write anchor */
-	super->s_devops->sync(sb);
+	logfs_write_anchor(sb);
 	return 0;
 }
 

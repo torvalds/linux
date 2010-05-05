@@ -387,8 +387,7 @@ static void logfs_init_once(void *_li)
 
 static int logfs_sync_fs(struct super_block *sb, int wait)
 {
-	/* FIXME: write anchor */
-	logfs_super(sb)->s_devops->sync(sb);
+	logfs_write_anchor(sb);
 	return 0;
 }
 
