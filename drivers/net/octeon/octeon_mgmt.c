@@ -380,7 +380,6 @@ done:
 	mix_ircnt.s.ircnt = 1;
 	cvmx_write_csr(CVMX_MIXX_IRCNT(port), mix_ircnt.u64);
 	return rc;
-
 }
 
 static int octeon_mgmt_receive_packets(struct octeon_mgmt *p, int budget)
@@ -389,7 +388,6 @@ static int octeon_mgmt_receive_packets(struct octeon_mgmt *p, int budget)
 	unsigned int work_done = 0;
 	union cvmx_mixx_ircnt mix_ircnt;
 	int rc;
-
 
 	mix_ircnt.u64 = cvmx_read_csr(CVMX_MIXX_IRCNT(port));
 	while (work_done < budget && mix_ircnt.s.ircnt) {
@@ -516,7 +514,6 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 			octeon_mgmt_cam_state_add(&cam_state, ha->addr);
 	}
 
-
 	spin_lock_irqsave(&p->lock, flags);
 
 	/* Disable packet I/O. */
@@ -524,7 +521,6 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 	prev_packet_enable = agl_gmx_prtx.s.en;
 	agl_gmx_prtx.s.en = 0;
 	cvmx_write_csr(CVMX_AGL_GMX_PRTX_CFG(port), agl_gmx_prtx.u64);
-
 
 	adr_ctl.u64 = 0;
 	adr_ctl.s.cam_mode = cam_mode;
@@ -928,7 +924,6 @@ static int octeon_mgmt_stop(struct net_device *netdev)
 
 	octeon_mgmt_reset_hw(p);
 
-
 	free_irq(p->irq, netdev);
 
 	/* dma_unmap is a nop on Octeon, so just free everything.  */
@@ -944,7 +939,6 @@ static int octeon_mgmt_stop(struct net_device *netdev)
 			 ring_size_to_bytes(OCTEON_MGMT_TX_RING_SIZE),
 			 DMA_BIDIRECTIONAL);
 	kfree(p->tx_ring);
-
 
 	return 0;
 }
@@ -1111,7 +1105,6 @@ static int __init octeon_mgmt_probe(struct platform_device *pdev)
 
 	netdev->netdev_ops = &octeon_mgmt_ops;
 	netdev->ethtool_ops = &octeon_mgmt_ethtool_ops;
-
 
 	/* The mgmt ports get the first N MACs.  */
 	for (i = 0; i < 6; i++)
