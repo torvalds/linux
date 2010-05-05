@@ -1523,4 +1523,25 @@ config SERIAL_GRLIB_GAISLER_APBUART_CONSOLE
 	help
 	Support for running a console on the GRLIB APBUART
 
+config SERIAL_ALTERA_JTAGUART
+	tristate "Altera JTAG UART support"
+	select SERIAL_CORE
+	help
+	  This driver supports the Altera JTAG UART port.
+
+config SERIAL_ALTERA_JTAGUART_CONSOLE
+	bool "Altera JTAG UART console support"
+	depends on SERIAL_ALTERA_JTAGUART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a Altera JTAG UART port to be the system console.
+
+config SERIAL_ALTERA_JTAGUART_CONSOLE_BYPASS
+	bool "Bypass output when no connection"
+	depends on SERIAL_ALTERA_JTAGUART_CONSOLE
+	select SERIAL_CORE_CONSOLE
+	help
+	  Bypass console output and keep going even if there is no
+	  JTAG terminal connection with the host.
+
 endmenu

@@ -182,6 +182,9 @@
 /* Aeroflex Gaisler GRLIB APBUART */
 #define PORT_APBUART    90
 
+/* Altera UARTs */
+#define PORT_ALTERA_JTAGUART	91
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
