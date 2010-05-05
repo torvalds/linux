@@ -328,7 +328,7 @@ static inline void sysfs_put(struct sysfs_dirent *sd)
 {
 }
 
-static inline void sysfs_exit_ns(enum kobj_ns_type type, const void *tag)
+static inline void sysfs_exit_ns(int type, const void *tag)
 {
 }
 
