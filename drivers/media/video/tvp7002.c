@@ -458,7 +458,7 @@ static inline struct tvp7002 *to_tvp7002(struct v4l2_subdev *sd)
 /*
  * tvp7002_read - Read a value from a register in an TVP7002
  * @sd: ptr to v4l2_subdev struct
- * @reg: TVP7002 register address
+ * @addr: TVP7002 register address
  * @dst: pointer to 8-bit destination
  *
  * Returns value read if successful, or non-zero (-1) otherwise.
@@ -488,7 +488,7 @@ static int tvp7002_read(struct v4l2_subdev *sd, u8 addr, u8 *dst)
  * @sd: pointer to standard V4L2 sub-device structure
  * @reg: destination register
  * @val: value to be read
- * @error: pointer to error value
+ * @err: pointer to error value
  *
  * Read a value in a register and save error value in pointer.
  * Also update the register table if successful
@@ -535,7 +535,7 @@ static int tvp7002_write(struct v4l2_subdev *sd, u8 addr, u8 value)
  * @sd: pointer to standard V4L2 sub-device structure
  * @reg: destination register
  * @val: value to be written
- * @error: pointer to error value
+ * @err: pointer to error value
  *
  * Write a value in a register and save error value in pointer.
  * Also update the register table if successful
@@ -596,7 +596,7 @@ static int tvp7002_write_inittab(struct v4l2_subdev *sd,
 /*
  * tvp7002_s_dv_preset() - Set digital video preset
  * @sd: ptr to v4l2_subdev struct
- * @std: ptr to v4l2_dv_preset struct
+ * @dv_preset: ptr to v4l2_dv_preset struct
  *
  * Set the digital video preset for a TVP7002 decoder device.
  * Returns zero when successful or -EINVAL if register access fails.
@@ -676,7 +676,7 @@ static int tvp7002_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 /*
  * tvp7002_queryctrl() - Query a control
  * @sd: ptr to v4l2_subdev struct
- * @ctrl: ptr to v4l2_queryctrl struct
+ * @qc: ptr to v4l2_queryctrl struct
  *
  * Query a control of a TVP7002 decoder device.
  * Returns zero when successful or -EINVAL if register read fails.
@@ -776,7 +776,7 @@ static int tvp7002_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 /*
  * tvp7002_query_dv_preset() - query DV preset
  * @sd: pointer to standard V4L2 sub-device structure
- * @std_id: standard V4L2 v4l2_dv_preset
+ * @qpreset: standard V4L2 v4l2_dv_preset structure
  *
  * Returns the current DV preset by TVP7002. If no active input is
  * detected, returns -EINVAL
@@ -846,7 +846,7 @@ static int tvp7002_query_dv_preset(struct v4l2_subdev *sd,
 /*
  * tvp7002_g_register() - Get the value of a register
  * @sd: ptr to v4l2_subdev struct
- * @vreg: ptr to v4l2_dbg_register struct
+ * @reg: ptr to v4l2_dbg_register struct
  *
  * Get the value of a TVP7002 decoder device register.
  * Returns zero when successful, -EINVAL if register read fails or
@@ -873,7 +873,7 @@ static int tvp7002_g_register(struct v4l2_subdev *sd,
 /*
  * tvp7002_s_register() - set a control
  * @sd: ptr to v4l2_subdev struct
- * @ctrl: ptr to v4l2_control struct
+ * @reg: ptr to v4l2_dbg_register struct
  *
  * Get the value of a TVP7002 decoder device register.
  * Returns zero when successful, -EINVAL if register read fails or
@@ -896,7 +896,7 @@ static int tvp7002_s_register(struct v4l2_subdev *sd,
 /*
  * tvp7002_enum_fmt() - Enum supported formats
  * @sd: pointer to standard V4L2 sub-device structure
- * @enable: pointer to format struct
+ * @fmtdesc: pointer to format struct
  *
  * Enumerate supported formats.
  */
@@ -1057,8 +1057,8 @@ static struct tvp7002 tvp7002_dev = {
 
 /*
  * tvp7002_probe - Probe a TVP7002 device
- * @sd: ptr to v4l2_subdev struct
- * @ctrl: ptr to i2c_device_id struct
+ * @c: ptr to i2c_client struct
+ * @id: ptr to i2c_device_id struct
  *
  * Initialize the TVP7002 device
  * Returns zero when successful, -EINVAL if register read fails or
