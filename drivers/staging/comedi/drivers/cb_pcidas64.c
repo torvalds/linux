@@ -1183,8 +1183,8 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 static irqreturn_t handle_interrupt(int irq, void *d);
 static int ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static int ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-static int dio_callback(int dir, int port, int data, void __iomem *base);
-static int dio_callback_4020(int dir, int port, int data, void __iomem *base);
+static int dio_callback(int dir, int port, int data, unsigned long arg);
+static int dio_callback_4020(int dir, int port, int data, unsigned long arg);
 static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data);
 static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -3658,8 +3658,9 @@ static int ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int dio_callback(int dir, int port, int data, void __iomem *iobase)
+static int dio_callback(int dir, int port, int data, unsigned long arg)
 {
+	void __iomem *iobase = (void __iomem *)arg;
 	if (dir) {
 		writeb(data, iobase + port);
 		DEBUG_PRINT("wrote 0x%x to port %i\n", data, port);
@@ -3669,8 +3670,9 @@ static int dio_callback(int dir, int port, int data, void __iomem *iobase)
 	}
 }
 
-static int dio_callback_4020(int dir, int port, int data, void __iomem *iobase)
+static int dio_callback_4020(int dir, int port, int data, unsigned long arg)
 {
+	void __iomem *iobase = (void __iomem *)arg;
 	if (dir) {
 		writew(data, iobase + 2 * port);
 		return 0;
