@@ -240,8 +240,6 @@ void tomoyo_memory_free(void *ptr)
  * "const struct tomoyo_path_info *".
  */
 struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
-/* Lock for protecting tomoyo_name_list . */
-DEFINE_MUTEX(tomoyo_name_list_lock);
 
 /**
  * tomoyo_get_name - Allocate permanent memory for string data.
@@ -263,7 +261,8 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 	len = strlen(name) + 1;
 	hash = full_name_hash((const unsigned char *) name, len - 1);
 	head = &tomoyo_name_list[hash_long(hash, TOMOYO_HASH_BITS)];
-	mutex_lock(&tomoyo_name_list_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		return NULL;
 	list_for_each_entry(ptr, head, list) {
 		if (hash != ptr->entry.hash || strcmp(name, ptr->entry.name))
 			continue;
@@ -290,7 +289,7 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 	tomoyo_fill_path_info(&ptr->entry);
 	list_add_tail(&ptr->list, head);
  out:
-	mutex_unlock(&tomoyo_name_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return ptr ? &ptr->entry : NULL;
 }
 

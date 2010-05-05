@@ -874,13 +874,13 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_domain_info * const domain)
 static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
 								int profile)
 {
-	static DEFINE_MUTEX(lock);
 	struct tomoyo_profile *ptr = NULL;
 	int i;
 
 	if (profile >= TOMOYO_MAX_PROFILES)
 		return NULL;
-	mutex_lock(&lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		return NULL;
 	ptr = tomoyo_profile_ptr[profile];
 	if (ptr)
 		goto ok;
@@ -895,7 +895,7 @@ static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
 	mb(); /* Avoid out-of-order execution. */
 	tomoyo_profile_ptr[profile] = ptr;
  ok:
-	mutex_unlock(&lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return ptr;
 }
 
@@ -1090,7 +1090,8 @@ static int tomoyo_update_manager_entry(const char *manager,
 		return -ENOMEM;
 	if (!is_delete)
 		entry = kmalloc(sizeof(*entry), GFP_NOFS);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, list) {
 		if (ptr->manager != saved_manager)
 			continue;
@@ -1107,6 +1108,7 @@ static int tomoyo_update_manager_entry(const char *manager,
 		error = 0;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+ out:
 	tomoyo_put_name(saved_manager);
 	kfree(entry);
 	return error;
@@ -1287,7 +1289,8 @@ static int tomoyo_delete_domain(char *domainname)
 
 	name.name = domainname;
 	tomoyo_fill_path_info(&name);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		return 0;
 	/* Is there an active domain? */
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		/* Never delete tomoyo_kernel_domain */

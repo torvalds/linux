@@ -151,7 +151,8 @@ static void tomoyo_del_name(const struct tomoyo_name_entry *ptr)
 
 static void tomoyo_collect_entry(void)
 {
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		return;
 	{
 		struct tomoyo_globally_readable_file_entry *ptr;
 		list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list,
@@ -275,8 +276,6 @@ static void tomoyo_collect_entry(void)
 				break;
 		}
 	}
-	mutex_unlock(&tomoyo_policy_lock);
-	mutex_lock(&tomoyo_name_list_lock);
 	{
 		int i;
 		for (i = 0; i < TOMOYO_MAX_HASH; i++) {
@@ -294,7 +293,7 @@ static void tomoyo_collect_entry(void)
 			}
 		}
 	}
-	mutex_unlock(&tomoyo_name_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 }
 
 static void tomoyo_kfree_entry(void)

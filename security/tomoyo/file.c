@@ -176,7 +176,8 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 		return -ENOMEM;
 	if (!is_delete)
 		entry = kmalloc(sizeof(*entry), GFP_NOFS);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list, list) {
 		if (ptr->filename != saved_filename)
 			continue;
@@ -192,6 +193,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 		error = 0;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+ out:
 	tomoyo_put_name(saved_filename);
 	kfree(entry);
 	return error;
@@ -323,7 +325,8 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 		goto out;
 	if (!is_delete)
 		entry = kmalloc(sizeof(*entry), GFP_NOFS);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, list) {
 		if (saved_pattern != ptr->pattern)
 			continue;
@@ -476,7 +479,8 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 		return error;
 	if (!is_delete)
 		entry = kmalloc(sizeof(*entry), GFP_NOFS);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, list) {
 		if (ptr->pattern != saved_pattern)
 			continue;
@@ -492,6 +496,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 		error = 0;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+ out:
 	tomoyo_put_name(saved_pattern);
 	kfree(entry);
 	return error;
@@ -822,7 +827,8 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
 		return -ENOMEM;
 	if (!is_delete)
 		entry = kmalloc(sizeof(*entry), GFP_NOFS);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		struct tomoyo_path_acl *acl =
 			container_of(ptr, struct tomoyo_path_acl, head);
@@ -867,6 +873,7 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
 		error = 0;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+ out:
 	kfree(entry);
 	tomoyo_put_name(saved_filename);
 	return error;
@@ -908,7 +915,8 @@ static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
 		goto out;
 	if (!is_delete)
 		entry = kmalloc(sizeof(*entry), GFP_NOFS);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		struct tomoyo_path2_acl *acl =
 			container_of(ptr, struct tomoyo_path2_acl, head);

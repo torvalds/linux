@@ -154,7 +154,8 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 		goto out;
 	if (!is_delete)
 		entry = kmalloc(sizeof(*entry), GFP_NOFS);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list, list) {
 		if (ptr->is_not != is_not ||
 		    ptr->domainname != saved_domainname ||
@@ -374,7 +375,8 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 		goto out;
 	if (!is_delete)
 		entry = kmalloc(sizeof(*entry), GFP_NOFS);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, list) {
 		if (ptr->is_not != is_not ||
 		    ptr->domainname != saved_domainname ||
@@ -566,7 +568,8 @@ static int tomoyo_update_alias_entry(const char *original_name,
 		goto out;
 	if (!is_delete)
 		entry = kmalloc(sizeof(*entry), GFP_NOFS);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
 		if (ptr->original_name != saved_original_name ||
 		    ptr->aliased_name != saved_aliased_name)
@@ -656,7 +659,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    const u8 profile)
 {
 	struct tomoyo_domain_info *entry;
-	struct tomoyo_domain_info *domain;
+	struct tomoyo_domain_info *domain = NULL;
 	const struct tomoyo_path_info *saved_domainname;
 	bool found = false;
 
@@ -666,7 +669,8 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	if (!saved_domainname)
 		return NULL;
 	entry = kzalloc(sizeof(*entry), GFP_NOFS);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		if (domain->is_deleted ||
 		    tomoyo_pathcmp(saved_domainname, domain->domainname))
@@ -685,6 +689,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 		found = true;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+ out:
 	tomoyo_put_name(saved_domainname);
 	kfree(entry);
 	return found ? domain : NULL;

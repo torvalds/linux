@@ -662,7 +662,6 @@ extern struct list_head tomoyo_pattern_list;
 extern struct list_head tomoyo_no_rewrite_list;
 extern struct list_head tomoyo_policy_manager_list;
 extern struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
-extern struct mutex tomoyo_name_list_lock;
 
 /* Lock for protecting policy. */
 extern struct mutex tomoyo_policy_lock;
