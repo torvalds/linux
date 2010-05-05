@@ -19,7 +19,9 @@
 
 #define MSM_IRQ_BIT(irq)     (1 << ((irq) & 31))
 
-#if defined(CONFIG_ARCH_QSD8X50)
+#if defined(CONFIG_ARCH_MSM7X30)
+#include "irqs-7x30.h"
+#elif defined(CONFIG_ARCH_QSD8X50)
 #include "irqs-8x50.h"
 #include "sirc.h"
 #elif defined(CONFIG_ARCH_MSM_ARM11)
