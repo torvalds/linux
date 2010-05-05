@@ -177,10 +177,10 @@ walk:
 		if (!(pte & PT_ACCESSED_MASK)) {
 			trace_kvm_mmu_set_accessed_bit(table_gfn, index,
 						       sizeof(pte));
-			mark_page_dirty(vcpu->kvm, table_gfn);
 			if (FNAME(cmpxchg_gpte)(vcpu->kvm, table_gfn,
 			    index, pte, pte|PT_ACCESSED_MASK))
 				goto walk;
+			mark_page_dirty(vcpu->kvm, table_gfn);
 			pte |= PT_ACCESSED_MASK;
 		}
 
@@ -217,11 +217,11 @@ walk:
 		bool ret;
 
 		trace_kvm_mmu_set_dirty_bit(table_gfn, index, sizeof(pte));
-		mark_page_dirty(vcpu->kvm, table_gfn);
 		ret = FNAME(cmpxchg_gpte)(vcpu->kvm, table_gfn, index, pte,
 			    pte|PT_DIRTY_MASK);
 		if (ret)
 			goto walk;
+		mark_page_dirty(vcpu->kvm, table_gfn);
 		pte |= PT_DIRTY_MASK;
 		walker->ptes[walker->level - 1] = pte;
 	}
