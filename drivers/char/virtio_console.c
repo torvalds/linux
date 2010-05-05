@@ -1194,12 +1194,23 @@ static void handle_control_message(struct ports_device *portdev,
 		 * have to notify the host first.
 		 */
 		break;
-	case VIRTIO_CONSOLE_RESIZE:
+	case VIRTIO_CONSOLE_RESIZE: {
+		struct {
+			__u16 rows;
+			__u16 cols;
+		} size;
+
 		if (!is_console_port(port))
 			break;
+
+		memcpy(&size, buf->buf + buf->offset + sizeof(*cpkt),
+		       sizeof(size));
+		set_console_size(port, size.rows, size.cols);
+
 		port->cons.hvc->irq_requested = 1;
 		resize_console(port);
 		break;
+	}
 	case VIRTIO_CONSOLE_PORT_OPEN:
 		port->host_connected = cpkt->value;
 		wake_up_interruptible(&port->waitqueue);
