@@ -228,16 +228,8 @@ static bool radeon_legacy_mode_fixup(struct drm_encoder *encoder,
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	/* get the native mode for LVDS */
-	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
-		struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
-		int mode_id = adjusted_mode->base.id;
-		*adjusted_mode = *native_mode;
-		adjusted_mode->hdisplay = mode->hdisplay;
-		adjusted_mode->vdisplay = mode->vdisplay;
-		adjusted_mode->crtc_hdisplay = mode->hdisplay;
-		adjusted_mode->crtc_vdisplay = mode->vdisplay;
-		adjusted_mode->base.id = mode_id;
-	}
+	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT))
+		radeon_panel_mode_fixup(encoder, adjusted_mode);
 
 	return true;
 }
