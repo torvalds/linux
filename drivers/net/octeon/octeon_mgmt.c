@@ -189,11 +189,18 @@ static void octeon_mgmt_clean_tx_buffers(struct octeon_mgmt *p)
 
 	mix_orcnt.u64 = cvmx_read_csr(CVMX_MIXX_ORCNT(port));
 	while (mix_orcnt.s.orcnt) {
+		spin_lock_irqsave(&p->tx_list.lock, flags);
+
+		mix_orcnt.u64 = cvmx_read_csr(CVMX_MIXX_ORCNT(port));
+
+		if (mix_orcnt.s.orcnt == 0) {
+			spin_unlock_irqrestore(&p->tx_list.lock, flags);
+			break;
+		}
+
 		dma_sync_single_for_cpu(p->dev, p->tx_ring_handle,
 					ring_size_to_bytes(OCTEON_MGMT_TX_RING_SIZE),
 					DMA_BIDIRECTIONAL);
-
-		spin_lock_irqsave(&p->tx_list.lock, flags);
 
 		re.d64 = p->tx_ring[p->tx_next_clean];
 		p->tx_next_clean =
