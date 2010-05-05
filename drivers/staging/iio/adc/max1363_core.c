@@ -139,16 +139,15 @@ static const struct max1363_mode max1363_mode_table[] = {
 };
 
 const struct max1363_mode
-*max1363_match_mode(u32 mask, const struct max1363_chip_info *ci) {
+*max1363_match_mode(u32 mask, const struct max1363_chip_info *ci)
+{
 	int i;
 	if (mask)
 		for (i = 0; i < ci->num_modes; i++)
-			if (!((~max1363_mode_table[ci->mode_list[i]]
-			       .modemask) &
+			if (!((~max1363_mode_table[ci->mode_list[i]].modemask) &
 			      mask))
-				return &max1363_mode_table[ci
-							   ->mode_list[i]];
-	return 0;
+				return &max1363_mode_table[ci->mode_list[i]];
+	return NULL;
 };
 
 static ssize_t max1363_show_precision(struct device *dev,
@@ -298,7 +297,7 @@ static ssize_t max1363_show_scale(struct device *dev,
 			st->chip_info->int_vref_mv >> st->chip_info->bits);
 }
 
-IIO_DEVICE_ATTR(in_scale, S_IRUGO, max1363_show_scale, NULL, 0);
+static IIO_DEVICE_ATTR(in_scale, S_IRUGO, max1363_show_scale, NULL, 0);
 
 static ssize_t max1363_show_name(struct device *dev,
 				 struct device_attribute *attr,
@@ -309,7 +308,7 @@ static ssize_t max1363_show_name(struct device *dev,
 	return sprintf(buf, "%s\n", st->chip_info->name);
 }
 
-IIO_DEVICE_ATTR(name, S_IRUGO, max1363_show_name, NULL, 0);
+static IIO_DEVICE_ATTR(name, S_IRUGO, max1363_show_name, NULL, 0);
 
 /* Applies to max1363 */
 static const enum max1363_modes max1363_mode_list[] = {
