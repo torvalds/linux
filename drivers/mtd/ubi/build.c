@@ -49,6 +49,12 @@
 /* Maximum length of the 'mtd=' parameter */
 #define MTD_PARAM_LEN_MAX 64
 
+#ifdef CONFIG_MTD_UBI_MODULE
+#define ubi_is_module() 1
+#else
+#define ubi_is_module() 0
+#endif
+
 /**
  * struct mtd_dev_param - MTD device parameter description data structure.
  * @name: MTD character device node path, MTD device name, or MTD device number
@@ -1206,9 +1212,24 @@ static int __init ubi_init(void)
 					 p->vid_hdr_offs);
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0) {
-			put_mtd_device(mtd);
 			ubi_err("cannot attach mtd%d", mtd->index);
-			goto out_detach;
+			put_mtd_device(mtd);
+
+			/*
+			 * Originally UBI stopped initializing on any error.
+			 * However, later on it was found out that this
+			 * behavior is not very good when UBI is compiled into
+			 * the kernel and the MTD devices to attach are passed
+			 * through the command line. Indeed, UBI failure
+			 * stopped whole boot sequence.
+			 *
+			 * To fix this, we changed the behavior for the
+			 * non-module case, but preserved the old behavior for
+			 * the module case, just for compatibility. This is a
+			 * little inconsistent, though.
+			 */
+			if (ubi_is_module())
+				goto out_detach;
 		}
 	}
 
