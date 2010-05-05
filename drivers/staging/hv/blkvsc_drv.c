@@ -288,8 +288,8 @@ static int blkvsc_probe(struct device *device)
 	/* Initialize what we can here */
 	spin_lock_init(&blkdev->lock);
 
-	ASSERT(sizeof(struct blkvsc_request_group) <=
-		sizeof(struct blkvsc_request));
+	/* ASSERT(sizeof(struct blkvsc_request_group) <= */
+	/* 	sizeof(struct blkvsc_request)); */
 
 	blkdev->request_pool = kmem_cache_create(dev_name(&device_ctx->device),
 					sizeof(struct blkvsc_request) +
@@ -808,8 +808,8 @@ static int blkvsc_remove(struct device *device)
 
 static void blkvsc_init_rw(struct blkvsc_request *blkvsc_req)
 {
-	ASSERT(blkvsc_req->req);
-	ASSERT(blkvsc_req->sector_count <= (MAX_MULTIPAGE_BUFFER_COUNT*8));
+	/* ASSERT(blkvsc_req->req); */
+	/* ASSERT(blkvsc_req->sector_count <= (MAX_MULTIPAGE_BUFFER_COUNT*8)); */
 
 	blkvsc_req->cmd_len = 16;
 
@@ -1116,7 +1116,7 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 	unsigned long flags;
 	struct blkvsc_request *comp_req, *tmp;
 
-	ASSERT(blkvsc_req->group);
+	/* ASSERT(blkvsc_req->group); */
 
 	DPRINT_DBG(BLKVSC_DRV, "blkdev %p blkvsc_req %p group %p type %s "
 		   "sect_start %lu sect_count %ld len %d group outstd %d "
