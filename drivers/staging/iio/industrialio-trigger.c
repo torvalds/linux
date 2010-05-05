@@ -18,6 +18,7 @@
 
 #include "iio.h"
 #include "trigger.h"
+#include "trigger_consumer.h"
 
 /* RFC - Question of approach
  * Make the common case (single sensor single trigger)
@@ -92,9 +93,9 @@ idr_again:
  **/
 static void iio_trigger_unregister_id(struct iio_trigger *trig_info)
 {
-		spin_lock(&iio_trigger_idr_lock);
-		idr_remove(&iio_trigger_idr, trig_info->id);
-		spin_unlock(&iio_trigger_idr_lock);
+	spin_lock(&iio_trigger_idr_lock);
+	idr_remove(&iio_trigger_idr, trig_info->id);
+	spin_unlock(&iio_trigger_idr_lock);
 }
 
 int iio_trigger_register(struct iio_trigger *trig_info)
@@ -334,9 +335,9 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	return len;
 }
 
-DEVICE_ATTR(current_trigger, S_IRUGO | S_IWUSR,
-	    iio_trigger_read_current,
-	    iio_trigger_write_current);
+static DEVICE_ATTR(current_trigger, S_IRUGO | S_IWUSR,
+		   iio_trigger_read_current,
+		   iio_trigger_write_current);
 
 static struct attribute *iio_trigger_consumer_attrs[] = {
 	&dev_attr_current_trigger.attr,
