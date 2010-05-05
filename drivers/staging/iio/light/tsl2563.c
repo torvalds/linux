@@ -607,7 +607,7 @@ static ssize_t tsl2563_show_name(struct device *dev,
 	return sprintf(buf, "%s\n", chip->client->name);
 }
 
-DEVICE_ATTR(name, S_IRUGO, tsl2563_show_name, NULL);
+static DEVICE_ATTR(name, S_IRUGO, tsl2563_show_name, NULL);
 
 static struct attribute *tsl2563_attributes[] = {
 	&dev_attr_adc0.attr,
