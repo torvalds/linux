@@ -560,17 +560,8 @@ static int __cmd_record(int argc, const char **argv)
 			return err;
 	}
 
-	if (raw_samples && have_tracepoints(attrs, nr_counters)) {
+	if (have_tracepoints(attrs, nr_counters))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
-	} else {
-		for (i = 0; i < nr_counters; i++) {
-			if (attrs[i].sample_type & PERF_SAMPLE_RAW &&
-				attrs[i].type == PERF_TYPE_TRACEPOINT) {
-				perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
-				break;
-			}
-		}
-	}
 
 	atexit(atexit_header);
 
