@@ -2528,10 +2528,7 @@ static int s2255_stop_acquire(struct s2255_dev *dev, unsigned long chn)
 static void s2255_stop_readpipe(struct s2255_dev *dev)
 {
 	struct s2255_pipeinfo *pipe = &dev->pipe;
-	if (dev == NULL) {
-		s2255_dev_err(&dev->udev->dev, "invalid device\n");
-		return;
-	}
+
 	pipe->state = 0;
 	if (pipe->stream_urb) {
 		/* cancel urb */
