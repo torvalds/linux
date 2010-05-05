@@ -356,8 +356,8 @@ static void RndisFilterReceiveData(struct rndis_device *Device,
 	DPRINT_ENTER(NETVSC);
 
 	/* empty ethernet frame ?? */
-	ASSERT(Packet->PageBuffers[0].Length >
-		RNDIS_MESSAGE_SIZE(struct rndis_packet));
+	/* ASSERT(Packet->PageBuffers[0].Length > */
+	/* 	RNDIS_MESSAGE_SIZE(struct rndis_packet)); */
 
 	rndisPacket = &Message->Message.Packet;
 
@@ -567,8 +567,8 @@ static int RndisFilterSetPacketFilter(struct rndis_device *Device,
 
 	DPRINT_ENTER(NETVSC);
 
-	ASSERT(RNDIS_MESSAGE_SIZE(struct rndis_set_request) + sizeof(u32) <=
-		sizeof(struct rndis_message));
+	/* ASSERT(RNDIS_MESSAGE_SIZE(struct rndis_set_request) + sizeof(u32) <= */
+	/* 	sizeof(struct rndis_message)); */
 
 	request = GetRndisRequest(Device, REMOTE_NDIS_SET_MSG,
 			RNDIS_MESSAGE_SIZE(struct rndis_set_request) +
@@ -640,8 +640,8 @@ int RndisFilterInit(struct netvsc_driver *Driver)
 					Driver->Base.OnDeviceRemove;
 	gRndisFilter.InnerDriver.Base.OnCleanup = Driver->Base.OnCleanup;
 
-	ASSERT(Driver->OnSend);
-	ASSERT(Driver->OnReceiveCallback);
+	/* ASSERT(Driver->OnSend); */
+	/* ASSERT(Driver->OnReceiveCallback); */
 	gRndisFilter.InnerDriver.OnSend = Driver->OnSend;
 	gRndisFilter.InnerDriver.OnReceiveCallback = Driver->OnReceiveCallback;
 	gRndisFilter.InnerDriver.OnLinkStatusChanged =
@@ -811,8 +811,8 @@ static int RndisFilterOnDeviceAdd(struct hv_device *Device,
 
 	/* Initialize the rndis device */
 	netDevice = Device->Extension;
-	ASSERT(netDevice);
-	ASSERT(netDevice->Device);
+	/* ASSERT(netDevice); */
+	/* ASSERT(netDevice->Device); */
 
 	netDevice->Extension = rndisDevice;
 	rndisDevice->NetDevice = netDevice;
@@ -921,7 +921,7 @@ static int RndisFilterOnSend(struct hv_device *Device,
 
 	/* Add the rndis header */
 	filterPacket = (struct rndis_filter_packet *)Packet->Extension;
-	ASSERT(filterPacket);
+	/* ASSERT(filterPacket); */
 
 	memset(filterPacket, 0, sizeof(struct rndis_filter_packet));
 
