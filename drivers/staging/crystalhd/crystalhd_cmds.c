@@ -309,7 +309,7 @@ static BC_STATUS bc_cproc_download_fw(struct crystalhd_cmd *ctx,
 				  idata->add_cdata_sz);
 
 	if (sts != BC_STS_SUCCESS) {
-		BCMLOG_ERR("Firmware Download Failure!! - %d\n", sts)
+		BCMLOG_ERR("Firmware Download Failure!! - %d\n", sts);
 	} else
 		ctx->state |= BC_LINK_INIT;
 
