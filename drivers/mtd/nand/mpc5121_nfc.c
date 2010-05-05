@@ -666,10 +666,10 @@ static int __devinit mpc5121_nfc_probe(struct of_device *op,
 
 	/*
 	 * Check SoC revision. This driver supports only NFC
-	 * in MPC5121 revision 2.
+	 * in MPC5121 revision 2 and MPC5123 revision 3.
 	 */
 	rev = (mfspr(SPRN_SVR) >> 4) & 0xF;
-	if (rev != 2) {
+	if ((rev != 2) && (rev != 3)) {
 		dev_err(dev, "SoC revision %u is not supported!\n", rev);
 		return -ENXIO;
 	}
