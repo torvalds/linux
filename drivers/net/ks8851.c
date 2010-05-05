@@ -78,7 +78,9 @@ union ks8851_tx_hdr {
  * @msg_enable: The message flags controlling driver output (see ethtool).
  * @fid: Incrementing frame id tag.
  * @rc_ier: Cached copy of KS_IER.
+ * @rc_ccr: Cached copy of KS_CCR.
  * @rc_rxqcr: Cached copy of KS_RXQCR.
+ * @eeprom_size: Companion eeprom size in Bytes, 0 if no eeprom
  *
  * The @lock ensures that the chip is protected when certain operations are
  * in progress. When the read or write packet transfer is in progress, most
@@ -109,6 +111,8 @@ struct ks8851_net {
 
 	u16			rc_ier;
 	u16			rc_rxqcr;
+	u16			rc_ccr;
+	u16			eeprom_size;
 
 	struct mii_if_info	mii;
 	struct ks8851_rxctrl	rxctrl;
@@ -1268,6 +1272,14 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 		ret = -ENODEV;
 		goto err_id;
 	}
+
+	/* cache the contents of the CCR register for EEPROM, etc. */
+	ks->rc_ccr = ks8851_rdreg16(ks, KS_CCR);
+
+	if (ks->rc_ccr & CCR_EEPROM)
+		ks->eeprom_size = 128;
+	else
+		ks->eeprom_size = 0;
 
 	ks8851_read_selftest(ks);
 	ks8851_init_mac(ks);
