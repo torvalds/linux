@@ -3670,10 +3670,8 @@ static inline void l2cap_data_channel_rejframe(struct sock *sk, u16 rx_control)
 		pi->next_tx_seq = pi->expected_ack_seq;
 		l2cap_ertm_send(sk);
 
-		if (pi->conn_state & L2CAP_CONN_WAIT_F) {
-			pi->srej_save_reqseq = tx_seq;
+		if (pi->conn_state & L2CAP_CONN_WAIT_F)
 			pi->conn_state |= L2CAP_CONN_REJ_ACT;
-		}
 	}
 }
 static inline void l2cap_data_channel_srejframe(struct sock *sk, u16 rx_control)
