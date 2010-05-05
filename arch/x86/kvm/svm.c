@@ -640,7 +640,7 @@ static __init int svm_hardware_setup(void)
 
 	if (nested) {
 		printk(KERN_INFO "kvm: Nested Virtualization enabled\n");
-		kvm_enable_efer_bits(EFER_SVME);
+		kvm_enable_efer_bits(EFER_SVME | EFER_LMSLE);
 	}
 
 	for_each_possible_cpu(cpu) {
