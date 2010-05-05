@@ -354,7 +354,11 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 		DPRINT_EXIT(NETVSC);
 		return -1;
 	}
-	ASSERT(netDevice->SendBufferSize > 0);
+	if (netDevice->SendBufferSize <= 0) {
+		ret = -EINVAL;
+		goto Cleanup;
+	}
+
 	/* page-size grandularity */
 	/* ASSERT((netDevice->SendBufferSize & (PAGE_SIZE - 1)) == 0); */
 
