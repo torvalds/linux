@@ -598,8 +598,7 @@ static irqreturn_t octeon_mgmt_interrupt(int cpl, void *dev_id)
 	mixx_isr.u64 = cvmx_read_csr(CVMX_MIXX_ISR(port));
 
 	/* Clear any pending interrupts */
-	cvmx_write_csr(CVMX_MIXX_ISR(port),
-		       cvmx_read_csr(CVMX_MIXX_ISR(port)));
+	cvmx_write_csr(CVMX_MIXX_ISR(port), mixx_isr.u64);
 	cvmx_read_csr(CVMX_MIXX_ISR(port));
 
 	if (mixx_isr.s.irthresh) {
