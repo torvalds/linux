@@ -1544,4 +1544,35 @@ config SERIAL_ALTERA_JTAGUART_CONSOLE_BYPASS
 	  Bypass console output and keep going even if there is no
 	  JTAG terminal connection with the host.
 
+config SERIAL_ALTERA_UART
+	tristate "Altera UART support"
+	select SERIAL_CORE
+	help
+	  This driver supports the Altera softcore UART port.
+
+config SERIAL_ALTERA_UART_MAXPORTS
+	int "Maximum number of Altera UART ports"
+	depends on SERIAL_ALTERA_UART
+	default 4
+	help
+	  This setting lets you define the maximum number of the Altera
+	  UART ports. The usual default varies from board to board, and
+	  this setting is a way of catering for that.
+
+config SERIAL_ALTERA_UART_BAUDRATE
+	int "Default baudrate for Altera UART ports"
+	depends on SERIAL_ALTERA_UART
+	default 115200
+	help
+	  This setting lets you define what the default baudrate is for the
+	  Altera UART ports. The usual default varies from board to board,
+	  and this setting is a way of catering for that.
+
+config SERIAL_ALTERA_UART_CONSOLE
+	bool "Altera UART console support"
+	depends on SERIAL_ALTERA_UART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a Altera UART port to be the system console.
+
 endmenu

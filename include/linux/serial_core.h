@@ -184,6 +184,7 @@
 
 /* Altera UARTs */
 #define PORT_ALTERA_JTAGUART	91
+#define PORT_ALTERA_UART	92
 
 #ifdef __KERNEL__
 
