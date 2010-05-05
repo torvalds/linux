@@ -347,6 +347,9 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 	struct nand_chip *chip = mtd->priv;
 	u16 bad;
 
+	if (chip->options & NAND_BB_LAST_PAGE)
+		ofs += mtd->erasesize - mtd->writesize;
+
 	page = (int)(ofs >> chip->page_shift) & chip->pagemask;
 
 	if (getchip) {
@@ -395,6 +398,9 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	struct nand_chip *chip = mtd->priv;
 	uint8_t buf[2] = { 0, 0 };
 	int block, ret;
+
+	if (chip->options & NAND_BB_LAST_PAGE)
+		ofs += mtd->erasesize - mtd->writesize;
 
 	/* Get block number */
 	block = (int)(ofs >> chip->bbt_erase_shift);
@@ -2932,6 +2938,15 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	 */
 	if (*maf_id != NAND_MFR_SAMSUNG && !type->pagesize)
 		chip->options &= ~NAND_SAMSUNG_LP_OPTIONS;
+
+	/*
+	 * Bad block marker is stored in the last page of each block
+	 * on Samsung and Hynix MLC devices
+	 */
+	if ((chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
+			(*maf_id == NAND_MFR_SAMSUNG ||
+			 *maf_id == NAND_MFR_HYNIX))
+		chip->options |= NAND_BB_LAST_PAGE;
 
 	/* Check for AND chips with 4 page planes */
 	if (chip->options & NAND_4PAGE_ARRAY)
