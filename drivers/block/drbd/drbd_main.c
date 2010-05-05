@@ -2207,9 +2207,6 @@ static int drbd_send_delay_probe(struct drbd_conf *mdev, struct drbd_socket *ds)
 	}
 	mutex_unlock(&ds->mutex);
 
-	mdev->dp_volume_last = mdev->send_cnt;
-	mod_timer(&mdev->delay_probe_timer, jiffies + mdev->sync_conf.dp_interval * HZ / 10);
-
 	return ok;
 }
 
@@ -2220,6 +2217,9 @@ static int drbd_send_delay_probes(struct drbd_conf *mdev)
 	do_gettimeofday(&mdev->dps_time);
 	ok = drbd_send_delay_probe(mdev, &mdev->meta);
 	ok = ok && drbd_send_delay_probe(mdev, &mdev->data);
+
+	mdev->dp_volume_last = mdev->send_cnt;
+	mod_timer(&mdev->delay_probe_timer, jiffies + mdev->sync_conf.dp_interval * HZ / 10);
 
 	return ok;
 }
@@ -2374,7 +2374,8 @@ static void delay_probe_timer_fn(unsigned long data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
 
-	drbd_queue_work(&mdev->data.work, &mdev->delay_probe_work);
+	if (list_empty(&mdev->delay_probe_work.list))
+		drbd_queue_work(&mdev->data.work, &mdev->delay_probe_work);
 }
 
 /* Used to send write requests

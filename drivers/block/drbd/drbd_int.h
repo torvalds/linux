@@ -268,6 +268,7 @@ static inline const char *cmdname(enum drbd_packets cmd)
 		[P_CSUM_RS_REQUEST]     = "CsumRSRequest",
 		[P_RS_IS_IN_SYNC]	= "CsumRSIsInSync",
 		[P_COMPRESSED_BITMAP]   = "CBitmap",
+		[P_DELAY_PROBE]         = "DelayProbe",
 		[P_MAX_CMD]	        = NULL,
 	};
 
