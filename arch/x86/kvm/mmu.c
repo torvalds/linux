@@ -1504,6 +1504,8 @@ static int kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	if (sp->unsync)
 		kvm_unlink_unsync_page(kvm, sp);
 	if (!sp->root_count) {
+		/* Count self */
+		ret++;
 		hlist_del(&sp->hash_link);
 		kvm_mmu_free_page(kvm, sp);
 	} else {
@@ -1540,7 +1542,6 @@ void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages)
 			page = container_of(kvm->arch.active_mmu_pages.prev,
 					    struct kvm_mmu_page, link);
 			used_pages -= kvm_mmu_zap_page(kvm, page);
-			used_pages--;
 		}
 		kvm_nr_mmu_pages = used_pages;
 		kvm->arch.n_free_mmu_pages = 0;
@@ -2941,7 +2942,7 @@ static int kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm)
 
 	page = container_of(kvm->arch.active_mmu_pages.prev,
 			    struct kvm_mmu_page, link);
-	return kvm_mmu_zap_page(kvm, page) + 1;
+	return kvm_mmu_zap_page(kvm, page);
 }
 
 static int mmu_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
