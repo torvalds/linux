@@ -78,6 +78,9 @@ struct console {
 	/* The hvc device associated with this console port */
 	struct hvc_struct *hvc;
 
+	/* The size of the console */
+	struct winsize ws;
+
 	/*
 	 * This number identifies the number that we used to register
 	 * with hvc in hvc_instantiate() and hvc_alloc(); this is the
@@ -773,22 +776,14 @@ static int get_chars(u32 vtermno, char *buf, int count)
 static void resize_console(struct port *port)
 {
 	struct virtio_device *vdev;
-	struct winsize ws;
 
 	/* The port could have been hot-unplugged */
-	if (!port)
+	if (!port || !is_console_port(port))
 		return;
 
 	vdev = port->portdev->vdev;
-	if (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_SIZE)) {
-		vdev->config->get(vdev,
-				  offsetof(struct virtio_console_config, cols),
-				  &ws.ws_col, sizeof(u16));
-		vdev->config->get(vdev,
-				  offsetof(struct virtio_console_config, rows),
-				  &ws.ws_row, sizeof(u16));
-		hvc_resize(port->cons.hvc, ws);
-	}
+	if (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_SIZE))
+		hvc_resize(port->cons.hvc, port->cons.ws);
 }
 
 /* We set the configuration at this point, since we now have a tty */
@@ -952,6 +947,15 @@ static const struct file_operations port_debugfs_ops = {
 	.read  = debugfs_read,
 };
 
+static void set_console_size(struct port *port, u16 rows, u16 cols)
+{
+	if (!port || !is_console_port(port))
+		return;
+
+	port->cons.ws.ws_row = rows;
+	port->cons.ws.ws_col = cols;
+}
+
 static unsigned int fill_queue(struct virtqueue *vq, spinlock_t *lock)
 {
 	struct port_buffer *buf;
@@ -999,6 +1003,8 @@ static int add_port(struct ports_device *portdev, u32 id)
 	port->name = NULL;
 	port->inbuf = NULL;
 	port->cons.hvc = NULL;
+
+	port->cons.ws.ws_row = port->cons.ws.ws_col = 0;
 
 	port->host_connected = port->guest_connected = false;
 
@@ -1320,6 +1326,19 @@ static void config_intr(struct virtio_device *vdev)
 	portdev = vdev->priv;
 
 	if (!use_multiport(portdev)) {
+		struct port *port;
+		u16 rows, cols;
+
+		vdev->config->get(vdev,
+				  offsetof(struct virtio_console_config, cols),
+				  &cols, sizeof(u16));
+		vdev->config->get(vdev,
+				  offsetof(struct virtio_console_config, rows),
+				  &rows, sizeof(u16));
+
+		port = find_port_by_id(portdev, 0);
+		set_console_size(port, rows, cols);
+
 		/*
 		 * We'll use this way of resizing only for legacy
 		 * support.  For newer userspace
@@ -1327,7 +1346,7 @@ static void config_intr(struct virtio_device *vdev)
 		 * to indicate console size changes so that it can be
 		 * done per-port.
 		 */
-		resize_console(find_port_by_id(portdev, 0));
+		resize_console(port);
 	}
 }
 
