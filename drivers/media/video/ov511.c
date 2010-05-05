@@ -5940,7 +5940,7 @@ ov51x_disconnect(struct usb_interface *intf)
 	ov->dev = NULL;
 
 	/* Free the memory */
-	if (ov && !ov->user) {
+	if (!ov->user) {
 		mutex_lock(&ov->cbuf_lock);
 		kfree(ov->cbuf);
 		ov->cbuf = NULL;
