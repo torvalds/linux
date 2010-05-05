@@ -71,10 +71,6 @@ struct ftdi_private {
 				/* the last data state set - needed for doing
 				 * a break
 				 */
-	int write_offset;       /* This is the offset in the usb data block to
-				 * write the serial data - it varies between
-				 * devices
-				 */
 	int flags;		/* some ASYNC_xxxx flags are supported */
 	unsigned long last_dtr_rts;	/* saved modem control outputs */
 	wait_queue_head_t delta_msr_wait; /* Used for TIOCMIWAIT */
@@ -1279,7 +1275,6 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 
 	/* Assume it is not the original SIO device for now. */
 	priv->baud_base = 48000000 / 2;
-	priv->write_offset = 0;
 
 	version = le16_to_cpu(udev->descriptor.bcdDevice);
 	interfaces = udev->actconfig->desc.bNumInterfaces;
@@ -1321,7 +1316,6 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 		/* Old device.  Assume it's the original SIO. */
 		priv->chip_type = SIO;
 		priv->baud_base = 12000000 / 16;
-		priv->write_offset = 1;
 	} else if (version < 0x400) {
 		/* Assume it's an FT8U232AM (or FT8U245AM) */
 		/* (It might be a BM because of the iSerialNumber bug,
@@ -1757,50 +1751,29 @@ static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 {
 	struct ftdi_private *priv;
 	unsigned char *buffer;
-	int data_offset ;       /* will be 1 for the SIO and 0 otherwise */
-	int transfer_size;
+	int len;
 
 	priv = usb_get_serial_port_data(port);
 
-	data_offset = priv->write_offset;
-	dbg("data_offset set to %d", data_offset);
+	len = count;
+	if (priv->chip_type == SIO && count != 0)
+		len += ((count - 1) / (priv->max_packet_size - 1)) + 1;
 
-	/* Determine total transfer size */
-	transfer_size = count;
-	if (data_offset > 0) {
-		/* Original sio needs control bytes too... */
-		transfer_size += (data_offset *
-				((count + (priv->max_packet_size - 1 - data_offset)) /
-				 (priv->max_packet_size - data_offset)));
-	}
-
-	buffer = kmalloc(transfer_size, GFP_ATOMIC);
+	buffer = kmalloc(len, GFP_ATOMIC);
 	if (!buffer) {
 		dev_err(&port->dev, "%s - could not allocate buffer\n",
 				__func__);
 		return -ENOMEM;
 	}
 
-	/* Copy data */
-	if (data_offset > 0) {
-		/* Original sio requires control byte at start of
-		   each packet. */
-		int user_pktsz = priv->max_packet_size - data_offset;
-		int todo = count;
-		unsigned char *first_byte = buffer;
-		const unsigned char *current_position = src;
+	if (priv->chip_type == SIO) {
+		int i, msg_len;
 
-		while (todo > 0) {
-			if (user_pktsz > todo)
-				user_pktsz = todo;
-			/* Write the control byte at the front of the packet*/
-			*first_byte = 1 | ((user_pktsz) << 2);
-			/* Copy data for packet */
-			memcpy(first_byte + data_offset,
-				current_position, user_pktsz);
-			first_byte += user_pktsz + data_offset;
-			current_position += user_pktsz;
-			todo -= user_pktsz;
+		for (i = 0; i < len; i += priv->max_packet_size) {
+			msg_len = min_t(int, len - i, priv->max_packet_size) - 1;
+			buffer[i] = (msg_len << 2) + 1;
+			memcpy(&buffer[i + 1], src, msg_len);
+			src += msg_len;
 		}
 	} else {
 		memcpy(buffer, src, count);
