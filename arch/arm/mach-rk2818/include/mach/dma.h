@@ -146,13 +146,13 @@
 #define mask_dma_reg(addr, msk, val)    write_dma_reg(addr, (val)|((~(msk))&read_dma_reg(addr)))
 
    /* clear interrupt */
-#define CLR_DWDMA_INTR(dma_ch)            write_dma_reg(DWDMA_ClearBlock, 0x101<<dma_ch)
+#define CLR_DWDMA_INTR(dma_ch)            write_dma_reg(DWDMA_ClearTfr, 0x101<<dma_ch)
 
    /* Unmask interrupt */
-#define UN_MASK_DWDMA_INTR(dma_ch)        mask_dma_reg(DWDMA_MaskBlock, 0x101<<dma_ch, 0x101<<dma_ch)
+#define UN_MASK_DWDMA_INTR(dma_ch)        mask_dma_reg(DWDMA_MaskTfr, 0x101<<dma_ch, 0x101<<dma_ch)
 
    /* Mask interrupt */
-#define MASK_DWDMA_INTR(dma_ch)           mask_dma_reg(DWDMA_MaskBlock, 0x101<<dma_ch, 0x100<<dma_ch)
+#define MASK_DWDMA_INTR(dma_ch)           mask_dma_reg(DWDMA_MaskTfr, 0x101<<dma_ch, 0x100<<dma_ch)
 
    /* Enable channel */
 #define ENABLE_DWDMA(dma_ch)              mask_dma_reg(DWDMA_ChEnReg, 0x101<<dma_ch, 0x101<<dma_ch)
@@ -196,6 +196,7 @@ struct rk2818_dma {
     u32 dma_llp_phy;                   /* physical bus address of linked list */
 	u32 length;     /* current transfer block */ 
 	u32 residue;     /* residue block of current dma transfer */
+	spinlock_t		lock;
 };
 
 //#define test_dma
