@@ -507,9 +507,11 @@ and discussions on the V4L mailing list.</revremark>
     &sub-reqbufs;
     &sub-s-hw-freq-seek;
     &sub-streamon;
+    &sub-subdev-enum-frame-interval;
     &sub-subdev-enum-frame-size;
     &sub-subdev-enum-mbus-code;
     &sub-subdev-g-fmt;
+    &sub-subdev-g-frame-interval;
     &sub-subscribe-event;
     <!-- End of ioctls. -->
     &sub-mmap;
