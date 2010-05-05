@@ -1726,7 +1726,7 @@ reuse_rx:
 
 			skb->protocol = eth_type_trans(skb, bp->dev);
 
-			if ((bp->dev->features & ETH_FLAG_RXHASH) &&
+			if ((bp->dev->features & NETIF_F_RXHASH) &&
 			    (cqe_fp_status_flags &
 			     ETH_FAST_PATH_RX_CQE_RSS_HASH_FLG))
 				skb->rxhash = le32_to_cpu(
