@@ -391,7 +391,9 @@ static int RndisFilterOnReceive(struct hv_device *Device,
 
 	DPRINT_ENTER(NETVSC);
 
-	ASSERT(netDevice);
+	if (!netDevice)
+		return -EINVAL;
+
 	/* Make sure the rndis device state is initialized */
 	if (!netDevice->Extension) {
 		DPRINT_ERR(NETVSC, "got rndis message but no rndis device..."
@@ -492,7 +494,8 @@ static int RndisFilterQueryDevice(struct rndis_device *Device, u32 Oid,
 
 	DPRINT_ENTER(NETVSC);
 
-	ASSERT(Result);
+	if (!Result)
+		return -EINVAL;
 
 	*ResultSize = 0;
 	request = GetRndisRequest(Device, REMOTE_NDIS_QUERY_MSG,
@@ -885,7 +888,9 @@ int RndisFilterOnOpen(struct hv_device *Device)
 
 	DPRINT_ENTER(NETVSC);
 
-	ASSERT(netDevice);
+	if (!netDevice)
+		return -EINVAL;
+
 	ret = RndisFilterOpenDevice(netDevice->Extension);
 
 	DPRINT_EXIT(NETVSC);
@@ -900,7 +905,9 @@ int RndisFilterOnClose(struct hv_device *Device)
 
 	DPRINT_ENTER(NETVSC);
 
-	ASSERT(netDevice);
+	if (!netDevice)
+		return -EINVAL;
+
 	ret = RndisFilterCloseDevice(netDevice->Extension);
 
 	DPRINT_EXIT(NETVSC);
