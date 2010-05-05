@@ -923,7 +923,7 @@ static void vmbus_msg_dpc(unsigned long data)
 
 	DPRINT_ENTER(VMBUS_DRV);
 
-	ASSERT(vmbus_drv_obj->OnMsgDpc != NULL);
+	/* ASSERT(vmbus_drv_obj->OnMsgDpc != NULL); */
 
 	/* Call to bus driver to handle interrupt */
 	vmbus_drv_obj->OnMsgDpc(&vmbus_drv_obj->Base);
@@ -940,7 +940,7 @@ static void vmbus_event_dpc(unsigned long data)
 
 	DPRINT_ENTER(VMBUS_DRV);
 
-	ASSERT(vmbus_drv_obj->OnEventDpc != NULL);
+	/* ASSERT(vmbus_drv_obj->OnEventDpc != NULL); */
 
 	/* Call to bus driver to handle interrupt */
 	vmbus_drv_obj->OnEventDpc(&vmbus_drv_obj->Base);
@@ -955,7 +955,7 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 
 	DPRINT_ENTER(VMBUS_DRV);
 
-	ASSERT(vmbus_driver_obj->OnIsr != NULL);
+	/* ASSERT(vmbus_driver_obj->OnIsr != NULL); */
 
 	/* Call to bus driver to handle interrupt */
 	ret = vmbus_driver_obj->OnIsr(&vmbus_driver_obj->Base);
