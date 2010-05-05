@@ -178,7 +178,7 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 	struct vmbus_channel_msginfo *openInfo;
 	void *in, *out;
 	unsigned long flags;
-	int ret;
+	int ret, err = 0;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -218,6 +218,7 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 					 SendRingBufferSize +
 					 RecvRingBufferSize,
 					 &NewChannel->RingBufferGpadlHandle);
+/* FIXME: the value of ret is not checked */
 
 	DPRINT_DBG(VMBUS, "channel %p <relid %d gpadl 0x%x send ring %p "
 		   "size %d recv ring %p size %d, downstreamoffset %d>",
@@ -233,9 +234,16 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 	openInfo = kmalloc(sizeof(*openInfo) +
 			   sizeof(struct vmbus_channel_open_channel),
 			   GFP_KERNEL);
-	ASSERT(openInfo != NULL);
+	if (!openInfo) {
+		err = -ENOMEM;
+		goto errorout;
+	}
 
 	openInfo->WaitEvent = osd_WaitEventCreate();
+	if (!openInfo->WaitEvent) {
+		err = -ENOMEM;
+		goto errorout;
+	}
 
 	openMsg = (struct vmbus_channel_open_channel *)openInfo->Msg;
 	openMsg->Header.MessageType = ChannelMessageOpenChannel;
@@ -285,6 +293,12 @@ Cleanup:
 	DPRINT_EXIT(VMBUS);
 
 	return 0;
+
+errorout:
+	osd_PageFree(out, (SendRingBufferSize + RecvRingBufferSize)
+		     >> PAGE_SHIFT);
+	kfree(openInfo);
+	return err;
 }
 
 /*
@@ -461,24 +475,29 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel, void *Kbuffer,
 	struct vmbus_channel_gpadl_header *gpadlMsg;
 	struct vmbus_channel_gpadl_body *gpadlBody;
 	/* struct vmbus_channel_gpadl_created *gpadlCreated; */
-	struct vmbus_channel_msginfo *msgInfo;
+	struct vmbus_channel_msginfo *msgInfo = NULL;
 	struct vmbus_channel_msginfo *subMsgInfo;
 	u32 msgCount;
 	struct list_head *curr;
 	u32 nextGpadlHandle;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	DPRINT_ENTER(VMBUS);
 
 	nextGpadlHandle = atomic_read(&gVmbusConnection.NextGpadlHandle);
 	atomic_inc(&gVmbusConnection.NextGpadlHandle);
 
-	VmbusChannelCreateGpadlHeader(Kbuffer, Size, &msgInfo, &msgCount);
-	ASSERT(msgInfo != NULL);
-	ASSERT(msgCount > 0);
+	ret = VmbusChannelCreateGpadlHeader(Kbuffer, Size, &msgInfo, &msgCount);
+	if (ret)
+		return ret;
 
 	msgInfo->WaitEvent = osd_WaitEventCreate();
+	if (!msgInfo->WaitEvent) {
+		ret = -ENOMEM;
+		goto Cleanup;
+	}
+
 	gpadlMsg = (struct vmbus_channel_gpadl_header *)msgInfo->Msg;
 	gpadlMsg->Header.MessageType = ChannelMessageGpadlHeader;
 	gpadlMsg->ChildRelId = Channel->OfferMsg.ChildRelId;
@@ -567,9 +586,14 @@ int VmbusChannelTeardownGpadl(struct vmbus_channel *Channel, u32 GpadlHandle)
 
 	info = kmalloc(sizeof(*info) +
 		       sizeof(struct vmbus_channel_gpadl_teardown), GFP_KERNEL);
-	ASSERT(info != NULL);
+	if (!info)
+		return -ENOMEM;
 
 	info->WaitEvent = osd_WaitEventCreate();
+	if (!info->WaitEvent) {
+		kfree(info);
+		return -ENOMEM;
+	}
 
 	msg = (struct vmbus_channel_gpadl_teardown *)info->Msg;
 
@@ -623,7 +647,10 @@ void VmbusChannelClose(struct vmbus_channel *Channel)
 	/* Send a closing message */
 	info = kmalloc(sizeof(*info) +
 		       sizeof(struct vmbus_channel_close_channel), GFP_KERNEL);
-	ASSERT(info != NULL);
+        /* FIXME: can't do anything other than return here because the
+	 *        function is void */
+	if (!info)
+		return;
 
 	/* info->waitEvent = osd_WaitEventCreate(); */
 
