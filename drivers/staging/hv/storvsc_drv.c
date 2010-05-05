@@ -385,11 +385,11 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	void (*scsi_done_fn)(struct scsi_cmnd *);
 	struct scsi_sense_hdr sense_hdr;
 
-	ASSERT(request == &cmd_request->request);
-	ASSERT(scmnd);
-	ASSERT((unsigned long)scmnd->host_scribble ==
-		(unsigned long)cmd_request);
-	ASSERT(scmnd->scsi_done);
+	/* ASSERT(request == &cmd_request->request); */
+	/* ASSERT(scmnd); */
+	/* ASSERT((unsigned long)scmnd->host_scribble == */
+	/*        (unsigned long)cmd_request); */
+	/* ASSERT(scmnd->scsi_done); */
 
 	DPRINT_ENTER(STORVSC_DRV);
 
@@ -413,7 +413,7 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 			scsi_print_sense_hdr("storvsc", &sense_hdr);
 	}
 
-	ASSERT(request->BytesXfer <= request->DataBuffer.Length);
+	/* ASSERT(request->BytesXfer <= request->DataBuffer.Length); */
 	scsi_set_resid(scmnd, request->DataBuffer.Length - request->BytesXfer);
 
 	scsi_done_fn = scmnd->scsi_done;
@@ -522,7 +522,7 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
 		src = src_addr;
 		srclen = orig_sgl[i].length;
 
-		ASSERT(orig_sgl[i].offset + orig_sgl[i].length <= PAGE_SIZE);
+		/* ASSERT(orig_sgl[i].offset + orig_sgl[i].length <= PAGE_SIZE); */
 
 		if (j == 0)
 			bounce_addr = (unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])), KM_IRQ0);
@@ -583,7 +583,7 @@ static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
 					KM_IRQ0) + orig_sgl[i].offset;
 		dest = dest_addr;
 		destlen = orig_sgl[i].length;
-		ASSERT(orig_sgl[i].offset + orig_sgl[i].length <= PAGE_SIZE);
+		/* ASSERT(orig_sgl[i].offset + orig_sgl[i].length <= PAGE_SIZE); */
 
 		if (j == 0)
 			bounce_addr = (unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])), KM_IRQ0);
@@ -655,7 +655,7 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 
 	/* If retrying, no need to prep the cmd */
 	if (scmnd->host_scribble) {
-		ASSERT(scmnd->scsi_done != NULL);
+		/* ASSERT(scmnd->scsi_done != NULL); */
 
 		cmd_request =
 			(struct storvsc_cmd_request *)scmnd->host_scribble;
@@ -665,8 +665,8 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 		goto retry_request;
 	}
 
-	ASSERT(scmnd->scsi_done == NULL);
-	ASSERT(scmnd->host_scribble == NULL);
+	/* ASSERT(scmnd->scsi_done == NULL); */
+	/* ASSERT(scmnd->host_scribble == NULL); */
 
 	scmnd->scsi_done = done;
 
@@ -717,7 +717,7 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 	request->TargetId = scmnd->device->id;
 	request->LunId = scmnd->device->lun;
 
-	ASSERT(scmnd->cmd_len <= 16);
+	/* ASSERT(scmnd->cmd_len <= 16); */
 	request->CdbLen = scmnd->cmd_len;
 	request->Cdb = scmnd->cmnd;
 
@@ -773,13 +773,11 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 					page_to_pfn(sg_page((&sgl[i])));
 		}
 	} else if (scsi_sglist(scmnd)) {
-		ASSERT(scsi_bufflen(scmnd) <= PAGE_SIZE);
+		/* ASSERT(scsi_bufflen(scmnd) <= PAGE_SIZE); */
 		request->DataBuffer.Offset =
 			virt_to_phys(scsi_sglist(scmnd)) & (PAGE_SIZE-1);
 		request->DataBuffer.PfnArray[0] =
 			virt_to_phys(scsi_sglist(scmnd)) >> PAGE_SHIFT;
-	} else {
-		ASSERT(scsi_bufflen(scmnd) == 0);
 	}
 
 retry_request:
