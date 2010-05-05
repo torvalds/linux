@@ -106,6 +106,82 @@ static void shutdown_onchannelcallback(void *context)
 		orderly_poweroff(false);
 }
 
+
+/*
+ * Synchronize time with host after reboot, restore, etc.
+ */
+static void adj_guesttime(winfiletime_t hosttime, u8 flags)
+{
+	s64 host_tns;
+	struct timespec host_ts;
+	static s32 scnt = 50;
+
+	host_tns = (hosttime - WLTIMEDELTA) * 100;
+	host_ts = ns_to_timespec(host_tns);
+
+	if ((flags & ICTIMESYNCFLAG_SYNC) != 0) {
+		do_settimeofday(&host_ts);
+		return;
+	}
+
+	if ((flags & ICTIMESYNCFLAG_SAMPLE) != 0 &&
+	    scnt > 0) {
+		scnt--;
+		do_settimeofday(&host_ts);
+	}
+
+	return;
+}
+
+/*
+ * Time Sync Channel message handler.
+ */
+static void timesync_onchannelcallback(void *context)
+{
+	struct vmbus_channel *channel = context;
+	u8 *buf;
+	u32 buflen, recvlen;
+	u64 requestid;
+	struct icmsg_hdr *icmsghdrp;
+	struct ictimesync_data *timedatap;
+
+	DPRINT_ENTER(VMBUS);
+
+	buflen = PAGE_SIZE;
+	buf = kmalloc(buflen, GFP_ATOMIC);
+
+	VmbusChannelRecvPacket(channel, buf, buflen, &recvlen, &requestid);
+
+	if (recvlen > 0) {
+		DPRINT_DBG(VMBUS, "timesync packet: recvlen=%d, requestid=%lld",
+			recvlen, requestid);
+
+		icmsghdrp = (struct icmsg_hdr *)&buf[
+				sizeof(struct vmbuspipe_hdr)];
+
+		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
+			prep_negotiate_resp(icmsghdrp, NULL, buf);
+		} else {
+			timedatap = (struct ictimesync_data *)&buf[
+				sizeof(struct vmbuspipe_hdr) +
+				sizeof(struct icmsg_hdr)];
+			adj_guesttime(timedatap->parenttime, timedatap->flags);
+		}
+
+		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
+			| ICMSGHDRFLAG_RESPONSE;
+
+		VmbusChannelSendPacket(channel, buf,
+				recvlen, requestid,
+				VmbusPacketTypeDataInBand, 0);
+	}
+
+	kfree(buf);
+
+	DPRINT_EXIT(VMBUS);
+}
+
+
 static int __init init_hyperv_utils(void)
 {
 	printk(KERN_INFO "Registering HyperV Utility Driver\n");
@@ -113,6 +189,10 @@ static int __init init_hyperv_utils(void)
 	hv_cb_utils[HV_SHUTDOWN_MSG].channel->OnChannelCallback =
 		&shutdown_onchannelcallback;
 	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &shutdown_onchannelcallback;
+
+	hv_cb_utils[HV_TIMESYNC_MSG].channel->OnChannelCallback =
+		&timesync_onchannelcallback;
+	hv_cb_utils[HV_TIMESYNC_MSG].callback = &timesync_onchannelcallback;
 
 	return 0;
 }
@@ -124,6 +204,10 @@ static void exit_hyperv_utils(void)
 	hv_cb_utils[HV_SHUTDOWN_MSG].channel->OnChannelCallback =
 		&chn_cb_negotiate;
 	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &chn_cb_negotiate;
+
+	hv_cb_utils[HV_TIMESYNC_MSG].channel->OnChannelCallback =
+		&chn_cb_negotiate;
+	hv_cb_utils[HV_TIMESYNC_MSG].callback = &chn_cb_negotiate;
 }
 
 module_init(init_hyperv_utils);

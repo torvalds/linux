@@ -75,7 +75,30 @@ struct shutdown_msg_data {
 	u8  display_message[2048];
 } __attribute__((packed));
 
-#define HV_SHUTDOWN_MSG		0
+
+/* Time Sync IC defs */
+#define ICTIMESYNCFLAG_PROBE 0
+#define ICTIMESYNCFLAG_SYNC 1
+#define ICTIMESYNCFLAG_SAMPLE 2
+
+#ifdef __x86_64__
+#define WLTIMEDELTA 116444736000000000L  /* in 100ns unit */
+#else
+#define WLTIMEDELTA 116444736000000000LL
+#endif
+
+typedef u64 winfiletime_t; /* Windows FILETIME type */
+
+struct ictimesync_data{
+    winfiletime_t parenttime;
+    winfiletime_t childtime;
+    winfiletime_t roundtriptime;
+    u8 flags;
+} __attribute__((packed));
+
+/* Index for each IC struct in array hv_cb_utils[] */
+#define HV_SHUTDOWN_MSG 0
+#define HV_TIMESYNC_MSG 1
 
 struct hyperv_service_callback {
 	u8 msg_type;

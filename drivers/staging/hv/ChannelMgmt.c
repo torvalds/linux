@@ -33,8 +33,8 @@ struct vmbus_channel_message_table_entry {
 	void (*messageHandler)(struct vmbus_channel_message_header *msg);
 };
 
-#define MAX_MSG_TYPES                    1
-#define MAX_NUM_DEVICE_CLASSES_SUPPORTED 5
+#define MAX_MSG_TYPES                    2
+#define MAX_NUM_DEVICE_CLASSES_SUPPORTED 6
 
 static const struct hv_guid
 	gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
@@ -79,6 +79,14 @@ static const struct hv_guid
 		.data = {
 			0x31, 0x60, 0x0B, 0X0E, 0x13, 0x52, 0x34, 0x49,
 			0x81, 0x8B, 0x38, 0XD9, 0x0C, 0xED, 0x39, 0xDB
+		}
+	},
+	/* {9527E630-D0AE-497b-ADCE-E80AB0175CAF} */
+	/* TimeSync */
+	{
+		.data = {
+			0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
+			0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf
 		}
 	},
 };
@@ -190,6 +198,18 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 		},
 		.callback = chn_cb_negotiate,
 		.log_msg = "Shutdown channel functionality initialized"
+	},
+
+	/* {9527E630-D0AE-497b-ADCE-E80AB0175CAF} */
+	/* TimeSync */
+	{
+		.msg_type = HV_TIMESYNC_MSG,
+		.data = {
+			0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
+			0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf
+		},
+		.callback = chn_cb_negotiate,
+		.log_msg = "Timesync channel functionality initialized"
 	},
 };
 EXPORT_SYMBOL(hv_cb_utils);
