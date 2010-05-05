@@ -83,6 +83,8 @@
 
 
 #define E1000_ICH_FWSM_RSPCIPHY	0x00000040 /* Reset PHY on PCI Reset */
+/* FW established a valid mode */
+#define E1000_ICH_FWSM_FW_VALID		0x00008000
 
 #define E1000_ICH_MNG_IAMT_MODE		0x2
 
@@ -259,6 +261,7 @@ static inline void __ew32flash(struct e1000_hw *hw, unsigned long reg, u32 val)
 static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
+	u32 ctrl;
 	s32 ret_val = 0;
 
 	phy->addr                     = 1;
@@ -273,6 +276,23 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->ops.power_up             = e1000_power_up_phy_copper;
 	phy->ops.power_down           = e1000_power_down_phy_copper_ich8lan;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
+
+	if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
+		/*
+		 * The MAC-PHY interconnect may still be in SMBus mode
+		 * after Sx->S0.  Toggle the LANPHYPC Value bit to force
+		 * the interconnect to PCIe mode, but only if there is no
+		 * firmware present otherwise firmware will have done it.
+		 */
+		ctrl = er32(CTRL);
+		ctrl |=  E1000_CTRL_LANPHYPC_OVERRIDE;
+		ctrl &= ~E1000_CTRL_LANPHYPC_VALUE;
+		ew32(CTRL, ctrl);
+		udelay(10);
+		ctrl &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
+		ew32(CTRL, ctrl);
+		msleep(50);
+	}
 
 	phy->id = e1000_phy_unknown;
 	ret_val = e1000e_get_phy_id(hw);
