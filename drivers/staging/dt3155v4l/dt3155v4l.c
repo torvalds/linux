@@ -4,6 +4,7 @@
 #include <linux/pci.h>
 #include <linux/version.h>
 #include <linux/stringify.h>
+#include <linux/delay.h>
 #include <media/videobuf-dma-contig.h>
 #include <linux/kthread.h>
 
