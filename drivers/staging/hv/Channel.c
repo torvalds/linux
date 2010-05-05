@@ -551,7 +551,9 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel, void *Kbuffer,
 			ret = VmbusPostMessage(gpadlBody,
 					       subMsgInfo->MessageSize -
 					       sizeof(*subMsgInfo));
-			ASSERT(ret == 0);
+			if (!ret)
+				goto Cleanup;
+
 		}
 	}
 	osd_WaitEventWait(msgInfo->WaitEvent);
