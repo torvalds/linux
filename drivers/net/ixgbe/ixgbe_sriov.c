@@ -98,17 +98,6 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 
 int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid, u32 vf)
 {
-	u32 ctrl;
-
-	/* Check if global VLAN already set, if not set it */
-	ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
-	if (!(ctrl & IXGBE_VLNCTRL_VFE)) {
-		/* enable VLAN tag insert/strip */
-		ctrl |= IXGBE_VLNCTRL_VFE;
-		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
-	}
-
 	return adapter->hw.mac.ops.set_vfta(&adapter->hw, vid, vf, (bool)add);
 }
 
