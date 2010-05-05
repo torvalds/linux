@@ -1,6 +1,6 @@
 /*
  * Pioctl operations for Coda.
- * Original version: (C) 1996 Peter Braam 
+ * Original version: (C) 1996 Peter Braam
  * Rewritten for Linux 2.1: (C) 1997 Carnegie Mellon University
  *
  * Carnegie Mellon encourages users of this code to contribute improvements
@@ -31,8 +31,7 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 			unsigned long user_data);
 
 /* exported from this file */
-const struct inode_operations coda_ioctl_inode_operations =
-{
+const struct inode_operations coda_ioctl_inode_operations = {
 	.permission	= coda_ioctl_permission,
 	.setattr	= coda_setattr,
 };
@@ -52,28 +51,28 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 			unsigned long user_data)
 {
 	struct path path;
-        int error;
+	int error;
 	struct PioctlData data;
 	struct inode *inode = filp->f_dentry->d_inode;
-        struct inode *target_inode = NULL;
-        struct coda_inode_info *cnp;
+	struct inode *target_inode = NULL;
+	struct coda_inode_info *cnp;
 
 	lock_kernel();
 
-        /* get the Pioctl data arguments from user space */
-        if (copy_from_user(&data, (void __user *)user_data, sizeof(data))) {
+	/* get the Pioctl data arguments from user space */
+	if (copy_from_user(&data, (void __user *)user_data, sizeof(data))) {
 		error = -EINVAL;
 		goto out;
 	}
-       
-        /* 
-         * Look up the pathname. Note that the pathname is in 
-         * user memory, and namei takes care of this
-         */
+
+	/*
+	 * Look up the pathname. Note that the pathname is in
+	 * user memory, and namei takes care of this
+	 */
 	if (data.follow)
-                error = user_path(data.path, &path);
+		error = user_path(data.path, &path);
 	else
-	        error = user_lpath(data.path, &path);
+		error = user_lpath(data.path, &path);
 
 	if (error)
 		goto out;
@@ -81,14 +80,14 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 		target_inode = path.dentry->d_inode;
 
 	/* return if it is not a Coda inode */
-	if ( target_inode->i_sb != inode->i_sb ) {
+	if (target_inode->i_sb != inode->i_sb) {
 		path_put(&path);
 		error = -EINVAL;
 		goto out;
 	}
 
 	/* now proceed to make the upcall */
-        cnp = ITOC(target_inode);
+	cnp = ITOC(target_inode);
 
 	error = venus_pioctl(inode->i_sb, &(cnp->c_fid), cmd, &data);
 
@@ -96,5 +95,5 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 
 out:
 	unlock_kernel();
-        return error;
+	return error;
 }
