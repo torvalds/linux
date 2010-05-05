@@ -100,7 +100,7 @@ static inline struct storvsc_device *AllocStorDevice(struct hv_device *Device)
 
 static inline void FreeStorDevice(struct storvsc_device *Device)
 {
-	ASSERT(atomic_read(&Device->RefCount) == 0);
+	/* ASSERT(atomic_read(&Device->RefCount) == 0); */
 	kfree(Device);
 }
 
@@ -137,10 +137,10 @@ static inline void PutStorDevice(struct hv_device *Device)
 	struct storvsc_device *storDevice;
 
 	storDevice = (struct storvsc_device *)Device->Extension;
-	ASSERT(storDevice);
+	/* ASSERT(storDevice); */
 
 	atomic_dec(&storDevice->RefCount);
-	ASSERT(atomic_read(&storDevice->RefCount));
+	/* ASSERT(atomic_read(&storDevice->RefCount)); */
 }
 
 /* Drop ref count to 1 to effectively disable GetStorDevice() */
@@ -149,7 +149,7 @@ static inline struct storvsc_device *ReleaseStorDevice(struct hv_device *Device)
 	struct storvsc_device *storDevice;
 
 	storDevice = (struct storvsc_device *)Device->Extension;
-	ASSERT(storDevice);
+	/* ASSERT(storDevice); */
 
 	/* Busy wait until the ref drop to 2, then set it to 1 */
 	while (atomic_cmpxchg(&storDevice->RefCount, 2, 1) != 2)
@@ -165,7 +165,7 @@ static inline struct storvsc_device *FinalReleaseStorDevice(
 	struct storvsc_device *storDevice;
 
 	storDevice = (struct storvsc_device *)Device->Extension;
-	ASSERT(storDevice);
+	/* ASSERT(storDevice); */
 
 	/* Busy wait until the ref drop to 1, then set it to 0 */
 	while (atomic_cmpxchg(&storDevice->RefCount, 1, 0) != 1)
@@ -370,12 +370,12 @@ static void StorVscOnIOCompletion(struct hv_device *Device,
 		   "completed bytes xfer %u", RequestExt,
 		   VStorPacket->VmSrb.DataTransferLength);
 
-	ASSERT(RequestExt != NULL);
-	ASSERT(RequestExt->Request != NULL);
+	/* ASSERT(RequestExt != NULL); */
+	/* ASSERT(RequestExt->Request != NULL); */
 
 	request = RequestExt->Request;
 
-	ASSERT(request->OnIOCompletion != NULL);
+	/* ASSERT(request->OnIOCompletion != NULL); */
 
 	/* Copy over the status...etc */
 	request->Status = VStorPacket->VmSrb.ScsiStatus;
@@ -395,8 +395,8 @@ static void StorVscOnIOCompletion(struct hv_device *Device,
 				    "valid - len %d\n", RequestExt,
 				    VStorPacket->VmSrb.SenseInfoLength);
 
-			ASSERT(VStorPacket->VmSrb.SenseInfoLength <=
-				request->SenseBufferSize);
+			/* ASSERT(VStorPacket->VmSrb.SenseInfoLength <= */
+			/* 	request->SenseBufferSize); */
 			memcpy(request->SenseBuffer,
 			       VStorPacket->VmSrb.SenseData,
 			       VStorPacket->VmSrb.SenseInfoLength);
@@ -451,7 +451,7 @@ static void StorVscOnChannelCallback(void *context)
 
 	DPRINT_ENTER(STORVSC);
 
-	ASSERT(device);
+	/* ASSERT(device); */
 
 	storDevice = MustGetStorDevice(device);
 	if (!storDevice) {
@@ -474,7 +474,7 @@ static void StorVscOnChannelCallback(void *context)
 
 			request = (struct storvsc_request_extension *)
 					(unsigned long)requestId;
-			ASSERT(request);
+			/* ASSERT(request);c */
 
 			/* if (vstorPacket.Flags & SYNTHETIC_FLAG) */
 			if ((request == &storDevice->InitRequest) ||
@@ -821,7 +821,7 @@ int StorVscInitialize(struct hv_driver *Driver)
 		   sizeof(struct vmscsi_request));
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
-	ASSERT(storDriver->RingBufferSize >= (PAGE_SIZE << 1));
+	/* ASSERT(storDriver->RingBufferSize >= (PAGE_SIZE << 1)); */
 
 	Driver->name = gDriverName;
 	memcpy(&Driver->deviceType, &gStorVscDeviceType,
