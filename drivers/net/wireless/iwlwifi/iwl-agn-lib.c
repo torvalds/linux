@@ -184,6 +184,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	int tid;
 	int sta_id;
 	int freed;
+	unsigned long flags;
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
 		IWL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
@@ -199,9 +200,10 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	tid = (tx_resp->ra_tid & IWL50_TX_RES_TID_MSK) >> IWL50_TX_RES_TID_POS;
 	sta_id = (tx_resp->ra_tid & IWL50_TX_RES_RA_MSK) >> IWL50_TX_RES_RA_POS;
 
+	spin_lock_irqsave(&priv->sta_lock, flags);
 	if (txq->sched_retry) {
 		const u32 scd_ssn = iwlagn_get_scd_ssn(tx_resp);
-		struct iwl_ht_agg *agg = NULL;
+		struct iwl_ht_agg *agg;
 
 		agg = &priv->stations[sta_id].tid[tid].agg;
 
@@ -256,6 +258,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
 void iwlagn_rx_handler_setup(struct iwl_priv *priv)
@@ -1533,6 +1536,8 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			    int sta_id, int tid, int freed)
 {
+	WARN_ON(!spin_is_locked(&priv->sta_lock));
+
 	if (priv->stations[sta_id].tid[tid].tfds_in_queue >= freed)
 		priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 	else {

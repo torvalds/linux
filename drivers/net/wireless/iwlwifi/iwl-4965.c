@@ -2026,6 +2026,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	int sta_id;
 	int freed;
 	u8 *qc = NULL;
+	unsigned long flags;
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
 		IWL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
@@ -2050,10 +2051,10 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		return;
 	}
 
+	spin_lock_irqsave(&priv->sta_lock, flags);
 	if (txq->sched_retry) {
 		const u32 scd_ssn = iwl4965_get_scd_ssn(tx_resp);
 		struct iwl_ht_agg *agg = NULL;
-
 		WARN_ON(!qc);
 
 		agg = &priv->stations[sta_id].tid[tid].agg;
@@ -2110,6 +2111,8 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
+
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
 static int iwl4965_calc_rssi(struct iwl_priv *priv,
