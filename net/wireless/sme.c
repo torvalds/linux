@@ -740,7 +740,6 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		       const u8 *prev_bssid)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct ieee80211_channel *chan;
 	struct cfg80211_bss *bss = NULL;
 	int err;
 
@@ -748,10 +747,6 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 
 	if (wdev->sme_state != CFG80211_SME_IDLE)
 		return -EALREADY;
-
-	chan = rdev_fixed_channel(rdev, wdev);
-	if (chan && chan != connect->channel)
-		return -EBUSY;
 
 	if (WARN_ON(wdev->connect_keys)) {
 		kfree(wdev->connect_keys);

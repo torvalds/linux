@@ -1229,6 +1229,17 @@ int ieee80211_wk_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 int ieee80211_wk_cancel_remain_on_channel(
 	struct ieee80211_sub_if_data *sdata, u64 cookie);
 
+/* channel management */
+enum ieee80211_chan_mode {
+	CHAN_MODE_UNDEFINED,
+	CHAN_MODE_HOPPING,
+	CHAN_MODE_FIXED,
+};
+
+enum ieee80211_chan_mode
+ieee80211_get_channel_mode(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *ignore);
+
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline
 #else

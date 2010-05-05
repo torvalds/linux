@@ -159,6 +159,7 @@ static int orinoco_scan(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int orinoco_set_channel(struct wiphy *wiphy,
+			struct net_device *netdev,
 			struct ieee80211_channel *chan,
 			enum nl80211_channel_type channel_type)
 {
