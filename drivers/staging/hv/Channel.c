@@ -382,6 +382,8 @@ static int VmbusChannelCreateGpadlHeader(void *Kbuffer, u32 Size,
 			  sizeof(struct vmbus_channel_gpadl_header) +
 			  sizeof(struct gpa_range) + pfnCount * sizeof(u64);
 		msgHeader =  kzalloc(msgSize, GFP_KERNEL);
+		if (!msgHeader)
+			goto nomem;
 
 		INIT_LIST_HEAD(&msgHeader->SubMsgList);
 		msgHeader->MessageSize = msgSize;
@@ -416,7 +418,9 @@ static int VmbusChannelCreateGpadlHeader(void *Kbuffer, u32 Size,
 				  sizeof(struct vmbus_channel_gpadl_body) +
 				  pfnCurr * sizeof(u64);
 			msgBody = kzalloc(msgSize, GFP_KERNEL);
-			ASSERT(msgBody);
+			/* FIXME: we probably need to more if this fails */
+			if (!msgBody)
+				goto nomem;
 			msgBody->MessageSize = msgSize;
 			(*MessageCount)++;
 			gpadlBody =
@@ -459,6 +463,10 @@ static int VmbusChannelCreateGpadlHeader(void *Kbuffer, u32 Size,
 	}
 
 	return 0;
+nomem:
+	kfree(msgHeader);
+	kfree(msgBody);
+	return -ENOMEM;
 }
 
 /*
