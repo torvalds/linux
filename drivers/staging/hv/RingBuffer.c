@@ -301,7 +301,8 @@ Description:
 --*/
 int RingBufferInit(RING_BUFFER_INFO *RingInfo, void *Buffer, u32 BufferLen)
 {
-	ASSERT(sizeof(RING_BUFFER) == PAGE_SIZE);
+	if (sizeof(RING_BUFFER) != PAGE_SIZE)
+		return -EINVAL;
 
 	memset(RingInfo, 0, sizeof(RING_BUFFER_INFO));
 

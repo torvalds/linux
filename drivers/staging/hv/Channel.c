@@ -203,9 +203,18 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 	NewChannel->RingBufferPageCount = (SendRingBufferSize +
 					   RecvRingBufferSize) >> PAGE_SHIFT;
 
-	RingBufferInit(&NewChannel->Outbound, out, SendRingBufferSize);
+	ret = RingBufferInit(&NewChannel->Outbound, out, SendRingBufferSize);
+	if (!ret) {
+		err = ret;
+		goto errorout;
+	}
 
-	RingBufferInit(&NewChannel->Inbound, in, RecvRingBufferSize);
+	ret = RingBufferInit(&NewChannel->Inbound, in, RecvRingBufferSize);
+	if (!ret) {
+		err = ret;
+		goto errorout;
+	}
+
 
 	/* Establish the gpadl for the ring buffer */
 	DPRINT_DBG(VMBUS, "Establishing ring buffer's gpadl for channel %p...",
