@@ -1319,13 +1319,16 @@ static void config_intr(struct virtio_device *vdev)
 
 	portdev = vdev->priv;
 
-	/*
-	 * We'll use this way of resizing only for legacy support.
-	 * For newer userspace (VIRTIO_CONSOLE_F_MULTPORT+), use
-	 * control messages to indicate console size changes so that
-	 * it can be done per-port
-	 */
-	resize_console(find_port_by_id(portdev, 0));
+	if (!use_multiport(portdev)) {
+		/*
+		 * We'll use this way of resizing only for legacy
+		 * support.  For newer userspace
+		 * (VIRTIO_CONSOLE_F_MULTPORT+), use control messages
+		 * to indicate console size changes so that it can be
+		 * done per-port.
+		 */
+		resize_console(find_port_by_id(portdev, 0));
+	}
 }
 
 static int init_vqs(struct ports_device *portdev)
