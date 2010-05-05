@@ -991,6 +991,23 @@ static int tvp7002_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
+/*
+ * tvp7002_enum_dv_presets() - Enum supported digital video formats
+ * @sd: pointer to standard V4L2 sub-device structure
+ * @preset: pointer to format struct
+ *
+ * Enumerate supported digital video formats.
+ */
+static int tvp7002_enum_dv_presets(struct v4l2_subdev *sd,
+		struct v4l2_dv_enum_preset *preset)
+{
+	/* Check requested format index is within range */
+	if (preset->index >= NUM_PRESETS)
+		return -EINVAL;
+
+	return v4l_fill_dv_preset_info(tvp7002_presets[preset->index].preset, preset);
+}
+
 /* V4L2 core operation handlers */
 static const struct v4l2_subdev_core_ops tvp7002_core_ops = {
 	.g_chip_ident = tvp7002_g_chip_ident,
@@ -1006,6 +1023,7 @@ static const struct v4l2_subdev_core_ops tvp7002_core_ops = {
 
 /* Specific video subsystem operation handlers */
 static const struct v4l2_subdev_video_ops tvp7002_video_ops = {
+	.enum_dv_presets = tvp7002_enum_dv_presets,
 	.s_dv_preset = tvp7002_s_dv_preset,
 	.query_dv_preset = tvp7002_query_dv_preset,
 	.s_stream = tvp7002_s_stream,
