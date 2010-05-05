@@ -1716,11 +1716,15 @@ static int s2255_open(struct file *file)
 	dprintk(1, "s2255: open called (dev=%s)\n",
 		video_device_node_name(vdev));
 
-	for (i = 0; i < MAX_CHANNELS; i++)
+	for (i = 0; i < MAX_CHANNELS; i++) {
 		if (&dev->vdev[i] == vdev) {
 			cur_channel = i;
 			break;
 		}
+	}
+	if (i == MAX_CHANNELS)
+		return -ENODEV;
+
 	/*
 	 * open lock necessary to prevent multiple instances
 	 * of v4l-conf (or other programs) from simultaneously
