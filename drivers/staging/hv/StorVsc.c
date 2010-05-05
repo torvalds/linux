@@ -199,6 +199,10 @@ static int StorVscChannelInit(struct hv_device *Device)
 	 */
 	memset(request, 0, sizeof(struct storvsc_request_extension));
 	request->WaitEvent = osd_WaitEventCreate();
+	if (!request->WaitEvent) {
+		ret = -ENOMEM;
+		goto nomem;
+	}
 
 	vstorPacket->Operation = VStorOperationBeginInitialization;
 	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
@@ -338,7 +342,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 Cleanup:
 	kfree(request->WaitEvent);
 	request->WaitEvent = NULL;
-
+nomem:
 	PutStorDevice(Device);
 
 	DPRINT_EXIT(STORVSC);
@@ -649,6 +653,10 @@ int StorVscOnHostReset(struct hv_device *Device)
 	vstorPacket = &request->VStorPacket;
 
 	request->WaitEvent = osd_WaitEventCreate();
+	if (!request->WaitEvent) {
+		ret = -ENOMEM;
+		goto Cleanup;
+	}
 
 	vstorPacket->Operation = VStorOperationResetBus;
 	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;

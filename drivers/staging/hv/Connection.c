@@ -98,6 +98,11 @@ int VmbusConnect(void)
 	}
 
 	msgInfo->WaitEvent = osd_WaitEventCreate();
+	if (!msgInfo->WaitEvent) {
+		ret = -ENOMEM;
+		goto Cleanup;
+	}
+
 	msg = (struct vmbus_channel_initiate_contact *)msgInfo->Msg;
 
 	msg->Header.MessageType = ChannelMessageInitiateContact;

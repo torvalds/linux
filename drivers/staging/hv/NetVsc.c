@@ -749,6 +749,10 @@ static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 			      &netDevice->ReceivePacketList);
 	}
 	netDevice->ChannelInitEvent = osd_WaitEventCreate();
+	if (!netDevice->ChannelInitEvent) {
+		ret = -ENOMEM;
+		goto Cleanup;
+	}
 
 	/* Open the channel */
 	ret = Device->Driver->VmbusChannelInterface.Open(Device,
