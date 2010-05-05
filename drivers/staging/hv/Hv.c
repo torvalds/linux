@@ -305,11 +305,9 @@ void HvCleanup(void)
 
 	DPRINT_ENTER(VMBUS);
 
-	if (gHvContext.SignalEventBuffer) {
-		gHvContext.SignalEventBuffer = NULL;
-		gHvContext.SignalEventParam = NULL;
-		kfree(gHvContext.SignalEventBuffer);
-	}
+	kfree(gHvContext.SignalEventBuffer);
+	gHvContext.SignalEventBuffer = NULL;
+	gHvContext.SignalEventParam = NULL;
 
 	if (gHvContext.HypercallPage) {
 		hypercallMsr.AsUINT64 = 0;
