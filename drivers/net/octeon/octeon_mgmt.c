@@ -832,9 +832,9 @@ static int octeon_mgmt_open(struct net_device *netdev)
 	mix_irhwm.s.irhwm = 0;
 	cvmx_write_csr(CVMX_MIXX_IRHWM(port), mix_irhwm.u64);
 
-	/* Interrupt when we have 5 or more packets to clean.  */
+	/* Interrupt when we have 1 or more packets to clean.  */
 	mix_orhwm.u64 = 0;
-	mix_orhwm.s.orhwm = 5;
+	mix_orhwm.s.orhwm = 1;
 	cvmx_write_csr(CVMX_MIXX_ORHWM(port), mix_orhwm.u64);
 
 	/* Enable receive and transmit interrupts */
@@ -995,7 +995,6 @@ static int octeon_mgmt_xmit(struct sk_buff *skb, struct net_device *netdev)
 	cvmx_write_csr(CVMX_MIXX_ORING2(port), 1);
 
 	netdev->trans_start = jiffies;
-	octeon_mgmt_clean_tx_buffers(p);
 	octeon_mgmt_update_tx_stats(netdev);
 	return NETDEV_TX_OK;
 }
