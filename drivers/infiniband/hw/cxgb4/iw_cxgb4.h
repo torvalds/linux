@@ -597,6 +597,7 @@ struct c4iw_ep {
 	struct c4iw_ep_common com;
 	struct c4iw_ep *parent_ep;
 	struct timer_list timer;
+	struct list_head entry;
 	unsigned int atid;
 	u32 hwtid;
 	u32 snd_seq;
@@ -739,5 +740,6 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
 
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
+extern int c4iw_max_read_depth;
 
 #endif

@@ -267,8 +267,8 @@ static int c4iw_query_device(struct ib_device *ibdev,
 	props->max_qp_wr = T4_MAX_QP_DEPTH;
 	props->max_sge = T4_MAX_RECV_SGE;
 	props->max_sge_rd = 1;
-	props->max_qp_rd_atom = T4_MAX_READ_DEPTH;
-	props->max_qp_init_rd_atom = T4_MAX_READ_DEPTH;
+	props->max_qp_rd_atom = c4iw_max_read_depth;
+	props->max_qp_init_rd_atom = c4iw_max_read_depth;
 	props->max_cq = T4_MAX_NUM_CQ;
 	props->max_cqe = T4_MAX_CQ_DEPTH;
 	props->max_mr = c4iw_num_stags(&dev->rdev);

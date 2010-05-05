@@ -61,6 +61,10 @@ static char *states[] = {
 	NULL,
 };
 
+int c4iw_max_read_depth = 8;
+module_param(c4iw_max_read_depth, int, 0644);
+MODULE_PARM_DESC(c4iw_max_read_depth, "Per-connection max ORD/IRD (default=8)");
+
 static int enable_tcp_timestamps;
 module_param(enable_tcp_timestamps, int, 0644);
 MODULE_PARM_DESC(enable_tcp_timestamps, "Enable tcp timestamps (default=0)");
@@ -113,17 +117,16 @@ static int snd_win = 32 * 1024;
 module_param(snd_win, int, 0644);
 MODULE_PARM_DESC(snd_win, "TCP send window in bytes (default=32KB)");
 
-static void process_work(struct work_struct *work);
 static struct workqueue_struct *workq;
-static DECLARE_WORK(skb_work, process_work);
 
 static struct sk_buff_head rxq;
-static c4iw_handler_func work_handlers[NUM_CPL_CMDS];
-c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
 
 static struct sk_buff *get_skb(struct sk_buff *skb, int len, gfp_t gfp);
 static void ep_timeout(unsigned long arg);
 static void connect_reply_upcall(struct c4iw_ep *ep, int status);
+
+static LIST_HEAD(timeout_list);
+static spinlock_t timeout_lock;
 
 static void start_ep_timer(struct c4iw_ep *ep)
 {
@@ -269,26 +272,6 @@ static void release_ep_resources(struct c4iw_ep *ep)
 {
 	set_bit(RELEASE_RESOURCES, &ep->com.flags);
 	c4iw_put_ep(&ep->com);
-}
-
-static void process_work(struct work_struct *work)
-{
-	struct sk_buff *skb = NULL;
-	struct c4iw_dev *dev;
-	struct cpl_act_establish *rpl = cplhdr(skb);
-	unsigned int opcode;
-	int ret;
-
-	while ((skb = skb_dequeue(&rxq))) {
-		rpl = cplhdr(skb);
-		dev = *((struct c4iw_dev **) (skb->cb + sizeof(void *)));
-		opcode = rpl->ot.opcode;
-
-		BUG_ON(!work_handlers[opcode]);
-		ret = work_handlers[opcode](dev, skb);
-		if (!ret)
-			kfree_skb(skb);
-	}
 }
 
 static int status2errno(int status)
@@ -1795,76 +1778,6 @@ static int fw4_ack(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
-static int fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
-{
-	struct cpl_fw6_msg *rpl = cplhdr(skb);
-	struct c4iw_wr_wait *wr_waitp;
-	int ret;
-
-	PDBG("%s type %u\n", __func__, rpl->type);
-
-	switch (rpl->type) {
-	case 1:
-		ret = (int)((be64_to_cpu(rpl->data[0]) >> 8) & 0xff);
-		wr_waitp = (__force struct c4iw_wr_wait *)rpl->data[1];
-		PDBG("%s wr_waitp %p ret %u\n", __func__, wr_waitp, ret);
-		if (wr_waitp) {
-			wr_waitp->ret = ret;
-			wr_waitp->done = 1;
-			wake_up(&wr_waitp->wait);
-		}
-		break;
-	case 2:
-		c4iw_ev_dispatch(dev, (struct t4_cqe *)&rpl->data[0]);
-		break;
-	default:
-		printk(KERN_ERR MOD "%s unexpected fw6 msg type %u\n", __func__,
-		       rpl->type);
-		break;
-	}
-	return 0;
-}
-
-static void ep_timeout(unsigned long arg)
-{
-	struct c4iw_ep *ep = (struct c4iw_ep *)arg;
-	struct c4iw_qp_attributes attrs;
-	unsigned long flags;
-	int abort = 1;
-
-	spin_lock_irqsave(&ep->com.lock, flags);
-	PDBG("%s ep %p tid %u state %d\n", __func__, ep, ep->hwtid,
-	     ep->com.state);
-	switch (ep->com.state) {
-	case MPA_REQ_SENT:
-		__state_set(&ep->com, ABORTING);
-		connect_reply_upcall(ep, -ETIMEDOUT);
-		break;
-	case MPA_REQ_WAIT:
-		__state_set(&ep->com, ABORTING);
-		break;
-	case CLOSING:
-	case MORIBUND:
-		if (ep->com.cm_id && ep->com.qp) {
-			attrs.next_state = C4IW_QP_STATE_ERROR;
-			c4iw_modify_qp(ep->com.qp->rhp,
-				     ep->com.qp, C4IW_QP_ATTR_NEXT_STATE,
-				     &attrs, 1);
-		}
-		__state_set(&ep->com, ABORTING);
-		break;
-	default:
-		printk(KERN_ERR "%s unexpected state ep %p tid %u state %u\n",
-			__func__, ep, ep->hwtid, ep->com.state);
-		WARN_ON(1);
-		abort = 0;
-	}
-	spin_unlock_irqrestore(&ep->com.lock, flags);
-	if (abort)
-		abort_connection(ep, NULL, GFP_ATOMIC);
-	c4iw_put_ep(&ep->com);
-}
-
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
 	int err;
@@ -1904,8 +1817,8 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
 	BUG_ON(!qp);
 
-	if ((conn_param->ord > T4_MAX_READ_DEPTH) ||
-	    (conn_param->ird > T4_MAX_READ_DEPTH)) {
+	if ((conn_param->ord > c4iw_max_read_depth) ||
+	    (conn_param->ird > c4iw_max_read_depth)) {
 		abort_connection(ep, NULL, GFP_KERNEL);
 		err = -EINVAL;
 		goto err;
@@ -1968,6 +1881,11 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct net_device *pdev;
 	int step;
 
+	if ((conn_param->ord > c4iw_max_read_depth) ||
+	    (conn_param->ird > c4iw_max_read_depth)) {
+		err = -EINVAL;
+		goto out;
+	}
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	if (!ep) {
 		printk(KERN_ERR MOD "%s - cannot alloc ep.\n", __func__);
@@ -2115,7 +2033,7 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	 */
 	ep->stid = cxgb4_alloc_stid(dev->rdev.lldi.tids, PF_INET, ep);
 	if (ep->stid == -1) {
-		printk(KERN_ERR MOD "%s - cannot alloc atid.\n", __func__);
+		printk(KERN_ERR MOD "%s - cannot alloc stid.\n", __func__);
 		err = -ENOMEM;
 		goto fail2;
 	}
@@ -2244,6 +2162,116 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 }
 
 /*
+ * These are the real handlers that are called from a
+ * work queue.
+ */
+static c4iw_handler_func work_handlers[NUM_CPL_CMDS] = {
+	[CPL_ACT_ESTABLISH] = act_establish,
+	[CPL_ACT_OPEN_RPL] = act_open_rpl,
+	[CPL_RX_DATA] = rx_data,
+	[CPL_ABORT_RPL_RSS] = abort_rpl,
+	[CPL_ABORT_RPL] = abort_rpl,
+	[CPL_PASS_OPEN_RPL] = pass_open_rpl,
+	[CPL_CLOSE_LISTSRV_RPL] = close_listsrv_rpl,
+	[CPL_PASS_ACCEPT_REQ] = pass_accept_req,
+	[CPL_PASS_ESTABLISH] = pass_establish,
+	[CPL_PEER_CLOSE] = peer_close,
+	[CPL_ABORT_REQ_RSS] = peer_abort,
+	[CPL_CLOSE_CON_RPL] = close_con_rpl,
+	[CPL_RDMA_TERMINATE] = terminate,
+	[CPL_FW4_ACK] = fw4_ack
+};
+
+static void process_timeout(struct c4iw_ep *ep)
+{
+	struct c4iw_qp_attributes attrs;
+	int abort = 1;
+
+	spin_lock_irq(&ep->com.lock);
+	PDBG("%s ep %p tid %u state %d\n", __func__, ep, ep->hwtid,
+	     ep->com.state);
+	switch (ep->com.state) {
+	case MPA_REQ_SENT:
+		__state_set(&ep->com, ABORTING);
+		connect_reply_upcall(ep, -ETIMEDOUT);
+		break;
+	case MPA_REQ_WAIT:
+		__state_set(&ep->com, ABORTING);
+		break;
+	case CLOSING:
+	case MORIBUND:
+		if (ep->com.cm_id && ep->com.qp) {
+			attrs.next_state = C4IW_QP_STATE_ERROR;
+			c4iw_modify_qp(ep->com.qp->rhp,
+				     ep->com.qp, C4IW_QP_ATTR_NEXT_STATE,
+				     &attrs, 1);
+		}
+		__state_set(&ep->com, ABORTING);
+		break;
+	default:
+		printk(KERN_ERR "%s unexpected state ep %p tid %u state %u\n",
+			__func__, ep, ep->hwtid, ep->com.state);
+		WARN_ON(1);
+		abort = 0;
+	}
+	spin_unlock_irq(&ep->com.lock);
+	if (abort)
+		abort_connection(ep, NULL, GFP_KERNEL);
+	c4iw_put_ep(&ep->com);
+}
+
+static void process_timedout_eps(void)
+{
+	struct c4iw_ep *ep;
+
+	spin_lock_irq(&timeout_lock);
+	while (!list_empty(&timeout_list)) {
+		struct list_head *tmp;
+
+		tmp = timeout_list.next;
+		list_del(tmp);
+		spin_unlock_irq(&timeout_lock);
+		ep = list_entry(tmp, struct c4iw_ep, entry);
+		process_timeout(ep);
+		spin_lock_irq(&timeout_lock);
+	}
+	spin_unlock_irq(&timeout_lock);
+}
+
+static void process_work(struct work_struct *work)
+{
+	struct sk_buff *skb = NULL;
+	struct c4iw_dev *dev;
+	struct cpl_act_establish *rpl = cplhdr(skb);
+	unsigned int opcode;
+	int ret;
+
+	while ((skb = skb_dequeue(&rxq))) {
+		rpl = cplhdr(skb);
+		dev = *((struct c4iw_dev **) (skb->cb + sizeof(void *)));
+		opcode = rpl->ot.opcode;
+
+		BUG_ON(!work_handlers[opcode]);
+		ret = work_handlers[opcode](dev, skb);
+		if (!ret)
+			kfree_skb(skb);
+	}
+	process_timedout_eps();
+}
+
+static DECLARE_WORK(skb_work, process_work);
+
+static void ep_timeout(unsigned long arg)
+{
+	struct c4iw_ep *ep = (struct c4iw_ep *)arg;
+
+	spin_lock(&timeout_lock);
+	list_add_tail(&ep->entry, &timeout_list);
+	spin_unlock(&timeout_lock);
+	queue_work(workq, &skb_work);
+}
+
+/*
  * All the CM events are handled on a work queue to have a safe context.
  */
 static int sched(struct c4iw_dev *dev, struct sk_buff *skb)
@@ -2273,58 +2301,74 @@ static int set_tcb_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
+static int fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
+{
+	struct cpl_fw6_msg *rpl = cplhdr(skb);
+	struct c4iw_wr_wait *wr_waitp;
+	int ret;
+
+	PDBG("%s type %u\n", __func__, rpl->type);
+
+	switch (rpl->type) {
+	case 1:
+		ret = (int)((be64_to_cpu(rpl->data[0]) >> 8) & 0xff);
+		wr_waitp = (__force struct c4iw_wr_wait *)rpl->data[1];
+		PDBG("%s wr_waitp %p ret %u\n", __func__, wr_waitp, ret);
+		if (wr_waitp) {
+			wr_waitp->ret = ret;
+			wr_waitp->done = 1;
+			wake_up(&wr_waitp->wait);
+		}
+		break;
+	case 2:
+		c4iw_ev_dispatch(dev, (struct t4_cqe *)&rpl->data[0]);
+		break;
+	default:
+		printk(KERN_ERR MOD "%s unexpected fw6 msg type %u\n", __func__,
+		       rpl->type);
+		break;
+	}
+	return 0;
+}
+
+/*
+ * Most upcalls from the T4 Core go to sched() to
+ * schedule the processing on a work queue.
+ */
+c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS] = {
+	[CPL_ACT_ESTABLISH] = sched,
+	[CPL_ACT_OPEN_RPL] = sched,
+	[CPL_RX_DATA] = sched,
+	[CPL_ABORT_RPL_RSS] = sched,
+	[CPL_ABORT_RPL] = sched,
+	[CPL_PASS_OPEN_RPL] = sched,
+	[CPL_CLOSE_LISTSRV_RPL] = sched,
+	[CPL_PASS_ACCEPT_REQ] = sched,
+	[CPL_PASS_ESTABLISH] = sched,
+	[CPL_PEER_CLOSE] = sched,
+	[CPL_CLOSE_CON_RPL] = sched,
+	[CPL_ABORT_REQ_RSS] = sched,
+	[CPL_RDMA_TERMINATE] = sched,
+	[CPL_FW4_ACK] = sched,
+	[CPL_SET_TCB_RPL] = set_tcb_rpl,
+	[CPL_FW6_MSG] = fw6_msg
+};
+
 int __init c4iw_cm_init(void)
 {
+	spin_lock_init(&timeout_lock);
 	skb_queue_head_init(&rxq);
 
 	workq = create_singlethread_workqueue("iw_cxgb4");
 	if (!workq)
 		return -ENOMEM;
 
-	/*
-	 * Most upcalls from the T4 Core go to sched() to
-	 * schedule the processing on a work queue.
-	 */
-	c4iw_handlers[CPL_ACT_ESTABLISH] = sched;
-	c4iw_handlers[CPL_ACT_OPEN_RPL] = sched;
-	c4iw_handlers[CPL_RX_DATA] = sched;
-	c4iw_handlers[CPL_ABORT_RPL_RSS] = sched;
-	c4iw_handlers[CPL_ABORT_RPL] = sched;
-	c4iw_handlers[CPL_PASS_OPEN_RPL] = sched;
-	c4iw_handlers[CPL_CLOSE_LISTSRV_RPL] = sched;
-	c4iw_handlers[CPL_PASS_ACCEPT_REQ] = sched;
-	c4iw_handlers[CPL_PASS_ESTABLISH] = sched;
-	c4iw_handlers[CPL_PEER_CLOSE] = sched;
-	c4iw_handlers[CPL_CLOSE_CON_RPL] = sched;
-	c4iw_handlers[CPL_ABORT_REQ_RSS] = sched;
-	c4iw_handlers[CPL_RDMA_TERMINATE] = sched;
-	c4iw_handlers[CPL_FW4_ACK] = sched;
-	c4iw_handlers[CPL_SET_TCB_RPL] = set_tcb_rpl;
-	c4iw_handlers[CPL_FW6_MSG] = fw6_msg;
-
-	/*
-	 * These are the real handlers that are called from a
-	 * work queue.
-	 */
-	work_handlers[CPL_ACT_ESTABLISH] = act_establish;
-	work_handlers[CPL_ACT_OPEN_RPL] = act_open_rpl;
-	work_handlers[CPL_RX_DATA] = rx_data;
-	work_handlers[CPL_ABORT_RPL_RSS] = abort_rpl;
-	work_handlers[CPL_ABORT_RPL] = abort_rpl;
-	work_handlers[CPL_PASS_OPEN_RPL] = pass_open_rpl;
-	work_handlers[CPL_CLOSE_LISTSRV_RPL] = close_listsrv_rpl;
-	work_handlers[CPL_PASS_ACCEPT_REQ] = pass_accept_req;
-	work_handlers[CPL_PASS_ESTABLISH] = pass_establish;
-	work_handlers[CPL_PEER_CLOSE] = peer_close;
-	work_handlers[CPL_ABORT_REQ_RSS] = peer_abort;
-	work_handlers[CPL_CLOSE_CON_RPL] = close_con_rpl;
-	work_handlers[CPL_RDMA_TERMINATE] = terminate;
-	work_handlers[CPL_FW4_ACK] = fw4_ack;
 	return 0;
 }
 
 void __exit c4iw_cm_term(void)
 {
+	WARN_ON(!list_empty(&timeout_list));
 	flush_workqueue(workq);
 	destroy_workqueue(workq);
 }

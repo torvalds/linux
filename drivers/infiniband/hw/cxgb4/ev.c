@@ -51,8 +51,8 @@ static void post_qp_event(struct c4iw_dev *dev, struct c4iw_cq *chp,
 		return;
 	}
 
-	printk(KERN_ERR "%s - AE qpid 0x%x opcode %d status 0x%x "
-	       "type %d wrid.hi 0x%x wrid.lo 0x%x\n", __func__,
+	printk(KERN_ERR MOD "AE qpid 0x%x opcode %d status 0x%x "
+	       "type %d wrid.hi 0x%x wrid.lo 0x%x\n",
 	       CQE_QPID(err_cqe), CQE_OPCODE(err_cqe),
 	       CQE_STATUS(err_cqe), CQE_TYPE(err_cqe),
 	       CQE_WRID_HI(err_cqe), CQE_WRID_LOW(err_cqe));
@@ -60,7 +60,7 @@ static void post_qp_event(struct c4iw_dev *dev, struct c4iw_cq *chp,
 	if (qhp->attr.state == C4IW_QP_STATE_RTS) {
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
 		c4iw_modify_qp(qhp->rhp, qhp, C4IW_QP_ATTR_NEXT_STATE,
-			       &attrs, 0);
+			       &attrs, 1);
 	}
 
 	event.event = ib_event;

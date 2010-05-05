@@ -856,7 +856,8 @@ int c4iw_post_zb_read(struct c4iw_qp *qhp)
 	return c4iw_ofld_send(&qhp->rhp->rdev, skb);
 }
 
-int c4iw_post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe)
+static void post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe,
+			   gfp_t gfp)
 {
 	struct fw_ri_wr *wqe;
 	struct sk_buff *skb;
@@ -865,9 +866,9 @@ int c4iw_post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe)
 	PDBG("%s qhp %p qid 0x%x tid %u\n", __func__, qhp, qhp->wq.sq.qid,
 	     qhp->ep->hwtid);
 
-	skb = alloc_skb(sizeof *wqe, GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(sizeof *wqe, gfp);
 	if (!skb)
-		return -ENOMEM;
+		return;
 	set_wr_txq(skb, CPL_PRIORITY_DATA, qhp->ep->txq_idx);
 
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
@@ -881,7 +882,7 @@ int c4iw_post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe)
 	wqe->u.terminate.immdlen = cpu_to_be32(sizeof *term);
 	term = (struct terminate_message *)wqe->u.terminate.termmsg;
 	build_term_codes(err_cqe, &term->layer_etype, &term->ecode);
-	return c4iw_ofld_send(&qhp->rhp->rdev, skb);
+	c4iw_ofld_send(&qhp->rhp->rdev, skb);
 }
 
 /*
@@ -1130,14 +1131,14 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 		if (mask & C4IW_QP_ATTR_ENABLE_RDMA_BIND)
 			newattr.enable_bind = attrs->enable_bind;
 		if (mask & C4IW_QP_ATTR_MAX_ORD) {
-			if (attrs->max_ord > T4_MAX_READ_DEPTH) {
+			if (attrs->max_ord > c4iw_max_read_depth) {
 				ret = -EINVAL;
 				goto out;
 			}
 			newattr.max_ord = attrs->max_ord;
 		}
 		if (mask & C4IW_QP_ATTR_MAX_IRD) {
-			if (attrs->max_ird > T4_MAX_READ_DEPTH) {
+			if (attrs->max_ird > c4iw_max_read_depth) {
 				ret = -EINVAL;
 				goto out;
 			}
@@ -1215,12 +1216,10 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			qhp->attr.state = C4IW_QP_STATE_TERMINATE;
 			if (qhp->ibqp.uobject)
 				t4_set_wq_in_error(&qhp->wq);
-			if (!internal) {
-				ep = qhp->ep;
-				c4iw_get_ep(&ep->com);
-				terminate = 1;
-				disconnect = 1;
-			}
+			ep = qhp->ep;
+			c4iw_get_ep(&ep->com);
+			terminate = 1;
+			disconnect = 1;
 			break;
 		case C4IW_QP_STATE_ERROR:
 			qhp->attr.state = C4IW_QP_STATE_ERROR;
@@ -1301,7 +1300,7 @@ out:
 	spin_unlock_irqrestore(&qhp->lock, flag);
 
 	if (terminate)
-		c4iw_post_terminate(qhp, NULL);
+		post_terminate(qhp, NULL, internal ? GFP_ATOMIC : GFP_KERNEL);
 
 	/*
 	 * If disconnect is 1, then we need to initiate a disconnect
@@ -1309,7 +1308,8 @@ out:
 	 * an abnormal close (RTS/CLOSING->ERROR).
 	 */
 	if (disconnect) {
-		c4iw_ep_disconnect(ep, abort, GFP_KERNEL);
+		c4iw_ep_disconnect(ep, abort, internal ? GFP_ATOMIC :
+							 GFP_KERNEL);
 		c4iw_put_ep(&ep->com);
 	}
 

@@ -1719,6 +1719,20 @@ W:	http://www.openfabrics.org
 S:	Supported
 F:	drivers/infiniband/hw/cxgb3/
 
+CXGB4 ETHERNET DRIVER (CXGB4)
+M:	Dimitris Michailidis <dm@chelsio.com>
+L:	netdev@vger.kernel.org
+W:	http://www.chelsio.com
+S:	Supported
+F:	drivers/net/cxgb4/
+
+CXGB4 IWARP RNIC DRIVER (IW_CXGB4)
+M:	Steve Wise <swise@chelsio.com>
+L:	linux-rdma@vger.kernel.org
+W:	http://www.openfabrics.org
+S:	Supported
+F:	drivers/infiniband/hw/cxgb4/
+
 CYBERPRO FB DRIVER
 M:	Russell King <linux@arm.linux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)

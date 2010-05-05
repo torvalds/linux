@@ -36,7 +36,6 @@
 #include "t4_msg.h"
 #include "t4fw_ri_api.h"
 
-#define T4_MAX_READ_DEPTH 16
 #define T4_QID_BASE 1024
 #define T4_MAX_QIDS 256
 #define T4_MAX_NUM_QP (1<<16)
@@ -450,11 +449,25 @@ struct t4_cq {
 static inline int t4_arm_cq(struct t4_cq *cq, int se)
 {
 	u32 val;
+	u16 inc;
 
-	val = SEINTARM(se) | CIDXINC(cq->cidx_inc) | TIMERREG(6) |
-	      INGRESSQID(cq->cqid);
-	cq->cidx_inc = 0;
-	writel(val, cq->gts);
+	do {
+		/*
+		 * inc must be less the both the max update value -and-
+		 * the size of the CQ.
+		 */
+		inc = cq->cidx_inc <= CIDXINC_MASK ? cq->cidx_inc :
+						     CIDXINC_MASK;
+		inc = inc <= (cq->size - 1) ? inc : (cq->size - 1);
+		if (inc == cq->cidx_inc)
+			val = SEINTARM(se) | CIDXINC(inc) | TIMERREG(6) |
+			      INGRESSQID(cq->cqid);
+		else
+			val = SEINTARM(0) | CIDXINC(inc) | TIMERREG(7) |
+			      INGRESSQID(cq->cqid);
+		cq->cidx_inc -= inc;
+		writel(val, cq->gts);
+	} while (cq->cidx_inc);
 	return 0;
 }
 
@@ -489,11 +502,12 @@ static inline int t4_valid_cqe(struct t4_cq *cq, struct t4_cqe *cqe)
 static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 {
 	int ret = 0;
+	u64 bits_type_ts = be64_to_cpu(cq->queue[cq->cidx].bits_type_ts);
 
-	if (t4_valid_cqe(cq, &cq->queue[cq->cidx])) {
+	if (G_CQE_GENBIT(bits_type_ts) == cq->gen) {
 		*cqe = &cq->queue[cq->cidx];
-		cq->timestamp = CQE_TS(*cqe);
-	} else if (CQE_TS(&cq->queue[cq->cidx]) > cq->timestamp)
+		cq->timestamp = G_CQE_TS(bits_type_ts);
+	} else if (G_CQE_TS(bits_type_ts) > cq->timestamp)
 		ret = -EOVERFLOW;
 	else
 		ret = -ENODATA;
