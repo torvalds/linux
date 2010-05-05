@@ -397,6 +397,11 @@ enum broken_state {
 
 static int bad_hist[BROKEN_MAX];
 
+enum acquire_flags {
+	TRY_LOCK = 1,
+	READ_LOCK = 2,
+};
+
 static void
 report_lock_acquire_event(struct trace_acquire_event *acquire_event,
 			struct event *__event __used,
@@ -421,9 +426,9 @@ report_lock_acquire_event(struct trace_acquire_event *acquire_event,
 		if (!acquire_event->flag) {
 			seq->state = SEQ_STATE_ACQUIRING;
 		} else {
-			if (acquire_event->flag & 1)
+			if (acquire_event->flag & TRY_LOCK)
 				ls->nr_trylock++;
-			if (acquire_event->flag & 2)
+			if (acquire_event->flag & READ_LOCK)
 				ls->nr_readlock++;
 			seq->state = SEQ_STATE_READ_ACQUIRED;
 			seq->read_count = 1;
@@ -431,7 +436,7 @@ report_lock_acquire_event(struct trace_acquire_event *acquire_event,
 		}
 		break;
 	case SEQ_STATE_READ_ACQUIRED:
-		if (acquire_event->flag & 2) {
+		if (acquire_event->flag & READ_LOCK) {
 			seq->read_count++;
 			ls->nr_acquired++;
 			goto end;
