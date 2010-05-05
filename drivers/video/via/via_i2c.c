@@ -20,9 +20,11 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/delay.h>
+#include <linux/spinlock.h>
+#include <linux/module.h>
 #include "via-core.h"
 #include "via_i2c.h"
-#include "global.h"
 
 /*
  * There can only be one set of these, so there's no point in having
