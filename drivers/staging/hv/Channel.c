@@ -175,7 +175,7 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 		     void (*OnChannelCallback)(void *context), void *Context)
 {
 	struct vmbus_channel_open_channel *openMsg;
-	struct vmbus_channel_msginfo *openInfo;
+	struct vmbus_channel_msginfo *openInfo = NULL;
 	void *in, *out;
 	unsigned long flags;
 	int ret, err = 0;
@@ -218,7 +218,11 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 					 SendRingBufferSize +
 					 RecvRingBufferSize,
 					 &NewChannel->RingBufferGpadlHandle);
-/* FIXME: the value of ret is not checked */
+
+	if (!ret) {
+		err = ret;
+		goto errorout;
+	}
 
 	DPRINT_DBG(VMBUS, "channel %p <relid %d gpadl 0x%x send ring %p "
 		   "size %d recv ring %p size %d, downstreamoffset %d>",
@@ -250,7 +254,6 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 	openMsg->OpenId = NewChannel->OfferMsg.ChildRelId; /* FIXME */
 	openMsg->ChildRelId = NewChannel->OfferMsg.ChildRelId;
 	openMsg->RingBufferGpadlHandle = NewChannel->RingBufferGpadlHandle;
-	ASSERT(openMsg->RingBufferGpadlHandle);
 	openMsg->DownstreamRingBufferPageOffset = SendRingBufferSize >>
 						  PAGE_SHIFT;
 	openMsg->ServerContextAreaGpadlHandle = 0; /* TODO */
@@ -295,6 +298,8 @@ Cleanup:
 	return 0;
 
 errorout:
+	RingBufferCleanup(&NewChannel->Outbound);
+	RingBufferCleanup(&NewChannel->Inbound);
 	osd_PageFree(out, (SendRingBufferSize + RecvRingBufferSize)
 		     >> PAGE_SHIFT);
 	kfree(openInfo);
