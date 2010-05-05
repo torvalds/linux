@@ -1489,7 +1489,7 @@ static int __init blkvsc_init(void)
 {
 	int ret;
 
-	ASSERT(sizeof(sector_t) == 8); /* Make sure CONFIG_LBD is set */
+	BUILD_BUG_ON(sizeof(sector_t) != 8);
 
 	DPRINT_ENTER(BLKVSC_DRV);
 
