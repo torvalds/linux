@@ -4633,6 +4633,9 @@ static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 	reg16 &= ~state;
 	pci_write_config_word(pdev, pos + PCI_EXP_LNKCTL, reg16);
 
+	if (!pdev->bus->self)
+		return;
+
 	pos = pci_pcie_cap(pdev->bus->self);
 	pci_read_config_word(pdev->bus->self, pos + PCI_EXP_LNKCTL, &reg16);
 	reg16 &= ~state;
