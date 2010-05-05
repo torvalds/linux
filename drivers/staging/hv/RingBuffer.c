@@ -72,7 +72,7 @@ GetNextWriteLocation(RING_BUFFER_INFO *RingInfo)
 {
 	u32 next = RingInfo->RingBuffer->WriteIndex;
 
-	ASSERT(next < RingInfo->RingDataSize);
+	/* ASSERT(next < RingInfo->RingDataSize); */
 
 	return next;
 }
@@ -106,7 +106,7 @@ GetNextReadLocation(RING_BUFFER_INFO *RingInfo)
 {
 	u32 next = RingInfo->RingBuffer->ReadIndex;
 
-	ASSERT(next < RingInfo->RingDataSize);
+	/* ASSERT(next < RingInfo->RingDataSize); */
 
 	return next;
 }
@@ -126,7 +126,7 @@ GetNextReadLocationWithOffset(RING_BUFFER_INFO *RingInfo, u32 Offset)
 {
 	u32 next = RingInfo->RingBuffer->ReadIndex;
 
-	ASSERT(next < RingInfo->RingDataSize);
+	/* ASSERT(next < RingInfo->RingDataSize); */
 	next += Offset;
 	next %= RingInfo->RingDataSize;
 
