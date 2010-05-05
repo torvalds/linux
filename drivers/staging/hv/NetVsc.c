@@ -131,7 +131,7 @@ static void PutNetDevice(struct hv_device *Device)
 	struct netvsc_device *netDevice;
 
 	netDevice = Device->Extension;
-	ASSERT(netDevice);
+	/* ASSERT(netDevice); */
 
 	atomic_dec(&netDevice->RefCount);
 }
@@ -184,14 +184,15 @@ int NetVscInitialize(struct hv_driver *drv)
 		   sizeof(struct vmtransfer_page_packet_header));
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
-	ASSERT(driver->RingBufferSize >= (PAGE_SIZE << 1));
+	/* ASSERT(driver->RingBufferSize >= (PAGE_SIZE << 1)); */
 
 	drv->name = gDriverName;
 	memcpy(&drv->deviceType, &gNetVscDeviceType, sizeof(struct hv_guid));
 
 	/* Make sure it is set by the caller */
-	ASSERT(driver->OnReceiveCallback);
-	ASSERT(driver->OnLinkStatusChanged);
+	/* FIXME: These probably should still be tested in some way */
+	/* ASSERT(driver->OnReceiveCallback); */
+	/* ASSERT(driver->OnLinkStatusChanged); */
 
 	/* Setup the dispatch table */
 	driver->Base.OnDeviceAdd	= NetVscOnDeviceAdd;
@@ -222,9 +223,9 @@ static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 		DPRINT_EXIT(NETVSC);
 		return -1;
 	}
-	ASSERT(netDevice->ReceiveBufferSize > 0);
+	/* ASSERT(netDevice->ReceiveBufferSize > 0); */
 	/* page-size grandularity */
-	ASSERT((netDevice->ReceiveBufferSize & (PAGE_SIZE - 1)) == 0);
+	/* ASSERT((netDevice->ReceiveBufferSize & (PAGE_SIZE - 1)) == 0); */
 
 	netDevice->ReceiveBuffer =
 		osd_PageAlloc(netDevice->ReceiveBufferSize >> PAGE_SHIFT);
@@ -236,8 +237,8 @@ static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 		goto Cleanup;
 	}
 	/* page-aligned buffer */
-	ASSERT(((unsigned long)netDevice->ReceiveBuffer & (PAGE_SIZE - 1)) ==
-		0);
+	/* ASSERT(((unsigned long)netDevice->ReceiveBuffer & (PAGE_SIZE - 1)) == */
+	/* 	0); */
 
 	DPRINT_INFO(NETVSC, "Establishing receive buffer's GPADL...");
 
@@ -294,8 +295,8 @@ static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 	}
 
 	/* Parse the response */
-	ASSERT(netDevice->ReceiveSectionCount == 0);
-	ASSERT(netDevice->ReceiveSections == NULL);
+	/* ASSERT(netDevice->ReceiveSectionCount == 0); */
+	/* ASSERT(netDevice->ReceiveSections == NULL); */
 
 	netDevice->ReceiveSectionCount = initPacket->Messages.Version1Messages.SendReceiveBufferComplete.NumSections;
 
@@ -355,7 +356,7 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 	}
 	ASSERT(netDevice->SendBufferSize > 0);
 	/* page-size grandularity */
-	ASSERT((netDevice->SendBufferSize & (PAGE_SIZE - 1)) == 0);
+	/* ASSERT((netDevice->SendBufferSize & (PAGE_SIZE - 1)) == 0); */
 
 	netDevice->SendBuffer =
 		osd_PageAlloc(netDevice->SendBufferSize >> PAGE_SHIFT);
@@ -366,7 +367,7 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 		goto Cleanup;
 	}
 	/* page-aligned buffer */
-	ASSERT(((unsigned long)netDevice->SendBuffer & (PAGE_SIZE - 1)) == 0);
+	/* ASSERT(((unsigned long)netDevice->SendBuffer & (PAGE_SIZE - 1)) == 0); */
 
 	DPRINT_INFO(NETVSC, "Establishing send buffer's GPADL...");
 
@@ -912,7 +913,7 @@ static void NetVscOnSendCompletion(struct hv_device *Device,
 		   NvspMessage1TypeSendRNDISPacketComplete) {
 		/* Get the send context */
 		nvscPacket = (struct hv_netvsc_packet *)(unsigned long)Packet->TransactionId;
-		ASSERT(nvscPacket);
+		/* ASSERT(nvscPacket); */
 
 		/* Notify the layer above us */
 		nvscPacket->Completion.Send.OnSendCompletion(nvscPacket->Completion.Send.SendCompletionContext);
@@ -1096,8 +1097,8 @@ static void NetVscOnReceive(struct hv_device *Device,
 
 	/* This is how much we can satisfy */
 	xferpagePacket->Count = count - 1;
-	ASSERT(xferpagePacket->Count > 0 && xferpagePacket->Count <=
-		vmxferpagePacket->RangeCount);
+	/* ASSERT(xferpagePacket->Count > 0 && xferpagePacket->Count <= */
+	/* 	vmxferpagePacket->RangeCount); */
 
 	if (xferpagePacket->Count != vmxferpagePacket->RangeCount) {
 		DPRINT_INFO(NETVSC, "Needed %d netvsc pkts to satisy this xfer "
@@ -1125,9 +1126,9 @@ static void NetVscOnReceive(struct hv_device *Device,
 					vmxferpagePacket->Ranges[i].ByteCount;
 		netvscPacket->PageBufferCount = 1;
 
-		ASSERT(vmxferpagePacket->Ranges[i].ByteOffset +
-			vmxferpagePacket->Ranges[i].ByteCount <
-			netDevice->ReceiveBufferSize);
+		/* ASSERT(vmxferpagePacket->Ranges[i].ByteOffset + */
+		/* 	vmxferpagePacket->Ranges[i].ByteCount < */
+		/* 	netDevice->ReceiveBufferSize); */
 
 		netvscPacket->PageBuffers[0].Length =
 					vmxferpagePacket->Ranges[i].ByteCount;
@@ -1165,7 +1166,7 @@ static void NetVscOnReceive(struct hv_device *Device,
 				if (bytesRemain == 0)
 					break;
 			}
-			ASSERT(bytesRemain == 0);
+			/* ASSERT(bytesRemain == 0); */
 		}
 		DPRINT_DBG(NETVSC, "[%d] - (abs offset %u len %u) => "
 			   "(pfn %llx, offset %u, len %u)", i,
@@ -1181,7 +1182,7 @@ static void NetVscOnReceive(struct hv_device *Device,
 		NetVscOnReceiveCompletion(netvscPacket->Completion.Recv.ReceiveCompletionContext);
 	}
 
-	ASSERT(list_empty(&listHead));
+	/* ASSERT(list_empty(&listHead)); */
 
 	PutNetDevice(Device);
 	DPRINT_EXIT(NETVSC);
@@ -1245,7 +1246,7 @@ static void NetVscOnReceiveCompletion(void *Context)
 
 	DPRINT_ENTER(NETVSC);
 
-	ASSERT(packet->XferPagePacket);
+	/* ASSERT(packet->XferPagePacket); */
 
 	/*
 	 * Even though it seems logical to do a GetOutboundNetDevice() here to
@@ -1263,7 +1264,7 @@ static void NetVscOnReceiveCompletion(void *Context)
 	/* Overloading use of the lock. */
 	spin_lock_irqsave(&netDevice->receive_packet_list_lock, flags);
 
-	ASSERT(packet->XferPagePacket->Count > 0);
+	/* ASSERT(packet->XferPagePacket->Count > 0); */
 	packet->XferPagePacket->Count--;
 
 	/*
@@ -1305,7 +1306,7 @@ static void NetVscOnChannelCallback(void *Context)
 
 	DPRINT_ENTER(NETVSC);
 
-	ASSERT(device);
+	/* ASSERT(device); */
 
 	packet = kzalloc(NETVSC_PACKET_SIZE * sizeof(unsigned char),
 			 GFP_KERNEL);
@@ -1377,8 +1378,6 @@ static void NetVscOnChannelCallback(void *Context)
 			}
 
 			bufferlen = bytesRecvd;
-		} else {
-			ASSERT(0);
 		}
 	} while (1);
 

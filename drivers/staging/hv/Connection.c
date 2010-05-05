@@ -254,7 +254,7 @@ static void VmbusProcessChannelEvent(void *context)
 	struct vmbus_channel *channel;
 	u32 relId = (u32)(unsigned long)context;
 
-	ASSERT(relId > 0);
+	/* ASSERT(relId > 0); */
 
 	/*
 	 * Find the channel based on this relid and invokes the

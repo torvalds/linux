@@ -78,7 +78,7 @@ int BlkVscInitialize(struct hv_driver *Driver)
 	storDriver = (struct storvsc_driver_object *)Driver;
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
-	ASSERT(storDriver->RingBufferSize >= (PAGE_SIZE << 1));
+	/* ASSERT(storDriver->RingBufferSize >= (PAGE_SIZE << 1)); */
 
 	Driver->name = gBlkDriverName;
 	memcpy(&Driver->deviceType, &gBlkVscDeviceType, sizeof(struct hv_guid));
