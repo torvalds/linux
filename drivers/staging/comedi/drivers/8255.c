@@ -82,6 +82,7 @@ I/O port base address can be found in the output of 'lspci -v'.
 
 #include <linux/ioport.h>
 #include <linux/slab.h>
+#include "8255.h"
 
 #define _8255_SIZE 4
 
@@ -120,8 +121,8 @@ COMEDI_INITCLEANUP(driver_8255);
 
 static void do_config(struct comedi_device *dev, struct comedi_subdevice *s);
 
-static void subdev_8255_interrupt(struct comedi_device *dev,
-				  struct comedi_subdevice *s)
+void subdev_8255_interrupt(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	short d;
 
@@ -319,10 +320,9 @@ static int subdev_8255_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static int subdev_8255_init(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    int (*cb) (int, int, int, unsigned long),
-			    unsigned long arg)
+int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
+		     int (*cb) (int, int, int, unsigned long),
+		     unsigned long arg)
 {
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -350,10 +350,9 @@ static int subdev_8255_init(struct comedi_device *dev,
 }
 EXPORT_SYMBOL(subdev_8255_init);
 
-static int subdev_8255_init_irq(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				int (*cb) (int, int, int, unsigned long),
-				unsigned long arg)
+int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
+			 int (*cb) (int, int, int, unsigned long),
+			 unsigned long arg)
 {
 	int ret;
 
@@ -371,8 +370,7 @@ static int subdev_8255_init_irq(struct comedi_device *dev,
 }
 EXPORT_SYMBOL(subdev_8255_init_irq);
 
-static void subdev_8255_cleanup(struct comedi_device *dev,
-				struct comedi_subdevice *s)
+void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	if (s->private) {
 		/* this test does nothing, so comment it out
