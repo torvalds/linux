@@ -958,9 +958,8 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	}
 
 	st->indio_dev->available_scan_masks
-		= kzalloc(GFP_KERNEL,
-			sizeof(*st->indio_dev->available_scan_masks)*
-			(st->chip_info->num_modes + 1));
+		= kzalloc(sizeof(*st->indio_dev->available_scan_masks)*
+			  (st->chip_info->num_modes + 1), GFP_KERNEL);
 	if (!st->indio_dev->available_scan_masks) {
 		ret = -ENOMEM;
 		goto error_free_device;
