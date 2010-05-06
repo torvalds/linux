@@ -1,7 +1,7 @@
 /* linux/arch/arm/plat-s3c/gpio-config.c
  *
  * Copyright 2008 Openmoko, Inc.
- * Copyright 2008 Simtec Electronics
+ * Copyright 2008-2010 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/
  *
@@ -87,6 +87,19 @@ int s3c_gpio_setcfg_s3c24xx_a(struct s3c_gpio_chip *chip,
 	return 0;
 }
 
+unsigned s3c_gpio_getcfg_s3c24xx_a(struct s3c_gpio_chip *chip,
+				   unsigned int off)
+{
+	u32 con;
+
+	con = __raw_readl(chip->base);
+	con >>= off;
+	con &= 1;
+	con++;
+
+	return S3C_GPIO_SFN(con);
+}
+
 int s3c_gpio_setcfg_s3c24xx(struct s3c_gpio_chip *chip,
 			    unsigned int off, unsigned int cfg)
 {
@@ -108,6 +121,19 @@ int s3c_gpio_setcfg_s3c24xx(struct s3c_gpio_chip *chip,
 	__raw_writel(con, reg);
 
 	return 0;
+}
+
+unsigned int s3c_gpio_getcfg_s3c24xx(struct s3c_gpio_chip *chip,
+				     unsigned int off)
+{
+	u32 con;
+
+	con = __raw_readl(chip->base);
+	con >>= off * 2;
+	con &= 3;
+
+	/* this conversion works for IN and OUT as well as special mode */
+	return S3C_GPIO_SPECIAL(con);
 }
 #endif
 
@@ -134,6 +160,25 @@ int s3c_gpio_setcfg_s3c64xx_4bit(struct s3c_gpio_chip *chip,
 
 	return 0;
 }
+
+unsigned s3c_gpio_getcfg_s3c64xx_4bit(struct s3c_gpio_chip *chip,
+				      unsigned int off)
+{
+	void __iomem *reg = chip->base;
+	unsigned int shift = (off & 7) * 4;
+	u32 con;
+
+	if (off < 8 && chip->chip.ngpio > 8)
+		reg -= 4;
+
+	con = __raw_readl(reg);
+	con >>= shift;
+	con &= 0xf;
+
+	/* this conversion works for IN and OUT as well as special mode */
+	return S3C_GPIO_SPECIAL(con);
+}
+
 #endif /* CONFIG_S3C_GPIO_CFG_S3C64XX */
 
 #ifdef CONFIG_S3C_GPIO_PULL_UPDOWN

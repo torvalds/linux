@@ -81,10 +81,12 @@ static int s3c24xx_gpiolib_bankg_toirq(struct gpio_chip *chip, unsigned offset)
 
 static struct s3c_gpio_cfg s3c24xx_gpiocfg_banka = {
 	.set_config	= s3c_gpio_setcfg_s3c24xx_a,
+	.get_config	= s3c_gpio_getcfg_s3c24xx_a,
 };
 
 struct s3c_gpio_cfg s3c24xx_gpiocfg_default = {
 	.set_config	= s3c_gpio_setcfg_s3c24xx,
+	.get_config	= s3c_gpio_getcfg_s3c24xx,
 };
 
 struct s3c_gpio_chip s3c24xx_gpios[] = {
