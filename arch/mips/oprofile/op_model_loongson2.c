@@ -66,7 +66,7 @@ static void loongson2_reg_setup(struct op_counter_config *cfg)
 
 	if (cfg[1].enabled) {
 		ctrl |= LOONGSON2_PERFCTRL_EVENT(1, cfg[1].event);
-		reg.reset_counter2 = (0x80000000ULL - cfg[1].count);
+		reg.reset_counter2 = 0x80000000ULL - cfg[1].count;
 	}
 
 	if (cfg[0].enabled || cfg[1].enabled) {
