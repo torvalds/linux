@@ -27,7 +27,7 @@
 
 #include "hv.h"
 #include "VmbusApi.h"
-#include "Channel.h"
+#include "channel.h"
 #include "ChannelMgmt.h"
 #include "ChannelInterface.h"
 #include "RingBuffer.h"

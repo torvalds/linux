@@ -31,7 +31,7 @@
 #include "VmbusPacketFormat.h"
 #include "VmbusChannelInterface.h"
 #include "VersionInfo.h"
-#include "Channel.h"
+#include "channel.h"
 #include "VmbusPrivate.h"
 #include "VmbusApi.h"
 #include "utils.h"
