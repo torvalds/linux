@@ -95,7 +95,8 @@ static void __comedi_device_detach(struct comedi_device *dev)
 	if (dev->driver)
 		dev->driver->detach(dev);
 	else
-		printk(KERN_WARNING "BUG: dev->driver=NULL in comedi_device_detach()\n");
+		printk(KERN_WARNING
+		       "BUG: dev->driver=NULL in comedi_device_detach()\n");
 	cleanup_device(dev);
 }
 
@@ -148,7 +149,8 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/*  report valid board names before returning error */
 	for (driv = comedi_drivers; driv; driv = driv->next) {
 		if (!try_module_get(driv->module)) {
-			printk(KERN_INFO "comedi: failed to increment module count\n");
+			printk(KERN_INFO
+			       "comedi: failed to increment module count\n");
 			continue;
 		}
 		comedi_report_boards(driv);
@@ -250,7 +252,8 @@ static int postconfig(struct comedi_device *dev)
 			async =
 			    kzalloc(sizeof(struct comedi_async), GFP_KERNEL);
 			if (async == NULL) {
-				printk(KERN_INFO "failed to allocate async struct\n");
+				printk(KERN_INFO
+				       "failed to allocate async struct\n");
 				return -ENOMEM;
 			}
 			init_waitqueue_head(&async->wait_head);
@@ -560,7 +563,8 @@ static unsigned int comedi_buf_munge(struct comedi_async *async,
 
 		block_size = num_bytes - count;
 		if (block_size < 0) {
-			printk(KERN_WARNING "%s: %s: bug! block_size is negative\n",
+			printk(KERN_WARNING
+			       "%s: %s: bug! block_size is negative\n",
 			       __FILE__, __func__);
 			break;
 		}
@@ -679,8 +683,8 @@ unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes)
 	smp_mb();
 	if ((int)(async->buf_read_count + nbytes -
 		  async->buf_read_alloc_count) > 0) {
-		printk
-		    ("comedi: attempted to read-free more bytes than have been read-allocated.\n");
+		printk(KERN_INFO
+		       "comedi: attempted to read-free more bytes than have been read-allocated.\n");
 		nbytes = async->buf_read_alloc_count - async->buf_read_count;
 	}
 	async->buf_read_count += nbytes;
