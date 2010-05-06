@@ -245,6 +245,7 @@ static int nmk_gpio_init_irq(struct nmk_gpio_chip *nmk_chip)
 		set_irq_handler(i, handle_edge_irq);
 		set_irq_flags(i, IRQF_VALID);
 		set_irq_chip_data(i, nmk_chip);
+		set_irq_type(i, IRQ_TYPE_EDGE_FALLING);
 	}
 	set_irq_chained_handler(nmk_chip->parent_irq, nmk_gpio_irq_handler);
 	set_irq_data(nmk_chip->parent_irq, nmk_chip);
