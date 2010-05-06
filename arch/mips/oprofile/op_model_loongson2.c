@@ -88,10 +88,7 @@ static void loongson2_reg_setup(struct op_counter_config *cfg)
 
 static void loongson2_cpu_setup(void *args)
 {
-	uint64_t perfcount;
-
-	perfcount = (reg.reset_counter2 << 32) | reg.reset_counter1;
-	write_c0_perfcnt(perfcount);
+	write_c0_perfcnt((reg.reset_counter2 << 32) | reg.reset_counter1);
 }
 
 static void loongson2_cpu_start(void *args)
