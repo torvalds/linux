@@ -102,10 +102,7 @@ void __cpuinit fpu_init(void)
 
 	mxcsr_feature_mask_init();
 	/* clean state in init */
-	if (cpu_has_xsave)
-		current_thread_info()->status = TS_XSAVE;
-	else
-		current_thread_info()->status = 0;
+	current_thread_info()->status = 0;
 	clear_used_math();
 }
 #endif	/* CONFIG_X86_64 */

@@ -56,6 +56,18 @@ extern int restore_i387_xstate_ia32(void __user *buf);
 
 #define X87_FSW_ES (1 << 7)	/* Exception Summary */
 
+static inline bool use_xsave(void)
+{
+	u8 has_xsave;
+
+	alternative_io("mov $0, %0",
+		       "mov $1, %0",
+		       X86_FEATURE_XSAVE,
+		       "=g"(has_xsave));
+
+	return has_xsave;
+}
+
 #ifdef CONFIG_X86_64
 
 /* Ignore delayed exceptions from user space */
@@ -99,7 +111,7 @@ static inline void clear_fpu_state(struct task_struct *tsk)
 	/*
 	 * xsave header may indicate the init state of the FP.
 	 */
-	if ((task_thread_info(tsk)->status & TS_XSAVE) &&
+	if (use_xsave() &&
 	    !(xstate->xsave_hdr.xstate_bv & XSTATE_FP))
 		return;
 
@@ -164,7 +176,7 @@ static inline void fxsave(struct task_struct *tsk)
 
 static inline void __save_init_fpu(struct task_struct *tsk)
 {
-	if (task_thread_info(tsk)->status & TS_XSAVE)
+	if (use_xsave())
 		xsave(tsk);
 	else
 		fxsave(tsk);
@@ -218,7 +230,7 @@ static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
  */
 static inline void __save_init_fpu(struct task_struct *tsk)
 {
-	if (task_thread_info(tsk)->status & TS_XSAVE) {
+	if (use_xsave()) {
 		struct xsave_struct *xstate = &tsk->thread.xstate->xsave;
 		struct i387_fxsave_struct *fx = &tsk->thread.xstate->fxsave;
 
@@ -266,7 +278,7 @@ end:
 
 static inline int restore_fpu_checking(struct task_struct *tsk)
 {
-	if (task_thread_info(tsk)->status & TS_XSAVE)
+	if (use_xsave())
 		return xrstor_checking(&tsk->thread.xstate->xsave);
 	else
 		return fxrstor_checking(&tsk->thread.xstate->fxsave);
