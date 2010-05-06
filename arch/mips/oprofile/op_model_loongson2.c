@@ -24,8 +24,8 @@
  */
 #define LOONGSON2_CPU_TYPE	"mips/loongson2"
 
-#define LOONGSON2_COUNTER1_EVENT(event)	((event & 0x0f) << 5)
-#define LOONGSON2_COUNTER2_EVENT(event)	((event & 0x0f) << 9)
+#define LOONGSON2_PERFCTRL_EVENT(idx, event) \
+	(((event) & 0x0f) << ((idx) ? 9 : 5))
 
 #define LOONGSON2_PERFCNT_EXL			(1UL	<<  0)
 #define LOONGSON2_PERFCNT_KERNEL		(1UL    <<  1)
@@ -60,12 +60,12 @@ static void loongson2_reg_setup(struct op_counter_config *cfg)
 	/* Compute the performance counter ctrl word.  */
 	/* For now count kernel and user mode */
 	if (cfg[0].enabled) {
-		ctrl |= LOONGSON2_COUNTER1_EVENT(cfg[0].event);
+		ctrl |= LOONGSON2_PERFCTRL_EVENT(0, cfg[0].event);
 		reg.reset_counter1 = 0x80000000ULL - cfg[0].count;
 	}
 
 	if (cfg[1].enabled) {
-		ctrl |= LOONGSON2_COUNTER2_EVENT(cfg[1].event);
+		ctrl |= LOONGSON2_PERFCTRL_EVENT(1, cfg[1].event);
 		reg.reset_counter2 = (0x80000000ULL - cfg[1].count);
 	}
 
