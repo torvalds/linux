@@ -27,7 +27,7 @@
 #include <linux/pci.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
-#include "VersionInfo.h"
+#include "version_info.h"
 #include "osd.h"
 #include "logging.h"
 #include "vmbus.h"

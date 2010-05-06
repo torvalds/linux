@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include "osd.h"
 #include "logging.h"
-#include "VersionInfo.h"
+#include "version_info.h"
 #include "vmbus_private.h"
 
 static const char *gDriverName = "vmbus";
