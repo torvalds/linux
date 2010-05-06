@@ -2798,6 +2798,8 @@ static int need_active_balance(struct sched_domain *sd, int sd_idle, int idle)
 	return unlikely(sd->nr_balance_failed > sd->cache_nice_tries+2);
 }
 
+static int active_load_balance_cpu_stop(void *data);
+
 /*
  * Check this_cpu to ensure it is balanced within domain. Attempt to move
  * tasks if there is an imbalance.
@@ -2887,8 +2889,9 @@ redo:
 		if (need_active_balance(sd, sd_idle, idle)) {
 			raw_spin_lock_irqsave(&busiest->lock, flags);
 
-			/* don't kick the migration_thread, if the curr
-			 * task on busiest cpu can't be moved to this_cpu
+			/* don't kick the active_load_balance_cpu_stop,
+			 * if the curr task on busiest cpu can't be
+			 * moved to this_cpu
 			 */
 			if (!cpumask_test_cpu(this_cpu,
 					      &busiest->curr->cpus_allowed)) {
@@ -2898,14 +2901,22 @@ redo:
 				goto out_one_pinned;
 			}
 
+			/*
+			 * ->active_balance synchronizes accesses to
+			 * ->active_balance_work.  Once set, it's cleared
+			 * only after active load balance is finished.
+			 */
 			if (!busiest->active_balance) {
 				busiest->active_balance = 1;
 				busiest->push_cpu = this_cpu;
 				active_balance = 1;
 			}
 			raw_spin_unlock_irqrestore(&busiest->lock, flags);
+
 			if (active_balance)
-				wake_up_process(busiest->migration_thread);
+				stop_one_cpu_nowait(cpu_of(busiest),
+					active_load_balance_cpu_stop, busiest,
+					&busiest->active_balance_work);
 
 			/*
 			 * We've kicked active balancing, reset the failure
@@ -3012,24 +3023,29 @@ static void idle_balance(int this_cpu, struct rq *this_rq)
 }
 
 /*
- * active_load_balance is run by migration threads. It pushes running tasks
- * off the busiest CPU onto idle CPUs. It requires at least 1 task to be
- * running on each physical CPU where possible, and avoids physical /
- * logical imbalances.
- *
- * Called with busiest_rq locked.
+ * active_load_balance_cpu_stop is run by cpu stopper. It pushes
+ * running tasks off the busiest CPU onto idle CPUs. It requires at
+ * least 1 task to be running on each physical CPU where possible, and
+ * avoids physical / logical imbalances.
  */
-static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
+static int active_load_balance_cpu_stop(void *data)
 {
+	struct rq *busiest_rq = data;
+	int busiest_cpu = cpu_of(busiest_rq);
 	int target_cpu = busiest_rq->push_cpu;
+	struct rq *target_rq = cpu_rq(target_cpu);
 	struct sched_domain *sd;
-	struct rq *target_rq;
+
+	raw_spin_lock_irq(&busiest_rq->lock);
+
+	/* make sure the requested cpu hasn't gone down in the meantime */
+	if (unlikely(busiest_cpu != smp_processor_id() ||
+		     !busiest_rq->active_balance))
+		goto out_unlock;
 
 	/* Is there any task to move? */
 	if (busiest_rq->nr_running <= 1)
-		return;
-
-	target_rq = cpu_rq(target_cpu);
+		goto out_unlock;
 
 	/*
 	 * This condition is "impossible", if it occurs
@@ -3058,6 +3074,10 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 			schedstat_inc(sd, alb_failed);
 	}
 	double_unlock_balance(busiest_rq, target_rq);
+out_unlock:
+	busiest_rq->active_balance = 0;
+	raw_spin_unlock_irq(&busiest_rq->lock);
+	return 0;
 }
 
 #ifdef CONFIG_NO_HZ
