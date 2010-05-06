@@ -114,6 +114,8 @@ struct cpuinfo_x86 {
 	u16			cpu_index;
 #endif
 	unsigned int		x86_hyper_vendor;
+	/* The layout of this field is hypervisor specific */
+	unsigned int		x86_hyper_features;
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
 #define X86_VENDOR_INTEL	0
@@ -129,6 +131,7 @@ struct cpuinfo_x86 {
 
 #define X86_HYPER_VENDOR_NONE  0
 #define X86_HYPER_VENDOR_VMWARE 1
+#define X86_HYPER_VENDOR_MSFT	2
 
 /*
  * capabilities of CPUs
