@@ -29,7 +29,7 @@
 #include "osd.h"
 #include "vmbus.h"
 #include "VmbusPacketFormat.h"
-#include "VmbusChannelInterface.h"
+#include "vmbus_channel_interface.h"
 #include "VersionInfo.h"
 #include "channel.h"
 #include "vmbus_private.h"
