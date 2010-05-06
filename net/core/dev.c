@@ -2432,8 +2432,10 @@ enqueue:
 			return NET_RX_SUCCESS;
 		}
 
-		/* Schedule NAPI for backlog device */
-		if (napi_schedule_prep(&sd->backlog)) {
+		/* Schedule NAPI for backlog device
+		 * We can use non atomic operation since we own the queue lock
+		 */
+		if (!__test_and_set_bit(NAPI_STATE_SCHED, &sd->backlog.state)) {
 			if (!rps_ipi_queued(sd))
 				____napi_schedule(sd, &sd->backlog);
 		}
