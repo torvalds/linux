@@ -449,7 +449,6 @@ static int __init el16_probe1(struct net_device *dev, int ioaddr)
 		pr_debug("%s", version);
 
 	lp = netdev_priv(dev);
- 	memset(lp, 0, sizeof(*lp));
 	spin_lock_init(&lp->lock);
 	lp->base = ioremap(dev->mem_start, RX_BUF_END);
 	if (!lp->base) {
