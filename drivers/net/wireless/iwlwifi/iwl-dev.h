@@ -583,6 +583,12 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_INIT_DATA		= 4,
 	IWL_UCODE_TLV_BOOT		= 5,
 	IWL_UCODE_TLV_PROBE_MAX_LEN	= 6, /* a u32 value */
+	IWL_UCODE_TLV_RUNT_EVTLOG_PTR	= 8,
+	IWL_UCODE_TLV_RUNT_EVTLOG_SIZE	= 9,
+	IWL_UCODE_TLV_RUNT_ERRLOG_PTR	= 10,
+	IWL_UCODE_TLV_INIT_EVTLOG_PTR	= 11,
+	IWL_UCODE_TLV_INIT_EVTLOG_SIZE	= 12,
+	IWL_UCODE_TLV_INIT_ERRLOG_PTR	= 13,
 };
 
 struct iwl_ucode_tlv {
@@ -1317,6 +1323,9 @@ struct iwl_priv {
 			struct iwl_notif_statistics delta_statistics;
 			struct iwl_notif_statistics max_delta;
 #endif
+
+			u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
+			u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 		} _agn;
 #endif
 	};
