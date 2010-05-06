@@ -29,7 +29,7 @@
 #include <linux/timer.h>
 #include "ring_buffer.h"
 #include "vmbus_channel_interface.h"
-#include "VmbusPacketFormat.h"
+#include "vmbus_packet_format.h"
 
 /* Version 1 messages */
 enum vmbus_channel_message_type {
