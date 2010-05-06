@@ -174,28 +174,28 @@ struct rk28_dma_llp;
 typedef struct rk28_dma_llp llp_t;
 
 struct rk28_dma_llp {
-    u32      sar;
-    u32      dar;
+    unsigned int      sar;
+    unsigned int      dar;
     llp_t   *llp;
-    u32      ctll;
-    u32      size; 
+    unsigned int      ctll;
+    unsigned int      size; 
 };
 
 struct rk28_dma_dev {
-    u32      hd_if_r;   /* hardware interface for reading */
-    u32      hd_if_w;   /* hardware interface for writing */
-    u32      dev_addr_r;   /* device basic addresss for reading */
-    u32      dev_addr_w;   /* device basic addresss for reading */
-    u32      fifo_width;  /* fifo width of device */
+    unsigned int      hd_if_r;   /* hardware interface for reading */
+    unsigned int      hd_if_w;   /* hardware interface for writing */
+    unsigned int      dev_addr_r;   /* device basic addresss for reading */
+    unsigned int      dev_addr_w;   /* device basic addresss for reading */
+    unsigned int      fifo_width;  /* fifo width of device */
 };
 
 struct rk2818_dma {
     dma_t  dma_t;
 	struct rk28_dma_dev *dev_info;/* basic address of sg in memory */
     struct rk28_dma_llp *dma_llp_vir;  /* virtual cpu addrress of linked list */
-    u32 dma_llp_phy;                   /* physical bus address of linked list */
-	u32 length;     /* current transfer block */ 
-	u32 residue;     /* residue block of current dma transfer */
+    unsigned int dma_llp_phy;                   /* physical bus address of linked list */
+	unsigned int length;     /* current transfer block */ 
+	unsigned int residue;     /* residue block of current dma transfer */
 	spinlock_t		lock;
 };
 

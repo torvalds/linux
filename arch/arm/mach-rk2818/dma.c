@@ -385,6 +385,10 @@ static int rk28_dma_enable(unsigned int dma_ch, dma_t *dma_t)
             goto bad_enable;
         }        
     } else { /*single transfer*/
+        if ((!dma_t->addr) || (dma_t->count == 0)) {
+            printk(KERN_ERR "dma_enable: channel %d does not have leagal address or count\n", dma_ch);
+            goto bad_enable;
+        }    	
         dma_t->buf.dma_address = (dma_addr_t)dma_t->addr;
         dma_t->buf.length = dma_t->count;
     }
@@ -511,7 +515,9 @@ static int rk28_dma_free(unsigned int dma_ch, dma_t *dma_t)
     
     rk28dma->dma_t.irqHandle = NULL;
     rk28dma->dma_t.data = NULL;
-    rk28dma->dma_t.sg = NULL;    
+    rk28dma->dma_t.sg = NULL;
+    rk28dma->dma_t.addr = NULL;
+    rk28dma->dma_t.count = 0;      
     rk28dma->dma_llp_vir = NULL;
     rk28dma->dma_llp_phy = NULL;
     rk28dma->residue = 0;
@@ -582,7 +588,7 @@ static irqreturn_t rk28_dma_irq_handler(int irq, void *dev_id)
 	int i, raw_status;
     struct rk2818_dma *rk28dma;
     		     
-    raw_status = read_dma_reg(DWDMA_RawBlock);
+    raw_status = read_dma_reg(DWDMA_RawTfr);
     
 	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
         if (raw_status & (1 << i)) {
@@ -636,6 +642,8 @@ static int __init rk28_dma_init(void)
 		rk2818_dma[i].dma_t.irqHandle = NULL;
 		rk2818_dma[i].dma_t.data = NULL;
 		rk2818_dma[i].dma_t.sg = NULL;
+		rk2818_dma[i].dma_t.addr = NULL;
+		rk2818_dma[i].dma_t.count = 0;		
 		rk2818_dma[i].dma_t.d_ops = &rk2818_dma_ops;
 	    dma_add(i, &rk2818_dma[i].dma_t);
 
