@@ -376,7 +376,7 @@ static int VmbusChannelCreateGpadlHeader(void *Kbuffer, u32 Size,
 	struct vmbus_channel_gpadl_header *gpaHeader;
 	struct vmbus_channel_gpadl_body *gpadlBody;
 	struct vmbus_channel_msginfo *msgHeader;
-	struct vmbus_channel_msginfo *msgBody;
+	struct vmbus_channel_msginfo *msgBody = NULL;
 	u32 msgSize;
 
 	int pfnSum, pfnCount, pfnLeft, pfnCurr, pfnSize;
