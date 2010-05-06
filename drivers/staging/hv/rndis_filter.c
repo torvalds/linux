@@ -27,7 +27,7 @@
 #include "osd.h"
 #include "logging.h"
 #include "NetVscApi.h"
-#include "RndisFilter.h"
+#include "rndis_filter.h"
 
 /* Data types */
 struct rndis_filter_driver_object {

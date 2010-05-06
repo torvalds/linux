@@ -26,7 +26,7 @@
 #include "osd.h"
 #include "logging.h"
 #include "netvsc.h"
-#include "RndisFilter.h"
+#include "rndis_filter.h"
 
 
 /* Globals */
