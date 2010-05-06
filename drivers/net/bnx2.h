@@ -6551,6 +6551,7 @@ struct l2_fhdr {
 
 struct sw_bd {
 	struct sk_buff		*skb;
+	struct l2_fhdr		*desc;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
