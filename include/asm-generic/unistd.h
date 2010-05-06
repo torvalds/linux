@@ -626,9 +626,11 @@ __SYSCALL(__NR_perf_event_open, sys_perf_event_open)
 __SYSCALL(__NR_accept4, sys_accept4)
 #define __NR_recvmmsg 243
 __SYSCALL(__NR_recvmmsg, sys_recvmmsg)
+#define __NR_prlimit64 244
+__SYSCALL(__NR_prlimit64, sys_prlimit64)
 
 #undef __NR_syscalls
-#define __NR_syscalls 244
+#define __NR_syscalls 245
 
 /*
  * All syscalls below here should go away really,
