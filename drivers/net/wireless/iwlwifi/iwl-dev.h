@@ -1255,7 +1255,7 @@ struct iwl_priv {
 			struct delayed_work rfkill_poll;
 
 			struct iwl3945_notif_statistics statistics;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 			struct iwl3945_notif_statistics accum_statistics;
 			struct iwl3945_notif_statistics delta_statistics;
 			struct iwl3945_notif_statistics max_delta;
@@ -1299,7 +1299,7 @@ struct iwl_priv {
 			struct completion firmware_loading_complete;
 
 			struct iwl_notif_statistics statistics;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 			struct iwl_notif_statistics accum_statistics;
 			struct iwl_notif_statistics delta_statistics;
 			struct iwl_notif_statistics max_delta;
@@ -1347,7 +1347,7 @@ struct iwl_priv {
 			    iwl_debug_level if set */
 	u32 framecnt_to_us;
 	atomic_t restrict_refcnt;
-	bool disable_ht40;
+#endif /* CONFIG_IWLWIFI_DEBUG */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* debugfs */
 	u16 tx_traffic_idx;
@@ -1356,8 +1356,8 @@ struct iwl_priv {
 	u8 *rx_traffic;
 	struct dentry *debugfs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
+	bool disable_ht40;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
-#endif /* CONFIG_IWLWIFI_DEBUG */
 
 	struct work_struct txpower_work;
 	u32 disable_sens_cal;

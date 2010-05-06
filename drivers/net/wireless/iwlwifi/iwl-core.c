@@ -456,7 +456,7 @@ u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 		if (!sta_ht_inf->ht_supported)
 			return 0;
 	}
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 	if (priv->disable_ht40)
 		return 0;
 #endif

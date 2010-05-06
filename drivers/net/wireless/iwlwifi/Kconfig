@@ -30,9 +30,11 @@ config IWLWIFI_DEBUG
 
 config IWLWIFI_DEBUGFS
         bool "iwlagn debugfs support"
-        depends on IWLWIFI && IWLWIFI_DEBUG && MAC80211_DEBUGFS
+        depends on IWLWIFI && MAC80211_DEBUGFS
         ---help---
-	  Enable creation of debugfs files for the iwlwifi drivers.
+	  Enable creation of debugfs files for the iwlwifi drivers. This
+	  is a low-impact option that allows getting insight into the
+	  driver's state at runtime.
 
 config IWLWIFI_DEVICE_TRACING
 	bool "iwlwifi device access tracing"
