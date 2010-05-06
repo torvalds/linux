@@ -36,7 +36,6 @@
 #include <linux/oom.h>
 #include <linux/sched.h>
 #include <linux/rcupdate.h>
-#include <linux/profile.h>
 #include <linux/notifier.h>
 
 static uint32_t lowmem_debug_level = 2;
@@ -103,8 +102,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	 * that we have nothing further to offer on
 	 * this pass.
 	 *
-	 * Note: Currently you need CONFIG_PROFILING
-	 * for this to work correctly.
 	 */
 	if (lowmem_deathpending &&
 	    time_before_eq(jiffies, lowmem_deathpending_timeout))
@@ -174,14 +171,8 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
 			     selected->pid, selected->comm,
 			     selected_oom_score_adj, selected_tasksize);
-		/*
-		 * If CONFIG_PROFILING is off, then we don't want to stall
-		 * the killer by setting lowmem_deathpending.
-		 */
-#ifdef CONFIG_PROFILING
 		lowmem_deathpending = selected;
 		lowmem_deathpending_timeout = jiffies + HZ;
-#endif
 		send_sig(SIGKILL, selected, 0);
 		rem -= selected_tasksize;
 	}
@@ -198,7 +189,7 @@ static struct shrinker lowmem_shrinker = {
 
 static int __init lowmem_init(void)
 {
-	task_handoff_register(&task_nb);
+	task_free_register(&task_nb);
 	register_shrinker(&lowmem_shrinker);
 	return 0;
 }
@@ -206,7 +197,7 @@ static int __init lowmem_init(void)
 static void __exit lowmem_exit(void)
 {
 	unregister_shrinker(&lowmem_shrinker);
-	task_handoff_unregister(&task_nb);
+	task_free_unregister(&task_nb);
 }
 
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
