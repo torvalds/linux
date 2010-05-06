@@ -3207,10 +3207,10 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 
 #ifdef BCM_VLAN
 		if (hw_vlan)
-			vlan_hwaccel_receive_skb(skb, bp->vlgrp, vtag);
+			vlan_gro_receive(&bnapi->napi, bp->vlgrp, vtag, skb);
 		else
 #endif
-			netif_receive_skb(skb);
+			napi_gro_receive(&bnapi->napi, skb);
 
 		rx_pkt++;
 
@@ -8296,7 +8296,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(dev->dev_addr, bp->mac_addr, 6);
 	memcpy(dev->perm_addr, bp->mac_addr, 6);
 
-	dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+	dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_GRO;
 	vlan_features_add(dev, NETIF_F_IP_CSUM | NETIF_F_SG);
 	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
 		dev->features |= NETIF_F_IPV6_CSUM;
