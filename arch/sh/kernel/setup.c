@@ -188,6 +188,63 @@ static inline void __init reserve_crashkernel(void)
 {}
 #endif
 
+static void __init check_for_initrd(void)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	unsigned long start, end;
+
+	/*
+	 * Check for the rare cases where boot loaders adhere to the boot
+	 * ABI.
+	 */
+	if (!LOADER_TYPE || !INITRD_START || !INITRD_SIZE)
+		goto disable;
+
+	start = INITRD_START + __MEMORY_START;
+	end = start + INITRD_SIZE;
+
+	if (unlikely(end <= start))
+		goto disable;
+	if (unlikely(start & ~PAGE_MASK)) {
+		pr_err("initrd must be page aligned\n");
+		goto disable;
+	}
+
+	if (unlikely(start < PAGE_OFFSET)) {
+		pr_err("initrd start < PAGE_OFFSET\n");
+		goto disable;
+	}
+
+	if (unlikely(end > lmb_end_of_DRAM())) {
+		pr_err("initrd extends beyond end of memory "
+		       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
+		       end, (unsigned long)lmb_end_of_DRAM());
+		goto disable;
+	}
+
+	/*
+	 * If we got this far inspite of the boot loader's best efforts
+	 * to the contrary, assume we actually have a valid initrd and
+	 * fix up the root dev.
+	 */
+	ROOT_DEV = Root_RAM0;
+
+	/*
+	 * Address sanitization
+	 */
+	initrd_start = (unsigned long)__va(__pa(start));
+	initrd_end = initrd_start + INITRD_SIZE;
+
+	reserve_bootmem(__pa(initrd_start), INITRD_SIZE, BOOTMEM_DEFAULT);
+
+	return;
+
+disable:
+	pr_info("initrd disabled\n");
+	initrd_start = initrd_end = 0;
+#endif
+}
+
 void __cpuinit calibrate_delay(void)
 {
 	struct clk *clk = clk_get(NULL, "cpu_clk");
@@ -277,26 +334,7 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 
 	sparse_memory_present_with_active_regions(0);
 
-#ifdef CONFIG_BLK_DEV_INITRD
-	ROOT_DEV = Root_RAM0;
-
-	if (LOADER_TYPE && INITRD_START) {
-		unsigned long initrd_start_phys = INITRD_START + __MEMORY_START;
-
-		if (initrd_start_phys + INITRD_SIZE <= PFN_PHYS(max_low_pfn)) {
-			reserve_bootmem(initrd_start_phys, INITRD_SIZE,
-					BOOTMEM_DEFAULT);
-			initrd_start = (unsigned long)__va(initrd_start_phys);
-			initrd_end = initrd_start + INITRD_SIZE;
-		} else {
-			printk("initrd extends beyond end of memory "
-			       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-			       initrd_start_phys + INITRD_SIZE,
-			       (unsigned long)PFN_PHYS(max_low_pfn));
-			initrd_start = 0;
-		}
-	}
-#endif
+	check_for_initrd();
 
 	reserve_crashkernel();
 }
