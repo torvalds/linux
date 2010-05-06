@@ -374,7 +374,9 @@ enum subdevice_runflags {
 	SRF_RUNNING = 0x08000000
 };
 
-int comedi_check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist);
+int comedi_check_chanlist(struct comedi_subdevice *s,
+			  int n,
+			  unsigned int *chanlist);
 unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s);
 
 /* range stuff */
