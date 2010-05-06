@@ -2251,8 +2251,9 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 
 	info->control.vif = vif;
 
-	info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
-	info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
+	info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT |
+			IEEE80211_TX_CTL_ASSIGN_SEQ |
+			IEEE80211_TX_CTL_FIRST_FRAGMENT;
  out:
 	rcu_read_unlock();
 	return skb;
