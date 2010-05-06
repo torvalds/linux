@@ -38,7 +38,7 @@
 #include "logging.h"
 #include "VersionInfo.h"
 #include "vmbus.h"
-#include "NetVscApi.h"
+#include "netvsc_api.h"
 
 struct net_device_context {
 	/* point back to our device context */

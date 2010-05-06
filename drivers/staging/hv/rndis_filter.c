@@ -26,7 +26,7 @@
 
 #include "osd.h"
 #include "logging.h"
-#include "NetVscApi.h"
+#include "netvsc_api.h"
 #include "rndis_filter.h"
 
 /* Data types */
