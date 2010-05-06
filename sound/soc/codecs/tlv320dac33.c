@@ -303,20 +303,9 @@ static void dac33_init_chip(struct snd_soc_codec *codec)
 	/* C : (defaults) */
 	dac33_write(codec, DAC33_DAC_CTRL_C, 0x00);
 
-	/* 64-65 : L&R DAC power control
-	 Line In -> OUT 1V/V Gain, DAC -> OUT 4V/V Gain*/
-	dac33_write(codec, DAC33_LDAC_PWR_CTRL, DAC33_LROUT_GAIN(2));
-	dac33_write(codec, DAC33_RDAC_PWR_CTRL, DAC33_LROUT_GAIN(2));
-
 	/* 73 : volume soft stepping control,
 	 clock source = internal osc (?) */
 	dac33_write(codec, DAC33_ANA_VOL_SOFT_STEP_CTRL, DAC33_VOLCLKEN);
-
-	/* 66 : LOP/LOM Modes */
-	dac33_write(codec, DAC33_OUT_AMP_CM_CTRL, 0xff);
-
-	/* 68 : LOM inverted from LOP */
-	dac33_write(codec, DAC33_OUT_AMP_CTRL, (3<<2));
 
 	dac33_write(codec, DAC33_PWR_CTRL, DAC33_PDNALLB);
 
