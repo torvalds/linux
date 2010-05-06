@@ -2223,7 +2223,7 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 EXPORT_SYMBOL_GPL(rt2800_init_eeprom);
 
 /*
- * RF value list for rt28x0
+ * RF value list for rt28xx
  * Supports: 2.4 GHz (all) & 5.2 GHz (RF2850 & RF2750)
  */
 static const struct rf_channel rf_vals[] = {
@@ -2298,10 +2298,10 @@ static const struct rf_channel rf_vals[] = {
 };
 
 /*
- * RF value list for rt3070
- * Supports: 2.4 GHz
+ * RF value list for rt3xxx
+ * Supports: 2.4 GHz (all) & 5.2 GHz (RF3052)
  */
-static const struct rf_channel rf_vals_302x[] = {
+static const struct rf_channel rf_vals_3x[] = {
 	{1,  241, 2, 2 },
 	{2,  241, 2, 7 },
 	{3,  242, 2, 2 },
@@ -2316,6 +2316,51 @@ static const struct rf_channel rf_vals_302x[] = {
 	{12, 246, 2, 7 },
 	{13, 247, 2, 2 },
 	{14, 248, 2, 4 },
+
+	/* 802.11 UNI / HyperLan 2 */
+	{36, 0x56, 0, 4},
+	{38, 0x56, 0, 6},
+	{40, 0x56, 0, 8},
+	{44, 0x57, 0, 0},
+	{46, 0x57, 0, 2},
+	{48, 0x57, 0, 4},
+	{52, 0x57, 0, 8},
+	{54, 0x57, 0, 10},
+	{56, 0x58, 0, 0},
+	{60, 0x58, 0, 4},
+	{62, 0x58, 0, 6},
+	{64, 0x58, 0, 8},
+
+	/* 802.11 HyperLan 2 */
+	{100, 0x5b, 0, 8},
+	{102, 0x5b, 0, 10},
+	{104, 0x5c, 0, 0},
+	{108, 0x5c, 0, 4},
+	{110, 0x5c, 0, 6},
+	{112, 0x5c, 0, 8},
+	{116, 0x5d, 0, 0},
+	{118, 0x5d, 0, 2},
+	{120, 0x5d, 0, 4},
+	{124, 0x5d, 0, 8},
+	{126, 0x5d, 0, 10},
+	{128, 0x5e, 0, 0},
+	{132, 0x5e, 0, 4},
+	{134, 0x5e, 0, 6},
+	{136, 0x5e, 0, 8},
+	{140, 0x5f, 0, 0},
+
+	/* 802.11 UNII */
+	{149, 0x5f, 0, 9},
+	{151, 0x5f, 0, 11},
+	{153, 0x60, 0, 1},
+	{157, 0x60, 0, 5},
+	{159, 0x60, 0, 7},
+	{161, 0x60, 0, 9},
+	{165, 0x61, 0, 1},
+	{167, 0x61, 0, 3},
+	{169, 0x61, 0, 5},
+	{171, 0x61, 0, 7},
+	{173, 0x61, 0, 9},
 };
 
 int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
@@ -2356,11 +2401,11 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
 
 	if (rt2x00_rf(rt2x00dev, RF2820) ||
-	    rt2x00_rf(rt2x00dev, RF2720) ||
-	    rt2x00_rf(rt2x00dev, RF3052)) {
+	    rt2x00_rf(rt2x00dev, RF2720)) {
 		spec->num_channels = 14;
 		spec->channels = rf_vals;
-	} else if (rt2x00_rf(rt2x00dev, RF2850) || rt2x00_rf(rt2x00dev, RF2750)) {
+	} else if (rt2x00_rf(rt2x00dev, RF2850) ||
+		   rt2x00_rf(rt2x00dev, RF2750)) {
 		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		spec->num_channels = ARRAY_SIZE(rf_vals);
 		spec->channels = rf_vals;
@@ -2368,8 +2413,12 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		   rt2x00_rf(rt2x00dev, RF2020) ||
 		   rt2x00_rf(rt2x00dev, RF3021) ||
 		   rt2x00_rf(rt2x00dev, RF3022)) {
-		spec->num_channels = ARRAY_SIZE(rf_vals_302x);
-		spec->channels = rf_vals_302x;
+		spec->num_channels = 14;
+		spec->channels = rf_vals_3x;
+	} else if (rt2x00_rf(rt2x00dev, RF3052)) {
+		spec->supported_bands |= SUPPORT_BAND_5GHZ;
+		spec->num_channels = ARRAY_SIZE(rf_vals_3x);
+		spec->channels = rf_vals_3x;
 	}
 
 	/*
