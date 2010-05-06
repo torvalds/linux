@@ -219,24 +219,26 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 void radeon_ib_pool_fini(struct radeon_device *rdev)
 {
 	int r;
+	struct radeon_bo *robj;
 
 	if (!rdev->ib_pool.ready) {
 		return;
 	}
 	mutex_lock(&rdev->ib_pool.mutex);
 	radeon_ib_bogus_cleanup(rdev);
-
-	if (rdev->ib_pool.robj) {
-		r = radeon_bo_reserve(rdev->ib_pool.robj, false);
-		if (likely(r == 0)) {
-			radeon_bo_kunmap(rdev->ib_pool.robj);
-			radeon_bo_unpin(rdev->ib_pool.robj);
-			radeon_bo_unreserve(rdev->ib_pool.robj);
-		}
-		radeon_bo_unref(&rdev->ib_pool.robj);
-		rdev->ib_pool.robj = NULL;
-	}
+	robj = rdev->ib_pool.robj;
+	rdev->ib_pool.robj = NULL;
 	mutex_unlock(&rdev->ib_pool.mutex);
+
+	if (robj) {
+		r = radeon_bo_reserve(robj, false);
+		if (likely(r == 0)) {
+			radeon_bo_kunmap(robj);
+			radeon_bo_unpin(robj);
+			radeon_bo_unreserve(robj);
+		}
+		radeon_bo_unref(&robj);
+	}
 }
 
 
@@ -359,20 +361,23 @@ int radeon_ring_init(struct radeon_device *rdev, unsigned ring_size)
 void radeon_ring_fini(struct radeon_device *rdev)
 {
 	int r;
+	struct radeon_bo *ring_obj;
 
 	mutex_lock(&rdev->cp.mutex);
-	if (rdev->cp.ring_obj) {
-		r = radeon_bo_reserve(rdev->cp.ring_obj, false);
-		if (likely(r == 0)) {
-			radeon_bo_kunmap(rdev->cp.ring_obj);
-			radeon_bo_unpin(rdev->cp.ring_obj);
-			radeon_bo_unreserve(rdev->cp.ring_obj);
-		}
-		radeon_bo_unref(&rdev->cp.ring_obj);
-		rdev->cp.ring = NULL;
-		rdev->cp.ring_obj = NULL;
-	}
+	ring_obj = rdev->cp.ring_obj;
+	rdev->cp.ring = NULL;
+	rdev->cp.ring_obj = NULL;
 	mutex_unlock(&rdev->cp.mutex);
+
+	if (ring_obj) {
+		r = radeon_bo_reserve(ring_obj, false);
+		if (likely(r == 0)) {
+			radeon_bo_kunmap(ring_obj);
+			radeon_bo_unpin(ring_obj);
+			radeon_bo_unreserve(ring_obj);
+		}
+		radeon_bo_unref(&ring_obj);
+	}
 }
 
 
