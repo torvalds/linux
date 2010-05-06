@@ -341,6 +341,9 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 	if (event->state > PERF_EVENT_STATE_OFF)
 		event->state = PERF_EVENT_STATE_OFF;
 
+	if (event->state > PERF_EVENT_STATE_FREE)
+		return;
+
 	/*
 	 * If this was a group event with sibling events then
 	 * upgrade the siblings to singleton events by adding them
@@ -1855,6 +1858,8 @@ static void free_event(struct perf_event *event)
 int perf_event_release_kernel(struct perf_event *event)
 {
 	struct perf_event_context *ctx = event->ctx;
+
+	event->state = PERF_EVENT_STATE_FREE;
 
 	WARN_ON_ONCE(ctx->parent_ctx);
 	mutex_lock(&ctx->mutex);
