@@ -46,8 +46,10 @@
 #define COMEDI_DEVCONF_AUX_DATA2_LENGTH		26
 #define COMEDI_DEVCONF_AUX_DATA1_LENGTH		27
 #define COMEDI_DEVCONF_AUX_DATA0_LENGTH		28
-#define COMEDI_DEVCONF_AUX_DATA_HI		29	/* most significant 32 bits of pointer address (if needed) */
-#define COMEDI_DEVCONF_AUX_DATA_LO		30	/* least significant 32 bits of pointer address */
+/* most significant 32 bits of pointer address (if needed) */
+#define COMEDI_DEVCONF_AUX_DATA_HI		29
+/* least significant 32 bits of pointer address */
+#define COMEDI_DEVCONF_AUX_DATA_LO		30
 #define COMEDI_DEVCONF_AUX_DATA_LENGTH		31	/* total data length */
 
 /* max length of device and driver names */
@@ -55,8 +57,10 @@
 
 /* packs and unpacks a channel/range number */
 
-#define CR_PACK(chan, rng, aref)		((((aref)&0x3)<<24) | (((rng)&0xff)<<16) | (chan))
-#define CR_PACK_FLAGS(chan, range, aref, flags)	(CR_PACK(chan, range, aref) | ((flags) & CR_FLAGS_MASK))
+#define CR_PACK(chan, rng, aref)					\
+	((((aref)&0x3)<<24) | (((rng)&0xff)<<16) | (chan))
+#define CR_PACK_FLAGS(chan, range, aref, flags)				\
+	(CR_PACK(chan, range, aref) | ((flags) & CR_FLAGS_MASK))
 
 #define CR_CHAN(a)	((a)&0xffff)
 #define CR_RANGE(a)	(((a)>>16)&0xff)
@@ -125,7 +129,8 @@
 /* command flags */
 /* These flags are used in comedi_cmd structures */
 
-#define CMDF_PRIORITY		0x00000008	/* try to use a real-time interrupt while performing command */
+/* try to use a real-time interrupt while performing command */
+#define CMDF_PRIORITY		0x00000008
 
 #define TRIG_RT		CMDF_PRIORITY	/* compatibility definition */
 
@@ -242,15 +247,18 @@
 		INSN_CONFIG_DISARM = 32,
 		INSN_CONFIG_GET_COUNTER_STATUS = 33,
 		INSN_CONFIG_RESET = 34,
-		INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR = 1001,	/* Use CTR as single pulsegenerator */
-		INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR = 1002,	/* Use CTR as pulsetraingenerator */
-		INSN_CONFIG_GPCT_QUADRATURE_ENCODER = 1003,	/* Use the counter as encoder */
+		/* Use CTR as single pulsegenerator */
+		INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR = 1001,
+		/* Use CTR as pulsetraingenerator */
+		INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR = 1002,
+		/* Use the counter as encoder */
+		INSN_CONFIG_GPCT_QUADRATURE_ENCODER = 1003,
 		INSN_CONFIG_SET_GATE_SRC = 2001,	/* Set gate source */
 		INSN_CONFIG_GET_GATE_SRC = 2002,	/* Get gate source */
 		INSN_CONFIG_SET_CLOCK_SRC = 2003,	/* Set master clock source */
 		INSN_CONFIG_GET_CLOCK_SRC = 2004,	/* Get master clock source */
 		INSN_CONFIG_SET_OTHER_SRC = 2005,	/* Set other source */
-		/*	INSN_CONFIG_GET_OTHER_SRC = 2006,*//* Get other source */
+		/* INSN_CONFIG_GET_OTHER_SRC = 2006,*//* Get other source */
 		INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE = 2006,	/* Get size in bytes of
 								   subdevice's on-board
 								   fifos used during
