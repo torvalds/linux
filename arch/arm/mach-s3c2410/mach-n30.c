@@ -26,6 +26,7 @@
 #include <linux/serial_core.h>
 #include <linux/timer.h>
 #include <linux/io.h>
+#include <linux/mmc/host.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -46,6 +47,7 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
+#include <plat/mci.h>
 #include <plat/s3c2410.h>
 #include <plat/udc.h>
 
@@ -350,6 +352,12 @@ static struct s3c2410fb_mach_info n30_fb_info __initdata = {
 	.lpcsel		= 0x06,
 };
 
+static struct s3c24xx_mci_pdata n30_mci_cfg __initdata = {
+	.gpio_detect	= S3C2410_GPF(1),
+	.gpio_wprotect  = S3C2410_GPG(10),
+	.ocr_avail	= MMC_VDD_32_33,
+};
+
 static struct platform_device *n30_devices[] __initdata = {
 	&s3c_device_lcd,
 	&s3c_device_wdt,
@@ -358,6 +366,7 @@ static struct platform_device *n30_devices[] __initdata = {
 	&s3c_device_ohci,
 	&s3c_device_rtc,
 	&s3c_device_usbgadget,
+	&s3c_device_sdi,
 	&n30_button_device,
 	&n30_blue_led,
 	&n30_warning_led,
@@ -370,6 +379,7 @@ static struct platform_device *n35_devices[] __initdata = {
 	&s3c_device_iis,
 	&s3c_device_rtc,
 	&s3c_device_usbgadget,
+	&s3c_device_sdi,
 	&n35_button_device,
 	&n35_blue_led,
 	&n35_warning_led,
@@ -538,6 +548,7 @@ static void __init n30_init(void)
 {
 	s3c24xx_fb_set_platdata(&n30_fb_info);
 	s3c24xx_udc_set_platdata(&n30_udc_cfg);
+	s3c24xx_mci_set_platdata(&n30_mci_cfg);
 	s3c_i2c0_set_platdata(&n30_i2ccfg);
 
 	/* Turn off suspend on both USB ports, and switch the
