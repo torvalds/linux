@@ -1414,9 +1414,16 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_register_write(rt2x00dev, EXP_ACK_TIME, 0x002400ca);
 
+	/*
+	 * Usually the CCK SIFS time should be set to 10 and the OFDM SIFS
+	 * time should be set to 16. However, the original Ralink driver uses
+	 * 16 for both and indeed using a value of 10 for CCK SIFS results in
+	 * connection problems with 11g + CTS protection. Hence, use the same
+	 * defaults as the Ralink driver: 16 for both, CCK and OFDM SIFS.
+	 */
 	rt2800_register_read(rt2x00dev, XIFS_TIME_CFG, &reg);
-	rt2x00_set_field32(&reg, XIFS_TIME_CFG_CCKM_SIFS_TIME, 32);
-	rt2x00_set_field32(&reg, XIFS_TIME_CFG_OFDM_SIFS_TIME, 32);
+	rt2x00_set_field32(&reg, XIFS_TIME_CFG_CCKM_SIFS_TIME, 16);
+	rt2x00_set_field32(&reg, XIFS_TIME_CFG_OFDM_SIFS_TIME, 16);
 	rt2x00_set_field32(&reg, XIFS_TIME_CFG_OFDM_XIFS_TIME, 4);
 	rt2x00_set_field32(&reg, XIFS_TIME_CFG_EIFS, 314);
 	rt2x00_set_field32(&reg, XIFS_TIME_CFG_BB_RXEND_ENABLE, 1);
