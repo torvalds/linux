@@ -2443,6 +2443,7 @@ snd_m3_enable_ints(struct snd_m3 *chip)
 	val = ASSP_INT_ENABLE /*| MPU401_INT_ENABLE*/;
 	if (chip->hv_config & HV_CTRL_ENABLE)
 		val |= HV_INT_ENABLE;
+	outb(val, chip->iobase + HOST_INT_STATUS);
 	outw(val, io + HOST_INT_CTRL);
 	outb(inb(io + ASSP_CONTROL_C) | ASSP_HOST_INT_ENABLE,
 	     io + ASSP_CONTROL_C);
