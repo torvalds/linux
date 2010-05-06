@@ -689,7 +689,7 @@ static int tda10048_get_tps(struct tda10048_state *state,
 		p->guard_interval =  GUARD_INTERVAL_1_4;
 		break;
 	}
-	switch (val & 0x02) {
+	switch (val & 0x03) {
 	case 0:
 		p->transmission_mode = TRANSMISSION_MODE_2K;
 		break;
