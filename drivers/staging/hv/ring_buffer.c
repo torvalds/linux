@@ -25,7 +25,7 @@
 #include <linux/mm.h>
 #include "osd.h"
 #include "logging.h"
-#include "RingBuffer.h"
+#include "ring_buffer.h"
 
 
 /* #defines */

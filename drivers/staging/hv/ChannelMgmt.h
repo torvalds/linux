@@ -27,7 +27,7 @@
 
 #include <linux/list.h>
 #include <linux/timer.h>
-#include "RingBuffer.h"
+#include "ring_buffer.h"
 #include "VmbusChannelInterface.h"
 #include "VmbusPacketFormat.h"
 

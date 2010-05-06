@@ -30,7 +30,7 @@
 #include "channel.h"
 #include "ChannelMgmt.h"
 #include "ChannelInterface.h"
-#include "RingBuffer.h"
+#include "ring_buffer.h"
 #include <linux/list.h>
 
 
