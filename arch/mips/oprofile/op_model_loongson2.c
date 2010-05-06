@@ -24,15 +24,15 @@
  */
 #define LOONGSON2_CPU_TYPE	"mips/loongson2"
 
+#define LOONGSON2_PERFCNT_OVERFLOW		(1ULL   << 31)
+
+#define LOONGSON2_PERFCTRL_EXL			(1UL	<<  0)
+#define LOONGSON2_PERFCTRL_KERNEL		(1UL    <<  1)
+#define LOONGSON2_PERFCTRL_SUPERVISOR		(1UL    <<  2)
+#define LOONGSON2_PERFCTRL_USER			(1UL    <<  3)
+#define LOONGSON2_PERFCTRL_ENABLE		(1UL    <<  4)
 #define LOONGSON2_PERFCTRL_EVENT(idx, event) \
 	(((event) & 0x0f) << ((idx) ? 9 : 5))
-
-#define LOONGSON2_PERFCNT_EXL			(1UL	<<  0)
-#define LOONGSON2_PERFCNT_KERNEL		(1UL    <<  1)
-#define LOONGSON2_PERFCNT_SUPERVISOR	(1UL    <<  2)
-#define LOONGSON2_PERFCNT_USER			(1UL    <<  3)
-#define LOONGSON2_PERFCNT_INT_EN		(1UL    <<  4)
-#define LOONGSON2_PERFCNT_OVERFLOW		(1ULL   << 31)
 
 /* Loongson2 performance counter register */
 #define read_c0_perfctrl() __read_64bit_c0_register($24, 0)
@@ -70,11 +70,11 @@ static void loongson2_reg_setup(struct op_counter_config *cfg)
 	}
 
 	if (cfg[0].enabled || cfg[1].enabled) {
-		ctrl |= LOONGSON2_PERFCNT_EXL | LOONGSON2_PERFCNT_INT_EN;
+		ctrl |= LOONGSON2_PERFCTRL_EXL | LOONGSON2_PERFCTRL_ENABLE;
 		if (cfg[0].kernel || cfg[1].kernel)
-			ctrl |= LOONGSON2_PERFCNT_KERNEL;
+			ctrl |= LOONGSON2_PERFCTRL_KERNEL;
 		if (cfg[0].user || cfg[1].user)
-			ctrl |= LOONGSON2_PERFCNT_USER;
+			ctrl |= LOONGSON2_PERFCTRL_USER;
 	}
 
 	reg.ctrl = ctrl;
@@ -119,7 +119,7 @@ static irqreturn_t loongson2_perfcount_handler(int irq, void *dev_id)
 	 */
 
 	/* Check whether the irq belongs to me */
-	enabled = read_c0_perfctrl() & LOONGSON2_PERFCNT_INT_EN;
+	enabled = read_c0_perfctrl() & LOONGSON2_PERFCTRL_ENABLE;
 	if (!enabled)
 		return IRQ_NONE;
 	enabled = reg.cnt1_enabled | reg.cnt2_enabled;
