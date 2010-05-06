@@ -1166,6 +1166,7 @@ static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
 
 	ep->stopped_td = NULL;
 	ep->stopped_trb = NULL;
+	ep->stopped_stream = 0;
 
 	xhci_ring_cmd_db(xhci);
 }

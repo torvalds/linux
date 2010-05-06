@@ -1457,6 +1457,7 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 	}
 	virt_ep->stopped_td = NULL;
 	virt_ep->stopped_trb = NULL;
+	virt_ep->stopped_stream = 0;
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	if (ret)
