@@ -287,7 +287,10 @@ static struct iovm_struct *alloc_iovm_area(struct iommu *obj, u32 da,
 	prev_end = 0;
 	list_for_each_entry(tmp, &obj->mmap, list) {
 
-		if ((prev_end < start) && (start + bytes < tmp->da_start))
+		if (prev_end >= start)
+			break;
+
+		if (start + bytes < tmp->da_start)
 			goto found;
 
 		if (flags & IOVMF_DA_ANON)
