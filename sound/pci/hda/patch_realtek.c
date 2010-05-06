@@ -10580,9 +10580,6 @@ static int patch_alc882(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc882_pcm_digital_playback;
 	spec->stream_digital_capture = &alc882_pcm_digital_capture;
 
-	if (codec->vendor_id == 0x10ec0888)
-		spec->init_amp = ALC_INIT_DEFAULT; /* always initialize */
-
 	if (!spec->adc_nids && spec->input_mux) {
 		int i, j;
 		spec->num_adc_nids = 0;
