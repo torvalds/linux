@@ -1071,46 +1071,42 @@ LIST_HEAD(tomoyo_policy_manager_list);
 static int tomoyo_update_manager_entry(const char *manager,
 				       const bool is_delete)
 {
-	struct tomoyo_policy_manager_entry *entry = NULL;
 	struct tomoyo_policy_manager_entry *ptr;
-	const struct tomoyo_path_info *saved_manager;
+	struct tomoyo_policy_manager_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
-	bool is_domain = false;
 
 	if (tomoyo_is_domain_def(manager)) {
 		if (!tomoyo_is_correct_domain(manager))
 			return -EINVAL;
-		is_domain = true;
+		e.is_domain = true;
 	} else {
 		if (!tomoyo_is_correct_path(manager, 1, -1, -1))
 			return -EINVAL;
 	}
-	saved_manager = tomoyo_get_name(manager);
-	if (!saved_manager)
+	e.manager = tomoyo_get_name(manager);
+	if (!e.manager)
 		return -ENOMEM;
-	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_NOFS);
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, list) {
-		if (ptr->manager != saved_manager)
+		if (ptr->manager != e.manager)
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
 		break;
 	}
-	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->manager = saved_manager;
-		saved_manager = NULL;
-		entry->is_domain = is_domain;
-		list_add_tail_rcu(&entry->list, &tomoyo_policy_manager_list);
-		entry = NULL;
-		error = 0;
+	if (!is_delete && error) {
+		struct tomoyo_policy_manager_entry *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->list,
+					  &tomoyo_policy_manager_list);
+			error = 0;
+		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
-	tomoyo_put_name(saved_manager);
-	kfree(entry);
+	tomoyo_put_name(e.manager);
 	return error;
 }
 

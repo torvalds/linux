@@ -616,6 +616,7 @@ char *tomoyo_realpath_from_path(struct path *path);
 
 /* Check memory quota. */
 bool tomoyo_memory_ok(void *ptr);
+void *tomoyo_commit_ok(void *data, const unsigned int size);
 
 /*
  * Keep the given name on the RAM.
@@ -733,6 +734,31 @@ static inline struct tomoyo_domain_info *tomoyo_real_domain(struct task_struct
 							    *task)
 {
 	return task_cred_xxx(task, security);
+}
+
+static inline bool tomoyo_is_same_domain_initializer_entry
+(const struct tomoyo_domain_initializer_entry *p1,
+ const struct tomoyo_domain_initializer_entry *p2)
+{
+	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
+		&& p1->domainname == p2->domainname
+		&& p1->program == p2->program;
+}
+
+static inline bool tomoyo_is_same_domain_keeper_entry
+(const struct tomoyo_domain_keeper_entry *p1,
+ const struct tomoyo_domain_keeper_entry *p2)
+{
+	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
+		&& p1->domainname == p2->domainname
+		&& p1->program == p2->program;
+}
+
+static inline bool tomoyo_is_same_alias_entry
+(const struct tomoyo_alias_entry *p1, const struct tomoyo_alias_entry *p2)
+{
+	return p1->original_name == p2->original_name &&
+		p1->aliased_name == p2->aliased_name;
 }
 
 /**

@@ -223,6 +223,25 @@ bool tomoyo_memory_ok(void *ptr)
 }
 
 /**
+ * tomoyo_commit_ok - Check memory quota.
+ *
+ * @data:   Data to copy from.
+ * @size:   Size in byte.
+ *
+ * Returns pointer to allocated memory on success, NULL otherwise.
+ */
+void *tomoyo_commit_ok(void *data, const unsigned int size)
+{
+	void *ptr = kzalloc(size, GFP_NOFS);
+	if (tomoyo_memory_ok(ptr)) {
+		memmove(ptr, data, size);
+		memset(data, 0, size);
+		return ptr;
+	}
+	return NULL;
+}
+
+/**
  * tomoyo_memory_free - Free memory for elements.
  *
  * @ptr:  Pointer to allocated memory.
