@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/netpoll.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <linux/module.h>
@@ -153,6 +154,14 @@ static void del_nbp(struct net_bridge_port *p)
 	kobject_uevent(&p->kobj, KOBJ_REMOVE);
 	kobject_del(&p->kobj);
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	if (br_devices_support_netpoll(br))
+		br->dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
+	if (dev->netdev_ops->ndo_netpoll_cleanup)
+		dev->netdev_ops->ndo_netpoll_cleanup(dev);
+	else
+		dev->npinfo = NULL;
+#endif
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
 
@@ -164,6 +173,8 @@ static void del_br(struct net_bridge *br, struct list_head *head)
 	list_for_each_entry_safe(p, n, &br->port_list, list) {
 		del_nbp(p);
 	}
+
+	br_netpoll_cleanup(br->dev);
 
 	del_timer_sync(&br->gc_timer);
 
@@ -443,6 +454,20 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	dev_set_mtu(br->dev, br_min_mtu(br));
 
 	kobject_uevent(&p->kobj, KOBJ_ADD);
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	if (br_devices_support_netpoll(br)) {
+		br->dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
+		if (br->dev->npinfo)
+			dev->npinfo = br->dev->npinfo;
+	} else if (!(br->dev->priv_flags & IFF_DISABLE_NETPOLL)) {
+		br->dev->priv_flags |= IFF_DISABLE_NETPOLL;
+		printk(KERN_INFO "New device %s does not support netpoll\n",
+			dev->name);
+		printk(KERN_INFO "Disabling netpoll for %s\n",
+			br->dev->name);
+	}
+#endif
 
 	return 0;
 err2:

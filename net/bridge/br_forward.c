@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/netpoll.h>
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
 #include <linux/netfilter_bridge.h>
@@ -50,7 +51,13 @@ int br_dev_queue_push_xmit(struct sk_buff *skb)
 		else {
 			skb_push(skb, ETH_HLEN);
 
-			dev_queue_xmit(skb);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+			if (unlikely(skb->dev->priv_flags & IFF_IN_NETPOLL)) {
+				netpoll_send_skb(skb->dev->npinfo->netpoll, skb);
+				skb->dev->priv_flags &= ~IFF_IN_NETPOLL;
+			} else
+#endif
+				dev_queue_xmit(skb);
 		}
 	}
 
@@ -66,9 +73,23 @@ int br_forward_finish(struct sk_buff *skb)
 
 static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	struct net_bridge *br = to->br;
+	if (unlikely(br->dev->priv_flags & IFF_IN_NETPOLL)) {
+		struct netpoll *np;
+		to->dev->npinfo = skb->dev->npinfo;
+		np = skb->dev->npinfo->netpoll;
+		np->real_dev = np->dev = to->dev;
+		to->dev->priv_flags |= IFF_IN_NETPOLL;
+	}
+#endif
 	skb->dev = to->dev;
 	NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
 			br_forward_finish);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	if (skb->dev->npinfo)
+		skb->dev->npinfo->netpoll->dev = br->dev;
+#endif
 }
 
 static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
