@@ -6,7 +6,7 @@ obj-$(CONFIG_HYPERV_UTILS)	+= hv_utils.o
 
 hv_vmbus-objs := vmbus_drv.o osd.o \
 		 vmbus.o hv.o connection.o channel.o \
-		 ChannelMgmt.o ChannelInterface.o ring_buffer.o
+		 channel_mgmt.o ChannelInterface.o ring_buffer.o
 hv_storvsc-objs := storvsc_drv.o storvsc.o
 hv_blkvsc-objs := blkvsc_drv.o blkvsc.o
 hv_netvsc-objs := netvsc_drv.o netvsc.o rndis_filter.o
