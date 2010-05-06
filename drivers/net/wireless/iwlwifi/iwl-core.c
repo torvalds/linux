@@ -2710,6 +2710,61 @@ void iwl_bg_monitor_recover(unsigned long data)
 }
 EXPORT_SYMBOL(iwl_bg_monitor_recover);
 
+
+/*
+ * extended beacon time format
+ * time in usec will be changed into a 32-bit value in extended:internal format
+ * the extended part is the beacon counts
+ * the internal part is the time in usec within one beacon interval
+ */
+u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval)
+{
+	u32 quot;
+	u32 rem;
+	u32 interval = beacon_interval * TIME_UNIT;
+
+	if (!interval || !usec)
+		return 0;
+
+	quot = (usec / interval) &
+		(iwl_beacon_time_mask_high(priv,
+		priv->hw_params.beacon_time_tsf_bits) >>
+		priv->hw_params.beacon_time_tsf_bits);
+	rem = (usec % interval) & iwl_beacon_time_mask_low(priv,
+				   priv->hw_params.beacon_time_tsf_bits);
+
+	return (quot << priv->hw_params.beacon_time_tsf_bits) + rem;
+}
+EXPORT_SYMBOL(iwl_usecs_to_beacons);
+
+/* base is usually what we get from ucode with each received frame,
+ * the same as HW timer counter counting down
+ */
+__le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
+			   u32 addon, u32 beacon_interval)
+{
+	u32 base_low = base & iwl_beacon_time_mask_low(priv,
+					priv->hw_params.beacon_time_tsf_bits);
+	u32 addon_low = addon & iwl_beacon_time_mask_low(priv,
+					priv->hw_params.beacon_time_tsf_bits);
+	u32 interval = beacon_interval * TIME_UNIT;
+	u32 res = (base & iwl_beacon_time_mask_high(priv,
+				priv->hw_params.beacon_time_tsf_bits)) +
+				(addon & iwl_beacon_time_mask_high(priv,
+				priv->hw_params.beacon_time_tsf_bits));
+
+	if (base_low > addon_low)
+		res += base_low - addon_low;
+	else if (base_low < addon_low) {
+		res += interval + base_low - addon_low;
+		res += (1 << priv->hw_params.beacon_time_tsf_bits);
+	} else
+		res += (1 << priv->hw_params.beacon_time_tsf_bits);
+
+	return cpu_to_le32(res);
+}
+EXPORT_SYMBOL(iwl_add_beacon_time);
+
 #ifdef CONFIG_PM
 
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)

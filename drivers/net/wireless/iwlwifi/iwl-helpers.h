@@ -175,4 +175,26 @@ static inline void iwl_enable_interrupts(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_INT_MASK, priv->inta_mask);
 }
 
+/**
+ * iwl_beacon_time_mask_low - mask of lower 32 bit of beacon time
+ * @priv -- pointer to iwl_priv data structure
+ * @tsf_bits -- number of bits need to shift for masking)
+ */
+static inline u32 iwl_beacon_time_mask_low(struct iwl_priv *priv,
+					   u16 tsf_bits)
+{
+	return (1 << tsf_bits) - 1;
+}
+
+/**
+ * iwl_beacon_time_mask_high - mask of higher 32 bit of beacon time
+ * @priv -- pointer to iwl_priv data structure
+ * @tsf_bits -- number of bits need to shift for masking)
+ */
+static inline u32 iwl_beacon_time_mask_high(struct iwl_priv *priv,
+					    u16 tsf_bits)
+{
+	return ((1 << (32 - tsf_bits)) - 1) << tsf_bits;
+}
+
 #endif				/* __iwl_helpers_h__ */

@@ -2433,6 +2433,7 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.rx_wrt_ptr_reg = FH39_RSCSR_CHNL0_WPTR;
 	priv->hw_params.max_beacon_itrvl = IWL39_MAX_UCODE_BEACON_INTERVAL;
+	priv->hw_params.beacon_time_tsf_bits = IWL3945_EXT_BEACON_TIME_POS;
 
 	return 0;
 }

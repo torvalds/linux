@@ -665,55 +665,6 @@ drop:
 	return -1;
 }
 
-#define BEACON_TIME_MASK_LOW	0x00FFFFFF
-#define BEACON_TIME_MASK_HIGH	0xFF000000
-#define TIME_UNIT		1024
-
-/*
- * extended beacon time format
- * time in usec will be changed into a 32-bit value in 8:24 format
- * the high 1 byte is the beacon counts
- * the lower 3 bytes is the time in usec within one beacon interval
- */
-
-static u32 iwl3945_usecs_to_beacons(u32 usec, u32 beacon_interval)
-{
-	u32 quot;
-	u32 rem;
-	u32 interval = beacon_interval * 1024;
-
-	if (!interval || !usec)
-		return 0;
-
-	quot = (usec / interval) & (BEACON_TIME_MASK_HIGH >> 24);
-	rem = (usec % interval) & BEACON_TIME_MASK_LOW;
-
-	return (quot << 24) + rem;
-}
-
-/* base is usually what we get from ucode with each received frame,
- * the same as HW timer counter counting down
- */
-
-static __le32 iwl3945_add_beacon_time(u32 base, u32 addon, u32 beacon_interval)
-{
-	u32 base_low = base & BEACON_TIME_MASK_LOW;
-	u32 addon_low = addon & BEACON_TIME_MASK_LOW;
-	u32 interval = beacon_interval * TIME_UNIT;
-	u32 res = (base & BEACON_TIME_MASK_HIGH) +
-	    (addon & BEACON_TIME_MASK_HIGH);
-
-	if (base_low > addon_low)
-		res += base_low - addon_low;
-	else if (base_low < addon_low) {
-		res += interval + base_low - addon_low;
-		res += (1 << 24);
-	} else
-		res += (1 << 24);
-
-	return cpu_to_le32(res);
-}
-
 static int iwl3945_get_measurement(struct iwl_priv *priv,
 			       struct ieee80211_measurement_params *params,
 			       u8 type)
@@ -731,8 +682,7 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 	int duration = le16_to_cpu(params->duration);
 
 	if (iwl_is_associated(priv))
-		add_time =
-		    iwl3945_usecs_to_beacons(
+		add_time = iwl_usecs_to_beacons(priv,
 			le64_to_cpu(params->start_time) - priv->_3945.last_tsf,
 			le16_to_cpu(priv->rxon_timing.beacon_interval));
 
@@ -747,8 +697,8 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 
 	if (iwl_is_associated(priv))
 		spectrum.start_time =
-		    iwl3945_add_beacon_time(priv->_3945.last_beacon_time,
-				add_time,
+			iwl_add_beacon_time(priv,
+				priv->_3945.last_beacon_time, add_time,
 				le16_to_cpu(priv->rxon_timing.beacon_interval));
 	else
 		spectrum.start_time = 0;

@@ -672,6 +672,7 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
 
 	priv->hw_params.sens = &iwl4965_sensitivity;
+	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
 	return 0;
 }

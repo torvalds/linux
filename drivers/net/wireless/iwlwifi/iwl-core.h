@@ -79,6 +79,8 @@ struct iwl_cmd;
 	.subvendor = PCI_ANY_ID, .subdevice = (subdev), \
 	.driver_data = (kernel_ulong_t)&(cfg)
 
+#define TIME_UNIT		1024
+
 #define IWL_SKU_G       0x1
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
@@ -591,6 +593,9 @@ static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 }
 
 void iwl_bg_monitor_recover(unsigned long data);
+u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
+__le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
+			   u32 addon, u32 beacon_interval);
 
 #ifdef CONFIG_PM
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state);

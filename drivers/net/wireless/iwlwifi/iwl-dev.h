@@ -662,6 +662,7 @@ struct iwl_sensitivity_ranges {
  * @sw_crypto: 0 for hw, 1 for sw
  * @max_xxx_size: for ucode uses
  * @ct_kill_threshold: temperature threshold
+ * @beacon_time_tsf_bits: number of valid tsf bits for beacon time
  * @calib_init_cfg: setup initial calibrations for the hw
  * @struct iwl_sensitivity_ranges: range of sensitivity values
  */
@@ -688,6 +689,7 @@ struct iwl_hw_params {
 	u32 ct_kill_threshold; /* value in hw-dependent units */
 	u32 ct_kill_exit_threshold; /* value in hw-dependent units */
 				    /* for 1000, 6000 series and up */
+	u16 beacon_time_tsf_bits;
 	u32 calib_init_cfg;
 	const struct iwl_sensitivity_ranges *sens;
 };
@@ -1061,6 +1063,20 @@ struct iwl_force_reset {
 	unsigned long reset_duration;
 	unsigned long last_force_reset_jiffies;
 };
+
+/* extend beacon time format bit shifting  */
+/*
+ * for _3945 devices
+ * bits 31:24 - extended
+ * bits 23:0  - interval
+ */
+#define IWL3945_EXT_BEACON_TIME_POS	24
+/*
+ * for _agn devices
+ * bits 31:22 - extended
+ * bits 21:0  - interval
+ */
+#define IWLAGN_EXT_BEACON_TIME_POS	22
 
 struct iwl_priv {
 
