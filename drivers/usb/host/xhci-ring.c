@@ -548,6 +548,8 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 		/* Otherwise just ring the doorbell to restart the ring */
 		ring_ep_doorbell(xhci, slot_id, ep_index);
 	}
+	ep->stopped_td = NULL;
+	ep->stopped_trb = NULL;
 
 	/*
 	 * Drop the lock and complete the URBs in the cancelled TD list.
@@ -1065,8 +1067,13 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 			ep->stopped_td = td;
 			ep->stopped_trb = event_trb;
+
 			xhci_queue_reset_ep(xhci, slot_id, ep_index);
 			xhci_cleanup_stalled_ring(xhci, td->urb->dev, ep_index);
+
+			ep->stopped_td = NULL;
+			ep->stopped_trb = NULL;
+
 			xhci_ring_cmd_db(xhci);
 			goto td_cleanup;
 		default:
