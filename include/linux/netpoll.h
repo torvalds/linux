@@ -55,19 +55,19 @@ void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb);
 
 
 #ifdef CONFIG_NETPOLL
-static inline int netpoll_rx(struct sk_buff *skb)
+static inline bool netpoll_rx(struct sk_buff *skb)
 {
 	struct netpoll_info *npinfo = skb->dev->npinfo;
 	unsigned long flags;
-	int ret = 0;
+	bool ret = false;
 
 	if (!npinfo || (list_empty(&npinfo->rx_np) && !npinfo->rx_flags))
-		return 0;
+		return false;
 
 	spin_lock_irqsave(&npinfo->rx_lock, flags);
 	/* check rx_flags again with the lock held */
 	if (npinfo->rx_flags && __netpoll_rx(skb))
-		ret = 1;
+		ret = true;
 	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 
 	return ret;
