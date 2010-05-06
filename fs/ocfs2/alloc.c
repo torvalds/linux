@@ -1015,8 +1015,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 
 	count = 0;
 	while (count < wanted) {
-		status = ocfs2_claim_metadata(osb,
-					      handle,
+		status = ocfs2_claim_metadata(handle,
 					      meta_ac,
 					      wanted - count,
 					      &suballoc_bit_start,
@@ -4786,7 +4785,7 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 		goto leave;
 	}
 
-	status = __ocfs2_claim_clusters(osb, handle, data_ac, 1,
+	status = __ocfs2_claim_clusters(handle, data_ac, 1,
 					clusters_to_add, &bit_off, &num_bits);
 	if (status < 0) {
 		if (status != -ENOSPC)
@@ -7201,7 +7200,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 
 		data_ac->ac_resv = &OCFS2_I(inode)->ip_la_data_resv;
 
-		ret = ocfs2_claim_clusters(osb, handle, data_ac, 1, &bit_off,
+		ret = ocfs2_claim_clusters(handle, data_ac, 1, &bit_off,
 					   &num);
 		if (ret) {
 			mlog_errno(ret);

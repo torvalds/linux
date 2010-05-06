@@ -597,7 +597,7 @@ static int ocfs2_create_refcount_tree(struct inode *inode,
 		goto out_commit;
 	}
 
-	ret = ocfs2_claim_metadata(osb, handle, meta_ac, 1,
+	ret = ocfs2_claim_metadata(handle, meta_ac, 1,
 				   &suballoc_bit_start, &num_got,
 				   &first_blkno);
 	if (ret) {
@@ -1297,7 +1297,7 @@ static int ocfs2_expand_inline_ref_root(handle_t *handle,
 		goto out;
 	}
 
-	ret = ocfs2_claim_metadata(OCFS2_SB(sb), handle, meta_ac, 1,
+	ret = ocfs2_claim_metadata(handle, meta_ac, 1,
 				   &suballoc_bit_start, &num_got,
 				   &blkno);
 	if (ret) {
@@ -1547,7 +1547,7 @@ static int ocfs2_new_leaf_refcount_block(handle_t *handle,
 		goto out;
 	}
 
-	ret = ocfs2_claim_metadata(OCFS2_SB(sb), handle, meta_ac, 1,
+	ret = ocfs2_claim_metadata(handle, meta_ac, 1,
 				   &suballoc_bit_start, &num_got,
 				   &blkno);
 	if (ret) {
@@ -3271,7 +3271,7 @@ static int ocfs2_make_clusters_writable(struct super_block *sb,
 		} else {
 			delete = 1;
 
-			ret = __ocfs2_claim_clusters(osb, handle,
+			ret = __ocfs2_claim_clusters(handle,
 						     context->data_ac,
 						     1, set_len,
 						     &new_bit, &new_len);

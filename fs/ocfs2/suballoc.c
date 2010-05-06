@@ -439,7 +439,7 @@ ocfs2_block_group_alloc_contig(struct ocfs2_super *osb, handle_t *handle,
 	struct buffer_head *bg_bh;
 	unsigned int alloc_rec = ocfs2_find_smallest_chain(cl);
 
-	status = ocfs2_claim_clusters(osb, handle, ac,
+	status = ocfs2_claim_clusters(handle, ac,
 				      le16_to_cpu(cl->cl_cpg), &bit_off,
 				      &num_bits);
 	if (status < 0) {
@@ -481,7 +481,7 @@ static int ocfs2_block_group_claim_bits(struct ocfs2_super *osb,
 	int status;
 
 	while (min_bits) {
-		status = ocfs2_claim_clusters(osb, handle, ac, min_bits,
+		status = ocfs2_claim_clusters(handle, ac, min_bits,
 					      bit_off, num_bits);
 		if (status != -ENOSPC)
 			break;
@@ -1919,8 +1919,7 @@ bail:
 	return status;
 }
 
-int ocfs2_claim_metadata(struct ocfs2_super *osb,
-			 handle_t *handle,
+int ocfs2_claim_metadata(handle_t *handle,
 			 struct ocfs2_alloc_context *ac,
 			 u32 bits_wanted,
 			 u16 *suballoc_bit_start,
@@ -1943,7 +1942,7 @@ int ocfs2_claim_metadata(struct ocfs2_super *osb,
 		mlog_errno(status);
 		goto bail;
 	}
-	atomic_inc(&osb->alloc_stats.bg_allocs);
+	atomic_inc(&OCFS2_SB(ac->ac_inode->i_sb)->alloc_stats.bg_allocs);
 
 	*suballoc_bit_start = res.sr_bit_offset;
 	*blkno_start = res.sr_bg_blkno + (u64)(res.sr_bit_offset);
@@ -1986,8 +1985,7 @@ static inline void ocfs2_save_inode_ac_group(struct inode *dir,
 	OCFS2_I(dir)->ip_last_used_slot = ac->ac_alloc_slot;
 }
 
-int ocfs2_claim_new_inode(struct ocfs2_super *osb,
-			  handle_t *handle,
+int ocfs2_claim_new_inode(handle_t *handle,
 			  struct inode *dir,
 			  struct buffer_head *parent_fe_bh,
 			  struct ocfs2_alloc_context *ac,
@@ -2015,7 +2013,7 @@ int ocfs2_claim_new_inode(struct ocfs2_super *osb,
 		mlog_errno(status);
 		goto bail;
 	}
-	atomic_inc(&osb->alloc_stats.bg_allocs);
+	atomic_inc(&OCFS2_SB(ac->ac_inode->i_sb)->alloc_stats.bg_allocs);
 
 	BUG_ON(res.sr_bits != 1);
 
@@ -2090,8 +2088,7 @@ static inline void ocfs2_block_to_cluster_group(struct inode *inode,
  * contig. allocation, set to '1' to indicate we can deal with extents
  * of any size.
  */
-int __ocfs2_claim_clusters(struct ocfs2_super *osb,
-			   handle_t *handle,
+int __ocfs2_claim_clusters(handle_t *handle,
 			   struct ocfs2_alloc_context *ac,
 			   u32 min_clusters,
 			   u32 max_clusters,
@@ -2101,6 +2098,7 @@ int __ocfs2_claim_clusters(struct ocfs2_super *osb,
 	int status;
 	unsigned int bits_wanted = max_clusters;
 	struct ocfs2_suballoc_result res;
+	struct ocfs2_super *osb = OCFS2_SB(ac->ac_inode->i_sb);
 
 	mlog_entry_void();
 
@@ -2161,8 +2159,7 @@ bail:
 	return status;
 }
 
-int ocfs2_claim_clusters(struct ocfs2_super *osb,
-			 handle_t *handle,
+int ocfs2_claim_clusters(handle_t *handle,
 			 struct ocfs2_alloc_context *ac,
 			 u32 min_clusters,
 			 u32 *cluster_start,
@@ -2170,7 +2167,7 @@ int ocfs2_claim_clusters(struct ocfs2_super *osb,
 {
 	unsigned int bits_wanted = ac->ac_bits_wanted - ac->ac_bits_given;
 
-	return __ocfs2_claim_clusters(osb, handle, ac, min_clusters,
+	return __ocfs2_claim_clusters(handle, ac, min_clusters,
 				      bits_wanted, cluster_start, num_clusters);
 }
 

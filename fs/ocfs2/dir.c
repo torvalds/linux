@@ -2402,7 +2402,7 @@ static int ocfs2_dx_dir_attach_index(struct ocfs2_super *osb,
 	struct ocfs2_dir_block_trailer *trailer =
 		ocfs2_trailer_from_bh(dirdata_bh, dir->i_sb);
 
-	ret = ocfs2_claim_metadata(osb, handle, meta_ac, 1, &dr_suballoc_bit,
+	ret = ocfs2_claim_metadata(handle, meta_ac, 1, &dr_suballoc_bit,
 				   &num_bits, &dr_blkno);
 	if (ret) {
 		mlog_errno(ret);
@@ -2544,7 +2544,7 @@ static int __ocfs2_dx_dir_new_cluster(struct inode *dir,
 	 * chance of contiguousness as the directory grows in number
 	 * of entries.
 	 */
-	ret = __ocfs2_claim_clusters(osb, handle, data_ac, 1, 1, &phys, &num);
+	ret = __ocfs2_claim_clusters(handle, data_ac, 1, 1, &phys, &num);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -2979,7 +2979,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	 */
 	if (ocfs2_dir_resv_allowed(osb))
 		data_ac->ac_resv = &oi->ip_la_data_resv;
-	ret = ocfs2_claim_clusters(osb, handle, data_ac, 1, &bit_off, &len);
+	ret = ocfs2_claim_clusters(handle, data_ac, 1, &bit_off, &len);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_commit;
@@ -3118,7 +3118,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	 * pass. Claim the 2nd cluster as a separate extent.
 	 */
 	if (alloc > len) {
-		ret = ocfs2_claim_clusters(osb, handle, data_ac, 1, &bit_off,
+		ret = ocfs2_claim_clusters(handle, data_ac, 1, &bit_off,
 					   &len);
 		if (ret) {
 			mlog_errno(ret);
