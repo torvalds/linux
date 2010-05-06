@@ -117,6 +117,16 @@ config SPI_DAVINCI
 	help
 	  SPI master controller for DaVinci and DA8xx SPI modules.
 
+config SPI_EP93XX
+	tristate "Cirrus Logic EP93xx SPI controller"
+	depends on ARCH_EP93XX
+	help
+	  This enables using the Cirrus EP93xx SPI controller in master
+	  mode.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called ep93xx_spi.
+
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
 	depends on GENERIC_GPIO
