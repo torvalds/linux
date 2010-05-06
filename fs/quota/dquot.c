@@ -2338,51 +2338,70 @@ int vfs_get_dqblk(struct super_block *sb, int type, qid_t id,
 }
 EXPORT_SYMBOL(vfs_get_dqblk);
 
+#define VFS_FS_DQ_MASK \
+	(FS_DQ_BCOUNT | FS_DQ_BSOFT | FS_DQ_BHARD | \
+	 FS_DQ_ICOUNT | FS_DQ_ISOFT | FS_DQ_IHARD | \
+	 FS_DQ_BTIMER | FS_DQ_ITIMER)
+
 /* Generic routine for setting common part of quota structure */
-static int do_set_dqblk(struct dquot *dquot, struct if_dqblk *di)
+static int do_set_dqblk(struct dquot *dquot, struct fs_disk_quota *di)
 {
 	struct mem_dqblk *dm = &dquot->dq_dqb;
 	int check_blim = 0, check_ilim = 0;
 	struct mem_dqinfo *dqi = &sb_dqopt(dquot->dq_sb)->info[dquot->dq_type];
 
-	if ((di->dqb_valid & QIF_BLIMITS &&
-	     (di->dqb_bhardlimit > dqi->dqi_maxblimit ||
-	      di->dqb_bsoftlimit > dqi->dqi_maxblimit)) ||
-	    (di->dqb_valid & QIF_ILIMITS &&
-	     (di->dqb_ihardlimit > dqi->dqi_maxilimit ||
-	      di->dqb_isoftlimit > dqi->dqi_maxilimit)))
+	if (di->d_fieldmask & ~VFS_FS_DQ_MASK)
+		return -EINVAL;
+
+	if (((di->d_fieldmask & FS_DQ_BSOFT) &&
+	     (di->d_blk_softlimit > dqi->dqi_maxblimit)) ||
+	    ((di->d_fieldmask & FS_DQ_BHARD) &&
+	     (di->d_blk_hardlimit > dqi->dqi_maxblimit)) ||
+	    ((di->d_fieldmask & FS_DQ_ISOFT) &&
+	     (di->d_ino_softlimit > dqi->dqi_maxilimit)) ||
+	    ((di->d_fieldmask & FS_DQ_IHARD) &&
+	     (di->d_ino_hardlimit > dqi->dqi_maxilimit)))
 		return -ERANGE;
 
 	spin_lock(&dq_data_lock);
-	if (di->dqb_valid & QIF_SPACE) {
-		dm->dqb_curspace = di->dqb_curspace - dm->dqb_rsvspace;
+	if (di->d_fieldmask & FS_DQ_BCOUNT) {
+		dm->dqb_curspace = di->d_bcount - dm->dqb_rsvspace;
 		check_blim = 1;
 		set_bit(DQ_LASTSET_B + QIF_SPACE_B, &dquot->dq_flags);
 	}
-	if (di->dqb_valid & QIF_BLIMITS) {
-		dm->dqb_bsoftlimit = qbtos(di->dqb_bsoftlimit);
-		dm->dqb_bhardlimit = qbtos(di->dqb_bhardlimit);
+
+	if (di->d_fieldmask & FS_DQ_BSOFT)
+		dm->dqb_bsoftlimit = qbtos(di->d_blk_softlimit);
+	if (di->d_fieldmask & FS_DQ_BHARD)
+		dm->dqb_bhardlimit = qbtos(di->d_blk_hardlimit);
+	if (di->d_fieldmask & (FS_DQ_BSOFT | FS_DQ_BHARD)) {
 		check_blim = 1;
 		set_bit(DQ_LASTSET_B + QIF_BLIMITS_B, &dquot->dq_flags);
 	}
-	if (di->dqb_valid & QIF_INODES) {
-		dm->dqb_curinodes = di->dqb_curinodes;
+
+	if (di->d_fieldmask & FS_DQ_ICOUNT) {
+		dm->dqb_curinodes = di->d_icount;
 		check_ilim = 1;
 		set_bit(DQ_LASTSET_B + QIF_INODES_B, &dquot->dq_flags);
 	}
-	if (di->dqb_valid & QIF_ILIMITS) {
-		dm->dqb_isoftlimit = di->dqb_isoftlimit;
-		dm->dqb_ihardlimit = di->dqb_ihardlimit;
+
+	if (di->d_fieldmask & FS_DQ_ISOFT)
+		dm->dqb_isoftlimit = di->d_ino_softlimit;
+	if (di->d_fieldmask & FS_DQ_IHARD)
+		dm->dqb_ihardlimit = di->d_ino_hardlimit;
+	if (di->d_fieldmask & (FS_DQ_ISOFT | FS_DQ_IHARD)) {
 		check_ilim = 1;
 		set_bit(DQ_LASTSET_B + QIF_ILIMITS_B, &dquot->dq_flags);
 	}
-	if (di->dqb_valid & QIF_BTIME) {
-		dm->dqb_btime = di->dqb_btime;
+
+	if (di->d_fieldmask & FS_DQ_BTIMER) {
+		dm->dqb_btime = di->d_btimer;
 		check_blim = 1;
 		set_bit(DQ_LASTSET_B + QIF_BTIME_B, &dquot->dq_flags);
 	}
-	if (di->dqb_valid & QIF_ITIME) {
-		dm->dqb_itime = di->dqb_itime;
+
+	if (di->d_fieldmask & FS_DQ_ITIMER) {
+		dm->dqb_itime = di->d_itimer;
 		check_ilim = 1;
 		set_bit(DQ_LASTSET_B + QIF_ITIME_B, &dquot->dq_flags);
 	}
@@ -2392,7 +2411,7 @@ static int do_set_dqblk(struct dquot *dquot, struct if_dqblk *di)
 		    dm->dqb_curspace < dm->dqb_bsoftlimit) {
 			dm->dqb_btime = 0;
 			clear_bit(DQ_BLKS_B, &dquot->dq_flags);
-		} else if (!(di->dqb_valid & QIF_BTIME))
+		} else if (!(di->d_fieldmask & FS_DQ_BTIMER))
 			/* Set grace only if user hasn't provided his own... */
 			dm->dqb_btime = get_seconds() + dqi->dqi_bgrace;
 	}
@@ -2401,7 +2420,7 @@ static int do_set_dqblk(struct dquot *dquot, struct if_dqblk *di)
 		    dm->dqb_curinodes < dm->dqb_isoftlimit) {
 			dm->dqb_itime = 0;
 			clear_bit(DQ_INODES_B, &dquot->dq_flags);
-		} else if (!(di->dqb_valid & QIF_ITIME))
+		} else if (!(di->d_fieldmask & FS_DQ_ITIMER))
 			/* Set grace only if user hasn't provided his own... */
 			dm->dqb_itime = get_seconds() + dqi->dqi_igrace;
 	}
@@ -2417,7 +2436,7 @@ static int do_set_dqblk(struct dquot *dquot, struct if_dqblk *di)
 }
 
 int vfs_set_dqblk(struct super_block *sb, int type, qid_t id,
-		  struct if_dqblk *di)
+		  struct fs_disk_quota *di)
 {
 	struct dquot *dquot;
 	int rc;

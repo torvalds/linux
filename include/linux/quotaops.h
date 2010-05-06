@@ -65,7 +65,8 @@ int vfs_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int vfs_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int vfs_get_dqblk(struct super_block *sb, int type, qid_t id,
 		struct fs_disk_quota *di);
-int vfs_set_dqblk(struct super_block *sb, int type, qid_t id, struct if_dqblk *di);
+int vfs_set_dqblk(struct super_block *sb, int type, qid_t id,
+		struct fs_disk_quota *di);
 
 int dquot_transfer(struct inode *inode, struct iattr *iattr);
 int vfs_dq_quota_on_remount(struct super_block *sb);

@@ -448,6 +448,9 @@ xfs_qm_scall_getqstat(
 	return 0;
 }
 
+#define XFS_DQ_MASK \
+	(FS_DQ_LIMIT_MASK | FS_DQ_TIMER_MASK | FS_DQ_WARNS_MASK)
+
 /*
  * Adjust quota limits, and start/stop timers accordingly.
  */
@@ -465,9 +468,10 @@ xfs_qm_scall_setqlim(
 	int			error;
 	xfs_qcnt_t		hard, soft;
 
-	if ((newlim->d_fieldmask &
-	    (FS_DQ_LIMIT_MASK|FS_DQ_TIMER_MASK|FS_DQ_WARNS_MASK)) == 0)
-		return (0);
+	if (newlim->d_fieldmask & ~XFS_DQ_MASK)
+		return EINVAL;
+	if ((newlim->d_fieldmask & XFS_DQ_MASK) == 0)
+		return 0;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SETQLIM);
 	if ((error = xfs_trans_reserve(tp, 0, sizeof(xfs_disk_dquot_t) + 128,

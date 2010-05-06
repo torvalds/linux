@@ -114,7 +114,7 @@ xfs_fs_get_dqblk(
 }
 
 STATIC int
-xfs_fs_set_xquota(
+xfs_fs_set_dqblk(
 	struct super_block	*sb,
 	int			type,
 	qid_t			id,
@@ -136,5 +136,5 @@ const struct quotactl_ops xfs_quotactl_operations = {
 	.get_xstate		= xfs_fs_get_xstate,
 	.set_xstate		= xfs_fs_set_xstate,
 	.get_dqblk		= xfs_fs_get_dqblk,
-	.set_xquota		= xfs_fs_set_xquota,
+	.set_dqblk		= xfs_fs_set_dqblk,
 };
