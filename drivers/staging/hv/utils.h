@@ -87,12 +87,10 @@ struct shutdown_msg_data {
 #define WLTIMEDELTA 116444736000000000LL
 #endif
 
-typedef u64 winfiletime_t; /* Windows FILETIME type */
-
 struct ictimesync_data{
-    winfiletime_t parenttime;
-    winfiletime_t childtime;
-    winfiletime_t roundtriptime;
+    u64 parenttime;
+    u64 childtime;
+    u64 roundtriptime;
     u8 flags;
 } __attribute__((packed));
 

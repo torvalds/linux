@@ -110,7 +110,7 @@ static void shutdown_onchannelcallback(void *context)
 /*
  * Synchronize time with host after reboot, restore, etc.
  */
-static void adj_guesttime(winfiletime_t hosttime, u8 flags)
+static void adj_guesttime(u64 hosttime, u8 flags)
 {
 	s64 host_tns;
 	struct timespec host_ts;
