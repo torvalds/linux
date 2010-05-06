@@ -252,8 +252,8 @@ decrementer_iSeries_masked:
 	li	r11,1
 	ld	r12,PACALPPACAPTR(r13)
 	stb	r11,LPPACADECRINT(r12)
-	LOAD_REG_IMMEDIATE(r12, tb_ticks_per_jiffy)
-	lwz	r12,0(r12)
+	li	r12,-1
+	clrldi	r12,r12,33	/* set DEC to 0x7fffffff */
 	mtspr	SPRN_DEC,r12
 	/* fall through */
 
