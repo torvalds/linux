@@ -713,12 +713,11 @@ static int check_error(struct ptd *ptd)
 	u32 dw3;
 
 	dw3 = le32_to_cpu(ptd->dw3);
-	if (dw3 & DW3_HALT_BIT)
+	if (dw3 & DW3_HALT_BIT) {
 		error = -EPIPE;
 
-	if (dw3 & DW3_ERROR_BIT) {
-		printk(KERN_ERR "error bit is set in DW3\n");
-		error = -EPIPE;
+		if (dw3 & DW3_ERROR_BIT)
+			pr_err("error bit is set in DW3\n");
 	}
 
 	if (dw3 & DW3_QTD_ACTIVE) {
