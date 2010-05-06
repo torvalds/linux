@@ -209,7 +209,7 @@ static int h1940_backlight_init(struct device *dev)
 	gpio_request(S3C2410_GPB(0), "Backlight");
 
 	gpio_direction_output(S3C2410_GPB(0), 0);
-	s3c2410_gpio_pullup(S3C2410_GPB(0), 0);
+	s3c_gpio_setpull(S3C2410_GPB(0), S3C_GPIO_PULL_NONE);
 	s3c_gpio_cfgpin(S3C2410_GPB(0), S3C2410_GPB0_TOUT0);
 
 	return 0;
