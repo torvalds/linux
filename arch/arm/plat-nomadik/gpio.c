@@ -107,12 +107,37 @@ static void nmk_gpio_irq_ack(unsigned int irq)
 	writel(nmk_gpio_get_bitmask(gpio), nmk_chip->addr + NMK_GPIO_IC);
 }
 
-static void nmk_gpio_irq_mask(unsigned int irq)
+static void __nmk_gpio_irq_modify(struct nmk_gpio_chip *nmk_chip,
+				  int gpio, bool enable)
+{
+	u32 bitmask = nmk_gpio_get_bitmask(gpio);
+	u32 reg;
+
+	/* we must individually set/clear the two edges */
+	if (nmk_chip->edge_rising & bitmask) {
+		reg = readl(nmk_chip->addr + NMK_GPIO_RIMSC);
+		if (enable)
+			reg |= bitmask;
+		else
+			reg &= ~bitmask;
+		writel(reg, nmk_chip->addr + NMK_GPIO_RIMSC);
+	}
+	if (nmk_chip->edge_falling & bitmask) {
+		reg = readl(nmk_chip->addr + NMK_GPIO_FIMSC);
+		if (enable)
+			reg |= bitmask;
+		else
+			reg &= ~bitmask;
+		writel(reg, nmk_chip->addr + NMK_GPIO_FIMSC);
+	}
+}
+
+static void nmk_gpio_irq_modify(unsigned int irq, bool enable)
 {
 	int gpio;
 	struct nmk_gpio_chip *nmk_chip;
 	unsigned long flags;
-	u32 bitmask, reg;
+	u32 bitmask;
 
 	gpio = NOMADIK_IRQ_TO_GPIO(irq);
 	nmk_chip = get_irq_chip_data(irq);
@@ -120,47 +145,19 @@ static void nmk_gpio_irq_mask(unsigned int irq)
 	if (!nmk_chip)
 		return;
 
-	/* we must individually clear the two edges */
 	spin_lock_irqsave(&nmk_chip->lock, flags);
-	if (nmk_chip->edge_rising & bitmask) {
-		reg = readl(nmk_chip->addr + NMK_GPIO_RIMSC);
-		reg &= ~bitmask;
-		writel(reg, nmk_chip->addr + NMK_GPIO_RIMSC);
-	}
-	if (nmk_chip->edge_falling & bitmask) {
-		reg = readl(nmk_chip->addr + NMK_GPIO_FIMSC);
-		reg &= ~bitmask;
-		writel(reg, nmk_chip->addr + NMK_GPIO_FIMSC);
-	}
+	__nmk_gpio_irq_modify(nmk_chip, gpio, enable);
 	spin_unlock_irqrestore(&nmk_chip->lock, flags);
+}
+
+static void nmk_gpio_irq_mask(unsigned int irq)
+{
+	nmk_gpio_irq_modify(irq, false);
 };
 
 static void nmk_gpio_irq_unmask(unsigned int irq)
 {
-	int gpio;
-	struct nmk_gpio_chip *nmk_chip;
-	unsigned long flags;
-	u32 bitmask, reg;
-
-	gpio = NOMADIK_IRQ_TO_GPIO(irq);
-	nmk_chip = get_irq_chip_data(irq);
-	bitmask = nmk_gpio_get_bitmask(gpio);
-	if (!nmk_chip)
-		return;
-
-	/* we must individually set the two edges */
-	spin_lock_irqsave(&nmk_chip->lock, flags);
-	if (nmk_chip->edge_rising & bitmask) {
-		reg = readl(nmk_chip->addr + NMK_GPIO_RIMSC);
-		reg |= bitmask;
-		writel(reg, nmk_chip->addr + NMK_GPIO_RIMSC);
-	}
-	if (nmk_chip->edge_falling & bitmask) {
-		reg = readl(nmk_chip->addr + NMK_GPIO_FIMSC);
-		reg |= bitmask;
-		writel(reg, nmk_chip->addr + NMK_GPIO_FIMSC);
-	}
-	spin_unlock_irqrestore(&nmk_chip->lock, flags);
+	nmk_gpio_irq_modify(irq, true);
 }
 
 static int nmk_gpio_irq_set_type(unsigned int irq, unsigned int type)
