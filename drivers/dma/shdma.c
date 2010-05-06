@@ -290,6 +290,7 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 	struct sh_dmae_chan *sh_chan = to_sh_chan(chan);
 	struct sh_desc *desc;
 	struct sh_dmae_slave *param = chan->private;
+	int ret;
 
 	pm_runtime_get_sync(sh_chan->dev);
 
@@ -301,11 +302,15 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 		struct sh_dmae_slave_config *cfg;
 
 		cfg = sh_dmae_find_slave(sh_chan, param->slave_id);
-		if (!cfg)
-			return -EINVAL;
+		if (!cfg) {
+			ret = -EINVAL;
+			goto efindslave;
+		}
 
-		if (test_and_set_bit(param->slave_id, sh_dmae_slave_used))
-			return -EBUSY;
+		if (test_and_set_bit(param->slave_id, sh_dmae_slave_used)) {
+			ret = -EBUSY;
+			goto etestused;
+		}
 
 		param->config = cfg;
 
@@ -334,10 +339,20 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 	}
 	spin_unlock_bh(&sh_chan->desc_lock);
 
-	if (!sh_chan->descs_allocated)
-		pm_runtime_put(sh_chan->dev);
+	if (!sh_chan->descs_allocated) {
+		ret = -ENOMEM;
+		goto edescalloc;
+	}
 
 	return sh_chan->descs_allocated;
+
+edescalloc:
+	if (param)
+		clear_bit(param->slave_id, sh_dmae_slave_used);
+etestused:
+efindslave:
+	pm_runtime_put(sh_chan->dev);
+	return ret;
 }
 
 /*
