@@ -46,6 +46,9 @@ static const char *tpa6140a2_supply_names[TPA6130A2_NUM_SUPPLIES] = {
 	"AVdd",
 };
 
+#define TPA6130A2_GAIN_MAX	0x3f
+#define TPA6140A2_GAIN_MAX	0x1f
+
 /* This struct is used to save the context */
 struct tpa6130a2_data {
 	struct mutex mutex;
@@ -53,6 +56,8 @@ struct tpa6130a2_data {
 	struct regulator_bulk_data supplies[TPA6130A2_NUM_SUPPLIES];
 	int power_gpio;
 	unsigned char power_state;
+	enum tpa_model id;
+	int gain_limit;
 };
 
 static int tpa6130a2_i2c_read(int reg)
@@ -175,6 +180,40 @@ exit:
 	return ret;
 }
 
+static int tpa6130a2_info_volsw(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_info *uinfo)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct tpa6130a2_data *data;
+
+	BUG_ON(tpa6130a2_client == NULL);
+	data = i2c_get_clientdata(tpa6130a2_client);
+
+	mutex_lock(&data->mutex);
+	switch (mc->reg) {
+	case TPA6130A2_REG_VOL_MUTE:
+		if (data->gain_limit != mc->max)
+			mc->max = data->gain_limit;
+		break;
+	default:
+		dev_err(&tpa6130a2_client->dev,
+			"Invalid register: 0x02%x\n", mc->reg);
+		goto out;
+	}
+	if (unlikely(mc->max == 1))
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	else
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = mc->max;
+out:
+	mutex_unlock(&data->mutex);
+	return 0;
+}
+
 static int tpa6130a2_get_reg(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -238,6 +277,15 @@ static int tpa6130a2_set_reg(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+#define SOC_SINGLE_EXT_TLV_TPA(xname, xreg, xshift, xmax, xinvert, tlv_array) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
+		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+	.tlv.p = (tlv_array), \
+	.info = tpa6130a2_info_volsw, \
+	.get = tpa6130a2_get_reg, .put = tpa6130a2_set_reg, \
+	.private_value = SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) }
+
 /*
  * TPA6130 volume. From -59.5 to 4 dB with increasing step size when going
  * down in gain.
@@ -257,10 +305,22 @@ static const unsigned int tpa6130_tlv[] = {
 };
 
 static const struct snd_kcontrol_new tpa6130a2_controls[] = {
-	SOC_SINGLE_EXT_TLV("TPA6130A2 Headphone Playback Volume",
-		       TPA6130A2_REG_VOL_MUTE, 0, 0x3f, 0,
-		       tpa6130a2_get_reg, tpa6130a2_set_reg,
-		       tpa6130_tlv),
+	SOC_SINGLE_EXT_TLV_TPA("TPA6130A2 Headphone Playback Volume",
+			TPA6130A2_REG_VOL_MUTE, 0, TPA6130A2_GAIN_MAX, 0,
+			tpa6130_tlv),
+};
+
+static const unsigned int tpa6140_tlv[] = {
+	TLV_DB_RANGE_HEAD(3),
+	0, 8, TLV_DB_SCALE_ITEM(-5900, 400, 0),
+	9, 16, TLV_DB_SCALE_ITEM(-2500, 200, 0),
+	17, 31, TLV_DB_SCALE_ITEM(-1000, 100, 0),
+};
+
+static const struct snd_kcontrol_new tpa6140a2_controls[] = {
+	SOC_SINGLE_EXT_TLV_TPA("TPA6140A2 Headphone Playback Volume",
+			TPA6130A2_REG_VOL_MUTE, 1, TPA6140A2_GAIN_MAX, 0,
+			tpa6140_tlv),
 };
 
 /*
@@ -368,13 +428,22 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 {
+	struct	tpa6130a2_data *data;
+
+	BUG_ON(tpa6130a2_client == NULL);
+	data = i2c_get_clientdata(tpa6130a2_client);
+
 	snd_soc_dapm_new_controls(codec, tpa6130a2_dapm_widgets,
 				ARRAY_SIZE(tpa6130a2_dapm_widgets));
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	return snd_soc_add_controls(codec, tpa6130a2_controls,
-				ARRAY_SIZE(tpa6130a2_controls));
+	if (data->id == TPA6140A2)
+		return snd_soc_add_controls(codec, tpa6140a2_controls,
+						ARRAY_SIZE(tpa6140a2_controls));
+	else
+		return snd_soc_add_controls(codec, tpa6130a2_controls,
+						ARRAY_SIZE(tpa6130a2_controls));
 
 }
 EXPORT_SYMBOL_GPL(tpa6130a2_add_controls);
@@ -407,6 +476,7 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 
 	pdata = client->dev.platform_data;
 	data->power_gpio = pdata->power_gpio;
+	data->id = pdata->id;
 
 	mutex_init(&data->mutex);
 
@@ -425,20 +495,35 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 		gpio_direction_output(data->power_gpio, 0);
 	}
 
-	switch (pdata->id) {
+	switch (data->id) {
 	case TPA6130A2:
 		for (i = 0; i < ARRAY_SIZE(data->supplies); i++)
 			data->supplies[i].supply = tpa6130a2_supply_names[i];
+		if (pdata->limit_gain > 0 &&
+		    pdata->limit_gain < TPA6130A2_GAIN_MAX)
+			data->gain_limit = pdata->limit_gain;
+		else
+			data->gain_limit = TPA6130A2_GAIN_MAX;
 		break;
 	case TPA6140A2:
 		for (i = 0; i < ARRAY_SIZE(data->supplies); i++)
 			data->supplies[i].supply = tpa6140a2_supply_names[i];;
+		if (pdata->limit_gain > 0 &&
+		    pdata->limit_gain < TPA6140A2_GAIN_MAX)
+			data->gain_limit = pdata->limit_gain;
+		else
+			data->gain_limit = TPA6140A2_GAIN_MAX;
 		break;
 	default:
 		dev_warn(dev, "Unknown TPA model (%d). Assuming 6130A2\n",
 			 pdata->id);
 		for (i = 0; i < ARRAY_SIZE(data->supplies); i++)
 			data->supplies[i].supply = tpa6130a2_supply_names[i];
+		if (pdata->limit_gain > 0 &&
+		    pdata->limit_gain < TPA6130A2_GAIN_MAX)
+			data->gain_limit = pdata->limit_gain;
+		else
+			data->gain_limit = TPA6130A2_GAIN_MAX;
 	}
 
 	ret = regulator_bulk_get(dev, ARRAY_SIZE(data->supplies),
