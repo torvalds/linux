@@ -66,7 +66,6 @@ struct ceph_osd_request {
 	struct list_head  r_unsafe_item;
 
 	struct inode *r_inode;         	      /* for use by callbacks */
-	struct writeback_control *r_wbc;      /* ditto */
 
 	char              r_oid[40];          /* object name */
 	int               r_oid_len;

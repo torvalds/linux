@@ -504,7 +504,6 @@ static void writepages_finish(struct ceph_osd_request *req,
 	int i;
 	struct ceph_snap_context *snapc = req->r_snapc;
 	struct address_space *mapping = inode->i_mapping;
-	struct writeback_control *wbc = req->r_wbc;
 	__s32 rc = -EIO;
 	u64 bytes = 0;
 	struct ceph_client *client = ceph_inode_to_client(inode);
@@ -546,10 +545,6 @@ static void writepages_finish(struct ceph_osd_request *req,
 			clear_bdi_congested(&client->backing_dev_info,
 					    BLK_RW_ASYNC);
 
-		if (i >= wrote) {
-			dout("inode %p skipping page %p\n", inode, page);
-			wbc->pages_skipped++;
-		}
 		ceph_put_snap_context((void *)page->private);
 		page->private = 0;
 		ClearPagePrivate(page);
@@ -799,7 +794,6 @@ get_more_pages:
 				alloc_page_vec(client, req);
 				req->r_callback = writepages_finish;
 				req->r_inode = inode;
-				req->r_wbc = wbc;
 			}
 
 			/* note position of first page in pvec */
