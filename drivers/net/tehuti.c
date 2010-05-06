@@ -2033,7 +2033,6 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/************** priv ****************/
 		priv = nic->priv[port] = netdev_priv(ndev);
 
-		memset(priv, 0, sizeof(struct bdx_priv));
 		priv->pBdxRegs = nic->regs + port * 0x8000;
 		priv->port = port;
 		priv->pdev = pdev;
