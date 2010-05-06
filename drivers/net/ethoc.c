@@ -1040,7 +1040,6 @@ static int ethoc_probe(struct platform_device *pdev)
 	netdev->features |= 0;
 
 	/* setup NAPI */
-	memset(&priv->napi, 0, sizeof(priv->napi));
 	netif_napi_add(netdev, &priv->napi, ethoc_poll, 64);
 
 	spin_lock_init(&priv->rx_lock);
