@@ -163,10 +163,8 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	device = ib_conn->device;
 
 	ib_conn->login_buf = kmalloc(ISER_RX_LOGIN_SIZE, GFP_KERNEL);
-	if (!ib_conn->login_buf) {
-		goto alloc_err;
-		ret = -ENOMEM;
-	}
+	if (!ib_conn->login_buf)
+		goto out_err;
 
 	ib_conn->login_dma = ib_dma_map_single(ib_conn->device->ib_device,
 				(void *)ib_conn->login_buf, ISER_RX_LOGIN_SIZE,
@@ -175,10 +173,9 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	ib_conn->page_vec = kmalloc(sizeof(struct iser_page_vec) +
 				    (sizeof(u64) * (ISCSI_ISER_SG_TABLESIZE +1)),
 				    GFP_KERNEL);
-	if (!ib_conn->page_vec) {
-		ret = -ENOMEM;
-		goto alloc_err;
-	}
+	if (!ib_conn->page_vec)
+		goto out_err;
+
 	ib_conn->page_vec->pages = (u64 *) (ib_conn->page_vec + 1);
 
 	params.page_shift        = SHIFT_4K;
@@ -198,7 +195,8 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	ib_conn->fmr_pool = ib_create_fmr_pool(device->pd, &params);
 	if (IS_ERR(ib_conn->fmr_pool)) {
 		ret = PTR_ERR(ib_conn->fmr_pool);
-		goto fmr_pool_err;
+		ib_conn->fmr_pool = NULL;
+		goto out_err;
 	}
 
 	memset(&init_attr, 0, sizeof init_attr);
@@ -216,7 +214,7 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 
 	ret = rdma_create_qp(ib_conn->cma_id, device->pd, &init_attr);
 	if (ret)
-		goto qp_err;
+		goto out_err;
 
 	ib_conn->qp = ib_conn->cma_id->qp;
 	iser_err("setting conn %p cma_id %p: fmr_pool %p qp %p\n",
@@ -224,12 +222,7 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 		 ib_conn->fmr_pool, ib_conn->cma_id->qp);
 	return ret;
 
-qp_err:
-	(void)ib_destroy_fmr_pool(ib_conn->fmr_pool);
-fmr_pool_err:
-	kfree(ib_conn->page_vec);
-	kfree(ib_conn->login_buf);
-alloc_err:
+out_err:
 	iser_err("unable to alloc mem or create resource, err %d\n", ret);
 	return ret;
 }
