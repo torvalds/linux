@@ -2401,6 +2401,7 @@ static void snd_es1968_start_irq(struct es1968 *chip)
 	w = ESM_HIRQ_DSIE | ESM_HIRQ_HW_VOLUME;
 	if (chip->rmidi)
 		w |= ESM_HIRQ_MPU401;
+	outb(w, chip->io_port + 0x1A);
 	outw(w, chip->io_port + ESM_PORT_HOST_IRQ);
 }
 
