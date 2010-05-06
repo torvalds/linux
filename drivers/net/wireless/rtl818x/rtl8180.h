@@ -78,6 +78,9 @@ struct rtl8180_priv {
 	u32 anaparam;
 	u16 rfparam;
 	u8 csthreshold;
+
+	/* sequence # */
+	u16 seqno;
 };
 
 void rtl8180_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data);

@@ -233,6 +233,7 @@ static irqreturn_t rtl8180_interrupt(int irq, void *dev_id)
 static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rtl8180_priv *priv = dev->priv;
 	struct rtl8180_tx_ring *ring;
 	struct rtl8180_tx_desc *entry;
@@ -284,6 +285,14 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
+
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
+		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+			priv->seqno += 0x10;
+		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		hdr->seq_ctrl |= cpu_to_le16(priv->seqno);
+	}
+
 	idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
 	entry = &ring->desc[idx];
 
@@ -298,6 +307,7 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	__skb_queue_tail(&ring->queue, skb);
 	if (ring->entries - skb_queue_len(&ring->queue) < 2)
 		ieee80211_stop_queue(dev, prio);
+
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING, (1 << (prio + 4)));
