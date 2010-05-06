@@ -25,7 +25,7 @@
 #ifndef _VMBUS_PRIVATE_H_
 #define _VMBUS_PRIVATE_H_
 
-#include "Hv.h"
+#include "hv.h"
 #include "VmbusApi.h"
 #include "Channel.h"
 #include "ChannelMgmt.h"
