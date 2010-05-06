@@ -1513,7 +1513,9 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
                 if ( pDevice->byTMax == 0 )
                     return;
 
-                bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
+		bScheduleCommand((void *) pDevice,
+				 WLAN_CMD_CHANGE_ANTENNA,
+				 NULL);
 
                 pDevice->byAntennaState = 1;
 
@@ -1543,7 +1545,9 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
                  ((pDevice->ulSQ3_State1 != 0) && (pDevice->ulSQ3_State0 != 0) && (pDevice->ulSQ3_State0 < pDevice->ulSQ3_State1))
                ) {
 
-                bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
+		bScheduleCommand((void *) pDevice,
+				 WLAN_CMD_CHANGE_ANTENNA,
+				 NULL);
 
                 pDevice->TimerSQ3Tmax3.expires =  RUN_AT(pDevice->byTMax3 * HZ);
                 pDevice->TimerSQ3Tmax2.expires =  RUN_AT(pDevice->byTMax2 * HZ);
@@ -1576,17 +1580,14 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
  *
 -*/
 
-void
-TimerSQ3CallBack (
-      HANDLE      hDeviceContext
-    )
+void TimerSQ3CallBack(void *hDeviceContext)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerSQ3CallBack...");
     spin_lock_irq(&pDevice->lock);
 
-    bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
+    bScheduleCommand((void *) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
     pDevice->byAntennaState = 0;
     s_vClearSQ3Value(pDevice);
     pDevice->TimerSQ3Tmax3.expires =  RUN_AT(pDevice->byTMax3 * HZ);
@@ -1618,10 +1619,7 @@ TimerSQ3CallBack (
  *
 -*/
 
-void
-TimerSQ3Tmax3CallBack (
-      HANDLE      hDeviceContext
-    )
+void TimerSQ3Tmax3CallBack(void *hDeviceContext)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
@@ -1639,7 +1637,7 @@ TimerSQ3Tmax3CallBack (
         return;
     }
 
-    bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
+    bScheduleCommand((void *) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
     pDevice->byAntennaState = 1;
     del_timer(&pDevice->TimerSQ3Tmax3);
     del_timer(&pDevice->TimerSQ3Tmax2);

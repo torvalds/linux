@@ -160,11 +160,11 @@ INTnsProcessData(PSDevice pDevice)
 						pMgmt->byDTIMPeriod-1;
 					pMgmt->sNodeDBTable[0].bRxPSPoll = TRUE;
 					if (pMgmt->sNodeDBTable[0].bPSEnable)
-						bScheduleCommand((HANDLE)pDevice,
-							WLAN_CMD_RX_PSPOLL,
-							NULL);
+						bScheduleCommand((void *) pDevice,
+								 WLAN_CMD_RX_PSPOLL,
+								 NULL);
 				}
-				bScheduleCommand((HANDLE)pDevice,
+				bScheduleCommand((void *) pDevice,
 						WLAN_CMD_BECON_SEND,
 						NULL);
 			} /* if (pDevice->eOPMode == OP_MODE_AP) */
@@ -174,13 +174,13 @@ INTnsProcessData(PSDevice pDevice)
 		}
 		if (pINTData->byISR0 & ISR_TBTT) {
 			if (pDevice->bEnablePSMode)
-				bScheduleCommand((HANDLE) pDevice,
+				bScheduleCommand((void *) pDevice,
 						WLAN_CMD_TBTT_WAKEUP,
 						NULL);
 			if (pDevice->bChannelSwitch) {
 				pDevice->byChannelSwitchCount--;
 				if (pDevice->byChannelSwitchCount == 0)
-					bScheduleCommand((HANDLE) pDevice,
+					bScheduleCommand((void *) pDevice,
 							WLAN_CMD_11H_CHSW,
 							NULL);
 			}
@@ -207,7 +207,7 @@ INTnsProcessData(PSDevice pDevice)
 
 	if (pINTData->byISR1 != 0)
 		if (pINTData->byISR1 & ISR_GPIO3)
-			bScheduleCommand((HANDLE) pDevice,
+			bScheduleCommand((void *) pDevice,
 					WLAN_CMD_RADIO,
 					NULL);
 	pDevice->intBuf.uDataLen = 0;

@@ -400,102 +400,61 @@ typedef struct tagSMgmtObject
 
 } SMgmtObject, *PSMgmtObject;
 
-
 /*---------------------  Export Macros ------------------------------*/
-
 
 /*---------------------  Export Functions  --------------------------*/
 
+void vMgrObjectInit(void *hDeviceContext);
 
-void
-vMgrObjectInit(
-      HANDLE hDeviceContext
-    );
+void vMgrAssocBeginSta(void *hDeviceContext,
+		       PSMgmtObject pMgmt,
+		       PCMD_STATUS pStatus);
 
+void vMgrReAssocBeginSta(void *hDeviceContext,
+			 PSMgmtObject pMgmt,
+			 PCMD_STATUS pStatus);
 
-void
-vMgrAssocBeginSta(
-      HANDLE hDeviceContext,
-      PSMgmtObject pMgmt,
-     PCMD_STATUS pStatus
-    );
+void vMgrDisassocBeginSta(void *hDeviceContext,
+			  PSMgmtObject pMgmt,
+			  PBYTE abyDestAddress,
+			  WORD wReason,
+			  PCMD_STATUS pStatus);
 
-void
-vMgrReAssocBeginSta(
-      HANDLE hDeviceContext,
-      PSMgmtObject pMgmt,
-     PCMD_STATUS pStatus
-    );
+void vMgrAuthenBeginSta(void *hDeviceContext,
+			PSMgmtObject pMgmt,
+			PCMD_STATUS pStatus);
 
-void
-vMgrDisassocBeginSta(
-      HANDLE hDeviceContext,
-      PSMgmtObject pMgmt,
-      PBYTE  abyDestAddress,
-      WORD    wReason,
-     PCMD_STATUS pStatus
-    );
+void vMgrCreateOwnIBSS(void *hDeviceContext,
+		       PCMD_STATUS pStatus);
 
-void
-vMgrAuthenBeginSta(
-      HANDLE hDeviceContext,
-      PSMgmtObject pMgmt,
-     PCMD_STATUS pStatus
-    );
+void vMgrJoinBSSBegin(void *hDeviceContext,
+		      PCMD_STATUS pStatus);
 
-void
-vMgrCreateOwnIBSS(
-      HANDLE hDeviceContext,
-     PCMD_STATUS pStatus
-    );
-
-void
-vMgrJoinBSSBegin(
-      HANDLE hDeviceContext,
-     PCMD_STATUS pStatus
-    );
-
-void
-vMgrRxManagePacket(
-      HANDLE hDeviceContext,
-      PSMgmtObject pMgmt,
-      PSRxMgmtPacket pRxPacket
-    );
+void vMgrRxManagePacket(void *hDeviceContext,
+			PSMgmtObject pMgmt,
+			PSRxMgmtPacket pRxPacket);
 
 /*
 void
 vMgrScanBegin(
-      HANDLE hDeviceContext,
+      void *hDeviceContext,
      PCMD_STATUS pStatus
     );
 */
 
-void
-vMgrDeAuthenBeginSta(
-      HANDLE hDeviceContext,
-      PSMgmtObject  pMgmt,
-      PBYTE   abyDestAddress,
-      WORD    wReason,
-     PCMD_STATUS pStatus
-    );
+void vMgrDeAuthenBeginSta(void *hDeviceContext,
+			  PSMgmtObject pMgmt,
+			  PBYTE abyDestAddress,
+			  WORD wReason,
+			  PCMD_STATUS pStatus);
 
-BOOL
-bMgrPrepareBeaconToSend(
-      HANDLE hDeviceContext,
-      PSMgmtObject pMgmt
-    );
+BOOL bMgrPrepareBeaconToSend(void *hDeviceContext,
+			     PSMgmtObject pMgmt);
 
+BOOL bAdd_PMKID_Candidate(void *hDeviceContext,
+			  PBYTE pbyBSSID,
+			  PSRSNCapObject psRSNCapObj);
 
-BOOL
-bAdd_PMKID_Candidate (
-     HANDLE    hDeviceContext,
-     PBYTE          pbyBSSID,
-     PSRSNCapObject psRSNCapObj
-    );
-
-void
-vFlush_PMKID_Candidate (
-     HANDLE hDeviceContext
-    );
+void vFlush_PMKID_Candidate(void *hDeviceContext);
 
 #endif /* __WMGR_H__ */

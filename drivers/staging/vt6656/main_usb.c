@@ -1158,12 +1158,12 @@ static int  device_open(struct net_device *dev) {
     }
 
     if (pDevice->sMgmtObj.eConfigMode == WMAC_CONFIG_AP) {
-        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RUN_AP, NULL);
+		bScheduleCommand((void *) pDevice, WLAN_CMD_RUN_AP, NULL);
 	}
 	else {
 	//mike:mark@2008-11-10
-            bScheduleCommand((HANDLE)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
-        //bScheduleCommand((HANDLE)pDevice, WLAN_CMD_SSID, NULL);
+	  bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+	  /* bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL); */
     }
 
 
@@ -1220,7 +1220,7 @@ static int  device_close(struct net_device *dev) {
 
 //2007-1121-02<Add>by EinsnLiu
     if (pDevice->bLinkPass) {
-	bScheduleCommand((HANDLE)pDevice, WLAN_CMD_DISASSOCIATE, NULL);
+	bScheduleCommand((void *) pDevice, WLAN_CMD_DISASSOCIATE, NULL);
         mdelay(30);
     }
 //End Add
@@ -2101,16 +2101,16 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
        if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
            netif_stop_queue(pDevice->dev);
            spin_lock_irq(&pDevice->lock);
-           bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RUN_AP, NULL);
+	bScheduleCommand((void *) pDevice, WLAN_CMD_RUN_AP, NULL);
            spin_unlock_irq(&pDevice->lock);
        }
        else {
            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Commit the settings\n");
            spin_lock_irq(&pDevice->lock);
 //2007-1121-01<Modify>by EinsnLiu
-	    if (pDevice->bLinkPass&&
+	    if (pDevice->bLinkPass &&
 		  memcmp(pMgmt->abyCurrSSID,pMgmt->abyDesireSSID,WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN)) {
-      		  bScheduleCommand((HANDLE)pDevice, WLAN_CMD_DISASSOCIATE, NULL);
+		bScheduleCommand((void *) pDevice, WLAN_CMD_DISASSOCIATE, NULL);
 	     } else {
            pDevice->bLinkPass = FALSE;
 	   pMgmt->eCurrState = WMAC_STATE_IDLE;
@@ -2121,10 +2121,14 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
            netif_stop_queue(pDevice->dev);
 #ifdef  WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
            pMgmt->eScanType = WMAC_SCAN_ACTIVE;
-           if(pDevice->bWPASuppWextEnabled !=TRUE)
+	   if (!pDevice->bWPASuppWextEnabled)
 #endif
-           bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-           bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
+		bScheduleCommand((void *) pDevice,
+				 WLAN_CMD_BSSID_SCAN,
+				 pMgmt->abyDesireSSID);
+		bScheduleCommand((void *) pDevice,
+				 WLAN_CMD_SSID,
+				 NULL);
            spin_unlock_irq(&pDevice->lock);
       }
       pDevice->bCommit = FALSE;

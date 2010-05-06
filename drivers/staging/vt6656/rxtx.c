@@ -3032,10 +3032,12 @@ nsDMA_tx_packet(
         }
     }
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dma_tx: pDevice->wCurrentRate = %d \n", pDevice->wCurrentRate);
+    DBG_PRT(MSG_LEVEL_DEBUG,
+	    KERN_INFO "dma_tx: pDevice->wCurrentRate = %d\n",
+	    pDevice->wCurrentRate);
 
     if (wKeepRate != pDevice->wCurrentRate) {
-        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_SETPOWER, NULL);
+	bScheduleCommand((void *) pDevice, WLAN_CMD_SETPOWER, NULL);
     }
 
     if (pDevice->wCurrentRate <= RATE_11M) {
@@ -3118,7 +3120,9 @@ nsDMA_tx_packet(
 
     if ( pDevice->bEnablePSMode == TRUE ) {
         if ( !pDevice->bPSModeTxBurst ) {
-            bScheduleCommand((HANDLE) pDevice, WLAN_CMD_MAC_DISPOWERSAVING, NULL);
+		bScheduleCommand((void *) pDevice,
+				 WLAN_CMD_MAC_DISPOWERSAVING,
+				 NULL);
             pDevice->bPSModeTxBurst = TRUE;
         }
     }
@@ -3138,7 +3142,7 @@ nsDMA_tx_packet(
     if (bNeedDeAuth == TRUE) {
         WORD wReason = WLAN_MGMT_REASON_MIC_FAILURE;
 
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_DEAUTH, (PBYTE)&wReason);
+	bScheduleCommand((void *) pDevice, WLAN_CMD_DEAUTH, (PBYTE) &wReason);
     }
 
   if(status!=STATUS_PENDING) {
@@ -3258,9 +3262,8 @@ bRelayPacketSend (
         pDevice->wCurrentRate = pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate;
     }
 
-
     if (wKeepRate != pDevice->wCurrentRate) {
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SETPOWER, NULL);
+	bScheduleCommand((void *) pDevice, WLAN_CMD_SETPOWER, NULL);
     }
 
     if (pDevice->wCurrentRate <= RATE_11M)

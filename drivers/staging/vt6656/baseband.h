@@ -117,15 +117,8 @@ BBvCaculateParameter (
 
 // timer for antenna diversity
 
-void
-TimerSQ3CallBack (
-      HANDLE      hDeviceContext
-    );
-
-void
-TimerSQ3Tmax3CallBack (
-      HANDLE      hDeviceContext
-    );
+void TimerSQ3CallBack(void *hDeviceContext);
+void TimerSQ3Tmax3CallBack(void *hDeviceContext);
 
 void BBvAntennaDiversity(PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);
 void BBvLoopbackOn(PSDevice pDevice);

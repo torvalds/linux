@@ -1069,7 +1069,9 @@ static BOOL s_bAPModeRxCtl (
                     // delcare received ps-poll event
                     if (IS_CTL_PSPOLL(pbyFrame)) {
                         pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
-                        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
+			bScheduleCommand((void *) pDevice,
+					 WLAN_CMD_RX_PSPOLL,
+					 NULL);
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 1\n");
                     }
                     else {
@@ -1078,7 +1080,9 @@ static BOOL s_bAPModeRxCtl (
                         if (!IS_FC_POWERMGT(pbyFrame)) {
                             pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = FALSE;
                             pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
-                            bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
+				bScheduleCommand((void *) pDevice,
+						 WLAN_CMD_RX_PSPOLL,
+						 NULL);
                             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 2\n");
                         }
                     }
@@ -1094,7 +1098,9 @@ static BOOL s_bAPModeRxCtl (
                       if (pMgmt->sNodeDBTable[iSANodeIndex].wEnQueueCnt > 0) {
                           pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = FALSE;
                           pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
-                          bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
+			bScheduleCommand((void *) pDevice,
+					 WLAN_CMD_RX_PSPOLL,
+					 NULL);
                          DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 3\n");
 
                       }
@@ -1596,7 +1602,7 @@ void RXvMngWorkItem(void *Context)
         }
         ASSERT(pRCB);// cannot be NULL
         pRxPacket = &(pRCB->sMngPacket);
-        vMgrRxManagePacket((HANDLE)pDevice, &(pDevice->sMgmtObj), pRxPacket);
+	vMgrRxManagePacket((void *) pDevice, &(pDevice->sMgmtObj), pRxPacket);
         pRCB->Ref--;
         if(pRCB->Ref == 0) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RxvFreeMng %d %d\n",pDevice->NumRecvFreeList, pDevice->NumRecvMngList);

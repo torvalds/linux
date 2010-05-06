@@ -133,11 +133,4 @@ typedef DWORD *          PDWORD;
 
 typedef QWORD *          PQWORD;
 
-// handle declaration
-#ifdef STRICT
-typedef void *HANDLE;
-#else
-typedef void *HANDLE;
-#endif
-
 #endif /* __TTYPE_H__ */
