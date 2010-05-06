@@ -37,6 +37,12 @@ static struct clk clk_48 = {
 	.rate = 48 * 1000 * 1000,
 };
 
+/*
+ * Catch-all default clock to satisfy drivers using the clk API.  We don't
+ * model the actual hardware clocks yet.
+ */
+static struct clk clk_default;
+
 #define CLK(_clk, dev)				\
 	{					\
 		.clk		= _clk,		\
@@ -46,6 +52,10 @@ static struct clk clk_48 = {
 static struct clk_lookup lookups[] = {
 	CLK(&clk_48, "uart0"),
 	CLK(&clk_48, "uart1"),
+	CLK(&clk_default, "gpio.0"),
+	CLK(&clk_default, "gpio.1"),
+	CLK(&clk_default, "gpio.2"),
+	CLK(&clk_default, "gpio.3"),
 };
 
 static int __init clk_init(void)

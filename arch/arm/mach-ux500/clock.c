@@ -364,7 +364,8 @@ static DEFINE_PRCC_CLK(7, cfgreg_ed, 	0, -1, NULL);
 
 static struct clk_lookup u8500_common_clks[] = {
 	/* Peripheral Cluster #1 */
-	CLK(gpio0,	"gpioblock0",	NULL),
+	CLK(gpio0,	"gpio.0",	NULL),
+	CLK(gpio0,	"gpio.1",	NULL),
 	CLK(slimbus0,	"slimbus0",	NULL),
 	CLK(i2c2,	"nmk-i2c.2",	NULL),
 	CLK(sdi0,	"sdi0",		NULL),
@@ -374,7 +375,10 @@ static struct clk_lookup u8500_common_clks[] = {
 	CLK(uart0,	"uart0",	NULL),
 
 	/* Peripheral Cluster #3 */
-	CLK(gpio2,	"gpioblock2",	NULL),
+	CLK(gpio2,	"gpio.2",	NULL),
+	CLK(gpio2,	"gpio.3",	NULL),
+	CLK(gpio2,	"gpio.4",	NULL),
+	CLK(gpio2,	"gpio.5",	NULL),
 	CLK(sdi5,	"sdi5",		NULL),
 	CLK(uart2,	"uart2",	NULL),
 	CLK(ske,	"ske",		NULL),
@@ -383,7 +387,7 @@ static struct clk_lookup u8500_common_clks[] = {
 	CLK(fsmc,	"fsmc",		NULL),
 
 	/* Peripheral Cluster #5 */
-	CLK(gpio3,	"gpioblock3",	NULL),
+	CLK(gpio3,	"gpio.8",	NULL),
 
 	/* Peripheral Cluster #6 */
 	CLK(hash1,	"hash1",	NULL),
@@ -418,7 +422,8 @@ static struct clk_lookup u8500_ed_clks[] = {
 	CLK(msp1_ed,	"msp1",		NULL),
 
 	/* Peripheral Cluster #2 */
-	CLK(gpio1_ed,	"gpioblock1",	NULL),
+	CLK(gpio1_ed,	"gpio.6",	NULL),
+	CLK(gpio1_ed,	"gpio.7",	NULL),
 	CLK(ssitx_ed,	"ssitx",	NULL),
 	CLK(ssirx_ed,	"ssirx",	NULL),
 	CLK(spi0_ed,	"spi0",		NULL),
@@ -458,7 +463,8 @@ static struct clk_lookup u8500_v1_clks[] = {
 	CLK(msp1_v1,	"msp1",		NULL),
 
 	/* Peripheral Cluster #2 */
-	CLK(gpio1_v1,	"gpioblock1",	NULL),
+	CLK(gpio1_v1,	"gpio.6",	NULL),
+	CLK(gpio1_v1,	"gpio.7",	NULL),
 	CLK(ssitx_v1,	"ssitx",	NULL),
 	CLK(ssirx_v1,	"ssirx",	NULL),
 	CLK(spi0_v1,	"spi0",		NULL),

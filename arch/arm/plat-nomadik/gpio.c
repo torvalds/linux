@@ -15,6 +15,8 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -35,6 +37,7 @@
 struct nmk_gpio_chip {
 	struct gpio_chip chip;
 	void __iomem *addr;
+	struct clk *clk;
 	unsigned int parent_irq;
 	spinlock_t lock;
 	/* Keep track of configured edges */
@@ -310,6 +313,7 @@ static int __init nmk_gpio_probe(struct platform_device *dev)
 	struct nmk_gpio_chip *nmk_chip;
 	struct gpio_chip *chip;
 	struct resource *res;
+	struct clk *clk;
 	int irq;
 	int ret;
 
@@ -334,15 +338,24 @@ static int __init nmk_gpio_probe(struct platform_device *dev)
 		goto out;
 	}
 
+	clk = clk_get(&dev->dev, NULL);
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		goto out_release;
+	}
+
+	clk_enable(clk);
+
 	nmk_chip = kzalloc(sizeof(*nmk_chip), GFP_KERNEL);
 	if (!nmk_chip) {
 		ret = -ENOMEM;
-		goto out_release;
+		goto out_clk;
 	}
 	/*
 	 * The virt address in nmk_chip->addr is in the nomadik register space,
 	 * so we can simply convert the resource address, without remapping
 	 */
+	nmk_chip->clk = clk;
 	nmk_chip->addr = io_p2v(res->start);
 	nmk_chip->chip = nmk_gpio_template;
 	nmk_chip->parent_irq = irq;
@@ -368,6 +381,9 @@ static int __init nmk_gpio_probe(struct platform_device *dev)
 
 out_free:
 	kfree(nmk_chip);
+out_clk:
+	clk_disable(clk);
+	clk_put(clk);
 out_release:
 	release_mem_region(res->start, resource_size(res));
 out:
@@ -385,6 +401,8 @@ static int __exit nmk_gpio_remove(struct platform_device *dev)
 
 	nmk_chip = platform_get_drvdata(dev);
 	gpiochip_remove(&nmk_chip->chip);
+	clk_disable(nmk_chip->clk);
+	clk_put(nmk_chip->clk);
 	kfree(nmk_chip);
 	release_mem_region(res->start, resource_size(res));
 	return 0;
