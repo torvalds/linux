@@ -699,7 +699,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	u32 ulen = 0;
 
 	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
-		goto short_packet;
+		goto discard;
 
 	saddr = &ipv6_hdr(skb)->saddr;
 	daddr = &ipv6_hdr(skb)->daddr;
@@ -781,9 +781,14 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	return 0;
 
 short_packet:
-	LIMIT_NETDEBUG(KERN_DEBUG "UDP%sv6: short packet: %d/%u\n",
+	LIMIT_NETDEBUG(KERN_DEBUG "UDP%sv6: short packet: From [%pI6c]:%u %d/%d to [%pI6c]:%u\n",
 		       proto == IPPROTO_UDPLITE ? "-Lite" : "",
-		       ulen, skb->len);
+		       saddr,
+		       ntohs(uh->source),
+		       ulen,
+		       skb->len,
+		       daddr,
+		       ntohs(uh->dest));
 
 discard:
 	UDP6_INC_STATS_BH(net, UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
