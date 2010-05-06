@@ -1472,7 +1472,6 @@ ks8695_probe(struct platform_device *pdev)
 
 	/* Configure our private structure a little */
 	ksp = netdev_priv(ndev);
-	memset(ksp, 0, sizeof(struct ks8695_priv));
 
 	ksp->dev = &pdev->dev;
 	ksp->ndev = ndev;
