@@ -1647,7 +1647,6 @@ static int __devinit bcm_enet_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 	priv = netdev_priv(dev);
-	memset(priv, 0, sizeof(*priv));
 
 	ret = compute_hw_mtu(priv, dev->mtu);
 	if (ret)
