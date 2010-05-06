@@ -33,9 +33,9 @@ int s3c_gpio_cfgpin(unsigned int pin, unsigned int config)
 
 	offset = pin - chip->chip.base;
 
-	local_irq_save(flags);
+	s3c_gpio_lock(chip, flags);
 	ret = s3c_gpio_do_setcfg(chip, offset, config);
-	local_irq_restore(flags);
+	s3c_gpio_unlock(chip, flags);
 
 	return ret;
 }
@@ -51,9 +51,9 @@ unsigned s3c_gpio_getcfg(unsigned int pin)
 	if (chip) {
 		offset = pin - chip->chip.base;
 
-		local_irq_save(flags);
+		s3c_gpio_lock(chip, flags);
 		ret = s3c_gpio_do_getcfg(chip, offset);
-		local_irq_restore(flags);
+		s3c_gpio_unlock(chip, flags);
 	}
 
 	return ret;
@@ -72,9 +72,9 @@ int s3c_gpio_setpull(unsigned int pin, s3c_gpio_pull_t pull)
 
 	offset = pin - chip->chip.base;
 
-	local_irq_save(flags);
+	s3c_gpio_lock(chip, flags);
 	ret = s3c_gpio_do_setpull(chip, offset, pull);
-	local_irq_restore(flags);
+	s3c_gpio_unlock(chip, flags);
 
 	return ret;
 }
