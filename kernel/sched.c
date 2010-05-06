@@ -8932,6 +8932,7 @@ struct cgroup_subsys cpuacct_subsys = {
 
 void synchronize_sched_expedited(void)
 {
+	barrier();
 }
 EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
 
