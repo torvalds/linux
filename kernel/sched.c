@@ -8932,6 +8932,15 @@ struct cgroup_subsys cpuacct_subsys = {
 
 void synchronize_sched_expedited(void)
 {
+}
+EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
+
+#else /* #ifndef CONFIG_SMP */
+
+static atomic_t synchronize_sched_expedited_count = ATOMIC_INIT(0);
+
+static int synchronize_sched_expedited_cpu_stop(void *data)
+{
 	/*
 	 * There must be a full memory barrier on each affected CPU
 	 * between the time that try_stop_cpus() is called and the
@@ -8943,16 +8952,7 @@ void synchronize_sched_expedited(void)
 	 * necessary.  Do smp_mb() anyway for documentation and
 	 * robustness against future implementation changes.
 	 */
-	smp_mb();
-}
-EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
-
-#else /* #ifndef CONFIG_SMP */
-
-static atomic_t synchronize_sched_expedited_count = ATOMIC_INIT(0);
-
-static int synchronize_sched_expedited_cpu_stop(void *data)
-{
+	smp_mb(); /* See above comment block. */
 	return 0;
 }
 
@@ -8990,6 +8990,7 @@ void synchronize_sched_expedited(void)
 		get_online_cpus();
 	}
 	atomic_inc(&synchronize_sched_expedited_count);
+	smp_mb__after_atomic_inc(); /* ensure post-GP actions seen after GP. */
 	put_online_cpus();
 }
 EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
