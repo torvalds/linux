@@ -1446,9 +1446,9 @@ static void u132_hcd_endp_work_scheduler(struct work_struct *work)
 			return;
 		} else {
 			int retval;
-			address = u132->addr[endp->usb_addr].address;
 			struct urb *urb = endp->urb_list[ENDP_QUEUE_MASK &
 				endp->queue_next];
+			address = u132->addr[endp->usb_addr].address;
 			endp->active = 1;
 			ring->curr_endp = endp;
 			ring->in_use = 1;
