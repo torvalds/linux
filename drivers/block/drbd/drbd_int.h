@@ -552,7 +552,7 @@ struct p_delay_probe {
 
 struct delay_probe {
 	struct list_head list;
-	int seq_num;
+	unsigned int seq_num;
 	struct timeval time;
 };
 
@@ -1048,9 +1048,9 @@ struct drbd_conf {
 	char congestion_reason;  /* Why we where congested... */
 	struct list_head delay_probes; /* protected by peer_seq_lock */
 	int data_delay;   /* Delay of packets on the data-sock behind meta-sock */
-	atomic_t delay_seq; /* To generate sequence numbers of delay probes */
+	unsigned int delay_seq; /* To generate sequence numbers of delay probes */
 	struct timeval dps_time; /* delay-probes-start-time */
-	int dp_volume_last;  /* send_cnt of last delay probe */
+	unsigned int dp_volume_last;  /* send_cnt of last delay probe */
 	int c_sync_rate; /* current resync rate after delay_probe magic */
 };
 

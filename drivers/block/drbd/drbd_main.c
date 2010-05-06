@@ -2199,7 +2199,7 @@ static int drbd_send_delay_probe(struct drbd_conf *mdev, struct drbd_socket *ds)
 		do_gettimeofday(&now);
 		offset = now.tv_usec - mdev->dps_time.tv_usec +
 			 (now.tv_sec - mdev->dps_time.tv_sec) * 1000000;
-		dp.seq_num  = cpu_to_be32(atomic_read(&mdev->delay_seq));
+		dp.seq_num  = cpu_to_be32(mdev->delay_seq);
 		dp.offset   = cpu_to_be32(offset);
 
 		ok = _drbd_send_cmd(mdev, ds->socket, P_DELAY_PROBE,
@@ -2213,7 +2213,8 @@ static int drbd_send_delay_probe(struct drbd_conf *mdev, struct drbd_socket *ds)
 static int drbd_send_delay_probes(struct drbd_conf *mdev)
 {
 	int ok;
-	atomic_inc(&mdev->delay_seq);
+
+	mdev->delay_seq++;
 	do_gettimeofday(&mdev->dps_time);
 	ok = drbd_send_delay_probe(mdev, &mdev->meta);
 	ok = ok && drbd_send_delay_probe(mdev, &mdev->data);
@@ -2355,7 +2356,7 @@ static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
 
 static void consider_delay_probes(struct drbd_conf *mdev)
 {
-	if (mdev->state.conn != C_SYNC_SOURCE)
+	if (mdev->state.conn != C_SYNC_SOURCE || mdev->agreed_pro_version < 93)
 		return;
 
 	if (mdev->dp_volume_last + mdev->sync_conf.dp_volume * 2 < mdev->send_cnt)
@@ -2677,7 +2678,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	atomic_set(&mdev->net_cnt, 0);
 	atomic_set(&mdev->packet_seq, 0);
 	atomic_set(&mdev->pp_in_use, 0);
-	atomic_set(&mdev->delay_seq, 0);
 
 	mutex_init(&mdev->md_io_mutex);
 	mutex_init(&mdev->data.mutex);

@@ -86,8 +86,7 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 			   mdev->data_delay / 1000,
 			   (mdev->data_delay % 1000) / 100);
 	else if (mdev->state.conn == C_SYNC_SOURCE)
-		seq_printf(seq, " delay_probe: %d\n\t",
-			   atomic_read(&mdev->delay_seq));
+		seq_printf(seq, " delay_probe: %u\n\t", mdev->delay_seq);
 
 	/* see drivers/md/md.c
 	 * We do not want to overflow, so the order of operands and
