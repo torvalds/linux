@@ -516,6 +516,12 @@ static int iopgd_alloc_section(struct iommu *obj, u32 da, u32 pa, u32 prot)
 {
 	u32 *iopgd = iopgd_offset(obj, da);
 
+	if ((da | pa) & ~IOSECTION_MASK) {
+		dev_err(obj->dev, "%s: %08x:%08x should aligned on %08lx\n",
+			__func__, da, pa, IOSECTION_SIZE);
+		return -EINVAL;
+	}
+
 	*iopgd = (pa & IOSECTION_MASK) | prot | IOPGD_SECTION;
 	flush_iopgd_range(iopgd, iopgd);
 	return 0;
@@ -525,6 +531,12 @@ static int iopgd_alloc_super(struct iommu *obj, u32 da, u32 pa, u32 prot)
 {
 	u32 *iopgd = iopgd_offset(obj, da);
 	int i;
+
+	if ((da | pa) & ~IOSUPER_MASK) {
+		dev_err(obj->dev, "%s: %08x:%08x should aligned on %08lx\n",
+			__func__, da, pa, IOSUPER_SIZE);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < 16; i++)
 		*(iopgd + i) = (pa & IOSUPER_MASK) | prot | IOPGD_SUPER;
@@ -554,6 +566,12 @@ static int iopte_alloc_large(struct iommu *obj, u32 da, u32 pa, u32 prot)
 	u32 *iopgd = iopgd_offset(obj, da);
 	u32 *iopte = iopte_alloc(obj, iopgd, da);
 	int i;
+
+	if ((da | pa) & ~IOLARGE_MASK) {
+		dev_err(obj->dev, "%s: %08x:%08x should aligned on %08lx\n",
+			__func__, da, pa, IOLARGE_SIZE);
+		return -EINVAL;
+	}
 
 	if (IS_ERR(iopte))
 		return PTR_ERR(iopte);
