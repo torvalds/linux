@@ -180,4 +180,8 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
 int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 			       struct ieee80211_vif *vif, bool add);
 
+/* hcmd */
+int iwlagn_send_rxon_assoc(struct iwl_priv *priv);
+int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
+
 #endif /* __iwl_agn_h__ */
