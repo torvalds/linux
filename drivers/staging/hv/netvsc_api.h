@@ -25,7 +25,7 @@
 #ifndef _NETVSC_API_H_
 #define _NETVSC_API_H_
 
-#include "VmbusApi.h"
+#include "vmbus_api.h"
 
 /* Fwd declaration */
 struct hv_netvsc_packet;

@@ -33,7 +33,7 @@
 #include "VersionInfo.h"
 #include "channel.h"
 #include "VmbusPrivate.h"
-#include "VmbusApi.h"
+#include "vmbus_api.h"
 #include "utils.h"
 
 
