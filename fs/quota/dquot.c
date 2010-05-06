@@ -2301,25 +2301,30 @@ static inline qsize_t stoqb(qsize_t space)
 }
 
 /* Generic routine for getting common part of quota structure */
-static void do_get_dqblk(struct dquot *dquot, struct if_dqblk *di)
+static void do_get_dqblk(struct dquot *dquot, struct fs_disk_quota *di)
 {
 	struct mem_dqblk *dm = &dquot->dq_dqb;
 
+	memset(di, 0, sizeof(*di));
+	di->d_version = FS_DQUOT_VERSION;
+	di->d_flags = dquot->dq_type == USRQUOTA ?
+			XFS_USER_QUOTA : XFS_GROUP_QUOTA;
+	di->d_id = dquot->dq_id;
+
 	spin_lock(&dq_data_lock);
-	di->dqb_bhardlimit = stoqb(dm->dqb_bhardlimit);
-	di->dqb_bsoftlimit = stoqb(dm->dqb_bsoftlimit);
-	di->dqb_curspace = dm->dqb_curspace + dm->dqb_rsvspace;
-	di->dqb_ihardlimit = dm->dqb_ihardlimit;
-	di->dqb_isoftlimit = dm->dqb_isoftlimit;
-	di->dqb_curinodes = dm->dqb_curinodes;
-	di->dqb_btime = dm->dqb_btime;
-	di->dqb_itime = dm->dqb_itime;
-	di->dqb_valid = QIF_ALL;
+	di->d_blk_hardlimit = stoqb(dm->dqb_bhardlimit);
+	di->d_blk_softlimit = stoqb(dm->dqb_bsoftlimit);
+	di->d_ino_hardlimit = dm->dqb_ihardlimit;
+	di->d_ino_softlimit = dm->dqb_isoftlimit;
+	di->d_bcount = dm->dqb_curspace + dm->dqb_rsvspace;
+	di->d_icount = dm->dqb_curinodes;
+	di->d_btimer = dm->dqb_btime;
+	di->d_itimer = dm->dqb_itime;
 	spin_unlock(&dq_data_lock);
 }
 
 int vfs_get_dqblk(struct super_block *sb, int type, qid_t id,
-		  struct if_dqblk *di)
+		  struct fs_disk_quota *di)
 {
 	struct dquot *dquot;
 

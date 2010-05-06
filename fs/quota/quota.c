@@ -136,19 +136,32 @@ static int quota_setinfo(struct super_block *sb, int type, void __user *addr)
 	return sb->s_qcop->set_info(sb, type, &info);
 }
 
+static void copy_to_if_dqblk(struct if_dqblk *dst, struct fs_disk_quota *src)
+{
+	dst->dqb_bhardlimit = src->d_blk_hardlimit;
+	dst->dqb_bsoftlimit = src->d_blk_softlimit;
+	dst->dqb_curspace = src->d_bcount;
+	dst->dqb_ihardlimit = src->d_ino_hardlimit;
+	dst->dqb_isoftlimit = src->d_ino_softlimit;
+	dst->dqb_curinodes = src->d_icount;
+	dst->dqb_btime = src->d_btimer;
+	dst->dqb_itime = src->d_itimer;
+	dst->dqb_valid = QIF_ALL;
+}
+
 static int quota_getquota(struct super_block *sb, int type, qid_t id,
 			  void __user *addr)
 {
+	struct fs_disk_quota fdq;
 	struct if_dqblk idq;
 	int ret;
 
-	if (!sb_has_quota_active(sb, type))
-		return -ESRCH;
 	if (!sb->s_qcop->get_dqblk)
 		return -ENOSYS;
-	ret = sb->s_qcop->get_dqblk(sb, type, id, &idq);
+	ret = sb->s_qcop->get_dqblk(sb, type, id, &fdq);
 	if (ret)
 		return ret;
+	copy_to_if_dqblk(&idq, &fdq);
 	if (copy_to_user(addr, &idq, sizeof(idq)))
 		return -EFAULT;
 	return 0;
@@ -210,9 +223,9 @@ static int quota_getxquota(struct super_block *sb, int type, qid_t id,
 	struct fs_disk_quota fdq;
 	int ret;
 
-	if (!sb->s_qcop->get_xquota)
+	if (!sb->s_qcop->get_dqblk)
 		return -ENOSYS;
-	ret = sb->s_qcop->get_xquota(sb, type, id, &fdq);
+	ret = sb->s_qcop->get_dqblk(sb, type, id, &fdq);
 	if (!ret && copy_to_user(addr, &fdq, sizeof(fdq)))
 		return -EFAULT;
 	return ret;
