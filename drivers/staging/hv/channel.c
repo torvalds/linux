@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include "osd.h"
 #include "logging.h"
-#include "VmbusPrivate.h"
+#include "vmbus_private.h"
 
 /* Internal routines */
 static int VmbusChannelCreateGpadlHeader(

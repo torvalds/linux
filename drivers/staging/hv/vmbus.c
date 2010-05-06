@@ -25,7 +25,7 @@
 #include "osd.h"
 #include "logging.h"
 #include "VersionInfo.h"
-#include "VmbusPrivate.h"
+#include "vmbus_private.h"
 
 static const char *gDriverName = "vmbus";
 

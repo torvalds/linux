@@ -26,7 +26,7 @@
 #include <linux/vmalloc.h>
 #include "osd.h"
 #include "logging.h"
-#include "VmbusPrivate.h"
+#include "vmbus_private.h"
 
 
 struct VMBUS_CONNECTION gVmbusConnection = {

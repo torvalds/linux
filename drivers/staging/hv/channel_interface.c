@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include "osd.h"
-#include "VmbusPrivate.h"
+#include "vmbus_private.h"
 
 static int IVmbusChannelOpen(struct hv_device *device, u32 SendBufferSize,
 			     u32 RecvRingBufferSize, void *UserData,

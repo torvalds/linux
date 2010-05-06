@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include "osd.h"
 #include "logging.h"
-#include "VmbusPrivate.h"
+#include "vmbus_private.h"
 #include "utils.h"
 
 struct vmbus_channel_message_table_entry {
