@@ -38,6 +38,7 @@ struct macvtap_queue {
 	struct sock sk;
 	struct socket sock;
 	struct socket_wq wq;
+	int vnet_hdr_sz;
 	struct macvlan_dev *vlan;
 	struct file *file;
 	unsigned int flags;
@@ -285,6 +286,7 @@ static int macvtap_open(struct inode *inode, struct file *file)
 	sock_init_data(&q->sock, &q->sk);
 	q->sk.sk_write_space = macvtap_sock_write_space;
 	q->flags = IFF_VNET_HDR | IFF_NO_PI | IFF_TAP;
+	q->vnet_hdr_sz = sizeof(struct virtio_net_hdr);
 
 	err = macvtap_set_queue(dev, file, q);
 	if (err)
@@ -445,14 +447,14 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q,
 	int vnet_hdr_len = 0;
 
 	if (q->flags & IFF_VNET_HDR) {
-		vnet_hdr_len = sizeof(vnet_hdr);
+		vnet_hdr_len = q->vnet_hdr_sz;
 
 		err = -EINVAL;
 		if ((len -= vnet_hdr_len) < 0)
 			goto err;
 
 		err = memcpy_fromiovecend((void *)&vnet_hdr, iv, 0,
-					   vnet_hdr_len);
+					   sizeof(vnet_hdr));
 		if (err < 0)
 			goto err;
 		if ((vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
@@ -534,7 +536,7 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 
 	if (q->flags & IFF_VNET_HDR) {
 		struct virtio_net_hdr vnet_hdr;
-		vnet_hdr_len = sizeof (vnet_hdr);
+		vnet_hdr_len = q->vnet_hdr_sz;
 		if ((len -= vnet_hdr_len) < 0)
 			return -EINVAL;
 
@@ -542,7 +544,7 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 		if (ret)
 			return ret;
 
-		if (memcpy_toiovecend(iv, (void *)&vnet_hdr, 0, vnet_hdr_len))
+		if (memcpy_toiovecend(iv, (void *)&vnet_hdr, 0, sizeof(vnet_hdr)))
 			return -EFAULT;
 	}
 
@@ -627,6 +629,8 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 	struct ifreq __user *ifr = argp;
 	unsigned int __user *up = argp;
 	unsigned int u;
+	int __user *sp = argp;
+	int s;
 	int ret;
 
 	switch (cmd) {
@@ -670,6 +674,21 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		q->sk.sk_sndbuf = u;
+		return 0;
+
+	case TUNGETVNETHDRSZ:
+		s = q->vnet_hdr_sz;
+		if (put_user(s, sp))
+			return -EFAULT;
+		return 0;
+
+	case TUNSETVNETHDRSZ:
+		if (get_user(s, sp))
+			return -EFAULT;
+		if (s < (int)sizeof(struct virtio_net_hdr))
+			return -EINVAL;
+
+		q->vnet_hdr_sz = s;
 		return 0;
 
 	case TUNSETOFFLOAD:
