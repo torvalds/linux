@@ -35,7 +35,7 @@
 #include "logging.h"
 #include "VersionInfo.h"
 #include "vmbus.h"
-#include "StorVscApi.h"
+#include "storvsc_api.h"
 
 
 struct host_device_context {

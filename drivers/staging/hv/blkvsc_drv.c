@@ -34,7 +34,7 @@
 #include "logging.h"
 #include "VersionInfo.h"
 #include "vmbus.h"
-#include "StorVscApi.h"
+#include "storvsc_api.h"
 
 
 #define BLKVSC_MINORS	64
