@@ -34,7 +34,6 @@
 #include <linux/mm.h>
 #include <linux/oom.h>
 #include <linux/sched.h>
-#include <linux/profile.h>
 #include <linux/notifier.h>
 
 static uint32_t lowmem_debug_level = 2;
@@ -74,7 +73,7 @@ task_notify_func(struct notifier_block *self, unsigned long val, void *data)
 	struct task_struct *task = data;
 	if (task == lowmem_deathpending) {
 		lowmem_deathpending = NULL;
-		task_handoff_unregister(&task_nb);
+		task_free_unregister(&task_nb);
 	}
 	return NOTIFY_OK;
 }
@@ -99,8 +98,6 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 	 * that we have nothing further to offer on
 	 * this pass.
 	 *
-	 * Note: Currently you need CONFIG_PROFILING
-	 * for this to work correctly.
 	 */
 	if (lowmem_deathpending)
 		return 0;
@@ -176,15 +173,8 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
 			     selected->pid, selected->comm,
 			     selected_oom_adj, selected_tasksize);
-		/*
-		 * If CONFIG_PROFILING is off, then task_handoff_register()
-		 * is a nop. In that case we don't want to stall the killer
-		 * by setting lowmem_deathpending.
-		 */
-#ifdef CONFIG_PROFILING
 		lowmem_deathpending = selected;
-		task_handoff_register(&task_nb);
-#endif
+		task_free_register(&task_nb);
 		force_sig(SIGKILL, selected);
 		rem -= selected_tasksize;
 	}
