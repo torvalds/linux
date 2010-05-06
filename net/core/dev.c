@@ -2612,7 +2612,8 @@ static inline struct sk_buff *handle_bridge(struct sk_buff *skb,
 #endif
 
 #if defined(CONFIG_MACVLAN) || defined(CONFIG_MACVLAN_MODULE)
-struct sk_buff *(*macvlan_handle_frame_hook)(struct sk_buff *skb) __read_mostly;
+struct sk_buff *(*macvlan_handle_frame_hook)(struct macvlan_port *p,
+					     struct sk_buff *skb) __read_mostly;
 EXPORT_SYMBOL_GPL(macvlan_handle_frame_hook);
 
 static inline struct sk_buff *handle_macvlan(struct sk_buff *skb,
@@ -2620,14 +2621,17 @@ static inline struct sk_buff *handle_macvlan(struct sk_buff *skb,
 					     int *ret,
 					     struct net_device *orig_dev)
 {
-	if (skb->dev->macvlan_port == NULL)
+	struct macvlan_port *port;
+
+	port = rcu_dereference(skb->dev->macvlan_port);
+	if (!port)
 		return skb;
 
 	if (*pt_prev) {
 		*ret = deliver_skb(skb, *pt_prev, orig_dev);
 		*pt_prev = NULL;
 	}
-	return macvlan_handle_frame_hook(skb);
+	return macvlan_handle_frame_hook(port, skb);
 }
 #else
 #define handle_macvlan(skb, pt_prev, ret, orig_dev)	(skb)

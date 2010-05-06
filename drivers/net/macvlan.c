@@ -145,18 +145,14 @@ static void macvlan_broadcast(struct sk_buff *skb,
 }
 
 /* called under rcu_read_lock() from netif_receive_skb */
-static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
+static struct sk_buff *macvlan_handle_frame(struct macvlan_port *port,
+					    struct sk_buff *skb)
 {
 	const struct ethhdr *eth = eth_hdr(skb);
-	const struct macvlan_port *port;
 	const struct macvlan_dev *vlan;
 	const struct macvlan_dev *src;
 	struct net_device *dev;
 	unsigned int len;
-
-	port = rcu_dereference(skb->dev->macvlan_port);
-	if (port == NULL)
-		return skb;
 
 	if (is_multicast_ether_addr(eth->h_dest)) {
 		src = macvlan_hash_lookup(port, eth->h_source);
