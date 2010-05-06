@@ -264,6 +264,14 @@ static struct s3c24xx_led_platdata n30_blue_led_pdata = {
 	.def_trigger	= "",
 };
 
+/* This is the blue LED on the device. Originaly used to indicate GPS activity
+ * by flashing. */
+static struct s3c24xx_led_platdata n35_blue_led_pdata = {
+	.name		= "blue_led",
+	.gpio		= S3C2410_GPD(8),
+	.def_trigger	= "",
+};
+
 /* This LED is driven by the battery microcontroller, and is blinking
  * red, blinking green or solid green when the battery is low,
  * charging or full respectively.  By driving GPD9 low, it's possible
@@ -271,6 +279,13 @@ static struct s3c24xx_led_platdata n30_blue_led_pdata = {
 static struct s3c24xx_led_platdata n30_warning_led_pdata = {
 	.name		= "warning_led",
 	.flags          = S3C24XX_LEDF_ACTLOW,
+	.gpio		= S3C2410_GPD(9),
+	.def_trigger	= "",
+};
+
+static struct s3c24xx_led_platdata n35_warning_led_pdata = {
+	.name		= "warning_led",
+	.flags          = S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
 	.gpio		= S3C2410_GPD(9),
 	.def_trigger	= "",
 };
@@ -283,11 +298,27 @@ static struct platform_device n30_blue_led = {
 	},
 };
 
+static struct platform_device n35_blue_led = {
+	.name		= "s3c24xx_led",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &n35_blue_led_pdata,
+	},
+};
+
 static struct platform_device n30_warning_led = {
 	.name		= "s3c24xx_led",
 	.id		= 2,
 	.dev		= {
 		.platform_data	= &n30_warning_led_pdata,
+	},
+};
+
+static struct platform_device n35_warning_led = {
+	.name		= "s3c24xx_led",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &n35_warning_led_pdata,
 	},
 };
 
@@ -338,6 +369,8 @@ static struct platform_device *n35_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_usbgadget,
 	&n35_button_device,
+	&n35_blue_led,
+	&n35_warning_led,
 };
 
 static struct s3c2410_platform_i2c __initdata n30_i2ccfg = {
