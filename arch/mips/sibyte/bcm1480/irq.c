@@ -22,7 +22,6 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/kernel_stat.h>
 
 #include <asm/errno.h>

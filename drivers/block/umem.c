@@ -40,13 +40,13 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/gfp.h>
 #include <linux/ioctl.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/dma-mapping.h>
 
 #include <linux/fcntl.h>        /* O_ACCMODE */

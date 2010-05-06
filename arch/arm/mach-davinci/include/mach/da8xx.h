@@ -3,7 +3,7 @@
  *
  * Author: Mark A. Greer <mgreer@mvista.com>
  *
- * 2007, 2009 (c) MontaVista Software, Inc. This file is licensed under
+ * 2007, 2009-2010 (c) MontaVista Software, Inc. This file is licensed under
  * the terms of the GNU General Public License version 2. This program
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
@@ -13,7 +13,9 @@
 
 #include <video/da8xx-fb.h>
 
+#include <linux/platform_device.h>
 #include <linux/davinci_emac.h>
+
 #include <mach/serial.h>
 #include <mach/edma.h>
 #include <mach/i2c.h>
@@ -144,6 +146,10 @@ extern const short da850_mmcsd0_pins[];
 extern const short da850_nand_pins[];
 extern const short da850_nor_pins[];
 
+#ifdef CONFIG_DAVINCI_MUX
 int da8xx_pinmux_setup(const short pins[]);
+#else
+static inline int da8xx_pinmux_setup(const short pins[]) { return 0; }
+#endif
 
 #endif /* __ASM_ARCH_DAVINCI_DA8XX_H */

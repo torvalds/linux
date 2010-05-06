@@ -98,6 +98,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 
 #include "iwm.h"
 #include "bus.h"

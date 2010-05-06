@@ -10,6 +10,7 @@
 #ifndef _X25_H
 #define _X25_H 
 #include <linux/x25.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 
 #define	X25_ADDR_LEN			16
@@ -181,6 +182,10 @@ extern int  sysctl_x25_reset_request_timeout;
 extern int  sysctl_x25_clear_request_timeout;
 extern int  sysctl_x25_ack_holdback_timeout;
 extern int  sysctl_x25_forward;
+
+extern int x25_parse_address_block(struct sk_buff *skb,
+		struct x25_address *called_addr,
+		struct x25_address *calling_addr);
 
 extern int  x25_addr_ntoa(unsigned char *, struct x25_address *,
 			  struct x25_address *);

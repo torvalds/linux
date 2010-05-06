@@ -25,6 +25,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/slab.h>
 
 #define PM8607_WAKEUP		0x0b
 

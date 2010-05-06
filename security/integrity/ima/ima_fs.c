@@ -16,6 +16,7 @@
  *	current measurement list and IMA statistics
  */
 #include <linux/fcntl.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/rculist.h>

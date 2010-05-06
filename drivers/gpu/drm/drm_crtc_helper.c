@@ -104,6 +104,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	if (connector->status == connector_status_disconnected) {
 		DRM_DEBUG_KMS("%s is disconnected\n",
 			  drm_get_connector_name(connector));
+		drm_mode_connector_update_edid_property(connector, NULL);
 		goto prune;
 	}
 

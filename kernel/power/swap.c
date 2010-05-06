@@ -23,6 +23,7 @@
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/pm.h>
+#include <linux/slab.h>
 
 #include "power.h"
 

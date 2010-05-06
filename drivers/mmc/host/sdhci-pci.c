@@ -16,6 +16,7 @@
 #include <linux/highmem.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include <linux/mmc/host.h>
 

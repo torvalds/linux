@@ -15,7 +15,6 @@
 #include <linux/time.h>
 #include <linux/times.h>
 #include <linux/poll.h>
-#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/filter.h>
 #include <linux/shm.h>
@@ -34,6 +33,7 @@
 #include <linux/compat.h>
 #include <linux/vfs.h>
 #include <linux/ipc.h>
+#include <linux/slab.h>
 
 #include <net/sock.h>
 #include <net/scm.h>

@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/sysrq.h>
 
 #include <linux/consolemap.h>

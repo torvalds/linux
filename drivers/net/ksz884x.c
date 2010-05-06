@@ -30,6 +30,7 @@
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 
 /* DMA Registers */

@@ -14,7 +14,6 @@
  */
 
 #include "gigaset.h"
-#include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 

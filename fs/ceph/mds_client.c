@@ -1,6 +1,7 @@
 #include "ceph_debug.h"
 
 #include <linux/wait.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 
 #include "mds_client.h"

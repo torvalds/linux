@@ -840,6 +840,12 @@ SRCU:	Initialization/cleanup
 	init_srcu_struct
 	cleanup_srcu_struct
 
+All:  lockdep-checked RCU-protected pointer access
+
+	rcu_dereference_check
+	rcu_dereference_protected
+	rcu_access_pointer
+
 See the comment headers in the source code (or the docbook generated
 from them) for more information.
 

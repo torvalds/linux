@@ -25,11 +25,11 @@
 #include <linux/pfn.h>
 #include <linux/poison.h>
 #include <linux/bootmem.h>
-#include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/memory_hotplug.h>
 #include <linux/initrd.h>
 #include <linux/cpumask.h>
+#include <linux/gfp.h>
 
 #include <asm/asm.h>
 #include <asm/bios_ebda.h>

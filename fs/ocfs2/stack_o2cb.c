@@ -19,6 +19,7 @@
 
 #include <linux/kernel.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 
 /* Needed for AOP_TRUNCATED_PAGE in mlog_errno() */

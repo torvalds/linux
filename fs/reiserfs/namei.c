@@ -13,6 +13,7 @@
 
 #include <linux/time.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <linux/reiserfs_fs.h>
 #include <linux/reiserfs_acl.h>
 #include <linux/reiserfs_xattr.h>

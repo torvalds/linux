@@ -18,6 +18,7 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <asm/debug.h>
 #include <asm/uaccess.h>

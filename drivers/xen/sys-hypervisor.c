@@ -7,6 +7,7 @@
  *  published by the Free Software Foundation.
  */
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/kobject.h>

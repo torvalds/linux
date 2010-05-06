@@ -64,6 +64,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
+#include <linux/gfp.h>
 #include <linux/mii.h>
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>

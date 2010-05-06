@@ -98,6 +98,7 @@
 #include <linux/net.h>
 #include <linux/rcupdate.h>
 #include <linux/jhash.h>
+#include <linux/slab.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif

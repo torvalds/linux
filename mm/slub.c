@@ -2386,6 +2386,9 @@ int kmem_ptr_validate(struct kmem_cache *s, const void *object)
 {
 	struct page *page;
 
+	if (!kern_ptr_validate(object, s->size))
+		return 0;
+
 	page = get_object_page(object);
 
 	if (!page || s != page->slab)

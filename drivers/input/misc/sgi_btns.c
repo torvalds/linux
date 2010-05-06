@@ -22,6 +22,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_SGI_IP22
 #include <asm/sgi/ioc.h>

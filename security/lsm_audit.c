@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <net/sock.h>

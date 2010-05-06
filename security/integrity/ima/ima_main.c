@@ -21,6 +21,7 @@
 #include <linux/binfmts.h>
 #include <linux/mount.h>
 #include <linux/mman.h>
+#include <linux/slab.h>
 
 #include "ima.h"
 

@@ -1314,7 +1314,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		break;
 	case ICBTAG_FILE_TYPE_SYMLINK:
 		inode->i_data.a_ops = &udf_symlink_aops;
-		inode->i_op = &page_symlink_inode_operations;
+		inode->i_op = &udf_symlink_inode_operations;
 		inode->i_mode = S_IFLNK | S_IRWXUGO;
 		break;
 	case ICBTAG_FILE_TYPE_MAIN:

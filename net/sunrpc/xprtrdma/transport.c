@@ -49,6 +49,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 
 #include "xprt_rdma.h"

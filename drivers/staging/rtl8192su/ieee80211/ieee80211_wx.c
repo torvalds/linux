@@ -31,6 +31,7 @@
 ******************************************************************************/
 #include <linux/wireless.h>
 #include <linux/kmod.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 
 #include "ieee80211.h"

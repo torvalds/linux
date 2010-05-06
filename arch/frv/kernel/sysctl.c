@@ -9,7 +9,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>

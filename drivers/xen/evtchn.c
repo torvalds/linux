@@ -45,7 +45,6 @@
 #include <linux/poll.h>
 #include <linux/irq.h>
 #include <linux/init.h>
-#include <linux/gfp.h>
 #include <linux/mutex.h>
 #include <linux/cpu.h>
 

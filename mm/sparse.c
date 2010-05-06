@@ -2,6 +2,7 @@
  * sparse memory mappings.
  */
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/mmzone.h>
 #include <linux/bootmem.h>
 #include <linux/highmem.h>

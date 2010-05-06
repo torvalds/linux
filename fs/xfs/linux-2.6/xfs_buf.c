@@ -18,7 +18,7 @@
 #include "xfs.h"
 #include <linux/stddef.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/pagemap.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>

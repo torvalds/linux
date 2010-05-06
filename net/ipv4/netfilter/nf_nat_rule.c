@@ -15,6 +15,7 @@
 #include <linux/kmod.h>
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 #include <net/route.h>
 #include <linux/bitops.h>

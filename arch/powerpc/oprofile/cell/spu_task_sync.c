@@ -26,6 +26,7 @@
 #include <linux/notifier.h>
 #include <linux/numa.h>
 #include <linux/oprofile.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include "pr_util.h"
 

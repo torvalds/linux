@@ -23,6 +23,7 @@
 #include <linux/clk.h>
 #include <linux/file.h>
 #include <linux/major.h>
+#include <linux/slab.h>
 
 #include <mach/msm_iomap.h>
 #include <mach/msm_fb.h>

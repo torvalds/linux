@@ -7,6 +7,7 @@
  * Copyright Tomi Manninen OH2BNS (oh2bns@sral.fi)
  */
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/timer.h>
 #include <net/ax25.h>

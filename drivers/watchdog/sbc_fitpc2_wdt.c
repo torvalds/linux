@@ -30,7 +30,7 @@
 static int nowayout = WATCHDOG_NOWAYOUT;
 static unsigned int margin = 60;	/* (secs) Default is 1 minute */
 static unsigned long wdt_status;
-static DEFINE_SPINLOCK(wdt_lock);
+static DEFINE_MUTEX(wdt_lock);
 
 #define WDT_IN_USE		0
 #define WDT_OK_TO_CLOSE		1
@@ -45,26 +45,26 @@ static DEFINE_SPINLOCK(wdt_lock);
 
 static void wdt_send_data(unsigned char command, unsigned char data)
 {
-	outb(command, COMMAND_PORT);
-	msleep(100);
 	outb(data, DATA_PORT);
 	msleep(200);
+	outb(command, COMMAND_PORT);
+	msleep(100);
 }
 
 static void wdt_enable(void)
 {
-	spin_lock(&wdt_lock);
+	mutex_lock(&wdt_lock);
 	wdt_send_data(IFACE_ON_COMMAND, 1);
 	wdt_send_data(REBOOT_COMMAND, margin);
-	spin_unlock(&wdt_lock);
+	mutex_unlock(&wdt_lock);
 }
 
 static void wdt_disable(void)
 {
-	spin_lock(&wdt_lock);
+	mutex_lock(&wdt_lock);
 	wdt_send_data(IFACE_ON_COMMAND, 0);
 	wdt_send_data(REBOOT_COMMAND, 0);
-	spin_unlock(&wdt_lock);
+	mutex_unlock(&wdt_lock);
 }
 
 static int fitpc2_wdt_open(struct inode *inode, struct file *file)

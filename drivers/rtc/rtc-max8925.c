@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/max8925.h>

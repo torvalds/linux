@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/if_bridge.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/times.h>
 #include <net/net_namespace.h>
 #include <asm/uaccess.h>

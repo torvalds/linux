@@ -12,6 +12,7 @@
 
 #include <linux/dccp.h>
 #include <linux/icmp.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>

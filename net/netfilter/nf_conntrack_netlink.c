@@ -27,6 +27,7 @@
 #include <linux/netlink.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #include <linux/netfilter.h>
 #include <net/netlink.h>

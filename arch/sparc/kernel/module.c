@@ -9,9 +9,9 @@
 #include <linux/elf.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/slab.h>
 #include <linux/mm.h>
 
 #include <asm/processor.h>

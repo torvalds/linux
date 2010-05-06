@@ -32,6 +32,7 @@
 #include <linux/firmware.h>
 #include <asm/byteorder.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 /* Compile Time Switches */
 /* start */

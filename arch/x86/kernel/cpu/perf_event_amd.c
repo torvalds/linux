@@ -137,6 +137,13 @@ static inline int amd_is_nb_event(struct hw_perf_event *hwc)
 	return (hwc->config & 0xe0) == 0xe0;
 }
 
+static inline int amd_has_nb(struct cpu_hw_events *cpuc)
+{
+	struct amd_nb *nb = cpuc->amd_nb;
+
+	return nb && nb->nb_id != -1;
+}
+
 static void amd_put_event_constraints(struct cpu_hw_events *cpuc,
 				      struct perf_event *event)
 {
@@ -147,7 +154,7 @@ static void amd_put_event_constraints(struct cpu_hw_events *cpuc,
 	/*
 	 * only care about NB events
 	 */
-	if (!(nb && amd_is_nb_event(hwc)))
+	if (!(amd_has_nb(cpuc) && amd_is_nb_event(hwc)))
 		return;
 
 	/*
@@ -214,7 +221,7 @@ amd_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 	/*
 	 * if not NB event or no NB, then no constraints
 	 */
-	if (!(nb && amd_is_nb_event(hwc)))
+	if (!(amd_has_nb(cpuc) && amd_is_nb_event(hwc)))
 		return &unconstrained;
 
 	/*
@@ -293,51 +300,55 @@ static struct amd_nb *amd_alloc_nb(int cpu, int nb_id)
 	return nb;
 }
 
-static void amd_pmu_cpu_online(int cpu)
+static int amd_pmu_cpu_prepare(int cpu)
 {
-	struct cpu_hw_events *cpu1, *cpu2;
-	struct amd_nb *nb = NULL;
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+
+	WARN_ON_ONCE(cpuc->amd_nb);
+
+	if (boot_cpu_data.x86_max_cores < 2)
+		return NOTIFY_OK;
+
+	cpuc->amd_nb = amd_alloc_nb(cpu, -1);
+	if (!cpuc->amd_nb)
+		return NOTIFY_BAD;
+
+	return NOTIFY_OK;
+}
+
+static void amd_pmu_cpu_starting(int cpu)
+{
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	struct amd_nb *nb;
 	int i, nb_id;
 
 	if (boot_cpu_data.x86_max_cores < 2)
 		return;
 
-	/*
-	 * function may be called too early in the
-	 * boot process, in which case nb_id is bogus
-	 */
 	nb_id = amd_get_nb_id(cpu);
-	if (nb_id == BAD_APICID)
-		return;
-
-	cpu1 = &per_cpu(cpu_hw_events, cpu);
-	cpu1->amd_nb = NULL;
+	WARN_ON_ONCE(nb_id == BAD_APICID);
 
 	raw_spin_lock(&amd_nb_lock);
 
 	for_each_online_cpu(i) {
-		cpu2 = &per_cpu(cpu_hw_events, i);
-		nb = cpu2->amd_nb;
-		if (!nb)
+		nb = per_cpu(cpu_hw_events, i).amd_nb;
+		if (WARN_ON_ONCE(!nb))
 			continue;
-		if (nb->nb_id == nb_id)
-			goto found;
+
+		if (nb->nb_id == nb_id) {
+			kfree(cpuc->amd_nb);
+			cpuc->amd_nb = nb;
+			break;
+		}
 	}
 
-	nb = amd_alloc_nb(cpu, nb_id);
-	if (!nb) {
-		pr_err("perf_events: failed NB allocation for CPU%d\n", cpu);
-		raw_spin_unlock(&amd_nb_lock);
-		return;
-	}
-found:
-	nb->refcnt++;
-	cpu1->amd_nb = nb;
+	cpuc->amd_nb->nb_id = nb_id;
+	cpuc->amd_nb->refcnt++;
 
 	raw_spin_unlock(&amd_nb_lock);
 }
 
-static void amd_pmu_cpu_offline(int cpu)
+static void amd_pmu_cpu_dead(int cpu)
 {
 	struct cpu_hw_events *cpuhw;
 
@@ -349,8 +360,10 @@ static void amd_pmu_cpu_offline(int cpu)
 	raw_spin_lock(&amd_nb_lock);
 
 	if (cpuhw->amd_nb) {
-		if (--cpuhw->amd_nb->refcnt == 0)
-			kfree(cpuhw->amd_nb);
+		struct amd_nb *nb = cpuhw->amd_nb;
+
+		if (nb->nb_id == -1 || --nb->refcnt == 0)
+			kfree(nb);
 
 		cpuhw->amd_nb = NULL;
 	}
@@ -379,8 +392,9 @@ static __initconst struct x86_pmu amd_pmu = {
 	.get_event_constraints	= amd_get_event_constraints,
 	.put_event_constraints	= amd_put_event_constraints,
 
-	.cpu_prepare		= amd_pmu_cpu_online,
-	.cpu_dead		= amd_pmu_cpu_offline,
+	.cpu_prepare		= amd_pmu_cpu_prepare,
+	.cpu_starting		= amd_pmu_cpu_starting,
+	.cpu_dead		= amd_pmu_cpu_dead,
 };
 
 static __init int amd_pmu_init(void)

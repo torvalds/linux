@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/kthread.h>
 #include <linux/file.h>
+#include <linux/slab.h>
 
 #include <linux/freezer.h>
 

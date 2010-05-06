@@ -40,6 +40,7 @@
  *   uwb_est_get_size()
  */
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #include "uwb-internal.h"
 

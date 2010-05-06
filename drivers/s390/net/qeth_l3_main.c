@@ -22,6 +22,7 @@
 #include <linux/ipv6.h>
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
+#include <linux/slab.h>
 
 #include <net/ip.h>
 #include <net/arp.h>

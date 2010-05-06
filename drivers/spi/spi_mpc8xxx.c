@@ -39,6 +39,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/of_spi.h>
+#include <linux/slab.h>
 
 #include <sysdev/fsl_soc.h>
 #include <asm/cpm.h>

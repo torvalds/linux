@@ -26,6 +26,7 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <pcmcia/cs_types.h>
@@ -145,7 +146,6 @@ static irqreturn_t db1200_pcmcia_cdirq(int irq, void *data)
 static int db1x_pcmcia_setup_irqs(struct db1x_pcmcia_sock *sock)
 {
 	int ret;
-	unsigned long flags;
 
 	if (sock->stschg_irq != -1) {
 		ret = request_irq(sock->stschg_irq, db1000_pcmcia_stschgirq,
@@ -161,8 +161,6 @@ static int db1x_pcmcia_setup_irqs(struct db1x_pcmcia_sock *sock)
 	 * active one disabled.
 	 */
 	if (sock->board_type == BOARD_TYPE_DB1200) {
-		local_irq_save(flags);
-
 		ret = request_irq(sock->insert_irq, db1200_pcmcia_cdirq,
 				  IRQF_DISABLED, "pcmcia_insert", sock);
 		if (ret)
@@ -172,17 +170,14 @@ static int db1x_pcmcia_setup_irqs(struct db1x_pcmcia_sock *sock)
 				  IRQF_DISABLED, "pcmcia_eject", sock);
 		if (ret) {
 			free_irq(sock->insert_irq, sock);
-			local_irq_restore(flags);
 			goto out1;
 		}
 
-		/* disable the currently active one */
+		/* enable the currently silent one */
 		if (db1200_card_inserted(sock))
-			disable_irq_nosync(sock->insert_irq);
+			enable_irq(sock->eject_irq);
 		else
-			disable_irq_nosync(sock->eject_irq);
-
-		local_irq_restore(flags);
+			enable_irq(sock->insert_irq);
 	} else {
 		/* all other (older) Db1x00 boards use a GPIO to show
 		 * card detection status:  use both-edge triggers.

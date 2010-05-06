@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 
 #include "bttv.h"
 #include "bttvp.h"

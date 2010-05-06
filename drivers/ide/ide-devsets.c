@@ -1,5 +1,6 @@
 
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/ide.h>
 
 DEFINE_MUTEX(ide_setting_mtx);

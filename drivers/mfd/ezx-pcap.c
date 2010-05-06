@@ -18,6 +18,7 @@
 #include <linux/mfd/ezx-pcap.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #define PCAP_ADC_MAXQ		8
 struct pcap_adc_request {

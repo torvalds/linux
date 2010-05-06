@@ -41,6 +41,7 @@
 #include <linux/rcupdate.h>
 #include <linux/completion.h>
 #include <linux/tracehook.h>
+#include <linux/slab.h>
 
 #include <asm/errno.h>
 #include <asm/intrinsics.h>

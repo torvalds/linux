@@ -26,6 +26,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>

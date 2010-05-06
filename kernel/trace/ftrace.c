@@ -24,6 +24,7 @@
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/sysctl.h>
+#include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/hash.h>

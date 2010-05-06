@@ -42,6 +42,7 @@
 #include <linux/net.h>
 #include <linux/inet.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>

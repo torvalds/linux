@@ -22,6 +22,7 @@
 #define MODULE_NAME "sonixj"
 
 #include <linux/input.h>
+#include <linux/slab.h>
 #include "gspca.h"
 #include "jpeg.h"
 

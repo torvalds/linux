@@ -18,6 +18,7 @@
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 /*

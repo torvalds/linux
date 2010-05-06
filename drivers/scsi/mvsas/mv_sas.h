@@ -36,6 +36,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <scsi/libsas.h>
 #include <scsi/scsi_tcq.h>

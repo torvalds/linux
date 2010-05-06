@@ -28,6 +28,7 @@
 #include <linux/pagemap.h>
 #include <linux/pci.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
 #include <linux/types.h>

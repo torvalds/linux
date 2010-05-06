@@ -61,6 +61,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/bug.h>
+#include <linux/slab.h>
 
 #include <asm/unwind.h>
 

@@ -25,6 +25,7 @@
 
 #include <linux/kernel.h>
 #include <linux/net.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/phonet.h>
 #include <linux/proc_fs.h>

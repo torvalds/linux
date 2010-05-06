@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <mach/w90p910_keypad.h>
 

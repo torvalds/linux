@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>

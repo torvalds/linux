@@ -67,9 +67,10 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < rdev->num_crtc; i++)
 		rdev->irq.crtc_vblank_int[i] = false;
-	}
+	for (i = 0; i < 6; i++)
+		rdev->irq.hpd[i] = false;
 	radeon_irq_set(rdev);
 	/* Clear bits */
 	radeon_irq_process(rdev);
@@ -95,28 +96,29 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 	}
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < rdev->num_crtc; i++)
 		rdev->irq.crtc_vblank_int[i] = false;
+	for (i = 0; i < 6; i++)
 		rdev->irq.hpd[i] = false;
-	}
 	radeon_irq_set(rdev);
 }
 
 int radeon_irq_kms_init(struct radeon_device *rdev)
 {
 	int r = 0;
-	int num_crtc = 2;
 
-	if (rdev->flags & RADEON_SINGLE_CRTC)
-		num_crtc = 1;
 	spin_lock_init(&rdev->irq.sw_lock);
-	r = drm_vblank_init(rdev->ddev, num_crtc);
+	r = drm_vblank_init(rdev->ddev, rdev->num_crtc);
 	if (r) {
 		return r;
 	}
 	/* enable msi */
 	rdev->msi_enabled = 0;
-	if (rdev->family >= CHIP_RV380) {
+	/* MSIs don't seem to work reliably on all IGP
+	 * chips.  Disable MSI on them for now.
+	 */
+	if ((rdev->family >= CHIP_RV380) &&
+	    (!(rdev->flags & RADEON_IS_IGP))) {
 		int ret = pci_enable_msi(rdev->pdev);
 		if (!ret) {
 			rdev->msi_enabled = 1;

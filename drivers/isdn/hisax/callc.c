@@ -17,6 +17,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include "hisax.h"
 #include <linux/isdn/capicmd.h>

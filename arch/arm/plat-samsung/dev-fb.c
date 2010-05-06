@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <linux/platform_device.h>
 #include <linux/fb.h>
+#include <linux/gfp.h>
 
 #include <mach/irqs.h>
 #include <mach/map.h>

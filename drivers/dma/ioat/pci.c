@@ -30,6 +30,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/dca.h>
+#include <linux/slab.h>
 #include "dma.h"
 #include "dma_v2.h"
 #include "registers.h"

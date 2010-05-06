@@ -12,6 +12,7 @@
 #include <linux/inetdevice.h>
 #include <linux/seqlock.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/snmp.h>
 #include <net/icmp.h>
 #include <net/ip.h>

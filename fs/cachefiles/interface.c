@@ -9,6 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/buffer_head.h>
 #include "internal.h"

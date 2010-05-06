@@ -34,6 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/time.h>
@@ -959,6 +960,8 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		u.packet.header_length = GET_HEADER_LENGTH(control);
 
 		if (ctx->type == FW_ISO_CONTEXT_TRANSMIT) {
+			if (u.packet.header_length % 4 != 0)
+				return -EINVAL;
 			header_length = u.packet.header_length;
 		} else {
 			/*
@@ -968,7 +971,8 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 			if (ctx->header_size == 0) {
 				if (u.packet.header_length > 0)
 					return -EINVAL;
-			} else if (u.packet.header_length % ctx->header_size != 0) {
+			} else if (u.packet.header_length == 0 ||
+				   u.packet.header_length % ctx->header_size != 0) {
 				return -EINVAL;
 			}
 			header_length = 0;
@@ -1353,24 +1357,24 @@ static int dispatch_ioctl(struct client *client,
 		return -ENODEV;
 
 	if (_IOC_TYPE(cmd) != '#' ||
-	    _IOC_NR(cmd) >= ARRAY_SIZE(ioctl_handlers))
+	    _IOC_NR(cmd) >= ARRAY_SIZE(ioctl_handlers) ||
+	    _IOC_SIZE(cmd) > sizeof(buffer))
 		return -EINVAL;
 
-	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		if (_IOC_SIZE(cmd) > sizeof(buffer) ||
-		    copy_from_user(&buffer, arg, _IOC_SIZE(cmd)))
+	if (_IOC_DIR(cmd) == _IOC_READ)
+		memset(&buffer, 0, _IOC_SIZE(cmd));
+
+	if (_IOC_DIR(cmd) & _IOC_WRITE)
+		if (copy_from_user(&buffer, arg, _IOC_SIZE(cmd)))
 			return -EFAULT;
-	}
 
 	ret = ioctl_handlers[_IOC_NR(cmd)](client, &buffer);
 	if (ret < 0)
 		return ret;
 
-	if (_IOC_DIR(cmd) & _IOC_READ) {
-		if (_IOC_SIZE(cmd) > sizeof(buffer) ||
-		    copy_to_user(arg, &buffer, _IOC_SIZE(cmd)))
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		if (copy_to_user(arg, &buffer, _IOC_SIZE(cmd)))
 			return -EFAULT;
-	}
 
 	return ret;
 }

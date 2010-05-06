@@ -31,6 +31,7 @@
 
 #include <linux/io.h>
 
+#include "iwl-dev.h"
 #include "iwl-debug.h"
 #include "iwl-devtrace.h"
 

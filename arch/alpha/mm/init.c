@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h> /* max_low_pfn */
 #include <linux/vmalloc.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>

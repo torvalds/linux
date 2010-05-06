@@ -43,6 +43,7 @@
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/usb/usbnet.h>
+#include <linux/slab.h>
 
 #define DRIVER_VERSION		"22-Aug-2005"
 

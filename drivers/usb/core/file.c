@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/rwsem.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/usb.h>
 

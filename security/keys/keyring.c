@@ -199,7 +199,7 @@ static long keyring_read(const struct key *keyring,
 	int loop, ret;
 
 	ret = 0;
-	klist = rcu_dereference(keyring->payload.subscriptions);
+	klist = keyring->payload.subscriptions;
 
 	if (klist) {
 		/* calculate how much data we could return */

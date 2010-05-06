@@ -133,7 +133,7 @@ void __update_cache(struct vm_area_struct *vma, unsigned long address,
 }
 
 unsigned long _page_cachable_default;
-EXPORT_SYMBOL_GPL(_page_cachable_default);
+EXPORT_SYMBOL(_page_cachable_default);
 
 static inline void setup_protection_map(void)
 {

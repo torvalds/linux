@@ -265,6 +265,7 @@
 #include <linux/err.h>
 #include <linux/crypto.h>
 #include <linux/time.h>
+#include <linux/slab.h>
 
 #include <net/icmp.h>
 #include <net/tcp.h>
@@ -1368,6 +1369,7 @@ int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 		sk_eat_skb(sk, skb, 0);
 		if (!desc->count)
 			break;
+		tp->copied_seq = seq;
 	}
 	tp->copied_seq = seq;
 

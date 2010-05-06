@@ -182,6 +182,9 @@
 #define   S_006548_D1MODE_PRIORITY_A_OFF(x)            (((x) & 0x1) << 16)
 #define   G_006548_D1MODE_PRIORITY_A_OFF(x)            (((x) >> 16) & 0x1)
 #define   C_006548_D1MODE_PRIORITY_A_OFF               0xFFFEFFFF
+#define   S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(x)      (((x) & 0x1) << 20)
+#define   G_006548_D1MODE_PRIORITY_A_ALWAYS_ON(x)      (((x) >> 20) & 0x1)
+#define   C_006548_D1MODE_PRIORITY_A_ALWAYS_ON         0xFFEFFFFF
 #define   S_006548_D1MODE_PRIORITY_A_FORCE_MASK(x)     (((x) & 0x1) << 24)
 #define   G_006548_D1MODE_PRIORITY_A_FORCE_MASK(x)     (((x) >> 24) & 0x1)
 #define   C_006548_D1MODE_PRIORITY_A_FORCE_MASK        0xFEFFFFFF

@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
+#include <linux/slab.h>
 
 #include "timbuart.h"
 

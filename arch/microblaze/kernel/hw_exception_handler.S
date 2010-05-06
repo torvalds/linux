@@ -313,13 +313,13 @@ _hw_exception_handler:
 	mfs	r5, rmsr;
 	nop
 	swi	r5, r1, 0;
-	mfs	r3, resr
+	mfs	r4, resr
 	nop
-	mfs	r4, rear;
+	mfs	r3, rear;
 	nop
 
 #ifndef CONFIG_MMU
-	andi	r5, r3, 0x1000;		/* Check ESR[DS] */
+	andi	r5, r4, 0x1000;		/* Check ESR[DS] */
 	beqi	r5, not_in_delay_slot;	/* Branch if ESR[DS] not set */
 	mfs	r17, rbtr;	/* ESR[DS] set - return address in BTR */
 	nop
@@ -327,13 +327,14 @@ not_in_delay_slot:
 	swi	r17, r1, PT_R17
 #endif
 
-	andi	r5, r3, 0x1F;		/* Extract ESR[EXC] */
+	andi	r5, r4, 0x1F;		/* Extract ESR[EXC] */
 
 #ifdef CONFIG_MMU
 	/* Calculate exception vector offset = r5 << 2 */
 	addk	r6, r5, r5; /* << 1 */
 	addk	r6, r6, r6; /* << 2 */
 
+#ifdef DEBUG
 /* counting which exception happen */
 	lwi	r5, r0, 0x200 + TOPHYS(r0_ram)
 	addi	r5, r5, 1
@@ -341,6 +342,7 @@ not_in_delay_slot:
 	lwi	r5, r6, 0x200 + TOPHYS(r0_ram)
 	addi	r5, r5, 1
 	swi	r5, r6, 0x200 + TOPHYS(r0_ram)
+#endif
 /* end */
 	/* Load the HW Exception vector */
 	lwi	r6, r6, TOPHYS(_MB_HW_ExceptionVectorTable)
@@ -376,7 +378,7 @@ handle_other_ex: /* Handle Other exceptions here */
 	swi	r18, r1, PT_R18
 
 	or	r5, r1, r0
-	andi	r6, r3, 0x1F; /* Load ESR[EC] */
+	andi	r6, r4, 0x1F; /* Load ESR[EC] */
 	lwi	r7, r0, PER_CPU(KM) /* MS: saving current kernel mode to regs */
 	swi	r7, r1, PT_MODE
 	mfs	r7, rfsr
@@ -426,11 +428,11 @@ handle_other_ex: /* Handle Other exceptions here */
  */
 handle_unaligned_ex:
 	/* Working registers already saved: R3, R4, R5, R6
-	 *  R3 = ESR
-	 *  R4 = EAR
+	 *  R4 = ESR
+	 *  R3 = EAR
 	 */
 #ifdef CONFIG_MMU
-	andi	r6, r3, 0x1000			/* Check ESR[DS] */
+	andi	r6, r4, 0x1000			/* Check ESR[DS] */
 	beqi	r6, _no_delayslot		/* Branch if ESR[DS] not set */
 	mfs	r17, rbtr;	/* ESR[DS] set - return address in BTR */
 	nop
@@ -439,7 +441,7 @@ _no_delayslot:
 	RESTORE_STATE;
 	bri	unaligned_data_trap
 #endif
-	andi	r6, r3, 0x3E0; /* Mask and extract the register operand */
+	andi	r6, r4, 0x3E0; /* Mask and extract the register operand */
 	srl	r6, r6; /* r6 >> 5 */
 	srl	r6, r6;
 	srl	r6, r6;
@@ -448,33 +450,33 @@ _no_delayslot:
 	/* Store the register operand in a temporary location */
 	sbi	r6, r0, TOPHYS(ex_reg_op);
 
-	andi	r6, r3, 0x400; /* Extract ESR[S] */
+	andi	r6, r4, 0x400; /* Extract ESR[S] */
 	bnei	r6, ex_sw;
 ex_lw:
-	andi	r6, r3, 0x800; /* Extract ESR[W] */
+	andi	r6, r4, 0x800; /* Extract ESR[W] */
 	beqi	r6, ex_lhw;
-	lbui	r5, r4, 0; /* Exception address in r4 */
+	lbui	r5, r3, 0; /* Exception address in r3 */
 	/* Load a word, byte-by-byte from destination address
 		and save it in tmp space */
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_0);
-	lbui	r5, r4, 1;
+	lbui	r5, r3, 1;
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_1);
-	lbui	r5, r4, 2;
+	lbui	r5, r3, 2;
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_2);
-	lbui	r5, r4, 3;
+	lbui	r5, r3, 3;
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_3);
-	/* Get the destination register value into r3 */
-	lwi	r3, r0, TOPHYS(ex_tmp_data_loc_0);
+	/* Get the destination register value into r4 */
+	lwi	r4, r0, TOPHYS(ex_tmp_data_loc_0);
 	bri	ex_lw_tail;
 ex_lhw:
-	lbui	r5, r4, 0; /* Exception address in r4 */
+	lbui	r5, r3, 0; /* Exception address in r3 */
 	/* Load a half-word, byte-by-byte from destination
 		address and save it in tmp space */
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_0);
-	lbui	r5, r4, 1;
+	lbui	r5, r3, 1;
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_1);
-	/* Get the destination register value into r3 */
-	lhui	r3, r0, TOPHYS(ex_tmp_data_loc_0);
+	/* Get the destination register value into r4 */
+	lhui	r4, r0, TOPHYS(ex_tmp_data_loc_0);
 ex_lw_tail:
 	/* Get the destination register number into r5 */
 	lbui	r5, r0, TOPHYS(ex_reg_op);
@@ -502,25 +504,25 @@ ex_sw_tail:
 	andi	r6, r6, 0x800; /* Extract ESR[W] */
 	beqi	r6, ex_shw;
 	/* Get the word - delay slot */
-	swi	r3, r0, TOPHYS(ex_tmp_data_loc_0);
+	swi	r4, r0, TOPHYS(ex_tmp_data_loc_0);
 	/* Store the word, byte-by-byte into destination address */
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_0);
-	sbi	r3, r4, 0;
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_1);
-	sbi	r3, r4, 1;
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_2);
-	sbi	r3, r4, 2;
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_3);
-	sbi	r3, r4, 3;
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_0);
+	sbi	r4, r3, 0;
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_1);
+	sbi	r4, r3, 1;
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_2);
+	sbi	r4, r3, 2;
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_3);
+	sbi	r4, r3, 3;
 	bri	ex_handler_done;
 
 ex_shw:
 	/* Store the lower half-word, byte-by-byte into destination address */
-	swi	r3, r0, TOPHYS(ex_tmp_data_loc_0);
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_2);
-	sbi	r3, r4, 0;
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_3);
-	sbi	r3, r4, 1;
+	swi	r4, r0, TOPHYS(ex_tmp_data_loc_0);
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_2);
+	sbi	r4, r3, 0;
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_3);
+	sbi	r4, r3, 1;
 ex_sw_end: /* Exception handling of store word, ends. */
 
 ex_handler_done:
@@ -560,21 +562,16 @@ ex_handler_done:
 		 */
 		mfs	r11, rpid
 		nop
-		bri	4
-		mfs	r3, rear		/* Get faulting address */
-		nop
 		/* If we are faulting a kernel address, we have to use the
 		 * kernel page tables.
 		 */
-		ori	r4, r0, CONFIG_KERNEL_START
-		cmpu	r4, r3, r4
-		bgti	r4, ex3
+		ori	r5, r0, CONFIG_KERNEL_START
+		cmpu	r5, r3, r5
+		bgti	r5, ex3
 		/* First, check if it was a zone fault (which means a user
 		 * tried to access a kernel or read-protected page - always
 		 * a SEGV). All other faults here must be stores, so no
 		 * need to check ESR_S as well. */
-		mfs	r4, resr
-		nop
 		andi	r4, r4, 0x800		/* ESR_Z - zone protection */
 		bnei	r4, ex2
 
@@ -589,8 +586,6 @@ ex_handler_done:
 		 * tried to access a kernel or read-protected page - always
 		 * a SEGV). All other faults here must be stores, so no
 		 * need to check ESR_S as well. */
-		mfs	r4, resr
-		nop
 		andi	r4, r4, 0x800		/* ESR_Z */
 		bnei	r4, ex2
 		/* get current task address */
@@ -665,8 +660,6 @@ ex_handler_done:
 		 * R3 = ESR
 		 */
 
-		mfs	r3, rear		/* Get faulting address */
-		nop
 		RESTORE_STATE;
 		bri	page_fault_instr_trap
 
@@ -677,18 +670,15 @@ ex_handler_done:
 	 */
 	handle_data_tlb_miss_exception:
 		/* Working registers already saved: R3, R4, R5, R6
-		 * R3 = ESR
+		 * R3 = EAR, R4 = ESR
 		 */
 		mfs	r11, rpid
-		nop
-		bri	4
-		mfs	r3, rear		/* Get faulting address */
 		nop
 
 		/* If we are faulting a kernel address, we have to use the
 		 * kernel page tables. */
-		ori	r4, r0, CONFIG_KERNEL_START
-		cmpu	r4, r3, r4
+		ori	r6, r0, CONFIG_KERNEL_START
+		cmpu	r4, r3, r6
 		bgti	r4, ex5
 		ori	r4, r0, swapper_pg_dir
 		mts	rpid, r0		/* TLB will have 0 TID */
@@ -731,9 +721,8 @@ ex_handler_done:
 		 * Many of these bits are software only. Bits we don't set
 		 * here we (properly should) assume have the appropriate value.
 		 */
+		brid	finish_tlb_load
 		andni	r4, r4, 0x0ce2		/* Make sure 20, 21 are zero */
-
-		bri	finish_tlb_load
 	ex7:
 		/* The bailout. Restore registers to pre-exception conditions
 		 * and call the heavyweights to help us out.
@@ -753,9 +742,6 @@ ex_handler_done:
 		 *  R3 = ESR
 		 */
 		mfs	r11, rpid
-		nop
-		bri	4
-		mfs	r3, rear		/* Get faulting address */
 		nop
 
 		/* If we are faulting a kernel address, we have to use the
@@ -792,7 +778,7 @@ ex_handler_done:
 		lwi	r4, r5, 0		/* Get Linux PTE */
 
 		andi	r6, r4, _PAGE_PRESENT
-		beqi	r6, ex7
+		beqi	r6, ex10
 
 		ori	r4, r4, _PAGE_ACCESSED
 		swi	r4, r5, 0
@@ -805,9 +791,8 @@ ex_handler_done:
 		 * Many of these bits are software only. Bits we don't set
 		 * here we (properly should) assume have the appropriate value.
 		 */
+		brid	finish_tlb_load
 		andni	r4, r4, 0x0ce2		/* Make sure 20, 21 are zero */
-
-		bri	finish_tlb_load
 	ex10:
 		/* The bailout. Restore registers to pre-exception conditions
 		 * and call the heavyweights to help us out.
@@ -837,9 +822,9 @@ ex_handler_done:
 		andi	r5, r5, (MICROBLAZE_TLB_SIZE-1)
 		ori	r6, r0, 1
 		cmp	r31, r5, r6
-		blti	r31, sem
+		blti	r31, ex12
 		addik	r5, r6, 1
-	sem:
+	ex12:
 		/* MS: save back current TLB index */
 		swi	r5, r0, TOPHYS(tlb_index)
 
@@ -859,7 +844,6 @@ ex_handler_done:
 		nop
 
 		/* Done...restore registers and get out of here. */
-	ex12:
 		mts	rpid, r11
 		nop
 		bri 4

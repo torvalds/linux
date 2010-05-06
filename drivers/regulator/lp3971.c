@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/lp3971.h>
+#include <linux/slab.h>
 
 struct lp3971 {
 	struct device *dev;

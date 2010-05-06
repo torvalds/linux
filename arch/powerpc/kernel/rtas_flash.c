@@ -15,6 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>

@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/i2c.h>
 #include <linux/spi/max7301.h>
+#include <linux/slab.h>
 
 static int max7300_i2c_write(struct device *dev, unsigned int reg,
 				unsigned int val)

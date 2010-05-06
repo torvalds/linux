@@ -43,6 +43,7 @@
 #include <linux/moduleparam.h>
 #include <linux/stat.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include "musb_core.h"
 

@@ -14,6 +14,7 @@
  *	- cache integrity information associated with an inode
  *	  using a radix tree.
  */
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/radix-tree.h>

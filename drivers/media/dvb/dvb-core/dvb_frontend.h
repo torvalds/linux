@@ -36,6 +36,7 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include <linux/dvb/frontend.h>
 

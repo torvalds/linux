@@ -58,6 +58,7 @@
 #include <linux/jiffies.h>
 #include <linux/rculist.h>
 #include <linux/idr.h>
+#include <linux/slab.h>
 
 static DEFINE_MUTEX(dma_list_mutex);
 static LIST_HEAD(dma_device_list);

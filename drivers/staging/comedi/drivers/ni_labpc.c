@@ -77,6 +77,7 @@ NI manuals:
 /* #define LABPC_DEBUG    enable debugging messages */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>

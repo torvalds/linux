@@ -29,6 +29,7 @@
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
+#include <linux/gfp.h>
 
 #include <asm/sizes.h>
 

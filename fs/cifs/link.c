@@ -20,6 +20,7 @@
  */
 #include <linux/fs.h>
 #include <linux/stat.h>
+#include <linux/slab.h>
 #include <linux/namei.h>
 #include "cifsfs.h"
 #include "cifspdu.h"

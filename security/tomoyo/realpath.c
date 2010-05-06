@@ -15,6 +15,7 @@
 #include <linux/fs_struct.h>
 #include <linux/hash.h>
 #include <linux/magic.h>
+#include <linux/slab.h>
 #include "common.h"
 
 /**

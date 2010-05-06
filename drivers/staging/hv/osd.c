@@ -40,6 +40,7 @@
 #include <linux/time.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include "osd.h"
 
 struct osd_callback_struct {

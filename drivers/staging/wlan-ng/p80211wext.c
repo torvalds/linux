@@ -40,7 +40,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>

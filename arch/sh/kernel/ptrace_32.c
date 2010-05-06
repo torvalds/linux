@@ -17,7 +17,6 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
-#include <linux/slab.h>
 #include <linux/security.h>
 #include <linux/signal.h>
 #include <linux/io.h>
