@@ -9,4 +9,4 @@ hv_vmbus-objs := vmbus_drv.o osd.o \
 		 ChannelMgmt.o ChannelInterface.o ring_buffer.o
 hv_storvsc-objs := storvsc_drv.o StorVsc.o
 hv_blkvsc-objs := blkvsc_drv.o blkvsc.o
-hv_netvsc-objs := netvsc_drv.o NetVsc.o RndisFilter.o
+hv_netvsc-objs := netvsc_drv.o netvsc.o RndisFilter.o

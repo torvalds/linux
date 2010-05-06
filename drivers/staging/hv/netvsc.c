@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include "osd.h"
 #include "logging.h"
-#include "NetVsc.h"
+#include "netvsc.h"
 #include "RndisFilter.h"
 
 
