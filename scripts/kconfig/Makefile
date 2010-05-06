@@ -62,6 +62,12 @@ localyesconfig: $(obj)/streamline_config.pl $(obj)/conf
 	fi
 	$(Q)rm -f .tmp.config
 
+nonint_oldconfig: $(obj)/conf
+	$< -b $(Kconfig)
+
+loose_nonint_oldconfig: $(obj)/conf
+	$< -B $(Kconfig)
+
 # Create new linux.pot file
 # Adjust charset to UTF-8 in .po file to accept UTF-8 in Kconfig files
 # The symlink is used to repair a deficiency in arch/um
@@ -126,6 +132,10 @@ help:
 	@echo  '  allmodconfig	  - New config selecting modules when possible'
 	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
 	@echo  '  allnoconfig	  - New config where all options are answered with no'
+	@echo  '  nonint_oldconfig - Checks the current configuration and fails if an option is '
+	@echo  '                    not set'
+	@echo  '  loose_nonint_oldconfig - Same as nonint_oldconfig, but updates the config file with '
+	@echo  '                    missing config options as unset'
 
 # lxdialog stuff
 check-lxdialog  := $(srctree)/$(src)/lxdialog/check-lxdialog.sh
