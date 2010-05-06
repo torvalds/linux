@@ -144,7 +144,7 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv)
 		goto err;
 
 	/* Beacon */
-	ret = ath9k_htc_connect_svc(priv, WMI_BEACON_SVC, NULL,
+	ret = ath9k_htc_connect_svc(priv, WMI_BEACON_SVC, ath9k_htc_beaconep,
 				    &priv->beacon_ep);
 	if (ret)
 		goto err;

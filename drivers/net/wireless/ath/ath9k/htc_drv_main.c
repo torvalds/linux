@@ -1313,15 +1313,6 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	priv->nvifs--;
 
 	ath9k_htc_remove_station(priv, vif, NULL);
-
-	if (vif->type == NL80211_IFTYPE_ADHOC) {
-		spin_lock_bh(&priv->beacon_lock);
-		if (priv->beacon)
-			dev_kfree_skb_any(priv->beacon);
-		priv->beacon = NULL;
-		spin_unlock_bh(&priv->beacon_lock);
-	}
-
 	priv->vif = NULL;
 
 	mutex_unlock(&priv->mutex);
@@ -1589,9 +1580,6 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 		priv->op_flags |= OP_ENABLE_BEACON;
 		ath9k_htc_beacon_config(priv, vif);
 	}
-
-	if (changed & BSS_CHANGED_BEACON)
-		ath9k_htc_beacon_update(priv, vif);
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
 	    !bss_conf->enable_beacon) {

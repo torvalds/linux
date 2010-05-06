@@ -165,22 +165,10 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 	WMI_CMD_BUF(WMI_ENABLE_INTR_CMDID, &htc_imask);
 }
 
-void ath9k_htc_beacon_update(struct ath9k_htc_priv *priv,
-			     struct ieee80211_vif *vif)
+void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
+			enum htc_endpoint_id ep_id, bool txok)
 {
-	struct ath_common *common = ath9k_hw_common(priv->ah);
-
-	spin_lock_bh(&priv->beacon_lock);
-
-	if (priv->beacon)
-		dev_kfree_skb_any(priv->beacon);
-
-	priv->beacon = ieee80211_beacon_get(priv->hw, vif);
-	if (!priv->beacon)
-		ath_print(common, ATH_DBG_BEACON,
-			  "Unable to allocate beacon\n");
-
-	spin_unlock_bh(&priv->beacon_lock);
+	dev_kfree_skb_any(skb);
 }
 
 void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
@@ -189,6 +177,7 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
 	struct tx_beacon_header beacon_hdr;
 	struct ath9k_htc_tx_ctl tx_ctl;
 	struct ieee80211_tx_info *info;
+	struct sk_buff *beacon;
 	u8 *tx_fhdr;
 
 	memset(&beacon_hdr, 0, sizeof(struct tx_beacon_header));
@@ -207,25 +196,17 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
 		return;
 	}
 
-	if (unlikely(priv->beacon == NULL)) {
-		spin_unlock_bh(&priv->beacon_lock);
-		return;
-	}
-
-	/* Free the old SKB first */
-	dev_kfree_skb_any(priv->beacon);
-
 	/* Get a new beacon */
-	priv->beacon = ieee80211_beacon_get(priv->hw, priv->vif);
-	if (!priv->beacon) {
+	beacon = ieee80211_beacon_get(priv->hw, priv->vif);
+	if (!beacon) {
 		spin_unlock_bh(&priv->beacon_lock);
 		return;
 	}
 
-	info = IEEE80211_SKB_CB(priv->beacon);
+	info = IEEE80211_SKB_CB(beacon);
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
 		struct ieee80211_hdr *hdr =
-			(struct ieee80211_hdr *) priv->beacon->data;
+			(struct ieee80211_hdr *) beacon->data;
 		priv->seq_no += 0x10;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(priv->seq_no);
@@ -233,10 +214,10 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
 
 	tx_ctl.type = ATH9K_HTC_NORMAL;
 	beacon_hdr.vif_index = avp->index;
-	tx_fhdr = skb_push(priv->beacon, sizeof(beacon_hdr));
+	tx_fhdr = skb_push(beacon, sizeof(beacon_hdr));
 	memcpy(tx_fhdr, (u8 *) &beacon_hdr, sizeof(beacon_hdr));
 
-	htc_send(priv->htc, priv->beacon, priv->beacon_ep, &tx_ctl);
+	htc_send(priv->htc, beacon, priv->beacon_ep, &tx_ctl);
 
 	spin_unlock_bh(&priv->beacon_lock);
 }

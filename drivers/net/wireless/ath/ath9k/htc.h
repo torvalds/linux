@@ -356,7 +356,6 @@ struct ath9k_htc_priv {
 	u16 seq_no;
 	u32 bmiss_cnt;
 
-	struct sk_buff *beacon;
 	spinlock_t beacon_lock;
 
 	bool tx_queues_stop;
@@ -408,13 +407,13 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);
 void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending);
-void ath9k_htc_beacon_update(struct ath9k_htc_priv *priv,
-			     struct ieee80211_vif *vif);
 
 void ath9k_htc_rxep(void *priv, struct sk_buff *skb,
 		    enum htc_endpoint_id ep_id);
 void ath9k_htc_txep(void *priv, struct sk_buff *skb, enum htc_endpoint_id ep_id,
 		    bool txok);
+void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
+			enum htc_endpoint_id ep_id, bool txok);
 
 void ath9k_htc_station_work(struct work_struct *work);
 void ath9k_htc_aggr_work(struct work_struct *work);
