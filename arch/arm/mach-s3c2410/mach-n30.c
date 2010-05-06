@@ -352,10 +352,25 @@ static struct s3c2410fb_mach_info n30_fb_info __initdata = {
 	.lpcsel		= 0x06,
 };
 
+static void n30_sdi_set_power(unsigned char power_mode, unsigned short vdd)
+{
+	switch (power_mode) {
+	case MMC_POWER_ON:
+	case MMC_POWER_UP:
+		s3c2410_gpio_setpin(S3C2410_GPG(4), 1);
+		break;
+	case MMC_POWER_OFF:
+	default:
+		s3c2410_gpio_setpin(S3C2410_GPG(4), 0);
+		break;
+	}
+}
+
 static struct s3c24xx_mci_pdata n30_mci_cfg __initdata = {
 	.gpio_detect	= S3C2410_GPF(1),
 	.gpio_wprotect  = S3C2410_GPG(10),
 	.ocr_avail	= MMC_VDD_32_33,
+	.set_power	= n30_sdi_set_power,
 };
 
 static struct platform_device *n30_devices[] __initdata = {
