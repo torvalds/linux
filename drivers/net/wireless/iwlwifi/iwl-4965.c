@@ -1445,7 +1445,8 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 	return ret;
 }
 
-static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
+static int iwl4965_hw_channel_switch(struct iwl_priv *priv,
+				     struct ieee80211_channel_switch *ch_switch)
 {
 	int rc;
 	u8 band = 0;
@@ -1453,10 +1454,13 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 	u8 ctrl_chan_high = 0;
 	struct iwl4965_channel_switch_cmd cmd;
 	const struct iwl_channel_info *ch_info;
-
+	u32 switch_time_in_usec, ucode_switch_time;
+	u16 ch;
+	u32 tsf_low;
+	u8 switch_count;
+	u16 beacon_interval = le16_to_cpu(priv->rxon_timing.beacon_interval);
+	struct ieee80211_vif *vif = priv->vif;
 	band = priv->band == IEEE80211_BAND_2GHZ;
-
-	ch_info = iwl_get_channel_info(priv, priv->band, channel);
 
 	is_ht40 = is_ht40_channel(priv->staging_rxon.flags);
 
@@ -1466,26 +1470,56 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 
 	cmd.band = band;
 	cmd.expect_beacon = 0;
-	cmd.channel = cpu_to_le16(channel);
+	ch = ieee80211_frequency_to_channel(ch_switch->channel->center_freq);
+	cmd.channel = cpu_to_le16(ch);
 	cmd.rxon_flags = priv->staging_rxon.flags;
 	cmd.rxon_filter_flags = priv->staging_rxon.filter_flags;
-	cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+	switch_count = ch_switch->count;
+	tsf_low = ch_switch->timestamp & 0x0ffffffff;
+	/*
+	 * calculate the ucode channel switch time
+	 * adding TSF as one of the factor for when to switch
+	 */
+	if ((priv->ucode_beacon_time > tsf_low) && beacon_interval) {
+		if (switch_count > ((priv->ucode_beacon_time - tsf_low) /
+		    beacon_interval)) {
+			switch_count -= (priv->ucode_beacon_time -
+				tsf_low) / beacon_interval;
+		} else
+			switch_count = 0;
+	}
+	if (switch_count <= 1)
+		cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+	else {
+		switch_time_in_usec =
+			vif->bss_conf.beacon_int * switch_count * TIME_UNIT;
+		ucode_switch_time = iwl_usecs_to_beacons(priv,
+							 switch_time_in_usec,
+							 beacon_interval);
+		cmd.switch_time = iwl_add_beacon_time(priv,
+						      priv->ucode_beacon_time,
+						      ucode_switch_time,
+						      beacon_interval);
+	}
+	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
+		      cmd.switch_time);
+	ch_info = iwl_get_channel_info(priv, priv->band, ch);
 	if (ch_info)
 		cmd.expect_beacon = is_channel_radar(ch_info);
 	else {
 		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
-			priv->active_rxon.channel, channel);
+			priv->active_rxon.channel, ch);
 		return -EFAULT;
 	}
 
-	rc = iwl4965_fill_txpower_tbl(priv, band, channel, is_ht40,
+	rc = iwl4965_fill_txpower_tbl(priv, band, ch, is_ht40,
 				      ctrl_chan_high, &cmd.tx_power);
 	if (rc) {
 		IWL_DEBUG_11H(priv, "error:%d  fill txpower_tbl\n", rc);
 		return rc;
 	}
 
-	priv->switch_rxon.channel = cpu_to_le16(channel);
+	priv->switch_rxon.channel = cmd.channel;
 	priv->switch_rxon.switch_in_progress = true;
 
 	return iwl_send_cmd_pdu(priv, REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
