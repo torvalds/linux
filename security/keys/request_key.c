@@ -94,7 +94,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 	}
 
 	/* attach the auth key to the session keyring */
-	ret = __key_link(keyring, authkey);
+	ret = key_link(keyring, authkey);
 	if (ret < 0)
 		goto error_link;
 

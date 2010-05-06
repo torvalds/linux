@@ -1160,6 +1160,7 @@ static void snd_timer_user_ccallback(struct snd_timer_instance *timeri,
 {
 	struct snd_timer_user *tu = timeri->callback_data;
 	struct snd_timer_tread r1;
+	unsigned long flags;
 
 	if (event >= SNDRV_TIMER_EVENT_START &&
 	    event <= SNDRV_TIMER_EVENT_PAUSE)
@@ -1169,9 +1170,9 @@ static void snd_timer_user_ccallback(struct snd_timer_instance *timeri,
 	r1.event = event;
 	r1.tstamp = *tstamp;
 	r1.val = resolution;
-	spin_lock(&tu->qlock);
+	spin_lock_irqsave(&tu->qlock, flags);
 	snd_timer_user_append_to_tqueue(tu, &r1);
-	spin_unlock(&tu->qlock);
+	spin_unlock_irqrestore(&tu->qlock, flags);
 	kill_fasync(&tu->fasync, SIGIO, POLL_IN);
 	wake_up(&tu->qchange_sleep);
 }
