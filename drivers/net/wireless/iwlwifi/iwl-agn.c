@@ -2860,19 +2860,15 @@ void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	IWL_DEBUG_ASSOC(priv, "assoc id %d beacon interval %d\n",
 			vif->bss_conf.aid, vif->bss_conf.beacon_int);
 
-	if (vif->bss_conf.assoc_capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
+	if (vif->bss_conf.use_short_preamble)
 		priv->staging_rxon.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 	else
 		priv->staging_rxon.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 
 	if (priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) {
-		if (vif->bss_conf.assoc_capability &
-					WLAN_CAPABILITY_SHORT_SLOT_TIME)
+		if (vif->bss_conf.use_short_slot)
 			priv->staging_rxon.flags |= RXON_FLG_SHORT_SLOT_MSK;
 		else
-			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
-
-		if (vif->type == NL80211_IFTYPE_ADHOC)
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 	}
 
@@ -3099,8 +3095,7 @@ void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 		priv->staging_rxon.assoc_id = 0;
 
-		if (vif->bss_conf.assoc_capability &
-						WLAN_CAPABILITY_SHORT_PREAMBLE)
+		if (vif->bss_conf.use_short_preamble)
 			priv->staging_rxon.flags |=
 				RXON_FLG_SHORT_PREAMBLE_MSK;
 		else
@@ -3108,15 +3103,10 @@ void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 				~RXON_FLG_SHORT_PREAMBLE_MSK;
 
 		if (priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) {
-			if (vif->bss_conf.assoc_capability &
-						WLAN_CAPABILITY_SHORT_SLOT_TIME)
+			if (vif->bss_conf.use_short_slot)
 				priv->staging_rxon.flags |=
 					RXON_FLG_SHORT_SLOT_MSK;
 			else
-				priv->staging_rxon.flags &=
-					~RXON_FLG_SHORT_SLOT_MSK;
-
-			if (vif->type == NL80211_IFTYPE_ADHOC)
 				priv->staging_rxon.flags &=
 					~RXON_FLG_SHORT_SLOT_MSK;
 		}
