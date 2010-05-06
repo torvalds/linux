@@ -8,7 +8,6 @@
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
- *
  */
 #include <linux/init.h>
 #include <linux/oprofile.h>
@@ -17,11 +16,6 @@
 #include <loongson.h>			/* LOONGSON2_PERFCNT_IRQ */
 #include "op_impl.h"
 
-/*
- * a patch should be sent to oprofile with the loongson-specific support.
- * otherwise, the oprofile tool will not recognize this and complain about
- * "cpu_type 'unset' is not valid".
- */
 #define LOONGSON2_CPU_TYPE	"mips/loongson2"
 
 #define LOONGSON2_PERFCNT_OVERFLOW		(1ULL   << 31)
@@ -34,7 +28,6 @@
 #define LOONGSON2_PERFCTRL_EVENT(idx, event) \
 	(((event) & 0x0f) << ((idx) ? 9 : 5))
 
-/* Loongson2 performance counter register */
 #define read_c0_perfctrl() __read_64bit_c0_register($24, 0)
 #define write_c0_perfctrl(val) __write_64bit_c0_register($24, 0, val)
 #define read_c0_perfcnt() __read_64bit_c0_register($25, 0)
@@ -49,7 +42,6 @@ static struct loongson2_register_config {
 
 static char *oprofid = "LoongsonPerf";
 static irqreturn_t loongson2_perfcount_handler(int irq, void *dev_id);
-/* Compute all of the registers in preparation for enabling profiling.  */
 
 static void loongson2_reg_setup(struct op_counter_config *cfg)
 {
@@ -57,8 +49,11 @@ static void loongson2_reg_setup(struct op_counter_config *cfg)
 
 	reg.reset_counter1 = 0;
 	reg.reset_counter2 = 0;
-	/* Compute the performance counter ctrl word.  */
-	/* For now count kernel and user mode */
+
+	/*
+	 * Compute the performance counter ctrl word.
+	 * For now, count kernel and user mode.
+	 */
 	if (cfg[0].enabled) {
 		ctrl |= LOONGSON2_PERFCTRL_EVENT(0, cfg[0].event);
 		reg.reset_counter1 = 0x80000000ULL - cfg[0].count;
@@ -81,10 +76,7 @@ static void loongson2_reg_setup(struct op_counter_config *cfg)
 
 	reg.cnt1_enabled = cfg[0].enabled;
 	reg.cnt2_enabled = cfg[1].enabled;
-
 }
-
-/* Program all of the registers in preparation for enabling profiling.  */
 
 static void loongson2_cpu_setup(void *args)
 {
@@ -110,13 +102,6 @@ static irqreturn_t loongson2_perfcount_handler(int irq, void *dev_id)
 	uint64_t counter, counter1, counter2;
 	struct pt_regs *regs = get_irq_regs();
 	int enabled;
-
-	/*
-	 * LOONGSON2 defines two 32-bit performance counters.
-	 * To avoid a race updating the registers we need to stop the counters
-	 * while we're messing with
-	 * them ...
-	 */
 
 	/* Check whether the irq belongs to me */
 	enabled = read_c0_perfctrl() & LOONGSON2_PERFCTRL_ENABLE;
