@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/semaphore.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>    /* support for tasklets */
 #include <linux/timer.h>        /* support for timer */
