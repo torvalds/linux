@@ -8953,14 +8953,6 @@ static atomic_t synchronize_sched_expedited_count = ATOMIC_INIT(0);
 
 static int synchronize_sched_expedited_cpu_stop(void *data)
 {
-	static DEFINE_SPINLOCK(done_mask_lock);
-	struct cpumask *done_mask = data;
-
-	if (done_mask) {
-		spin_lock(&done_mask_lock);
-		cpumask_set_cpu(smp_processor_id(), done_mask);
-		spin_unlock(&done_mask_lock);
-	}
 	return 0;
 }
 
@@ -8976,55 +8968,29 @@ static int synchronize_sched_expedited_cpu_stop(void *data)
  */
 void synchronize_sched_expedited(void)
 {
-	cpumask_var_t done_mask_var;
-	struct cpumask *done_mask = NULL;
 	int snap, trycount = 0;
-
-	/*
-	 * done_mask is used to check that all cpus actually have
-	 * finished running the stopper, which is guaranteed by
-	 * stop_cpus() if it's called with cpu hotplug blocked.  Keep
-	 * the paranoia for now but it's best effort if cpumask is off
-	 * stack.
-	 */
-	if (zalloc_cpumask_var(&done_mask_var, GFP_ATOMIC))
-		done_mask = done_mask_var;
 
 	smp_mb();  /* ensure prior mod happens before capturing snap. */
 	snap = atomic_read(&synchronize_sched_expedited_count) + 1;
 	get_online_cpus();
 	while (try_stop_cpus(cpu_online_mask,
 			     synchronize_sched_expedited_cpu_stop,
-			     done_mask) == -EAGAIN) {
+			     NULL) == -EAGAIN) {
 		put_online_cpus();
 		if (trycount++ < 10)
 			udelay(trycount * num_online_cpus());
 		else {
 			synchronize_sched();
-			goto free_out;
+			return;
 		}
 		if (atomic_read(&synchronize_sched_expedited_count) - snap > 0) {
 			smp_mb(); /* ensure test happens before caller kfree */
-			goto free_out;
+			return;
 		}
 		get_online_cpus();
 	}
 	atomic_inc(&synchronize_sched_expedited_count);
-	if (done_mask)
-		cpumask_xor(done_mask, done_mask, cpu_online_mask);
 	put_online_cpus();
-
-	/* paranoia - this can't happen */
-	if (done_mask && cpumask_weight(done_mask)) {
-		char buf[80];
-
-		cpulist_scnprintf(buf, sizeof(buf), done_mask);
-		WARN_ONCE(1, "synchronize_sched_expedited: cpu online and done masks disagree on %d cpus: %s\n",
-			  cpumask_weight(done_mask), buf);
-		synchronize_sched();
-	}
-free_out:
-	free_cpumask_var(done_mask_var);
 }
 EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
 
