@@ -532,7 +532,7 @@ static void __init n30_init(void)
 		s3c2410_modify_misccr(S3C2410_MISCCR_USBHOST |
 				      S3C2410_MISCCR_USBSUSPND0 |
 				      S3C2410_MISCCR_USBSUSPND1,
-				      S3C2410_MISCCR_USBSUSPND1);
+				      S3C2410_MISCCR_USBSUSPND0);
 
 		platform_add_devices(n35_devices, ARRAY_SIZE(n35_devices));
 	}
