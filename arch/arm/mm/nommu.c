@@ -87,8 +87,8 @@ void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
 }
 EXPORT_SYMBOL(__arm_ioremap);
 
-void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
-			    unsigned int mtype, void *caller)
+void __iomem *__arm_ioremap_caller(unsigned long phys_addr, size_t size,
+				   unsigned int mtype, void *caller)
 {
 	return __arm_ioremap(phys_addr, size, mtype);
 }
