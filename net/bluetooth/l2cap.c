@@ -1622,7 +1622,7 @@ static inline int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, siz
 	u16 control;
 	size_t size = 0;
 
-	__skb_queue_head_init(&sar_queue);
+	skb_queue_head_init(&sar_queue);
 	control = L2CAP_SDU_START;
 	skb = l2cap_create_iframe_pdu(sk, msg, pi->remote_mps, control, len);
 	if (IS_ERR(skb))
