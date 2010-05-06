@@ -77,26 +77,26 @@ struct shutdown_msg_data {
 
 
 /* Time Sync IC defs */
-#define ICTIMESYNCFLAG_PROBE 0
-#define ICTIMESYNCFLAG_SYNC 1
-#define ICTIMESYNCFLAG_SAMPLE 2
+#define ICTIMESYNCFLAG_PROBE	0
+#define ICTIMESYNCFLAG_SYNC	1
+#define ICTIMESYNCFLAG_SAMPLE	2
 
 #ifdef __x86_64__
-#define WLTIMEDELTA 116444736000000000L  /* in 100ns unit */
+#define WLTIMEDELTA	116444736000000000L	/* in 100ns unit */
 #else
-#define WLTIMEDELTA 116444736000000000LL
+#define WLTIMEDELTA	116444736000000000LL
 #endif
 
 struct ictimesync_data{
-    u64 parenttime;
-    u64 childtime;
-    u64 roundtriptime;
-    u8 flags;
+	u64 parenttime;
+	u64 childtime;
+	u64 roundtriptime;
+	u8 flags;
 } __attribute__((packed));
 
 /* Index for each IC struct in array hv_cb_utils[] */
-#define HV_SHUTDOWN_MSG 0
-#define HV_TIMESYNC_MSG 1
+#define HV_SHUTDOWN_MSG		0
+#define HV_TIMESYNC_MSG		1
 
 struct hyperv_service_callback {
 	u8 msg_type;
