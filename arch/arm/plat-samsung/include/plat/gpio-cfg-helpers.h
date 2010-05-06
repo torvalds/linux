@@ -30,6 +30,12 @@ static inline int s3c_gpio_do_setcfg(struct s3c_gpio_chip *chip,
 	return (chip->config->set_config)(chip, off, config);
 }
 
+static inline unsigned s3c_gpio_do_getcfg(struct s3c_gpio_chip *chip,
+					  unsigned int off)
+{
+	return (chip->config->get_config)(chip, off);
+}
+
 static inline int s3c_gpio_do_setpull(struct s3c_gpio_chip *chip,
 				      unsigned int off, s3c_gpio_pull_t pull)
 {

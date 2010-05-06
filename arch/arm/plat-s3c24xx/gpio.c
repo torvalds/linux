@@ -33,25 +33,6 @@
 
 #include <mach/regs-gpio.h>
 
-unsigned int s3c2410_gpio_getcfg(unsigned int pin)
-{
-	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long val = __raw_readl(base);
-
-	if (pin < S3C2410_GPIO_BANKB) {
-		val >>= S3C2410_GPIO_OFFSET(pin);
-		val &= 1;
-		val += 1;
-	} else {
-		val >>= S3C2410_GPIO_OFFSET(pin)*2;
-		val &= 3;
-	}
-
-	return val | S3C2410_GPIO_INPUT;
-}
-
-EXPORT_SYMBOL(s3c2410_gpio_getcfg);
-
 void s3c2410_gpio_pullup(unsigned int pin, unsigned int to)
 {
 	void __iomem *base = S3C24XX_GPIO_BASE(pin);
