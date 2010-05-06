@@ -600,6 +600,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags, int pull)
 	if (buffer_eopnotsupp(bh)) {
 		clear_buffer_eopnotsupp(bh);
 		set_buffer_uptodate(bh);
+		fs_info(sdp, "barrier sync failed - disabling barriers\n");
 		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
 		lock_buffer(bh);
 skip_barrier:

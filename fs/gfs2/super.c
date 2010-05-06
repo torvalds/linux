@@ -1334,7 +1334,8 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	}
 	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
 		seq_printf(s, ",nobarrier");
-
+	if (test_bit(SDF_DEMOTE, &sdp->sd_flags))
+		seq_printf(s, ",demote_interface_used");
 	return 0;
 }
 

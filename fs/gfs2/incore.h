@@ -459,6 +459,7 @@ enum {
 	SDF_SHUTDOWN		= 2,
 	SDF_NOBARRIERS		= 3,
 	SDF_NORECOVERY		= 4,
+	SDF_DEMOTE		= 5,
 };
 
 #define GFS2_FSNAME_LEN		256
