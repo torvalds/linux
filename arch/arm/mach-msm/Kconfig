@@ -11,6 +11,14 @@ config ARCH_MSM7X00A
 	select MSM_SMD_PKG3
 	select CPU_V6
 
+config ARCH_MSM7X30
+	bool "MSM7x30"
+	select ARCH_MSM_SCORPION
+	select MSM_SMD
+	select MSM_VIC
+	select CPU_V7
+	select MSM_REMOTE_SPINLOCK_DEKKERS
+
 config ARCH_QSD8X50
 	bool "QSD8X50"
 	select ARCH_MSM_SCORPION
@@ -46,6 +54,12 @@ config MACH_TROUT
 	bool "HTC Dream (aka trout)"
 	help
 	  Support for the HTC Dream, T-Mobile G1, Android ADP1 devices.
+
+config MACH_MSM7X30_SURF
+	depends on ARCH_MSM7X30
+	bool "MSM7x30 SURF"
+	help
+	  Support for the Qualcomm MSM7x30 SURF eval board.
 
 config MACH_QSD8X50_SURF
 	depends on ARCH_QSD8X50
