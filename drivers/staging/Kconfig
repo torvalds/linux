@@ -125,8 +125,6 @@ source "drivers/staging/batman-adv/Kconfig"
 
 source "drivers/staging/samsung-laptop/Kconfig"
 
-source "drivers/staging/strip/Kconfig"
-
 source "drivers/staging/wavelan/Kconfig"
 
 source "drivers/staging/netwave/Kconfig"
