@@ -44,7 +44,6 @@ obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
 obj-$(CONFIG_BATMAN_ADV)	+= batman-adv/
 obj-$(CONFIG_SAMSUNG_LAPTOP)	+= samsung-laptop/
 obj-$(CONFIG_STRIP)		+= strip/
-obj-$(CONFIG_ARLAN)		+= arlan/
 obj-$(CONFIG_WAVELAN)		+= wavelan/
 obj-$(CONFIG_PCMCIA_WAVELAN)	+= wavelan/
 obj-$(CONFIG_PCMCIA_NETWAVE)	+= netwave/
