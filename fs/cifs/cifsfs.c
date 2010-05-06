@@ -86,8 +86,6 @@ extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
-extern struct kmem_cache *cifs_oplock_cachep;
-
 static int
 cifs_read_super(struct super_block *sb, void *data,
 		const char *devname, int silent)
@@ -289,7 +287,6 @@ static int cifs_permission(struct inode *inode, int mask)
 static struct kmem_cache *cifs_inode_cachep;
 static struct kmem_cache *cifs_req_cachep;
 static struct kmem_cache *cifs_mid_cachep;
-struct kmem_cache *cifs_oplock_cachep;
 static struct kmem_cache *cifs_sm_req_cachep;
 mempool_t *cifs_sm_req_poolp;
 mempool_t *cifs_req_poolp;
@@ -939,15 +936,6 @@ cifs_init_mids(void)
 		return -ENOMEM;
 	}
 
-	cifs_oplock_cachep = kmem_cache_create("cifs_oplock_structs",
-					sizeof(struct oplock_q_entry), 0,
-					SLAB_HWCACHE_ALIGN, NULL);
-	if (cifs_oplock_cachep == NULL) {
-		mempool_destroy(cifs_mid_poolp);
-		kmem_cache_destroy(cifs_mid_cachep);
-		return -ENOMEM;
-	}
-
 	return 0;
 }
 
@@ -956,7 +944,6 @@ cifs_destroy_mids(void)
 {
 	mempool_destroy(cifs_mid_poolp);
 	kmem_cache_destroy(cifs_mid_cachep);
-	kmem_cache_destroy(cifs_oplock_cachep);
 }
 
 static int __init
