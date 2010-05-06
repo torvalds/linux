@@ -657,7 +657,7 @@ static int __devinit mpc_dma_probe(struct of_device *op,
 	}
 
 	regs_start = res.start;
-	regs_size = res.end - res.start + 1;
+	regs_size = resource_size(&res);
 
 	if (!devm_request_mem_region(dev, regs_start, regs_size, DRV_NAME)) {
 		dev_err(dev, "Error requesting memory region!\n");
