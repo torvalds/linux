@@ -1645,6 +1645,10 @@ xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
 			    "bad-rtype" : res_type_str[r_type-1]),
 			    ticket->t_res_arr[i].r_len);
 	}
+
+	xfs_cmn_err(XFS_PTAG_LOGRES, CE_ALERT, mp,
+		"xfs_log_write: reservation ran out. Need to up reservation");
+	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 }
 
 /*
@@ -1897,21 +1901,8 @@ xlog_write(
 	*start_lsn = 0;
 
 	len = xlog_write_calc_vec_length(ticket, log_vector);
-	if (ticket->t_curr_res < len) {
+	if (ticket->t_curr_res < len)
 		xlog_print_tic_res(log->l_mp, ticket);
-#ifdef DEBUG
-		xlog_panic(
-	"xfs_log_write: reservation ran out. Need to up reservation");
-#else
-		/* Customer configurable panic */
-		xfs_cmn_err(XFS_PTAG_LOGRES, CE_ALERT, log->l_mp,
-	"xfs_log_write: reservation ran out. Need to up reservation");
-
-		/* If we did not panic, shutdown the filesystem */
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_CORRUPT_INCORE);
-#endif
-	}
-
 	ticket->t_curr_res -= len;
 
 	index = 0;
