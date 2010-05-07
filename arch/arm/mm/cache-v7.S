@@ -167,7 +167,11 @@ ENTRY(v7_coherent_user_range)
 	cmp	r0, r1
 	blo	1b
 	mov	r0, #0
+#ifdef CONFIG_SMP
+	mcr	p15, 0, r0, c7, c1, 6		@ invalidate BTB Inner Shareable
+#else
 	mcr	p15, 0, r0, c7, c5, 6		@ invalidate BTB
+#endif
 	dsb
 	isb
 	mov	pc, lr
