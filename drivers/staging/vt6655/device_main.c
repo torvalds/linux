@@ -729,7 +729,7 @@ else
             pDevice->abyOFDMPwrTbl[ii+CB_MAX_CHANNEL_24G+1] = SROMbyReadEmbedded(pDevice->PortOffset, (BYTE)(ii + EEP_OFS_OFDMA_PWR_TBL));
             pDevice->abyOFDMDefaultPwr[ii+CB_MAX_CHANNEL_24G+1] = SROMbyReadEmbedded(pDevice->PortOffset, (BYTE)(ii + EEP_OFS_OFDMA_PWR_dBm));
         }
-        CARDvInitChannelTable((PVOID)pDevice);
+        CARDvInitChannelTable((void *)pDevice);
 
 
         if (pDevice->byLocalID > REV_ID_VT3253_B1) {
@@ -1074,7 +1074,7 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
     //Enable the chip specified capbilities
     pDevice->flags = pDevice->sOpts.flags | (pChip_info->flags & 0xFF000000UL);
     pDevice->tx_80211 = device_dma0_tx_80211;
-    pDevice->sMgmtObj.pAdapter = (PVOID)pDevice;
+    pDevice->sMgmtObj.pAdapter = (void *)pDevice;
     pDevice->pMgmt = &(pDevice->sMgmtObj);
 
     dev->irq                = pcid->irq;
@@ -1249,7 +1249,7 @@ device_release_WPADEV(pDevice);
         unregister_netdev(dev);
 
     if (pDevice->PortOffset)
-        iounmap((PVOID)pDevice->PortOffset);
+        iounmap((void *)pDevice->PortOffset);
 
     if (pDevice->pcid)
         pci_release_regions(pDevice->pcid);
@@ -1461,7 +1461,7 @@ static void device_free_rd0_ring(PSDevice pDevice) {
 
         dev_kfree_skb(pRDInfo->skb);
 
-        kfree((PVOID)pDesc->pRDInfo);
+        kfree((void *)pDesc->pRDInfo);
     }
 
 }
@@ -1479,7 +1479,7 @@ static void device_free_rd1_ring(PSDevice pDevice) {
 
         dev_kfree_skb(pRDInfo->skb);
 
-        kfree((PVOID)pDesc->pRDInfo);
+        kfree((void *)pDesc->pRDInfo);
     }
 
 }
@@ -1564,7 +1564,7 @@ static void device_free_td0_ring(PSDevice pDevice) {
         if (pTDInfo->skb)
             dev_kfree_skb(pTDInfo->skb);
 
-        kfree((PVOID)pDesc->pTDInfo);
+        kfree((void *)pDesc->pTDInfo);
     }
 }
 
@@ -1582,7 +1582,7 @@ static void device_free_td1_ring(PSDevice pDevice) {
         if (pTDInfo->skb)
             dev_kfree_skb(pTDInfo->skb);
 
-        kfree((PVOID)pDesc->pTDInfo);
+        kfree((void *)pDesc->pTDInfo);
     }
 
 }

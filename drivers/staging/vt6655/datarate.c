@@ -196,7 +196,7 @@ wGetRateIdx(
 -*/
 void
 RATEvParseMaxRate (
-    IN PVOID pDeviceHandler,
+    IN void *pDeviceHandler,
     IN PWLAN_IE_SUPP_RATES pItemRates,
     IN PWLAN_IE_SUPP_RATES pItemExtRates,
     IN BOOL bUpdateBasicRate,
@@ -235,7 +235,7 @@ UINT  uRateLen;
         if (WLAN_MGMT_IS_BASICRATE(byRate) &&
             (bUpdateBasicRate == TRUE))  {
             // Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate
-            CARDbAddBasicRate((PVOID)pDevice, wGetRateIdx(byRate));
+            CARDbAddBasicRate((void *)pDevice, wGetRateIdx(byRate));
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
         }
         byRate = (BYTE)(pItemRates->abyRates[ii]&0x7F);
@@ -258,7 +258,7 @@ UINT  uRateLen;
             // select highest basic rate
             if (WLAN_MGMT_IS_BASICRATE(pItemExtRates->abyRates[ii])) {
             	// Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate
-                CARDbAddBasicRate((PVOID)pDevice, wGetRateIdx(byRate));
+                CARDbAddBasicRate((void *)pDevice, wGetRateIdx(byRate));
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
             }
             byRate = (BYTE)(pItemExtRates->abyRates[ii]&0x7F);
@@ -271,7 +271,7 @@ UINT  uRateLen;
         }
     } //if(pItemExtRates != NULL)
 
-    if ((pDevice->byPacketType == PK_TYPE_11GB) && CARDbIsOFDMinBasicRate((PVOID)pDevice)) {
+    if ((pDevice->byPacketType == PK_TYPE_11GB) && CARDbIsOFDMinBasicRate((void *)pDevice)) {
         pDevice->byPacketType = PK_TYPE_11GA;
     }
 
@@ -283,7 +283,7 @@ UINT  uRateLen;
     else
        *pwMaxBasicRate = pDevice->byTopOFDMBasicRate;
     if (wOldBasicRate != pDevice->wBasicRate)
-        CARDvSetRSPINF((PVOID)pDevice, pDevice->eCurrentPHYType);
+        CARDvSetRSPINF((void *)pDevice, pDevice->eCurrentPHYType);
 
      DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Exit ParseMaxRate\n");
 }
@@ -309,7 +309,7 @@ UINT  uRateLen;
 
 void
 RATEvTxRateFallBack (
-    IN PVOID pDeviceHandler,
+    IN void *pDeviceHandler,
     IN PKnownNodeDB psNodeDBTable
     )
 {

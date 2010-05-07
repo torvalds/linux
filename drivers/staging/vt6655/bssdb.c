@@ -764,7 +764,7 @@ BSSbUpdateToBSSList (
 
 BOOL
 BSSDBbIsSTAInNodeDB(
-    IN PVOID pMgmtObject,
+    IN void *pMgmtObject,
     IN PBYTE abyDstAddr,
     OUT PUINT puNodeIndex
     )
@@ -919,7 +919,7 @@ BSSvUpdateAPNode(
     pMgmt->abyCurrExtSuppRates[1] = RATEuSetIE((PWLAN_IE_SUPP_RATES)pExtSuppRates,
                                             (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates,
                                             uRateLen);
-    RATEvParseMaxRate((PVOID) pDevice,
+    RATEvParseMaxRate((void *)pDevice,
                        (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                        (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates,
                        TRUE,
@@ -972,7 +972,7 @@ BSSvAddMulticastNode(
     pMgmt->sNodeDBTable[0].bActive = TRUE;
     pMgmt->sNodeDBTable[0].bPSEnable = FALSE;
     skb_queue_head_init(&pMgmt->sNodeDBTable[0].sTxPSQueue);
-    RATEvParseMaxRate((PVOID) pDevice,
+    RATEvParseMaxRate((void *)pDevice,
                       (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
                       (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates,
                       TRUE,
@@ -1162,7 +1162,7 @@ start:
 */
                 if (ii > 0) {
                     // ii = 0 for multicast node (AP & Adhoc)
-                    RATEvTxRateFallBack((PVOID)pDevice, &(pMgmt->sNodeDBTable[ii]));
+                    RATEvTxRateFallBack((void *)pDevice, &(pMgmt->sNodeDBTable[ii]));
                 }
                 else {
                     // ii = 0 reserved for unicast AP node (Infra STA)
@@ -1170,7 +1170,7 @@ start:
 #ifdef	PLICE_DEBUG
 		printk("SecondCallback:Before:TxDataRate is %d\n",pMgmt->sNodeDBTable[0].wTxDataRate);
 #endif
-                        RATEvTxRateFallBack((PVOID)pDevice, &(pMgmt->sNodeDBTable[ii]));
+                        RATEvTxRateFallBack((void *)pDevice, &(pMgmt->sNodeDBTable[ii]));
 #ifdef	PLICE_DEBUG
 		printk("SecondCallback:After:TxDataRate is %d\n",pMgmt->sNodeDBTable[0].wTxDataRate);
 #endif
@@ -1215,14 +1215,14 @@ start:
             if (pDevice->bShortSlotTime) {
                 pDevice->bShortSlotTime = FALSE;
                 BBvSetShortSlotTime(pDevice);
-                vUpdateIFS((PVOID)pDevice);
+                vUpdateIFS((void *)pDevice);
             }
         }
         else {
             if (!pDevice->bShortSlotTime) {
                 pDevice->bShortSlotTime = TRUE;
                 BBvSetShortSlotTime(pDevice);
-                vUpdateIFS((PVOID)pDevice);
+                vUpdateIFS((void *)pDevice);
             }
         }
 

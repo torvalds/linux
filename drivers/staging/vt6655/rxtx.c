@@ -133,7 +133,7 @@ void
 s_vFillRTSHead(
     IN PSDevice         pDevice,
     IN BYTE             byPktType,
-    IN PVOID            pvRTS,
+    IN void *           pvRTS,
     IN UINT             cbFrameLength,
     IN BOOL             bNeedAck,
     IN BOOL             bDisCRC,
@@ -147,10 +147,10 @@ void
 s_vGenerateTxParameter(
     IN PSDevice         pDevice,
     IN  BYTE            byPktType,
-    IN PVOID            pTxBufHead,
-    IN PVOID            pvRrvTime,
-    IN PVOID            pvRTS,
-    IN PVOID            pvCTS,
+    IN void *           pTxBufHead,
+    IN void *           pvRrvTime,
+    IN void *           pvRTS,
+    IN void *           pvCTS,
     IN UINT             cbFrameSize,
     IN BOOL             bNeedACK,
     IN UINT             uDMAIdx,
@@ -164,7 +164,7 @@ static void s_vFillFragParameter(
     IN PSDevice pDevice,
     IN PBYTE    pbyBuffer,
     IN UINT     uTxType,
-    IN PVOID    pvtdCurr,
+    IN void *   pvtdCurr,
     IN WORD     wFragType,
     IN UINT     cbReqCount
     );
@@ -193,7 +193,7 @@ UINT
 s_uFillDataHead (
     IN PSDevice pDevice,
     IN BYTE     byPktType,
-    IN PVOID    pTxDataHead,
+    IN void *   pTxDataHead,
     IN UINT     cbFrameLength,
     IN UINT     uDMAIdx,
     IN BOOL     bNeedAck,
@@ -723,7 +723,7 @@ UINT
 s_uFillDataHead (
     IN PSDevice pDevice,
     IN BYTE     byPktType,
-    IN PVOID    pTxDataHead,
+    IN void *   pTxDataHead,
     IN UINT     cbFrameLength,
     IN UINT     uDMAIdx,
     IN BOOL     bNeedAck,
@@ -855,7 +855,7 @@ void
 s_vFillRTSHead (
     IN PSDevice         pDevice,
     IN BYTE             byPktType,
-    IN PVOID            pvRTS,
+    IN void *           pvRTS,
     IN UINT             cbFrameLength,
     IN BOOL             bNeedAck,
     IN BOOL             bDisCRC,
@@ -1050,7 +1050,7 @@ s_vFillCTSHead (
     IN PSDevice pDevice,
     IN UINT     uDMAIdx,
     IN BYTE     byPktType,
-    IN PVOID    pvCTS,
+    IN void *   pvCTS,
     IN UINT     cbFrameLength,
     IN BOOL     bNeedAck,
     IN BOOL     bDisCRC,
@@ -1154,10 +1154,10 @@ void
 s_vGenerateTxParameter (
     IN PSDevice         pDevice,
     IN BYTE             byPktType,
-    IN PVOID            pTxBufHead,
-    IN PVOID            pvRrvTime,
-    IN PVOID            pvRTS,
-    IN PVOID            pvCTS,
+    IN void *           pTxBufHead,
+    IN void *           pvRrvTime,
+    IN void *           pvRTS,
+    IN void *           pvCTS,
     IN UINT             cbFrameSize,
     IN BOOL             bNeedACK,
     IN UINT             uDMAIdx,
@@ -1273,7 +1273,7 @@ s_vFillFragParameter(
     IN PSDevice pDevice,
     IN PBYTE    pbyBuffer,
     IN UINT     uTxType,
-    IN PVOID    pvtdCurr,
+    IN void *   pvtdCurr,
     IN WORD     wFragType,
     IN UINT     cbReqCount
     )
@@ -1376,11 +1376,11 @@ s_cbFillTxBufHead (
     PSTxBufHead    psTxBufHd = (PSTxBufHead) pbyTxBufferAddr;
 //    UINT           tmpDescIdx;
     UINT           cbHeaderLength = 0;
-    PVOID          pvRrvTime;
+    void *         pvRrvTime;
     PSMICHDRHead   pMICHDR;
-    PVOID          pvRTS;
-    PVOID          pvCTS;
-    PVOID          pvTxDataHd;
+    void *         pvRTS;
+    void *         pvCTS;
+    void *         pvTxDataHd;
     WORD           wTxBufSize;   // FFinfo size
     UINT           uTotalCopyLength = 0;
     BYTE           byFBOption = AUTO_FB_NONE;
@@ -1544,7 +1544,7 @@ s_cbFillTxBufHead (
             }
         } // Auto Fall Back
     }
-    memset((PVOID)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderLength - wTxBufSize));
+    memset((void *)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderLength - wTxBufSize));
 
 //////////////////////////////////////////////////////////////////
     if ((bNeedEncrypt == TRUE) && (pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
@@ -1600,7 +1600,7 @@ s_cbFillTxBufHead (
 
 
                 //Fill FIFO,RrvTime,RTS,and CTS
-                s_vGenerateTxParameter(pDevice, byPktType, (PVOID)psTxBufHd, pvRrvTime, pvRTS, pvCTS,
+                s_vGenerateTxParameter(pDevice, byPktType, (void *)psTxBufHd, pvRrvTime, pvRTS, pvCTS,
                                        cbFragmentSize, bNeedACK, uDMAIdx, psEthHeader, pDevice->wCurrentRate);
                 //Fill DataHead
                 uDuration = s_uFillDataHead(pDevice, byPktType, pvTxDataHd, cbFragmentSize, uDMAIdx, bNeedACK,
@@ -1643,7 +1643,7 @@ s_cbFillTxBufHead (
                 //if (pDevice->bAES) {
                 //    s_vFillMICHDR(pDevice, (PBYTE)pMICHDR, pbyMacHdr, (WORD)cbFragPayloadSize);
                 //}
-                //cbReqCount += s_uDoEncryption(pDevice, psEthHeader, (PVOID)psTxBufHd, byKeySel,
+                //cbReqCount += s_uDoEncryption(pDevice, psEthHeader, (void *)psTxBufHd, byKeySel,
                 //                                pbyPayloadHead, (WORD)cbFragPayloadSize, uDMAIdx);
 
 
@@ -1653,7 +1653,7 @@ s_cbFillTxBufHead (
 
                 uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen + cb802_1_H_len;
                 //copy TxBufferHeader + MacHeader to desc
-                memcpy(pbyBuffer, (PVOID)psTxBufHd, uLength);
+                memcpy(pbyBuffer, (void *)psTxBufHd, uLength);
 
                 // Copy the Packet into a tx Buffer
                 memcpy((pbyBuffer + uLength), (pPacket + 14), (cbFragPayloadSize - cb802_1_H_len));
@@ -1685,7 +1685,7 @@ s_cbFillTxBufHead (
                 //4.Set Sequence Control
                 //5.Get S/W generate FCS
                 //--------------------
-                s_vFillFragParameter(pDevice, pbyBuffer, uDMAIdx, (PVOID)ptdCurr, wFragType, cbReqCount);
+                s_vFillFragParameter(pDevice, pbyBuffer, uDMAIdx, (void *)ptdCurr, wFragType, cbReqCount);
 
                 ptdCurr->pTDInfo->dwReqCount = cbReqCount - uPadding;
                 ptdCurr->pTDInfo->dwHeaderLength = cbHeaderLength;
@@ -1704,7 +1704,7 @@ s_cbFillTxBufHead (
                 wFragType = FRAGCTL_ENDFRAG;
 
                 //Fill FIFO,RrvTime,RTS,and CTS
-                s_vGenerateTxParameter(pDevice, byPktType, (PVOID)psTxBufHd, pvRrvTime, pvRTS, pvCTS,
+                s_vGenerateTxParameter(pDevice, byPktType, (void *)psTxBufHd, pvRrvTime, pvRTS, pvCTS,
                                        cbLastFragmentSize, bNeedACK, uDMAIdx, psEthHeader, pDevice->wCurrentRate);
                 //Fill DataHead
                 uDuration = s_uFillDataHead(pDevice, byPktType, pvTxDataHd, cbLastFragmentSize, uDMAIdx, bNeedACK,
@@ -1740,7 +1740,7 @@ s_cbFillTxBufHead (
                 uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen;
 
                 //copy TxBufferHeader + MacHeader to desc
-                memcpy(pbyBuffer, (PVOID)psTxBufHd, uLength);
+                memcpy(pbyBuffer, (void *)psTxBufHd, uLength);
 
                 // Copy the Packet into a tx Buffer
                 if (bMIC2Frag == FALSE) {
@@ -1814,7 +1814,7 @@ s_cbFillTxBufHead (
                 //--------------------
 
 
-                s_vFillFragParameter(pDevice, pbyBuffer, uDMAIdx, (PVOID)ptdCurr, wFragType, cbReqCount);
+                s_vFillFragParameter(pDevice, pbyBuffer, uDMAIdx, (void *)ptdCurr, wFragType, cbReqCount);
 
                 ptdCurr->pTDInfo->dwReqCount = cbReqCount - uPadding;
                 ptdCurr->pTDInfo->dwHeaderLength = cbHeaderLength;
@@ -1834,7 +1834,7 @@ s_cbFillTxBufHead (
                 wFragType = FRAGCTL_MIDFRAG;
 
                 //Fill FIFO,RrvTime,RTS,and CTS
-                s_vGenerateTxParameter(pDevice, byPktType, (PVOID)psTxBufHd, pvRrvTime, pvRTS, pvCTS,
+                s_vGenerateTxParameter(pDevice, byPktType, (void *)psTxBufHd, pvRrvTime, pvRTS, pvCTS,
                                        cbFragmentSize, bNeedACK, uDMAIdx, psEthHeader, pDevice->wCurrentRate);
                 //Fill DataHead
                 uDuration = s_uFillDataHead(pDevice, byPktType, pvTxDataHd, cbFragmentSize, uDMAIdx, bNeedACK,
@@ -1864,7 +1864,7 @@ s_cbFillTxBufHead (
                 //if (pDevice->bAES) {
                 //    s_vFillMICHDR(pDevice, (PBYTE)pMICHDR, pbyMacHdr, (WORD)cbFragPayloadSize);
                 //}
-                //cbReqCount += s_uDoEncryption(pDevice, psEthHeader, (PVOID)psTxBufHd, byKeySel,
+                //cbReqCount += s_uDoEncryption(pDevice, psEthHeader, (void *)psTxBufHd, byKeySel,
                 //                              pbyPayloadHead, (WORD)cbFragPayloadSize, uDMAIdx);
 
 
@@ -1875,7 +1875,7 @@ s_cbFillTxBufHead (
                 uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen;
 
                 //copy TxBufferHeader + MacHeader to desc
-                memcpy(pbyBuffer, (PVOID)psTxBufHd, uLength);
+                memcpy(pbyBuffer, (void *)psTxBufHd, uLength);
 
                 // Copy the Packet into a tx Buffer
                 memcpy((pbyBuffer + uLength),
@@ -1941,7 +1941,7 @@ s_cbFillTxBufHead (
                 //5.Get S/W generate FCS
                 //--------------------
 
-                s_vFillFragParameter(pDevice, pbyBuffer, uDMAIdx, (PVOID)ptdCurr, wFragType, cbReqCount);
+                s_vFillFragParameter(pDevice, pbyBuffer, uDMAIdx, (void *)ptdCurr, wFragType, cbReqCount);
 
                 ptdCurr->pTDInfo->dwReqCount = cbReqCount - uPadding;
                 ptdCurr->pTDInfo->dwHeaderLength = cbHeaderLength;
@@ -1964,7 +1964,7 @@ s_cbFillTxBufHead (
         psTxBufHd->wFragCtl |= (WORD)wFragType;
 
         //Fill FIFO,RrvTime,RTS,and CTS
-        s_vGenerateTxParameter(pDevice, byPktType, (PVOID)psTxBufHd, pvRrvTime, pvRTS, pvCTS,
+        s_vGenerateTxParameter(pDevice, byPktType, (void *)psTxBufHd, pvRrvTime, pvRTS, pvCTS,
                                cbFrameSize, bNeedACK, uDMAIdx, psEthHeader, pDevice->wCurrentRate);
         //Fill DataHead
         uDuration = s_uFillDataHead(pDevice, byPktType, pvTxDataHd, cbFrameSize, uDMAIdx, bNeedACK,
@@ -2015,7 +2015,7 @@ s_cbFillTxBufHead (
         uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen + cb802_1_H_len;
 
         //copy TxBufferHeader + MacHeader to desc
-        memcpy(pbyBuffer, (PVOID)psTxBufHd, uLength);
+        memcpy(pbyBuffer, (void *)psTxBufHd, uLength);
 
         // Copy the Packet into a tx Buffer
         memcpy((pbyBuffer + uLength),
@@ -2342,9 +2342,9 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
     PSTxDesc        pFrstTD;
     BYTE            byPktType;
     PBYTE           pbyTxBufferAddr;
-    PVOID           pvRTS;
+    void *          pvRTS;
     PSCTS           pCTS;
-    PVOID           pvTxDataHd;
+    void *          pvTxDataHd;
     UINT            uDuration;
     UINT            cbReqCount;
     PS802_11Header  pMACHeader;
@@ -2362,8 +2362,8 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
     WORD            wTxBufSize;
     UINT            cbMacHdLen;
     SEthernetHeader sEthHeader;
-    PVOID           pvRrvTime;
-    PVOID           pMICHDR;
+    void *          pvRrvTime;
+    void *          pMICHDR;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     WORD            wCurrentRate = RATE_1M;
 
@@ -2516,7 +2516,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
         cbHeaderSize = wTxBufSize + sizeof(SRrvTime_ab) + sizeof(STxDataHead_ab);
     }
 
-    memset((PVOID)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderSize - wTxBufSize));
+    memset((void *)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderSize - wTxBufSize));
 
     memcpy(&(sEthHeader.abyDstAddr[0]), &(pPacket->p80211Header->sA3.abyAddr1[0]), U_ETHER_ADDR_LEN);
     memcpy(&(sEthHeader.abySrcAddr[0]), &(pPacket->p80211Header->sA3.abyAddr2[0]), U_ETHER_ADDR_LEN);
@@ -2831,9 +2831,9 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDU
     PSTxDesc        pFrstTD;
     BYTE            byPktType;
     PBYTE           pbyTxBufferAddr;
-    PVOID           pvRTS;
-    PVOID           pvCTS;
-    PVOID           pvTxDataHd;
+    void *          pvRTS;
+    void *          pvCTS;
+    void *          pvTxDataHd;
     UINT            uDuration;
     UINT            cbReqCount;
     PS802_11Header  pMACHeader;
@@ -2857,8 +2857,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDU
     WORD            wTxBufSize;
     UINT            cbMacHdLen;
     SEthernetHeader sEthHeader;
-    PVOID           pvRrvTime;
-    PVOID           pMICHDR;
+    void *          pvRrvTime;
+    void *          pMICHDR;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     WORD            wCurrentRate = RATE_1M;
     PUWLAN_80211HDR  p80211Header;
@@ -3061,7 +3061,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDU
 
     }
 
-    memset((PVOID)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderSize - wTxBufSize));
+    memset((void *)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderSize - wTxBufSize));
     memcpy(&(sEthHeader.abyDstAddr[0]), &(p80211Header->sA3.abyAddr1[0]), U_ETHER_ADDR_LEN);
     memcpy(&(sEthHeader.abySrcAddr[0]), &(p80211Header->sA3.abyAddr2[0]), U_ETHER_ADDR_LEN);
     //=========================

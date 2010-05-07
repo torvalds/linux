@@ -104,10 +104,10 @@ void KeyvInitTable (PSKeyManagement pTable, DWORD_PTR dwIoBase)
     for (i=0;i<MAX_KEY_TABLE;i++) {
         pTable->KeyTable[i].bInUse = FALSE;
         pTable->KeyTable[i].PairwiseKey.bKeyValid = FALSE;
-        pTable->KeyTable[i].PairwiseKey.pvKeyTable = (PVOID)&pTable->KeyTable[i];
+        pTable->KeyTable[i].PairwiseKey.pvKeyTable = (void *)&pTable->KeyTable[i];
         for (jj=0; jj < MAX_GROUP_KEY; jj++) {
             pTable->KeyTable[i].GroupKey[jj].bKeyValid = FALSE;
-            pTable->KeyTable[i].GroupKey[jj].pvKeyTable = (PVOID)&pTable->KeyTable[i];
+            pTable->KeyTable[i].GroupKey[jj].pvKeyTable = (void *)&pTable->KeyTable[i];
         }
         pTable->KeyTable[i].wKeyCtl = 0;
         pTable->KeyTable[i].dwGTKeyIndex = 0;

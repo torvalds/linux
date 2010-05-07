@@ -142,7 +142,7 @@ typedef enum tagWMAC_POWER_MODE {
 
 void
 VNTWIFIvSetIBSSParameter (
-    IN PVOID pMgmtHandle,
+    IN void *pMgmtHandle,
     IN WORD  wBeaconPeriod,
     IN WORD  wATIMWindow,
     IN UINT  uChannel
@@ -150,23 +150,23 @@ VNTWIFIvSetIBSSParameter (
 
 void
 VNTWIFIvSetOPMode (
-    IN PVOID pMgmtHandle,
+    IN void *pMgmtHandle,
     IN WMAC_CONFIG_MODE eOPMode
     );
 
 PWLAN_IE_SSID
 VNTWIFIpGetCurrentSSID(
-    IN PVOID pMgmtHandle
+    IN void *pMgmtHandle
     );
 
 UINT
 VNTWIFIpGetCurrentChannel(
-    IN PVOID pMgmtHandle
+    IN void *pMgmtHandle
     );
 
 WORD
 VNTWIFIwGetAssocID (
-    IN PVOID pMgmtHandle
+    IN void *pMgmtHandle
     );
 
 BYTE
@@ -184,34 +184,34 @@ VNTWIFIbyGetACKTxRate (
 
 void
 VNTWIFIvSetAuthenticationMode (
-    IN PVOID pMgmtHandle,
+    IN void *pMgmtHandle,
     IN WMAC_AUTHENTICATION_MODE eAuthMode
     );
 
 void
 VNTWIFIvSetEncryptionMode (
-    IN PVOID pMgmtHandle,
+    IN void *pMgmtHandle,
     IN WMAC_ENCRYPTION_MODE eEncryptionMode
     );
 
 
 BOOL
 VNTWIFIbConfigPhyMode(
-    IN PVOID pMgmtHandle,
+    IN void *pMgmtHandle,
     IN CARD_PHY_TYPE ePhyType
     );
 
 void
 VNTWIFIbGetConfigPhyMode(
-    IN  PVOID pMgmtHandle,
-    OUT PVOID pePhyType
+    IN  void *pMgmtHandle,
+    OUT void *pePhyType
     );
 
 void
 VNTWIFIvQueryBSSList(
-    IN PVOID    pMgmtHandle,
+    IN void *pMgmtHandle,
     OUT PUINT   puBSSCount,
-    OUT PVOID   *pvFirstBSS
+    OUT void **pvFirstBSS
     );
 
 
@@ -219,16 +219,16 @@ VNTWIFIvQueryBSSList(
 
 void
 VNTWIFIvGetNextBSS (
-    IN PVOID            pMgmtHandle,
-    IN PVOID            pvCurrentBSS,
-    OUT PVOID           *pvNextBSS
+    IN void *pMgmtHandle,
+    IN void *pvCurrentBSS,
+    OUT void **pvNextBSS
     );
 
 
 
 void
 VNTWIFIvUpdateNodeTxCounter(
-    IN PVOID    pMgmtHandle,
+    IN void *pMgmtHandle,
     IN PBYTE    pbyDestAddress,
     IN BOOL     bTxOk,
     IN WORD     wRate,
@@ -238,7 +238,7 @@ VNTWIFIvUpdateNodeTxCounter(
 
 void
 VNTWIFIvGetTxRate(
-    IN PVOID    pMgmtHandle,
+    IN void *pMgmtHandle,
     IN PBYTE    pbyDestAddress,
     OUT PWORD   pwTxDataRate,
     OUT PBYTE   pbyACKRate,
@@ -248,14 +248,14 @@ VNTWIFIvGetTxRate(
 /*
 BOOL
 VNTWIFIbInit(
-    IN PVOID    pAdapterHandler,
-    OUT PVOID   *pMgmtHandler
+    IN void *pAdapterHandler,
+    OUT void **pMgmtHandler
     );
 */
 
 BYTE
 VNTWIFIbyGetKeyCypher(
-    IN PVOID    pMgmtHandle,
+    IN void *pMgmtHandle,
     IN BOOL     bGroupKey
     );
 
@@ -264,33 +264,33 @@ VNTWIFIbyGetKeyCypher(
 
 BOOL
 VNTWIFIbSetPMKIDCache (
-    IN PVOID pMgmtObject,
+    IN void *pMgmtObject,
     IN ULONG ulCount,
-    IN PVOID pPMKIDInfo
+    IN void *pPMKIDInfo
     );
 
 BOOL
 VNTWIFIbCommandRunning (
-    IN PVOID pMgmtObject
+    IN void *pMgmtObject
     );
 
 WORD
 VNTWIFIwGetMaxSupportRate(
-    IN PVOID pMgmtObject
+    IN void *pMgmtObject
     );
 
 // for 802.11h
 void
 VNTWIFIvSet11h (
-    IN PVOID pMgmtObject,
+    IN void *pMgmtObject,
     IN BOOL  b11hEnable
     );
 
 BOOL
 VNTWIFIbMeasureReport(
-    IN PVOID pMgmtObject,
+    IN void *pMgmtObject,
     IN BOOL  bEndOfReport,
-    IN PVOID pvMeasureEID,
+    IN void *pvMeasureEID,
     IN BYTE  byReportMode,
     IN BYTE  byBasicMap,
     IN BYTE  byCCAFraction,
@@ -299,13 +299,13 @@ VNTWIFIbMeasureReport(
 
 BOOL
 VNTWIFIbChannelSwitch(
-    IN PVOID pMgmtObject,
+    IN void *pMgmtObject,
     IN BYTE  byNewChannel
     );
 /*
 BOOL
 VNTWIFIbRadarPresent(
-    IN PVOID pMgmtObject,
+    IN void *pMgmtObject,
     IN BYTE  byChannel
     );
 */

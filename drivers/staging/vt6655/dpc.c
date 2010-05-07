@@ -314,7 +314,7 @@ s_vGetDASA (
 
 //PLICE_DEBUG ->
 
-void	MngWorkItem(PVOID Context)
+void	MngWorkItem(void *Context)
 {
 	PSRxMgmtPacket			pRxMgmtPacket;
 	PSDevice	pDevice =  (PSDevice) Context;

@@ -612,7 +612,7 @@ s_vCaculateOFDMRParameter (
  */
 static
 void
-s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, PVOID pvSupportRateIEs, PVOID pvExtSupportRateIEs)
+s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, void *pvExtSupportRateIEs)
 {
     BYTE  byServ = 0, bySignal = 0; // For CCK
     WORD  wLen = 0;
@@ -728,7 +728,7 @@ s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, PVOID pvSupportRateIEs, 
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-BYTE CARDbyGetChannelMapping (PVOID pDeviceHandler, BYTE byChannelNumber, CARD_PHY_TYPE ePhyType)
+BYTE CARDbyGetChannelMapping (void *pDeviceHandler, BYTE byChannelNumber, CARD_PHY_TYPE ePhyType)
 {
     UINT        ii;
 
@@ -746,7 +746,7 @@ BYTE CARDbyGetChannelMapping (PVOID pDeviceHandler, BYTE byChannelNumber, CARD_P
 }
 
 
-BYTE CARDbyGetChannelNumber (PVOID pDeviceHandler, BYTE byChannelIndex)
+BYTE CARDbyGetChannelNumber (void *pDeviceHandler, BYTE byChannelIndex)
 {
 //    PSDevice    pDevice = (PSDevice) pDeviceHandler;
     return(sChannelTbl[byChannelIndex].byChannelNumber);
@@ -765,7 +765,7 @@ BYTE CARDbyGetChannelNumber (PVOID pDeviceHandler, BYTE byChannelIndex)
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL CARDbSetChannel (PVOID pDeviceHandler, UINT uConnectionChannel)
+BOOL CARDbSetChannel (void *pDeviceHandler, UINT uConnectionChannel)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     BOOL        bResult = TRUE;
@@ -853,7 +853,7 @@ BOOL CARDbSetChannel (PVOID pDeviceHandler, UINT uConnectionChannel)
  *
  */
 /*
-BOOL CARDbSendPacket (PVOID pDeviceHandler, PVOID pPacket, CARD_PKT_TYPE ePktType, UINT uLength)
+BOOL CARDbSendPacket (void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, UINT uLength)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     if (ePktType == PKT_TYPE_802_11_MNG) {
@@ -881,7 +881,7 @@ BOOL CARDbSendPacket (PVOID pDeviceHandler, PVOID pPacket, CARD_PKT_TYPE ePktTyp
  * Return Value: TRUE if short preamble; otherwise FALSE
  *
  */
-BOOL CARDbIsShortPreamble (PVOID pDeviceHandler)
+BOOL CARDbIsShortPreamble (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     if (pDevice->byPreambleType == 0) {
@@ -902,7 +902,7 @@ BOOL CARDbIsShortPreamble (PVOID pDeviceHandler)
  * Return Value: TRUE if short slot time; otherwise FALSE
  *
  */
-BOOL CARDbIsShorSlotTime (PVOID pDeviceHandler)
+BOOL CARDbIsShorSlotTime (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     return(pDevice->bShortSlotTime);
@@ -921,7 +921,7 @@ BOOL CARDbIsShorSlotTime (PVOID pDeviceHandler)
  * Return Value: None.
  *
  */
-BOOL CARDbSetPhyParameter (PVOID pDeviceHandler, CARD_PHY_TYPE ePHYType, WORD wCapInfo, BYTE byERPField, PVOID pvSupportRateIEs, PVOID pvExtSupportRateIEs)
+BOOL CARDbSetPhyParameter (void *pDeviceHandler, CARD_PHY_TYPE ePHYType, WORD wCapInfo, BYTE byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     BYTE        byCWMaxMin = 0;
@@ -1108,7 +1108,7 @@ BOOL CARDbSetPhyParameter (PVOID pDeviceHandler, CARD_PHY_TYPE ePHYType, WORD wC
  * Return Value: none
  *
  */
-BOOL CARDbUpdateTSF (PVOID pDeviceHandler, BYTE byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF)
+BOOL CARDbUpdateTSF (void *pDeviceHandler, BYTE byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     QWORD       qwTSFOffset;
@@ -1143,7 +1143,7 @@ BOOL CARDbUpdateTSF (PVOID pDeviceHandler, BYTE byRxRate, QWORD qwBSSTimestamp, 
  * Return Value: TRUE if succeed; otherwise FALSE
  *
  */
-BOOL CARDbSetBeaconPeriod (PVOID pDeviceHandler, WORD wBeaconInterval)
+BOOL CARDbSetBeaconPeriod (void *pDeviceHandler, WORD wBeaconInterval)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     UINT        uBeaconInterval = 0;
@@ -1197,7 +1197,7 @@ BOOL CARDbSetBeaconPeriod (PVOID pDeviceHandler, WORD wBeaconInterval)
  * Return Value: TRUE if all data packet complete; otherwise FALSE.
  *
  */
-BOOL CARDbStopTxPacket (PVOID pDeviceHandler, CARD_PKT_TYPE ePktType)
+BOOL CARDbStopTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
@@ -1255,7 +1255,7 @@ BOOL CARDbStopTxPacket (PVOID pDeviceHandler, CARD_PKT_TYPE ePktType)
  * Return Value: TRUE if success; FALSE if failed.
  *
  */
-BOOL CARDbStartTxPacket (PVOID pDeviceHandler, CARD_PKT_TYPE ePktType)
+BOOL CARDbStartTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
@@ -1297,7 +1297,7 @@ BOOL CARDbStartTxPacket (PVOID pDeviceHandler, CARD_PKT_TYPE ePktType)
  * Return Value: TRUE if success; FALSE if failed.
  *
  */
-BOOL CARDbSetBSSID(PVOID pDeviceHandler, PBYTE pbyBSSID, CARD_OP_MODE eOPMode)
+BOOL CARDbSetBSSID(void *pDeviceHandler, PBYTE pbyBSSID, CARD_OP_MODE eOPMode)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
@@ -1367,7 +1367,7 @@ BOOL CARDbSetBSSID(PVOID pDeviceHandler, PBYTE pbyBSSID, CARD_OP_MODE eOPMode)
  *
  */
 BOOL CARDbSetTxDataRate(
-    PVOID   pDeviceHandler,
+    void *pDeviceHandler,
     WORD    wDataRate
     )
 {
@@ -1393,7 +1393,7 @@ BOOL CARDbSetTxDataRate(
 -*/
 BOOL
 CARDbPowerDown(
-    PVOID   pDeviceHandler
+    void *pDeviceHandler
     )
 {
     PSDevice        pDevice = (PSDevice)pDeviceHandler;
@@ -1430,7 +1430,7 @@ CARDbPowerDown(
  * Return Value: TRUE if success; otherwise FALSE
  *
  */
-BOOL CARDbRadioPowerOff (PVOID pDeviceHandler)
+BOOL CARDbRadioPowerOff (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     BOOL        bResult = TRUE;
@@ -1479,7 +1479,7 @@ MACvRegBitsOn(pDevice->PortOffset, MAC_REG_GPIOCTL0, LED_ACTSET);  //LED issue
  * Return Value: TRUE if success; otherwise FALSE
  *
  */
-BOOL CARDbRadioPowerOn (PVOID pDeviceHandler)
+BOOL CARDbRadioPowerOn (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     BOOL        bResult = TRUE;
@@ -1523,7 +1523,7 @@ MACvRegBitsOff(pDevice->PortOffset, MAC_REG_GPIOCTL0, LED_ACTSET); //LED issue
 
 
 
-BOOL CARDbRemoveKey (PVOID pDeviceHandler, PBYTE pbyBSSID)
+BOOL CARDbRemoveKey (void *pDeviceHandler, PBYTE pbyBSSID)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
@@ -1550,7 +1550,7 @@ BOOL CARDbRemoveKey (PVOID pDeviceHandler, PBYTE pbyBSSID)
 -*/
 BOOL
 CARDbAdd_PMKID_Candidate (
-    IN PVOID            pDeviceHandler,
+    IN void *pDeviceHandler,
     IN PBYTE            pbyBSSID,
     IN BOOL             bRSNCapExist,
     IN WORD             wRSNCap
@@ -1599,9 +1599,9 @@ CARDbAdd_PMKID_Candidate (
     return TRUE;
 }
 
-PVOID
+void *
 CARDpGetCurrentAddress (
-    IN PVOID            pDeviceHandler
+    IN void *pDeviceHandler
     )
 {
     PSDevice            pDevice = (PSDevice) pDeviceHandler;
@@ -1611,7 +1611,7 @@ CARDpGetCurrentAddress (
 
 
 
-void CARDvInitChannelTable (PVOID pDeviceHandler)
+void CARDvInitChannelTable (void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     BOOL        bMultiBand = FALSE;
@@ -1708,8 +1708,8 @@ void CARDvInitChannelTable (PVOID pDeviceHandler)
 -*/
 BOOL
 CARDbStartMeasure (
-    IN PVOID            pDeviceHandler,
-    IN PVOID            pvMeasureEIDs,
+    IN void *pDeviceHandler,
+    IN void *pvMeasureEIDs,
     IN UINT             uNumOfMeasureEIDs
     )
 {
@@ -1835,7 +1835,7 @@ CARDbStartMeasure (
 -*/
 BOOL
 CARDbChannelSwitch (
-    IN PVOID            pDeviceHandler,
+    IN void *pDeviceHandler,
     IN BYTE             byMode,
     IN BYTE             byNewChannel,
     IN BYTE             byCount
@@ -1878,7 +1878,7 @@ CARDbChannelSwitch (
 -*/
 BOOL
 CARDbSetQuiet (
-    IN PVOID            pDeviceHandler,
+    IN void *pDeviceHandler,
     IN BOOL             bResetQuiet,
     IN BYTE             byQuietCount,
     IN BYTE             byQuietPeriod,
@@ -1934,7 +1934,7 @@ CARDbSetQuiet (
 -*/
 BOOL
 CARDbStartQuiet (
-    IN PVOID            pDeviceHandler
+    IN void *pDeviceHandler
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2035,9 +2035,9 @@ CARDbStartQuiet (
 -*/
 void
 CARDvSetCountryInfo (
-    IN PVOID            pDeviceHandler,
+    IN void *pDeviceHandler,
     IN CARD_PHY_TYPE    ePHYType,
-    IN PVOID            pIE
+    IN void *pIE
     )
 {
     PSDevice            pDevice = (PSDevice) pDeviceHandler;
@@ -2094,7 +2094,7 @@ CARDvSetCountryInfo (
 -*/
 void
 CARDvSetPowerConstraint (
-    IN PVOID            pDeviceHandler,
+    IN void *pDeviceHandler,
     IN BYTE             byChannel,
     IN I8               byPower
     )
@@ -2129,7 +2129,7 @@ CARDvSetPowerConstraint (
 -*/
 void
 CARDvGetPowerCapability (
-    IN PVOID            pDeviceHandler,
+    IN void *pDeviceHandler,
     OUT PBYTE           pbyMinPower,
     OUT PBYTE           pbyMaxPower
     )
@@ -2165,7 +2165,7 @@ CARDvGetPowerCapability (
 -*/
 BYTE
 CARDbySetSupportChannels (
-    IN PVOID            pDeviceHandler,
+    IN void *pDeviceHandler,
     IN OUT PBYTE        pbyIEs
     )
 {
@@ -2256,7 +2256,7 @@ CARDbySetSupportChannels (
 -*/
 I8
 CARDbyGetTransmitPower (
-    IN PVOID            pDeviceHandler
+    IN void *pDeviceHandler
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2281,8 +2281,8 @@ CARDbChannelGetList (
 
 void
 CARDvSetCountryIE(
-    IN PVOID        pDeviceHandler,
-    IN PVOID        pIE
+    IN void *pDeviceHandler,
+    IN void *pIE
     )
 {
     PSDevice            pDevice = (PSDevice) pDeviceHandler;
@@ -2307,7 +2307,7 @@ CARDvSetCountryIE(
 
 BOOL
 CARDbGetChannelMapInfo(
-    IN PVOID        pDeviceHandler,
+    IN void *pDeviceHandler,
     IN UINT         uChannelIndex,
     OUT PBYTE       pbyChannelNumber,
     OUT PBYTE       pbyMap
@@ -2326,7 +2326,7 @@ CARDbGetChannelMapInfo(
 
 void
 CARDvSetChannelMapInfo(
-    IN PVOID        pDeviceHandler,
+    IN void *pDeviceHandler,
     IN UINT         uChannelIndex,
     IN BYTE         byMap
     )
@@ -2342,7 +2342,7 @@ CARDvSetChannelMapInfo(
 
 void
 CARDvClearChannelMapInfo(
-    IN PVOID        pDeviceHandler
+    IN void *pDeviceHandler
     )
 {
 //    PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2356,7 +2356,7 @@ CARDvClearChannelMapInfo(
 
 BYTE
 CARDbyAutoChannelSelect(
-    IN PVOID        pDeviceHandler,
+    IN void *pDeviceHandler,
     CARD_PHY_TYPE   ePHYType
     )
 {
@@ -2422,7 +2422,7 @@ CARDbyAutoChannelSelect(
 //xxx
 void
 CARDvSafeResetTx (
-    IN PVOID    pDeviceHandler
+    IN void *pDeviceHandler
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2478,7 +2478,7 @@ CARDvSafeResetTx (
 -*/
 void
 CARDvSafeResetRx (
-    IN PVOID    pDeviceHandler
+    IN void *pDeviceHandler
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2537,7 +2537,7 @@ CARDvSafeResetRx (
  * Return Value: response Control frame rate
  *
  */
-WORD CARDwGetCCKControlRate(PVOID pDeviceHandler, WORD wRateIdx)
+WORD CARDwGetCCKControlRate(void *pDeviceHandler, WORD wRateIdx)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     UINT ui = (UINT)wRateIdx;
@@ -2564,14 +2564,14 @@ WORD CARDwGetCCKControlRate(PVOID pDeviceHandler, WORD wRateIdx)
  * Return Value: response Control frame rate
  *
  */
-WORD CARDwGetOFDMControlRate (PVOID pDeviceHandler, WORD wRateIdx)
+WORD CARDwGetOFDMControlRate (void *pDeviceHandler, WORD wRateIdx)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
     UINT ui = (UINT)wRateIdx;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BASIC RATE: %X\n", pDevice->wBasicRate);
 
-    if (!CARDbIsOFDMinBasicRate((PVOID)pDevice)) {
+    if (!CARDbIsOFDMinBasicRate((void *)pDevice)) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDwGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
         if (wRateIdx > RATE_24M)
             wRateIdx = RATE_24M;
@@ -2601,7 +2601,7 @@ WORD CARDwGetOFDMControlRate (PVOID pDeviceHandler, WORD wRateIdx)
  * Return Value: None.
  *
  */
-void CARDvSetRSPINF (PVOID pDeviceHandler, CARD_PHY_TYPE ePHYType)
+void CARDvSetRSPINF (void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
     BYTE  byServ = 0x00, bySignal = 0x00; //For CCK
@@ -2614,7 +2614,7 @@ void CARDvSetRSPINF (PVOID pDeviceHandler, CARD_PHY_TYPE ePHYType)
     //RSPINF_b_1
     BBvCaculateParameter(pDevice,
                          14,
-                         CARDwGetCCKControlRate((PVOID)pDevice, RATE_1M),
+                         CARDwGetCCKControlRate((void *)pDevice, RATE_1M),
                          PK_TYPE_11B,
                          &wLen,
                          &byServ,
@@ -2625,7 +2625,7 @@ void CARDvSetRSPINF (PVOID pDeviceHandler, CARD_PHY_TYPE ePHYType)
     ///RSPINF_b_2
     BBvCaculateParameter(pDevice,
                          14,
-                         CARDwGetCCKControlRate((PVOID)pDevice, RATE_2M),
+                         CARDwGetCCKControlRate((void *)pDevice, RATE_2M),
                          PK_TYPE_11B,
                          &wLen,
                          &byServ,
@@ -2636,7 +2636,7 @@ void CARDvSetRSPINF (PVOID pDeviceHandler, CARD_PHY_TYPE ePHYType)
     //RSPINF_b_5
     BBvCaculateParameter(pDevice,
                          14,
-                         CARDwGetCCKControlRate((PVOID)pDevice, RATE_5M),
+                         CARDwGetCCKControlRate((void *)pDevice, RATE_5M),
                          PK_TYPE_11B,
                          &wLen,
                          &byServ,
@@ -2647,7 +2647,7 @@ void CARDvSetRSPINF (PVOID pDeviceHandler, CARD_PHY_TYPE ePHYType)
     //RSPINF_b_11
     BBvCaculateParameter(pDevice,
                          14,
-                         CARDwGetCCKControlRate((PVOID)pDevice, RATE_11M),
+                         CARDwGetCCKControlRate((void *)pDevice, RATE_11M),
                          PK_TYPE_11B,
                          &wLen,
                          &byServ,
@@ -2686,26 +2686,26 @@ void CARDvSetRSPINF (PVOID pDeviceHandler, CARD_PHY_TYPE ePHYType)
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_24, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_36
-    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((PVOID)pDevice, RATE_36M),
+    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_36M),
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_36, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_48
-    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((PVOID)pDevice, RATE_48M),
+    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_48M),
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_48, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_54
-    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((PVOID)pDevice, RATE_54M),
+    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_54M),
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_54, MAKEWORD(byTxRate,byRsvTime));
 
     //RSPINF_a_72
-    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((PVOID)pDevice, RATE_54M),
+    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_54M),
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
@@ -2726,7 +2726,7 @@ void CARDvSetRSPINF (PVOID pDeviceHandler, CARD_PHY_TYPE ePHYType)
  * Return Value: None.
  *
  */
-void vUpdateIFS (PVOID pDeviceHandler)
+void vUpdateIFS (void *pDeviceHandler)
 {
     //Set SIFS, DIFS, EIFS, SlotTime, CwMin
     PSDevice pDevice = (PSDevice) pDeviceHandler;
@@ -2780,7 +2780,7 @@ void vUpdateIFS (PVOID pDeviceHandler)
     VNSvOutPortB(pDevice->PortOffset + MAC_REG_CWMAXMIN0, (BYTE)byMaxMin);
 }
 
-void CARDvUpdateBasicTopRate (PVOID pDeviceHandler)
+void CARDvUpdateBasicTopRate (void *pDeviceHandler)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
     BYTE byTopOFDM = RATE_24M, byTopCCK = RATE_1M;
@@ -2820,7 +2820,7 @@ void CARDvUpdateBasicTopRate (PVOID pDeviceHandler)
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL CARDbAddBasicRate (PVOID pDeviceHandler, WORD wRateIdx)
+BOOL CARDbAddBasicRate (void *pDeviceHandler, WORD wRateIdx)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
     WORD wRate = (WORD)(1<<wRateIdx);
@@ -2828,12 +2828,12 @@ BOOL CARDbAddBasicRate (PVOID pDeviceHandler, WORD wRateIdx)
     pDevice->wBasicRate |= wRate;
 
     //Determines the highest basic rate.
-    CARDvUpdateBasicTopRate((PVOID)pDevice);
+    CARDvUpdateBasicTopRate((void *)pDevice);
 
     return(TRUE);
 }
 
-BOOL CARDbIsOFDMinBasicRate (PVOID pDeviceHandler)
+BOOL CARDbIsOFDMinBasicRate (void *pDeviceHandler)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
     int ii;
@@ -2845,14 +2845,14 @@ BOOL CARDbIsOFDMinBasicRate (PVOID pDeviceHandler)
     return FALSE;
 }
 
-BYTE CARDbyGetPktType (PVOID pDeviceHandler)
+BYTE CARDbyGetPktType (void *pDeviceHandler)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
 
     if (pDevice->byBBType == BB_TYPE_11A || pDevice->byBBType == BB_TYPE_11B) {
         return (BYTE)pDevice->byBBType;
     }
-    else if (CARDbIsOFDMinBasicRate((PVOID)pDevice)) {
+    else if (CARDbIsOFDMinBasicRate((void *)pDevice)) {
         return PK_TYPE_11GA;
     }
     else {
@@ -2902,7 +2902,7 @@ void CARDvSetLoopbackMode (DWORD_PTR dwIoBase, WORD wLoopbackMode)
  * Return Value: none
  *
  */
-BOOL CARDbSoftwareReset (PVOID pDeviceHandler)
+BOOL CARDbSoftwareReset (void *pDeviceHandler)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
 

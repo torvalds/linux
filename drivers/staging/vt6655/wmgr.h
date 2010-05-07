@@ -249,7 +249,7 @@ typedef struct tagSRxMgmtPacket {
 typedef struct tagSMgmtObject
 {
 
-    PVOID                   pAdapter;
+    void *                   pAdapter;
     // MAC address
     BYTE                    abyMACAddr[WLAN_ADDR_LEN];
 

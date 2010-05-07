@@ -263,7 +263,7 @@ WPA2vParseRSN (
 -*/
 UINT
 WPA2uSetIEs(
-    IN PVOID pMgmtHandle,
+    IN void *pMgmtHandle,
     OUT PWLAN_IE_RSN pRSNIEs
     )
 {
