@@ -97,6 +97,8 @@ static int storvsc_get_chs(struct scsi_device *sdev, struct block_device *bdev,
 
 
 static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
+module_param(storvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
 /* The one and only one */
 static struct storvsc_driver_context g_storvsc_drv;
@@ -991,6 +993,6 @@ static void __exit storvsc_exit(void)
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
-module_param(storvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_DESCRIPTION("Microsoft Hyper-V virtual storage driver");
 module_init(storvsc_init);
 module_exit(storvsc_exit);
