@@ -472,8 +472,8 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 			if (hslot->count < hslot2->count)
 				goto begin;
 
-			result = udp4_lib_lookup2(net, INADDR_ANY, sport,
-						  daddr, hnum, dif,
+			result = udp4_lib_lookup2(net, saddr, sport,
+						  INADDR_ANY, hnum, dif,
 						  hslot2, slot2);
 		}
 		rcu_read_unlock();

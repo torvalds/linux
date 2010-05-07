@@ -339,14 +339,17 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai_link *dai = rtd->dai;
 	struct s3c_i2sv2_info *i2s = to_info(dai->cpu_dai);
+	struct s3c_dma_params *dma_data;
 	u32 iismod;
 
 	pr_debug("Entered %s\n", __func__);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dai->cpu_dai->dma_data = i2s->dma_playback;
+		dma_data = i2s->dma_playback;
 	else
-		dai->cpu_dai->dma_data = i2s->dma_capture;
+		dma_data = i2s->dma_capture;
+
+	snd_soc_dai_set_dma_data(dai->cpu_dai, substream, dma_data);
 
 	/* Working copies of register */
 	iismod = readl(i2s->regs + S3C2412_IISMOD);
@@ -394,8 +397,8 @@ static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 	unsigned long irqs;
 	int ret = 0;
-	int channel = ((struct s3c_dma_params *)
-		  rtd->dai->cpu_dai->dma_data)->channel;
+	struct s3c_dma_params *dma_data =
+		snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -431,7 +434,7 @@ static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		 * of the auto reload mechanism of S3C24XX.
 		 * This call won't bother S3C64XX.
 		 */
-		s3c2410_dma_ctrl(channel, S3C2410_DMAOP_STARTED);
+		s3c2410_dma_ctrl(dma_data->channel, S3C2410_DMAOP_STARTED);
 
 		break;
 

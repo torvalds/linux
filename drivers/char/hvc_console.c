@@ -368,15 +368,11 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 	hp = tty->driver_data;
 
 	spin_lock_irqsave(&hp->lock, flags);
-	tty_kref_get(tty);
 
 	if (--hp->count == 0) {
 		/* We are done with the tty pointer now. */
 		hp->tty = NULL;
 		spin_unlock_irqrestore(&hp->lock, flags);
-
-		/* Put the ref obtained in hvc_open() */
-		tty_kref_put(tty);
 
 		if (hp->ops->notifier_del)
 			hp->ops->notifier_del(hp, hp->data);

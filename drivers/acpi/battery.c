@@ -568,13 +568,13 @@ static int acpi_battery_update(struct acpi_battery *battery)
 	result = acpi_battery_get_status(battery);
 	if (result)
 		return result;
-#ifdef CONFIG_ACPI_SYSFS_POWER
 	if (!acpi_battery_present(battery)) {
+#ifdef CONFIG_ACPI_SYSFS_POWER
 		sysfs_remove_battery(battery);
+#endif
 		battery->update_time = 0;
 		return 0;
 	}
-#endif
 	if (!battery->update_time ||
 	    old_present != acpi_battery_present(battery)) {
 		result = acpi_battery_get_info(battery);
@@ -880,7 +880,7 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 #ifdef CONFIG_ACPI_SYSFS_POWER
 	/* acpi_battery_update could remove power_supply object */
 	if (battery->bat.dev)
-		kobject_uevent(&battery->bat.dev->kobj, KOBJ_CHANGE);
+		power_supply_changed(&battery->bat);
 #endif
 }
 

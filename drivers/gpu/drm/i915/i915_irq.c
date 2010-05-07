@@ -260,10 +260,10 @@ static void i915_hotplug_work_func(struct work_struct *work)
 
 	if (mode_config->num_connector) {
 		list_for_each_entry(connector, &mode_config->connector_list, head) {
-			struct intel_output *intel_output = to_intel_output(connector);
+			struct intel_encoder *intel_encoder = to_intel_encoder(connector);
 	
-			if (intel_output->hot_plug)
-				(*intel_output->hot_plug) (intel_output);
+			if (intel_encoder->hot_plug)
+				(*intel_encoder->hot_plug) (intel_encoder);
 		}
 	}
 	/* Just fire off a uevent and let userspace tell us what to do */
@@ -349,7 +349,7 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 				READ_BREADCRUMB(dev_priv);
 	}
 
-	if (gt_iir & GT_USER_INTERRUPT) {
+	if (gt_iir & GT_PIPE_NOTIFY) {
 		u32 seqno = i915_get_gem_seqno(dev);
 		dev_priv->mm.irq_gem_seqno = seqno;
 		trace_i915_gem_request_complete(dev, seqno);
@@ -444,7 +444,7 @@ i915_error_object_create(struct drm_device *dev,
 	if (src == NULL)
 		return NULL;
 
-	src_priv = src->driver_private;
+	src_priv = to_intel_bo(src);
 	if (src_priv->pages == NULL)
 		return NULL;
 
@@ -1005,7 +1005,7 @@ void i915_user_irq_get(struct drm_device *dev)
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 	if (dev->irq_enabled && (++dev_priv->user_irq_refcount == 1)) {
 		if (HAS_PCH_SPLIT(dev))
-			ironlake_enable_graphics_irq(dev_priv, GT_USER_INTERRUPT);
+			ironlake_enable_graphics_irq(dev_priv, GT_PIPE_NOTIFY);
 		else
 			i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
 	}
@@ -1021,7 +1021,7 @@ void i915_user_irq_put(struct drm_device *dev)
 	BUG_ON(dev->irq_enabled && dev_priv->user_irq_refcount <= 0);
 	if (dev->irq_enabled && (--dev_priv->user_irq_refcount == 0)) {
 		if (HAS_PCH_SPLIT(dev))
-			ironlake_disable_graphics_irq(dev_priv, GT_USER_INTERRUPT);
+			ironlake_disable_graphics_irq(dev_priv, GT_PIPE_NOTIFY);
 		else
 			i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
 	}
@@ -1305,7 +1305,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	/* enable kind of interrupts always enabled */
 	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE;
-	u32 render_mask = GT_USER_INTERRUPT;
+	u32 render_mask = GT_PIPE_NOTIFY;
 	u32 hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
 			   SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
 

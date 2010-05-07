@@ -102,7 +102,6 @@
 #include <linux/nbd.h>
 #include <linux/random.h>
 #include <linux/filter.h>
-#include <linux/pktcdvd.h>
 
 #include <linux/hiddev.h>
 
@@ -1126,8 +1125,6 @@ COMPATIBLE_IOCTL(PPGETMODE)
 COMPATIBLE_IOCTL(PPGETPHASE)
 COMPATIBLE_IOCTL(PPGETFLAGS)
 COMPATIBLE_IOCTL(PPSETFLAGS)
-/* pktcdvd */
-COMPATIBLE_IOCTL(PACKET_CTRL_CMD)
 /* Big A */
 /* sparc only */
 /* Big Q for sound/OSS */

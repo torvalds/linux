@@ -107,6 +107,19 @@ static ssize_t queue_max_sectors_show(struct request_queue *q, char *page)
 	return queue_var_show(max_sectors_kb, (page));
 }
 
+static ssize_t queue_max_segments_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(queue_max_segments(q), (page));
+}
+
+static ssize_t queue_max_segment_size_show(struct request_queue *q, char *page)
+{
+	if (test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags))
+		return queue_var_show(queue_max_segment_size(q), (page));
+
+	return queue_var_show(PAGE_CACHE_SIZE, (page));
+}
+
 static ssize_t queue_logical_block_size_show(struct request_queue *q, char *page)
 {
 	return queue_var_show(queue_logical_block_size(q), page);
@@ -281,6 +294,16 @@ static struct queue_sysfs_entry queue_max_hw_sectors_entry = {
 	.show = queue_max_hw_sectors_show,
 };
 
+static struct queue_sysfs_entry queue_max_segments_entry = {
+	.attr = {.name = "max_segments", .mode = S_IRUGO },
+	.show = queue_max_segments_show,
+};
+
+static struct queue_sysfs_entry queue_max_segment_size_entry = {
+	.attr = {.name = "max_segment_size", .mode = S_IRUGO },
+	.show = queue_max_segment_size_show,
+};
+
 static struct queue_sysfs_entry queue_iosched_entry = {
 	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
 	.show = elv_iosched_show,
@@ -356,6 +379,8 @@ static struct attribute *default_attrs[] = {
 	&queue_ra_entry.attr,
 	&queue_max_hw_sectors_entry.attr,
 	&queue_max_sectors_entry.attr,
+	&queue_max_segments_entry.attr,
+	&queue_max_segment_size_entry.attr,
 	&queue_iosched_entry.attr,
 	&queue_hw_sector_size_entry.attr,
 	&queue_logical_block_size_entry.attr,

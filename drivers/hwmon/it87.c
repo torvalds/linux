@@ -539,14 +539,14 @@ static ssize_t set_sensor(struct device *dev, struct device_attribute *attr,
 
 	struct it87_data *data = dev_get_drvdata(dev);
 	long val;
+	u8 reg;
 
 	if (strict_strtol(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
-
-	data->sensor &= ~(1 << nr);
-	data->sensor &= ~(8 << nr);
+	reg = it87_read_value(data, IT87_REG_TEMP_ENABLE);
+	reg &= ~(1 << nr);
+	reg &= ~(8 << nr);
 	if (val == 2) {	/* backwards compatibility */
 		dev_warn(dev, "Sensor type 2 is deprecated, please use 4 "
 			 "instead\n");
@@ -554,14 +554,16 @@ static ssize_t set_sensor(struct device *dev, struct device_attribute *attr,
 	}
 	/* 3 = thermal diode; 4 = thermistor; 0 = disabled */
 	if (val == 3)
-		data->sensor |= 1 << nr;
+		reg |= 1 << nr;
 	else if (val == 4)
-		data->sensor |= 8 << nr;
-	else if (val != 0) {
-		mutex_unlock(&data->update_lock);
+		reg |= 8 << nr;
+	else if (val != 0)
 		return -EINVAL;
-	}
+
+	mutex_lock(&data->update_lock);
+	data->sensor = reg;
 	it87_write_value(data, IT87_REG_TEMP_ENABLE, data->sensor);
+	data->valid = 0;	/* Force cache refresh */
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -1841,14 +1843,10 @@ static void __devinit it87_init_device(struct platform_device *pdev)
 			it87_write_value(data, IT87_REG_TEMP_HIGH(i), 127);
 	}
 
-	/* Check if temperature channels are reset manually or by some reason */
-	tmp = it87_read_value(data, IT87_REG_TEMP_ENABLE);
-	if ((tmp & 0x3f) == 0) {
-		/* Temp1,Temp3=thermistor; Temp2=thermal diode */
-		tmp = (tmp & 0xc0) | 0x2a;
-		it87_write_value(data, IT87_REG_TEMP_ENABLE, tmp);
-	}
-	data->sensor = tmp;
+	/* Temperature channels are not forcibly enabled, as they can be
+	 * set to two different sensor types and we can't guess which one
+	 * is correct for a given system. These channels can be enabled at
+	 * run-time through the temp{1-3}_type sysfs accessors if needed. */
 
 	/* Check if voltage monitors are reset manually or by some reason */
 	tmp = it87_read_value(data, IT87_REG_VIN_ENABLE);

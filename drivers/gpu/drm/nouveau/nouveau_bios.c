@@ -2573,48 +2573,34 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 * each GPIO according to various values listed in each entry
 	 */
 
-	const uint32_t nv50_gpio_reg[4] = { 0xe104, 0xe108, 0xe280, 0xe284 };
+	struct drm_nouveau_private *dev_priv = bios->dev->dev_private;
 	const uint32_t nv50_gpio_ctl[2] = { 0xe100, 0xe28c };
-	const uint8_t *gpio_table = &bios->data[bios->dcb.gpio_table_ptr];
-	const uint8_t *gpio_entry;
 	int i;
+
+	if (dev_priv->card_type != NV_50) {
+		NV_ERROR(bios->dev, "INIT_GPIO on unsupported chipset\n");
+		return -ENODEV;
+	}
 
 	if (!iexec->execute)
 		return 1;
 
-	if (bios->dcb.version != 0x40) {
-		NV_ERROR(bios->dev, "DCB table not version 4.0\n");
-		return 0;
-	}
+	for (i = 0; i < bios->dcb.gpio.entries; i++) {
+		struct dcb_gpio_entry *gpio = &bios->dcb.gpio.entry[i];
+		uint32_t r, s, v;
 
-	if (!bios->dcb.gpio_table_ptr) {
-		NV_WARN(bios->dev, "Invalid pointer to INIT_8E table\n");
-		return 0;
-	}
+		BIOSLOG(bios, "0x%04X: Entry: 0x%08X\n", offset, gpio->entry);
 
-	gpio_entry = gpio_table + gpio_table[1];
-	for (i = 0; i < gpio_table[2]; i++, gpio_entry += gpio_table[3]) {
-		uint32_t entry = ROM32(gpio_entry[0]), r, s, v;
-		int line = (entry & 0x0000001f);
+		nv50_gpio_set(bios->dev, gpio->tag, gpio->state_default);
 
-		BIOSLOG(bios, "0x%04X: Entry: 0x%08X\n", offset, entry);
-
-		if ((entry & 0x0000ff00) == 0x0000ff00)
-			continue;
-
-		r = nv50_gpio_reg[line >> 3];
-		s = (line & 0x07) << 2;
-		v = bios_rd32(bios, r) & ~(0x00000003 << s);
-		if (entry & 0x01000000)
-			v |= (((entry & 0x60000000) >> 29) ^ 2) << s;
-		else
-			v |= (((entry & 0x18000000) >> 27) ^ 2) << s;
-		bios_wr32(bios, r, v);
-
-		r = nv50_gpio_ctl[line >> 4];
-		s = (line & 0x0f);
+		/* The NVIDIA binary driver doesn't appear to actually do
+		 * any of this, my VBIOS does however.
+		 */
+		/* Not a clue, needs de-magicing */
+		r = nv50_gpio_ctl[gpio->line >> 4];
+		s = (gpio->line & 0x0f);
 		v = bios_rd32(bios, r) & ~(0x00010001 << s);
-		switch ((entry & 0x06000000) >> 25) {
+		switch ((gpio->entry & 0x06000000) >> 25) {
 		case 1:
 			v |= (0x00000001 << s);
 			break;
@@ -3198,7 +3184,6 @@ static int run_lvds_table(struct drm_device *dev, struct dcb_entry *dcbent, int 
 	struct nvbios *bios = &dev_priv->vbios;
 	unsigned int outputset = (dcbent->or == 4) ? 1 : 0;
 	uint16_t scriptptr = 0, clktable;
-	uint8_t clktableptr = 0;
 
 	/*
 	 * For now we assume version 3.0 table - g80 support will need some
@@ -3217,26 +3202,29 @@ static int run_lvds_table(struct drm_device *dev, struct dcb_entry *dcbent, int 
 		scriptptr = ROM16(bios->data[bios->fp.lvdsmanufacturerpointer + 11 + outputset * 2]);
 		break;
 	case LVDS_RESET:
+		clktable = bios->fp.lvdsmanufacturerpointer + 15;
+		if (dcbent->or == 4)
+			clktable += 8;
+
 		if (dcbent->lvdsconf.use_straps_for_mode) {
 			if (bios->fp.dual_link)
-				clktableptr += 2;
-			if (bios->fp.BITbit1)
-				clktableptr++;
+				clktable += 4;
+			if (bios->fp.if_is_24bit)
+				clktable += 2;
 		} else {
 			/* using EDID */
-			uint8_t fallback = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
-			int fallbackcmpval = (dcbent->or == 4) ? 4 : 1;
+			int cmpval_24bit = (dcbent->or == 4) ? 4 : 1;
 
 			if (bios->fp.dual_link) {
-				clktableptr += 2;
-				fallbackcmpval *= 2;
+				clktable += 4;
+				cmpval_24bit <<= 1;
 			}
-			if (fallbackcmpval & fallback)
-				clktableptr++;
+
+			if (bios->fp.strapless_is_24bit & cmpval_24bit)
+				clktable += 2;
 		}
 
-		/* adding outputset * 8 may not be correct */
-		clktable = ROM16(bios->data[bios->fp.lvdsmanufacturerpointer + 15 + clktableptr * 2 + outputset * 8]);
+		clktable = ROM16(bios->data[clktable]);
 		if (!clktable) {
 			NV_ERROR(dev, "Pixel clock comparison table not found\n");
 			return -ENOENT;
@@ -3638,35 +3626,38 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 		*if_is_24bit = bios->data[lvdsofs] & 16;
 		break;
 	case 0x30:
-		/*
-		 * My money would be on there being a 24 bit interface bit in
-		 * this table, but I have no example of a laptop bios with a
-		 * 24 bit panel to confirm that. Hence we shout loudly if any
-		 * bit other than bit 0 is set (I've not even seen bit 1)
-		 */
-		if (bios->data[lvdsofs] > 1)
-			NV_ERROR(dev,
-				 "You have a very unusual laptop display; please report it\n");
+	case 0x40:
 		/*
 		 * No sign of the "power off for reset" or "reset for panel
 		 * on" bits, but it's safer to assume we should
 		 */
 		bios->fp.power_off_for_reset = true;
 		bios->fp.reset_after_pclk_change = true;
+
 		/*
 		 * It's ok lvdsofs is wrong for nv4x edid case; dual_link is
-		 * over-written, and BITbit1 isn't used
+		 * over-written, and if_is_24bit isn't used
 		 */
-		bios->fp.dual_link = bios->data[lvdsofs] & 1;
-		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
-		bios->fp.duallink_transition_clk = ROM16(bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
-		break;
-	case 0x40:
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.if_is_24bit = bios->data[lvdsofs] & 2;
 		bios->fp.strapless_is_24bit = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
 		bios->fp.duallink_transition_clk = ROM16(bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
 		break;
+	}
+
+	/* Dell Latitude D620 reports a too-high value for the dual-link
+	 * transition freq, causing us to program the panel incorrectly.
+	 *
+	 * It doesn't appear the VBIOS actually uses its transition freq
+	 * (90000kHz), instead it uses the "Number of LVDS channels" field
+	 * out of the panel ID structure (http://www.spwg.org/).
+	 *
+	 * For the moment, a quirk will do :)
+	 */
+	if ((dev->pdev->device == 0x01d7) &&
+	    (dev->pdev->subsystem_vendor == 0x1028) &&
+	    (dev->pdev->subsystem_device == 0x01c2)) {
+		bios->fp.duallink_transition_clk = 80000;
 	}
 
 	/* set dual_link flag for EDID case */
@@ -5077,25 +5068,25 @@ parse_dcb30_gpio_entry(struct nvbios *bios, uint16_t offset)
 	gpio->tag = tag;
 	gpio->line = line;
 	gpio->invert = flags != 4;
+	gpio->entry = ent;
 }
 
 static void
 parse_dcb40_gpio_entry(struct nvbios *bios, uint16_t offset)
 {
+	uint32_t entry = ROM32(bios->data[offset]);
 	struct dcb_gpio_entry *gpio;
-	uint32_t ent = ROM32(bios->data[offset]);
-	uint8_t line = ent & 0x1f,
-		tag = ent >> 8 & 0xff;
 
-	if (tag == 0xff)
+	if ((entry & 0x0000ff00) == 0x0000ff00)
 		return;
 
 	gpio = new_gpio_entry(bios);
-
-	/* Currently unused, we may need more fields parsed at some
-	 * point. */
-	gpio->tag = tag;
-	gpio->line = line;
+	gpio->tag = (entry & 0x0000ff00) >> 8;
+	gpio->line = (entry & 0x0000001f) >> 0;
+	gpio->state_default = (entry & 0x01000000) >> 24;
+	gpio->state[0] = (entry & 0x18000000) >> 27;
+	gpio->state[1] = (entry & 0x60000000) >> 29;
+	gpio->entry = entry;
 }
 
 static void

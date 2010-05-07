@@ -400,9 +400,15 @@ static int hpet_next_event(unsigned long delta,
 	 * then we might have a real hardware problem. We can not do
 	 * much about it here, but at least alert the user/admin with
 	 * a prominent warning.
+	 * An erratum on some chipsets (ICH9,..), results in comparator read
+	 * immediately following a write returning old value. Workaround
+	 * for this is to read this value second time, when first
+	 * read returns old value.
 	 */
-	WARN_ONCE(hpet_readl(HPET_Tn_CMP(timer)) != cnt,
+	if (unlikely((u32)hpet_readl(HPET_Tn_CMP(timer)) != cnt)) {
+		WARN_ONCE(hpet_readl(HPET_Tn_CMP(timer)) != cnt,
 		  KERN_WARNING "hpet: compare register read back failed.\n");
+	}
 
 	return (s32)(hpet_readl(HPET_COUNTER) - cnt) >= 0 ? -ETIME : 0;
 }
@@ -1144,6 +1150,7 @@ int hpet_set_periodic_freq(unsigned long freq)
 		do_div(clc, freq);
 		clc >>= hpet_clockevent.shift;
 		hpet_pie_delta = clc;
+		hpet_pie_limit = 0;
 	}
 	return 1;
 }

@@ -46,11 +46,16 @@ SECTIONS
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
+		IRQENTRY_TEXT
 		*(.gnu.warning)
 	} = 0
 	_etext = .;
 
 	RO_DATA(PAGE_SIZE)
+
+	/* Start of data section */
+	_sdata = .;
+
 	.data1 : {
 		*(.data1)
 	}

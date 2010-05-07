@@ -297,7 +297,9 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	omap_mcbsp_dai_dma_params[id][substream->stream].sync_mode = sync_mode;
 	omap_mcbsp_dai_dma_params[id][substream->stream].data_type =
 							OMAP_DMA_DATA_TYPE_S16;
-	cpu_dai->dma_data = &omap_mcbsp_dai_dma_params[id][substream->stream];
+
+	snd_soc_dai_set_dma_data(cpu_dai, substream,
+		&omap_mcbsp_dai_dma_params[id][substream->stream]);
 
 	if (mcbsp_data->configured) {
 		/* McBSP already configured by another stream */

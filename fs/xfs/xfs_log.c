@@ -745,9 +745,16 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 
 /*
  * Determine if we have a transaction that has gone to disk
- * that needs to be covered. Log activity needs to be idle (no AIL and
- * nothing in the iclogs). And, we need to be in the right state indicating
- * something has gone out.
+ * that needs to be covered. To begin the transition to the idle state
+ * firstly the log needs to be idle (no AIL and nothing in the iclogs).
+ * If we are then in a state where covering is needed, the caller is informed
+ * that dummy transactions are required to move the log into the idle state.
+ *
+ * Because this is called as part of the sync process, we should also indicate
+ * that dummy transactions should be issued in anything but the covered or
+ * idle states. This ensures that the log tail is accurately reflected in
+ * the log at the end of the sync, hence if a crash occurrs avoids replay
+ * of transactions where the metadata is already on disk.
  */
 int
 xfs_log_need_covered(xfs_mount_t *mp)
@@ -759,17 +766,24 @@ xfs_log_need_covered(xfs_mount_t *mp)
 		return 0;
 
 	spin_lock(&log->l_icloglock);
-	if (((log->l_covered_state == XLOG_STATE_COVER_NEED) ||
-		(log->l_covered_state == XLOG_STATE_COVER_NEED2))
-			&& !xfs_trans_ail_tail(log->l_ailp)
-			&& xlog_iclogs_empty(log)) {
-		if (log->l_covered_state == XLOG_STATE_COVER_NEED)
-			log->l_covered_state = XLOG_STATE_COVER_DONE;
-		else {
-			ASSERT(log->l_covered_state == XLOG_STATE_COVER_NEED2);
-			log->l_covered_state = XLOG_STATE_COVER_DONE2;
+	switch (log->l_covered_state) {
+	case XLOG_STATE_COVER_DONE:
+	case XLOG_STATE_COVER_DONE2:
+	case XLOG_STATE_COVER_IDLE:
+		break;
+	case XLOG_STATE_COVER_NEED:
+	case XLOG_STATE_COVER_NEED2:
+		if (!xfs_trans_ail_tail(log->l_ailp) &&
+		    xlog_iclogs_empty(log)) {
+			if (log->l_covered_state == XLOG_STATE_COVER_NEED)
+				log->l_covered_state = XLOG_STATE_COVER_DONE;
+			else
+				log->l_covered_state = XLOG_STATE_COVER_DONE2;
 		}
+		/* FALLTHRU */
+	default:
 		needed = 1;
+		break;
 	}
 	spin_unlock(&log->l_icloglock);
 	return needed;

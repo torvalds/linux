@@ -438,7 +438,7 @@ static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
 	old_keep_alives = ie->hdr.bLength - sizeof(ie->hdr);
 	keep_alives = 0;
 	for (cnt = 0;
-	     keep_alives <= WUIE_ELT_MAX && cnt < wusbhc->ports_max;
+	     keep_alives < WUIE_ELT_MAX && cnt < wusbhc->ports_max;
 	     cnt++) {
 		unsigned tt = msecs_to_jiffies(wusbhc->trust_timeout);
 

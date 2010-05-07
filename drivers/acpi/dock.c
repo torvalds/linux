@@ -1026,13 +1026,10 @@ static int dock_remove(struct dock_station *ds)
 static acpi_status
 find_dock(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
-	acpi_status status = AE_OK;
-
 	if (is_dock(handle))
-		if (dock_add(handle) >= 0)
-			status = AE_CTRL_TERMINATE;
+		dock_add(handle);
 
-	return status;
+	return AE_OK;
 }
 
 static acpi_status

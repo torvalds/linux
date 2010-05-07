@@ -122,10 +122,9 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 		ssp_disable(ssp);
 	}
 
-	if (cpu_dai->dma_data) {
-		kfree(cpu_dai->dma_data);
-		cpu_dai->dma_data = NULL;
-	}
+	kfree(snd_soc_dai_get_dma_data(cpu_dai, substream));
+	snd_soc_dai_set_dma_data(cpu_dai, substream, NULL);
+
 	return ret;
 }
 
@@ -142,10 +141,8 @@ static void pxa_ssp_shutdown(struct snd_pcm_substream *substream,
 		clk_disable(ssp->clk);
 	}
 
-	if (cpu_dai->dma_data) {
-		kfree(cpu_dai->dma_data);
-		cpu_dai->dma_data = NULL;
-	}
+	kfree(snd_soc_dai_get_dma_data(cpu_dai, substream));
+	snd_soc_dai_set_dma_data(cpu_dai, substream, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -570,18 +567,22 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	u32 sspsp;
 	int width = snd_pcm_format_physical_width(params_format(params));
 	int ttsa = ssp_read_reg(ssp, SSTSA) & 0xf;
+	struct pxa2xx_pcm_dma_params *dma_data;
+
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 
 	/* generate correct DMA params */
-	if (cpu_dai->dma_data)
-		kfree(cpu_dai->dma_data);
+	kfree(dma_data);
 
 	/* Network mode with one active slot (ttsa == 1) can be used
 	 * to force 16-bit frame width on the wire (for S16_LE), even
 	 * with two channels. Use 16-bit DMA transfers for this case.
 	 */
-	cpu_dai->dma_data = ssp_get_dma_params(ssp,
+	dma_data = ssp_get_dma_params(ssp,
 			((chn == 2) && (ttsa != 1)) || (width == 32),
 			substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+
+	snd_soc_dai_set_dma_data(dai, substream, dma_data);
 
 	/* we can only change the settings if the port is not in use */
 	if (ssp_read_reg(ssp, SSCR0) & SSCR0_SSE)

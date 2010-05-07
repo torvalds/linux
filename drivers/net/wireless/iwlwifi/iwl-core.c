@@ -308,10 +308,13 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Allocate and init all Tx and Command queues */
-	ret = iwl_txq_ctx_reset(priv);
-	if (ret)
-		return ret;
+	/* Allocate or reset and init all Tx and Command queues */
+	if (!priv->txq) {
+		ret = iwl_txq_ctx_alloc(priv);
+		if (ret)
+			return ret;
+	} else
+		iwl_txq_ctx_reset(priv);
 
 	set_bit(STATUS_INIT, &priv->status);
 
@@ -3355,7 +3358,6 @@ static void iwl_force_rf_reset(struct iwl_priv *priv)
 	 */
 	IWL_DEBUG_INFO(priv, "perform radio reset.\n");
 	iwl_internal_short_hw_scan(priv);
-	return;
 }
 
 

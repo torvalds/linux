@@ -314,6 +314,9 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
 
+	if (ASIC_IS_DCE4(rdev))
+		return;
+
 	if (!offset)
 		return;
 
@@ -484,6 +487,9 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 
+	if (ASIC_IS_DCE4(rdev))
+		return;
+
 	if (!radeon_encoder->hdmi_offset) {
 		r600_hdmi_assign_block(encoder);
 		if (!radeon_encoder->hdmi_offset) {
@@ -524,6 +530,9 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+
+	if (ASIC_IS_DCE4(rdev))
+		return;
 
 	if (!radeon_encoder->hdmi_offset) {
 		dev_err(rdev->dev, "Disabling not enabled HDMI\n");

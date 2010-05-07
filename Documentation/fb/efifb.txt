@@ -1,9 +1,9 @@
 
-What is imacfb?
+What is efifb?
 ===============
 
 This is a generic EFI platform driver for Intel based Apple computers.
-Imacfb is only for EFI booted Intel Macs.
+efifb is only for EFI booted Intel Macs.
 
 Supported Hardware
 ==================
@@ -16,16 +16,16 @@ MacMini
 How to use it?
 ==============
 
-Imacfb does not have any kind of autodetection of your machine.
+efifb does not have any kind of autodetection of your machine.
 You have to add the following kernel parameters in your elilo.conf:
 	Macbook :
-		video=imacfb:macbook
+		video=efifb:macbook
 	MacMini :
-		video=imacfb:mini
+		video=efifb:mini
 	Macbook Pro 15", iMac 17" :
-		video=imacfb:i17
+		video=efifb:i17
 	Macbook Pro 17", iMac 20" :
-		video=imacfb:i20
+		video=efifb:i20
 
 --
 Edgar Hucek <gimli@dark-green.com>

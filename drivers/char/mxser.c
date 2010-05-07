@@ -1011,6 +1011,7 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	if (!info->ioaddr)
 		return -ENODEV;
 
+	tty->driver_data = info;
 	return tty_port_open(&info->port, tty, filp);
 }
 
@@ -1074,7 +1075,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	struct mxser_port *info = tty->driver_data;
 	struct tty_port *port = &info->port;
 
-	if (tty->index == MXSER_PORTS)
+	if (tty->index == MXSER_PORTS || info == NULL)
 		return;
 	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
@@ -1768,7 +1769,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		int len, lsr;
 
 		len = mxser_chars_in_buffer(tty);
-		spin_lock(&info->slock);
+		spin_lock_irq(&info->slock);
 		lsr = inb(info->ioaddr + UART_LSR) & UART_LSR_THRE;
 		spin_unlock_irq(&info->slock);
 		len += (lsr ? 0 : 1);
@@ -1778,12 +1779,12 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 	case MOXA_ASPP_MON: {
 		int mcr, status;
 
-		spin_lock(&info->slock);
+		spin_lock_irq(&info->slock);
 		status = mxser_get_msr(info->ioaddr, 1, tty->index);
 		mxser_check_modem_status(tty, info, status);
 
 		mcr = inb(info->ioaddr + UART_MCR);
-		spin_unlock(&info->slock);
+		spin_unlock_irq(&info->slock);
 
 		if (mcr & MOXA_MUST_MCR_XON_FLAG)
 			info->mon_data.hold_reason &= ~NPPI_NOTIFY_XOFFHOLD;

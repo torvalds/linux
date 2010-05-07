@@ -921,7 +921,7 @@ static int r300_scratch(drm_radeon_private_t *dev_priv,
 
 	ptr_addr = drm_buffer_read_object(cmdbuf->buffer,
 			sizeof(stack_ptr_addr), &stack_ptr_addr);
-	ref_age_base = (u32 *)(unsigned long)*ptr_addr;
+	ref_age_base = (u32 *)(unsigned long)get_unaligned(ptr_addr);
 
 	for (i=0; i < header.scratch.n_bufs; i++) {
 		buf_idx = drm_buffer_pointer_to_dword(cmdbuf->buffer, 0);

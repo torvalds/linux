@@ -523,16 +523,16 @@ ENDPROC(__und_usr)
 /*
  * The out of line fixup for the ldrt above.
  */
-	.section .fixup, "ax"
+	.pushsection .fixup, "ax"
 4:	mov	pc, r9
-	.previous
-	.section __ex_table,"a"
+	.popsection
+	.pushsection __ex_table,"a"
 	.long	1b, 4b
 #if __LINUX_ARM_ARCH__ >= 7
 	.long	2b, 4b
 	.long	3b, 4b
 #endif
-	.previous
+	.popsection
 
 /*
  * Check whether the instruction is a co-processor instruction.
@@ -679,7 +679,7 @@ do_fpe:
 	.data
 ENTRY(fp_enter)
 	.word	no_fp
-	.previous
+	.text
 
 ENTRY(no_fp)
 	mov	pc, lr

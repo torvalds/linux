@@ -253,8 +253,6 @@ static void __init timer_init(void)
 			irq = USING_COMPARE(t) ? dtip[i].cmp_irq : irq;
 			setup_irq(irq, &t->irqaction);
 		}
-
-		timer32_config(&timers[i]);
 	}
 }
 
@@ -331,6 +329,7 @@ static void __init davinci_timer_init(void)
 	unsigned int clocksource_id;
 	static char err[] __initdata = KERN_ERR
 		"%s: can't register clocksource!\n";
+	int i;
 
 	clockevent_id = soc_info->timer_info->clockevent_id;
 	clocksource_id = soc_info->timer_info->clocksource_id;
@@ -389,6 +388,9 @@ static void __init davinci_timer_init(void)
 
 	clockevent_davinci.cpumask = cpumask_of(0);
 	clockevents_register_device(&clockevent_davinci);
+
+	for (i=0; i< ARRAY_SIZE(timers); i++)
+		timer32_config(&timers[i]);
 }
 
 struct sys_timer davinci_timer = {

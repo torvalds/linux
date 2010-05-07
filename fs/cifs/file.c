@@ -839,8 +839,32 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 
 		} else {
 			/* if rc == ERR_SHARING_VIOLATION ? */
-			rc = 0;	/* do not change lock type to unlock
-				   since range in use */
+			rc = 0;
+
+			if (lockType & LOCKING_ANDX_SHARED_LOCK) {
+				pfLock->fl_type = F_WRLCK;
+			} else {
+				rc = CIFSSMBLock(xid, tcon, netfid, length,
+					pfLock->fl_start, 0, 1,
+					lockType | LOCKING_ANDX_SHARED_LOCK,
+					0 /* wait flag */);
+				if (rc == 0) {
+					rc = CIFSSMBLock(xid, tcon, netfid,
+						length, pfLock->fl_start, 1, 0,
+						lockType |
+						LOCKING_ANDX_SHARED_LOCK,
+						0 /* wait flag */);
+					pfLock->fl_type = F_RDLCK;
+					if (rc != 0)
+						cERROR(1, ("Error unlocking "
+						"previously locked range %d "
+						"during test of lock", rc));
+					rc = 0;
+				} else {
+					pfLock->fl_type = F_WRLCK;
+					rc = 0;
+				}
+			}
 		}
 
 		FreeXid(xid);

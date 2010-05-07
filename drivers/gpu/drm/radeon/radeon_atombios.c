@@ -69,16 +69,19 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 	struct radeon_i2c_bus_rec i2c;
 	int index = GetIndexIntoMasterTable(DATA, GPIO_I2C_Info);
 	struct _ATOM_GPIO_I2C_INFO *i2c_info;
-	uint16_t data_offset;
-	int i;
+	uint16_t data_offset, size;
+	int i, num_indices;
 
 	memset(&i2c, 0, sizeof(struct radeon_i2c_bus_rec));
 	i2c.valid = false;
 
-	if (atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
+	if (atom_parse_data_header(ctx, index, &size, NULL, NULL, &data_offset)) {
 		i2c_info = (struct _ATOM_GPIO_I2C_INFO *)(ctx->bios + data_offset);
 
-		for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
+		num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+			sizeof(ATOM_GPIO_I2C_ASSIGMENT);
+
+		for (i = 0; i < num_indices; i++) {
 			gpio = &i2c_info->asGPIO_Info[i];
 
 			if (gpio->sucI2cId.ucAccess == id) {
@@ -1261,7 +1264,7 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 	switch (crev) {
 	case 1:
 		tv_info = (ATOM_ANALOG_TV_INFO *)(mode_info->atom_context->bios + data_offset);
-		if (index > MAX_SUPPORTED_TV_TIMING)
+		if (index >= MAX_SUPPORTED_TV_TIMING)
 			return false;
 
 		mode->crtc_htotal = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Total);
@@ -1299,7 +1302,7 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 		break;
 	case 2:
 		tv_info_v1_2 = (ATOM_ANALOG_TV_INFO_V1_2 *)(mode_info->atom_context->bios + data_offset);
-		if (index > MAX_SUPPORTED_TV_TIMING_V1_2)
+		if (index >= MAX_SUPPORTED_TV_TIMING_V1_2)
 			return false;
 
 		dtd_timings = &tv_info_v1_2->aModeTimings[index];

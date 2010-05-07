@@ -33,6 +33,35 @@
 #include <linux/workqueue.h>
 #include "hvc_console.h"
 
+/* Moved here from .h file in order to disable MULTIPORT. */
+#define VIRTIO_CONSOLE_F_MULTIPORT 1	/* Does host provide multiple ports? */
+
+struct virtio_console_multiport_conf {
+	struct virtio_console_config config;
+	/* max. number of ports this device can hold */
+	__u32 max_nr_ports;
+	/* number of ports added so far */
+	__u32 nr_ports;
+} __attribute__((packed));
+
+/*
+ * A message that's passed between the Host and the Guest for a
+ * particular port.
+ */
+struct virtio_console_control {
+	__u32 id;		/* Port number */
+	__u16 event;		/* The kind of control event (see below) */
+	__u16 value;		/* Extra information for the key */
+};
+
+/* Some events for control messages */
+#define VIRTIO_CONSOLE_PORT_READY	0
+#define VIRTIO_CONSOLE_CONSOLE_PORT	1
+#define VIRTIO_CONSOLE_RESIZE		2
+#define VIRTIO_CONSOLE_PORT_OPEN	3
+#define VIRTIO_CONSOLE_PORT_NAME	4
+#define VIRTIO_CONSOLE_PORT_REMOVE	5
+
 /*
  * This is a global struct for storing common data for all the devices
  * this driver handles.
@@ -121,7 +150,7 @@ struct ports_device {
 	spinlock_t cvq_lock;
 
 	/* The current config space is stored here */
-	struct virtio_console_config config;
+	struct virtio_console_multiport_conf config;
 
 	/* The virtio device we're associated with */
 	struct virtio_device *vdev;
@@ -416,20 +445,16 @@ static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count)
 	out_vq->vq_ops->kick(out_vq);
 
 	if (ret < 0) {
-		len = 0;
+		in_count = 0;
 		goto fail;
 	}
 
-	/*
-	 * Wait till the host acknowledges it pushed out the data we
-	 * sent. Also ensure we return to userspace the number of
-	 * bytes that were successfully consumed by the host.
-	 */
+	/* Wait till the host acknowledges it pushed out the data we sent. */
 	while (!out_vq->vq_ops->get_buf(out_vq, &len))
 		cpu_relax();
 fail:
 	/* We're expected to return the amount of data we wrote */
-	return len;
+	return in_count;
 }
 
 /*
@@ -646,12 +671,12 @@ static int put_chars(u32 vtermno, const char *buf, int count)
 {
 	struct port *port;
 
+	if (unlikely(early_put_chars))
+		return early_put_chars(vtermno, buf, count);
+
 	port = find_port_by_vtermno(vtermno);
 	if (!port)
 		return 0;
-
-	if (unlikely(early_put_chars))
-		return early_put_chars(vtermno, buf, count);
 
 	return send_buf(port, (void *)buf, count);
 }
@@ -1218,7 +1243,7 @@ fail:
  */
 static void config_work_handler(struct work_struct *work)
 {
-	struct virtio_console_config virtconconf;
+	struct virtio_console_multiport_conf virtconconf;
 	struct ports_device *portdev;
 	struct virtio_device *vdev;
 	int err;
@@ -1227,7 +1252,8 @@ static void config_work_handler(struct work_struct *work)
 
 	vdev = portdev->vdev;
 	vdev->config->get(vdev,
-			  offsetof(struct virtio_console_config, nr_ports),
+			  offsetof(struct virtio_console_multiport_conf,
+				   nr_ports),
 			  &virtconconf.nr_ports,
 			  sizeof(virtconconf.nr_ports));
 
@@ -1419,16 +1445,19 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 	multiport = false;
 	portdev->config.nr_ports = 1;
 	portdev->config.max_nr_ports = 1;
+#if 0 /* Multiport is not quite ready yet --RR */
 	if (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_MULTIPORT)) {
 		multiport = true;
 		vdev->features[0] |= 1 << VIRTIO_CONSOLE_F_MULTIPORT;
 
-		vdev->config->get(vdev, offsetof(struct virtio_console_config,
-						 nr_ports),
+		vdev->config->get(vdev,
+				  offsetof(struct virtio_console_multiport_conf,
+					   nr_ports),
 				  &portdev->config.nr_ports,
 				  sizeof(portdev->config.nr_ports));
-		vdev->config->get(vdev, offsetof(struct virtio_console_config,
-						 max_nr_ports),
+		vdev->config->get(vdev,
+				  offsetof(struct virtio_console_multiport_conf,
+					   max_nr_ports),
 				  &portdev->config.max_nr_ports,
 				  sizeof(portdev->config.max_nr_ports));
 		if (portdev->config.nr_ports > portdev->config.max_nr_ports) {
@@ -1444,6 +1473,7 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 
 	/* Let the Host know we support multiple ports.*/
 	vdev->config->finalize_features(vdev);
+#endif
 
 	err = init_vqs(portdev);
 	if (err < 0) {
@@ -1526,7 +1556,6 @@ static struct virtio_device_id id_table[] = {
 
 static unsigned int features[] = {
 	VIRTIO_CONSOLE_F_SIZE,
-	VIRTIO_CONSOLE_F_MULTIPORT,
 };
 
 static struct virtio_driver virtio_console = {
