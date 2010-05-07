@@ -74,12 +74,12 @@ static inline u32 wl1271_raw_read32(struct wl1271 *wl, int addr)
 	wl1271_raw_read(wl, addr, &wl->buffer_32,
 			    sizeof(wl->buffer_32), false);
 
-	return wl->buffer_32;
+	return le32_to_cpu(wl->buffer_32);
 }
 
 static inline void wl1271_raw_write32(struct wl1271 *wl, int addr, u32 val)
 {
-	wl->buffer_32 = val;
+	wl->buffer_32 = cpu_to_le32(val);
 	wl1271_raw_write(wl, addr, &wl->buffer_32,
 			     sizeof(wl->buffer_32), false);
 }
