@@ -149,9 +149,12 @@ static void check_known_mac_addr(uint8_t *addr)
 		if (!compare_orig(batman_if->net_dev->dev_addr, addr))
 			continue;
 
-		printk(KERN_WARNING "batman-adv:The newly added mac address (%pM) already exists on: %s\n",
-		       addr, batman_if->dev);
-		printk(KERN_WARNING "batman-adv:It is strongly recommended to keep mac addresses unique to avoid problems!\n");
+		printk(KERN_WARNING "batman-adv:"
+		    "The newly added mac address (%pM) already exists on: %s\n",
+		    addr, batman_if->dev);
+		printk(KERN_WARNING "batman-adv:"
+		    "It is strongly recommended to keep mac addresses unique"
+		    "to avoid problems!\n");
 	}
 	rcu_read_unlock();
 }
@@ -242,7 +245,8 @@ int hardif_enable_interface(struct batman_if *batman_if)
 	batman_if->packet_buff = kmalloc(batman_if->packet_len, GFP_ATOMIC);
 
 	if (!batman_if->packet_buff) {
-		printk(KERN_ERR "batman-adv:Can't add interface packet (%s): out of memory\n",
+		printk(KERN_ERR "batman-adv:"
+		       "Can't add interface packet (%s): out of memory\n",
 		       batman_if->dev);
 		goto err;
 	}
@@ -266,7 +270,10 @@ int hardif_enable_interface(struct batman_if *batman_if)
 	if (hardif_is_iface_up(batman_if))
 		hardif_activate_interface(bat_priv, batman_if);
 	else
-		printk(KERN_ERR "batman-adv:Not using interface %s (retrying later): interface not active\n", batman_if->dev);
+		printk(KERN_ERR "batman-adv:"
+		       "Not using interface %s "
+		       "(retrying later): interface not active\n",
+		       batman_if->dev);
 
 	/* begin scheduling originator messages on that interface */
 	schedule_own_packet(batman_if);
@@ -316,7 +323,8 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 
 	batman_if = kmalloc(sizeof(struct batman_if), GFP_ATOMIC);
 	if (!batman_if) {
-		printk(KERN_ERR "batman-adv:Can't add interface (%s): out of memory\n",
+		printk(KERN_ERR "batman-adv:"
+		       "Can't add interface (%s): out of memory\n",
 		       net_dev->name);
 		goto out;
 	}

@@ -140,8 +140,10 @@ struct orig_node *get_orig_node(uint8_t *addr)
 	memcpy(orig_node->orig, addr, ETH_ALEN);
 	orig_node->router = NULL;
 	orig_node->hna_buff = NULL;
-	orig_node->bcast_seqno_reset = jiffies - msecs_to_jiffies(RESET_PROTECTION_MS) - 1;
-	orig_node->batman_seqno_reset = jiffies - msecs_to_jiffies(RESET_PROTECTION_MS) - 1;
+	orig_node->bcast_seqno_reset = jiffies - 1
+					- msecs_to_jiffies(RESET_PROTECTION_MS);
+	orig_node->batman_seqno_reset = jiffies - 1
+					- msecs_to_jiffies(RESET_PROTECTION_MS);
 
 	size = bat_priv->num_ifaces * sizeof(TYPE_OF_WORD) * NUM_WORDS;
 
@@ -198,11 +200,15 @@ static bool purge_orig_neighbors(struct orig_node *orig_node,
 
 			if (neigh_node->if_incoming->if_status ==
 							IF_TO_BE_REMOVED)
-				bat_dbg(DBG_BATMAN, "neighbor purge: originator %pM, neighbor: %pM, iface: %s\n",
+				bat_dbg(DBG_BATMAN,
+					"neighbor purge: originator %pM, "
+					"neighbor: %pM, iface: %s\n",
 					orig_node->orig, neigh_node->addr,
 					neigh_node->if_incoming->dev);
 			else
-				bat_dbg(DBG_BATMAN, "neighbor timeout: originator %pM, neighbor: %pM, last_valid: %lu\n",
+				bat_dbg(DBG_BATMAN,
+					"neighbor timeout: originator %pM, "
+					"neighbor: %pM, last_valid: %lu\n",
 					orig_node->orig, neigh_node->addr,
 					(neigh_node->last_valid / HZ));
 
@@ -280,24 +286,25 @@ ssize_t orig_fill_buffer_text(struct net_device *net_dev, char *buff,
 	if (!bat_priv->primary_if) {
 		if (off == 0)
 			return sprintf(buff,
-				       "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
-				       net_dev->name);
+				     "BATMAN mesh %s disabled - "
+				     "please specify interfaces to enable it\n",
+				     net_dev->name);
 
 		return 0;
 	}
 
-	if (bat_priv->primary_if->if_status != IF_ACTIVE) {
-		if (off == 0)
-			return sprintf(buff,
-				       "BATMAN mesh %s disabled - primary interface not active\n",
-				       net_dev->name);
-
+	if (bat_priv->primary_if->if_status != IF_ACTIVE && off == 0)
+		return sprintf(buff,
+			       "BATMAN mesh %s "
+			       "disabled - primary interface not active\n",
+			       net_dev->name);
+	else if (bat_priv->primary_if->if_status != IF_ACTIVE)
 		return 0;
-	}
 
 	rcu_read_lock();
 	hdr_len = sprintf(buff,
-		   "  %-14s (%s/%i) %17s [%10s]: %20s ... [B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%s (%s)]\n",
+		   "  %-14s (%s/%i) %17s [%10s]: %20s "
+		   "... [B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%s (%s)]\n",
 		   "Originator", "#", TQ_MAX_VALUE, "Nexthop", "outgoingIF",
 		   "Potential nexthops", SOURCE_VERSION, REVISION_VERSION_STR,
 		   bat_priv->primary_if->dev, bat_priv->primary_if->addr_str,
@@ -366,7 +373,8 @@ static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 	data_ptr = kmalloc(max_if_num * sizeof(TYPE_OF_WORD) * NUM_WORDS,
 			   GFP_ATOMIC);
 	if (!data_ptr) {
-		printk(KERN_ERR "batman-adv:Can't resize orig: out of memory\n");
+		printk(KERN_ERR
+		       "batman-adv:Can't resize orig: out of memory\n");
 		return -1;
 	}
 
@@ -377,7 +385,8 @@ static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)
 
 	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
 	if (!data_ptr) {
-		printk(KERN_ERR "batman-adv:Can't resize orig: out of memory\n");
+		printk(KERN_ERR
+		       "batman-adv:Can't resize orig: out of memory\n");
 		return -1;
 	}
 
@@ -426,7 +435,8 @@ static int orig_node_del_if(struct orig_node *orig_node,
 	chunk_size = sizeof(TYPE_OF_WORD) * NUM_WORDS;
 	data_ptr = kmalloc(max_if_num * chunk_size, GFP_ATOMIC);
 	if (!data_ptr) {
-		printk(KERN_ERR "batman-adv:Can't resize orig: out of memory\n");
+		printk(KERN_ERR
+		       "batman-adv:Can't resize orig: out of memory\n");
 		return -1;
 	}
 
@@ -447,7 +457,8 @@ free_bcast_own:
 
 	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
 	if (!data_ptr) {
-		printk(KERN_ERR "batman-adv:Can't resize orig: out of memory\n");
+		printk(KERN_ERR
+		       "batman-adv:Can't resize orig: out of memory\n");
 		return -1;
 	}
 
