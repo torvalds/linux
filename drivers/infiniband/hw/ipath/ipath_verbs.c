@@ -2182,7 +2182,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	snprintf(dev->node_desc, sizeof(dev->node_desc),
 		 IPATH_IDSTR " %s", init_utsname()->nodename);
 
-	ret = ib_register_device(dev);
+	ret = ib_register_device(dev, NULL);
 	if (ret)
 		goto err_reg;
 
