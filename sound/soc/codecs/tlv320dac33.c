@@ -61,6 +61,8 @@
 #define US_TO_SAMPLES(rate, us) \
 	(rate / (1000000 / us))
 
+static void dac33_calculate_times(struct snd_pcm_substream *substream);
+static int dac33_prepare_chip(struct snd_pcm_substream *substream);
 
 static struct snd_soc_codec *tlv320dac33_codec;
 
@@ -91,6 +93,7 @@ struct tlv320dac33_priv {
 	struct work_struct work;
 	struct snd_soc_codec codec;
 	struct regulator_bulk_data supplies[DAC33_NUM_SUPPLIES];
+	struct snd_pcm_substream *substream;
 	int power_gpio;
 	int chip_power;
 	int irq;
@@ -284,45 +287,47 @@ static int dac33_write16(struct snd_soc_codec *codec, unsigned int reg,
 	return ret;
 }
 
-static void dac33_restore_regs(struct snd_soc_codec *codec)
+static void dac33_init_chip(struct snd_soc_codec *codec)
 {
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
-	u8 *cache = codec->reg_cache;
-	u8 data[2];
-	int i, ret;
 
-	if (!dac33->chip_power)
+	if (unlikely(!dac33->chip_power))
 		return;
 
-	for (i = DAC33_PWR_CTRL; i <= DAC33_INTP_CTRL_B; i++) {
-		data[0] = i;
-		data[1] = cache[i];
-		/* Skip the read only registers */
-		if ((i >= DAC33_INT_OSC_STATUS &&
-				i <= DAC33_INT_OSC_FREQ_RAT_READ_B) ||
-		    (i >= DAC33_FIFO_WPTR_MSB && i <= DAC33_FIFO_IRQ_FLAG) ||
-		    i == DAC33_DAC_STATUS_FLAGS ||
-		    i == DAC33_SRC_EST_REF_CLK_RATIO_A ||
-		    i == DAC33_SRC_EST_REF_CLK_RATIO_B)
-			continue;
-		ret = codec->hw_write(codec->control_data, data, 2);
-		if (ret != 2)
-			dev_err(codec->dev, "Write failed (%d)\n", ret);
-	}
-	for (i = DAC33_LDAC_PWR_CTRL; i <= DAC33_LINEL_TO_LLO_VOL; i++) {
-		data[0] = i;
-		data[1] = cache[i];
-		ret = codec->hw_write(codec->control_data, data, 2);
-		if (ret != 2)
-			dev_err(codec->dev, "Write failed (%d)\n", ret);
-	}
-	for (i = DAC33_LINER_TO_RLO_VOL; i <= DAC33_OSC_TRIM; i++) {
-		data[0] = i;
-		data[1] = cache[i];
-		ret = codec->hw_write(codec->control_data, data, 2);
-		if (ret != 2)
-			dev_err(codec->dev, "Write failed (%d)\n", ret);
-	}
+	/* 44-46: DAC Control Registers */
+	/* A : DAC sample rate Fsref/1.5 */
+	dac33_write(codec, DAC33_DAC_CTRL_A, DAC33_DACRATE(0));
+	/* B : DAC src=normal, not muted */
+	dac33_write(codec, DAC33_DAC_CTRL_B, DAC33_DACSRCR_RIGHT |
+					     DAC33_DACSRCL_LEFT);
+	/* C : (defaults) */
+	dac33_write(codec, DAC33_DAC_CTRL_C, 0x00);
+
+	/* 73 : volume soft stepping control,
+	 clock source = internal osc (?) */
+	dac33_write(codec, DAC33_ANA_VOL_SOFT_STEP_CTRL, DAC33_VOLCLKEN);
+
+	dac33_write(codec, DAC33_PWR_CTRL, DAC33_PDNALLB);
+
+	/* Restore only selected registers (gains mostly) */
+	dac33_write(codec, DAC33_LDAC_DIG_VOL_CTRL,
+		    dac33_read_reg_cache(codec, DAC33_LDAC_DIG_VOL_CTRL));
+	dac33_write(codec, DAC33_RDAC_DIG_VOL_CTRL,
+		    dac33_read_reg_cache(codec, DAC33_RDAC_DIG_VOL_CTRL));
+
+	dac33_write(codec, DAC33_LINEL_TO_LLO_VOL,
+		    dac33_read_reg_cache(codec, DAC33_LINEL_TO_LLO_VOL));
+	dac33_write(codec, DAC33_LINER_TO_RLO_VOL,
+		    dac33_read_reg_cache(codec, DAC33_LINER_TO_RLO_VOL));
+}
+
+static inline void dac33_read_id(struct snd_soc_codec *codec)
+{
+	u8 reg;
+
+	dac33_read(codec, DAC33_DEVICE_ID_MSB, &reg);
+	dac33_read(codec, DAC33_DEVICE_ID_LSB, &reg);
+	dac33_read(codec, DAC33_DEVICE_REV_ID, &reg);
 }
 
 static inline void dac33_soft_power(struct snd_soc_codec *codec, int power)
@@ -341,9 +346,17 @@ static inline void dac33_soft_power(struct snd_soc_codec *codec, int power)
 static int dac33_hard_power(struct snd_soc_codec *codec, int power)
 {
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&dac33->mutex);
+
+	/* Safety check */
+	if (unlikely(power == dac33->chip_power)) {
+		dev_warn(codec->dev, "Trying to set the same power state: %s\n",
+			power ? "ON" : "OFF");
+		goto exit;
+	}
+
 	if (power) {
 		ret = regulator_bulk_enable(ARRAY_SIZE(dac33->supplies),
 					  dac33->supplies);
@@ -357,11 +370,6 @@ static int dac33_hard_power(struct snd_soc_codec *codec, int power)
 			gpio_set_value(dac33->power_gpio, 1);
 
 		dac33->chip_power = 1;
-
-		/* Restore registers */
-		dac33_restore_regs(codec);
-
-		dac33_soft_power(codec, 1);
 	} else {
 		dac33_soft_power(codec, 0);
 		if (dac33->power_gpio >= 0)
@@ -381,6 +389,22 @@ static int dac33_hard_power(struct snd_soc_codec *codec, int power)
 exit:
 	mutex_unlock(&dac33->mutex);
 	return ret;
+}
+
+static int playback_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(w->codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (likely(dac33->substream)) {
+			dac33_calculate_times(dac33->substream);
+			dac33_prepare_chip(dac33->substream);
+		}
+		break;
+	}
+	return 0;
 }
 
 static int dac33_get_nsample(struct snd_kcontrol *kcontrol,
@@ -512,6 +536,8 @@ static const struct snd_soc_dapm_widget dac33_dapm_widgets[] = {
 			 DAC33_OUT_AMP_PWR_CTRL, 6, 3, 3, 0),
 	SND_SOC_DAPM_REG(snd_soc_dapm_mixer, "Output Right Amp Power",
 			 DAC33_OUT_AMP_PWR_CTRL, 4, 3, 3, 0),
+
+	SND_SOC_DAPM_PRE("Prepare Playback", playback_event),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -554,18 +580,18 @@ static int dac33_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+			/* Coming from OFF, switch on the codec */
 			ret = dac33_hard_power(codec, 1);
 			if (ret != 0)
 				return ret;
-		}
 
-		dac33_soft_power(codec, 0);
+			dac33_init_chip(codec);
+		}
 		break;
 	case SND_SOC_BIAS_OFF:
 		ret = dac33_hard_power(codec, 0);
 		if (ret != 0)
 			return ret;
-
 		break;
 	}
 	codec->bias_level = level;
@@ -708,6 +734,31 @@ static void dac33_oscwait(struct snd_soc_codec *codec)
 			"internal oscillator calibration failed\n");
 }
 
+static int dac33_startup(struct snd_pcm_substream *substream,
+			   struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
+
+	/* Stream started, save the substream pointer */
+	dac33->substream = substream;
+
+	return 0;
+}
+
+static void dac33_shutdown(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
+
+	dac33->substream = NULL;
+}
+
 static int dac33_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params,
 			   struct snd_soc_dai *dai)
@@ -791,6 +842,16 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 	}
 
 	mutex_lock(&dac33->mutex);
+
+	if (!dac33->chip_power) {
+		/*
+		 * Chip is not powered yet.
+		 * Do the init in the dac33_set_bias_level later.
+		 */
+		mutex_unlock(&dac33->mutex);
+		return 0;
+	}
+
 	dac33_soft_power(codec, 0);
 	dac33_soft_power(codec, 1);
 
@@ -995,15 +1056,6 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 		break;
 	}
 
-}
-
-static int dac33_pcm_prepare(struct snd_pcm_substream *substream,
-			     struct snd_soc_dai *dai)
-{
-	dac33_calculate_times(substream);
-	dac33_prepare_chip(substream);
-
-	return 0;
 }
 
 static int dac33_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -1269,35 +1321,6 @@ static int dac33_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static void dac33_init_chip(struct snd_soc_codec *codec)
-{
-	/* 44-46: DAC Control Registers */
-	/* A : DAC sample rate Fsref/1.5 */
-	dac33_write(codec, DAC33_DAC_CTRL_A, DAC33_DACRATE(0));
-	/* B : DAC src=normal, not muted */
-	dac33_write(codec, DAC33_DAC_CTRL_B, DAC33_DACSRCR_RIGHT |
-					     DAC33_DACSRCL_LEFT);
-	/* C : (defaults) */
-	dac33_write(codec, DAC33_DAC_CTRL_C, 0x00);
-
-	/* 64-65 : L&R DAC power control
-	 Line In -> OUT 1V/V Gain, DAC -> OUT 4V/V Gain*/
-	dac33_write(codec, DAC33_LDAC_PWR_CTRL, DAC33_LROUT_GAIN(2));
-	dac33_write(codec, DAC33_RDAC_PWR_CTRL, DAC33_LROUT_GAIN(2));
-
-	/* 73 : volume soft stepping control,
-	 clock source = internal osc (?) */
-	dac33_write(codec, DAC33_ANA_VOL_SOFT_STEP_CTRL, DAC33_VOLCLKEN);
-
-	/* 66 : LOP/LOM Modes */
-	dac33_write(codec, DAC33_OUT_AMP_CM_CTRL, 0xff);
-
-	/* 68 : LOM inverted from LOP */
-	dac33_write(codec, DAC33_OUT_AMP_CTRL, (3<<2));
-
-	dac33_write(codec, DAC33_PWR_CTRL, DAC33_PDNALLB);
-}
-
 static int dac33_soc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
@@ -1310,11 +1333,6 @@ static int dac33_soc_probe(struct platform_device *pdev)
 	codec = tlv320dac33_codec;
 	socdev->card->codec = codec;
 	dac33 = snd_soc_codec_get_drvdata(codec);
-
-	/* Power up the codec */
-	dac33_hard_power(codec, 1);
-	/* Set default configuration */
-	dac33_init_chip(codec);
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
@@ -1331,12 +1349,6 @@ static int dac33_soc_probe(struct platform_device *pdev)
 				     ARRAY_SIZE(dac33_nsample_snd_controls));
 
 	dac33_add_widgets(codec);
-
-	/* power on device */
-	dac33_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	/* Bias level configuration has enabled regulator an extra time */
-	regulator_bulk_disable(ARRAY_SIZE(dac33->supplies), dac33->supplies);
 
 	return 0;
 
@@ -1374,6 +1386,8 @@ static int dac33_soc_resume(struct platform_device *pdev)
 	struct snd_soc_codec *codec = socdev->card->codec;
 
 	dac33_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
+		dac33_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
 	dac33_set_bias_level(codec, codec->suspend_bias_level);
 
 	return 0;
@@ -1392,8 +1406,9 @@ EXPORT_SYMBOL_GPL(soc_codec_dev_tlv320dac33);
 #define DAC33_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
 
 static struct snd_soc_dai_ops dac33_dai_ops = {
+	.startup	= dac33_startup,
+	.shutdown	= dac33_shutdown,
 	.hw_params	= dac33_hw_params,
-	.prepare	= dac33_pcm_prepare,
 	.trigger	= dac33_pcm_trigger,
 	.delay		= dac33_dai_delay,
 	.set_sysclk	= dac33_set_dai_sysclk,
@@ -1447,6 +1462,7 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 	codec->hw_write = (hw_write_t) i2c_master_send;
 	codec->bias_level = SND_SOC_BIAS_OFF;
 	codec->set_bias_level = dac33_set_bias_level;
+	codec->idle_bias_off = 1;
 	codec->dai = &dac33_dai;
 	codec->num_dai = 1;
 	codec->reg_cache_size = ARRAY_SIZE(dac33_reg);
@@ -1487,8 +1503,6 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 			goto error_gpio;
 		}
 		gpio_direction_output(dac33->power_gpio, 0);
-	} else {
-		dac33->chip_power = 1;
 	}
 
 	/* Check if the IRQ number is valid and request it */
@@ -1526,12 +1540,14 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 		goto err_get;
 	}
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(dac33->supplies),
-				    dac33->supplies);
+	/* Read the tlv320dac33 ID registers */
+	ret = dac33_hard_power(codec, 1);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_enable;
+		dev_err(codec->dev, "Failed to power up codec: %d\n", ret);
+		goto error_codec;
 	}
+	dac33_read_id(codec);
+	dac33_hard_power(codec, 0);
 
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
@@ -1546,14 +1562,9 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 		goto error_codec;
 	}
 
-	/* Shut down the codec for now */
-	dac33_hard_power(codec, 0);
-
 	return ret;
 
 error_codec:
-	regulator_bulk_disable(ARRAY_SIZE(dac33->supplies), dac33->supplies);
-err_enable:
 	regulator_bulk_free(ARRAY_SIZE(dac33->supplies), dac33->supplies);
 err_get:
 	if (dac33->irq >= 0) {
@@ -1577,7 +1588,9 @@ static int __devexit dac33_i2c_remove(struct i2c_client *client)
 	struct tlv320dac33_priv *dac33;
 
 	dac33 = i2c_get_clientdata(client);
-	dac33_hard_power(&dac33->codec, 0);
+
+	if (unlikely(dac33->chip_power))
+		dac33_hard_power(&dac33->codec, 0);
 
 	if (dac33->power_gpio >= 0)
 		gpio_free(dac33->power_gpio);

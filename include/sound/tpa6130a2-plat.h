@@ -31,6 +31,7 @@ enum tpa_model {
 struct tpa6130a2_platform_data {
 	enum tpa_model id;
 	int power_gpio;
+	int limit_gain;
 };
 
 #endif
