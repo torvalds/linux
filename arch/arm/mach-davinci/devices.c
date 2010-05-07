@@ -297,12 +297,12 @@ static void davinci_init_wdt(void)
 
 struct davinci_timer_instance davinci_timer_instance[2] = {
 	{
-		.base		= IO_ADDRESS(DAVINCI_TIMER0_BASE),
+		.base		= DAVINCI_TIMER0_BASE,
 		.bottom_irq	= IRQ_TINT0_TINT12,
 		.top_irq	= IRQ_TINT0_TINT34,
 	},
 	{
-		.base		= IO_ADDRESS(DAVINCI_TIMER1_BASE),
+		.base		= DAVINCI_TIMER1_BASE,
 		.bottom_irq	= IRQ_TINT1_TINT12,
 		.top_irq	= IRQ_TINT1_TINT34,
 	},

@@ -197,32 +197,36 @@ static void __init timer_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	struct davinci_timer_instance *dtip = soc_info->timer_info->timers;
+	void __iomem *base[2];
 	int i;
 
 	/* Global init of each 64-bit timer as a whole */
 	for(i=0; i<2; i++) {
 		u32 tgcr;
-		void __iomem *base = dtip[i].base;
+
+		base[i] = ioremap(dtip[i].base, SZ_4K);
+		if (WARN_ON(!base[i]))
+			continue;
 
 		/* Disabled, Internal clock source */
-		__raw_writel(0, base + TCR);
+		__raw_writel(0, base[i] + TCR);
 
 		/* reset both timers, no pre-scaler for timer34 */
 		tgcr = 0;
-		__raw_writel(tgcr, base + TGCR);
+		__raw_writel(tgcr, base[i] + TGCR);
 
 		/* Set both timers to unchained 32-bit */
 		tgcr = TGCR_TIMMODE_32BIT_UNCHAINED << TGCR_TIMMODE_SHIFT;
-		__raw_writel(tgcr, base + TGCR);
+		__raw_writel(tgcr, base[i] + TGCR);
 
 		/* Unreset timers */
 		tgcr |= (TGCR_UNRESET << TGCR_TIM12RS_SHIFT) |
 			(TGCR_UNRESET << TGCR_TIM34RS_SHIFT);
-		__raw_writel(tgcr, base + TGCR);
+		__raw_writel(tgcr, base[i] + TGCR);
 
 		/* Init both counters to zero */
-		__raw_writel(0, base + TIM12);
-		__raw_writel(0, base + TIM34);
+		__raw_writel(0, base[i] + TIM12);
+		__raw_writel(0, base[i] + TIM34);
 	}
 
 	/* Init of each timer as a 32-bit timer */
@@ -231,7 +235,9 @@ static void __init timer_init(void)
 		int timer = ID_TO_TIMER(t->id);
 		u32 irq;
 
-		t->base = dtip[timer].base;
+		t->base = base[timer];
+		if (!t->base)
+			continue;
 
 		if (IS_TIMER_BOT(t->id)) {
 			t->enamode_shift = 6;

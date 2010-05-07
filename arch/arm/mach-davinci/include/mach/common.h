@@ -24,7 +24,7 @@ extern void __iomem *davinci_intc_base;
 extern int davinci_intc_type;
 
 struct davinci_timer_instance {
-	void __iomem	*base;
+	u32		base;
 	u32		bottom_irq;
 	u32		top_irq;
 	unsigned long	cmp_off;

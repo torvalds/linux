@@ -800,22 +800,22 @@ static struct davinci_id da850_ids[] = {
 
 static struct davinci_timer_instance da850_timer_instance[4] = {
 	{
-		.base		= IO_ADDRESS(DA8XX_TIMER64P0_BASE),
+		.base		= DA8XX_TIMER64P0_BASE,
 		.bottom_irq	= IRQ_DA8XX_TINT12_0,
 		.top_irq	= IRQ_DA8XX_TINT34_0,
 	},
 	{
-		.base		= IO_ADDRESS(DA8XX_TIMER64P1_BASE),
+		.base		= DA8XX_TIMER64P1_BASE,
 		.bottom_irq	= IRQ_DA8XX_TINT12_1,
 		.top_irq	= IRQ_DA8XX_TINT34_1,
 	},
 	{
-		.base		= IO_ADDRESS(DA850_TIMER64P2_BASE),
+		.base		= DA850_TIMER64P2_BASE,
 		.bottom_irq	= IRQ_DA850_TINT12_2,
 		.top_irq	= IRQ_DA850_TINT34_2,
 	},
 	{
-		.base		= IO_ADDRESS(DA850_TIMER64P3_BASE),
+		.base		= DA850_TIMER64P3_BASE,
 		.bottom_irq	= IRQ_DA850_TINT12_3,
 		.top_irq	= IRQ_DA850_TINT34_3,
 	},
