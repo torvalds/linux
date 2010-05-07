@@ -61,6 +61,10 @@
 				   * forw_packet->direct_link_flags */
 #define MAX_AGGREGATION_MS 100
 
+#define RESET_PROTECTION_MS 30000
+#define EXPECTED_SEQNO_RANGE	4096
+/* don't reset again within 30 seconds */
+
 #define MODULE_INACTIVE 0
 #define MODULE_ACTIVE 1
 #define MODULE_DEACTIVATING 2

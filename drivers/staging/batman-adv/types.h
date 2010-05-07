@@ -55,6 +55,10 @@ struct orig_node {               /* structure for orig_list maintaining nodes of
 	uint8_t tq_own;
 	int tq_asym_penalty;
 	unsigned long last_valid;        /* when last packet from this node was received */
+	unsigned long bcast_seqno_reset; /* time when the broadcast
+					    seqno window was reset. */
+	unsigned long batman_seqno_reset;/* time when the batman seqno
+					    window was reset. */
 /*	uint8_t  gwflags;      * flags related to gateway functions: gateway class */
 	uint8_t  flags;    		/* for now only VIS_SERVER flag. */
 	unsigned char *hna_buff;
