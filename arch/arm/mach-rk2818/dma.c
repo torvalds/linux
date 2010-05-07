@@ -29,6 +29,8 @@
 
 static struct rk2818_dma rk2818_dma[MAX_DMA_CHANNELS];
 
+static struct tasklet_struct rk2818_dma_tasklet;
+
 const static char *rk28_dma_dev_id[] = {
     "sd_mmc",
     "uart_2",
@@ -427,7 +429,9 @@ static int rk28_dma_disable(unsigned int dma_ch, dma_t *dma_t)
 	spin_lock(&rk28dma->lock);
 	
 	DISABLE_DWDMA(dma_ch);
-	
+	while (GET_DWDMA_STATUS(dma_ch))
+		cpu_relax();
+		
 	spin_unlock(&rk28dma->lock);
 	
     return 0;	
@@ -472,13 +476,10 @@ static int rk28_dma_request(unsigned int dma_ch, dma_t *dma_t)
         rk28dma->dma_llp_phy = NULL;
     }
     
-    rk2818_dma[dma_ch].dev_info = &rk28_dev_info[i];
+    rk28dma->dev_info = &rk28_dev_info[i];
 	
 	/* clear interrupt */
     CLR_DWDMA_INTR(dma_ch);
-
-	/* Unmask interrupt */
-    UN_MASK_DWDMA_INTR(dma_ch);
 
 	spin_unlock(&rk28dma->lock);
 
@@ -501,9 +502,6 @@ static int rk28_dma_free(unsigned int dma_ch, dma_t *dma_t)
 	
 	/* clear interrupt */
     CLR_DWDMA_INTR(dma_ch);
-
-	/* Mask interrupt */
-    MASK_DWDMA_INTR(dma_ch);
 
 	if (dma_ch < RK28_DMA_CH2) {
         if (!rk28dma->dma_llp_vir) {
@@ -580,14 +578,14 @@ static int rk28_dma_next(unsigned int dma_ch)
 }
 
 /**
- * rk28_dma_irq_handler - irq callback function   
+ * rk28_dma_tasklet - irq callback function   
  *
  */
-static irqreturn_t rk28_dma_irq_handler(int irq, void *dev_id)
+static void rk28_dma_tasklet(unsigned long data)
 {
 	int i, raw_status;
     struct rk2818_dma *rk28dma;
-    		     
+
     raw_status = read_dma_reg(DWDMA_RawTfr);
     
 	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
@@ -604,12 +602,33 @@ static irqreturn_t rk28_dma_irq_handler(int irq, void *dev_id)
             rk28dma->dma_t.active = 0;
             
             if (rk28dma->dma_t.irqHandle) {
-                rk28dma->dma_t.irqHandle(i, rk28dma->dma_t.data);
+                void *data = rk28dma->dma_t.data;
+                rk28dma->dma_t.irqHandle(i, data);
             } else {
-                //printk(KERN_WARNING "dma_irq: no IRQ handler for DMA channel %d\n", i);
+                printk(KERN_WARNING "dma_irq: no IRQ handler for DMA channel %d\n", i);
             }
         }
 	}
+	/*
+	 * Re-enable interrupts
+	 */
+	UN_MASK_DWDMA_ALL_TRF_INTR;
+}
+
+/**
+ * rk28_dma_irq_handler - irq callback function   
+ *
+ */
+static irqreturn_t rk28_dma_irq_handler(int irq, void *dev_id)
+{
+	/*
+	 * Just disable the interrupts. We'll turn them back on in the
+	 * softirq handler.
+	 */
+	MASK_DWDMA_ALL_TRF_INTR;
+	
+    tasklet_schedule(&rk2818_dma_tasklet);
+
 	return IRQ_HANDLED;
 }
 
@@ -632,12 +651,6 @@ static int __init rk28_dma_init(void)
 
     printk(KERN_INFO "enter dwdma init\n");
 
-	ret = request_irq(RK28_DMA_IRQ_NUM, rk28_dma_irq_handler, 0, "DMA", NULL);
-	if (ret < 0) {
-		printk(KERN_CRIT "Can't register IRQ for DMA\n");
-		return ret;
-	}
-
 	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
 		rk2818_dma[i].dma_t.irqHandle = NULL;
 		rk2818_dma[i].dma_t.data = NULL;
@@ -653,15 +666,32 @@ static int __init rk28_dma_init(void)
         rk2818_dma[i].length = 0;
 	}
     	
-	/* enable DMA module */
-	write_dma_reg(DWDMA_DmaCfgReg, 0x01);
-
 	/* clear all interrupts */
 	write_dma_reg(DWDMA_ClearBlock, 0x3f3f);
 	write_dma_reg(DWDMA_ClearTfr, 0x3f3f);
 	write_dma_reg(DWDMA_ClearSrcTran, 0x3f3f);
 	write_dma_reg(DWDMA_ClearDstTran, 0x3f3f);
 	write_dma_reg(DWDMA_ClearErr, 0x3f3f);
+
+    /*mask all interrupts*/
+	write_dma_reg(DWDMA_MaskBlock, 0x3f00);
+	write_dma_reg(DWDMA_MaskSrcTran, 0x3f00);
+	write_dma_reg(DWDMA_MaskDstTran, 0x3f00);
+	write_dma_reg(DWDMA_MaskErr, 0x3f00);
+
+    /*unmask transfer completion interrupt*/
+	UN_MASK_DWDMA_ALL_TRF_INTR;
+
+	ret = request_irq(RK28_DMA_IRQ_NUM, rk28_dma_irq_handler, 0, "DMA", NULL);
+	if (ret < 0) {
+		printk(KERN_CRIT "Can't register IRQ for DMA\n");
+		return ret;
+	}
+
+	tasklet_init(&rk2818_dma_tasklet, rk28_dma_tasklet, NULL);
+
+	/* enable DMA module */
+	write_dma_reg(DWDMA_DmaCfgReg, 0x01);
 
     printk(KERN_INFO "exit dwdma init\n");
     

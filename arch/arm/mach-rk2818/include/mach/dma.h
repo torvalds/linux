@@ -149,10 +149,10 @@
 #define CLR_DWDMA_INTR(dma_ch)            write_dma_reg(DWDMA_ClearTfr, 0x101<<dma_ch)
 
    /* Unmask interrupt */
-#define UN_MASK_DWDMA_INTR(dma_ch)        mask_dma_reg(DWDMA_MaskTfr, 0x101<<dma_ch, 0x101<<dma_ch)
+#define UN_MASK_DWDMA_ALL_TRF_INTR        write_dma_reg(DWDMA_MaskTfr, 0x3f3f)//mask_dma_reg(DWDMA_MaskTfr, 0x101<<dma_ch, 0x101<<dma_ch)
 
    /* Mask interrupt */
-#define MASK_DWDMA_INTR(dma_ch)           mask_dma_reg(DWDMA_MaskTfr, 0x101<<dma_ch, 0x100<<dma_ch)
+#define MASK_DWDMA_ALL_TRF_INTR           write_dma_reg(DWDMA_MaskTfr, 0x3f00)//mask_dma_reg(DWDMA_MaskTfr, 0x101<<dma_ch, 0x100<<dma_ch)
 
    /* Enable channel */
 #define ENABLE_DWDMA(dma_ch)              mask_dma_reg(DWDMA_ChEnReg, 0x101<<dma_ch, 0x101<<dma_ch)
@@ -160,10 +160,13 @@
    /* Disable channel */
 #define DISABLE_DWDMA(dma_ch)             mask_dma_reg(DWDMA_ChEnReg, 0x101<<dma_ch, 0x100<<dma_ch)
 
+   /* Disable channel */
+#define GET_DWDMA_STATUS(dma_ch)          read_dma_reg(DWDMA_ChEnReg) & (0x001<<dma_ch)
+
 /**************************/
 
 #define RK28_DMA_IRQ_NUM   0
-#define RK28_MAX_DMA_LLPS      100 /*max dma sg count*/
+#define RK28_MAX_DMA_LLPS      64 /*max dma sg count*/
 
 #define RK28_DMA_CH0A1_MAX_LEN      4095U
 #define RK28_DMA_CH2_MAX_LEN        2047U
@@ -179,6 +182,8 @@ struct rk28_dma_llp {
     llp_t   *llp;
     unsigned int      ctll;
     unsigned int      size; 
+	unsigned int	  sstat;
+	unsigned int	  dstat;
 };
 
 struct rk28_dma_dev {
@@ -199,7 +204,7 @@ struct rk2818_dma {
 	spinlock_t		lock;
 };
 
-//#define test_dma
+#define test_dma
 
 /*devicd id list*/
 #define RK28_DMA_SD_MMC        0
