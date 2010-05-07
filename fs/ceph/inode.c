@@ -733,6 +733,10 @@ no_change:
 				__ceph_get_fmode(ci, cap_fmode);
 			spin_unlock(&inode->i_lock);
 		}
+	} else if (cap_fmode >= 0) {
+		pr_warning("mds issued no caps on %llx.%llx\n",
+			   ceph_vinop(inode));
+		__ceph_get_fmode(ci, cap_fmode);
 	}
 
 	/* update delegation info? */
