@@ -478,7 +478,7 @@ pDevice->bUpdateBBVGA = TRUE;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" pDevice->bDiversityRegCtlON= %d\n",(INT)pDevice->bDiversityRegCtlON);
 }
 
-static VOID s_vCompleteCurrentMeasure (IN PSDevice pDevice, IN BYTE byResult)
+static void s_vCompleteCurrentMeasure (IN PSDevice pDevice, IN BYTE byResult)
 {
     UINT    ii;
     DWORD   dwDuration = 0;
@@ -847,7 +847,7 @@ else  CARDbRadioPowerOn(pDevice);
 
 
 
-static VOID device_init_diversity_timer(PSDevice pDevice) {
+static void device_init_diversity_timer(PSDevice pDevice) {
 
     init_timer(&pDevice->TimerSQ3Tmax1);
     pDevice->TimerSQ3Tmax1.data = (ULONG)pDevice;
@@ -1830,7 +1830,7 @@ static void device_free_tx_buf(PSDevice pDevice, PSTxDesc pDesc) {
 
 
 //PLICE_DEBUG ->
-VOID	InitRxManagementQueue(PSDevice  pDevice)
+void	InitRxManagementQueue(PSDevice  pDevice)
 {
 	pDevice->rxManeQueue.packet_num = 0;
 	pDevice->rxManeQueue.head = pDevice->rxManeQueue.tail = 0;

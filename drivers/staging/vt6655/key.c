@@ -58,7 +58,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Variables  --------------------------*/
 
 /*---------------------  Static Functions  --------------------------*/
-static VOID
+static void
 s_vCheckKeyTableValid (PSKeyManagement pTable, DWORD_PTR dwIoBase)
 {
     int i;
@@ -96,7 +96,7 @@ s_vCheckKeyTableValid (PSKeyManagement pTable, DWORD_PTR dwIoBase)
  * Return Value: none
  *
  */
-VOID KeyvInitTable (PSKeyManagement pTable, DWORD_PTR dwIoBase)
+void KeyvInitTable (PSKeyManagement pTable, DWORD_PTR dwIoBase)
 {
     int i;
     int jj;
@@ -470,7 +470,7 @@ BOOL KeybRemoveAllKey (
  * Return Value: TRUE if success otherwise FALSE
  *
  */
-VOID KeyvRemoveWEPKey (
+void KeyvRemoveWEPKey (
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
     DWORD_PTR       dwIoBase
@@ -492,7 +492,7 @@ VOID KeyvRemoveWEPKey (
     return;
 }
 
-VOID KeyvRemoveAllWEPKey (
+void KeyvRemoveAllWEPKey (
     PSKeyManagement pTable,
     DWORD_PTR       dwIoBase
     )

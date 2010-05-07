@@ -64,13 +64,13 @@ const BYTE acbyIERate[MAX_RATE] =
 
 /*---------------------  Static Functions  --------------------------*/
 
-VOID s_vResetCounter (
+void s_vResetCounter (
     IN PKnownNodeDB psNodeDBTable
     );
 
 
 
-VOID
+void
 s_vResetCounter (
     IN PKnownNodeDB psNodeDBTable
     )
@@ -194,7 +194,7 @@ wGetRateIdx(
  * Return Value: none
  *
 -*/
-VOID
+void
 RATEvParseMaxRate (
     IN PVOID pDeviceHandler,
     IN PWLAN_IE_SUPP_RATES pItemRates,
@@ -307,7 +307,7 @@ UINT  uRateLen;
 #define AUTORATE_TXCNT_THRESHOLD        20
 #define AUTORATE_INC_THRESHOLD          30
 
-VOID
+void
 RATEvTxRateFallBack (
     IN PVOID pDeviceHandler,
     IN PKnownNodeDB psNodeDBTable

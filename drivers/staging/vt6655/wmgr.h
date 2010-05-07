@@ -409,7 +409,7 @@ vMgrTimerInit(
     IN  HANDLE hDeviceContext
     );
 
-VOID
+void
 vMgrObjectReset(
     IN  HANDLE hDeviceContext
     );
@@ -421,14 +421,14 @@ vMgrAssocBeginSta(
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrReAssocBeginSta(
     IN  HANDLE hDeviceContext,
     IN  PSMgmtObject pMgmt,
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrDisassocBeginSta(
     IN  HANDLE hDeviceContext,
     IN  PSMgmtObject pMgmt,
@@ -437,26 +437,26 @@ vMgrDisassocBeginSta(
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrAuthenBeginSta(
     IN  HANDLE hDeviceContext,
     IN  PSMgmtObject pMgmt,
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrCreateOwnIBSS(
     IN  HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrJoinBSSBegin(
     IN  HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
     );
 
-VOID
+void
 vMgrRxManagePacket(
     IN  HANDLE hDeviceContext,
     IN  PSMgmtObject pMgmt,
@@ -464,14 +464,14 @@ vMgrRxManagePacket(
     );
 
 /*
-VOID
+void
 vMgrScanBegin(
     IN  HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
     );
 */
 
-VOID
+void
 vMgrDeAuthenBeginSta(
     IN  HANDLE hDeviceContext,
     IN  PSMgmtObject  pMgmt,
@@ -494,7 +494,7 @@ bAdd_PMKID_Candidate (
     IN PSRSNCapObject psRSNCapObj
     );
 
-VOID
+void
 vFlush_PMKID_Candidate (
     IN HANDLE hDeviceContext
     );

@@ -714,7 +714,7 @@ if(wpa_Result.authenticated==TRUE) {
 }
 
 /*
-VOID
+void
 vConfigWEPKey (
     IN PSDevice pDevice,
     IN DWORD    dwKeyIndex,

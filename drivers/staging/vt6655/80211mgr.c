@@ -89,7 +89,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
  *
 -*/
 
-VOID
+void
 vMgrEncodeBeacon(
     IN  PWLAN_FR_BEACON  pFrame
      )
@@ -121,7 +121,7 @@ vMgrEncodeBeacon(
 -*/
 
 
-VOID
+void
 vMgrDecodeBeacon(
     IN  PWLAN_FR_BEACON  pFrame
     )
@@ -242,7 +242,7 @@ vMgrDecodeBeacon(
 -*/
 
 
-VOID
+void
 vMgrEncodeIBSSATIM(
     IN  PWLAN_FR_IBSSATIM   pFrame
     )
@@ -265,7 +265,7 @@ vMgrEncodeIBSSATIM(
  *
 -*/
 
-VOID
+void
 vMgrDecodeIBSSATIM(
     IN  PWLAN_FR_IBSSATIM   pFrame
     )
@@ -287,7 +287,7 @@ vMgrDecodeIBSSATIM(
  *
 -*/
 
-VOID
+void
 vMgrEncodeDisassociation(
     IN  PWLAN_FR_DISASSOC  pFrame
     )
@@ -315,7 +315,7 @@ vMgrEncodeDisassociation(
  *
 -*/
 
-VOID
+void
 vMgrDecodeDisassociation(
     IN  PWLAN_FR_DISASSOC  pFrame
     )
@@ -341,7 +341,7 @@ vMgrDecodeDisassociation(
 -*/
 
 
-VOID
+void
 vMgrEncodeAssocRequest(
     IN  PWLAN_FR_ASSOCREQ  pFrame
     )
@@ -368,7 +368,7 @@ vMgrEncodeAssocRequest(
  *
 -*/
 
-VOID
+void
 vMgrDecodeAssocRequest(
     IN  PWLAN_FR_ASSOCREQ  pFrame
     )
@@ -434,7 +434,7 @@ vMgrDecodeAssocRequest(
  *
 -*/
 
-VOID
+void
 vMgrEncodeAssocResponse(
     IN  PWLAN_FR_ASSOCRESP  pFrame
      )
@@ -466,7 +466,7 @@ vMgrEncodeAssocResponse(
  *
 -*/
 
-VOID
+void
 vMgrDecodeAssocResponse(
     IN PWLAN_FR_ASSOCRESP  pFrame
      )
@@ -512,7 +512,7 @@ vMgrDecodeAssocResponse(
  *
 -*/
 
-VOID
+void
 vMgrEncodeReassocRequest(
     IN  PWLAN_FR_REASSOCREQ  pFrame
      )
@@ -544,7 +544,7 @@ vMgrEncodeReassocRequest(
 -*/
 
 
-VOID
+void
 vMgrDecodeReassocRequest(
     IN  PWLAN_FR_REASSOCREQ  pFrame
      )
@@ -616,7 +616,7 @@ vMgrDecodeReassocRequest(
 -*/
 
 
-VOID
+void
 vMgrEncodeProbeRequest(
     IN PWLAN_FR_PROBEREQ  pFrame
      )
@@ -637,7 +637,7 @@ vMgrEncodeProbeRequest(
  *
 -*/
 
-VOID
+void
 vMgrDecodeProbeRequest(
     IN PWLAN_FR_PROBEREQ  pFrame
      )
@@ -690,7 +690,7 @@ vMgrDecodeProbeRequest(
 -*/
 
 
-VOID
+void
 vMgrEncodeProbeResponse(
     IN PWLAN_FR_PROBERESP  pFrame
     )
@@ -724,7 +724,7 @@ vMgrEncodeProbeResponse(
  *
 -*/
 
-VOID
+void
 vMgrDecodeProbeResponse(
     IN PWLAN_FR_PROBERESP  pFrame
     )
@@ -838,7 +838,7 @@ vMgrDecodeProbeResponse(
  *
 -*/
 
-VOID
+void
 vMgrEncodeAuthen(
     IN  PWLAN_FR_AUTHEN  pFrame
     )
@@ -869,7 +869,7 @@ vMgrEncodeAuthen(
  *
 -*/
 
-VOID
+void
 vMgrDecodeAuthen(
     IN  PWLAN_FR_AUTHEN  pFrame
     )
@@ -909,7 +909,7 @@ vMgrDecodeAuthen(
  *
 -*/
 
-VOID
+void
 vMgrEncodeDeauthen(
     IN  PWLAN_FR_DEAUTHEN  pFrame
     )
@@ -936,7 +936,7 @@ vMgrEncodeDeauthen(
  *
 -*/
 
-VOID
+void
 vMgrDecodeDeauthen(
     IN  PWLAN_FR_DEAUTHEN  pFrame
     )
@@ -962,7 +962,7 @@ vMgrDecodeDeauthen(
  *
 -*/
 
-VOID
+void
 vMgrEncodeReassocResponse(
     IN  PWLAN_FR_REASSOCRESP  pFrame
      )
@@ -995,7 +995,7 @@ vMgrEncodeReassocResponse(
 -*/
 
 
-VOID
+void
 vMgrDecodeReassocResponse(
     IN  PWLAN_FR_REASSOCRESP  pFrame
      )

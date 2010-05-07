@@ -58,12 +58,12 @@ typedef struct tagSPMKIDCache {
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID
+void
 WPA2_ClearRSN (
     IN PKnownBSS        pBSSNode
     );
 
-VOID
+void
 WPA2vParseRSN (
     IN PKnownBSS        pBSSNode,
     IN PWLAN_IE_RSN     pRSN

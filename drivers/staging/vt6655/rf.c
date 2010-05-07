@@ -1201,7 +1201,7 @@ DWORD   dwMax7230Pwr = 0;
  * Return Value: none
  *
 -*/
-VOID
+void
 RFvRSSITodBm (
     IN  PSDevice pDevice,
     IN  BYTE     byCurrRSSI,

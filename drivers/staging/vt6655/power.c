@@ -74,7 +74,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 -*/
 
 
-VOID
+void
 PSvEnablePowerSaving(
     IN HANDLE hDeviceContext,
     IN WORD wListenInterval
@@ -144,7 +144,7 @@ PSvEnablePowerSaving(
  *
 -*/
 
-VOID
+void
 PSvDisablePowerSaving(
     IN HANDLE hDeviceContext
     )
@@ -250,7 +250,7 @@ PSbConsiderPowerDown(
 
 
 
-VOID
+void
 PSvSendPSPOLL(
     IN HANDLE hDeviceContext
     )

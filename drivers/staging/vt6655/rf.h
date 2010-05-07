@@ -89,7 +89,7 @@ BOOL RFbRawSetPower(
     IN  UINT      uRATE
     );
 
-VOID
+void
 RFvRSSITodBm(
     IN  PSDevice pDevice,
     IN  BYTE     byCurrRSSI,

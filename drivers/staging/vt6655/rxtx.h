@@ -40,7 +40,7 @@
 /*---------------------  Export Functions  --------------------------*/
 
 /*
-VOID vGenerateMACHeader(
+void vGenerateMACHeader(
     IN PSDevice pDevice,
     IN DWORD dwTxBufferAddr,
     IN PBYTE pbySkbData,
@@ -50,7 +50,7 @@ VOID vGenerateMACHeader(
     OUT PUINT pcbAppendPayload
      );
 
-VOID vProcessRxMACHeader (
+void vProcessRxMACHeader (
     IN  PSDevice pDevice,
     IN  DWORD dwRxBufferAddr,
     IN  UINT cbPacketSize,
@@ -60,7 +60,7 @@ VOID vProcessRxMACHeader (
 */
 
 
-VOID
+void
 vGenerateMACHeader (
     IN PSDevice         pDevice,
     IN PBYTE            pbyBufferAddr,
@@ -82,7 +82,7 @@ cbGetFragCount(
     );
 
 
-VOID
+void
 vGenerateFIFOHeader (
     IN  PSDevice         pDevice,
     IN  BYTE             byPktTyp,
@@ -100,7 +100,7 @@ vGenerateFIFOHeader (
     );
 
 
-VOID vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDULen);
+void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDULen);
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 

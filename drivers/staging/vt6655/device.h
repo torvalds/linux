@@ -828,7 +828,7 @@ typedef struct __device_info {
 //PLICE_DEBUG->
 
 
- inline  static	VOID   EnQueue (PSDevice pDevice,PSRxMgmtPacket  pRxMgmtPacket)
+ inline  static	void   EnQueue (PSDevice pDevice,PSRxMgmtPacket  pRxMgmtPacket)
 {
 	//printk("Enter EnQueue:tail is %d\n",pDevice->rxManeQueue.tail);
 	if ((pDevice->rxManeQueue.tail+1) % NUM == pDevice->rxManeQueue.head)
@@ -869,7 +869,7 @@ typedef struct __device_info {
 	}
 }
 
-VOID	InitRxManagementQueue(PSDevice   pDevice);
+void	InitRxManagementQueue(PSDevice   pDevice);
 
 
 

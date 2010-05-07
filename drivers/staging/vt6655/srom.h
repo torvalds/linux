@@ -150,7 +150,7 @@ void SROMvWriteAllContents(DWORD_PTR dwIoBase, PBYTE pbyEepromRegs);
 void SROMvReadEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress);
 void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress);
 
-VOID SROMvReadSubSysVenId(DWORD_PTR dwIoBase, PDWORD pdwSubSysVenId);
+void SROMvReadSubSysVenId(DWORD_PTR dwIoBase, PDWORD pdwSubSysVenId);
 
 BOOL SROMbAutoLoad (DWORD_PTR dwIoBase);
 

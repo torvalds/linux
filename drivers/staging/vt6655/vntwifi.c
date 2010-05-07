@@ -69,7 +69,7 @@
  * Return Value: none
  *
 -*/
-VOID
+void
 VNTWIFIvSetOPMode (
     IN PVOID pMgmtHandle,
     IN WMAC_CONFIG_MODE eOPMode
@@ -98,7 +98,7 @@ VNTWIFIvSetOPMode (
  * Return Value: none
  *
 -*/
-VOID
+void
 VNTWIFIvSetIBSSParameter (
     IN PVOID pMgmtHandle,
     IN WORD  wBeaconPeriod,
@@ -306,7 +306,7 @@ VNTWIFIbyGetACKTxRate (
  * Return Value: none
  *
 -*/
-VOID
+void
 VNTWIFIvSetAuthenticationMode (
     IN PVOID pMgmtHandle,
     IN WMAC_AUTHENTICATION_MODE eAuthMode
@@ -338,7 +338,7 @@ VNTWIFIvSetAuthenticationMode (
  * Return Value: none
  *
 -*/
-VOID
+void
 VNTWIFIvSetEncryptionMode (
     IN PVOID pMgmtHandle,
     IN WMAC_ENCRYPTION_MODE eEncryptionMode
@@ -379,7 +379,7 @@ VNTWIFIbConfigPhyMode (
 }
 
 
-VOID
+void
 VNTWIFIbGetConfigPhyMode (
     IN  PVOID pMgmtHandle,
     OUT PVOID pePhyType
@@ -424,7 +424,7 @@ VNTWIFIbGetConfigPhyMode (
  *
 -*/
 
-VOID
+void
 VNTWIFIvQueryBSSList (
     IN PVOID    pMgmtHandle,
     OUT PUINT   puBSSCount,
@@ -454,7 +454,7 @@ VNTWIFIvQueryBSSList (
 
 
 
-VOID
+void
 VNTWIFIvGetNextBSS (
     IN PVOID            pMgmtHandle,
     IN PVOID            pvCurrentBSS,
@@ -494,7 +494,7 @@ VNTWIFIvGetNextBSS (
  * Return Value: none
  *
 -*/
-VOID
+void
 VNTWIFIvUpdateNodeTxCounter(
     IN PVOID    pMgmtHandle,
     IN PBYTE    pbyDestAddress,
@@ -529,7 +529,7 @@ VNTWIFIvUpdateNodeTxCounter(
 }
 
 
-VOID
+void
 VNTWIFIvGetTxRate(
     IN PVOID    pMgmtHandle,
     IN PBYTE    pbyDestAddress,
@@ -702,7 +702,7 @@ VNTWIFIwGetMaxSupportRate(
 }
 
 
-VOID
+void
 VNTWIFIvSet11h (
     IN PVOID pMgmtObject,
     IN BOOL  b11hEnable

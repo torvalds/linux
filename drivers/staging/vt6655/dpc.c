@@ -80,7 +80,7 @@ static BYTE s_byGetRateIdx(IN BYTE byRate);
 
 
 static
-VOID
+void
 s_vGetDASA(
     IN  PBYTE pbyRxBufferAddr,
     OUT PUINT pcbHeaderSize,
@@ -88,7 +88,7 @@ s_vGetDASA(
     );
 
 static
-VOID
+void
 s_vProcessRxMACHeader (
     IN  PSDevice pDevice,
     IN  PBYTE pbyRxBufferAddr,
@@ -163,7 +163,7 @@ static BOOL s_bHostWepRxEncryption(
  *
 -*/
 static
-VOID
+void
 s_vProcessRxMACHeader (
     IN  PSDevice pDevice,
     IN  PBYTE pbyRxBufferAddr,
@@ -262,7 +262,7 @@ static BYTE s_byGetRateIdx (IN BYTE byRate)
 
 
 static
-VOID
+void
 s_vGetDASA (
     IN  PBYTE pbyRxBufferAddr,
     OUT PUINT pcbHeaderSize,
@@ -314,7 +314,7 @@ s_vGetDASA (
 
 //PLICE_DEBUG ->
 
-VOID	MngWorkItem(PVOID Context)
+void	MngWorkItem(PVOID Context)
 {
 	PSRxMgmtPacket			pRxMgmtPacket;
 	PSDevice	pDevice =  (PSDevice) Context;

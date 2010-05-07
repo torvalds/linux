@@ -68,7 +68,7 @@ const BYTE abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
  *
 -*/
 
-VOID
+void
 WPA_ClearRSN (
     IN PKnownBSS        pBSSList
     )
@@ -104,7 +104,7 @@ WPA_ClearRSN (
  * Return Value: none.
  *
 -*/
-VOID
+void
 WPA_ParseRSN (
     IN PKnownBSS        pBSSList,
     IN PWLAN_IE_RSN_EXT pRSN

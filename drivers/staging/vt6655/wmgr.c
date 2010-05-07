@@ -113,7 +113,7 @@ s_MgrMakeAssocRequest(
     );
 
 static
-VOID
+void
 s_vMgrRxAssocRequest(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -135,7 +135,7 @@ s_MgrMakeReAssocRequest(
     );
 
 static
-VOID
+void
 s_vMgrRxAssocResponse(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -144,7 +144,7 @@ s_vMgrRxAssocResponse(
     );
 
 static
-VOID
+void
 s_vMgrRxDisassociation(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -153,7 +153,7 @@ s_vMgrRxDisassociation(
 
 // Authentication/deauthen functions
 static
-VOID
+void
 s_vMgrRxAuthenSequence_1(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -161,7 +161,7 @@ s_vMgrRxAuthenSequence_1(
     );
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_2(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -169,7 +169,7 @@ s_vMgrRxAuthenSequence_2(
     );
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_3(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -177,7 +177,7 @@ s_vMgrRxAuthenSequence_3(
     );
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_4(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -185,7 +185,7 @@ s_vMgrRxAuthenSequence_4(
     );
 
 static
-VOID
+void
 s_vMgrRxAuthentication(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -193,7 +193,7 @@ s_vMgrRxAuthentication(
     );
 
 static
-VOID
+void
 s_vMgrRxDeauthentication(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -203,7 +203,7 @@ s_vMgrRxDeauthentication(
 // Scan functions
 // probe request/response functions
 static
-VOID
+void
 s_vMgrRxProbeRequest(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -211,7 +211,7 @@ s_vMgrRxProbeRequest(
     );
 
 static
-VOID
+void
 s_vMgrRxProbeResponse(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -220,7 +220,7 @@ s_vMgrRxProbeResponse(
 
 // beacon functions
 static
-VOID
+void
 s_vMgrRxBeacon(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -229,7 +229,7 @@ s_vMgrRxBeacon(
     );
 
 static
-VOID
+void
 s_vMgrFormatTIM(
     IN PSMgmtObject pMgmt,
     IN PWLAN_IE_TIM pTIM
@@ -299,7 +299,7 @@ s_MgrMakeProbeResponse(
 
 // received status
 static
-VOID
+void
 s_vMgrLogStatus(
     IN PSMgmtObject pMgmt,
     IN WORD wStatus
@@ -307,7 +307,7 @@ s_vMgrLogStatus(
 
 
 static
-VOID
+void
 s_vMgrSynchBSS (
     IN PSDevice      pDevice,
     IN UINT          uBSSMode,
@@ -324,7 +324,7 @@ s_bCipherMatch (
     OUT PBYTE                           pbyCCSGK
     );
 
- static VOID  Encyption_Rebuild(
+ static void  Encyption_Rebuild(
     IN PSDevice pDevice,
     IN PKnownBSS pCurr
  );
@@ -347,7 +347,7 @@ s_bCipherMatch (
  *
 -*/
 
-VOID
+void
 vMgrObjectInit(
     IN  HANDLE hDeviceContext
     )
@@ -431,7 +431,7 @@ vMgrTimerInit(
  *
 -*/
 
-VOID
+void
 vMgrObjectReset(
     IN  HANDLE hDeviceContext
     )
@@ -460,7 +460,7 @@ vMgrObjectReset(
 -*/
 
 
-VOID
+void
 vMgrAssocBeginSta(
     IN  HANDLE hDeviceContext,
     IN  PSMgmtObject pMgmt,
@@ -536,7 +536,7 @@ vMgrAssocBeginSta(
  *
 -*/
 
-VOID
+void
 vMgrReAssocBeginSta(
     IN  HANDLE hDeviceContext,
     IN  PSMgmtObject pMgmt,
@@ -615,7 +615,7 @@ vMgrReAssocBeginSta(
  *
 -*/
 
-VOID
+void
 vMgrDisassocBeginSta(
     IN  HANDLE hDeviceContext,
     IN  PSMgmtObject pMgmt,
@@ -678,7 +678,7 @@ vMgrDisassocBeginSta(
 -*/
 
 static
-VOID
+void
 s_vMgrRxAssocRequest(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -840,7 +840,7 @@ s_vMgrRxAssocRequest(
 -*/
 
 static
-VOID
+void
 s_vMgrRxReAssocRequest(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -990,7 +990,7 @@ s_vMgrRxReAssocRequest(
 -*/
 
 static
-VOID
+void
 s_vMgrRxAssocResponse(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -1150,7 +1150,7 @@ if(pMgmt->eCurrState == WMAC_STATE_ASSOC)
  *
 -*/
 
-VOID
+void
 vMgrAuthenBeginSta(
     IN  HANDLE hDeviceContext,
     IN  PSMgmtObject  pMgmt,
@@ -1208,7 +1208,7 @@ vMgrAuthenBeginSta(
  *
 -*/
 
-VOID
+void
 vMgrDeAuthenBeginSta(
     IN  HANDLE hDeviceContext,
     IN  PSMgmtObject  pMgmt,
@@ -1265,7 +1265,7 @@ vMgrDeAuthenBeginSta(
 -*/
 
 static
-VOID
+void
 s_vMgrRxAuthentication(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -1323,7 +1323,7 @@ s_vMgrRxAuthentication(
 
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_1(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -1429,7 +1429,7 @@ s_vMgrRxAuthenSequence_1(
 -*/
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_2(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -1531,7 +1531,7 @@ s_vMgrRxAuthenSequence_2(
 -*/
 
 static
-VOID
+void
 s_vMgrRxAuthenSequence_3(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -1619,7 +1619,7 @@ reply:
  *
 -*/
 static
-VOID
+void
 s_vMgrRxAuthenSequence_4(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -1658,7 +1658,7 @@ s_vMgrRxAuthenSequence_4(
 -*/
 
 static
-VOID
+void
 s_vMgrRxDisassociation(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -1737,7 +1737,7 @@ s_vMgrRxDisassociation(
 -*/
 
 static
-VOID
+void
 s_vMgrRxDeauthentication(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -1863,7 +1863,7 @@ ChannelExceedZoneType(
 -*/
 
 static
-VOID
+void
 s_vMgrRxBeacon(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -2384,7 +2384,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
  *    CMD_STATUS
  *
 -*/
-VOID
+void
 vMgrCreateOwnIBSS(
     IN  HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
@@ -2651,7 +2651,7 @@ vMgrCreateOwnIBSS(
  *
 -*/
 
-VOID
+void
 vMgrJoinBSSBegin(
     IN  HANDLE hDeviceContext,
     OUT PCMD_STATUS pStatus
@@ -2920,7 +2920,7 @@ vMgrJoinBSSBegin(
  *
 -*/
 static
-VOID
+void
 s_vMgrSynchBSS (
     IN PSDevice      pDevice,
     IN UINT          uBSSMode,
@@ -3088,7 +3088,7 @@ s_vMgrSynchBSS (
 
 //mike add: fix NetworkManager 0.7.0 hidden ssid mode in WPA encryption
 //                   ,need reset eAuthenMode and eEncryptionStatus
- static VOID  Encyption_Rebuild(
+ static void  Encyption_Rebuild(
     IN PSDevice pDevice,
     IN PKnownBSS pCurr
  )
@@ -3140,12 +3140,12 @@ s_vMgrSynchBSS (
  *
  *
  * Return Value:
- *    VOID
+ *    void
  *
 -*/
 
 static
-VOID
+void
 s_vMgrFormatTIM(
     IN PSMgmtObject pMgmt,
     IN PWLAN_IE_TIM pTIM
@@ -4313,7 +4313,7 @@ s_MgrMakeReAssocResponse(
 -*/
 
 static
-VOID
+void
 s_vMgrRxProbeResponse(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -4438,7 +4438,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
 
 
 static
-VOID
+void
 s_vMgrRxProbeRequest(
     IN PSDevice pDevice,
     IN PSMgmtObject pMgmt,
@@ -4534,7 +4534,7 @@ s_vMgrRxProbeRequest(
 -*/
 
 
-VOID
+void
 vMgrRxManagePacket(
     IN  HANDLE hDeviceContext,
     IN PSMgmtObject pMgmt,
@@ -4738,7 +4738,7 @@ bMgrPrepareBeaconToSend(
  *
 -*/
 static
-VOID
+void
 s_vMgrLogStatus(
     IN PSMgmtObject pMgmt,
     IN WORD  wStatus
@@ -4868,7 +4868,7 @@ bAdd_PMKID_Candidate (
  * Return Value: none.
  *
 -*/
-VOID
+void
 vFlush_PMKID_Candidate (
     IN HANDLE hDeviceContext
     )

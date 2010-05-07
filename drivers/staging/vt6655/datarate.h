@@ -54,7 +54,7 @@
 
 
 
-VOID
+void
 RATEvParseMaxRate(
     IN PVOID pDeviceHandler,
     IN PWLAN_IE_SUPP_RATES pItemRates,
@@ -67,7 +67,7 @@ RATEvParseMaxRate(
     OUT PBYTE pbyTopOFDMRate
     );
 
-VOID
+void
 RATEvTxRateFallBack(
     IN PVOID pDeviceHandler,
     IN PKnownNodeDB psNodeDBTable

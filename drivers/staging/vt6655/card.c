@@ -423,7 +423,7 @@ SCountryTable ChannelRuleTab[CCODE_MAX+1] =
 /*---------------------  Static Functions  --------------------------*/
 
 static
-VOID
+void
 s_vCaculateOFDMRParameter(
     IN  BYTE byRate,
     IN  CARD_PHY_TYPE ePHYType,
@@ -496,7 +496,7 @@ exit:
  *
  */
 static
-VOID
+void
 s_vCaculateOFDMRParameter (
     IN  BYTE byRate,
     IN  CARD_PHY_TYPE ePHYType,
@@ -611,7 +611,7 @@ s_vCaculateOFDMRParameter (
  *
  */
 static
-VOID
+void
 s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, PVOID pvSupportRateIEs, PVOID pvExtSupportRateIEs)
 {
     BYTE  byServ = 0, bySignal = 0; // For CCK
@@ -1611,7 +1611,7 @@ CARDpGetCurrentAddress (
 
 
 
-VOID CARDvInitChannelTable (PVOID pDeviceHandler)
+void CARDvInitChannelTable (PVOID pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     BOOL        bMultiBand = FALSE;
@@ -2033,7 +2033,7 @@ CARDbStartQuiet (
  * Return Value: none.
  *
 -*/
-VOID
+void
 CARDvSetCountryInfo (
     IN PVOID            pDeviceHandler,
     IN CARD_PHY_TYPE    ePHYType,
@@ -2092,7 +2092,7 @@ CARDvSetCountryInfo (
  * Return Value: none.
  *
 -*/
-VOID
+void
 CARDvSetPowerConstraint (
     IN PVOID            pDeviceHandler,
     IN BYTE             byChannel,
@@ -2127,7 +2127,7 @@ CARDvSetPowerConstraint (
  * Return Value: none.
  *
 -*/
-VOID
+void
 CARDvGetPowerCapability (
     IN PVOID            pDeviceHandler,
     OUT PBYTE           pbyMinPower,
@@ -2279,7 +2279,7 @@ CARDbChannelGetList (
 }
 
 
-VOID
+void
 CARDvSetCountryIE(
     IN PVOID        pDeviceHandler,
     IN PVOID        pIE
@@ -2324,7 +2324,7 @@ CARDbGetChannelMapInfo(
 }
 
 
-VOID
+void
 CARDvSetChannelMapInfo(
     IN PVOID        pDeviceHandler,
     IN UINT         uChannelIndex,
@@ -2340,7 +2340,7 @@ CARDvSetChannelMapInfo(
 }
 
 
-VOID
+void
 CARDvClearChannelMapInfo(
     IN PVOID        pDeviceHandler
     )
@@ -2420,7 +2420,7 @@ CARDbyAutoChannelSelect(
 
 
 //xxx
-VOID
+void
 CARDvSafeResetTx (
     IN PVOID    pDeviceHandler
     )
@@ -2476,7 +2476,7 @@ CARDvSafeResetTx (
  * Return Value: none
  *
 -*/
-VOID
+void
 CARDvSafeResetRx (
     IN PVOID    pDeviceHandler
     )

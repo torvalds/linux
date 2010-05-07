@@ -115,7 +115,7 @@ const WORD wFB_Opt1[2][5] = {
 
 
 static
-VOID
+void
 s_vFillTxKey(
     IN  PSDevice   pDevice,
     IN  PBYTE      pbyBuf,
@@ -129,7 +129,7 @@ s_vFillTxKey(
 
 
 static
-VOID
+void
 s_vFillRTSHead(
     IN PSDevice         pDevice,
     IN BYTE             byPktType,
@@ -143,7 +143,7 @@ s_vFillRTSHead(
     );
 
 static
-VOID
+void
 s_vGenerateTxParameter(
     IN PSDevice         pDevice,
     IN  BYTE            byPktType,
@@ -210,7 +210,7 @@ s_uFillDataHead (
 
 
 static
-VOID
+void
 s_vFillTxKey (
     IN  PSDevice   pDevice,
     IN  PBYTE      pbyBuf,
@@ -328,7 +328,7 @@ s_vFillTxKey (
 
 
 static
-VOID
+void
 s_vSWencryption (
     IN  PSDevice            pDevice,
     IN  PSKeyItem           pTransmitKey,
@@ -851,7 +851,7 @@ s_uFillDataHead (
 
 
 static
-VOID
+void
 s_vFillRTSHead (
     IN PSDevice         pDevice,
     IN BYTE             byPktType,
@@ -1045,7 +1045,7 @@ s_vFillRTSHead (
 }
 
 static
-VOID
+void
 s_vFillCTSHead (
     IN PSDevice pDevice,
     IN UINT     uDMAIdx,
@@ -1150,7 +1150,7 @@ s_vFillCTSHead (
 -*/
 // UINT            cbFrameSize,//Hdr+Payload+FCS
 static
-VOID
+void
 s_vGenerateTxParameter (
     IN PSDevice         pDevice,
     IN BYTE             byPktType,
@@ -1268,7 +1268,7 @@ s_vGenerateTxParameter (
     UINT  cbFragmentSize,//Hdr+payoad+FCS
 */
 static
-VOID
+void
 s_vFillFragParameter(
     IN PSDevice pDevice,
     IN PBYTE    pbyBuffer,
@@ -2093,7 +2093,7 @@ s_cbFillTxBufHead (
 }
 
 
-VOID
+void
 vGenerateFIFOHeader (
     IN  PSDevice         pDevice,
     IN  BYTE             byPktType,
@@ -2264,7 +2264,7 @@ vGenerateFIFOHeader (
  *
 -*/
 
-VOID
+void
 vGenerateMACHeader (
     IN PSDevice         pDevice,
     IN PBYTE            pbyBufferAddr,
@@ -2825,7 +2825,7 @@ cbGetFragCount (
 }
 
 
-VOID
+void
 vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDULen) {
 
     PSTxDesc        pFrstTD;

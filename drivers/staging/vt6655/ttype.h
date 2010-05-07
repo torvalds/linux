@@ -33,10 +33,6 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-#ifndef VOID
-#define VOID            void
-#endif
-
 #ifndef IN
 #define IN
 #endif

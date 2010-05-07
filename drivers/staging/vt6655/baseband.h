@@ -126,7 +126,7 @@ BBuGetFrameTime(
     IN WORD wRate
     );
 
-VOID
+void
 BBvCaculateParameter (
     IN  PSDevice pDevice,
     IN  UINT cbFrameLength,
@@ -140,38 +140,38 @@ BBvCaculateParameter (
 BOOL BBbReadEmbeded(DWORD_PTR dwIoBase, BYTE byBBAddr, PBYTE pbyData);
 BOOL BBbWriteEmbeded(DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byData);
 
-VOID BBvReadAllRegs(DWORD_PTR dwIoBase, PBYTE pbyBBRegs);
+void BBvReadAllRegs(DWORD_PTR dwIoBase, PBYTE pbyBBRegs);
 void BBvLoopbackOn(PSDevice pDevice);
 void BBvLoopbackOff(PSDevice pDevice);
 void BBvSetShortSlotTime(PSDevice pDevice);
 BOOL BBbIsRegBitsOn(DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byTestBits);
 BOOL BBbIsRegBitsOff(DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byTestBits);
-VOID BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData);
+void BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData);
 
 // VT3253 Baseband
 BOOL BBbVT3253Init(PSDevice pDevice);
-VOID BBvSoftwareReset(DWORD_PTR dwIoBase);
-VOID BBvPowerSaveModeON(DWORD_PTR dwIoBase);
-VOID BBvPowerSaveModeOFF(DWORD_PTR dwIoBase);
-VOID BBvSetTxAntennaMode(DWORD_PTR dwIoBase, BYTE byAntennaMode);
-VOID BBvSetRxAntennaMode(DWORD_PTR dwIoBase, BYTE byAntennaMode);
-VOID BBvSetDeepSleep(DWORD_PTR dwIoBase, BYTE byLocalID);
-VOID BBvExitDeepSleep(DWORD_PTR dwIoBase, BYTE byLocalID);
+void BBvSoftwareReset(DWORD_PTR dwIoBase);
+void BBvPowerSaveModeON(DWORD_PTR dwIoBase);
+void BBvPowerSaveModeOFF(DWORD_PTR dwIoBase);
+void BBvSetTxAntennaMode(DWORD_PTR dwIoBase, BYTE byAntennaMode);
+void BBvSetRxAntennaMode(DWORD_PTR dwIoBase, BYTE byAntennaMode);
+void BBvSetDeepSleep(DWORD_PTR dwIoBase, BYTE byLocalID);
+void BBvExitDeepSleep(DWORD_PTR dwIoBase, BYTE byLocalID);
 
 // timer for antenna diversity
 
-VOID
+void
 TimerSQ3CallBack (
     IN  HANDLE      hDeviceContext
     );
 
-VOID
+void
 TimerState1CallBack(
     IN  HANDLE      hDeviceContext
     );
 
 void BBvAntennaDiversity(PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);
-VOID
+void
 BBvClearAntDivSQ3Value (PSDevice pDevice);
 
 #endif // __BASEBAND_H__
