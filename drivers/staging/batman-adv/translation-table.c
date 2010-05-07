@@ -159,16 +159,14 @@ int hna_local_fill_buffer(unsigned char *buff, int buff_len)
 int hna_local_fill_buffer_text(struct net_device *net_dev, char *buff,
 			       size_t count, loff_t off)
 {
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct hna_local_entry *hna_local_entry;
 	HASHIT(hashit);
 	int bytes_written = 0;
 	unsigned long flags;
 	size_t hdr_len;
 
-	rcu_read_lock();
-	if (list_empty(&if_list)) {
-		rcu_read_unlock();
-
+	if (!bat_priv->primary_if) {
 		if (off == 0)
 			return sprintf(buff,
 				       "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
@@ -176,7 +174,6 @@ int hna_local_fill_buffer_text(struct net_device *net_dev, char *buff,
 
 		return 0;
 	}
-	rcu_read_unlock();
 
 	hdr_len = sprintf(buff,
 			  "Locally retrieved addresses (from %s) announced via HNA:\n",
@@ -376,16 +373,14 @@ void hna_global_add_orig(struct orig_node *orig_node,
 int hna_global_fill_buffer_text(struct net_device *net_dev, char *buff,
 				size_t count, loff_t off)
 {
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct hna_global_entry *hna_global_entry;
 	HASHIT(hashit);
 	int bytes_written = 0;
 	unsigned long flags;
 	size_t hdr_len;
 
-	rcu_read_lock();
-	if (list_empty(&if_list)) {
-		rcu_read_unlock();
-
+	if (!bat_priv->primary_if) {
 		if (off == 0)
 			return sprintf(buff,
 				       "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
@@ -393,7 +388,6 @@ int hna_global_fill_buffer_text(struct net_device *net_dev, char *buff,
 
 		return 0;
 	}
-	rcu_read_unlock();
 
 	hdr_len = sprintf(buff,
 			  "Globally announced HNAs received via the mesh %s (translation table):\n",

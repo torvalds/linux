@@ -36,12 +36,13 @@ struct batman_if {
 	struct list_head list;
 	int16_t if_num;
 	char *dev;
-	char if_active;
+	char if_status;
 	char addr_str[ETH_STR_LEN];
 	struct net_device *net_dev;
 	atomic_t seqno;
 	unsigned char *packet_buff;
 	int packet_len;
+	struct kobject *hardif_obj;
 	struct rcu_head rcu;
 
 };
@@ -84,6 +85,8 @@ struct bat_priv {
 	atomic_t aggregation_enabled;
 	atomic_t vis_mode;
 	atomic_t orig_interval;
+	char num_ifaces;
+	struct batman_if *primary_if;
 	struct kobject *mesh_obj;
 };
 

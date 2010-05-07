@@ -20,7 +20,6 @@
  */
 
 #include "main.h"
-#include "proc.h"
 #include "bat_sysfs.h"
 #include "routing.h"
 #include "send.h"
@@ -44,7 +43,6 @@ DEFINE_SPINLOCK(forw_bcast_list_lock);
 
 atomic_t vis_interval;
 int16_t num_hna;
-int16_t num_ifs;
 
 struct net_device *soft_device;
 
@@ -89,10 +87,6 @@ int init_module(void)
 	if (!bat_event_workqueue)
 		return -ENOMEM;
 
-	retval = setup_procfs();
-	if (retval < 0)
-		return retval;
-
 	bat_device_init();
 
 	/* initialize layer 2 interface */
@@ -135,7 +129,10 @@ end:
 
 void cleanup_module(void)
 {
-	shutdown_module();
+	deactivate_module();
+
+	unregister_netdevice_notifier(&hard_if_notifier);
+	hardif_remove_interfaces();
 
 	if (soft_device) {
 		sysfs_del_meshif(soft_device);
@@ -144,9 +141,6 @@ void cleanup_module(void)
 	}
 
 	dev_remove_pack(&batman_adv_packet_type);
-
-	unregister_netdevice_notifier(&hard_if_notifier);
-	cleanup_procfs();
 
 	destroy_workqueue(bat_event_workqueue);
 	bat_event_workqueue = NULL;
@@ -178,17 +172,17 @@ void activate_module(void)
 
 err:
 	printk(KERN_ERR "batman-adv:Unable to allocate memory for mesh information structures: out of mem ?\n");
-	shutdown_module();
+	deactivate_module();
 end:
 	return;
 }
 
 /* shuts down the whole module.*/
-void shutdown_module(void)
+void deactivate_module(void)
 {
 	atomic_set(&module_state, MODULE_DEACTIVATING);
 
-	purge_outstanding_packets();
+	purge_outstanding_packets(NULL);
 	flush_workqueue(bat_event_workqueue);
 
 	vis_quit();
@@ -203,7 +197,6 @@ void shutdown_module(void)
 	synchronize_net();
 	bat_device_destroy();
 
-	hardif_remove_interfaces();
 	synchronize_rcu();
 	atomic_set(&module_state, MODULE_INACTIVE);
 }

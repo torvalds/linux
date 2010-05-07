@@ -57,7 +57,7 @@ int send_skb_packet(struct sk_buff *skb,
 {
 	struct ethhdr *ethhdr;
 
-	if (batman_if->if_active != IF_ACTIVE)
+	if (batman_if->if_status != IF_ACTIVE)
 		goto send_skb_err;
 
 	if (unlikely(!batman_if->net_dev))
@@ -123,7 +123,7 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 	int16_t buff_pos;
 	struct batman_packet *batman_packet;
 
-	if (batman_if->if_active != IF_ACTIVE)
+	if (batman_if->if_status != IF_ACTIVE)
 		return;
 
 	packet_num = 0;
@@ -182,7 +182,7 @@ static void send_packet(struct forw_packet *forw_packet)
 		return;
 	}
 
-	if (forw_packet->if_incoming->if_active != IF_ACTIVE)
+	if (forw_packet->if_incoming->if_status != IF_ACTIVE)
 		return;
 
 	/* multihomed peer assumed */
@@ -243,7 +243,13 @@ void schedule_own_packet(struct batman_if *batman_if)
 	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	unsigned long send_time;
 	struct batman_packet *batman_packet;
-	int vis_server = atomic_read(&bat_priv->vis_mode);
+	int vis_server;
+
+	if ((batman_if->if_status == IF_NOT_IN_USE) ||
+	    (batman_if->if_status == IF_TO_BE_REMOVED))
+		return;
+
+	vis_server = atomic_read(&bat_priv->vis_mode);
 
 	/**
 	 * the interface gets activated here to avoid race conditions between
@@ -252,11 +258,12 @@ void schedule_own_packet(struct batman_if *batman_if)
 	 * outdated packets (especially uninitialized mac addresses) in the
 	 * packet queue
 	 */
-	if (batman_if->if_active == IF_TO_BE_ACTIVATED)
-		batman_if->if_active = IF_ACTIVE;
+	if (batman_if->if_status == IF_TO_BE_ACTIVATED)
+		batman_if->if_status = IF_ACTIVE;
 
 	/* if local hna has changed and interface is a primary interface */
-	if ((atomic_read(&hna_local_changed)) && (batman_if->if_num == 0))
+	if ((atomic_read(&hna_local_changed)) &&
+	    (batman_if == bat_priv->primary_if))
 		rebuild_batman_packet(batman_if);
 
 	/**
@@ -374,13 +381,11 @@ void add_bcast_packet_to_list(struct sk_buff *skb)
 
 	forw_packet = kmalloc(sizeof(struct forw_packet), GFP_ATOMIC);
 	if (!forw_packet)
-		return;
+		goto out;
 
 	skb = skb_copy(skb, GFP_ATOMIC);
-	if (!skb) {
-		kfree(forw_packet);
-		return;
-	}
+	if (!skb)
+		goto packet_free;
 
 	skb_reset_mac_header(skb);
 
@@ -391,6 +396,12 @@ void add_bcast_packet_to_list(struct sk_buff *skb)
 	forw_packet->num_packets = 0;
 
 	_add_bcast_packet_to_list(forw_packet, 1);
+	return;
+
+packet_free:
+	kfree(forw_packet);
+out:
+	return;
 }
 
 void send_outstanding_bcast_packet(struct work_struct *work)
@@ -455,18 +466,30 @@ void send_outstanding_bat_packet(struct work_struct *work)
 	forw_packet_free(forw_packet);
 }
 
-void purge_outstanding_packets(void)
+void purge_outstanding_packets(struct batman_if *batman_if)
 {
 	struct forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;
 	unsigned long flags;
 
-	bat_dbg(DBG_BATMAN, "purge_outstanding_packets()\n");
+	if (batman_if)
+		bat_dbg(DBG_BATMAN, "purge_outstanding_packets(): %s\n",
+			batman_if->dev);
+	else
+		bat_dbg(DBG_BATMAN, "purge_outstanding_packets()\n");
 
 	/* free bcast list */
 	spin_lock_irqsave(&forw_bcast_list_lock, flags);
 	hlist_for_each_entry_safe(forw_packet, tmp_node, safe_tmp_node,
 				  &forw_bcast_list, list) {
+
+		/**
+		 * if purge_outstanding_packets() was called with an argmument
+		 * we delete only packets belonging to the given interface
+		 */
+		if ((batman_if) &&
+		    (forw_packet->if_incoming != batman_if))
+			continue;
 
 		spin_unlock_irqrestore(&forw_bcast_list_lock, flags);
 
@@ -483,6 +506,14 @@ void purge_outstanding_packets(void)
 	spin_lock_irqsave(&forw_bat_list_lock, flags);
 	hlist_for_each_entry_safe(forw_packet, tmp_node, safe_tmp_node,
 				  &forw_bat_list, list) {
+
+		/**
+		 * if purge_outstanding_packets() was called with an argmument
+		 * we delete only packets belonging to the given interface
+		 */
+		if ((batman_if) &&
+		    (forw_packet->if_incoming != batman_if))
+			continue;
 
 		spin_unlock_irqrestore(&forw_bat_list_lock, flags);
 

@@ -251,7 +251,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 			memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
 
 			/* net_dev won't be available when not active */
-			if (orig_node->router->if_incoming->if_active != IF_ACTIVE)
+			if (orig_node->router->if_incoming->if_status != IF_ACTIVE)
 				goto unlock;
 
 			/* don't lock while sending the packets ... we therefore

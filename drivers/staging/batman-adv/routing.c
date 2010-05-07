@@ -205,7 +205,7 @@ static int isBidirectionalNeigh(struct orig_node *orig_node,
 	batman_packet->tq = ((batman_packet->tq *
 			      orig_neigh_node->tq_own *
 			      orig_neigh_node->tq_asym_penalty) /
-			     (TQ_MAX_VALUE *	 TQ_MAX_VALUE));
+			     (TQ_MAX_VALUE * TQ_MAX_VALUE));
 
 	bat_dbg(DBG_BATMAN, "bidirectional: orig = %-15pM neigh = %-15pM => own_bcast = %2i, real recv = %2i, local tq: %3i, asym_penalty: %3i, total tq: %3i\n",
 		orig_node->orig, orig_neigh_node->orig, total_count,
@@ -387,7 +387,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		batman_packet->version, has_directlink_flag);
 
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		if (batman_if->if_active != IF_ACTIVE)
+		if (batman_if->if_status != IF_ACTIVE)
 			continue;
 
 		if (compare_orig(ethhdr->h_source,
@@ -893,7 +893,7 @@ int recv_bcast_packet(struct sk_buff *skb)
 	if (is_my_mac(ethhdr->h_source))
 		return NET_RX_DROP;
 
-	bcast_packet = (struct bcast_packet *) skb->data;
+	bcast_packet = (struct bcast_packet *)skb->data;
 
 	/* ignore broadcasts originated by myself */
 	if (is_my_mac(bcast_packet->orig))

@@ -36,6 +36,14 @@ struct bat_attribute {
 			 char *buf, size_t count);
 };
 
+struct hardif_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct kobject *kobj, struct attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct kobject *kobj, struct attribute *attr,
+			 char *buf, size_t count);
+};
+
 #define BAT_ATTR(_name, _mode, _show, _store)	\
 struct bat_attribute bat_attr_##_name = {	\
 	.attr = {.name = __stringify(_name),	\
@@ -50,6 +58,14 @@ struct bin_attribute bat_attr_##_name = {		\
 		  .mode = _mode, },			\
 	.read = _read,					\
 	.write = _write,				\
+};
+
+#define HARDIF_ATTR(_name, _mode, _show, _store)	\
+struct hardif_attribute hardif_attr_##_name = {		\
+	.attr = {.name = __stringify(_name),		\
+		 .mode = _mode },			\
+	.show   = _show,				\
+	.store  = _store,				\
 };
 
 static ssize_t show_aggr_ogm(struct kobject *kobj, struct attribute *attr,
@@ -275,6 +291,8 @@ int sysfs_add_meshif(struct net_device *dev)
 	atomic_set(&bat_priv->aggregation_enabled, 1);
 	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
 	atomic_set(&bat_priv->orig_interval, 1000);
+	bat_priv->primary_if = NULL;
+	bat_priv->num_ifaces = 0;
 
 	bat_priv->mesh_obj = kobject_create_and_add(SYSFS_IF_MESH_SUBDIR,
 						    batif_kobject);
@@ -334,4 +352,133 @@ void sysfs_del_meshif(struct net_device *dev)
 
 	kobject_put(bat_priv->mesh_obj);
 	bat_priv->mesh_obj = NULL;
+}
+
+static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
+			       char *buff)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct net_device *net_dev = to_net_dev(dev);
+	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+
+	if (!batman_if)
+		return 0;
+
+	return sprintf(buff, "status: %s\ncommands: none, bat0 \n",
+		       batman_if->if_status == IF_NOT_IN_USE ?
+							"none" : "bat0");
+}
+
+static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
+				char *buff, size_t count)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct net_device *net_dev = to_net_dev(dev);
+	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	int status_tmp = -1;
+
+	if (!batman_if)
+		return count;
+
+	if (strncmp(buff, "none", 4) == 0)
+		status_tmp = IF_NOT_IN_USE;
+
+	if (strncmp(buff, "bat0", 4) == 0)
+		status_tmp = IF_I_WANT_YOU;
+
+	if (status_tmp < 0) {
+		if (buff[count - 1] == '\n')
+			buff[count - 1] = '\0';
+
+		printk(KERN_ERR "batman-adv:Invalid parameter for 'mesh_iface' setting received: %s\n",
+		       buff);
+		return -EINVAL;
+	}
+
+	if ((batman_if->if_status == status_tmp) ||
+	    ((status_tmp == IF_I_WANT_YOU) &&
+	     (batman_if->if_status != IF_NOT_IN_USE)))
+		return count;
+
+	if (status_tmp == IF_I_WANT_YOU)
+		status_tmp = hardif_enable_interface(batman_if);
+	else
+		hardif_disable_interface(batman_if);
+
+	return (status_tmp < 0 ? status_tmp : count);
+}
+
+static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
+				 char *buff)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct net_device *net_dev = to_net_dev(dev);
+	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+
+	if (!batman_if)
+		return 0;
+
+	switch (batman_if->if_status) {
+	case IF_TO_BE_REMOVED:
+		return sprintf(buff, "disabling\n");
+	case IF_INACTIVE:
+		return sprintf(buff, "inactive\n");
+	case IF_ACTIVE:
+		return sprintf(buff, "active\n");
+	case IF_TO_BE_ACTIVATED:
+		return sprintf(buff, "enabling\n");
+	case IF_NOT_IN_USE:
+	default:
+		return sprintf(buff, "not in use\n");
+	}
+}
+
+static HARDIF_ATTR(mesh_iface, S_IRUGO | S_IWUSR,
+		   show_mesh_iface, store_mesh_iface);
+static HARDIF_ATTR(iface_status, S_IRUGO, show_iface_status, NULL);
+
+static struct hardif_attribute *batman_attrs[] = {
+	&hardif_attr_mesh_iface,
+	&hardif_attr_iface_status,
+	NULL,
+};
+
+int sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
+{
+	struct kobject *hardif_kobject = &dev->dev.kobj;
+	struct hardif_attribute **hardif_attr;
+	int err;
+
+	*hardif_obj = kobject_create_and_add(SYSFS_IF_BAT_SUBDIR,
+						    hardif_kobject);
+
+	if (!*hardif_obj) {
+		printk(KERN_ERR "batman-adv:Can't add sysfs directory: %s/%s\n",
+		       dev->name, SYSFS_IF_BAT_SUBDIR);
+		goto out;
+	}
+
+	for (hardif_attr = batman_attrs; *hardif_attr; ++hardif_attr) {
+		err = sysfs_create_file(*hardif_obj, &((*hardif_attr)->attr));
+		if (err) {
+			printk(KERN_ERR "batman-adv:Can't add sysfs file: %s/%s/%s\n",
+			       dev->name, SYSFS_IF_BAT_SUBDIR,
+			       ((*hardif_attr)->attr).name);
+			goto rem_attr;
+		}
+	}
+
+	return 0;
+
+rem_attr:
+	for (hardif_attr = batman_attrs; *hardif_attr; ++hardif_attr)
+		sysfs_remove_file(*hardif_obj, &((*hardif_attr)->attr));
+out:
+	return -ENOMEM;
+}
+
+void sysfs_del_hardif(struct kobject **hardif_obj)
+{
+	kobject_put(*hardif_obj);
+	*hardif_obj = NULL;
 }

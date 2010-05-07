@@ -258,7 +258,7 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 	if (!batman_if)
 		goto dst_unreach;
 
-	if (batman_if->if_active != IF_ACTIVE)
+	if (batman_if->if_status != IF_ACTIVE)
 		goto dst_unreach;
 
 	memcpy(icmp_packet.orig,

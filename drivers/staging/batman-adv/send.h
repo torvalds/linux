@@ -36,4 +36,4 @@ void schedule_forward_packet(struct orig_node *orig_node,
 void add_bcast_packet_to_list(struct sk_buff *skb);
 void send_outstanding_bcast_packet(struct work_struct *work);
 void send_outstanding_bat_packet(struct work_struct *work);
-void purge_outstanding_packets(void);
+void purge_outstanding_packets(struct batman_if *batman_if);

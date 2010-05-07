@@ -129,7 +129,6 @@ extern spinlock_t forw_bcast_list_lock;
 
 extern atomic_t vis_interval;
 extern int16_t num_hna;
-extern int16_t num_ifs;
 
 extern struct net_device *soft_device;
 
@@ -138,7 +137,7 @@ extern atomic_t module_state;
 extern struct workqueue_struct *bat_event_workqueue;
 
 void activate_module(void);
-void shutdown_module(void);
+void deactivate_module(void);
 void inc_module_count(void);
 void dec_module_count(void);
 int addr_to_string(char *buff, uint8_t *addr);
