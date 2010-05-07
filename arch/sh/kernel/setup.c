@@ -276,6 +276,12 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	}
 
 	/*
+	 * Handle additional early reservations
+	 */
+	check_for_initrd();
+	reserve_crashkernel();
+
+	/*
 	 * Add all physical memory to the bootmem map and mark each
 	 * area as present.
 	 */
@@ -290,10 +296,6 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	node_set_online(0);
 
 	sparse_memory_present_with_active_regions(0);
-
-	check_for_initrd();
-
-	reserve_crashkernel();
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
