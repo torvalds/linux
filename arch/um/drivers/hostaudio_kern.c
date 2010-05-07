@@ -136,7 +136,7 @@ static unsigned int hostaudio_poll(struct file *file,
 	return mask;
 }
 
-static int hostaudio_ioctl(struct inode *inode, struct file *file,
+static long hostaudio_ioctl(struct file *file,
 			   unsigned int cmd, unsigned long arg)
 {
 	struct hostaudio_state *state = file->private_data;
@@ -223,7 +223,7 @@ static int hostaudio_release(struct inode *inode, struct file *file)
 
 /* /dev/mixer file operations */
 
-static int hostmixer_ioctl_mixdev(struct inode *inode, struct file *file,
+static long hostmixer_ioctl_mixdev(struct file *file,
 				  unsigned int cmd, unsigned long arg)
 {
 	struct hostmixer_state *state = file->private_data;
@@ -289,7 +289,7 @@ static const struct file_operations hostaudio_fops = {
 	.read           = hostaudio_read,
 	.write          = hostaudio_write,
 	.poll           = hostaudio_poll,
-	.ioctl          = hostaudio_ioctl,
+	.unlocked_ioctl	= hostaudio_ioctl,
 	.mmap           = NULL,
 	.open           = hostaudio_open,
 	.release        = hostaudio_release,
@@ -298,7 +298,7 @@ static const struct file_operations hostaudio_fops = {
 static const struct file_operations hostmixer_fops = {
 	.owner          = THIS_MODULE,
 	.llseek         = no_llseek,
-	.ioctl          = hostmixer_ioctl_mixdev,
+	.unlocked_ioctl	= hostmixer_ioctl_mixdev,
 	.open           = hostmixer_open_mixdev,
 	.release        = hostmixer_release,
 };
