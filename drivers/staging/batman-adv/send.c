@@ -375,13 +375,28 @@ static void _add_bcast_packet_to_list(struct forw_packet *forw_packet,
 			   send_time);
 }
 
-void add_bcast_packet_to_list(struct sk_buff *skb)
+#define atomic_dec_not_zero(v)          atomic_add_unless((v), -1, 0)
+/* add a broadcast packet to the queue and setup timers. broadcast packets
+ * are sent multiple times to increase probability for beeing received.
+ *
+ * This function returns NETDEV_TX_OK on success and NETDEV_TX_BUSY on
+ * errors.
+ *
+ * The skb is not consumed, so the caller should make sure that the
+ * skb is freed. */
+int add_bcast_packet_to_list(struct sk_buff *skb)
 {
 	struct forw_packet *forw_packet;
 
-	forw_packet = kmalloc(sizeof(struct forw_packet), GFP_ATOMIC);
-	if (!forw_packet)
+	if (!atomic_dec_not_zero(&bcast_queue_left)) {
+		bat_dbg(DBG_BATMAN, "bcast packet queue full\n");
 		goto out;
+	}
+
+	forw_packet = kmalloc(sizeof(struct forw_packet), GFP_ATOMIC);
+
+	if (!forw_packet)
+		goto out_and_inc;
 
 	skb = skb_copy(skb, GFP_ATOMIC);
 	if (!skb)
@@ -396,12 +411,14 @@ void add_bcast_packet_to_list(struct sk_buff *skb)
 	forw_packet->num_packets = 0;
 
 	_add_bcast_packet_to_list(forw_packet, 1);
-	return;
+	return NETDEV_TX_OK;
 
 packet_free:
 	kfree(forw_packet);
+out_and_inc:
+	atomic_inc(&bcast_queue_left);
 out:
-	return;
+	return NETDEV_TX_BUSY;
 }
 
 void send_outstanding_bcast_packet(struct work_struct *work)
@@ -436,8 +453,10 @@ void send_outstanding_bcast_packet(struct work_struct *work)
 	if ((forw_packet->num_packets < 3) &&
 	    (atomic_read(&module_state) != MODULE_DEACTIVATING))
 		_add_bcast_packet_to_list(forw_packet, ((5 * HZ) / 1000));
-	else
+	else {
 		forw_packet_free(forw_packet);
+		atomic_inc(&bcast_queue_left);
+	}
 }
 
 void send_outstanding_bat_packet(struct work_struct *work)
@@ -462,6 +481,10 @@ void send_outstanding_bat_packet(struct work_struct *work)
 	if ((forw_packet->own) &&
 	    (atomic_read(&module_state) != MODULE_DEACTIVATING))
 		schedule_own_packet(forw_packet->if_incoming);
+
+	/* don't count own packet */
+	if (!forw_packet->own)
+		atomic_inc(&batman_queue_left);
 
 	forw_packet_free(forw_packet);
 }

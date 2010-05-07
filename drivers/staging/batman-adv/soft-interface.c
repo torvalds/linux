@@ -216,10 +216,10 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 		/* set broadcast sequence number */
 		bcast_packet->seqno = htons(bcast_seqno);
 
-		bcast_seqno++;
+		/* broadcast packet. on success, increase seqno. */
+		if (add_bcast_packet_to_list(skb) == NETDEV_TX_OK)
+			bcast_seqno++;
 
-		/* broadcast packet */
-		add_bcast_packet_to_list(skb);
 		/* a copy is stored in the bcast list, therefore removing
 		 * the original skb. */
 		kfree_skb(skb);

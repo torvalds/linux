@@ -69,6 +69,8 @@
 #define MODULE_ACTIVE 1
 #define MODULE_DEACTIVATING 2
 
+#define BCAST_QUEUE_LEN 256
+#define BATMAN_QUEUE_LE	256
 
 /*
  * Debug Messages
@@ -132,6 +134,8 @@ extern spinlock_t forw_bat_list_lock;
 extern spinlock_t forw_bcast_list_lock;
 
 extern atomic_t vis_interval;
+extern atomic_t bcast_queue_left;
+extern atomic_t batman_queue_left;
 extern int16_t num_hna;
 
 extern struct net_device *soft_device;
