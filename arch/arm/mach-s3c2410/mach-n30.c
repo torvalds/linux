@@ -88,10 +88,10 @@ static void n30_udc_pullup(enum s3c2410_udc_cmd_e cmd)
 {
 	switch (cmd) {
 	case S3C2410_UDC_P_ENABLE :
-		s3c2410_gpio_setpin(S3C2410_GPB(3), 1);
+		gpio_set_value(S3C2410_GPB(3), 1);
 		break;
 	case S3C2410_UDC_P_DISABLE :
-		s3c2410_gpio_setpin(S3C2410_GPB(3), 0);
+		gpio_set_value(S3C2410_GPB(3), 0);
 		break;
 	case S3C2410_UDC_P_RESET :
 		break;
@@ -357,11 +357,11 @@ static void n30_sdi_set_power(unsigned char power_mode, unsigned short vdd)
 	switch (power_mode) {
 	case MMC_POWER_ON:
 	case MMC_POWER_UP:
-		s3c2410_gpio_setpin(S3C2410_GPG(4), 1);
+		gpio_set_value(S3C2410_GPG(4), 1);
 		break;
 	case MMC_POWER_OFF:
 	default:
-		s3c2410_gpio_setpin(S3C2410_GPG(4), 0);
+		gpio_set_value(S3C2410_GPG(4), 0);
 		break;
 	}
 }
@@ -561,6 +561,8 @@ static void __init n30_init_irq(void)
 
 static void __init n30_init(void)
 {
+	WARN_ON(gpio_request(S3C2410_GPG(4), "mmc power"));
+
 	s3c24xx_fb_set_platdata(&n30_fb_info);
 	s3c24xx_udc_set_platdata(&n30_udc_cfg);
 	s3c24xx_mci_set_platdata(&n30_mci_cfg);
