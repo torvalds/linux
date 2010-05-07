@@ -244,17 +244,6 @@ static void fc_lport_ptp_setup(struct fc_lport *lport,
 }
 
 /**
- * fc_get_host_port_type() - Return the port type of the given Scsi_Host
- * @shost: The SCSI host whose port type is to be determined
- */
-void fc_get_host_port_type(struct Scsi_Host *shost)
-{
-	/* TODO - currently just NPORT */
-	fc_host_port_type(shost) = FC_PORTTYPE_NPORT;
-}
-EXPORT_SYMBOL(fc_get_host_port_type);
-
-/**
  * fc_get_host_port_state() - Return the port state of the given Scsi_Host
  * @shost:  The SCSI host whose port state is to be determined
  */

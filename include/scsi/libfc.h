@@ -1049,7 +1049,6 @@ void fc_exch_mgr_reset(struct fc_lport *, u32 s_id, u32 d_id);
  * Functions for fc_functions_template
  */
 void fc_get_host_speed(struct Scsi_Host *);
-void fc_get_host_port_type(struct Scsi_Host *);
 void fc_get_host_port_state(struct Scsi_Host *);
 void fc_set_rport_loss_tmo(struct fc_rport *, u32 timeout);
 struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *);
