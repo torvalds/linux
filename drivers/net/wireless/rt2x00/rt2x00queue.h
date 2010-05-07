@@ -299,6 +299,7 @@ enum txentry_desc_flags {
  * @retry_limit: Max number of retries.
  * @aifs: AIFS value.
  * @ifs: IFS value.
+ * @txop: IFS value for 11n capable chips.
  * @cw_min: cwmin value.
  * @cw_max: cwmax value.
  * @cipher: Cipher type used for encryption.
@@ -328,6 +329,7 @@ struct txentry_desc {
 	short retry_limit;
 	short aifs;
 	short ifs;
+	short txop;
 	short cw_min;
 	short cw_max;
 
