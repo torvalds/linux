@@ -9,73 +9,15 @@
  *
  */
 
-#include <asm/apic.h>
-#include <linux/smp.h>
 #include <linux/cpumask.h>
-#include <linux/sched.h>
-#include <linux/percpu.h>
-#include <linux/cpumask.h>
-#include <linux/kernel_stat.h>
-#include <asm/mce.h>
 #include <linux/kdebug.h>
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
-
-
 #include <linux/nmi.h>
 #include <linux/module.h>
 
 /* For reliability, we're prepared to waste bits here. */
 static DECLARE_BITMAP(backtrace_mask, NR_CPUS) __read_mostly;
-
-static DEFINE_PER_CPU(unsigned, last_irq_sum);
-
-/*
- * Take the local apic timer and PIT/HPET into account. We don't
- * know which one is active, when we have highres/dyntick on
- */
-static inline unsigned int get_timer_irqs(int cpu)
-{
-	unsigned int irqs = per_cpu(irq_stat, cpu).irq0_irqs;
-
-#if defined(CONFIG_X86_LOCAL_APIC)
-	irqs += per_cpu(irq_stat, cpu).apic_timer_irqs;
-#endif
-
-	return irqs;
-}
-
-static inline int mce_in_progress(void)
-{
-#if defined(CONFIG_X86_MCE)
-	return atomic_read(&mce_entry) > 0;
-#endif
-	return 0;
-}
-
-int hw_nmi_is_cpu_stuck(struct pt_regs *regs)
-{
-	unsigned int sum;
-	int cpu = smp_processor_id();
-
-	/* if we are doing an mce, just assume the cpu is not stuck */
-	/* Could check oops_in_progress here too, but it's safer not to */
-	if (mce_in_progress())
-		return 0;
-
-	/* We determine if the cpu is stuck by checking whether any
-	 * interrupts have happened since we last checked.  Of course
-	 * an nmi storm could create false positives, but the higher
-	 * level logic should account for that
-	 */
-	sum = get_timer_irqs(cpu);
-	if (__get_cpu_var(last_irq_sum) == sum) {
-		return 1;
-	} else {
-		__get_cpu_var(last_irq_sum) = sum;
-		return 0;
-	}
-}
 
 u64 hw_nmi_get_sample_period(void)
 {
