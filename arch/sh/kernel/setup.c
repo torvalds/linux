@@ -192,7 +192,7 @@ static void __init check_for_initrd(void)
 	initrd_start = (unsigned long)__va(__pa(start));
 	initrd_end = initrd_start + INITRD_SIZE;
 
-	reserve_bootmem(__pa(initrd_start), INITRD_SIZE, BOOTMEM_DEFAULT);
+	lmb_reserve(__pa(initrd_start), INITRD_SIZE);
 
 	return;
 
