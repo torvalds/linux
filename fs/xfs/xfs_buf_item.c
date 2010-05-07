@@ -64,7 +64,7 @@ xfs_buf_item_log_debug(
 	nbytes = last - first + 1;
 	bfset(bip->bli_logged, first, nbytes);
 	for (x = 0; x < nbytes; x++) {
-		chunk_num = byte >> XFS_BLI_SHIFT;
+		chunk_num = byte >> XFS_BLF_SHIFT;
 		word_num = chunk_num >> BIT_TO_WORD_SHIFT;
 		bit_num = chunk_num & (NBWORD - 1);
 		wordp = &(bip->bli_format.blf_data_map[word_num]);
@@ -166,7 +166,7 @@ xfs_buf_item_size(
 		 * cancel flag in it.
 		 */
 		trace_xfs_buf_item_size_stale(bip);
-		ASSERT(bip->bli_format.blf_flags & XFS_BLI_CANCEL);
+		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
 		return 1;
 	}
 
@@ -197,9 +197,9 @@ xfs_buf_item_size(
 		} else if (next_bit != last_bit + 1) {
 			last_bit = next_bit;
 			nvecs++;
-		} else if (xfs_buf_offset(bp, next_bit * XFS_BLI_CHUNK) !=
-			   (xfs_buf_offset(bp, last_bit * XFS_BLI_CHUNK) +
-			    XFS_BLI_CHUNK)) {
+		} else if (xfs_buf_offset(bp, next_bit * XFS_BLF_CHUNK) !=
+			   (xfs_buf_offset(bp, last_bit * XFS_BLF_CHUNK) +
+			    XFS_BLF_CHUNK)) {
 			last_bit = next_bit;
 			nvecs++;
 		} else {
@@ -261,7 +261,7 @@ xfs_buf_item_format(
 		 * cancel flag in it.
 		 */
 		trace_xfs_buf_item_format_stale(bip);
-		ASSERT(bip->bli_format.blf_flags & XFS_BLI_CANCEL);
+		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
 		bip->bli_format.blf_size = nvecs;
 		return;
 	}
@@ -294,28 +294,28 @@ xfs_buf_item_format(
 		 * keep counting and scanning.
 		 */
 		if (next_bit == -1) {
-			buffer_offset = first_bit * XFS_BLI_CHUNK;
+			buffer_offset = first_bit * XFS_BLF_CHUNK;
 			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
-			vecp->i_len = nbits * XFS_BLI_CHUNK;
+			vecp->i_len = nbits * XFS_BLF_CHUNK;
 			vecp->i_type = XLOG_REG_TYPE_BCHUNK;
 			nvecs++;
 			break;
 		} else if (next_bit != last_bit + 1) {
-			buffer_offset = first_bit * XFS_BLI_CHUNK;
+			buffer_offset = first_bit * XFS_BLF_CHUNK;
 			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
-			vecp->i_len = nbits * XFS_BLI_CHUNK;
+			vecp->i_len = nbits * XFS_BLF_CHUNK;
 			vecp->i_type = XLOG_REG_TYPE_BCHUNK;
 			nvecs++;
 			vecp++;
 			first_bit = next_bit;
 			last_bit = next_bit;
 			nbits = 1;
-		} else if (xfs_buf_offset(bp, next_bit << XFS_BLI_SHIFT) !=
-			   (xfs_buf_offset(bp, last_bit << XFS_BLI_SHIFT) +
-			    XFS_BLI_CHUNK)) {
-			buffer_offset = first_bit * XFS_BLI_CHUNK;
+		} else if (xfs_buf_offset(bp, next_bit << XFS_BLF_SHIFT) !=
+			   (xfs_buf_offset(bp, last_bit << XFS_BLF_SHIFT) +
+			    XFS_BLF_CHUNK)) {
+			buffer_offset = first_bit * XFS_BLF_CHUNK;
 			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
-			vecp->i_len = nbits * XFS_BLI_CHUNK;
+			vecp->i_len = nbits * XFS_BLF_CHUNK;
 			vecp->i_type = XLOG_REG_TYPE_BCHUNK;
 /* You would think we need to bump the nvecs here too, but we do not
  * this number is used by recovery, and it gets confused by the boundary
@@ -399,7 +399,7 @@ xfs_buf_item_unpin(
 		ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
 		ASSERT(!(XFS_BUF_ISDELAYWRITE(bp)));
 		ASSERT(XFS_BUF_ISSTALE(bp));
-		ASSERT(bip->bli_format.blf_flags & XFS_BLI_CANCEL);
+		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
 		trace_xfs_buf_item_unpin_stale(bip);
 
 		/*
@@ -550,7 +550,7 @@ xfs_buf_item_unlock(
 	 */
 	if (bip->bli_flags & XFS_BLI_STALE) {
 		trace_xfs_buf_item_unlock_stale(bip);
-		ASSERT(bip->bli_format.blf_flags & XFS_BLI_CANCEL);
+		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
 		if (!aborted) {
 			atomic_dec(&bip->bli_refcount);
 			return;
@@ -707,12 +707,12 @@ xfs_buf_item_init(
 	}
 
 	/*
-	 * chunks is the number of XFS_BLI_CHUNK size pieces
+	 * chunks is the number of XFS_BLF_CHUNK size pieces
 	 * the buffer can be divided into. Make sure not to
 	 * truncate any pieces.  map_size is the size of the
 	 * bitmap needed to describe the chunks of the buffer.
 	 */
-	chunks = (int)((XFS_BUF_COUNT(bp) + (XFS_BLI_CHUNK - 1)) >> XFS_BLI_SHIFT);
+	chunks = (int)((XFS_BUF_COUNT(bp) + (XFS_BLF_CHUNK - 1)) >> XFS_BLF_SHIFT);
 	map_size = (int)((chunks + NBWORD) >> BIT_TO_WORD_SHIFT);
 
 	bip = (xfs_buf_log_item_t*)kmem_zone_zalloc(xfs_buf_item_zone,
@@ -780,8 +780,8 @@ xfs_buf_item_log(
 	/*
 	 * Convert byte offsets to bit numbers.
 	 */
-	first_bit = first >> XFS_BLI_SHIFT;
-	last_bit = last >> XFS_BLI_SHIFT;
+	first_bit = first >> XFS_BLF_SHIFT;
+	last_bit = last >> XFS_BLF_SHIFT;
 
 	/*
 	 * Calculate the total number of bits to be set.
