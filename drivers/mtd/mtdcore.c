@@ -2,6 +2,9 @@
  * Core registration and callback routines for MTD
  * drivers and users.
  *
+ * bdi bits are:
+ * Copyright © 2006 Red Hat, Inc. All Rights Reserved.
+ * Written by David Howells (dhowells@redhat.com)
  */
 
 #include <linux/module.h>
@@ -16,11 +19,39 @@
 #include <linux/init.h>
 #include <linux/mtd/compatmac.h>
 #include <linux/proc_fs.h>
+#include <linux/backing-dev.h>
 
 #include <linux/mtd/mtd.h>
-#include "internal.h"
 
 #include "mtdcore.h"
+/*
+ * backing device capabilities for non-mappable devices (such as NAND flash)
+ * - permits private mappings, copies are taken of the data
+ */
+struct backing_dev_info mtd_bdi_unmappable = {
+	.capabilities	= BDI_CAP_MAP_COPY,
+};
+
+/*
+ * backing device capabilities for R/O mappable devices (such as ROM)
+ * - permits private mappings, copies are taken of the data
+ * - permits non-writable shared mappings
+ */
+struct backing_dev_info mtd_bdi_ro_mappable = {
+	.capabilities	= (BDI_CAP_MAP_COPY | BDI_CAP_MAP_DIRECT |
+			   BDI_CAP_EXEC_MAP | BDI_CAP_READ_MAP),
+};
+
+/*
+ * backing device capabilities for writable mappable devices (such as RAM)
+ * - permits private mappings, copies are taken of the data
+ * - permits non-writable shared mappings
+ */
+struct backing_dev_info mtd_bdi_rw_mappable = {
+	.capabilities	= (BDI_CAP_MAP_COPY | BDI_CAP_MAP_DIRECT |
+			   BDI_CAP_EXEC_MAP | BDI_CAP_READ_MAP |
+			   BDI_CAP_WRITE_MAP),
+};
 
 static int mtd_cls_suspend(struct device *dev, pm_message_t state);
 static int mtd_cls_resume(struct device *dev);
@@ -628,20 +659,55 @@ done:
 /*====================================================================*/
 /* Init code */
 
+static int __init mtd_bdi_init(struct backing_dev_info *bdi, const char *name)
+{
+	int ret;
+
+	ret = bdi_init(bdi);
+	if (!ret)
+		ret = bdi_register(bdi, NULL, name);
+
+	if (ret)
+		bdi_destroy(bdi);
+
+	return ret;
+}
+
 static int __init init_mtd(void)
 {
 	int ret;
-	ret = class_register(&mtd_class);
 
-	if (ret) {
-		pr_err("Error registering mtd class: %d\n", ret);
-		return ret;
-	}
+	ret = class_register(&mtd_class);
+	if (ret)
+		goto err_reg;
+
+	ret = mtd_bdi_init(&mtd_bdi_unmappable, "mtd-unmap");
+	if (ret)
+		goto err_bdi1;
+
+	ret = mtd_bdi_init(&mtd_bdi_ro_mappable, "mtd-romap");
+	if (ret)
+		goto err_bdi2;
+
+	ret = mtd_bdi_init(&mtd_bdi_rw_mappable, "mtd-rwmap");
+	if (ret)
+		goto err_bdi3;
+
 #ifdef CONFIG_PROC_FS
 	if ((proc_mtd = create_proc_entry( "mtd", 0, NULL )))
 		proc_mtd->read_proc = mtd_read_proc;
 #endif /* CONFIG_PROC_FS */
 	return 0;
+
+err_bdi3:
+	bdi_destroy(&mtd_bdi_ro_mappable);
+err_bdi2:
+	bdi_destroy(&mtd_bdi_unmappable);
+err_bdi1:
+	class_unregister(&mtd_class);
+err_reg:
+	pr_err("Error registering mtd class or bdi: %d\n", ret);
+	return ret;
 }
 
 static void __exit cleanup_mtd(void)
@@ -651,6 +717,9 @@ static void __exit cleanup_mtd(void)
 		remove_proc_entry( "mtd", NULL);
 #endif /* CONFIG_PROC_FS */
 	class_unregister(&mtd_class);
+	bdi_destroy(&mtd_bdi_unmappable);
+	bdi_destroy(&mtd_bdi_ro_mappable);
+	bdi_destroy(&mtd_bdi_rw_mappable);
 }
 
 module_init(init_mtd);

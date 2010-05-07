@@ -118,7 +118,7 @@ static bool check_device(struct device *dev)
 		return false;
 
 	/* No device or no PCI device */
-	if (!dev || dev->bus != &pci_bus_type)
+	if (dev->bus != &pci_bus_type)
 		return false;
 
 	devid = get_device_id(dev);
@@ -392,6 +392,7 @@ static int __iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 	u32 tail, head;
 	u8 *target;
 
+	WARN_ON(iommu->cmd_buf_size & CMD_BUFFER_UNINITIALIZED);
 	tail = readl(iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
 	target = iommu->cmd_buf + tail;
 	memcpy_toio(target, cmd, sizeof(*cmd));
@@ -2186,7 +2187,7 @@ static void prealloc_protection_domains(void)
 	struct dma_ops_domain *dma_dom;
 	u16 devid;
 
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	for_each_pci_dev(dev) {
 
 		/* Do we handle this device? */
 		if (!check_device(&dev->dev))
@@ -2298,7 +2299,7 @@ static void cleanup_domain(struct protection_domain *domain)
 	list_for_each_entry_safe(dev_data, next, &domain->dev_list, list) {
 		struct device *dev = dev_data->dev;
 
-		do_detach(dev);
+		__detach_device(dev);
 		atomic_set(&dev_data->bind, 0);
 	}
 
@@ -2327,6 +2328,7 @@ static struct protection_domain *protection_domain_alloc(void)
 		return NULL;
 
 	spin_lock_init(&domain->lock);
+	mutex_init(&domain->api_lock);
 	domain->id = domain_id_alloc();
 	if (!domain->id)
 		goto out_err;
@@ -2379,9 +2381,7 @@ static void amd_iommu_domain_destroy(struct iommu_domain *dom)
 
 	free_pagetable(domain);
 
-	domain_id_free(domain->id);
-
-	kfree(domain);
+	protection_domain_free(domain);
 
 	dom->priv = NULL;
 }
@@ -2456,6 +2456,8 @@ static int amd_iommu_map_range(struct iommu_domain *dom,
 	iova  &= PAGE_MASK;
 	paddr &= PAGE_MASK;
 
+	mutex_lock(&domain->api_lock);
+
 	for (i = 0; i < npages; ++i) {
 		ret = iommu_map_page(domain, iova, paddr, prot, PM_MAP_4k);
 		if (ret)
@@ -2464,6 +2466,8 @@ static int amd_iommu_map_range(struct iommu_domain *dom,
 		iova  += PAGE_SIZE;
 		paddr += PAGE_SIZE;
 	}
+
+	mutex_unlock(&domain->api_lock);
 
 	return 0;
 }
@@ -2477,12 +2481,16 @@ static void amd_iommu_unmap_range(struct iommu_domain *dom,
 
 	iova  &= PAGE_MASK;
 
+	mutex_lock(&domain->api_lock);
+
 	for (i = 0; i < npages; ++i) {
 		iommu_unmap_page(domain, iova, PM_MAP_4k);
 		iova  += PAGE_SIZE;
 	}
 
 	iommu_flush_tlb_pde(domain);
+
+	mutex_unlock(&domain->api_lock);
 }
 
 static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,

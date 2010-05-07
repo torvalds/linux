@@ -431,8 +431,7 @@ static int dup_array(u64 **dst, __le64 *src, int num)
  * Caller must hold snap_rwsem for read (i.e., the realm topology won't
  * change).
  */
-void ceph_queue_cap_snap(struct ceph_inode_info *ci,
-			 struct ceph_snap_context *snapc)
+void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 {
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_cap_snap *capsnap;
@@ -451,10 +450,11 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci,
 		   as no new writes are allowed to start when pending, so any
 		   writes in progress now were started before the previous
 		   cap_snap.  lucky us. */
-		dout("queue_cap_snap %p snapc %p seq %llu used %d"
-		     " already pending\n", inode, snapc, snapc->seq, used);
+		dout("queue_cap_snap %p already pending\n", inode);
 		kfree(capsnap);
 	} else if (ci->i_wrbuffer_ref_head || (used & CEPH_CAP_FILE_WR)) {
+		struct ceph_snap_context *snapc = ci->i_head_snapc;
+
 		igrab(inode);
 
 		atomic_set(&capsnap->nref, 1);
@@ -463,7 +463,6 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci,
 		INIT_LIST_HEAD(&capsnap->flushing_item);
 
 		capsnap->follows = snapc->seq - 1;
-		capsnap->context = ceph_get_snap_context(snapc);
 		capsnap->issued = __ceph_caps_issued(ci, NULL);
 		capsnap->dirty = __ceph_caps_dirty(ci);
 
@@ -480,7 +479,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci,
 		   snapshot. */
 		capsnap->dirty_pages = ci->i_wrbuffer_ref_head;
 		ci->i_wrbuffer_ref_head = 0;
-		ceph_put_snap_context(ci->i_head_snapc);
+		capsnap->context = snapc;
 		ci->i_head_snapc = NULL;
 		list_add_tail(&capsnap->ci_item, &ci->i_cap_snaps);
 
@@ -522,15 +521,17 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 	capsnap->ctime = inode->i_ctime;
 	capsnap->time_warp_seq = ci->i_time_warp_seq;
 	if (capsnap->dirty_pages) {
-		dout("finish_cap_snap %p cap_snap %p snapc %p %llu s=%llu "
+		dout("finish_cap_snap %p cap_snap %p snapc %p %llu %s s=%llu "
 		     "still has %d dirty pages\n", inode, capsnap,
 		     capsnap->context, capsnap->context->seq,
-		     capsnap->size, capsnap->dirty_pages);
+		     ceph_cap_string(capsnap->dirty), capsnap->size,
+		     capsnap->dirty_pages);
 		return 0;
 	}
-	dout("finish_cap_snap %p cap_snap %p snapc %p %llu s=%llu clean\n",
+	dout("finish_cap_snap %p cap_snap %p snapc %p %llu %s s=%llu\n",
 	     inode, capsnap, capsnap->context,
-	     capsnap->context->seq, capsnap->size);
+	     capsnap->context->seq, ceph_cap_string(capsnap->dirty),
+	     capsnap->size);
 
 	spin_lock(&mdsc->snap_flush_lock);
 	list_add_tail(&ci->i_snap_flush_item, &mdsc->snap_flush_list);
@@ -602,7 +603,7 @@ more:
 				if (lastinode)
 					iput(lastinode);
 				lastinode = inode;
-				ceph_queue_cap_snap(ci, realm->cached_context);
+				ceph_queue_cap_snap(ci);
 				spin_lock(&realm->inodes_with_caps_lock);
 			}
 			spin_unlock(&realm->inodes_with_caps_lock);
@@ -824,8 +825,7 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			spin_unlock(&realm->inodes_with_caps_lock);
 			spin_unlock(&inode->i_lock);
 
-			ceph_queue_cap_snap(ci,
-					    ci->i_snap_realm->cached_context);
+			ceph_queue_cap_snap(ci);
 
 			iput(inode);
 			continue;

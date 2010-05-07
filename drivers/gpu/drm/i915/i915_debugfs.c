@@ -226,7 +226,7 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 		} else {
 			struct drm_i915_gem_object *obj_priv;
 
-			obj_priv = obj->driver_private;
+			obj_priv = to_intel_bo(obj);
 			seq_printf(m, "Fenced object[%2d] = %p: %s "
 				   "%08x %08zx %08x %s %08x %08x %d",
 				   i, obj, get_pin_flag(obj_priv),

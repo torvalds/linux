@@ -166,8 +166,10 @@ static int db1x_pcmcia_setup_irqs(struct db1x_pcmcia_sock *sock)
 
 		ret = request_irq(sock->insert_irq, db1200_pcmcia_cdirq,
 				  IRQF_DISABLED, "pcmcia_insert", sock);
-		if (ret)
+		if (ret) {
+			local_irq_restore(flags);
 			goto out1;
+		}
 
 		ret = request_irq(sock->eject_irq, db1200_pcmcia_cdirq,
 				  IRQF_DISABLED, "pcmcia_eject", sock);

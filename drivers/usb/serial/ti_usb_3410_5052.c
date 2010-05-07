@@ -172,7 +172,7 @@ static unsigned int product_5052_count;
 /* the array dimension is the number of default entries plus */
 /* TI_EXTRA_VID_PID_COUNT user defined entries plus 1 terminating */
 /* null entry */
-static struct usb_device_id ti_id_table_3410[10+TI_EXTRA_VID_PID_COUNT+1] = {
+static struct usb_device_id ti_id_table_3410[13+TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -180,6 +180,9 @@ static struct usb_device_id ti_id_table_3410[10+TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_CDMA_PRODUCT_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_PRODUCT_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_EDGE_PRODUCT_ID) },
+	{ USB_DEVICE(MTS_VENDOR_ID, MTS_MT9234MU_PRODUCT_ID) },
+	{ USB_DEVICE(MTS_VENDOR_ID, MTS_MT9234ZBA_PRODUCT_ID) },
+	{ USB_DEVICE(MTS_VENDOR_ID, MTS_MT9234ZBAOLD_PRODUCT_ID) },
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_4543_PRODUCT_ID) },
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454B_PRODUCT_ID) },
 	{ USB_DEVICE(IBM_VENDOR_ID, IBM_454C_PRODUCT_ID) },
@@ -192,7 +195,7 @@ static struct usb_device_id ti_id_table_5052[5+TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_FIRMWARE_PRODUCT_ID) },
 };
 
-static struct usb_device_id ti_id_table_combined[14+2*TI_EXTRA_VID_PID_COUNT+1] = {
+static struct usb_device_id ti_id_table_combined[17+2*TI_EXTRA_VID_PID_COUNT+1] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_NO_FW_PRODUCT_ID) },
@@ -200,6 +203,9 @@ static struct usb_device_id ti_id_table_combined[14+2*TI_EXTRA_VID_PID_COUNT+1] 
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_CDMA_PRODUCT_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_GSM_PRODUCT_ID) },
 	{ USB_DEVICE(MTS_VENDOR_ID, MTS_EDGE_PRODUCT_ID) },
+	{ USB_DEVICE(MTS_VENDOR_ID, MTS_MT9234MU_PRODUCT_ID) },
+	{ USB_DEVICE(MTS_VENDOR_ID, MTS_MT9234ZBA_PRODUCT_ID) },
+	{ USB_DEVICE(MTS_VENDOR_ID, MTS_MT9234ZBAOLD_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5152_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_EEPROM_PRODUCT_ID) },
@@ -287,6 +293,8 @@ MODULE_FIRMWARE("ti_5052.fw");
 MODULE_FIRMWARE("mts_cdma.fw");
 MODULE_FIRMWARE("mts_gsm.fw");
 MODULE_FIRMWARE("mts_edge.fw");
+MODULE_FIRMWARE("mts_mt9234mu.fw");
+MODULE_FIRMWARE("mts_mt9234zba.fw");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable debugging, 0=no, 1=yes");
@@ -1687,6 +1695,7 @@ static int ti_download_firmware(struct ti_device *tdev)
 	const struct firmware *fw_p;
 	char buf[32];
 
+	dbg("%s\n", __func__);
 	/* try ID specific firmware first, then try generic firmware */
 	sprintf(buf, "ti_usb-v%04x-p%04x.fw", dev->descriptor.idVendor,
 	    dev->descriptor.idProduct);
@@ -1703,7 +1712,15 @@ static int ti_download_firmware(struct ti_device *tdev)
 			case MTS_EDGE_PRODUCT_ID:
 				strcpy(buf, "mts_edge.fw");
 				break;
-			}
+			case MTS_MT9234MU_PRODUCT_ID:
+				strcpy(buf, "mts_mt9234mu.fw");
+				break;
+			case MTS_MT9234ZBA_PRODUCT_ID:
+				strcpy(buf, "mts_mt9234zba.fw");
+				break;
+			case MTS_MT9234ZBAOLD_PRODUCT_ID:
+				strcpy(buf, "mts_mt9234zba.fw");
+				break;			}
 		}
 		if (buf[0] == '\0') {
 			if (tdev->td_is_3410)
@@ -1718,7 +1735,7 @@ static int ti_download_firmware(struct ti_device *tdev)
 		return -ENOENT;
 	}
 	if (fw_p->size > TI_FIRMWARE_BUF_SIZE) {
-		dev_err(&dev->dev, "%s - firmware too large\n", __func__);
+		dev_err(&dev->dev, "%s - firmware too large %d \n", __func__, fw_p->size);
 		return -ENOENT;
 	}
 
@@ -1730,6 +1747,7 @@ static int ti_download_firmware(struct ti_device *tdev)
 		status = ti_do_download(dev, pipe, buffer, fw_p->size);
 		kfree(buffer);
 	} else {
+		dbg("%s ENOMEM\n", __func__);
 		status = -ENOMEM;
 	}
 	release_firmware(fw_p);

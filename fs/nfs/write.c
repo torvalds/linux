@@ -1201,6 +1201,25 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+static int nfs_commit_set_lock(struct nfs_inode *nfsi, int may_wait)
+{
+	if (!test_and_set_bit(NFS_INO_COMMIT, &nfsi->flags))
+		return 1;
+	if (may_wait && !out_of_line_wait_on_bit_lock(&nfsi->flags,
+				NFS_INO_COMMIT, nfs_wait_bit_killable,
+				TASK_KILLABLE))
+		return 1;
+	return 0;
+}
+
+static void nfs_commit_clear_lock(struct nfs_inode *nfsi)
+{
+	clear_bit(NFS_INO_COMMIT, &nfsi->flags);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&nfsi->flags, NFS_INO_COMMIT);
+}
+
+
 static void nfs_commitdata_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
@@ -1262,8 +1281,6 @@ static int nfs_commit_rpcsetup(struct list_head *head,
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
-	if (how & FLUSH_SYNC)
-		rpc_wait_for_completion_task(task);
 	rpc_put_task(task);
 	return 0;
 }
@@ -1294,6 +1311,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 				BDI_RECLAIMABLE);
 		nfs_clear_page_tag_locked(req);
 	}
+	nfs_commit_clear_lock(NFS_I(inode));
 	return -ENOMEM;
 }
 
@@ -1349,6 +1367,7 @@ static void nfs_commit_release(void *calldata)
 	next:
 		nfs_clear_page_tag_locked(req);
 	}
+	nfs_commit_clear_lock(NFS_I(data->inode));
 	nfs_commitdata_release(calldata);
 }
 
@@ -1363,8 +1382,11 @@ static const struct rpc_call_ops nfs_commit_ops = {
 static int nfs_commit_inode(struct inode *inode, int how)
 {
 	LIST_HEAD(head);
-	int res;
+	int may_wait = how & FLUSH_SYNC;
+	int res = 0;
 
+	if (!nfs_commit_set_lock(NFS_I(inode), may_wait))
+		goto out;
 	spin_lock(&inode->i_lock);
 	res = nfs_scan_commit(inode, &head, 0, 0);
 	spin_unlock(&inode->i_lock);
@@ -1372,7 +1394,13 @@ static int nfs_commit_inode(struct inode *inode, int how)
 		int error = nfs_commit_list(inode, &head, how);
 		if (error < 0)
 			return error;
-	}
+		if (may_wait)
+			wait_on_bit(&NFS_I(inode)->flags, NFS_INO_COMMIT,
+					nfs_wait_bit_killable,
+					TASK_KILLABLE);
+	} else
+		nfs_commit_clear_lock(NFS_I(inode));
+out:
 	return res;
 }
 
@@ -1444,6 +1472,7 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
 
 	BUG_ON(!PageLocked(page));
 	for (;;) {
+		wait_on_page_writeback(page);
 		req = nfs_page_find_request(page);
 		if (req == NULL)
 			break;
@@ -1478,30 +1507,18 @@ int nfs_wb_page(struct inode *inode, struct page *page)
 		.range_start = range_start,
 		.range_end = range_end,
 	};
-	struct nfs_page *req;
-	int need_commit;
 	int ret;
 
 	while(PagePrivate(page)) {
+		wait_on_page_writeback(page);
 		if (clear_page_dirty_for_io(page)) {
 			ret = nfs_writepage_locked(page, &wbc);
 			if (ret < 0)
 				goto out_error;
 		}
-		req = nfs_find_and_lock_request(page);
-		if (!req)
-			break;
-		if (IS_ERR(req)) {
-			ret = PTR_ERR(req);
+		ret = sync_inode(inode, &wbc);
+		if (ret < 0)
 			goto out_error;
-		}
-		need_commit = test_bit(PG_CLEAN, &req->wb_flags);
-		nfs_clear_page_tag_locked(req);
-		if (need_commit) {
-			ret = nfs_commit_inode(inode, FLUSH_SYNC);
-			if (ret < 0)
-				goto out_error;
-		}
 	}
 	return 0;
 out_error:

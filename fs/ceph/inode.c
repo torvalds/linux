@@ -886,6 +886,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 	struct inode *in = NULL;
 	struct ceph_mds_reply_inode *ininfo;
 	struct ceph_vino vino;
+	struct ceph_client *client = ceph_sb_to_client(sb);
 	int i = 0;
 	int err = 0;
 
@@ -949,7 +950,14 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			return err;
 	}
 
-	if (rinfo->head->is_dentry && !req->r_aborted) {
+	/*
+	 * ignore null lease/binding on snapdir ENOENT, or else we
+	 * will have trouble splicing in the virtual snapdir later
+	 */
+	if (rinfo->head->is_dentry && !req->r_aborted &&
+	    (rinfo->head->is_target || strncmp(req->r_dentry->d_name.name,
+					       client->mount_args->snapdir_name,
+					       req->r_dentry->d_name.len))) {
 		/*
 		 * lookup link rename   : null -> possibly existing inode
 		 * mknod symlink mkdir  : null -> new inode

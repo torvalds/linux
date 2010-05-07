@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <sched.h>
 #include <linux/limits.h>
-#include <linux/slab.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include "kern_constants.h"

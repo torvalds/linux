@@ -57,19 +57,8 @@ MA 02111-1307 USA
 
 extern void printques(int);
 
-#ifdef MODULE
 #include <linux/module.h>
 #include <linux/interrupt.h>
-
-
-MODULE_LICENSE("GPL");
-
-#endif
-
-#ifndef CONFIG_PCI
-#error  "DT3155 :  Kernel PCI support not enabled (DT3155 drive requires PCI)"
-#endif
-
 #include <linux/pci.h>
 #include <linux/types.h>
 #include <linux/poll.h>
@@ -83,6 +72,9 @@ MODULE_LICENSE("GPL");
 #include "dt3155_isr.h"
 #include "dt3155_io.h"
 #include "allocator.h"
+
+
+MODULE_LICENSE("GPL");
 
 /* Error variable.  Zero means no error. */
 int dt3155_errno = 0;

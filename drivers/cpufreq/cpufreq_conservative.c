@@ -444,6 +444,7 @@ static struct attribute_group dbs_attr_group_old = {
 static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 {
 	unsigned int load = 0;
+	unsigned int max_load = 0;
 	unsigned int freq_target;
 
 	struct cpufreq_policy *policy;
@@ -501,6 +502,9 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 			continue;
 
 		load = 100 * (wall_time - idle_time) / wall_time;
+
+		if (load > max_load)
+			max_load = load;
 	}
 
 	/*
@@ -511,7 +515,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		return;
 
 	/* Check for frequency increase */
-	if (load > dbs_tuners_ins.up_threshold) {
+	if (max_load > dbs_tuners_ins.up_threshold) {
 		this_dbs_info->down_skip = 0;
 
 		/* if we are already at full speed then break out early */
@@ -538,7 +542,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	 * can support the current CPU usage without triggering the up
 	 * policy. To be safe, we focus 10 points under the threshold.
 	 */
-	if (load < (dbs_tuners_ins.down_threshold - 10)) {
+	if (max_load < (dbs_tuners_ins.down_threshold - 10)) {
 		freq_target = (dbs_tuners_ins.freq_step * policy->max) / 100;
 
 		this_dbs_info->requested_freq -= freq_target;

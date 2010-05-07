@@ -728,15 +728,7 @@ static const struct falcon_board_type board_types[] = {
 	},
 };
 
-static const struct falcon_board_type falcon_dummy_board = {
-	.init		= efx_port_dummy_op_int,
-	.init_phy	= efx_port_dummy_op_void,
-	.fini		= efx_port_dummy_op_void,
-	.set_id_led	= efx_port_dummy_op_set_id_led,
-	.monitor	= efx_port_dummy_op_int,
-};
-
-void falcon_probe_board(struct efx_nic *efx, u16 revision_info)
+int falcon_probe_board(struct efx_nic *efx, u16 revision_info)
 {
 	struct falcon_board *board = falcon_board(efx);
 	u8 type_id = FALCON_BOARD_TYPE(revision_info);
@@ -754,8 +746,9 @@ void falcon_probe_board(struct efx_nic *efx, u16 revision_info)
 			 (efx->pci_dev->subsystem_vendor == EFX_VENDID_SFC)
 			 ? board->type->ref_model : board->type->gen_type,
 			 'A' + board->major, board->minor);
+		return 0;
 	} else {
 		EFX_ERR(efx, "unknown board type %d\n", type_id);
-		board->type = &falcon_dummy_board;
+		return -ENODEV;
 	}
 }

@@ -36,6 +36,54 @@
 #include "radeon.h"
 #include "atom.h"
 
+static const char radeon_family_name[][16] = {
+	"R100",
+	"RV100",
+	"RS100",
+	"RV200",
+	"RS200",
+	"R200",
+	"RV250",
+	"RS300",
+	"RV280",
+	"R300",
+	"R350",
+	"RV350",
+	"RV380",
+	"R420",
+	"R423",
+	"RV410",
+	"RS400",
+	"RS480",
+	"RS600",
+	"RS690",
+	"RS740",
+	"RV515",
+	"R520",
+	"RV530",
+	"RV560",
+	"RV570",
+	"R580",
+	"R600",
+	"RV610",
+	"RV630",
+	"RV670",
+	"RV620",
+	"RV635",
+	"RS780",
+	"RS880",
+	"RV770",
+	"RV730",
+	"RV710",
+	"RV740",
+	"CEDAR",
+	"REDWOOD",
+	"JUNIPER",
+	"CYPRESS",
+	"HEMLOCK",
+	"LAST",
+};
+
 /*
  * Clear GPU surface registers.
  */
@@ -526,7 +574,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	int r;
 	int dma_bits;
 
-	DRM_INFO("radeon: Initializing kernel modesetting.\n");
 	rdev->shutdown = false;
 	rdev->dev = &pdev->dev;
 	rdev->ddev = ddev;
@@ -538,6 +585,10 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 	rdev->gpu_lockup = false;
 	rdev->accel_working = false;
+
+	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X).\n",
+		radeon_family_name[rdev->family], pdev->vendor, pdev->device);
+
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
 	mutex_init(&rdev->cs_mutex);
