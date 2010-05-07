@@ -440,7 +440,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 		ids.port_id = ntoh24(np->fp_fid);
 		ids.port_name = ntohll(np->fp_wwpn);
 
-		if (ids.port_id != fc_host_port_id(lport->host) &&
+		if (ids.port_id != lport->port_id &&
 		    ids.port_name != lport->wwpn) {
 			rdata = lport->tt.rport_create(lport, ids.port_id);
 			if (rdata) {

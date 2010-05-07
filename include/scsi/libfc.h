@@ -780,6 +780,7 @@ struct fc_disc {
  * @dev_stats:             FCoE device stats (TODO: libfc should not be
  *                         FCoE aware)
  * @retry_count:           Number of retries in the current state
+ * @port_id:               FC Port ID
  * @wwpn:                  World Wide Port Name
  * @wwnn:                  World Wide Node Name
  * @service_params:        Common service parameters
@@ -826,6 +827,7 @@ struct fc_lport {
 	u8			       retry_count;
 
 	/* Fabric information */
+	u32                            port_id;
 	u64			       wwpn;
 	u64			       wwnn;
 	unsigned int		       service_params;

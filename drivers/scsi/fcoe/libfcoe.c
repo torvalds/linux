@@ -343,7 +343,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 
 	fcf = fip->sel_fcf;
 	lp = fip->lp;
-	if (!fcf || !fc_host_port_id(lp->host))
+	if (!fcf || !lp->port_id)
 		return;
 
 	len = sizeof(*kal) + ports * sizeof(*vn);
@@ -374,7 +374,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 		vn->fd_desc.fip_dtype = FIP_DT_VN_ID;
 		vn->fd_desc.fip_dlen = sizeof(*vn) / FIP_BPW;
 		memcpy(vn->fd_mac, fip->get_src_addr(lport), ETH_ALEN);
-		hton24(vn->fd_fc_id, fc_host_port_id(lp->host));
+		hton24(vn->fd_fc_id, lp->port_id);
 		put_unaligned_be64(lp->wwpn, &vn->fd_wwpn);
 	}
 	skb_put(skb, len);
@@ -949,7 +949,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 
 	LIBFCOE_FIP_DBG(fip, "Clear Virtual Link received\n");
 
-	if (!fcf || !fc_host_port_id(lport->host))
+	if (!fcf || !lport->port_id)
 		return;
 
 	/*
@@ -987,8 +987,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 			if (compare_ether_addr(vp->fd_mac,
 					       fip->get_src_addr(lport)) == 0 &&
 			    get_unaligned_be64(&vp->fd_wwpn) == lport->wwpn &&
-			    ntoh24(vp->fd_fc_id) ==
-			    fc_host_port_id(lport->host))
+			    ntoh24(vp->fd_fc_id) == lport->port_id)
 				desc_mask &= ~BIT(FIP_DT_VN_ID);
 			break;
 		default:
