@@ -156,7 +156,7 @@ MODULE_PARM_DESC(ring_size, "Ring buffer size (in bytes)");
 /* The one and only one */
 static struct blkvsc_driver_context g_blkvsc_drv;
 
-static struct block_device_operations block_ops = {
+static const struct block_device_operations block_ops = {
 	.owner = THIS_MODULE,
 	.open = blkvsc_open,
 	.release = blkvsc_release,
