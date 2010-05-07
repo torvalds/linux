@@ -81,6 +81,25 @@ int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
 void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id);
 void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
 
+/**
+ * iwl_clear_driver_stations - clear knowledge of all stations from driver
+ * @priv: iwl priv struct
+ *
+ * This is called during iwl_down() to make sure that in the case
+ * we're coming there from a hardware restart mac80211 will be
+ * able to reconfigure stations -- if we're getting there in the
+ * normal down flow then the stations will already be cleared.
+ */
+static inline void iwl_clear_driver_stations(struct iwl_priv *priv)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	memset(priv->stations, 0, sizeof(priv->stations));
+	priv->num_stations = 0;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+}
+
 static inline int iwl_sta_id(struct ieee80211_sta *sta)
 {
 	if (WARN_ON(!sta))

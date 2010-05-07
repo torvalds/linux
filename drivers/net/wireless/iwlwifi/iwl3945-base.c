@@ -2585,6 +2585,7 @@ static void __iwl3945_down(struct iwl_priv *priv)
 	/* Station information will now be cleared in device */
 	iwl_clear_ucode_stations(priv);
 	iwl_dealloc_bcast_station(priv);
+	iwl_clear_driver_stations(priv);
 
 	/* Unblock any waiting calls */
 	wake_up_interruptible_all(&priv->wait_command_queue);
