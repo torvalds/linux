@@ -143,7 +143,16 @@ Description:
 		Data converted by application of offset then scale to
 		radians per second. Has all the equivalent parameters as per in[m].
 
-What:		/sys/.../device[n]/mag[_x|_y|_z][m]_raw
+What:		/sys/.../device[n]/incli[_x|_y|_z][m]_raw
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Inclination raw reading about axis x, y or z (may be arbitarily
+		assigned) channel m (not present if only one inclinometer at
+		this orientation).  Data converted by application of offset
+		and scale to Degrees.
+
+What:		/sys/.../device[n]/magn[_x|_y|_z][m]_raw
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
