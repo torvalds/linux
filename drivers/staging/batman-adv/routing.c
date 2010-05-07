@@ -549,6 +549,7 @@ int recv_bat_packet(struct sk_buff *skb,
 {
 	struct ethhdr *ethhdr;
 	unsigned long flags;
+	struct sk_buff *skb_old;
 
 	/* drop packet if it has not necessary minimum size */
 	if (skb_headlen(skb) < sizeof(struct batman_packet))
@@ -564,12 +565,19 @@ int recv_bat_packet(struct sk_buff *skb,
 	if (is_bcast(ethhdr->h_source))
 		return NET_RX_DROP;
 
-	spin_lock_irqsave(&orig_hash_lock, flags);
 	/* TODO: we use headlen instead of "length", because
 	 * only this data is paged in. */
-	/* TODO: is another skb_copy needed here? there will be
-	 * written on the data, but nobody (?) should further use
-	 * this data */
+
+	/* create a copy of the skb, if needed, to modify it. */
+	if (!skb_clone_writable(skb, skb_headlen(skb))) {
+		skb_old = skb;
+		skb = skb_copy(skb, GFP_ATOMIC);
+		if (!skb)
+			return NET_RX_DROP;
+		kfree_skb(skb_old);
+	}
+
+	spin_lock_irqsave(&orig_hash_lock, flags);
 	receive_aggr_bat_packet(ethhdr,
 				skb->data,
 				skb_headlen(skb),
