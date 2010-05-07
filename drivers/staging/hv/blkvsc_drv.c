@@ -149,8 +149,9 @@ static int blkvsc_do_flush(struct block_device_context *blkdev);
 static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev);
 static int blkvsc_do_pending_reqs(struct block_device_context *blkdev);
 
-
 static int blkvsc_ringbuffer_size = BLKVSC_RING_BUFFER_SIZE;
+module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_PARM_DESC(ring_size, "Ring buffer size (in bytes)");
 
 /* The one and only one */
 static struct blkvsc_driver_context g_blkvsc_drv;
@@ -1511,6 +1512,6 @@ static void __exit blkvsc_exit(void)
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
-module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_DESCRIPTION("Microsoft Hyper-V virtual block driver");
 module_init(blkvsc_init);
 module_exit(blkvsc_exit);
