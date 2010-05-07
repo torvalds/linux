@@ -801,6 +801,12 @@ skip_oem:
 /**
  * fcoe_if_destroy() - Tear down a SW FCoE instance
  * @lport: The local port to be destroyed
+ *
+ * Locking: must be called with the RTNL mutex held and RTNL mutex
+ * needed to be dropped by this function since not dropping RTNL
+ * would cause circular locking warning on synchronous fip worker
+ * cancelling thru fcoe_interface_put invoked by this function.
+ *
  */
 static void fcoe_if_destroy(struct fc_lport *lport)
 {
@@ -823,7 +829,6 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	/* Free existing transmit skbs */
 	fcoe_clean_pending_queue(lport);
 
-	rtnl_lock();
 	if (!is_zero_ether_addr(port->data_src_addr))
 		dev_unicast_delete(netdev, port->data_src_addr);
 	rtnl_unlock();
@@ -1902,7 +1907,12 @@ static int fcoe_disable(const char *buffer, struct kernel_param *kp)
 		goto out_nodev;
 	}
 
-	rtnl_lock();
+	if (!rtnl_trylock()) {
+		dev_put(netdev);
+		mutex_unlock(&fcoe_config_mutex);
+		return restart_syscall();
+	}
+
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
 
@@ -1952,7 +1962,12 @@ static int fcoe_enable(const char *buffer, struct kernel_param *kp)
 		goto out_nodev;
 	}
 
-	rtnl_lock();
+	if (!rtnl_trylock()) {
+		dev_put(netdev);
+		mutex_unlock(&fcoe_config_mutex);
+		return restart_syscall();
+	}
+
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
 
@@ -2003,7 +2018,12 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 		goto out_nodev;
 	}
 
-	rtnl_lock();
+	if (!rtnl_trylock()) {
+		dev_put(netdev);
+		mutex_unlock(&fcoe_config_mutex);
+		return restart_syscall();
+	}
+
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	if (!fcoe) {
 		rtnl_unlock();
@@ -2012,7 +2032,7 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 	}
 	list_del(&fcoe->list);
 	fcoe_interface_cleanup(fcoe);
-	rtnl_unlock();
+	/* RTNL mutex is dropped by fcoe_if_destroy */
 	fcoe_if_destroy(fcoe->ctlr.lp);
 	module_put(THIS_MODULE);
 
@@ -2033,6 +2053,8 @@ static void fcoe_destroy_work(struct work_struct *work)
 
 	port = container_of(work, struct fcoe_port, destroy_work);
 	mutex_lock(&fcoe_config_mutex);
+	rtnl_lock();
+	/* RTNL mutex is dropped by fcoe_if_destroy */
 	fcoe_if_destroy(port->lport);
 	mutex_unlock(&fcoe_config_mutex);
 }
@@ -2054,6 +2076,12 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	struct net_device *netdev;
 
 	mutex_lock(&fcoe_config_mutex);
+
+	if (!rtnl_trylock()) {
+		mutex_unlock(&fcoe_config_mutex);
+		return restart_syscall();
+	}
+
 #ifdef CONFIG_FCOE_MODULE
 	/*
 	 * Make sure the module has been initialized, and is not about to be
@@ -2071,7 +2099,6 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 		goto out_nomod;
 	}
 
-	rtnl_lock();
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
 		rc = -ENODEV;
@@ -2126,9 +2153,9 @@ out_free:
 out_putdev:
 	dev_put(netdev);
 out_nodev:
-	rtnl_unlock();
 	module_put(THIS_MODULE);
 out_nomod:
+	rtnl_unlock();
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
