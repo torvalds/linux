@@ -225,8 +225,8 @@ static int copy_packet(struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 			 * It should, instead, check if the user selected
 			 * entrelaced or non-entrelaced mode
 			 */
-			pos= ((line<<1)+field)*linewidth +
-				block*TM6000_URB_MSG_LEN;
+			pos = ((line << 1) - field - 1) * linewidth +
+				block * TM6000_URB_MSG_LEN;
 
 			/* Don't allow to write out of the buffer */
 			if (pos+TM6000_URB_MSG_LEN > (*buf)->vb.size) {
