@@ -83,6 +83,7 @@ struct neigh_node {
 struct bat_priv {
 	struct net_device_stats stats;
 	atomic_t aggregation_enabled;
+	atomic_t vis_mode;
 	struct kobject *mesh_obj;
 };
 

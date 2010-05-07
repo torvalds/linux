@@ -25,11 +25,6 @@
 #define PROC_ROOT_DIR "batman-adv"
 #define PROC_FILE_INTERFACES "interfaces"
 #define PROC_FILE_ORIG_INTERVAL "orig_interval"
-#define PROC_FILE_GATEWAYS "gateways"
-#define PROC_FILE_LOG "log"
-#define PROC_FILE_LOG_LEVEL "log_level"
-#define PROC_FILE_VIS_SRV "vis_server"
-#define PROC_FILE_VIS_DATA "vis_data"
 
 void cleanup_procfs(void);
 int setup_procfs(void);

@@ -946,6 +946,7 @@ int recv_vis_packet(struct sk_buff *skb)
 {
 	struct vis_packet *vis_packet;
 	struct ethhdr *ethhdr;
+	struct bat_priv *bat_priv;
 	int hdr_size = sizeof(struct vis_packet);
 
 	if (skb_headlen(skb) < hdr_size)
@@ -965,15 +966,20 @@ int recv_vis_packet(struct sk_buff *skb)
 	if (is_my_mac(vis_packet->sender_orig))
 		return NET_RX_DROP;
 
+	/* FIXME: each batman_if will be attached to a softif */
+	bat_priv = netdev_priv(soft_device);
+
 	switch (vis_packet->vis_type) {
 	case VIS_TYPE_SERVER_SYNC:
 		/* TODO: handle fragmented skbs properly */
-		receive_server_sync_packet(vis_packet, skb_headlen(skb));
+		receive_server_sync_packet(bat_priv, vis_packet,
+					   skb_headlen(skb));
 		break;
 
 	case VIS_TYPE_CLIENT_UPDATE:
 		/* TODO: handle fragmented skbs properly */
-		receive_client_update_packet(vis_packet, skb_headlen(skb));
+		receive_client_update_packet(bat_priv, vis_packet,
+					     skb_headlen(skb));
 		break;
 
 	default:	/* ignore unknown packet */

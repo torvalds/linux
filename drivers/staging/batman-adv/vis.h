@@ -47,18 +47,13 @@ struct recvlist_node {
 extern struct hashtable_t *vis_hash;
 extern spinlock_t vis_hash_lock;
 
-void proc_vis_insert_interface(const uint8_t *interface,
-				      struct hlist_head *if_list,
-				      bool primary);
-void proc_vis_read_entry(struct seq_file *seq,
-				struct vis_info_entry *entry,
-				uint8_t *src,
-				bool primary);
-void proc_vis_read_prim_sec(struct seq_file *seq,
-			    struct hlist_head *if_list);
-void receive_server_sync_packet(struct vis_packet *vis_packet,
+ssize_t vis_fill_buffer_text(struct net_device *net_dev, char *buff,
+			      size_t count, loff_t off);
+void receive_server_sync_packet(struct bat_priv *bat_priv,
+				struct vis_packet *vis_packet,
 				int vis_info_len);
-void receive_client_update_packet(struct vis_packet *vis_packet,
+void receive_client_update_packet(struct bat_priv *bat_priv,
+				  struct vis_packet *vis_packet,
 				  int vis_info_len);
 int vis_init(void);
 void vis_quit(void);

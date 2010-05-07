@@ -24,6 +24,7 @@
 #include "translation-table.h"
 #include "originator.h"
 #include "hard-interface.h"
+#include "vis.h"
 
 #define to_dev(obj)     container_of(obj, struct device, kobj)
 
@@ -99,11 +100,66 @@ static ssize_t store_aggr_ogm(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
+static ssize_t show_vis_mode(struct kobject *kobj, struct attribute *attr,
+			     char *buff)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct bat_priv *bat_priv = netdev_priv(to_net_dev(dev));
+	int vis_mode = atomic_read(&bat_priv->vis_mode);
+
+	return sprintf(buff, "status: %s\ncommands: client, server, %d, %d \n",
+		       vis_mode == VIS_TYPE_CLIENT_UPDATE ?
+							"client" : "server",
+		       VIS_TYPE_SERVER_SYNC, VIS_TYPE_CLIENT_UPDATE);
+}
+
+static ssize_t store_vis_mode(struct kobject *kobj, struct attribute *attr,
+			      char *buff, size_t count)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct net_device *net_dev = to_net_dev(dev);
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	unsigned long val;
+	int ret, vis_mode_tmp = -1;
+
+	ret = strict_strtoul(buff, 10, &val);
+
+	if (((count == 2) && (!ret) && (val == VIS_TYPE_CLIENT_UPDATE)) ||
+	    (strncmp(buff, "client", 6) == 0))
+		vis_mode_tmp = VIS_TYPE_CLIENT_UPDATE;
+
+	if (((count == 2) && (!ret) && (val == VIS_TYPE_SERVER_SYNC)) ||
+	    (strncmp(buff, "server", 6) == 0))
+		vis_mode_tmp = VIS_TYPE_SERVER_SYNC;
+
+	if (vis_mode_tmp < 0) {
+		if (buff[count - 1] == '\n')
+			buff[count - 1] = '\0';
+
+		printk(KERN_INFO "batman-adv:Invalid parameter for 'vis mode' setting on mesh %s received: %s\n",
+		       net_dev->name, buff);
+		return -EINVAL;
+	}
+
+	if (atomic_read(&bat_priv->vis_mode) == vis_mode_tmp)
+		return count;
+
+	printk(KERN_INFO "batman-adv:Changing vis mode from: %s to: %s on mesh: %s\n",
+	       atomic_read(&bat_priv->vis_mode) == VIS_TYPE_CLIENT_UPDATE ?
+	       "client" : "server", vis_mode_tmp == VIS_TYPE_CLIENT_UPDATE ?
+	       "client" : "server", net_dev->name);
+
+	atomic_set(&bat_priv->vis_mode, (unsigned)vis_mode_tmp);
+	return count;
+}
+
 static BAT_ATTR(aggregate_ogm, S_IRUGO | S_IWUSR,
 		show_aggr_ogm, store_aggr_ogm);
+static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, show_vis_mode, store_vis_mode);
 
 static struct bat_attribute *mesh_attrs[] = {
 	&bat_attr_aggregate_ogm,
+	&bat_attr_vis_mode,
 	NULL,
 };
 
@@ -113,19 +169,6 @@ static ssize_t transtable_local_read(struct kobject *kobj,
 {
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);
-
-	rcu_read_lock();
-	if (list_empty(&if_list)) {
-		rcu_read_unlock();
-
-		if (off == 0)
-			return sprintf(buff,
-				       "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
-				       net_dev->name);
-
-		return 0;
-	}
-	rcu_read_unlock();
 
 	return hna_local_fill_buffer_text(net_dev, buff, count, off);
 }
@@ -137,19 +180,6 @@ static ssize_t transtable_global_read(struct kobject *kobj,
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);
 
-	rcu_read_lock();
-	if (list_empty(&if_list)) {
-		rcu_read_unlock();
-
-		if (off == 0)
-			return sprintf(buff,
-				       "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
-				       net_dev->name);
-
-		return 0;
-	}
-	rcu_read_unlock();
-
 	return hna_global_fill_buffer_text(net_dev, buff, count, off);
 }
 
@@ -157,45 +187,32 @@ static ssize_t originators_read(struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buff, loff_t off, size_t count)
 {
-	/* FIXME: orig table should exist per batif */
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);
 
-	rcu_read_lock();
-	if (list_empty(&if_list)) {
-		rcu_read_unlock();
+	return orig_fill_buffer_text(net_dev, buff, count, off);
+}
 
-		if (off == 0)
-			return sprintf(buff,
-				       "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
-				       net_dev->name);
+static ssize_t vis_data_read(struct kobject *kobj,
+			     struct bin_attribute *bin_attr,
+			     char *buff, loff_t off, size_t count)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct net_device *net_dev = to_net_dev(dev);
 
-		return 0;
-	}
-
-	if (((struct batman_if *)if_list.next)->if_active != IF_ACTIVE) {
-		rcu_read_unlock();
-
-		if (off == 0)
-			return sprintf(buff,
-				       "BATMAN mesh %s disabled - primary interface not active\n",
-				       net_dev->name);
-
-		return 0;
-	}
-	rcu_read_unlock();
-
-	return orig_fill_buffer_text(buff, count, off);
+	return vis_fill_buffer_text(net_dev, buff, count, off);
 }
 
 static BAT_BIN_ATTR(transtable_local, S_IRUGO, transtable_local_read, NULL);
 static BAT_BIN_ATTR(transtable_global, S_IRUGO, transtable_global_read, NULL);
 static BAT_BIN_ATTR(originators, S_IRUGO, originators_read, NULL);
+static BAT_BIN_ATTR(vis_data, S_IRUGO, vis_data_read, NULL);
 
 static struct bin_attribute *mesh_bin_attrs[] = {
 	&bat_attr_transtable_local,
 	&bat_attr_transtable_global,
 	&bat_attr_originators,
+	&bat_attr_vis_data,
 	NULL,
 };
 
@@ -210,6 +227,7 @@ int sysfs_add_meshif(struct net_device *dev)
 	/* FIXME: should be done in the general mesh setup
 		  routine as soon as we have it */
 	atomic_set(&bat_priv->aggregation_enabled, 1);
+	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
 
 	bat_priv->mesh_obj = kobject_create_and_add(SYSFS_IF_MESH_SUBDIR,
 						    batif_kobject);

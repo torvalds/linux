@@ -182,12 +182,16 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct bat_priv *priv = netdev_priv(dev);
 	struct batman_if *batman_if;
+	struct bat_priv *bat_priv;
 	uint8_t dstaddr[6];
 	int data_len = skb->len;
 	unsigned long flags;
 
 	if (atomic_read(&module_state) != MODULE_ACTIVE)
 		goto dropped;
+
+	/* FIXME: each batman_if will be attached to a softif */
+	bat_priv = netdev_priv(soft_device);
 
 	dev->trans_start = jiffies;
 	/* TODO: check this for locks */

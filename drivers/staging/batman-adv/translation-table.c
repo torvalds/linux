@@ -165,6 +165,19 @@ int hna_local_fill_buffer_text(struct net_device *net_dev, char *buff,
 	unsigned long flags;
 	size_t hdr_len;
 
+	rcu_read_lock();
+	if (list_empty(&if_list)) {
+		rcu_read_unlock();
+
+		if (off == 0)
+			return sprintf(buff,
+				       "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
+				       net_dev->name);
+
+		return 0;
+	}
+	rcu_read_unlock();
+
 	hdr_len = sprintf(buff,
 			  "Locally retrieved addresses (from %s) announced via HNA:\n",
 			  net_dev->name);
@@ -368,6 +381,19 @@ int hna_global_fill_buffer_text(struct net_device *net_dev, char *buff,
 	int bytes_written = 0;
 	unsigned long flags;
 	size_t hdr_len;
+
+	rcu_read_lock();
+	if (list_empty(&if_list)) {
+		rcu_read_unlock();
+
+		if (off == 0)
+			return sprintf(buff,
+				       "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
+				       net_dev->name);
+
+		return 0;
+	}
+	rcu_read_unlock();
 
 	hdr_len = sprintf(buff,
 			  "Globally announced HNAs received via the mesh %s (translation table):\n",

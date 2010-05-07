@@ -44,7 +44,6 @@ DEFINE_SPINLOCK(forw_bcast_list_lock);
 
 atomic_t originator_interval;
 atomic_t vis_interval;
-atomic_t vis_mode;
 int16_t num_hna;
 int16_t num_ifs;
 
@@ -84,7 +83,6 @@ int init_module(void)
 	atomic_set(&originator_interval, 1000);
 	atomic_set(&vis_interval, 1000);/* TODO: raise this later, this is only
 					 * for debugging now. */
-	atomic_set(&vis_mode, VIS_TYPE_CLIENT_UPDATE);
 
 	/* the name should not be longer than 10 chars - see
 	 * http://lwn.net/Articles/23634/ */

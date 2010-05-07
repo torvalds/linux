@@ -102,7 +102,7 @@ static int vis_info_choose(void *data, int size)
 
 /* insert interface to the list of interfaces of one originator, if it
  * does not already exist in the list */
-void proc_vis_insert_interface(const uint8_t *interface,
+static void vis_data_insert_interface(const uint8_t *interface,
 				      struct hlist_head *if_list,
 				      bool primary)
 {
@@ -123,36 +123,119 @@ void proc_vis_insert_interface(const uint8_t *interface,
 	hlist_add_head(&entry->list, if_list);
 }
 
-void proc_vis_read_prim_sec(struct seq_file *seq,
-			    struct hlist_head *if_list)
+static ssize_t vis_data_read_prim_sec(char *buff, struct hlist_head *if_list)
 {
 	struct if_list_entry *entry;
 	struct hlist_node *pos;
 	char tmp_addr_str[ETH_STR_LEN];
+	size_t len = 0;
 
 	hlist_for_each_entry(entry, pos, if_list, list) {
 		if (entry->primary)
-			seq_printf(seq, "PRIMARY, ");
+			len += sprintf(buff + len, "PRIMARY, ");
 		else {
 			addr_to_string(tmp_addr_str, entry->addr);
-			seq_printf(seq, "SEC %s, ", tmp_addr_str);
+			len += sprintf(buff + len,  "SEC %s, ", tmp_addr_str);
 		}
 	}
+
+	return len;
 }
 
 /* read an entry  */
-void proc_vis_read_entry(struct seq_file *seq,
-				struct vis_info_entry *entry,
-				uint8_t *src,
-				bool primary)
+static ssize_t vis_data_read_entry(char *buff, struct vis_info_entry *entry,
+				   uint8_t *src, bool primary)
 {
 	char to[40];
 
 	addr_to_string(to, entry->dest);
 	if (primary && entry->quality == 0)
-		seq_printf(seq, "HNA %s, ", to);
+		return sprintf(buff, "HNA %s, ", to);
 	else if (compare_orig(entry->src, src))
-		seq_printf(seq, "TQ %s %d, ", to, entry->quality);
+		return sprintf(buff, "TQ %s %d, ", to, entry->quality);
+
+	return 0;
+}
+
+ssize_t vis_fill_buffer_text(struct net_device *net_dev, char *buff,
+			      size_t count, loff_t off)
+{
+	HASHIT(hashit);
+	struct vis_info *info;
+	struct vis_info_entry *entries;
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	HLIST_HEAD(vis_if_list);
+	struct if_list_entry *entry;
+	struct hlist_node *pos, *n;
+	size_t hdr_len, tmp_len;
+	int i, bytes_written = 0;
+	char tmp_addr_str[ETH_STR_LEN];
+	unsigned long flags;
+	int vis_server = atomic_read(&bat_priv->vis_mode);
+
+	rcu_read_lock();
+	if (list_empty(&if_list) || (vis_server == VIS_TYPE_CLIENT_UPDATE)) {
+		rcu_read_unlock();
+		return 0;
+	}
+
+	rcu_read_unlock();
+	hdr_len = 0;
+
+	spin_lock_irqsave(&vis_hash_lock, flags);
+	while (hash_iterate(vis_hash, &hashit)) {
+		info = hashit.bucket->data;
+		entries = (struct vis_info_entry *)
+			((char *)info + sizeof(struct vis_info));
+
+		/* estimated line length */
+		if (count < bytes_written + 200)
+			break;
+
+		for (i = 0; i < info->packet.entries; i++) {
+			if (entries[i].quality == 0)
+				continue;
+			vis_data_insert_interface(entries[i].src, &vis_if_list,
+				compare_orig(entries[i].src,
+						info->packet.vis_orig));
+		}
+
+		hlist_for_each_entry(entry, pos, &vis_if_list, list) {
+			addr_to_string(tmp_addr_str, entry->addr);
+			tmp_len = sprintf(buff + bytes_written,
+					  "%s,", tmp_addr_str);
+
+			for (i = 0; i < info->packet.entries; i++)
+				tmp_len += vis_data_read_entry(
+						buff + bytes_written + tmp_len,
+						&entries[i], entry->addr,
+						entry->primary);
+
+			/* add primary/secondary records */
+			if (compare_orig(entry->addr, info->packet.vis_orig))
+				tmp_len += vis_data_read_prim_sec(
+						buff + bytes_written + tmp_len,
+						&vis_if_list);
+
+			tmp_len += sprintf(buff + bytes_written + tmp_len,
+					  "\n");
+
+			hdr_len += tmp_len;
+
+			if (off >= hdr_len)
+				continue;
+
+			bytes_written += tmp_len;
+		}
+
+		hlist_for_each_entry_safe(entry, pos, n, &vis_if_list, list) {
+			hlist_del(&entry->list);
+			kfree(entry);
+		}
+	}
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
+
+	return bytes_written;
 }
 
 /* add the info packet to the send list, if it was not
@@ -280,12 +363,14 @@ static struct vis_info *add_packet(struct vis_packet *vis_packet,
 }
 
 /* handle the server sync packet, forward if needed. */
-void receive_server_sync_packet(struct vis_packet *vis_packet, int vis_info_len)
+void receive_server_sync_packet(struct bat_priv *bat_priv,
+				struct vis_packet *vis_packet,
+				int vis_info_len)
 {
 	struct vis_info *info;
 	int is_new, make_broadcast;
 	unsigned long flags;
-	int vis_server = atomic_read(&vis_mode);
+	int vis_server = atomic_read(&bat_priv->vis_mode);
 
 	make_broadcast = (vis_server == VIS_TYPE_SERVER_SYNC);
 
@@ -303,13 +388,14 @@ end:
 }
 
 /* handle an incoming client update packet and schedule forward if needed. */
-void receive_client_update_packet(struct vis_packet *vis_packet,
+void receive_client_update_packet(struct bat_priv *bat_priv,
+				  struct vis_packet *vis_packet,
 				  int vis_info_len)
 {
 	struct vis_info *info;
 	int is_new;
 	unsigned long flags;
-	int vis_server = atomic_read(&vis_mode);
+	int vis_server = atomic_read(&bat_priv->vis_mode);
 	int are_target = 0;
 
 	/* clients shall not broadcast. */
@@ -376,7 +462,7 @@ static bool vis_packet_full(struct vis_info *info)
 
 /* generates a packet of own vis data,
  * returns 0 on success, -1 if no packet could be generated */
-static int generate_vis_packet(void)
+static int generate_vis_packet(struct bat_priv *bat_priv)
 {
 	HASHIT(hashit_local);
 	HASHIT(hashit_global);
@@ -388,7 +474,7 @@ static int generate_vis_packet(void)
 	unsigned long flags;
 
 	info->first_seen = jiffies;
-	info->packet.vis_type = atomic_read(&vis_mode);
+	info->packet.vis_type = atomic_read(&bat_priv->vis_mode);
 
 	spin_lock_irqsave(&orig_hash_lock, flags);
 	memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
@@ -568,12 +654,14 @@ static void send_vis_packets(struct work_struct *work)
 {
 	struct vis_info *info, *temp;
 	unsigned long flags;
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 
 	spin_lock_irqsave(&vis_hash_lock, flags);
 
 	purge_vis_packets();
 
-	if (generate_vis_packet() == 0) {
+	if (generate_vis_packet(bat_priv) == 0) {
 		/* schedule if generation was successful */
 		send_list_add(my_vis_info);
 	}

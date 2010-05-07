@@ -30,9 +30,9 @@ static inline int aggregated_packet(int buff_pos, int packet_len, int num_hna)
 		(next_buff_pos <= MAX_AGGREGATION_BYTES);
 }
 
-void add_bat_packet_to_list(unsigned char *packet_buff, int packet_len,
-			    struct batman_if *if_outgoing, char own_packet,
-			    unsigned long send_time,
-			    struct bat_priv *bat_priv);
+void add_bat_packet_to_list(struct bat_priv *bat_priv,
+			    unsigned char *packet_buff, int packet_len,
+			    struct batman_if *if_incoming, char own_packet,
+			    unsigned long send_time);
 void receive_aggr_bat_packet(struct ethhdr *ethhdr, unsigned char *packet_buff,
 			     int packet_len, struct batman_if *if_incoming);

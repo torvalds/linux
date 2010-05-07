@@ -165,10 +165,10 @@ static void aggregate(struct forw_packet *forw_packet_aggr,
 			(1 << forw_packet_aggr->num_packets);
 }
 
-void add_bat_packet_to_list(unsigned char *packet_buff, int packet_len,
+void add_bat_packet_to_list(struct bat_priv *bat_priv,
+			    unsigned char *packet_buff, int packet_len,
 			    struct batman_if *if_incoming, char own_packet,
-			    unsigned long send_time,
-			    struct bat_priv *bat_priv)
+			    unsigned long send_time)
 {
 	/**
 	 * _aggr -> pointer to the packet we want to aggregate with
