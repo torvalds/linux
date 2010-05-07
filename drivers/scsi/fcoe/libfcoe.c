@@ -374,8 +374,8 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 		vn->fd_desc.fip_dtype = FIP_DT_VN_ID;
 		vn->fd_desc.fip_dlen = sizeof(*vn) / FIP_BPW;
 		memcpy(vn->fd_mac, fip->get_src_addr(lport), ETH_ALEN);
-		hton24(vn->fd_fc_id, lp->port_id);
-		put_unaligned_be64(lp->wwpn, &vn->fd_wwpn);
+		hton24(vn->fd_fc_id, lport->port_id);
+		put_unaligned_be64(lport->wwpn, &vn->fd_wwpn);
 	}
 	skb_put(skb, len);
 	skb->protocol = htons(ETH_P_FIP);
