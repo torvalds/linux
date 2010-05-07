@@ -59,8 +59,7 @@ struct orig_node {               /* structure for orig_list maintaining nodes of
 					    seqno window was reset. */
 	unsigned long batman_seqno_reset;/* time when the batman seqno
 					    window was reset. */
-/*	uint8_t  gwflags;      * flags related to gateway functions: gateway class */
-	uint8_t  flags;    		/* for now only VIS_SERVER flag. */
+	uint8_t  flags;			 /* for now only VIS_SERVER flag. */
 	unsigned char *hna_buff;
 	int16_t  hna_buff_len;
 	uint16_t last_real_seqno;   /* last and best known squence number */

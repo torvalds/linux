@@ -70,7 +70,7 @@
 #define MODULE_DEACTIVATING 2
 
 #define BCAST_QUEUE_LEN 256
-#define BATMAN_QUEUE_LE	256
+#define BATMAN_QUEUE_LEN	256
 
 /*
  * Debug Messages

@@ -297,7 +297,7 @@ ssize_t orig_fill_buffer_text(struct net_device *net_dev, char *buff,
 
 	rcu_read_lock();
 	hdr_len = sprintf(buff,
-		   "  %-14s (%s/%i) %17s [%10s]: %20s ... [B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%s (%s)] \n",
+		   "  %-14s (%s/%i) %17s [%10s]: %20s ... [B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%s (%s)]\n",
 		   "Originator", "#", TQ_MAX_VALUE, "Nexthop", "outgoingIF",
 		   "Potential nexthops", SOURCE_VERSION, REVISION_VERSION_STR,
 		   bat_priv->primary_if->dev, bat_priv->primary_if->addr_str,
@@ -354,7 +354,7 @@ ssize_t orig_fill_buffer_text(struct net_device *net_dev, char *buff,
 
 	if ((batman_count == 0) && (off == 0))
 		bytes_written += sprintf(buff + bytes_written,
-					"No batman nodes in range ... \n");
+					"No batman nodes in range ...\n");
 
 	return bytes_written;
 }
