@@ -827,9 +827,9 @@ static inline void prepare_page_table(void)
 }
 
 /*
- * Reserve the various regions of node 0
+ * Reserve the various regions
  */
-void __init reserve_node_zero(pg_data_t *pgdat)
+void __init reserve_special_regions(void)
 {
 	unsigned long res_size = 0;
 
@@ -838,19 +838,17 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	 * Note that this can only be in node 0.
 	 */
 #ifdef CONFIG_XIP_KERNEL
-	reserve_bootmem_node(pgdat, __pa(_data), _end - _data,
-			BOOTMEM_DEFAULT);
+	reserve_bootmem(__pa(_data), _end - _data, BOOTMEM_DEFAULT);
 #else
-	reserve_bootmem_node(pgdat, __pa(_stext), _end - _stext,
-			BOOTMEM_DEFAULT);
+	reserve_bootmem(__pa(_stext), _end - _stext, BOOTMEM_DEFAULT);
 #endif
 
 	/*
 	 * Reserve the page tables.  These are already in use,
 	 * and can only be in node 0.
 	 */
-	reserve_bootmem_node(pgdat, __pa(swapper_pg_dir),
-			     PTRS_PER_PGD * sizeof(pgd_t), BOOTMEM_DEFAULT);
+	reserve_bootmem(__pa(swapper_pg_dir),
+			PTRS_PER_PGD * sizeof(pgd_t), BOOTMEM_DEFAULT);
 
 	/*
 	 * Hmm... This should go elsewhere, but we really really need to
@@ -874,29 +872,22 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 
 	if (machine_is_h1940() || machine_is_rx3715()
 		|| machine_is_rx1950()) {
-		reserve_bootmem_node(pgdat, 0x30003000, 0x1000,
-				BOOTMEM_DEFAULT);
-		reserve_bootmem_node(pgdat, 0x30081000, 0x1000,
-				BOOTMEM_DEFAULT);
+		reserve_bootmem(0x30003000, 0x1000, BOOTMEM_DEFAULT);
+		reserve_bootmem(0x30081000, 0x1000, BOOTMEM_DEFAULT);
 	}
 
 	if (machine_is_palmld() || machine_is_palmtx()) {
-		reserve_bootmem_node(pgdat, 0xa0000000, 0x1000,
-				BOOTMEM_EXCLUSIVE);
-		reserve_bootmem_node(pgdat, 0xa0200000, 0x1000,
-				BOOTMEM_EXCLUSIVE);
+		reserve_bootmem(0xa0000000, 0x1000, BOOTMEM_EXCLUSIVE);
+		reserve_bootmem(0xa0200000, 0x1000, BOOTMEM_EXCLUSIVE);
 	}
 
 	if (machine_is_treo680() || machine_is_centro()) {
-		reserve_bootmem_node(pgdat, 0xa0000000, 0x1000,
-				BOOTMEM_EXCLUSIVE);
-		reserve_bootmem_node(pgdat, 0xa2000000, 0x1000,
-				BOOTMEM_EXCLUSIVE);
+		reserve_bootmem(0xa0000000, 0x1000, BOOTMEM_EXCLUSIVE);
+		reserve_bootmem(0xa2000000, 0x1000, BOOTMEM_EXCLUSIVE);
 	}
 
 	if (machine_is_palmt5())
-		reserve_bootmem_node(pgdat, 0xa0200000, 0x1000,
-				BOOTMEM_EXCLUSIVE);
+		reserve_bootmem(0xa0200000, 0x1000, BOOTMEM_EXCLUSIVE);
 
 	/*
 	 * U300 - This platform family can share physical memory
@@ -920,8 +911,7 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	res_size = __pa(swapper_pg_dir) - PHYS_OFFSET;
 #endif
 	if (res_size)
-		reserve_bootmem_node(pgdat, PHYS_OFFSET, res_size,
-				BOOTMEM_DEFAULT);
+		reserve_bootmem(PHYS_OFFSET, res_size, BOOTMEM_DEFAULT);
 }
 
 /*

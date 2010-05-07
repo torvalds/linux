@@ -18,20 +18,18 @@
 #include "mm.h"
 
 /*
- * Reserve the various regions of node 0
+ * Reserve the various regions
  */
-void __init reserve_node_zero(pg_data_t *pgdat)
+void __init reserve_special_regions(void)
 {
 	/*
 	 * Register the kernel text and data with bootmem.
 	 * Note that this can only be in node 0.
 	 */
 #ifdef CONFIG_XIP_KERNEL
-	reserve_bootmem_node(pgdat, __pa(_data), _end - _data,
-			BOOTMEM_DEFAULT);
+	reserve_bootmem(__pa(_data), _end - _data, BOOTMEM_DEFAULT);
 #else
-	reserve_bootmem_node(pgdat, __pa(_stext), _end - _stext,
-			BOOTMEM_DEFAULT);
+	reserve_bootmem(__pa(_stext), _end - _stext, BOOTMEM_DEFAULT);
 #endif
 
 	/*
@@ -39,8 +37,7 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	 * some architectures which the DRAM is the exception vector to trap,
 	 * alloc_page breaks with error, although it is not NULL, but "0."
 	 */
-	reserve_bootmem_node(pgdat, CONFIG_VECTORS_BASE, PAGE_SIZE,
-			BOOTMEM_DEFAULT);
+	reserve_bootmem(CONFIG_VECTORS_BASE, PAGE_SIZE, BOOTMEM_DEFAULT);
 }
 
 /*

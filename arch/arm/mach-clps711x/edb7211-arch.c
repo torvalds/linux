@@ -43,10 +43,8 @@ fixup_edb7211(struct machine_desc *desc, struct tag *tags,
 	 */
 	mi->bank[0].start = 0xc0000000;
 	mi->bank[0].size = 8*1024*1024;
-	mi->bank[0].node = 0;
 	mi->bank[1].start = 0xc1000000;
 	mi->bank[1].size = 8*1024*1024;
-	mi->bank[1].node = 1;
 	mi->nr_banks = 2;
 }
 

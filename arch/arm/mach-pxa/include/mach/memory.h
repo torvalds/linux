@@ -17,18 +17,6 @@
  */
 #define PHYS_OFFSET	UL(0xa0000000)
 
-/*
- * The nodes are matched with the physical SDRAM banks as follows:
- *
- * 	node 0:  0xa0000000-0xa3ffffff	-->  0xc0000000-0xc3ffffff
- * 	node 1:  0xa4000000-0xa7ffffff	-->  0xc4000000-0xc7ffffff
- * 	node 2:  0xa8000000-0xabffffff	-->  0xc8000000-0xcbffffff
- * 	node 3:  0xac000000-0xafffffff	-->  0xcc000000-0xcfffffff
- *
- * This needs a node mem size of 26 bits.
- */
-#define NODE_MEM_SIZE_BITS	26
-
 #if !defined(__ASSEMBLY__) && defined(CONFIG_MACH_ARMCORE) && defined(CONFIG_PCI)
 void cmx2xx_pci_adjust_zones(int node, unsigned long *size,
 			     unsigned long *holes);

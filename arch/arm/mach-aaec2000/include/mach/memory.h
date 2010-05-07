@@ -14,14 +14,4 @@
 
 #define PHYS_OFFSET	UL(0xf0000000)
 
-/*
- * The nodes are the followings:
- *
- *   node 0: 0xf000.0000 - 0xf3ff.ffff
- *   node 1: 0xf400.0000 - 0xf7ff.ffff
- *   node 2: 0xf800.0000 - 0xfbff.ffff
- *   node 3: 0xfc00.0000 - 0xffff.ffff
- */
-#define NODE_MEM_SIZE_BITS	26
-
 #endif /* __ASM_ARCH_MEMORY_H */
