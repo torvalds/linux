@@ -670,7 +670,6 @@ static int uda1380_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 	uda1380_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	uda1380_set_bias_level(codec, codec->suspend_bias_level);
 	return 0;
 }
 

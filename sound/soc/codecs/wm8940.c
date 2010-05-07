@@ -691,7 +691,6 @@ static int wm8940_resume(struct platform_device *pdev)
 	ret = wm8940_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	if (ret)
 		goto error_ret;
-	ret = wm8940_set_bias_level(codec, codec->suspend_bias_level);
 
 error_ret:
 	return ret;

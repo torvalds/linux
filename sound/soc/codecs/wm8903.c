@@ -1628,7 +1628,6 @@ static int wm8903_resume(struct platform_device *pdev)
 
 	/* Bring the codec back up to standby first to minimise pop/clicks */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm8903_set_bias_level(codec, codec->suspend_bias_level);
 
 	/* Sync back everything else */
 	if (tmp_cache) {

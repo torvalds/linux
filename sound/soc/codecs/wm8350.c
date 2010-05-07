@@ -1336,9 +1336,6 @@ static int wm8350_resume(struct platform_device *pdev)
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
-		wm8350_set_bias_level(codec, SND_SOC_BIAS_ON);
-
 	return 0;
 }
 

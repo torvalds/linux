@@ -823,7 +823,7 @@ static int wm8960_resume(struct platform_device *pdev)
 	}
 
 	codec->set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	codec->set_bias_level(codec, codec->suspend_bias_level);
+
 	return 0;
 }
 

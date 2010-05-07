@@ -996,7 +996,6 @@ static int twl6040_resume(struct platform_device *pdev)
 	struct snd_soc_codec *codec = socdev->card->codec;
 
 	twl6040_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	twl6040_set_bias_level(codec, codec->suspend_bias_level);
 
 	return 0;
 }

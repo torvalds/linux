@@ -1143,7 +1143,7 @@ static int aic3x_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 
-	aic3x_set_bias_level(codec, codec->suspend_bias_level);
+	aic3x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }

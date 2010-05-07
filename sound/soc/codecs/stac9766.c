@@ -288,9 +288,6 @@ reset:
 	}
 	stac9766_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
-		stac9766_set_bias_level(codec, SND_SOC_BIAS_ON);
-
 	return 0;
 }
 

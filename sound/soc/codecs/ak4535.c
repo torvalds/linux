@@ -445,7 +445,6 @@ static int ak4535_resume(struct platform_device *pdev)
 	struct snd_soc_codec *codec = socdev->card->codec;
 	ak4535_sync(codec);
 	ak4535_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	ak4535_set_bias_level(codec, codec->suspend_bias_level);
 	return 0;
 }
 

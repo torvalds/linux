@@ -153,7 +153,7 @@ static int cq93vc_resume(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 
-	cq93vc_set_bias_level(codec, codec->suspend_bias_level);
+	cq93vc_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }

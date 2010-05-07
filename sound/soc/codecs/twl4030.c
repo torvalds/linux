@@ -2181,7 +2181,6 @@ static int twl4030_soc_resume(struct platform_device *pdev)
 	struct snd_soc_codec *codec = socdev->card->codec;
 
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	twl4030_set_bias_level(codec, codec->suspend_bias_level);
 	return 0;
 }
 

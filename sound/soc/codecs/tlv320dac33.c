@@ -1386,9 +1386,6 @@ static int dac33_soc_resume(struct platform_device *pdev)
 	struct snd_soc_codec *codec = socdev->card->codec;
 
 	dac33_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
-		dac33_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
-	dac33_set_bias_level(codec, codec->suspend_bias_level);
 
 	return 0;
 }
