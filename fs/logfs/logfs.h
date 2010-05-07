@@ -144,6 +144,7 @@ struct logfs_area_ops {
  * @erase:			erase one segment
  * @read:			read from the device
  * @erase:			erase part of the device
+ * @can_write_buf:		decide whether wbuf can be written to ofs
  */
 struct logfs_device_ops {
 	struct page *(*find_first_sb)(struct super_block *sb, u64 *ofs);
@@ -153,6 +154,7 @@ struct logfs_device_ops {
 	void (*writeseg)(struct super_block *sb, u64 ofs, size_t len);
 	int (*erase)(struct super_block *sb, loff_t ofs, size_t len,
 			int ensure_write);
+	int (*can_write_buf)(struct super_block *sb, u64 ofs);
 	void (*sync)(struct super_block *sb);
 	void (*put_device)(struct super_block *sb);
 };
