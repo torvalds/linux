@@ -275,6 +275,7 @@ unlock:
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
 dropped:
 	priv->stats.tx_dropped++;
+	kfree_skb(skb);
 end:
 	return NETDEV_TX_OK;
 }
