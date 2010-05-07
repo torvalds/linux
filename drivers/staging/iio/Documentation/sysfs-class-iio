@@ -66,7 +66,7 @@ KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		If known for a device, offset to be added to in[m]_raw prior
-		to scaling by volt[m]_scale in order to obtain voltage in
+		to scaling by in[_name][m]_scale in order to obtain voltage in
 		millivolts.  Not present if the offset is always 0 or unknown.
 		If m is not present, then voltage offset applies to all in
 		channels. May be writable if a variable offset is controlled
@@ -111,8 +111,8 @@ KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		If known for a device, scale to be applied to volt[m]_raw post
-		addition of volt[m]_offset in order to obtain the measured voltage
-		in millivolts.  If shared across all in channels then m is not present.
+		addition of in[_name][m]_offset in order to obtain the measured
+		voltage	in millivolts.  If shared across all in channels then			m is not present.
 
 What:		/sys/.../device[n]/in[m]-in[o]_raw
 KernelVersion:	2.6.35
