@@ -633,14 +633,29 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	unsigned blocksize, iblock, pos;
 	struct buffer_head *bh;
 	struct page *page;
-	void *kaddr;
-	struct gfs2_quota *qp;
-	s64 value;
-	int err = -EIO;
+	void *kaddr, *ptr;
+	struct gfs2_quota q, *qp;
+	int err, nbytes;
 
 	if (gfs2_is_stuffed(ip))
 		gfs2_unstuff_dinode(ip, NULL);
-	
+
+	memset(&q, 0, sizeof(struct gfs2_quota));
+	err = gfs2_internal_read(ip, NULL, (char *)&q, &loc, sizeof(q));
+	if (err < 0)
+		return err;
+
+	err = -EIO;
+	qp = &q;
+	qp->qu_value = be64_to_cpu(qp->qu_value);
+	qp->qu_value += change;
+	qp->qu_value = cpu_to_be64(qp->qu_value);
+	qd->qd_qb.qb_value = qp->qu_value;
+
+	/* Write the quota into the quota file on disk */
+	ptr = qp;
+	nbytes = sizeof(struct gfs2_quota);
+get_a_page:
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		return -ENOMEM;
@@ -662,7 +677,12 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	if (!buffer_mapped(bh)) {
 		gfs2_block_map(inode, iblock, bh, 1);
 		if (!buffer_mapped(bh))
-			goto unlock;
+			goto unlock_out;
+		/* If it's a newly allocated disk block for quota, zero it */
+		if (buffer_new(bh)) {
+			memset(bh->b_data, 0, bh->b_size);
+			set_buffer_uptodate(bh);
+		}
 	}
 
 	if (PageUptodate(page))
@@ -672,20 +692,32 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 		ll_rw_block(READ_META, 1, &bh);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh))
-			goto unlock;
+			goto unlock_out;
 	}
 
 	gfs2_trans_add_bh(ip->i_gl, bh, 0);
 
 	kaddr = kmap_atomic(page, KM_USER0);
-	qp = kaddr + offset;
-	value = (s64)be64_to_cpu(qp->qu_value) + change;
-	qp->qu_value = cpu_to_be64(value);
-	qd->qd_qb.qb_value = qp->qu_value;
+	if (offset + sizeof(struct gfs2_quota) > PAGE_CACHE_SIZE)
+		nbytes = PAGE_CACHE_SIZE - offset;
+	memcpy(kaddr + offset, ptr, nbytes);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_USER0);
+	unlock_page(page);
+	page_cache_release(page);
+
+	/* If quota straddles page boundary, we need to update the rest of the
+	 * quota at the beginning of the next page */
+	if (offset != 0) { /* first page, offset is closer to PAGE_CACHE_SIZE */
+		ptr = ptr + nbytes;
+		nbytes = sizeof(struct gfs2_quota) - nbytes;
+		offset = 0;
+		index++;
+		goto get_a_page;
+	}
 	err = 0;
-unlock:
+	return err;
+unlock_out:
 	unlock_page(page);
 	page_cache_release(page);
 	return err;
@@ -748,8 +780,10 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	 * rgrp since it won't be allocated during the transaction
 	 */
 	al->al_requested = 1;
-	/* +1 in the end for block requested above for unstuffing */
-	blocks = num_qd * data_blocks + RES_DINODE + num_qd + 1;
+	/* +3 in the end for unstuffing block, inode size update block
+	 * and another block in case quota straddles page boundary and
+	 * two blocks need to be updated instead of 1 */
+	blocks = num_qd * data_blocks + RES_DINODE + num_qd + 3;
 
 	if (nalloc)
 		al->al_requested += nalloc * (data_blocks + ind_blocks);		
