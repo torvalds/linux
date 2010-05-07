@@ -22,6 +22,7 @@
 #include <linux/version.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <linux/platform_device.h>
 #include <media/v4l2-mem2mem.h>
