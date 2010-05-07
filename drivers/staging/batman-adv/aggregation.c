@@ -52,6 +52,8 @@ static bool can_aggregate_with(struct batman_packet *new_batman_packet,
 	 */
 
 	if (time_before(send_time, forw_packet->send_time) &&
+	    time_after_eq(send_time + msecs_to_jiffies(MAX_AGGREGATION_MS),
+					forw_packet->send_time) &&
 	    (aggregated_bytes <= MAX_AGGREGATION_BYTES)) {
 
 		/**
@@ -195,6 +197,16 @@ void add_bat_packet_to_list(unsigned char *packet_buff, int packet_len,
 	if (forw_packet_aggr == NULL) {
 		/* the following section can run without the lock */
 		spin_unlock_irqrestore(&forw_bat_list_lock, flags);
+
+		/**
+		 * if we could not aggregate this packet with one of the others
+		 * we hold it back for a while, so that it might be aggregated
+		 * later on
+		 */
+		if ((!own_packet) &&
+		    (atomic_read(&bat_priv->aggregation_enabled)))
+			send_time += msecs_to_jiffies(MAX_AGGREGATION_MS);
+
 		new_aggregated_packet(packet_buff, packet_len,
 				      send_time, direct_link,
 				      if_incoming, own_packet);

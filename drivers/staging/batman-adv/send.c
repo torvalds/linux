@@ -46,15 +46,7 @@ static unsigned long own_send_time(void)
 /* when do we schedule a forwarded packet to be sent */
 static unsigned long forward_send_time(void)
 {
-	unsigned long send_time = jiffies; /* Starting now plus... */
-
-	if (atomic_read(&aggregation_enabled))
-		send_time += (((MAX_AGGREGATION_MS - (JITTER/2) +
-				(random32() % JITTER)) * HZ) / 1000);
-	else
-		send_time += (((random32() % (JITTER/2)) * HZ) / 1000);
-
-	return send_time;
+	return jiffies + (((random32() % (JITTER/2)) * HZ) / 1000);
 }
 
 /* send out an already prepared packet to the given address via the
