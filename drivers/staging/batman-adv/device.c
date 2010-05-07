@@ -250,7 +250,7 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 	if (!orig_node->router)
 		goto unlock;
 
-	batman_if = orig_node->batman_if;
+	batman_if = orig_node->router->if_incoming;
 	memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 
 	spin_unlock_irqrestore(&orig_hash_lock, flags);

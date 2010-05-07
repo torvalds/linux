@@ -498,14 +498,14 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 		if (orig_node->router != NULL
 			&& compare_orig(orig_node->router->addr,
 					orig_node->orig)
-			&& orig_node->batman_if
-			&& (orig_node->batman_if->if_active == IF_ACTIVE)
+			&& (orig_node->router->if_incoming->if_active ==
+								IF_ACTIVE)
 		    && orig_node->router->tq_avg > 0) {
 
 			/* fill one entry into buffer. */
 			entry = &entry_array[info->packet.entries];
 			memcpy(entry->src,
-			       orig_node->batman_if->net_dev->dev_addr,
+			     orig_node->router->if_incoming->net_dev->dev_addr,
 			       ETH_ALEN);
 			memcpy(entry->dest, orig_node->orig, ETH_ALEN);
 			entry->quality = orig_node->router->tq_avg;
@@ -573,8 +573,7 @@ static void broadcast_vis_packet(struct vis_info *info, int packet_length)
 		orig_node = hashit.bucket->data;
 
 		/* if it's a vis server and reachable, send it. */
-		if ((!orig_node) || (!orig_node->batman_if) ||
-		    (!orig_node->router))
+		if ((!orig_node) || (!orig_node->router))
 			continue;
 		if (!(orig_node->flags & VIS_SERVER))
 			continue;
@@ -584,7 +583,7 @@ static void broadcast_vis_packet(struct vis_info *info, int packet_length)
 			continue;
 
 		memcpy(info->packet.target_orig, orig_node->orig, ETH_ALEN);
-		batman_if = orig_node->batman_if;
+		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
@@ -609,12 +608,12 @@ static void unicast_vis_packet(struct vis_info *info, int packet_length)
 	orig_node = ((struct orig_node *)
 		     hash_find(orig_hash, info->packet.target_orig));
 
-	if ((!orig_node) || (!orig_node->batman_if) || (!orig_node->router))
+	if ((!orig_node) || (!orig_node->router))
 		goto out;
 
 	/* don't lock while sending the packets ... we therefore
 	 * copy the required data before sending */
-	batman_if = orig_node->batman_if;
+	batman_if = orig_node->router->if_incoming;
 	memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
 

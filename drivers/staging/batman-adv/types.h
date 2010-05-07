@@ -49,7 +49,6 @@ struct batman_if {
 struct orig_node {               /* structure for orig_list maintaining nodes of mesh */
 	uint8_t orig[ETH_ALEN];
 	struct neigh_node *router;
-	struct batman_if *batman_if;
 	TYPE_OF_WORD *bcast_own;
 	uint8_t *bcast_own_sum;
 	uint8_t tq_own;

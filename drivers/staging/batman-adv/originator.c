@@ -137,7 +137,6 @@ struct orig_node *get_orig_node(uint8_t *addr)
 
 	memcpy(orig_node->orig, addr, ETH_ALEN);
 	orig_node->router = NULL;
-	orig_node->batman_if = NULL;
 	orig_node->hna_buff = NULL;
 
 	size = num_ifs * sizeof(TYPE_OF_WORD) * NUM_WORDS;

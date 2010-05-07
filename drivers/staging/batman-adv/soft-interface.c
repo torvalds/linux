@@ -236,7 +236,6 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 			orig_node = transtable_search(ethhdr->h_dest);
 
 		if ((orig_node) &&
-		    (orig_node->batman_if) &&
 		    (orig_node->router)) {
 			if (my_skb_push(skb, sizeof(struct unicast_packet)) < 0)
 				goto unlock;
@@ -252,13 +251,13 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 			memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
 
 			/* net_dev won't be available when not active */
-			if (orig_node->batman_if->if_active != IF_ACTIVE)
+			if (orig_node->router->if_incoming->if_active != IF_ACTIVE)
 				goto unlock;
 
 			/* don't lock while sending the packets ... we therefore
 			 * copy the required data before sending */
 
-			batman_if = orig_node->batman_if;
+			batman_if = orig_node->router->if_incoming;
 			memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 			spin_unlock_irqrestore(&orig_hash_lock, flags);
 

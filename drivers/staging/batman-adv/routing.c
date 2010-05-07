@@ -97,11 +97,6 @@ static void update_route(struct orig_node *orig_node,
 		bat_dbg(DBG_ROUTES, "Changing route towards: %pM (now via %pM - was via %pM)\n", orig_node->orig, neigh_node->addr, orig_node->router->addr);
 	}
 
-	if (neigh_node != NULL)
-		orig_node->batman_if = neigh_node->if_incoming;
-	else
-		orig_node->batman_if = NULL;
-
 	orig_node->router = neigh_node;
 }
 
@@ -616,12 +611,11 @@ static int recv_my_icmp_packet(struct sk_buff *skb)
 	ret = NET_RX_DROP;
 
 	if ((orig_node != NULL) &&
-	    (orig_node->batman_if != NULL) &&
 	    (orig_node->router != NULL)) {
 
 		/* don't lock while sending the packets ... we therefore
 		 * copy the required data before sending */
-		batman_if = orig_node->batman_if;
+		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
@@ -678,12 +672,11 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb)
 	ret = NET_RX_DROP;
 
 	if ((orig_node != NULL) &&
-	    (orig_node->batman_if != NULL) &&
 	    (orig_node->router != NULL)) {
 
 		/* don't lock while sending the packets ... we therefore
 		 * copy the required data before sending */
-		batman_if = orig_node->batman_if;
+		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
@@ -760,12 +753,11 @@ int recv_icmp_packet(struct sk_buff *skb)
 		     hash_find(orig_hash, icmp_packet->dst));
 
 	if ((orig_node != NULL) &&
-	    (orig_node->batman_if != NULL) &&
 	    (orig_node->router != NULL)) {
 
 		/* don't lock while sending the packets ... we therefore
 		 * copy the required data before sending */
-		batman_if = orig_node->batman_if;
+		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
@@ -844,12 +836,11 @@ int recv_unicast_packet(struct sk_buff *skb)
 		     hash_find(orig_hash, unicast_packet->dest));
 
 	if ((orig_node != NULL) &&
-	    (orig_node->batman_if != NULL) &&
 	    (orig_node->router != NULL)) {
 
 		/* don't lock while sending the packets ... we therefore
 		 * copy the required data before sending */
-		batman_if = orig_node->batman_if;
+		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
