@@ -576,7 +576,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		struct intel_encoder *intel_encoder;
 		struct intel_dp_priv *dp_priv;
 
-		if (!encoder || encoder->crtc != crtc)
+		if (encoder->crtc != crtc)
 			continue;
 
 		intel_encoder = enc_to_intel_encoder(encoder);
@@ -1353,7 +1353,7 @@ intel_trans_dp_port_sel (struct drm_crtc *crtc)
 	struct intel_encoder *intel_encoder = NULL;
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-		if (!encoder || encoder->crtc != crtc)
+		if (encoder->crtc != crtc)
 			continue;
 
 		intel_encoder = enc_to_intel_encoder(encoder);
