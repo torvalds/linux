@@ -152,18 +152,13 @@ static __init void davinci_sffsdr_init(void)
 	davinci_cfg_reg(DM644X_VLYNQWD);
 }
 
-static __init void davinci_sffsdr_irq_init(void)
-{
-	davinci_irq_init();
-}
-
 MACHINE_START(SFFSDR, "Lyrtech SFFSDR")
 	/* Maintainer: Hugo Villeneuve hugo.villeneuve@lyrtech.com */
 	.phys_io      = IO_PHYS,
 	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params  = (DAVINCI_DDR_BASE + 0x100),
 	.map_io	      = davinci_sffsdr_map_io,
-	.init_irq     = davinci_sffsdr_irq_init,
+	.init_irq     = davinci_irq_init,
 	.timer	      = &davinci_timer,
 	.init_machine = davinci_sffsdr_init,
 MACHINE_END

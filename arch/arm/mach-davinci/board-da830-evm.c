@@ -561,14 +561,6 @@ static int __init da830_evm_console_init(void)
 console_initcall(da830_evm_console_init);
 #endif
 
-static __init void da830_evm_irq_init(void)
-{
-	struct davinci_soc_info *soc_info = &davinci_soc_info;
-
-	cp_intc_init((void __iomem *)DA8XX_CP_INTC_VIRT, DA830_N_CP_INTC_IRQ,
-			soc_info->intc_irq_prios, NULL);
-}
-
 static void __init da830_evm_map_io(void)
 {
 	da830_init();
@@ -579,7 +571,7 @@ MACHINE_START(DAVINCI_DA830_EVM, "DaVinci DA830/OMAP-L137 EVM")
 	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (DA8XX_DDR_BASE + 0x100),
 	.map_io		= da830_evm_map_io,
-	.init_irq	= da830_evm_irq_init,
+	.init_irq	= cp_intc_init,
 	.timer		= &davinci_timer,
 	.init_machine	= da830_evm_init,
 MACHINE_END

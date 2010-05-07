@@ -736,14 +736,6 @@ static int __init da850_evm_console_init(void)
 console_initcall(da850_evm_console_init);
 #endif
 
-static __init void da850_evm_irq_init(void)
-{
-	struct davinci_soc_info *soc_info = &davinci_soc_info;
-
-	cp_intc_init((void __iomem *)DA8XX_CP_INTC_VIRT, DA850_N_CP_INTC_IRQ,
-			soc_info->intc_irq_prios, NULL);
-}
-
 static void __init da850_evm_map_io(void)
 {
 	da850_init();
@@ -754,7 +746,7 @@ MACHINE_START(DAVINCI_DA850_EVM, "DaVinci DA850/OMAP-L138 EVM")
 	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (DA8XX_DDR_BASE + 0x100),
 	.map_io		= da850_evm_map_io,
-	.init_irq	= da850_evm_irq_init,
+	.init_irq	= cp_intc_init,
 	.timer		= &davinci_timer,
 	.init_machine	= da850_evm_init,
 MACHINE_END

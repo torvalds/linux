@@ -112,8 +112,6 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 			goto err;
 	}
 
-	davinci_intc_base = davinci_soc_info.intc_base;
-	davinci_intc_type = davinci_soc_info.intc_type;
 	return;
 
 err:

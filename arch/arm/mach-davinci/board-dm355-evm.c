@@ -350,17 +350,12 @@ static __init void dm355_evm_init(void)
 	dm355_init_asp1(ASP1_TX_EVT_EN | ASP1_RX_EVT_EN, &dm355_evm_snd_data);
 }
 
-static __init void dm355_evm_irq_init(void)
-{
-	davinci_irq_init();
-}
-
 MACHINE_START(DAVINCI_DM355_EVM, "DaVinci DM355 EVM")
 	.phys_io      = IO_PHYS,
 	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params  = (0x80000100),
 	.map_io	      = dm355_evm_map_io,
-	.init_irq     = dm355_evm_irq_init,
+	.init_irq     = davinci_irq_init,
 	.timer	      = &davinci_timer,
 	.init_machine = dm355_evm_init,
 MACHINE_END

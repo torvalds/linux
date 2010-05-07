@@ -273,18 +273,13 @@ static __init void davinci_ntosd2_init(void)
 	davinci_setup_mmc(0, &davinci_ntosd2_mmc_config);
 }
 
-static __init void davinci_ntosd2_irq_init(void)
-{
-	davinci_irq_init();
-}
-
 MACHINE_START(NEUROS_OSD2, "Neuros OSD2")
 	/* Maintainer: Neuros Technologies <neuros@groups.google.com> */
 	.phys_io	= IO_PHYS,
 	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (DAVINCI_DDR_BASE + 0x100),
 	.map_io		 = davinci_ntosd2_map_io,
-	.init_irq	= davinci_ntosd2_irq_init,
+	.init_irq	= davinci_irq_init,
 	.timer		= &davinci_timer,
 	.init_machine = davinci_ntosd2_init,
 MACHINE_END

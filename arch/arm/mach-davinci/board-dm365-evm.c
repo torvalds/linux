@@ -608,17 +608,12 @@ static __init void dm365_evm_init(void)
 			ARRAY_SIZE(dm365_evm_spi_info));
 }
 
-static __init void dm365_evm_irq_init(void)
-{
-	davinci_irq_init();
-}
-
 MACHINE_START(DAVINCI_DM365_EVM, "DaVinci DM365 EVM")
 	.phys_io	= IO_PHYS,
 	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (0x80000100),
 	.map_io		= dm365_evm_map_io,
-	.init_irq	= dm365_evm_irq_init,
+	.init_irq	= davinci_irq_init,
 	.timer		= &davinci_timer,
 	.init_machine	= dm365_evm_init,
 MACHINE_END
