@@ -115,20 +115,11 @@ struct adis16300_state {
 	struct mutex			buf_lock;
 };
 
-int adis16300_spi_write_reg_8(struct device *dev,
-			      u8 reg_address,
-			      u8 val);
-
 int adis16300_spi_read_burst(struct device *dev, u8 *rx);
-
-int adis16300_spi_read_sequence(struct device *dev,
-				      u8 *tx, u8 *rx, int num);
 
 int adis16300_set_irq(struct device *dev, bool enable);
 
 int adis16300_reset(struct device *dev);
-
-int adis16300_stop_device(struct device *dev);
 
 int adis16300_check_status(struct device *dev);
 
