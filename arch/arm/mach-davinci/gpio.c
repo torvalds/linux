@@ -37,22 +37,22 @@ struct davinci_gpio_regs {
 	container_of(chip, struct davinci_gpio_controller, chip)
 
 static struct davinci_gpio_controller chips[DIV_ROUND_UP(DAVINCI_N_GPIO, 32)];
+static void __iomem *gpio_base;
 
 static struct davinci_gpio_regs __iomem __init *gpio2regs(unsigned gpio)
 {
 	void __iomem *ptr;
-	void __iomem *base = davinci_soc_info.gpio_base;
 
 	if (gpio < 32 * 1)
-		ptr = base + 0x10;
+		ptr = gpio_base + 0x10;
 	else if (gpio < 32 * 2)
-		ptr = base + 0x38;
+		ptr = gpio_base + 0x38;
 	else if (gpio < 32 * 3)
-		ptr = base + 0x60;
+		ptr = gpio_base + 0x60;
 	else if (gpio < 32 * 4)
-		ptr = base + 0x88;
+		ptr = gpio_base + 0x88;
 	else if (gpio < 32 * 5)
-		ptr = base + 0xb0;
+		ptr = gpio_base + 0xb0;
 	else
 		ptr = NULL;
 	return ptr;
@@ -156,6 +156,10 @@ static int __init davinci_gpio_setup(void)
 
 	if (WARN_ON(DAVINCI_N_GPIO < ngpio))
 		ngpio = DAVINCI_N_GPIO;
+
+	gpio_base = ioremap(soc_info->gpio_base, SZ_4K);
+	if (WARN_ON(!gpio_base))
+		return -ENOMEM;
 
 	for (i = 0, base = 0; base < ngpio; i++, base += 32) {
 		chips[i].chip.label = "DaVinci";
@@ -445,7 +449,7 @@ done:
 	/* BINTEN -- per-bank interrupt enable. genirq would also let these
 	 * bits be set/cleared dynamically.
 	 */
-	__raw_writel(binten, soc_info->gpio_base + 0x08);
+	__raw_writel(binten, gpio_base + 0x08);
 
 	printk(KERN_INFO "DaVinci: %d gpio irqs\n", irq - gpio_to_irq(0));
 

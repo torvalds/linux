@@ -60,7 +60,7 @@ struct davinci_soc_info {
 	unsigned long			intc_irq_num;
 	struct davinci_timer_info	*timer_info;
 	int				gpio_type;
-	void __iomem			*gpio_base;
+	u32				gpio_base;
 	unsigned			gpio_num;
 	unsigned			gpio_irq;
 	unsigned			gpio_unbanked;
