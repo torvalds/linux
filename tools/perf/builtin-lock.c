@@ -496,7 +496,7 @@ report_lock_acquired_event(struct trace_acquired_event *acquired_event,
 		ls->wait_time_total += contended_term;
 		if (contended_term < ls->wait_time_min)
 			ls->wait_time_min = contended_term;
-		else if (ls->wait_time_max < contended_term)
+		if (ls->wait_time_max < contended_term)
 			ls->wait_time_max = contended_term;
 		break;
 	case SEQ_STATE_RELEASED:
