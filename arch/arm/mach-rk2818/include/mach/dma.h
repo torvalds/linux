@@ -204,7 +204,7 @@ struct rk2818_dma {
 	spinlock_t		lock;
 };
 
-#define test_dma
+//#define test_dma
 
 /*devicd id list*/
 #define RK28_DMA_SD_MMC        0
