@@ -782,10 +782,7 @@ static struct map_desc da850_io_desc[] = {
 	},
 };
 
-static void __iomem *da850_psc_bases[] = {
-	IO_ADDRESS(DA8XX_PSC0_BASE),
-	IO_ADDRESS(DA8XX_PSC1_BASE),
-};
+static u32 da850_psc_bases[] = { DA8XX_PSC0_BASE, DA8XX_PSC1_BASE };
 
 /* Contents of JTAG ID register used to identify exact cpu type */
 static struct davinci_id da850_ids[] = {

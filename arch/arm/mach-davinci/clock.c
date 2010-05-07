@@ -302,7 +302,6 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 	struct pll_data *pll = clk->pll_data;
 	unsigned long rate = clk->rate;
 
-	pll->base = IO_ADDRESS(pll->phys_base);
 	ctrl = __raw_readl(pll->base + PLLCTL);
 	rate = pll->input_rate = clk->parent->rate;
 
@@ -458,8 +457,17 @@ int __init davinci_clk_init(struct clk_lookup *clocks)
 				clk->recalc = clk_leafclk_recalc;
 		}
 
-		if (clk->pll_data && !clk->pll_data->div_ratio_mask)
-			clk->pll_data->div_ratio_mask = PLLDIV_RATIO_MASK;
+		if (clk->pll_data) {
+			struct pll_data *pll = clk->pll_data;
+
+			if (!pll->div_ratio_mask)
+				pll->div_ratio_mask = PLLDIV_RATIO_MASK;
+
+			if (pll->phys_base && !pll->base) {
+				pll->base = ioremap(pll->phys_base, SZ_4K);
+				WARN_ON(!pll->base);
+			}
+		}
 
 		if (clk->recalc)
 			clk->rate = clk->recalc(clk);

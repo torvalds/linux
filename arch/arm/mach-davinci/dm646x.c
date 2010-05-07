@@ -758,9 +758,7 @@ static struct davinci_id dm646x_ids[] = {
 	},
 };
 
-static void __iomem *dm646x_psc_bases[] = {
-	IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE),
-};
+static u32 dm646x_psc_bases[] = { DAVINCI_PWR_SLEEP_CNTRL_BASE };
 
 /*
  * T0_BOT: Timer 0, bottom:  clockevent source for hrtimers

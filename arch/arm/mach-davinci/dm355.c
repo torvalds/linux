@@ -783,9 +783,7 @@ static struct davinci_id dm355_ids[] = {
 	},
 };
 
-static void __iomem *dm355_psc_bases[] = {
-	IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE),
-};
+static u32 dm355_psc_bases[] = { DAVINCI_PWR_SLEEP_CNTRL_BASE };
 
 /*
  * T0_BOT: Timer 0, bottom:  clockevent source for hrtimers

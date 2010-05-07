@@ -1002,9 +1002,7 @@ static struct davinci_id dm365_ids[] = {
 	},
 };
 
-static void __iomem *dm365_psc_bases[] = {
-	IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE),
-};
+static u32 dm365_psc_bases[] = { DAVINCI_PWR_SLEEP_CNTRL_BASE };
 
 static struct davinci_timer_info dm365_timer_info = {
 	.timers		= davinci_timer_instance,
