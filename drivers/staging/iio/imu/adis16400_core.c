@@ -626,7 +626,7 @@ static IIO_DEV_ATTR_MAGN_Z(adis16400_read_14bit_signed,
 static IIO_CONST_ATTR(magn_scale, "0.0005 Gs");
 
 
-static IIO_DEV_ATTR_TEMP(adis16400_read_12bit_signed);
+static IIO_DEV_ATTR_TEMP_RAW(adis16400_read_12bit_signed);
 static IIO_CONST_ATTR(temp_offset, "198.16 K");
 static IIO_CONST_ATTR(temp_scale, "0.14 K");
 
@@ -658,19 +658,19 @@ static struct attribute *adis16400_attributes[] = {
 	&iio_dev_attr_accel_z_offset.dev_attr.attr,
 	&iio_dev_attr_in_supply_raw.dev_attr.attr,
 	&iio_const_attr_in_supply_scale.dev_attr.attr,
-	&iio_dev_attr_gyro_x.dev_attr.attr,
-	&iio_dev_attr_gyro_y.dev_attr.attr,
-	&iio_dev_attr_gyro_z.dev_attr.attr,
+	&iio_dev_attr_gyro_x_raw.dev_attr.attr,
+	&iio_dev_attr_gyro_y_raw.dev_attr.attr,
+	&iio_dev_attr_gyro_z_raw.dev_attr.attr,
 	&iio_const_attr_gyro_scale.dev_attr.attr,
 	&iio_dev_attr_accel_x_raw.dev_attr.attr,
 	&iio_dev_attr_accel_y_raw.dev_attr.attr,
 	&iio_dev_attr_accel_z_raw.dev_attr.attr,
 	&iio_const_attr_accel_scale.dev_attr.attr,
-	&iio_dev_attr_magn_x.dev_attr.attr,
-	&iio_dev_attr_magn_y.dev_attr.attr,
-	&iio_dev_attr_magn_z.dev_attr.attr,
+	&iio_dev_attr_magn_x_raw.dev_attr.attr,
+	&iio_dev_attr_magn_y_raw.dev_attr.attr,
+	&iio_dev_attr_magn_z_raw.dev_attr.attr,
 	&iio_const_attr_magn_scale.dev_attr.attr,
-	&iio_dev_attr_temp.dev_attr.attr,
+	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
 	&iio_dev_attr_in0_raw.dev_attr.attr,

@@ -21,6 +21,7 @@
 #include "../iio.h"
 #include "../sysfs.h"
 #include "../accel/accel.h"
+#include "../accel/inclinometer.h"
 #include "../gyro/gyro.h"
 #include "../adc/adc.h"
 
@@ -613,7 +614,7 @@ static IIO_DEV_ATTR_INCLI_Y(adis16300_read_13bit_signed,
 		ADIS16300_YINCLI_OUT);
 static IIO_CONST_ATTR(incli_scale, "0.044 d");
 
-static IIO_DEV_ATTR_TEMP(adis16300_read_12bit_signed);
+static IIO_DEV_ATTR_TEMP_RAW(adis16300_read_12bit_signed);
 static IIO_CONST_ATTR(temp_offset, "198.16 K");
 static IIO_CONST_ATTR(temp_scale, "0.14 K");
 
@@ -645,16 +646,16 @@ static struct attribute *adis16300_attributes[] = {
 	&iio_dev_attr_accel_z_offset.dev_attr.attr,
 	&iio_dev_attr_in_supply_raw.dev_attr.attr,
 	&iio_const_attr_in_supply_scale.dev_attr.attr,
-	&iio_dev_attr_gyro_x.dev_attr.attr,
+	&iio_dev_attr_gyro_x_raw.dev_attr.attr,
 	&iio_const_attr_gyro_scale.dev_attr.attr,
 	&iio_dev_attr_accel_x_raw.dev_attr.attr,
 	&iio_dev_attr_accel_y_raw.dev_attr.attr,
 	&iio_dev_attr_accel_z_raw.dev_attr.attr,
 	&iio_const_attr_accel_scale.dev_attr.attr,
-	&iio_dev_attr_incli_x.dev_attr.attr,
-	&iio_dev_attr_incli_y.dev_attr.attr,
+	&iio_dev_attr_incli_x_raw.dev_attr.attr,
+	&iio_dev_attr_incli_y_raw.dev_attr.attr,
 	&iio_const_attr_incli_scale.dev_attr.attr,
-	&iio_dev_attr_temp.dev_attr.attr,
+	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
 	&iio_dev_attr_in0_raw.dev_attr.attr,

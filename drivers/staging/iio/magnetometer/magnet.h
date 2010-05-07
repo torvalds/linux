@@ -21,11 +21,11 @@
 #define IIO_DEV_ATTR_MAGN_Z_GAIN(_mode, _show, _store, _addr)		\
 	IIO_DEVICE_ATTR(magn_z_gain, _mode, _show, _store, _addr)
 
-#define IIO_DEV_ATTR_MAGN_X(_show, _addr)			\
-	IIO_DEVICE_ATTR(magn_x, S_IRUGO, _show, NULL, _addr)
+#define IIO_DEV_ATTR_MAGN_X(_show, _addr)				\
+	IIO_DEVICE_ATTR(magn_x_raw, S_IRUGO, _show, NULL, _addr)
 
-#define IIO_DEV_ATTR_MAGN_Y(_show, _addr)			\
-	IIO_DEVICE_ATTR(magn_y, S_IRUGO, _show, NULL, _addr)
+#define IIO_DEV_ATTR_MAGN_Y(_show, _addr)				\
+	IIO_DEVICE_ATTR(magn_y_raw, S_IRUGO, _show, NULL, _addr)
 
-#define IIO_DEV_ATTR_MAGN_Z(_show, _addr)			\
-	IIO_DEVICE_ATTR(magn_z, S_IRUGO, _show, NULL, _addr)
+#define IIO_DEV_ATTR_MAGN_Z(_show, _addr)				\
+	IIO_DEVICE_ATTR(magn_z_raw, S_IRUGO, _show, NULL, _addr)
