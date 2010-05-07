@@ -869,16 +869,20 @@ skip_inode:
 				continue;
 			ci = ceph_inode(inode);
 			spin_lock(&inode->i_lock);
-			if (!ci->i_snap_realm)
-				goto split_skip_inode;
-			ceph_put_snap_realm(mdsc, ci->i_snap_realm);
-			spin_lock(&realm->inodes_with_caps_lock);
-			list_add(&ci->i_snap_realm_item,
-				 &realm->inodes_with_caps);
-			ci->i_snap_realm = realm;
-			spin_unlock(&realm->inodes_with_caps_lock);
-			ceph_get_snap_realm(mdsc, realm);
-split_skip_inode:
+			if (list_empty(&ci->i_snap_realm_item)) {
+				struct ceph_snap_realm *oldrealm =
+					ci->i_snap_realm;
+
+				dout(" moving %p to split realm %llx %p\n",
+				     inode, realm->ino, realm);
+				spin_lock(&realm->inodes_with_caps_lock);
+				list_add(&ci->i_snap_realm_item,
+					 &realm->inodes_with_caps);
+				ci->i_snap_realm = realm;
+				spin_unlock(&realm->inodes_with_caps_lock);
+				ceph_get_snap_realm(mdsc, realm);
+				ceph_put_snap_realm(mdsc, oldrealm);
+			}
 			spin_unlock(&inode->i_lock);
 			iput(inode);
 		}
