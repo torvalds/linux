@@ -1037,6 +1037,9 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	/* initialize hpd */
 	radeon_hpd_init(rdev);
 
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	radeon_fbdev_init(rdev);
 	drm_kms_helper_poll_init(rdev->ddev);
 
@@ -1047,6 +1050,7 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 {
 	radeon_fbdev_fini(rdev);
 	kfree(rdev->mode_info.bios_hardcoded_edid);
+	radeon_pm_fini(rdev);
 
 	if (rdev->mode_info.mode_config_initialized) {
 		drm_kms_helper_poll_fini(rdev->ddev);

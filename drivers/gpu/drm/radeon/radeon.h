@@ -89,7 +89,6 @@ extern int radeon_testing;
 extern int radeon_connector_table;
 extern int radeon_tv;
 extern int radeon_new_pll;
-extern int radeon_dynpm;
 extern int radeon_audio;
 extern int radeon_disp_priority;
 extern int radeon_hw_i2c;
@@ -173,11 +172,10 @@ struct radeon_clock {
 int radeon_pm_init(struct radeon_device *rdev);
 void radeon_pm_fini(struct radeon_device *rdev);
 void radeon_pm_compute_clocks(struct radeon_device *rdev);
+void radeon_pm_suspend(struct radeon_device *rdev);
+void radeon_pm_resume(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
-bool radeon_pm_in_vbl(struct radeon_device *rdev);
-bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish);
-void radeon_sync_with_vblank(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -608,18 +606,24 @@ struct radeon_wb {
  * Equation between gpu/memory clock and available bandwidth is hw dependent
  * (type of memory, bus size, efficiency, ...)
  */
-enum radeon_pm_state {
-	PM_STATE_DISABLED,
-	PM_STATE_MINIMUM,
-	PM_STATE_PAUSED,
-	PM_STATE_ACTIVE
+
+enum radeon_pm_method {
+	PM_METHOD_PROFILE,
+	PM_METHOD_DYNPM,
 };
-enum radeon_pm_action {
-	PM_ACTION_NONE,
-	PM_ACTION_MINIMUM,
-	PM_ACTION_DOWNCLOCK,
-	PM_ACTION_UPCLOCK,
-	PM_ACTION_DEFAULT
+
+enum radeon_dynpm_state {
+	DYNPM_STATE_DISABLED,
+	DYNPM_STATE_MINIMUM,
+	DYNPM_STATE_PAUSED,
+	DYNPM_STATE_ACTIVE
+};
+enum radeon_dynpm_action {
+	DYNPM_ACTION_NONE,
+	DYNPM_ACTION_MINIMUM,
+	DYNPM_ACTION_DOWNCLOCK,
+	DYNPM_ACTION_UPCLOCK,
+	DYNPM_ACTION_DEFAULT
 };
 
 enum radeon_voltage_type {
@@ -637,11 +641,25 @@ enum radeon_pm_state_type {
 	POWER_STATE_TYPE_PERFORMANCE,
 };
 
-enum radeon_pm_clock_mode_type {
-	POWER_MODE_TYPE_DEFAULT,
-	POWER_MODE_TYPE_LOW,
-	POWER_MODE_TYPE_MID,
-	POWER_MODE_TYPE_HIGH,
+enum radeon_pm_profile_type {
+	PM_PROFILE_DEFAULT,
+	PM_PROFILE_AUTO,
+	PM_PROFILE_LOW,
+	PM_PROFILE_HIGH,
+};
+
+#define PM_PROFILE_DEFAULT_IDX 0
+#define PM_PROFILE_LOW_SH_IDX  1
+#define PM_PROFILE_HIGH_SH_IDX 2
+#define PM_PROFILE_LOW_MH_IDX  3
+#define PM_PROFILE_HIGH_MH_IDX 4
+#define PM_PROFILE_MAX         5
+
+struct radeon_pm_profile {
+	int dpms_off_ps_idx;
+	int dpms_on_ps_idx;
+	int dpms_off_cm_idx;
+	int dpms_on_cm_idx;
 };
 
 struct radeon_voltage {
@@ -696,12 +714,6 @@ struct radeon_power_state {
 
 struct radeon_pm {
 	struct mutex		mutex;
-	struct delayed_work	idle_work;
-	enum radeon_pm_state	state;
-	enum radeon_pm_action	planned_action;
-	unsigned long		action_timeout;
-	bool                    can_upclock;
-	bool                    can_downclock;
 	u32			active_crtcs;
 	int			active_crtc_count;
 	int			req_vblank;
@@ -731,6 +743,19 @@ struct radeon_pm {
 	u32                     current_sclk;
 	u32                     current_mclk;
 	struct radeon_i2c_chan *i2c_bus;
+	/* selected pm method */
+	enum radeon_pm_method     pm_method;
+	/* dynpm power management */
+	struct delayed_work	dynpm_idle_work;
+	enum radeon_dynpm_state	dynpm_state;
+	enum radeon_dynpm_action	dynpm_planned_action;
+	unsigned long		dynpm_action_timeout;
+	bool                    dynpm_can_upclock;
+	bool                    dynpm_can_downclock;
+	/* profile-based power management */
+	enum radeon_pm_profile_type profile;
+	int                     profile_index;
+	struct radeon_pm_profile profiles[PM_PROFILE_MAX];
 };
 
 
@@ -819,11 +844,12 @@ struct radeon_asic {
 	 */
 	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
 	bool (*gui_idle)(struct radeon_device *rdev);
-	void (*get_power_state)(struct radeon_device *rdev, enum radeon_pm_action action);
-	void (*set_power_state)(struct radeon_device *rdev, bool static_switch);
+	/* power management */
 	void (*pm_misc)(struct radeon_device *rdev);
 	void (*pm_prepare)(struct radeon_device *rdev);
 	void (*pm_finish)(struct radeon_device *rdev);
+	void (*pm_init_profile)(struct radeon_device *rdev);
+	void (*pm_get_dynpm_state)(struct radeon_device *rdev);
 };
 
 /*
@@ -1041,6 +1067,7 @@ struct radeon_device {
 	uint8_t			audio_category_code;
 
 	bool powered_down;
+	struct notifier_block acpi_nb;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -1232,11 +1259,11 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_hpd_sense(rdev, hpd) (rdev)->asic->hpd_sense((rdev), (hpd))
 #define radeon_hpd_set_polarity(rdev, hpd) (rdev)->asic->hpd_set_polarity((rdev), (hpd))
 #define radeon_gui_idle(rdev) (rdev)->asic->gui_idle((rdev))
-#define radeon_get_power_state(rdev, a) (rdev)->asic->get_power_state((rdev), (a))
-#define radeon_set_power_state(rdev, s) (rdev)->asic->set_power_state((rdev), (s))
 #define radeon_pm_misc(rdev) (rdev)->asic->pm_misc((rdev))
 #define radeon_pm_prepare(rdev) (rdev)->asic->pm_prepare((rdev))
 #define radeon_pm_finish(rdev) (rdev)->asic->pm_finish((rdev))
+#define radeon_pm_init_profile(rdev) (rdev)->asic->pm_init_profile((rdev))
+#define radeon_pm_get_dynpm_state(rdev) (rdev)->asic->pm_get_dynpm_state((rdev))
 
 /* Common functions */
 /* AGP */

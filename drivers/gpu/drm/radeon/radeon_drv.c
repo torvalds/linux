@@ -92,7 +92,6 @@ int radeon_testing = 0;
 int radeon_connector_table = 0;
 int radeon_tv = 1;
 int radeon_new_pll = -1;
-int radeon_dynpm = -1;
 int radeon_audio = 1;
 int radeon_disp_priority = 0;
 int radeon_hw_i2c = 0;
@@ -132,9 +131,6 @@ module_param_named(tv, radeon_tv, int, 0444);
 
 MODULE_PARM_DESC(new_pll, "Select new PLL code");
 module_param_named(new_pll, radeon_new_pll, int, 0444);
-
-MODULE_PARM_DESC(dynpm, "Disable/Enable dynamic power management (1 = enable)");
-module_param_named(dynpm, radeon_dynpm, int, 0444);
 
 MODULE_PARM_DESC(audio, "Audio enable (0 = disable)");
 module_param_named(audio, radeon_audio, int, 0444);

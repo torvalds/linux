@@ -2115,8 +2115,6 @@ int evergreen_init(struct radeon_device *rdev)
 	r = radeon_clocks_init(rdev);
 	if (r)
 		return r;
-	/* Initialize power management */
-	radeon_pm_init(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)
@@ -2178,7 +2176,6 @@ int evergreen_init(struct radeon_device *rdev)
 
 void evergreen_fini(struct radeon_device *rdev)
 {
-	radeon_pm_fini(rdev);
 	/*r600_blit_fini(rdev);*/
 	r700_cp_fini(rdev);
 	r600_wb_fini(rdev);
