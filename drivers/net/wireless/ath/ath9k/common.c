@@ -153,8 +153,7 @@ static int ath9k_process_rate(struct ath_common *common,
 	if ((common->debug_mask & ATH_DBG_XMIT))
 		print_hex_dump_bytes("", DUMP_PREFIX_NONE, skb->data, skb->len);
 
-	rxs->rate_idx = 0;
-	return 0;
+	return -EINVAL;
 }
 
 static void ath9k_process_rssi(struct ath_common *common,
