@@ -726,8 +726,8 @@ static void spcp8x5_read_bulk_callback(struct urb *urb)
 		/* overrun is special, not associated with a char */
 		if (status & UART_OVERRUN_ERROR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		tty_insert_flip_string_fixed_flag(tty, data,
-						urb->actual_length, tty_flag);
+		tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
+							urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
 	tty_kref_put(tty);
