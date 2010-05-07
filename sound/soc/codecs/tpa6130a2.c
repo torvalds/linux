@@ -176,7 +176,7 @@ exit:
 	return ret;
 }
 
-static int tpa6130a2_get_reg(struct snd_kcontrol *kcontrol,
+static int tpa6130a2_get_volsw(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mc =
@@ -184,7 +184,8 @@ static int tpa6130a2_get_reg(struct snd_kcontrol *kcontrol,
 	struct tpa6130a2_data *data;
 	unsigned int reg = mc->reg;
 	unsigned int shift = mc->shift;
-	unsigned int mask = mc->max;
+	int max = mc->max;
+	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 
 	BUG_ON(tpa6130a2_client == NULL);
@@ -197,13 +198,13 @@ static int tpa6130a2_get_reg(struct snd_kcontrol *kcontrol,
 
 	if (invert)
 		ucontrol->value.integer.value[0] =
-			mask - ucontrol->value.integer.value[0];
+			max - ucontrol->value.integer.value[0];
 
 	mutex_unlock(&data->mutex);
 	return 0;
 }
 
-static int tpa6130a2_set_reg(struct snd_kcontrol *kcontrol,
+static int tpa6130a2_put_volsw(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mc =
@@ -211,7 +212,8 @@ static int tpa6130a2_set_reg(struct snd_kcontrol *kcontrol,
 	struct tpa6130a2_data *data;
 	unsigned int reg = mc->reg;
 	unsigned int shift = mc->shift;
-	unsigned int mask = mc->max;
+	int max = mc->max;
+	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 	unsigned int val = (ucontrol->value.integer.value[0] & mask);
 	unsigned int val_reg;
@@ -220,7 +222,7 @@ static int tpa6130a2_set_reg(struct snd_kcontrol *kcontrol,
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	if (invert)
-		val = mask - val;
+		val = max - val;
 
 	mutex_lock(&data->mutex);
 
@@ -260,7 +262,7 @@ static const unsigned int tpa6130_tlv[] = {
 static const struct snd_kcontrol_new tpa6130a2_controls[] = {
 	SOC_SINGLE_EXT_TLV("TPA6130A2 Headphone Playback Volume",
 		       TPA6130A2_REG_VOL_MUTE, 0, 0x3f, 0,
-		       tpa6130a2_get_reg, tpa6130a2_set_reg,
+		       tpa6130a2_get_volsw, tpa6130a2_put_volsw,
 		       tpa6130_tlv),
 };
 
@@ -274,7 +276,7 @@ static const unsigned int tpa6140_tlv[] = {
 static const struct snd_kcontrol_new tpa6140a2_controls[] = {
 	SOC_SINGLE_EXT_TLV("TPA6140A2 Headphone Playback Volume",
 		       TPA6130A2_REG_VOL_MUTE, 1, 0x1f, 0,
-		       tpa6130a2_get_reg, tpa6130a2_set_reg,
+		       tpa6130a2_get_volsw, tpa6130a2_put_volsw,
 		       tpa6140_tlv),
 };
 
