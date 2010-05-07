@@ -388,6 +388,8 @@ struct wl1271 {
 	size_t fw_len;
 	struct wl1271_nvs_file *nvs;
 
+	s8 hw_pg_ver;
+
 	u8 bssid[ETH_ALEN];
 	u8 mac_addr[ETH_ALEN];
 	u8 bss_type;

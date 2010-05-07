@@ -2232,6 +2232,29 @@ static DEVICE_ATTR(bt_coex_state, S_IRUGO | S_IWUSR,
 		   wl1271_sysfs_show_bt_coex_state,
 		   wl1271_sysfs_store_bt_coex_state);
 
+static ssize_t wl1271_sysfs_show_hw_pg_ver(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct wl1271 *wl = dev_get_drvdata(dev);
+	ssize_t len;
+
+	/* FIXME: what's the maximum length of buf? page size?*/
+	len = 500;
+
+	mutex_lock(&wl->mutex);
+	if (wl->hw_pg_ver >= 0)
+		len = snprintf(buf, len, "%d\n", wl->hw_pg_ver);
+	else
+		len = snprintf(buf, len, "n/a\n");
+	mutex_unlock(&wl->mutex);
+
+	return len;
+}
+
+static DEVICE_ATTR(hw_pg_ver, S_IRUGO | S_IWUSR,
+		   wl1271_sysfs_show_hw_pg_ver, NULL);
+
 int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
@@ -2351,6 +2374,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->vif = NULL;
 	wl->flags = 0;
 	wl->sg_enabled = true;
+	wl->hw_pg_ver = -1;
 
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		wl->tx_frames[i] = NULL;
@@ -2380,7 +2404,17 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_platform;
 	}
 
+	/* Create sysfs file to get HW PG version */
+	ret = device_create_file(&wl->plat_dev->dev, &dev_attr_hw_pg_ver);
+	if (ret < 0) {
+		wl1271_error("failed to create sysfs file hw_pg_ver");
+		goto err_bt_coex_state;
+	}
+
 	return hw;
+
+err_bt_coex_state:
+	device_remove_file(&wl->plat_dev->dev, &dev_attr_bt_coex_state);
 
 err_platform:
 	platform_device_unregister(wl->plat_dev);
