@@ -75,6 +75,9 @@ struct mips_fpu_emulator_stats fpuemustats;
 #define FPCREG_RID	0	/* $0  = revision id */
 #define FPCREG_CSR	31	/* $31 = csr */
 
+/* Determine rounding mode from the RM bits of the FCSR */
+#define modeindex(v) ((v) & FPU_CSR_RM)
+
 /* Convert Mips rounding mode (0..3) to IEEE library modes. */
 static const unsigned char ieee_rm[4] = {
 	[FPU_CSR_RN] = IEEE754_RN,
@@ -381,10 +384,14 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 					(void *) (xcp->cp0_epc),
 					MIPSInst_RT(ir), value);
 #endif
-				value &= (FPU_CSR_FLUSH | FPU_CSR_ALL_E | FPU_CSR_ALL_S | 0x03);
-				ctx->fcr31 &= ~(FPU_CSR_FLUSH | FPU_CSR_ALL_E | FPU_CSR_ALL_S | 0x03);
-				/* convert to ieee library modes */
-				ctx->fcr31 |= (value & ~0x3) | ieee_rm[value & 0x3];
+
+				/*
+				 * Don't write reserved bits,
+				 * and convert to ieee library modes
+				 */
+				ctx->fcr31 = (value &
+						~(FPU_CSR_RSVD | FPU_CSR_RM)) |
+						ieee_rm[modeindex(value)];
 			}
 			if ((ctx->fcr31 >> 5) & ctx->fcr31 & FPU_CSR_ALL_E) {
 				return SIGFPE;
