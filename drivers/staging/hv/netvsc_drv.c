@@ -30,6 +30,8 @@
 #include <linux/skbuff.h>
 #include <linux/in.h>
 #include <linux/slab.h>
+#include <linux/dmi.h>
+#include <linux/pci.h>
 #include <net/arp.h>
 #include <net/route.h>
 #include <net/sock.h>
@@ -551,12 +553,29 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	return ret;
 }
 
+static const struct dmi_system_id __initconst
+hv_netvsc_dmi_table[] __maybe_unused  = {
+	{
+		.ident = "Hyper-V",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
+			DMI_MATCH(DMI_BOARD_NAME, "Virtual Machine"),
+		},
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(dmi, hv_netvsc_dmi_table);
+
 static int __init netvsc_init(void)
 {
 	int ret;
 
 	DPRINT_ENTER(NETVSC_DRV);
 	DPRINT_INFO(NETVSC_DRV, "Netvsc initializing....");
+
+	if (!dmi_check_system(hv_netvsc_dmi_table))
+		return -ENODEV;
 
 	ret = netvsc_drv_init(NetVscInitialize);
 
@@ -571,6 +590,13 @@ static void __exit netvsc_exit(void)
 	netvsc_drv_exit();
 	DPRINT_EXIT(NETVSC_DRV);
 }
+
+static const struct pci_device_id __initconst
+hv_netvsc_pci_table[] __maybe_unused = {
+	{ PCI_DEVICE(0x1414, 0x5353) }, /* VGA compatible controller */
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, hv_netvsc_pci_table);
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
