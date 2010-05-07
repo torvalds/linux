@@ -851,6 +851,7 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 
 	/* Release the Scsi_Host */
 	scsi_host_put(lport->host);
+	module_put(THIS_MODULE);
 }
 
 /**
@@ -2034,7 +2035,6 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 	fcoe_interface_cleanup(fcoe);
 	/* RTNL mutex is dropped by fcoe_if_destroy */
 	fcoe_if_destroy(fcoe->ctlr.lp);
-	module_put(THIS_MODULE);
 
 out_putdev:
 	dev_put(netdev);
