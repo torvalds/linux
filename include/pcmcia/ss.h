@@ -224,18 +224,16 @@ struct pcmcia_socket {
 
 	/* 16-bit state: */
 	struct {
-		/* PCMCIA card is present in socket */
-		u8			present:1;
 		/* "master" ioctl is used */
 		u8			busy:1;
-		/* pcmcia module is being unloaded */
-		u8			dead:1;
 		/* the PCMCIA card consists of two pseudo devices */
 		u8			has_pfc:1;
 
-		u8			reserved:4;
+		u8			reserved:6;
 	} pcmcia_state;
 
+	/* non-zero if PCMCIA card is present */
+	atomic_t			present;
 
 #ifdef CONFIG_PCMCIA_IOCTL
 	struct user_info_t		*user;

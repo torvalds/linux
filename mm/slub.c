@@ -2153,7 +2153,7 @@ static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
 	int local_node;
 
 	if (slab_state >= UP && (s < kmalloc_caches ||
-			s > kmalloc_caches + KMALLOC_CACHES))
+			s >= kmalloc_caches + KMALLOC_CACHES))
 		local_node = page_to_nid(virt_to_page(s));
 	else
 		local_node = 0;

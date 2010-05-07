@@ -11,6 +11,8 @@
 #include <linux/writeback.h>
 #include <linux/device.h>
 
+static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
+
 void default_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 {
 }
@@ -24,6 +26,11 @@ struct backing_dev_info default_backing_dev_info = {
 	.unplug_io_fn	= default_unplug_io_fn,
 };
 EXPORT_SYMBOL_GPL(default_backing_dev_info);
+
+struct backing_dev_info noop_backing_dev_info = {
+	.name		= "noop",
+};
+EXPORT_SYMBOL_GPL(noop_backing_dev_info);
 
 static struct class *bdi_class;
 
@@ -714,6 +721,33 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	prop_local_destroy_percpu(&bdi->completions);
 }
 EXPORT_SYMBOL(bdi_destroy);
+
+/*
+ * For use from filesystems to quickly init and register a bdi associated
+ * with dirty writeback
+ */
+int bdi_setup_and_register(struct backing_dev_info *bdi, char *name,
+			   unsigned int cap)
+{
+	char tmp[32];
+	int err;
+
+	bdi->name = name;
+	bdi->capabilities = cap;
+	err = bdi_init(bdi);
+	if (err)
+		return err;
+
+	sprintf(tmp, "%.28s%s", name, "-%d");
+	err = bdi_register(bdi, NULL, tmp, atomic_long_inc_return(&bdi_seq));
+	if (err) {
+		bdi_destroy(bdi);
+		return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(bdi_setup_and_register);
 
 static wait_queue_head_t congestion_wqh[2] = {
 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),

@@ -12,8 +12,6 @@
 #include "auth.h"
 #include "decode.h"
 
-struct kmem_cache *ceph_x_ticketbuf_cachep;
-
 #define TEMP_TICKET_BUF_LEN	256
 
 static void ceph_x_validate_tickets(struct ceph_auth_client *ac, int *pneed);
@@ -131,13 +129,12 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 	char *ticket_buf;
 	u8 struct_v;
 
-	dbuf = kmem_cache_alloc(ceph_x_ticketbuf_cachep, GFP_NOFS | GFP_ATOMIC);
+	dbuf = kmalloc(TEMP_TICKET_BUF_LEN, GFP_NOFS);
 	if (!dbuf)
 		return -ENOMEM;
 
 	ret = -ENOMEM;
-	ticket_buf = kmem_cache_alloc(ceph_x_ticketbuf_cachep,
-				      GFP_NOFS | GFP_ATOMIC);
+	ticket_buf = kmalloc(TEMP_TICKET_BUF_LEN, GFP_NOFS);
 	if (!ticket_buf)
 		goto out_dbuf;
 
@@ -251,9 +248,9 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 
 	ret = 0;
 out:
-	kmem_cache_free(ceph_x_ticketbuf_cachep, ticket_buf);
+	kfree(ticket_buf);
 out_dbuf:
-	kmem_cache_free(ceph_x_ticketbuf_cachep, dbuf);
+	kfree(dbuf);
 	return ret;
 
 bad:
@@ -605,8 +602,6 @@ static void ceph_x_destroy(struct ceph_auth_client *ac)
 		remove_ticket_handler(ac, th);
 	}
 
-	kmem_cache_destroy(ceph_x_ticketbuf_cachep);
-
 	kfree(ac->private);
 	ac->private = NULL;
 }
@@ -641,26 +636,20 @@ int ceph_x_init(struct ceph_auth_client *ac)
 	int ret;
 
 	dout("ceph_x_init %p\n", ac);
+	ret = -ENOMEM;
 	xi = kzalloc(sizeof(*xi), GFP_NOFS);
 	if (!xi)
-		return -ENOMEM;
+		goto out;
 
-	ret = -ENOMEM;
-	ceph_x_ticketbuf_cachep = kmem_cache_create("ceph_x_ticketbuf",
-				      TEMP_TICKET_BUF_LEN, 8,
-				      (SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD),
-				      NULL);
-	if (!ceph_x_ticketbuf_cachep)
-		goto done_nomem;
 	ret = -EINVAL;
 	if (!ac->secret) {
 		pr_err("no secret set (for auth_x protocol)\n");
-		goto done_nomem;
+		goto out_nomem;
 	}
 
 	ret = ceph_crypto_key_unarmor(&xi->secret, ac->secret);
 	if (ret)
-		goto done_nomem;
+		goto out_nomem;
 
 	xi->starting = true;
 	xi->ticket_handlers = RB_ROOT;
@@ -670,10 +659,9 @@ int ceph_x_init(struct ceph_auth_client *ac)
 	ac->ops = &ceph_x_ops;
 	return 0;
 
-done_nomem:
+out_nomem:
 	kfree(xi);
-	if (ceph_x_ticketbuf_cachep)
-		kmem_cache_destroy(ceph_x_ticketbuf_cachep);
+out:
 	return ret;
 }
 

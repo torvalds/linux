@@ -23,6 +23,8 @@
 #include <asm/ptrace.h>
 #include <asm/pcr.h>
 
+#include "kstack.h"
+
 /* We don't have a real NMI on sparc64, but we can fake one
  * up using profiling counter overflow interrupts and interrupt
  * levels.
@@ -92,12 +94,15 @@ static void die_nmi(const char *str, struct pt_regs *regs, int do_panic)
 notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 {
 	unsigned int sum, touched = 0;
+	void *orig_sp;
 
 	clear_softint(1 << irq);
 
 	local_cpu_data().__nmi_count++;
 
 	nmi_enter();
+
+	orig_sp = set_hardirq_stack();
 
 	if (notify_die(DIE_NMI, "nmi", regs, 0,
 		       pt_regs_trap_type(regs), SIGINT) == NOTIFY_STOP)
@@ -123,6 +128,8 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 		write_pic(picl_value(nmi_hz));
 		pcr_ops->write(pcr_enable);
 	}
+
+	restore_hardirq_stack(orig_sp);
 
 	nmi_exit();
 }

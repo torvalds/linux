@@ -323,16 +323,6 @@ static void set_srp_direction(struct scsi_cmnd *cmd,
 		srp_cmd->buf_fmt = fmt;
 }
 
-static void unmap_sg_list(int num_entries,
-		struct device *dev,
-		struct srp_direct_buf *md)
-{
-	int i;
-
-	for (i = 0; i < num_entries; ++i)
-		dma_unmap_single(dev, md[i].va, md[i].len, DMA_BIDIRECTIONAL);
-}
-
 /**
  * unmap_cmd_data: - Unmap data pointed in srp_cmd based on the format
  * @cmd:	srp_cmd whose additional_data member will be unmapped
@@ -350,24 +340,9 @@ static void unmap_cmd_data(struct srp_cmd *cmd,
 
 	if (out_fmt == SRP_NO_DATA_DESC && in_fmt == SRP_NO_DATA_DESC)
 		return;
-	else if (out_fmt == SRP_DATA_DESC_DIRECT ||
-		 in_fmt == SRP_DATA_DESC_DIRECT) {
-		struct srp_direct_buf *data =
-			(struct srp_direct_buf *) cmd->add_data;
-		dma_unmap_single(dev, data->va, data->len, DMA_BIDIRECTIONAL);
-	} else {
-		struct srp_indirect_buf *indirect =
-			(struct srp_indirect_buf *) cmd->add_data;
-		int num_mapped = indirect->table_desc.len /
-			sizeof(struct srp_direct_buf);
 
-		if (num_mapped <= MAX_INDIRECT_BUFS) {
-			unmap_sg_list(num_mapped, dev, &indirect->desc_list[0]);
-			return;
-		}
-
-		unmap_sg_list(num_mapped, dev, evt_struct->ext_list);
-	}
+	if (evt_struct->cmnd)
+		scsi_dma_unmap(evt_struct->cmnd);
 }
 
 static int map_sg_list(struct scsi_cmnd *cmd, int nseg,

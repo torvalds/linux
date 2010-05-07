@@ -837,6 +837,8 @@ out_zap_parent:
 		/* If we have submounts, don't unhash ! */
 		if (have_submounts(dentry))
 			goto out_valid;
+		if (dentry->d_flags & DCACHE_DISCONNECTED)
+			goto out_valid;
 		shrink_dcache_parent(dentry);
 	}
 	d_drop(dentry);
@@ -1050,7 +1052,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	struct inode *dir;
 	int openflags, ret = 0;
 
-	if (!is_atomic_open(nd))
+	if (!is_atomic_open(nd) || d_mountpoint(dentry))
 		goto no_open;
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
