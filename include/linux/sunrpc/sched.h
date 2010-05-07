@@ -10,6 +10,7 @@
 #define _LINUX_SUNRPC_SCHED_H_
 
 #include <linux/timer.h>
+#include <linux/ktime.h>
 #include <linux/sunrpc/types.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
@@ -80,8 +81,8 @@ struct rpc_task {
 
 	unsigned short		tk_timeouts;	/* maj timeouts */
 	size_t			tk_bytes_sent;	/* total bytes sent */
-	unsigned long		tk_start;	/* RPC task init timestamp */
-	long			tk_rtt;		/* round-trip time (jiffies) */
+	ktime_t			tk_start,	/* RPC task init timestamp */
+				tk_rtt;		/* round-trip time */
 
 	pid_t			tk_owner;	/* Process id for batching tasks */
 	unsigned char		tk_priority : 2;/* Task priority */

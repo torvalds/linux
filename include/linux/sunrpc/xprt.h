@@ -13,6 +13,7 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kref.h>
+#include <linux/ktime.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
@@ -94,7 +95,7 @@ struct rpc_rqst {
 	 */
 	u32			rq_bytes_sent;	/* Bytes we have sent */
 
-	unsigned long		rq_xtime;	/* when transmitted */
+	ktime_t			rq_xtime;	/* transmit time stamp */
 	int			rq_ntrans;
 
 #if defined(CONFIG_NFS_V4_1)

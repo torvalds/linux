@@ -834,7 +834,7 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 	}
 
 	/* starting timestamp */
-	task->tk_start = jiffies;
+	task->tk_start = ktime_get();
 
 	dprintk("RPC:       new task initialized, procpid %u\n",
 				task_pid_nr(current));

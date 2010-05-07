@@ -43,6 +43,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/net.h>
+#include <linux/ktime.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/metrics.h>
@@ -779,10 +780,11 @@ static void xprt_update_rtt(struct rpc_task *task)
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_rtt *rtt = task->tk_client->cl_rtt;
 	unsigned timer = task->tk_msg.rpc_proc->p_timer;
+	long m = usecs_to_jiffies(ktime_to_us(task->tk_rtt));
 
 	if (timer) {
 		if (req->rq_ntrans == 1)
-			rpc_update_rtt(rtt, timer, task->tk_rtt);
+			rpc_update_rtt(rtt, timer, m);
 		rpc_set_timeo(rtt, timer, req->rq_ntrans - 1);
 	}
 }
@@ -803,7 +805,7 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 			task->tk_pid, ntohl(req->rq_xid), copied);
 
 	xprt->stat.recvs++;
-	task->tk_rtt = (long)jiffies - req->rq_xtime;
+	task->tk_rtt = ktime_sub(ktime_get(), req->rq_xtime);
 	if (xprt->ops->timer != NULL)
 		xprt_update_rtt(task);
 
@@ -904,7 +906,7 @@ void xprt_transmit(struct rpc_task *task)
 		return;
 
 	req->rq_connect_cookie = xprt->connect_cookie;
-	req->rq_xtime = jiffies;
+	req->rq_xtime = ktime_get();
 	status = xprt->ops->send_request(task);
 	if (status != 0) {
 		task->tk_status = status;
