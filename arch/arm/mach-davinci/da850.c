@@ -1073,6 +1073,7 @@ no_ddrpll_mem:
 static struct davinci_soc_info davinci_soc_info_da850 = {
 	.io_desc		= da850_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da850_io_desc),
+	.jtag_id_reg		= DA8XX_SYSCFG0_BASE + DA8XX_JTAG_ID_REG,
 	.ids			= da850_ids,
 	.ids_num		= ARRAY_SIZE(da850_ids),
 	.cpu_clks		= da850_clks,
@@ -1108,8 +1109,6 @@ void __init da850_init(void)
 	if (WARN(!da8xx_syscfg1_base, "Unable to map syscfg1 module"))
 		return;
 
-	davinci_soc_info_da850.jtag_id_base =
-					DA8XX_SYSCFG0_VIRT(DA8XX_JTAG_ID_REG);
 	davinci_soc_info_da850.pinmux_base = DA8XX_SYSCFG0_VIRT(0x120);
 
 	davinci_common_init(&davinci_soc_info_da850);
