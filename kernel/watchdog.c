@@ -119,13 +119,12 @@ static void __touch_watchdog(void)
 	__get_cpu_var(watchdog_touch_ts) = get_timestamp(this_cpu);
 }
 
-void touch_watchdog(void)
+void touch_softlockup_watchdog(void)
 {
 	__get_cpu_var(watchdog_touch_ts) = 0;
 }
-EXPORT_SYMBOL(touch_watchdog);
 
-void touch_all_watchdog(void)
+void touch_all_softlockup_watchdogs(void)
 {
 	int cpu;
 
@@ -140,33 +139,14 @@ void touch_all_watchdog(void)
 
 void touch_nmi_watchdog(void)
 {
-	touch_watchdog();
+	touch_softlockup_watchdog();
 }
 EXPORT_SYMBOL(touch_nmi_watchdog);
-
-void touch_all_nmi_watchdog(void)
-{
-	touch_all_watchdog();
-}
-
-void touch_softlockup_watchdog(void)
-{
-	touch_watchdog();
-}
-
-void touch_all_softlockup_watchdogs(void)
-{
-	touch_all_watchdog();
-}
 
 void touch_softlockup_watchdog_sync(void)
 {
 	__raw_get_cpu_var(softlockup_touch_sync) = true;
 	__raw_get_cpu_var(watchdog_touch_ts) = 0;
-}
-
-void softlockup_tick(void)
-{
 }
 
 #ifdef CONFIG_PERF_EVENTS_NMI
@@ -522,15 +502,6 @@ int proc_dowatchdog_thresh(struct ctl_table *table, int write,
 {
 	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 }
-
-/* stub functions */
-int proc_dosoftlockup_thresh(struct ctl_table *table, int write,
-			     void __user *buffer,
-			     size_t *lenp, loff_t *ppos)
-{
-	return proc_dowatchdog_thresh(table, write, buffer, lenp, ppos);
-}
-/* end of stub functions */
 #endif /* CONFIG_SYSCTL */
 
 
