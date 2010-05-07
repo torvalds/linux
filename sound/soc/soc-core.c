@@ -2238,6 +2238,45 @@ int snd_soc_put_volsw_s8(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw_s8);
 
 /**
+ * snd_soc_limit_volume - Set new limit to an existing volume control.
+ *
+ * @codec: where to look for the control
+ * @name: Name of the control
+ * @max: new maximum limit
+ *
+ * Return 0 for success, else error.
+ */
+int snd_soc_limit_volume(struct snd_soc_codec *codec,
+	const char *name, int max)
+{
+	struct snd_card *card = codec->card;
+	struct snd_kcontrol *kctl;
+	struct soc_mixer_control *mc;
+	int found = 0;
+	int ret = -EINVAL;
+
+	/* Sanity check for name and max */
+	if (unlikely(!name || max <= 0))
+		return -EINVAL;
+
+	list_for_each_entry(kctl, &card->controls, list) {
+		if (!strncmp(kctl->id.name, name, sizeof(kctl->id.name))) {
+			found = 1;
+			break;
+		}
+	}
+	if (found) {
+		mc = (struct soc_mixer_control *)kctl->private_value;
+		if (max <= mc->max) {
+			mc->max = max;
+			ret = 0;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_limit_volume);
+
+/**
  * snd_soc_dai_set_sysclk - configure DAI system or master clock.
  * @dai: DAI
  * @clk_id: DAI specific clock ID

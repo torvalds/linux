@@ -326,6 +326,8 @@ int snd_soc_get_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_limit_volume(struct snd_soc_codec *codec,
+	const char *name, int max);
 
 /**
  * struct snd_soc_jack_pin - Describes a pin to update based on jack detection
