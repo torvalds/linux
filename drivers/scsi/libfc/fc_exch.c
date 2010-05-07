@@ -918,6 +918,7 @@ static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_lport *lport,
 	if (fc_sof_is_init(fr_sof(fp))) {
 		sp = &ep->seq;
 		sp->ssb_stat |= SSB_ST_RESP;
+		sp->id = fh->fh_seq_id;
 	} else {
 		sp = &ep->seq;
 		if (sp->id != fh->fh_seq_id) {
@@ -1322,11 +1323,12 @@ static void fc_exch_recv_seq_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 	}
 	sof = fr_sof(fp);
 	sp = &ep->seq;
-	if (fc_sof_is_init(sof))
+	if (fc_sof_is_init(sof)) {
 		sp->ssb_stat |= SSB_ST_RESP;
-	else if (sp->id != fh->fh_seq_id) {
-			atomic_inc(&mp->stats.seq_not_found);
-			goto rel;
+		sp->id = fh->fh_seq_id;
+	} else if (sp->id != fh->fh_seq_id) {
+		atomic_inc(&mp->stats.seq_not_found);
+		goto rel;
 	}
 
 	f_ctl = ntoh24(fh->fh_f_ctl);
