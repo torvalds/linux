@@ -963,6 +963,9 @@ static void soc_resume_deferred(struct work_struct *work)
 
 	dev_dbg(socdev->dev, "starting resume work\n");
 
+	/* Bring us up into D2 so that DAPM starts enabling things */
+	snd_power_change_state(codec->card, SNDRV_CTL_POWER_D2);
+
 	if (card->resume_pre)
 		card->resume_pre(pdev);
 

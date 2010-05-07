@@ -430,6 +430,23 @@ static inline void dapm_clear_walk(struct snd_soc_codec *codec)
 		p->walked = 0;
 }
 
+/* We implement power down on suspend by checking the power state of
+ * the ALSA card - when we are suspending the ALSA state for the card
+ * is set to D3.
+ */
+static int snd_soc_dapm_suspend_check(struct snd_soc_dapm_widget *widget)
+{
+	struct snd_soc_codec *codec = widget->codec;
+
+	switch (snd_power_get_state(codec->card)) {
+	case SNDRV_CTL_POWER_D3hot:
+	case SNDRV_CTL_POWER_D3cold:
+		return 0;
+	default:
+		return 1;
+	}
+}
+
 /*
  * Recursively check for a completed path to an active or physically connected
  * output widget. Returns number of complete paths.
@@ -446,7 +463,7 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
 	case snd_soc_dapm_adc:
 	case snd_soc_dapm_aif_out:
 		if (widget->active)
-			return 1;
+			return snd_soc_dapm_suspend_check(widget);
 	default:
 		break;
 	}
@@ -454,12 +471,12 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
 	if (widget->connected) {
 		/* connected pin ? */
 		if (widget->id == snd_soc_dapm_output && !widget->ext)
-			return 1;
+			return snd_soc_dapm_suspend_check(widget);
 
 		/* connected jack or spk ? */
 		if (widget->id == snd_soc_dapm_hp || widget->id == snd_soc_dapm_spk ||
 		    (widget->id == snd_soc_dapm_line && !list_empty(&widget->sources)))
-			return 1;
+			return snd_soc_dapm_suspend_check(widget);
 	}
 
 	list_for_each_entry(path, &widget->sinks, list_source) {
@@ -492,7 +509,7 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
 	case snd_soc_dapm_dac:
 	case snd_soc_dapm_aif_in:
 		if (widget->active)
-			return 1;
+			return snd_soc_dapm_suspend_check(widget);
 	default:
 		break;
 	}
@@ -500,16 +517,16 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
 	if (widget->connected) {
 		/* connected pin ? */
 		if (widget->id == snd_soc_dapm_input && !widget->ext)
-			return 1;
+			return snd_soc_dapm_suspend_check(widget);
 
 		/* connected VMID/Bias for lower pops */
 		if (widget->id == snd_soc_dapm_vmid)
-			return 1;
+			return snd_soc_dapm_suspend_check(widget);
 
 		/* connected jack ? */
 		if (widget->id == snd_soc_dapm_mic ||
 		    (widget->id == snd_soc_dapm_line && !list_empty(&widget->sinks)))
-			return 1;
+			return snd_soc_dapm_suspend_check(widget);
 	}
 
 	list_for_each_entry(path, &widget->sources, list_sink) {
@@ -897,22 +914,12 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 			if (!w->power_check)
 				continue;
 
-			/* If we're suspending then pull down all the 
-			 * power. */
-			switch (event) {
-			case SND_SOC_DAPM_STREAM_SUSPEND:
-				power = 0;
-				break;
-
-			default:
-				if (!w->force)
-					power = w->power_check(w);
-				else
-					power = 1;
-				if (power)
-					sys_power = 1;
-				break;
-			}
+			if (!w->force)
+				power = w->power_check(w);
+			else
+				power = 1;
+			if (power)
+				sys_power = 1;
 
 			if (w->power == power)
 				continue;
