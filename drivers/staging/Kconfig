@@ -137,5 +137,7 @@ source "drivers/staging/cxt1e1/Kconfig"
 
 source "drivers/staging/ti-st/Kconfig"
 
+source "drivers/staging/adis16255/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

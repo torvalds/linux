@@ -1,1 +1,1 @@
-obj-$(CONFIG_ADIS16255) += adis1625.o
+obj-$(CONFIG_ADIS16255)		+= adis16255.o
