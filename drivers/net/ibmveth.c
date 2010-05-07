@@ -45,6 +45,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/pm.h>
 #include <linux/ethtool.h>
 #include <linux/proc_fs.h>
 #include <linux/in.h>
@@ -1588,12 +1589,22 @@ static struct kobj_type ktype_veth_pool = {
 	.default_attrs  = veth_pool_attrs,
 };
 
+static int ibmveth_resume(struct device *dev)
+{
+	struct net_device *netdev = dev_get_drvdata(dev);
+	ibmveth_interrupt(netdev->irq, netdev);
+	return 0;
+}
 
 static struct vio_device_id ibmveth_device_table[] __devinitdata= {
 	{ "network", "IBM,l-lan"},
 	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, ibmveth_device_table);
+
+static struct dev_pm_ops ibmveth_pm_ops = {
+	.resume = ibmveth_resume
+};
 
 static struct vio_driver ibmveth_driver = {
 	.id_table	= ibmveth_device_table,
@@ -1603,6 +1614,7 @@ static struct vio_driver ibmveth_driver = {
 	.driver		= {
 		.name	= ibmveth_driver_name,
 		.owner	= THIS_MODULE,
+		.pm = &ibmveth_pm_ops,
 	}
 };
 
