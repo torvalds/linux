@@ -113,8 +113,6 @@ static int quota_getinfo(struct super_block *sb, int type, void __user *addr)
 	struct if_dqinfo info;
 	int ret;
 
-	if (!sb_has_quota_active(sb, type))
-		return -ESRCH;
 	if (!sb->s_qcop->get_info)
 		return -ENOSYS;
 	ret = sb->s_qcop->get_info(sb, type, &info);
@@ -129,8 +127,6 @@ static int quota_setinfo(struct super_block *sb, int type, void __user *addr)
 
 	if (copy_from_user(&info, addr, sizeof(info)))
 		return -EFAULT;
-	if (!sb_has_quota_active(sb, type))
-		return -ESRCH;
 	if (!sb->s_qcop->set_info)
 		return -ENOSYS;
 	return sb->s_qcop->set_info(sb, type, &info);
