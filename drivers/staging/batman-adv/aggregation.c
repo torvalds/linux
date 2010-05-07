@@ -81,9 +81,15 @@ static bool can_aggregate_with(struct batman_packet *new_batman_packet,
 		 * interface only - we still can aggregate */
 		if ((directlink) &&
 		    (new_batman_packet->ttl == 1) &&
-		    (forw_packet->if_incoming == if_incoming))
-			return true;
+		    (forw_packet->if_incoming == if_incoming) &&
 
+		    /* packets from direct neighbors or
+		     * own secondary interface packets
+		     * (= secondary interface packets in general) */
+		    (batman_packet->flags & DIRECTLINK ||
+		     (forw_packet->own &&
+		      forw_packet->if_incoming->if_num != 0)))
+			return true;
 	}
 
 	return false;
@@ -204,7 +210,7 @@ void add_bat_packet_to_list(unsigned char *packet_buff, int packet_len,
 		 * later on
 		 */
 		if ((!own_packet) &&
-		    (atomic_read(&bat_priv->aggregation_enabled)))
+		    (atomic_read(&aggregation_enabled)))
 			send_time += msecs_to_jiffies(MAX_AGGREGATION_MS);
 
 		new_aggregated_packet(packet_buff, packet_len,
