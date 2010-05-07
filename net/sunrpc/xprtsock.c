@@ -844,7 +844,6 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 	dst_confirm(skb_dst(skb));
 
 	xprt_adjust_cwnd(task, copied);
-	xprt_update_rtt(task);
 	xprt_complete_rqst(task, copied);
 
  out_unlock:
