@@ -51,7 +51,7 @@ struct davinci_soc_info {
 	struct clk_lookup		*cpu_clks;
 	u32				*psc_bases;
 	unsigned long			psc_bases_num;
-	void __iomem			*pinmux_base;
+	u32				pinmux_base;
 	const struct mux_config		*pinmux_pins;
 	unsigned long			pinmux_pins_num;
 	u32				intc_base;
