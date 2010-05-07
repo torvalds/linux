@@ -58,11 +58,10 @@ QValueList<int> ConfigSettings::readSizes(const QString& key, bool *ok)
 {
 	QValueList<int> result;
 	QStringList entryList = readListEntry(key, ok);
-	if (ok) {
-		QStringList::Iterator it;
-		for (it = entryList.begin(); it != entryList.end(); ++it)
-			result.push_back((*it).toInt());
-	}
+	QStringList::Iterator it;
+
+	for (it = entryList.begin(); it != entryList.end(); ++it)
+		result.push_back((*it).toInt());
 
 	return result;
 }
