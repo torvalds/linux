@@ -744,8 +744,20 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 				!(portstatus & USB_PORT_STAT_CONNECTION) ||
 				!udev ||
 				udev->state == USB_STATE_NOTATTACHED)) {
-			clear_port_feature(hdev, port1, USB_PORT_FEAT_ENABLE);
-			portstatus &= ~USB_PORT_STAT_ENABLE;
+			/*
+			 * USB3 protocol ports will automatically transition
+			 * to Enabled state when detect an USB3.0 device attach.
+			 * Do not disable USB3 protocol ports.
+			 * FIXME: USB3 root hub and external hubs are treated
+			 * differently here.
+			 */
+			if (hdev->descriptor.bDeviceProtocol != 3 ||
+			    (!hdev->parent &&
+			     !(portstatus & USB_PORT_STAT_SUPER_SPEED))) {
+				clear_port_feature(hdev, port1,
+						   USB_PORT_FEAT_ENABLE);
+				portstatus &= ~USB_PORT_STAT_ENABLE;
+			}
 		}
 
 		/* Clear status-change flags; we'll debounce later */
