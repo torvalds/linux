@@ -152,9 +152,13 @@ int interface_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	hna_local_remove(dev->dev_addr, "mac address changed");
+	/* only modify hna-table if it has been initialised before */
+	if (atomic_read(&module_state) == MODULE_ACTIVE) {
+		hna_local_remove(dev->dev_addr, "mac address changed");
+		hna_local_add(addr->sa_data);
+	}
+
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	hna_local_add(dev->dev_addr);
 
 	return 0;
 }
