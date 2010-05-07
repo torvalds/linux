@@ -39,7 +39,13 @@ struct davinci_timer_info {
 
 struct davinci_gpio_controller;
 
-/* SoC specific init support */
+/*
+ * SoC info passed into common davinci modules.
+ *
+ * Base addresses in this structure should be physical and not virtual.
+ * Modules that take such base addresses, should internally ioremap() them to
+ * use.
+ */
 struct davinci_soc_info {
 	struct map_desc			*io_desc;
 	unsigned long			io_desc_num;

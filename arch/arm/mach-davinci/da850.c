@@ -1099,6 +1099,8 @@ void __init da850_init(void)
 {
 	unsigned int v;
 
+	davinci_common_init(&davinci_soc_info_da850);
+
 	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
 	if (WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module"))
 		return;
@@ -1106,8 +1108,6 @@ void __init da850_init(void)
 	da8xx_syscfg1_base = ioremap(DA8XX_SYSCFG1_BASE, SZ_4K);
 	if (WARN(!da8xx_syscfg1_base, "Unable to map syscfg1 module"))
 		return;
-
-	davinci_common_init(&davinci_soc_info_da850);
 
 	/*
 	 * Move the clock source of Async3 domain to PLL1 SYSCLK2.
