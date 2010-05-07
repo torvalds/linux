@@ -2056,7 +2056,7 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	 */
 	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
 		rc = -ENODEV;
-		goto out_nodev;
+		goto out_nomod;
 	}
 #endif
 
