@@ -804,4 +804,6 @@ extern int drm_add_modes_noedid(struct drm_connector *connector,
 				int hdisplay, int vdisplay);
 
 extern bool drm_edid_is_valid(struct edid *edid);
+struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
+					   int hsize, int vsize, int fresh);
 #endif /* __DRM_CRTC_H__ */

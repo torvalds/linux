@@ -658,8 +658,8 @@ static struct drm_display_mode drm_dmt_modes[] = {
 static const int drm_num_dmt_modes =
 	sizeof(drm_dmt_modes) / sizeof(struct drm_display_mode);
 
-static struct drm_display_mode *drm_find_dmt(struct drm_device *dev,
-			int hsize, int vsize, int fresh)
+struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
+					   int hsize, int vsize, int fresh)
 {
 	int i;
 	struct drm_display_mode *ptr, *mode;
@@ -677,6 +677,7 @@ static struct drm_display_mode *drm_find_dmt(struct drm_device *dev,
 	}
 	return mode;
 }
+EXPORT_SYMBOL(drm_mode_find_dmt);
 
 typedef void detailed_cb(struct detailed_timing *timing, void *closure);
 
@@ -866,7 +867,7 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 	}
 
 	/* check whether it can be found in default mode table */
-	mode = drm_find_dmt(dev, hsize, vsize, vrefresh_rate);
+	mode = drm_mode_find_dmt(dev, hsize, vsize, vrefresh_rate);
 	if (mode)
 		return mode;
 
@@ -1386,11 +1387,11 @@ drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
 			if (m >= num_est3_modes)
 				break;
 			if (est[i] & (1 << j)) {
-				mode = drm_find_dmt(connector->dev,
-						    est3_modes[m].w,
-						    est3_modes[m].h,
-						    est3_modes[m].r
-						    /*, est3_modes[m].rb */);
+				mode = drm_mode_find_dmt(connector->dev,
+							 est3_modes[m].w,
+							 est3_modes[m].h,
+							 est3_modes[m].r
+							 /*, est3_modes[m].rb */);
 				if (mode) {
 					drm_mode_probed_add(connector, mode);
 					modes++;
