@@ -3163,23 +3163,31 @@ static void nfs4_proc_commit_setup(struct nfs_write_data *data, struct rpc_messa
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_COMMIT];
 }
 
+struct nfs4_renewdata {
+	struct nfs_client	*client;
+	unsigned long		timestamp;
+};
+
 /*
  * nfs4_proc_async_renew(): This is not one of the nfs_rpc_ops; it is a special
  * standalone procedure for queueing an asynchronous RENEW.
  */
-static void nfs4_renew_release(void *data)
+static void nfs4_renew_release(void *calldata)
 {
-	struct nfs_client *clp = data;
+	struct nfs4_renewdata *data = calldata;
+	struct nfs_client *clp = data->client;
 
 	if (atomic_read(&clp->cl_count) > 1)
 		nfs4_schedule_state_renewal(clp);
 	nfs_put_client(clp);
+	kfree(data);
 }
 
-static void nfs4_renew_done(struct rpc_task *task, void *data)
+static void nfs4_renew_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_client *clp = data;
-	unsigned long timestamp = task->tk_start;
+	struct nfs4_renewdata *data = calldata;
+	struct nfs_client *clp = data->client;
+	unsigned long timestamp = data->timestamp;
 
 	if (task->tk_status < 0) {
 		/* Unless we're shutting down, schedule state recovery! */
@@ -3205,11 +3213,17 @@ int nfs4_proc_async_renew(struct nfs_client *clp, struct rpc_cred *cred)
 		.rpc_argp	= clp,
 		.rpc_cred	= cred,
 	};
+	struct nfs4_renewdata *data;
 
 	if (!atomic_inc_not_zero(&clp->cl_count))
 		return -EIO;
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+	data->client = clp;
+	data->timestamp = jiffies;
 	return rpc_call_async(clp->cl_rpcclient, &msg, RPC_TASK_SOFT,
-			&nfs4_renew_ops, clp);
+			&nfs4_renew_ops, data);
 }
 
 int nfs4_proc_renew(struct nfs_client *clp, struct rpc_cred *cred)
