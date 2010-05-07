@@ -141,13 +141,13 @@ void r100_pm_get_dynpm_state(struct radeon_device *rdev)
 	/* only one clock mode per power state */
 	rdev->pm.requested_clock_mode_index = 0;
 
-	DRM_INFO("Requested: e: %d m: %d p: %d\n",
-		 rdev->pm.power_state[rdev->pm.requested_power_state_index].
-		 clock_info[rdev->pm.requested_clock_mode_index].sclk,
-		 rdev->pm.power_state[rdev->pm.requested_power_state_index].
-		 clock_info[rdev->pm.requested_clock_mode_index].mclk,
-		 rdev->pm.power_state[rdev->pm.requested_power_state_index].
-		 pcie_lanes);
+	DRM_DEBUG("Requested: e: %d m: %d p: %d\n",
+		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
+		  clock_info[rdev->pm.requested_clock_mode_index].sclk,
+		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
+		  clock_info[rdev->pm.requested_clock_mode_index].mclk,
+		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
+		  pcie_lanes);
 }
 
 void r100_pm_init_profile(struct radeon_device *rdev)
@@ -266,7 +266,7 @@ void r100_pm_misc(struct radeon_device *rdev)
 	     rdev->pm.power_state[rdev->pm.current_power_state_index].pcie_lanes)) {
 		radeon_set_pcie_lanes(rdev,
 				      ps->pcie_lanes);
-		DRM_INFO("Setting: p: %d\n", ps->pcie_lanes);
+		DRM_DEBUG("Setting: p: %d\n", ps->pcie_lanes);
 	}
 }
 

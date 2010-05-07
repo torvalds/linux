@@ -135,7 +135,7 @@ void rs600_pm_misc(struct radeon_device *rdev)
 	     rdev->pm.power_state[rdev->pm.current_power_state_index].pcie_lanes)) {
 		radeon_set_pcie_lanes(rdev,
 				      ps->pcie_lanes);
-		DRM_INFO("Setting: p: %d\n", ps->pcie_lanes);
+		DRM_DEBUG("Setting: p: %d\n", ps->pcie_lanes);
 	}
 }
 

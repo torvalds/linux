@@ -52,9 +52,9 @@ static int radeon_acpi_event(struct notifier_block *nb,
 
 	if (strcmp(entry->device_class, ACPI_AC_CLASS) == 0) {
 		if (power_supply_is_system_supplied() > 0)
-			DRM_INFO("pm: AC\n");
+			DRM_DEBUG("pm: AC\n");
 		else
-			DRM_INFO("pm: DC\n");
+			DRM_DEBUG("pm: DC\n");
 
 		if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
 			if (rdev->pm.profile == PM_PROFILE_AUTO) {
@@ -183,7 +183,7 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 				radeon_set_engine_clock(rdev, sclk);
 				radeon_pm_debug_check_in_vbl(rdev, true);
 				rdev->pm.current_sclk = sclk;
-				DRM_INFO("Setting: e: %d\n", sclk);
+				DRM_DEBUG("Setting: e: %d\n", sclk);
 			}
 
 			/* set memory clock */
@@ -192,7 +192,7 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 				radeon_set_memory_clock(rdev, mclk);
 				radeon_pm_debug_check_in_vbl(rdev, true);
 				rdev->pm.current_mclk = mclk;
-				DRM_INFO("Setting: m: %d\n", mclk);
+				DRM_DEBUG("Setting: m: %d\n", mclk);
 			}
 			radeon_pm_finish(rdev);
 		} else {
@@ -203,7 +203,7 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 				radeon_set_engine_clock(rdev, sclk);
 				radeon_pm_finish(rdev);
 				rdev->pm.current_sclk = sclk;
-				DRM_INFO("Setting: e: %d\n", sclk);
+				DRM_DEBUG("Setting: e: %d\n", sclk);
 			}
 			/* set memory clock */
 			if (rdev->asic->set_memory_clock && (mclk != rdev->pm.current_mclk)) {
@@ -212,14 +212,14 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 				radeon_set_memory_clock(rdev, mclk);
 				radeon_pm_finish(rdev);
 				rdev->pm.current_mclk = mclk;
-				DRM_INFO("Setting: m: %d\n", mclk);
+				DRM_DEBUG("Setting: m: %d\n", mclk);
 			}
 		}
 
 		rdev->pm.current_power_state_index = rdev->pm.requested_power_state_index;
 		rdev->pm.current_clock_mode_index = rdev->pm.requested_clock_mode_index;
 	} else
-		DRM_INFO("pm: GUI not idle!!!\n");
+		DRM_DEBUG("pm: GUI not idle!!!\n");
 }
 
 static void radeon_pm_set_clocks(struct radeon_device *rdev)
@@ -624,7 +624,7 @@ static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish
 	bool in_vbl = radeon_pm_in_vbl(rdev);
 
 	if (in_vbl == false)
-		DRM_INFO("not in vbl for pm change %08x at %s\n", stat_crtc,
+		DRM_DEBUG("not in vbl for pm change %08x at %s\n", stat_crtc,
 			 finish ? "exit" : "entry");
 	return in_vbl;
 }

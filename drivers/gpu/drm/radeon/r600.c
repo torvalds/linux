@@ -251,13 +251,13 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 		}
 	}
 
-	DRM_INFO("Requested: e: %d m: %d p: %d\n",
-		 rdev->pm.power_state[rdev->pm.requested_power_state_index].
-		 clock_info[rdev->pm.requested_clock_mode_index].sclk,
-		 rdev->pm.power_state[rdev->pm.requested_power_state_index].
-		 clock_info[rdev->pm.requested_clock_mode_index].mclk,
-		 rdev->pm.power_state[rdev->pm.requested_power_state_index].
-		 pcie_lanes);
+	DRM_DEBUG("Requested: e: %d m: %d p: %d\n",
+		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
+		  clock_info[rdev->pm.requested_clock_mode_index].sclk,
+		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
+		  clock_info[rdev->pm.requested_clock_mode_index].mclk,
+		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
+		  pcie_lanes);
 }
 
 static int r600_pm_get_type_index(struct radeon_device *rdev,
