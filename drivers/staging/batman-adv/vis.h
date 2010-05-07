@@ -20,8 +20,6 @@
  */
 
 #define VIS_TIMEOUT		200000
-#define VIS_FORMAT_DD_NAME	"dot_draw"
-#define VIS_FORMAT_JSON_NAME	"json"
 
 struct vis_info {
 	unsigned long       first_seen;
