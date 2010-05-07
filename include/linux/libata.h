@@ -859,7 +859,7 @@ struct ata_port_operations {
 				 const struct ata_taskfile *tf);
 	unsigned int (*sff_data_xfer)(struct ata_device *dev,
 			unsigned char *buf, unsigned int buflen, int rw);
-	u8   (*sff_irq_on)(struct ata_port *);
+	void (*sff_irq_on)(struct ata_port *);
 	bool (*sff_irq_check)(struct ata_port *);
 	void (*sff_irq_clear)(struct ata_port *);
 
@@ -1599,7 +1599,7 @@ extern unsigned int ata_sff_data_xfer32(struct ata_device *dev,
 			unsigned char *buf, unsigned int buflen, int rw);
 extern unsigned int ata_sff_data_xfer_noirq(struct ata_device *dev,
 			unsigned char *buf, unsigned int buflen, int rw);
-extern u8 ata_sff_irq_on(struct ata_port *ap);
+extern void ata_sff_irq_on(struct ata_port *ap);
 extern void ata_sff_irq_clear(struct ata_port *ap);
 extern int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 			    u8 status, int in_wq);

@@ -489,9 +489,8 @@ static void octeon_cf_exec_command16(struct ata_port *ap,
 	ata_wait_idle(ap);
 }
 
-static u8 octeon_cf_irq_on(struct ata_port *ap)
+static void octeon_cf_irq_on(struct ata_port *ap)
 {
-	return 0;
 }
 
 static void octeon_cf_irq_clear(struct ata_port *ap)

@@ -1228,30 +1228,6 @@ static void bfin_irq_clear(struct ata_port *ap)
 }
 
 /**
- *	bfin_irq_on - Enable interrupts on a port.
- *	@ap: Port on which interrupts are enabled.
- *
- *	Note: Original code is ata_sff_irq_on().
- */
-
-static unsigned char bfin_irq_on(struct ata_port *ap)
-{
-	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
-	u8 tmp;
-
-	dev_dbg(ap->dev, "in atapi irq on\n");
-	ap->ctl &= ~ATA_NIEN;
-	ap->last_ctl = ap->ctl;
-
-	write_atapi_register(base, ATA_REG_CTRL, ap->ctl);
-	tmp = ata_wait_idle(ap);
-
-	bfin_irq_clear(ap);
-
-	return tmp;
-}
-
-/**
  *	bfin_thaw - Thaw DMA controller port
  *	@ap: port to thaw
  *
@@ -1262,7 +1238,7 @@ void bfin_thaw(struct ata_port *ap)
 {
 	dev_dbg(ap->dev, "in atapi dma thaw\n");
 	bfin_check_status(ap);
-	bfin_irq_on(ap);
+	ata_sff_irq_on(ap);
 }
 
 /**
@@ -1279,7 +1255,7 @@ static void bfin_postreset(struct ata_link *link, unsigned int *classes)
 	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
 
 	/* re-enable interrupts */
-	bfin_irq_on(ap);
+	ata_sff_irq_on(ap);
 
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)
@@ -1477,7 +1453,6 @@ static struct ata_port_operations bfin_pata_ops = {
 	.postreset		= bfin_postreset,
 
 	.sff_irq_clear		= bfin_irq_clear,
-	.sff_irq_on		= bfin_irq_on,
 
 	.port_start		= bfin_port_start,
 	.port_stop		= bfin_port_stop,

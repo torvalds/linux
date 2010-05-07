@@ -828,29 +828,6 @@ static unsigned int scc_data_xfer (struct ata_device *dev, unsigned char *buf,
 }
 
 /**
- *	scc_irq_on - Enable interrupts on a port.
- *	@ap: Port on which interrupts are enabled.
- *
- *	Note: Original code is ata_sff_irq_on().
- */
-
-static u8 scc_irq_on (struct ata_port *ap)
-{
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-	u8 tmp;
-
-	ap->ctl &= ~ATA_NIEN;
-	ap->last_ctl = ap->ctl;
-
-	out_be32(ioaddr->ctl_addr, ap->ctl);
-	tmp = ata_wait_idle(ap);
-
-	ap->ops->sff_irq_clear(ap);
-
-	return tmp;
-}
-
-/**
  *	scc_pata_prereset - prepare for reset
  *	@ap: ATA port to be reset
  *	@deadline: deadline jiffies for the operation
@@ -977,7 +954,6 @@ static struct ata_port_operations scc_pata_ops = {
 	.post_internal_cmd	= scc_bmdma_stop,
 
 	.sff_irq_clear		= scc_irq_clear,
-	.sff_irq_on		= scc_irq_on,
 
 	.port_start		= scc_port_start,
 	.port_stop		= scc_port_stop,

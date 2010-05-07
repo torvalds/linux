@@ -63,7 +63,6 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.sff_tf_read		= ata_sff_tf_read,
 	.sff_exec_command	= ata_sff_exec_command,
 	.sff_data_xfer		= ata_sff_data_xfer,
-	.sff_irq_on		= ata_sff_irq_on,
 	.sff_irq_clear		= ata_sff_irq_clear,
 
 	.lost_interrupt		= ata_sff_lost_interrupt,
@@ -538,24 +537,29 @@ void ata_dev_select(struct ata_port *ap, unsigned int device,
  *	Enable interrupts on a legacy IDE device using MMIO or PIO,
  *	wait for idle, clear any pending interrupts.
  *
+ *	Note: may NOT be used as the sff_irq_on() entry in
+ *	ata_port_operations.
+ *
  *	LOCKING:
  *	Inherited from caller.
  */
-u8 ata_sff_irq_on(struct ata_port *ap)
+void ata_sff_irq_on(struct ata_port *ap)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
-	u8 tmp;
+
+	if (ap->ops->sff_irq_on) {
+		ap->ops->sff_irq_on(ap);
+		return;
+	}
 
 	ap->ctl &= ~ATA_NIEN;
 	ap->last_ctl = ap->ctl;
 
-	if (ioaddr->ctl_addr)
-		iowrite8(ap->ctl, ioaddr->ctl_addr);
-	tmp = ata_wait_idle(ap);
+	if (ap->ops->sff_set_devctl || ioaddr->ctl_addr)
+		ata_sff_set_devctl(ap, ap->ctl);
+	ata_wait_idle(ap);
 
 	ap->ops->sff_irq_clear(ap);
-
-	return tmp;
 }
 EXPORT_SYMBOL_GPL(ata_sff_irq_on);
 
@@ -1186,7 +1190,7 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 			qc = ata_qc_from_tag(ap, qc->tag);
 			if (qc) {
 				if (likely(!(qc->err_mask & AC_ERR_HSM))) {
-					ap->ops->sff_irq_on(ap);
+					ata_sff_irq_on(ap);
 					ata_qc_complete(qc);
 				} else
 					ata_port_freeze(ap);
@@ -1202,7 +1206,7 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 	} else {
 		if (in_wq) {
 			spin_lock_irqsave(ap->lock, flags);
-			ap->ops->sff_irq_on(ap);
+			ata_sff_irq_on(ap);
 			ata_qc_complete(qc);
 			spin_unlock_irqrestore(ap->lock, flags);
 		} else
@@ -1946,7 +1950,7 @@ void ata_sff_thaw(struct ata_port *ap)
 	/* clear & re-enable interrupts */
 	ap->ops->sff_check_status(ap);
 	ap->ops->sff_irq_clear(ap);
-	ap->ops->sff_irq_on(ap);
+	ata_sff_irq_on(ap);
 }
 EXPORT_SYMBOL_GPL(ata_sff_thaw);
 
