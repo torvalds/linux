@@ -341,10 +341,15 @@ xfs_buf_item_format(
 }
 
 /*
- * This is called to pin the buffer associated with the buf log
- * item in memory so it cannot be written out.  Simply call bpin()
- * on the buffer to do this.
+ * This is called to pin the buffer associated with the buf log item in memory
+ * so it cannot be written out.  Simply call bpin() on the buffer to do this.
+ *
+ * We also always take a reference to the buffer log item here so that the bli
+ * is held while the item is pinned in memory. This means that we can
+ * unconditionally drop the reference count a transaction holds when the
+ * transaction is completed.
  */
+
 STATIC void
 xfs_buf_item_pin(
 	xfs_buf_log_item_t	*bip)
@@ -356,6 +361,7 @@ xfs_buf_item_pin(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	ASSERT((bip->bli_flags & XFS_BLI_LOGGED) ||
 	       (bip->bli_flags & XFS_BLI_STALE));
+	atomic_inc(&bip->bli_refcount);
 	trace_xfs_buf_item_pin(bip);
 	xfs_bpin(bp);
 }
@@ -489,20 +495,23 @@ xfs_buf_item_trylock(
 }
 
 /*
- * Release the buffer associated with the buf log item.
- * If there is no dirty logged data associated with the
- * buffer recorded in the buf log item, then free the
- * buf log item and remove the reference to it in the
- * buffer.
+ * Release the buffer associated with the buf log item.  If there is no dirty
+ * logged data associated with the buffer recorded in the buf log item, then
+ * free the buf log item and remove the reference to it in the buffer.
  *
- * This call ignores the recursion count.  It is only called
- * when the buffer should REALLY be unlocked, regardless
- * of the recursion count.
+ * This call ignores the recursion count.  It is only called when the buffer
+ * should REALLY be unlocked, regardless of the recursion count.
  *
- * If the XFS_BLI_HOLD flag is set in the buf log item, then
- * free the log item if necessary but do not unlock the buffer.
- * This is for support of xfs_trans_bhold(). Make sure the
- * XFS_BLI_HOLD field is cleared if we don't free the item.
+ * We unconditionally drop the transaction's reference to the log item. If the
+ * item was logged, then another reference was taken when it was pinned, so we
+ * can safely drop the transaction reference now.  This also allows us to avoid
+ * potential races with the unpin code freeing the bli by not referencing the
+ * bli after we've dropped the reference count.
+ *
+ * If the XFS_BLI_HOLD flag is set in the buf log item, then free the log item
+ * if necessary but do not unlock the buffer.  This is for support of
+ * xfs_trans_bhold(). Make sure the XFS_BLI_HOLD field is cleared if we don't
+ * free the item.
  */
 STATIC void
 xfs_buf_item_unlock(
@@ -514,73 +523,54 @@ xfs_buf_item_unlock(
 
 	bp = bip->bli_buf;
 
-	/*
-	 * Clear the buffer's association with this transaction.
-	 */
+	/* Clear the buffer's association with this transaction. */
 	XFS_BUF_SET_FSPRIVATE2(bp, NULL);
 
 	/*
-	 * If this is a transaction abort, don't return early.
-	 * Instead, allow the brelse to happen.
-	 * Normally it would be done for stale (cancelled) buffers
-	 * at unpin time, but we'll never go through the pin/unpin
-	 * cycle if we abort inside commit.
+	 * If this is a transaction abort, don't return early.  Instead, allow
+	 * the brelse to happen.  Normally it would be done for stale
+	 * (cancelled) buffers at unpin time, but we'll never go through the
+	 * pin/unpin cycle if we abort inside commit.
 	 */
 	aborted = (bip->bli_item.li_flags & XFS_LI_ABORTED) != 0;
-
-	/*
-	 * If the buf item is marked stale, then don't do anything.
-	 * We'll unlock the buffer and free the buf item when the
-	 * buffer is unpinned for the last time.
-	 */
-	if (bip->bli_flags & XFS_BLI_STALE) {
-		bip->bli_flags &= ~XFS_BLI_LOGGED;
-		trace_xfs_buf_item_unlock_stale(bip);
-		ASSERT(bip->bli_format.blf_flags & XFS_BLI_CANCEL);
-		if (!aborted)
-			return;
-	}
-
-	/*
-	 * Drop the transaction's reference to the log item if
-	 * it was not logged as part of the transaction.  Otherwise
-	 * we'll drop the reference in xfs_buf_item_unpin() when
-	 * the transaction is really through with the buffer.
-	 */
-	if (!(bip->bli_flags & XFS_BLI_LOGGED)) {
-		atomic_dec(&bip->bli_refcount);
-	} else {
-		/*
-		 * Clear the logged flag since this is per
-		 * transaction state.
-		 */
-		bip->bli_flags &= ~XFS_BLI_LOGGED;
-	}
 
 	/*
 	 * Before possibly freeing the buf item, determine if we should
 	 * release the buffer at the end of this routine.
 	 */
 	hold = bip->bli_flags & XFS_BLI_HOLD;
+
+	/* Clear the per transaction state. */
+	bip->bli_flags &= ~(XFS_BLI_LOGGED | XFS_BLI_HOLD);
+
+	/*
+	 * If the buf item is marked stale, then don't do anything.  We'll
+	 * unlock the buffer and free the buf item when the buffer is unpinned
+	 * for the last time.
+	 */
+	if (bip->bli_flags & XFS_BLI_STALE) {
+		trace_xfs_buf_item_unlock_stale(bip);
+		ASSERT(bip->bli_format.blf_flags & XFS_BLI_CANCEL);
+		if (!aborted) {
+			atomic_dec(&bip->bli_refcount);
+			return;
+		}
+	}
+
 	trace_xfs_buf_item_unlock(bip);
 
 	/*
-	 * If the buf item isn't tracking any data, free it.
-	 * Otherwise, if XFS_BLI_HOLD is set clear it.
+	 * If the buf item isn't tracking any data, free it, otherwise drop the
+	 * reference we hold to it.
 	 */
 	if (xfs_bitmap_empty(bip->bli_format.blf_data_map,
-			     bip->bli_format.blf_map_size)) {
+			     bip->bli_format.blf_map_size))
 		xfs_buf_item_relse(bp);
-	} else if (hold) {
-		bip->bli_flags &= ~XFS_BLI_HOLD;
-	}
+	else
+		atomic_dec(&bip->bli_refcount);
 
-	/*
-	 * Release the buffer if XFS_BLI_HOLD was not set.
-	 */
-	if (!hold) {
+	if (!hold)
 		xfs_buf_relse(bp);
-	}
 }
 
 /*
