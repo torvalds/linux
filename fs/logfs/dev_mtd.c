@@ -250,5 +250,7 @@ int logfs_get_sb_mtd(struct file_system_type *type, int flags,
 	const struct logfs_device_ops *devops = &mtd_devops;
 
 	mtd = get_mtd_device(NULL, mtdnr);
+	if (IS_ERR(mtd))
+		return PTR_ERR(mtd);
 	return logfs_get_sb_device(type, flags, mtd, NULL, devops, mnt);
 }
