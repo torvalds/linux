@@ -505,6 +505,14 @@ void get_symbol_str(struct gstr *r, struct symbol *sym)
 		str_printf(r, "Symbol: %s [=%s]\n", sym->name,
 			   sym_get_string_value(sym));
 		str_printf(r, "Type  : %s\n", sym_type_name(sym->type));
+		if (sym->type == S_INT || sym->type == S_HEX) {
+			prop = sym_get_range_prop(sym);
+			if (prop) {
+				str_printf(r, "Range : ");
+				expr_gstr_print(prop->expr, r);
+				str_append(r, "\n");
+			}
+		}
 	}
 	for_all_prompts(sym, prop)
 		get_prompt_str(r, prop);

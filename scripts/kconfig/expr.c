@@ -1121,7 +1121,7 @@ static void expr_print_gstr_helper(void *data, struct symbol *sym, const char *s
 	}
 
 	str_append(gs, str);
-	if (sym)
+	if (sym && sym->type != S_UNKNOWN)
 		str_printf(gs, " [=%s]", sym_str);
 }
 
