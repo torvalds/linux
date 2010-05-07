@@ -1573,11 +1573,16 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "ISI PCI Card(Device ID 0x%x)\n", ent->device);
 
 	/* allot the first empty slot in the array */
-	for (index = 0; index < BOARD_COUNT; index++)
+	for (index = 0; index < BOARD_COUNT; index++) {
 		if (isi_card[index].base == 0) {
 			board = &isi_card[index];
 			break;
 		}
+	}
+	if (index == BOARD_COUNT) {
+		retval = -ENODEV;
+		goto err_disable;
+	}
 
 	board->index = index;
 	board->base = pci_resource_start(pdev, 3);
@@ -1624,6 +1629,7 @@ errunrr:
 errdec:
 	board->base = 0;
 	card_count--;
+err_disable:
 	pci_disable_device(pdev);
 err:
 	return retval;
