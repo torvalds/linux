@@ -341,6 +341,7 @@ int snd_soc_dapm_get_pin_status(struct snd_soc_codec *codec, const char *pin);
 int snd_soc_dapm_sync(struct snd_soc_codec *codec);
 int snd_soc_dapm_force_enable_pin(struct snd_soc_codec *codec,
 				  const char *pin);
+int snd_soc_dapm_ignore_suspend(struct snd_soc_codec *codec, const char *pin);
 
 /* dapm widget types */
 enum snd_soc_dapm_type {
@@ -428,6 +429,7 @@ struct snd_soc_dapm_widget {
 	unsigned char new:1;			/* cnew complete */
 	unsigned char ext:1;			/* has external widgets */
 	unsigned char force:1;			/* force state */
+	unsigned char ignore_suspend:1;         /* kept enabled over suspend */
 
 	int (*power_check)(struct snd_soc_dapm_widget *w);
 

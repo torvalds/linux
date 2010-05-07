@@ -441,7 +441,9 @@ static int snd_soc_dapm_suspend_check(struct snd_soc_dapm_widget *widget)
 	switch (snd_power_get_state(codec->card)) {
 	case SNDRV_CTL_POWER_D3hot:
 	case SNDRV_CTL_POWER_D3cold:
-		return 0;
+		if (widget->ignore_suspend)
+			pr_debug("%s ignoring suspend\n", widget->name);
+		return widget->ignore_suspend;
 	default:
 		return 1;
 	}
@@ -2135,6 +2137,33 @@ int snd_soc_dapm_get_pin_status(struct snd_soc_codec *codec, const char *pin)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_get_pin_status);
+
+/**
+ * snd_soc_dapm_ignore_suspend - ignore suspend status for DAPM endpoint
+ * @codec: audio codec
+ * @pin: audio signal pin endpoint (or start point)
+ *
+ * Mark the given endpoint or pin as ignoring suspend.  When the
+ * system is disabled a path between two endpoints flagged as ignoring
+ * suspend will not be disabled.  The path must already be enabled via
+ * normal means at suspend time, it will not be turned on if it was not
+ * already enabled.
+ */
+int snd_soc_dapm_ignore_suspend(struct snd_soc_codec *codec, const char *pin)
+{
+	struct snd_soc_dapm_widget *w;
+
+	list_for_each_entry(w, &codec->dapm_widgets, list) {
+		if (!strcmp(w->name, pin)) {
+			w->ignore_suspend = 1;
+			return 0;
+		}
+	}
+
+	pr_err("Unknown DAPM pin: %s\n", pin);
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_ignore_suspend);
 
 /**
  * snd_soc_dapm_free - free dapm resources
