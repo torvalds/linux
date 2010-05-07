@@ -801,7 +801,7 @@ static int ehci_hub_control (
 			 * this bit; seems too long to spin routinely...
 			 */
 			retval = handshake(ehci, status_reg,
-					PORT_RESET, 0, 750);
+					PORT_RESET, 0, 1000);
 			if (retval != 0) {
 				ehci_err (ehci, "port %d reset error %d\n",
 					wIndex + 1, retval);

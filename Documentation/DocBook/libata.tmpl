@@ -107,10 +107,6 @@ void (*dev_config) (struct ata_port *, struct ata_device *);
 	issue of SET FEATURES - XFER MODE, and prior to operation.
 	</para>
 	<para>
-	Called by ata_device_add() after ata_dev_identify() determines
-	a device is present.
-	</para>
-	<para>
 	This entry may be specified as NULL in ata_port_operations.
 	</para>
 
@@ -154,8 +150,8 @@ unsigned int (*mode_filter) (struct ata_port *, struct ata_device *, unsigned in
 
 	<sect2><title>Taskfile read/write</title>
 	<programlisting>
-void (*tf_load) (struct ata_port *ap, struct ata_taskfile *tf);
-void (*tf_read) (struct ata_port *ap, struct ata_taskfile *tf);
+void (*sff_tf_load) (struct ata_port *ap, struct ata_taskfile *tf);
+void (*sff_tf_read) (struct ata_port *ap, struct ata_taskfile *tf);
 	</programlisting>
 
 	<para>
@@ -164,36 +160,35 @@ void (*tf_read) (struct ata_port *ap, struct ata_taskfile *tf);
 	hardware registers / DMA buffers, to obtain the current set of
 	taskfile register values.
 	Most drivers for taskfile-based hardware (PIO or MMIO) use
-	ata_tf_load() and ata_tf_read() for these hooks.
+	ata_sff_tf_load() and ata_sff_tf_read() for these hooks.
 	</para>
 
 	</sect2>
 
 	<sect2><title>PIO data read/write</title>
 	<programlisting>
-void (*data_xfer) (struct ata_device *, unsigned char *, unsigned int, int);
+void (*sff_data_xfer) (struct ata_device *, unsigned char *, unsigned int, int);
 	</programlisting>
 
 	<para>
 All bmdma-style drivers must implement this hook.  This is the low-level
 operation that actually copies the data bytes during a PIO data
 transfer.
-Typically the driver
-will choose one of ata_pio_data_xfer_noirq(), ata_pio_data_xfer(), or
-ata_mmio_data_xfer().
+Typically the driver will choose one of ata_sff_data_xfer_noirq(),
+ata_sff_data_xfer(), or ata_sff_data_xfer32().
 	</para>
 
 	</sect2>
 
 	<sect2><title>ATA command execute</title>
 	<programlisting>
-void (*exec_command)(struct ata_port *ap, struct ata_taskfile *tf);
+void (*sff_exec_command)(struct ata_port *ap, struct ata_taskfile *tf);
 	</programlisting>
 
 	<para>
 	causes an ATA command, previously loaded with
 	->tf_load(), to be initiated in hardware.
-	Most drivers for taskfile-based hardware use ata_exec_command()
+	Most drivers for taskfile-based hardware use ata_sff_exec_command()
 	for this hook.
 	</para>
 
@@ -218,8 +213,8 @@ command.
 
 	<sect2><title>Read specific ATA shadow registers</title>
 	<programlisting>
-u8   (*check_status)(struct ata_port *ap);
-u8   (*check_altstatus)(struct ata_port *ap);
+u8   (*sff_check_status)(struct ata_port *ap);
+u8   (*sff_check_altstatus)(struct ata_port *ap);
 	</programlisting>
 
 	<para>
@@ -227,20 +222,14 @@ u8   (*check_altstatus)(struct ata_port *ap);
 	hardware.  On some hardware, reading the Status register has
 	the side effect of clearing the interrupt condition.
 	Most drivers for taskfile-based hardware use
-	ata_check_status() for this hook.
-	</para>
-	<para>
-	Note that because this is called from ata_device_add(), at
-	least a dummy function that clears device interrupts must be
-	provided for all drivers, even if the controller doesn't
-	actually have a taskfile status register.
+	ata_sff_check_status() for this hook.
 	</para>
 
 	</sect2>
 
 	<sect2><title>Select ATA device on bus</title>
 	<programlisting>
-void (*dev_select)(struct ata_port *ap, unsigned int device);
+void (*sff_dev_select)(struct ata_port *ap, unsigned int device);
 	</programlisting>
 
 	<para>
@@ -251,9 +240,7 @@ void (*dev_select)(struct ata_port *ap, unsigned int device);
 	</para>
 	<para>
 	Most drivers for taskfile-based hardware use
-	ata_std_dev_select() for this hook.  Controllers which do not
-	support second drives on a port (such as SATA contollers) will
-	use ata_noop_dev_select().
+	ata_sff_dev_select() for this hook.
 	</para>
 
 	</sect2>
@@ -441,13 +428,13 @@ void (*irq_clear) (struct ata_port *);
 	to struct ata_host_set.
 	</para>
 	<para>
-	Most legacy IDE drivers use ata_interrupt() for the
+	Most legacy IDE drivers use ata_sff_interrupt() for the
 	irq_handler hook, which scans all ports in the host_set,
 	determines which queued command was active (if any), and calls
-	ata_host_intr(ap,qc).
+	ata_sff_host_intr(ap,qc).
 	</para>
 	<para>
-	Most legacy IDE drivers use ata_bmdma_irq_clear() for the
+	Most legacy IDE drivers use ata_sff_irq_clear() for the
 	irq_clear() hook, which simply clears the interrupt and error
 	flags in the DMA status register.
 	</para>
@@ -494,10 +481,6 @@ void (*host_stop) (struct ata_host_set *host_set);
 	is to release DMA/memory resources, now that they are no longer
 	actively being used.  Many drivers also free driver-private
 	data from port at this time.
-	</para>
-	<para>
-	Many drivers use ata_port_stop() as this hook, which frees the
-	PRD table.
 	</para>
 	<para>
 	->host_stop() is called after all ->port_stop() calls

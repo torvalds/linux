@@ -324,13 +324,12 @@ void r300_gpu_init(struct radeon_device *rdev)
 	uint32_t gb_tile_config, tmp;
 
 	r100_hdp_reset(rdev);
-	/* FIXME: rv380 one pipes ? */
 	if ((rdev->family == CHIP_R300 && rdev->pdev->device != 0x4144) ||
-	    (rdev->family == CHIP_R350)) {
+	    (rdev->family == CHIP_R350 && rdev->pdev->device != 0x4148)) {
 		/* r300,r350 */
 		rdev->num_gb_pipes = 2;
 	} else {
-		/* rv350,rv370,rv380,r300 AD */
+		/* rv350,rv370,rv380,r300 AD, r350 AH */
 		rdev->num_gb_pipes = 1;
 	}
 	rdev->num_z_pipes = 1;
@@ -1045,7 +1044,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4d1c:
 		/* ZB_BW_CNTL */
-		track->fastfill = !!(idx_value & (1 << 2));
+		track->zb_cb_clear = !!(idx_value & (1 << 5));
 		break;
 	case 0x4e04:
 		/* RB3D_BLENDCNTL */

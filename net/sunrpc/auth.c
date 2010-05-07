@@ -237,7 +237,7 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 	list_for_each_entry_safe(cred, next, &cred_unused, cr_lru) {
 
 		/* Enforce a 60 second garbage collection moratorium */
-		if (time_in_range_open(cred->cr_expire, expired, jiffies) &&
+		if (time_in_range(cred->cr_expire, expired, jiffies) &&
 		    test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0)
 			continue;
 

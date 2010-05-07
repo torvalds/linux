@@ -653,6 +653,7 @@ static void __init early_cmdline_parse(void)
 #else
 #define OV5_CMO			0x00
 #endif
+#define OV5_TYPE1_AFFINITY	0x80	/* Type 1 NUMA affinity */
 
 /* Option Vector 6: IBM PAPR hints */
 #define OV6_LINUX		0x02	/* Linux is our OS */
@@ -706,7 +707,7 @@ static unsigned char ibm_architecture_vec[] = {
 	OV5_DONATE_DEDICATE_CPU | OV5_MSI,
 	0,
 	OV5_CMO,
-	0,
+	OV5_TYPE1_AFFINITY,
 	0,
 	0,
 	0,
