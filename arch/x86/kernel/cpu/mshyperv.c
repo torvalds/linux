@@ -12,45 +12,42 @@
 
 #include <linux/types.h>
 #include <asm/processor.h>
+#include <asm/hypervisor.h>
 #include <asm/hyperv.h>
 #include <asm/mshyperv.h>
 
+struct ms_hyperv_info ms_hyperv;
 
-int ms_hyperv_platform(void)
+static bool __init ms_hyperv_platform(void)
 {
-	u32 eax, ebx, ecx, edx;
-	char hyp_signature[13];
+	u32 eax;
+	u32 hyp_signature[3];
 
-	cpuid(1, &eax, &ebx, &ecx, &edx);
-	if (!(ecx & HYPERV_HYPERVISOR_PRESENT_BIT))
-		return 0;
+	if (!boot_cpu_has(X86_FEATURE_HYPERVISOR))
+		return false;
 
-	cpuid(HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS, &eax, &ebx, &ecx, &edx);
-	*(u32 *)(hyp_signature + 0) = ebx;
-	*(u32 *)(hyp_signature + 4) = ecx;
-	*(u32 *)(hyp_signature + 8) = edx;
+	cpuid(HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS,
+	      &eax, &hyp_signature[0], &hyp_signature[1], &hyp_signature[2]);
 
-	if ((eax < HYPERV_CPUID_MIN) || (memcmp("Microsoft Hv", hyp_signature, 12)))
-		return 0;
-	return 1;
+	return eax >= HYPERV_CPUID_MIN &&
+		eax <= HYPERV_CPUID_MAX &&
+		!memcmp("Microsoft Hv", hyp_signature, 12);
 }
 
-void __cpuinit ms_hyperv_set_feature_bits(struct cpuinfo_x86 *c)
+static void __init ms_hyperv_init_platform(void)
 {
-	u32 eax, ebx, ecx, edx;
-
-	c->x86_hyper_features = 0;
 	/*
-	 * Extract the features, recommendations etc.
-	 * The first 9 bits will be used to track hypervisor features.
-	 * The next 6 bits will be used to track the hypervisor
-	 * recommendations.
+	 * Extract the features and hints
 	 */
-	cpuid(HYPERV_CPUID_FEATURES, &eax, &ebx, &ecx, &edx);
-	c->x86_hyper_features |= (eax & 0x1ff);
+	ms_hyperv.features = cpuid_eax(HYPERV_CPUID_FEATURES);
+	ms_hyperv.hints    = cpuid_eax(HYPERV_CPUID_ENLIGHTMENT_INFO);
 
-	cpuid(HYPERV_CPUID_ENLIGHTMENT_INFO, &eax, &ebx, &ecx, &edx);
-	c->x86_hyper_features |= ((eax & 0x3f) << 9);
-	printk(KERN_INFO "Detected HyperV with features: %x\n",
-		c->x86_hyper_features);
+	printk(KERN_INFO "HyperV: features 0x%x, hints 0x%x\n",
+	       ms_hyperv.features, ms_hyperv.hints);
 }
+
+const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
+	.name			= "Microsoft HyperV",
+	.detect			= ms_hyperv_platform,
+	.init_platform		= ms_hyperv_init_platform,
+};

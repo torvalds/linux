@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_KVM_HYPERV_H
-#define _ASM_X86_KVM_HYPERV_H
+#ifndef _ASM_X86_HYPERV_H
+#define _ASM_X86_HYPERV_H
 
 #include <linux/types.h>
 
@@ -16,6 +16,7 @@
 
 #define HYPERV_HYPERVISOR_PRESENT_BIT		0x80000000
 #define HYPERV_CPUID_MIN			0x40000005
+#define HYPERV_CPUID_MAX			0x4000ffff
 
 /*
  * Feature identification. EAX indicates which features are available
