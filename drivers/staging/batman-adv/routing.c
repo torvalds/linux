@@ -614,6 +614,7 @@ int recv_bat_packet(struct sk_buff *skb,
 		skb = skb_copy(skb, GFP_ATOMIC);
 		if (!skb)
 			return NET_RX_DROP;
+		ethhdr = (struct ethhdr *)skb_mac_header(skb);
 		kfree_skb(skb_old);
 	}
 
@@ -639,8 +640,8 @@ static int recv_my_icmp_packet(struct sk_buff *skb)
 	unsigned long flags;
 	uint8_t dstaddr[ETH_ALEN];
 
-	icmp_packet = (struct icmp_packet *) skb->data;
-	ethhdr = (struct ethhdr *) skb_mac_header(skb);
+	icmp_packet = (struct icmp_packet *)skb->data;
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* add data to device queue */
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
@@ -671,7 +672,9 @@ static int recv_my_icmp_packet(struct sk_buff *skb)
 			skb = skb_copy(skb, GFP_ATOMIC);
 			if (!skb)
 				return NET_RX_DROP;
-			icmp_packet = (struct icmp_packet *) skb->data;
+
+			icmp_packet = (struct icmp_packet *)skb->data;
+			ethhdr = (struct ethhdr *)skb_mac_header(skb);
 			kfree_skb(skb_old);
 		}
 
@@ -732,6 +735,7 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb)
 			if (!skb)
 				return NET_RX_DROP;
 			icmp_packet = (struct icmp_packet *) skb->data;
+			ethhdr = (struct ethhdr *)skb_mac_header(skb);
 			kfree_skb(skb_old);
 		}
 
@@ -780,7 +784,7 @@ int recv_icmp_packet(struct sk_buff *skb)
 	if (!is_my_mac(ethhdr->h_dest))
 		return NET_RX_DROP;
 
-	icmp_packet = (struct icmp_packet *) skb->data;
+	icmp_packet = (struct icmp_packet *)skb->data;
 
 	/* packet for me */
 	if (is_my_mac(icmp_packet->dst))
@@ -812,7 +816,8 @@ int recv_icmp_packet(struct sk_buff *skb)
 			skb = skb_copy(skb, GFP_ATOMIC);
 			if (!skb)
 				return NET_RX_DROP;
-			icmp_packet = (struct icmp_packet *) skb->data;
+			icmp_packet = (struct icmp_packet *)skb->data;
+			ethhdr = (struct ethhdr *)skb_mac_header(skb);
 			kfree_skb(skb_old);
 		}
 
@@ -895,7 +900,8 @@ int recv_unicast_packet(struct sk_buff *skb)
 			skb = skb_copy(skb, GFP_ATOMIC);
 			if (!skb)
 				return NET_RX_DROP;
-			unicast_packet = (struct unicast_packet *) skb->data;
+			unicast_packet = (struct unicast_packet *)skb->data;
+			ethhdr = (struct ethhdr *)skb_mac_header(skb);
 			kfree_skb(skb_old);
 		}
 		/* decrement ttl */
