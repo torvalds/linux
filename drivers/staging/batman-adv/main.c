@@ -21,6 +21,7 @@
 
 #include "main.h"
 #include "proc.h"
+#include "bat_sysfs.h"
 #include "routing.h"
 #include "send.h"
 #include "originator.h"
@@ -44,7 +45,6 @@ DEFINE_SPINLOCK(forw_bcast_list_lock);
 atomic_t originator_interval;
 atomic_t vis_interval;
 atomic_t vis_mode;
-atomic_t aggregation_enabled;
 int16_t num_hna;
 int16_t num_ifs;
 
@@ -85,7 +85,6 @@ int init_module(void)
 	atomic_set(&vis_interval, 1000);/* TODO: raise this later, this is only
 					 * for debugging now. */
 	atomic_set(&vis_mode, VIS_TYPE_CLIENT_UPDATE);
-	atomic_set(&aggregation_enabled, 1);
 
 	/* the name should not be longer than 10 chars - see
 	 * http://lwn.net/Articles/23634/ */
@@ -116,6 +115,11 @@ int init_module(void)
 		goto free_soft_device;
 	}
 
+	retval = sysfs_add_meshif(soft_device);
+
+	if (retval < 0)
+		goto unreg_soft_device;
+
 	register_netdevice_notifier(&hard_if_notifier);
 	dev_add_pack(&batman_adv_packet_type);
 
@@ -124,6 +128,8 @@ int init_module(void)
 
 	return 0;
 
+unreg_soft_device:
+	unregister_netdevice(soft_device);
 free_soft_device:
 	free_netdev(soft_device);
 	soft_device = NULL;
@@ -136,6 +142,7 @@ void cleanup_module(void)
 	shutdown_module();
 
 	if (soft_device) {
+		sysfs_del_meshif(soft_device);
 		unregister_netdev(soft_device);
 		soft_device = NULL;
 	}

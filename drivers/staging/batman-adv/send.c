@@ -44,7 +44,7 @@ static unsigned long own_send_time(void)
 }
 
 /* when do we schedule a forwarded packet to be sent */
-static unsigned long forward_send_time(void)
+static unsigned long forward_send_time(struct bat_priv *bat_priv)
 {
 	return jiffies + (((random32() % (JITTER/2)) * HZ) / 1000);
 }
@@ -239,6 +239,8 @@ static void rebuild_batman_packet(struct batman_if *batman_if)
 
 void schedule_own_packet(struct batman_if *batman_if)
 {
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	unsigned long send_time;
 	struct batman_packet *batman_packet;
 	int vis_server = atomic_read(&vis_mode);
@@ -277,7 +279,9 @@ void schedule_own_packet(struct batman_if *batman_if)
 	slide_own_bcast_window(batman_if);
 	send_time = own_send_time();
 	add_bat_packet_to_list(batman_if->packet_buff,
-			       batman_if->packet_len, batman_if, 1, send_time);
+			       batman_if->packet_len,
+			       batman_if, 1, send_time,
+			       bat_priv);
 }
 
 void schedule_forward_packet(struct orig_node *orig_node,
@@ -286,6 +290,8 @@ void schedule_forward_packet(struct orig_node *orig_node,
 			     uint8_t directlink, int hna_buff_len,
 			     struct batman_if *if_incoming)
 {
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	unsigned char in_tq, in_ttl, tq_avg = 0;
 	unsigned long send_time;
 
@@ -329,10 +335,11 @@ void schedule_forward_packet(struct orig_node *orig_node,
 	else
 		batman_packet->flags &= ~DIRECTLINK;
 
-	send_time = forward_send_time();
+	send_time = forward_send_time(bat_priv);
 	add_bat_packet_to_list((unsigned char *)batman_packet,
 			       sizeof(struct batman_packet) + hna_buff_len,
-			       if_incoming, 0, send_time);
+			       if_incoming, 0, send_time,
+			       bat_priv);
 }
 
 static void forw_packet_free(struct forw_packet *forw_packet)

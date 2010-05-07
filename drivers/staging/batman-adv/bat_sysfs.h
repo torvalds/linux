@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2010 B.A.T.M.A.N. contributors:
  *
- * Marek Lindner, Simon Wunderlich
+ * Marek Lindner
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -19,18 +19,8 @@
  *
  */
 
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 
-#define PROC_ROOT_DIR "batman-adv"
-#define PROC_FILE_INTERFACES "interfaces"
-#define PROC_FILE_ORIG_INTERVAL "orig_interval"
-#define PROC_FILE_GATEWAYS "gateways"
-#define PROC_FILE_LOG "log"
-#define PROC_FILE_LOG_LEVEL "log_level"
-#define PROC_FILE_VIS_SRV "vis_server"
-#define PROC_FILE_VIS_DATA "vis_data"
+#define SYSFS_IF_MESH_SUBDIR "mesh"
 
-void cleanup_procfs(void);
-int setup_procfs(void);
-
+int sysfs_add_meshif(struct net_device *dev);
+void sysfs_del_meshif(struct net_device *dev);

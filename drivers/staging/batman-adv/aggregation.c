@@ -167,7 +167,8 @@ static void aggregate(struct forw_packet *forw_packet_aggr,
 
 void add_bat_packet_to_list(unsigned char *packet_buff, int packet_len,
 			    struct batman_if *if_incoming, char own_packet,
-			    unsigned long send_time)
+			    unsigned long send_time,
+			    struct bat_priv *bat_priv)
 {
 	/**
 	 * _aggr -> pointer to the packet we want to aggregate with
@@ -183,7 +184,7 @@ void add_bat_packet_to_list(unsigned char *packet_buff, int packet_len,
 	/* find position for the packet in the forward queue */
 	spin_lock_irqsave(&forw_bat_list_lock, flags);
 	/* own packets are not to be aggregated */
-	if ((atomic_read(&aggregation_enabled)) && (!own_packet)) {
+	if ((atomic_read(&bat_priv->aggregation_enabled)) && (!own_packet)) {
 		hlist_for_each_entry(forw_packet_pos, tmp_node, &forw_bat_list,
 				     list) {
 			if (can_aggregate_with(batman_packet,
@@ -210,7 +211,7 @@ void add_bat_packet_to_list(unsigned char *packet_buff, int packet_len,
 		 * later on
 		 */
 		if ((!own_packet) &&
-		    (atomic_read(&aggregation_enabled)))
+		    (atomic_read(&bat_priv->aggregation_enabled)))
 			send_time += msecs_to_jiffies(MAX_AGGREGATION_MS);
 
 		new_aggregated_packet(packet_buff, packet_len,

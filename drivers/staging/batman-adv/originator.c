@@ -249,4 +249,77 @@ void purge_orig(struct work_struct *work)
 	start_purge_timer();
 }
 
+ssize_t orig_fill_buffer_text(char *buff, size_t count, loff_t off)
+{
+	HASHIT(hashit);
+	struct orig_node *orig_node;
+	struct neigh_node *neigh_node;
+	size_t hdr_len, tmp_len;
+	int batman_count = 0, bytes_written = 0;
+	unsigned long flags;
+	char orig_str[ETH_STR_LEN], router_str[ETH_STR_LEN];
+
+	rcu_read_lock();
+	hdr_len = sprintf(buff,
+		   "  %-14s (%s/%i) %17s [%10s]: %20s ... [B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%s] \n",
+		   "Originator", "#", TQ_MAX_VALUE, "Nexthop", "outgoingIF",
+		   "Potential nexthops", SOURCE_VERSION, REVISION_VERSION_STR,
+		   ((struct batman_if *)if_list.next)->dev,
+		   ((struct batman_if *)if_list.next)->addr_str);
+	rcu_read_unlock();
+
+	if (off < hdr_len)
+		bytes_written = hdr_len;
+
+	spin_lock_irqsave(&orig_hash_lock, flags);
+
+	while (hash_iterate(orig_hash, &hashit)) {
+
+		orig_node = hashit.bucket->data;
+
+		if (!orig_node->router)
+			continue;
+
+		if (orig_node->router->tq_avg == 0)
+			continue;
+
+		/* estimated line length */
+		if (count < bytes_written + 200)
+			break;
+
+		addr_to_string(orig_str, orig_node->orig);
+		addr_to_string(router_str, orig_node->router->addr);
+
+		tmp_len = sprintf(buff + bytes_written,
+				  "%-17s  (%3i) %17s [%10s]:",
+				   orig_str, orig_node->router->tq_avg,
+				   router_str,
+				   orig_node->router->if_incoming->dev);
+
+		list_for_each_entry(neigh_node, &orig_node->neigh_list, list) {
+			addr_to_string(orig_str, neigh_node->addr);
+			tmp_len += sprintf(buff + bytes_written + tmp_len,
+					   " %17s (%3i)", orig_str,
+					   neigh_node->tq_avg);
+		}
+
+		tmp_len += sprintf(buff + bytes_written + tmp_len, "\n");
+
+		batman_count++;
+		hdr_len += tmp_len;
+
+		if (off >= hdr_len)
+			continue;
+
+		bytes_written += tmp_len;
+	}
+
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
+
+	if ((batman_count == 0) && (off == 0))
+		bytes_written += sprintf(buff + bytes_written,
+					"No batman nodes in range ... \n");
+
+	return bytes_written;
+}
 
