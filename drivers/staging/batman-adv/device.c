@@ -44,10 +44,7 @@ static struct device_client *device_client_hash[256];
 
 void bat_device_init(void)
 {
-	int i;
-
-	for (i = 0; i < 256; i++)
-		device_client_hash[i] = NULL;
+	memset(device_client_hash, 0, sizeof(device_client_hash));
 }
 
 int bat_device_setup(void)
@@ -103,15 +100,15 @@ int bat_device_open(struct inode *inode, struct file *file)
 	if (!device_client)
 		return -ENOMEM;
 
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < ARRAY_SIZE(device_client_hash); i++) {
 		if (!device_client_hash[i]) {
 			device_client_hash[i] = device_client;
 			break;
 		}
 	}
 
-	if (device_client_hash[i] != device_client) {
-		printk(KERN_ERR "batman-adv:Error - can't add another packet client: maximum number of clients reached \n");
+	if (i == ARRAY_SIZE(device_client_hash)) {
+		printk(KERN_ERR "batman-adv:Error - can't add another packet client: maximum number of clients reached\n");
 		kfree(device_client);
 		return -EXFULL;
 	}
