@@ -22,7 +22,6 @@ void TsInactTimeout(unsigned long data)
  *  return:  NULL
  *  notice:
 ********************************************************************************************************************/
-#if 1
 void RxPktPendingTimeout(unsigned long data)
 {
 	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
@@ -83,8 +82,6 @@ void RxPktPendingTimeout(unsigned long data)
 			return;
 		}
 		ieee80211_indicate_packets(ieee, stats_IndicateArray, index);
-		 bPktInBuf = false;
-
 	}
 
 	if(bPktInBuf && (pRxTs->RxTimeoutIndicateSeq==0xffff))
@@ -95,7 +92,6 @@ void RxPktPendingTimeout(unsigned long data)
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 	//PlatformReleaseSpinLock(Adapter, RT_RX_SPINLOCK);
 }
-#endif
 
 /********************************************************************************************************************
  *function:  Add BA timer function
@@ -534,8 +530,8 @@ void RemoveTsEntry(
 void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr)
 {
 	PTS_COMMON_INFO	pTS, pTmpTS;
+
 	printk("===========>RemovePeerTS,%pM\n", Addr);
-#if 1
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{
 		if (memcmp(pTS->Addr, Addr, 6) == 0)
@@ -576,13 +572,12 @@ void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr)
 			list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
 		}
 	}
-#endif
 }
 
 void RemoveAllTS(struct ieee80211_device* ieee)
 {
 	PTS_COMMON_INFO pTS, pTmpTS;
-#if 1
+
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{
 		RemoveTsEntry(ieee, pTS, TX_DIR);
@@ -610,7 +605,6 @@ void RemoveAllTS(struct ieee80211_device* ieee)
 		list_del_init(&pTS->List);
 		list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
 	}
-#endif
 }
 
 void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
@@ -618,7 +612,6 @@ void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
 	if(pTxTS->bAddBaReqInProgress == false)
 	{
 		pTxTS->bAddBaReqInProgress = true;
-#if 1
 		if(pTxTS->bAddBaReqDelayed)
 		{
 			IEEE80211_DEBUG(IEEE80211_DL_BA, "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
@@ -629,7 +622,6 @@ void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
 			IEEE80211_DEBUG(IEEE80211_DL_BA,"TsStartAddBaProcess(): Immediately Start ADDBA now!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies+10); //set 10 ticks
 		}
-#endif
 	}
 	else
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "%s()==>BA timer is already added\n", __FUNCTION__);
