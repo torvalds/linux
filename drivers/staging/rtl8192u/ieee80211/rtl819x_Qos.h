@@ -1,7 +1,6 @@
 #ifndef __INC_QOS_TYPE_H
 #define __INC_QOS_TYPE_H
 
-//#include "EndianFree.h"
 #define BIT0                    0x00000001
 #define BIT1                    0x00000002
 #define BIT2                    0x00000004
@@ -219,7 +218,6 @@ typedef	union _QOS_INFO_FIELD{
 	} ByAllAp;
 
 }QOS_INFO_FIELD, *PQOS_INFO_FIELD;
-
 
 //
 // ACI to AC coding.
@@ -494,6 +492,7 @@ typedef struct _OCTET_STRING{
 	u8        	*Octet;
 	u16             Length;
 }OCTET_STRING, *POCTET_STRING;
+
 //
 // STA QoS data.
 // Ref: DOT11_QOS in 8185 code. [def. in QoS_mp.h]
