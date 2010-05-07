@@ -153,7 +153,7 @@ config DEBUG_SHIRQ
 	  points; some don't and need to be caught.
 
 config DETECT_SOFTLOCKUP
-	bool "Detect Soft Lockups"
+	bool
 	depends on DEBUG_KERNEL && !S390
 	default y
 	help
@@ -171,17 +171,27 @@ config DETECT_SOFTLOCKUP
 	   can be detected via the NMI-watchdog, on platforms that
 	   support it.)
 
-config NMI_WATCHDOG
-	bool "Detect Hard Lockups with an NMI Watchdog"
-	depends on DEBUG_KERNEL && PERF_EVENTS && PERF_EVENTS_NMI
+config LOCKUP_DETECTOR
+	bool "Detect Hard and Soft Lockups"
+	depends on DEBUG_KERNEL
+	default DETECT_SOFTLOCKUP
 	help
-	  Say Y here to enable the kernel to use the NMI as a watchdog
-	  to detect hard lockups.  This is useful when a cpu hangs for no
-	  reason but can still respond to NMIs.  A backtrace is displayed
-	  for reviewing and reporting.
+	  Say Y here to enable the kernel to act as a watchdog to detect
+	  hard and soft lockups.
 
-	  The overhead should be minimal, just an extra NMI every few
-	  seconds.
+	  Softlockups are bugs that cause the kernel to loop in kernel
+	  mode for more than 60 seconds, without giving other tasks a
+	  chance to run.  The current stack trace is displayed upon
+	  detection and the system will stay locked up.
+
+	  Hardlockups are bugs that cause the CPU to loop in kernel mode
+	  for more than 60 seconds, without letting other interrupts have a
+	  chance to run.  The current stack trace is displayed upon detection
+	  and the system will stay locked up.
+
+	  The overhead should be minimal.  A periodic hrtimer runs to
+	  generate interrupts and kick the watchdog task every 10-12 seconds.
+	  An NMI is generated every 60 seconds or so to check for hardlockups.
 
 config BOOTPARAM_SOFTLOCKUP_PANIC
 	bool "Panic (Reboot) On Soft Lockups"

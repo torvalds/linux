@@ -74,7 +74,7 @@
 #include <scsi/sg.h>
 #endif
 
-#ifdef CONFIG_NMI_WATCHDOG
+#ifdef CONFIG_LOCKUP_DETECTOR
 #include <linux/nmi.h>
 #endif
 
@@ -686,16 +686,25 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0444,
 		.proc_handler	= proc_dointvec,
 	},
-#if defined(CONFIG_NMI_WATCHDOG)
+#if defined(CONFIG_LOCKUP_DETECTOR)
 	{
-		.procname       = "nmi_watchdog",
-		.data           = &nmi_watchdog_enabled,
+		.procname       = "watchdog",
+		.data           = &watchdog_enabled,
 		.maxlen         = sizeof (int),
 		.mode           = 0644,
-		.proc_handler   = proc_nmi_enabled,
+		.proc_handler   = proc_dowatchdog_enabled,
+	},
+	{
+		.procname	= "watchdog_thresh",
+		.data		= &softlockup_thresh,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dowatchdog_thresh,
+		.extra1		= &neg_one,
+		.extra2		= &sixty,
 	},
 #endif
-#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86) && !defined(CONFIG_NMI_WATCHDOG)
+#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86) && !defined(CONFIG_LOCKUP_DETECTOR)
 	{
 		.procname       = "unknown_nmi_panic",
 		.data           = &unknown_nmi_panic,
