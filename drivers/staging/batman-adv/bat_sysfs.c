@@ -153,13 +153,59 @@ static ssize_t store_vis_mode(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
+static ssize_t show_orig_interval(struct kobject *kobj, struct attribute *attr,
+				 char *buff)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct bat_priv *bat_priv = netdev_priv(to_net_dev(dev));
+
+	return sprintf(buff, "status: %i\n",
+		       atomic_read(&bat_priv->orig_interval));
+}
+
+static ssize_t store_orig_interval(struct kobject *kobj, struct attribute *attr,
+				  char *buff, size_t count)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct net_device *net_dev = to_net_dev(dev);
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	unsigned long orig_interval_tmp;
+	int ret;
+
+	ret = strict_strtoul(buff, 10, &orig_interval_tmp);
+	if (ret) {
+		printk(KERN_INFO "batman-adv:Invalid parameter for 'orig_interval' setting on mesh %s received: %s\n",
+		       net_dev->name, buff);
+		return -EINVAL;
+	}
+
+	if (orig_interval_tmp <= JITTER * 2) {
+		printk(KERN_INFO "batman-adv:New originator interval too small: %li (min: %i)\n",
+		       orig_interval_tmp, JITTER * 2);
+		return -EINVAL;
+	}
+
+	if (atomic_read(&bat_priv->orig_interval) == orig_interval_tmp)
+		return count;
+
+	printk(KERN_INFO "batman-adv:Changing originator interval from: %i to: %li on mesh: %s\n",
+	       atomic_read(&bat_priv->orig_interval),
+	       orig_interval_tmp, net_dev->name);
+
+	atomic_set(&bat_priv->orig_interval, orig_interval_tmp);
+	return count;
+}
+
 static BAT_ATTR(aggregate_ogm, S_IRUGO | S_IWUSR,
 		show_aggr_ogm, store_aggr_ogm);
 static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, show_vis_mode, store_vis_mode);
+static BAT_ATTR(orig_interval, S_IRUGO | S_IWUSR,
+		show_orig_interval, store_orig_interval);
 
 static struct bat_attribute *mesh_attrs[] = {
 	&bat_attr_aggregate_ogm,
 	&bat_attr_vis_mode,
+	&bat_attr_orig_interval,
 	NULL,
 };
 
@@ -228,6 +274,7 @@ int sysfs_add_meshif(struct net_device *dev)
 		  routine as soon as we have it */
 	atomic_set(&bat_priv->aggregation_enabled, 1);
 	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
+	atomic_set(&bat_priv->orig_interval, 1000);
 
 	bat_priv->mesh_obj = kobject_create_and_add(SYSFS_IF_MESH_SUBDIR,
 						    batif_kobject);

@@ -36,10 +36,10 @@ static uint8_t hop_penalty(const uint8_t tq)
 }
 
 /* when do we schedule our own packet to be sent */
-static unsigned long own_send_time(void)
+static unsigned long own_send_time(struct bat_priv *bat_priv)
 {
 	return jiffies +
-		(((atomic_read(&originator_interval) - JITTER +
+		(((atomic_read(&bat_priv->orig_interval) - JITTER +
 		   (random32() % 2*JITTER)) * HZ) / 1000);
 }
 
@@ -277,7 +277,7 @@ void schedule_own_packet(struct batman_if *batman_if)
 	atomic_inc(&batman_if->seqno);
 
 	slide_own_bcast_window(batman_if);
-	send_time = own_send_time();
+	send_time = own_send_time(bat_priv);
 	add_bat_packet_to_list(bat_priv,
 			       batman_if->packet_buff,
 			       batman_if->packet_len,

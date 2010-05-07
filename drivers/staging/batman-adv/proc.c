@@ -29,7 +29,6 @@
 #include "vis.h"
 
 static struct proc_dir_entry *proc_batman_dir, *proc_interface_file;
-static struct proc_dir_entry *proc_orig_interval_file;
 
 static int proc_interfaces_read(struct seq_file *seq, void *offset)
 {
@@ -121,57 +120,6 @@ end:
 	return count;
 }
 
-static int proc_orig_interval_read(struct seq_file *seq, void *offset)
-{
-	seq_printf(seq, "%i\n", atomic_read(&originator_interval));
-
-	return 0;
-}
-
-static ssize_t proc_orig_interval_write(struct file *file,
-					const char __user *buffer,
-					size_t count, loff_t *ppos)
-{
-	char *interval_string;
-	int not_copied = 0;
-	unsigned long originator_interval_tmp;
-	int retval;
-
-	interval_string = kmalloc(count, GFP_KERNEL);
-
-	if (!interval_string)
-		return -ENOMEM;
-
-	not_copied = copy_from_user(interval_string, buffer, count);
-	interval_string[count - not_copied - 1] = 0;
-
-	retval = strict_strtoul(interval_string, 10, &originator_interval_tmp);
-	if (retval) {
-		printk(KERN_ERR "batman-adv:New originator interval invalid\n");
-		goto end;
-	}
-
-	if (originator_interval_tmp <= JITTER * 2) {
-		printk(KERN_WARNING "batman-adv:New originator interval too small: %li (min: %i)\n",
-		       originator_interval_tmp, JITTER * 2);
-		goto end;
-	}
-
-	printk(KERN_INFO "batman-adv:Changing originator interval from: %i to: %li\n",
-	       atomic_read(&originator_interval), originator_interval_tmp);
-
-	atomic_set(&originator_interval, originator_interval_tmp);
-
-end:
-	kfree(interval_string);
-	return count;
-}
-
-static int proc_orig_interval_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_orig_interval_read, NULL);
-}
-
 static const struct file_operations proc_interfaces_fops = {
 	.owner		= THIS_MODULE,
 	.open		= proc_interfaces_open,
@@ -181,20 +129,8 @@ static const struct file_operations proc_interfaces_fops = {
 	.release	= single_release,
 };
 
-static const struct file_operations proc_orig_interval_fops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_orig_interval_open,
-	.read		= seq_read,
-	.write		= proc_orig_interval_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 void cleanup_procfs(void)
 {
-	if (proc_orig_interval_file)
-		remove_proc_entry(PROC_FILE_ORIG_INTERVAL, proc_batman_dir);
-
 	if (proc_interface_file)
 		remove_proc_entry(PROC_FILE_INTERFACES, proc_batman_dir);
 
@@ -226,17 +162,6 @@ int setup_procfs(void)
 		proc_interface_file->proc_fops = &proc_interfaces_fops;
 	} else {
 		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_INTERFACES);
-		cleanup_procfs();
-		return -EFAULT;
-	}
-
-	proc_orig_interval_file = create_proc_entry(PROC_FILE_ORIG_INTERVAL,
-						    S_IWUSR | S_IRUGO,
-						    proc_batman_dir);
-	if (proc_orig_interval_file) {
-		proc_orig_interval_file->proc_fops = &proc_orig_interval_fops;
-	} else {
-		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_ORIG_INTERVAL);
 		cleanup_procfs();
 		return -EFAULT;
 	}

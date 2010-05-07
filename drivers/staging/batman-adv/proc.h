@@ -24,7 +24,6 @@
 
 #define PROC_ROOT_DIR "batman-adv"
 #define PROC_FILE_INTERFACES "interfaces"
-#define PROC_FILE_ORIG_INTERVAL "orig_interval"
 
 void cleanup_procfs(void);
 int setup_procfs(void);

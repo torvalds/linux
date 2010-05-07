@@ -84,6 +84,7 @@ struct bat_priv {
 	struct net_device_stats stats;
 	atomic_t aggregation_enabled;
 	atomic_t vis_mode;
+	atomic_t orig_interval;
 	struct kobject *mesh_obj;
 };
 

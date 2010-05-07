@@ -42,7 +42,6 @@ DEFINE_SPINLOCK(orig_hash_lock);
 DEFINE_SPINLOCK(forw_bat_list_lock);
 DEFINE_SPINLOCK(forw_bcast_list_lock);
 
-atomic_t originator_interval;
 atomic_t vis_interval;
 int16_t num_hna;
 int16_t num_ifs;
@@ -80,7 +79,6 @@ int init_module(void)
 
 	atomic_set(&module_state, MODULE_INACTIVE);
 
-	atomic_set(&originator_interval, 1000);
 	atomic_set(&vis_interval, 1000);/* TODO: raise this later, this is only
 					 * for debugging now. */
 
