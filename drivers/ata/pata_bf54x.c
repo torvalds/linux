@@ -821,6 +821,18 @@ static void bfin_dev_select(struct ata_port *ap, unsigned int device)
 }
 
 /**
+ *	bfin_set_devctl - Write device control reg
+ *	@ap: port where the device is
+ *	@ctl: value to write
+ */
+
+static u8 bfin_set_devctl(struct ata_port *ap, u8 ctl)
+{
+	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
+	write_atapi_register(base, ATA_REG_CTRL, ctl);
+}
+
+/**
  *	bfin_bmdma_setup - Set up IDE DMA transaction
  *	@qc: Info associated with this ATA transaction.
  *
@@ -1240,32 +1252,6 @@ static unsigned char bfin_irq_on(struct ata_port *ap)
 }
 
 /**
- *	bfin_freeze - Freeze DMA controller port
- *	@ap: port to freeze
- *
- *	Note: Original code is ata_sff_freeze().
- */
-
-static void bfin_freeze(struct ata_port *ap)
-{
-	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
-
-	dev_dbg(ap->dev, "in atapi dma freeze\n");
-	ap->ctl |= ATA_NIEN;
-	ap->last_ctl = ap->ctl;
-
-	write_atapi_register(base, ATA_REG_CTRL, ap->ctl);
-
-	/* Under certain circumstances, some controllers raise IRQ on
-	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
-	 * previously pending IRQ on ATA_NIEN assertion.  Clear it.
-	 */
-	ap->ops->sff_check_status(ap);
-
-	bfin_irq_clear(ap);
-}
-
-/**
  *	bfin_thaw - Thaw DMA controller port
  *	@ap: port to thaw
  *
@@ -1476,6 +1462,7 @@ static struct ata_port_operations bfin_pata_ops = {
 	.sff_check_status	= bfin_check_status,
 	.sff_check_altstatus	= bfin_check_altstatus,
 	.sff_dev_select		= bfin_dev_select,
+	.sff_set_devctl		= bfin_set_devctl,
 
 	.bmdma_setup		= bfin_bmdma_setup,
 	.bmdma_start		= bfin_bmdma_start,
@@ -1485,7 +1472,6 @@ static struct ata_port_operations bfin_pata_ops = {
 
 	.qc_prep		= ata_noop_qc_prep,
 
-	.freeze			= bfin_freeze,
 	.thaw			= bfin_thaw,
 	.softreset		= bfin_softreset,
 	.postreset		= bfin_postreset,

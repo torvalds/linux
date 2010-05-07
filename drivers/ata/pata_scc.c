@@ -416,6 +416,17 @@ static void scc_dev_select (struct ata_port *ap, unsigned int device)
 }
 
 /**
+ *	scc_set_devctl - Write device control reg
+ *	@ap: port where the device is
+ *	@ctl: value to write
+ */
+
+static void scc_set_devctl(struct ata_port *ap, u8 ctl)
+{
+	out_be32(ap->ioaddr.ctl_addr, ctl);
+}
+
+/**
  *	scc_bmdma_setup - Set up PCI IDE BMDMA transaction
  *	@qc: Info associated with this ATA transaction.
  *
@@ -840,31 +851,6 @@ static u8 scc_irq_on (struct ata_port *ap)
 }
 
 /**
- *	scc_freeze - Freeze BMDMA controller port
- *	@ap: port to freeze
- *
- *	Note: Original code is ata_sff_freeze().
- */
-
-static void scc_freeze (struct ata_port *ap)
-{
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-
-	ap->ctl |= ATA_NIEN;
-	ap->last_ctl = ap->ctl;
-
-	out_be32(ioaddr->ctl_addr, ap->ctl);
-
-	/* Under certain circumstances, some controllers raise IRQ on
-	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
-	 * previously pending IRQ on ATA_NIEN assertion.  Clear it.
-	 */
-	ap->ops->sff_check_status(ap);
-
-	ap->ops->sff_irq_clear(ap);
-}
-
-/**
  *	scc_pata_prereset - prepare for reset
  *	@ap: ATA port to be reset
  *	@deadline: deadline jiffies for the operation
@@ -977,6 +963,7 @@ static struct ata_port_operations scc_pata_ops = {
 	.sff_check_status	= scc_check_status,
 	.sff_check_altstatus	= scc_check_altstatus,
 	.sff_dev_select		= scc_dev_select,
+	.sff_set_devctl		= scc_set_devctl,
 
 	.bmdma_setup		= scc_bmdma_setup,
 	.bmdma_start		= scc_bmdma_start,
@@ -984,7 +971,6 @@ static struct ata_port_operations scc_pata_ops = {
 	.bmdma_status		= scc_bmdma_status,
 	.sff_data_xfer		= scc_data_xfer,
 
-	.freeze			= scc_freeze,
 	.prereset		= scc_pata_prereset,
 	.softreset		= scc_softreset,
 	.postreset		= scc_postreset,
