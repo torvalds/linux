@@ -534,6 +534,7 @@ config INTEL_SCU_IPC
 	default y
 	---help---
 	  IPC is used to bridge the communications between kernel and SCU on
-	  some embedded Intel x86 platforms.
+	  some embedded Intel x86 platforms. This is not needed for PC-type
+	  machines.
 
 endif # X86_PLATFORM_DEVICES
