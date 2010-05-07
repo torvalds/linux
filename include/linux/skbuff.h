@@ -1361,9 +1361,12 @@ static inline int skb_network_offset(const struct sk_buff *skb)
  *
  * Various parts of the networking layer expect at least 32 bytes of
  * headroom, you should not reduce this.
+ * With RPS, we raised NET_SKB_PAD to 64 so that get_rps_cpus() fetches span
+ * a 64 bytes aligned block to fit modern (>= 64 bytes) cache line sizes
+ * NET_IP_ALIGN(2) + ethernet_header(14) + IP_header(20/40) + ports(8)
  */
 #ifndef NET_SKB_PAD
-#define NET_SKB_PAD	32
+#define NET_SKB_PAD	64
 #endif
 
 extern int ___pskb_trim(struct sk_buff *skb, unsigned int len);
