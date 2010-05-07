@@ -427,7 +427,6 @@ struct snd_soc_dapm_widget {
 	unsigned char connected:1;		/* connected codec pin */
 	unsigned char new:1;			/* cnew complete */
 	unsigned char ext:1;			/* has external widgets */
-	unsigned char suspend:1;		/* was active before suspend */
 	unsigned char force:1;			/* force state */
 
 	int (*power_check)(struct snd_soc_dapm_widget *w);

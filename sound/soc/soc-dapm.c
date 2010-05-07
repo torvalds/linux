@@ -2012,18 +2012,8 @@ int snd_soc_dapm_stream_event(struct snd_soc_codec *codec,
 				w->active = 0;
 				break;
 			case SND_SOC_DAPM_STREAM_SUSPEND:
-				if (w->active)
-					w->suspend = 1;
-				w->active = 0;
-				break;
 			case SND_SOC_DAPM_STREAM_RESUME:
-				if (w->suspend) {
-					w->active = 1;
-					w->suspend = 0;
-				}
-				break;
 			case SND_SOC_DAPM_STREAM_PAUSE_PUSH:
-				break;
 			case SND_SOC_DAPM_STREAM_PAUSE_RELEASE:
 				break;
 			}
