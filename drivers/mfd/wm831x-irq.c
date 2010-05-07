@@ -21,6 +21,7 @@
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
+#include <linux/mfd/wm831x/gpio.h>
 #include <linux/mfd/wm831x/irq.h>
 
 #include <linux/delay.h>
@@ -388,12 +389,41 @@ static void wm831x_irq_mask(unsigned int irq)
 	wm831x->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
 }
 
+static int wm831x_irq_set_type(unsigned int irq, unsigned int type)
+{
+	struct wm831x *wm831x = get_irq_chip_data(irq);
+	int val;
+
+	irq = irq - wm831x->irq_base;
+
+	if (irq < WM831X_IRQ_GPIO_1 || irq > WM831X_IRQ_GPIO_11)
+		return -EINVAL;
+
+	switch (type) {
+	case IRQ_TYPE_EDGE_BOTH:
+		val = WM831X_GPN_INT_MODE;
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+		val = WM831X_GPN_POL;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		val = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + irq,
+			       WM831X_GPN_INT_MODE | WM831X_GPN_POL, val);
+}
+
 static struct irq_chip wm831x_irq_chip = {
 	.name = "wm831x",
 	.bus_lock = wm831x_irq_lock,
 	.bus_sync_unlock = wm831x_irq_sync_unlock,
 	.mask = wm831x_irq_mask,
 	.unmask = wm831x_irq_unmask,
+	.set_type = wm831x_irq_set_type,
 };
 
 /* The processing of the primary interrupt occurs in a thread so that

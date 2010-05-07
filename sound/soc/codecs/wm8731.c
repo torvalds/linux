@@ -707,7 +707,7 @@ MODULE_DEVICE_TABLE(i2c, wm8731_i2c_id);
 
 static struct i2c_driver wm8731_i2c_driver = {
 	.driver = {
-		.name = "WM8731 I2C Codec",
+		.name = "wm8731",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8731_i2c_probe,
