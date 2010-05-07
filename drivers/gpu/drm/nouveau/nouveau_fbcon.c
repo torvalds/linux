@@ -326,15 +326,11 @@ nouveau_fbcon_find_or_create_single(struct drm_fb_helper *helper,
 	return new_fb;
 }
 
-void nouveau_fbcon_hotplug(struct drm_device *dev)
+void
+nouveau_fbcon_output_poll_changed(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	drm_helper_fb_hpd_irq_event(&dev_priv->nfbdev->helper);
-}
-
-static void nouveau_fbcon_output_status_changed(struct drm_fb_helper *fb_helper)
-{
-	drm_helper_fb_hotplug_event(fb_helper, true);
+	drm_fb_helper_hotplug_event(&dev_priv->nfbdev->helper);
 }
 
 int
@@ -374,7 +370,6 @@ static struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
 	.gamma_set = nouveau_fbcon_gamma_set,
 	.gamma_get = nouveau_fbcon_gamma_get,
 	.fb_probe = nouveau_fbcon_find_or_create_single,
-	.fb_output_status_changed = nouveau_fbcon_output_status_changed,
 };
 
 
@@ -391,8 +386,7 @@ int nouveau_fbcon_init(struct drm_device *dev)
 	dev_priv->nfbdev = nfbdev;
 	nfbdev->helper.funcs = &nouveau_fbcon_helper_funcs;
 
-	drm_fb_helper_init(dev, &nfbdev->helper,
-			   2, 4, true);
+	drm_fb_helper_init(dev, &nfbdev->helper, 2, 4);
 	drm_fb_helper_single_add_all_connectors(&nfbdev->helper);
 	drm_fb_helper_initial_config(&nfbdev->helper, 32);
 	return 0;

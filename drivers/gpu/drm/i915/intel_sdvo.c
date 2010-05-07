@@ -2244,6 +2244,7 @@ intel_sdvo_dvi_init(struct intel_encoder *intel_encoder, int device)
 	}
 
 	connector = &intel_connector->base;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 	encoder->encoder_type = DRM_MODE_ENCODER_TMDS;
 	connector->connector_type = DRM_MODE_CONNECTOR_DVID;
 
@@ -2310,6 +2311,7 @@ intel_sdvo_analog_init(struct intel_encoder *intel_encoder, int device)
                 return false;
 
         connector = &intel_connector->base;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
         encoder->encoder_type = DRM_MODE_ENCODER_DAC;
         connector->connector_type = DRM_MODE_CONNECTOR_VGA;
         sdvo_connector = intel_connector->dev_priv;

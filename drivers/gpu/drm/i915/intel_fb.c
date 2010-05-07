@@ -207,12 +207,6 @@ static int intel_fb_find_or_create_single(struct drm_fb_helper *helper,
 	return new_fb;
 }
 
-void intelfb_hotplug(struct drm_device *dev, bool polled)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	drm_helper_fb_hpd_irq_event(&dev_priv->fbdev->helper);
-}
-
 static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.gamma_set = intel_crtc_fb_gamma_set,
 	.gamma_get = intel_crtc_fb_gamma_get,
@@ -256,7 +250,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	ifbdev->helper.funcs = &intel_fb_helper_funcs;
 
 	drm_fb_helper_init(dev, &ifbdev->helper, 2,
-			   INTELFB_CONN_LIMIT, false);
+			   INTELFB_CONN_LIMIT);
 
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
 	drm_fb_helper_initial_config(&ifbdev->helper, 32);
@@ -274,3 +268,9 @@ void intel_fbdev_fini(struct drm_device *dev)
 	dev_priv->fbdev = NULL;
 }
 MODULE_LICENSE("GPL and additional rights");
+
+void intel_fb_output_poll_changed(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
+}

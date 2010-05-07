@@ -516,8 +516,10 @@ nouveau_card_init(struct drm_device *dev)
 
 	dev_priv->init_state = NOUVEAU_CARD_INIT_DONE;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		nouveau_fbcon_init(dev);
+		drm_kms_helper_poll_init(dev);
+	}
 
 	return 0;
 
@@ -844,6 +846,7 @@ int nouveau_unload(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		drm_kms_helper_poll_fini(dev);
 		nouveau_fbcon_fini(dev);
 		if (dev_priv->card_type >= NV_50)
 			nv50_display_destroy(dev);

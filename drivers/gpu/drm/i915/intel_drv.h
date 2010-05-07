@@ -235,5 +235,5 @@ extern int intel_overlay_put_image(struct drm_device *dev, void *data,
 extern int intel_overlay_attrs(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv);
 
-void intelfb_hotplug(struct drm_device *dev, bool polled);
+extern void intel_fb_output_poll_changed(struct drm_device *dev);
 #endif /* __INTEL_DRV_H__ */

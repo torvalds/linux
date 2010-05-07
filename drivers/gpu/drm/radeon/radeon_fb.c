@@ -316,16 +316,9 @@ int radeon_parse_options(char *options)
 	return 0;
 }
 
-void radeonfb_hotplug(struct drm_device *dev, bool polled)
+void radeon_fb_output_poll_changed(struct radeon_device *rdev)
 {
-	struct radeon_device *rdev = dev->dev_private;
-
-	drm_helper_fb_hpd_irq_event(&rdev->mode_info.rfbdev->helper);
-}
-
-static void radeon_fb_output_status_changed(struct drm_fb_helper *fb_helper)
-{
-	drm_helper_fb_hotplug_event(fb_helper, true);
+	drm_fb_helper_hotplug_event(&rdev->mode_info.rfbdev->helper);
 }
 
 static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfbdev)
@@ -364,7 +357,6 @@ static struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
 	.gamma_set = radeon_crtc_fb_gamma_set,
 	.gamma_get = radeon_crtc_fb_gamma_get,
 	.fb_probe = radeon_fb_find_or_create_single,
-	.fb_output_status_changed = radeon_fb_output_status_changed,
 };
 
 int radeon_fbdev_init(struct radeon_device *rdev)
@@ -386,11 +378,10 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 
 	drm_fb_helper_init(rdev->ddev, &rfbdev->helper,
 			   rdev->num_crtc,
-			   RADEONFB_CONN_LIMIT, true);
+			   RADEONFB_CONN_LIMIT);
 	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
 	drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
 	return 0;
-
 }
 
 void radeon_fbdev_fini(struct radeon_device *rdev)

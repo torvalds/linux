@@ -888,8 +888,15 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 	return &radeon_fb->base;
 }
 
+static void radeon_output_poll_changed(struct drm_device *dev)
+{
+	struct radeon_device *rdev = dev->dev_private;
+	radeon_fb_output_poll_changed(rdev);
+}
+
 static const struct drm_mode_config_funcs radeon_mode_funcs = {
 	.fb_create = radeon_user_framebuffer_create,
+	.output_poll_changed = radeon_output_poll_changed
 };
 
 struct drm_prop_enum_list {
@@ -1031,6 +1038,8 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	radeon_hpd_init(rdev);
 
 	radeon_fbdev_init(rdev);
+	drm_kms_helper_poll_init(rdev->ddev);
+
 	return 0;
 }
 
@@ -1040,6 +1049,7 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 	kfree(rdev->mode_info.bios_hardcoded_edid);
 
 	if (rdev->mode_info.mode_config_initialized) {
+		drm_kms_helper_poll_fini(rdev->ddev);
 		radeon_hpd_fini(rdev);
 		drm_mode_config_cleanup(rdev->ddev);
 		rdev->mode_info.mode_config_initialized = false;

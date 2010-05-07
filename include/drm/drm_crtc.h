@@ -31,6 +31,7 @@
 #include <linux/idr.h>
 
 #include <linux/fb.h>
+#include <linux/slow-work.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -460,6 +461,15 @@ enum drm_connector_force {
 	DRM_FORCE_ON_DIGITAL, /* for DVI-I use digital connector */
 };
 
+/* should we poll this connector for connects and disconnects */
+/* hot plug detectable */
+#define DRM_CONNECTOR_POLL_HPD (1 << 0)
+/* poll for connections */
+#define DRM_CONNECTOR_POLL_CONNECT (1 << 1)
+/* can cleanly poll for disconnections without flickering the screen */
+/* DACs should rarely do this without a lot of testing */
+#define DRM_CONNECTOR_POLL_DISCONNECT (1 << 2)
+
 /**
  * drm_connector - central DRM connector control structure
  * @crtc: CRTC this connector is currently connected to, NULL if none
@@ -504,6 +514,8 @@ struct drm_connector {
 	u32 property_ids[DRM_CONNECTOR_MAX_PROPERTY];
 	uint64_t property_values[DRM_CONNECTOR_MAX_PROPERTY];
 
+	uint8_t polled; /* DRM_CONNECTOR_POLL_* */
+
 	/* requested DPMS state */
 	int dpms;
 
@@ -543,6 +555,7 @@ struct drm_mode_set {
  */
 struct drm_mode_config_funcs {
 	struct drm_framebuffer *(*fb_create)(struct drm_device *dev, struct drm_file *file_priv, struct drm_mode_fb_cmd *mode_cmd);
+	void (*output_poll_changed)(struct drm_device *dev);
 };
 
 struct drm_mode_group {
@@ -579,6 +592,10 @@ struct drm_mode_config {
 	int max_width, max_height;
 	struct drm_mode_config_funcs *funcs;
 	resource_size_t fb_base;
+
+	/* output poll support */
+	bool poll_enabled;
+	struct delayed_slow_work output_poll_slow_work;
 
 	/* pointers to standard properties */
 	struct list_head property_blob_list;

@@ -42,8 +42,6 @@ MODULE_LICENSE("GPL and additional rights");
 
 static LIST_HEAD(kernel_fb_helper_list);
 
-static struct slow_work_ops output_status_change_ops;
-
 /* simple single crtc case helper function */
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
@@ -425,19 +423,13 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 
 int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *fb_helper,
-		       int crtc_count, int max_conn_count,
-		       bool polled)
+		       int crtc_count, int max_conn_count)
 {
 	struct drm_crtc *crtc;
 	int ret = 0;
 	int i;
 
 	fb_helper->dev = dev;
-	fb_helper->poll_enabled = polled;
-
-	slow_work_register_user(THIS_MODULE);
-	delayed_slow_work_init(&fb_helper->output_status_change_slow_work,
-			       &output_status_change_ops);
 
 	INIT_LIST_HEAD(&fb_helper->kernel_fb_list);
 
@@ -494,8 +486,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 
 	drm_fb_helper_crtc_free(fb_helper);
 
-	delayed_slow_work_cancel(&fb_helper->output_status_change_slow_work);
-	slow_work_unregister_user(THIS_MODULE);
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
 
@@ -713,7 +703,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 
 	if (fb_helper->delayed_hotplug) {
 		fb_helper->delayed_hotplug = false;
-		delayed_slow_work_enqueue(&fb_helper->output_status_change_slow_work, 0);
+		drm_fb_helper_hotplug_event(fb_helper);
 	}
 	return 0;
 }
@@ -826,7 +816,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {
 		/* hmm everyone went away - assume VGA cable just fell out
 		   and will come back later. */
-		DRM_ERROR("Cannot find any crtc or sizes - going 1024x768\n");
+		DRM_INFO("Cannot find any crtc or sizes - going 1024x768\n");
 		sizes.fb_width = sizes.surface_width = 1024;
 		sizes.fb_height = sizes.surface_height = 768;
 	}
@@ -1292,12 +1282,7 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 	 * we shouldn't end up with no modes here.
 	 */
 	if (count == 0) {
-		if (fb_helper->poll_enabled) {
-			delayed_slow_work_enqueue(&fb_helper->output_status_change_slow_work,
-						  5*HZ);
-			printk(KERN_INFO "No connectors reported connected with modes - started polling\n");
-		} else
-			printk(KERN_INFO "No connectors reported connected with modes\n");
+		printk(KERN_INFO "No connectors reported connected with modes\n");
 	}
 	drm_setup_crtcs(fb_helper);
 
@@ -1305,26 +1290,27 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 }
 EXPORT_SYMBOL(drm_fb_helper_initial_config);
 
-/* we got a hotplug irq - need to update fbcon */
-void drm_helper_fb_hpd_irq_event(struct drm_fb_helper *fb_helper)
-{
-	/* if we don't have the fbdev registered yet do nothing */
-	if (!fb_helper->fbdev)
-		return;
-
-	/* schedule a slow work asap */
-	delayed_slow_work_enqueue(&fb_helper->output_status_change_slow_work, 0);
-}
-EXPORT_SYMBOL(drm_helper_fb_hpd_irq_event);
-
-bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper, bool polled)
+bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
 	int count = 0;
-	int ret;
 	u32 max_width, max_height, bpp_sel;
+	bool bound = false, crtcs_bound = false;
+	struct drm_crtc *crtc;
 
 	if (!fb_helper->fb)
 		return false;
+
+	list_for_each_entry(crtc, &fb_helper->dev->mode_config.crtc_list, head) {
+		if (crtc->fb)
+			crtcs_bound = true;
+		if (crtc->fb == fb_helper->fb)
+			bound = true;
+	}
+
+	if (!bound && crtcs_bound) {
+		fb_helper->delayed_hotplug = true;
+		return false;
+	}
 	DRM_DEBUG_KMS("\n");
 
 	max_width = fb_helper->fb->width;
@@ -1333,82 +1319,9 @@ bool drm_helper_fb_hotplug_event(struct drm_fb_helper *fb_helper, bool polled)
 
 	count = drm_fb_helper_probe_connector_modes(fb_helper, max_width,
 						    max_height);
-	if (fb_helper->poll_enabled && !polled) {
-		if (count) {
-			delayed_slow_work_cancel(&fb_helper->output_status_change_slow_work);
-		} else {
-			ret = delayed_slow_work_enqueue(&fb_helper->output_status_change_slow_work, 5*HZ);
-		}
-	}
 	drm_setup_crtcs(fb_helper);
 
 	return drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
 }
-EXPORT_SYMBOL(drm_helper_fb_hotplug_event);
-
-/*
- * delayed work queue execution function
- * - check if fbdev is actually in use on the gpu
- *   - if not set delayed flag and repoll if necessary
- * - check for connector status change
- * - repoll if 0 modes found
- *- call driver output status changed notifier
- */
-static void output_status_change_execute(struct slow_work *work)
-{
-	struct delayed_slow_work *delayed_work = container_of(work, struct delayed_slow_work, work);
-	struct drm_fb_helper *fb_helper = container_of(delayed_work, struct drm_fb_helper, output_status_change_slow_work);
-	struct drm_connector *connector;
-	enum drm_connector_status old_status, status;
-	bool repoll, changed = false;
-	int ret;
-	int i;
-	bool bound = false, crtcs_bound = false;
-	struct drm_crtc *crtc;
-
-	repoll = fb_helper->poll_enabled;
-
-	/* first of all check the fbcon framebuffer is actually bound to any crtc */
-	/* take into account that no crtc at all maybe bound */
-	list_for_each_entry(crtc, &fb_helper->dev->mode_config.crtc_list, head) {
-		if (crtc->fb)
-			crtcs_bound = true;
-		if (crtc->fb == fb_helper->fb)
-			bound = true;
-	}
-
-	if (bound == false && crtcs_bound) {
-		fb_helper->delayed_hotplug = true;
-		goto requeue;
-	}
-
-	for (i = 0; i < fb_helper->connector_count; i++) {
-		connector = fb_helper->connector_info[i]->connector;
-		old_status = connector->status;
-		status = connector->funcs->detect(connector);
-		if (old_status != status) {
-			changed = true;
-		}
-		if (status == connector_status_connected && repoll) {
-			DRM_DEBUG("%s is connected - stop polling\n", drm_get_connector_name(connector));
-			repoll = false;
-		}
-	}
-
-	if (changed) {
-		if (fb_helper->funcs->fb_output_status_changed)
-			fb_helper->funcs->fb_output_status_changed(fb_helper);
-	}
-
-requeue:
-	if (repoll) {
-		ret = delayed_slow_work_enqueue(delayed_work, 5*HZ);
-		if (ret)
-			DRM_ERROR("delayed enqueue failed %d\n", ret);
-	}
-}
-
-static struct slow_work_ops output_status_change_ops = {
-	.execute = output_status_change_execute,
-};
+EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
 

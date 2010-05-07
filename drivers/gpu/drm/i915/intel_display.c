@@ -4959,6 +4959,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 
 static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_create = intel_user_framebuffer_create,
+	.output_poll_changed = intel_fb_output_poll_changed,
 };
 
 static struct drm_gem_object *
@@ -5346,6 +5347,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 
+	drm_kms_helper_poll_fini(dev);
 	intel_fbdev_fini(dev);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {

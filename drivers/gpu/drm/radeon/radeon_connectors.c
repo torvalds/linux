@@ -1085,6 +1085,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		break;
 	case DRM_MODE_CONNECTOR_DVIA:
 		drm_connector_init(dev, &radeon_connector->base, &radeon_vga_connector_funcs, connector_type);
@@ -1211,6 +1212,12 @@ radeon_add_atom_connector(struct drm_device *dev,
 		break;
 	}
 
+	if (hpd->hpd == RADEON_HPD_NONE) {
+		if (i2c_bus->valid)
+			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	} else
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
+
 	connector->display_info.subpixel_order = subpixel_order;
 	drm_sysfs_connector_add(connector);
 	return;
@@ -1272,6 +1279,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		break;
 	case DRM_MODE_CONNECTOR_DVIA:
 		drm_connector_init(dev, &radeon_connector->base, &radeon_vga_connector_funcs, connector_type);
@@ -1338,6 +1346,11 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		break;
 	}
 
+	if (hpd->hpd == RADEON_HPD_NONE) {
+		if (i2c_bus->valid)
+			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	} else
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->display_info.subpixel_order = subpixel_order;
 	drm_sysfs_connector_add(connector);
 	return;

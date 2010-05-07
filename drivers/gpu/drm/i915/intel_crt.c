@@ -577,5 +577,10 @@ void intel_crt_init(struct drm_device *dev)
 
 	drm_sysfs_connector_add(connector);
 
+	if (I915_HAS_HOTPLUG(dev))
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
+	else
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+
 	dev_priv->hotplug_supported_mask |= CRT_HOTPLUG_INT_STATUS;
 }

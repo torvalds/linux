@@ -947,7 +947,7 @@ nv50_display_irq_hotplug_bh(struct work_struct *work)
 	if (dev_priv->chipset >= 0x90)
 		nv_wr32(dev, 0xe074, nv_rd32(dev, 0xe074));
 
-	nouveau_fbcon_hotplug(dev);
+	drm_helper_hpd_irq_event(dev);
 }
 
 void

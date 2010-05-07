@@ -807,3 +807,98 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);
+
+static struct slow_work_ops output_poll_ops;
+
+#define DRM_OUTPUT_POLL_PERIOD (10*HZ)
+static void output_poll_execute(struct slow_work *work)
+{
+	struct delayed_slow_work *delayed_work = container_of(work, struct delayed_slow_work, work);
+	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.output_poll_slow_work);
+	struct drm_connector *connector;
+	enum drm_connector_status old_status, status;
+	bool repoll = false, changed = false;
+	int ret;
+
+	mutex_lock(&dev->mode_config.mutex);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+
+		/* if this is HPD or polled don't check it -
+		   TV out for instance */
+		if (!connector->polled)
+			continue;
+
+		else if (connector->polled & (DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT))
+			repoll = true;
+
+		old_status = connector->status;
+		/* if we are connected and don't want to poll for disconnect
+		   skip it */
+		if (old_status == connector_status_connected &&
+		    !(connector->polled & DRM_CONNECTOR_POLL_DISCONNECT) &&
+		    !(connector->polled & DRM_CONNECTOR_POLL_HPD))
+			continue;
+
+		status = connector->funcs->detect(connector);
+		if (old_status != status)
+			changed = true;
+	}
+
+	mutex_unlock(&dev->mode_config.mutex);
+
+	if (changed) {
+		/* send a uevent + call fbdev */
+		drm_sysfs_hotplug_event(dev);
+		if (dev->mode_config.funcs->output_poll_changed)
+			dev->mode_config.funcs->output_poll_changed(dev);
+	}
+
+	if (repoll) {
+		ret = delayed_slow_work_enqueue(delayed_work, DRM_OUTPUT_POLL_PERIOD);
+		if (ret)
+			DRM_ERROR("delayed enqueue failed %d\n", ret);
+	}
+}
+
+void drm_kms_helper_poll_init(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+	bool poll = false;
+	int ret;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->polled)
+			poll = true;
+	}
+	slow_work_register_user(THIS_MODULE);
+	delayed_slow_work_init(&dev->mode_config.output_poll_slow_work,
+			       &output_poll_ops);
+
+	if (poll) {
+		ret = delayed_slow_work_enqueue(&dev->mode_config.output_poll_slow_work, DRM_OUTPUT_POLL_PERIOD);
+		if (ret)
+			DRM_ERROR("delayed enqueue failed %d\n", ret);
+	}
+}
+EXPORT_SYMBOL(drm_kms_helper_poll_init);
+
+void drm_kms_helper_poll_fini(struct drm_device *dev)
+{
+	delayed_slow_work_cancel(&dev->mode_config.output_poll_slow_work);
+	slow_work_unregister_user(THIS_MODULE);
+}
+EXPORT_SYMBOL(drm_kms_helper_poll_fini);
+
+void drm_helper_hpd_irq_event(struct drm_device *dev)
+{
+	if (!dev->mode_config.poll_enabled)
+		return;
+	delayed_slow_work_cancel(&dev->mode_config.output_poll_slow_work);
+	/* schedule a slow work asap */
+	delayed_slow_work_enqueue(&dev->mode_config.output_poll_slow_work, 0);
+}
+EXPORT_SYMBOL(drm_helper_hpd_irq_event);
+
+static struct slow_work_ops output_poll_ops = {
+	.execute = output_poll_execute,
+};

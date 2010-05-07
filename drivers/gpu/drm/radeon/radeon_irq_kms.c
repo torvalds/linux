@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 #include "drmP.h"
+#include "drm_crtc_helper.h"
 #include "radeon_drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
@@ -55,9 +56,7 @@ static void radeon_hotplug_work_func(struct work_struct *work)
 			radeon_connector_hotplug(connector);
 	}
 	/* Just fire off a uevent and let userspace tell us what to do */
-	radeonfb_hotplug(dev, false);
-
-	drm_sysfs_hotplug_event(dev);
+	drm_helper_hpd_irq_event(dev);
 }
 
 void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
