@@ -552,11 +552,6 @@ static void __init n30_map_io(void)
 	s3c24xx_init_uarts(n30_uartcfgs, ARRAY_SIZE(n30_uartcfgs));
 }
 
-static void __init n30_init_irq(void)
-{
-	s3c24xx_init_irq();
-}
-
 /* GPB3 is the line that controls the pull-up for the USB D+ line */
 
 static void __init n30_init(void)
@@ -612,7 +607,7 @@ MACHINE_START(N30, "Acer-N30")
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.timer		= &s3c24xx_timer,
 	.init_machine	= n30_init,
-	.init_irq	= n30_init_irq,
+	.init_irq	= s3c24xx_init_irq,
 	.map_io		= n30_map_io,
 MACHINE_END
 
@@ -624,6 +619,6 @@ MACHINE_START(N35, "Acer-N35")
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.timer		= &s3c24xx_timer,
 	.init_machine	= n30_init,
-	.init_irq	= n30_init_irq,
+	.init_irq	= s3c24xx_init_irq,
 	.map_io		= n30_map_io,
 MACHINE_END
