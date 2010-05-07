@@ -501,9 +501,11 @@ void get_symbol_str(struct gstr *r, struct symbol *sym)
 	bool hit;
 	struct property *prop;
 
-	if (sym && sym->name)
+	if (sym && sym->name) {
 		str_printf(r, "Symbol: %s [=%s]\n", sym->name,
 			   sym_get_string_value(sym));
+		str_printf(r, "Type  : %s\n", sym_type_name(sym->type));
+	}
 	for_all_prompts(sym, prop)
 		get_prompt_str(r, prop);
 	hit = false;
