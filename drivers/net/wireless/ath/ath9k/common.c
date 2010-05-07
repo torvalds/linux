@@ -108,11 +108,11 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	return true;
 }
 
-static u8 ath9k_process_rate(struct ath_common *common,
-			     struct ieee80211_hw *hw,
-			     struct ath_rx_status *rx_stats,
-			     struct ieee80211_rx_status *rxs,
-			     struct sk_buff *skb)
+static int ath9k_process_rate(struct ath_common *common,
+			      struct ieee80211_hw *hw,
+			      struct ath_rx_status *rx_stats,
+			      struct ieee80211_rx_status *rxs,
+			      struct sk_buff *skb)
 {
 	struct ieee80211_supported_band *sband;
 	enum ieee80211_band band;
@@ -128,25 +128,33 @@ static u8 ath9k_process_rate(struct ath_common *common,
 			rxs->flag |= RX_FLAG_40MHZ;
 		if (rx_stats->rs_flags & ATH9K_RX_GI)
 			rxs->flag |= RX_FLAG_SHORT_GI;
-		return rx_stats->rs_rate & 0x7f;
+		rxs->rate_idx = rx_stats->rs_rate & 0x7f;
+		return 0;
 	}
 
 	for (i = 0; i < sband->n_bitrates; i++) {
-		if (sband->bitrates[i].hw_value == rx_stats->rs_rate)
-			return i;
+		if (sband->bitrates[i].hw_value == rx_stats->rs_rate) {
+			rxs->rate_idx = i;
+			return 0;
+		}
 		if (sband->bitrates[i].hw_value_short == rx_stats->rs_rate) {
 			rxs->flag |= RX_FLAG_SHORTPRE;
-			return i;
+			rxs->rate_idx = i;
+			return 0;
 		}
 	}
 
-	/* No valid hardware bitrate found -- we should not get here */
+	/*
+	 * No valid hardware bitrate found -- we should not get here
+	 * because hardware has already validated this frame as OK.
+	 */
 	ath_print(common, ATH_DBG_XMIT, "unsupported hw bitrate detected "
 		  "0x%02x using 1 Mbit\n", rx_stats->rs_rate);
 	if ((common->debug_mask & ATH_DBG_XMIT))
 		print_hex_dump_bytes("", DUMP_PREFIX_NONE, skb->data, skb->len);
 
-        return 0;
+	rxs->rate_idx = 0;
+	return 0;
 }
 
 static void ath9k_process_rssi(struct ath_common *common,
@@ -208,13 +216,19 @@ int ath9k_cmn_rx_skb_preprocess(struct ath_common *common,
 	struct ath_hw *ah = common->ah;
 
 	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
+
+	/*
+	 * everything but the rate is checked here, the rate check is done
+	 * separately to avoid doing two lookups for a rate for each frame.
+	 */
 	if (!ath9k_rx_accept(common, skb, rx_status, rx_stats, decrypt_error))
 		return -EINVAL;
 
 	ath9k_process_rssi(common, hw, skb, rx_stats);
 
-	rx_status->rate_idx = ath9k_process_rate(common, hw,
-						 rx_stats, rx_status, skb);
+	if (ath9k_process_rate(common, hw, rx_stats, rx_status, skb))
+		return -EINVAL;
+
 	rx_status->mactime = ath9k_hw_extend_tsf(ah, rx_stats->rs_tstamp);
 	rx_status->band = hw->conf.channel->band;
 	rx_status->freq = hw->conf.channel->center_freq;
