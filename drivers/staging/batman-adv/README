@@ -1,4 +1,4 @@
-[state: 06-01-2010]
+[state: 22-03-2010]
 
 BATMAN-ADV
 ----------
@@ -44,10 +44,11 @@ regular interface:
 # ping 192.168.0.2
 ...
 
+---
 If you want topology visualization, your meshnode must be configured
 as VIS-server:
 
-# echo "server" > /proc/net/batman-adv/vis
+# echo "server" > /proc/net/batman-adv/vis_server
 
 Each node is either configured as "server" or as "client" (default:
 "client"). Clients send their topology data to the server next to them,
@@ -58,12 +59,31 @@ more vis servers sharing the same (or at least very similar) data.
 
 When configured as server, you can get a topology snapshot of your mesh:
 
-# cat /proc/net/batman-adv/vis
+# cat /proc/net/batman-adv/vis_data
 
-The output is in a generic raw format. Use the batctl tool (See below)
-to convert this to other formats more suitable for graphing, eg
-graphviz dot, or JSON data-interchange format.
+This raw output is intended to be easily parsable and convertable with
+other tools. Have a look at the batctl README if you want a vis output
+in dot or json format for instance and how those outputs could then be
+visualised in an image.
 
+The raw format consists of comma seperated values per entry where each
+entry is giving information about a certain source interface. Each entry
+can/has to have the following values:
+-> "mac" -> mac address of an originator's source interface
+           (each line begins with it)
+-> "TQ mac value" -> src mac's link quality towards mac address of a neighbor
+                     originator's interface which is being used for routing
+-> "HNA mac" -> HNA announced by source mac
+-> "PRIMARY" -> this is a primary interface
+-> "SEC mac" -> secondary mac address of source (requires preceeding
+-> PRIMARY)
+
+The TQ value has a range from 4 to 255 with 255 being the best.
+The HNA entries are showing which hosts are connected to the mesh via bat0
+or being bridged into the mesh network.
+The PRIMARY/SEC values are only applied on primary interfaces
+
+---
 In very mobile scenarios, you might want to adjust the originator
 interval to a lower value. This will make the mesh more responsive to
 topology changes, but will also increase the overhead. Please make sure
