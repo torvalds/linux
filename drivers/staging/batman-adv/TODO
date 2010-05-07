@@ -1,23 +1,6 @@
-=> proc interface
-* implement new interface to add/delete interfaces and setting options
-* /proc/sys/net/batman-adv/ as main folder
-* in interfaces/ list every available interface of the host
-* each interfaces/$iface/ contains the following files:
--> enable (def: 0) [add/remove this interface to batman-adv]
--> ogm_interval (def: 1000) [ogm interval of that interface]
--> context (def: bat0) [later we want to support multiple mesh instances via
--> bat0/bat1/bat2/..]
--> status (read-only) [outputs the interface status from batman's
--> perspective]
-* in mesh/batX/ list every available mesh subnet
--> vis_server (def: 0) [enable/disable vis server for that mesh]
--> vis_data (read-only) [outputs the vis data in a raw format]
--> aggregate_ogm (def: 1) [enable/disable ogm aggregation for that mesh]
--> originators (read-only) [outputs the originator table]
--> transtable_global (read-only) [outputs the global translation table]
--> transtable_local (read-only) [outputs the local translation table]
-
-=> fix checkpatch.pl errors
+Request a review.
+Process the comments from the review.
+Move into mainline proper.
 
 Please send all patches to:
 	Marek Lindner <lindner_marek@yahoo.de>
