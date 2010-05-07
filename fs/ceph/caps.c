@@ -1718,10 +1718,9 @@ out_unlocked:
 static int caps_are_flushed(struct inode *inode, unsigned tid)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	int dirty, i, ret = 1;
+	int i, ret = 1;
 
 	spin_lock(&inode->i_lock);
-	dirty = __ceph_caps_dirty(ci);
 	for (i = 0; i < CEPH_CAP_BITS; i++)
 		if ((ci->i_flushing_caps & (1 << i)) &&
 		    ci->i_cap_flush_tid[i] <= tid) {
