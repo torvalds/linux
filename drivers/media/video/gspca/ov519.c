@@ -90,6 +90,7 @@ struct sd {
 #define QUALITY_DEF 50
 
 	__u8 stopped;		/* Streaming is temporarily paused */
+	__u8 first_frame;
 
 	__u8 frame_rate;	/* current Framerate */
 	__u8 clockdiv;		/* clockdiv override */
@@ -3961,6 +3962,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd_reset_snapshot(gspca_dev);
 	sd->snapshot_pressed = 0;
 
+	sd->first_frame = 3;
+
 	ret = ov51x_restart(sd);
 	if (ret < 0)
 		goto out;
@@ -4153,13 +4156,25 @@ static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct gspca_frame *frame;
+
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+
 	/* A short read signals EOF */
 	if (len < OVFX2_BULK_SIZE) {
-		gspca_frame_add(gspca_dev, LAST_PACKET, data, len);
+		/* If the frame is short, and it is one of the first ones
+		   the sensor and bridge are still syncing, so drop it. */
+		if (sd->first_frame) {
+			sd->first_frame--;
+			frame = gspca_get_i_frame(gspca_dev);
+			if (!frame || (frame->data_end - frame->data) <
+				  (sd->gspca_dev.width * sd->gspca_dev.height))
+				gspca_dev->last_packet_type = DISCARD_PACKET;
+		}
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
-		return;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
