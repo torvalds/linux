@@ -663,6 +663,13 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0xffff;
 		raw_decode   = 1;
 		break;
+	case SAA7134_BOARD_AVERMEDIA_M733A:
+		ir_codes     = RC_MAP_AVERMEDIA_M733A_RM_K6;
+		mask_keydown = 0x0040000;
+		mask_keyup   = 0x0040000;
+		mask_keycode = 0xffff;
+		raw_decode   = 1;
+		break;
 	case SAA7134_BOARD_AVERMEDIA_777:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
 		ir_codes     = RC_MAP_AVERMEDIA;
