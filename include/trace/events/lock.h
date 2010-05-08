@@ -78,24 +78,21 @@ TRACE_EVENT(lock_contended,
 );
 
 TRACE_EVENT(lock_acquired,
-	TP_PROTO(struct lockdep_map *lock, unsigned long ip, s64 waittime),
+	TP_PROTO(struct lockdep_map *lock, unsigned long ip),
 
-	TP_ARGS(lock, ip, waittime),
+	TP_ARGS(lock, ip),
 
 	TP_STRUCT__entry(
 		__string(name, lock->name)
-		__field(s64, wait_nsec)
 		__field(void *, lockdep_addr)
 	),
 
 	TP_fast_assign(
 		__assign_str(name, lock->name);
-		__entry->wait_nsec = waittime;
 		__entry->lockdep_addr = lock;
 	),
-	TP_printk("%p %s (%llu ns)", __entry->lockdep_addr,
-		  __get_str(name),
-		  __entry->wait_nsec)
+	TP_printk("%p %s", __entry->lockdep_addr,
+		  __get_str(name))
 );
 
 #endif
