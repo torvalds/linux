@@ -604,7 +604,7 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Send beacon to hardware and enable beacon genaration..
 	 */
-	rt2x00dev->ops->lib->write_beacon(intf->beacon);
+	rt2x00dev->ops->lib->write_beacon(intf->beacon, &txdesc);
 
 	mutex_unlock(&intf->beacon_skb_mutex);
 

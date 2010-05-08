@@ -1082,7 +1082,8 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
  */
 static void rt2500usb_beacondone(struct urb *urb);
 
-static void rt2500usb_write_beacon(struct queue_entry *entry)
+static void rt2500usb_write_beacon(struct queue_entry *entry,
+				   struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
