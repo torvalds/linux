@@ -682,7 +682,6 @@ static void rt2800pci_write_beacon(struct queue_entry *entry,
 				   struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	unsigned int beacon_base;
 	u32 reg;
 
@@ -695,15 +694,17 @@ static void rt2800pci_write_beacon(struct queue_entry *entry,
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
 	/*
-	 * Write entire beacon with descriptor to register.
+	 * Add the TXWI for the beacon to the skb.
+	 */
+	rt2800_write_txwi(entry->skb, txdesc);
+	skb_push(entry->skb, TXWI_DESC_SIZE);
+
+	/*
+	 * Write entire beacon with TXWI to register.
 	 */
 	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
-	rt2800_register_multiwrite(rt2x00dev,
-				      beacon_base,
-				      skbdesc->desc, skbdesc->desc_len);
-	rt2800_register_multiwrite(rt2x00dev,
-				      beacon_base + skbdesc->desc_len,
-				      entry->skb->data, entry->skb->len);
+	rt2800_register_multiwrite(rt2x00dev, beacon_base,
+				   entry->skb->data, entry->skb->len);
 
 	/*
 	 * Enable beaconing again.
