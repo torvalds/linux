@@ -1014,17 +1014,6 @@ static int cx25840_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 /* ----------------------------------------------------------------------- */
 
-static int cx25840_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_g_sliced_fmt(sd, &fmt->fmt.sliced);
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int cx25840_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
 {
 	struct cx25840_state *state = to_state(sd);
@@ -1078,24 +1067,6 @@ static int cx25840_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 	cx25840_write(client, 0x41d, VSC >> 8);
 	/* VS_INTRLACE=1 VFILT=filter */
 	cx25840_write(client, 0x41e, 0x8 | filter);
-	return 0;
-}
-
-static int cx25840_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	struct v4l2_mbus_framefmt mbus_fmt;
-
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		mbus_fmt.width = fmt->fmt.pix.width;
-		mbus_fmt.height = fmt->fmt.pix.height;
-		mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
-		return cx25840_s_mbus_fmt(sd, &mbus_fmt);
-
-	default:
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
@@ -1640,8 +1611,6 @@ static const struct v4l2_subdev_audio_ops cx25840_audio_ops = {
 
 static const struct v4l2_subdev_video_ops cx25840_video_ops = {
 	.s_routing = cx25840_s_video_routing,
-	.g_fmt = cx25840_g_fmt,
-	.s_fmt = cx25840_s_fmt,
 	.s_mbus_fmt = cx25840_s_mbus_fmt,
 	.s_stream = cx25840_s_stream,
 };
