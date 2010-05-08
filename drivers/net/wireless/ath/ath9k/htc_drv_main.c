@@ -461,7 +461,7 @@ static int ath9k_htc_aggr_oper(struct ath9k_htc_priv *priv,
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_htc_target_aggr aggr;
 	struct ieee80211_sta *sta = NULL;
-	struct ath9k_htc_sta *ista = (struct ath9k_htc_sta *) sta->drv_priv;
+	struct ath9k_htc_sta *ista;
 	int ret = 0;
 	u8 cmd_rsp;
 
