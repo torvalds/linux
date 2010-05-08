@@ -507,30 +507,9 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	__le32 *rxi = (__le32 *)entry->skb->data;
-	__le32 *rxwi;
 	__le32 *rxd;
-	u32 rxi0;
-	u32 rxwi0;
-	u32 rxwi1;
-	u32 rxwi2;
-	u32 rxwi3;
-	u32 rxd0;
+	u32 word;
 	int rx_pkt_len;
-
-	/*
-	 * RX frame format is :
-	 * | RXINFO | RXWI | header | L2 pad | payload | pad | RXD | USB pad |
-	 *          |<------------ rx_pkt_len -------------->|
-	 */
-	rt2x00_desc_read(rxi, 0, &rxi0);
-	rx_pkt_len = rt2x00_get_field32(rxi0, RXINFO_W0_USB_DMA_RX_PKT_LEN);
-
-	rxwi = (__le32 *)(entry->skb->data + RXINFO_DESC_SIZE);
-
-	/*
-	 * FIXME : we need to check for rx_pkt_len validity
-	 */
-	rxd = (__le32 *)(entry->skb->data + RXINFO_DESC_SIZE + rx_pkt_len);
 
 	/*
 	 * Copy descriptor to the skbdesc->desc buffer, making it safe from
@@ -539,21 +518,34 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	memcpy(skbdesc->desc, rxi, skbdesc->desc_len);
 
 	/*
+	 * RX frame format is :
+	 * | RXINFO | RXWI | header | L2 pad | payload | pad | RXD | USB pad |
+	 *          |<------------ rx_pkt_len -------------->|
+	 */
+	rt2x00_desc_read(rxi, 0, &word);
+	rx_pkt_len = rt2x00_get_field32(word, RXINFO_W0_USB_DMA_RX_PKT_LEN);
+
+	/*
+	 * Remove the RXINFO structure from the sbk.
+	 */
+	skb_pull(entry->skb, RXINFO_DESC_SIZE);
+
+	/*
+	 * FIXME: we need to check for rx_pkt_len validity
+	 */
+	rxd = (__le32 *)(entry->skb->data + rx_pkt_len);
+
+	/*
 	 * It is now safe to read the descriptor on all architectures.
 	 */
-	rt2x00_desc_read(rxwi, 0, &rxwi0);
-	rt2x00_desc_read(rxwi, 1, &rxwi1);
-	rt2x00_desc_read(rxwi, 2, &rxwi2);
-	rt2x00_desc_read(rxwi, 3, &rxwi3);
-	rt2x00_desc_read(rxd, 0, &rxd0);
+	rt2x00_desc_read(rxd, 0, &word);
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_CRC_ERROR))
+	if (rt2x00_get_field32(word, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
-	rxdesc->cipher = rt2x00_get_field32(rxwi0, RXWI_W0_UDF);
-	rxdesc->cipher_status = rt2x00_get_field32(rxd0, RXD_W0_CIPHER_ERROR);
+	rxdesc->cipher_status = rt2x00_get_field32(word, RXD_W0_CIPHER_ERROR);
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_DECRYPTED)) {
+	if (rt2x00_get_field32(word, RXD_W0_DECRYPTED)) {
 		/*
 		 * Hardware has stripped IV/EIV data from 802.11 frame during
 		 * decryption. Unfortunately the descriptor doesn't contain
@@ -568,41 +560,21 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 			rxdesc->flags |= RX_FLAG_MMIC_ERROR;
 	}
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_MY_BSS))
+	if (rt2x00_get_field32(word, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_L2PAD))
+	if (rt2x00_get_field32(word, RXD_W0_L2PAD))
 		rxdesc->dev_flags |= RXDONE_L2PAD;
 
-	if (rt2x00_get_field32(rxwi1, RXWI_W1_SHORT_GI))
-		rxdesc->flags |= RX_FLAG_SHORT_GI;
-
-	if (rt2x00_get_field32(rxwi1, RXWI_W1_BW))
-		rxdesc->flags |= RX_FLAG_40MHZ;
+	/*
+	 * Remove RXD descriptor from end of buffer.
+	 */
+	skb_trim(entry->skb, rx_pkt_len);
 
 	/*
-	 * Detect RX rate, always use MCS as signal type.
+	 * Process the RXWI structure.
 	 */
-	rxdesc->dev_flags |= RXDONE_SIGNAL_MCS;
-	rxdesc->rate_mode = rt2x00_get_field32(rxwi1, RXWI_W1_PHYMODE);
-	rxdesc->signal = rt2x00_get_field32(rxwi1, RXWI_W1_MCS);
-
-	/*
-	 * Mask of 0x8 bit to remove the short preamble flag.
-	 */
-	if (rxdesc->rate_mode == RATE_MODE_CCK)
-		rxdesc->signal &= ~0x8;
-
-	rxdesc->rssi =
-	    (rt2x00_get_field32(rxwi2, RXWI_W2_RSSI0) +
-	     rt2x00_get_field32(rxwi2, RXWI_W2_RSSI1)) / 2;
-
-	rxdesc->size = rt2x00_get_field32(rxwi0, RXWI_W0_MPDU_TOTAL_BYTE_COUNT);
-
-	/*
-	 * Remove RXWI descriptor from start of buffer.
-	 */
-	skb_pull(entry->skb, skbdesc->desc_len);
+	rt2800_process_rxwi(entry->skb, rxdesc);
 }
 
 /*

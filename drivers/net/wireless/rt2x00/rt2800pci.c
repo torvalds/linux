@@ -770,20 +770,11 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	__le32 *rxd = entry_priv->desc;
-	__le32 *rxwi = (__le32 *)entry->skb->data;
-	u32 rxd3;
-	u32 rxwi0;
-	u32 rxwi1;
-	u32 rxwi2;
-	u32 rxwi3;
+	u32 word;
 
-	rt2x00_desc_read(rxd, 3, &rxd3);
-	rt2x00_desc_read(rxwi, 0, &rxwi0);
-	rt2x00_desc_read(rxwi, 1, &rxwi1);
-	rt2x00_desc_read(rxwi, 2, &rxwi2);
-	rt2x00_desc_read(rxwi, 3, &rxwi3);
+	rt2x00_desc_read(rxd, 3, &word);
 
-	if (rt2x00_get_field32(rxd3, RXD_W3_CRC_ERROR))
+	if (rt2x00_get_field32(word, RXD_W3_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
 	/*
@@ -791,10 +782,9 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	 * decryption. This prevents us from correct providing
 	 * correct statistics through debugfs.
 	 */
-	rxdesc->cipher = rt2x00_get_field32(rxwi0, RXWI_W0_UDF);
-	rxdesc->cipher_status = rt2x00_get_field32(rxd3, RXD_W3_CIPHER_ERROR);
+	rxdesc->cipher_status = rt2x00_get_field32(word, RXD_W3_CIPHER_ERROR);
 
-	if (rt2x00_get_field32(rxd3, RXD_W3_DECRYPTED)) {
+	if (rt2x00_get_field32(word, RXD_W3_DECRYPTED)) {
 		/*
 		 * Hardware has stripped IV/EIV data from 802.11 frame during
 		 * decryption. Unfortunately the descriptor doesn't contain
@@ -809,47 +799,22 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 			rxdesc->flags |= RX_FLAG_MMIC_ERROR;
 	}
 
-	if (rt2x00_get_field32(rxd3, RXD_W3_MY_BSS))
+	if (rt2x00_get_field32(word, RXD_W3_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
-	if (rt2x00_get_field32(rxd3, RXD_W3_L2PAD))
+	if (rt2x00_get_field32(word, RXD_W3_L2PAD))
 		rxdesc->dev_flags |= RXDONE_L2PAD;
 
-	if (rt2x00_get_field32(rxwi1, RXWI_W1_SHORT_GI))
-		rxdesc->flags |= RX_FLAG_SHORT_GI;
-
-	if (rt2x00_get_field32(rxwi1, RXWI_W1_BW))
-		rxdesc->flags |= RX_FLAG_40MHZ;
-
 	/*
-	 * Detect RX rate, always use MCS as signal type.
+	 * Process the RXWI structure that is at the start of the buffer.
 	 */
-	rxdesc->dev_flags |= RXDONE_SIGNAL_MCS;
-	rxdesc->rate_mode = rt2x00_get_field32(rxwi1, RXWI_W1_PHYMODE);
-	rxdesc->signal = rt2x00_get_field32(rxwi1, RXWI_W1_MCS);
-
-	/*
-	 * Mask of 0x8 bit to remove the short preamble flag.
-	 */
-	if (rxdesc->rate_mode == RATE_MODE_CCK)
-		rxdesc->signal &= ~0x8;
-
-	rxdesc->rssi =
-	    (rt2x00_get_field32(rxwi2, RXWI_W2_RSSI0) +
-	     rt2x00_get_field32(rxwi2, RXWI_W2_RSSI1)) / 2;
-
-	rxdesc->size = rt2x00_get_field32(rxwi0, RXWI_W0_MPDU_TOTAL_BYTE_COUNT);
+	rt2800_process_rxwi(entry->skb, rxdesc);
 
 	/*
 	 * Set RX IDX in register to inform hardware that we have handled
 	 * this entry and it is available for reuse again.
 	 */
 	rt2800_register_write(rt2x00dev, RX_CRX_IDX, entry->entry_idx);
-
-	/*
-	 * Remove TXWI descriptor from start of buffer.
-	 */
-	skb_pull(entry->skb, RXWI_DESC_SIZE);
 }
 
 /*

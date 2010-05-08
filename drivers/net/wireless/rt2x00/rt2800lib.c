@@ -335,6 +335,50 @@ void rt2800_write_txwi(struct sk_buff *skb, struct txentry_desc *txdesc)
 }
 EXPORT_SYMBOL_GPL(rt2800_write_txwi);
 
+void rt2800_process_rxwi(struct sk_buff *skb, struct rxdone_entry_desc *rxdesc)
+{
+	__le32 *rxwi = (__le32 *) skb->data;
+	u32 word;
+
+	rt2x00_desc_read(rxwi, 0, &word);
+
+	rxdesc->cipher = rt2x00_get_field32(word, RXWI_W0_UDF);
+	rxdesc->size = rt2x00_get_field32(word, RXWI_W0_MPDU_TOTAL_BYTE_COUNT);
+
+	rt2x00_desc_read(rxwi, 1, &word);
+
+	if (rt2x00_get_field32(word, RXWI_W1_SHORT_GI))
+		rxdesc->flags |= RX_FLAG_SHORT_GI;
+
+	if (rt2x00_get_field32(word, RXWI_W1_BW))
+		rxdesc->flags |= RX_FLAG_40MHZ;
+
+	/*
+	 * Detect RX rate, always use MCS as signal type.
+	 */
+	rxdesc->dev_flags |= RXDONE_SIGNAL_MCS;
+	rxdesc->signal = rt2x00_get_field32(word, RXWI_W1_MCS);
+	rxdesc->rate_mode = rt2x00_get_field32(word, RXWI_W1_PHYMODE);
+
+	/*
+	 * Mask of 0x8 bit to remove the short preamble flag.
+	 */
+	if (rxdesc->rate_mode == RATE_MODE_CCK)
+		rxdesc->signal &= ~0x8;
+
+	rt2x00_desc_read(rxwi, 2, &word);
+
+	rxdesc->rssi =
+	    (rt2x00_get_field32(word, RXWI_W2_RSSI0) +
+	     rt2x00_get_field32(word, RXWI_W2_RSSI1)) / 2;
+
+	/*
+	 * Remove RXWI descriptor from start of buffer.
+	 */
+	skb_pull(skb, RXWI_DESC_SIZE);
+}
+EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
+
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 const struct rt2x00debug rt2800_rt2x00debug = {
 	.owner	= THIS_MODULE,
