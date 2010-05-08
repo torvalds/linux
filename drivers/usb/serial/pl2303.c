@@ -786,12 +786,13 @@ static void pl2303_process_read_urb(struct urb *urb)
 	if (line_status & UART_OVERRUN_ERROR)
 		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 
-	if (tty_flag == TTY_NORMAL && !(port->port.console && port->sysrq))
-		tty_insert_flip_string(tty, data, urb->actual_length);
-	else {
+	if (port->port.console && port->sysrq) {
 		for (i = 0; i < urb->actual_length; ++i)
 			if (!usb_serial_handle_sysrq_char(tty, port, data[i]))
 				tty_insert_flip_char(tty, data[i], tty_flag);
+	} else {
+		tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
+							urb->actual_length);
 	}
 
 	tty_flip_buffer_push(tty);
