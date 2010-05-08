@@ -43,6 +43,7 @@
 #include <linux/timer.h>
 #include <linux/mutex.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <asm/keylargo.h>
 #include <asm/uninorth.h>
 #include <asm/io.h>

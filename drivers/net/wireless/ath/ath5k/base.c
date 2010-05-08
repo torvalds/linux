@@ -50,6 +50,7 @@
 #include <linux/pci.h>
 #include <linux/ethtool.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 #include <net/ieee80211_radiotap.h>
 

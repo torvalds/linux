@@ -15,7 +15,6 @@
 #include <linux/sysdev.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/fs.h>

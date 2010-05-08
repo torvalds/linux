@@ -26,6 +26,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/sysfs.h>

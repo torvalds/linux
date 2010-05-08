@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/netdevice.h>
 

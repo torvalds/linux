@@ -33,6 +33,7 @@
 #include <linux/cpufreq.h>
 #include <linux/compiler.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 #include <trace/events/power.h>
 
 #include <linux/acpi.h>

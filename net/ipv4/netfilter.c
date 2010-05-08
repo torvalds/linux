@@ -4,6 +4,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
+#include <linux/gfp.h>
 #include <net/route.h>
 #include <net/xfrm.h>
 #include <net/ip.h>

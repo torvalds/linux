@@ -9,7 +9,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include "cb710-mmc.h"

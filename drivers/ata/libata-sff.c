@@ -33,6 +33,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/pci.h>
 #include <linux/libata.h>
 #include <linux/highmem.h>
@@ -1814,10 +1815,6 @@ retry:
 			if (!ap->ops->sff_irq_check ||
 			    !ap->ops->sff_irq_check(ap))
 				continue;
-
-			if (printk_ratelimit())
-				ata_port_printk(ap, KERN_INFO,
-						"clearing spurious IRQ\n");
 
 			if (idle & (1 << i)) {
 				ap->ops->sff_check_status(ap);

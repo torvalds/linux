@@ -15,7 +15,6 @@
 #include <linux/errno.h>
 #include <linux/stat.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <asm/uaccess.h>

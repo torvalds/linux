@@ -31,6 +31,7 @@
 #include "ixgbe_dcb_82599.h"
 #endif /* CONFIG_IXGBE_DCB */
 #include <linux/if_ether.h>
+#include <linux/gfp.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/fc/fc_fs.h>

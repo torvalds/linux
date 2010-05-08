@@ -7,6 +7,7 @@
  */
 
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include "hpfs_fn.h"
 
 void hpfs_init_inode(struct inode *i)

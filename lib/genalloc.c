@@ -10,6 +10,7 @@
  * Version 2.  See the file COPYING for more details.
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/bitmap.h>
 #include <linux/genalloc.h>

@@ -20,6 +20,7 @@
  *  Boston, MA  02111-1301  USA
  *
  */
+#include <linux/backing-dev.h>
 
 /**
  * enum p9_session_flags - option flags for each 9P session
@@ -102,12 +103,14 @@ struct v9fs_session_info {
 	u32 uid;		/* if ACCESS_SINGLE, the uid that has access */
 	struct p9_client *clnt;	/* 9p client */
 	struct list_head slist; /* list of sessions registered with v9fs */
+	struct backing_dev_info bdi;
 };
 
 struct p9_fid *v9fs_session_init(struct v9fs_session_info *, const char *,
 									char *);
 void v9fs_session_close(struct v9fs_session_info *v9ses);
 void v9fs_session_cancel(struct v9fs_session_info *v9ses);
+void v9fs_session_begin_cancel(struct v9fs_session_info *v9ses);
 
 #define V9FS_MAGIC 0x01021997
 

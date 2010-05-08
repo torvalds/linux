@@ -21,6 +21,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/usb/otg.h>
+#include <linux/slab.h>
 
 #include <mach/mxc_ehci.h>
 

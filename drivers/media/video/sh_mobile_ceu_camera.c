@@ -27,6 +27,7 @@
 #include <linux/moduleparam.h>
 #include <linux/time.h>
 #include <linux/version.h>
+#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>

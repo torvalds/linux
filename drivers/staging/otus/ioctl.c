@@ -23,6 +23,7 @@
 /*     Platform dependent.                                              */
 /*                                                                      */
 /************************************************************************/
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/if_arp.h>
 #include <linux/uaccess.h>

@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/lcd.h>

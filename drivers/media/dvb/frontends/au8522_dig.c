@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include "dvb_frontend.h"
 #include "au8522.h"

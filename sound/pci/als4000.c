@@ -68,7 +68,6 @@
 #include <asm/io.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/gameport.h>
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>

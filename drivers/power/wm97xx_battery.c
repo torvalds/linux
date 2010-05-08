@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 
 static DEFINE_MUTEX(bat_lock);
 static struct work_struct bat_work;

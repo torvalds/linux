@@ -153,6 +153,7 @@
 #define HFC_MULTI_VERSION	"2.03"
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/mISDNhw.h>

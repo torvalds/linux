@@ -106,7 +106,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	regs->esr = error_code;
 
 	/* On a kernel SLB miss we can only check for a valid exception entry */
-	if (kernel_mode(regs) && (address >= TASK_SIZE)) {
+	if (unlikely(kernel_mode(regs) && (address >= TASK_SIZE))) {
 		printk(KERN_WARNING "kernel task_size exceed");
 		_exception(SIGSEGV, regs, code, address);
 	}
@@ -122,7 +122,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	}
 #endif /* CONFIG_KGDB */
 
-	if (in_atomic() || !mm) {
+	if (unlikely(in_atomic() || !mm)) {
 		if (kernel_mode(regs))
 			goto bad_area_nosemaphore;
 
@@ -150,7 +150,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * source.  If this is invalid we can skip the address space check,
 	 * thus avoiding the deadlock.
 	 */
-	if (!down_read_trylock(&mm->mmap_sem)) {
+	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
 		if (kernel_mode(regs) && !search_exception_tables(regs->pc))
 			goto bad_area_nosemaphore;
 
@@ -158,16 +158,16 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	}
 
 	vma = find_vma(mm, address);
-	if (!vma)
+	if (unlikely(!vma))
 		goto bad_area;
 
 	if (vma->vm_start <= address)
 		goto good_area;
 
-	if (!(vma->vm_flags & VM_GROWSDOWN))
+	if (unlikely(!(vma->vm_flags & VM_GROWSDOWN)))
 		goto bad_area;
 
-	if (!is_write)
+	if (unlikely(!is_write))
 		goto bad_area;
 
 	/*
@@ -179,7 +179,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * before setting the user r1.  Thus we allow the stack to
 	 * expand to 1MB without further checks.
 	 */
-	if (address + 0x100000 < vma->vm_end) {
+	if (unlikely(address + 0x100000 < vma->vm_end)) {
 
 		/* get user regs even if this fault is in kernel mode */
 		struct pt_regs *uregs = current->thread.regs;
@@ -209,15 +209,15 @@ good_area:
 	code = SEGV_ACCERR;
 
 	/* a write */
-	if (is_write) {
-		if (!(vma->vm_flags & VM_WRITE))
+	if (unlikely(is_write)) {
+		if (unlikely(!(vma->vm_flags & VM_WRITE)))
 			goto bad_area;
 	/* a read */
 	} else {
 		/* protection fault */
-		if (error_code & 0x08000000)
+		if (unlikely(error_code & 0x08000000))
 			goto bad_area;
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
+		if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC))))
 			goto bad_area;
 	}
 
@@ -235,7 +235,7 @@ survive:
 			goto do_sigbus;
 		BUG();
 	}
-	if (fault & VM_FAULT_MAJOR)
+	if (unlikely(fault & VM_FAULT_MAJOR))
 		current->maj_flt++;
 	else
 		current->min_flt++;

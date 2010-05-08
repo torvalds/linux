@@ -119,31 +119,3 @@ void local_flush_tlb_mm(struct mm_struct *mm)
 		local_irq_restore(flags);
 	}
 }
-
-void local_flush_tlb_all(void)
-{
-	unsigned long flags, status;
-	int i;
-
-	/*
-	 * Flush all the TLB.
-	 */
-	local_irq_save(flags);
-	jump_to_uncached();
-
-	status = __raw_readl(MMUCR);
-	status = ((status & MMUCR_URB) >> MMUCR_URB_SHIFT);
-
-	if (status == 0)
-		status = MMUCR_URB_NENTRIES;
-
-	for (i = 0; i < status; i++)
-		__raw_writel(0x0, MMU_UTLB_ADDRESS_ARRAY | (i << 8));
-
-	for (i = 0; i < 4; i++)
-		__raw_writel(0x0, MMU_ITLB_ADDRESS_ARRAY | (i << 8));
-
-	back_to_cached();
-	ctrl_barrier();
-	local_irq_restore(flags);
-}

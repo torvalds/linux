@@ -11,6 +11,7 @@
 #include "irnet_irda.h"		/* Private header */
 #include <linux/sched.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 /*

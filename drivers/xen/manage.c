@@ -3,6 +3,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/sysrq.h>
 #include <linux/stop_machine.h>

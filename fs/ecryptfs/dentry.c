@@ -26,6 +26,7 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/fs_stack.h>
+#include <linux/slab.h>
 #include "ecryptfs_kernel.h"
 
 /**

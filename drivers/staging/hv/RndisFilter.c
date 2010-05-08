@@ -20,6 +20,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include "osd.h"
 #include "logging.h"

@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/of.h>
 #include <linux/of_device.h>

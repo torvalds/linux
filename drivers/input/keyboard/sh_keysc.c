@@ -22,6 +22,7 @@
 #include <linux/bitmap.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 static const struct {
 	unsigned char kymd, keyout, keyin;

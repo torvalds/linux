@@ -31,6 +31,7 @@
 #include "linux/ctype.h"
 #include "linux/capability.h"
 #include "linux/mm.h"
+#include "linux/slab.h"
 #include "linux/vmalloc.h"
 #include "linux/blkpg.h"
 #include "linux/genhd.h"

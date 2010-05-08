@@ -33,6 +33,7 @@
 #include <linux/timer.h>
 #include <linux/gpio.h>
 #include <linux/input/eeti_ts.h>
+#include <linux/slab.h>
 
 static int flip_x;
 module_param(flip_x, bool, 0644);

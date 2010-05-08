@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/idr.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <linux/c2port.h>
 

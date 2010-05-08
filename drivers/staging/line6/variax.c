@@ -11,6 +11,8 @@
 
 #include "driver.h"
 
+#include <linux/slab.h>
+
 #include "audio.h"
 #include "control.h"
 #include "variax.h"

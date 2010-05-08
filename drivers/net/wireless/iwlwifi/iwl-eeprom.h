@@ -203,6 +203,10 @@ struct iwl_eeprom_enhanced_txpwr {
 #define EEPROM_5000_REG_BAND_52_HT40_CHANNELS  ((0x92)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22  bytes */
 
+/* 6000 regulatory - indirect access */
+#define EEPROM_6000_REG_BAND_24_HT40_CHANNELS  ((0x80)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
+
 /* 6000 and up regulatory tx power - indirect access */
 /* max. elements per section */
 #define EEPROM_MAX_TXPOWER_SECTION_ELEMENTS	(8)

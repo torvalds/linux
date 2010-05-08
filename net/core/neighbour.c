@@ -15,6 +15,7 @@
  *	Harald Welte		Add neighbour cache statistics like rtstat
  */
 
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

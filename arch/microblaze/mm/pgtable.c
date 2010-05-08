@@ -154,7 +154,7 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 		err = 0;
 		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT,
 				__pgprot(flags)));
-		if (mem_init_done)
+		if (unlikely(mem_init_done))
 			flush_HPTE(0, va, pmd_val(*pd));
 			/* flush_HPTE(0, va, pg); */
 	}

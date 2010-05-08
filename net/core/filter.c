@@ -25,6 +25,7 @@
 #include <linux/inet.h>
 #include <linux/netdevice.h>
 #include <linux/if_packet.h>
+#include <linux/gfp.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/netlink.h>

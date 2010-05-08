@@ -29,6 +29,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 
 #include "be_hw.h"
 

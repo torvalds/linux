@@ -22,6 +22,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 
 #include <linux/netfilter/x_tables.h>

@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/amba/bus.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #define RTC_DR		(0)
 #define RTC_MR		(4)

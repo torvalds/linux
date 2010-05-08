@@ -49,6 +49,7 @@
 #include <linux/delay.h>
 #include <linux/completion.h>
 #include <linux/kref.h>
+#include <linux/slab.h>
 
 /*
  * Version Information

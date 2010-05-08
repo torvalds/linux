@@ -42,6 +42,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/slab.h>
 #include <linux/regulator/max8660.h>
 
 #define MAX8660_DCDC_MIN_UV	 725000

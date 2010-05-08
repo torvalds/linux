@@ -64,9 +64,9 @@ __get_user_bad:
 	mov	pc, lr
 ENDPROC(__get_user_bad)
 
-.section __ex_table, "a"
+.pushsection __ex_table, "a"
 	.long	1b, __get_user_bad
 	.long	2b, __get_user_bad
 	.long	3b, __get_user_bad
 	.long	4b, __get_user_bad
-.previous
+.popsection

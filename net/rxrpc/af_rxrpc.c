@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/net.h>
+#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>

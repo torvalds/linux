@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/stat.h>
+#include <linux/slab.h>
 
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
@@ -312,7 +313,7 @@ static ssize_t
 print_block_size(struct sysdev_class *class, struct sysdev_class_attribute *attr,
 		 char *buf)
 {
-	return sprintf(buf, "%#lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
+	return sprintf(buf, "%lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
 }
 
 static SYSDEV_CLASS_ATTR(block_size_bytes, 0444, print_block_size, NULL);

@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/kernel.h>

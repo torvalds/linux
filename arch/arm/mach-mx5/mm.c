@@ -35,11 +35,6 @@ static struct map_desc mxc_io_desc[] __initdata = {
 		.length = MX51_DEBUG_SIZE,
 		.type = MT_DEVICE
 	}, {
-		.virtual = MX51_TZIC_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX51_TZIC_BASE_ADDR),
-		.length = MX51_TZIC_SIZE,
-		.type = MT_DEVICE
-	}, {
 		.virtual = MX51_AIPS1_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(MX51_AIPS1_BASE_ADDR),
 		.length = MX51_AIPS1_SIZE,
@@ -54,11 +49,6 @@ static struct map_desc mxc_io_desc[] __initdata = {
 		.pfn = __phys_to_pfn(MX51_AIPS2_BASE_ADDR),
 		.length = MX51_AIPS2_SIZE,
 		.type = MT_DEVICE
-	}, {
-		.virtual = MX51_NFC_AXI_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX51_NFC_AXI_BASE_ADDR),
-		.length = MX51_NFC_AXI_SIZE,
-		.type = MT_DEVICE
 	},
 };
 
@@ -69,14 +59,6 @@ static struct map_desc mxc_io_desc[] __initdata = {
  */
 void __init mx51_map_io(void)
 {
-	u32 tzic_addr;
-
-	if (mx51_revision() < MX51_CHIP_REV_2_0)
-		tzic_addr = 0x8FFFC000;
-	else
-		tzic_addr = 0xE0003000;
-	mxc_io_desc[2].pfn =  __phys_to_pfn(tzic_addr);
-
 	mxc_set_cpu_type(MXC_CPU_MX51);
 	mxc_iomux_v3_init(MX51_IO_ADDRESS(MX51_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG_BASE_ADDR));
@@ -85,5 +67,17 @@ void __init mx51_map_io(void)
 
 void __init mx51_init_irq(void)
 {
-	tzic_init_irq(MX51_IO_ADDRESS(MX51_TZIC_BASE_ADDR));
+	unsigned long tzic_addr;
+	void __iomem *tzic_virt;
+
+	if (mx51_revision() < MX51_CHIP_REV_2_0)
+		tzic_addr = MX51_TZIC_BASE_ADDR_TO1;
+	else
+		tzic_addr = MX51_TZIC_BASE_ADDR;
+
+	tzic_virt = ioremap(tzic_addr, SZ_16K);
+	if (!tzic_virt)
+		panic("unable to map TZIC interrupt controller\n");
+
+	tzic_init_irq(tzic_virt);
 }

@@ -8,6 +8,7 @@
 #include <linux/ide.h>
 #include <linux/hdreg.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 
 #if !defined(CONFIG_DEBUG_BLOCK_EXT_DEVT)
 #define IDE_DISK_MINORS		(1 << PARTN_BITS)

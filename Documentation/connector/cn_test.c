@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/timer.h>
 
 #include <linux/connector.h>

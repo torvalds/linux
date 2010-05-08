@@ -6,6 +6,7 @@
 #include <linux/inet.h>
 #include <linux/kthread.h>
 #include <linux/net.h>
+#include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/string.h>
 #include <net/tcp.h>
@@ -28,6 +29,10 @@
 static char tag_msg = CEPH_MSGR_TAG_MSG;
 static char tag_ack = CEPH_MSGR_TAG_ACK;
 static char tag_keepalive = CEPH_MSGR_TAG_KEEPALIVE;
+
+#ifdef CONFIG_LOCKDEP
+static struct lock_class_key socket_class;
+#endif
 
 
 static void queue_con(struct ceph_connection *con);
@@ -227,6 +232,10 @@ static struct socket *ceph_tcp_connect(struct ceph_connection *con)
 	con->sock = sock;
 	sock->sk->sk_allocation = GFP_NOFS;
 
+#ifdef CONFIG_LOCKDEP
+	lockdep_set_class(&sock->sk->sk_lock, &socket_class);
+#endif
+
 	set_sock_callbacks(sock, con);
 
 	dout("connect %s\n", pr_addr(&con->peer_addr.in_addr));
@@ -332,6 +341,7 @@ static void reset_connection(struct ceph_connection *con)
 		con->out_msg = NULL;
 	}
 	con->in_seq = 0;
+	con->in_seq_acked = 0;
 }
 
 /*

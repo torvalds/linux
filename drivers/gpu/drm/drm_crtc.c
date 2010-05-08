@@ -30,6 +30,7 @@
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
 #include <linux/list.h>
+#include <linux/slab.h>
 #include "drm.h"
 #include "drmP.h"
 #include "drm_crtc.h"

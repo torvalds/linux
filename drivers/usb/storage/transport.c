@@ -44,8 +44,8 @@
  */
 
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
 
 #include <linux/usb/quirks.h>
 

@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/kfifo.h>
 #include <linux/vmalloc.h>
+#include <linux/gfp.h>
 #include <net/net_namespace.h>
 
 #include "dccp.h"

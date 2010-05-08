@@ -11,6 +11,7 @@
 #include <linux/cdrom.h>
 #include <linux/genhd.h>
 #include <linux/nls.h>
+#include <linux/slab.h>
 
 #include "hfs_fs.h"
 #include "btree.h"

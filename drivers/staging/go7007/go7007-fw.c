@@ -31,6 +31,7 @@
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 
 #include "go7007-priv.h"

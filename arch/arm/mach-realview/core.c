@@ -31,6 +31,7 @@
 #include <linux/smsc911x.h>
 #include <linux/ata_platform.h>
 #include <linux/amba/mmci.h>
+#include <linux/gfp.h>
 
 #include <asm/clkdev.h>
 #include <asm/system.h>
@@ -253,7 +254,7 @@ static unsigned int realview_mmc_status(struct device *dev)
 	else
 		mask = 2;
 
-	return readl(REALVIEW_SYSMCI) & mask;
+	return !(readl(REALVIEW_SYSMCI) & mask);
 }
 
 struct mmci_platform_data realview_mmc0_plat_data = {

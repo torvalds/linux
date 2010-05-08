@@ -12,6 +12,7 @@
 #include <linux/uaccess.h>
 #include <linux/atmmpc.h>
 #include <linux/atm.h>
+#include <linux/gfp.h>
 #include "mpc.h"
 #include "mpoa_caches.h"
 

@@ -6,6 +6,7 @@
  * Copyright (C) 2009 Cavium Networks
  */
 
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>

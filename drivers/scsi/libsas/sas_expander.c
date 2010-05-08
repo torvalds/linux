@@ -24,6 +24,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/blkdev.h>
+#include <linux/slab.h>
 
 #include "sas_internal.h"
 

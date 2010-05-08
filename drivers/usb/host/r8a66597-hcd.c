@@ -37,6 +37,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 #include <asm/cacheflush.h>
 
 #include "../core/hcd.h"

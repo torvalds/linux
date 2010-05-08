@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/elf.h>
 #include <linux/vmalloc.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/string.h>
 

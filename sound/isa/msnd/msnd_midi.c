@@ -25,6 +25,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/errno.h>

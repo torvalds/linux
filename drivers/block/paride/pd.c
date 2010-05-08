@@ -145,6 +145,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_GEO, D_SBY, D_DLY, D_SLV};
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/hdreg.h>

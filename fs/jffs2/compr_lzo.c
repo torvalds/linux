@@ -11,7 +11,6 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/lzo.h>

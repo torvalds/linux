@@ -23,6 +23,7 @@
  * 02110-1301 USA
  */
 
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/net.h>
 #include <linux/poll.h>

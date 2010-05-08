@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 
 #include <asm/segment.h>
 #include <asm/page.h>

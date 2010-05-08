@@ -14,8 +14,8 @@
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/vfs.h>
+#include <linux/slab.h>
 #include <linux/pagemap.h>
-#include <linux/gfp.h>
 #include <linux/time.h>
 #include <linux/parser.h>
 #include <linux/sysfs.h>

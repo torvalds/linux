@@ -119,6 +119,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 
 #include <linux/net.h>
 #include <linux/socket.h>

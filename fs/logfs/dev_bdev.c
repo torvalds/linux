@@ -9,6 +9,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
+#include <linux/gfp.h>
 
 #define PAGE_OFS(ofs) ((ofs) & (PAGE_SIZE-1))
 

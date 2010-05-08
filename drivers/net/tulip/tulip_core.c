@@ -24,6 +24,7 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include "tulip.h"
 #include <linux/init.h>
 #include <linux/etherdevice.h>

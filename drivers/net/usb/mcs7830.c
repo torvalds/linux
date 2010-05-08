@@ -44,6 +44,7 @@
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/usbnet.h>
 

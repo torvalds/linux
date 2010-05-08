@@ -67,6 +67,7 @@
  *		- Support for control ioctls
  */
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>

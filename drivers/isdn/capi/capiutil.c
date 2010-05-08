@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/isdn/capiutil.h>
+#include <linux/slab.h>
 
 /* from CAPI2.0 DDK AVM Berlin GmbH */
 

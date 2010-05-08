@@ -33,6 +33,7 @@
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include <asm/prom.h>
 #include <asm/io.h>

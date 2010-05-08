@@ -56,6 +56,7 @@
 #include <linux/netdevice.h>
 #include <linux/in.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 /*

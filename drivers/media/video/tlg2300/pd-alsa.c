@@ -4,10 +4,10 @@
 #include <linux/sound.h>
 #include <linux/spinlock.h>
 #include <linux/soundcard.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/proc_fs.h>
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>

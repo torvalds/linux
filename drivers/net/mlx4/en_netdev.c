@@ -35,6 +35,7 @@
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/device.h>

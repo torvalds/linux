@@ -49,6 +49,7 @@
 #include <linux/in.h>
 #include <linux/io.h>
 #include <linux/ip.h>
+#include <linux/slab.h>
 
 #include "ll_temac.h"
 

@@ -22,6 +22,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include "wl1251_reg.h"
 #include "wl1251_boot.h"

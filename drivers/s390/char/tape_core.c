@@ -20,6 +20,7 @@
 #include <linux/spinlock.h>  // for locks
 #include <linux/vmalloc.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <asm/types.h>	     // for variable types
 

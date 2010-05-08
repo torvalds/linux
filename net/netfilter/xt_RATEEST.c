@@ -11,6 +11,7 @@
 #include <linux/jhash.h>
 #include <linux/rtnetlink.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <net/gen_stats.h>
 #include <net/netlink.h>
 

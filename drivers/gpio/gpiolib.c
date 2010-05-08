@@ -9,6 +9,7 @@
 #include <linux/seq_file.h>
 #include <linux/gpio.h>
 #include <linux/idr.h>
+#include <linux/slab.h>
 
 
 /* Optional implementation infrastructure for GPIO interfaces.

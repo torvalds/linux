@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/rtc.h>
 
 #define DRIVER_NAME "mc13783-rtc"

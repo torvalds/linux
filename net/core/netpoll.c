@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <asm/unaligned.h>

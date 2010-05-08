@@ -26,6 +26,7 @@
 #include <linux/completion.h>
 #include <linux/backing-dev.h>
 #include <linux/wait.h>
+#include <linux/slab.h>
 #include <asm/kmap_types.h>
 #include "extent_io.h"
 #include "extent_map.h"
@@ -834,7 +835,6 @@ struct btrfs_fs_info {
 	u64 last_trans_log_full_commit;
 	u64 open_ioctl_trans;
 	unsigned long mount_opt;
-	u64 max_extent;
 	u64 max_inline;
 	u64 alloc_start;
 	struct btrfs_transaction *running_transaction;

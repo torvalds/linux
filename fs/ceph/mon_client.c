@@ -1,6 +1,7 @@
 #include "ceph_debug.h"
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/sched.h>
 

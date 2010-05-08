@@ -50,6 +50,7 @@
 #include <linux/debugfs.h>
 #include <linux/random.h>
 #include <linux/ieee80211.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 #include "rate.h"
 #include "rc80211_minstrel.h"

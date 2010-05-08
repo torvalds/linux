@@ -30,6 +30,7 @@
 #include <linux/sched.h>
 #include <linux/cpufreq.h>
 #include <linux/compiler.h>
+#include <linux/slab.h>
 
 #include <linux/acpi.h>
 #include <linux/io.h>

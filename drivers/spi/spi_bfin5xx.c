@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>

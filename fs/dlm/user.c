@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/dlm.h>
 #include <linux/dlm_device.h>
+#include <linux/slab.h>
 
 #include "dlm_internal.h"
 #include "lockspace.h"

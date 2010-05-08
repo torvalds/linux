@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/capability.h>

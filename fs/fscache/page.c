@@ -14,6 +14,7 @@
 #include <linux/fscache-cache.h>
 #include <linux/buffer_head.h>
 #include <linux/pagevec.h>
+#include <linux/slab.h>
 #include "internal.h"
 
 /*

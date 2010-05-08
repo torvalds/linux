@@ -36,6 +36,7 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/jiffies.h>	/* time_after() */
+#include <linux/slab.h>
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
 #endif

@@ -22,6 +22,7 @@
  */
 
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include <scsi/sas_ata.h>
 #include "sas_internal.h"

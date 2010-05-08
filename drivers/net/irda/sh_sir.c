@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <net/irda/wrapper.h>
 #include <net/irda/irda_device.h>
 #include <asm/clock.h>

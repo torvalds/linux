@@ -24,6 +24,7 @@
 	Abstract: rt2x00 queue specific routines.
  */
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>

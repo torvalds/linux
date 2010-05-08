@@ -13,6 +13,7 @@
 #include <linux/syscalls.h>
 #include <linux/err.h>
 #include <linux/acct.h>
+#include <linux/slab.h>
 
 #define BITS_PER_PAGE		(PAGE_SIZE*8)
 

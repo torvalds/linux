@@ -64,6 +64,7 @@
 #include <linux/ata_platform.h>
 #include <linux/mbus.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>

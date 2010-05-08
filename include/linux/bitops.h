@@ -21,9 +21,6 @@
 	     (bit) < (size); \
 	     (bit) = find_next_bit((addr), (size), (bit) + 1))
 
-/* Temporary */
-#define for_each_bit(bit, addr, size) for_each_set_bit(bit, addr, size)
-
 static __inline__ int get_bitmask_order(unsigned int count)
 {
 	int order;

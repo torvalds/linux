@@ -49,6 +49,7 @@
 #include <linux/crc32.h>
 #include <linux/i2c.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
 

@@ -36,6 +36,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
+#include <linux/slab.h>
 
 #include "../pci.h"
 #include "pciehp.h"

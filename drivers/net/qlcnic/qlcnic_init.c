@@ -24,6 +24,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include "qlcnic.h"
 
 struct crb_addr_pair {

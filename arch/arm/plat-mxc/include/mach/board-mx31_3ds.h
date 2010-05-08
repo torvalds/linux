@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __ASM_ARCH_MXC_BOARD_MX31PDK_H__
-#define __ASM_ARCH_MXC_BOARD_MX31PDK_H__
+#ifndef __ASM_ARCH_MXC_BOARD_MX31_3DS_H__
+#define __ASM_ARCH_MXC_BOARD_MX31_3DS_H__
 
 /* Definitions for components on the Debug board */
 
@@ -56,4 +56,4 @@
 
 #define MXC_MAX_EXP_IO_LINES	16
 
-#endif /* __ASM_ARCH_MXC_BOARD_MX31PDK_H__ */
+#endif /* __ASM_ARCH_MXC_BOARD_MX31_3DS_H__ */

@@ -24,6 +24,7 @@
 #include "wl1251_debugfs.h"
 
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 
 #include "wl1251.h"
 #include "wl1251_acx.h"

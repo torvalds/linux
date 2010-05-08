@@ -4,7 +4,6 @@
 
 #include <linux/kernel.h>
 
-#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/delay.h>

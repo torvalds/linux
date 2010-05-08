@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/skbuff.h>
 #include <linux/wait.h>

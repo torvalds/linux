@@ -4,7 +4,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>

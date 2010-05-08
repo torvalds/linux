@@ -20,6 +20,7 @@
  */
 #include <linux/fs.h>
 #include <linux/stat.h>
+#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <asm/div64.h>
 #include "cifsfs.h"

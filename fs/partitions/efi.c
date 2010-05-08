@@ -95,6 +95,7 @@
  ************************************************************/
 #include <linux/crc32.h>
 #include <linux/math64.h>
+#include <linux/slab.h>
 #include "check.h"
 #include "efi.h"
 

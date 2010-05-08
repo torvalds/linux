@@ -22,6 +22,7 @@
  */
 #include "wl1271_testmode.h"
 
+#include <linux/slab.h>
 #include <net/genetlink.h>
 
 #include "wl1271.h"

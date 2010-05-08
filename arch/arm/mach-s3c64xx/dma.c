@@ -18,6 +18,7 @@
 #include <linux/dmapool.h>
 #include <linux/sysdev.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/err.h>

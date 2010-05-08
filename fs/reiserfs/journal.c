@@ -50,6 +50,7 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 

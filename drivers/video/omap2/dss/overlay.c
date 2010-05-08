@@ -29,6 +29,7 @@
 #include <linux/kobject.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <plat/display.h>
 #include <plat/cpu.h>
