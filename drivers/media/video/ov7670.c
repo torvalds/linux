@@ -576,49 +576,34 @@ static int ov7670_detect(struct v4l2_subdev *sd)
  * The magic matrix numbers come from OmniVision.
  */
 static struct ov7670_format_struct {
-	__u8 *desc;
-	__u32 pixelformat;
 	enum v4l2_mbus_pixelcode mbus_code;
 	enum v4l2_colorspace colorspace;
 	struct regval_list *regs;
 	int cmatrix[CMATRIX_LEN];
-	int bpp;   /* Bytes per pixel */
 } ov7670_formats[] = {
 	{
-		.desc		= "YUYV 4:2:2",
-		.pixelformat	= V4L2_PIX_FMT_YUYV,
 		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.regs 		= ov7670_fmt_yuv422,
 		.cmatrix	= { 128, -128, 0, -34, -94, 128 },
-		.bpp		= 2,
 	},
 	{
-		.desc		= "RGB 444",
-		.pixelformat	= V4L2_PIX_FMT_RGB444,
 		.mbus_code	= V4L2_MBUS_FMT_RGB444_2X8_PADHI_LE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.regs		= ov7670_fmt_rgb444,
 		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
-		.bpp		= 2,
 	},
 	{
-		.desc		= "RGB 565",
-		.pixelformat	= V4L2_PIX_FMT_RGB565,
 		.mbus_code	= V4L2_MBUS_FMT_RGB565_2X8_LE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.regs		= ov7670_fmt_rgb565,
 		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
-		.bpp		= 2,
 	},
 	{
-		.desc		= "Raw RGB Bayer",
-		.pixelformat	= V4L2_PIX_FMT_SBGGR8,
 		.mbus_code	= V4L2_MBUS_FMT_SBGGR8_1X8,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.regs 		= ov7670_fmt_raw,
 		.cmatrix	= { 0, 0, 0, 0, 0, 0 },
-		.bpp		= 1
 	},
 };
 #define N_OV7670_FMTS ARRAY_SIZE(ov7670_formats)
@@ -745,20 +730,6 @@ static int ov7670_set_hw(struct v4l2_subdev *sd, int hstart, int hstop,
 }
 
 
-static int ov7670_enum_fmt(struct v4l2_subdev *sd, struct v4l2_fmtdesc *fmt)
-{
-	struct ov7670_format_struct *ofmt;
-
-	if (fmt->index >= N_OV7670_FMTS)
-		return -EINVAL;
-
-	ofmt = ov7670_formats + fmt->index;
-	fmt->flags = 0;
-	strcpy(fmt->description, ofmt->desc);
-	fmt->pixelformat = ofmt->pixelformat;
-	return 0;
-}
-
 static int ov7670_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
 					enum v4l2_mbus_pixelcode *code)
 {
@@ -818,28 +789,6 @@ static int ov7670_try_mbus_fmt(struct v4l2_subdev *sd,
 	return ov7670_try_fmt_internal(sd, fmt, NULL, NULL);
 }
 
-static int ov7670_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	struct v4l2_mbus_framefmt mbus_fmt;
-	struct v4l2_pix_format *pix = &fmt->fmt.pix;
-	unsigned index;
-	int ret;
-
-	for (index = 0; index < N_OV7670_FMTS; index++)
-		if (ov7670_formats[index].pixelformat == pix->pixelformat)
-			break;
-	if (index >= N_OV7670_FMTS) {
-		index = 0;
-		pix->pixelformat = ov7670_formats[index].pixelformat;
-	}
-	v4l2_fill_mbus_format(&mbus_fmt, pix, ov7670_formats[index].mbus_code);
-	ret = ov7670_try_fmt_internal(sd, &mbus_fmt, NULL, NULL);
-	v4l2_fill_pix_format(pix, &mbus_fmt);
-	pix->bytesperline = pix->width * ov7670_formats[index].bpp;
-	pix->sizeimage = pix->height * pix->bytesperline;
-	return ret;
-}
-
 /*
  * Set a format.
  */
@@ -889,26 +838,6 @@ static int ov7670_s_mbus_fmt(struct v4l2_subdev *sd,
 	if (ret == 0)
 		ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
 	return 0;
-}
-
-static int ov7670_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	struct v4l2_mbus_framefmt mbus_fmt;
-	struct v4l2_pix_format *pix = &fmt->fmt.pix;
-	unsigned index;
-	int ret;
-
-	for (index = 0; index < N_OV7670_FMTS; index++)
-		if (ov7670_formats[index].pixelformat == pix->pixelformat)
-			break;
-	if (index >= N_OV7670_FMTS) {
-		index = 0;
-		pix->pixelformat = ov7670_formats[index].pixelformat;
-	}
-	v4l2_fill_mbus_format(&mbus_fmt, pix, ov7670_formats[index].mbus_code);
-	ret = ov7670_s_mbus_fmt(sd, &mbus_fmt);
-	v4l2_fill_pix_format(pix, &mbus_fmt);
-	return ret;
 }
 
 /*
@@ -1505,9 +1434,6 @@ static const struct v4l2_subdev_core_ops ov7670_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops ov7670_video_ops = {
-	.enum_fmt = ov7670_enum_fmt,
-	.try_fmt = ov7670_try_fmt,
-	.s_fmt = ov7670_s_fmt,
 	.enum_mbus_fmt = ov7670_enum_mbus_fmt,
 	.try_mbus_fmt = ov7670_try_mbus_fmt,
 	.s_mbus_fmt = ov7670_s_mbus_fmt,
