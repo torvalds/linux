@@ -1261,16 +1261,6 @@ static int saa717x_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 	return 0;
 }
 
-static int saa717x_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	struct v4l2_mbus_framefmt mbus_fmt;
-
-	mbus_fmt.width = fmt->fmt.pix.width;
-	mbus_fmt.height = fmt->fmt.pix.height;
-	mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
-	return saa717x_s_mbus_fmt(sd, &mbus_fmt);
-}
-
 static int saa717x_s_radio(struct v4l2_subdev *sd)
 {
 	struct saa717x_state *decoder = to_state(sd);
@@ -1417,7 +1407,6 @@ static const struct v4l2_subdev_tuner_ops saa717x_tuner_ops = {
 
 static const struct v4l2_subdev_video_ops saa717x_video_ops = {
 	.s_routing = saa717x_s_video_routing,
-	.s_fmt = saa717x_s_fmt,
 	.s_mbus_fmt = saa717x_s_mbus_fmt,
 	.s_stream = saa717x_s_stream,
 };
