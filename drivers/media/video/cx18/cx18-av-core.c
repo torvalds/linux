@@ -1021,13 +1021,6 @@ static int cx18_av_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	return -EINVAL;
 }
 
-static int cx18_av_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
-		return -EINVAL;
-	return cx18_av_g_sliced_fmt(sd, &fmt->fmt.sliced);
-}
-
 static int cx18_av_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
@@ -1097,22 +1090,6 @@ static int cx18_av_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 	/* VS_INTRLACE=1 VFILT=filter */
 	cx18_av_write(cx, 0x41e, 0x8 | filter);
 	return 0;
-}
-
-static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	struct v4l2_mbus_framefmt mbus_fmt;
-
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		mbus_fmt.width = fmt->fmt.pix.width;
-		mbus_fmt.height = fmt->fmt.pix.height;
-		mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
-		return cx18_av_s_mbus_fmt(sd, &mbus_fmt);
-
-	default:
-		return -EINVAL;
-	}
 }
 
 static int cx18_av_s_stream(struct v4l2_subdev *sd, int enable)
@@ -1409,8 +1386,6 @@ static const struct v4l2_subdev_audio_ops cx18_av_audio_ops = {
 static const struct v4l2_subdev_video_ops cx18_av_video_ops = {
 	.s_routing = cx18_av_s_video_routing,
 	.s_stream = cx18_av_s_stream,
-	.g_fmt = cx18_av_g_fmt,
-	.s_fmt = cx18_av_s_fmt,
 	.s_mbus_fmt = cx18_av_s_mbus_fmt,
 };
 
