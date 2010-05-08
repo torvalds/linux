@@ -421,7 +421,8 @@ static u64 p4_pmu_event_map(int hw_event)
 
 static int p4_hw_config(struct perf_event *event)
 {
-	int cpu = raw_smp_processor_id();
+	int cpu = get_cpu();
+	int rc = 0;
 	u32 escr, cccr;
 
 	/*
@@ -454,7 +455,10 @@ static int p4_hw_config(struct perf_event *event)
 			 p4_config_pack_cccr(P4_CCCR_MASK_HT));
 	}
 
-	return x86_setup_perfctr(event);
+	rc = x86_setup_perfctr(event);
+	put_cpu();
+
+	return rc;
 }
 
 static inline void p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
