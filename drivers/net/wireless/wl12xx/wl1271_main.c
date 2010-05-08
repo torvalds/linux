@@ -466,6 +466,7 @@ static void wl1271_irq_work(struct work_struct *work)
 		intr = le32_to_cpu(wl->fw_status->intr);
 		if (!intr) {
 			wl1271_debug(DEBUG_IRQ, "Zero interrupt received.");
+			spin_lock_irqsave(&wl->wl_lock, flags);
 			continue;
 		}
 
