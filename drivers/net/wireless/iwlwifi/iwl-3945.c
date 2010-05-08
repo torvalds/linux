@@ -2482,7 +2482,6 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 				   &priv->_3945.shared_phys, GFP_KERNEL);
 	if (!priv->_3945.shared_virt) {
 		IWL_ERR(priv, "failed to allocate pci memory\n");
-		mutex_unlock(&priv->mutex);
 		return -ENOMEM;
 	}
 
