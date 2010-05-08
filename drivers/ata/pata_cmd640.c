@@ -181,13 +181,10 @@ static struct ata_port_operations cmd640_port_ops = {
 
 static void cmd640_hardware_init(struct pci_dev *pdev)
 {
-	u8 r;
 	u8 ctrl;
 
 	/* CMD640 detected, commiserations */
 	pci_write_config_byte(pdev, 0x5B, 0x00);
-	/* Get version info */
-	pci_read_config_byte(pdev, CFR, &r);
 	/* PIO0 command cycles */
 	pci_write_config_byte(pdev, CMDTIM, 0);
 	/* 512 byte bursts (sector) */
