@@ -1767,6 +1767,8 @@ static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 	return count;
 }
 
+#define FTDI_RS_ERR_MASK (FTDI_RS_BI | FTDI_RS_PE | FTDI_RS_FE | FTDI_RS_OE)
+
 static int ftdi_process_packet(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ftdi_private *priv,
 		char *packet, int len)
@@ -1793,28 +1795,21 @@ static int ftdi_process_packet(struct tty_struct *tty,
 		priv->prev_status = status;
 	}
 
-	/*
-	 * Although the device uses a bitmask and hence can have multiple
-	 * errors on a packet - the order here sets the priority the error is
-	 * returned to the tty layer.
-	 */
 	flag = TTY_NORMAL;
-	if (packet[1] & FTDI_RS_OE) {
-		flag = TTY_OVERRUN;
-		dbg("OVERRRUN error");
-	}
-	if (packet[1] & FTDI_RS_BI) {
-		flag = TTY_BREAK;
-		dbg("BREAK received");
-		usb_serial_handle_break(port);
-	}
-	if (packet[1] & FTDI_RS_PE) {
-		flag = TTY_PARITY;
-		dbg("PARITY error");
-	}
-	if (packet[1] & FTDI_RS_FE) {
-		flag = TTY_FRAME;
-		dbg("FRAMING error");
+	if (packet[1] & FTDI_RS_ERR_MASK) {
+		/* Break takes precedence over parity, which takes precedence
+		 * over framing errors */
+		if (packet[1] & FTDI_RS_BI) {
+			flag = TTY_BREAK;
+			usb_serial_handle_break(port);
+		} else if (packet[1] & FTDI_RS_PE) {
+			flag = TTY_PARITY;
+		} else if (packet[1] & FTDI_RS_FE) {
+			flag = TTY_FRAME;
+		}
+		/* Overrun is special, not associated with a char */
+		if (packet[1] & FTDI_RS_OE)
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	}
 
 	len -= 2;
