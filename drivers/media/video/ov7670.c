@@ -18,6 +18,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-mediabus.h>
 #include <media/v4l2-i2c-drv.h>
 
 
@@ -572,11 +573,13 @@ static int ov7670_detect(struct v4l2_subdev *sd)
 /*
  * Store information about the video data format.  The color matrix
  * is deeply tied into the format, so keep the relevant values here.
- * The magic matrix nubmers come from OmniVision.
+ * The magic matrix numbers come from OmniVision.
  */
 static struct ov7670_format_struct {
 	__u8 *desc;
 	__u32 pixelformat;
+	enum v4l2_mbus_pixelcode mbus_code;
+	enum v4l2_colorspace colorspace;
 	struct regval_list *regs;
 	int cmatrix[CMATRIX_LEN];
 	int bpp;   /* Bytes per pixel */
@@ -584,6 +587,8 @@ static struct ov7670_format_struct {
 	{
 		.desc		= "YUYV 4:2:2",
 		.pixelformat	= V4L2_PIX_FMT_YUYV,
+		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
+		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.regs 		= ov7670_fmt_yuv422,
 		.cmatrix	= { 128, -128, 0, -34, -94, 128 },
 		.bpp		= 2,
@@ -591,6 +596,8 @@ static struct ov7670_format_struct {
 	{
 		.desc		= "RGB 444",
 		.pixelformat	= V4L2_PIX_FMT_RGB444,
+		.mbus_code	= V4L2_MBUS_FMT_RGB444_2X8_PADHI_LE,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.regs		= ov7670_fmt_rgb444,
 		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
 		.bpp		= 2,
@@ -598,6 +605,8 @@ static struct ov7670_format_struct {
 	{
 		.desc		= "RGB 565",
 		.pixelformat	= V4L2_PIX_FMT_RGB565,
+		.mbus_code	= V4L2_MBUS_FMT_RGB565_2X8_LE,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.regs		= ov7670_fmt_rgb565,
 		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
 		.bpp		= 2,
@@ -605,6 +614,8 @@ static struct ov7670_format_struct {
 	{
 		.desc		= "Raw RGB Bayer",
 		.pixelformat	= V4L2_PIX_FMT_SBGGR8,
+		.mbus_code	= V4L2_MBUS_FMT_SBGGR8_1X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.regs 		= ov7670_fmt_raw,
 		.cmatrix	= { 0, 0, 0, 0, 0, 0 },
 		.bpp		= 1
@@ -748,37 +759,45 @@ static int ov7670_enum_fmt(struct v4l2_subdev *sd, struct v4l2_fmtdesc *fmt)
 	return 0;
 }
 
+static int ov7670_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
+					enum v4l2_mbus_pixelcode *code)
+{
+	if (index >= N_OV7670_FMTS)
+		return -EINVAL;
+
+	*code = ov7670_formats[index].mbus_code;
+	return 0;
+}
 
 static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
-		struct v4l2_format *fmt,
+		struct v4l2_mbus_framefmt *fmt,
 		struct ov7670_format_struct **ret_fmt,
 		struct ov7670_win_size **ret_wsize)
 {
 	int index;
 	struct ov7670_win_size *wsize;
-	struct v4l2_pix_format *pix = &fmt->fmt.pix;
 
 	for (index = 0; index < N_OV7670_FMTS; index++)
-		if (ov7670_formats[index].pixelformat == pix->pixelformat)
+		if (ov7670_formats[index].mbus_code == fmt->code)
 			break;
 	if (index >= N_OV7670_FMTS) {
 		/* default to first format */
 		index = 0;
-		pix->pixelformat = ov7670_formats[0].pixelformat;
+		fmt->code = ov7670_formats[0].mbus_code;
 	}
 	if (ret_fmt != NULL)
 		*ret_fmt = ov7670_formats + index;
 	/*
 	 * Fields: the OV devices claim to be progressive.
 	 */
-	pix->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_NONE;
 	/*
 	 * Round requested image size down to the nearest
 	 * we support, but not below the smallest.
 	 */
 	for (wsize = ov7670_win_sizes; wsize < ov7670_win_sizes + N_WIN_SIZES;
 	     wsize++)
-		if (pix->width >= wsize->width && pix->height >= wsize->height)
+		if (fmt->width >= wsize->width && fmt->height >= wsize->height)
 			break;
 	if (wsize >= ov7670_win_sizes + N_WIN_SIZES)
 		wsize--;   /* Take the smallest one */
@@ -787,30 +806,54 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 	/*
 	 * Note the size we'll actually handle.
 	 */
-	pix->width = wsize->width;
-	pix->height = wsize->height;
-	pix->bytesperline = pix->width*ov7670_formats[index].bpp;
-	pix->sizeimage = pix->height*pix->bytesperline;
+	fmt->width = wsize->width;
+	fmt->height = wsize->height;
+	fmt->colorspace = ov7670_formats[index].colorspace;
 	return 0;
+}
+
+static int ov7670_try_mbus_fmt(struct v4l2_subdev *sd,
+			    struct v4l2_mbus_framefmt *fmt)
+{
+	return ov7670_try_fmt_internal(sd, fmt, NULL, NULL);
 }
 
 static int ov7670_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
-	return ov7670_try_fmt_internal(sd, fmt, NULL, NULL);
+	struct v4l2_mbus_framefmt mbus_fmt;
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+	unsigned index;
+	int ret;
+
+	for (index = 0; index < N_OV7670_FMTS; index++)
+		if (ov7670_formats[index].pixelformat == pix->pixelformat)
+			break;
+	if (index >= N_OV7670_FMTS) {
+		index = 0;
+		pix->pixelformat = ov7670_formats[index].pixelformat;
+	}
+	v4l2_fill_mbus_format(&mbus_fmt, pix, ov7670_formats[index].mbus_code);
+	ret = ov7670_try_fmt_internal(sd, &mbus_fmt, NULL, NULL);
+	v4l2_fill_pix_format(pix, &mbus_fmt);
+	pix->bytesperline = pix->width * ov7670_formats[index].bpp;
+	pix->sizeimage = pix->height * pix->bytesperline;
+	return ret;
 }
 
 /*
  * Set a format.
  */
-static int ov7670_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int ov7670_s_mbus_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_mbus_framefmt *fmt)
 {
-	int ret;
 	struct ov7670_format_struct *ovfmt;
 	struct ov7670_win_size *wsize;
 	struct ov7670_info *info = to_state(sd);
 	unsigned char com7;
+	int ret;
 
 	ret = ov7670_try_fmt_internal(sd, fmt, &ovfmt, &wsize);
+
 	if (ret)
 		return ret;
 	/*
@@ -845,6 +888,26 @@ static int ov7670_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 	 */
 	if (ret == 0)
 		ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
+	return 0;
+}
+
+static int ov7670_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+{
+	struct v4l2_mbus_framefmt mbus_fmt;
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+	unsigned index;
+	int ret;
+
+	for (index = 0; index < N_OV7670_FMTS; index++)
+		if (ov7670_formats[index].pixelformat == pix->pixelformat)
+			break;
+	if (index >= N_OV7670_FMTS) {
+		index = 0;
+		pix->pixelformat = ov7670_formats[index].pixelformat;
+	}
+	v4l2_fill_mbus_format(&mbus_fmt, pix, ov7670_formats[index].mbus_code);
+	ret = ov7670_s_mbus_fmt(sd, &mbus_fmt);
+	v4l2_fill_pix_format(pix, &mbus_fmt);
 	return ret;
 }
 
@@ -1445,6 +1508,9 @@ static const struct v4l2_subdev_video_ops ov7670_video_ops = {
 	.enum_fmt = ov7670_enum_fmt,
 	.try_fmt = ov7670_try_fmt,
 	.s_fmt = ov7670_s_fmt,
+	.enum_mbus_fmt = ov7670_enum_mbus_fmt,
+	.try_mbus_fmt = ov7670_try_mbus_fmt,
+	.s_mbus_fmt = ov7670_s_mbus_fmt,
 	.s_parm = ov7670_s_parm,
 	.g_parm = ov7670_g_parm,
 };
