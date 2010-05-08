@@ -705,6 +705,14 @@ static void rt2800pci_write_beacon(struct queue_entry *entry)
 				      entry->skb->data, entry->skb->len);
 
 	/*
+	 * Enable beaconing again.
+	 */
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+
+	/*
 	 * Clean up beacon skb.
 	 */
 	dev_kfree_skb_any(entry->skb);
@@ -716,18 +724,6 @@ static void rt2800pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 {
 	struct data_queue *queue;
 	unsigned int idx, qidx = 0;
-	u32 reg;
-
-	if (queue_idx == QID_BEACON) {
-		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
-		if (!rt2x00_get_field32(reg, BCN_TIME_CFG_BEACON_GEN)) {
-			rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
-			rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
-			rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-			rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
-		}
-		return;
-	}
 
 	if (queue_idx > QID_HCCA && queue_idx != QID_MGMT)
 		return;

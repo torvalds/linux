@@ -1089,23 +1089,20 @@ static void rt2400pci_write_beacon(struct queue_entry *entry)
 	rt2x00_desc_read(entry_priv->desc, 1, &word);
 	rt2x00_set_field32(&word, TXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
 	rt2x00_desc_write(entry_priv->desc, 1, word);
+
+	/*
+	 * Enable beaconing again.
+	 */
+	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
+	rt2x00_set_field32(&reg, CSR14_TBCN, 1);
+	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 1);
+	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 }
 
 static void rt2400pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 				    const enum data_queue_qid queue)
 {
 	u32 reg;
-
-	if (queue == QID_BEACON) {
-		rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
-		if (!rt2x00_get_field32(reg, CSR14_BEACON_GEN)) {
-			rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
-			rt2x00_set_field32(&reg, CSR14_TBCN, 1);
-			rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 1);
-			rt2x00pci_register_write(rt2x00dev, CSR14, reg);
-		}
-		return;
-	}
 
 	rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
 	rt2x00_set_field32(&reg, TXCSR0_KICK_PRIO, (queue == QID_AC_BE));

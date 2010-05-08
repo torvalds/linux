@@ -1090,7 +1090,7 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	int pipe = usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint);
 	int length;
-	u16 reg;
+	u16 reg, reg0;
 
 	/*
 	 * Add the descriptor in front of the skb.
@@ -1132,6 +1132,26 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	 * Send out the guardian byte.
 	 */
 	usb_submit_urb(bcn_priv->guardian_urb, GFP_ATOMIC);
+
+	/*
+	 * Enable beaconing again.
+	 */
+	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
+	rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 1);
+	reg0 = reg;
+	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 1);
+	/*
+	 * Beacon generation will fail initially.
+	 * To prevent this we need to change the TXRX_CSR19
+	 * register several times (reg0 is the same as reg
+	 * except for TXRX_CSR19_BEACON_GEN, which is 0 in reg0
+	 * and 1 in reg).
+	 */
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg0);
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg0);
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 }
 
 static int rt2500usb_get_tx_data_len(struct queue_entry *entry)
@@ -1146,37 +1166,6 @@ static int rt2500usb_get_tx_data_len(struct queue_entry *entry)
 	length += (2 * !(length % entry->queue->usb_maxpacket));
 
 	return length;
-}
-
-static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    const enum data_queue_qid queue)
-{
-	u16 reg, reg0;
-
-	if (queue != QID_BEACON) {
-		rt2x00usb_kick_tx_queue(rt2x00dev, queue);
-		return;
-	}
-
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
-	if (!rt2x00_get_field16(reg, TXRX_CSR19_BEACON_GEN)) {
-		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
-		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 1);
-		reg0 = reg;
-		rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 1);
-		/*
-		 * Beacon generation will fail initially.
-		 * To prevent this we need to change the TXRX_CSR19
-		 * register several times (reg0 is the same as reg
-		 * except for TXRX_CSR19_BEACON_GEN, which is 0 in reg0
-		 * and 1 in reg).
-		 */
-		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
-		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg0);
-		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
-		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg0);
-		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
-	}
 }
 
 /*
@@ -1777,7 +1766,7 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.write_tx_data		= rt2x00usb_write_tx_data,
 	.write_beacon		= rt2500usb_write_beacon,
 	.get_tx_data_len	= rt2500usb_get_tx_data_len,
-	.kick_tx_queue		= rt2500usb_kick_tx_queue,
+	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
 	.kill_tx_queue		= rt2x00usb_kill_tx_queue,
 	.fill_rxdone		= rt2500usb_fill_rxdone,
 	.config_shared_key	= rt2500usb_config_key,

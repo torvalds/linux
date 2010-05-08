@@ -1869,6 +1869,19 @@ static void rt61pci_write_beacon(struct queue_entry *entry)
 				      entry->skb->data, entry->skb->len);
 
 	/*
+	 * Enable beaconing again.
+	 *
+	 * For Wi-Fi faily generated beacons between participating
+	 * stations. Set TBTT phase adaptive adjustment step to 8us.
+	 */
+	rt2x00pci_register_write(rt2x00dev, TXRX_CSR10, 0x00001008);
+
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 1);
+	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
+
+	/*
 	 * Clean up beacon skb.
 	 */
 	dev_kfree_skb_any(entry->skb);
@@ -1879,23 +1892,6 @@ static void rt61pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 				  const enum data_queue_qid queue)
 {
 	u32 reg;
-
-	if (queue == QID_BEACON) {
-		/*
-		 * For Wi-Fi faily generated beacons between participating
-		 * stations. Set TBTT phase adaptive adjustment step to 8us.
-		 */
-		rt2x00pci_register_write(rt2x00dev, TXRX_CSR10, 0x00001008);
-
-		rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
-		if (!rt2x00_get_field32(reg, TXRX_CSR9_BEACON_GEN)) {
-			rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
-			rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
-			rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 1);
-			rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
-		}
-		return;
-	}
 
 	rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
 	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC0, (queue == QID_AC_BE));

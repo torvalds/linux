@@ -459,6 +459,14 @@ static void rt2800usb_write_beacon(struct queue_entry *entry)
 					    REGISTER_TIMEOUT32(entry->skb->len));
 
 	/*
+	 * Enable beaconing again.
+	 */
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+
+	/*
 	 * Clean up the beacon skb.
 	 */
 	dev_kfree_skb(entry->skb);
@@ -478,25 +486,6 @@ static int rt2800usb_get_tx_data_len(struct queue_entry *entry)
 	length += (4 * !(length % entry->queue->usb_maxpacket));
 
 	return length;
-}
-
-static void rt2800usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    const enum data_queue_qid queue)
-{
-	u32 reg;
-
-	if (queue != QID_BEACON) {
-		rt2x00usb_kick_tx_queue(rt2x00dev, queue);
-		return;
-	}
-
-	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
-	if (!rt2x00_get_field32(reg, BCN_TIME_CFG_BEACON_GEN)) {
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
-	}
 }
 
 /*
@@ -667,7 +656,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.write_tx_data		= rt2x00usb_write_tx_data,
 	.write_beacon		= rt2800usb_write_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
-	.kick_tx_queue		= rt2800usb_kick_tx_queue,
+	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
 	.kill_tx_queue		= rt2x00usb_kill_tx_queue,
 	.fill_rxdone		= rt2800usb_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,

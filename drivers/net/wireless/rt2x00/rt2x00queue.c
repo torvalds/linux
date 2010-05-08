@@ -602,12 +602,9 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
 
 	/*
-	 * Send beacon to hardware.
-	 * Also enable beacon generation, which might have been disabled
-	 * by the driver during the config_beacon() callback function.
+	 * Send beacon to hardware and enable beacon genaration..
 	 */
 	rt2x00dev->ops->lib->write_beacon(intf->beacon);
-	rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, QID_BEACON);
 
 	mutex_unlock(&intf->beacon_skb_mutex);
 
