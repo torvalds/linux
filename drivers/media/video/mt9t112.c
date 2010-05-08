@@ -1017,10 +1017,10 @@ static int mt9t112_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9t112_enum_fmt(struct v4l2_subdev *sd, int index,
+static int mt9t112_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(mt9t112_cfmts))
+	if (index >= ARRAY_SIZE(mt9t112_cfmts))
 		return -EINVAL;
 
 	*code = mt9t112_cfmts[index].code;

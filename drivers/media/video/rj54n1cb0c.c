@@ -481,10 +481,10 @@ static int reg_write_multiple(struct i2c_client *client,
 	return 0;
 }
 
-static int rj54n1_enum_fmt(struct v4l2_subdev *sd, int index,
+static int rj54n1_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(rj54n1_colour_fmts))
+	if (index >= ARRAY_SIZE(rj54n1_colour_fmts))
 		return -EINVAL;
 
 	*code = rj54n1_colour_fmts[index].code;

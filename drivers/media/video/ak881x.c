@@ -141,7 +141,7 @@ static int ak881x_s_mbus_fmt(struct v4l2_subdev *sd,
 	return ak881x_try_g_mbus_fmt(sd, mf);
 }
 
-static int ak881x_enum_mbus_fmt(struct v4l2_subdev *sd, int index,
+static int ak881x_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
 				enum v4l2_mbus_pixelcode *code)
 {
 	if (index)

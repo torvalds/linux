@@ -838,13 +838,13 @@ static struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
 #endif
 };
 
-static int mt9v022_enum_fmt(struct v4l2_subdev *sd, int index,
+static int mt9v022_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			    enum v4l2_mbus_pixelcode *code)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
-	if ((unsigned int)index >= mt9v022->num_fmts)
+	if (index >= mt9v022->num_fmts)
 		return -EINVAL;
 
 	*code = mt9v022->fmts[index].code;
