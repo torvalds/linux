@@ -465,7 +465,7 @@ static int ath9k_htc_aggr_oper(struct ath9k_htc_priv *priv,
 	int ret = 0;
 	u8 cmd_rsp;
 
-	if (tid > ATH9K_HTC_MAX_TID)
+	if (tid >= ATH9K_HTC_MAX_TID)
 		return -EINVAL;
 
 	memset(&aggr, 0, sizeof(struct ath9k_htc_target_aggr));
