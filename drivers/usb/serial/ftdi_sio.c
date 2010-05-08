@@ -1822,14 +1822,15 @@ static int ftdi_process_packet(struct tty_struct *tty,
 		return 0;	/* status only */
 	ch = packet + 2;
 
-	if (!(port->port.console && port->sysrq) && flag == TTY_NORMAL)
-		tty_insert_flip_string(tty, ch, len);
-	else {
+	if (port->port.console && port->sysrq) {
 		for (i = 0; i < len; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(tty, port, *ch))
 				tty_insert_flip_char(tty, *ch, flag);
 		}
+	} else {
+		tty_insert_flip_string_fixed_flag(tty, ch, flag, len);
 	}
+
 	return len;
 }
 
