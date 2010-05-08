@@ -1072,6 +1072,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 
 		/* New superblock instance created */
 		s->s_flags = flags;
+		s->s_mode = mode;
 		strlcpy(s->s_id, bdevname(sd.bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(sd.bdev));
 
