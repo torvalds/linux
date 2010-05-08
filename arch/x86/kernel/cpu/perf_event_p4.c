@@ -418,6 +418,7 @@ static int p4_hw_config(struct perf_event *event)
 {
 	int cpu = get_cpu();
 	int rc = 0;
+	unsigned int evnt;
 	u32 escr, cccr;
 
 	/*
@@ -436,6 +437,14 @@ static int p4_hw_config(struct perf_event *event)
 		event->hw.config = p4_set_ht_bit(event->hw.config);
 
 	if (event->attr.type == PERF_TYPE_RAW) {
+
+		/* user data may have out-of-bound event index */
+		evnt = p4_config_unpack_event(event->attr.config);
+		if (evnt >= ARRAY_SIZE(p4_event_bind_map)) {
+			rc = -EINVAL;
+			goto out;
+		}
+
 		/*
 		 * We don't control raw events so it's up to the caller
 		 * to pass sane values (and we don't count the thread number
@@ -451,8 +460,8 @@ static int p4_hw_config(struct perf_event *event)
 	}
 
 	rc = x86_setup_perfctr(event);
+out:
 	put_cpu();
-
 	return rc;
 }
 
