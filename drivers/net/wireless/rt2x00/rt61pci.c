@@ -1968,12 +1968,8 @@ static void rt61pci_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
-		rxdesc->cipher =
-		    rt2x00_get_field32(word0, RXD_W0_CIPHER_ALG);
-		rxdesc->cipher_status =
-		    rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR);
-	}
+	rxdesc->cipher = rt2x00_get_field32(word0, RXD_W0_CIPHER_ALG);
+	rxdesc->cipher_status = rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR);
 
 	if (rxdesc->cipher != CIPHER_NONE) {
 		_rt2x00_desc_read(entry_priv->desc, 2, &rxdesc->iv[0]);

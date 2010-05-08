@@ -840,16 +840,13 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(rxd3, RXD_W3_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
-		/*
-		 * Unfortunately we don't know the cipher type used during
-		 * decryption. This prevents us from correct providing
-		 * correct statistics through debugfs.
-		 */
-		rxdesc->cipher = rt2x00_get_field32(rxwi0, RXWI_W0_UDF);
-		rxdesc->cipher_status =
-		    rt2x00_get_field32(rxd3, RXD_W3_CIPHER_ERROR);
-	}
+	/*
+	 * Unfortunately we don't know the cipher type used during
+	 * decryption. This prevents us from correct providing
+	 * correct statistics through debugfs.
+	 */
+	rxdesc->cipher = rt2x00_get_field32(rxwi0, RXWI_W0_UDF);
+	rxdesc->cipher_status = rt2x00_get_field32(rxd3, RXD_W3_CIPHER_ERROR);
 
 	if (rt2x00_get_field32(rxd3, RXD_W3_DECRYPTED)) {
 		/*

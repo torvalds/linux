@@ -549,7 +549,6 @@ static void rt2800usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 				  struct rxdone_entry_desc *rxdesc)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	__le32 *rxi = (__le32 *)entry->skb->data;
 	__le32 *rxwi;
@@ -595,11 +594,8 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(rxd0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
-		rxdesc->cipher = rt2x00_get_field32(rxwi0, RXWI_W0_UDF);
-		rxdesc->cipher_status =
-		    rt2x00_get_field32(rxd0, RXD_W0_CIPHER_ERROR);
-	}
+	rxdesc->cipher = rt2x00_get_field32(rxwi0, RXWI_W0_UDF);
+	rxdesc->cipher_status = rt2x00_get_field32(rxd0, RXD_W0_CIPHER_ERROR);
 
 	if (rt2x00_get_field32(rxd0, RXD_W0_DECRYPTED)) {
 		/*

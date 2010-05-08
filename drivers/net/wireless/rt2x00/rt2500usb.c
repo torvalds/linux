@@ -1213,11 +1213,9 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(word0, RXD_W0_PHYSICAL_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_PLCP_CRC;
 
-	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
-		rxdesc->cipher = rt2x00_get_field32(word0, RXD_W0_CIPHER);
-		if (rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR))
-			rxdesc->cipher_status = RX_CRYPTO_FAIL_KEY;
-	}
+	rxdesc->cipher = rt2x00_get_field32(word0, RXD_W0_CIPHER);
+	if (rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR))
+		rxdesc->cipher_status = RX_CRYPTO_FAIL_KEY;
 
 	if (rxdesc->cipher != CIPHER_NONE) {
 		_rt2x00_desc_read(rxd, 2, &rxdesc->iv[0]);
