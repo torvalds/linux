@@ -3069,14 +3069,14 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 	}
 
 	if (hdw->res_hor_dirty || hdw->res_ver_dirty || hdw->force_dirty) {
-		struct v4l2_format fmt;
+		struct v4l2_mbus_framefmt fmt;
 		memset(&fmt, 0, sizeof(fmt));
-		fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		fmt.fmt.pix.width = hdw->res_hor_val;
-		fmt.fmt.pix.height = hdw->res_ver_val;
+		fmt.width = hdw->res_hor_val;
+		fmt.height = hdw->res_ver_val;
+		fmt.code = V4L2_MBUS_FMT_FIXED;
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_size(%dx%d)",
-			   fmt.fmt.pix.width, fmt.fmt.pix.height);
-		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_fmt, &fmt);
+			   fmt.width, fmt.height);
+		v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_mbus_fmt, &fmt);
 	}
 
 	if (hdw->srate_dirty || hdw->force_dirty) {
