@@ -406,11 +406,6 @@ static u64 p4_pmu_event_map(int hw_event)
 	unsigned int esel;
 	u64 config;
 
-	if (hw_event > ARRAY_SIZE(p4_general_events)) {
-		printk_once(KERN_ERR "P4 PMU: Bad index: %i\n", hw_event);
-		return 0;
-	}
-
 	config = p4_general_events[hw_event];
 	bind = p4_config_get_bind(config);
 	esel = P4_OPCODE_ESEL(bind->opcode);
