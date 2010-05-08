@@ -930,7 +930,6 @@ static const struct option lock_options[] = {
 
 static const char *record_args[] = {
 	"record",
-	"-a",
 	"-R",
 	"-f",
 	"-m", "1024",
