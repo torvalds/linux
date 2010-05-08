@@ -1563,8 +1563,6 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	default:
 		wl1271_error("Unsupported key cmd 0x%x", cmd);
 		ret = -EOPNOTSUPP;
-		goto out_sleep;
-
 		break;
 	}
 
