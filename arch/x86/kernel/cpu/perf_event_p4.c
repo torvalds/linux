@@ -439,21 +439,20 @@ static int p4_hw_config(struct perf_event *event)
 	if (p4_ht_active() && p4_ht_thread(cpu))
 		event->hw.config = p4_set_ht_bit(event->hw.config);
 
-	if (event->attr.type != PERF_TYPE_RAW)
-		return 0;
-
-	/*
-	 * We don't control raw events so it's up to the caller
-	 * to pass sane values (and we don't count the thread number
-	 * on HT machine but allow HT-compatible specifics to be
-	 * passed on)
-	 *
-	 * XXX: HT wide things should check perf_paranoid_cpu() &&
-	 *      CAP_SYS_ADMIN
-	 */
-	event->hw.config |= event->attr.config &
-		(p4_config_pack_escr(P4_ESCR_MASK_HT) |
-		 p4_config_pack_cccr(P4_CCCR_MASK_HT));
+	if (event->attr.type == PERF_TYPE_RAW) {
+		/*
+		 * We don't control raw events so it's up to the caller
+		 * to pass sane values (and we don't count the thread number
+		 * on HT machine but allow HT-compatible specifics to be
+		 * passed on)
+		 *
+		 * XXX: HT wide things should check perf_paranoid_cpu() &&
+		 *      CAP_SYS_ADMIN
+		 */
+		event->hw.config |= event->attr.config &
+			(p4_config_pack_escr(P4_ESCR_MASK_HT) |
+			 p4_config_pack_cccr(P4_CCCR_MASK_HT));
+	}
 
 	return x86_setup_perfctr(event);
 }
