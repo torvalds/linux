@@ -656,7 +656,7 @@ static int check_input_term(struct mixer_build *state, int id, struct usb_audio_
 		case UAC_FEATURE_UNIT: {
 			/* the header is the same for v1 and v2 */
 			struct uac_feature_unit_descriptor *d = p1;
-			id = d->bUnitID;
+			id = d->bSourceID;
 			break; /* continue to parse */
 		}
 		case UAC_MIXER_UNIT: {

@@ -244,7 +244,7 @@ struct uac_selector_unit_descriptor {
 static inline __u8 uac_selector_unit_iSelector(struct uac_selector_unit_descriptor *desc)
 {
 	__u8 *raw = (__u8 *) desc;
-	return raw[desc->bLength - 1];
+	return raw[9 + desc->bLength - 1];
 }
 
 /* 4.3.2.5 Feature Unit Descriptor */
