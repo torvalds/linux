@@ -1547,7 +1547,7 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
 		atombios_dac_setup(encoder, ATOM_DISABLE);
-		if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
+		if (radeon_encoder->devices & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
 			atombios_tv_setup(encoder, ATOM_DISABLE);
 		break;
 	}
