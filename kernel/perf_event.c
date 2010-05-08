@@ -664,13 +664,13 @@ group_sched_in(struct perf_event *group_event,
 		}
 	}
 
-	if (txn) {
-		ret = pmu->commit_txn(pmu);
-		if (!ret) {
-			pmu->cancel_txn(pmu);
+	if (!txn)
+		return 0;
 
-			return 0;
-		}
+	ret = pmu->commit_txn(pmu);
+	if (!ret) {
+		pmu->cancel_txn(pmu);
+		return 0;
 	}
 
 group_error:
