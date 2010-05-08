@@ -180,6 +180,7 @@ struct cafe_camera
 	/* Current operating parameters */
 	u32 sensor_type;		/* Currently ov7670 only */
 	struct v4l2_pix_format pix_format;
+	enum v4l2_mbus_pixelcode mbus_code;
 
 	/* Locks */
 	struct mutex s_mutex; /* Access to this structure */
@@ -207,6 +208,49 @@ static inline struct cafe_camera *to_cam(struct v4l2_device *dev)
 	return container_of(dev, struct cafe_camera, v4l2_dev);
 }
 
+static struct cafe_format_struct {
+	__u8 *desc;
+	__u32 pixelformat;
+	int bpp;   /* Bytes per pixel */
+	enum v4l2_mbus_pixelcode mbus_code;
+} cafe_formats[] = {
+	{
+		.desc		= "YUYV 4:2:2",
+		.pixelformat	= V4L2_PIX_FMT_YUYV,
+		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
+		.bpp		= 2,
+	},
+	{
+		.desc		= "RGB 444",
+		.pixelformat	= V4L2_PIX_FMT_RGB444,
+		.mbus_code	= V4L2_MBUS_FMT_RGB444_2X8_PADHI_LE,
+		.bpp		= 2,
+	},
+	{
+		.desc		= "RGB 565",
+		.pixelformat	= V4L2_PIX_FMT_RGB565,
+		.mbus_code	= V4L2_MBUS_FMT_RGB565_2X8_LE,
+		.bpp		= 2,
+	},
+	{
+		.desc		= "Raw RGB Bayer",
+		.pixelformat	= V4L2_PIX_FMT_SBGGR8,
+		.mbus_code	= V4L2_MBUS_FMT_SBGGR8_1X8,
+		.bpp		= 1
+	},
+};
+#define N_CAFE_FMTS ARRAY_SIZE(cafe_formats)
+
+static struct cafe_format_struct *cafe_find_format(u32 pixelformat)
+{
+	unsigned i;
+
+	for (i = 0; i < N_CAFE_FMTS; i++)
+		if (cafe_formats[i].pixelformat == pixelformat)
+			return cafe_formats + i;
+	/* Not found? Then return the first format. */
+	return cafe_formats;
+}
 
 /*
  * Start over with DMA buffers - dev_lock needed.
@@ -812,15 +856,15 @@ static int cafe_cam_set_flip(struct cafe_camera *cam)
 
 static int cafe_cam_configure(struct cafe_camera *cam)
 {
-	struct v4l2_format fmt;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
 
 	if (cam->state != S_IDLE)
 		return -EINVAL;
-	fmt.fmt.pix = cam->pix_format;
+	v4l2_fill_mbus_format(&mbus_fmt, &cam->pix_format, cam->mbus_code);
 	ret = sensor_call(cam, core, init, 0);
 	if (ret == 0)
-		ret = sensor_call(cam, video, s_fmt, &fmt);
+		ret = sensor_call(cam, video, s_mbus_fmt, &mbus_fmt);
 	/*
 	 * OV7670 does weird things if flip is set *before* format...
 	 */
@@ -1481,7 +1525,7 @@ static int cafe_vidioc_querycap(struct file *file, void *priv,
 /*
  * The default format we use until somebody says otherwise.
  */
-static struct v4l2_pix_format cafe_def_pix_format = {
+static const struct v4l2_pix_format cafe_def_pix_format = {
 	.width		= VGA_WIDTH,
 	.height		= VGA_HEIGHT,
 	.pixelformat	= V4L2_PIX_FMT_YUYV,
@@ -1490,28 +1534,38 @@ static struct v4l2_pix_format cafe_def_pix_format = {
 	.sizeimage	= VGA_WIDTH*VGA_HEIGHT*2,
 };
 
+static const enum v4l2_mbus_pixelcode cafe_def_mbus_code =
+					V4L2_MBUS_FMT_YUYV8_2X8;
+
 static int cafe_vidioc_enum_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_fmtdesc *fmt)
 {
-	struct cafe_camera *cam = priv;
-	int ret;
-
-	mutex_lock(&cam->s_mutex);
-	ret = sensor_call(cam, video, enum_fmt, fmt);
-	mutex_unlock(&cam->s_mutex);
-	return ret;
+	if (fmt->index >= N_CAFE_FMTS)
+		return -EINVAL;
+	strlcpy(fmt->description, cafe_formats[fmt->index].desc,
+			sizeof(fmt->description));
+	fmt->pixelformat = cafe_formats[fmt->index].pixelformat;
+	return 0;
 }
-
 
 static int cafe_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *fmt)
 {
 	struct cafe_camera *cam = priv;
+	struct cafe_format_struct *f;
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
 
+	f = cafe_find_format(pix->pixelformat);
+	pix->pixelformat = f->pixelformat;
+	v4l2_fill_mbus_format(&mbus_fmt, pix, f->mbus_code);
 	mutex_lock(&cam->s_mutex);
-	ret = sensor_call(cam, video, try_fmt, fmt);
+	ret = sensor_call(cam, video, try_mbus_fmt, &mbus_fmt);
 	mutex_unlock(&cam->s_mutex);
+	v4l2_fill_pix_format(pix, &mbus_fmt);
+	pix->bytesperline = pix->width * f->bpp;
+	pix->sizeimage = pix->height * pix->bytesperline;
 	return ret;
 }
 
@@ -1519,6 +1573,7 @@ static int cafe_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *fmt)
 {
 	struct cafe_camera *cam = priv;
+	struct cafe_format_struct *f;
 	int ret;
 
 	/*
@@ -1527,6 +1582,9 @@ static int cafe_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 	 */
 	if (cam->state != S_IDLE || cam->n_sbufs > 0)
 		return -EBUSY;
+
+	f = cafe_find_format(fmt->fmt.pix.pixelformat);
+
 	/*
 	 * See if the formatting works in principle.
 	 */
@@ -1539,6 +1597,8 @@ static int cafe_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 	 */
 	mutex_lock(&cam->s_mutex);
 	cam->pix_format = fmt->fmt.pix;
+	cam->mbus_code = f->mbus_code;
+
 	/*
 	 * Make sure we have appropriate DMA buffers.
 	 */
@@ -1915,6 +1975,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	init_waitqueue_head(&cam->iowait);
 	cam->pdev = pdev;
 	cam->pix_format = cafe_def_pix_format;
+	cam->mbus_code = cafe_def_mbus_code;
 	INIT_LIST_HEAD(&cam->dev_list);
 	INIT_LIST_HEAD(&cam->sb_avail);
 	INIT_LIST_HEAD(&cam->sb_full);
