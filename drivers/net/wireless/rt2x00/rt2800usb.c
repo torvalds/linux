@@ -401,59 +401,15 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	__le32 *txi = skbdesc->desc;
-	__le32 *txwi = &txi[TXINFO_DESC_SIZE / sizeof(__le32)];
 	u32 word;
 
 	/*
-	 * Initialize TX Info descriptor
+	 * Initialize TXWI descriptor
 	 */
-	rt2x00_desc_read(txwi, 0, &word);
-	rt2x00_set_field32(&word, TXWI_W0_FRAG,
-			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_MIMO_PS, 0);
-	rt2x00_set_field32(&word, TXWI_W0_CF_ACK, 0);
-	rt2x00_set_field32(&word, TXWI_W0_TS,
-			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_AMPDU,
-			   test_bit(ENTRY_TXD_HT_AMPDU, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_MPDU_DENSITY, txdesc->mpdu_density);
-	rt2x00_set_field32(&word, TXWI_W0_TX_OP, txdesc->txop);
-	rt2x00_set_field32(&word, TXWI_W0_MCS, txdesc->mcs);
-	rt2x00_set_field32(&word, TXWI_W0_BW,
-			   test_bit(ENTRY_TXD_HT_BW_40, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_SHORT_GI,
-			   test_bit(ENTRY_TXD_HT_SHORT_GI, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_STBC, txdesc->stbc);
-	rt2x00_set_field32(&word, TXWI_W0_PHYMODE, txdesc->rate_mode);
-	rt2x00_desc_write(txwi, 0, word);
-
-	rt2x00_desc_read(txwi, 1, &word);
-	rt2x00_set_field32(&word, TXWI_W1_ACK,
-			   test_bit(ENTRY_TXD_ACK, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W1_NSEQ,
-			   test_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W1_BW_WIN_SIZE, txdesc->ba_size);
-	rt2x00_set_field32(&word, TXWI_W1_WIRELESS_CLI_ID,
-			   test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags) ?
-			   txdesc->key_idx : 0xff);
-	rt2x00_set_field32(&word, TXWI_W1_MPDU_TOTAL_BYTE_COUNT,
-			   txdesc->length);
-	rt2x00_set_field32(&word, TXWI_W1_PACKETID,
-			   skbdesc->entry->queue->qid + 1);
-	rt2x00_desc_write(txwi, 1, word);
+	rt2800_write_txwi(skb, txdesc);
 
 	/*
-	 * Always write 0 to IV/EIV fields, hardware will insert the IV
-	 * from the IVEIV register when TXINFO_W0_WIV is set to 0.
-	 * When TXINFO_W0_WIV is set to 1 it will use the IV data
-	 * from the descriptor. The TXWI_W1_WIRELESS_CLI_ID indicates which
-	 * crypto entry in the registers should be used to encrypt the frame.
-	 */
-	_rt2x00_desc_write(txwi, 2, 0 /* skbdesc->iv[0] */);
-	_rt2x00_desc_write(txwi, 3, 0 /* skbdesc->iv[1] */);
-
-	/*
-	 * Initialize TX descriptor
+	 * Initialize TXINFO descriptor
 	 */
 	rt2x00_desc_read(txi, 0, &word);
 	rt2x00_set_field32(&word, TXINFO_W0_USB_DMA_TX_PKT_LEN,
