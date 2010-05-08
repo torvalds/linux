@@ -989,12 +989,12 @@ static struct hid_driver kone_driver = {
 		.raw_event = kone_raw_event
 };
 
-static int kone_init(void)
+static int __init kone_init(void)
 {
 	return hid_register_driver(&kone_driver);
 }
 
-static void kone_exit(void)
+static void __exit kone_exit(void)
 {
 	hid_unregister_driver(&kone_driver);
 }
