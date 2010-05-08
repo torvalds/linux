@@ -852,7 +852,7 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 		if (wl == wl_temp)
 			break;
 	}
-	if (wl == NULL)
+	if (wl != wl_temp)
 		return NOTIFY_DONE;
 
 	/* Get the interface IP address for the device. "ifa" will become
