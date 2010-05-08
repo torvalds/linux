@@ -375,6 +375,8 @@ static int __init cpu_stop_init(void)
 }
 early_initcall(cpu_stop_init);
 
+#ifdef CONFIG_STOP_MACHINE
+
 /* This controls the threads on each CPU. */
 enum stopmachine_state {
 	/* Dummy starting state for thread. */
@@ -477,3 +479,5 @@ int stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(stop_machine);
+
+#endif	/* CONFIG_STOP_MACHINE */
