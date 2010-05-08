@@ -943,7 +943,8 @@ void print_events(void)
 
 	printf("\n");
 	printf("  %-42s [%s]\n",
-		"rNNN (NNN=<UMASK VALUE><EVENT NUM>)", event_type_descriptors[PERF_TYPE_RAW]);
+		"rNNN (see 'perf list --help' on how to encode it)",
+	       event_type_descriptors[PERF_TYPE_RAW]);
 	printf("\n");
 
 	printf("  %-42s [%s]\n",
