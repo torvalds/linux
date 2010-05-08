@@ -57,7 +57,7 @@
 #include <generated/utsrelease.h>
 
 #include <linux/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/system.h>
 
 #define LCD_MINOR		156
