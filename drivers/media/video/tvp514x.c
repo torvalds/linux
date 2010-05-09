@@ -111,7 +111,7 @@ struct tvp514x_decoder {
 
 	enum tvp514x_std current_std;
 	int num_stds;
-	struct tvp514x_std_info *std_list;
+	const struct tvp514x_std_info *std_list;
 	/* Input and Output Routing parameters */
 	u32 input;
 	u32 output;
@@ -223,7 +223,7 @@ static const struct v4l2_fmtdesc tvp514x_fmt_list[] = {
  * Currently supports two standards only, need to add support for rest of the
  * modes, like SECAM, etc...
  */
-static struct tvp514x_std_info tvp514x_std_list[] = {
+static const struct tvp514x_std_info tvp514x_std_list[] = {
 	/* Standard: STD_NTSC_MJ */
 	[STD_NTSC_MJ] = {
 	 .width = NTSC_NUM_ACTIVE_PIXELS,
