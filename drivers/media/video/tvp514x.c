@@ -611,7 +611,7 @@ static int tvp514x_s_std(struct v4l2_subdev *sd, v4l2_std_id std_id)
 	decoder->tvp514x_regs[REG_VIDEO_STD].val =
 		decoder->std_list[i].video_std;
 
-	v4l2_dbg(1, debug, sd, "Standard set to: %s",
+	v4l2_dbg(1, debug, sd, "Standard set to: %s\n",
 			decoder->std_list[i].standard.name);
 	return 0;
 }
@@ -783,7 +783,7 @@ tvp514x_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qctrl)
 		return err;
 	}
 
-	v4l2_dbg(1, debug, sd, "Query Control:%s: Min - %d, Max - %d, Def - %d",
+	v4l2_dbg(1, debug, sd, "Query Control:%s: Min - %d, Max - %d, Def - %d\n",
 			qctrl->name, qctrl->minimum, qctrl->maximum,
 			qctrl->default_value);
 
@@ -840,7 +840,7 @@ tvp514x_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		return -EINVAL;
 	}
 
-	v4l2_dbg(1, debug, sd, "Get Control: ID - %d - %d",
+	v4l2_dbg(1, debug, sd, "Get Control: ID - %d - %d\n",
 			ctrl->id, ctrl->value);
 	return 0;
 }
@@ -940,7 +940,7 @@ tvp514x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		return err;
 	}
 
-	v4l2_dbg(1, debug, sd, "Set Control: ID - %d - %d",
+	v4l2_dbg(1, debug, sd, "Set Control: ID - %d - %d\n",
 			ctrl->id, ctrl->value);
 
 	return err;
@@ -1009,7 +1009,7 @@ tvp514x_try_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
 	pix->priv = 0;
 
 	v4l2_dbg(1, debug, sd, "Try FMT: bytesperline - %d"
-			"Width - %d, Height - %d",
+			"Width - %d, Height - %d\n",
 			pix->bytesperline,
 			pix->width, pix->height);
 	return 0;
@@ -1071,7 +1071,7 @@ tvp514x_g_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
 	f->fmt.pix = decoder->pix;
 
 	v4l2_dbg(1, debug, sd, "Current FMT: bytesperline - %d"
-			"Width - %d, Height - %d",
+			"Width - %d, Height - %d\n",
 			decoder->pix.bytesperline,
 			decoder->pix.width, decoder->pix.height);
 	return 0;
