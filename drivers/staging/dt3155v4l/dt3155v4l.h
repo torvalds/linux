@@ -185,6 +185,7 @@ struct dt3155_stats {
  * @curr_buf:		pointer to curren buffer
  * @thread		pointer to worker thraed
  * @irq_handler:	irq handler for the driver
+ * @qt_ops		local copy of dma-contig qtype_ops
  * @dmaq		queue for dma buffers
  * @do_dma		wait queue of the kernel thread
  * @mux:		mutex to protect the instance
@@ -204,6 +205,7 @@ struct dt3155_priv {
 	struct videobuf_buffer *curr_buf;
 	struct task_struct *thread;
 	irq_handler_t irq_handler;
+	struct videobuf_qtype_ops qt_ops;
 	struct list_head dmaq;
 	wait_queue_head_t do_dma;
 	struct mutex mux;

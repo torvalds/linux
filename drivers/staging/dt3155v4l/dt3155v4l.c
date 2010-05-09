@@ -612,9 +612,14 @@ dt3155_queue_dma_contig_init(struct videobuf_queue *q,
 					unsigned int msize,
 					void *priv)
 {
+	struct dt3155_priv *pd = q->priv_data;
+
 	videobuf_queue_dma_contig_init(q, ops, dev, irqlock,
 				       type, field, msize, priv);
-	/* overwrite with our methods */
+	/* replace with local copy */
+	pd->qt_ops = *q->int_ops;
+	q->int_ops = &pd->qt_ops;
+	/* and overwrite with our methods */
 	q->int_ops->iolock = dt3155_iolock;
 	q->int_ops->mmap_mapper = dt3155_mmap_mapper;
 	q->int_ops->sync = dt3155_sync_for_cpu;
