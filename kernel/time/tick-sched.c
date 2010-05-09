@@ -161,6 +161,7 @@ static void update_ts_time_stats(struct tick_sched *ts, ktime_t now)
 	if (ts->idle_active) {
 		delta = ktime_sub(now, ts->idle_entrytime);
 		ts->idle_sleeptime = ktime_add(ts->idle_sleeptime, delta);
+		ts->idle_entrytime = now;
 	}
 }
 
@@ -205,14 +206,18 @@ static ktime_t tick_nohz_start_idle(struct tick_sched *ts)
 u64 get_cpu_idle_time_us(int cpu, u64 *last_update_time)
 {
 	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
+	ktime_t now;
 
 	if (!tick_nohz_enabled)
 		return -1;
 
+	now = ktime_get();
+	update_ts_time_stats(ts, now);
+
 	if (ts->idle_active)
 		*last_update_time = ktime_to_us(ts->idle_lastupdate);
 	else
-		*last_update_time = ktime_to_us(ktime_get());
+		*last_update_time = ktime_to_us(now);
 
 	return ktime_to_us(ts->idle_sleeptime);
 }
