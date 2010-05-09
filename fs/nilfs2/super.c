@@ -1106,7 +1106,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	put_nilfs(nilfs);
 	deactivate_locked_super(s);
 	/*
-	 * deactivate_super() invokes close_bdev_exclusive().
+	 * deactivate_locked_super() invokes close_bdev_exclusive().
 	 * We must finish all post-cleaning before this call;
 	 * put_nilfs() needs the block device.
 	 */
