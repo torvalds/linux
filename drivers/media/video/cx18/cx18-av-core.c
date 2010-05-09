@@ -1028,80 +1028,91 @@ static int cx18_av_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 	return cx18_av_g_sliced_fmt(sd, &fmt->fmt.sliced);
 }
 
-static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int cx18_av_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
-
-	struct v4l2_pix_format *pix;
 	int HSC, VSC, Vsrc, Hsrc, filter, Vlines;
 	int is_50Hz = !(state->std & V4L2_STD_525_60);
 
+	if (fmt->code != V4L2_MBUS_FMT_FIXED)
+		return -EINVAL;
+
+	fmt->field = V4L2_FIELD_INTERLACED;
+	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+
+	Vsrc = (cx18_av_read(cx, 0x476) & 0x3f) << 4;
+	Vsrc |= (cx18_av_read(cx, 0x475) & 0xf0) >> 4;
+
+	Hsrc = (cx18_av_read(cx, 0x472) & 0x3f) << 4;
+	Hsrc |= (cx18_av_read(cx, 0x471) & 0xf0) >> 4;
+
+	/*
+	 * This adjustment reflects the excess of vactive, set in
+	 * cx18_av_std_setup(), above standard values:
+	 *
+	 * 480 + 1 for 60 Hz systems
+	 * 576 + 3 for 50 Hz systems
+	 */
+	Vlines = fmt->height + (is_50Hz ? 3 : 1);
+
+	/*
+	 * Invalid height and width scaling requests are:
+	 * 1. width less than 1/16 of the source width
+	 * 2. width greater than the source width
+	 * 3. height less than 1/8 of the source height
+	 * 4. height greater than the source height
+	 */
+	if ((fmt->width * 16 < Hsrc) || (Hsrc < fmt->width) ||
+	    (Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
+		CX18_ERR_DEV(sd, "%dx%d is not a valid size!\n",
+			     fmt->width, fmt->height);
+		return -ERANGE;
+	}
+
+	HSC = (Hsrc * (1 << 20)) / fmt->width - (1 << 20);
+	VSC = (1 << 16) - (Vsrc * (1 << 9) / Vlines - (1 << 9));
+	VSC &= 0x1fff;
+
+	if (fmt->width >= 385)
+		filter = 0;
+	else if (fmt->width > 192)
+		filter = 1;
+	else if (fmt->width > 96)
+		filter = 2;
+	else
+		filter = 3;
+
+	CX18_DEBUG_INFO_DEV(sd,
+			    "decoder set size %dx%d -> scale  %ux%u\n",
+			    fmt->width, fmt->height, HSC, VSC);
+
+	/* HSCALE=HSC */
+	cx18_av_write(cx, 0x418, HSC & 0xff);
+	cx18_av_write(cx, 0x419, (HSC >> 8) & 0xff);
+	cx18_av_write(cx, 0x41a, HSC >> 16);
+	/* VSCALE=VSC */
+	cx18_av_write(cx, 0x41c, VSC & 0xff);
+	cx18_av_write(cx, 0x41d, VSC >> 8);
+	/* VS_INTRLACE=1 VFILT=filter */
+	cx18_av_write(cx, 0x41e, 0x8 | filter);
+	return 0;
+}
+
+static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+{
+	struct v4l2_mbus_framefmt mbus_fmt;
+
 	switch (fmt->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		pix = &(fmt->fmt.pix);
-
-		Vsrc = (cx18_av_read(cx, 0x476) & 0x3f) << 4;
-		Vsrc |= (cx18_av_read(cx, 0x475) & 0xf0) >> 4;
-
-		Hsrc = (cx18_av_read(cx, 0x472) & 0x3f) << 4;
-		Hsrc |= (cx18_av_read(cx, 0x471) & 0xf0) >> 4;
-
-		/*
-		 * This adjustment reflects the excess of vactive, set in
-		 * cx18_av_std_setup(), above standard values:
-		 *
-		 * 480 + 1 for 60 Hz systems
-		 * 576 + 3 for 50 Hz systems
-		 */
-		Vlines = pix->height + (is_50Hz ? 3 : 1);
-
-		/*
-		 * Invalid height and width scaling requests are:
-		 * 1. width less than 1/16 of the source width
-		 * 2. width greater than the source width
-		 * 3. height less than 1/8 of the source height
-		 * 4. height greater than the source height
-		 */
-		if ((pix->width * 16 < Hsrc) || (Hsrc < pix->width) ||
-		    (Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
-			CX18_ERR_DEV(sd, "%dx%d is not a valid size!\n",
-				     pix->width, pix->height);
-			return -ERANGE;
-		}
-
-		HSC = (Hsrc * (1 << 20)) / pix->width - (1 << 20);
-		VSC = (1 << 16) - (Vsrc * (1 << 9) / Vlines - (1 << 9));
-		VSC &= 0x1fff;
-
-		if (pix->width >= 385)
-			filter = 0;
-		else if (pix->width > 192)
-			filter = 1;
-		else if (pix->width > 96)
-			filter = 2;
-		else
-			filter = 3;
-
-		CX18_DEBUG_INFO_DEV(sd,
-				    "decoder set size %dx%d -> scale  %ux%u\n",
-				    pix->width, pix->height, HSC, VSC);
-
-		/* HSCALE=HSC */
-		cx18_av_write(cx, 0x418, HSC & 0xff);
-		cx18_av_write(cx, 0x419, (HSC >> 8) & 0xff);
-		cx18_av_write(cx, 0x41a, HSC >> 16);
-		/* VSCALE=VSC */
-		cx18_av_write(cx, 0x41c, VSC & 0xff);
-		cx18_av_write(cx, 0x41d, VSC >> 8);
-		/* VS_INTRLACE=1 VFILT=filter */
-		cx18_av_write(cx, 0x41e, 0x8 | filter);
-		break;
+		mbus_fmt.width = fmt->fmt.pix.width;
+		mbus_fmt.height = fmt->fmt.pix.height;
+		mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
+		return cx18_av_s_mbus_fmt(sd, &mbus_fmt);
 
 	default:
 		return -EINVAL;
 	}
-	return 0;
 }
 
 static int cx18_av_s_stream(struct v4l2_subdev *sd, int enable)
@@ -1400,6 +1411,7 @@ static const struct v4l2_subdev_video_ops cx18_av_video_ops = {
 	.s_stream = cx18_av_s_stream,
 	.g_fmt = cx18_av_g_fmt,
 	.s_fmt = cx18_av_s_fmt,
+	.s_mbus_fmt = cx18_av_s_mbus_fmt,
 };
 
 static const struct v4l2_subdev_vbi_ops cx18_av_vbi_ops = {
