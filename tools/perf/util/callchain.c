@@ -17,6 +17,13 @@
 
 #include "callchain.h"
 
+bool ip_callchain__valid(struct ip_callchain *chain, event_t *event)
+{
+	unsigned int chain_size = event->header.size;
+	chain_size -= (unsigned long)&event->ip.__more_data - (unsigned long)event;
+	return chain->nr * sizeof(u64) <= chain_size;
+}
+
 #define chain_for_each_child(child, parent)	\
 	list_for_each_entry(child, &parent->children, brothers)
 

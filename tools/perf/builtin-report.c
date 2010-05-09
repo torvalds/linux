@@ -123,19 +123,6 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	return 0;
 }
 
-static int validate_chain(struct ip_callchain *chain, event_t *event)
-{
-	unsigned int chain_size;
-
-	chain_size = event->header.size;
-	chain_size -= (unsigned long)&event->ip.__more_data - (unsigned long)event;
-
-	if (chain->nr*sizeof(u64) > chain_size)
-		return -1;
-
-	return 0;
-}
-
 static int add_event_total(struct perf_session *session,
 			   struct sample_data *data,
 			   struct perf_event_attr *attr)
@@ -171,7 +158,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 		dump_printf("... chain: nr:%Lu\n", data.callchain->nr);
 
-		if (validate_chain(data.callchain, event) < 0) {
+		if (!ip_callchain__valid(data.callchain, event)) {
 			pr_debug("call-chain problem with event, "
 				 "skipping it.\n");
 			return 0;
