@@ -199,21 +199,6 @@ static struct tvp514x_reg tvp514x_reg_list_default[] = {
 };
 
 /**
- * List of image formats supported by TVP5146/47 decoder
- * Currently we are using 8 bit mode only, but can be
- * extended to 10/20 bit mode.
- */
-static const struct v4l2_fmtdesc tvp514x_fmt_list[] = {
-	{
-	 .index = 0,
-	 .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-	 .flags = 0,
-	 .description = "8-bit UYVY 4:2:2 Format",
-	 .pixelformat = V4L2_PIX_FMT_UYVY,
-	},
-};
-
-/**
  * Supported standards -
  *
  * Currently supports two standards only, need to add support for rest of the
