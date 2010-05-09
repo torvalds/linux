@@ -695,6 +695,37 @@ static int tvp7002_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 }
 
 /*
+ * tvp7002_mbus_fmt() - V4L2 decoder interface handler for try/s/g_mbus_fmt
+ * @sd: pointer to standard V4L2 sub-device structure
+ * @f: pointer to mediabus format structure
+ *
+ * Negotiate the image capture size and mediabus format.
+ * There is only one possible format, so this single function works for
+ * get, set and try.
+ */
+static int tvp7002_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
+{
+	struct tvp7002 *device = to_tvp7002(sd);
+	struct v4l2_dv_enum_preset e_preset;
+	int error;
+
+	/* Calculate height and width based on current standard */
+	error = v4l_fill_dv_preset_info(device->current_preset->preset, &e_preset);
+	if (error)
+		return error;
+
+	f->width = e_preset.width;
+	f->height = e_preset.height;
+	f->code = V4L2_MBUS_FMT_YUYV10_1X20;
+	f->field = device->current_preset->scanmode;
+	f->colorspace = device->current_preset->color_space;
+
+	v4l2_dbg(1, debug, sd, "MBUS_FMT: Width - %d, Height - %d",
+			f->width, f->height);
+	return 0;
+}
+
+/*
  * tvp7002_try_fmt_cap() - V4L2 decoder interface handler for try_fmt
  * @sd: pointer to standard V4L2 sub-device structure
  * @f: pointer to standard V4L2 VIDIOC_TRY_FMT ioctl structure
@@ -913,6 +944,25 @@ static int tvp7002_enum_fmt(struct v4l2_subdev *sd,
 }
 
 /*
+ * tvp7002_enum_mbus_fmt() - Enum supported mediabus formats
+ * @sd: pointer to standard V4L2 sub-device structure
+ * @index: format index
+ * @code: pointer to mediabus format
+ *
+ * Enumerate supported mediabus formats.
+ */
+
+static int tvp7002_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
+					enum v4l2_mbus_pixelcode *code)
+{
+	/* Check requested format index is within range */
+	if (index)
+		return -EINVAL;
+	*code = V4L2_MBUS_FMT_YUYV10_1X20;
+	return 0;
+}
+
+/*
  * tvp7002_s_stream() - V4L2 decoder i/f handler for s_stream
  * @sd: pointer to standard V4L2 sub-device structure
  * @enable: streaming enable or disable
@@ -1030,6 +1080,10 @@ static const struct v4l2_subdev_video_ops tvp7002_video_ops = {
 	.g_fmt = tvp7002_g_fmt,
 	.s_fmt = tvp7002_s_fmt,
 	.enum_fmt = tvp7002_enum_fmt,
+	.g_mbus_fmt = tvp7002_mbus_fmt,
+	.try_mbus_fmt = tvp7002_mbus_fmt,
+	.s_mbus_fmt = tvp7002_mbus_fmt,
+	.enum_mbus_fmt = tvp7002_enum_mbus_fmt,
 };
 
 /* V4L2 top level operation handlers */
