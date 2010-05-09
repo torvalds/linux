@@ -754,9 +754,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 				goto failed_sbi;
 			}
 			cno = sbi->s_snapshot_cno;
-		} else
-			/* Read-only mount */
-			sbi->s_snapshot_cno = cno;
+		}
 	}
 
 	err = nilfs_attach_checkpoint(sbi, cno);
@@ -825,7 +823,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	unsigned long old_sb_flags;
 	struct nilfs_mount_options old_opts;
-	int err;
+	int was_snapshot, err;
 
 	lock_kernel();
 
@@ -833,6 +831,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	old_sb_flags = sb->s_flags;
 	old_opts.mount_opt = sbi->s_mount_opt;
 	old_opts.snapshot_cno = sbi->s_snapshot_cno;
+	was_snapshot = nilfs_test_opt(sbi, SNAPSHOT);
 
 	if (!parse_options(data, sb)) {
 		err = -EINVAL;
@@ -840,20 +839,32 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	}
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL);
 
-	if ((*flags & MS_RDONLY) &&
-	    sbi->s_snapshot_cno != old_opts.snapshot_cno) {
-		printk(KERN_WARNING "NILFS (device %s): couldn't "
-		       "remount to a different snapshot.\n",
-		       sb->s_id);
-		err = -EINVAL;
-		goto restore_opts;
+	err = -EINVAL;
+	if (was_snapshot) {
+		if (!(*flags & MS_RDONLY)) {
+			printk(KERN_ERR "NILFS (device %s): cannot remount "
+			       "snapshot read/write.\n",
+			       sb->s_id);
+			goto restore_opts;
+		} else if (sbi->s_snapshot_cno != old_opts.snapshot_cno) {
+			printk(KERN_ERR "NILFS (device %s): cannot "
+			       "remount to a different snapshot.\n",
+			       sb->s_id);
+			goto restore_opts;
+		}
+	} else {
+		if (nilfs_test_opt(sbi, SNAPSHOT)) {
+			printk(KERN_ERR "NILFS (device %s): cannot change "
+			       "a regular mount to a snapshot.\n",
+			       sb->s_id);
+			goto restore_opts;
+		}
 	}
 
 	if (!nilfs_valid_fs(nilfs)) {
 		printk(KERN_WARNING "NILFS (device %s): couldn't "
 		       "remount because the filesystem is in an "
 		       "incomplete recovery state.\n", sb->s_id);
-		err = -EINVAL;
 		goto restore_opts;
 	}
 
@@ -863,9 +874,6 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		/* Shutting down the segment constructor */
 		nilfs_detach_segment_constructor(sbi);
 		sb->s_flags |= MS_RDONLY;
-
-		sbi->s_snapshot_cno = nilfs_last_cno(nilfs);
-		/* nilfs_set_opt(sbi, SNAPSHOT); */
 
 		/*
 		 * Remounting a valid RW partition RDONLY, so set
@@ -885,24 +893,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		 * store the current valid flag.  (It may have been changed
 		 * by fsck since we originally mounted the partition.)
 		 */
-		if (nilfs->ns_current && nilfs->ns_current != sbi) {
-			printk(KERN_WARNING "NILFS (device %s): couldn't "
-			       "remount because an RW-mount exists.\n",
-			       sb->s_id);
-			err = -EBUSY;
-			goto restore_opts;
-		}
-		if (sbi->s_snapshot_cno != nilfs_last_cno(nilfs)) {
-			printk(KERN_WARNING "NILFS (device %s): couldn't "
-			       "remount because the current RO-mount is not "
-			       "the latest one.\n",
-			       sb->s_id);
-			err = -EINVAL;
-			goto restore_opts;
-		}
 		sb->s_flags &= ~MS_RDONLY;
-		nilfs_clear_opt(sbi, SNAPSHOT);
-		sbi->s_snapshot_cno = 0;
 
 		err = nilfs_attach_segment_constructor(sbi);
 		if (err)
@@ -911,8 +902,6 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		down_write(&nilfs->ns_sem);
 		nilfs_setup_super(sbi);
 		up_write(&nilfs->ns_sem);
-
-		nilfs->ns_current = sbi;
 	}
  out:
 	up_write(&nilfs->ns_super_sem);
