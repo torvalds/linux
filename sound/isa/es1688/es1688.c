@@ -79,8 +79,8 @@ static int __devinit snd_es1688_match(struct device *dev, unsigned int n)
 	return enable[n];
 }
 
-static int __devinit snd_es1688_legacy_create(struct snd_card *card, 
-		struct device *dev, unsigned int n, struct snd_es1688 **rchip)
+static int __devinit snd_es1688_legacy_create(struct snd_card *card,
+		struct snd_es1688 *chip, struct device *dev, unsigned int n)
 {
 	static long possible_ports[] = {0x220, 0x240, 0x260};
 	static int possible_irqs[] = {5, 9, 10, 7, -1};
@@ -104,14 +104,14 @@ static int __devinit snd_es1688_legacy_create(struct snd_card *card,
 	}
 
 	if (port[n] != SNDRV_AUTO_PORT)
-		return snd_es1688_create(card, port[n], mpu_port[n], irq[n],
-				mpu_irq[n], dma8[n], ES1688_HW_AUTO, rchip);
+		return snd_es1688_create(card, chip, port[n], mpu_port[n],
+				irq[n], mpu_irq[n], dma8[n], ES1688_HW_AUTO);
 
 	i = 0;
 	do {
 		port[n] = possible_ports[i];
-		error = snd_es1688_create(card, port[n], mpu_port[n], irq[n],
-				mpu_irq[n], dma8[n], ES1688_HW_AUTO, rchip);
+		error = snd_es1688_create(card, chip, port[n], mpu_port[n],
+				irq[n], mpu_irq[n], dma8[n], ES1688_HW_AUTO);
 	} while (error < 0 && ++i < ARRAY_SIZE(possible_ports));
 
 	return error;
@@ -125,19 +125,22 @@ static int __devinit snd_es1688_probe(struct device *dev, unsigned int n)
 	struct snd_pcm *pcm;
 	int error;
 
-	error = snd_card_create(index[n], id[n], THIS_MODULE, 0, &card);
+	error = snd_card_create(index[n], id[n], THIS_MODULE,
+				sizeof(struct snd_es1688), &card);
 	if (error < 0)
 		return error;
 
-	error = snd_es1688_legacy_create(card, dev, n, &chip);
+	chip = card->private_data;
+
+	error = snd_es1688_legacy_create(card, chip, dev, n);
 	if (error < 0)
 		goto out;
 
-	error = snd_es1688_pcm(chip, 0, &pcm);
+	error = snd_es1688_pcm(card, chip, 0, &pcm);
 	if (error < 0)
 		goto out;
 
-	error = snd_es1688_mixer(chip);
+	error = snd_es1688_mixer(card, chip);
 	if (error < 0)
 		goto out;
 
