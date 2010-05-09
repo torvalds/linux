@@ -8,13 +8,10 @@ struct callchain_param	callchain_param = {
 	.min_percent = 0.5
 };
 
-void __perf_session__add_count(struct hist_entry *he,
-			struct addr_location *al,
-			u64 count)
+static void perf_session__add_cpumode_count(struct hist_entry *he,
+					    unsigned int cpumode, u64 count)
 {
-	he->count += count;
-
-	switch (al->cpumode) {
+	switch (cpumode) {
 	case PERF_RECORD_MISC_KERNEL:
 		he->count_sys += count;
 		break;
@@ -36,10 +33,24 @@ void __perf_session__add_count(struct hist_entry *he,
  * histogram, sorted on item, collects counts
  */
 
+static struct hist_entry *hist_entry__new(struct hist_entry *template)
+{
+	size_t callchain_size = symbol_conf.use_callchain ? sizeof(struct callchain_node) : 0;
+	struct hist_entry *self = malloc(sizeof(*self) + callchain_size);
+
+	if (self != NULL) {
+		*self = *template;
+		if (symbol_conf.use_callchain)
+			callchain_init(self->callchain);
+	}
+
+	return self;
+}
+
 struct hist_entry *__perf_session__add_hist_entry(struct rb_root *hists,
 						  struct addr_location *al,
 						  struct symbol *sym_parent,
-						  u64 count, bool *hit)
+						  u64 count)
 {
 	struct rb_node **p = &hists->rb_node;
 	struct rb_node *parent = NULL;
@@ -64,8 +75,8 @@ struct hist_entry *__perf_session__add_hist_entry(struct rb_root *hists,
 		cmp = hist_entry__cmp(&entry, he);
 
 		if (!cmp) {
-			*hit = true;
-			return he;
+			he->count += count;
+			goto out;
 		}
 
 		if (cmp < 0)
@@ -74,14 +85,13 @@ struct hist_entry *__perf_session__add_hist_entry(struct rb_root *hists,
 			p = &(*p)->rb_right;
 	}
 
-	he = malloc(sizeof(*he) + (symbol_conf.use_callchain ?
-				    sizeof(struct callchain_node) : 0));
+	he = hist_entry__new(&entry);
 	if (!he)
 		return NULL;
-	*he = entry;
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, hists);
-	*hit = false;
+out:
+	perf_session__add_cpumode_count(he, al->cpumode, count);
 	return he;
 }
 

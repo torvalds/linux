@@ -72,8 +72,6 @@ static int annotate__hist_hit(struct hist_entry *he, u64 ip)
 	struct sym_priv *priv;
 	struct sym_hist *h;
 
-	he->count++;
-
 	if (!sym || !he->ms.map)
 		return 0;
 
@@ -99,9 +97,8 @@ static int annotate__hist_hit(struct hist_entry *he, u64 ip)
 }
 
 static int perf_session__add_hist_entry(struct perf_session *self,
-					struct addr_location *al, u64 count)
+					struct addr_location *al)
 {
-	bool hit;
 	struct hist_entry *he;
 
 	if (sym_hist_filter != NULL &&
@@ -115,7 +112,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 		return 0;
 	}
 
-	he = __perf_session__add_hist_entry(&self->hists, al, NULL, count, &hit);
+	he = __perf_session__add_hist_entry(&self->hists, al, NULL, 1);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -135,7 +132,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		return -1;
 	}
 
-	if (!al.filtered && perf_session__add_hist_entry(session, &al, 1)) {
+	if (!al.filtered && perf_session__add_hist_entry(session, &al)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		return -1;

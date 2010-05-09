@@ -25,17 +25,9 @@ static bool show_displacement;
 static int perf_session__add_hist_entry(struct perf_session *self,
 					struct addr_location *al, u64 count)
 {
-	bool hit;
-	struct hist_entry *he = __perf_session__add_hist_entry(&self->hists,
-							       al, NULL,
-							       count, &hit);
-	if (he == NULL)
-		return -ENOMEM;
-
-	if (hit)
-		__perf_session__add_count(he, al, count);
-
-	return 0;
+	if (__perf_session__add_hist_entry(&self->hists, al, NULL, count) != NULL)
+		return 0;
+	return -ENOMEM;
 }
 
 static int diff__process_sample_event(event_t *event, struct perf_session *session)

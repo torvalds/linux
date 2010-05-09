@@ -12,13 +12,10 @@ struct addr_location;
 struct symbol;
 struct rb_root;
 
-void __perf_session__add_count(struct hist_entry *he,
-			struct addr_location *al,
-			u64 count);
 struct hist_entry *__perf_session__add_hist_entry(struct rb_root *hists,
 						  struct addr_location *al,
 						  struct symbol *parent,
-						  u64 count, bool *hit);
+						  u64 count);
 extern int64_t hist_entry__cmp(struct hist_entry *, struct hist_entry *);
 extern int64_t hist_entry__collapse(struct hist_entry *, struct hist_entry *);
 int hist_entry__fprintf(struct hist_entry *self,
