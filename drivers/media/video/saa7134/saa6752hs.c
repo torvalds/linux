@@ -860,16 +860,6 @@ static int saa6752hs_g_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefm
 	return 0;
 }
 
-static int saa6752hs_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
-{
-	struct v4l2_mbus_framefmt mbus_fmt;
-	int err = saa6752hs_g_mbus_fmt(sd, &mbus_fmt);
-
-	f->fmt.pix.width = mbus_fmt.width;
-	f->fmt.pix.height = mbus_fmt.height;
-	return err;
-}
-
 static int saa6752hs_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
 {
 	struct saa6752hs_state *h = to_state(sd);
@@ -917,16 +907,6 @@ static int saa6752hs_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefm
 	return 0;
 }
 
-static int saa6752hs_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
-{
-	struct v4l2_mbus_framefmt mbus_fmt;
-
-	mbus_fmt.width = f->fmt.pix.width;
-	mbus_fmt.height = f->fmt.pix.height;
-	mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
-	return saa6752hs_s_mbus_fmt(sd, &mbus_fmt);
-}
-
 static int saa6752hs_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct saa6752hs_state *h = to_state(sd);
@@ -958,8 +938,6 @@ static const struct v4l2_subdev_core_ops saa6752hs_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops saa6752hs_video_ops = {
-	.s_fmt = saa6752hs_s_fmt,
-	.g_fmt = saa6752hs_g_fmt,
 	.s_mbus_fmt = saa6752hs_s_mbus_fmt,
 	.g_mbus_fmt = saa6752hs_g_mbus_fmt,
 };
