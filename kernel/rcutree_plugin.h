@@ -1063,8 +1063,8 @@ int rcu_needs_cpu(int cpu)
 	for_each_online_cpu(thatcpu) {
 		if (thatcpu == cpu)
 			continue;
-		snap = per_cpu(rcu_dynticks, thatcpu)->dynticks;
-		snap_nmi = per_cpu(rcu_dynticks, thatcpu)->dynticks_nmi;
+		snap = per_cpu(rcu_dynticks, thatcpu).dynticks;
+		snap_nmi = per_cpu(rcu_dynticks, thatcpu).dynticks_nmi;
 		smp_mb(); /* Order sampling of snap with end of grace period. */
 		if (((snap & 0x1) != 0) || ((snap_nmi & 0x1) != 0)) {
 			per_cpu(rcu_dyntick_drain, cpu) = 0;
