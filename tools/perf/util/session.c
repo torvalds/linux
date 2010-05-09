@@ -100,6 +100,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->repipe = repipe;
 	self->ordered_samples.flush_limit = ULLONG_MAX;
 	INIT_LIST_HEAD(&self->ordered_samples.samples_head);
+	machine__init(&self->host_machine, "", HOST_KERNEL_ID);
 
 	if (mode == O_RDONLY) {
 		if (perf_session__open(self, force) < 0)
@@ -869,4 +870,11 @@ int perf_session__set_kallsyms_ref_reloc_sym(struct map **maps,
 	}
 
 	return 0;
+}
+
+size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp)
+{
+	return __dsos__fprintf(&self->host_machine.kernel_dsos, fp) +
+	       __dsos__fprintf(&self->host_machine.user_dsos, fp) +
+	       machines__fprintf_dsos(&self->machines, fp);
 }

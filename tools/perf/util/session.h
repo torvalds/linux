@@ -25,6 +25,7 @@ struct perf_session {
 	unsigned long		mmap_window;
 	struct rb_root		threads;
 	struct thread		*last_match;
+	struct machine		host_machine;
 	struct rb_root		machines;
 	struct events_stats	events_stats;
 	struct rb_root		stats_by_id;
@@ -107,18 +108,22 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 static inline
 struct machine *perf_session__find_host_machine(struct perf_session *self)
 {
-	return machines__find_host(&self->machines);
+	return &self->host_machine;
 }
 
 static inline
 struct machine *perf_session__find_machine(struct perf_session *self, pid_t pid)
 {
+	if (pid == HOST_KERNEL_ID)
+		return &self->host_machine;
 	return machines__find(&self->machines, pid);
 }
 
 static inline
 struct machine *perf_session__findnew_machine(struct perf_session *self, pid_t pid)
 {
+	if (pid == HOST_KERNEL_ID)
+		return &self->host_machine;
 	return machines__findnew(&self->machines, pid);
 }
 
@@ -126,14 +131,11 @@ static inline
 void perf_session__process_machines(struct perf_session *self,
 				    machine__process_t process)
 {
+	process(&self->host_machine, self);
 	return machines__process(&self->machines, process, self);
 }
 
-static inline
-size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp)
-{
-	return machines__fprintf_dsos(&self->machines, fp);
-}
+size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp);
 
 static inline
 size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,

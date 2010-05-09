@@ -579,30 +579,6 @@ struct machine *machines__find(struct rb_root *self, pid_t pid)
 	return default_machine;
 }
 
-/*
- * FIXME: Why repeatedly search for this?
- */
-struct machine *machines__find_host(struct rb_root *self)
-{
-	struct rb_node **p = &self->rb_node;
-	struct rb_node *parent = NULL;
-	struct machine *machine;
-	pid_t pid = HOST_KERNEL_ID;
-
-	while (*p != NULL) {
-		parent = *p;
-		machine = rb_entry(parent, struct machine, rb_node);
-		if (pid < machine->pid)
-			p = &(*p)->rb_left;
-		else if (pid > machine->pid)
-			p = &(*p)->rb_right;
-		else
-			return machine;
-	}
-
-	return NULL;
-}
-
 struct machine *machines__findnew(struct rb_root *self, pid_t pid)
 {
 	char path[PATH_MAX];

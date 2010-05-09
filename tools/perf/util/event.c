@@ -656,6 +656,16 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 		goto out_filtered;
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+	/*
+	 * Have we already created the kernel maps for the host machine?
+	 *
+	 * This should have happened earlier, when we processed the kernel MMAP
+	 * events, but for older perf.data files there was no such thing, so do
+	 * it now.
+	 */
+	if (cpumode == PERF_RECORD_MISC_KERNEL &&
+	    session->host_machine.vmlinux_maps[MAP__FUNCTION] == NULL)
+		machine__create_kernel_maps(&session->host_machine);
 
 	thread__find_addr_map(thread, session, cpumode, MAP__FUNCTION,
 			      self->ip.pid, self->ip.ip, al);

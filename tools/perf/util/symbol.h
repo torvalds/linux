@@ -167,6 +167,8 @@ int machine__load_kallsyms(struct machine *self, const char *filename,
 int machine__load_vmlinux_path(struct machine *self, enum map_type type,
 			       symbol_filter_t filter);
 
+size_t __dsos__fprintf(struct list_head *head, FILE *fp);
+
 size_t machines__fprintf_dsos(struct rb_root *self, FILE *fp);
 size_t machines__fprintf_dsos_buildid(struct rb_root *self, FILE *fp, bool with_hits);
 

@@ -1889,7 +1889,7 @@ struct dso *__dsos__findnew(struct list_head *head, const char *name)
 	return dso;
 }
 
-static size_t __dsos__fprintf(struct list_head *head, FILE *fp)
+size_t __dsos__fprintf(struct list_head *head, FILE *fp)
 {
 	struct dso *pos;
 	size_t ret = 0;
