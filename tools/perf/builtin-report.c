@@ -83,7 +83,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	struct map_symbol *syms = NULL;
 	struct symbol *parent = NULL;
 	bool hit;
-	int err;
+	int err = -ENOMEM;
 	struct hist_entry *he;
 	struct event_stat_id *stats;
 	struct perf_event_attr *attr;
@@ -101,26 +101,24 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	else
 		stats = get_stats(self, data->id, 0, 0);
 	if (stats == NULL)
-		return -ENOMEM;
+		goto out_free_syms;
 	he = __perf_session__add_hist_entry(&stats->hists, al, parent,
 					    data->period, &hit);
 	if (he == NULL)
-		return -ENOMEM;
+		goto out_free_syms;
 
 	if (hit)
 		__perf_session__add_count(he, al,  data->period);
 
+	err = 0;
 	if (symbol_conf.use_callchain) {
 		if (!hit)
 			callchain_init(he->callchain);
 		err = append_chain(he->callchain, data->callchain, syms);
-		free(syms);
-
-		if (err)
-			return err;
 	}
-
-	return 0;
+out_free_syms:
+	free(syms);
+	return err;
 }
 
 static int add_event_total(struct perf_session *session,
