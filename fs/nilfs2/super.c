@@ -1076,7 +1076,8 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 		strlcpy(s->s_id, bdevname(sd.bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(sd.bdev));
 
-		err = nilfs_fill_super(s, data, flags & MS_VERBOSE, nilfs);
+		err = nilfs_fill_super(s, data, flags & MS_SILENT ? 1 : 0,
+				       nilfs);
 		if (err)
 			goto cancel_new;
 
