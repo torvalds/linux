@@ -676,6 +676,13 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 			dso__calc_col_width(al->map->dso);
 
 		al->sym = map__find_symbol(al->map, al->addr, filter);
+	} else {
+		const unsigned int unresolved_col_width = BITS_PER_LONG / 4;
+
+		if (dsos__col_width < unresolved_col_width &&
+		    !symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
+		    !symbol_conf.dso_list)
+			dsos__col_width = unresolved_col_width;
 	}
 
 	if (symbol_conf.sym_list && al->sym &&
