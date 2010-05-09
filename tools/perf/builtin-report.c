@@ -343,7 +343,7 @@ static int
 parse_callchain_opt(const struct option *opt __used, const char *arg,
 		    int unset)
 {
-	char *tok;
+	char *tok, *tok2;
 	char *endptr;
 
 	/*
@@ -388,10 +388,13 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 	if (!tok)
 		goto setup;
 
+	tok2 = strtok(NULL, ",");
 	callchain_param.min_percent = strtod(tok, &endptr);
 	if (tok == endptr)
 		return -1;
 
+	if (tok2)
+		callchain_param.print_limit = strtod(tok2, &endptr);
 setup:
 	if (register_callchain_param(&callchain_param) < 0) {
 		fprintf(stderr, "Can't register callchain params\n");

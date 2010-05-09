@@ -333,6 +333,7 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 	u64 remaining;
 	size_t ret = 0;
 	int i;
+	uint entries_printed = 0;
 
 	if (callchain_param.mode == CHAIN_GRAPH_REL)
 		new_total = self->children_hit;
@@ -379,6 +380,8 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 						  new_depth_mask | (1 << depth),
 						  left_margin);
 		node = next;
+		if (++entries_printed == callchain_param.print_limit)
+			break;
 	}
 
 	if (callchain_param.mode == CHAIN_GRAPH_REL &&
@@ -404,6 +407,7 @@ static size_t callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 	bool printed = false;
 	int i = 0;
 	int ret = 0;
+	u32 entries_printed = 0;
 
 	list_for_each_entry(chain, &self->val, list) {
 		if (!i++ && sort__first_dimension == SORT_SYM)
@@ -424,6 +428,9 @@ static size_t callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 			ret += fprintf(fp, " %s\n", chain->ms.sym->name);
 		else
 			ret += fprintf(fp, " %p\n", (void *)(long)chain->ip);
+
+		if (++entries_printed == callchain_param.print_limit)
+			break;
 	}
 
 	ret += __callchain__fprintf_graph(fp, self, total_samples, 1, 1, left_margin);
@@ -462,6 +469,7 @@ static size_t hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 	struct rb_node *rb_node;
 	struct callchain_node *chain;
 	size_t ret = 0;
+	u32 entries_printed = 0;
 
 	rb_node = rb_first(&self->sorted_chain);
 	while (rb_node) {
@@ -484,6 +492,8 @@ static size_t hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 			break;
 		}
 		ret += fprintf(fp, "\n");
+		if (++entries_printed == callchain_param.print_limit)
+			break;
 		rb_node = rb_next(rb_node);
 	}
 
