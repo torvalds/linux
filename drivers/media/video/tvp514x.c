@@ -35,6 +35,7 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-mediabus.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/tvp514x.h>
 
@@ -929,6 +930,25 @@ tvp514x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 }
 
 /**
+ * tvp514x_enum_mbus_fmt() - V4L2 decoder interface handler for enum_mbus_fmt
+ * @sd: pointer to standard V4L2 sub-device structure
+ * @index: index of pixelcode to retrieve
+ * @code: receives the pixelcode
+ *
+ * Enumerates supported mediabus formats
+ */
+static int
+tvp514x_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
+					enum v4l2_mbus_pixelcode *code)
+{
+	if (index)
+		return -EINVAL;
+
+	*code = V4L2_MBUS_FMT_YUYV10_2X10;
+	return 0;
+}
+
+/**
  * tvp514x_enum_fmt_cap() - V4L2 decoder interface handler for enum_fmt
  * @sd: pointer to standard V4L2 sub-device structure
  * @fmt: standard V4L2 VIDIOC_ENUM_FMT ioctl structure
@@ -950,6 +970,36 @@ tvp514x_enum_fmt_cap(struct v4l2_subdev *sd, struct v4l2_fmtdesc *fmt)
 	strlcpy(fmt->description, "8-bit UYVY 4:2:2 Format",
 					sizeof(fmt->description));
 	fmt->pixelformat = V4L2_PIX_FMT_UYVY;
+	return 0;
+}
+
+/**
+ * tvp514x_mbus_fmt_cap() - V4L2 decoder interface handler for try/s/g_mbus_fmt
+ * @sd: pointer to standard V4L2 sub-device structure
+ * @f: pointer to the mediabus format structure
+ *
+ * Negotiates the image capture size and mediabus format.
+ */
+static int
+tvp514x_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
+{
+	struct tvp514x_decoder *decoder = to_decoder(sd);
+	enum tvp514x_std current_std;
+
+	if (f == NULL)
+		return -EINVAL;
+
+	/* Calculate height and width based on current standard */
+	current_std = decoder->current_std;
+
+	f->code = V4L2_MBUS_FMT_YUYV10_2X10;
+	f->width = decoder->std_list[current_std].width;
+	f->height = decoder->std_list[current_std].height;
+	f->field = V4L2_FIELD_INTERLACED;
+	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
+
+	v4l2_dbg(1, debug, sd, "MBUS_FMT: Width - %d, Height - %d\n",
+			f->width, f->height);
 	return 0;
 }
 
@@ -1135,6 +1185,10 @@ static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
 	.g_fmt = tvp514x_fmt_cap,
 	.try_fmt = tvp514x_fmt_cap,
 	.s_fmt = tvp514x_fmt_cap,
+	.enum_mbus_fmt = tvp514x_enum_mbus_fmt,
+	.g_mbus_fmt = tvp514x_mbus_fmt,
+	.try_mbus_fmt = tvp514x_mbus_fmt,
+	.s_mbus_fmt = tvp514x_mbus_fmt,
 	.g_parm = tvp514x_g_parm,
 	.s_parm = tvp514x_s_parm,
 	.s_stream = tvp514x_s_stream,
