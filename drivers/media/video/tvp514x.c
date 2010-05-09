@@ -88,7 +88,6 @@ static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable);
  * @pdata: Board specific
  * @ver: Chip version
  * @streaming: TVP5146/47 decoder streaming - enabled or disabled.
- * @pix: Current pixel format
  * @current_std: Current standard
  * @num_stds: Number of standards
  * @std_list: Standards list
@@ -102,8 +101,6 @@ struct tvp514x_decoder {
 
 	int ver;
 	int streaming;
-
-	struct v4l2_pix_format pix;
 
 	enum tvp514x_std current_std;
 	int num_stds;
@@ -957,16 +954,15 @@ tvp514x_enum_fmt_cap(struct v4l2_subdev *sd, struct v4l2_fmtdesc *fmt)
 }
 
 /**
- * tvp514x_try_fmt_cap() - V4L2 decoder interface handler for try_fmt
+ * tvp514x_fmt_cap() - V4L2 decoder interface handler for try/s/g_fmt
  * @sd: pointer to standard V4L2 sub-device structure
  * @f: pointer to standard V4L2 VIDIOC_TRY_FMT ioctl structure
  *
- * Implement the VIDIOC_TRY_FMT ioctl for the CAPTURE buffer type. This
- * ioctl is used to negotiate the image capture size and pixel format
- * without actually making it take effect.
+ * Implement the VIDIOC_TRY/S/G_FMT ioctl for the CAPTURE buffer type. This
+ * ioctl is used to negotiate the image capture size and pixel format.
  */
 static int
-tvp514x_try_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
+tvp514x_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 	struct v4l2_pix_format *pix;
@@ -976,8 +972,7 @@ tvp514x_try_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
 		return -EINVAL;
 
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		/* only capture is supported */
-		f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		return -EINVAL;
 
 	pix = &f->fmt.pix;
 
@@ -993,72 +988,10 @@ tvp514x_try_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pix->priv = 0;
 
-	v4l2_dbg(1, debug, sd, "Try FMT: bytesperline - %d"
+	v4l2_dbg(1, debug, sd, "FMT: bytesperline - %d"
 			"Width - %d, Height - %d\n",
 			pix->bytesperline,
 			pix->width, pix->height);
-	return 0;
-}
-
-/**
- * tvp514x_s_fmt_cap() - V4L2 decoder interface handler for s_fmt
- * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to standard V4L2 VIDIOC_S_FMT ioctl structure
- *
- * If the requested format is supported, configures the HW to use that
- * format, returns error code if format not supported or HW can't be
- * correctly configured.
- */
-static int
-tvp514x_s_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
-{
-	struct tvp514x_decoder *decoder = to_decoder(sd);
-	struct v4l2_pix_format *pix;
-	int rval;
-
-	if (f == NULL)
-		return -EINVAL;
-
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		/* only capture is supported */
-		return -EINVAL;
-
-	pix = &f->fmt.pix;
-	rval = tvp514x_try_fmt_cap(sd, f);
-	if (rval)
-		return rval;
-
-		decoder->pix = *pix;
-
-	return rval;
-}
-
-/**
- * tvp514x_g_fmt_cap() - V4L2 decoder interface handler for tvp514x_g_fmt_cap
- * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to standard V4L2 v4l2_format structure
- *
- * Returns the decoder's current pixel format in the v4l2_format
- * parameter.
- */
-static int
-tvp514x_g_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
-{
-	struct tvp514x_decoder *decoder = to_decoder(sd);
-
-	if (f == NULL)
-		return -EINVAL;
-
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		/* only capture is supported */
-		return -EINVAL;
-
-	f->fmt.pix = decoder->pix;
-
-	v4l2_dbg(1, debug, sd, "Current FMT: bytesperline - %d"
-			"Width - %d, Height - %d\n",
-			decoder->pix.bytesperline,
-			decoder->pix.width, decoder->pix.height);
 	return 0;
 }
 
@@ -1199,9 +1132,9 @@ static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
 	.s_routing = tvp514x_s_routing,
 	.querystd = tvp514x_querystd,
 	.enum_fmt = tvp514x_enum_fmt_cap,
-	.g_fmt = tvp514x_g_fmt_cap,
-	.try_fmt = tvp514x_try_fmt_cap,
-	.s_fmt = tvp514x_s_fmt_cap,
+	.g_fmt = tvp514x_fmt_cap,
+	.try_fmt = tvp514x_fmt_cap,
+	.s_fmt = tvp514x_fmt_cap,
 	.g_parm = tvp514x_g_parm,
 	.s_parm = tvp514x_s_parm,
 	.s_stream = tvp514x_s_stream,
@@ -1214,19 +1147,6 @@ static const struct v4l2_subdev_ops tvp514x_ops = {
 
 static struct tvp514x_decoder tvp514x_dev = {
 	.streaming = 0,
-
-	.pix = {
-		/* Default to NTSC 8-bit YUV 422 */
-		.width = NTSC_NUM_ACTIVE_PIXELS,
-		.height = NTSC_NUM_ACTIVE_LINES,
-		.pixelformat = V4L2_PIX_FMT_UYVY,
-		.field = V4L2_FIELD_INTERLACED,
-		.bytesperline = NTSC_NUM_ACTIVE_PIXELS * 2,
-		.sizeimage =
-		NTSC_NUM_ACTIVE_PIXELS * 2 * NTSC_NUM_ACTIVE_LINES,
-		.colorspace = V4L2_COLORSPACE_SMPTE170M,
-		},
-
 	.current_std = STD_NTSC_MJ,
 	.std_list = tvp514x_std_list,
 	.num_stds = ARRAY_SIZE(tvp514x_std_list),
