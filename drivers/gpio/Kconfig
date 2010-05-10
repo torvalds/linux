@@ -195,6 +195,13 @@ config GPIO_PCF857X
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
 
+config GPIO_TC35892
+	bool "TC35892 GPIOs"
+	depends on MFD_TC35892
+	help
+	  This enables support for the GPIOs found on the TC35892
+	  I/O Expander.
+
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
 	depends on TWL4030_CORE
