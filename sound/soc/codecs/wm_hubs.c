@@ -127,6 +127,8 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 			break;
 		}
 
+		dev_dbg(codec->dev, "DCS input: %x %x\n", reg_l, reg_r);
+
 		/* HPOUT1L */
 		if (reg_l + hubs->dcs_codes > 0 &&
 		    reg_l + hubs->dcs_codes < 0xff)
@@ -138,6 +140,8 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		    reg_r + hubs->dcs_codes < 0xff)
 			reg_r += hubs->dcs_codes;
 		dcs_cfg |= reg_r;
+
+		dev_dbg(codec->dev, "DCS result: %x\n", dcs_cfg);
 
 		/* Do it */
 		snd_soc_write(codec, WM8993_DC_SERVO_3, dcs_cfg);
