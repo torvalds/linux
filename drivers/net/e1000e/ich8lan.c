@@ -2823,6 +2823,8 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 	ew32(FCTTV, hw->fc.pause_time);
 	if ((hw->phy.type == e1000_phy_82578) ||
 	    (hw->phy.type == e1000_phy_82577)) {
+		ew32(FCRTV_PCH, hw->fc.refresh_time);
+
 		ret_val = hw->phy.ops.write_reg(hw,
 		                             PHY_REG(BM_PORT_CTRL_PAGE, 27),
 		                             hw->fc.pause_time);

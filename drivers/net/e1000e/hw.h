@@ -901,6 +901,7 @@ struct e1000_fc_info {
 	u32 high_water;          /* Flow control high-water mark */
 	u32 low_water;           /* Flow control low-water mark */
 	u16 pause_time;          /* Flow control pause timer */
+	u16 refresh_time;        /* Flow control refresh timer */
 	bool send_xon;           /* Flow control send XON */
 	bool strict_ieee;        /* Strict IEEE mode */
 	enum e1000_fc_mode current_mode; /* FC mode in effect */
