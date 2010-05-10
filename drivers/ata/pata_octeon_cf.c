@@ -654,9 +654,6 @@ static irqreturn_t octeon_cf_interrupt(int irq, void *dev_instance)
 		ap = host->ports[i];
 		ocd = ap->dev->platform_data;
 
-		if (ap->flags & ATA_FLAG_DISABLED)
-			continue;
-
 		ocd = ap->dev->platform_data;
 		cf_port = ap->private_data;
 		dma_int.u64 =
@@ -666,8 +663,7 @@ static irqreturn_t octeon_cf_interrupt(int irq, void *dev_instance)
 
 		qc = ata_qc_from_tag(ap, ap->link.active_tag);
 
-		if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)) &&
-		    (qc->flags & ATA_QCFLAG_ACTIVE)) {
+		if (qc && !(qc->tf.flags & ATA_TFLAG_POLLING)) {
 			if (dma_int.s.done && !dma_cfg.s.en) {
 				if (!sg_is_last(qc->cursg)) {
 					qc->cursg = sg_next(qc->cursg);
@@ -737,8 +733,7 @@ static void octeon_cf_delayed_finish(struct work_struct *work)
 		goto out;
 	}
 	qc = ata_qc_from_tag(ap, ap->link.active_tag);
-	if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)) &&
-	    (qc->flags & ATA_QCFLAG_ACTIVE))
+	if (qc && !(qc->tf.flags & ATA_TFLAG_POLLING))
 		octeon_cf_dma_finished(ap, qc);
 out:
 	spin_unlock_irqrestore(&host->lock, flags);

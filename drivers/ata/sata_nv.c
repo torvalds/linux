@@ -933,107 +933,108 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
+		struct nv_adma_port_priv *pp = ap->private_data;
+		void __iomem *mmio = pp->ctl_block;
+		u16 status;
+		u32 gen_ctl;
+		u32 notifier, notifier_error;
+
 		notifier_clears[i] = 0;
 
-		if (ap && !(ap->flags & ATA_FLAG_DISABLED)) {
-			struct nv_adma_port_priv *pp = ap->private_data;
-			void __iomem *mmio = pp->ctl_block;
-			u16 status;
-			u32 gen_ctl;
-			u32 notifier, notifier_error;
+		/* if ADMA is disabled, use standard ata interrupt handler */
+		if (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) {
+			u8 irq_stat = readb(host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804)
+				>> (NV_INT_PORT_SHIFT * i);
+			handled += nv_host_intr(ap, irq_stat);
+			continue;
+		}
 
-			/* if ADMA is disabled, use standard ata interrupt handler */
-			if (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) {
-				u8 irq_stat = readb(host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804)
-					>> (NV_INT_PORT_SHIFT * i);
-				handled += nv_host_intr(ap, irq_stat);
-				continue;
-			}
+		/* if in ATA register mode, check for standard interrupts */
+		if (pp->flags & NV_ADMA_PORT_REGISTER_MODE) {
+			u8 irq_stat = readb(host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804)
+				>> (NV_INT_PORT_SHIFT * i);
+			if (ata_tag_valid(ap->link.active_tag))
+				/** NV_INT_DEV indication seems unreliable
+				    at times at least in ADMA mode. Force it
+				    on always when a command is active, to
+				    prevent losing interrupts. */
+				irq_stat |= NV_INT_DEV;
+			handled += nv_host_intr(ap, irq_stat);
+		}
 
-			/* if in ATA register mode, check for standard interrupts */
-			if (pp->flags & NV_ADMA_PORT_REGISTER_MODE) {
-				u8 irq_stat = readb(host->iomap[NV_MMIO_BAR] + NV_INT_STATUS_CK804)
-					>> (NV_INT_PORT_SHIFT * i);
+		notifier = readl(mmio + NV_ADMA_NOTIFIER);
+		notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
+		notifier_clears[i] = notifier | notifier_error;
+
+		gen_ctl = readl(pp->gen_block + NV_ADMA_GEN_CTL);
+
+		if (!NV_ADMA_CHECK_INTR(gen_ctl, ap->port_no) && !notifier &&
+		    !notifier_error)
+			/* Nothing to do */
+			continue;
+
+		status = readw(mmio + NV_ADMA_STAT);
+
+		/*
+		 * Clear status. Ensure the controller sees the
+		 * clearing before we start looking at any of the CPB
+		 * statuses, so that any CPB completions after this
+		 * point in the handler will raise another interrupt.
+		 */
+		writew(status, mmio + NV_ADMA_STAT);
+		readw(mmio + NV_ADMA_STAT); /* flush posted write */
+		rmb();
+
+		handled++; /* irq handled if we got here */
+
+		/* freeze if hotplugged or controller error */
+		if (unlikely(status & (NV_ADMA_STAT_HOTPLUG |
+				       NV_ADMA_STAT_HOTUNPLUG |
+				       NV_ADMA_STAT_TIMEOUT |
+				       NV_ADMA_STAT_SERROR))) {
+			struct ata_eh_info *ehi = &ap->link.eh_info;
+
+			ata_ehi_clear_desc(ehi);
+			__ata_ehi_push_desc(ehi, "ADMA status 0x%08x: ", status);
+			if (status & NV_ADMA_STAT_TIMEOUT) {
+				ehi->err_mask |= AC_ERR_SYSTEM;
+				ata_ehi_push_desc(ehi, "timeout");
+			} else if (status & NV_ADMA_STAT_HOTPLUG) {
+				ata_ehi_hotplugged(ehi);
+				ata_ehi_push_desc(ehi, "hotplug");
+			} else if (status & NV_ADMA_STAT_HOTUNPLUG) {
+				ata_ehi_hotplugged(ehi);
+				ata_ehi_push_desc(ehi, "hot unplug");
+			} else if (status & NV_ADMA_STAT_SERROR) {
+				/* let EH analyze SError and figure out cause */
+				ata_ehi_push_desc(ehi, "SError");
+			} else
+				ata_ehi_push_desc(ehi, "unknown");
+			ata_port_freeze(ap);
+			continue;
+		}
+
+		if (status & (NV_ADMA_STAT_DONE |
+			      NV_ADMA_STAT_CPBERR |
+			      NV_ADMA_STAT_CMD_COMPLETE)) {
+			u32 check_commands = notifier_clears[i];
+			int pos, error = 0;
+
+			if (status & NV_ADMA_STAT_CPBERR) {
+				/* check all active commands */
 				if (ata_tag_valid(ap->link.active_tag))
-					/** NV_INT_DEV indication seems unreliable at times
-					    at least in ADMA mode. Force it on always when a
-					    command is active, to prevent losing interrupts. */
-					irq_stat |= NV_INT_DEV;
-				handled += nv_host_intr(ap, irq_stat);
+					check_commands = 1 <<
+						ap->link.active_tag;
+				else
+					check_commands = ap->link.sactive;
 			}
 
-			notifier = readl(mmio + NV_ADMA_NOTIFIER);
-			notifier_error = readl(mmio + NV_ADMA_NOTIFIER_ERROR);
-			notifier_clears[i] = notifier | notifier_error;
-
-			gen_ctl = readl(pp->gen_block + NV_ADMA_GEN_CTL);
-
-			if (!NV_ADMA_CHECK_INTR(gen_ctl, ap->port_no) && !notifier &&
-			    !notifier_error)
-				/* Nothing to do */
-				continue;
-
-			status = readw(mmio + NV_ADMA_STAT);
-
-			/* Clear status. Ensure the controller sees the clearing before we start
-			   looking at any of the CPB statuses, so that any CPB completions after
-			   this point in the handler will raise another interrupt. */
-			writew(status, mmio + NV_ADMA_STAT);
-			readw(mmio + NV_ADMA_STAT); /* flush posted write */
-			rmb();
-
-			handled++; /* irq handled if we got here */
-
-			/* freeze if hotplugged or controller error */
-			if (unlikely(status & (NV_ADMA_STAT_HOTPLUG |
-					       NV_ADMA_STAT_HOTUNPLUG |
-					       NV_ADMA_STAT_TIMEOUT |
-					       NV_ADMA_STAT_SERROR))) {
-				struct ata_eh_info *ehi = &ap->link.eh_info;
-
-				ata_ehi_clear_desc(ehi);
-				__ata_ehi_push_desc(ehi, "ADMA status 0x%08x: ", status);
-				if (status & NV_ADMA_STAT_TIMEOUT) {
-					ehi->err_mask |= AC_ERR_SYSTEM;
-					ata_ehi_push_desc(ehi, "timeout");
-				} else if (status & NV_ADMA_STAT_HOTPLUG) {
-					ata_ehi_hotplugged(ehi);
-					ata_ehi_push_desc(ehi, "hotplug");
-				} else if (status & NV_ADMA_STAT_HOTUNPLUG) {
-					ata_ehi_hotplugged(ehi);
-					ata_ehi_push_desc(ehi, "hot unplug");
-				} else if (status & NV_ADMA_STAT_SERROR) {
-					/* let libata analyze SError and figure out the cause */
-					ata_ehi_push_desc(ehi, "SError");
-				} else
-					ata_ehi_push_desc(ehi, "unknown");
-				ata_port_freeze(ap);
-				continue;
-			}
-
-			if (status & (NV_ADMA_STAT_DONE |
-				      NV_ADMA_STAT_CPBERR |
-				      NV_ADMA_STAT_CMD_COMPLETE)) {
-				u32 check_commands = notifier_clears[i];
-				int pos, error = 0;
-
-				if (status & NV_ADMA_STAT_CPBERR) {
-					/* Check all active commands */
-					if (ata_tag_valid(ap->link.active_tag))
-						check_commands = 1 <<
-							ap->link.active_tag;
-					else
-						check_commands = ap->
-							link.sactive;
-				}
-
-				/** Check CPBs for completed commands */
-				while ((pos = ffs(check_commands)) && !error) {
-					pos--;
-					error = nv_adma_check_cpb(ap, pos,
+			/* check CPBs for completed commands */
+			while ((pos = ffs(check_commands)) && !error) {
+				pos--;
+				error = nv_adma_check_cpb(ap, pos,
 						notifier_error & (1 << pos));
-					check_commands &= ~(1 << pos);
-				}
+				check_commands &= ~(1 << pos);
 			}
 		}
 	}
@@ -1498,22 +1499,19 @@ static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance)
 	spin_lock_irqsave(&host->lock, flags);
 
 	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap;
+		struct ata_port *ap = host->ports[i];
+		struct ata_queued_cmd *qc;
 
-		ap = host->ports[i];
-		if (ap &&
-		    !(ap->flags & ATA_FLAG_DISABLED)) {
-			struct ata_queued_cmd *qc;
-
-			qc = ata_qc_from_tag(ap, ap->link.active_tag);
-			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
-				handled += ata_sff_host_intr(ap, qc);
-			else
-				// No request pending?  Clear interrupt status
-				// anyway, in case there's one pending.
-				ap->ops->sff_check_status(ap);
+		qc = ata_qc_from_tag(ap, ap->link.active_tag);
+		if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
+			handled += ata_sff_host_intr(ap, qc);
+		} else {
+			/*
+			 * No request pending?  Clear interrupt status
+			 * anyway, in case there's one pending.
+			 */
+			ap->ops->sff_check_status(ap);
 		}
-
 	}
 
 	spin_unlock_irqrestore(&host->lock, flags);
@@ -1526,11 +1524,7 @@ static irqreturn_t nv_do_interrupt(struct ata_host *host, u8 irq_stat)
 	int i, handled = 0;
 
 	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-
-		if (ap && !(ap->flags & ATA_FLAG_DISABLED))
-			handled += nv_host_intr(ap, irq_stat);
-
+		handled += nv_host_intr(host->ports[i], irq_stat);
 		irq_stat >>= NV_INT_PORT_SHIFT;
 	}
 
@@ -2380,16 +2374,14 @@ static irqreturn_t nv_swncq_interrupt(int irq, void *dev_instance)
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
-		if (ap && !(ap->flags & ATA_FLAG_DISABLED)) {
-			if (ap->link.sactive) {
-				nv_swncq_host_interrupt(ap, (u16)irq_stat);
-				handled = 1;
-			} else {
-				if (irq_stat)	/* reserve Hotplug */
-					nv_swncq_irq_clear(ap, 0xfff0);
+		if (ap->link.sactive) {
+			nv_swncq_host_interrupt(ap, (u16)irq_stat);
+			handled = 1;
+		} else {
+			if (irq_stat)	/* reserve Hotplug */
+				nv_swncq_irq_clear(ap, 0xfff0);
 
-				handled += nv_host_intr(ap, (u8)irq_stat);
-			}
+			handled += nv_host_intr(ap, (u8)irq_stat);
 		}
 		irq_stat >>= NV_INT_PORT_SHIFT_MCP55;
 	}

@@ -532,9 +532,6 @@ static irqreturn_t sil_interrupt(int irq, void *dev_instance)
 		struct ata_port *ap = host->ports[i];
 		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_no].bmdma2);
 
-		if (unlikely(ap->flags & ATA_FLAG_DISABLED))
-			continue;
-
 		/* turn off SATA_IRQ if not supported */
 		if (ap->flags & SIL_FLAG_NO_SATA_IRQ)
 			bmdma2 &= ~SIL_DMA_SATA_IRQ;
