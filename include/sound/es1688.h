@@ -117,5 +117,6 @@ int snd_es1688_create(struct snd_card *card,
 int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip, int device,
 		   struct snd_pcm **rpcm);
 int snd_es1688_mixer(struct snd_card *card, struct snd_es1688 *chip);
+int snd_es1688_reset(struct snd_es1688 *chip);
 
 #endif /* __SOUND_ES1688_H */

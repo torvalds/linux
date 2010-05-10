@@ -99,7 +99,7 @@ static unsigned char snd_es1688_mixer_read(struct snd_es1688 *chip, unsigned cha
 	return result;
 }
 
-static int snd_es1688_reset(struct snd_es1688 *chip)
+int snd_es1688_reset(struct snd_es1688 *chip)
 {
 	int i;
 
@@ -115,6 +115,7 @@ static int snd_es1688_reset(struct snd_es1688 *chip)
 	snd_es1688_dsp_command(chip, 0xc6);	/* enable extended mode */
 	return 0;
 }
+EXPORT_SYMBOL(snd_es1688_reset);
 
 static int snd_es1688_probe(struct snd_es1688 *chip)
 {
