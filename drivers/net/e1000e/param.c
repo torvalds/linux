@@ -286,7 +286,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Receive Interrupt Delay */
-		struct e1000_option opt = {
+		static struct e1000_option opt = {
 			.type = range_option,
 			.name = "Receive Interrupt Delay",
 			.err  = "using default of "
@@ -386,7 +386,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Interrupt Mode */
-		struct e1000_option opt = {
+		static struct e1000_option opt = {
 			.type = range_option,
 			.name = "Interrupt Mode",
 			.err  = "defaulting to 2 (MSI-X)",
