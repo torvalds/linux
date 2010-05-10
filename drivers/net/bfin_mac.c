@@ -1276,7 +1276,7 @@ static void bfin_mac_set_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {
 		printk(KERN_INFO "%s: set to promisc mode\n", dev->name);
 		sysctl = bfin_read_EMAC_OPMODE();
-		sysctl |= RAF;
+		sysctl |= PR;
 		bfin_write_EMAC_OPMODE(sysctl);
 	} else if (dev->flags & IFF_ALLMULTI) {
 		/* accept all multicast */
