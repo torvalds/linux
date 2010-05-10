@@ -415,7 +415,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 
 	mutex_lock(&clock_list_sem);
 	list_for_each_entry(p, &clock_list, node) {
-		if (p->id == idno &&
+		if (p->name && p->id == idno &&
 		    strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
 			clk = p;
 			goto found;
@@ -423,7 +423,8 @@ struct clk *clk_get(struct device *dev, const char *id)
 	}
 
 	list_for_each_entry(p, &clock_list, node) {
-		if (strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
+		if (p->name &&
+		    strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
 			clk = p;
 			break;
 		}
@@ -594,7 +595,7 @@ static int clk_debugfs_register(struct clk *c)
 			return err;
 	}
 
-	if (!c->dentry) {
+	if (!c->dentry && c->name) {
 		err = clk_debugfs_register_one(c);
 		if (err)
 			return err;
