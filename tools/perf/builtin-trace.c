@@ -53,6 +53,8 @@ static void setup_scripting(void)
 
 static int cleanup_scripting(void)
 {
+	pr_debug("\nperf trace script stopped\n");
+
 	return scripting_ops->stop_script();
 }
 
@@ -703,6 +705,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		err = scripting_ops->start_script(script_name, argc, argv);
 		if (err)
 			goto out;
+		pr_debug("perf trace started with script %s\n\n", script_name);
 	}
 
 	err = __cmd_trace(session);
