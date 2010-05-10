@@ -657,7 +657,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		saa_setb(SAA7134_GPIO_GPSTATUS0, 0x4);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_M135A:
-		ir_codes     = RC_MAP_AVERMEDIA_M135A_RM_JX;
+		ir_codes     = RC_MAP_AVERMEDIA_M135A;
 		mask_keydown = 0x0040000;	/* Enable GPIO18 line on both edges */
 		mask_keyup   = 0x0040000;
 		mask_keycode = 0xffff;
