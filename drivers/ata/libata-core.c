@@ -97,7 +97,6 @@ static void ata_dev_xfermask(struct ata_device *dev);
 static unsigned long ata_dev_blacklisted(const struct ata_device *dev);
 
 unsigned int ata_print_id = 1;
-static struct workqueue_struct *ata_wq;
 
 struct workqueue_struct *ata_aux_wq;
 
@@ -1686,52 +1685,6 @@ unsigned long ata_id_xfermask(const u16 *id)
 	return ata_pack_xfermask(pio_mask, mwdma_mask, udma_mask);
 }
 
-/**
- *	ata_pio_queue_task - Queue port_task
- *	@ap: The ata_port to queue port_task for
- *	@data: data for @fn to use
- *	@delay: delay time in msecs for workqueue function
- *
- *	Schedule @fn(@data) for execution after @delay jiffies using
- *	port_task.  There is one port_task per port and it's the
- *	user(low level driver)'s responsibility to make sure that only
- *	one task is active at any given time.
- *
- *	libata core layer takes care of synchronization between
- *	port_task and EH.  ata_pio_queue_task() may be ignored for EH
- *	synchronization.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-void ata_pio_queue_task(struct ata_port *ap, void *data, unsigned long delay)
-{
-	ap->port_task_data = data;
-
-	/* may fail if ata_port_flush_task() in progress */
-	queue_delayed_work(ata_wq, &ap->port_task, msecs_to_jiffies(delay));
-}
-
-/**
- *	ata_port_flush_task - Flush port_task
- *	@ap: The ata_port to flush port_task for
- *
- *	After this function completes, port_task is guranteed not to
- *	be running or scheduled.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep)
- */
-void ata_port_flush_task(struct ata_port *ap)
-{
-	DPRINTK("ENTER\n");
-
-	cancel_rearming_delayed_work(&ap->port_task);
-
-	if (ata_msg_ctl(ap))
-		ata_port_printk(ap, KERN_DEBUG, "%s: EXIT\n", __func__);
-}
-
 static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
@@ -1853,7 +1806,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
-	ata_port_flush_task(ap);
+	ata_sff_flush_pio_task(ap);
 
 	if (!rc) {
 		spin_lock_irqsave(ap->lock, flags);
@@ -5646,11 +5599,6 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_ERR | ATA_MSG_WARN;
 #endif
 
-#ifdef CONFIG_ATA_SFF
-	INIT_DELAYED_WORK(&ap->port_task, ata_pio_task);
-#else
-	INIT_DELAYED_WORK(&ap->port_task, NULL);
-#endif
 	INIT_DELAYED_WORK(&ap->hotplug_task, ata_scsi_hotplug);
 	INIT_WORK(&ap->scsi_rescan_task, ata_scsi_dev_rescan);
 	INIT_LIST_HEAD(&ap->eh_done_q);
@@ -6588,17 +6536,6 @@ static int __init ata_init(void)
 
 	ata_parse_force_param();
 
-	/*
-	 * FIXME: In UP case, there is only one workqueue thread and if you
-	 * have more than one PIO device, latency is bloody awful, with
-	 * occasional multi-second "hiccups" as one PIO device waits for
-	 * another.  It's an ugly wart that users DO occasionally complain
-	 * about; luckily most users have at most one PIO polled device.
-	 */
-	ata_wq = create_workqueue("ata");
-	if (!ata_wq)
-		goto fail;
-
 	ata_aux_wq = create_singlethread_workqueue("ata_aux");
 	if (!ata_aux_wq)
 		goto fail;
@@ -6612,8 +6549,6 @@ static int __init ata_init(void)
 
 fail:
 	kfree(ata_force_tbl);
-	if (ata_wq)
-		destroy_workqueue(ata_wq);
 	if (ata_aux_wq)
 		destroy_workqueue(ata_aux_wq);
 	return rc;
@@ -6623,7 +6558,6 @@ static void __exit ata_exit(void)
 {
 	ata_sff_exit();
 	kfree(ata_force_tbl);
-	destroy_workqueue(ata_wq);
 	destroy_workqueue(ata_aux_wq);
 }
 
@@ -6777,7 +6711,6 @@ EXPORT_SYMBOL_GPL(ata_id_c_string);
 EXPORT_SYMBOL_GPL(ata_do_dev_read_id);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
-EXPORT_SYMBOL_GPL(ata_pio_queue_task);
 EXPORT_SYMBOL_GPL(ata_pio_need_iordy);
 EXPORT_SYMBOL_GPL(ata_timing_find_mode);
 EXPORT_SYMBOL_GPL(ata_timing_compute);

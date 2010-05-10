@@ -550,8 +550,8 @@ void ata_scsi_error(struct Scsi_Host *host)
 
 	DPRINTK("ENTER\n");
 
-	/* synchronize with port task */
-	ata_port_flush_task(ap);
+	/* make sure sff pio task is not running */
+	ata_sff_flush_pio_task(ap);
 
 	/* synchronize with host lock and sort out timeouts */
 
