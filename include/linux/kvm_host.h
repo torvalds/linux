@@ -636,7 +636,12 @@ static inline bool kvm_make_check_request(int req, struct kvm_vcpu *vcpu)
 
 static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
 {
-	return test_and_clear_bit(req, &vcpu->requests);
+	if (test_bit(req, &vcpu->requests)) {
+		clear_bit(req, &vcpu->requests);
+		return true;
+	} else {
+		return false;
+	}
 }
 
 #endif
