@@ -1421,7 +1421,7 @@ static struct scsi_host_template bfin_sht = {
 };
 
 static struct ata_port_operations bfin_pata_ops = {
-	.inherits		= &ata_sff_port_ops,
+	.inherits		= &ata_bmdma_port_ops,
 
 	.set_piomode		= bfin_set_piomode,
 	.set_dmamode		= bfin_set_dmamode,
@@ -1450,6 +1450,8 @@ static struct ata_port_operations bfin_pata_ops = {
 
 	.port_start		= bfin_port_start,
 	.port_stop		= bfin_port_stop,
+
+	.mode_filter		= ATA_OP_NULL,	/* will be removed soon */
 };
 
 static struct ata_port_info bfin_port_info[] = {

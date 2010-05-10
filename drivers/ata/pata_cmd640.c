@@ -166,11 +166,11 @@ static int cmd640_port_start(struct ata_port *ap)
 }
 
 static struct scsi_host_template cmd640_sht = {
-	ATA_BMDMA_SHT(DRV_NAME),
+	ATA_PIO_SHT(DRV_NAME),
 };
 
 static struct ata_port_operations cmd640_port_ops = {
-	.inherits	= &ata_bmdma_port_ops,
+	.inherits	= &ata_sff_port_ops,
 	/* In theory xfer_noirq is not needed once we kill the prefetcher */
 	.sff_data_xfer	= ata_sff_data_xfer_noirq,
 	.qc_issue	= cmd640_qc_issue,

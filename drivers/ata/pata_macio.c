@@ -917,7 +917,7 @@ static struct scsi_host_template pata_macio_sht = {
 };
 
 static struct ata_port_operations pata_macio_ops = {
-	.inherits		= &ata_sff_port_ops,
+	.inherits		= &ata_bmdma_port_ops,
 
 	.freeze			= pata_macio_freeze,
 	.set_piomode		= pata_macio_set_timings,
@@ -925,7 +925,6 @@ static struct ata_port_operations pata_macio_ops = {
 	.cable_detect		= pata_macio_cable_detect,
 	.sff_dev_select		= pata_macio_dev_select,
 	.qc_prep		= pata_macio_qc_prep,
-	.mode_filter		= ata_bmdma_mode_filter,
 	.bmdma_setup		= pata_macio_bmdma_setup,
 	.bmdma_start		= pata_macio_bmdma_start,
 	.bmdma_stop		= pata_macio_bmdma_stop,
