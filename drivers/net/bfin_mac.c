@@ -1466,6 +1466,11 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	}
 	pd = pdev->dev.platform_data;
 	lp->mii_bus = platform_get_drvdata(pd);
+	if (!lp->mii_bus) {
+		dev_err(&pdev->dev, "Cannot get mii_bus!\n");
+		rc = -ENODEV;
+		goto out_err_mii_bus_probe;
+	}
 	lp->mii_bus->priv = ndev;
 
 	rc = mii_probe(ndev);
@@ -1511,6 +1516,7 @@ out_err_request_irq:
 out_err_mii_probe:
 	mdiobus_unregister(lp->mii_bus);
 	mdiobus_free(lp->mii_bus);
+out_err_mii_bus_probe:
 	peripheral_free_list(pin_req);
 out_err_probe_mac:
 	platform_set_drvdata(pdev, NULL);
