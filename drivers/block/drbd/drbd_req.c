@@ -722,6 +722,7 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 	struct drbd_request *req;
 	int local, remote;
 	int err = -EIO;
+	int ret = 0;
 
 	/* allocate outside of all locks; */
 	req = drbd_req_new(mdev, bio);
@@ -784,7 +785,7 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 			    (mdev->state.pdsk == D_INCONSISTENT &&
 			     mdev->state.conn >= C_CONNECTED));
 
-	if (!(local || remote)) {
+	if (!(local || remote) && !mdev->state.susp) {
 		dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
 		goto fail_free_complete;
 	}
@@ -809,6 +810,16 @@ allocate_barrier:
 
 	/* GOOD, everything prepared, grab the spin_lock */
 	spin_lock_irq(&mdev->req_lock);
+
+	if (mdev->state.susp) {
+		/* If we got suspended, use the retry mechanism of
+		   generic_make_request() to restart processing of this
+		   bio. In the next call to drbd_make_request_26
+		   we sleep in inc_ap_bio() */
+		ret = 1;
+		spin_unlock_irq(&mdev->req_lock);
+		goto fail_free_complete;
+	}
 
 	if (remote) {
 		remote = (mdev->state.pdsk == D_UP_TO_DATE ||
@@ -947,12 +958,14 @@ fail_and_free_req:
 		req->private_bio = NULL;
 		put_ldev(mdev);
 	}
-	bio_endio(bio, err);
+	if (!ret)
+		bio_endio(bio, err);
+
 	drbd_req_free(req);
 	dec_ap_bio(mdev);
 	kfree(b);
 
-	return 0;
+	return ret;
 }
 
 /* helper function for drbd_make_request
@@ -1065,15 +1078,21 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 
 		/* we need to get a "reference count" (ap_bio_cnt)
 		 * to avoid races with the disconnect/reconnect/suspend code.
-		 * In case we need to split the bio here, we need to get two references
+		 * In case we need to split the bio here, we need to get three references
 		 * atomically, otherwise we might deadlock when trying to submit the
 		 * second one! */
-		inc_ap_bio(mdev, 2);
+		inc_ap_bio(mdev, 3);
 
 		D_ASSERT(e_enr == s_enr + 1);
 
-		drbd_make_request_common(mdev, &bp->bio1);
-		drbd_make_request_common(mdev, &bp->bio2);
+		while (drbd_make_request_common(mdev, &bp->bio1))
+			inc_ap_bio(mdev, 1);
+
+		while (drbd_make_request_common(mdev, &bp->bio2))
+			inc_ap_bio(mdev, 1);
+
+		dec_ap_bio(mdev);
+
 		bio_pair_release(bp);
 	}
 	return 0;

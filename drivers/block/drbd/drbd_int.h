@@ -2223,7 +2223,7 @@ static inline int __inc_ap_bio_cond(struct drbd_conf *mdev)
 /* I'd like to use wait_event_lock_irq,
  * but I'm not sure when it got introduced,
  * and not sure when it has 3 or 4 arguments */
-static inline void inc_ap_bio(struct drbd_conf *mdev, int one_or_two)
+static inline void inc_ap_bio(struct drbd_conf *mdev, int count)
 {
 	/* compare with after_state_ch,
 	 * os.conn != C_WF_BITMAP_S && ns.conn == C_WF_BITMAP_S */
@@ -2245,7 +2245,7 @@ static inline void inc_ap_bio(struct drbd_conf *mdev, int one_or_two)
 		finish_wait(&mdev->misc_wait, &wait);
 		spin_lock_irq(&mdev->req_lock);
 	}
-	atomic_add(one_or_two, &mdev->ap_bio_cnt);
+	atomic_add(count, &mdev->ap_bio_cnt);
 	spin_unlock_irq(&mdev->req_lock);
 }
 
