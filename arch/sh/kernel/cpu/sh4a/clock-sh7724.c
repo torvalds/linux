@@ -166,15 +166,12 @@ struct clk div4_clks[DIV4_NR] = {
 
 enum { DIV6_V, DIV6_FA, DIV6_FB, DIV6_I, DIV6_S, DIV6_NR };
 
-#define DIV6(_str, _reg, _flags) \
-  SH_CLK_DIV6(_str, &div3_clk, _reg, _flags)
-
 struct clk div6_clks[DIV6_NR] = {
-	[DIV6_V] = DIV6("video_clk", VCLKCR, 0),
-	[DIV6_FA] = DIV6("fsia_clk", FCLKACR, 0),
-	[DIV6_FB] = DIV6("fsib_clk", FCLKBCR, 0),
-	[DIV6_I] = DIV6("irda_clk", IRDACLKCR, 0),
-	[DIV6_S] = DIV6("spu_clk", SPUCLKCR, CLK_ENABLE_ON_INIT),
+	[DIV6_V] = SH_CLK_DIV6(&div3_clk, VCLKCR, 0),
+	[DIV6_FA] = SH_CLK_DIV6(&div3_clk, FCLKACR, 0),
+	[DIV6_FB] = SH_CLK_DIV6(&div3_clk, FCLKBCR, 0),
+	[DIV6_I] = SH_CLK_DIV6(&div3_clk, IRDACLKCR, 0),
+	[DIV6_S] = SH_CLK_DIV6(&div3_clk, SPUCLKCR, CLK_ENABLE_ON_INIT),
 };
 
 static struct clk mstp_clks[HWBLK_NR] = {

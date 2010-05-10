@@ -152,7 +152,7 @@ struct clk div4_reparent_clks[DIV4_REPARENT_NR] = {
 enum { DIV6_V, DIV6_NR };
 
 struct clk div6_clks[DIV6_NR] = {
-	[DIV6_V] = SH_CLK_DIV6("video_clk", &pll_clk, VCLKCR, 0),
+	[DIV6_V] = SH_CLK_DIV6(&pll_clk, VCLKCR, 0),
 };
 
 static struct clk mstp_clks[] = {
