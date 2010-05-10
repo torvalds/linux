@@ -53,7 +53,6 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.softreset		= ata_sff_softreset,
 	.hardreset		= sata_sff_hardreset,
 	.postreset		= ata_sff_postreset,
-	.drain_fifo		= ata_sff_drain_fifo,
 	.error_handler		= ata_sff_error_handler,
 	.post_internal_cmd	= ata_sff_post_internal_cmd,
 
@@ -64,6 +63,7 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.sff_exec_command	= ata_sff_exec_command,
 	.sff_data_xfer		= ata_sff_data_xfer,
 	.sff_irq_clear		= ata_sff_irq_clear,
+	.sff_drain_fifo		= ata_sff_drain_fifo,
 
 	.lost_interrupt		= ata_sff_lost_interrupt,
 };
@@ -2398,8 +2398,8 @@ void ata_sff_error_handler(struct ata_port *ap)
 	 * if we touch the data port post reset. Pass qc in case anyone wants
 	 *  to do different PIO/DMA recovery or has per command fixups
 	 */
-	if (ap->ops->drain_fifo)
-		ap->ops->drain_fifo(qc);
+	if (ap->ops->sff_drain_fifo)
+		ap->ops->sff_drain_fifo(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
