@@ -12,7 +12,7 @@
  * Atomic dir operations
  *
  * Directory operations are by default not atomic.  Dentries and Inodes are
- * created/removed/altered in seperate operations.  Therefore we need to do
+ * created/removed/altered in separate operations.  Therefore we need to do
  * a small amount of journaling.
  *
  * Create, link, mkdir, mknod and symlink all share the same function to do

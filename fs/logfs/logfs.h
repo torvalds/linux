@@ -704,7 +704,7 @@ static inline gc_level_t expand_level(u64 ino, level_t __level)
 	u8 level = (__force u8)__level;
 
 	if (ino == LOGFS_INO_MASTER) {
-		/* ifile has seperate areas */
+		/* ifile has separate areas */
 		level += LOGFS_MAX_LEVELS;
 	}
 	return (__force gc_level_t)level;

@@ -97,7 +97,7 @@ extern void s3c_gpiolib_add(struct s3c_gpio_chip *chip);
  * others = Special functions (dependant on bank)
  *
  * Note, since the code to deal with the case where there are two control
- * registers instead of one, we do not have a seperate set of function
+ * registers instead of one, we do not have a separate set of function
  * (samsung_gpiolib_add_4bit2_chips)for each case.
  */
 extern void samsung_gpiolib_add_4bit_chips(struct s3c_gpio_chip *chip,

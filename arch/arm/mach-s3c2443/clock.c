@@ -391,7 +391,7 @@ static struct clk clk_hsmmc = {
 
 /* i2s_eplldiv
  *
- * This clock is the output from the I2S divisor of ESYSCLK, and is seperate
+ * This clock is the output from the I2S divisor of ESYSCLK, and is separate
  * from the mux that comes after it (cannot merge into one single clock)
 */
 
