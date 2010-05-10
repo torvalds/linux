@@ -1157,6 +1157,44 @@ static void send_cap_releases(struct ceph_mds_client *mdsc,
 	spin_unlock(&session->s_cap_lock);
 }
 
+static void discard_cap_releases(struct ceph_mds_client *mdsc,
+				 struct ceph_mds_session *session)
+{
+	struct ceph_msg *msg;
+	struct ceph_mds_cap_release *head;
+	unsigned num;
+
+	dout("discard_cap_releases mds%d\n", session->s_mds);
+	spin_lock(&session->s_cap_lock);
+
+	/* zero out the in-progress message */
+	msg = list_first_entry(&session->s_cap_releases,
+			       struct ceph_msg, list_head);
+	head = msg->front.iov_base;
+	num = le32_to_cpu(head->num);
+	dout("discard_cap_releases mds%d %p %u\n", session->s_mds, msg, num);
+	head->num = cpu_to_le32(0);
+	session->s_num_cap_releases += num;
+
+	/* requeue completed messages */
+	while (!list_empty(&session->s_cap_releases_done)) {
+		msg = list_first_entry(&session->s_cap_releases_done,
+				 struct ceph_msg, list_head);
+		list_del_init(&msg->list_head);
+
+		head = msg->front.iov_base;
+		num = le32_to_cpu(head->num);
+		dout("discard_cap_releases mds%d %p %u\n", session->s_mds, msg,
+		     num);
+		session->s_num_cap_releases += num;
+		head->num = cpu_to_le32(0);
+		msg->front.iov_len = sizeof(*head);
+		list_add(&msg->list_head, &session->s_cap_releases);
+	}
+
+	spin_unlock(&session->s_cap_lock);
+}
+
 /*
  * requests
  */
@@ -2182,6 +2220,9 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc, int mds)
 		goto send;
 	dout("session %p state %s\n", session,
 	     session_state_name(session->s_state));
+
+	/* drop old cap expires; we're about to reestablish that state */
+	discard_cap_releases(mdsc, session);
 
 	/* traverse this session's caps */
 	err = ceph_pagelist_encode_32(pagelist, session->s_nr_caps);
