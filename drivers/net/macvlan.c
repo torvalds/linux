@@ -239,7 +239,7 @@ netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 	int ret;
 
 	ret = macvlan_queue_xmit(skb, dev);
-	if (likely(ret == NET_XMIT_SUCCESS)) {
+	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
 		txq->tx_packets++;
 		txq->tx_bytes += len;
 	} else
