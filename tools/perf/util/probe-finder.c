@@ -668,6 +668,7 @@ static int convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 	ret = dwarf_getlocation_addr(&fb_attr, pf->addr, &pf->fb_ops, &nops, 1);
 	if (ret <= 0 || nops == 0) {
 		pf->fb_ops = NULL;
+#if _ELFUTILS_PREREQ(0, 142)
 	} else if (nops == 1 && pf->fb_ops[0].atom == DW_OP_call_frame_cfa &&
 		   pf->cfi != NULL) {
 		Dwarf_Frame *frame;
@@ -677,6 +678,7 @@ static int convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 				   (uintmax_t)pf->addr);
 			return -ENOENT;
 		}
+#endif
 	}
 
 	/* Find each argument */
@@ -956,8 +958,10 @@ int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
 		return -EBADF;
 	}
 
+#if _ELFUTILS_PREREQ(0, 142)
 	/* Get the call frame information from this dwarf */
 	pf.cfi = dwarf_getcfi(dbg);
+#endif
 
 	off = 0;
 	line_list__init(&pf.lcache);
