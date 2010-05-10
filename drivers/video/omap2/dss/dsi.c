@@ -165,6 +165,14 @@ struct dsi_reg { u16 idx; };
 #define DSI_CIO_IRQ_ERRCONTENTIONLP1_3	(1 << 25)
 #define DSI_CIO_IRQ_ULPSACTIVENOT_ALL0	(1 << 30)
 #define DSI_CIO_IRQ_ULPSACTIVENOT_ALL1	(1 << 31)
+#define DSI_CIO_IRQ_ERROR_MASK \
+	(DSI_CIO_IRQ_ERRSYNCESC1 | DSI_CIO_IRQ_ERRSYNCESC2 | \
+	 DSI_CIO_IRQ_ERRSYNCESC3 | DSI_CIO_IRQ_ERRESC1 | DSI_CIO_IRQ_ERRESC2 | \
+	 DSI_CIO_IRQ_ERRESC3 | DSI_CIO_IRQ_ERRCONTROL1 | \
+	 DSI_CIO_IRQ_ERRCONTROL2 | DSI_CIO_IRQ_ERRCONTROL3 | \
+	 DSI_CIO_IRQ_ERRCONTENTIONLP0_1 | DSI_CIO_IRQ_ERRCONTENTIONLP1_1 | \
+	 DSI_CIO_IRQ_ERRCONTENTIONLP0_2 | DSI_CIO_IRQ_ERRCONTENTIONLP1_2 | \
+	 DSI_CIO_IRQ_ERRCONTENTIONLP0_3 | DSI_CIO_IRQ_ERRCONTENTIONLP1_3)
 
 #define DSI_DT_DCS_SHORT_WRITE_0	0x05
 #define DSI_DT_DCS_SHORT_WRITE_1	0x15
@@ -542,8 +550,12 @@ void dsi_irq_handler(void)
 		/* flush posted write */
 		dsi_read_reg(DSI_COMPLEXIO_IRQ_STATUS);
 
-		DSSERR("DSI CIO error, cio irqstatus %x\n", ciostatus);
-		print_irq_status_cio(ciostatus);
+		if (ciostatus & DSI_CIO_IRQ_ERROR_MASK) {
+			DSSERR("DSI CIO error, cio irqstatus %x\n", ciostatus);
+			print_irq_status_cio(ciostatus);
+		} else if (debug_irq) {
+			print_irq_status_cio(ciostatus);
+		}
 	}
 
 	dsi_write_reg(DSI_IRQSTATUS, irqstatus & ~DSI_IRQ_CHANNEL_MASK);
@@ -590,11 +602,8 @@ static void _dsi_initialize_irq(void)
 	for (i = 0; i < 4; ++i)
 		dsi_write_reg(DSI_VC_IRQENABLE(i), l);
 
-	/* XXX zonda responds incorrectly, causing control error:
-	   Exit from LP-ESC mode to LP11 uses wrong transition states on the
-	   data lines LP0 and LN0. */
-	dsi_write_reg(DSI_COMPLEXIO_IRQ_ENABLE,
-			-1 & (~DSI_CIO_IRQ_ERRCONTROL2));
+	l = DSI_CIO_IRQ_ERROR_MASK;
+	dsi_write_reg(DSI_COMPLEXIO_IRQ_ENABLE, l);
 }
 
 static u32 dsi_get_errors(void)
