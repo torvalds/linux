@@ -328,6 +328,16 @@ int aac_get_config_status(struct aac_dev *dev, int commit_flag)
 	return status;
 }
 
+static void aac_expose_phy_device(struct scsi_cmnd *scsicmd)
+{
+	char inq_data;
+	scsi_sg_copy_to_buffer(scsicmd,  &inq_data, sizeof(inq_data));
+	if ((inq_data & 0x20) && (inq_data & 0x1f) == TYPE_DISK) {
+		inq_data &= 0xdf;
+		scsi_sg_copy_from_buffer(scsicmd, &inq_data, sizeof(inq_data));
+	}
+}
+
 /**
  *	aac_get_containers	-	list containers
  *	@common: adapter to probe
@@ -2572,6 +2582,11 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 		       - le32_to_cpu(srbreply->data_xfer_length));
 
 	scsi_dma_unmap(scsicmd);
+
+	/* expose physical device if expose_physicald flag is on */
+	if (scsicmd->cmnd[0] == INQUIRY && !(scsicmd->cmnd[1] & 0x01)
+	  && expose_physicals > 0)
+		aac_expose_phy_device(scsicmd);
 
 	/*
 	 * First check the fib status
