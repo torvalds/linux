@@ -886,22 +886,6 @@ int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port)
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
-/**
- *	t4_set_vlan_accel - configure HW VLAN extraction
- *	@adap: the adapter
- *	@ports: bitmap of adapter ports to operate on
- *	@on: enable (1) or disable (0) HW VLAN extraction
- *
- *	Enables or disables HW extraction of VLAN tags for the ports specified
- *	by @ports.  @ports is a bitmap with the ith bit designating the port
- *	associated with the ith adapter channel.
- */
-void t4_set_vlan_accel(struct adapter *adap, unsigned int ports, int on)
-{
-	ports <<= VLANEXTENABLE_SHIFT;
-	t4_set_reg_field(adap, TP_OUT_CONFIG, ports, on ? ports : 0);
-}
-
 struct intr_info {
 	unsigned int mask;       /* bits to check in interrupt status */
 	const char *msg;         /* message to print or NULL */
@@ -2624,12 +2608,14 @@ int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
  *	@promisc: 1 to enable promiscuous mode, 0 to disable it, -1 no change
  *	@all_multi: 1 to enable all-multi mode, 0 to disable it, -1 no change
  *	@bcast: 1 to enable broadcast Rx, 0 to disable it, -1 no change
+ *	@vlanex: 1 to enable HW VLAN extraction, 0 to disable it, -1 no change
  *	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Sets Rx properties of a virtual interface.
  */
 int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		  int mtu, int promisc, int all_multi, int bcast, bool sleep_ok)
+		  int mtu, int promisc, int all_multi, int bcast, int vlanex,
+		  bool sleep_ok)
 {
 	struct fw_vi_rxmode_cmd c;
 
@@ -2642,15 +2628,18 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		all_multi = FW_VI_RXMODE_CMD_ALLMULTIEN_MASK;
 	if (bcast < 0)
 		bcast = FW_VI_RXMODE_CMD_BROADCASTEN_MASK;
+	if (vlanex < 0)
+		vlanex = FW_VI_RXMODE_CMD_VLANEXEN_MASK;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = htonl(FW_CMD_OP(FW_VI_RXMODE_CMD) | FW_CMD_REQUEST |
 			     FW_CMD_WRITE | FW_VI_RXMODE_CMD_VIID(viid));
 	c.retval_len16 = htonl(FW_LEN16(c));
-	c.mtu_to_broadcasten = htonl(FW_VI_RXMODE_CMD_MTU(mtu) |
-				     FW_VI_RXMODE_CMD_PROMISCEN(promisc) |
-				     FW_VI_RXMODE_CMD_ALLMULTIEN(all_multi) |
-				     FW_VI_RXMODE_CMD_BROADCASTEN(bcast));
+	c.mtu_to_vlanexen = htonl(FW_VI_RXMODE_CMD_MTU(mtu) |
+				  FW_VI_RXMODE_CMD_PROMISCEN(promisc) |
+				  FW_VI_RXMODE_CMD_ALLMULTIEN(all_multi) |
+				  FW_VI_RXMODE_CMD_BROADCASTEN(bcast) |
+				  FW_VI_RXMODE_CMD_VLANEXEN(vlanex));
 	return t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
 }
 

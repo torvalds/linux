@@ -876,7 +876,7 @@ struct fw_vi_mac_cmd {
 struct fw_vi_rxmode_cmd {
 	__be32 op_to_viid;
 	__be32 retval_len16;
-	__be32 mtu_to_broadcasten;
+	__be32 mtu_to_vlanexen;
 	__be32 r4_lo;
 };
 
@@ -888,6 +888,8 @@ struct fw_vi_rxmode_cmd {
 #define FW_VI_RXMODE_CMD_ALLMULTIEN(x) ((x) << 12)
 #define FW_VI_RXMODE_CMD_BROADCASTEN_MASK 0x3
 #define FW_VI_RXMODE_CMD_BROADCASTEN(x) ((x) << 10)
+#define FW_VI_RXMODE_CMD_VLANEXEN_MASK 0x3
+#define FW_VI_RXMODE_CMD_VLANEXEN(x) ((x) << 8)
 
 struct fw_vi_enable_cmd {
 	__be32 op_to_viid;

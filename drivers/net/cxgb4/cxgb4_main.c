@@ -290,7 +290,7 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 	if (ret == 0)
 		ret = t4_set_rxmode(pi->adapter, 0, pi->viid, mtu,
 				    (dev->flags & IFF_PROMISC) ? 1 : 0,
-				    (dev->flags & IFF_ALLMULTI) ? 1 : 0, 1,
+				    (dev->flags & IFF_ALLMULTI) ? 1 : 0, 1, -1,
 				    sleep_ok);
 	return ret;
 }
@@ -311,7 +311,7 @@ static int link_start(struct net_device *dev)
 	 * that step explicitly.
 	 */
 	ret = t4_set_rxmode(pi->adapter, 0, pi->viid, dev->mtu, -1, -1, -1,
-			    true);
+			    pi->vlan_grp != NULL, true);
 	if (ret == 0) {
 		ret = t4_change_mac(pi->adapter, 0, pi->viid,
 				    pi->xact_addr_filt, dev->dev_addr, true,
@@ -2614,7 +2614,7 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 
 	if (new_mtu < 81 || new_mtu > MAX_MTU)         /* accommodate SACK */
 		return -EINVAL;
-	ret = t4_set_rxmode(pi->adapter, 0, pi->viid, new_mtu, -1, -1, -1,
+	ret = t4_set_rxmode(pi->adapter, 0, pi->viid, new_mtu, -1, -1, -1, -1,
 			    true);
 	if (!ret)
 		dev->mtu = new_mtu;
@@ -2645,7 +2645,8 @@ static void vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 	struct port_info *pi = netdev_priv(dev);
 
 	pi->vlan_grp = grp;
-	t4_set_vlan_accel(pi->adapter, 1 << pi->tx_chan, grp != NULL);
+	t4_set_rxmode(pi->adapter, 0, pi->viid, -1, -1, -1, -1, grp != NULL,
+		      true);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

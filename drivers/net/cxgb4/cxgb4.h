@@ -656,7 +656,6 @@ int t4_check_fw_version(struct adapter *adapter);
 int t4_prep_adapter(struct adapter *adapter);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
 void t4_fatal_err(struct adapter *adapter);
-void t4_set_vlan_accel(struct adapter *adapter, unsigned int ports, int on);
 int t4_set_trace_filter(struct adapter *adapter, const struct trace_params *tp,
 			int filter_index, int enable);
 void t4_get_trace_filter(struct adapter *adapter, struct trace_params *tp,
@@ -707,7 +706,8 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	       unsigned int vf, unsigned int viid);
 int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		int mtu, int promisc, int all_multi, int bcast, bool sleep_ok);
+		int mtu, int promisc, int all_multi, int bcast, int vlanex,
+		bool sleep_ok);
 int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 		      unsigned int viid, bool free, unsigned int naddr,
 		      const u8 **addr, u16 *idx, u64 *hash, bool sleep_ok);
