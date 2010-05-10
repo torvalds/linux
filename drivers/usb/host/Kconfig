@@ -207,6 +207,21 @@ config USB_OHCI_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called ohci-hcd.
 
+config USB_OHCI_HCD_OMAP1
+	bool "OHCI support for OMAP1/2 chips"
+	depends on USB_OHCI_HCD && (ARCH_OMAP1 || ARCH_OMAP2)
+	default y
+	---help---
+	  Enables support for the OHCI controller on OMAP1/2 chips.
+
+config USB_OHCI_HCD_OMAP3
+	bool "OHCI support for OMAP3 and later chips"
+	depends on USB_OHCI_HCD && (ARCH_OMAP3 || ARCH_OMAP4)
+	default y
+	---help---
+	  Enables support for the on-chip OHCI controller on
+	  OMAP3 and later chips.
+
 config USB_OHCI_HCD_PPC_SOC
 	bool "OHCI support for on-chip PPC USB controller"
 	depends on USB_OHCI_HCD && (STB03xxx || PPC_MPC52xx)
