@@ -47,6 +47,13 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template)
 	return self;
 }
 
+static void hists__inc_nr_entries(struct hists *self, struct hist_entry *entry)
+{
+	if (entry->ms.sym && self->max_sym_namelen < entry->ms.sym->namelen)
+		self->max_sym_namelen = entry->ms.sym->namelen;
+	++self->nr_entries;
+}
+
 struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct addr_location *al,
 				      struct symbol *sym_parent, u64 count)
@@ -89,6 +96,7 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 		return NULL;
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, &self->entries);
+	hists__inc_nr_entries(self, he);
 out:
 	hist_entry__add_cpumode_count(he, al->cpumode, count);
 	return he;
@@ -137,7 +145,7 @@ void hist_entry__free(struct hist_entry *he)
  * collapse the histogram
  */
 
-static void collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
+static bool collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -153,7 +161,7 @@ static void collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
 		if (!cmp) {
 			iter->count += he->count;
 			hist_entry__free(he);
-			return;
+			return false;
 		}
 
 		if (cmp < 0)
@@ -164,6 +172,7 @@ static void collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
 
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, root);
+	return true;
 }
 
 void hists__collapse_resort(struct hists *self)
@@ -177,13 +186,16 @@ void hists__collapse_resort(struct hists *self)
 
 	tmp = RB_ROOT;
 	next = rb_first(&self->entries);
+	self->nr_entries = 0;
+	self->max_sym_namelen = 0;
 
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node);
 		next = rb_next(&n->rb_node);
 
 		rb_erase(&n->rb_node, &self->entries);
-		collapse__insert_entry(&tmp, n);
+		if (collapse__insert_entry(&tmp, n))
+			hists__inc_nr_entries(self, n);
 	}
 
 	self->entries = tmp;
@@ -219,18 +231,20 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 	rb_insert_color(&he->rb_node, entries);
 }
 
-u64 hists__output_resort(struct hists *self)
+void hists__output_resort(struct hists *self)
 {
 	struct rb_root tmp;
 	struct rb_node *next;
 	struct hist_entry *n;
 	u64 min_callchain_hits;
-	u64 nr_hists = 0;
 
 	min_callchain_hits = self->stats.total * (callchain_param.min_percent / 100);
 
 	tmp = RB_ROOT;
 	next = rb_first(&self->entries);
+
+	self->nr_entries = 0;
+	self->max_sym_namelen = 0;
 
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node);
@@ -238,11 +252,10 @@ u64 hists__output_resort(struct hists *self)
 
 		rb_erase(&n->rb_node, &self->entries);
 		__hists__insert_output_entry(&tmp, n, min_callchain_hits);
-		++nr_hists;
+		hists__inc_nr_entries(self, n);
 	}
 
 	self->entries = tmp;
-	return nr_hists;
 }
 
 static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)

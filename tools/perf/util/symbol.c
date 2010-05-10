@@ -130,8 +130,9 @@ static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 	if (symbol_conf.priv_size)
 		self = ((void *)self) + symbol_conf.priv_size;
 
-	self->start = start;
-	self->end   = len ? start + len - 1 : start;
+	self->start   = start;
+	self->end     = len ? start + len - 1 : start;
+	self->namelen = namelen - 1;
 
 	pr_debug4("%s: %s %#Lx-%#Lx\n", __func__, name, start, self->end);
 

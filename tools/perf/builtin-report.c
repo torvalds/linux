@@ -296,13 +296,13 @@ static int __cmd_report(void)
 	next = rb_first(&session->hists_tree);
 	while (next) {
 		struct hists *hists;
-		u64 nr_hists;
 
 		hists = rb_entry(next, struct hists, rb_node);
 		hists__collapse_resort(hists);
-		nr_hists = hists__output_resort(hists);
+		hists__output_resort(hists);
 		if (use_browser)
-			perf_session__browse_hists(&hists->entries, nr_hists,
+			perf_session__browse_hists(&hists->entries,
+						   hists->nr_entries,
 						   hists->stats.total, help,
 						   input_name);
 		else {

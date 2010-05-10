@@ -54,6 +54,7 @@ struct symbol {
 	struct rb_node	rb_node;
 	u64		start;
 	u64		end;
+	u16		namelen;
 	char		name[0];
 };
 

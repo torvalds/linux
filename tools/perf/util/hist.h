@@ -19,10 +19,12 @@ struct events_stats {
 struct hists {
 	struct rb_node		rb_node;
 	struct rb_root		entries;
+	u64			nr_entries;
 	struct events_stats	stats;
 	u64			config;
 	u64			event_stream;
 	u32			type;
+	u32			max_sym_namelen;
 };
 
 struct hist_entry *__hists__add_entry(struct hists *self,
@@ -38,7 +40,7 @@ int hist_entry__snprintf(struct hist_entry *self, char *bf, size_t size,
 			 long displacement, bool color, u64 total);
 void hist_entry__free(struct hist_entry *);
 
-u64 hists__output_resort(struct hists *self);
+void hists__output_resort(struct hists *self);
 void hists__collapse_resort(struct hists *self);
 size_t hists__fprintf(struct hists *self, struct hists *pair,
 		      bool show_displacement, FILE *fp);
