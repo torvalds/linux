@@ -2135,15 +2135,18 @@ alloc_value:
 		orig_clusters = ocfs2_xa_value_clusters(loc);
 		rc = ocfs2_xa_value_truncate(loc, xi->xi_value_len, ctxt);
 		if (rc < 0) {
-			/*
-			 * If we tried to grow an existing external value,
-			 * ocfs2_xa_cleanuP-value_truncate() is going to
-			 * let it stand.  We have to restore its original
-			 * value size.
-			 */
-			loc->xl_entry->xe_value_size = orig_value_size;
 			ocfs2_xa_cleanup_value_truncate(loc, "growing",
 							orig_clusters);
+			/*
+			 * If we were growing an existing value,
+			 * ocfs2_xa_cleanup_value_truncate() won't remove
+			 * the entry. We need to restore the original value
+			 * size.
+			 */
+			if (loc->xl_entry) {
+				BUG_ON(!orig_value_size);
+				loc->xl_entry->xe_value_size = orig_value_size;
+			}
 			mlog_errno(rc);
 		}
 	}
