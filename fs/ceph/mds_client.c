@@ -799,12 +799,49 @@ out:
 }
 
 static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
-				   void *arg)
+				  void *arg)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	int drop = 0;
+
 	dout("removing cap %p, ci is %p, inode is %p\n",
 	     cap, ci, &ci->vfs_inode);
-	ceph_remove_cap(cap);
+	spin_lock(&inode->i_lock);
+	__ceph_remove_cap(cap);
+	if (!__ceph_is_any_real_caps(ci)) {
+		struct ceph_mds_client *mdsc =
+			&ceph_sb_to_client(inode->i_sb)->mdsc;
+
+		spin_lock(&mdsc->cap_dirty_lock);
+		if (!list_empty(&ci->i_dirty_item)) {
+			pr_info(" dropping dirty %s state for %p %lld\n",
+				ceph_cap_string(ci->i_dirty_caps),
+				inode, ceph_ino(inode));
+			ci->i_dirty_caps = 0;
+			list_del_init(&ci->i_dirty_item);
+			drop = 1;
+		}
+		if (!list_empty(&ci->i_flushing_item)) {
+			pr_info(" dropping dirty+flushing %s state for %p %lld\n",
+				ceph_cap_string(ci->i_flushing_caps),
+				inode, ceph_ino(inode));
+			ci->i_flushing_caps = 0;
+			list_del_init(&ci->i_flushing_item);
+			mdsc->num_cap_flushing--;
+			drop = 1;
+		}
+		if (drop && ci->i_wrbuffer_ref) {
+			pr_info(" dropping dirty data for %p %lld\n",
+				inode, ceph_ino(inode));
+			ci->i_wrbuffer_ref = 0;
+			ci->i_wrbuffer_ref_head = 0;
+			drop++;
+		}
+		spin_unlock(&mdsc->cap_dirty_lock);
+	}
+	spin_unlock(&inode->i_lock);
+	while (drop--)
+		iput(inode);
 	return 0;
 }
 
@@ -816,6 +853,7 @@ static void remove_session_caps(struct ceph_mds_session *session)
 	dout("remove_session_caps on %p\n", session);
 	iterate_session_caps(session, remove_session_caps_cb, NULL);
 	BUG_ON(session->s_nr_caps > 0);
+	BUG_ON(!list_empty(&session->s_cap_flushing));
 	cleanup_cap_releases(session);
 }
 
@@ -1281,7 +1319,7 @@ retry:
 			len += 1 + temp->d_name.len;
 		temp = temp->d_parent;
 		if (temp == NULL) {
-			pr_err("build_path_dentry corrupt dentry %p\n", dentry);
+			pr_err("build_path corrupt dentry %p\n", dentry);
 			return ERR_PTR(-EINVAL);
 		}
 	}
