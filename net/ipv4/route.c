@@ -2277,8 +2277,8 @@ martian_source:
 	goto e_inval;
 }
 
-int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
-		   u8 tos, struct net_device *dev)
+int ip_route_input_common(struct sk_buff *skb, __be32 daddr, __be32 saddr,
+			   u8 tos, struct net_device *dev, bool noref)
 {
 	struct rtable * rth;
 	unsigned	hash;
@@ -2304,10 +2304,15 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		    rth->fl.mark == skb->mark &&
 		    net_eq(dev_net(rth->u.dst.dev), net) &&
 		    !rt_is_expired(rth)) {
-			dst_use(&rth->u.dst, jiffies);
+			if (noref) {
+				dst_use_noref(&rth->u.dst, jiffies);
+				skb_dst_set_noref(skb, &rth->u.dst);
+			} else {
+				dst_use(&rth->u.dst, jiffies);
+				skb_dst_set(skb, &rth->u.dst);
+			}
 			RT_CACHE_STAT_INC(in_hit);
 			rcu_read_unlock();
-			skb_dst_set(skb, &rth->u.dst);
 			return 0;
 		}
 		RT_CACHE_STAT_INC(in_hlist_search);
@@ -2350,6 +2355,7 @@ skip_cache:
 	}
 	return ip_route_input_slow(skb, daddr, saddr, tos, dev);
 }
+EXPORT_SYMBOL(ip_route_input_common);
 
 static int __mkroute_output(struct rtable **result,
 			    struct fib_result *res,
@@ -3361,5 +3367,4 @@ void __init ip_static_sysctl_init(void)
 #endif
 
 EXPORT_SYMBOL(__ip_select_ident);
-EXPORT_SYMBOL(ip_route_input);
 EXPORT_SYMBOL(ip_route_output_key);
