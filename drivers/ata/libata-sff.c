@@ -2650,6 +2650,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma32_port_ops);
 static void ata_bmdma_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
+	struct ata_bmdma_prd *prd = ap->bmdma_prd;
 	struct scatterlist *sg;
 	unsigned int si, pi;
 
@@ -2671,8 +2672,8 @@ static void ata_bmdma_fill_sg(struct ata_queued_cmd *qc)
 			if ((offset + sg_len) > 0x10000)
 				len = 0x10000 - offset;
 
-			ap->prd[pi].addr = cpu_to_le32(addr);
-			ap->prd[pi].flags_len = cpu_to_le32(len & 0xffff);
+			prd[pi].addr = cpu_to_le32(addr);
+			prd[pi].flags_len = cpu_to_le32(len & 0xffff);
 			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
 
 			pi++;
@@ -2681,7 +2682,7 @@ static void ata_bmdma_fill_sg(struct ata_queued_cmd *qc)
 		}
 	}
 
-	ap->prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+	prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
 }
 
 /**
@@ -2700,6 +2701,7 @@ static void ata_bmdma_fill_sg(struct ata_queued_cmd *qc)
 static void ata_bmdma_fill_sg_dumb(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
+	struct ata_bmdma_prd *prd = ap->bmdma_prd;
 	struct scatterlist *sg;
 	unsigned int si, pi;
 
@@ -2722,16 +2724,16 @@ static void ata_bmdma_fill_sg_dumb(struct ata_queued_cmd *qc)
 				len = 0x10000 - offset;
 
 			blen = len & 0xffff;
-			ap->prd[pi].addr = cpu_to_le32(addr);
+			prd[pi].addr = cpu_to_le32(addr);
 			if (blen == 0) {
 				/* Some PATA chipsets like the CS5530 can't
 				   cope with 0x0000 meaning 64K as the spec
 				   says */
-				ap->prd[pi].flags_len = cpu_to_le32(0x8000);
+				prd[pi].flags_len = cpu_to_le32(0x8000);
 				blen = 0x8000;
-				ap->prd[++pi].addr = cpu_to_le32(addr + 0x8000);
+				prd[++pi].addr = cpu_to_le32(addr + 0x8000);
 			}
-			ap->prd[pi].flags_len = cpu_to_le32(blen);
+			prd[pi].flags_len = cpu_to_le32(blen);
 			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
 
 			pi++;
@@ -2740,7 +2742,7 @@ static void ata_bmdma_fill_sg_dumb(struct ata_queued_cmd *qc)
 		}
 	}
 
-	ap->prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+	prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
 }
 
 /**
@@ -2872,7 +2874,7 @@ void ata_bmdma_setup(struct ata_queued_cmd *qc)
 
 	/* load PRD table addr. */
 	mb();	/* make sure PRD table writes are visible to controller */
-	iowrite32(ap->prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
+	iowrite32(ap->bmdma_prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
 
 	/* specify data direction, triple-check start bit is clear */
 	dmactl = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
@@ -2977,9 +2979,10 @@ EXPORT_SYMBOL_GPL(ata_bmdma_status);
 int ata_bmdma_port_start(struct ata_port *ap)
 {
 	if (ap->mwdma_mask || ap->udma_mask) {
-		ap->prd = dmam_alloc_coherent(ap->host->dev, ATA_PRD_TBL_SZ,
-					      &ap->prd_dma, GFP_KERNEL);
-		if (!ap->prd)
+		ap->bmdma_prd =
+			dmam_alloc_coherent(ap->host->dev, ATA_PRD_TBL_SZ,
+					    &ap->bmdma_prd_dma, GFP_KERNEL);
+		if (!ap->bmdma_prd)
 			return -ENOMEM;
 	}
 

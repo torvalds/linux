@@ -441,7 +441,7 @@ static void scc_bmdma_setup (struct ata_queued_cmd *qc)
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
 
 	/* load PRD table addr */
-	out_be32(mmio + SCC_DMA_TABLE_OFS, ap->prd_dma);
+	out_be32(mmio + SCC_DMA_TABLE_OFS, ap->bmdma_prd_dma);
 
 	/* specify data direction, triple-check start bit is clear */
 	dmactl = in_be32(mmio + SCC_DMA_CMD);
@@ -905,7 +905,7 @@ static int scc_port_start (struct ata_port *ap)
 	if (rc)
 		return rc;
 
-	out_be32(mmio + SCC_DMA_PTERADD, ap->prd_dma);
+	out_be32(mmio + SCC_DMA_PTERADD, ap->bmdma_prd_dma);
 	return 0;
 }
 

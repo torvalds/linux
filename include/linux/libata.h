@@ -716,14 +716,13 @@ struct ata_port {
 	unsigned int		print_id; /* user visible unique port ID */
 	unsigned int		port_no; /* 0 based port no. inside the host */
 
-	struct ata_prd		*prd;	 /* our SG list */
-	dma_addr_t		prd_dma; /* and its DMA mapping */
-
 #ifdef CONFIG_ATA_SFF
 	struct ata_ioports	ioaddr;	/* ATA cmd/ctl/dma register blocks */
 	u8			ctl;	/* cache of ATA control register */
 	u8			last_ctl;	/* Cache last written value */
 	struct delayed_work	sff_pio_task;
+	struct ata_bmdma_prd	*bmdma_prd;	/* BMDMA SG list */
+	dma_addr_t		bmdma_prd_dma;	/* and its DMA mapping */
 #endif /* CONFIG_ATA_SFF */
 
 	unsigned int		pio_mask;

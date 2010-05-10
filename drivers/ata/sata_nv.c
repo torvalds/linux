@@ -272,7 +272,7 @@ enum ncq_saw_flag_list {
 };
 
 struct nv_swncq_port_priv {
-	struct ata_prd	*prd;	 /* our SG list */
+	struct ata_bmdma_prd *prd;	 /* our SG list */
 	dma_addr_t	prd_dma; /* and its DMA mapping */
 	void __iomem	*sactive_block;
 	void __iomem	*irq_block;
@@ -2027,7 +2027,7 @@ static void nv_swncq_fill_sg(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg;
 	struct nv_swncq_port_priv *pp = ap->private_data;
-	struct ata_prd *prd;
+	struct ata_bmdma_prd *prd;
 	unsigned int si, idx;
 
 	prd = pp->prd + ATA_MAX_PRD * qc->tag;
