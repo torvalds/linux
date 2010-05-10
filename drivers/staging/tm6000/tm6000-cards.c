@@ -692,6 +692,10 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	if (rc < 0)
 		goto err;
 
+	tm6000_add_into_devlist(dev);
+
+	tm6000_init_extension(dev);
+
 	if (dev->caps.has_dvb) {
 		dev->dvb = kzalloc(sizeof(*(dev->dvb)), GFP_KERNEL);
 		if (!dev->dvb) {
@@ -930,6 +934,9 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	dev->state |= DEV_DISCONNECTED;
 
 	usb_put_dev(dev->udev);
+
+	tm6000_remove_from_devlist(dev);
+	tm6000_close_extension(dev);
 
 	mutex_unlock(&dev->lock);
 	kfree(dev);
