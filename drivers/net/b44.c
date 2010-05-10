@@ -1014,8 +1014,6 @@ static netdev_tx_t b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (TX_BUFFS_AVAIL(bp) < 1)
 		netif_stop_queue(dev);
 
-	dev->trans_start = jiffies;
-
 out_unlock:
 	spin_unlock_irqrestore(&bp->lock, flags);
 

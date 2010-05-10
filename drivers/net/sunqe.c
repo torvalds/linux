@@ -602,7 +602,6 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	qep->tx_new = NEXT_TX(entry);
 
 	/* Get it going. */
-	dev->trans_start = jiffies;
 	sbus_writel(CREG_CTRL_TWAKEUP, qep->qcregs + CREG_CTRL);
 
 	dev->stats.tx_packets++;

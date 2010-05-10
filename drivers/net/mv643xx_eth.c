@@ -882,7 +882,6 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		txq->tx_bytes += skb->len;
 		txq->tx_packets++;
-		dev->trans_start = jiffies;
 
 		entries_left = txq->tx_ring_size - txq->tx_desc_count;
 		if (entries_left < MAX_SKB_FRAGS + 1)

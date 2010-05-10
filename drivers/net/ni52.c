@@ -1147,7 +1147,7 @@ static void ni52_timeout(struct net_device *dev)
 		writeb(CUC_START, &p->scb->cmd_cuc);
 		ni_attn586();
 		wait_for_scb_cmd(dev);
-		dev->trans_start = jiffies;
+		dev->trans_start = jiffies; /* prevent tx timeout */
 		return 0;
 	}
 #endif
@@ -1165,7 +1165,7 @@ static void ni52_timeout(struct net_device *dev)
 		ni52_close(dev);
 		ni52_open(dev);
 	}
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 }
 
 /******************************************************
@@ -1218,7 +1218,6 @@ static netdev_tx_t ni52_send_packet(struct sk_buff *skb,
 			writeb(CUC_START, &p->scb->cmd_cuc);
 		}
 		ni_attn586();
-		dev->trans_start = jiffies;
 		if (!i)
 			dev_kfree_skb(skb);
 		wait_for_scb_cmd(dev);
@@ -1240,7 +1239,6 @@ static netdev_tx_t ni52_send_packet(struct sk_buff *skb,
 	writew(0, &p->nop_cmds[next_nop]->cmd_status);
 
 	writew(make16(p->xmit_cmds[0]), &p->nop_cmds[p->nop_point]->cmd_link);
-	dev->trans_start = jiffies;
 	p->nop_point = next_nop;
 	dev_kfree_skb(skb);
 #	endif
@@ -1256,7 +1254,6 @@ static netdev_tx_t ni52_send_packet(struct sk_buff *skb,
 	writew(0, &p->nop_cmds[next_nop]->cmd_status);
 	writew(make16(p->xmit_cmds[p->xmit_count]),
 				&p->nop_cmds[p->xmit_count]->cmd_link);
-	dev->trans_start = jiffies;
 	p->xmit_count = next_nop;
 	{
 		unsigned long flags;

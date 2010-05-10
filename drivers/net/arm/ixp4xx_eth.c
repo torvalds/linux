@@ -708,7 +708,6 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* NPE firmware pads short frames with zeros internally */
 	wmb();
 	queue_put_desc(TX_QUEUE(port->id), tx_desc_phys(port, n), desc);
-	dev->trans_start = jiffies;
 
 	if (qmgr_stat_below_low_watermark(txreadyq)) { /* empty */
 #if DEBUG_TX

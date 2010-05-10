@@ -1503,7 +1503,6 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	BARRIER();
 
-	dev->trans_start = jiffies;
 	ip->tx_skbs[produce] = skb;			/* Remember skb */
 	produce = (produce + 1) & 127;
 	ip->tx_pi = produce;

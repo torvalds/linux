@@ -1003,7 +1003,7 @@ static int lance_reset(struct net_device *dev)
 	}
 	lp->init_ring(dev);
 	load_csrs(lp);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	status = init_restart_lance(lp);
 	return status;
 }
@@ -1160,7 +1160,6 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irq(&lp->lock);
 
-	dev->trans_start = jiffies;
 	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;

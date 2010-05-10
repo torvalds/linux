@@ -547,7 +547,7 @@ static void tx_timeout(struct net_device *dev)
 	dev->stats.tx_errors++;
 	/* Try to restart the adapter. */
 	hardware_init(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 	dev->stats.tx_errors++;
 }
@@ -586,7 +586,6 @@ static netdev_tx_t atp_send_packet(struct sk_buff *skb,
 	write_reg(ioaddr, IMR, ISR_RxOK | ISR_TxErr | ISR_TxOK);
 	write_reg_high(ioaddr, IMR, ISRh_RxErr);
 
-	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
 	return NETDEV_TX_OK;
 }

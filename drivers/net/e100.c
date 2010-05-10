@@ -1764,7 +1764,6 @@ static netdev_tx_t e100_xmit_frame(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	netdev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 

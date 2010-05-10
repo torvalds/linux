@@ -543,7 +543,7 @@ static void unstick_cu(struct net_device *dev)
 
 	if (lp->started)
 	{
-		if (time_after(jiffies, dev->trans_start + 50))
+		if (time_after(jiffies, dev_trans_start(dev) + HZ/2))
 		{
 			if (lp->tx_link==lp->last_tx_restart)
 			{
@@ -1018,7 +1018,7 @@ static void eexp_hw_tx_pio(struct net_device *dev, unsigned short *buf,
 	outw(lp->tx_head+0x16, ioaddr + DATAPORT);
 	outw(0, ioaddr + DATAPORT);
 
-        outsw(ioaddr + DATAPORT, buf, (len+1)>>1);
+	outsw(ioaddr + DATAPORT, buf, (len+1)>>1);
 
 	outw(lp->tx_tail+0xc, ioaddr + WRITE_PTR);
 	outw(lp->tx_head, ioaddr + DATAPORT);

@@ -1295,7 +1295,7 @@ xirc2ps_tx_timeout_task(struct work_struct *work)
 	struct net_device *dev = local->dev;
     /* reset the card */
     do_reset(dev,1);
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
     netif_wake_queue(dev);
 }
 
@@ -1358,7 +1358,6 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	PutByte(XIRCREG_CR, TransmitPacket|EnableIntr);
 
     dev_kfree_skb (skb);
-    dev->trans_start = jiffies;
     dev->stats.tx_bytes += pktlen;
     netif_start_queue(dev);
     return NETDEV_TX_OK;

@@ -834,8 +834,6 @@ static netdev_tx_t hso_net_start_xmit(struct sk_buff *skb,
 	} else {
 		net->stats.tx_packets++;
 		net->stats.tx_bytes += skb->len;
-		/* And tell the kernel when the last transmit started. */
-		net->trans_start = jiffies;
 	}
 	dev_kfree_skb(skb);
 	/* we're done */

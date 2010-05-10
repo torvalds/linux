@@ -892,7 +892,6 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 		(adapter->txd_write_ptr >> 2));
 
 	mmiowb();
-	netdev->trans_start = jiffies;
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }

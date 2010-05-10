@@ -585,7 +585,6 @@ static netdev_tx_t sca_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	writew(len, &desc->len);
 	writeb(ST_TX_EOM, &desc->stat);
-	dev->trans_start = jiffies;
 
 	port->txin = (port->txin + 1) % card->tx_ring_buffers;
 	sca_outl(desc_offset(port, port->txin, 1),

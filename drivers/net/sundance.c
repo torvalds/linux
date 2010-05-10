@@ -972,7 +972,7 @@ static void tx_timeout(struct net_device *dev)
 
 	dev->if_port = 0;
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	if (np->cur_tx - np->dirty_tx < TX_QUEUE_LEN - 4) {
 		netif_wake_queue(dev);
@@ -1084,7 +1084,6 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 	} else {
 		netif_stop_queue (dev);
 	}
-	dev->trans_start = jiffies;
 	if (netif_msg_tx_queued(np)) {
 		printk (KERN_DEBUG
 			"%s: Transmit frame #%d queued in slot %d.\n",

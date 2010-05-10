@@ -174,7 +174,7 @@ static void sonic_tx_timeout(struct net_device *dev)
 	/* Try to restart the adaptor. */
 	sonic_init(dev);
 	lp->stats.tx_errors++;
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -262,8 +262,6 @@ static int sonic_send_packet(struct sk_buff *skb, struct net_device *dev)
 		printk("sonic_send_packet: issuing Tx command\n");
 
 	SONIC_WRITE(SONIC_CMD, SONIC_CR_TXP);
-
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }

@@ -924,7 +924,6 @@ static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
 	au_sync();
 	dev_kfree_skb(skb);
 	aup->tx_head = (aup->tx_head + 1) & (NUM_TX_DMA - 1);
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 
@@ -937,7 +936,7 @@ static void au1000_tx_timeout(struct net_device *dev)
 	netdev_err(dev, "au1000_tx_timeout: dev=%p\n", dev);
 	au1000_reset_mac(dev);
 	au1000_init(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 

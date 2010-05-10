@@ -924,7 +924,6 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	if (!lp->tx_free_desc)
 		netif_stop_queue(dev);
 
-	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&lp->lock, flags);
 
 	return NETDEV_TX_OK;

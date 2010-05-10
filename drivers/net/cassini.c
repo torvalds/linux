@@ -2889,7 +2889,6 @@ static netdev_tx_t cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (cas_xmit_tx_ringN(cp, ring++ & N_TX_RINGS_MASK, skb))
 		return NETDEV_TX_BUSY;
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 

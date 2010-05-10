@@ -448,7 +448,7 @@ static void pcnet32_netif_stop(struct net_device *dev)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	napi_disable(&lp->napi);
 	netif_tx_disable(dev);
 }
@@ -2398,7 +2398,7 @@ static void pcnet32_tx_timeout(struct net_device *dev)
 	}
 	pcnet32_restart(dev, CSR0_NORMAL);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -2448,8 +2448,6 @@ static netdev_tx_t pcnet32_start_xmit(struct sk_buff *skb,
 
 	/* Trigger an immediate send poll. */
 	lp->a.write_csr(ioaddr, CSR0, CSR0_INTEN | CSR0_TXPOLL);
-
-	dev->trans_start = jiffies;
 
 	if (lp->tx_ring[(entry + 1) & lp->tx_mod_mask].base != 0) {
 		lp->tx_full = 1;

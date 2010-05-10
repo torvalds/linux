@@ -546,7 +546,6 @@ static int au1k_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 	aup->tx_head = (aup->tx_head + 1) & (NUM_IR_DESC - 1);
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 

@@ -1180,11 +1180,11 @@ static void dmfe_timer(unsigned long data)
 
 	/* TX polling kick monitor */
 	if ( db->tx_packet_cnt &&
-	     time_after(jiffies, dev->trans_start + DMFE_TX_KICK) ) {
+	     time_after(jiffies, dev_trans_start(dev) + DMFE_TX_KICK) ) {
 		outl(0x1, dev->base_addr + DCR1);   /* Tx polling again */
 
 		/* TX Timeout */
-		if ( time_after(jiffies, dev->trans_start + DMFE_TX_TIMEOUT) ) {
+		if (time_after(jiffies, dev_trans_start(dev) + DMFE_TX_TIMEOUT) ) {
 			db->reset_TXtimeout++;
 			db->wait_reset = 1;
 			dev_warn(&dev->dev, "Tx timeout - resetting\n");

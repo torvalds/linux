@@ -1716,8 +1716,6 @@ static netdev_tx_t rtl8139_start_xmit (struct sk_buff *skb,
 	RTL_W32_F (TxStatus0 + (entry * sizeof (u32)),
 		   tp->tx_flag | max(len, (unsigned int)ETH_ZLEN));
 
-	dev->trans_start = jiffies;
-
 	tp->cur_tx++;
 
 	if ((tp->cur_tx - NUM_TX_DESC) == tp->dirty_tx)

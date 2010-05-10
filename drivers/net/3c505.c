@@ -1055,7 +1055,7 @@ static void elp_timeout(struct net_device *dev)
 		   (stat & ACRF) ? "interrupt" : "command");
 	if (elp_debug >= 1)
 		pr_debug("%s: status %#02x\n", dev->name, stat);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	dev->stats.tx_dropped++;
 	netif_wake_queue(dev);
 }
@@ -1092,11 +1092,6 @@ static netdev_tx_t elp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	if (elp_debug >= 3)
 		pr_debug("%s: packet of length %d sent\n", dev->name, (int) skb->len);
-
-	/*
-	 * start the transmit timeout
-	 */
-	dev->trans_start = jiffies;
 
 	prime_rx(dev);
 	spin_unlock_irqrestore(&adapter->lock, flags);

@@ -1254,7 +1254,7 @@ static void smc_tx_timeout(struct net_device *dev)
 	   dev->name, inw(ioaddr)&0xff, inw(ioaddr + 2));
     dev->stats.tx_errors++;
     smc_reset(dev);
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
     smc->saved_skb = NULL;
     netif_wake_queue(dev);
 }

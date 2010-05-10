@@ -558,7 +558,7 @@ static void xemaclite_tx_timeout(struct net_device *dev)
 	}
 
 	/* To exclude tx timeout */
-	dev->trans_start = 0xffffffff - TX_TIMEOUT - TX_TIMEOUT;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 
 	/* We're all ready to go. Start the queue */
 	netif_wake_queue(dev);
@@ -590,7 +590,7 @@ static void xemaclite_tx_handler(struct net_device *dev)
 			dev->stats.tx_bytes += lp->deferred_skb->len;
 			dev_kfree_skb_irq(lp->deferred_skb);
 			lp->deferred_skb = NULL;
-			dev->trans_start = jiffies;
+			dev->trans_start = jiffies; /* prevent tx timeout */
 			netif_wake_queue(dev);
 		}
 	}
@@ -1054,7 +1054,6 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 
 	dev->stats.tx_bytes += len;
 	dev_kfree_skb(new_skb);
-	dev->trans_start = jiffies;
 
 	return 0;
 }

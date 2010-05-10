@@ -2606,7 +2606,6 @@ static netdev_tx_t velocity_xmit(struct sk_buff *skb,
 	td_ptr->td_buf[0].size |= TD_QUEUE;
 	mac_tx_queue_wake(vptr->mac_regs, qnum);
 
-	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&vptr->lock, flags);
 out:
 	return NETDEV_TX_OK;

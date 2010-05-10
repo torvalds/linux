@@ -2068,8 +2068,6 @@ static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	dev->trans_start = jiffies;
-
 	spin_unlock_irqrestore(&sc->sbm_lock, flags);
 
 	return NETDEV_TX_OK;
@@ -2488,7 +2486,7 @@ static void sbmac_tx_timeout (struct net_device *dev)
 	spin_lock_irqsave(&sc->sbm_lock, flags);
 
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	dev->stats.tx_errors++;
 
 	spin_unlock_irqrestore(&sc->sbm_lock, flags);

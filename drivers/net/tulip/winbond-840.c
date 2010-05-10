@@ -969,7 +969,7 @@ static void tx_timeout(struct net_device *dev)
 	enable_irq(dev->irq);
 
 	netif_wake_queue(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	np->stats.tx_errors++;
 	return;
 }
@@ -1054,8 +1054,6 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 		np->tx_full = 1;
 	}
 	spin_unlock_irq(&np->lock);
-
-	dev->trans_start = jiffies;
 
 	if (debug > 4) {
 		printk(KERN_DEBUG "%s: Transmit frame #%d queued in slot %d\n",

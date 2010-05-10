@@ -908,7 +908,7 @@ static void epic_tx_timeout(struct net_device *dev)
 		outl(TxQueued, dev->base_addr + COMMAND);
 	}
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	ep->stats.tx_errors++;
 	if (!ep->tx_full)
 		netif_wake_queue(dev);
@@ -1006,7 +1006,6 @@ static netdev_tx_t epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Trigger an immediate transmit demand. */
 	outl(TxQueued, dev->base_addr + COMMAND);
 
-	dev->trans_start = jiffies;
 	if (debug > 4)
 		printk(KERN_DEBUG "%s: Queued Tx packet size %d to slot %d, "
 			   "flag %2.2x Tx status %8.8x.\n",

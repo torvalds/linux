@@ -2214,7 +2214,6 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dprintk("\n");
 	}
 
-	dev->trans_start = jiffies;
 	writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
 	return NETDEV_TX_OK;
 }
@@ -2369,7 +2368,6 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 		dprintk("\n");
 	}
 
-	dev->trans_start = jiffies;
 	writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
 	return NETDEV_TX_OK;
 }

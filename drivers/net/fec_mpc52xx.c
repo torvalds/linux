@@ -327,7 +327,6 @@ static int mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	dev->trans_start = jiffies;
 
 	bd = (struct bcom_fec_bd *)
 		bcom_prepare_next_buffer(priv->tx_dmatsk);

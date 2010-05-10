@@ -126,7 +126,6 @@ netx_eth_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	           FIFO_PTR_FRAMENO(1) |
 	           FIFO_PTR_FRAMELEN(len));
 
-	ndev->trans_start = jiffies;
 	ndev->stats.tx_packets++;
 	ndev->stats.tx_bytes += skb->len;
 

@@ -262,7 +262,7 @@ static int lance_reset (struct net_device *dev)
 
         load_csrs (lp);
         lance_init_ring (dev);
-        dev->trans_start = jiffies;
+        dev->trans_start = jiffies; /* prevent tx timeout */
         status = init_restart_lance (lp);
 #ifdef DEBUG_DRIVER
         printk ("Lance restart=%d\n", status);
@@ -526,7 +526,7 @@ void lance_tx_timeout(struct net_device *dev)
 {
 	printk("lance_tx_timeout\n");
 	lance_reset(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 EXPORT_SYMBOL_GPL(lance_tx_timeout);
@@ -574,7 +574,6 @@ int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
         outs++;
         /* Kick the lance: transmit now */
         WRITERDP(lp, LE_C0_INEA | LE_C0_TDMD);
-        dev->trans_start = jiffies;
         dev_kfree_skb (skb);
 
 	spin_lock_irqsave (&lp->devlock, flags);

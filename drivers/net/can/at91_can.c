@@ -375,7 +375,6 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	at91_write(priv, AT91_MCR(mb), reg_mcr);
 
 	stats->tx_bytes += cf->can_dlc;
-	dev->trans_start = jiffies;
 
 	/* _NOTE_: substract AT91_MB_TX_FIRST offset from mb! */
 	can_put_echo_skb(skb, dev, mb - AT91_MB_TX_FIRST);

@@ -592,7 +592,7 @@ static void tms380tr_timeout(struct net_device *dev)
 	 * fake transmission time and go on trying. Our own timeout
 	 * routine is in tms380tr_timer_chk()
 	 */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 

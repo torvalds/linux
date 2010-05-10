@@ -1468,7 +1468,6 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 	tx_buf.length = skb->len;
 	tx_buf.buf_token = (void *)skb;
 	tx_buf.data_ptr = skb->data;
-	ndev->trans_start = jiffies;
 	ret_code = emac_send(priv, &tx_packet, EMAC_DEF_TX_CH);
 	if (unlikely(ret_code != 0)) {
 		if (ret_code == EMAC_ERR_TX_OUT_OF_BD) {

@@ -527,7 +527,7 @@ static void temac_device_reset(struct net_device *ndev)
 		dev_err(&ndev->dev, "Error setting TEMAC options\n");
 
 	/* Init Driver variable */
-	ndev->trans_start = 0;
+	ndev->trans_start = jiffies; /* prevent tx timeout */
 }
 
 void temac_adjust_link(struct net_device *ndev)

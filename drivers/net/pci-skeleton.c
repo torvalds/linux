@@ -1354,7 +1354,6 @@ static int netdrv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	NETDRV_W32(TxStatus0 + (entry * sizeof(u32)),
 		   tp->tx_flag | (skb->len >= ETH_ZLEN ? skb->len : ETH_ZLEN));
 
-	dev->trans_start = jiffies;
 	atomic_inc(&tp->cur_tx);
 	if ((atomic_read(&tp->cur_tx) - atomic_read(&tp->dirty_tx)) >= NUM_TX_DESC)
 		netif_stop_queue(dev);

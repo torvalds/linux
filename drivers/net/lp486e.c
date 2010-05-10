@@ -875,8 +875,6 @@ static netdev_tx_t i596_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		length = ETH_ZLEN;
 	}
 
-	dev->trans_start = jiffies;
-
 	tx_cmd = kmalloc((sizeof (struct tx_cmd) + sizeof (struct i596_tbd)), GFP_ATOMIC);
 	if (tx_cmd == NULL) {
 		printk(KERN_WARNING "%s: i596_xmit Memory squeeze, dropping packet.\n", dev->name);

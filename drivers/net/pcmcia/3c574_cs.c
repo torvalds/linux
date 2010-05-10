@@ -739,7 +739,7 @@ static void el3_tx_timeout(struct net_device *dev)
 	printk(KERN_NOTICE "%s: Transmit timed out!\n", dev->name);
 	dump_status(dev);
 	dev->stats.tx_errors++;
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	/* Issue TX_RESET and TX_START commands. */
 	tc574_wait_for_completion(dev, TxReset);
 	outw(TxEnable, ioaddr + EL3_CMD);
@@ -789,8 +789,6 @@ static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
 	outw(0, ioaddr + TX_FIFO);
 	/* ... and the packet rounded to a doubleword. */
 	outsl(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
-
-	dev->trans_start = jiffies;
 
 	/* TxFree appears only in Window 1, not offset 0x1c. */
 	if (inw(ioaddr + TxFree) <= 1536) {

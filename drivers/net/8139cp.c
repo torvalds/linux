@@ -882,7 +882,6 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 	spin_unlock_irqrestore(&cp->lock, intr_flags);
 
 	cpw8(TxPoll, NormalTxPoll);
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }

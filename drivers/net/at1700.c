@@ -583,7 +583,7 @@ static void net_tx_timeout (struct net_device *dev)
 	outb (0x00, ioaddr + TX_START);
 	outb (0x03, ioaddr + COL16CNTL);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 
 	lp->tx_started = 0;
 	lp->tx_queue_ready = 1;
@@ -636,7 +636,6 @@ static netdev_tx_t net_send_packet (struct sk_buff *skb,
 		outb (0x80 | lp->tx_queue, ioaddr + TX_START);
 		lp->tx_queue = 0;
 		lp->tx_queue_len = 0;
-		dev->trans_start = jiffies;
 		lp->tx_started = 1;
 		netif_start_queue (dev);
 	} else if (lp->tx_queue_len < 4096 - 1502)

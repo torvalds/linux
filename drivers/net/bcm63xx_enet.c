@@ -565,7 +565,6 @@ static int bcm_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	priv->stats.tx_bytes += skb->len;
 	priv->stats.tx_packets++;
-	dev->trans_start = jiffies;
 	ret = NETDEV_TX_OK;
 
 out_unlock:

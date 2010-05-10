@@ -1307,7 +1307,7 @@ static void wl3501_tx_timeout(struct net_device *dev)
 		printk(KERN_ERR "%s: Error %d resetting card on Tx timeout!\n",
 		       dev->name, rc);
 	else {
-		dev->trans_start = jiffies;
+		dev->trans_start = jiffies; /* prevent tx timeout */
 		netif_wake_queue(dev);
 	}
 }
@@ -1326,7 +1326,6 @@ static netdev_tx_t wl3501_hard_start_xmit(struct sk_buff *skb,
 
 	spin_lock_irqsave(&this->lock, flags);
 	enabled = wl3501_block_interrupt(this);
-	dev->trans_start = jiffies;
 	rc = wl3501_send_pkt(this, skb->data, skb->len);
 	if (enabled)
 		wl3501_unblock_interrupt(this);

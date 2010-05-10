@@ -1233,7 +1233,7 @@ static void fealnx_tx_timeout(struct net_device *dev)
 
 	spin_unlock_irqrestore(&np->lock, flags);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	np->stats.tx_errors++;
 	netif_wake_queue(dev); /* or .._start_.. ?? */
 }
@@ -1374,7 +1374,6 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	++np->really_tx_count;
 	iowrite32(0, np->mem + TXPDR);
-	dev->trans_start = jiffies;
 
 	spin_unlock_irqrestore(&np->lock, flags);
 	return NETDEV_TX_OK;

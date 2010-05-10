@@ -1335,7 +1335,6 @@ static int smsc911x_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	smsc911x_tx_writefifo(pdata, (unsigned int *)bufp, wrsz);
 	freespace -= (skb->len + 32);
 	dev_kfree_skb(skb);
-	dev->trans_start = jiffies;
 
 	if (unlikely(smsc911x_tx_get_txstatcount(pdata) >= 30))
 		smsc911x_tx_update_txcounters(dev);

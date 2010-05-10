@@ -1027,7 +1027,7 @@ static void eth16i_timeout(struct net_device *dev)
 	inw(ioaddr + TX_STATUS_REG),  (inb(ioaddr + TX_STATUS_REG) & TX_DONE) ?
 		       "IRQ conflict" : "network cable problem");
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 
 	/* Let's dump all registers */
 	if(eth16i_debug > 0) {
@@ -1047,7 +1047,7 @@ static void eth16i_timeout(struct net_device *dev)
 	}
 	dev->stats.tx_errors++;
 	eth16i_reset(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	outw(ETH16I_INTR_ON, ioaddr + TX_INTR_REG);
 	netif_wake_queue(dev);
 }
@@ -1109,7 +1109,6 @@ static netdev_tx_t eth16i_tx(struct sk_buff *skb, struct net_device *dev)
 		outb(TX_START | lp->tx_queue, ioaddr + TRANSMIT_START_REG);
 		lp->tx_queue = 0;
 		lp->tx_queue_len = 0;
-		dev->trans_start = jiffies;
 		lp->tx_started = 1;
 		netif_wake_queue(dev);
 	}

@@ -2241,7 +2241,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 		spin_unlock_irqrestore(&pr->netif_queue, flags);
 	}
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
 	spin_unlock(&pr->xmit_lock);
 
 	return NETDEV_TX_OK;

@@ -1738,7 +1738,7 @@ void gfar_start(struct net_device *dev)
 		gfar_write(&regs->imask, IMASK_DEFAULT);
 	}
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 }
 
 void gfar_configure_coalescing(struct gfar_private *priv,
@@ -2160,8 +2160,6 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* reduce TxBD free count */
 	tx_queue->num_txbdfree -= (nr_txbds);
-
-	dev->trans_start = jiffies;
 
 	/* If the next BD still needs to be cleaned up, then the bds
 	   are full.  We need to tell the kernel to stop sending us stuff. */

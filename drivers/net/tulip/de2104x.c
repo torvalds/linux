@@ -654,7 +654,6 @@ static netdev_tx_t de_start_xmit (struct sk_buff *skb,
 
 	/* Trigger an immediate transmit demand. */
 	dw32(TxPoll, NormalTxPoll);
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }

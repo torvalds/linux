@@ -504,7 +504,7 @@ static void el16_tx_timeout (struct net_device *dev)
 		outb (0, ioaddr + SIGNAL_CA);	/* Issue channel-attn. */
 		lp->last_restart = dev->stats.tx_packets;
 	}
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -528,7 +528,6 @@ static netdev_tx_t el16_send_packet (struct sk_buff *skb,
 
 	hardware_send_packet (dev, buf, skb->len, length - skb->len);
 
-	dev->trans_start = jiffies;
 	/* Enable the 82586 interrupt input. */
 	outb (0x84, ioaddr + MISC_CTRL);
 

@@ -269,8 +269,6 @@ static int bfin_can_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* fill data length code */
 	bfin_write16(&reg->chl[TRANSMIT_CHL].dlc, dlc);
 
-	dev->trans_start = jiffies;
-
 	can_put_echo_skb(skb, dev, 0);
 
 	/* set transmit request */

@@ -985,7 +985,7 @@ static void sun3_82586_timeout(struct net_device *dev)
 		p->scb->cmd_cuc = CUC_START;
 		sun3_attn586();
 		WAIT_4_SCB_CMD();
-		dev->trans_start = jiffies;
+		dev->trans_start = jiffies; /* prevent tx timeout */
 		return 0;
 	}
 #endif
@@ -998,7 +998,7 @@ static void sun3_82586_timeout(struct net_device *dev)
 		sun3_82586_close(dev);
 		sun3_82586_open(dev);
 	}
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 }
 
 /******************************************************
@@ -1062,7 +1062,6 @@ static int sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 			}
 
 			sun3_attn586();
-			dev->trans_start = jiffies;
 			if(!i)
 				dev_kfree_skb(skb);
 			WAIT_4_SCB_CMD();
@@ -1082,7 +1081,6 @@ static int sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 		p->xmit_cmds[0]->cmd_status = p->nop_cmds[next_nop]->cmd_status = 0;
 
 		p->nop_cmds[p->nop_point]->cmd_link = make16((p->xmit_cmds[0]));
-		dev->trans_start = jiffies;
 		p->nop_point = next_nop;
 		dev_kfree_skb(skb);
 #	endif
@@ -1097,7 +1095,6 @@ static int sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 		p->nop_cmds[next_nop]->cmd_status = 0;
 
 		p->nop_cmds[p->xmit_count]->cmd_link = make16((p->xmit_cmds[p->xmit_count]));
-		dev->trans_start = jiffies;
 		p->xmit_count = next_nop;
 
 		{

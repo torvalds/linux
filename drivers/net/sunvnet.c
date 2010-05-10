@@ -717,7 +717,6 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 
 out_dropped_unlock:

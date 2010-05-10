@@ -890,7 +890,6 @@ static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
 	    lp->sent = lp->tx_queue ;
 	    lp->tx_queue = 0;
 	    lp->tx_queue_len = 0;
-	    dev->trans_start = jiffies;
 	    lp->tx_started = 1;
 	    netif_start_queue(dev);
 	} else {

@@ -3184,8 +3184,6 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			 ixgbevf_tx_map(adapter, tx_ring, skb, tx_flags, first),
 			 skb->len, hdr_len);
 
-	netdev->trans_start = jiffies;
-
 	ixgbevf_maybe_stop_tx(netdev, tx_ring, DESC_NEEDED);
 
 	return NETDEV_TX_OK;

@@ -1034,8 +1034,6 @@ static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
 	smsc9420_reg_write(pd, TX_POLL_DEMAND, 1);
 	smsc9420_pci_flush_write(pd);
 
-	dev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 

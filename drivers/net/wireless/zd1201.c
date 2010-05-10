@@ -827,7 +827,6 @@ static netdev_tx_t zd1201_hard_start_xmit(struct sk_buff *skb,
 	} else {
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += skb->len;
-		dev->trans_start = jiffies;
 	}
 	kfree_skb(skb);
 
@@ -845,7 +844,7 @@ static void zd1201_tx_timeout(struct net_device *dev)
 	usb_unlink_urb(zd->tx_urb);
 	dev->stats.tx_errors++;
 	/* Restart the timeout to quiet the watchdog: */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 }
 
 static int zd1201_set_mac_address(struct net_device *dev, void *p)

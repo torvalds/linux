@@ -1790,7 +1790,7 @@ static void cpc_tx_timeout(struct net_device *dev)
 			   cpc_readb(card->hw.falcbase + card->hw.cpld_reg2) &
 			   ~(CPLD_REG2_FALC_LED1 << (2 * ch)));
 	}
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	CPC_UNLOCK(card, flags);
 	netif_wake_queue(dev);
 }
@@ -1849,7 +1849,6 @@ static int cpc_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (d->trace_on) {
 		cpc_trace(dev, skb, 'T');
 	}
-	dev->trans_start = jiffies;
 
 	/* Start transmission */
 	CPC_LOCK(card, flags);

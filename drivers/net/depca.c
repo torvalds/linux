@@ -921,7 +921,7 @@ static void depca_tx_timeout(struct net_device *dev)
 	STOP_DEPCA;
 	depca_init_ring(dev);
 	LoadCSRs(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 	InitRestartDepca(dev);
 }
@@ -954,7 +954,6 @@ static netdev_tx_t depca_start_xmit(struct sk_buff *skb,
 			outw(CSR0, DEPCA_ADDR);
 			outw(INEA | TDMD, DEPCA_DATA);
 
-			dev->trans_start = jiffies;
 			dev_kfree_skb(skb);
 		}
 		if (TX_BUFFS_AVAIL)

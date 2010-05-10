@@ -1357,8 +1357,6 @@ static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 	}
 	lp->tfd_start = (lp->tfd_start + 1) % TX_FD_NUM;
 
-	dev->trans_start = jiffies;
-
 	/* If we just used up the very last entry in the
 	 * TX ring on this device, tell the queueing
 	 * layer to send no more.

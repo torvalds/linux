@@ -1337,7 +1337,7 @@ de4x5_open(struct net_device *dev)
     }
 
     lp->interrupt = UNMASK_INTERRUPTS;
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
 
     START_DE4X5;
 
@@ -1507,7 +1507,6 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 	    outl(POLL_DEMAND, DE4X5_TPD);/* Start the TX */
 
 	    lp->tx_new = (++lp->tx_new) % lp->txRingSize;
-	    dev->trans_start = jiffies;
 
 	    if (TX_BUFFS_AVAIL) {
 		netif_start_queue(dev);         /* Another pkt may be queued */
@@ -1937,7 +1936,7 @@ set_multicast_list(struct net_device *dev)
 
 	    lp->tx_new = (++lp->tx_new) % lp->txRingSize;
 	    outl(POLL_DEMAND, DE4X5_TPD);       /* Start the TX */
-	    dev->trans_start = jiffies;
+	    dev->trans_start = jiffies; /* prevent tx timeout */
 	}
     }
 }

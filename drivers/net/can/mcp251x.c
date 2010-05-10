@@ -475,7 +475,6 @@ static netdev_tx_t mcp251x_hard_start_xmit(struct sk_buff *skb,
 
 	netif_stop_queue(net);
 	priv->tx_skb = skb;
-	net->trans_start = jiffies;
 	queue_work(priv->wq, &priv->tx_work);
 
 	return NETDEV_TX_OK;

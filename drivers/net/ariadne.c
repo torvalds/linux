@@ -676,8 +676,6 @@ static netdev_tx_t ariadne_start_xmit(struct sk_buff *skb,
     lance->RAP = CSR0;		/* PCnet-ISA Controller Status */
     lance->RDP = INEA|TDMD;
 
-    dev->trans_start = jiffies;
-
     if (lowb(priv->tx_ring[(entry+1) % TX_RING_SIZE]->TMD1) != 0) {
 	netif_stop_queue(dev);
 	priv->tx_full = 1;

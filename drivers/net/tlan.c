@@ -1034,7 +1034,7 @@ static void TLan_tx_timeout(struct net_device *dev)
 	TLan_ResetLists( dev );
 	TLan_ReadAndClearStats( dev, TLAN_IGNORE );
 	TLan_ResetAdapter( dev );
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue( dev );
 
 }
@@ -1147,7 +1147,6 @@ static netdev_tx_t TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 
 	CIRC_INC( priv->txTail, TLAN_NUM_TX_LISTS );
 
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 
 } /* TLan_StartTx */

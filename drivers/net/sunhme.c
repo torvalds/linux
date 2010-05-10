@@ -2341,8 +2341,6 @@ static netdev_tx_t happy_meal_start_xmit(struct sk_buff *skb,
 
 	spin_unlock_irq(&hp->happy_lock);
 
-	dev->trans_start = jiffies;
-
 	tx_add_log(hp, TXLOG_ACTION_TXMIT, 0);
 	return NETDEV_TX_OK;
 }

@@ -963,7 +963,7 @@ static void i596_tx_timeout (struct net_device *dev)
 		lp->last_restart = dev->stats.tx_packets;
 	}
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -974,7 +974,6 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct tx_cmd *tx_cmd;
 	struct i596_tbd *tbd;
 	short length = skb->len;
-	dev->trans_start = jiffies;
 
 	DEB(DEB_STARTTX, printk(KERN_DEBUG
 				"%s: i596_start_xmit(%x,%p) called\n",

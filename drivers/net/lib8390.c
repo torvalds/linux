@@ -257,7 +257,7 @@ static void __ei_tx_timeout(struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
-	int txsr, isr, tickssofar = jiffies - dev->trans_start;
+	int txsr, isr, tickssofar = jiffies - dev_trans_start(dev);
 	unsigned long flags;
 
 	dev->stats.tx_errors++;
@@ -386,7 +386,6 @@ static netdev_tx_t __ei_start_xmit(struct sk_buff *skb,
 	{
 		ei_local->txing = 1;
 		NS8390_trigger_send(dev, send_length, output_page);
-		dev->trans_start = jiffies;
 		if (output_page == ei_local->tx_start_page)
 		{
 			ei_local->tx1 = -1;

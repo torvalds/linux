@@ -1917,7 +1917,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 
 	/* Issue Tx Enable */
 	iowrite16(TxEnable, ioaddr + EL3_CMD);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 
 	/* Switch to register set 7 for normal use. */
 	EL3WINDOW(7);
@@ -2063,7 +2063,6 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	dev->trans_start = jiffies;
 
 	/* Clear the Tx status stack. */
 	{
@@ -2174,7 +2173,6 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	iowrite16(DownUnstall, ioaddr + EL3_CMD);
 	spin_unlock_irqrestore(&vp->lock, flags);
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 

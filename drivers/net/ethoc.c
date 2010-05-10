@@ -851,7 +851,6 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 
-	dev->trans_start = jiffies;
 	spin_unlock_irq(&priv->lock);
 out:
 	dev_kfree_skb(skb);

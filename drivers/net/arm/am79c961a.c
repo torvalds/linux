@@ -469,7 +469,6 @@ am79c961_sendpacket(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&priv->chip_lock, flags);
 	write_rreg (dev->base_addr, CSR0, CSR0_TDMD|CSR0_IENA);
-	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&priv->chip_lock, flags);
 
 	/*

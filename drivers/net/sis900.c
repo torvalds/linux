@@ -1553,7 +1553,7 @@ static void sis900_tx_timeout(struct net_device *net_dev)
 
 	spin_unlock_irqrestore(&sis_priv->lock, flags);
 
-	net_dev->trans_start = jiffies;
+	net_dev->trans_start = jiffies; /* prevent tx timeout */
 
 	/* load Transmit Descriptor Register */
 	outl(sis_priv->tx_ring_dma, ioaddr + txdp);
@@ -1622,8 +1622,6 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	}
 
 	spin_unlock_irqrestore(&sis_priv->lock, flags);
-
-	net_dev->trans_start = jiffies;
 
 	if (netif_msg_tx_queued(sis_priv))
 		printk(KERN_DEBUG "%s: Queued Tx packet at %p size %d "

@@ -563,7 +563,7 @@ static void el3_tx_timeout(struct net_device *dev)
     netdev_warn(dev, "Transmit timed out!\n");
     dump_status(dev);
     dev->stats.tx_errors++;
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
     /* Issue TX_RESET and TX_START commands. */
     tc589_wait_for_completion(dev, TxReset);
     outw(TxEnable, ioaddr + EL3_CMD);
@@ -611,7 +611,6 @@ static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
     /* ... and the packet rounded to a doubleword. */
     outsl(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
 
-    dev->trans_start = jiffies;
     if (inw(ioaddr + TX_FREE) <= 1536) {
 	netif_stop_queue(dev);
 	/* Interrupt us when the FIFO has room for max-sized packet. */

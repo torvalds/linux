@@ -903,9 +903,6 @@ int gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 		gelic_descr_release_tx(card, descr->next);
 		card->tx_chain.tail = descr->next->next;
 		dev_info(ctodev(card), "%s: kick failure\n", __func__);
-	} else {
-		/* OK, DMA started/reserved */
-		netdev->trans_start = jiffies;
 	}
 
 	spin_unlock_irqrestore(&card->tx_lock, flags);

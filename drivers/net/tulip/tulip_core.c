@@ -605,7 +605,7 @@ static void tulip_tx_timeout(struct net_device *dev)
 
 out_unlock:
 	spin_unlock_irqrestore (&tp->lock, flags);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -706,8 +706,6 @@ tulip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	iowrite32(0, tp->base_addr + CSR1);
 
 	spin_unlock_irqrestore(&tp->lock, flags);
-
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }

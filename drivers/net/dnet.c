@@ -594,8 +594,6 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&bp->lock, flags);
 
-	dev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 

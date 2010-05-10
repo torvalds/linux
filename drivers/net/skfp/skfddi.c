@@ -1076,7 +1076,6 @@ static netdev_tx_t skfp_send_pkt(struct sk_buff *skb,
 	if (bp->QueueSkb == 0) {
 		netif_stop_queue(dev);
 	}
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 
 }				// skfp_send_pkt

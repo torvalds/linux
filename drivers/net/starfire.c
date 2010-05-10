@@ -1173,7 +1173,7 @@ static void tx_timeout(struct net_device *dev)
 
 	/* Trigger an immediate transmit demand. */
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	np->stats.tx_errors++;
 	netif_wake_queue(dev);
 }
@@ -1311,8 +1311,6 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	/* 4 is arbitrary, but should be ok */
 	if ((np->cur_tx - np->dirty_tx) + 4 > TX_RING_SIZE)
 		netif_stop_queue(dev);
-
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }

@@ -229,7 +229,7 @@ static void lbs_tx_timeout(struct net_device *dev)
 
 	lbs_pr_err("tx watch dog timeout\n");
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 
 	if (priv->currenttxskb)
 		lbs_send_tx_feedback(priv, 0);

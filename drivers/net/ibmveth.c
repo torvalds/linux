@@ -957,7 +957,7 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 	} else {
 		tx_packets++;
 		tx_bytes += skb->len;
-		netdev->trans_start = jiffies;
+		netdev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
 	}
 
 	if (!used_bounce)

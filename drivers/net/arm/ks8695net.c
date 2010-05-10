@@ -1302,8 +1302,6 @@ ks8695_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (++ksp->tx_ring_used == MAX_TX_DESC)
 		netif_stop_queue(ndev);
 
-	ndev->trans_start = jiffies;
-
 	/* Kick the TX DMA in case it decided to go IDLE */
 	ks8695_writereg(ksp, KS8695_DTSC, 0);
 

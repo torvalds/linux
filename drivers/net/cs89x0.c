@@ -1554,7 +1554,6 @@ static netdev_tx_t net_send_packet(struct sk_buff *skb,struct net_device *dev)
 	writewords(dev->base_addr, TX_FRAME_PORT,skb->data,(skb->len+1) >>1);
 	spin_unlock_irqrestore(&lp->lock, flags);
 	lp->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
 
 	/*

@@ -852,8 +852,8 @@ static int s6gmac_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct s6gmac *pd = netdev_priv(dev);
 	unsigned long flags;
+
 	spin_lock_irqsave(&pd->lock, flags);
-	dev->trans_start = jiffies;
 	writel(skb->len << S6_GMAC_BURST_PREWR_LEN |
 		0 << S6_GMAC_BURST_PREWR_CFE |
 		1 << S6_GMAC_BURST_PREWR_PPE |

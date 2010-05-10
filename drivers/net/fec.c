@@ -275,8 +275,6 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			| BD_ENET_TX_LAST | BD_ENET_TX_TC);
 	bdp->cbd_sc = status;
 
-	dev->trans_start = jiffies;
-
 	/* Trigger transmission start */
 	writel(0, fep->hwp + FEC_X_DES_ACTIVE);
 

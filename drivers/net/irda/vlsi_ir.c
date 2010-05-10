@@ -1037,7 +1037,6 @@ static netdev_tx_t vlsi_hard_start_xmit(struct sk_buff *skb,
 		wmb();
 		outw(0, iobase+VLSI_PIO_PROMPT);
 	}
-	ndev->trans_start = jiffies;
 
 	if (ring_put(r) == NULL) {
 		netif_stop_queue(ndev);

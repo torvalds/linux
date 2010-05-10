@@ -1152,7 +1152,6 @@ static netdev_tx_t elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 		p->scb->cmd = CUC_START;
 		p->xmit_cmds[0]->cmd_status = 0;
 			elmc_attn586();
-		dev->trans_start = jiffies;
 		if (!i) {
 			dev_kfree_skb(skb);
 		}
@@ -1176,7 +1175,6 @@ static netdev_tx_t elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 	p->xmit_cmds[0]->cmd_status = p->nop_cmds[next_nop]->cmd_status = 0;
 
 	p->nop_cmds[p->nop_point]->cmd_link = make16((p->xmit_cmds[0]));
-	dev->trans_start = jiffies;
 	p->nop_point = next_nop;
 	dev_kfree_skb(skb);
 #endif
@@ -1190,7 +1188,6 @@ static netdev_tx_t elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 	    = make16((p->nop_cmds[next_nop]));
 	p->nop_cmds[next_nop]->cmd_status = 0;
 		p->nop_cmds[p->xmit_count]->cmd_link = make16((p->xmit_cmds[p->xmit_count]));
-	dev->trans_start = jiffies;
 	p->xmit_count = next_nop;
 	if (p->xmit_count != p->xmit_last)
 		netif_wake_queue(dev);

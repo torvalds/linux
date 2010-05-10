@@ -941,7 +941,6 @@ static netdev_tx_t ray_dev_start_xmit(struct sk_buff *skb,
 	case XMIT_MSG_BAD:
 	case XMIT_OK:
 	default:
-		dev->trans_start = jiffies;
 		dev_kfree_skb(skb);
 	}
 

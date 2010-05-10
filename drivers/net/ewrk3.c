@@ -757,7 +757,7 @@ static void ewrk3_timeout(struct net_device *dev)
 		 */
 		ENABLE_IRQs;
 
-		dev->trans_start = jiffies;
+		dev->trans_start = jiffies; /* prevent tx timeout */
 		netif_wake_queue(dev);
 	}
 }
@@ -862,7 +862,6 @@ static netdev_tx_t ewrk3_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irq (&lp->hw_lock);
 
 	dev->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
 
 	/* Check for free resources: stop Tx queue if there are none */

@@ -992,7 +992,6 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 		VMXNET3_WRITE_BAR0_REG(adapter, VMXNET3_REG_TXPROD,
 				       tq->tx_ring.next2fill);
 	}
-	netdev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 

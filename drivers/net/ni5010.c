@@ -444,7 +444,7 @@ static void ni5010_timeout(struct net_device *dev)
 	/* Try to restart the adaptor. */
 	/* FIXME: Give it a real kick here */
 	chipset_init(dev, 1);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -460,7 +460,6 @@ static int ni5010_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	netif_stop_queue(dev);
 	hardware_send_packet(dev, (unsigned char *)skb->data, skb->len, length-skb->len);
-	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
 	return NETDEV_TX_OK;
 }

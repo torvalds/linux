@@ -979,7 +979,6 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: send request\n", dev->name);
 
 	spin_lock_irq(&nl->lock);
-	dev->trans_start = jiffies;
 	snd->skb = skb;
 	snd->length.h = skb->len;
 	snd->state = PLIP_PK_TRIGGER;

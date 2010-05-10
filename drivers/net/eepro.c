@@ -1161,8 +1161,7 @@ static netdev_tx_t eepro_send_packet(struct sk_buff *skb,
 			/* we won't wake queue here because we're out of space */
 			dev->stats.tx_dropped++;
 		else {
-		dev->stats.tx_bytes+=skb->len;
-		dev->trans_start = jiffies;
+			dev->stats.tx_bytes+=skb->len;
 			netif_wake_queue(dev);
 		}
 

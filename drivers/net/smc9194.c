@@ -1164,7 +1164,7 @@ static void smc_timeout(struct net_device *dev)
 	/* "kick" the adaptor */
 	smc_reset( dev->base_addr );
 	smc_enable( dev->base_addr );
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	/* clear anything saved */
 	((struct smc_local *)netdev_priv(dev))->saved_skb = NULL;
 	netif_wake_queue(dev);

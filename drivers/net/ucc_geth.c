@@ -3148,8 +3148,6 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* set bd status and length */
 	out_be32((u32 __iomem *)bd, bd_status);
 
-	dev->trans_start = jiffies;
-
 	/* Move to next BD in the ring */
 	if (!(bd_status & T_W))
 		bd += sizeof(struct qe_bd);

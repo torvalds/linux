@@ -1136,7 +1136,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 	writel(gp->tx_new, gp->regs + TXDMA_KICK);
 	spin_unlock_irqrestore(&gp->tx_lock, flags);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
 
 	return NETDEV_TX_OK;
 }

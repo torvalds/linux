@@ -1289,7 +1289,7 @@ static void smc911x_timeout(struct net_device *dev)
 		schedule_work(&lp->phy_configure);
 
 	/* We can accept TX packets again */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 

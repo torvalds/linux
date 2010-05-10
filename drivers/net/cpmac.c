@@ -579,7 +579,6 @@ static int cpmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock(&priv->lock);
-	dev->trans_start = jiffies;
 	spin_unlock(&priv->lock);
 	desc->dataflags = CPMAC_SOP | CPMAC_EOP | CPMAC_OWN;
 	desc->skb = skb;

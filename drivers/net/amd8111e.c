@@ -1339,8 +1339,6 @@ static netdev_tx_t amd8111e_start_xmit(struct sk_buff *skb,
 	writel( VAL1 | TDMD0, lp->mmio + CMD0);
 	writel( VAL2 | RDMD0,lp->mmio + CMD0);
 
-	dev->trans_start = jiffies;
-
 	if(amd8111e_tx_queue_avail(lp) < 0){
 		netif_stop_queue(dev);
 	}

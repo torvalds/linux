@@ -1041,7 +1041,6 @@ static netdev_tx_t tok_send_packet(struct sk_buff *skb,
 	writew(ti->exsap_station_id, ti->srb + STATION_ID_OFST);
 	writeb(CMD_IN_SRB, ti->mmio + ACA_OFFSET + ACA_SET + ISRA_ODD);
 	spin_unlock_irqrestore(&(ti->lock), flags);
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 

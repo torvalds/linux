@@ -292,8 +292,6 @@ static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
 	for (i = 0; i < dlc; i++)
 		priv->write_reg(priv, dreg++, cf->data[i]);
 
-	dev->trans_start = jiffies;
-
 	can_put_echo_skb(skb, dev, 0);
 
 	priv->write_reg(priv, REG_CMR, CMD_TR);

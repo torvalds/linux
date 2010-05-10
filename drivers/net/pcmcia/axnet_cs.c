@@ -1005,7 +1005,7 @@ static void axnet_tx_timeout(struct net_device *dev)
 {
 	long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
-	int txsr, isr, tickssofar = jiffies - dev->trans_start;
+	int txsr, isr, tickssofar = jiffies - dev_trans_start(dev);
 	unsigned long flags;
 
 	dev->stats.tx_errors++;

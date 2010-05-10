@@ -987,8 +987,6 @@ static netdev_tx_t sc92031_start_xmit(struct sk_buff *skb,
 	iowrite32(tx_status, port_base + TxStatus0 + entry * 4);
 	mmiowb();
 
-	dev->trans_start = jiffies;
-
 	if (priv->tx_head - priv->tx_tail >= NUM_TX_DESC)
 		netif_stop_queue(dev);
 

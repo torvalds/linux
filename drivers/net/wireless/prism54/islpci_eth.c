@@ -224,8 +224,6 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 		priv->data_low_tx_full = 1;
 	}
 
-	/* set the transmission time */
-	ndev->trans_start = jiffies;
 	ndev->stats.tx_packets++;
 	ndev->stats.tx_bytes += skb->len;
 
