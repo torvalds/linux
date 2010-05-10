@@ -129,6 +129,12 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
+/*
+ * When called with struct file pointer set to NULL, there is no way we could
+ * update file->private_data, but getting it stuck on openFileList provides a
+ * way to access it from cifs_fill_filedata and thereby set file->private_data
+ * from cifs_open.
+ */
 struct cifsFileInfo *
 cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
 		  struct file *file, struct vfsmount *mnt, unsigned int oflags)
@@ -251,6 +257,10 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 		cifs_fattr_to_inode(*pinode, &fattr);
 	}
 
+	/*
+	 * cifs_fill_filedata() takes care of setting cifsFileInfo pointer to
+	 * file->private_data.
+	 */
 	if (mnt)
 		cifs_new_fileinfo(*pinode, *pnetfid, NULL, mnt, oflags);
 
@@ -466,8 +476,12 @@ cifs_create_set_dentry:
 		/* mknod case - do not leave file open */
 		CIFSSMBClose(xid, tcon, fileHandle);
 	} else if (!(posix_create) && (newinode)) {
-			cifs_new_fileinfo(newinode, fileHandle, NULL,
-						nd->path.mnt, oflags);
+		/*
+		 * cifs_fill_filedata() takes care of setting cifsFileInfo
+		 * pointer to file->private_data.
+		 */
+		cifs_new_fileinfo(newinode, fileHandle, NULL, nd->path.mnt,
+				  oflags);
 	}
 cifs_create_out:
 	kfree(buf);
