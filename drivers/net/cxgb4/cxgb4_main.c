@@ -3080,6 +3080,12 @@ static void __devinit print_port_info(struct adapter *adap)
 
 	int i;
 	char buf[80];
+	const char *spd = "";
+
+	if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_2_5GB)
+		spd = " 2.5 GT/s";
+	else if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_5_0GB)
+		spd = " 5 GT/s";
 
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
@@ -3099,10 +3105,10 @@ static void __devinit print_port_info(struct adapter *adap)
 			--bufp;
 		sprintf(bufp, "BASE-%s", base[pi->port_type]);
 
-		netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s\n",
+		netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
 			    adap->params.vpd.id, adap->params.rev,
 			    buf, is_offload(adap) ? "R" : "",
-			    adap->params.pci.width,
+			    adap->params.pci.width, spd,
 			    (adap->flags & USING_MSIX) ? " MSI-X" :
 			    (adap->flags & USING_MSI) ? " MSI" : "");
 		if (adap->name == dev->name)
