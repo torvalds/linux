@@ -28,6 +28,7 @@
 /* #define VERBOSE_DEBUG */
 
 #include <linux/blkdev.h>
+#include <linux/pagemap.h>
 #include <asm/unaligned.h>
 #include <linux/smp_lock.h>
 
