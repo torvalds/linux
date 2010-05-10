@@ -5670,6 +5670,8 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	ap->stats.unhandled_irq = 1;
 	ap->stats.idle_irq = 1;
 #endif
+	ata_sff_port_init(ap);
+
 	return ap;
 }
 
@@ -6584,6 +6586,8 @@ static void __init ata_parse_force_param(void)
 
 static int __init ata_init(void)
 {
+	int rc = -ENOMEM;
+
 	ata_parse_force_param();
 
 	/*
@@ -6595,24 +6599,31 @@ static int __init ata_init(void)
 	 */
 	ata_wq = create_workqueue("ata");
 	if (!ata_wq)
-		goto free_force_tbl;
+		goto fail;
 
 	ata_aux_wq = create_singlethread_workqueue("ata_aux");
 	if (!ata_aux_wq)
-		goto free_wq;
+		goto fail;
+
+	rc = ata_sff_init();
+	if (rc)
+		goto fail;
 
 	printk(KERN_DEBUG "libata version " DRV_VERSION " loaded.\n");
 	return 0;
 
-free_wq:
-	destroy_workqueue(ata_wq);
-free_force_tbl:
+fail:
 	kfree(ata_force_tbl);
-	return -ENOMEM;
+	if (ata_wq)
+		destroy_workqueue(ata_wq);
+	if (ata_aux_wq)
+		destroy_workqueue(ata_aux_wq);
+	return rc;
 }
 
 static void __exit ata_exit(void)
 {
+	ata_sff_exit();
 	kfree(ata_force_tbl);
 	destroy_workqueue(ata_wq);
 	destroy_workqueue(ata_aux_wq);

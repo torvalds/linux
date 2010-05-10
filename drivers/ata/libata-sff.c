@@ -3061,3 +3061,26 @@ void ata_pci_bmdma_init(struct ata_host *host)
 EXPORT_SYMBOL_GPL(ata_pci_bmdma_init);
 
 #endif /* CONFIG_PCI */
+
+/**
+ *	ata_sff_port_init - Initialize SFF/BMDMA ATA port
+ *	@ap: Port to initialize
+ *
+ *	Called on port allocation to initialize SFF/BMDMA specific
+ *	fields.
+ *
+ *	LOCKING:
+ *	None.
+ */
+void ata_sff_port_init(struct ata_port *ap)
+{
+}
+
+int __init ata_sff_init(void)
+{
+	return 0;
+}
+
+void __exit ata_sff_exit(void)
+{
+}
