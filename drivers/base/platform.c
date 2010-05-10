@@ -967,17 +967,17 @@ static int platform_pm_restore_noirq(struct device *dev)
 
 int __weak platform_pm_runtime_suspend(struct device *dev)
 {
-	return -ENOSYS;
+	return pm_generic_runtime_suspend(dev);
 };
 
 int __weak platform_pm_runtime_resume(struct device *dev)
 {
-	return -ENOSYS;
+	return pm_generic_runtime_resume(dev);
 };
 
 int __weak platform_pm_runtime_idle(struct device *dev)
 {
-	return -ENOSYS;
+	return pm_generic_runtime_idle(dev);
 };
 
 #else /* !CONFIG_PM_RUNTIME */
