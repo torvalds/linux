@@ -614,7 +614,7 @@ struct ipr_auto_sense {
 	__be32 data[SCSI_SENSE_BUFFERSIZE/sizeof(__be32)];
 };
 
-struct ipr_ioasa {
+struct ipr_ioasa_hdr {
 	__be32 ioasc;
 #define IPR_IOASC_SENSE_KEY(ioasc) ((ioasc) >> 24)
 #define IPR_IOASC_SENSE_CODE(ioasc) (((ioasc) & 0x00ff0000) >> 16)
@@ -645,6 +645,25 @@ struct ipr_ioasa {
 #define IPR_IOASC_SPECIFIC_MASK		0x00ffffff
 #define IPR_FIELD_POINTER_VALID		(0x80000000 >> 8)
 #define IPR_FIELD_POINTER_MASK		0x0000ffff
+
+}__attribute__((packed, aligned (4)));
+
+struct ipr_ioasa {
+	struct ipr_ioasa_hdr hdr;
+
+	union {
+		struct ipr_ioasa_vset vset;
+		struct ipr_ioasa_af_dasd dasd;
+		struct ipr_ioasa_gpdd gpdd;
+		struct ipr_ioasa_gata gata;
+	} u;
+
+	struct ipr_auto_sense auto_sense;
+}__attribute__((packed, aligned (4)));
+
+struct ipr_ioasa64 {
+	struct ipr_ioasa_hdr hdr;
+	u8 fd_res_path[8];
 
 	union {
 		struct ipr_ioasa_vset vset;
@@ -1465,7 +1484,10 @@ struct ipr_cmnd {
 		struct ipr_ioadl64_desc ioadl64[IPR_NUM_IOADL_ENTRIES];
 		struct ipr_ata64_ioadl ata_ioadl;
 	} i;
-	struct ipr_ioasa ioasa;
+	union {
+		struct ipr_ioasa ioasa;
+		struct ipr_ioasa64 ioasa64;
+	} s;
 	struct list_head queue;
 	struct scsi_cmnd *scsi_cmd;
 	struct ata_queued_cmd *qc;
