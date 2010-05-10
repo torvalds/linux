@@ -31,7 +31,7 @@ struct ui_progress *ui_progress__new(const char *title, u64 total)
 		self->scale = newtScale(0, 0, cols, total);
 		if (self->scale == NULL)
 			goto out_free_form;
-		newtFormAddComponents(self->form, self->scale, NULL);
+		newtFormAddComponent(self->form, self->scale);
 		newtRefresh();
 	}
 
@@ -107,7 +107,7 @@ static int popup_menu(int argc, char * const argv[])
 	if (listbox == NULL)
 		goto out_destroy_form;
 
-	newtFormAddComponents(form, listbox, NULL);
+	newtFormAddComponent(form, listbox);
 
 	for (i = 0; i < argc; ++i) {
 		int len = strlen(argv[i]);
@@ -365,7 +365,7 @@ static void map_symbol__annotate_browser(const struct map_symbol *self,
 
 	newtCenteredWindow(max_line_len + 2, rows - 5, self->sym->name);
 	form = newt_form__new();
-	newtFormAddComponents(form, tree, NULL);
+	newtFormAddComponent(form, tree);
 
 	newtFormRun(form, &es);
 	newtFormDestroy(form);
