@@ -1737,6 +1737,12 @@ static void e1000_diag_test(struct net_device *netdev,
 		if (if_running)
 			dev_open(netdev);
 	} else {
+		if (!if_running && (adapter->flags & FLAG_HAS_AMT)) {
+			clear_bit(__E1000_TESTING, &adapter->state);
+			dev_open(netdev);
+			set_bit(__E1000_TESTING, &adapter->state);
+		}
+
 		e_info("online testing starting\n");
 		/* Online tests */
 		if (e1000_link_test(adapter, &data[4]))
@@ -1747,6 +1753,9 @@ static void e1000_diag_test(struct net_device *netdev,
 		data[1] = 0;
 		data[2] = 0;
 		data[3] = 0;
+
+		if (!if_running && (adapter->flags & FLAG_HAS_AMT))
+			dev_close(netdev);
 
 		clear_bit(__E1000_TESTING, &adapter->state);
 	}

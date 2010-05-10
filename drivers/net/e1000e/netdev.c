@@ -3444,19 +3444,21 @@ static int e1000_open(struct net_device *netdev)
 	if (err)
 		goto err_setup_rx;
 
+	/*
+	 * If AMT is enabled, let the firmware know that the network
+	 * interface is now open and reset the part to a known state.
+	 */
+	if (adapter->flags & FLAG_HAS_AMT) {
+		e1000_get_hw_control(adapter);
+		e1000e_reset(adapter);
+	}
+
 	e1000e_power_up_phy(adapter);
 
 	adapter->mng_vlan_id = E1000_MNG_VLAN_NONE;
 	if ((adapter->hw.mng_cookie.status &
 	     E1000_MNG_DHCP_COOKIE_STATUS_VLAN))
 		e1000_update_mng_vlan(adapter);
-
-	/*
-	 * If AMT is enabled, let the firmware know that the network
-	 * interface is now open
-	 */
-	if (adapter->flags & FLAG_HAS_AMT)
-		e1000_get_hw_control(adapter);
 
 	/*
 	 * before we allocate an interrupt, we must be ready to handle it.
