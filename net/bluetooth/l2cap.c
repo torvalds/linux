@@ -55,11 +55,7 @@
 
 #define VERSION "2.14"
 
-#ifdef CONFIG_BT_L2CAP_EXT_FEATURES
-static int enable_ertm = 1;
-#else
 static int enable_ertm = 0;
-#endif
 
 static u32 l2cap_feat_mask = L2CAP_FEAT_FIXED_CHAN;
 static u8 l2cap_fixed_chan[8] = { 0x02, };
