@@ -721,10 +721,10 @@ struct ata_port {
 
 #ifdef CONFIG_ATA_SFF
 	struct ata_ioports	ioaddr;	/* ATA cmd/ctl/dma register blocks */
-#endif /* CONFIG_ATA_SFF */
-
 	u8			ctl;	/* cache of ATA control register */
 	u8			last_ctl;	/* Cache last written value */
+#endif /* CONFIG_ATA_SFF */
+
 	unsigned int		pio_mask;
 	unsigned int		mwdma_mask;
 	unsigned int		udma_mask;
@@ -1435,7 +1435,11 @@ static inline void ata_tf_init(struct ata_device *dev, struct ata_taskfile *tf)
 {
 	memset(tf, 0, sizeof(*tf));
 
+#ifdef CONFIG_ATA_SFF
 	tf->ctl = dev->link->ap->ctl;
+#else
+	tf->ctl = ATA_DEVCTL_OBS;
+#endif
 	if (dev->devno == 0)
 		tf->device = ATA_DEVICE_OBS;
 	else

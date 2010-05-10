@@ -3074,6 +3074,8 @@ EXPORT_SYMBOL_GPL(ata_pci_bmdma_init);
  */
 void ata_sff_port_init(struct ata_port *ap)
 {
+	ap->ctl = ATA_DEVCTL_OBS;
+	ap->last_ctl = 0xFF;
 }
 
 int __init ata_sff_init(void)
