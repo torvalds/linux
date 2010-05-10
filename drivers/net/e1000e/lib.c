@@ -2515,10 +2515,11 @@ s32 e1000e_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length)
 }
 
 /**
- *  e1000e_enable_mng_pass_thru - Enable processing of ARP's
+ *  e1000e_enable_mng_pass_thru - Check if management passthrough is needed
  *  @hw: pointer to the HW structure
  *
- *  Verifies the hardware needs to allow ARPs to be processed by the host.
+ *  Verifies the hardware needs to leave interface enabled so that frames can
+ *  be directed to and from the management interface.
  **/
 bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 {
@@ -2528,8 +2529,7 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 
 	manc = er32(MANC);
 
-	if (!(manc & E1000_MANC_RCV_TCO_EN) ||
-	    !(manc & E1000_MANC_EN_MAC_ADDR_FILTER))
+	if (!(manc & E1000_MANC_RCV_TCO_EN))
 		return ret_val;
 
 	if (hw->mac.arc_subsystem_valid) {
