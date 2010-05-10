@@ -504,12 +504,11 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	ofid = NULL;
 	fid = NULL;
 	name = (char *) dentry->d_name.name;
-	dfid = v9fs_fid_clone(dentry->d_parent);
+	dfid = v9fs_fid_lookup(dentry->d_parent);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
-		P9_DPRINTK(P9_DEBUG_VFS, "fid clone failed %d\n", err);
-		dfid = NULL;
-		goto error;
+		P9_DPRINTK(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
+		return ERR_PTR(err);
 	}
 
 	/* clone a fid to use for creation */
@@ -517,8 +516,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	if (IS_ERR(ofid)) {
 		err = PTR_ERR(ofid);
 		P9_DPRINTK(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
-		ofid = NULL;
-		goto error;
+		return ERR_PTR(err);
 	}
 
 	err = p9_client_fcreate(ofid, name, perm, mode, extension);
@@ -528,14 +526,13 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	}
 
 	/* now walk from the parent so we can get unopened fid */
-	fid = p9_client_walk(dfid, 1, &name, 0);
+	fid = p9_client_walk(dfid, 1, &name, 1);
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
 		P9_DPRINTK(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
 		fid = NULL;
 		goto error;
-	} else
-		dfid = NULL;
+	}
 
 	/* instantiate inode and assign the unopened fid to the dentry */
 	inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
@@ -558,9 +555,6 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	return ofid;
 
 error:
-	if (dfid)
-		p9_client_clunk(dfid);
-
 	if (ofid)
 		p9_client_clunk(ofid);
 
