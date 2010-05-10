@@ -76,6 +76,49 @@ static int tomoyo_write_control(struct file *file, const char __user *buffer,
 				const int buffer_len);
 
 /**
+ * tomoyo_parse_name_union - Parse a tomoyo_name_union.
+ *
+ * @filename: Name or name group.
+ * @ptr:      Pointer to "struct tomoyo_name_union".
+ *
+ * Returns true on success, false otherwise.
+ */
+bool tomoyo_parse_name_union(const char *filename,
+			     struct tomoyo_name_union *ptr)
+{
+	if (!tomoyo_is_correct_path(filename, 0, 0, 0))
+		return false;
+	if (filename[0] == '@') {
+		ptr->group = tomoyo_get_path_group(filename + 1);
+		ptr->is_group = true;
+		return ptr->group != NULL;
+	}
+	ptr->filename = tomoyo_get_name(filename);
+	ptr->is_group = false;
+	return ptr->filename != NULL;
+}
+
+/**
+ * tomoyo_print_name_union - Print a tomoyo_name_union.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @ptr:  Pointer to "struct tomoyo_name_union".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_print_name_union(struct tomoyo_io_buffer *head,
+				 const struct tomoyo_name_union *ptr)
+{
+	int pos = head->read_avail;
+	if (pos && head->read_buf[pos - 1] == ' ')
+		head->read_avail--;
+	if (ptr->is_group)
+		return tomoyo_io_printf(head, " @%s",
+					ptr->group->group_name->name);
+	return tomoyo_io_printf(head, " %s", ptr->filename->name);
+}
+
+/**
  * tomoyo_is_byte_range - Check whether the string isa \ooo style octal value.
  *
  * @str: Pointer to the string.
@@ -169,6 +212,33 @@ static void tomoyo_normalize_line(unsigned char *buffer)
 			sp++;
 	}
 	*dp = '\0';
+}
+
+/**
+ * tomoyo_tokenize - Tokenize string.
+ *
+ * @buffer: The line to tokenize.
+ * @w:      Pointer to "char *".
+ * @size:   Sizeof @w .
+ *
+ * Returns true on success, false otherwise.
+ */
+bool tomoyo_tokenize(char *buffer, char *w[], size_t size)
+{
+	int count = size / sizeof(char *);
+	int i;
+	for (i = 0; i < count; i++)
+		w[i] = "";
+	for (i = 0; i < count; i++) {
+		char *cp = strchr(buffer, ' ');
+		if (cp)
+			*cp = '\0';
+		w[i] = buffer;
+		if (!cp)
+			break;
+		buffer = cp + 1;
+	}
+	return i < count || !*buffer;
 }
 
 /**
@@ -1368,21 +1438,20 @@ static bool tomoyo_print_path_acl(struct tomoyo_io_buffer *head,
 {
 	int pos;
 	u8 bit;
-	const char *filename;
 	const u32 perm = ptr->perm | (((u32) ptr->perm_high) << 16);
 
-	filename = ptr->filename->name;
 	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH_OPERATION; bit++) {
-		const char *msg;
 		if (!(perm & (1 << bit)))
 			continue;
 		/* Print "read/write" instead of "read" and "write". */
 		if ((bit == TOMOYO_TYPE_READ || bit == TOMOYO_TYPE_WRITE)
 		    && (perm & (1 << TOMOYO_TYPE_READ_WRITE)))
 			continue;
-		msg = tomoyo_path2keyword(bit);
 		pos = head->read_avail;
-		if (!tomoyo_io_printf(head, "allow_%s %s\n", msg, filename))
+		if (!tomoyo_io_printf(head, "allow_%s ",
+				      tomoyo_path2keyword(bit)) ||
+		    !tomoyo_print_name_union(head, &ptr->name) ||
+		    !tomoyo_io_printf(head, "\n"))
 			goto out;
 	}
 	head->read_bit = 0;
@@ -1405,21 +1474,18 @@ static bool tomoyo_print_path2_acl(struct tomoyo_io_buffer *head,
 				   struct tomoyo_path2_acl *ptr)
 {
 	int pos;
-	const char *filename1;
-	const char *filename2;
 	const u8 perm = ptr->perm;
 	u8 bit;
 
-	filename1 = ptr->filename1->name;
-	filename2 = ptr->filename2->name;
 	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH2_OPERATION; bit++) {
-		const char *msg;
 		if (!(perm & (1 << bit)))
 			continue;
-		msg = tomoyo_path22keyword(bit);
 		pos = head->read_avail;
-		if (!tomoyo_io_printf(head, "allow_%s %s %s\n", msg,
-				      filename1, filename2))
+		if (!tomoyo_io_printf(head, "allow_%s ",
+				      tomoyo_path22keyword(bit)) ||
+		    !tomoyo_print_name_union(head, &ptr->name1) ||
+		    !tomoyo_print_name_union(head, &ptr->name2) ||
+		    !tomoyo_io_printf(head, "\n"))
 			goto out;
 	}
 	head->read_bit = 0;
@@ -1682,6 +1748,8 @@ static int tomoyo_write_exception_policy(struct tomoyo_io_buffer *head)
 		return tomoyo_write_pattern_policy(data, is_delete);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_DENY_REWRITE))
 		return tomoyo_write_no_rewrite_policy(data, is_delete);
+	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_PATH_GROUP))
+		return tomoyo_write_path_group_policy(data, is_delete);
 	return -EINVAL;
 }
 
@@ -1738,6 +1806,12 @@ static int tomoyo_read_exception_policy(struct tomoyo_io_buffer *head)
 			head->read_var2 = NULL;
 			head->read_step = 9;
 		case 9:
+			if (!tomoyo_read_path_group_policy(head))
+				break;
+			head->read_var1 = NULL;
+			head->read_var2 = NULL;
+			head->read_step = 10;
+		case 10:
 			head->read_eof = true;
 			break;
 		default:

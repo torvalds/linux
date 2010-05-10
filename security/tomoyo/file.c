@@ -45,6 +45,37 @@ static const char *tomoyo_path2_keyword[TOMOYO_MAX_PATH2_OPERATION] = {
 	[TOMOYO_TYPE_PIVOT_ROOT] = "pivot_root",
 };
 
+void tomoyo_put_name_union(struct tomoyo_name_union *ptr)
+{
+	if (!ptr)
+		return;
+	if (ptr->is_group)
+		tomoyo_put_path_group(ptr->group);
+	else
+		tomoyo_put_name(ptr->filename);
+}
+
+bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
+			       const struct tomoyo_name_union *ptr)
+{
+	if (ptr->is_group)
+		return tomoyo_path_matches_group(name, ptr->group, 1);
+	return tomoyo_path_matches_pattern(name, ptr->filename);
+}
+
+static bool tomoyo_compare_name_union_pattern(const struct tomoyo_path_info
+					      *name,
+					      const struct tomoyo_name_union
+					      *ptr, const bool may_use_pattern)
+{
+	if (ptr->is_group)
+		return tomoyo_path_matches_group(name, ptr->group,
+						 may_use_pattern);
+	if (may_use_pattern || !ptr->filename->is_patterned)
+		return tomoyo_path_matches_pattern(name, ptr->filename);
+	return false;
+}
+
 /**
  * tomoyo_path2keyword - Get the name of single path operation.
  *
@@ -637,13 +668,9 @@ static int tomoyo_path_acl2(const struct tomoyo_domain_info *domain,
 			if (!(acl->perm_high & (perm >> 16)))
 				continue;
 		}
-		if (may_use_pattern || !acl->filename->is_patterned) {
-			if (!tomoyo_path_matches_pattern(filename,
-							 acl->filename))
-				continue;
-		} else {
+		if (!tomoyo_compare_name_union_pattern(filename, &acl->name,
+                                                       may_use_pattern))
 			continue;
-		}
 		error = 0;
 		break;
 	}
@@ -817,19 +844,14 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
 		e.perm |= tomoyo_rw_mask;
 	if (!domain)
 		return -EINVAL;
-	if (!tomoyo_is_correct_path(filename, 0, 0, 0))
+	if (!tomoyo_parse_name_union(filename, &e.name))
 		return -EINVAL;
-	e.filename = tomoyo_get_name(filename);
-	if (!e.filename)
-		return -ENOMEM;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		struct tomoyo_path_acl *acl =
 			container_of(ptr, struct tomoyo_path_acl, head);
-		if (ptr->type != TOMOYO_TYPE_PATH_ACL)
-			continue;
-		if (acl->filename != e.filename)
+		if (!tomoyo_is_same_path_acl(acl, &e))
 			continue;
 		if (is_delete) {
 			if (perm <= 0xFFFF)
@@ -864,7 +886,7 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
-	tomoyo_put_name(e.filename);
+	tomoyo_put_name_union(&e.name);
 	return error;
 }
 
@@ -896,22 +918,15 @@ static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
 
 	if (!domain)
 		return -EINVAL;
-	if (!tomoyo_is_correct_path(filename1, 0, 0, 0) ||
-	    !tomoyo_is_correct_path(filename2, 0, 0, 0))
-		return -EINVAL;
-	e.filename1 = tomoyo_get_name(filename1);
-	e.filename2 = tomoyo_get_name(filename2);
-	if (!e.filename1 || !e.filename2)
+	if (!tomoyo_parse_name_union(filename1, &e.name1) ||
+	    !tomoyo_parse_name_union(filename2, &e.name2))
 		goto out;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		struct tomoyo_path2_acl *acl =
 			container_of(ptr, struct tomoyo_path2_acl, head);
-		if (ptr->type != TOMOYO_TYPE_PATH2_ACL)
-			continue;
-		if (acl->filename1 != e.filename1 ||
-		    acl->filename2 != e.filename2)
+		if (!tomoyo_is_same_path2_acl(acl, &e))
 			continue;
 		if (is_delete)
 			acl->perm &= ~perm;
@@ -931,8 +946,8 @@ static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
-	tomoyo_put_name(e.filename1);
-	tomoyo_put_name(e.filename2);
+	tomoyo_put_name_union(&e.name1);
+	tomoyo_put_name_union(&e.name2);
 	return error;
 }
 
@@ -985,9 +1000,9 @@ static int tomoyo_path2_acl(const struct tomoyo_domain_info *domain,
 		acl = container_of(ptr, struct tomoyo_path2_acl, head);
 		if (!(acl->perm & perm))
 			continue;
-		if (!tomoyo_path_matches_pattern(filename1, acl->filename1))
+		if (!tomoyo_compare_name_union(filename1, &acl->name1))
 			continue;
-		if (!tomoyo_path_matches_pattern(filename2, acl->filename2))
+		if (!tomoyo_compare_name_union(filename2, &acl->name2))
 			continue;
 		error = 0;
 		break;
