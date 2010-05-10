@@ -129,14 +129,7 @@ static struct map_desc rk2818_io_desc[] __initdata = {
 		.length 	= 0xa0000,                      ///apb bus i2s i2c spi no map in this
 		.type		= MT_DEVICE
 	},
-	
-    {
-		.virtual	= 0xff400000,           /* for itcm , vir = phy , for reboot */
-		.pfn		= __phys_to_pfn(0xff400000),
-		.length 	= SZ_16K,
-		.type		= MT_DEVICE
-	}
-		
+
 };
 
 static struct platform_device *devices[] __initdata = {
