@@ -563,7 +563,7 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 
 	switch (dev->tuner_type) {
 	case TUNER_XC2028:
-		tun_setup.tuner_callback = tm6000_tuner_callback;;
+		tun_setup.tuner_callback = tm6000_tuner_callback;
 		break;
 	case TUNER_XC5000:
 		tun_setup.tuner_callback = tm6000_xc5000_callback;
