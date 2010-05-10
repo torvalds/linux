@@ -66,6 +66,9 @@ struct bfin_mac_local {
 	unsigned char Mac[6];	/* MAC address of the board */
 	spinlock_t lock;
 
+	int wol;		/* Wake On Lan */
+	int irq_wake_requested;
+
 	/* MII and PHY stuffs */
 	int old_link;          /* used by bf537_adjust_link */
 	int old_speed;

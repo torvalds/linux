@@ -464,6 +464,14 @@ static int mii_probe(struct net_device *dev)
  * Ethtool support
  */
 
+/*
+ * interrupt routine for magic packet wakeup
+ */
+static irqreturn_t bfin_mac_wake_interrupt(int irq, void *dev_id)
+{
+	return IRQ_HANDLED;
+}
+
 static int
 bfin_mac_ethtool_getsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
@@ -498,11 +506,57 @@ static void bfin_mac_ethtool_getdrvinfo(struct net_device *dev,
 	strcpy(info->bus_info, dev_name(&dev->dev));
 }
 
+static void bfin_mac_ethtool_getwol(struct net_device *dev,
+	struct ethtool_wolinfo *wolinfo)
+{
+	struct bfin_mac_local *lp = netdev_priv(dev);
+
+	wolinfo->supported = WAKE_MAGIC;
+	wolinfo->wolopts = lp->wol;
+}
+
+static int bfin_mac_ethtool_setwol(struct net_device *dev,
+	struct ethtool_wolinfo *wolinfo)
+{
+	struct bfin_mac_local *lp = netdev_priv(dev);
+	int rc;
+
+	if (wolinfo->wolopts & (WAKE_MAGICSECURE |
+				WAKE_UCAST |
+				WAKE_MCAST |
+				WAKE_BCAST |
+				WAKE_ARP))
+		return -EOPNOTSUPP;
+
+	lp->wol = wolinfo->wolopts;
+
+	if (lp->wol && !lp->irq_wake_requested) {
+		/* register wake irq handler */
+		rc = request_irq(IRQ_MAC_WAKEDET, bfin_mac_wake_interrupt,
+				 IRQF_DISABLED, "EMAC_WAKE", dev);
+		if (rc)
+			return rc;
+		lp->irq_wake_requested = true;
+	}
+
+	if (!lp->wol && lp->irq_wake_requested) {
+		free_irq(IRQ_MAC_WAKEDET, dev);
+		lp->irq_wake_requested = false;
+	}
+
+	/* Make sure the PHY driver doesn't suspend */
+	device_init_wakeup(&dev->dev, lp->wol);
+
+	return 0;
+}
+
 static const struct ethtool_ops bfin_mac_ethtool_ops = {
 	.get_settings = bfin_mac_ethtool_getsettings,
 	.set_settings = bfin_mac_ethtool_setsettings,
 	.get_link = ethtool_op_get_link,
 	.get_drvinfo = bfin_mac_ethtool_getdrvinfo,
+	.get_wol = bfin_mac_ethtool_getwol,
+	.set_wol = bfin_mac_ethtool_setwol,
 };
 
 /**************************************************************************/
@@ -1474,9 +1528,16 @@ static int __devexit bfin_mac_remove(struct platform_device *pdev)
 static int bfin_mac_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct net_device *net_dev = platform_get_drvdata(pdev);
+	struct bfin_mac_local *lp = netdev_priv(net_dev);
 
-	if (netif_running(net_dev))
-		bfin_mac_close(net_dev);
+	if (lp->wol) {
+		bfin_write_EMAC_OPMODE((bfin_read_EMAC_OPMODE() & ~TE) | RE);
+		bfin_write_EMAC_WKUP_CTL(MPKE);
+		enable_irq_wake(IRQ_MAC_WAKEDET);
+	} else {
+		if (netif_running(net_dev))
+			bfin_mac_close(net_dev);
+	}
 
 	return 0;
 }
@@ -1484,9 +1545,16 @@ static int bfin_mac_suspend(struct platform_device *pdev, pm_message_t mesg)
 static int bfin_mac_resume(struct platform_device *pdev)
 {
 	struct net_device *net_dev = platform_get_drvdata(pdev);
+	struct bfin_mac_local *lp = netdev_priv(net_dev);
 
-	if (netif_running(net_dev))
-		bfin_mac_open(net_dev);
+	if (lp->wol) {
+		bfin_write_EMAC_OPMODE(bfin_read_EMAC_OPMODE() | TE);
+		bfin_write_EMAC_WKUP_CTL(0);
+		disable_irq_wake(IRQ_MAC_WAKEDET);
+	} else {
+		if (netif_running(net_dev))
+			bfin_mac_open(net_dev);
+	}
 
 	return 0;
 }
