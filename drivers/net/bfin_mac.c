@@ -203,6 +203,11 @@ static int desc_list_init(void)
 			goto init_error;
 		}
 		skb_reserve(new_skb, NET_IP_ALIGN);
+		/* Invidate the data cache of skb->data range when it is write back
+		 * cache. It will prevent overwritting the new data from DMA
+		 */
+		blackfin_dcache_invalidate_range((unsigned long)new_skb->head,
+					 (unsigned long)new_skb->end);
 		r->skb = new_skb;
 
 		/*
@@ -1011,19 +1016,17 @@ static void bfin_mac_rx(struct net_device *dev)
 	}
 	/* reserve 2 bytes for RXDWA padding */
 	skb_reserve(new_skb, NET_IP_ALIGN);
-	current_rx_ptr->skb = new_skb;
-	current_rx_ptr->desc_a.start_addr = (unsigned long)new_skb->data - 2;
-
 	/* Invidate the data cache of skb->data range when it is write back
 	 * cache. It will prevent overwritting the new data from DMA
 	 */
 	blackfin_dcache_invalidate_range((unsigned long)new_skb->head,
 					 (unsigned long)new_skb->end);
 
+	current_rx_ptr->skb = new_skb;
+	current_rx_ptr->desc_a.start_addr = (unsigned long)new_skb->data - 2;
+
 	len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
 	skb_put(skb, len);
-	blackfin_dcache_invalidate_range((unsigned long)skb->head,
-					 (unsigned long)skb->tail);
 
 	skb->protocol = eth_type_trans(skb, dev);
 
