@@ -1,6 +1,6 @@
 config MRST_RAR_HANDLER
 	tristate "RAR handler driver for Intel Moorestown platform"
-	select RAR_REGISTER
+	depends on RAR_REGISTER
 	---help---
 	  This driver provides a memory management interface to
 	  restricted access regions (RAR) available on the Intel
