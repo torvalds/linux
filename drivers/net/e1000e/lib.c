@@ -2272,6 +2272,11 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 	u32 hicr;
 	u8 i;
 
+	if (!(hw->mac.arc_subsystem_valid)) {
+		e_dbg("ARC subsystem not valid.\n");
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
+	}
+
 	/* Check that the host interface is enabled. */
 	hicr = er32(HICR);
 	if ((hicr & E1000_HICR_EN) == 0) {
@@ -2530,9 +2535,9 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 	manc = er32(MANC);
 
 	if (!(manc & E1000_MANC_RCV_TCO_EN))
-		return ret_val;
+		goto out;
 
-	if (hw->mac.arc_subsystem_valid) {
+	if (hw->mac.has_fwsm) {
 		fwsm = er32(FWSM);
 		factps = er32(FACTPS);
 
@@ -2540,16 +2545,28 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 		    ((fwsm & E1000_FWSM_MODE_MASK) ==
 		     (e1000_mng_mode_pt << E1000_FWSM_MODE_SHIFT))) {
 			ret_val = true;
-			return ret_val;
+			goto out;
 		}
-	} else {
-		if ((manc & E1000_MANC_SMBUS_EN) &&
+	} else if ((hw->mac.type == e1000_82574) ||
+		   (hw->mac.type == e1000_82583)) {
+		u16 data;
+
+		factps = er32(FACTPS);
+		e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &data);
+
+		if (!(factps & E1000_FACTPS_MNGCG) &&
+		    ((data & E1000_NVM_INIT_CTRL2_MNGM) ==
+		     (e1000_mng_mode_pt << 13))) {
+			ret_val = true;
+			goto out;
+		}
+	} else if ((manc & E1000_MANC_SMBUS_EN) &&
 		    !(manc & E1000_MANC_ASF_EN)) {
 			ret_val = true;
-			return ret_val;
-		}
+			goto out;
 	}
 
+out:
 	return ret_val;
 }
 

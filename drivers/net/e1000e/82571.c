@@ -234,9 +234,6 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	mac->mta_reg_count = 128;
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
-	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK)
-	                ? true : false;
 	/* Adaptive IFS supported */
 	mac->adaptive_ifs = true;
 
@@ -271,6 +268,16 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 		func->set_lan_id = e1000_set_lan_id_single_port;
 		func->check_mng_mode = e1000e_check_mng_mode_generic;
 		func->led_on = e1000e_led_on_generic;
+
+		/* FWSM register */
+		mac->has_fwsm = true;
+		/*
+		 * ARC supported; valid only if manageability features are
+		 * enabled.
+		 */
+		mac->arc_subsystem_valid =
+			(er32(FWSM) & E1000_FWSM_MODE_MASK)
+			? true : false;
 		break;
 	case e1000_82574:
 	case e1000_82583:
@@ -281,6 +288,9 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	default:
 		func->check_mng_mode = e1000e_check_mng_mode_generic;
 		func->led_on = e1000e_led_on_generic;
+
+		/* FWSM register */
+		mac->has_fwsm = true;
 		break;
 	}
 
@@ -993,9 +1003,10 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	/* ...for both queues. */
 	switch (mac->type) {
 	case e1000_82573:
+		e1000e_enable_tx_pkt_filtering(hw);
+		/* fall through */
 	case e1000_82574:
 	case e1000_82583:
-		e1000e_enable_tx_pkt_filtering(hw);
 		reg_data = er32(GCR);
 		reg_data |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
 		ew32(GCR, reg_data);
