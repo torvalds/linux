@@ -21,6 +21,7 @@
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
 #include <linux/rbtree.h>
+#include <linux/slab.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"

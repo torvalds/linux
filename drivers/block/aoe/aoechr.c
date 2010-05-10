@@ -8,6 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/skbuff.h>
 #include "aoe.h"

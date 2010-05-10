@@ -27,6 +27,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include "ehea.h"
 #include "ehea_phyp.h"
 #include "ehea_qmr.h"

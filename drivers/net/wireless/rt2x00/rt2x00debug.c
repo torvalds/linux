@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 
 #include "rt2x00.h"

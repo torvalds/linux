@@ -62,6 +62,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/isp116x.h>
 #include <linux/platform_device.h>

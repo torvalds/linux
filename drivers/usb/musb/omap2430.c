@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/clk.h>
@@ -331,9 +330,6 @@ int musb_platform_exit(struct musb *musb)
 	omap_vbus_power(musb, 0 /*off*/, 1);
 
 	musb_platform_suspend(musb);
-
-	clk_put(musb->clock);
-	musb->clock = NULL;
 
 	return 0;
 }

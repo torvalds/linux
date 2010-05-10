@@ -19,6 +19,7 @@
 
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>

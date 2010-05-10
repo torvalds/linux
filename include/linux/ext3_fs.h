@@ -565,17 +565,17 @@ enum {
 
 static inline int ext3_test_inode_state(struct inode *inode, int bit)
 {
-	return test_bit(bit, &EXT3_I(inode)->i_state);
+	return test_bit(bit, &EXT3_I(inode)->i_state_flags);
 }
 
 static inline void ext3_set_inode_state(struct inode *inode, int bit)
 {
-	set_bit(bit, &EXT3_I(inode)->i_state);
+	set_bit(bit, &EXT3_I(inode)->i_state_flags);
 }
 
 static inline void ext3_clear_inode_state(struct inode *inode, int bit)
 {
-	clear_bit(bit, &EXT3_I(inode)->i_state);
+	clear_bit(bit, &EXT3_I(inode)->i_state_flags);
 }
 #else
 /* Assume that user mode programs are passing in an ext3fs superblock, not

@@ -40,6 +40,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 
 #include <asm/system.h>

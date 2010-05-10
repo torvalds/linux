@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/rbtree.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
 #include <asm/pci-bridge.h>

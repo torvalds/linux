@@ -26,6 +26,7 @@
  *   Port from Qemu.
  */
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/bitops.h>
 #include "irq.h"
 

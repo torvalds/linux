@@ -946,7 +946,7 @@ cleanup_critical:
 	clc	8(8,%r12),BASED(cleanup_table_io_work_loop)
 	jl	0f
 	clc	8(8,%r12),BASED(cleanup_table_io_work_loop+8)
-	jl	cleanup_io_return
+	jl	cleanup_io_work_loop
 0:
 	br	%r14
 
@@ -1020,6 +1020,12 @@ cleanup_sysc_leave_insn:
 	.quad	sysc_done - 16
 
 cleanup_io_return:
+	mvc	__LC_RETURN_PSW(8),0(%r12)
+	mvc	__LC_RETURN_PSW+8(8),BASED(cleanup_table_io_return)
+	la	%r12,__LC_RETURN_PSW
+	br	%r14
+
+cleanup_io_work_loop:
 	mvc	__LC_RETURN_PSW(8),0(%r12)
 	mvc	__LC_RETURN_PSW+8(8),BASED(cleanup_table_io_work_loop)
 	la	%r12,__LC_RETURN_PSW

@@ -15,7 +15,6 @@
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
 #include <linux/stddef.h>
-#include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/err.h>
 #include <linux/kernel.h>

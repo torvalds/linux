@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/proc_fs.h>		/* for proc_net_* */
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/jhash.h>
 #include <linux/random.h>

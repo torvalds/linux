@@ -65,6 +65,7 @@
 #include <linux/skbuff.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/slab.h>
 #include "i2400m-sdio.h"
 
 #define D_SUBMODULE rx

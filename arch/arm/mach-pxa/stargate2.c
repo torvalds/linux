@@ -764,11 +764,6 @@ static void __init stargate2_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	/* spi chip selects */
-	gpio_direction_output(37, 0);
-	gpio_direction_output(24, 0);
-	gpio_direction_output(39, 0);
-
 	platform_add_devices(ARRAY_AND_SIZE(stargate2_devices));
 
 	pxa2xx_set_spi_info(1, &pxa_ssp_master_0_info);

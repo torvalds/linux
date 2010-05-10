@@ -51,6 +51,7 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "mpt2sas_base.h"
 

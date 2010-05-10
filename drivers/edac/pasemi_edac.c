@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-#include <linux/slab.h>
 #include <linux/edac.h>
 #include "edac_core.h"
 

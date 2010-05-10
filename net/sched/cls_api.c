@@ -24,6 +24,7 @@
 #include <linux/kmod.h>
 #include <linux/netlink.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/netlink.h>

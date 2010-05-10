@@ -15,6 +15,7 @@
 #include <linux/pagemap.h>
 #include <linux/net.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>

@@ -26,6 +26,7 @@
 
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <linux/slab.h>
 
 #include "stmmac.h"
 

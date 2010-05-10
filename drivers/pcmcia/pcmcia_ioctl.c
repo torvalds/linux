@@ -27,6 +27,7 @@
 #include <linux/proc_fs.h>
 #include <linux/poll.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/smp_lock.h>
 #include <linux/workqueue.h>
@@ -710,7 +711,7 @@ static int ds_open(struct inode *inode, struct file *file)
 	    warning_printed = 1;
     }
 
-    if (s->pcmcia_state.present)
+    if (atomic_read(&s->present))
 	queue_event(user, CS_EVENT_CARD_INSERTION);
 out:
     unlock_kernel();
@@ -769,9 +770,6 @@ static ssize_t ds_read(struct file *file, char __user *buf,
 	return -EIO;
 
     s = user->socket;
-    if (s->pcmcia_state.dead)
-	return -EIO;
-
     ret = wait_event_interruptible(s->queue, !queue_empty(user));
     if (ret == 0)
 	ret = put_user(get_queued_event(user), (int __user *)buf) ? -EFAULT : 4;
@@ -837,8 +835,6 @@ static int ds_ioctl(struct inode *inode, struct file *file,
 	return -EIO;
 
     s = user->socket;
-    if (s->pcmcia_state.dead)
-	return -EIO;
 
     size = (cmd & IOCSIZE_MASK) >> IOCSIZE_SHIFT;
     if (size > sizeof(ds_ioctl_arg_t))

@@ -27,6 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/crc32c.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -42,8 +43,6 @@
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
 static void free_fs_root(struct btrfs_root *root);
-
-static atomic_t btrfs_bdi_num = ATOMIC_INIT(0);
 
 /*
  * end_io_wq structs are used to do processing in task context when an IO is
@@ -1374,18 +1373,10 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 {
 	int err;
 
-	bdi->name = "btrfs";
 	bdi->capabilities = BDI_CAP_MAP_COPY;
-	err = bdi_init(bdi);
+	err = bdi_setup_and_register(bdi, "btrfs", BDI_CAP_MAP_COPY);
 	if (err)
 		return err;
-
-	err = bdi_register(bdi, NULL, "btrfs-%d",
-				atomic_inc_return(&btrfs_bdi_num));
-	if (err) {
-		bdi_destroy(bdi);
-		return err;
-	}
 
 	bdi->ra_pages	= default_backing_dev_info.ra_pages;
 	bdi->unplug_io_fn	= btrfs_unplug_io_fn;
@@ -1634,7 +1625,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	atomic_set(&fs_info->async_submit_draining, 0);
 	atomic_set(&fs_info->nr_async_bios, 0);
 	fs_info->sb = sb;
-	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;
 	fs_info->metadata_ratio = 0;
 
@@ -1922,7 +1912,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	csum_root->track_dirty = 1;
 
-	btrfs_read_block_groups(extent_root);
+	ret = btrfs_read_block_groups(extent_root);
+	if (ret) {
+		printk(KERN_ERR "Failed to read block groups: %d\n", ret);
+		goto fail_block_groups;
+	}
 
 	fs_info->generation = generation;
 	fs_info->last_trans_committed = generation;
@@ -1932,7 +1926,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
 					       "btrfs-cleaner");
 	if (IS_ERR(fs_info->cleaner_kthread))
-		goto fail_csum_root;
+		goto fail_block_groups;
 
 	fs_info->transaction_kthread = kthread_run(transaction_kthread,
 						   tree_root,
@@ -2020,7 +2014,8 @@ fail_cleaner:
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 
-fail_csum_root:
+fail_block_groups:
+	btrfs_free_block_groups(fs_info);
 	free_extent_buffer(csum_root->node);
 	free_extent_buffer(csum_root->commit_root);
 fail_dev_root:

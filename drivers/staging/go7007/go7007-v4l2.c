@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/unistd.h>
 #include <linux/time.h>

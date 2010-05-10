@@ -27,6 +27,7 @@
 #include <linux/fsnotify.h>
 #include <linux/string.h>
 #include <linux/magic.h>
+#include <linux/slab.h>
 
 static struct vfsmount *debugfs_mount;
 static int debugfs_mount_count;

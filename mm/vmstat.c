@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/vmstat.h>
 #include <linux/sched.h>

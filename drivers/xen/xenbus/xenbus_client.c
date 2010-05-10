@@ -30,6 +30,7 @@
  * IN THE SOFTWARE.
  */
 
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <asm/xen/hypervisor.h>

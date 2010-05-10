@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/reboot.h>
 #include <asm/uaccess.h>

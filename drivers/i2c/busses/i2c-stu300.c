@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 /* the name of this kernel module */
 #define NAME "stu300"
@@ -497,7 +498,7 @@ static int stu300_set_clk(struct stu300_dev *dev, unsigned long clkrate)
 	int i = 0;
 
 	/* Locate the apropriate clock setting */
-	while (i < ARRAY_SIZE(stu300_clktable) &&
+	while (i < ARRAY_SIZE(stu300_clktable) - 1 &&
 	       stu300_clktable[i].rate < clkrate)
 		i++;
 

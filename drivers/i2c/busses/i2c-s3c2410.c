@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 #include <asm/io.h>

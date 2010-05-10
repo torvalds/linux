@@ -17,6 +17,7 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/freezer.h>

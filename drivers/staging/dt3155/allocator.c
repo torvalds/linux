@@ -55,6 +55,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>	/* PAGE_ALIGN() */
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/page.h>
 

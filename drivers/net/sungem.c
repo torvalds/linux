@@ -39,7 +39,6 @@
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -58,6 +57,7 @@
 #include <linux/bitops.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

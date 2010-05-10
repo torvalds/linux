@@ -8,6 +8,7 @@
 #include <linux/kmod.h>
 #include <linux/reboot.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 #include <linux/of_device.h>
 #include <asm/oplib.h>
 

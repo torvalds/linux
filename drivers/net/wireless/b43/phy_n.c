@@ -23,6 +23,7 @@
 */
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 
 #include "b43.h"

@@ -48,6 +48,7 @@
  *     __i2400ms_send_barker()
  */
 
+#include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio.h>

@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/mach/flash.h>
 #include <plat/gpmc.h>

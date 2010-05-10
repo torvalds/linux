@@ -19,6 +19,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/configfs.h>

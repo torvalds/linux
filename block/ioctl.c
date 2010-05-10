@@ -1,5 +1,6 @@
 #include <linux/capability.h>
 #include <linux/blkdev.h>
+#include <linux/gfp.h>
 #include <linux/blkpg.h>
 #include <linux/hdreg.h>
 #include <linux/backing-dev.h>

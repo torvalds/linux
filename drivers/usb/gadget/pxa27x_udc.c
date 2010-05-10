@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>

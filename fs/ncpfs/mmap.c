@@ -9,12 +9,12 @@
 #include <linux/stat.h>
 #include <linux/time.h>
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/shm.h>
 #include <linux/errno.h>
 #include <linux/mman.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/fcntl.h>
 #include <linux/ncp_fs.h>
 

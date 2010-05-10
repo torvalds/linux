@@ -376,8 +376,11 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 		if (!np->type)
 			np->type = "<NULL>";
 	}
-	while (tag == OF_DT_BEGIN_NODE) {
-		mem = unflatten_dt_node(mem, p, np, allnextpp, fpsize);
+	while (tag == OF_DT_BEGIN_NODE || tag == OF_DT_NOP) {
+		if (tag == OF_DT_NOP)
+			*p += 4;
+		else
+			mem = unflatten_dt_node(mem, p, np, allnextpp, fpsize);
 		tag = be32_to_cpup((__be32 *)(*p));
 	}
 	if (tag != OF_DT_END_NODE) {

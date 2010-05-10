@@ -22,6 +22,7 @@
 
 #include <linux/jiffies.h>
 #include <linux/file.h>
+#include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/sched.h>
 #include <linux/fs.h>

@@ -30,6 +30,7 @@
 
 #include <linux/module.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>

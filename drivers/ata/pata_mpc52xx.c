@@ -16,7 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/libata.h>
 #include <linux/of_platform.h>

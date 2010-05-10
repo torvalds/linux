@@ -25,6 +25,7 @@
 #include <linux/jiffies.h>
 #include <linux/crc32.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <linux/io.h>
 

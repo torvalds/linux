@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/bootmem.h>
 #include <linux/highmem.h>
 #include <linux/fs.h>

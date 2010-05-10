@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
 #include <asm/cacheflush.h>

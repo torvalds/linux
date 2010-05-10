@@ -1875,7 +1875,6 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data,
 ok:
 		spin_unlock(&res->spinlock);
 	}
-	spin_unlock(&dlm->spinlock);
 
 	// mlog(0, "woo!  got an assert_master from node %u!\n",
 	// 	     assert->node_idx);
@@ -1926,7 +1925,6 @@ ok:
 		/* master is known, detach if not already detached.
 		 * ensures that only one assert_master call will happen
 		 * on this mle. */
-		spin_lock(&dlm->spinlock);
 		spin_lock(&dlm->master_lock);
 
 		rr = atomic_read(&mle->mle_refs.refcount);
@@ -1959,7 +1957,6 @@ ok:
 			__dlm_put_mle(mle);
 		}
 		spin_unlock(&dlm->master_lock);
-		spin_unlock(&dlm->spinlock);
 	} else if (res) {
 		if (res->owner != assert->node_idx) {
 			mlog(0, "assert_master from %u, but current "
@@ -1967,6 +1964,7 @@ ok:
 			     res->owner, namelen, name);
 		}
 	}
+	spin_unlock(&dlm->spinlock);
 
 done:
 	ret = 0;

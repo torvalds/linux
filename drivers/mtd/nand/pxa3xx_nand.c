@@ -21,6 +21,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 
 #include <mach/dma.h>
 #include <plat/pxa3xx_nand.h>

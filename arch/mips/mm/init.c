@@ -28,6 +28,7 @@
 #include <linux/proc_fs.h>
 #include <linux/pfn.h>
 #include <linux/hardirq.h>
+#include <linux/gfp.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/bootinfo.h>

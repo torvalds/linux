@@ -39,6 +39,7 @@
 #include <linux/security.h>
 #include <linux/xattr.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -48,7 +49,6 @@
 #include "print-tree.h"
 #include "volumes.h"
 #include "locking.h"
-#include "ctree.h"
 
 /* Mask out flags that are inappropriate for the given type of inode. */
 static inline __u32 btrfs_mask_flags(umode_t mode, __u32 flags)
@@ -511,7 +511,7 @@ static int should_defrag_range(struct inode *inode, u64 start, u64 len,
 		em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
 		unlock_extent(io_tree, start, start + len - 1, GFP_NOFS);
 
-		if (!em)
+		if (IS_ERR(em))
 			return 0;
 	}
 
@@ -1212,6 +1212,9 @@ static noinline int btrfs_ioctl_ino_lookup(struct file *file,
 		return -EPERM;
 
 	args = kmalloc(sizeof(*args), GFP_KERNEL);
+	if (!args)
+		return -ENOMEM;
+
 	if (copy_from_user(args, argp, sizeof(*args))) {
 		kfree(args);
 		return -EFAULT;
@@ -1375,6 +1378,7 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 					   sizeof(*range))) {
 				ret = -EFAULT;
 				kfree(range);
+				goto out;
 			}
 			/* compression requires us to start the IO */
 			if ((range->flags & BTRFS_DEFRAG_RANGE_COMPRESS)) {

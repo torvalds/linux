@@ -24,6 +24,7 @@
 
 #include <linux/mutex.h>
 #include <linux/buffer_head.h>
+#include <linux/slab.h>
 #include <linux/zlib.h>
 
 #include "squashfs_fs.h"
@@ -127,8 +128,9 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 		goto release_mutex;
 	}
 
+	length = stream->total_out;
 	mutex_unlock(&msblk->read_data_mutex);
-	return stream->total_out;
+	return length;
 
 release_mutex:
 	mutex_unlock(&msblk->read_data_mutex);

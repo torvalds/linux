@@ -6,6 +6,7 @@
 #include <linux/inet.h>
 #include <linux/kthread.h>
 #include <linux/net.h>
+#include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/string.h>
 #include <net/tcp.h>
@@ -28,6 +29,10 @@
 static char tag_msg = CEPH_MSGR_TAG_MSG;
 static char tag_ack = CEPH_MSGR_TAG_ACK;
 static char tag_keepalive = CEPH_MSGR_TAG_KEEPALIVE;
+
+#ifdef CONFIG_LOCKDEP
+static struct lock_class_key socket_class;
+#endif
 
 
 static void queue_con(struct ceph_connection *con);
@@ -227,6 +232,10 @@ static struct socket *ceph_tcp_connect(struct ceph_connection *con)
 	con->sock = sock;
 	sock->sk->sk_allocation = GFP_NOFS;
 
+#ifdef CONFIG_LOCKDEP
+	lockdep_set_class(&sock->sk->sk_lock, &socket_class);
+#endif
+
 	set_sock_callbacks(sock, con);
 
 	dout("connect %s\n", pr_addr(&con->peer_addr.in_addr));
@@ -332,6 +341,7 @@ static void reset_connection(struct ceph_connection *con)
 		con->out_msg = NULL;
 	}
 	con->in_seq = 0;
+	con->in_seq_acked = 0;
 }
 
 /*
@@ -363,6 +373,14 @@ void ceph_con_open(struct ceph_connection *con, struct ceph_entity_addr *addr)
 	memcpy(&con->peer_addr, addr, sizeof(*addr));
 	con->delay = 0;      /* reset backoff memory */
 	queue_con(con);
+}
+
+/*
+ * return true if this connection ever successfully opened
+ */
+bool ceph_con_opened(struct ceph_connection *con)
+{
+	return con->connect_seq > 0;
 }
 
 /*
@@ -830,13 +848,6 @@ static void prepare_read_connect(struct ceph_connection *con)
 	con->in_base_pos = 0;
 }
 
-static void prepare_read_connect_retry(struct ceph_connection *con)
-{
-	dout("prepare_read_connect_retry %p\n", con);
-	con->in_base_pos = strlen(CEPH_BANNER) + sizeof(con->actual_peer_addr)
-		+ sizeof(con->peer_addr_for_me);
-}
-
 static void prepare_read_ack(struct ceph_connection *con)
 {
 	dout("prepare_read_ack %p\n", con);
@@ -1146,7 +1157,7 @@ static int process_connect(struct ceph_connection *con)
 		}
 		con->auth_retry = 1;
 		prepare_write_connect(con->msgr, con, 0);
-		prepare_read_connect_retry(con);
+		prepare_read_connect(con);
 		break;
 
 	case CEPH_MSGR_TAG_RESETSESSION:
@@ -1323,6 +1334,7 @@ static int read_partial_message(struct ceph_connection *con)
 	unsigned front_len, middle_len, data_len, data_off;
 	int datacrc = con->msgr->nocrc;
 	int skip;
+	u64 seq;
 
 	dout("read_partial_message con %p msg %p\n", con, m);
 
@@ -1357,6 +1369,25 @@ static int read_partial_message(struct ceph_connection *con)
 		return -EIO;
 	data_off = le16_to_cpu(con->in_hdr.data_off);
 
+	/* verify seq# */
+	seq = le64_to_cpu(con->in_hdr.seq);
+	if ((s64)seq - (s64)con->in_seq < 1) {
+		pr_info("skipping %s%lld %s seq %lld, expected %lld\n",
+			ENTITY_NAME(con->peer_name),
+			pr_addr(&con->peer_addr.in_addr),
+			seq, con->in_seq + 1);
+		con->in_base_pos = -front_len - middle_len - data_len -
+			sizeof(m->footer);
+		con->in_tag = CEPH_MSGR_TAG_READY;
+		con->in_seq++;
+		return 0;
+	} else if ((s64)seq - (s64)con->in_seq > 1) {
+		pr_err("read_partial_message bad seq %lld expected %lld\n",
+		       seq, con->in_seq + 1);
+		con->error_msg = "bad message sequence # for incoming message";
+		return -EBADMSG;
+	}
+
 	/* allocate message? */
 	if (!con->in_msg) {
 		dout("got hdr type %d front %d data %d\n", con->in_hdr.type,
@@ -1368,6 +1399,7 @@ static int read_partial_message(struct ceph_connection *con)
 			con->in_base_pos = -front_len - middle_len - data_len -
 				sizeof(m->footer);
 			con->in_tag = CEPH_MSGR_TAG_READY;
+			con->in_seq++;
 			return 0;
 		}
 		if (IS_ERR(con->in_msg)) {
@@ -1843,8 +1875,6 @@ static void ceph_fault(struct ceph_connection *con)
 		goto out;
 	}
 
-	clear_bit(BUSY, &con->state);  /* to avoid an improbable race */
-
 	mutex_lock(&con->mutex);
 	if (test_bit(CLOSED, &con->state))
 		goto out_unlock;
@@ -2021,6 +2051,7 @@ void ceph_con_revoke_message(struct ceph_connection *con, struct ceph_msg *msg)
 		ceph_msg_put(con->in_msg);
 		con->in_msg = NULL;
 		con->in_tag = CEPH_MSGR_TAG_READY;
+		con->in_seq++;
 	} else {
 		dout("con_revoke_pages %p msg %p pages %p no-op\n",
 		     con, con->in_msg, msg);

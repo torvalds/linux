@@ -41,6 +41,7 @@ struct e1000_hw;
 #define E1000_DEV_ID_82576_FIBER              0x10E6
 #define E1000_DEV_ID_82576_SERDES             0x10E7
 #define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
+#define E1000_DEV_ID_82576_QUAD_COPPER_ET2    0x1526
 #define E1000_DEV_ID_82576_NS                 0x150A
 #define E1000_DEV_ID_82576_NS_SERDES          0x1518
 #define E1000_DEV_ID_82576_SERDES_QUAD        0x150D

@@ -25,6 +25,7 @@
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
+#include <linux/slab.h>
 #include <scsi/scsi.h>
 #include "scsi_priv.h"
 #include <scsi/scsi_device.h>

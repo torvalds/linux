@@ -23,6 +23,7 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/swap.h>
+#include <linux/slab.h>
 #include <linux/crc32.h>
 #include "nilfs.h"
 #include "segment.h"

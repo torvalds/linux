@@ -38,6 +38,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include "pm8001_sas.h"
 
 /**

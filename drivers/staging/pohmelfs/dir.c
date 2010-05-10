@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #include <linux/jhash.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 #include <linux/pagemap.h>
 
 #include "netfs.h"

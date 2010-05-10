@@ -35,6 +35,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -1404,7 +1405,7 @@ static int omap24xxcam_mmap_buffers(struct file *file,
 	}
 
 	size = 0;
-	for (i = first; i <= last; i++) {
+	for (i = first; i <= last && i < VIDEO_MAX_FRAME; i++) {
 		struct videobuf_dmabuf *dma = videobuf_to_dma(vbq->bufs[i]);
 
 		for (j = 0; j < dma->sglen; j++) {

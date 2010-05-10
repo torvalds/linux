@@ -12,6 +12,7 @@
  * (C) 1999		David A. Hinds
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 

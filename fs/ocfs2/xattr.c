@@ -1622,7 +1622,7 @@ static void ocfs2_xa_block_wipe_namevalue(struct ocfs2_xa_loc *loc)
 	/* Now tell xh->xh_entries about it */
 	for (i = 0; i < count; i++) {
 		offset = le16_to_cpu(xh->xh_entries[i].xe_name_offset);
-		if (offset < namevalue_offset)
+		if (offset <= namevalue_offset)
 			le16_add_cpu(&xh->xh_entries[i].xe_name_offset,
 				     namevalue_size);
 	}
@@ -6528,13 +6528,11 @@ static int ocfs2_create_empty_xattr_block(struct inode *inode,
 					  int indexed)
 {
 	int ret;
-	struct ocfs2_alloc_context *meta_ac;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_xattr_set_ctxt ctxt = {
-		.meta_ac = meta_ac,
-	};
+	struct ocfs2_xattr_set_ctxt ctxt;
 
-	ret = ocfs2_reserve_new_metadata_blocks(osb, 1, &meta_ac);
+	memset(&ctxt, 0, sizeof(ctxt));
+	ret = ocfs2_reserve_new_metadata_blocks(osb, 1, &ctxt.meta_ac);
 	if (ret < 0) {
 		mlog_errno(ret);
 		return ret;
@@ -6556,7 +6554,7 @@ static int ocfs2_create_empty_xattr_block(struct inode *inode,
 
 	ocfs2_commit_trans(osb, ctxt.handle);
 out:
-	ocfs2_free_alloc_context(meta_ac);
+	ocfs2_free_alloc_context(ctxt.meta_ac);
 	return ret;
 }
 

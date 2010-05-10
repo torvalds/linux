@@ -42,6 +42,7 @@
 #include <linux/compiler.h>
 #include <linux/rtnetlink.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

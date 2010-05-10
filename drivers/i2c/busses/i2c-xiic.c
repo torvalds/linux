@@ -39,6 +39,7 @@
 #include <linux/wait.h>
 #include <linux/i2c-xiic.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "xiic-i2c"
 

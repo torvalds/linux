@@ -49,6 +49,7 @@
 #include <linux/delay.h>
 #include <linux/raid/md_p.h>
 #include <linux/raid/md_u.h>
+#include <linux/slab.h>
 #include "md.h"
 #include "bitmap.h"
 
@@ -2108,12 +2109,18 @@ repeat:
 		if (!mddev->in_sync || mddev->recovery_cp != MaxSector) { /* not clean */
 			/* .. if the array isn't clean, an 'even' event must also go
 			 * to spares. */
-			if ((mddev->events&1)==0)
+			if ((mddev->events&1)==0) {
 				nospares = 0;
+				sync_req = 2; /* force a second update to get the
+					       * even/odd in sync */
+			}
 		} else {
 			/* otherwise an 'odd' event must go to spares */
-			if ((mddev->events&1))
+			if ((mddev->events&1)) {
 				nospares = 0;
+				sync_req = 2; /* force a second update to get the
+					       * even/odd in sync */
+			}
 		}
 	}
 

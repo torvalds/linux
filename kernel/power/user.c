@@ -420,7 +420,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 			 * User space encodes device types as two-byte values,
 			 * so we need to recode them
 			 */
-			swdev = old_decode_dev(swap_area.dev);
+			swdev = new_decode_dev(swap_area.dev);
 			if (swdev) {
 				offset = swap_area.offset;
 				data->swap = swap_type_of(swdev, offset, NULL);

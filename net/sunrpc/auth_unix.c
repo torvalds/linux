@@ -6,6 +6,7 @@
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */
 
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/module.h>

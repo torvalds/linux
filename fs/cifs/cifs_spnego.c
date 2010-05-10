@@ -20,6 +20,7 @@
  */
 
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <keys/user-type.h>
 #include <linux/key-type.h>

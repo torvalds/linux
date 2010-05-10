@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/in.h>
 #include <linux/poll.h>
 #include <net/sock.h>

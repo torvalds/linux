@@ -25,6 +25,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/mmc/sdio_func.h>

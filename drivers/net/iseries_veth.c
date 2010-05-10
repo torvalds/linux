@@ -69,6 +69,7 @@
 #include <linux/mm.h>
 #include <linux/ethtool.h>
 #include <linux/if_ether.h>
+#include <linux/slab.h>
 
 #include <asm/abs_addr.h>
 #include <asm/iseries/mf.h>

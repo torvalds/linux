@@ -230,6 +230,16 @@
 #define   ASYNC_FLIP                (1<<22)
 #define   DISPLAY_PLANE_A           (0<<20)
 #define   DISPLAY_PLANE_B           (1<<20)
+#define GFX_OP_PIPE_CONTROL	((0x3<<29)|(0x3<<27)|(0x2<<24)|2)
+#define   PIPE_CONTROL_QW_WRITE	(1<<14)
+#define   PIPE_CONTROL_DEPTH_STALL (1<<13)
+#define   PIPE_CONTROL_WC_FLUSH	(1<<12)
+#define   PIPE_CONTROL_IS_FLUSH	(1<<11) /* MBZ on Ironlake */
+#define   PIPE_CONTROL_TC_FLUSH (1<<10) /* GM45+ only */
+#define   PIPE_CONTROL_ISP_DIS	(1<<9)
+#define   PIPE_CONTROL_NOTIFY	(1<<8)
+#define   PIPE_CONTROL_GLOBAL_GTT (1<<2) /* in addr dword */
+#define   PIPE_CONTROL_STALL_EN	(1<<1) /* in addr word, Ironlake+ only */
 
 /*
  * Fence registers
@@ -241,7 +251,7 @@
 #define   I830_FENCE_SIZE_BITS(size)	((ffs((size) >> 19) - 1) << 8)
 #define   I830_FENCE_PITCH_SHIFT	4
 #define   I830_FENCE_REG_VALID		(1<<0)
-#define   I915_FENCE_MAX_PITCH_VAL	0x10
+#define   I915_FENCE_MAX_PITCH_VAL	4
 #define   I830_FENCE_MAX_PITCH_VAL	6
 #define   I830_FENCE_MAX_SIZE_VAL	(1<<8)
 
@@ -298,6 +308,10 @@
 #define INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
+
+#define MI_MODE		0x0209c
+# define VS_TIMER_DISPATCH				(1 << 6)
+
 #define SCPD0		0x0209c /* 915+ only */
 #define IER		0x020a0
 #define IIR		0x020a4
@@ -366,7 +380,7 @@
 #define   FBC_CTL_PERIODIC	(1<<30)
 #define   FBC_CTL_INTERVAL_SHIFT (16)
 #define   FBC_CTL_UNCOMPRESSIBLE (1<<14)
-#define   FBC_C3_IDLE		(1<<13)
+#define   FBC_CTL_C3_IDLE	(1<<13)
 #define   FBC_CTL_STRIDE_SHIFT	(5)
 #define   FBC_CTL_FENCENO	(1<<0)
 #define FBC_COMMAND		0x0320c
@@ -2172,6 +2186,14 @@
 #define DISPLAY_PORT_PLL_BIOS_1         0x46010
 #define DISPLAY_PORT_PLL_BIOS_2         0x46014
 
+#define PCH_DSPCLK_GATE_D	0x42020
+# define DPFDUNIT_CLOCK_GATE_DISABLE		(1 << 7)
+# define DPARBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
+
+#define PCH_3DCGDIS0		0x46020
+# define MARIUNIT_CLOCK_GATE_DISABLE		(1 << 18)
+# define SVSMUNIT_CLOCK_GATE_DISABLE		(1 << 1)
+
 #define FDI_PLL_FREQ_CTL        0x46030
 #define  FDI_PLL_FREQ_CHANGE_REQUEST    (1<<24)
 #define  FDI_PLL_FREQ_LOCK_LIMIT_MASK   0xfff00
@@ -2273,6 +2295,7 @@
 #define DEIER   0x4400c
 
 /* GT interrupt */
+#define GT_PIPE_NOTIFY		(1 << 4)
 #define GT_SYNC_STATUS          (1 << 2)
 #define GT_USER_INTERRUPT       (1 << 0)
 

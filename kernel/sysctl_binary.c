@@ -13,6 +13,7 @@
 #include <linux/file.h>
 #include <linux/ctype.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_SYSCTL_SYSCALL
 

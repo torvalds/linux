@@ -36,6 +36,7 @@
 #include <linux/rfkill.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include <acpi/acpi_drivers.h>
 

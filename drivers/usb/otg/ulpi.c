@@ -24,6 +24,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>

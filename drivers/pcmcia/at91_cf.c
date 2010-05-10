@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #include <pcmcia/ss.h>
 
@@ -361,7 +362,6 @@ static int at91_cf_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct at91_cf_socket	*cf = platform_get_drvdata(pdev);
 	struct at91_cf_data	*board = cf->board;
 
-	pcmcia_socket_dev_suspend(&pdev->dev);
 	if (device_may_wakeup(&pdev->dev)) {
 		enable_irq_wake(board->det_pin);
 		if (board->irq_pin)
@@ -381,7 +381,6 @@ static int at91_cf_resume(struct platform_device *pdev)
 			disable_irq_wake(board->irq_pin);
 	}
 
-	pcmcia_socket_dev_resume(&pdev->dev);
 	return 0;
 }
 

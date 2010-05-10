@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/cacheflush.h>
 

@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/gfp.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/types.h>

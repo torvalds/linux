@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/hrtimer.h>
 #include <linux/lockdep.h>
+#include <linux/slab.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>

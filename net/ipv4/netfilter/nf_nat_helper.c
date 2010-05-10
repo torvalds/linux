@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <linux/kmod.h>
 #include <linux/types.h>
 #include <linux/timer.h>

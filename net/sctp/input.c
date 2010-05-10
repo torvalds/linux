@@ -53,6 +53,7 @@
 #include <linux/socket.h>
 #include <linux/ip.h>
 #include <linux/time.h> /* For struct timeval */
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <net/icmp.h>
 #include <net/snmp.h>

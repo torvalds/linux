@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 #include <mach/audmux.h>
 #include <mach/hardware.h>
 

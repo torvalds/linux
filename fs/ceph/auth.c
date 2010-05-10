@@ -1,7 +1,9 @@
 #include "ceph_debug.h"
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include "types.h"
 #include "auth_none.h"

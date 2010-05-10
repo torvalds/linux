@@ -3155,11 +3155,11 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 
 	tsb = NULL;
 	sense = NULL;
-	if (irb->scsw.tm.tcw)
+	if (irb->scsw.tm.tcw && (irb->scsw.tm.fcxs == 0x01))
 		tsb = tcw_get_tsb(
 			(struct tcw *)(unsigned long)irb->scsw.tm.tcw);
 
-	if (tsb && (irb->scsw.tm.fcxs == 0x01)) {
+	if (tsb) {
 		len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 			       " tsb->length %d\n", tsb->length);
 		len += sprintf(page + len, KERN_ERR PRINTK_HEADER

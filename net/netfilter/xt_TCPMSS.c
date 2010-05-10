@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
+#include <linux/gfp.h>
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
 #include <net/dst.h>

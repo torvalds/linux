@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/blkdev.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>

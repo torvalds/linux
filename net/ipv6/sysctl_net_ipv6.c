@@ -9,6 +9,7 @@
 #include <linux/sysctl.h>
 #include <linux/in6.h>
 #include <linux/ipv6.h>
+#include <linux/slab.h>
 #include <net/ndisc.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>

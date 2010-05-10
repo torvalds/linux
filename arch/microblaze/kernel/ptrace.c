@@ -75,7 +75,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int rval;
 	unsigned long val = 0;
-	unsigned long copied;
 
 	switch (request) {
 	/* Read/write the word at location ADDR in the registers. */

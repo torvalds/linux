@@ -25,6 +25,7 @@
 #include <linux/mfd/tmio.h>
 #include <linux/mfd/tc6393xb.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #define SCR_REVID	0x08		/* b Revision ID	*/
 #define SCR_ISR		0x50		/* b Interrupt Status	*/

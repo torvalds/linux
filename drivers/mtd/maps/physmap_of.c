@@ -23,6 +23,7 @@
 #include <linux/mtd/concat.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 
 struct of_flash_list {
 	struct mtd_info *mtd;

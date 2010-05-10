@@ -17,6 +17,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include "ctree.h"
 #include "transaction.h"
 #include "disk-io.h"

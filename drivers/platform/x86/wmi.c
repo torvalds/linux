@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/acpi.h>
+#include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 

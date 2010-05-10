@@ -32,6 +32,7 @@
 #include <linux/memory.h>
 #include <linux/ioport.h>
 #include <linux/raid/pq.h>
+#include <linux/slab.h>
 
 #include <mach/adma.h>
 

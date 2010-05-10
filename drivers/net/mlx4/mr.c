@@ -33,6 +33,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/slab.h>
 
 #include <linux/mlx4/cmd.h>
 

@@ -21,6 +21,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/slab.h>
+
 #include "cx25821-video.h"
 
 static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)

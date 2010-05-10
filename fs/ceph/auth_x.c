@@ -4,14 +4,13 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 
 #include "auth_x.h"
 #include "auth_x_protocol.h"
 #include "crypto.h"
 #include "auth.h"
 #include "decode.h"
-
-struct kmem_cache *ceph_x_ticketbuf_cachep;
 
 #define TEMP_TICKET_BUF_LEN	256
 
@@ -26,6 +25,12 @@ static int ceph_x_is_authenticated(struct ceph_auth_client *ac)
 	dout("ceph_x_is_authenticated want=%d need=%d have=%d\n",
 	     ac->want_keys, need, xi->have_keys);
 	return (ac->want_keys & xi->have_keys) == ac->want_keys;
+}
+
+static int ceph_x_encrypt_buflen(int ilen)
+{
+	return sizeof(struct ceph_x_encrypt_header) + ilen + 16 +
+		sizeof(u32);
 }
 
 static int ceph_x_encrypt(struct ceph_crypto_key *secret,
@@ -124,13 +129,12 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 	char *ticket_buf;
 	u8 struct_v;
 
-	dbuf = kmem_cache_alloc(ceph_x_ticketbuf_cachep, GFP_NOFS | GFP_ATOMIC);
+	dbuf = kmalloc(TEMP_TICKET_BUF_LEN, GFP_NOFS);
 	if (!dbuf)
 		return -ENOMEM;
 
 	ret = -ENOMEM;
-	ticket_buf = kmem_cache_alloc(ceph_x_ticketbuf_cachep,
-				      GFP_NOFS | GFP_ATOMIC);
+	ticket_buf = kmalloc(TEMP_TICKET_BUF_LEN, GFP_NOFS);
 	if (!ticket_buf)
 		goto out_dbuf;
 
@@ -150,6 +154,11 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 		struct timespec validity;
 		struct ceph_crypto_key old_key;
 		void *tp, *tpend;
+		struct ceph_timespec new_validity;
+		struct ceph_crypto_key new_session_key;
+		struct ceph_buffer *new_ticket_blob;
+		unsigned long new_expires, new_renew_after;
+		u64 new_secret_id;
 
 		ceph_decode_need(&p, end, sizeof(u32) + 1, bad);
 
@@ -182,16 +191,16 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 			goto bad;
 
 		memcpy(&old_key, &th->session_key, sizeof(old_key));
-		ret = ceph_crypto_key_decode(&th->session_key, &dp, dend);
+		ret = ceph_crypto_key_decode(&new_session_key, &dp, dend);
 		if (ret)
 			goto out;
 
-		ceph_decode_copy(&dp, &th->validity, sizeof(th->validity));
-		ceph_decode_timespec(&validity, &th->validity);
-		th->expires = get_seconds() + validity.tv_sec;
-		th->renew_after = th->expires - (validity.tv_sec / 4);
-		dout(" expires=%lu renew_after=%lu\n", th->expires,
-		     th->renew_after);
+		ceph_decode_copy(&dp, &new_validity, sizeof(new_validity));
+		ceph_decode_timespec(&validity, &new_validity);
+		new_expires = get_seconds() + validity.tv_sec;
+		new_renew_after = new_expires - (validity.tv_sec / 4);
+		dout(" expires=%lu renew_after=%lu\n", new_expires,
+		     new_renew_after);
 
 		/* ticket blob for service */
 		ceph_decode_8_safe(&p, end, is_enc, bad);
@@ -216,10 +225,21 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 		dout(" ticket blob is %d bytes\n", dlen);
 		ceph_decode_need(&tp, tpend, 1 + sizeof(u64), bad);
 		struct_v = ceph_decode_8(&tp);
-		th->secret_id = ceph_decode_64(&tp);
-		ret = ceph_decode_buffer(&th->ticket_blob, &tp, tpend);
+		new_secret_id = ceph_decode_64(&tp);
+		ret = ceph_decode_buffer(&new_ticket_blob, &tp, tpend);
 		if (ret)
 			goto out;
+
+		/* all is well, update our ticket */
+		ceph_crypto_key_destroy(&th->session_key);
+		if (th->ticket_blob)
+			ceph_buffer_put(th->ticket_blob);
+		th->session_key = new_session_key;
+		th->ticket_blob = new_ticket_blob;
+		th->validity = new_validity;
+		th->secret_id = new_secret_id;
+		th->expires = new_expires;
+		th->renew_after = new_renew_after;
 		dout(" got ticket service %d (%s) secret_id %lld len %d\n",
 		     type, ceph_entity_type_name(type), th->secret_id,
 		     (int)th->ticket_blob->vec.iov_len);
@@ -228,9 +248,9 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 
 	ret = 0;
 out:
-	kmem_cache_free(ceph_x_ticketbuf_cachep, ticket_buf);
+	kfree(ticket_buf);
 out_dbuf:
-	kmem_cache_free(ceph_x_ticketbuf_cachep, dbuf);
+	kfree(dbuf);
 	return ret;
 
 bad:
@@ -242,7 +262,7 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 				   struct ceph_x_ticket_handler *th,
 				   struct ceph_x_authorizer *au)
 {
-	int len;
+	int maxlen;
 	struct ceph_x_authorize_a *msg_a;
 	struct ceph_x_authorize_b msg_b;
 	void *p, *end;
@@ -253,15 +273,15 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 	dout("build_authorizer for %s %p\n",
 	     ceph_entity_type_name(th->service), au);
 
-	len = sizeof(*msg_a) + sizeof(msg_b) + sizeof(u32) +
-		ticket_blob_len + 16;
-	dout("  need len %d\n", len);
-	if (au->buf && au->buf->alloc_len < len) {
+	maxlen = sizeof(*msg_a) + sizeof(msg_b) +
+		ceph_x_encrypt_buflen(ticket_blob_len);
+	dout("  need len %d\n", maxlen);
+	if (au->buf && au->buf->alloc_len < maxlen) {
 		ceph_buffer_put(au->buf);
 		au->buf = NULL;
 	}
 	if (!au->buf) {
-		au->buf = ceph_buffer_new(len, GFP_NOFS);
+		au->buf = ceph_buffer_new(maxlen, GFP_NOFS);
 		if (!au->buf)
 			return -ENOMEM;
 	}
@@ -296,6 +316,7 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 	au->buf->vec.iov_len = p - au->buf->vec.iov_base;
 	dout(" built authorizer nonce %llx len %d\n", au->nonce,
 	     (int)au->buf->vec.iov_len);
+	BUG_ON(au->buf->vec.iov_len > maxlen);
 	return 0;
 
 out_buf:
@@ -581,8 +602,6 @@ static void ceph_x_destroy(struct ceph_auth_client *ac)
 		remove_ticket_handler(ac, th);
 	}
 
-	kmem_cache_destroy(ceph_x_ticketbuf_cachep);
-
 	kfree(ac->private);
 	ac->private = NULL;
 }
@@ -617,26 +636,20 @@ int ceph_x_init(struct ceph_auth_client *ac)
 	int ret;
 
 	dout("ceph_x_init %p\n", ac);
+	ret = -ENOMEM;
 	xi = kzalloc(sizeof(*xi), GFP_NOFS);
 	if (!xi)
-		return -ENOMEM;
+		goto out;
 
-	ret = -ENOMEM;
-	ceph_x_ticketbuf_cachep = kmem_cache_create("ceph_x_ticketbuf",
-				      TEMP_TICKET_BUF_LEN, 8,
-				      (SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD),
-				      NULL);
-	if (!ceph_x_ticketbuf_cachep)
-		goto done_nomem;
 	ret = -EINVAL;
 	if (!ac->secret) {
 		pr_err("no secret set (for auth_x protocol)\n");
-		goto done_nomem;
+		goto out_nomem;
 	}
 
 	ret = ceph_crypto_key_unarmor(&xi->secret, ac->secret);
 	if (ret)
-		goto done_nomem;
+		goto out_nomem;
 
 	xi->starting = true;
 	xi->ticket_handlers = RB_ROOT;
@@ -646,10 +659,9 @@ int ceph_x_init(struct ceph_auth_client *ac)
 	ac->ops = &ceph_x_ops;
 	return 0;
 
-done_nomem:
+out_nomem:
 	kfree(xi);
-	if (ceph_x_ticketbuf_cachep)
-		kmem_cache_destroy(ceph_x_ticketbuf_cachep);
+out:
 	return ret;
 }
 

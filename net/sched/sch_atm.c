@@ -3,6 +3,7 @@
 /* Written 1998-2000 by Werner Almesberger, EPFL ICA */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/errno.h>

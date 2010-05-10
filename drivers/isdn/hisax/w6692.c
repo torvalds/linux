@@ -16,6 +16,7 @@
 #include "isdnl1.h"
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 /* table entry in the PCI devices list */
 typedef struct {

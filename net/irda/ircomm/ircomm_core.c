@@ -33,6 +33,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irmod.h>

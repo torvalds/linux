@@ -21,6 +21,7 @@
 
 #include <asm/div64.h>
 #include <linux/dvb/frontend.h>
+#include <linux/slab.h>
 #include "dvb_math.h"
 #include "lgdt3305.h"
 

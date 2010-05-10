@@ -1,6 +1,7 @@
 #include "ceph_debug.h"
 
 #include <linux/exportfs.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include "super.h"

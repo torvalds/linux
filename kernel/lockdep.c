@@ -43,6 +43,7 @@
 #include <linux/ftrace.h>
 #include <linux/stringify.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/sections.h>
 
@@ -582,9 +583,6 @@ static int static_obj(void *obj)
 	unsigned long start = (unsigned long) &_stext,
 		      end   = (unsigned long) &_end,
 		      addr  = (unsigned long) obj;
-#ifdef CONFIG_SMP
-	int i;
-#endif
 
 	/*
 	 * static variable?
@@ -595,24 +593,16 @@ static int static_obj(void *obj)
 	if (arch_is_kernel_data(addr))
 		return 1;
 
-#ifdef CONFIG_SMP
 	/*
-	 * percpu var?
+	 * in-kernel percpu var?
 	 */
-	for_each_possible_cpu(i) {
-		start = (unsigned long) &__per_cpu_start + per_cpu_offset(i);
-		end   = (unsigned long) &__per_cpu_start + PERCPU_ENOUGH_ROOM
-					+ per_cpu_offset(i);
-
-		if ((addr >= start) && (addr < end))
-			return 1;
-	}
-#endif
+	if (is_kernel_percpu_address(addr))
+		return 1;
 
 	/*
-	 * module var?
+	 * module static or percpu var?
 	 */
-	return is_module_address(addr);
+	return is_module_address(addr) || is_module_percpu_address(addr);
 }
 
 /*

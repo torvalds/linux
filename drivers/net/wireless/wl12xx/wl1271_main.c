@@ -33,6 +33,7 @@
 #include <linux/vmalloc.h>
 #include <linux/spi/wl12xx.h>
 #include <linux/inetdevice.h>
+#include <linux/slab.h>
 
 #include "wl1271.h"
 #include "wl12xx_80211.h"

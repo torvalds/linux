@@ -37,6 +37,7 @@
 #include <linux/kobject.h>
 #include <linux/mutex.h>
 #include <linux/file.h>
+#include <linux/backing-dev.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -693,6 +694,7 @@ int set_anon_super(struct super_block *s, void *data)
 		return -EMFILE;
 	}
 	s->s_dev = MKDEV(0, dev & MINORMASK);
+	s->s_bdi = &noop_backing_dev_info;
 	return 0;
 }
 
@@ -954,10 +956,11 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 	if (error < 0)
 		goto out_free_secdata;
 	BUG_ON(!mnt->mnt_sb);
+	WARN_ON(!mnt->mnt_sb->s_bdi);
 
- 	error = security_sb_kern_mount(mnt->mnt_sb, flags, secdata);
- 	if (error)
- 		goto out_sb;
+	error = security_sb_kern_mount(mnt->mnt_sb, flags, secdata);
+	if (error)
+		goto out_sb;
 
 	/*
 	 * filesystems should never set s_maxbytes larger than MAX_LFS_FILESIZE

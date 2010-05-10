@@ -78,8 +78,9 @@ config BLK_DEV_INTEGRITY
 	Protection.  If in doubt, say N.
 
 config BLK_CGROUP
-	tristate
+	tristate "Block cgroup support"
 	depends on CGROUPS
+	depends on CFQ_GROUP_IOSCHED
 	default n
 	---help---
 	Generic block IO controller cgroup interface. This is the common

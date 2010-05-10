@@ -102,12 +102,12 @@
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>

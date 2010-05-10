@@ -12,6 +12,7 @@
 #define FSCACHE_DEBUG_LEVEL COOKIE
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/key.h>
 #include <keys/user-type.h>
 #include "internal.h"

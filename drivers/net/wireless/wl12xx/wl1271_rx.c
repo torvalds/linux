@@ -21,6 +21,8 @@
  *
  */
 
+#include <linux/gfp.h>
+
 #include "wl1271.h"
 #include "wl1271_acx.h"
 #include "wl1271_reg.h"

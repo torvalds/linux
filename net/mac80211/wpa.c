@@ -9,10 +9,10 @@
 
 #include <linux/netdevice.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/compiler.h>
 #include <linux/ieee80211.h>
+#include <linux/gfp.h>
 #include <asm/unaligned.h>
 #include <net/mac80211.h>
 

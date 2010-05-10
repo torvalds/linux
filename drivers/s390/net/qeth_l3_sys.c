@@ -8,6 +8,8 @@
  *		 Frank Blaschka <frank.blaschka@de.ibm.com>
  */
 
+#include <linux/slab.h>
+
 #include "qeth_l3.h"
 
 #define QETH_DEVICE_ATTR(_id, _name, _mode, _show, _store) \

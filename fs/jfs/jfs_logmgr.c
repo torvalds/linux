@@ -70,6 +70,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
