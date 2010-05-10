@@ -235,7 +235,22 @@ static struct clk mstp_clks[HWBLK_NR] = {
 	SH_HWBLK_CLK("lcdc0", -1, B_CLK, HWBLK_LCDC, 0),
 };
 
+#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+
 static struct clk_lookup lookups[] = {
+	/* MSTP clocks */
+	CLKDEV_CON_ID("tlb0", &mstp_clks[HWBLK_TLB]),
+	CLKDEV_CON_ID("ic0", &mstp_clks[HWBLK_IC]),
+	CLKDEV_CON_ID("oc0", &mstp_clks[HWBLK_OC]),
+	CLKDEV_CON_ID("rs0", &mstp_clks[HWBLK_RSMEM]),
+	CLKDEV_CON_ID("ilmem0", &mstp_clks[HWBLK_ILMEM]),
+	CLKDEV_CON_ID("l2c0", &mstp_clks[HWBLK_L2C]),
+	CLKDEV_CON_ID("fpu0", &mstp_clks[HWBLK_FPU]),
+	CLKDEV_CON_ID("intc0", &mstp_clks[HWBLK_INTC]),
+	CLKDEV_CON_ID("dmac0", &mstp_clks[HWBLK_DMAC0]),
+	CLKDEV_CON_ID("sh0", &mstp_clks[HWBLK_SHYWAY]),
+	CLKDEV_CON_ID("hudi0", &mstp_clks[HWBLK_HUDI]),
+	CLKDEV_CON_ID("ubc0", &mstp_clks[HWBLK_UBC]),
 	{
 		/* TMU0 */
 		.dev_id		= "sh_tmu.0",
@@ -256,7 +271,11 @@ static struct clk_lookup lookups[] = {
 		.dev_id		= "sh_tmu.3",
 		.con_id		= "tmu_fck",
 		.clk		= &mstp_clks[HWBLK_TMU1],
-	}, {
+	},
+	CLKDEV_CON_ID("cmt_fck", &mstp_clks[HWBLK_CMT]),
+	CLKDEV_CON_ID("rwdt0", &mstp_clks[HWBLK_RWDT]),
+	CLKDEV_CON_ID("dmac1", &mstp_clks[HWBLK_DMAC1]),
+	{
 		/* TMU4 */
 		.dev_id		= "sh_tmu.4",
 		.con_id		= "tmu_fck",
@@ -297,6 +316,35 @@ static struct clk_lookup lookups[] = {
 		.con_id		= "sci_fck",
 		.clk		= &mstp_clks[HWBLK_SCIF5],
 	},
+	CLKDEV_CON_ID("msiof0", &mstp_clks[HWBLK_MSIOF0]),
+	CLKDEV_CON_ID("msiof1", &mstp_clks[HWBLK_MSIOF1]),
+	CLKDEV_CON_ID("keysc0", &mstp_clks[HWBLK_KEYSC]),
+	CLKDEV_CON_ID("rtc0", &mstp_clks[HWBLK_RTC]),
+	CLKDEV_CON_ID("i2c0", &mstp_clks[HWBLK_IIC0]),
+	CLKDEV_CON_ID("i2c1", &mstp_clks[HWBLK_IIC1]),
+	CLKDEV_CON_ID("mmc0", &mstp_clks[HWBLK_MMC]),
+	CLKDEV_CON_ID("eth0", &mstp_clks[HWBLK_ETHER]),
+	CLKDEV_CON_ID("atapi0", &mstp_clks[HWBLK_ATAPI]),
+	CLKDEV_CON_ID("tpu0", &mstp_clks[HWBLK_TPU]),
+	CLKDEV_CON_ID("irda0", &mstp_clks[HWBLK_IRDA]),
+	CLKDEV_CON_ID("tsif0", &mstp_clks[HWBLK_TSIF]),
+	CLKDEV_CON_ID("usb1", &mstp_clks[HWBLK_USB1]),
+	CLKDEV_CON_ID("usb0", &mstp_clks[HWBLK_USB0]),
+	CLKDEV_CON_ID("2dg0", &mstp_clks[HWBLK_2DG]),
+	CLKDEV_CON_ID("sdhi0", &mstp_clks[HWBLK_SDHI0]),
+	CLKDEV_CON_ID("sdhi1", &mstp_clks[HWBLK_SDHI1]),
+	CLKDEV_CON_ID("veu1", &mstp_clks[HWBLK_VEU1]),
+	CLKDEV_CON_ID("ceu1", &mstp_clks[HWBLK_CEU1]),
+	CLKDEV_CON_ID("beu1", &mstp_clks[HWBLK_BEU1]),
+	CLKDEV_CON_ID("2ddmac0", &mstp_clks[HWBLK_2DDMAC]),
+	CLKDEV_CON_ID("spu0", &mstp_clks[HWBLK_SPU]),
+	CLKDEV_CON_ID("jpu0", &mstp_clks[HWBLK_JPU]),
+	CLKDEV_CON_ID("vou0", &mstp_clks[HWBLK_VOU]),
+	CLKDEV_CON_ID("beu0", &mstp_clks[HWBLK_BEU0]),
+	CLKDEV_CON_ID("ceu0", &mstp_clks[HWBLK_CEU0]),
+	CLKDEV_CON_ID("veu0", &mstp_clks[HWBLK_VEU0]),
+	CLKDEV_CON_ID("vpu0", &mstp_clks[HWBLK_VPU]),
+	CLKDEV_CON_ID("lcdc0", &mstp_clks[HWBLK_LCDC]),
 };
 
 int __init arch_clk_init(void)

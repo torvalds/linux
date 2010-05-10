@@ -186,7 +186,12 @@ static struct clk mstp_clks[HWBLK_NR] = {
 	SH_HWBLK_CLK("lcdc0", -1, P_CLK, HWBLK_LCDC, 0),
 };
 
+#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+
 static struct clk_lookup lookups[] = {
+	/* MSTP clocks */
+	CLKDEV_CON_ID("uram0", &mstp_clks[HWBLK_URAM]),
+	CLKDEV_CON_ID("xymem0", &mstp_clks[HWBLK_XYMEM]),
 	{
 		/* TMU0 */
 		.dev_id		= "sh_tmu.0",
@@ -202,7 +207,11 @@ static struct clk_lookup lookups[] = {
 		.dev_id		= "sh_tmu.2",
 		.con_id		= "tmu_fck",
 		.clk		= &mstp_clks[HWBLK_TMU],
-	}, {
+	},
+	CLKDEV_CON_ID("cmt_fck", &mstp_clks[HWBLK_CMT]),
+	CLKDEV_CON_ID("rwdt0", &mstp_clks[HWBLK_RWDT]),
+	CLKDEV_CON_ID("flctl0", &mstp_clks[HWBLK_FLCTL]),
+	{
 		/* SCIF0 */
 		.dev_id		= "sh-sci.0",
 		.con_id		= "sci_fck",
@@ -218,6 +227,20 @@ static struct clk_lookup lookups[] = {
 		.con_id		= "sci_fck",
 		.clk		= &mstp_clks[HWBLK_SCIF2],
 	},
+	CLKDEV_CON_ID("i2c0", &mstp_clks[HWBLK_IIC]),
+	CLKDEV_CON_ID("rtc0", &mstp_clks[HWBLK_RTC]),
+	CLKDEV_CON_ID("sdhi0", &mstp_clks[HWBLK_SDHI]),
+	CLKDEV_CON_ID("keysc0", &mstp_clks[HWBLK_KEYSC]),
+	CLKDEV_CON_ID("usbf0", &mstp_clks[HWBLK_USBF]),
+	CLKDEV_CON_ID("2dg0", &mstp_clks[HWBLK_2DG]),
+	CLKDEV_CON_ID("siu0", &mstp_clks[HWBLK_SIU]),
+	CLKDEV_CON_ID("vou0", &mstp_clks[HWBLK_VOU]),
+	CLKDEV_CON_ID("jpu0", &mstp_clks[HWBLK_JPU]),
+	CLKDEV_CON_ID("beu0", &mstp_clks[HWBLK_BEU]),
+	CLKDEV_CON_ID("ceu0", &mstp_clks[HWBLK_CEU]),
+	CLKDEV_CON_ID("veu0", &mstp_clks[HWBLK_VEU]),
+	CLKDEV_CON_ID("vpu0", &mstp_clks[HWBLK_VPU]),
+	CLKDEV_CON_ID("lcdc0", &mstp_clks[HWBLK_LCDC]),
 };
 
 int __init arch_clk_init(void)
