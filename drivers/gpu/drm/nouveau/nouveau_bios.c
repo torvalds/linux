@@ -3130,7 +3130,7 @@ parse_init_table(struct nvbios *bios, unsigned int offset,
 	 * is changed back to EXECUTE.
 	 */
 
-	int count = 0, i, res;
+	int count = 0, i, ret;
 	uint8_t id;
 
 	/*
@@ -3145,26 +3145,33 @@ parse_init_table(struct nvbios *bios, unsigned int offset,
 		for (i = 0; itbl_entry[i].name && (itbl_entry[i].id != id); i++)
 			;
 
-		if (itbl_entry[i].name) {
-			BIOSLOG(bios, "0x%04X: [ (0x%02X) - %s ]\n",
-				offset, itbl_entry[i].id, itbl_entry[i].name);
-
-			/* execute eventual command handler */
-			res = (*itbl_entry[i].handler)(bios, offset, iexec);
-			if (!res)
-				break;
-			/*
-			 * Add the offset of the current command including all data
-			 * of that command. The offset will then be pointing on the
-			 * next op code.
-			 */
-			offset += res;
-		} else {
+		if (!itbl_entry[i].name) {
 			NV_ERROR(bios->dev,
 				 "0x%04X: Init table command not found: "
 				 "0x%02X\n", offset, id);
 			return -ENOENT;
 		}
+
+		BIOSLOG(bios, "0x%04X: [ (0x%02X) - %s ]\n", offset,
+			itbl_entry[i].id, itbl_entry[i].name);
+
+		/* execute eventual command handler */
+		ret = (*itbl_entry[i].handler)(bios, offset, iexec);
+		if (ret < 0) {
+			NV_ERROR(bios->dev, "0x%04X: Failed parsing init "
+				 "table opcode: %s %d\n", offset,
+				 itbl_entry[i].name, ret);
+		}
+
+		if (ret <= 0)
+			break;
+
+		/*
+		 * Add the offset of the current command including all data
+		 * of that command. The offset will then be pointing on the
+		 * next op code.
+		 */
+		offset += ret;
 	}
 
 	if (offset >= bios->length)
