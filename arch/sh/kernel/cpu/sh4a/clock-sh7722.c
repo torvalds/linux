@@ -153,37 +153,32 @@ struct clk div6_clks[] = {
 	SH_CLK_DIV6("video_clk", &pll_clk, VCLKCR, 0),
 };
 
-#define R_CLK &r_clk
-#define P_CLK &div4_clks[DIV4_P]
-#define B_CLK &div4_clks[DIV4_B]
-#define U_CLK &div4_clks[DIV4_U]
-
 static struct clk mstp_clks[HWBLK_NR] = {
-	SH_HWBLK_CLK("uram0", -1, U_CLK, HWBLK_URAM, CLK_ENABLE_ON_INIT),
-	SH_HWBLK_CLK("xymem0", -1, B_CLK, HWBLK_XYMEM, CLK_ENABLE_ON_INIT),
-	SH_HWBLK_CLK("tmu_fck", -1, P_CLK, HWBLK_TMU, 0),
-	SH_HWBLK_CLK("cmt_fck", -1, R_CLK, HWBLK_CMT, 0),
-	SH_HWBLK_CLK("rwdt0", -1, R_CLK, HWBLK_RWDT, 0),
-	SH_HWBLK_CLK("flctl0", -1, P_CLK, HWBLK_FLCTL, 0),
-	SH_HWBLK_CLK("sci_fck", -1, P_CLK, HWBLK_SCIF0, 0),
-	SH_HWBLK_CLK("sci_fck", -1, P_CLK, HWBLK_SCIF1, 0),
-	SH_HWBLK_CLK("sci_fck", -1, P_CLK, HWBLK_SCIF2, 0),
+	SH_HWBLK_CLK(HWBLK_URAM, &div4_clks[DIV4_U], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_XYMEM, &div4_clks[DIV4_B], CLK_ENABLE_ON_INIT),
+	SH_HWBLK_CLK(HWBLK_TMU, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_CMT, &r_clk, 0),
+	SH_HWBLK_CLK(HWBLK_RWDT, &r_clk, 0),
+	SH_HWBLK_CLK(HWBLK_FLCTL, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_SCIF0, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_SCIF1, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_SCIF2, &div4_clks[DIV4_P], 0),
 
-	SH_HWBLK_CLK("i2c0", -1, P_CLK, HWBLK_IIC, 0),
-	SH_HWBLK_CLK("rtc0", -1, R_CLK, HWBLK_RTC, 0),
+	SH_HWBLK_CLK(HWBLK_IIC, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_RTC, &r_clk, 0),
 
-	SH_HWBLK_CLK("sdhi0", -1, P_CLK, HWBLK_SDHI, 0),
-	SH_HWBLK_CLK("keysc0", -1, R_CLK, HWBLK_KEYSC, 0),
-	SH_HWBLK_CLK("usbf0", -1, P_CLK, HWBLK_USBF, 0),
-	SH_HWBLK_CLK("2dg0", -1, B_CLK, HWBLK_2DG, 0),
-	SH_HWBLK_CLK("siu0", -1, B_CLK, HWBLK_SIU, 0),
-	SH_HWBLK_CLK("vou0", -1, B_CLK, HWBLK_VOU, 0),
-	SH_HWBLK_CLK("jpu0", -1, B_CLK, HWBLK_JPU, 0),
-	SH_HWBLK_CLK("beu0", -1, B_CLK, HWBLK_BEU, 0),
-	SH_HWBLK_CLK("ceu0", -1, B_CLK, HWBLK_CEU, 0),
-	SH_HWBLK_CLK("veu0", -1, B_CLK, HWBLK_VEU, 0),
-	SH_HWBLK_CLK("vpu0", -1, B_CLK, HWBLK_VPU, 0),
-	SH_HWBLK_CLK("lcdc0", -1, P_CLK, HWBLK_LCDC, 0),
+	SH_HWBLK_CLK(HWBLK_SDHI, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_KEYSC, &r_clk, 0),
+	SH_HWBLK_CLK(HWBLK_USBF, &div4_clks[DIV4_P], 0),
+	SH_HWBLK_CLK(HWBLK_2DG, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_SIU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_VOU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_JPU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_BEU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_CEU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_VEU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_VPU, &div4_clks[DIV4_B], 0),
+	SH_HWBLK_CLK(HWBLK_LCDC, &div4_clks[DIV4_P], 0),
 };
 
 #define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
