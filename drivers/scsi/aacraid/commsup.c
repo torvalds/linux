@@ -966,6 +966,16 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 			device_config_needed =
 			  (((__le32 *)aifcmd->data)[0] ==
 			    cpu_to_le32(AifEnAddJBOD)) ? ADD : DELETE;
+			if (device_config_needed == ADD) {
+				device = scsi_device_lookup(dev->scsi_host_ptr,
+					channel,
+					id,
+					lun);
+				if (device) {
+					scsi_remove_device(device);
+					scsi_device_put(device);
+				}
+			}
 			break;
 
 		case AifEnEnclosureManagement:
