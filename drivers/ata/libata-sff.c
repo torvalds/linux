@@ -2379,7 +2379,7 @@ void ata_sff_error_handler(struct ata_port *ap)
 	ata_reset_fn_t hardreset = ap->ops->hardreset;
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
-	int thaw = 0;
+	bool thaw = false;
 
 	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
 	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
@@ -2405,15 +2405,22 @@ void ata_sff_error_handler(struct ata_port *ap)
 		if (qc->err_mask == AC_ERR_TIMEOUT
 						&& (host_stat & ATA_DMA_ERR)) {
 			qc->err_mask = AC_ERR_HOST_BUS;
-			thaw = 1;
+			thaw = true;
 		}
 
 		ap->ops->bmdma_stop(qc);
+
+		/* if we're gonna thaw, make sure IRQ is clear */
+		if (thaw) {
+			ap->ops->sff_check_status(ap);
+			ap->ops->sff_irq_clear(ap);
+
+			spin_unlock_irqrestore(ap->lock, flags);
+			ata_eh_thaw_port(ap);
+			spin_lock_irqsave(ap->lock, flags);
+		}
 	}
 
-	ata_sff_sync(ap);		/* FIXME: We don't need this */
-	ap->ops->sff_check_status(ap);
-	ap->ops->sff_irq_clear(ap);
 	/* We *MUST* do FIFO draining before we issue a reset as several
 	 * devices helpfully clear their internal state and will lock solid
 	 * if we touch the data port post reset. Pass qc in case anyone wants
@@ -2423,9 +2430,6 @@ void ata_sff_error_handler(struct ata_port *ap)
 		ap->ops->drain_fifo(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
-
-	if (thaw)
-		ata_eh_thaw_port(ap);
 
 	/* PIO and DMA engines have been stopped, perform recovery */
 
