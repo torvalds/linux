@@ -154,14 +154,7 @@ static void del_nbp(struct net_bridge_port *p)
 	kobject_uevent(&p->kobj, KOBJ_REMOVE);
 	kobject_del(&p->kobj);
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	if (br_devices_support_netpoll(br))
-		br->dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
-	if (dev->netdev_ops->ndo_netpoll_cleanup)
-		dev->netdev_ops->ndo_netpoll_cleanup(dev);
-	else
-		dev->npinfo = NULL;
-#endif
+	br_netpoll_disable(br, dev);
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
 
@@ -455,19 +448,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	if (br_devices_support_netpoll(br)) {
-		br->dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
-		if (br->dev->npinfo)
-			dev->npinfo = br->dev->npinfo;
-	} else if (!(br->dev->priv_flags & IFF_DISABLE_NETPOLL)) {
-		br->dev->priv_flags |= IFF_DISABLE_NETPOLL;
-		printk(KERN_INFO "New device %s does not support netpoll\n",
-			dev->name);
-		printk(KERN_INFO "Disabling netpoll for %s\n",
-			br->dev->name);
-	}
-#endif
+	br_netpoll_enable(br, dev);
 
 	return 0;
 err2:

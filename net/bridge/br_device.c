@@ -199,7 +199,7 @@ static int br_set_tx_csum(struct net_device *dev, u32 data)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-bool br_devices_support_netpoll(struct net_bridge *br)
+static bool br_devices_support_netpoll(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
 	bool ret = true;
@@ -225,9 +225,9 @@ static void br_poll_controller(struct net_device *br_dev)
 		netpoll_poll_dev(np->real_dev);
 }
 
-void br_netpoll_cleanup(struct net_device *br_dev)
+void br_netpoll_cleanup(struct net_device *dev)
 {
-	struct net_bridge *br = netdev_priv(br_dev);
+	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *p, *n;
 	const struct net_device_ops *ops;
 
@@ -243,10 +243,30 @@ void br_netpoll_cleanup(struct net_device *br_dev)
 	}
 }
 
-#else
-
-void br_netpoll_cleanup(struct net_device *br_dev)
+void br_netpoll_disable(struct net_bridge *br,
+			struct net_device *dev)
 {
+	if (br_devices_support_netpoll(br))
+		br->dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
+	if (dev->netdev_ops->ndo_netpoll_cleanup)
+		dev->netdev_ops->ndo_netpoll_cleanup(dev);
+	else
+		dev->npinfo = NULL;
+}
+
+void br_netpoll_enable(struct net_bridge *br,
+		       struct net_device *dev)
+{
+	if (br_devices_support_netpoll(br)) {
+		br->dev->priv_flags &= ~IFF_DISABLE_NETPOLL;
+		if (br->dev->npinfo)
+			dev->npinfo = br->dev->npinfo;
+	} else if (!(br->dev->priv_flags & IFF_DISABLE_NETPOLL)) {
+		br->dev->priv_flags |= IFF_DISABLE_NETPOLL;
+		printk(KERN_INFO "%s:new device %s"
+			" does not support netpoll (disabling)",
+			br->dev->name, dev->name);
+	}
 }
 
 #endif

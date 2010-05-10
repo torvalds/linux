@@ -253,8 +253,18 @@ static inline int br_is_root_bridge(const struct net_bridge *br)
 extern void br_dev_setup(struct net_device *dev);
 extern netdev_tx_t br_dev_xmit(struct sk_buff *skb,
 			       struct net_device *dev);
-extern bool br_devices_support_netpoll(struct net_bridge *br);
-extern void br_netpoll_cleanup(struct net_device *br_dev);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+extern void br_netpoll_cleanup(struct net_device *dev);
+extern void br_netpoll_enable(struct net_bridge *br,
+			      struct net_device *dev);
+extern void br_netpoll_disable(struct net_bridge *br,
+			       struct net_device *dev);
+#else
+#define br_netpoll_cleanup(br)
+#define br_netpoll_enable(br, dev)
+#define br_netpoll_disable(br, dev)
+
+#endif
 
 /* br_fdb.c */
 extern int br_fdb_init(void);
