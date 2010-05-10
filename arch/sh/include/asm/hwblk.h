@@ -59,7 +59,7 @@ void hwblk_cnt_dec(struct hwblk_info *info, int hwblk, int cnt);
 
 /* allow clocks to enable and disable hardware blocks */
 #define SH_HWBLK_CLK(_name, _id, _parent, _hwblk, _flags)	\
-{							\
+[_hwblk] = {							\
 	.name		= _name,			\
 	.id		= _id,				\
 	.parent		= _parent,			\

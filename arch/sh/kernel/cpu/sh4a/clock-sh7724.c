@@ -178,7 +178,7 @@ struct clk div6_clks[] = {
 #define I_CLK (&div4_clks[DIV4_I])
 #define SH_CLK (&div4_clks[DIV4_SH])
 
-static struct clk mstp_clks[] = {
+static struct clk mstp_clks[HWBLK_NR] = {
 	SH_HWBLK_CLK("tlb0", -1, I_CLK, HWBLK_TLB, CLK_ENABLE_ON_INIT),
 	SH_HWBLK_CLK("ic0", -1, I_CLK, HWBLK_IC, CLK_ENABLE_ON_INIT),
 	SH_HWBLK_CLK("oc0", -1, I_CLK, HWBLK_OC, CLK_ENABLE_ON_INIT),
@@ -240,32 +240,32 @@ static struct clk_lookup lookups[] = {
 		/* TMU0 */
 		.dev_id		= "sh_tmu.0",
 		.con_id		= "tmu_fck",
-		.clk		= &mstp_clks[12],	/* tmu012_fck */
+		.clk		= &mstp_clks[HWBLK_TMU0],
 	}, {
 		/* TMU1 */
 		.dev_id		= "sh_tmu.1",
 		.con_id		= "tmu_fck",
-		.clk		= &mstp_clks[12],
+		.clk		= &mstp_clks[HWBLK_TMU0],
 	}, {
 		/* TMU2 */
 		.dev_id		= "sh_tmu.2",
 		.con_id		= "tmu_fck",
-		.clk		= &mstp_clks[12],
+		.clk		= &mstp_clks[HWBLK_TMU0],
 	}, {
 		/* TMU3 */
 		.dev_id		= "sh_tmu.3",
 		.con_id		= "tmu_fck",
-		.clk		= &mstp_clks[16],	/* tmu345_fck */
+		.clk		= &mstp_clks[HWBLK_TMU1],
 	}, {
 		/* TMU4 */
 		.dev_id		= "sh_tmu.4",
 		.con_id		= "tmu_fck",
-		.clk		= &mstp_clks[16],
+		.clk		= &mstp_clks[HWBLK_TMU1],
 	}, {
 		/* TMU5 */
 		.dev_id		= "sh_tmu.5",
 		.con_id		= "tmu_fck",
-		.clk		= &mstp_clks[16],
+		.clk		= &mstp_clks[HWBLK_TMU1],
 	},
 };
 
@@ -291,7 +291,7 @@ int __init arch_clk_init(void)
 		ret = sh_clk_div6_register(div6_clks, ARRAY_SIZE(div6_clks));
 
 	if (!ret)
-		ret = sh_hwblk_clk_register(mstp_clks, ARRAY_SIZE(mstp_clks));
+		ret = sh_hwblk_clk_register(mstp_clks, HWBLK_NR);
 
 	return ret;
 }

@@ -157,7 +157,7 @@ struct clk div6_clks[] = {
 #define B_CLK &div4_clks[DIV4_B]
 #define U_CLK &div4_clks[DIV4_U]
 
-static struct clk mstp_clks[] = {
+static struct clk mstp_clks[HWBLK_NR] = {
 	SH_HWBLK_CLK("uram0", -1, U_CLK, HWBLK_URAM, CLK_ENABLE_ON_INIT),
 	SH_HWBLK_CLK("xymem0", -1, B_CLK, HWBLK_XYMEM, CLK_ENABLE_ON_INIT),
 	SH_HWBLK_CLK("tmu_fck", -1, P_CLK, HWBLK_TMU, 0),
@@ -213,7 +213,7 @@ int __init arch_clk_init(void)
 		ret = sh_clk_div6_register(div6_clks, ARRAY_SIZE(div6_clks));
 
 	if (!ret)
-		ret = sh_hwblk_clk_register(mstp_clks, ARRAY_SIZE(mstp_clks));
+		ret = sh_hwblk_clk_register(mstp_clks, HWBLK_NR);
 
 	return ret;
 }
