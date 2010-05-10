@@ -140,28 +140,14 @@ void swiotlb_print_info(void)
 	       (unsigned long long)pend);
 }
 
-/*
- * Statically reserve bounce buffer space and initialize bounce buffer data
- * structures for the software IO TLB used to implement the DMA API.
- */
-void __init
-swiotlb_init_with_default_size(size_t default_size, int verbose)
+void __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 {
 	unsigned long i, bytes;
 
-	if (!io_tlb_nslabs) {
-		io_tlb_nslabs = (default_size >> IO_TLB_SHIFT);
-		io_tlb_nslabs = ALIGN(io_tlb_nslabs, IO_TLB_SEGSIZE);
-	}
+	bytes = nslabs << IO_TLB_SHIFT;
 
-	bytes = io_tlb_nslabs << IO_TLB_SHIFT;
-
-	/*
-	 * Get IO TLB memory from the low pages
-	 */
-	io_tlb_start = alloc_bootmem_low_pages(bytes);
-	if (!io_tlb_start)
-		panic("Cannot allocate SWIOTLB buffer");
+	io_tlb_nslabs = nslabs;
+	io_tlb_start = tlb;
 	io_tlb_end = io_tlb_start + bytes;
 
 	/*
@@ -183,6 +169,32 @@ swiotlb_init_with_default_size(size_t default_size, int verbose)
 		panic("Cannot allocate SWIOTLB overflow buffer!\n");
 	if (verbose)
 		swiotlb_print_info();
+}
+
+/*
+ * Statically reserve bounce buffer space and initialize bounce buffer data
+ * structures for the software IO TLB used to implement the DMA API.
+ */
+void __init
+swiotlb_init_with_default_size(size_t default_size, int verbose)
+{
+	unsigned long bytes;
+
+	if (!io_tlb_nslabs) {
+		io_tlb_nslabs = (default_size >> IO_TLB_SHIFT);
+		io_tlb_nslabs = ALIGN(io_tlb_nslabs, IO_TLB_SEGSIZE);
+	}
+
+	bytes = io_tlb_nslabs << IO_TLB_SHIFT;
+
+	/*
+	 * Get IO TLB memory from the low pages
+	 */
+	io_tlb_start = alloc_bootmem_low_pages(bytes);
+	if (!io_tlb_start)
+		panic("Cannot allocate SWIOTLB buffer");
+
+	swiotlb_init_with_tbl(io_tlb_start, io_tlb_nslabs, verbose);
 }
 
 void __init
