@@ -401,14 +401,14 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec, WM8993_ANALOGUE_HP_0,
-				    WM8993_HPOUT1L_DLY |
-				    WM8993_HPOUT1R_DLY |
+				    WM8993_HPOUT1L_OUTP |
+				    WM8993_HPOUT1R_OUTP |
 				    WM8993_HPOUT1L_RMV_SHORT |
 				    WM8993_HPOUT1R_RMV_SHORT, 0);
 
 		snd_soc_update_bits(codec, WM8993_ANALOGUE_HP_0,
-				    WM8993_HPOUT1L_OUTP |
-				    WM8993_HPOUT1R_OUTP, 0);
+				    WM8993_HPOUT1L_DLY |
+				    WM8993_HPOUT1R_DLY, 0);
 
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
 				    WM8993_HPOUT1L_ENA | WM8993_HPOUT1R_ENA,
