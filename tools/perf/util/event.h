@@ -131,20 +131,6 @@ typedef union event_union {
 	struct build_id_event		build_id;
 } event_t;
 
-struct events_stats {
-	u64 total;
-	u64 lost;
-};
-
-struct event_stat_id {
-	struct rb_node		rb_node;
-	struct rb_root		hists;
-	struct events_stats	stats;
-	u64			config;
-	u64			event_stream;
-	u32			type;
-};
-
 void event__print_totals(void);
 
 struct perf_session;

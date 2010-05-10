@@ -1,6 +1,7 @@
 #ifndef __PERF_SESSION_H
 #define __PERF_SESSION_H
 
+#include "hist.h"
 #include "event.h"
 #include "header.h"
 #include "symbol.h"
@@ -28,11 +29,16 @@ struct perf_session {
 	struct thread		*last_match;
 	struct machine		host_machine;
 	struct rb_root		machines;
-	struct events_stats	events_stats;
-	struct rb_root		stats_by_id;
+	struct rb_root		hists_tree;
 	unsigned long		event_total[PERF_RECORD_MAX];
 	unsigned long		unknown_events;
-	struct rb_root		hists;
+	/*
+	 * FIXME: should point to the first entry in hists_tree and
+	 *        be a hists instance. Right now its only 'report'
+	 *        that is using ->hists_tree while all the rest use
+	 *        ->hists.
+	 */
+	struct hists		hists;
 	u64			sample_type;
 	int			fd;
 	bool			fd_pipe;

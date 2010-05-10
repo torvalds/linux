@@ -44,16 +44,17 @@ static char		*pretty_printing_style = default_pretty_printing_style;
 
 static char		callchain_default_opt[] = "fractal,0.5";
 
-static struct event_stat_id *get_stats(struct perf_session *self,
-				       u64 event_stream, u32 type, u64 config)
+static struct hists *perf_session__hists_findnew(struct perf_session *self,
+						 u64 event_stream, u32 type,
+						 u64 config)
 {
-	struct rb_node **p = &self->stats_by_id.rb_node;
+	struct rb_node **p = &self->hists_tree.rb_node;
 	struct rb_node *parent = NULL;
-	struct event_stat_id *iter, *new;
+	struct hists *iter, *new;
 
 	while (*p != NULL) {
 		parent = *p;
-		iter = rb_entry(parent, struct event_stat_id, rb_node);
+		iter = rb_entry(parent, struct hists, rb_node);
 		if (iter->config == config)
 			return iter;
 
@@ -64,15 +65,15 @@ static struct event_stat_id *get_stats(struct perf_session *self,
 			p = &(*p)->rb_left;
 	}
 
-	new = malloc(sizeof(struct event_stat_id));
+	new = malloc(sizeof(struct hists));
 	if (new == NULL)
 		return NULL;
-	memset(new, 0, sizeof(struct event_stat_id));
+	memset(new, 0, sizeof(struct hists));
 	new->event_stream = event_stream;
 	new->config = config;
 	new->type = type;
 	rb_link_node(&new->rb_node, parent, p);
-	rb_insert_color(&new->rb_node, &self->stats_by_id);
+	rb_insert_color(&new->rb_node, &self->hists_tree);
 	return new;
 }
 
@@ -84,7 +85,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	struct symbol *parent = NULL;
 	int err = -ENOMEM;
 	struct hist_entry *he;
-	struct event_stat_id *stats;
+	struct hists *hists;
 	struct perf_event_attr *attr;
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && data->callchain) {
@@ -96,13 +97,12 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 
 	attr = perf_header__find_attr(data->id, &self->header);
 	if (attr)
-		stats = get_stats(self, data->id, attr->type, attr->config);
+		hists = perf_session__hists_findnew(self, data->id, attr->type, attr->config);
 	else
-		stats = get_stats(self, data->id, 0, 0);
-	if (stats == NULL)
+		hists = perf_session__hists_findnew(self, data->id, 0, 0);
+	if (hists == NULL)
 		goto out_free_syms;
-	he = __perf_session__add_hist_entry(&stats->hists, al, parent,
-					    data->period);
+	he = __hists__add_entry(hists, al, parent, data->period);
 	if (he == NULL)
 		goto out_free_syms;
 	err = 0;
@@ -117,18 +117,19 @@ static int add_event_total(struct perf_session *session,
 			   struct sample_data *data,
 			   struct perf_event_attr *attr)
 {
-	struct event_stat_id *stats;
+	struct hists *hists;
 
 	if (attr)
-		stats = get_stats(session, data->id, attr->type, attr->config);
+		hists = perf_session__hists_findnew(session, data->id,
+						    attr->type, attr->config);
 	else
-		stats = get_stats(session, data->id, 0, 0);
+		hists = perf_session__hists_findnew(session, data->id, 0, 0);
 
-	if (!stats)
+	if (!hists)
 		return -ENOMEM;
 
-	stats->stats.total += data->period;
-	session->events_stats.total += data->period;
+	hists->stats.total += data->period;
+	session->hists.stats.total += data->period;
 	return 0;
 }
 
@@ -292,35 +293,33 @@ static int __cmd_report(void)
 	if (verbose > 2)
 		perf_session__fprintf_dsos(session, stdout);
 
-	next = rb_first(&session->stats_by_id);
+	next = rb_first(&session->hists_tree);
 	while (next) {
-		struct event_stat_id *stats;
+		struct hists *hists;
 		u64 nr_hists;
 
-		stats = rb_entry(next, struct event_stat_id, rb_node);
-		perf_session__collapse_resort(&stats->hists);
-		nr_hists = perf_session__output_resort(&stats->hists,
-						       stats->stats.total);
+		hists = rb_entry(next, struct hists, rb_node);
+		hists__collapse_resort(hists);
+		nr_hists = hists__output_resort(hists);
 		if (use_browser)
-			perf_session__browse_hists(&stats->hists, nr_hists,
-						   stats->stats.total, help,
+			perf_session__browse_hists(&hists->entries, nr_hists,
+						   hists->stats.total, help,
 						   input_name);
 		else {
-			if (rb_first(&session->stats_by_id) ==
-			    rb_last(&session->stats_by_id))
+			if (rb_first(&session->hists.entries) ==
+			    rb_last(&session->hists.entries))
 				fprintf(stdout, "# Samples: %Ld\n#\n",
-					stats->stats.total);
+					hists->stats.total);
 			else
 				fprintf(stdout, "# Samples: %Ld %s\n#\n",
-					stats->stats.total,
-					__event_name(stats->type, stats->config));
+					hists->stats.total,
+					__event_name(hists->type, hists->config));
 
-			perf_session__fprintf_hists(&stats->hists, NULL, false, stdout,
-					    stats->stats.total);
+			hists__fprintf(hists, NULL, false, stdout);
 			fprintf(stdout, "\n\n");
 		}
 
-		next = rb_next(&stats->rb_node);
+		next = rb_next(&hists->rb_node);
 	}
 
 	if (!use_browser && sort_order == default_sort_order &&

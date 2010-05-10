@@ -6,34 +6,40 @@
 
 extern struct callchain_param callchain_param;
 
-struct perf_session;
 struct hist_entry;
 struct addr_location;
 struct symbol;
 struct rb_root;
 
-struct hist_entry *__perf_session__add_hist_entry(struct rb_root *hists,
-						  struct addr_location *al,
-						  struct symbol *parent,
-						  u64 count);
+struct events_stats {
+	u64 total;
+	u64 lost;
+};
+
+struct hists {
+	struct rb_node		rb_node;
+	struct rb_root		entries;
+	struct events_stats	stats;
+	u64			config;
+	u64			event_stream;
+	u32			type;
+};
+
+struct hist_entry *__hists__add_entry(struct hists *self,
+				      struct addr_location *al,
+				      struct symbol *parent, u64 count);
 extern int64_t hist_entry__cmp(struct hist_entry *, struct hist_entry *);
 extern int64_t hist_entry__collapse(struct hist_entry *, struct hist_entry *);
-int hist_entry__fprintf(struct hist_entry *self,
-			   struct perf_session *pair_session,
-			   bool show_displacement,
-			   long displacement, FILE *fp,
-			   u64 session_total);
-int hist_entry__snprintf(struct hist_entry *self,
-			 char *bf, size_t size,
-			 struct perf_session *pair_session,
-			 bool show_displacement, long displacement,
-			 bool color, u64 session_total);
+int hist_entry__fprintf(struct hist_entry *self, struct hists *pair_hists,
+			bool show_displacement, long displacement, FILE *fp,
+			u64 total);
+int hist_entry__snprintf(struct hist_entry *self, char *bf, size_t size,
+			 struct hists *pair_hists, bool show_displacement,
+			 long displacement, bool color, u64 total);
 void hist_entry__free(struct hist_entry *);
 
-u64 perf_session__output_resort(struct rb_root *hists, u64 total_samples);
-void perf_session__collapse_resort(struct rb_root *hists);
-size_t perf_session__fprintf_hists(struct rb_root *hists,
-				   struct perf_session *pair,
-				   bool show_displacement, FILE *fp,
-				   u64 session_total);
+u64 hists__output_resort(struct hists *self);
+void hists__collapse_resort(struct hists *self);
+size_t hists__fprintf(struct hists *self, struct hists *pair,
+		      bool show_displacement, FILE *fp);
 #endif	/* __PERF_HIST_H */

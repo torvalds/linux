@@ -368,7 +368,7 @@ int event__process_comm(event_t *self, struct perf_session *session)
 int event__process_lost(event_t *self, struct perf_session *session)
 {
 	dump_printf(": id:%Ld: lost:%Ld\n", self->lost.id, self->lost.lost);
-	session->events_stats.lost += self->lost.lost;
+	session->hists.stats.lost += self->lost.lost;
 	return 0;
 }
 

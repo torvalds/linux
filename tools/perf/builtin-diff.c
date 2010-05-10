@@ -22,10 +22,10 @@ static char	  diff__default_sort_order[] = "dso,symbol";
 static bool  force;
 static bool show_displacement;
 
-static int perf_session__add_hist_entry(struct perf_session *self,
-					struct addr_location *al, u64 count)
+static int hists__add_entry(struct hists *self,
+			    struct addr_location *al, u64 count)
 {
-	if (__perf_session__add_hist_entry(&self->hists, al, NULL, count) != NULL)
+	if (__hists__add_entry(self, al, NULL, count) != NULL)
 		return 0;
 	return -ENOMEM;
 }
@@ -49,12 +49,12 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 
 	event__parse_sample(event, session->sample_type, &data);
 
-	if (perf_session__add_hist_entry(session, &al, data.period)) {
+	if (hists__add_entry(&session->hists, &al, data.period)) {
 		pr_warning("problem incrementing symbol count, skipping event\n");
 		return -1;
 	}
 
-	session->events_stats.total += data.period;
+	session->hists.stats.total += data.period;
 	return 0;
 }
 
@@ -87,35 +87,34 @@ static void perf_session__insert_hist_entry_by_name(struct rb_root *root,
 	rb_insert_color(&he->rb_node, root);
 }
 
-static void perf_session__resort_hist_entries(struct perf_session *self)
+static void hists__resort_entries(struct hists *self)
 {
 	unsigned long position = 1;
 	struct rb_root tmp = RB_ROOT;
-	struct rb_node *next = rb_first(&self->hists);
+	struct rb_node *next = rb_first(&self->entries);
 
 	while (next != NULL) {
 		struct hist_entry *n = rb_entry(next, struct hist_entry, rb_node);
 
 		next = rb_next(&n->rb_node);
-		rb_erase(&n->rb_node, &self->hists);
+		rb_erase(&n->rb_node, &self->entries);
 		n->position = position++;
 		perf_session__insert_hist_entry_by_name(&tmp, n);
 	}
 
-	self->hists = tmp;
+	self->entries = tmp;
 }
 
-static void perf_session__set_hist_entries_positions(struct perf_session *self)
+static void hists__set_positions(struct hists *self)
 {
-	perf_session__output_resort(&self->hists, self->events_stats.total);
-	perf_session__resort_hist_entries(self);
+	hists__output_resort(self);
+	hists__resort_entries(self);
 }
 
-static struct hist_entry *
-perf_session__find_hist_entry(struct perf_session *self,
-			      struct hist_entry *he)
+static struct hist_entry *hists__find_entry(struct hists *self,
+					    struct hist_entry *he)
 {
-	struct rb_node *n = self->hists.rb_node;
+	struct rb_node *n = self->entries.rb_node;
 
 	while (n) {
 		struct hist_entry *iter = rb_entry(n, struct hist_entry, rb_node);
@@ -132,14 +131,13 @@ perf_session__find_hist_entry(struct perf_session *self,
 	return NULL;
 }
 
-static void perf_session__match_hists(struct perf_session *old_session,
-				      struct perf_session *new_session)
+static void hists__match(struct hists *older, struct hists *newer)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(&new_session->hists); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&newer->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *pos = rb_entry(nd, struct hist_entry, rb_node);
-		pos->pair = perf_session__find_hist_entry(old_session, pos);
+		pos->pair = hists__find_entry(older, pos);
 	}
 }
 
@@ -159,15 +157,13 @@ static int __cmd_diff(void)
 			goto out_delete;
 	}
 
-	perf_session__output_resort(&session[1]->hists,
-				    session[1]->events_stats.total);
+	hists__output_resort(&session[1]->hists);
 	if (show_displacement)
-		perf_session__set_hist_entries_positions(session[0]);
+		hists__set_positions(&session[0]->hists);
 
-	perf_session__match_hists(session[0], session[1]);
-	perf_session__fprintf_hists(&session[1]->hists, session[0],
-				    show_displacement, stdout,
-				    session[1]->events_stats.total);
+	hists__match(&session[0]->hists, &session[1]->hists);
+	hists__fprintf(&session[1]->hists, &session[0]->hists,
+		       show_displacement, stdout);
 out_delete:
 	for (i = 0; i < 2; ++i)
 		perf_session__delete(session[i]);
