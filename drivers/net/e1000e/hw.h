@@ -208,6 +208,8 @@ enum e1e_registers {
 
 	E1000_KMRNCTRLSTA = 0x00034, /* MAC-PHY interface - RW */
 	E1000_MANC2H    = 0x05860, /* Management Control To Host - RW */
+	E1000_MDEF_BASE = 0x05890, /* Management Decision Filters */
+#define E1000_MDEF(_n)   (E1000_MDEF_BASE + ((_n) * 4))
 	E1000_SW_FW_SYNC = 0x05B5C, /* Software-Firmware Synchronization - RW */
 	E1000_GCR	= 0x05B00, /* PCI-Ex Control */
 	E1000_GCR2      = 0x05B64, /* PCI-Ex Control #2 */

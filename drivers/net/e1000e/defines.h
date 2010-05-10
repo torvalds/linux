@@ -138,6 +138,11 @@
 /* Enable MNG packets to host memory */
 #define E1000_MANC_EN_MNG2HOST   0x00200000
 
+#define E1000_MANC2H_PORT_623    0x00000020 /* Port 0x26f */
+#define E1000_MANC2H_PORT_664    0x00000040 /* Port 0x298 */
+#define E1000_MDEF_PORT_623      0x00000800 /* Port 0x26f */
+#define E1000_MDEF_PORT_664      0x00000400 /* Port 0x298 */
+
 /* Receive Control */
 #define E1000_RCTL_EN             0x00000002    /* enable */
 #define E1000_RCTL_SBP            0x00000004    /* store bad packet */

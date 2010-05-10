@@ -2526,10 +2526,10 @@ static void e1000_restore_vlan(struct e1000_adapter *adapter)
 	}
 }
 
-static void e1000_init_manageability(struct e1000_adapter *adapter)
+static void e1000_init_manageability_pt(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 manc, manc2h;
+	u32 manc, manc2h, mdef, i, j;
 
 	if (!(adapter->flags & FLAG_MNG_PT_ENABLED))
 		return;
@@ -2543,10 +2543,49 @@ static void e1000_init_manageability(struct e1000_adapter *adapter)
 	 */
 	manc |= E1000_MANC_EN_MNG2HOST;
 	manc2h = er32(MANC2H);
-#define E1000_MNG2HOST_PORT_623 (1 << 5)
-#define E1000_MNG2HOST_PORT_664 (1 << 6)
-	manc2h |= E1000_MNG2HOST_PORT_623;
-	manc2h |= E1000_MNG2HOST_PORT_664;
+
+	switch (hw->mac.type) {
+	default:
+		manc2h |= (E1000_MANC2H_PORT_623 | E1000_MANC2H_PORT_664);
+		break;
+	case e1000_82574:
+	case e1000_82583:
+		/*
+		 * Check if IPMI pass-through decision filter already exists;
+		 * if so, enable it.
+		 */
+		for (i = 0, j = 0; i < 8; i++) {
+			mdef = er32(MDEF(i));
+
+			/* Ignore filters with anything other than IPMI ports */
+			if (mdef & !(E1000_MDEF_PORT_623 | E1000_MDEF_PORT_664))
+				continue;
+
+			/* Enable this decision filter in MANC2H */
+			if (mdef)
+				manc2h |= (1 << i);
+
+			j |= mdef;
+		}
+
+		if (j == (E1000_MDEF_PORT_623 | E1000_MDEF_PORT_664))
+			break;
+
+		/* Create new decision filter in an empty filter */
+		for (i = 0, j = 0; i < 8; i++)
+			if (er32(MDEF(i)) == 0) {
+				ew32(MDEF(i), (E1000_MDEF_PORT_623 |
+					       E1000_MDEF_PORT_664));
+				manc2h |= (1 << 1);
+				j++;
+				break;
+			}
+
+		if (!j)
+			e_warn("Unable to create IPMI pass-through filter\n");
+		break;
+	}
+
 	ew32(MANC2H, manc2h);
 	ew32(MANC, manc);
 }
@@ -2961,7 +3000,7 @@ static void e1000_configure(struct e1000_adapter *adapter)
 	e1000_set_multi(adapter->netdev);
 
 	e1000_restore_vlan(adapter);
-	e1000_init_manageability(adapter);
+	e1000_init_manageability_pt(adapter);
 
 	e1000_configure_tx(adapter);
 	e1000_setup_rctl(adapter);
@@ -5104,7 +5143,7 @@ static int __e1000_resume(struct pci_dev *pdev)
 
 	e1000e_reset(adapter);
 
-	e1000_init_manageability(adapter);
+	e1000_init_manageability_pt(adapter);
 
 	if (netif_running(netdev))
 		e1000e_up(adapter);
@@ -5305,7 +5344,7 @@ static void e1000_io_resume(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	e1000_init_manageability(adapter);
+	e1000_init_manageability_pt(adapter);
 
 	if (netif_running(netdev)) {
 		if (e1000e_up(adapter)) {
