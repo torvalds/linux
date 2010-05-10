@@ -139,6 +139,10 @@ struct net_bridge_port
 	struct hlist_head		mglist;
 	struct hlist_node		rlist;
 #endif
+
+#ifdef CONFIG_SYSFS
+	char				sysfs_name[IFNAMSIZ];
+#endif
 };
 
 struct br_cpu_netstats {
@@ -480,6 +484,7 @@ extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
 /* br_sysfs_if.c */
 extern const struct sysfs_ops brport_sysfs_ops;
 extern int br_sysfs_addif(struct net_bridge_port *p);
+extern int br_sysfs_renameif(struct net_bridge_port *p);
 
 /* br_sysfs_br.c */
 extern int br_sysfs_addbr(struct net_device *dev);
@@ -488,6 +493,7 @@ extern void br_sysfs_delbr(struct net_device *dev);
 #else
 
 #define br_sysfs_addif(p)	(0)
+#define br_sysfs_renameif(p)	(0)
 #define br_sysfs_addbr(dev)	(0)
 #define br_sysfs_delbr(dev)	do { } while(0)
 #endif /* CONFIG_SYSFS */
