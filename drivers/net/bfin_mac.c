@@ -81,9 +81,6 @@ static u16 pin_req[] = P_RMII0;
 static u16 pin_req[] = P_MII0;
 #endif
 
-static void bfin_mac_disable(void);
-static void bfin_mac_enable(void);
-
 static void desc_list_free(void)
 {
 	struct net_dma_desc_rx *r;
@@ -260,7 +257,7 @@ init_error:
  * MII operations
  */
 /* Wait until the previous MDC/MDIO transaction has completed */
-static void bfin_mdio_poll(void)
+static int bfin_mdio_poll(void)
 {
 	int timeout_cnt = MAX_TIMEOUT_CNT;
 
@@ -270,22 +267,30 @@ static void bfin_mdio_poll(void)
 		if (timeout_cnt-- < 0) {
 			printk(KERN_ERR DRV_NAME
 			": wait MDC/MDIO transaction to complete timeout\n");
-			break;
+			return -ETIMEDOUT;
 		}
 	}
+
+	return 0;
 }
 
 /* Read an off-chip register in a PHY through the MDC/MDIO port */
 static int bfin_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 {
-	bfin_mdio_poll();
+	int ret;
+
+	ret = bfin_mdio_poll();
+	if (ret)
+		return ret;
 
 	/* read mode */
 	bfin_write_EMAC_STAADD(SET_PHYAD((u16) phy_addr) |
 				SET_REGAD((u16) regnum) |
 				STABUSY);
 
-	bfin_mdio_poll();
+	ret = bfin_mdio_poll();
+	if (ret)
+		return ret;
 
 	return (int) bfin_read_EMAC_STADAT();
 }
@@ -294,7 +299,11 @@ static int bfin_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 static int bfin_mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
 			      u16 value)
 {
-	bfin_mdio_poll();
+	int ret;
+
+	ret = bfin_mdio_poll();
+	if (ret)
+		return ret;
 
 	bfin_write_EMAC_STADAT((u32) value);
 
@@ -304,9 +313,7 @@ static int bfin_mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
 				STAOP |
 				STABUSY);
 
-	bfin_mdio_poll();
-
-	return 0;
+	return bfin_mdio_poll();
 }
 
 static int bfin_mdiobus_reset(struct mii_bus *bus)
@@ -1180,8 +1187,9 @@ static void bfin_mac_disable(void)
 /*
  * Enable Interrupts, Receive, and Transmit
  */
-static void bfin_mac_enable(void)
+static int bfin_mac_enable(void)
 {
+	int ret;
 	u32 opmode;
 
 	pr_debug("%s: %s\n", DRV_NAME, __func__);
@@ -1191,7 +1199,9 @@ static void bfin_mac_enable(void)
 	bfin_write_DMA1_CONFIG(rx_list_head->desc_a.config);
 
 	/* Wait MII done */
-	bfin_mdio_poll();
+	ret = bfin_mdio_poll();
+	if (ret)
+		return ret;
 
 	/* We enable only RX here */
 	/* ASTP   : Enable Automatic Pad Stripping
@@ -1215,6 +1225,8 @@ static void bfin_mac_enable(void)
 #endif
 	/* Turn on the EMAC rx */
 	bfin_write_EMAC_OPMODE(opmode);
+
+	return 0;
 }
 
 /* Our watchdog timed out. Called by the networking layer */
@@ -1327,7 +1339,7 @@ static void bfin_mac_shutdown(struct net_device *dev)
 static int bfin_mac_open(struct net_device *dev)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
-	int retval;
+	int ret;
 	pr_debug("%s: %s\n", dev->name, __func__);
 
 	/*
@@ -1341,18 +1353,21 @@ static int bfin_mac_open(struct net_device *dev)
 	}
 
 	/* initial rx and tx list */
-	retval = desc_list_init();
-
-	if (retval)
-		return retval;
+	ret = desc_list_init();
+	if (ret)
+		return ret;
 
 	phy_start(lp->phydev);
 	phy_write(lp->phydev, MII_BMCR, BMCR_RESET);
 	setup_system_regs(dev);
 	setup_mac_addr(dev->dev_addr);
+
 	bfin_mac_disable();
-	bfin_mac_enable();
+	ret = bfin_mac_enable();
+	if (ret)
+		return ret;
 	pr_debug("hardware init finished\n");
+
 	netif_start_queue(dev);
 	netif_carrier_on(dev);
 
