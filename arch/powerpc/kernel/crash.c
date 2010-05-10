@@ -381,7 +381,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 			desc->chip->eoi(i);
 
 		if (!(desc->status & IRQ_DISABLED))
-			desc->chip->disable(i);
+			desc->chip->shutdown(i);
 	}
 
 	/*
