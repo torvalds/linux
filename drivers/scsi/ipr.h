@@ -244,6 +244,7 @@
 #define IPR_RUNTIME_RESET				0x40000000
 
 #define IPR_IPL_INIT_MIN_STAGE_TIME			5
+#define IPR_IPL_INIT_DEFAULT_STAGE_TIME                 15
 #define IPR_IPL_INIT_STAGE_UNKNOWN			0x0
 #define IPR_IPL_INIT_STAGE_TRANSOP			0xB0000000
 #define IPR_IPL_INIT_STAGE_MASK				0xff000000
@@ -804,7 +805,7 @@ struct ipr_hostrcb_array_data_entry_enhanced {
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_ff_error {
-	__be32 ioa_data[502];
+	__be32 ioa_data[758];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_01_error {

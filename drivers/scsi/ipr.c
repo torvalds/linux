@@ -1040,7 +1040,7 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 		proto = cfgtew->u.cfgte64->proto;
 		res->res_flags = cfgtew->u.cfgte64->res_flags;
 		res->qmodel = IPR_QUEUEING_MODEL64(res);
-		res->type = cfgtew->u.cfgte64->res_type & 0x0f;
+		res->type = cfgtew->u.cfgte64->res_type;
 
 		memcpy(res->res_path, &cfgtew->u.cfgte64->res_path,
 			sizeof(res->res_path));
@@ -5014,6 +5014,8 @@ static int ipr_build_ioadl64(struct ipr_ioa_cfg *ioa_cfg,
 
 	ipr_cmd->dma_use_sg = nseg;
 
+	ioarcb->data_transfer_length = cpu_to_be32(length);
+
 	if (scsi_cmd->sc_data_direction == DMA_TO_DEVICE) {
 		ioadl_flags = IPR_IOADL_FLAGS_WRITE;
 		ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_WRITE_NOT_READ;
@@ -6706,7 +6708,7 @@ static int ipr_init_res_table(struct ipr_cmnd *ipr_cmd)
 		list_move_tail(&res->queue, &old_res);
 
 	if (ioa_cfg->sis64)
-		entries = ioa_cfg->u.cfg_table64->hdr64.num_entries;
+		entries = be16_to_cpu(ioa_cfg->u.cfg_table64->hdr64.num_entries);
 	else
 		entries = ioa_cfg->u.cfg_table->hdr.num_entries;
 
@@ -6792,6 +6794,7 @@ static int ipr_ioafp_query_ioa_cfg(struct ipr_cmnd *ipr_cmd)
 	ioarcb->res_handle = cpu_to_be32(IPR_IOA_RES_HANDLE);
 
 	ioarcb->cmd_pkt.cdb[0] = IPR_QUERY_IOA_CONFIG;
+	ioarcb->cmd_pkt.cdb[6] = (ioa_cfg->cfg_table_size >> 16) & 0xff;
 	ioarcb->cmd_pkt.cdb[7] = (ioa_cfg->cfg_table_size >> 8) & 0xff;
 	ioarcb->cmd_pkt.cdb[8] = ioa_cfg->cfg_table_size & 0xff;
 
@@ -7122,7 +7125,9 @@ static int ipr_reset_next_stage(struct ipr_cmnd *ipr_cmd)
 	ipr_dbg("IPL stage = 0x%lx, IPL stage time = %ld\n", stage, stage_time);
 
 	/* sanity check the stage_time value */
-	if (stage_time < IPR_IPL_INIT_MIN_STAGE_TIME)
+	if (stage_time == 0)
+		stage_time = IPR_IPL_INIT_DEFAULT_STAGE_TIME;
+	else if (stage_time < IPR_IPL_INIT_MIN_STAGE_TIME)
 		stage_time = IPR_IPL_INIT_MIN_STAGE_TIME;
 	else if (stage_time > IPR_LONG_OPERATIONAL_TIMEOUT)
 		stage_time = IPR_LONG_OPERATIONAL_TIMEOUT;
@@ -7364,7 +7369,7 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 		}
 	}
 
-	ENTER;
+	LEAVE;
 	return IPR_RC_JOB_CONTINUE;
 }
 
