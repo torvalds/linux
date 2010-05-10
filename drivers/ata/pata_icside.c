@@ -333,7 +333,6 @@ static struct ata_port_operations pata_icside_port_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_dmamode		= pata_icside_set_dmamode,
 	.postreset		= pata_icside_postreset,
-	.post_internal_cmd	= pata_icside_bmdma_stop,
 
 	.port_start		= ATA_OP_NULL,	/* don't need PRD table */
 };

@@ -147,7 +147,6 @@ static struct ata_port_operations qs_ata_ops = {
 	.prereset		= qs_prereset,
 	.softreset		= ATA_OP_NULL,
 	.error_handler		= qs_error_handler,
-	.post_internal_cmd	= ATA_OP_NULL,
 	.lost_interrupt		= ATA_OP_NULL,
 
 	.scr_read		= qs_scr_read,
@@ -255,7 +254,7 @@ static int qs_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val)
 static void qs_error_handler(struct ata_port *ap)
 {
 	qs_enter_reg_mode(ap);
-	ata_std_error_handler(ap);
+	ata_sff_error_handler(ap);
 }
 
 static int qs_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)

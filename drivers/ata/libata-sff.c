@@ -56,7 +56,6 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.hardreset		= sata_sff_hardreset,
 	.postreset		= ata_sff_postreset,
 	.error_handler		= ata_sff_error_handler,
-	.post_internal_cmd	= ata_sff_post_internal_cmd,
 
 	.sff_dev_select		= ata_sff_dev_select,
 	.sff_check_status	= ata_sff_check_status,
@@ -2361,7 +2360,7 @@ void ata_sff_drain_fifo(struct ata_queued_cmd *qc)
 EXPORT_SYMBOL_GPL(ata_sff_drain_fifo);
 
 /**
- *	ata_sff_error_handler - Stock error handler for BMDMA controller
+ *	ata_sff_error_handler - Stock error handler for SFF controller
  *	@ap: port to handle error for
  *
  *	Stock error handler for SFF controller.  It can handle both
@@ -2378,91 +2377,38 @@ void ata_sff_error_handler(struct ata_port *ap)
 	ata_reset_fn_t hardreset = ap->ops->hardreset;
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
-	bool thaw = false;
 
 	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
 	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
 		qc = NULL;
 
-	/* reset PIO HSM and stop DMA engine */
 	spin_lock_irqsave(ap->lock, flags);
 
-	if (ap->ioaddr.bmdma_addr &&
-	    qc && (qc->tf.protocol == ATA_PROT_DMA ||
-		   qc->tf.protocol == ATAPI_PROT_DMA)) {
-		u8 host_stat;
-
-		host_stat = ap->ops->bmdma_status(ap);
-
-		/* BMDMA controllers indicate host bus error by
-		 * setting DMA_ERR bit and timing out.  As it wasn't
-		 * really a timeout event, adjust error mask and
-		 * cancel frozen state.
-		 */
-		if (qc->err_mask == AC_ERR_TIMEOUT
-						&& (host_stat & ATA_DMA_ERR)) {
-			qc->err_mask = AC_ERR_HOST_BUS;
-			thaw = true;
-		}
-
-		ap->ops->bmdma_stop(qc);
-
-		/* if we're gonna thaw, make sure IRQ is clear */
-		if (thaw) {
-			ap->ops->sff_check_status(ap);
-			ap->ops->sff_irq_clear(ap);
-
-			spin_unlock_irqrestore(ap->lock, flags);
-			ata_eh_thaw_port(ap);
-			spin_lock_irqsave(ap->lock, flags);
-		}
-	}
-
-	/* We *MUST* do FIFO draining before we issue a reset as several
-	 * devices helpfully clear their internal state and will lock solid
-	 * if we touch the data port post reset. Pass qc in case anyone wants
-	 *  to do different PIO/DMA recovery or has per command fixups
+	/*
+	 * We *MUST* do FIFO draining before we issue a reset as
+	 * several devices helpfully clear their internal state and
+	 * will lock solid if we touch the data port post reset. Pass
+	 * qc in case anyone wants to do different PIO/DMA recovery or
+	 * has per command fixups
 	 */
 	if (ap->ops->sff_drain_fifo)
 		ap->ops->sff_drain_fifo(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	/* PIO and DMA engines have been stopped, perform recovery */
-
-	/* Ignore ata_sff_softreset if ctl isn't accessible and
-	 * built-in hardresets if SCR access isn't available.
-	 */
+	/* ignore ata_sff_softreset if ctl isn't accessible */
 	if (softreset == ata_sff_softreset && !ap->ioaddr.ctl_addr)
 		softreset = NULL;
-	if (ata_is_builtin_hardreset(hardreset) && !sata_scr_valid(&ap->link))
+
+	/* ignore built-in hardresets if SCR access is not available */
+	if ((hardreset == sata_std_hardreset ||
+	     hardreset == sata_sff_hardreset) && !sata_scr_valid(&ap->link))
 		hardreset = NULL;
 
 	ata_do_eh(ap, ap->ops->prereset, softreset, hardreset,
 		  ap->ops->postreset);
 }
 EXPORT_SYMBOL_GPL(ata_sff_error_handler);
-
-/**
- *	ata_sff_post_internal_cmd - Stock post_internal_cmd for SFF controller
- *	@qc: internal command to clean up
- *
- *	LOCKING:
- *	Kernel thread context (may sleep)
- */
-void ata_sff_post_internal_cmd(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	unsigned long flags;
-
-	spin_lock_irqsave(ap->lock, flags);
-
-	if (ap->ioaddr.bmdma_addr)
-		ap->ops->bmdma_stop(qc);
-
-	spin_unlock_irqrestore(ap->lock, flags);
-}
-EXPORT_SYMBOL_GPL(ata_sff_post_internal_cmd);
 
 /**
  *	ata_sff_std_ports - initialize ioaddr with standard port offsets.
@@ -2811,6 +2757,9 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_init_one);
 const struct ata_port_operations ata_bmdma_port_ops = {
 	.inherits		= &ata_sff_port_ops,
 
+	.error_handler		= ata_bmdma_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+
 	.bmdma_setup		= ata_bmdma_setup,
 	.bmdma_start		= ata_bmdma_start,
 	.bmdma_stop		= ata_bmdma_stop,
@@ -2827,6 +2776,84 @@ const struct ata_port_operations ata_bmdma32_port_ops = {
 	.port_start		= ata_bmdma_port_start32,
 };
 EXPORT_SYMBOL_GPL(ata_bmdma32_port_ops);
+
+/**
+ *	ata_bmdma_error_handler - Stock error handler for BMDMA controller
+ *	@ap: port to handle error for
+ *
+ *	Stock error handler for BMDMA controller.  It can handle both
+ *	PATA and SATA controllers.  Most BMDMA controllers should be
+ *	able to use this EH as-is or with some added handling before
+ *	and after.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+void ata_bmdma_error_handler(struct ata_port *ap)
+{
+	struct ata_queued_cmd *qc;
+	unsigned long flags;
+	bool thaw = false;
+
+	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
+	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
+		qc = NULL;
+
+	/* reset PIO HSM and stop DMA engine */
+	spin_lock_irqsave(ap->lock, flags);
+
+	if (qc && ata_is_dma(qc->tf.protocol)) {
+		u8 host_stat;
+
+		host_stat = ap->ops->bmdma_status(ap);
+
+		/* BMDMA controllers indicate host bus error by
+		 * setting DMA_ERR bit and timing out.  As it wasn't
+		 * really a timeout event, adjust error mask and
+		 * cancel frozen state.
+		 */
+		if (qc->err_mask == AC_ERR_TIMEOUT && (host_stat & ATA_DMA_ERR)) {
+			qc->err_mask = AC_ERR_HOST_BUS;
+			thaw = true;
+		}
+
+		ap->ops->bmdma_stop(qc);
+
+		/* if we're gonna thaw, make sure IRQ is clear */
+		if (thaw) {
+			ap->ops->sff_check_status(ap);
+			ap->ops->sff_irq_clear(ap);
+		}
+	}
+
+	spin_unlock_irqrestore(ap->lock, flags);
+
+	if (thaw)
+		ata_eh_thaw_port(ap);
+
+	ata_sff_error_handler(ap);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_error_handler);
+
+/**
+ *	ata_bmdma_post_internal_cmd - Stock post_internal_cmd for BMDMA
+ *	@qc: internal command to clean up
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	unsigned long flags;
+
+	if (ata_is_dma(qc->tf.protocol)) {
+		spin_lock_irqsave(ap->lock, flags);
+		ap->ops->bmdma_stop(qc);
+		spin_unlock_irqrestore(ap->lock, flags);
+	}
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_post_internal_cmd);
 
 /**
  *	ata_bmdma_setup - Set up PCI IDE BMDMA transaction
