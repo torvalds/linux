@@ -565,7 +565,8 @@ static int __map_osds(struct ceph_osd_client *osdc,
 {
 	struct ceph_osd_request_head *reqhead = req->r_request->front.iov_base;
 	struct ceph_pg pgid;
-	int o = -1;
+	int acting[CEPH_PG_MAX_SIZE];
+	int o = -1, num = 0;
 	int err;
 
 	dout("map_osds %p tid %lld\n", req, req->r_tid);
@@ -576,16 +577,26 @@ static int __map_osds(struct ceph_osd_client *osdc,
 	pgid = reqhead->layout.ol_pgid;
 	req->r_pgid = pgid;
 
-	o = ceph_calc_pg_primary(osdc->osdmap, pgid);
+	err = ceph_calc_pg_acting(osdc->osdmap, pgid, acting);
+	if (err > 0) {
+		o = acting[0];
+		num = err;
+	}
 
 	if ((req->r_osd && req->r_osd->o_osd == o &&
-	     req->r_sent >= req->r_osd->o_incarnation) ||
+	     req->r_sent >= req->r_osd->o_incarnation &&
+	     req->r_num_pg_osds == num &&
+	     memcmp(req->r_pg_osds, acting, sizeof(acting[0])*num) == 0) ||
 	    (req->r_osd == NULL && o == -1))
 		return 0;  /* no change */
 
 	dout("map_osds tid %llu pgid %d.%x osd%d (was osd%d)\n",
 	     req->r_tid, le32_to_cpu(pgid.pool), le16_to_cpu(pgid.ps), o,
 	     req->r_osd ? req->r_osd->o_osd : -1);
+
+	/* record full pg acting set */
+	memcpy(req->r_pg_osds, acting, sizeof(acting[0]) * num);
+	req->r_num_pg_osds = num;
 
 	if (req->r_osd) {
 		__cancel_request(req);
@@ -612,7 +623,7 @@ static int __map_osds(struct ceph_osd_client *osdc,
 		__remove_osd_from_lru(req->r_osd);
 		list_add(&req->r_osd_item, &req->r_osd->o_requests);
 	}
-	err = 1;   /* osd changed */
+	err = 1;   /* osd or pg changed */
 
 out:
 	return err;
