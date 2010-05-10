@@ -7187,13 +7187,14 @@ static int ipr_reset_enable_ioa(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	volatile u32 int_reg;
+	volatile u64 maskval;
 
 	ENTER;
 	ipr_cmd->job_step = ipr_ioafp_identify_hrrq;
 	ipr_init_ioa_mem(ioa_cfg);
 
 	ioa_cfg->allow_interrupts = 1;
-	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg);
+	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
 
 	if (int_reg & IPR_PCII_IOA_TRANS_TO_OPER) {
 		writel((IPR_PCII_ERROR_INTERRUPTS | IPR_PCII_HRRQ_UPDATED),
@@ -7205,9 +7206,12 @@ static int ipr_reset_enable_ioa(struct ipr_cmnd *ipr_cmd)
 	/* Enable destructive diagnostics on IOA */
 	writel(ioa_cfg->doorbell, ioa_cfg->regs.set_uproc_interrupt_reg32);
 
-	writel(IPR_PCII_OPER_INTERRUPTS, ioa_cfg->regs.clr_interrupt_mask_reg32);
-	if (ioa_cfg->sis64)
-		writel(IPR_PCII_IPL_STAGE_CHANGE, ioa_cfg->regs.clr_interrupt_mask_reg);
+	if (ioa_cfg->sis64) {
+		maskval = IPR_PCII_IPL_STAGE_CHANGE;
+		maskval = (maskval << 32) | IPR_PCII_OPER_INTERRUPTS;
+		writeq(maskval, ioa_cfg->regs.clr_interrupt_mask_reg);
+	} else
+		writel(IPR_PCII_OPER_INTERRUPTS, ioa_cfg->regs.clr_interrupt_mask_reg32);
 
 	int_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
 

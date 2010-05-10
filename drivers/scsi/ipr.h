@@ -1201,7 +1201,7 @@ struct ipr_resource_entry {
 	u8 flags;
 	__be16 res_flags;
 
-	__be32 type;
+	u8 type;
 
 	u8 qmodel;
 	struct ipr_std_inq_data std_inq_data;
