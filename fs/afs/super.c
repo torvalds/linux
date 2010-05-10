@@ -311,6 +311,7 @@ static int afs_fill_super(struct super_block *sb, void *data)
 	sb->s_magic		= AFS_FS_MAGIC;
 	sb->s_op		= &afs_super_ops;
 	sb->s_fs_info		= as;
+	sb->s_bdi		= &as->volume->bdi;
 
 	/* allocate the root inode and dentry */
 	fid.vid		= as->volume->vid;

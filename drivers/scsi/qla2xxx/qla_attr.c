@@ -2393,6 +2393,7 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 	return 0;
 
 done:
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	if (bsg_job->request->msgcode == FC_BSG_HST_CT)
 		kfree(sp->fcport);
 	kfree(sp->ctx);
