@@ -330,6 +330,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		phy->ops.get_cable_length = e1000_get_cable_length_82577;
 		phy->ops.get_info = e1000_get_phy_info_82577;
 		phy->ops.commit = e1000e_phy_sw_reset;
+		break;
 	case e1000_phy_82578:
 		phy->ops.check_polarity = e1000_check_polarity_m88;
 		phy->ops.force_speed_duplex = e1000e_phy_force_speed_duplex_m88;
