@@ -859,6 +859,8 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"RxCsumGood         ",
 	"VLANextractions    ",
 	"VLANinsertions     ",
+	"GROpackets         ",
+	"GROmerged          ",
 };
 
 static int get_sset_count(struct net_device *dev, int sset)
@@ -922,6 +924,8 @@ struct queue_port_stats {
 	u64 rx_csum;
 	u64 vlan_ex;
 	u64 vlan_ins;
+	u64 gro_pkts;
+	u64 gro_merged;
 };
 
 static void collect_sge_port_stats(const struct adapter *adap,
@@ -938,6 +942,8 @@ static void collect_sge_port_stats(const struct adapter *adap,
 		s->rx_csum += rx->stats.rx_cso;
 		s->vlan_ex += rx->stats.vlan_ex;
 		s->vlan_ins += tx->vlan_ins;
+		s->gro_pkts += rx->stats.lro_pkts;
+		s->gro_merged += rx->stats.lro_merged;
 	}
 }
 
