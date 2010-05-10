@@ -36,6 +36,7 @@
 #define RX51_GPIO_SLEEP_IND 162
 
 struct omap_sdrc_params *rx51_get_sdram_timings(void);
+extern void rx51_video_mem_init(void);
 
 static struct gpio_led gpio_leds[] = {
 	{
@@ -143,6 +144,7 @@ static void __init rx51_init(void)
 static void __init rx51_map_io(void)
 {
 	omap2_set_globals_343x();
+	rx51_video_mem_init();
 	omap34xx_map_common_io();
 }
 

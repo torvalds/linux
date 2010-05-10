@@ -45,11 +45,17 @@
 /* list all spi devices here */
 enum {
 	RX51_SPI_WL1251,
+	RX51_SPI_MIPID,		/* LCD panel */
 };
 
 static struct wl12xx_platform_data wl1251_pdata;
 
 static struct omap2_mcspi_device_config wl1251_mcspi_config = {
+	.turbo_mode	= 0,
+	.single_channel	= 1,
+};
+
+static struct omap2_mcspi_device_config mipid_mcspi_config = {
 	.turbo_mode	= 0,
 	.single_channel	= 1,
 };
@@ -63,6 +69,13 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 		.mode                   = SPI_MODE_3,
 		.controller_data	= &wl1251_mcspi_config,
 		.platform_data		= &wl1251_pdata,
+	},
+	[RX51_SPI_MIPID] = {
+		.modalias		= "acx565akm",
+		.bus_num		= 1,
+		.chip_select		= 2,
+		.max_speed_hz		= 6000000,
+		.controller_data	= &mipid_mcspi_config,
 	},
 };
 
