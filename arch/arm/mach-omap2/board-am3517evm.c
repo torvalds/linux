@@ -216,6 +216,8 @@ static int __init am3517_evm_i2c_init(void)
 static int lcd_enabled;
 static int dvi_enabled;
 
+#if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
+		defined(CONFIG_PANEL_SHARP_LQ043T1DG01_MODULE)
 static void __init am3517_evm_display_init(void)
 {
 	int r;
@@ -259,6 +261,9 @@ err_2:
 err_1:
 	gpio_free(LCD_PANEL_BKLIGHT_PWR);
 }
+#else
+static void __init am3517_evm_display_init(void) {}
+#endif
 
 static int am3517_evm_panel_enable_lcd(struct omap_dss_device *dssdev)
 {
@@ -372,7 +377,12 @@ static void __init am3517_evm_init_irq(void)
 
 static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
+#if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
+		defined(CONFIG_PANEL_SHARP_LQ043T1DG01_MODULE)
+	.port_mode[1] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+#else
 	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
+#endif
 	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
 
 	.phy_reset  = true,
