@@ -3656,9 +3656,6 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 	/* special case: control/altstatus doesn't have ATA_REG_ address */
 	port->altstatus_addr = port->ctl_addr = shd_base + SHD_CTL_AST;
 
-	/* unused: */
-	port->cmd_addr = port->bmdma_addr = port->scr_addr = NULL;
-
 	/* Clear any currently outstanding port interrupt conditions */
 	serr = port_mmio + mv_scr_offset(SCR_ERROR);
 	writelfl(readl(serr), serr);
