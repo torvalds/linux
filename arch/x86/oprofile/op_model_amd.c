@@ -374,6 +374,15 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 		val |= op_x86_get_ctrl(model, &counter_config[virt]);
 		wrmsrl(msrs->controls[i].addr, val);
 	}
+
+	if (ibs_caps)
+		setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_NMI, 0);
+}
+
+static void op_amd_cpu_shutdown(void)
+{
+	if (ibs_caps)
+		setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_FIX, 1);
 }
 
 static int op_amd_check_ctrs(struct pt_regs * const regs,
@@ -436,28 +445,16 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	op_amd_stop_ibs();
 }
 
-static u8 ibs_eilvt_off;
-
-static inline void apic_init_ibs_nmi_per_cpu(void *arg)
-{
-	ibs_eilvt_off = setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_NMI, 0);
-}
-
-static inline void apic_clear_ibs_nmi_per_cpu(void *arg)
-{
-	setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_FIX, 1);
-}
-
-static int init_ibs_nmi(void)
+static int __init_ibs_nmi(void)
 {
 #define IBSCTL_LVTOFFSETVAL		(1 << 8)
 #define IBSCTL				0x1cc
 	struct pci_dev *cpu_cfg;
 	int nodes;
 	u32 value = 0;
+	u8 ibs_eilvt_off;
 
-	/* per CPU setup */
-	on_each_cpu(apic_init_ibs_nmi_per_cpu, NULL, 1);
+	ibs_eilvt_off = setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_FIX, 1);
 
 	nodes = 0;
 	cpu_cfg = NULL;
@@ -487,35 +484,21 @@ static int init_ibs_nmi(void)
 	return 0;
 }
 
-/* uninitialize the APIC for the IBS interrupts if needed */
-static void clear_ibs_nmi(void)
-{
-	on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
-}
-
 /* initialize the APIC for the IBS interrupts if available */
-static void ibs_init(void)
+static void init_ibs(void)
 {
 	ibs_caps = get_ibs_caps();
 
 	if (!ibs_caps)
 		return;
 
-	if (init_ibs_nmi()) {
+	if (__init_ibs_nmi()) {
 		ibs_caps = 0;
 		return;
 	}
 
 	printk(KERN_INFO "oprofile: AMD IBS detected (0x%08x)\n",
 	       (unsigned)ibs_caps);
-}
-
-static void ibs_exit(void)
-{
-	if (!ibs_caps)
-		return;
-
-	clear_ibs_nmi();
 }
 
 static int (*create_arch_files)(struct super_block *sb, struct dentry *root);
@@ -566,15 +549,10 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 
 static int op_amd_init(struct oprofile_operations *ops)
 {
-	ibs_init();
+	init_ibs();
 	create_arch_files = ops->create_files;
 	ops->create_files = setup_ibs_files;
 	return 0;
-}
-
-static void op_amd_exit(void)
-{
-	ibs_exit();
 }
 
 struct op_x86_model_spec op_amd_spec = {
@@ -584,9 +562,9 @@ struct op_x86_model_spec op_amd_spec = {
 	.reserved		= MSR_AMD_EVENTSEL_RESERVED,
 	.event_mask		= OP_EVENT_MASK,
 	.init			= op_amd_init,
-	.exit			= op_amd_exit,
 	.fill_in_addresses	= &op_amd_fill_in_addresses,
 	.setup_ctrs		= &op_amd_setup_ctrs,
+	.cpu_down		= &op_amd_cpu_shutdown,
 	.check_ctrs		= &op_amd_check_ctrs,
 	.start			= &op_amd_start,
 	.stop			= &op_amd_stop,
