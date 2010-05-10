@@ -423,6 +423,20 @@ config AB4500_CORE
 	  read/write functions for the devices to get access to this chip.
 	  This chip embeds various other multimedia funtionalities as well.
 
+config AB3550_CORE
+        bool "ST-Ericsson AB3550 Mixed Signal Circuit core functions"
+	select MFD_CORE
+	depends on I2C=y && GENERIC_HARDIRQS && ABX500_CORE
+	help
+	  Select this to enable the AB3550 Mixed Signal IC core
+	  functionality. This connects to a AB3550 on the I2C bus
+	  and expose a number of symbols needed for dependent devices
+	  to read and write registers and subscribe to events from
+	  this multi-functional IC. This is needed to use other features
+	  of the AB3550 such as battery-backed RTC, charging control,
+	  LEDs, vibrator, system power and temperature, power management
+	  and ALSA sound.
+
 config MFD_TIMBERDALE
 	tristate "Support for the Timberdale FPGA"
 	select MFD_CORE
