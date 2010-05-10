@@ -1806,6 +1806,8 @@ int snd_hda_add_nid(struct hda_codec *codec, struct snd_kcontrol *kctl,
 		item->nid = nid;
 		return 0;
 	}
+	printk(KERN_ERR "hda-codec: no NID for mapping control %s:%d:%d\n",
+	       kctl->id.name, kctl->id.index, index);
 	return -EINVAL;
 }
 EXPORT_SYMBOL_HDA(snd_hda_add_nid);
@@ -2884,7 +2886,7 @@ int /*__devinit*/ snd_hda_build_controls(struct hda_bus *bus)
 	list_for_each_entry(codec, &bus->codec_list, list) {
 		int err = snd_hda_codec_build_controls(codec);
 		if (err < 0) {
-			printk(KERN_ERR "hda_codec: cannot build controls"
+			printk(KERN_ERR "hda_codec: cannot build controls "
 			       "for #%d (error %d)\n", codec->addr, err);
 			err = snd_hda_codec_reset(codec);
 			if (err < 0) {

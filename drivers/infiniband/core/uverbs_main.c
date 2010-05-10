@@ -44,6 +44,7 @@
 #include <linux/file.h>
 #include <linux/cdev.h>
 #include <linux/anon_inodes.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 

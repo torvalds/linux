@@ -25,7 +25,7 @@
 #define PPC_INST_LDARX			0x7c0000a8
 #define PPC_INST_LSWI			0x7c0004aa
 #define PPC_INST_LSWX			0x7c00042a
-#define PPC_INST_LWARX			0x7c000029
+#define PPC_INST_LWARX			0x7c000028
 #define PPC_INST_LWSYNC			0x7c2004ac
 #define PPC_INST_LXVD2X			0x7c000698
 #define PPC_INST_MCRXR			0x7c000400
@@ -62,8 +62,8 @@
 #define __PPC_T_TLB(t)	(((t) & 0x3) << 21)
 #define __PPC_WC(w)	(((w) & 0x3) << 21)
 /*
- * Only use the larx hint bit on 64bit CPUs. Once we verify it doesn't have
- * any side effects on all 32bit processors, we can do this all the time.
+ * Only use the larx hint bit on 64bit CPUs. e500v1/v2 based CPUs will treat a
+ * larx with EH set as an illegal instruction.
  */
 #ifdef CONFIG_PPC64
 #define __PPC_EH(eh)	(((eh) & 0x1) << 0)

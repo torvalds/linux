@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/crc32.h>

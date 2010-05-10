@@ -20,6 +20,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 #include "pvrusb2-context.h"
 #include "pvrusb2-hdw.h"

@@ -346,6 +346,7 @@
 #       define RADEON_TVPLL_PWRMGT_OFF      (1 << 30)
 #       define RADEON_TVCLK_TURNOFF         (1 << 31)
 #define RADEON_PLL_PWRMGT_CNTL              0x0015 /* PLL */
+#	define RADEON_PM_MODE_SEL           (1 << 13)
 #       define RADEON_TCL_BYPASS_DISABLE    (1 << 20)
 #define RADEON_CLR_CMP_CLR_3D               0x1a24
 #define RADEON_CLR_CMP_CLR_DST              0x15c8

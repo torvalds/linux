@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <mach/hardware.h>
 
@@ -310,11 +311,6 @@ err:
 		processed++;
 	}
 
-	if (processed) {
-		wrw(ep, REG_RXDENQ, processed);
-		wrw(ep, REG_RXSTSENQ, processed);
-	}
-
 	return processed;
 }
 
@@ -347,6 +343,11 @@ poll_some_more:
 
 		if (more && napi_reschedule(napi))
 			goto poll_some_more;
+	}
+
+	if (rx) {
+		wrw(ep, REG_RXDENQ, rx);
+		wrw(ep, REG_RXSTSENQ, rx);
 	}
 
 	return rx;

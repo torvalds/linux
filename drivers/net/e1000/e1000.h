@@ -261,7 +261,6 @@ struct e1000_adapter {
 	/* TX */
 	struct e1000_tx_ring *tx_ring;      /* One per active queue */
 	unsigned int restart_queue;
-	unsigned long tx_queue_len;
 	u32 txd_cmd;
 	u32 tx_int_delay;
 	u32 tx_abs_int_delay;

@@ -10,6 +10,9 @@ struct map_groups {
 	struct list_head	removed_maps[MAP__NR_TYPES];
 };
 
+size_t __map_groups__fprintf_maps(struct map_groups *self,
+				  enum map_type type, FILE *fp);
+
 struct thread {
 	struct rb_node		rb_node;
 	struct map_groups	mg;

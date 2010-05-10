@@ -24,6 +24,7 @@
 #include <linux/bcd.h>
 #include <linux/delay.h>
 #include <linux/version.h>
+#include <linux/slab.h>
 
 /*
  * Register definitions

@@ -15,6 +15,7 @@
 #include <linux/ioport.h>
 #include <linux/input.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/serio.h>
 #include <linux/delay.h>

@@ -29,6 +29,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/gfp.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <net/sock.h>

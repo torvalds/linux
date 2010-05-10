@@ -65,6 +65,7 @@
  */
 
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include "xhci.h"
 
 /*

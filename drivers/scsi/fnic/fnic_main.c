@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mempool.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/pci.h>

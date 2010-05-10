@@ -14,6 +14,7 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"

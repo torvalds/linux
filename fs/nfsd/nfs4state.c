@@ -34,6 +34,7 @@
 
 #include <linux/file.h>
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/swap.h>
 #include <linux/sunrpc/svcauth_gss.h>

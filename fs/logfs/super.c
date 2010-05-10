@@ -11,6 +11,8 @@
  */
 #include "logfs.h"
 #include <linux/bio.h>
+#include <linux/slab.h>
+#include <linux/blkdev.h>
 #include <linux/mtd/mtd.h>
 #include <linux/statfs.h>
 #include <linux/buffer_head.h>
@@ -136,6 +138,10 @@ static int logfs_sb_set(struct super_block *sb, void *_super)
 	sb->s_fs_info = super;
 	sb->s_mtd = super->s_mtd;
 	sb->s_bdev = super->s_bdev;
+	if (sb->s_bdev)
+		sb->s_bdi = &bdev_get_queue(sb->s_bdev)->backing_dev_info;
+	if (sb->s_mtd)
+		sb->s_bdi = sb->s_mtd->backing_dev_info;
 	return 0;
 }
 
@@ -277,7 +283,7 @@ static int logfs_recover_sb(struct super_block *sb)
 	}
 	if (valid0 && valid1 && ds_cmp(ds0, ds1)) {
 		printk(KERN_INFO"Superblocks don't match - fixing.\n");
-		return write_one_sb(sb, super->s_devops->find_last_sb);
+		return logfs_write_sb(sb);
 	}
 	/* If neither is valid now, something's wrong.  Didn't we properly
 	 * check them before?!? */
@@ -289,6 +295,10 @@ static int logfs_make_writeable(struct super_block *sb)
 {
 	int err;
 
+	err = logfs_open_segfile(sb);
+	if (err)
+		return err;
+
 	/* Repair any broken superblock copies */
 	err = logfs_recover_sb(sb);
 	if (err)
@@ -296,10 +306,6 @@ static int logfs_make_writeable(struct super_block *sb)
 
 	/* Check areas for trailing unaccounted data */
 	err = logfs_check_areas(sb);
-	if (err)
-		return err;
-
-	err = logfs_open_segfile(sb);
 	if (err)
 		return err;
 
@@ -328,7 +334,7 @@ static int logfs_get_sb_final(struct super_block *sb, struct vfsmount *mnt)
 
 	sb->s_root = d_alloc_root(rootdir);
 	if (!sb->s_root)
-		goto fail;
+		goto fail2;
 
 	super->s_erase_page = alloc_pages(GFP_KERNEL, 0);
 	if (!super->s_erase_page)
@@ -451,6 +457,8 @@ static int logfs_read_sb(struct super_block *sb, int read_only)
 
 	btree_init_mempool64(&super->s_shadow_tree.new, super->s_btree_pool);
 	btree_init_mempool64(&super->s_shadow_tree.old, super->s_btree_pool);
+	btree_init_mempool32(&super->s_shadow_tree.segment_map,
+			super->s_btree_pool);
 
 	ret = logfs_init_mapping(sb);
 	if (ret)
@@ -515,8 +523,8 @@ static void logfs_kill_sb(struct super_block *sb)
 	if (super->s_erase_page)
 		__free_page(super->s_erase_page);
 	super->s_devops->put_device(sb);
-	mempool_destroy(super->s_btree_pool);
-	mempool_destroy(super->s_alias_pool);
+	logfs_mempool_destroy(super->s_btree_pool);
+	logfs_mempool_destroy(super->s_alias_pool);
 	kfree(super);
 	log_super("LogFS: Finished unmounting\n");
 }
@@ -572,8 +580,7 @@ int logfs_get_sb_device(struct file_system_type *type, int flags,
 	return 0;
 
 err1:
-	up_write(&sb->s_umount);
-	deactivate_super(sb);
+	deactivate_locked_super(sb);
 	return err;
 err0:
 	kfree(super);

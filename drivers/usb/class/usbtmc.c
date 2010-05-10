@@ -25,6 +25,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/kref.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/usb.h>
 #include <linux/usb/tmc.h>

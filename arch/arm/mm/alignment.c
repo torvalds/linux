@@ -166,15 +166,15 @@ union offset_union {
  THUMB(	"1:	"ins"	%1, [%2]\n"	)		\
  THUMB(	"	add	%2, %2, #1\n"	)		\
 	"2:\n"						\
-	"	.section .fixup,\"ax\"\n"		\
+	"	.pushsection .fixup,\"ax\"\n"		\
 	"	.align	2\n"				\
 	"3:	mov	%0, #1\n"			\
 	"	b	2b\n"				\
-	"	.previous\n"				\
-	"	.section __ex_table,\"a\"\n"		\
+	"	.popsection\n"				\
+	"	.pushsection __ex_table,\"a\"\n"	\
 	"	.align	3\n"				\
 	"	.long	1b, 3b\n"			\
-	"	.previous\n"				\
+	"	.popsection\n"				\
 	: "=r" (err), "=&r" (val), "=r" (addr)		\
 	: "0" (err), "2" (addr))
 
@@ -226,16 +226,16 @@ union offset_union {
 		"	mov	%1, %1, "NEXT_BYTE"\n"		\
 		"2:	"ins"	%1, [%2]\n"			\
 		"3:\n"						\
-		"	.section .fixup,\"ax\"\n"		\
+		"	.pushsection .fixup,\"ax\"\n"		\
 		"	.align	2\n"				\
 		"4:	mov	%0, #1\n"			\
 		"	b	3b\n"				\
-		"	.previous\n"				\
-		"	.section __ex_table,\"a\"\n"		\
+		"	.popsection\n"				\
+		"	.pushsection __ex_table,\"a\"\n"	\
 		"	.align	3\n"				\
 		"	.long	1b, 4b\n"			\
 		"	.long	2b, 4b\n"			\
-		"	.previous\n"				\
+		"	.popsection\n"				\
 		: "=r" (err), "=&r" (v), "=&r" (a)		\
 		: "0" (err), "1" (v), "2" (a));			\
 		if (err)					\
@@ -266,18 +266,18 @@ union offset_union {
 		"	mov	%1, %1, "NEXT_BYTE"\n"		\
 		"4:	"ins"	%1, [%2]\n"			\
 		"5:\n"						\
-		"	.section .fixup,\"ax\"\n"		\
+		"	.pushsection .fixup,\"ax\"\n"		\
 		"	.align	2\n"				\
 		"6:	mov	%0, #1\n"			\
 		"	b	5b\n"				\
-		"	.previous\n"				\
-		"	.section __ex_table,\"a\"\n"		\
+		"	.popsection\n"				\
+		"	.pushsection __ex_table,\"a\"\n"	\
 		"	.align	3\n"				\
 		"	.long	1b, 6b\n"			\
 		"	.long	2b, 6b\n"			\
 		"	.long	3b, 6b\n"			\
 		"	.long	4b, 6b\n"			\
-		"	.previous\n"				\
+		"	.popsection\n"				\
 		: "=r" (err), "=&r" (v), "=&r" (a)		\
 		: "0" (err), "1" (v), "2" (a));			\
 		if (err)					\

@@ -27,6 +27,7 @@
  */
 
 #include "ubifs.h"
+#include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/math64.h>
 

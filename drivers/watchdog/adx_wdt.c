@@ -7,6 +7,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/io.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>

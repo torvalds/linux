@@ -60,7 +60,6 @@
 #include <net/net_namespace.h>
 #include <net/dst.h>
 #include <net/sock.h>
-#include <linux/gfp.h>
 #include <linux/ip.h>
 #include <linux/net.h>
 #include <net/ip.h>

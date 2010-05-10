@@ -52,6 +52,7 @@ except maybe the 6514.
 #define DEBUG 1
 #define DEBUG_FLAGS
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include "../comedidev.h"
 
 #include "mite.h"

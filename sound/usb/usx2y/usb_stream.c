@@ -17,6 +17,7 @@
  */
 
 #include <linux/usb.h>
+#include <linux/gfp.h>
 
 #include "usb_stream.h"
 

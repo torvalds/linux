@@ -20,6 +20,7 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/elf.h>
+#include <linux/slab.h>
 #include "pr_util.h"
 
 

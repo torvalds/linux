@@ -148,6 +148,9 @@ static void pcm_debug_name(struct snd_pcm_substream *substream,
 
 #define xrun_debug(substream, mask) \
 			((substream)->pstr->xrun_debug & (mask))
+#else
+#define xrun_debug(substream, mask)	0
+#endif
 
 #define dump_stack_on_xrun(substream) do {			\
 		if (xrun_debug(substream, XRUN_DEBUG_STACK))	\
@@ -169,6 +172,7 @@ static void xrun(struct snd_pcm_substream *substream)
 	}
 }
 
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 #define hw_ptr_error(substream, fmt, args...)				\
 	do {								\
 		if (xrun_debug(substream, XRUN_DEBUG_BASIC)) {		\
@@ -255,8 +259,6 @@ static void xrun_log_show(struct snd_pcm_substream *substream)
 
 #else /* ! CONFIG_SND_PCM_XRUN_DEBUG */
 
-#define xrun_debug(substream, mask)	0
-#define xrun(substream)			do { } while (0)
 #define hw_ptr_error(substream, fmt, args...) do { } while (0)
 #define xrun_log(substream, pos)	do { } while (0)
 #define xrun_log_show(substream)	do { } while (0)

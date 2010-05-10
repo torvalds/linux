@@ -6,13 +6,13 @@
 #include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/pfn.h>
 #include <linux/percpu.h>
+#include <linux/gfp.h>
 
 #include <asm/e820.h>
 #include <asm/processor.h>

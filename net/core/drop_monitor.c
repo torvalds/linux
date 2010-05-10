@@ -21,6 +21,7 @@
 #include <linux/percpu.h>
 #include <linux/timer.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <net/genetlink.h>
 #include <net/netevent.h>
 

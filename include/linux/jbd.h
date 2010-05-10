@@ -31,6 +31,7 @@
 #include <linux/mutex.h>
 #include <linux/timer.h>
 #include <linux/lockdep.h>
+#include <linux/slab.h>
 
 #define journal_oom_retry 1
 

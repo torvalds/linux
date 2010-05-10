@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/dma-mapping.h>
 #include <linux/uwb/umc.h>
 

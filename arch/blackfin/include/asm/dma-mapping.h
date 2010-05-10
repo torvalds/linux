@@ -44,13 +44,8 @@ dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 extern void
 __dma_sync(dma_addr_t addr, size_t size, enum dma_data_direction dir);
 static inline void
-_dma_sync(dma_addr_t addr, size_t size, enum dma_data_direction dir)
+__dma_sync_inline(dma_addr_t addr, size_t size, enum dma_data_direction dir)
 {
-	if (!__builtin_constant_p(dir)) {
-		__dma_sync(addr, size, dir);
-		return;
-	}
-
 	switch (dir) {
 	case DMA_NONE:
 		BUG();
@@ -63,6 +58,14 @@ _dma_sync(dma_addr_t addr, size_t size, enum dma_data_direction dir)
 		invalidate_dcache_range(addr, addr + size);
 		break;
 	}
+}
+static inline void
+_dma_sync(dma_addr_t addr, size_t size, enum dma_data_direction dir)
+{
+	if (__builtin_constant_p(dir))
+		__dma_sync_inline(addr, size, dir);
+	else
+		__dma_sync(addr, size, dir);
 }
 
 static inline dma_addr_t

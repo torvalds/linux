@@ -21,6 +21,7 @@
 #include <linux/of_device.h>
 #include <linux/spinlock.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 
 #include <asm/udbg.h>
 #include <asm/io.h>

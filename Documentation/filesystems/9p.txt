@@ -37,6 +37,15 @@ For Plan 9 From User Space applications (http://swtch.com/plan9)
 
 	mount -t 9p `namespace`/acme /mnt/9 -o trans=unix,uname=$USER
 
+For server running on QEMU host with virtio transport:
+
+	mount -t 9p -o trans=virtio <mount_tag> /mnt/9
+
+where mount_tag is the tag associated by the server to each of the exported
+mount points. Each 9P export is seen by the client as a virtio device with an
+associated "mount_tag" property. Available mount tags can be
+seen by reading /sys/bus/virtio/drivers/9pnet_virtio/virtio<n>/mount_tag files.
+
 OPTIONS
 =======
 
@@ -47,7 +56,7 @@ OPTIONS
 			fd   	- used passed file descriptors for connection
                                 (see rfdno and wfdno)
 			virtio	- connect to the next virtio channel available
-				(from lguest or KVM with trans_virtio module)
+				(from QEMU with trans_virtio module)
 			rdma	- connect to a specified RDMA channel
 
   uname=name	user name to attempt mount as on the remote server.  The
@@ -85,7 +94,12 @@ OPTIONS
 
   port=n	port to connect to on the remote server
 
-  noextend	force legacy mode (no 9p2000.u semantics)
+  noextend	force legacy mode (no 9p2000.u or 9p2000.L semantics)
+
+  version=name	Select 9P protocol version. Valid options are:
+			9p2000          - Legacy mode (same as noextend)
+			9p2000.u        - Use 9P2000.u protocol
+			9p2000.L        - Use 9P2000.L protocol
 
   dfltuid	attempt to mount as a particular uid
 

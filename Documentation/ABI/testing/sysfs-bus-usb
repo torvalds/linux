@@ -160,7 +160,7 @@ Description:
 		match the driver to the device.  For example:
 		# echo "046d c315" > /sys/bus/usb/drivers/foo/remove_id
 
-What:		/sys/bus/usb/device/.../avoid_reset
+What:		/sys/bus/usb/device/.../avoid_reset_quirk
 Date:		December 2009
 Contact:	Oliver Neukum <oliver@neukum.org>
 Description:

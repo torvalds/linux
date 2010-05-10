@@ -79,6 +79,7 @@
 #include <linux/tcp.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <net/tcp.h>
 
 #include <asm/system.h>
@@ -5819,10 +5820,8 @@ static void s2io_vpd_read(struct s2io_nic *nic)
 		}
 	}
 
-	if ((!fail) && (vpd_data[1] < VPD_STRING_LEN)) {
-		memset(nic->product_name, 0, vpd_data[1]);
+	if ((!fail) && (vpd_data[1] < VPD_STRING_LEN))
 		memcpy(nic->product_name, &vpd_data[3], vpd_data[1]);
-	}
 	kfree(vpd_data);
 	swstats->mem_freed += 256;
 }

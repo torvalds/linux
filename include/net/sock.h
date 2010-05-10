@@ -51,6 +51,7 @@
 #include <linux/skbuff.h>	/* struct sk_buff */
 #include <linux/mm.h>
 #include <linux/security.h>
+#include <linux/slab.h>
 
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
@@ -73,7 +74,7 @@
 					printk(KERN_DEBUG msg); } while (0)
 #else
 /* Validate arguments and do nothing */
-static void inline int __attribute__ ((format (printf, 2, 3)))
+static inline void __attribute__ ((format (printf, 2, 3)))
 SOCK_DEBUG(struct sock *sk, const char *msg, ...)
 {
 }

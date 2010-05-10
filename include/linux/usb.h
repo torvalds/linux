@@ -1055,7 +1055,8 @@ typedef void (*usb_complete_t)(struct urb *);
  * @number_of_packets: Lists the number of ISO transfer buffers.
  * @interval: Specifies the polling interval for interrupt or isochronous
  *	transfers.  The units are frames (milliseconds) for full and low
- *	speed devices, and microframes (1/8 millisecond) for highspeed ones.
+ *	speed devices, and microframes (1/8 millisecond) for highspeed
+ *	and SuperSpeed devices.
  * @error_count: Returns the number of ISO transfers that reported errors.
  * @context: For use in completion functions.  This normally points to
  *	request-specific driver context.
@@ -1084,7 +1085,7 @@ typedef void (*usb_complete_t)(struct urb *);
  * Alternatively, drivers may pass the URB_NO_xxx_DMA_MAP transfer flags,
  * which tell the host controller driver that no such mapping is needed since
  * the device driver is DMA-aware.  For example, a device driver might
- * allocate a DMA buffer with usb_buffer_alloc() or call usb_buffer_map().
+ * allocate a DMA buffer with usb_alloc_coherent() or call usb_buffer_map().
  * When these transfer flags are provided, host controller drivers will
  * attempt to use the dma addresses found in the transfer_dma and/or
  * setup_dma fields rather than determining a dma address themselves.
@@ -1286,9 +1287,16 @@ static inline void usb_fill_bulk_urb(struct urb *urb,
  *
  * Initializes a interrupt urb with the proper information needed to submit
  * it to a device.
- * Note that high speed interrupt endpoints use a logarithmic encoding of
- * the endpoint interval, and express polling intervals in microframes
- * (eight per millisecond) rather than in frames (one per millisecond).
+ *
+ * Note that High Speed and SuperSpeed interrupt endpoints use a logarithmic
+ * encoding of the endpoint interval, and express polling intervals in
+ * microframes (eight per millisecond) rather than in frames (one per
+ * millisecond).
+ *
+ * Wireless USB also uses the logarithmic encoding, but specifies it in units of
+ * 128us instead of 125us.  For Wireless USB devices, the interval is passed
+ * through to the host controller, rather than being translated into microframe
+ * units.
  */
 static inline void usb_fill_int_urb(struct urb *urb,
 				    struct usb_device *dev,
@@ -1305,7 +1313,7 @@ static inline void usb_fill_int_urb(struct urb *urb,
 	urb->transfer_buffer_length = buffer_length;
 	urb->complete = complete_fn;
 	urb->context = context;
-	if (dev->speed == USB_SPEED_HIGH)
+	if (dev->speed == USB_SPEED_HIGH || dev->speed == USB_SPEED_SUPER)
 		urb->interval = 1 << (interval - 1);
 	else
 		urb->interval = interval;
@@ -1358,10 +1366,22 @@ static inline int usb_urb_dir_out(struct urb *urb)
 	return (urb->transfer_flags & URB_DIR_MASK) == URB_DIR_OUT;
 }
 
-void *usb_buffer_alloc(struct usb_device *dev, size_t size,
+void *usb_alloc_coherent(struct usb_device *dev, size_t size,
 	gfp_t mem_flags, dma_addr_t *dma);
-void usb_buffer_free(struct usb_device *dev, size_t size,
+void usb_free_coherent(struct usb_device *dev, size_t size,
 	void *addr, dma_addr_t dma);
+
+/* Compatible macros while we switch over */
+static inline void *usb_buffer_alloc(struct usb_device *dev, size_t size,
+				     gfp_t mem_flags, dma_addr_t *dma)
+{
+	return usb_alloc_coherent(dev, size, mem_flags, dma);
+}
+static inline void usb_buffer_free(struct usb_device *dev, size_t size,
+				   void *addr, dma_addr_t dma)
+{
+	return usb_free_coherent(dev, size, addr, dma);
+}
 
 #if 0
 struct urb *usb_buffer_map(struct urb *urb);

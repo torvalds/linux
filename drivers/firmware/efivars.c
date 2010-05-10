@@ -77,6 +77,7 @@
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 

@@ -332,7 +332,8 @@ armpmu_reserve_hardware(void)
 
 	for (i = 0; i < pmu_irqs->num_irqs; ++i) {
 		err = request_irq(pmu_irqs->irqs[i], armpmu->handle_irq,
-				  IRQF_DISABLED, "armpmu", NULL);
+				  IRQF_DISABLED | IRQF_NOBALANCING,
+				  "armpmu", NULL);
 		if (err) {
 			pr_warning("unable to request IRQ%d for ARM "
 				   "perf counters\n", pmu_irqs->irqs[i]);
@@ -1624,7 +1625,7 @@ enum armv7_counters {
 /*
  * EVTSEL: Event selection reg
  */
-#define	ARMV7_EVTSEL_MASK	0x7f		/* Mask for writable bits */
+#define	ARMV7_EVTSEL_MASK	0xff		/* Mask for writable bits */
 
 /*
  * SELECT: Counter selection reg

@@ -14,6 +14,7 @@
  */
 
 #include <linux/tty.h>
+#include <linux/slab.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>

@@ -18,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/slab.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>

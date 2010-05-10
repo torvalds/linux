@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irmod.h>

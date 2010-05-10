@@ -18,6 +18,7 @@
 #include "arcofi.h"
 #include "isdnl1.h"
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 
 #define DBUSY_TIMER_VALUE 80

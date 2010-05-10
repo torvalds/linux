@@ -40,6 +40,7 @@
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/bitmap.h>
+#include <linux/slab.h>
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"

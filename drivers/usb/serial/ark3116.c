@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/tty.h>
+#include <linux/slab.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/usb.h>

@@ -11,6 +11,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/mount.h>
 #include <linux/module.h>
 #include <linux/kobject.h>

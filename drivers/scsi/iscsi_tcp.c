@@ -28,6 +28,7 @@
 
 #include <linux/types.h>
 #include <linux/inet.h>
+#include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/blkdev.h>
 #include <linux/crypto.h>
@@ -598,7 +599,7 @@ static void iscsi_sw_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
 	write_unlock_bh(&tcp_sw_conn->sock->sk->sk_callback_lock);
 
-	if (sock->sk->sk_sleep && waitqueue_active(sock->sk->sk_sleep)) {
+	if (sock->sk->sk_sleep) {
 		sock->sk->sk_err = EIO;
 		wake_up_interruptible(sock->sk->sk_sleep);
 	}
@@ -874,7 +875,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_device_reset_handler= iscsi_eh_device_reset,
-	.eh_target_reset_handler= iscsi_eh_target_reset,
+	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.use_clustering         = DISABLE_CLUSTERING,
 	.slave_alloc            = iscsi_sw_tcp_slave_alloc,
 	.slave_configure        = iscsi_sw_tcp_slave_configure,

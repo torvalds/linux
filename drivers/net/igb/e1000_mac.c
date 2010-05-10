@@ -1367,7 +1367,8 @@ out:
  *  igb_enable_mng_pass_thru - Enable processing of ARP's
  *  @hw: pointer to the HW structure
  *
- *  Verifies the hardware needs to allow ARPs to be processed by the host.
+ *  Verifies the hardware needs to leave interface enabled so that frames can
+ *  be directed to and from the management interface.
  **/
 bool igb_enable_mng_pass_thru(struct e1000_hw *hw)
 {
@@ -1380,8 +1381,7 @@ bool igb_enable_mng_pass_thru(struct e1000_hw *hw)
 
 	manc = rd32(E1000_MANC);
 
-	if (!(manc & E1000_MANC_RCV_TCO_EN) ||
-	    !(manc & E1000_MANC_EN_MAC_ADDR_FILTER))
+	if (!(manc & E1000_MANC_RCV_TCO_EN))
 		goto out;
 
 	if (hw->mac.arc_subsystem_valid) {

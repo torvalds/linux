@@ -10,6 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/rbtree.h>
+#include <linux/slab.h>
 #include <linux/irq.h>
 
 #include <asm/apic.h>

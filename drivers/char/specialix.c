@@ -94,6 +94,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/uaccess.h>
+#include <linux/gfp.h>
 
 #include "specialix_io8.h"
 #include "cd1865.h"

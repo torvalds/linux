@@ -31,6 +31,7 @@
 #include "atom.h"
 
 #include <linux/vga_switcheroo.h>
+#include <linux/slab.h>
 /*
  * BIOS.
  */

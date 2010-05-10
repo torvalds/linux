@@ -53,6 +53,7 @@
 #include <linux/route.h>
 #include <linux/inetdevice.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
@@ -3610,7 +3611,7 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 		hlist_for_each_entry_rcu(dev, node, head, index_hlist) {
 			if (idx < s_idx)
 				goto cont;
-			if (idx > s_idx)
+			if (h > s_h || idx > s_idx)
 				s_ip_idx = 0;
 			ip_idx = 0;
 			if ((idev = __in6_dev_get(dev)) == NULL)

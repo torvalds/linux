@@ -123,7 +123,7 @@ struct omap3_prcm_regs prcm_context;
 u32 omap_prcm_get_reset_sources(void)
 {
 	/* XXX This presumably needs modification for 34XX */
-	if (cpu_is_omap24xx() | cpu_is_omap34xx())
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
 		return prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTST) & 0x7f;
 	if (cpu_is_omap44xx())
 		return prm_read_mod_reg(WKUP_MOD, OMAP4_RM_RSTST) & 0x7f;
@@ -133,7 +133,7 @@ u32 omap_prcm_get_reset_sources(void)
 EXPORT_SYMBOL(omap_prcm_get_reset_sources);
 
 /* Resets clock rates and reboots the system. Only called from system.h */
-void omap_prcm_arch_reset(char mode)
+void omap_prcm_arch_reset(char mode, const char *cmd)
 {
 	s16 prcm_offs = 0;
 
@@ -145,7 +145,7 @@ void omap_prcm_arch_reset(char mode)
 		u32 l;
 
 		prcm_offs = OMAP3430_GR_MOD;
-		l = ('B' << 24) | ('M' << 16) | mode;
+		l = ('B' << 24) | ('M' << 16) | (cmd ? (u8)*cmd : 0);
 		/* Reserve the first word in scratchpad for communicating
 		 * with the boot ROM. A pointer to a data structure
 		 * describing the boot process can be stored there,
@@ -157,7 +157,7 @@ void omap_prcm_arch_reset(char mode)
 	else
 		WARN_ON(1);
 
-	if (cpu_is_omap24xx() | cpu_is_omap34xx())
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
 		prm_set_mod_reg_bits(OMAP_RST_DPLL3, prcm_offs,
 						 OMAP2_RM_RSTCTRL);
 	if (cpu_is_omap44xx())

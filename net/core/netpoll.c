@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <asm/unaligned.h>
@@ -614,7 +615,7 @@ void netpoll_print_options(struct netpoll *np)
 			 np->name, np->local_port);
 	printk(KERN_INFO "%s: local IP %pI4\n",
 			 np->name, &np->local_ip);
-	printk(KERN_INFO "%s: interface %s\n",
+	printk(KERN_INFO "%s: interface '%s'\n",
 			 np->name, np->dev_name);
 	printk(KERN_INFO "%s: remote port %d\n",
 			 np->name, np->remote_port);
@@ -661,6 +662,9 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 		if ((delim = strchr(cur, '@')) == NULL)
 			goto parse_failed;
 		*delim = 0;
+		if (*cur == ' ' || *cur == '\t')
+			printk(KERN_INFO "%s: warning: whitespace"
+					"is not allowed\n", np->name);
 		np->remote_port = simple_strtol(cur, NULL, 10);
 		cur = delim;
 	}
@@ -708,7 +712,7 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 	return 0;
 
  parse_failed:
-	printk(KERN_INFO "%s: couldn't parse config at %s!\n",
+	printk(KERN_INFO "%s: couldn't parse config at '%s'!\n",
 	       np->name, cur);
 	return -1;
 }
@@ -735,7 +739,7 @@ int netpoll_setup(struct netpoll *np)
 		npinfo = kmalloc(sizeof(*npinfo), GFP_KERNEL);
 		if (!npinfo) {
 			err = -ENOMEM;
-			goto release;
+			goto put;
 		}
 
 		npinfo->rx_flags = 0;
@@ -845,7 +849,7 @@ int netpoll_setup(struct netpoll *np)
 
 		kfree(npinfo);
 	}
-
+put:
 	dev_put(ndev);
 	return err;
 }

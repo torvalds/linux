@@ -394,6 +394,7 @@ MODULE_DEVICE_TABLE(dmi, samsung_dmi_table);
 
 static int __init samsung_init(void)
 {
+	struct backlight_properties props;
 	struct sabi_retval sretval;
 	const char *testStr = "SECLINUX";
 	void __iomem *memcheck;
@@ -486,12 +487,14 @@ static int __init samsung_init(void)
 		goto error_no_platform;
 
 	/* create a backlight device to talk to this one */
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = MAX_BRIGHT;
 	backlight_device = backlight_device_register("samsung", &sdev->dev,
-						     NULL, &backlight_ops);
+						     NULL, &backlight_ops,
+						     &props);
 	if (IS_ERR(backlight_device))
 		goto error_no_backlight;
 
-	backlight_device->props.max_brightness = MAX_BRIGHT;
 	backlight_device->props.brightness = read_brightness();
 	backlight_device->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(backlight_device);

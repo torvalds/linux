@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/slab.h>
 
 MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_DESCRIPTION("TI BQ4802 RTC driver");

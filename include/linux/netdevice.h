@@ -2059,12 +2059,12 @@ static inline void skb_bond_set_mac_by_master(struct sk_buff *skb,
  * duplicates except for 802.3ad ETH_P_SLOW, alb non-mcast/bcast, and
  * ARP on active-backup slaves with arp_validate enabled.
  */
-static inline int skb_bond_should_drop(struct sk_buff *skb)
+static inline int skb_bond_should_drop(struct sk_buff *skb,
+				       struct net_device *master)
 {
-	struct net_device *dev = skb->dev;
-	struct net_device *master = dev->master;
-
 	if (master) {
+		struct net_device *dev = skb->dev;
+
 		if (master->priv_flags & IFF_MASTER_ARPMON)
 			dev->last_rx = jiffies;
 

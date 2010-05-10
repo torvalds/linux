@@ -1287,7 +1287,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 		irq_exit();
 }
 
-void hw_perf_event_setup(int cpu)
+static void power_pmu_setup(int cpu)
 {
 	struct cpu_hw_events *cpuhw = &per_cpu(cpu_hw_events, cpu);
 
@@ -1295,6 +1295,23 @@ void hw_perf_event_setup(int cpu)
 		return;
 	memset(cpuhw, 0, sizeof(*cpuhw));
 	cpuhw->mmcr[0] = MMCR0_FC;
+}
+
+static int __cpuinit
+power_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (long)hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_UP_PREPARE:
+		power_pmu_setup(cpu);
+		break;
+
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
 }
 
 int register_power_pmu(struct power_pmu *pmu)
@@ -1313,6 +1330,8 @@ int register_power_pmu(struct power_pmu *pmu)
 	if (mfmsr() & MSR_HV)
 		freeze_events_kernel = MMCR0_FCHV;
 #endif /* CONFIG_PPC64 */
+
+	perf_cpu_notifier(power_pmu_notifier);
 
 	return 0;
 }

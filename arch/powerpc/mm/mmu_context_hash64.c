@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/module.h>
+#include <linux/gfp.h>
 
 #include <asm/mmu_context.h>
 

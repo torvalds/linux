@@ -24,6 +24,7 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #define DS1374_REG_TOD0		0x00 /* Time of Day */
 #define DS1374_REG_TOD1		0x01

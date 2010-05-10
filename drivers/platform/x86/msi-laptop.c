@@ -683,11 +683,14 @@ static int __init msi_init(void)
 		printk(KERN_INFO "MSI: Brightness ignored, must be controlled "
 		       "by ACPI video driver\n");
 	} else {
+		struct backlight_properties props;
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.max_brightness = MSI_LCD_LEVEL_MAX - 1;
 		msibl_device = backlight_device_register("msi-laptop-bl", NULL,
-							 NULL, &msibl_ops);
+							 NULL, &msibl_ops,
+							 &props);
 		if (IS_ERR(msibl_device))
 			return PTR_ERR(msibl_device);
-		msibl_device->props.max_brightness = MSI_LCD_LEVEL_MAX-1;
 	}
 
 	ret = platform_driver_register(&msipf_driver);

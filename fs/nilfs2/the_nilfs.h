@@ -29,6 +29,7 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
+#include <linux/slab.h>
 #include "sb.h"
 
 /* the_nilfs struct */

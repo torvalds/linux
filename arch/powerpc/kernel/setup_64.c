@@ -61,7 +61,6 @@
 #include <asm/xmon.h>
 #include <asm/udbg.h>
 #include <asm/kexec.h>
-#include <asm/swiotlb.h>
 #include <asm/mmu_context.h>
 
 #include "setup.h"
@@ -540,11 +539,6 @@ void __init setup_arch(char **cmdline_p)
 
 	if (ppc_md.setup_arch)
 		ppc_md.setup_arch();
-
-#ifdef CONFIG_SWIOTLB
-	if (ppc_swiotlb_enable)
-		swiotlb_init(1);
-#endif
 
 	paging_init();
 

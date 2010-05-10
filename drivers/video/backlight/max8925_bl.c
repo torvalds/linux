@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/backlight.h>
 #include <linux/mfd/max8925.h>
+#include <linux/slab.h>
 
 #define MAX_BRIGHTNESS		(0xff)
 #define MIN_BRIGHTNESS		(0)
@@ -104,6 +105,7 @@ static int __devinit max8925_backlight_probe(struct platform_device *pdev)
 	struct max8925_backlight_pdata *pdata = NULL;
 	struct max8925_backlight_data *data;
 	struct backlight_device *bl;
+	struct backlight_properties props;
 	struct resource *res;
 	char name[MAX8925_NAME_SIZE];
 	unsigned char value;
@@ -133,14 +135,15 @@ static int __devinit max8925_backlight_probe(struct platform_device *pdev)
 	data->chip = chip;
 	data->current_brightness = 0;
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = MAX_BRIGHTNESS;
 	bl = backlight_device_register(name, &pdev->dev, data,
-					&max8925_backlight_ops);
+					&max8925_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		kfree(data);
 		return PTR_ERR(bl);
 	}
-	bl->props.max_brightness = MAX_BRIGHTNESS;
 	bl->props.brightness = MAX_BRIGHTNESS;
 
 	platform_set_drvdata(pdev, bl);

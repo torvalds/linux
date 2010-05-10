@@ -33,7 +33,7 @@
 #include <linux/sched.h>
 #include <linux/key.h>
 #include <linux/xfrm.h>
-#include <linux/gfp.h>
+#include <linux/slab.h>
 #include <net/flow.h>
 
 /* Maximum number of letters for an LSM name string */

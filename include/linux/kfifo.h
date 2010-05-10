@@ -86,7 +86,8 @@ union { \
  */
 #define INIT_KFIFO(name) \
 	name = __kfifo_initializer(sizeof(name##kfifo_buffer) - \
-				sizeof(struct kfifo), name##kfifo_buffer)
+				sizeof(struct kfifo), \
+				name##kfifo_buffer + sizeof(struct kfifo))
 
 /**
  * DEFINE_KFIFO - macro to define and initialize a kfifo
@@ -101,8 +102,6 @@ union { \
 #define DEFINE_KFIFO(name, size) \
 	unsigned char name##kfifo_buffer[size]; \
 	struct kfifo name = __kfifo_initializer(size, name##kfifo_buffer)
-
-#undef __kfifo_initializer
 
 extern void kfifo_init(struct kfifo *fifo, void *buffer,
 			unsigned int size);

@@ -46,14 +46,14 @@ struct ehci_hcd_omap_platform_data {
 struct omap_musb_board_data {
 	u8	interface_type;
 	u8	mode;
-	u8	power;
+	u16	power;
 };
 
 enum musb_interface    {MUSB_INTERFACE_ULPI, MUSB_INTERFACE_UTMI};
 
 extern void usb_musb_init(struct omap_musb_board_data *board_data);
 
-extern void usb_ehci_init(struct ehci_hcd_omap_platform_data *pdata);
+extern void usb_ehci_init(const struct ehci_hcd_omap_platform_data *pdata);
 
 #endif
 

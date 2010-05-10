@@ -37,6 +37,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/console.h>
 #include <linux/moduleparam.h>
 #include <linux/string.h>

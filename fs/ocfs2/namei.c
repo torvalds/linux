@@ -84,7 +84,7 @@ static int ocfs2_prepare_orphan_dir(struct ocfs2_super *osb,
 static int ocfs2_orphan_add(struct ocfs2_super *osb,
 			    handle_t *handle,
 			    struct inode *inode,
-			    struct ocfs2_dinode *fe,
+			    struct buffer_head *fe_bh,
 			    char *name,
 			    struct ocfs2_dir_lookup_result *lookup,
 			    struct inode *orphan_dir_inode);
@@ -408,6 +408,19 @@ static int ocfs2_mknod(struct inode *dir,
 		}
 	}
 
+	/*
+	 * Do this before adding the entry to the directory. We add
+	 * also set d_op after success so that ->d_iput() will cleanup
+	 * the dentry lock even if ocfs2_add_entry() fails below.
+	 */
+	status = ocfs2_dentry_attach_lock(dentry, inode,
+					  OCFS2_I(dir)->ip_blkno);
+	if (status) {
+		mlog_errno(status);
+		goto leave;
+	}
+	dentry->d_op = &ocfs2_dentry_ops;
+
 	status = ocfs2_add_entry(handle, dentry, inode,
 				 OCFS2_I(inode)->ip_blkno, parent_fe_bh,
 				 &lookup);
@@ -416,15 +429,7 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	}
 
-	status = ocfs2_dentry_attach_lock(dentry, inode,
-					  OCFS2_I(dir)->ip_blkno);
-	if (status) {
-		mlog_errno(status);
-		goto leave;
-	}
-
 	insert_inode_hash(inode);
-	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
 	status = 0;
 leave:
@@ -445,11 +450,6 @@ leave:
 
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	if ((status < 0) && inode) {
-		clear_nlink(inode);
-		iput(inode);
-	}
-
 	if (inode_ac)
 		ocfs2_free_alloc_context(inode_ac);
 
@@ -458,6 +458,17 @@ leave:
 
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
+
+	/*
+	 * We should call iput after the i_mutex of the bitmap been
+	 * unlocked in ocfs2_free_alloc_context, or the
+	 * ocfs2_delete_inode will mutex_lock again.
+	 */
+	if ((status < 0) && inode) {
+		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SKIP_ORPHAN_DIR;
+		clear_nlink(inode);
+		iput(inode);
+	}
 
 	mlog_exit(status);
 
@@ -879,7 +890,7 @@ static int ocfs2_unlink(struct inode *dir,
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
 	if (inode_is_unlinkable(inode)) {
-		status = ocfs2_orphan_add(osb, handle, inode, fe, orphan_name,
+		status = ocfs2_orphan_add(osb, handle, inode, fe_bh, orphan_name,
 					  &orphan_insert, orphan_dir);
 		if (status < 0) {
 			mlog_errno(status);
@@ -1300,7 +1311,7 @@ static int ocfs2_rename(struct inode *old_dir,
 		if (S_ISDIR(new_inode->i_mode) ||
 		    (ocfs2_read_links_count(newfe) == 1)) {
 			status = ocfs2_orphan_add(osb, handle, new_inode,
-						  newfe, orphan_name,
+						  newfe_bh, orphan_name,
 						  &orphan_insert, orphan_dir);
 			if (status < 0) {
 				mlog_errno(status);
@@ -1771,6 +1782,18 @@ static int ocfs2_symlink(struct inode *dir,
 		}
 	}
 
+	/*
+	 * Do this before adding the entry to the directory. We add
+	 * also set d_op after success so that ->d_iput() will cleanup
+	 * the dentry lock even if ocfs2_add_entry() fails below.
+	 */
+	status = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
+	if (status) {
+		mlog_errno(status);
+		goto bail;
+	}
+	dentry->d_op = &ocfs2_dentry_ops;
+
 	status = ocfs2_add_entry(handle, dentry, inode,
 				 le64_to_cpu(fe->i_blkno), parent_fe_bh,
 				 &lookup);
@@ -1779,14 +1802,7 @@ static int ocfs2_symlink(struct inode *dir,
 		goto bail;
 	}
 
-	status = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
-	if (status) {
-		mlog_errno(status);
-		goto bail;
-	}
-
 	insert_inode_hash(inode);
-	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
 bail:
 	if (status < 0 && did_quota)
@@ -1811,6 +1827,7 @@ bail:
 	if (xattr_ac)
 		ocfs2_free_alloc_context(xattr_ac);
 	if ((status < 0) && inode) {
+		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SKIP_ORPHAN_DIR;
 		clear_nlink(inode);
 		iput(inode);
 	}
@@ -1911,7 +1928,7 @@ leave:
 static int ocfs2_orphan_add(struct ocfs2_super *osb,
 			    handle_t *handle,
 			    struct inode *inode,
-			    struct ocfs2_dinode *fe,
+			    struct buffer_head *fe_bh,
 			    char *name,
 			    struct ocfs2_dir_lookup_result *lookup,
 			    struct inode *orphan_dir_inode)
@@ -1919,6 +1936,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	struct buffer_head *orphan_dir_bh = NULL;
 	int status = 0;
 	struct ocfs2_dinode *orphan_fe;
+	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
 	mlog_entry("(inode->i_ino = %lu)\n", inode->i_ino);
 
@@ -1959,12 +1977,30 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 		goto leave;
 	}
 
+	/*
+	 * We're going to journal the change of i_flags and i_orphaned_slot.
+	 * It's safe anyway, though some callers may duplicate the journaling.
+	 * Journaling within the func just make the logic look more
+	 * straightforward.
+	 */
+	status = ocfs2_journal_access_di(handle,
+					 INODE_CACHE(inode),
+					 fe_bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
+	if (status < 0) {
+		mlog_errno(status);
+		goto leave;
+	}
+
 	le32_add_cpu(&fe->i_flags, OCFS2_ORPHANED_FL);
+	OCFS2_I(inode)->ip_flags &= ~OCFS2_INODE_SKIP_ORPHAN_DIR;
 
 	/* Record which orphan dir our inode now resides
 	 * in. delete_inode will use this to determine which orphan
 	 * dir to lock. */
 	fe->i_orphaned_slot = cpu_to_le16(osb->slot_num);
+
+	ocfs2_journal_dirty(handle, fe_bh);
 
 	mlog(0, "Inode %llu orphaned in slot %d\n",
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno, osb->slot_num);
@@ -2123,7 +2159,7 @@ int ocfs2_create_inode_in_orphan(struct inode *dir,
 	}
 
 	di = (struct ocfs2_dinode *)new_di_bh->b_data;
-	status = ocfs2_orphan_add(osb, handle, inode, di, orphan_name,
+	status = ocfs2_orphan_add(osb, handle, inode, new_di_bh, orphan_name,
 				  &orphan_insert, orphan_dir);
 	if (status < 0) {
 		mlog_errno(status);

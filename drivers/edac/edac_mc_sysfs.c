@@ -10,6 +10,7 @@
  */
 
 #include <linux/ctype.h>
+#include <linux/slab.h>
 #include <linux/bug.h>
 
 #include "edac_core.h"

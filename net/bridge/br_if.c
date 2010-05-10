@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_ether.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 
 #include "br_private.h"

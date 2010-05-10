@@ -1441,7 +1441,7 @@ static int acm_resume(struct usb_interface *intf)
 			wb = acm->delayed_wb;
 			acm->delayed_wb = NULL;
 			spin_unlock_irq(&acm->write_lock);
-			acm_start_wb(acm, acm->delayed_wb);
+			acm_start_wb(acm, wb);
 		} else {
 			spin_unlock_irq(&acm->write_lock);
 		}
@@ -1540,6 +1540,9 @@ static const struct usb_device_id acm_ids[] = {
 					   quirk for this. */
 	},
 	{ USB_DEVICE(0x1bbb, 0x0003), /* Alcatel OT-I650 */
+	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
+	},
+	{ USB_DEVICE(0x1576, 0x03b1), /* Maretron USB100 */
 	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
 	},
 

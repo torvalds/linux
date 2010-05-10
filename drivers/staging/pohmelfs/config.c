@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/in.h>
+#include <linux/slab.h>
 
 #include "netfs.h"
 

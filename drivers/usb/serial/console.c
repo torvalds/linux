@@ -181,6 +181,7 @@ static int usb_console_setup(struct console *co, char *options)
 	/* The console is special in terms of closing the device so
 	 * indicate this port is now acting as a system console. */
 	port->console = 1;
+	port->port.console = 1;
 
 	mutex_unlock(&serial->disc_mutex);
 	return retval;

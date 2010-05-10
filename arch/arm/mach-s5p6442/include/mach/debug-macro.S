@@ -15,7 +15,7 @@
 #include <mach/map.h>
 #include <plat/regs-serial.h>
 
-	.macro addruart, rx
+	.macro addruart, rx, rtmp
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1
 		ldreq	\rx, = S3C_PA_UART

@@ -33,6 +33,7 @@
 
 #include <linux/mlx4/cq.h>
 #include <linux/mlx4/qp.h>
+#include <linux/slab.h>
 
 #include "mlx4_ib.h"
 #include "user.h"

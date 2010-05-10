@@ -27,6 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
+#include <linux/slab.h>
 
 #include <mach/spi.h>
 #include <mach/edma.h>

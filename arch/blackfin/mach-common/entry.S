@@ -405,7 +405,7 @@ ENTRY(_double_fault)
 
 	r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
-	call _double_fault_c;
+	pseudo_long_call _double_fault_c, p5;
 	SP += 12;
 .L_double_fault_panic:
         JUMP .L_double_fault_panic
@@ -447,7 +447,7 @@ ENTRY(_exception_to_level5)
 
 	r0 = sp; 	/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
-	call _trap_c;
+	pseudo_long_call _trap_c, p4;
 	SP += 12;
 
 	/* If interrupts were off during the exception (IPEND[4] = 1), turn them off
@@ -482,6 +482,8 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	[--sp] = ASTAT;
 	[--sp] = (R7:6,P5:4);
 
+	ANOMALY_283_315_WORKAROUND(p5, r7)
+
 #ifdef CONFIG_EXACT_HWERR
 	/* Make sure all pending read/writes complete. This will ensure any
 	 * accesses which could cause hardware errors completes, and signal
@@ -491,8 +493,6 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	 */
 	ssync;
 #endif
-
-	ANOMALY_283_315_WORKAROUND(p5, r7)
 
 #ifdef CONFIG_DEBUG_DOUBLEFAULT
 	/*
@@ -551,7 +551,7 @@ ENTRY(_kernel_execve)
 	p0 = sp;
 	sp += -16;
 	[sp + 12] = p0;
-	call _do_execve;
+	pseudo_long_call _do_execve, p5;
 	SP += 16;
 	cc = r0 == 0;
 	if ! cc jump .Lexecve_failed;
@@ -626,13 +626,6 @@ ENTRY(_system_call)
 	p0 = [sp + PT_ORIG_P0];
 #endif /* CONFIG_IPIPE */
 
-	/* Check the System Call */
-	r7 = __NR_syscall;
-	/* System call number is passed in P0 */
-	r6 = p0;
-	cc = r6 < r7;
-	if ! cc jump .Lbadsys;
-
 	/* are we tracing syscalls?*/
 	r7 = sp;
 	r6.l = lo(ALIGN_PAGE_MASK);
@@ -642,6 +635,14 @@ ENTRY(_system_call)
 	r7 = [p2+TI_FLAGS];
 	CC = BITTST(r7,TIF_SYSCALL_TRACE);
 	if CC JUMP _sys_trace;
+	CC = BITTST(r7,TIF_SINGLESTEP);
+	if CC JUMP _sys_trace;
+
+	/* Make sure the system call # is valid */
+	p4 = __NR_syscall;
+	/* System call number is passed in P0 */
+	cc = p4 <= p0;
+	if cc jump .Lbadsys;
 
 	/* Execute the appropriate system call */
 
@@ -704,7 +705,7 @@ ENTRY(_system_call)
 	sp += 4;
 
 	SP += -12;
-	call _schedule;
+	pseudo_long_call _schedule, p4;
 	SP += 12;
 
 	jump .Lresume_userspace_1;
@@ -723,7 +724,7 @@ ENTRY(_system_call)
 
 	r0 = sp;
 	SP += -12;
-	call _do_notify_resume;
+	pseudo_long_call _do_notify_resume, p5;
 	SP += 12;
 
 .Lsyscall_really_exit:
@@ -736,11 +737,17 @@ ENDPROC(_system_call)
  * this symbol need not be global anyways, so ...
  */
 _sys_trace:
-	call _syscall_trace;
+	r0 = sp;
+	pseudo_long_call _syscall_trace_enter, p5;
+
+	/* Make sure the system call # is valid */
+	p4 = [SP + PT_P0];
+	p3 = __NR_syscall;
+	cc = p3 <= p4;
+	r0 = -ENOSYS;
+	if cc jump .Lsys_trace_badsys;
 
 	/* Execute the appropriate system call */
-
-	p4 = [SP + PT_P0];
 	p5.l = _sys_call_table;
 	p5.h = _sys_call_table;
 	p5 = p5 + (p4 << 2);
@@ -758,9 +765,11 @@ _sys_trace:
 	SP += -12;
 	call (p5);
 	SP += 24;
+.Lsys_trace_badsys:
 	[sp + PT_R0] = r0;
 
-	call _syscall_trace;
+	r0 = sp;
+	pseudo_long_call _syscall_trace_leave, p5;
 	jump .Lresume_userspace;
 ENDPROC(_sys_trace)
 
@@ -966,6 +975,13 @@ ENTRY(_evt_evt14)
 #else
 	cli r0;
 #endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	[--sp] = rets;
+	sp += -12;
+	call _trace_hardirqs_off;
+	sp += 12;
+	rets = [sp++];
+#endif
 	[--sp] = RETI;
 	SP += 4;
 	rts;
@@ -989,6 +1005,14 @@ ENTRY(_schedule_and_signal_from_int)
 	p1 = rets;
 	[sp + PT_RESERVED] = p1;
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	/* trace_hardirqs_on() checks if all irqs are disabled. But here IRQ 15
+	 * is turned on, so disable all irqs. */
+	cli r0;
+	sp += -12;
+	call _trace_hardirqs_on;
+	sp += 12;
+#endif
 #ifdef CONFIG_SMP
 	GET_PDA(p0, r0); 	/* Fetch current PDA (can't migrate to other CPU here) */
 	r0 = [p0 + PDA_IRQFLAGS];
@@ -1007,7 +1031,8 @@ ENTRY(_schedule_and_signal_from_int)
 
 	r0 = sp;
 	sp += -12;
-	call _finish_atomic_sections;
+
+	pseudo_long_call _finish_atomic_sections, p5;
 	sp += 12;
 	jump.s .Lresume_userspace;
 ENDPROC(_schedule_and_signal_from_int)
@@ -1357,7 +1382,7 @@ ENTRY(_sys_call_table)
 	.long _sys_newuname
 	.long _sys_ni_syscall	/* old sys_modify_ldt */
 	.long _sys_adjtimex
-	.long _sys_ni_syscall	/* 125 */ /* sys_mprotect */
+	.long _sys_mprotect	/* 125 */
 	.long _sys_ni_syscall	/* old sys_sigprocmask */
 	.long _sys_ni_syscall	/* old "creat_module" */
 	.long _sys_init_module
@@ -1376,16 +1401,16 @@ ENTRY(_sys_call_table)
 	.long _sys_getdents
 	.long _sys_ni_syscall	/* sys_select */
 	.long _sys_flock
-	.long _sys_ni_syscall	/* sys_msync */
+	.long _sys_msync
 	.long _sys_readv		/* 145 */
 	.long _sys_writev
 	.long _sys_getsid
 	.long _sys_fdatasync
 	.long _sys_sysctl
-	.long _sys_ni_syscall	/* 150 */ /* sys_mlock */
-	.long _sys_ni_syscall	/* sys_munlock */
-	.long _sys_ni_syscall	/* sys_mlockall */
-	.long _sys_ni_syscall	/* sys_munlockall */
+	.long _sys_mlock	/* 150 */
+	.long _sys_munlock
+	.long _sys_mlockall
+	.long _sys_munlockall
 	.long _sys_sched_setparam
 	.long _sys_sched_getparam /* 155 */
 	.long _sys_sched_setscheduler
@@ -1450,8 +1475,8 @@ ENTRY(_sys_call_table)
 	.long _sys_setfsuid	/* 215 */
 	.long _sys_setfsgid
 	.long _sys_pivot_root
-	.long _sys_ni_syscall	/* sys_mincore */
-	.long _sys_ni_syscall	/* sys_madvise */
+	.long _sys_mincore
+	.long _sys_madvise
 	.long _sys_getdents64	/* 220 */
 	.long _sys_fcntl64
 	.long _sys_ni_syscall	/* reserved for TUX */
@@ -1507,7 +1532,7 @@ ENTRY(_sys_call_table)
 	.long _sys_utimes
 	.long _sys_fadvise64_64
 	.long _sys_ni_syscall /* vserver */
-	.long _sys_ni_syscall /* 275, mbind */
+	.long _sys_mbind	/* 275 */
 	.long _sys_ni_syscall /* get_mempolicy */
 	.long _sys_ni_syscall /* set_mempolicy */
 	.long _sys_mq_open

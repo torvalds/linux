@@ -39,6 +39,7 @@
 #include <linux/pci_ids.h>
 #include <linux/pm.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/tcp.h>

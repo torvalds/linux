@@ -113,9 +113,9 @@ int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 pid,
 }
 EXPORT_SYMBOL_GPL(nfnetlink_send);
 
-void nfnetlink_set_err(struct net *net, u32 pid, u32 group, int error)
+int nfnetlink_set_err(struct net *net, u32 pid, u32 group, int error)
 {
-	netlink_set_err(net->nfnl, pid, group, error);
+	return netlink_set_err(net->nfnl, pid, group, error);
 }
 EXPORT_SYMBOL_GPL(nfnetlink_set_err);
 

@@ -32,6 +32,7 @@
  */
 
 #include <linux/mlx4/cmd.h>
+#include <linux/gfp.h>
 
 #include "mlx4.h"
 #include "icm.h"

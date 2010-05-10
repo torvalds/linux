@@ -872,8 +872,10 @@ static int ocfs2_sync_local_to_main(struct ocfs2_super *osb,
 			     (unsigned long long)la_start_blk,
 			     (unsigned long long)blkno);
 
-			status = ocfs2_free_clusters(handle, main_bm_inode,
-						     main_bm_bh, blkno, count);
+			status = ocfs2_release_clusters(handle,
+							main_bm_inode,
+							main_bm_bh, blkno,
+							count);
 			if (status < 0) {
 				mlog_errno(status);
 				goto bail;
@@ -984,8 +986,7 @@ static int ocfs2_local_alloc_reserve_for_window(struct ocfs2_super *osb,
 	}
 
 retry_enospc:
-	(*ac)->ac_bits_wanted = osb->local_alloc_bits;
-
+	(*ac)->ac_bits_wanted = osb->local_alloc_default_bits;
 	status = ocfs2_reserve_cluster_bitmap_bits(osb, *ac);
 	if (status == -ENOSPC) {
 		if (ocfs2_recalc_la_window(osb, OCFS2_LA_EVENT_ENOSPC) ==
@@ -1061,6 +1062,7 @@ retry_enospc:
 		    OCFS2_LA_DISABLED)
 			goto bail;
 
+		ac->ac_bits_wanted = osb->local_alloc_default_bits;
 		status = ocfs2_claim_clusters(osb, handle, ac,
 					      osb->local_alloc_bits,
 					      &cluster_off,

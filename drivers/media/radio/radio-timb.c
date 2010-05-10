@@ -22,6 +22,7 @@
 #include <media/v4l2-device.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/i2c.h>
 #include <media/timb_radio.h>
 

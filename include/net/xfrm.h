@@ -12,6 +12,7 @@
 #include <linux/in6.h>
 #include <linux/mutex.h>
 #include <linux/audit.h>
+#include <linux/slab.h>
 
 #include <net/sock.h>
 #include <net/dst.h>

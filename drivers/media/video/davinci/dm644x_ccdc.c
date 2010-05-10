@@ -37,6 +37,7 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/videodev2.h>
+#include <linux/gfp.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 

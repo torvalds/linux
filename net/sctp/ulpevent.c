@@ -43,6 +43,7 @@
  * be incorporated into the next SCTP release.
  */
 
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <net/sctp/structs.h>

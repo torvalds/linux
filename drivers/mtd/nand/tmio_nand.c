@@ -37,6 +37,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
+#include <linux/slab.h>
 
 /*--------------------------------------------------------------------------*/
 

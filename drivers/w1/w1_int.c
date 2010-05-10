@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 #include "w1.h"
 #include "w1_log.h"

@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/pm_runtime.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>

@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 
 #include <linux/dvb/frontend.h>
@@ -4468,6 +4469,10 @@ static int stv090x_setup(struct dvb_frontend *fe)
 		goto err;
 	if (stv090x_write_reg(state, STV090x_TSTRES0, 0x00) < 0)
 		goto err;
+
+	/* workaround for stuck DiSEqC output */
+	if (config->diseqc_envelope_mode)
+		stv090x_send_diseqc_burst(fe, SEC_MINI_A);
 
 	return 0;
 err:

@@ -219,6 +219,8 @@ static void class_create_release(struct class *cls)
  * This is used to create a struct class pointer that can then be used
  * in calls to device_create().
  *
+ * Returns &struct class pointer on success, or ERR_PTR() on error.
+ *
  * Note, the pointer created here is to be destroyed when finished by
  * making a call to class_destroy().
  */

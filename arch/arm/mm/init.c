@@ -17,6 +17,7 @@
 #include <linux/initrd.h>
 #include <linux/sort.h>
 #include <linux/highmem.h>
+#include <linux/gfp.h>
 
 #include <asm/mach-types.h>
 #include <asm/sections.h>
@@ -85,9 +86,6 @@ void show_mem(void)
 	printk("Mem-info:\n");
 	show_free_areas();
 	for_each_online_node(node) {
-		pg_data_t *n = NODE_DATA(node);
-		struct page *map = pgdat_page_nr(n, 0) - n->node_start_pfn;
-
 		for_each_nodebank (i,mi,node) {
 			struct membank *bank = &mi->bank[i];
 			unsigned int pfn1, pfn2;
@@ -96,8 +94,8 @@ void show_mem(void)
 			pfn1 = bank_pfn_start(bank);
 			pfn2 = bank_pfn_end(bank);
 
-			page = map + pfn1;
-			end  = map + pfn2;
+			page = pfn_to_page(pfn1);
+			end  = pfn_to_page(pfn2 - 1) + 1;
 
 			do {
 				total++;
@@ -602,9 +600,6 @@ void __init mem_init(void)
 	reserved_pages = free_pages = 0;
 
 	for_each_online_node(node) {
-		pg_data_t *n = NODE_DATA(node);
-		struct page *map = pgdat_page_nr(n, 0) - n->node_start_pfn;
-
 		for_each_nodebank(i, &meminfo, node) {
 			struct membank *bank = &meminfo.bank[i];
 			unsigned int pfn1, pfn2;
@@ -613,8 +608,8 @@ void __init mem_init(void)
 			pfn1 = bank_pfn_start(bank);
 			pfn2 = bank_pfn_end(bank);
 
-			page = map + pfn1;
-			end  = map + pfn2;
+			page = pfn_to_page(pfn1);
+			end  = pfn_to_page(pfn2 - 1) + 1;
 
 			do {
 				if (PageReserved(page))

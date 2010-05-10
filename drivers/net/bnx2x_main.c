@@ -893,7 +893,6 @@ static inline u16 bnx2x_tx_avail(struct bnx2x_fastpath *fp)
 	u16 prod;
 	u16 cons;
 
-	barrier(); /* Tell compiler that prod and cons can change */
 	prod = fp->tx_bd_prod;
 	cons = fp->tx_bd_cons;
 
@@ -963,7 +962,7 @@ static int bnx2x_tx_int(struct bnx2x_fastpath *fp)
 	 * start_xmit() will miss it and cause the queue to be stopped
 	 * forever.
 	 */
-	smp_wmb();
+	smp_mb();
 
 	/* TBD need a thresh? */
 	if (unlikely(netif_tx_queue_stopped(txq))) {
@@ -11429,9 +11428,12 @@ static netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(bnx2x_tx_avail(fp) < MAX_SKB_FRAGS + 3)) {
 		netif_tx_stop_queue(txq);
-		/* We want bnx2x_tx_int to "see" the updated tx_bd_prod
-		   if we put Tx into XOFF state. */
+
+		/* paired memory barrier is in bnx2x_tx_int(), we have to keep
+		 * ordering of set_bit() in netif_tx_stop_queue() and read of
+		 * fp->bd_tx_cons */
 		smp_mb();
+
 		fp->eth_q_stats.driver_xoff++;
 		if (bnx2x_tx_avail(fp) >= MAX_SKB_FRAGS + 3)
 			netif_tx_wake_queue(txq);

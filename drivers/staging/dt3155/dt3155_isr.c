@@ -45,7 +45,7 @@ Purpose: Buffer management routines, and other routines for the ISR
 */
 
 #include <asm/system.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/types.h>
 

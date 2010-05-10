@@ -92,6 +92,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/uwb.h>
 #include <linux/usb/wusb.h>

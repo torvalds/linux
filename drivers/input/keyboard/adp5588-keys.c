@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 
 #include <linux/i2c/adp5588.h>
 

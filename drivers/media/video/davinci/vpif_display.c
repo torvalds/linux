@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/version.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 #include <asm/page.h>

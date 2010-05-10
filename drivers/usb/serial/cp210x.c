@@ -313,11 +313,6 @@ static int cp210x_set_config(struct usb_serial_port *port, u8 request,
 		return -EPROTO;
 	}
 
-	/* Single data value */
-	result = usb_control_msg(serial->dev,
-			usb_sndctrlpipe(serial->dev, 0),
-			request, REQTYPE_HOST_TO_DEVICE, data[0],
-			0, NULL, 0, 300);
 	return 0;
 }
 

@@ -21,22 +21,21 @@
 #define CLCD_UBAS 		0x00000010
 #define CLCD_LBAS 		0x00000014
 
-#if !defined(CONFIG_ARCH_VERSATILE) && !defined(CONFIG_ARCH_REALVIEW)
-#define CLCD_IENB 		0x00000018
-#define CLCD_CNTL 		0x0000001c
-#else
-/*
- * Someone rearranged these two registers on the Versatile
- * platform...
- */
-#define CLCD_IENB 		0x0000001c
-#define CLCD_CNTL 		0x00000018
-#endif
+#define CLCD_PL110_IENB		0x00000018
+#define CLCD_PL110_CNTL		0x0000001c
+#define CLCD_PL110_STAT		0x00000020
+#define CLCD_PL110_INTR 	0x00000024
+#define CLCD_PL110_UCUR		0x00000028
+#define CLCD_PL110_LCUR		0x0000002C
 
-#define CLCD_STAT 		0x00000020
-#define CLCD_INTR 		0x00000024
-#define CLCD_UCUR 		0x00000028
-#define CLCD_LCUR 		0x0000002C
+#define CLCD_PL111_CNTL		0x00000018
+#define CLCD_PL111_IENB		0x0000001c
+#define CLCD_PL111_RIS		0x00000020
+#define CLCD_PL111_MIS		0x00000024
+#define CLCD_PL111_ICR		0x00000028
+#define CLCD_PL111_UCUR		0x0000002c
+#define CLCD_PL111_LCUR		0x00000030
+
 #define CLCD_PALL 		0x00000200
 #define CLCD_PALETTE		0x00000200
 
@@ -147,6 +146,8 @@ struct clcd_fb {
 	struct clcd_board	*board;
 	void			*board_data;
 	void __iomem		*regs;
+	u16			off_ienb;
+	u16			off_cntl;
 	u32			clcd_cntl;
 	u32			cmap[16];
 };

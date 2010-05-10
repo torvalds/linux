@@ -11,6 +11,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/audit.h>
 #include "ima.h"
 

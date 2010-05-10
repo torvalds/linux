@@ -519,14 +519,6 @@ static int ad198x_suspend(struct hda_codec *codec, pm_message_t state)
 	ad198x_power_eapd(codec);
 	return 0;
 }
-
-static int ad198x_resume(struct hda_codec *codec)
-{
-	ad198x_init(codec);
-	snd_hda_codec_resume_amp(codec);
-	snd_hda_codec_resume_cache(codec);
-	return 0;
-}
 #endif
 
 static struct hda_codec_ops ad198x_patch_ops = {
@@ -539,7 +531,6 @@ static struct hda_codec_ops ad198x_patch_ops = {
 #endif
 #ifdef SND_HDA_NEEDS_RESUME
 	.suspend = ad198x_suspend,
-	.resume = ad198x_resume,
 #endif
 	.reboot_notify = ad198x_shutup,
 };
@@ -1896,6 +1887,14 @@ static int patch_ad1981(struct hda_codec *codec)
 	case AD1981_THINKPAD:
 		spec->mixers[0] = ad1981_thinkpad_mixers;
 		spec->input_mux = &ad1981_thinkpad_capture_source;
+		/* set the upper-limit for mixer amp to 0dB for avoiding the
+		 * possible damage by overloading
+		 */
+		snd_hda_override_amp_caps(codec, 0x11, HDA_INPUT,
+					  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
 		break;
 	case AD1981_TOSHIBA:
 		spec->mixers[0] = ad1981_hp_mixers;

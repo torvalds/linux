@@ -38,6 +38,7 @@
 
 #include "linux/netlink.h"
 #include "linux/rtnetlink.h"
+#include "linux/slab.h"
 
 #include <net/iw_handler.h>
 

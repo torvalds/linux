@@ -27,6 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <plat/sram.h>
 #include <plat/clockdomain.h>

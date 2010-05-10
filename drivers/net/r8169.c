@@ -186,8 +186,13 @@ static DEFINE_PCI_DEVICE_TABLE(rtl8169_pci_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
 
-static int rx_copybreak = 200;
-static int use_dac = -1;
+/*
+ * we set our copybreak very high so that we don't have
+ * to allocate 16k frames all the time (see note in
+ * rtl8169_open()
+ */
+static int rx_copybreak = 16383;
+static int use_dac;
 static struct {
 	u32 msg_enable;
 } debug = { -1 };
@@ -511,8 +516,7 @@ MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
 module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 module_param(use_dac, int, 0);
-MODULE_PARM_DESC(use_dac, "Enable PCI DAC. -1 defaults on for PCI Express only."
-" Unsafe on 32 bit PCI slot.");
+MODULE_PARM_DESC(use_dac, "Enable PCI DAC. Unsafe on 32 bit PCI slot.");
 module_param_named(debug, debug.msg_enable, int, 0);
 MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
 MODULE_LICENSE("GPL");
@@ -1038,14 +1042,14 @@ static void rtl8169_vlan_rx_register(struct net_device *dev,
 }
 
 static int rtl8169_rx_vlan_skb(struct rtl8169_private *tp, struct RxDesc *desc,
-			       struct sk_buff *skb)
+			       struct sk_buff *skb, int polling)
 {
 	u32 opts2 = le32_to_cpu(desc->opts2);
 	struct vlan_group *vlgrp = tp->vlgrp;
 	int ret;
 
 	if (vlgrp && (opts2 & RxVlanTag)) {
-		vlan_hwaccel_receive_skb(skb, vlgrp, swab16(opts2 & 0xffff));
+		__vlan_hwaccel_rx(skb, vlgrp, swab16(opts2 & 0xffff), polling);
 		ret = 0;
 	} else
 		ret = -1;
@@ -1062,7 +1066,7 @@ static inline u32 rtl8169_tx_vlan_tag(struct rtl8169_private *tp,
 }
 
 static int rtl8169_rx_vlan_skb(struct rtl8169_private *tp, struct RxDesc *desc,
-			       struct sk_buff *skb)
+			       struct sk_buff *skb, int polling)
 {
 	return -1;
 }
@@ -2755,6 +2759,7 @@ static void rtl8169_release_board(struct pci_dev *pdev, struct net_device *dev,
 {
 	iounmap(ioaddr);
 	pci_release_regions(pdev);
+	pci_clear_mwi(pdev);
 	pci_disable_device(pdev);
 	free_netdev(dev);
 }
@@ -2821,8 +2826,13 @@ static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
 	spin_lock_irq(&tp->lock);
 
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
-	RTL_W32(MAC0, low);
+
 	RTL_W32(MAC4, high);
+	RTL_R32(MAC4);
+
+	RTL_W32(MAC0, low);
+	RTL_R32(MAC0);
+
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
 	spin_unlock_irq(&tp->lock);
@@ -2974,7 +2984,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *ioaddr;
 	unsigned int i;
 	int rc;
-	int this_use_dac = use_dac;
 
 	if (netif_msg_drv(&debug)) {
 		printk(KERN_INFO "%s Gigabit Ethernet driver %s loaded\n",
@@ -3011,9 +3020,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_dev_1;
 	}
 
-	rc = pci_set_mwi(pdev);
-	if (rc < 0)
-		goto err_out_disable_2;
+	if (pci_set_mwi(pdev) < 0)
+		netif_info(tp, probe, dev, "Mem-Wr-Inval unavailable\n");
 
 	/* make sure PCI base addr 1 is MMIO */
 	if (!(pci_resource_flags(pdev, region) & IORESOURCE_MEM)) {
@@ -3021,7 +3029,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			  "region #%d not an MMIO resource, aborting\n",
 			  region);
 		rc = -ENODEV;
-		goto err_out_mwi_3;
+		goto err_out_mwi_2;
 	}
 
 	/* check for weird/broken PCI region reporting */
@@ -3029,35 +3037,26 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netif_err(tp, probe, dev,
 			  "Invalid PCI region size(s), aborting\n");
 		rc = -ENODEV;
-		goto err_out_mwi_3;
+		goto err_out_mwi_2;
 	}
 
 	rc = pci_request_regions(pdev, MODULENAME);
 	if (rc < 0) {
 		netif_err(tp, probe, dev, "could not request regions\n");
-		goto err_out_mwi_3;
+		goto err_out_mwi_2;
 	}
 
 	tp->cp_cmd = PCIMulRW | RxChkSum;
 
-	tp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	if (!tp->pcie_cap)
-		netif_info(tp, probe, dev, "no PCI Express capability\n");
-
-	if (this_use_dac < 0)
-		this_use_dac = tp->pcie_cap != 0;
-
 	if ((sizeof(dma_addr_t) > 4) &&
-	    this_use_dac &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		netif_info(tp, probe, dev, "using 64-bit DMA\n");
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) && use_dac) {
 		tp->cp_cmd |= PCIDAC;
 		dev->features |= NETIF_F_HIGHDMA;
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc < 0) {
 			netif_err(tp, probe, dev, "DMA configuration failed\n");
-			goto err_out_free_res_4;
+			goto err_out_free_res_3;
 		}
 	}
 
@@ -3066,8 +3065,12 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!ioaddr) {
 		netif_err(tp, probe, dev, "cannot remap MMIO, aborting\n");
 		rc = -EIO;
-		goto err_out_free_res_4;
+		goto err_out_free_res_3;
 	}
+
+	tp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	if (!tp->pcie_cap)
+		netif_info(tp, probe, dev, "no PCI Express capability\n");
 
 	RTL_W16(IntrMask, 0x0000);
 
@@ -3104,7 +3107,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (i == ARRAY_SIZE(rtl_chip_info)) {
 		dev_err(&pdev->dev,
 			"driver bug, MAC version not found in rtl_chip_info\n");
-		goto err_out_msi_5;
+		goto err_out_msi_4;
 	}
 	tp->chipset = i;
 
@@ -3169,7 +3172,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rc = register_netdev(dev);
 	if (rc < 0)
-		goto err_out_msi_5;
+		goto err_out_msi_4;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -3192,14 +3195,13 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 out:
 	return rc;
 
-err_out_msi_5:
+err_out_msi_4:
 	rtl_disable_msi(pdev, tp);
 	iounmap(ioaddr);
-err_out_free_res_4:
+err_out_free_res_3:
 	pci_release_regions(pdev);
-err_out_mwi_3:
+err_out_mwi_2:
 	pci_clear_mwi(pdev);
-err_out_disable_2:
 	pci_disable_device(pdev);
 err_out_free_dev_1:
 	free_netdev(dev);
@@ -3224,9 +3226,13 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 }
 
 static void rtl8169_set_rxbufsize(struct rtl8169_private *tp,
-				  struct net_device *dev)
+				  unsigned int mtu)
 {
-	unsigned int max_frame = dev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
+	unsigned int max_frame = mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
+
+	if (max_frame != 16383)
+		printk(KERN_WARNING PFX "WARNING! Changing of MTU on this "
+			"NIC may lead to frame reception errors!\n");
 
 	tp->rx_buf_sz = (max_frame > RX_BUF_SIZE) ? max_frame : RX_BUF_SIZE;
 }
@@ -3238,7 +3244,17 @@ static int rtl8169_open(struct net_device *dev)
 	int retval = -ENOMEM;
 
 
-	rtl8169_set_rxbufsize(tp, dev);
+	/*
+	 * Note that we use a magic value here, its wierd I know
+	 * its done because, some subset of rtl8169 hardware suffers from
+	 * a problem in which frames received that are longer than
+	 * the size set in RxMaxSize register return garbage sizes
+	 * when received.  To avoid this we need to turn off filtering,
+	 * which is done by setting a value of 16383 in the RxMaxSize register
+	 * and allocating 16k frames to handle the largest possible rx value
+	 * thats what the magic math below does.
+	 */
+	rtl8169_set_rxbufsize(tp, 16383 - VLAN_ETH_HLEN - ETH_FCS_LEN);
 
 	/*
 	 * Rx and Tx desscriptors needs 256 bytes alignment.
@@ -3891,7 +3907,7 @@ static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
 
 	rtl8169_down(dev);
 
-	rtl8169_set_rxbufsize(tp, dev);
+	rtl8169_set_rxbufsize(tp, dev->mtu);
 
 	ret = rtl8169_init_ring(dev);
 	if (ret < 0)
@@ -4429,12 +4445,20 @@ out:
 	return done;
 }
 
+/*
+ * Warning : rtl8169_rx_interrupt() might be called :
+ * 1) from NAPI (softirq) context
+ *	(polling = 1 : we should call netif_receive_skb())
+ * 2) from process context (rtl8169_reset_task())
+ *	(polling = 0 : we must call netif_rx() instead)
+ */
 static int rtl8169_rx_interrupt(struct net_device *dev,
 				struct rtl8169_private *tp,
 				void __iomem *ioaddr, u32 budget)
 {
 	unsigned int cur_rx, rx_left;
 	unsigned int delta, count;
+	int polling = (budget != ~(u32)0) ? 1 : 0;
 
 	cur_rx = tp->cur_rx;
 	rx_left = NUM_RX_DESC + tp->dirty_rx - cur_rx;
@@ -4496,8 +4520,12 @@ static int rtl8169_rx_interrupt(struct net_device *dev,
 			skb_put(skb, pkt_size);
 			skb->protocol = eth_type_trans(skb, dev);
 
-			if (rtl8169_rx_vlan_skb(tp, desc, skb) < 0)
-				netif_receive_skb(skb);
+			if (rtl8169_rx_vlan_skb(tp, desc, skb, polling) < 0) {
+				if (likely(polling))
+					netif_receive_skb(skb);
+				else
+					netif_rx(skb);
+			}
 
 			dev->stats.rx_bytes += pkt_size;
 			dev->stats.rx_packets++;
@@ -4754,8 +4782,8 @@ static void rtl_set_rx_mode(struct net_device *dev)
 		mc_filter[1] = swab32(data);
 	}
 
-	RTL_W32(MAR0 + 0, mc_filter[0]);
 	RTL_W32(MAR0 + 4, mc_filter[1]);
+	RTL_W32(MAR0 + 0, mc_filter[0]);
 
 	RTL_W32(RxConfig, tmp);
 

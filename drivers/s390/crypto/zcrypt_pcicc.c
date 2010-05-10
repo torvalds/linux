@@ -28,6 +28,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <linux/err.h>
 #include <asm/atomic.h>
 #include <asm/uaccess.h>

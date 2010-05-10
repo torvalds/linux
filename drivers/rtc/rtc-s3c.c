@@ -21,6 +21,7 @@
 #include <linux/bcd.h>
 #include <linux/clk.h>
 #include <linux/log2.h>
+#include <linux/slab.h>
 
 #include <mach/hardware.h>
 #include <asm/uaccess.h>

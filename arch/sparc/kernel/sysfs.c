@@ -107,12 +107,12 @@ static unsigned long run_on_cpu(unsigned long cpu,
 	unsigned long ret;
 
 	/* should return -EINVAL to userspace */
-	if (set_cpus_allowed(current, cpumask_of_cpu(cpu)))
+	if (set_cpus_allowed_ptr(current, cpumask_of(cpu)))
 		return 0;
 
 	ret = func(arg);
 
-	set_cpus_allowed(current, old_affinity);
+	set_cpus_allowed_ptr(current, &old_affinity);
 
 	return ret;
 }

@@ -12,6 +12,7 @@
 #define pr_fmt(fmt)		KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <asm/ebcdic.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>

@@ -25,6 +25,7 @@
 
 #include <linux/kernel.h>
 #include <linux/net.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/phonet.h>
 #include <linux/proc_fs.h>
@@ -107,8 +108,7 @@ static void phonet_device_destroy(struct net_device *dev)
 	if (pnd) {
 		u8 addr;
 
-		for (addr = find_first_bit(pnd->addrs, 64); addr < 64;
-			addr = find_next_bit(pnd->addrs, 64, 1+addr))
+		for_each_set_bit(addr, pnd->addrs, 64)
 			phonet_address_notify(RTM_DELADDR, dev, addr);
 		kfree(pnd);
 	}

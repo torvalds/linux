@@ -15,6 +15,7 @@
 #include <linux/of_device.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 
 /* RIO uses the NatSemi Super I/O power management logical device

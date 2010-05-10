@@ -459,12 +459,20 @@ static struct i2c_board_info __initdata omap3pandora_i2c_boardinfo[] = {
 	},
 };
 
+static struct i2c_board_info __initdata omap3pandora_i2c3_boardinfo[] = {
+	{
+		I2C_BOARD_INFO("bq27500", 0x55),
+		.flags = I2C_CLIENT_WAKE,
+	},
+};
+
 static int __init omap3pandora_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 2600, omap3pandora_i2c_boardinfo,
 			ARRAY_SIZE(omap3pandora_i2c_boardinfo));
 	/* i2c2 pins are not connected */
-	omap_register_i2c_bus(3, 100, NULL, 0);
+	omap_register_i2c_bus(3, 100, omap3pandora_i2c3_boardinfo,
+			ARRAY_SIZE(omap3pandora_i2c3_boardinfo));
 	return 0;
 }
 
@@ -537,7 +545,7 @@ static struct platform_device *omap3pandora_devices[] __initdata = {
 	&pandora_dss_device,
 };
 
-static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 
 	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
 	.port_mode[1] = EHCI_HCD_OMAP_MODE_UNKNOWN,

@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/nubus.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 #include <asm/dma.h>

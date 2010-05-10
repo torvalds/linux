@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/mtd/mtd.h>
+#include <linux/slab.h>
 #include <linux/mtd/partitions.h>
 
 int __devinit of_mtd_parse_partitions(struct device *dev,
