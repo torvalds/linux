@@ -15,6 +15,7 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/fsl_devices.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -179,11 +180,31 @@ static struct mxc_usbh_platform_data dr_utmi_config = {
 	.flags	= MXC_EHCI_INTERNAL_PHY,
 };
 
+static struct fsl_usb2_platform_data usb_pdata = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
+};
+
 static struct mxc_usbh_platform_data usbh1_config = {
 	.init		= initialize_usbh1_port,
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= (MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_ITC_NO_THRESHOLD),
 };
+
+static int otg_mode_host;
+
+static int __init babbage_otg_mode(char *options)
+{
+	if (!strcmp(options, "host"))
+		otg_mode_host = 1;
+	else if (!strcmp(options, "device"))
+		otg_mode_host = 0;
+	else
+		pr_info("otg_mode neither \"host\" nor \"device\". "
+			"Defaulting to device\n");
+	return 0;
+}
+__setup("otg_mode=", babbage_otg_mode);
 
 /*
  * Board specific initialization.
@@ -197,7 +218,12 @@ static void __init mxc_board_init(void)
 	mxc_init_imx_uart();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
+	if (otg_mode_host)
+		mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
+	else {
+		initialize_otg_port(NULL);
+		mxc_register_device(&mxc_usbdr_udc_device, &usb_pdata);
+	}
 
 	gpio_usbh1_active();
 	mxc_register_device(&mxc_usbh1_device, &usbh1_config);

@@ -107,6 +107,18 @@ static struct resource usbotg_resources[] = {
 	},
 };
 
+/* OTG gadget device */
+struct platform_device mxc_usbdr_udc_device = {
+	.name		= "fsl-usb2-udc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(usbotg_resources),
+	.resource	= usbotg_resources,
+	.dev		= {
+		.dma_mask		= &usb_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
 struct platform_device mxc_usbdr_host_device = {
 	.name = "mxc-ehci",
 	.id = 0,

@@ -818,6 +818,8 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxc-ehci.0", "usb_ahb", ahb_clk)
 	_REGISTER_CLOCK("mxc-ehci.1", "usb", usboh3_clk)
 	_REGISTER_CLOCK("mxc-ehci.1", "usb_ahb", ahb_clk)
+	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usboh3_clk)
+	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", ahb_clk)
 };
 
 static void clk_tree_init(void)
