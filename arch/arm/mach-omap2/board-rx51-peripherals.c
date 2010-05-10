@@ -629,6 +629,12 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
 	},
 };
 
+static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+	},
+};
+
 static int __init rx51_i2c_init(void)
 {
 	if ((system_rev >= SYSTEM_REV_S_USES_VAUX3 && system_rev < 0x100) ||
@@ -639,8 +645,9 @@ static int __init rx51_i2c_init(void)
 		rx51_twldata.vmmc2 = &rx51_vmmc2;
 	}
 	omap_register_i2c_bus(1, 2200, rx51_peripherals_i2c_board_info_1,
-			ARRAY_SIZE(rx51_peripherals_i2c_board_info_1));
-	omap_register_i2c_bus(2, 100, NULL, 0);
+			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_1));
+	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
+			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
 }
