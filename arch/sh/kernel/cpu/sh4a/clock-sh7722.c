@@ -149,8 +149,10 @@ struct clk div4_reparent_clks[DIV4_REPARENT_NR] = {
 	[DIV4_SIUB] = DIV4("siub_clk", SCLKBCR, 0, 0x1fff, 0),
 };
 
-struct clk div6_clks[] = {
-	SH_CLK_DIV6("video_clk", &pll_clk, VCLKCR, 0),
+enum { DIV6_V, DIV6_NR };
+
+struct clk div6_clks[DIV6_NR] = {
+	[DIV6_V] = SH_CLK_DIV6("video_clk", &pll_clk, VCLKCR, 0),
 };
 
 static struct clk mstp_clks[HWBLK_NR] = {
@@ -184,6 +186,9 @@ static struct clk mstp_clks[HWBLK_NR] = {
 #define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
 
 static struct clk_lookup lookups[] = {
+	/* DIV6 clocks */
+	CLKDEV_CON_ID("video_clk", &div6_clks[DIV6_V]),
+
 	/* MSTP clocks */
 	CLKDEV_CON_ID("uram0", &mstp_clks[HWBLK_URAM]),
 	CLKDEV_CON_ID("xymem0", &mstp_clks[HWBLK_XYMEM]),
@@ -265,7 +270,7 @@ int __init arch_clk_init(void)
 					DIV4_REPARENT_NR, &div4_table);
 
 	if (!ret)
-		ret = sh_clk_div6_register(div6_clks, ARRAY_SIZE(div6_clks));
+		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
 
 	if (!ret)
 		ret = sh_hwblk_clk_register(mstp_clks, HWBLK_NR);

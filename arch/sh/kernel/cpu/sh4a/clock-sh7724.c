@@ -164,12 +164,17 @@ struct clk div4_clks[DIV4_NR] = {
 	[DIV4_M1] = DIV4("vpu_clk", FRQCRB, 4, 0x2f7c, CLK_ENABLE_ON_INIT),
 };
 
-struct clk div6_clks[] = {
-	SH_CLK_DIV6("video_clk", &div3_clk, VCLKCR, 0),
-	SH_CLK_DIV6("fsia_clk", &div3_clk, FCLKACR, 0),
-	SH_CLK_DIV6("fsib_clk", &div3_clk, FCLKBCR, 0),
-	SH_CLK_DIV6("irda_clk", &div3_clk, IRDACLKCR, 0),
-	SH_CLK_DIV6("spu_clk", &div3_clk, SPUCLKCR, CLK_ENABLE_ON_INIT),
+enum { DIV6_V, DIV6_FA, DIV6_FB, DIV6_I, DIV6_S, DIV6_NR };
+
+#define DIV6(_str, _reg, _flags) \
+  SH_CLK_DIV6(_str, &div3_clk, _reg, _flags)
+
+struct clk div6_clks[DIV6_NR] = {
+	[DIV6_V] = DIV6("video_clk", VCLKCR, 0),
+	[DIV6_FA] = DIV6("fsia_clk", FCLKACR, 0),
+	[DIV6_FB] = DIV6("fsib_clk", FCLKBCR, 0),
+	[DIV6_I] = DIV6("irda_clk", IRDACLKCR, 0),
+	[DIV6_S] = DIV6("spu_clk", SPUCLKCR, CLK_ENABLE_ON_INIT),
 };
 
 static struct clk mstp_clks[HWBLK_NR] = {
@@ -232,6 +237,13 @@ static struct clk mstp_clks[HWBLK_NR] = {
 #define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
 
 static struct clk_lookup lookups[] = {
+	/* DIV6 clocks */
+	CLKDEV_CON_ID("video_clk", &div6_clks[DIV6_V]),
+	CLKDEV_CON_ID("fsia_clk", &div6_clks[DIV6_FA]),
+	CLKDEV_CON_ID("fsib_clk", &div6_clks[DIV6_FB]),
+	CLKDEV_CON_ID("irda_clk", &div6_clks[DIV6_I]),
+	CLKDEV_CON_ID("spu_clk", &div6_clks[DIV6_S]),
+
 	/* MSTP clocks */
 	CLKDEV_CON_ID("tlb0", &mstp_clks[HWBLK_TLB]),
 	CLKDEV_CON_ID("ic0", &mstp_clks[HWBLK_IC]),
@@ -360,7 +372,7 @@ int __init arch_clk_init(void)
 		ret = sh_clk_div4_register(div4_clks, DIV4_NR, &div4_table);
 
 	if (!ret)
-		ret = sh_clk_div6_register(div6_clks, ARRAY_SIZE(div6_clks));
+		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
 
 	if (!ret)
 		ret = sh_hwblk_clk_register(mstp_clks, HWBLK_NR);

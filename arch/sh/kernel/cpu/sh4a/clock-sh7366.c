@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <asm/clkdev.h>
 #include <asm/clock.h>
 
 /* SH7366 registers */
@@ -138,8 +139,10 @@ struct clk div4_clks[DIV4_NR] = {
 	[DIV4_SIUB] = DIV4("siub_clk", SCLKBCR, 0, 0x1fff, 0),
 };
 
-struct clk div6_clks[] = {
-	SH_CLK_DIV6("video_clk", &pll_clk, VCLKCR, 0),
+enum { DIV6_V, DIV6_NR };
+
+struct clk div6_clks[DIV6_NR] = {
+	[DIV6_V] = SH_CLK_DIV6("video_clk", &pll_clk, VCLKCR, 0),
 };
 
 #define MSTP(_str, _parent, _reg, _bit, _flags) \
@@ -189,6 +192,13 @@ static struct clk mstp_clks[] = {
 	MSTP("lcdc0", &div4_clks[DIV4_B], MSTPCR2, 0, 0),
 };
 
+#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+
+static struct clk_lookup lookups[] = {
+	/* DIV6 clocks */
+	CLKDEV_CON_ID("video_clk", &div6_clks[DIV6_V]),
+};
+
 int __init arch_clk_init(void)
 {
 	int k, ret = 0;
@@ -202,11 +212,13 @@ int __init arch_clk_init(void)
 	for (k = 0; !ret && (k < ARRAY_SIZE(main_clks)); k++)
 		ret = clk_register(main_clks[k]);
 
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
+
 	if (!ret)
 		ret = sh_clk_div4_register(div4_clks, DIV4_NR, &div4_table);
 
 	if (!ret)
-		ret = sh_clk_div6_register(div6_clks, ARRAY_SIZE(div6_clks));
+		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
 
 	if (!ret)
 		ret = sh_clk_mstp32_register(mstp_clks, ARRAY_SIZE(mstp_clks));
