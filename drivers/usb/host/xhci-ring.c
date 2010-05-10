@@ -112,6 +112,12 @@ static inline int last_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		return (trb->link.control & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK);
 }
 
+static inline int enqueue_is_link_trb(struct xhci_ring *ring)
+{
+	struct xhci_link_trb *link = &ring->enqueue->link;
+	return ((link->control & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK));
+}
+
 /* Updates trb to point to the next TRB in the ring, and updates seg if the next
  * TRB is in a new segment.  This does not skip over link TRBs, and it does not
  * effect the ring dequeue or enqueue pointers.
@@ -193,20 +199,15 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 	while (last_trb(xhci, ring, ring->enq_seg, next)) {
 		if (!consumer) {
 			if (ring != xhci->event_ring) {
-				/* If we're not dealing with 0.95 hardware,
-				 * carry over the chain bit of the previous TRB
-				 * (which may mean the chain bit is cleared).
-				 */
-				if (!xhci_link_trb_quirk(xhci)) {
-					next->link.control &= ~TRB_CHAIN;
-					next->link.control |= chain;
+				if (chain) {
+					next->link.control |= TRB_CHAIN;
+
+					/* Give this link TRB to the hardware */
+					wmb();
+					next->link.control ^= TRB_CYCLE;
+				} else {
+					break;
 				}
-				/* Give this link TRB to the hardware */
-				wmb();
-				if (next->link.control & TRB_CYCLE)
-					next->link.control &= (u32) ~TRB_CYCLE;
-				else
-					next->link.control |= (u32) TRB_CYCLE;
 			}
 			/* Toggle the cycle bit after the last ring segment. */
 			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
@@ -244,6 +245,13 @@ static int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	struct xhci_segment *enq_seg = ring->enq_seg;
 	struct xhci_segment *cur_seg;
 	unsigned int left_on_ring;
+
+	/* If we are currently pointing to a link TRB, advance the
+	 * enqueue pointer before checking for space */
+	while (last_trb(xhci, ring, enq_seg, enq)) {
+		enq_seg = enq_seg->next;
+		enq = enq_seg->trbs;
+	}
 
 	/* Check if ring is empty */
 	if (enq == ring->dequeue) {
@@ -1728,6 +1736,43 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		xhci_err(xhci, "ERROR no room on ep ring\n");
 		return -ENOMEM;
 	}
+
+	if (enqueue_is_link_trb(ep_ring)) {
+		struct xhci_ring *ring = ep_ring;
+		union xhci_trb *next;
+		unsigned long long addr;
+
+		xhci_dbg(xhci, "prepare_ring: pointing to link trb\n");
+		next = ring->enqueue;
+
+		while (last_trb(xhci, ring, ring->enq_seg, next)) {
+
+			/* If we're not dealing with 0.95 hardware,
+			 * clear the chain bit.
+			 */
+			if (!xhci_link_trb_quirk(xhci))
+				next->link.control &= ~TRB_CHAIN;
+			else
+				next->link.control |= TRB_CHAIN;
+
+			wmb();
+			next->link.control ^= (u32) TRB_CYCLE;
+
+			/* Toggle the cycle bit after the last ring segment. */
+			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
+				ring->cycle_state = (ring->cycle_state ? 0 : 1);
+				if (!in_interrupt()) {
+					xhci_dbg(xhci, "queue_trb: Toggle cycle "
+						"state for ring %p = %i\n",
+						ring, (unsigned int)ring->cycle_state);
+				}
+			}
+			ring->enq_seg = ring->enq_seg->next;
+			ring->enqueue = ring->enq_seg->trbs;
+			next = ring->enqueue;
+		}
+	}
+
 	return 0;
 }
 
