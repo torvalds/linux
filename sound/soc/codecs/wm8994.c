@@ -3548,6 +3548,9 @@ static int wm8994_resume(struct platform_device *pdev)
 	wm8994_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll); i++) {
+		if (!wm8994->fll_suspend[i].out)
+			continue;
+
 		ret = wm8994_set_fll(&codec->dai[0], i + 1,
 				     wm8994->fll_suspend[i].src,
 				     wm8994->fll_suspend[i].in,
