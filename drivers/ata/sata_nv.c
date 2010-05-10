@@ -1409,7 +1409,7 @@ static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 		BUG_ON(!(pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) &&
 			(qc->flags & ATA_QCFLAG_DMAMAP));
 		nv_adma_register_mode(qc->ap);
-		ata_sff_qc_prep(qc);
+		ata_bmdma_qc_prep(qc);
 		return;
 	}
 
@@ -2012,7 +2012,7 @@ static int nv_swncq_port_start(struct ata_port *ap)
 static void nv_swncq_qc_prep(struct ata_queued_cmd *qc)
 {
 	if (qc->tf.protocol != ATA_PROT_NCQ) {
-		ata_sff_qc_prep(qc);
+		ata_bmdma_qc_prep(qc);
 		return;
 	}
 

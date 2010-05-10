@@ -45,7 +45,7 @@ static struct workqueue_struct *ata_sff_wq;
 const struct ata_port_operations ata_sff_port_ops = {
 	.inherits		= &ata_base_port_ops,
 
-	.qc_prep		= ata_sff_qc_prep,
+	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= ata_sff_qc_issue,
 	.qc_fill_rtf		= ata_sff_qc_fill_rtf,
 
@@ -69,149 +69,6 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.lost_interrupt		= ata_sff_lost_interrupt,
 };
 EXPORT_SYMBOL_GPL(ata_sff_port_ops);
-
-/**
- *	ata_fill_sg - Fill PCI IDE PRD table
- *	@qc: Metadata associated with taskfile to be transferred
- *
- *	Fill PCI IDE PRD (scatter-gather) table with segments
- *	associated with the current disk command.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- *
- */
-static void ata_fill_sg(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	struct scatterlist *sg;
-	unsigned int si, pi;
-
-	pi = 0;
-	for_each_sg(qc->sg, sg, qc->n_elem, si) {
-		u32 addr, offset;
-		u32 sg_len, len;
-
-		/* determine if physical DMA addr spans 64K boundary.
-		 * Note h/w doesn't support 64-bit, so we unconditionally
-		 * truncate dma_addr_t to u32.
-		 */
-		addr = (u32) sg_dma_address(sg);
-		sg_len = sg_dma_len(sg);
-
-		while (sg_len) {
-			offset = addr & 0xffff;
-			len = sg_len;
-			if ((offset + sg_len) > 0x10000)
-				len = 0x10000 - offset;
-
-			ap->prd[pi].addr = cpu_to_le32(addr);
-			ap->prd[pi].flags_len = cpu_to_le32(len & 0xffff);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
-
-			pi++;
-			sg_len -= len;
-			addr += len;
-		}
-	}
-
-	ap->prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
-}
-
-/**
- *	ata_fill_sg_dumb - Fill PCI IDE PRD table
- *	@qc: Metadata associated with taskfile to be transferred
- *
- *	Fill PCI IDE PRD (scatter-gather) table with segments
- *	associated with the current disk command. Perform the fill
- *	so that we avoid writing any length 64K records for
- *	controllers that don't follow the spec.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- *
- */
-static void ata_fill_sg_dumb(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	struct scatterlist *sg;
-	unsigned int si, pi;
-
-	pi = 0;
-	for_each_sg(qc->sg, sg, qc->n_elem, si) {
-		u32 addr, offset;
-		u32 sg_len, len, blen;
-
-		/* determine if physical DMA addr spans 64K boundary.
-		 * Note h/w doesn't support 64-bit, so we unconditionally
-		 * truncate dma_addr_t to u32.
-		 */
-		addr = (u32) sg_dma_address(sg);
-		sg_len = sg_dma_len(sg);
-
-		while (sg_len) {
-			offset = addr & 0xffff;
-			len = sg_len;
-			if ((offset + sg_len) > 0x10000)
-				len = 0x10000 - offset;
-
-			blen = len & 0xffff;
-			ap->prd[pi].addr = cpu_to_le32(addr);
-			if (blen == 0) {
-				/* Some PATA chipsets like the CS5530 can't
-				   cope with 0x0000 meaning 64K as the spec
-				   says */
-				ap->prd[pi].flags_len = cpu_to_le32(0x8000);
-				blen = 0x8000;
-				ap->prd[++pi].addr = cpu_to_le32(addr + 0x8000);
-			}
-			ap->prd[pi].flags_len = cpu_to_le32(blen);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
-
-			pi++;
-			sg_len -= len;
-			addr += len;
-		}
-	}
-
-	ap->prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
-}
-
-/**
- *	ata_sff_qc_prep - Prepare taskfile for submission
- *	@qc: Metadata associated with taskfile to be prepared
- *
- *	Prepare ATA taskfile for submission.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-void ata_sff_qc_prep(struct ata_queued_cmd *qc)
-{
-	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
-		return;
-
-	ata_fill_sg(qc);
-}
-EXPORT_SYMBOL_GPL(ata_sff_qc_prep);
-
-/**
- *	ata_sff_dumb_qc_prep - Prepare taskfile for submission
- *	@qc: Metadata associated with taskfile to be prepared
- *
- *	Prepare ATA taskfile for submission.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-void ata_sff_dumb_qc_prep(struct ata_queued_cmd *qc)
-{
-	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
-		return;
-
-	ata_fill_sg_dumb(qc);
-}
-EXPORT_SYMBOL_GPL(ata_sff_dumb_qc_prep);
 
 /**
  *	ata_sff_check_status - Read device status reg & clear interrupt
@@ -2760,6 +2617,8 @@ const struct ata_port_operations ata_bmdma_port_ops = {
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
+	.qc_prep		= ata_bmdma_qc_prep,
+
 	.bmdma_setup		= ata_bmdma_setup,
 	.bmdma_start		= ata_bmdma_start,
 	.bmdma_stop		= ata_bmdma_stop,
@@ -2776,6 +2635,149 @@ const struct ata_port_operations ata_bmdma32_port_ops = {
 	.port_start		= ata_bmdma_port_start32,
 };
 EXPORT_SYMBOL_GPL(ata_bmdma32_port_ops);
+
+/**
+ *	ata_bmdma_fill_sg - Fill PCI IDE PRD table
+ *	@qc: Metadata associated with taskfile to be transferred
+ *
+ *	Fill PCI IDE PRD (scatter-gather) table with segments
+ *	associated with the current disk command.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ */
+static void ata_bmdma_fill_sg(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	struct scatterlist *sg;
+	unsigned int si, pi;
+
+	pi = 0;
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
+		u32 addr, offset;
+		u32 sg_len, len;
+
+		/* determine if physical DMA addr spans 64K boundary.
+		 * Note h/w doesn't support 64-bit, so we unconditionally
+		 * truncate dma_addr_t to u32.
+		 */
+		addr = (u32) sg_dma_address(sg);
+		sg_len = sg_dma_len(sg);
+
+		while (sg_len) {
+			offset = addr & 0xffff;
+			len = sg_len;
+			if ((offset + sg_len) > 0x10000)
+				len = 0x10000 - offset;
+
+			ap->prd[pi].addr = cpu_to_le32(addr);
+			ap->prd[pi].flags_len = cpu_to_le32(len & 0xffff);
+			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
+
+			pi++;
+			sg_len -= len;
+			addr += len;
+		}
+	}
+
+	ap->prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+}
+
+/**
+ *	ata_bmdma_fill_sg_dumb - Fill PCI IDE PRD table
+ *	@qc: Metadata associated with taskfile to be transferred
+ *
+ *	Fill PCI IDE PRD (scatter-gather) table with segments
+ *	associated with the current disk command. Perform the fill
+ *	so that we avoid writing any length 64K records for
+ *	controllers that don't follow the spec.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ */
+static void ata_bmdma_fill_sg_dumb(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	struct scatterlist *sg;
+	unsigned int si, pi;
+
+	pi = 0;
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
+		u32 addr, offset;
+		u32 sg_len, len, blen;
+
+		/* determine if physical DMA addr spans 64K boundary.
+		 * Note h/w doesn't support 64-bit, so we unconditionally
+		 * truncate dma_addr_t to u32.
+		 */
+		addr = (u32) sg_dma_address(sg);
+		sg_len = sg_dma_len(sg);
+
+		while (sg_len) {
+			offset = addr & 0xffff;
+			len = sg_len;
+			if ((offset + sg_len) > 0x10000)
+				len = 0x10000 - offset;
+
+			blen = len & 0xffff;
+			ap->prd[pi].addr = cpu_to_le32(addr);
+			if (blen == 0) {
+				/* Some PATA chipsets like the CS5530 can't
+				   cope with 0x0000 meaning 64K as the spec
+				   says */
+				ap->prd[pi].flags_len = cpu_to_le32(0x8000);
+				blen = 0x8000;
+				ap->prd[++pi].addr = cpu_to_le32(addr + 0x8000);
+			}
+			ap->prd[pi].flags_len = cpu_to_le32(blen);
+			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
+
+			pi++;
+			sg_len -= len;
+			addr += len;
+		}
+	}
+
+	ap->prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+}
+
+/**
+ *	ata_bmdma_qc_prep - Prepare taskfile for submission
+ *	@qc: Metadata associated with taskfile to be prepared
+ *
+ *	Prepare ATA taskfile for submission.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_bmdma_qc_prep(struct ata_queued_cmd *qc)
+{
+	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
+		return;
+
+	ata_bmdma_fill_sg(qc);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_qc_prep);
+
+/**
+ *	ata_bmdma_dumb_qc_prep - Prepare taskfile for submission
+ *	@qc: Metadata associated with taskfile to be prepared
+ *
+ *	Prepare ATA taskfile for submission.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_bmdma_dumb_qc_prep(struct ata_queued_cmd *qc)
+{
+	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
+		return;
+
+	ata_bmdma_fill_sg_dumb(qc);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_dumb_qc_prep);
 
 /**
  *	ata_bmdma_error_handler - Stock error handler for BMDMA controller

@@ -303,10 +303,8 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 	VPRINTK("ENTER\n");
 
 	qs_enter_reg_mode(qc->ap);
-	if (qc->tf.protocol != ATA_PROT_DMA) {
-		ata_sff_qc_prep(qc);
+	if (qc->tf.protocol != ATA_PROT_DMA)
 		return;
-	}
 
 	nelem = qs_fill_sg(qc);
 

@@ -209,7 +209,7 @@ static struct scsi_host_template sc1200_sht = {
 
 static struct ata_port_operations sc1200_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
-	.qc_prep 	= ata_sff_dumb_qc_prep,
+	.qc_prep 	= ata_bmdma_dumb_qc_prep,
 	.qc_issue	= sc1200_qc_issue,
 	.qc_defer	= sc1200_qc_defer,
 	.cable_detect	= ata_cable_40wire,
