@@ -2,7 +2,7 @@
  * linux/arch/sh/mm/init.c
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2002 - 2007  Paul Mundt
+ *  Copyright (C) 2002 - 2010  Paul Mundt
  *
  *  Based on linux/arch/i386/mm/init.c:
  *   Copyright (C) 1995  Linus Torvalds
@@ -16,6 +16,7 @@
 #include <linux/pagemap.h>
 #include <linux/percpu.h>
 #include <linux/io.h>
+#include <linux/lmb.h>
 #include <linux/dma-mapping.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
@@ -26,6 +27,11 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
+
+void __init generic_mem_init(void)
+{
+	lmb_add(__MEMORY_START, __MEMORY_SIZE);
+}
 
 #ifdef CONFIG_MMU
 static pte_t *__get_pte_phys(unsigned long addr)

@@ -4,7 +4,7 @@
  * This file handles the architecture-dependent parts of initialization
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2002 - 2007 Paul Mundt
+ *  Copyright (C) 2002 - 2010 Paul Mundt
  */
 #include <linux/screen_info.h>
 #include <linux/ioport.h>
@@ -41,6 +41,7 @@
 #include <asm/clock.h>
 #include <asm/smp.h>
 #include <asm/mmu_context.h>
+#include <asm/mmzone.h>
 
 /*
  * Initialize loops_per_jiffy as 10000000 (1000MIPS).
@@ -247,7 +248,7 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	add_active_range(nid, start_pfn, end_pfn);
 }
 
-void __init setup_bootmem_allocator(unsigned long free_pfn)
+void __init do_init_bootmem(void)
 {
 	unsigned long bootmap_size;
 	unsigned long bootmap_pages, bootmem_paddr;
@@ -298,20 +299,15 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	sparse_memory_present_with_active_regions(0);
 }
 
-#ifndef CONFIG_NEED_MULTIPLE_NODES
 static void __init setup_memory(void)
 {
 	unsigned long start_pfn;
-	u64 base = min_low_pfn << PAGE_SHIFT;
-	u64 size = (max_low_pfn << PAGE_SHIFT) - base;
 
 	/*
 	 * Partially used pages are not usable - thus
 	 * we are rounding upwards:
 	 */
 	start_pfn = PFN_UP(__pa(_end));
-
-	lmb_add(base, size);
 
 	/*
 	 * Reserve the kernel text and
@@ -333,11 +329,9 @@ static void __init setup_memory(void)
 	lmb_analyze();
 	lmb_dump_all();
 
-	setup_bootmem_allocator(start_pfn);
+	do_init_bootmem();
+	plat_mem_setup();
 }
-#else
-extern void __init setup_memory(void);
-#endif
 
 /*
  * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
@@ -358,7 +352,11 @@ static int __init parse_elfcorehdr(char *arg)
 early_param("elfcorehdr", parse_elfcorehdr);
 #endif
 
-void __init __attribute__ ((weak)) plat_early_device_setup(void)
+void __init __weak plat_early_device_setup(void)
+{
+}
+
+void __init __weak plat_mem_setup(void)
 {
 }
 
@@ -426,7 +424,10 @@ void __init setup_arch(char **cmdline_p)
 	/* Let earlyprintk output early console messages */
 	early_platform_driver_probe("earlyprintk", 1, 1);
 
+	lmb_init();
+
 	sh_mv_setup();
+	sh_mv.mv_mem_init();
 
 	/*
 	 * Find the highest page frame number we have available
@@ -442,7 +443,6 @@ void __init setup_arch(char **cmdline_p)
 	nodes_clear(node_online_map);
 
 	pmb_init();
-	lmb_init();
 	setup_memory();
 	sparse_init();
 
