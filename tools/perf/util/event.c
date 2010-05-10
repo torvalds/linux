@@ -493,8 +493,10 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 		return 0;
 	}
 
-	thread = perf_session__findnew(session, self->mmap.pid);
 	machine = perf_session__find_host_machine(session);
+	if (machine == NULL)
+		goto out_problem;
+	thread = perf_session__findnew(session, self->mmap.pid);
 	map = map__new(&machine->user_dsos, self->mmap.start,
 			self->mmap.len, self->mmap.pgoff,
 			self->mmap.pid, self->mmap.filename,
@@ -552,6 +554,10 @@ void thread__find_addr_map(struct thread *self,
 	if (cpumode == PERF_RECORD_MISC_KERNEL && perf_host) {
 		al->level = 'k';
 		machine = perf_session__find_host_machine(session);
+		if (machine == NULL) {
+			al->map = NULL;
+			return;
+		}
 		mg = &machine->kmaps;
 	} else if (cpumode == PERF_RECORD_MISC_USER && perf_host) {
 		al->level = '.';
@@ -559,7 +565,7 @@ void thread__find_addr_map(struct thread *self,
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
 		al->level = 'g';
 		machine = perf_session__find_machine(session, pid);
-		if (!machine) {
+		if (machine == NULL) {
 			al->map = NULL;
 			return;
 		}
