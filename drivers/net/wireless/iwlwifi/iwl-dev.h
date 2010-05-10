@@ -1242,6 +1242,8 @@ struct iwl_priv {
 
 			struct iwl_rx_phy_res last_phy_res;
 			bool last_phy_res_valid;
+
+			struct completion firmware_loading_complete;
 		} _agn;
 #endif
 	};
