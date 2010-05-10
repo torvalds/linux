@@ -172,7 +172,7 @@ static unsigned int pacpi_qc_issue(struct ata_queued_cmd *qc)
 	struct pata_acpi *acpi = ap->private_data;
 
 	if (acpi->gtm.flags & 0x10)
-		return ata_sff_qc_issue(qc);
+		return ata_bmdma_qc_issue(qc);
 
 	if (adev != acpi->last) {
 		pacpi_set_piomode(ap, adev);
@@ -180,7 +180,7 @@ static unsigned int pacpi_qc_issue(struct ata_queued_cmd *qc)
 			pacpi_set_dmamode(ap, adev);
 		acpi->last = adev;
 	}
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 /**

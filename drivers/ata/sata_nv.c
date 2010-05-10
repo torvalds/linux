@@ -1468,7 +1468,7 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 		BUG_ON(!(pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) &&
 			(qc->flags & ATA_QCFLAG_DMAMAP));
 		nv_adma_register_mode(qc->ap);
-		return ata_sff_qc_issue(qc);
+		return ata_bmdma_qc_issue(qc);
 	} else
 		nv_adma_mode(qc->ap);
 
@@ -2088,7 +2088,7 @@ static unsigned int nv_swncq_qc_issue(struct ata_queued_cmd *qc)
 	struct nv_swncq_port_priv *pp = ap->private_data;
 
 	if (qc->tf.protocol != ATA_PROT_NCQ)
-		return ata_sff_qc_issue(qc);
+		return ata_bmdma_qc_issue(qc);
 
 	DPRINTK("Enter\n");
 

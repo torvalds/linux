@@ -2358,7 +2358,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 		if (IS_GEN_II(hpriv))
 			return mv_qc_issue_fis(qc);
 	}
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)

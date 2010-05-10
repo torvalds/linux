@@ -1379,15 +1379,11 @@ fsm_start:
 }
 
 /**
- *	ata_sff_qc_issue - issue taskfile to device in proto-dependent manner
+ *	ata_sff_qc_issue - issue taskfile to a SFF controller
  *	@qc: command to issue to device
  *
- *	Using various libata functions and hooks, this function
- *	starts an ATA command.  ATA commands are grouped into
- *	classes called "protocols", and issuing each type of protocol
- *	is slightly different.
- *
- *	May be used as the qc_issue() entry in ata_port_operations.
+ *	This function issues a PIO or NODATA command to a SFF
+ *	controller.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
@@ -1402,23 +1398,8 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 	/* Use polling pio if the LLD doesn't handle
 	 * interrupt driven pio and atapi CDB interrupt.
 	 */
-	if (ap->flags & ATA_FLAG_PIO_POLLING) {
-		switch (qc->tf.protocol) {
-		case ATA_PROT_PIO:
-		case ATA_PROT_NODATA:
-		case ATAPI_PROT_PIO:
-		case ATAPI_PROT_NODATA:
-			qc->tf.flags |= ATA_TFLAG_POLLING;
-			break;
-		case ATAPI_PROT_DMA:
-			if (qc->dev->flags & ATA_DFLAG_CDB_INTR)
-				/* see ata_dma_blacklisted() */
-				BUG();
-			break;
-		default:
-			break;
-		}
-	}
+	if (ap->flags & ATA_FLAG_PIO_POLLING)
+		qc->tf.flags |= ATA_TFLAG_POLLING;
 
 	/* select the device */
 	ata_dev_select(ap, qc->dev->devno, 1, 0);
@@ -1435,15 +1416,6 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
 			ata_sff_queue_pio_task(ap, 0);
 
-		break;
-
-	case ATA_PROT_DMA:
-		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
-
-		ap->ops->sff_tf_load(ap, &qc->tf);  /* load tf registers */
-		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
-		ap->ops->bmdma_start(qc);	    /* initiate bmdma */
-		ap->hsm_task_state = HSM_ST_LAST;
 		break;
 
 	case ATA_PROT_PIO:
@@ -1487,18 +1459,6 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 		/* send cdb by polling if no cdb interrupt */
 		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
 		    (qc->tf.flags & ATA_TFLAG_POLLING))
-			ata_sff_queue_pio_task(ap, 0);
-		break;
-
-	case ATAPI_PROT_DMA:
-		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
-
-		ap->ops->sff_tf_load(ap, &qc->tf);  /* load tf registers */
-		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
-		ap->hsm_task_state = HSM_ST_FIRST;
-
-		/* send cdb by polling if no cdb interrupt */
-		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
 			ata_sff_queue_pio_task(ap, 0);
 		break;
 
@@ -2618,6 +2578,7 @@ const struct ata_port_operations ata_bmdma_port_ops = {
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
 	.qc_prep		= ata_bmdma_qc_prep,
+	.qc_issue		= ata_bmdma_qc_issue,
 
 	.bmdma_setup		= ata_bmdma_setup,
 	.bmdma_start		= ata_bmdma_start,
@@ -2780,6 +2741,67 @@ void ata_bmdma_dumb_qc_prep(struct ata_queued_cmd *qc)
 	ata_bmdma_fill_sg_dumb(qc);
 }
 EXPORT_SYMBOL_GPL(ata_bmdma_dumb_qc_prep);
+
+/**
+ *	ata_bmdma_qc_issue - issue taskfile to a BMDMA controller
+ *	@qc: command to issue to device
+ *
+ *	This function issues a PIO, NODATA or DMA command to a
+ *	SFF/BMDMA controller.  PIO and NODATA are handled by
+ *	ata_sff_qc_issue().
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ *	RETURNS:
+ *	Zero on success, AC_ERR_* mask on failure
+ */
+unsigned int ata_bmdma_qc_issue(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+
+	/* see ata_dma_blacklisted() */
+	BUG_ON((ap->flags & ATA_FLAG_PIO_POLLING) &&
+	       qc->tf.protocol == ATAPI_PROT_DMA);
+
+	/* defer PIO handling to sff_qc_issue */
+	if (!ata_is_dma(qc->tf.protocol))
+		return ata_sff_qc_issue(qc);
+
+	/* select the device */
+	ata_dev_select(ap, qc->dev->devno, 1, 0);
+
+	/* start the command */
+	switch (qc->tf.protocol) {
+	case ATA_PROT_DMA:
+		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
+
+		ap->ops->sff_tf_load(ap, &qc->tf);  /* load tf registers */
+		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
+		ap->ops->bmdma_start(qc);	    /* initiate bmdma */
+		ap->hsm_task_state = HSM_ST_LAST;
+		break;
+
+	case ATAPI_PROT_DMA:
+		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
+
+		ap->ops->sff_tf_load(ap, &qc->tf);  /* load tf registers */
+		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
+		ap->hsm_task_state = HSM_ST_FIRST;
+
+		/* send cdb by polling if no cdb interrupt */
+		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
+			ata_sff_queue_pio_task(ap, 0);
+		break;
+
+	default:
+		WARN_ON(1);
+		return AC_ERR_SYSTEM;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_qc_issue);
 
 /**
  *	ata_bmdma_error_handler - Stock error handler for BMDMA controller

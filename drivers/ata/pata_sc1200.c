@@ -174,7 +174,7 @@ static unsigned int sc1200_qc_issue(struct ata_queued_cmd *qc)
 		    	sc1200_set_dmamode(ap, adev);
 	}
 
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 /**

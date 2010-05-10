@@ -156,7 +156,7 @@ static unsigned int cs5530_qc_issue(struct ata_queued_cmd *qc)
 		    	cs5530_set_dmamode(ap, adev);
 	}
 
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 static struct scsi_host_template cs5530_sht = {
