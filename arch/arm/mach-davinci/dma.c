@@ -351,8 +351,8 @@ static irqreturn_t dma_irq_handler(int irq, void *data)
 
 	dev_dbg(data, "dma_irq_handler\n");
 
-	if ((edma_shadow0_read_array(ctlr, SH_IPR, 0) == 0)
-	    && (edma_shadow0_read_array(ctlr, SH_IPR, 1) == 0))
+	if ((edma_shadow0_read_array(ctlr, SH_IPR, 0) == 0) &&
+	    (edma_shadow0_read_array(ctlr, SH_IPR, 1) == 0))
 		return IRQ_NONE;
 
 	while (1) {
@@ -468,10 +468,10 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 				}
 			}
 		}
-		if ((edma_read_array(ctlr, EDMA_EMR, 0) == 0)
-		    && (edma_read_array(ctlr, EDMA_EMR, 1) == 0)
-		    && (edma_read(ctlr, EDMA_QEMR) == 0)
-		    && (edma_read(ctlr, EDMA_CCERR) == 0))
+		if ((edma_read_array(ctlr, EDMA_EMR, 0) == 0) &&
+		    (edma_read_array(ctlr, EDMA_EMR, 1) == 0) &&
+		    (edma_read(ctlr, EDMA_QEMR) == 0) &&
+		    (edma_read(ctlr, EDMA_CCERR) == 0))
 			break;
 		cnt++;
 		if (cnt > 10)
