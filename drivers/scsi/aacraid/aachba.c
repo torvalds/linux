@@ -1608,6 +1608,7 @@ static int aac_read(struct scsi_cmnd * scsicmd)
 	int status;
 	struct aac_dev *dev;
 	struct fib * cmd_fibcontext;
+	int cid;
 
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 	/*
@@ -1657,6 +1658,22 @@ static int aac_read(struct scsi_cmnd * scsicmd)
 		count = (scsicmd->cmnd[7] << 8) | scsicmd->cmnd[8];
 		break;
 	}
+
+	if ((lba + count) > (dev->fsa_dev[scmd_id(scsicmd)].size)) {
+		cid = scmd_id(scsicmd);
+		dprintk((KERN_DEBUG "aacraid: Illegal lba\n"));
+		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
+			SAM_STAT_CHECK_CONDITION;
+		set_sense(&dev->fsa_dev[cid].sense_data,
+			  HARDWARE_ERROR, SENCODE_INTERNAL_TARGET_FAILURE,
+			  ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0);
+		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
+		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
+			     SCSI_SENSE_BUFFERSIZE));
+		scsicmd->scsi_done(scsicmd);
+		return 1;
+	}
+
 	dprintk((KERN_DEBUG "aac_read[cpu %d]: lba = %llu, t = %ld.\n",
 	  smp_processor_id(), (unsigned long long)lba, jiffies));
 	if (aac_adapter_bounds(dev,scsicmd,lba))
@@ -1698,6 +1715,7 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 	int status;
 	struct aac_dev *dev;
 	struct fib * cmd_fibcontext;
+	int cid;
 
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 	/*
@@ -1737,6 +1755,22 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 		count = (scsicmd->cmnd[7] << 8) | scsicmd->cmnd[8];
 		fua = scsicmd->cmnd[1] & 0x8;
 	}
+
+	if ((lba + count) > (dev->fsa_dev[scmd_id(scsicmd)].size)) {
+		cid = scmd_id(scsicmd);
+		dprintk((KERN_DEBUG "aacraid: Illegal lba\n"));
+		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
+			SAM_STAT_CHECK_CONDITION;
+		set_sense(&dev->fsa_dev[cid].sense_data,
+			  HARDWARE_ERROR, SENCODE_INTERNAL_TARGET_FAILURE,
+			  ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0);
+		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
+		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
+			     SCSI_SENSE_BUFFERSIZE));
+		scsicmd->scsi_done(scsicmd);
+		return 1;
+	}
+
 	dprintk((KERN_DEBUG "aac_write[cpu %d]: lba = %llu, t = %ld.\n",
 	  smp_processor_id(), (unsigned long long)lba, jiffies));
 	if (aac_adapter_bounds(dev,scsicmd,lba))
