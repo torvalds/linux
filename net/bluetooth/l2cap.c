@@ -3408,10 +3408,9 @@ static inline void l2cap_send_i_or_rr_or_rnr(struct sock *sk)
 	control |= pi->buffer_seq << L2CAP_CTRL_REQSEQ_SHIFT;
 
 	if (pi->conn_state & L2CAP_CONN_LOCAL_BUSY) {
-		control |= L2CAP_SUPER_RCV_NOT_READY | L2CAP_CTRL_FINAL;
+		control |= L2CAP_SUPER_RCV_NOT_READY;
 		l2cap_send_sframe(pi, control);
 		pi->conn_state |= L2CAP_CONN_RNR_SENT;
-		pi->conn_state &= ~L2CAP_CONN_SEND_FBIT;
 	}
 
 	if (pi->conn_state & L2CAP_CONN_REMOTE_BUSY)
