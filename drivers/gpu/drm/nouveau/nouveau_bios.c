@@ -257,6 +257,11 @@ static bool NVShadowVBIOS(struct drm_device *dev, uint8_t *data)
 struct init_tbl_entry {
 	char *name;
 	uint8_t id;
+	/* Return:
+	 *  > 0: success, length of opcode
+	 *    0: success, but abort further parsing of table (INIT_DONE etc)
+	 *  < 0: failure, table parsing will be aborted
+	 */
 	int (*handler)(struct nvbios *, uint16_t, struct init_exec *);
 };
 
@@ -819,7 +824,7 @@ init_io_restrict_prog(struct nvbios *bios, uint16_t offset,
 		NV_ERROR(bios->dev,
 			 "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
 			 offset, config, count);
-		return 0;
+		return -EINVAL;
 	}
 
 	configval = ROM32(bios->data[offset + 11 + config * 4]);
@@ -921,7 +926,7 @@ init_io_restrict_pll(struct nvbios *bios, uint16_t offset,
 		NV_ERROR(bios->dev,
 			 "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
 			 offset, config, count);
-		return 0;
+		return -EINVAL;
 	}
 
 	freq = ROM16(bios->data[offset + 12 + config * 2]);
@@ -1291,7 +1296,7 @@ init_io_restrict_pll2(struct nvbios *bios, uint16_t offset,
 		NV_ERROR(bios->dev,
 			 "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
 			 offset, config, count);
-		return 0;
+		return -EINVAL;
 	}
 
 	freq = ROM32(bios->data[offset + 11 + config * 4]);
@@ -1368,7 +1373,7 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	chan = init_i2c_device_find(bios->dev, i2c_index);
 	if (!chan)
-		return 0;
+		return -ENODEV;
 
 	for (i = 0; i < count; i++) {
 		uint8_t i2c_reg = bios->data[offset + 4 + i * 3];
@@ -1381,7 +1386,7 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		msg.len = 1;
 		msg.buf = &value;
 		if (i2c_transfer(&chan->adapter, &msg, 1) != 1)
-			return 0;
+			return -EIO;
 
 		BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X, Value: 0x%02X, "
 			      "Mask: 0x%02X, Data: 0x%02X\n",
@@ -1395,7 +1400,7 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 			msg.len = 1;
 			msg.buf = &value;
 			if (i2c_transfer(&chan->adapter, &msg, 1) != 1)
-				return 0;
+				return -EIO;
 		}
 	}
 
@@ -1438,7 +1443,7 @@ init_zm_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	chan = init_i2c_device_find(bios->dev, i2c_index);
 	if (!chan)
-		return 0;
+		return -ENODEV;
 
 	for (i = 0; i < count; i++) {
 		uint8_t i2c_reg = bios->data[offset + 4 + i * 2];
@@ -1453,7 +1458,7 @@ init_zm_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 			msg.len = 1;
 			msg.buf = &data;
 			if (i2c_transfer(&chan->adapter, &msg, 1) != 1)
-				return 0;
+				return -EIO;
 		}
 	}
 
@@ -1495,7 +1500,7 @@ init_zm_i2c(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	chan = init_i2c_device_find(bios->dev, i2c_index);
 	if (!chan)
-		return 0;
+		return -ENODEV;
 
 	for (i = 0; i < count; i++) {
 		data[i] = bios->data[offset + 4 + i];
@@ -1509,7 +1514,7 @@ init_zm_i2c(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		msg.len = count;
 		msg.buf = data;
 		if (i2c_transfer(&chan->adapter, &msg, 1) != 1)
-			return 0;
+			return -EIO;
 	}
 
 	return len;
@@ -1548,7 +1553,7 @@ init_tmds(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	reg = get_tmds_index_reg(bios->dev, mlv);
 	if (!reg)
-		return 0;
+		return -EINVAL;
 
 	bios_wr32(bios, reg,
 		  tmdsaddr | NV_PRAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
@@ -1592,7 +1597,7 @@ init_zm_tmds_group(struct nvbios *bios, uint16_t offset,
 
 	reg = get_tmds_index_reg(bios->dev, mlv);
 	if (!reg)
-		return 0;
+		return -EINVAL;
 
 	for (i = 0; i < count; i++) {
 		uint8_t tmdsaddr = bios->data[offset + 3 + i * 2];
@@ -2067,7 +2072,7 @@ init_configure_mem(struct nvbios *bios, uint16_t offset,
 	uint32_t reg, data;
 
 	if (bios->major_version > 2)
-		return 0;
+		return -ENODEV;
 
 	bios_idxprt_wr(bios, NV_VIO_SRX, NV_VIO_SR_CLOCK_INDEX, bios_idxprt_rd(
 		       bios, NV_VIO_SRX, NV_VIO_SR_CLOCK_INDEX) | 0x20);
@@ -2122,7 +2127,7 @@ init_configure_clk(struct nvbios *bios, uint16_t offset,
 	int clock;
 
 	if (bios->major_version > 2)
-		return 0;
+		return -ENODEV;
 
 	clock = ROM16(bios->data[meminitoffs + 4]) * 10;
 	setPLL(bios, NV_PRAMDAC_NVPLL_COEFF, clock);
@@ -2155,7 +2160,7 @@ init_configure_preinit(struct nvbios *bios, uint16_t offset,
 	uint8_t cr3c = ((straps << 2) & 0xf0) | (straps & (1 << 6));
 
 	if (bios->major_version > 2)
-		return 0;
+		return -ENODEV;
 
 	bios_idxprt_wr(bios, NV_CIO_CRX__COLOR,
 			     NV_CIO_CRE_SCRATCH4__INDEX, cr3c);
@@ -2777,7 +2782,7 @@ init_ram_restrict_zm_reg_group(struct nvbios *bios, uint16_t offset,
 		NV_ERROR(bios->dev,
 			 "0x%04X: Zero block length - has the M table "
 			 "been parsed?\n", offset);
-		return 0;
+		return -EINVAL;
 	}
 
 	strap_ramcfg = (bios_rd32(bios, NV_PEXTDEV_BOOT_0) >> 2) & 0xf;
@@ -2961,14 +2966,14 @@ init_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	if (!bios->display.output) {
 		NV_ERROR(dev, "INIT_AUXCH: no active output\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	auxch = init_i2c_device_find(dev, bios->display.output->i2c_index);
 	if (!auxch) {
 		NV_ERROR(dev, "INIT_AUXCH: couldn't get auxch %d\n",
 			 bios->display.output->i2c_index);
-		return 0;
+		return -ENODEV;
 	}
 
 	if (!iexec->execute)
@@ -2981,7 +2986,7 @@ init_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		ret = nouveau_dp_auxch(auxch, 9, addr, &data, 1);
 		if (ret) {
 			NV_ERROR(dev, "INIT_AUXCH: rd auxch fail %d\n", ret);
-			return 0;
+			return ret;
 		}
 
 		data &= bios->data[offset + 0];
@@ -2990,7 +2995,7 @@ init_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		ret = nouveau_dp_auxch(auxch, 8, addr, &data, 1);
 		if (ret) {
 			NV_ERROR(dev, "INIT_AUXCH: wr auxch fail %d\n", ret);
-			return 0;
+			return ret;
 		}
 	}
 
@@ -3020,14 +3025,14 @@ init_zm_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	if (!bios->display.output) {
 		NV_ERROR(dev, "INIT_ZM_AUXCH: no active output\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	auxch = init_i2c_device_find(dev, bios->display.output->i2c_index);
 	if (!auxch) {
 		NV_ERROR(dev, "INIT_ZM_AUXCH: couldn't get auxch %d\n",
 			 bios->display.output->i2c_index);
-		return 0;
+		return -ENODEV;
 	}
 
 	if (!iexec->execute)
@@ -3038,7 +3043,7 @@ init_zm_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		ret = nouveau_dp_auxch(auxch, 8, addr, &bios->data[offset], 1);
 		if (ret) {
 			NV_ERROR(dev, "INIT_ZM_AUXCH: wr auxch fail %d\n", ret);
-			return 0;
+			return ret;
 		}
 	}
 
