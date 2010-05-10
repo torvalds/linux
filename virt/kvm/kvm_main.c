@@ -145,7 +145,7 @@ static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 	raw_spin_lock(&kvm->requests_lock);
 	me = smp_processor_id();
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (test_and_set_bit(req, &vcpu->requests))
+		if (kvm_make_check_request(req, vcpu))
 			continue;
 		cpu = vcpu->cpu;
 		if (cpus != NULL && cpu != -1 && cpu != me)
@@ -1212,7 +1212,7 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 		prepare_to_wait(&vcpu->wq, &wait, TASK_INTERRUPTIBLE);
 
 		if (kvm_arch_vcpu_runnable(vcpu)) {
-			set_bit(KVM_REQ_UNHALT, &vcpu->requests);
+			kvm_make_request(KVM_REQ_UNHALT, vcpu);
 			break;
 		}
 		if (kvm_cpu_has_pending_timer(vcpu))

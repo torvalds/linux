@@ -624,5 +624,20 @@ static inline long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 
 #endif
 
+static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
+{
+	set_bit(req, &vcpu->requests);
+}
+
+static inline bool kvm_make_check_request(int req, struct kvm_vcpu *vcpu)
+{
+	return test_and_set_bit(req, &vcpu->requests);
+}
+
+static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
+{
+	return test_and_clear_bit(req, &vcpu->requests);
+}
+
 #endif
 

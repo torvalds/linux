@@ -899,7 +899,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		unsigned long sysenter_esp;
 
 		kvm_migrate_timers(vcpu);
-		set_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests);
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		local_irq_disable();
 		list_add(&vmx->local_vcpus_link,
 			 &per_cpu(vcpus_on_cpu, cpu));

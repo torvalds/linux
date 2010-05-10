@@ -1378,7 +1378,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 
 		mmu_page_add_parent_pte(vcpu, sp, parent_pte);
 		if (sp->unsync_children) {
-			set_bit(KVM_REQ_MMU_SYNC, &vcpu->requests);
+			kvm_make_request(KVM_REQ_MMU_SYNC, vcpu);
 			kvm_mmu_mark_parents_unsync(sp);
 		} else if (sp->unsync)
 			kvm_mmu_mark_parents_unsync(sp);
@@ -2131,7 +2131,7 @@ static int mmu_check_root(struct kvm_vcpu *vcpu, gfn_t root_gfn)
 	int ret = 0;
 
 	if (!kvm_is_visible_gfn(vcpu->kvm, root_gfn)) {
-		set_bit(KVM_REQ_TRIPLE_FAULT, &vcpu->requests);
+		kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 		ret = 1;
 	}
 
@@ -2329,7 +2329,7 @@ static int nonpaging_init_context(struct kvm_vcpu *vcpu)
 void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 {
 	++vcpu->stat.tlb_flush;
-	set_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests);
+	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 }
 
 static void paging_new_cr3(struct kvm_vcpu *vcpu)

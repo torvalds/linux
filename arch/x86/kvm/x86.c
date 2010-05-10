@@ -296,7 +296,7 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 	prev_nr = vcpu->arch.exception.nr;
 	if (prev_nr == DF_VECTOR) {
 		/* triple fault -> shutdown */
-		set_bit(KVM_REQ_TRIPLE_FAULT, &vcpu->requests);
+		kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 		return;
 	}
 	class1 = exception_class(prev_nr);
@@ -948,7 +948,7 @@ static int kvm_request_guest_time_update(struct kvm_vcpu *v)
 
 	if (!vcpu->time_page)
 		return 0;
-	set_bit(KVM_REQ_KVMCLOCK_UPDATE, &v->requests);
+	kvm_make_request(KVM_REQ_KVMCLOCK_UPDATE, v);
 	return 1;
 }
 
@@ -2253,7 +2253,7 @@ static int kvm_vcpu_ioctl_x86_set_mce(struct kvm_vcpu *vcpu,
 			printk(KERN_DEBUG "kvm: set_mce: "
 			       "injects mce exception while "
 			       "previous one is in progress!\n");
-			set_bit(KVM_REQ_TRIPLE_FAULT, &vcpu->requests);
+			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 			return 0;
 		}
 		if (banks[1] & MCI_STATUS_VAL)
@@ -4617,7 +4617,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		vcpu->run->request_interrupt_window;
 
 	if (vcpu->requests)
-		if (test_and_clear_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
+		if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu))
 			kvm_mmu_unload(vcpu);
 
 	r = kvm_mmu_reload(vcpu);
@@ -4625,26 +4625,25 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		goto out;
 
 	if (vcpu->requests) {
-		if (test_and_clear_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests))
+		if (kvm_check_request(KVM_REQ_MIGRATE_TIMER, vcpu))
 			__kvm_migrate_timers(vcpu);
-		if (test_and_clear_bit(KVM_REQ_KVMCLOCK_UPDATE, &vcpu->requests))
+		if (kvm_check_request(KVM_REQ_KVMCLOCK_UPDATE, vcpu))
 			kvm_write_guest_time(vcpu);
-		if (test_and_clear_bit(KVM_REQ_MMU_SYNC, &vcpu->requests))
+		if (kvm_check_request(KVM_REQ_MMU_SYNC, vcpu))
 			kvm_mmu_sync_roots(vcpu);
-		if (test_and_clear_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests))
+		if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
 			kvm_x86_ops->tlb_flush(vcpu);
-		if (test_and_clear_bit(KVM_REQ_REPORT_TPR_ACCESS,
-				       &vcpu->requests)) {
+		if (kvm_check_request(KVM_REQ_REPORT_TPR_ACCESS, vcpu)) {
 			vcpu->run->exit_reason = KVM_EXIT_TPR_ACCESS;
 			r = 0;
 			goto out;
 		}
-		if (test_and_clear_bit(KVM_REQ_TRIPLE_FAULT, &vcpu->requests)) {
+		if (kvm_check_request(KVM_REQ_TRIPLE_FAULT, vcpu)) {
 			vcpu->run->exit_reason = KVM_EXIT_SHUTDOWN;
 			r = 0;
 			goto out;
 		}
-		if (test_and_clear_bit(KVM_REQ_DEACTIVATE_FPU, &vcpu->requests)) {
+		if (kvm_check_request(KVM_REQ_DEACTIVATE_FPU, vcpu)) {
 			vcpu->fpu_active = 0;
 			kvm_x86_ops->fpu_deactivate(vcpu);
 		}
@@ -4773,7 +4772,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
 			kvm_vcpu_block(vcpu);
 			vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
-			if (test_and_clear_bit(KVM_REQ_UNHALT, &vcpu->requests))
+			if (kvm_check_request(KVM_REQ_UNHALT, vcpu))
 			{
 				switch(vcpu->arch.mp_state) {
 				case KVM_MP_STATE_HALTED:
@@ -5255,7 +5254,7 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 	vcpu->guest_fpu_loaded = 0;
 	fpu_save_init(&vcpu->arch.guest_fpu);
 	++vcpu->stat.fpu_reload;
-	set_bit(KVM_REQ_DEACTIVATE_FPU, &vcpu->requests);
+	kvm_make_request(KVM_REQ_DEACTIVATE_FPU, vcpu);
 	trace_kvm_fpu(0);
 }
 
