@@ -55,7 +55,6 @@ struct netns_ipv4 {
 	int sysctl_rt_cache_rebuild_count;
 	int current_rt_cache_rebuild_count;
 
-	struct timer_list rt_secret_timer;
 	atomic_t rt_genid;
 
 #ifdef CONFIG_IP_MROUTE

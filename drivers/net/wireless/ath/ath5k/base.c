@@ -242,6 +242,8 @@ static int ath5k_set_key(struct ieee80211_hw *hw,
 		struct ieee80211_key_conf *key);
 static int ath5k_get_stats(struct ieee80211_hw *hw,
 		struct ieee80211_low_level_stats *stats);
+static int ath5k_get_survey(struct ieee80211_hw *hw,
+		int idx, struct survey_info *survey);
 static u64 ath5k_get_tsf(struct ieee80211_hw *hw);
 static void ath5k_set_tsf(struct ieee80211_hw *hw, u64 tsf);
 static void ath5k_reset_tsf(struct ieee80211_hw *hw);
@@ -267,6 +269,7 @@ static const struct ieee80211_ops ath5k_hw_ops = {
 	.configure_filter = ath5k_configure_filter,
 	.set_key 	= ath5k_set_key,
 	.get_stats 	= ath5k_get_stats,
+	.get_survey	= ath5k_get_survey,
 	.conf_tx 	= NULL,
 	.get_tsf 	= ath5k_get_tsf,
 	.set_tsf 	= ath5k_set_tsf,
@@ -545,8 +548,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		    IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_NOISE_DBM;
+		    IEEE80211_HW_SIGNAL_DBM;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
@@ -2027,8 +2029,7 @@ accept:
 		rxs->freq = sc->curchan->center_freq;
 		rxs->band = sc->curband->band;
 
-		rxs->noise = sc->ah->ah_noise_floor;
-		rxs->signal = rxs->noise + rs.rs_rssi;
+		rxs->signal = sc->ah->ah_noise_floor + rs.rs_rssi;
 
 		rxs->antenna = rs.rs_antenna;
 
@@ -3288,6 +3289,22 @@ ath5k_get_stats(struct ieee80211_hw *hw,
 	stats->dot11RTSFailureCount = sc->stats.rts_fail;
 	stats->dot11RTSSuccessCount = sc->stats.rts_ok;
 	stats->dot11FCSErrorCount = sc->stats.fcs_error;
+
+	return 0;
+}
+
+static int ath5k_get_survey(struct ieee80211_hw *hw, int idx,
+		struct survey_info *survey)
+{
+	struct ath5k_softc *sc = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+
+	 if (idx != 0)
+		return -ENOENT;
+
+	survey->channel = conf->channel;
+	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->noise = sc->ah->ah_noise_floor;
 
 	return 0;
 }

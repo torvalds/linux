@@ -1287,6 +1287,7 @@ qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 			rds_ring->dma_size, PCI_DMA_FROMDEVICE);
 
 	if (pci_dma_mapping_error(pdev, dma)) {
+		adapter->stats.rx_dma_map_error++;
 		dev_kfree_skb_any(skb);
 		buffer->skb = NULL;
 		return -ENOMEM;
@@ -1311,8 +1312,10 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 			PCI_DMA_FROMDEVICE);
 
 	skb = buffer->skb;
-	if (!skb)
+	if (!skb) {
+		adapter->stats.null_skb++;
 		goto no_skb;
+	}
 
 	if (likely(adapter->rx_csum && cksum == STATUS_CKSUM_OK)) {
 		adapter->stats.csummed++;
@@ -1502,6 +1505,8 @@ qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max)
 
 		if (rxbuf)
 			list_add_tail(&rxbuf->list, &sds_ring->free_list[ring]);
+		else
+			adapter->stats.null_rxbuf++;
 
 skip:
 		for (; desc_cnt > 0; desc_cnt--) {
@@ -1549,9 +1554,10 @@ qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter, u32 ringid,
 	int producer, count = 0;
 	struct list_head *head;
 
+	spin_lock(&rds_ring->lock);
+
 	producer = rds_ring->producer;
 
-	spin_lock(&rds_ring->lock);
 	head = &rds_ring->free_list;
 	while (!list_empty(head)) {
 
@@ -1573,13 +1579,13 @@ qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter, u32 ringid,
 
 		producer = get_next_index(producer, rds_ring->num_desc);
 	}
-	spin_unlock(&rds_ring->lock);
 
 	if (count) {
 		rds_ring->producer = producer;
 		writel((producer-1) & (rds_ring->num_desc-1),
 				rds_ring->crb_rcv_producer);
 	}
+	spin_unlock(&rds_ring->lock);
 }
 
 static void
@@ -1591,9 +1597,10 @@ qlcnic_post_rx_buffers_nodb(struct qlcnic_adapter *adapter,
 	int producer, count = 0;
 	struct list_head *head;
 
-	producer = rds_ring->producer;
 	if (!spin_trylock(&rds_ring->lock))
 		return;
+
+	producer = rds_ring->producer;
 
 	head = &rds_ring->free_list;
 	while (!list_empty(head)) {

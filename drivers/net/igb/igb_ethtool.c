@@ -1394,7 +1394,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 
 	/* Setup Tx descriptor ring and Tx buffers */
 	tx_ring->count = IGB_DEFAULT_TXD;
-	tx_ring->pdev = adapter->pdev;
+	tx_ring->dev = &adapter->pdev->dev;
 	tx_ring->netdev = adapter->netdev;
 	tx_ring->reg_idx = adapter->vfs_allocated_count;
 
@@ -1408,7 +1408,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 
 	/* Setup Rx descriptor ring and Rx buffers */
 	rx_ring->count = IGB_DEFAULT_RXD;
-	rx_ring->pdev = adapter->pdev;
+	rx_ring->dev = &adapter->pdev->dev;
 	rx_ring->netdev = adapter->netdev;
 	rx_ring->rx_buffer_len = IGB_RXBUFFER_2048;
 	rx_ring->reg_idx = adapter->vfs_allocated_count;
@@ -1604,10 +1604,10 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		buffer_info = &rx_ring->buffer_info[rx_ntc];
 
 		/* unmap rx buffer, will be remapped by alloc_rx_buffers */
-		pci_unmap_single(rx_ring->pdev,
+		dma_unmap_single(rx_ring->dev,
 		                 buffer_info->dma,
 				 rx_ring->rx_buffer_len,
-				 PCI_DMA_FROMDEVICE);
+				 DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
 
 		/* verify contents of skb */

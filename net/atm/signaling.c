@@ -131,7 +131,7 @@ static int sigd_send(struct atm_vcc *vcc, struct sk_buff *skb)
 		}
 		sk->sk_ack_backlog++;
 		skb_queue_tail(&sk->sk_receive_queue, skb);
-		pr_debug("waking sk->sk_sleep 0x%p\n", sk->sk_sleep);
+		pr_debug("waking sk_sleep(sk) 0x%p\n", sk_sleep(sk));
 		sk->sk_state_change(sk);
 as_indicate_complete:
 		release_sock(sk);

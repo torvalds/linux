@@ -687,12 +687,10 @@ static void pcmcia_requery(struct pcmcia_socket *s)
 			new_funcs = mfc.nfn;
 		else
 			new_funcs = 1;
-		if (old_funcs > new_funcs) {
+		if (old_funcs != new_funcs) {
+			/* we need to re-start */
 			pcmcia_card_remove(s, NULL);
 			pcmcia_card_add(s);
-		} else if (new_funcs > old_funcs) {
-			s->functions = new_funcs;
-			pcmcia_device_add(s, 1);
 		}
 	}
 
@@ -728,6 +726,8 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 	struct pcmcia_socket *s = dev->socket;
 	const struct firmware *fw;
 	int ret = -ENOMEM;
+	cistpl_longlink_mfc_t mfc;
+	int old_funcs, new_funcs = 1;
 
 	if (!filename)
 		return -EINVAL;
@@ -750,6 +750,14 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 			goto release;
 		}
 
+		/* we need to re-start if the number of functions changed */
+		old_funcs = s->functions;
+		if (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_LONGLINK_MFC,
+					&mfc))
+			new_funcs = mfc.nfn;
+
+		if (old_funcs != new_funcs)
+			ret = -EBUSY;
 
 		/* update information */
 		pcmcia_device_query(dev);
@@ -858,10 +866,8 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FAKE_CIS) {
 		dev_dbg(&dev->dev, "device needs a fake CIS\n");
 		if (!dev->socket->fake_cis)
-			pcmcia_load_firmware(dev, did->cisfile);
-
-		if (!dev->socket->fake_cis)
-			return 0;
+			if (pcmcia_load_firmware(dev, did->cisfile))
+				return 0;
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_ANONYMOUS) {

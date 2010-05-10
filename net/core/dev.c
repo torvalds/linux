@@ -1557,8 +1557,9 @@ static inline void __netif_reschedule(struct Qdisc *q)
 
 	local_irq_save(flags);
 	sd = &__get_cpu_var(softnet_data);
-	q->next_sched = sd->output_queue;
-	sd->output_queue = q;
+	q->next_sched = NULL;
+	*sd->output_queue_tailp = q;
+	sd->output_queue_tailp = &q->next_sched;
 	raise_softirq_irqoff(NET_TX_SOFTIRQ);
 	local_irq_restore(flags);
 }
@@ -1902,13 +1903,6 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		if (!list_empty(&ptype_all))
 			dev_queue_xmit_nit(skb, dev);
 
-		if (netif_needs_gso(dev, skb)) {
-			if (unlikely(dev_gso_segment(skb)))
-				goto out_kfree_skb;
-			if (skb->next)
-				goto gso;
-		}
-
 		/*
 		 * If device doesnt need skb->dst, release it right now while
 		 * its hot in this cpu cache
@@ -1917,6 +1911,14 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			skb_dst_drop(skb);
 
 		skb_orphan_try(skb);
+
+		if (netif_needs_gso(dev, skb)) {
+			if (unlikely(dev_gso_segment(skb)))
+				goto out_kfree_skb;
+			if (skb->next)
+				goto gso;
+		}
+
 		rc = ops->ndo_start_xmit(skb, dev);
 		if (rc == NETDEV_TX_OK)
 			txq_trans_update(txq);
@@ -1937,7 +1939,6 @@ gso:
 		if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
 			skb_dst_drop(nskb);
 
-		skb_orphan_try(nskb);
 		rc = ops->ndo_start_xmit(nskb, dev);
 		if (unlikely(rc != NETDEV_TX_OK)) {
 			if (rc & ~NETDEV_TX_MASK)
@@ -2015,8 +2016,12 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 			if (dev->real_num_tx_queues > 1)
 				queue_index = skb_tx_hash(dev, skb);
 
-			if (sk && rcu_dereference_check(sk->sk_dst_cache, 1))
-				sk_tx_queue_set(sk, queue_index);
+			if (sk) {
+				struct dst_entry *dst = rcu_dereference_check(sk->sk_dst_cache, 1);
+
+				if (dst && skb_dst(skb) == dst)
+					sk_tx_queue_set(sk, queue_index);
+			}
 		}
 	}
 
@@ -2200,7 +2205,13 @@ int netdev_max_backlog __read_mostly = 1000;
 int netdev_budget __read_mostly = 300;
 int weight_p __read_mostly = 64;            /* old backlog weight */
 
-DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
+/* Called with irq disabled */
+static inline void ____napi_schedule(struct softnet_data *sd,
+				     struct napi_struct *napi)
+{
+	list_add_tail(&napi->poll_list, &sd->poll_list);
+	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+}
 
 #ifdef CONFIG_RPS
 
@@ -2225,7 +2236,11 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	int cpu = -1;
 	u8 ip_proto;
 	u16 tcpu;
-	u32 addr1, addr2, ports, ihl;
+	u32 addr1, addr2, ihl;
+	union {
+		u32 v32;
+		u16 v16[2];
+	} ports;
 
 	if (skb_rx_queue_recorded(skb)) {
 		u16 index = skb_get_rx_queue(skb);
@@ -2271,7 +2286,6 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	default:
 		goto done;
 	}
-	ports = 0;
 	switch (ip_proto) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
@@ -2281,25 +2295,20 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	case IPPROTO_SCTP:
 	case IPPROTO_UDPLITE:
 		if (pskb_may_pull(skb, (ihl * 4) + 4)) {
-			__be16 *hports = (__be16 *) (skb->data + (ihl * 4));
-			u32 sport, dport;
-
-			sport = (__force u16) hports[0];
-			dport = (__force u16) hports[1];
-			if (dport < sport)
-				swap(sport, dport);
-			ports = (sport << 16) + dport;
+			ports.v32 = * (__force u32 *) (skb->data + (ihl * 4));
+			if (ports.v16[1] < ports.v16[0])
+				swap(ports.v16[0], ports.v16[1]);
+			break;
 		}
-		break;
-
 	default:
+		ports.v32 = 0;
 		break;
 	}
 
 	/* get a consistent hash (same value on both flow directions) */
 	if (addr2 < addr1)
 		swap(addr1, addr2);
-	skb->rxhash = jhash_3words(addr1, addr2, ports, hashrnd);
+	skb->rxhash = jhash_3words(addr1, addr2, ports.v32, hashrnd);
 	if (!skb->rxhash)
 		skb->rxhash = 1;
 
@@ -2362,8 +2371,8 @@ static void rps_trigger_softirq(void *data)
 {
 	struct softnet_data *sd = data;
 
-	__napi_schedule(&sd->backlog);
-	__get_cpu_var(netdev_rx_stat).received_rps++;
+	____napi_schedule(sd, &sd->backlog);
+	sd->received_rps++;
 }
 
 #endif /* CONFIG_RPS */
@@ -2402,15 +2411,15 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
 	sd = &per_cpu(softnet_data, cpu);
 
 	local_irq_save(flags);
-	__get_cpu_var(netdev_rx_stat).total++;
 
 	rps_lock(sd);
-	if (sd->input_pkt_queue.qlen <= netdev_max_backlog) {
-		if (sd->input_pkt_queue.qlen) {
+	if (skb_queue_len(&sd->input_pkt_queue) <= netdev_max_backlog) {
+		if (skb_queue_len(&sd->input_pkt_queue)) {
 enqueue:
 			__skb_queue_tail(&sd->input_pkt_queue, skb);
 #ifdef CONFIG_RPS
-			*qtail = sd->input_queue_head + sd->input_pkt_queue.qlen;
+			*qtail = sd->input_queue_head +
+					skb_queue_len(&sd->input_pkt_queue);
 #endif
 			rps_unlock(sd);
 			local_irq_restore(flags);
@@ -2420,14 +2429,14 @@ enqueue:
 		/* Schedule NAPI for backlog device */
 		if (napi_schedule_prep(&sd->backlog)) {
 			if (!rps_ipi_queued(sd))
-				__napi_schedule(&sd->backlog);
+				____napi_schedule(sd, &sd->backlog);
 		}
 		goto enqueue;
 	}
 
+	sd->dropped++;
 	rps_unlock(sd);
 
-	__get_cpu_var(netdev_rx_stat).dropped++;
 	local_irq_restore(flags);
 
 	kfree_skb(skb);
@@ -2527,6 +2536,7 @@ static void net_tx_action(struct softirq_action *h)
 		local_irq_disable();
 		head = sd->output_queue;
 		sd->output_queue = NULL;
+		sd->output_queue_tailp = &sd->output_queue;
 		local_irq_enable();
 
 		while (head) {
@@ -2801,7 +2811,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 			skb->dev = master;
 	}
 
-	__get_cpu_var(netdev_rx_stat).total++;
+	__get_cpu_var(softnet_data).processed++;
 
 	skb_reset_network_header(skb);
 	skb_reset_transport_header(skb);
@@ -2930,13 +2940,21 @@ static void flush_backlog(void *arg)
 	struct sk_buff *skb, *tmp;
 
 	rps_lock(sd);
-	skb_queue_walk_safe(&sd->input_pkt_queue, skb, tmp)
+	skb_queue_walk_safe(&sd->input_pkt_queue, skb, tmp) {
 		if (skb->dev == dev) {
 			__skb_unlink(skb, &sd->input_pkt_queue);
 			kfree_skb(skb);
-			input_queue_head_incr(sd);
+			input_queue_head_add(sd, 1);
 		}
+	}
 	rps_unlock(sd);
+
+	skb_queue_walk_safe(&sd->process_queue, skb, tmp) {
+		if (skb->dev == dev) {
+			__skb_unlink(skb, &sd->process_queue);
+			kfree_skb(skb);
+		}
+	}
 }
 
 static int napi_gro_complete(struct sk_buff *skb)
@@ -3239,30 +3257,85 @@ gro_result_t napi_gro_frags(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(napi_gro_frags);
 
+/*
+ * net_rps_action sends any pending IPI's for rps.
+ * Note: called with local irq disabled, but exits with local irq enabled.
+ */
+static void net_rps_action_and_irq_enable(struct softnet_data *sd)
+{
+#ifdef CONFIG_RPS
+	struct softnet_data *remsd = sd->rps_ipi_list;
+
+	if (remsd) {
+		sd->rps_ipi_list = NULL;
+
+		local_irq_enable();
+
+		/* Send pending IPI's to kick RPS processing on remote cpus. */
+		while (remsd) {
+			struct softnet_data *next = remsd->rps_ipi_next;
+
+			if (cpu_online(remsd->cpu))
+				__smp_call_function_single(remsd->cpu,
+							   &remsd->csd, 0);
+			remsd = next;
+		}
+	} else
+#endif
+		local_irq_enable();
+}
+
 static int process_backlog(struct napi_struct *napi, int quota)
 {
 	int work = 0;
-	struct softnet_data *sd = &__get_cpu_var(softnet_data);
+	struct softnet_data *sd = container_of(napi, struct softnet_data, backlog);
 
-	napi->weight = weight_p;
-	do {
-		struct sk_buff *skb;
-
+#ifdef CONFIG_RPS
+	/* Check if we have pending ipi, its better to send them now,
+	 * not waiting net_rx_action() end.
+	 */
+	if (sd->rps_ipi_list) {
 		local_irq_disable();
-		rps_lock(sd);
-		skb = __skb_dequeue(&sd->input_pkt_queue);
-		if (!skb) {
-			__napi_complete(napi);
-			rps_unlock(sd);
-			local_irq_enable();
-			break;
-		}
-		input_queue_head_incr(sd);
-		rps_unlock(sd);
-		local_irq_enable();
+		net_rps_action_and_irq_enable(sd);
+	}
+#endif
+	napi->weight = weight_p;
+	local_irq_disable();
+	while (work < quota) {
+		struct sk_buff *skb;
+		unsigned int qlen;
 
-		__netif_receive_skb(skb);
-	} while (++work < quota);
+		while ((skb = __skb_dequeue(&sd->process_queue))) {
+			local_irq_enable();
+			__netif_receive_skb(skb);
+			if (++work >= quota)
+				return work;
+			local_irq_disable();
+		}
+
+		rps_lock(sd);
+		qlen = skb_queue_len(&sd->input_pkt_queue);
+		if (qlen) {
+			input_queue_head_add(sd, qlen);
+			skb_queue_splice_tail_init(&sd->input_pkt_queue,
+						   &sd->process_queue);
+		}
+		if (qlen < quota - work) {
+			/*
+			 * Inline a custom version of __napi_complete().
+			 * only current cpu owns and manipulates this napi,
+			 * and NAPI_STATE_SCHED is the only possible flag set on backlog.
+			 * we can use a plain write instead of clear_bit(),
+			 * and we dont need an smp_mb() memory barrier.
+			 */
+			list_del(&napi->poll_list);
+			napi->state = 0;
+
+			quota = work + qlen;
+		}
+		rps_unlock(sd);
+	}
+	local_irq_enable();
 
 	return work;
 }
@@ -3278,8 +3351,7 @@ void __napi_schedule(struct napi_struct *n)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	list_add_tail(&n->poll_list, &__get_cpu_var(softnet_data).poll_list);
-	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+	____napi_schedule(&__get_cpu_var(softnet_data), n);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(__napi_schedule);
@@ -3350,45 +3422,16 @@ void netif_napi_del(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(netif_napi_del);
 
-/*
- * net_rps_action sends any pending IPI's for rps.
- * Note: called with local irq disabled, but exits with local irq enabled.
- */
-static void net_rps_action_and_irq_disable(void)
-{
-#ifdef CONFIG_RPS
-	struct softnet_data *sd = &__get_cpu_var(softnet_data);
-	struct softnet_data *remsd = sd->rps_ipi_list;
-
-	if (remsd) {
-		sd->rps_ipi_list = NULL;
-
-		local_irq_enable();
-
-		/* Send pending IPI's to kick RPS processing on remote cpus. */
-		while (remsd) {
-			struct softnet_data *next = remsd->rps_ipi_next;
-
-			if (cpu_online(remsd->cpu))
-				__smp_call_function_single(remsd->cpu,
-							   &remsd->csd, 0);
-			remsd = next;
-		}
-	} else
-#endif
-		local_irq_enable();
-}
-
 static void net_rx_action(struct softirq_action *h)
 {
-	struct list_head *list = &__get_cpu_var(softnet_data).poll_list;
+	struct softnet_data *sd = &__get_cpu_var(softnet_data);
 	unsigned long time_limit = jiffies + 2;
 	int budget = netdev_budget;
 	void *have;
 
 	local_irq_disable();
 
-	while (!list_empty(list)) {
+	while (!list_empty(&sd->poll_list)) {
 		struct napi_struct *n;
 		int work, weight;
 
@@ -3406,7 +3449,7 @@ static void net_rx_action(struct softirq_action *h)
 		 * entries to the tail of this list, and only ->poll()
 		 * calls can remove this head entry from the list.
 		 */
-		n = list_first_entry(list, struct napi_struct, poll_list);
+		n = list_first_entry(&sd->poll_list, struct napi_struct, poll_list);
 
 		have = netpoll_poll_lock(n);
 
@@ -3441,13 +3484,13 @@ static void net_rx_action(struct softirq_action *h)
 				napi_complete(n);
 				local_irq_disable();
 			} else
-				list_move_tail(&n->poll_list, list);
+				list_move_tail(&n->poll_list, &sd->poll_list);
 		}
 
 		netpoll_poll_unlock(have);
 	}
 out:
-	net_rps_action_and_irq_disable();
+	net_rps_action_and_irq_enable(sd);
 
 #ifdef CONFIG_NET_DMA
 	/*
@@ -3460,7 +3503,7 @@ out:
 	return;
 
 softnet_break:
-	__get_cpu_var(netdev_rx_stat).time_squeeze++;
+	sd->time_squeeze++;
 	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 	goto out;
 }
@@ -3661,17 +3704,17 @@ static int dev_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct netif_rx_stats *softnet_get_online(loff_t *pos)
+static struct softnet_data *softnet_get_online(loff_t *pos)
 {
-	struct netif_rx_stats *rc = NULL;
+	struct softnet_data *sd = NULL;
 
 	while (*pos < nr_cpu_ids)
 		if (cpu_online(*pos)) {
-			rc = &per_cpu(netdev_rx_stat, *pos);
+			sd = &per_cpu(softnet_data, *pos);
 			break;
 		} else
 			++*pos;
-	return rc;
+	return sd;
 }
 
 static void *softnet_seq_start(struct seq_file *seq, loff_t *pos)
@@ -3691,12 +3734,12 @@ static void softnet_seq_stop(struct seq_file *seq, void *v)
 
 static int softnet_seq_show(struct seq_file *seq, void *v)
 {
-	struct netif_rx_stats *s = v;
+	struct softnet_data *sd = v;
 
 	seq_printf(seq, "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
-		   s->total, s->dropped, s->time_squeeze, 0,
+		   sd->processed, sd->dropped, sd->time_squeeze, 0,
 		   0, 0, 0, 0, /* was fastroute */
-		   s->cpu_collision, s->received_rps);
+		   sd->cpu_collision, sd->received_rps);
 	return 0;
 }
 
@@ -5584,7 +5627,6 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 			    void *ocpu)
 {
 	struct sk_buff **list_skb;
-	struct Qdisc **list_net;
 	struct sk_buff *skb;
 	unsigned int cpu, oldcpu = (unsigned long)ocpu;
 	struct softnet_data *sd, *oldsd;
@@ -5605,13 +5647,13 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 	*list_skb = oldsd->completion_queue;
 	oldsd->completion_queue = NULL;
 
-	/* Find end of our output_queue. */
-	list_net = &sd->output_queue;
-	while (*list_net)
-		list_net = &(*list_net)->next_sched;
 	/* Append output queue from offline CPU. */
-	*list_net = oldsd->output_queue;
-	oldsd->output_queue = NULL;
+	if (oldsd->output_queue) {
+		*sd->output_queue_tailp = oldsd->output_queue;
+		sd->output_queue_tailp = oldsd->output_queue_tailp;
+		oldsd->output_queue = NULL;
+		oldsd->output_queue_tailp = &oldsd->output_queue;
+	}
 
 	raise_softirq_irqoff(NET_TX_SOFTIRQ);
 	local_irq_enable();
@@ -5619,8 +5661,10 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 	/* Process offline CPU's input_pkt_queue */
 	while ((skb = __skb_dequeue(&oldsd->input_pkt_queue))) {
 		netif_rx(skb);
-		input_queue_head_incr(oldsd);
+		input_queue_head_add(oldsd, 1);
 	}
+	while ((skb = __skb_dequeue(&oldsd->process_queue)))
+		netif_rx(skb);
 
 	return NOTIFY_OK;
 }
@@ -5838,10 +5882,13 @@ static int __init net_dev_init(void)
 	for_each_possible_cpu(i) {
 		struct softnet_data *sd = &per_cpu(softnet_data, i);
 
+		memset(sd, 0, sizeof(*sd));
 		skb_queue_head_init(&sd->input_pkt_queue);
+		skb_queue_head_init(&sd->process_queue);
 		sd->completion_queue = NULL;
 		INIT_LIST_HEAD(&sd->poll_list);
-
+		sd->output_queue = NULL;
+		sd->output_queue_tailp = &sd->output_queue;
 #ifdef CONFIG_RPS
 		sd->csd.func = rps_trigger_softirq;
 		sd->csd.info = sd;

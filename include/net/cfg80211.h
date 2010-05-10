@@ -511,6 +511,7 @@ struct mpath_info {
  * @basic_rates: basic rates in IEEE 802.11 format
  *	(or NULL for no change)
  * @basic_rates_len: number of basic rates
+ * @ap_isolate: do not forward packets between connected stations
  */
 struct bss_parameters {
 	int use_cts_prot;
@@ -518,6 +519,7 @@ struct bss_parameters {
 	int use_short_slot_time;
 	u8 *basic_rates;
 	u8 basic_rates_len;
+	int ap_isolate;
 };
 
 struct mesh_config {
@@ -1018,6 +1020,8 @@ struct cfg80211_pmksa {
  *	RSN IE. It allows for faster roaming between WPA2 BSSIDs.
  * @del_pmksa: Delete a cached PMKID.
  * @flush_pmksa: Flush all cached PMKIDs.
+ * @set_power_mgmt: Configure WLAN power management. A timeout value of -1
+ *	allows the driver to adjust the dynamic ps timeout value.
  * @set_cqm_rssi_config: Configure connection quality monitor RSSI threshold.
  *
  */
@@ -1643,7 +1647,7 @@ struct ieee80211_radiotap_iterator {
 	const struct ieee80211_radiotap_namespace *current_namespace;
 
 	unsigned char *_arg, *_next_ns_data;
-	uint32_t *_next_bitmap;
+	__le32 *_next_bitmap;
 
 	unsigned char *this_arg;
 	int this_arg_index;

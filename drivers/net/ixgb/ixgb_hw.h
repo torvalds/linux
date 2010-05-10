@@ -636,18 +636,6 @@ struct ixgb_flash_buffer {
 	u8 filler3[0xAAAA];
 };
 
-/*
- * This is a little-endian specific check.
- */
-#define IS_MULTICAST(Address) \
-    (bool)(((u8 *)(Address))[0] & ((u8)0x01))
-
-/*
- * Check whether an address is broadcast.
- */
-#define IS_BROADCAST(Address)               \
-    ((((u8 *)(Address))[0] == ((u8)0xff)) && (((u8 *)(Address))[1] == ((u8)0xff)))
-
 /* Flow control parameters */
 struct ixgb_fc {
 	u32 high_water;	/* Flow Control High-water          */

@@ -141,8 +141,10 @@ struct igb_buffer {
 			unsigned long time_stamp;
 			u16 length;
 			u16 next_to_watch;
-			u16 mapped_as_page;
+			unsigned int bytecount;
 			u16 gso_segs;
+			union skb_shared_tx shtx;
+			u8 mapped_as_page;
 		};
 		/* RX */
 		struct {
@@ -186,7 +188,7 @@ struct igb_q_vector {
 struct igb_ring {
 	struct igb_q_vector *q_vector; /* backlink to q_vector */
 	struct net_device *netdev;     /* back pointer to net_device */
-	struct pci_dev *pdev;          /* pci device for dma mapping */
+	struct device *dev;            /* device pointer for dma mapping */
 	dma_addr_t dma;                /* phys address of the ring */
 	void *desc;                    /* descriptor ring memory */
 	unsigned int size;             /* length of desc. ring in bytes */
@@ -338,7 +340,6 @@ enum igb_boards {
 extern char igb_driver_name[];
 extern char igb_driver_version[];
 
-extern char *igb_get_hw_dev_name(struct e1000_hw *hw);
 extern int igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);

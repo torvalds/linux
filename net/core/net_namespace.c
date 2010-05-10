@@ -27,6 +27,51 @@ EXPORT_SYMBOL(init_net);
 
 #define INITIAL_NET_GEN_PTRS	13 /* +1 for len +2 for rcu_head */
 
+static void net_generic_release(struct rcu_head *rcu)
+{
+	struct net_generic *ng;
+
+	ng = container_of(rcu, struct net_generic, rcu);
+	kfree(ng);
+}
+
+static int net_assign_generic(struct net *net, int id, void *data)
+{
+	struct net_generic *ng, *old_ng;
+
+	BUG_ON(!mutex_is_locked(&net_mutex));
+	BUG_ON(id == 0);
+
+	ng = old_ng = net->gen;
+	if (old_ng->len >= id)
+		goto assign;
+
+	ng = kzalloc(sizeof(struct net_generic) +
+			id * sizeof(void *), GFP_KERNEL);
+	if (ng == NULL)
+		return -ENOMEM;
+
+	/*
+	 * Some synchronisation notes:
+	 *
+	 * The net_generic explores the net->gen array inside rcu
+	 * read section. Besides once set the net->gen->ptr[x]
+	 * pointer never changes (see rules in netns/generic.h).
+	 *
+	 * That said, we simply duplicate this array and schedule
+	 * the old copy for kfree after a grace period.
+	 */
+
+	ng->len = id;
+	memcpy(&ng->ptr, &old_ng->ptr, old_ng->len * sizeof(void*));
+
+	rcu_assign_pointer(net->gen, ng);
+	call_rcu(&old_ng->rcu, net_generic_release);
+assign:
+	ng->ptr[id - 1] = data;
+	return 0;
+}
+
 static int ops_init(const struct pernet_operations *ops, struct net *net)
 {
 	int err;
@@ -469,10 +514,10 @@ EXPORT_SYMBOL_GPL(register_pernet_subsys);
  *	addition run the exit method for all existing network
  *	namespaces.
  */
-void unregister_pernet_subsys(struct pernet_operations *module)
+void unregister_pernet_subsys(struct pernet_operations *ops)
 {
 	mutex_lock(&net_mutex);
-	unregister_pernet_operations(module);
+	unregister_pernet_operations(ops);
 	mutex_unlock(&net_mutex);
 }
 EXPORT_SYMBOL_GPL(unregister_pernet_subsys);
@@ -526,49 +571,3 @@ void unregister_pernet_device(struct pernet_operations *ops)
 	mutex_unlock(&net_mutex);
 }
 EXPORT_SYMBOL_GPL(unregister_pernet_device);
-
-static void net_generic_release(struct rcu_head *rcu)
-{
-	struct net_generic *ng;
-
-	ng = container_of(rcu, struct net_generic, rcu);
-	kfree(ng);
-}
-
-int net_assign_generic(struct net *net, int id, void *data)
-{
-	struct net_generic *ng, *old_ng;
-
-	BUG_ON(!mutex_is_locked(&net_mutex));
-	BUG_ON(id == 0);
-
-	ng = old_ng = net->gen;
-	if (old_ng->len >= id)
-		goto assign;
-
-	ng = kzalloc(sizeof(struct net_generic) +
-			id * sizeof(void *), GFP_KERNEL);
-	if (ng == NULL)
-		return -ENOMEM;
-
-	/*
-	 * Some synchronisation notes:
-	 *
-	 * The net_generic explores the net->gen array inside rcu
-	 * read section. Besides once set the net->gen->ptr[x]
-	 * pointer never changes (see rules in netns/generic.h).
-	 *
-	 * That said, we simply duplicate this array and schedule
-	 * the old copy for kfree after a grace period.
-	 */
-
-	ng->len = id;
-	memcpy(&ng->ptr, &old_ng->ptr, old_ng->len * sizeof(void*));
-
-	rcu_assign_pointer(net->gen, ng);
-	call_rcu(&old_ng->rcu, net_generic_release);
-assign:
-	ng->ptr[id - 1] = data;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(net_assign_generic);

@@ -109,7 +109,7 @@ static void bnep_net_set_mc_list(struct net_device *dev)
 	}
 
 	skb_queue_tail(&sk->sk_write_queue, skb);
-	wake_up_interruptible(sk->sk_sleep);
+	wake_up_interruptible(sk_sleep(sk));
 #endif
 }
 
@@ -193,11 +193,11 @@ static netdev_tx_t bnep_net_xmit(struct sk_buff *skb,
 	/*
 	 * We cannot send L2CAP packets from here as we are potentially in a bh.
 	 * So we have to queue them and wake up session thread which is sleeping
-	 * on the sk->sk_sleep.
+	 * on the sk_sleep(sk).
 	 */
 	dev->trans_start = jiffies;
 	skb_queue_tail(&sk->sk_write_queue, skb);
-	wake_up_interruptible(sk->sk_sleep);
+	wake_up_interruptible(sk_sleep(sk));
 
 	if (skb_queue_len(&sk->sk_write_queue) >= BNEP_TX_QUEUE_LEN) {
 		BT_DBG("tx queue is full");

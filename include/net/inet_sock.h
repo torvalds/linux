@@ -102,7 +102,6 @@ struct rtable;
  * @uc_ttl - Unicast TTL
  * @inet_sport - Source port
  * @inet_id - ID counter for DF pkts
- * @rxhash - flow hash received from netif layer
  * @tos - TOS
  * @mc_ttl - Multicasting TTL
  * @is_icsk - is this an inet_connection_sock?
@@ -126,9 +125,6 @@ struct inet_sock {
 	__u16			cmsg_flags;
 	__be16			inet_sport;
 	__u16			inet_id;
-#ifdef CONFIG_RPS
-	__u32			rxhash;
-#endif
 
 	struct ip_options	*opt;
 	__u8			tos;
@@ -224,37 +220,4 @@ static inline __u8 inet_sk_flowi_flags(const struct sock *sk)
 	return inet_sk(sk)->transparent ? FLOWI_FLAG_ANYSRC : 0;
 }
 
-static inline void inet_rps_record_flow(const struct sock *sk)
-{
-#ifdef CONFIG_RPS
-	struct rps_sock_flow_table *sock_flow_table;
-
-	rcu_read_lock();
-	sock_flow_table = rcu_dereference(rps_sock_flow_table);
-	rps_record_sock_flow(sock_flow_table, inet_sk(sk)->rxhash);
-	rcu_read_unlock();
-#endif
-}
-
-static inline void inet_rps_reset_flow(const struct sock *sk)
-{
-#ifdef CONFIG_RPS
-	struct rps_sock_flow_table *sock_flow_table;
-
-	rcu_read_lock();
-	sock_flow_table = rcu_dereference(rps_sock_flow_table);
-	rps_reset_sock_flow(sock_flow_table, inet_sk(sk)->rxhash);
-	rcu_read_unlock();
-#endif
-}
-
-static inline void inet_rps_save_rxhash(const struct sock *sk, u32 rxhash)
-{
-#ifdef CONFIG_RPS
-	if (unlikely(inet_sk(sk)->rxhash != rxhash)) {
-		inet_rps_reset_flow(sk);
-		inet_sk(sk)->rxhash = rxhash;
-	}
-#endif
-}
 #endif	/* _INET_SOCK_H */

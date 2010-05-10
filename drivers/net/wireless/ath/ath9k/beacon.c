@@ -93,8 +93,6 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 		antenna = ((sc->beacon.ast_be_xmit / sc->nbcnvifs) & 1 ? 2 : 1);
 	}
 
-	ds->ds_data = bf->bf_buf_addr;
-
 	sband = &sc->sbands[common->hw->conf.channel->band];
 	rate = sband->bitrates[rateidx].hw_value;
 	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
@@ -109,7 +107,8 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 
 	/* NB: beacon's BufLen must be a multiple of 4 bytes */
 	ath9k_hw_filltxdesc(ah, ds, roundup(skb->len, 4),
-			    true, true, ds);
+			    true, true, ds, bf->bf_buf_addr,
+			    sc->beacon.beaconq);
 
 	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
 	series[0].Tries = 1;

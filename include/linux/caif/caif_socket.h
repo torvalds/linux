@@ -16,7 +16,6 @@
 #include <sys/socket.h>
 #endif
 
-
 /**
  * enum caif_link_selector -    Physical Link Selection.
  * @CAIF_LINK_HIGH_BANDW:	Physical interface for high-bandwidth
@@ -59,7 +58,7 @@ enum caif_channel_priority {
 /**
  * enum caif_protocol_type  -	CAIF Channel type.
  * @CAIFPROTO_AT:		Classic AT channel.
- * @CAIFPROTO_DATAGRAM:		Datagram channel.
+ * @CAIFPROTO_DATAGRAM:	Datagram channel.
  * @CAIFPROTO_DATAGRAM_LOOP:	Datagram loopback channel, used for testing.
  * @CAIFPROTO_UTIL:		Utility (Psock) channel.
  * @CAIFPROTO_RFM:		Remote File Manager
@@ -87,6 +86,7 @@ enum caif_at_type {
 
 /**
  * struct sockaddr_caif - the sockaddr structure for CAIF sockets.
+ * @family:		     Address family number, must be AF_CAIF.
  * @u:			     Union of address data 'switched' by family.
  * :
  * @u.at:                    Applies when family = CAIFPROTO_AT.
@@ -153,6 +153,7 @@ struct sockaddr_caif {
  *
  *
  * This enum defines the CAIF Socket options to be used on a socket
+ * of type PF_CAIF.
  *
  */
 enum caif_socket_opts {

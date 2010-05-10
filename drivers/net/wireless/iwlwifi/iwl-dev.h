@@ -58,7 +58,7 @@ extern struct iwl_cfg iwl5100_abg_cfg;
 extern struct iwl_cfg iwl5150_agn_cfg;
 extern struct iwl_cfg iwl5150_abg_cfg;
 extern struct iwl_cfg iwl6000i_2agn_cfg;
-extern struct iwl_cfg iwl6000i_g2_2agn_cfg;
+extern struct iwl_cfg iwl6000g2_2agn_cfg;
 extern struct iwl_cfg iwl6000i_2abg_cfg;
 extern struct iwl_cfg iwl6000i_2bg_cfg;
 extern struct iwl_cfg iwl6000_3agn_cfg;
@@ -1049,12 +1049,10 @@ struct iwl_priv {
 	struct iwl_calib_result calib_results[IWL_CALIB_MAX];
 
 	/* Scan related variables */
-	unsigned long next_scan_jiffies;
 	unsigned long scan_start;
-	unsigned long scan_pass_start;
 	unsigned long scan_start_tsf;
-	void *scan;
-	int scan_bands;
+	void *scan_cmd;
+	enum ieee80211_band scan_band;
 	struct cfg80211_scan_request *scan_request;
 	bool is_internal_short_scan;
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
@@ -1204,6 +1202,11 @@ struct iwl_priv {
 			struct delayed_work rfkill_poll;
 
 			struct iwl3945_notif_statistics statistics;
+#ifdef CONFIG_IWLWIFI_DEBUG
+			struct iwl3945_notif_statistics accum_statistics;
+			struct iwl3945_notif_statistics delta_statistics;
+			struct iwl3945_notif_statistics max_delta;
+#endif
 
 			u32 sta_supp_rates;
 			int last_rx_rssi;	/* From Rx packet statistics */
@@ -1259,11 +1262,11 @@ struct iwl_priv {
 	struct work_struct scan_completed;
 	struct work_struct rx_replenish;
 	struct work_struct abort_scan;
-	struct work_struct request_scan;
 	struct work_struct beacon_update;
 	struct work_struct tt_work;
 	struct work_struct ct_enter;
 	struct work_struct ct_exit;
+	struct work_struct start_internal_scan;
 
 	struct tasklet_struct irq_tasklet;
 

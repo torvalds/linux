@@ -97,9 +97,6 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 					    params->mesh_id_len,
 					    params->mesh_id);
 
-	if (sdata->vif.type != NL80211_IFTYPE_MONITOR || !flags)
-		return 0;
-
 	if (type == NL80211_IFTYPE_AP_VLAN &&
 	    params && params->use_4addr == 0)
 		rcu_assign_pointer(sdata->u.vlan.sta, NULL);
@@ -107,7 +104,9 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 		 params && params->use_4addr >= 0)
 		sdata->u.mgd.use_4addr = params->use_4addr;
 
-	sdata->u.mntr_flags = *flags;
+	if (sdata->vif.type == NL80211_IFTYPE_MONITOR && flags)
+		sdata->u.mntr_flags = *flags;
+
 	return 0;
 }
 
@@ -409,6 +408,17 @@ static int ieee80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
 	rcu_read_unlock();
 
 	return ret;
+}
+
+static int ieee80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
+				 int idx, struct survey_info *survey)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+
+	if (!local->ops->get_survey)
+		return -EOPNOTSUPP;
+
+	return drv_get_survey(local, idx, survey);
 }
 
 static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
@@ -1104,6 +1114,13 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 		changed |= BSS_CHANGED_BASIC_RATES;
 	}
 
+	if (params->ap_isolate >= 0) {
+		if (params->ap_isolate)
+			sdata->flags |= IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
+		else
+			sdata->flags &= ~IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
+	}
+
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	return 0;
@@ -1388,11 +1405,11 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	if (enabled == sdata->u.mgd.powersave &&
-	    timeout == conf->dynamic_ps_timeout)
+	    timeout == conf->dynamic_ps_forced_timeout)
 		return 0;
 
 	sdata->u.mgd.powersave = enabled;
-	conf->dynamic_ps_timeout = timeout;
+	conf->dynamic_ps_forced_timeout = timeout;
 
 	/* no change, but if automatic follow powersave */
 	mutex_lock(&sdata->u.mgd.mtx);
@@ -1508,6 +1525,7 @@ struct cfg80211_ops mac80211_config_ops = {
 	.change_station = ieee80211_change_station,
 	.get_station = ieee80211_get_station,
 	.dump_station = ieee80211_dump_station,
+	.dump_survey = ieee80211_dump_survey,
 #ifdef CONFIG_MAC80211_MESH
 	.add_mpath = ieee80211_add_mpath,
 	.del_mpath = ieee80211_del_mpath,

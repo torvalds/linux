@@ -101,6 +101,7 @@ struct wmi *ath9k_init_wmi(struct ath9k_htc_priv *priv)
 	wmi->drv_priv = priv;
 	wmi->stopped = false;
 	mutex_init(&wmi->op_mutex);
+	mutex_init(&wmi->multi_write_mutex);
 	init_completion(&wmi->cmd_wait);
 
 	return wmi;
@@ -128,7 +129,7 @@ void ath9k_wmi_tasklet(unsigned long data)
 	void *wmi_event;
 	unsigned long flags;
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
-	u32 txrate;
+	__be32 txrate;
 #endif
 
 	spin_lock_irqsave(&priv->wmi->wmi_lock, flags);
@@ -203,6 +204,14 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 		return;
 	}
 
+	/* Check if there has been a timeout. */
+	spin_lock(&wmi->wmi_lock);
+	if (cmd_id != wmi->last_cmd_id) {
+		spin_unlock(&wmi->wmi_lock);
+		goto free_skb;
+	}
+	spin_unlock(&wmi->wmi_lock);
+
 	/* WMI command response */
 	ath9k_wmi_rsp_callback(wmi, skb);
 
@@ -265,6 +274,10 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	struct sk_buff *skb;
 	u8 *data;
 	int time_left, ret = 0;
+	unsigned long flags;
+
+	if (wmi->drv_priv->op_flags & OP_UNPLUGGED)
+		return 0;
 
 	if (!wmi)
 		return -EINVAL;
@@ -291,6 +304,10 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	/* record the rsp buffer and length */
 	wmi->cmd_rsp_buf = rsp_buf;
 	wmi->cmd_rsp_len = rsp_len;
+
+	spin_lock_irqsave(&wmi->wmi_lock, flags);
+	wmi->last_cmd_id = cmd_id;
+	spin_unlock_irqrestore(&wmi->wmi_lock, flags);
 
 	ret = ath9k_wmi_cmd_issue(wmi, skb, cmd_id, cmd_len);
 	if (ret)

@@ -273,7 +273,7 @@ struct ecryptfs_crypt_stat {
 	u32 flags;
 	unsigned int file_version;
 	size_t iv_bytes;
-	size_t num_header_bytes_at_front;
+	size_t metadata_size;
 	size_t extent_size; /* Data extent size; default is 4096 */
 	size_t key_size;
 	size_t extent_shift;
@@ -464,6 +464,14 @@ struct ecryptfs_daemon {
 
 extern struct mutex ecryptfs_daemon_hash_mux;
 
+static inline size_t
+ecryptfs_lower_header_size(struct ecryptfs_crypt_stat *crypt_stat)
+{
+	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
+		return 0;
+	return crypt_stat->metadata_size;
+}
+
 static inline struct ecryptfs_file_info *
 ecryptfs_file_to_private(struct file *file)
 {
@@ -651,6 +659,9 @@ int ecryptfs_decrypt_page(struct page *page);
 int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry);
 int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry);
 int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry);
+void ecryptfs_write_crypt_stat_flags(char *page_virt,
+				     struct ecryptfs_crypt_stat *crypt_stat,
+				     size_t *written);
 int ecryptfs_read_and_validate_header_region(char *data,
 					     struct inode *ecryptfs_inode);
 int ecryptfs_read_and_validate_xattr_region(char *page_virt,

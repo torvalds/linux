@@ -94,6 +94,7 @@ header-y += if_ppp.h
 header-y += if_slip.h
 header-y += if_strip.h
 header-y += if_tun.h
+header-y += if_x25.h
 header-y += in_route.h
 header-y += ioctl.h
 header-y += ip6_tunnel.h

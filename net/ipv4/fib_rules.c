@@ -245,8 +245,8 @@ static void fib4_rule_flush_cache(struct fib_rules_ops *ops)
 	rt_cache_flush(ops->fro_net, -1);
 }
 
-static struct fib_rules_ops fib4_rules_ops_template = {
-	.family		= FIB_RULES_IPV4,
+static const struct fib_rules_ops __net_initdata fib4_rules_ops_template = {
+	.family		= AF_INET,
 	.rule_size	= sizeof(struct fib4_rule),
 	.addr_size	= sizeof(u32),
 	.action		= fib4_rule_action,

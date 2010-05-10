@@ -432,7 +432,7 @@ int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 				break;
 			}
 
-			timeo = wait_event_interruptible_timeout(*sk->sk_sleep,
+			timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
 					(!list_empty(&rs->rs_notify_queue) ||
 					 rs->rs_cong_notify ||
 					 rds_next_incoming(rs, &inc)), timeo);

@@ -218,16 +218,6 @@ struct neighbour;
 struct neigh_parms;
 struct sk_buff;
 
-struct netif_rx_stats {
-	unsigned total;
-	unsigned dropped;
-	unsigned time_squeeze;
-	unsigned cpu_collision;
-	unsigned received_rps;
-};
-
-DECLARE_PER_CPU(struct netif_rx_stats, netdev_rx_stat);
-
 struct netdev_hw_addr {
 	struct list_head	list;
 	unsigned char		addr[MAX_ADDR_LEN];
@@ -734,6 +724,7 @@ struct net_device_ops {
 						        unsigned short vid);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	void                    (*ndo_poll_controller)(struct net_device *dev);
+	void			(*ndo_netpoll_cleanup)(struct net_device *dev);
 #endif
 	int			(*ndo_set_vf_mac)(struct net_device *dev,
 						  int queue, u8 *mac);
@@ -888,7 +879,7 @@ struct net_device {
 	unsigned char		operstate; /* RFC2863 operstate */
 	unsigned char		link_mode; /* mapping policy to operstate */
 
-	unsigned		mtu;	/* interface MTU value		*/
+	unsigned int		mtu;	/* interface MTU value		*/
 	unsigned short		type;	/* interface hardware type	*/
 	unsigned short		hard_header_len;	/* hardware hdr length	*/
 
@@ -1385,8 +1376,16 @@ static inline int unregister_gifconf(unsigned int family)
  */
 struct softnet_data {
 	struct Qdisc		*output_queue;
+	struct Qdisc		**output_queue_tailp;
 	struct list_head	poll_list;
 	struct sk_buff		*completion_queue;
+	struct sk_buff_head	process_queue;
+
+	/* stats */
+	unsigned int		processed;
+	unsigned int		time_squeeze;
+	unsigned int		cpu_collision;
+	unsigned int		received_rps;
 
 #ifdef CONFIG_RPS
 	struct softnet_data	*rps_ipi_list;
@@ -1397,14 +1396,16 @@ struct softnet_data {
 	unsigned int		cpu;
 	unsigned int		input_queue_head;
 #endif
+	unsigned		dropped;
 	struct sk_buff_head	input_pkt_queue;
 	struct napi_struct	backlog;
 };
 
-static inline void input_queue_head_incr(struct softnet_data *sd)
+static inline void input_queue_head_add(struct softnet_data *sd,
+					unsigned int len)
 {
 #ifdef CONFIG_RPS
-	sd->input_queue_head++;
+	sd->input_queue_head += len;
 #endif
 }
 

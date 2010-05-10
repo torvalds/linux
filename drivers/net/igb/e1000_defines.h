@@ -610,11 +610,7 @@
 #define IGP_LED3_MODE           0x07000000
 
 /* PCI/PCI-X/PCI-EX Config space */
-#define PCIE_LINK_STATUS             0x12
 #define PCIE_DEVICE_CONTROL2         0x28
-
-#define PCIE_LINK_WIDTH_MASK         0x3F0
-#define PCIE_LINK_WIDTH_SHIFT        4
 #define PCIE_DEVICE_CONTROL2_16ms    0x0005
 
 #define PHY_REVISION_MASK      0xFFFFFFF0

@@ -207,7 +207,7 @@ static int iwlagn_set_Xtal_calib(struct iwl_priv *priv)
 {
 	struct iwl_calib_xtal_freq_cmd cmd;
 	__le16 *xtal_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_XTAL);
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_XTAL);
 
 	cmd.hdr.op_code = IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
 	cmd.hdr.first_group = 0;
@@ -329,19 +329,19 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	priv->scd_base_addr = iwl_read_prph(priv, IWL50_SCD_SRAM_BASE_ADDR);
-	a = priv->scd_base_addr + IWL50_SCD_CONTEXT_DATA_OFFSET;
-	for (; a < priv->scd_base_addr + IWL50_SCD_TX_STTS_BITMAP_OFFSET;
+	priv->scd_base_addr = iwl_read_prph(priv, IWLAGN_SCD_SRAM_BASE_ADDR);
+	a = priv->scd_base_addr + IWLAGN_SCD_CONTEXT_DATA_OFFSET;
+	for (; a < priv->scd_base_addr + IWLAGN_SCD_TX_STTS_BITMAP_OFFSET;
 		a += 4)
 		iwl_write_targ_mem(priv, a, 0);
-	for (; a < priv->scd_base_addr + IWL50_SCD_TRANSLATE_TBL_OFFSET;
+	for (; a < priv->scd_base_addr + IWLAGN_SCD_TRANSLATE_TBL_OFFSET;
 		a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 	for (; a < priv->scd_base_addr +
-	       IWL50_SCD_TRANSLATE_TBL_OFFSET_QUEUE(priv->hw_params.max_txq_num); a += 4)
+	       IWLAGN_SCD_TRANSLATE_TBL_OFFSET_QUEUE(priv->hw_params.max_txq_num); a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 
-	iwl_write_prph(priv, IWL50_SCD_DRAM_BASE_ADDR,
+	iwl_write_prph(priv, IWLAGN_SCD_DRAM_BASE_ADDR,
 		       priv->scd_bc_tbls.dma >> 10);
 
 	/* Enable DMA channel */
@@ -355,28 +355,28 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	iwl_write_direct32(priv, FH_TX_CHICKEN_BITS_REG,
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
-	iwl_write_prph(priv, IWL50_SCD_QUEUECHAIN_SEL,
-		IWL50_SCD_QUEUECHAIN_SEL_ALL(priv->hw_params.max_txq_num));
-	iwl_write_prph(priv, IWL50_SCD_AGGR_SEL, 0);
+	iwl_write_prph(priv, IWLAGN_SCD_QUEUECHAIN_SEL,
+		IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv->hw_params.max_txq_num));
+	iwl_write_prph(priv, IWLAGN_SCD_AGGR_SEL, 0);
 
 	/* initiate the queues */
 	for (i = 0; i < priv->hw_params.max_txq_num; i++) {
-		iwl_write_prph(priv, IWL50_SCD_QUEUE_RDPTR(i), 0);
+		iwl_write_prph(priv, IWLAGN_SCD_QUEUE_RDPTR(i), 0);
 		iwl_write_direct32(priv, HBUS_TARG_WRPTR, 0 | (i << 8));
 		iwl_write_targ_mem(priv, priv->scd_base_addr +
-				IWL50_SCD_CONTEXT_QUEUE_OFFSET(i), 0);
+				IWLAGN_SCD_CONTEXT_QUEUE_OFFSET(i), 0);
 		iwl_write_targ_mem(priv, priv->scd_base_addr +
-				IWL50_SCD_CONTEXT_QUEUE_OFFSET(i) +
+				IWLAGN_SCD_CONTEXT_QUEUE_OFFSET(i) +
 				sizeof(u32),
 				((SCD_WIN_SIZE <<
-				IWL50_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
-				IWL50_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
+				IWLAGN_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
+				IWLAGN_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
 				((SCD_FRAME_LIMIT <<
-				IWL50_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-				IWL50_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+				IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
+				IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 	}
 
-	iwl_write_prph(priv, IWL50_SCD_INTERRUPT_MASK,
+	iwl_write_prph(priv, IWLAGN_SCD_INTERRUPT_MASK,
 			IWL_MASK(0, priv->hw_params.max_txq_num));
 
 	/* Activate all Tx DMA/FIFO channels */

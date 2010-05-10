@@ -8700,6 +8700,7 @@ static int tg3_test_msi(struct tg3 *tp)
 	pci_disable_msi(tp->pdev);
 
 	tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
+	tp->napi[0].irq_vec = tp->pdev->irq;
 
 	err = tg3_request_irq(tp, 0);
 	if (err)
@@ -12993,6 +12994,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 		if (tp->tg3_flags3 & TG3_FLG3_5755_PLUS)
 			tp->dev->features |= NETIF_F_IPV6_CSUM;
+		tp->dev->features |= NETIF_F_GRO;
 	}
 
 	/* Determine TSO capabilities */

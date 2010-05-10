@@ -865,6 +865,8 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 			if (dig->coherent_mode)
 				args.v3.acConfig.fCoherentMode = 1;
+			if (radeon_encoder->pixel_clock > 165000)
+				args.v3.acConfig.fDualLinkConnector = 1;
 		}
 	} else if (ASIC_IS_DCE32(rdev)) {
 		args.v2.acConfig.ucEncoderSel = dig->dig_encoder;
@@ -888,6 +890,8 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 			if (dig->coherent_mode)
 				args.v2.acConfig.fCoherentMode = 1;
+			if (radeon_encoder->pixel_clock > 165000)
+				args.v2.acConfig.fDualLinkConnector = 1;
 		}
 	} else {
 		args.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
@@ -1373,8 +1377,12 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
 		atombios_dac_setup(encoder, ATOM_ENABLE);
-		if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
-			atombios_tv_setup(encoder, ATOM_ENABLE);
+		if (radeon_encoder->devices & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT)) {
+			if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
+				atombios_tv_setup(encoder, ATOM_ENABLE);
+			else
+				atombios_tv_setup(encoder, ATOM_DISABLE);
+		}
 		break;
 	}
 	atombios_apply_encoder_quirks(encoder, adjusted_mode);

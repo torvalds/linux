@@ -29,12 +29,12 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
-#include <linux/x25.h>
 #include <linux/lapb.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
 #include <linux/compat.h>
 #include <linux/slab.h>
+#include <net/x25device.h>
 #include "x25_asy.h"
 
 #include <net/x25device.h>
@@ -315,15 +315,15 @@ static netdev_tx_t x25_asy_xmit(struct sk_buff *skb,
 	}
 
 	switch (skb->data[0]) {
-	case 0x00:
+	case X25_IFACE_DATA:
 		break;
-	case 0x01: /* Connection request .. do nothing */
+	case X25_IFACE_CONNECT: /* Connection request .. do nothing */
 		err = lapb_connect_request(dev);
 		if (err != LAPB_OK)
 			printk(KERN_ERR "x25_asy: lapb_connect_request error - %d\n", err);
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
-	case 0x02: /* Disconnect request .. do nothing - hang up ?? */
+	case X25_IFACE_DISCONNECT: /* do nothing - hang up ?? */
 		err = lapb_disconnect_request(dev);
 		if (err != LAPB_OK)
 			printk(KERN_ERR "x25_asy: lapb_disconnect_request error - %d\n", err);
@@ -411,7 +411,7 @@ static void x25_asy_connected(struct net_device *dev, int reason)
 	}
 
 	ptr  = skb_put(skb, 1);
-	*ptr = 0x01;
+	*ptr = X25_IFACE_CONNECT;
 
 	skb->protocol = x25_type_trans(skb, sl->dev);
 	netif_rx(skb);
@@ -430,7 +430,7 @@ static void x25_asy_disconnected(struct net_device *dev, int reason)
 	}
 
 	ptr  = skb_put(skb, 1);
-	*ptr = 0x02;
+	*ptr = X25_IFACE_DISCONNECT;
 
 	skb->protocol = x25_type_trans(skb, sl->dev);
 	netif_rx(skb);

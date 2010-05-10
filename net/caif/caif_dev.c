@@ -247,10 +247,10 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 
 		switch (caifdev->link_select) {
 		case CAIF_LINK_HIGH_BANDW:
-			pref = CFPHYPREF_LOW_LAT;
+			pref = CFPHYPREF_HIGH_BW;
 			break;
 		case CAIF_LINK_LOW_LATENCY:
-			pref = CFPHYPREF_HIGH_BW;
+			pref = CFPHYPREF_LOW_LAT;
 			break;
 		default:
 			pref = CFPHYPREF_HIGH_BW;
@@ -330,22 +330,27 @@ int caif_connect_client(struct caif_connect_request *conn_req,
 			   struct cflayer *client_layer)
 {
 	struct cfctrl_link_param param;
-	if (connect_req_to_link_param(get_caif_conf(), conn_req, &param) == 0)
-		/* Hook up the adaptation layer. */
-		return cfcnfg_add_adaptation_layer(get_caif_conf(),
+	int ret;
+	ret = connect_req_to_link_param(get_caif_conf(), conn_req, &param);
+	if (ret)
+		return ret;
+	/* Hook up the adaptation layer. */
+	return cfcnfg_add_adaptation_layer(get_caif_conf(),
 						&param, client_layer);
-
-	return -EINVAL;
-
-	caif_assert(0);
 }
 EXPORT_SYMBOL(caif_connect_client);
 
 int caif_disconnect_client(struct cflayer *adap_layer)
 {
-	return cfcnfg_del_adapt_layer(get_caif_conf(), adap_layer);
+       return cfcnfg_disconn_adapt_layer(get_caif_conf(), adap_layer);
 }
 EXPORT_SYMBOL(caif_disconnect_client);
+
+void caif_release_client(struct cflayer *adap_layer)
+{
+       cfcnfg_release_adap_layer(adap_layer);
+}
+EXPORT_SYMBOL(caif_release_client);
 
 /* Per-namespace Caif devices handling */
 static int caif_init_net(struct net *net)

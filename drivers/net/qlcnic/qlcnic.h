@@ -51,8 +51,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 1
-#define QLCNIC_LINUX_VERSIONID  "5.0.1"
+#define _QLCNIC_LINUX_SUBVERSION 2
+#define QLCNIC_LINUX_VERSIONID  "5.0.2"
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -428,6 +428,10 @@ struct qlcnic_adapter_stats {
 	u64  xmit_on;
 	u64  xmit_off;
 	u64  skb_alloc_failure;
+	u64  null_skb;
+	u64  null_rxbuf;
+	u64  rx_dma_map_error;
+	u64  tx_dma_map_error;
 };
 
 /*

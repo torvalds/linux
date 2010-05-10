@@ -43,8 +43,7 @@ struct cfctrl_rsp {
 	void (*linksetup_rsp)(struct cflayer *layer, u8 linkid,
 			      enum cfctrl_srv serv, u8 phyid,
 			      struct cflayer *adapt_layer);
-	void (*linkdestroy_rsp)(struct cflayer *layer, u8 linkid,
-				struct cflayer *client_layer);
+	void (*linkdestroy_rsp)(struct cflayer *layer, u8 linkid);
 	void (*linkerror_ind)(void);
 	void (*enum_rsp)(void);
 	void (*sleep_rsp)(void);
@@ -117,7 +116,7 @@ struct cfctrl {
 };
 
 void cfctrl_enum_req(struct cflayer *cfctrl, u8 physlinkid);
-void cfctrl_linkup_request(struct cflayer *cfctrl,
+int cfctrl_linkup_request(struct cflayer *cfctrl,
 			   struct cfctrl_link_param *param,
 			   struct cflayer *user_layer);
 int  cfctrl_linkdown_req(struct cflayer *cfctrl, u8 linkid,
@@ -135,4 +134,6 @@ void cfctrl_insert_req(struct cfctrl *ctrl,
 			      struct cfctrl_request_info *req);
 struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
 					      struct cfctrl_request_info *req);
+void cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer);
+
 #endif				/* CFCTRL_H_ */

@@ -496,6 +496,8 @@ void ath5k_hw_set_rx_filter(struct ath5k_hw *ah, u32 filter)
 * Beacon control *
 \****************/
 
+#define ATH5K_MAX_TSF_READ 10
+
 /**
  * ath5k_hw_get_tsf64 - Get the full 64bit TSF
  *
@@ -505,10 +507,35 @@ void ath5k_hw_set_rx_filter(struct ath5k_hw *ah, u32 filter)
  */
 u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah)
 {
-	u64 tsf = ath5k_hw_reg_read(ah, AR5K_TSF_U32);
+	u32 tsf_lower, tsf_upper1, tsf_upper2;
+	int i;
+
+	/*
+	 * While reading TSF upper and then lower part, the clock is still
+	 * counting (or jumping in case of IBSS merge) so we might get
+	 * inconsistent values. To avoid this, we read the upper part again
+	 * and check it has not been changed. We make the hypothesis that a
+	 * maximum of 3 changes can happens in a row (we use 10 as a safe
+	 * value).
+	 *
+	 * Impact on performance is pretty small, since in most cases, only
+	 * 3 register reads are needed.
+	 */
+
+	tsf_upper1 = ath5k_hw_reg_read(ah, AR5K_TSF_U32);
+	for (i = 0; i < ATH5K_MAX_TSF_READ; i++) {
+		tsf_lower = ath5k_hw_reg_read(ah, AR5K_TSF_L32);
+		tsf_upper2 = ath5k_hw_reg_read(ah, AR5K_TSF_U32);
+		if (tsf_upper2 == tsf_upper1)
+			break;
+		tsf_upper1 = tsf_upper2;
+	}
+
+	WARN_ON( i == ATH5K_MAX_TSF_READ );
+
 	ATH5K_TRACE(ah->ah_sc);
 
-	return ath5k_hw_reg_read(ah, AR5K_TSF_L32) | (tsf << 32);
+	return (((u64)tsf_upper1 << 32) | tsf_lower);
 }
 
 /**

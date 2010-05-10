@@ -656,7 +656,8 @@ static int imx_ssi_probe(struct platform_device *pdev)
 	dai->private_data = ssi;
 
 	if ((cpu_is_mx27() || cpu_is_mx21()) &&
-			!(ssi->flags & IMX_SSI_USE_AC97)) {
+			!(ssi->flags & IMX_SSI_USE_AC97) &&
+			(ssi->flags & IMX_SSI_DMA)) {
 		ssi->flags |= IMX_SSI_DMA;
 		platform = imx_ssi_dma_mx2_init(pdev, ssi);
 	} else

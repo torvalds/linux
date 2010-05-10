@@ -1042,9 +1042,6 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 	*/
 	printk("ADDR: %pM\n", dev->dev_addr);
 
-	/* set the private data to zero by default */
-	memset(netdev_priv(dev), 0, sizeof(struct smc_local));
-
 	/* Grab the IRQ */
       	retval = request_irq(dev->irq, smc_interrupt, 0, DRV_NAME, dev);
       	if (retval) {

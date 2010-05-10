@@ -140,7 +140,7 @@ static void p54p_refill_rx_ring(struct ieee80211_hw *dev,
 
 	idx = le32_to_cpu(ring_control->host_idx[ring_index]);
 	limit = idx;
-	limit -= le32_to_cpu(index);
+	limit -= index;
 	limit = ring_limit - limit;
 
 	i = idx % ring_limit;
@@ -246,7 +246,7 @@ static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
 	u32 idx, i;
 
 	i = (*index) % ring_limit;
-	(*index) = idx = le32_to_cpu(ring_control->device_idx[1]);
+	(*index) = idx = le32_to_cpu(ring_control->device_idx[ring_index]);
 	idx %= ring_limit;
 
 	while (i != idx) {
@@ -277,6 +277,14 @@ static void p54p_tasklet(unsigned long dev_id)
 	struct p54p_priv *priv = dev->priv;
 	struct p54p_ring_control *ring_control = priv->ring_control;
 
+	p54p_check_tx_ring(dev, &priv->tx_idx_mgmt, 3, ring_control->tx_mgmt,
+			   ARRAY_SIZE(ring_control->tx_mgmt),
+			   priv->tx_buf_mgmt);
+
+	p54p_check_tx_ring(dev, &priv->tx_idx_data, 1, ring_control->tx_data,
+			   ARRAY_SIZE(ring_control->tx_data),
+			   priv->tx_buf_data);
+
 	p54p_check_rx_ring(dev, &priv->rx_idx_mgmt, 2, ring_control->rx_mgmt,
 		ARRAY_SIZE(ring_control->rx_mgmt), priv->rx_buf_mgmt);
 
@@ -285,14 +293,6 @@ static void p54p_tasklet(unsigned long dev_id)
 
 	wmb();
 	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_UPDATE));
-
-	p54p_check_tx_ring(dev, &priv->tx_idx_mgmt, 3, ring_control->tx_mgmt,
-			   ARRAY_SIZE(ring_control->tx_mgmt),
-			   priv->tx_buf_mgmt);
-
-	p54p_check_tx_ring(dev, &priv->tx_idx_data, 1, ring_control->tx_data,
-			   ARRAY_SIZE(ring_control->tx_data),
-			   priv->tx_buf_data);
 }
 
 static irqreturn_t p54p_interrupt(int irq, void *dev_id)

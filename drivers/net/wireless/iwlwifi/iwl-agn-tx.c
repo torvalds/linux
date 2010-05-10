@@ -83,6 +83,15 @@ static inline int get_fifo_from_ac(u8 ac)
 	return ac_to_fifo[ac];
 }
 
+static inline int get_ac_from_tid(u16 tid)
+{
+	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
+		return tid_to_ac[tid];
+
+	/* no support for TIDs 8-15 yet */
+	return -EINVAL;
+}
+
 static inline int get_fifo_from_tid(u16 tid)
 {
 	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
@@ -167,7 +176,7 @@ static int iwlagn_tx_queue_set_q2ratid(struct iwl_priv *priv, u16 ra_tid,
 	scd_q2ratid = ra_tid & IWL_SCD_QUEUE_RA_TID_MAP_RATID_MSK;
 
 	tbl_dw_addr = priv->scd_base_addr +
-			IWL50_SCD_TRANSLATE_TBL_OFFSET_QUEUE(txq_id);
+			IWLAGN_SCD_TRANSLATE_TBL_OFFSET_QUEUE(txq_id);
 
 	tbl_dw = iwl_read_targ_mem(priv, tbl_dw_addr);
 
@@ -186,9 +195,9 @@ static void iwlagn_tx_queue_stop_scheduler(struct iwl_priv *priv, u16 txq_id)
 	/* Simply stop the queue, but don't change any configuration;
 	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
 	iwl_write_prph(priv,
-		IWL50_SCD_QUEUE_STATUS_BITS(txq_id),
-		(0 << IWL50_SCD_QUEUE_STTS_REG_POS_ACTIVE)|
-		(1 << IWL50_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+		IWLAGN_SCD_QUEUE_STATUS_BITS(txq_id),
+		(0 << IWLAGN_SCD_QUEUE_STTS_REG_POS_ACTIVE)|
+		(1 << IWLAGN_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
 void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
@@ -196,7 +205,7 @@ void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
 {
 	iwl_write_direct32(priv, HBUS_TARG_WRPTR,
 			(index & 0xff) | (txq_id << 8));
-	iwl_write_prph(priv, IWL50_SCD_QUEUE_RDPTR(txq_id), index);
+	iwl_write_prph(priv, IWLAGN_SCD_QUEUE_RDPTR(txq_id), index);
 }
 
 void iwlagn_tx_queue_set_status(struct iwl_priv *priv,
@@ -206,11 +215,11 @@ void iwlagn_tx_queue_set_status(struct iwl_priv *priv,
 	int txq_id = txq->q.id;
 	int active = test_bit(txq_id, &priv->txq_ctx_active_msk) ? 1 : 0;
 
-	iwl_write_prph(priv, IWL50_SCD_QUEUE_STATUS_BITS(txq_id),
-			(active << IWL50_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
-			(tx_fifo_id << IWL50_SCD_QUEUE_STTS_REG_POS_TXF) |
-			(1 << IWL50_SCD_QUEUE_STTS_REG_POS_WSL) |
-			IWL50_SCD_QUEUE_STTS_REG_MSK);
+	iwl_write_prph(priv, IWLAGN_SCD_QUEUE_STATUS_BITS(txq_id),
+			(active << IWLAGN_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+			(tx_fifo_id << IWLAGN_SCD_QUEUE_STTS_REG_POS_TXF) |
+			(1 << IWLAGN_SCD_QUEUE_STTS_REG_POS_WSL) |
+			IWLAGN_SCD_QUEUE_STTS_REG_MSK);
 
 	txq->sched_retry = scd_retry;
 
@@ -250,10 +259,10 @@ int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	iwlagn_tx_queue_set_q2ratid(priv, ra_tid, txq_id);
 
 	/* Set this queue as a chain-building queue */
-	iwl_set_bits_prph(priv, IWL50_SCD_QUEUECHAIN_SEL, (1<<txq_id));
+	iwl_set_bits_prph(priv, IWLAGN_SCD_QUEUECHAIN_SEL, (1<<txq_id));
 
 	/* enable aggregations for the queue */
-	iwl_set_bits_prph(priv, IWL50_SCD_AGGR_SEL, (1<<txq_id));
+	iwl_set_bits_prph(priv, IWLAGN_SCD_AGGR_SEL, (1<<txq_id));
 
 	/* Place first TFD at index corresponding to start sequence number.
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
@@ -263,16 +272,16 @@ int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 
 	/* Set up Tx window size and frame limit for this queue */
 	iwl_write_targ_mem(priv, priv->scd_base_addr +
-			IWL50_SCD_CONTEXT_QUEUE_OFFSET(txq_id) +
+			IWLAGN_SCD_CONTEXT_QUEUE_OFFSET(txq_id) +
 			sizeof(u32),
 			((SCD_WIN_SIZE <<
-			IWL50_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
-			IWL50_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
+			IWLAGN_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
+			IWLAGN_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
 			((SCD_FRAME_LIMIT <<
-			IWL50_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-			IWL50_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+			IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
+			IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 
-	iwl_set_bits_prph(priv, IWL50_SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_set_bits_prph(priv, IWLAGN_SCD_INTERRUPT_MASK, (1 << txq_id));
 
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwlagn_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
@@ -298,14 +307,14 @@ int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 
 	iwlagn_tx_queue_stop_scheduler(priv, txq_id);
 
-	iwl_clear_bits_prph(priv, IWL50_SCD_AGGR_SEL, (1 << txq_id));
+	iwl_clear_bits_prph(priv, IWLAGN_SCD_AGGR_SEL, (1 << txq_id));
 
 	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
 	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
 	/* supposes that ssn_idx is valid (!= 0xFFF) */
 	iwlagn_set_wr_ptrs(priv, txq_id, ssn_idx);
 
-	iwl_clear_bits_prph(priv, IWL50_SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_clear_bits_prph(priv, IWLAGN_SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl_txq_ctx_deactivate(priv, txq_id);
 	iwlagn_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
 
@@ -318,7 +327,7 @@ int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
  */
 void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask)
 {
-	iwl_write_prph(priv, IWL50_SCD_TXFACT, mask);
+	iwl_write_prph(priv, IWLAGN_SCD_TXFACT, mask);
 }
 
 static inline int get_queue_from_ac(u16 ac)
@@ -991,7 +1000,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 	tid_data = &priv->stations[sta_id].tid[tid];
 	*ssn = SEQ_TO_SN(tid_data->seq_number);
 	tid_data->agg.txq_id = txq_id;
-	priv->txq[txq_id].swq_id = iwl_virtual_agg_queue_num(tx_fifo, txq_id);
+	priv->txq[txq_id].swq_id = iwl_virtual_agg_queue_num(get_ac_from_tid(tid), txq_id);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	ret = priv->cfg->ops->lib->txq_agg_enable(priv, txq_id, tx_fifo,
@@ -1224,8 +1233,9 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	memset(&info->status, 0, sizeof(info->status));
 	info->flags |= IEEE80211_TX_STAT_ACK;
 	info->flags |= IEEE80211_TX_STAT_AMPDU;
-	info->status.ampdu_ack_map = successes;
-	info->status.ampdu_ack_len = agg->frame_count;
+	info->status.ampdu_ack_len = successes;
+	info->status.ampdu_ack_map = bitmap;
+	info->status.ampdu_len = agg->frame_count;
 	iwlagn_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
 
 	IWL_DEBUG_TX_REPLY(priv, "Bitmap %llx\n", (unsigned long long)bitmap);

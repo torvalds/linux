@@ -32,6 +32,7 @@ static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 
 struct cflayer *cfctrl_create(void)
 {
+	struct dev_info dev_info;
 	struct cfctrl *this =
 		kmalloc(sizeof(struct cfctrl), GFP_ATOMIC);
 	if (!this) {
@@ -39,12 +40,13 @@ struct cflayer *cfctrl_create(void)
 		return NULL;
 	}
 	caif_assert(offsetof(struct cfctrl, serv.layer) == 0);
+	memset(&dev_info, 0, sizeof(dev_info));
+	dev_info.id = 0xff;
 	memset(this, 0, sizeof(*this));
+	cfsrvl_init(&this->serv, 0, &dev_info);
 	spin_lock_init(&this->info_list_lock);
 	atomic_set(&this->req_seq_no, 1);
 	atomic_set(&this->rsp_seq_no, 1);
-	this->serv.dev_info.id = 0xff;
-	this->serv.layer.id = 0;
 	this->serv.layer.receive = cfctrl_recv;
 	sprintf(this->serv.layer.name, "ctrl");
 	this->serv.layer.ctrlcmd = cfctrl_ctrlcmd;
@@ -125,20 +127,6 @@ void cfctrl_insert_req(struct cfctrl *ctrl,
 		p = p->next;
 	p->next = req;
 	spin_unlock(&ctrl->info_list_lock);
-}
-
-static void cfctrl_insert_req2(struct cfctrl *ctrl, enum cfctrl_cmd cmd,
-			       u8 linkid, struct cflayer *user_layer)
-{
-	struct cfctrl_request_info *req = kmalloc(sizeof(*req), GFP_KERNEL);
-	if (!req) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
-		return;
-	}
-	req->client_layer = user_layer;
-	req->cmd = cmd;
-	req->channel_id = linkid;
-	cfctrl_insert_req(ctrl, req);
 }
 
 /* Compare and remove request */
@@ -234,7 +222,7 @@ void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 	}
 }
 
-void cfctrl_linkup_request(struct cflayer *layer,
+int cfctrl_linkup_request(struct cflayer *layer,
 			   struct cfctrl_link_param *param,
 			   struct cflayer *user_layer)
 {
@@ -248,7 +236,7 @@ void cfctrl_linkup_request(struct cflayer *layer,
 	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
 	if (!pkt) {
 		pr_warning("CAIF: %s(): Out of memory\n", __func__);
-		return;
+		return -ENOMEM;
 	}
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_SETUP);
 	cfpkt_addbdy(pkt, (param->chtype << 4) + param->linktype);
@@ -294,11 +282,12 @@ void cfctrl_linkup_request(struct cflayer *layer,
 	default:
 		pr_warning("CAIF: %s():Request setup of bad link type = %d\n",
 			   __func__, param->linktype);
+		return -EINVAL;
 	}
 	req = kmalloc(sizeof(*req), GFP_KERNEL);
 	if (!req) {
 		pr_warning("CAIF: %s(): Out of memory\n", __func__);
-		return;
+		return -ENOMEM;
 	}
 	memset(req, 0, sizeof(*req));
 	req->client_layer = user_layer;
@@ -306,6 +295,11 @@ void cfctrl_linkup_request(struct cflayer *layer,
 	req->param = *param;
 	cfctrl_insert_req(cfctrl, req);
 	init_info(cfpkt_info(pkt), cfctrl);
+	/*
+	 * NOTE:Always send linkup and linkdown request on the same
+	 *	device as the payload. Otherwise old queued up payload
+	 *	might arrive with the newly allocated channel ID.
+	 */
 	cfpkt_info(pkt)->dev_info->id = param->phyid;
 	ret =
 	    cfctrl->serv.layer.dn->transmit(cfctrl->serv.layer.dn, pkt);
@@ -313,7 +307,9 @@ void cfctrl_linkup_request(struct cflayer *layer,
 		pr_err("CAIF: %s(): Could not transmit linksetup request\n",
 			__func__);
 		cfpkt_destroy(pkt);
+		return -ENODEV;
 	}
+	return 0;
 }
 
 int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
@@ -326,7 +322,6 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 		pr_warning("CAIF: %s(): Out of memory\n", __func__);
 		return -ENOMEM;
 	}
-	cfctrl_insert_req2(cfctrl, CFCTRL_CMD_LINK_DESTROY, channelid, client);
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_DESTROY);
 	cfpkt_addbdy(pkt, channelid);
 	init_info(cfpkt_info(pkt), cfctrl);
@@ -392,6 +387,38 @@ void cfctrl_getstartreason_req(struct cflayer *layer)
 }
 
 
+void cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer)
+{
+	struct cfctrl_request_info *p, *req;
+	struct cfctrl *ctrl = container_obj(layr);
+	spin_lock(&ctrl->info_list_lock);
+
+	if (ctrl->first_req == NULL) {
+		spin_unlock(&ctrl->info_list_lock);
+		return;
+	}
+
+	if (ctrl->first_req->client_layer == adap_layer) {
+
+		req = ctrl->first_req;
+		ctrl->first_req = ctrl->first_req->next;
+		kfree(req);
+	}
+
+	p = ctrl->first_req;
+	while (p != NULL && p->next != NULL) {
+		if (p->next->client_layer == adap_layer) {
+
+			req = p->next;
+			p->next = p->next->next;
+			kfree(p->next);
+		}
+		p = p->next;
+	}
+
+	spin_unlock(&ctrl->info_list_lock);
+}
+
 static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 {
 	u8 cmdrsp;
@@ -409,11 +436,8 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 	cmd = cmdrsp & CFCTRL_CMD_MASK;
 	if (cmd != CFCTRL_CMD_LINK_ERR
 	    && CFCTRL_RSP_BIT != (CFCTRL_RSP_BIT & cmdrsp)) {
-		if (handle_loop(cfctrl, cmd, pkt) == CAIF_FAILURE) {
-			pr_info("CAIF: %s() CAIF Protocol error:"
-				"Response bit not set\n", __func__);
-			goto error;
-		}
+		if (handle_loop(cfctrl, cmd, pkt) == CAIF_FAILURE)
+			cmdrsp |= CFCTRL_ERR_BIT;
 	}
 
 	switch (cmd) {
@@ -451,12 +475,16 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 			switch (serv) {
 			case CFCTRL_SRV_VEI:
 			case CFCTRL_SRV_DBG:
+				if (CFCTRL_ERR_BIT & cmdrsp)
+					break;
 				/* Link ID */
 				cfpkt_extr_head(pkt, &linkid, 1);
 				break;
 			case CFCTRL_SRV_VIDEO:
 				cfpkt_extr_head(pkt, &tmp, 1);
 				linkparam.u.video.connid = tmp;
+				if (CFCTRL_ERR_BIT & cmdrsp)
+					break;
 				/* Link ID */
 				cfpkt_extr_head(pkt, &linkid, 1);
 				break;
@@ -465,6 +493,8 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 				cfpkt_extr_head(pkt, &tmp32, 4);
 				linkparam.u.datagram.connid =
 				    le32_to_cpu(tmp32);
+				if (CFCTRL_ERR_BIT & cmdrsp)
+					break;
 				/* Link ID */
 				cfpkt_extr_head(pkt, &linkid, 1);
 				break;
@@ -483,6 +513,8 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 					*cp++ = tmp;
 				*cp = '\0';
 
+				if (CFCTRL_ERR_BIT & cmdrsp)
+					break;
 				/* Link ID */
 				cfpkt_extr_head(pkt, &linkid, 1);
 
@@ -519,6 +551,8 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 					cfpkt_extr_head(pkt, &tmp, 1);
 					*cp++ = tmp;
 				}
+				if (CFCTRL_ERR_BIT & cmdrsp)
+					break;
 				/* Link ID */
 				cfpkt_extr_head(pkt, &linkid, 1);
 				/* Length */
@@ -560,13 +594,7 @@ static int cfctrl_recv(struct cflayer *layer, struct cfpkt *pkt)
 		break;
 	case CFCTRL_CMD_LINK_DESTROY:
 		cfpkt_extr_head(pkt, &linkid, 1);
-		rsp.cmd = cmd;
-		rsp.channel_id = linkid;
-		req = cfctrl_remove_req(cfctrl, &rsp);
-		cfctrl->res.linkdestroy_rsp(cfctrl->serv.layer.up, linkid,
-					    req ? req->client_layer : NULL);
-		if (req != NULL)
-			kfree(req);
+		cfctrl->res.linkdestroy_rsp(cfctrl->serv.layer.up, linkid);
 		break;
 	case CFCTRL_CMD_LINK_ERR:
 		pr_err("CAIF: %s(): Frame Error Indication received\n",
@@ -608,7 +636,7 @@ static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 	case CAIF_CTRLCMD_FLOW_OFF_IND:
 		spin_lock(&this->info_list_lock);
 		if (this->first_req != NULL) {
-			pr_warning("CAIF: %s(): Received flow off in "
+			pr_debug("CAIF: %s(): Received flow off in "
 				   "control layer", __func__);
 		}
 		spin_unlock(&this->info_list_lock);
@@ -633,6 +661,7 @@ static int handle_loop(struct cfctrl *ctrl, int cmd, struct cfpkt *pkt)
 			if (!ctrl->loop_linkused[linkid])
 				goto found;
 		spin_unlock(&ctrl->loop_linkid_lock);
+		pr_err("CAIF: %s(): Out of link-ids\n", __func__);
 		return -EINVAL;
 found:
 		if (!ctrl->loop_linkused[linkid])

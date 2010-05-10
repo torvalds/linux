@@ -575,7 +575,7 @@ static int sta_info_buffer_expired(struct sta_info *sta,
 }
 
 
-static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
+static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 					     struct sta_info *sta)
 {
 	unsigned long flags;
@@ -583,7 +583,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	struct ieee80211_sub_if_data *sdata;
 
 	if (skb_queue_empty(&sta->ps_tx_buf))
-		return;
+		return false;
 
 	for (;;) {
 		spin_lock_irqsave(&sta->ps_tx_buf.lock, flags);
@@ -608,6 +608,8 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 		if (skb_queue_empty(&sta->ps_tx_buf))
 			sta_info_clear_tim_bit(sta);
 	}
+
+	return true;
 }
 
 static int __must_check __sta_info_destroy(struct sta_info *sta)
@@ -755,13 +757,18 @@ static void sta_info_cleanup(unsigned long data)
 {
 	struct ieee80211_local *local = (struct ieee80211_local *) data;
 	struct sta_info *sta;
+	bool timer_needed = false;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &local->sta_list, list)
-		sta_info_cleanup_expire_buffered(local, sta);
+		if (sta_info_cleanup_expire_buffered(local, sta))
+			timer_needed = true;
 	rcu_read_unlock();
 
 	if (local->quiescing)
+		return;
+
+	if (!timer_needed)
 		return;
 
 	local->sta_cleanup.expires =
@@ -848,8 +855,12 @@ struct ieee80211_sta *ieee80211_find_sta_by_hw(struct ieee80211_hw *hw,
 	struct sta_info *sta, *nxt;
 
 	/* Just return a random station ... first in list ... */
-	for_each_sta_info(hw_to_local(hw), addr, sta, nxt)
+	for_each_sta_info(hw_to_local(hw), addr, sta, nxt) {
+		if (!sta->uploaded)
+			return NULL;
 		return &sta->sta;
+	}
+
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(ieee80211_find_sta_by_hw);
@@ -857,14 +868,19 @@ EXPORT_SYMBOL_GPL(ieee80211_find_sta_by_hw);
 struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
 					 const u8 *addr)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct sta_info *sta;
 
 	if (!vif)
 		return NULL;
 
-	sdata = vif_to_sdata(vif);
+	sta = sta_info_get_bss(vif_to_sdata(vif), addr);
+	if (!sta)
+		return NULL;
 
-	return ieee80211_find_sta_by_hw(&sdata->local->hw, addr);
+	if (!sta->uploaded)
+		return NULL;
+
+	return &sta->sta;
 }
 EXPORT_SYMBOL(ieee80211_find_sta);
 

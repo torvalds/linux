@@ -611,6 +611,8 @@ typedef struct drm_i915_private {
 	/* Reclocking support */
 	bool render_reclock_avail;
 	bool lvds_downclock_avail;
+	/* indicate whether the LVDS EDID is OK */
+	bool lvds_edid_good;
 	/* indicates the reduced downclock for LVDS*/
 	int lvds_downclock;
 	struct work_struct idle_work;
@@ -730,6 +732,8 @@ struct drm_i915_gem_object {
 	 */
 	atomic_t pending_flip;
 };
+
+#define to_intel_bo(x) ((struct drm_i915_gem_object *) (x)->driver_private)
 
 /**
  * Request queue structure.

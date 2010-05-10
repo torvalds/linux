@@ -51,12 +51,11 @@ struct cfcnfg {
 	struct cfcnfg_phyinfo phy_layers[MAX_PHY_LAYERS];
 };
 
-static void cncfg_linkup_rsp(struct cflayer *layer, u8 linkid,
+static void cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id,
 			     enum cfctrl_srv serv, u8 phyid,
 			     struct cflayer *adapt_layer);
-static void cncfg_linkdestroy_rsp(struct cflayer *layer, u8 linkid,
-				  struct cflayer *client_layer);
-static void cncfg_reject_rsp(struct cflayer *layer, u8 linkid,
+static void cfcnfg_linkdestroy_rsp(struct cflayer *layer, u8 channel_id);
+static void cfcnfg_reject_rsp(struct cflayer *layer, u8 channel_id,
 			     struct cflayer *adapt_layer);
 static void cfctrl_resp_func(void);
 static void cfctrl_enum_resp(void);
@@ -82,13 +81,13 @@ struct cfcnfg *cfcnfg_create(void)
 	resp = cfctrl_get_respfuncs(this->ctrl);
 	resp->enum_rsp = cfctrl_enum_resp;
 	resp->linkerror_ind = cfctrl_resp_func;
-	resp->linkdestroy_rsp = cncfg_linkdestroy_rsp;
+	resp->linkdestroy_rsp = cfcnfg_linkdestroy_rsp;
 	resp->sleep_rsp = cfctrl_resp_func;
 	resp->wake_rsp = cfctrl_resp_func;
 	resp->restart_rsp = cfctrl_resp_func;
 	resp->radioset_rsp = cfctrl_resp_func;
-	resp->linksetup_rsp = cncfg_linkup_rsp;
-	resp->reject_rsp = cncfg_reject_rsp;
+	resp->linksetup_rsp = cfcnfg_linkup_rsp;
+	resp->reject_rsp = cfcnfg_reject_rsp;
 
 	this->last_phyid = 1;
 
@@ -175,142 +174,82 @@ int cfcnfg_get_named(struct cfcnfg *cnfg, char *name)
 	return 0;
 }
 
-/*
- * NOTE: What happens on destroy failure:
- *	 1a) No response - Too early
- *	      This will not happen because enumerate has already
- *	      completed.
- *	 1b) No response - FATAL
- *	      Not handled, but this should be a CAIF PROTOCOL ERROR
- *	      Modem error, response is really expected -  this
- *	      case is not really handled.
- *	 2) O/E-bit indicate error
- *	      Ignored - this link is destroyed anyway.
- *	 3) Not able to match on request
- *	      Not handled, but this should be a CAIF PROTOCOL ERROR
- *	 4) Link-Error - (no response)
- *	      Not handled, but this should be a CAIF PROTOCOL ERROR
- */
-
-int cfcnfg_del_adapt_layer(struct cfcnfg *cnfg, struct cflayer *adap_layer)
+int cfcnfg_disconn_adapt_layer(struct cfcnfg *cnfg, struct cflayer *adap_layer)
 {
 	u8 channel_id = 0;
 	int ret = 0;
+	struct cflayer *servl = NULL;
 	struct cfcnfg_phyinfo *phyinfo = NULL;
 	u8 phyid = 0;
-
 	caif_assert(adap_layer != NULL);
 	channel_id = adap_layer->id;
-	if (channel_id == 0) {
+	if (adap_layer->dn == NULL || channel_id == 0) {
 		pr_err("CAIF: %s():adap_layer->id is 0\n", __func__);
 		ret = -ENOTCONN;
 		goto end;
 	}
-
-	if (adap_layer->dn == NULL) {
-		pr_err("CAIF: %s():adap_layer->dn is NULL\n", __func__);
-		ret = -ENODEV;
+	servl = cfmuxl_remove_uplayer(cnfg->mux, channel_id);
+	if (servl == NULL)
 		goto end;
-	}
-
-	if (adap_layer->dn != NULL)
-		phyid = cfsrvl_getphyid(adap_layer->dn);
-
-	phyinfo = cfcnfg_get_phyinfo(cnfg, phyid);
-	if (phyinfo == NULL) {
-		pr_warning("CAIF: %s(): No interface to send disconnect to\n",
-			   __func__);
-		ret = -ENODEV;
-		goto end;
-	}
-
-	if (phyinfo->id != phyid
-		|| phyinfo->phy_layer->id != phyid
-		|| phyinfo->frm_layer->id != phyid) {
-
-		pr_err("CAIF: %s(): Inconsistency in phy registration\n",
-			__func__);
+	layer_set_up(servl, NULL);
+	ret = cfctrl_linkdown_req(cnfg->ctrl, channel_id, adap_layer);
+	if (servl == NULL) {
+		pr_err("CAIF: %s(): PROTOCOL ERROR "
+		       "- Error removing service_layer Channel_Id(%d)",
+			__func__, channel_id);
 		ret = -EINVAL;
 		goto end;
 	}
+	caif_assert(channel_id == servl->id);
+	if (adap_layer->dn != NULL) {
+		phyid = cfsrvl_getphyid(adap_layer->dn);
 
-	ret = cfctrl_linkdown_req(cnfg->ctrl, channel_id, adap_layer);
-
-end:
+		phyinfo = cfcnfg_get_phyinfo(cnfg, phyid);
+		if (phyinfo == NULL) {
+			pr_warning("CAIF: %s(): "
+				"No interface to send disconnect to\n",
+				__func__);
+			ret = -ENODEV;
+			goto end;
+		}
+		if (phyinfo->id != phyid ||
+			phyinfo->phy_layer->id != phyid ||
+			phyinfo->frm_layer->id != phyid) {
+			pr_err("CAIF: %s(): "
+				"Inconsistency in phy registration\n",
+				__func__);
+			ret = -EINVAL;
+			goto end;
+		}
+	}
 	if (phyinfo != NULL && --phyinfo->phy_ref_count == 0 &&
 		phyinfo->phy_layer != NULL &&
 		phyinfo->phy_layer->modemcmd != NULL) {
 		phyinfo->phy_layer->modemcmd(phyinfo->phy_layer,
 					     _CAIF_MODEMCMD_PHYIF_USELESS);
 	}
+end:
+	cfsrvl_put(servl);
+	cfctrl_cancel_req(cnfg->ctrl, adap_layer);
+	if (adap_layer->ctrlcmd != NULL)
+		adap_layer->ctrlcmd(adap_layer, CAIF_CTRLCMD_DEINIT_RSP, 0);
 	return ret;
 
 }
-EXPORT_SYMBOL(cfcnfg_del_adapt_layer);
+EXPORT_SYMBOL(cfcnfg_disconn_adapt_layer);
 
-static void cncfg_linkdestroy_rsp(struct cflayer *layer, u8 linkid,
-				  struct cflayer *client_layer)
+void cfcnfg_release_adap_layer(struct cflayer *adap_layer)
 {
-	struct cfcnfg *cnfg = container_obj(layer);
-	struct cflayer *servl;
+	if (adap_layer->dn)
+		cfsrvl_put(adap_layer->dn);
+}
+EXPORT_SYMBOL(cfcnfg_release_adap_layer);
 
-	/*
-	 * 1) Remove service from the MUX layer. The MUX must
-	 *    guarante that no more payload sent "upwards" (receive)
-	 */
-	servl = cfmuxl_remove_uplayer(cnfg->mux, linkid);
-
-	if (servl == NULL) {
-		pr_err("CAIF: %s(): PROTOCOL ERROR "
-		       "- Error removing service_layer Linkid(%d)",
-			__func__, linkid);
-		return;
-	}
-	caif_assert(linkid == servl->id);
-
-	if (servl != client_layer && servl->up != client_layer) {
-		pr_err("CAIF: %s(): Error removing service_layer "
-		       "Linkid(%d) %p %p",
-			__func__, linkid, (void *) servl,
-			(void *) client_layer);
-		return;
-	}
-
-	/*
-	 * 2) DEINIT_RSP must guarantee that no more packets are transmitted
-	 *    from client (adap_layer) when it returns.
-	 */
-
-	if (servl->ctrlcmd == NULL) {
-		pr_err("CAIF: %s(): Error servl->ctrlcmd == NULL", __func__);
-		return;
-	}
-
-	servl->ctrlcmd(servl, CAIF_CTRLCMD_DEINIT_RSP, 0);
-
-	/* 3) It is now safe to destroy the service layer. */
-	cfservl_destroy(servl);
+static void cfcnfg_linkdestroy_rsp(struct cflayer *layer, u8 channel_id)
+{
 }
 
-/*
- * NOTE: What happens on linksetup failure:
- *	 1a) No response - Too early
- *	      This will not happen because enumerate is secured
- *	      before using interface.
- *	 1b) No response - FATAL
- *	      Not handled, but this should be a CAIF PROTOCOL ERROR
- *	      Modem error, response is really expected -  this case is
- *	      not really handled.
- *	 2) O/E-bit indicate error
- *	      Handled in cnfg_reject_rsp
- *	 3) Not able to match on request
- *	      Not handled, but this should be a CAIF PROTOCOL ERROR
- *	 4) Link-Error - (no response)
- *	      Not handled, but this should be a CAIF PROTOCOL ERROR
- */
-
-int
-cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
+int cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
 				struct cfctrl_link_param *param,
 				struct cflayer *adap_layer)
 {
@@ -340,12 +279,11 @@ cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
 		     param->phyid);
 	/* FIXME: ENUMERATE INITIALLY WHEN ACTIVATING PHYSICAL INTERFACE */
 	cfctrl_enum_req(cnfg->ctrl, param->phyid);
-	cfctrl_linkup_request(cnfg->ctrl, param, adap_layer);
-	return 0;
+	return cfctrl_linkup_request(cnfg->ctrl, param, adap_layer);
 }
 EXPORT_SYMBOL(cfcnfg_add_adaptation_layer);
 
-static void cncfg_reject_rsp(struct cflayer *layer, u8 linkid,
+static void cfcnfg_reject_rsp(struct cflayer *layer, u8 channel_id,
 			     struct cflayer *adapt_layer)
 {
 	if (adapt_layer != NULL && adapt_layer->ctrlcmd != NULL)
@@ -354,15 +292,17 @@ static void cncfg_reject_rsp(struct cflayer *layer, u8 linkid,
 }
 
 static void
-cncfg_linkup_rsp(struct cflayer *layer, u8 linkid, enum cfctrl_srv serv,
+cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 		 u8 phyid, struct cflayer *adapt_layer)
 {
 	struct cfcnfg *cnfg = container_obj(layer);
 	struct cflayer *servicel = NULL;
 	struct cfcnfg_phyinfo *phyinfo;
 	if (adapt_layer == NULL) {
-		pr_err("CAIF: %s(): PROTOCOL ERROR "
-			"- LinkUp Request/Response did not match\n", __func__);
+		pr_debug("CAIF: %s(): link setup response "
+				"but no client exist, send linkdown back\n",
+				__func__);
+		cfctrl_linkdown_req(cnfg->ctrl, channel_id, NULL);
 		return;
 	}
 
@@ -383,26 +323,26 @@ cncfg_linkup_rsp(struct cflayer *layer, u8 linkid, enum cfctrl_srv serv,
 					     _CAIF_MODEMCMD_PHYIF_USEFULL);
 
 	}
-	adapt_layer->id = linkid;
+	adapt_layer->id = channel_id;
 
 	switch (serv) {
 	case CFCTRL_SRV_VEI:
-		servicel = cfvei_create(linkid, &phyinfo->dev_info);
+		servicel = cfvei_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_DATAGRAM:
-		servicel = cfdgml_create(linkid, &phyinfo->dev_info);
+		servicel = cfdgml_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_RFM:
-		servicel = cfrfml_create(linkid, &phyinfo->dev_info);
+		servicel = cfrfml_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_UTIL:
-		servicel = cfutill_create(linkid, &phyinfo->dev_info);
+		servicel = cfutill_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_VIDEO:
-		servicel = cfvidl_create(linkid, &phyinfo->dev_info);
+		servicel = cfvidl_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_DBG:
-		servicel = cfdbgl_create(linkid, &phyinfo->dev_info);
+		servicel = cfdbgl_create(channel_id, &phyinfo->dev_info);
 		break;
 	default:
 		pr_err("CAIF: %s(): Protocol error. "
@@ -415,9 +355,10 @@ cncfg_linkup_rsp(struct cflayer *layer, u8 linkid, enum cfctrl_srv serv,
 		return;
 	}
 	layer_set_dn(servicel, cnfg->mux);
-	cfmuxl_set_uplayer(cnfg->mux, servicel, linkid);
+	cfmuxl_set_uplayer(cnfg->mux, servicel, channel_id);
 	layer_set_up(servicel, adapt_layer);
 	layer_set_dn(adapt_layer, servicel);
+	cfsrvl_get(servicel);
 	servicel->ctrlcmd(servicel, CAIF_CTRLCMD_INIT_RSP, 0);
 }
 

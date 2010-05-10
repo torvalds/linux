@@ -19,7 +19,7 @@
 
 
 struct wmi_event_txrate {
-	u32 txrate;
+	__be32 txrate;
 	struct {
 		u8 rssi_thresh;
 		u8 per;
@@ -27,8 +27,8 @@ struct wmi_event_txrate {
 } __packed;
 
 struct wmi_cmd_hdr {
-	u16 command_id;
-	u16 seq_no;
+	__be16 command_id;
+	__be16 seq_no;
 } __packed;
 
 struct wmi_swba {
@@ -84,12 +84,20 @@ enum wmi_event_id {
 	WMI_TXRATE_EVENTID,
 };
 
+#define MAX_CMD_NUMBER 62
+
+struct register_write {
+	__be32 reg;
+	__be32 val;
+};
+
 struct wmi {
 	struct ath9k_htc_priv *drv_priv;
 	struct htc_target *htc;
 	enum htc_endpoint_id ctrl_epid;
 	struct mutex op_mutex;
 	struct completion cmd_wait;
+	enum wmi_cmd_id last_cmd_id;
 	u16 tx_seq_id;
 	u8 *cmd_rsp_buf;
 	u32 cmd_rsp_len;
@@ -97,6 +105,11 @@ struct wmi {
 
 	struct sk_buff *wmi_skb;
 	spinlock_t wmi_lock;
+
+	atomic_t mwrite_cnt;
+	struct register_write multi_write[MAX_CMD_NUMBER];
+	u32 multi_write_idx;
+	struct mutex multi_write_mutex;
 };
 
 struct wmi *ath9k_init_wmi(struct ath9k_htc_priv *priv);
@@ -113,14 +126,14 @@ void ath9k_wmi_tasklet(unsigned long data);
 	do {								\
 		ret = ath9k_wmi_cmd(priv->wmi, _wmi_cmd, NULL, 0,	\
 				    (u8 *) &cmd_rsp,			\
-				    sizeof(cmd_rsp), HZ);		\
+				    sizeof(cmd_rsp), HZ*2);		\
 	} while (0)
 
 #define WMI_CMD_BUF(_wmi_cmd, _buf)					\
 	do {								\
 		ret = ath9k_wmi_cmd(priv->wmi, _wmi_cmd,		\
 				    (u8 *) _buf, sizeof(*_buf),		\
-				    &cmd_rsp, sizeof(cmd_rsp), HZ);	\
+				    &cmd_rsp, sizeof(cmd_rsp), HZ*2);	\
 	} while (0)
 
 #endif /* WMI_H */

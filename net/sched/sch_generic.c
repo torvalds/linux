@@ -94,7 +94,7 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
 		 * Another cpu is holding lock, requeue & delay xmits for
 		 * some time.
 		 */
-		__get_cpu_var(netdev_rx_stat).cpu_collision++;
+		__get_cpu_var(softnet_data).cpu_collision++;
 		ret = dev_requeue_skb(skb, q);
 	}
 

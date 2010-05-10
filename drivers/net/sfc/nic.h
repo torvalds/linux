@@ -135,12 +135,14 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
  * @fw_build: Firmware build number
  * @mcdi: Management-Controller-to-Driver Interface
  * @wol_filter_id: Wake-on-LAN packet filter id
+ * @ipv6_rss_key: Toeplitz hash key for IPv6 RSS
  */
 struct siena_nic_data {
 	u64 fw_version;
 	u32 fw_build;
 	struct efx_mcdi_iface mcdi;
 	int wol_filter_id;
+	u8 ipv6_rss_key[40];
 };
 
 extern void siena_print_fwver(struct efx_nic *efx, char *buf, size_t len);
@@ -156,7 +158,7 @@ extern struct efx_nic_type siena_a0_nic_type;
  **************************************************************************
  */
 
-extern void falcon_probe_board(struct efx_nic *efx, u16 revision_info);
+extern int falcon_probe_board(struct efx_nic *efx, u16 revision_info);
 
 /* TX data path */
 extern int efx_nic_probe_tx(struct efx_tx_queue *tx_queue);
@@ -203,6 +205,7 @@ extern void falcon_irq_ack_a1(struct efx_nic *efx);
 extern int efx_nic_flush_queues(struct efx_nic *efx);
 extern void falcon_start_nic_stats(struct efx_nic *efx);
 extern void falcon_stop_nic_stats(struct efx_nic *efx);
+extern void falcon_setup_xaui(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
 extern void efx_nic_init_common(struct efx_nic *efx);
 

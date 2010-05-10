@@ -485,8 +485,8 @@ S:	Maintained
 F:	drivers/input/mouse/bcm5974.c
 
 APPLE SMC DRIVER
-M:	Nicolas Boichat <nicolas@boichat.ch>
-L:	mactel-linux-devel@lists.sourceforge.net
+M:	Henrik Rydberg <rydberg@euromail.se>
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/applesmc.c
 
@@ -970,6 +970,16 @@ M:	Wan ZongShun <mcuos.com@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.mcuos.com
 S:	Maintained
+
+ARM/U300 MACHINE SUPPORT
+M:	Linus Walleij <linus.walleij@stericsson.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	arch/arm/mach-u300/
+F:	drivers/i2c/busses/i2c-stu300.c
+F:	drivers/rtc/rtc-coh901331.c
+F:	drivers/watchdog/coh901327_wdt.c
+F:	drivers/dma/coh901318*
 
 ARM/U8500 ARM ARCHITECTURE
 M:	Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
@@ -3946,6 +3956,7 @@ F:	net/rfkill/
 F:	net/wireless/
 F:	include/net/ieee80211*
 F:	include/linux/wireless.h
+F:	include/linux/iw_handler.h
 F:	drivers/net/wireless/
 
 NETWORKING DRIVERS

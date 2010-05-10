@@ -503,7 +503,6 @@ static int __init do_elmc_probe(struct net_device *dev)
 		break;
 	}
 
-	memset(pr, 0, sizeof(struct priv));
 	pr->slot = slot;
 
 	pr_info("%s: 3Com 3c523 Rev 0x%x at %#lx\n", dev->name, (int) revision,

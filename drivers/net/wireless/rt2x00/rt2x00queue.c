@@ -334,12 +334,10 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	txdesc->aifs = entry->queue->aifs;
 
 	/*
-	 * Header and alignment information.
+	 * Header and frame information.
 	 */
+	txdesc->length = entry->skb->len;
 	txdesc->header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
-	if (test_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags) &&
-	    (entry->skb->len > txdesc->header_length))
-		txdesc->l2pad = L2PAD_SIZE(txdesc->header_length);
 
 	/*
 	 * Check whether this frame is to be acked.
@@ -526,7 +524,8 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	 * call failed. Since we always return NETDEV_TX_OK to mac80211,
 	 * this frame will simply be dropped.
 	 */
-	if (unlikely(queue->rt2x00dev->ops->lib->write_tx_data(entry))) {
+	if (unlikely(queue->rt2x00dev->ops->lib->write_tx_data(entry,
+							       &txdesc))) {
 		clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 		entry->skb = NULL;
 		return -EIO;

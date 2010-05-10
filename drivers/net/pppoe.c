@@ -258,7 +258,7 @@ static inline struct pppox_sock *get_item_by_addr(struct net *net,
 	dev = dev_get_by_name_rcu(net, sp->sa_addr.pppoe.dev);
 	if (dev) {
 		ifindex = dev->ifindex;
-		pn = net_generic(net, pppoe_net_id);
+		pn = pppoe_pernet(net);
 		pppox_sock = get_item(pn, sp->sa_addr.pppoe.sid,
 				sp->sa_addr.pppoe.remote, ifindex);
 	}
@@ -289,12 +289,6 @@ static void pppoe_flush_dev(struct net_device *dev)
 {
 	struct pppoe_net *pn;
 	int i;
-
-	BUG_ON(dev == NULL);
-
-	pn = pppoe_pernet(dev_net(dev));
-	if (!pn) /* already freed */
-		return;
 
 	write_lock_bh(&pn->hash_lock);
 	for (i = 0; i < PPPOE_HASH_SIZE; i++) {

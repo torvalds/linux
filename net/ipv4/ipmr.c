@@ -128,8 +128,8 @@ static int ip_mr_forward(struct net *net, struct mr_table *mrt,
 			 int local);
 static int ipmr_cache_report(struct mr_table *mrt,
 			     struct sk_buff *pkt, vifi_t vifi, int assert);
-static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
-			    struct mfc_cache *c, struct rtmsg *rtm);
+static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
+			      struct mfc_cache *c, struct rtmsg *rtm);
 static void ipmr_expire_process(unsigned long arg);
 
 #ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
@@ -216,8 +216,8 @@ static int ipmr_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	return 0;
 }
 
-static struct fib_rules_ops ipmr_rules_ops_template = {
-	.family		= FIB_RULES_IPMR,
+static const struct fib_rules_ops __net_initdata ipmr_rules_ops_template = {
+	.family		= RTNL_FAMILY_IPMR,
 	.rule_size	= sizeof(struct ipmr_rule),
 	.addr_size	= sizeof(u32),
 	.action		= ipmr_rule_action,
@@ -831,7 +831,7 @@ static void ipmr_cache_resolve(struct net *net, struct mr_table *mrt,
 		if (ip_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct iphdr));
 
-			if (ipmr_fill_mroute(mrt, skb, c, NLMSG_DATA(nlh)) > 0) {
+			if (__ipmr_fill_mroute(mrt, skb, c, NLMSG_DATA(nlh)) > 0) {
 				nlh->nlmsg_len = (skb_tail_pointer(skb) -
 						  (u8 *)nlh);
 			} else {
@@ -1772,10 +1772,10 @@ int ip_mr_input(struct sk_buff *skb)
 
 		vif = ipmr_find_vif(mrt, skb->dev);
 		if (vif >= 0) {
-			int err = ipmr_cache_unresolved(mrt, vif, skb);
+			int err2 = ipmr_cache_unresolved(mrt, vif, skb);
 			read_unlock(&mrt_lock);
 
-			return err;
+			return err2;
 		}
 		read_unlock(&mrt_lock);
 		kfree_skb(skb);
@@ -1904,9 +1904,8 @@ drop:
 }
 #endif
 
-static int
-ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb, struct mfc_cache *c,
-		 struct rtmsg *rtm)
+static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
+			      struct mfc_cache *c, struct rtmsg *rtm)
 {
 	int ct;
 	struct rtnexthop *nhp;
@@ -1994,9 +1993,91 @@ int ipmr_get_route(struct net *net,
 
 	if (!nowait && (rtm->rtm_flags&RTM_F_NOTIFY))
 		cache->mfc_flags |= MFC_NOTIFY;
-	err = ipmr_fill_mroute(mrt, skb, cache, rtm);
+	err = __ipmr_fill_mroute(mrt, skb, cache, rtm);
 	read_unlock(&mrt_lock);
 	return err;
+}
+
+static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
+			    u32 pid, u32 seq, struct mfc_cache *c)
+{
+	struct nlmsghdr *nlh;
+	struct rtmsg *rtm;
+
+	nlh = nlmsg_put(skb, pid, seq, RTM_NEWROUTE, sizeof(*rtm), NLM_F_MULTI);
+	if (nlh == NULL)
+		return -EMSGSIZE;
+
+	rtm = nlmsg_data(nlh);
+	rtm->rtm_family   = RTNL_FAMILY_IPMR;
+	rtm->rtm_dst_len  = 32;
+	rtm->rtm_src_len  = 32;
+	rtm->rtm_tos      = 0;
+	rtm->rtm_table    = mrt->id;
+	NLA_PUT_U32(skb, RTA_TABLE, mrt->id);
+	rtm->rtm_type     = RTN_MULTICAST;
+	rtm->rtm_scope    = RT_SCOPE_UNIVERSE;
+	rtm->rtm_protocol = RTPROT_UNSPEC;
+	rtm->rtm_flags    = 0;
+
+	NLA_PUT_BE32(skb, RTA_SRC, c->mfc_origin);
+	NLA_PUT_BE32(skb, RTA_DST, c->mfc_mcastgrp);
+
+	if (__ipmr_fill_mroute(mrt, skb, c, rtm) < 0)
+		goto nla_put_failure;
+
+	return nlmsg_end(skb, nlh);
+
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
+}
+
+static int ipmr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct mr_table *mrt;
+	struct mfc_cache *mfc;
+	unsigned int t = 0, s_t;
+	unsigned int h = 0, s_h;
+	unsigned int e = 0, s_e;
+
+	s_t = cb->args[0];
+	s_h = cb->args[1];
+	s_e = cb->args[2];
+
+	read_lock(&mrt_lock);
+	ipmr_for_each_table(mrt, net) {
+		if (t < s_t)
+			goto next_table;
+		if (t > s_t)
+			s_h = 0;
+		for (h = s_h; h < MFC_LINES; h++) {
+			list_for_each_entry(mfc, &mrt->mfc_cache_array[h], list) {
+				if (e < s_e)
+					goto next_entry;
+				if (ipmr_fill_mroute(mrt, skb,
+						     NETLINK_CB(cb->skb).pid,
+						     cb->nlh->nlmsg_seq,
+						     mfc) < 0)
+					goto done;
+next_entry:
+				e++;
+			}
+			e = s_e = 0;
+		}
+		s_h = 0;
+next_table:
+		t++;
+	}
+done:
+	read_unlock(&mrt_lock);
+
+	cb->args[2] = e;
+	cb->args[1] = h;
+	cb->args[0] = t;
+
+	return skb->len;
 }
 
 #ifdef CONFIG_PROC_FS
@@ -2227,9 +2308,9 @@ static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
 		const struct ipmr_mfc_iter *it = seq->private;
 		const struct mr_table *mrt = it->mrt;
 
-		seq_printf(seq, "%08lX %08lX %-3hd",
-			   (unsigned long) mfc->mfc_mcastgrp,
-			   (unsigned long) mfc->mfc_origin,
+		seq_printf(seq, "%08X %08X %-3hd",
+			   (__force u32) mfc->mfc_mcastgrp,
+			   (__force u32) mfc->mfc_origin,
 			   mfc->mfc_parent);
 
 		if (it->cache != &mrt->mfc_unres_queue) {
@@ -2355,6 +2436,7 @@ int __init ip_mr_init(void)
 		goto add_proto_fail;
 	}
 #endif
+	rtnl_register(RTNL_FAMILY_IPMR, RTM_GETROUTE, NULL, ipmr_rtm_dumproute);
 	return 0;
 
 #ifdef CONFIG_IP_PIMSM_V2

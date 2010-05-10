@@ -315,12 +315,30 @@ out:
 	return ret;
 }
 
+static int if_sdio_wait_status(struct if_sdio_card *card, const u8 condition)
+{
+	u8 status;
+	unsigned long timeout;
+	int ret = 0;
+
+	timeout = jiffies + HZ;
+	while (1) {
+		status = sdio_readb(card->func, IF_SDIO_STATUS, &ret);
+		if (ret)
+			return ret;
+		if ((status & condition) == condition)
+			break;
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+		mdelay(1);
+	}
+	return ret;
+}
+
 static int if_sdio_card_to_host(struct if_sdio_card *card)
 {
 	int ret;
-	u8 status;
 	u16 size, type, chunk;
-	unsigned long timeout;
 
 	lbs_deb_enter(LBS_DEB_SDIO);
 
@@ -335,19 +353,9 @@ static int if_sdio_card_to_host(struct if_sdio_card *card)
 		goto out;
 	}
 
-	timeout = jiffies + HZ;
-	while (1) {
-		status = sdio_readb(card->func, IF_SDIO_STATUS, &ret);
-		if (ret)
-			goto out;
-		if (status & IF_SDIO_IO_RDY)
-			break;
-		if (time_after(jiffies, timeout)) {
-			ret = -ETIMEDOUT;
-			goto out;
-		}
-		mdelay(1);
-	}
+	ret = if_sdio_wait_status(card, IF_SDIO_IO_RDY);
+	if (ret)
+		goto out;
 
 	/*
 	 * The transfer must be in one transaction or the firmware
@@ -414,8 +422,6 @@ static void if_sdio_host_to_card_worker(struct work_struct *work)
 {
 	struct if_sdio_card *card;
 	struct if_sdio_packet *packet;
-	unsigned long timeout;
-	u8 status;
 	int ret;
 	unsigned long flags;
 
@@ -435,25 +441,15 @@ static void if_sdio_host_to_card_worker(struct work_struct *work)
 
 		sdio_claim_host(card->func);
 
-		timeout = jiffies + HZ;
-		while (1) {
-			status = sdio_readb(card->func, IF_SDIO_STATUS, &ret);
-			if (ret)
-				goto release;
-			if (status & IF_SDIO_IO_RDY)
-				break;
-			if (time_after(jiffies, timeout)) {
-				ret = -ETIMEDOUT;
-				goto release;
-			}
-			mdelay(1);
+		ret = if_sdio_wait_status(card, IF_SDIO_IO_RDY);
+		if (ret == 0) {
+			ret = sdio_writesb(card->func, card->ioport,
+					   packet->buffer, packet->nb);
 		}
 
-		ret = sdio_writesb(card->func, card->ioport,
-				packet->buffer, packet->nb);
 		if (ret)
-			goto release;
-release:
+			lbs_pr_err("error %d sending packet to firmware\n", ret);
+
 		sdio_release_host(card->func);
 
 		kfree(packet);
@@ -466,10 +462,11 @@ release:
 /* Firmware                                                         */
 /********************************************************************/
 
+#define FW_DL_READY_STATUS (IF_SDIO_IO_RDY | IF_SDIO_DL_RDY)
+
 static int if_sdio_prog_helper(struct if_sdio_card *card)
 {
 	int ret;
-	u8 status;
 	const struct firmware *fw;
 	unsigned long timeout;
 	u8 *chunk_buffer;
@@ -501,20 +498,14 @@ static int if_sdio_prog_helper(struct if_sdio_card *card)
 	size = fw->size;
 
 	while (size) {
-		timeout = jiffies + HZ;
-		while (1) {
-			status = sdio_readb(card->func, IF_SDIO_STATUS, &ret);
-			if (ret)
-				goto release;
-			if ((status & IF_SDIO_IO_RDY) &&
-					(status & IF_SDIO_DL_RDY))
-				break;
-			if (time_after(jiffies, timeout)) {
-				ret = -ETIMEDOUT;
-				goto release;
-			}
-			mdelay(1);
-		}
+		ret = if_sdio_wait_status(card, FW_DL_READY_STATUS);
+		if (ret)
+			goto release;
+
+		/* On some platforms (like Davinci) the chip needs more time
+		 * between helper blocks.
+		 */
+		mdelay(2);
 
 		chunk_size = min(size, (size_t)60);
 
@@ -584,7 +575,6 @@ out:
 static int if_sdio_prog_real(struct if_sdio_card *card)
 {
 	int ret;
-	u8 status;
 	const struct firmware *fw;
 	unsigned long timeout;
 	u8 *chunk_buffer;
@@ -616,20 +606,9 @@ static int if_sdio_prog_real(struct if_sdio_card *card)
 	size = fw->size;
 
 	while (size) {
-		timeout = jiffies + HZ;
-		while (1) {
-			status = sdio_readb(card->func, IF_SDIO_STATUS, &ret);
-			if (ret)
-				goto release;
-			if ((status & IF_SDIO_IO_RDY) &&
-					(status & IF_SDIO_DL_RDY))
-				break;
-			if (time_after(jiffies, timeout)) {
-				ret = -ETIMEDOUT;
-				goto release;
-			}
-			mdelay(1);
-		}
+		ret = if_sdio_wait_status(card, FW_DL_READY_STATUS);
+		if (ret)
+			goto release;
 
 		req_size = sdio_readb(card->func, IF_SDIO_RD_BASE, &ret);
 		if (ret)

@@ -50,7 +50,7 @@ static inline enum direction decode_direction(unsigned int insn)
 }
 
 /* 16 = double-word, 8 = extra-word, 4 = word, 2 = half-word */
-static inline int decode_access_size(unsigned int insn)
+static inline int decode_access_size(struct pt_regs *regs, unsigned int insn)
 {
 	unsigned int tmp;
 
@@ -66,7 +66,7 @@ static inline int decode_access_size(unsigned int insn)
 		return 2;
 	else {
 		printk("Impossible unaligned trap. insn=%08x\n", insn);
-		die_if_kernel("Byte sized unaligned access?!?!", current_thread_info()->kregs);
+		die_if_kernel("Byte sized unaligned access?!?!", regs);
 
 		/* GCC should never warn that control reaches the end
 		 * of this function without returning a value because
@@ -286,7 +286,7 @@ static void log_unaligned(struct pt_regs *regs)
 asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 {
 	enum direction dir = decode_direction(insn);
-	int size = decode_access_size(insn);
+	int size = decode_access_size(regs, insn);
 	int orig_asi, asi;
 
 	current_thread_info()->kern_una_regs = regs;

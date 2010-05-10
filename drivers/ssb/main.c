@@ -834,6 +834,9 @@ int ssb_bus_pcibus_register(struct ssb_bus *bus,
 	if (!err) {
 		ssb_printk(KERN_INFO PFX "Sonics Silicon Backplane found on "
 			   "PCI device %s\n", dev_name(&host_pci->dev));
+	} else {
+		ssb_printk(KERN_ERR PFX "Failed to register PCI version"
+			   " of SSB with error %d\n", err);
 	}
 
 	return err;

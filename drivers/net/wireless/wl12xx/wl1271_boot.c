@@ -351,7 +351,7 @@ static int wl1271_boot_soft_reset(struct wl1271 *wl)
 static int wl1271_boot_run_firmware(struct wl1271 *wl)
 {
 	int loop, ret;
-	u32 chip_id, interrupt;
+	u32 chip_id, intr;
 
 	wl1271_boot_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
 
@@ -368,15 +368,15 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	loop = 0;
 	while (loop++ < INIT_LOOP) {
 		udelay(INIT_LOOP_DELAY);
-		interrupt = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+		intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 
-		if (interrupt == 0xffffffff) {
+		if (intr == 0xffffffff) {
 			wl1271_error("error reading hardware complete "
 				     "init indication");
 			return -EIO;
 		}
 		/* check that ACX_INTR_INIT_COMPLETE is enabled */
-		else if (interrupt & WL1271_ACX_INTR_INIT_COMPLETE) {
+		else if (intr & WL1271_ACX_INTR_INIT_COMPLETE) {
 			wl1271_write32(wl, ACX_REG_INTERRUPT_ACK,
 				       WL1271_ACX_INTR_INIT_COMPLETE);
 			break;

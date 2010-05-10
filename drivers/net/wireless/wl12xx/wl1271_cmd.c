@@ -37,7 +37,7 @@
 #include "wl1271_cmd.h"
 #include "wl1271_event.h"
 
-#define WL1271_CMD_POLL_COUNT       5
+#define WL1271_CMD_FAST_POLL_COUNT       50
 
 /*
  * send command to firmware
@@ -77,11 +77,11 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 			goto out;
 		}
 
-		udelay(10);
 		poll_count++;
-		if (poll_count == WL1271_CMD_POLL_COUNT)
-			wl1271_info("cmd polling took over %d cycles",
-				    poll_count);
+		if (poll_count < WL1271_CMD_FAST_POLL_COUNT)
+			udelay(10);
+		else
+			msleep(1);
 
 		intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 	}
@@ -318,7 +318,7 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	join->rx_config_options = cpu_to_le32(wl->rx_config);
 	join->rx_filter_options = cpu_to_le32(wl->rx_filter);
 	join->bss_type = bss_type;
-	join->basic_rate_set = wl->basic_rate_set;
+	join->basic_rate_set = cpu_to_le32(wl->basic_rate_set);
 
 	if (wl->band == IEEE80211_BAND_5GHZ)
 		join->bss_type |= WL1271_JOIN_CMD_BSS_TYPE_5GHZ;
@@ -615,7 +615,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 	params->params.scan_options = cpu_to_le16(scan_options);
 
 	params->params.num_probe_requests = probe_requests;
-	params->params.tx_rate = rate;
+	params->params.tx_rate = cpu_to_le32(rate);
 	params->params.tid_trigger = 0;
 	params->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;
 

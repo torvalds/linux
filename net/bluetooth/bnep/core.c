@@ -474,7 +474,7 @@ static int bnep_session(void *arg)
 	set_user_nice(current, -15);
 
 	init_waitqueue_entry(&wait, current);
-	add_wait_queue(sk->sk_sleep, &wait);
+	add_wait_queue(sk_sleep(sk), &wait);
 	while (!atomic_read(&s->killed)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
@@ -496,7 +496,7 @@ static int bnep_session(void *arg)
 		schedule();
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 
 	/* Cleanup session */
 	down_write(&bnep_session_sem);
@@ -507,7 +507,7 @@ static int bnep_session(void *arg)
 	/* Wakeup user-space polling for socket errors */
 	s->sock->sk->sk_err = EUNATCH;
 
-	wake_up_interruptible(s->sock->sk->sk_sleep);
+	wake_up_interruptible(sk_sleep(s->sock->sk));
 
 	/* Release the socket */
 	fput(s->sock->file);
@@ -638,7 +638,7 @@ int bnep_del_connection(struct bnep_conndel_req *req)
 
 		/* Kill session thread */
 		atomic_inc(&s->killed);
-		wake_up_interruptible(s->sock->sk->sk_sleep);
+		wake_up_interruptible(sk_sleep(s->sock->sk));
 	} else
 		err = -ENOENT;
 

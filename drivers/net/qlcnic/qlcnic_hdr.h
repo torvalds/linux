@@ -694,17 +694,24 @@ enum {
 #define QLCNIC_CRB_DRV_STATE               (QLCNIC_CAM_RAM(0x144))
 #define QLCNIC_CRB_DRV_SCRATCH             (QLCNIC_CAM_RAM(0x148))
 #define QLCNIC_CRB_DEV_PARTITION_INFO      (QLCNIC_CAM_RAM(0x14c))
-#define QLCNIC_CRB_DRV_IDC_VER             (QLCNIC_CAM_RAM(0x14c))
+#define QLCNIC_CRB_DRV_IDC_VER		(QLCNIC_CAM_RAM(0x174))
 #define QLCNIC_ROM_DEV_INIT_TIMEOUT	(0x3e885c)
 #define QLCNIC_ROM_DRV_RESET_TIMEOUT	(0x3e8860)
 
-		 /* Device State */
-#define QLCNIC_DEV_COLD 		1
-#define QLCNIC_DEV_INITALIZING		2
-#define QLCNIC_DEV_READY		3
-#define QLCNIC_DEV_NEED_RESET		4
-#define QLCNIC_DEV_NEED_QUISCENT	5
-#define QLCNIC_DEV_FAILED		6
+/* Device State */
+#define QLCNIC_DEV_COLD			0x1
+#define QLCNIC_DEV_INITIALIZING		0x2
+#define QLCNIC_DEV_READY		0x3
+#define QLCNIC_DEV_NEED_RESET		0x4
+#define QLCNIC_DEV_NEED_QUISCENT	0x5
+#define QLCNIC_DEV_FAILED		0x6
+#define QLCNIC_DEV_QUISCENT		0x7
+
+#define QLC_DEV_SET_REF_CNT(VAL, FN)		((VAL) |= (1 << (FN * 4)))
+#define QLC_DEV_CLR_REF_CNT(VAL, FN)		((VAL) &= ~(1 << (FN * 4)))
+#define QLC_DEV_SET_RST_RDY(VAL, FN)		((VAL) |= (1 << (FN * 4)))
+#define QLC_DEV_SET_QSCNT_RDY(VAL, FN)		((VAL) |= (2 << (FN * 4)))
+#define QLC_DEV_CLR_RST_QSCNT(VAL, FN)		((VAL) &= ~(3 << (FN * 4)))
 
 #define QLCNIC_RCODE_DRIVER_INFO		0x20000000
 #define QLCNIC_RCODE_DRIVER_CAN_RELOAD		0x40000000
@@ -712,9 +719,8 @@ enum {
 #define QLCNIC_FWERROR_PEGNUM(code)		((code) & 0xff)
 #define QLCNIC_FWERROR_CODE(code)		((code >> 8) & 0xfffff)
 
-#define FW_POLL_DELAY			(2 * HZ)
-#define FW_FAIL_THRESH			3
-#define FW_POLL_THRESH			10
+#define FW_POLL_DELAY		(1 * HZ)
+#define FW_FAIL_THRESH		2
 
 #define	ISR_MSI_INT_TRIGGER(FUNC) (QLCNIC_PCIX_PS_REG(PCIX_MSI_F(FUNC)))
 #define ISR_LEGACY_INT_TRIGGERED(VAL)	(((VAL) & 0x300) == 0x200)

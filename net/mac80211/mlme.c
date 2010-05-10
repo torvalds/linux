@@ -175,6 +175,8 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	ht_changed = conf_is_ht(&local->hw.conf) != enable_ht ||
 		     channel_type != local->hw.conf.channel_type;
 
+	if (local->tmp_channel)
+		local->tmp_channel_type = channel_type;
 	local->oper_channel_type = channel_type;
 
 	if (ht_changed) {
@@ -476,6 +478,7 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 {
 	struct ieee80211_sub_if_data *sdata, *found = NULL;
 	int count = 0;
+	int timeout;
 
 	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS)) {
 		local->ps_sdata = NULL;
@@ -508,6 +511,26 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 
 		beaconint_us = ieee80211_tu_to_usec(
 					found->vif.bss_conf.beacon_int);
+
+		timeout = local->hw.conf.dynamic_ps_forced_timeout;
+		if (timeout < 0) {
+			/*
+			 * The 2 second value is there for compatibility until
+			 * the PM_QOS_NETWORK_LATENCY is configured with real
+			 * values.
+			 */
+			if (latency == 2000000000)
+				timeout = 100;
+			else if (latency <= 50000)
+				timeout = 300;
+			else if (latency <= 100000)
+				timeout = 100;
+			else if (latency <= 500000)
+				timeout = 50;
+			else
+				timeout = 0;
+		}
+		local->hw.conf.dynamic_ps_timeout = timeout;
 
 		if (beaconint_us > latency) {
 			local->ps_sdata = NULL;
@@ -1331,12 +1354,17 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 		mutex_lock(&sdata->local->iflist_mtx);
 		ieee80211_recalc_ps(sdata->local, -1);
 		mutex_unlock(&sdata->local->iflist_mtx);
+
+		if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
+			return;
+
 		/*
 		 * We've received a probe response, but are not sure whether
 		 * we have or will be receiving any beacons or data, so let's
 		 * schedule the timers again, just in case.
 		 */
 		mod_beacon_timer(sdata);
+
 		mod_timer(&ifmgd->conn_mon_timer,
 			  round_jiffies_up(jiffies +
 					   IEEE80211_CONNECTION_IDLE_TIME));

@@ -1732,7 +1732,7 @@ int __xfrm_lookup(struct net *net, struct dst_entry **dst_p, struct flowi *fl,
 	struct dst_entry *dst, *dst_orig = *dst_p, *route;
 	u16 family = dst_orig->ops->family;
 	u8 dir = policy_to_flow_dir(XFRM_POLICY_OUT);
-	int i, err, num_pols, num_xfrms, drop_pols = 0;
+	int i, err, num_pols, num_xfrms = 0, drop_pols = 0;
 
 restart:
 	dst = NULL;

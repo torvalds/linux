@@ -3004,7 +3004,6 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	dev->base_addr = (long) pdev;
 
 	hp = netdev_priv(dev);
-	memset(hp, 0, sizeof(*hp));
 
 	hp->happy_dev = pdev;
 	hp->dma_dev = &pdev->dev;

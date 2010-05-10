@@ -260,10 +260,10 @@ static void i915_hotplug_work_func(struct work_struct *work)
 
 	if (mode_config->num_connector) {
 		list_for_each_entry(connector, &mode_config->connector_list, head) {
-			struct intel_output *intel_output = to_intel_output(connector);
+			struct intel_encoder *intel_encoder = to_intel_encoder(connector);
 	
-			if (intel_output->hot_plug)
-				(*intel_output->hot_plug) (intel_output);
+			if (intel_encoder->hot_plug)
+				(*intel_encoder->hot_plug) (intel_encoder);
 		}
 	}
 	/* Just fire off a uevent and let userspace tell us what to do */
@@ -444,7 +444,7 @@ i915_error_object_create(struct drm_device *dev,
 	if (src == NULL)
 		return NULL;
 
-	src_priv = src->driver_private;
+	src_priv = to_intel_bo(src);
 	if (src_priv->pages == NULL)
 		return NULL;
 

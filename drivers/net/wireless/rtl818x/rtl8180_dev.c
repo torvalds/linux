@@ -188,6 +188,7 @@ static void rtl8180_handle_tx(struct ieee80211_hw *dev, unsigned int prio)
 			info->flags |= IEEE80211_TX_STAT_ACK;
 
 		info->status.rates[0].count = (flags & 0xFF) + 1;
+		info->status.rates[1].idx = -1;
 
 		ieee80211_tx_status_irqsafe(dev, skb);
 		if (ring->entries - skb_queue_len(&ring->queue) == 2)
@@ -297,7 +298,7 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	entry->flags = cpu_to_le32(tx_flags);
 	__skb_queue_tail(&ring->queue, skb);
 	if (ring->entries - skb_queue_len(&ring->queue) < 2)
-		ieee80211_stop_queue(dev, skb_get_queue_mapping(skb));
+		ieee80211_stop_queue(dev, prio);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING, (1 << (prio + 4)));
@@ -827,6 +828,7 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	const char *chip_name, *rf_name = NULL;
 	u32 reg;
 	u16 eeprom_val;
+	u8 mac_addr[ETH_ALEN];
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -987,12 +989,13 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 		eeprom_93cx6_read(&eeprom, 0x19, &priv->rfparam);
 	}
 
-	eeprom_93cx6_multiread(&eeprom, 0x7, (__le16 *)dev->wiphy->perm_addr, 3);
-	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
+	eeprom_93cx6_multiread(&eeprom, 0x7, (__le16 *)mac_addr, 3);
+	if (!is_valid_ether_addr(mac_addr)) {
 		printk(KERN_WARNING "%s (rtl8180): Invalid hwaddr! Using"
 		       " randomly generated MAC addr\n", pci_name(pdev));
-		random_ether_addr(dev->wiphy->perm_addr);
+		random_ether_addr(mac_addr);
 	}
+	SET_IEEE80211_PERM_ADDR(dev, mac_addr);
 
 	/* CCK TX power */
 	for (i = 0; i < 14; i += 2) {
@@ -1024,7 +1027,7 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	}
 
 	printk(KERN_INFO "%s: hwaddr %pM, %s + %s\n",
-	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,
+	       wiphy_name(dev->wiphy), mac_addr,
 	       chip_name, priv->rf->name);
 
 	return 0;

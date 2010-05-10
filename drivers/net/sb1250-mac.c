@@ -48,23 +48,6 @@
 #include <asm/io.h>
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 
-/* This is only here until the firmware is ready.  In that case,
-   the firmware leaves the ethernet address in the register for us. */
-#ifdef CONFIG_SIBYTE_STANDALONE
-#define SBMAC_ETH0_HWADDR "40:00:00:00:01:00"
-#define SBMAC_ETH1_HWADDR "40:00:00:00:01:01"
-#define SBMAC_ETH2_HWADDR "40:00:00:00:01:02"
-#define SBMAC_ETH3_HWADDR "40:00:00:00:01:03"
-#endif
-
-
-/* These identify the driver base version and may not be removed. */
-#if 0
-static char version1[] __initdata =
-"sb1250-mac.c:1.00 1/11/2001 Written by Mitch Lichtenberg\n";
-#endif
-
-
 /* Operational parameters that usually are not changed. */
 
 #define CONFIG_SBMAC_COALESCE
@@ -349,7 +332,6 @@ static int sbmac_mii_write(struct mii_bus *bus, int phyaddr, int regidx,
  ********************************************************************* */
 
 static char sbmac_string[] = "sb1250-mac";
-static char sbmac_pretty[] = "SB1250 MAC";
 
 static char sbmac_mdio_string[] = "sb1250-mac-mdio";
 
@@ -2182,85 +2164,6 @@ static void sbmac_setmulti(struct sbmac_softc *sc)
 	}
 }
 
-#if defined(SBMAC_ETH0_HWADDR) || defined(SBMAC_ETH1_HWADDR) || defined(SBMAC_ETH2_HWADDR) || defined(SBMAC_ETH3_HWADDR)
-/**********************************************************************
- *  SBMAC_PARSE_XDIGIT(str)
- *
- *  Parse a hex digit, returning its value
- *
- *  Input parameters:
- *  	   str - character
- *
- *  Return value:
- *  	   hex value, or -1 if invalid
- ********************************************************************* */
-
-static int sbmac_parse_xdigit(char str)
-{
-	int digit;
-
-	if ((str >= '0') && (str <= '9'))
-		digit = str - '0';
-	else if ((str >= 'a') && (str <= 'f'))
-		digit = str - 'a' + 10;
-	else if ((str >= 'A') && (str <= 'F'))
-		digit = str - 'A' + 10;
-	else
-		return -1;
-
-	return digit;
-}
-
-/**********************************************************************
- *  SBMAC_PARSE_HWADDR(str,hwaddr)
- *
- *  Convert a string in the form xx:xx:xx:xx:xx:xx into a 6-byte
- *  Ethernet address.
- *
- *  Input parameters:
- *  	   str - string
- *  	   hwaddr - pointer to hardware address
- *
- *  Return value:
- *  	   0 if ok, else -1
- ********************************************************************* */
-
-static int sbmac_parse_hwaddr(char *str, unsigned char *hwaddr)
-{
-	int digit1,digit2;
-	int idx = 6;
-
-	while (*str && (idx > 0)) {
-		digit1 = sbmac_parse_xdigit(*str);
-		if (digit1 < 0)
-			return -1;
-		str++;
-		if (!*str)
-			return -1;
-
-		if ((*str == ':') || (*str == '-')) {
-			digit2 = digit1;
-			digit1 = 0;
-		}
-		else {
-			digit2 = sbmac_parse_xdigit(*str);
-			if (digit2 < 0)
-				return -1;
-			str++;
-		}
-
-		*hwaddr++ = (digit1 << 4) | digit2;
-		idx--;
-
-		if (*str == '-')
-			str++;
-		if (*str == ':')
-			str++;
-	}
-	return 0;
-}
-#endif
-
 static int sb1250_change_mtu(struct net_device *_dev, int new_mtu)
 {
 	if (new_mtu >  ENET_PACKET_SIZE)
@@ -2353,17 +2256,36 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 
 	sc->mii_bus = mdiobus_alloc();
 	if (sc->mii_bus == NULL) {
-		sbmac_uninitctx(sc);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto uninit_ctx;
 	}
+
+	sc->mii_bus->name = sbmac_mdio_string;
+	snprintf(sc->mii_bus->id, MII_BUS_ID_SIZE, "%x", idx);
+	sc->mii_bus->priv = sc;
+	sc->mii_bus->read = sbmac_mii_read;
+	sc->mii_bus->write = sbmac_mii_write;
+	sc->mii_bus->irq = sc->phy_irq;
+	for (i = 0; i < PHY_MAX_ADDR; ++i)
+		sc->mii_bus->irq[i] = SBMAC_PHY_INT;
+
+	sc->mii_bus->parent = &pldev->dev;
+	/*
+	 * Probe PHY address
+	 */
+	err = mdiobus_register(sc->mii_bus);
+	if (err) {
+		printk(KERN_ERR "%s: unable to register MDIO bus\n",
+		       dev->name);
+		goto free_mdio;
+	}
+	dev_set_drvdata(&pldev->dev, sc->mii_bus);
 
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR "%s.%d: unable to register netdev\n",
 		       sbmac_string, idx);
-		mdiobus_free(sc->mii_bus);
-		sbmac_uninitctx(sc);
-		return err;
+		goto unreg_mdio;
 	}
 
 	pr_info("%s.%d: registered as %s\n", sbmac_string, idx, dev->name);
@@ -2379,19 +2301,15 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	pr_info("%s: SiByte Ethernet at 0x%08Lx, address: %pM\n",
 	       dev->name, base, eaddr);
 
-	sc->mii_bus->name = sbmac_mdio_string;
-	snprintf(sc->mii_bus->id, MII_BUS_ID_SIZE, "%x", idx);
-	sc->mii_bus->priv = sc;
-	sc->mii_bus->read = sbmac_mii_read;
-	sc->mii_bus->write = sbmac_mii_write;
-	sc->mii_bus->irq = sc->phy_irq;
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		sc->mii_bus->irq[i] = SBMAC_PHY_INT;
-
-	sc->mii_bus->parent = &pldev->dev;
-	dev_set_drvdata(&pldev->dev, sc->mii_bus);
-
 	return 0;
+unreg_mdio:
+	mdiobus_unregister(sc->mii_bus);
+	dev_set_drvdata(&pldev->dev, NULL);
+free_mdio:
+	mdiobus_free(sc->mii_bus);
+uninit_ctx:
+	sbmac_uninitctx(sc);
+	return err;
 }
 
 
@@ -2415,16 +2333,6 @@ static int sbmac_open(struct net_device *dev)
 		printk(KERN_ERR "%s: unable to get IRQ %d\n", dev->name,
 		       dev->irq);
 		goto out_err;
-	}
-
-	/*
-	 * Probe PHY address
-	 */
-	err = mdiobus_register(sc->mii_bus);
-	if (err) {
-		printk(KERN_ERR "%s: unable to register MDIO bus\n",
-		       dev->name);
-		goto out_unirq;
 	}
 
 	sc->sbm_speed = sbmac_speed_none;
@@ -2457,11 +2365,7 @@ static int sbmac_open(struct net_device *dev)
 	return 0;
 
 out_unregister:
-	mdiobus_unregister(sc->mii_bus);
-
-out_unirq:
 	free_irq(dev->irq, dev);
-
 out_err:
 	return err;
 }
@@ -2650,9 +2554,6 @@ static int sbmac_close(struct net_device *dev)
 
 	phy_disconnect(sc->phy_dev);
 	sc->phy_dev = NULL;
-
-	mdiobus_unregister(sc->mii_bus);
-
 	free_irq(dev->irq, dev);
 
 	sbdma_emptyring(&(sc->sbm_txdma));
@@ -2759,168 +2660,13 @@ static int __exit sbmac_remove(struct platform_device *pldev)
 
 	unregister_netdev(dev);
 	sbmac_uninitctx(sc);
+	mdiobus_unregister(sc->mii_bus);
 	mdiobus_free(sc->mii_bus);
 	iounmap(sc->sbm_base);
 	free_netdev(dev);
 
 	return 0;
 }
-
-
-static struct platform_device **sbmac_pldev;
-static int sbmac_max_units;
-
-#if defined(SBMAC_ETH0_HWADDR) || defined(SBMAC_ETH1_HWADDR) || defined(SBMAC_ETH2_HWADDR) || defined(SBMAC_ETH3_HWADDR)
-static void __init sbmac_setup_hwaddr(int idx, char *addr)
-{
-	void __iomem *sbm_base;
-	unsigned long start, end;
-	uint8_t eaddr[6];
-	uint64_t val;
-
-	if (idx >= sbmac_max_units)
-		return;
-
-	start = A_MAC_CHANNEL_BASE(idx);
-	end = A_MAC_CHANNEL_BASE(idx + 1) - 1;
-
-	sbm_base = ioremap_nocache(start, end - start + 1);
-	if (!sbm_base) {
-		printk(KERN_ERR "%s: unable to map device registers\n",
-		       sbmac_string);
-		return;
-	}
-
-	sbmac_parse_hwaddr(addr, eaddr);
-	val = sbmac_addr2reg(eaddr);
-	__raw_writeq(val, sbm_base + R_MAC_ETHERNET_ADDR);
-	val = __raw_readq(sbm_base + R_MAC_ETHERNET_ADDR);
-
-	iounmap(sbm_base);
-}
-#endif
-
-static int __init sbmac_platform_probe_one(int idx)
-{
-	struct platform_device *pldev;
-	struct {
-		struct resource r;
-		char name[strlen(sbmac_pretty) + 4];
-	} *res;
-	int err;
-
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
-	if (!res) {
-		printk(KERN_ERR "%s.%d: unable to allocate memory\n",
-		       sbmac_string, idx);
-		err = -ENOMEM;
-		goto out_err;
-	}
-
-	/*
-	 * This is the base address of the MAC.
-	 */
-	snprintf(res->name, sizeof(res->name), "%s %d", sbmac_pretty, idx);
-	res->r.name = res->name;
-	res->r.flags = IORESOURCE_MEM;
-	res->r.start = A_MAC_CHANNEL_BASE(idx);
-	res->r.end = A_MAC_CHANNEL_BASE(idx + 1) - 1;
-
-	pldev = platform_device_register_simple(sbmac_string, idx, &res->r, 1);
-	if (IS_ERR(pldev)) {
-		printk(KERN_ERR "%s.%d: unable to register platform device\n",
-		       sbmac_string, idx);
-		err = PTR_ERR(pldev);
-		goto out_kfree;
-	}
-
-	if (!pldev->dev.driver) {
-		err = 0;		/* No hardware at this address. */
-		goto out_unregister;
-	}
-
-	sbmac_pldev[idx] = pldev;
-	return 0;
-
-out_unregister:
-	platform_device_unregister(pldev);
-
-out_kfree:
-	kfree(res);
-
-out_err:
-	return err;
-}
-
-static void __init sbmac_platform_probe(void)
-{
-	int i;
-
-	/* Set the number of available units based on the SOC type.  */
-	switch (soc_type) {
-	case K_SYS_SOC_TYPE_BCM1250:
-	case K_SYS_SOC_TYPE_BCM1250_ALT:
-		sbmac_max_units = 3;
-		break;
-	case K_SYS_SOC_TYPE_BCM1120:
-	case K_SYS_SOC_TYPE_BCM1125:
-	case K_SYS_SOC_TYPE_BCM1125H:
-	case K_SYS_SOC_TYPE_BCM1250_ALT2:	/* Hybrid */
-		sbmac_max_units = 2;
-		break;
-	case K_SYS_SOC_TYPE_BCM1x55:
-	case K_SYS_SOC_TYPE_BCM1x80:
-		sbmac_max_units = 4;
-		break;
-	default:
-		return;				/* none */
-	}
-
-	/*
-	 * For bringup when not using the firmware, we can pre-fill
-	 * the MAC addresses using the environment variables
-	 * specified in this file (or maybe from the config file?)
-	 */
-#ifdef SBMAC_ETH0_HWADDR
-	sbmac_setup_hwaddr(0, SBMAC_ETH0_HWADDR);
-#endif
-#ifdef SBMAC_ETH1_HWADDR
-	sbmac_setup_hwaddr(1, SBMAC_ETH1_HWADDR);
-#endif
-#ifdef SBMAC_ETH2_HWADDR
-	sbmac_setup_hwaddr(2, SBMAC_ETH2_HWADDR);
-#endif
-#ifdef SBMAC_ETH3_HWADDR
-	sbmac_setup_hwaddr(3, SBMAC_ETH3_HWADDR);
-#endif
-
-	sbmac_pldev = kcalloc(sbmac_max_units, sizeof(*sbmac_pldev),
-			      GFP_KERNEL);
-	if (!sbmac_pldev) {
-		printk(KERN_ERR "%s: unable to allocate memory\n",
-		       sbmac_string);
-		return;
-	}
-
-	/*
-	 * Walk through the Ethernet controllers and find
-	 * those who have their MAC addresses set.
-	 */
-	for (i = 0; i < sbmac_max_units; i++)
-		if (sbmac_platform_probe_one(i))
-			break;
-}
-
-
-static void __exit sbmac_platform_cleanup(void)
-{
-	int i;
-
-	for (i = 0; i < sbmac_max_units; i++)
-		platform_device_unregister(sbmac_pldev[i]);
-	kfree(sbmac_pldev);
-}
-
 
 static struct platform_driver sbmac_driver = {
 	.probe = sbmac_probe,
@@ -2932,20 +2678,11 @@ static struct platform_driver sbmac_driver = {
 
 static int __init sbmac_init_module(void)
 {
-	int err;
-
-	err = platform_driver_register(&sbmac_driver);
-	if (err)
-		return err;
-
-	sbmac_platform_probe();
-
-	return err;
+	return platform_driver_register(&sbmac_driver);
 }
 
 static void __exit sbmac_cleanup_module(void)
 {
-	sbmac_platform_cleanup();
 	platform_driver_unregister(&sbmac_driver);
 }
 

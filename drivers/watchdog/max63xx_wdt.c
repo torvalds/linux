@@ -154,9 +154,14 @@ static void max63xx_wdt_enable(struct max63xx_timeout *entry)
 
 static void max63xx_wdt_disable(void)
 {
+	u8 val;
+
 	spin_lock(&io_lock);
 
-	__raw_writeb(3, wdt_base);
+	val = __raw_readb(wdt_base);
+	val &= ~MAX6369_WDSET;
+	val |= 3;
+	__raw_writeb(val, wdt_base);
 
 	spin_unlock(&io_lock);
 

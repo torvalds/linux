@@ -31,7 +31,7 @@ struct iwm_if_ops {
 	int (*disable)(struct iwm_priv *iwm);
 	int (*send_chunk)(struct iwm_priv *iwm, u8* buf, int count);
 
-	int (*debugfs_init)(struct iwm_priv *iwm, struct dentry *parent_dir);
+	void (*debugfs_init)(struct iwm_priv *iwm, struct dentry *parent_dir);
 	void (*debugfs_exit)(struct iwm_priv *iwm);
 
 	const char *umac_name;

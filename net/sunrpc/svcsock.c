@@ -419,8 +419,8 @@ static void svc_udp_data_ready(struct sock *sk, int count)
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible(sk_sleep(sk));
 }
 
 /*
@@ -436,10 +436,10 @@ static void svc_write_space(struct sock *sk)
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep)) {
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk))) {
 		dprintk("RPC svc_write_space: someone sleeping on %p\n",
 		       svsk);
-		wake_up_interruptible(sk->sk_sleep);
+		wake_up_interruptible(sk_sleep(sk));
 	}
 }
 
@@ -757,8 +757,8 @@ static void svc_tcp_listen_data_ready(struct sock *sk, int count_unused)
 			printk("svc: socket %p: no user data\n", sk);
 	}
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible_all(sk->sk_sleep);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible_all(sk_sleep(sk));
 }
 
 /*
@@ -777,8 +777,8 @@ static void svc_tcp_state_change(struct sock *sk)
 		set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible_all(sk->sk_sleep);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible_all(sk_sleep(sk));
 }
 
 static void svc_tcp_data_ready(struct sock *sk, int count)
@@ -791,8 +791,8 @@ static void svc_tcp_data_ready(struct sock *sk, int count)
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible(sk_sleep(sk));
 }
 
 /*
@@ -1494,8 +1494,8 @@ static void svc_sock_detach(struct svc_xprt *xprt)
 	sk->sk_data_ready = svsk->sk_odata;
 	sk->sk_write_space = svsk->sk_owspace;
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+	if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible(sk_sleep(sk));
 }
 
 /*

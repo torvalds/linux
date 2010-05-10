@@ -957,7 +957,7 @@ static void iwl3945_setup_rx_handlers(struct iwl_priv *priv)
 	 * statistics request from the host as well as for the periodic
 	 * statistics notifications (after received beacons) from the uCode.
 	 */
-	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl3945_hw_rx_statistics;
+	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl3945_reply_statistics;
 	priv->rx_handlers[STATISTICS_NOTIFICATION] = iwl3945_hw_rx_statistics;
 
 	iwl_setup_rx_scan_handlers(priv);
@@ -2527,7 +2527,7 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	}
 
 	/* Configure Bluetooth device coexistence support */
-	iwl_send_bt_config(priv);
+	priv->cfg->ops->hcmd->send_bt_config(priv);
 
 	/* Configure the adapter for unassociated operation */
 	iwlcore_commit_rxon(priv);
@@ -2791,11 +2791,8 @@ static void iwl3945_rfkill_poll(struct work_struct *data)
 
 }
 
-#define IWL_SCAN_CHECK_WATCHDOG (7 * HZ)
-static void iwl3945_bg_request_scan(struct work_struct *data)
+void iwl3945_request_scan(struct iwl_priv *priv)
 {
-	struct iwl_priv *priv =
-	    container_of(data, struct iwl_priv, request_scan);
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
 		.len = sizeof(struct iwl3945_scan_cmd),
@@ -2808,8 +2805,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	bool is_active = false;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
-
-	mutex_lock(&priv->mutex);
 
 	cancel_delayed_work(&priv->scan_check);
 
@@ -2853,20 +2848,15 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
-	if (!priv->scan_bands) {
-		IWL_DEBUG_HC(priv, "Aborting scan due to no requested bands\n");
-		goto done;
-	}
-
-	if (!priv->scan) {
-		priv->scan = kmalloc(sizeof(struct iwl3945_scan_cmd) +
-				     IWL_MAX_SCAN_SIZE, GFP_KERNEL);
-		if (!priv->scan) {
+	if (!priv->scan_cmd) {
+		priv->scan_cmd = kmalloc(sizeof(struct iwl3945_scan_cmd) +
+					 IWL_MAX_SCAN_SIZE, GFP_KERNEL);
+		if (!priv->scan_cmd) {
 			IWL_DEBUG_SCAN(priv, "Fail to allocate scan memory\n");
 			goto done;
 		}
 	}
-	scan = priv->scan;
+	scan = priv->scan_cmd;
 	memset(scan, 0, sizeof(struct iwl3945_scan_cmd) + IWL_MAX_SCAN_SIZE);
 
 	scan->quiet_plcp_th = IWL_PLCP_QUIET_THRESH;
@@ -2935,22 +2925,26 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 
 	/* flags + rate selection */
 
-	if (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) {
+	switch (priv->scan_band) {
+	case IEEE80211_BAND_2GHZ:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		scan->tx_cmd.rate = IWL_RATE_1M_PLCP;
 		scan->good_CRC_th = 0;
 		band = IEEE80211_BAND_2GHZ;
-	} else if (priv->scan_bands & BIT(IEEE80211_BAND_5GHZ)) {
+		break;
+	case IEEE80211_BAND_5GHZ:
 		scan->tx_cmd.rate = IWL_RATE_6M_PLCP;
 		/*
 		 * If active scaning is requested but a certain channel
 		 * is marked passive, we can do active scanning if we
 		 * detect transmissions.
 		 */
-		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH : 0;
+		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
+						IWL_GOOD_CRC_TH_DISABLED;
 		band = IEEE80211_BAND_5GHZ;
-	} else {
-		IWL_WARN(priv, "Invalid scan band count\n");
+		break;
+	default:
+		IWL_WARN(priv, "Invalid scan band\n");
 		goto done;
 	}
 
@@ -2970,9 +2964,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	}
 	/* select Rx antennas */
 	scan->flags |= iwl3945_get_antenna_flags(priv);
-
-	if (iwl_is_monitor_mode(priv))
-		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
 
 	scan->channel_count =
 		iwl3945_get_channels_for_scan(priv, band, is_active, n_probes,
@@ -2995,7 +2986,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	queue_delayed_work(priv->workqueue, &priv->scan_check,
 			   IWL_SCAN_CHECK_WATCHDOG);
 
-	mutex_unlock(&priv->mutex);
 	return;
 
  done:
@@ -3009,7 +2999,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 
 	/* inform mac80211 scan aborted */
 	queue_work(priv->workqueue, &priv->scan_completed);
-	mutex_unlock(&priv->mutex);
 }
 
 static void iwl3945_bg_restart(struct work_struct *data)
@@ -3050,8 +3039,6 @@ static void iwl3945_bg_rx_replenish(struct work_struct *data)
 	iwl3945_rx_replenish(priv);
 	mutex_unlock(&priv->mutex);
 }
-
-#define IWL_DELAY_NEXT_SCAN (HZ*2)
 
 void iwl3945_post_associate(struct iwl_priv *priv)
 {
@@ -3137,9 +3124,6 @@ void iwl3945_post_associate(struct iwl_priv *priv)
 			   __func__, priv->iw_mode);
 		break;
 	}
-
-	/* we have just associated, don't start scan too early */
-	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 }
 
 /*****************************************************************************
@@ -3672,44 +3656,6 @@ static ssize_t show_channels(struct device *d,
 
 static DEVICE_ATTR(channels, S_IRUSR, show_channels, NULL);
 
-static ssize_t show_statistics(struct device *d,
-			       struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	u32 size = sizeof(struct iwl3945_notif_statistics);
-	u32 len = 0, ofs = 0;
-	u8 *data = (u8 *)&priv->_3945.statistics;
-	int rc = 0;
-
-	if (!iwl_is_alive(priv))
-		return -EAGAIN;
-
-	mutex_lock(&priv->mutex);
-	rc = iwl_send_statistics_request(priv, CMD_SYNC, false);
-	mutex_unlock(&priv->mutex);
-
-	if (rc) {
-		len = sprintf(buf,
-			      "Error sending statistics request: 0x%08X\n", rc);
-		return len;
-	}
-
-	while (size && (PAGE_SIZE - len)) {
-		hex_dump_to_buffer(data + ofs, size, 16, 1, buf + len,
-				   PAGE_SIZE - len, 1);
-		len = strlen(buf);
-		if (PAGE_SIZE - len)
-			buf[len++] = '\n';
-
-		ofs += 16;
-		size -= min(size, 16U);
-	}
-
-	return len;
-}
-
-static DEVICE_ATTR(statistics, S_IRUGO, show_statistics, NULL);
-
 static ssize_t show_antenna(struct device *d,
 			    struct device_attribute *attr, char *buf)
 {
@@ -3793,7 +3739,6 @@ static void iwl3945_setup_deferred_work(struct iwl_priv *priv)
 	INIT_DELAYED_WORK(&priv->alive_start, iwl3945_bg_alive_start);
 	INIT_DELAYED_WORK(&priv->_3945.rfkill_poll, iwl3945_rfkill_poll);
 	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
-	INIT_WORK(&priv->request_scan, iwl3945_bg_request_scan);
 	INIT_WORK(&priv->abort_scan, iwl_bg_abort_scan);
 	INIT_DELAYED_WORK(&priv->scan_check, iwl_bg_scan_check);
 
@@ -3830,7 +3775,6 @@ static struct attribute *iwl3945_sysfs_entries[] = {
 	&dev_attr_filter_flags.attr,
 	&dev_attr_measurement.attr,
 	&dev_attr_retry_rate.attr,
-	&dev_attr_statistics.attr,
 	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
@@ -3930,7 +3874,6 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_NOISE_DBM |
 		    IEEE80211_HW_SPECTRUM_MGMT;
 
 	if (!priv->cfg->broken_powersave)
@@ -4253,7 +4196,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 
 	iwl_free_channel_map(priv);
 	iwlcore_free_geos(priv);
-	kfree(priv->scan);
+	kfree(priv->scan_cmd);
 	if (priv->ibss_beacon)
 		dev_kfree_skb(priv->ibss_beacon);
 

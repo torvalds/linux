@@ -314,71 +314,6 @@ bad:
 	return ERR_PTR(err);
 }
 
-
-/*
- * osd map
- */
-void ceph_osdmap_destroy(struct ceph_osdmap *map)
-{
-	dout("osdmap_destroy %p\n", map);
-	if (map->crush)
-		crush_destroy(map->crush);
-	while (!RB_EMPTY_ROOT(&map->pg_temp)) {
-		struct ceph_pg_mapping *pg =
-			rb_entry(rb_first(&map->pg_temp),
-				 struct ceph_pg_mapping, node);
-		rb_erase(&pg->node, &map->pg_temp);
-		kfree(pg);
-	}
-	while (!RB_EMPTY_ROOT(&map->pg_pools)) {
-		struct ceph_pg_pool_info *pi =
-			rb_entry(rb_first(&map->pg_pools),
-				 struct ceph_pg_pool_info, node);
-		rb_erase(&pi->node, &map->pg_pools);
-		kfree(pi);
-	}
-	kfree(map->osd_state);
-	kfree(map->osd_weight);
-	kfree(map->osd_addr);
-	kfree(map);
-}
-
-/*
- * adjust max osd value.  reallocate arrays.
- */
-static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
-{
-	u8 *state;
-	struct ceph_entity_addr *addr;
-	u32 *weight;
-
-	state = kcalloc(max, sizeof(*state), GFP_NOFS);
-	addr = kcalloc(max, sizeof(*addr), GFP_NOFS);
-	weight = kcalloc(max, sizeof(*weight), GFP_NOFS);
-	if (state == NULL || addr == NULL || weight == NULL) {
-		kfree(state);
-		kfree(addr);
-		kfree(weight);
-		return -ENOMEM;
-	}
-
-	/* copy old? */
-	if (map->osd_state) {
-		memcpy(state, map->osd_state, map->max_osd*sizeof(*state));
-		memcpy(addr, map->osd_addr, map->max_osd*sizeof(*addr));
-		memcpy(weight, map->osd_weight, map->max_osd*sizeof(*weight));
-		kfree(map->osd_state);
-		kfree(map->osd_addr);
-		kfree(map->osd_weight);
-	}
-
-	map->osd_state = state;
-	map->osd_weight = weight;
-	map->osd_addr = addr;
-	map->max_osd = max;
-	return 0;
-}
-
 /*
  * rbtree of pg_mapping for handling pg_temp (explicit mapping of pgid
  * to a set of osds)
@@ -482,12 +417,111 @@ static struct ceph_pg_pool_info *__lookup_pg_pool(struct rb_root *root, int id)
 	return NULL;
 }
 
+static void __remove_pg_pool(struct rb_root *root, struct ceph_pg_pool_info *pi)
+{
+	rb_erase(&pi->node, root);
+	kfree(pi->name);
+	kfree(pi);
+}
+
 void __decode_pool(void **p, struct ceph_pg_pool_info *pi)
 {
 	ceph_decode_copy(p, &pi->v, sizeof(pi->v));
 	calc_pg_masks(pi);
 	*p += le32_to_cpu(pi->v.num_snaps) * sizeof(u64);
 	*p += le32_to_cpu(pi->v.num_removed_snap_intervals) * sizeof(u64) * 2;
+}
+
+static int __decode_pool_names(void **p, void *end, struct ceph_osdmap *map)
+{
+	struct ceph_pg_pool_info *pi;
+	u32 num, len, pool;
+
+	ceph_decode_32_safe(p, end, num, bad);
+	dout(" %d pool names\n", num);
+	while (num--) {
+		ceph_decode_32_safe(p, end, pool, bad);
+		ceph_decode_32_safe(p, end, len, bad);
+		dout("  pool %d len %d\n", pool, len);
+		pi = __lookup_pg_pool(&map->pg_pools, pool);
+		if (pi) {
+			kfree(pi->name);
+			pi->name = kmalloc(len + 1, GFP_NOFS);
+			if (pi->name) {
+				memcpy(pi->name, *p, len);
+				pi->name[len] = '\0';
+				dout("  name is %s\n", pi->name);
+			}
+		}
+		*p += len;
+	}
+	return 0;
+
+bad:
+	return -EINVAL;
+}
+
+/*
+ * osd map
+ */
+void ceph_osdmap_destroy(struct ceph_osdmap *map)
+{
+	dout("osdmap_destroy %p\n", map);
+	if (map->crush)
+		crush_destroy(map->crush);
+	while (!RB_EMPTY_ROOT(&map->pg_temp)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(rb_first(&map->pg_temp),
+				 struct ceph_pg_mapping, node);
+		rb_erase(&pg->node, &map->pg_temp);
+		kfree(pg);
+	}
+	while (!RB_EMPTY_ROOT(&map->pg_pools)) {
+		struct ceph_pg_pool_info *pi =
+			rb_entry(rb_first(&map->pg_pools),
+				 struct ceph_pg_pool_info, node);
+		__remove_pg_pool(&map->pg_pools, pi);
+	}
+	kfree(map->osd_state);
+	kfree(map->osd_weight);
+	kfree(map->osd_addr);
+	kfree(map);
+}
+
+/*
+ * adjust max osd value.  reallocate arrays.
+ */
+static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
+{
+	u8 *state;
+	struct ceph_entity_addr *addr;
+	u32 *weight;
+
+	state = kcalloc(max, sizeof(*state), GFP_NOFS);
+	addr = kcalloc(max, sizeof(*addr), GFP_NOFS);
+	weight = kcalloc(max, sizeof(*weight), GFP_NOFS);
+	if (state == NULL || addr == NULL || weight == NULL) {
+		kfree(state);
+		kfree(addr);
+		kfree(weight);
+		return -ENOMEM;
+	}
+
+	/* copy old? */
+	if (map->osd_state) {
+		memcpy(state, map->osd_state, map->max_osd*sizeof(*state));
+		memcpy(addr, map->osd_addr, map->max_osd*sizeof(*addr));
+		memcpy(weight, map->osd_weight, map->max_osd*sizeof(*weight));
+		kfree(map->osd_state);
+		kfree(map->osd_addr);
+		kfree(map->osd_weight);
+	}
+
+	map->osd_state = state;
+	map->osd_weight = weight;
+	map->osd_addr = addr;
+	map->max_osd = max;
+	return 0;
 }
 
 /*
@@ -526,7 +560,7 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	ceph_decode_32_safe(p, end, max, bad);
 	while (max--) {
 		ceph_decode_need(p, end, 4 + 1 + sizeof(pi->v), bad);
-		pi = kmalloc(sizeof(*pi), GFP_NOFS);
+		pi = kzalloc(sizeof(*pi), GFP_NOFS);
 		if (!pi)
 			goto bad;
 		pi->id = ceph_decode_32(p);
@@ -539,6 +573,10 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		__decode_pool(p, pi);
 		__insert_pg_pool(&map->pg_pools, pi);
 	}
+
+	if (version >= 5 && __decode_pool_names(p, end, map) < 0)
+		goto bad;
+
 	ceph_decode_32_safe(p, end, map->pool_max, bad);
 
 	ceph_decode_32_safe(p, end, map->flags, bad);
@@ -712,7 +750,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		}
 		pi = __lookup_pg_pool(&map->pg_pools, pool);
 		if (!pi) {
-			pi = kmalloc(sizeof(*pi), GFP_NOFS);
+			pi = kzalloc(sizeof(*pi), GFP_NOFS);
 			if (!pi) {
 				err = -ENOMEM;
 				goto bad;
@@ -722,6 +760,8 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		}
 		__decode_pool(p, pi);
 	}
+	if (version >= 5 && __decode_pool_names(p, end, map) < 0)
+		goto bad;
 
 	/* old_pool */
 	ceph_decode_32_safe(p, end, len, bad);
@@ -730,10 +770,8 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 
 		ceph_decode_32_safe(p, end, pool, bad);
 		pi = __lookup_pg_pool(&map->pg_pools, pool);
-		if (pi) {
-			rb_erase(&pi->node, &map->pg_pools);
-			kfree(pi);
-		}
+		if (pi)
+			__remove_pg_pool(&map->pg_pools, pi);
 	}
 
 	/* new_up */

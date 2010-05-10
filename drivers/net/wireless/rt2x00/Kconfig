@@ -87,7 +87,7 @@ if RT2800PCI
 
 config RT2800PCI_RT30XX
 	bool "rt2800pci - Include support for rt30xx (PCI/PCIe/PCMCIA) devices"
-	default n
+	default y
 	---help---
 	  This adds support for rt30xx wireless chipset family to the
 	  rt2800pci driver.
@@ -156,7 +156,7 @@ if RT2800USB
 
 config RT2800USB_RT30XX
 	bool "rt2800usb - Include support for rt30xx (USB) devices"
-	default n
+	default y
 	---help---
 	  This adds support for rt30xx wireless chipset family to the
 	  rt2800usb driver.

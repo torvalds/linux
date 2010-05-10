@@ -13,9 +13,12 @@
 
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/netpoll.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/list.h>
 #include <linux/netfilter_bridge.h>
+
 #include <asm/uaccess.h>
 #include "br_private.h"
 
@@ -43,7 +46,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
-	if (dest[0] & 1) {
+	if (is_multicast_ether_addr(dest)) {
 		if (br_multicast_rcv(br, NULL, skb))
 			goto out;
 
@@ -195,6 +198,59 @@ static int br_set_tx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+bool br_devices_support_netpoll(struct net_bridge *br)
+{
+	struct net_bridge_port *p;
+	bool ret = true;
+	int count = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&br->lock, flags);
+	list_for_each_entry(p, &br->port_list, list) {
+		count++;
+		if ((p->dev->priv_flags & IFF_DISABLE_NETPOLL) ||
+		    !p->dev->netdev_ops->ndo_poll_controller)
+			ret = false;
+	}
+	spin_unlock_irqrestore(&br->lock, flags);
+	return count != 0 && ret;
+}
+
+static void br_poll_controller(struct net_device *br_dev)
+{
+	struct netpoll *np = br_dev->npinfo->netpoll;
+
+	if (np->real_dev != br_dev)
+		netpoll_poll_dev(np->real_dev);
+}
+
+void br_netpoll_cleanup(struct net_device *br_dev)
+{
+	struct net_bridge *br = netdev_priv(br_dev);
+	struct net_bridge_port *p, *n;
+	const struct net_device_ops *ops;
+
+	br->dev->npinfo = NULL;
+	list_for_each_entry_safe(p, n, &br->port_list, list) {
+		if (p->dev) {
+			ops = p->dev->netdev_ops;
+			if (ops->ndo_netpoll_cleanup)
+				ops->ndo_netpoll_cleanup(p->dev);
+			else
+				p->dev->npinfo = NULL;
+		}
+	}
+}
+
+#else
+
+void br_netpoll_cleanup(struct net_device *br_dev)
+{
+}
+
+#endif
+
 static const struct ethtool_ops br_ethtool_ops = {
 	.get_drvinfo    = br_getinfo,
 	.get_link	= ethtool_op_get_link,
@@ -218,6 +274,10 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_set_multicast_list	 = br_dev_set_multicast_list,
 	.ndo_change_mtu		 = br_change_mtu,
 	.ndo_do_ioctl		 = br_dev_ioctl,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_netpoll_cleanup	 = br_netpoll_cleanup,
+	.ndo_poll_controller	 = br_poll_controller,
+#endif
 };
 
 static void br_dev_free(struct net_device *dev)

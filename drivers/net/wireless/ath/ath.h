@@ -71,9 +71,21 @@ struct ath_regulatory {
 	struct reg_dmn_pair_mapping *regpair;
 };
 
+/**
+ * struct ath_ops - Register read/write operations
+ *
+ * @read: Register read
+ * @write: Register write
+ * @enable_write_buffer: Enable multiple register writes
+ * @disable_write_buffer: Disable multiple register writes
+ * @write_flush: Flush buffered register writes
+ */
 struct ath_ops {
 	unsigned int (*read)(void *, u32 reg_offset);
-        void (*write)(void *, u32 val, u32 reg_offset);
+	void (*write)(void *, u32 val, u32 reg_offset);
+	void (*enable_write_buffer)(void *);
+	void (*disable_write_buffer)(void *);
+	void (*write_flush) (void *);
 };
 
 struct ath_common;

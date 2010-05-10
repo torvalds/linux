@@ -1617,13 +1617,8 @@ EXPORT_SYMBOL_GPL(l2tp_session_create);
 
 static __net_init int l2tp_init_net(struct net *net)
 {
-	struct l2tp_net *pn;
-	int err;
+	struct l2tp_net *pn = net_generic(net, l2tp_net_id);
 	int hash;
-
-	pn = kzalloc(sizeof(*pn), GFP_KERNEL);
-	if (!pn)
-		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pn->l2tp_tunnel_list);
 	spin_lock_init(&pn->l2tp_tunnel_list_lock);
@@ -1633,33 +1628,11 @@ static __net_init int l2tp_init_net(struct net *net)
 
 	spin_lock_init(&pn->l2tp_session_hlist_lock);
 
-	err = net_assign_generic(net, l2tp_net_id, pn);
-	if (err)
-		goto out;
-
 	return 0;
-
-out:
-	kfree(pn);
-	return err;
-}
-
-static __net_exit void l2tp_exit_net(struct net *net)
-{
-	struct l2tp_net *pn;
-
-	pn = net_generic(net, l2tp_net_id);
-	/*
-	 * if someone has cached our net then
-	 * further net_generic call will return NULL
-	 */
-	net_assign_generic(net, l2tp_net_id, NULL);
-	kfree(pn);
 }
 
 static struct pernet_operations l2tp_net_ops = {
 	.init = l2tp_init_net,
-	.exit = l2tp_exit_net,
 	.id   = &l2tp_net_id,
 	.size = sizeof(struct l2tp_net),
 };

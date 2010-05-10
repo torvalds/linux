@@ -791,11 +791,17 @@ static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 		cqe_counter++;
 		rmb();
 		if (cqe->status & EHEA_CQE_STAT_ERR_MASK) {
-			ehea_error("Send Completion Error: Resetting port");
+			ehea_error("Bad send completion status=0x%04X",
+				   cqe->status);
+
 			if (netif_msg_tx_err(pr->port))
 				ehea_dump(cqe, sizeof(*cqe), "Send CQE");
-			ehea_schedule_port_reset(pr->port);
-			break;
+
+			if (cqe->status & EHEA_CQE_STAT_RESET_MASK) {
+				ehea_error("Resetting port");
+				ehea_schedule_port_reset(pr->port);
+				break;
+			}
 		}
 
 		if (netif_msg_tx_done(pr->port))
@@ -901,6 +907,8 @@ static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param)
 	struct ehea_eqe *eqe;
 	struct ehea_qp *qp;
 	u32 qp_token;
+	u64 resource_type, aer, aerr;
+	int reset_port = 0;
 
 	eqe = ehea_poll_eq(port->qp_eq);
 
@@ -910,11 +918,24 @@ static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param)
 			   eqe->entry, qp_token);
 
 		qp = port->port_res[qp_token].qp;
-		ehea_error_data(port->adapter, qp->fw_handle);
+
+		resource_type = ehea_error_data(port->adapter, qp->fw_handle,
+						&aer, &aerr);
+
+		if (resource_type == EHEA_AER_RESTYPE_QP) {
+			if ((aer & EHEA_AER_RESET_MASK) ||
+			    (aerr & EHEA_AERR_RESET_MASK))
+				 reset_port = 1;
+		} else
+			reset_port = 1;   /* Reset in case of CQ or EQ error */
+
 		eqe = ehea_poll_eq(port->qp_eq);
 	}
 
-	ehea_schedule_port_reset(port);
+	if (reset_port) {
+		ehea_error("Resetting port");
+		ehea_schedule_port_reset(port);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -2868,7 +2889,6 @@ static void ehea_rereg_mrs(struct work_struct *work)
 	int ret, i;
 	struct ehea_adapter *adapter;
 
-	mutex_lock(&dlpar_mem_lock);
 	ehea_info("LPAR memory changed - re-initializing driver");
 
 	list_for_each_entry(adapter, &adapter_list, list)
@@ -2938,7 +2958,6 @@ static void ehea_rereg_mrs(struct work_struct *work)
 		}
 	ehea_info("re-initializing driver complete");
 out:
-	mutex_unlock(&dlpar_mem_lock);
 	return;
 }
 
@@ -3521,7 +3540,14 @@ void ehea_crash_handler(void)
 static int ehea_mem_notifier(struct notifier_block *nb,
                              unsigned long action, void *data)
 {
+	int ret = NOTIFY_BAD;
 	struct memory_notify *arg = data;
+
+	if (!mutex_trylock(&dlpar_mem_lock)) {
+		ehea_info("ehea_mem_notifier must not be called parallelized");
+		goto out;
+	}
+
 	switch (action) {
 	case MEM_CANCEL_OFFLINE:
 		ehea_info("memory offlining canceled");
@@ -3530,14 +3556,14 @@ static int ehea_mem_notifier(struct notifier_block *nb,
 		ehea_info("memory is going online");
 		set_bit(__EHEA_STOP_XFER, &ehea_driver_flags);
 		if (ehea_add_sect_bmap(arg->start_pfn, arg->nr_pages))
-			return NOTIFY_BAD;
+			goto out_unlock;
 		ehea_rereg_mrs(NULL);
 		break;
 	case MEM_GOING_OFFLINE:
 		ehea_info("memory is going offline");
 		set_bit(__EHEA_STOP_XFER, &ehea_driver_flags);
 		if (ehea_rem_sect_bmap(arg->start_pfn, arg->nr_pages))
-			return NOTIFY_BAD;
+			goto out_unlock;
 		ehea_rereg_mrs(NULL);
 		break;
 	default:
@@ -3545,8 +3571,12 @@ static int ehea_mem_notifier(struct notifier_block *nb,
 	}
 
 	ehea_update_firmware_handles();
+	ret = NOTIFY_OK;
 
-	return NOTIFY_OK;
+out_unlock:
+	mutex_unlock(&dlpar_mem_lock);
+out:
+	return ret;
 }
 
 static struct notifier_block ehea_mem_nb = {

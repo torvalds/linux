@@ -152,14 +152,15 @@ static inline void drv_update_tkip_key(struct ieee80211_local *local,
 }
 
 static inline int drv_hw_scan(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata,
 			      struct cfg80211_scan_request *req)
 {
 	int ret;
 
 	might_sleep();
 
-	ret = local->ops->hw_scan(&local->hw, req);
-	trace_drv_hw_scan(local, req, ret);
+	ret = local->ops->hw_scan(&local->hw, &sdata->vif, req);
+	trace_drv_hw_scan(local, sdata, req, ret);
 	return ret;
 }
 
@@ -344,6 +345,15 @@ static inline int drv_ampdu_action(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline int drv_get_survey(struct ieee80211_local *local, int idx,
+				struct survey_info *survey)
+{
+	int ret = -EOPNOTSUPP;
+	if (local->ops->conf_tx)
+		ret = local->ops->get_survey(&local->hw, idx, survey);
+	/* trace_drv_get_survey(local, idx, survey, ret); */
+	return ret;
+}
 
 static inline void drv_rfkill_poll(struct ieee80211_local *local)
 {

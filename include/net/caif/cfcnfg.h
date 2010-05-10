@@ -87,13 +87,21 @@ cfcnfg_add_phy_layer(struct cfcnfg *cnfg, enum cfcnfg_phy_type phy_type,
 int cfcnfg_del_phy_layer(struct cfcnfg *cnfg, struct cflayer *phy_layer);
 
 /**
- * cfcnfg_del_adapt_layer - Deletes an adaptation layer from the CAIF stack.
+ * cfcnfg_disconn_adapt_layer - Disconnects an adaptation layer.
  *
  * @cnfg:	Pointer to a CAIF configuration object, created by
  *		cfcnfg_create().
  * @adap_layer: Adaptation layer to be removed.
  */
-int cfcnfg_del_adapt_layer(struct cfcnfg *cnfg, struct cflayer *adap_layer);
+int cfcnfg_disconn_adapt_layer(struct cfcnfg *cnfg,
+			struct cflayer *adap_layer);
+
+/**
+ * cfcnfg_release_adap_layer - Used by client to release the adaptation layer.
+ *
+ * @adap_layer: Adaptation layer.
+ */
+void cfcnfg_release_adap_layer(struct cflayer *adap_layer);
 
 /**
  * cfcnfg_add_adaptation_layer - Add an adaptation layer to the CAIF stack.
@@ -102,14 +110,13 @@ int cfcnfg_del_adapt_layer(struct cfcnfg *cnfg, struct cflayer *adap_layer);
  * driver functionality is implemented.
  *
  * @cnfg:		Pointer to a CAIF configuration object, created by
- *				cfcnfg_create().
+ *			cfcnfg_create().
  * @param:		Link setup parameters.
  * @adap_layer:		Specify the adaptation layer; the receive and
  *			flow-control functions MUST be set in the structure.
  *
  */
-int
-cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
+int cfcnfg_add_adaptation_layer(struct cfcnfg *cnfg,
 			    struct cfctrl_link_param *param,
 			    struct cflayer *adap_layer);
 

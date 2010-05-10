@@ -691,6 +691,19 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	rate_table = sc->cur_rate_table;
 	rix = ath_rc_get_highest_rix(sc, ath_rc_priv, rate_table, &is_probe);
 
+	/*
+	 * If we're in HT mode and both us and our peer supports LDPC.
+	 * We don't need to check our own device's capabilities as our own
+	 * ht capabilities would have already been intersected with our peer's.
+	 */
+	if (conf_is_ht(&sc->hw->conf) &&
+	    (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING))
+		tx_info->flags |= IEEE80211_TX_CTL_LDPC;
+
+	if (conf_is_ht(&sc->hw->conf) &&
+	    (sta->ht_cap.cap & IEEE80211_HT_CAP_TX_STBC))
+		tx_info->flags |= (1 << IEEE80211_TX_CTL_STBC_SHIFT);
+
 	if (is_probe) {
 		/* set one try for probe rates. For the
 		 * probes don't enable rts */

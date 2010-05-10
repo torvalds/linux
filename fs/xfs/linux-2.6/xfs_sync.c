@@ -820,10 +820,10 @@ xfs_reclaim_inode(
 	 * call into reclaim to find it in a clean state instead of waiting for
 	 * it now. We also don't return errors here - if the error is transient
 	 * then the next reclaim pass will flush the inode, and if the error
-	 * is permanent then the next sync reclaim will relcaim the inode and
+	 * is permanent then the next sync reclaim will reclaim the inode and
 	 * pass on the error.
 	 */
-	if (error && !XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+	if (error && error != EAGAIN && !XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		xfs_fs_cmn_err(CE_WARN, ip->i_mount,
 			"inode 0x%llx background reclaim flush failed with %d",
 			(long long)ip->i_ino, error);

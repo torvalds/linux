@@ -23,17 +23,19 @@ struct caif_param {
 };
 
 /**
- * caif_connect_request - Request data for CAIF channel setup.
+ * struct caif_connect_request - Request data for CAIF channel setup.
+ * @protocol:		Type of CAIF protocol to use (at, datagram etc)
  * @sockaddr:		Socket address to connect.
  * @priority:		Priority of the connection.
  * @link_selector:	Link selector (high bandwidth or low latency)
  * @link_name:		Name of the CAIF Link Layer to use.
+ * @param:		Connect Request parameters (CAIF_SO_REQ_PARAM).
  *
  * This struct is used when connecting a CAIF channel.
  * It contains all CAIF channel configuration options.
  */
 struct caif_connect_request {
-	int protocol;
+	enum caif_protocol_type protocol;
 	struct sockaddr_caif sockaddr;
 	enum caif_channel_priority priority;
 	enum caif_link_selector link_selector;
@@ -66,6 +68,17 @@ int caif_connect_client(struct caif_connect_request *config,
  * @client_layer: Client layer to be removed.
  */
 int caif_disconnect_client(struct cflayer *client_layer);
+
+/**
+ * caif_release_client - Release adaptation layer reference to client.
+ *
+ * @client_layer: Client layer.
+ *
+ * Releases a client/adaptation layer use of the caif stack.
+ * This function must be used after caif_disconnect_client to
+ * decrease the reference count of the service layer.
+ */
+void caif_release_client(struct cflayer *client_layer);
 
 /**
  * connect_req_to_link_param - Translate configuration parameters

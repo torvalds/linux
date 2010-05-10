@@ -98,7 +98,7 @@ int lockdep_rtnl_is_held(void)
 EXPORT_SYMBOL(lockdep_rtnl_is_held);
 #endif /* #ifdef CONFIG_PROVE_LOCKING */
 
-static struct rtnl_link *rtnl_msg_handlers[NPROTO];
+static struct rtnl_link *rtnl_msg_handlers[RTNL_FAMILY_MAX + 1];
 
 static inline int rtm_msgindex(int msgtype)
 {
@@ -118,7 +118,7 @@ static rtnl_doit_func rtnl_get_doit(int protocol, int msgindex)
 {
 	struct rtnl_link *tab;
 
-	if (protocol < NPROTO)
+	if (protocol <= RTNL_FAMILY_MAX)
 		tab = rtnl_msg_handlers[protocol];
 	else
 		tab = NULL;
@@ -133,7 +133,7 @@ static rtnl_dumpit_func rtnl_get_dumpit(int protocol, int msgindex)
 {
 	struct rtnl_link *tab;
 
-	if (protocol < NPROTO)
+	if (protocol <= RTNL_FAMILY_MAX)
 		tab = rtnl_msg_handlers[protocol];
 	else
 		tab = NULL;
@@ -167,7 +167,7 @@ int __rtnl_register(int protocol, int msgtype,
 	struct rtnl_link *tab;
 	int msgindex;
 
-	BUG_ON(protocol < 0 || protocol >= NPROTO);
+	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 	msgindex = rtm_msgindex(msgtype);
 
 	tab = rtnl_msg_handlers[protocol];
@@ -219,7 +219,7 @@ int rtnl_unregister(int protocol, int msgtype)
 {
 	int msgindex;
 
-	BUG_ON(protocol < 0 || protocol >= NPROTO);
+	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 	msgindex = rtm_msgindex(msgtype);
 
 	if (rtnl_msg_handlers[protocol] == NULL)
@@ -241,7 +241,7 @@ EXPORT_SYMBOL_GPL(rtnl_unregister);
  */
 void rtnl_unregister_all(int protocol)
 {
-	BUG_ON(protocol < 0 || protocol >= NPROTO);
+	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 
 	kfree(rtnl_msg_handlers[protocol]);
 	rtnl_msg_handlers[protocol] = NULL;
@@ -1319,10 +1319,11 @@ replay:
 			err = ops->newlink(net, dev, tb, data);
 		else
 			err = register_netdevice(dev);
-		if (err < 0 && !IS_ERR(dev)) {
+
+		if (err < 0 && !IS_ERR(dev))
 			free_netdev(dev);
+		if (err < 0)
 			goto out;
-		}
 
 		err = rtnl_configure_link(dev, ifm);
 		if (err < 0)
@@ -1384,7 +1385,7 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 
 	if (s_idx == 0)
 		s_idx = 1;
-	for (idx = 1; idx < NPROTO; idx++) {
+	for (idx = 1; idx <= RTNL_FAMILY_MAX; idx++) {
 		int type = cb->nlh->nlmsg_type-RTM_BASE;
 		if (idx < s_idx || idx == PF_PACKET)
 			continue;

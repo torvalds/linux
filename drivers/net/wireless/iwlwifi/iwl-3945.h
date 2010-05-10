@@ -264,6 +264,8 @@ extern int iwl3945_hw_reg_send_txpower(struct iwl_priv *priv);
 extern int iwl3945_hw_reg_set_txpower(struct iwl_priv *priv, s8 power);
 extern void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 				 struct iwl_rx_mem_buffer *rxb);
+void iwl3945_reply_statistics(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb);
 extern void iwl3945_disable_events(struct iwl_priv *priv);
 extern int iwl4965_get_temperature(const struct iwl_priv *priv);
 extern void iwl3945_post_associate(struct iwl_priv *priv);
@@ -293,6 +295,9 @@ extern const struct iwl_channel_info *iwl3945_get_channel_info(
 	const struct iwl_priv *priv, enum ieee80211_band band, u16 channel);
 
 extern int iwl3945_rs_next_rate(struct iwl_priv *priv, int rate);
+
+/* scanning */
+void iwl3945_request_scan(struct iwl_priv *priv);
 
 /* Requires full declaration of iwl_priv before including */
 #include "iwl-io.h"

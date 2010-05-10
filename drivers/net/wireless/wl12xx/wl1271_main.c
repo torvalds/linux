@@ -1118,14 +1118,13 @@ static void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters)
 	}
 }
 
-static int wl1271_join_channel(struct wl1271 *wl, int channel)
+static int wl1271_dummy_join(struct wl1271 *wl)
 {
 	int ret = 0;
 	/* we need to use a dummy BSSID for now */
 	static const u8 dummy_bssid[ETH_ALEN] = { 0x0b, 0xad, 0xde,
 						  0xad, 0xbe, 0xef };
 
-	wl->channel = channel;
 	memcpy(wl->bssid, dummy_bssid, ETH_ALEN);
 
 	/* pass through frames from all BSS */
@@ -1141,7 +1140,47 @@ out:
 	return ret;
 }
 
-static int wl1271_unjoin_channel(struct wl1271 *wl)
+static int wl1271_join(struct wl1271 *wl)
+{
+	int ret;
+
+	ret = wl1271_cmd_join(wl, wl->set_bss_type);
+	if (ret < 0)
+		goto out;
+
+	set_bit(WL1271_FLAG_JOINED, &wl->flags);
+
+	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		goto out;
+
+	/*
+	 * The join command disable the keep-alive mode, shut down its process,
+	 * and also clear the template config, so we need to reset it all after
+	 * the join. The acx_aid starts the keep-alive process, and the order
+	 * of the commands below is relevant.
+	 */
+	ret = wl1271_acx_keep_alive_mode(wl, true);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1271_acx_aid(wl, wl->aid);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1271_cmd_build_klv_null_data(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1271_acx_keep_alive_config(wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
+					   ACX_KEEP_ALIVE_TPL_VALID);
+	if (ret < 0)
+		goto out;
+
+out:
+	return ret;
+}
+
+static int wl1271_unjoin(struct wl1271 *wl)
 {
 	int ret;
 
@@ -1231,7 +1270,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 				       "failed %d", ret);
 
 		if (test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
-			ret = wl1271_cmd_join(wl, wl->set_bss_type);
+			ret = wl1271_join(wl);
 			if (ret < 0)
 				wl1271_warning("cmd join to update channel "
 					       "failed %d", ret);
@@ -1241,9 +1280,9 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
 		if (conf->flags & IEEE80211_CONF_IDLE &&
 		    test_bit(WL1271_FLAG_JOINED, &wl->flags))
-			wl1271_unjoin_channel(wl);
+			wl1271_unjoin(wl);
 		else if (!(conf->flags & IEEE80211_CONF_IDLE))
-			wl1271_join_channel(wl, channel);
+			wl1271_dummy_join(wl);
 
 		if (conf->flags & IEEE80211_CONF_IDLE) {
 			wl->rate_set = wl1271_min_rate_get(wl);
@@ -1311,7 +1350,6 @@ static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw,
 	struct wl1271_filter_params *fp;
 	struct netdev_hw_addr *ha;
 	struct wl1271 *wl = hw->priv;
-	int i;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		return 0;
@@ -1520,6 +1558,7 @@ out:
 }
 
 static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
 			     struct cfg80211_scan_request *req)
 {
 	struct wl1271 *wl = hw->priv;
@@ -1608,7 +1647,6 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	enum wl1271_cmd_ps_mode mode;
 	struct wl1271 *wl = hw->priv;
 	bool do_join = false;
-	bool do_keepalive = false;
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 bss info changed");
@@ -1703,6 +1741,10 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ret < 0)
 				goto out_sleep;
 
+			ret = wl1271_build_qos_null_data(wl);
+			if (ret < 0)
+				goto out_sleep;
+
 			/* filter out all packets not from this BSSID */
 			wl1271_configure_filters(wl, 0);
 
@@ -1746,19 +1788,6 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			 */
 			ret = wl1271_cmd_build_probe_req(wl, NULL, 0,
 							 NULL, 0, wl->band);
-
-			/* Enable the keep-alive feature */
-			ret = wl1271_acx_keep_alive_mode(wl, true);
-			if (ret < 0)
-				goto out_sleep;
-
-			/*
-			 * This is awkward. The keep-alive configs must be done
-			 * *after* the join command, because otherwise it will
-			 * not work, but it must only be done *once* because
-			 * otherwise the firmware will start complaining.
-			 */
-			do_keepalive = true;
 
 			/* enable the connection monitoring feature */
 			ret = wl1271_acx_conn_monit_params(wl, true);
@@ -1827,35 +1856,11 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (do_join) {
-		ret = wl1271_cmd_join(wl, wl->set_bss_type);
+		ret = wl1271_join(wl);
 		if (ret < 0) {
 			wl1271_warning("cmd join failed %d", ret);
 			goto out_sleep;
 		}
-		set_bit(WL1271_FLAG_JOINED, &wl->flags);
-	}
-
-	/*
-	 * The JOIN operation shuts down the firmware keep-alive as a side
-	 * effect, and the ACX_AID will start the keep-alive as a side effect.
-	 * Hence, for non-IBSS, the ACX_AID must always happen *after* the
-	 * JOIN operation, and the template config after the ACX_AID.
-	 */
-	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
-		ret = wl1271_acx_aid(wl, wl->aid);
-		if (ret < 0)
-			goto out_sleep;
-	}
-
-	if (do_keepalive) {
-		ret = wl1271_cmd_build_klv_null_data(wl);
-		if (ret < 0)
-			goto out_sleep;
-		ret = wl1271_acx_keep_alive_config(
-			wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
-			ACX_KEEP_ALIVE_TPL_VALID);
-		if (ret < 0)
-			goto out_sleep;
 	}
 
 out_sleep:
@@ -2266,7 +2271,6 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->max_listen_interval = wl->conf.conn.max_listen_interval;
 
 	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_NOISE_DBM |
 		IEEE80211_HW_BEACON_FILTER |
 		IEEE80211_HW_SUPPORTS_PS |
 		IEEE80211_HW_SUPPORTS_UAPSD |

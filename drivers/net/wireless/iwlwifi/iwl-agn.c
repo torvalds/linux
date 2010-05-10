@@ -2174,7 +2174,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	}
 
 	/* Configure Bluetooth device coexistence support */
-	iwl_send_bt_config(priv);
+	priv->cfg->ops->hcmd->send_bt_config(priv);
 
 	iwl_reset_run_time_calib(priv);
 
@@ -2654,7 +2654,6 @@ static int iwl_mac_setup_register(struct iwl_priv *priv)
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_NOISE_DBM |
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_SPECTRUM_MGMT;
 
@@ -3002,18 +3001,6 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int iwl_mac_get_stats(struct ieee80211_hw *hw,
-			     struct ieee80211_low_level_stats *stats)
-{
-	struct iwl_priv *priv = hw->priv;
-
-	priv = hw->priv;
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	return 0;
-}
-
 static void iwl_mac_sta_notify(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       enum sta_notify_cmd cmd,
@@ -3178,44 +3165,6 @@ static ssize_t store_tx_power(struct device *d,
 
 static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO, show_tx_power, store_tx_power);
 
-static ssize_t show_statistics(struct device *d,
-			       struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	u32 size = sizeof(struct iwl_notif_statistics);
-	u32 len = 0, ofs = 0;
-	u8 *data = (u8 *)&priv->statistics;
-	int rc = 0;
-
-	if (!iwl_is_alive(priv))
-		return -EAGAIN;
-
-	mutex_lock(&priv->mutex);
-	rc = iwl_send_statistics_request(priv, CMD_SYNC, false);
-	mutex_unlock(&priv->mutex);
-
-	if (rc) {
-		len = sprintf(buf,
-			      "Error sending statistics request: 0x%08X\n", rc);
-		return len;
-	}
-
-	while (size && (PAGE_SIZE - len)) {
-		hex_dump_to_buffer(data + ofs, size, 16, 1, buf + len,
-				   PAGE_SIZE - len, 1);
-		len = strlen(buf);
-		if (PAGE_SIZE - len)
-			buf[len++] = '\n';
-
-		ofs += 16;
-		size -= min(size, 16U);
-	}
-
-	return len;
-}
-
-static DEVICE_ATTR(statistics, S_IRUGO, show_statistics, NULL);
-
 static ssize_t show_rts_ht_protection(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
@@ -3305,6 +3254,7 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 
 	cancel_delayed_work_sync(&priv->init_alive_start);
 	cancel_delayed_work(&priv->scan_check);
+	cancel_work_sync(&priv->start_internal_scan);
 	cancel_delayed_work(&priv->alive_start);
 	cancel_work_sync(&priv->beacon_update);
 	del_timer_sync(&priv->statistics_periodic);
@@ -3400,11 +3350,10 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 	iwl_calib_free_results(priv);
 	iwlcore_free_geos(priv);
 	iwl_free_channel_map(priv);
-	kfree(priv->scan);
+	kfree(priv->scan_cmd);
 }
 
 static struct attribute *iwl_sysfs_entries[] = {
-	&dev_attr_statistics.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
 	&dev_attr_rts_ht_protection.attr,
@@ -3429,7 +3378,6 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.configure_filter = iwl_configure_filter,
 	.set_key = iwl_mac_set_key,
 	.update_tkip_key = iwl_mac_update_tkip_key,
-	.get_stats = iwl_mac_get_stats,
 	.conf_tx = iwl_mac_conf_tx,
 	.reset_tsf = iwl_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,
@@ -3835,7 +3783,12 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x4238, 0x1111, iwl6000_3agn_cfg)},
 	{IWL_PCI_DEVICE(0x4239, 0x1311, iwl6000i_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x4239, 0x1316, iwl6000i_2abg_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1201, iwl6000i_g2_2agn_cfg)},
+
+/* 6x00 Series Gen2 */
+	{IWL_PCI_DEVICE(0x0082, 0x1201, iwl6000g2_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1301, iwl6000g2_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1321, iwl6000g2_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x0085, 0x1311, iwl6000g2_2agn_cfg)},
 
 /* 6x50 WiFi/WiMax Series */
 	{IWL_PCI_DEVICE(0x0087, 0x1301, iwl6050_2agn_cfg)},

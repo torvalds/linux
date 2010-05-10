@@ -168,6 +168,7 @@
 #include <linux/ethtool.h>
 #include <linux/string.h>
 #include <linux/firmware.h>
+#include <linux/rtnetlink.h>
 #include <asm/unaligned.h>
 
 
@@ -2280,8 +2281,13 @@ static void e100_tx_timeout_task(struct work_struct *work)
 
 	netif_printk(nic, tx_err, KERN_DEBUG, nic->netdev,
 		     "scb.status=0x%02X\n", ioread8(&nic->csr->scb.status));
-	e100_down(netdev_priv(netdev));
-	e100_up(netdev_priv(netdev));
+
+	rtnl_lock();
+	if (netif_running(netdev)) {
+		e100_down(netdev_priv(netdev));
+		e100_up(netdev_priv(netdev));
+	}
+	rtnl_unlock();
 }
 
 static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)

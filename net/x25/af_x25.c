@@ -402,6 +402,7 @@ static void __x25_destroy_socket(struct sock *sk)
 			/*
 			 * Queue the unaccepted socket for death
 			 */
+			skb->sk->sk_state = TCP_LISTEN;
 			sock_set_flag(skb->sk, SOCK_DEAD);
 			x25_start_heartbeat(skb->sk);
 			x25_sk(skb->sk)->state = X25_STATE_0;
@@ -718,7 +719,7 @@ static int x25_wait_for_connection_establishment(struct sock *sk)
 	DECLARE_WAITQUEUE(wait, current);
 	int rc;
 
-	add_wait_queue_exclusive(sk->sk_sleep, &wait);
+	add_wait_queue_exclusive(sk_sleep(sk), &wait);
 	for (;;) {
 		__set_current_state(TASK_INTERRUPTIBLE);
 		rc = -ERESTARTSYS;
@@ -738,7 +739,7 @@ static int x25_wait_for_connection_establishment(struct sock *sk)
 			break;
 	}
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 	return rc;
 }
 
@@ -838,7 +839,7 @@ static int x25_wait_for_data(struct sock *sk, long timeout)
 	DECLARE_WAITQUEUE(wait, current);
 	int rc = 0;
 
-	add_wait_queue_exclusive(sk->sk_sleep, &wait);
+	add_wait_queue_exclusive(sk_sleep(sk), &wait);
 	for (;;) {
 		__set_current_state(TASK_INTERRUPTIBLE);
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
@@ -858,7 +859,7 @@ static int x25_wait_for_data(struct sock *sk, long timeout)
 			break;
 	}
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 	return rc;
 }
 
