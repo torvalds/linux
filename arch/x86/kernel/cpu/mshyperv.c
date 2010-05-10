@@ -11,6 +11,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/module.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
 #include <asm/hyperv.h>
