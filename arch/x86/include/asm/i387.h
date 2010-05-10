@@ -64,7 +64,7 @@ static inline bool use_xsave(void)
 	alternative_io("mov $0, %0",
 		       "mov $1, %0",
 		       X86_FEATURE_XSAVE,
-		       "=g"(has_xsave));
+		       "=qm" (has_xsave));
 
 	return has_xsave;
 }
