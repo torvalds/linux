@@ -81,6 +81,12 @@ config SATA_SIL24
 
 	  If unsure, say N.
 
+config SATA_INIC162X
+	tristate "Initio 162x SATA support"
+	depends on PCI
+	help
+	  This option enables support for Initio 162x Serial ATA.
+
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
 	depends on FSL_SOC
@@ -220,12 +226,6 @@ config SATA_VITESSE
 	  This option enables support for Vitesse VSC7174 and Intel 31244 Serial ATA.
 
 	  If unsure, say N.
-
-config SATA_INIC162X
-	tristate "Initio 162x SATA support"
-	depends on PCI
-	help
-	  This option enables support for Initio 162x Serial ATA.
 
 config PATA_ACPI
 	tristate "ACPI firmware driver for PATA"
