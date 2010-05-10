@@ -108,8 +108,7 @@ static inline int cifs_get_disposition(unsigned int flags)
 /* all arguments to this function must be checked for validity in caller */
 static inline int
 cifs_posix_open_inode_helper(struct inode *inode, struct file *file,
-			     struct cifsInodeInfo *pCifsInode,
-			     struct cifsFileInfo *pCifsFile, __u32 oplock,
+			     struct cifsInodeInfo *pCifsInode, __u32 oplock,
 			     u16 netfid)
 {
 
@@ -311,7 +310,7 @@ int cifs_open(struct inode *inode, struct file *file)
 
 			pCifsFile = cifs_fill_filedata(file);
 			cifs_posix_open_inode_helper(inode, file, pCifsInode,
-						     pCifsFile, oplock, netfid);
+						     oplock, netfid);
 			goto out;
 		} else if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			if (tcon->ses->serverNOS)
