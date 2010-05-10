@@ -850,9 +850,6 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	if (!(data & sw_cfg_mask))
 		goto out;
 
-	/* Wait for basic configuration completes before proceeding */
-	e1000_lan_init_done_ich8lan(hw);
-
 	/*
 	 * Make sure HW does not configure LCD from PHY
 	 * extended configuration before SW configuration
@@ -1260,30 +1257,26 @@ static void e1000_lan_init_done_ich8lan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_phy_hw_reset_ich8lan - Performs a PHY reset
+ *  e1000_post_phy_reset_ich8lan - Perform steps required after a PHY reset
  *  @hw: pointer to the HW structure
- *
- *  Resets the PHY
- *  This is a function pointer entry point called by drivers
- *  or other shared routines.
  **/
-static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
+static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 	u16 reg;
 
-	ret_val = e1000e_phy_hw_reset_generic(hw);
-	if (ret_val)
-		return ret_val;
-
-	/* Allow time for h/w to get to a quiescent state after reset */
-	mdelay(10);
+	if (e1000_check_reset_block(hw))
+		goto out;
 
 	/* Perform any necessary post-reset workarounds */
-	if (hw->mac.type == e1000_pchlan) {
+	switch (hw->mac.type) {
+	case e1000_pchlan:
 		ret_val = e1000_hv_phy_workarounds_ich8lan(hw);
 		if (ret_val)
-			return ret_val;
+			goto out;
+		break;
+	default:
+		break;
 	}
 
 	/* Dummy read to clear the phy wakeup bit after lcd reset */
@@ -1296,11 +1289,32 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
 		goto out;
 
 	/* Configure the LCD with the OEM bits in NVM */
-	if (hw->mac.type == e1000_pchlan)
-		ret_val = e1000_oem_bits_config_ich8lan(hw, true);
+	ret_val = e1000_oem_bits_config_ich8lan(hw, true);
 
 out:
-	return 0;
+	return ret_val;
+}
+
+/**
+ *  e1000_phy_hw_reset_ich8lan - Performs a PHY reset
+ *  @hw: pointer to the HW structure
+ *
+ *  Resets the PHY
+ *  This is a function pointer entry point called by drivers
+ *  or other shared routines.
+ **/
+static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+
+	ret_val = e1000e_phy_hw_reset_generic(hw);
+	if (ret_val)
+		goto out;
+
+	ret_val = e1000_post_phy_reset_ich8lan(hw);
+
+out:
+	return ret_val;
 }
 
 /**
@@ -2511,9 +2525,8 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = e1000e_disable_pcie_master(hw);
-	if (ret_val) {
+	if (ret_val)
 		e_dbg("PCI-E Master disable polling has failed.\n");
-	}
 
 	e_dbg("Masking off all interrupts\n");
 	ew32(IMC, 0xffffffff);
@@ -2552,14 +2565,8 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	ctrl = er32(CTRL);
 
 	if (!e1000_check_reset_block(hw)) {
-		/* Clear PHY Reset Asserted bit */
-		if (hw->mac.type >= e1000_pchlan) {
-			u32 status = er32(STATUS);
-			ew32(STATUS, status & ~E1000_STATUS_PHYRA);
-		}
-
 		/*
-		 * PHY HW reset requires MAC CORE reset at the same
+		 * Full-chip reset requires MAC and PHY reset at the same
 		 * time to make sure the interface between MAC and the
 		 * external PHY is reset.
 		 */
@@ -2573,39 +2580,16 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	if (!ret_val)
 		e1000_release_swflag_ich8lan(hw);
 
-	/* Perform any necessary post-reset workarounds */
-	if (hw->mac.type == e1000_pchlan)
-		ret_val = e1000_hv_phy_workarounds_ich8lan(hw);
-
-	if (ctrl & E1000_CTRL_PHY_RST)
+	if (ctrl & E1000_CTRL_PHY_RST) {
 		ret_val = hw->phy.ops.get_cfg_done(hw);
+		if (ret_val)
+			goto out;
 
-	if (hw->mac.type >= e1000_ich10lan) {
-		e1000_lan_init_done_ich8lan(hw);
-	} else {
-		ret_val = e1000e_get_auto_rd_done(hw);
-		if (ret_val) {
-			/*
-			 * When auto config read does not complete, do not
-			 * return with an error. This can happen in situations
-			 * where there is no eeprom and prevents getting link.
-			 */
-			e_dbg("Auto Read Done did not complete\n");
-		}
-	}
-	/* Dummy read to clear the phy wakeup bit after lcd reset */
-	if (hw->mac.type == e1000_pchlan)
-		e1e_rphy(hw, BM_WUC, &reg);
-
-	ret_val = e1000_sw_lcd_config_ich8lan(hw);
-	if (ret_val)
-		goto out;
-
-	if (hw->mac.type == e1000_pchlan) {
-		ret_val = e1000_oem_bits_config_ich8lan(hw, true);
+		ret_val = e1000_post_phy_reset_ich8lan(hw);
 		if (ret_val)
 			goto out;
 	}
+
 	/*
 	 * For PCH, this write will make sure that any noise
 	 * will be detected as a CRC error and be dropped rather than show up
@@ -3291,33 +3275,50 @@ static s32 e1000_led_off_pchlan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_get_cfg_done_ich8lan - Read config done bit
+ *  e1000_get_cfg_done_ich8lan - Read config done bit after Full or PHY reset
  *  @hw: pointer to the HW structure
  *
- *  Read the management control register for the config done bit for
- *  completion status.  NOTE: silicon which is EEPROM-less will fail trying
- *  to read the config done bit, so an error is *ONLY* logged and returns
- *  0.  If we were to return with error, EEPROM-less silicon
- *  would not be able to be reset or change link.
+ *  Read appropriate register for the config done bit for completion status
+ *  and configure the PHY through s/w for EEPROM-less parts.
+ *
+ *  NOTE: some silicon which is EEPROM-less will fail trying to read the
+ *  config done bit, so only an error is logged and continues.  If we were
+ *  to return with error, EEPROM-less silicon would not be able to be reset
+ *  or change link.
  **/
 static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 {
+	s32 ret_val = 0;
 	u32 bank = 0;
-
-	if (hw->mac.type >= e1000_pchlan) {
-		u32 status = er32(STATUS);
-
-		if (status & E1000_STATUS_PHYRA)
-			ew32(STATUS, status & ~E1000_STATUS_PHYRA);
-		else
-			e_dbg("PHY Reset Asserted not set - needs delay\n");
-	}
+	u32 status;
 
 	e1000e_get_cfg_done(hw);
 
+	/* Wait for indication from h/w that it has completed basic config */
+	if (hw->mac.type >= e1000_ich10lan) {
+		e1000_lan_init_done_ich8lan(hw);
+	} else {
+		ret_val = e1000e_get_auto_rd_done(hw);
+		if (ret_val) {
+			/*
+			 * When auto config read does not complete, do not
+			 * return with an error. This can happen in situations
+			 * where there is no eeprom and prevents getting link.
+			 */
+			e_dbg("Auto Read Done did not complete\n");
+			ret_val = 0;
+		}
+	}
+
+	/* Clear PHY Reset Asserted bit */
+	status = er32(STATUS);
+	if (status & E1000_STATUS_PHYRA)
+		ew32(STATUS, status & ~E1000_STATUS_PHYRA);
+	else
+		e_dbg("PHY Reset Asserted not set - needs delay\n");
+
 	/* If EEPROM is not marked present, init the IGP 3 PHY manually */
-	if ((hw->mac.type != e1000_ich10lan) &&
-	    (hw->mac.type != e1000_pchlan)) {
+	if (hw->mac.type <= e1000_ich9lan) {
 		if (((er32(EECD) & E1000_EECD_PRES) == 0) &&
 		    (hw->phy.type == e1000_phy_igp_3)) {
 			e1000e_phy_init_script_igp3(hw);
@@ -3326,11 +3327,11 @@ static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 		if (e1000_valid_nvm_bank_detect_ich8lan(hw, &bank)) {
 			/* Maybe we should do a basic PHY config */
 			e_dbg("EEPROM not present\n");
-			return -E1000_ERR_CONFIG;
+			ret_val = -E1000_ERR_CONFIG;
 		}
 	}
 
-	return 0;
+	return ret_val;
 }
 
 /**
