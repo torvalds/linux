@@ -1000,7 +1000,6 @@ extern unsigned long ata_xfer_mode2mask(u8 xfer_mode);
 extern int ata_xfer_mode2shift(unsigned long xfer_mode);
 extern const char *ata_mode_string(unsigned long xfer_mask);
 extern unsigned long ata_id_xfermask(const u16 *id);
-extern int ata_port_start(struct ata_port *ap);
 extern int ata_std_qc_defer(struct ata_queued_cmd *qc);
 extern void ata_noop_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
@@ -1616,8 +1615,6 @@ extern void ata_sff_postreset(struct ata_link *link, unsigned int *classes);
 extern void ata_sff_drain_fifo(struct ata_queued_cmd *qc);
 extern void ata_sff_error_handler(struct ata_port *ap);
 extern void ata_sff_post_internal_cmd(struct ata_queued_cmd *qc);
-extern int ata_sff_port_start(struct ata_port *ap);
-extern int ata_sff_port_start32(struct ata_port *ap);
 extern void ata_sff_std_ports(struct ata_ioports *ioaddr);
 #ifdef CONFIG_PCI
 extern int ata_pci_sff_init_host(struct ata_host *host);
@@ -1632,16 +1629,16 @@ extern int ata_pci_sff_init_one(struct pci_dev *pdev,
 		struct scsi_host_template *sht, void *host_priv, int hflags);
 #endif /* CONFIG_PCI */
 
-extern unsigned long ata_bmdma_mode_filter(struct ata_device *dev,
-					   unsigned long xfer_mask);
 extern void ata_bmdma_setup(struct ata_queued_cmd *qc);
 extern void ata_bmdma_start(struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
 extern u8 ata_bmdma_status(struct ata_port *ap);
+extern int ata_bmdma_port_start(struct ata_port *ap);
+extern int ata_bmdma_port_start32(struct ata_port *ap);
 
 #ifdef CONFIG_PCI
 extern int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev);
-extern int ata_pci_bmdma_init(struct ata_host *host);
+extern void ata_pci_bmdma_init(struct ata_host *host);
 #endif /* CONFIG_PCI */
 
 /**

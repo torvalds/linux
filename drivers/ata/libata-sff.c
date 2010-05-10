@@ -66,8 +66,6 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.sff_irq_clear		= ata_sff_irq_clear,
 
 	.lost_interrupt		= ata_sff_lost_interrupt,
-
-	.port_start		= ata_sff_port_start,
 };
 EXPORT_SYMBOL_GPL(ata_sff_port_ops);
 
@@ -2444,50 +2442,6 @@ void ata_sff_post_internal_cmd(struct ata_queued_cmd *qc)
 EXPORT_SYMBOL_GPL(ata_sff_post_internal_cmd);
 
 /**
- *	ata_sff_port_start - Set port up for dma.
- *	@ap: Port to initialize
- *
- *	Called just after data structures for each port are
- *	initialized.  Allocates space for PRD table if the device
- *	is DMA capable SFF.
- *
- *	May be used as the port_start() entry in ata_port_operations.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-int ata_sff_port_start(struct ata_port *ap)
-{
-	if (ap->ioaddr.bmdma_addr)
-		return ata_port_start(ap);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ata_sff_port_start);
-
-/**
- *	ata_sff_port_start32 - Set port up for dma.
- *	@ap: Port to initialize
- *
- *	Called just after data structures for each port are
- *	initialized.  Allocates space for PRD table if the device
- *	is DMA capable SFF.
- *
- *	May be used as the port_start() entry in ata_port_operations for
- *	devices that are capable of 32bit PIO.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-int ata_sff_port_start32(struct ata_port *ap)
-{
-	ap->pflags |= ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE;
-	if (ap->ioaddr.bmdma_addr)
-		return ata_port_start(ap);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ata_sff_port_start32);
-
-/**
  *	ata_sff_std_ports - initialize ioaddr with standard port offsets.
  *	@ioaddr: IO address structure to be initialized
  *
@@ -2646,21 +2600,12 @@ int ata_pci_sff_prepare_host(struct pci_dev *pdev,
 		goto err_out;
 
 	/* init DMA related stuff */
-	rc = ata_pci_bmdma_init(host);
-	if (rc)
-		goto err_bmdma;
+	ata_pci_bmdma_init(host);
 
 	devres_remove_group(&pdev->dev, NULL);
 	*r_host = host;
 	return 0;
 
-err_bmdma:
-	/* This is necessary because PCI and iomap resources are
-	 * merged and releasing the top group won't release the
-	 * acquired resources if some of those have been acquired
-	 * before entering this function.
-	 */
-	pcim_iounmap_regions(pdev, 0xf);
 err_out:
 	devres_release_group(&pdev->dev, NULL);
 	return rc;
@@ -2843,12 +2788,12 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_init_one);
 const struct ata_port_operations ata_bmdma_port_ops = {
 	.inherits		= &ata_sff_port_ops,
 
-	.mode_filter		= ata_bmdma_mode_filter,
-
 	.bmdma_setup		= ata_bmdma_setup,
 	.bmdma_start		= ata_bmdma_start,
 	.bmdma_stop		= ata_bmdma_stop,
 	.bmdma_status		= ata_bmdma_status,
+
+	.port_start		= ata_bmdma_port_start,
 };
 EXPORT_SYMBOL_GPL(ata_bmdma_port_ops);
 
@@ -2856,21 +2801,9 @@ const struct ata_port_operations ata_bmdma32_port_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 
 	.sff_data_xfer		= ata_sff_data_xfer32,
-	.port_start		= ata_sff_port_start32,
+	.port_start		= ata_bmdma_port_start32,
 };
 EXPORT_SYMBOL_GPL(ata_bmdma32_port_ops);
-
-unsigned long ata_bmdma_mode_filter(struct ata_device *adev,
-				    unsigned long xfer_mask)
-{
-	/* Filter out DMA modes if the device has been configured by
-	   the BIOS as PIO only */
-
-	if (adev->link->ap->ioaddr.bmdma_addr == NULL)
-		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
-	return xfer_mask;
-}
-EXPORT_SYMBOL_GPL(ata_bmdma_mode_filter);
 
 /**
  *	ata_bmdma_setup - Set up PCI IDE BMDMA transaction
@@ -2976,6 +2909,53 @@ u8 ata_bmdma_status(struct ata_port *ap)
 }
 EXPORT_SYMBOL_GPL(ata_bmdma_status);
 
+
+/**
+ *	ata_bmdma_port_start - Set port up for bmdma.
+ *	@ap: Port to initialize
+ *
+ *	Called just after data structures for each port are
+ *	initialized.  Allocates space for PRD table.
+ *
+ *	May be used as the port_start() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+int ata_bmdma_port_start(struct ata_port *ap)
+{
+	if (ap->mwdma_mask || ap->udma_mask) {
+		ap->prd = dmam_alloc_coherent(ap->host->dev, ATA_PRD_TBL_SZ,
+					      &ap->prd_dma, GFP_KERNEL);
+		if (!ap->prd)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_port_start);
+
+/**
+ *	ata_bmdma_port_start32 - Set port up for dma.
+ *	@ap: Port to initialize
+ *
+ *	Called just after data structures for each port are
+ *	initialized.  Enables 32bit PIO and allocates space for PRD
+ *	table.
+ *
+ *	May be used as the port_start() entry in ata_port_operations for
+ *	devices that are capable of 32bit PIO.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+int ata_bmdma_port_start32(struct ata_port *ap)
+{
+	ap->pflags |= ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE;
+	return ata_bmdma_port_start(ap);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_port_start32);
+
 #ifdef CONFIG_PCI
 
 /**
@@ -3004,6 +2984,19 @@ int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev)
 }
 EXPORT_SYMBOL_GPL(ata_pci_bmdma_clear_simplex);
 
+static void ata_bmdma_nodma(struct ata_host *host, const char *reason)
+{
+	int i;
+
+	dev_printk(KERN_ERR, host->dev, "BMDMA: %s, falling back to PIO\n",
+		   reason);
+
+	for (i = 0; i < 2; i++) {
+		host->ports[i]->mwdma_mask = 0;
+		host->ports[i]->udma_mask = 0;
+	}
+}
+
 /**
  *	ata_pci_bmdma_init - acquire PCI BMDMA resources and init ATA host
  *	@host: target ATA host
@@ -3012,33 +3005,40 @@ EXPORT_SYMBOL_GPL(ata_pci_bmdma_clear_simplex);
  *
  *	LOCKING:
  *	Inherited from calling layer (may sleep).
- *
- *	RETURNS:
- *	0 on success, -errno otherwise.
  */
-int ata_pci_bmdma_init(struct ata_host *host)
+void ata_pci_bmdma_init(struct ata_host *host)
 {
 	struct device *gdev = host->dev;
 	struct pci_dev *pdev = to_pci_dev(gdev);
 	int i, rc;
 
 	/* No BAR4 allocation: No DMA */
-	if (pci_resource_start(pdev, 4) == 0)
-		return 0;
+	if (pci_resource_start(pdev, 4) == 0) {
+		ata_bmdma_nodma(host, "BAR4 is zero");
+		return;
+	}
 
-	/* TODO: If we get no DMA mask we should fall back to PIO */
+	/*
+	 * Some controllers require BMDMA region to be initialized
+	 * even if DMA is not in use to clear IRQ status via
+	 * ->sff_irq_clear method.  Try to initialize bmdma_addr
+	 * regardless of dma masks.
+	 */
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
-		return rc;
-	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
+		ata_bmdma_nodma(host, "failed to set dma mask");
+	if (!rc) {
+		rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
+		if (rc)
+			ata_bmdma_nodma(host,
+					"failed to set consistent dma mask");
+	}
 
 	/* request and iomap DMA region */
 	rc = pcim_iomap_regions(pdev, 1 << 4, dev_driver_string(gdev));
 	if (rc) {
-		dev_printk(KERN_ERR, gdev, "failed to request/iomap BAR4\n");
-		return -ENOMEM;
+		ata_bmdma_nodma(host, "failed to request/iomap BAR4");
+		return;
 	}
 	host->iomap = pcim_iomap_table(pdev);
 
@@ -3057,8 +3057,6 @@ int ata_pci_bmdma_init(struct ata_host *host)
 		ata_port_desc(ap, "bmdma 0x%llx",
 		    (unsigned long long)pci_resource_start(pdev, 4) + 8 * i);
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ata_pci_bmdma_init);
 

@@ -335,7 +335,7 @@ static struct ata_port_operations pata_icside_port_ops = {
 	.postreset		= pata_icside_postreset,
 	.post_internal_cmd	= pata_icside_bmdma_stop,
 
-	.mode_filter		= ATA_OP_NULL,	/* will be removed soon */
+	.port_start		= ATA_OP_NULL,	/* don't need PRD table */
 };
 
 static void __devinit

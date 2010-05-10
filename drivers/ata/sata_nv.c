@@ -1156,7 +1156,8 @@ static int nv_adma_port_start(struct ata_port *ap)
 	if (rc)
 		return rc;
 
-	rc = ata_port_start(ap);
+	/* we might fallback to bmdma, allocate bmdma resources */
+	rc = ata_bmdma_port_start(ap);
 	if (rc)
 		return rc;
 
@@ -1985,7 +1986,8 @@ static int nv_swncq_port_start(struct ata_port *ap)
 	struct nv_swncq_port_priv *pp;
 	int rc;
 
-	rc = ata_port_start(ap);
+	/* we might fallback to bmdma, allocate bmdma resources */
+	rc = ata_bmdma_port_start(ap);
 	if (rc)
 		return rc;
 

@@ -717,8 +717,6 @@ static struct ata_port_operations mv6_ops = {
 
 	.port_start		= mv_port_start,
 	.port_stop		= mv_port_stop,
-
-	.mode_filter            = ATA_OP_NULL,  /* will be removed soon */
 };
 
 static struct ata_port_operations mv_iie_ops = {

@@ -333,7 +333,8 @@ static int pdc_common_port_start(struct ata_port *ap)
 	struct pdc_port_priv *pp;
 	int rc;
 
-	rc = ata_port_start(ap);
+	/* we use the same prd table as bmdma, allocate it */
+	rc = ata_bmdma_port_start(ap);
 	if (rc)
 		return rc;
 

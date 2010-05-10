@@ -355,7 +355,7 @@ static unsigned long via_mode_filter(struct ata_device *dev, unsigned long mask)
 			mask &= ~ ATA_MASK_UDMA;
 		}
 	}
-	return ata_bmdma_mode_filter(dev, mask);
+	return mask;
 }
 
 /**
@@ -424,7 +424,7 @@ static int via_port_start(struct ata_port *ap)
 	struct via_port *vp;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	int ret = ata_sff_port_start(ap);
+	int ret = ata_bmdma_port_start(ap);
 	if (ret < 0)
 		return ret;
 

@@ -153,16 +153,12 @@ static int cmd640_port_start(struct ata_port *ap)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct cmd640_reg *timing;
 
-	int ret = ata_sff_port_start(ap);
-	if (ret < 0)
-		return ret;
-
 	timing = devm_kzalloc(&pdev->dev, sizeof(struct cmd640_reg), GFP_KERNEL);
 	if (timing == NULL)
 		return -ENOMEM;
 	timing->last = -1;	/* Force a load */
 	ap->private_data = timing;
-	return ret;
+	return 0;
 }
 
 static struct scsi_host_template cmd640_sht = {

@@ -504,11 +504,7 @@ static int qs_port_start(struct ata_port *ap)
 	void __iomem *mmio_base = qs_mmio_base(ap->host);
 	void __iomem *chan = mmio_base + (ap->port_no * 0x4000);
 	u64 addr;
-	int rc;
 
-	rc = ata_port_start(ap);
-	if (rc)
-		return rc;
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
 		return -ENOMEM;

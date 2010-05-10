@@ -1450,8 +1450,6 @@ static struct ata_port_operations bfin_pata_ops = {
 
 	.port_start		= bfin_port_start,
 	.port_stop		= bfin_port_stop,
-
-	.mode_filter		= ATA_OP_NULL,	/* will be removed soon */
 };
 
 static struct ata_port_info bfin_port_info[] = {

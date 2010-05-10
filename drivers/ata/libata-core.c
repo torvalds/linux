@@ -5506,30 +5506,6 @@ void ata_host_resume(struct ata_host *host)
 #endif
 
 /**
- *	ata_port_start - Set port up for dma.
- *	@ap: Port to initialize
- *
- *	Called just after data structures for each port are
- *	initialized.  Allocates space for PRD table.
- *
- *	May be used as the port_start() entry in ata_port_operations.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-int ata_port_start(struct ata_port *ap)
-{
-	struct device *dev = ap->dev;
-
-	ap->prd = dmam_alloc_coherent(dev, ATA_PRD_TBL_SZ, &ap->prd_dma,
-				      GFP_KERNEL);
-	if (!ap->prd)
-		return -ENOMEM;
-
-	return 0;
-}
-
-/**
  *	ata_dev_init - Initialize an ata_device structure
  *	@dev: Device structure to initialize
  *
@@ -6757,7 +6733,6 @@ EXPORT_SYMBOL_GPL(ata_xfer_mode2mask);
 EXPORT_SYMBOL_GPL(ata_xfer_mode2shift);
 EXPORT_SYMBOL_GPL(ata_mode_string);
 EXPORT_SYMBOL_GPL(ata_id_xfermask);
-EXPORT_SYMBOL_GPL(ata_port_start);
 EXPORT_SYMBOL_GPL(ata_do_set_mode);
 EXPORT_SYMBOL_GPL(ata_std_qc_defer);
 EXPORT_SYMBOL_GPL(ata_noop_qc_prep);

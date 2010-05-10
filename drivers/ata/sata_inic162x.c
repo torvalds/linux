@@ -682,7 +682,6 @@ static int inic_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->host->dev;
 	struct inic_port_priv *pp;
-	int rc;
 
 	/* alloc and initialize private data */
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
@@ -691,10 +690,6 @@ static int inic_port_start(struct ata_port *ap)
 	ap->private_data = pp;
 
 	/* Alloc resources */
-	rc = ata_port_start(ap);
-	if (rc)
-		return rc;
-
 	pp->pkt = dmam_alloc_coherent(dev, sizeof(struct inic_pkt),
 				      &pp->pkt_dma, GFP_KERNEL);
 	if (!pp->pkt)

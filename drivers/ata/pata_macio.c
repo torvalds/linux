@@ -720,6 +720,8 @@ static int pata_macio_port_start(struct ata_port *ap)
 	if (priv->dma_table_cpu == NULL) {
 		dev_err(priv->dev, "Unable to allocate DMA command list\n");
 		ap->ioaddr.bmdma_addr = NULL;
+		ap->mwdma_mask = 0;
+		ap->udma_mask = 0;
 	}
 	return 0;
 }

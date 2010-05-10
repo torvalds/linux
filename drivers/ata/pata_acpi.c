@@ -101,7 +101,7 @@ static unsigned long pacpi_discover_modes(struct ata_port *ap, struct ata_device
 static unsigned long pacpi_mode_filter(struct ata_device *adev, unsigned long mask)
 {
 	struct pata_acpi *acpi = adev->link->ap->private_data;
-	return ata_bmdma_mode_filter(adev, mask & acpi->mask[adev->devno]);
+	return mask & acpi->mask[adev->devno];
 }
 
 /**
@@ -205,7 +205,7 @@ static int pacpi_port_start(struct ata_port *ap)
 		return -ENOMEM;
 	acpi->mask[0] = pacpi_discover_modes(ap, &ap->link.device[0]);
 	acpi->mask[1] = pacpi_discover_modes(ap, &ap->link.device[1]);
-	ret = ata_sff_port_start(ap);
+	ret = ata_bmdma_port_start(ap);
 	if (ret < 0)
 		return ret;
 

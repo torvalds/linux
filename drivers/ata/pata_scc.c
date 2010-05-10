@@ -265,7 +265,7 @@ unsigned long scc_mode_filter(struct ata_device *adev, unsigned long mask)
 		printk(KERN_INFO "%s: limit ATAPI UDMA to UDMA4\n", DRV_NAME);
 		mask &= ~(0xE0 << ATA_SHIFT_UDMA);
 	}
-	return ata_bmdma_mode_filter(adev, mask);
+	return mask;
 }
 
 /**
@@ -892,7 +892,7 @@ static void scc_irq_clear (struct ata_port *ap)
  *	scc_port_start - Set port up for dma.
  *	@ap: Port to initialize
  *
- *	Allocate space for PRD table using ata_port_start().
+ *	Allocate space for PRD table using ata_bmdma_port_start().
  *	Set PRD table address for PTERADD. (PRD Transfer End Read)
  */
 
@@ -901,7 +901,7 @@ static int scc_port_start (struct ata_port *ap)
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
 	int rc;
 
-	rc = ata_port_start(ap);
+	rc = ata_bmdma_port_start(ap);
 	if (rc)
 		return rc;
 
