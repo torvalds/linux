@@ -2693,8 +2693,22 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 			scsicmd->cmnd[0],
 			le32_to_cpu(srbreply->scsi_status));
 #endif
-		scsicmd->result = DID_ERROR << 16 | COMMAND_COMPLETE << 8;
-		break;
+		if ((scsicmd->cmnd[0] == ATA_12)
+		  || (scsicmd->cmnd[0] == ATA_16)) {
+			if (scsicmd->cmnd[2] & (0x01 << 5)) {
+				scsicmd->result = DID_OK << 16
+						| COMMAND_COMPLETE << 8;
+				break;
+			} else {
+				scsicmd->result = DID_ERROR << 16
+						| COMMAND_COMPLETE << 8;
+				break;
+			}
+		} else {
+			scsicmd->result = DID_ERROR << 16
+					| COMMAND_COMPLETE << 8;
+			break;
+		}
 	}
 	if (le32_to_cpu(srbreply->scsi_status) == SAM_STAT_CHECK_CONDITION) {
 		int len;
