@@ -169,7 +169,8 @@ void __init reserve_crashkernel(void)
 
 	crash_size = PAGE_ALIGN(crashk_res.end - crashk_res.start + 1);
 	if (!crashk_res.start) {
-		crashk_res.start = lmb_alloc(crash_size, PAGE_SIZE);
+		unsigned long max = lmb_end_of_DRAM() - memory_limit;
+		crashk_res.start = __lmb_alloc_base(crash_size, PAGE_SIZE, max);
 		if (!crashk_res.start) {
 			pr_err("crashkernel allocation failed\n");
 			goto disable;
@@ -183,14 +184,21 @@ void __init reserve_crashkernel(void)
 		}
 	}
 
-	pr_info("Reserving %ldMB of memory at %ldMB "
+	crashk_res.end = crashk_res.start + crash_size - 1;
+
+	/*
+	 * Crash kernel trumps memory limit
+	 */
+	if ((lmb_end_of_DRAM() - memory_limit) <= crashk_res.end) {
+		memory_limit = 0;
+		pr_info("Disabled memory limit for crashkernel\n");
+	}
+
+	pr_info("Reserving %ldMB of memory at 0x%08lx "
 		"for crashkernel (System RAM: %ldMB)\n",
 		(unsigned long)(crash_size >> 20),
-		(unsigned long)(crashk_res.start >> 20),
+		(unsigned long)(crashk_res.start),
 		(unsigned long)(lmb_phys_mem_size() >> 20));
-
-	crashk_res.end = crashk_res.start + crash_size - 1;
-	insert_resource(&iomem_resource, &crashk_res);
 
 	return;
 

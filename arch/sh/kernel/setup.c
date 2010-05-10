@@ -95,6 +95,7 @@ unsigned long memory_start;
 EXPORT_SYMBOL(memory_start);
 unsigned long memory_end = 0;
 EXPORT_SYMBOL(memory_end);
+unsigned long memory_limit = 0;
 
 static struct resource mem_resources[MAX_NUMNODES];
 
@@ -102,21 +103,12 @@ int l1i_cache_shape, l1d_cache_shape, l2_cache_shape;
 
 static int __init early_parse_mem(char *p)
 {
-	unsigned long size;
+	if (!p)
+		return 1;
 
-	memory_start = (unsigned long)__va(__MEMORY_START);
-	size = memparse(p, &p);
+	memory_limit = PAGE_ALIGN(memparse(p, &p));
 
-	if (size > __MEMORY_SIZE) {
-		printk(KERN_ERR
-			"Using mem= to increase the size of kernel memory "
-			"is not allowed.\n"
-			"  Recompile the kernel with the correct value for "
-			"CONFIG_MEMORY_SIZE.\n");
-		return 0;
-	}
-
-	memory_end = memory_start + size;
+	pr_notice("Memory limited to %ldMB\n", memory_limit >> 20);
 
 	return 0;
 }
@@ -252,7 +244,7 @@ void __init do_init_bootmem(void)
 {
 	unsigned long bootmap_size;
 	unsigned long bootmap_pages, bootmem_paddr;
-	u64 total_pages = (lmb_end_of_DRAM() - __MEMORY_START) >> PAGE_SHIFT;
+	u64 total_pages = lmb_phys_mem_size() >> PAGE_SHIFT;
 	int i;
 
 	bootmap_pages = bootmem_bootmap_pages(total_pages);
@@ -277,12 +269,6 @@ void __init do_init_bootmem(void)
 	}
 
 	/*
-	 * Handle additional early reservations
-	 */
-	check_for_initrd();
-	reserve_crashkernel();
-
-	/*
 	 * Add all physical memory to the bootmem map and mark each
 	 * area as present.
 	 */
@@ -299,7 +285,7 @@ void __init do_init_bootmem(void)
 	sparse_memory_present_with_active_regions(0);
 }
 
-static void __init setup_memory(void)
+static void __init early_reserve_mem(void)
 {
 	unsigned long start_pfn;
 
@@ -326,11 +312,11 @@ static void __init setup_memory(void)
 	if (CONFIG_ZERO_PAGE_OFFSET != 0)
 		lmb_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
 
-	lmb_analyze();
-	lmb_dump_all();
-
-	do_init_bootmem();
-	plat_mem_setup();
+	/*
+	 * Handle additional early reservations
+	 */
+	check_for_initrd();
+	reserve_crashkernel();
 }
 
 /*
@@ -397,10 +383,6 @@ void __init setup_arch(char **cmdline_p)
 	bss_resource.start = virt_to_phys(__bss_start);
 	bss_resource.end = virt_to_phys(_ebss)-1;
 
-	memory_start = (unsigned long)__va(__MEMORY_START);
-	if (!memory_end)
-		memory_end = memory_start + __MEMORY_SIZE;
-
 #ifdef CONFIG_CMDLINE_OVERWRITE
 	strlcpy(command_line, CONFIG_CMDLINE, sizeof(command_line));
 #else
@@ -417,8 +399,6 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
-	uncached_init();
-
 	plat_early_device_setup();
 
 	/* Let earlyprintk output early console messages */
@@ -429,21 +409,28 @@ void __init setup_arch(char **cmdline_p)
 	sh_mv_setup();
 	sh_mv.mv_mem_init();
 
-	/*
-	 * Find the highest page frame number we have available
-	 */
-	max_pfn = PFN_DOWN(__pa(memory_end));
+	early_reserve_mem();
+
+	lmb_enforce_memory_limit(memory_limit);
+	lmb_analyze();
+
+	lmb_dump_all();
 
 	/*
 	 * Determine low and high memory ranges:
 	 */
-	max_low_pfn = max_pfn;
+	max_low_pfn = max_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
 	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
 
 	nodes_clear(node_online_map);
 
+	memory_start = (unsigned long)__va(__MEMORY_START);
+	memory_end = memory_start + (memory_limit ?: lmb_phys_mem_size());
+
+	uncached_init();
 	pmb_init();
-	setup_memory();
+	do_init_bootmem();
+	plat_mem_setup();
 	sparse_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
