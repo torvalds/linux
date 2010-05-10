@@ -2,8 +2,14 @@
 # Multifunction miscellaneous devices
 #
 
-menu "Multifunction device drivers"
+menuconfig MFD_SUPPORT
+	bool "Multifunction device drivers"
 	depends on HAS_IOMEM
+	default y
+	help
+	  Configure MFD device drivers.
+
+if MFD_SUPPORT
 
 config MFD_CORE
 	tristate
@@ -475,7 +481,7 @@ config MFD_JANZ_CMODIO
 	  host many different types of MODULbus daughterboards, including
 	  CAN and GPIO controllers.
 
-endmenu
+endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
