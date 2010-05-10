@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <asm/clkdev.h>
 #include <asm/clock.h>
 #include <asm/hwblk.h>
 #include <cpu/sh7722.h>
@@ -164,9 +165,9 @@ static struct clk mstp_clks[HWBLK_NR] = {
 	SH_HWBLK_CLK("cmt_fck", -1, R_CLK, HWBLK_CMT, 0),
 	SH_HWBLK_CLK("rwdt0", -1, R_CLK, HWBLK_RWDT, 0),
 	SH_HWBLK_CLK("flctl0", -1, P_CLK, HWBLK_FLCTL, 0),
-	SH_HWBLK_CLK("sci_fck", 0, P_CLK, HWBLK_SCIF0, 0),
-	SH_HWBLK_CLK("sci_fck", 1, P_CLK, HWBLK_SCIF1, 0),
-	SH_HWBLK_CLK("sci_fck", 2, P_CLK, HWBLK_SCIF2, 0),
+	SH_HWBLK_CLK("sci_fck", -1, P_CLK, HWBLK_SCIF0, 0),
+	SH_HWBLK_CLK("sci_fck", -1, P_CLK, HWBLK_SCIF1, 0),
+	SH_HWBLK_CLK("sci_fck", -1, P_CLK, HWBLK_SCIF2, 0),
 
 	SH_HWBLK_CLK("i2c0", -1, P_CLK, HWBLK_IIC, 0),
 	SH_HWBLK_CLK("rtc0", -1, R_CLK, HWBLK_RTC, 0),
@@ -185,6 +186,40 @@ static struct clk mstp_clks[HWBLK_NR] = {
 	SH_HWBLK_CLK("lcdc0", -1, P_CLK, HWBLK_LCDC, 0),
 };
 
+static struct clk_lookup lookups[] = {
+	{
+		/* TMU0 */
+		.dev_id		= "sh_tmu.0",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[HWBLK_TMU],
+	}, {
+		/* TMU1 */
+		.dev_id		= "sh_tmu.1",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[HWBLK_TMU],
+	}, {
+		/* TMU2 */
+		.dev_id		= "sh_tmu.2",
+		.con_id		= "tmu_fck",
+		.clk		= &mstp_clks[HWBLK_TMU],
+	}, {
+		/* SCIF0 */
+		.dev_id		= "sh-sci.0",
+		.con_id		= "sci_fck",
+		.clk		= &mstp_clks[HWBLK_SCIF0],
+	}, {
+		/* SCIF1 */
+		.dev_id		= "sh-sci.1",
+		.con_id		= "sci_fck",
+		.clk		= &mstp_clks[HWBLK_SCIF1],
+	}, {
+		/* SCIF2 */
+		.dev_id		= "sh-sci.2",
+		.con_id		= "sci_fck",
+		.clk		= &mstp_clks[HWBLK_SCIF2],
+	},
+};
+
 int __init arch_clk_init(void)
 {
 	int k, ret = 0;
@@ -197,6 +232,8 @@ int __init arch_clk_init(void)
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(main_clks)); k++)
 		ret = clk_register(main_clks[k]);
+
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
 		ret = sh_clk_div4_register(div4_clks, DIV4_NR, &div4_table);
