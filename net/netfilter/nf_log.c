@@ -35,6 +35,7 @@ static struct nf_logger *__find_logger(int pf, const char *str_logger)
 /* return EEXIST if the same logger is registred, 0 on success. */
 int nf_log_register(u_int8_t pf, struct nf_logger *logger)
 {
+	const struct nf_logger *llog;
 	int i;
 
 	if (pf >= ARRAY_SIZE(nf_loggers))
@@ -51,7 +52,9 @@ int nf_log_register(u_int8_t pf, struct nf_logger *logger)
 	} else {
 		/* register at end of list to honor first register win */
 		list_add_tail(&logger->list[pf], &nf_loggers_l[pf]);
-		if (nf_loggers[pf] == NULL)
+		llog = rcu_dereference_protected(nf_loggers[pf],
+						 lockdep_is_held(&nf_log_mutex));
+		if (llog == NULL)
 			rcu_assign_pointer(nf_loggers[pf], logger);
 	}
 
@@ -63,11 +66,14 @@ EXPORT_SYMBOL(nf_log_register);
 
 void nf_log_unregister(struct nf_logger *logger)
 {
+	const struct nf_logger *c_logger;
 	int i;
 
 	mutex_lock(&nf_log_mutex);
 	for (i = 0; i < ARRAY_SIZE(nf_loggers); i++) {
-		if (nf_loggers[i] == logger)
+		c_logger = rcu_dereference_protected(nf_loggers[i],
+						     lockdep_is_held(&nf_log_mutex));
+		if (c_logger == logger)
 			rcu_assign_pointer(nf_loggers[i], NULL);
 		list_del(&logger->list[i]);
 	}
