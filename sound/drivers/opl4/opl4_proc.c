@@ -73,7 +73,7 @@ static ssize_t snd_opl4_mem_proc_write(struct snd_info_entry *entry,
 				       void *file_private_data,
 				       struct file *file,
 				       const char __user *_buf,
-				       size_t count, size_t pos)
+				       size_t count, loff_t pos)
 {
 	struct snd_opl4 *opl4 = entry->private_data;
 	char *buf;
