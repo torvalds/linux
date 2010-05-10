@@ -2177,50 +2177,38 @@ out:
  *
  * called with mdsc->mutex held.
  */
-static void send_mds_reconnect(struct ceph_mds_client *mdsc, int mds)
+static void send_mds_reconnect(struct ceph_mds_client *mdsc,
+			       struct ceph_mds_session *session)
 {
-	struct ceph_mds_session *session = NULL;
 	struct ceph_msg *reply;
 	struct rb_node *p;
+	int mds = session->s_mds;
 	int err = -ENOMEM;
 	struct ceph_pagelist *pagelist;
 
-	pr_info("reconnect to recovering mds%d\n", mds);
+	pr_info("mds%d reconnect start\n", mds);
 
 	pagelist = kmalloc(sizeof(*pagelist), GFP_NOFS);
 	if (!pagelist)
 		goto fail_nopagelist;
 	ceph_pagelist_init(pagelist);
 
-	err = -ENOMEM;
 	reply = ceph_msg_new(CEPH_MSG_CLIENT_RECONNECT, 0);
 	if (!reply)
 		goto fail_nomsg;
 
-	/* find session */
-	session = __ceph_lookup_mds_session(mdsc, mds);
-	mutex_unlock(&mdsc->mutex);    /* drop lock for duration */
+	mutex_lock(&session->s_mutex);
+	session->s_state = CEPH_MDS_SESSION_RECONNECTING;
+	session->s_seq = 0;
 
-	if (session) {
-		mutex_lock(&session->s_mutex);
+	ceph_con_open(&session->s_con,
+		      ceph_mdsmap_get_addr(mdsc->mdsmap, mds));
 
-		session->s_state = CEPH_MDS_SESSION_RECONNECTING;
-		session->s_seq = 0;
-
-		ceph_con_open(&session->s_con,
-			      ceph_mdsmap_get_addr(mdsc->mdsmap, mds));
-
-		/* replay unsafe requests */
-		replay_unsafe_requests(mdsc, session);
-	} else {
-		dout("no session for mds%d, will send short reconnect\n",
-		     mds);
-	}
+	/* replay unsafe requests */
+	replay_unsafe_requests(mdsc, session);
 
 	down_read(&mdsc->snap_rwsem);
 
-	if (!session)
-		goto send;
 	dout("session %p state %s\n", session,
 	     session_state_name(session->s_state));
 
@@ -2255,7 +2243,6 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc, int mds)
 			goto fail;
 	}
 
-send:
 	reply->pagelist = pagelist;
 	reply->hdr.data_len = cpu_to_le32(pagelist->length);
 	reply->nr_pages = calc_pages_for(0, pagelist->length);
@@ -2267,23 +2254,18 @@ send:
 	__wake_requests(mdsc, &session->s_waiting);
 	mutex_unlock(&mdsc->mutex);
 
-	ceph_put_mds_session(session);
-
 	up_read(&mdsc->snap_rwsem);
-	mutex_lock(&mdsc->mutex);
 	return;
 
 fail:
 	ceph_msg_put(reply);
 	up_read(&mdsc->snap_rwsem);
 	mutex_unlock(&session->s_mutex);
-	ceph_put_mds_session(session);
 fail_nomsg:
 	ceph_pagelist_release(pagelist);
 	kfree(pagelist);
 fail_nopagelist:
 	pr_err("error %d preparing reconnect for mds%d\n", err, mds);
-	mutex_lock(&mdsc->mutex);
 	return;
 }
 
@@ -2345,8 +2327,11 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 		 * send reconnect?
 		 */
 		if (s->s_state == CEPH_MDS_SESSION_RESTARTING &&
-		    newstate >= CEPH_MDS_STATE_RECONNECT)
-			send_mds_reconnect(mdsc, i);
+		    newstate >= CEPH_MDS_STATE_RECONNECT) {
+			mutex_unlock(&mdsc->mutex);
+			send_mds_reconnect(mdsc, s);
+			mutex_lock(&mdsc->mutex);
+		}
 
 		/*
 		 * kick request on any mds that has gone active.
