@@ -515,10 +515,11 @@ void setup_system_regs(struct net_device *dev)
 	 * Configure checksum support and rcve frame word alignment
 	 */
 	sysctl = bfin_read_EMAC_SYSCTL();
-#if defined(BFIN_MAC_CSUM_OFFLOAD)
-	sysctl |= RXDWA | RXCKS;
-#else
 	sysctl |= RXDWA;
+#if defined(BFIN_MAC_CSUM_OFFLOAD)
+	sysctl |= RXCKS;
+#else
+	sysctl &= ~RXCKS;
 #endif
 	bfin_write_EMAC_SYSCTL(sysctl);
 
