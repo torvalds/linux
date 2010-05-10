@@ -3639,24 +3639,6 @@ int emulator_set_dr(int dr, unsigned long value, struct kvm_vcpu *vcpu)
 	return __kvm_set_dr(vcpu, dr, value);
 }
 
-void kvm_report_emulation_failure(struct kvm_vcpu *vcpu, const char *context)
-{
-	u8 opcodes[4];
-	unsigned long rip = kvm_rip_read(vcpu);
-	unsigned long rip_linear;
-
-	if (!printk_ratelimit())
-		return;
-
-	rip_linear = rip + get_segment_base(vcpu, VCPU_SREG_CS);
-
-	kvm_read_guest_virt(rip_linear, (void *)opcodes, 4, vcpu, NULL);
-
-	printk(KERN_ERR "emulation failed (%s) rip %lx %02x %02x %02x %02x\n",
-	       context, rip, opcodes[0], opcodes[1], opcodes[2], opcodes[3]);
-}
-EXPORT_SYMBOL_GPL(kvm_report_emulation_failure);
-
 static u64 mk_cr_64(u64 curr_cr, u32 new_val)
 {
 	return (curr_cr & ~((1ULL << 32) - 1)) | new_val;
@@ -3863,6 +3845,19 @@ static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 		kvm_queue_exception(vcpu, ctxt->exception);
 }
 
+static int handle_emulation_failure(struct kvm_vcpu *vcpu)
+{
+	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+
+	++vcpu->stat.insn_emulation_fail;
+	trace_kvm_emulate_insn_failed(vcpu);
+	vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
+	vcpu->run->internal.ndata = 0;
+	kvm_queue_exception(vcpu, UD_VECTOR);
+	return EMULATE_FAIL;
+}
+
 int emulate_instruction(struct kvm_vcpu *vcpu,
 			unsigned long cr2,
 			u16 error_code,
@@ -3931,11 +3926,11 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 
 		++vcpu->stat.insn_emulation;
 		if (r)  {
-			++vcpu->stat.insn_emulation_fail;
-			trace_kvm_emulate_insn_failed(vcpu);
 			if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
 				return EMULATE_DONE;
-			return EMULATE_FAIL;
+			if (emulation_type & EMULTYPE_SKIP)
+				return EMULATE_FAIL;
+			return handle_emulation_failure(vcpu);
 		}
 	}
 
@@ -3960,9 +3955,7 @@ restart:
 		if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
 			return EMULATE_DONE;
 
-		trace_kvm_emulate_insn_failed(vcpu);
-		kvm_report_emulation_failure(vcpu, "mmio");
-		return EMULATE_FAIL;
+		return handle_emulation_failure(vcpu);
 	}
 
 	toggle_interruptibility(vcpu, vcpu->arch.emulate_ctxt.interruptibility);
@@ -4798,7 +4791,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = emulate_instruction(vcpu, 0, 0, EMULTYPE_NO_DECODE);
 		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-		if (r == EMULATE_DO_MMIO) {
+		if (r != EMULATE_DONE) {
 			r = 0;
 			goto out;
 		}

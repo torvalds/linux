@@ -1535,7 +1535,7 @@ static int io_interception(struct vcpu_svm *svm)
 	string = (io_info & SVM_IOIO_STR_MASK) != 0;
 	in = (io_info & SVM_IOIO_TYPE_MASK) != 0;
 	if (string || in)
-		return !(emulate_instruction(vcpu, 0, 0, 0) == EMULATE_DO_MMIO);
+		return emulate_instruction(vcpu, 0, 0, 0) == EMULATE_DONE;
 
 	port = io_info >> 16;
 	size = (io_info & SVM_IOIO_SIZE_MASK) >> SVM_IOIO_SIZE_SHIFT;
@@ -2386,16 +2386,12 @@ static int iret_interception(struct vcpu_svm *svm)
 
 static int invlpg_interception(struct vcpu_svm *svm)
 {
-	if (emulate_instruction(&svm->vcpu, 0, 0, 0) != EMULATE_DONE)
-		pr_unimpl(&svm->vcpu, "%s: failed\n", __func__);
-	return 1;
+	return emulate_instruction(&svm->vcpu, 0, 0, 0) == EMULATE_DONE;
 }
 
 static int emulate_on_interception(struct vcpu_svm *svm)
 {
-	if (emulate_instruction(&svm->vcpu, 0, 0, 0) != EMULATE_DONE)
-		pr_unimpl(&svm->vcpu, "%s: failed\n", __func__);
-	return 1;
+	return emulate_instruction(&svm->vcpu, 0, 0, 0) == EMULATE_DONE;
 }
 
 static int cr8_write_interception(struct vcpu_svm *svm)

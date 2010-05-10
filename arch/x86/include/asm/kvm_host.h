@@ -576,7 +576,6 @@ enum emulation_result {
 #define EMULTYPE_SKIP		    (1 << 2)
 int emulate_instruction(struct kvm_vcpu *vcpu,
 			unsigned long cr2, u16 error_code, int emulation_type);
-void kvm_report_emulation_failure(struct kvm_vcpu *cvpu, const char *context);
 void realmode_lgdt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
 void realmode_lidt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
 
