@@ -646,7 +646,7 @@ config VIDEO_PMS
 
 config VIDEO_BWQCAM
 	tristate "Quickcam BW Video For Linux"
-	depends on PARPORT && VIDEO_V4L1
+	depends on PARPORT && VIDEO_V4L2
 	help
 	  Say Y have if you the black and white version of the QuickCam
 	  camera. See the next option for the color version.
