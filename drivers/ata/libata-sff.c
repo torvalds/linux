@@ -511,7 +511,7 @@ EXPORT_SYMBOL_GPL(ata_sff_dev_select);
  *	LOCKING:
  *	caller.
  */
-void ata_dev_select(struct ata_port *ap, unsigned int device,
+static void ata_dev_select(struct ata_port *ap, unsigned int device,
 			   unsigned int wait, unsigned int can_sleep)
 {
 	if (ata_msg_probe(ap))
