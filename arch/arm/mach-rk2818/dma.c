@@ -55,15 +55,15 @@ const static struct rk28_dma_dev rk28_dev_info[] = {
 		.fifo_width  = 32,
 	},
 	[RK28_DMA_URAT2] = {
-	    .hd_if_r     = RK28_DMA_URAT2_TXD,
-        .hd_if_w     = RK28_DMA_URAT2_RXD,
+	    .hd_if_r     = RK28_DMA_URAT2_RXD,
+        .hd_if_w     = RK28_DMA_URAT2_TXD,
 		.dev_addr_r	 = RK2818_UART2_PHYS,
         .dev_addr_w  = RK2818_UART2_PHYS,
 		.fifo_width  = 32,
 	},
 	[RK28_DMA_URAT3] = {
-        .hd_if_r     = RK28_DMA_URAT3_TXD,
-        .hd_if_w     = RK28_DMA_URAT3_RXD,
+        .hd_if_r     = RK28_DMA_URAT3_RXD,
+        .hd_if_w     = RK28_DMA_URAT3_TXD,
         .dev_addr_r  = RK2818_UART3_PHYS,
         .dev_addr_w  = RK2818_UART3_PHYS,
 		.fifo_width  = 32,
@@ -77,36 +77,36 @@ const static struct rk28_dma_dev rk28_dev_info[] = {
 		.fifo_width  = 32,
 	},
 	[RK28_DMA_I2S] = {
-        .hd_if_r     = RK28_DMA_I2S_TXD,
-        .hd_if_w     = RK28_DMA_I2S_RXD,
+        .hd_if_r     = RK28_DMA_I2S_RXD,
+        .hd_if_w     = RK28_DMA_I2S_TXD,
         .dev_addr_r  = RK2818_I2S_PHYS + 0x04,
         .dev_addr_w  = RK2818_I2S_PHYS + 0x08,
 		.fifo_width  = 32,
 	},
 	[RK28_DMA_SPI_M] = {
-        .hd_if_r     = RK28_DMA_SPI_M_TXD,
-        .hd_if_w     = RK28_DMA_SPI_M_RXD,
+        .hd_if_r     = RK28_DMA_SPI_M_RXD,
+        .hd_if_w     = RK28_DMA_SPI_M_TXD,
         .dev_addr_r  = RK2818_SPIMASTER_PHYS + 0x60,
         .dev_addr_w  = RK2818_SPIMASTER_PHYS + 0x60,
         .fifo_width  = 8,
 	},
 	[RK28_DMA_SPI_S] = {
-        .hd_if_r     = RK28_DMA_SPI_S_TXD,
-        .hd_if_w     = RK28_DMA_SPI_S_RXD,
+        .hd_if_r     = RK28_DMA_SPI_S_RXD,
+        .hd_if_w     = RK28_DMA_SPI_S_TXD,
         .dev_addr_r  = RK2818_SPISLAVE_PHYS + 0x60,
         .dev_addr_w  = RK2818_SPISLAVE_PHYS + 0x60,
         .fifo_width  = 8,
 	},
 	[RK28_DMA_URAT0] = {
-        .hd_if_r     = RK28_DMA_URAT0_TXD,
-        .hd_if_w     = RK28_DMA_URAT0_RXD,
+        .hd_if_r     = RK28_DMA_URAT0_RXD,
+        .hd_if_w     = RK28_DMA_URAT0_TXD,
         .dev_addr_r  = RK2818_UART0_PHYS,
         .dev_addr_w  = RK2818_UART0_PHYS,
 		.fifo_width  = 8,
 	},
 	[RK28_DMA_URAT1] = {
-        .hd_if_r     = RK28_DMA_URAT1_TXD,
-        .hd_if_w     = RK28_DMA_URAT1_RXD,
+        .hd_if_r     = RK28_DMA_URAT1_RXD,
+        .hd_if_w     = RK28_DMA_URAT1_TXD,
         .dev_addr_r  = RK2818_UART1_PHYS,
         .dev_addr_w  = RK2818_UART1_PHYS,
 		.fifo_width  = 8,
@@ -354,8 +354,6 @@ static void rk28_dma_read_from_sg(unsigned int dma_ch, dma_t *dma_t)
         rk28dma_reg.size = rk28dma->length;
     }
     rk28_dma_set_reg(dma_ch, &rk28dma_reg, rk28dma->dev_info->hd_if_w);
-
-    rk28llp_vir = rk28dma->dma_llp_vir;
 
     //printk(KERN_INFO "read_from_sg: ch = %d, sar = 0x%x, dar = 0x%x, ctll = 0x%x, llp = 0x%x, size = %d, \n", 
     //                 dma_ch, rk28dma_reg.sar, rk28dma_reg.dar, rk28dma_reg.ctll, rk28dma_reg.llp, rk28dma_reg.size);
