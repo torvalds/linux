@@ -240,6 +240,21 @@ struct br_input_skb_cb {
 # define BR_INPUT_SKB_CB_MROUTERS_ONLY(__skb)	(0)
 #endif
 
+#define br_printk(level, br, format, args...)	\
+	printk(level "%s: " format, (br)->dev->name, ##args)
+
+#define br_err(__br, format, args...)			\
+	br_printk(KERN_ERR, __br, format, ##args)
+#define br_warn(__br, format, args...)			\
+	br_printk(KERN_WARNING, __br, format, ##args)
+#define br_notice(__br, format, args...)		\
+	br_printk(KERN_NOTICE, __br, format, ##args)
+#define br_info(__br, format, args...)			\
+	br_printk(KERN_INFO, __br, format, ##args)
+
+#define br_debug(br, format, args...)			\
+	pr_debug("%s: " format,  (br)->dev->name, ##args)
+
 extern struct notifier_block br_device_notifier;
 extern const u8 br_group_address[ETH_ALEN];
 

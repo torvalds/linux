@@ -585,10 +585,9 @@ static struct net_bridge_mdb_entry *br_multicast_get_group(
 
 	if (unlikely(count > br->hash_elasticity && count)) {
 		if (net_ratelimit())
-			printk(KERN_INFO "%s: Multicast hash table "
-			       "chain limit reached: %s\n",
-			       br->dev->name, port ? port->dev->name :
-						     br->dev->name);
+			br_info(br, "Multicast hash table "
+				"chain limit reached: %s\n",
+				port ? port->dev->name : br->dev->name);
 
 		elasticity = br->hash_elasticity;
 	}
@@ -596,11 +595,9 @@ static struct net_bridge_mdb_entry *br_multicast_get_group(
 	if (mdb->size >= max) {
 		max *= 2;
 		if (unlikely(max >= br->hash_max)) {
-			printk(KERN_WARNING "%s: Multicast hash table maximum "
-			       "reached, disabling snooping: %s, %d\n",
-			       br->dev->name, port ? port->dev->name :
-						     br->dev->name,
-			       max);
+			br_warn(br, "Multicast hash table maximum "
+				"reached, disabling snooping: %s, %d\n",
+				port ? port->dev->name : br->dev->name, max);
 			err = -E2BIG;
 disable:
 			br->multicast_disabled = 1;
@@ -611,22 +608,19 @@ disable:
 	if (max > mdb->max || elasticity) {
 		if (mdb->old) {
 			if (net_ratelimit())
-				printk(KERN_INFO "%s: Multicast hash table "
-				       "on fire: %s\n",
-				       br->dev->name, port ? port->dev->name :
-							     br->dev->name);
+				br_info(br, "Multicast hash table "
+					"on fire: %s\n",
+					port ? port->dev->name : br->dev->name);
 			err = -EEXIST;
 			goto err;
 		}
 
 		err = br_mdb_rehash(&br->mdb, max, elasticity);
 		if (err) {
-			printk(KERN_WARNING "%s: Cannot rehash multicast "
-			       "hash table, disabling snooping: "
-			       "%s, %d, %d\n",
-			       br->dev->name, port ? port->dev->name :
-						     br->dev->name,
-			       mdb->size, err);
+			br_warn(br, "Cannot rehash multicast "
+				"hash table, disabling snooping: %s, %d, %d\n",
+				port ? port->dev->name : br->dev->name,
+				mdb->size, err);
 			goto disable;
 		}
 

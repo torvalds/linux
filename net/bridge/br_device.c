@@ -263,9 +263,8 @@ void br_netpoll_enable(struct net_bridge *br,
 			dev->npinfo = br->dev->npinfo;
 	} else if (!(br->dev->priv_flags & IFF_DISABLE_NETPOLL)) {
 		br->dev->priv_flags |= IFF_DISABLE_NETPOLL;
-		printk(KERN_INFO "%s:new device %s"
-			" does not support netpoll (disabling)",
-			br->dev->name, dev->name);
+		br_info(br,"new device %s does not support netpoll (disabling)",
+			dev->name);
 	}
 }
 
