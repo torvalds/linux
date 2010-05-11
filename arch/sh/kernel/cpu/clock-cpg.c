@@ -2,6 +2,7 @@
 #include <linux/compiler.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <asm/clkdev.h>
 #include <asm/clock.h>
 
 static int sh_clk_mstp32_enable(struct clk *clk)
@@ -299,25 +300,21 @@ int __init sh_clk_div4_reparent_register(struct clk *clks, int nr,
 
 #ifdef CONFIG_SH_CLK_CPG_LEGACY
 static struct clk master_clk = {
-	.name		= "master_clk",
 	.flags		= CLK_ENABLE_ON_INIT,
 	.rate		= CONFIG_SH_PCLK_FREQ,
 };
 
 static struct clk peripheral_clk = {
-	.name		= "peripheral_clk",
 	.parent		= &master_clk,
 	.flags		= CLK_ENABLE_ON_INIT,
 };
 
 static struct clk bus_clk = {
-	.name		= "bus_clk",
 	.parent		= &master_clk,
 	.flags		= CLK_ENABLE_ON_INIT,
 };
 
 static struct clk cpu_clk = {
-	.name		= "cpu_clk",
 	.parent		= &master_clk,
 	.flags		= CLK_ENABLE_ON_INIT,
 };
@@ -332,6 +329,16 @@ static struct clk *onchip_clocks[] = {
 	&cpu_clk,
 };
 
+#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+
+static struct clk_lookup lookups[] = {
+	/* main clocks */
+	CLKDEV_CON_ID("master_clk", &master_clk),
+	CLKDEV_CON_ID("peripheral_clk", &peripheral_clk),
+	CLKDEV_CON_ID("bus_clk", &bus_clk),
+	CLKDEV_CON_ID("cpu_clk", &cpu_clk),
+};
+
 int __init __deprecated cpg_clk_init(void)
 {
 	int i, ret = 0;
@@ -342,6 +349,8 @@ int __init __deprecated cpg_clk_init(void)
 		if (clk->ops)
 			ret |= clk_register(clk);
 	}
+
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	clk_add_alias("tmu_fck", NULL, "peripheral_clk", NULL);
 	clk_add_alias("mtu2_fck", NULL, "peripheral_clk", NULL);
