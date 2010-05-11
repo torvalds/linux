@@ -235,7 +235,7 @@ int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
 }
 EXPORT_SYMBOL_GPL(videobuf_dma_init_overlay);
 
-int videobuf_dma_map(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
+int videobuf_dma_map(struct device *dev, struct videobuf_dmabuf *dma)
 {
 	MAGIC_CHECK(dma->magic, MAGIC_DMABUF);
 	BUG_ON(0 == dma->nr_pages);
@@ -263,7 +263,7 @@ int videobuf_dma_map(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
 		return -ENOMEM;
 	}
 	if (!dma->bus_addr) {
-		dma->sglen = dma_map_sg(q->dev, dma->sglist,
+		dma->sglen = dma_map_sg(dev, dma->sglist,
 					dma->nr_pages, dma->direction);
 		if (0 == dma->sglen) {
 			printk(KERN_WARNING
@@ -279,14 +279,14 @@ int videobuf_dma_map(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
 }
 EXPORT_SYMBOL_GPL(videobuf_dma_map);
 
-int videobuf_dma_unmap(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
+int videobuf_dma_unmap(struct device *dev, struct videobuf_dmabuf *dma)
 {
 	MAGIC_CHECK(dma->magic, MAGIC_DMABUF);
 
 	if (!dma->sglen)
 		return 0;
 
-	dma_unmap_sg(q->dev, dma->sglist, dma->sglen, dma->direction);
+	dma_unmap_sg(dev, dma->sglist, dma->sglen, dma->direction);
 
 	vfree(dma->sglist);
 	dma->sglist = NULL;
@@ -319,28 +319,6 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(videobuf_dma_free);
-
-/* --------------------------------------------------------------------- */
-
-int videobuf_sg_dma_map(struct device *dev, struct videobuf_dmabuf *dma)
-{
-	struct videobuf_queue q;
-
-	q.dev = dev;
-
-	return videobuf_dma_map(&q, dma);
-}
-EXPORT_SYMBOL_GPL(videobuf_sg_dma_map);
-
-int videobuf_sg_dma_unmap(struct device *dev, struct videobuf_dmabuf *dma)
-{
-	struct videobuf_queue q;
-
-	q.dev = dev;
-
-	return videobuf_dma_unmap(&q, dma);
-}
-EXPORT_SYMBOL_GPL(videobuf_sg_dma_unmap);
 
 /* --------------------------------------------------------------------- */
 
@@ -520,7 +498,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 	default:
 		BUG();
 	}
-	err = videobuf_dma_map(q, &mem->dma);
+	err = videobuf_dma_map(q->dev, &mem->dma);
 	if (0 != err)
 		return err;
 

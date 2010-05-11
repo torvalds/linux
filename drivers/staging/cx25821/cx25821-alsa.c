@@ -331,7 +331,7 @@ static int dsp_buffer_free(struct cx25821_audio_dev *chip)
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2, "Freeing buffer\n");
-	videobuf_sg_dma_unmap(&chip->pci->dev, chip->dma_risc);
+	videobuf_dma_unmap(&chip->pci->dev, chip->dma_risc);
 	videobuf_dma_free(chip->dma_risc);
 	btcx_riscmem_free(chip->pci, &chip->buf->risc);
 	kfree(chip->buf);
@@ -470,7 +470,7 @@ static int snd_cx25821_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		goto error;
 
-	ret = videobuf_sg_dma_map(&chip->pci->dev, dma);
+	ret = videobuf_dma_map(&chip->pci->dev, dma);
 	if (ret < 0)
 		goto error;
 
