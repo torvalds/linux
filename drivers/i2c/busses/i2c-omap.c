@@ -168,6 +168,7 @@ enum {
 
 /* Errata definitions */
 #define I2C_OMAP_ERRATA_I207		(1 << 0)
+#define I2C_OMAP3_1P153			(1 << 1)
 
 struct omap_i2c_dev {
 	struct device		*dev;
@@ -954,7 +955,7 @@ complete:
 					break;
 				}
 
-				if ((dev->rev <= OMAP_I2C_REV_ON_3430) &&
+				if ((dev->errata & I2C_OMAP3_1P153) &&
 				    errata_omap3_1p153(dev, &stat, &err))
 					goto complete;
 
@@ -1056,6 +1057,9 @@ omap_i2c_probe(struct platform_device *pdev)
 	omap_i2c_unidle(dev);
 
 	dev->rev = omap_i2c_read_reg(dev, OMAP_I2C_REV_REG) & 0xff;
+
+	if (dev->rev <= OMAP_I2C_REV_ON_3430)
+		dev->errata |= I2C_OMAP3_1P153;
 
 	if (!(cpu_class_is_omap1() || cpu_is_omap2420())) {
 		u16 s;
