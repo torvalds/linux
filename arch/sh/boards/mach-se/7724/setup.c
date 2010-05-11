@@ -276,8 +276,6 @@ static struct clk_ops fsimck_clk_ops = {
 };
 
 static struct clk fsimcka_clk = {
-	.name		= "fsimcka_clk",
-	.id		= -1,
 	.ops		= &fsimck_clk_ops,
 	.enable_reg	= (void __iomem *)FCLKACR,
 	.rate		= 0, /* unknown */
