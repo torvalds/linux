@@ -2209,8 +2209,8 @@ out:
  *
  * Will return zero if the path passed in is already the leftmost path.
  */
-static int ocfs2_find_cpos_for_left_leaf(struct super_block *sb,
-					 struct ocfs2_path *path, u32 *cpos)
+int ocfs2_find_cpos_for_left_leaf(struct super_block *sb,
+				  struct ocfs2_path *path, u32 *cpos)
 {
 	int i, j, ret = 0;
 	u64 blkno;

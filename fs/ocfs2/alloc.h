@@ -319,6 +319,8 @@ int ocfs2_journal_access_path(struct ocfs2_caching_info *ci,
 			      struct ocfs2_path *path);
 int ocfs2_find_cpos_for_right_leaf(struct super_block *sb,
 				   struct ocfs2_path *path, u32 *cpos);
+int ocfs2_find_cpos_for_left_leaf(struct super_block *sb,
+				  struct ocfs2_path *path, u32 *cpos);
 int ocfs2_find_subtree_root(struct ocfs2_extent_tree *et,
 			    struct ocfs2_path *left,
 			    struct ocfs2_path *right);
