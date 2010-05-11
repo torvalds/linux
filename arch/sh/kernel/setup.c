@@ -114,31 +114,7 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
-/*
- * Register fully available low RAM pages with the bootmem allocator.
- */
-static void __init register_bootmem_low_pages(void)
-{
-	unsigned long curr_pfn, last_pfn, pages;
-
-	/*
-	 * We are rounding up the start address of usable memory:
-	 */
-	curr_pfn = PFN_UP(__MEMORY_START);
-
-	/*
-	 * ... and at the end of the usable range downwards:
-	 */
-	last_pfn = PFN_DOWN(__pa(memory_end));
-
-	if (last_pfn > max_low_pfn)
-		last_pfn = max_low_pfn;
-
-	pages = last_pfn - curr_pfn;
-	free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(pages));
-}
-
-static void __init check_for_initrd(void)
+void __init check_for_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
 	unsigned long start, end;
@@ -240,85 +216,6 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	add_active_range(nid, start_pfn, end_pfn);
 }
 
-void __init do_init_bootmem(void)
-{
-	unsigned long bootmap_size;
-	unsigned long bootmap_pages, bootmem_paddr;
-	u64 total_pages = lmb_phys_mem_size() >> PAGE_SHIFT;
-	int i;
-
-	bootmap_pages = bootmem_bootmap_pages(total_pages);
-
-	bootmem_paddr = lmb_alloc(bootmap_pages << PAGE_SHIFT, PAGE_SIZE);
-
-	/*
-	 * Find a proper area for the bootmem bitmap. After this
-	 * bootstrap step all allocations (until the page allocator
-	 * is intact) must be done via bootmem_alloc().
-	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0),
-					 bootmem_paddr >> PAGE_SHIFT,
-					 min_low_pfn, max_low_pfn);
-
-	/* Add active regions with valid PFNs. */
-	for (i = 0; i < lmb.memory.cnt; i++) {
-		unsigned long start_pfn, end_pfn;
-		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
-		end_pfn = start_pfn + lmb_size_pages(&lmb.memory, i);
-		__add_active_range(0, start_pfn, end_pfn);
-	}
-
-	/*
-	 * Add all physical memory to the bootmem map and mark each
-	 * area as present.
-	 */
-	register_bootmem_low_pages();
-
-	/* Reserve the sections we're already using. */
-	for (i = 0; i < lmb.reserved.cnt; i++)
-		reserve_bootmem(lmb.reserved.region[i].base,
-				lmb_size_bytes(&lmb.reserved, i),
-				BOOTMEM_DEFAULT);
-
-	node_set_online(0);
-
-	sparse_memory_present_with_active_regions(0);
-}
-
-static void __init early_reserve_mem(void)
-{
-	unsigned long start_pfn;
-
-	/*
-	 * Partially used pages are not usable - thus
-	 * we are rounding upwards:
-	 */
-	start_pfn = PFN_UP(__pa(_end));
-
-	/*
-	 * Reserve the kernel text and
-	 * Reserve the bootmem bitmap. We do this in two steps (first step
-	 * was init_bootmem()), because this catches the (definitely buggy)
-	 * case of us accidentally initializing the bootmem allocator with
-	 * an invalid RAM area.
-	 */
-	lmb_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
-		    (PFN_PHYS(start_pfn) + PAGE_SIZE - 1) -
-		    (__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET));
-
-	/*
-	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
-	 */
-	if (CONFIG_ZERO_PAGE_OFFSET != 0)
-		lmb_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
-
-	/*
-	 * Handle additional early reservations
-	 */
-	check_for_initrd();
-	reserve_crashkernel();
-}
-
 /*
  * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
  * is_kdump_kernel() to determine if we are booting after a panic. Hence
@@ -339,10 +236,6 @@ early_param("elfcorehdr", parse_elfcorehdr);
 #endif
 
 void __init __weak plat_early_device_setup(void)
-{
-}
-
-void __init __weak plat_mem_setup(void)
 {
 }
 
@@ -401,44 +294,16 @@ void __init setup_arch(char **cmdline_p)
 
 	plat_early_device_setup();
 
+	sh_mv_setup();
+
 	/* Let earlyprintk output early console messages */
 	early_platform_driver_probe("earlyprintk", 1, 1);
 
-	lmb_init();
-
-	sh_mv_setup();
-	sh_mv.mv_mem_init();
-
-	early_reserve_mem();
-
-	lmb_enforce_memory_limit(memory_limit);
-	lmb_analyze();
-
-	lmb_dump_all();
-
-	/*
-	 * Determine low and high memory ranges:
-	 */
-	max_low_pfn = max_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
-	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
-
-	nodes_clear(node_online_map);
-
-	memory_start = (unsigned long)__va(__MEMORY_START);
-	memory_end = memory_start + (memory_limit ?: lmb_phys_mem_size());
-
-	uncached_init();
-	pmb_init();
-	do_init_bootmem();
-	plat_mem_setup();
-	sparse_init();
+	paging_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
-	paging_init();
-
-	ioremap_fixed_init();
 
 	/* Perform the machine specific initialisation */
 	if (likely(sh_mv.mv_setup))
