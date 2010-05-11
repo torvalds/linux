@@ -181,7 +181,7 @@ static u32 opcode_table[256] = {
 	ByteOp | SrcSI | DstDI | Mov | String, SrcSI | DstDI | Mov | String,
 	ByteOp | SrcSI | DstDI | String, SrcSI | DstDI | String,
 	/* 0xA8 - 0xAF */
-	0, 0, ByteOp | DstDI | Mov | String, DstDI | Mov | String,
+	DstAcc | SrcImmByte | ByteOp, DstAcc | SrcImm, ByteOp | DstDI | Mov | String, DstDI | Mov | String,
 	ByteOp | SrcSI | DstAcc | Mov | String, SrcSI | DstAcc | Mov | String,
 	ByteOp | DstDI | String, DstDI | String,
 	/* 0xB0 - 0xB7 */
@@ -2754,6 +2754,7 @@ special_insn:
 		}
 		break;
 	case 0x84 ... 0x85:
+	test:
 		emulate_2op_SrcV("test", c->src, c->dst, ctxt->eflags);
 		break;
 	case 0x86 ... 0x87:	/* xchg */
@@ -2852,6 +2853,8 @@ special_insn:
 		c->dst.type = OP_NONE; /* Disable writeback. */
 		DPRINTF("cmps: mem1=0x%p mem2=0x%p\n", c->src.ptr, c->dst.ptr);
 		goto cmp;
+	case 0xa8 ... 0xa9:	/* test ax, imm */
+		goto test;
 	case 0xaa ... 0xab:	/* stos */
 		c->dst.val = c->regs[VCPU_REGS_RAX];
 		break;
