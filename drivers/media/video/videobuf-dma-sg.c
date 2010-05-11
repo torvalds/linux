@@ -57,7 +57,13 @@ MODULE_LICENSE("GPL");
 
 /* --------------------------------------------------------------------- */
 
-struct scatterlist *videobuf_vmalloc_to_sg(unsigned char *virt, int nr_pages)
+/*
+ * Return a scatterlist for some page-aligned vmalloc()'ed memory
+ * block (NULL on errors).  Memory for the scatterlist is allocated
+ * using kmalloc.  The caller must free the memory.
+ */
+static struct scatterlist *videobuf_vmalloc_to_sg(unsigned char *virt,
+						  int nr_pages)
 {
 	struct scatterlist *sglist;
 	struct page *pg;
@@ -81,10 +87,14 @@ err:
 	vfree(sglist);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(videobuf_vmalloc_to_sg);
 
-struct scatterlist *videobuf_pages_to_sg(struct page **pages, int nr_pages,
-					 int offset)
+/*
+ * Return a scatterlist for a an array of userpages (NULL on errors).
+ * Memory for the scatterlist is allocated using kmalloc.  The caller
+ * must free the memory.
+ */
+static struct scatterlist *videobuf_pages_to_sg(struct page **pages,
+						int nr_pages, int offset)
 {
 	struct scatterlist *sglist;
 	int i;
