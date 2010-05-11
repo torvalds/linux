@@ -735,6 +735,14 @@ err:
 	return -ENOMEM;
 }
 
+static void ath9k_hif_usb_dealloc_urbs(struct hif_device_usb *hif_dev)
+{
+	usb_kill_anchored_urbs(&hif_dev->regout_submitted);
+	ath9k_hif_usb_dealloc_reg_in_urb(hif_dev);
+	ath9k_hif_usb_dealloc_tx_urbs(hif_dev);
+	ath9k_hif_usb_dealloc_rx_urbs(hif_dev);
+}
+
 static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 {
 	int transfer, err;
@@ -794,14 +802,6 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev,
 		goto err_fw_req;
 	}
 
-	/* Download firmware */
-	ret = ath9k_hif_usb_download_fw(hif_dev);
-	if (ret) {
-		dev_err(&hif_dev->udev->dev,
-			"ath9k_htc: Firmware - %s download failed\n", fw_name);
-		goto err_fw_download;
-	}
-
 	/* Alloc URBs */
 	ret = ath9k_hif_usb_alloc_urbs(hif_dev);
 	if (ret) {
@@ -810,23 +810,23 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev,
 		goto err_urb;
 	}
 
+	/* Download firmware */
+	ret = ath9k_hif_usb_download_fw(hif_dev);
+	if (ret) {
+		dev_err(&hif_dev->udev->dev,
+			"ath9k_htc: Firmware - %s download failed\n", fw_name);
+		goto err_fw_download;
+	}
+
 	return 0;
 
-err_urb:
-	/* Nothing */
 err_fw_download:
+	ath9k_hif_usb_dealloc_urbs(hif_dev);
+err_urb:
 	release_firmware(hif_dev->firmware);
 err_fw_req:
 	hif_dev->firmware = NULL;
 	return ret;
-}
-
-static void ath9k_hif_usb_dealloc_urbs(struct hif_device_usb *hif_dev)
-{
-	usb_kill_anchored_urbs(&hif_dev->regout_submitted);
-	ath9k_hif_usb_dealloc_reg_in_urb(hif_dev);
-	ath9k_hif_usb_dealloc_tx_urbs(hif_dev);
-	ath9k_hif_usb_dealloc_rx_urbs(hif_dev);
 }
 
 static void ath9k_hif_usb_dev_deinit(struct hif_device_usb *hif_dev)
