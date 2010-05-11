@@ -233,13 +233,10 @@ restart:
 
 		/* The transport either sends the whole rdma or none of it */
 		if (rm->rdma.op_active && !conn->c_xmit_rdma_sent) {
-			rds_message_addref(rm);
 			rm->m_final_op = &rm->rdma;
 			ret = conn->c_trans->xmit_rdma(conn, &rm->rdma);
-			if (ret) {
-				rds_message_put(rm);
+			if (ret)
 				break;
-			}
 			conn->c_xmit_rdma_sent = 1;
 
 			/* The transport owns the mapped memory for now.
@@ -248,13 +245,10 @@ restart:
 		}
 
 		if (rm->atomic.op_active && !conn->c_xmit_atomic_sent) {
-			rds_message_addref(rm);
 			rm->m_final_op = &rm->atomic;
 			ret = conn->c_trans->xmit_atomic(conn, &rm->atomic);
-			if (ret) {
-				rds_message_put(rm);
+			if (ret)
 				break;
-			}
 			conn->c_xmit_atomic_sent = 1;
 
 			/* The transport owns the mapped memory for now.

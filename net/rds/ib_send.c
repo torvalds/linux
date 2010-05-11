@@ -757,6 +757,8 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 	send->s_wr.next = NULL;
 	send->s_wr.wr.atomic.remote_addr = op->op_remote_addr;
 	send->s_wr.wr.atomic.rkey = op->op_rkey;
+	send->s_op = op;
+	rds_message_addref(container_of(send->s_op, struct rds_message, atomic));
 
 	/* map 8 byte retval buffer to the device */
 	ret = ib_dma_map_sg(ic->i_cm_id->device, op->op_sg, 1, DMA_FROM_DEVICE);
@@ -857,13 +859,13 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	for (i = 0; i < work_alloc && scat != &op->op_sg[op->op_count]; i++) {
 		send->s_wr.send_flags = 0;
 		send->s_queued = jiffies;
+		send->s_op = NULL;
 
 		rds_ib_set_wr_signal_state(ic, send, op->op_notify);
 
 		send->s_wr.opcode = op->op_write ? IB_WR_RDMA_WRITE : IB_WR_RDMA_READ;
 		send->s_wr.wr.rdma.remote_addr = remote_addr;
 		send->s_wr.wr.rdma.rkey = op->op_rkey;
-		send->s_op = op;
 
 		if (num_sge > rds_ibdev->max_sge) {
 			send->s_wr.num_sge = rds_ibdev->max_sge;
@@ -897,6 +899,12 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 		prev = send;
 		if (++send == &ic->i_sends[ic->i_send_ring.w_nr])
 			send = ic->i_sends;
+	}
+
+	/* give a reference to the last op */
+	if (scat == &op->op_sg[op->op_count]) {
+		prev->s_op = op;
+		rds_message_addref(container_of(op, struct rds_message, rdma));
 	}
 
 	if (i < work_alloc) {
