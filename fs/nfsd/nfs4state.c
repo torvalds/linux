@@ -632,6 +632,14 @@ free_session(struct kref *kref)
 static inline void
 renew_client_locked(struct nfs4_client *clp)
 {
+	if (is_client_expired(clp)) {
+		dprintk("%s: client (clientid %08x/%08x) already expired\n",
+			__func__,
+			clp->cl_clientid.cl_boot,
+			clp->cl_clientid.cl_id);
+		return;
+	}
+
 	/*
 	* Move client to the end to the LRU list.
 	*/
@@ -697,6 +705,7 @@ free_client(struct nfs4_client *clp)
 static inline void
 unhash_client_locked(struct nfs4_client *clp)
 {
+	mark_client_expired(clp);
 	list_del(&clp->cl_lru);
 	while (!list_empty(&clp->cl_sessions)) {
 		struct nfsd4_session  *ses;
@@ -836,6 +845,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 	INIT_LIST_HEAD(&clp->cl_delegations);
 	INIT_LIST_HEAD(&clp->cl_sessions);
 	INIT_LIST_HEAD(&clp->cl_lru);
+	clp->cl_time = get_seconds();
 	clear_bit(0, &clp->cl_cb_slot_busy);
 	rpc_init_wait_queue(&clp->cl_cb_waitq, "Backchannel slot table");
 	copy_verf(clp, verf);

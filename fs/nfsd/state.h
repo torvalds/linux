@@ -166,7 +166,7 @@ struct nfsd4_session {
 	struct list_head	se_hash;	/* hash by sessionid */
 	struct list_head	se_perclnt;
 	u32			se_flags;
-	struct nfs4_client	*se_client;	/* for expire_client */
+	struct nfs4_client	*se_client;
 	struct nfs4_sessionid	se_sessionid;
 	struct nfsd4_channel_attrs se_fchannel;
 	struct nfsd4_channel_attrs se_bchannel;
@@ -243,6 +243,18 @@ struct nfs4_client {
 	struct rpc_wait_queue	cl_cb_waitq;	/* backchannel callers may */
 						/* wait here for slots */
 };
+
+static inline void
+mark_client_expired(struct nfs4_client *clp)
+{
+	clp->cl_time = 0;
+}
+
+static inline bool
+is_client_expired(struct nfs4_client *clp)
+{
+	return clp->cl_time == 0;
+}
 
 /* struct nfs4_client_reset
  * one per old client. Populates reset_str_hashtbl. Filled from conf_id_hashtbl
