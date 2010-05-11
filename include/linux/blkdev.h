@@ -921,7 +921,12 @@ extern void blk_abort_queue(struct request_queue *);
  */
 extern struct request_queue *blk_init_queue_node(request_fn_proc *rfn,
 					spinlock_t *lock, int node_id);
+extern struct request_queue *blk_init_allocated_queue_node(struct request_queue *,
+							   request_fn_proc *,
+							   spinlock_t *, int node_id);
 extern struct request_queue *blk_init_queue(request_fn_proc *, spinlock_t *);
+extern struct request_queue *blk_init_allocated_queue(struct request_queue *,
+						      request_fn_proc *, spinlock_t *);
 extern void blk_cleanup_queue(struct request_queue *);
 extern void blk_queue_make_request(struct request_queue *, make_request_fn *);
 extern void blk_queue_bounce_limit(struct request_queue *, u64);

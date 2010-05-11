@@ -572,6 +572,22 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 {
 	struct request_queue *q = blk_alloc_queue_node(GFP_KERNEL, node_id);
 
+	return blk_init_allocated_queue_node(q, rfn, lock, node_id);
+}
+EXPORT_SYMBOL(blk_init_queue_node);
+
+struct request_queue *
+blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
+			 spinlock_t *lock)
+{
+	return blk_init_allocated_queue_node(q, rfn, lock, -1);
+}
+EXPORT_SYMBOL(blk_init_allocated_queue);
+
+struct request_queue *
+blk_init_allocated_queue_node(struct request_queue *q, request_fn_proc *rfn,
+			      spinlock_t *lock, int node_id)
+{
 	if (!q)
 		return NULL;
 
@@ -605,7 +621,7 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	blk_put_queue(q);
 	return NULL;
 }
-EXPORT_SYMBOL(blk_init_queue_node);
+EXPORT_SYMBOL(blk_init_allocated_queue_node);
 
 int blk_get_queue(struct request_queue *q)
 {
