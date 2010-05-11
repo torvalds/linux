@@ -811,12 +811,10 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 	 * enabled in "curr" and "curr" is a child of "mem" in *cgroup*
 	 * hierarchy(even if use_hierarchy is disabled in "mem").
 	 */
-	rcu_read_lock();
 	if (mem->use_hierarchy)
 		ret = css_is_ancestor(&curr->css, &mem->css);
 	else
 		ret = (curr == mem);
-	rcu_read_unlock();
 	css_put(&curr->css);
 	return ret;
 }
@@ -1603,7 +1601,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 			 * There is a small race that "from" or "to" can be
 			 * freed by rmdir, so we use css_tryget().
 			 */
-			rcu_read_lock();
 			from = mc.from;
 			to = mc.to;
 			if (from && css_tryget(&from->css)) {
@@ -1624,7 +1621,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 					do_continue = (to == mem_over_limit);
 				css_put(&to->css);
 			}
-			rcu_read_unlock();
 			if (do_continue) {
 				DEFINE_WAIT(wait);
 				prepare_to_wait(&mc.waitq, &wait,

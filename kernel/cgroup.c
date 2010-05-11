@@ -4464,15 +4464,36 @@ unsigned short css_depth(struct cgroup_subsys_state *css)
 }
 EXPORT_SYMBOL_GPL(css_depth);
 
+/**
+ *  css_is_ancestor - test "root" css is an ancestor of "child"
+ * @child: the css to be tested.
+ * @root: the css supporsed to be an ancestor of the child.
+ *
+ * Returns true if "root" is an ancestor of "child" in its hierarchy. Because
+ * this function reads css->id, this use rcu_dereference() and rcu_read_lock().
+ * But, considering usual usage, the csses should be valid objects after test.
+ * Assuming that the caller will do some action to the child if this returns
+ * returns true, the caller must take "child";s reference count.
+ * If "child" is valid object and this returns true, "root" is valid, too.
+ */
+
 bool css_is_ancestor(struct cgroup_subsys_state *child,
 		    const struct cgroup_subsys_state *root)
 {
-	struct css_id *child_id = rcu_dereference(child->id);
-	struct css_id *root_id = rcu_dereference(root->id);
+	struct css_id *child_id;
+	struct css_id *root_id;
+	bool ret = true;
 
-	if (!child_id || !root_id || (child_id->depth < root_id->depth))
-		return false;
-	return child_id->stack[root_id->depth] == root_id->id;
+	rcu_read_lock();
+	child_id  = rcu_dereference(child->id);
+	root_id = rcu_dereference(root->id);
+	if (!child_id
+	    || !root_id
+	    || (child_id->depth < root_id->depth)
+	    || (child_id->stack[root_id->depth] != root_id->id))
+		ret = false;
+	rcu_read_unlock();
+	return ret;
 }
 
 static void __free_css_id_cb(struct rcu_head *head)
