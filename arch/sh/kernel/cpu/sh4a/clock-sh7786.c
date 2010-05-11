@@ -133,6 +133,14 @@ static struct clk mstp_clks[MSTP_NR] = {
 #define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
 
 static struct clk_lookup lookups[] = {
+	/* DIV4 clocks */
+	CLKDEV_CON_ID("peripheral_clk", &div4_clks[DIV4_P]),
+	CLKDEV_CON_ID("du_clk", &div4_clks[DIV4_DU]),
+	CLKDEV_CON_ID("ddr_clk", &div4_clks[DIV4_DDR]),
+	CLKDEV_CON_ID("bus_clk", &div4_clks[DIV4_B]),
+	CLKDEV_CON_ID("shyway_clk", &div4_clks[DIV4_SH]),
+	CLKDEV_CON_ID("cpu_clk", &div4_clks[DIV4_I]),
+
 	/* MSTP32 clocks */
 	{
 		/* SCIF5 */
