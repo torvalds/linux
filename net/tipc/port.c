@@ -1452,7 +1452,7 @@ int tipc_forward2name(u32 ref,
 	struct port *p_ptr;
 	struct tipc_msg *msg;
 	u32 destnode = domain;
-	u32 destport = 0;
+	u32 destport;
 	int res;
 
 	p_ptr = tipc_port_deref(ref);
@@ -1524,7 +1524,7 @@ int tipc_forward_buf2name(u32 ref,
 	struct port *p_ptr;
 	struct tipc_msg *msg;
 	u32 destnode = domain;
-	u32 destport = 0;
+	u32 destport;
 	int res;
 
 	p_ptr = (struct port *)tipc_ref_deref(ref);
