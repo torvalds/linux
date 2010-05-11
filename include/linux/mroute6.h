@@ -24,7 +24,8 @@
 #define MRT6_DEL_MFC	(MRT6_BASE+5)	/* Delete a multicast forwarding entry	*/
 #define MRT6_VERSION	(MRT6_BASE+6)	/* Get the kernel multicast version	*/
 #define MRT6_ASSERT	(MRT6_BASE+7)	/* Activate PIM assert mode		*/
-#define MRT6_PIM	(MRT6_BASE+8)	/* enable PIM code	*/
+#define MRT6_PIM	(MRT6_BASE+8)	/* enable PIM code			*/
+#define MRT6_TABLE	(MRT6_BASE+9)	/* Specify mroute table ID		*/
 
 #define SIOCGETMIFCNT_IN6	SIOCPROTOPRIVATE	/* IP protocol privates */
 #define SIOCGETSGCNT_IN6	(SIOCPROTOPRIVATE+1)
@@ -229,11 +230,17 @@ extern int ip6mr_get_route(struct net *net, struct sk_buff *skb,
 			   struct rtmsg *rtm, int nowait);
 
 #ifdef CONFIG_IPV6_MROUTE
-extern struct sock *mroute6_socket(struct net *net);
+extern struct sock *mroute6_socket(struct net *net, struct sk_buff *skb);
 extern int ip6mr_sk_done(struct sock *sk);
 #else
-static inline struct sock *mroute6_socket(struct net *net) { return NULL; }
-static inline int ip6mr_sk_done(struct sock *sk) { return 0; }
+static inline struct sock *mroute6_socket(struct net *net, struct sk_buff *skb)
+{
+	return NULL;
+}
+static inline int ip6mr_sk_done(struct sock *sk)
+{
+	return 0;
+}
 #endif
 #endif
 
