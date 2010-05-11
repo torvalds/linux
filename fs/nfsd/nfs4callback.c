@@ -718,6 +718,7 @@ void nfsd4_destroy_callback_queue(void)
 	destroy_workqueue(callback_wq);
 }
 
+/* must be called under the state lock */
 void nfsd4_set_callback_client(struct nfs4_client *clp, struct rpc_clnt *new)
 {
 	struct rpc_clnt *old = clp->cl_cb_client;

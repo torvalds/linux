@@ -1427,8 +1427,10 @@ nfsd4_destroy_session(struct svc_rqst *r,
 	unhash_session(ses);
 	spin_unlock(&client_lock);
 
+	nfs4_lock_state();
 	/* wait for callbacks */
 	nfsd4_set_callback_client(ses->se_client, NULL);
+	nfs4_unlock_state();
 	nfsd4_put_session(ses);
 	status = nfs_ok;
 out:
