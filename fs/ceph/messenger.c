@@ -2085,15 +2085,19 @@ struct ceph_msg *ceph_msg_new(int type, int front_len,
 	kref_init(&m->kref);
 	INIT_LIST_HEAD(&m->list_head);
 
+	m->hdr.tid = 0;
 	m->hdr.type = cpu_to_le16(type);
+	m->hdr.priority = cpu_to_le16(CEPH_MSG_PRIO_DEFAULT);
+	m->hdr.version = 0;
 	m->hdr.front_len = cpu_to_le32(front_len);
 	m->hdr.middle_len = 0;
 	m->hdr.data_len = cpu_to_le32(page_len);
 	m->hdr.data_off = cpu_to_le16(page_off);
-	m->hdr.priority = cpu_to_le16(CEPH_MSG_PRIO_DEFAULT);
+	m->hdr.reserved = 0;
 	m->footer.front_crc = 0;
 	m->footer.middle_crc = 0;
 	m->footer.data_crc = 0;
+	m->footer.flags = 0;
 	m->front_max = front_len;
 	m->front_is_vmalloc = false;
 	m->more_to_follow = false;
