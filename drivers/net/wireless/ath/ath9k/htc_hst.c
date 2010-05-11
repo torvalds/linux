@@ -39,7 +39,7 @@ static struct htc_endpoint *get_next_avail_ep(struct htc_endpoint *endpoint)
 {
 	enum htc_endpoint_id avail_epid;
 
-	for (avail_epid = ENDPOINT_MAX; avail_epid > ENDPOINT0; avail_epid--)
+	for (avail_epid = (ENDPOINT_MAX - 1); avail_epid > ENDPOINT0; avail_epid--)
 		if (endpoint[avail_epid].service_id == 0)
 			return &endpoint[avail_epid];
 	return NULL;
@@ -117,7 +117,7 @@ static void htc_process_conn_rsp(struct htc_target *target,
 		max_msglen = be16_to_cpu(svc_rspmsg->max_msg_len);
 		endpoint = &target->endpoint[epid];
 
-		for (tepid = ENDPOINT_MAX; tepid > ENDPOINT0; tepid--) {
+		for (tepid = (ENDPOINT_MAX - 1); tepid > ENDPOINT0; tepid--) {
 			tmp_endpoint = &target->endpoint[tepid];
 			if (tmp_endpoint->service_id == service_id) {
 				tmp_endpoint->service_id = 0;
@@ -125,7 +125,7 @@ static void htc_process_conn_rsp(struct htc_target *target,
 			}
 		}
 
-		if (!tmp_endpoint)
+		if (tepid == ENDPOINT0)
 			return;
 
 		endpoint->service_id = service_id;
@@ -298,7 +298,7 @@ void htc_stop(struct htc_target *target)
 	enum htc_endpoint_id epid;
 	struct htc_endpoint *endpoint;
 
-	for (epid = ENDPOINT0; epid <= ENDPOINT_MAX; epid++) {
+	for (epid = ENDPOINT0; epid < ENDPOINT_MAX; epid++) {
 		endpoint = &target->endpoint[epid];
 		if (endpoint->service_id != 0)
 			target->hif->stop(target->hif_dev, endpoint->ul_pipeid);
@@ -310,7 +310,7 @@ void htc_start(struct htc_target *target)
 	enum htc_endpoint_id epid;
 	struct htc_endpoint *endpoint;
 
-	for (epid = ENDPOINT0; epid <= ENDPOINT_MAX; epid++) {
+	for (epid = ENDPOINT0; epid < ENDPOINT_MAX; epid++) {
 		endpoint = &target->endpoint[epid];
 		if (endpoint->service_id != 0)
 			target->hif->start(target->hif_dev,

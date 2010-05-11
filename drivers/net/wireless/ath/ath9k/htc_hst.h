@@ -123,9 +123,6 @@ struct htc_endpoint {
 #define HTC_CONTROL_BUFFER_SIZE	\
 	(HTC_MAX_CONTROL_MESSAGE_LENGTH + sizeof(struct htc_frame_hdr))
 
-#define NUM_CONTROL_BUFFERS 8
-#define HST_ENDPOINT_MAX 8
-
 struct htc_control_buf {
 	struct htc_packet htc_pkt;
 	u8 buf[HTC_CONTROL_BUFFER_SIZE];
@@ -139,7 +136,7 @@ struct htc_target {
 	struct ath9k_htc_priv *drv_priv;
 	struct device *dev;
 	struct ath9k_htc_hif *hif;
-	struct htc_endpoint endpoint[HST_ENDPOINT_MAX];
+	struct htc_endpoint endpoint[ENDPOINT_MAX];
 	struct completion target_wait;
 	struct completion cmd_wait;
 	struct list_head list;
