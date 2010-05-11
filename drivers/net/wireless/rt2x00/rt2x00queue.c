@@ -420,6 +420,7 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 {
 	struct data_queue *queue = entry->queue;
 	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	enum rt2x00_dump_type dump_type;
 
 	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, entry->skb, txdesc);
 
@@ -427,7 +428,9 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 	 * All processing on the frame has been completed, this means
 	 * it is now ready to be dumped to userspace through debugfs.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TX, entry->skb);
+	dump_type = (txdesc->queue == QID_BEACON) ?
+					DUMP_FRAME_BEACON : DUMP_FRAME_TX;
+	rt2x00debug_dump_frame(rt2x00dev, dump_type, entry->skb);
 }
 
 static void rt2x00queue_kick_tx_queue(struct queue_entry *entry,
