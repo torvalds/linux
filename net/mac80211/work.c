@@ -32,6 +32,7 @@
 #define IEEE80211_MAX_PROBE_TRIES 5
 
 enum work_action {
+	WORK_ACT_MISMATCH,
 	WORK_ACT_NONE,
 	WORK_ACT_TIMEOUT,
 	WORK_ACT_DONE,
@@ -574,7 +575,7 @@ ieee80211_rx_mgmt_auth(struct ieee80211_work *wk,
 	u16 auth_alg, auth_transaction, status_code;
 
 	if (wk->type != IEEE80211_WORK_AUTH)
-		return WORK_ACT_NONE;
+		return WORK_ACT_MISMATCH;
 
 	if (len < 24 + 6)
 		return WORK_ACT_NONE;
@@ -624,6 +625,9 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_work *wk,
 	u16 capab_info, status_code, aid;
 	struct ieee802_11_elems elems;
 	u8 *pos;
+
+	if (wk->type != IEEE80211_WORK_ASSOC)
+		return WORK_ACT_MISMATCH;
 
 	/*
 	 * AssocResp and ReassocResp have identical structure, so process both
@@ -680,6 +684,12 @@ ieee80211_rx_mgmt_probe_resp(struct ieee80211_work *wk,
 
 	ASSERT_WORK_MTX(local);
 
+	if (wk->type != IEEE80211_WORK_DIRECT_PROBE)
+		return WORK_ACT_MISMATCH;
+
+	if (len < 24 + 12)
+		return WORK_ACT_NONE;
+
 	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
 	if (baselen > len)
 		return WORK_ACT_NONE;
@@ -694,7 +704,7 @@ static void ieee80211_work_rx_queued_mgmt(struct ieee80211_local *local,
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_mgmt *mgmt;
 	struct ieee80211_work *wk;
-	enum work_action rma = WORK_ACT_NONE;
+	enum work_action rma;
 	u16 fc;
 
 	rx_status = (struct ieee80211_rx_status *) skb->cb;
@@ -741,7 +751,17 @@ static void ieee80211_work_rx_queued_mgmt(struct ieee80211_local *local,
 			break;
 		default:
 			WARN_ON(1);
+			rma = WORK_ACT_NONE;
 		}
+
+		/*
+		 * We've either received an unexpected frame, or we have
+		 * multiple work items and need to match the frame to the
+		 * right one.
+		 */
+		if (rma == WORK_ACT_MISMATCH)
+			continue;
+
 		/*
 		 * We've processed this frame for that work, so it can't
 		 * belong to another work struct.
@@ -751,6 +771,9 @@ static void ieee80211_work_rx_queued_mgmt(struct ieee80211_local *local,
 	}
 
 	switch (rma) {
+	case WORK_ACT_MISMATCH:
+		/* ignore this unmatched frame */
+		break;
 	case WORK_ACT_NONE:
 		break;
 	case WORK_ACT_DONE:
