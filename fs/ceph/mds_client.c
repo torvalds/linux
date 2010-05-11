@@ -2136,7 +2136,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc, int mds)
 	struct ceph_mds_session *session = NULL;
 	struct ceph_msg *reply;
 	struct rb_node *p;
-	int err;
+	int err = -ENOMEM;
 	struct ceph_pagelist *pagelist;
 
 	pr_info("reconnect to recovering mds%d\n", mds);
@@ -2185,7 +2185,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc, int mds)
 		goto fail;
 	err = iterate_session_caps(session, encode_caps_cb, pagelist);
 	if (err < 0)
-		goto out;
+		goto fail;
 
 	/*
 	 * snaprealms.  we provide mds with the ino, seq (version), and
@@ -2213,28 +2213,31 @@ send:
 	reply->nr_pages = calc_pages_for(0, pagelist->length);
 	ceph_con_send(&session->s_con, reply);
 
-	if (session) {
-		session->s_state = CEPH_MDS_SESSION_OPEN;
-		__wake_requests(mdsc, &session->s_waiting);
-	}
+	session->s_state = CEPH_MDS_SESSION_OPEN;
+	mutex_unlock(&session->s_mutex);
 
-out:
+	mutex_lock(&mdsc->mutex);
+	__wake_requests(mdsc, &session->s_waiting);
+	mutex_unlock(&mdsc->mutex);
+
+	ceph_put_mds_session(session);
+
 	up_read(&mdsc->snap_rwsem);
-	if (session) {
-		mutex_unlock(&session->s_mutex);
-		ceph_put_mds_session(session);
-	}
 	mutex_lock(&mdsc->mutex);
 	return;
 
 fail:
 	ceph_msg_put(reply);
+	up_read(&mdsc->snap_rwsem);
+	mutex_unlock(&session->s_mutex);
+	ceph_put_mds_session(session);
 fail_nomsg:
 	ceph_pagelist_release(pagelist);
 	kfree(pagelist);
 fail_nopagelist:
-	pr_err("ENOMEM preparing reconnect for mds%d\n", mds);
-	goto out;
+	pr_err("error %d preparing reconnect for mds%d\n", err, mds);
+	mutex_lock(&mdsc->mutex);
+	return;
 }
 
 
