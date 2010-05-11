@@ -111,7 +111,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		channel_type = local->tmp_channel_type;
 	} else {
 		chan = local->oper_channel;
-		channel_type = local->oper_channel_type;
+		channel_type = local->_oper_channel_type;
 	}
 
 	if (chan != local->hw.conf.channel ||

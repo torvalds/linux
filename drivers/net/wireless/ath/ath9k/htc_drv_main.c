@@ -461,11 +461,11 @@ static int ath9k_htc_aggr_oper(struct ath9k_htc_priv *priv,
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_htc_target_aggr aggr;
 	struct ieee80211_sta *sta = NULL;
-	struct ath9k_htc_sta *ista = (struct ath9k_htc_sta *) sta->drv_priv;
+	struct ath9k_htc_sta *ista;
 	int ret = 0;
 	u8 cmd_rsp;
 
-	if (tid > ATH9K_HTC_MAX_TID)
+	if (tid >= ATH9K_HTC_MAX_TID)
 		return -EINVAL;
 
 	memset(&aggr, 0, sizeof(struct ath9k_htc_target_aggr));
@@ -1099,7 +1099,7 @@ fail_tx:
 	return 0;
 }
 
-static int ath9k_htc_radio_enable(struct ieee80211_hw *hw)
+static int ath9k_htc_radio_enable(struct ieee80211_hw *hw, bool led)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
@@ -1147,6 +1147,13 @@ static int ath9k_htc_radio_enable(struct ieee80211_hw *hw)
 	priv->tx_queues_stop = false;
 	spin_unlock_bh(&priv->tx_lock);
 
+	if (led) {
+		/* Enable LED */
+		ath9k_hw_cfg_output(ah, ah->led_pin,
+				    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+		ath9k_hw_set_gpio(ah, ah->led_pin, 0);
+	}
+
 	ieee80211_wake_queues(hw);
 
 	return ret;
@@ -1158,13 +1165,13 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	int ret = 0;
 
 	mutex_lock(&priv->mutex);
-	ret = ath9k_htc_radio_enable(hw);
+	ret = ath9k_htc_radio_enable(hw, false);
 	mutex_unlock(&priv->mutex);
 
 	return ret;
 }
 
-static void ath9k_htc_radio_disable(struct ieee80211_hw *hw)
+static void ath9k_htc_radio_disable(struct ieee80211_hw *hw, bool led)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
@@ -1175,6 +1182,12 @@ static void ath9k_htc_radio_disable(struct ieee80211_hw *hw)
 	if (priv->op_flags & OP_INVALID) {
 		ath_print(common, ATH_DBG_ANY, "Device not present\n");
 		return;
+	}
+
+	if (led) {
+		/* Disable LED */
+		ath9k_hw_set_gpio(ah, ah->led_pin, 1);
+		ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
 	}
 
 	/* Cancel all the running timers/work .. */
@@ -1217,7 +1230,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	struct ath9k_htc_priv *priv = hw->priv;
 
 	mutex_lock(&priv->mutex);
-	ath9k_htc_radio_disable(hw);
+	ath9k_htc_radio_disable(hw, false);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -1313,15 +1326,6 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	priv->nvifs--;
 
 	ath9k_htc_remove_station(priv, vif, NULL);
-
-	if (vif->type == NL80211_IFTYPE_ADHOC) {
-		spin_lock_bh(&priv->beacon_lock);
-		if (priv->beacon)
-			dev_kfree_skb_any(priv->beacon);
-		priv->beacon = NULL;
-		spin_unlock_bh(&priv->beacon_lock);
-	}
-
 	priv->vif = NULL;
 
 	mutex_unlock(&priv->mutex);
@@ -1346,7 +1350,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 
 		if (enable_radio) {
 			ath9k_htc_setpower(priv, ATH9K_PM_AWAKE);
-			ath9k_htc_radio_enable(hw);
+			ath9k_htc_radio_enable(hw, true);
 			ath_print(common, ATH_DBG_CONFIG,
 				  "not-idle: enabling radio\n");
 		}
@@ -1398,9 +1402,8 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 	if (priv->ps_idle) {
 		ath_print(common, ATH_DBG_CONFIG,
 			  "idle: disabling radio\n");
-		ath9k_htc_radio_disable(hw);
+		ath9k_htc_radio_disable(hw, true);
 	}
-
 
 	mutex_unlock(&priv->mutex);
 
@@ -1589,9 +1592,6 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 		priv->op_flags |= OP_ENABLE_BEACON;
 		ath9k_htc_beacon_config(priv, vif);
 	}
-
-	if (changed & BSS_CHANGED_BEACON)
-		ath9k_htc_beacon_update(priv, vif);
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
 	    !bss_conf->enable_beacon) {

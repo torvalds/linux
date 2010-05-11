@@ -73,7 +73,7 @@ ath5k_ani_set_noise_immunity_level(struct ath5k_hw *ah, int level)
 	const s8 hi[] = { -14, -12 };
 	const s8 fr[] = { -78, -80 };
 #endif
-	if (level < 0 || level > ARRAY_SIZE(sz)) {
+	if (level < 0 || level >= ARRAY_SIZE(sz)) {
 		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI,
 			"level out of range %d", level);
 		return;
@@ -104,7 +104,7 @@ ath5k_ani_set_spur_immunity_level(struct ath5k_hw *ah, int level)
 {
 	const int val[] = { 2, 4, 6, 8, 10, 12, 14, 16 };
 
-	if (level < 0 || level > ARRAY_SIZE(val) ||
+	if (level < 0 || level >= ARRAY_SIZE(val) ||
 	    level > ah->ah_sc->ani_state.max_spur_level) {
 		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI,
 			"level out of range %d", level);
@@ -129,7 +129,7 @@ ath5k_ani_set_firstep_level(struct ath5k_hw *ah, int level)
 {
 	const int val[] = { 0, 4, 8 };
 
-	if (level < 0 || level > ARRAY_SIZE(val)) {
+	if (level < 0 || level >= ARRAY_SIZE(val)) {
 		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI,
 			"level out of range %d", level);
 		return;

@@ -589,6 +589,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		i++;
 		NLA_PUT_U32(msg, i, NL80211_CMD_SET_WIPHY_NETNS);
 	}
+	CMD(set_channel, SET_CHANNEL);
 
 #undef CMD
 
@@ -689,10 +690,90 @@ static int parse_txq_params(struct nlattr *tb[],
 	return 0;
 }
 
+static bool nl80211_can_set_dev_channel(struct wireless_dev *wdev)
+{
+	/*
+	 * You can only set the channel explicitly for AP, mesh
+	 * and WDS type interfaces; all others have their channel
+	 * managed via their respective "establish a connection"
+	 * command (connect, join, ...)
+	 *
+	 * Monitors are special as they are normally slaved to
+	 * whatever else is going on, so they behave as though
+	 * you tried setting the wiphy channel itself.
+	 */
+	return !wdev ||
+		wdev->iftype == NL80211_IFTYPE_AP ||
+		wdev->iftype == NL80211_IFTYPE_WDS ||
+		wdev->iftype == NL80211_IFTYPE_MESH_POINT ||
+		wdev->iftype == NL80211_IFTYPE_MONITOR;
+}
+
+static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
+				 struct wireless_dev *wdev,
+				 struct genl_info *info)
+{
+	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
+	u32 freq;
+	int result;
+
+	if (!info->attrs[NL80211_ATTR_WIPHY_FREQ])
+		return -EINVAL;
+
+	if (!nl80211_can_set_dev_channel(wdev))
+		return -EOPNOTSUPP;
+
+	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
+		channel_type = nla_get_u32(info->attrs[
+				   NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
+		if (channel_type != NL80211_CHAN_NO_HT &&
+		    channel_type != NL80211_CHAN_HT20 &&
+		    channel_type != NL80211_CHAN_HT40PLUS &&
+		    channel_type != NL80211_CHAN_HT40MINUS)
+			return -EINVAL;
+	}
+
+	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
+
+	mutex_lock(&rdev->devlist_mtx);
+	if (wdev) {
+		wdev_lock(wdev);
+		result = cfg80211_set_freq(rdev, wdev, freq, channel_type);
+		wdev_unlock(wdev);
+	} else {
+		result = cfg80211_set_freq(rdev, NULL, freq, channel_type);
+	}
+	mutex_unlock(&rdev->devlist_mtx);
+
+	return result;
+}
+
+static int nl80211_set_channel(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev;
+	struct net_device *netdev;
+	int result;
+
+	rtnl_lock();
+
+	result = get_rdev_dev_by_info_ifindex(info, &rdev, &netdev);
+	if (result)
+		goto unlock;
+
+	result = __nl80211_set_channel(rdev, netdev->ieee80211_ptr, info);
+
+ unlock:
+	rtnl_unlock();
+
+	return result;
+}
+
 static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev;
-	int result = 0, rem_txq_params = 0;
+	struct net_device *netdev = NULL;
+	struct wireless_dev *wdev;
+	int result, rem_txq_params = 0;
 	struct nlattr *nl_txq_params;
 	u32 changed;
 	u8 retry_short = 0, retry_long = 0;
@@ -701,16 +782,50 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
+	/*
+	 * Try to find the wiphy and netdev. Normally this
+	 * function shouldn't need the netdev, but this is
+	 * done for backward compatibility -- previously
+	 * setting the channel was done per wiphy, but now
+	 * it is per netdev. Previous userland like hostapd
+	 * also passed a netdev to set_wiphy, so that it is
+	 * possible to let that go to the right netdev!
+	 */
 	mutex_lock(&cfg80211_mutex);
 
-	rdev = __cfg80211_rdev_from_info(info);
-	if (IS_ERR(rdev)) {
-		mutex_unlock(&cfg80211_mutex);
-		result = PTR_ERR(rdev);
-		goto unlock;
+	if (info->attrs[NL80211_ATTR_IFINDEX]) {
+		int ifindex = nla_get_u32(info->attrs[NL80211_ATTR_IFINDEX]);
+
+		netdev = dev_get_by_index(genl_info_net(info), ifindex);
+		if (netdev && netdev->ieee80211_ptr) {
+			rdev = wiphy_to_dev(netdev->ieee80211_ptr->wiphy);
+			mutex_lock(&rdev->mtx);
+		} else
+			netdev = NULL;
 	}
 
-	mutex_lock(&rdev->mtx);
+	if (!netdev) {
+		rdev = __cfg80211_rdev_from_info(info);
+		if (IS_ERR(rdev)) {
+			mutex_unlock(&cfg80211_mutex);
+			result = PTR_ERR(rdev);
+			goto unlock;
+		}
+		wdev = NULL;
+		netdev = NULL;
+		result = 0;
+
+		mutex_lock(&rdev->mtx);
+	} else if (netif_running(netdev) &&
+		   nl80211_can_set_dev_channel(netdev->ieee80211_ptr))
+		wdev = netdev->ieee80211_ptr;
+	else
+		wdev = NULL;
+
+	/*
+	 * end workaround code, by now the rdev is available
+	 * and locked, and wdev may or may not be NULL.
+	 */
 
 	if (info->attrs[NL80211_ATTR_WIPHY_NAME])
 		result = cfg80211_dev_rename(
@@ -749,26 +864,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
-		enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
-		u32 freq;
-
-		result = -EINVAL;
-
-		if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
-			channel_type = nla_get_u32(info->attrs[
-					   NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
-			if (channel_type != NL80211_CHAN_NO_HT &&
-			    channel_type != NL80211_CHAN_HT20 &&
-			    channel_type != NL80211_CHAN_HT40PLUS &&
-			    channel_type != NL80211_CHAN_HT40MINUS)
-				goto bad_res;
-		}
-
-		freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
-
-		mutex_lock(&rdev->devlist_mtx);
-		result = rdev_set_freq(rdev, NULL, freq, channel_type);
-		mutex_unlock(&rdev->devlist_mtx);
+		result = __nl80211_set_channel(rdev, wdev, info);
 		if (result)
 			goto bad_res;
 	}
@@ -865,6 +961,8 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
  bad_res:
 	mutex_unlock(&rdev->mtx);
+	if (netdev)
+		dev_put(netdev);
  unlock:
 	rtnl_unlock();
 	return result;
@@ -3562,9 +3660,8 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
-	struct wireless_dev *wdev;
 	struct cfg80211_crypto_settings crypto;
-	struct ieee80211_channel *chan, *fixedchan;
+	struct ieee80211_channel *chan;
 	const u8 *bssid, *ssid, *ie = NULL, *prev_bssid = NULL;
 	int err, ssid_len, ie_len = 0;
 	bool use_mfp = false;
@@ -3606,16 +3703,6 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		err = -EINVAL;
 		goto out;
 	}
-
-	mutex_lock(&rdev->devlist_mtx);
-	wdev = dev->ieee80211_ptr;
-	fixedchan = rdev_fixed_channel(rdev, wdev);
-	if (fixedchan && chan != fixedchan) {
-		err = -EBUSY;
-		mutex_unlock(&rdev->devlist_mtx);
-		goto out;
-	}
-	mutex_unlock(&rdev->devlist_mtx);
 
 	ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
 	ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
@@ -5183,6 +5270,12 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_SET_CQM,
 		.doit = nl80211_set_cqm,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_SET_CHANNEL,
+		.doit = nl80211_set_channel,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},

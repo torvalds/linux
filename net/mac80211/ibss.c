@@ -103,7 +103,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
 	local->oper_channel = chan;
-	local->oper_channel_type = NL80211_CHAN_NO_HT;
+	WARN_ON(!ieee80211_set_channel_type(local, sdata, NL80211_CHAN_NO_HT));
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 
 	sband = local->hw.wiphy->bands[chan->band];
@@ -911,7 +911,8 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	/* fix ourselves to that channel now already */
 	if (params->channel_fixed) {
 		sdata->local->oper_channel = params->channel;
-		sdata->local->oper_channel_type = NL80211_CHAN_NO_HT;
+		WARN_ON(!ieee80211_set_channel_type(sdata->local, sdata,
+						    NL80211_CHAN_NO_HT));
 	}
 
 	if (params->ie) {

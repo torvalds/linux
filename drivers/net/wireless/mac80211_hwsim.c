@@ -652,17 +652,17 @@ static void mac80211_hwsim_beacon(unsigned long arg)
 	add_timer(&data->beacon_timer);
 }
 
+static const char *hwsim_chantypes[] = {
+	[NL80211_CHAN_NO_HT] = "noht",
+	[NL80211_CHAN_HT20] = "ht20",
+	[NL80211_CHAN_HT40MINUS] = "ht40-",
+	[NL80211_CHAN_HT40PLUS] = "ht40+",
+};
 
 static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
-	static const char *chantypes[4] = {
-		[NL80211_CHAN_NO_HT] = "noht",
-		[NL80211_CHAN_HT20] = "ht20",
-		[NL80211_CHAN_HT40MINUS] = "ht40-",
-		[NL80211_CHAN_HT40PLUS] = "ht40+",
-	};
 	static const char *smps_modes[IEEE80211_SMPS_NUM_MODES] = {
 		[IEEE80211_SMPS_AUTOMATIC] = "auto",
 		[IEEE80211_SMPS_OFF] = "off",
@@ -673,7 +673,7 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 	printk(KERN_DEBUG "%s:%s (freq=%d/%s idle=%d ps=%d smps=%s)\n",
 	       wiphy_name(hw->wiphy), __func__,
 	       conf->channel->center_freq,
-	       chantypes[conf->channel_type],
+	       hwsim_chantypes[conf->channel_type],
 	       !!(conf->flags & IEEE80211_CONF_IDLE),
 	       !!(conf->flags & IEEE80211_CONF_PS),
 	       smps_modes[conf->smps_mode]);
@@ -761,9 +761,10 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_HT) {
-		printk(KERN_DEBUG "  %s: HT: op_mode=0x%x\n",
+		printk(KERN_DEBUG "  %s: HT: op_mode=0x%x, chantype=%s\n",
 		       wiphy_name(hw->wiphy),
-		       info->ht_operation_mode);
+		       info->ht_operation_mode,
+		       hwsim_chantypes[info->channel_type]);
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {

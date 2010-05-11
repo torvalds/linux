@@ -441,10 +441,22 @@ static int wl1271_boot_write_irq_polarity(struct wl1271 *wl)
 	return 0;
 }
 
+static void wl1271_boot_hw_version(struct wl1271 *wl)
+{
+	u32 fuse;
+
+	fuse = wl1271_top_reg_read(wl, REG_FUSE_DATA_2_1);
+	fuse = (fuse & PG_VER_MASK) >> PG_VER_OFFSET;
+
+	wl->hw_pg_ver = (s8)fuse;
+}
+
 int wl1271_boot(struct wl1271 *wl)
 {
 	int ret = 0;
 	u32 tmp, clk, pause;
+
+	wl1271_boot_hw_version(wl);
 
 	if (REF_CLOCK == 0 || REF_CLOCK == 2 || REF_CLOCK == 4)
 		/* ref clk: 19.2/38.4/38.4-XTAL */

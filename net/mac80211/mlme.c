@@ -137,10 +137,13 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 	u32 changed = 0;
 	u16 ht_opmode;
-	bool enable_ht = true, ht_changed;
+	bool enable_ht = true;
+	enum nl80211_channel_type prev_chantype;
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+
+	prev_chantype = sdata->vif.bss_conf.channel_type;
 
 	/* HT is not supported */
 	if (!sband->ht_cap.ht_supported)
@@ -172,38 +175,37 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	ht_changed = conf_is_ht(&local->hw.conf) != enable_ht ||
-		     channel_type != local->hw.conf.channel_type;
-
 	if (local->tmp_channel)
 		local->tmp_channel_type = channel_type;
-	local->oper_channel_type = channel_type;
 
-	if (ht_changed) {
-                /* channel_type change automatically detected */
-		ieee80211_hw_config(local, 0);
+	if (!ieee80211_set_channel_type(local, sdata, channel_type)) {
+		/* can only fail due to HT40+/- mismatch */
+		channel_type = NL80211_CHAN_HT20;
+		WARN_ON(!ieee80211_set_channel_type(local, sdata, channel_type));
+	}
 
+	/* channel_type change automatically detected */
+	ieee80211_hw_config(local, 0);
+
+	if (prev_chantype != channel_type) {
 		rcu_read_lock();
 		sta = sta_info_get(sdata, bssid);
 		if (sta)
 			rate_control_rate_update(local, sband, sta,
 						 IEEE80211_RC_HT_CHANGED,
-						 local->oper_channel_type);
+						 channel_type);
 		rcu_read_unlock();
-        }
-
-	/* disable HT */
-	if (!enable_ht)
-		return 0;
+	}
 
 	ht_opmode = le16_to_cpu(hti->operation_mode);
 
 	/* if bss configuration changed store the new one */
-	if (!sdata->ht_opmode_valid ||
-	    sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
+	if (sdata->ht_opmode_valid != enable_ht ||
+	    sdata->vif.bss_conf.ht_operation_mode != ht_opmode ||
+	    prev_chantype != channel_type) {
 		changed |= BSS_CHANGED_HT;
 		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
-		sdata->ht_opmode_valid = true;
+		sdata->ht_opmode_valid = enable_ht;
 	}
 
 	return changed;
@@ -866,7 +868,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_set_wmm_default(sdata);
 
 	/* channel(_type) changes are handled by ieee80211_hw_config */
-	local->oper_channel_type = NL80211_CHAN_NO_HT;
+	WARN_ON(!ieee80211_set_channel_type(local, sdata, NL80211_CHAN_NO_HT));
 
 	/* on the next assoc, re-program HT parameters */
 	sdata->ht_opmode_valid = false;
@@ -883,8 +885,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_hw_config(local, config_changed);
 
-	/* And the BSSID changed -- not very interesting here */
-	changed |= BSS_CHANGED_BSSID;
+	/* The BSSID (not really interesting) and HT changed */
+	changed |= BSS_CHANGED_BSSID | BSS_CHANGED_HT;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	if (remove_sta)
@@ -2266,7 +2268,7 @@ int ieee80211_mgd_action(struct ieee80211_sub_if_data *sdata,
 	if ((chan != local->tmp_channel ||
 	     channel_type != local->tmp_channel_type) &&
 	    (chan != local->oper_channel ||
-	     channel_type != local->oper_channel_type))
+	     channel_type != local->_oper_channel_type))
 		return -EBUSY;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + len);

@@ -5,6 +5,7 @@
 menuconfig WLAN
 	bool "Wireless LAN"
 	depends on !S390
+	depends on NET
 	select WIRELESS
 	default y
 	---help---

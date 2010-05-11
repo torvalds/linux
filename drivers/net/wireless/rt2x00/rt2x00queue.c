@@ -429,20 +429,23 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 	 * it is now ready to be dumped to userspace through debugfs.
 	 */
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TX, entry->skb);
+}
+
+static void rt2x00queue_kick_tx_queue(struct queue_entry *entry,
+				      struct txentry_desc *txdesc)
+{
+	struct data_queue *queue = entry->queue;
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 
 	/*
 	 * Check if we need to kick the queue, there are however a few rules
-	 *	1) Don't kick beacon queue
-	 *	2) Don't kick unless this is the last in frame in a burst.
+	 *	1) Don't kick unless this is the last in frame in a burst.
 	 *	   When the burst flag is set, this frame is always followed
 	 *	   by another frame which in some way are related to eachother.
 	 *	   This is true for fragments, RTS or CTS-to-self frames.
-	 *	3) Rule 2 can be broken when the available entries
+	 *	2) Rule 1 can be broken when the available entries
 	 *	   in the queue are less then a certain threshold.
 	 */
-	if (entry->queue->qid == QID_BEACON)
-		return;
-
 	if (rt2x00queue_threshold(queue) ||
 	    !test_bit(ENTRY_TXD_BURST, &txdesc->flags))
 		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, queue->qid);
@@ -538,6 +541,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 
 	rt2x00queue_index_inc(queue, Q_INDEX);
 	rt2x00queue_write_tx_descriptor(entry, &txdesc);
+	rt2x00queue_kick_tx_queue(entry, &txdesc);
 
 	return 0;
 }
@@ -603,12 +607,9 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
 
 	/*
-	 * Send beacon to hardware.
-	 * Also enable beacon generation, which might have been disabled
-	 * by the driver during the config_beacon() callback function.
+	 * Send beacon to hardware and enable beacon genaration..
 	 */
-	rt2x00dev->ops->lib->write_beacon(intf->beacon);
-	rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, QID_BEACON);
+	rt2x00dev->ops->lib->write_beacon(intf->beacon, &txdesc);
 
 	mutex_unlock(&intf->beacon_skb_mutex);
 

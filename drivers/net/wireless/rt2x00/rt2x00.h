@@ -551,7 +551,8 @@ struct rt2x00lib_ops {
 			       struct txentry_desc *txdesc);
 	int (*write_tx_data) (struct queue_entry *entry,
 			      struct txentry_desc *txdesc);
-	void (*write_beacon) (struct queue_entry *entry);
+	void (*write_beacon) (struct queue_entry *entry,
+			      struct txentry_desc *txdesc);
 	int (*get_tx_data_len) (struct queue_entry *entry);
 	void (*kick_tx_queue) (struct rt2x00_dev *rt2x00dev,
 			       const enum data_queue_qid queue);

@@ -282,6 +282,104 @@ int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2800_wait_wpdma_ready);
 
+void rt2800_write_txwi(struct sk_buff *skb, struct txentry_desc *txdesc)
+{
+	__le32 *txwi = (__le32 *)(skb->data - TXWI_DESC_SIZE);
+	u32 word;
+
+	/*
+	 * Initialize TX Info descriptor
+	 */
+	rt2x00_desc_read(txwi, 0, &word);
+	rt2x00_set_field32(&word, TXWI_W0_FRAG,
+			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
+	rt2x00_set_field32(&word, TXWI_W0_MIMO_PS, 0);
+	rt2x00_set_field32(&word, TXWI_W0_CF_ACK, 0);
+	rt2x00_set_field32(&word, TXWI_W0_TS,
+			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
+	rt2x00_set_field32(&word, TXWI_W0_AMPDU,
+			   test_bit(ENTRY_TXD_HT_AMPDU, &txdesc->flags));
+	rt2x00_set_field32(&word, TXWI_W0_MPDU_DENSITY, txdesc->mpdu_density);
+	rt2x00_set_field32(&word, TXWI_W0_TX_OP, txdesc->txop);
+	rt2x00_set_field32(&word, TXWI_W0_MCS, txdesc->mcs);
+	rt2x00_set_field32(&word, TXWI_W0_BW,
+			   test_bit(ENTRY_TXD_HT_BW_40, &txdesc->flags));
+	rt2x00_set_field32(&word, TXWI_W0_SHORT_GI,
+			   test_bit(ENTRY_TXD_HT_SHORT_GI, &txdesc->flags));
+	rt2x00_set_field32(&word, TXWI_W0_STBC, txdesc->stbc);
+	rt2x00_set_field32(&word, TXWI_W0_PHYMODE, txdesc->rate_mode);
+	rt2x00_desc_write(txwi, 0, word);
+
+	rt2x00_desc_read(txwi, 1, &word);
+	rt2x00_set_field32(&word, TXWI_W1_ACK,
+			   test_bit(ENTRY_TXD_ACK, &txdesc->flags));
+	rt2x00_set_field32(&word, TXWI_W1_NSEQ,
+			   test_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags));
+	rt2x00_set_field32(&word, TXWI_W1_BW_WIN_SIZE, txdesc->ba_size);
+	rt2x00_set_field32(&word, TXWI_W1_WIRELESS_CLI_ID,
+			   test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags) ?
+			   txdesc->key_idx : 0xff);
+	rt2x00_set_field32(&word, TXWI_W1_MPDU_TOTAL_BYTE_COUNT,
+			   txdesc->length);
+	rt2x00_set_field32(&word, TXWI_W1_PACKETID, txdesc->queue + 1);
+	rt2x00_desc_write(txwi, 1, word);
+
+	/*
+	 * Always write 0 to IV/EIV fields, hardware will insert the IV
+	 * from the IVEIV register when TXD_W3_WIV is set to 0.
+	 * When TXD_W3_WIV is set to 1 it will use the IV data
+	 * from the descriptor. The TXWI_W1_WIRELESS_CLI_ID indicates which
+	 * crypto entry in the registers should be used to encrypt the frame.
+	 */
+	_rt2x00_desc_write(txwi, 2, 0 /* skbdesc->iv[0] */);
+	_rt2x00_desc_write(txwi, 3, 0 /* skbdesc->iv[1] */);
+}
+EXPORT_SYMBOL_GPL(rt2800_write_txwi);
+
+void rt2800_process_rxwi(struct sk_buff *skb, struct rxdone_entry_desc *rxdesc)
+{
+	__le32 *rxwi = (__le32 *) skb->data;
+	u32 word;
+
+	rt2x00_desc_read(rxwi, 0, &word);
+
+	rxdesc->cipher = rt2x00_get_field32(word, RXWI_W0_UDF);
+	rxdesc->size = rt2x00_get_field32(word, RXWI_W0_MPDU_TOTAL_BYTE_COUNT);
+
+	rt2x00_desc_read(rxwi, 1, &word);
+
+	if (rt2x00_get_field32(word, RXWI_W1_SHORT_GI))
+		rxdesc->flags |= RX_FLAG_SHORT_GI;
+
+	if (rt2x00_get_field32(word, RXWI_W1_BW))
+		rxdesc->flags |= RX_FLAG_40MHZ;
+
+	/*
+	 * Detect RX rate, always use MCS as signal type.
+	 */
+	rxdesc->dev_flags |= RXDONE_SIGNAL_MCS;
+	rxdesc->signal = rt2x00_get_field32(word, RXWI_W1_MCS);
+	rxdesc->rate_mode = rt2x00_get_field32(word, RXWI_W1_PHYMODE);
+
+	/*
+	 * Mask of 0x8 bit to remove the short preamble flag.
+	 */
+	if (rxdesc->rate_mode == RATE_MODE_CCK)
+		rxdesc->signal &= ~0x8;
+
+	rt2x00_desc_read(rxwi, 2, &word);
+
+	rxdesc->rssi =
+	    (rt2x00_get_field32(word, RXWI_W2_RSSI0) +
+	     rt2x00_get_field32(word, RXWI_W2_RSSI1)) / 2;
+
+	/*
+	 * Remove RXWI descriptor from start of buffer.
+	 */
+	skb_pull(skb, RXWI_DESC_SIZE);
+}
+EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
+
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 const struct rt2x00debug rt2800_rt2x00debug = {
 	.owner	= THIS_MODULE,
@@ -640,8 +738,6 @@ void rt2800_config_erp(struct rt2x00_dev *rt2x00dev, struct rt2x00lib_erp *erp)
 	rt2800_register_write(rt2x00dev, BKOFF_SLOT_CFG, reg);
 
 	rt2800_register_read(rt2x00dev, XIFS_TIME_CFG, &reg);
-	rt2x00_set_field32(&reg, XIFS_TIME_CFG_CCKM_SIFS_TIME, erp->sifs);
-	rt2x00_set_field32(&reg, XIFS_TIME_CFG_OFDM_SIFS_TIME, erp->sifs);
 	rt2x00_set_field32(&reg, XIFS_TIME_CFG_EIFS, erp->eifs);
 	rt2800_register_write(rt2x00dev, XIFS_TIME_CFG, reg);
 
@@ -1415,9 +1511,16 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_register_write(rt2x00dev, EXP_ACK_TIME, 0x002400ca);
 
+	/*
+	 * Usually the CCK SIFS time should be set to 10 and the OFDM SIFS
+	 * time should be set to 16. However, the original Ralink driver uses
+	 * 16 for both and indeed using a value of 10 for CCK SIFS results in
+	 * connection problems with 11g + CTS protection. Hence, use the same
+	 * defaults as the Ralink driver: 16 for both, CCK and OFDM SIFS.
+	 */
 	rt2800_register_read(rt2x00dev, XIFS_TIME_CFG, &reg);
-	rt2x00_set_field32(&reg, XIFS_TIME_CFG_CCKM_SIFS_TIME, 32);
-	rt2x00_set_field32(&reg, XIFS_TIME_CFG_OFDM_SIFS_TIME, 32);
+	rt2x00_set_field32(&reg, XIFS_TIME_CFG_CCKM_SIFS_TIME, 16);
+	rt2x00_set_field32(&reg, XIFS_TIME_CFG_OFDM_SIFS_TIME, 16);
 	rt2x00_set_field32(&reg, XIFS_TIME_CFG_OFDM_XIFS_TIME, 4);
 	rt2x00_set_field32(&reg, XIFS_TIME_CFG_EIFS, 314);
 	rt2x00_set_field32(&reg, XIFS_TIME_CFG_BB_RXEND_ENABLE, 1);
@@ -2219,7 +2322,7 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 EXPORT_SYMBOL_GPL(rt2800_init_eeprom);
 
 /*
- * RF value list for rt28x0
+ * RF value list for rt28xx
  * Supports: 2.4 GHz (all) & 5.2 GHz (RF2850 & RF2750)
  */
 static const struct rf_channel rf_vals[] = {
@@ -2294,10 +2397,10 @@ static const struct rf_channel rf_vals[] = {
 };
 
 /*
- * RF value list for rt3070
- * Supports: 2.4 GHz
+ * RF value list for rt3xxx
+ * Supports: 2.4 GHz (all) & 5.2 GHz (RF3052)
  */
-static const struct rf_channel rf_vals_302x[] = {
+static const struct rf_channel rf_vals_3x[] = {
 	{1,  241, 2, 2 },
 	{2,  241, 2, 7 },
 	{3,  242, 2, 2 },
@@ -2312,6 +2415,51 @@ static const struct rf_channel rf_vals_302x[] = {
 	{12, 246, 2, 7 },
 	{13, 247, 2, 2 },
 	{14, 248, 2, 4 },
+
+	/* 802.11 UNI / HyperLan 2 */
+	{36, 0x56, 0, 4},
+	{38, 0x56, 0, 6},
+	{40, 0x56, 0, 8},
+	{44, 0x57, 0, 0},
+	{46, 0x57, 0, 2},
+	{48, 0x57, 0, 4},
+	{52, 0x57, 0, 8},
+	{54, 0x57, 0, 10},
+	{56, 0x58, 0, 0},
+	{60, 0x58, 0, 4},
+	{62, 0x58, 0, 6},
+	{64, 0x58, 0, 8},
+
+	/* 802.11 HyperLan 2 */
+	{100, 0x5b, 0, 8},
+	{102, 0x5b, 0, 10},
+	{104, 0x5c, 0, 0},
+	{108, 0x5c, 0, 4},
+	{110, 0x5c, 0, 6},
+	{112, 0x5c, 0, 8},
+	{116, 0x5d, 0, 0},
+	{118, 0x5d, 0, 2},
+	{120, 0x5d, 0, 4},
+	{124, 0x5d, 0, 8},
+	{126, 0x5d, 0, 10},
+	{128, 0x5e, 0, 0},
+	{132, 0x5e, 0, 4},
+	{134, 0x5e, 0, 6},
+	{136, 0x5e, 0, 8},
+	{140, 0x5f, 0, 0},
+
+	/* 802.11 UNII */
+	{149, 0x5f, 0, 9},
+	{151, 0x5f, 0, 11},
+	{153, 0x60, 0, 1},
+	{157, 0x60, 0, 5},
+	{159, 0x60, 0, 7},
+	{161, 0x60, 0, 9},
+	{165, 0x61, 0, 1},
+	{167, 0x61, 0, 3},
+	{169, 0x61, 0, 5},
+	{171, 0x61, 0, 7},
+	{173, 0x61, 0, 9},
 };
 
 int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
@@ -2352,11 +2500,11 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
 
 	if (rt2x00_rf(rt2x00dev, RF2820) ||
-	    rt2x00_rf(rt2x00dev, RF2720) ||
-	    rt2x00_rf(rt2x00dev, RF3052)) {
+	    rt2x00_rf(rt2x00dev, RF2720)) {
 		spec->num_channels = 14;
 		spec->channels = rf_vals;
-	} else if (rt2x00_rf(rt2x00dev, RF2850) || rt2x00_rf(rt2x00dev, RF2750)) {
+	} else if (rt2x00_rf(rt2x00dev, RF2850) ||
+		   rt2x00_rf(rt2x00dev, RF2750)) {
 		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		spec->num_channels = ARRAY_SIZE(rf_vals);
 		spec->channels = rf_vals;
@@ -2364,8 +2512,12 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		   rt2x00_rf(rt2x00dev, RF2020) ||
 		   rt2x00_rf(rt2x00dev, RF3021) ||
 		   rt2x00_rf(rt2x00dev, RF3022)) {
-		spec->num_channels = ARRAY_SIZE(rf_vals_302x);
-		spec->channels = rf_vals_302x;
+		spec->num_channels = 14;
+		spec->channels = rf_vals_3x;
+	} else if (rt2x00_rf(rt2x00dev, RF3052)) {
+		spec->supported_bands |= SUPPORT_BAND_5GHZ;
+		spec->num_channels = ARRAY_SIZE(rf_vals_3x);
+		spec->channels = rf_vals_3x;
 	}
 
 	/*

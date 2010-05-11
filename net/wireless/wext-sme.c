@@ -108,7 +108,7 @@ int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
 
 	/* SSID is not set, we just want to switch channel */
 	if (chan && !wdev->wext.connect.ssid_len) {
-		err = rdev_set_freq(rdev, wdev, freq, NL80211_CHAN_NO_HT);
+		err = cfg80211_set_freq(rdev, wdev, freq, NL80211_CHAN_NO_HT);
 		goto out;
 	}
 

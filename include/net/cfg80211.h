@@ -966,7 +966,11 @@ struct cfg80211_pmksa {
  *
  * @set_txq_params: Set TX queue parameters
  *
- * @set_channel: Set channel
+ * @set_channel: Set channel for a given wireless interface. Some devices
+ *	may support multi-channel operation (by channel hopping) so cfg80211
+ *	doesn't verify much. Note, however, that the passed netdev may be
+ *	%NULL as well if the user requested changing the channel for the
+ *	device itself, or for a monitor interface.
  *
  * @scan: Request to do a scan. If returning zero, the scan request is given
  *	the driver, and will be valid until passed to cfg80211_scan_done().
@@ -1095,7 +1099,7 @@ struct cfg80211_ops {
 	int	(*set_txq_params)(struct wiphy *wiphy,
 				  struct ieee80211_txq_params *params);
 
-	int	(*set_channel)(struct wiphy *wiphy,
+	int	(*set_channel)(struct wiphy *wiphy, struct net_device *dev,
 			       struct ieee80211_channel *chan,
 			       enum nl80211_channel_type channel_type);
 
@@ -1461,6 +1465,8 @@ struct cfg80211_cached_keys;
  * @list: (private) Used to collect the interfaces
  * @netdev: (private) Used to reference back to the netdev
  * @current_bss: (private) Used by the internal configuration code
+ * @channel: (private) Used by the internal configuration code to track
+ *	user-set AP, monitor and WDS channels for wireless extensions
  * @bssid: (private) Used by the internal configuration code
  * @ssid: (private) Used by the internal configuration code
  * @ssid_len: (private) Used by the internal configuration code
@@ -1507,6 +1513,7 @@ struct wireless_dev {
 	struct cfg80211_internal_bss *authtry_bsses[MAX_AUTH_BSSES];
 	struct cfg80211_internal_bss *auth_bsses[MAX_AUTH_BSSES];
 	struct cfg80211_internal_bss *current_bss; /* associated / joined */
+	struct ieee80211_channel *channel;
 
 	bool ps;
 	int ps_timeout;

@@ -67,6 +67,7 @@
 #include <linux/wireless.h>
 #include <linux/firmware.h>
 
+#include "mic.h"
 #include "orinoco.h"
 
 #ifndef URB_ASYNC_UNLINK
@@ -1198,11 +1199,9 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
 	struct ezusb_priv *upriv = priv->card;
+	u8 mic[MICHAEL_MIC_LEN+1];
 	int err = 0;
-	char *p;
-	struct ethhdr *eh;
-	int len, data_len, data_off;
-	__le16 tx_control;
+	int tx_control;
 	unsigned long flags;
 	struct request_context *ctx;
 	u8 *buf;
@@ -1222,7 +1221,7 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (orinoco_lock(priv, &flags) != 0) {
 		printk(KERN_ERR
-		       "%s: orinoco_xmit() called while hw_unavailable\n",
+		       "%s: ezusb_xmit() called while hw_unavailable\n",
 		       dev->name);
 		return NETDEV_TX_BUSY;
 	}
@@ -1232,53 +1231,46 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Oops, the firmware hasn't established a connection,
 		   silently drop the packet (this seems to be the
 		   safest approach). */
-		stats->tx_errors++;
-		orinoco_unlock(priv, &flags);
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
+		goto drop;
 	}
+
+	/* Check packet length */
+	if (skb->len < ETH_HLEN)
+		goto drop;
 
 	ctx = ezusb_alloc_ctx(upriv, EZUSB_RID_TX, 0);
 	if (!ctx)
-		goto fail;
+		goto busy;
 
 	memset(ctx->buf, 0, BULK_BUF_SIZE);
 	buf = ctx->buf->data;
 
-	/* Length of the packet body */
-	/* FIXME: what if the skb is smaller than this? */
-	len = max_t(int, skb->len - ETH_HLEN, ETH_ZLEN - ETH_HLEN);
+	tx_control = 0;
 
-	eh = (struct ethhdr *) skb->data;
+	err = orinoco_process_xmit_skb(skb, dev, priv, &tx_control,
+				       &mic[0]);
+	if (err)
+		goto drop;
 
-	tx_control = cpu_to_le16(0);
-	memcpy(buf, &tx_control, sizeof(tx_control));
-	buf += sizeof(tx_control);
-	/* Encapsulate Ethernet-II frames */
-	if (ntohs(eh->h_proto) > ETH_DATA_LEN) {	/* Ethernet-II frame */
-		struct header_struct *hdr = (void *) buf;
-		buf += sizeof(*hdr);
-		data_len = len;
-		data_off = sizeof(tx_control) + sizeof(*hdr);
-		p = skb->data + ETH_HLEN;
-
-		/* 802.3 header */
-		memcpy(hdr->dest, eh->h_dest, ETH_ALEN);
-		memcpy(hdr->src, eh->h_source, ETH_ALEN);
-		hdr->len = htons(data_len + ENCAPS_OVERHEAD);
-
-		/* 802.2 header */
-		memcpy(&hdr->dsap, &encaps_hdr, sizeof(encaps_hdr));
-
-		hdr->ethertype = eh->h_proto;
-	} else {		/* IEEE 802.3 frame */
-		data_len = len + ETH_HLEN;
-		data_off = sizeof(tx_control);
-		p = skb->data;
+	{
+		__le16 *tx_cntl = (__le16 *)buf;
+		*tx_cntl = cpu_to_le16(tx_control);
+		buf += sizeof(*tx_cntl);
 	}
 
-	memcpy(buf, p, data_len);
-	buf += data_len;
+	memcpy(buf, skb->data, skb->len);
+	buf += skb->len;
+
+	if (tx_control & HERMES_TXCTRL_MIC) {
+		u8 *m = mic;
+		/* Mic has been offset so it can be copied to an even
+		 * address. We're copying eveything anyway, so we
+		 * don't need to copy that first byte. */
+		if (skb->len % 2)
+			m++;
+		memcpy(buf, m, MICHAEL_MIC_LEN);
+		buf += MICHAEL_MIC_LEN;
+	}
 
 	/* Finally, we actually initiate the send */
 	netif_stop_queue(dev);
@@ -1294,20 +1286,23 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (net_ratelimit())
 			printk(KERN_ERR "%s: Error %d transmitting packet\n",
 				dev->name, err);
-		stats->tx_errors++;
-		goto fail;
+		goto busy;
 	}
 
 	dev->trans_start = jiffies;
-	stats->tx_bytes += data_off + data_len;
+	stats->tx_bytes += skb->len;
+	goto ok;
 
+ drop:
+	stats->tx_errors++;
+	stats->tx_dropped++;
+
+ ok:
 	orinoco_unlock(priv, &flags);
-
 	dev_kfree_skb(skb);
-
 	return NETDEV_TX_OK;
 
- fail:
+ busy:
 	orinoco_unlock(priv, &flags);
 	return NETDEV_TX_BUSY;
 }

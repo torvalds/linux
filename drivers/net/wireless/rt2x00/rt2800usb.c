@@ -401,59 +401,15 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	__le32 *txi = skbdesc->desc;
-	__le32 *txwi = &txi[TXINFO_DESC_SIZE / sizeof(__le32)];
 	u32 word;
 
 	/*
-	 * Initialize TX Info descriptor
+	 * Initialize TXWI descriptor
 	 */
-	rt2x00_desc_read(txwi, 0, &word);
-	rt2x00_set_field32(&word, TXWI_W0_FRAG,
-			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_MIMO_PS, 0);
-	rt2x00_set_field32(&word, TXWI_W0_CF_ACK, 0);
-	rt2x00_set_field32(&word, TXWI_W0_TS,
-			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_AMPDU,
-			   test_bit(ENTRY_TXD_HT_AMPDU, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_MPDU_DENSITY, txdesc->mpdu_density);
-	rt2x00_set_field32(&word, TXWI_W0_TX_OP, txdesc->ifs);
-	rt2x00_set_field32(&word, TXWI_W0_MCS, txdesc->mcs);
-	rt2x00_set_field32(&word, TXWI_W0_BW,
-			   test_bit(ENTRY_TXD_HT_BW_40, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_SHORT_GI,
-			   test_bit(ENTRY_TXD_HT_SHORT_GI, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W0_STBC, txdesc->stbc);
-	rt2x00_set_field32(&word, TXWI_W0_PHYMODE, txdesc->rate_mode);
-	rt2x00_desc_write(txwi, 0, word);
-
-	rt2x00_desc_read(txwi, 1, &word);
-	rt2x00_set_field32(&word, TXWI_W1_ACK,
-			   test_bit(ENTRY_TXD_ACK, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W1_NSEQ,
-			   test_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags));
-	rt2x00_set_field32(&word, TXWI_W1_BW_WIN_SIZE, txdesc->ba_size);
-	rt2x00_set_field32(&word, TXWI_W1_WIRELESS_CLI_ID,
-			   test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags) ?
-			   txdesc->key_idx : 0xff);
-	rt2x00_set_field32(&word, TXWI_W1_MPDU_TOTAL_BYTE_COUNT,
-			   txdesc->length);
-	rt2x00_set_field32(&word, TXWI_W1_PACKETID,
-			   skbdesc->entry->queue->qid + 1);
-	rt2x00_desc_write(txwi, 1, word);
+	rt2800_write_txwi(skb, txdesc);
 
 	/*
-	 * Always write 0 to IV/EIV fields, hardware will insert the IV
-	 * from the IVEIV register when TXINFO_W0_WIV is set to 0.
-	 * When TXINFO_W0_WIV is set to 1 it will use the IV data
-	 * from the descriptor. The TXWI_W1_WIRELESS_CLI_ID indicates which
-	 * crypto entry in the registers should be used to encrypt the frame.
-	 */
-	_rt2x00_desc_write(txwi, 2, 0 /* skbdesc->iv[0] */);
-	_rt2x00_desc_write(txwi, 3, 0 /* skbdesc->iv[1] */);
-
-	/*
-	 * Initialize TX descriptor
+	 * Initialize TXINFO descriptor
 	 */
 	rt2x00_desc_read(txi, 0, &word);
 	rt2x00_set_field32(&word, TXINFO_W0_USB_DMA_TX_PKT_LEN,
@@ -471,19 +427,12 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 /*
  * TX data initialization
  */
-static void rt2800usb_write_beacon(struct queue_entry *entry)
+static void rt2800usb_write_beacon(struct queue_entry *entry,
+				   struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	unsigned int beacon_base;
 	u32 reg;
-
-	/*
-	 * Add the descriptor in front of the skb.
-	 */
-	skb_push(entry->skb, entry->queue->desc_size);
-	memcpy(entry->skb->data, skbdesc->desc, skbdesc->desc_len);
-	skbdesc->desc = entry->skb->data;
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
@@ -494,6 +443,12 @@ static void rt2800usb_write_beacon(struct queue_entry *entry)
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
 	/*
+	 * Add the TXWI for the beacon to the skb.
+	 */
+	rt2800_write_txwi(entry->skb, txdesc);
+	skb_push(entry->skb, TXWI_DESC_SIZE);
+
+	/*
 	 * Write entire beacon with descriptor to register.
 	 */
 	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
@@ -501,6 +456,14 @@ static void rt2800usb_write_beacon(struct queue_entry *entry)
 					    USB_VENDOR_REQUEST_OUT, beacon_base,
 					    entry->skb->data, entry->skb->len,
 					    REGISTER_TIMEOUT32(entry->skb->len));
+
+	/*
+	 * Enable beaconing again.
+	 */
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
+	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
+	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
 	/*
 	 * Clean up the beacon skb.
@@ -524,58 +487,17 @@ static int rt2800usb_get_tx_data_len(struct queue_entry *entry)
 	return length;
 }
 
-static void rt2800usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    const enum data_queue_qid queue)
-{
-	u32 reg;
-
-	if (queue != QID_BEACON) {
-		rt2x00usb_kick_tx_queue(rt2x00dev, queue);
-		return;
-	}
-
-	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
-	if (!rt2x00_get_field32(reg, BCN_TIME_CFG_BEACON_GEN)) {
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
-	}
-}
-
 /*
  * RX control handlers
  */
 static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 				  struct rxdone_entry_desc *rxdesc)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	__le32 *rxi = (__le32 *)entry->skb->data;
-	__le32 *rxwi;
 	__le32 *rxd;
-	u32 rxi0;
-	u32 rxwi0;
-	u32 rxwi1;
-	u32 rxwi2;
-	u32 rxwi3;
-	u32 rxd0;
+	u32 word;
 	int rx_pkt_len;
-
-	/*
-	 * RX frame format is :
-	 * | RXINFO | RXWI | header | L2 pad | payload | pad | RXD | USB pad |
-	 *          |<------------ rx_pkt_len -------------->|
-	 */
-	rt2x00_desc_read(rxi, 0, &rxi0);
-	rx_pkt_len = rt2x00_get_field32(rxi0, RXINFO_W0_USB_DMA_RX_PKT_LEN);
-
-	rxwi = (__le32 *)(entry->skb->data + RXINFO_DESC_SIZE);
-
-	/*
-	 * FIXME : we need to check for rx_pkt_len validity
-	 */
-	rxd = (__le32 *)(entry->skb->data + RXINFO_DESC_SIZE + rx_pkt_len);
 
 	/*
 	 * Copy descriptor to the skbdesc->desc buffer, making it safe from
@@ -584,24 +506,34 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	memcpy(skbdesc->desc, rxi, skbdesc->desc_len);
 
 	/*
+	 * RX frame format is :
+	 * | RXINFO | RXWI | header | L2 pad | payload | pad | RXD | USB pad |
+	 *          |<------------ rx_pkt_len -------------->|
+	 */
+	rt2x00_desc_read(rxi, 0, &word);
+	rx_pkt_len = rt2x00_get_field32(word, RXINFO_W0_USB_DMA_RX_PKT_LEN);
+
+	/*
+	 * Remove the RXINFO structure from the sbk.
+	 */
+	skb_pull(entry->skb, RXINFO_DESC_SIZE);
+
+	/*
+	 * FIXME: we need to check for rx_pkt_len validity
+	 */
+	rxd = (__le32 *)(entry->skb->data + rx_pkt_len);
+
+	/*
 	 * It is now safe to read the descriptor on all architectures.
 	 */
-	rt2x00_desc_read(rxwi, 0, &rxwi0);
-	rt2x00_desc_read(rxwi, 1, &rxwi1);
-	rt2x00_desc_read(rxwi, 2, &rxwi2);
-	rt2x00_desc_read(rxwi, 3, &rxwi3);
-	rt2x00_desc_read(rxd, 0, &rxd0);
+	rt2x00_desc_read(rxd, 0, &word);
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_CRC_ERROR))
+	if (rt2x00_get_field32(word, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
-		rxdesc->cipher = rt2x00_get_field32(rxwi0, RXWI_W0_UDF);
-		rxdesc->cipher_status =
-		    rt2x00_get_field32(rxd0, RXD_W0_CIPHER_ERROR);
-	}
+	rxdesc->cipher_status = rt2x00_get_field32(word, RXD_W0_CIPHER_ERROR);
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_DECRYPTED)) {
+	if (rt2x00_get_field32(word, RXD_W0_DECRYPTED)) {
 		/*
 		 * Hardware has stripped IV/EIV data from 802.11 frame during
 		 * decryption. Unfortunately the descriptor doesn't contain
@@ -616,41 +548,21 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 			rxdesc->flags |= RX_FLAG_MMIC_ERROR;
 	}
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_MY_BSS))
+	if (rt2x00_get_field32(word, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_L2PAD))
+	if (rt2x00_get_field32(word, RXD_W0_L2PAD))
 		rxdesc->dev_flags |= RXDONE_L2PAD;
 
-	if (rt2x00_get_field32(rxwi1, RXWI_W1_SHORT_GI))
-		rxdesc->flags |= RX_FLAG_SHORT_GI;
-
-	if (rt2x00_get_field32(rxwi1, RXWI_W1_BW))
-		rxdesc->flags |= RX_FLAG_40MHZ;
+	/*
+	 * Remove RXD descriptor from end of buffer.
+	 */
+	skb_trim(entry->skb, rx_pkt_len);
 
 	/*
-	 * Detect RX rate, always use MCS as signal type.
+	 * Process the RXWI structure.
 	 */
-	rxdesc->dev_flags |= RXDONE_SIGNAL_MCS;
-	rxdesc->rate_mode = rt2x00_get_field32(rxwi1, RXWI_W1_PHYMODE);
-	rxdesc->signal = rt2x00_get_field32(rxwi1, RXWI_W1_MCS);
-
-	/*
-	 * Mask of 0x8 bit to remove the short preamble flag.
-	 */
-	if (rxdesc->rate_mode == RATE_MODE_CCK)
-		rxdesc->signal &= ~0x8;
-
-	rxdesc->rssi =
-	    (rt2x00_get_field32(rxwi2, RXWI_W2_RSSI0) +
-	     rt2x00_get_field32(rxwi2, RXWI_W2_RSSI1)) / 2;
-
-	rxdesc->size = rt2x00_get_field32(rxwi0, RXWI_W0_MPDU_TOTAL_BYTE_COUNT);
-
-	/*
-	 * Remove RXWI descriptor from start of buffer.
-	 */
-	skb_pull(entry->skb, skbdesc->desc_len);
+	rt2800_process_rxwi(entry->skb, rxdesc);
 }
 
 /*
@@ -743,7 +655,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.write_tx_data		= rt2x00usb_write_tx_data,
 	.write_beacon		= rt2800usb_write_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
-	.kick_tx_queue		= rt2800usb_kick_tx_queue,
+	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
 	.kill_tx_queue		= rt2x00usb_kill_tx_queue,
 	.fill_rxdone		= rt2800usb_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,
@@ -841,7 +753,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x7392, 0x7717), USB_DEVICE_DATA(&rt2800usb_ops) },
 	{ USB_DEVICE(0x7392, 0x7718), USB_DEVICE_DATA(&rt2800usb_ops) },
 	/* EnGenius */
-	{ USB_DEVICE(0X1740, 0x9701), USB_DEVICE_DATA(&rt2800usb_ops) },
+	{ USB_DEVICE(0x1740, 0x9701), USB_DEVICE_DATA(&rt2800usb_ops) },
 	{ USB_DEVICE(0x1740, 0x9702), USB_DEVICE_DATA(&rt2800usb_ops) },
 	/* Gigabyte */
 	{ USB_DEVICE(0x1044, 0x800b), USB_DEVICE_DATA(&rt2800usb_ops) },

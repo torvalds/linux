@@ -535,7 +535,7 @@ static int rndis_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 static int rndis_leave_ibss(struct wiphy *wiphy, struct net_device *dev);
 
-static int rndis_set_channel(struct wiphy *wiphy,
+static int rndis_set_channel(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_channel *chan, enum nl80211_channel_type channel_type);
 
 static int rndis_add_key(struct wiphy *wiphy, struct net_device *netdev,
@@ -2291,7 +2291,7 @@ static int rndis_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	return deauthenticate(usbdev);
 }
 
-static int rndis_set_channel(struct wiphy *wiphy,
+static int rndis_set_channel(struct wiphy *wiphy, struct net_device *netdev,
 	struct ieee80211_channel *chan, enum nl80211_channel_type channel_type)
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);

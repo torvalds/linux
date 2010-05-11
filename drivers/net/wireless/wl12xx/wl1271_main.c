@@ -1140,9 +1140,24 @@ out:
 	return ret;
 }
 
-static int wl1271_join(struct wl1271 *wl)
+static int wl1271_join(struct wl1271 *wl, bool set_assoc)
 {
 	int ret;
+
+	/*
+	 * One of the side effects of the JOIN command is that is clears
+	 * WPA/WPA2 keys from the chipset. Performing a JOIN while associated
+	 * to a WPA/WPA2 access point will therefore kill the data-path.
+	 * Currently there is no supported scenario for JOIN during
+	 * association - if it becomes a supported scenario, the WPA/WPA2 keys
+	 * must be handled somehow.
+	 *
+	 */
+	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		wl1271_info("JOIN while associated.");
+
+	if (set_assoc)
+		set_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 
 	ret = wl1271_cmd_join(wl, wl->set_bss_type);
 	if (ret < 0)
@@ -1190,7 +1205,6 @@ static int wl1271_unjoin(struct wl1271 *wl)
 		goto out;
 
 	clear_bit(WL1271_FLAG_JOINED, &wl->flags);
-	wl->channel = 0;
 	memset(wl->bssid, 0, ETH_ALEN);
 
 	/* stop filterting packets based on bssid */
@@ -1250,7 +1264,9 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out;
 
 	/* if the channel changes while joined, join again */
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL &&
+	    ((wl->band != conf->channel->band) ||
+	     (wl->channel != channel))) {
 		wl->band = conf->channel->band;
 		wl->channel = channel;
 
@@ -1270,7 +1286,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 				       "failed %d", ret);
 
 		if (test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
-			ret = wl1271_join(wl);
+			ret = wl1271_join(wl, false);
 			if (ret < 0)
 				wl1271_warning("cmd join to update channel "
 					       "failed %d", ret);
@@ -1647,6 +1663,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	enum wl1271_cmd_ps_mode mode;
 	struct wl1271 *wl = hw->priv;
 	bool do_join = false;
+	bool set_assoc = false;
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 bss info changed");
@@ -1756,7 +1773,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (bss_conf->assoc) {
 			u32 rates;
 			wl->aid = bss_conf->aid;
-			set_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
+			set_assoc = true;
 
 			/*
 			 * use basic rates from AP, and determine lowest rate
@@ -1856,7 +1873,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (do_join) {
-		ret = wl1271_join(wl);
+		ret = wl1271_join(wl, set_assoc);
 		if (ret < 0) {
 			wl1271_warning("cmd join failed %d", ret);
 			goto out_sleep;
@@ -2228,6 +2245,29 @@ static DEVICE_ATTR(bt_coex_state, S_IRUGO | S_IWUSR,
 		   wl1271_sysfs_show_bt_coex_state,
 		   wl1271_sysfs_store_bt_coex_state);
 
+static ssize_t wl1271_sysfs_show_hw_pg_ver(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct wl1271 *wl = dev_get_drvdata(dev);
+	ssize_t len;
+
+	/* FIXME: what's the maximum length of buf? page size?*/
+	len = 500;
+
+	mutex_lock(&wl->mutex);
+	if (wl->hw_pg_ver >= 0)
+		len = snprintf(buf, len, "%d\n", wl->hw_pg_ver);
+	else
+		len = snprintf(buf, len, "n/a\n");
+	mutex_unlock(&wl->mutex);
+
+	return len;
+}
+
+static DEVICE_ATTR(hw_pg_ver, S_IRUGO | S_IWUSR,
+		   wl1271_sysfs_show_hw_pg_ver, NULL);
+
 int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
@@ -2347,6 +2387,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->vif = NULL;
 	wl->flags = 0;
 	wl->sg_enabled = true;
+	wl->hw_pg_ver = -1;
 
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		wl->tx_frames[i] = NULL;
@@ -2376,7 +2417,17 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_platform;
 	}
 
+	/* Create sysfs file to get HW PG version */
+	ret = device_create_file(&wl->plat_dev->dev, &dev_attr_hw_pg_ver);
+	if (ret < 0) {
+		wl1271_error("failed to create sysfs file hw_pg_ver");
+		goto err_bt_coex_state;
+	}
+
 	return hw;
+
+err_bt_coex_state:
+	device_remove_file(&wl->plat_dev->dev, &dev_attr_bt_coex_state);
 
 err_platform:
 	platform_device_unregister(wl->plat_dev);

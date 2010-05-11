@@ -1505,7 +1505,8 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 /*
  * TX data initialization
  */
-static void rt73usb_write_beacon(struct queue_entry *entry)
+static void rt73usb_write_beacon(struct queue_entry *entry,
+				 struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
@@ -1537,6 +1538,19 @@ static void rt73usb_write_beacon(struct queue_entry *entry)
 					    REGISTER_TIMEOUT32(entry->skb->len));
 
 	/*
+	 * Enable beaconing again.
+	 *
+	 * For Wi-Fi faily generated beacons between participating stations.
+	 * Set TBTT phase adaptive adjustment step to 8us (default 16us)
+	 */
+	rt2x00usb_register_write(rt2x00dev, TXRX_CSR10, 0x00001008);
+
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 1);
+	rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
+
+	/*
 	 * Clean up the beacon skb.
 	 */
 	dev_kfree_skb(entry->skb);
@@ -1555,31 +1569,6 @@ static int rt73usb_get_tx_data_len(struct queue_entry *entry)
 	length += (4 * !(length % entry->queue->usb_maxpacket));
 
 	return length;
-}
-
-static void rt73usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				  const enum data_queue_qid queue)
-{
-	u32 reg;
-
-	if (queue != QID_BEACON) {
-		rt2x00usb_kick_tx_queue(rt2x00dev, queue);
-		return;
-	}
-
-	/*
-	 * For Wi-Fi faily generated beacons between participating stations.
-	 * Set TBTT phase adaptive adjustment step to 8us (default 16us)
-	 */
-	rt2x00usb_register_write(rt2x00dev, TXRX_CSR10, 0x00001008);
-
-	rt2x00usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
-	if (!rt2x00_get_field32(reg, TXRX_CSR9_BEACON_GEN)) {
-		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
-		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
-		rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 1);
-		rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
-	}
 }
 
 /*
@@ -1645,12 +1634,8 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
-		rxdesc->cipher =
-		    rt2x00_get_field32(word0, RXD_W0_CIPHER_ALG);
-		rxdesc->cipher_status =
-		    rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR);
-	}
+	rxdesc->cipher = rt2x00_get_field32(word0, RXD_W0_CIPHER_ALG);
+	rxdesc->cipher_status = rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR);
 
 	if (rxdesc->cipher != CIPHER_NONE) {
 		_rt2x00_desc_read(rxd, 2, &rxdesc->iv[0]);
@@ -2266,7 +2251,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.write_tx_data		= rt2x00usb_write_tx_data,
 	.write_beacon		= rt73usb_write_beacon,
 	.get_tx_data_len	= rt73usb_get_tx_data_len,
-	.kick_tx_queue		= rt73usb_kick_tx_queue,
+	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
 	.kill_tx_queue		= rt2x00usb_kill_tx_queue,
 	.fill_rxdone		= rt73usb_fill_rxdone,
 	.config_shared_key	= rt73usb_config_shared_key,

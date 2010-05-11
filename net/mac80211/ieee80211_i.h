@@ -767,7 +767,7 @@ struct ieee80211_local {
 	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data *scan_sdata;
-	enum nl80211_channel_type oper_channel_type;
+	enum nl80211_channel_type _oper_channel_type;
 	struct ieee80211_channel *oper_channel, *csa_channel;
 
 	/* Temporary remain-on-channel for off-channel operations */
@@ -1227,6 +1227,20 @@ int ieee80211_wk_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 				   unsigned int duration, u64 *cookie);
 int ieee80211_wk_cancel_remain_on_channel(
 	struct ieee80211_sub_if_data *sdata, u64 cookie);
+
+/* channel management */
+enum ieee80211_chan_mode {
+	CHAN_MODE_UNDEFINED,
+	CHAN_MODE_HOPPING,
+	CHAN_MODE_FIXED,
+};
+
+enum ieee80211_chan_mode
+ieee80211_get_channel_mode(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *ignore);
+bool ieee80211_set_channel_type(struct ieee80211_local *local,
+				struct ieee80211_sub_if_data *sdata,
+				enum nl80211_channel_type chantype);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

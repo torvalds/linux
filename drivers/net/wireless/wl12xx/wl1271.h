@@ -388,6 +388,8 @@ struct wl1271 {
 	size_t fw_len;
 	struct wl1271_nvs_file *nvs;
 
+	s8 hw_pg_ver;
+
 	u8 bssid[ETH_ALEN];
 	u8 mac_addr[ETH_ALEN];
 	u8 bss_type;
@@ -479,7 +481,7 @@ struct wl1271 {
 	struct wl1271_stats stats;
 	struct wl1271_debugfs debugfs;
 
-	u32 buffer_32;
+	__le32 buffer_32;
 	u32 buffer_cmd;
 	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 
