@@ -268,11 +268,12 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 			if (send->s_queued + HZ/2 < jiffies)
 				rds_ib_stats_inc(s_ib_tx_stalled);
 
-			if (&send->s_op == &rm->m_final_op) {
-				/* If anyone waited for this message to get flushed out, wake
-				 * them up now */
-				rds_message_unmapped(rm);
-
+			if (send->s_op) {
+				if (send->s_op == rm->m_final_op) {
+					/* If anyone waited for this message to get flushed out, wake
+					 * them up now */
+					rds_message_unmapped(rm);
+				}
 				rds_message_put(rm);
 				send->s_op = NULL;
 			}

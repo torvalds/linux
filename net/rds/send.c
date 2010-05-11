@@ -68,7 +68,6 @@ void rds_send_reset(struct rds_connection *conn)
 		 * transport. This isn't entirely true (it's flushed out
 		 * independently) but as the connection is down, there's
 		 * no ongoing RDMA to/from that memory */
-printk(KERN_CRIT "send reset unmapping %p\n", rm);
 		rds_message_unmapped(rm);
 		spin_unlock_irqrestore(&conn->c_send_lock, flags);
 
@@ -234,10 +233,13 @@ restart:
 
 		/* The transport either sends the whole rdma or none of it */
 		if (rm->rdma.op_active && !conn->c_xmit_rdma_sent) {
+			rds_message_addref(rm);
 			rm->m_final_op = &rm->rdma;
 			ret = conn->c_trans->xmit_rdma(conn, &rm->rdma);
-			if (ret)
+			if (ret) {
+				rds_message_put(rm);
 				break;
+			}
 			conn->c_xmit_rdma_sent = 1;
 
 			/* The transport owns the mapped memory for now.
@@ -246,10 +248,13 @@ restart:
 		}
 
 		if (rm->atomic.op_active && !conn->c_xmit_atomic_sent) {
+			rds_message_addref(rm);
 			rm->m_final_op = &rm->atomic;
 			ret = conn->c_trans->xmit_atomic(conn, &rm->atomic);
-			if (ret)
+			if (ret) {
+				rds_message_put(rm);
 				break;
+			}
 			conn->c_xmit_atomic_sent = 1;
 
 			/* The transport owns the mapped memory for now.
