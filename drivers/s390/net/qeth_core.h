@@ -740,6 +740,7 @@ struct qeth_card {
 	atomic_t force_alloc_skb;
 	struct service_level qeth_service_level;
 	struct qdio_ssqd_desc ssqd;
+	struct mutex conf_mutex;
 };
 
 struct qeth_card_list_struct {
