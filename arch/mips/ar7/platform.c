@@ -647,4 +647,4 @@ static int __init ar7_register_devices(void)
 
 	return 0;
 }
-arch_initcall(ar7_register_devices);
+device_initcall(ar7_register_devices);
