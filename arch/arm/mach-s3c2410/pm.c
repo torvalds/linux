@@ -79,6 +79,17 @@ static void s3c2410_pm_prepare(void)
 	if ( machine_is_aml_m5900() )
 		s3c2410_gpio_setpin(S3C2410_GPF(2), 1);
 
+	if (machine_is_rx1950()) {
+		/* According to S3C2442 user's manual, page 7-17,
+		 * when the system is operating in NAND boot mode,
+		 * the hardware pin configuration - EINT[23:21] –
+		 * must be set as input for starting up after
+		 * wakeup from sleep mode
+		 */
+		s3c_gpio_cfgpin(S3C2410_GPG(13), S3C2410_GPIO_INPUT);
+		s3c_gpio_cfgpin(S3C2410_GPG(14), S3C2410_GPIO_INPUT);
+		s3c_gpio_cfgpin(S3C2410_GPG(15), S3C2410_GPIO_INPUT);
+	}
 }
 
 static int s3c2410_pm_resume(struct sys_device *dev)
