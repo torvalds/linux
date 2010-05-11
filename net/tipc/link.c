@@ -3328,9 +3328,7 @@ static void link_print(struct link *l_ptr, struct print_buf *buf,
 		if (l_ptr->next_out)
 			tipc_printf(buf, "%u..",
 				    msg_seqno(buf_msg(l_ptr->next_out)));
-		tipc_printf(buf, "%u]",
-			    msg_seqno(buf_msg
-				      (l_ptr->last_out)), l_ptr->out_queue_size);
+		tipc_printf(buf, "%u]", msg_seqno(buf_msg(l_ptr->last_out)));
 		if ((mod(msg_seqno(buf_msg(l_ptr->last_out)) -
 			 msg_seqno(buf_msg(l_ptr->first_out)))
 		     != (l_ptr->out_queue_size - 1)) ||
