@@ -398,49 +398,16 @@ EXPORT_SYMBOL_GPL(clk_round_rate);
  * Returns a clock. Note that we first try to use device id on the bus
  * and clock name. If this fails, we try to use clock name only.
  */
-struct clk *clk_get(struct device *dev, const char *id)
+struct clk *clk_get(struct device *dev, const char *con_id)
 {
 	const char *dev_id = dev ? dev_name(dev) : NULL;
-	struct clk *p, *clk = ERR_PTR(-ENOENT);
-	int idno;
 
-	clk = clk_get_sys(dev_id, id);
-	if (clk && !IS_ERR(clk))
-		return clk;
-
-	if (dev == NULL || dev->bus != &platform_bus_type)
-		idno = -1;
-	else
-		idno = to_platform_device(dev)->id;
-
-	mutex_lock(&clock_list_sem);
-	list_for_each_entry(p, &clock_list, node) {
-		if (p->name && p->id == idno &&
-		    strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
-			clk = p;
-			goto found;
-		}
-	}
-
-	list_for_each_entry(p, &clock_list, node) {
-		if (p->name &&
-		    strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
-			clk = p;
-			break;
-		}
-	}
-
-found:
-	mutex_unlock(&clock_list_sem);
-
-	return clk;
+	return clk_get_sys(dev_id, con_id);
 }
 EXPORT_SYMBOL_GPL(clk_get);
 
 void clk_put(struct clk *clk)
 {
-	if (clk && !IS_ERR(clk))
-		module_put(clk->owner);
 }
 EXPORT_SYMBOL_GPL(clk_put);
 

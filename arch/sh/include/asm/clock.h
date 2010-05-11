@@ -23,7 +23,6 @@ struct clk {
 	struct list_head	node;
 	const char		*name;
 	int			id;
-	struct module		*owner;
 
 	struct clk		*parent;
 	struct clk_ops		*ops;
