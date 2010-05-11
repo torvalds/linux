@@ -41,8 +41,6 @@
 
 /* Fixed 32 KHz root clock for RTC and Power Management purposes */
 static struct clk r_clk = {
-	.name           = "rclk",
-	.id             = -1,
 	.rate           = 32768,
 };
 
@@ -51,8 +49,6 @@ static struct clk r_clk = {
  * from the platform code.
  */
 struct clk extal_clk = {
-	.name		= "extal",
-	.id		= -1,
 	.rate		= 33333333,
 };
 
@@ -76,8 +72,6 @@ static struct clk_ops fll_clk_ops = {
 };
 
 static struct clk fll_clk = {
-	.name           = "fll_clk",
-	.id             = -1,
 	.ops		= &fll_clk_ops,
 	.parent		= &r_clk,
 	.flags		= CLK_ENABLE_ON_INIT,
@@ -98,8 +92,6 @@ static struct clk_ops pll_clk_ops = {
 };
 
 static struct clk pll_clk = {
-	.name		= "pll_clk",
-	.id		= -1,
 	.ops		= &pll_clk_ops,
 	.flags		= CLK_ENABLE_ON_INIT,
 };
@@ -115,8 +107,6 @@ static struct clk_ops div3_clk_ops = {
 };
 
 static struct clk div3_clk = {
-	.name		= "div3_clk",
-	.id		= -1,
 	.ops		= &div3_clk_ops,
 	.parent		= &pll_clk,
 };
@@ -234,6 +224,13 @@ static struct clk mstp_clks[HWBLK_NR] = {
 #define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
 
 static struct clk_lookup lookups[] = {
+	/* main clocks */
+	CLKDEV_CON_ID("rclk", &r_clk),
+	CLKDEV_CON_ID("extal", &extal_clk),
+	CLKDEV_CON_ID("fll_clk", &fll_clk),
+	CLKDEV_CON_ID("pll_clk", &pll_clk),
+	CLKDEV_CON_ID("div3_clk", &div3_clk),
+
 	/* DIV4 clocks */
 	CLKDEV_CON_ID("cpu_clk", &div4_clks[DIV4_I]),
 	CLKDEV_CON_ID("shyway_clk", &div4_clks[DIV4_SH]),
