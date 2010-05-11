@@ -346,8 +346,18 @@ static void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 {
 	struct iwl_chain_noise_data *data = &(priv->chain_noise_data);
 
-	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
+	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
+	     iwl_is_associated(priv)) {
 		struct iwl_calib_diff_gain_cmd cmd;
+
+		/* clear data for chain noise calibration algorithm */
+		data->chain_noise_a = 0;
+		data->chain_noise_b = 0;
+		data->chain_noise_c = 0;
+		data->chain_signal_a = 0;
+		data->chain_signal_b = 0;
+		data->chain_signal_c = 0;
+		data->beacon_count = 0;
 
 		memset(&cmd, 0, sizeof(cmd));
 		cmd.hdr.op_code = IWL_PHY_CALIBRATE_DIFF_GAIN_CMD;
@@ -419,13 +429,6 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 		/* Mark so we run this algo only once! */
 		data->state = IWL_CHAIN_NOISE_CALIBRATED;
 	}
-	data->chain_noise_a = 0;
-	data->chain_noise_b = 0;
-	data->chain_noise_c = 0;
-	data->chain_signal_a = 0;
-	data->chain_signal_b = 0;
-	data->chain_signal_c = 0;
-	data->beacon_count = 0;
 }
 
 static void iwl4965_bg_txpower_work(struct work_struct *work)
