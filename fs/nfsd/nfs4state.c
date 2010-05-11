@@ -859,10 +859,9 @@ move_to_confirmed(struct nfs4_client *clp)
 	unsigned int strhashval;
 
 	dprintk("NFSD: move_to_confirm nfs4_client %p\n", clp);
-	list_del_init(&clp->cl_strhash);
 	list_move(&clp->cl_idhash, &conf_id_hashtbl[idhashval]);
 	strhashval = clientstr_hashval(clp->cl_recdir);
-	list_add(&clp->cl_strhash, &conf_str_hashtbl[strhashval]);
+	list_move(&clp->cl_strhash, &conf_str_hashtbl[strhashval]);
 	renew_client(clp);
 }
 
