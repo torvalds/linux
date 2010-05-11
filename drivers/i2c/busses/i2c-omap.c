@@ -756,6 +756,27 @@ omap_i2c_rev1_isr(int this_irq, void *dev_id)
 #define omap_i2c_rev1_isr		NULL
 #endif
 
+/*
+ * OMAP3430 Errata 1.153: When an XRDY/XDR is hit, wait for XUDF before writing
+ * data to DATA_REG. Otherwise some data bytes can be lost while transferring
+ * them from the memory to the I2C interface.
+ */
+static int errata_omap3_1p153(struct omap_i2c_dev *dev, u16 *stat, int *err)
+{
+	while (!(*stat & OMAP_I2C_STAT_XUDF)) {
+		if (*stat & (OMAP_I2C_STAT_NACK | OMAP_I2C_STAT_AL)) {
+			omap_i2c_ack_stat(dev, *stat & (OMAP_I2C_STAT_XRDY |
+							OMAP_I2C_STAT_XDR));
+			*err |= OMAP_I2C_STAT_XUDF;
+			return -ETIMEDOUT;
+		}
+		cpu_relax();
+		*stat = omap_i2c_read_reg(dev, OMAP_I2C_STAT_REG);
+	}
+
+	return 0;
+}
+
 static irqreturn_t
 omap_i2c_isr(int this_irq, void *dev_id)
 {
@@ -885,25 +906,9 @@ complete:
 					break;
 				}
 
-				/*
-				 * OMAP3430 Errata 1.153: When an XRDY/XDR
-				 * is hit, wait for XUDF before writing data
-				 * to DATA_REG. Otherwise some data bytes can
-				 * be lost while transferring them from the
-				 * memory to the I2C interface.
-				 */
-
-				if (dev->rev <= OMAP_I2C_REV_ON_3430) {
-						while (!(stat & OMAP_I2C_STAT_XUDF)) {
-							if (stat & (OMAP_I2C_STAT_NACK | OMAP_I2C_STAT_AL)) {
-								omap_i2c_ack_stat(dev, stat & (OMAP_I2C_STAT_XRDY | OMAP_I2C_STAT_XDR));
-								err |= OMAP_I2C_STAT_XUDF;
-								goto complete;
-							}
-							cpu_relax();
-							stat = omap_i2c_read_reg(dev, OMAP_I2C_STAT_REG);
-						}
-				}
+				if ((dev->rev <= OMAP_I2C_REV_ON_3430) &&
+				    errata_omap3_1p153(dev, &stat, &err))
+					goto complete;
 
 				omap_i2c_write_reg(dev, OMAP_I2C_DATA_REG, w);
 			}
