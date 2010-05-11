@@ -5747,7 +5747,7 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
              goto out;
 	}
 
-     ipw = (struct ieee_param *)kmalloc(p->length, GFP_KERNEL);
+     ipw = kmalloc(p->length, GFP_KERNEL);
      if (ipw == NULL){
              ret = -ENOMEM;
              goto out;

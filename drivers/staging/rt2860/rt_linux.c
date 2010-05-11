@@ -154,7 +154,7 @@ void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time)
 /* pAd MUST allow to be NULL */
 int os_alloc_mem(struct rt_rtmp_adapter *pAd, u8 ** mem, unsigned long size)
 {
-	*mem = (u8 *)kmalloc(size, GFP_ATOMIC);
+	*mem = kmalloc(size, GFP_ATOMIC);
 	if (*mem)
 		return NDIS_STATUS_SUCCESS;
 	else

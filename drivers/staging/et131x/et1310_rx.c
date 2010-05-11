@@ -547,7 +547,7 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 
 	/* Setup each RFD */
 	for (rfdct = 0; rfdct < rx_ring->NumRfd; rfdct++) {
-		rfd = (MP_RFD *) kmem_cache_alloc(rx_ring->RecvLookaside,
+		rfd = kmem_cache_alloc(rx_ring->RecvLookaside,
 						     GFP_ATOMIC | GFP_DMA);
 
 		if (!rfd) {

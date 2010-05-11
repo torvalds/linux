@@ -941,8 +941,7 @@ int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 	dev = list->parent->parent->parent;
 
 	/* XXX descriptor must be aligned on 64-bit boundaries */
-	entry = (struct ca91cx42_dma_entry *)
-		kmalloc(sizeof(struct ca91cx42_dma_entry), GFP_KERNEL);
+	entry = kmalloc(sizeof(struct ca91cx42_dma_entry), GFP_KERNEL);
 	if (entry == NULL) {
 		dev_err(dev, "Failed to allocate memory for dma resource "
 			"structure\n");

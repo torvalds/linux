@@ -161,7 +161,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	ieee80211_softmac_init(ieee);
 
-	ieee->pHTInfo = (RT_HIGH_THROUGHPUT*)kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
+	ieee->pHTInfo = kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
 	if (ieee->pHTInfo == NULL)
 	{
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for HTInfo\n");

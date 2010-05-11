@@ -3025,7 +3025,7 @@ int Config_FileOperation(PSDevice pDevice,BOOL fwrite,unsigned char *Parameter) 
 	  goto error1;
      	}
 
-buffer = (UCHAR *)kmalloc(1024, GFP_KERNEL);
+buffer = kmalloc(1024, GFP_KERNEL);
 if(buffer==NULL) {
   printk("alllocate mem for file fail?\n");
   result = -1;

@@ -887,7 +887,7 @@ int crystalhd_create_dio_pool(struct crystalhd_adp *adp, uint32_t max_pages)
 	       BC_LINK_SG_POOL_SZ, max_pages, asz, adp->fill_byte_pool);
 
 	for (i = 0; i < BC_LINK_SG_POOL_SZ; i++) {
-		temp = (uint8_t *)kzalloc(asz, GFP_KERNEL);
+		temp = kzalloc(asz, GFP_KERNEL);
 		if ((temp) == NULL) {
 			BCMLOG_ERR("Failed to alloc %d mem\n", asz);
 			return -ENOMEM;

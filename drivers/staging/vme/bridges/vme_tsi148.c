@@ -2309,7 +2309,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err_chk) {
 		master_num--;
 
-		tsi148_device->flush_image = (struct vme_master_resource *)
+		tsi148_device->flush_image =
 			kmalloc(sizeof(struct vme_master_resource), GFP_KERNEL);
 		if (tsi148_device->flush_image == NULL) {
 			dev_err(&pdev->dev, "Failed to allocate memory for "

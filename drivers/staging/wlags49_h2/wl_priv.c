@@ -618,7 +618,7 @@ int wvlan_uil_put_info( struct uilreq *urq, struct wl_private *lp )
 				   LTV record, try to allocate it from the kernel stack.
 				   Otherwise, we just use our local LTV record. */
 				if( urq->len > sizeof( lp->ltvRecord )) {
-					pLtv = (ltv_t *)kmalloc( urq->len, GFP_KERNEL );
+					pLtv = kmalloc(urq->len, GFP_KERNEL);
 					if (pLtv != NULL) {
 						ltvAllocated = TRUE;
 					} else {
@@ -1298,7 +1298,7 @@ int wvlan_uil_get_info( struct uilreq *urq, struct wl_private *lp )
 				   LTV record, try to allocate it from the kernel stack.
 				   Otherwise, we just use our local LTV record. */
 				if( urq->len > sizeof( lp->ltvRecord )) {
-					pLtv = (ltv_t *)kmalloc( urq->len, GFP_KERNEL );
+					pLtv = kmalloc(urq->len, GFP_KERNEL);
 					if (pLtv != NULL) {
 						ltvAllocated = TRUE;
 

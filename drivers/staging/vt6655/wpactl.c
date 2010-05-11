@@ -905,7 +905,7 @@ int wpa_ioctl(PSDevice pDevice, struct iw_point *p)
 	    p->length > VIAWGET_WPA_MAX_BUF_SIZE || !p->pointer)
 		return -EINVAL;
 
-	param = (struct viawget_wpa_param *) kmalloc((int)p->length, (int)GFP_KERNEL);
+	param = kmalloc((int)p->length, (int)GFP_KERNEL);
 	if (param == NULL)
 		return -ENOMEM;
 

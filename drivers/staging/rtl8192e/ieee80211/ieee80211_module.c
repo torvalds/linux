@@ -170,7 +170,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee80211_softmac_init(ieee);
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13))
-	ieee->pHTInfo = (RT_HIGH_THROUGHPUT*)kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
+	ieee->pHTInfo = kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
 #else
 	ieee->pHTInfo = (RT_HIGH_THROUGHPUT*)kmalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
 	memset(ieee->pHTInfo,0,sizeof(RT_HIGH_THROUGHPUT));
