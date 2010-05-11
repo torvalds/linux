@@ -1418,18 +1418,90 @@ out:
 	return ret;
 }
 
+static int ocfs2_find_rec(struct ocfs2_extent_list *el, u32 pos)
+{
+	int i;
+	struct ocfs2_extent_rec *rec = NULL;
+
+	for (i = le16_to_cpu(el->l_next_free_rec) - 1; i >= 0; i--) {
+
+		rec = &el->l_recs[i];
+
+		if (le32_to_cpu(rec->e_cpos) < pos)
+			break;
+	}
+
+	return i;
+}
+
+/*
+ * Helper to calculate the punching pos and length in one run, we handle the
+ * following three cases in order:
+ *
+ * - remove the entire record
+ * - remove a partial record
+ * - no record needs to be removed (hole-punching completed)
+*/
+static void ocfs2_calc_trunc_pos(struct inode *inode,
+				 struct ocfs2_extent_list *el,
+				 struct ocfs2_extent_rec *rec,
+				 u32 trunc_start, u32 *trunc_cpos,
+				 u32 *trunc_len, u32 *trunc_end,
+				 u64 *blkno, int *done)
+{
+	int ret = 0;
+	u32 coff, range;
+
+	range = le32_to_cpu(rec->e_cpos) + ocfs2_rec_clusters(el, rec);
+
+	if (le32_to_cpu(rec->e_cpos) >= trunc_start) {
+		*trunc_cpos = le32_to_cpu(rec->e_cpos);
+		/*
+		 * Skip holes if any.
+		 */
+		if (range < *trunc_end)
+			*trunc_end = range;
+		*trunc_len = *trunc_end - le32_to_cpu(rec->e_cpos);
+		*blkno = le64_to_cpu(rec->e_blkno);
+		*trunc_end = le32_to_cpu(rec->e_cpos);
+	} else if (range > trunc_start) {
+		*trunc_cpos = trunc_start;
+		*trunc_len = *trunc_end - trunc_start;
+		coff = trunc_start - le32_to_cpu(rec->e_cpos);
+		*blkno = le64_to_cpu(rec->e_blkno) +
+				ocfs2_clusters_to_blocks(inode->i_sb, coff);
+		*trunc_end = trunc_start;
+	} else {
+		/*
+		 * It may have two following possibilities:
+		 *
+		 * - last record has been removed
+		 * - trunc_start was within a hole
+		 *
+		 * both two cases mean the completion of hole punching.
+		 */
+		ret = 1;
+	}
+
+	*done = ret;
+}
+
 static int ocfs2_remove_inode_range(struct inode *inode,
 				    struct buffer_head *di_bh, u64 byte_start,
 				    u64 byte_len)
 {
-	int ret = 0, flags = 0;
-	u32 trunc_start, trunc_len, cpos, phys_cpos, alloc_size;
+	int ret = 0, flags = 0, done = 0, i;
+	u32 trunc_start, trunc_len, trunc_end, trunc_cpos, phys_cpos;
+	u32 cluster_in_el;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_cached_dealloc_ctxt dealloc;
 	struct address_space *mapping = inode->i_mapping;
 	struct ocfs2_extent_tree et;
+	struct ocfs2_path *path = NULL;
+	struct ocfs2_extent_list *el = NULL;
+	struct ocfs2_extent_rec *rec = NULL;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
-	u64 refcount_loc = le64_to_cpu(di->i_refcount_loc);
+	u64 blkno, refcount_loc = le64_to_cpu(di->i_refcount_loc);
 
 	ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode), di_bh);
 	ocfs2_init_dealloc_ctxt(&dealloc);
@@ -1477,16 +1549,13 @@ static int ocfs2_remove_inode_range(struct inode *inode,
 	}
 
 	trunc_start = ocfs2_clusters_for_bytes(osb->sb, byte_start);
-	trunc_len = (byte_start + byte_len) >> osb->s_clustersize_bits;
-	if (trunc_len >= trunc_start)
-		trunc_len -= trunc_start;
-	else
-		trunc_len = 0;
+	trunc_end = (byte_start + byte_len) >> osb->s_clustersize_bits;
+	cluster_in_el = trunc_end;
 
-	mlog(0, "Inode: %llu, start: %llu, len: %llu, cstart: %u, clen: %u\n",
+	mlog(0, "Inode: %llu, start: %llu, len: %llu, cstart: %u, cend: %u\n",
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     (unsigned long long)byte_start,
-	     (unsigned long long)byte_len, trunc_start, trunc_len);
+	     (unsigned long long)byte_len, trunc_start, trunc_end);
 
 	ret = ocfs2_zero_partial_clusters(inode, byte_start, byte_len);
 	if (ret) {
@@ -1494,32 +1563,79 @@ static int ocfs2_remove_inode_range(struct inode *inode,
 		goto out;
 	}
 
-	cpos = trunc_start;
-	while (trunc_len) {
-		ret = ocfs2_get_clusters(inode, cpos, &phys_cpos,
-					 &alloc_size, &flags);
+	path = ocfs2_new_path_from_et(&et);
+	if (!path) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	while (trunc_end > trunc_start) {
+
+		ret = ocfs2_find_path(INODE_CACHE(inode), path,
+				      cluster_in_el);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
 
-		if (alloc_size > trunc_len)
-			alloc_size = trunc_len;
+		el = path_leaf_el(path);
 
-		/* Only do work for non-holes */
-		if (phys_cpos != 0) {
-			ret = ocfs2_remove_btree_range(inode, &et, cpos,
-						       phys_cpos, alloc_size,
-						       flags, &dealloc,
-						       refcount_loc);
+		i = ocfs2_find_rec(el, trunc_end);
+		/*
+		 * Need to go to previous extent block.
+		 */
+		if (i < 0) {
+			if (path->p_tree_depth == 0)
+				break;
+
+			ret = ocfs2_find_cpos_for_left_leaf(inode->i_sb,
+							    path,
+							    &cluster_in_el);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
 			}
+
+			/*
+			 * We've reached the leftmost extent block,
+			 * it's safe to leave.
+			 */
+			if (cluster_in_el == 0)
+				break;
+
+			/*
+			 * The 'pos' searched for previous extent block is
+			 * always one cluster less than actual trunc_end.
+			 */
+			trunc_end = cluster_in_el + 1;
+
+			ocfs2_reinit_path(path, 1);
+
+			continue;
+
+		} else
+			rec = &el->l_recs[i];
+
+		ocfs2_calc_trunc_pos(inode, el, rec, trunc_start, &trunc_cpos,
+				     &trunc_len, &trunc_end, &blkno, &done);
+		if (done)
+			break;
+
+		flags = rec->e_flags;
+		phys_cpos = ocfs2_blocks_to_clusters(inode->i_sb, blkno);
+
+		ret = ocfs2_remove_btree_range(inode, &et, trunc_cpos,
+					       phys_cpos, trunc_len, flags,
+					       &dealloc, refcount_loc);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
 		}
 
-		cpos += alloc_size;
-		trunc_len -= alloc_size;
+		cluster_in_el = trunc_end;
+
+		ocfs2_reinit_path(path, 1);
 	}
 
 	ocfs2_truncate_cluster_pages(inode, byte_start, byte_len);
