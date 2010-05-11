@@ -308,8 +308,6 @@ list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 static void
 list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 {
-	struct perf_event *sibling, *tmp;
-
 	if (list_empty(&event->group_entry))
 		return;
 	ctx->nr_events--;
@@ -333,6 +331,12 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 	 */
 	if (event->state > PERF_EVENT_STATE_OFF)
 		event->state = PERF_EVENT_STATE_OFF;
+}
+
+static void
+perf_destroy_group(struct perf_event *event, struct perf_event_context *ctx)
+{
+	struct perf_event *sibling, *tmp;
 
 	/*
 	 * If this was a group event with sibling events then
@@ -1868,6 +1872,12 @@ int perf_event_release_kernel(struct perf_event *event)
 {
 	struct perf_event_context *ctx = event->ctx;
 
+	/*
+	 * Remove from the PMU, can't get re-enabled since we got
+	 * here because the last ref went.
+	 */
+	perf_event_disable(event);
+
 	WARN_ON_ONCE(ctx->parent_ctx);
 	/*
 	 * There are two ways this annotation is useful:
@@ -1882,7 +1892,10 @@ int perf_event_release_kernel(struct perf_event *event)
 	 *     to trigger the AB-BA case.
 	 */
 	mutex_lock_nested(&ctx->mutex, SINGLE_DEPTH_NESTING);
-	perf_event_remove_from_context(event);
+	raw_spin_lock_irq(&ctx->lock);
+	list_del_event(event, ctx);
+	perf_destroy_group(event, ctx);
+	raw_spin_unlock_irq(&ctx->lock);
 	mutex_unlock(&ctx->mutex);
 
 	mutex_lock(&event->owner->perf_event_mutex);
