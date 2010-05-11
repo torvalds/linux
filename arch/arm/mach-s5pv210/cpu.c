@@ -100,7 +100,7 @@ void __init s5pv210_init_irq(void)
 	s5p_init_irq(vic, ARRAY_SIZE(vic));
 }
 
-static struct sysdev_class s5pv210_sysclass = {
+struct sysdev_class s5pv210_sysclass = {
 	.name	= "s5pv210-core",
 };
 
