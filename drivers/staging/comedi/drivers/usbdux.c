@@ -793,7 +793,7 @@ static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 }
 
 static int usbduxsub_upload(struct usbduxsub *usbduxsub,
-			    uint8_t * local_transfer_buffer,
+			    uint8_t *local_transfer_buffer,
 			    unsigned int startAddr, unsigned int len)
 {
 	int errcode;
@@ -825,7 +825,7 @@ static int usbduxsub_upload(struct usbduxsub *usbduxsub,
 #define FIRMWARE_MAX_LEN 0x2000
 
 static int firmwareUpload(struct usbduxsub *usbduxsub,
-			  const u8 * firmwareBinary, int sizeFirmware)
+			  const u8 *firmwareBinary, int sizeFirmware)
 {
 	int ret;
 	uint8_t *fwBuf;
@@ -835,7 +835,7 @@ static int firmwareUpload(struct usbduxsub *usbduxsub,
 
 	if (sizeFirmware > FIRMWARE_MAX_LEN) {
 		dev_err(&usbduxsub->interface->dev,
-			"comedi_: usbdux firmware binary it too large for FX2.\n");
+			"usbdux firmware binary it too large for FX2.\n");
 		return -ENOMEM;
 	}
 
@@ -1264,8 +1264,8 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			    (this_usbduxsub->ai_interval) * 2;
 		}
 		this_usbduxsub->ai_timer = cmd->scan_begin_arg / (125000 *
-								  (this_usbduxsub->
-								   ai_interval));
+							  (this_usbduxsub->
+							   ai_interval));
 	} else {
 		/* interval always 1ms */
 		this_usbduxsub->ai_interval = 1;
