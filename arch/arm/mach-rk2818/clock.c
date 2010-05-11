@@ -25,77 +25,7 @@
 #include <linux/version.h>
 #include <asm/clkdev.h>
 #include <mach/rk2818_iomap.h>
-
-enum 
-{
-	/* SCU CLK GATE 0 CON */
-	SCU_IPID_ARM = 0,
-	SCU_IPID_DSP,
-	SCU_IPID_DMA,
-	SCU_IPID_SRAMARM,
-	SCU_IPID_SRAMDSP,
-	SCU_IPID_HIF,
-	SCU_IPID_OTGBUS,
-	SCU_IPID_OTGPHY,
-	SCU_IPID_NANDC,
-	SCU_IPID_INTC,
-	SCU_IPID_DEBLK,     /* 10 */
-	SCU_IPID_LCDC,
-	SCU_IPID_VIP,       /* as sensor */
-	SCU_IPID_I2S,
-	SCU_IPID_SDMMC0,    /* 14 */
-	SCU_IPID_EBROM,
-	SCU_IPID_GPIO0,
-	SCU_IPID_GPIO1,
-	SCU_IPID_UART0,
-	SCU_IPID_UART1,
-	SCU_IPID_I2C0,      /* 20 */
-	SCU_IPID_I2C1,
-	SCU_IPID_SPI0,
-	SCU_IPID_SPI1,
-	SCU_IPID_PWM,
-	SCU_IPID_TIMER,
-	SCU_IPID_WDT,
-	SCU_IPID_RTC,
-	SCU_IPID_LSADC,
-	SCU_IPID_UART2,
-	SCU_IPID_UART3,		/* 30 */
-	SCU_IPID_SDMMC1,
-
-	/* SCU CLK GATE 1 CON */
-	SCU_IPID_HSADC = 32,
-	SCU_IPID_MOBILE_SDARM_COMMON = 47,
-	SCU_IPID_SDRAM_CONTROLLER,
-	SCU_IPID_MOBILE_SDRAM_CONTROLLER,
-	SCU_IPID_LCDC_SHARE_MEMORY,	/* 50 */
-	SCU_IPID_LCDC_HCLK,
-	SCU_IPID_DEBLK_H264,
-	SCU_IPID_GPU,
-	SCU_IPID_DDR_HCLK,
-	SCU_IPID_DDR,
-	SCU_IPID_CUSTOMIZED_SDRAM_CONTROLLER,
-	SCU_IPID_MCDMA,
-	SCU_IPID_SDRAM,
-	SCU_IPID_DDR_AXI,
-	SCU_IPID_DSP_TIMER,	/* 60 */
-	SCU_IPID_DSP_SLAVE,
-	SCU_IPID_DSP_MASTER,
-	SCU_IPID_USB_HOST,
-
-	/* SCU CLK GATE 2 CON */
-	SCU_IPID_ARMIBUS = 64,
-	SCU_IPID_ARMDBUS,
-	SCU_IPID_DSPBUS,
-	SCU_IPID_EXPBUS,
-	SCU_IPID_APBBUS,
-	SCU_IPID_EFUSE,
-	SCU_IPID_DTCM1,		/* 70 */
-	SCU_IPID_DTCM0,
-	SCU_IPID_ITCM,
-	SCU_IPID_VIDEOBUS,
-
-	SCU_IPID_GATE_MAX,
-};
+#include <mach/scu.h>
 
 static struct rockchip_scu_reg_hw
 {
@@ -113,9 +43,9 @@ static struct rockchip_scu_reg_hw
 	u32 scu_clksel2_config;
 } *scu_register_base = (struct rockchip_scu_reg_hw *)(RK2818_SCU_BASE);
 
-#define CLKSEL0_REG	(u32 __iomem *)(RK2818_SCU_BASE + 0x14)
-#define CLKSEL1_REG	(u32 __iomem *)(RK2818_SCU_BASE + 0x18)
-#define CLKSEL2_REG	(u32 __iomem *)(RK2818_SCU_BASE + 0x34)
+#define CLKSEL0_REG	(u32 __iomem *)SCU_CLKSEL0_CON
+#define CLKSEL1_REG	(u32 __iomem *)SCU_CLKSEL1_CON
+#define CLKSEL2_REG	(u32 __iomem *)SCU_CLKSEL2_CON
 
 /* SCU PLL CON */
 #define PLL_TEST	(0x01u<<25)
@@ -218,9 +148,6 @@ struct clk {
 	u32			clksel_mask;
 	u8			clksel_shift;
 	u8			clksel_maxdiv;
-#if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
-	struct dentry		*dent;	/* For visible tree hierarchy */
-#endif
 };
 
 static void __clk_disable(struct clk *clk);
@@ -722,7 +649,7 @@ static int gate_mode(struct clk *clk, int on)
 	int idx = clk->gate_idx;
 	u32 v;
 
-	if (idx >= SCU_IPID_GATE_MAX)
+	if (idx >= CLK_GATE_MAX)
 		return -EINVAL;
 
 	reg = &scu_register_base->scu_clkgate0_config;
@@ -770,7 +697,7 @@ static struct clk uart##n##_clk = { \
 	.recalc		= followparent_recalc, \
 	.get_parent	= uart_clk_get_parent, \
 	.set_parent	= uart_clk_set_parent, \
-	.gate_idx	= SCU_IPID_UART##n, \
+	.gate_idx	= CLK_GATE_UART##n, \
 }
 
 #define GATE_CLK(NAME,PARENT,ID) \
@@ -779,7 +706,7 @@ static struct clk NAME##_clk = { \
 	.parent		= &PARENT, \
 	.mode		= gate_mode, \
 	.recalc		= followparent_recalc, \
-	.gate_idx	= SCU_IPID_##ID, \
+	.gate_idx	= CLK_GATE_##ID, \
 }
 
 GATE_CLK(arm_core, arm_clk, ARM);
@@ -796,7 +723,7 @@ static struct clk otgphy_clk = {
 	.recalc		= followparent_recalc,
 	.get_parent	= otgphy_clk_get_parent,
 	.set_parent	= otgphy_clk_set_parent,
-	.gate_idx	= SCU_IPID_OTGPHY,
+	.gate_idx	= CLK_GATE_OTGPHY,
 };
 GATE_CLK(nandc, arm_hclk, NANDC);
 GATE_CLK(intc, arm_hclk, INTC);
@@ -808,7 +735,7 @@ static struct clk lcdc_clk = {
 	.recalc		= followparent_recalc,
 	.get_parent	= lcdc_clk_get_parent,
 	.set_parent	= lcdc_clk_set_parent,
-	.gate_idx	= SCU_IPID_LCDC,
+	.gate_idx	= CLK_GATE_LCDC,
 };
 static struct clk vip_clk = {
 	.name		= "vip",
@@ -817,7 +744,7 @@ static struct clk vip_clk = {
 	.recalc		= followparent_recalc,
 	.get_parent	= vip_clk_get_parent,
 	.set_parent	= vip_clk_set_parent,
-	.gate_idx	= SCU_IPID_VIP,
+	.gate_idx	= CLK_GATE_VIP,
 };
 static struct clk i2s_clk = {
 	.name		= "i2s",
@@ -826,7 +753,7 @@ static struct clk i2s_clk = {
 	.recalc		= followparent_recalc,
 	.get_parent	= i2s_clk_get_parent,
 	.set_parent	= i2s_clk_set_parent,
-	.gate_idx	= SCU_IPID_I2S,
+	.gate_idx	= CLK_GATE_I2S,
 };
 static struct clk sdmmc0_clk = {
 	.name		= "sdmmc0",
@@ -834,7 +761,7 @@ static struct clk sdmmc0_clk = {
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
-	.gate_idx	= SCU_IPID_SDMMC0,
+	.gate_idx	= CLK_GATE_SDMMC0,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 7 << 4,
 	.clksel_shift	= 4,
@@ -860,7 +787,7 @@ static struct clk lsadc_clk = {
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
-	.gate_idx	= SCU_IPID_LSADC,
+	.gate_idx	= CLK_GATE_LSADC,
 	.clksel_reg	= CLKSEL1_REG,
 	.clksel_mask	= 0xFF << 8,
 	.clksel_shift	= 8,
@@ -874,7 +801,7 @@ static struct clk sdmmc1_clk = {
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc,
 	.set_rate	= clksel_set_rate,
-	.gate_idx	= SCU_IPID_SDMMC1,
+	.gate_idx	= CLK_GATE_SDMMC1,
 	.clksel_reg	= CLKSEL2_REG,
 	.clksel_mask	= 7 << 8,
 	.clksel_shift	= 8,
@@ -891,9 +818,9 @@ static struct clk hsadc_clk = {
 	.parent		= &demod_clk,
 	.mode		= gate_mode,
 	.recalc		= hsadc_clk_recalc,
-	.gate_idx	= SCU_IPID_HSADC,
+	.gate_idx	= CLK_GATE_HSADC,
 };
-GATE_CLK(mobile_sdram_common, arm_hclk, MOBILE_SDARM_COMMON);
+GATE_CLK(sdram_common, arm_hclk, SDRAM_COMMON);
 GATE_CLK(sdram_controller, arm_hclk, SDRAM_CONTROLLER);
 GATE_CLK(mobile_sdram_controller, arm_hclk, MOBILE_SDRAM_CONTROLLER);
 GATE_CLK(lcdc_share_memory, arm_hclk, LCDC_SHARE_MEMORY);
@@ -909,7 +836,7 @@ static struct clk ddr_clk = {
 	.set_rate	= clksel_set_rate_shift,
 	.get_parent	= ddr_clk_get_parent,
 	.set_parent	= ddr_clk_set_parent,
-	.gate_idx	= SCU_IPID_DDR,
+	.gate_idx	= CLK_GATE_DDR,
 	.clksel_reg	= CLKSEL0_REG,
 	.clksel_mask	= 0x3 << 30,
 	.clksel_shift	= 30,
@@ -1000,7 +927,7 @@ static struct clk_lookup clks[] = {
 	CLK1(sdmmc1),
 
 	CLK1(hsadc),
-	CLK1(mobile_sdram_common),
+	CLK1(sdram_common),
 	CLK1(sdram_controller),
 	CLK1(mobile_sdram_controller),
 	CLK1(lcdc_share_memory),
@@ -1407,7 +1334,7 @@ static void dump_clock(struct seq_file *s, struct clk *clk, int deep)
 
 	seq_printf(s, "%-9s ", clk->name);
 
-	if (clk->gate_idx < SCU_IPID_GATE_MAX) {
+	if (clk->gate_idx < CLK_GATE_MAX) {
 		u32 *reg;
 		int idx = clk->gate_idx;
 		u32 v;
