@@ -468,9 +468,10 @@ static int ocfs2_global_qinit_alloc(struct super_block *sb, int type)
 
 static int ocfs2_calc_global_qinit_credits(struct super_block *sb, int type)
 {
-	/* We modify all the allocated blocks, tree root, and info block */
+	/* We modify all the allocated blocks, tree root, info block and
+	 * the inode */
 	return (ocfs2_global_qinit_alloc(sb, type) + 2) *
-			OCFS2_QUOTA_BLOCK_UPDATE_CREDITS;
+			OCFS2_QUOTA_BLOCK_UPDATE_CREDITS + 1;
 }
 
 /* Sync local information about quota modifications with global quota file.
