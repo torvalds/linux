@@ -42,6 +42,7 @@
 
 #include "board.h"
 #include "board-olympus.h"
+#include "clock.h"
 #include "gpio-names.h"
 #include "devices.h"
 
@@ -78,7 +79,7 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
-		.uartclk	= 26000000/16 * 16,
+		.uartclk	= 0, /* filled in by tegra_olympus_init */
 	}, {
 		.flags		= 0
 	}
@@ -218,6 +219,12 @@ static struct tegra_sdhci_platform_data olympus_sdhci_platform_data4 = {
 	.power_gpio = TEGRA_GPIO_PI6,
 };
 
+static __initdata struct tegra_clk_init_table olympus_clk_init_table[] = {
+	/* name		parent		rate		enabled */
+	{ "uartb",	"clk_m",	26000000,	true},
+	{ NULL,		NULL,		0,		0},
+};
+
 
 static void olympus_sdhci_init(void)
 {
@@ -247,7 +254,6 @@ static void __init tegra_olympus_fixup(struct machine_desc *desc, struct tag *ta
 static void __init tegra_olympus_init(void)
 {
 	struct clk *clk;
-	struct clk *sys_clk;
 
 	tegra_common_init();
 
@@ -259,43 +265,14 @@ static void __init tegra_olympus_init(void)
 	gpio_request(TEGRA_GPIO_PV6, "usb_data_en");
 	gpio_direction_output(TEGRA_GPIO_PV6, 1);
 
-	clk = clk_get_sys(NULL, "pll_p");
-	clk_set_rate(clk, 216000000);
-	clk_enable(clk);
-	clk_put(clk);
-
-	clk = clk_get_sys(NULL, "pll_p_out1");
-	clk_set_rate(clk, 28800000);
-	clk_enable(clk);
-	clk_put(clk);
-
-	clk = clk_get_sys(NULL, "pll_p_out2");
-	clk_set_rate(clk, 48000000);
-	clk_enable(clk);
-	clk_put(clk);
-
-	clk = clk_get_sys(NULL, "pll_p_out3");
-	clk_set_rate(clk, 72000000);
-	clk_enable(clk);
-	clk_put(clk);
-
-	sys_clk = clk_get_sys(NULL, "sys");
-
-	clk = clk_get_sys(NULL, "clk_m");
-	clk_set_parent(sys_clk, clk);
-	clk_put(clk);
-
-	clk = clk_get_sys(NULL, "pll_p_out4");
-	clk_set_rate(clk, 108000000);
-	clk_enable(clk);
-	clk_set_parent(sys_clk, clk);
-
-	clk_put(clk);
-	clk_put(sys_clk);
-
 	olympus_pinmux_init();
 
 	olympus_sdhci_init();
+
+	tegra_clk_init_from_table(olympus_clk_init_table);
+
+	clk = tegra_get_clock_by_name("uartb");
+	debug_uart_platform_data[0].uartclk = clk_get_rate(clk);
 
 	platform_add_devices(olympus_devices, ARRAY_SIZE(olympus_devices));
 }
