@@ -62,4 +62,8 @@ config XEN_SYS_HYPERVISOR
 	 virtual environment, /sys/hypervisor will still be present,
 	 but will have no xen contents.
 
+config SWIOTLB_XEN
+	def_bool y
+	depends on SWIOTLB
+
 endmenu
