@@ -255,6 +255,18 @@ static void update_event_times(struct perf_event *event)
 	event->total_time_running = run_end - event->tstamp_running;
 }
 
+/*
+ * Update total_time_enabled and total_time_running for all events in a group.
+ */
+static void update_group_times(struct perf_event *leader)
+{
+	struct perf_event *event;
+
+	update_event_times(leader);
+	list_for_each_entry(event, &leader->sibling_list, group_entry)
+		update_event_times(event);
+}
+
 static struct list_head *
 ctx_group_list(struct perf_event *event, struct perf_event_context *ctx)
 {
@@ -320,7 +332,7 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 	if (event->group_leader != event)
 		event->group_leader->nr_siblings--;
 
-	update_event_times(event);
+	update_group_times(event);
 
 	/*
 	 * If event was in error state, then keep it
@@ -499,18 +511,6 @@ retry:
 	if (!list_empty(&event->group_entry))
 		list_del_event(event, ctx);
 	raw_spin_unlock_irq(&ctx->lock);
-}
-
-/*
- * Update total_time_enabled and total_time_running for all events in a group.
- */
-static void update_group_times(struct perf_event *leader)
-{
-	struct perf_event *event;
-
-	update_event_times(leader);
-	list_for_each_entry(event, &leader->sibling_list, group_entry)
-		update_event_times(event);
 }
 
 /*
