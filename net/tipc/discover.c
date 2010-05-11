@@ -224,7 +224,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 			memcpy(addr, &media_addr, sizeof(*addr));
 			tipc_link_reset(link);
 		}
-		link_fully_up = (link->state == WORKING_WORKING);
+		link_fully_up = link_working_working(link);
 		spin_unlock_bh(&n_ptr->lock);
 		if ((type == DSC_RESP_MSG) || link_fully_up)
 			return;

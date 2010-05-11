@@ -202,36 +202,6 @@ static unsigned int align(unsigned int i)
 	return (i + 3) & ~3u;
 }
 
-static int link_working_working(struct link *l_ptr)
-{
-	return (l_ptr->state == WORKING_WORKING);
-}
-
-static int link_working_unknown(struct link *l_ptr)
-{
-	return (l_ptr->state == WORKING_UNKNOWN);
-}
-
-static int link_reset_unknown(struct link *l_ptr)
-{
-	return (l_ptr->state == RESET_UNKNOWN);
-}
-
-static int link_reset_reset(struct link *l_ptr)
-{
-	return (l_ptr->state == RESET_RESET);
-}
-
-static int link_blocked(struct link *l_ptr)
-{
-	return (l_ptr->exp_msg_count || l_ptr->blocked);
-}
-
-static int link_congested(struct link *l_ptr)
-{
-	return (l_ptr->out_queue_size >= l_ptr->queue_limit[0]);
-}
-
 static void link_init_max_pkt(struct link *l_ptr)
 {
 	u32 max_pkt;
