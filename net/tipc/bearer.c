@@ -467,6 +467,18 @@ int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr)
 	return res;
 }
 
+/**
+ * tipc_bearer_congested - determines if bearer is currently congested
+ */
+
+int tipc_bearer_congested(struct bearer *b_ptr, struct link *l_ptr)
+{
+	if (unlikely(b_ptr->publ.blocked))
+		return 1;
+	if (likely(list_empty(&b_ptr->cong_links)))
+		return 0;
+	return !tipc_bearer_resolve_congestion(b_ptr, l_ptr);
+}
 
 /**
  * tipc_enable_bearer - enable bearer with the given name
