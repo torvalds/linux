@@ -779,16 +779,18 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	struct ceph_osd_request *req;
 	u64 tid;
 	int numops, object_len, flags;
+	s32 result;
 
 	tid = le64_to_cpu(msg->hdr.tid);
 	if (msg->front.iov_len < sizeof(*rhead))
 		goto bad;
 	numops = le32_to_cpu(rhead->num_ops);
 	object_len = le32_to_cpu(rhead->object_len);
+	result = le32_to_cpu(rhead->result);
 	if (msg->front.iov_len != sizeof(*rhead) + object_len +
 	    numops * sizeof(struct ceph_osd_op))
 		goto bad;
-	dout("handle_reply %p tid %llu\n", msg, tid);
+	dout("handle_reply %p tid %llu result %d\n", msg, tid, (int)result);
 
 	/* lookup */
 	mutex_lock(&osdc->request_mutex);
@@ -834,7 +836,8 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	dout("handle_reply tid %llu flags %d\n", tid, flags);
 
 	/* either this is a read, or we got the safe response */
-	if ((flags & CEPH_OSD_FLAG_ONDISK) ||
+	if (result < 0 ||
+	    (flags & CEPH_OSD_FLAG_ONDISK) ||
 	    ((flags & CEPH_OSD_FLAG_WRITE) == 0))
 		__unregister_request(osdc, req);
 
