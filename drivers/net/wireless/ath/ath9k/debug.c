@@ -77,6 +77,90 @@ static const struct file_operations fops_debug = {
 
 #define DMA_BUF_LEN 1024
 
+static ssize_t read_file_tx_chainmask(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	char buf[32];
+	unsigned int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", common->tx_chainmask);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_tx_chainmask(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	unsigned long mask;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EINVAL;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &mask))
+		return -EINVAL;
+
+	common->tx_chainmask = mask;
+	sc->sc_ah->caps.tx_chainmask = mask;
+	return count;
+}
+
+static const struct file_operations fops_tx_chainmask = {
+	.read = read_file_tx_chainmask,
+	.write = write_file_tx_chainmask,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
+
+static ssize_t read_file_rx_chainmask(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	char buf[32];
+	unsigned int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", common->rx_chainmask);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_rx_chainmask(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	unsigned long mask;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EINVAL;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &mask))
+		return -EINVAL;
+
+	common->rx_chainmask = mask;
+	sc->sc_ah->caps.rx_chainmask = mask;
+	return count;
+}
+
+static const struct file_operations fops_rx_chainmask = {
+	.read = read_file_rx_chainmask,
+	.write = write_file_rx_chainmask,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
+
 static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
@@ -751,6 +835,14 @@ int ath9k_init_debug(struct ath_hw *ah)
 
 	if (!debugfs_create_file("recv", S_IRUSR, sc->debug.debugfs_phy,
 			sc, &fops_recv))
+		goto err;
+
+	if (!debugfs_create_file("rx_chainmask", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, sc, &fops_rx_chainmask))
+		goto err;
+
+	if (!debugfs_create_file("tx_chainmask", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, sc, &fops_tx_chainmask))
 		goto err;
 
 	return 0;
