@@ -1452,6 +1452,8 @@ static void ath9k_htc_sta_notify(struct ieee80211_hw *hw,
 	struct ath9k_htc_priv *priv = hw->priv;
 	int ret;
 
+	mutex_lock(&priv->mutex);
+
 	switch (cmd) {
 	case STA_NOTIFY_ADD:
 		ret = ath9k_htc_add_station(priv, vif, sta);
@@ -1464,6 +1466,8 @@ static void ath9k_htc_sta_notify(struct ieee80211_hw *hw,
 	default:
 		break;
 	}
+
+	mutex_unlock(&priv->mutex);
 }
 
 static int ath9k_htc_conf_tx(struct ieee80211_hw *hw, u16 queue,
