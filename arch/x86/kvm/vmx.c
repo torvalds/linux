@@ -63,6 +63,9 @@ module_param_named(unrestricted_guest,
 static int __read_mostly emulate_invalid_guest_state = 0;
 module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 
+static int __read_mostly vmm_exclusive = 1;
+module_param(vmm_exclusive, bool, S_IRUGO);
+
 #define KVM_GUEST_CR0_MASK_UNRESTRICTED_GUEST				\
 	(X86_CR0_WP | X86_CR0_NE | X86_CR0_NW | X86_CR0_CD)
 #define KVM_GUEST_CR0_MASK						\
@@ -845,7 +848,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 tsc_this, delta, new_offset;
 
-	if (vcpu->cpu != cpu)
+	if (vmm_exclusive && vcpu->cpu != cpu)
 		vcpu_clear(vmx);
 
 	if (per_cpu(current_vmcs, cpu) != vmx->vmcs) {
@@ -891,6 +894,8 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	__vmx_load_host_state(to_vmx(vcpu));
+	if (!vmm_exclusive)
+		__vcpu_clear(to_vmx(vcpu));
 }
 
 static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
