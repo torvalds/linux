@@ -33,30 +33,27 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-
 /*---------------------  Export Classes  ----------------------------*/
 
-// Init card type
+/* init card type */
 
 typedef enum _CARD_PHY_TYPE {
-
-    PHY_TYPE_AUTO=0,
+    PHY_TYPE_AUTO = 0,
     PHY_TYPE_11B,
     PHY_TYPE_11G,
     PHY_TYPE_11A
 } CARD_PHY_TYPE, *PCARD_PHY_TYPE;
 
 typedef enum _CARD_OP_MODE {
-
-    OP_MODE_INFRASTRUCTURE=0,
+    OP_MODE_INFRASTRUCTURE = 0,
     OP_MODE_ADHOC,
     OP_MODE_AP,
     OP_MODE_UNKNOWN
 } CARD_OP_MODE, *PCARD_OP_MODE;
 
 #define CB_MAX_CHANNEL_24G  14
-//#define CB_MAX_CHANNEL_5G   24
-#define CB_MAX_CHANNEL_5G       42 //[20050104] add channel9(5045MHz), 41==>42
+/* #define CB_MAX_CHANNEL_5G   24 */
+#define CB_MAX_CHANNEL_5G       42 /* add channel9(5045MHz), 41==>42 */
 #define CB_MAX_CHANNEL      (CB_MAX_CHANNEL_24G+CB_MAX_CHANNEL_5G)
 
 /*---------------------  Export Variables  --------------------------*/
@@ -83,12 +80,9 @@ BOOL CARDbRadioPowerOn(void *pDeviceHandler);
 BYTE CARDbyGetPktType(void *pDeviceHandler);
 void CARDvSetBSSMode(void *pDeviceHandler);
 
-BOOL
-CARDbChannelSwitch (
-     void *pDeviceHandler,
-     BYTE             byMode,
-     BYTE             byNewChannel,
-     BYTE             byCount
-    );
+BOOL CARDbChannelSwitch(void *pDeviceHandler,
+			BYTE byMode,
+			BYTE byNewChannel,
+			BYTE byCount);
 
 #endif /* __CARD_H__ */
