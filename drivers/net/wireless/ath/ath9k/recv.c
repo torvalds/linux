@@ -150,11 +150,9 @@ static bool ath_rx_edma_buf_link(struct ath_softc *sc,
 static void ath_rx_addbuffer_edma(struct ath_softc *sc,
 				  enum ath9k_rx_qtype qtype, int size)
 {
-	struct ath_rx_edma *rx_edma;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u32 nbuf = 0;
 
-	rx_edma = &sc->rx.rx_edma[qtype];
 	if (list_empty(&sc->rx.rxbuf)) {
 		ath_print(common, ATH_DBG_QUEUE, "No free rx buf available\n");
 		return;
