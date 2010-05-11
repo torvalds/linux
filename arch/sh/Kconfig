@@ -236,6 +236,8 @@ config CPU_SHX2
 config CPU_SHX3
 	bool
 	select DMA_COHERENT
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_NUMA
 
 config ARCH_SHMOBILE
 	bool
@@ -452,18 +454,12 @@ config CPU_SUBTYPE_SH7786
 	select CPU_SH4A
 	select CPU_SHX3
 	select CPU_HAS_PTEAEX
-	select ARCH_SPARSEMEM_ENABLE
-	select SYS_SUPPORTS_NUMA
-	select SYS_SUPPORTS_SMP
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 
 config CPU_SUBTYPE_SHX3
 	bool "Support SH-X3 processor"
 	select CPU_SH4A
 	select CPU_SHX3
-	select ARCH_SPARSEMEM_ENABLE
-	select SYS_SUPPORTS_NUMA
-	select SYS_SUPPORTS_SMP
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 
 # SH4AL-DSP Processor Support
