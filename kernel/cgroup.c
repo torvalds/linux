@@ -4435,7 +4435,15 @@ __setup("cgroup_disable=", cgroup_disable);
  */
 unsigned short css_id(struct cgroup_subsys_state *css)
 {
-	struct css_id *cssid = rcu_dereference(css->id);
+	struct css_id *cssid;
+
+	/*
+	 * This css_id() can return correct value when somone has refcnt
+	 * on this or this is under rcu_read_lock(). Once css->id is allocated,
+	 * it's unchanged until freed.
+	 */
+	cssid = rcu_dereference_check(css->id,
+			rcu_read_lock_held() || atomic_read(&css->refcnt));
 
 	if (cssid)
 		return cssid->id;
@@ -4445,7 +4453,10 @@ EXPORT_SYMBOL_GPL(css_id);
 
 unsigned short css_depth(struct cgroup_subsys_state *css)
 {
-	struct css_id *cssid = rcu_dereference(css->id);
+	struct css_id *cssid;
+
+	cssid = rcu_dereference_check(css->id,
+			rcu_read_lock_held() || atomic_read(&css->refcnt));
 
 	if (cssid)
 		return cssid->depth;
